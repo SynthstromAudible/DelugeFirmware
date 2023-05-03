@@ -1,0 +1,1107 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<?fileVersion 4.0.0?><cproject storage_type_id="org.eclipse.cdt.core.XmlProjectDescriptionStorage">
+	<storageModule moduleId="org.eclipse.cdt.core.settings">
+		<cconfiguration id="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug.1445259662">
+			<storageModule buildSystemId="org.eclipse.cdt.managedbuilder.core.configurationDataProvider" id="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug.1445259662" moduleId="org.eclipse.cdt.core.settings" name="HardwareDebug_RZ_A1L">
+				<externalSettings/>
+				<extensions>
+					<extension id="org.eclipse.cdt.core.ELF" point="org.eclipse.cdt.core.BinaryParser"/>
+					<extension id="org.eclipse.cdt.core.GASErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
+					<extension id="org.eclipse.cdt.core.GmakeErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
+					<extension id="org.eclipse.cdt.core.CWDLocator" point="org.eclipse.cdt.core.ErrorParser"/>
+					<extension id="org.eclipse.cdt.core.GCCErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
+				</extensions>
+			</storageModule>
+			<storageModule moduleId="com.renesas.cdt.managedbuild.core.toolchainInfo">
+				<option id="toolchain.id" value="gcc-arm-embedded"/>
+				<option id="toolchain.version" value="9.2.1.20191025"/>
+				<option id="toolchain.enable" value="false"/>
+			</storageModule>
+			<storageModule moduleId="cdtBuildSystem" version="4.0.0">
+				<configuration artifactName="${ProjName}" buildArtefactType="org.eclipse.cdt.build.core.buildArtefactType.exe" buildProperties="org.eclipse.cdt.build.core.buildArtefactType=org.eclipse.cdt.build.core.buildArtefactType.exe,org.eclipse.cdt.build.core.buildType=org.eclipse.cdt.build.core.buildType.debug" cleanCommand="rm -rf *.lst *.lis *.lpp *.map" description="" id="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug.1445259662" name="HardwareDebug_RZ_A1L" parent="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug" postbuildStep="arm-none-eabi-objcopy -O binary &quot;Deluge.elf&quot; &quot;Deluge.bin&quot;">
+					<folderInfo id="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug.1445259662." name="/" resourcePath="">
+						<toolChain id="com.renesas.cdt.managedbuild.gcc.rz.toolchain.elf.debug.933765617" name="GCC for Renesas RZ" superClass="com.renesas.cdt.managedbuild.gcc.rz.toolchain.elf.debug">
+							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.addtools.createflash.1549925981" name="Create flash image" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.addtools.createflash" useByScannerDiscovery="false" value="true" valueType="boolean"/>
+							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.addtools.createlisting.1325946092" name="Create extended listing" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.addtools.createlisting" useByScannerDiscovery="false"/>
+							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.addtools.printsize.1422809505" name="Print size" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.addtools.printsize" useByScannerDiscovery="false" value="true" valueType="boolean"/>
+							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.optimizationLevel.1989068722" name="Optimization Level" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.optimizationLevel" useByScannerDiscovery="true" value="ilg.gnuarmeclipse.managedbuild.cross.option.optimization.level.debug" valueType="enumerated"/>
+							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.messagelenght.2106942494" name="Message length (-fmessage-length=0)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.messagelenght" useByScannerDiscovery="true" value="true" valueType="boolean"/>
+							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.signedchar.1112792784" name="'char' is signed (-fsigned-char)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.signedchar" useByScannerDiscovery="true" value="true" valueType="boolean"/>
+							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.functionsection.672693751" name="Function sections (-ffunction-sections)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.functionsection" useByScannerDiscovery="true" value="true" valueType="boolean"/>
+							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.datasections.647017895" name="Data sections (-fdata-sections)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.datasections" useByScannerDiscovery="true" value="true" valueType="boolean"/>
+							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.level.288886710" name="Debug level" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.level" useByScannerDiscovery="true" value="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.level.default" valueType="enumerated"/>
+							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.format.664011532" name="Debug format" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.format" useByScannerDiscovery="true"/>
+							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.toolchain.name.415623502" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.toolchain.name" useByScannerDiscovery="false" value="GNU Tools for ARM Embedded Processors" valueType="string"/>
+							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.architecture.1681692581" name="Architecture" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.architecture" useByScannerDiscovery="false" value="ilg.gnuarmeclipse.managedbuild.cross.option.architecture.arm" valueType="enumerated"/>
+							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.family.1294414468" name="Arm family (-mcpu)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.family" useByScannerDiscovery="false" value="ilg.gnuarmeclipse.managedbuild.cross.option.arm.target.mcpu.cortex-a9" valueType="enumerated"/>
+							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.instructionset.1366543349" name="Instruction set" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.instructionset" useByScannerDiscovery="false" value="ilg.gnuarmeclipse.managedbuild.cross.option.arm.target.instructionset.arm" valueType="enumerated"/>
+							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.command.prefix.1107074704" name="Prefix" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.command.prefix" useByScannerDiscovery="false" value="arm-none-eabi-" valueType="string"/>
+							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.command.c.1957321790" name="C compiler" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.command.c" useByScannerDiscovery="false" value="gcc" valueType="string"/>
+							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.command.cpp.786373141" name="C++ compiler" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.command.cpp" useByScannerDiscovery="false" value="g++" valueType="string"/>
+							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.command.ar.392362127" name="Archiver" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.command.ar" useByScannerDiscovery="false" value="ar" valueType="string"/>
+							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.command.objcopy.1343947023" name="Hex/Bin converter" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.command.objcopy" useByScannerDiscovery="false" value="objcopy" valueType="string"/>
+							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.command.objdump.1469136064" name="Listing generator" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.command.objdump" useByScannerDiscovery="false" value="objdump" valueType="string"/>
+							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.command.size.967781209" name="Size command" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.command.size" useByScannerDiscovery="false" value="size" valueType="string"/>
+							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.command.make.89424080" name="Build command" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.command.make" useByScannerDiscovery="false" value="make" valueType="string"/>
+							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.command.rm.1177970779" name="Remove command" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.command.rm" useByScannerDiscovery="false" value="rm" valueType="string"/>
+							<option id="com.renesas.cdt.managedbuild.gcc.rz.createlibgen.535825881" name="Create libgen" superClass="com.renesas.cdt.managedbuild.gcc.rz.createlibgen" useByScannerDiscovery="false" value="false" valueType="boolean"/>
+							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.architecture.1295439543" name="Architecture (-march)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.architecture" useByScannerDiscovery="false" value="ilg.gnuarmeclipse.managedbuild.cross.option.arm.target.arch.armv7-a" valueType="enumerated"/>
+							<option id="com.renesas.cdt.managedbuild.gcc.rz.deviceName.311049156" name="Device name" superClass="com.renesas.cdt.managedbuild.gcc.rz.deviceName" useByScannerDiscovery="false" value="R7S721020" valueType="string"/>
+							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.floatunit.715254982" name="FPU Type" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.floatunit" useByScannerDiscovery="true" value="ilg.gnuarmeclipse.managedbuild.cross.option.arm.target.fpu.unit.neon" valueType="enumerated"/>
+							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.floatabi.234972146" name="Float ABI" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.floatabi" useByScannerDiscovery="true" value="ilg.gnuarmeclipse.managedbuild.cross.option.arm.target.fpu.abi.hard" valueType="enumerated"/>
+							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.thumb.1820603237" name="Thumb interwork (-mthumb-interwork)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.thumb" useByScannerDiscovery="true" value="true" valueType="boolean"/>
+							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.endian.868525814" name="Endianness" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.endian" useByScannerDiscovery="true" value="ilg.gnuarmeclipse.managedbuild.cross.option.arm.target.endianness.little" valueType="enumerated"/>
+							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.warnStack.818087854" name="Warn if stack size exceeds the limit, in bytes (-Wstack-usage)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.warnStack" useByScannerDiscovery="false" value="100" valueType="string"/>
+							<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="true" id="com.renesas.cdt.managedbuild.gcc.rz.option.otherTarget.1768304778" name="Other target flags" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.otherTarget" useByScannerDiscovery="true" valueType="stringList"/>
+							<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="true" id="com.renesas.cdt.managedbuild.gcc.rz.option.otherOptimization.1902940070" name="Other optimization flags" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.otherOptimization" useByScannerDiscovery="true" valueType="stringList"/>
+							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.freestanding.1974536636" name="Assume freestanding environment (-ffreestanding)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.freestanding" value="false" valueType="boolean"/>
+							<targetPlatform archList="all" binaryParser="org.eclipse.cdt.core.ELF" id="ilg.gnuarmeclipse.managedbuild.cross.targetPlatform.160074105" isAbstract="false" osList="all" superClass="ilg.gnuarmeclipse.managedbuild.cross.targetPlatform"/>
+							<builder buildPath="${workspace_loc:/Test4}/HardwareDebug" enableCleanBuild="true" id="com.renesas.cdt.managedbuild.gcc.rz.builder.884834558" keepEnvironmentInBuildfile="false" managedBuildOn="true" name="GCC for Renesas Builder" parallelBuildOn="true" parallelizationNumber="optimal" superClass="com.renesas.cdt.managedbuild.gcc.rz.builder"/>
+							<tool id="com.renesas.cdt.managedbuild.gcc.rz.tool.assembler.687716366" name="Cross ARM GNU Assembler" superClass="com.renesas.cdt.managedbuild.gcc.rz.tool.assembler">
+								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.assembler.usepreprocessor.1495736348" name="Use preprocessor" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.assembler.usepreprocessor" useByScannerDiscovery="false" value="true" valueType="boolean"/>
+								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.renesas.cdt.managedbuild.gcc.rz.option.assembler.include.166744455" name="Include paths (-I)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.assembler.include" useByScannerDiscovery="true" valueType="includePath">
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/NE10/common&quot;"/>
+								</option>
+								<inputType id="ilg.gnuarmeclipse.managedbuild.cross.tool.assembler.input.326587097" superClass="ilg.gnuarmeclipse.managedbuild.cross.tool.assembler.input"/>
+							</tool>
+							<tool id="com.renesas.cdt.managedbuild.gcc.rz.tool.compiler.c.996648909" name="Cross ARM C Compiler" superClass="com.renesas.cdt.managedbuild.gcc.rz.tool.compiler.c">
+								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.renesas.cdt.managedbuild.gcc.rz.option.compiler.include.894592939" name="Include paths (-I)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.compiler.include" useByScannerDiscovery="true" valueType="includePath">
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/generate&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src&quot;"/>
+								</option>
+							</tool>
+							<tool id="com.renesas.cdt.managedbuild.gcc.rz.tool.compiler.cpp.1646852958" name="Cross ARM C++ Compiler" superClass="com.renesas.cdt.managedbuild.gcc.rz.tool.compiler.cpp">
+								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.renesas.cdt.managedbuild.gcc.rz.option.compiler.cpp.include.561397158" name="Include paths (-I)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.compiler.cpp.include" useByScannerDiscovery="true" valueType="includePath">
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/ALL_CPUS/usb/userdef&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/ALL_CPUS/usb&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/ALL_CPUS/dmac&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/ALL_CPUS/uart_all_cpus&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/ALL_CPUS/rspi_all_cpus&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/ALL_CPUS/oled_low_level_all_cpus&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/mtu&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/oled&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/spibsc&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi/src&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi/src/sd/sdio&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi/src/sd&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi/userdef&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi/src/sd/access&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi/inc&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/rspi&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi/src/sd/inc&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi/src/sd/inc/access&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_basic&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_basic/src&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_basic/src/hw/inc&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_basic/src/driver&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_basic/src/hw&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_basic/src/driver/inc&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_hmidi&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_hmidi/src/inc&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/userdef&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/intc&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/system&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/system/iobitmasks&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/system/iodefines&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/bsc&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/dma&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/gpio&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/ssi&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/uart&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/dmac&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/ssi_all_cpus&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/NE10/modules&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/NE10/inc&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/fatfs&quot;"/>
+								</option>
+								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="true" id="com.renesas.cdt.managedbuild.gcc.rz.option.compiler.cpp.otherOptimization.1576255133" name="Other optimization flags" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.compiler.cpp.otherOptimization" useByScannerDiscovery="true" valueType="stringList"/>
+								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.compiler.nortti.1205384121" name="Do not use RTTI (-fno-rtti)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.compiler.nortti" useByScannerDiscovery="true" value="true" valueType="boolean"/>
+								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.compiler.noexceptions.172560442" name="Do not use exceptions (-fno-exceptions)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.compiler.noexceptions" useByScannerDiscovery="true" value="true" valueType="boolean"/>
+								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.compiler.nothreadsafestatics.24881692" name="Do not use thread-safe statics (-fno-threadsafe-statics)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.compiler.nothreadsafestatics" useByScannerDiscovery="true" value="true" valueType="boolean"/>
+								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.compiler.nousecxaatexit.434807040" name="Do not use _cxa_atexit() (-fno-use-cxa-atexit)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.compiler.nousecxaatexit" useByScannerDiscovery="true" value="true" valueType="boolean"/>
+								<option id="com.renesas.cdt.managedbuild.gcc.rz.option.compiler.cpp.language.582801061" name="Language standard" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.compiler.cpp.language" useByScannerDiscovery="true" value="com.renesas.cdt.managedbuild.gcc.rz.option.compiler.cpp.language.default" valueType="enumerated"/>
+								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.compiler.defs.547941953" name="Defined symbols (-D)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.compiler.defs" useByScannerDiscovery="true" valueType="definedSymbols">
+									<listOptionValue builtIn="false" value="IN_HARDWARE_DEBUG=1"/>
+								</option>
+								<inputType id="ilg.gnuarmeclipse.managedbuild.cross.tool.cpp.compiler.input.231965655" superClass="ilg.gnuarmeclipse.managedbuild.cross.tool.cpp.compiler.input"/>
+								<inputType id="com.renesas.cdt.managedbuild.gcc.rz.inputType.compiler.c.393655903" superClass="com.renesas.cdt.managedbuild.gcc.rz.inputType.compiler.c"/>
+							</tool>
+							<tool id="com.renesas.cdt.managedbuild.gcc.rz.tool.linker.c.1759532122" name="Cross ARM C Linker" superClass="com.renesas.cdt.managedbuild.gcc.rz.tool.linker.c">
+								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.c.linker.gcsections.160365846" name="Remove unused sections (-Xlinker --gc-sections)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.c.linker.gcsections" useByScannerDiscovery="false" value="true" valueType="boolean"/>
+							</tool>
+							<tool id="com.renesas.cdt.managedbuild.gcc.rz.tool.linker.cpp.16054341" name="Cross ARM C++ Linker" superClass="com.renesas.cdt.managedbuild.gcc.rz.tool.linker.cpp">
+								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.linker.gcsections.1760771927" name="Remove unused sections (-Xlinker --gc-sections)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.linker.gcsections" useByScannerDiscovery="false" value="true" valueType="boolean"/>
+								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="true" id="com.renesas.cdt.managedbuild.gcc.rz.archives.cpp.includeFiles.980687802" name="Standard archive (library) files (-l)" superClass="com.renesas.cdt.managedbuild.gcc.rz.archives.cpp.includeFiles" useByScannerDiscovery="false" valueType="stringList"/>
+								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="true" id="com.renesas.cdt.managedbuild.gcc.rz.archives.cpp.includePath.761160383" name="Standard archive search directories (-L)" superClass="com.renesas.cdt.managedbuild.gcc.rz.archives.cpp.includePath" useByScannerDiscovery="false" valueType="libPaths"/>
+								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.renesas.cdt.managedbuild.gcc.rz.cpp.option.linkageOrder.2002531888" name="Linkage Order List" superClass="com.renesas.cdt.managedbuild.gcc.rz.cpp.option.linkageOrder" useByScannerDiscovery="false" valueType="stringList">
+									<listOptionValue builtIn="false" value="&quot;src/fatfs/ff.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/fatfs/ffsystem.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/fatfs/ffunicode.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_hmidi/src/r_usb_hmidi_api.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_hmidi/src/r_usb_hmidi_driver.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/hw/r_usb_creg_abs.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/hw/r_usb_creg_access.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/hw/r_usb_dma.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/hw/r_usb_hostelectrical.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/hw/r_usb_hreg_abs.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/hw/r_usb_hreg_access.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/hw/r_usb_preg_abs.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/hw/r_usb_preg_access.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/hw/r_usb_rz_mcu.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/driver/r_usb_cdataio.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/driver/r_usb_clibusbip.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/driver/r_usb_hbc.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/driver/r_usb_hcontrolrw.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/driver/r_usb_hdriver.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/driver/r_usb_hhubsys.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/driver/r_usb_hintfifo.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/driver/r_usb_hinthandler_usbip0.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/driver/r_usb_hinthandler_usbip1.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/driver/r_usb_hlibusbip.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/driver/r_usb_hmanager.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/driver/r_usb_hscheduler.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/driver/r_usb_hsignal.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/driver/r_usb_hstdfunction.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/driver/r_usb_pbc.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/driver/r_usb_pcontrolrw.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/driver/r_usb_pdriver.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/driver/r_usb_peptable.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/driver/r_usb_pintfifo.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/driver/r_usb_pinthandler_usbip0.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/driver/r_usb_plibusbip.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/driver/r_usb_psignal.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/driver/r_usb_pstdfunction.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/driver/r_usb_pstdrequest.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/driver/r_usb_usbif_api.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/USBConnection.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/uart/sio_char.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/system/rza_io_regrw.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/stb/stb.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/ssi/ssi.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/spibsc/spibsc_Deluge_setup.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/spibsc/spibsc_flash_api.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/spibsc/spibsc_flash_userdef.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/spibsc/spibsc_ioset_api.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/spibsc/spibsc_ioset_drv.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/spibsc/spibsc_ioset_userdef.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/sdhi/userdef/sd_dev_dmacdrv.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/sdhi/userdef/sd_dev_low.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/sdhi/src/sd/sdio/sdio_direct.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/sdhi/src/sd/sdio/sdio_int.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/sdhi/src/sd/sdio/sdio_read.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/sdhi/src/sd/sdio/sdio_trns.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/sdhi/src/sd/sdio/sdio_util.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/sdhi/src/sd/sdio/sdio_write.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/sdhi/src/sd/access/sd_cd.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/sdhi/src/sd/access/sd_cmd.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/sdhi/src/sd/access/sd_format.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/sdhi/src/sd/access/sd_init.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/sdhi/src/sd/access/sd_int.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/sdhi/src/sd/access/sd_mount.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/sdhi/src/sd/access/sd_read.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/sdhi/src/sd/access/sd_trns.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/sdhi/src/sd/access/sd_upcase_table.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/sdhi/src/sd/access/sd_util.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/sdhi/src/sd/access/sd_write.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/rspi/rspi.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/oled/oled_low_level.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/mtu/mtu.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/intc/intc.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/intc/intc_handler.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/intc/intc_userdef.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/gpio/gpio.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/compiler/asm/access.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/compiler/asm/initsct.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/compiler/asm/irqfiq_handler.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/compiler/asm/isr.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/compiler/asm/l1_cache_init.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/compiler/asm/reset_handler.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/compiler/asm/start.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/compiler/asm/ttb_init.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/cache/cache.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/bsc/bsc_userdef.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/diskio.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/peripheral_init_basic.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/All_CPUs/uart_all_cpus/uart_all_cpus.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/All_CPUs/ssi_all_cpus/ssi_all_cpus.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/All_CPUs/rspi_all_cpus/rspi_all_cpus.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/All_CPUs/oled_low_level_all_cpus/fonts.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/All_CPUs/oled_low_level_all_cpus/oled_low_level_all_cpus.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/All_CPUs/dmac/dmac.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/All_CPUs/invalidate.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/All_CPUs/sd_all_cpus.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/RTT/SEGGER_RTT.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/RTT/SEGGER_RTT_ASM_ARMv7M.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/RTT/SEGGER_RTT_printf.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/NE10/modules/dsp/NE10_fft.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/NE10/modules/dsp/NE10_fft_generic_int32.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/NE10/modules/dsp/NE10_fft_generic_int32.neonintrinsic.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/NE10/modules/dsp/NE10_fft_int32.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/NE10/modules/dsp/NE10_fft_int32.neonintrinsic.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/NE10/modules/dsp/NE10_fir_init.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/NE10/modules/dsp/NE10_init_dsp.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/NE10/modules/NE10_init.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/NE10/common/NE10_mask_table.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/Action.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ActionClipState.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ActionLogger.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/Arpeggiator.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/Arrangement.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ArrangerView.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/AudioClip.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/AudioClipView.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/AudioEngine.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/AudioFile.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/AudioFileHolder.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/AudioFileReader.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/AudioFileVector.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/AudioInputSelector.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/AudioOutput.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/AudioRecorder.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/AutoParam.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/AutomatedTester.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/BidirectionalLinkedList.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/Browser.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/Buttons.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/CStringArray.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/CVEngine.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/CVInstrument.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/Clip.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ClipArray.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ClipInstance.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ClipInstanceVector.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ClipMinder.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ClipNavigationTimelineView.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ClipView.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/Cluster.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/Consequence.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ConsequenceArrangerParamsTimeInserted.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ConsequenceAudioClipSetSample.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ConsequenceBeginPlayback.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ConsequenceClipBeginLinearRecord.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ConsequenceClipExistence.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ConsequenceClipInstanceChange.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ConsequenceClipInstanceExistence.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ConsequenceClipLength.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ConsequenceInstrumentClipHorizontalShift.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ConsequenceInstrumentClipMultiply.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ConsequenceNoteArrayChange.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ConsequenceNoteExistence.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ConsequenceNoteRowHorizontalShift.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ConsequenceNoteRowLength.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ConsequenceNoteRowMute.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ConsequenceOutputExistence.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ConsequenceParamChange.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ConsequenceScaleAddNote.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ConsequenceSwingChange.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ConsequenceTempoChange.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ContextMenu.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ContextMenuDeleteFile.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ContextMenuLoadInstrumentPreset.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ContextMenuOverwriteBootloader.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ContextMenuOverwriteFile.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ContextMenuSampleBrowserKit.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ContextMenuSampleBrowserSynth.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/CopiedNoteRow.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/CopiedParamAutomation.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/DString.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/Delay.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/DelayBuffer.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/Deluge.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/DrumName.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/EarlyNoteArray.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/Encoders.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/FFTConfigManager.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/FileItem.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/FilterSet.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/FilterSetConfig.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/FlashStorage.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/GateDrum.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/GeneralMemoryAllocator.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/GlobalEffectable.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/GlobalEffectableForClip.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/GlobalEffectableForSong.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/HardwareTesting.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ImpulseResponseProcessor.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/IndicatorLEDs.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/InstrumentClip.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/InstrumentClipMinder.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/InstrumentClipView.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/KeyboardScreen.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/LearnedMIDI.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/LiveInputBuffer.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/LivePitchShifter.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/LivePitchShifterPlayHead.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/LoadInstrumentPresetUI.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/LoadUI.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/LoadedSampleChunkPriorityQueue.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MIDIDevice.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MIDIDeviceManager.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MIDIDrum.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MIDIInstrument.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MIDIParam.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MIDIParamCollection.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MIDIParamVector.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MelodicInstrument.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MemoryRegion.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MenuItem.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MenuItemAudioClipSampleMarkerEditor.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MenuItemColour.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MenuItemDecimal.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MenuItemDrumName.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MenuItemFileSelector.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MenuItemInteger.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MenuItemIntegerRange.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MenuItemKeyRange.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MenuItemMIDIDevices.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MenuItemMPEDirectionSelector.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MenuItemMPEZoneNumMemberChannels.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MenuItemMPEZoneSelector.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MenuItemMidiCommand.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MenuItemMultiRange.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MenuItemNumber.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MenuItemParam.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MenuItemPatchCableStrength.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MenuItemPatchedParam.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MenuItemRange.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MenuItemSampleLoopPoint.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MenuItemSelection.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MenuItemSourceSelection.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MenuItemSubmenu.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MenuItemSyncLevel.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MenuItemUnpatchedParam.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MenuItemValue.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MenuItemWithCCLearning.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/Metronome.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MidiKnobArray.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ModControllable.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ModControllableAudio.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ModelStack.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MultiRange.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MultiRangeArray.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MultiWaveTableRange.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MultisampleRange.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/NamedThingVector.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/NonAudioDrum.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/NonAudioInstrument.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/Note.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/NoteRow.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/NoteRowVector.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/NoteVector.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/NumericLayer.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/NumericLayerBasicText.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/NumericLayerLoadingAnimation.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/NumericLayerScrollTransition.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/NumericLayerScrollingText.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/OpenAddressingHashTable.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/OrderedResizeableArray.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/OrderedResizeableArrayWithMultiWordKey.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/Output.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/PadLEDs.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ParamCollection.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ParamManager.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ParamNode.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ParamNodeVector.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ParamSet.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/PatchCable.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/PatchCableSet.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/PlaybackMode.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/Positionable.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/QuickSorter.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/QwertyUI.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/RenameDrumUI.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/RenameOutputUI.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/RenameUI.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ResizeableArray.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ResizeablePointerArray.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/RootUI.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/Sample.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/SampleCache.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/SampleCluster.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/SampleClusterArray.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/SampleControls.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/SampleHolder.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/SampleHolderForClip.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/SampleHolderForVoice.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/SampleLowLevelReader.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/SampleManager.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/SampleMarkerEditor.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/SamplePercCacheZone.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/SamplePlaybackGuide.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/SampleReader.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/SampleRecorder.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/SaveSongOrInstrumentContextMenu.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/SaveSongUI.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/SaveUI.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/Session.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/SessionView.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/Slicer.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/SlotBrowser.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/Stealable.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/TimeStretcher.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/TimelineCounter.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/TimelineView.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/UI.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/View.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/VoiceSample.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/VoiceVector.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/WaveTable.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/WaveTableBandData.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/WaveTableHolder.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/WaveTableReader.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/WaveformBasicNavigator.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/WaveformRenderer.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/allpass.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/cfunctions.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/comb.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/compressor.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/contextmenuclearsong.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drum.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/encoder.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/envelope.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/functions.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/instrument.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/kit.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/lfo.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/loadsongui.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/lookuptables.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/lookuptables_analog_square.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/lookuptables_mystery_synth_a_saw.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/lookuptables_mystery_synth_b_saw.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/lookuptables_saw.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/lookuptables_square.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/main.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/matrixdriver.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/midiengine.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/numericdriver.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/oled.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/patcher.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/phaseincrementfinetuner.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/playbackhandler.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/r_usb_pmidi_descriptor.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/resetprg.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/revmodel.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/samplebrowser.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/saveinstrumentpresetui.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/song.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/sound.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/sounddrum.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/soundeditor.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/soundinstrument.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/source.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/storagemanager.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/uart.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/uitimermanager.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/voice.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/voicesampleplaybackguide.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/voiceunisonpart.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/voiceunisonpartsource.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;./libDeluge.a&quot;"/>
+								</option>
+								<option id="com.renesas.cdt.managedbuild.gcc.rz.option.linker.cpp.entrypoint.178805514" name="Entry Point:" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.linker.cpp.entrypoint" useByScannerDiscovery="false" value="-Wl,-estart" valueType="string"/>
+								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.renesas.cdt.managedbuild.gcc.rz.option.cpp.linkerscript.363135926" name="Script files (-T)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.cpp.linkerscript" useByScannerDiscovery="false" valueType="stringList">
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/linker_script_rz_a1l.ld&quot;"/>
+								</option>
+								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="true" id="com.renesas.cdt.managedbuild.gcc.rz.option.linker.cpp.userDefined.348471148" name="Other linker flags" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.linker.cpp.userDefined" useByScannerDiscovery="false" valueType="stringList"/>
+								<option id="com.renesas.cdt.managedbuild.gcc.rz.cpp.option.useCustomLinkage.253131527" name="Use custom linkage order" superClass="com.renesas.cdt.managedbuild.gcc.rz.cpp.option.useCustomLinkage" useByScannerDiscovery="false" value="false" valueType="boolean"/>
+								<inputType id="com.renesas.cdt.managedbuild.gcc.rz.inputType.linker.cpp.1465267533" superClass="com.renesas.cdt.managedbuild.gcc.rz.inputType.linker.cpp">
+									<additionalInput kind="additionalinputdependency" paths="$(USER_OBJS)"/>
+									<additionalInput kind="additionalinputdependency" paths="$(LIBRARY_GENERATOR_OUTPUTTYPE_OUTPUTS)"/>
+								</inputType>
+							</tool>
+							<tool id="com.renesas.cdt.managedbuild.gcc.rz.tool.archiver.24821965" name="Cross ARM GNU Archiver" superClass="com.renesas.cdt.managedbuild.gcc.rz.tool.archiver"/>
+							<tool id="com.renesas.cdt.managedbuild.gcc.rz.tool.flash.981671768" name="Cross ARM GNU Create Flash Image" superClass="com.renesas.cdt.managedbuild.gcc.rz.tool.flash"/>
+							<tool id="com.renesas.cdt.managedbuild.gcc.rz.tool.listing.1247933960" name="Cross ARM GNU Create Listing" superClass="com.renesas.cdt.managedbuild.gcc.rz.tool.listing">
+								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.createlisting.source.194125052" name="Display source (--source|-S)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.createlisting.source" useByScannerDiscovery="false" value="true" valueType="boolean"/>
+								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.createlisting.allheaders.2141320539" name="Display all headers (--all-headers|-x)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.createlisting.allheaders" useByScannerDiscovery="false" value="true" valueType="boolean"/>
+								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.createlisting.demangle.134417670" name="Demangle names (--demangle|-C)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.createlisting.demangle" useByScannerDiscovery="false" value="true" valueType="boolean"/>
+								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.createlisting.linenumbers.542846769" name="Display line numbers (--line-numbers|-l)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.createlisting.linenumbers" useByScannerDiscovery="false" value="true" valueType="boolean"/>
+								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.createlisting.wide.1485844744" name="Wide lines (--wide|-w)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.createlisting.wide" useByScannerDiscovery="false" value="true" valueType="boolean"/>
+							</tool>
+							<tool id="com.renesas.cdt.managedbuild.gcc.rz.tool.size.1730973429" name="Cross ARM GNU Print Size" superClass="com.renesas.cdt.managedbuild.gcc.rz.tool.size">
+								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.printsize.format.1743226368" name="Size format" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.printsize.format" useByScannerDiscovery="false"/>
+							</tool>
+							<tool id="com.renesas.cdt.managedbuild.gcc.rz.tool.libgen.1968185241" name="Library Generator" superClass="com.renesas.cdt.managedbuild.gcc.rz.tool.libgen">
+								<option id="com.renesas.cdt.managedbuild.gcc.rz.option.selectlibrary.593564291" name="Select Library" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.selectlibrary" useByScannerDiscovery="true" value="com.renesas.cdt.managedbuild.gcc.core.option.librarygenerator.settings.selectLibrary.newLib" valueType="enumerated"/>
+								<option id="com.renesas.cdt.managedbuild.gcc.core.option.librarygenerator.settings.libraryType.1896639611" name="Library type" superClass="com.renesas.cdt.managedbuild.gcc.core.option.librarygenerator.settings.libraryType" useByScannerDiscovery="true" value="com.renesas.cdt.managedbuild.gcc.core.option.librarygenerator.settings.libraryType.projectBuilt" valueType="enumerated"/>
+								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.renesas.cdt.managedbuild.gcc.core.option.librarygenerator.settings.userDefinedCompiler.947010216" name="User defined compiler options" superClass="com.renesas.cdt.managedbuild.gcc.core.option.librarygenerator.settings.userDefinedCompiler" useByScannerDiscovery="true" valueType="stringList">
+									<listOptionValue builtIn="false" value="-flto"/>
+								</option>
+							</tool>
+						</toolChain>
+					</folderInfo>
+				</configuration>
+			</storageModule>
+			<storageModule moduleId="org.eclipse.cdt.core.externalSettings"/>
+			<storageModule moduleId="com.renesas.cdt.managedbuild.core.boardInfo"/>
+		</cconfiguration>
+		<cconfiguration id="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug.1445259662.1946000861">
+			<storageModule buildSystemId="org.eclipse.cdt.managedbuilder.core.configurationDataProvider" id="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug.1445259662.1946000861" moduleId="org.eclipse.cdt.core.settings" name="Release_RZ_A1L">
+				<externalSettings/>
+				<extensions>
+					<extension id="org.eclipse.cdt.core.ELF" point="org.eclipse.cdt.core.BinaryParser"/>
+					<extension id="org.eclipse.cdt.core.GASErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
+					<extension id="org.eclipse.cdt.core.GmakeErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
+					<extension id="org.eclipse.cdt.core.CWDLocator" point="org.eclipse.cdt.core.ErrorParser"/>
+					<extension id="org.eclipse.cdt.core.GCCErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
+				</extensions>
+			</storageModule>
+			<storageModule moduleId="com.renesas.cdt.managedbuild.core.toolchainInfo">
+				<option id="toolchain.id" value="gcc-arm-embedded"/>
+				<option id="toolchain.version" value="9.2.1.20191025"/>
+				<option id="toolchain.enable" value="false"/>
+			</storageModule>
+			<storageModule moduleId="cdtBuildSystem" version="4.0.0">
+				<configuration artifactExtension="elf" artifactName="${ProjName}" buildArtefactType="org.eclipse.cdt.build.core.buildArtefactType.exe" buildProperties="org.eclipse.cdt.build.core.buildArtefactType=org.eclipse.cdt.build.core.buildArtefactType.exe,org.eclipse.cdt.build.core.buildType=org.eclipse.cdt.build.core.buildType.debug" cleanCommand="rm -rf *.lst *.lis *.lpp *.map" description="" id="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug.1445259662.1946000861" name="Release_RZ_A1L" parent="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug" postbuildStep="">
+					<folderInfo id="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug.1445259662.1946000861." name="/" resourcePath="">
+						<toolChain id="com.renesas.cdt.managedbuild.gcc.rz.toolchain.elf.debug.412406782" name="GCC for Renesas RZ" superClass="com.renesas.cdt.managedbuild.gcc.rz.toolchain.elf.debug">
+							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.addtools.createflash.1256659619" name="Create flash image" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.addtools.createflash" useByScannerDiscovery="false" value="true" valueType="boolean"/>
+							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.addtools.createlisting.191665485" name="Create extended listing" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.addtools.createlisting" useByScannerDiscovery="false"/>
+							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.addtools.printsize.428876040" name="Print size" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.addtools.printsize" useByScannerDiscovery="false" value="true" valueType="boolean"/>
+							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.optimizationLevel.2136559279" name="Optimization Level" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.optimizationLevel" useByScannerDiscovery="true" value="ilg.gnuarmeclipse.managedbuild.cross.option.optimization.level.more" valueType="enumerated"/>
+							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.messagelenght.1612007008" name="Message length (-fmessage-length=0)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.messagelenght" useByScannerDiscovery="true" value="true" valueType="boolean"/>
+							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.signedchar.532526458" name="'char' is signed (-fsigned-char)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.signedchar" useByScannerDiscovery="true" value="true" valueType="boolean"/>
+							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.functionsection.1325360673" name="Function sections (-ffunction-sections)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.functionsection" useByScannerDiscovery="true" value="true" valueType="boolean"/>
+							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.datasections.783140591" name="Data sections (-fdata-sections)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.datasections" useByScannerDiscovery="true" value="true" valueType="boolean"/>
+							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.level.63693081" name="Debug level" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.level" useByScannerDiscovery="true" value="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.level.none" valueType="enumerated"/>
+							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.format.416583827" name="Debug format" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.format" useByScannerDiscovery="true"/>
+							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.toolchain.name.1959038079" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.toolchain.name" useByScannerDiscovery="false" value="GNU Tools for ARM Embedded Processors" valueType="string"/>
+							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.architecture.220051799" name="Architecture" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.architecture" useByScannerDiscovery="false" value="ilg.gnuarmeclipse.managedbuild.cross.option.architecture.arm" valueType="enumerated"/>
+							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.family.1215922278" name="Arm family (-mcpu)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.family" useByScannerDiscovery="false" value="ilg.gnuarmeclipse.managedbuild.cross.option.arm.target.mcpu.cortex-a9" valueType="enumerated"/>
+							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.instructionset.410764415" name="Instruction set" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.instructionset" useByScannerDiscovery="false" value="ilg.gnuarmeclipse.managedbuild.cross.option.arm.target.instructionset.arm" valueType="enumerated"/>
+							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.command.prefix.1560152562" name="Prefix" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.command.prefix" useByScannerDiscovery="false" value="arm-none-eabi-" valueType="string"/>
+							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.command.c.2010906834" name="C compiler" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.command.c" useByScannerDiscovery="false" value="gcc" valueType="string"/>
+							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.command.cpp.337739528" name="C++ compiler" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.command.cpp" useByScannerDiscovery="false" value="g++" valueType="string"/>
+							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.command.ar.1714121717" name="Archiver" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.command.ar" useByScannerDiscovery="false" value="ar" valueType="string"/>
+							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.command.objcopy.1102654524" name="Hex/Bin converter" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.command.objcopy" useByScannerDiscovery="false" value="objcopy" valueType="string"/>
+							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.command.objdump.284928427" name="Listing generator" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.command.objdump" useByScannerDiscovery="false" value="objdump" valueType="string"/>
+							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.command.size.1724953178" name="Size command" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.command.size" useByScannerDiscovery="false" value="size" valueType="string"/>
+							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.command.make.772233329" name="Build command" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.command.make" useByScannerDiscovery="false" value="make" valueType="string"/>
+							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.command.rm.143338309" name="Remove command" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.command.rm" useByScannerDiscovery="false" value="rm" valueType="string"/>
+							<option id="com.renesas.cdt.managedbuild.gcc.rz.createlibgen.1003991437" name="Create libgen" superClass="com.renesas.cdt.managedbuild.gcc.rz.createlibgen" useByScannerDiscovery="false" value="false" valueType="boolean"/>
+							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.architecture.1759787983" name="Architecture (-march)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.architecture" useByScannerDiscovery="false" value="ilg.gnuarmeclipse.managedbuild.cross.option.arm.target.arch.armv7-a" valueType="enumerated"/>
+							<option id="com.renesas.cdt.managedbuild.gcc.rz.deviceName.1874350318" name="Device name" superClass="com.renesas.cdt.managedbuild.gcc.rz.deviceName" useByScannerDiscovery="false" value="R7S721020" valueType="string"/>
+							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.floatunit.1008277167" name="FPU Type" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.floatunit" useByScannerDiscovery="true" value="ilg.gnuarmeclipse.managedbuild.cross.option.arm.target.fpu.unit.neon" valueType="enumerated"/>
+							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.floatabi.943649756" name="Float ABI" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.floatabi" useByScannerDiscovery="true" value="ilg.gnuarmeclipse.managedbuild.cross.option.arm.target.fpu.abi.hard" valueType="enumerated"/>
+							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.thumb.1281047612" name="Thumb interwork (-mthumb-interwork)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.thumb" useByScannerDiscovery="true" value="true" valueType="boolean"/>
+							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.endian.1811856952" name="Endianness" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.endian" useByScannerDiscovery="true" value="ilg.gnuarmeclipse.managedbuild.cross.option.arm.target.endianness.little" valueType="enumerated"/>
+							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.warnStack.300698806" name="Warn if stack size exceeds the limit, in bytes (-Wstack-usage)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.warnStack" useByScannerDiscovery="false" value="1000" valueType="string"/>
+							<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.renesas.cdt.managedbuild.gcc.rz.option.otherOptimization.2038382863" name="Other optimization flags" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.otherOptimization" useByScannerDiscovery="true" valueType="stringList">
+								<listOptionValue builtIn="false" value="-flto"/>
+							</option>
+							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.optimization.lto.1510854929" name="Link-time optimizer (-flto)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.optimization.lto" useByScannerDiscovery="true" value="true" valueType="boolean"/>
+							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.warnings.nulldereference.174354379" name="Null pointer dereference [-Wnull-dereference]" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.warnings.nulldereference" useByScannerDiscovery="false" value="false" valueType="boolean"/>
+							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.freestanding.1216047129" name="Assume freestanding environment (-ffreestanding)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.freestanding" value="false" valueType="boolean"/>
+							<targetPlatform archList="all" binaryParser="org.eclipse.cdt.core.ELF" id="ilg.gnuarmeclipse.managedbuild.cross.targetPlatform.1660326466" isAbstract="false" osList="all" superClass="ilg.gnuarmeclipse.managedbuild.cross.targetPlatform"/>
+							<builder buildPath="${workspace_loc:/Test4}/HardwareDebug" id="com.renesas.cdt.managedbuild.gcc.rz.builder.471865172" keepEnvironmentInBuildfile="false" managedBuildOn="true" name="GCC for Renesas Builder" parallelBuildOn="true" parallelizationNumber="optimal" superClass="com.renesas.cdt.managedbuild.gcc.rz.builder"/>
+							<tool id="com.renesas.cdt.managedbuild.gcc.rz.tool.assembler.1893919465" name="Cross ARM GNU Assembler" superClass="com.renesas.cdt.managedbuild.gcc.rz.tool.assembler">
+								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.assembler.usepreprocessor.349766785" name="Use preprocessor" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.assembler.usepreprocessor" useByScannerDiscovery="false" value="true" valueType="boolean"/>
+								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.renesas.cdt.managedbuild.gcc.rz.option.assembler.include.695435154" name="Include paths (-I)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.assembler.include" useByScannerDiscovery="true" valueType="includePath">
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/NE10/common&quot;"/>
+								</option>
+								<inputType id="ilg.gnuarmeclipse.managedbuild.cross.tool.assembler.input.647903952" superClass="ilg.gnuarmeclipse.managedbuild.cross.tool.assembler.input"/>
+							</tool>
+							<tool id="com.renesas.cdt.managedbuild.gcc.rz.tool.compiler.c.2126751694" name="Cross ARM C Compiler" superClass="com.renesas.cdt.managedbuild.gcc.rz.tool.compiler.c">
+								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.renesas.cdt.managedbuild.gcc.rz.option.compiler.include.1685728288" name="Include paths (-I)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.compiler.include" useByScannerDiscovery="true" valueType="includePath">
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/generate&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${TCINSTALL}/arm-none-eabi/optlibinc&quot;"/>
+								</option>
+							</tool>
+							<tool id="com.renesas.cdt.managedbuild.gcc.rz.tool.compiler.cpp.1954281474" name="Cross ARM C++ Compiler" superClass="com.renesas.cdt.managedbuild.gcc.rz.tool.compiler.cpp">
+								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.renesas.cdt.managedbuild.gcc.rz.option.compiler.cpp.include.1121121786" name="Include paths (-I)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.compiler.cpp.include" useByScannerDiscovery="true" valueType="includePath">
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/spibsc&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/ALL_CPUS/usb/userdef&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/ALL_CPUS/usb&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/ALL_CPUS/rspi_all_cpus&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/ALL_CPUS/oled_low_level_all_cpus&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/mtu&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/oled&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi/src&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi/src/sd/sdio&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi/src/sd&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi/userdef&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi/src/sd/access&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi/inc&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/rspi&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi/src/sd/inc&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi/src/sd/inc/access&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_basic&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_basic/src&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_basic/src/hw/inc&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_basic/src/driver&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_basic/src/hw&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_basic/src/driver/inc&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_hmidi&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_hmidi/src/inc&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/userdef&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/intc&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/system&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/system/iobitmasks&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/system/iodefines&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/bsc&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/dma&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/gpio&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/ssi&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/uart&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/ssi_all_cpus&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/dmac&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/ALL_CPUS/uart_all_cpus&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/NE10/modules&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/NE10/inc&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/fatfs&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/dmac&quot;"/>
+								</option>
+								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="true" id="com.renesas.cdt.managedbuild.gcc.rz.option.compiler.cpp.otherOptimization.1843283088" name="Other optimization flags" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.compiler.cpp.otherOptimization" useByScannerDiscovery="true" valueType="stringList"/>
+								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.compiler.noexceptions.425527962" name="Do not use exceptions (-fno-exceptions)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.compiler.noexceptions" useByScannerDiscovery="true" value="true" valueType="boolean"/>
+								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.compiler.nortti.1655856323" name="Do not use RTTI (-fno-rtti)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.compiler.nortti" useByScannerDiscovery="true" value="true" valueType="boolean"/>
+								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.compiler.nousecxaatexit.2037815225" name="Do not use _cxa_atexit() (-fno-use-cxa-atexit)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.compiler.nousecxaatexit" useByScannerDiscovery="true" value="true" valueType="boolean"/>
+								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.compiler.nothreadsafestatics.889232528" name="Do not use thread-safe statics (-fno-threadsafe-statics)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.compiler.nothreadsafestatics" useByScannerDiscovery="true" value="true" valueType="boolean"/>
+								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="true" id="com.renesas.cdt.managedbuild.gcc.rz.option.compiler.cpp.userDefined.813881871" name="Other compiler flags" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.compiler.cpp.userDefined" useByScannerDiscovery="true" valueType="stringList"/>
+								<inputType id="ilg.gnuarmeclipse.managedbuild.cross.tool.cpp.compiler.input.1700284698" superClass="ilg.gnuarmeclipse.managedbuild.cross.tool.cpp.compiler.input"/>
+								<inputType id="com.renesas.cdt.managedbuild.gcc.rz.inputType.compiler.c.1054132000" superClass="com.renesas.cdt.managedbuild.gcc.rz.inputType.compiler.c"/>
+							</tool>
+							<tool id="com.renesas.cdt.managedbuild.gcc.rz.tool.linker.c.848777883" name="Cross ARM C Linker" superClass="com.renesas.cdt.managedbuild.gcc.rz.tool.linker.c">
+								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.c.linker.gcsections.957014367" name="Remove unused sections (-Xlinker --gc-sections)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.c.linker.gcsections" useByScannerDiscovery="false" value="true" valueType="boolean"/>
+							</tool>
+							<tool command="arm-none-eabi-g++" id="com.renesas.cdt.managedbuild.gcc.rz.tool.linker.cpp.238213756" name="Cross ARM C++ Linker" outputPrefix="" superClass="com.renesas.cdt.managedbuild.gcc.rz.tool.linker.cpp">
+								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.linker.gcsections.1802712138" name="Remove unused sections (-Xlinker --gc-sections)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.linker.gcsections" useByScannerDiscovery="false" value="true" valueType="boolean"/>
+								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="true" id="com.renesas.cdt.managedbuild.gcc.rz.archives.cpp.includeFiles.438427720" name="Standard archive (library) files (-l)" superClass="com.renesas.cdt.managedbuild.gcc.rz.archives.cpp.includeFiles" useByScannerDiscovery="false" valueType="stringList"/>
+								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="true" id="com.renesas.cdt.managedbuild.gcc.rz.archives.cpp.includePath.396461327" name="Standard archive search directories (-L)" superClass="com.renesas.cdt.managedbuild.gcc.rz.archives.cpp.includePath" useByScannerDiscovery="false" valueType="libPaths"/>
+								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.renesas.cdt.managedbuild.gcc.rz.cpp.option.linkageOrder.116172705" name="Linkage Order List" superClass="com.renesas.cdt.managedbuild.gcc.rz.cpp.option.linkageOrder" useByScannerDiscovery="false" valueType="stringList">
+									<listOptionValue builtIn="false" value="&quot;src/fatfs/ff.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/fatfs/ffsystem.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/fatfs/ffunicode.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_hmidi/src/r_usb_hmidi_api.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_hmidi/src/r_usb_hmidi_driver.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/hw/r_usb_creg_abs.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/hw/r_usb_creg_access.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/hw/r_usb_dma.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/hw/r_usb_hostelectrical.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/hw/r_usb_hreg_abs.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/hw/r_usb_hreg_access.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/hw/r_usb_preg_abs.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/hw/r_usb_preg_access.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/hw/r_usb_rz_mcu.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/driver/r_usb_cdataio.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/driver/r_usb_clibusbip.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/driver/r_usb_hbc.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/driver/r_usb_hcontrolrw.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/driver/r_usb_hdriver.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/driver/r_usb_hhubsys.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/driver/r_usb_hintfifo.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/driver/r_usb_hinthandler_usbip0.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/driver/r_usb_hinthandler_usbip1.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/driver/r_usb_hlibusbip.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/driver/r_usb_hmanager.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/driver/r_usb_hscheduler.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/driver/r_usb_hsignal.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/driver/r_usb_hstdfunction.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/driver/r_usb_pbc.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/driver/r_usb_pcontrolrw.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/driver/r_usb_pdriver.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/driver/r_usb_peptable.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/driver/r_usb_pintfifo.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/driver/r_usb_pinthandler_usbip0.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/driver/r_usb_plibusbip.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/driver/r_usb_psignal.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/driver/r_usb_pstdfunction.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/driver/r_usb_pstdrequest.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/r_usb_basic/src/driver/r_usb_usbif_api.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/usb/USBConnection.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/uart/sio_char.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/system/rza_io_regrw.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/stb/stb.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/ssi/ssi.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/spibsc/spibsc_Deluge_setup.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/spibsc/spibsc_flash_api.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/spibsc/spibsc_flash_userdef.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/spibsc/spibsc_ioset_api.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/spibsc/spibsc_ioset_drv.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/spibsc/spibsc_ioset_userdef.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/sdhi/userdef/sd_dev_dmacdrv.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/sdhi/userdef/sd_dev_low.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/sdhi/src/sd/sdio/sdio_direct.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/sdhi/src/sd/sdio/sdio_int.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/sdhi/src/sd/sdio/sdio_read.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/sdhi/src/sd/sdio/sdio_trns.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/sdhi/src/sd/sdio/sdio_util.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/sdhi/src/sd/sdio/sdio_write.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/sdhi/src/sd/access/sd_cd.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/sdhi/src/sd/access/sd_cmd.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/sdhi/src/sd/access/sd_format.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/sdhi/src/sd/access/sd_init.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/sdhi/src/sd/access/sd_int.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/sdhi/src/sd/access/sd_mount.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/sdhi/src/sd/access/sd_read.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/sdhi/src/sd/access/sd_trns.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/sdhi/src/sd/access/sd_upcase_table.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/sdhi/src/sd/access/sd_util.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/sdhi/src/sd/access/sd_write.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/rspi/rspi.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/oled/oled_low_level.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/mtu/mtu.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/intc/intc.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/intc/intc_handler.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/intc/intc_userdef.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/gpio/gpio.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/compiler/asm/access.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/compiler/asm/initsct.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/compiler/asm/irqfiq_handler.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/compiler/asm/isr.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/compiler/asm/l1_cache_init.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/compiler/asm/reset_handler.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/compiler/asm/start.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/compiler/asm/ttb_init.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/cache/cache.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/bsc/bsc_userdef.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/diskio.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/RZA1/peripheral_init_basic.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/All_CPUs/uart_all_cpus/uart_all_cpus.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/All_CPUs/ssi_all_cpus/ssi_all_cpus.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/All_CPUs/rspi_all_cpus/rspi_all_cpus.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/All_CPUs/oled_low_level_all_cpus/fonts.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/All_CPUs/oled_low_level_all_cpus/oled_low_level_all_cpus.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/All_CPUs/dmac/dmac.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/All_CPUs/invalidate.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drivers/All_CPUs/sd_all_cpus.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/RTT/SEGGER_RTT.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/RTT/SEGGER_RTT_ASM_ARMv7M.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/RTT/SEGGER_RTT_printf.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/NE10/modules/dsp/NE10_fft.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/NE10/modules/dsp/NE10_fft_generic_int32.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/NE10/modules/dsp/NE10_fft_generic_int32.neonintrinsic.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/NE10/modules/dsp/NE10_fft_int32.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/NE10/modules/dsp/NE10_fft_int32.neonintrinsic.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/NE10/modules/dsp/NE10_fir_init.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/NE10/modules/dsp/NE10_init_dsp.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/NE10/modules/NE10_init.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/NE10/common/NE10_mask_table.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/Action.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ActionClipState.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ActionLogger.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/Arpeggiator.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/Arrangement.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ArrangerView.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/AudioClip.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/AudioClipView.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/AudioEngine.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/AudioFile.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/AudioFileHolder.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/AudioFileReader.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/AudioFileVector.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/AudioInputSelector.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/AudioOutput.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/AudioRecorder.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/AutoParam.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/AutomatedTester.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/BidirectionalLinkedList.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/Browser.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/Buttons.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/CStringArray.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/CVEngine.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/CVInstrument.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/Clip.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ClipArray.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ClipInstance.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ClipInstanceVector.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ClipMinder.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ClipNavigationTimelineView.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ClipView.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/Cluster.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/Consequence.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ConsequenceArrangerParamsTimeInserted.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ConsequenceAudioClipSetSample.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ConsequenceBeginPlayback.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ConsequenceClipBeginLinearRecord.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ConsequenceClipExistence.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ConsequenceClipInstanceChange.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ConsequenceClipInstanceExistence.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ConsequenceClipLength.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ConsequenceInstrumentClipHorizontalShift.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ConsequenceInstrumentClipMultiply.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ConsequenceNoteArrayChange.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ConsequenceNoteExistence.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ConsequenceNoteRowHorizontalShift.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ConsequenceNoteRowLength.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ConsequenceNoteRowMute.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ConsequenceOutputExistence.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ConsequenceParamChange.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ConsequenceScaleAddNote.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ConsequenceSwingChange.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ConsequenceTempoChange.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ContextMenu.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ContextMenuDeleteFile.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ContextMenuLoadInstrumentPreset.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ContextMenuOverwriteBootloader.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ContextMenuOverwriteFile.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ContextMenuSampleBrowserKit.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ContextMenuSampleBrowserSynth.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/CopiedNoteRow.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/CopiedParamAutomation.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/DString.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/Delay.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/DelayBuffer.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/Deluge.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/DrumName.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/EarlyNoteArray.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/Encoders.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/FFTConfigManager.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/FileItem.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/FilterSet.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/FilterSetConfig.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/FlashStorage.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/GateDrum.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/GeneralMemoryAllocator.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/GlobalEffectable.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/GlobalEffectableForClip.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/GlobalEffectableForSong.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/HardwareTesting.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ImpulseResponseProcessor.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/IndicatorLEDs.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/InstrumentClip.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/InstrumentClipMinder.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/InstrumentClipView.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/KeyboardScreen.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/LearnedMIDI.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/LiveInputBuffer.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/LivePitchShifter.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/LivePitchShifterPlayHead.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/LoadInstrumentPresetUI.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/LoadUI.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/LoadedSampleChunkPriorityQueue.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MIDIDevice.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MIDIDeviceManager.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MIDIDrum.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MIDIInstrument.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MIDIParam.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MIDIParamCollection.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MIDIParamVector.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MelodicInstrument.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MemoryRegion.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MenuItem.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MenuItemAudioClipSampleMarkerEditor.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MenuItemColour.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MenuItemDecimal.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MenuItemDrumName.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MenuItemFileSelector.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MenuItemInteger.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MenuItemIntegerRange.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MenuItemKeyRange.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MenuItemMIDIDevices.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MenuItemMPEDirectionSelector.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MenuItemMPEZoneNumMemberChannels.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MenuItemMPEZoneSelector.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MenuItemMidiCommand.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MenuItemMultiRange.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MenuItemNumber.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MenuItemParam.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MenuItemPatchCableStrength.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MenuItemPatchedParam.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MenuItemRange.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MenuItemSampleLoopPoint.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MenuItemSelection.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MenuItemSourceSelection.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MenuItemSubmenu.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MenuItemSyncLevel.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MenuItemUnpatchedParam.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MenuItemValue.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MenuItemWithCCLearning.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/Metronome.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MidiKnobArray.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ModControllable.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ModControllableAudio.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ModelStack.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MultiRange.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MultiRangeArray.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MultiWaveTableRange.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/MultisampleRange.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/NamedThingVector.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/NonAudioDrum.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/NonAudioInstrument.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/Note.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/NoteRow.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/NoteRowVector.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/NoteVector.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/NumericLayer.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/NumericLayerBasicText.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/NumericLayerLoadingAnimation.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/NumericLayerScrollTransition.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/NumericLayerScrollingText.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/OpenAddressingHashTable.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/OrderedResizeableArray.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/OrderedResizeableArrayWithMultiWordKey.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/Output.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/PadLEDs.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ParamCollection.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ParamManager.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ParamNode.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ParamNodeVector.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ParamSet.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/PatchCable.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/PatchCableSet.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/PlaybackMode.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/Positionable.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/QuickSorter.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/QwertyUI.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/RenameDrumUI.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/RenameOutputUI.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/RenameUI.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ResizeableArray.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/ResizeablePointerArray.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/RootUI.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/Sample.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/SampleCache.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/SampleCluster.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/SampleClusterArray.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/SampleControls.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/SampleHolder.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/SampleHolderForClip.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/SampleHolderForVoice.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/SampleLowLevelReader.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/SampleManager.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/SampleMarkerEditor.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/SamplePercCacheZone.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/SamplePlaybackGuide.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/SampleReader.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/SampleRecorder.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/SaveSongOrInstrumentContextMenu.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/SaveSongUI.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/SaveUI.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/Session.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/SessionView.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/Slicer.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/SlotBrowser.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/Stealable.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/TimeStretcher.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/TimelineCounter.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/TimelineView.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/UI.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/View.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/VoiceSample.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/VoiceVector.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/WaveTable.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/WaveTableBandData.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/WaveTableHolder.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/WaveTableReader.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/WaveformBasicNavigator.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/WaveformRenderer.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/allpass.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/cfunctions.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/comb.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/compressor.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/contextmenuclearsong.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/drum.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/encoder.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/envelope.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/functions.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/instrument.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/kit.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/lfo.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/loadsongui.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/lookuptables.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/lookuptables_analog_square.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/lookuptables_mystery_synth_a_saw.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/lookuptables_mystery_synth_b_saw.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/lookuptables_saw.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/lookuptables_square.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/main.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/matrixdriver.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/midiengine.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/numericdriver.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/oled.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/patcher.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/phaseincrementfinetuner.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/playbackhandler.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/r_usb_pmidi_descriptor.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/resetprg.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/revmodel.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/samplebrowser.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/saveinstrumentpresetui.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/song.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/sound.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/sounddrum.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/soundeditor.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/soundinstrument.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/source.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/storagemanager.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/uart.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/uitimermanager.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/voice.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/voicesampleplaybackguide.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/voiceunisonpart.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;src/voiceunisonpartsource.o&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;./libDeluge.a&quot;"/>
+								</option>
+								<option id="com.renesas.cdt.managedbuild.gcc.rz.option.linker.cpp.entrypoint.1304960409" name="Entry Point:" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.linker.cpp.entrypoint" useByScannerDiscovery="false" value="-Wl,-estart" valueType="string"/>
+								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.linker.strip.744140585" name="Omit all symbol information (-s)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.linker.strip" useByScannerDiscovery="false" value="true" valueType="boolean"/>
+								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="true" id="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.linker.otherobjs.1357019295" name="Other objects" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.linker.otherobjs" useByScannerDiscovery="false" valueType="userObjs"/>
+								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.renesas.cdt.managedbuild.gcc.rz.option.linker.cpp.userDefined.1290054288" name="Other linker flags" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.linker.cpp.userDefined" useByScannerDiscovery="false" valueType="stringList">
+									<listOptionValue builtIn="false" value="-flto"/>
+								</option>
+								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.linker.nodeflibs.656384694" name="Do not use default libraries (-nodefaultlibs)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.linker.nodeflibs" useByScannerDiscovery="false" value="false" valueType="boolean"/>
+								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.linker.nostdlibs.1850437411" name="No startup or default libs (-nostdlib)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.linker.nostdlibs" useByScannerDiscovery="false" value="false" valueType="boolean"/>
+								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.renesas.cdt.managedbuild.gcc.rz.option.cpp.linkerscript.257541586" name="Script files (-T)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.cpp.linkerscript" useByScannerDiscovery="false" valueType="stringList">
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/linker_script_rz_a1l.ld&quot;"/>
+								</option>
+								<option id="com.renesas.cdt.managedbuild.gcc.rz.cpp.option.useCustomLinkage.1458423484" name="Use custom linkage order" superClass="com.renesas.cdt.managedbuild.gcc.rz.cpp.option.useCustomLinkage" value="false" valueType="boolean"/>
+								<inputType id="com.renesas.cdt.managedbuild.gcc.rz.inputType.linker.cpp.276918298" superClass="com.renesas.cdt.managedbuild.gcc.rz.inputType.linker.cpp">
+									<additionalInput kind="additionalinputdependency" paths="$(USER_OBJS)"/>
+									<additionalInput kind="additionalinputdependency" paths="$(LIBRARY_GENERATOR_OUTPUTTYPE_OUTPUTS)"/>
+								</inputType>
+							</tool>
+							<tool id="com.renesas.cdt.managedbuild.gcc.rz.tool.archiver.421955025" name="Cross ARM GNU Archiver" superClass="com.renesas.cdt.managedbuild.gcc.rz.tool.archiver"/>
+							<tool id="com.renesas.cdt.managedbuild.gcc.rz.tool.flash.1464723932" name="Cross ARM GNU Create Flash Image" superClass="com.renesas.cdt.managedbuild.gcc.rz.tool.flash">
+								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.createflash.choice.1691327762" name="Output file format (-O)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.createflash.choice" useByScannerDiscovery="false" value="ilg.gnuarmeclipse.managedbuild.cross.option.createflash.choice.binary" valueType="enumerated"/>
+							</tool>
+							<tool id="com.renesas.cdt.managedbuild.gcc.rz.tool.listing.1497415836" name="Cross ARM GNU Create Listing" superClass="com.renesas.cdt.managedbuild.gcc.rz.tool.listing">
+								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.createlisting.source.1066890408" name="Display source (--source|-S)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.createlisting.source" useByScannerDiscovery="false" value="true" valueType="boolean"/>
+								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.createlisting.allheaders.1662387298" name="Display all headers (--all-headers|-x)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.createlisting.allheaders" useByScannerDiscovery="false" value="true" valueType="boolean"/>
+								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.createlisting.demangle.573379987" name="Demangle names (--demangle|-C)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.createlisting.demangle" useByScannerDiscovery="false" value="true" valueType="boolean"/>
+								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.createlisting.linenumbers.1285315280" name="Display line numbers (--line-numbers|-l)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.createlisting.linenumbers" useByScannerDiscovery="false" value="true" valueType="boolean"/>
+								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.createlisting.wide.79028881" name="Wide lines (--wide|-w)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.createlisting.wide" useByScannerDiscovery="false" value="true" valueType="boolean"/>
+							</tool>
+							<tool id="com.renesas.cdt.managedbuild.gcc.rz.tool.size.2074609474" name="Cross ARM GNU Print Size" superClass="com.renesas.cdt.managedbuild.gcc.rz.tool.size">
+								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.printsize.format.594619579" name="Size format" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.printsize.format" useByScannerDiscovery="false"/>
+							</tool>
+							<tool id="com.renesas.cdt.managedbuild.gcc.rz.tool.libgen.144356822" name="Library Generator" superClass="com.renesas.cdt.managedbuild.gcc.rz.tool.libgen">
+								<option id="com.renesas.cdt.managedbuild.gcc.rz.option.selectlibrary.1732978470" name="Select Library" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.selectlibrary" useByScannerDiscovery="true" value="com.renesas.cdt.managedbuild.gcc.core.option.librarygenerator.settings.selectLibrary.optimized" valueType="enumerated"/>
+								<option id="com.renesas.cdt.managedbuild.gcc.core.option.librarygenerator.settings.libraryType.2067344284" name="Library type" superClass="com.renesas.cdt.managedbuild.gcc.core.option.librarygenerator.settings.libraryType" useByScannerDiscovery="true" value="com.renesas.cdt.managedbuild.gcc.core.option.librarygenerator.settings.libraryType.projectBuilt" valueType="enumerated"/>
+							</tool>
+						</toolChain>
+					</folderInfo>
+				</configuration>
+			</storageModule>
+			<storageModule moduleId="org.eclipse.cdt.core.externalSettings"/>
+			<storageModule moduleId="com.renesas.cdt.managedbuild.core.boardInfo"/>
+		</cconfiguration>
+	</storageModule>
+	<storageModule moduleId="cdtBuildSystem" version="4.0.0">
+		<project id="Test4.com.renesas.cdt.managedbuild.gcc.rz.target.elf.1104139979" name="Executable" projectType="com.renesas.cdt.managedbuild.gcc.rz.target.elf"/>
+	</storageModule>
+	<storageModule moduleId="scannerConfiguration">
+		<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
+		<scannerConfigBuildInfo instanceId="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug.1445259662;com.renesas.cdt.managedbuild.gcc.rz.configuration.debug.1445259662.;com.renesas.cdt.managedbuild.gcc.rz.tool.compiler.cpp.1646852958;ilg.gnuarmeclipse.managedbuild.cross.tool.cpp.compiler.input.231965655">
+			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
+		</scannerConfigBuildInfo>
+		<scannerConfigBuildInfo instanceId="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug.1445259662;com.renesas.cdt.managedbuild.gcc.rz.configuration.debug.1445259662.;com.renesas.cdt.managedbuild.gcc.rz.tool.compiler.cpp.1646852958;com.renesas.cdt.managedbuild.gcc.rz.inputType.compiler.c.393655903">
+			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
+		</scannerConfigBuildInfo>
+	</storageModule>
+	<storageModule moduleId="org.eclipse.cdt.core.LanguageSettingsProviders"/>
+	<storageModule moduleId="refreshScope" versionNumber="2">
+		<configuration configurationName="Release_RZ_A1L">
+			<resource resourceType="PROJECT" workspacePath="/Deluge"/>
+		</configuration>
+		<configuration configurationName="HardwareDebug_RZ_A1L"/>
+	</storageModule>
+	<storageModule moduleId="org.eclipse.cdt.make.core.buildtargets"/>
+</cproject>

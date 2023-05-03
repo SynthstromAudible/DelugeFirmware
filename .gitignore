@@ -1,0 +1,5 @@
+/Release*/*
+/HardwareDebug*/*
+/.settings/*
+/Deluge.jlink
+/JLinkLog.log

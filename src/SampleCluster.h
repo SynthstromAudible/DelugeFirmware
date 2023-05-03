@@ -1,0 +1,42 @@
+/*
+ * Copyright © 2017-2023 Synthstrom Audible Limited
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
+ */
+
+#ifndef SAMPLECLUSTER_H_
+#define SAMPLECLUSTER_H_
+
+#include "r_typedefs.h"
+#include "definitions.h"
+
+class Cluster;
+class Sample;
+
+
+class SampleCluster {
+public:
+	SampleCluster();
+	~SampleCluster();
+	Cluster* getLoadedSampleChunk(Sample* sample, uint32_t chunkIndex, int loadInstruction = CHUNK_ENQUEUE, uint32_t priorityRating = 0xFFFFFFFF, uint8_t* error = NULL);
+	void ensureNoReason(Sample* sample);
+
+	uint32_t sdAddress; // In sectors. (Those 512 byte things. Not to be confused with clusters.)
+	Cluster* loadedSampleChunk; // May automatically be set to NULL if the LoadedSampleChunk needs to be deallocated (can only happen if it has no "reasons" left)
+	int8_t minValue;
+	int8_t maxValue;
+	bool investigatedWholeLength;
+};
+
+#endif /* SAMPLECLUSTER_H_ */

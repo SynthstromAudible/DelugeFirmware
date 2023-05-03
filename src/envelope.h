@@ -1,0 +1,52 @@
+/*
+ * Copyright © 2014-2023 Synthstrom Audible Limited
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
+*/
+
+#ifndef ENVELOPE_H
+#define ENVELOPE_H
+
+#include "r_typedefs.h"
+#include "definitions.h"
+
+class Sound;
+class Voice;
+class ParamManagerForTimeline;
+
+class Envelope
+{
+public:
+    Envelope();
+
+    uint32_t pos;
+    uint8_t state; // You may not set this directly, even from this class. Call setState()
+    int32_t lastValue;
+    int32_t lastValuePreCurrentStage;
+    uint32_t timeEnteredState;
+    bool ignoredNoteOff;
+    uint32_t fastReleaseIncrement;
+    int32_t noteOn(bool straightToDecay);
+    int32_t noteOn(uint8_t envelopeIndex, Sound* patchingConfig, Voice* voice);
+    void noteOff(uint8_t envelopeIndex, Sound* patchingConfig, ParamManagerForTimeline* paramManager);
+    int32_t render(uint32_t numSamples, uint32_t attack, uint32_t decay, uint32_t sustain, uint32_t release, const uint16_t* releaseTable);
+    void unconditionalRelease(uint8_t typeOfRelease = ENVELOPE_STAGE_RELEASE, uint32_t newFastReleaseIncrement = 4096);
+    void resumeAttack(int32_t oldLastValue);
+
+private:
+    void setState(uint8_t newState);
+};
+
+
+#endif // ENVELOPE_H
