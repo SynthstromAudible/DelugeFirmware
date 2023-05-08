@@ -561,11 +561,24 @@ extern "C" int main2(void) {
 #endif
 
 
-    // Setup SDRAM. Have to do this before setting up AudioDriver
+    // Setup SDRAM. Have to do this before setting up AudioEngine
 	userdef_bsc_cs2_init(0); // 64MB, hardcoded
 
     functionsInit();
-	new (&instrumentClipView) InstrumentClipView;
+
+    /*
+     * For reasons not exactly known, globally declared instances of classes (so, objects) will not get their
+     * constructors called automatically on boot-up as is supposed to happen in C++. This will immediately
+     * cause problems, as things don’t get initialized. And for classes with virtual functions (i.e. using
+     * polymorphism), their vtable won’t even be set, causing an instant crash as soon as any virtual function is called on them.
+	 *
+	 * This is why, right here in Deluge.cpp, every single globally declared object gets manually set up with a “new”
+	 * statement.
+	 *
+	 * See a more technical discussion of the problem here: https://stackoverflow.com/questions/32807964/c-gcc-file-scope-objects-constructors-arent-being-called?noredirect=1#comment53452782_32807964
+     */
+
+    new (&instrumentClipView) InstrumentClipView;
 	new (&sessionView) SessionView;
 	new (&matrixDriver) MatrixDriver;
 	new (&playbackHandler) PlaybackHandler;
