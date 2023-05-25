@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "DelugeFirmware"
+version = "0.1.0"
+description = "Open Source firmware for the Synthstrom Deluge"
+authors = ["Your Name <you@example.com>"]
+license = "GPL"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+
+[tool.poetry.dev-dependencies]
+SCons = "^4.5.2"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

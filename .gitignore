@@ -3,3 +3,5 @@
 /.settings/*
 /Deluge.jlink
 /JLinkLog.log
+/.scons*
+poetry.lock
