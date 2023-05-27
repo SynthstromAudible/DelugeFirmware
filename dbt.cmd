@@ -4,7 +4,14 @@ call "%~dp0scripts\toolchain\dbtenv.cmd" env
 set SCONS_EP=python -m SCons
 
 if [%POETRY_ACTIVE%] == [] (
-    set SCONS_RUNNER=poetry run
+    if not exist "\bin\poetry" (
+        ECHO Installing python requirements.
+        dir "%PYTHONHOME%"
+        python -m pip install --upgrade pip;
+        python -m pip install -q poetry
+    )
+    python -m poetry install
+    set SCONS_RUNNER=python -m poetry run 
 )
 
 if [%DBT_NO_SYNC%] == [] (
