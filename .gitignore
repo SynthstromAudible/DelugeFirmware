@@ -6,3 +6,5 @@
 /JLinkLog.log
 /.scons*
 poetry.lock
+/HardwareDebug_RZ_A1L/
+/DebugOverDAP/

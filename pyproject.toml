@@ -10,6 +10,8 @@ python = "^3.10"
 
 [tool.poetry.dev-dependencies]
 SCons = "^4.5.2"
+pyserial = "^3.5"
+ansi = "^0.3.6"
 
 [tool.poetry.group.dev.dependencies]
 pyocd = "^0.35.1"

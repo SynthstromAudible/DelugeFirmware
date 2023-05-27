@@ -1,0 +1,38 @@
+Import("ENV")
+
+
+ENV.AppendUnique(
+    ASFLAGS=[
+        "-mcpu=cortex-a9",
+        "-mfloat-abi=hard",
+        "-march=armv7-a+simd",
+        "-mthumb-interwork",
+        "-Wstack-usage",
+    ],
+    CFLAGS=[
+        "-std=gnu17",
+    ],
+    CXXFLAGS=[
+        "-fmessage-length=0",
+        "-fsigned-char",
+        "-ffunction-sections",
+        "-fdata-sections"
+    ],
+    CCFLAGS=[
+        "-mcpu=cortex-a9",
+        "-mfloat-abi=hard",
+        "-march=armv7-a+simd",
+        "-mthumb-interwork",
+        "-Wstack-usage",
+    ],
+    CPPDEFINES=[
+        "_GNU_SOURCE",
+        *GetOption("extra_defines"),
+    ],
+    LINKFLAGS=[
+        "-mcpu=cortex-a9",
+        "-mfloat-abi=hard",
+        "-mlittle-endian",
+        "-mthumb-interwork",
+    ],
+)

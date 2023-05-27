@@ -25,6 +25,9 @@ if [%POETRY_ACTIVE%] == [] (
         python -m pip install -q --upgrade pip;
         python -m pip install -q poetry
     )
+    if exist "%DBT_ROOT\poetry.lock" (
+        python -m poetry lock
+    )
     python -m poetry install
     set SCONS_RUNNER=python -m poetry run 
 )
