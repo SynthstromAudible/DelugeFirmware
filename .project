@@ -30,4 +30,15 @@
 		<nature>org.eclipse.cdt.managedbuilder.core.ScannerConfigNature</nature>
 		<nature>org.eclipse.xtext.ui.shared.xtextNature</nature>
 	</natures>
+	<filteredResources>
+		<filter>
+			<id>1685541714120</id>
+			<name></name>
+			<type>30</type>
+			<matcher>
+				<id>org.eclipse.ui.ide.multiFilter</id>
+				<arguments>1.0-projectRelativePath-matches-false-false-toolchain</arguments>
+			</matcher>
+		</filter>
+	</filteredResources>
 </projectDescription>
