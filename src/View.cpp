@@ -1092,7 +1092,7 @@ void View::setModRegion(uint32_t pos, uint32_t length, int noteRowId) {
 			&& activeModControllableModelStack.paramManager->containsAnyMainParamCollections()) {
 
 		activeModControllableModelStack.paramManager->toForTimeline()->grabValuesFromPos(pos, &activeModControllableModelStack);
-		// activeModControllable might not be a PatchingConfig, but in that case, the pointer's not going to get used
+		// activeModControllable might not be a Sound, but in that case, the pointer's not going to get used
 	}
 	setKnobIndicatorLevels();
 }

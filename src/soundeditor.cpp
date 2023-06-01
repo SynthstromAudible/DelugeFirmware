@@ -226,23 +226,23 @@ public:
 		MenuItemSubmenuReferringToOneThing::beginSession(navigatedBackwardFrom);
 	}
 #endif
-	bool isRelevant(Sound* patchingConfig, int whichThing) { return (patchingConfig->synthMode == SYNTH_MODE_FM); }
+	bool isRelevant(Sound* sound, int whichThing) { return (sound->synthMode == SYNTH_MODE_FM); }
 };
 
 class MenuItemFilterSubmenu final : public MenuItemSubmenu {
 public:
 	MenuItemFilterSubmenu(char const* newName = NULL, MenuItem** newFirstItem = NULL) : MenuItemSubmenu(newName, newFirstItem) {}
-	bool isRelevant(Sound* patchingConfig, int whichThing) { return (patchingConfig->synthMode != SYNTH_MODE_FM); }
+	bool isRelevant(Sound* sound, int whichThing) { return (sound->synthMode != SYNTH_MODE_FM); }
 };
 
 
 class MenuItemSelectionSample : public MenuItemSelection {
 public:
 	MenuItemSelectionSample(char const* newName = NULL) : MenuItemSelection(newName) {}
-	bool isRelevant(Sound* patchingConfig, int whichThing) {
-		if (!patchingConfig) return true; // For AudioClips
-		Source* source = &patchingConfig->sources[whichThing];
-		return (patchingConfig->getSynthMode() == SYNTH_MODE_SUBTRACTIVE && source->oscType == OSC_TYPE_SAMPLE && source->hasAtLeastOneAudioFileLoaded());
+	bool isRelevant(Sound* sound, int whichThing) {
+		if (!sound) return true; // For AudioClips
+		Source* source = &sound->sources[whichThing];
+		return (sound->getSynthMode() == SYNTH_MODE_SUBTRACTIVE && source->oscType == OSC_TYPE_SAMPLE && source->hasAtLeastOneAudioFileLoaded());
 	}
 };
 
@@ -267,7 +267,7 @@ public:
 	}
 #else
 	void drawName() {
-		if (soundEditor.currentPatchingConfig->getSynthMode() == SYNTH_MODE_FM) {
+		if (soundEditor.currentSound->getSynthMode() == SYNTH_MODE_FM) {
 			char buffer[5];
 			strcpy(buffer, "CAR");
 			intToString(thingIndex + 1, buffer + 3);
@@ -287,12 +287,12 @@ MenuItemModulatorSubmenu modulator1Menu;
 class MenuItemMasterTranspose final : public MenuItemInteger, public MenuItemPatchedParam {
 public:
 	MenuItemMasterTranspose(char const* newName = NULL) : MenuItemInteger(newName) {}
-	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentPatchingConfig->transpose; }
+	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentSound->transpose; }
 	void writeCurrentValue() {
-		soundEditor.currentPatchingConfig->transpose = soundEditor.currentValue;
+		soundEditor.currentSound->transpose = soundEditor.currentValue;
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithSoundFlags* modelStack = soundEditor.getCurrentModelStack(modelStackMemory)->addSoundFlags();
-		soundEditor.currentPatchingConfig->recalculateAllVoicePhaseIncrements(modelStack);
+		soundEditor.currentSound->recalculateAllVoicePhaseIncrements(modelStack);
 	}
 	MenuItem* selectButtonPress() { return MenuItemPatchedParam::selectButtonPress(); }
 	uint8_t shouldDrawDotOnName() { return MenuItemPatchedParam::shouldDrawDotOnName(); }
@@ -315,7 +315,7 @@ public:
 class MenuItemPatchedParamIntegerNonFM : public MenuItemPatchedParamInteger {
 public:
 	MenuItemPatchedParamIntegerNonFM(char const* newName = 0, int newP = 0) : MenuItemPatchedParamInteger(newName, newP) {}
-	bool isRelevant(Sound* patchingConfig, int whichThing) { return (patchingConfig->synthMode != SYNTH_MODE_FM); }
+	bool isRelevant(Sound* sound, int whichThing) { return (sound->synthMode != SYNTH_MODE_FM); }
 };
 
 
@@ -329,21 +329,21 @@ MenuItemDrumName drumNameMenu;
 class MenuItemSynthMode final : public MenuItemSelection {
 public:
 	MenuItemSynthMode(char const* newName = NULL) : MenuItemSelection(newName) {}
-	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentPatchingConfig->synthMode; }
+	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentSound->synthMode; }
 	void writeCurrentValue() {
-		soundEditor.currentPatchingConfig->setSynthMode(soundEditor.currentValue, currentSong);
+		soundEditor.currentSound->setSynthMode(soundEditor.currentValue, currentSong);
 		view.setKnobIndicatorLevels();
 	}
 	char const** getOptions() { static char const* options[] = {"Subtractive", "FM", "Ringmod", NULL}; return options; }
 	int getNumOptions() { return 3; }
-	bool isRelevant(Sound* patchingConfig, int whichThing) { return (patchingConfig->sources[0].oscType < NUM_OSC_TYPES_RINGMODDABLE && patchingConfig->sources[1].oscType < NUM_OSC_TYPES_RINGMODDABLE); }
+	bool isRelevant(Sound* sound, int whichThing) { return (sound->sources[0].oscType < NUM_OSC_TYPES_RINGMODDABLE && sound->sources[1].oscType < NUM_OSC_TYPES_RINGMODDABLE); }
 } synthModeMenu;
 
 
 class MenuItemBendSubmenu final : public MenuItemSubmenu {
 public:
 	MenuItemBendSubmenu(char const* newName = NULL, MenuItem** newItems = NULL) : MenuItemSubmenu(newName, newItems) {}
-	bool isRelevant(Sound* patchingConfig, int whichThing) {
+	bool isRelevant(Sound* sound, int whichThing) {
 		return (currentSong->currentClip->output->type == INSTRUMENT_TYPE_SYNTH
 				|| currentSong->currentClip->output->type == INSTRUMENT_TYPE_CV); // Drums within a Kit don't need the two-item submenu - they have their own single item.
 	}
@@ -397,7 +397,7 @@ public:
 	void writeCurrentValue() { soundEditor.currentModControllable->lpfMode = soundEditor.currentValue; }
 	char const** getOptions() { static char const* options[] = {"12dB", "24dB", "Drive", NULL}; return options; }
 	int getNumOptions() { return NUM_LPF_MODES; }
-	bool isRelevant(Sound* patchingConfig, int whichThing) { return (!patchingConfig || patchingConfig->synthMode != SYNTH_MODE_FM); }
+	bool isRelevant(Sound* sound, int whichThing) { return (!sound || sound->synthMode != SYNTH_MODE_FM); }
 } lpfModeMenu;
 
 // HPF menu ----------------------------------------------------------------------------------------------------
@@ -427,7 +427,7 @@ MenuItemSourceDependentPatchedParam envReleaseMenu;
 class MenuItemPolyphony final : public MenuItemSelection {
 public:
 	MenuItemPolyphony(char const* newName = NULL) : MenuItemSelection(newName) {}
-	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentPatchingConfig->polyphonic; }
+	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentSound->polyphonic; }
 	void writeCurrentValue() {
 
 		// If affect-entire button held, do whole kit
@@ -445,7 +445,7 @@ public:
 
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentPatchingConfig->polyphonic = soundEditor.currentValue;
+			soundEditor.currentSound->polyphonic = soundEditor.currentValue;
 		}
 	}
 	char const** getOptions() { static char const* options[] = {"Auto", "Polyphonic", "Monophonic", "Legato", "Choke", NULL}; return options; }
@@ -513,17 +513,17 @@ public:
 		if (soundEditor.currentValue >= 0) MenuItemDecimal::horizontalEncoderAction(offset);
 	}
 
-	bool isRelevant(Sound* patchingConfig, int whichThing) {
-		Source* source = &patchingConfig->sources[whichThing];
-		if (forModulator && patchingConfig->getSynthMode() != SYNTH_MODE_FM) return false;
-		return (source->oscType != OSC_TYPE_SAMPLE || patchingConfig->getSynthMode() == SYNTH_MODE_FM);
+	bool isRelevant(Sound* sound, int whichThing) {
+		Source* source = &sound->sources[whichThing];
+		if (forModulator && sound->getSynthMode() != SYNTH_MODE_FM) return false;
+		return (source->oscType != OSC_TYPE_SAMPLE || sound->getSynthMode() == SYNTH_MODE_FM);
 	}
 
 private:
 	bool forModulator;
 	uint32_t* getValueAddress() {
-		if (forModulator) return &soundEditor.currentPatchingConfig->modulatorRetriggerPhase[soundEditor.currentSourceIndex];
-		else return &soundEditor.currentPatchingConfig->oscRetriggerPhase[soundEditor.currentSourceIndex];
+		if (forModulator) return &soundEditor.currentSound->modulatorRetriggerPhase[soundEditor.currentSourceIndex];
+		else return &soundEditor.currentSound->oscRetriggerPhase[soundEditor.currentSourceIndex];
 	}
 };
 
@@ -533,22 +533,22 @@ MenuItemRetriggerPhase oscPhaseMenu;
 class MenuItemSourceVolume final : public MenuItemSourceDependentPatchedParam {
 public:
 	MenuItemSourceVolume(char const* newName = 0, int newP = 0) : MenuItemSourceDependentPatchedParam(newName, newP) {}
-	bool isRelevant(Sound* patchingConfig, int whichThing) { return (patchingConfig->getSynthMode() != SYNTH_MODE_RINGMOD); }
+	bool isRelevant(Sound* sound, int whichThing) { return (sound->getSynthMode() != SYNTH_MODE_RINGMOD); }
 } sourceVolumeMenu;
 
 class MenuItemSourceWaveIndex final : public MenuItemSourceDependentPatchedParam {
 public:
 	MenuItemSourceWaveIndex(char const* newName = 0, int newP = 0) : MenuItemSourceDependentPatchedParam(newName, newP) {}
-	bool isRelevant(Sound* patchingConfig, int whichThing) {
-		Source* source = &patchingConfig->sources[whichThing];
-		return (patchingConfig->getSynthMode() != SYNTH_MODE_FM && source->oscType == OSC_TYPE_WAVETABLE);
+	bool isRelevant(Sound* sound, int whichThing) {
+		Source* source = &sound->sources[whichThing];
+		return (sound->getSynthMode() != SYNTH_MODE_FM && source->oscType == OSC_TYPE_WAVETABLE);
 	}
 } sourceWaveIndexMenu;
 
 class MenuItemSourceFeedback final : public MenuItemSourceDependentPatchedParam {
 public:
 	MenuItemSourceFeedback(char const* newName = 0, int newP = 0) : MenuItemSourceDependentPatchedParam(newName, newP) {}
-	bool isRelevant(Sound* patchingConfig, int whichThing) { return (patchingConfig->getSynthMode() == SYNTH_MODE_FM); }
+	bool isRelevant(Sound* sound, int whichThing) { return (sound->getSynthMode() == SYNTH_MODE_FM); }
 } sourceFeedbackMenu;
 
 
@@ -582,11 +582,11 @@ public:
 				|| newValue == OSC_TYPE_INPUT_STEREO
 				|| newValue == OSC_TYPE_SAMPLE
 				|| newValue == OSC_TYPE_WAVETABLE) { // Haven't actually really determined if this needs to be here - maybe not?
-			soundEditor.currentPatchingConfig->unassignAllVoices();
+			soundEditor.currentSound->unassignAllVoices();
 		}
 
 		soundEditor.currentSource->setOscType(newValue);
-        if (oldValue == OSC_TYPE_SQUARE || newValue == OSC_TYPE_SQUARE) soundEditor.currentPatchingConfig->setupPatchingForAllParamManagers(currentSong);
+        if (oldValue == OSC_TYPE_SQUARE || newValue == OSC_TYPE_SQUARE) soundEditor.currentSound->setupPatchingForAllParamManagers(currentSong);
 	}
 
 	//char const** getOptions() { static char const* options[] = {"SINE", "TRIANGLE", "SQUARE", "SAW", "MMS1", "SUB1", "SAMPLE", "INL", "INR", "INLR", "SQ50", "SQ02", "SQ01", "SUB2", "SQ20", "SA50", "S101", "S303", "MMS2", "MMS3", "TABLE"}; return options; }
@@ -606,11 +606,11 @@ public:
 	}
 
 	int getNumOptions() {
-		if (soundEditor.currentPatchingConfig->getSynthMode() == SYNTH_MODE_RINGMOD) return NUM_OSC_TYPES_RINGMODDABLE;
+		if (soundEditor.currentSound->getSynthMode() == SYNTH_MODE_RINGMOD) return NUM_OSC_TYPES_RINGMODDABLE;
 		else if (AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn || DELUGE_MODEL == DELUGE_MODEL_40_PAD) return NUM_OSC_TYPES;
 		else return NUM_OSC_TYPES - 2;
 	}
-	bool isRelevant(Sound* patchingConfig, int whichThing) { return (patchingConfig->getSynthMode() != SYNTH_MODE_FM); }
+	bool isRelevant(Sound* sound, int whichThing) { return (sound->getSynthMode() != SYNTH_MODE_FM); }
 } oscTypeMenu;
 
 
@@ -627,20 +627,20 @@ public:
 		}
 		else audioRecorder.process();
 	}
-	bool isRelevant(Sound* patchingConfig, int whichThing) {
-		Source* source = &patchingConfig->sources[whichThing];
-		return (DELUGE_MODEL != DELUGE_MODEL_40_PAD && patchingConfig->getSynthMode() == SYNTH_MODE_SUBTRACTIVE);
+	bool isRelevant(Sound* sound, int whichThing) {
+		Source* source = &sound->sources[whichThing];
+		return (DELUGE_MODEL != DELUGE_MODEL_40_PAD && sound->getSynthMode() == SYNTH_MODE_SUBTRACTIVE);
 	}
 
-	int checkPermissionToBeginSession(Sound* patchingConfig, int whichThing, MultiRange** currentRange) {
+	int checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) {
 
-		bool can = isRelevant(patchingConfig, whichThing);
+		bool can = isRelevant(sound, whichThing);
 		if (!can) {
 			numericDriver.displayPopup(HAVE_OLED ? "Can't record audio into an FM synth" : "CANT");
 			return false;
 		}
 
-		return soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(patchingConfig, whichThing, false, currentRange);
+		return soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(sound, whichThing, false, currentRange);
 	}
 
 } audioRecorderMenu;
@@ -671,7 +671,7 @@ public:
 
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentPatchingConfig->unassignAllVoices();
+			soundEditor.currentSound->unassignAllVoices();
 			soundEditor.currentSource->setReversed(soundEditor.currentValue);
 		}
 	}
@@ -714,11 +714,11 @@ public:
 		else {
 			// Automatically switch pitch/speed independence on / off if stretch-to-note-length mode is selected
 			if (soundEditor.currentValue == SAMPLE_REPEAT_STRETCH) {
-				soundEditor.currentPatchingConfig->unassignAllVoices();
+				soundEditor.currentSound->unassignAllVoices();
 				soundEditor.currentSource->sampleControls.pitchAndSpeedAreIndependent = true;
 			}
 			else if (soundEditor.currentSource->repeatMode == SAMPLE_REPEAT_STRETCH) {
-				soundEditor.currentPatchingConfig->unassignAllVoices();
+				soundEditor.currentSound->unassignAllVoices();
 				soundEditor.currentSource->sampleControls.pitchAndSpeedAreIndependent = false;
 			}
 
@@ -750,7 +750,7 @@ public:
 	void readCurrentValue() {
 		int transpose;
 		int cents;
-		if (soundEditor.currentMultiRange && soundEditor.currentPatchingConfig->getSynthMode() != SYNTH_MODE_FM && soundEditor.currentSource->oscType == OSC_TYPE_SAMPLE) {
+		if (soundEditor.currentMultiRange && soundEditor.currentSound->getSynthMode() != SYNTH_MODE_FM && soundEditor.currentSource->oscType == OSC_TYPE_SAMPLE) {
 			transpose = ((MultisampleRange*)soundEditor.currentMultiRange)->sampleHolder.transpose;
 			cents = ((MultisampleRange*)soundEditor.currentMultiRange)->sampleHolder.cents;
 		}
@@ -767,7 +767,7 @@ public:
 		int cents = currentValue - semitones * 100;
 
 		int transpose = semitones - 256;
-		if (soundEditor.currentMultiRange && soundEditor.currentPatchingConfig->getSynthMode() != SYNTH_MODE_FM && soundEditor.currentSource->oscType == OSC_TYPE_SAMPLE) {
+		if (soundEditor.currentMultiRange && soundEditor.currentSound->getSynthMode() != SYNTH_MODE_FM && soundEditor.currentSource->oscType == OSC_TYPE_SAMPLE) {
 			((MultisampleRange*)soundEditor.currentMultiRange)->sampleHolder.transpose = transpose;
 			((MultisampleRange*)soundEditor.currentMultiRange)->sampleHolder.setCents(cents);
 		}
@@ -779,19 +779,19 @@ public:
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithSoundFlags* modelStack = soundEditor.getCurrentModelStack(modelStackMemory)->addSoundFlags();
 
-		soundEditor.currentPatchingConfig->recalculateAllVoicePhaseIncrements(modelStack);
+		soundEditor.currentSound->recalculateAllVoicePhaseIncrements(modelStack);
 	}
-	int checkPermissionToBeginSession(Sound* patchingConfig, int whichThing, MultiRange** currentRange) {
+	int checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) {
 
-		if (!isRelevant(patchingConfig, whichThing)) {
+		if (!isRelevant(sound, whichThing)) {
 			return MENU_PERMISSION_NO;
 		}
 
-		Source* source = &patchingConfig->sources[whichThing];
+		Source* source = &sound->sources[whichThing];
 
-		if (patchingConfig->getSynthMode() == SYNTH_MODE_FM || (source->oscType != OSC_TYPE_SAMPLE && source->oscType != OSC_TYPE_WAVETABLE)) return MENU_PERMISSION_YES;
+		if (sound->getSynthMode() == SYNTH_MODE_FM || (source->oscType != OSC_TYPE_SAMPLE && source->oscType != OSC_TYPE_WAVETABLE)) return MENU_PERMISSION_YES;
 
-		return soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(patchingConfig, whichThing, true, currentRange);
+		return soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(sound, whichThing, true, currentRange);
 	}
 	bool isRangeDependent() { return true; }
 } sourceTransposeMenu;
@@ -834,10 +834,10 @@ public:
 	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentSampleControls->interpolationMode; }
 	void writeCurrentValue() { soundEditor.currentSampleControls->interpolationMode = soundEditor.currentValue; }
 	char const** getOptions() { static char const* options[] = {"Linear", "Sinc", NULL}; return options; }
-	bool isRelevant(Sound* patchingConfig, int whichThing) {
-		if (!patchingConfig) return true;
-		Source* source = &patchingConfig->sources[whichThing];
-		return (patchingConfig->getSynthMode() == SYNTH_MODE_SUBTRACTIVE &&
+	bool isRelevant(Sound* sound, int whichThing) {
+		if (!sound) return true;
+		Source* source = &sound->sources[whichThing];
+		return (sound->getSynthMode() == SYNTH_MODE_SUBTRACTIVE &&
 				((source->oscType == OSC_TYPE_SAMPLE && source->hasAtLeastOneAudioFileLoaded()) || source->oscType == OSC_TYPE_INPUT_L || source->oscType == OSC_TYPE_INPUT_R || source->oscType == OSC_TYPE_INPUT_STEREO));
 	}
 } interpolationMenu;
@@ -871,9 +871,9 @@ public:
 	}
 	int getMinValue() { return -48; }
 	int getMaxValue() { return 48; }
-	bool isRelevant(Sound* patchingConfig, int whichThing) {
-		Source* source = &patchingConfig->sources[whichThing];
-		return (patchingConfig->getSynthMode() == SYNTH_MODE_SUBTRACTIVE && source->oscType == OSC_TYPE_SAMPLE);
+	bool isRelevant(Sound* sound, int whichThing) {
+		Source* source = &sound->sources[whichThing];
+		return (sound->getSynthMode() == SYNTH_MODE_SUBTRACTIVE && source->oscType == OSC_TYPE_SAMPLE);
 	}
 } timeStretchMenu;
 
@@ -887,9 +887,9 @@ public:
 	void readCurrentValue() {
 		soundEditor.currentValue = ((int64_t)soundEditor.currentParamManager->getPatchedParamSet()->getValue(getP()) * 100 + 2147483648) >> 32;
 	}
-	bool isRelevant(Sound* patchingConfig, int whichThing) {
-		if (patchingConfig->getSynthMode() == SYNTH_MODE_FM) return false;
-		int oscType = patchingConfig->sources[whichThing].oscType;
+	bool isRelevant(Sound* sound, int whichThing) {
+		if (sound->getSynthMode() == SYNTH_MODE_FM) return false;
+		int oscType = sound->sources[whichThing].oscType;
 		return (oscType != OSC_TYPE_SAMPLE && oscType != OSC_TYPE_INPUT_L && oscType != OSC_TYPE_INPUT_R && oscType != OSC_TYPE_INPUT_STEREO);
 	}
 } pulseWidthMenu;
@@ -897,12 +897,12 @@ public:
 class MenuItemOscSync final : public MenuItemSelection {
 public:
 	MenuItemOscSync(char const* newName = NULL) : MenuItemSelection(newName) {}
-	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentPatchingConfig->oscillatorSync; }
-	void writeCurrentValue() { soundEditor.currentPatchingConfig->oscillatorSync = soundEditor.currentValue; }
-	bool isRelevant(Sound* patchingConfig, int whichThing) {
-		return (whichThing == 1 && patchingConfig->synthMode != SYNTH_MODE_FM
-				&& patchingConfig->sources[0].oscType != OSC_TYPE_SAMPLE
-				&& patchingConfig->sources[1].oscType != OSC_TYPE_SAMPLE);
+	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentSound->oscillatorSync; }
+	void writeCurrentValue() { soundEditor.currentSound->oscillatorSync = soundEditor.currentValue; }
+	bool isRelevant(Sound* sound, int whichThing) {
+		return (whichThing == 1 && sound->synthMode != SYNTH_MODE_FM
+				&& sound->sources[0].oscType != OSC_TYPE_SAMPLE
+				&& sound->sources[1].oscType != OSC_TYPE_SAMPLE);
 	}
 } oscSyncMenu;
 
@@ -911,11 +911,11 @@ public:
 class MenuItemNumUnison final : public MenuItemInteger {
 public:
 	MenuItemNumUnison(char const* newName = NULL) : MenuItemInteger(newName) {}
-	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentPatchingConfig->numUnison; }
+	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentSound->numUnison; }
 	void writeCurrentValue() {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithSoundFlags* modelStack = soundEditor.getCurrentModelStack(modelStackMemory)->addSoundFlags();
-		soundEditor.currentPatchingConfig->setNumUnison(soundEditor.currentValue, modelStack);
+		soundEditor.currentSound->setNumUnison(soundEditor.currentValue, modelStack);
 	}
 	int getMinValue() { return 1; }
 	int getMaxValue() { return maxNumUnison; }
@@ -924,12 +924,12 @@ public:
 class MenuItemUnisonDetune final : public MenuItemInteger {
 public:
 	MenuItemUnisonDetune(char const* newName = NULL) : MenuItemInteger(newName) {}
-	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentPatchingConfig->unisonDetune; }
+	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentSound->unisonDetune; }
 	void writeCurrentValue() {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithSoundFlags* modelStack = soundEditor.getCurrentModelStack(modelStackMemory)->addSoundFlags();
 
-		soundEditor.currentPatchingConfig->setUnisonDetune(soundEditor.currentValue, modelStack);
+		soundEditor.currentSound->setUnisonDetune(soundEditor.currentValue, modelStack);
 	}
 	int getMaxValue() { return MAX_UNISON_DETUNE; }
 } unisonDetuneMenu;
@@ -953,8 +953,8 @@ public:
 				}
 				else {
 					ModelStackWithSoundFlags* modelStackWithSoundFlags = modelStack->addSoundFlags();
-					soundEditor.currentPatchingConfig->allNotesOff(modelStackWithSoundFlags, soundEditor.currentPatchingConfig->getArp()); // Must switch off all notes when switching arp on / off
-					soundEditor.currentPatchingConfig->reassessRenderSkippingStatus(modelStackWithSoundFlags);
+					soundEditor.currentSound->allNotesOff(modelStackWithSoundFlags, soundEditor.currentSound->getArp()); // Must switch off all notes when switching arp on / off
+					soundEditor.currentSound->reassessRenderSkippingStatus(modelStackWithSoundFlags);
 				}
     		}
     	}
@@ -989,7 +989,7 @@ public:
 class MenuItemArpGate final : public MenuItemUnpatchedParam {
 public:
 	MenuItemArpGate(char const* newName = NULL, int newP = 0) : MenuItemUnpatchedParam(newName, newP) {}
-	bool isRelevant(Sound* patchingConfig, int whichThing) { return !soundEditor.editingCVOrMIDIClip(); }
+	bool isRelevant(Sound* sound, int whichThing) { return !soundEditor.editingCVOrMIDIClip(); }
 } arpGateMenu;
 
 class MenuItemArpGateMIDIOrCV final : public MenuItemInteger {
@@ -998,14 +998,14 @@ public:
 	void readCurrentValue() { 	soundEditor.currentValue = (((int64_t)((InstrumentClip*)currentSong->currentClip)->arpeggiatorGate + 2147483648) * 50 + 2147483648) >> 32; }
 	void writeCurrentValue() { ((InstrumentClip*)currentSong->currentClip)->arpeggiatorGate = (uint32_t)soundEditor.currentValue * 85899345 - 2147483648; }
 	int getMaxValue() { return 50; }
-	bool isRelevant(Sound* patchingConfig, int whichThing) { return soundEditor.editingCVOrMIDIClip(); }
+	bool isRelevant(Sound* sound, int whichThing) { return soundEditor.editingCVOrMIDIClip(); }
 } arpGateMenuMIDIOrCV;
 
 
 class MenuItemArpRate final : public MenuItemPatchedParamInteger {
 public:
 	MenuItemArpRate(char const* newName = NULL, int newP = 0) : MenuItemPatchedParamInteger(newName, newP) {}
-	bool isRelevant(Sound* patchingConfig, int whichThing) { return !soundEditor.editingCVOrMIDIClip(); }
+	bool isRelevant(Sound* sound, int whichThing) { return !soundEditor.editingCVOrMIDIClip(); }
 } arpRateMenu;
 
 class MenuItemArpRateMIDIOrCV final : public MenuItemInteger {
@@ -1021,7 +1021,7 @@ public:
 		}
 	}
 	int getMaxValue() { return 50; }
-	bool isRelevant(Sound* patchingConfig, int whichThing) { return soundEditor.editingCVOrMIDIClip(); }
+	bool isRelevant(Sound* sound, int whichThing) { return soundEditor.editingCVOrMIDIClip(); }
 } arpRateMenuMIDIOrCV;
 
 
@@ -1029,7 +1029,7 @@ public:
 class MenuItemModulatorTranspose final : public MenuItemSourceDependentTranspose {
 public:
 	MenuItemModulatorTranspose(char const* newName = NULL, int newP = 0) : MenuItemSourceDependentTranspose(newName, newP) {}
-	void readCurrentValue() { soundEditor.currentValue = (int32_t)soundEditor.currentPatchingConfig->modulatorTranspose[soundEditor.currentSourceIndex] * 100 + soundEditor.currentPatchingConfig->modulatorCents[soundEditor.currentSourceIndex]; }
+	void readCurrentValue() { soundEditor.currentValue = (int32_t)soundEditor.currentSound->modulatorTranspose[soundEditor.currentSourceIndex] * 100 + soundEditor.currentSound->modulatorCents[soundEditor.currentSourceIndex]; }
 	void writeCurrentValue() {
 		int currentValue = soundEditor.currentValue + 25600;
 
@@ -1039,17 +1039,17 @@ public:
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithSoundFlags* modelStack = soundEditor.getCurrentModelStack(modelStackMemory)->addSoundFlags();
 
-		soundEditor.currentPatchingConfig->setModulatorTranspose(soundEditor.currentSourceIndex, semitones - 256, modelStack);
-    	soundEditor.currentPatchingConfig->setModulatorCents(soundEditor.currentSourceIndex, cents, modelStack);
+		soundEditor.currentSound->setModulatorTranspose(soundEditor.currentSourceIndex, semitones - 256, modelStack);
+    	soundEditor.currentSound->setModulatorCents(soundEditor.currentSourceIndex, cents, modelStack);
 	}
-	bool isRelevant(Sound* patchingConfig, int whichThing) { return (patchingConfig->getSynthMode() == SYNTH_MODE_FM); }
+	bool isRelevant(Sound* sound, int whichThing) { return (sound->getSynthMode() == SYNTH_MODE_FM); }
 } modulatorTransposeMenu;
 
 
 class MenuItemSourceDependentPatchedParamFM final : public MenuItemSourceDependentPatchedParam {
 public:
 	MenuItemSourceDependentPatchedParamFM(char const* newName = 0, int newP = 0) : MenuItemSourceDependentPatchedParam(newName, newP) {}
-	bool isRelevant(Sound* patchingConfig, int whichThing) { return (patchingConfig->getSynthMode() == SYNTH_MODE_FM); }
+	bool isRelevant(Sound* sound, int whichThing) { return (sound->getSynthMode() == SYNTH_MODE_FM); }
 };
 
 MenuItemSourceDependentPatchedParamFM modulatorVolume;
@@ -1060,10 +1060,10 @@ MenuItemSourceDependentPatchedParamFM modulatorFeedbackMenu;
 class MenuItemModulatorDest final : public MenuItemSelection {
 public:
 	MenuItemModulatorDest(char const* newName = NULL) : MenuItemSelection(newName) {}
-	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentPatchingConfig->modulator1ToModulator0; }
-	void writeCurrentValue() { soundEditor.currentPatchingConfig->modulator1ToModulator0 = soundEditor.currentValue; }
+	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentSound->modulator1ToModulator0; }
+	void writeCurrentValue() { soundEditor.currentSound->modulator1ToModulator0 = soundEditor.currentValue; }
 	char const** getOptions() { static char const* options[] = {"Carriers", HAVE_OLED ? "Modulator 1" : "MOD1", NULL}; return options; }
-	bool isRelevant(Sound* patchingConfig, int whichThing) { return (whichThing == 1 && patchingConfig->synthMode == SYNTH_MODE_FM); }
+	bool isRelevant(Sound* sound, int whichThing) { return (whichThing == 1 && sound->synthMode == SYNTH_MODE_FM); }
 } modulatorDestMenu;
 
 MenuItemRetriggerPhase modulatorPhaseMenu;
@@ -1073,23 +1073,23 @@ MenuItemRetriggerPhase modulatorPhaseMenu;
 class MenuItemLFO1Type final : public MenuItemLFOShape {
 public:
 	MenuItemLFO1Type(char const* newName = NULL) : MenuItemLFOShape(newName) {}
-	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentPatchingConfig->lfoGlobalWaveType; }
-	void writeCurrentValue() { soundEditor.currentPatchingConfig->setLFOGlobalWave(soundEditor.currentValue); }
+	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentSound->lfoGlobalWaveType; }
+	void writeCurrentValue() { soundEditor.currentSound->setLFOGlobalWave(soundEditor.currentValue); }
 } lfo1TypeMenu;
 
 class MenuItemLFO1Rate final : public MenuItemPatchedParamInteger {
 public:
 	MenuItemLFO1Rate(char const* newName = 0, int newP = 0) : MenuItemPatchedParamInteger(newName, newP) {}
-	bool isRelevant(Sound* patchingConfig, int whichThing) { return (patchingConfig->lfoGlobalSyncLevel == 0); }
+	bool isRelevant(Sound* sound, int whichThing) { return (sound->lfoGlobalSyncLevel == 0); }
 } lfo1RateMenu;
 
 class MenuItemLFO1Sync final : public MenuItemSyncLevel {
 public:
 	MenuItemLFO1Sync(char const* newName = NULL) : MenuItemSyncLevel(newName) {}
-	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentPatchingConfig->lfoGlobalSyncLevel; }
+	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentSound->lfoGlobalSyncLevel; }
 	void writeCurrentValue() {
-		soundEditor.currentPatchingConfig->setLFOGlobalSyncLevel(soundEditor.currentValue);
-		soundEditor.currentPatchingConfig->setupPatchingForAllParamManagers(currentSong);
+		soundEditor.currentSound->setLFOGlobalSyncLevel(soundEditor.currentValue);
+		soundEditor.currentSound->setupPatchingForAllParamManagers(currentSong);
 	}
 } lfo1SyncMenu;
 
@@ -1098,8 +1098,8 @@ public:
 class MenuItemLFO2Type final : public MenuItemLFOShape {
 public:
 	MenuItemLFO2Type(char const* newName = NULL) : MenuItemLFOShape(newName) {}
-	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentPatchingConfig->lfoLocalWaveType; }
-	void writeCurrentValue() { soundEditor.currentPatchingConfig->lfoLocalWaveType = soundEditor.currentValue; }
+	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentSound->lfoLocalWaveType; }
+	void writeCurrentValue() { soundEditor.currentSound->lfoLocalWaveType = soundEditor.currentValue; }
 } lfo2TypeMenu;
 
 MenuItemPatchedParamInteger lfo2RateMenu;
@@ -1143,24 +1143,24 @@ MenuItemPatchedParamInteger modFXRateMenu;
 class MenuItemModFXFeedback final : public MenuItemUnpatchedParam {
 public:
 	MenuItemModFXFeedback(char const* newName = 0, int newP = 0) : MenuItemUnpatchedParam(newName, newP) {}
-	bool isRelevant(Sound* patchingConfig, int whichThing) {
-		return (!patchingConfig || patchingConfig->modFXType == MOD_FX_TYPE_FLANGER || patchingConfig->modFXType == MOD_FX_TYPE_PHASER); // TODO: really want to receive a ModControllableAudio here!
+	bool isRelevant(Sound* sound, int whichThing) {
+		return (!sound || sound->modFXType == MOD_FX_TYPE_FLANGER || sound->modFXType == MOD_FX_TYPE_PHASER); // TODO: really want to receive a ModControllableAudio here!
 	}
 } modFXFeedbackMenu;
 
 class MenuItemModFXDepth final : public MenuItemPatchedParamInteger {
 public:
 	MenuItemModFXDepth(char const* newName = 0, int newP = 0) : MenuItemPatchedParamInteger(newName, newP) {}
-	bool isRelevant(Sound* patchingConfig, int whichThing) {
-		return (patchingConfig->modFXType == MOD_FX_TYPE_CHORUS || patchingConfig->modFXType == MOD_FX_TYPE_PHASER);
+	bool isRelevant(Sound* sound, int whichThing) {
+		return (sound->modFXType == MOD_FX_TYPE_CHORUS || sound->modFXType == MOD_FX_TYPE_PHASER);
 	}
 } modFXDepthMenu;
 
 class MenuItemModFXOffset final : public MenuItemUnpatchedParam {
 public:
 	MenuItemModFXOffset(char const* newName = 0, int newP = 0) : MenuItemUnpatchedParam(newName, newP) {}
-	bool isRelevant(Sound* patchingConfig, int whichThing) {
-		return (!patchingConfig || patchingConfig->modFXType == MOD_FX_TYPE_CHORUS); // TODO: really want to receive a ModControllableAudio here!
+	bool isRelevant(Sound* sound, int whichThing) {
+		return (!sound || sound->modFXType == MOD_FX_TYPE_CHORUS); // TODO: really want to receive a ModControllableAudio here!
 	}
 } modFXOffsetMenu;
 
@@ -1263,13 +1263,13 @@ MenuItemCompressorSubmenu reverbCompressorMenu;
 class MenuItemSidechainSend final : public MenuItemInteger {
 public:
 	MenuItemSidechainSend(char const* newName = NULL) : MenuItemInteger(newName) {}
-	void readCurrentValue() { soundEditor.currentValue = ((uint64_t)soundEditor.currentPatchingConfig->sideChainSendLevel * 50 + 1073741824) >> 31; }
+	void readCurrentValue() { soundEditor.currentValue = ((uint64_t)soundEditor.currentSound->sideChainSendLevel * 50 + 1073741824) >> 31; }
 	void writeCurrentValue() {
-		if (soundEditor.currentValue == 50) soundEditor.currentPatchingConfig->sideChainSendLevel = 2147483647;
-		else soundEditor.currentPatchingConfig->sideChainSendLevel = soundEditor.currentValue * 42949673;
+		if (soundEditor.currentValue == 50) soundEditor.currentSound->sideChainSendLevel = 2147483647;
+		else soundEditor.currentSound->sideChainSendLevel = soundEditor.currentValue * 42949673;
 	}
 	int getMaxValue() { return 50; }
-	bool isRelevant(Sound* patchingConfig, int whichThing) { return (soundEditor.editingKit()); }
+	bool isRelevant(Sound* sound, int whichThing) { return (soundEditor.editingKit()); }
 } sidechainSendMenu;
 
 
@@ -1308,7 +1308,7 @@ public:
 		soundEditor.currentCompressor->sync = soundEditor.currentValue;
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	}
-	bool isRelevant(Sound* patchingConfig, int whichThing) { return !(soundEditor.editingReverbCompressor() && AudioEngine::reverbCompressorVolume < 0); }
+	bool isRelevant(Sound* sound, int whichThing) { return !(soundEditor.editingReverbCompressor() && AudioEngine::reverbCompressorVolume < 0); }
 } sidechainSyncMenu;
 
 class MenuItemCompressorAttack final : public MenuItemInteger {
@@ -1320,7 +1320,7 @@ public:
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	}
 	int getMaxValue() { return 50; }
-	bool isRelevant(Sound* patchingConfig, int whichThing) { return !(soundEditor.editingReverbCompressor() && AudioEngine::reverbCompressorVolume < 0); }
+	bool isRelevant(Sound* sound, int whichThing) { return !(soundEditor.editingReverbCompressor() && AudioEngine::reverbCompressorVolume < 0); }
 } compressorAttackMenu;
 
 class MenuItemCompressorRelease final : public MenuItemInteger {
@@ -1332,7 +1332,7 @@ public:
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	}
 	int getMaxValue() { return 50; }
-	bool isRelevant(Sound* patchingConfig, int whichThing) { return !(soundEditor.editingReverbCompressor() && AudioEngine::reverbCompressorVolume < 0); }
+	bool isRelevant(Sound* sound, int whichThing) { return !(soundEditor.editingReverbCompressor() && AudioEngine::reverbCompressorVolume < 0); }
 } compressorReleaseMenu;
 
 MenuItemUnpatchedParamUpdatingReverbParams compressorShapeMenu;
@@ -1346,7 +1346,7 @@ public:
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	}
 	int getMaxValue() { return 50; }
-	bool isRelevant(Sound* patchingConfig, int whichThing) { return (AudioEngine::reverbCompressorVolume >= 0); }
+	bool isRelevant(Sound* sound, int whichThing) { return (AudioEngine::reverbCompressorVolume >= 0); }
 } reverbCompressorShapeMenu;
 
 
@@ -1386,7 +1386,7 @@ public:
 		if (expressionParams)
 			expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL] = soundEditor.currentValue;
 	}
-	bool isRelevant(Sound* patchingConfig, int whichThing) { return soundEditor.navigationDepth == 1 || soundEditor.editingKit(); }
+	bool isRelevant(Sound* sound, int whichThing) { return soundEditor.navigationDepth == 1 || soundEditor.editingKit(); }
 } perFingerBendRangeMenu, drumBendRangeMenu;
 
 
@@ -1415,7 +1415,7 @@ public:
 			numericDriver.setTextAsNumber(soundEditor.currentValue + 1);
 	}
 #endif
-	bool isRelevant(Sound* patchingConfig, int whichThing) { return currentSong->currentClip->output->type == INSTRUMENT_TYPE_MIDI_OUT; }
+	bool isRelevant(Sound* sound, int whichThing) { return currentSong->currentClip->output->type == INSTRUMENT_TYPE_MIDI_OUT; }
 	void selectEncoderAction(int offset) {
 		soundEditor.currentValue += offset;
 		if (soundEditor.currentValue >= 129) soundEditor.currentValue -= 129;
@@ -1520,7 +1520,7 @@ public:
 		return sequenceDirectionOptions;
 	}
 
-	int checkPermissionToBeginSession(Sound* patchingConfig, int whichThing, MultiRange** currentRange) {
+	int checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) {
 		if (!((InstrumentClip*)currentSong->currentClip)->affectEntire && currentSong->currentClip->output->type == INSTRUMENT_TYPE_KIT && !((Kit*)currentSong->currentClip->output)->selectedDrum) {
 			return MENU_PERMISSION_NO;
 		}
@@ -2529,7 +2529,7 @@ SoundEditor::SoundEditor()
     new (&arpModeMenu) MenuItemArpMode("MODE");
     new (&arpSyncMenu) MenuItemArpSync("SYNC");
     new (&arpOctavesMenu) MenuItemArpOctaves(HAVE_OLED ? "Number of octaves" : "OCTAVES");
-    new (&arpGateMenu) MenuItemArpGate("GATE", PARAM_UNPATCHED_PATCHINGCONFIG_ARP_GATE);
+    new (&arpGateMenu) MenuItemArpGate("GATE", PARAM_UNPATCHED_SOUND_ARP_GATE);
     new (&arpGateMenuMIDIOrCV) MenuItemArpGateMIDIOrCV("GATE");
     new (&arpRateMenu) MenuItemArpRate("RATE", PARAM_GLOBAL_ARP_RATE);
     new (&arpRateMenuMIDIOrCV) MenuItemArpRateMIDIOrCV("RATE");
@@ -2538,7 +2538,7 @@ SoundEditor::SoundEditor()
     // Voice menu
     new (&polyphonyMenu) MenuItemPolyphony("POLYPHONY");
     new (&unisonMenu) MenuItemSubmenu("UNISON", unisonMenuItems);
-    new (&portaMenu) MenuItemUnpatchedParam("PORTAMENTO", PARAM_UNPATCHED_PATCHINGCONFIG_PORTA);
+    new (&portaMenu) MenuItemUnpatchedParam("PORTAMENTO", PARAM_UNPATCHED_SOUND_PORTA);
     new (&arpMenu) MenuItemArpeggiatorSubmenu("ARPEGGIATOR", arpMenuItems);
     new (&priorityMenu) MenuItemPriority("PRIORITY");
     static MenuItem* voiceMenuItems[] = {&polyphonyMenu, &unisonMenu, &portaMenu, &arpMenu, &priorityMenu, NULL};
@@ -2898,8 +2898,8 @@ void SoundEditor::focusRegained() {
 void SoundEditor::setLedStates() {
     IndicatorLEDs::setLedState(saveLedX, saveLedY, false); // In case we came from the save-Instrument UI
 
-    IndicatorLEDs::setLedState(synthLedX, synthLedY, !inSettingsMenu() && !editingKit() && currentPatchingConfig);
-    IndicatorLEDs::setLedState(kitLedX, kitLedY, !inSettingsMenu() && editingKit() && currentPatchingConfig);
+    IndicatorLEDs::setLedState(synthLedX, synthLedY, !inSettingsMenu() && !editingKit() && currentSound);
+    IndicatorLEDs::setLedState(kitLedX, kitLedY, !inSettingsMenu() && editingKit() && currentSound);
     IndicatorLEDs::setLedState(midiLedX, midiLedY, !inSettingsMenu() && currentSong->currentClip->output->type == INSTRUMENT_TYPE_MIDI_OUT);
     IndicatorLEDs::setLedState(cvLedX, cvLedY, !inSettingsMenu() && currentSong->currentClip->output->type == INSTRUMENT_TYPE_CV);
 
@@ -2923,7 +2923,7 @@ int SoundEditor::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 				if (newItem) {
 					if (newItem != (MenuItem*)0xFFFFFFFF) {
 
-						int result = newItem->checkPermissionToBeginSession(currentPatchingConfig, currentSourceIndex, &currentMultiRange);
+						int result = newItem->checkPermissionToBeginSession(currentSound, currentSourceIndex, &currentMultiRange);
 
 						if (result != MENU_PERMISSION_NO) {
 
@@ -3070,7 +3070,7 @@ void SoundEditor::goUpOneLevel() {
 			return;
 		}
 		navigationDepth--;
-	} while (!getCurrentMenuItem()->checkPermissionToBeginSession(currentPatchingConfig, currentSourceIndex, &currentMultiRange));
+	} while (!getCurrentMenuItem()->checkPermissionToBeginSession(currentSound, currentSourceIndex, &currentMultiRange));
     numericDriver.setNextTransitionDirection(-1);
 
     MenuItem* oldItem = menuItemNavigationRecord[navigationDepth + 1];
@@ -3325,23 +3325,23 @@ void SoundEditor::selectEncoderAction(int8_t offset) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithSoundFlags* modelStack = getCurrentModelStack(modelStackMemory)->addSoundFlags();
 
-	if (currentPatchingConfig) {
+	if (currentSound) {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithSoundFlags* modelStack = getCurrentModelStack(modelStackMemory)->addSoundFlags();
 
-		hadNoteTails = currentPatchingConfig->allowNoteTails(modelStack);
+		hadNoteTails = currentSound->allowNoteTails(modelStack);
 	}
 
 	getCurrentMenuItem()->selectEncoderAction(offset);
 
-	if (currentPatchingConfig) {
+	if (currentSound) {
 		if (getCurrentMenuItem()->selectEncoderActionEditsInstrument()) markInstrumentAsEdited(); // TODO: make reverb and reverb-compressor stuff exempt from this
 
 	    // If envelope param preset values were changed, there's a chance that there could have been a change to whether notes have tails
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithSoundFlags* modelStack = getCurrentModelStack(modelStackMemory)->addSoundFlags();
 
-	    bool hasNoteTailsNow = currentPatchingConfig->allowNoteTails(modelStack);
+	    bool hasNoteTailsNow = currentSound->allowNoteTails(modelStack);
 	    if (hadNoteTails != hasNoteTailsNow) {
 	        uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
 	    }
@@ -3495,7 +3495,7 @@ getOut:			bool wentBack = false;
 					else {
 
 						// If we've been given a MenuItem to go into, do that
-						if (newMenuItem && newMenuItem->checkPermissionToBeginSession(currentPatchingConfig, currentSourceIndex, &currentMultiRange)) {
+						if (newMenuItem && newMenuItem->checkPermissionToBeginSession(currentSound, currentSourceIndex, &currentMultiRange)) {
 							navigationDepth = newNavigationDepth + 1;
 							menuItemNavigationRecord[navigationDepth] = newMenuItem;
 							if (!wentBack) numericDriver.setNextTransitionDirection(1);
@@ -3624,7 +3624,7 @@ void SoundEditor::modEncoderAction(int whichModEncoder, int offset) {
 bool SoundEditor::setup(Clip* clip, const MenuItem* item, int sourceIndex) {
 
 
-	Sound* newPatchingConfig = NULL;
+	Sound* newSound = NULL;
 	ParamManagerForTimeline* newParamManager = NULL;
 	ArpeggiatorSettings* newArpSettings = NULL;
 	ModControllableAudio* newModControllable = NULL;
@@ -3642,8 +3642,8 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int sourceIndex) {
 					if (selectedDrum->type == DRUM_TYPE_SOUND) {
 						NoteRow* noteRow = ((InstrumentClip*)clip)->getNoteRowForDrum(selectedDrum);
 						if (noteRow == NULL) return false;
-						newPatchingConfig = (SoundDrum*)selectedDrum;
-						newModControllable = newPatchingConfig;
+						newSound = (SoundDrum*)selectedDrum;
+						newModControllable = newSound;
 						newParamManager = &noteRow->paramManager;
 						newArpSettings = &((SoundDrum*)selectedDrum)->arpSettings;
 					}
@@ -3673,8 +3673,8 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int sourceIndex) {
 
 				// Synth
 				if (clip->output->type == INSTRUMENT_TYPE_SYNTH) {
-					newPatchingConfig = (SoundInstrument*)clip->output;
-					newModControllable = newPatchingConfig;
+					newSound = (SoundInstrument*)clip->output;
+					newModControllable = newSound;
 				}
 
 				// CV or MIDI - not much happens
@@ -3737,7 +3737,7 @@ doMIDIOrCV:			newItem = &soundEditorRootMenuMIDIOrCV;
 	// because in a minority of cases, like "patch cable strength" / "modulation depth", it needs this.
 	currentParamManager = newParamManager;
 
-	int result = newItem->checkPermissionToBeginSession(newPatchingConfig, sourceIndex, &newRange);
+	int result = newItem->checkPermissionToBeginSession(newSound, sourceIndex, &newRange);
 
 	if (result == MENU_PERMISSION_NO) {
 		numericDriver.displayPopup(HAVE_OLED ? "Parameter not applicable" : "CANT");
@@ -3753,7 +3753,7 @@ doMIDIOrCV:			newItem = &soundEditorRootMenuMIDIOrCV;
 	}
 
 
-	currentPatchingConfig = newPatchingConfig;
+	currentSound = newSound;
 	currentArpSettings = newArpSettings;
 	currentMultiRange = newRange;
 	currentModControllable = newModControllable;
@@ -3762,11 +3762,11 @@ doMIDIOrCV:			newItem = &soundEditorRootMenuMIDIOrCV;
 		currentCompressor = &currentModControllable->compressor;
 	}
 
-	if (currentPatchingConfig) {
+	if (currentSound) {
 		currentSourceIndex = sourceIndex;
-		currentSource = &currentPatchingConfig->sources[currentSourceIndex];
+		currentSource = &currentSound->sources[currentSourceIndex];
 		currentSampleControls = &currentSource->sampleControls;
-		currentPriority = &currentPatchingConfig->voicePriority;
+		currentPriority = &currentSound->voicePriority;
 
 		if (result == MENU_PERMISSION_YES && currentMultiRange == NULL) {
 			if (currentSource->ranges.getNumElements()) {
@@ -3799,7 +3799,7 @@ bool SoundEditor::inSettingsMenu() {
 
 bool SoundEditor::isUntransposedNoteWithinRange(int noteCode) {
 	return (soundEditor.currentSource->ranges.getNumElements() > 1
-			&& soundEditor.currentSource->getRange(noteCode + soundEditor.currentPatchingConfig->transpose) == soundEditor.currentMultiRange);
+			&& soundEditor.currentSource->getRange(noteCode + soundEditor.currentSound->transpose) == soundEditor.currentMultiRange);
 }
 
 void SoundEditor::setCurrentMultiRange(int i) {
@@ -3808,9 +3808,9 @@ void SoundEditor::setCurrentMultiRange(int i) {
 }
 
 
-int SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam(Sound* patchingConfig, int whichThing, bool automaticallySelectIfOnlyOne, MultiRange** previouslySelectedRange) {
+int SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam(Sound* sound, int whichThing, bool automaticallySelectIfOnlyOne, MultiRange** previouslySelectedRange) {
 
-	Source* source = &patchingConfig->sources[whichThing];
+	Source* source = &sound->sources[whichThing];
 
 	MultiRange* firstRange = source->getOrCreateFirstRange();
 	if (!firstRange) {
@@ -3833,7 +3833,7 @@ void SoundEditor::cutSound() {
 		((AudioClip*)currentSong->currentClip)->unassignVoiceSample();
 	}
 	else {
-		soundEditor.currentPatchingConfig->unassignAllVoices();
+		soundEditor.currentSound->unassignAllVoices();
 	}
 }
 

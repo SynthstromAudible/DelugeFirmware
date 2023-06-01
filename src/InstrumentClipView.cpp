@@ -1359,14 +1359,14 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
             if (i < editPadPressBufferSize) {
 
             	ParamManagerForTimeline* paramManagerDummy;
-            	Sound* patchingConfig = getSoundForNoteRow(noteRow, &paramManagerDummy);
+            	Sound* sound = getSoundForNoteRow(noteRow, &paramManagerDummy);
 
             	uint32_t whichRowsToReRender = (1 << yDisplay);
 
                 Action* action = actionLogger.getNewAction(ACTION_NOTE_EDIT, true);
 
             	uint32_t desiredNoteLength = squareWidth;
-            	if (patchingConfig) {
+            	if (sound) {
 
             		int yNote;
 
@@ -1378,7 +1378,7 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
             		}
 
             		// If a time-synced sample...
-            		uint32_t sampleLength = patchingConfig->hasAnyTimeStretchSyncing(paramManager, true, yNote);
+            		uint32_t sampleLength = sound->hasAnyTimeStretchSyncing(paramManager, true, yNote);
             		if (sampleLength) {
             			uint32_t sampleLengthInTicks = ((uint64_t)sampleLength << 32) / currentSong->timePerTimerTickBig;
 
@@ -1407,7 +1407,7 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
             		// Or if general cut-mode samples - but only for kit Clips, not synth
             		else if (instrument->type == INSTRUMENT_TYPE_KIT) {
             			bool anyLooping;
-            			sampleLength = patchingConfig->hasCutOrLoopModeSamples(paramManager, yNote, &anyLooping);
+            			sampleLength = sound->hasCutOrLoopModeSamples(paramManager, yNote, &anyLooping);
             			if (sampleLength) {
 
             				// If sample loops, we want to cut out before we get to the loop-point

@@ -40,10 +40,10 @@ public:
     virtual void horizontalEncoderAction(int offset) {}
     virtual void selectEncoderAction(int offset) {}
     virtual void beginSession(MenuItem* navigatedBackwardFrom = NULL) {};
-    virtual bool isRelevant(Sound* patchingConfig, int whichThing) { return true; }
+    virtual bool isRelevant(Sound* sound, int whichThing) { return true; }
     virtual char const* getName();
     virtual MenuItem* selectButtonPress() { return NULL; }
-    virtual int checkPermissionToBeginSession(Sound* patchingConfig, int whichThing, MultiRange** currentRange);
+    virtual int checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange);
     virtual void readValueAgain() {}
     virtual bool selectEncoderActionEditsInstrument() { return false; }
     virtual uint8_t getPatchedParamIndex() { return 255; }
