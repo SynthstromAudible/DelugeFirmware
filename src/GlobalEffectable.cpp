@@ -656,7 +656,7 @@ void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, i
    	int modFXTypeNow = getActiveModFXType(paramManager);
 
    	// For GlobalEffectables, mod FX buffer memory is allocated here in the rendering routine - this might seem strange, but
-   	// it's because unlike for PatchingConfigs, the effect can be switched on and off by changing a parameter like "depth".
+   	// it's because unlike for Sounds, the effect can be switched on and off by changing a parameter like "depth".
    	if (modFXTypeNow == MOD_FX_TYPE_FLANGER || modFXTypeNow == MOD_FX_TYPE_CHORUS) {
    		if (!modFXBuffer) {
             modFXBuffer = (StereoSample*)generalMemoryAllocator.alloc(modFXBufferSize * sizeof(StereoSample), NULL, false, true);

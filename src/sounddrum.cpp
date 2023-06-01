@@ -100,7 +100,7 @@ void SoundDrum::expressionEvent(int newValue, int whichExpressionDimension) {
 	//sourcesChanged |= 1 << s; // We'd ideally not want to apply this to all voices though...
 
 	int ends[2];
-	AudioEngine::activeVoices.getRangeForPatchingConfig(this, ends);
+	AudioEngine::activeVoices.getRangeForSound(this, ends);
     for (int v = ends[0]; v < ends[1]; v++) {
     	Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
 		if (expressionValueChangesMustBeDoneSmoothly) {

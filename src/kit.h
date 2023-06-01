@@ -73,7 +73,7 @@ public:
     GateDrum* getGateDrumForChannel(int gateChannel);
     void resetDrumTempValues();
     void setupWithoutActiveClip(ModelStack* modelStack);
-    void getThingWithMostReverb(Sound** patchingConfigWithMostReverb, ParamManager** paramManagerWithMostReverb, GlobalEffectableForClip** globalEffectableWithMostReverb, int32_t* highestReverbAmountFound);
+    void getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb, GlobalEffectableForClip** globalEffectableWithMostReverb, int32_t* highestReverbAmountFound);
     uint8_t* getModKnobMode() { return &modKnobMode; }
     Output* toOutput() { return this; }
     void offerReceivedNote(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice, bool on, int channel, int note, int velocity, bool shouldRecordNotes, bool* doingMidiThru);

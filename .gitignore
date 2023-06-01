@@ -1,14 +1,8 @@
-<<<<<<< HEAD
-.DS_Store
-=======
-/toolchain/*
->>>>>>> 5dab5ab68e7979d352ffe1b2e4aeae15b8c0e866
 /Release*/*
 /HardwareDebug*/*
 /.settings/*
 /Deluge.jlink
 /JLinkLog.log
-<<<<<<< HEAD
 /build-debug-oled/
 /build-release-oled/
 /build-release-7seg/
@@ -20,9 +14,3 @@
 .DS_Store
 /toolchain/**
 .sconsign.dblite
-=======
-/.scons*
-poetry.lock
-/HardwareDebug_RZ_A1L/
-/DebugOverDAP/
->>>>>>> 5dab5ab68e7979d352ffe1b2e4aeae15b8c0e866

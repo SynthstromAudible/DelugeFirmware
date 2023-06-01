@@ -187,7 +187,6 @@ private:
     void enterDrumCreator(ModelStackWithNoteRow* modelStack, bool doRecording = false);
     bool getAffectEntire();
     void createNewInstrument(uint8_t instrumentType);
-    Sound* getPatchingConfigForNoteRow(NoteRow* noteRow);
     Sound* getSoundForNoteRow(NoteRow* noteRow, ParamManagerForTimeline** getParamManager);
     void adjustProbability(int offset);
     void copyNotes();

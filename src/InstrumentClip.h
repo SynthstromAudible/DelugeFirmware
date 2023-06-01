@@ -80,7 +80,7 @@ class InstrumentClip final : public Clip {
     int guessRootNote(Song* song, int previousRoot);
     void aboutToEdit();
     int getNumNoteRows();
-    void ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(ModelStackWithTimelineCounter* modelStack, Sound* patchingConfig);
+    void ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(ModelStackWithTimelineCounter* modelStack, Sound* sound);
     bool deleteSoundsWhichWontSound(Song* song);
     void setBackedUpParamManagerMIDI(ParamManagerForTimeline* newOne);
     void restoreBackedUpParamManagerMIDI(ModelStackWithModControllable* modelStack);
@@ -185,7 +185,7 @@ class InstrumentClip final : public Clip {
     void instrumentBeenEdited();
     Instrument* changeInstrumentType(ModelStackWithTimelineCounter* modelStack, int newInstrumentType);
     int transferVoicesToOriginalClipFromThisClone(ModelStackWithTimelineCounter* modelStackOriginal, ModelStackWithTimelineCounter* modelStackClone);
-    void getSuggestedParamManager(Clip* newClip, ParamManagerForTimeline** suggestedParamManager, Sound* patchingConfig);
+    void getSuggestedParamManager(Clip* newClip, ParamManagerForTimeline** suggestedParamManager, Sound* sound);
     int claimOutput(ModelStackWithTimelineCounter* modelStack);
     char const* getXMLTag() { return "instrumentClip"; }
     void finishLinearRecording(ModelStackWithTimelineCounter* modelStack, Clip* nextPendingLoop, int buttonLatencyForTempolessRecord);

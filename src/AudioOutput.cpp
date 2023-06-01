@@ -277,7 +277,7 @@ void AudioOutput::cutAllSound() {
 }
 
 
-void AudioOutput::getThingWithMostReverb(Sound** patchingConfigWithMostReverb, ParamManagerForTimeline** paramManagerWithMostReverb, Kit** kitWithMostReverb,
+void AudioOutput::getThingWithMostReverb(Sound** soundWithMostReverb, ParamManagerForTimeline** paramManagerWithMostReverb, Kit** kitWithMostReverb,
 			int32_t* highestReverbAmountFound) {
 
 }
@@ -387,8 +387,8 @@ bool AudioOutput::isSkippingRendering() {
 	return !echoing && (!activeClip || !((AudioClip*)activeClip)->voiceSample);
 }
 
-void AudioOutput::getThingWithMostReverb(Sound** patchingConfigWithMostReverb, ParamManager** paramManagerWithMostReverb, GlobalEffectableForClip** globalEffectableWithMostReverb, int32_t* highestReverbAmountFound) {
-	GlobalEffectableForClip::getThingWithMostReverb(activeClip, patchingConfigWithMostReverb, paramManagerWithMostReverb, globalEffectableWithMostReverb, highestReverbAmountFound);
+void AudioOutput::getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb, GlobalEffectableForClip** globalEffectableWithMostReverb, int32_t* highestReverbAmountFound) {
+	GlobalEffectableForClip::getThingWithMostReverb(activeClip, soundWithMostReverb, paramManagerWithMostReverb, globalEffectableWithMostReverb, highestReverbAmountFound);
 }
 
 
