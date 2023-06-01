@@ -82,7 +82,7 @@ public:
     bool clipHasInstance(Clip* clip);
     void clipLengthChanged(Clip* clip, int32_t oldLength);
     virtual void cutAllSound() {}
-	virtual void getThingWithMostReverb(Sound** patchingConfigWithMostReverb, ParamManager** paramManagerWithMostReverb, GlobalEffectableForClip** globalEffectableWithMostReverb,
+	virtual void getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb, GlobalEffectableForClip** globalEffectableWithMostReverb,
 			int32_t* highestReverbAmountFound) {}
     virtual bool offerReceivedPitchBendToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2, ModelStackWithTimelineCounter* modelStack) { return false; } // A TimelineCounter is required
     virtual void offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value, ModelStackWithTimelineCounter* modelStack) {} // A TimelineCounter is required

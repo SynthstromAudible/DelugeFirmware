@@ -482,7 +482,7 @@ int32_t PatchCableSet::getModifiedPatchCableAmount(int c, int p) {
     }
 }
 
-// No need to supply patchingConfig if you don't need setupPatching() to be called now (cos you're gonna call it later)
+// No need to supply Sound if you don't need setupPatching() to be called now (cos you're gonna call it later)
 void PatchCableSet::removeAllPatchingToParam(ModelStackWithParamCollection* modelStack, uint8_t p) {
 	for (int c = 0; c < numPatchCables; c++) {
 		if (patchCables[c].destinationParamDescriptor.getJustTheParam() == p) { // May as well remove any range-adjusting cables too
@@ -803,7 +803,7 @@ doneWithThisRangeCable:
             }
             if (source != PATCH_SOURCE_NONE && !destinationParamDescriptor.isNull() && tempParam.containsSomething(0)) {
                 // Just make sure this cable is allowed in some capacity
-            	// Deactivated because maySourcePatchToParam() is a PatchingConfig function, and this probably isn't really necessary anyway
+            	// Deactivated because maySourcePatchToParam() is a Sound function, and this probably isn't really necessary anyway
             	//if (maySourcePatchToParam(patchCables[numPatchCables].from, patchCables[numPatchCables].to) == PATCH_CABLE_ACCEPTANCE_DISALLOWED) goto loadNextPatchCable;
 
             	if (source == PATCH_SOURCE_X && destinationParamDescriptor.isSetToParamWithNoSource(PARAM_LOCAL_PITCH_ADJUST)) // Because I briefly made this possible in a 3.2.0 alpha.

@@ -22,7 +22,7 @@
 #include "matrixdriver.h"
 
 
-bool MenuItemDrumName::isRelevant(Sound* patchingConfig, int whichThing) {
+bool MenuItemDrumName::isRelevant(Sound* sound, int whichThing) {
 	return (DELUGE_MODEL != DELUGE_MODEL_40_PAD && soundEditor.editingKit());
 }
 

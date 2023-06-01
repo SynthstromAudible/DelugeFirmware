@@ -89,7 +89,7 @@ public:
     bool modeContainsYNote(int yNote);
     ParamManagerForTimeline* findParamManagerForDrum(Kit* kit, Drum* drum, Clip* stopTraversalAtClip = NULL);
     void setupPatchingForAllParamManagersForDrum(SoundDrum* drum);
-    void setupPatchingForAllParamManagersForInstrument(SoundInstrument* patchingConfig);
+    void setupPatchingForAllParamManagersForInstrument(SoundInstrument* sound);
     void grabVelocityToLevelFromMIDIDeviceAndSetupPatchingForAllParamManagersForInstrument(MIDIDevice* device, SoundInstrument* instrument);
     void grabVelocityToLevelFromMIDIDeviceAndSetupPatchingForAllParamManagersForDrum(MIDIDevice* device, SoundDrum* drum, Kit* kit);
     void grabVelocityToLevelFromMIDIDeviceAndSetupPatchingForEverything(MIDIDevice* device);
@@ -208,7 +208,7 @@ public:
     void setTimePerTimerTick(uint64_t newTimeBig, bool shouldLogAction = false);
     bool hasAnySwing();
     void resyncLFOsAndArpeggiators();
-    void ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(Sound* patchingConfig);
+    void ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(Sound* sound);
     bool areAllClipsInSectionPlaying(int section);
     void removeYNoteFromMode(int yNoteWithinOctave);
     void turnSoloingIntoJustPlaying(bool getRidOfArmingToo = true);

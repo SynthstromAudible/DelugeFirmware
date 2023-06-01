@@ -1298,7 +1298,7 @@ void SampleManager::removeReasonFromLoadedSampleChunk(Cluster* loadedSampleChunk
 	loadedSampleChunk->numReasonsToBeLoaded--;
 
 	if (loadedSampleChunk == loadedSampleChunkBeingLoaded && loadedSampleChunk->numReasonsToBeLoaded < minNumReasonsForLoadedSampleChunkBeingLoaded) {
-		numericDriver.freezeWithError("E041");
+		numericDriver.freezeWithError("E041"); // Sven got this!
 	}
 
 	/*

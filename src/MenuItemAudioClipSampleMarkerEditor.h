@@ -26,7 +26,7 @@ public:
 		whichMarker = newWhichMarker;
 	}
 
-	int checkPermissionToBeginSession(Sound* patchingConfig, int whichThing, MultiRange** currentRange);
+	int checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange);
 	void beginSession(MenuItem* navigatedBackwardFrom);
 
 	int whichMarker;

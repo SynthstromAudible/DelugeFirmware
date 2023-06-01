@@ -61,7 +61,7 @@ public:
     MultiRange* getRange(int note);
     MultiRange* getOrCreateFirstRange();
     bool hasAtLeastOneAudioFileLoaded();
-    void doneReadingFromFile(Sound* patchingConfig);
+    void doneReadingFromFile(Sound* sound);
     bool hasAnyLoopEndPoint();
     void setOscType(int newType);
 

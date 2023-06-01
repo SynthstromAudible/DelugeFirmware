@@ -41,7 +41,7 @@ public:
 	uint8_t* getModKnobMode() { return &modKnobMode; }
 
 	void cutAllSound();
-	void getThingWithMostReverb(Sound** patchingConfigWithMostReverb, ParamManagerForTimeline** paramManagerWithMostReverb, Kit** kitWithMostReverb,
+	void getThingWithMostReverb(Sound** soundWithMostReverb, ParamManagerForTimeline** paramManagerWithMostReverb, Kit** kitWithMostReverb,
 				int32_t* highestReverbAmountFound);
 
 	int readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos);
@@ -50,7 +50,7 @@ public:
     bool setActiveClip(ModelStackWithTimelineCounter* modelStack, int maySendMIDIPGMs = PGM_CHANGE_SEND_ONCE);
     bool isSkippingRendering();
     Output* toOutput() { return this; }
-    void getThingWithMostReverb(Sound** patchingConfigWithMostReverb, ParamManager** paramManagerWithMostReverb, GlobalEffectableForClip** globalEffectableWithMostReverb, int32_t* highestReverbAmountFound);
+    void getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb, GlobalEffectableForClip** globalEffectableWithMostReverb, int32_t* highestReverbAmountFound);
 
     // A TimelineCounter is required
     void offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value, ModelStackWithTimelineCounter* modelStack) {

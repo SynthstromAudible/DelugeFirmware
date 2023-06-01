@@ -117,7 +117,7 @@ int32_t Envelope::noteOn(bool straightToDecay) {
     return (lastValue - 1073741824) << 1; // Centre the range of the envelope around 0
 }
 
-int32_t Envelope::noteOn(uint8_t envelopeIndex, Sound* patchingConfig, Voice* voice) {
+int32_t Envelope::noteOn(uint8_t envelopeIndex, Sound* sound, Voice* voice) {
     int32_t attack = voice->paramFinalValues[PARAM_LOCAL_ENV_0_ATTACK + envelopeIndex];
 
     bool straightToDecay = (attack > 245632);
@@ -125,9 +125,9 @@ int32_t Envelope::noteOn(uint8_t envelopeIndex, Sound* patchingConfig, Voice* vo
     return noteOn(straightToDecay);
 }
 
-void Envelope::noteOff(uint8_t envelopeIndex, Sound* patchingConfig, ParamManagerForTimeline* paramManager) {
+void Envelope::noteOff(uint8_t envelopeIndex, Sound* sound, ParamManagerForTimeline* paramManager) {
 
-    if (!patchingConfig->envelopeHasSustainCurrently(envelopeIndex, paramManager)) {
+    if (!sound->envelopeHasSustainCurrently(envelopeIndex, paramManager)) {
     	ignoredNoteOff = true;
     }
     else if (state < ENVELOPE_STAGE_RELEASE) { // Could we ever have already been in release state? Probably not, but just in case

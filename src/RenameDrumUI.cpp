@@ -63,7 +63,7 @@ bool RenameDrumUI::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
 }
 
 SoundDrum* RenameDrumUI::getDrum() {
-	return (SoundDrum*)soundEditor.currentPatchingConfig;
+	return (SoundDrum*)soundEditor.currentSound;
 }
 
 

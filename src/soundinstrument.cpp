@@ -276,7 +276,7 @@ void SoundInstrument::polyphonicExpressionEventOnChannelOrNote(int newValue, int
 	//sourcesChanged |= 1 << s; // We'd ideally not want to apply this to all voices though...
 
 	int ends[2];
-	AudioEngine::activeVoices.getRangeForPatchingConfig(this, ends);
+	AudioEngine::activeVoices.getRangeForSound(this, ends);
     for (int v = ends[0]; v < ends[1]; v++) {
     	Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
 		if (thisVoice->inputCharacteristics[whichCharacteristic] == channelOrNoteNumber) {
@@ -393,9 +393,9 @@ int32_t SoundInstrument::doTickForwardForArp(ModelStack* modelStack, int32_t cur
 }
 
 
-void SoundInstrument::getThingWithMostReverb(Sound** patchingConfigWithMostReverb, ParamManager** paramManagerWithMostReverb, GlobalEffectableForClip** globalEffectableWithMostReverb, int32_t* highestReverbAmountFound) {
+void SoundInstrument::getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb, GlobalEffectableForClip** globalEffectableWithMostReverb, int32_t* highestReverbAmountFound) {
 	if (activeClip) {
-		Sound::getThingWithMostReverb(patchingConfigWithMostReverb, paramManagerWithMostReverb, globalEffectableWithMostReverb, highestReverbAmountFound, &activeClip->paramManager);
+		Sound::getThingWithMostReverb(soundWithMostReverb, paramManagerWithMostReverb, globalEffectableWithMostReverb, highestReverbAmountFound, &activeClip->paramManager);
 	}
 }
 
@@ -420,7 +420,7 @@ bool SoundInstrument::noteIsOn(int noteCode) {
 	if (!numVoicesAssigned) return false;
 
 	int ends[2];
-	AudioEngine::activeVoices.getRangeForPatchingConfig(this, ends);
+	AudioEngine::activeVoices.getRangeForSound(this, ends);
     for (int v = ends[0]; v < ends[1]; v++) {
     	Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
 		if ((thisVoice->noteCodeAfterArpeggiation == noteCode) && thisVoice->envelopes[0].state < ENVELOPE_STAGE_RELEASE) { // Ignore releasing notes. Is this right?

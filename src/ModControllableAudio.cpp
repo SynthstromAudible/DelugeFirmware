@@ -975,7 +975,7 @@ void ModControllableAudio::writeTagsToFile() {
 			knob->midiInput.writeAttributesToFile(MIDI_MESSAGE_CC); // Writes channel and CC, but not device - we do that below.
 			storageManager.writeAttribute("relative", knob->relative);
 			storageManager.writeAttribute("controlsParam", paramToString(knob->paramDescriptor.getJustTheParam()));
-			if (!knob->paramDescriptor.isJustAParam()) { // TODO: this only applies to PatchingConfigs
+			if (!knob->paramDescriptor.isJustAParam()) { // TODO: this only applies to Sounds
 				storageManager.writeAttribute("patchAmountFromSource", sourceToString(knob->paramDescriptor.getTopLevelSource()));
 
 				if (knob->paramDescriptor.hasSecondSource()) {
@@ -1496,7 +1496,7 @@ void ModControllableAudio::clearModFXMemory() {
 bool ModControllableAudio::setModFXType(int newType) {
 
 	// For us ModControllableAudios, this is really simple. Memory gets allocated in GlobalEffectable::processFXForGlobalEffectable().
-	// This function is overridden in PatchingConfig
+	// This function is overridden in Sound
     modFXType = newType;
     return true;
 }
