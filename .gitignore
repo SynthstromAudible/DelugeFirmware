@@ -12,3 +12,5 @@
 /e2-build-release-7seg/
 /e2-build-release-oled/
 .DS_Store
+/toolchain/**
+.sconsign.dblite
