@@ -263,7 +263,7 @@ void SampleBrowser::exitAction() {
 				&& ((Kit*)currentSong->currentClip->output)->getFirstUnassignedDrum((InstrumentClip*)currentSong->currentClip) // Only if some unassigned Drums
 				&& soundEditor.getCurrentAudioFileHolder()->filePath.isEmpty()
 				) {
-			instrumentClipView.deleteDrum((SoundDrum*)soundEditor.currentPatchingConfig);
+			instrumentClipView.deleteDrum((SoundDrum*)soundEditor.currentSound);
 			redrawUI = &instrumentClipView;
 		}
 	}
@@ -465,7 +465,7 @@ int SampleBrowser::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 bool SampleBrowser::canImportWholeKit() {
 	return (soundEditor.editingKit()
 							&& soundEditor.currentSourceIndex == 0
-							&& (SoundDrum*)((InstrumentClip*)currentSong->currentClip)->noteRows.getElement(0)->drum == soundEditor.currentPatchingConfig
+							&& (SoundDrum*)((InstrumentClip*)currentSong->currentClip)->noteRows.getElement(0)->drum == soundEditor.currentSound
 							&& (!((Kit*)currentSong->currentClip->output)->firstDrum->next));
 }
 
@@ -799,9 +799,9 @@ removeLoadingAnimationAndGetOut:
 	// Otherwise, we're something to do with an Instrument...
 	else {
 
-		soundEditor.currentPatchingConfig->unassignAllVoices(); // We used to only do this if osc type wasn't already SAMPLE...
+		soundEditor.currentSound->unassignAllVoices(); // We used to only do this if osc type wasn't already SAMPLE...
 
-		bool makeWaveTableWorkAtAllCosts = (mayDoWaveTable == 2) || (mayDoSingleCycle == 2) || (soundEditor.currentPatchingConfig->getSynthMode() == SYNTH_MODE_RINGMOD);
+		bool makeWaveTableWorkAtAllCosts = (mayDoWaveTable == 2) || (mayDoSingleCycle == 2) || (soundEditor.currentSound->getSynthMode() == SYNTH_MODE_RINGMOD);
 
 		int numTypesTried = 0;
 
@@ -829,7 +829,7 @@ doLoadAsWaveTable:
 				if (error == ERROR_FILE_NOT_LOADABLE_AS_WAVETABLE || error == ERROR_FILE_NOT_LOADABLE_AS_WAVETABLE_BECAUSE_STEREO) {
 
 					// If that was what the user really specified they wanted, and we couldn't do it, then we have to tell them no.
-					if (mayDoWaveTable == 2 || numTypesTried > 1 || (soundEditor.currentPatchingConfig->getSynthMode() == SYNTH_MODE_RINGMOD)) {
+					if (mayDoWaveTable == 2 || numTypesTried > 1 || (soundEditor.currentSound->getSynthMode() == SYNTH_MODE_RINGMOD)) {
 						goto removeLoadingAnimationAndGetOut;
 					}
 
@@ -844,14 +844,14 @@ doLoadAsWaveTable:
 			// Alright, if we're still here, it was successfully loaded as a WaveTable!
 
 			if (soundEditor.currentSourceIndex == 0) { // Osc 1
-				soundEditor.currentPatchingConfig->modKnobs[7][1].paramDescriptor.setToHaveParamOnly(PARAM_LOCAL_OSC_A_WAVE_INDEX);
+				soundEditor.currentSound->modKnobs[7][1].paramDescriptor.setToHaveParamOnly(PARAM_LOCAL_OSC_A_WAVE_INDEX);
 
-				if (!soundEditor.currentPatchingConfig->modKnobs[7][0].paramDescriptor.isSetToParamWithNoSource(PARAM_LOCAL_OSC_B_WAVE_INDEX)) {
-					soundEditor.currentPatchingConfig->modKnobs[7][0].paramDescriptor.setToHaveParamAndSource(PARAM_LOCAL_OSC_A_WAVE_INDEX, PATCH_SOURCE_LFO_LOCAL);
+				if (!soundEditor.currentSound->modKnobs[7][0].paramDescriptor.isSetToParamWithNoSource(PARAM_LOCAL_OSC_B_WAVE_INDEX)) {
+					soundEditor.currentSound->modKnobs[7][0].paramDescriptor.setToHaveParamAndSource(PARAM_LOCAL_OSC_A_WAVE_INDEX, PATCH_SOURCE_LFO_LOCAL);
 				}
 			}
 			else { // Osc 2
-				soundEditor.currentPatchingConfig->modKnobs[7][0].paramDescriptor.setToHaveParamOnly(PARAM_LOCAL_OSC_B_WAVE_INDEX);
+				soundEditor.currentSound->modKnobs[7][0].paramDescriptor.setToHaveParamOnly(PARAM_LOCAL_OSC_B_WAVE_INDEX);
 			}
 			currentSong->currentClip->output->modKnobMode = 7;
 			view.setKnobIndicatorLevels(); // Visually update.
@@ -938,7 +938,7 @@ doLoadAsSample:
 			// If Kit...
 			if (soundEditor.editingKit()) {
 
-				SoundDrum* drum = (SoundDrum*)soundEditor.currentPatchingConfig;
+				SoundDrum* drum = (SoundDrum*)soundEditor.currentSound;
 
 				autoDetectSideChainSending(drum, soundEditor.currentSource, enteredText.get());
 
@@ -986,12 +986,12 @@ doLoadAsSample:
 			// So remove WaveTable gold knob assignments.
 			bool anyChange = false;
 			int p = PARAM_LOCAL_OSC_A_WAVE_INDEX + soundEditor.currentSourceIndex;
-			if (soundEditor.currentPatchingConfig->modKnobs[7][0].paramDescriptor.getJustTheParam() == p) {
-				soundEditor.currentPatchingConfig->modKnobs[7][0].paramDescriptor.setToHaveParamOnly(PARAM_UNPATCHED_BITCRUSHING + PARAM_UNPATCHED_SECTION);
+			if (soundEditor.currentSound->modKnobs[7][0].paramDescriptor.getJustTheParam() == p) {
+				soundEditor.currentSound->modKnobs[7][0].paramDescriptor.setToHaveParamOnly(PARAM_UNPATCHED_BITCRUSHING + PARAM_UNPATCHED_SECTION);
 				anyChange = true;
 			}
-			if (soundEditor.currentPatchingConfig->modKnobs[7][1].paramDescriptor.getJustTheParam() == p) {
-				soundEditor.currentPatchingConfig->modKnobs[7][1].paramDescriptor.setToHaveParamOnly(PARAM_UNPATCHED_SAMPLE_RATE_REDUCTION + PARAM_UNPATCHED_SECTION);
+			if (soundEditor.currentSound->modKnobs[7][1].paramDescriptor.getJustTheParam() == p) {
+				soundEditor.currentSound->modKnobs[7][1].paramDescriptor.setToHaveParamOnly(PARAM_UNPATCHED_SAMPLE_RATE_REDUCTION + PARAM_UNPATCHED_SECTION);
 				anyChange = true;
 			}
 
@@ -1047,7 +1047,7 @@ void SampleBrowser::audioFileIsNowSet() {
 		modelStackWithParam->autoParam->setCurrentValueWithNoReversionOrRecording(modelStackWithParam, 2147483647);
 
 		// Hmm crap, we probably still do need to notify...
-		//((ParamManagerBase*)soundEditor.currentParamManager)->setPatchedParamValue(PARAM_LOCAL_OSC_A_VOLUME + soundEditor.currentSourceIndex, 2147483647, 0xFFFFFFFF, 0, soundEditor.currentPatchingConfig, currentSong, currentSong->currentClip, false);
+		//((ParamManagerBase*)soundEditor.currentParamManager)->setPatchedParamValue(PARAM_LOCAL_OSC_A_VOLUME + soundEditor.currentSourceIndex, 2147483647, 0xFFFFFFFF, 0, soundEditor.currentSound, currentSong, currentSong->currentClip, false);
 	}
 }
 
@@ -1564,12 +1564,12 @@ doReturnFalse:
 	// Delete all but first pre-existing range
 	int oldNumRanges = soundEditor.currentSource->ranges.getNumElements();
 	for (int i = oldNumRanges - 1; i >= 1; i--) {
-		soundEditor.currentPatchingConfig->deleteMultiRange(soundEditor.currentSourceIndex, i);
+		soundEditor.currentSound->deleteMultiRange(soundEditor.currentSourceIndex, i);
 	}
 
 	// If we now want more than one range, be efficient by getting our array of ranges to pre-allocate all the memory it's going to use
 	if (numSamples > 1) {
-		soundEditor.currentPatchingConfig->unassignAllVoices();
+		soundEditor.currentSound->unassignAllVoices();
 		AudioEngine::audioRoutineLocked = true;
 		bool success = soundEditor.currentSource->ranges.ensureEnoughSpaceAllocated(numSamples - 1);
 		AudioEngine::audioRoutineLocked = false;
@@ -1651,7 +1651,7 @@ skipOctaveCorrection:
 	int numWithResultingLoopEndPoints = 0;
 
 	if (soundEditor.currentSource->oscType != OSC_TYPE_SAMPLE) {
-		soundEditor.currentPatchingConfig->unassignAllVoices();
+		soundEditor.currentSound->unassignAllVoices();
 		soundEditor.currentSource->setOscType(OSC_TYPE_SAMPLE);
 	}
 
@@ -1796,7 +1796,7 @@ doReturnFalse:
 	}
 
 	Kit* kit = (Kit*)currentSong->currentClip->output;
-	SoundDrum* firstDrum = (SoundDrum*)soundEditor.currentPatchingConfig;
+	SoundDrum* firstDrum = (SoundDrum*)soundEditor.currentSound;
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	{
@@ -1826,7 +1826,7 @@ getOut:
 
 				// Ensure osc type is "sample". For the later drums, calling setupAsSample() does this same thing
 				if (soundEditor.currentSource->oscType != OSC_TYPE_SAMPLE) {
-					soundEditor.currentPatchingConfig->unassignAllVoices();
+					soundEditor.currentSound->unassignAllVoices();
 					soundEditor.currentSource->setOscType(OSC_TYPE_SAMPLE);
 				}
 

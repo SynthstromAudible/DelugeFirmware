@@ -148,8 +148,8 @@ justEnqueue:
 	// Or if it had previously been created...
 	else {
 
-#if 1 || ALPHA_OR_BETA_VERSION // Switching permanently on for now, as users on on V4.0.x have been getting E341.
-		if (loadedSampleChunk && loadedSampleChunk->numReasonsToBeLoaded < 0) numericDriver.freezeWithError("i028"); // Diversifying Ron R's i004, which was diversifying Qui's E341
+#if 1 || ALPHA_OR_BETA_VERSION // Switching permanently on for now, as users on V4.0.x have been getting E341.
+		if (loadedSampleChunk && loadedSampleChunk->numReasonsToBeLoaded < 0) numericDriver.freezeWithError("i028"); // bnhrsch got this!!
 #endif
 
 		// If they'd prefer it loaded immediately and it's not loaded, try speeding loading along
@@ -173,7 +173,7 @@ justEnqueue:
 	}
 
 #if 1 || ALPHA_OR_BETA_VERSION // Switching permanently on for now, as users on on V4.0.x have been getting E341.
-	if (loadedSampleChunk && loadedSampleChunk->numReasonsToBeLoaded <= 0) numericDriver.freezeWithError("i004"); // Diversifying Qui's E341
+	if (loadedSampleChunk && loadedSampleChunk->numReasonsToBeLoaded <= 0) numericDriver.freezeWithError("i004"); // Ron R got this! Diversifying Qui's E341
 #endif
 
 	return loadedSampleChunk;

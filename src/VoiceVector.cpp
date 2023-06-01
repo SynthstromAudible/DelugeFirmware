@@ -25,11 +25,11 @@ VoiceVector::VoiceVector()
 }
 
 
-void VoiceVector::checkVoiceExists(Voice* voice, Sound* patchingConfig, char const* errorCode) {
+void VoiceVector::checkVoiceExists(Voice* voice, Sound* sound, char const* errorCode) {
 
 	if (ALPHA_OR_BETA_VERSION) {
 		uint32_t searchWords[2];
-		searchWords[0] = (uint32_t)patchingConfig;
+		searchWords[0] = (uint32_t)sound;
 		searchWords[1] = (uint32_t)voice;
 		int i = searchMultiWordExact(searchWords);
 
@@ -38,11 +38,11 @@ void VoiceVector::checkVoiceExists(Voice* voice, Sound* patchingConfig, char con
 }
 
 // Returns results as if GREAT_OR_EQUAL had been supplied to search. To turn this into LESS, subtract 1
-void VoiceVector::getRangeForPatchingConfig(Sound* patchingConfig, int* __restrict__ ends) {
+void VoiceVector::getRangeForSound(Sound* sound, int* __restrict__ ends) {
 
 	int32_t searchTerms[2];
-	searchTerms[0] = (uint32_t)patchingConfig;
-	searchTerms[1] = (uint32_t)patchingConfig + 1;
+	searchTerms[0] = (uint32_t)sound;
+	searchTerms[1] = (uint32_t)sound + 1;
 
 	searchDual(searchTerms, ends);
 }

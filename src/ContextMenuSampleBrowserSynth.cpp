@@ -45,14 +45,14 @@ int ContextMenuSampleBrowserSynth::getNumOptions() {
 bool ContextMenuSampleBrowserSynth::isCurrentOptionAvailable() {
 
 	// Multisamples (load entire folder and auto-detect ranges). Will delete all previous Ranges.
-	if (currentOption == 0) return (soundEditor.currentPatchingConfig->getSynthMode() != SYNTH_MODE_RINGMOD);
+	if (currentOption == 0) return (soundEditor.currentSound->getSynthMode() != SYNTH_MODE_RINGMOD);
 
 	// Apart from that option, none of the other ones are valid if currently sitting on a folder-name.
 	if (sampleBrowser.getCurrentFileItem()->isFolder) return false;
 
 	switch(currentOption) {
 	case 1: // "Basic" Sample - unavailable if ringmod.
-		return (soundEditor.currentPatchingConfig->getSynthMode() != SYNTH_MODE_RINGMOD);
+		return (soundEditor.currentSound->getSynthMode() != SYNTH_MODE_RINGMOD);
 
 	case 3: // WaveTable
 			// No break - return true.

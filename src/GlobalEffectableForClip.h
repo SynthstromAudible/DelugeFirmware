@@ -37,7 +37,7 @@ public:
     int32_t getSidechainVolumeAmountAsPatchCableDepth(ParamManager* paramManager);
     bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack) final;
     virtual Output* toOutput() = 0;
-    void getThingWithMostReverb(Clip* activeClip, Sound** patchingConfigWithMostReverb, ParamManager** paramManagerWithMostReverb, GlobalEffectableForClip** globalEffectableWithMostReverb, int32_t* highestReverbAmountFound);
+    void getThingWithMostReverb(Clip* activeClip, Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb, GlobalEffectableForClip** globalEffectableWithMostReverb, int32_t* highestReverbAmountFound);
 
     inline void saturate(int32_t* data, uint32_t* workingValue) {
     	// Clipping

@@ -82,7 +82,7 @@ void Source::recalculateFineTuner() {
 }
 
 
-// This function has to give the same result as PatchingConfig::renderingVoicesInStereo()
+// This function has to give the same result as Sound::renderingVoicesInStereo(). The duplication is for optimization.
 bool Source::renderInStereo(SampleHolder* sampleHolder) {
 	if (!AudioEngine::renderInStereo) return false;
 
@@ -169,9 +169,9 @@ bool Source::hasAtLeastOneAudioFileLoaded() {
 }
 
 
-void Source::doneReadingFromFile(Sound* patchingConfig) {
+void Source::doneReadingFromFile(Sound* sound) {
 
-	int synthMode = patchingConfig->getSynthMode();
+	int synthMode = sound->getSynthMode();
 
 	if (synthMode == SYNTH_MODE_FM) oscType = OSC_TYPE_SINE;
 	else if (synthMode == SYNTH_MODE_RINGMOD) oscType = getMin((int)oscType, NUM_OSC_TYPES_RINGMODDABLE - 1);

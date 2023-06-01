@@ -1866,20 +1866,20 @@ void NoteRow::attemptLateStartOfNextNoteToPlay(ModelStackWithNoteRow* modelStack
     }
     */
 
-    Sound* patchingConfig = NULL;
+    Sound* sound = NULL;
     ParamManagerForTimeline* thisParamManager;
     if (drum && drum->type == DRUM_TYPE_SOUND) {
-    	patchingConfig = (SoundDrum*)drum;
+    	sound = (SoundDrum*)drum;
     	thisParamManager = &paramManager;
     }
     else if (((Clip*)modelStack->getTimelineCounter())->output->type == INSTRUMENT_TYPE_SYNTH) {
-    	patchingConfig = (SoundInstrument*)((Clip*)modelStack->getTimelineCounter())->output;
+    	sound = (SoundInstrument*)((Clip*)modelStack->getTimelineCounter())->output;
     	thisParamManager = &modelStack->getTimelineCounter()->paramManager;
     }
 
     bool allows = false;
 
-    if ((patchingConfig && (allows = patchingConfig->allowsVeryLateNoteStart(((InstrumentClip*)modelStack->getTimelineCounter()), thisParamManager))) || timeAgo < noteOnLatenessAllowed) {
+    if ((sound && (allows = sound->allowsVeryLateNoteStart(((InstrumentClip*)modelStack->getTimelineCounter()), thisParamManager))) || timeAgo < noteOnLatenessAllowed) {
 
     	Uart::println("doing late");
 
@@ -2138,22 +2138,22 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 
 	// Deal with single droning note case - but don't do this for samples in CUT or STRETCH mode
 	if (numNotesBefore == 1 && notes.getElement(0)->length == oldLoopLength) {
-		Sound* patchingConfig = NULL;
+		Sound* sound = NULL;
 		ParamManagerForTimeline* paramManagerNow = NULL;
 
 		if (drum && drum->type == DRUM_TYPE_SOUND) {
-			patchingConfig = (SoundDrum*)drum;
+			sound = (SoundDrum*)drum;
 			paramManagerNow = &paramManager;
 		}
 
 		else if (clip->output->type == INSTRUMENT_TYPE_SYNTH) {
-			patchingConfig = (SoundInstrument*)clip->output;
+			sound = (SoundInstrument*)clip->output;
 			paramManagerNow = &clip->paramManager;
 		}
 
 
-		if (!patchingConfig ||
-				(!patchingConfig->hasCutModeSamples(paramManagerNow) && !patchingConfig->hasAnyTimeStretchSyncing(paramManagerNow))) {
+		if (!sound ||
+				(!sound->hasCutModeSamples(paramManagerNow) && !sound->hasAnyTimeStretchSyncing(paramManagerNow))) {
 
 			notes.getElement(0)->length = newLoopLength;
 			return true;
@@ -2830,11 +2830,11 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 	// Grab new ParamManager from that backed up in Drum
 	if (newDrum && newDrum->type == DRUM_TYPE_SOUND) {
 
-		SoundDrum* patchingConfigDrum = (SoundDrum*)newDrum;
+		SoundDrum* soundDrum = (SoundDrum*)newDrum;
 
 		if (!paramManager.containsAnyMainParamCollections()) {
 			if (favourClipForCloningParamManager) {
-				NoteRow* noteRow = favourClipForCloningParamManager->getNoteRowForDrum(patchingConfigDrum);
+				NoteRow* noteRow = favourClipForCloningParamManager->getNoteRowForDrum(soundDrum);
 				if (noteRow) {
 					paramManager.cloneParamCollectionsFrom(&noteRow->paramManager, false, true);
 					// That might not work if there was insufficient RAM, but we'll still try the other options below
@@ -2843,15 +2843,15 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 
 			if (!paramManager.containsAnyMainParamCollections()) {
 
-				drum = patchingConfigDrum; // Better set this temporarily for this call. See comment above for why we can't set it permanently yet
-				bool success = modelStack->song->getBackedUpParamManagerPreferablyWithClip(patchingConfigDrum, (Clip*)modelStack->getTimelineCounter(), &paramManager);
+				drum = soundDrum; // Better set this temporarily for this call. See comment above for why we can't set it permanently yet
+				bool success = modelStack->song->getBackedUpParamManagerPreferablyWithClip(soundDrum, (Clip*)modelStack->getTimelineCounter(), &paramManager);
 				if (success) trimParamManager(modelStack);
 				drum = NULL;
 
 				// If there still isn't one, grab from another NoteRow
 				if (!paramManager.containsAnyMainParamCollections()) {
 
-					ParamManagerForTimeline* paramManagerForDrum = modelStack->song->findParamManagerForDrum(kit, patchingConfigDrum);
+					ParamManagerForTimeline* paramManagerForDrum = modelStack->song->findParamManagerForDrum(kit, soundDrum);
 
 					if (paramManagerForDrum) {
 						paramManager.cloneParamCollectionsFrom(paramManagerForDrum, false, true);
@@ -2873,15 +2873,15 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 			}
 		}
 
-		ModelStackWithThreeMainThings* modelStackWithThreeMainThings = modelStack->addOtherTwoThings(patchingConfigDrum, &paramManager);
-		drum = patchingConfigDrum;
-		patchingConfigDrum->ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(modelStackWithThreeMainThings);
+		ModelStackWithThreeMainThings* modelStackWithThreeMainThings = modelStack->addOtherTwoThings(soundDrum, &paramManager);
+		drum = soundDrum;
+		soundDrum->ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(modelStackWithThreeMainThings);
 		drum = NULL; // Yup this ugliness again, sorry!
 
 		ParamCollectionSummary* patchCablesSummary = paramManager.getPatchCableSetSummary();
 		PatchCableSet* patchCableSet = (PatchCableSet*)patchCablesSummary->paramCollection;
 
-		patchCableSet->grabVelocityToLevelFromMIDIInput(&patchingConfigDrum->midiInput); // Should happen before we call setupPatching().
+		patchCableSet->grabVelocityToLevelFromMIDIInput(&soundDrum->midiInput); // Should happen before we call setupPatching().
 
 		{
 			ModelStackWithParamCollection* modelStackWithParamCollection = modelStackWithThreeMainThings->addParamCollection(patchCableSet, patchCablesSummary);
@@ -2895,7 +2895,7 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 		}
 
 		if (clip->isActiveOnOutput()) {
-			patchingConfigDrum->patcher.performInitialPatching(patchingConfigDrum, &paramManager);
+			soundDrum->patcher.performInitialPatching(soundDrum, &paramManager);
 		}
 	}
 
@@ -3154,24 +3154,24 @@ int NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWith
 
 	// Deal with single droning note case - but don't do this for samples in CUT or STRETCH mode
 	if (numToInsert == 1 && notes.getElement(0)->length == otherNoteRowLength) {
-		Sound* patchingConfig = NULL;
+		Sound* sound = NULL;
 		ParamManagerForTimeline* paramManagerNow = NULL;
 
 		if (drum && drum->type == DRUM_TYPE_SOUND) {
-			patchingConfig = (SoundDrum*)drum;
+			sound = (SoundDrum*)drum;
 			paramManagerNow = &paramManager;
 		}
 
 		else {
 			if (clip->output->type == INSTRUMENT_TYPE_SYNTH) {
-				patchingConfig = (SoundInstrument*)clip->output;
+				sound = (SoundInstrument*)clip->output;
 				paramManagerNow = &clip->paramManager;
 			}
 		}
 
 
-		if (!patchingConfig ||
-				(!patchingConfig->hasCutModeSamples(paramManagerNow) && !patchingConfig->hasAnyTimeStretchSyncing(paramManagerNow))) {
+		if (!sound ||
+				(!sound->hasCutModeSamples(paramManagerNow) && !sound->hasAnyTimeStretchSyncing(paramManagerNow))) {
 
 			int numNotesHere = notes.getNumElements();
 			if (numNotesHere) {

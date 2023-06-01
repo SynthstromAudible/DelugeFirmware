@@ -3177,15 +3177,15 @@ displayError:	numericDriver.displayError(result.error);
 
 
 
-void InstrumentClip::getSuggestedParamManager(Clip* newClip, ParamManagerForTimeline** suggestedParamManager, Sound* patchingConfig) {
+void InstrumentClip::getSuggestedParamManager(Clip* newClip, ParamManagerForTimeline** suggestedParamManager, Sound* sound) {
 	if (&paramManager == *suggestedParamManager) {
-		Clip::getSuggestedParamManager(newClip, suggestedParamManager, patchingConfig);
+		Clip::getSuggestedParamManager(newClip, suggestedParamManager, sound);
 	}
 	else {
 		InstrumentClip* newTrack = (InstrumentClip*)newClip;
 		for (int i = 0; i < newTrack->noteRows.getNumElements(); i++) {
 			NoteRow* noteRow = newTrack->noteRows.getElement(i);
-			if (noteRow->drum && noteRow->drum->type == DRUM_TYPE_SOUND && (SoundDrum*)noteRow->drum == patchingConfig) {
+			if (noteRow->drum && noteRow->drum->type == DRUM_TYPE_SOUND && (SoundDrum*)noteRow->drum == sound) {
 				*suggestedParamManager = &noteRow->paramManager;
 				break;
 			}

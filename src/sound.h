@@ -15,8 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef PATCHINGCONFIG_H
-#define PATCHINGCONFIG_H
+#ifndef SOUND_H
+#define SOUND_H
 
 #include <patcher.h>
 #include "definitions.h"
@@ -212,7 +212,7 @@ public:
     //void channelAftertouchReceivedFromInputMIDIChannel(int newValue);
     ModelStackWithAutoParam* getParamFromModEncoder(int whichModEncoder, ModelStackWithThreeMainThings* modelStack, bool allowCreation = true) final;
     void reassessRenderSkippingStatus(ModelStackWithSoundFlags* modelStack, bool shouldJustCutModFX = false);
-    void getThingWithMostReverb(Sound** patchingConfigWithMostReverb, ParamManager** paramManagerWithMostReverb, GlobalEffectableForClip** globalEffectableWithMostReverb, int32_t* highestReverbAmountFound, ParamManagerForTimeline* paramManager);
+    void getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb, GlobalEffectableForClip** globalEffectableWithMostReverb, int32_t* highestReverbAmountFound, ParamManagerForTimeline* paramManager);
     virtual bool readTagFromFile(char const* tagName) = 0;
     void detachSourcesFromAudioFiles();
     void confirmNumVoices(char const* error);
@@ -270,4 +270,4 @@ private:
 
 };
 
-#endif // PATCHINGCONFIG_H
+#endif // SOUND_H
