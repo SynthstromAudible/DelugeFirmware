@@ -555,7 +555,7 @@ int32_t Clip::getPosAtWhichPlaybackWillCut(ModelStackWithTimelineCounter const* 
 
 
 
-void Clip::getSuggestedParamManager(Clip* newClip, ParamManagerForTimeline** suggestedParamManager, Sound* patchingConfig) {
+void Clip::getSuggestedParamManager(Clip* newClip, ParamManagerForTimeline** suggestedParamManager, Sound* sound) {
 	*suggestedParamManager = &newClip->paramManager;
 }
 

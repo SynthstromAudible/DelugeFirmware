@@ -37,8 +37,8 @@ char const* MenuItem::getName() {
 }
 
 
-int MenuItem::checkPermissionToBeginSession(Sound* patchingConfig, int whichThing, MultiRange** currentRange) {
-	bool toReturn = isRelevant(patchingConfig, whichThing);
+int MenuItem::checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) {
+	bool toReturn = isRelevant(sound, whichThing);
 	return toReturn ? MENU_PERMISSION_YES : MENU_PERMISSION_NO;
 }
 

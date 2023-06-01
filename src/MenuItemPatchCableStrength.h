@@ -28,7 +28,7 @@ public:
 	void writeCurrentValue();
 	int getMinValue() final { return -50; }
 	int getMaxValue() final { return 50; }
-	virtual int checkPermissionToBeginSession(Sound* patchingConfig, int whichThing, MultiRange** currentRange);
+	virtual int checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange);
 	virtual ParamDescriptor getDestinationDescriptor() = 0;
 	virtual uint8_t getS() = 0;
 	uint8_t getIndexOfPatchedParamToBlink() final;
@@ -51,7 +51,7 @@ public:
 	ParamDescriptor getDestinationDescriptor() final;
 	uint8_t getS() final;
 	ParamDescriptor getLearningThing() final;
-	int checkPermissionToBeginSession(Sound* patchingConfig, int whichThing, MultiRange** currentRange);
+	int checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange);
 	uint8_t shouldBlinkPatchingSourceShortcut(int s, uint8_t* colour);
 	MenuItem* patchingSourceShortcutPress(int s, bool previousPressStillActive);
 	MenuItem* selectButtonPress() final;
@@ -83,7 +83,7 @@ public:
 		s = newS;
 	}
 
-	int checkPermissionToBeginSession(Sound* patchingConfig, int whichThing, MultiRange** currentRange) final;
+	int checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) final;
 	uint8_t shouldBlinkPatchingSourceShortcut(int s, uint8_t* colour) final;
 	MenuItem* patchingSourceShortcutPress(int s, bool previousPressStillActive) final;
 

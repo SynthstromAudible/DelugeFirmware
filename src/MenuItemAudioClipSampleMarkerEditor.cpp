@@ -34,9 +34,9 @@
 #include "AudioClip.h"
 
 
-int MenuItemAudioClipSampleMarkerEditor::checkPermissionToBeginSession(Sound* patchingConfig, int whichThing, MultiRange** currentRange) {
+int MenuItemAudioClipSampleMarkerEditor::checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) {
 
-	if (!isRelevant(patchingConfig, whichThing)) {
+	if (!isRelevant(sound, whichThing)) {
 		return MENU_PERMISSION_NO;
 	}
 

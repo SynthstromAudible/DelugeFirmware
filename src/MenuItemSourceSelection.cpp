@@ -230,12 +230,12 @@ bool MenuItemSourceSelection::sourceIsAllowed(int source) {
 
     // Check that this source is allowed to be patched to the selected param
     if (p == PARAM_GLOBAL_VOLUME_POST_FX) {
-    	return (soundEditor.currentPatchingConfig->maySourcePatchToParam(source, PARAM_GLOBAL_VOLUME_POST_FX, (ParamManagerForTimeline*)soundEditor.currentParamManager) != PATCH_CABLE_ACCEPTANCE_DISALLOWED
-    			|| soundEditor.currentPatchingConfig->maySourcePatchToParam(source, PARAM_LOCAL_VOLUME, (ParamManagerForTimeline*)soundEditor.currentParamManager) != PATCH_CABLE_ACCEPTANCE_DISALLOWED
-    			|| soundEditor.currentPatchingConfig->maySourcePatchToParam(source, PARAM_GLOBAL_VOLUME_POST_REVERB_SEND, (ParamManagerForTimeline*)soundEditor.currentParamManager) != PATCH_CABLE_ACCEPTANCE_DISALLOWED);
+    	return (soundEditor.currentSound->maySourcePatchToParam(source, PARAM_GLOBAL_VOLUME_POST_FX, (ParamManagerForTimeline*)soundEditor.currentParamManager) != PATCH_CABLE_ACCEPTANCE_DISALLOWED
+    			|| soundEditor.currentSound->maySourcePatchToParam(source, PARAM_LOCAL_VOLUME, (ParamManagerForTimeline*)soundEditor.currentParamManager) != PATCH_CABLE_ACCEPTANCE_DISALLOWED
+    			|| soundEditor.currentSound->maySourcePatchToParam(source, PARAM_GLOBAL_VOLUME_POST_REVERB_SEND, (ParamManagerForTimeline*)soundEditor.currentParamManager) != PATCH_CABLE_ACCEPTANCE_DISALLOWED);
     }
     else {
-    	return (soundEditor.currentPatchingConfig->maySourcePatchToParam(source, p, (ParamManagerForTimeline*)soundEditor.currentParamManager) != PATCH_CABLE_ACCEPTANCE_DISALLOWED);
+    	return (soundEditor.currentSound->maySourcePatchToParam(source, p, (ParamManagerForTimeline*)soundEditor.currentParamManager) != PATCH_CABLE_ACCEPTANCE_DISALLOWED);
     }
 }
 

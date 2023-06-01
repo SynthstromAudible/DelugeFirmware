@@ -2026,12 +2026,12 @@ traverseClips:
 	}
 }
 
-void Song::setupPatchingForAllParamManagersForInstrument(SoundInstrument* patchingConfig) {
+void Song::setupPatchingForAllParamManagersForInstrument(SoundInstrument* sound) {
 
 	// If currently swapping an Instrument, it can't be assumed that all arranger-only Clips for this Instrument are in its clipInstances, which otherwise is a nice time-saver
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithModControllable* modelStack = setupModelStackWithSong(modelStackMemory, this)->addTimelineCounter(NULL)->addModControllableButNoNoteRow(patchingConfig);
+	ModelStackWithModControllable* modelStack = setupModelStackWithSong(modelStackMemory, this)->addTimelineCounter(NULL)->addModControllableButNoNoteRow(sound);
 
 	// For each Clip in session and arranger for specific Output
 	int numElements = sessionClips.getNumElements();
@@ -2041,10 +2041,10 @@ traverseClips:
 		Clip* clip;
 		if (!doingArrangementClips) {
 			clip = sessionClips.getClipAtIndex(c);
-			if (clip->output != patchingConfig) continue;
+			if (clip->output != sound) continue;
 		}
 		else {
-			ClipInstance* clipInstance = patchingConfig->clipInstances.getElement(c);
+			ClipInstance* clipInstance = sound->clipInstances.getElement(c);
 			if (!clipInstance->clip) continue;
 			if (!clipInstance->clip->isArrangementOnlyClip()) continue;
 			clip = clipInstance->clip;
@@ -2057,7 +2057,7 @@ traverseClips:
 
 		((PatchCableSet*)modelStackWithParamCollection->paramCollection)->setupPatching(modelStackWithParamCollection);
 	}
-	if (!doingArrangementClips) { doingArrangementClips = true; numElements = patchingConfig->clipInstances.getNumElements(); goto traverseClips; }
+	if (!doingArrangementClips) { doingArrangementClips = true; numElements = sound->clipInstances.getNumElements(); goto traverseClips; }
 }
 
 void Song::grabVelocityToLevelFromMIDIDeviceAndSetupPatchingForAllParamManagersForInstrument(MIDIDevice* device, SoundInstrument* instrument) {
@@ -2301,7 +2301,7 @@ int Song::getCurrentPresetScale() {
 }
 
 // What does this do exactly, again?
-void Song::ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(Sound* patchingConfig) {
+void Song::ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(Sound* sound) {
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
@@ -2317,7 +2317,7 @@ traverseClips:
 
 		InstrumentClip* instrumentClip = (InstrumentClip*)clip;
 
-		instrumentClip->ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(modelStackWithTimelineCounter, patchingConfig);
+		instrumentClip->ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(modelStackWithTimelineCounter, sound);
 	}
 	if (clipArray != &arrangementOnlyClips) { clipArray = &arrangementOnlyClips; goto traverseClips; }
 }
