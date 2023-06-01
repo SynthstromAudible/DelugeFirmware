@@ -4,7 +4,7 @@
 
 # public variables
 DEFAULT_SCRIPT_PATH="$(pwd -P)";
-ARM_TOOLCHAIN_VERSION="${ARM_TOOLCHAIN_VERSION:-"12.2"}";
+ARM_TOOLCHAIN_VERSION="${ARM_TOOLCHAIN_VERSION:-"9-2020-q2-update"}";
 
 if [ -z ${DBT_TOOLCHAIN_PATH+x} ] ; then
     DBT_TOOLCHAIN_PATH_WAS_SET=0;
@@ -76,7 +76,7 @@ dbtenv_restore_env()
     unset SAVED_PYTHONPATH;
     unset SAVED_PYTHONHOME;
 
-    unset DBT_TOOLCHAIN_VERSION;
+    unset ARM_TOOLCHAIN_VERSION;
     unset DBT_TOOLCHAIN_PATH;
 }
 
@@ -125,7 +125,7 @@ dbtenv_check_env_vars()
     if [ "$DBT_TOOLCHAIN_PATH_WAS_SET" -eq 0 ] && [ ! -x "$DEFAULT_SCRIPT_PATH/dbt" ] && [ ! -x "$DEFAULT_SCRIPT_PATH/udbt" ] ; then
         echo "Please source this script from [u]dbt root directory, or specify 'DBT_TOOLCHAIN_PATH' variable manually";
         echo "Example:";
-        printf "\tDBT_TOOLCHAIN_PATH=lang/c/DelugeFirmware source lang/c/DelugeFirmware/scripts/dbtenv.sh\n";
+        printf "\tDBT_TOOLCHAIN_PATH=DelugeFirmware source DelugeFirmware/scripts/dbtenv.sh\n";
         echo "If current directory is right, type 'unset DBT_TOOLCHAIN_PATH' and try again"
         return 1;
     fi
@@ -136,24 +136,35 @@ dbtenv_get_kernel_type()
 {
     SYS_TYPE="$(uname -s)";
     ARCH_TYPE="$(uname -m)";
-    if [ "$SYS_TYPE" = "Darwin" ] && [ "$ARCH_TYPE" = "arm64" ]; then
-        TOOLCHAIN_ARCH_DIR="$DBT_TOOLCHAIN_PATH/toolchain/arm64-darwin";
-        TOOLCHAIN_URL="https://developer.arm.com/-/media/Files/downloads/gnu/$ARM_TOOLCHAIN_VERSION.mpacbti-rel1/binrel/arm-gnu-toolchain-$ARM_TOOLCHAIN_VERSION.mpacbti-rel1-darwin-arm64-arm-none-eabi.tar.xz?rev=72354d4494f24dbd98637aae30950c8e&hash=F57DC9FDD8DE39DF12374807224C04652434A229";
-    elif [ "$SYS_TYPE" = "Darwin" ] && [ "$ARCH_TYPE" = "x86_64" ]; then
+    if [ "$ARCH_TYPE" != "x86_64" ] && [ "$SYS_TYPE" != "Darwin" ]; then
+        echo "We only provide toolchain for x86_64 CPUs, sorry..";
+        return 1;
+    fi
+    if [ "$SYS_TYPE" = "Darwin" ]; then
+        dbtenv_check_rosetta || return 1;
         TOOLCHAIN_ARCH_DIR="$DBT_TOOLCHAIN_PATH/toolchain/x86_64-darwin";
-        TOOLCHAIN_URL="https://developer.arm.com/-/media/Files/downloads/gnu/$ARM_TOOLCHAIN_VERSION.mpacbti-rel1/binrel/arm-gnu-toolchain-$ARM_TOOLCHAIN_VERSION.mpacbti-rel1-darwin-x86_64-arm-none-eabi.tar.xz?rev=c517551be7e3468d826036530848cde0&hash=25A1A3E625D6822B6F7E1705D11B623E07EDEC3F";
-    elif [ "$SYS_TYPE" = "Linux" ] && [ "$ARCH_TYPE" = "x86_64" ]; then
+        TOOLCHAIN_URL="https://developer.arm.com/-/media/Files/downloads/gnu-rm/$ARM_TOOLCHAIN_VERSION/gcc-arm-none-eabi-$ARM_TOOLCHAIN_VERSION-mac.tar.bz2";
+    elif [ "$SYS_TYPE" = "Linux" ]; then
         TOOLCHAIN_ARCH_DIR="$DBT_TOOLCHAIN_PATH/toolchain/x86_64-linux";
-        TOOLCHAIN_URL="https://developer.arm.com/-/media/Files/downloads/gnu/$ARM_TOOLCHAIN_VERSION.mpacbti-rel1/binrel/arm-gnu-toolchain-$ARM_TOOLCHAIN_VERSION.mpacbti-rel1-x86_64-arm-none-eabi.tar.xz?rev=71e595a1f2b6457bab9242bc4a40db90&hash=37B0C59767BAE297AEB8967E7C54705BAE9A4B95";
-    elif [ "$SYS_TYPE" = "Linux" ] && [ "$ARCH_TYPE" = "aarch64" ]; then
-        TOOLCHAIN_ARCH_DIR="$DBT_TOOLCHAIN_PATH/toolchain/x86_64-linux";
-        TOOLCHAIN_URL="https://developer.arm.com/-/media/Files/downloads/gnu/$ARM_TOOLCHAIN_VERSION.mpacbti-rel1/binrel/arm-gnu-toolchain-$ARM_TOOLCHAIN_VERSION.mpacbti-rel1-aarch64-arm-none-eabi.tar.xz?rev=4d1ad2dab9fd4a7a9db83d5035f335e1&hash=EFCE3C70DD789BCB7EAB9700D2DEADBC35EE3AF4";
+        TOOLCHAIN_URL="https://developer.arm.com/-/media/Files/downloads/gnu-rm/$ARM_TOOLCHAIN_VERSION/gcc-arm-none-eabi-$ARM_TOOLCHAIN_VERSION-x86_64-linux.tar.bz2";
     elif echo "$SYS_TYPE" | grep -q "MINGW"; then
         echo "In MinGW shell, use \"[u]dbt.cmd\" instead of \"[u]dbt\"";
         return 1;
     else
-        echo "Your system configuration is not supported. Sorry.. Please report your configuration to us.";
+        echo "Your system configuration is not supported. Sorry.. Please report us your configuration.";
         return 1;
+    fi
+    return 0;
+}
+
+dbtenv_check_rosetta()
+{
+    if [ "$ARCH_TYPE" = "arm64" ]; then
+        if ! /usr/bin/pgrep -q oahd; then
+            echo "Deluge Build Toolchain needs Rosetta2 to run under Apple Silicon";
+            echo "Please install it by typing 'softwareupdate --install-rosetta --agree-to-license'";
+            return 1;
+        fi
     fi
     return 0;
 }
@@ -185,7 +196,7 @@ dbtenv_download_toolchain_tar()
     echo "Downloading toolchain:";
     mkdir -p "$DBT_TOOLCHAIN_PATH/toolchain" || return 1;
     "$DBT_DOWNLOADER" "$DBT_TOOLCHAIN_PATH/toolchain/$TOOLCHAIN_TAR.part" "$TOOLCHAIN_URL" || return 1;
-    # restoring oroginal filename if file downloaded successfully
+    # restoring original filename if file downloaded successfully
     mv "$DBT_TOOLCHAIN_PATH/toolchain/$TOOLCHAIN_TAR.part" "$DBT_TOOLCHAIN_PATH/toolchain/$TOOLCHAIN_TAR"
     echo "done";
     return 0;
@@ -263,7 +274,7 @@ dbtenv_check_download_toolchain()
         dbtenv_download_toolchain || return 1;
     elif [ ! -f "$TOOLCHAIN_ARCH_DIR/VERSION" ]; then
         dbtenv_download_toolchain || return 1;
-    elif [ "$(cat "$TOOLCHAIN_ARCH_DIR/VERSION")" -ne "$DBT_TOOLCHAIN_VERSION" ]; then
+    elif [ "$(cat "$TOOLCHAIN_ARCH_DIR/VERSION")" -ne "$ARM_TOOLCHAIN_VERSION" ]; then
         echo "DBT: starting toolchain upgrade process.."
         dbtenv_download_toolchain || return 1;
     fi
@@ -274,7 +285,7 @@ dbtenv_download_toolchain()
 {
     dbtenv_check_tar || return 1;
     TOOLCHAIN_TAR="$(basename "$TOOLCHAIN_URL")";
-    TOOLCHAIN_DIR="$(echo "$TOOLCHAIN_TAR" | sed "s/-$DBT_TOOLCHAIN_VERSION.tar.gz//g")";
+    TOOLCHAIN_DIR="$(echo "$TOOLCHAIN_TAR" | sed "s/-$ARM_TOOLCHAIN_VERSION.tar.gz//g")";
     trap dbtenv_cleanup 2;  # trap will be restored in dbtenv_cleanup
     if ! dbtenv_check_downloaded_toolchain; then
         dbtenv_curl_wget_check || return 1;
