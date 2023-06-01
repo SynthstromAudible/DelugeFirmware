@@ -29,20 +29,20 @@
 #include "View.h"
 #include "KeyboardScreen.h"
 
-bool MenuItemSampleLoopPoint::isRelevant(Sound* patchingConfig, int whichThing) {
+bool MenuItemSampleLoopPoint::isRelevant(Sound* sound, int whichThing) {
 
-	Source* source = &patchingConfig->sources[whichThing];
+	Source* source = &sound->sources[whichThing];
 
-	return (patchingConfig->getSynthMode() == SYNTH_MODE_SUBTRACTIVE && source->oscType == OSC_TYPE_SAMPLE);
+	return (sound->getSynthMode() == SYNTH_MODE_SUBTRACTIVE && source->oscType == OSC_TYPE_SAMPLE);
 }
 
-int MenuItemSampleLoopPoint::checkPermissionToBeginSession(Sound* patchingConfig, int whichThing, MultiRange** currentRange) {
+int MenuItemSampleLoopPoint::checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) {
 
-	if (!isRelevant(patchingConfig, whichThing)) {
+	if (!isRelevant(sound, whichThing)) {
 		return MENU_PERMISSION_NO;
 	}
 
-	int permission = soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(patchingConfig, whichThing, true, currentRange);
+	int permission = soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(sound, whichThing, true, currentRange);
 
 	// Before going ahead, make sure a Sample is loaded
 	if (permission == MENU_PERMISSION_YES) {

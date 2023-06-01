@@ -26,8 +26,8 @@ class MenuItemFileSelector final : public MenuItem {
 public:
 	MenuItemFileSelector(char const* newName = 0) : MenuItem(newName) {}
 	void beginSession(MenuItem* navigatedBackwardFrom);
-	bool isRelevant(Sound* patchingConfig, int whichThing);
-	int checkPermissionToBeginSession(Sound* patchingConfig, int whichThing, MultiRange** currentRange);
+	bool isRelevant(Sound* sound, int whichThing);
+	int checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange);
 };
 
 extern MenuItemFileSelector fileSelectorMenu;

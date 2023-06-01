@@ -232,7 +232,7 @@ bool GlobalEffectableForClip::modEncoderButtonAction(uint8_t whichModEncoder, bo
 
 // We pass activeClip into this because although each child of GlobalEffectableForClip inherits Output, one of them does so via Instrument, so
 // we can't make GlobalEffectableForClip inherit directly from Output, so no access to activeClip
-void GlobalEffectableForClip::getThingWithMostReverb(Clip* activeClip, Sound** patchingConfigWithMostReverb, ParamManager** paramManagerWithMostReverb, GlobalEffectableForClip** globalEffectableWithMostReverb, int32_t* highestReverbAmountFound) {
+void GlobalEffectableForClip::getThingWithMostReverb(Clip* activeClip, Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb, GlobalEffectableForClip** globalEffectableWithMostReverb, int32_t* highestReverbAmountFound) {
 
 	if (activeClip) {
 
@@ -246,7 +246,7 @@ void GlobalEffectableForClip::getThingWithMostReverb(Clip* activeClip, Sound** p
 			int32_t reverbHere = unpatchedParams->getValue(PARAM_UNPATCHED_GLOBALEFFECTABLE_REVERB_SEND_AMOUNT);
 			if (*highestReverbAmountFound < reverbHere) {
 				*highestReverbAmountFound = reverbHere;
-				*patchingConfigWithMostReverb = NULL;
+				*soundWithMostReverb = NULL;
 				*paramManagerWithMostReverb = activeParamManager;
 				*globalEffectableWithMostReverb = this;
 			}

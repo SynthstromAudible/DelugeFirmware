@@ -286,14 +286,14 @@ Voice* cullVoice(bool saveVoice, bool justDoFastRelease) {
     }
 
     if (bestVoice) {
-    	activeVoices.checkVoiceExists(bestVoice, bestVoice->assignedToPatchingConfig, "E196"); // ronronsen got!! https://forums.synthstrom.com/discussion/4097/beta-4-0-0-beta-1-e196-by-loading-wavetable-osc#latest
+    	activeVoices.checkVoiceExists(bestVoice, bestVoice->assignedToSound, "E196"); // ronronsen got!! https://forums.synthstrom.com/discussion/4097/beta-4-0-0-beta-1-e196-by-loading-wavetable-osc#latest
 
     	if (justDoFastRelease) {
     		if (bestVoice->envelopes[0].state < ENVELOPE_STAGE_FAST_RELEASE) {
     			bool stillGoing = bestVoice->doFastRelease(65536);
 
     			if (!stillGoing) {
-    				unassignVoice(bestVoice, bestVoice->assignedToPatchingConfig);
+    				unassignVoice(bestVoice, bestVoice->assignedToSound);
     			}
 
 #if ALPHA_OR_BETA_VERSION
@@ -308,7 +308,7 @@ Voice* cullVoice(bool saveVoice, bool justDoFastRelease) {
     	}
 
     	else {
-    		unassignVoice(bestVoice, bestVoice->assignedToPatchingConfig, NULL, true, !saveVoice);
+    		unassignVoice(bestVoice, bestVoice->assignedToSound, NULL, true, !saveVoice);
     	}
     }
 
@@ -1043,7 +1043,7 @@ void updateReverbParams() {
 		// Just leave everything as is if parts deleted cos loading new song
 		if (getCurrentUI() == &loadSongUI && loadSongUI.deletedPartsOfOldSong) return;
 
-	    Sound* patchingConfigWithMostReverb = NULL;
+	    Sound* soundWithMostReverb = NULL;
 	    ParamManager* paramManagerWithMostReverb = NULL;
 	    GlobalEffectableForClip* globalEffectableWithMostReverb = NULL;
 
@@ -1052,13 +1052,13 @@ void updateReverbParams() {
 	    int32_t highestReverbAmountFound = currentSong->paramManager.getUnpatchedParamSet()->getValue(PARAM_UNPATCHED_GLOBALEFFECTABLE_REVERB_SEND_AMOUNT);
 
 	    for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
-	    	thisOutput->getThingWithMostReverb(&patchingConfigWithMostReverb, &paramManagerWithMostReverb, &globalEffectableWithMostReverb, &highestReverbAmountFound);
+	    	thisOutput->getThingWithMostReverb(&soundWithMostReverb, &paramManagerWithMostReverb, &globalEffectableWithMostReverb, &highestReverbAmountFound);
 	    }
 
 	    ModControllableAudio* modControllable;
 
-		if (patchingConfigWithMostReverb) {
-			modControllable = patchingConfigWithMostReverb;
+		if (soundWithMostReverb) {
+			modControllable = soundWithMostReverb;
 
 			ParamDescriptor paramDescriptor;
 			paramDescriptor.setToHaveParamOnly(PARAM_GLOBAL_VOLUME_POST_REVERB_SEND);
@@ -1141,7 +1141,7 @@ void getReverbParamsFromSong(Song* song) {
     reverbCompressor.sync = song->reverbCompressorSync;
 }
 
-Voice* solicitVoice(Sound* forPatchingConfig) {
+Voice* solicitVoice(Sound* forSound) {
 
 	Voice* newVoice;
 
@@ -1170,10 +1170,10 @@ doCull:
 		newVoice = new (memory) Voice();
 	}
 
-    newVoice->assignedToPatchingConfig = forPatchingConfig;
+    newVoice->assignedToSound = forSound;
 
 	uint32_t keyWords[2];
-	keyWords[0] = (uint32_t)forPatchingConfig;
+	keyWords[0] = (uint32_t)forSound;
 	keyWords[1] = (uint32_t)newVoice;
 
     int i = activeVoices.insertAtKeyMultiWord(keyWords);
@@ -1186,7 +1186,7 @@ doCull:
 }
 
 // **** This is the main function that enacts the unassigning of the Voice
-// patchingConfig only required if removing from vector
+// sound only required if removing from vector
 // modelStack can be NULL if you really insist
 void unassignVoice(Voice* voice, Sound* sound, ModelStackWithSoundFlags* modelStack, bool removeFromVector, bool shouldDispose) {
 

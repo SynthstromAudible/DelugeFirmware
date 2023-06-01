@@ -50,8 +50,8 @@ namespace AudioEngine {
     void previewSample(String* path, FilePointer* filePointer, bool shouldActuallySound);
     void stopAnyPreviewing();
 
-    Voice* solicitVoice(Sound* forPatchingConfig);
-    void unassignVoice(Voice* voice, Sound* patchingConfig, ModelStackWithSoundFlags* modelStack = NULL, bool removeFromVector = true, bool shouldDispose = true);
+    Voice* solicitVoice(Sound* forSound);
+    void unassignVoice(Voice* voice, Sound* sound, ModelStackWithSoundFlags* modelStack = NULL, bool removeFromVector = true, bool shouldDispose = true);
     void disposeOfVoice(Voice* voice);
 
     void songSwapAboutToHappen();

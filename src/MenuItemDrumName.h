@@ -24,7 +24,7 @@ class MenuItemDrumName final : public MenuItem {
 public:
 	MenuItemDrumName(char const* newName = NULL) : MenuItem(newName) {}
 	void beginSession(MenuItem* navigatedBackwardFrom);
-	bool isRelevant(Sound* patchingConfig, int whichThing);
+	bool isRelevant(Sound* sound, int whichThing);
 
 };
 

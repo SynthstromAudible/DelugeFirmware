@@ -15,8 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef PATCHINGCONFIGINSTRUMENT_H
-#define PATCHINGCONFIGINSTRUMENT_H
+#ifndef SOUNDINSTRUMENT_H
+#define SOUNDINSTRUMENT_H
 
 #include <sound.h>
 #include "MelodicInstrument.h"
@@ -71,7 +71,7 @@ public:
     void beenEdited(bool shouldMoveToEmptySlot = true);
     int32_t doTickForwardForArp(ModelStack* modelStack, int32_t currentPos);
     void setupWithoutActiveClip(ModelStack* modelStack);
-    void getThingWithMostReverb(Sound** patchingConfigWithMostReverb, ParamManager** paramManagerWithMostReverb, GlobalEffectableForClip** globalEffectableWithMostReverb,
+    void getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb, GlobalEffectableForClip** globalEffectableWithMostReverb,
     			int32_t* highestReverbAmountFound);
     uint8_t* getModKnobMode() { return &modKnobMode; }
     ArpeggiatorBase* getArp();

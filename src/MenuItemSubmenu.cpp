@@ -45,7 +45,7 @@ void MenuItemSubmenu::beginSession(MenuItem* navigatedBackwardFrom) {
 			soundEditor.currentSubmenuItem++;
 		}
 	}
-	while (!(*soundEditor.currentSubmenuItem)->isRelevant(soundEditor.currentPatchingConfig, soundEditor.currentSourceIndex)) {
+	while (!(*soundEditor.currentSubmenuItem)->isRelevant(soundEditor.currentSound, soundEditor.currentSourceIndex)) {
 		soundEditor.currentSubmenuItem++;
 		if (!*soundEditor.currentSubmenuItem) { // Not sure we need this since we don't wrap submenu items?
 			soundEditor.currentSubmenuItem = items;
@@ -80,7 +80,7 @@ void MenuItemSubmenu::drawPixelsForOled() {
 		do {
 			thisSubmenuItem++;
 			if (!*thisSubmenuItem) goto searchBack;
-		} while (!(*thisSubmenuItem)->isRelevant(soundEditor.currentPatchingConfig, soundEditor.currentSourceIndex));
+		} while (!(*thisSubmenuItem)->isRelevant(soundEditor.currentSound, soundEditor.currentSourceIndex));
 
 		itemNames[i] = (*thisSubmenuItem)->getName();
 	}
@@ -91,7 +91,7 @@ searchBack:
 		do {
 			if (thisSubmenuItem == items) goto doneSearching;
 			thisSubmenuItem--;
-		} while (!(*thisSubmenuItem)->isRelevant(soundEditor.currentPatchingConfig, soundEditor.currentSourceIndex));
+		} while (!(*thisSubmenuItem)->isRelevant(soundEditor.currentSound, soundEditor.currentSourceIndex));
 
 		itemNames[i] = (*thisSubmenuItem)->getName();
 	}
@@ -130,7 +130,7 @@ void MenuItemSubmenu::selectEncoderAction(int offset) {
 				thisSubmenuItem--;
 			}
 		}
-	} while (!(*thisSubmenuItem)->isRelevant(soundEditor.currentPatchingConfig, soundEditor.currentSourceIndex));
+	} while (!(*thisSubmenuItem)->isRelevant(soundEditor.currentSound, soundEditor.currentSourceIndex));
 
 	soundEditor.currentSubmenuItem = thisSubmenuItem;
 
@@ -171,7 +171,7 @@ bool MenuItemSubmenu::learnNoteOn(MIDIDevice* fromDevice, int channel, int noteC
 // -----------------------------------------------
 void MenuItemSubmenuReferringToOneThing::beginSession(MenuItem* navigatedBackwardFrom) {
 	soundEditor.currentSourceIndex = thingIndex;
-	soundEditor.currentSource = &soundEditor.currentPatchingConfig->sources[thingIndex];
+	soundEditor.currentSource = &soundEditor.currentSound->sources[thingIndex];
 	soundEditor.currentSampleControls = &soundEditor.currentSource->sampleControls;
 	MenuItemSubmenu::beginSession(navigatedBackwardFrom);
 }
@@ -180,14 +180,14 @@ void MenuItemSubmenuReferringToOneThing::beginSession(MenuItem* navigatedBackwar
 
 // -----------------------------------------------
 void MenuItemCompressorSubmenu::beginSession(MenuItem* navigatedBackwardFrom) {
-	soundEditor.currentCompressor = forReverbCompressor ? &AudioEngine::reverbCompressor : &soundEditor.currentPatchingConfig->compressor;
+	soundEditor.currentCompressor = forReverbCompressor ? &AudioEngine::reverbCompressor : &soundEditor.currentSound->compressor;
 	MenuItemSubmenu::beginSession(navigatedBackwardFrom);
 }
 
 // -----------------------------------------------
 void MenuItemArpeggiatorSubmenu::beginSession(MenuItem* navigatedBackwardFrom) {
 
-	soundEditor.currentArpSettings = soundEditor.editingKit() ? &((SoundDrum*)soundEditor.currentPatchingConfig)->arpSettings : &((InstrumentClip*)currentSong->currentClip)->arpSettings;
+	soundEditor.currentArpSettings = soundEditor.editingKit() ? &((SoundDrum*)soundEditor.currentSound)->arpSettings : &((InstrumentClip*)currentSong->currentClip)->arpSettings;
 	MenuItemSubmenu::beginSession(navigatedBackwardFrom);
 }
 
