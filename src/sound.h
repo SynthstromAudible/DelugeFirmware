@@ -49,10 +49,19 @@ struct ParamLPF {
 	int32_t currentValue;
 };
 
-
-
 #define NUM_MOD_SOURCE_SELECTION_BUTTONS 2
 
+
+/*
+ * Sound can be either an Instrument or a Drum, in the form of SoundInstrument or SoundDrum respectively.
+ * These classes are implemented using “multiple inheritance”, which is sacrilegious to many C++ programmers.
+ * I (Rohan) consider it to be a more or less appropriate solution in this case and a few others in the Deluge codebase where it’s used.
+ * It’s a little while though since I’ve sat and thought about what the alternatives could be and whether anything else would be appropriate.
+ *
+ * Anyway, Sound (which may be named a bit too broadly) basically means a synth or sample, or any combination of the two.
+ * And, to reiterate the above, it can exist as a “synth” as the melodic Output of one entire Clip(s),
+ * or as just a Drum - one of the many items in a Kit, normally associated with a row of notes.
+ */
 
 class Sound: public ModControllableAudio {
 public:

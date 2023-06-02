@@ -37,6 +37,11 @@ class ModelStackWithTimelineCounter;
 class ModelStackWithThreeMainThings;
 
 
+/*
+ * An Instrument is the “Output” of a Clip - the thing which turns the sequence or notes into sound (or MIDI or CV output).
+ * Instruments include Kit, MIDIInstrument, and CVInsttrument. And then there’s SoundInstrument, which is basically a synth.
+ */
+
 class Instrument : public Output {
 public:
     Instrument(int newType);

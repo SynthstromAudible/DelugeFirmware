@@ -39,6 +39,38 @@ class SampleRecorder;
 #define ALTERNATE_LOAD_DIR_DOES_EXIST 3
 
 
+/*
+ * ===================== SD card audio streaming ==================
+ *
+ * Audio streaming (for Samples and AudioClips) from the SD card functions by loading
+ * and caching Clusters of audio data from the SD card. A formatted card will have a
+ * cluster size for the filesystem - often 32kB, but it could be as small as 4kB, or even smaller maybe?
+ * The Deluge deals in these Clusters, whatever size they may be for the card, which makes
+ * sense because one Cluster always exists in one physical place on the SD card (or any disk),
+ * so may be easily loaded in one operation by DMA. Whereas consecutive clusters making up an
+ * (audio) file are often placed in completely different physical locations.
+ *
+ * For a Sample associated with a Sound or AudioClip, the Deluge keeps the first two Clusters of that file
+ * (from its set start-point and subject to reversing) permanently loaded in RAM, so playback of the
+ * Sample may begin instantly when the Sound or AudioClip is played. And if the Sample has a loop-start point,
+ * it keeps the first two Clusters from that point permanently loaded too.
+ *
+ * Then as the Sample plays, the currently-playing Cluster and the next one are kept loaded in RAM.
+ * Or rather, as soon as the “play-head” enters a new Cluster, the Deluge immediately enqueues
+ * the following Cluster to be loaded from the card ASAP.
+ *
+ * And then also, loaded Clusters remain loaded/cached in RAM for as long as possible while that RAM
+ * isn’t needed for something more important, so they may be played again without having to reload
+ * them from the card. Details on that process below.
+ *
+ * Quick note - Cluster objects are also used (in RAM) to store SampleCache data (which caches
+ * Sample data post-repitching or post-pitch-shifting), and “percussive” audio data (“perc” for short)
+ * which is condensed data for use by the time-stretching algorithm. The reason for these types
+ * of data being housed in Cluster objects is largely legacy, but it also is handy because all
+ * Cluster objects are made to be the same size in RAM, so “stealing” one will always make the
+ * right amount of space for another (see below to see what “stealing” means).
+ */
+
 class AudioFileManager {
 public:
 	AudioFileManager();
