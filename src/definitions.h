@@ -664,7 +664,7 @@
 #define GLOBAL_MIDI_COMMAND_UNDO 6
 #define GLOBAL_MIDI_COMMAND_REDO 7
 
-#define NUM_SAMPLE_CHUNKS_LOADED_AHEAD 2
+#define NUM_CLUSTERS_LOADED_AHEAD 2
 
 #define INPUT_MONITORING_SMART 0
 #define INPUT_MONITORING_ON 1
@@ -674,10 +674,10 @@
 #define CACHE_LINE_SIZE 32
 
 
-#define CHUNK_DONT_LOAD 0
-#define CHUNK_ENQUEUE 1
-#define CHUNK_LOAD_IMMEDIATELY 2
-#define CHUNK_LOAD_IMMEDIATELY_OR_ENQUEUE 3
+#define CLUSTER_DONT_LOAD 0
+#define CLUSTER_ENQUEUE 1
+#define CLUSTER_LOAD_IMMEDIATELY 2
+#define CLUSTER_LOAD_IMMEDIATELY_OR_ENQUEUE 3
 
 #define SCALE_TYPE_SCALE 0
 #define SCALE_TYPE_CHROMATIC 1
@@ -773,13 +773,13 @@
 #define INTERPOLATION_MAX_NUM_SAMPLES_MAGNITUDE 4
 
 
-#define LOADED_SAMPLE_CHUNK_EMPTY 0
-#define LOADED_SAMPLE_CHUNK_SAMPLE 1
-#define LOADED_SAMPLE_CHUNK_GENERAL_MEMORY 2
-#define LOADED_SAMPLE_CHUNK_SAMPLE_CACHE 3
-#define LOADED_SAMPLE_CHUNK_PERC_CACHE_FORWARDS 4
-#define LOADED_SAMPLE_CHUNK_PERC_CACHE_REVERSED 5
-#define LOADED_SAMPLE_CHUNK_OTHER 6
+#define CLUSTER_EMPTY 0
+#define CLUSTER_SAMPLE 1
+#define CLUSTER_GENERAL_MEMORY 2
+#define CLUSTER_SAMPLE_CACHE 3
+#define CLUSTER_PERC_CACHE_FORWARDS 4
+#define CLUSTER_PERC_CACHE_REVERSED 5
+#define CLUSTER_OTHER 6
 
 #define PLAY_HEAD_OLDER 0
 #define PLAY_HEAD_NEWER 1
@@ -798,8 +798,9 @@
 #define TIME_STRETCH_CROSSFADE_NUM_MOVING_AVERAGES 3 // 3 sounds way better than 2. After that, kinda diminishing returns
 #define TIME_STRETCH_CROSSFADE_MOVING_AVERAGE_LENGTH 35 // Anywhere between 30 and 40 seemed ideal. Point of interest - high numbers (e.g. I tried 140) screw up the high notes, so more is not more!
 
-#define TIME_STRETCH_ENABLE_BUFFER 0 // I think this was an experimental mode which allowed the pitch-change effect (i.e. windowed sinc interpolation)
-										// to be stored and reused between the two time-stretch play-heads. Probably won't work anymore.
+#define TIME_STRETCH_ENABLE_BUFFER 0	// I think this was an experimental mode which allowed the pitch-change effect (i.e. windowed sinc interpolation)
+										// to be stored and reused between the two time-stretch play-heads. Probably won't work anymore. From memory, wasn't
+										// very beneficial, especially relative to its complexity and potential bugginess.
 
 #if TIME_STRETCH_ENABLE_BUFFER
 #define TIME_STRETCH_BUFFER_SIZE 4096

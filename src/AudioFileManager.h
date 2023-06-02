@@ -18,10 +18,10 @@
 #ifndef SAMPLEMANAGER_H_
 #define SAMPLEMANAGER_H_
 #include <AudioFileVector.h>
+#include <ClusterPriorityQueue.h>
 #include "r_typedefs.h"
 #include "BidirectionalLinkedList.h"
 #include "definitions.h"
-#include "LoadedSampleChunkPriorityQueue.h"
 
 extern "C" {
 #include "fatfs/ff.h"
@@ -39,26 +39,26 @@ class SampleRecorder;
 #define ALTERNATE_LOAD_DIR_DOES_EXIST 3
 
 
-class SampleManager {
+class AudioFileManager {
 public:
-	SampleManager();
+	AudioFileManager();
 
 	AudioFileVector audioFiles;
 
 	void init();
 	AudioFile* getAudioFileFromFilename(String* fileName, bool mayReadCard, uint8_t* error, FilePointer* filePointer, int type, bool makeWaveTableWorkAtAllCosts = false);
-	Cluster* allocateLoadedSampleChunk(int type = LOADED_SAMPLE_CHUNK_SAMPLE, bool shouldAddReasons = true, void* dontStealFromThing = NULL);
-	int enqueueLoadedSampleChunk(Cluster* loadedSampleChunk, uint32_t priorityRating = 0xFFFFFFFF);
-	bool loadSampleChunk(Cluster* loadedSampleChunk, int minNumReasonsAfter = 0);
-	void loadAnyEnqueuedSampleChunks(int maxNum = 128, bool mayProcessUserActionsBetween = false);
-	void addReasonToLoadedSampleChunk(Cluster* loadedSampleChunk);
-	void removeReasonFromLoadedSampleChunk(Cluster* loadedSampleChunk, char const* errorCode);
+	Cluster* allocateCluster(int type = CLUSTER_SAMPLE, bool shouldAddReasons = true, void* dontStealFromThing = NULL);
+	int enqueueCluster(Cluster* cluster, uint32_t priorityRating = 0xFFFFFFFF);
+	bool loadCluster(Cluster* cluster, int minNumReasonsAfter = 0);
+	void loadAnyEnqueuedClusters(int maxNum = 128, bool mayProcessUserActionsBetween = false);
+	void addReasonToCluster(Cluster* cluster);
+	void removeReasonFromCluster(Cluster* cluster, char const* errorCode);
 	void testQueue();
 
 	bool ensureEnoughMemoryForOneMoreAudioFile();
 
 	void slowRoutine();
-	void deallocateLoadedSampleChunk(Cluster* loadedSampleChunk);
+	void deallocateCluster(Cluster* cluster);
 	int setupAlternateAudioFilePath(String* newPath, int dirPathLength, String* oldPath);
 	int setupAlternateAudioFileDir(String* newPath, char const* rootDir, String* songFilenameWithoutExtension);
 	bool loadingQueueHasAnyLowestPriorityElements();
@@ -71,19 +71,19 @@ public:
 	void thingBeginningLoading(int newThingType);
 	void thingFinishedLoading();
 
-	LoadedSampleChunkPriorityQueue loadingQueue;
+	ClusterPriorityQueue loadingQueue;
 
 	uint32_t clusterSize;
 	uint32_t clusterSizeAtBoot;
 	int clusterSizeMagnitude;
 
-	uint32_t loadedSampleChunkSize;
+	uint32_t clusterObjectSize;
 
 	bool cardEjected;
 	bool cardDisabled;
 
-	Cluster* loadedSampleChunkBeingLoaded;
-	int minNumReasonsForLoadedSampleChunkBeingLoaded; // Only valid when loadedSampleChunkBeingLoaded is set. And this exists for bug hunting only.
+	Cluster* clusterBeingLoaded;
+	int minNumReasonsForClusterBeingLoaded; // Only valid when clusterBeingLoaded is set. And this exists for bug hunting only.
 
 	String alternateAudioFileLoadPath;
 	uint8_t alternateLoadDirStatus;
@@ -94,15 +94,14 @@ public:
 	bool highestUsedAudioRecordingNumberNeedsReChecking[NUM_AUDIO_RECORDING_FOLDERS];
 
 private:
-	int advanceChunksIfNecessary(int* byteIndexWithinChunk, Cluster** currentChunk, uint32_t* currentCluster, Sample* sample);
 	void setClusterSize(uint32_t newSize);
 	void cardReinserted();
-	int readBytes(char* buffer, int num, int* byteIndexWithinChunk, Cluster** currentChunk, uint32_t* currentChunkIndex, uint32_t fileSize, Sample* sample);
-	int loadAiff(Sample* newSample, uint32_t fileSize, Cluster** currentChunk, uint32_t* currentChunkIndex);
-	int loadWav(Sample* newSample, uint32_t fileSize, Cluster** currentChunk, uint32_t* currentChunkIndex);
+	int readBytes(char* buffer, int num, int* byteIndexWithinCluster, Cluster** currentCluster, uint32_t* currentClusterIndex, uint32_t fileSize, Sample* sample);
+	int loadAiff(Sample* newSample, uint32_t fileSize, Cluster** currentCluster, uint32_t* currentClusterIndex);
+	int loadWav(Sample* newSample, uint32_t fileSize, Cluster** currentCluster, uint32_t* currentClusterIndex);
 
 };
 
-extern SampleManager sampleManager;
+extern AudioFileManager audioFileManager;
 
 #endif /* SAMPLEMANAGER_H_ */

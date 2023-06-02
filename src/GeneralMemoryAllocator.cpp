@@ -16,13 +16,13 @@
 */
 
 #include <AudioEngine.h>
+#include <AudioFileManager.h>
 #include <Cluster.h>
 #include "GeneralMemoryAllocator.h"
 #include <new>
 #include "uart.h"
 #include "functions.h"
 #include <string.h>
-#include "SampleManager.h"
 #include "ActionLogger.h"
 #include "numericdriver.h"
 #include "Stealable.h"

@@ -44,7 +44,7 @@ class SoundDrum;
 
 namespace AudioEngine {
     void routine();
-    void routineWithChunkLoading(bool mayProcessUserActionsBetween = false);
+    void routineWithClusterLoading(bool mayProcessUserActionsBetween = false);
 
     void init();
     void previewSample(String* path, FilePointer* filePointer, bool shouldActuallySound);

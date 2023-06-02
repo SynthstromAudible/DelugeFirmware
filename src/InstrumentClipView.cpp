@@ -18,6 +18,7 @@
 #include <InstrumentClipView.h>
 #include <ArrangerView.h>
 #include <AudioEngine.h>
+#include <AudioFileManager.h>
 #include <ConsequenceInstrumentClipMultiply.h>
 #include <MenuItemMultiRange.h>
 #include <ParamManager.h>
@@ -46,7 +47,6 @@
 #include "PlaybackMode.h"
 #include "drum.h"
 #include "MelodicInstrument.h"
-#include "SampleManager.h"
 #include "SampleMarkerEditor.h"
 #include "MenuItemFileSelector.h"
 #include <new>
@@ -138,7 +138,7 @@ void InstrumentClipView::openedInBackground() {
 
     recalculateColours();
 
-	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+	AudioEngine::routineWithClusterLoading(); // -----------------------------------
 	AudioEngine::logAction("TrackScreen::beginSession 2");
 
     if (renderingToStore) {

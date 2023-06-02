@@ -17,6 +17,7 @@
 
 #include <ArrangerView.h>
 #include <AudioEngine.h>
+#include <AudioFileManager.h>
 #include <ClipInstance.h>
 #include <InstrumentClipMinder.h>
 #include <InstrumentClipView.h>
@@ -44,7 +45,6 @@
 #include "MIDIParam.h"
 #include "saveinstrumentpresetui.h"
 #include "midiengine.h"
-#include "SampleManager.h"
 #include "storagemanager.h"
 #include "LoadInstrumentPresetUI.h"
 #include "song.h"

@@ -32,8 +32,8 @@ class AudioFileHolder {
 public:
 	AudioFileHolder();
 	virtual ~AudioFileHolder();
-    virtual void setAudioFile(AudioFile* newSample, bool reversed = false, bool manuallySelected = false, int chunkLoadInstruction = CHUNK_ENQUEUE);
-    int loadFile(bool reversed, bool manuallySelected, bool mayActuallyReadFile, int chunkLoadInstruction = CHUNK_ENQUEUE, FilePointer* filePointer = NULL, bool makeWaveTableWorkAtAllCosts = false);
+    virtual void setAudioFile(AudioFile* newSample, bool reversed = false, bool manuallySelected = false, int clusterLoadInstruction = CLUSTER_ENQUEUE);
+    int loadFile(bool reversed, bool manuallySelected, bool mayActuallyReadFile, int clusterLoadInstruction = CLUSTER_ENQUEUE, FilePointer* filePointer = NULL, bool makeWaveTableWorkAtAllCosts = false);
     virtual void unassignAllClusterReasons(bool beingDestructed = false) {}
 
     String filePath;

@@ -280,13 +280,13 @@ moveOn:
 			goto startAgain;
 		}
 
-		// If we're forbidden from stealing from a particular thing (SampleCache), then make sure we don't
+		// If we're forbidden from stealing from a particular thing (usually SampleCache), then make sure we don't
 		if (!stealable->mayBeStolen(thingNotToStealFrom)) {
 			numRefusedTheft++;
 
 			// If we've done this loads of times, it'll be seriously hurting CPU usage. There's a particular case to be careful of - if project
 			// contains just one long pitch-adjusted sound / AudioClip and nothing else, it'll cache it, but after some number of minutes,
-			// it'll run out of new chunks to write the cache to, and it'll start trying to steal from the cache-chunk queue, and hit all of these ones
+			// it'll run out of new Clusters to write the cache to, and it'll start trying to steal from the cache-Cluster queue, and hit all of these ones
 			// of its own at the same time.
 			if (numRefusedTheft >= 512) AudioEngine::bypassCulling = true;
 
@@ -362,7 +362,7 @@ moveOn:
 	return 0;
 
 foundIt:
-	stealable->steal("i007"); // Warning - for perc cache chunks, stealing one can cause it to want to allocate more memory for its list of zones
+	stealable->steal("i007"); // Warning - for perc cache Cluster, stealing one can cause it to want to allocate more memory for its list of zones
 	stealable->~Stealable();
 
 stolenIt:

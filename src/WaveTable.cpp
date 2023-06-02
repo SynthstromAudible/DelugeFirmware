@@ -15,10 +15,10 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <AudioFileManager.h>
 #include <Wavetable.h>
 #include "Sample.h"
 #include "GeneralMemoryAllocator.h"
-#include "SampleManager.h"
 #include "Cluster.h"
 #include "storagemanager.h"
 #include "WaveTableReader.h"
@@ -241,7 +241,7 @@ gotError2:
     numCyclesMagnitude = getMagnitude(numCycles);
 
     AudioEngine::logAction("just started wavetable");
-    AudioEngine::routineWithChunkLoading(); // TODO: the routine calls in this function might be more than needed - I didn't profile very closely.
+    AudioEngine::routineWithClusterLoading(); // TODO: the routine calls in this function might be more than needed - I didn't profile very closely.
     AudioEngine::logAction("about to set up bands");
 
     for (int b = 0; b < bands.getNumElements(); b++) {
@@ -276,7 +276,7 @@ gotError2:
     }
 
     AudioEngine::logAction("bands set up");
-    AudioEngine::routineWithChunkLoading();
+    AudioEngine::routineWithClusterLoading();
     AudioEngine::logAction("allocating working memory");
 
 	// Create the temporary memory where we'll store the 32-bit int version of the current cycle being read, to perform the FFT on.
@@ -307,15 +307,15 @@ gotError5:
 	}
 
     AudioEngine::logAction("working memory allocated");
-    AudioEngine::routineWithChunkLoading();
+    AudioEngine::routineWithClusterLoading();
     AudioEngine::logAction("finalizing vars");
 
     WaveTableBand* initialBand = (WaveTableBand*)bands.getElementAddress(0);
 	int16_t* __restrict__ initialBandWritePos = initialBand->dataAccessAddress; // Even for non-power-of-two cycle size files, we'll still write the data in here even though
 																				// it's not needed and will be overwritten, just since we're using the same code as for power-of-two.
 
-	int clusterIndex = audioDataStartPosBytes >> sampleManager.clusterSizeMagnitude;
-	int byteIndexWithinCluster = audioDataStartPosBytes & (sampleManager.clusterSize - 1);
+	int clusterIndex = audioDataStartPosBytes >> audioFileManager.clusterSizeMagnitude;
+	int byteIndexWithinCluster = audioDataStartPosBytes & (audioFileManager.clusterSize - 1);
 
 	if (!sample) {
 		reader->jumpForwardToBytePos(audioDataStartPosBytes); // In case reader wasn't quite up to here yet! Can happen in AIFF files, with their "offset"
@@ -343,7 +343,7 @@ gotError5:
 	for (int cycleIndex = 0; cycleIndex < numCycles; cycleIndex++) {
 
 	    AudioEngine::logAction("new cycle began");
-	    AudioEngine::routineWithChunkLoading();
+	    AudioEngine::routineWithClusterLoading();
 	    AudioEngine::logAction("new cycle beginning");
 
 		int16_t* nativeBandCycleStartPos = initialBandWritePos; // Store this so we can refer to it at the end of the cycle, for duplicating values
@@ -361,9 +361,9 @@ gotError5:
 				if (clusterIndex != clusterIndexCurrentlyLoaded) {
 
 					// First, unload the old Cluster if there was one
-					if (cluster) sampleManager.removeReasonFromLoadedSampleChunk(cluster, "E385");
+					if (cluster) audioFileManager.removeReasonFromCluster(cluster, "E385");
 
-					cluster = sample->clusters.getElement(clusterIndex)->getLoadedSampleChunk(sample, clusterIndex, CHUNK_LOAD_IMMEDIATELY, 0, &error);
+					cluster = sample->clusters.getElement(clusterIndex)->getCluster(sample, clusterIndex, CLUSTER_LOAD_IMMEDIATELY, 0, &error);
 					if (!cluster) goto gotError5;
 
 					clusterIndexCurrentlyLoaded = clusterIndex;
@@ -426,7 +426,7 @@ gotError5:
 
 
 			const char* source				= &sourceBuffer[byteIndexWithinCluster];
-			const char* sourceStopAt		= &sourceBuffer[sampleManager.clusterSize];
+			const char* sourceStopAt		= &sourceBuffer[audioFileManager.clusterSize];
 
 			// Stop before we get to the final sample that overlaps the end of the cluster, if that happens.
 			sourceStopAt = sourceStopAt - byteDepth + 1;
@@ -462,15 +462,15 @@ gotError5:
 			}
 
 			// If we're less than one sample from the end of the cluster...
-			if (byteIndexWithinCluster > sampleManager.clusterSize - byteDepth) {
+			if (byteIndexWithinCluster > audioFileManager.clusterSize - byteDepth) {
 				bytesOverlappingFromLastCluster = *(uint32_t*)source;
-				byteIndexWithinCluster -= sampleManager.clusterSize; // Might end up negative, indicating that we've got a sample overlapping the cluster boundary
+				byteIndexWithinCluster -= audioFileManager.clusterSize; // Might end up negative, indicating that we've got a sample overlapping the cluster boundary
 				clusterIndex++;
 			}
 		} while (sourceBytesLeftToCopyThisCycle > 0);
 
 	    AudioEngine::logAction("cycle been read");
-	    AudioEngine::routineWithChunkLoading();
+	    AudioEngine::routineWithClusterLoading();
 	    AudioEngine::logAction("analyzing cycle");
 
 		// Ok, we've finished reading one wave cycle (which potentially spanned multiple file clusters).
@@ -518,7 +518,7 @@ gotError5:
 		}
 
 	    AudioEngine::logAction("got freq domain data");
-	    AudioEngine::routineWithChunkLoading();
+	    AudioEngine::routineWithClusterLoading();
 	    AudioEngine::logAction("scanning freq data");
 
 		int32_t biggestValue = 0;
@@ -629,7 +629,7 @@ transformBandToTimeDomain:
 			}
 
 		    AudioEngine::logAction("started band");
-		    AudioEngine::routineWithChunkLoading();
+		    AudioEngine::routineWithClusterLoading();
 		    AudioEngine::logAction("doing FFT to time domain");
 
 			// Do the FFT, putting the output, time-domain data back in the temp currentCycleInt32 buffer.
@@ -650,7 +650,7 @@ transformBandToTimeDomain:
 	}
 
     AudioEngine::logAction("finished all cycles");
-    AudioEngine::routineWithChunkLoading();
+    AudioEngine::routineWithClusterLoading();
     AudioEngine::logAction("finalizing wavetable");
 
 	uartPrint("initial num bands: ");
@@ -659,7 +659,7 @@ transformBandToTimeDomain:
 	// Ok, we've now processed all Cycles.
 
 	// There could be a Cluster with a reason we still need to remove.
-	if (cluster) sampleManager.removeReasonFromLoadedSampleChunk(cluster, "E385");
+	if (cluster) audioFileManager.removeReasonFromCluster(cluster, "E385");
 
 	if (numCycles > 1) {
 		int numCycleTransitions = numCycles - 1;

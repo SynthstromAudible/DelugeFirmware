@@ -1591,7 +1591,7 @@ getOut:
 		}
 
 		if (getCurrentUI() == &instrumentClipView) {
-	    	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+	    	AudioEngine::routineWithClusterLoading(); // -----------------------------------
 			instrumentClipView.recalculateColours();
 			uiNeedsRendering(&instrumentClipView);
 		}

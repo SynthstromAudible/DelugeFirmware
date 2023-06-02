@@ -15,10 +15,10 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <AudioFileManager.h>
 #include <Cluster.h>
 #include <samplebrowser.h>
 #include <SampleHolder.h>
-#include "SampleManager.h"
 #include "Sample.h"
 #include "numericdriver.h"
 #include "functions.h"
@@ -30,8 +30,8 @@ SampleHolder::SampleHolder() {
     waveformViewZoom = 0;
     audioFileType = AUDIO_FILE_TYPE_SAMPLE;
 
-	for (int l = 0; l < NUM_SAMPLE_CHUNKS_LOADED_AHEAD; l++) {
-		loadedSampleChunksForStart[l] = NULL;
+	for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD; l++) {
+		clustersForStart[l] = NULL;
 	}
 }
 
@@ -42,7 +42,7 @@ SampleHolder::~SampleHolder() {
 	if ((Sample*)audioFile) {
 		unassignAllClusterReasons(true);
 #if ALPHA_OR_BETA_VERSION
-		if (audioFile->numReasons <= 0) numericDriver.freezeWithError("E219"); // I put this here to try and catch an E004 Luc got
+		if (audioFile->numReasonsToBeLoaded <= 0) numericDriver.freezeWithError("E219"); // I put this here to try and catch an E004 Luc got
 #endif
 		audioFile->removeReason("E396");
 	}
@@ -62,10 +62,10 @@ void SampleHolder::beenClonedFrom(SampleHolder* other, bool reversed) {
 
 
 void SampleHolder::unassignAllClusterReasons(bool beingDestructed) {
-	for (int l = 0; l < NUM_SAMPLE_CHUNKS_LOADED_AHEAD; l++) {
-		if (loadedSampleChunksForStart[l]) {
-			sampleManager.removeReasonFromLoadedSampleChunk(loadedSampleChunksForStart[l], "E123");
-			if (!beingDestructed) loadedSampleChunksForStart[l] = NULL;
+	for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD; l++) {
+		if (clustersForStart[l]) {
+			audioFileManager.removeReasonFromCluster(clustersForStart[l], "E123");
+			if (!beingDestructed) clustersForStart[l] = NULL;
 		}
 	}
 }
@@ -88,9 +88,9 @@ int32_t SampleHolder::getLengthInSamplesAtSystemSampleRate(bool forTimeStretchin
 
 
 
-void SampleHolder::setAudioFile(AudioFile* newSample, bool reversed, bool manuallySelected, int chunkLoadInstruction) {
+void SampleHolder::setAudioFile(AudioFile* newSample, bool reversed, bool manuallySelected, int clusterLoadInstruction) {
 
-	AudioFileHolder::setAudioFile(newSample, reversed, manuallySelected, chunkLoadInstruction);
+	AudioFileHolder::setAudioFile(newSample, reversed, manuallySelected, clusterLoadInstruction);
 
 	if (audioFile) {
 
@@ -117,15 +117,15 @@ void SampleHolder::setAudioFile(AudioFile* newSample, bool reversed, bool manual
 		if (!audioFile) numericDriver.freezeWithError("i031"); // Trying to narrow down E368 that Kevin F got
 #endif
 
-		claimClusterReasons(reversed, chunkLoadInstruction);
+		claimClusterReasons(reversed, clusterLoadInstruction);
 	}
 }
 
 #define MARKER_SAMPLES_BEFORE_TO_CLAIM 150
 
-// Reassesses which LoadedSampleChunks we want to be a "reason" for.
+// Reassesses which Clusters we want to be a "reason" for.
 // Ensure there is a sample before you call this.
-void SampleHolder::claimClusterReasons(bool reversed, int chunkLoadInstruction) {
+void SampleHolder::claimClusterReasons(bool reversed, int clusterLoadInstruction) {
 
 	if (ALPHA_OR_BETA_VERSION && !audioFile) numericDriver.freezeWithError("E368");
 
@@ -148,27 +148,27 @@ void SampleHolder::claimClusterReasons(bool reversed, int chunkLoadInstruction) 
 
 	int startPlaybackAtByte = ((Sample*)audioFile)->audioDataStartPosBytes + startPlaybackAtSample * bytesPerSample;
 
-	claimClusterReasonsForMarker(loadedSampleChunksForStart, startPlaybackAtByte, playDirection, chunkLoadInstruction);
+	claimClusterReasonsForMarker(clustersForStart, startPlaybackAtByte, playDirection, clusterLoadInstruction);
 }
 
-void SampleHolder::claimClusterReasonsForMarker(Cluster** loadedSampleChunks, uint32_t startPlaybackAtByte, int playDirection, int chunkLoadInstruction) {
+void SampleHolder::claimClusterReasonsForMarker(Cluster** clusters, uint32_t startPlaybackAtByte, int playDirection, int clusterLoadInstruction) {
 
-	int chunkIndex = startPlaybackAtByte >> sampleManager.clusterSizeMagnitude;
+	int clusterIndex = startPlaybackAtByte >> audioFileManager.clusterSizeMagnitude;
 
-	uint32_t posWithinCluster = startPlaybackAtByte & (sampleManager.clusterSize - 1);
+	uint32_t posWithinCluster = startPlaybackAtByte & (audioFileManager.clusterSize - 1);
 
 	// Set up new temp list
-	Cluster* newLoadedSampleChunks[NUM_SAMPLE_CHUNKS_LOADED_AHEAD];
-	for (int l = 0; l < NUM_SAMPLE_CHUNKS_LOADED_AHEAD; l++) {
-		newLoadedSampleChunks[l] = NULL;
+	Cluster* newClusters[NUM_CLUSTERS_LOADED_AHEAD];
+	for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD; l++) {
+		newClusters[l] = NULL;
 	}
 
 	// Populate new list
-	for (int l = 0; l < NUM_SAMPLE_CHUNKS_LOADED_AHEAD; l++) {
+	for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD; l++) {
 
 		/*
 		// If final one, only load it if posWithinCluster is at least a quarter of the way in
-		if (l == NUM_SAMPLE_CHUNKS_LOADED_AHEAD - 1) {
+		if (l == NUM_SAMPLE_CLUSTERS_LOADED_AHEAD - 1) {
 			if (playDirection == 1) {
 				if (posWithinCluster < (sampleManager.clusterSize >> 2)) break;
 			}
@@ -178,24 +178,24 @@ void SampleHolder::claimClusterReasonsForMarker(Cluster** loadedSampleChunks, ui
 		}
 		*/
 
-		SampleCluster* sampleCluster = ((Sample*)audioFile)->clusters.getElement(chunkIndex);
+		SampleCluster* sampleCluster = ((Sample*)audioFile)->clusters.getElement(clusterIndex);
 
-		newLoadedSampleChunks[l] = sampleCluster->getLoadedSampleChunk(((Sample*)audioFile), chunkIndex, chunkLoadInstruction);
+		newClusters[l] = sampleCluster->getCluster(((Sample*)audioFile), clusterIndex, clusterLoadInstruction);
 
-		if (!newLoadedSampleChunks[l]) Uart::println("NULL!!");
-		else if (chunkLoadInstruction == CHUNK_LOAD_IMMEDIATELY_OR_ENQUEUE && !newLoadedSampleChunks[l]->loaded) Uart::println("not loaded!!");
+		if (!newClusters[l]) Uart::println("NULL!!");
+		else if (clusterLoadInstruction == CLUSTER_LOAD_IMMEDIATELY_OR_ENQUEUE && !newClusters[l]->loaded) Uart::println("not loaded!!");
 
 
-		chunkIndex += playDirection;
-		if (chunkIndex < ((Sample*)audioFile)->getFirstChunkIndexWithAudioData() || chunkIndex >= ((Sample*)audioFile)->getFirstChunkIndexWithNoAudioData()) break;
+		clusterIndex += playDirection;
+		if (clusterIndex < ((Sample*)audioFile)->getFirstClusterIndexWithAudioData() || clusterIndex >= ((Sample*)audioFile)->getFirstClusterIndexWithNoAudioData()) break;
 	}
 
 	// Replace old list
-	for (int l = 0; l < NUM_SAMPLE_CHUNKS_LOADED_AHEAD; l++) {
-		if (loadedSampleChunks[l]) {
-			sampleManager.removeReasonFromLoadedSampleChunk(loadedSampleChunks[l], "E146");
+	for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD; l++) {
+		if (clusters[l]) {
+			audioFileManager.removeReasonFromCluster(clusters[l], "E146");
 		}
-		loadedSampleChunks[l] = newLoadedSampleChunks[l];
+		clusters[l] = newClusters[l];
 	}
 }
 

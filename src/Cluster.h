@@ -43,7 +43,7 @@ public:
 	bool extraBytesAtEndConverted;
 	int32_t numReasonsToBeLoaded;
 	Sample* sample;
-	uint32_t chunkIndex;
+	uint32_t clusterIndex;
 	SampleCache* sampleCache;
 	char firstThreeBytesPreDataConversion[3];
 	bool loaded;

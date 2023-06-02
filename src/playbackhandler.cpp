@@ -17,6 +17,7 @@
 
 #include <ArrangerView.h>
 #include <AudioEngine.h>
+#include <AudioFileManager.h>
 #include <InstrumentClip.h>
 #include <InstrumentClipMinder.h>
 #include <InstrumentClipView.h>
@@ -39,7 +40,6 @@
 #include "Session.h"
 #include "Arrangement.h"
 #include "kit.h"
-#include "SampleManager.h"
 #include "storagemanager.h"
 #include "matrixdriver.h"
 #include "SampleHolder.h"
@@ -394,7 +394,7 @@ void PlaybackHandler::setupPlayback(int newPlaybackState, int32_t playFromPos, b
     if (doOneLastAudioRoutineCall) {
 		// Bit sneaky - we want to call the audio routine one last time, but need it to think that playback's not happening so it doesn't do the first tick yet
 		playbackState = 0;
-    	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+    	AudioEngine::routineWithClusterLoading(); // -----------------------------------
 		playbackState = newPlaybackState;
     }
 
@@ -1074,7 +1074,7 @@ void PlaybackHandler::doSongSwap(bool preservePlayPosition) {
     	// If playing...
     	if (isEitherClockActive()) {
 
-			// If we're preserving the tempo (either cos we chose to or because we're playing slaved)
+			// If we're preserving the tempo (either cos we chose to or because we're following external clock)
 			if ((playbackHandler.playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE) || songSwapShouldPreserveTempo) {
 
 				// Since we're currentlyPlaying, we know that there still is a currentSong
@@ -1258,7 +1258,7 @@ void PlaybackHandler::positionPointerReceived(uint8_t data1, uint8_t data2) {
     if (currentSong->insideWorldTickMagnitude >= 0) pos <<= currentSong->insideWorldTickMagnitude;
     else pos >>= (0 - currentSong->insideWorldTickMagnitude);
 
-    // If playing slaved right now, jump to the position (actually 1 tick before the position, so the next "clock" message will play that pos)
+    // If following external clock right now, jump to the position (actually 1 tick before the position, so the next "clock" message will play that pos)
     if (playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE) {
 
     	// But, to get around a weird "bug" with Ableton and my Mbox, don't do this if pos is 0 and we've only done the first input tick
@@ -1267,7 +1267,7 @@ void PlaybackHandler::positionPointerReceived(uint8_t data1, uint8_t data2) {
         currentPlaybackMode->resetPlayPos((int32_t)pos);
     }
 
-    // Otherwise, even if playing non-slaved, just store the position, to use if we receive a "continue" message
+    // Otherwise, even if playing to internal clock, just store the position, to use if we receive a "continue" message
     else {
     	posToNextContinuePlaybackFrom = pos;
     }
@@ -1283,7 +1283,7 @@ void PlaybackHandler::startMessageReceived() {
     	// If we received this message only just after having started playback ourself, assume we're getting our output echoed back to us, and just ignore it
     	if (startIgnoringMidiClockInputIfNecessary()) return;
 
-    	// Otherwise, end our internal playback so we can start playing slaved
+    	// Otherwise, end our internal playback so we can start playing following an external clock.
         endPlayback();
     }
 
@@ -1314,7 +1314,7 @@ void PlaybackHandler::continueMessageReceived() {
     	// If we received this message only just after having started playback ourself, assume we're getting our output echoed back to us, and just ignore it
     	if (startIgnoringMidiClockInputIfNecessary()) return;
 
-    	// If already playing slaved, there's nothing to do: if we already received a song position pointer, that will have already taken effect
+    	// If already following external clock, there's nothing to do: if we already received a song position pointer, that will have already taken effect
     	if (playbackHandler.playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE) return;
 
         endPlayback();
@@ -1410,8 +1410,8 @@ void PlaybackHandler::inputTick(bool fromTriggerClock, uint32_t time) {
 	// If we were using the internal clock, we want to start again using the external clock, kinda
 	if (playbackHandler.playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE) {
 
-		// If we're in our count-in, that's incompatible with being slaved, so we'll just have to ignore the incoming clock for now. This
-		// has the slightly weird effect that after the count-in is over, we'll switch to slaved, so tempo might abruptly change.
+		// If we're in our count-in, that's incompatible with following external clock, so we'll just have to ignore the incoming clock for now. This
+		// has the slightly weird effect that after the count-in is over, we'll switch to following external clock, so tempo might abruptly change.
 		// But that's probably better than just permanently ignoring incoming clock, which could create more unclearness.
 		if (ticksLeftInCountIn) return;
 		usingAnalogClockInput = fromTriggerClock;
@@ -1596,7 +1596,7 @@ void PlaybackHandler::getInternalTicksToInputTicksRatio(uint32_t* inputTicksPer,
 
 
 // To be called if we need to skip the analog-out tick count to a different place, because some scaling stuff has changed.
-// At this point, whatever device is slaved to us will cease to be correctly synced to us
+// At this point, whatever device is following our clock will cease to be correctly synced to us
 void PlaybackHandler::resyncAnalogOutTicksToInternalTicks() {
 
 	if (!cvEngine.isTriggerClockOutputEnabled()) return;
@@ -1808,7 +1808,7 @@ void PlaybackHandler::sendOutPositionViaMIDI(int32_t pos, bool sendContinueMessa
     	}
     }
 
-    surplusOutputTicks++; // Need one extra one to make the slave "play" the position the pointer points to, right now
+    surplusOutputTicks++; // Need one extra one to make the follower "play" the position the pointer points to, right now.
 
     midiEngine.sendPositionPointer(positionPointer);
 

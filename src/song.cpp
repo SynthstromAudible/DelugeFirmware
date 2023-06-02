@@ -17,6 +17,7 @@
 
 #include <ArrangerView.h>
 #include <AudioEngine.h>
+#include <AudioFileManager.h>
 #include <ClipInstance.h>
 #include <ConsequenceClipExistence.h>
 #include <InstrumentClip.h>
@@ -44,7 +45,6 @@
 #include "kit.h"
 #include "CVInstrument.h"
 #include "MIDIInstrument.h"
-#include "SampleManager.h"
 #include <new>
 #include "Arrangement.h"
 #include "AudioClip.h"
@@ -143,7 +143,7 @@ Song::~Song() {
     // Delete existing Clips, if any
 	for (int c = 0; c < sessionClips.getNumElements(); c++) {
 		if (!(c & 31)) { // Exact number here not fine-tuned
-			AudioEngine::routineWithChunkLoading(); // -----------------------------------
+			AudioEngine::routineWithClusterLoading(); // -----------------------------------
 		}
 
 		Clip* clip = sessionClips.getClipAtIndex(c);
@@ -152,7 +152,7 @@ Song::~Song() {
 
 	for (int c = 0; c < arrangementOnlyClips.getNumElements(); c++) {
 		if (!(c & 31)) { // Exact number here not fine-tuned
-			AudioEngine::routineWithChunkLoading(); // -----------------------------------
+			AudioEngine::routineWithClusterLoading(); // -----------------------------------
 		}
 
 		Clip* clip = arrangementOnlyClips.getClipAtIndex(c);
@@ -161,7 +161,7 @@ Song::~Song() {
 
 
 	AudioEngine::logAction("s4");
-	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+	AudioEngine::routineWithClusterLoading(); // -----------------------------------
 
     // Free all ParamManagers which are backed up. The actual vector memory containing all the BackedUpParamManager objects will be freed by the Vector destructor
 	deleteAllBackedUpParamManagers(false); // Don't empty vector - its destructor will do that
@@ -209,7 +209,7 @@ void Song::deleteAllOutputs(Output** prevPointer) {
 
 	while (*prevPointer) {
 		AudioEngine::logAction("s6");
-    	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+    	AudioEngine::routineWithClusterLoading(); // -----------------------------------
 		Output* toDelete = *prevPointer;
 		*prevPointer = toDelete->next;
 
@@ -223,7 +223,7 @@ void Song::deleteAllOutputs(Output** prevPointer) {
 
 void Song::deleteAllBackedUpParamManagers(bool shouldAlsoEmptyVector) {
     for (int i = 0; i < backedUpParamManagers.getNumElements(); i++) {
-    	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+    	AudioEngine::routineWithClusterLoading(); // -----------------------------------
     	BackedUpParamManager* backedUp = (BackedUpParamManager*)backedUpParamManagers.getElementAddress(i);
 
     	backedUp->~BackedUpParamManager();
@@ -264,7 +264,7 @@ keepSearchingForward:
     	for (int j = i; j < endIThisModControllable; j++) {
         	BackedUpParamManager* backedUp = (BackedUpParamManager*)backedUpParamManagers.getElementAddress(j);
 
-        	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+        	AudioEngine::routineWithClusterLoading(); // -----------------------------------
 
         	backedUp->~BackedUpParamManager();
     	}
@@ -1498,7 +1498,7 @@ traverseClips:
 		Clip* thisClip = clipArray->getClipAtIndex(c); // TODO: deal with other Clips too!
 
     	if (!(count & 31)) {
-        	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+        	AudioEngine::routineWithClusterLoading(); // -----------------------------------
     	    AudioEngine::logAction("aaa0");
     	}
     	count++;
@@ -1521,7 +1521,7 @@ traverseClips:
 
     AudioEngine::logAction("matched up");
 
-	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+	AudioEngine::routineWithClusterLoading(); // -----------------------------------
 
 	anyOutputsSoloingInArrangement = false;
 
@@ -1638,7 +1638,7 @@ skipInstance:
 	Uart::println("aaa3");
 	AudioEngine::logAction("aaa3.1");
 
-	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+	AudioEngine::routineWithClusterLoading(); // -----------------------------------
 
 	reassessWhetherAnyClipsSoloing();
 
@@ -1647,7 +1647,7 @@ skipInstance:
 	setupPatchingForAllParamManagers();
 	AudioEngine::logAction("aaa4.3");
 
-	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+	AudioEngine::routineWithClusterLoading(); // -----------------------------------
 
 	int playbackWillStartInArrangerAtPos = playbackHandler.playbackState ? lastClipInstanceEnteredStartPos : -1;
 
@@ -1655,7 +1655,7 @@ skipInstance:
 	sortOutWhichClipsAreActiveWithoutSendingPGMs(modelStack, playbackWillStartInArrangerAtPos);
 	AudioEngine::logAction("aaa5.2");
 
-	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+	AudioEngine::routineWithClusterLoading(); // -----------------------------------
 
 	return NO_ERROR;
 }
@@ -1727,7 +1727,7 @@ traverseClips:
 		// better call the audio routine here.
 		if (!mayActuallyReadFiles && !(c & 7)) { // 31 bad. 15 seems to pass. 7 to be safe
 			AudioEngine::logAction("Song::loadAllSamples");
-			AudioEngine::routineWithChunkLoading(); // -----------------------------------
+			AudioEngine::routineWithClusterLoading(); // -----------------------------------
 		}
 
 		Clip* clip = clipArray->getClipAtIndex(c);
@@ -1771,7 +1771,7 @@ traverseClips:
 	for (int c = 0; c < clipArray->getNumElements(); c++) {
 		Clip* clip = clipArray->getClipAtIndex(c);
 
-    	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+    	AudioEngine::routineWithClusterLoading(); // -----------------------------------
     	if (!clip->isActiveOnOutput() && clip != view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
     		deleteClipObject(clip, false, INSTRUMENT_REMOVAL_NONE);
     		clipArray->deleteAtIndex(c);
@@ -1790,7 +1790,7 @@ traverseClips2:
 	for (int c = 0; c < clipArray->getNumElements(); c++) {
 		Clip* clip = clipArray->getClipAtIndex(c);
 
-    	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+    	AudioEngine::routineWithClusterLoading(); // -----------------------------------
     	if (clip->deleteSoundsWhichWontSound(this)) {
     		deleteClipObject(clip, false, INSTRUMENT_REMOVAL_DELETE);
     		clipArray->deleteAtIndex(c);
@@ -2903,7 +2903,7 @@ traverseClips:
     	InstrumentClip* instrumentClip = (InstrumentClip*)clip;
 
     	// TODO: we probably don't need to call this so often anymore?
-    	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+    	AudioEngine::routineWithClusterLoading(); // -----------------------------------
     	AudioEngine::logAction("aaa4.26");
     	((Instrument*)instrumentClip->output)->setupPatching(modelStackWithTimelineCounter);
 		AudioEngine::logAction("aaa4.27");
@@ -3040,7 +3040,7 @@ void Song::deleteBackedUpParamManagersForClip(Clip* clip) {
 		BackedUpParamManager* backedUp = (BackedUpParamManager*)backedUpParamManagers.getElementAddress(i);
 		if (backedUp->clip == clip) {
 
-	    	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+	    	AudioEngine::routineWithClusterLoading(); // -----------------------------------
 
 			// We ideally want to just set the Clip to NULL. We can just do this if the previous element didn't have the same ModControllable
 			if (i == 0 || ((BackedUpParamManager*)backedUpParamManagers.getElementAddress(i - 1))->modControllable != backedUp->modControllable) {
@@ -3101,7 +3101,7 @@ void Song::deleteBackedUpParamManagersForClip(Clip* clip) {
 	// Test that everything's still in order
 
 #if ALPHA_OR_BETA_VERSION
-	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+	AudioEngine::routineWithClusterLoading(); // -----------------------------------
 
 	Clip* lastClip;
 	ModControllableAudio* lastModControllable;
@@ -3326,7 +3326,7 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack, 
 			Clip* clip = sessionClips.getClipAtIndex(c);
 
 			if (!(count & 3)) {
-				AudioEngine::routineWithChunkLoading(); // -----------------------------------
+				AudioEngine::routineWithClusterLoading(); // -----------------------------------
 				AudioEngine::logAction("aaa5.114");
 			}
 			count++;
@@ -3365,7 +3365,7 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack, 
 	for (int c = 0; c < sessionClips.getNumElements(); c++) {
 		Clip* clip = sessionClips.getClipAtIndex(c);
 		if (!(count & 7)) {
-			AudioEngine::routineWithChunkLoading(); // -----------------------------------
+			AudioEngine::routineWithClusterLoading(); // -----------------------------------
 			AudioEngine::logAction("aaa5.125");
 		}
 		count++;
@@ -3575,7 +3575,7 @@ void Song::ensureAllInstrumentsHaveAClipOrBackedUpParamManager(char const* error
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
 		if (thisOutput->type != INSTRUMENT_TYPE_SYNTH && thisOutput->type != INSTRUMENT_TYPE_KIT) continue;
 
-    	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+    	AudioEngine::routineWithClusterLoading(); // -----------------------------------
 
 		// If has Clip, that's fine
 		if (getClipWithOutput(thisOutput)) {
@@ -3594,7 +3594,7 @@ void Song::ensureAllInstrumentsHaveAClipOrBackedUpParamManager(char const* error
 	for (Instrument* thisInstrument = firstHibernatingInstrument; thisInstrument; thisInstrument = (Instrument*)thisInstrument->next) {
 		if (thisInstrument->type != INSTRUMENT_TYPE_SYNTH && thisInstrument->type != INSTRUMENT_TYPE_KIT) continue;
 
-    	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+    	AudioEngine::routineWithClusterLoading(); // -----------------------------------
 
 		// If has Clip, it shouldn't!
 		if (getClipWithOutput(thisInstrument)) {

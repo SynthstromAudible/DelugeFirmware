@@ -16,6 +16,7 @@
  */
 
 #include <AudioEngine.h>
+#include <AudioFileManager.h>
 #include <Cluster.h>
 #include <sound.h>
 #include "voice.h"
@@ -26,7 +27,6 @@
 #include "song.h"
 #include "TimeStretcher.h"
 #include "Sample.h"
-#include "SampleManager.h"
 #include <string.h>
 #include <WaveformRenderer.h>
 #include "playbackhandler.h"
@@ -806,7 +806,7 @@ bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int nu
         			VoiceSample* voiceSample = voiceUnisonPartSource->voiceSample;
 
             		Sample* sample = (Sample*)guides[s].audioFileHolder->audioFile;
-        			Cluster* loadedSampleChunk = voiceSample->loadedSampleChunks[0];
+        			Cluster* cluster = voiceSample->clusters[0];
         			int bytePos = voiceSample->getPlayByteLowLevel(sample, &guides[s]);
 
             		int bytesLeft = (int32_t)((uint32_t)guides[s].endPlaybackAtByte - (uint32_t)bytePos) * guides[s].playDirection;

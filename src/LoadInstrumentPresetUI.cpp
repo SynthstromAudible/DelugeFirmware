@@ -16,6 +16,7 @@
 */
 
 #include <ArrangerView.h>
+#include <AudioFileManager.h>
 #include <InstrumentClip.h>
 #include <InstrumentClipView.h>
 #include <LoadInstrumentPresetUI.h>
@@ -38,7 +39,6 @@
 #include "Buttons.h"
 #include "extern.h"
 #include "uitimermanager.h"
-#include "SampleManager.h"
 #include "FileItem.h"
 #include "oled.h"
 

@@ -16,6 +16,7 @@
  */
 
 #include <AudioEngine.h>
+#include <AudioFileManager.h>
 #include <InstrumentClip.h>
 #include "functions.h"
 #include "storagemanager.h"
@@ -29,7 +30,6 @@
 #include "kit.h"
 #include "numericdriver.h"
 #include "view.h"
-#include "SampleManager.h"
 #include "Action.h"
 #include "ActionLogger.h"
 #include <string.h>
@@ -2050,8 +2050,8 @@ void Sound::confirmNumVoices(char const* error) {
 
 			for (int u = 0; u < maxNumUnison; u++) {
 				for (int s = 0; s < NUM_SOURCES; s++) {
-					for (int l = 0; l < NUM_SAMPLE_CHUNKS_LOADED_AHEAD; l++) {
-						if (thisVoice->unisonParts[u].sources[s].loadedSampleChunks[l]) {
+					for (int l = 0; l < NUM_SAMPLE_CLUSTERS_LOADED_AHEAD; l++) {
+						if (thisVoice->unisonParts[u].sources[s].clusters[l]) {
 							reasonCount++;
 						}
 					}
@@ -2071,8 +2071,8 @@ void Sound::confirmNumVoices(char const* error) {
 
 	int reasonCountSources = 0;
 
-	for (int l = 0; l < NUM_SAMPLE_CHUNKS_LOADED_AHEAD; l++) {
-		if (sources[0].loadedSampleChunks[l]) reasonCountSources++;
+	for (int l = 0; l < NUM_SAMPLE_CLUSTERS_LOADED_AHEAD; l++) {
+		if (sources[0].clusters[l]) reasonCountSources++;
 	}
 
 
@@ -2084,11 +2084,11 @@ void Sound::confirmNumVoices(char const* error) {
 			Uart::println(sources[0].sample->fileName);
 			Uart::print("voices: ");
 			Uart::println(voiceCount);
-			Uart::print("reasons on loadedSampleChunks: ");
+			Uart::print("reasons on clusters: ");
 			Uart::println(totalNumReasons);
-			Uart::print("Num voice unison part pointers to those loadedSampleChunks: ");
+			Uart::print("Num voice unison part pointers to those clusters: ");
 			Uart::println(reasonCount);
-			Uart::print("Num source pointers to those loadedSampleChunks: ");
+			Uart::print("Num source pointers to those clusters: ");
 			Uart::println(reasonCountSources);
 
 			char buffer[5];
@@ -2459,7 +2459,7 @@ void Sound::setNumUnison(int newNum, ModelStackWithSoundFlags* modelStack) {
 							}
 						}
 						else if (newNum < oldNum){
-							for (int l = 0; l < NUM_SAMPLE_CHUNKS_LOADED_AHEAD; l++) {
+							for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD; l++) {
 								thisVoice->unisonParts[newNum].sources[s].unassign();
 							}
 						}

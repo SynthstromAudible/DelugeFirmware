@@ -1101,7 +1101,7 @@ void renderZoomWithProgress(int inImageTimesBiggerThanNative, uint32_t inImageFa
 		outerImage += outerImageTotalWidth * 3;
 	}
 	if (DELUGE_MODEL != DELUGE_MODEL_40_PAD) {
-    	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+    	AudioEngine::routineWithClusterLoading(); // -----------------------------------
 	}
 }
 

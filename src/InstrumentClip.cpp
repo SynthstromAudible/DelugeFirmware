@@ -17,6 +17,7 @@
 
 #include <ArrangerView.h>
 #include <AudioEngine.h>
+#include <AudioFileManager.h>
 #include <ClipInstance.h>
 #include <DString.h>
 #include <InstrumentClip.h>
@@ -47,7 +48,6 @@
 #include "Arrangement.h"
 #include "Session.h"
 #include "MIDIInstrument.h"
-#include "SampleManager.h"
 #include <new>
 #include "storagemanager.h"
 #include "CVInstrument.h"
@@ -1183,7 +1183,7 @@ bool InstrumentClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack
 		NoteRow* thisNoteRow = noteRows.getElement(i);
 
     	if (!(i & 15)) {
-        	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+        	AudioEngine::routineWithClusterLoading(); // -----------------------------------
         	AudioEngine::logAction("renderAsSingleRow still");
     	}
 
@@ -1383,7 +1383,7 @@ int InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack, 
     Instrument* oldInstrument = (Instrument*)output;
     int oldYScroll = yScroll;
 
-	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+	AudioEngine::routineWithClusterLoading(); // -----------------------------------
 
     AudioEngine::audioRoutineLocked = true;
 
@@ -1431,7 +1431,7 @@ int InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack, 
 	// Can safely call audio routine again now
     AudioEngine::audioRoutineLocked = false;
     AudioEngine::bypassCulling = true;
-	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+	AudioEngine::routineWithClusterLoading(); // -----------------------------------
 
 
     // If now a Kit, match NoteRows back up to Drums
@@ -1464,7 +1464,7 @@ int InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack, 
 			}
 
 			// TODO: we surely don't need to call this every time through
-	    	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+	    	AudioEngine::routineWithClusterLoading(); // -----------------------------------
 		}
 
 		int numNoteRowsDeletedFromBottom = (oldInstrument->type == INSTRUMENT_TYPE_KIT) ?
@@ -1763,7 +1763,7 @@ void InstrumentClip::unassignAllNoteRowsFromDrums(ModelStackWithTimelineCounter*
     	if (thisNoteRow->drum) {
     		if (shouldRememberDrumNames) thisNoteRow->rememberDrumName();
     		AudioEngine::logAction("Track::unassignAllNoteRowsFromDrums");
-        	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+        	AudioEngine::routineWithClusterLoading(); // -----------------------------------
 
     		// If we're retaining links to Sounds, like if we're undo-ably "deleting" a Clip, just backup (and remove link to) the paramManager
     		if (shouldRetainLinksToSounds) {
@@ -2675,7 +2675,7 @@ bool InstrumentClip::deleteSoundsWhichWontSound(Song* song) {
 
 				noteRows.deleteNoteRowAtIndex(i);
 
-		    	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+		    	AudioEngine::routineWithClusterLoading(); // -----------------------------------
 	    	}
 	    	else {
 	    		i++;
@@ -3243,7 +3243,7 @@ int InstrumentClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
     		NoteRow* thisNoteRow = noteRows.getElement(i);
 
         	if (!(noteRowCount & 15)) {
-            	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+            	AudioEngine::routineWithClusterLoading(); // -----------------------------------
         	    AudioEngine::logAction("nlkr");
         	}
 

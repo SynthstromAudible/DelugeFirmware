@@ -17,6 +17,7 @@
 
 #include <ArrangerView.h>
 #include <AudioEngine.h>
+#include <AudioFileManager.h>
 #include <ClipInstance.h>
 #include <ConsequenceClipExistence.h>
 #include <ConsequenceClipInstanceChange.h>
@@ -45,7 +46,6 @@
 #include "kit.h"
 #include "drum.h"
 #include "MIDIInstrument.h"
-#include "SampleManager.h"
 #include <new>
 #include "ConsequenceArrangerParamsTimeInserted.h"
 #include "storagemanager.h"
@@ -2321,7 +2321,7 @@ removeWorkingAnimationAndGetOut:
 
 	view.setActiveModControllableTimelineCounter(oldInstrument->activeClip);
 
-	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+	AudioEngine::routineWithClusterLoading(); // -----------------------------------
 
 	beginAudition(oldInstrument);
 }

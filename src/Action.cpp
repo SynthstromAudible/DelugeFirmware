@@ -17,6 +17,7 @@
 
 #include <ActionClipState.h>
 #include <AudioEngine.h>
+#include <AudioFileManager.h>
 #include <ConsequenceClipInstanceExistence.h>
 #include <InstrumentClip.h>
 #include "Action.h"
@@ -31,7 +32,6 @@
 #include "uart.h"
 #include <new>
 #include "GeneralMemoryAllocator.h"
-#include "SampleManager.h"
 #include "ConsequenceClipLength.h"
 #include "ConsequenceClipExistence.h"
 #include "ConsequenceAudioClipSetSample.h"
@@ -64,7 +64,7 @@ void Action::prepareForDestruction(int whichQueueActionIn, Song* song) {
 void Action::deleteAllConsequences(int whichQueueActionIn, Song* song, bool destructing) {
 	Consequence* currentConsequence = firstConsequence;
 	while (currentConsequence) {
-    	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+    	AudioEngine::routineWithClusterLoading(); // -----------------------------------
 		Consequence* toDelete = currentConsequence;
 		currentConsequence = currentConsequence->next;
 		toDelete->prepareForDestruction(whichQueueActionIn, song);

@@ -16,6 +16,7 @@
 */
 
 #include <AudioEngine.h>
+#include <AudioFileManager.h>
 #include <InstrumentClip.h>
 #include <InstrumentClipMinder.h>
 #include <InstrumentClipView.h>
@@ -30,7 +31,6 @@
 #include <new>
 #include "GeneralMemoryAllocator.h"
 #include "GateDrum.h"
-#include "SampleManager.h"
 #include "NoteRow.h"
 #include "song.h"
 #include "playbackhandler.h"
@@ -58,7 +58,7 @@ Kit::~Kit() {
     // Delete all Drums
     while (firstDrum) {
     	AudioEngine::logAction("~Kit");
-    	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+    	AudioEngine::routineWithClusterLoading(); // -----------------------------------
     	Drum* toDelete = firstDrum;
         firstDrum = firstDrum->next;
 
@@ -310,7 +310,7 @@ int Kit::loadAllAudioFiles(bool mayActuallyReadFiles) {
 
 	int error = NO_ERROR;
 
-	bool doingAlternatePath = mayActuallyReadFiles && (sampleManager.alternateLoadDirStatus == ALTERNATE_LOAD_DIR_NONE_SET);
+	bool doingAlternatePath = mayActuallyReadFiles && (audioFileManager.alternateLoadDirStatus == ALTERNATE_LOAD_DIR_NONE_SET);
 	if (doingAlternatePath) {
 		error = setupDefaultAudioFileDir();
 		if (error) return error;
@@ -328,7 +328,7 @@ int Kit::loadAllAudioFiles(bool mayActuallyReadFiles) {
 
 getOut:
     if (doingAlternatePath) {
-    	sampleManager.thingFinishedLoading();
+    	audioFileManager.thingFinishedLoading();
     }
 
     return error;
@@ -338,7 +338,7 @@ getOut:
 // Caller must check that there is an activeClip.
 void Kit::loadCrucialAudioFilesOnly() {
 
-	bool doingAlternatePath = (sampleManager.alternateLoadDirStatus == ALTERNATE_LOAD_DIR_NONE_SET);
+	bool doingAlternatePath = (audioFileManager.alternateLoadDirStatus == ALTERNATE_LOAD_DIR_NONE_SET);
 	if (doingAlternatePath) {
 		int error = setupDefaultAudioFileDir();
 		if (error) return;
@@ -353,7 +353,7 @@ void Kit::loadCrucialAudioFilesOnly() {
 	}
 
     if (doingAlternatePath) {
-    	sampleManager.thingFinishedLoading();
+    	audioFileManager.thingFinishedLoading();
     }
 }
 
@@ -642,7 +642,7 @@ void Kit::setupWithoutActiveClip(ModelStack* modelStack) {
 		if (thisDrum->type == DRUM_TYPE_SOUND) {
 
         	if (!(count & 7)) {
-            	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+            	AudioEngine::routineWithClusterLoading(); // -----------------------------------
         	}
         	count++;
 
@@ -672,7 +672,7 @@ void Kit::setupPatching(ModelStackWithTimelineCounter* modelStack) {
 			if (thisNoteRow->drum && thisNoteRow->drum->type == DRUM_TYPE_SOUND) {
 
 				if (!(count & 7)) {
-			    	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+			    	AudioEngine::routineWithClusterLoading(); // -----------------------------------
 				}
 				count++;
 
@@ -693,7 +693,7 @@ void Kit::setupPatching(ModelStackWithTimelineCounter* modelStack) {
 			if (thisDrum->type == DRUM_TYPE_SOUND) {
 
 				if (!(count & 7)) {
-			    	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+			    	AudioEngine::routineWithClusterLoading(); // -----------------------------------
 				}
 				count++;
 
@@ -734,7 +734,7 @@ bool Kit::setActiveClip(ModelStackWithTimelineCounter* modelStack, int maySendMI
 				if (thisNoteRow->drum->type == DRUM_TYPE_SOUND) {
 
 		        	if (!(count & 7)) {
-		            	AudioEngine::routineWithChunkLoading(); // ----------------------------------- I guess very often this wouldn't work cos the audio routine would be locked
+		            	AudioEngine::routineWithClusterLoading(); // ----------------------------------- I guess very often this wouldn't work cos the audio routine would be locked
 		        	}
 		        	count++;
 
@@ -791,7 +791,7 @@ void Kit::deleteBackedUpParamManagers(Song* song) {
 
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 		if (thisDrum->type == DRUM_TYPE_SOUND) {
-	    	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+	    	AudioEngine::routineWithClusterLoading(); // -----------------------------------
 			song->deleteBackedUpParamManagersForModControllable((SoundDrum*)thisDrum);
 		}
 	}

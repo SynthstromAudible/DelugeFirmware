@@ -16,6 +16,7 @@
  */
 
 #include <AudioEngine.h>
+#include <AudioFileManager.h>
 #include <InstrumentClip.h>
 #include <soundinstrument.h>
 #include "uart.h"
@@ -30,7 +31,6 @@
 #include "voice.h"
 #include "ParamSet.h"
 #include "PatchCableSet.h"
-#include "SampleManager.h"
 
 SoundInstrument::SoundInstrument() : MelodicInstrument(INSTRUMENT_TYPE_SYNTH)
 {
@@ -151,7 +151,7 @@ yesTickParamManagerForClip:
 
 int SoundInstrument::loadAllAudioFiles(bool mayActuallyReadFiles) {
 
-	bool doingAlternatePath = mayActuallyReadFiles && (sampleManager.alternateLoadDirStatus == ALTERNATE_LOAD_DIR_NONE_SET);
+	bool doingAlternatePath = mayActuallyReadFiles && (audioFileManager.alternateLoadDirStatus == ALTERNATE_LOAD_DIR_NONE_SET);
 	if (doingAlternatePath) {
 		int error = setupDefaultAudioFileDir();
 		if (error) return error;
@@ -160,7 +160,7 @@ int SoundInstrument::loadAllAudioFiles(bool mayActuallyReadFiles) {
 	int error = Sound::loadAllAudioFiles(mayActuallyReadFiles);
 
     if (doingAlternatePath) {
-    	sampleManager.thingFinishedLoading();
+    	audioFileManager.thingFinishedLoading();
     }
 
 	return error;

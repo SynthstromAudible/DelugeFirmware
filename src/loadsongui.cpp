@@ -16,13 +16,13 @@
 */
 
 #include <AudioEngine.h>
+#include <AudioFileManager.h>
 #include <InstrumentClipMinder.h>
 #include <ParamManager.h>
 #include "loadsongui.h"
 #include "functions.h"
 #include "numericdriver.h"
 #include "uart.h"
-#include "SampleManager.h"
 #include <string.h>
 #include <SessionView.h>
 #include "GeneralMemoryAllocator.h"
@@ -288,7 +288,7 @@ fail:
 		if (!currentSong) {
 			// If we're here, it's most likely because of a file error. On paper, a RAM error could be possible too.
 			setupBlankSong();
-			sampleManager.deleteAnyTempRecordedSamplesFromMemory();
+			audioFileManager.deleteAnyTempRecordedSamplesFromMemory();
 		}
 
 		// Otherwise, stay here in this UI
@@ -336,8 +336,8 @@ gotErrorAfterCreatingSong:
 	String currentFilenameWithoutExtension;
 	error = currentFileItem->getFilenameWithoutExtension(&currentFilenameWithoutExtension);																if (error) goto gotErrorAfterCreatingSong;
 
-	error = sampleManager.setupAlternateAudioFileDir(&sampleManager.alternateAudioFileLoadPath, currentDir.get(), &currentFilenameWithoutExtension);	if (error) goto gotErrorAfterCreatingSong;
-	sampleManager.thingBeginningLoading(THING_TYPE_SONG);
+	error = audioFileManager.setupAlternateAudioFileDir(&audioFileManager.alternateAudioFileLoadPath, currentDir.get(), &currentFilenameWithoutExtension);	if (error) goto gotErrorAfterCreatingSong;
+	audioFileManager.thingBeginningLoading(THING_TYPE_SONG);
 
 	// Search existing RAM for all samples, to lay a claim to any which will be needed for this new Song.
 	// Do this before loading any new Samples from file, in case we were in danger of discarding any from RAM that we might actually want
@@ -349,8 +349,8 @@ gotErrorAfterCreatingSong:
 
 	// Ensure all AudioFile Clusters needed for new song are loaded
 	int count = 0; // Prevent any unforeseen loop. Not sure if that actually could happen
-	while (sampleManager.loadingQueueHasAnyLowestPriorityElements() && count < 1024) {
-		sampleManager.loadAnyEnqueuedSampleChunks();
+	while (audioFileManager.loadingQueueHasAnyLowestPriorityElements() && count < 1024) {
+		audioFileManager.loadAnyEnqueuedClusters();
 		routineForSD();
 		count++;
 	}
@@ -397,7 +397,7 @@ gotErrorAfterCreatingSong:
 
 		// If any more waiting required before the song swap actually happens, do that
 		while (currentUIMode != UI_MODE_LOADING_SONG_NEW_SONG_PLAYING) {
-			sampleManager.loadAnyEnqueuedSampleChunks();
+			audioFileManager.loadAnyEnqueuedClusters();
 			routineForSD();
 		}
 	}
@@ -411,7 +411,7 @@ swapDone:
 	OLED::displayWorkingAnimation("Loading"); // To override our popup if we did one. (Still necessary?)
 #endif
 	// Ok, the swap's been done, the first tick of the new song has been done, and there are potentially loads of samples wanting some data loaded. So do that immediately
-	sampleManager.loadAnyEnqueuedSampleChunks(99999);
+	audioFileManager.loadAnyEnqueuedClusters(99999);
 
 	// Delete the old song
 	AudioEngine::logAction("i");
@@ -421,14 +421,14 @@ swapDone:
 		generalMemoryAllocator.dealloc(toDealloc);
 	}
 
-	sampleManager.deleteAnyTempRecordedSamplesFromMemory();
+	audioFileManager.deleteAnyTempRecordedSamplesFromMemory();
 
 	// Try one more time to load all AudioFiles - there might be more RAM free now
 	currentSong->loadAllSamples();
 	AudioEngine::logAction("l");
 	currentSong->markAllInstrumentsAsEdited();
 
-	sampleManager.thingFinishedLoading();
+	audioFileManager.thingFinishedLoading();
 
 	PadLEDs::doGreyoutInstantly(); // This will get faded out of just below
 	setUIForLoadedSong(currentSong);

@@ -17,6 +17,7 @@
 
 #include <ArrangerView.h>
 #include <AudioEngine.h>
+#include <AudioFileManager.h>
 #include <ClipInstance.h>
 #include <DString.h>
 #include <InstrumentClip.h>
@@ -35,7 +36,6 @@
 #include "Session.h"
 #include "instrument.h"
 #include "Arrangement.h"
-#include "SampleManager.h"
 #include <new>
 #include "storagemanager.h"
 #include "LoadInstrumentPresetUI.h"
@@ -2010,7 +2010,7 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 
 // Might be called during card routine! So renders might fail. Not too likely
 void SessionView::finishedTransitioningHere() {
-	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+	AudioEngine::routineWithClusterLoading(); // -----------------------------------
     currentUIMode = UI_MODE_ANIMATION_FADE;
     PadLEDs::recordTransitionBegin(fadeSpeed);
     changeRootUI(this);
