@@ -116,7 +116,7 @@ inline void MemoryRegion::markSpaceAsEmpty(uint32_t address, uint32_t spaceSize,
 			// Set up the default option - that we are going to merge with the left record. This may get overridden below.
 			recordToMergeWith = &emptySpaceToLeft;
 
-			// If we're not allowed to also look right, or there's no unused space there, we want to just go straight to replacing this old record
+			// If we're not allowed to also look right, or there's no unused space there, we want to just go directly to replacing this old record
 			if (!mayLookRight) goto goingToReplaceOldRecord;
 			uint32_t* __restrict__ lookRight = (uint32_t*)(address + spaceSize + 4);
 			if ((*lookRight & SPACE_TYPE_MASK) != SPACE_HEADER_EMPTY) goto goingToReplaceOldRecord;

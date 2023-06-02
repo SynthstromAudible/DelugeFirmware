@@ -54,12 +54,12 @@ void Instrument::beenEdited(bool shouldMoveToEmptySlot) {
     editedByUser = true;
 }
 
-void Instrument::deleteAnyInstancesOfClip(InstrumentClip* track) {
+void Instrument::deleteAnyInstancesOfClip(InstrumentClip* clip) {
 	int i = 0;
 
 	while (i < clipInstances.getNumElements()) {
 		ClipInstance* instance = clipInstances.getElement(i);
-		if (instance->clip == track) clipInstances.deleteAtIndex(i);
+		if (instance->clip == clip) clipInstances.deleteAtIndex(i);
 		else i++;
 	}
 }

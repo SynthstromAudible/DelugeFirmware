@@ -268,7 +268,7 @@ void LoadSongUI::performLoad() {
 		deleteOldSongBeforeLoadingNew();
 	}
 	else {
-		// Note: this is dodgy, but in this case we don't reset view.activeControllableTrack here - we let the user keep fiddling with it. It won't get deleted.
+		// Note: this is dodgy, but in this case we don't reset view.activeControllableClip here - we let the user keep fiddling with it. It won't get deleted.
 		AudioEngine::logAction("a");
 		AudioEngine::songSwapAboutToHappen();
 		AudioEngine::logAction("b");
@@ -389,7 +389,7 @@ gotErrorAfterCreatingSong:
 			currentUIMode = UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_UNARMED;
 		}
 
-		// We're now waiting, either for the user to arm, or for the arming to launch the song-swap. Get loading all the rest of the samples which weren't needed straight away
+		// We're now waiting, either for the user to arm, or for the arming to launch the song-swap. Get loading all the rest of the samples which weren't needed right away.
 		// (though we might run out of RAM cos we haven't discarded all the old samples yet)
 		AudioEngine::logAction("g");
 		preLoadedSong->loadAllSamples(true);

@@ -690,7 +690,7 @@ ramError:
     reader->fileSize = effectiveFilePointer.objsize;
     reader->byteIndexWithinCluster = clusterSize;
 
-    // If Sample, we go straight to god-mode and get the cluster addresses.
+    // If Sample, we go directly to god-mode and get the cluster addresses.
     if (type == AUDIO_FILE_TYPE_SAMPLE) {
 
     	// Store the address of each of the file's clusters.

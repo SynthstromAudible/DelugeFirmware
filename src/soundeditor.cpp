@@ -3008,7 +3008,7 @@ int SoundEditor::buttonAction(int x, int y, bool on, bool inCardRoutine) {
     }
 
 #if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-    else if (x == trackViewButtonX && y == trackViewButtonY && getRootUI() == &instrumentClipView) {
+    else if (x == clipViewButtonX && y == clipViewButtonY && getRootUI() == &instrumentClipView) {
     	return instrumentClipView.buttonAction(x, y, on, inCardRoutine);
     }
 #else
@@ -3602,7 +3602,7 @@ void SoundEditor::modEncoderAction(int whichModEncoder, int offset) {
 		// But, can't do it if it's a Kit and affect-entire is on!
 		if (editingKit() && ((InstrumentClip*)currentSong->currentClip)->affectEntire) {
 #if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-			IndicatorLEDs::indicateAlertOnLed(songViewLedX, songViewLedY); // Really should indicate it on "Track View", but that's already blinking
+			IndicatorLEDs::indicateAlertOnLed(songViewLedX, songViewLedY); // Really should indicate it on "Clip View", but that's already blinking
 #else
 			//IndicatorLEDs::indicateErrorOnLed(affectEntireLedX, affectEntireLedY);
 #endif

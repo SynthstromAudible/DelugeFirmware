@@ -127,7 +127,7 @@ int32_t Compressor::render(uint16_t numSamples, int32_t shapeValue) {
         if (newOffset < lastValue) {
             envelopeOffset = newOffset;
 
-            // If attack is all the way down, jump straight to release stage
+            // If attack is all the way down, jump directly to release stage
             if (attack == attackRateTable[0] << 2) {
                 goto prepareForRelease;
             }

@@ -800,7 +800,7 @@ skipSearch:
 		//Uart::println(bytesBehind);
 
 		// Only proceed if newer head is earlier than older one
-		if (bytesBehind < 0) goto optForStraightReading;
+		if (bytesBehind < 0) goto optForDirectReading;
 
 
 		uint32_t samplesBehind = (uint32_t)bytesBehind / (uint8_t)(sample->numChannels * sample->byteDepth);
@@ -808,7 +808,7 @@ skipSearch:
 		int maxSamplesBehind = TIME_STRETCH_BUFFER_SIZE - (SSI_TX_BUFFER_NUM_SAMPLES - 1);
 
 		// Check we're not earlier by too much - which would usually be because we just looped
-		if (samplesBehindOnRepitchedWaveform > maxSamplesBehind) goto optForStraightReading;
+		if (samplesBehindOnRepitchedWaveform > maxSamplesBehind) goto optForDirectReading;
 
 		if (bufferSamplesWritten < samplesBehindOnRepitchedWaveform) {
 
@@ -818,7 +818,7 @@ skipSearch:
 			Uart::println(samplesBehindOnRepitchedWaveform);
 			Uart::print("bufferSamplesWritten: ");
 			Uart::println(bufferSamplesWritten);
-			goto optForStraightReading;
+			goto optForDirectReading;
 		}
 
 		//Uart::print("samplesBehindOnRepitchedWaveform: ");
@@ -842,9 +842,9 @@ skipSearch:
 		}
 	}
 
-	// Or, set up reading straight from audio file Clusters
+	// Or, set up reading directly from audio file Clusters
 	else {
-optForStraightReading:
+optForDirectReading:
 		//Uart::println("head reading non-buffered");
 newerHeadReadingFromBuffer = false;
 #endif

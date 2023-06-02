@@ -242,7 +242,7 @@ void PlaybackHandler::recordButtonPressed() {
 		setLedStates();
 		if (wasRecordingArrangement) {
 			currentSong->setParamsInAutomationMode(false);
-			currentSong->endInstancesOfActiveTracks(getActualArrangementRecordPos());
+			currentSong->endInstancesOfActiveClips(getActualArrangementRecordPos());
 			currentSong->resumeClipsClonedForArrangementRecording();
 			view.setModLedStates(); // Set song LED back
 		}
@@ -423,7 +423,7 @@ void PlaybackHandler::endPlayback() {
 
     bool wasRecordingArrangement = (recording == RECORDING_ARRANGEMENT);
 
-    bool shouldDoInstantSongSwap = currentPlaybackMode->endPlayback(); // Must happen after currentSong->endInstancesOfActiveTracks() is called (ok I can't remember why I wrote that, and now it needs to happen before so that Track::beingRecordedFrom is still set when playback ends, so notes stop)
+    bool shouldDoInstantSongSwap = currentPlaybackMode->endPlayback(); // Must happen after currentSong->endInstancesOfActiveClips() is called (ok I can't remember why I wrote that, and now it needs to happen before so that Clip::beingRecordedFrom is still set when playback ends, so notes stop)
 
     playbackState = 0; // Do this after calling currentPlaybackMode->endPlayback(), cos for arrangement that has to get the current tick, which needs to refer to which clock is active, which is stored in playbackState.
 	cvEngine.playbackEnded(); // Call this *after* playbackState is set
@@ -437,7 +437,7 @@ void PlaybackHandler::endPlayback() {
     // Or if not doing a song swap, some UI stuff to do
     else {
 		if (wasRecordingArrangement) {
-			currentSong->endInstancesOfActiveTracks(getActualArrangementRecordPos(), true);
+			currentSong->endInstancesOfActiveClips(getActualArrangementRecordPos(), true);
 			recording = RECORDING_OFF;
 			view.setModLedStates();
 		}
@@ -1239,9 +1239,9 @@ void PlaybackHandler::setupPlaybackUsingExternalClock(bool switchingFromInternal
 	int newPlaybackState = PLAYBACK_SWITCHED_ON | PLAYBACK_CLOCK_EXTERNAL_ACTIVE;
 
 	if (!switchingFromInternalClock) {
-    	bool shouldShiftAccordingToTrackInstance = (!fromContinueCommand && posToNextContinuePlaybackFrom == 0);
+    	bool shouldShiftAccordingToClipInstance = (!fromContinueCommand && posToNextContinuePlaybackFrom == 0);
     	decideOnCurrentPlaybackMode();
-    	setupPlayback(newPlaybackState, posToNextContinuePlaybackFrom, false, shouldShiftAccordingToTrackInstance);
+    	setupPlayback(newPlaybackState, posToNextContinuePlaybackFrom, false, shouldShiftAccordingToClipInstance);
     	posToNextContinuePlaybackFrom = 0;
     }
     else {

@@ -49,8 +49,8 @@ public:
 
     virtual bool doAnySoundsUseCC(uint8_t channel, uint8_t ccNumber, uint8_t value) { return false; }
     virtual void beenEdited(bool shouldMoveToEmptySlot = true);
-    virtual void setupPatching(ModelStackWithTimelineCounter* modelStack) {} // You must call this when an Instrument comes into existence or something... for every Track, not just for the activeTrack
-    void deleteAnyInstancesOfClip(InstrumentClip* track);
+    virtual void setupPatching(ModelStackWithTimelineCounter* modelStack) {} // You must call this when an Instrument comes into existence or something... for every Clip, not just for the activeClip
+    void deleteAnyInstancesOfClip(InstrumentClip* clip);
 
     //virtual void writeInstrumentDataToFile(bool savingSong, char const* slotName = "presetSlot", char const* subSlotName = "presetSubSlot");
     bool writeDataToFile(Clip* clipForSavingOutputOnly, Song* song);

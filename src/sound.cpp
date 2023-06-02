@@ -1502,10 +1502,10 @@ bool Sound::hasCutModeSamples(ParamManagerForTimeline* paramManager) {
 	return true;
 }
 
-bool Sound::allowsVeryLateNoteStart(InstrumentClip* track, ParamManagerForTimeline* paramManager) {
+bool Sound::allowsVeryLateNoteStart(InstrumentClip* clip, ParamManagerForTimeline* paramManager) {
 
 	// If arpeggiator, we can always start very late
-	ArpeggiatorSettings* arpSettings = getArpSettings(track);
+	ArpeggiatorSettings* arpSettings = getArpSettings(clip);
 	if (arpSettings && arpSettings->mode) return true;
 
 	if (synthMode == SYNTH_MODE_FM) return false;
@@ -3314,7 +3314,7 @@ void Sound::writeToFile(bool savingSong, ParamManager* paramManager, Arpeggiator
 }
 
 
-int16_t Sound::getMaxOscTranspose(InstrumentClip* track) {
+int16_t Sound::getMaxOscTranspose(InstrumentClip* clip) {
 
 	int maxRawOscTranspose = -32768;
 	for (int s = 0; s < NUM_SOURCES; s++) {
@@ -3330,7 +3330,7 @@ int16_t Sound::getMaxOscTranspose(InstrumentClip* track) {
 
     if (maxRawOscTranspose == -32768) maxRawOscTranspose = 0;
 
-    ArpeggiatorSettings* arpSettings = getArpSettings(track);
+    ArpeggiatorSettings* arpSettings = getArpSettings(clip);
 
     if (arpSettings && arpSettings->mode) {
     	maxRawOscTranspose += (arpSettings->numOctaves - 1) * 12;
@@ -3590,7 +3590,7 @@ void Sound::prepareForHibernation() {
 void Sound::wontBeRenderedForAWhile() {
 	ModControllableAudio::wontBeRenderedForAWhile();
 
-	unassignAllVoices(); // Can't remember if this is always necessary, but it is when this is called from Track::detachFromInstrument()
+	unassignAllVoices(); // Can't remember if this is always necessary, but it is when this is called from Instrumentclip::detachFromInstrument()
 
 	getArp()->reset(); // Surely this shouldn't be quite necessary?
     compressor.status = ENVELOPE_STAGE_OFF;

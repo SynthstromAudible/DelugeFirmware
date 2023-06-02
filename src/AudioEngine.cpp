@@ -259,7 +259,7 @@ void unassignAllVoices(bool deletingSong) {
 
 void songSwapAboutToHappen() {
 
-	uiTimerManager.unsetTimer(TIMER_PLAY_ENABLE_FLASH); // Otherwise, a timer might get called and try to access Tracks that we may have deleted below
+	uiTimerManager.unsetTimer(TIMER_PLAY_ENABLE_FLASH); // Otherwise, a timer might get called and try to access Clips that we may have deleted below
 	logAction("a1");
 	currentSong->deleteSoundsWhichWontSound();
 	logAction("a2");

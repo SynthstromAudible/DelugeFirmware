@@ -139,7 +139,7 @@ void InstrumentClipView::openedInBackground() {
     recalculateColours();
 
 	AudioEngine::routineWithClusterLoading(); // -----------------------------------
-	AudioEngine::logAction("TrackScreen::beginSession 2");
+	AudioEngine::logAction("InstrumentClipView::beginSession 2");
 
     if (renderingToStore) {
     	renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[displayHeight], &PadLEDs::occupancyMaskStore[displayHeight], true);
@@ -197,7 +197,7 @@ int InstrumentClipView::buttonAction(int x, int y, bool on, bool inCardRoutine) 
             	}
             }
 
-            // If user is auditioning just one NoteRow, we can go straight into Scale Mode and set that root note
+            // If user is auditioning just one NoteRow, we can go directly into Scale Mode and set that root note
             else if (oneNoteAuditioning() && !getCurrentClip()->inScaleMode) {
             	cancelAllAuditioning();
             	enterScaleMode(lastAuditionedYDisplay);
@@ -232,15 +232,15 @@ doOther:
 
 #if DELUGE_MODEL == DELUGE_MODEL_40_PAD
     // Clip view button
-    else if (x == trackViewButtonX && y == trackViewButtonY) {
+    else if (x == clipViewButtonX && y == clipViewButtonY) {
         if (on && Buttons::isShiftButtonPressed() && currentUIMode == UI_MODE_NONE) {
         	if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 
-        	InstrumentClip* currentTrack = getCurrentClip();
+        	InstrumentClip* currentClip = getCurrentClip();
 
-        	if (currentTrack->output->type == INSTRUMENT_TYPE_KIT) {
-        		currentTrack->affectEntire = !currentTrack->affectEntire;
-        		view.setActiveModControllableTimelineCounter(currentTrack); // Refreshes LEDs and everything
+        	if (currentClip->output->type == INSTRUMENT_TYPE_KIT) {
+        		currentClip->affectEntire = !currentClip->affectEntire;
+        		view.setActiveModControllableTimelineCounter(currentClip); // Refreshes LEDs and everything
             }
             else {
             	changeRootUI(&keyboardScreen); // Go to keyboard screen
@@ -554,7 +554,7 @@ doOther:
 
     			// Zoom to max if we weren't already there...
     			if (!zoomToMax()) {
-    				// Or if we didn't need to do that, double Track length
+    				// Or if we didn't need to do that, double Clip length
     				doubleClipLengthAction();
     			}
     			else {
@@ -798,7 +798,7 @@ void InstrumentClipView::copyNotes() {
 	if (copiedScreenWidth == 0) return;
 
 	copiedScaleType = getCurrentClip()->getScaleType();
-	copiedYNoteOfBottomRow = getCurrentClip()->getYNoteFromYDisplay(0, currentSong);//currentSong->currentTrack->yScroll;
+	copiedYNoteOfBottomRow = getCurrentClip()->getYNoteFromYDisplay(0, currentSong);//currentSong->currentClip->yScroll;
 
 	CopiedNoteRow** prevPointer = &firstCopiedNoteRow;
 
@@ -962,7 +962,7 @@ ramError:
 	// Non-kit
 	else {
 
-		// If neither the source nor the destination was a kit track, and one had a scale and the other didn't, we want to preserve some scale information which we otherwise wouldn't
+		// If neither the source nor the destination was a kit Clip, and one had a scale and the other didn't, we want to preserve some scale information which we otherwise wouldn't
 		bool shouldPreserveScale = (copiedScaleType != SCALE_TYPE_KIT && copiedScaleType != pastedScaleType);
 
 		for (CopiedNoteRow* thisCopiedNoteRow = firstCopiedNoteRow; thisCopiedNoteRow; thisCopiedNoteRow = thisCopiedNoteRow->next) {
@@ -999,10 +999,10 @@ void InstrumentClipView::doubleClipLengthAction() {
 		return;
 	}
 
-	Action* action = actionLogger.getNewAction(ACTION_TRACK_MULTIPLY, false);
+	Action* action = actionLogger.getNewAction(ACTION_CLIP_MULTIPLY, false);
 
 
-	// Add the ConsequenceTrackMultiply to the Action. This must happen before calling doubleTrackLength(), which may add note changes and deletions,
+	// Add the ConsequenceClipMultiply to the Action. This must happen before calling doubleClipLength(), which may add note changes and deletions,
 	// because when redoing, those have to happen after (and they'll have no effect at all, but who cares)
 	if (action) {
 		void* consMemory = generalMemoryAllocator.alloc(sizeof(ConsequenceInstrumentClipMultiply));
@@ -1013,14 +1013,14 @@ void InstrumentClipView::doubleClipLengthAction() {
 		}
 	}
 
-	// Double the length, and duplicate the Track content too
+	// Double the length, and duplicate the Clip content too
 	currentSong->doubleClipLength(getCurrentClip(), action);
 
 	zoomToMax(false);
 
 	if (action) {
-		action->xZoomTrack[AFTER] = currentSong->xZoom[NAVIGATION_CLIP];
-		action->xScrollTrack[AFTER] = currentSong->xScroll[NAVIGATION_CLIP];
+		action->xZoomClip[AFTER] = currentSong->xZoom[NAVIGATION_CLIP];
+		action->xScrollClip[AFTER] = currentSong->xScroll[NAVIGATION_CLIP];
 	}
 
 	displayZoomLevel();
@@ -2490,7 +2490,7 @@ void InstrumentClipView::offsetNoteCodeAction(int newOffset) {
     uint8_t yVisualWithinOctave;
 
     // If in scale mode, need to check whether we're allowed to change scale..
-    if (getCurrentClip()->isScaleModeTrack()) {
+    if (getCurrentClip()->isScaleModeClip()) {
         newOffset = getMax(-1, getMin(1, newOffset));
         yVisualWithinOctave = getYVisualWithinOctaveFromYDisplay(lastAuditionedYDisplay);
 
@@ -3379,7 +3379,7 @@ void InstrumentClipView::drawMuteSquare(NoteRow* thisNoteRow, uint8_t thisImage[
         *thisOccupancy = 64;
     }
 
-    // If user assigning MIDI controls and has this Track selected, flash to half brightness
+    // If user assigning MIDI controls and has this Clip selected, flash to half brightness
     if (view.midiLearnFlashOn && thisNoteRow != NULL && view.thingPressedForMidiLearn == MIDI_LEARN_NOTEROW_MUTE && thisNoteRow->drum && &thisNoteRow->drum->muteMIDICommand == view.learnedThing) {
         thisColour[0] >>= 1;
         thisColour[1] >>= 1;
@@ -3586,23 +3586,23 @@ int InstrumentClipView::verticalEncoderAction(int offset, bool inCardRoutine) {
             if (!Buttons::isShiftButtonPressed()) {
                 offset = getMin((int)1, getMax((int)-1, offset));
                 getCurrentClip()->transpose(offset * 12, modelStack);
-                if (getCurrentClip()->isScaleModeTrack()) getCurrentClip()->yScroll += offset * (currentSong->numModeNotes - 12);
+                if (getCurrentClip()->isScaleModeClip()) getCurrentClip()->yScroll += offset * (currentSong->numModeNotes - 12);
                 //numericDriver.displayPopup("OCTAVE");
             }
 
             // Otherwise, transpose single semitone
             else {
-                // If current track not in scale-mode, just do it
-                if (!getCurrentClip()->isScaleModeTrack()) {
+                // If current Clip not in scale-mode, just do it
+                if (!getCurrentClip()->isScaleModeClip()) {
                 	getCurrentClip()->transpose(offset, modelStack);
 
-                    // If there are no scale-mode Tracks at all, move the root note along as well - just in case the user wants to go back to scale mode (in which case the "previous" root note would be used to help guess what root note to go with)
-                    if (!currentSong->anyScaleModeTracks()) currentSong->rootNote += offset;
+                    // If there are no scale-mode Clips at all, move the root note along as well - just in case the user wants to go back to scale mode (in which case the "previous" root note would be used to help guess what root note to go with)
+                    if (!currentSong->anyScaleModeClips()) currentSong->rootNote += offset;
                 }
 
-                // Otherwise, got to do all key-mode tracks
+                // Otherwise, got to do all key-mode Clips
                 else {
-                    currentSong->transposeAllScaleModeTracks(offset);
+                    currentSong->transposeAllScaleModeClips(offset);
                 }
                 //numericDriver.displayPopup("SEMITONE");
             }
@@ -4358,7 +4358,7 @@ void InstrumentClipView::transitionToSessionView() {
     PadLEDs::setupInstrumentClipCollapseAnimation(true);
 
     fillOffScreenImageStores();
-    PadLEDs::recordTransitionBegin(trackCollapseSpeed);
+    PadLEDs::recordTransitionBegin(clipCollapseSpeed);
     PadLEDs::renderClipExpandOrCollapse();
 }
 

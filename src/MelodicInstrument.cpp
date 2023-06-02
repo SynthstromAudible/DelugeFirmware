@@ -302,7 +302,7 @@ void MelodicInstrument::offerReceivedCC(ModelStackWithTimelineCounter* modelStac
 
 		if (midiInput.channelOrZone == channel) {
 forMasterChannel:
-			// If it's a MIDI track...
+			// If it's a MIDI Clip...
 			if (type == INSTRUMENT_TYPE_MIDI_OUT) {
 				// .. and it's outputting on the same channel as this MIDI message came in, don't do MIDI thru!
 				if (doingMidiThru && ((MIDIInstrument*)this)->channel == channel) {
@@ -349,7 +349,7 @@ void MelodicInstrument::offerReceivedAftertouch(ModelStackWithTimelineCounter* m
 		if (midiInput.channelOrZone == channel) {
 forMasterChannel:
 
-			// If it's a MIDI track...
+			// If it's a MIDI Clip...
 			if (type == INSTRUMENT_TYPE_MIDI_OUT) {
 				// .. and it's outputting on the same channel as this MIDI message came in, don't do MIDI thru!
 				if (doingMidiThru && ((MIDIInstrument*)this)->channel == channel) {

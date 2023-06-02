@@ -394,9 +394,9 @@ void Kit::drumRemoved(Drum* drum) {
 #endif
 }
 
-Drum* Kit::getFirstUnassignedDrum(InstrumentClip* track) {
+Drum* Kit::getFirstUnassignedDrum(InstrumentClip* clip) {
     for (Drum* thisDrum = firstDrum; thisDrum != NULL; thisDrum = thisDrum->next) {
-        if (!track->getNoteRowForDrum(thisDrum)) return thisDrum;
+        if (!clip->getNoteRowForDrum(thisDrum)) return thisDrum;
     }
 
     return NULL;
@@ -779,7 +779,7 @@ void Kit::compensateInstrumentVolumeForResonance(ParamManagerForTimeline* paramM
 		if (compensationDB > 0.1) unpatchedParams->shiftParamVolumeByDB(PARAM_UNPATCHED_GLOBALEFFECTABLE_VOLUME, compensationDB);
 
     	// The SoundDrums, like all Sounds, will have already had resonance compensation done on their default ParamManagers if and when any were in fact loaded.
-    	// Or, if we're going through a Song doing this to all ParamManagers within Tracks, the Track will automatically do all NoteRows / Drums next.
+    	// Or, if we're going through a Song doing this to all ParamManagers within Clips, the Clip will automatically do all NoteRows / Drums next.
 
     	GlobalEffectableForClip::compensateVolumeForResonance(paramManager);
     }

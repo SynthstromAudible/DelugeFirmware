@@ -51,7 +51,7 @@ bool SoundInstrument::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song)
 	// Or if saving Song...
 	else {
 
-		// If no activeTrack, that means no Clip has this Output, so there should be a backedUpParamManager that we should use
+		// If no activeClip, that means no Clip has this Output, so there should be a backedUpParamManager that we should use
 		if (!activeClip) paramManager = song->getBackedUpParamManagerPreferablyWithClip(this, NULL);
 
 		else paramManager = NULL;
@@ -267,7 +267,7 @@ void SoundInstrument::monophonicExpressionEvent(int newValue, int whichExpressio
 }
 
 
-// Alternative to what's in the NonAudioInstrument:: implementation, which would almost work here, but we cut corner for Sound by avoiding going through the Arp and just talk straight to the Voices.
+// Alternative to what's in the NonAudioInstrument:: implementation, which would almost work here, but we cut corner for Sound by avoiding going through the Arp and just talk directly to the Voices.
 // (Despite my having made it now actually need to talk to the Arp too, as below...)
 // Note, this virtual function actually overrides/implements from two base classes - MelodicInstrument and ModControllable.
 void SoundInstrument::polyphonicExpressionEventOnChannelOrNote(int newValue, int whichExpressionDimension, int channelOrNoteNumber, int whichCharacteristic) {
@@ -355,7 +355,7 @@ void SoundInstrument::loadCrucialAudioFilesOnly() {
 	loadAllAudioFiles(true);
 }
 
-// Any time it gets edited, we want to grab the default arp settings from the activeTrack
+// Any time it gets edited, we want to grab the default arp settings from the activeClip
 void SoundInstrument::beenEdited(bool shouldMoveToEmptySlot) {
 	if (activeClip) defaultArpSettings.cloneFrom(&((InstrumentClip*)activeClip)->arpSettings);
 	Instrument::beenEdited(shouldMoveToEmptySlot);

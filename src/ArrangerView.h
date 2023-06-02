@@ -125,7 +125,7 @@ private:
 	void setNoSubMode();
 	void outputActivated(Output* output);
 	void outputDeactivated(Output* output);
-	void transitionToClipView(ClipInstance* trackInstance);
+	void transitionToClipView(ClipInstance* clipInstance);
 	void deleteClipInstance(Output* output, int clipInstanceIndex, ClipInstance* clipInstance, Action* action, bool clearingWholeArrangement = false);
 	void clearArrangement();
 	void rememberInteractionWithClipInstance(int yDisplay, ClipInstance* clipInstance);

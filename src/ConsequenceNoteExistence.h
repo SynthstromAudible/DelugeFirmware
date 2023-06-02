@@ -25,7 +25,7 @@ class Note;
 
 class ConsequenceNoteExistence final : public Consequence {
 public:
-	ConsequenceNoteExistence(InstrumentClip* newTrack, int newNoteRowId, Note* note, int newType);
+	ConsequenceNoteExistence(InstrumentClip* newClip, int newNoteRowId, Note* note, int newType);
 	int revert(int time, ModelStack* modelStack);
 
 	InstrumentClip* clip;

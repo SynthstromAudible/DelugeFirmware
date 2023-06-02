@@ -241,7 +241,7 @@
 #define padDebounceTime 50 // Milliseconds
 #define colTime 36 // In 21.25 uS's (or did I mean nS?)
 #define zoomSpeed 110
-#define trackCollapseSpeed 200
+#define clipCollapseSpeed 200
 #define fadeSpeed 300
 #define flashLength 3
 #define DEFAULT_CLIP_LENGTH 96 // You'll want to <<displayWidthMagnitude this each time used

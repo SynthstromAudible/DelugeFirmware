@@ -166,7 +166,6 @@ dissectionDone:
 	IndicatorLEDs::setLedState(kitLedX, kitLedY, soundEditor.editingKit());
 
 	IndicatorLEDs::setLedState(crossScreenEditLedX, crossScreenEditLedY, false);
-	//IndicatorLEDs::setLedState(trackViewLedX, trackViewLedY, false);
 	IndicatorLEDs::setLedState(sessionViewLedX, sessionViewLedY, false);
 	IndicatorLEDs::setLedState(scaleModeLedX, scaleModeLedY, false);
 
@@ -366,7 +365,7 @@ void SampleBrowser::enterKeyPress() {
 			// If user wants to slice...
 			if (Buttons::isShiftButtonPressed()) {
 
-				// Can only do this for Kit Tracks, and for source 0, not 1, AND there has to be only one drum present, which is assigned to the first NoteRow
+				// Can only do this for Kit Clips, and for source 0, not 1, AND there has to be only one drum present, which is assigned to the first NoteRow
 				if (currentSong->currentClip->type == CLIP_TYPE_INSTRUMENT && canImportWholeKit()) {
 					numericDriver.displayPopup("SLICER");
 					openUI(&slicer);

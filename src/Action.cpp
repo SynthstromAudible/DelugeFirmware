@@ -116,7 +116,7 @@ int Action::revert(int time, ModelStack* modelStack) {
 		// Special case for arrangement-record. See big comment above
 		if (type == ACTION_ARRANGEMENT_RECORD) {
 			// Delete the old one
-			thisConsequence->prepareForDestruction(AFTER, modelStack->song); // Have to put AFTER. See the effect this will have in ConsequenceTrackDelete::prepareForDestruction()
+			thisConsequence->prepareForDestruction(AFTER, modelStack->song); // Have to put AFTER. See the effect this will have in ConsequenceCDelete::prepareForDestruction()
 			thisConsequence->~Consequence();
 			generalMemoryAllocator.dealloc(thisConsequence);
 		}
@@ -269,8 +269,8 @@ bool Action::recordClipExistenceChange(Song* song, ClipArray* clipArray, Clip* c
 	addConsequence(consequence);
 
 	// For undoing looping stuff, this helps:
-	xScrollTrack[BEFORE] = 0;
-	xScrollTrack[AFTER] = 0;
+	xScrollClip[BEFORE] = 0;
+	xScrollClip[AFTER] = 0;
 
 	return true;
 }
@@ -306,7 +306,7 @@ traverseClips:
 		if (thisClip->type == CLIP_TYPE_INSTRUMENT) {
 
 			if (!clip || thisClip == clip) {
-				clipStates[i].yScrollTrackView[AFTER] = ((InstrumentClip*)thisClip)->yScroll;
+				clipStates[i].yScrollSessionView[AFTER] = ((InstrumentClip*)thisClip)->yScroll;
 				break;
 			}
 		}
