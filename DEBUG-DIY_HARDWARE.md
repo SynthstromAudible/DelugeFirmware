@@ -25,6 +25,9 @@ by *Aria Burrell \<litui@litui.ca\>*
     2. [Part II: Soldering the Debug Pins in Place](#part-ii-soldering-the-debug-pins-in-place)
     3. [Part III: Finishing up](#part-iii-finishing-up)
 5. [Modding Your Deluge Enclosure (Optional)](#modifying-your-deluge-enclosure-optional)
+    1. [Part I: Making the Debug Umbilical Cord](#part-i-making-the-debug-umbilical-cord)
+    2. [Part II: Wiring the SWD Breakout Board](#part-ii-wiring-the-swd-breakout-board)
+    3. [Part III: Making a Hole in Your Chassis]
 6. [Building and Flashing Your DelugeProbe](#building-and-flashing-your-delugeprobe)
     1. [Part I: Adding a Debug Connector](#part-i-adding-a-debug-connector)
     2. [Part II: Flashing the DelugeProbe Firmware](#part-ii-flashing-the-delugeprobe-firmware)
@@ -35,7 +38,7 @@ So, you're a developer and synth enthusiast who is interested in contributing to
 
 This guide is intended primarily for those who are soldering at an **intermediate** level. Most of the process is very basic for those experienced with circuitry and embedded systems work (or even DIY synth modules), but for absolute beginners there are some difficult parts where you should enlist the help of a skilled solderer.
 
-Be aware that if you follow any of these installation/modding steps, regardless of your degree of success: 
+Be aware that if you follow any of these physical modding steps, regardless of your degree of success: 
 
 ![This Will Void Your Warranty](assets/VoidYourWarranty.jpg)
 
@@ -133,9 +136,11 @@ The guide below will do things slightly differently, soldering connections to th
 
 The Deluge will need to come apart almost completely and components will be vulnerable to static shock and damage throughout so please take care when the Deluge case is open.
 
-**AGAIN, THIS WILL VOID YOUR WARRANTY**
+**THIS WILL PROBABLY VOID YOUR HARDWARE WARRANTY**
 
 You agree that by following the below process you understand the risks and that *Synthstrom Audible* is not liable in the event of damage.
+
+If this is a major concern for you, check with **Ian** at *Synthstrom* if they are currently offering a service to install debug pins for you.
 
 ### Part I: Unscrewing everything
 
@@ -153,11 +158,16 @@ Now that the guts of the Deluge are exposed you'll need to locate the debug head
 
 ![Locating the Debug Header](assets/FindDebugHeader.png)
 
-Once located you'll need to insert the short-pinned (unplated) side of your 10 pin strip and, holding it in place, flip the board over *gently* and locate the other side of these pins. Lower the board so the pins are resting in place. If the pins do not rest evenly, consider using a piece of scotch or masking tape *temporarily* to hold them in place. You should see them peeking through the holes on the other side of the board.
+Before getting started, I recommend watching through 
+the following video on soldering the identical 2x5 set of pins to an ARM development board SWD header. 
+
+[![Video ](assets/SolderingVideoThumb.png)](https://www.youtube.com/watch?v=ZSaXAccnQPs "Video: Inside the Deluge")
+
+Once located you'll need to insert the short-pinned (unplated) side of your 10 pin strip and use a piece of scotch or masking tape *temporarily* to hold it in place. When you *gently* flip the board over, you should see the pins peeking through the holes on the other side of the board.
 
 ![10 pin header soldering result](assets/FrontOfDelugeSoldered.png)
 
-You'll notice the holes are very closely positioned next to each other as compared to other headers on the board (for instance, P52 to the side of the processor). This makes for some difficult soldering to ensure there is no current flowing between pins. Check soldering guides on Youtube and do some practice runs on other boards first if you're new to this!
+You'll notice the holes are very closely positioned next to each other as compared to other headers on the board (for instance, P52 to the side of the processor). This makes for some difficult soldering to ensure there is no current flowing between pins.
 
 If you will be soldering yourself, ready your clean, *tinned* soldering iron. Gently, but quickly apply heat to each pin/pad and melt a very small amount of solder and flux on each. 
 
@@ -165,7 +175,7 @@ You absolutely don't want the solder to spread across pads, you just want it to 
 
 ![Close-up soldering result](assets/ClearSeparationBetweenPads.png)
 
-It doesn't have to be perfect, but at a minimum, there must be clear separation between joints and good connections between each pin and its pad. If you mess up, there are a couple of tricks to cleaning up between pads:
+It doesn't have to be perfect, but at a minimum, there **must** be clear separation between joints and good connections between each pin and its pad. Use a magnifying glass to check if needed. If you mess up, there are a couple of tricks to cleaning up between pads:
 
 * Remove any solder from your iron's tip by wiping it on the wet sponge included in your kit, then slowly, without much pressure, push the heated tip against the space between pins allowing it to melt and slide through the accumulated solder. If it doesn't work the first pass, wipe off the iron and try again - a well-tinned tip will attract excess solder to it.
 * Get yourself a [solder vacuum](https://mou.sr/45Dn6Cw), melt the blob then immediately press the vacuum to the excess solder and press the trigger. It may over-clear the mess, but you can always apply additional solder to the pins.
@@ -180,13 +190,17 @@ Now that you've visually ensured your pins are soldered correctly, you'll need t
 
 If you'll be modding the case, take a break before starting the next part (you deserve it!).
 
-If you're not going to be modding the case, connect one of your debug cables to the pins as in the following image, and put the rest of your Deluge enclosure back together. I suggest leaving off the left wooden panel/ear and letting the cable dangle out that side so it can be connected to the probe easily.
+If you're *not* going to be modding the case, connect one of your debug cables to the pins as in the following image, and put the rest of your Deluge enclosure back together. I suggest leaving off the left wooden panel/ear and letting the cable dangle out that side so it can be connected to the probe easily.
 
 ![Align red/pink wire with the white arrow](assets/WireLineUpWithCable.png)
 
 Regardless of whether you have a notched shield on your pins, you need to make sure when attaching the cable that you align the red/pink wire with the white arrow on your Deluge board. The wire may be a different colour but it will be unique as compared to the others in the ribbon.
 
 ## Modifying Your Deluge Enclosure (optional)
+
+![Litui's Janky Case Mod](assets/JankyCaseMod.jpg)
+
+**THIS WILL DEFINITELY VOID YOUR HARDWARE WARRANTY**
 
 There are multiple routes you could take to exposing a debug port on the outside of your Deluge. I chose to mod the metal backplate but it occurred to me after the fact that I could have used my CNC router and done a tidier job modding the left wooden panel/ear (if anyone wants to try that and provide CAD/CAM files, send them my way and I'll add them to the guide).
 
@@ -196,7 +210,41 @@ You should already have a 2x5 set of pins soldered into your Deluge board, the b
 
 That being the case, we'll ignore the Deluge for the first part of this, focusing instead on one of the debug cables and one of the Adafruit SWD breakout boards.
 
+### Part I: Making the Debug "Umbilical Cord"
+
+For this part, you will need one of the Adafruit SWD breakout boards purchased above (the other one is for making the DelugeProbe later) and one of the 10 pin Adafruit SWD cables.
+
+![Cut the Cable](assets/CutTheCable.jpg)
+
+The first step is to cut off **one** of the cable's connectors. Ensure your cut is at 90 degrees and very close to the connector so you leave enough length for the cable to reach. You want to leave the other end intact so it can be attached to the pins now soldered onto your board.
+
+Once your cable is cut, you'll want to *carefully* split the wires at the end apart so they can be separately connected to the breakout board. You can use an Xacto blade or other sharp implement to help with this process but try not to cut into the insulation around the wires, just the thin material holding the separate bundles together. The separated lengths should be between 2cm and 3cm (3/4 inch to 1 inch).
+
+![Splitting the wires with an Xacto blade](assets/XactoSplitCable.jpg)
+
+![Fanned wires on debug cable](assets/FannedWiresOnDebugCable.jpg)
+
+Once separated, you'll need to strip the ends of the wires no more than a few millimetres (1/8 inch).
+
+> If you don't have a wire stripper or a set of snips with a *notch* for stripping wire, you can slide a blade gently around the wire to gently mark the insulation. Then using your fingernails or a set of pliers, you should be able to pull off the insulation beyond your mark. This takes some practice so perhaps try with other wire first.
+
+![Stripped debug cable wires](assets/StrippedDebugCable.jpg)
+
+Now you'll need to "tin" each of the exposed ends of each wire by applying a thin layer of solder to each. This improves adhesion and reduces the risk of corrosion. Find a way to keep the cable steady while you work -- electronics folks often use a "helping hand" but you can easily hold the cable down with your wrist. If using a *helping hand* or clip, I recommend wrapping the cable with a spare bit of plastic bag or tape so the clip doesn't cut into the soft insulation.
+
+![Soldering the tips](assets/SolderingTheTips.jpg)
+
+Keeping each of the wire ends bundled (you don't want stray bits of wire sticking out), apply solder to each tip. Once complete, grab your SWD breakout board and have a quick stretch before we get to the next part.
+
+### Part II: Wiring the SWD Breakout Board
+
+![Numbered wires and breakout board pads](assets/NumberedWiresAndBreakout.png)
+
+Using the above as a reference, take note of how the solder points for each wire on the breakout board are *alternating*. Odd numbers down the one side starting at `Vref` (the red wire), and even numbers down the other side ending in `RST`.
+
+
 *work-in-progress*
+
 
 ## Building and flashing your DelugeProbe
 
