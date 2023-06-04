@@ -4,7 +4,7 @@
 
 # public variables
 DEFAULT_SCRIPT_PATH="$(pwd -P)";
-ARM_TOOLCHAIN_VERSION="${ARM_TOOLCHAIN_VERSION:-"9-2020-q2-update"}";
+DBT_TOOLCHAIN_VERSION="${DBT_TOOLCHAIN_VERSION:-"0.2.0"}";
 
 if [ -z ${DBT_TOOLCHAIN_PATH+x} ] ; then
     DBT_TOOLCHAIN_PATH_WAS_SET=0;
@@ -39,8 +39,7 @@ dbtenv_restore_env()
 {
     TOOLCHAIN_ARCH_DIR_SED="$(echo "$TOOLCHAIN_ARCH_DIR" | sed 's/\//\\\//g')"
     PATH="$(echo "$PATH" | /usr/bin/sed "s/$TOOLCHAIN_ARCH_DIR_SED\/python\/bin://g")";
-    PATH="$(echo "$PATH" | /usr/bin/sed "s/$TOOLCHAIN_ARCH_DIR_SED\/bin://g")";
-    PATH="$(echo "$PATH" | /usr/bin/sed "s/$TOOLCHAIN_ARCH_DIR_SED\/protobuf\/bin://g")";
+    PATH="$(echo "$PATH" | /usr/bin/sed "s/$TOOLCHAIN_ARCH_DIR_SED\/gcc-arm\/bin://g")";
     PATH="$(echo "$PATH" | /usr/bin/sed "s/$TOOLCHAIN_ARCH_DIR_SED\/openocd\/bin://g")";
     PATH="$(echo "$PATH" | /usr/bin/sed "s/$TOOLCHAIN_ARCH_DIR_SED\/openssl\/bin://g")";
     if [ -n "${PS1:-""}" ]; then
@@ -76,7 +75,7 @@ dbtenv_restore_env()
     unset SAVED_PYTHONPATH;
     unset SAVED_PYTHONHOME;
 
-    unset ARM_TOOLCHAIN_VERSION;
+    unset DBT_TOOLCHAIN_VERSION;
     unset DBT_TOOLCHAIN_PATH;
 }
 
@@ -142,11 +141,11 @@ dbtenv_get_kernel_type()
     fi
     if [ "$SYS_TYPE" = "Darwin" ]; then
         dbtenv_check_rosetta || return 1;
-        TOOLCHAIN_ARCH_DIR="$DBT_TOOLCHAIN_PATH/toolchain/x86_64-darwin";
-        TOOLCHAIN_URL="https://developer.arm.com/-/media/Files/downloads/gnu-rm/$ARM_TOOLCHAIN_VERSION/gcc-arm-none-eabi-$ARM_TOOLCHAIN_VERSION-mac.tar.bz2";
+        TOOLCHAIN_ARCH_DIR="$DBT_TOOLCHAIN_PATH/toolchain/darwin-x86_64";
+        TOOLCHAIN_URL="https://github.com/litui/dbt-toolchain/releases/download/v$DBT_TOOLCHAIN_VERSION/dbt-toolchain-$DBT_TOOLCHAIN_VERSION-darwin-x86_64.tar.gz";
     elif [ "$SYS_TYPE" = "Linux" ]; then
-        TOOLCHAIN_ARCH_DIR="$DBT_TOOLCHAIN_PATH/toolchain/x86_64-linux";
-        TOOLCHAIN_URL="https://developer.arm.com/-/media/Files/downloads/gnu-rm/$ARM_TOOLCHAIN_VERSION/gcc-arm-none-eabi-$ARM_TOOLCHAIN_VERSION-x86_64-linux.tar.bz2";
+        TOOLCHAIN_ARCH_DIR="$DBT_TOOLCHAIN_PATH/toolchain/linux-x86_64";
+        TOOLCHAIN_URL="https://github.com/litui/dbt-toolchain/releases/download/v$DBT_TOOLCHAIN_VERSION/dbt-toolchain-$DBT_TOOLCHAIN_VERSION-linux-x86_64.tar.gz";
     elif echo "$SYS_TYPE" | grep -q "MINGW"; then
         echo "In MinGW shell, use \"[u]dbt.cmd\" instead of \"[u]dbt\"";
         return 1;
@@ -274,7 +273,7 @@ dbtenv_check_download_toolchain()
         dbtenv_download_toolchain || return 1;
     elif [ ! -f "$TOOLCHAIN_ARCH_DIR/VERSION" ]; then
         dbtenv_download_toolchain || return 1;
-    elif [ "$(cat "$TOOLCHAIN_ARCH_DIR/VERSION")" -ne "$ARM_TOOLCHAIN_VERSION" ]; then
+    elif [ "$(cat "$TOOLCHAIN_ARCH_DIR/VERSION")" != "$DBT_TOOLCHAIN_VERSION" ]; then
         echo "DBT: starting toolchain upgrade process.."
         dbtenv_download_toolchain || return 1;
     fi
@@ -285,7 +284,7 @@ dbtenv_download_toolchain()
 {
     dbtenv_check_tar || return 1;
     TOOLCHAIN_TAR="$(basename "$TOOLCHAIN_URL")";
-    TOOLCHAIN_DIR="$(echo "$TOOLCHAIN_TAR" | sed "s/-$ARM_TOOLCHAIN_VERSION.tar.gz//g")";
+    TOOLCHAIN_DIR="$(echo "$TOOLCHAIN_TAR" | sed "s/-$DBT_TOOLCHAIN_VERSION.tar.gz//g")";
     trap dbtenv_cleanup 2;  # trap will be restored in dbtenv_cleanup
     if ! dbtenv_check_downloaded_toolchain; then
         dbtenv_curl_wget_check || return 1;
@@ -318,8 +317,7 @@ dbtenv_main()
     dbtenv_set_shell_prompt;
     dbtenv_print_version;
     PATH="$TOOLCHAIN_ARCH_DIR/python/bin:$PATH";
-    PATH="$TOOLCHAIN_ARCH_DIR/bin:$PATH";
-    PATH="$TOOLCHAIN_ARCH_DIR/protobuf/bin:$PATH";
+    PATH="$TOOLCHAIN_ARCH_DIR/gcc-arm/bin:$PATH";
     PATH="$TOOLCHAIN_ARCH_DIR/openocd/bin:$PATH";
     PATH="$TOOLCHAIN_ARCH_DIR/openssl/bin:$PATH";
     export PATH;
@@ -330,10 +328,10 @@ dbtenv_main()
     export SAVED_PYTHONPATH="${PYTHONPATH:-""}";
     export SAVED_PYTHONHOME="${PYTHONHOME:-""}";
 
-    export SSL_CERT_FILE="$TOOLCHAIN_ARCH_DIR/python/lib/python3.11/site-packages/certifi/cacert.pem";
+    export SSL_CERT_FILE="$TOOLCHAIN_ARCH_DIR/python/lib/python3.10/site-packages/certifi/cacert.pem";
     export REQUESTS_CA_BUNDLE="$SSL_CERT_FILE";
     export PYTHONNOUSERSITE=1;
-    export PYTHONPATH=;
+    export PYTHONPATH="$DEFAULT_SCRIPT_PATH/scripts";
     export PYTHONHOME=;
 
     if [ "$SYS_TYPE" = "Linux" ]; then

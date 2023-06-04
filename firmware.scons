@@ -3,7 +3,7 @@ from SCons.Node import FS
 
 import itertools
 
-from fbt_extra.util import (
+from dbt_extra.util import (
     should_gen_cdb_and_link_dir,
     link_elf_dir_as_latest,
 )

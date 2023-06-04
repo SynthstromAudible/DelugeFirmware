@@ -13,7 +13,7 @@ if not ["%DBT_NOENV%"] == [""] (
     exit /b 0
 )
 
-set "ARM_TOOLCHAIN_VERSION=0.1.1"
+set "DBT_TOOLCHAIN_VERSION=0.2.0"
 
 if ["%DBT_TOOLCHAIN_PATH%"] == [""] (
     set "DBT_TOOLCHAIN_PATH=%DBT_ROOT%"
@@ -24,17 +24,17 @@ set "DBT_TOOLCHAIN_ROOT=%DBT_TOOLCHAIN_PATH%\toolchain\win32-x64"
 set "DBT_TOOLCHAIN_VERSION_FILE=%DBT_TOOLCHAIN_ROOT%\VERSION"
 
 if not exist "%DBT_TOOLCHAIN_ROOT%" (
-    powershell -ExecutionPolicy Bypass -File "%DBT_ROOT%\scripts\toolchain\windows-toolchain-download.ps1" %ARM_TOOLCHAIN_VERSION% "%DBT_TOOLCHAIN_ROOT%"
+    powershell -ExecutionPolicy Bypass -File "%DBT_ROOT%\scripts\toolchain\windows-toolchain-download.ps1" %DBT_TOOLCHAIN_VERSION% "%DBT_TOOLCHAIN_ROOT%"
 )
 
 if not exist "%DBT_TOOLCHAIN_VERSION_FILE%" (
-    powershell -ExecutionPolicy Bypass -File "%DBT_ROOT%\scripts\toolchain\windows-toolchain-download.ps1" %ARM_TOOLCHAIN_VERSION% "%DBT_TOOLCHAIN_ROOT%"
+    powershell -ExecutionPolicy Bypass -File "%DBT_ROOT%\scripts\toolchain\windows-toolchain-download.ps1" %DBT_TOOLCHAIN_VERSION% "%DBT_TOOLCHAIN_ROOT%"
 )
 
 set /p REAL_TOOLCHAIN_VERSION=<"%DBT_TOOLCHAIN_VERSION_FILE%"
-if not "%REAL_TOOLCHAIN_VERSION%" == "%ARM_TOOLCHAIN_VERSION%" (
+if not "%REAL_TOOLCHAIN_VERSION%" == "%DBT_TOOLCHAIN_VERSION%" (
     echo DBT: starting toolchain upgrade process..
-    powershell -ExecutionPolicy Bypass -File "%DBT_ROOT%\scripts\toolchain\windows-toolchain-download.ps1" %ARM_TOOLCHAIN_VERSION% "%DBT_TOOLCHAIN_ROOT%"
+    powershell -ExecutionPolicy Bypass -File "%DBT_ROOT%\scripts\toolchain\windows-toolchain-download.ps1" %DBT_TOOLCHAIN_VERSION% "%DBT_TOOLCHAIN_ROOT%"
     set /p REAL_TOOLCHAIN_VERSION=<"%DBT_TOOLCHAIN_VERSION_FILE%"
 )
 
@@ -43,6 +43,7 @@ if defined DBT_VERBOSE (
 )
 
 set "HOME=%USERPROFILE%"
+set "SSL_CERT_FILE=%DBT_TOOLCHAIN_ROOT%/python/lib/python3.10/site-packages/certifi/cacert.pem"
 set "PYTHONHOME=%DBT_TOOLCHAIN_ROOT%\python"
 set "PYTHONPATH=%DBT_ROOT%\scripts;%PYTHONPATH%"
 set "PYTHONNOUSERSITE=1"

@@ -1,6 +1,7 @@
 #!/bin/sh
 
 # Deluge Build Tool (DBT)
+# 
 # Build script for DelugeFirmware, blatantly borrowed from 'fbt' used by
 # flipperdevices/flipperzero-firmware and licensed under GNU GPL
 
@@ -12,19 +13,17 @@ set -eu;
 N_GIT_THREADS="$(getconf _NPROCESSORS_ONLN)";
 SCRIPT_PATH="$(cd "$(dirname "$0")" && pwd -P)";
 SCONS_DEFAULT_FLAGS="--warn=target-not-built";
+PIP_CMD="python3 -m pip";
+PIP_LIST="$PIP_CMD list";
+PIP_INSTALL_CERTIFI="$PIP_CMD --cert=contrib/certs.pem install certifi"
+PIP_INSTALL_REQUIREMENTS="$PIP_CMD install -q -r requirements.txt"
 SCONS_EP="python3 -m SCons";
 
 # public variables
-POETRY_ACTIVE="${POETRY_ACTIVE:-""}";
 DBT_NOENV="${DBT_NOENV:-""}";
 DBT_NO_SYNC="${DBT_NO_SYNC:-""}";
 DBT_TOOLCHAIN_PATH="${DBT_TOOLCHAIN_PATH:-$SCRIPT_PATH}";
 DBT_VERBOSE="${DBT_VERBOSE:-""}";
-SCONS_RUNNER="${SCONS_RUNNER:-""}";
-
-if [ -z "$POETRY_ACTIVE" ]; then
-    SCONS_RUNNER="poetry run ";
-fi
 
 if [ -z "$DBT_NOENV" ]; then
     DBT_VERBOSE="$DBT_VERBOSE" . "$SCRIPT_PATH/scripts/toolchain/dbtenv.sh";
@@ -42,4 +41,10 @@ if [ -z "$DBT_NO_SYNC" ]; then
     git submodule update --init --depth 1 --jobs "$N_GIT_THREADS";
 fi
 
-$SCONS_RUNNER$SCONS_EP $SCONS_DEFAULT_FLAGS "$@"
+$PIP_LIST | grep certifi;
+if [ $? -eq 1 ]; then
+    $PIP_INSTALL_CERTIFI;
+fi
+$PIP_INSTALL_REQUIREMENTS;
+
+$SCONS_EP $SCONS_DEFAULT_FLAGS "$@"

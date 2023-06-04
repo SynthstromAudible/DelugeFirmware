@@ -1,2 +1,2 @@
 # Supported toolchain versions
-DBT_TOOLCHAIN_VERSIONS = (" 9-2020-q2-update",)
+DBT_TOOLCHAIN_VERSIONS = ("9-2019-q4-major",)
