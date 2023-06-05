@@ -47,3 +47,6 @@ The build process will take a few minutes, and you’ll see its progress in the 
 The end result is the creation of a .bin file in the e2-build-release-oled or e2-build-release-7seg folder (depending which you selected above) which will have been created in the project’s directory. This file will get overwritten each time you do a build, so if you’ve made a build you’d like to keep, you should rename or copy the file.
 
 You can now simply put this file on an SD card and install it on your Deluge as per normal.
+
+# Direct firmware uploading and debugging
+See: https://docs.google.com/document/d/1PkECgg0sxoVPng5CTdvRIZcY1CBBPHS8oVVhZIzTVn8/edit?usp=sharing
