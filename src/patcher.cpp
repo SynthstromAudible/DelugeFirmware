@@ -98,7 +98,7 @@ void Patcher::performPatching(uint32_t sourcesChanged, Sound* sound, ParamManage
 	int32_t cableCombinations	[getMax(FIRST_GLOBAL_PARAM, NUM_PARAMS - FIRST_GLOBAL_PARAM)];
 	int numParamsPatched = 0;
 
-	// Go through regular Destinations going straight to a param
+	// Go through regular Destinations going directly to a param
 	{
 
 		// Now normal, actual params/destinations
@@ -331,7 +331,7 @@ void Patcher::performInitialPatching(Sound* sound, ParamManager* paramManager) {
 					i++;
 				}
 
-				// Now, regular Destinations going straight to a param
+				// Now, regular Destinations going directly to a param
 				uint32_t firstHybridParamAsDescriptor = firstHybridParam | 0xFFFFFF00;
 				for ( ; destination->destinationParamDescriptor.data < firstHybridParamAsDescriptor; destination++) {
 					int p = destination->destinationParamDescriptor.getJustTheParam();

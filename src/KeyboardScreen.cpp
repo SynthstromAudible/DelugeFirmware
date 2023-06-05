@@ -299,7 +299,7 @@ int KeyboardScreen::buttonAction(int x, int y, bool on, bool inCardRoutine) {
             	}
             }
 
-            // If user is auditioning just one note, we can go straight into Scale Mode and set that root note
+            // If user is auditioning just one note, we can go directly into Scale Mode and set that root note
             else if (oneNoteAuditioning() && !getCurrentClip()->inScaleMode) {
                 exitAuditionMode();
                 enterScaleMode(getLowestAuditionedNote());
@@ -317,8 +317,8 @@ int KeyboardScreen::buttonAction(int x, int y, bool on, bool inCardRoutine) {
     }
 
 #if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-    // Track view button - exit mode
-    else if (x == trackViewButtonX && y == trackViewButtonY) {
+    // Clip view button - exit mode
+    else if (x == clipViewButtonX && y == clipViewButtonY) {
 #else
 	// Keyboard button - exit mode
 	else if (x == keyboardButtonX && y == keyboardButtonY) {
@@ -353,18 +353,7 @@ doOther:
 				}
 
 				PadLEDs::setupInstrumentClipCollapseAnimation(true);
-
-
-				// Set occupancy masks to full for the sidebar squares in the Store
-				/*
-				for (int y = 0; y < displayHeight; y++) {
-					PadLEDs::occupancyMaskStore[y + 1][displayWidth] = 16;
-					PadLEDs::occupancyMaskStore[y + 1][displayWidth + 1] = 16;
-				}
-				*/
-
-				//trackScreen.fillOffScreenImageStores();
-				PadLEDs::recordTransitionBegin(trackCollapseSpeed);
+				PadLEDs::recordTransitionBegin(clipCollapseSpeed);
 				PadLEDs::renderClipExpandOrCollapse();
     		}
     	}

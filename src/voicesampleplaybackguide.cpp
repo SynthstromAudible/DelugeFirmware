@@ -15,10 +15,10 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <AudioFileManager.h>
 #include <voicesampleplaybackguide.h>
 #include "source.h"
 #include "Sample.h"
-#include "SampleManager.h"
 #include "MultisampleRange.h"
 #include "voice.h"
 #include "SampleHolderForVoice.h"

@@ -15,10 +15,10 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <AudioFileManager.h>
 #include <Cluster.h>
 #include "MultisampleRange.h"
 #include "r_typedefs.h"
-#include "SampleManager.h"
 #include "Sample.h"
 #include "numericdriver.h"
 #include "source.h"

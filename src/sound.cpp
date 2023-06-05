@@ -16,6 +16,7 @@
  */
 
 #include <AudioEngine.h>
+#include <AudioFileManager.h>
 #include <InstrumentClip.h>
 #include "functions.h"
 #include "storagemanager.h"
@@ -29,7 +30,6 @@
 #include "kit.h"
 #include "numericdriver.h"
 #include "view.h"
-#include "SampleManager.h"
 #include "Action.h"
 #include "ActionLogger.h"
 #include <string.h>
@@ -1502,10 +1502,10 @@ bool Sound::hasCutModeSamples(ParamManagerForTimeline* paramManager) {
 	return true;
 }
 
-bool Sound::allowsVeryLateNoteStart(InstrumentClip* track, ParamManagerForTimeline* paramManager) {
+bool Sound::allowsVeryLateNoteStart(InstrumentClip* clip, ParamManagerForTimeline* paramManager) {
 
 	// If arpeggiator, we can always start very late
-	ArpeggiatorSettings* arpSettings = getArpSettings(track);
+	ArpeggiatorSettings* arpSettings = getArpSettings(clip);
 	if (arpSettings && arpSettings->mode) return true;
 
 	if (synthMode == SYNTH_MODE_FM) return false;
@@ -2050,8 +2050,8 @@ void Sound::confirmNumVoices(char const* error) {
 
 			for (int u = 0; u < maxNumUnison; u++) {
 				for (int s = 0; s < NUM_SOURCES; s++) {
-					for (int l = 0; l < NUM_SAMPLE_CHUNKS_LOADED_AHEAD; l++) {
-						if (thisVoice->unisonParts[u].sources[s].loadedSampleChunks[l]) {
+					for (int l = 0; l < NUM_SAMPLE_CLUSTERS_LOADED_AHEAD; l++) {
+						if (thisVoice->unisonParts[u].sources[s].clusters[l]) {
 							reasonCount++;
 						}
 					}
@@ -2071,8 +2071,8 @@ void Sound::confirmNumVoices(char const* error) {
 
 	int reasonCountSources = 0;
 
-	for (int l = 0; l < NUM_SAMPLE_CHUNKS_LOADED_AHEAD; l++) {
-		if (sources[0].loadedSampleChunks[l]) reasonCountSources++;
+	for (int l = 0; l < NUM_SAMPLE_CLUSTERS_LOADED_AHEAD; l++) {
+		if (sources[0].clusters[l]) reasonCountSources++;
 	}
 
 
@@ -2084,11 +2084,11 @@ void Sound::confirmNumVoices(char const* error) {
 			Uart::println(sources[0].sample->fileName);
 			Uart::print("voices: ");
 			Uart::println(voiceCount);
-			Uart::print("reasons on loadedSampleChunks: ");
+			Uart::print("reasons on clusters: ");
 			Uart::println(totalNumReasons);
-			Uart::print("Num voice unison part pointers to those loadedSampleChunks: ");
+			Uart::print("Num voice unison part pointers to those clusters: ");
 			Uart::println(reasonCount);
-			Uart::print("Num source pointers to those loadedSampleChunks: ");
+			Uart::print("Num source pointers to those clusters: ");
 			Uart::println(reasonCountSources);
 
 			char buffer[5];
@@ -2459,7 +2459,7 @@ void Sound::setNumUnison(int newNum, ModelStackWithSoundFlags* modelStack) {
 							}
 						}
 						else if (newNum < oldNum){
-							for (int l = 0; l < NUM_SAMPLE_CHUNKS_LOADED_AHEAD; l++) {
+							for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD; l++) {
 								thisVoice->unisonParts[newNum].sources[s].unassign();
 							}
 						}
@@ -3314,7 +3314,7 @@ void Sound::writeToFile(bool savingSong, ParamManager* paramManager, Arpeggiator
 }
 
 
-int16_t Sound::getMaxOscTranspose(InstrumentClip* track) {
+int16_t Sound::getMaxOscTranspose(InstrumentClip* clip) {
 
 	int maxRawOscTranspose = -32768;
 	for (int s = 0; s < NUM_SOURCES; s++) {
@@ -3330,7 +3330,7 @@ int16_t Sound::getMaxOscTranspose(InstrumentClip* track) {
 
     if (maxRawOscTranspose == -32768) maxRawOscTranspose = 0;
 
-    ArpeggiatorSettings* arpSettings = getArpSettings(track);
+    ArpeggiatorSettings* arpSettings = getArpSettings(clip);
 
     if (arpSettings && arpSettings->mode) {
     	maxRawOscTranspose += (arpSettings->numOctaves - 1) * 12;
@@ -3590,7 +3590,7 @@ void Sound::prepareForHibernation() {
 void Sound::wontBeRenderedForAWhile() {
 	ModControllableAudio::wontBeRenderedForAWhile();
 
-	unassignAllVoices(); // Can't remember if this is always necessary, but it is when this is called from Track::detachFromInstrument()
+	unassignAllVoices(); // Can't remember if this is always necessary, but it is when this is called from Instrumentclip::detachFromInstrument()
 
 	getArp()->reset(); // Surely this shouldn't be quite necessary?
     compressor.status = ENVELOPE_STAGE_OFF;

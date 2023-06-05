@@ -15,8 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <AudioFileManager.h>
 #include <SampleHolderForVoice.h>
-#include "SampleManager.h"
 #include "Sample.h"
 #include "storagemanager.h"
 #include "source.h"
@@ -34,17 +34,17 @@ SampleHolderForVoice::SampleHolderForVoice() {
 	endMSec = 0;
 
 
-	for (int l = 0; l < NUM_SAMPLE_CHUNKS_LOADED_AHEAD; l++) {
-		loadedSampleChunksForLoopStart[l] = NULL;
+	for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD; l++) {
+		clustersForLoopStart[l] = NULL;
 	}
 }
 
 SampleHolderForVoice::~SampleHolderForVoice() {
 	// We have to unassign reasons here, even though our parent destructor will call unassignAllReasons() - our overriding of that virtual function
 	// won't happen as we've already been destructed!
-	for (int l = 0; l < NUM_SAMPLE_CHUNKS_LOADED_AHEAD; l++) {
-		if (loadedSampleChunksForLoopStart[l]) {
-			sampleManager.removeReasonFromLoadedSampleChunk(loadedSampleChunksForLoopStart[l], "E247");
+	for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD; l++) {
+		if (clustersForLoopStart[l]) {
+			audioFileManager.removeReasonFromCluster(clustersForLoopStart[l], "E247");
 		}
 	}
 }
@@ -52,24 +52,24 @@ SampleHolderForVoice::~SampleHolderForVoice() {
 
 void SampleHolderForVoice::unassignAllClusterReasons(bool beingDestructed) {
 	SampleHolder::unassignAllClusterReasons(beingDestructed);
-	for (int l = 0; l < NUM_SAMPLE_CHUNKS_LOADED_AHEAD; l++) {
-		if (loadedSampleChunksForLoopStart[l]) {
-			sampleManager.removeReasonFromLoadedSampleChunk(loadedSampleChunksForLoopStart[l], "E320"); // Happened to me while auto-pilot testing, I think
-			if (!beingDestructed) loadedSampleChunksForLoopStart[l] = NULL;
+	for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD; l++) {
+		if (clustersForLoopStart[l]) {
+			audioFileManager.removeReasonFromCluster(clustersForLoopStart[l], "E320"); // Happened to me while auto-pilot testing, I think
+			if (!beingDestructed) clustersForLoopStart[l] = NULL;
 		}
 	}
 }
 
 
-// Reassesses which LoadedSampleChunks we want to be a "reason" for.
+// Reassesses which Clusters we want to be a "reason" for.
 // Ensure there is a sample before you call this.
-void SampleHolderForVoice::claimClusterReasons(bool reversed, int chunkLoadInstruction) {
+void SampleHolderForVoice::claimClusterReasons(bool reversed, int clusterLoadInstruction) {
 
 #if ALPHA_OR_BETA_VERSION
 	if (!audioFile) numericDriver.freezeWithError("i030"); // Trying to narrow down E368 that Kevin F got
 #endif
 
-	SampleHolder::claimClusterReasons(reversed, chunkLoadInstruction);
+	SampleHolder::claimClusterReasons(reversed, clusterLoadInstruction);
 
 	int playDirection = reversed ? -1 : 1;
 	int bytesPerSample = ((Sample*)audioFile)->numChannels * ((Sample*)audioFile)->byteDepth;
@@ -82,15 +82,15 @@ void SampleHolderForVoice::claimClusterReasons(bool reversed, int chunkLoadInstr
 
 	if (loopStartPlaybackAtSample) {
 		int loopStartPlaybackAtByte = ((Sample*)audioFile)->audioDataStartPosBytes + loopStartPlaybackAtSample * bytesPerSample;
-		claimClusterReasonsForMarker(loadedSampleChunksForLoopStart, loopStartPlaybackAtByte, playDirection, chunkLoadInstruction);
+		claimClusterReasonsForMarker(clustersForLoopStart, loopStartPlaybackAtByte, playDirection, clusterLoadInstruction);
 	}
 
 	// Or if no loop start point now, clear out any reasons we had before
 	else {
-		for (int l = 0; l < NUM_SAMPLE_CHUNKS_LOADED_AHEAD; l++) {
-			if (loadedSampleChunksForLoopStart[l]) {
-				sampleManager.removeReasonFromLoadedSampleChunk(loadedSampleChunksForLoopStart[l], "E246");
-				loadedSampleChunksForLoopStart[l] = NULL;
+		for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD; l++) {
+			if (clustersForLoopStart[l]) {
+				audioFileManager.removeReasonFromCluster(clustersForLoopStart[l], "E246");
+				clustersForLoopStart[l] = NULL;
 			}
 		}
 	}

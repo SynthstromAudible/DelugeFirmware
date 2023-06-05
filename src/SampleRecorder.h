@@ -119,7 +119,7 @@ private:
 	int createNextCluster();
 	int writeAnyCompletedClusters();
 	void finishCapturing();
-	void updateDataLengthInFirstCluster(Cluster* loadedSampleChunk);
+	void updateDataLengthInFirstCluster(Cluster* cluster);
 	void totalSampleLengthNowKnown(uint32_t totalLength, uint32_t loopEndPointSamples = 0);
 	void detachSample();
 	int truncateFileDownToSize(uint32_t newFileSize);

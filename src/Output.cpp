@@ -83,7 +83,7 @@ void Output::pickAnActiveClipIfPossible(ModelStack* modelStack, bool searchSessi
 		}
 
 		if (searchSessionClipsIfNeeded) {
-			// If still here, might need to search session Tracks (we've already effectively searched arrangement-only Tracks)
+			// If still here, might need to search session Clips (we've already effectively searched arrangement-only Clips)
 			Clip* newClip = modelStack->song->getSessionClipWithOutput(this);
 			if (newClip) {
 				setActiveClip(modelStack->addTimelineCounter(newClip), maySendMIDIPGMs);
@@ -117,7 +117,7 @@ yesSetActiveClip:
 			if (instance->clip) goto yesSetActiveClip;
 		}
 
-		// If still here, we didn't find anything, so try the regular pickAnActiveTrackIfPossible(), which will search earlier TrackInstances too, then session tracks, and failing that, a backedUpParamManager
+		// If still here, we didn't find anything, so try the regular pickAnActiveClipIfPossible(), which will search earlier ClipInstances too, then session Clips, and failing that, a backedUpParamManager
 		if (arrangementPos != 0) {
 			pickAnActiveClipIfPossible(modelStack, true, maySendMIDIPGMs);
 		}

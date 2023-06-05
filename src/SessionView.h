@@ -28,8 +28,8 @@ class ModelStack;
 
 extern float getTransitionProgress();
 
-// Track Group colours
-extern const uint8_t numDefaultTrackGroupColours;
+// Clip Group colours
+extern const uint8_t numDefaultClipGroupColours;
 extern const uint8_t defaultClipGroupColours[];
 
 
@@ -63,13 +63,12 @@ class SessionView final : public ClipNavigationTimelineView {
     bool setupScroll(uint32_t oldScroll);
     uint32_t getClipLocalScroll(Clip* loopable, uint32_t overviewScroll, uint32_t xZoom);
     void flashPlayRoutine();
-    void doubleTrackLengthAction();
 
     void modEncoderButtonAction(uint8_t whichModEncoder, bool on);
     void modButtonAction(uint8_t whichButton, bool on);
     void selectEncoderAction(int8_t offset);
     int timerCallback();
-    void noteRowChanged(InstrumentClip* track, NoteRow* noteRow);
+    void noteRowChanged(InstrumentClip* clip, NoteRow* noteRow);
     void setLedStates();
     void editNumRepeatsTilLaunch(int offset);
     uint32_t getGreyedOutRowsNotRepresentingOutput(Output* output);

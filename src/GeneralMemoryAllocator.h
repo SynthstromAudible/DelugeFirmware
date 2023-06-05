@@ -26,6 +26,36 @@
 
 class Stealable;
 
+/*
+ * ======================= MEMORY ALLOCATION ========================
+ *
+ * The Deluge codebase uses a custom memory allocation system, largely necessitated by the fact that
+ * the Deluge’s CPU has 3MB ram, plus the Deluge has an external 64MB SDRAM IC, and both of these
+ * need to have dynamic memory allocation as part of the same system.
+ *
+ * The internal RAM on the CPU is a bit faster, so is allocated first when available.
+ * But huge blocks of data like cached Clusters of audio data from the SD card are always
+ * placed on the external RAM IC because they would overwhelm the internal RAM too quickly,
+ * preventing potentially thousands of small objects which need to be accessed all the time
+ * from being placed in that fast internal RAM.
+ *
+ * Various objects or pieces of data remain loaded (cached) in RAM even when they are no longer necessarily needed.
+ * The main example of this is audio data in Clusters, discussed above. The base class for all such
+ * objects is Stealable, and as the name suggests, their memory may usually be “stolen” when needed.
+ *
+ * Most Stealables store a “numReasonsToBeLoaded”, which counts how many “things” are requiring
+ * that object to be retained in RAM. E.g. a Cluster of audio data would have a “reason” to
+ * remain loaded in RAM if it is currently being played back. If that numReasons goes down to 0,
+ * then that Stealable object is usually free to have its memory stolen.
+ *
+ * Stealables which in fact are eligible to be stolen at a given moment are stored in a queue which
+ * prioritises stealing of the audio data which is less likely to be needed, e.g. if it belongs to a
+ * Song that’s no longer loaded. But, to avoid overcomplication, this queue is not adhered to in the
+ * case where a neighbouring region of memory is chosen for allocation (or itself being stolen) when
+ * the allocation requires that the object in question have its memory stolen too in order to make
+ * up a large enough allocation.
+ */
+
 class GeneralMemoryAllocator {
 public:
 	GeneralMemoryAllocator();

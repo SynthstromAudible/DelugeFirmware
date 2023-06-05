@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include <LoadedSampleChunkPriorityQueue.h>
+#include <ClusterPriorityQueue.h>
 #include "definitions.h"
 #include "uart.h"
 
@@ -23,35 +23,35 @@ class Cluster;
 
 
 
-LoadedSampleChunkPriorityQueue::LoadedSampleChunkPriorityQueue() :
+ClusterPriorityQueue::ClusterPriorityQueue() :
 		OrderedResizeableArrayWith32bitKey(sizeof(PriorityQueueElement), 32, 31)
 {
 }
 
 
 // Returns error
-int LoadedSampleChunkPriorityQueue::add(Cluster* loadedSampleChunk, uint32_t priorityRating) {
-	int i = insertAtKey((int32_t)loadedSampleChunk);
+int ClusterPriorityQueue::add(Cluster* cluster, uint32_t priorityRating) {
+	int i = insertAtKey((int32_t)cluster);
 	if (i == -1) return ERROR_INSUFFICIENT_RAM;
 
 	PriorityQueueElement* element = (PriorityQueueElement*)getElementAddress(i);
 	element->priorityRating = priorityRating;
-	element->loadedSampleChunk = loadedSampleChunk;
+	element->cluster = cluster;
 	return NO_ERROR;
 }
 
-Cluster* LoadedSampleChunkPriorityQueue::grabHead() {
+Cluster* ClusterPriorityQueue::grabHead() {
 	if (!numElements) return NULL;
-	Cluster* toReturn = ((PriorityQueueElement*)getElementAddress(0))->loadedSampleChunk;
+	Cluster* toReturn = ((PriorityQueueElement*)getElementAddress(0))->cluster;
 	deleteAtIndex(0);
 	return toReturn;
 }
 
 // Returns whether it was present
-bool LoadedSampleChunkPriorityQueue::removeIfPresent(Cluster* loadedSampleChunk) {
+bool ClusterPriorityQueue::removeIfPresent(Cluster* cluster) {
 	for (int i = 0; i < numElements; i++) {
 		PriorityQueueElement* element = (PriorityQueueElement*)getElementAddress(i);
-		if (element->loadedSampleChunk == loadedSampleChunk) {
+		if (element->cluster == cluster) {
 			deleteAtIndex(i);
 			return true;
 		}
@@ -61,10 +61,10 @@ bool LoadedSampleChunkPriorityQueue::removeIfPresent(Cluster* loadedSampleChunk)
 }
 
 
-bool LoadedSampleChunkPriorityQueue::checkPresent(Cluster* loadedSampleChunk) {
+bool ClusterPriorityQueue::checkPresent(Cluster* cluster) {
 	for (int i = 0; i < numElements; i++) {
 		PriorityQueueElement* element = (PriorityQueueElement*)getElementAddress(i);
-		if (element->loadedSampleChunk == loadedSampleChunk) {
+		if (element->cluster == cluster) {
 			return true;
 		}
 	}

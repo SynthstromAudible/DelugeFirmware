@@ -15,10 +15,10 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <AudioFileManager.h>
 #include <WaveTableBandData.h>
 #include "WaveTable.h"
 #include "numericdriver.h"
-#include "SampleManager.h"
 
 WaveTableBandData::WaveTableBandData(WaveTable* newWaveTable) {
 	waveTable = newWaveTable;
@@ -26,20 +26,20 @@ WaveTableBandData::WaveTableBandData(WaveTable* newWaveTable) {
 
 
 bool WaveTableBandData::mayBeStolen(void* thingNotToStealFrom) {
-	return (waveTable && !waveTable->numReasons
-			&& thingNotToStealFrom != &sampleManager.audioFiles); // Because stealing us would mean the WaveTable being deleted too, we have to abide by this rule as found in WaveTable::mayBeStolen().
+	return (waveTable && !waveTable->numReasonsToBeLoaded
+			&& thingNotToStealFrom != &audioFileManager.audioFiles); // Because stealing us would mean the WaveTable being deleted too, we have to abide by this rule as found in WaveTable::mayBeStolen().
 }
 
 void WaveTableBandData::steal(char const* errorCode) {
 #if ALPHA_OR_BETA_VERSION
-	if (!waveTable || waveTable->numReasons) numericDriver.freezeWithError("E387");
+	if (!waveTable || waveTable->numReasonsToBeLoaded) numericDriver.freezeWithError("E387");
 #endif
 
 	// Tell the WaveTable that we're the BandData being stolen, so it won't deallocate us - our caller will do that.
 	waveTable->bandDataBeingStolen(this);
 
 	// Delete the WaveTable from memory - deallocating all other BandDatas and everything.
-	sampleManager.deleteUnusedAudioFileFromMemoryIndexUnknown(waveTable);
+	audioFileManager.deleteUnusedAudioFileFromMemoryIndexUnknown(waveTable);
 }
 
 int WaveTableBandData::getAppropriateQueue() {

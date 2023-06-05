@@ -75,9 +75,9 @@ public:
     ~Song();
     bool mayDoubleTempo();
     bool ensureAtLeastOneSessionClip();
-    void transposeAllScaleModeTracks(int offset);
-    bool anyScaleModeTracks();
-    void setRootNote(int newRootNote, InstrumentClip* trackToAvoidAdjustingScrollFor = NULL);
+    void transposeAllScaleModeClips(int offset);
+    bool anyScaleModeClips();
+    void setRootNote(int newRootNote, InstrumentClip* clipToAvoidAdjustingScrollFor = NULL);
     void addModeNote(uint8_t modeNote);
     void addMajorDependentModeNotes(uint8_t i, bool preferHigher, bool notesWithinOctavePresent[]);
     bool yNoteIsYVisualWithinOctave(int yNote, int yVisualWithinOctave);
@@ -196,7 +196,7 @@ public:
     void setInputTickScaleClip(Clip* clip);
 
     void setClipLength(Clip* clip, uint32_t newLength, Action* action, bool mayReSyncClip = true);
-    void doubleClipLength(InstrumentClip *track, Action* action = NULL);
+    void doubleClipLength(InstrumentClip *clip, Action* action = NULL);
     Clip* getClipWithOutput(Output* output, bool mustBeActive = false, Clip* excludeClip = NULL);
     int readFromFile();
     void writeToFile();
@@ -256,9 +256,9 @@ public:
     Output* getOutputFromIndex(int index);
     void ensureAllInstrumentsHaveAClipOrBackedUpParamManager(char const* errorMessageNormal, char const* errorMessageHibernating);
     int placeFirstInstancesOfActiveClips(int32_t pos);
-    void endInstancesOfActiveTracks(int32_t pos, bool detachTracksToo = false);
+    void endInstancesOfActiveClips(int32_t pos, bool detachClipsToo = false);
     void clearArrangementBeyondPos(int32_t pos, Action* action);
-    void deletingClipInstanceForClip(Output* output, Clip* clip, Action* action, bool shouldPickNewActiveTrack);
+    void deletingClipInstanceForClip(Output* output, Clip* clip, Action* action, bool shouldPickNewActiveClip);
     bool arrangementHasAnyClipInstances();
     void resumeClipsClonedForArrangementRecording();
     bool isPlayingAutomationNow();
