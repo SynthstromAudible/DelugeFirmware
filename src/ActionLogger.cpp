@@ -132,7 +132,7 @@ Action* ActionLogger::getNewAction(int newActionType, int addToExistingIfPossibl
 		}
 
 
-		// Store states of every track in existence
+		// Store states of every Clip in existence
 		int numClips = currentSong->sessionClips.getNumElements() + currentSong->arrangementOnlyClips.getNumElements();
 
 		ActionClipState* clipStates = (ActionClipState*)generalMemoryAllocator.alloc(numClips * sizeof(ActionClipState), NULL, true);
@@ -153,21 +153,21 @@ Action* ActionLogger::getNewAction(int newActionType, int addToExistingIfPossibl
 		for (int c = 0; c < clipArray->getNumElements(); c++) {
 			Clip* clip = clipArray->getClipAtIndex(c);
 
-			newAction->clipStates[i].grabFromTrack(clip);
+			newAction->clipStates[i].grabFromClip(clip);
 			i++;
 		}
 		if (clipArray != &currentSong->arrangementOnlyClips) { clipArray = &currentSong->arrangementOnlyClips; goto traverseClips; }
 
 		newAction->numClipStates = numClips;
 
-		// Only now put the new action into the list of undo actions - because in the above steps, we may have decided to delete it and get out (if we ran out of RAM while creating the ActionTrackStates)
+		// Only now put the new action into the list of undo actions - because in the above steps, we may have decided to delete it and get out (if we ran out of RAM while creating the ActionClipStates)
 		newAction->nextAction = firstAction[BEFORE];
 		firstAction[BEFORE] = newAction;
 
 		// And fill out all the snapshot stuff that the Action captures at a song-wide level
 		newAction->yScrollSongView[BEFORE] = currentSong->getYScrollSongViewWithoutPendingOverdubs();
-		newAction->xScrollTrack[BEFORE] = currentSong->xScroll[NAVIGATION_CLIP];
-		newAction->xZoomTrack[BEFORE] = currentSong->xZoom[NAVIGATION_CLIP];
+		newAction->xScrollClip[BEFORE] = currentSong->xScroll[NAVIGATION_CLIP];
+		newAction->xZoomClip[BEFORE] = currentSong->xZoom[NAVIGATION_CLIP];
 
 		newAction->yScrollArranger[BEFORE] = currentSong->arrangementYScroll;
 		newAction->xScrollArranger[BEFORE] = currentSong->xScroll[NAVIGATION_ARRANGEMENT];
@@ -192,7 +192,7 @@ Action* ActionLogger::getNewAction(int newActionType, int addToExistingIfPossibl
 }
 
 void ActionLogger::updateAction(Action* newAction) {
-	// Update ActionTrackStates for each Clip
+	// Update ActionClipStates for each Clip
 	if (newAction->numClipStates) {
 
 		// If number of Clips has changed, discard
@@ -213,7 +213,7 @@ void ActionLogger::updateAction(Action* newAction) {
 				Clip* clip = clipArray->getClipAtIndex(c);
 
 				if (clip->type == CLIP_TYPE_INSTRUMENT) {
-					newAction->clipStates[i].yScrollTrackView[AFTER] = ((InstrumentClip*)clip)->yScroll;
+					newAction->clipStates[i].yScrollSessionView[AFTER] = ((InstrumentClip*)clip)->yScroll;
 				}
 				i++;
 			}
@@ -222,8 +222,8 @@ void ActionLogger::updateAction(Action* newAction) {
 	}
 
 	newAction->yScrollSongView[AFTER] = currentSong->getYScrollSongViewWithoutPendingOverdubs();
-	newAction->xScrollTrack[AFTER] = currentSong->xScroll[NAVIGATION_CLIP];
-	newAction->xZoomTrack[AFTER] = currentSong->xZoom[NAVIGATION_CLIP];
+	newAction->xScrollClip[AFTER] = currentSong->xScroll[NAVIGATION_CLIP];
+	newAction->xZoomClip[AFTER] = currentSong->xZoom[NAVIGATION_CLIP];
 
 	newAction->yScrollArranger[AFTER] = currentSong->arrangementYScroll;
 	newAction->xScrollArranger[AFTER] = currentSong->xScroll[NAVIGATION_ARRANGEMENT];
@@ -287,7 +287,7 @@ void ActionLogger::recordTempoChange(uint64_t timePerBigBefore, uint64_t timePer
 
 
 // Returns whether anything was reverted.
-// doNavigation and updateVisually are only false when doing one of those undo-track-resize things as part of another track resize.
+// doNavigation and updateVisually are only false when doing one of those undo-Clip-resize things as part of another Clip resize.
 // You must not call this during the card routine - though I've lost track of the exact reason why not - is it just because we could then be in the middle of executing whichever function accessed the card and we don't know if things will break?
 bool ActionLogger::revert(int time, bool updateVisually, bool doNavigation) {
 	Uart::println("ActionLogger::revert");
@@ -329,7 +329,7 @@ bool ActionLogger::revert(int time, bool updateVisually, bool doNavigation) {
 
 
 
-// doNavigation and updateVisually are only false when doing one of those undo-track-resize things as part of another track resize
+// doNavigation and updateVisually are only false when doing one of those undo-Clip-resize things as part of another Clip resize
 void ActionLogger::revertAction(Action* action, bool updateVisually, bool doNavigation, int time) {
 
 	currentSong->deletePendingOverdubs();
@@ -411,11 +411,11 @@ void ActionLogger::revertAction(Action* action, bool updateVisually, bool doNavi
 					}
 
 					else {
-						if (currentSong->xZoom[NAVIGATION_CLIP] != action->xZoomTrack[time]) {
+						if (currentSong->xZoom[NAVIGATION_CLIP] != action->xZoomClip[time]) {
 							whichAnimation = ANIMATION_ZOOM;
 						}
 
-						else if (currentSong->xScroll[NAVIGATION_CLIP] != action->xScrollTrack[time]) {
+						else if (currentSong->xScroll[NAVIGATION_CLIP] != action->xScrollClip[time]) {
 							whichAnimation = ANIMATION_SCROLL;
 						}
 					}
@@ -426,7 +426,7 @@ void ActionLogger::revertAction(Action* action, bool updateVisually, bool doNavi
 
 
 		// Change some stuff that'll need to get changed in any case
-		currentSong->xZoom[NAVIGATION_CLIP] = action->xZoomTrack[time];
+		currentSong->xZoom[NAVIGATION_CLIP] = action->xZoomClip[time];
 		currentSong->xZoom[NAVIGATION_ARRANGEMENT] = action->xZoomArranger[time];
 
 		// Restore states of each Clip
@@ -446,7 +446,7 @@ void ActionLogger::revertAction(Action* action, bool updateVisually, bool doNavi
 
 					if (clip->type == CLIP_TYPE_INSTRUMENT) {
 						InstrumentClip* instrumentClip = (InstrumentClip*)clip;
-						instrumentClip->yScroll = action->clipStates[i].yScrollTrackView[time];
+						instrumentClip->yScroll = action->clipStates[i].yScrollSessionView[time];
 						instrumentClip->affectEntire = action->clipStates[i].affectEntire;
 						instrumentClip->wrapEditing = action->clipStates[i].wrapEditing;
 						instrumentClip->wrapEditLevel = action->clipStates[i].wrapEditLevel;
@@ -501,10 +501,10 @@ otherOption:
 		}
 
 		if (whichAnimation == ANIMATION_SCROLL && getCurrentUI() != &arrangerView) {
-			((TimelineView*)getCurrentUI())->initiateXScroll(action->xScrollTrack[time]);
+			((TimelineView*)getCurrentUI())->initiateXScroll(action->xScrollClip[time]);
 		}
 		else if (getCurrentUI() == &arrangerView || whichAnimation != ANIMATION_ZOOM)
-			currentSong->xScroll[NAVIGATION_CLIP] = action->xScrollTrack[time]; // Have to do this if we didn't do the actual scroll animation yet some scrolling happened
+			currentSong->xScroll[NAVIGATION_CLIP] = action->xScrollClip[time]; // Have to do this if we didn't do the actual scroll animation yet some scrolling happened
 
 
 
@@ -513,7 +513,7 @@ otherOption:
 			if (getCurrentUI() == &arrangerView)
 				arrangerView.initiateXZoom(howMuchMoreMagnitude(action->xZoomArranger[time], arrangerZoomBeforeTransition), action->xScrollArranger[time], arrangerZoomBeforeTransition);
 			else
-				((TimelineView*)getCurrentUI())->initiateXZoom(howMuchMoreMagnitude(action->xZoomTrack[time], songZoomBeforeTransition), action->xScrollTrack[time], songZoomBeforeTransition);
+				((TimelineView*)getCurrentUI())->initiateXZoom(howMuchMoreMagnitude(action->xZoomClip[time], songZoomBeforeTransition), action->xScrollClip[time], songZoomBeforeTransition);
 		}
 
 		else if (whichAnimation == ANIMATION_CLIP_MINDER_TO_SESSION) {

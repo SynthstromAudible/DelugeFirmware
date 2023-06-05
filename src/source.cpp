@@ -16,6 +16,7 @@
  */
 
 #include <AudioEngine.h>
+#include <AudioFileManager.h>
 #include <Cluster.h>
 #include <samplebrowser.h>
 #include <sound.h>
@@ -23,7 +24,6 @@
 #include "uart.h"
 #include "functions.h"
 #include "storagemanager.h"
-#include "SampleManager.h"
 #include "Sample.h"
 #include "numericdriver.h"
 #include <string.h>
@@ -56,7 +56,7 @@ Source::~Source() {
 void Source::destructAllMultiRanges() {
 	for (int e = 0; e < ranges.getNumElements(); e++) {
 		AudioEngine::logAction("destructAllMultiRanges()");
-    	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+    	AudioEngine::routineWithClusterLoading(); // -----------------------------------
 		ranges.getElement(e)->~MultiRange();
 	}
 }
@@ -93,7 +93,7 @@ bool Source::renderInStereo(SampleHolder* sampleHolder) {
 
 void Source::detachAllAudioFiles() {
 	for (int e = 0; e < ranges.getNumElements(); e++) {
-		if (!(e & 7)) AudioEngine::routineWithChunkLoading(); // --------------------------------------- // 7 works, 15 occasionally drops voices - for multisampled synths
+		if (!(e & 7)) AudioEngine::routineWithClusterLoading(); // --------------------------------------- // 7 works, 15 occasionally drops voices - for multisampled synths
 		ranges.getElement(e)->getAudioFileHolder()->setAudioFile(NULL);
 	}
 }
@@ -102,9 +102,9 @@ void Source::detachAllAudioFiles() {
 int Source::loadAllSamples(bool mayActuallyReadFiles) {
 	for (int e = 0; e < ranges.getNumElements(); e++) {
 		AudioEngine::logAction("Source::loadAllSamples");
-		if (!(e & 3)) AudioEngine::routineWithChunkLoading(); // -------------------------------------- // 3 works, 7 occasionally drops voices - for multisampled synths
+		if (!(e & 3)) AudioEngine::routineWithClusterLoading(); // -------------------------------------- // 3 works, 7 occasionally drops voices - for multisampled synths
     	if (mayActuallyReadFiles && shouldAbortLoading()) return ERROR_ABORTED_BY_USER;
-		ranges.getElement(e)->getAudioFileHolder()->loadFile(sampleControls.reversed, false, mayActuallyReadFiles, CHUNK_ENQUEUE, 0, true);
+		ranges.getElement(e)->getAudioFileHolder()->loadFile(sampleControls.reversed, false, mayActuallyReadFiles, CLUSTER_ENQUEUE, 0, true);
 	}
 
 	return NO_ERROR;

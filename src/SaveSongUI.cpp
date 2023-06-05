@@ -14,13 +14,13 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
+#include <AudioFileManager.h>
 #include "SaveSongUI.h"
 #include "functions.h"
 #include "lookuptables.h"
 #include "numericdriver.h"
 #include <string.h>
 #include <SaveSongOrInstrumentContextMenu.h>
-#include "SampleManager.h"
 #include "Sample.h"
 #include "uart.h"
 #include "AudioRecorder.h"
@@ -173,7 +173,7 @@ gotError:
 	String filenameWithoutExtension;
 	error = getCurrentFilenameWithoutExtension(&filenameWithoutExtension);														if (error) goto gotError;
 
-	error = sampleManager.setupAlternateAudioFileDir(&newSongAlternatePath, currentDir.get(), &filenameWithoutExtension);		if (error) goto gotError;
+	error = audioFileManager.setupAlternateAudioFileDir(&newSongAlternatePath, currentDir.get(), &filenameWithoutExtension);		if (error) goto gotError;
 	error = newSongAlternatePath.concatenate("/");																				if (error) goto gotError;
 	int dirPathLengthNew = newSongAlternatePath.getLength();
 
@@ -181,11 +181,11 @@ gotError:
 
 
 	// Go through each AudioFile we have a record of in RAM.
-    for (int i = 0; i < sampleManager.audioFiles.getNumElements(); i++) {
-    	AudioFile* audioFile = (AudioFile*)sampleManager.audioFiles.getElement(i);
+    for (int i = 0; i < audioFileManager.audioFiles.getNumElements(); i++) {
+    	AudioFile* audioFile = (AudioFile*)audioFileManager.audioFiles.getElement(i);
 
     	// If this AudioFile is used in this Song...
-    	if (audioFile->numReasons) {
+    	if (audioFile->numReasonsToBeLoaded) {
 
     		if (audioFile->type == AUDIO_FILE_TYPE_SAMPLE) {
 				// If this is a recording which still exists at its temporary location, move the file
@@ -234,7 +234,7 @@ gotError:
 
 
 
-				// Note: we can't just use the loadedSampleChunks to write back to the card, cos these might contain data that we converted
+				// Note: we can't just use the clusters to write back to the card, cos these might contain data that we converted
 
 				// Open file to read
 				FRESULT result = f_open(&fileSystemStuff.currentFile, sourceFilePath, FA_READ);
@@ -297,7 +297,7 @@ gotError:
 
 					// Normally, the filePath will be in the SAMPLES folder, which our name-condensing system was designed for...
 					if (!memcasecmp(audioFile->filePath.get(), "SAMPLES/", 8)) {
-						error = sampleManager.setupAlternateAudioFilePath(&newSongAlternatePath, dirPathLengthNew, &audioFile->filePath);
+						error = audioFileManager.setupAlternateAudioFilePath(&newSongAlternatePath, dirPathLengthNew, &audioFile->filePath);
 						if (error) {
 failAfterOpeningSourceFile:
 							f_close(&fileSystemStuff.currentFile); // Close source file
@@ -333,7 +333,7 @@ failAfterOpeningSourceFile:
 					// Copy
 					while (true) {
 						UINT bytesRead;
-						result = f_read(&fileSystemStuff.currentFile, storageManager.fileClusterBuffer, sampleManager.clusterSize, &bytesRead);
+						result = f_read(&fileSystemStuff.currentFile, storageManager.fileClusterBuffer, audioFileManager.clusterSize, &bytesRead);
 						if (result) {
 							Uart::println("read fail");
 fail3:
@@ -351,7 +351,7 @@ fail3:
 							goto fail3;
 						}
 
-						if (bytesRead < sampleManager.clusterSize) break; // Stop - file clearly ended part-way through cluster
+						if (bytesRead < audioFileManager.clusterSize) break; // Stop - file clearly ended part-way through cluster
 					}
 
 					f_close(&recorderFileSystemStuff.currentFile); // Close destination file

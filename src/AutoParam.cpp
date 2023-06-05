@@ -295,7 +295,7 @@ removeMiddleNodeInRun:
 		else if (middleNodeInRun->interpolated) {
 
 
-			//float timeFraction = (float)howFarAfter(middleNodeInRun->pos, firstNodeInRun->pos, track) / howFarAfter(prevNode->pos, firstNodeInRun->pos, track);
+			//float timeFraction = (float)howFarAfter(middleNodeInRun->pos, firstNodeInRun->pos, clip) / howFarAfter(prevNode->pos, firstNodeInRun->pos, clip);
 			float valueFraction = (float)((middleNodeInRun->value >> 1) - (firstNodeInRun->value >> 1)) / ((lastNodeInRun->value >> 1) - (firstNodeInRun->value >> 1));
 
 			int distanceFirstToLast = lastNodeInRun->pos - firstNodeInRun->pos;
@@ -407,7 +407,7 @@ int32_t AutoParam::processCurrentPos(ModelStackWithAutoParam const* modelStack, 
 		ParamNode* nodeToLeft = nodes.getElement(iLeft);
 
 		if (!noNeedToJumpToValue) valueJustReached = nodeToLeft->value; // At the time of this condition, weInterpolatedHere still means the interpolation to our *left*.
-		//noNeedToJumpToValue = noNeedToJumpToValue || nodeToRight->interpolated; 	// If playing reversed, we probably want to jump straight to the value of the node to the left,
+		//noNeedToJumpToValue = noNeedToJumpToValue || nodeToRight->interpolated; 	// If playing reversed, we probably want to jump directly to the value of the node to the left,
 																				// unless from the node right here there's a slope left *and* a slope right (cos if there's
 																				// no slope right we'll already be at the correct value from before).
 		nextNodeInOurDirection = nodeToLeft;
@@ -541,7 +541,7 @@ recordOverNodeJustReached:
 				else {
 					if (renewedOverridingAtTime == 1) {
 
-						// If the upcoming node is non-interpolated, we want no overriding at all so we can jump straight to it
+						// If the upcoming node is non-interpolated, we want no overriding at all so we can jump directly to it
 						if (!nextNodeInOurDirection->interpolated) {
 							renewedOverridingAtTime = 0;
 							// That's how overriding is most often cancelled for non-MIDI params. But for some reason, MIDI CCs, even if we removed

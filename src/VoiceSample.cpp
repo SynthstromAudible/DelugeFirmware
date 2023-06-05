@@ -16,10 +16,10 @@
  */
 
 #include <AudioEngine.h>
+#include <AudioFileManager.h>
 #include <Cluster.h>
 #include <voicesampleplaybackguide.h>
 #include "VoiceSample.h"
-#include "SampleManager.h"
 #include "voice.h"
 #include "Sample.h"
 #include "MultisampleRange.h"
@@ -48,7 +48,7 @@ void VoiceSample::beenUnassigned() {
 }
 
 
-// You'll normally want to call setupChunksForInitialPlay() after this
+// You'll normally want to call setupClustersForInitialPlay() after this
 void VoiceSample::noteOn(SamplePlaybackGuide* guide, uint32_t samplesLate, int priorityRating) {
 
 	doneFirstRenderYet = false;
@@ -178,69 +178,69 @@ int VoiceSample::attemptLateSampleStart(SamplePlaybackGuide* voiceSource, Sample
 
 	if ((int64_t)(startAtByte - voiceSource->startPlaybackAtByte) * voiceSource->playDirection < 0) numericDriver.freezeWithError("E439");	// Chasing "E366".
 
-	uint32_t startAtClusterIndex = startAtByte >> sampleManager.clusterSizeMagnitude;
-	if (startAtClusterIndex >= sample->getFirstChunkIndexWithNoAudioData()) numericDriver.freezeWithError("E366");	// This can occur if some overflowing happened on the previous check due to an
+	uint32_t startAtClusterIndex = startAtByte >> audioFileManager.clusterSizeMagnitude;
+	if (startAtClusterIndex >= sample->getFirstClusterIndexWithNoAudioData()) numericDriver.freezeWithError("E366");	// This can occur if some overflowing happened on the previous check due to an
 																									// insanely high rawSamplesSinceStart being supplied due to some other bug.
 																									// This was a problem around V3.1.0 release, so currently keeping this check
 																									// even outside of ALPHA_OR_BETA_VERSION.
 																									// Sven got! 4.0.0-beta4.
 
-	int finalClusterIndex = voiceSource->getFinalChunkIndex(sample, cache); // Think this is right...
+	int finalClusterIndex = voiceSource->getFinalClusterIndex(sample, cache); // Think this is right...
 
 	int clusterIndex = startAtClusterIndex;
 
-	// We load our new LoadedSampleChunks into a secondary array first, to preserve the reason-holding power of whatever is already in our main one until we unassign them below
-	Cluster* newLoadedSampleChunks[NUM_SAMPLE_CHUNKS_LOADED_AHEAD];
-	memset(newLoadedSampleChunks, 0, sizeof(newLoadedSampleChunks));
+	// We load our new Clusters into a secondary array first, to preserve the reason-holding power of whatever is already in our main one until we unassign them below
+	Cluster* newClusters[NUM_CLUSTERS_LOADED_AHEAD];
+	memset(newClusters, 0, sizeof(newClusters));
 
-	for (int l = 0; l < NUM_SAMPLE_CHUNKS_LOADED_AHEAD; l++) {
+	for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD; l++) {
 
 		// Grab it.
-		newLoadedSampleChunks[l] = sample->clusters.getElement(clusterIndex)->getLoadedSampleChunk(sample, clusterIndex, CHUNK_ENQUEUE);
+		newClusters[l] = sample->clusters.getElement(clusterIndex)->getCluster(sample, clusterIndex, CLUSTER_ENQUEUE);
 
 		// If failure (would only happen in insanely rare case where there's no free RAM)
-		if (l == 0 && !newLoadedSampleChunks[l]) {
+		if (l == 0 && !newClusters[l]) {
 			return LATE_START_ATTEMPT_FAILURE;
 		}
 
-		// If that was the final chunk, that's all we need to do
+		// If that was the final Cluster, that's all we need to do
 		if (clusterIndex == finalClusterIndex) break;
 
 		clusterIndex += voiceSource->playDirection;
 	}
 
-	// Remove all old reasons - there might be some if this function has been called multiple times while we wait for chunks to load
+	// Remove all old reasons - there might be some if this function has been called multiple times while we wait for Clusters to load
 	unassignAllReasons();
 
 	// Copy in the new reasons we just made
-	memcpy(loadedSampleChunks, newLoadedSampleChunks, sizeof(loadedSampleChunks));
+	memcpy(clusters, newClusters, sizeof(clusters));
 
-	// TODO: lots of this code is kinda tied to there being just two loadedSampleChunks looked-ahead (wait, not any more right?)
+	// TODO: lots of this code is kinda tied to there being just two clusters looked-ahead (wait, not any more right?)
 
-	// If the first chunk has loaded...
-	if (loadedSampleChunks[0]->loaded) {
+	// If the first Cluster has loaded...
+	if (clusters[0]->loaded) {
 
-		uint32_t bytesPosWithinChunk = startAtByte & (sampleManager.clusterSize - 1);
+		uint32_t bytesPosWithinCluster = startAtByte & (audioFileManager.clusterSize - 1);
 
-		// If there's no second chunk, or it's fully loaded... we're good to go!
-		if (!loadedSampleChunks[1] || loadedSampleChunks[1]->loaded) {
+		// If there's no second Cluster, or it's fully loaded... we're good to go!
+		if (!clusters[1] || clusters[1]->loaded) {
 goodToGo:
-			setupForPlayPosMovedIntoNewChunk(voiceSource, sample, bytesPosWithinChunk, sample->byteDepth);
+			setupForPlayPosMovedIntoNewCluster(voiceSource, sample, bytesPosWithinCluster, sample->byteDepth);
 
 			pendingSamplesLate = 0;
 
 			return LATE_START_ATTEMPT_SUCCESS;
 		}
 
-		// Or, if we're actually not very far into the first chunk, that's fine too - the second one should still have time to load
+		// Or, if we're actually not very far into the first Cluster, that's fine too - the second one should still have time to load
 		else {
 			int numBytesIn;
 			if (voiceSource->playDirection == 1)
-				numBytesIn = bytesPosWithinChunk;
+				numBytesIn = bytesPosWithinCluster;
 			else
-				numBytesIn = sampleManager.clusterSize - bytesPosWithinChunk;
+				numBytesIn = audioFileManager.clusterSize - bytesPosWithinCluster;
 
-			if (numBytesIn < (sampleManager.clusterSize >> 1)) {
+			if (numBytesIn < (audioFileManager.clusterSize >> 1)) {
 				goto goodToGo;
 			}
 		}
@@ -320,8 +320,8 @@ bool VoiceSample::weShouldBeTimeStretchingNow(Sample* sample, SamplePlaybackGuid
 
 
 bool VoiceSample::stopReadingFromCache() {
-	// Have to check chunk is loaded, because we chose not to check this before, cos we didn't know if we'd actually be reading from it
-	if (!loadedSampleChunks[0] || !loadedSampleChunks[0]->loaded) {
+	// Have to check Cluster is loaded, because we chose not to check this before, cos we didn't know if we'd actually be reading from it
+	if (!clusters[0] || !clusters[0]->loaded) {
 		return false; // If it's not loaded we're screwed - do instant unassign
 	}
 
@@ -330,7 +330,7 @@ bool VoiceSample::stopReadingFromCache() {
 	return true;
 }
 
-// Returns false if fail, which can happen if we've actually ended up past the finalChunkIndex cos we were reading cache before
+// Returns false if fail, which can happen if we've actually ended up past the finalClusterIndex cos we were reading cache before
 bool VoiceSample::stopUsingCache(SamplePlaybackGuide* guide, Sample* sample, int priorityRating, bool loopingAtLowLevel) {
 
 	// If we were *writing* to the cache, nothing needs to change other than our discarding it. But if we were reading from it...
@@ -345,11 +345,11 @@ bool VoiceSample::stopUsingCache(SamplePlaybackGuide* guide, Sample* sample, int
 	// Now that cache is off, the SampleLowLevelReader probably needs to obey loop points (if no time stretching),
 	// Although, as a side note, if we just abandoned reading cache, we might be just about to set time stretching up.
 	if (shouldObeyMarkers()) {
-		bool stillGoing = reassessReassessmentLocation(guide, sample, priorityRating); // Returns false if fail, which can happen if we've actually ended up past the finalChunkIndex cos we were reading cache before
+		bool stillGoing = reassessReassessmentLocation(guide, sample, priorityRating); // Returns false if fail, which can happen if we've actually ended up past the finalClusterIndex cos we were reading cache before
 		if (!stillGoing) return false;
 
 		// This step added Sept 2020 after finding another similar bug which made me fairly sure this needs to be here, to ensure currentPlayPos isn't past the new reassessmentLocation
-		stillGoing = changeChunkIfNecessary(guide, sample, loopingAtLowLevel, priorityRating);
+		stillGoing = changeClusterIfNecessary(guide, sample, loopingAtLowLevel, priorityRating);
 		if (!stillGoing) return false;
 	}
 
@@ -392,13 +392,13 @@ bool VoiceSample::render(SamplePlaybackGuide* guide, int32_t* __restrict__ outpu
 			}
 		}
 
-		// Or, if a chunk got stolen, we're in trouble
+		// Or, if a Cluster got stolen, we're in trouble
 		else if (cache->writeBytePos < cacheBytePos) {
 			bool success = stopUsingCache(guide, sample, priorityRating, loopingType == LOOP_LOW_LEVEL);
 			if (!success) return false;
 		}
 
-		// Or if no chunks got stolen, check some other stuff
+		// Or if no Clusters got stolen, check some other stuff
 		else {
 			if (writingToCache) { // Writing
 
@@ -457,7 +457,7 @@ bool VoiceSample::render(SamplePlaybackGuide* guide, int32_t* __restrict__ outpu
 			bool stillGoing = weShouldBeTimeStretchingNow(sample, guide, numSamples, phaseIncrement, timeStretchRatio, playDirection, priorityRating, loopingType);
 			if (!stillGoing) return false;
 
-			// If writing to cache, there's a chance that setting up time stretching and generating perc data could have stolen chunks,
+			// If writing to cache, there's a chance that setting up time stretching and generating perc data could have stolen Clusters,
 			// so we might have to stop writing to cache
 			if (cache && writingToCache) {
 				if (cache->writeBytePos < cacheBytePos) {
@@ -492,9 +492,9 @@ bool VoiceSample::render(SamplePlaybackGuide* guide, int32_t* __restrict__ outpu
 					if (!stillGoing) return false;
 
 					// Bugfix Sept 2020. Could end up beyond reassessmentLocation otherwise, violating assumptions if playing Sample at non-native rate.
-					stillGoing = changeChunkIfNecessary(guide, sample, loopingType == LOOP_LOW_LEVEL, priorityRating);
+					stillGoing = changeClusterIfNecessary(guide, sample, loopingType == LOOP_LOW_LEVEL, priorityRating);
 					if (!stillGoing) return false;
-					// Or, if changeChunkIfNecessary() returns false, should we continue outputting those zeros through the interpolation buffer for a bit or something?
+					// Or, if changeClusterIfNecessary() returns false, should we continue outputting those zeros through the interpolation buffer for a bit or something?
 				}
 			}
 		}
@@ -543,7 +543,7 @@ readCachedWindow:
 		int bytesTilLoopEndPoint = cacheLoopEndPointBytes - cacheBytePos;
 		if (bytesTilLoopEndPoint <= 0) { // Might be less than 0 if it was just changed... although the code that does that is suppose to also detect that we're past it and restart the loop...
 			Uart::println("Loop endpoint reached, reading cache");
-			// Jump back to the loop start point. We'll find out in a moment whether that chunk still exists (though it will if the one we were just at existed)
+			// Jump back to the loop start point. We'll find out in a moment whether that Cluster still exists (though it will if the one we were just at existed)
 			cacheBytePos -= cacheLoopLengthBytes;
 			goto readCachedWindow;
 		}
@@ -579,12 +579,12 @@ readCachedWindow:
 
 			// I think the reason I have it doing reassessReassessmentLocation() here is because while writing cache,
 			// low-level loop points aren't obeyed and we loop at the writing-to-cache level instead?
-			bool stillGoing = reassessReassessmentLocation(guide, sample, priorityRating); // Returns false if fail, which can happen if we've actually ended up past the finalChunkIndex cos we were reading cache before
-			// TODO: need to call changeChunkIfNecessary()? Or are we guaranteed not to have passed that loop point / reassessment location?
+			bool stillGoing = reassessReassessmentLocation(guide, sample, priorityRating); // Returns false if fail, which can happen if we've actually ended up past the finalClusterIndex cos we were reading cache before
+			// TODO: need to call changeClusterIfNecessary()? Or are we guaranteed not to have passed that loop point / reassessment location?
 			if (!stillGoing) return false;
 
 			// This step added Sept 2020 after finding another similar bug which made me fairly sure this needs to be here, to ensure currentPlayPos isn't past the new reassessmentLocation
-			stillGoing = changeChunkIfNecessary(guide, sample, loopingType == LOOP_LOW_LEVEL, priorityRating);
+			stillGoing = changeClusterIfNecessary(guide, sample, loopingType == LOOP_LOW_LEVEL, priorityRating);
 			if (!stillGoing) return false;
 
 			// We know there's no time stretching - see above
@@ -597,22 +597,22 @@ readCachedWindow:
 			numericDriver.freezeWithError("E164");
 		}
 
-		int cachedChunkIndex = cacheBytePos >> sampleManager.clusterSizeMagnitude;
-		int bytePosWithinChunk = cacheBytePos & (sampleManager.clusterSize - 1);
+		int cachedClusterIndex = cacheBytePos >> audioFileManager.clusterSizeMagnitude;
+		int bytePosWithinCluster = cacheBytePos & (audioFileManager.clusterSize - 1);
 
-		Cluster* cacheChunk = cache->getChunk(cachedChunkIndex);
-		if (ALPHA_OR_BETA_VERSION && !cacheChunk) { // If it got stolen - but we should have already detected this above
+		Cluster* cacheCluster = cache->getCluster(cachedClusterIndex);
+		if (ALPHA_OR_BETA_VERSION && !cacheCluster) { // If it got stolen - but we should have already detected this above
 			numericDriver.freezeWithError("E157");
 		}
-		int32_t* __restrict__ readPos = (int32_t*)&cacheChunk->data[bytePosWithinChunk - 4 + CACHE_BYTE_DEPTH];
+		int32_t* __restrict__ readPos = (int32_t*)&cacheCluster->data[bytePosWithinCluster - 4 + CACHE_BYTE_DEPTH];
 
 		int32_t sampleRead[2]; // Somehow works out a tiny bit faster having it as an array
 
 		sampleRead[0] = *readPos; // Do first read up here so there's time for the processor to access the memory
 
-		int bytesTilCacheChunkEnd = sampleManager.clusterSize - bytePosWithinChunk;
+		int bytesTilCacheClusterEnd = audioFileManager.clusterSize - bytePosWithinCluster;
 
-		int bytesTilThisWindowEnd = getMin(bytesTilCacheChunkEnd, bytesTilCacheEnd);
+		int bytesTilThisWindowEnd = getMin(bytesTilCacheClusterEnd, bytesTilCacheEnd);
 		bytesTilThisWindowEnd = getMin(bytesTilThisWindowEnd, bytesTilLoopEndPoint);
 		bytesTilThisWindowEnd = getMin(bytesTilThisWindowEnd, bytesTilWaveformEnd);
 
@@ -684,44 +684,44 @@ readCachedWindow:
 				sample->audioDataStartPosBytes + uncachedSamplePos * bytesPerSample :
 				sample->audioDataStartPosBytes + sample->audioDataLengthBytes - (uncachedSamplePos + 1) * bytesPerSample;
 
-		int uncachedChunkIndex = uncachedBytePos >> sampleManager.clusterSizeMagnitude;
+		int uncachedClusterIndex = uncachedBytePos >> audioFileManager.clusterSizeMagnitude;
 
 		// Sometimes our cache will extend a little beyond the end of the waveform (to capture the interpolation or time-stretching ring-out).
-		// It's basically ok for our current chunk index and currentPlayPos to sit outside the waveform - this will be dealt with if we do stop using the cache.
+		// It's basically ok for our current Cluster index and currentPlayPos to sit outside the waveform - this will be dealt with if we do stop using the cache.
 
 		// But, if we're more than 1 cluster outside of the waveform, let's just not be silly.
-		if (uncachedChunkIndex < sample->getFirstChunkIndexWithAudioData() - 1 || uncachedChunkIndex > sample->getFirstChunkIndexWithNoAudioData()) {
-			unassignAllReasons(); // Remember, this doesn't cut the voice - just sets loadedSampleChunks[0] to NULL.
+		if (uncachedClusterIndex < sample->getFirstClusterIndexWithAudioData() - 1 || uncachedClusterIndex > sample->getFirstClusterIndexWithNoAudioData()) {
+			unassignAllReasons(); // Remember, this doesn't cut the voice - just sets clusters[0] to NULL.
 			currentPlayPos = 0;
 		}
 
 		// But if that hasn't happened...
 		else {
 
-			// Need to make sure we don't go past finalChunkIndex, or else, if cache is cancelled and loop points obeyed again, we're in a chunk we're not allowed in!
-			// Instead, stay in the chunk we are allowed in, currentPlayPos will end up outside the bounds of that chunk, that'll soon be picked up on, and a
+			// Need to make sure we don't go past finalClusterIndex, or else, if cache is cancelled and loop points obeyed again, we're in a Cluster we're not allowed in!
+			// Instead, stay in the Cluster we are allowed in, currentPlayPos will end up outside the bounds of that Cluster, that'll soon be picked up on, and a
 			// loop point will get obeyed or something.
-			int finalChunkIndex = guide->getFinalChunkIndex(sample, true);
-			if ((uncachedChunkIndex - finalChunkIndex) * playDirection > 0)
-				uncachedChunkIndex = finalChunkIndex;
+			int finalClusterIndex = guide->getFinalClusterIndex(sample, true);
+			if ((uncachedClusterIndex - finalClusterIndex) * playDirection > 0)
+				uncachedClusterIndex = finalClusterIndex;
 
-			// If uncached chunk has changed, update queue
-			if (!loadedSampleChunks[0] || loadedSampleChunks[0]->chunkIndex != uncachedChunkIndex) {
+			// If uncached Cluster has changed, update queue
+			if (!clusters[0] || clusters[0]->clusterIndex != uncachedClusterIndex) {
 				unassignAllReasons(); // We're going to set new "reasons".
 
-				int nextUncachedChunkIndex = uncachedChunkIndex;
-				for (int l = 0; l < NUM_SAMPLE_CHUNKS_LOADED_AHEAD; l++) {
-					loadedSampleChunks[l] = sample->clusters.getElement(nextUncachedChunkIndex)->getLoadedSampleChunk(sample, nextUncachedChunkIndex, CHUNK_ENQUEUE);
-					if (!loadedSampleChunks[l]) break;
-					if (nextUncachedChunkIndex == finalChunkIndex) break; // If no more chunks
-					nextUncachedChunkIndex += playDirection;
+				int nextUncachedClusterIndex = uncachedClusterIndex;
+				for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD; l++) {
+					clusters[l] = sample->clusters.getElement(nextUncachedClusterIndex)->getCluster(sample, nextUncachedClusterIndex, CLUSTER_ENQUEUE);
+					if (!clusters[l]) break;
+					if (nextUncachedClusterIndex == finalClusterIndex) break; // If no more Clusters
+					nextUncachedClusterIndex += playDirection;
 				}
 			}
 
-			if (loadedSampleChunks[0]) {
+			if (clusters[0]) {
 				oscPos = uncachedSamplePosBig & 16777215;
-				int uncachedBytePosWithinChunk = uncachedBytePos - uncachedChunkIndex * sampleManager.clusterSize;
-				currentPlayPos = &loadedSampleChunks[0]->data[uncachedBytePosWithinChunk];
+				int uncachedBytePosWithinCluster = uncachedBytePos - uncachedClusterIndex * audioFileManager.clusterSize;
+				currentPlayPos = &clusters[0]->data[uncachedBytePosWithinCluster];
 				currentPlayPos = currentPlayPos - 4 + sample->byteDepth;
 			}
 			else currentPlayPos = 0;
@@ -759,17 +759,17 @@ uncachedPlayback:
 				return false;
 			}
 
-			int cacheChunkIndex = cache->writeBytePos >> sampleManager.clusterSizeMagnitude;
-			int bytePosWithinChunk = cache->writeBytePos & (sampleManager.clusterSize - 1);
+			int cacheClusterIndex = cache->writeBytePos >> audioFileManager.clusterSizeMagnitude;
+			int bytePosWithinCluster = cache->writeBytePos & (audioFileManager.clusterSize - 1);
 
-			// If just entering brand new chunk, we need to allocate it first
+			// If just entering brand new Cluster, we need to allocate it first
 #if CACHE_BYTE_DEPTH == 3
-			if (bytePosWithinChunk < sampleSourceNumChannels * CACHE_BYTE_DEPTH) {
+			if (bytePosWithinCluster < sampleSourceNumChannels * CACHE_BYTE_DEPTH) {
 #else
-			if (bytePosWithinChunk == 0) {
+			if (bytePosWithinCluster == 0) {
 #endif
 
-				bool setupSuccess = cache->setupNewChunk(cacheChunkIndex);
+				bool setupSuccess = cache->setupNewCluster(cacheClusterIndex);
 				if (!setupSuccess) {
 					// Cancel cache writing. Everything else is still the same - we weren't *reading* the cache, remember
 					bool stopSuccess = stopUsingCache(guide, sample, priorityRating, loopingType == LOOP_LOW_LEVEL); // Want to obey loop points now
@@ -778,12 +778,12 @@ uncachedPlayback:
 				}
 			}
 
-			Cluster* cacheChunk = cache->getChunk(cacheChunkIndex);
-			if (ALPHA_OR_BETA_VERSION && !cacheChunk) numericDriver.freezeWithError("E166"); // Check that the chunk hasn't been stolen - but this should have been detected right at the start
-			cacheWritePos = &cacheChunk->data[bytePosWithinChunk];
+			Cluster* cacheCluster = cache->getCluster(cacheClusterIndex);
+			if (ALPHA_OR_BETA_VERSION && !cacheCluster) numericDriver.freezeWithError("E166"); // Check that the Cluster hasn't been stolen - but this should have been detected right at the start
+			cacheWritePos = &cacheCluster->data[bytePosWithinCluster];
 
-			int cachingBytesTilChunkEnd = sampleManager.clusterSize - bytePosWithinChunk;
-			int cachingBytesTilUncachedReadEnd = getMin(cachingBytesTilChunkEnd, cachingBytesTilLoopEnd);
+			int cachingBytesTilClusterEnd = audioFileManager.clusterSize - bytePosWithinCluster;
+			int cachingBytesTilUncachedReadEnd = getMin(cachingBytesTilClusterEnd, cachingBytesTilLoopEnd);
 			cachingBytesTilUncachedReadEnd = getMin(cachingBytesTilUncachedReadEnd, cachingBytesTilWaveformEnd);
 
 
@@ -898,7 +898,7 @@ readNonTimestretched:
 			// Yes pitch adjustment - meaning we might be wanting to write to a cache, too...
 			else {
 
-				// That call to considerUpcomingWindow() just might have led to our cache having chunks stolen!
+				// That call to considerUpcomingWindow() just might have led to our cache having Clusters stolen!
 				if (cache && cache->writeBytePos < cacheBytePos) {
 					bool success = stopUsingCache(guide, sample, priorityRating, loopingType == LOOP_LOW_LEVEL);
 					if (!success) return false;
@@ -977,7 +977,7 @@ readTimestretched:
 				if (wantToDoHopNow) {
 					if (allowedToDoHop) {
 						bool success = timeStretcher->hopEnd(guide, this, sample, sampleSourceNumChannels, timeStretchRatio, phaseIncrement, combinedIncrement, playDirection, loopingType, priorityRating);
-						if (!success) return false; // Can fail if tried to jump to a bit in an unloaded chunk. Shouldn't actually happen
+						if (!success) return false; // Can fail if tried to jump to a bit in an unloaded Cluster. Shouldn't actually happen
 
 						// Check this again, cos newer play-head can become inactive in hopEnd(). This probably isn't really crucial. Added June 2019
 						if (!cache && !loopingType && !timeStretcher->playHeadStillActive[PLAY_HEAD_OLDER] && !timeStretcher->playHeadStillActive[PLAY_HEAD_NEWER]) {
@@ -1090,7 +1090,7 @@ readNewerHead:
 							&timeStretcher->newerBufferReadPos, writeIncrement);
 				}
 
-				// Or if reading straight chunk data...
+				// Or if reading normal unbuffered Cluster data...
 				else
 #endif
 				{
@@ -1119,7 +1119,7 @@ considerOlderHead:
 							&timeStretcher->olderBufferReadPos);
 				}
 
-				// Or if reading straight chunk data...
+				// Or if reading normal Cluster data...
 				else {
 readOlderHeadUnbuffered:
 					bool success = timeStretcher->olderPartReader.readSamplesForTimeStretching(timeStretchResultWritePos, guide, sample, numSamplesThisTimestretchedRead, sampleSourceNumChannels, numChannelsInTimeStretchResult, phaseIncrement,
@@ -1172,7 +1172,7 @@ headsFinishedReading:
 					timeStretcher->newerHeadReadingFromBuffer = false;
 					timeStretcher->bufferFillingMode = BUFFER_FILLING_NEWER;
 					cloneFrom(&timeStretcher->olderPartReader, false);
-					if (!loadedSampleChunks[0]) Uart::println("no loadedSampleChunks[0]");
+					if (!clusters[0]) Uart::println("no clusters[0]");
 				}
 
 				else if (timeStretcher->playHeadStillActive[PLAY_HEAD_OLDER] && timeStretcher->olderHeadReadingFromBuffer && timeStretcher->olderBufferReadPos == timeStretcher->bufferWritePos && timeStretcher->bufferFillingMode != BUFFER_FILLING_NEWER) {
@@ -1222,7 +1222,7 @@ headsFinishedReading:
 
 				char* __restrict__ cacheWritePosNow = cacheWritePos;
 
-				// Check that all of our sample-reading above hasn't stolen any of our cache chunks
+				// Check that all of our sample-reading above hasn't stolen any of our cache Clusters.
 				if (cache->writeBytePos != cacheBytePos) {
 					bool success = stopUsingCache(guide, sample, priorityRating, loopingType == LOOP_LOW_LEVEL);
 					if (!success) return false; // Is this ideal? Didn't give much consideration when I wrote this line
@@ -1279,7 +1279,7 @@ headsFinishedReading:
 					existingValueL = *outputBufferWritePos;
 				}
 
-				if (cache) { // Might not be true anymore if we had to abandon the cache just above cos it got chunks stolen
+				if (cache) { // Might not be true anymore if we had to abandon the cache just above cos it got Clusters stolen.
 					cacheWritePos = cacheWritePosNow; // Not necessary I don't think - cacheWritePos doesn't get used again does it?
 
 					cacheBytePos += numSamplesThisUncachedReadUntouched * CACHE_BYTE_DEPTH * sampleSourceNumChannels;
@@ -1298,7 +1298,7 @@ headsFinishedReading:
 finishedTimestretchedRead:
 		//numSamples -= numSamplesThisUncachedRead; // No, this was now done above
 
-		// If need to go again, to write to a different cache chunk...
+		// If need to go again, to write to a different cache Cluster...
 		if (numSamples) goto uncachedPlayback;
 	}
 
@@ -1347,7 +1347,7 @@ loopBackToStartCached:
 				// Whether reading or writing, go back and start reading from loop start
 				switchToReadingCacheFromWriting();
 				cacheBytePos = cacheLoopEndPointBytes - cacheLoopLengthBytes; // This is allowed to be a bit rough
-				// In a perfect world we'd check the chunks are loaded and stuff, but that'll get checked soon enough, and what would we do if they weren't loaded anyway
+				// In a perfect world we'd check the Clusters are loaded and stuff, but that'll get checked soon enough, and what would we do if they weren't loaded anyway
 			}
 		}
 
@@ -1426,7 +1426,7 @@ loopBackToStartCached:
 					if (loopingType) {
 	loopBackToStartUncached:
 						unassignAllReasons();
-						setupChunksForInitialPlay(voiceSource, sample, 0, true, priorityRating);
+						setupClusersForInitialPlay(voiceSource, sample, 0, true, priorityRating);
 					}
 
 					// Otherwise, stop it
@@ -1449,7 +1449,7 @@ loopBackToStartTimeStretched:
 		endTimeStretching(); // It'll get started again at next render
 
 		// Must call this before ending time stretching, cos the presence of the TimeStretcher causes the SampleLowLevelReader to ignore markers, which is how we want it (no, wait, that's wrong I think? I've undone that for now anyway)
-		setupChunksForInitialPlay(voiceSource, sample, 0, true, priorityRating);
+		setupClusersForInitialPlay(voiceSource, sample, 0, true, priorityRating);
 
 	}
 

@@ -96,7 +96,7 @@ View::View()
 
     modLength = 0;
     modPos = 0xFFFFFFFF;
-	trackArmFlashOn = false;
+	clipArmFlashOn = false;
 }
 
 void View::focusRegained() {
@@ -420,7 +420,7 @@ void View::endMIDILearn() {
 }
 
 void View::setTimeBaseScaleLedState() {
-    // If this Track is the inputTickScaleTrack, flash the LED
+    // If this Clip is the inputTickScaleClip, flash the LED
     if (getCurrentUI()->toClipMinder() && currentSong->currentClip == currentSong->getSyncScalingClip()) {
         IndicatorLEDs::blinkLed(syncScalingLedX, syncScalingLedY);
     }
@@ -978,10 +978,10 @@ void View::setModLedStates() {
 	if (!itsTheSong) {
 		bool shouldBlink = false;
 		if (getRootUI() == &instrumentClipView) {
-			InstrumentClip* track = (InstrumentClip*)activeModControllableTimelineCounter;
-			shouldBlink = (track->output->type == INSTRUMENT_TYPE_KIT) ?
-					track->affectEntire :
-					track->onKeyboardScreen;
+			InstrumentClip* clip = (InstrumentClip*)activeModControllableTimelineCounter;
+			shouldBlink = (clip->output->type == INSTRUMENT_TYPE_KIT) ?
+					clip->affectEntire :
+					clip->onKeyboardScreen;
 		}
 
 		if (!shouldBlink) goto noBlinking;
@@ -1468,7 +1468,7 @@ void View::navigateThroughPresetsForInstrumentClip(int offset, ModelStackWithTim
 
 			clip->output->stopAnyAuditioning((ModelStack*)modelStackMemory);
 
-			// Because these are just MIDI / CV instruments and we're changing them for all tracks, we can just change the existing Instrument object!
+			// Because these are just MIDI / CV instruments and we're changing them for all Clips, we can just change the existing Instrument object!
 			oldNonAudioInstrument->channel = newChannel;
 			if (instrumentType == INSTRUMENT_TYPE_MIDI_OUT)
 				((MIDIInstrument*)oldNonAudioInstrument)->channelSuffix = newChannelSuffix;
@@ -1574,7 +1574,7 @@ getOut:
 			// If that Instrument wasn't already in use in the Song, copy default velocity over
 			newInstrument->defaultVelocity = oldInstrument->defaultVelocity;
 
-			// If we're here, we know the Track is not playing in the arranger (and doesn't even have an instance in there)
+			// If we're here, we know the Clip is not playing in the arranger (and doesn't even have an instance in there)
 
 			int error = clip->changeInstrument(modelStack, newInstrument, NULL, INSTRUMENT_REMOVAL_DELETE_OR_HIBERNATE_IF_UNUSED, NULL, true);
 			// TODO: deal with errors!
@@ -1591,7 +1591,7 @@ getOut:
 		}
 
 		if (getCurrentUI() == &instrumentClipView) {
-	    	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+	    	AudioEngine::routineWithClusterLoading(); // -----------------------------------
 			instrumentClipView.recalculateColours();
 			uiNeedsRendering(&instrumentClipView);
 		}
@@ -1677,7 +1677,7 @@ void View::getClipMuteSquareColour(Clip* clip, uint8_t thisColour[]) {
 		return;
 	}
 
-    // If user assigning MIDI controls and this Track has a command assigned, flash pink
+    // If user assigning MIDI controls and this Clip has a command assigned, flash pink
     if (midiLearnFlashOn && clip->muteMIDICommand.containsSomething()) {
         thisColour[0] = midiCommandColourRed;
         thisColour[1] = midiCommandColourGreen;
@@ -1685,7 +1685,7 @@ void View::getClipMuteSquareColour(Clip* clip, uint8_t thisColour[]) {
         return;
     }
 
-    if (trackArmFlashOn && clip->armState) {
+    if (clipArmFlashOn && clip->armState) {
         thisColour[0] = 0;
         thisColour[1] = 0;
         thisColour[2] = 0;
@@ -1796,7 +1796,7 @@ void View::flashPlayEnable() {
 
 
 void View::flashPlayDisable() {
-	trackArmFlashOn = false;
+	clipArmFlashOn = false;
    	uiTimerManager.unsetTimer(TIMER_PLAY_ENABLE_FLASH);
 
    	if (getRootUI() == &sessionView) {

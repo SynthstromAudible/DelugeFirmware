@@ -107,7 +107,7 @@ bool Arrangement::endPlayback() {
 
 void Arrangement::doTickForward(int posIncrement) {
 
-	bool anyChangeToSessionTracksPlaying = false;
+	bool anyChangeToSessionClipsPlaying = false;
 
 	lastProcessedPos += posIncrement;
 
@@ -191,7 +191,7 @@ notRecording:
 								thisClip->expectNoFurtherTicks(currentSong);
 								thisClip->activeIfNoSolo = false;
 
-								if (!thisClip->isArrangementOnlyClip()) anyChangeToSessionTracksPlaying = true;
+								if (!thisClip->isArrangementOnlyClip()) anyChangeToSessionClipsPlaying = true;
 							}
 						}
 
@@ -242,7 +242,7 @@ notRecording:
 
 					thisClip->processCurrentPos(modelStackWithTimelineCounter, 0);
 
-					if (!thisClip->isArrangementOnlyClip()) anyChangeToSessionTracksPlaying = true;
+					if (!thisClip->isArrangementOnlyClip()) anyChangeToSessionClipsPlaying = true;
 
 					if (getCurrentUI() == &arrangerView) arrangerView.notifyActiveClipChangedOnOutput(output);
 
@@ -266,7 +266,7 @@ justDoArp:
     	nearestArpTickTime = getMin(ticksTilNextArpEvent, nearestArpTickTime);
 	}
 
-	if (anyChangeToSessionTracksPlaying) {
+	if (anyChangeToSessionClipsPlaying) {
 		uiNeedsRendering(&sessionView, 0, 0xFFFFFFFF);
 	}
 
@@ -345,7 +345,7 @@ void Arrangement::resumeClipInstancePlayback(ClipInstance* clipInstance, bool do
 		ModelStackWithTimelineCounter* modelStack = setupModelStackWithTimelineCounter(modelStackMemory, currentSong, thisClip);
 
 		thisClip->setPos(modelStack, clipPos, true);
-		currentSong->assertActiveness(modelStack); // Why exactly did I do this rather than just setActiveTrack()?
+		currentSong->assertActiveness(modelStack); // Why exactly did I do this rather than just setActiveClip()?
 
 		if (doingComplete && mayActuallyResumeClip) { // Use thisClip->currentPos, not clipPos, cos it's got wrapped in setPos()
 			thisClip->resumePlayback(modelStack); // Do this even if the current pos is 0, otherwise AudioClips can fail to sound because that non-"actual" pos can remain 0 for the whole thing

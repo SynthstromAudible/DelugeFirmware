@@ -25,7 +25,7 @@ typedef __simd64_int16_t int16x4_t;
 
 #define PLAY_HEAD_MODE_REPITCHED_BUFFER 0
 #define PLAY_HEAD_MODE_RAW_REPITCHING 1
-#define PLAY_HEAD_MODE_RAW_STRAIGHT 2
+#define PLAY_HEAD_MODE_RAW_DIRECT 2
 class LivePitchShifter;
 class LiveInputBuffer;
 

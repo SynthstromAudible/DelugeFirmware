@@ -42,6 +42,84 @@ class ModelStackWithSoundFlags;
 class ParamManager;
 class ParamCollectionSummary;
 
+/* ====================== ModelStacks =====================
+ *
+ * This is a system that helps each function keep track of the “things” (objects) it’s dealing with while it runs.
+ * These “things” often include the Song, the Clip, the NoteRow - that sort of thing.
+ * This was only introduced into the Deluge’s codebase only in 2020 - some functions do not (yet) use it.
+ * Its inclusion has been beneficial to the codebase’s ease-of-modification, as well as code tidiness,
+ * and probably a very slight performance improvement.
+ *
+ * Previously, the Deluge’s functions had to be passed these individual “things” as arguments
+ * - a function might need to be passed a Clip and an AutoParam, say.
+ * However, if I later decided that a function needed additional access - say to the relevant ParamCollection,
+ * this could be tiresome to change, since the function’s caller might not have this,
+ * so its caller would have to pass it through, but that caller might not have it either - etc.
+ * Also, all this passing of arguments can’t be good for the compiled code’s efficiency and RAM / stack / register usage.
+ *
+ * Another option would be for each “thing”, as stored in memory to include a pointer to its “parent” object.
+ * E.g. each Clip would contain a pointer back to the Song, so that any function dealing with the
+ * Clip could also find the Song. However, this would be unsatisfactory and inefficient because RAM
+ * storage and access would be being used for something which theoretically the code should just be able to “know”.
+ *
+ * Enter my (Rohan’s) own invented solution, “ModelStacks” - a “stack” of the relevant parts of the “model”
+ * (objects representing the makeup of a project on the Deluge) which the currently executing functions are dealing with.
+ * Things can be “pushed and popped” (though the implementation doesn’t quite put it that way)
+ * onto and off the ModelStack as needed. Now all that needs to be passed between functions is the
+ * pointer to the ModelStack - no other memory or pointers need copying (except in special cases),
+ * and no additional arguments need to be passed. The ModelStack typically exists in program stack memory.
+ *
+ * For example, suppose a Song needs to call a function on all Clips. The ModelStack begins by containing just the Song.
+ * Then as each Clip has its function called, that Clip is set on the ModelStack.
+ * And suppose each Clip then needs to call a function on its ParamManager - that’s pushed onto the ModelStack too.
+ * So now, if the ParamManager, or anything else lower-level, needs access to the Song or Clip,
+ * it’s right there on the ModelStack. The code now just “knows” what this stuff is, which I consider to be the
+ * way it “should” be: a human reading / debugging / understanding the code will know what these higher-up objects are,
+ * so why shouldn’t the code also have an intrinsic way to “know”?
+ *
+ * This is additionally beneficial because, suppose we decide at some future point that there needs to be
+ * some new object inserted between Songs and Clips - maybe each Clip now belongs to a ClipGroup. We can
+ * now mandate that the addClip() call is only available on a newly implemented ModelStackWithClipGroup,
+ * for which having a ClipGroup is now a prerequisite. By simply trying to compile the code, the compiler
+ * will generate errors, showing us everywhere that needs to be modified to add a relevant ClipGroup to the ModelStack
+ * - still a bit of a task, but far easier as it will only be functions at higher-up levels that need to add
+ * the ClipGroup, and then we can just take it for granted that it’s there in the ModelStack. The alternative would
+ * be having to modify many functions all the way down the “tree” of the object / model structure, to accept a
+ * ClipGroup as an argument, so that it can be passed down to the next thing / object.
+ *
+ * Another advantage is that error checking can be built into the ModelStack - which may also be easily
+ * switched off for certain builds. For example, there are many instances in the Deluge codebase where
+ * ModelStackWithTimelineCounter::getTimelineCounter() is called - usually to get the Clip
+ * (TimelineCounter is a base class of Clip). We know that the returned TimelineCounter is not allowed to be NULL.
+ * Rather than insert error checking into every instance of such a call to ensure that it wasn’t passed a NULL,
+ * we can instead have getTimelineCounter() itself perform the check for us and generate an error if need be,
+ * all in a single line of code.
+ *
+ * One disadvantage is that some simple function calls on a “leaf” / low-level object such as AutoParam
+ * now require an entire ModelStack to be built up and provided, even if the function only in fact needed
+ * to know about one parent object - e.g. the Clip. However, in practice, I’ve observed very few cases
+ * where ModelStacks get populated unnecessarily - especially as ModelStacks are implemented more widely
+ * throughout the codebase, so most functions already have a relevant ModelStack to pass further down the line.
+ *
+ * Another potential pitfall - suppose a “leaf” / low-level object - say AutoParam - needs to call a function
+ * on its parent ParamCollection. In this sort of case, which is very common too, the ModelStack is passed back
+ * upwards in the “tree hierarchy”. But now, what if this function in ParamCollection now needs to do something
+ * that requires calling a function on each of its AutoParams? If it sets the AutoParam on the ModelStack, then
+ * the original AutoParam - to which execution will eventually be returned - is no longer there on the ModelStack,
+ * which may break things and we might not realise as we write the code. Ideally, I wish there was a solution
+ * where we know that so long as the code compiles, we’re not at risk of overwriting anything on the ModelStack
+ * that might be needed. I couldn’t devise a nice solution to this other than just exercising caution as the programmer.
+ * My memory doesn’t quite serve me here - I experimented with having functions only accept a const ModelStack*
+ * (which is now the case for many of the functions and I can’t quite remember why, sorry!) but this somehow did not
+ * provide a solution for the code to be immune to the pitfall identified above.
+ *
+ * I’m actually not sure how fields like game development deal with similar problems, which they must
+ * encounter as e.g. a “world” might contain many “levels”, which might also contain many “enemies”
+ * - a tree-like structure which the code must have to traverse, like on the Deluge. I tried Googling it,
+ * but couldn’t find anything about a standard approach to this. Perhaps the each-object-stores-a-pointer-to-its-parent
+ * solution, as I mentioned above, is the norm? If you know, I’d be really interested to know!
+ */
+
 class ModelStack {
 public:
 	Song* song;

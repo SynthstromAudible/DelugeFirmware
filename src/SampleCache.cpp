@@ -15,76 +15,76 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <AudioFileManager.h>
 #include <Cluster.h>
 #include "SampleCache.h"
-#include "SampleManager.h"
 #include "uart.h"
 #include "numericdriver.h"
 #include "Sample.h"
 #include "GeneralMemoryAllocator.h"
 
-SampleCache::SampleCache(Sample* newSample, int newNumChunks, int newWaveformLengthBytes, int newPhaseIncrement, int newTimeStretchRatio, int newSkipSamplesAtStart) {
+SampleCache::SampleCache(Sample* newSample, int newNumClusters, int newWaveformLengthBytes, int newPhaseIncrement, int newTimeStretchRatio, int newSkipSamplesAtStart) {
 	sample = newSample;
 	phaseIncrement = newPhaseIncrement;
 	timeStretchRatio = newTimeStretchRatio;
 	writeBytePos = 0;
 #if ALPHA_OR_BETA_VERSION
-	numChunks = newNumChunks;
+	numClusters = newNumClusters;
 #endif
 	waveformLengthBytes = newWaveformLengthBytes;
 	skipSamplesAtStart = newSkipSamplesAtStart;
 	/*
-	for (int i = 0; i < numChunks; i++) {
-		loadedSampleChunks[i] = NULL; // We don't actually have to initialize these, since writeBytePos tells us how many are "valid"
+	for (int i = 0; i < numClusters; i++) {
+		clusters[i] = NULL; // We don't actually have to initialize these, since writeBytePos tells us how many are "valid"
 	}
 	*/
 }
 
 SampleCache::~SampleCache()
 {
-	unlinkChunks(0, true);
+	unlinkClusters(0, true);
 }
 
 
-void SampleCache::chunkStolen(int chunkIndex) {
+void SampleCache::clusterStolen(int clusterIndex) {
 
 #if ALPHA_OR_BETA_VERSION
-	if (chunkIndex < 0) numericDriver.freezeWithError("E296");
-	else if (chunkIndex >= numChunks) numericDriver.freezeWithError("E297");
+	if (clusterIndex < 0) numericDriver.freezeWithError("E296");
+	else if (clusterIndex >= numClusters) numericDriver.freezeWithError("E297");
 #endif
 
-	Uart::println("cache chunk stolen");
+	Uart::println("cache Cluster stolen");
 
-	// There's now no point in having any further chunks
-	unlinkChunks(chunkIndex + 1, false); // Must do this before changing writeBytePos
+	// There's now no point in having any further Clusters
+	unlinkClusters(clusterIndex + 1, false); // Must do this before changing writeBytePos
 
 	uint8_t bytesPerSample = sample->numChannels * CACHE_BYTE_DEPTH;
 
-	writeBytePos = (uint32_t)((uint32_t)((chunkIndex << sampleManager.clusterSizeMagnitude) + bytesPerSample - 1) / bytesPerSample) * bytesPerSample; // Make it a multiple of bytesPerSample - but round up.
+	writeBytePos = (uint32_t)((uint32_t)((clusterIndex << audioFileManager.clusterSizeMagnitude) + bytesPerSample - 1) / bytesPerSample) * bytesPerSample; // Make it a multiple of bytesPerSample - but round up.
 																																// If you try and simplify this, make sure it still works for 0 and doesn't go negative or anything!
 
 #if ALPHA_OR_BETA_VERSION
 	if (writeBytePos < 0) numericDriver.freezeWithError("E298");
 	else if (writeBytePos >= waveformLengthBytes) numericDriver.freezeWithError("E299");
 
-	int numExistentChunks = getNumExistentChunks(writeBytePos);
+	int numExistentClusters = getNumExistentClusters(writeBytePos);
 
-	if (numExistentChunks != chunkIndex) {
+	if (numExistentClusters != clusterIndex) {
 		numericDriver.freezeWithError("E295");
 	}
-	loadedSampleChunks[chunkIndex] = NULL; // No need to remove this first chunk from a queue or anything - that's already all done by the thing that's stealing it
+	clusters[clusterIndex] = NULL; // No need to remove this first Cluster from a queue or anything - that's already all done by the thing that's stealing it
 #endif
 }
 
-void SampleCache::unlinkChunks(int startAtIndex, bool beingDestructed) {
-	// And there's now no point in having any further chunks
-	int numExistentChunks = getNumExistentChunks(writeBytePos);
-	for (int i = startAtIndex; i < numExistentChunks; i++) {
-		if (ALPHA_OR_BETA_VERSION && !loadedSampleChunks[i]) numericDriver.freezeWithError("E167");
+void SampleCache::unlinkClusters(int startAtIndex, bool beingDestructed) {
+	// And there's now no point in having any further Clusters
+	int numExistentClusters = getNumExistentClusters(writeBytePos);
+	for (int i = startAtIndex; i < numExistentClusters; i++) {
+		if (ALPHA_OR_BETA_VERSION && !clusters[i]) numericDriver.freezeWithError("E167");
 
-		sampleManager.deallocateLoadedSampleChunk(loadedSampleChunks[i]);
+		audioFileManager.deallocateCluster(clusters[i]);
 
-		if (ALPHA_OR_BETA_VERSION && !beingDestructed) loadedSampleChunks[i] = NULL;
+		if (ALPHA_OR_BETA_VERSION && !beingDestructed) clusters[i] = NULL;
 	}
 }
 
@@ -99,98 +99,98 @@ void SampleCache::setWriteBytePos(int newWriteBytePos) {
 	if (newWriteBytePos != (uint32_t)newWriteBytePos / bytesPerSample * bytesPerSample) numericDriver.freezeWithError("E302");
 #endif
 
-	// When setting it earlier, we may have to discard some chunks.
+	// When setting it earlier, we may have to discard some Clusters.
 	// Remember, a cache cluster actually gets (bytesPerSample - 1) extra usable bytes after it.
 
-	int newNumExistentChunks = getNumExistentChunks(newWriteBytePos);
-	unlinkChunks(newNumExistentChunks, false);
+	int newNumExistentClusters = getNumExistentClusters(newWriteBytePos);
+	unlinkClusters(newNumExistentClusters, false);
 
 	writeBytePos = newWriteBytePos;
 
-	if (ALPHA_OR_BETA_VERSION && getNumExistentChunks(writeBytePos) != newNumExistentChunks) numericDriver.freezeWithError("E294");
+	if (ALPHA_OR_BETA_VERSION && getNumExistentClusters(writeBytePos) != newNumExistentClusters) numericDriver.freezeWithError("E294");
 }
 
 
 
-// Does not move the new chunk to the appropriate "availability queue", because it's expected that the caller is just about to call getChunk(), to get it,
-// which will call prioritizeNotStealingChunk(), and that'll do it
-bool SampleCache::setupNewChunk(int chunkIndex) {
-	//Uart::println("writing cache to new chunk");
+// Does not move the new Cluster to the appropriate "availability queue", because it's expected that the caller is just about to call getCluster(), to get it,
+// which will call prioritizeNotStealingCluster(), and that'll do it
+bool SampleCache::setupNewCluster(int clusterIndex) {
+	//Uart::println("writing cache to new Cluster");
 
 #if ALPHA_OR_BETA_VERSION
-	if (chunkIndex >= numChunks) numericDriver.freezeWithError("E126");
-	if (chunkIndex > getNumExistentChunks(writeBytePos)) numericDriver.freezeWithError("E293");
+	if (clusterIndex >= numClusters) numericDriver.freezeWithError("E126");
+	if (clusterIndex > getNumExistentClusters(writeBytePos)) numericDriver.freezeWithError("E293");
 #endif
 
-	loadedSampleChunks[chunkIndex] = sampleManager.allocateLoadedSampleChunk(LOADED_SAMPLE_CHUNK_SAMPLE_CACHE, false, this); // Do not add reasons, and don't steal from this SampleCache
-	if (!loadedSampleChunks[chunkIndex]) { // If that allocation failed...
+	clusters[clusterIndex] = audioFileManager.allocateCluster(CLUSTER_SAMPLE_CACHE, false, this); // Do not add reasons, and don't steal from this SampleCache
+	if (!clusters[clusterIndex]) { // If that allocation failed...
 		Uart::println("allocation fail");
 		return false;
 	}
 
-	loadedSampleChunks[chunkIndex]->chunkIndex = chunkIndex;
-	loadedSampleChunks[chunkIndex]->sampleCache = this;
+	clusters[clusterIndex]->clusterIndex = clusterIndex;
+	clusters[clusterIndex]->sampleCache = this;
 
 	return true;
 }
 
 
 
-void SampleCache::prioritizeNotStealingChunk(int chunkIndex) {
+void SampleCache::prioritizeNotStealingCluster(int clusterIndex) {
 
-	if (generalMemoryAllocator.getRegion(loadedSampleChunks[chunkIndex]) != MEMORY_REGION_SDRAM) return; // Sorta just have to do this
+	if (generalMemoryAllocator.getRegion(clusters[clusterIndex]) != MEMORY_REGION_SDRAM) return; // Sorta just have to do this
 
-	// This ensures, one chunk at a time, that this Cache's chunks are right at the far end of their queue (so won't be stolen for a while),
-	// but in reverse order so that the later-in-sample of those cache chunks will be stolen first
+	// This ensures, one Cluster at a time, that this Cache's Clusters are right at the far end of their queue (so won't be stolen for a while),
+	// but in reverse order so that the later-in-sample of those cache Clusters will be stolen first
 
 	// Remember, cache clusters never have "reasons", so we can assume these are already in one of the stealableClusterQueues, ready to be "stolen".
 
-	// First chunk
-	if (chunkIndex == 0) {
-		if (loadedSampleChunks[chunkIndex]->list != &generalMemoryAllocator.regions[MEMORY_REGION_SDRAM].stealableClusterQueues[STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE]
-				|| !loadedSampleChunks[chunkIndex]->isLast()) {
+	// First Cluster
+	if (clusterIndex == 0) {
+		if (clusters[clusterIndex]->list != &generalMemoryAllocator.regions[MEMORY_REGION_SDRAM].stealableClusterQueues[STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE]
+				|| !clusters[clusterIndex]->isLast()) {
 
-			loadedSampleChunks[chunkIndex]->remove(); // Remove from old list, if it was already in one (might not have been).
-			generalMemoryAllocator.regions[MEMORY_REGION_SDRAM].stealableClusterQueues[STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE].addToEnd(loadedSampleChunks[chunkIndex]);
+			clusters[clusterIndex]->remove(); // Remove from old list, if it was already in one (might not have been).
+			generalMemoryAllocator.regions[MEMORY_REGION_SDRAM].stealableClusterQueues[STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE].addToEnd(clusters[clusterIndex]);
 			generalMemoryAllocator.regions[MEMORY_REGION_SDRAM].stealableClusterQueueLongestRuns[STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE] = 0xFFFFFFFF; // TODO: make good.
 		}
 	}
 
-	// Later chunks
+	// Later Clusters
 	else {
 
-		if (generalMemoryAllocator.getRegion(loadedSampleChunks[chunkIndex - 1]) != MEMORY_REGION_SDRAM) return; // Sorta just have to do this
+		if (generalMemoryAllocator.getRegion(clusters[clusterIndex - 1]) != MEMORY_REGION_SDRAM) return; // Sorta just have to do this
 
-		// In most cases, we'll want to do this thing to alter the ordering - including if the chunk in question hasn't actually been added to a queue at all yet,
-		// because this functions serves the additional purpose of being what puts chunks in their queue in the first place.
-		if (loadedSampleChunks[chunkIndex]->list != &generalMemoryAllocator.regions[MEMORY_REGION_SDRAM].stealableClusterQueues[STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE]
+		// In most cases, we'll want to do this thing to alter the ordering - including if the Cluster in question hasn't actually been added to a queue at all yet,
+		// because this functions serves the additional purpose of being what puts Clusters in their queue in the first place.
+		if (clusters[clusterIndex]->list != &generalMemoryAllocator.regions[MEMORY_REGION_SDRAM].stealableClusterQueues[STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE]
 				||
-				loadedSampleChunks[chunkIndex]->next != loadedSampleChunks[chunkIndex - 1]) {
+				clusters[clusterIndex]->next != clusters[clusterIndex - 1]) {
 
-			loadedSampleChunks[chunkIndex]->remove(); // Remove from old list, if it was already in one (might not have been).
-			loadedSampleChunks[chunkIndex - 1]->insertOtherNodeBefore(loadedSampleChunks[chunkIndex]);
+			clusters[clusterIndex]->remove(); // Remove from old list, if it was already in one (might not have been).
+			clusters[clusterIndex - 1]->insertOtherNodeBefore(clusters[clusterIndex]);
 			// TODO: invalidate longest run length on new queue?
 		}
 	}
 }
 
 
-Cluster* SampleCache::getChunk(int chunkIndex) {
-	prioritizeNotStealingChunk(chunkIndex);
-	return loadedSampleChunks[chunkIndex];
+Cluster* SampleCache::getCluster(int clusterIndex) {
+	prioritizeNotStealingCluster(clusterIndex);
+	return clusters[clusterIndex];
 }
 
 
-int SampleCache::getNumExistentChunks(int32_t thisWriteBytePos) {
+int SampleCache::getNumExistentClusters(int32_t thisWriteBytePos) {
 	int bytesPerSample = sample->numChannels * CACHE_BYTE_DEPTH;
 
-	// Remember, a cache cluster actually gets (bytesPerSample - 1) extra usable bytes after it.
-	int numExistentChunks = (thisWriteBytePos + sampleManager.clusterSize - bytesPerSample) >> sampleManager.clusterSizeMagnitude;
+	// Remember, a cache Cluster actually gets (bytesPerSample - 1) extra usable bytes after it.
+	int numExistentClusters = (thisWriteBytePos + audioFileManager.clusterSize - bytesPerSample) >> audioFileManager.clusterSizeMagnitude;
 
 #if ALPHA_OR_BETA_VERSION
-	if (numExistentChunks < 0) numericDriver.freezeWithError("E303");
-	if (numExistentChunks > numChunks) numericDriver.freezeWithError("E304");
+	if (numExistentClusters < 0) numericDriver.freezeWithError("E303");
+	if (numExistentClusters > numClusters) numericDriver.freezeWithError("E304");
 #endif
 
-	return numExistentChunks;
+	return numExistentClusters;
 }

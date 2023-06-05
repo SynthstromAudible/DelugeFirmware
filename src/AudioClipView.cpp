@@ -267,7 +267,7 @@ void AudioClipView::transitionToSessionView() {
 
 		PadLEDs::setupAudioClipCollapseOrExplodeAnimation(getClip());
 
-		PadLEDs::recordTransitionBegin(trackCollapseSpeed);
+		PadLEDs::recordTransitionBegin(clipCollapseSpeed);
 		PadLEDs::renderAudioClipExpandOrCollapse();
 	}
 }
@@ -330,7 +330,7 @@ dontDeactivateMarker:
     	if (on) {
     		if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 
-			// Clear track
+			// Clear Clip
 			Action* action = actionLogger.getNewAction(ACTION_CLIP_CLEAR, false);
 
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];

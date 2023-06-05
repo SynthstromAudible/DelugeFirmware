@@ -33,11 +33,11 @@
 #include <ParamManager.h>
 #include "Kit.h"
 #include "Slicer.h"
-#include "SampleManager.h"
+#include <AudioFileManager.h>
 #include <Cluster.h>
 #include "WaveTable.h"
 #include "NumericLayerScrollingText.h"
-#include "SampleManager.h"
+#include <AudioFileManager.h>
 #include "ActionLogger.h"
 #include "MultisampleRange.h"
 #include "GeneralMemoryAllocator.h"
@@ -166,7 +166,6 @@ dissectionDone:
 	IndicatorLEDs::setLedState(kitLedX, kitLedY, soundEditor.editingKit());
 
 	IndicatorLEDs::setLedState(crossScreenEditLedX, crossScreenEditLedY, false);
-	//IndicatorLEDs::setLedState(trackViewLedX, trackViewLedY, false);
 	IndicatorLEDs::setLedState(sessionViewLedX, sessionViewLedY, false);
 	IndicatorLEDs::setLedState(scaleModeLedX, scaleModeLedY, false);
 
@@ -366,7 +365,7 @@ void SampleBrowser::enterKeyPress() {
 			// If user wants to slice...
 			if (Buttons::isShiftButtonPressed()) {
 
-				// Can only do this for Kit Tracks, and for source 0, not 1, AND there has to be only one drum present, which is assigned to the first NoteRow
+				// Can only do this for Kit Clips, and for source 0, not 1, AND there has to be only one drum present, which is assigned to the first NoteRow
 				if (currentSong->currentClip->type == CLIP_TYPE_INSTRUMENT && canImportWholeKit()) {
 					numericDriver.displayPopup("SLICER");
 					openUI(&slicer);
@@ -411,7 +410,7 @@ int SampleBrowser::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 						return ACTION_RESULT_DEALT_WITH;
 					}
 
-					bool allFine = sampleManager.tryToDeleteAudioFileFromMemoryIfItExists(filePath.get());
+					bool allFine = audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(filePath.get());
 
 					if (!allFine) {
 						numericDriver.displayPopup(
@@ -718,7 +717,7 @@ int SampleBrowser::claimAudioFileForInstrument(bool makeWaveTableWorkAtAllCosts)
 	int error = getCurrentFilePath(&holder->filePath);
 	if (error) return error;
 
-	return holder->loadFile(soundEditor.currentSource->sampleControls.reversed, true, true, CHUNK_ENQUEUE, 0, makeWaveTableWorkAtAllCosts);
+	return holder->loadFile(soundEditor.currentSource->sampleControls.reversed, true, true, CLUSTER_ENQUEUE, 0, makeWaveTableWorkAtAllCosts);
 }
 
 int SampleBrowser::claimAudioFileForAudioClip() {
@@ -1072,7 +1071,7 @@ void sortSamples(bool (*sortFunction)(Sample*, Sample*), int numSamples, Sample*
 	// Go through various iterations of numComparing
 	while (numComparing < numSamples) {
 
-		AudioEngine::routineWithChunkLoading(); // --------------------------------------------------
+		AudioEngine::routineWithClusterLoading(); // --------------------------------------------------
 
 		// And now, for this selected comparison size, do a number of comparisions
 		for (int whichComparison = 0; whichComparison * numComparing * 2 < numSamples; whichComparison++) {
@@ -1162,8 +1161,8 @@ bool SampleBrowser::loadAllSamplesInFolder(bool detectPitch, int* getNumSamples,
 	if (false) {
 removeReasonsFromSamplesAndGetOut:
 		// Remove reasons from any samples we loaded in just before
-		for (int e = 0; e < sampleManager.audioFiles.getNumElements(); e++) {
-			AudioFile* audioFile = (AudioFile*)sampleManager.audioFiles.getElement(e);
+		for (int e = 0; e < audioFileManager.audioFiles.getNumElements(); e++) {
+			AudioFile* audioFile = (AudioFile*)audioFileManager.audioFiles.getElement(e);
 
 			if (audioFile->type == AUDIO_FILE_TYPE_SAMPLE) {
 				Sample* thisSample = (Sample*)audioFile;
@@ -1172,7 +1171,7 @@ removeReasonsFromSamplesAndGetOut:
 				if (thisSample->partOfFolderBeingLoaded) {
 					thisSample->partOfFolderBeingLoaded = false;
 	#if ALPHA_OR_BETA_VERSION
-					if (thisSample->numReasons <= 0) numericDriver.freezeWithError("E213"); // I put this here to try and catch an E004 Luc got
+					if (thisSample->numReasonsToBeLoaded <= 0) numericDriver.freezeWithError("E213"); // I put this here to try and catch an E004 Luc got
 	#endif
 					thisSample->removeReason("E392"); // Remove that temporary reason we added
 				}
@@ -1184,7 +1183,7 @@ removeReasonsFromSamplesAndGetOut:
 	}
 
 
-	AudioEngine::routineWithChunkLoading(); // --------------------------------------------------
+	AudioEngine::routineWithClusterLoading(); // --------------------------------------------------
 
 
 	int numCharsInPrefixForFolderLoad = 65535;
@@ -1198,7 +1197,7 @@ removeReasonsFromSamplesAndGetOut:
 	}
 
 	while (true) {
-        sampleManager.loadAnyEnqueuedSampleChunks();
+        audioFileManager.loadAnyEnqueuedClusters();
 		FilePointer thisFilePointer;
 
 		result = f_readdir_get_filepointer(&staticDIR, &staticFNO, &thisFilePointer);                   /* Read a directory item */
@@ -1224,7 +1223,7 @@ removeReasonsFromSamplesAndGetOut:
 
 		filePath.concatenateAtPos(staticFNO.fname, dirWithSlashLength);
 
-		Sample* newSample = (Sample*)sampleManager.getAudioFileFromFilename(&filePath, true, &error, &thisFilePointer, AUDIO_FILE_TYPE_SAMPLE); // We really want to be able to pass a file pointer in here
+		Sample* newSample = (Sample*)audioFileManager.getAudioFileFromFilename(&filePath, true, &error, &thisFilePointer, AUDIO_FILE_TYPE_SAMPLE); // We really want to be able to pass a file pointer in here
 		if (error || !newSample) {
 			f_closedir(&staticDIR);
 			goto removeReasonsFromSamplesAndGetOut;
@@ -1276,8 +1275,8 @@ removeReasonsFromSamplesAndGetOut:
 
 	// Go through each sample in memory that was from the folder in question, adding them to our pointer list
 	int sampleI = 0;
-	for (int e = 0; e < sampleManager.audioFiles.getNumElements(); e++) {
-		AudioFile* audioFile = (AudioFile*)sampleManager.audioFiles.getElement(e);
+	for (int e = 0; e < audioFileManager.audioFiles.getNumElements(); e++) {
+		AudioFile* audioFile = (AudioFile*)audioFileManager.audioFiles.getElement(e);
 
 		if (audioFile->type == AUDIO_FILE_TYPE_SAMPLE) {
 
@@ -1559,7 +1558,7 @@ doReturnFalse:
 
 	Uart::println("loaded and sorted samples");
 
-	AudioEngine::routineWithChunkLoading(); // --------------------------------------------------
+	AudioEngine::routineWithClusterLoading(); // --------------------------------------------------
 
 	// Delete all but first pre-existing range
 	int oldNumRanges = soundEditor.currentSource->ranges.getNumElements();
@@ -1579,7 +1578,7 @@ doReturnFalse:
 			for (int s = 0; s < numSamples; s++) {
 				Sample* thisSample = sortArea[s];
 #if ALPHA_OR_BETA_VERSION
-				if (thisSample->numReasons <= 0) numericDriver.freezeWithError("E215"); // I put this here to try and catch an E004 Luc got
+				if (thisSample->numReasonsToBeLoaded <= 0) numericDriver.freezeWithError("E215"); // I put this here to try and catch an E004 Luc got
 #endif
 				thisSample->removeReason("E393"); // Remove that temporary reason we added above
 			}
@@ -1659,7 +1658,7 @@ skipOctaveCorrection:
 
 	for (int s = 0; s < numSamples; s++) {
 
-		if (!(s & 31)) AudioEngine::routineWithChunkLoading(); // --------------------------------------------------
+		if (!(s & 31)) AudioEngine::routineWithClusterLoading(); // --------------------------------------------------
 
 		Sample* thisSample = sortArea[s];
 
@@ -1713,7 +1712,7 @@ skipOctaveCorrection:
 		if (thisSample->fileLoopEndSamples) numWithFileLoopPoints++;
 		if (range->sampleHolder.loopEndPos) numWithResultingLoopEndPoints++;
 
-		if (ALPHA_OR_BETA_VERSION && thisSample->numReasons <= 0) numericDriver.freezeWithError("E216"); // I put this here to try and catch an E004 Luc got
+		if (ALPHA_OR_BETA_VERSION && thisSample->numReasonsToBeLoaded <= 0) numericDriver.freezeWithError("E216"); // I put this here to try and catch an E004 Luc got
 		thisSample->removeReason("E394"); // Remove that temporary reason we added above
 
 		rangeIndex++;
@@ -1911,7 +1910,7 @@ getOut:
 			source->repeatMode = (thisSample->getLengthInMSec() < 2002) ? SAMPLE_REPEAT_ONCE : SAMPLE_REPEAT_CUT;
 
 	#if ALPHA_OR_BETA_VERSION
-			if (thisSample->numReasons <= 0) numericDriver.freezeWithError("E217"); // I put this here to try and catch an E004 Luc got
+			if (thisSample->numReasonsToBeLoaded <= 0) numericDriver.freezeWithError("E217"); // I put this here to try and catch an E004 Luc got
 	#endif
 			thisSample->removeReason("E395");
 		}

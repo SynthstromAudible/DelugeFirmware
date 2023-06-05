@@ -16,6 +16,7 @@
 */
 
 #include <AudioEngine.h>
+#include <AudioFileManager.h>
 #include <Cluster.h>
 #include <InstrumentClip.h>
 #include <InstrumentClipMinder.h>
@@ -33,7 +34,6 @@
 #include "Kit.h"
 #include "song.h"
 #include "uitimermanager.h"
-#include "SampleManager.h"
 #include "ActionLogger.h"
 #include <string.h>
 #include "GeneralMemoryAllocator.h"
@@ -201,7 +201,7 @@ void AudioRecorder::slowRoutine() {
 void AudioRecorder::process() {
 	while (true) {
 
-	    AudioEngine::routineWithChunkLoading();
+	    AudioEngine::routineWithClusterLoading();
 
 		uiTimerManager.routine();
 

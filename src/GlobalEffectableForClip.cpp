@@ -104,7 +104,7 @@ void GlobalEffectableForClip::renderOutput(ModelStackWithTimelineCounter* modelS
 
 	static StereoSample globalEffectableBuffer[SSI_TX_BUFFER_NUM_SAMPLES] __attribute__ ((aligned (CACHE_LINE_SIZE)));
 
-	bool canRenderStraightIntoSongBuffer =
+	bool canRenderDirectlyIntoSongBuffer =
 			!isKit()
 			&& !filterSetConfig.doLPF
 			&& !filterSetConfig.doHPF
@@ -119,7 +119,7 @@ void GlobalEffectableForClip::renderOutput(ModelStackWithTimelineCounter* modelS
 			&& getActiveModFXType(paramManagerForClip) == MOD_FX_TYPE_NONE
 			&& stutterer.status == STUTTERER_STATUS_OFF;
 
-	if (canRenderStraightIntoSongBuffer) {
+	if (canRenderDirectlyIntoSongBuffer) {
 
 		int32_t postFXAndReverbVolumeStart = (multiply_32x32_rshift32(postReverbVolumeLastTime, volumePostFX) << 5);
 		if (postFXAndReverbVolumeStart > 134217728) goto doNormal; // If it's too loud, this optimized routine can't handle it. This is a design flaw...

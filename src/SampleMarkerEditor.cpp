@@ -136,7 +136,7 @@ void SampleMarkerEditor::writeValue(uint32_t value, int markerTypeNow) {
 	else if (markerTypeNow == MARKER_END)
 		getCurrentSampleHolder()->endPos = value;
 
-	getCurrentSampleHolder()->claimClusterReasons(getCurrentSampleControls()->reversed, CHUNK_LOAD_IMMEDIATELY_OR_ENQUEUE);
+	getCurrentSampleHolder()->claimClusterReasons(getCurrentSampleControls()->reversed, CLUSTER_LOAD_IMMEDIATELY_OR_ENQUEUE);
 
 	if (clipType == CLIP_TYPE_AUDIO) {
 		if (audioClipActive) {

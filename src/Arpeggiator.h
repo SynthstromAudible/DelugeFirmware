@@ -74,7 +74,7 @@ class ArpeggiatorBase {
 public:
 	virtual void noteOn(ArpeggiatorSettings* settings, int noteCode, int velocity, ArpReturnInstruction* instruction, int fromMIDIChannel, int16_t const* mpeValues) = 0;
 	void render(ArpeggiatorSettings* settings, int numSamples, uint32_t gateThreshold, uint32_t phaseIncrement, ArpReturnInstruction* instruction);
-	int32_t doTickForward(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, uint32_t trackCurrentPos, bool currentlyPlayingReversed);
+	int32_t doTickForward(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, uint32_t ClipCurrentPos, bool currentlyPlayingReversed);
 	virtual bool hasAnyInputNotesActive() = 0;
 	virtual void reset() = 0;
 

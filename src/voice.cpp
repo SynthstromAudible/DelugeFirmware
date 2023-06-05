@@ -16,6 +16,7 @@
  */
 
 #include <AudioEngine.h>
+#include <AudioFileManager.h>
 #include <Cluster.h>
 #include <sound.h>
 #include "voice.h"
@@ -26,7 +27,6 @@
 #include "song.h"
 #include "TimeStretcher.h"
 #include "Sample.h"
-#include "SampleManager.h"
 #include <string.h>
 #include <WaveformRenderer.h>
 #include "playbackhandler.h"
@@ -806,7 +806,7 @@ bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int nu
         			VoiceSample* voiceSample = voiceUnisonPartSource->voiceSample;
 
             		Sample* sample = (Sample*)guides[s].audioFileHolder->audioFile;
-        			Cluster* loadedSampleChunk = voiceSample->loadedSampleChunks[0];
+        			Cluster* cluster = voiceSample->clusters[0];
         			int bytePos = voiceSample->getPlayByteLowLevel(sample, &guides[s]);
 
             		int bytesLeft = (int32_t)((uint32_t)guides[s].endPlaybackAtByte - (uint32_t)bytePos) * guides[s].playDirection;
@@ -988,10 +988,10 @@ bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int nu
 	}
 
 
-	// If various conditions are met, we can cut a corner by rendering straight into the Sound's buffer
-	bool renderingStraightIntoSoundBuffer;
+	// If various conditions are met, we can cut a corner by rendering directly into the Sound's buffer
+	bool renderingDirectlyIntoSoundBuffer;
 
-	// Lots of conditions rule out renderingStraightIntoSoundBuffer right away
+	// Lots of conditions rule out renderingDirectlyIntoSoundBuffer right away
 	if (sound->clippingAmount
 			|| sound->synthMode == SYNTH_MODE_RINGMOD	// We could make this one work - but currently the ringmod rendering code doesn't really have
 																// proper amplitude control - e.g. no increments - built in, so we rely on the normal final
@@ -1000,7 +1000,7 @@ bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int nu
 			|| filterSetConfig->doLPF
 			|| (paramFinalValues[PARAM_LOCAL_NOISE_VOLUME] != 0 && synthMode != SYNTH_MODE_FM) // Not essential, but makes life easier
 			|| paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(PARAM_LOCAL_PAN)) {
-		renderingStraightIntoSoundBuffer = false;
+		renderingDirectlyIntoSoundBuffer = false;
 	}
 
 	// Otherwise, we need to think about whether we're rendering the same number of channels as the Sound
@@ -1014,17 +1014,17 @@ bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int nu
 				bool renderingSourceInStereo = sound->sources[s].renderInStereo((SampleHolder*)guides[s].audioFileHolder);
 
 				if (renderingSourceInStereo != soundRenderingInStereo) {
-					renderingStraightIntoSoundBuffer = false;
+					renderingDirectlyIntoSoundBuffer = false;
 					goto decidedWhichBufferRenderingInto;
 				}
 	    	}
 
 	    	// If still here, no mismatch, so go for it
-	    	renderingStraightIntoSoundBuffer = true;
+	    	renderingDirectlyIntoSoundBuffer = true;
 		}
 		else {
 			// If got here, we're rendering in mono
-			renderingStraightIntoSoundBuffer = (soundRenderingInStereo == false);
+			renderingDirectlyIntoSoundBuffer = (soundRenderingInStereo == false);
 		}
 	}
 decidedWhichBufferRenderingInto:
@@ -1040,10 +1040,10 @@ decidedWhichBufferRenderingInto:
 	int32_t amplitudeL, amplitudeR;
 	bool doPanning;
 
-	// If rendering straight into the Sound's buffer, set up for that.
+	// If rendering directly into the Sound's buffer, set up for that.
 	// Have to modify amplitudes to get the volume right - factoring the "overall" amplitude, which will now not get used in its normal way, into
 	// the oscillator/source amplitudes instead
-	if (renderingStraightIntoSoundBuffer) {
+	if (renderingDirectlyIntoSoundBuffer) {
 		oscBuffer = soundBuffer;
 
 		// Don't modify amplitudes if we're FM, because for that, overallOscAmplitude has already been factored into the oscillator (carrier) amplitudes
@@ -1142,7 +1142,7 @@ decidedWhichBufferRenderingInto:
     	// If any sources need rendering in stereo
     	if (sourcesToRenderInStereo) {
 
-    		if (!renderingStraightIntoSoundBuffer) {
+    		if (!renderingDirectlyIntoSoundBuffer) {
 				// If we've already got something mono in the buffer, copy that to the right-channel buffer
 				if (anythingInOscBuffer) {
 					for (int i = numSamples - 1; i >= 0; i--) {
@@ -1166,7 +1166,7 @@ decidedWhichBufferRenderingInto:
 
 			// Output of stereo oscillator buffer (mono gets done elsewhere, below).
         	// If we're here, we also know that the Sound's buffer is also stereo
-        	if (!renderingStraightIntoSoundBuffer) {
+        	if (!renderingDirectlyIntoSoundBuffer) {
 				int32_t* const oscBufferEnd = oscBuffer + (numSamples << 1);
 
 				// Filters
@@ -1401,7 +1401,7 @@ cantBeDoingOscSyncForFirstOsc:
 
 
     // Output mono osc buffer. This is skipped (via goto statement above) if we ended up with a stereo buffer.
-    if (!renderingStraightIntoSoundBuffer) {
+    if (!renderingDirectlyIntoSoundBuffer) {
 		/*
 		do {
 			int32_t distanceToGoL = *oscBufferPos - hpfMem;

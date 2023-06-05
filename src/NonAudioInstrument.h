@@ -30,7 +30,7 @@ class NonAudioInstrument: public MelodicInstrument, public ModControllable {
 public:
 	NonAudioInstrument(int newType);
 
-	void renderOutput(ModelStack* modelStack, StereoSample *startPos, StereoSample *endPos, int numSamples, int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isTrackActive);
+	void renderOutput(ModelStack* modelStack, StereoSample *startPos, StereoSample *endPos, int numSamples, int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive);
 	void sendNote(ModelStackWithThreeMainThings* modelStack, bool isOn, int noteCode, int16_t const* mpeValues, int fromMIDIChannel = 16, uint8_t velocity = 64, uint32_t sampleSyncLength = 0, int32_t ticksLate = 0, uint32_t samplesLate = 0);
     int32_t doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) final;
     ParamManager* getParamManager(Song* song) final;
