@@ -27,7 +27,8 @@ by *Aria Burrell \<litui@litui.ca\>*
 5. [Modding Your Deluge Enclosure (Optional)](#modifying-your-deluge-enclosure-optional)
     1. [Part I: Making the Debug Umbilical Cord](#part-i-making-the-debug-umbilical-cord)
     2. [Part II: Wiring the SWD Breakout Board](#part-ii-wiring-the-swd-breakout-board)
-    3. [Part III: Making a Hole in Your Chassis]
+    3. [Part III: Making a Hole in Your Chassis](#part-iii-making-a-hole-in-your-chassis)
+    4. [Part IV: Putting It All Together](#part-iv-putting-it-all-together)
 6. [Building and Flashing Your DelugeProbe](#building-and-flashing-your-delugeprobe)
     1. [Part I: Adding a Debug Connector](#part-i-adding-a-debug-connector)
     2. [Part II: Flashing the DelugeProbe Firmware](#part-ii-flashing-the-delugeprobe-firmware)
@@ -198,8 +199,6 @@ Regardless of whether you have a notched shield on your pins, you need to make s
 
 ## Modifying Your Deluge Enclosure (optional)
 
-![Litui's Janky Case Mod](assets/JankyCaseMod.jpg)
-
 **THIS WILL DEFINITELY VOID YOUR HARDWARE WARRANTY**
 
 There are multiple routes you could take to exposing a debug port on the outside of your Deluge. I chose to mod the metal backplate but it occurred to me after the fact that I could have used my CNC router and done a tidier job modding the left wooden panel/ear (if anyone wants to try that and provide CAD/CAM files, send them my way and I'll add them to the guide).
@@ -242,9 +241,45 @@ Keeping each of the wire ends bundled (you don't want stray bits of wire stickin
 
 Using the above as a reference, take note of how the solder points for each wire on the breakout board are *alternating*. Odd numbers down the one side starting at `Vref` (the red wire), and even numbers down the other side ending in `RST`.
 
+Using a vise or helping hand to hold onto the SWD breakout board, solder each wire in place, remembering to alternate sides as in the diagram.
 
-*work-in-progress*
+![Breakout Board with Helping Hand](assets/TheBreakoutBoardWithHelpingHand.jpg)
 
+When complete, it should look something like this:
+
+![Breakout Board Soldered from the Back](assets/BreakoutBoardSolderedRear.jpg)
+
+Now get hold of your Deluge enclosure because you're ready for the scary part...
+
+### Part III: Making a Hole in Your Chassis
+
+Here, you have multiple options as there is a lot of free space on the back panel or the left wooden ear. I opted to measure out the needed space and drill/file the way with a Dremel engraver, but you may have cleaner/more accurate tools at your disposal. My recommendation is to cut a space for the jack below the headphone jack. This way, on the off-chance that it causes any interference it'll only be for you as the listener, not on the inputs or line-outs.
+
+![Litui's Janky Case Mod](assets/JankyCaseMod.jpg)
+
+If you make a bit of a mess, it's not a big deal as you can slap a sticker over it (as I did), but there are cleaner approaches. 
+
+![Back Panel with Sticker](assets/BackPanelSticker.jpg)
+
+I would recommend putting masking tape over the area you'll be cutting temporarily. Not only will you be able to trace the lines you'll need to cut but you'll avoid making unsightly marks on the surface.
+
+Did I follow that advice? No, but I also made a bit of a mess. Your mileage may vary.
+
+### Part IV: Putting It All Together
+
+Now that you have a hole that the connector on the breakout board fits through, crack open that electronics-grade silicone tube you purchased, and apply liberally to both the soldered (top) side of the breakout board and the inside of the Deluge case around where the connector will go. *Avoid* getting silicone inside the connector if at all possible as it will be a pain to get out once cured.
+
+Push the connector through the hole and let the connector and back panel sit for 24 hours to ensure the breakout board doesn't go anywhere. Make sure you cover up your open Deluge with something (perhaps your solder mat) and keep pets and dust away until you're ready to work with it again.
+
+...
+
+After your wait, get ready to put the Deluge back together again, but this time make sure to attach the debug cable to the pins you installed before, as below. Remember, **red wire to white arrow** or, as is visible in the image, red wire *away* from the Renesas chip. Make sure the connector is on properly (over all 10 pins) and pressed down such that it will not move in a closed case.
+
+![Back Panel Siliconed and Attached](assets/BackPanelSiliconedAndAttached.jpg)
+
+Close up your case, put all the screws and knobs back on, and fire it up to make sure everything still works.
+
+Congrats, you're done with the hardest parts!
 
 ## Building and flashing your DelugeProbe
 
@@ -279,7 +314,7 @@ Once wired up, you'll be able to connect the debug cable between your Pico and t
 
 Start by downloading the latest [DelugeProbe .uf2 firmware](https://github.com/litui/delugeprobe/releases/latest). Save it somewhere easily accessible for drag & drop on your computer.
 
-You can also use the [PicoProbe firmware](https://github.com/raspberrypi/picoprobe/releases/latest) or [YAPicoProbe firmware](https://github.com/rgrr/yapicoprobe/releases/latest) if you choose, though your debugging experience may be less tailored to the Deluge's specific hardware if you go with either of these.
+You can also use the [PicoProbe firmware](https://github.com/raspberrypi/picoprobe/releases/latest) or [YAPicoProbe firmware](https://github.com/rgrr/yapicoprobe/releases/latest) if you choose, though your debugging experience may be less tailored to the Deluge's specific hardware if you go with either of these. There are also notable speed improvements in YAPicoProbe and DelugeProbe over the original PicoProbe firmware.
 
 Hold down the **Reset**/**Bootsel** button on the Raspberry Pi Pico and, while continuing to hold the button down, plug it in to your computer via its Micro USB port. Once plugged in, wait a moment then let go of the button.
 
