@@ -27,7 +27,7 @@
 #include "CVEngine.h"
 #include "storagemanager.h"
 #include "song.h"
-#include "Kit.h"
+#include "kit.h"
 #include "numericdriver.h"
 #include "DrumName.h"
 #include "NoteVector.h"

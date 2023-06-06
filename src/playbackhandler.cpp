@@ -30,9 +30,9 @@
 #include <sounddrum.h>
 #include <soundinstrument.h>
 #include <SessionView.h>
-#include "CvEngine.h"
+#include "CVEngine.h"
 #include "soundeditor.h"
-#include "view.h"
+#include "View.h"
 #include "AudioRecorder.h"
 #include "Action.h"
 #include "ActionLogger.h"

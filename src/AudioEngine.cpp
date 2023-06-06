@@ -46,7 +46,7 @@
 #include "AudioOutput.h"
 #include "voice.h"
 #include "revmodel.hpp"
-#include "metronome.h"
+#include "Metronome.h"
 #include "VoiceVector.h"
 #include "definitions.h"
 #include "uart.h"

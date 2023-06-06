@@ -17,7 +17,7 @@
 
 #include <InstrumentClip.h>
 #include <ParamManager.h>
-#include "view.h"
+#include "View.h"
 #include "song.h"
 #include "ParamCollection.h"
 #include "playbackhandler.h"

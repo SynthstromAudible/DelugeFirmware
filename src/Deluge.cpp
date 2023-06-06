@@ -40,7 +40,7 @@
 #include "UI.h"
 #include "song.h"
 #include "soundeditor.h"
-#include "audiosample.h"
+#include "AudioSample.h"
 #include "saveinstrumentpresetui.h"
 #include "CVEngine.h"
 #include "numericdriver.h"

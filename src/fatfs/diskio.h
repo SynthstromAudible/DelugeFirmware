@@ -9,7 +9,7 @@
 extern "C" {
 #endif
 
-#include "FF.h" // Added by Rohan, otherwise errors
+#include "ff.h" // Added by Rohan, otherwise errors
 
 
 /* Status of Disk Functions */

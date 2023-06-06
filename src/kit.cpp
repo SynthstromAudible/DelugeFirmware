@@ -26,7 +26,7 @@
 #include "storagemanager.h"
 #include "drum.h"
 #include "functions.h"
-#include "view.h"
+#include "View.h"
 #include <string.h>
 #include <new>
 #include "GeneralMemoryAllocator.h"

@@ -21,7 +21,7 @@
 #include <string.h>
 #include "storagemanager.h"
 #include "song.h"
-#include "view.h"
+#include "View.h"
 #include "uart.h"
 #include "GeneralMemoryAllocator.h"
 #include "ActionLogger.h"

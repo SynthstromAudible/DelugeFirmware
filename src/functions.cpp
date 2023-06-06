@@ -20,7 +20,7 @@
 #include "definitions.h"
 #include "numericdriver.h"
 #include "fatfs/ff.h"
-#include "view.h"
+#include "View.h"
 #include "soundeditor.h"
 #include "ActionLogger.h"
 #include <string.h>

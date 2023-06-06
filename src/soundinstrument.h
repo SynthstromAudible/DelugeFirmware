@@ -20,7 +20,7 @@
 
 #include <sound.h>
 #include "MelodicInstrument.h"
-#include "arpeggiator.h"
+#include "Arpeggiator.h"
 
 class ParamManagerForTimeline;
 class ParamManagerForTimeline;
