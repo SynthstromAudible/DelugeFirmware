@@ -22,7 +22,7 @@
 #include "uart.h"
 #include "song.h"
 #include "playbackhandler.h"
-#include "view.h"
+#include "View.h"
 #include "storagemanager.h"
 #include "numericdriver.h"
 #include "ModelStack.h"

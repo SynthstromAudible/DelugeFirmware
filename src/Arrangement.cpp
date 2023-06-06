@@ -22,7 +22,7 @@
 #include <ParamManager.h>
 #include <SessionView.h>
 #include "Arrangement.h"
-#include "Song.h"
+#include "song.h"
 #include "playbackhandler.h"
 #include "uart.h"
 #include "instrument.h"

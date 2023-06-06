@@ -21,7 +21,7 @@
 #include "FilterSetConfig.h"
 #include "storagemanager.h"
 #include "numericdriver.h"
-#include "view.h"
+#include "View.h"
 #include "matrixdriver.h"
 #include "ActionLogger.h"
 #include "Action.h"

@@ -24,7 +24,7 @@
 #include "envelope.h"
 #include "lfo.h"
 #include "voiceunisonpart.h"
-#include "filterset.h"
+#include "FilterSet.h"
 
 class StereoSample;
 class FilterSetConfig;

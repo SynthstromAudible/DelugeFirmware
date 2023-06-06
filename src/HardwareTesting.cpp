@@ -22,7 +22,7 @@
 #include "CVEngine.h"
 #include <string.h>
 #include "midiengine.h"
-#include "encoders.h"
+#include "Encoders.h"
 #include "oled.h"
 #include "AudioEngine.h"
 #include "RootUI.h"

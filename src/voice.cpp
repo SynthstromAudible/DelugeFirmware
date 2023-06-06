@@ -33,7 +33,7 @@
 #include "WaveTable.h"
 #include "GeneralMemoryAllocator.h"
 #include "MultisampleRange.h"
-#include "storageManager.h"
+#include "storagemanager.h"
 #include "SampleCache.h"
 #include "VoiceSample.h"
 #include "LivePitchShifter.h"

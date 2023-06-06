@@ -36,7 +36,7 @@
 #include "song.h"
 #include "kit.h"
 #include "midiengine.h"
-#include "view.h"
+#include "View.h"
 #include "Note.h"
 #include "DrumName.h"
 #include "Action.h"
