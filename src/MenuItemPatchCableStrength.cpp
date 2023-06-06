@@ -35,6 +35,8 @@
 MenuItemPatchCableStrengthRegular patchCableStrengthMenuRegular;
 MenuItemPatchCableStrengthRange patchCableStrengthMenuRange;
 
+extern bool movingCursor;
+
 #if HAVE_OLED
 void MenuItemPatchCableStrength::renderOLED() {
 
@@ -89,13 +91,16 @@ void MenuItemPatchCableStrength::renderOLED() {
 	                 TEXT_SPACING_X, TEXT_SIZE_Y_UPDATED);
 
 	char buffer[12];
-	intToString(soundEditor.currentValue, buffer, 1);
-	OLED::drawStringAlignRight(buffer, extraY + OLED_MAIN_TOPMOST_PIXEL + 4 + destinationDescriptor.isJustAParam(),
-	                           OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, 18, 20);
+	const int digitWidth = TEXT_BIG_SPACING_X;
+	const int digitHeight = TEXT_BIG_SIZE_Y;
+	intToString(soundEditor.currentValue, buffer, 3);
+	int textPixelY = extraY + OLED_MAIN_TOPMOST_PIXEL + 10 + destinationDescriptor.isJustAParam();
+	OLED::drawStringAlignRight(buffer, textPixelY, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, digitWidth, digitHeight);
 
-	int marginL = destinationDescriptor.isJustAParam() ? 0 : 80;
-	int yBar = destinationDescriptor.isJustAParam() ? 36 : 37;
-	drawBar(yBar, marginL, 0);
+	int ourDigitStartX = OLED_MAIN_WIDTH_PIXELS - (soundEditor.numberEditPos+1) * digitWidth;
+	OLED::setupBlink(ourDigitStartX, digitWidth, 40, 44, movingCursor);
+	OLED::drawVerticalLine(OLED_MAIN_WIDTH_PIXELS-2*digitWidth,   textPixelY+digitHeight+1, textPixelY+digitHeight+3, OLED::oledMainImage);
+	OLED::drawVerticalLine(OLED_MAIN_WIDTH_PIXELS-2*digitWidth-1, textPixelY+digitHeight+1, textPixelY+digitHeight+3, OLED::oledMainImage);
 }
 #endif
 
@@ -105,7 +110,9 @@ void MenuItemPatchCableStrength::readCurrentValue() {
 	if (c == 255) soundEditor.currentValue = 0;
 	else {
 		int32_t paramValue = patchCableSet->patchCables[c].param.getCurrentValue();
-		soundEditor.currentValue = ((int64_t)paramValue * 50 + 536870912) >> 30;
+		// the internal values are stored in the range -(2^30) to 2^30.
+		// rescale them to the range -5000 to 5000 and round to nearest.
+		soundEditor.currentValue = ((int64_t)paramValue * 5000 + (1 << 29)) >> 30;
 	}
 }
 
@@ -126,7 +133,8 @@ void MenuItemPatchCableStrength::writeCurrentValue() {
 	ModelStackWithAutoParam* modelStackWithParam = getModelStack(modelStackMemory, true);
 	if (!modelStackWithParam->autoParam) return;
 
-	int32_t finalValue = soundEditor.currentValue * 21474836;
+	// rescale from 5000 to 2**30. The magic constant is ((2^30)/5000), shifted 32 bits for precision ((1<<(30+32))/5000)
+	int32_t finalValue = ((int64_t)922337203685477*soundEditor.currentValue) >> 32;
 	modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(finalValue, modelStackWithParam);
 }
 
@@ -187,17 +195,6 @@ MenuItem* MenuItemPatchCableStrength::selectButtonPress() {
 }
 
 // MenuItemPatchCableStrengthRegular ----------------------------------------------------------------------------
-
-#if !HAVE_OLED
-void MenuItemPatchCableStrengthRegular::drawValue() {
-
-	PatchCableSet* patchCableSet = soundEditor.currentParamManager->getPatchCableSet();
-
-	uint8_t drawDot = patchCableSet->doesDestinationDescriptorHaveAnyCables(getLearningThing()) ? 3 : 255;
-
-	numericDriver.setTextAsNumber(soundEditor.currentValue, drawDot);
-}
-#endif
 
 MenuItem* MenuItemPatchCableStrengthRegular::selectButtonPress() {
 
@@ -268,12 +265,6 @@ MenuItem* MenuItemPatchCableStrengthRegular::patchingSourceShortcutPress(int s, 
 }
 
 // MenuItemPatchCableStrengthRange ----------------------------------------------------------------------------
-
-#if !HAVE_OLED
-void MenuItemPatchCableStrengthRange::drawValue() {
-	numericDriver.setTextAsNumber(soundEditor.currentValue);
-}
-#endif
 
 ParamDescriptor MenuItemPatchCableStrengthRange::getLearningThing() {
 	ParamDescriptor paramDescriptor;
