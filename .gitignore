@@ -14,3 +14,4 @@
 /e2-build-release-oled/
 *.launch
 /toolchain/*
+src/drivers/RZA1/cpu_specific.h
