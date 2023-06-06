@@ -1,4 +1,4 @@
-*You're looking at the Deluge Firmware official firmware repository, maintained only by Synthstrom Audible. If you're looking to get started with this codebase, we recommend you instead check out the DelugeFirmwareCommunity repository, which includes configuration changes which make it far easier to get up and running.*
+*You're looking at the Deluge Firmware synythstrom-official branch, maintained only by Synthstrom Audible. If you're looking to get started with this codebase, we recommend you instead check out the "community" branch, which includes configuration changes which make it far easier to get up and running, not to mention being home to the Deluge open source community.*
 
 # About
 The Synthstrom Audible Deluge Firmware runs on the Deluge portable sequencer, synthesizer and sampler, produced by Synthstrom Audible Limited.
