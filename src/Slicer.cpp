@@ -195,7 +195,7 @@ getOut:
 		if (!firstRange->sampleHolder.audioFile) numericDriver.freezeWithError("i032"); // Trying to narrow down E368 that Kevin F got
 #endif
 
-		firstRange->sampleHolder.claimClusterReasons(firstDrum->sources[0].sampleControls.reversed, CHUNK_ENQUEUE);
+		firstRange->sampleHolder.claimClusterReasons(firstDrum->sources[0].sampleControls.reversed, CLUSTER_ENQUEUE);
 		if (doEnvelopes) {
 			ParamCollectionSummary* summary = modelStack->paramManager->getPatchedParamSetSummary();
 			ModelStackWithParamId* modelStackWithParamId = modelStack->addParamCollectionAndId(summary->paramCollection, summary, PARAM_LOCAL_ENV_0_RELEASE);

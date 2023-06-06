@@ -99,7 +99,7 @@ class InstrumentClipView final : public ClipView, public InstrumentClipMinder {
     void flashDefaultRootNote();
     void selectEncoderAction(int8_t offset);
     void doubleClipLengthAction();
-    void noteRowChanged(InstrumentClip *track, NoteRow *noteRow);
+    void noteRowChanged(InstrumentClip *clip, NoteRow *noteRow);
     void setSelectedDrum(Drum* drum, bool shouldRedrawStuff = true);
     bool isDrumAuditioned(Drum* drum);
     int setupForEnteringScaleMode(int newRootNote = 2147483647, int yDisplay = (displayHeight / 2));

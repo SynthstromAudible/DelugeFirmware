@@ -17,6 +17,7 @@
 
 #include <AudioClip.h>
 #include <AudioEngine.h>
+#include <AudioFileManager.h>
 #include <ParamManager.h>
 #include "VoiceSample.h"
 #include "playbackhandler.h"
@@ -25,7 +26,6 @@
 #include <new>
 #include "AudioOutput.h"
 #include "storagemanager.h"
-#include "SampleManager.h"
 #include "SampleRecorder.h"
 #include "PlaybackMode.h"
 #include "Session.h"
@@ -186,7 +186,7 @@ void AudioClip::finishLinearRecording(ModelStackWithTimelineCounter* modelStack,
 																// that won't have been effective. So, we have to call this here too, to cover our bases.
 
 	sampleHolder.filePath.set(&recorder->sample->filePath);
-	sampleHolder.setAudioFile(recorder->sample, sampleControls.reversed, true, CHUNK_DONT_LOAD); // Adds a reason to the first chunk(s). Must call this after endSyncedRecording(), which puts some final values in the Sample
+	sampleHolder.setAudioFile(recorder->sample, sampleControls.reversed, true, CLUSTER_DONT_LOAD); // Adds a reason to the first Cluster(s). Must call this after endSyncedRecording(), which puts some final values in the Sample
 
 	renderData.xScroll = -1; // Force re-render - though this would surely happen anyway
 
@@ -330,7 +330,7 @@ doUnassignment:
 
 			voiceSample->noteOn(&guide, 0, 1);
 			voiceSample->forAudioClip = true;
-			voiceSample->setupChunksForInitialPlay(&guide, ((Sample*)sampleHolder.audioFile), 0, false, 1);
+			voiceSample->setupClusersForInitialPlay(&guide, ((Sample*)sampleHolder.audioFile), 0, false, 1);
 
 possiblyResetEnvelopeAndGetOut:
 			if (shouldResetEnvelope) ((AudioOutput*)output)->resetEnvelope();

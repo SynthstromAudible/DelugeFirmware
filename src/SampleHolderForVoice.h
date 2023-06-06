@@ -30,7 +30,7 @@ public:
 	void unassignAllClusterReasons(bool beingDestructed = false);
     void setCents(int newCents);
     void recalculateFineTuner();
-    void claimClusterReasons(bool reversed, int chunkLoadInstruction = CHUNK_ENQUEUE);
+    void claimClusterReasons(bool reversed, int clusterLoadInstruction = CLUSTER_ENQUEUE);
     void setTransposeAccordingToSamplePitch(bool minimizeOctaves = false, bool doingSingleCycle = false, bool rangeCoversJustOneNote = false, bool thatOneNote = 0);
     uint32_t getMSecLimit(Source* source);
 
@@ -42,7 +42,7 @@ public:
     int8_t cents;
     PhaseIncrementFineTuner fineTuner;
 
-    Cluster* loadedSampleChunksForLoopStart[NUM_SAMPLE_CHUNKS_LOADED_AHEAD];
+    Cluster* clustersForLoopStart[NUM_CLUSTERS_LOADED_AHEAD];
 
     // These two now only exist for loading in data from old files
     uint32_t startMSec;

@@ -17,6 +17,7 @@
 
 #include <ArrangerView.h>
 #include <AudioEngine.h>
+#include <AudioFileManager.h>
 #include <ClipInstance.h>
 #include <ConsequenceClipExistence.h>
 #include <InstrumentClip.h>
@@ -44,7 +45,6 @@
 #include "kit.h"
 #include "CVInstrument.h"
 #include "MIDIInstrument.h"
-#include "SampleManager.h"
 #include <new>
 #include "Arrangement.h"
 #include "AudioClip.h"
@@ -143,7 +143,7 @@ Song::~Song() {
     // Delete existing Clips, if any
 	for (int c = 0; c < sessionClips.getNumElements(); c++) {
 		if (!(c & 31)) { // Exact number here not fine-tuned
-			AudioEngine::routineWithChunkLoading(); // -----------------------------------
+			AudioEngine::routineWithClusterLoading(); // -----------------------------------
 		}
 
 		Clip* clip = sessionClips.getClipAtIndex(c);
@@ -152,7 +152,7 @@ Song::~Song() {
 
 	for (int c = 0; c < arrangementOnlyClips.getNumElements(); c++) {
 		if (!(c & 31)) { // Exact number here not fine-tuned
-			AudioEngine::routineWithChunkLoading(); // -----------------------------------
+			AudioEngine::routineWithClusterLoading(); // -----------------------------------
 		}
 
 		Clip* clip = arrangementOnlyClips.getClipAtIndex(c);
@@ -161,7 +161,7 @@ Song::~Song() {
 
 
 	AudioEngine::logAction("s4");
-	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+	AudioEngine::routineWithClusterLoading(); // -----------------------------------
 
     // Free all ParamManagers which are backed up. The actual vector memory containing all the BackedUpParamManager objects will be freed by the Vector destructor
 	deleteAllBackedUpParamManagers(false); // Don't empty vector - its destructor will do that
@@ -193,7 +193,7 @@ void Song::setupDefault() {
 	// Do scale
 	int whichScale = FlashStorage::defaultScale;
 	if (whichScale == PRESET_SCALE_NONE) {
-		whichScale = 0; // Major. Still need the *song*, (as opposed to the track) to have a scale
+		whichScale = 0; // Major. Still need the *song*, (as opposed to the Clip) to have a scale
 	}
 	else if (whichScale == PRESET_SCALE_RANDOM) {
 		whichScale = random(NUM_PRESET_SCALES - 1);
@@ -209,7 +209,7 @@ void Song::deleteAllOutputs(Output** prevPointer) {
 
 	while (*prevPointer) {
 		AudioEngine::logAction("s6");
-    	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+    	AudioEngine::routineWithClusterLoading(); // -----------------------------------
 		Output* toDelete = *prevPointer;
 		*prevPointer = toDelete->next;
 
@@ -223,7 +223,7 @@ void Song::deleteAllOutputs(Output** prevPointer) {
 
 void Song::deleteAllBackedUpParamManagers(bool shouldAlsoEmptyVector) {
     for (int i = 0; i < backedUpParamManagers.getNumElements(); i++) {
-    	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+    	AudioEngine::routineWithClusterLoading(); // -----------------------------------
     	BackedUpParamManager* backedUp = (BackedUpParamManager*)backedUpParamManagers.getElementAddress(i);
 
     	backedUp->~BackedUpParamManager();
@@ -264,7 +264,7 @@ keepSearchingForward:
     	for (int j = i; j < endIThisModControllable; j++) {
         	BackedUpParamManager* backedUp = (BackedUpParamManager*)backedUpParamManagers.getElementAddress(j);
 
-        	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+        	AudioEngine::routineWithClusterLoading(); // -----------------------------------
 
         	backedUp->~BackedUpParamManager();
     	}
@@ -273,7 +273,7 @@ keepSearchingForward:
 
     	backedUpParamManagers.deleteAtIndex(i, numToDelete);
 
-    	// i will increment, which is fine, cos we've already determined that the next element (if there is one) has no Track, so we can skip it
+    	// i will increment, which is fine, cos we've already determined that the next element (if there is one) has no Clip, so we can skip it
     }
 }
 
@@ -364,7 +364,7 @@ gotError2:		result.error = error2;
 }
 
 
-void Song::transposeAllScaleModeTracks(int offset) {
+void Song::transposeAllScaleModeClips(int offset) {
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
@@ -376,7 +376,7 @@ traverseClips:
 		if (clip->type != CLIP_TYPE_INSTRUMENT) continue;
 		InstrumentClip* instrumentClip = (InstrumentClip*)clip;
 
-        if (instrumentClip->isScaleModeTrack()) {
+        if (instrumentClip->isScaleModeClip()) {
         	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(instrumentClip);
         	instrumentClip->transpose(offset, modelStackWithTimelineCounter);
         }
@@ -386,7 +386,7 @@ traverseClips:
     rootNote += offset;
 }
 
-bool Song::anyScaleModeTracks() {
+bool Song::anyScaleModeClips() {
 
 	ClipArray* clipArray = &sessionClips;
 traverseClips:
@@ -395,7 +395,7 @@ traverseClips:
 		if (clip->type != CLIP_TYPE_INSTRUMENT) continue;
 		InstrumentClip* instrumentClip = (InstrumentClip*)clip;
 
-        if (instrumentClip->isScaleModeTrack()) return true;
+        if (instrumentClip->isScaleModeClip()) return true;
 	}
 	if (clipArray != &arrangementOnlyClips) { clipArray = &arrangementOnlyClips; goto traverseClips; }
 
@@ -403,7 +403,7 @@ traverseClips:
 }
 
 
-void Song::setRootNote(int newRootNote, InstrumentClip* trackToAvoidAdjustingScrollFor) {
+void Song::setRootNote(int newRootNote, InstrumentClip* clipToAvoidAdjustingScrollFor) {
 
 	int oldRootNote = rootNote;
     rootNote = newRootNote;
@@ -419,7 +419,7 @@ traverseClips:
 		if (clip->type != CLIP_TYPE_INSTRUMENT) continue;
 		InstrumentClip* instrumentClip = (InstrumentClip*)clip;
 
-        if (instrumentClip->isScaleModeTrack()) instrumentClip->seeWhatNotesWithinOctaveArePresent(notesWithinOctavePresent, rootNote, this);
+        if (instrumentClip->isScaleModeClip()) instrumentClip->seeWhatNotesWithinOctaveArePresent(notesWithinOctavePresent, rootNote, this);
 	}
 	if (clipArray != &arrangementOnlyClips) { clipArray = &arrangementOnlyClips; goto traverseClips; }
 
@@ -484,7 +484,7 @@ traverseClips:
     addMajorDependentModeNotes(10, moreMajor, notesWithinOctavePresent);
 
 
-    // Adjust scroll for Tracks with the scale. Crudely - not as high quality as happens for the track being processed in trackScreen.enterScaleMode();
+    // Adjust scroll for Clips with the scale. Crudely - not as high quality as happens for the Clip being processed in enterScaleMode();
     int numMoreNotes = (int)numModeNotes - oldNumModeNotes;
 
     // Compensation for the change in root note itself
@@ -500,7 +500,7 @@ traverseClips2:
 		if (clip->type != CLIP_TYPE_INSTRUMENT) continue;
 		InstrumentClip* instrumentClip = (InstrumentClip*)clip;
 
-		if (instrumentClip != trackToAvoidAdjustingScrollFor && instrumentClip->isScaleModeTrack()) {
+		if (instrumentClip != clipToAvoidAdjustingScrollFor && instrumentClip->isScaleModeClip()) {
 
 			// Compensation for the change in number of mode notes
 			int oldScrollRelativeToRootNote = instrumentClip->yScroll - oldRootNote;
@@ -834,10 +834,10 @@ traverseClips:
 			if (clip->output != output) continue;
 		}
 		else {
-			ClipInstance* trackInstance = output->clipInstances.getElement(c);
-			if (!trackInstance->clip) continue;
-			if (!trackInstance->clip->isArrangementOnlyClip()) continue;
-			clip = trackInstance->clip;
+			ClipInstance* clipInstance = output->clipInstances.getElement(c);
+			if (!clipInstance->clip) continue;
+			if (!clipInstance->clip->isArrangementOnlyClip()) continue;
+			clip = clipInstance->clip;
 		}
 
     	if (clip == excludeClip) continue;
@@ -923,13 +923,13 @@ void Song::writeToFile() {
 
     if (getRootUI() == &arrangerView) {
     	storageManager.writeAttribute("inArrangementView", 1);
-    	goto weAreInArrangementEditorOrInTrackInstance;
+    	goto weAreInArrangementEditorOrInClipInstance;
     }
 
     if (lastClipInstanceEnteredStartPos != -1) {
     	storageManager.writeAttribute("currentTrackInstanceArrangementPos", lastClipInstanceEnteredStartPos);
 
-weAreInArrangementEditorOrInTrackInstance:
+weAreInArrangementEditorOrInClipInstance:
 		storageManager.writeAttribute("xScrollSongView", xScrollForReturnToSongView);
 		storageManager.writeAttribute("xZoomSongView", xZoomForReturnToSongView);
     }
@@ -1498,7 +1498,7 @@ traverseClips:
 		Clip* thisClip = clipArray->getClipAtIndex(c); // TODO: deal with other Clips too!
 
     	if (!(count & 31)) {
-        	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+        	AudioEngine::routineWithClusterLoading(); // -----------------------------------
     	    AudioEngine::logAction("aaa0");
     	}
     	count++;
@@ -1521,7 +1521,7 @@ traverseClips:
 
     AudioEngine::logAction("matched up");
 
-	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+	AudioEngine::routineWithClusterLoading(); // -----------------------------------
 
 	anyOutputsSoloingInArrangement = false;
 
@@ -1537,7 +1537,7 @@ traverseClips:
     		// Grab out the encoded Clip reference and turn it into an actual Clip*
     		uint32_t clipCode = (uint32_t)thisInstance->clip;
 
-			// Special case for NULL track
+			// Special case for NULL Clip
     		if (clipCode == 0xFFFFFFFF) {
     			thisInstance->clip = NULL;
     		}
@@ -1578,7 +1578,7 @@ skipInstance:
 					goto skipInstance;
 				}
 
-				// If still here, can mark the track as claimed
+				// If still here, can mark the Clip as claimed
 				thisInstance->clip->gotInstanceYet = true;
     		}
     	}
@@ -1638,7 +1638,7 @@ skipInstance:
 	Uart::println("aaa3");
 	AudioEngine::logAction("aaa3.1");
 
-	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+	AudioEngine::routineWithClusterLoading(); // -----------------------------------
 
 	reassessWhetherAnyClipsSoloing();
 
@@ -1647,7 +1647,7 @@ skipInstance:
 	setupPatchingForAllParamManagers();
 	AudioEngine::logAction("aaa4.3");
 
-	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+	AudioEngine::routineWithClusterLoading(); // -----------------------------------
 
 	int playbackWillStartInArrangerAtPos = playbackHandler.playbackState ? lastClipInstanceEnteredStartPos : -1;
 
@@ -1655,7 +1655,7 @@ skipInstance:
 	sortOutWhichClipsAreActiveWithoutSendingPGMs(modelStack, playbackWillStartInArrangerAtPos);
 	AudioEngine::logAction("aaa5.2");
 
-	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+	AudioEngine::routineWithClusterLoading(); // -----------------------------------
 
 	return NO_ERROR;
 }
@@ -1727,7 +1727,7 @@ traverseClips:
 		// better call the audio routine here.
 		if (!mayActuallyReadFiles && !(c & 7)) { // 31 bad. 15 seems to pass. 7 to be safe
 			AudioEngine::logAction("Song::loadAllSamples");
-			AudioEngine::routineWithChunkLoading(); // -----------------------------------
+			AudioEngine::routineWithClusterLoading(); // -----------------------------------
 		}
 
 		Clip* clip = clipArray->getClipAtIndex(c);
@@ -1771,7 +1771,7 @@ traverseClips:
 	for (int c = 0; c < clipArray->getNumElements(); c++) {
 		Clip* clip = clipArray->getClipAtIndex(c);
 
-    	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+    	AudioEngine::routineWithClusterLoading(); // -----------------------------------
     	if (!clip->isActiveOnOutput() && clip != view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
     		deleteClipObject(clip, false, INSTRUMENT_REMOVAL_NONE);
     		clipArray->deleteAtIndex(c);
@@ -1790,7 +1790,7 @@ traverseClips2:
 	for (int c = 0; c < clipArray->getNumElements(); c++) {
 		Clip* clip = clipArray->getClipAtIndex(c);
 
-    	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+    	AudioEngine::routineWithClusterLoading(); // -----------------------------------
     	if (clip->deleteSoundsWhichWontSound(this)) {
     		deleteClipObject(clip, false, INSTRUMENT_REMOVAL_DELETE);
     		clipArray->deleteAtIndex(c);
@@ -1914,13 +1914,13 @@ void Song::resyncLFOsAndArpeggiators() {
 
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
 		if (thisOutput->activeClip) thisOutput->resyncLFOs();
-		// Yes, do it even for Tracks that aren't actually "playing" / active in the Song
+		// Yes, do it even for Clips that aren't actually "playing" / active in the Song
 	}
 }
 
 NoteRow* Song::findNoteRowForDrum(Kit* kit, Drum* drum, Clip* stopTraversalAtClip) {
 
-	// If currently swapping an Instrument, it can't be assumed that all arranger-only tracks for this Instrument are in its trackInstances, which otherwise is a nice time-saver
+	// If currently swapping an Instrument, it can't be assumed that all arranger-only Clips for this Instrument are in its clipInstances, which otherwise is a nice time-saver
 
 
 	// For each Clip in session and arranger for specific Output - but if currentlySwappingInstrument, use master list for arranger Clips
@@ -1963,7 +1963,7 @@ ParamManagerForTimeline* Song::findParamManagerForDrum(Kit* kit, Drum* drum, Cli
 
 void Song::setupPatchingForAllParamManagersForDrum(SoundDrum* drum) {
 
-	// If currently swapping an Instrument, it can't be assumed that all arranger-only tracks for this Instrument are in its trackInstances, which otherwise is a nice time-saver
+	// If currently swapping an Instrument, it can't be assumed that all arranger-only Clips for this Instrument are in its clipInstances, which otherwise is a nice time-saver
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
@@ -1992,10 +1992,10 @@ traverseClips:
 			instrumentClip = (InstrumentClip*)clip;
 		}
 		else {
-			ClipInstance* trackInstance = output->clipInstances.getElement(c);
-			if (!trackInstance->clip) continue;
-			if (!trackInstance->clip->isArrangementOnlyClip()) continue;
-			instrumentClip = (InstrumentClip*)trackInstance->clip;
+			ClipInstance* clipInstance = output->clipInstances.getElement(c);
+			if (!clipInstance->clip) continue;
+			if (!clipInstance->clip->isArrangementOnlyClip()) continue;
+			instrumentClip = (InstrumentClip*)clipInstance->clip;
 		}
 
 		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(instrumentClip);
@@ -2021,7 +2021,7 @@ traverseClips:
 		// and search every arrangementOnlyClip
 		if (outputClipInstanceListIsCurrentlyInvalid || !output) { clipArray = &arrangementOnlyClips; goto decideNumElements; }
 
-		// Or more ideally, we would have found the Output along the way, so we can just grab its arrangement-only Clips straight from it
+		// Or more ideally, we would have found the Output along the way, so we can just grab its arrangement-only Clips directly from it
 		else { doingClipsProvidedByOutput = true; numElements = output->clipInstances.getNumElements(); goto traverseClips; }
 	}
 }
@@ -2234,7 +2234,7 @@ traverseClips:
 		if (clip->type != CLIP_TYPE_INSTRUMENT) continue;
 		InstrumentClip* instrumentClip = (InstrumentClip*)clip;
 
-		if (instrumentClip->isScaleModeTrack()) {
+		if (instrumentClip->isScaleModeClip()) {
 			for (int n = 6; n >= 1; n--) {
 				int newNote = 5 + n;
 				int oldNote = modeNotes[n];
@@ -2262,7 +2262,7 @@ traverseClips2:
 		if (clip->type != CLIP_TYPE_INSTRUMENT) continue;
 		InstrumentClip* instrumentClip = (InstrumentClip*)clip;
 
-		if (instrumentClip->isScaleModeTrack()) {
+		if (instrumentClip->isScaleModeClip()) {
 			for (int n = 1; n < 7; n++) {
 				int newNote = presetScaleNotes[newScale][n];
 				int oldNote = modeNotes[n];
@@ -2441,7 +2441,7 @@ void Song::turnSoloingIntoJustPlaying(bool getRidOfArmingToo) {
 		return;
 	}
 
-	// Stop all other playing-but-not-soloing tracks, and turn all soloing tracks into playing tracks!
+	// Stop all other playing-but-not-soloing Clips, and turn all soloing Clip into playing Clip!
 	// For each Clip in session
 	for (int c = 0; c < sessionClips.getNumElements(); c++) {
 		Clip* clip = sessionClips.getClipAtIndex(c);
@@ -2487,7 +2487,7 @@ void Song::addOutput(Output* output, bool atStart) {
 
     if (output->soloingInArrangementMode) anyOutputsSoloingInArrangement = true;
 
-    // Must resync LFOs - these (if synced) will roll even when no activeTrack
+    // Must resync LFOs - these (if synced) will roll even when no activeClip
     if (playbackHandler.isEitherClockActive() && this == currentSong) output->resyncLFOs();
 }
 
@@ -2606,10 +2606,10 @@ traverseClips:
 			if (clip->output != oldOutput) continue;
 		}
 		else {
-			ClipInstance* trackInstance = oldOutput->clipInstances.getElement(c);
-			if (!trackInstance->clip) continue;
-			if (!trackInstance->clip->isArrangementOnlyClip()) continue;
-			clip = trackInstance->clip;
+			ClipInstance* clipInstance = oldOutput->clipInstances.getElement(c);
+			if (!clipInstance->clip) continue;
+			if (!clipInstance->clip->isArrangementOnlyClip()) continue;
+			clip = clipInstance->clip;
 		}
 
 		if (oldOutput->type != OUTPUT_TYPE_AUDIO) {
@@ -2660,7 +2660,7 @@ traverseClips:
 
 // NOTE: for Instruments not currently in any list
 void Song::deleteOrAddToHibernationListOutput(Output* output) {
-	// If un-edited (which will include all CV Tracks, and any MIDI without mod knob assignments)
+	// If un-edited (which will include all CV Instruments, and any MIDI without mod knob assignments)
 	if (output->type == OUTPUT_TYPE_AUDIO || output->type == INSTRUMENT_TYPE_CV || !((Instrument*)output)->editedByUser) {
 		output->prepareForHibernationOrDeletion();
 		deleteOutput(output);
@@ -2675,7 +2675,7 @@ void Song::deleteOrAddToHibernationListOutput(Output* output) {
 
 // NOTE: for Instruments currently in the main list
 void Song::deleteOrHibernateOutput(Output* output) {
-	// If edited (which won't include any CV Tracks), just hibernate it. Only allowed for audio Instruments
+	// If edited (which won't include any CV Instruments), just hibernate it. Only allowed for audio Instruments
 	if (output->type != INSTRUMENT_TYPE_CV && output->type != OUTPUT_TYPE_AUDIO) {
 		Instrument* instrument = (Instrument*)output;
 		if (!instrument->editedByUser) goto deleteIt;
@@ -2903,7 +2903,7 @@ traverseClips:
     	InstrumentClip* instrumentClip = (InstrumentClip*)clip;
 
     	// TODO: we probably don't need to call this so often anymore?
-    	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+    	AudioEngine::routineWithClusterLoading(); // -----------------------------------
     	AudioEngine::logAction("aaa4.26");
     	((Instrument*)instrumentClip->output)->setupPatching(modelStackWithTimelineCounter);
 		AudioEngine::logAction("aaa4.27");
@@ -3030,7 +3030,7 @@ doStealing:
 
 void Song::deleteBackedUpParamManagersForClip(Clip* clip) {
 
-	AudioEngine::logAction("Song::deleteBackedUpParamManagersForTrack");
+	AudioEngine::logAction("Song::deleteBackedUpParamManagersForClip");
 
 	// Ok, this is the one sticky one where we actually do have to go through every element
 	int i = 0;
@@ -3040,7 +3040,7 @@ void Song::deleteBackedUpParamManagersForClip(Clip* clip) {
 		BackedUpParamManager* backedUp = (BackedUpParamManager*)backedUpParamManagers.getElementAddress(i);
 		if (backedUp->clip == clip) {
 
-	    	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+	    	AudioEngine::routineWithClusterLoading(); // -----------------------------------
 
 			// We ideally want to just set the Clip to NULL. We can just do this if the previous element didn't have the same ModControllable
 			if (i == 0 || ((BackedUpParamManager*)backedUpParamManagers.getElementAddress(i - 1))->modControllable != backedUp->modControllable) {
@@ -3101,7 +3101,7 @@ void Song::deleteBackedUpParamManagersForClip(Clip* clip) {
 	// Test that everything's still in order
 
 #if ALPHA_OR_BETA_VERSION
-	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+	AudioEngine::routineWithClusterLoading(); // -----------------------------------
 
 	Clip* lastClip;
 	ModControllableAudio* lastModControllable;
@@ -3139,11 +3139,11 @@ void Song::deleteBackedUpParamManagersForModControllable(ModControllableAudio* m
 
 	while (true) {
 		if (iAnyClip >= backedUpParamManagers.getNumElements()) return;
-		BackedUpParamManager* elementAnyTrack = (BackedUpParamManager*)backedUpParamManagers.getElementAddress(iAnyClip);
-		if (elementAnyTrack->modControllable != modControllable) return;
+		BackedUpParamManager* elementAnyClip = (BackedUpParamManager*)backedUpParamManagers.getElementAddress(iAnyClip);
+		if (elementAnyClip->modControllable != modControllable) return;
 
 		// Destruct paramManager
-		elementAnyTrack->~BackedUpParamManager();
+		elementAnyClip->~BackedUpParamManager();
 
 		// Delete from Vector
 		backedUpParamManagers.deleteAtIndex(iAnyClip);
@@ -3186,7 +3186,7 @@ bool Song::doesNonAudioSlotHaveActiveClipInSession(int instrumentType, int slot,
 
 
 bool Song::doesOutputHaveAnyClips(Output* output) {
-	// Check arranger ones first via trackInstances
+	// Check arranger ones first via clipInstances
 	for (int i = 0; i < output->clipInstances.getNumElements(); i++) {
 	    ClipInstance* thisInstance = output->clipInstances.getElement(i);
 	    if (thisInstance->clip) return true;
@@ -3214,7 +3214,7 @@ void Song::restoreClipStatesBeforeArrangementPlay() {
 
 	anyClipsSoloing = false;
 
-	// Do not set the Instruments' activeTracks. We want them to stay as they were when the song ended
+	// Do not set the Instruments' activeClips. We want them to stay as they were when the song ended
 }
 
 
@@ -3258,10 +3258,10 @@ traverseClips:
 			if (clip->output != output) continue;
 		}
 		else {
-			ClipInstance* trackInstance = output->clipInstances.getElement(c);
-			if (!trackInstance->clip) continue;
-			if (!trackInstance->clip->isArrangementOnlyClip()) continue;
-			clip = trackInstance->clip;
+			ClipInstance* clipInstance = output->clipInstances.getElement(c);
+			if (!clipInstance->clip) continue;
+			if (!clipInstance->clip->isArrangementOnlyClip()) continue;
+			clip = clipInstance->clip;
 		}
 
     	if (clip != theActiveClip && isClipActive(clip)) {
@@ -3299,8 +3299,8 @@ void Song::sendAllMIDIPGMs() {
 }
 
 
-// This is only called right after Song loaded, so we can assume all Instruments have a NULL activeTrack
-// It's not possible for this to stop there from being more than zero soloing tracks
+// This is only called right after Song loaded, so we can assume all Instruments have a NULL activeClip
+// It's not possible for this to stop there from being more than zero soloing Clips
 void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack, int playbackWillStartInArrangerAtPos) {
 
 	AudioEngine::logAction("aaa5.11");
@@ -3326,7 +3326,7 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack, 
 			Clip* clip = sessionClips.getClipAtIndex(c);
 
 			if (!(count & 3)) {
-				AudioEngine::routineWithChunkLoading(); // -----------------------------------
+				AudioEngine::routineWithClusterLoading(); // -----------------------------------
 				AudioEngine::logAction("aaa5.114");
 			}
 			count++;
@@ -3365,7 +3365,7 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack, 
 	for (int c = 0; c < sessionClips.getNumElements(); c++) {
 		Clip* clip = sessionClips.getClipAtIndex(c);
 		if (!(count & 7)) {
-			AudioEngine::routineWithChunkLoading(); // -----------------------------------
+			AudioEngine::routineWithClusterLoading(); // -----------------------------------
 			AudioEngine::logAction("aaa5.125");
 		}
 		count++;
@@ -3575,7 +3575,7 @@ void Song::ensureAllInstrumentsHaveAClipOrBackedUpParamManager(char const* error
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
 		if (thisOutput->type != INSTRUMENT_TYPE_SYNTH && thisOutput->type != INSTRUMENT_TYPE_KIT) continue;
 
-    	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+    	AudioEngine::routineWithClusterLoading(); // -----------------------------------
 
 		// If has Clip, that's fine
 		if (getClipWithOutput(thisOutput)) {
@@ -3594,7 +3594,7 @@ void Song::ensureAllInstrumentsHaveAClipOrBackedUpParamManager(char const* error
 	for (Instrument* thisInstrument = firstHibernatingInstrument; thisInstrument; thisInstrument = (Instrument*)thisInstrument->next) {
 		if (thisInstrument->type != INSTRUMENT_TYPE_SYNTH && thisInstrument->type != INSTRUMENT_TYPE_KIT) continue;
 
-    	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+    	AudioEngine::routineWithClusterLoading(); // -----------------------------------
 
 		// If has Clip, it shouldn't!
 		if (getClipWithOutput(thisInstrument)) {
@@ -3619,14 +3619,14 @@ int Song::placeFirstInstancesOfActiveClips(int32_t pos) {
 		Clip* clip = sessionClips.getClipAtIndex(c);
 
 		if (isClipActive(clip)) {
-			int trackInstanceI = clip->output->clipInstances.getNumElements();
-			int error = clip->output->clipInstances.insertAtIndex(trackInstanceI);
+			int clipInstanceI = clip->output->clipInstances.getNumElements();
+			int error = clip->output->clipInstances.insertAtIndex(clipInstanceI);
 			if (error) return error;
 
-			ClipInstance* trackInstance = clip->output->clipInstances.getElement(trackInstanceI);
-			trackInstance->clip = clip;
-			trackInstance->length = clip->loopLength;
-			trackInstance->pos = pos;
+			ClipInstance* clipInstance = clip->output->clipInstances.getElement(clipInstanceI);
+			clipInstance->clip = clip;
+			clipInstance->length = clip->loopLength;
+			clipInstance->pos = pos;
 		}
 	}
 
@@ -3634,8 +3634,8 @@ int Song::placeFirstInstancesOfActiveClips(int32_t pos) {
 }
 
 
-// Normally we leave detachTracksToo as false, becuase we need to keep them attached because resumeTracksClonedForArrangementRecording() is about to be called, and needs them attached, and will detach them itself
-void Song::endInstancesOfActiveTracks(int32_t pos, bool detachClipsToo) {
+// Normally we leave detachClipsToo as false, becuase we need to keep them attached because resumeClipsClonedForArrangementRecording() is about to be called, and needs them attached, and will detach them itself
+void Song::endInstancesOfActiveClips(int32_t pos, bool detachClipsToo) {
 
 	// For each Clip in session
 	for (int c = 0; c < sessionClips.getNumElements(); c++) {
@@ -3647,13 +3647,13 @@ void Song::endInstancesOfActiveTracks(int32_t pos, bool detachClipsToo) {
 
 			if (detachClipsToo) clipNow->beingRecordedFromClip = NULL;
 
-			int trackInstanceI = clip->output->clipInstances.search(pos + 1, LESS);
-			if (trackInstanceI >= 0) {
-				ClipInstance* clipInstance = clip->output->clipInstances.getElement(trackInstanceI);
+			int clipInstanceI = clip->output->clipInstances.search(pos + 1, LESS);
+			if (clipInstanceI >= 0) {
+				ClipInstance* clipInstance = clip->output->clipInstances.getElement(clipInstanceI);
 				if (clipInstance->clip == clipNow) {
 					int newLength = pos - clipInstance->pos;
 					if (newLength == 0) {
-						clip->output->clipInstances.deleteAtIndex(trackInstanceI);
+						clip->output->clipInstances.deleteAtIndex(clipInstanceI);
 					}
 					else {
 						clipInstance->length = newLength;
@@ -3707,16 +3707,16 @@ void Song::clearArrangementBeyondPos(int32_t pos, Action* action) {
 			Clip* clip = clipInstance->clip;
 			thisOutput->clipInstances.deleteAtIndex(j);
 
-			deletingClipInstanceForClip(thisOutput, clip, action, true); // Could be bad that this calls the audio routine before we've actually deleted the TrackInstances...
+			deletingClipInstanceForClip(thisOutput, clip, action, true); // Could be bad that this calls the audio routine before we've actually deleted the ClipInstances...
 		}
 
 		// Shorten the previous one if need be
 		int numElements = thisOutput->clipInstances.getNumElements();
 		if (numElements) {
-			ClipInstance* trackInstance = thisOutput->clipInstances.getElement(numElements - 1);
-			int maxLength = pos - trackInstance->pos;
-			if (trackInstance->length > maxLength) {
-				trackInstance->change(action, thisOutput, trackInstance->pos, maxLength, trackInstance->clip);
+			ClipInstance* clipInstance = thisOutput->clipInstances.getElement(numElements - 1);
+			int maxLength = pos - clipInstance->pos;
+			if (clipInstance->length > maxLength) {
+				clipInstance->change(action, thisOutput, clipInstance->pos, maxLength, clipInstance->clip);
 			}
 		}
 	}
@@ -3851,7 +3851,7 @@ tryAgain:
 
 			// If it's still playing...
 			if (clipInstance->pos + clipInstance->length > playbackHandler.getActualSwungTickCount()) {
-				arrangement.resumeClipInstancePlayback(clipInstance); // Sets activeTrack
+				arrangement.resumeClipInstancePlayback(clipInstance); // Sets activeClip
 			}
 
 			// Otherwise, just set the activeClip anyway
@@ -4499,7 +4499,7 @@ Clip* Song::replaceInstrumentClipWithAudioClip(Clip* oldClip, int clipIndex) {
 	if (playbackHandler.playbackState && isClipActive(oldClip)) {
 		newClip->activeIfNoSolo = false;
 
-	    // Must unsolo the track before we delete it, in case its play-pos needs to be grabbed for another track
+	    // Must unsolo the Clip before we delete it, in case its play-pos needs to be grabbed for another Clip
 	    if (oldClip->soloingInSessionMode) {
 	    	session.unsoloClip(oldClip);
 	    }
@@ -4728,7 +4728,7 @@ traverseClips:
 	for (int c = 0; c < clipArray->getNumElements(); c++) {
 		Clip* clip = clipArray->getClipAtIndex(c);
 		if (clip->type != CLIP_TYPE_INSTRUMENT) continue;
-		Track* instrumentClip = (Track*)clip;
+		Clip* instrumentClip = (Clip*)clip;
 
 	}
 	if (clipArray != &arrangementOnlyClips) { clipArray = &arrangementOnlyClips; goto traverseClips; }
@@ -4761,14 +4761,14 @@ traverseClips:
 			if (clip->output != output) continue;
 		}
 		else {
-			ClipInstance* trackInstance = output->trackInstances.getElement(c);
-			if (!trackInstance->clip) continue;
-			if (!trackInstance->clip->isArrangementOnlyClip()) continue;
-			clip = trackInstance->clip;
+			ClipInstance* clipInstance = output->clipInstances.getElement(c);
+			if (!clipInstance->clip) continue;
+			if (!clipInstance->clip->isArrangementOnlyClip()) continue;
+			clip = clipInstance->clip;
 		}
 
 	}
-	if (!doingArrangementClips) { doingArrangementClips = true; numElements = output->trackInstances.getNumElements(); goto traverseClips; }
+	if (!doingArrangementClips) { doingArrangementClips = true; numElements = output->clipInstances.getNumElements(); goto traverseClips; }
 
 
 
@@ -4787,16 +4787,16 @@ traverseClips:
 			if (clip->output != output) continue;
 		}
 		else {
-			ClipInstance* trackInstance = output->trackInstances.getElement(c);
-			if (!trackInstance->clip) continue;
-			if (!trackInstance->clip->isArrangementOnlyClip()) continue;
-			clip = trackInstance->clip;
+			ClipInstance* clipInstance = output->clipInstances.getElement(c);
+			if (!clipInstance->clip) continue;
+			if (!clipInstance->clip->isArrangementOnlyClip()) continue;
+			clip = clipInstance->clip;
 		}
 
 	}
 	if (!doingClipsProvidedByOutput && clipArray == &sessionClips) {
 		if (currentlySwappingInstrument) { clipArray = &arrangementOnlyClips; goto decideNumElements; }
-		else { doingClipsProvidedByOutput = true; numElements = output->trackInstances.getNumElements(); goto traverseClips; }
+		else { doingClipsProvidedByOutput = true; numElements = output->clipInstances.getNumElements(); goto traverseClips; }
 	}
  */
 

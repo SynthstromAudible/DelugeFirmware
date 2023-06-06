@@ -116,7 +116,7 @@ void LivePitchShifterPlayHead::render(int32_t* __restrict__ outputBuffer, int nu
 		} while (outputBuffer != outputBufferEnd);
 	}
 
-	else { // STRAIGHT
+	else { // DIRECT
 		do {
 			amplitude += amplitudeIncrement;
 
@@ -146,7 +146,7 @@ int LivePitchShifterPlayHead::getEstimatedPlaytimeRemaining(uint32_t repitchedBu
 		uint32_t howFarBackRaw = (uint32_t)(liveInputBuffer->numRawSamplesProcessed - rawBufferReadPos) & (INPUT_RAW_BUFFER_SIZE - 1);
 		howFarBack = ((uint64_t)howFarBackRaw << 24) / (uint32_t)phaseIncrement;
 	}
-	else { // STRAIGHT
+	else { // DIRECT
 		return 2147483647; // It'd never run out
 	}
 
@@ -168,7 +168,7 @@ int LivePitchShifterPlayHead::getNumRawSamplesBehindInput(LiveInputBuffer* liveI
 		return (uint32_t)(liveInputBuffer->numRawSamplesProcessed - rawBufferReadPos) & (INPUT_RAW_BUFFER_SIZE - 1);
 	}
 
-	else { // STRAIGHT
+	else { // DIRECT
 		return 0;
 	}
 }

@@ -16,11 +16,11 @@
  */
 
 #include <AudioEngine.h>
+#include <AudioFileManager.h>
 #include <Cluster.h>
 #include "TimeStretcher.h"
 #include "definitions.h"
 #include <string.h>
-#include "SampleManager.h"
 #include "Sample.h"
 #include "VoiceSample.h"
 #include "GeneralMemoryAllocator.h"
@@ -42,12 +42,12 @@ bool TimeStretcher::init(Sample* sample, VoiceSample* voiceSample, SamplePlaybac
 
 	//Uart::println("TimeStretcher::init");
 
-	for (int l = 0; l < NUM_SAMPLE_CHUNKS_LOADED_AHEAD; l++) {
-		loadedSampleChunksForPercLookahead[l] = NULL;
+	for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD; l++) {
+		clustersForPercLookahead[l] = NULL;
 	}
 
 	for (int l = 0; l < 2; l++) {
-		percCacheChunksNearby[l] = NULL;
+		percCacheClustersNearby[l] = NULL;
 	}
 
 	playHeadStillActive[PLAY_HEAD_OLDER] = true;
@@ -139,7 +139,7 @@ void TimeStretcher::reInit(int64_t newSamplePosBig, SamplePlaybackGuide* guide, 
 
 	// Not quite sure if these two are necessary...
 	//unassignAllReasonsForPercLookahead();
-	//unassignAllReasonsForPercCacheChunks();
+	//unassignAllReasonsForPercCacheClusters();
 
 	// If the newer play-head is still active, we'll have a hop soon, so playback will soon we coming from the start of the waveform again like we want, and
 	// we don't have to do anything.
@@ -153,7 +153,7 @@ void TimeStretcher::reInit(int64_t newSamplePosBig, SamplePlaybackGuide* guide, 
 
 void TimeStretcher::beenUnassigned() {
 	unassignAllReasonsForPercLookahead();
-	unassignAllReasonsForPercCacheChunks();
+	unassignAllReasonsForPercCacheClusters();
 	olderPartReader.unassignAllReasons();
 	if (buffer) generalMemoryAllocator.dealloc(buffer);
 }
@@ -161,19 +161,19 @@ void TimeStretcher::beenUnassigned() {
 
 
 void TimeStretcher::unassignAllReasonsForPercLookahead() {
-	for (int l = 0; l < NUM_SAMPLE_CHUNKS_LOADED_AHEAD; l++) {
-		if (loadedSampleChunksForPercLookahead[l]) {
-			sampleManager.removeReasonFromLoadedSampleChunk(loadedSampleChunksForPercLookahead[l], "E130");
-			loadedSampleChunksForPercLookahead[l] = NULL;
+	for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD; l++) {
+		if (clustersForPercLookahead[l]) {
+			audioFileManager.removeReasonFromCluster(clustersForPercLookahead[l], "E130");
+			clustersForPercLookahead[l] = NULL;
 		}
 	}
 }
 
-void TimeStretcher::unassignAllReasonsForPercCacheChunks() {
+void TimeStretcher::unassignAllReasonsForPercCacheClusters() {
 	for (int l = 0; l < 2; l++) {
-		if (percCacheChunksNearby[l]) {
-			sampleManager.removeReasonFromLoadedSampleChunk(percCacheChunksNearby[l], "E132");
-			percCacheChunksNearby[l] = NULL;
+		if (percCacheClustersNearby[l]) {
+			audioFileManager.removeReasonFromCluster(percCacheClustersNearby[l], "E132");
+			percCacheClustersNearby[l] = NULL;
 		}
 	}
 }
@@ -239,9 +239,9 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 	AudioEngine::logAction("hopEnd");
 
 #if ALPHA_OR_BETA_VERSION
-	// Trying to track down Steven's E133 - percCacheChunksNearby pointing to things with no reasons left
+	// Trying to track down Steven's E133 - percCacheClusterNearby pointing to things with no reasons left
 	for (int l = 0; l < 2; l++) {
-		if (percCacheChunksNearby[l] && !percCacheChunksNearby[l]->numReasonsToBeLoaded) {
+		if (percCacheClustersNearby[l] && !percCacheClustersNearby[l]->numReasonsToBeLoaded) {
 			numericDriver.freezeWithError("i036");
 		}
 	}
@@ -518,7 +518,7 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 		// Still must make sure we didn't go back beyond the start of the waveform, which can end up happening from the heavily pixellated search thing above
 		if ((int32_t)(beamBackEdge - waveformStartSample) * playDirection < 0) beamBackEdge = waveformStartSample;
 
-		if (!olderPartReader.loadedSampleChunks[0]) Uart::println("No loadedSampleChunk!!!");
+		if (!olderPartReader.clusters[0]) Uart::println("No cluster!!!");
 
 		samplesTilHopEnd = ((uint64_t)bestBeamWidth << 24) / (uint32_t)phaseIncrement; // That's the beamWidthOnRepitchedWaveform
 		if (samplesTilHopEnd < 1) samplesTilHopEnd = 1; // Can happen if pitch up very high and also time-stretch sped up a lot
@@ -654,22 +654,22 @@ startSearch:
 
 				if (bytesTilWaveformEnd <= 0) goto searchNextDirection;
 
-				int whichChunk = readByte[i] >> sampleManager.clusterSizeMagnitude;
-				Cluster* loadedSampleChunk = sample->clusters.getElement(whichChunk)->loadedSampleChunk;
-				if (!loadedSampleChunk || !loadedSampleChunk->loaded) goto skipSearch;
+				int whichCluster = readByte[i] >> audioFileManager.clusterSizeMagnitude;
+				Cluster* cluster = sample->clusters.getElement(whichCluster)->cluster;
+				if (!cluster || !cluster->loaded) goto skipSearch;
 
-				int bytePosWithinChunk = readByte[i] & (sampleManager.clusterSize - 1);
+				int bytePosWithinCluster = readByte[i] & (audioFileManager.clusterSize - 1);
 
-				int bytesLeftThisChunk = (searchDirection == -1) ? (bytePosWithinChunk + bytesPerSample) : (sampleManager.clusterSize - bytePosWithinChunk + bytesPerSample - 1);
+				int bytesLeftThisCluster = (searchDirection == -1) ? (bytePosWithinCluster + bytesPerSample) : (audioFileManager.clusterSize - bytePosWithinCluster + bytesPerSample - 1);
 
-				int bytesWeMayRead = getMin(bytesTilWaveformEnd, bytesLeftThisChunk);
+				int bytesWeMayRead = getMin(bytesTilWaveformEnd, bytesLeftThisCluster);
 
 				int bytesWeWantToRead = numSamplesThisRead * bytesPerSample;
 				if (bytesWeWantToRead > bytesWeMayRead) {
 					numSamplesThisRead = (uint32_t)bytesWeMayRead / (uint8_t)bytesPerSample;
 				}
 
-				currentPos[i] = &loadedSampleChunk->data[bytePosWithinChunk] - 4 + byteDepth;
+				currentPos[i] = &cluster->data[bytePosWithinCluster] - 4 + byteDepth;
 			}
 
 			// Alright, read those samples for our currently worked out little bit until we reach a cluster boundary or something
@@ -790,7 +790,7 @@ skipSearch:
 			&& phaseIncrement != 16777216
 			) {
 
-		if (!olderPartReader.loadedSampleChunks[0]) {
+		if (!olderPartReader.clusters[0]) {
 			Uart::println("aaa");
 		}
 
@@ -800,7 +800,7 @@ skipSearch:
 		//Uart::println(bytesBehind);
 
 		// Only proceed if newer head is earlier than older one
-		if (bytesBehind < 0) goto optForStraightReading;
+		if (bytesBehind < 0) goto optForDirectReading;
 
 
 		uint32_t samplesBehind = (uint32_t)bytesBehind / (uint8_t)(sample->numChannels * sample->byteDepth);
@@ -808,7 +808,7 @@ skipSearch:
 		int maxSamplesBehind = TIME_STRETCH_BUFFER_SIZE - (SSI_TX_BUFFER_NUM_SAMPLES - 1);
 
 		// Check we're not earlier by too much - which would usually be because we just looped
-		if (samplesBehindOnRepitchedWaveform > maxSamplesBehind) goto optForStraightReading;
+		if (samplesBehindOnRepitchedWaveform > maxSamplesBehind) goto optForDirectReading;
 
 		if (bufferSamplesWritten < samplesBehindOnRepitchedWaveform) {
 
@@ -818,7 +818,7 @@ skipSearch:
 			Uart::println(samplesBehindOnRepitchedWaveform);
 			Uart::print("bufferSamplesWritten: ");
 			Uart::println(bufferSamplesWritten);
-			goto optForStraightReading;
+			goto optForDirectReading;
 		}
 
 		//Uart::print("samplesBehindOnRepitchedWaveform: ");
@@ -842,9 +842,9 @@ skipSearch:
 		}
 	}
 
-	// Or, set up reading straight from audio file chunks
+	// Or, set up reading directly from audio file Clusters
 	else {
-optForStraightReading:
+optForDirectReading:
 		//Uart::println("head reading non-buffered");
 newerHeadReadingFromBuffer = false;
 #endif
@@ -897,15 +897,15 @@ newerHeadReadingFromBuffer = false;
 
 
 bool TimeStretcher::setupNewPlayHead(Sample* sample, VoiceSample* voiceSample, SamplePlaybackGuide* guide, int newHeadBytePos, int additionalOscPos, int priorityRating, int loopingType) {
-	bool success = voiceSample->setupChunksForPlayFromByte(guide, sample, newHeadBytePos, priorityRating);
+	bool success = voiceSample->setupClustersForPlayFromByte(guide, sample, newHeadBytePos, priorityRating);
 	if (!success) return false;
 
-	success = voiceSample->changeChunkIfNecessary(guide, sample, (loopingType == LOOP_LOW_LEVEL), priorityRating); // Set looping as false - change in June 2019. Pretty sure this is right...
+	success = voiceSample->changeClusterIfNecessary(guide, sample, (loopingType == LOOP_LOW_LEVEL), priorityRating); // Set looping as false - change in June 2019. Pretty sure this is right...
 	if (!success) return false;
 
 	voiceSample->interpolationBufferSizeLastTime = 0;
 	voiceSample->oscPos = additionalOscPos;
-	if (!voiceSample->loadedSampleChunks[0]) {
+	if (!voiceSample->clusters[0]) {
 		playHeadStillActive[PLAY_HEAD_NEWER] = false;
 		Uart::println("new no longer active");
 	}
@@ -1000,38 +1000,38 @@ void TimeStretcher::readFromBuffer(int32_t* __restrict__ oscBufferPos, int numSa
 }
 
 // Adds reason if this one wasn't already remembered here.
-// And just to be super clear, this is for remembering links to *PERC CACHE CHUNKS*! Not just regular audio data Clusters.
-void TimeStretcher::rememberPercCacheChunk(Cluster* loadedSampleChunk) {
+// And just to be super clear, this is for remembering links to *PERC CACHE Clusters*! Not just regular audio data Clusters.
+void TimeStretcher::rememberPercCacheCluster(Cluster* cluster) {
 
-	if (	percCacheChunksNearby[0] == loadedSampleChunk
-		||	percCacheChunksNearby[1] == loadedSampleChunk) {
+	if (	percCacheClustersNearby[0] == cluster
+		||	percCacheClustersNearby[1] == cluster) {
 		return;
 	}
 
-	sampleManager.addReasonToLoadedSampleChunk(loadedSampleChunk);
+	audioFileManager.addReasonToCluster(cluster);
 
-	if (percCacheChunksNearby[0]) {
-		sampleManager.removeReasonFromLoadedSampleChunk(percCacheChunksNearby[0], "E133"); // Steven G got this on V3.1.5, Feb 2021!
+	if (percCacheClustersNearby[0]) {
+		audioFileManager.removeReasonFromCluster(percCacheClustersNearby[0], "E133"); // Steven G got this on V3.1.5, Feb 2021!
 	}
-	percCacheChunksNearby[0] = percCacheChunksNearby[1];
+	percCacheClustersNearby[0] = percCacheClustersNearby[1];
 
-	percCacheChunksNearby[1] = loadedSampleChunk;
+	percCacheClustersNearby[1] = cluster;
 }
 
 
 // This is just responsible for adding reasons to the upcoming Clusters of sample audio data that the perc lookahead is going to need in the next little while, to reserve it and hopefully make sure it's loaded and in memory when we need it.
-void TimeStretcher::updateLoadedSampleChunksForPercLookahead(Sample* sample, uint32_t sourceBytePos, int playDirection) {
-	int chunkIndex = sourceBytePos >> sampleManager.clusterSizeMagnitude;
+void TimeStretcher::updateClustersForPercLookahead(Sample* sample, uint32_t sourceBytePos, int playDirection) {
+	int clusterIndex = sourceBytePos >> audioFileManager.clusterSizeMagnitude;
 
-	if (!loadedSampleChunksForPercLookahead[0] || loadedSampleChunksForPercLookahead[0]->chunkIndex != chunkIndex) {
+	if (!clustersForPercLookahead[0] || clustersForPercLookahead[0]->clusterIndex != clusterIndex) {
 		unassignAllReasonsForPercLookahead();
 
-		int nextChunkIndex = chunkIndex;
-		for (int l = 0; l < NUM_SAMPLE_CHUNKS_LOADED_AHEAD; l++) {
-			if (nextChunkIndex < sample->getFirstChunkIndexWithAudioData() || nextChunkIndex >= sample->getFirstChunkIndexWithNoAudioData()) break; // If no more chunks
-			loadedSampleChunksForPercLookahead[l] = sample->clusters.getElement(nextChunkIndex)->getLoadedSampleChunk(sample, nextChunkIndex, CHUNK_ENQUEUE);
-			if (!loadedSampleChunksForPercLookahead[l]) break;
-			nextChunkIndex += playDirection;
+		int nextClusterIndex = clusterIndex;
+		for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD; l++) {
+			if (nextClusterIndex < sample->getFirstClusterIndexWithAudioData() || nextClusterIndex >= sample->getFirstClusterIndexWithNoAudioData()) break; // If no more Clusters
+			clustersForPercLookahead[l] = sample->clusters.getElement(nextClusterIndex)->getCluster(sample, nextClusterIndex, CLUSTER_ENQUEUE);
+			if (!clustersForPercLookahead[l]) break;
+			nextClusterIndex += playDirection;
 		}
 	}
 }
@@ -1050,17 +1050,17 @@ void TimeStretcher::setupCrossfadeFromCache(SampleCache* cache, int cacheBytePos
 	int bytesTilCacheEnd = cache->writeBytePos - cacheBytePos;
 	if (bytesTilCacheEnd <= CACHE_BYTE_DEPTH * numChannels) return;
 
-	int cachedChunkIndex = cacheBytePos >> sampleManager.clusterSizeMagnitude;
-	int bytePosWithinChunk = cacheBytePos & (sampleManager.clusterSize - 1);
+	int cachedClusterIndex = cacheBytePos >> audioFileManager.clusterSizeMagnitude;
+	int bytePosWithinCluster = cacheBytePos & (audioFileManager.clusterSize - 1);
 
-	Cluster* cacheChunk = cache->getChunk(cachedChunkIndex);
-	if (ALPHA_OR_BETA_VERSION && !cacheChunk) { // If it got stolen - but we should have already detected this above
+	Cluster* cacheCluster = cache->getCluster(cachedClusterIndex);
+	if (ALPHA_OR_BETA_VERSION && !cacheCluster) { // If it got stolen - but we should have already detected this above
 		numericDriver.freezeWithError("E178");
 	}
-	int32_t* __restrict__ readPos = (int32_t*)&cacheChunk->data[bytePosWithinChunk - 4 + CACHE_BYTE_DEPTH];
+	int32_t* __restrict__ readPos = (int32_t*)&cacheCluster->data[bytePosWithinCluster - 4 + CACHE_BYTE_DEPTH];
 
-	int bytesTilCacheChunkEnd = sampleManager.clusterSize - bytePosWithinChunk + (CACHE_BYTE_DEPTH * numChannels - 1); // Add one-byte-less-than-a-sample to it, so it'll round up
-	if (bytesTilCacheChunkEnd <= CACHE_BYTE_DEPTH * numChannels) return; // TODO: allow it go to the next chunk
+	int bytesTilCacheClusterEnd = audioFileManager.clusterSize - bytePosWithinCluster + (CACHE_BYTE_DEPTH * numChannels - 1); // Add one-byte-less-than-a-sample to it, so it'll round up
+	if (bytesTilCacheClusterEnd <= CACHE_BYTE_DEPTH * numChannels) return; // TODO: allow it go to the next Cluster
 
 	if (!buffer) {
 		bool success = allocateBuffer(numChannels);
@@ -1074,7 +1074,7 @@ void TimeStretcher::setupCrossfadeFromCache(SampleCache* cache, int cacheBytePos
 		return;
 	}
 
-	int bytesTilThisWindowEnd = getMin(bytesTilCacheChunkEnd, bytesTilCacheEnd);
+	int bytesTilThisWindowEnd = getMin(bytesTilCacheClusterEnd, bytesTilCacheEnd);
 
 #if CACHE_BYTE_DEPTH == 3
 	int samplesTilThisWindowEnd = (uint32_t)bytesTilThisWindowEnd / (uint8_t)(numChannels * CACHE_BYTE_DEPTH); // Will round up, cos we did that additional bit above

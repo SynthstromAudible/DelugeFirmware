@@ -33,7 +33,7 @@ public:
     virtual bool supportsTriplets() { return true; }
     virtual void notifyPlaybackBegun() {}
     virtual uint32_t getGreyedOutRowsNotRepresentingOutput(Output* output) { return 0; }
-    virtual void noteRowChanged(InstrumentClip *track, NoteRow *noteRow) {}
+    virtual void noteRowChanged(InstrumentClip *clip, NoteRow *noteRow) {}
     virtual void playbackEnded() {}
     virtual bool isTimelineView() { return false; }
     virtual void clipNeedsReRendering(Clip* clip) {}

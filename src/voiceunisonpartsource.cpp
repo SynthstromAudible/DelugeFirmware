@@ -46,7 +46,7 @@ bool VoiceUnisonPartSource::noteOn(Voice* voice, Source* source, VoiceSamplePlay
 		}
 		voiceSample->noteOn(guide, samplesLate, voice->getPriorityRating());
 		if (samplesLate) return true; // We're finished in this case
-		return voiceSample->setupChunksForInitialPlay(guide, (Sample*)guide->audioFileHolder->audioFile, 0, false, 1);
+		return voiceSample->setupClusersForInitialPlay(guide, (Sample*)guide->audioFileHolder->audioFile, 0, false, 1);
 	}
 
 

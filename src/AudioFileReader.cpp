@@ -15,8 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include <AudioFileManager.h>
 #include <AudioFileReader.h>
-#include "SampleManager.h"
 
 AudioFileReader::AudioFileReader() {
 	// TODO Auto-generated constructor stub
@@ -43,18 +43,18 @@ void AudioFileReader::jumpForwardToBytePos(uint32_t newPos) {
 
 
 uint32_t AudioFileReader::getBytePos() {
-	return byteIndexWithinCluster + currentClusterIndex * sampleManager.clusterSize;
+	return byteIndexWithinCluster + currentClusterIndex * audioFileManager.clusterSize;
 }
 
 
 int AudioFileReader::advanceClustersIfNecessary() {
 
-	int numClustersToAdvance = byteIndexWithinCluster >> sampleManager.clusterSizeMagnitude;
+	int numClustersToAdvance = byteIndexWithinCluster >> audioFileManager.clusterSizeMagnitude;
 
 	if (!numClustersToAdvance) return NO_ERROR;
 
 	currentClusterIndex += numClustersToAdvance;
-	byteIndexWithinCluster &= sampleManager.clusterSize - 1;
+	byteIndexWithinCluster &= audioFileManager.clusterSize - 1;
 
 	return readNewCluster();
 }

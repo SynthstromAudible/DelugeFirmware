@@ -26,9 +26,9 @@ class ActionClipState {
 public:
 	ActionClipState();
 	virtual ~ActionClipState();
-	void grabFromTrack(Clip* thisClip);
+	void grabFromClip(Clip* thisClip);
 
-	int yScrollTrackView[2];
+	int yScrollSessionView[2];
 	//uint8_t modKnobMode;
 	bool affectEntire;
 	bool wrapEditing;

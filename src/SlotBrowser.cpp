@@ -15,9 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <AudioFileManager.h>
 #include "matrixdriver.h"
 #include "storagemanager.h"
-#include "SampleManager.h"
 #include <string.h>
 #include <SlotBrowser.h>
 #include "functions.h"

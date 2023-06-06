@@ -16,6 +16,7 @@
 */
 
 #include <AudioEngine.h>
+#include <AudioFileManager.h>
 #include <ContextMenuSampleBrowserKit.h>
 #include <ContextMenuSampleBrowserSynth.h>
 #include <samplebrowser.h>
@@ -37,7 +38,6 @@
 #include "LiveInputBuffer.h"
 #include <new>
 #include "Slicer.h"
-#include "SampleManager.h"
 #include "SampleRecorder.h"
 #include "song.h"
 #include "loadsongui.h"
@@ -259,7 +259,7 @@ void unassignAllVoices(bool deletingSong) {
 
 void songSwapAboutToHappen() {
 
-	uiTimerManager.unsetTimer(TIMER_PLAY_ENABLE_FLASH); // Otherwise, a timer might get called and try to access Tracks that we may have deleted below
+	uiTimerManager.unsetTimer(TIMER_PLAY_ENABLE_FLASH); // Otherwise, a timer might get called and try to access Clips that we may have deleted below
 	logAction("a1");
 	currentSong->deleteSoundsWhichWontSound();
 	logAction("a2");
@@ -326,13 +326,13 @@ int getNumVoices() {
 }
 
 
-void routineWithChunkLoading(bool mayProcessUserActionsBetween) {
-	logAction("AudioDriver::routineWithChunkLoading");
+void routineWithClusterLoading(bool mayProcessUserActionsBetween) {
+	logAction("AudioDriver::routineWithClusterLoading");
 
 	routineBeenCalled = false;
-	sampleManager.loadAnyEnqueuedSampleChunks(128, mayProcessUserActionsBetween);
+	audioFileManager.loadAnyEnqueuedClusters(128, mayProcessUserActionsBetween);
     if (!routineBeenCalled) {
-    	logAction("from routineWithChunkLoading()");
+    	logAction("from routineWithClusterLoading()");
     	routine(); // -----------------------------------
     }
 }
@@ -1107,7 +1107,7 @@ void previewSample(String* path, FilePointer* filePointer, bool shouldActuallySo
 	MultisampleRange* range = (MultisampleRange*)sampleForPreview->sources[0].getOrCreateFirstRange();
 	if (!range) return;
 	range->sampleHolder.filePath.set(path);
-	int error = range->sampleHolder.loadFile(false, true, true, CHUNK_LOAD_IMMEDIATELY, filePointer);
+	int error = range->sampleHolder.loadFile(false, true, true, CLUSTER_LOAD_IMMEDIATELY, filePointer);
 
 	if (error) numericDriver.displayError(error); // Rare, shouldn't cause later problems.
 

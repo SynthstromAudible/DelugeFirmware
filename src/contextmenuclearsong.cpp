@@ -16,6 +16,7 @@
 */
 
 #include <AudioEngine.h>
+#include <AudioFileManager.h>
 #include <contextmenuclearsong.h>
 #include <ParamManager.h>
 #include "numericdriver.h"
@@ -26,7 +27,6 @@
 #include "ActionLogger.h"
 #include <new>
 #include "song.h"
-#include "SampleManager.h"
 #include "IndicatorLEDs.h"
 #include "extern.h"
 #include "playbackhandler.h"
@@ -108,7 +108,7 @@ bool ContextMenuClearSong::acceptCurrentOption() {
 		generalMemoryAllocator.dealloc(toDealloc);
 	}
 
-	sampleManager.deleteAnyTempRecordedSamplesFromMemory();
+	audioFileManager.deleteAnyTempRecordedSamplesFromMemory();
 
 	// If for some reason the default synth preset included a sample which needs loading, and somehow there wasn't enough RAM to load it before, do it now.
 	currentSong->loadAllSamples();

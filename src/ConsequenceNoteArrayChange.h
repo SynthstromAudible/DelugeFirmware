@@ -27,7 +27,7 @@ class InstrumentClip;
 
 class ConsequenceNoteArrayChange final : public Consequence {
 public:
-	ConsequenceNoteArrayChange(InstrumentClip* newTrack, int newNoteRowId, NoteVector* newNoteVector, bool stealData);
+	ConsequenceNoteArrayChange(InstrumentClip* newClip, int newNoteRowId, NoteVector* newNoteVector, bool stealData);
 	int revert(int time, ModelStack* modelStack);
 
 	InstrumentClip* clip;

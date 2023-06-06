@@ -16,7 +16,7 @@
 */
 
 #include <AudioFile.h>
-#include "SampleManager.h"
+#include <AudioFileManager.h>
 #include "functions.h"
 #include <string.h>
 #include "uart.h"
@@ -31,7 +31,7 @@ extern "C" {
 }
 
 AudioFile::AudioFile(int newType) : type(newType) {
-	numReasons = 0;
+	numReasonsToBeLoaded = 0;
 }
 
 AudioFile::~AudioFile() {
@@ -453,39 +453,39 @@ finishedWhileLoop:
 
 void AudioFile::addReason() {
 	// If it was zero before, it's no longer unused
-	if (!numReasons) {
+	if (!numReasonsToBeLoaded) {
 		remove();
 		numReasonsIncreasedFromZero();
 	}
 
-	numReasons++;
+	numReasonsToBeLoaded++;
 }
 
 void AudioFile::removeReason(char const* errorCode) {
 
-	numReasons--;
+	numReasonsToBeLoaded--;
 
 	// If it's now zero, it's become unused
-	if (numReasons == 0) {
+	if (numReasonsToBeLoaded == 0) {
 		numReasonsDecreasedToZero(errorCode);
 		generalMemoryAllocator.putStealableInQueue(this, STEALABLE_QUEUE_NO_SONG_AUDIO_FILE_OBJECTS);
 	}
 
-	else if (numReasons < 0) {
+	else if (numReasonsToBeLoaded < 0) {
 #if ALPHA_OR_BETA_VERSION
 		numericDriver.freezeWithError("E004"); // Luc got this! And Paolo. (Must have been years ago :D)
 #endif
-		numReasons = 0; // Save it from crashing
+		numReasonsToBeLoaded = 0; // Save it from crashing
 	}
 }
 
 
 bool AudioFile::mayBeStolen(void* thingNotToStealFrom) {
 
-	if (numReasons) return false;
+	if (numReasonsToBeLoaded) return false;
 
 	// If we were stolen, sampleManager.audioFiles would get an entry deleted from it, and that's not allowed while it's being inserted to, which is when we'd be provided it as the thingNotToStealFrom.
-	return (thingNotToStealFrom != &sampleManager.audioFiles);
+	return (thingNotToStealFrom != &audioFileManager.audioFiles);
 
 	// We don't have to worry about e.g. a Sample being stolen as we try to allocate a Cluster for it in the same way as we do with SampleCaches - because in a case like this, the Sample would have a reason and so not be stealable.
 }
@@ -494,14 +494,14 @@ bool AudioFile::mayBeStolen(void* thingNotToStealFrom) {
 void AudioFile::steal(char const* errorCode) {
 	// The destructor is about to be called too, so we don't have to do too much.
 
-	int i = sampleManager.audioFiles.searchForExactObject(this);
+	int i = audioFileManager.audioFiles.searchForExactObject(this);
 	if (i < 0) {
 #if ALPHA_OR_BETA_VERSION
 		numericDriver.displayPopup(errorCode); // Jensg still getting.
 #endif
 	}
 	else {
-		sampleManager.audioFiles.removeElement(i);
+		audioFileManager.audioFiles.removeElement(i);
 	}
 }
 
