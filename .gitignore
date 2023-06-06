@@ -1,5 +1,15 @@
+.DS_Store
 /Release*/*
 /HardwareDebug*/*
 /.settings/*
 /Deluge.jlink
 /JLinkLog.log
+/build-debug-oled/
+/build-release-oled/
+/build-release-7seg/
+/build-debug-7seg/
+/e2-build-debug-7seg/
+/e2-build-debug-oled/
+/e2-build-release-7seg/
+/e2-build-release-oled/
+.DS_Store

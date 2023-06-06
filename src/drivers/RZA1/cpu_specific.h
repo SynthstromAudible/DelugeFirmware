@@ -328,8 +328,15 @@ DMA channels:
 #define BATTERY_LED_2 1
 #define SYS_VOLT_SENSE_PIN 5
 
-#define HAVE_OLED 1
-#define HAVE_RTT 1
+// Moving this to preprocessor build directives
+// eventually will be distinguished by build script flags
+// Change your build to change whether you're building OLED or not
+#ifndef HAVE_OLED
+#define HAVE_OLED 0
+#endif
+#ifndef HAVE_RTT
+#define HAVE_RTT 0
+#endif
 
 #define NUM_ENCODERS 6
 #define NUM_FUNCTION_ENCODERS 4
