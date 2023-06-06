@@ -16,6 +16,7 @@
  */
 
 #include <AudioEngine.h>
+#include <AudioFileManager.h>
 #include <Cluster.h>
 #include <drivers/RZA1/gpio/gpio.h>
 #include <InstrumentClip.h>
@@ -31,7 +32,6 @@
 #include "instrument.h"
 #include "song.h"
 #include "midiengine.h"
-#include "SampleManager.h"
 #include <string.h>
 #include "PlaybackMode.h"
 #include "kit.h"
@@ -295,7 +295,7 @@ noMoreAttributes:
 doReadName:
 	xmlArea = IN_ATTRIBUTE_NAME;
 	tagDepthFile++;
-	fileBufferCurrentPos--; // This means we don't need to call readXMLFileChunkIfNecessary()
+	fileBufferCurrentPos--; // This means we don't need to call readXMLFileClusterIfNecessary()
 
 	bool haveReachedNameEnd = false;
 
@@ -355,7 +355,7 @@ reachedNameEnd:
 			return stringBuffer;
 		}
 
-	} while (fileBufferCurrentPos == currentReadBufferEndPos && readXMLFileChunkIfNecessary());
+	} while (fileBufferCurrentPos == currentReadBufferEndPos && readXMLFileClusterIfNecessary());
 
 	// If here, file ended
 	return "";
@@ -506,7 +506,7 @@ void StorageManager::xmlReadDone() {
 	xmlReadCount++; // Increment first, cos we don't want to call SD routine immediately when it's 0
 
 	if (!(xmlReadCount & 63)) { // 511 bad. 255 almost fine. 127 almost always fine
-	    AudioEngine::routineWithChunkLoading();
+	    AudioEngine::routineWithClusterLoading();
 
 		uiTimerManager.routine();
 
@@ -519,7 +519,7 @@ void StorageManager::xmlReadDone() {
 
 void StorageManager::skipUntilChar(char endChar) {
 
-	readXMLFileChunkIfNecessary(); // Does this need to be here? Originally I didn't have it...
+	readXMLFileClusterIfNecessary(); // Does this need to be here? Originally I didn't have it...
 
 	do {
 		while (fileBufferCurrentPos < currentReadBufferEndPos
@@ -527,7 +527,7 @@ void StorageManager::skipUntilChar(char endChar) {
 			fileBufferCurrentPos++;
 		}
 
-	} while (fileBufferCurrentPos == currentReadBufferEndPos && readXMLFileChunkIfNecessary());
+	} while (fileBufferCurrentPos == currentReadBufferEndPos && readXMLFileClusterIfNecessary());
 
 	fileBufferCurrentPos++; // Gets us past the endChar
 
@@ -562,7 +562,7 @@ int StorageManager::readStringUntilChar(String* string, char endChar) {
 			newStringPos += numCharsHere;
 		}
 
-	} while (fileBufferCurrentPos == currentReadBufferEndPos && readXMLFileChunkIfNecessary());
+	} while (fileBufferCurrentPos == currentReadBufferEndPos && readXMLFileClusterIfNecessary());
 
 	fileBufferCurrentPos++; // Gets us past the endChar
 
@@ -598,7 +598,7 @@ char const* StorageManager::readUntilChar(char endChar) {
 			charPos += numCharsToCopy;
 		}
 
-	} while (fileBufferCurrentPos == currentReadBufferEndPos && readXMLFileChunkIfNecessary());
+	} while (fileBufferCurrentPos == currentReadBufferEndPos && readXMLFileClusterIfNecessary());
 
 	fileBufferCurrentPos++; // Gets us past the endChar
 
@@ -649,7 +649,7 @@ char const* StorageManager::readNextCharsOfTagOrAttributeValue(int numChars) {
 			}
 		}
 
-	} while (fileBufferCurrentPos == currentReadBufferEndPos && readXMLFileChunkIfNecessary());
+	} while (fileBufferCurrentPos == currentReadBufferEndPos && readXMLFileClusterIfNecessary());
 
 	// If we're here, the file ended
 	return NULL;
@@ -820,12 +820,12 @@ bool StorageManager::prepareToReadTagOrAttributeValueOneCharAtATime() {
 
 
 // Returns whether successful loading took place
-bool StorageManager::readXMLFileChunkIfNecessary() {
+bool StorageManager::readXMLFileClusterIfNecessary() {
 
-	// Load next chunk if necessary
-	if (fileBufferCurrentPos >= sampleManager.clusterSize) {
+	// Load next Cluster if necessary
+	if (fileBufferCurrentPos >= audioFileManager.clusterSize) {
 		xmlReadCount = 0;
-		bool result = readXMLFileChunk();
+		bool result = readXMLFileCluster();
 		if (!result) {
 			xmlReachedEnd = true;
 		}
@@ -842,7 +842,7 @@ bool StorageManager::readXMLFileChunkIfNecessary() {
 
 uint32_t StorageManager::readCharXML(char* thisChar) {
 
-	bool stillGoing = readXMLFileChunkIfNecessary();
+	bool stillGoing = readXMLFileClusterIfNecessary();
 	if (xmlReachedEnd) return 0;
 
 	*thisChar = fileClusterBuffer[fileBufferCurrentPos];
@@ -1029,7 +1029,7 @@ void StorageManager::write(char const* output) {
 
 	while (*output) {
 
-		if (fileBufferCurrentPos == sampleManager.clusterSize) {
+		if (fileBufferCurrentPos == audioFileManager.clusterSize) {
 
 			if (!fileAccessFailedDuring) {
 				int error = writeBufferToFile();
@@ -1051,7 +1051,7 @@ void StorageManager::write(char const* output) {
 		if (!(fileBufferCurrentPos & 0b11111111)) {
 			AudioEngine::logAction("writeCharXML");
 
-		    AudioEngine::routineWithChunkLoading();
+		    AudioEngine::routineWithClusterLoading();
 
 			uiTimerManager.routine();
 
@@ -1138,9 +1138,9 @@ int StorageManager::openXMLFile(FilePointer* filePointer, char const* firstTagNa
 
     openFilePointer(filePointer);
 
-	// Prep to read first chunk shortly
-	fileBufferCurrentPos = sampleManager.clusterSize;
-	currentReadBufferEndPos = sampleManager.clusterSize;
+	// Prep to read first Cluster shortly
+	fileBufferCurrentPos = audioFileManager.clusterSize;
+	currentReadBufferEndPos = audioFileManager.clusterSize;
 
 	firmwareVersionOfFileBeingRead = FIRMWARE_OLD;
 
@@ -1187,11 +1187,11 @@ int StorageManager::tryReadingFirmwareTagFromFile(char const* tagName, bool igno
 }
 
 
-bool StorageManager::readXMLFileChunk() {
+bool StorageManager::readXMLFileCluster() {
 
-	AudioEngine::logAction("readXMLFileChunk");
+	AudioEngine::logAction("readXMLFileCluster");
 
-	FRESULT result = f_read(&fileSystemStuff.currentFile, (UINT*)fileClusterBuffer, sampleManager.clusterSize, &currentReadBufferEndPos);
+	FRESULT result = f_read(&fileSystemStuff.currentFile, (UINT*)fileClusterBuffer, audioFileManager.clusterSize, &currentReadBufferEndPos);
 	if (result) {
 		fileAccessFailedDuring = true;
 		return false;

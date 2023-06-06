@@ -23,7 +23,7 @@
 #include "r_typedefs.h"
 
 #define REASSESSMENT_ACTION_STOP_OR_LOOP 0
-#define REASSESSMENT_ACTION_NEXT_CHUNK 1
+#define REASSESSMENT_ACTION_NEXT_CLUSTER 1
 
 typedef __simd64_int16_t int16x4_t;
 
@@ -46,10 +46,10 @@ public:
     void interpolateLinear(int32_t* sampleRead, int numChannels, int whichKernel);
     void fillInterpolationBufferRetrospectively(Sample* sample, int bufferSize, int startI, int playDirection);
     void jumpBackSamples(Sample* sample, int numToJumpBack, int playDirection);
-    void setupForPlayPosMovedIntoNewChunk(SamplePlaybackGuide* guide, Sample* sample, int bytePosWithinNewChunk, int byteDepth);
-    bool setupChunksForInitialPlay(SamplePlaybackGuide* guide, Sample* sample, int byteOvershoot = 0, bool justLooped = false, int priorityRating = 1);
-    bool moveOnToNextChunk(SamplePlaybackGuide* guide, Sample* sample, int priorityRating = 1);
-    bool changeChunkIfNecessary(SamplePlaybackGuide* guide, Sample* sample, bool loopingAtLowLevel, int priorityRating = 1);
+    void setupForPlayPosMovedIntoNewCluster(SamplePlaybackGuide* guide, Sample* sample, int bytePosWithinNewCluster, int byteDepth);
+    bool setupClusersForInitialPlay(SamplePlaybackGuide* guide, Sample* sample, int byteOvershoot = 0, bool justLooped = false, int priorityRating = 1);
+    bool moveOnToNextCluster(SamplePlaybackGuide* guide, Sample* sample, int priorityRating = 1);
+    bool changeClusterIfNecessary(SamplePlaybackGuide* guide, Sample* sample, bool loopingAtLowLevel, int priorityRating = 1);
     bool considerUpcomingWindow(SamplePlaybackGuide* guide, Sample* sample, int* numSamples, int32_t phaseIncrement, bool loopingAtLowLevel, int bufferSize, bool allowEndlessSilenceAtEnd = false, int priorityRating = 1);
     void setupReassessmentLocation(SamplePlaybackGuide* guide, Sample* sample);
     void misalignPlaybackParameters(Sample* sample);
@@ -57,7 +57,7 @@ public:
     bool reassessReassessmentLocation(SamplePlaybackGuide* guide, Sample* sample, int priorityRating);
     int32_t getPlayByteLowLevel(Sample* sample, SamplePlaybackGuide* guide, bool compensateForInterpolationBuffer = false);
     void cloneFrom(SampleLowLevelReader* other, bool stealReasons = false);
-    bool setupChunksForPlayFromByte(SamplePlaybackGuide* guide, Sample* sample, int32_t startPlaybackAtByte, int priorityRating);
+    bool setupClustersForPlayFromByte(SamplePlaybackGuide* guide, Sample* sample, int32_t startPlaybackAtByte, int priorityRating);
 
     virtual bool shouldObeyMarkers() { return false; }
 
@@ -83,7 +83,7 @@ public:
     uint32_t oscPos;
     char* currentPlayPos;
     char* reassessmentLocation;
-    char* chunkStartLocation; // You're allowed to read from this location, but not move any further "back" past it
+    char* clusterStartLocation; // You're allowed to read from this location, but not move any further "back" past it
     uint8_t reassessmentAction;
     int8_t interpolationBufferSizeLastTime; // 0 if was previously switched off
 
@@ -91,11 +91,11 @@ public:
 
 
 
-    Cluster* loadedSampleChunks[NUM_SAMPLE_CHUNKS_LOADED_AHEAD];
+    Cluster* clusters[NUM_CLUSTERS_LOADED_AHEAD];
 
 
 private:
-    bool assignLoadedSampleChunks(SamplePlaybackGuide* guide, Sample* sample, int chunkIndex, int priorityRating);
+    bool assignClusters(SamplePlaybackGuide* guide, Sample* sample, int clusterIndex, int priorityRating);
     bool fillInterpolationBufferForward(SamplePlaybackGuide* guide, Sample* sample, int interpolationBufferSize, bool loopingAtLowLevel, int numSpacesToFill, int priorityRating);
 
 };

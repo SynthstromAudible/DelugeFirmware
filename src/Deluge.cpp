@@ -20,6 +20,7 @@
 
 #include <ArrangerView.h>
 #include <AudioEngine.h>
+#include <AudioFileManager.h>
 #include <contextmenuclearsong.h>
 #include <ContextMenuSampleBrowserKit.h>
 #include <ContextMenuSampleBrowserSynth.h>
@@ -50,7 +51,6 @@
 #include "matrixdriver.h"
 #include "uitimermanager.h"
 #include "Note.h"
-#include "SampleManager.h"
 #include "ActionLogger.h"
 #include "Slicer.h"
 #include "encoder.h"
@@ -714,7 +714,7 @@ extern "C" int main2(void) {
 
 
 	new (&generalMemoryAllocator) GeneralMemoryAllocator;
-	new (&sampleManager) SampleManager;
+	new (&audioFileManager) AudioFileManager;
 	new (&actionLogger) ActionLogger;
 	new (&slicer) Slicer;
 
@@ -743,7 +743,7 @@ extern "C" int main2(void) {
 	ramTestLED();
 #endif
 
-    sampleManager.init();
+    audioFileManager.init();
 
 
 	// Set up OLED now
@@ -947,25 +947,25 @@ resetSettings:
 #endif
     	uartFlushIfNotSending(UART_ITEM_PIC);
 
-    	AudioEngine::routineWithChunkLoading(true); // -----------------------------------
+    	AudioEngine::routineWithClusterLoading(true); // -----------------------------------
 
 	    int count = 0;
 	    while (readButtonsAndPads() && count < 16) {
-	    	if (!(count & 3)) AudioEngine::routineWithChunkLoading(true); // -----------------------------------
+	    	if (!(count & 3)) AudioEngine::routineWithClusterLoading(true); // -----------------------------------
 	    	count++;
 	    }
 
 	    Encoders::readEncoders();
         bool anything = Encoders::interpretEncoders();
 	    if (anything) {
-	    	AudioEngine::routineWithChunkLoading(true); // -----------------------------------
+	    	AudioEngine::routineWithClusterLoading(true); // -----------------------------------
 	    }
 
 	    doAnyPendingUIRendering();
 
-    	AudioEngine::routineWithChunkLoading(true); // -----------------------------------
+    	AudioEngine::routineWithClusterLoading(true); // -----------------------------------
 
-	    sampleManager.slowRoutine(); // Only actually needs calling a couple of times per second, but we can't put it in uiTimerManager cos that gets called in card routine
+	    audioFileManager.slowRoutine(); // Only actually needs calling a couple of times per second, but we can't put it in uiTimerManager cos that gets called in card routine
 	    AudioEngine::slowRoutine();
 
 	    audioRecorder.slowRoutine();
@@ -1020,12 +1020,12 @@ extern "C" void sdCardInserted(void) {
 }
 
 extern "C" void sdCardEjected(void) {
-	sampleManager.cardEjected = true;
+	audioFileManager.cardEjected = true;
 }
 
 
-extern "C" void loadAnyEnqueuedSampleChunksRoutine() {
-	sampleManager.loadAnyEnqueuedSampleChunks();
+extern "C" void loadAnyEnqueuedClustersRoutine() {
+	audioFileManager.loadAnyEnqueuedClusters();
 }
 
 
@@ -1039,8 +1039,8 @@ extern "C" void setNumericNumber(int number) {
 }
 #endif
 
-extern "C" void routineWithChunkLoading() {
-	AudioEngine::routineWithChunkLoading(false);
+extern "C" void routineWithClusterLoading() {
+	AudioEngine::routineWithClusterLoading(false);
 }
 
 void deleteOldSongBeforeLoadingNew() {

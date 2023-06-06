@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include <AudioFileManager.h>
 #include <Browser.h>
 #include "matrixdriver.h"
 #include "ContextMenuDeleteFile.h"
@@ -23,7 +24,6 @@
 #include <string.h>
 #include "uitimermanager.h"
 #include "extern.h"
-#include "SampleManager.h"
 #include "functions.h"
 #include "storagemanager.h"
 #include "oled.h"
@@ -106,7 +106,7 @@ void Browser::emptyFileItems() {
 		i++;
 		if (!(i & 63)) { //  &127 was even fine, even with only -Og compiler optimization.
 			AudioEngine::logAction("emptyFileItems in loop");
-			AudioEngine::routineWithChunkLoading();
+			AudioEngine::routineWithClusterLoading();
 		}
 	}
 
@@ -125,7 +125,7 @@ void Browser::deleteSomeFileItems(int startAt, int stopAt) {
 
 		i++;
 		if (!(i & 63)) { //  &127 was even fine, even with only -Og compiler optimization.
-			AudioEngine::routineWithChunkLoading();
+			AudioEngine::routineWithClusterLoading();
 		}
 	}
 
@@ -257,7 +257,7 @@ int Browser::readFileItemsForFolder(
 	while (true) {
 		AudioEngine::logAction("while loop");
 
-        sampleManager.loadAnyEnqueuedSampleChunks();
+        audioFileManager.loadAnyEnqueuedClusters();
 		FilePointer thisFilePointer;
 
 		result = f_readdir_get_filepointer(&staticDIR, &staticFNO, &thisFilePointer);                   /* Read a directory item */

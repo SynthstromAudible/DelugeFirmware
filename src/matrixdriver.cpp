@@ -17,6 +17,7 @@
 
 #include <ArrangerView.h>
 #include <AudioEngine.h>
+#include <AudioFileManager.h>
 #include <InstrumentClipMinder.h>
 #include <InstrumentClipView.h>
 #include <samplebrowser.h>
@@ -31,7 +32,6 @@
 #include "Session.h"
 #include "KeyboardScreen.h"
 #include "SampleMarkerEditor.h"
-#include "SampleManager.h"
 #include "uitimermanager.h"
 #include "song.h"
 #include "AudioClipView.h"

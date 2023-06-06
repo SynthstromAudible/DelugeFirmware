@@ -15,8 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef LOADEDSAMPLECHUNKPRIORITYQUEUE_H_
-#define LOADEDSAMPLECHUNKPRIORITYQUEUE_H_
+#ifndef CLUSTERPRIORITYQUEUE_H_
+#define CLUSTERPRIORITYQUEUE_H_
 
 #include "OrderedResizeableArray.h"
 
@@ -24,17 +24,17 @@ class Cluster;
 
 struct PriorityQueueElement {
 	uint32_t priorityRating;
-	Cluster* loadedSampleChunk;
+	Cluster* cluster;
 };
 
-class LoadedSampleChunkPriorityQueue final : public OrderedResizeableArrayWith32bitKey {
+class ClusterPriorityQueue final : public OrderedResizeableArrayWith32bitKey {
 public:
-	LoadedSampleChunkPriorityQueue();
+	ClusterPriorityQueue();
 
-	int add(Cluster* loadedSampleChunk, uint32_t priorityRating);
+	int add(Cluster* cluster, uint32_t priorityRating);
 	Cluster* grabHead();
-	bool removeIfPresent(Cluster* loadedSampleChunk);
-	bool checkPresent(Cluster* loadedSampleChunk);
+	bool removeIfPresent(Cluster* cluster);
+	bool checkPresent(Cluster* cluster);
 };
 
-#endif /* LOADEDSAMPLECHUNKPRIORITYQUEUE_H_ */
+#endif /* CLUSTERPRIORITYQUEUE_H_ */

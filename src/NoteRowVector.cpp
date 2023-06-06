@@ -16,9 +16,9 @@
  */
 
 #include <AudioEngine.h>
+#include <AudioFileManager.h>
 #include "NoteRowVector.h"
 #include "NoteRow.h"
-#include "SampleManager.h"
 #include <new>
 
 NoteRowVector::NoteRowVector() :
@@ -29,7 +29,7 @@ NoteRowVector::NoteRowVector() :
 
 NoteRowVector::~NoteRowVector() {
 	for (int i = 0; i < numElements; i++) {
-    	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+    	AudioEngine::routineWithClusterLoading(); // -----------------------------------
 
     	getElement(i)->~NoteRow();
 	}

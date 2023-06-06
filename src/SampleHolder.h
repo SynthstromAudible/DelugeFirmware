@@ -37,9 +37,9 @@ public:
 	int64_t getEndPos(bool forTimeStretching = false);
     int64_t getDurationInSamples(bool forTimeStretching = false);
     void beenClonedFrom(SampleHolder* other, bool reversed);
-    virtual void claimClusterReasons(bool reversed, int chunkLoadInstruction = CHUNK_ENQUEUE);
+    virtual void claimClusterReasons(bool reversed, int clusterLoadInstruction = CLUSTER_ENQUEUE);
     int32_t getLengthInSamplesAtSystemSampleRate(bool forTimeStretching = false);
-    void setAudioFile(AudioFile* newAudioFile, bool reversed = false, bool manuallySelected = false, int chunkLoadInstruction = CHUNK_ENQUEUE);
+    void setAudioFile(AudioFile* newAudioFile, bool reversed = false, bool manuallySelected = false, int clusterLoadInstruction = CLUSTER_ENQUEUE);
 
     // In samples.
     uint64_t startPos;
@@ -50,10 +50,10 @@ public:
 
     int32_t neutralPhaseIncrement;
 
-    Cluster* loadedSampleChunksForStart[NUM_SAMPLE_CHUNKS_LOADED_AHEAD];
+    Cluster* clustersForStart[NUM_CLUSTERS_LOADED_AHEAD];
 
 protected:
-    void claimClusterReasonsForMarker(Cluster** loadedSampleChunks, uint32_t startPlaybackAtByte, int playDirection, int chunkLoadInstruction);
+    void claimClusterReasonsForMarker(Cluster** clusters, uint32_t startPlaybackAtByte, int playDirection, int clusterLoadInstruction);
     virtual void sampleBeenSet(bool reversed, bool manuallySelected) {}
 };
 

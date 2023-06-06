@@ -48,7 +48,7 @@ public:
     virtual int clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlattenReversing = false) = 0;
     void cloneFrom(Clip* other);
     void beginInstance(Song* song, int32_t arrangementRecordPos);
-    void endInstance(int32_t arrangementRecordPos, bool evenIfOtherTrack = false);
+    void endInstance(int32_t arrangementRecordPos, bool evenIfOtherClip = false);
     virtual void setPos(ModelStackWithTimelineCounter* modelStack, int32_t newPos, bool useActualPosForParamManagers = true);
     virtual void setPosForParamManagers(ModelStackWithTimelineCounter* modelStack, bool useActualPos = true);
     virtual void expectNoFurtherTicks(Song* song, bool actuallySoundChange = true) = 0;

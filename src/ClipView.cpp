@@ -89,7 +89,7 @@ Action* ClipView::lengthenClip(int32_t newLength) {
 		allowResyncingDuringClipLengthChange = true;
 	}
 
-	// Only if that didn't get us straight to the correct length, manually set length. This will do a resync if playback active
+	// Only if that didn't get us directly to the correct length, manually set length. This will do a resync if playback active
 	if (currentSong->currentClip->loopLength != newLength) {
 		int actionType = (newLength < currentSong->currentClip->loopLength) ? ACTION_CLIP_LENGTH_DECREASE : ACTION_CLIP_LENGTH_INCREASE;
 
@@ -203,7 +203,7 @@ doReRender:
 
 		displayNumberOfBarsAndBeats(newLength, currentSong->xZoom[NAVIGATION_CLIP], false, "LONG");
 
-		if (action) action->xScrollTrack[AFTER] = currentSong->xScroll[NAVIGATION_CLIP];
+		if (action) action->xScrollClip[AFTER] = currentSong->xScroll[NAVIGATION_CLIP];
 		return ACTION_RESULT_DEALT_WITH;
 	}
 

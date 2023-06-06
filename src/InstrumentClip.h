@@ -15,8 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef Track_h
-#define Track_h
+#ifndef INSTRUMENTCLIP_H
+#define INSTRUMENTCLIP_H
 
 #include <Clip.h>
 #include <TimelineCounter.h>
@@ -102,7 +102,7 @@ class InstrumentClip final : public Clip {
 
     ParamManagerForTimeline backedUpParamManagerMIDI;
 
-    bool inScaleMode; // Probably don't quiz this directly - call isScaleModeTrack() instead
+    bool inScaleMode; // Probably don't quiz this directly - call isScaleModeClip() instead
 
     int yScroll;
     int yScrollKeyboardScreen;
@@ -117,7 +117,7 @@ class InstrumentClip final : public Clip {
     bool wrapEditing;
     uint32_t wrapEditLevel;
 
-    // These *only* store a valid preset number for the instrument-types that the Track is not currently on
+    // These *only* store a valid preset number for the instrument-types that the Clip is not currently on
     int8_t backedUpInstrumentSlot[4];
     int8_t backedUpInstrumentSubSlot[4];
     String backedUpInstrumentName[2];
@@ -137,7 +137,7 @@ class InstrumentClip final : public Clip {
 
     void lengthChanged(ModelStackWithTimelineCounter* modelStack, int32_t oldLength, Action* action = NULL);
     NoteRow *createNewNoteRowForKit(ModelStackWithTimelineCounter* modelStack, bool atStart, int* getIndex = NULL);
-    int changeInstrument(ModelStackWithTimelineCounter* modelStack, Instrument *newInstrument, ParamManagerForTimeline* paramManager, int instrumentRemovalInstruction, InstrumentClip* favourTrackForCloningParamManager = NULL, bool keepNoteRowsWithMIDIInput = true, bool giveMidiAssignmentsToNewInstrument = false);
+    int changeInstrument(ModelStackWithTimelineCounter* modelStack, Instrument *newInstrument, ParamManagerForTimeline* paramManager, int instrumentRemovalInstruction, InstrumentClip* favourClipForCloningParamManager = NULL, bool keepNoteRowsWithMIDIInput = true, bool giveMidiAssignmentsToNewInstrument = false);
     void detachFromOutput(ModelStackWithTimelineCounter* modelStack, bool shouldRememberDrumName, bool shouldDeleteEmptyNoteRowsAtEndOfList = false, bool shouldRetainLinksToSounds = false, bool keepNoteRowsWithMIDIInput = true, bool shouldGrabMidiCommands = false, bool shouldBackUpExpressionParamsToo = true);
     void assignDrumsToNoteRows(ModelStackWithTimelineCounter* modelStack, bool shouldGiveMIDICommandsToDrums = false, int numNoteRowsPreviouslyDeletedFromBottom = 0);
     void unassignAllNoteRowsFromDrums(ModelStackWithTimelineCounter* modelStack, bool shouldRememberDrumNames, bool shouldRetainLinksToSounds, bool shouldGrabMidiCommands, bool shouldBackUpExpressionParamsToo);
@@ -156,10 +156,10 @@ class InstrumentClip final : public Clip {
     NoteRow *getOrCreateNoteRowForYNote(int yNote, Song* song, Action* action = NULL, bool* scaleAltered = NULL, int* getNoteRowIndex = NULL);
     ModelStackWithNoteRow* getOrCreateNoteRowForYNote(int yNote, ModelStackWithTimelineCounter* modelStack, Action* action = NULL, bool* scaleAltered = NULL);
 
-    bool hasSameInstrument(InstrumentClip *otherTrack);
-    bool isScaleModeTrack();
+    bool hasSameInstrument(InstrumentClip *otherClip);
+    bool isScaleModeClip();
     bool allowNoteTails(ModelStackWithNoteRow* modelStack);
-    int setAudioInstrument(Instrument* newInstrument, Song* song, bool shouldNotifyInstrument, ParamManager* newParamManager, InstrumentClip* favourTrackForCloningParamManager = NULL);
+    int setAudioInstrument(Instrument* newInstrument, Song* song, bool shouldNotifyInstrument, ParamManager* newParamManager, InstrumentClip* favourClipForCloningParamManager = NULL);
 
     void expectEvent();
     int32_t getDistanceToNextNote(Note* givenNote, ModelStackWithNoteRow* modelStack);
@@ -177,7 +177,7 @@ class InstrumentClip final : public Clip {
     void compensateVolumeForResonance(ModelStackWithTimelineCounter* modelStack);
     int undoDetachmentFromOutput(ModelStackWithTimelineCounter* modelStack);
     int setNonAudioInstrument(Instrument* newInstrument, Song* song, ParamManager* newParamManager = NULL);
-    int setInstrument(Instrument* newInstrument, Song* song, ParamManager* newParamManager, InstrumentClip* favourTrackForCloningParamManager = NULL);
+    int setInstrument(Instrument* newInstrument, Song* song, ParamManager* newParamManager, InstrumentClip* favourClipForCloningParamManager = NULL);
     void deleteOldDrumNames();
     void ensureScrollWithinKitBounds();
     bool isScrollWithinRange(int scrollAmount, int newYNote);

@@ -42,11 +42,11 @@ public:
     bool willClipLoopAtSomePoint(ModelStackWithTimelineCounter const* modelStack);
     void reSyncClip(ModelStackWithTimelineCounter* modelStack, bool mustSetPosToSomething, bool mayResumeClip);
 
-    // Tracks remain "active" even after playback has stopped, or after they've finished playing but the next Track for the Instrument / row hasn't started yet.
+    // Clips remain "active" even after playback has stopped, or after they've finished playing but the next Clip for the Instrument / row hasn't started yet.
     // It'll also become active if the user starts editing one
-	void resumeClipInstancePlayback(ClipInstance* trackInstance, bool doingComplete = true, bool mayActuallyResumeClip = true);
+	void resumeClipInstancePlayback(ClipInstance* clipInstance, bool doingComplete = true, bool mayActuallyResumeClip = true);
 	void rowEdited(Output* output, int32_t startPos, int32_t endPos, Clip* clipRemoved, ClipInstance* clipInstanceAdded);
-	int doUniqueCloneOnClipInstance(ClipInstance* trackInstance, int32_t newLength = -1, bool shouldCloneRepeats = false);
+	int doUniqueCloneOnClipInstance(ClipInstance* clipInstance, int32_t newLength = -1, bool shouldCloneRepeats = false);
 	int32_t getLivePos(uint32_t* timeRemainder = NULL);
 	void endAnyLinearRecording();
 

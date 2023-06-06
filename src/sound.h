@@ -49,10 +49,19 @@ struct ParamLPF {
 	int32_t currentValue;
 };
 
-
-
 #define NUM_MOD_SOURCE_SELECTION_BUTTONS 2
 
+
+/*
+ * Sound can be either an Instrument or a Drum, in the form of SoundInstrument or SoundDrum respectively.
+ * These classes are implemented using “multiple inheritance”, which is sacrilegious to many C++ programmers.
+ * I (Rohan) consider it to be a more or less appropriate solution in this case and a few others in the Deluge codebase where it’s used.
+ * It’s a little while though since I’ve sat and thought about what the alternatives could be and whether anything else would be appropriate.
+ *
+ * Anyway, Sound (which may be named a bit too broadly) basically means a synth or sample, or any combination of the two.
+ * And, to reiterate the above, it can exist as a “synth” as the melodic Output of one entire Clip(s),
+ * or as just a Drum - one of the many items in a Kit, normally associated with a row of notes.
+ */
 
 class Sound: public ModControllableAudio {
 public:
@@ -126,7 +135,7 @@ public:
     uint32_t timeStartedSkippingRenderingArp;
     uint32_t startSkippingRenderingAtTime; // Valid when not 0. Allows a wait-time before render skipping starts, for if mod fx are on
 
-    virtual ArpeggiatorSettings* getArpSettings(InstrumentClip* track = NULL) = 0;
+    virtual ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = NULL) = 0;
     virtual void setSkippingRendering(bool newSkipping);
 
     bool setModFXType(int newType) final;
@@ -175,7 +184,7 @@ public:
     void noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int noteCode = -32768);
     void noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int newNoteCodeBeforeArpeggiation, int newNoteCodeAfterArpeggiation, int velocity, int16_t const* mpeValues, uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate, int fromMIDIChannel = 16);
 
-    int16_t getMaxOscTranspose(InstrumentClip* track);
+    int16_t getMaxOscTranspose(InstrumentClip* clip);
     int16_t getMinOscTranspose();
     void setSynthMode(uint8_t value, Song* song);
     inline uint8_t getSynthMode() {
@@ -203,7 +212,7 @@ public:
     int32_t hasAnyTimeStretchSyncing(ParamManagerForTimeline* paramManager, bool getSampleLength = false, int note = 0);
     int32_t hasCutOrLoopModeSamples(ParamManagerForTimeline* paramManager, int note, bool* anyLooping = NULL);
     bool hasCutModeSamples(ParamManagerForTimeline* paramManager);
-    bool allowsVeryLateNoteStart(InstrumentClip* track, ParamManagerForTimeline* paramManager);
+    bool allowsVeryLateNoteStart(InstrumentClip* clip, ParamManagerForTimeline* paramManager);
     void fastReleaseAllVoices(ModelStackWithSoundFlags* modelStack);
     void recalculatePatchingToParam(uint8_t p, ParamManagerForTimeline* paramManager);
     void doneReadingFromFile();

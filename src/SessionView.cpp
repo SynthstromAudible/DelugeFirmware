@@ -17,6 +17,7 @@
 
 #include <ArrangerView.h>
 #include <AudioEngine.h>
+#include <AudioFileManager.h>
 #include <ClipInstance.h>
 #include <DString.h>
 #include <InstrumentClip.h>
@@ -35,7 +36,6 @@
 #include "Session.h"
 #include "instrument.h"
 #include "Arrangement.h"
-#include "SampleManager.h"
 #include <new>
 #include "storagemanager.h"
 #include "LoadInstrumentPresetUI.h"
@@ -186,8 +186,8 @@ int SessionView::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 			}
 			else if (currentUIMode == UI_MODE_NONE) {
 				if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
-					currentSong->endInstancesOfActiveTracks(playbackHandler.getActualArrangementRecordPos());
-					currentSong->resumeClipsClonedForArrangementRecording(); // Must call before calling getArrangementRecordPos(), cos that detaches the cloned Track
+					currentSong->endInstancesOfActiveClips(playbackHandler.getActualArrangementRecordPos());
+					currentSong->resumeClipsClonedForArrangementRecording(); // Must call before calling getArrangementRecordPos(), cos that detaches the cloned Clip
 					playbackHandler.recording = RECORDING_OFF;
 					view.setModLedStates();
 					playbackHandler.setLedStates();
@@ -217,7 +217,7 @@ int SessionView::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 				ClipInstance* otherInstance = output->clipInstances.getElement(i);
 				if (otherInstance) {
 					if (otherInstance->pos + otherInstance->length > proposedStartPos) {
-moveAfterTrackInstance:
+moveAfterClipInstance:
 						proposedStartPos = ((otherInstance->pos + otherInstance->length - 1) / currentSong->xZoom[NAVIGATION_ARRANGEMENT] + 1) * currentSong->xZoom[NAVIGATION_ARRANGEMENT];
 					}
 				}
@@ -227,7 +227,7 @@ moveAfterTrackInstance:
 				otherInstance = output->clipInstances.getElement(i);
 				if (otherInstance) {
 					if (otherInstance->pos < proposedStartPos + clip->loopLength) {
-						goto moveAfterTrackInstance;
+						goto moveAfterClipInstance;
 					}
 				}
 
@@ -387,7 +387,7 @@ changeInstrumentType:
 				// If load button held, go into LoadInstrumentPresetUI
 				if (Buttons::isButtonPressed(loadButtonX, loadButtonY)) {
 
-					// Can't do that for MIDI or CV tracks though
+					// Can't do that for MIDI or CV Clips though
 					if (newInstrumentType == INSTRUMENT_TYPE_MIDI_OUT || newInstrumentType == INSTRUMENT_TYPE_CV) {
 						goto doActualSimpleChange;
 					}
@@ -1075,7 +1075,7 @@ void SessionView::drawSectionSquare(uint8_t yDisplay, uint8_t thisImage[][3]) {
 
     Clip* clip = getClipOnScreen(yDisplay);
 
-    // If no Track, black
+    // If no Clip, black
     if (!clip) memset(thisColour, 0, 3);
     else {
         if (view.midiLearnFlashOn && currentSong->sections[clip->section].launchMIDICommand.containsSomething()) {
@@ -1213,7 +1213,7 @@ doGetInstrument:
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(newClip);
 
-	// Figure out the play pos for the new track if we're currently playing
+	// Figure out the play pos for the new Clip if we're currently playing
     if (session.hasPlaybackActive() && playbackHandler.isEitherClockActive() && currentSong->isClipActive(newClip)) {
     	session.reSyncClip(modelStackWithTimelineCounter, true);
     }
@@ -1286,7 +1286,7 @@ gotErrorDontDisplay:
 
     if (!instrumentAlreadyInSong) currentSong->addOutput(newClip->output);
 
-	// Possibly want to set this as the active Track...
+	// Possibly want to set this as the active Clip...
 	if (!newClip->output->activeClip) {
 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -1781,7 +1781,7 @@ uint32_t SessionView::getClipLocalScroll(Clip* clip, uint32_t overviewScroll, ui
 
 
 void SessionView::flashPlayRoutine() {
-    view.trackArmFlashOn = !view.trackArmFlashOn;
+    view.clipArmFlashOn = !view.clipArmFlashOn;
     uint32_t whichRowsNeedReRendering = 0;
 
     bool any = false;
@@ -1807,13 +1807,13 @@ void SessionView::modButtonAction(uint8_t whichButton, bool on) {
 	performActionOnPadRelease = false;
 }
 
-void SessionView::noteRowChanged(InstrumentClip* track, NoteRow* noteRow) {
+void SessionView::noteRowChanged(InstrumentClip* instrumentClip, NoteRow* noteRow) {
 
 	if (currentUIMode == UI_MODE_HORIZONTAL_SCROLL) return; // Is this 100% correct? What if that one Clip isn't visually scrolling?
 
     for (int yDisplay = 0; yDisplay < displayHeight; yDisplay++) {
     	Clip* clip = getClipOnScreen(yDisplay);
-        if (clip == track) {
+        if (clip == instrumentClip) {
         	uiNeedsRendering(this, 1 << yDisplay, 0);
             return;
         }
@@ -1942,7 +1942,7 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 
     currentSong->xScroll[NAVIGATION_CLIP] = getClipLocalScroll(clip, currentSong->xScroll[NAVIGATION_CLIP], currentSong->xZoom[NAVIGATION_CLIP]);
 
-    PadLEDs::recordTransitionBegin(trackCollapseSpeed);
+    PadLEDs::recordTransitionBegin(clipCollapseSpeed);
 
     // InstrumentClips
     if (clip->type == CLIP_TYPE_INSTRUMENT) {
@@ -2000,7 +2000,7 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 			PadLEDs::clearSideBar(); // Sends "now"
     	}
 
-    	// If no sample, just skip straight there
+    	// If no sample, just skip directly there
     	else {
     		currentUIMode = UI_MODE_NONE;
 			changeRootUI(&audioClipView);
@@ -2010,7 +2010,7 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 
 // Might be called during card routine! So renders might fail. Not too likely
 void SessionView::finishedTransitioningHere() {
-	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+	AudioEngine::routineWithClusterLoading(); // -----------------------------------
     currentUIMode = UI_MODE_ANIMATION_FADE;
     PadLEDs::recordTransitionBegin(fadeSpeed);
     changeRootUI(this);

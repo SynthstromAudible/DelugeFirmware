@@ -74,7 +74,7 @@ void Session::armAllClipsToStop(int afterNumRepeats) {
 	uint8_t launchStatus = investigateSyncedLaunch(waitForClip, &currentPosWithinQuantization, &quantization, 0xFFFFFFFF, false);
 
 	if (launchStatus == LAUNCH_STATUS_NOTHING_TO_SYNC_TO) {
-		// We'd never actually get here, because there always are tracks playing if this function gets called I think
+		// We'd never actually get here, because there always are Clips playing if this function gets called I think
 	}
 
 	else if (launchStatus == LAUNCH_STATUS_LAUNCH_USING_QUANTIZATION) {
@@ -607,7 +607,7 @@ void Session::reSyncClipToSongTicks(Clip* clip) {
 	if (!currentSong->isClipActive(clip)) return;
 
 	// I've sort of forgotten why this bit here is necessary (well, I know it deals with the skipping of ticks). Could it just be put into the setPos() function?
-	// I basically copied this from Editor::launchTrack()
+	// I basically copied this from Editor::launchClip()
 	int32_t modifiedStartPos = (int32_t)playbackHandler.lastSwungTickActioned;
 	while (modifiedStartPos < 0) modifiedStartPos += clip->loopLength; // Fairly unlikely I think
 
@@ -721,7 +721,7 @@ doTempolessRecording:
 			// Otherwise, normal case - arm this Clip to stop soloing
 			else {
 
-				//armTracks0(0, track, false, forceLateStart); // Force "late start" if user holding shift button
+				//armClips0(0, clip, false, forceLateStart); // Force "late start" if user holding shift button
 				clip->armState = ARM_STATE_ON_NORMAL;
 				int64_t wantToStopAtTime = playbackHandler.getActualSwungTickCount() - clip->getClipToRecordTo()->getActualCurrentPosAsIfPlayingInForwardDirection() + clip->loopLength;
 				scheduleLaunchTiming(wantToStopAtTime, 1, clip->loopLength);
@@ -947,7 +947,7 @@ void Session::armSection(uint8_t section, int buttonPressLatency) {
 	// Get rid of soloing. And if we're not a "share" section, get rid of arming too
 	currentSong->turnSoloingIntoJustPlaying(currentSong->sections[section].numRepetitions != -1);
 
-	// If every Clip in this section is already playing, and no other tracks are (unless we're a "share" section), then there's no need to launch the section because it's already playing.
+	// If every Clip in this section is already playing, and no other Clips are (unless we're a "share" section), then there's no need to launch the section because it's already playing.
 	// So, make sure this isn't the case before we go and do anything more
 	for (int c = 0; c < currentSong->sessionClips.getNumElements(); c++) {
 		Clip* clip = currentSong->sessionClips.getClipAtIndex(c);
@@ -1005,7 +1005,7 @@ void Session::armSectionWhenNeitherClockActive(ModelStack* modelStack, int secti
 		}
 
 		if (stopAllOtherClips && clip->section != section && clip->activeIfNoSolo) {
-			//thisTrack->expectNoFurtherTicks(currentSong); // No, don't need this, cos it's not playing!
+			//thisClip->expectNoFurtherTicks(currentSong); // No, don't need this, cos it's not playing!
 			clip->activeIfNoSolo = false;
 		}
 	}
@@ -1154,7 +1154,7 @@ void Session::userWantsToArmClipsToStartOrSolo(uint8_t section, Clip* clip, bool
 
 				if (thisClip->section == section) {
 
-					// If we're arming a section, we know there's no soloing or armed tracks, so that's easy.
+					// If we're arming a section, we know there's no soloing or armed Clips, so that's easy.
 					// Only arm if it's not playing
 					if (!thisClip->activeIfNoSolo) {
 						armClipLowLevel(thisClip, armState);
@@ -1457,7 +1457,7 @@ void Session::armClipToStartOrSoloUsingQuantization(Clip* thisClip, bool doLateS
 				launchSchedulingMightNeedCancelling();
 			}
 
-			//currentSong->deactivateAnyArrangementOnlyTracks(); // In case any left playing after switch from arrangement
+			//currentSong->deactivateAnyArrangementOnlyClips(); // In case any left playing after switch from arrangement
 
 			bool wasAlreadyActive = currentSong->isClipActive(thisClip);
 
@@ -1557,7 +1557,7 @@ int Session::userWantsToArmNextSection(int numRepetitions) {
 
 
 
-// Only returns result if all tracks in section are playing, and no others
+// Only returns result if all Clips in section are playing, and no others
 // Exactly what the return values of 255 and 254 mean has been lost, but they're treated as interchangeable by the function that calls this anyway
 int Session::getCurrentSection() {
 
@@ -1855,7 +1855,7 @@ traverseClips:
 					return swappedSong;
 				}
 
-				currentPlaybackMode->resetPlayPos(0); // activeTracks have been set up already / PGMs have been sent. Calling this will resync arpeggiators though...
+				currentPlaybackMode->resetPlayPos(0); // activeClips have been set up already / PGMs have been sent. Calling this will resync arpeggiators though...
 				// If switching to arranger, that'll happen as part of doSongSwap(), above
 
 				enforceSettingUpArming = true;
@@ -1985,8 +1985,8 @@ traverseClips:
 
     /*
     for (Instrument* thisInstrument = currentSong->firstInstrument; thisInstrument; thisInstrument = thisInstrument->next) {
-    	if (thisInstrument->activeTrack && isTrackActive(thisInstrument->activeTrack)) {
-    		thisInstrument->activeTrack->doTickForward(posIncrement);
+    	if (thisInstrument->activeClip && isClipActive(thisInstrument->activeClip)) {
+    		thisInstrument->activeClip->doTickForward(posIncrement);
     	}
     }
     */

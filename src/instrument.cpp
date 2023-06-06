@@ -16,6 +16,7 @@
 */
 
 #include <AudioEngine.h>
+#include <AudioFileManager.h>
 #include <ClipInstance.h>
 #include <InstrumentClip.h>
 #include <ParamManager.h>
@@ -33,7 +34,6 @@
 #include "ModelStack.h"
 #include "MIDIInstrument.h"
 #include "functions.h"
-#include "SampleManager.h"
 
 Instrument::Instrument(int newType) : Output(newType)
 {
@@ -54,12 +54,12 @@ void Instrument::beenEdited(bool shouldMoveToEmptySlot) {
     editedByUser = true;
 }
 
-void Instrument::deleteAnyInstancesOfClip(InstrumentClip* track) {
+void Instrument::deleteAnyInstancesOfClip(InstrumentClip* clip) {
 	int i = 0;
 
 	while (i < clipInstances.getNumElements()) {
 		ClipInstance* instance = clipInstances.getElement(i);
-		if (instance->clip == track) clipInstances.deleteAtIndex(i);
+		if (instance->clip == clip) clipInstances.deleteAtIndex(i);
 		else i++;
 	}
 }
@@ -172,9 +172,9 @@ Clip* Instrument::createNewClipForArrangementRecording(ModelStack* modelStack) {
 
 int Instrument::setupDefaultAudioFileDir() {
 	char const* dirPathChars = dirPath.get();
-	int error = sampleManager.setupAlternateAudioFileDir(&sampleManager.alternateAudioFileLoadPath, dirPathChars, &name);
+	int error = audioFileManager.setupAlternateAudioFileDir(&audioFileManager.alternateAudioFileLoadPath, dirPathChars, &name);
 	if (error) return error;
-	sampleManager.thingBeginningLoading(type);
+	audioFileManager.thingBeginningLoading(type);
 	return NO_ERROR;
 }
 

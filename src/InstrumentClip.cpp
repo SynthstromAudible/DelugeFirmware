@@ -17,6 +17,7 @@
 
 #include <ArrangerView.h>
 #include <AudioEngine.h>
+#include <AudioFileManager.h>
 #include <ClipInstance.h>
 #include <DString.h>
 #include <InstrumentClip.h>
@@ -47,7 +48,6 @@
 #include "Arrangement.h"
 #include "Session.h"
 #include "MIDIInstrument.h"
-#include "SampleManager.h"
 #include <new>
 #include "storagemanager.h"
 #include "CVInstrument.h"
@@ -107,7 +107,7 @@ InstrumentClip::InstrumentClip(Song* song) : Clip(CLIP_TYPE_INSTRUMENT)
 }
 
 
-// You must call prepareForDestruction() before this, preferably by calling Song::deleteTrackObject()
+// You must call prepareForDestruction() before this, preferably by calling Song::deleteClipObject()
 // Will call audio routine!!! Necessary to avoid voice cuts, especially when switching song
 InstrumentClip::~InstrumentClip() {
 
@@ -1093,7 +1093,7 @@ void InstrumentClip::getMainColourFromY(int yNote, int8_t noteRowColourOffset, u
 
 
 void InstrumentClip::musicalModeChanged(uint8_t yVisualWithinOctave, int change, ModelStackWithTimelineCounter* modelStack) {
-    if (!isScaleModeTrack()) return;
+    if (!isScaleModeClip()) return;
     // Find all NoteRows which belong to this yVisualWithinOctave, and change their note
 	for (int i = 0; i < noteRows.getNumElements(); i++) {
 		NoteRow* thisNoteRow = noteRows.getElement(i);
@@ -1107,7 +1107,7 @@ void InstrumentClip::musicalModeChanged(uint8_t yVisualWithinOctave, int change,
 }
 
 void InstrumentClip::noteRemovedFromMode(int yNoteWithinOctave, Song* song) {
-    if (!isScaleModeTrack()) return;
+    if (!isScaleModeClip()) return;
 
 	for (int i = 0; i < noteRows.getNumElements(); ) {
 		NoteRow* thisNoteRow = noteRows.getElement(i);
@@ -1159,9 +1159,9 @@ void InstrumentClip::transpose(int change, ModelStackWithTimelineCounter* modelS
 bool InstrumentClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, TimelineView* editorScreen, int32_t xScroll, uint32_t xZoom, uint8_t* image, uint8_t occupancyMask[], bool addUndefinedArea,
 		int noteRowIndexStart, int noteRowIndexEnd, int xStart, int xEnd, bool allowBlur, bool drawRepeats) {
 
-	AudioEngine::logAction("Track::renderAsSingleRow");
+	AudioEngine::logAction("InstrumentClip::renderAsSingleRow");
 
-	// Special case if we're a simple keyboard-mode Track
+	// Special case if we're a simple keyboard-mode Clip
     if (onKeyboardScreen && !containsAnyNotes()) {
     	int increment = (displayWidth + (displayHeight * KEYBOARD_ROW_INTERVAL)) / displayWidth;
 		for (int x = xStart; x < xEnd; x++) {
@@ -1183,7 +1183,7 @@ bool InstrumentClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack
 		NoteRow* thisNoteRow = noteRows.getElement(i);
 
     	if (!(i & 15)) {
-        	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+        	AudioEngine::routineWithClusterLoading(); // -----------------------------------
         	AudioEngine::logAction("renderAsSingleRow still");
     	}
 
@@ -1362,7 +1362,7 @@ void InstrumentClip::prepareToEnterKitMode(Song* song) {
 
 // Returns error code in theory - but in reality we're screwed if we get to that stage.
 // newParamManager is optional - normally it's not supplied, and will be searched for
-int InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack, Instrument* newInstrument, ParamManagerForTimeline* newParamManager, int instrumentRemovalInstruction, InstrumentClip* favourTrackForCloningParamManager, bool keepNoteRowsWithMIDIInput, bool giveMidiAssignmentsToNewInstrument) {
+int InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack, Instrument* newInstrument, ParamManagerForTimeline* newParamManager, int instrumentRemovalInstruction, InstrumentClip* favourClipForCloningParamManager, bool keepNoteRowsWithMIDIInput, bool giveMidiAssignmentsToNewInstrument) {
 
 	bool shouldBackUpExpressionParamsToo = false;
 
@@ -1383,7 +1383,7 @@ int InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack, 
     Instrument* oldInstrument = (Instrument*)output;
     int oldYScroll = yScroll;
 
-	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+	AudioEngine::routineWithClusterLoading(); // -----------------------------------
 
     AudioEngine::audioRoutineLocked = true;
 
@@ -1399,7 +1399,7 @@ int InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack, 
 
     detachFromOutput(modelStack, true, (newInstrument->type == INSTRUMENT_TYPE_KIT), false, keepNoteRowsWithMIDIInput, giveMidiAssignmentsToNewInstrument, shouldBackUpExpressionParamsToo); // Will unassignAllNoteRowsFromDrums(), and remember Drum names
 
-	int error = setInstrument(newInstrument, modelStack->song, newParamManager, favourTrackForCloningParamManager); // Tell it not to setup patching - this will happen back here in changeInstrumentPreset() after all Drums matched up
+	int error = setInstrument(newInstrument, modelStack->song, newParamManager, favourClipForCloningParamManager); // Tell it not to setup patching - this will happen back here in changeInstrumentPreset() after all Drums matched up
 	if (error) {
 		numericDriver.freezeWithError("E039");
 		return error; // TODO: we'll need to get the old Instrument back...
@@ -1431,7 +1431,7 @@ int InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack, 
 	// Can safely call audio routine again now
     AudioEngine::audioRoutineLocked = false;
     AudioEngine::bypassCulling = true;
-	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+	AudioEngine::routineWithClusterLoading(); // -----------------------------------
 
 
     // If now a Kit, match NoteRows back up to Drums
@@ -1455,7 +1455,7 @@ int InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack, 
 
 					ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(i, thisNoteRow);
 
-					thisNoteRow->setDrum(thisDrum, kit, modelStackWithNoteRow, favourTrackForCloningParamManager); // Sets up patching
+					thisNoteRow->setDrum(thisDrum, kit, modelStackWithNoteRow, favourClipForCloningParamManager); // Sets up patching
 					if (giveMidiAssignmentsToNewInstrument) thisNoteRow->giveMidiCommandsToDrum();
 
 					// And get out
@@ -1464,7 +1464,7 @@ int InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack, 
 			}
 
 			// TODO: we surely don't need to call this every time through
-	    	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+	    	AudioEngine::routineWithClusterLoading(); // -----------------------------------
 		}
 
 		int numNoteRowsDeletedFromBottom = (oldInstrument->type == INSTRUMENT_TYPE_KIT) ?
@@ -1762,8 +1762,8 @@ void InstrumentClip::unassignAllNoteRowsFromDrums(ModelStackWithTimelineCounter*
 		NoteRow* thisNoteRow = noteRows.getElement(i);
     	if (thisNoteRow->drum) {
     		if (shouldRememberDrumNames) thisNoteRow->rememberDrumName();
-    		AudioEngine::logAction("Track::unassignAllNoteRowsFromDrums");
-        	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+    		AudioEngine::logAction("InstrumentClip::unassignAllNoteRowsFromDrums");
+        	AudioEngine::routineWithClusterLoading(); // -----------------------------------
 
     		// If we're retaining links to Sounds, like if we're undo-ably "deleting" a Clip, just backup (and remove link to) the paramManager
     		if (shouldRetainLinksToSounds) {
@@ -2213,13 +2213,13 @@ someError:
             if (*(tagName = storageManager.readNextTagOrAttributeName())) {
                 if (!strcmp(tagName, "referToTrackId")) {
                     if (!output) {
-                        int trackId = storageManager.readTagOrAttributeValueInt();
-                        trackId = getMax((int)0, trackId);
-                        if (trackId >= song->sessionClips.getNumElements()) {
+                        int clipId = storageManager.readTagOrAttributeValueInt();
+                        clipId = getMax((int)0, clipId);
+                        if (clipId >= song->sessionClips.getNumElements()) {
                         	error = ERROR_FILE_CORRUPTED;
                         	goto someError;
                         }
-                        instrumentWasLoadedByReferenceFromClip = (InstrumentClip*)song->sessionClips.getClipAtIndex(trackId);
+                        instrumentWasLoadedByReferenceFromClip = (InstrumentClip*)song->sessionClips.getClipAtIndex(clipId);
     					output = instrumentWasLoadedByReferenceFromClip->output;
     					if (!output) {
                         	error = ERROR_FILE_CORRUPTED;
@@ -2675,7 +2675,7 @@ bool InstrumentClip::deleteSoundsWhichWontSound(Song* song) {
 
 				noteRows.deleteNoteRowAtIndex(i);
 
-		    	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+		    	AudioEngine::routineWithClusterLoading(); // -----------------------------------
 	    	}
 	    	else {
 	    		i++;
@@ -2685,7 +2685,7 @@ bool InstrumentClip::deleteSoundsWhichWontSound(Song* song) {
         return false;
     }
 
-    // For MelodicInstruments, we can delete the Track (which we know is active on the Instrument) if the Track is inactive in the Song and the Instrument isn't still rendering anything
+    // For MelodicInstruments, we can delete the Clip (which we know is active on the Instrument) if the Clip is inactive in the Song and the Instrument isn't still rendering anything
     else {
     	return Clip::deleteSoundsWhichWontSound(song);
     }
@@ -2742,12 +2742,12 @@ uint32_t InstrumentClip::getWrapEditLevel() {
     		: MAX_SEQUENCE_LENGTH; // Used to return the Clip length in this case, but that causes problems now that NoteRows may be longer.
 }
 
-bool InstrumentClip::hasSameInstrument(InstrumentClip* otherTrack) {
-    return (output == otherTrack->output);
+bool InstrumentClip::hasSameInstrument(InstrumentClip* otherClip) {
+    return (output == otherClip->output);
 }
 
 
-bool InstrumentClip::isScaleModeTrack() {
+bool InstrumentClip::isScaleModeClip() {
 	return (inScaleMode && output->type != INSTRUMENT_TYPE_KIT);
 }
 
@@ -3182,9 +3182,9 @@ void InstrumentClip::getSuggestedParamManager(Clip* newClip, ParamManagerForTime
 		Clip::getSuggestedParamManager(newClip, suggestedParamManager, sound);
 	}
 	else {
-		InstrumentClip* newTrack = (InstrumentClip*)newClip;
-		for (int i = 0; i < newTrack->noteRows.getNumElements(); i++) {
-			NoteRow* noteRow = newTrack->noteRows.getElement(i);
+		InstrumentClip* newInstrumentClip = (InstrumentClip*)newClip;
+		for (int i = 0; i < newInstrumentClip->noteRows.getNumElements(); i++) {
+			NoteRow* noteRow = newInstrumentClip->noteRows.getElement(i);
 			if (noteRow->drum && noteRow->drum->type == DRUM_TYPE_SOUND && (SoundDrum*)noteRow->drum == sound) {
 				*suggestedParamManager = &noteRow->paramManager;
 				break;
@@ -3243,7 +3243,7 @@ int InstrumentClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
     		NoteRow* thisNoteRow = noteRows.getElement(i);
 
         	if (!(noteRowCount & 15)) {
-            	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+            	AudioEngine::routineWithClusterLoading(); // -----------------------------------
         	    AudioEngine::logAction("nlkr");
         	}
 

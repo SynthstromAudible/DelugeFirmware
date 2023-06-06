@@ -1216,7 +1216,7 @@ ne10_fft_r2c_cfg_int32_t ne10_fft_alloc_r2c_int32 (ne10_int32_t nfft)
             twiddles += mstride * (cur_radix - 1);
         }
 
-        routineWithChunkLoading(); // Injected by Rohan. Ideally though, we'd want to have some of these amongst the above loop, which takes longest.
+        routineWithClusterLoading(); // Injected by Rohan. Ideally though, we'd want to have some of these amongst the above loop, which takes longest.
         							// Actually, should just optimized this function - those floats and trig functions will be snail-speed.
 
         twiddles = st->super_twiddles;
