@@ -65,7 +65,7 @@
 #include "MIDIDevice.h"
 #include "LearnedMIDI.h"
 #include "ParamCollection.h"
-#include "paramSet.h"
+#include "ParamSet.h"
 #include "soundinstrument.h"
 #include "FileItem.h"
 #include "uitimermanager.h"

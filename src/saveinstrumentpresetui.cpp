@@ -30,8 +30,8 @@
 #include "kit.h"
 #include "KeyboardScreen.h"
 #include <string.h>
-#include "view.h"
-#include "contextMenuOverwriteFile.h"
+#include "View.h"
+#include "ContextMenuOverwriteFile.h"
 #include "IndicatorLEDs.h"
 #include "Buttons.h"
 #include "oled.h"

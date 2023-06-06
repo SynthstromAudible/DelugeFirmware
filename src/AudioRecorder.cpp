@@ -31,7 +31,7 @@
 #include "numericdriver.h"
 #include "source.h"
 #include "matrixdriver.h"
-#include "Kit.h"
+#include "kit.h"
 #include "song.h"
 #include "uitimermanager.h"
 #include "ActionLogger.h"

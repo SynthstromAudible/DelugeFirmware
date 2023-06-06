@@ -19,7 +19,7 @@
 #define DELAY_H_
 
 #include "r_typedefs.h"
-#include "audiosample.h"
+#include "AudioSample.h"
 #include <math.h>
 #include "DelayBuffer.h"
 #include "ImpulseResponseProcessor.h"

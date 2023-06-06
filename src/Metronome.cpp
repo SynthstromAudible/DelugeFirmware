@@ -16,7 +16,7 @@
  */
 
 #include "Metronome.h"
-#include "audiosample.h"
+#include "AudioSample.h"
 
 Metronome::Metronome()
 {

@@ -17,7 +17,7 @@
 
 #include <AudioEngine.h>
 #include "DelayBuffer.h"
-#include "audiosample.h"
+#include "AudioSample.h"
 #include "functions.h"
 #include "GeneralMemoryAllocator.h"
 #include <string.h>

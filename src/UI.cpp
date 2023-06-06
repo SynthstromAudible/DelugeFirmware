@@ -16,7 +16,7 @@
  */
 
 #include <InstrumentClipView.h>
-#include "view.h"
+#include "View.h"
 #include "soundeditor.h"
 #include "matrixdriver.h"
 #include "uitimermanager.h"
