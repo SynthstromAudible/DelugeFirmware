@@ -3,7 +3,7 @@
     <booleanAttribute key=".setStepMode" value="false"/>
     <stringAttribute key="com.renesas.cdt.core.additionalServerArgs" value=""/>
     <intAttribute key="com.renesas.cdt.core.connectionTimeout" value="30"/>
-    <stringAttribute key="com.renesas.cdt.core.imageFileName" value="${workspace_loc:\Deluge\HardwareDebug/Deluge.elf}"/>
+    <stringAttribute key="com.renesas.cdt.core.imageFileName" value="${workspace_loc:/Deluge/HardwareDebug/Deluge.elf}"/>
     <stringAttribute key="com.renesas.cdt.core.initCommands" value=""/>
     <stringAttribute key="com.renesas.cdt.core.ipAddress" value="localhost"/>
     <stringAttribute key="com.renesas.cdt.core.jtagDevice" value="J-Link ARM"/>
@@ -31,8 +31,8 @@
     <stringAttribute key="com.renesas.cdt.core.stopAt" value="main"/>
     <stringAttribute key="com.renesas.cdt.core.targetDevice" value="R7S721020"/>
     <booleanAttribute key="com.renesas.cdt.core.useRemoteTarget" value="true"/>
-    <stringAttribute key="com.renesas.cdt.debug.ioview.dsf.registerSelection" value="&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot; standalone=&quot;no&quot;?&gt;&#13;&#10;&lt;selectedRegisterList ioFilePath=&quot;C:\Renesas\e2_studio_7\DebugComp\RZ\Iofiles\RZA1.sfrx&quot;/&gt;&#13;&#10;"/>
-    <stringAttribute key="com.renesas.cdt.debug.ioview.dsf.registerSelection0" value="&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot; standalone=&quot;no&quot;?&gt;&#13;&#10;&lt;selectedRegisterList ioFilePath=&quot;C:\Users\Rohan\.eclipse\com.renesas.platform_2042840504\DebugComp\RZ\IoFiles\RZA1.sfrx&quot;/&gt;&#13;&#10;"/>
+    <stringAttribute key="com.renesas.cdt.debug.ioview.dsf.registerSelection" value="&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot; standalone=&quot;no&quot;?&gt;&#13;&#10;&lt;selectedRegisterList ioFilePath=&quot;C:/Renesas/e2_studio_7/DebugComp/RZ/Iofiles/RZA1.sfrx&quot;/&gt;&#13;&#10;"/>
+    <stringAttribute key="com.renesas.cdt.debug.ioview.dsf.registerSelection0" value="&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot; standalone=&quot;no&quot;?&gt;&#13;&#10;&lt;selectedRegisterList ioFilePath=&quot;C:/Users/Rohan/.eclipse/com.renesas.platform_2042840504/DebugComp/RZ/IoFiles/RZA1.sfrx&quot;/&gt;&#13;&#10;"/>
     <stringAttribute key="com.renesas.cdt.launch.dsf.IO_MAP" value="${support_area_loc}"/>
     <booleanAttribute key="com.renesas.cdt.launch.dsf.USE_DEFAULT_IO_MAP" value="true"/>
     <listAttribute key="com.renesas.cdt.launch.dsf.downloadImages">
@@ -42,7 +42,7 @@
     <listAttribute key="com.renesas.cdt.launch.dsf.externalFlashDestinationAddresses"/>
     <listAttribute key="com.renesas.cdt.launch.dsf.externalFlashDownloadModules"/>
     <stringAttribute key="com.renesas.cdt.launch.dsf.launchSeqType" value="com.renesas.cdt.launch.dsf.launchSequence.e2GdbServer"/>
-    <stringAttribute key="com.renesas.cdt.launch.dsf.serverPath" value="${renesas.support.targetLoc:com.renesas.ide.supportfiles.rz.debug.debugSupportFileTarget}\e2-server-gdb"/>
+    <stringAttribute key="com.renesas.cdt.launch.dsf.serverPath" value="${renesas.support.targetLoc:com.renesas.ide.supportfiles.rz.debug.debugSupportFileTarget}/e2-server-gdb"/>
     <booleanAttribute key="com.renesas.hardwaredebug.arm.jlink.break.allowSimulation" value="false"/>
     <booleanAttribute key="com.renesas.hardwaredebug.arm.jlink.break.useFlashBreakpoints" value="false"/>
     <booleanAttribute key="com.renesas.hardwaredebug.arm.jlink.break.useFlashBreakpoints.resetorrepurposed" value="true"/>
@@ -94,7 +94,7 @@
     <intAttribute key="org.eclipse.cdt.debug.gdbjtag.core.delay" value="3"/>
     <booleanAttribute key="org.eclipse.cdt.debug.gdbjtag.core.doHalt" value="false"/>
     <booleanAttribute key="org.eclipse.cdt.debug.gdbjtag.core.doReset" value="false"/>
-    <stringAttribute key="org.eclipse.cdt.debug.gdbjtag.core.imageFileName" value="C:\Projects\DelugeFirmware\e2-build-debug-7seg\Deluge-debug-7seg.elf"/>
+    <stringAttribute key="org.eclipse.cdt.debug.gdbjtag.core.imageFileName" value="C:/Projects/DelugeFirmware/e2-build-debug-7seg/Deluge-debug-7seg.elf"/>
     <stringAttribute key="org.eclipse.cdt.debug.gdbjtag.core.imageOffset" value=""/>
     <stringAttribute key="org.eclipse.cdt.debug.gdbjtag.core.initCommands" value=""/>
     <booleanAttribute key="org.eclipse.cdt.debug.gdbjtag.core.loadImage" value="true"/>
@@ -105,7 +105,7 @@
     <booleanAttribute key="org.eclipse.cdt.debug.gdbjtag.core.setResume" value="false"/>
     <booleanAttribute key="org.eclipse.cdt.debug.gdbjtag.core.setStopAt" value="true"/>
     <stringAttribute key="org.eclipse.cdt.debug.gdbjtag.core.stopAt" value="main"/>
-    <stringAttribute key="org.eclipse.cdt.debug.gdbjtag.core.symbolsFileName" value="C:\Projects\DelugeFirmware\e2-build-debug-7seg\Deluge-debug-7seg.elf"/>
+    <stringAttribute key="org.eclipse.cdt.debug.gdbjtag.core.symbolsFileName" value="C:/Projects/DelugeFirmware/e2-build-debug-7seg/Deluge-debug-7seg.elf"/>
     <stringAttribute key="org.eclipse.cdt.debug.gdbjtag.core.symbolsOffset" value=""/>
     <booleanAttribute key="org.eclipse.cdt.debug.gdbjtag.core.useFileForImage" value="false"/>
     <booleanAttribute key="org.eclipse.cdt.debug.gdbjtag.core.useFileForSymbols" value="false"/>
@@ -116,7 +116,7 @@
     <intAttribute key="org.eclipse.cdt.launch.ATTR_BUILD_BEFORE_LAUNCH_ATTR" value="1"/>
     <booleanAttribute key="org.eclipse.cdt.launch.DEBUGGER_STOP_AT_MAIN" value="true"/>
     <stringAttribute key="org.eclipse.cdt.launch.DEBUGGER_STOP_AT_MAIN_SYMBOL" value="main"/>
-    <stringAttribute key="org.eclipse.cdt.launch.PROGRAM_NAME" value="e2-build-debug-7seg\Deluge-debug-7seg.elf"/>
+    <stringAttribute key="org.eclipse.cdt.launch.PROGRAM_NAME" value="e2-build-debug-7seg/Deluge-debug-7seg.elf"/>
     <stringAttribute key="org.eclipse.cdt.launch.PROJECT_ATTR" value="Deluge"/>
     <booleanAttribute key="org.eclipse.cdt.launch.PROJECT_BUILD_CONFIG_AUTO_ATTR" value="false"/>
     <stringAttribute key="org.eclipse.cdt.launch.PROJECT_BUILD_CONFIG_ID_ATTR" value="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug.1445259662.2140647267"/>
