@@ -35,7 +35,7 @@
 #include "AudioClip.h"
 #include "PadLEDs.h"
 #include "Buttons.h"
-#include "Voice.h"
+#include "voice.h"
 #include "VoiceVector.h"
 #include "extern.h"
 #include "ModelStack.h"

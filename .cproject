@@ -73,12 +73,12 @@
 							<tool id="com.renesas.cdt.managedbuild.gcc.rz.tool.compiler.cpp.1646852958" name="Cross ARM C++ Compiler" superClass="com.renesas.cdt.managedbuild.gcc.rz.tool.compiler.cpp">
 								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.renesas.cdt.managedbuild.gcc.rz.option.compiler.cpp.include.561397158" name="Include paths (-I)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.compiler.cpp.include" useByScannerDiscovery="true" valueType="includePath">
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/ALL_CPUS/usb/userdef&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/ALL_CPUS/usb&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/ALL_CPUS/dmac&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/ALL_CPUS/uart_all_cpus&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/ALL_CPUS/rspi_all_cpus&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/ALL_CPUS/oled_low_level_all_cpus&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/usb/userdef&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/usb&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/dmac&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/uart_all_cpus&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/rspi_all_cpus&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/oled_low_level_all_cpus&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/mtu&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/oled&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/spibsc&quot;"/>

@@ -16,7 +16,7 @@
  */
 
 #include <AudioFileManager.h>
-#include <Wavetable.h>
+#include <WaveTable.h>
 #include "Sample.h"
 #include "GeneralMemoryAllocator.h"
 #include "Cluster.h"

@@ -29,7 +29,7 @@
 #include "FilterSetConfig.h"
 #include "kit.h"
 #include "numericdriver.h"
-#include "view.h"
+#include "View.h"
 #include "Action.h"
 #include "ActionLogger.h"
 #include <string.h>

@@ -27,7 +27,7 @@
 #include "functions.h"
 #include "GeneralMemoryAllocator.h"
 #include "song.h"
-#include "view.h"
+#include "View.h"
 #include "ClipInstance.h"
 #include "PlaybackMode.h"
 #include "numericdriver.h"

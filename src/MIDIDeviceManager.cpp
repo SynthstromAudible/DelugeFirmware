@@ -20,7 +20,7 @@
 #include "MIDIDevice.h"
 #include "GeneralMemoryAllocator.h"
 #include <new>
-#include "numericDriver.h"
+#include "numericdriver.h"
 #include <string.h>
 #include "storagemanager.h"
 #include "midiengine.h"

@@ -31,7 +31,7 @@
 #include <sounddrum.h>
 #include "instrument.h"
 #include <ParamManager.h>
-#include "Kit.h"
+#include "kit.h"
 #include "Slicer.h"
 #include <AudioFileManager.h>
 #include <Cluster.h>
@@ -43,7 +43,7 @@
 #include "GeneralMemoryAllocator.h"
 #include <WaveformRenderer.h>
 #include "View.h"
-#include "encoders.h"
+#include "Encoders.h"
 #include "KeyboardScreen.h"
 #include <new>
 #include <ContextMenuSampleBrowserKit.h>

@@ -35,7 +35,7 @@
 #include "AudioRecorder.h"
 #include "source.h"
 #include "kit.h"
-#include "view.h"
+#include "View.h"
 #include "MenuItemSubmenu.h"
 #include "MenuItemPatchedParam.h"
 #include "MenuItemUnpatchedParam.h"

@@ -27,7 +27,7 @@
 #include <soundinstrument.h>
 #include "song.h"
 #include "functions.h"
-#include "view.h"
+#include "View.h"
 #include "storagemanager.h"
 #include "matrixdriver.h"
 #include "numericdriver.h"

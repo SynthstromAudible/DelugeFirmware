@@ -29,7 +29,7 @@
 #include <string.h>
 #include "WaveTable.h"
 #include "MultisampleRange.h"
-#include "view.h"
+#include "View.h"
 #include "soundeditor.h"
 #include "MultiWaveTableRange.h"
 

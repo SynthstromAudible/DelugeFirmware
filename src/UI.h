@@ -18,7 +18,7 @@
 #ifndef UI_h
 #define UI_h
 
-#include "Definitions.h"
+#include "definitions.h"
 
 class RootUI;
 class ClipMinder;
