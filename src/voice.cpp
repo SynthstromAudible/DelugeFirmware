@@ -350,7 +350,7 @@ void Voice::setupPorta(Sound* sound) {
     int noteWithinOctave = (semitoneAdjustment + 120) % 12;
     int octave = (semitoneAdjustment + 120) / 12;
 
-	int32_t phaseIncrement = noteIntervalTable[noteWithinOctave];
+	int32_t phaseIncrement = noteIntervalTable[noteWithinOctave] + tuningIntervalOffsetTable[noteWithinOctave];
 
 	int shiftRightAmount = 16 - octave;
 	if (shiftRightAmount >= 0) {
@@ -423,7 +423,7 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
             int noteWithinOctave = (uint16_t)(transposedNoteCode + 240) % 12;
             int octave = (uint16_t)(transposedNoteCode + 120) / 12;
 
-        	phaseIncrement = multiply_32x32_rshift32(noteIntervalTable[noteWithinOctave], pitchAdjustNeutralValue);
+        	phaseIncrement = multiply_32x32_rshift32(noteIntervalTable[noteWithinOctave] + tuningIntervalOffsetTable[noteWithinOctave], pitchAdjustNeutralValue);
 
         	int shiftRightAmount = 13 - octave;
 
@@ -456,7 +456,7 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 
             int shiftRightAmount = 20 - octave;
         	if (shiftRightAmount >= 0) {
-        		phaseIncrement = noteFrequencyTable[noteWithinOctave] >> shiftRightAmount;
+        		phaseIncrement = noteFrequencyTable[noteWithinOctave] + scaleOffsetTable[noteWithinOctave] >> shiftRightAmount;
         	}
 
         	else {
@@ -499,7 +499,7 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
             int phaseIncrement;
 
         	if (shiftRightAmount >= 0) {
-        		phaseIncrement = noteFrequencyTable[noteWithinOctave] >> shiftRightAmount;
+        		phaseIncrement = noteFrequencyTable[noteWithinOctave] + tuningFrequencyOffsetTable[noteWithinOctave] >> shiftRightAmount;
         	}
 
         	else {

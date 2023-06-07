@@ -78,7 +78,7 @@ void Source::setCents(int newCents) {
 }
 
 void Source::recalculateFineTuner() {
-    fineTuner.setup((int32_t)cents * 42949672);
+    fineTuner.setup((int32_t)cents * 42949672); // scale by 2^30 div 50
 }
 
 

@@ -1255,12 +1255,12 @@ int32_t getParamFromUserValue(uint8_t p, int8_t userValue) {
 
 	case PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_BASS:
 	case PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_TREBLE:
-		if (userValue == -50) return -2147483648;
-		if (userValue == 0) return 0;
-		return userValue * 42949672;
+		if (userValue == -50) return -2147483648; // - 2^31
+		if (userValue == 0) return 0;             // 0
+		return userValue * 42949672;              // scale by 2^31 div 50
 
     default:
-    	return (uint32_t)userValue * 85899345 - 2147483648;
+    	return (uint32_t)userValue * 85899345 - 2147483648; // scale by 2^31 div 25 and subtract 2^31
     }
 }
 
