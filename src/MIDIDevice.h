@@ -112,8 +112,9 @@ public:
 
 	int32_t defaultVelocityToLevel;
 
-	uint8_t connectionFlags;	// 0 if not connected. For USB devices, the bits signal a connection of the corresponding connectedUSBMIDIDevices[].
-								// Of course there'll usually just be one bit set, unless two of the same device are connected.
+	// 0 if not connected. For USB devices, the bits signal a connection of the corresponding connectedUSBMIDIDevices[].
+	// Of course there'll usually just be one bit set, unless two of the same device are connected.
+	uint8_t connectionFlags;
 
 protected:
 	virtual void writeReferenceAttributesToFile() = 0;	// These go both into MIDIDEVICES.XML and also any song/preset files where there's a reference to this Device.

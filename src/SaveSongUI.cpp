@@ -195,8 +195,9 @@ gotError:
 						((Sample*)audioFile)->tempFilePathForRecording.clear();
 					}
 					else {
-						anyErrorMovingTempFiles = true; // We at least need to warn the user that although the main file save was (hopefully soon to be)
-														// successful, something's gone wrong
+						// We at least need to warn the user that although the main file save was (hopefully soon to be)
+						// successful, something's gone wrong
+						anyErrorMovingTempFiles = true;
 						/*
 						Uart::print("rename failed. ");
 						Uart::println(result);

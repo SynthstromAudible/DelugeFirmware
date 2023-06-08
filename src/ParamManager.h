@@ -159,8 +159,9 @@ public:
     bool resonanceBackwardsCompatibilityProcessed;
     uint8_t expressionParamSetOffset;
 
-    ParamCollectionSummary summaries[PARAM_COLLECTIONS_STORAGE_NUM];	// This list should be terminated by an object whose values are all zero.
-    																	// Yes, all of them must be zero, because if we know this, we can check for stuff faster.
+	// This list should be terminated by an object whose values are all zero. Yes, all of them must be zero, because if we
+	// know this, we can check for stuff faster.
+    ParamCollectionSummary summaries[PARAM_COLLECTIONS_STORAGE_NUM];
 };
 
 class ParamManagerForTimeline final : public ParamManager { // I want to rename this one to "with automation"

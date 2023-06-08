@@ -114,8 +114,10 @@ public:
 
 	int modNoteRowId;
     uint32_t modPos;
-    uint32_t modLength; // 0 if not currently editing a region / step / holding a note. If you're gonna refer to this, you absolutely have to first check that the
-    					// TimelineCounter you're thinking of setting some automation on == activeModControllableTimelineCounter
+	// 0 if not currently editing a region / step / holding a note. If you're gonna refer to this, you absolutely have
+	// to first check that the TimelineCounter you're thinking of setting some automation on
+	// == activeModControllableTimelineCounter
+    uint32_t modLength;
 
 private:
     void pretendModKnobsUntouchedForAWhile();
