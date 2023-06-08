@@ -33,9 +33,9 @@
  * this might be what you want to do. If so, go to src/drivers/RZA1/cpu_specific.h,
  * and set HAVE_RTT to 0. Though this configuration hasn’t been tested for a while...
  */
-
+#ifndef ENABLE_TEXT_OUTPUT
 #define ENABLE_TEXT_OUTPUT 0
-
+#endif
 
 struct UartItem { // Exactly 8 bytes, so can align nicely to cache line
 	uint16_t txBufferWritePos;
