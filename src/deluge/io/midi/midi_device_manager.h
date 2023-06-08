@@ -30,9 +30,15 @@ class MIDIDeviceUSB;
 struct MIDIDeviceUSB;
 #endif
 
+// size in 32-bit messages
+// TODO: increasing this even more doesn't work. For now this gives
+// maximum SysEx send size of 96 bytes including start/end bytes
+// (3 payload bytes per USB-MIDI message)
+#define MIDI_SEND_BUFFER_LEN 32
+
 #ifdef __cplusplus
 /*A ConnectedUSBMIDIDevice is used directly to interface with the USB driver
- * When a ConnectedUSBMIDIDevice has a numMessagesQueued>16 and tries to add another,
+ * When a ConnectedUSBMIDIDevice has a numMessagesQueued>=MIDI_SEND_BUFFER_LEN and tries to add another,
  * all outputs are sent. The send routine calls the USB output function, points the
  * USB pipes FIFO buffer directly at the dataSendingNow array, and then sends.
  * Sends can also be triggered by the midiAndGateOutput interrupt
@@ -61,8 +67,8 @@ struct ConnectedUSBMIDIDevice {
 	uint8_t canHaveMIDISent;
 	uint16_t numBytesReceived;
 	uint8_t receiveData[64];
-	uint32_t preSendData[16];
-	uint8_t dataSendingNow[64];
+	uint32_t preSendData[MIDI_SEND_BUFFER_LEN];
+	uint8_t dataSendingNow[MIDI_SEND_BUFFER_LEN * 4];
 	uint8_t numMessagesQueued;
 
 	// This will show a value after the general flush function is called, throughout other Devices being sent to before this one, and until we've completed our send
