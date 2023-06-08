@@ -118,10 +118,10 @@ public:
 
     uint8_t whichExpressionSourcesChangedAtSynthLevel;
 
-    int32_t monophonicExpressionValues[NUM_EXPRESSION_DIMENSIONS];	// I really didn't want to store these here, since they're stored in the ParamManager, but.... complications!
-    														// Always 0 for Drums - that was part of the problem - a Drum's main ParamManager's expression data has been sent to the
-    														// "polyphonic" bit, and we don't want it to get referred to twice.
-    														// These get manually refreshed in setActiveClip().
+	// I really didn't want to store these here, since they're stored in the ParamManager, but.... complications! Always 0
+	// for Drums - that was part of the problem - a Drum's main ParamManager's expression data has been sent to the
+	// "polyphonic" bit, and we don't want it to get referred to twice. These get manually refreshed in setActiveClip().
+    int32_t monophonicExpressionValues[NUM_EXPRESSION_DIMENSIONS];
 
     uint32_t oscRetriggerPhase[NUM_SOURCES]; // 4294967295 means "off"
     uint32_t modulatorRetriggerPhase[numModulators];

@@ -1,0 +1,21 @@
+BasedOnStyle: LLVM
+IndentWidth: 4
+TabWidth: 4
+UseTab: ForIndentation
+BreakBeforeBraces: Custom
+BraceWrapping:
+  BeforeElse: True
+ColumnLimit: 120
+ReflowComments: False
+AllowShortBlocksOnASingleLine: Empty
+AllowShortFunctionsOnASingleLine: InlineOnly
+AllowShortIfStatementsOnASingleLine: AllIfsAndElse
+IndentGotoLabels: False
+PointerAlignment: Left
+BreakBeforeBinaryOperators: NonAssignment
+BreakBeforeTernaryOperators: True
+AccessModifierOffset: -4
+
+# Not sure about this one, it's a lot of changed lines but I also like
+# alphabetic ordering
+SortIncludes: Never

@@ -1,0 +1,4 @@
+# Don't do any formatting in this folder, it's upstream code from elm-chan
+SortIncludes: Never
+DisableFormat: true
+

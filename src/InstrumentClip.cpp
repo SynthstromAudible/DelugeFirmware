@@ -2533,8 +2533,10 @@ expressionParam:
                 		if (error) return error;
 
                 		if (expressionParams) {
-                			if (param->isAutomated()) expressionParams->paramHasAutomationNow(summary, paramId);	// Most other times you don't have to think about calling this. It's just because we didn't know which
-                																// ParamCollection we were gonna load into, and MIDIParamCollection doesn't keep track of automation.
+							// Most other times you don't have to think about calling this. It's just because we didn't
+							// know which ParamCollection we were gonna load into, and MIDIParamCollection doesn't keep
+							// track of automation.
+                			if (param->isAutomated()) expressionParams->paramHasAutomationNow(summary, paramId);
 
                 			// If channel pressure, gotta move and scale the values from how they were in the pre-V3.2 firmware
                 			if (paramId) {

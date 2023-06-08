@@ -51,15 +51,19 @@ bool ContextMenuSampleBrowserSynth::isCurrentOptionAvailable() {
 	if (sampleBrowser.getCurrentFileItem()->isFolder) return false;
 
 	switch(currentOption) {
-	case 1: // "Basic" Sample - unavailable if ringmod.
+	case 1:
+		// "Basic" Sample - unavailable if ringmod.
 		return (soundEditor.currentSound->getSynthMode() != SYNTH_MODE_RINGMOD);
 
-	case 3: // WaveTable
-			// No break - return true.
+	case 3:
+		// WaveTable
+		// No break - return true.
 
-	case 2:	// Single-cycle - available even if we're locked (because of there being other Ranges) to this happening either in Sample or WaveTable mode.
-			// Although, the user could get an error after selecting the option - e.g. if we're locked to WaveTable mode, they've selected single-cycle,
-			// and it realises it can't do this combination of things because it's a stereo file.
+	case 2:
+		// Single-cycle - available even if we're locked (because of there being other Ranges) to this happening either
+		// in Sample or WaveTable mode. Although, the user could get an error after selecting the option - e.g. if
+		// we're locked to WaveTable mode, they've selected single-cycle, and it realises it can't do this
+		// combination of things because it's a stereo file.
 		return true;
 
 	default:

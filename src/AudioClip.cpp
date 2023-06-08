@@ -181,9 +181,10 @@ void AudioClip::finishLinearRecording(ModelStackWithTimelineCounter* modelStack,
 
 	recorder->endSyncedRecording(buttonLatencyForTempolessRecord); // Must call before setSample(), cos it sets up important stuff like the sample length
 
-	if (getRootUI()) getRootUI()->clipNeedsReRendering(this);	// SampleRecorder will also call sampleNeedsReRendering() when "capturing" is finished, but in plenty of cases,
-																// that will have happened in the above call to endSyncedRecording(), and our sample hasn't been set yet, so
-																// that won't have been effective. So, we have to call this here too, to cover our bases.
+	// SampleRecorder will also call sampleNeedsReRendering() when "capturing" is finished, but in plenty of cases, that
+	// will have happened in the above call to endSyncedRecording(), and our sample hasn't been set yet, so that won't have
+	// been effective. So, we have to call this here too, to cover our bases.
+	if (getRootUI()) getRootUI()->clipNeedsReRendering(this);
 
 	sampleHolder.filePath.set(&recorder->sample->filePath);
 	sampleHolder.setAudioFile(recorder->sample, sampleControls.reversed, true, CLUSTER_DONT_LOAD); // Adds a reason to the first Cluster(s). Must call this after endSyncedRecording(), which puts some final values in the Sample

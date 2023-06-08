@@ -386,7 +386,8 @@ char const* StorageManager::readNextTagOrAttributeName() {
 
 	case IN_TAG_PAST_NAME:
 		toReturn = readNextAttributeName();
-		if (*toReturn || tagDepthFile != tagDepthStart) break; // If depth has changed, this means we met a /> and must get out
+		 // If depth has changed, this means we met a /> and must get out
+		if (*toReturn || tagDepthFile != tagDepthStart) break;
 		// No break
 
     case BETWEEN_TAGS:

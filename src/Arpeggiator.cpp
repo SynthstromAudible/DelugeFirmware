@@ -68,8 +68,9 @@ void ArpeggiatorForDrum::noteOn(ArpeggiatorSettings* settings, int noteCode, int
 	arpNote.inputCharacteristics[MIDI_CHARACTERISTIC_NOTE]		= noteCode;
 	arpNote.inputCharacteristics[MIDI_CHARACTERISTIC_CHANNEL]	= fromMIDIChannel;
 	arpNote.velocity = velocity;						// Means note is on.
-	arpNote.outputMemberChannel = MIDI_CHANNEL_NONE;	// MIDIInstrument might set this later, but it needs to be MIDI_CHANNEL_NONE until then so it doesn't get included in
-														// the survey that will happen of existing output member channels.
+	// MIDIInstrument might set this later, but it needs to be MIDI_CHANNEL_NONE until then so it doesn't get included
+	// in the survey that will happen of existing output member channels.
+	arpNote.outputMemberChannel = MIDI_CHANNEL_NONE;
 
 	for (int m = 0; m < NUM_EXPRESSION_DIMENSIONS; m++) {
 		arpNote.mpeValues[m] = mpeValues[m];

@@ -60,8 +60,9 @@ void SampleCache::clusterStolen(int clusterIndex) {
 
 	uint8_t bytesPerSample = sample->numChannels * CACHE_BYTE_DEPTH;
 
-	writeBytePos = (uint32_t)((uint32_t)((clusterIndex << audioFileManager.clusterSizeMagnitude) + bytesPerSample - 1) / bytesPerSample) * bytesPerSample; // Make it a multiple of bytesPerSample - but round up.
-																																// If you try and simplify this, make sure it still works for 0 and doesn't go negative or anything!
+	// Make it a multiple of bytesPerSample - but round up.
+	// If you try and simplify this, make sure it still works for 0 and doesn't go negative or anything!
+	writeBytePos = (uint32_t)((uint32_t)((clusterIndex << audioFileManager.clusterSizeMagnitude) + bytesPerSample - 1) / bytesPerSample) * bytesPerSample;
 
 #if ALPHA_OR_BETA_VERSION
 	if (writeBytePos < 0) numericDriver.freezeWithError("E298");

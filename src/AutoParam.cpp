@@ -192,7 +192,9 @@ investigatePrevNode:
 				bool shouldInterpolateLeft = reversed || shouldInterpolateRegionStart;
 
 #if ALPHA_OR_BETA_VERSION
-				nodes.testSequentiality("E435"); // drbourbon got, when check was inside homogenizeRegion(). Now trying to work out where that came from. March 2022.
+				// drbourbon got, when check was inside homogenizeRegion(). Now trying to work out where that came from.
+				// March 2022.
+				nodes.testSequentiality("E435");
 #endif
 
 				leftI = homogenizeRegion(modelStack, livePos, ticksToClear, value, shouldInterpolateLeft, true, effectiveLength, reversed, posAtWhichPlaybackWillCut);
@@ -831,8 +833,9 @@ void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value, 
 	else {
 
 #if ALPHA_OR_BETA_VERSION
-		nodes.testSequentiality("E441");	// drbourbon got, when check was inside homogenizeRegion(). Now trying to work out where that came from. March 2022.
-											// Sven got, oddly while editing note velocity. Then again by "Adding some snares while playing".
+		// drbourbon got, when check was inside homogenizeRegion(). Now trying to work out where that came from.
+		// March 2022. Sven got, oddly while editing note velocity. Then again by "Adding some snares while playing".
+		nodes.testSequentiality("E441");
 #endif
 
 		firstI = homogenizeRegion(modelStack, pos, length, value, false, false, effectiveLength, false);

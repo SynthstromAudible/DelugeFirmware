@@ -2005,9 +2005,9 @@ void PlaybackHandler::toggleMetronomeStatus() {
 // Called when playing synced and sync scaling or magnitude have been changed - e.g. when user doubles or halves tempo, or sync scaling is activated
 void PlaybackHandler::resyncInternalTicksToInputTicks(Song* song) {
     if (playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE) {
-
-    	lastSwungTickActioned = getCurrentInternalTickFloatFollowingExternalClock();	// This works. Although it doesn't do anything special to account
-    																					// for swing, no long-term out-of-sync-ness results - I tested.
+		// This works. Although it doesn't do anything special to account for swing, no long-term out-of-sync-ness
+		// results - I tested.
+    	lastSwungTickActioned = getCurrentInternalTickFloatFollowingExternalClock();
         currentPlaybackMode->resyncToSongTicks(song);
 
         // In most cases, if we're here, we'll want to alter the "following" internal tick tempo to "remember" what time-scaling stuff we changed.

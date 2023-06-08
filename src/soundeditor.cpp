@@ -2121,23 +2121,27 @@ MenuItemSubmenu coloursSubmenu;
 
 char const* firmwareString = "4.1.4-alpha3";
 
+// this class is haunted for some reason, clang-format mangles it
+// clang-format off
 class MenuItemFirmwareVersion final : public MenuItem {
 public:
-	MenuItemFirmwareVersion(char const* newName = 0) : MenuItem(newName) {}
+	MenuItemFirmwareVersion(char const* newName = 0) : MenuItem(newName){}
+
 #if HAVE_OLED
 	void drawPixelsForOled() {
 		OLED::drawStringCentredShrinkIfNecessary(firmwareString, 22, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, 18, 20);
 	}
 #else
-	void beginSession(MenuItem* navigatedBackwardFrom) {
+	void beginSession(MenuItem * navigatedBackwardFrom){
 		drawValue();
 	}
+
 	void drawValue() {
 		numericDriver.setScrollingText(firmwareString);
 	}
 #endif
 } firmwareVersionMenu;
-
+// clang-format on
 
 // CV menu
 
@@ -2301,7 +2305,8 @@ public:
 	void drawPixelsForOled() {
 		char buffer[12];
 		intToString(96 << soundEditor.currentValue, buffer);
-		OLED::drawStringCentred(buffer, 20 + OLED_MAIN_TOPMOST_PIXEL, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, 18, 20);
+		OLED::drawStringCentred(buffer, 20 + OLED_MAIN_TOPMOST_PIXEL, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
+		                        18, 20);
 	}
 #else
 	void drawValue() {

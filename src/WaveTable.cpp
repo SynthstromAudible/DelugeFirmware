@@ -311,8 +311,9 @@ gotError5:
     AudioEngine::logAction("finalizing vars");
 
     WaveTableBand* initialBand = (WaveTableBand*)bands.getElementAddress(0);
-	int16_t* __restrict__ initialBandWritePos = initialBand->dataAccessAddress; // Even for non-power-of-two cycle size files, we'll still write the data in here even though
-																				// it's not needed and will be overwritten, just since we're using the same code as for power-of-two.
+	// Even for non-power-of-two cycle size files, we'll still write the data in here even though it's not needed and
+	// will be overwritten, just since we're using the same code as for power-of-two.
+	int16_t* __restrict__ initialBandWritePos = initialBand->dataAccessAddress;
 
 	int clusterIndex = audioDataStartPosBytes >> audioFileManager.clusterSizeMagnitude;
 	int byteIndexWithinCluster = audioDataStartPosBytes & (audioFileManager.clusterSize - 1);
