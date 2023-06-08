@@ -173,6 +173,7 @@ doRecord:					instrumentClip->possiblyCloneForArrangementRecording(modelStack); 
 							modelStackWithNoteRow = instrumentClip->getOrCreateNoteRowForYNote(note, modelStack, action, &scaleAltered); // Have to re-get this anyway since called possiblyCloneForArrangementRecording(), above.
 							noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
 							if (noteRow) {
+								// midichannel is not used by instrument clip
 								instrumentClip->recordNoteOn(modelStackWithNoteRow, velocity, forcePos0, mpeValuesOrNull, midiChannel);
 								if (getRootUI()) getRootUI()->noteRowChanged(instrumentClip, noteRow);
 							}
@@ -245,6 +246,8 @@ justAuditionNote:
 
 		}
 	}
+	//Handles MPE inputs for melodic instruments - duplicate of MPE check in playback
+	//handler, however playback handler does not pass on MPE info
 	else if (midiInput.channelOrZone == MIDI_CHANNEL_MPE_LOWER_ZONE) {
 		if (midiChannel <= fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeLowerZoneLastMemberChannel) {
 gotMPEInput:
