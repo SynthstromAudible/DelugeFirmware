@@ -890,7 +890,10 @@ void Kit::offerReceivedNote(ModelStackWithTimelineCounter* modelStack, MIDIDevic
 																												// it true
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 
-		// If this is the "input" command, to sound / autition the Drum...
+		// If this is the "input" command, to sound / audition the Drum...
+		// Returns true if midi channel and note match the learned midi note
+		// Calls equalsChannelAllowMPE to check channel equivalence
+		// Does not check that zone is the learnt zone - just channel
 		if (thisDrum->midiInput.equalsNoteOrCCAllowMPE(fromDevice, channel, note)) {
 
 			// If MIDIDrum, outputting same note, then don't additionally do thru
