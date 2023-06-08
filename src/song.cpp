@@ -135,6 +135,17 @@ Song::Song() :
     reverbCompressorSync = 6;
 
     dirPath.set("SONGS");
+
+	// Song menu -------------------------------------------------------------
+
+	new (&tuningBankMenu) MenuItemTuningBank("BANK");
+	static MenuItem* tuningMenuItems[] = {
+		&tuningBankMenu,
+		&tuningNotesMenu,
+	};
+	new (&tuningMenu) MenuItemSubmenu("TUNING", tuningMenuItems);
+	static MenuItem* soundEditorRootMenuItems[] = {&tuningMenu, NULL};
+    new (&songRootMenu) MenuItemSubmenu("SONG", songRootMenuItems);
 }
 
 

@@ -15,5 +15,26 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-extern const int32_t tuningFrequencyOffsetTable[12];
-extern const int32_t tuningIntervalOffsetTable[12];
+#ifndef TUNINGS_H_
+#define TUNINGS_H_
+
+#define NUM_TUNING_BANKS 1
+//extern int32_t tuningFrequencyOffsetTable[12];
+//extern int32_t tuningIntervalOffsetTable[12];
+extern int32_t selectedTuningBank;
+
+class TuningSystem
+{
+public:
+	void setDefaultTuning();
+	void setOffset(int,int32_t);
+	void setBank(int);
+protected:
+    PhaseIncrementFineTuner fineTuners[12];
+	int32_t offsets[12]; // cents -5000..+5000
+private:
+	void calculateOffset(int);
+	void calculateUserTuning();
+} tuningSystem;
+
+#endif

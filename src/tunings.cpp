@@ -15,32 +15,54 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-int32_t tuningFrequencyOffsetTable[12] = {
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-};
+//int32_t tuningFrequencyOffsetTable[12];
+//int32_t tuningIntervalOffsetTable[12];
+int32_t selectedTuningBank;
 
-int32_t tuningIntervalOffsetTable[12] = {
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-};
+void TuningSystem::TuningSystem()
+{
+	setDefaultTuning();
+}
+
+void TuningSystem::setDefaultTuning() {
+
+	for(int i = 0; i < 12; i++) {
+		tuningIntervalOffsetTable[i] = 0;
+		tuningFrequencyOffsetTable[i] = 0;
+
+		fineTuners[i].setNoDetune()
+	}
+	selectedTuningBank = 0;
+}
+
+void TuningSystem::setBank(int bank) {
+
+	if (bank == 0) {
+		setDefaultTuning();
+	}
+
+	else {
+		// TODO load other tunings
+		calculateUserTuning();
+	}
+}
+
+void TuningSystem::calculateOffset(int noteWithinOctave) {
+
+	fineTuners[noteWithinOctave].setup(offsets[noteWithinOctave] * 42949672); // scale by 2^30 div 50
+}
+
+void TuningSystem::calculateUserTuning() {
+
+	for(int i = 0; i < 12; i++) {
+		calculateOffset(i);
+	}
+
+}
+
+void TuningSystem::setOffset(int noteWithinOctave, int32_t offset) {
+
+	offsets[note] = offset;
+	calculateOffset(noteWithinOctave);
+}
+

@@ -1,21 +1,23 @@
+/*
+ * Copyright © 2018-2023 Synthstrom Audible Limited
+ * Copyright © 2023 Casey Tucker
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
+*/
 
-#if HAVE_OLED
-char offsetTitle[] = "Offset (cents)";
-char const* gateModeOptions[] = {"V-trig", "S-trig", NULL, NULL}; // Why'd I put two NULLs?
-#else
-char const* gateModeOptions[] = {"VTRI", "STRI", NULL, NULL};
-#endif
+#include "MenuItemTuning.h"
+#include "tunings.h"
 
-class MenuItemTuningNote final : public MenuItemDecimal {
-public:
-	MenuItemCVTranspose(char const* newName = NULL) : MenuItemDecimal(newName) {
-#if HAVE_OLED
-	basicTitle = offsetTitle;
-#endif
-	}
-	int getMinValue() { return -5000; }
-	int getMaxValue() { return 5000; }
-	int getNumDecimalPlaces() { return 2; }
-	void readCurrentValue() { soundEditor.currentValue = (int32_t)tuningEngine.tuning[soundEditor.currentSourceIndex].offset; }
-	void writeCurrentValue(){ tuningEngine.setOffset(soundEditor.currentSourceIndex, tuningEngine.currentValue); }
-} cvTransposeMenu;
+const char *tuningBankNames[NUM_TUNING_BANKS+2] = {"12TET", "USER", NULL};
+
