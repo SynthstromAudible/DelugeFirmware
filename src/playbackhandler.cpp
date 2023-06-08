@@ -2301,9 +2301,12 @@ void PlaybackHandler::programChangeReceived(int channel, int program) {
 }
 
 
-void PlaybackHandler::noteMessageReceived(MIDIDevice* fromDevice, bool on, int channel, int note, int velocity, bool* doingMidiThru) {
+void PlaybackHandler::noteMessageReceived(
+		MIDIDevice* fromDevice, bool on, int channel, int note, int velocity, bool* doingMidiThru) {
     // If user assigning/learning MIDI commands, do that
-    if (currentUIMode == UI_MODE_MIDI_LEARN && on) { // Checks velocity to let note-offs pass through, so no risk of stuck note if they pressed learn while holding a note
+    if (currentUIMode == UI_MODE_MIDI_LEARN && on) {
+    	// Checks velocity to let note-offs pass through,
+    	// so no risk of stuck note if they pressed learn while holding a note
     	int channelOrZone = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(channel);
 
     	if (getCurrentUI()->noteOnReceivedForMidiLearn(fromDevice, channelOrZone, note, velocity)) {}
@@ -2369,7 +2372,8 @@ void PlaybackHandler::noteMessageReceived(MIDIDevice* fromDevice, bool on, int c
 		if (!on || currentSong->isOutputActiveInArrangement(thisOutput)) {
 
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(thisOutput->activeClip);
-
+			//Output is a MIDI instrument, kit, or melodic instrument
+			//Midi instruments will hand control to NonAudioInstrument which inherits from melodic
 			thisOutput->offerReceivedNote(modelStackWithTimelineCounter, fromDevice, on, channel, note, velocity,
 					shouldRecordNotesNowNow && currentSong->isOutputActiveInArrangement(thisOutput), // Definitely don't record if muted in arrangement
 					doingMidiThru);
