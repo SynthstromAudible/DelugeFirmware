@@ -798,9 +798,10 @@
 #define TIME_STRETCH_CROSSFADE_NUM_MOVING_AVERAGES 3 // 3 sounds way better than 2. After that, kinda diminishing returns
 #define TIME_STRETCH_CROSSFADE_MOVING_AVERAGE_LENGTH 35 // Anywhere between 30 and 40 seemed ideal. Point of interest - high numbers (e.g. I tried 140) screw up the high notes, so more is not more!
 
-#define TIME_STRETCH_ENABLE_BUFFER 0	// I think this was an experimental mode which allowed the pitch-change effect (i.e. windowed sinc interpolation)
-										// to be stored and reused between the two time-stretch play-heads. Probably won't work anymore. From memory, wasn't
-										// very beneficial, especially relative to its complexity and potential bugginess.
+// I think this was an experimental mode which allowed the pitch-change effect (i.e. windowed sinc interpolation) to be
+// stored and reused between the two time-stretch play-heads. Probably won't work anymore. From memory, wasn't very
+// beneficial, especially relative to its complexity and potential bugginess.
+#define TIME_STRETCH_ENABLE_BUFFER 0
 
 #if TIME_STRETCH_ENABLE_BUFFER
 #define TIME_STRETCH_BUFFER_SIZE 4096
@@ -926,8 +927,9 @@
 #define MIDI_CHANNEL_MPE_UPPER_ZONE 17
 #define MIDI_CHANNEL_NONE 255
 
-#define MIDI_OUTPUT_FILTER_NO_MPE		0	// To be used instead of MIDI_CHANNEL_MPE_LOWER_ZONE etc for functions that require a "midi output filter".
-											// Although in fact, any number <16 or >=18 would work, the way I've defined it.
+// To be used instead of MIDI_CHANNEL_MPE_LOWER_ZONE etc for functions that require a "midi output filter". Although in
+// fact, any number <16 or >=18 would work, the way I've defined it.
+#define MIDI_OUTPUT_FILTER_NO_MPE		0
 
 
 #define AUTOMATED_TESTER_ENABLED (0 && ALPHA_OR_BETA_VERSION)

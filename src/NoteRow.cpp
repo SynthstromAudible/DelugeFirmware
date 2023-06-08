@@ -1816,8 +1816,10 @@ void NoteRow::attemptLateStartOfNextNoteToPlay(ModelStackWithNoteRow* modelStack
 
 	bool currentlyPlayingReversed = modelStack->isCurrentlyPlayingReversed();
 
-	if (currentlyPlayingReversed && !((InstrumentClip*)modelStack->getTimelineCounter())->allowNoteTails(modelStack)) return; // Not supported yet - would be tricky cos by the time it's "late",
-																									// we'd be left of note->pos
+	if (currentlyPlayingReversed && !((InstrumentClip*)modelStack->getTimelineCounter())->allowNoteTails(modelStack)) {
+		// Not supported yet - would be tricky cos by the time it's "late", we'd be left of note->pos
+		return;
+	}
 
 	int32_t numSwungTicksInSinceLastActionedOne = playbackHandler.getNumSwungTicksInSinceLastActionedSwungTick();
 
@@ -2134,7 +2136,8 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 
 	if (!numNotesBefore) return true;
 
-	if (action) action->recordNoteArrayChangeIfNotAlreadySnapshotted(clip, modelStack->noteRowId, &notes, false); // Snapshot how Notes were before, in bulk
+	// Snapshot how Notes were before, in bulk
+	if (action) action->recordNoteArrayChangeIfNotAlreadySnapshotted(clip, modelStack->noteRowId, &notes, false);
 
 	// Deal with single droning note case - but don't do this for samples in CUT or STRETCH mode
 	if (numNotesBefore == 1 && notes.getElement(0)->length == oldLoopLength) {
@@ -3069,9 +3072,11 @@ bool NoteRow::paste(ModelStackWithNoteRow* modelStack, CopiedNoteRow* copiedNote
 	int effectiveLength = modelStack->getLoopLength();
 	int32_t maxPos = getMin(screenEndPos, effectiveLength);
 
-	if (action) action->recordNoteArrayChangeIfNotAlreadySnapshotted((InstrumentClip*)modelStack->getTimelineCounter(), modelStack->noteRowId, &notes, false); // Snapshot how Notes were before, in bulk.
-																				// It's quite likely that this has already been done
-																				// as the area was cleared - but not if notes was empty
+	if (action) {
+		// Snapshot how Notes were before, in bulk. It's quite likely that this has already been done as the area was
+		// cleared - but not if notes was empty
+		action->recordNoteArrayChangeIfNotAlreadySnapshotted((InstrumentClip*)modelStack->getTimelineCounter(), modelStack->noteRowId, &notes, false);
+	}
 
 	// TODO: this could be done without all these many inserts, and could be improved further by "stealing" the data into the action, above
 	for (int n = 0; n < copiedNoteRow->numNotes; n++) {

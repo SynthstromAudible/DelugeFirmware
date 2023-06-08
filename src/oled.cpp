@@ -271,8 +271,9 @@ void drawGraphicMultiLine(uint8_t const* graphic, int startX, int startY, int wi
 		if (rowOnGraphic >= numBytesTall) break; // If only drawing that remains is final row of graphic...
 
 		while (currentPos < endPos) {
-			uint32_t data = *(uint16_t*)graphicPos; // Cleverly read 2 bytes in one go. Doesn't really speed things up. I should try addressing display vertically,
-													// so I can do 32 bits in one go on both the graphic and the display...
+			// Cleverly read 2 bytes in one go. Doesn't really speed things up. I should try addressing display vertically, so I
+			// can do 32 bits in one go on both the graphic and the display...
+			uint32_t data = *(uint16_t*)graphicPos;
 			*currentPos |= data >> yOffsetNegative;
 
 			//*currentPos |= (*graphicPos >> yOffsetNegative) | (*(graphicPos + 1) << yOffset);

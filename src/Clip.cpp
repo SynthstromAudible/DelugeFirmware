@@ -434,8 +434,9 @@ int Clip::resumeOriginalClipFromThisClone(ModelStackWithTimelineCounter* modelSt
 	Clip* originalClip = (Clip*)modelStackOriginal->getTimelineCounter();
 	originalClip->activeIfNoSolo = true; // Must set this before calling setPos, otherwise, ParamManagers won't know to expectEvent()
 
-	originalClip->setPos(modelStackOriginal, lastProcessedPos, true);	// Deliberately leave lastProcessedPos as a pos potentially far beyond the length of the original Clip.
-																		// setPos() will see this and wrap the position itself - including for individual NoteRows with independent length.
+	// Deliberately leave lastProcessedPos as a pos potentially far beyond the length of the original Clip. setPos()
+	// will see this and wrap the position itself - including for individual NoteRows with independent length.
+	originalClip->setPos(modelStackOriginal, lastProcessedPos, true);
 
 	transferVoicesToOriginalClipFromThisClone(modelStackOriginal, modelStackClone);
 

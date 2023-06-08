@@ -1736,8 +1736,9 @@ extern bool pendingUIRenderingLock;
 
 bool SessionView::setupScroll(uint32_t oldScroll) {
 
-	pendingUIRenderingLock = true; // Ok I'm sorta pretending that this is definitely previously false, though only one caller of this function actually
-									// checks for that. Should be ok-ish though...
+	// Ok I'm sorta pretending that this is definitely previously false, though only one caller of this function actually
+	// checks for that. Should be ok-ish though...
+	pendingUIRenderingLock = true;
 
 	uint32_t xZoom = currentSong->xZoom[NAVIGATION_CLIP];
 
