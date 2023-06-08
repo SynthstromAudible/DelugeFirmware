@@ -123,6 +123,9 @@ public:
 	// Of course there'll usually just be one bit set, unless two of the same device are connected.
 	uint8_t connectionFlags;
 
+	uint8_t incomingSysexBuffer[128];
+	int incomingSysexPos = 0;
+
 protected:
 	virtual void
 	writeReferenceAttributesToFile() = 0; // These go both into MIDIDEVICES.XML and also any song/preset files where there's a reference to this Device.
