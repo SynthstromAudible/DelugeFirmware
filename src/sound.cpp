@@ -1603,9 +1603,9 @@ void Sound::sampleZoneChanged(int markerType, int s, ModelStackWithSoundFlags* m
 // Unlike most functions, this one accepts modelStack as NULL, because when unassigning all voices e.g. on song swap, we won't have it.
 void Sound::reassessRenderSkippingStatus(ModelStackWithSoundFlags* modelStack, bool shouldJustCutModFX) {
 
-	ArpeggiatorSettings* arpSettings = getArpSettings();	// TODO: should get the caller to provide this, cos they usually already have it.
-															// In fact, should put this on the ModelStack, cos many deeper-nested functions called by this one
-															// need it too!
+	// TODO: should get the caller to provide this, cos they usually already have it. In fact, should put this on the
+	// ModelStack, cos many deeper-nested functions called by this one need it too!
+	ArpeggiatorSettings* arpSettings = getArpSettings();
 
 	bool skippingStatusNow = (!numVoicesAssigned && !delay.repeatsUntilAbandon && !stutterer.status && (!arpSettings || !getArp()->hasAnyInputNotesActive() || !arpSettings->mode));
 
