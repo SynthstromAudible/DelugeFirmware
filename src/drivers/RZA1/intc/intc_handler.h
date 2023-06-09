@@ -33,21 +33,17 @@
 Includes   <System Includes> , "Project Includes"
 ******************************************************************************/
 
-
 /******************************************************************************
 Typedef definitions
 ******************************************************************************/
-
 
 /******************************************************************************
 Macro definitions
 ******************************************************************************/
 
-
 /******************************************************************************
 Variable Externs
 ******************************************************************************/
-
 
 /******************************************************************************
 Functions Prototypes
@@ -60,10 +56,9 @@ __irq void FiqHandler_Interrupt(void);
 __fiq __arm void FiqHandler_Interrupt(void);
 #endif
 #ifdef __GNUC__
-/*__irq*/ void FiqHandler_Interrupt(void) __attribute__((interrupt( "FIQ" )));
+/*__irq*/ void FiqHandler_Interrupt(void) __attribute__((interrupt("FIQ")));
 #endif
 
-
-#endif  /* INTC_HANDLER_H */
+#endif /* INTC_HANDLER_H */
 
 /* End of File */

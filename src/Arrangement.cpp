@@ -37,9 +37,7 @@
 #include "numericdriver.h"
 #include "ModelStack.h"
 
-extern "C" {
-
-}
+extern "C" {}
 
 Arrangement arrangement;
 
@@ -51,8 +49,9 @@ void Arrangement::setupPlayback() {
 
 	currentSong->setParamsInAutomationMode(true);
 
-	playbackHandler.swungTicksTilNextEvent = 0; // It seems strange that I ever put this here. It's now also in PlaybackHandler::setupPlayback,
-												// so maybe extra unneeded here - but that's not the only place that calls us, so have left it in for now
+	playbackHandler.swungTicksTilNextEvent =
+	    0; // It seems strange that I ever put this here. It's now also in PlaybackHandler::setupPlayback,
+	       // so maybe extra unneeded here - but that's not the only place that calls us, so have left it in for now
 
 	for (int c = 0; c < currentSong->sessionClips.getNumElements(); c++) {
 		Clip* clip = currentSong->sessionClips.getClipAtIndex(c);
@@ -91,11 +90,12 @@ bool Arrangement::endPlayback() {
 
 	currentSong->restoreClipStatesBeforeArrangementPlay();
 
-    // Some Clips might have been reset to "disabled", so need their mute-square redrawn if we're actually viewing the session view
+	// Some Clips might have been reset to "disabled", so need their mute-square redrawn if we're actually viewing the session view
 	uiNeedsRendering(&sessionView, 0, 0xFFFFFFFF);
 
-	playbackHandler.playbackState = 0;	// Work-around. Our caller, PlaybackHandler::endPlayback(), sets this next anyway, and can't do it earlier, but
-										// we need it before reassessing sessionView's greyout.
+	playbackHandler.playbackState =
+	    0; // Work-around. Our caller, PlaybackHandler::endPlayback(), sets this next anyway, and can't do it earlier, but
+	       // we need it before reassessing sessionView's greyout.
 
 	if (getCurrentUI() == &sessionView) {
 		PadLEDs::reassessGreyout();
@@ -103,7 +103,6 @@ bool Arrangement::endPlayback() {
 
 	return false; // No song swap
 }
-
 
 void Arrangement::doTickForward(int posIncrement) {
 
@@ -117,8 +116,9 @@ void Arrangement::doTickForward(int posIncrement) {
 	bool songParamManagerMightContainAutomation = currentSong->paramManager.mightContainAutomation();
 
 	if (songParamManagerMightContainAutomation) {
-		ModelStackWithThreeMainThings* modelStackStackWithThreeMainThing = modelStack->addTimelineCounter(modelStack->song)
-				->addOtherTwoThingsButNoNoteRow(&modelStack->song->globalEffectable, &modelStack->song->paramManager);
+		ModelStackWithThreeMainThings* modelStackStackWithThreeMainThing =
+		    modelStack->addTimelineCounter(modelStack->song)
+		        ->addOtherTwoThingsButNoNoteRow(&modelStack->song->globalEffectable, &modelStack->song->paramManager);
 
 		currentSong->paramManager.processCurrentPos(modelStackStackWithThreeMainThing, posIncrement, false);
 	}
@@ -146,13 +146,15 @@ void Arrangement::doTickForward(int posIncrement) {
 
 				// Or if it starts later...
 				else {
-					playbackHandler.swungTicksTilNextEvent = getMin(playbackHandler.swungTicksTilNextEvent, ticksTilStart);
+					playbackHandler.swungTicksTilNextEvent =
+					    getMin(playbackHandler.swungTicksTilNextEvent, ticksTilStart);
 				}
 			}
 
 			// Tick forward the Clip being recorded to
 			output->activeClip->lastProcessedPos += posIncrement;
-			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(output->activeClip);
+			ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
+			    modelStack->addTimelineCounter(output->activeClip);
 			output->activeClip->processCurrentPos(modelStackWithTimelineCounter, posIncrement);
 		}
 
@@ -161,13 +163,16 @@ notRecording:
 			// Or if inactive (and not recording), just check when final ClipInstance ends
 			if (!currentSong->isOutputActiveInArrangement(output)) {
 
-				ClipInstance* lastClipInstance = output->clipInstances.getElement(output->clipInstances.getNumElements() - 1);
+				ClipInstance* lastClipInstance =
+				    output->clipInstances.getElement(output->clipInstances.getNumElements() - 1);
 				if (lastClipInstance) {
 					int32_t endPos = lastClipInstance->pos + lastClipInstance->length;
 
 					if (lastProcessedPos < endPos) {
 						int32_t ticksTilEnd = endPos - lastProcessedPos;
-						if (ticksTilEnd > 0) playbackHandler.swungTicksTilNextEvent = getMin(playbackHandler.swungTicksTilNextEvent, ticksTilEnd);
+						if (ticksTilEnd > 0)
+							playbackHandler.swungTicksTilNextEvent =
+							    getMin(playbackHandler.swungTicksTilNextEvent, ticksTilEnd);
 					}
 				}
 			}
@@ -198,15 +203,17 @@ notRecording:
 						// Or if it's still going...
 						else if (endPos > lastProcessedPos) {
 
-							ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(thisClip);
+							ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
+							    modelStack->addTimelineCounter(thisClip);
 
 							// Tick it forward and process it
-							thisClip->incrementPos		(modelStackWithTimelineCounter, posIncrement);
-							thisClip->processCurrentPos	(modelStackWithTimelineCounter, posIncrement);
+							thisClip->incrementPos(modelStackWithTimelineCounter, posIncrement);
+							thisClip->processCurrentPos(modelStackWithTimelineCounter, posIncrement);
 
 							// Make sure we come back here when the clipInstance ends
 							int32_t ticksTilEnd = endPos - lastProcessedPos;
-							playbackHandler.swungTicksTilNextEvent = getMin(playbackHandler.swungTicksTilNextEvent, ticksTilEnd);
+							playbackHandler.swungTicksTilNextEvent =
+							    getMin(playbackHandler.swungTicksTilNextEvent, ticksTilEnd);
 
 							goto justDoArp; // No need to think about the next ClipInstance yet
 						}
@@ -232,12 +239,14 @@ notRecording:
 
 					AudioEngine::bypassCulling = true;
 
-					ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(thisClip);
+					ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
+					    modelStack->addTimelineCounter(thisClip);
 
 					if (posIncrement) { // If posIncrement is 0, it means this is the very first tick of playback, in which case this has just been set up already. But otherwise...
 						thisClip->activeIfNoSolo = true;
 						thisClip->setPos(modelStackWithTimelineCounter, 0);
-						output->setActiveClip(modelStackWithTimelineCounter); // Used to call assertActiveness(), but that's actually unnecessary - be because we're playing in arrangement, setActiveClip() is actually the only relevant bit
+						output->setActiveClip(
+						    modelStackWithTimelineCounter); // Used to call assertActiveness(), but that's actually unnecessary - be because we're playing in arrangement, setActiveClip() is actually the only relevant bit
 					}
 
 					thisClip->processCurrentPos(modelStackWithTimelineCounter, 0);
@@ -247,12 +256,14 @@ notRecording:
 					if (getCurrentUI() == &arrangerView) arrangerView.notifyActiveClipChangedOnOutput(output);
 
 					// Make sure we come back here when the clipInstance ends
-					playbackHandler.swungTicksTilNextEvent = getMin(playbackHandler.swungTicksTilNextEvent, nextClipInstance->length);
+					playbackHandler.swungTicksTilNextEvent =
+					    getMin(playbackHandler.swungTicksTilNextEvent, nextClipInstance->length);
 				}
 
 				// Or if it starts later...
 				else {
-					playbackHandler.swungTicksTilNextEvent = getMin(playbackHandler.swungTicksTilNextEvent, ticksTilStart);
+					playbackHandler.swungTicksTilNextEvent =
+					    getMin(playbackHandler.swungTicksTilNextEvent, ticksTilStart);
 				}
 			}
 		}
@@ -262,8 +273,8 @@ justDoArp:
 		if (output->activeClip && output->activeClip->activeIfNoSolo) posForArp = output->activeClip->lastProcessedPos;
 		else posForArp = lastProcessedPos;
 
-    	int32_t ticksTilNextArpEvent = output->doTickForwardForArp(modelStack, posForArp);
-    	nearestArpTickTime = getMin(ticksTilNextArpEvent, nearestArpTickTime);
+		int32_t ticksTilNextArpEvent = output->doTickForwardForArp(modelStack, posForArp);
+		nearestArpTickTime = getMin(ticksTilNextArpEvent, nearestArpTickTime);
 	}
 
 	if (anyChangeToSessionClipsPlaying) {
@@ -271,8 +282,11 @@ justDoArp:
 	}
 
 	// If nothing further in the arrangement, we usually just stop playing
-	if (playbackHandler.swungTicksTilNextEvent == 2147483647 && (playbackHandler.playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE) &&
-			(!playbackHandler.recording || audioRecorder.recordingSource >= AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION)) { // Only do this if not recording MIDI - but override that and do do it if we're "resampling"
+	if (playbackHandler.swungTicksTilNextEvent == 2147483647
+	    && (playbackHandler.playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE)
+	    && (!playbackHandler.recording
+	        || audioRecorder.recordingSource
+	               >= AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION)) { // Only do this if not recording MIDI - but override that and do do it if we're "resampling"
 
 		if (playbackHandler.stopOutputRecordingAtLoopEnd && audioRecorder.isCurrentlyResampling()) {
 			audioRecorder.endRecordingSoon();
@@ -281,16 +295,15 @@ justDoArp:
 		playbackHandler.endPlayback();
 	}
 
-
 	// Make sure we come back at right time for any song-level param automation. Must only do these after checking above for (playbackHandler.swungTicksTilNextEvent == 2147483647)
 	playbackHandler.swungTicksTilNextEvent = getMin(playbackHandler.swungTicksTilNextEvent, nearestArpTickTime);
 	if (songParamManagerMightContainAutomation) {
-		playbackHandler.swungTicksTilNextEvent = getMin(playbackHandler.swungTicksTilNextEvent, currentSong->paramManager.ticksTilNextEvent);
-			// Yes we could only do that if songParamManagerMightContainAutomation, which means that we did call processCurrentPos() on that paramManager above.
-			// Because otherwise, its ticksTilNextEvent would be an invalid value - often 0, which causes a freeze / infinite loop.
+		playbackHandler.swungTicksTilNextEvent =
+		    getMin(playbackHandler.swungTicksTilNextEvent, currentSong->paramManager.ticksTilNextEvent);
+		// Yes we could only do that if songParamManagerMightContainAutomation, which means that we did call processCurrentPos() on that paramManager above.
+		// Because otherwise, its ticksTilNextEvent would be an invalid value - often 0, which causes a freeze / infinite loop.
 	}
 }
-
 
 void Arrangement::resetPlayPos(int32_t newPos, bool doingComplete, int buttonPressLatency) {
 
@@ -302,7 +315,8 @@ void Arrangement::resetPlayPos(int32_t newPos, bool doingComplete, int buttonPre
 
 	if (currentSong->paramManager.mightContainAutomation()) {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithThreeMainThings* modelStack = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+		ModelStackWithThreeMainThings* modelStack =
+		    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 
 		currentSong->paramManager.setPlayPos(newPos, modelStack, false);
 	}
@@ -320,9 +334,7 @@ void Arrangement::resetPlayPos(int32_t newPos, bool doingComplete, int buttonPre
 
 		// Or if no ClipInstance, shall we maybe make one and do a spot of linear recording?
 		else {
-			if (doingComplete
-					&& playbackHandler.recording
-					&& output->wantsToBeginArrangementRecording()) {
+			if (doingComplete && playbackHandler.recording && output->wantsToBeginArrangementRecording()) {
 
 				int error = output->possiblyBeginArrangementRecording(currentSong, newPos);
 				if (error) numericDriver.displayError(error);
@@ -331,34 +343,41 @@ void Arrangement::resetPlayPos(int32_t newPos, bool doingComplete, int buttonPre
 	}
 }
 
-
 // After unmuting, or creating, lengthening or changing the Clip of a ClipInstance
-void Arrangement::resumeClipInstancePlayback(ClipInstance* clipInstance, bool doingComplete, bool mayActuallyResumeClip) {
+void Arrangement::resumeClipInstancePlayback(ClipInstance* clipInstance, bool doingComplete,
+                                             bool mayActuallyResumeClip) {
 	Clip* thisClip = clipInstance->clip;
 
 	if (thisClip) {
-		int32_t clipPos = lastProcessedPos - clipInstance->pos; // Use just the currentPos, not the "actual" pos, because a multi-tick-forward is probably coming
+		int32_t clipPos =
+		    lastProcessedPos
+		    - clipInstance
+		          ->pos; // Use just the currentPos, not the "actual" pos, because a multi-tick-forward is probably coming
 
-		thisClip->activeIfNoSolo = true; // Must set this before calling setPos, otherwise, ParamManagers won't know to expectEvent()
+		thisClip->activeIfNoSolo =
+		    true; // Must set this before calling setPos, otherwise, ParamManagers won't know to expectEvent()
 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithTimelineCounter* modelStack = setupModelStackWithTimelineCounter(modelStackMemory, currentSong, thisClip);
+		ModelStackWithTimelineCounter* modelStack =
+		    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, thisClip);
 
 		thisClip->setPos(modelStack, clipPos, true);
 		currentSong->assertActiveness(modelStack); // Why exactly did I do this rather than just setActiveClip()?
 
-		if (doingComplete && mayActuallyResumeClip) { // Use thisClip->currentPos, not clipPos, cos it's got wrapped in setPos()
-			thisClip->resumePlayback(modelStack); // Do this even if the current pos is 0, otherwise AudioClips can fail to sound because that non-"actual" pos can remain 0 for the whole thing
+		if (doingComplete
+		    && mayActuallyResumeClip) { // Use thisClip->currentPos, not clipPos, cos it's got wrapped in setPos()
+			thisClip->resumePlayback(
+			    modelStack); // Do this even if the current pos is 0, otherwise AudioClips can fail to sound because that non-"actual" pos can remain 0 for the whole thing
 		}
 	}
 }
-
 
 // Virtual function. Called after Clip length changed, which could have big effects if Clip repeats multiple times within an Instance.
 // Don't have to yet know whether play-head is actually inside an associated ClipInstance.
 // Don't worry about mustSetPosToSomething - the effects of that are only needed in Session.
 // Check playbackHandler.isEitherClockActive() before calling this.
-void Arrangement::reSyncClip(ModelStackWithTimelineCounter* modelStack, bool mustSetPosToSomething, bool mayResumeClip) {
+void Arrangement::reSyncClip(ModelStackWithTimelineCounter* modelStack, bool mustSetPosToSomething,
+                             bool mayResumeClip) {
 
 	Clip* clip = (Clip*)modelStack->getTimelineCounter();
 
@@ -375,11 +394,8 @@ void Arrangement::reSyncClip(ModelStackWithTimelineCounter* modelStack, bool mus
 	}
 }
 
-
 void Arrangement::resyncToSongTicks(Song* song) {
-
 }
-
 
 // This is a little bit un-ideal, but after an undo or redo, this will be called, and it will tell every active Clip
 // to potentially expect a note or automation event - and to re-get all current automation values.
@@ -401,7 +417,6 @@ void Arrangement::reversionDone() {
 	}
 }
 
-
 bool Arrangement::isOutputAvailable(Output* output) {
 	if (!playbackHandler.playbackState || !output->activeClip) return true;
 
@@ -414,9 +429,9 @@ bool Arrangement::isOutputAvailable(Output* output) {
 	return (!clipInstance || clipInstance->pos + clipInstance->length <= lastProcessedPos);
 }
 
-
 // For the purpose of stopping or starting sounds during playback if we edited the stuff
-void Arrangement::rowEdited(Output* output, int32_t startPos, int32_t endPos, Clip* clipRemoved, ClipInstance* clipInstanceAdded) {
+void Arrangement::rowEdited(Output* output, int32_t startPos, int32_t endPos, Clip* clipRemoved,
+                            ClipInstance* clipInstanceAdded) {
 
 	int32_t actualPos = getLivePos();
 
@@ -433,14 +448,14 @@ void Arrangement::rowEdited(Output* output, int32_t startPos, int32_t endPos, Cl
 	playbackHandler.expectEvent();
 }
 
-
 // First, be sure the clipInstance has a Clip
 int Arrangement::doUniqueCloneOnClipInstance(ClipInstance* clipInstance, int32_t newLength, bool shouldCloneRepeats) {
 	if (!currentSong->arrangementOnlyClips.ensureEnoughSpaceAllocated(1)) return ERROR_INSUFFICIENT_RAM;
 	Clip* oldClip = clipInstance->clip;
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithTimelineCounter* modelStack = setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(oldClip);
+	ModelStackWithTimelineCounter* modelStack =
+	    setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(oldClip);
 
 	int error = oldClip->clone(modelStack, true);
 	if (error) return error;
@@ -482,14 +497,14 @@ void Arrangement::stopOutputRecordingAtLoopEnd() {
 #endif
 }
 
-
 int32_t Arrangement::getPosAtWhichClipWillCut(ModelStackWithTimelineCounter const* modelStack) {
 
 	Clip* clip = (Clip*)modelStack->getTimelineCounter();
 
 	int i = clip->output->clipInstances.search(lastProcessedPos + 1, LESS);
 	ClipInstance* clipInstance = clip->output->clipInstances.getElement(i);
-	if (!clipInstance || clipInstance->clip != clip) return clip->currentlyPlayingReversed ? (-2147483648) : 2147483647; // This shouldn't normally happen right?
+	if (!clipInstance || clipInstance->clip != clip)
+		return clip->currentlyPlayingReversed ? (-2147483648) : 2147483647; // This shouldn't normally happen right?
 
 	int32_t cutPos = clipInstance->length - clip->loopLength * clip->repeatCount;
 	if (cutPos == clip->loopLength) { // If cutting right at the end of the current repeat...
@@ -507,7 +522,7 @@ int32_t Arrangement::getPosAtWhichClipWillCut(ModelStackWithTimelineCounter cons
 		}
 	}
 	else {
-		if (clip->currentlyPlayingReversed)  {
+		if (clip->currentlyPlayingReversed) {
 			cutPos = clipInstance->length - cutPos;
 			if (cutPos > 0 && cutPos >= clip->getLivePos()) { // Same reasoning as comment below.
 				cutPos = -2147483648;
@@ -515,7 +530,9 @@ int32_t Arrangement::getPosAtWhichClipWillCut(ModelStackWithTimelineCounter cons
 		}
 
 		else {
-			if (cutPos < clip->loopLength && cutPos <= clip->getLivePos()) { // We first check that cutPos is less than the loopLength, so as not to waste time on the calculations in getLivePos if not necessary
+			if (cutPos < clip->loopLength
+			    && cutPos
+			           <= clip->getLivePos()) { // We first check that cutPos is less than the loopLength, so as not to waste time on the calculations in getLivePos if not necessary
 				cutPos = 2147483647;
 			}
 		}
@@ -530,10 +547,8 @@ bool Arrangement::willClipContinuePlayingAtEnd(ModelStackWithTimelineCounter con
 
 	int32_t cutPos = getPosAtWhichClipWillCut(modelStack);
 
-	if (clip->currentlyPlayingReversed)
-		return (cutPos < 0);
-	else
-		return (cutPos > clip->loopLength);
+	if (clip->currentlyPlayingReversed) return (cutPos < 0);
+	else return (cutPos > clip->loopLength);
 }
 
 // This includes it "looping" before the Clip's full length due to that ClipInstance ending, and there being another instance of the same Clip right after.

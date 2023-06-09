@@ -24,7 +24,6 @@ ConsequenceSwingChange::ConsequenceSwingChange(int8_t newSwingBefore, int8_t new
 	swing[AFTER] = newSwingAfter;
 }
 
-
 int ConsequenceSwingChange::revert(int time, ModelStack* modelStack) {
 	modelStack->song->swingAmount = swing[time];
 

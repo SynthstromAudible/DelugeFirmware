@@ -32,13 +32,17 @@ int ConsequenceArrangerParamsTimeInserted::revert(int time, ModelStack* modelSta
 
 	ParamCollectionSummary* unpatchedParamsSummary = modelStack->song->paramManager.getUnpatchedParamSetSummary();
 
-	ModelStackWithParamCollection* modelStackWithParamCollection = modelStack->song->setupModelStackWithSongAsTimelineCounter(modelStack)->addParamCollectionSummary(unpatchedParamsSummary);
+	ModelStackWithParamCollection* modelStackWithParamCollection =
+	    modelStack->song->setupModelStackWithSongAsTimelineCounter(modelStack)
+	        ->addParamCollectionSummary(unpatchedParamsSummary);
 
 	if (time == BEFORE) {
-		((ParamSet*)modelStackWithParamCollection->paramCollection)->deleteTime(modelStackWithParamCollection, pos, length);
+		((ParamSet*)modelStackWithParamCollection->paramCollection)
+		    ->deleteTime(modelStackWithParamCollection, pos, length);
 	}
 	else {
-		((ParamSet*)modelStackWithParamCollection->paramCollection)->insertTime(modelStackWithParamCollection, pos, length);
+		((ParamSet*)modelStackWithParamCollection->paramCollection)
+		    ->insertTime(modelStackWithParamCollection, pos, length);
 	}
 
 	return NO_ERROR;

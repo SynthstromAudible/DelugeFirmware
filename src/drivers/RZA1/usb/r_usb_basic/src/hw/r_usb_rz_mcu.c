@@ -33,7 +33,7 @@
 #include "r_usb_typedef.h"
 #include "r_usb_extern.h"
 #include "r_usb_bitdefine.h"
-#include "devdrv_intc.h"        /* INTC Driver Header   */
+#include "devdrv_intc.h" /* INTC Driver Header   */
 #include "iodefine.h"
 #include <stdbool.h>
 #include "mtu2_iodefine.h"
@@ -44,17 +44,16 @@
 
 #if ((USB_CFG_DTC == USB_CFG_ENABLE) || (USB_CFG_DMA == USB_CFG_ENABLE))
 #include "r_usb_dmac.h"
-#endif  /* ((USB_CFG_DTC == USB_CFG_ENABLE) || (USB_CFG_DMA == USB_CFG_ENABLE)) */
+#endif /* ((USB_CFG_DTC == USB_CFG_ENABLE) || (USB_CFG_DMA == USB_CFG_ENABLE)) */
 
 /***********************************************************************************************************************
 External variables and functions
 ***********************************************************************************************************************/
-extern uint16_t         g_usb_usbmode;
+extern uint16_t g_usb_usbmode;
 #if USB_CFG_DMA == USB_CFG_ENABLE
-extern usb_dma_int_t    g_usb_cstd_dma_int;             /* DMA Interrupt Info */
-extern void             usb_cstd_dxfifo_handler(usb_utr_t *ptr, uint16_t useport);
-#endif  /* USB_CFG_DMA == USB_CFG_ENABLE */
-
+extern usb_dma_int_t g_usb_cstd_dma_int; /* DMA Interrupt Info */
+extern void usb_cstd_dxfifo_handler(usb_utr_t* ptr, uint16_t useport);
+#endif /* USB_CFG_DMA == USB_CFG_ENABLE */
 
 /***********************************************************************************************************************
  Private global variables and functions
@@ -62,29 +61,28 @@ extern void             usb_cstd_dxfifo_handler(usb_utr_t *ptr, uint16_t useport
 static bool g_usb_is_opened[2] = {false, false};
 
 /*=== Interrupt =============================================================*/
-void        usb_cpu_usbint_init(uint8_t ip_type);
-void        usb_cpu_usb_int_hand(uint32_t int_sense);
-void        usb2_cpu_usb_int_hand(uint32_t int_sense);
-void        usb_cpu_dmaint0_hand(uint32_t int_sense);
-void        usb_cpu_dmaint1_hand(uint32_t int_sense);
-void        usb_cpu_dmaint2_hand(uint32_t int_sense);
-void        usb_cpu_dmaint3_hand(uint32_t int_sense);
-
+void usb_cpu_usbint_init(uint8_t ip_type);
+void usb_cpu_usb_int_hand(uint32_t int_sense);
+void usb2_cpu_usb_int_hand(uint32_t int_sense);
+void usb_cpu_dmaint0_hand(uint32_t int_sense);
+void usb_cpu_dmaint1_hand(uint32_t int_sense);
+void usb_cpu_dmaint2_hand(uint32_t int_sense);
+void usb_cpu_dmaint3_hand(uint32_t int_sense);
 
 #if USB_CFG_DMA == USB_CFG_ENABLE
-void            usb_cstd_dmaint0_handler(void);
-void            usb_cstd_dmaint1_handler(void);
-void            usb_cstd_dmaint2_handler(void);
-void            usb_cstd_dmaint3_handler(void);
+void usb_cstd_dmaint0_handler(void);
+void usb_cstd_dmaint1_handler(void);
+void usb_cstd_dmaint2_handler(void);
+void usb_cstd_dmaint3_handler(void);
 #endif
 
-#if ( (USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST )
-void        usb_cpu_int_enable(usb_utr_t *ptr);
-void        usb_cpu_int_disable(usb_utr_t *ptr);
-#endif  /* (USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST */
+#if ((USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST)
+void usb_cpu_int_enable(usb_utr_t* ptr);
+void usb_cpu_int_disable(usb_utr_t* ptr);
+#endif /* (USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST */
 /*=== TIMER =================================================================*/
-void        usb_cpu_delay_1us(uint16_t time);
-void        usb_cpu_delay_xms(uint16_t time);
+void usb_cpu_delay_1us(uint16_t time);
+void usb_cpu_delay_xms(uint16_t time);
 
 /***********************************************************************************************************************
  Renesas Abstracted RSK functions
@@ -98,31 +96,31 @@ void        usb_cpu_delay_xms(uint16_t time);
  ***********************************************************************************************************************/
 usb_err_t usb_module_start(uint8_t ip_type)
 {
-    volatile uint8_t    dummy_buf;
+    volatile uint8_t dummy_buf;
 
     if (USB_IP0 == ip_type)
     {
-        if(true == g_usb_is_opened[USB_IP0])
+        if (true == g_usb_is_opened[USB_IP0])
         {
-            return USB_ERR_BUSY;    /* USB_ERR_OPENED */
+            return USB_ERR_BUSY; /* USB_ERR_OPENED */
         }
 
         /* The clock of USB0 modules is permitted */
-        CPG.STBCR7  &= 0xFD;
-        dummy_buf   = CPG.STBCR7;
+        CPG.STBCR7 &= 0xFD;
+        dummy_buf = CPG.STBCR7;
 
         g_usb_is_opened[USB_IP0] = true;
     }
     else
     {
-        if(true == g_usb_is_opened[USB_IP1])
+        if (true == g_usb_is_opened[USB_IP1])
         {
-            return USB_ERR_BUSY;    /* USB_ERR_OPENED */
+            return USB_ERR_BUSY; /* USB_ERR_OPENED */
         }
 
         /* The clock of USB1 modules is permitted */
-        CPG.STBCR7  &= 0xFE;
-        dummy_buf   = CPG.STBCR7;
+        CPG.STBCR7 &= 0xFE;
+        dummy_buf = CPG.STBCR7;
 
         g_usb_is_opened[USB_IP1] = true;
     }
@@ -138,34 +136,33 @@ usb_err_t usb_module_start(uint8_t ip_type)
  ***********************************************************************************************************************/
 usb_err_t usb_module_stop(uint8_t ip_type)
 {
-    volatile uint8_t    dummy_buf;
+    volatile uint8_t dummy_buf;
 
     if (USB_IP0 == ip_type)
     {
-        if(g_usb_is_opened[ip_type] == false)
+        if (g_usb_is_opened[ip_type] == false)
         {
             return USB_ERR_NOT_OPEN;
         }
 
-        CPG.STBCR7  |= 0x02;
-        dummy_buf   = CPG.STBCR7;
+        CPG.STBCR7 |= 0x02;
+        dummy_buf = CPG.STBCR7;
     }
     else if (USB_IP1 == ip_type)
     {
-        if(g_usb_is_opened[ip_type] == false)
+        if (g_usb_is_opened[ip_type] == false)
         {
             return USB_ERR_NOT_OPEN;
         }
 
-        CPG.STBCR7  |= 0x01;
-        dummy_buf   = CPG.STBCR7;
+        CPG.STBCR7 |= 0x01;
+        dummy_buf = CPG.STBCR7;
     }
     else
     {
         return USB_ERR_PARA;
     }
     g_usb_is_opened[ip_type] = false;
-
 
     return USB_SUCCESS;
 } /* End of function usb_module_stop() */
@@ -187,7 +184,6 @@ void usb_cpu_usbint_init(uint8_t ip_type)
         R_INTC_RegistIntFunc(INTC_ID_USBI0, usb_cpu_usb_int_hand);
         R_INTC_SetPriority(INTC_ID_USBI0, 9);
         R_INTC_Enable(INTC_ID_USBI0);
-
     }
 
 #if USB_NUM_USBIP == 2
@@ -196,26 +192,25 @@ void usb_cpu_usbint_init(uint8_t ip_type)
         R_INTC_RegistIntFunc(INTC_ID_USBI1, usb2_cpu_usb_int_hand);
         R_INTC_SetPriority(INTC_ID_USBI1, 9);
         R_INTC_Enable(INTC_ID_USBI1);
-
     }
 #endif
 
 #if USB_CFG_DMA == USB_CFG_ENABLE
-        R_INTC_RegistIntFunc(INTC_ID_DMAINT0, usb_cpu_dmaint0_hand);
-        R_INTC_SetPriority(INTC_ID_DMAINT0, 0);
-        R_INTC_Enable(INTC_ID_DMAINT0);
+    R_INTC_RegistIntFunc(INTC_ID_DMAINT0, usb_cpu_dmaint0_hand);
+    R_INTC_SetPriority(INTC_ID_DMAINT0, 0);
+    R_INTC_Enable(INTC_ID_DMAINT0);
 
-        R_INTC_RegistIntFunc(INTC_ID_DMAINT1, usb_cpu_dmaint1_hand);
-        R_INTC_SetPriority(INTC_ID_DMAINT1, 0);
-        R_INTC_Enable(INTC_ID_DMAINT1);
+    R_INTC_RegistIntFunc(INTC_ID_DMAINT1, usb_cpu_dmaint1_hand);
+    R_INTC_SetPriority(INTC_ID_DMAINT1, 0);
+    R_INTC_Enable(INTC_ID_DMAINT1);
 
-        R_INTC_RegistIntFunc(INTC_ID_DMAINT2, usb_cpu_dmaint2_hand);
-        R_INTC_SetPriority(INTC_ID_DMAINT2, 0);
-        R_INTC_Enable(INTC_ID_DMAINT2);
+    R_INTC_RegistIntFunc(INTC_ID_DMAINT2, usb_cpu_dmaint2_hand);
+    R_INTC_SetPriority(INTC_ID_DMAINT2, 0);
+    R_INTC_Enable(INTC_ID_DMAINT2);
 
-        R_INTC_RegistIntFunc(INTC_ID_DMAINT3, usb_cpu_dmaint3_hand);
-        R_INTC_SetPriority(INTC_ID_DMAINT3, 0);
-        R_INTC_Enable(INTC_ID_DMAINT3);
+    R_INTC_RegistIntFunc(INTC_ID_DMAINT3, usb_cpu_dmaint3_hand);
+    R_INTC_SetPriority(INTC_ID_DMAINT3, 0);
+    R_INTC_Enable(INTC_ID_DMAINT3);
 #endif
 } /* End of function usb_cpu_usbint_init() */
 
@@ -228,20 +223,20 @@ void usb_cpu_usbint_init(uint8_t ip_type)
 void usb_cpu_usb_int_hand(uint32_t int_sense) // This function actually gets called as a CPU interrupt, for real! Rohan
 {
 
-	//uint16_t startTime = *TCNT[TIMER_SYSTEM_SUPERFAST];
+    //uint16_t startTime = *TCNT[TIMER_SYSTEM_SUPERFAST];
 
     /* Call USB interrupt routine */
     if (USB_HOST == g_usb_usbmode)
     {
 #if ((USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST)
-        usb_hstd_usb_handler(0);      /* Call interrupt routine */
-#endif  /* (USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST */
+        usb_hstd_usb_handler(0); /* Call interrupt routine */
+#endif                           /* (USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST */
     }
     else
     {
 #if ((USB_CFG_MODE & USB_CFG_PERI) == USB_CFG_PERI)
-        usb_pstd_usb_handler(0);      /* Call interrupt routine */
-#endif  /* (USB_CFG_MODE & USB_CFG_PERI) == USB_CFG_REPI */
+        usb_pstd_usb_handler(0); /* Call interrupt routine */
+#endif                           /* (USB_CFG_MODE & USB_CFG_PERI) == USB_CFG_REPI */
     }
 
     /*
@@ -262,18 +257,18 @@ void usb_cpu_usb_int_hand(uint32_t int_sense) // This function actually gets cal
 void usb2_cpu_usb_int_hand(uint32_t int_sense)
 {
 #if USB_NUM_USBIP == 2
-/* Condition compilation by the difference of USB function */
+    /* Condition compilation by the difference of USB function */
     if (USB_HOST == g_usb_usbmode)
     {
 #if ((USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST)
-        usb2_hstd_usb_handler();        /* Call interrupt routine */
-#endif  /* (USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST */
+        usb2_hstd_usb_handler(); /* Call interrupt routine */
+#endif                           /* (USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST */
     }
     else
     {
 #if ((USB_CFG_MODE & USB_CFG_PERI) == USB_CFG_PERI)
         usb_pstd_usb_handler();
-#endif  /* (USB_CFG_MODE & USB_CFG_PERI) == USB_CFG_REPI */
+#endif /* (USB_CFG_MODE & USB_CFG_PERI) == USB_CFG_REPI */
     }
 #endif
 } /* End of function usb2_cpu_usb_int_hand() */
@@ -289,19 +284,19 @@ TIMER function
  Note            : Please change for your MCU
  ***********************************************************************************************************************/
 
-#define MTU_TIMER_CNT      33
+#define MTU_TIMER_CNT 33
 
 #include "definitions.h"
 #include "mtu_all_cpus.h"
 
-
 void usb_cpu_delay_1us(uint16_t time) // Modified by Rohan
 {
-	uint16_t startTime = *TCNT[TIMER_SYSTEM_FAST];
-	uint16_t stopTime = startTime + usToFastTimerCount(time);
-	do {
-		if (time >= 40) routineForSD();
-	} while ((int16_t)(*TCNT[TIMER_SYSTEM_FAST] - stopTime) < 0);
+    uint16_t startTime = *TCNT[TIMER_SYSTEM_FAST];
+    uint16_t stopTime  = startTime + usToFastTimerCount(time);
+    do
+    {
+        if (time >= 40) routineForSD();
+    } while ((int16_t)(*TCNT[TIMER_SYSTEM_FAST] - stopTime) < 0);
 } /* End of function usb_cpu_delay_1us() */
 
 /***********************************************************************************************************************
@@ -313,12 +308,13 @@ void usb_cpu_delay_1us(uint16_t time) // Modified by Rohan
  ***********************************************************************************************************************/
 void usb_cpu_delay_xms(uint16_t time) // Modified by Rohan
 {
-	uint16_t startTime = *TCNT[TIMER_SYSTEM_SLOW];
-	uint16_t stopTime = startTime + msToSlowTimerCount(time);
-	do {
-		routineForSD();
-	} while ((int16_t)(*TCNT[TIMER_SYSTEM_SLOW] - stopTime) < 0);
-}   /* End of function usb_cpu_delay_xms() */
+    uint16_t startTime = *TCNT[TIMER_SYSTEM_SLOW];
+    uint16_t stopTime  = startTime + msToSlowTimerCount(time);
+    do
+    {
+        routineForSD();
+    } while ((int16_t)(*TCNT[TIMER_SYSTEM_SLOW] - stopTime) < 0);
+} /* End of function usb_cpu_delay_xms() */
 
 #if ((USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST)
 /***********************************************************************************************************************
@@ -327,11 +323,11 @@ void usb_cpu_delay_xms(uint16_t time) // Modified by Rohan
  Arguments       : usb_utr_t    *ptr         : USB internal structure. Selects USB channel.
  Return value    : void
  ***********************************************************************************************************************/
-void usb_cpu_int_enable(usb_utr_t *ptr)
+void usb_cpu_int_enable(usb_utr_t* ptr)
 {
     if (USB_USBIP_0 == ptr->ip)
     {
-        R_INTC_Enable(INTC_ID_USBI0);       /* Enable USB0 interrupt */
+        R_INTC_Enable(INTC_ID_USBI0); /* Enable USB0 interrupt */
 #if USB_CFG_DMA == USB_CFG_ENABLE
         R_INTC_Enable(INTC_ID_DMAINT1);
         R_INTC_Enable(INTC_ID_DMAINT2);
@@ -340,7 +336,7 @@ void usb_cpu_int_enable(usb_utr_t *ptr)
 
     if (USB_USBIP_1 == ptr->ip)
     {
-        R_INTC_Enable(INTC_ID_USBI1);   /* Enable USBA interrupt */
+        R_INTC_Enable(INTC_ID_USBI1); /* Enable USBA interrupt */
 #if USB_CFG_DMA == USB_CFG_ENABLE
         R_INTC_Enable(INTC_ID_DMAINT3);
         R_INTC_Enable(INTC_ID_DMAINT4);
@@ -354,20 +350,20 @@ void usb_cpu_int_enable(usb_utr_t *ptr)
  Arguments       : usb_utr_t    *ptr         : USB internal structure. Selects USB channel.
  Return value    : void
  ***********************************************************************************************************************/
-void usb_cpu_int_disable(usb_utr_t *ptr)
+void usb_cpu_int_disable(usb_utr_t* ptr)
 {
     if (USB_USBIP_0 == ptr->ip)
     {
-        R_INTC_Disable(INTC_ID_USBI0);  /* Disnable USB0 interrupt */
+        R_INTC_Disable(INTC_ID_USBI0); /* Disnable USB0 interrupt */
 #if USB_CFG_DMA == USB_CFG_ENABLE
         R_INTC_Disable(INTC_ID_DMAINT1);
         R_INTC_Disable(INTC_ID_DMAINT2);
 #endif /* USB_CFG_DMA == USB_CFG_ENABLE */
     }
-    
+
     if (USB_USBIP_1 == ptr->ip)
     {
-        R_INTC_Disable(INTC_ID_USBI1);  /* Disnable USBA interrupt */
+        R_INTC_Disable(INTC_ID_USBI1); /* Disnable USBA interrupt */
 #if USB_CFG_DMA == USB_CFG_ENABLE
         R_INTC_Disable(INTC_ID_DMAINT3);
         R_INTC_Disable(INTC_ID_DMAINT4);
@@ -381,16 +377,16 @@ void usb_cpu_int_disable(usb_utr_t *ptr)
  Arguments       : 
  Return value    : 
  ***********************************************************************************************************************/
-uint16_t usb_chattaring(volatile uint16_t *syssts)
+uint16_t usb_chattaring(volatile uint16_t* syssts)
 {
-    uint16_t    lnst[3];
-    
-    while(1)
+    uint16_t lnst[3];
+
+    while (1)
     {
         lnst[0] = *syssts & USB_LNST;
-        usb_cpu_delay_xms((uint16_t)1);    /* 1ms wait */
+        usb_cpu_delay_xms((uint16_t)1); /* 1ms wait */
         lnst[1] = *syssts & USB_LNST;
-        usb_cpu_delay_xms((uint16_t)1);    /* 1ms wait */
+        usb_cpu_delay_xms((uint16_t)1); /* 1ms wait */
         lnst[2] = *syssts & USB_LNST;
         if ((lnst[0] == lnst[1]) && (lnst[0] == lnst[2]))
         {
@@ -414,7 +410,6 @@ void usb_cpu_dmaint0_hand(uint32_t int_sense)
 #endif
 } /* End of function usb_cpu_dmaint0_hand() */
 
-
 /***********************************************************************************************************************
  Function Name   : usb_cpu_dmaint1_hand
  Description     : 
@@ -428,7 +423,6 @@ void usb_cpu_dmaint1_hand(uint32_t int_sense)
 #endif
 } /* End of function usb_cpu_dmaint1_hand() */
 
-
 /***********************************************************************************************************************
  Function Name   : usb_cpu_dmaint1_hand
  Description     :
@@ -441,7 +435,6 @@ void usb_cpu_dmaint2_hand(uint32_t int_sense)
     usb_cstd_dmaint2_handler();
 #endif
 } /* End of function usb_cpu_dmaint1_hand() */
-
 
 /***********************************************************************************************************************
  Function Name   : usb_cpu_dmaint1_hand
@@ -458,7 +451,7 @@ void usb_cpu_dmaint3_hand(uint32_t int_sense)
 
 #if ((USB_CFG_MODE & USB_CFG_PERI) == USB_CFG_PERI)
 
-#endif  /* (USB_CFG_MODE & USB_CFG_PERI) == USB_CFG_REPI */
+#endif /* (USB_CFG_MODE & USB_CFG_PERI) == USB_CFG_REPI */
 
 /***********************************************************************************************************************
  End Of File

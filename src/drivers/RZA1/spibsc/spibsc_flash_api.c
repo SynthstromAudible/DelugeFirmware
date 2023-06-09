@@ -46,34 +46,30 @@ Includes <System Includes> , "Project Includes"
 //#pragma arm section rwdata = "DATA_SPIBSC_INIT2"
 //#pragma arm section zidata = "BSS_SPIBSC_INIT2"
 
-
 /******************************************************************************
 Typedef definitions
 ******************************************************************************/
-
 
 /******************************************************************************
 Macro definitions
 ******************************************************************************/
 
-
 /******************************************************************************
 Imported global variables and functions (from other files)
 ******************************************************************************/
-
 
 /******************************************************************************
 Exported global variables and functions (to be accessed by other files)
 ******************************************************************************/
 st_spibsc_spimd_reg_t g_spibsc_spimd_reg;
 
-
 /******************************************************************************
 Private global variables and functions
 ******************************************************************************/
-static int32_t read_data_quad(  uint32_t addr, uint8_t * buf, int32_t unit, uint32_t ch_no, uint32_t dual, uint8_t addr_mode);
-static int32_t read_data_single(uint32_t addr, uint8_t * buf, int32_t unit, uint32_t ch_no, uint32_t dual, uint8_t addr_mode);
-
+static int32_t read_data_quad(
+    uint32_t addr, uint8_t* buf, int32_t unit, uint32_t ch_no, uint32_t dual, uint8_t addr_mode);
+static int32_t read_data_single(
+    uint32_t addr, uint8_t* buf, int32_t unit, uint32_t ch_no, uint32_t dual, uint8_t addr_mode);
 
 /******************************************************************************
 * Function Name: R_SFLASH_EraseSector
@@ -90,16 +86,16 @@ int32_t R_SFLASH_EraseSector(uint32_t addr, uint32_t ch_no, uint32_t dual, uint8
 {
     int32_t ret;
     /* sector erase in Single-SPI   */
-    ret = Userdef_SFLASH_Write_Enable(ch_no);          /* WREN Command */
-    if(ret != 0)
+    ret = Userdef_SFLASH_Write_Enable(ch_no); /* WREN Command */
+    if (ret != 0)
     {
         return ret;
     }
-    g_spibsc_spimd_reg.cdb   = SPIBSC_1BIT;            /* Commmand bit-width = Single */
-    g_spibsc_spimd_reg.adb   = SPIBSC_1BIT;            /* Address bit-width = Single */
-    g_spibsc_spimd_reg.cde   = SPIBSC_OUTPUT_ENABLE;   /* Command Enable */
-    g_spibsc_spimd_reg.ocde  = SPIBSC_OUTPUT_DISABLE;  /* Optional-Command Disable */
-    g_spibsc_spimd_reg.ade   = addr_mode;
+    g_spibsc_spimd_reg.cdb  = SPIBSC_1BIT;           /* Commmand bit-width = Single */
+    g_spibsc_spimd_reg.adb  = SPIBSC_1BIT;           /* Address bit-width = Single */
+    g_spibsc_spimd_reg.cde  = SPIBSC_OUTPUT_ENABLE;  /* Command Enable */
+    g_spibsc_spimd_reg.ocde = SPIBSC_OUTPUT_DISABLE; /* Optional-Command Disable */
+    g_spibsc_spimd_reg.ade  = addr_mode;
 
     g_spibsc_spimd_reg.opde  = SPIBSC_OUTPUT_DISABLE;  /* Option-Data Disable */
     g_spibsc_spimd_reg.spide = SPIBSC_OUTPUT_DISABLE;  /* Disable */
@@ -107,7 +103,7 @@ int32_t R_SFLASH_EraseSector(uint32_t addr, uint32_t ch_no, uint32_t dual, uint8
     g_spibsc_spimd_reg.spire = SPIBSC_SPIDATA_DISABLE; /* Data Access (Read Disable) */
     g_spibsc_spimd_reg.spiwe = SPIBSC_SPIDATA_DISABLE; /* Data Access (Write Disable) */
 
-    if(addr_mode == SPIBSC_OUTPUT_ADDR_32)
+    if (addr_mode == SPIBSC_OUTPUT_ADDR_32)
     {
         /* SE:Sector Erase(4-byte address) */
         g_spibsc_spimd_reg.cmd = SFLASHCMD_SECTOR_ERASE_4B;
@@ -118,7 +114,7 @@ int32_t R_SFLASH_EraseSector(uint32_t addr, uint32_t ch_no, uint32_t dual, uint8
         g_spibsc_spimd_reg.cmd = SFLASHCMD_SECTOR_ERASE;
     }
 
-    if( dual == SPIBSC_CMNCR_BSZ_DUAL )
+    if (dual == SPIBSC_CMNCR_BSZ_DUAL)
     {
         g_spibsc_spimd_reg.addr = (uint32_t)(addr >> 1);
     }
@@ -129,18 +125,18 @@ int32_t R_SFLASH_EraseSector(uint32_t addr, uint32_t ch_no, uint32_t dual, uint8
 
     /* SDR/DDR setting */
     g_spibsc_spimd_reg.dme    = SPIBSC_DUMMY_CYC_DISABLE; /* Dummy cycle disable */
-    g_spibsc_spimd_reg.addre  = SPIBSC_SDR_TRANS; /* address    :SDR transmission */
-    g_spibsc_spimd_reg.opdre  = SPIBSC_SDR_TRANS; /* option data:SDR transmission */
-    g_spibsc_spimd_reg.spidre = SPIBSC_SDR_TRANS; /* data       :SDR transmission */
+    g_spibsc_spimd_reg.addre  = SPIBSC_SDR_TRANS;         /* address    :SDR transmission */
+    g_spibsc_spimd_reg.opdre  = SPIBSC_SDR_TRANS;         /* option data:SDR transmission */
+    g_spibsc_spimd_reg.spidre = SPIBSC_SDR_TRANS;         /* data       :SDR transmission */
 
     ret = spibsc_transfer(ch_no, &g_spibsc_spimd_reg);
-    if(ret != 0)
+    if (ret != 0)
     {
         return ret;
     }
 
     ret = Userdef_SFLASH_Busy_Wait(ch_no, dual, data_width);
-    if(ret != 0)
+    if (ret != 0)
     {
         return ret;
     }
@@ -166,26 +162,26 @@ int32_t R_SFLASH_EraseSector(uint32_t addr, uint32_t ch_no, uint32_t dual, uint8
 * Return Value :  0 : success
 *                -1 : error
 ******************************************************************************/
-int32_t R_SFLASH_ByteProgram(uint32_t addr, uint8_t * buf, int32_t size, uint32_t ch_no,
-                             uint32_t dual, uint8_t data_width, uint8_t addr_mode)
+int32_t R_SFLASH_ByteProgram(
+    uint32_t addr, uint8_t* buf, int32_t size, uint32_t ch_no, uint32_t dual, uint8_t data_width, uint8_t addr_mode)
 {
     int32_t unit;
     int32_t ret;
-    uint8_t  *buf_b;
-    uint16_t *buf_s;
-    uint32_t *buf_l;
+    uint8_t* buf_b;
+    uint16_t* buf_s;
+    uint32_t* buf_l;
 
-    ret = Userdef_SFLASH_Write_Enable(ch_no);          /* WREN Command */
-    if(ret != 0)
+    ret = Userdef_SFLASH_Write_Enable(ch_no); /* WREN Command */
+    if (ret != 0)
     {
         return ret;
     }
 
     /* ---- Command,Address ---- */
-    g_spibsc_spimd_reg.cdb   = SPIBSC_1BIT;            /* Commmand bit-width = Single */
-    g_spibsc_spimd_reg.adb   = SPIBSC_1BIT;            /* Address bit-width = Single */
-    g_spibsc_spimd_reg.cde   = SPIBSC_OUTPUT_ENABLE;   /* Command Enable */
-    g_spibsc_spimd_reg.ocde  = SPIBSC_OUTPUT_DISABLE;  /* Optional-Command Disable */
+    g_spibsc_spimd_reg.cdb   = SPIBSC_1BIT;           /* Commmand bit-width = Single */
+    g_spibsc_spimd_reg.adb   = SPIBSC_1BIT;           /* Address bit-width = Single */
+    g_spibsc_spimd_reg.cde   = SPIBSC_OUTPUT_ENABLE;  /* Command Enable */
+    g_spibsc_spimd_reg.ocde  = SPIBSC_OUTPUT_DISABLE; /* Optional-Command Disable */
     g_spibsc_spimd_reg.ade   = addr_mode;
     g_spibsc_spimd_reg.opde  = SPIBSC_OUTPUT_DISABLE;  /* Option-Data Disable */
     g_spibsc_spimd_reg.spide = SPIBSC_OUTPUT_DISABLE;  /* Disable */
@@ -195,13 +191,13 @@ int32_t R_SFLASH_ByteProgram(uint32_t addr, uint8_t * buf, int32_t size, uint32_
 
     /* SDR/DDR setting */
     g_spibsc_spimd_reg.dme    = SPIBSC_DUMMY_CYC_DISABLE; /* Dummy cycle disable */
-    g_spibsc_spimd_reg.addre  = SPIBSC_SDR_TRANS; /* address    :SDR transmission */
-    g_spibsc_spimd_reg.opdre  = SPIBSC_SDR_TRANS; /* option data:SDR transmission */
-    g_spibsc_spimd_reg.spidre = SPIBSC_SDR_TRANS; /* data       :SDR transmission */
+    g_spibsc_spimd_reg.addre  = SPIBSC_SDR_TRANS;         /* address    :SDR transmission */
+    g_spibsc_spimd_reg.opdre  = SPIBSC_SDR_TRANS;         /* option data:SDR transmission */
+    g_spibsc_spimd_reg.spidre = SPIBSC_SDR_TRANS;         /* data       :SDR transmission */
 
     if (data_width == SPIBSC_1BIT)
     {
-        if(addr_mode == SPIBSC_OUTPUT_ADDR_32)
+        if (addr_mode == SPIBSC_OUTPUT_ADDR_32)
         {
             /* PP: Page Program(4-byte address) */
             g_spibsc_spimd_reg.cmd = SFLASHCMD_BYTE_PROGRAM_4B;
@@ -214,9 +210,9 @@ int32_t R_SFLASH_ByteProgram(uint32_t addr, uint8_t * buf, int32_t size, uint32_
     }
     else
     {
-        if(addr_mode == SPIBSC_OUTPUT_ADDR_32)
+        if (addr_mode == SPIBSC_OUTPUT_ADDR_32)
         {
-             /* QPP: Quad Page Program(4-byte address) */
+            /* QPP: Quad Page Program(4-byte address) */
             g_spibsc_spimd_reg.cmd = SFLASHCMD_QUAD_PROGRAM_4B;
         }
         else
@@ -235,8 +231,8 @@ int32_t R_SFLASH_ByteProgram(uint32_t addr, uint8_t * buf, int32_t size, uint32_
         g_spibsc_spimd_reg.addr = addr;
     }
 
-    ret = spibsc_transfer(ch_no, &g_spibsc_spimd_reg);     /* Command,Address */
-    if(ret != 0)
+    ret = spibsc_transfer(ch_no, &g_spibsc_spimd_reg); /* Command,Address */
+    if (ret != 0)
     {
         return ret;
     }
@@ -255,18 +251,18 @@ int32_t R_SFLASH_ByteProgram(uint32_t addr, uint8_t * buf, int32_t size, uint32_
     {
         if ((size % 8) == 0)
         {
-            g_spibsc_spimd_reg.spide = SPIBSC_OUTPUT_SPID_32;  /* Enable(64bit) */
-            unit = 8;
+            g_spibsc_spimd_reg.spide = SPIBSC_OUTPUT_SPID_32; /* Enable(64bit) */
+            unit                     = 8;
         }
         else if ((size % 4) == 0)
         {
-            g_spibsc_spimd_reg.spide = SPIBSC_OUTPUT_SPID_16;  /* Enable(32bit) */
-            unit = 4;
+            g_spibsc_spimd_reg.spide = SPIBSC_OUTPUT_SPID_16; /* Enable(32bit) */
+            unit                     = 4;
         }
         else if ((size % 2) == 0)
         {
-            g_spibsc_spimd_reg.spide = SPIBSC_OUTPUT_SPID_8;   /* Enable(16bit) */
-            unit = 2;
+            g_spibsc_spimd_reg.spide = SPIBSC_OUTPUT_SPID_8; /* Enable(16bit) */
+            unit                     = 2;
         }
         else
         {
@@ -277,51 +273,51 @@ int32_t R_SFLASH_ByteProgram(uint32_t addr, uint8_t * buf, int32_t size, uint32_
     {
         if ((size % 4) == 0)
         {
-            g_spibsc_spimd_reg.spide = SPIBSC_OUTPUT_SPID_32;  /* Enable(32bit) */
-            unit = 4;
+            g_spibsc_spimd_reg.spide = SPIBSC_OUTPUT_SPID_32; /* Enable(32bit) */
+            unit                     = 4;
         }
         else if ((size % 2) == 0)
         {
-            g_spibsc_spimd_reg.spide = SPIBSC_OUTPUT_SPID_16;  /* Enable(16bit) */
-            unit = 2;
+            g_spibsc_spimd_reg.spide = SPIBSC_OUTPUT_SPID_16; /* Enable(16bit) */
+            unit                     = 2;
         }
         else
         {
-            g_spibsc_spimd_reg.spide = SPIBSC_OUTPUT_SPID_8;   /* Enable(8bit) */
-            unit = 1;
+            g_spibsc_spimd_reg.spide = SPIBSC_OUTPUT_SPID_8; /* Enable(8bit) */
+            unit                     = 1;
         }
     }
 
     while (size > 0)
     {
-        if( unit == 1 )
+        if (unit == 1)
         {
-            buf_b = (uint8_t *)buf;
+            buf_b                       = (uint8_t*)buf;
             g_spibsc_spimd_reg.smwdr[0] = (uint32_t)(((uint32_t)(*buf_b) << 24) & 0xff000000ul);
         }
-        else if( unit == 2 )
+        else if (unit == 2)
         {
-            buf_s = (uint16_t *)buf;
+            buf_s                       = (uint16_t*)buf;
             g_spibsc_spimd_reg.smwdr[0] = (uint32_t)(((uint32_t)(*buf_s) << 16) & 0xffff0000ul);
         }
-        else if( unit == 4 )
+        else if (unit == 4)
         {
-            buf_l = (uint32_t *)buf;
-            g_spibsc_spimd_reg.smwdr[0] = (uint32_t)(((uint32_t)(*buf_l)      ) & 0xfffffffful);
+            buf_l                       = (uint32_t*)buf;
+            g_spibsc_spimd_reg.smwdr[0] = (uint32_t)(((uint32_t)(*buf_l)) & 0xfffffffful);
         }
-        else if( unit == 8 )
+        else if (unit == 8)
         {
-            buf_l = (uint32_t *)buf;
-            g_spibsc_spimd_reg.smwdr[1] = (uint32_t)(((uint32_t)(*buf_l)      ) & 0xfffffffful);
+            buf_l                       = (uint32_t*)buf;
+            g_spibsc_spimd_reg.smwdr[1] = (uint32_t)(((uint32_t)(*buf_l)) & 0xfffffffful);
             buf_l++;
-            g_spibsc_spimd_reg.smwdr[0] = (uint32_t)(((uint32_t)(*buf_l)      ) & 0xfffffffful);
+            g_spibsc_spimd_reg.smwdr[0] = (uint32_t)(((uint32_t)(*buf_l)) & 0xfffffffful);
         }
         else
         {
             /* Do Nothing */
         }
 
-        buf  += unit;
+        buf += unit;
 
         size -= unit;
 
@@ -330,8 +326,8 @@ int32_t R_SFLASH_ByteProgram(uint32_t addr, uint8_t * buf, int32_t size, uint32_
             g_spibsc_spimd_reg.sslkp = SPIBSC_SPISSL_NEGATE;
         }
 
-        ret = spibsc_transfer(ch_no, &g_spibsc_spimd_reg);    /* Data */
-        if(ret != 0)
+        ret = spibsc_transfer(ch_no, &g_spibsc_spimd_reg); /* Data */
+        if (ret != 0)
         {
             return ret;
         }
@@ -359,8 +355,8 @@ int32_t R_SFLASH_ByteProgram(uint32_t addr, uint8_t * buf, int32_t size, uint32_
 * Return Value :  0 : success
 *                -1 : error
 ******************************************************************************/
-int32_t R_SFLASH_ByteRead(uint32_t addr, uint8_t * buf, int32_t size, uint32_t ch_no, uint32_t dual,
-                          uint8_t data_width, uint8_t addr_mode)
+int32_t R_SFLASH_ByteRead(
+    uint32_t addr, uint8_t* buf, int32_t size, uint32_t ch_no, uint32_t dual, uint8_t data_width, uint8_t addr_mode)
 {
     int32_t ret = 0;
     int32_t unit;
@@ -402,22 +398,22 @@ int32_t R_SFLASH_ByteRead(uint32_t addr, uint8_t * buf, int32_t size, uint32_t c
 
     while (size > 0)
     {
-        if(data_width == SPIBSC_1BIT)
+        if (data_width == SPIBSC_1BIT)
         {
             ret = read_data_single(addr, buf, unit, ch_no, dual, addr_mode);
         }
         else
         {
-            ret = read_data_quad(  addr, buf, unit, ch_no, dual, addr_mode);
+            ret = read_data_quad(addr, buf, unit, ch_no, dual, addr_mode);
         }
-        if(ret != 0)
+        if (ret != 0)
         {
             return ret;
         }
 
         /* increment address and buf */
         addr += (uint32_t)unit;
-        buf  += unit;
+        buf += unit;
         size -= unit;
     }
     return ret;
@@ -433,7 +429,7 @@ int32_t R_SFLASH_ByteRead(uint32_t addr, uint8_t * buf, int32_t size, uint32_t c
 * Return Value :  0 : success
 *                -1 : error
 ******************************************************************************/
-int32_t R_SFLASH_Spibsc_Transfer(uint32_t ch_no, st_spibsc_spimd_reg_t * regset)
+int32_t R_SFLASH_Spibsc_Transfer(uint32_t ch_no, st_spibsc_spimd_reg_t* regset)
 {
     return spibsc_transfer(ch_no, regset);
 
@@ -471,28 +467,29 @@ int32_t R_SFLASH_Ctrl_Protect(en_sf_req_t req, uint32_t ch_no, uint32_t dual, ui
 * Return Value :  0 : success
 *                -1 : error
 ******************************************************************************/
-static int32_t read_data_quad(uint32_t addr, uint8_t * buf, int32_t unit, uint32_t ch_no, uint32_t dual, uint8_t addr_mode)
+static int32_t read_data_quad(
+    uint32_t addr, uint8_t* buf, int32_t unit, uint32_t ch_no, uint32_t dual, uint8_t addr_mode)
 {
     int32_t ret;
-    uint8_t  *buf_b;
-    uint16_t *buf_s;
-    uint32_t *buf_l;
+    uint8_t* buf_b;
+    uint16_t* buf_s;
+    uint32_t* buf_l;
 
-   /* ---- Command,Address,Dummy ---- */
-    g_spibsc_spimd_reg.cdb   = SPIBSC_1BIT;            /* Commmand bit-width = Single */
-    g_spibsc_spimd_reg.adb   = SPIBSC_1BIT;            /* Address bit-width = Single */
-    g_spibsc_spimd_reg.cde   = SPIBSC_OUTPUT_ENABLE;   /* Command Enable */
-    g_spibsc_spimd_reg.ocde  = SPIBSC_OUTPUT_DISABLE;  /* Optional-Command Disable */
-    g_spibsc_spimd_reg.ade   = addr_mode;
+    /* ---- Command,Address,Dummy ---- */
+    g_spibsc_spimd_reg.cdb  = SPIBSC_1BIT;           /* Commmand bit-width = Single */
+    g_spibsc_spimd_reg.adb  = SPIBSC_1BIT;           /* Address bit-width = Single */
+    g_spibsc_spimd_reg.cde  = SPIBSC_OUTPUT_ENABLE;  /* Command Enable */
+    g_spibsc_spimd_reg.ocde = SPIBSC_OUTPUT_DISABLE; /* Optional-Command Disable */
+    g_spibsc_spimd_reg.ade  = addr_mode;
 
-    g_spibsc_spimd_reg.opde  = SPIBSC_OUTPUT_DISABLE;  /* Option-Data Disable */
+    g_spibsc_spimd_reg.opde = SPIBSC_OUTPUT_DISABLE; /* Option-Data Disable */
 
     g_spibsc_spimd_reg.spide = SPIBSC_OUTPUT_DISABLE;  /* Disable */
     g_spibsc_spimd_reg.sslkp = SPIBSC_SPISSL_KEEP;     /* Keep after transfer */
     g_spibsc_spimd_reg.spire = SPIBSC_SPIDATA_DISABLE; /* Data Access (Read Disable) */
     g_spibsc_spimd_reg.spiwe = SPIBSC_SPIDATA_DISABLE; /* Data Access (Write Disable) */
 
-    if(addr_mode == SPIBSC_OUTPUT_ADDR_32)
+    if (addr_mode == SPIBSC_OUTPUT_ADDR_32)
     {
         /* QOR: Quad Output Read(4-byte address) */
         g_spibsc_spimd_reg.cmd = SFLASHCMD_QUAD_READ_4B;
@@ -504,10 +501,10 @@ static int32_t read_data_quad(uint32_t addr, uint8_t * buf, int32_t unit, uint32
     }
 
     /* dummy cycle setting */
-    g_spibsc_spimd_reg.dme   = SPIBSC_DUMMY_CYC_ENABLE;  /* Dummy cycle insertion enable */
+    g_spibsc_spimd_reg.dme   = SPIBSC_DUMMY_CYC_ENABLE; /* Dummy cycle insertion enable */
     g_spibsc_spimd_reg.dmdb  = SPIBSC_1BIT;
-    g_spibsc_spimd_reg.dmcyc = SPIBSC_DUMMY_8CYC;        /* Latency Code of configuration register is b'00 */
-                                                         /* Mode bit Cycle:0, Dummy Cycle:8 */
+    g_spibsc_spimd_reg.dmcyc = SPIBSC_DUMMY_8CYC; /* Latency Code of configuration register is b'00 */
+                                                  /* Mode bit Cycle:0, Dummy Cycle:8 */
     /* SDR/DDR setting */
     g_spibsc_spimd_reg.addre  = SPIBSC_SDR_TRANS; /* address    :SDR transmission */
     g_spibsc_spimd_reg.opdre  = SPIBSC_SDR_TRANS; /* option data:SDR transmission */
@@ -523,7 +520,7 @@ static int32_t read_data_quad(uint32_t addr, uint8_t * buf, int32_t unit, uint32
     }
 
     ret = spibsc_transfer(ch_no, &g_spibsc_spimd_reg); /* Command,Address */
-    if(ret != 0)
+    if (ret != 0)
     {
         return ret;
     }
@@ -538,21 +535,21 @@ static int32_t read_data_quad(uint32_t addr, uint8_t * buf, int32_t unit, uint32
     g_spibsc_spimd_reg.spiwe = SPIBSC_SPIDATA_DISABLE; /* Data Access (Write Disable) */
 
     /* DATA input part is dummy cycle disable */
-    g_spibsc_spimd_reg.dme     = SPIBSC_DUMMY_CYC_DISABLE;     /* Dummy cycle insertion disable */
+    g_spibsc_spimd_reg.dme = SPIBSC_DUMMY_CYC_DISABLE; /* Dummy cycle insertion disable */
 
     if (dual == SPIBSC_CMNCR_BSZ_DUAL)
     {
         if (unit == 8)
         {
-            g_spibsc_spimd_reg.spide = SPIBSC_OUTPUT_SPID_32;  /* Enable(64bit) */
+            g_spibsc_spimd_reg.spide = SPIBSC_OUTPUT_SPID_32; /* Enable(64bit) */
         }
         else if (unit == 4)
         {
-            g_spibsc_spimd_reg.spide = SPIBSC_OUTPUT_SPID_16;  /* Enable(32bit) */
+            g_spibsc_spimd_reg.spide = SPIBSC_OUTPUT_SPID_16; /* Enable(32bit) */
         }
         else if (unit == 2)
         {
-            g_spibsc_spimd_reg.spide = SPIBSC_OUTPUT_SPID_8;   /* Enable(16bit) */
+            g_spibsc_spimd_reg.spide = SPIBSC_OUTPUT_SPID_8; /* Enable(16bit) */
         }
         else
         {
@@ -563,47 +560,46 @@ static int32_t read_data_quad(uint32_t addr, uint8_t * buf, int32_t unit, uint32
     {
         if (unit == 4)
         {
-            g_spibsc_spimd_reg.spide = SPIBSC_OUTPUT_SPID_32;  /* Enable(32bit) */
+            g_spibsc_spimd_reg.spide = SPIBSC_OUTPUT_SPID_32; /* Enable(32bit) */
         }
         else if (unit == 2)
         {
-            g_spibsc_spimd_reg.spide = SPIBSC_OUTPUT_SPID_16;  /* Enable(16bit) */
+            g_spibsc_spimd_reg.spide = SPIBSC_OUTPUT_SPID_16; /* Enable(16bit) */
         }
         else
         {
-            g_spibsc_spimd_reg.spide = SPIBSC_OUTPUT_SPID_8;   /* Enable(8bit) */
+            g_spibsc_spimd_reg.spide = SPIBSC_OUTPUT_SPID_8; /* Enable(8bit) */
         }
     }
 
     g_spibsc_spimd_reg.sslkp = SPIBSC_SPISSL_NEGATE;
-    ret = spibsc_transfer(ch_no, &g_spibsc_spimd_reg);         /* Data input */
-    if(ret != 0)
+    ret                      = spibsc_transfer(ch_no, &g_spibsc_spimd_reg); /* Data input */
+    if (ret != 0)
     {
         return ret;
     }
 
-
-    if( unit == 1 )
+    if (unit == 1)
     {
-        buf_b = (uint8_t *)buf;
+        buf_b  = (uint8_t*)buf;
         *buf_b = (uint8_t)((g_spibsc_spimd_reg.smrdr[0] >> 24) & 0x000000fful);
     }
-    else if( unit == 2 )
+    else if (unit == 2)
     {
-        buf_s = (uint16_t *)buf;
+        buf_s  = (uint16_t*)buf;
         *buf_s = (uint16_t)((g_spibsc_spimd_reg.smrdr[0] >> 16) & 0x0000fffful);
     }
-    else if( unit == 4 )
+    else if (unit == 4)
     {
-        buf_l = (uint32_t *)buf;
-        *buf_l = (uint32_t)((g_spibsc_spimd_reg.smrdr[0]      ) & 0xfffffffful);
+        buf_l  = (uint32_t*)buf;
+        *buf_l = (uint32_t)((g_spibsc_spimd_reg.smrdr[0]) & 0xfffffffful);
     }
-    else if( unit == 8 )
+    else if (unit == 8)
     {
-        buf_l = (uint32_t *)buf;
-        *buf_l = (uint32_t)((g_spibsc_spimd_reg.smrdr[0]      ) & 0xfffffffful);
+        buf_l  = (uint32_t*)buf;
+        *buf_l = (uint32_t)((g_spibsc_spimd_reg.smrdr[0]) & 0xfffffffful);
         buf_l++;
-        *buf_l = (uint32_t)((g_spibsc_spimd_reg.smrdr[1]      ) & 0xfffffffful);
+        *buf_l = (uint32_t)((g_spibsc_spimd_reg.smrdr[1]) & 0xfffffffful);
     }
     else
     {
@@ -628,28 +624,29 @@ static int32_t read_data_quad(uint32_t addr, uint8_t * buf, int32_t unit, uint32
 * Return Value :  0 : success
 *                -1 : error
 ******************************************************************************/
-static int32_t read_data_single(uint32_t addr, uint8_t * buf, int32_t unit, uint32_t ch_no, uint32_t dual, uint8_t addr_mode)
+static int32_t read_data_single(
+    uint32_t addr, uint8_t* buf, int32_t unit, uint32_t ch_no, uint32_t dual, uint8_t addr_mode)
 {
-    int32_t   ret;
-    uint8_t  *buf_b;
-    uint16_t *buf_s;
-    uint32_t *buf_l;
+    int32_t ret;
+    uint8_t* buf_b;
+    uint16_t* buf_s;
+    uint32_t* buf_l;
 
     /* ---- Command,Address,Dummy ---- */
-    g_spibsc_spimd_reg.cdb   = SPIBSC_1BIT;            /* Commmand bit-width = Single */
-    g_spibsc_spimd_reg.adb   = SPIBSC_1BIT;            /* Address bit-width = Single  */
-    g_spibsc_spimd_reg.cde   = SPIBSC_OUTPUT_ENABLE;   /* Command Enable              */
-    g_spibsc_spimd_reg.ocde  = SPIBSC_OUTPUT_DISABLE;  /* Optional-Command Disable    */
-    g_spibsc_spimd_reg.ade   = addr_mode;
+    g_spibsc_spimd_reg.cdb  = SPIBSC_1BIT;           /* Commmand bit-width = Single */
+    g_spibsc_spimd_reg.adb  = SPIBSC_1BIT;           /* Address bit-width = Single  */
+    g_spibsc_spimd_reg.cde  = SPIBSC_OUTPUT_ENABLE;  /* Command Enable              */
+    g_spibsc_spimd_reg.ocde = SPIBSC_OUTPUT_DISABLE; /* Optional-Command Disable    */
+    g_spibsc_spimd_reg.ade  = addr_mode;
 
-    g_spibsc_spimd_reg.opde  = SPIBSC_OUTPUT_DISABLE;  /* Option-Data Disable */
+    g_spibsc_spimd_reg.opde = SPIBSC_OUTPUT_DISABLE; /* Option-Data Disable */
 
     g_spibsc_spimd_reg.spide = SPIBSC_OUTPUT_DISABLE;  /* Disable                     */
     g_spibsc_spimd_reg.sslkp = SPIBSC_SPISSL_KEEP;     /* Keep after transfer         */
     g_spibsc_spimd_reg.spire = SPIBSC_SPIDATA_DISABLE; /* Data Access (Read Disable)  */
     g_spibsc_spimd_reg.spiwe = SPIBSC_SPIDATA_DISABLE; /* Data Access (Write Disable) */
 
-    if(addr_mode == SPIBSC_OUTPUT_ADDR_32)
+    if (addr_mode == SPIBSC_OUTPUT_ADDR_32)
     {
         /* Fast READ(4-byte address) */
         g_spibsc_spimd_reg.cmd = SFLASHCMD_BYTE_READ_4B;
@@ -661,10 +658,10 @@ static int32_t read_data_single(uint32_t addr, uint8_t * buf, int32_t unit, uint
     }
 
     /* dummy cycle setting */
-    g_spibsc_spimd_reg.dme   = SPIBSC_DUMMY_CYC_ENABLE;   /* Dummy cycle insertion enable */
+    g_spibsc_spimd_reg.dme   = SPIBSC_DUMMY_CYC_ENABLE; /* Dummy cycle insertion enable */
     g_spibsc_spimd_reg.dmdb  = SPIBSC_1BIT;
-    g_spibsc_spimd_reg.dmcyc = SPIBSC_DUMMY_8CYC;         /* Latency Code of configuration register is b'00 */
-                                                          /* Mode bit Cycle:0, Dummy Cycle:8 */
+    g_spibsc_spimd_reg.dmcyc = SPIBSC_DUMMY_8CYC; /* Latency Code of configuration register is b'00 */
+                                                  /* Mode bit Cycle:0, Dummy Cycle:8 */
 
     /* SDR/DDR setting */
     g_spibsc_spimd_reg.addre  = SPIBSC_SDR_TRANS; /* address    :SDR transmission */
@@ -681,7 +678,7 @@ static int32_t read_data_single(uint32_t addr, uint8_t * buf, int32_t unit, uint
     }
 
     ret = spibsc_transfer(ch_no, &g_spibsc_spimd_reg); /* Command,Address */
-    if(ret != 0)
+    if (ret != 0)
     {
         return ret;
     }
@@ -696,21 +693,21 @@ static int32_t read_data_single(uint32_t addr, uint8_t * buf, int32_t unit, uint
     g_spibsc_spimd_reg.spiwe = SPIBSC_SPIDATA_DISABLE; /* Data Access (Write Enable) */
 
     /* DATA input part is dummy cycle disable */
-    g_spibsc_spimd_reg.dme     = SPIBSC_DUMMY_CYC_DISABLE;    /* Dummy cycle insertion disable */
+    g_spibsc_spimd_reg.dme = SPIBSC_DUMMY_CYC_DISABLE; /* Dummy cycle insertion disable */
 
     if (dual == SPIBSC_CMNCR_BSZ_DUAL)
     {
         if (unit == 8)
         {
-            g_spibsc_spimd_reg.spide = SPIBSC_OUTPUT_SPID_32;  /* Enable(64bit) */
+            g_spibsc_spimd_reg.spide = SPIBSC_OUTPUT_SPID_32; /* Enable(64bit) */
         }
         else if (unit == 4)
         {
-            g_spibsc_spimd_reg.spide = SPIBSC_OUTPUT_SPID_16;  /* Enable(32bit) */
+            g_spibsc_spimd_reg.spide = SPIBSC_OUTPUT_SPID_16; /* Enable(32bit) */
         }
         else if (unit == 2)
         {
-            g_spibsc_spimd_reg.spide = SPIBSC_OUTPUT_SPID_8;   /* Enable(16bit) */
+            g_spibsc_spimd_reg.spide = SPIBSC_OUTPUT_SPID_8; /* Enable(16bit) */
         }
         else
         {
@@ -721,46 +718,46 @@ static int32_t read_data_single(uint32_t addr, uint8_t * buf, int32_t unit, uint
     {
         if (unit == 4)
         {
-            g_spibsc_spimd_reg.spide = SPIBSC_OUTPUT_SPID_32;  /* Enable(32bit) */
+            g_spibsc_spimd_reg.spide = SPIBSC_OUTPUT_SPID_32; /* Enable(32bit) */
         }
         else if (unit == 2)
         {
-            g_spibsc_spimd_reg.spide = SPIBSC_OUTPUT_SPID_16;  /* Enable(16bit) */
+            g_spibsc_spimd_reg.spide = SPIBSC_OUTPUT_SPID_16; /* Enable(16bit) */
         }
         else
         {
-            g_spibsc_spimd_reg.spide = SPIBSC_OUTPUT_SPID_8;   /* Enable(8bit)  */
+            g_spibsc_spimd_reg.spide = SPIBSC_OUTPUT_SPID_8; /* Enable(8bit)  */
         }
     }
 
     g_spibsc_spimd_reg.sslkp = SPIBSC_SPISSL_NEGATE;
-    ret = spibsc_transfer(ch_no, &g_spibsc_spimd_reg);         /* Data input */
-    if(ret != 0)
+    ret                      = spibsc_transfer(ch_no, &g_spibsc_spimd_reg); /* Data input */
+    if (ret != 0)
     {
         return ret;
     }
 
-    if( unit == 1 )
+    if (unit == 1)
     {
-         buf_b = (uint8_t *)buf;
+        buf_b  = (uint8_t*)buf;
         *buf_b = (uint8_t)((g_spibsc_spimd_reg.smrdr[0] >> 24) & 0x000000fful);
     }
-    else if( unit == 2 )
+    else if (unit == 2)
     {
-         buf_s = (uint16_t *)buf;
+        buf_s  = (uint16_t*)buf;
         *buf_s = (uint16_t)((g_spibsc_spimd_reg.smrdr[0] >> 16) & 0x0000fffful);
     }
-    else if( unit == 4 )
+    else if (unit == 4)
     {
-         buf_l = (uint32_t *)buf;
-        *buf_l = (uint32_t)((g_spibsc_spimd_reg.smrdr[0]      ) & 0xfffffffful);
+        buf_l  = (uint32_t*)buf;
+        *buf_l = (uint32_t)((g_spibsc_spimd_reg.smrdr[0]) & 0xfffffffful);
     }
-    else if( unit == 8 )
-        {
-         buf_l = (uint32_t *)buf;
-        *buf_l = (uint32_t)((g_spibsc_spimd_reg.smrdr[0]      ) & 0xfffffffful);
-         buf_l++;
-        *buf_l = (uint32_t)((g_spibsc_spimd_reg.smrdr[1]      ) & 0xfffffffful);
+    else if (unit == 8)
+    {
+        buf_l  = (uint32_t*)buf;
+        *buf_l = (uint32_t)((g_spibsc_spimd_reg.smrdr[0]) & 0xfffffffful);
+        buf_l++;
+        *buf_l = (uint32_t)((g_spibsc_spimd_reg.smrdr[1]) & 0xfffffffful);
     }
     else
     {

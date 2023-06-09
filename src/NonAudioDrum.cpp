@@ -21,8 +21,7 @@
 #include "storagemanager.h"
 #include "functions.h"
 
-NonAudioDrum::NonAudioDrum(int newType) : Drum(newType)
-{
+NonAudioDrum::NonAudioDrum(int newType) : Drum(newType) {
 	state = false;
 	channelEncoderCurrentOffset = 0;
 }
@@ -52,7 +51,8 @@ int8_t NonAudioDrum::getModKnobLevel(uint8_t whichModEncoder, ParamManagerBase* 
 }
 */
 
-int8_t NonAudioDrum::modEncoderAction(ModelStackWithThreeMainThings* modelStack, int8_t offset, uint8_t whichModEncoder) {
+int8_t NonAudioDrum::modEncoderAction(ModelStackWithThreeMainThings* modelStack, int8_t offset,
+                                      uint8_t whichModEncoder) {
 
 	if (getCurrentUI() == &instrumentClipView && currentUIMode == UI_MODE_AUDITIONING) {
 		if (whichModEncoder == 0) {
@@ -63,10 +63,10 @@ int8_t NonAudioDrum::modEncoderAction(ModelStackWithThreeMainThings* modelStack,
 	return -64;
 }
 
-
 extern int16_t zeroMPEValues[];
 
-void NonAudioDrum::modChange(ModelStackWithThreeMainThings* modelStack, int offset, int8_t* encoderOffset, uint8_t* value, int numValues) {
+void NonAudioDrum::modChange(ModelStackWithThreeMainThings* modelStack, int offset, int8_t* encoderOffset,
+                             uint8_t* value, int numValues) {
 
 	*encoderOffset += offset;
 
@@ -93,17 +93,14 @@ void NonAudioDrum::modChange(ModelStackWithThreeMainThings* modelStack, int offs
 	}
 }
 
-
-
 bool NonAudioDrum::readDrumTagFromFile(char const* tagName) {
 
-    if (!strcmp(tagName, "channel")) {
-    	channel = storageManager.readTagOrAttributeValueInt();
-        storageManager.exitTag("channel");
-    }
-    else if (Drum::readDrumTagFromFile(tagName)) {}
-    else return false;
+	if (!strcmp(tagName, "channel")) {
+		channel = storageManager.readTagOrAttributeValueInt();
+		storageManager.exitTag("channel");
+	}
+	else if (Drum::readDrumTagFromFile(tagName)) {}
+	else return false;
 
-    return true;
+	return true;
 }
-

@@ -46,37 +46,31 @@ Includes   <System Includes> , "Project Includes"
 //#pragma arm section rwdata = "DATA_SPIBSC_INIT2"
 //#pragma arm section zidata = "BSS_SPIBSC_INIT2"
 
-
 /******************************************************************************
 Typedef definitions
 ******************************************************************************/
-
 
 /******************************************************************************
 Macro definitions
 ******************************************************************************/
 // We've switched back to doing just 1-bit, since it seems the flash chips in the first Deluges manufactured don't support 4-bit
-#define SPIBSC_BUS_WITDH         (1)
+#define SPIBSC_BUS_WITDH (1)
 //#define SPIBSC_BUS_WITDH         (4)
 
-#define SPIBSC_OUTPUT_ADDR       (SPIBSC_OUTPUT_ADDR_24)
+#define SPIBSC_OUTPUT_ADDR (SPIBSC_OUTPUT_ADDR_24)
 //#define SPIBSC_OUTPUT_ADDR       (SPIBSC_OUTPUT_ADDR_32)
-
 
 /******************************************************************************
 Imported global variables and functions (from other files)
 ******************************************************************************/
 
-
 /******************************************************************************
 Exported global variables and functions (to be accessed by other files)
 ******************************************************************************/
 
-
 /******************************************************************************
 Private global variables and functions
 ******************************************************************************/
-
 
 /******************************************************************************
 * Function Name: Userdef_SPIBSC_Set_Config
@@ -85,15 +79,15 @@ Private global variables and functions
 *                st_spibsc_cfg_t *spibsccfg
 * Return Value : none
 ******************************************************************************/
-void Userdef_SPIBSC_Set_Config(uint32_t ch_no, st_spibsc_cfg_t *spibsccfg)
+void Userdef_SPIBSC_Set_Config(uint32_t ch_no, st_spibsc_cfg_t* spibsccfg)
 {
 #if (SPIBSC_BUS_WITDH == 1)
-    /* command */
-    #if (SPIBSC_OUTPUT_ADDR == SPIBSC_OUTPUT_ADDR_32)
-    spibsccfg->udef_cmd = SFLASHCMD_BYTE_READ_4B;   /* 0CH Command */
-    #else
-    spibsccfg->udef_cmd = SFLASHCMD_BYTE_READ;      /* 0BH Command */
-    #endif
+/* command */
+#if (SPIBSC_OUTPUT_ADDR == SPIBSC_OUTPUT_ADDR_32)
+    spibsccfg->udef_cmd = SFLASHCMD_BYTE_READ_4B; /* 0CH Command */
+#else
+    spibsccfg->udef_cmd = SFLASHCMD_BYTE_READ; /* 0BH Command */
+#endif
 
     /* address width */
     spibsccfg->udef_addr_width = SPIBSC_1BIT;
@@ -112,12 +106,12 @@ void Userdef_SPIBSC_Set_Config(uint32_t ch_no, st_spibsc_cfg_t *spibsccfg)
     spibsccfg->udef_data_width = SPIBSC_1BIT;
 
 #elif (SPIBSC_BUS_WITDH == 4)
-    /* command */
-    #if (SPIBSC_OUTPUT_ADDR == SPIBSC_OUTPUT_ADDR_32)
-    spibsccfg->udef_cmd = SFLASHCMD_QUAD_IO_READ_4B;    /* ECH Command */
-    #else
-    spibsccfg->udef_cmd = SFLASHCMD_QUAD_IO_READ;       /* EBH Command */
-    #endif
+/* command */
+#if (SPIBSC_OUTPUT_ADDR == SPIBSC_OUTPUT_ADDR_32)
+    spibsccfg->udef_cmd = SFLASHCMD_QUAD_IO_READ_4B; /* ECH Command */
+#else
+    spibsccfg->udef_cmd = SFLASHCMD_QUAD_IO_READ; /* EBH Command */
+#endif
 
     /* address width */
     spibsccfg->udef_addr_width = SPIBSC_4BIT;
@@ -157,7 +151,7 @@ void Userdef_SPIBSC_Set_Config(uint32_t ch_no, st_spibsc_cfg_t *spibsccfg)
     /*    udef_spbr = 5 : 13.33Mbps       */
     /*    udef_spbr = 6 : 11.11Mbps       */
     /*------------------------------------*/
-    if( ch_no == 0 )
+    if (ch_no == 0)
     {
         spibsccfg->udef_spbr = 1;
         spibsccfg->udef_brdv = 0;
@@ -170,5 +164,4 @@ void Userdef_SPIBSC_Set_Config(uint32_t ch_no, st_spibsc_cfg_t *spibsccfg)
 
     spibsccfg->udef_addr_mode = SPIBSC_OUTPUT_ADDR;
 
-}  /* End of function  Userdef_SPIBSC_Set_Config() */
-
+} /* End of function  Userdef_SPIBSC_Set_Config() */

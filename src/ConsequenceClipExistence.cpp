@@ -41,14 +41,14 @@ void ConsequenceClipExistence::prepareForDestruction(int whichQueueActionIn, Son
 	if (whichQueueActionIn != type) {
 		song->deleteBackedUpParamManagersForClip(clip);
 
-		#if ALPHA_OR_BETA_VERSION
-			if (clip->type == CLIP_TYPE_AUDIO) {
-				if (((AudioClip*)clip)->recorder) numericDriver.freezeWithError("i002"); // Trying to diversify Qui's E278
-			}
-		#endif
+#if ALPHA_OR_BETA_VERSION
+		if (clip->type == CLIP_TYPE_AUDIO) {
+			if (((AudioClip*)clip)->recorder) numericDriver.freezeWithError("i002"); // Trying to diversify Qui's E278
+		}
+#endif
 
 		clip->~Clip();
-	    generalMemoryAllocator.dealloc(clip);
+		generalMemoryAllocator.dealloc(clip);
 	}
 }
 
@@ -68,12 +68,13 @@ int ConsequenceClipExistence::revert(int time, ModelStack* modelStack) {
 		}
 
 #if ALPHA_OR_BETA_VERSION
-		if (clip->type == CLIP_TYPE_AUDIO && !clip->paramManager.summaries[0].paramCollection) numericDriver.freezeWithError("E419"); // Trying to diversify Leo's E410
+		if (clip->type == CLIP_TYPE_AUDIO && !clip->paramManager.summaries[0].paramCollection)
+			numericDriver.freezeWithError("E419"); // Trying to diversify Leo's E410
 #endif
 
 		clipArray->insertClipAtIndex(clip, clipIndex);
 
-		clip->activeIfNoSolo = false; // So we can toggle it back on, below
+		clip->activeIfNoSolo = false;   // So we can toggle it back on, below
 		clip->armState = ARM_STATE_OFF; // In case was left on before
 
 		if (shouldBeActiveWhileExistent && !(playbackHandler.playbackState && currentPlaybackMode == &arrangement)) {
@@ -82,7 +83,8 @@ int ConsequenceClipExistence::revert(int time, ModelStack* modelStack) {
 		}
 
 		if (!clip->output->activeClip) {
-			clip->output->setActiveClip(modelStackWithTimelineCounter); // Must do this to avoid E170 error. If Instrument has no backedUpParamManager, it must have an activeClip
+			clip->output->setActiveClip(
+			    modelStackWithTimelineCounter); // Must do this to avoid E170 error. If Instrument has no backedUpParamManager, it must have an activeClip
 		}
 	}
 
@@ -94,26 +96,26 @@ int ConsequenceClipExistence::revert(int time, ModelStack* modelStack) {
 			modelStackWithTimelineCounter->song->currentClip = NULL;
 		}
 
-		clip->stopAllNotesPlaying(modelStackWithTimelineCounter->song); // Stops any MIDI-controlled auditioning / stuck notes
+		clip->stopAllNotesPlaying(
+		    modelStackWithTimelineCounter->song); // Stops any MIDI-controlled auditioning / stuck notes
 
-		shouldBeActiveWhileExistent = session.deletingClipWhichCouldBeAbandonedOverdub(clip); // But should we really be calling this without checking the Clip is a session one?
-
+		shouldBeActiveWhileExistent = session.deletingClipWhichCouldBeAbandonedOverdub(
+		    clip); // But should we really be calling this without checking the Clip is a session one?
 
 		clip->abortRecording();
 		clip->armState = ARM_STATE_OFF; // Not 100% sure if necessary... probably.
-
 
 		clipIndex = clipArray->getIndexForClip(clip);
 		if (clipIndex == -1) numericDriver.freezeWithError("E244");
 
 		if (clipArray == &modelStackWithTimelineCounter->song->sessionClips) {
 
-		    // Must unsolo the Clip before we delete it, in case its play-pos needs to be grabbed for another Clip - and also so overall soloing may be cancelled if no others soloing
-		    if (clip->soloingInSessionMode) {
-		    	session.unsoloClip(clip);
-		    }
+			// Must unsolo the Clip before we delete it, in case its play-pos needs to be grabbed for another Clip - and also so overall soloing may be cancelled if no others soloing
+			if (clip->soloingInSessionMode) {
+				session.unsoloClip(clip);
+			}
 
-		    modelStackWithTimelineCounter->song->removeSessionClipLowLevel(clip, clipIndex);
+			modelStackWithTimelineCounter->song->removeSessionClipLowLevel(clip, clipIndex);
 		}
 		else {
 			clipArray->deleteAtIndex(clipIndex); // Deletes the array's pointer to the Clip - not the Clip itself.
@@ -123,7 +125,8 @@ int ConsequenceClipExistence::revert(int time, ModelStack* modelStack) {
 		// But it will (unusually) leave clip->output pointing to the Output, and the same for any NoteRows' Drums. So that we can revert this stuff later.
 		Output* oldOutput = clip->output;
 
-	    if (clip->isActiveOnOutput() && playbackHandler.isEitherClockActive()) clip->expectNoFurtherTicks(modelStackWithTimelineCounter->song); // Still necessary? Probably.
+		if (clip->isActiveOnOutput() && playbackHandler.isEitherClockActive())
+			clip->expectNoFurtherTicks(modelStackWithTimelineCounter->song); // Still necessary? Probably.
 
 #if ALPHA_OR_BETA_VERSION
 		if (clip->type == CLIP_TYPE_AUDIO) {
@@ -132,7 +135,8 @@ int ConsequenceClipExistence::revert(int time, ModelStack* modelStack) {
 #endif
 
 #if ALPHA_OR_BETA_VERSION
-		if (clip->type == CLIP_TYPE_AUDIO && !clip->paramManager.summaries[0].paramCollection) numericDriver.freezeWithError("E420"); // Trying to diversify Leo's E410
+		if (clip->type == CLIP_TYPE_AUDIO && !clip->paramManager.summaries[0].paramCollection)
+			numericDriver.freezeWithError("E420"); // Trying to diversify Leo's E410
 #endif
 
 		clip->detachFromOutput(modelStackWithTimelineCounter, false, false, true);

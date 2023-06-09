@@ -23,7 +23,6 @@
 #include "numericdriver.h"
 #include "ParamCollectionSummary.h"
 
-
 class Song;
 class Sound;
 class ParamSet;
@@ -45,122 +44,119 @@ class ParamCollectionSummary;
 
 #define PARAM_COLLECTIONS_STORAGE_NUM 5
 
-
-
 class ParamManager {
 public:
 	ParamManager();
 	~ParamManager();
 
 	// Not including MPE params
-	inline bool containsAnyMainParamCollections() {
-		return expressionParamSetOffset;
+	inline bool containsAnyMainParamCollections() { return expressionParamSetOffset; }
+
+	inline bool containsAnyParamCollectionsIncludingExpression() { return summaries[0].paramCollection; }
+
+	int setupWithPatching();
+	int setupUnpatched();
+	int setupMIDI();
+
+	void stealParamCollectionsFrom(ParamManager* other, bool stealExpressionParams = false);
+	int cloneParamCollectionsFrom(ParamManager* other, bool copyAutomation, bool cloneExpressionParams = false,
+	                              int32_t reverseDirectionWithLength = 0);
+	int beenCloned(int32_t reverseDirectionWithLength = 0); // Will clone Collections
+	void forgetParamCollections();
+	void destructAndForgetParamCollections();
+	bool ensureExpressionParamSetExists(bool forDrum = false);
+
+	inline int getExpressionParamSetOffset() { return expressionParamSetOffset; }
+
+	ExpressionParamSet* getOrCreateExpressionParamSet(bool forDrum = false); // Will return NULL if can't create
+
+	inline ParamCollectionSummary* getExpressionParamSetSummary() { // Will return one containing NULL if didn't exist
+		return &summaries[getExpressionParamSetOffset()];
 	}
 
-	inline bool containsAnyParamCollectionsIncludingExpression() {
-		return summaries[0].paramCollection;
+	inline ExpressionParamSet* getExpressionParamSet() { // Will return NULL if didn't exist
+		return (ExpressionParamSet*)getExpressionParamSetSummary()->paramCollection;
 	}
 
-    int setupWithPatching();
-    int setupUnpatched();
-    int setupMIDI();
-
-    void stealParamCollectionsFrom(ParamManager* other, bool stealExpressionParams = false);
-    int cloneParamCollectionsFrom(ParamManager* other, bool copyAutomation, bool cloneExpressionParams = false, int32_t reverseDirectionWithLength = 0);
-    int beenCloned(int32_t reverseDirectionWithLength = 0); // Will clone Collections
-    void forgetParamCollections();
-    void destructAndForgetParamCollections();
-    bool ensureExpressionParamSetExists(bool forDrum = false);
-
-    inline int getExpressionParamSetOffset() {
-    	return expressionParamSetOffset;
-    }
-
-    ExpressionParamSet* getOrCreateExpressionParamSet(bool forDrum = false); // Will return NULL if can't create
-
-    inline ParamCollectionSummary* getExpressionParamSetSummary() { // Will return one containing NULL if didn't exist
-    	return &summaries[getExpressionParamSetOffset()];
-    }
-
-    inline ExpressionParamSet* getExpressionParamSet() { // Will return NULL if didn't exist
-    	return (ExpressionParamSet*)getExpressionParamSetSummary()->paramCollection;
-    }
-
-    inline MIDIParamCollection* getMIDIParamCollection() {
+	inline MIDIParamCollection* getMIDIParamCollection() {
 #if ALPHA_OR_BETA_VERSION
-    	if (!summaries[0].paramCollection) numericDriver.freezeWithError("E409");
+		if (!summaries[0].paramCollection) numericDriver.freezeWithError("E409");
 #endif
-    	return (MIDIParamCollection*)summaries[0].paramCollection;
-    }
+		return (MIDIParamCollection*)summaries[0].paramCollection;
+	}
 
-    inline ParamCollectionSummary* getMIDIParamCollectionSummary() {
+	inline ParamCollectionSummary* getMIDIParamCollectionSummary() {
 #if ALPHA_OR_BETA_VERSION
-    	if (!summaries[0].paramCollection) numericDriver.freezeWithError("E409");
+		if (!summaries[0].paramCollection) numericDriver.freezeWithError("E409");
 #endif
-    	return &summaries[0];
-    }
+		return &summaries[0];
+	}
 
-    inline UnpatchedParamSet* getUnpatchedParamSet() {
+	inline UnpatchedParamSet* getUnpatchedParamSet() {
 #if ALPHA_OR_BETA_VERSION
-    	if (!summaries[0].paramCollection) numericDriver.freezeWithError("E410");
+		if (!summaries[0].paramCollection) numericDriver.freezeWithError("E410");
 #endif
-    	return (UnpatchedParamSet*)summaries[0].paramCollection;
-    }
+		return (UnpatchedParamSet*)summaries[0].paramCollection;
+	}
 
-    inline ParamCollectionSummary* getUnpatchedParamSetSummary() {
+	inline ParamCollectionSummary* getUnpatchedParamSetSummary() {
 #if ALPHA_OR_BETA_VERSION
-    	if (!summaries[0].paramCollection) numericDriver.freezeWithError("E410");
+		if (!summaries[0].paramCollection) numericDriver.freezeWithError("E410");
 #endif
-    	return &summaries[0];
-    }
+		return &summaries[0];
+	}
 
-    inline PatchedParamSet* getPatchedParamSet() {
+	inline PatchedParamSet* getPatchedParamSet() {
 #if ALPHA_OR_BETA_VERSION
-    	if (!summaries[1].paramCollection) numericDriver.freezeWithError("E411");
+		if (!summaries[1].paramCollection) numericDriver.freezeWithError("E411");
 #endif
-    	return (PatchedParamSet*)summaries[1].paramCollection;
-    }
+		return (PatchedParamSet*)summaries[1].paramCollection;
+	}
 
-    inline ParamCollectionSummary* getPatchedParamSetSummary() {
+	inline ParamCollectionSummary* getPatchedParamSetSummary() {
 #if ALPHA_OR_BETA_VERSION
-    	if (!summaries[1].paramCollection) numericDriver.freezeWithError("E411");
+		if (!summaries[1].paramCollection) numericDriver.freezeWithError("E411");
 #endif
-    	return &summaries[1];
-    }
+		return &summaries[1];
+	}
 
-    inline ParamCollectionSummary* getPatchCableSetSummary() {
+	inline ParamCollectionSummary* getPatchCableSetSummary() {
 #if ALPHA_OR_BETA_VERSION
-    	if (!summaries[2].paramCollection) numericDriver.freezeWithError("E412");
+		if (!summaries[2].paramCollection) numericDriver.freezeWithError("E412");
 #endif
-    	return &summaries[2];
-    }
+		return &summaries[2];
+	}
 
-    inline PatchCableSet* getPatchCableSet() {
+	inline PatchCableSet* getPatchCableSet() {
 #if ALPHA_OR_BETA_VERSION
-    	if (!summaries[2].paramCollection) numericDriver.freezeWithError("E412");
+		if (!summaries[2].paramCollection) numericDriver.freezeWithError("E412");
 #endif
-    	return (PatchCableSet*)summaries[2].paramCollection;
-    }
+		return (PatchCableSet*)summaries[2].paramCollection;
+	}
 
-    ModelStackWithParamCollection* getPatchCableSet(ModelStackWithThreeMainThings const* modelStack);
+	ModelStackWithParamCollection* getPatchCableSet(ModelStackWithThreeMainThings const* modelStack);
 
-    inline PatchCableSet* getPatchCableSetAllowJibberish() { // Don't ask.
-    	return (PatchCableSet*)summaries[2].paramCollection;
-    }
+	inline PatchCableSet* getPatchCableSetAllowJibberish() { // Don't ask.
+		return (PatchCableSet*)summaries[2].paramCollection;
+	}
 
-	void notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int currentValueChanged, bool automationChanged, bool paramAutomatedNow);
+	void notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int currentValueChanged,
+	                                  bool automationChanged, bool paramAutomatedNow);
 
 #if ALPHA_OR_BETA_VERSION
-    virtual ParamManagerForTimeline* toForTimeline();
+	virtual ParamManagerForTimeline* toForTimeline();
 #else
-    inline ParamManagerForTimeline* toForTimeline() { return (ParamManagerForTimeline*)this; }
+	inline ParamManagerForTimeline* toForTimeline() {
+		return (ParamManagerForTimeline*)this;
+	}
 #endif
 
-    bool resonanceBackwardsCompatibilityProcessed;
-    uint8_t expressionParamSetOffset;
+	bool resonanceBackwardsCompatibilityProcessed;
+	uint8_t expressionParamSetOffset;
 
-    ParamCollectionSummary summaries[PARAM_COLLECTIONS_STORAGE_NUM];	// This list should be terminated by an object whose values are all zero.
-    																	// Yes, all of them must be zero, because if we know this, we can check for stuff faster.
+	// This list should be terminated by an object whose values are all zero. Yes, all of them must be zero, because if we
+	// know this, we can check for stuff faster.
+	ParamCollectionSummary summaries[PARAM_COLLECTIONS_STORAGE_NUM];
 };
 
 class ParamManagerForTimeline final : public ParamManager { // I want to rename this one to "with automation"
@@ -171,29 +167,32 @@ public:
 	void setPlayPos(uint32_t pos, ModelStackWithThreeMainThings* modelStack, bool reversed);
 	void expectNoFurtherTicks(ModelStackWithThreeMainThings* modelStack);
 	void grabValuesFromPos(uint32_t pos, ModelStackWithThreeMainThings* modelStack);
-	void generateRepeats(ModelStackWithThreeMainThings* modelStack, uint32_t oldLength, uint32_t newLength, bool shouldPingpong);
-	void appendParamManager(ModelStackWithThreeMainThings* modelStack, ModelStackWithThreeMainThings* otherModelStack, int32_t oldLength, int32_t reverseThisRepeatWithLength, bool pingpongingGenerally);
-	void trimToLength(uint32_t newLength, ModelStackWithThreeMainThings* modelStack, Action* action, bool maySetupPatching = true);
+	void generateRepeats(ModelStackWithThreeMainThings* modelStack, uint32_t oldLength, uint32_t newLength,
+	                     bool shouldPingpong);
+	void appendParamManager(ModelStackWithThreeMainThings* modelStack, ModelStackWithThreeMainThings* otherModelStack,
+	                        int32_t oldLength, int32_t reverseThisRepeatWithLength, bool pingpongingGenerally);
+	void trimToLength(uint32_t newLength, ModelStackWithThreeMainThings* modelStack, Action* action,
+	                  bool maySetupPatching = true);
 
-    void processCurrentPos(ModelStackWithThreeMainThings* modelStack, int ticksSinceLast, bool reversed, bool didPingpong = false, bool mayInterpolate = true);
-    void expectEvent(ModelStackWithThreeMainThings const* modelStack);
+	void processCurrentPos(ModelStackWithThreeMainThings* modelStack, int ticksSinceLast, bool reversed,
+	                       bool didPingpong = false, bool mayInterpolate = true);
+	void expectEvent(ModelStackWithThreeMainThings const* modelStack);
 
-    void shiftHorizontally(ModelStackWithThreeMainThings* modelStack, int32_t amount, int32_t effectiveLength);
-    void nudgeAutomationHorizontallyAtPos(int32_t pos, int offset, int32_t lengthBeforeLoop, Action* action, ModelStackWithThreeMainThings* modelStack, int32_t moveMPEDataWithinRegionLength = 0);
-    void deleteAllAutomation(Action* action, ModelStackWithThreeMainThings* modelStack);
-    void notifyPingpongOccurred(ModelStackWithThreeMainThings* modelStack);
-    void ensureSomeParamCollections(); // For debugging only
-    bool mightContainAutomation();
+	void shiftHorizontally(ModelStackWithThreeMainThings* modelStack, int32_t amount, int32_t effectiveLength);
+	void nudgeAutomationHorizontallyAtPos(int32_t pos, int offset, int32_t lengthBeforeLoop, Action* action,
+	                                      ModelStackWithThreeMainThings* modelStack,
+	                                      int32_t moveMPEDataWithinRegionLength = 0);
+	void deleteAllAutomation(Action* action, ModelStackWithThreeMainThings* modelStack);
+	void notifyPingpongOccurred(ModelStackWithThreeMainThings* modelStack);
+	void ensureSomeParamCollections(); // For debugging only
+	bool mightContainAutomation();
 
 #if ALPHA_OR_BETA_VERSION
-    ParamManagerForTimeline* toForTimeline();
+	ParamManagerForTimeline* toForTimeline();
 #endif
 
-
-    int32_t ticksTilNextEvent;
-    int32_t ticksSkipped;
-
+	int32_t ticksTilNextEvent;
+	int32_t ticksSkipped;
 };
-
 
 #endif /* PARAMMANAGER_H_ */

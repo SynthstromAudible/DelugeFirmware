@@ -15,15 +15,13 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-
 #ifndef CFUNCTIONS_H_
 #define CFUNCTIONS_H_
 
-
 #include "r_typedefs.h"
 
-#define getMin(a, b) (((a)<(b))?(a):(b))
-#define getMax(a, b) (((a)>(b))?(a):(b))
+#define getMin(a, b) (((a) < (b)) ? (a) : (b))
+#define getMax(a, b) (((a) > (b)) ? (a) : (b))
 
 int getNumDecimalDigits(uint32_t number);
 void intToString(int32_t number, char* buffer, int minNumDigits);

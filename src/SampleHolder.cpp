@@ -27,8 +27,8 @@
 SampleHolder::SampleHolder() {
 	startPos = 0;
 	endPos = 9999999;
-    waveformViewZoom = 0;
-    audioFileType = AUDIO_FILE_TYPE_SAMPLE;
+	waveformViewZoom = 0;
+	audioFileType = AUDIO_FILE_TYPE_SAMPLE;
 
 	for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD; l++) {
 		clustersForStart[l] = NULL;
@@ -42,12 +42,12 @@ SampleHolder::~SampleHolder() {
 	if ((Sample*)audioFile) {
 		unassignAllClusterReasons(true);
 #if ALPHA_OR_BETA_VERSION
-		if (audioFile->numReasonsToBeLoaded <= 0) numericDriver.freezeWithError("E219"); // I put this here to try and catch an E004 Luc got
+		if (audioFile->numReasonsToBeLoaded <= 0)
+			numericDriver.freezeWithError("E219"); // I put this here to try and catch an E004 Luc got
 #endif
 		audioFile->removeReason("E396");
 	}
 }
-
 
 void SampleHolder::beenClonedFrom(SampleHolder* other, bool reversed) {
 	filePath.set(&other->filePath);
@@ -58,8 +58,6 @@ void SampleHolder::beenClonedFrom(SampleHolder* other, bool reversed) {
 	waveformViewScroll = other->waveformViewScroll;
 	waveformViewZoom = other->waveformViewZoom;
 }
-
-
 
 void SampleHolder::unassignAllClusterReasons(bool beingDestructed) {
 	for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD; l++) {
@@ -79,22 +77,21 @@ int64_t SampleHolder::getDurationInSamples(bool forTimeStretching) {
 	return getEndPos(forTimeStretching) - startPos;
 }
 
-
 int32_t SampleHolder::getLengthInSamplesAtSystemSampleRate(bool forTimeStretching) {
 	uint64_t lengthInSamples = getDurationInSamples(forTimeStretching);
 	if (neutralPhaseIncrement == 16777216) return lengthInSamples;
 	else return (lengthInSamples << 24) / neutralPhaseIncrement;
 }
 
-
-
-void SampleHolder::setAudioFile(AudioFile* newSample, bool reversed, bool manuallySelected, int clusterLoadInstruction) {
+void SampleHolder::setAudioFile(AudioFile* newSample, bool reversed, bool manuallySelected,
+                                int clusterLoadInstruction) {
 
 	AudioFileHolder::setAudioFile(newSample, reversed, manuallySelected, clusterLoadInstruction);
 
 	if (audioFile) {
 
-		if (manuallySelected && ((Sample*)audioFile)->tempFilePathForRecording.isEmpty()) sampleBrowser.lastFilePathLoaded.set(&filePath);
+		if (manuallySelected && ((Sample*)audioFile)->tempFilePathForRecording.isEmpty())
+			sampleBrowser.lastFilePathLoaded.set(&filePath);
 
 		uint32_t lengthInSamples = ((Sample*)audioFile)->lengthInSamples;
 
@@ -143,7 +140,8 @@ void SampleHolder::claimClusterReasons(bool reversed, int clusterLoadInstruction
 	}
 	else {
 		startPlaybackAtSample = getEndPos() - 1 + MARKER_SAMPLES_BEFORE_TO_CLAIM;
-		if (startPlaybackAtSample > ((Sample*)audioFile)->lengthInSamples - 1) startPlaybackAtSample = ((Sample*)audioFile)->lengthInSamples - 1;
+		if (startPlaybackAtSample > ((Sample*)audioFile)->lengthInSamples - 1)
+			startPlaybackAtSample = ((Sample*)audioFile)->lengthInSamples - 1;
 	}
 
 	int startPlaybackAtByte = ((Sample*)audioFile)->audioDataStartPosBytes + startPlaybackAtSample * bytesPerSample;
@@ -151,7 +149,8 @@ void SampleHolder::claimClusterReasons(bool reversed, int clusterLoadInstruction
 	claimClusterReasonsForMarker(clustersForStart, startPlaybackAtByte, playDirection, clusterLoadInstruction);
 }
 
-void SampleHolder::claimClusterReasonsForMarker(Cluster** clusters, uint32_t startPlaybackAtByte, int playDirection, int clusterLoadInstruction) {
+void SampleHolder::claimClusterReasonsForMarker(Cluster** clusters, uint32_t startPlaybackAtByte, int playDirection,
+                                                int clusterLoadInstruction) {
 
 	int clusterIndex = startPlaybackAtByte >> audioFileManager.clusterSizeMagnitude;
 
@@ -183,11 +182,13 @@ void SampleHolder::claimClusterReasonsForMarker(Cluster** clusters, uint32_t sta
 		newClusters[l] = sampleCluster->getCluster(((Sample*)audioFile), clusterIndex, clusterLoadInstruction);
 
 		if (!newClusters[l]) Uart::println("NULL!!");
-		else if (clusterLoadInstruction == CLUSTER_LOAD_IMMEDIATELY_OR_ENQUEUE && !newClusters[l]->loaded) Uart::println("not loaded!!");
-
+		else if (clusterLoadInstruction == CLUSTER_LOAD_IMMEDIATELY_OR_ENQUEUE && !newClusters[l]->loaded)
+			Uart::println("not loaded!!");
 
 		clusterIndex += playDirection;
-		if (clusterIndex < ((Sample*)audioFile)->getFirstClusterIndexWithAudioData() || clusterIndex >= ((Sample*)audioFile)->getFirstClusterIndexWithNoAudioData()) break;
+		if (clusterIndex < ((Sample*)audioFile)->getFirstClusterIndexWithAudioData()
+		    || clusterIndex >= ((Sample*)audioFile)->getFirstClusterIndexWithNoAudioData())
+			break;
 	}
 
 	// Replace old list
@@ -198,6 +199,3 @@ void SampleHolder::claimClusterReasonsForMarker(Cluster** clusters, uint32_t sta
 		clusters[l] = newClusters[l];
 	}
 }
-
-
-

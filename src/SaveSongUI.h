@@ -22,25 +22,22 @@
 
 class ContextMenu;
 
-
-
 class SaveSongUI final : public SaveUI {
 public:
-    SaveSongUI();
-    bool opened();
-    void focusRegained();
-    //void selectEncoderAction(int8_t offset);
-    bool performSave(bool mayOverwrite = false);
+	SaveSongUI();
+	bool opened();
+	void focusRegained();
+	//void selectEncoderAction(int8_t offset);
+	bool performSave(bool mayOverwrite = false);
 
 #if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-    int padAction(int x, int y, int velocity);
+	int padAction(int x, int y, int velocity);
 #endif
 
-    bool collectingSamples;
+	bool collectingSamples;
 
 protected:
-    //int arrivedInNewFolder(int direction);
-
+	//int arrivedInNewFolder(int direction);
 };
 
 extern SaveSongUI saveSongUI;

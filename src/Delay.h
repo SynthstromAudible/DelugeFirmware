@@ -51,7 +51,8 @@ public:
 	int32_t userRateLastTime;
 	bool pingPong;
 	bool analog;
-    uint8_t sync; // Basically, 0 is off, max value is 9. Higher numbers are shorter intervals (higher speed). 7 represents 8th-notes normally
+	uint8_t
+	    sync; // Basically, 0 is off, max value is 9. Higher numbers are shorter intervals (higher speed). 7 represents 8th-notes normally
 	int32_t sizeLeftUntilBufferSwap;
 
 	int32_t postLPFL;

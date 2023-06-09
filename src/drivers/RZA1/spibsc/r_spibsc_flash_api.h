@@ -46,18 +46,17 @@ Macro definitions
 #ifndef R_SPIBSC_FLASH_API_H
 #define R_SPIBSC_FLASH_API_H
 
-
 /******************************************************************************
 Functions Prototypes
 ******************************************************************************/
 /* api function */
 int32_t R_SFLASH_EraseSector(uint32_t addr, uint32_t ch_no, uint32_t dual, uint8_t data_width, uint8_t addr_mode);
-int32_t R_SFLASH_ByteProgram(uint32_t addr, uint8_t *buf, int32_t size, uint32_t ch_no, 
-                             uint32_t dual, uint8_t data_width, uint8_t addr_mode);
-int32_t R_SFLASH_ByteRead(uint32_t addr, uint8_t * buf, int32_t size, uint32_t ch_no, uint32_t dual, uint8_t data_width, uint8_t addr_mode);
-int32_t R_SFLASH_Spibsc_Transfer(uint32_t ch_no, st_spibsc_spimd_reg_t * regset);
+int32_t R_SFLASH_ByteProgram(
+    uint32_t addr, uint8_t* buf, int32_t size, uint32_t ch_no, uint32_t dual, uint8_t data_width, uint8_t addr_mode);
+int32_t R_SFLASH_ByteRead(
+    uint32_t addr, uint8_t* buf, int32_t size, uint32_t ch_no, uint32_t dual, uint8_t data_width, uint8_t addr_mode);
+int32_t R_SFLASH_Spibsc_Transfer(uint32_t ch_no, st_spibsc_spimd_reg_t* regset);
 int32_t R_SFLASH_Ctrl_Protect(en_sf_req_t req, uint32_t ch_no, uint32_t dual, uint8_t data_width);
-
 
 /* User defined function */
 int32_t Userdef_SFLASH_Set_Mode(uint32_t ch_no, uint32_t dual, en_sf_req_t req, uint8_t data_width, uint8_t addr_mode);
@@ -66,6 +65,6 @@ int32_t Userdef_SFLASH_Busy_Wait(uint32_t ch_no, uint32_t dual, uint8_t data_wid
 int32_t Userdef_SFLASH_Ctrl_Protect(en_sf_req_t req, uint32_t ch_no, uint32_t dual, uint8_t data_width);
 
 /* R_SPIBSC_FLASH_API_H */
-#endif 
+#endif
 
 /* End of File */

@@ -29,10 +29,8 @@ WaveformBasicNavigator waveformBasicNavigator;
 WaveformBasicNavigator::WaveformBasicNavigator() {
 }
 
-
-
-
-void WaveformBasicNavigator::opened(SampleHolder* holder) { // Only if range is provided, grabs navigation from that if possible
+void WaveformBasicNavigator::opened(
+    SampleHolder* holder) { // Only if range is provided, grabs navigation from that if possible
 
 	renderData.xScroll = -1;
 
@@ -47,16 +45,13 @@ void WaveformBasicNavigator::opened(SampleHolder* holder) { // Only if range is 
 	}
 }
 
-
 int32_t WaveformBasicNavigator::getMaxZoom() {
 	return ((sample->lengthInSamples - 1) >> displayWidthMagnitude) + 1;
 }
 
-
-
 bool WaveformBasicNavigator::zoom(int offset, bool shouldAllowExtraScrollRight, MarkerColumn* cols, int markerType) {
-    uint32_t oldScroll = xScroll;
-    uint32_t oldZoom = xZoom;
+	uint32_t oldScroll = xScroll;
+	uint32_t oldZoom = xZoom;
 
 	int32_t newXZoom;
 
@@ -96,9 +91,6 @@ bool WaveformBasicNavigator::zoom(int offset, bool shouldAllowExtraScrollRight, 
 		if (newXZoom >= limit || (newXZoom * 2) * 0.707 >= limit) newXZoom = limit;
 	}
 
-
-
-
 	int pinMarkerCol = -1;
 	int32_t pinMarkerPos = xScroll + xZoom * (displayWidth >> 1);
 	int pinnedToMarkerType = MARKER_NONE;
@@ -137,7 +129,7 @@ bestYet:
 
 		// If marker on-screen...
 		//if (pinMarkerCol >= 0) {
-			//xScroll = pinMarkerPos - newXZoom * pinMarkerCol;
+		//xScroll = pinMarkerPos - newXZoom * pinMarkerCol;
 		//}
 	}
 
@@ -165,33 +157,33 @@ bestYet:
 		}
 	}
 
-    memcpy(PadLEDs::imageStore[(offset > 0) ? displayHeight : 0], PadLEDs::image, (displayWidth + sideBarWidth) * displayHeight * 3);
+	memcpy(PadLEDs::imageStore[(offset > 0) ? displayHeight : 0], PadLEDs::image,
+	       (displayWidth + sideBarWidth) * displayHeight * 3);
 
-
-    // Calculate pin squares
+	// Calculate pin squares
 	int32_t zoomPinSquareBig = ((int64_t)(int32_t)(oldScroll - xScroll) << 16) / (int32_t)(newXZoom - oldZoom);
-    for (int i = 0; i < displayHeight; i++) {
-        PadLEDs::zoomPinSquare[i] = zoomPinSquareBig;
-        PadLEDs::transitionTakingPlaceOnRow[i] = true;
-    }
+	for (int i = 0; i < displayHeight; i++) {
+		PadLEDs::zoomPinSquare[i] = zoomPinSquareBig;
+		PadLEDs::transitionTakingPlaceOnRow[i] = true;
+	}
 
-    int storeOffset = (offset > 0) ? 0 : displayHeight;
+	int storeOffset = (offset > 0) ? 0 : displayHeight;
 
-	PadLEDs::clearTickSquares(false);	// We were mostly fine without this here, but putting it here fixed weird problem where tick squares would
-											// appear when zooming into waveform in SampleBrowser
+	PadLEDs::clearTickSquares(
+	    false); // We were mostly fine without this here, but putting it here fixed weird problem where tick squares would
+	            // appear when zooming into waveform in SampleBrowser
 
-    waveformRenderer.renderFullScreen(sample, xScroll, xZoom, &PadLEDs::imageStore[storeOffset], &renderData);
+	waveformRenderer.renderFullScreen(sample, xScroll, xZoom, &PadLEDs::imageStore[storeOffset], &renderData);
 
-    PadLEDs::zoomingIn = (offset > 0);
-    PadLEDs::zoomMagnitude = PadLEDs::zoomingIn ? offset : -offset;
+	PadLEDs::zoomingIn = (offset > 0);
+	PadLEDs::zoomMagnitude = PadLEDs::zoomingIn ? offset : -offset;
 
-    currentUIMode |= UI_MODE_HORIZONTAL_ZOOM;
-    PadLEDs::recordTransitionBegin(zoomSpeed);
-    PadLEDs::renderZoom();
+	currentUIMode |= UI_MODE_HORIZONTAL_ZOOM;
+	PadLEDs::recordTransitionBegin(zoomSpeed);
+	PadLEDs::renderZoom();
 
-    return true;
+	return true;
 }
-
 
 bool WaveformBasicNavigator::scroll(int offset, bool shouldAllowExtraScrollRight, MarkerColumn* cols) {
 	// Right
@@ -203,8 +195,9 @@ bool WaveformBasicNavigator::scroll(int offset, bool shouldAllowExtraScrollRight
 			xScroll = newScroll;
 		}
 		else {
-			if (xScroll + xZoom * displayWidth >= sample->lengthInSamples &&
-					(!cols || cols[MARKER_END].colOnScreen < displayWidth)) return false;
+			if (xScroll + xZoom * displayWidth >= sample->lengthInSamples
+			    && (!cols || cols[MARKER_END].colOnScreen < displayWidth))
+				return false;
 			xScroll += xZoom;
 		}
 	}
@@ -218,7 +211,6 @@ bool WaveformBasicNavigator::scroll(int offset, bool shouldAllowExtraScrollRight
 
 	return true;
 }
-
 
 bool WaveformBasicNavigator::isZoomedIn() {
 	return (xZoom != getMaxZoom());

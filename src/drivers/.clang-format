@@ -1,0 +1,12 @@
+BasedOnStyle: InheritParentConfig
+UseTab: Never
+AlignAfterOpenBracket: DontAlign
+AlignConsecutiveAssignments: true
+AlignConsecutiveMacros: true
+BraceWrapping:
+  AfterControlStatement: Always
+  AfterFunction: true
+  AfterStruct: true
+  AfterUnion: true
+IndentCaseLabels: true
+IndentCaseBlocks: true

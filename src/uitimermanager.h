@@ -46,31 +46,28 @@
 #define NUM_TIMERS 15
 #endif
 
-
 struct Timer {
-  bool active;
-  uint32_t triggerTime;
+	bool active;
+	uint32_t triggerTime;
 };
 
-
-class UITimerManager
-{
+class UITimerManager {
 public:
-    UITimerManager();
+	UITimerManager();
 
-    void routine();
-    void setTimer(int i, int ms);
-    void setTimerSamples(int i, int samples);
-    void unsetTimer(int i);
+	void routine();
+	void setTimer(int i, int ms);
+	void setTimerSamples(int i, int samples);
+	void unsetTimer(int i);
 
-    bool isTimerSet(int i);
-    void setTimerByOtherTimer(int i, int j);
+	bool isTimerSet(int i);
+	void setTimerByOtherTimer(int i, int j);
 
-    Timer timers[NUM_TIMERS];
+	Timer timers[NUM_TIMERS];
+
 private:
-
-    uint32_t timeNextEvent;
-    void workOutNextEventTime();
+	uint32_t timeNextEvent;
+	void workOutNextEventTime();
 };
 
 extern UITimerManager uiTimerManager;

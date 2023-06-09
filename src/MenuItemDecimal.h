@@ -41,29 +41,31 @@ protected:
 
 private:
 	void scrollToGoodPos();
-
 };
-
 
 class MenuItemTranspose : public MenuItemDecimal, public MenuItemPatchedParam {
 public:
-	MenuItemTranspose(char const* newName = NULL, int newP = 0) : MenuItemPatchedParam(newP), MenuItemDecimal(newName) {}
+	MenuItemTranspose(char const* newName = NULL, int newP = 0)
+	    : MenuItemPatchedParam(newP), MenuItemDecimal(newName) {}
 	MenuItem* selectButtonPress() final { return MenuItemPatchedParam::selectButtonPress(); }
 	int getMinValue() final { return -9600; }
 	int getMaxValue() final { return 9600; }
 	int getNumDecimalPlaces() final { return 2; }
 	uint8_t getPatchedParamIndex() final { return MenuItemPatchedParam::getPatchedParamIndex(); }
 	uint8_t shouldDrawDotOnName() final { return MenuItemPatchedParam::shouldDrawDotOnName(); }
-    uint8_t shouldBlinkPatchingSourceShortcut(int s, uint8_t* colour) final { return MenuItemPatchedParam::shouldBlinkPatchingSourceShortcut(s, colour); }
-	MenuItem* patchingSourceShortcutPress(int s, bool previousPressStillActive = false) final { return MenuItemPatchedParam::patchingSourceShortcutPress(s, previousPressStillActive); }
+	uint8_t shouldBlinkPatchingSourceShortcut(int s, uint8_t* colour) final {
+		return MenuItemPatchedParam::shouldBlinkPatchingSourceShortcut(s, colour);
+	}
+	MenuItem* patchingSourceShortcutPress(int s, bool previousPressStillActive = false) final {
+		return MenuItemPatchedParam::patchingSourceShortcutPress(s, previousPressStillActive);
+	}
 
-    void unlearnAction() final { MenuItemWithCCLearning::unlearnAction(); }
-    bool allowsLearnMode() final { return MenuItemWithCCLearning::allowsLearnMode(); }
-    void learnKnob(MIDIDevice* fromDevice, int whichKnob, int modKnobMode, int midiChannel) final { MenuItemWithCCLearning::learnKnob(fromDevice, whichKnob, modKnobMode, midiChannel); };
-
+	void unlearnAction() final { MenuItemWithCCLearning::unlearnAction(); }
+	bool allowsLearnMode() final { return MenuItemWithCCLearning::allowsLearnMode(); }
+	void learnKnob(MIDIDevice* fromDevice, int whichKnob, int modKnobMode, int midiChannel) final {
+		MenuItemWithCCLearning::learnKnob(fromDevice, whichKnob, modKnobMode, midiChannel);
+	};
 };
-
-
 
 class MenuItemSourceDependentTranspose : public MenuItemTranspose {
 public:
@@ -77,8 +79,5 @@ public:
 protected:
 	uint8_t getP() final;
 };
-
-
-
 
 #endif /* MENUITEMDECIMAL_H_ */

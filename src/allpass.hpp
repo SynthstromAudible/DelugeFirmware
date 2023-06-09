@@ -26,40 +26,37 @@
 #include "r_typedefs.h"
 #include "functions.h"
 
-class allpass
-{
+class allpass {
 public:
-					allpass();
-			void	setbuffer(int32_t *buf, int size);
-	inline  int32_t	process(int32_t inp);
-			void	mute();
-			void	setfeedback(float val);
-			float	getfeedback();
-// private:
-	int32_t	feedback;
-	int32_t	*buffer;
-	int		bufsize;
-	int		bufidx;
+	allpass();
+	void setbuffer(int32_t* buf, int size);
+	inline int32_t process(int32_t inp);
+	void mute();
+	void setfeedback(float val);
+	float getfeedback();
+	// private:
+	int32_t feedback;
+	int32_t* buffer;
+	int bufsize;
+	int bufidx;
 };
 
-
 // Big to inline - but crucial for speed
-inline int32_t allpass::process(int32_t input)
-{
+inline int32_t allpass::process(int32_t input) {
 	int32_t output;
 	int32_t bufout;
-	
+
 	bufout = buffer[bufidx];
-	
+
 	output = -input + bufout;
 	buffer[bufidx] = input + (bufout >> 1); // Shortcut - because feedback was always one half by default anyway
 	//buffer[bufidx] = input + (multiply_32x32_rshift32_rounded(bufout, feedback) << 1);
 
-	if(++bufidx >= bufsize) bufidx = 0;
+	if (++bufidx >= bufsize) bufidx = 0;
 
 	return output;
 }
 
-#endif//_allpass
+#endif //_allpass
 
 //ends

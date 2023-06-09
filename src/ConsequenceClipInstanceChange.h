@@ -20,14 +20,14 @@
 #include "Consequence.h"
 #include "r_typedefs.h"
 
-
 class Output;
 class Clip;
 class ClipInstance;
 
 class ConsequenceClipInstanceChange final : public Consequence {
 public:
-	ConsequenceClipInstanceChange(Output* newOutput, ClipInstance* clipInstance, int32_t posAfter, int32_t lengthAfter, Clip* clipAfter);
+	ConsequenceClipInstanceChange(Output* newOutput, ClipInstance* clipInstance, int32_t posAfter, int32_t lengthAfter,
+	                              Clip* clipAfter);
 	int revert(int time, ModelStack* modelStack);
 
 	Output* output;

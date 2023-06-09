@@ -25,7 +25,6 @@ public:
 	MenuItemDrumName(char const* newName = NULL) : MenuItem(newName) {}
 	void beginSession(MenuItem* navigatedBackwardFrom);
 	bool isRelevant(Sound* sound, int whichThing);
-
 };
 
 #endif /* MENUITEMDRUMNAME_H_ */

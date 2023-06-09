@@ -26,7 +26,8 @@ class Cluster;
 
 class SampleCache {
 public:
-	SampleCache(Sample* newSample, int newNumClusters, int newWaveformLengthBytes, int newPhaseIncrement, int newTimeStretchRatio, int newSkipSamplesAtStart);
+	SampleCache(Sample* newSample, int newNumClusters, int newWaveformLengthBytes, int newPhaseIncrement,
+	            int newTimeStretchRatio, int newSkipSamplesAtStart);
 	~SampleCache();
 	void clusterStolen(int clusterIndex);
 	bool setupNewCluster(int cachedClusterIndex);
@@ -43,15 +44,10 @@ public:
 	int32_t timeStretchRatio;
 	int skipSamplesAtStart;
 
-
 private:
 	void unlinkClusters(int startAtIndex, bool beingDestructed);
 	int getNumExistentClusters(int32_t thisWriteBytePos);
 	void prioritizeNotStealingCluster(int clusterIndex);
-
-
-
-
 
 	// This has to be last!!!
 	Cluster* clusters[1]; // These are not initialized, and are only "valid" as far as writeBytePos dictates

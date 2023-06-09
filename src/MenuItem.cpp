@@ -22,47 +22,39 @@
 #include "oled.h"
 #endif
 
-
-MenuItem::MenuItem(char const* newName)
-{
+MenuItem::MenuItem(char const* newName) {
 	name = newName;
 #if HAVE_OLED
 	basicTitle = newName;
 #endif
-
 }
 
 char const* MenuItem::getName() {
 	return name;
 }
 
-
 int MenuItem::checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) {
 	bool toReturn = isRelevant(sound, whichThing);
 	return toReturn ? MENU_PERMISSION_YES : MENU_PERMISSION_NO;
 }
 
-
 void MenuItem::learnCC(MIDIDevice* fromDevice, int channel, int ccNumber, int value) {
 	learnKnob(fromDevice, ccNumber, 0, channel);
 }
-
 
 #if HAVE_OLED
 
 // This is virtual. Some classes with override it and generate some name on the fly.
 // Supplied buffer size must be MENU_ITEM_TITLE_BUFFER_SIZE. Actual max num chars for OLED display is 14.
 // May return pointer to that buffer, or to some other constant char string.
-char const* MenuItem::getTitle() {//char* buffer) {
+char const* MenuItem::getTitle() { //char* buffer) {
 	return basicTitle;
 }
-
 
 void MenuItem::renderOLED() {
 	OLED::drawScreenTitle(getTitle());
 	drawPixelsForOled();
 }
-
 
 // A couple of our child classes call this - that's all
 void MenuItem::drawItemsForOled(char const** options, int selectedOption) {
@@ -75,11 +67,13 @@ void MenuItem::drawItemsForOled(char const** options, int selectedOption) {
 
 		int yPixel = o * TEXT_SPACING_Y + baseY;
 
-		OLED::drawString(options[o], TEXT_SPACING_X, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, TEXT_SPACING_X, TEXT_SPACING_Y);
+		OLED::drawString(options[o], TEXT_SPACING_X, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
+		                 TEXT_SPACING_X, TEXT_SPACING_Y);
 
 		if (o == selectedOption) {
 			OLED::invertArea(0, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8, &OLED::oledMainImage[0]);
-			OLED::setupSideScroller(0, options[o], TEXT_SPACING_X, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8, TEXT_SPACING_X, TEXT_SPACING_Y, true);
+			OLED::setupSideScroller(0, options[o], TEXT_SPACING_X, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8,
+			                        TEXT_SPACING_X, TEXT_SPACING_Y, true);
 		}
 	}
 }
