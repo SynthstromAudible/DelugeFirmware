@@ -30,7 +30,6 @@ DelayBuffer::~DelayBuffer() {
 	discard(true);
 }
 
-
 // Returns error status
 uint8_t DelayBuffer::init(uint32_t newRate, uint32_t failIfThisSize, bool includeExtraSpace) {
 
@@ -60,7 +59,8 @@ uint8_t DelayBuffer::init(uint32_t newRate, uint32_t failIfThisSize, bool includ
 	sizeIncludingExtra = size + (includeExtraSpace ? delaySpaceBetweenReadAndWrite : 0);
 	AudioEngine::logAction("DelayBuffer::init before");
 
-	bufferStart = (StereoSample*)generalMemoryAllocator.alloc(sizeIncludingExtra * sizeof(StereoSample), NULL, false, true);
+	bufferStart =
+	    (StereoSample*)generalMemoryAllocator.alloc(sizeIncludingExtra * sizeof(StereoSample), NULL, false, true);
 	AudioEngine::logAction("DelayBuffer::init after");
 	if (bufferStart == 0) return ERROR_INSUFFICIENT_RAM;
 
@@ -75,7 +75,6 @@ void DelayBuffer::empty() {
 	isResampling = false;
 }
 
-
 int32_t DelayBuffer::getIdealBufferSizeFromRate(uint32_t newRate) {
 	return (uint64_t)DELAY_BUFFER_NEUTRAL_SIZE * 16777216 / newRate;
 }
@@ -85,7 +84,8 @@ void DelayBuffer::makeNativeRatePrecise() {
 }
 
 void DelayBuffer::makeNativeRatePreciseRelativeToOtherBuffer(DelayBuffer* otherBuffer) {
-	double otherBufferAmountTooFast = (double)otherBuffer->nativeRate * (double)otherBuffer->size / ((double)DELAY_BUFFER_NEUTRAL_SIZE * (double)16777216);
+	double otherBufferAmountTooFast = (double)otherBuffer->nativeRate * (double)otherBuffer->size
+	                                  / ((double)DELAY_BUFFER_NEUTRAL_SIZE * (double)16777216);
 	nativeRate = round((double)DELAY_BUFFER_NEUTRAL_SIZE * (double)16777216 * otherBufferAmountTooFast / (double)size);
 }
 
@@ -107,10 +107,12 @@ void DelayBuffer::setupForRender(int32_t userDelayRate, DelayBufferSetup* setup)
 			// with the upcoming triangles. Assuming that the delay rate has only changed slightly at this stage, this is as simple as removing a quarter of the last written value,
 			// and putting that removed quarter where the "next" write-pos is. That's because the triangles are 4 samples wide total (2 samples either side)
 			StereoSample* writePos = bufferCurrentPos - delaySpaceBetweenReadAndWrite;
-			while (writePos < bufferStart) writePos += sizeIncludingExtra;
+			while (writePos < bufferStart)
+				writePos += sizeIncludingExtra;
 
 			StereoSample* writePosPlusOne = writePos + 1;
-			while (writePosPlusOne >= bufferEnd) writePosPlusOne -= sizeIncludingExtra;
+			while (writePosPlusOne >= bufferEnd)
+				writePosPlusOne -= sizeIncludingExtra;
 
 			writePosPlusOne->l = writePos->l >> 2;
 			writePosPlusOne->r = writePos->r >> 2;
@@ -123,7 +125,7 @@ void DelayBuffer::setupForRender(int32_t userDelayRate, DelayBufferSetup* setup)
 	if (isResampling) {
 
 		setup->actualSpinRate = ((uint64_t)userDelayRate << 24) / nativeRate; // 1 is represented as 16777216
-		setup->divideByRate = 0xFFFFFFFF / (setup->actualSpinRate >> 8); // 1 is represented as 65536
+		setup->divideByRate = 0xFFFFFFFF / (setup->actualSpinRate >> 8);      // 1 is represented as 65536
 
 		// If buffer spinning slow
 		if (setup->actualSpinRate < 16777216) {
@@ -137,7 +139,10 @@ void DelayBuffer::setupForRender(int32_t userDelayRate, DelayBufferSetup* setup)
 			// This was tricky to work out. Needs to go up with delay.speed because this means less "density". And squarely down with writeRateMultiple
 			// because more of that means more "triangle area", or more stuff written each time.
 			//uint32_t delayWriteSizeAdjustment2 = (((uint32_t)delay.speed << 16) / (((uint32_t)(speedMultiple >> 2) * (uint32_t)(speedMultiple >> 2)) >> 11));
-			setup->writeSizeAdjustment = (uint32_t)0xFFFFFFFF / (setup->rateMultiple * (timesSlowerRead + 1)); // Equivalent to one order of magnitude bigger than the above line
+			setup->writeSizeAdjustment =
+			    (uint32_t)0xFFFFFFFF
+			    / (setup->rateMultiple
+			       * (timesSlowerRead + 1)); // Equivalent to one order of magnitude bigger than the above line
 		}
 
 		// If buffer spinning fast
@@ -152,13 +157,9 @@ void DelayBuffer::setupForRender(int32_t userDelayRate, DelayBufferSetup* setup)
 			// However I've stretched the triangle twice as wide so that at the native sample rate it's the same width as the slowed-down algorithm below, so there's
 			// no click when switching between the two. This does mean we lose half the bandwidth. That's done with the following 2 lines of code, and the fact that
 			// the actual writes below are <<3 instead of <<4.
-			setup->spinRateForSpedUpWriting = setup->spinRateForSpedUpWriting <<= 1; // Woah, did I mean to write "<<=" ?
+			setup->spinRateForSpedUpWriting = setup->spinRateForSpedUpWriting <<=
+			    1;                     // Woah, did I mean to write "<<=" ?
 			setup->divideByRate >>= 1; // We may change this because sped up writing is the only thing it'll be used for
 		}
 	}
 }
-
-
-
-
-

@@ -17,30 +17,32 @@
 
 #include "dmac.h"
 
+void setDMARS(int dmaChannel, uint32_t dmarsValue)
+{
 
-void setDMARS(int dmaChannel, uint32_t dmarsValue) {
+    uint32_t mask = 0xFFFF0000;
 
-	uint32_t mask = 0xFFFF0000;
+    if (dmaChannel & 1)
+    {
+        dmarsValue <<= 16;
+        mask >>= 16;
+    }
 
-	if (dmaChannel & 1) {
-		dmarsValue <<= 16;
-		mask >>= 16;
-	}
+    volatile uint32_t* dmarsAddress = DMARSnAddress(dmaChannel);
 
-	volatile uint32_t* dmarsAddress = DMARSnAddress(dmaChannel);
-
-	*dmarsAddress = (*dmarsAddress & mask) | dmarsValue;
+    *dmarsAddress = (*dmarsAddress & mask) | dmarsValue;
 }
 
-
-void initDMAWithLinkDescriptor(int dma_channel, const uint32_t* linkDescriptor, uint32_t dmarsValue) {
-	DCTRLn(dma_channel) = 0;								// DMA Control Register Setting
-	DMACn(dma_channel).CHCFG_n = linkDescriptor[4]; 		// Config
-	setDMARS(dma_channel, dmarsValue);						// DMA Expansion Resource Selector Setting
-	DMACn(dma_channel).NXLA_n = (uint32_t)linkDescriptor;	// Link descriptor address
+void initDMAWithLinkDescriptor(int dma_channel, const uint32_t* linkDescriptor, uint32_t dmarsValue)
+{
+    DCTRLn(dma_channel)        = 0;                       // DMA Control Register Setting
+    DMACn(dma_channel).CHCFG_n = linkDescriptor[4];       // Config
+    setDMARS(dma_channel, dmarsValue);                    // DMA Expansion Resource Selector Setting
+    DMACn(dma_channel).NXLA_n = (uint32_t)linkDescriptor; // Link descriptor address
 }
 
-void dmaChannelStart(const uint32_t dma_channel) {
-	DMACn(dma_channel).CHCTRL_n |= DMAC_CHCTRL_0S_SWRST;	// Status clear
-	DMACn(dma_channel).CHCTRL_n |= DMAC_CHCTRL_0S_SETEN;	// Enable DMA transfer
+void dmaChannelStart(const uint32_t dma_channel)
+{
+    DMACn(dma_channel).CHCTRL_n |= DMAC_CHCTRL_0S_SWRST; // Status clear
+    DMACn(dma_channel).CHCTRL_n |= DMAC_CHCTRL_0S_SETEN; // Enable DMA transfer
 }

@@ -20,12 +20,10 @@
 
 #include "NE10.h"
 
-
 namespace FFTConfigManager {
 
 ne10_fft_r2c_cfg_int32_t getConfig(int magnitude);
 
 }
-
 
 #endif /* FFTCONFIGMANAGER_H_ */

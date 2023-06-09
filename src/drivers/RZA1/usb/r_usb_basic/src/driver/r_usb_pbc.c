@@ -38,14 +38,14 @@
 /***********************************************************************************************************************
  Macro definitions
  ***********************************************************************************************************************/
-#define USB_BC_DCD_TIME                 (600)
-#define USB_BC_DCD_DBNC                 (11)
-#define USB_BC_VDPSRC_ON                (42)
-#define USB_BC_VDMSRC_DIS               (22)
-#define USB_BC_VDMSRC_ON                (42)
+#define USB_BC_DCD_TIME   (600)
+#define USB_BC_DCD_DBNC   (11)
+#define USB_BC_VDPSRC_ON  (42)
+#define USB_BC_VDMSRC_DIS (22)
+#define USB_BC_VDMSRC_ON  (42)
 
-#define USB_BC_DCD_TIMEOUT              (0)
-#define USB_BC_DCD_COMP_SE0             (1)
+#define USB_BC_DCD_TIMEOUT  (0)
+#define USB_BC_DCD_COMP_SE0 (1)
 
 /***********************************************************************************************************************
  Typedef definitions
@@ -56,10 +56,10 @@
  Exported global variables and functions (to be accessed by other files)
  ***********************************************************************************************************************/
 /* variables */
-uint16_t        g_usb_bc_detect;
+uint16_t g_usb_bc_detect;
 
 /* functions */
-void            usb_pstd_bc_detect_process(void);
+void usb_pstd_bc_detect_process(void);
 
 /***********************************************************************************************************************
  Private global variables and functions
@@ -67,9 +67,9 @@ void            usb_pstd_bc_detect_process(void);
 /* variables */
 
 /* functions */
-uint8_t         usb_pstd_bc_data_contact_detect(void);
-uint8_t         usb_pstd_bc_primary_detection(void);
-uint8_t         usb_pstd_bc_secondary_detection(void);
+uint8_t usb_pstd_bc_data_contact_detect(void);
+uint8_t usb_pstd_bc_primary_detection(void);
+uint8_t usb_pstd_bc_secondary_detection(void);
 
 /***********************************************************************************************************************
  Imported global variables and functions (from other files)
@@ -77,8 +77,8 @@ uint8_t         usb_pstd_bc_secondary_detection(void);
 /* variables */
 
 /* functions */
-extern void     usb_cpu_delay_1us(uint16_t time);
-extern void     usb_cpu_delay_xms(uint16_t time);
+extern void usb_cpu_delay_1us(uint16_t time);
+extern void usb_cpu_delay_xms(uint16_t time);
 
 /***********************************************************************************************************************
  Renesas Abstracted USB peripheral battery charging driver functions
@@ -92,10 +92,10 @@ extern void     usb_cpu_delay_xms(uint16_t time);
  ***********************************************************************************************************************/
 void usb_pstd_bc_detect_process(void)
 {
-    usb_ctrl_t  ctrl;
+    usb_ctrl_t ctrl;
 
-    usb_pstd_bc_data_contact_detect ();
-    
+    usb_pstd_bc_data_contact_detect();
+
     if (usb_pstd_bc_primary_detection())
     {
         if (usb_pstd_bc_secondary_detection())
@@ -125,35 +125,34 @@ void usb_pstd_bc_detect_process(void)
  ***********************************************************************************************************************/
 uint8_t usb_pstd_bc_data_contact_detect(void)
 {
-    uint16_t    buf;
-    uint16_t    timer = 0;
-
+    uint16_t buf;
+    uint16_t timer = 0;
 
     hw_usb_set_cnen();
-    hw_usb_set_bcctrl( USB_NULL, USB_IDPSRCE);
-    usb_cpu_delay_xms((uint16_t)5);                                 /* wait stabilization */
+    hw_usb_set_bcctrl(USB_NULL, USB_IDPSRCE);
+    usb_cpu_delay_xms((uint16_t)5); /* wait stabilization */
 
-    while (timer < USB_BC_DCD_TIME)                                 /* [BC1.2 Spec] DCD_TIMEOUT (300-900ms) */
+    while (timer < USB_BC_DCD_TIME) /* [BC1.2 Spec] DCD_TIMEOUT (300-900ms) */
     {
-        buf = hw_usb_read_syssts (USB_NULL, USB_PORT0);
+        buf = hw_usb_read_syssts(USB_NULL, USB_PORT0);
         if ((buf & USB_LNST) == USB_SE0)
         {
-            usb_cpu_delay_xms ((uint16_t)USB_BC_DCD_DBNC);          /* [BC1.2 Spec] DCD_DBNC (min:10ms) */
+            usb_cpu_delay_xms((uint16_t)USB_BC_DCD_DBNC); /* [BC1.2 Spec] DCD_DBNC (min:10ms) */
             timer += USB_BC_DCD_DBNC;
-            buf = hw_usb_read_syssts (USB_NULL, USB_PORT0);
+            buf = hw_usb_read_syssts(USB_NULL, USB_PORT0);
             if ((buf & USB_LNST) == USB_SE0)
             {
-                hw_usb_clear_bcctrl (USB_NULL, USB_IDPSRCE);
-                return USB_BC_DCD_COMP_SE0;                         /* Connected Data Line */
+                hw_usb_clear_bcctrl(USB_NULL, USB_IDPSRCE);
+                return USB_BC_DCD_COMP_SE0; /* Connected Data Line */
             }
         }
-        usb_cpu_delay_xms ((uint16_t)1);
+        usb_cpu_delay_xms((uint16_t)1);
         timer++;
     }
 
-    hw_usb_clear_bcctrl (USB_NULL,  USB_IDPSRCE);
+    hw_usb_clear_bcctrl(USB_NULL, USB_IDPSRCE);
 
-    return USB_BC_DCD_TIMEOUT;                                      /* DCD Timeout */
+    return USB_BC_DCD_TIMEOUT; /* DCD Timeout */
 } /* End of function usb_pstd_bc_data_contact_detect() */
 
 /***********************************************************************************************************************
@@ -164,22 +163,22 @@ uint8_t usb_pstd_bc_data_contact_detect(void)
  ***********************************************************************************************************************/
 uint8_t usb_pstd_bc_primary_detection(void)
 {
-    uint16_t    buf;
+    uint16_t buf;
 
-    hw_usb_set_bcctrl (USB_NULL, (USB_VDPSRCE | USB_IDMSINKE));
+    hw_usb_set_bcctrl(USB_NULL, (USB_VDPSRCE | USB_IDMSINKE));
 
-    usb_cpu_delay_xms ((uint16_t)USB_BC_VDPSRC_ON);             /* [BC1.2 Spec] TVDPSRC_ON (min:40ms) */
-    buf = hw_usb_read_bcctrl (USB_NULL);
-    hw_usb_clear_bcctrl (USB_NULL, (USB_VDPSRCE | USB_IDMSINKE));
-    usb_cpu_delay_xms ((uint16_t)USB_BC_VDMSRC_DIS);            /* [BC1.2 Spec] TVDMSRC_DIS (max:20ms) */
+    usb_cpu_delay_xms((uint16_t)USB_BC_VDPSRC_ON); /* [BC1.2 Spec] TVDPSRC_ON (min:40ms) */
+    buf = hw_usb_read_bcctrl(USB_NULL);
+    hw_usb_clear_bcctrl(USB_NULL, (USB_VDPSRCE | USB_IDMSINKE));
+    usb_cpu_delay_xms((uint16_t)USB_BC_VDMSRC_DIS); /* [BC1.2 Spec] TVDMSRC_DIS (max:20ms) */
 
     if (buf & USB_CHGDETSTS)
     {
-        return 1;                                               /* Detected Charging Port */
+        return 1; /* Detected Charging Port */
     }
     else
     {
-        return 0;                                               /* Detected SDP */
+        return 0; /* Detected SDP */
     }
 } /* End of function usb_pstd_bc_primary_detection() */
 
@@ -191,26 +190,26 @@ uint8_t usb_pstd_bc_primary_detection(void)
  ***********************************************************************************************************************/
 uint8_t usb_pstd_bc_secondary_detection(void)
 {
-    uint16_t    buf;
+    uint16_t buf;
 
-    hw_usb_set_bcctrl (USB_NULL, (USB_VDMSRCE | USB_IDPSINKE));
-    usb_cpu_delay_xms ((uint16_t)USB_BC_VDMSRC_ON);             /* [BC1.2 Spec] TVDMSRC_ON (min:40ms) */
-    buf = hw_usb_read_bcctrl (USB_NULL);
-    hw_usb_clear_bcctrl (USB_NULL, (USB_VDMSRCE | USB_IDPSINKE));
+    hw_usb_set_bcctrl(USB_NULL, (USB_VDMSRCE | USB_IDPSINKE));
+    usb_cpu_delay_xms((uint16_t)USB_BC_VDMSRC_ON); /* [BC1.2 Spec] TVDMSRC_ON (min:40ms) */
+    buf = hw_usb_read_bcctrl(USB_NULL);
+    hw_usb_clear_bcctrl(USB_NULL, (USB_VDMSRCE | USB_IDPSINKE));
 
     if (buf & USB_PDDETSTS)
     {
-        return 1;                                               /* Detected DCP */
+        return 1; /* Detected DCP */
     }
     else
     {
-        return 0;                                               /* Detected CDP */
+        return 0; /* Detected CDP */
     }
 } /* End of function usb_pstd_secondary_detection() */
 
 #endif /* USB_CFG_BC == USB_CFG_ENABLE */
 
-#endif  /* (USB_CFG_MODE & USB_CFG_PERI) == USB_CFG_REPI */
+#endif /* (USB_CFG_MODE & USB_CFG_PERI) == USB_CFG_REPI */
 
 /***********************************************************************************************************************
  End of file

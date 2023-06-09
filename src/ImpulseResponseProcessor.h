@@ -26,13 +26,11 @@ extern const int32_t ir[];
 #define IR_SIZE 26
 #define IR_BUFFER_SIZE (IR_SIZE - 1)
 
-
 class ImpulseResponseProcessor {
 public:
 	ImpulseResponseProcessor();
 
 	StereoSample buffer[IR_BUFFER_SIZE];
-
 
 	inline void process(int32_t inputL, int32_t inputR, int32_t* outputL, int32_t* outputR) {
 

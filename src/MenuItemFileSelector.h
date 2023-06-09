@@ -32,5 +32,4 @@ public:
 
 extern MenuItemFileSelector fileSelectorMenu;
 
-
 #endif /* MENUITEMFILESELECTOR_H_ */

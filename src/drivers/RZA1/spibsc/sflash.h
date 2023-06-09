@@ -37,16 +37,13 @@
 #ifndef _R_SFLASH_H_
 #define _R_SFLASH_H_
 
-
 /******************************************************************************
 Includes   <System Includes> , "Project Includes"
 ******************************************************************************/
 
-
 /******************************************************************************
 Typedef definitions
 ******************************************************************************/
-
 
 /******************************************************************************
 Macro definitions
@@ -71,36 +68,33 @@ Macro definitions
 #define SFLASHCMD_CLEAR_STATUS  (0x30)
 
 /* 4-byte address command*/
-#define SFLASHCMD_BYTE_READ_4B     (0x0C)
-#define SFLASHCMD_QUAD_IO_READ_4B  (0xEC)
-#define SFLASHCMD_QUAD_READ_4B     (0x6C)
-#define SFLASHCMD_BYTE_PROGRAM_4B  (0x12)
-#define SFLASHCMD_QUAD_PROGRAM_4B  (0x34)
-#define SFLASHCMD_SECTOR_ERASE_4B  (0xDC)
-
+#define SFLASHCMD_BYTE_READ_4B    (0x0C)
+#define SFLASHCMD_QUAD_IO_READ_4B (0xEC)
+#define SFLASHCMD_QUAD_READ_4B    (0x6C)
+#define SFLASHCMD_BYTE_PROGRAM_4B (0x12)
+#define SFLASHCMD_QUAD_PROGRAM_4B (0x34)
+#define SFLASHCMD_SECTOR_ERASE_4B (0xDC)
 
 /* ---- serial flash register definitions ---- */
-#define CFREG_QUAD_BIT          (0x02)          /* Quad mode bit(Configuration Register) */
-#define CFREG_FREEZE_BIT        (0x01)          /* freeze bit(Configuration Register) */
-#define STREG_BPROTECT_BIT      (0x1c)          /* protect bit(Status Register) */
-#define STREG_SRWD_BIT          (0x80)          /* Status Register Write Disable(Status Register) */
+#define CFREG_QUAD_BIT     (0x02) /* Quad mode bit(Configuration Register) */
+#define CFREG_FREEZE_BIT   (0x01) /* freeze bit(Configuration Register) */
+#define STREG_BPROTECT_BIT (0x1c) /* protect bit(Status Register) */
+#define STREG_SRWD_BIT     (0x80) /* Status Register Write Disable(Status Register) */
 
-#define CFREG_LC_BIT            (0xc0)          /* Latency Code bit(Configuration Register) */
+#define CFREG_LC_BIT (0xc0) /* Latency Code bit(Configuration Register) */
 
-#define SET_EXTADD_4BYTE        (0x80)          /* Extended Address Enable bit(Bank Address Register) */
+#define SET_EXTADD_4BYTE (0x80) /* Extended Address Enable bit(Bank Address Register) */
 
 /* Page and Sector size */
-#define SF_PAGE_SIZE            (512)           /* Page size of serial flash memory */
-#define SF_SECTOR_SIZE          (256 * 1024)    /* Sector size = 256 KB   */
-#define SF_NUM_OF_SECTOR        (256)           /* Sector Count : 256 */
-
+#define SF_PAGE_SIZE     (512)        /* Page size of serial flash memory */
+#define SF_SECTOR_SIZE   (256 * 1024) /* Sector size = 256 KB   */
+#define SF_NUM_OF_SECTOR (256)        /* Sector Count : 256 */
 
 /******************************************************************************
 Functions Prototypes
 ******************************************************************************/
 
-
 /* R_SFLASH_H */
-#endif 
+#endif
 
 /* End of File */

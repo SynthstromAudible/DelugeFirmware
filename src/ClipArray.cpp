@@ -19,7 +19,6 @@
 
 ClipArray::ClipArray() {
 	// TODO Auto-generated constructor stub
-
 }
 
 int ClipArray::insertClipAtIndex(Clip* clip, int index) {
@@ -29,7 +28,6 @@ int ClipArray::insertClipAtIndex(Clip* clip, int index) {
 Clip* ClipArray::getClipAtIndex(int index) {
 	return (Clip*)getPointerAtIndex(index);
 }
-
 
 int ClipArray::getIndexForClip(Clip* clip) {
 	// For each Clip

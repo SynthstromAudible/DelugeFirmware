@@ -28,104 +28,101 @@
 #include "allpass.hpp"
 #include "tuning.h"
 
-class revmodel
-{
+class revmodel {
 public:
-					revmodel();
-			void	mute();
-			//void	process(int32_t input, int32_t *outputL, int32_t *outputR);
-			void	setroomsize(float value);
-			float	getroomsize();
-			void	setdamp(float value);
-			float	getdamp();
-			void	setwet(float value);
-			float	getwet();
-			void	setdry(float value);
-			float	getdry();
-			void	setwidth(float value);
-			float	getwidth();
-			void	setmode(float value);
-			float	getmode();
+	revmodel();
+	void mute();
+	//void	process(int32_t input, int32_t *outputL, int32_t *outputR);
+	void setroomsize(float value);
+	float getroomsize();
+	void setdamp(float value);
+	float getdamp();
+	void setwet(float value);
+	float getwet();
+	void setdry(float value);
+	float getdry();
+	void setwidth(float value);
+	float getwidth();
+	void setmode(float value);
+	float getmode();
 
+	inline void process(int32_t input, int32_t* outputL, int32_t* outputR) {
+		int32_t outL, outR;
 
-			inline void process(int32_t input, int32_t *outputL, int32_t *outputR)
-			{
-				int32_t outL,outR;
+		outL = outR = 0;
 
-				outL = outR = 0;
+		// Accumulate comb filters in parallel
+		for (int i = 0; i < numcombs; i++) {
+			outL += combL[i].process(input);
+			outR += combR[i].process(input);
+		}
 
-				// Accumulate comb filters in parallel
-				for(int i=0; i<numcombs; i++)
-				{
-					outL += combL[i].process(input);
-					outR += combR[i].process(input);
-				}
+		// Feed through allpasses in series
+		for (int i = 0; i < numallpasses; i++) {
+			outL = allpassL[i].process(outL);
+			outR = allpassR[i].process(outR);
+		}
 
-				// Feed through allpasses in series
-				for(int i=0; i<numallpasses; i++)
-				{
-					outL = allpassL[i].process(outL);
-					outR = allpassR[i].process(outR);
-				}
+		// Calculate output
+		*outputL = outL + (multiply_32x32_rshift32_rounded(outR, wet2)) << 1;
+		*outputR = outR + (multiply_32x32_rshift32_rounded(outL, wet2)) << 1;
+	}
 
-				// Calculate output
-				*outputL = outL + (multiply_32x32_rshift32_rounded(outR, wet2)) << 1;
-				*outputR = outR + (multiply_32x32_rshift32_rounded(outL, wet2)) << 1;
-			}
 private:
-			void	update();
+	void update();
+
 private:
-	int32_t	gain;
-	float	roomsize;
-	float	damp;
-	float	wet;
+	int32_t gain;
+	float roomsize;
+	float damp;
+	float wet;
 	float wet1;
 	int32_t wet2;
-	float	dry;
-	float	width;
-	float	mode;
+	float dry;
+	float width;
+	float mode;
 
-	// The following are all declared inline 
+	// The following are all declared inline
 	// to remove the need for dynamic allocation
 	// with its subsequent error-checking messiness
 
 	// Comb filters
-	comb	combL[numcombs];
-	comb	combR[numcombs];
+	comb combL[numcombs];
+	comb combR[numcombs];
 
 	// Allpass filters
-	allpass	allpassL[numallpasses];
-	allpass	allpassR[numallpasses];
+	allpass allpassL[numallpasses];
+	allpass allpassR[numallpasses];
 
 	// Buffers for the combs
-	int32_t	bufcombL1[combtuningL1];
-	int32_t	bufcombR1[combtuningR1];
-	int32_t	bufcombL2[combtuningL2];
-	int32_t	bufcombR2[combtuningR2];
-	int32_t	bufcombL3[combtuningL3];
-	int32_t	bufcombR3[combtuningR3];
-	int32_t	bufcombL4[combtuningL4];
-	int32_t	bufcombR4[combtuningR4];
-	int32_t	bufcombL5[combtuningL5];
-	int32_t	bufcombR5[combtuningR5];
-	int32_t	bufcombL6[combtuningL6];
-	int32_t	bufcombR6[combtuningR6];
-	int32_t	bufcombL7[combtuningL7];
-	int32_t	bufcombR7[combtuningR7];
-	int32_t	bufcombL8[combtuningL8];
-	int32_t	bufcombR8[combtuningR8];
+	int32_t bufcombL1[combtuningL1];
+	int32_t bufcombR1[combtuningR1];
+	int32_t bufcombL2[combtuningL2];
+	int32_t bufcombR2[combtuningR2];
+	int32_t bufcombL3[combtuningL3];
+	int32_t bufcombR3[combtuningR3];
+	int32_t bufcombL4[combtuningL4];
+	int32_t bufcombR4[combtuningR4];
+	int32_t bufcombL5[combtuningL5];
+	int32_t bufcombR5[combtuningR5];
+	int32_t bufcombL6[combtuningL6];
+	int32_t bufcombR6[combtuningR6];
+	int32_t bufcombL7[combtuningL7];
+	int32_t bufcombR7[combtuningR7];
+	int32_t bufcombL8[combtuningL8];
+	int32_t bufcombR8[combtuningR8];
 
 	// Buffers for the allpasses
-	int32_t	bufallpassL1[allpasstuningL1];
-	int32_t	bufallpassR1[allpasstuningR1];
-	int32_t	bufallpassL2[allpasstuningL2];
-	int32_t	bufallpassR2[allpasstuningR2];
-	int32_t	bufallpassL3[allpasstuningL3];
-	int32_t	bufallpassR3[allpasstuningR3];
-	int32_t	bufallpassL4[allpasstuningL4];
-	int32_t	bufallpassR4[allpasstuningR4];
+	int32_t bufallpassL1[allpasstuningL1];
+	int32_t bufallpassR1[allpasstuningR1];
+	int32_t bufallpassL2[allpasstuningL2];
+	int32_t bufallpassR2[allpasstuningR2];
+	int32_t bufallpassL3[allpasstuningL3];
+	int32_t bufallpassR3[allpasstuningR3];
+	int32_t bufallpassL4[allpasstuningL4];
+	int32_t bufallpassR4[allpasstuningR4];
 };
 
-#endif//_revmodel_
+#endif //_revmodel_
 
 //ends

@@ -38,20 +38,22 @@ public:
 	int32_t value;
 };
 
-
 struct StolenParamNodes;
-
-
 
 class AutoParam {
 public:
 	AutoParam();
 	void init();
 
-	void setCurrentValueInResponseToUserInput(int32_t value, ModelStackWithAutoParam const* modelStack, bool shouldLogAction = true, int32_t livePos = -1, bool mayDeleteNodesInLinearRun = true, bool isMPE = false);
-	int32_t processCurrentPos(ModelStackWithAutoParam const* modelStack, bool reversed, bool didPinpong, bool mayInterpolate = true, bool mustUpdateValueAtEveryNode = false);
-	void setValueForRegion(uint32_t pos, uint32_t length, int32_t value, ModelStackWithAutoParam const* modelStack, int actionType = ACTION_NOTE_EDIT);
-	void setValuePossiblyForRegion(int32_t value, ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t length, bool mayDeleteNodesInLinearRun = true);
+	void setCurrentValueInResponseToUserInput(int32_t value, ModelStackWithAutoParam const* modelStack,
+	                                          bool shouldLogAction = true, int32_t livePos = -1,
+	                                          bool mayDeleteNodesInLinearRun = true, bool isMPE = false);
+	int32_t processCurrentPos(ModelStackWithAutoParam const* modelStack, bool reversed, bool didPinpong,
+	                          bool mayInterpolate = true, bool mustUpdateValueAtEveryNode = false);
+	void setValueForRegion(uint32_t pos, uint32_t length, int32_t value, ModelStackWithAutoParam const* modelStack,
+	                       int actionType = ACTION_NOTE_EDIT);
+	void setValuePossiblyForRegion(int32_t value, ModelStackWithAutoParam const* modelStack, int32_t pos,
+	                               int32_t length, bool mayDeleteNodesInLinearRun = true);
 	int32_t getValueAtPos(uint32_t pos, ModelStackWithAutoParam const* modelStack, bool reversed = false);
 	bool tickSamples(int numSamples);
 	void setPlayPos(uint32_t pos, ModelStackWithAutoParam const* modelStack, bool reversed);
@@ -71,20 +73,29 @@ public:
 	void shiftParamVolumeByDB(float offset);
 	void shiftHorizontally(int amount, int32_t effectiveLength);
 	void swapState(AutoParamState* state, ModelStackWithAutoParam const* modelStack);
-	void copy(int32_t startPos, int32_t endPos, CopiedParamAutomation* copiedParamAutomation, bool isPatchCable, ModelStackWithAutoParam const* modelStack);
-	void paste(int32_t startPos, int32_t endPos, float scaleFactor, ModelStackWithAutoParam const* modelStack, CopiedParamAutomation* copiedParamAutomation, bool isPatchCable);
+	void copy(int32_t startPos, int32_t endPos, CopiedParamAutomation* copiedParamAutomation, bool isPatchCable,
+	          ModelStackWithAutoParam const* modelStack);
+	void paste(int32_t startPos, int32_t endPos, float scaleFactor, ModelStackWithAutoParam const* modelStack,
+	           CopiedParamAutomation* copiedParamAutomation, bool isPatchCable);
 	int makeInterpolationGoodAgain(int32_t clipLength, int quantizationRShift);
 	void transposeCCValuesToChannelPressureValues();
 	void deleteTime(int32_t startPos, int32_t lengthToDelete, ModelStackWithAutoParam* modelStack);
 	void insertTime(int32_t pos, int32_t lengthToInsert);
-	void appendParam(AutoParam* otherParam, int32_t oldLength, int32_t reverseThisRepeatWithLength, bool pingpongingGenerally);
-	void nudgeNonInterpolatingNodesAtPos(int32_t pos, int offset, int32_t lengthBeforeLoop, Action* action, ModelStackWithAutoParam const* modelStack);
-	void stealNodes(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t regionLength, int32_t loopLength, Action* action, StolenParamNodes* stolenNodeRecord = NULL);
-	void insertStolenNodes(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t regionLength, int32_t loopLength, Action* action, StolenParamNodes* stolenNodeRecord);
-	void moveRegionHorizontally(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t length, int offset, int32_t lengthBeforeLoop, Action* action);
+	void appendParam(AutoParam* otherParam, int32_t oldLength, int32_t reverseThisRepeatWithLength,
+	                 bool pingpongingGenerally);
+	void nudgeNonInterpolatingNodesAtPos(int32_t pos, int offset, int32_t lengthBeforeLoop, Action* action,
+	                                     ModelStackWithAutoParam const* modelStack);
+	void stealNodes(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t regionLength, int32_t loopLength,
+	                Action* action, StolenParamNodes* stolenNodeRecord = NULL);
+	void insertStolenNodes(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t regionLength,
+	                       int32_t loopLength, Action* action, StolenParamNodes* stolenNodeRecord);
+	void moveRegionHorizontally(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t length, int offset,
+	                            int32_t lengthBeforeLoop, Action* action);
 	void deleteNodesWithinRegion(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t length);
 	int setNodeAtPos(int32_t pos, int32_t value, bool shouldInterpolate);
-	int homogenizeRegion(ModelStackWithAutoParam const* modelStack, int32_t startPos, int length, int startValue, bool interpolateLeftNode, bool interpolateRightNode, int32_t effectiveLength, bool reversed, int32_t posAtWhichClipWillCut = 2147483647);
+	int homogenizeRegion(ModelStackWithAutoParam const* modelStack, int32_t startPos, int length, int startValue,
+	                     bool interpolateLeftNode, bool interpolateRightNode, int32_t effectiveLength, bool reversed,
+	                     int32_t posAtWhichClipWillCut = 2147483647);
 	int32_t getDistanceToNextNode(ModelStackWithAutoParam const* modelStack, int32_t pos, bool reversed);
 	void setCurrentValueWithNoReversionOrRecording(ModelStackWithAutoParam const* modelStack, int32_t value);
 
@@ -92,11 +103,9 @@ public:
 	int32_t getValuePossiblyAtPos(int32_t pos, ModelStackWithAutoParam* modelStack);
 	void notifyPingpongOccurred();
 
-	inline void setCurrentValueBasicForSetup(int32_t value) { currentValue = value;	}
+	inline void setCurrentValueBasicForSetup(int32_t value) { currentValue = value; }
 
-	inline bool isAutomated() {
-		return (nodes.getNumElements());
-	}
+	inline bool isAutomated() { return (nodes.getNumElements()); }
 
 	inline void cancelOverriding() { // Will also cancel "latching".
 		renewedOverridingAtTime = 0;
@@ -112,11 +121,12 @@ public:
 	// stretches of time.
 
 private:
-	bool deleteRedundantNodeInLinearRun(int lastNodeInRunI, int32_t effectiveLength, bool mayLoopAroundBackToEnd = true);
+	bool deleteRedundantNodeInLinearRun(int lastNodeInRunI, int32_t effectiveLength,
+	                                    bool mayLoopAroundBackToEnd = true);
 	void setupInterpolation(ParamNode* nextNode, int32_t effectiveLength, int32_t currentPos, bool reversed);
-	void homogenizeRegionTestSuccess(int pos, int regionEnd, int startValue, bool interpolateStart, bool interpolateEnd);
+	void homogenizeRegionTestSuccess(int pos, int regionEnd, int startValue, bool interpolateStart,
+	                                 bool interpolateEnd);
 	void deleteNodesBeyondPos(int32_t pos);
-
 };
 
 #endif /* AUTOPARAM_H_ */

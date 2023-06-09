@@ -43,29 +43,26 @@
 #include "uitimermanager.h"
 #include "oled.h"
 
-
 KeyboardScreen keyboardScreen;
-
 
 inline InstrumentClip* getCurrentClip() {
 	return (InstrumentClip*)currentSong->currentClip;
 }
 
-
-KeyboardScreen::KeyboardScreen()
-{
+KeyboardScreen::KeyboardScreen() {
 	memset(padPresses, 255, sizeof(padPresses));
 	memset(yDisplayActive, 0, sizeof(yDisplayActive));
 }
 
-
-static const uint32_t padActionUIModes[] = {UI_MODE_AUDITIONING, UI_MODE_RECORD_COUNT_IN, 0}; // Careful - this is referenced in two places
+static const uint32_t padActionUIModes[] = {UI_MODE_AUDITIONING, UI_MODE_RECORD_COUNT_IN,
+                                            0}; // Careful - this is referenced in two places
 
 int KeyboardScreen::padAction(int x, int y, int velocity) {
 
 	if (x >= displayWidth) return ACTION_RESULT_DEALT_WITH;
 
-	if (sdRoutineLock && !allowSomeUserActionsEvenWhenInCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow some of the time when in card routine.
+	if (sdRoutineLock && !allowSomeUserActionsEvenWhenInCardRoutine)
+		return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow some of the time when in card routine.
 
 	int soundEditorResult = soundEditor.potentialShortcutPadAction(x, y, velocity);
 
@@ -73,10 +70,11 @@ int KeyboardScreen::padAction(int x, int y, int velocity) {
 		return soundEditorResult;
 	}
 
-
 	if (currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED) {
 		if (sdRoutineLock) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		if (velocity && currentSong->currentClip->output->type != INSTRUMENT_TYPE_KIT) { // We probably couldn't have got this far if it was a Kit, but let's just check
+		if (velocity
+		    && currentSong->currentClip->output->type
+		           != INSTRUMENT_TYPE_KIT) { // We probably couldn't have got this far if it was a Kit, but let's just check
 			int noteCode = getNoteCodeFromCoords(x, y);
 			exitScaleModeOnButtonRelease = false;
 			if (getCurrentClip()->inScaleMode) {
@@ -95,7 +93,8 @@ int KeyboardScreen::padAction(int x, int y, int velocity) {
 		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
 		bool clipIsActiveOnInstrument = makeCurrentClipActiveOnInstrumentIfPossible(modelStack);
-		if (!clipIsActiveOnInstrument && velocity) IndicatorLEDs::indicateAlertOnLed(sessionViewButtonX, sessionViewButtonY);
+		if (!clipIsActiveOnInstrument && velocity)
+			IndicatorLEDs::indicateAlertOnLed(sessionViewButtonX, sessionViewButtonY);
 
 		Instrument* instrument = (Instrument*)currentSong->currentClip->output;
 
@@ -111,7 +110,7 @@ int KeyboardScreen::padAction(int x, int y, int velocity) {
 			// if we missed a press-off event somehow (think this was happening when switching presets sometimes)
 			for (int p = 0; p < MAX_NUM_KEYBOARD_PAD_PRESSES; p++) {
 				if ((padPresses[p].x == x && padPresses[p].y == y)
-						|| (emptyPressIndex == MAX_NUM_KEYBOARD_PAD_PRESSES && padPresses[p].x == 255)) {
+				    || (emptyPressIndex == MAX_NUM_KEYBOARD_PAD_PRESSES && padPresses[p].x == 255)) {
 					emptyPressIndex = p;
 				}
 			}
@@ -124,7 +123,6 @@ int KeyboardScreen::padAction(int x, int y, int velocity) {
 			int yDisplay = noteCode - getCurrentClip()->yScrollKeyboardScreen;
 			if (yDisplayActive[yDisplay]) return ACTION_RESULT_DEALT_WITH;
 
-
 			// Change editing range if necessary
 			if (instrument->type == INSTRUMENT_TYPE_SYNTH) {
 				if (velocity) {
@@ -133,7 +131,6 @@ int KeyboardScreen::padAction(int x, int y, int velocity) {
 					}
 				}
 			}
-
 
 			// Ensure the note the user is trying to sound isn't already sounding
 			NoteRow* noteRow = ((InstrumentClip*)instrument->activeClip)->getNoteRowForYNote(noteCode);
@@ -150,7 +147,8 @@ int KeyboardScreen::padAction(int x, int y, int velocity) {
 
 			{
 				int velocityToSound = instrument->defaultVelocity;
-				((MelodicInstrument*)instrument)->beginAuditioningForNote(modelStack, noteCode, velocityToSound, zeroMPEValues);
+				((MelodicInstrument*)instrument)
+				    ->beginAuditioningForNote(modelStack, noteCode, velocityToSound, zeroMPEValues);
 			}
 
 			drawNoteCode(noteCode);
@@ -193,7 +191,8 @@ foundIt:
 					// ...then we're still auditioning
 
 					// If the same note is still being held down (on a different pad), then we don't want to switch it off either
-					if (getNoteCodeFromCoords(padPresses[p].x, padPresses[p].y) == noteCode) return ACTION_RESULT_DEALT_WITH;
+					if (getNoteCodeFromCoords(padPresses[p].x, padPresses[p].y) == noteCode)
+						return ACTION_RESULT_DEALT_WITH;
 				}
 			}
 
@@ -207,8 +206,7 @@ foundIt:
 
 			// If anything at all still auditioning...
 			int highestNoteCode = getHighestAuditionedNote();
-			if (highestNoteCode != -2147483648)
-				drawNoteCode(highestNoteCode);
+			if (highestNoteCode != -2147483648) drawNoteCode(highestNoteCode);
 			else {
 #if HAVE_OLED
 				OLED::removePopup();
@@ -219,9 +217,11 @@ foundIt:
 		}
 
 		// Recording - this only works *if* the Clip that we're viewing right now is the Instrument's activeClip
-		if (clipIsActiveOnInstrument && playbackHandler.shouldRecordNotesNow() && currentSong->isClipActive(currentSong->currentClip)) {
+		if (clipIsActiveOnInstrument && playbackHandler.shouldRecordNotesNow()
+		    && currentSong->isClipActive(currentSong->currentClip)) {
 
-			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(currentSong->currentClip);
+			ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
+			    modelStack->addTimelineCounter(currentSong->currentClip);
 
 			// Note-on
 			if (velocity) {
@@ -231,7 +231,10 @@ foundIt:
 				// in MelodicInstrument and Kit
 				if (isUIModeActive(UI_MODE_RECORD_COUNT_IN)) { // It definitely will be auditioning if we're here
 					ModelStackWithNoteRow* modelStackWithNoteRow = modelStackWithTimelineCounter->addNoteRow(0, NULL);
-					((MelodicInstrument*)instrument)->earlyNotes.insertElementIfNonePresent(noteCode, instrument->defaultVelocity, getCurrentClip()->allowNoteTails(modelStackWithNoteRow));
+					((MelodicInstrument*)instrument)
+					    ->earlyNotes.insertElementIfNonePresent(
+					        noteCode, instrument->defaultVelocity,
+					        getCurrentClip()->allowNoteTails(modelStackWithNoteRow));
 				}
 
 				else {
@@ -239,7 +242,8 @@ foundIt:
 
 					bool scaleAltered = false;
 
-					ModelStackWithNoteRow* modelStackWithNoteRow = getCurrentClip()->getOrCreateNoteRowForYNote(noteCode, modelStackWithTimelineCounter, action, &scaleAltered);
+					ModelStackWithNoteRow* modelStackWithNoteRow = getCurrentClip()->getOrCreateNoteRowForYNote(
+					    noteCode, modelStackWithTimelineCounter, action, &scaleAltered);
 					NoteRow* thisNoteRow = modelStackWithNoteRow->getNoteRowAllowNull();
 					if (thisNoteRow) {
 						getCurrentClip()->recordNoteOn(modelStackWithNoteRow, instrument->defaultVelocity);
@@ -254,7 +258,8 @@ foundIt:
 
 			// Note-off
 			else {
-				ModelStackWithNoteRow* modelStackWithNoteRow = getCurrentClip()->getNoteRowForYNote(noteCode, modelStackWithTimelineCounter);
+				ModelStackWithNoteRow* modelStackWithNoteRow =
+				    getCurrentClip()->getNoteRowForYNote(noteCode, modelStackWithTimelineCounter);
 				if (modelStackWithNoteRow->getNoteRowAllowNull()) {
 					getCurrentClip()->recordNoteOff(modelStackWithNoteRow);
 				}
@@ -264,82 +269,82 @@ foundIt:
 		uiNeedsRendering(this, 0xFFFFFFFF, 0);
 	}
 
-    return ACTION_RESULT_DEALT_WITH;
+	return ACTION_RESULT_DEALT_WITH;
 }
-
 
 int KeyboardScreen::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 
-    // Scale mode button
-    if (x == scaleModeButtonX && y == scaleModeButtonY) {
-        if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_KIT) return ACTION_RESULT_DEALT_WITH; // Kits can't do scales!
+	// Scale mode button
+	if (x == scaleModeButtonX && y == scaleModeButtonY) {
+		if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_KIT)
+			return ACTION_RESULT_DEALT_WITH; // Kits can't do scales!
 
-    	if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 
-        actionLogger.deleteAllLogs(); // Can't undo past this!
+		actionLogger.deleteAllLogs(); // Can't undo past this!
 
-        if (on) {
-            if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED) {
+		if (on) {
+			if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED) {
 
-            	// If user holding shift and we're already in scale mode, cycle through available scales
-            	if (Buttons::isShiftButtonPressed() && getCurrentClip()->inScaleMode) {
-            		cycleThroughScales();
+				// If user holding shift and we're already in scale mode, cycle through available scales
+				if (Buttons::isShiftButtonPressed() && getCurrentClip()->inScaleMode) {
+					cycleThroughScales();
 					uiNeedsRendering(this, 0xFFFFFFFF, 0);
-            	}
+				}
 
-            	// Or, no shift button - normal behaviour
-            	else {
-                    currentUIMode = UI_MODE_SCALE_MODE_BUTTON_PRESSED;
-                    exitScaleModeOnButtonRelease = true;
-                    if (!getCurrentClip()->inScaleMode) {
-                        calculateDefaultRootNote(); // Calculate it now so we can show the user even before they've released the button
-                        flashDefaultRootNoteOn = false;
-                        flashDefaultRootNote();
-                    }
-            	}
-            }
+				// Or, no shift button - normal behaviour
+				else {
+					currentUIMode = UI_MODE_SCALE_MODE_BUTTON_PRESSED;
+					exitScaleModeOnButtonRelease = true;
+					if (!getCurrentClip()->inScaleMode) {
+						calculateDefaultRootNote(); // Calculate it now so we can show the user even before they've released the button
+						flashDefaultRootNoteOn = false;
+						flashDefaultRootNote();
+					}
+				}
+			}
 
-            // If user is auditioning just one note, we can go directly into Scale Mode and set that root note
-            else if (oneNoteAuditioning() && !getCurrentClip()->inScaleMode) {
-                exitAuditionMode();
-                enterScaleMode(getLowestAuditionedNote());
-            }
-        }
-        else {
-            if (currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED) {
-                currentUIMode = UI_MODE_NONE;
-                if (getCurrentClip()->inScaleMode) {
-                    if (exitScaleModeOnButtonRelease) exitScaleMode();
-                }
-                else enterScaleMode();
-            }
-        }
-    }
+			// If user is auditioning just one note, we can go directly into Scale Mode and set that root note
+			else if (oneNoteAuditioning() && !getCurrentClip()->inScaleMode) {
+				exitAuditionMode();
+				enterScaleMode(getLowestAuditionedNote());
+			}
+		}
+		else {
+			if (currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED) {
+				currentUIMode = UI_MODE_NONE;
+				if (getCurrentClip()->inScaleMode) {
+					if (exitScaleModeOnButtonRelease) exitScaleMode();
+				}
+				else enterScaleMode();
+			}
+		}
+	}
 
 #if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-    // Clip view button - exit mode
-    else if (x == clipViewButtonX && y == clipViewButtonY) {
+	// Clip view button - exit mode
+	else if (x == clipViewButtonX && y == clipViewButtonY) {
 #else
 	// Keyboard button - exit mode
 	else if (x == keyboardButtonX && y == keyboardButtonY) {
 #endif
-    	if (on && currentUIMode == UI_MODE_NONE) {
-    		if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
-    		changeRootUI(&instrumentClipView);
-    	}
-    }
+		if (on && currentUIMode == UI_MODE_NONE) {
+			if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			changeRootUI(&instrumentClipView);
+		}
+	}
 
-    // Song view button
-    else if (x == sessionViewButtonX && y == sessionViewButtonY) {
-    	if (on && currentUIMode == UI_MODE_NONE) {
-    		if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+	// Song view button
+	else if (x == sessionViewButtonX && y == sessionViewButtonY) {
+		if (on && currentUIMode == UI_MODE_NONE) {
+			if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 
-    		if (currentSong->lastClipInstanceEnteredStartPos != -1 || currentSong->currentClip->section == 255) {
-    			bool success = arrangerView.transitionToArrangementEditor();
-    			if (!success) goto doOther;
-    		}
+			if (currentSong->lastClipInstanceEnteredStartPos != -1 || currentSong->currentClip->section == 255) {
+				bool success = arrangerView.transitionToArrangementEditor();
+				if (!success) goto doOther;
+			}
 
-    		else {
+			else {
 doOther:
 				currentUIMode = UI_MODE_INSTRUMENT_CLIP_COLLAPSING;
 				int transitioningToRow = sessionView.getClipPlaceOnScreen(currentSong->currentClip);
@@ -355,25 +360,25 @@ doOther:
 				PadLEDs::setupInstrumentClipCollapseAnimation(true);
 				PadLEDs::recordTransitionBegin(clipCollapseSpeed);
 				PadLEDs::renderClipExpandOrCollapse();
-    		}
-    	}
-    }
+			}
+		}
+	}
 
-    // Kit button
-    else if (x == kitButtonX && y == kitButtonY && currentUIMode == UI_MODE_NONE) {
+	// Kit button
+	else if (x == kitButtonX && y == kitButtonY && currentUIMode == UI_MODE_NONE) {
 #if DELUGE_MODEL != DELUGE_MODEL_40_PAD
-    	if (on) IndicatorLEDs::indicateAlertOnLed(keyboardLedX, keyboardLedX);
+		if (on) IndicatorLEDs::indicateAlertOnLed(keyboardLedX, keyboardLedX);
 #endif
-    }
+	}
 
-    else {
-    	int result = InstrumentClipMinder::buttonAction(x, y, on, inCardRoutine);
-    	if (result != ACTION_RESULT_NOT_DEALT_WITH) return result;
+	else {
+		int result = InstrumentClipMinder::buttonAction(x, y, on, inCardRoutine);
+		if (result != ACTION_RESULT_NOT_DEALT_WITH) return result;
 
-    	return view.buttonAction(x, y, on, inCardRoutine);
-    }
+		return view.buttonAction(x, y, on, inCardRoutine);
+	}
 
-    return ACTION_RESULT_DEALT_WITH;
+	return ACTION_RESULT_DEALT_WITH;
 }
 
 void KeyboardScreen::selectEncoderAction(int8_t offset) {
@@ -422,7 +427,6 @@ void KeyboardScreen::focusRegained() {
 	setLedStates();
 }
 
-
 void KeyboardScreen::openedInBackground() {
 	getCurrentClip()->onKeyboardScreen = true;
 	recalculateColours();
@@ -435,7 +439,8 @@ void KeyboardScreen::recalculateColours() {
 	}
 }
 
-bool KeyboardScreen::renderMainPads(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3], uint8_t occupancyMask[][displayWidth + sideBarWidth], bool drawUndefinedArea) {
+bool KeyboardScreen::renderMainPads(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
+                                    uint8_t occupancyMask[][displayWidth + sideBarWidth], bool drawUndefinedArea) {
 	if (!image) return true;
 
 	// First, piece together a picture of all notes-within-an-octave which are active
@@ -501,9 +506,8 @@ doFullColour:
 				// Otherwise, square will just get left black, from its having been wiped above
 
 				// If we're selecting ranges...
-				if (getCurrentUI() == &sampleBrowser
-						|| getCurrentUI() == &audioRecorder
-						|| (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem()->isRangeDependent())) {
+				if (getCurrentUI() == &sampleBrowser || getCurrentUI() == &audioRecorder
+				    || (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem()->isRangeDependent())) {
 					if (soundEditor.isUntransposedNoteWithinRange(noteCode)) {
 						for (int colour = 0; colour < 3; colour++) {
 							int value = (int)image[y][x][colour] + 35;
@@ -522,8 +526,8 @@ doFullColour:
 	return true;
 }
 
-
-bool KeyboardScreen::renderSidebar(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3], uint8_t occupancyMask[][displayWidth + sideBarWidth]) {
+bool KeyboardScreen::renderSidebar(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
+                                   uint8_t occupancyMask[][displayWidth + sideBarWidth]) {
 	if (!image) return true;
 
 	for (int y = 0; y < displayHeight; y++) {
@@ -533,19 +537,20 @@ bool KeyboardScreen::renderSidebar(uint32_t whichRows, uint8_t image[][displayWi
 	return true;
 }
 
-
 int KeyboardScreen::verticalEncoderAction(int offset, bool inCardRoutine) {
 	if (Buttons::isShiftButtonPressed()) {
 		if (currentUIMode == UI_MODE_NONE) {
-			if (inCardRoutine && !allowSomeUserActionsEvenWhenInCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
+			if (inCardRoutine && !allowSomeUserActionsEvenWhenInCardRoutine)
+				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
 
 			getCurrentClip()->colourOffset += offset;
-        	recalculateColours();
+			recalculateColours();
 			uiNeedsRendering(this, 0xFFFFFFFF, 0);
 		}
 	}
 	else {
-		if (inCardRoutine && !allowSomeUserActionsEvenWhenInCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
+		if (inCardRoutine && !allowSomeUserActionsEvenWhenInCardRoutine)
+			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
 
 		doScroll(offset * KEYBOARD_ROW_INTERVAL);
 	}
@@ -553,13 +558,10 @@ int KeyboardScreen::verticalEncoderAction(int offset, bool inCardRoutine) {
 	return ACTION_RESULT_DEALT_WITH;
 }
 
-
-
 int KeyboardScreen::horizontalEncoderAction(int offset) {
 	doScroll(offset);
 	return ACTION_RESULT_DEALT_WITH;
 }
-
 
 void KeyboardScreen::doScroll(int offset) {
 
@@ -568,7 +570,8 @@ void KeyboardScreen::doScroll(int offset) {
 		// Check we're not scrolling out of range
 		int newYNote;
 		if (offset >= 0) {
-			newYNote = getCurrentClip()->yScrollKeyboardScreen + (displayHeight - 1) * KEYBOARD_ROW_INTERVAL + displayWidth - 1;
+			newYNote = getCurrentClip()->yScrollKeyboardScreen + (displayHeight - 1) * KEYBOARD_ROW_INTERVAL
+			           + displayWidth - 1;
 		}
 		else newYNote = getCurrentClip()->yScrollKeyboardScreen;
 		if (!getCurrentClip()->isScrollWithinRange(offset, newYNote + offset)) return;
@@ -590,7 +593,8 @@ void KeyboardScreen::doScroll(int offset) {
 			// Change editing range if necessary
 			if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_SYNTH) {
 				if (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem() == &multiRangeMenu) {
-					multiRangeMenu.noteOnToChangeRange(highestNoteCode + ((SoundInstrument*)currentSong->currentClip->output)->transpose);
+					multiRangeMenu.noteOnToChangeRange(
+					    highestNoteCode + ((SoundInstrument*)currentSong->currentClip->output)->transpose);
 				}
 			}
 		}
@@ -606,25 +610,25 @@ void KeyboardScreen::doScroll(int offset) {
 					if (noteRow->soundingStatus == STATUS_SEQUENCED_NOTE) continue;
 				}
 
-				((MelodicInstrument*)currentSong->currentClip->output)->beginAuditioningForNote(modelStack, noteCode, ((Instrument*)currentSong->currentClip->output)->defaultVelocity, zeroMPEValues);
+				((MelodicInstrument*)currentSong->currentClip->output)
+				    ->beginAuditioningForNote(modelStack, noteCode,
+				                              ((Instrument*)currentSong->currentClip->output)->defaultVelocity,
+				                              zeroMPEValues);
 			}
 		}
 	}
 }
 
-
-
 void KeyboardScreen::flashDefaultRootNote() {
-    uiTimerManager.setTimer(TIMER_DEFAULT_ROOT_NOTE, flashTime);
-    flashDefaultRootNoteOn = !flashDefaultRootNoteOn;
+	uiTimerManager.setTimer(TIMER_DEFAULT_ROOT_NOTE, flashTime);
+	flashDefaultRootNoteOn = !flashDefaultRootNoteOn;
 	uiNeedsRendering(this, 0xFFFFFFFF, 0);
 }
 
-
 bool KeyboardScreen::oneNoteAuditioning() {
-    if (currentUIMode != UI_MODE_AUDITIONING) return false;
+	if (currentUIMode != UI_MODE_AUDITIONING) return false;
 
-    int numFound = 0;
+	int numFound = 0;
 
 	for (int p = 0; p < MAX_NUM_KEYBOARD_PAD_PRESSES; p++) {
 		if (padPresses[p].x == 255) {
@@ -648,7 +652,6 @@ int KeyboardScreen::getLowestAuditionedNote() {
 	return lowestNote;
 }
 
-
 int KeyboardScreen::getHighestAuditionedNote() {
 	int highestNote = -2147483648;
 
@@ -662,19 +665,17 @@ int KeyboardScreen::getHighestAuditionedNote() {
 	return highestNote;
 }
 
-
 void KeyboardScreen::enterScaleMode(int selectedRootNote) {
 
 	int newScroll = instrumentClipView.setupForEnteringScaleMode(selectedRootNote);
 	getCurrentClip()->yScroll = newScroll;
 
-    displayCurrentScaleName();
+	displayCurrentScaleName();
 
-    // And tidy up
+	// And tidy up
 	uiNeedsRendering(this, 0xFFFFFFFF, 0);
-    setLedStates();
+	setLedStates();
 }
-
 
 void KeyboardScreen::exitScaleMode() {
 
@@ -682,9 +683,8 @@ void KeyboardScreen::exitScaleMode() {
 	getCurrentClip()->yScroll += scrollAdjust;
 
 	uiNeedsRendering(this, 0xFFFFFFFF, 0);
-    setLedStates();
+	setLedStates();
 }
-
 
 void KeyboardScreen::setLedStates() {
 
@@ -694,12 +694,11 @@ void KeyboardScreen::setLedStates() {
 	InstrumentClipMinder::setLedStates();
 }
 
-
 void KeyboardScreen::drawNoteCode(int noteCode) {
-    // Might not want to actually do this...
-    if (!getCurrentUI()->toClipMinder()) return;
+	// Might not want to actually do this...
+	if (!getCurrentUI()->toClipMinder()) return;
 
-    if (currentSong->currentClip->output->type != INSTRUMENT_TYPE_KIT) drawActualNoteCode(noteCode);
+	if (currentSong->currentClip->output->type != INSTRUMENT_TYPE_KIT) drawActualNoteCode(noteCode);
 }
 
 bool KeyboardScreen::getAffectEntire() {
@@ -716,17 +715,20 @@ const uint8_t keyboardTickColoursBasicRecording[displayHeight] = {0, 0, 0, 0, 0,
 const uint8_t keyboardTickColoursLinearRecording[displayHeight] = {0, 0, 0, 0, 0, 0, 0, 2};
 #endif
 
-
 void KeyboardScreen::graphicsRoutine() {
 	int newTickSquare;
 
 	const uint8_t* colours = keyboardTickColoursBasicRecording;
 
-	if (!playbackHandler.isEitherClockActive() || !playbackHandler.isCurrentlyRecording() || !currentSong->isClipActive(currentSong->currentClip) || currentUIMode == UI_MODE_EXPLODE_ANIMATION || playbackHandler.ticksLeftInCountIn) {
+	if (!playbackHandler.isEitherClockActive() || !playbackHandler.isCurrentlyRecording()
+	    || !currentSong->isClipActive(currentSong->currentClip) || currentUIMode == UI_MODE_EXPLODE_ANIMATION
+	    || playbackHandler.ticksLeftInCountIn) {
 		newTickSquare = 255;
 	}
 	else {
-		newTickSquare = (uint64_t)(currentSong->currentClip->lastProcessedPos + playbackHandler.getNumSwungTicksInSinceLastActionedSwungTick()) * displayWidth / currentSong->currentClip->loopLength;
+		newTickSquare = (uint64_t)(currentSong->currentClip->lastProcessedPos
+		                           + playbackHandler.getNumSwungTicksInSinceLastActionedSwungTick())
+		                * displayWidth / currentSong->currentClip->loopLength;
 		if (newTickSquare < 0 || newTickSquare >= displayWidth) newTickSquare = 255;
 
 		if (currentSong->currentClip->getCurrentlyRecordingLinearly()) {
@@ -738,4 +740,3 @@ void KeyboardScreen::graphicsRoutine() {
 
 	PadLEDs::setTickSquares(keyboardTickSquares, colours);
 }
-

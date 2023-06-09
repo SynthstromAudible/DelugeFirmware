@@ -21,8 +21,7 @@
 #include "Note.h"
 #include "NoteRow.h"
 
-ConsequenceNoteExistence::ConsequenceNoteExistence(InstrumentClip* newClip, int newNoteRowId, Note* note, int newType)
-{
+ConsequenceNoteExistence::ConsequenceNoteExistence(InstrumentClip* newClip, int newNoteRowId, Note* note, int newType) {
 	clip = newClip;
 	noteRowId = newNoteRowId;
 	pos = note->pos;
@@ -33,7 +32,6 @@ ConsequenceNoteExistence::ConsequenceNoteExistence(InstrumentClip* newClip, int 
 
 	type = newType;
 }
-
 
 int ConsequenceNoteExistence::revert(int time, ModelStack* modelStack) {
 	NoteRow* noteRow = clip->getNoteRowFromId(noteRowId);

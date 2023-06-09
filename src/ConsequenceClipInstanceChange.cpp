@@ -20,8 +20,8 @@
 #include "definitions.h"
 #include "instrument.h"
 
-ConsequenceClipInstanceChange::ConsequenceClipInstanceChange(Output* newOutput, ClipInstance* clipInstance, int32_t posAfter, int32_t lengthAfter, Clip* clipAfter)
-{
+ConsequenceClipInstanceChange::ConsequenceClipInstanceChange(Output* newOutput, ClipInstance* clipInstance,
+                                                             int32_t posAfter, int32_t lengthAfter, Clip* clipAfter) {
 	output = newOutput;
 	pos[BEFORE] = clipInstance->pos;
 	pos[AFTER] = posAfter;

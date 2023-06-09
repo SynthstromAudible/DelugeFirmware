@@ -45,9 +45,9 @@
                  : uint16_t     hubport      : Hub port number
  Return value    : none
  ***********************************************************************************************************************/
-void usb_hstd_set_hub_port(usb_utr_t *ptr, uint16_t addr, uint16_t upphub, uint16_t hubport)
+void usb_hstd_set_hub_port(usb_utr_t* ptr, uint16_t addr, uint16_t upphub, uint16_t hubport)
 {
-    hw_usb_hrmw_devadd(ptr, addr, (upphub|hubport), (uint16_t)(USB_UPPHUB | USB_HUBPORT));
+    hw_usb_hrmw_devadd(ptr, addr, (upphub | hubport), (uint16_t)(USB_UPPHUB | USB_HUBPORT));
 } /* End of function usb_hstd_set_hub_port */
 
 uint8_t anythingEverAttachedAsUSBHost = 0;
@@ -62,11 +62,11 @@ extern uint32_t timeLastBRDY[];
  Return          : none
  ***********************************************************************************************************************/
 // Returns whether everything was just taken care of here. Rohan
-int usb_hstd_interrupt_handler(usb_utr_t *ptr)
+int usb_hstd_interrupt_handler(usb_utr_t* ptr)
 {
-    uint16_t    intsts0;
-    uint16_t    intenb0;
-    uint16_t    ists0;
+    uint16_t intsts0;
+    uint16_t intenb0;
+    uint16_t ists0;
 
     intsts0 = ptr->ipp->INTSTS0;
     intenb0 = ptr->ipp->INTENB0;
@@ -76,171 +76,176 @@ int usb_hstd_interrupt_handler(usb_utr_t *ptr)
     ptr->status  = 0;
 
     ists0 = (uint16_t)(intsts0 & intenb0);
-/*  ists2 = (uint16_t)(intsts2 & intenb2);*/
+    /*  ists2 = (uint16_t)(intsts2 & intenb2);*/
 
     /***** Processing PIPE0-MAX_PIPE_NO data *****/
-    if (ists0 & USB_BRDY)       /***** EP0-7 BRDY *****/ // Usually means a data receive is complete. Rohan
+    if (ists0 & USB_BRDY) /***** EP0-7 BRDY *****/ // Usually means a data receive is complete. Rohan
     {
 
-        uint16_t    brdysts;
-        uint16_t    brdyenb;
-        uint16_t    bsts;
+        uint16_t brdysts;
+        uint16_t brdyenb;
+        uint16_t bsts;
 
         brdysts = ptr->ipp->BRDYSTS;
         //brdyenb = ptr->ipp->BRDYENB;
-        bsts  = brdysts;//(uint16_t)(brdysts & brdyenb);
+        bsts = brdysts; //(uint16_t)(brdysts & brdyenb);
 
-    	// Pipe 0
-    	if (bsts & USB_BRDY0) {
+        // Pipe 0
+        if (bsts & USB_BRDY0)
+        {
             ptr->ipp->BRDYSTS = (uint16_t)(~USB_BRDY0);
-            ptr->keyword = USB_INT_BRDY0;
-            ptr->status  = USB_BRDY0;
-    	}
+            ptr->keyword      = USB_INT_BRDY0;
+            ptr->status       = USB_BRDY0;
+        }
 
-    	// Other pipes
-    	else {
-        	//brdyOccurred(0); // Records exact time of message receipt
-        	timeLastBRDY[0] = DMACnNonVolatile(SSI_TX_DMA_CHANNEL).CRSA_n;
+        // Other pipes
+        else
+        {
+            //brdyOccurred(0); // Records exact time of message receipt
+            timeLastBRDY[0] = DMACnNonVolatile(SSI_TX_DMA_CHANNEL).CRSA_n;
 
             ptr->ipp->BRDYSTS = (uint16_t)(~bsts & BRDYSTS_MASK);
-            ptr->keyword = USB_INT_BRDY;
-            ptr->status  = bsts;
-    	}
+            ptr->keyword      = USB_INT_BRDY;
+            ptr->status       = bsts;
+        }
     }
-    else if (ists0 & USB_BEMP)       /***** EP0-7 BEMP *****/
+    else if (ists0 & USB_BEMP) /***** EP0-7 BEMP *****/
     {
 
-        uint16_t    bempsts;
-        uint16_t    bempenb;
-        uint16_t    ests;
+        uint16_t bempsts;
+        uint16_t bempenb;
+        uint16_t ests;
 
         bempsts = ptr->ipp->BEMPSTS;
         //bempenb = ptr->ipp->BEMPENB;
-        ests  = bempsts;//(uint16_t)(bempsts & bempenb);
+        ests = bempsts; //(uint16_t)(bempsts & bempenb);
 
-    	// Pipe 0
-		if (ests & USB_BEMP0) {
-	        ptr->ipp->BEMPSTS = (uint16_t)(~USB_BEMP0);
-	        ptr->keyword = USB_INT_BEMP0;
-	        ptr->status  = USB_BEMP0;
-		}
+        // Pipe 0
+        if (ests & USB_BEMP0)
+        {
+            ptr->ipp->BEMPSTS = (uint16_t)(~USB_BEMP0);
+            ptr->keyword      = USB_INT_BEMP0;
+            ptr->status       = USB_BEMP0;
+        }
 
-		// Other pipes
-		else {
-			ptr->ipp->BEMPSTS = (uint16_t)(~ests & BEMPSTS_MASK);
-			ptr->keyword = USB_INT_BEMP;
-			ptr->status  = ests;
-		}
+        // Other pipes
+        else
+        {
+            ptr->ipp->BEMPSTS = (uint16_t)(~ests & BEMPSTS_MASK);
+            ptr->keyword      = USB_INT_BEMP;
+            ptr->status       = ests;
+        }
     }
-    else if (ists0 & USB_NRDY)       /***** EP0-7 NRDY *****/
+    else if (ists0 & USB_NRDY) /***** EP0-7 NRDY *****/
     {
-        uint16_t    nrdysts;
-        uint16_t    nrdyenb;
-        uint16_t    nsts;
+        uint16_t nrdysts;
+        uint16_t nrdyenb;
+        uint16_t nsts;
 
         nrdysts = ptr->ipp->NRDYSTS;
         nrdyenb = ptr->ipp->NRDYENB;
-        nsts  = (uint16_t)(nrdysts & nrdyenb);
+        nsts    = (uint16_t)(nrdysts & nrdyenb);
 
         ptr->ipp->NRDYSTS = (uint16_t)(~nsts & NRDYSTS_MASK);
-        ptr->keyword = USB_INT_NRDY;
-        ptr->status  = nsts;
+        ptr->keyword      = USB_INT_NRDY;
+        ptr->status       = nsts;
     }
 
     /***** Processing VBUS/SOF *****/
-    else if (ists0 & USB_VBINT)     /***** VBUS change *****/
+    else if (ists0 & USB_VBINT) /***** VBUS change *****/
     {
         /* Status Clear */
         ptr->ipp->INTSTS0 = (uint16_t)~USB_VBINT;
-        ptr->keyword = USB_INT_VBINT;
+        ptr->keyword      = USB_INT_VBINT;
     }
-    else if (ists0 & USB_SOFR)       /***** SOFR change *****/
+    else if (ists0 & USB_SOFR) /***** SOFR change *****/
     {
         /* SOFR Clear */
         ptr->ipp->INTSTS0 = (uint16_t)~USB_SOFR;
-        ptr->keyword = USB_INT_SOFR;
+        ptr->keyword      = USB_INT_SOFR;
     }
 
-    else {
+    else
+    {
 
-        uint16_t    intsts1;
-        uint16_t    intenb1;
-        uint16_t    ists1;
+        uint16_t intsts1;
+        uint16_t intenb1;
+        uint16_t ists1;
 
         intsts1 = ptr->ipp->INTSTS1;
         intenb1 = ptr->ipp->INTENB1;
-        ists1 = (uint16_t)(intsts1 & intenb1);
+        ists1   = (uint16_t)(intsts1 & intenb1);
 
-		/***** Processing Setup transaction *****/
-		if (ists1 & USB_SACK)
-		{
-			/***** Setup ACK *****/
-			/* SACK Clear */
-			ptr->ipp->INTSTS1 = (uint16_t) (~USB_SACK & INTSTS1_MASK);
-			/* Setup Ignore,Setup Acknowledge disable */
-			ptr->ipp->INTENB1 &= (uint16_t)~(USB_SIGNE | USB_SACKE);
-			ptr->keyword = USB_INT_SACK;
-		}
-		else if (ists1 & USB_SIGN)
-		{
-			/***** Setup Ignore *****/
-			/* SIGN Clear */
-			ptr->ipp->INTSTS1 = (uint16_t)~USB_SIGN;
-			/* Setup Ignore,Setup Acknowledge disable */
-			ptr->ipp->INTENB1 &= (uint16_t)(~USB_SIGN & INTSTS1_MASK);
-			ptr->keyword = USB_INT_SIGN;
-		}
+        /***** Processing Setup transaction *****/
+        if (ists1 & USB_SACK)
+        {
+            /***** Setup ACK *****/
+            /* SACK Clear */
+            ptr->ipp->INTSTS1 = (uint16_t)(~USB_SACK & INTSTS1_MASK);
+            /* Setup Ignore,Setup Acknowledge disable */
+            ptr->ipp->INTENB1 &= (uint16_t) ~(USB_SIGNE | USB_SACKE);
+            ptr->keyword = USB_INT_SACK;
+        }
+        else if (ists1 & USB_SIGN)
+        {
+            /***** Setup Ignore *****/
+            /* SIGN Clear */
+            ptr->ipp->INTSTS1 = (uint16_t)~USB_SIGN;
+            /* Setup Ignore,Setup Acknowledge disable */
+            ptr->ipp->INTENB1 &= (uint16_t)(~USB_SIGN & INTSTS1_MASK);
+            ptr->keyword = USB_INT_SIGN;
+        }
 
-
-		/***** Processing rootport0 *****/
-	#if 0
+        /***** Processing rootport0 *****/
+#if 0
 		else if (ists1 & USB_OVRCR)     /***** OVER CURRENT *****/
 		{
 			/* OVRCR Clear */
 			ptr->ipp->INTSTS1 = (uint16_t)~USB_OVRCR;
 			ptr->keyword = USB_INT_OVRCR0;
 		}
-	#endif
-		else if (ists1 & USB_ATTCH)     /***** ATTCH INT *****/
-		{
-			/* DTCH  interrupt disable */
-			usb_hstd_bus_int_disable(ptr, (uint16_t)USB_PORT0);
-			ptr->keyword = USB_INT_ATTCH0;
-			anythingEverAttachedAsUSBHost = 1; // By Rohan. This is the first notification that something's been attached - even if it's not working yet
-		}
-		else if (ists1 & USB_EOFERR)   /***** EOFERR INT *****/
-		{
-			/* EOFERR Clear */
-			ptr->ipp->INTSTS1 = (uint16_t)(~USB_EOFERR & INTSTS1_MASK);
-			ptr->keyword = USB_INT_EOFERR0;
-		}
-		else if (ists1 & USB_BCHG)       /***** BCHG INT *****/
-		{
-			/* BCHG  interrupt disable */
-			usb_hstd_bchg_disable(ptr, (uint16_t)USB_PORT0);
-			ptr->keyword = USB_INT_BCHG0;
-		}
-		else if (ists1 & USB_DTCH)       /***** DETACH *****/
-		{
-			/* DTCH  interrupt disable */
-			usb_hstd_bus_int_disable(ptr, (uint16_t)USB_PORT0);
-			ptr->keyword = USB_INT_DTCH0;
-		}
-	#if USB_CFG_BC == USB_CFG_ENABLE
-		else if (ists1 & USB_PDDETINT)        /***** PDDETINT INT *****/
-		{
-			if(ptr -> ip == USB_USBIP_1)
-			{
-				/* PDDETINT  interrupt disable */
-				ptr->ipp->INTSTS1 = (uint16_t)~USB_PDDETINT;
-				ptr->keyword = USB_INT_PDDETINT0;
-			}
-		}
-	#endif
-		else
-		{
-			return 1;
-		}
+#endif
+        else if (ists1 & USB_ATTCH) /***** ATTCH INT *****/
+        {
+            /* DTCH  interrupt disable */
+            usb_hstd_bus_int_disable(ptr, (uint16_t)USB_PORT0);
+            ptr->keyword = USB_INT_ATTCH0;
+            anythingEverAttachedAsUSBHost =
+                1; // By Rohan. This is the first notification that something's been attached - even if it's not working yet
+        }
+        else if (ists1 & USB_EOFERR) /***** EOFERR INT *****/
+        {
+            /* EOFERR Clear */
+            ptr->ipp->INTSTS1 = (uint16_t)(~USB_EOFERR & INTSTS1_MASK);
+            ptr->keyword      = USB_INT_EOFERR0;
+        }
+        else if (ists1 & USB_BCHG) /***** BCHG INT *****/
+        {
+            /* BCHG  interrupt disable */
+            usb_hstd_bchg_disable(ptr, (uint16_t)USB_PORT0);
+            ptr->keyword = USB_INT_BCHG0;
+        }
+        else if (ists1 & USB_DTCH) /***** DETACH *****/
+        {
+            /* DTCH  interrupt disable */
+            usb_hstd_bus_int_disable(ptr, (uint16_t)USB_PORT0);
+            ptr->keyword = USB_INT_DTCH0;
+        }
+#if USB_CFG_BC == USB_CFG_ENABLE
+        else if (ists1 & USB_PDDETINT) /***** PDDETINT INT *****/
+        {
+            if (ptr->ip == USB_USBIP_1)
+            {
+                /* PDDETINT  interrupt disable */
+                ptr->ipp->INTSTS1 = (uint16_t)~USB_PDDETINT;
+                ptr->keyword      = USB_INT_PDDETINT0;
+            }
+        }
+#endif
+        else
+        {
+            return 1;
+        }
     }
 
     return 0; // Everything's *not* taken care of here - need to use the messaging system to take care of it later. Rohan
@@ -256,9 +261,9 @@ int usb_hstd_interrupt_handler(usb_utr_t *ptr)
                  :                           ; (USB_ATTACHF/USB_ATTACHL/USB_DETACH/USB_OK)
  Note            : Please change for your SYSTEM
  ***********************************************************************************************************************/
-uint16_t usb_hstd_chk_attach(usb_utr_t *ptr, uint16_t port)
+uint16_t usb_hstd_chk_attach(usb_utr_t* ptr, uint16_t port)
 {
-    uint16_t    buf[3];
+    uint16_t buf[3];
 
     usb_hstd_read_lnst(ptr, port, buf);
 
@@ -280,7 +285,7 @@ uint16_t usb_hstd_chk_attach(usb_utr_t *ptr, uint16_t port)
         }
         else if ((buf[0] & USB_LNST) == USB_SE0)
         {
-        	displayPopupIfAllBootedUp("DETACH"); // By Rohan
+            displayPopupIfAllBootedUp("DETACH"); // By Rohan
             USB_PRINTF0(" Detach device\n");
         }
         else
@@ -305,9 +310,9 @@ uint16_t usb_hstd_chk_attach(usb_utr_t *ptr, uint16_t port)
                  : uint16_t     event        ; Device state
  Return value    : none
  ***********************************************************************************************************************/
-void usb_hstd_chk_clk(usb_utr_t *ptr, uint16_t port, uint16_t event)
+void usb_hstd_chk_clk(usb_utr_t* ptr, uint16_t port, uint16_t event)
 {
-    if ((g_usb_hstd_mgr_mode[ptr->ip][USB_PORT0] == USB_DETACHED) 
+    if ((g_usb_hstd_mgr_mode[ptr->ip][USB_PORT0] == USB_DETACHED)
         || (g_usb_hstd_mgr_mode[ptr->ip][USB_PORT0] == USB_SUSPENDED))
     {
         usb_hstd_chk_sof(ptr, (uint16_t)USB_PORT0);
@@ -325,12 +330,12 @@ void usb_hstd_chk_clk(usb_utr_t *ptr, uint16_t port, uint16_t event)
                  : uint16_t     port         ; Port number
  Return value    : none
  ***********************************************************************************************************************/
-void usb_hstd_detach_process(usb_utr_t *ptr, uint16_t port)
+void usb_hstd_detach_process(usb_utr_t* ptr, uint16_t port)
 {
-    uint16_t    connect_inf;
-    uint16_t    md;
-    uint16_t    i;
-    uint16_t    addr;
+    uint16_t connect_inf;
+    uint16_t md;
+    uint16_t i;
+    uint16_t addr;
 
     /* ATTCH interrupt disable */
     usb_hstd_attch_disable(ptr, port);
@@ -366,7 +371,7 @@ void usb_hstd_detach_process(usb_utr_t *ptr, uint16_t port)
             }
             usb_hstd_set_dev_addr(ptr, addr, USB_OK, USB_OK);
             usb_hstd_set_hub_port(ptr, addr, USB_OK, USB_OK);
-            USB_PRINTF1("*** Device address %d clear.\n",md);
+            USB_PRINTF1("*** Device address %d clear.\n", md);
         }
     }
     /* Decide USB Line state (ATTACH) */
@@ -377,13 +382,13 @@ void usb_hstd_detach_process(usb_utr_t *ptr, uint16_t port)
 
             usb_hstd_attach(ptr, connect_inf, port);
 
-        break;
+            break;
 
         case USB_ATTACHF:
 
             usb_hstd_attach(ptr, connect_inf, port);
 
-        break;
+            break;
 
         case USB_DETACH:
 
@@ -392,7 +397,7 @@ void usb_hstd_detach_process(usb_utr_t *ptr, uint16_t port)
             /* Check clock */
             usb_hstd_chk_clk(ptr, port, (uint16_t)USB_DETACHED);
 
-        break;
+            break;
 
         default:
 
@@ -401,7 +406,7 @@ void usb_hstd_detach_process(usb_utr_t *ptr, uint16_t port)
             /* Check clock */
             usb_hstd_chk_clk(ptr, port, (uint16_t)USB_DETACHED);
 
-        break;
+            break;
     }
 } /* End of function of usb_hstd_detach_process */
 
@@ -416,7 +421,7 @@ void usb_hstd_detach_process(usb_utr_t *ptr, uint16_t port)
  Return value    : none
  Note            : Please change for your SYSTEM
  ***********************************************************************************************************************/
-void usb_hstd_read_lnst(usb_utr_t *ptr, uint16_t port, uint16_t *buf)
+void usb_hstd_read_lnst(usb_utr_t* ptr, uint16_t port, uint16_t* buf)
 {
     do
     {
@@ -430,8 +435,7 @@ void usb_hstd_read_lnst(usb_utr_t *ptr, uint16_t port, uint16_t *buf)
             usb_cpu_delay_xms((uint16_t)20);
             buf[1] = hw_usb_read_syssts(ptr, port);
         }
-    }
-    while ((buf[0] & USB_LNST) != (buf[1] & USB_LNST));
+    } while ((buf[0] & USB_LNST) != (buf[1] & USB_LNST));
     buf[1] = hw_usb_read_dvstctr(ptr, port);
 } /* End of function of usb_hstd_read_lnst */
 
@@ -445,9 +449,9 @@ void usb_hstd_read_lnst(usb_utr_t *ptr, uint16_t port, uint16_t *buf)
  Return value    : none
  Note            : Please change for your SYSTEM
  ***********************************************************************************************************************/
-void usb_hstd_attach_process(usb_utr_t *ptr, uint16_t port)
+void usb_hstd_attach_process(usb_utr_t* ptr, uint16_t port)
 {
-    uint16_t    connect_inf;
+    uint16_t connect_inf;
 
     /* ATTCH interrupt disable */
     usb_hstd_attch_disable(ptr, port);
@@ -464,13 +468,13 @@ void usb_hstd_attach_process(usb_utr_t *ptr, uint16_t port)
 
             usb_hstd_attach(ptr, connect_inf, port);
 
-        break;
+            break;
 
         case USB_ATTACHF:
 
             usb_hstd_attach(ptr, connect_inf, port);
 
-        break;
+            break;
 
         case USB_DETACH:
 
@@ -479,13 +483,13 @@ void usb_hstd_attach_process(usb_utr_t *ptr, uint16_t port)
             /* Check clock */
             usb_hstd_chk_clk(ptr, port, (uint16_t)USB_DETACHED);
 
-        break;
+            break;
 
         default:
 
             usb_hstd_attach(ptr, (uint16_t)USB_ATTACHF, port);
 
-        break;
+            break;
     }
 } /* End of function of usb_hstd_attach_process */
 
@@ -496,9 +500,9 @@ void usb_hstd_attach_process(usb_utr_t *ptr, uint16_t port)
                  : uint16_t     port         ; Port number
  Return value    : none
  ***********************************************************************************************************************/
-void usb_hstd_chk_sof(usb_utr_t *ptr, uint16_t port)
+void usb_hstd_chk_sof(usb_utr_t* ptr, uint16_t port)
 {
-    usb_cpu_delay_1us((uint16_t)1);  /* Wait 640ns */
+    usb_cpu_delay_1us((uint16_t)1); /* Wait 640ns */
 } /* End of function of usb_hstd_chk_sof */
 
 /***********************************************************************************************************************
@@ -508,21 +512,21 @@ void usb_hstd_chk_sof(usb_utr_t *ptr, uint16_t port)
                  : uint16_t     port         ; Port number
  Return value    : none
  ***********************************************************************************************************************/
-void usb_hstd_bus_reset(usb_utr_t *ptr, uint16_t port)
+void usb_hstd_bus_reset(usb_utr_t* ptr, uint16_t port)
 {
-    uint16_t    buf;
-    uint16_t    i;
+    uint16_t buf;
+    uint16_t i;
 
     /* USBRST=1, UACT=0 */
     hw_usb_rmw_dvstctr(ptr, port, USB_USBRST, (USB_USBRST | USB_UACT));
 
     /* Wait 50ms */
     usb_cpu_delay_xms((uint16_t)50);
-    if(ptr->ip == USB_USBIP_1)
+    if (ptr->ip == USB_USBIP_1)
     {
         /* USBRST=0 */
-        hw_usb_clear_dvstctr(ptr, USB_PORT0, USB_USBRST);   /* for UTMI */
-        usb_cpu_delay_1us(300);                             /* for UTMI */
+        hw_usb_clear_dvstctr(ptr, USB_PORT0, USB_USBRST); /* for UTMI */
+        usb_cpu_delay_1us(300);                           /* for UTMI */
     }
     /* USBRST=0, RESUME=0, UACT=1 */
     usb_hstd_set_uact(ptr, port);
@@ -550,7 +554,7 @@ void usb_hstd_bus_reset(usb_utr_t *ptr, uint16_t port)
                  : uint16_t     port         ; Port number
  Return value    : none
  ***********************************************************************************************************************/
-void usb_hstd_resume_process(usb_utr_t *ptr, uint16_t port)
+void usb_hstd_resume_process(usb_utr_t* ptr, uint16_t port)
 {
     usb_hstd_bchg_disable(ptr, port);
 
@@ -577,10 +581,10 @@ void usb_hstd_resume_process(usb_utr_t *ptr, uint16_t port)
                  :                           : LSCONNECT : Low-Speed
                  :                           : NOCONNECT : not connect
  ***********************************************************************************************************************/
-uint16_t usb_hstd_support_speed_check(usb_utr_t *ptr, uint16_t port)
+uint16_t usb_hstd_support_speed_check(usb_utr_t* ptr, uint16_t port)
 {
-    uint16_t    buf;
-    uint16_t    conn_inf;
+    uint16_t buf;
+    uint16_t conn_inf;
 
     buf = hw_usb_read_dvstctr(ptr, port);
 
@@ -594,31 +598,31 @@ uint16_t usb_hstd_support_speed_check(usb_utr_t *ptr, uint16_t port)
 
             conn_inf = USB_HSCONNECT;
 
-        break;
+            break;
 
         case USB_FSMODE:
 
             conn_inf = USB_FSCONNECT;
 
-        break;
+            break;
 
         case USB_LSMODE:
 
             conn_inf = USB_LSCONNECT;
 
-        break;
+            break;
 
         case USB_HSPROC:
 
             conn_inf = USB_NOCONNECT;
 
-        break;
+            break;
 
         default:
 
             conn_inf = USB_NOCONNECT;
 
-        break;
+            break;
     }
 
     return (conn_inf);
@@ -633,15 +637,15 @@ uint16_t usb_hstd_support_speed_check(usb_utr_t *ptr, uint16_t port)
                  : uint16_t     *write_p     : Address of buffer of data to write.
  Return value    : The incremented address of last argument (write_p).
  ***********************************************************************************************************************/
-uint8_t *usb_hstd_write_fifo(usb_utr_t *ptr, uint16_t count, uint16_t pipemode, uint8_t *write_p)
+uint8_t* usb_hstd_write_fifo(usb_utr_t* ptr, uint16_t count, uint16_t pipemode, uint8_t* write_p)
 {
-    uint16_t    even;
-    uint16_t    odd;
+    uint16_t even;
+    uint16_t odd;
 
     for (even = (uint16_t)(count >> 2); (even != 0); --even)
     {
         /* 32bit access */
-        hw_usb_write_fifo32(ptr, pipemode, *((uint32_t *)write_p));
+        hw_usb_write_fifo32(ptr, pipemode, *((uint32_t*)write_p));
 
         /* Renewal write pointer */
         write_p += sizeof(uint32_t);
@@ -653,7 +657,7 @@ uint8_t *usb_hstd_write_fifo(usb_utr_t *ptr, uint16_t count, uint16_t pipemode, 
         /* Change FIFO access width */
         hw_usb_set_mbw(ptr, pipemode, USB_MBW_16);
         /* FIFO write */
-        hw_usb_write_fifo16(ptr, pipemode, *((uint16_t *)write_p));
+        hw_usb_write_fifo16(ptr, pipemode, *((uint16_t*)write_p));
 
         /* Renewal write pointer */
         write_p += sizeof(uint16_t);
@@ -687,16 +691,16 @@ uint8_t *usb_hstd_write_fifo(usb_utr_t *ptr, uint16_t count, uint16_t pipemode, 
                  : uint16_t     *write_p     : Address of buffer to store the read data.
  Return value    : Pointer to a buffer that contains the data to be read next.
  ***********************************************************************************************************************/
-uint8_t *usb_hstd_read_fifo(usb_utr_t *ptr, uint16_t count, uint16_t pipemode, uint8_t *read_p)
+uint8_t* usb_hstd_read_fifo(usb_utr_t* ptr, uint16_t count, uint16_t pipemode, uint8_t* read_p)
 {
-    uint16_t    even;
-    uint16_t    odd;
-    uint32_t    odd_byte_data_temp;
+    uint16_t even;
+    uint16_t odd;
+    uint32_t odd_byte_data_temp;
 
     for (even = (uint16_t)(count >> 2); (even != 0); --even)
     {
         /* 32bit FIFO access */
-        *(uint32_t *)read_p= hw_usb_read_fifo32(ptr, pipemode);
+        *(uint32_t*)read_p = hw_usb_read_fifo32(ptr, pipemode);
 
         /* Renewal read pointer */
         read_p += sizeof(uint32_t);
@@ -711,13 +715,14 @@ uint8_t *usb_hstd_read_fifo(usb_utr_t *ptr, uint16_t count, uint16_t pipemode, u
         /* 32bit FIFO access */
         odd_byte_data_temp = hw_usb_read_fifo32(ptr, pipemode);
         /* Condition compilation by the difference of the little endian */
-        do{
-            *read_p = (uint8_t)(odd_byte_data_temp & 0x000000ff);
+        do
+        {
+            *read_p            = (uint8_t)(odd_byte_data_temp & 0x000000ff);
             odd_byte_data_temp = odd_byte_data_temp >> 8;
             /* Renewal read pointer */
             read_p += sizeof(uint8_t);
             odd--;
-        }while (odd != 0);
+        } while (odd != 0);
     }
 
     return read_p;
@@ -732,9 +737,9 @@ uint8_t *usb_hstd_read_fifo(usb_utr_t *ptr, uint16_t count, uint16_t pipemode, u
  Return value    : none
  Note            : In the case of timeout status, it does not call back.
  ***********************************************************************************************************************/
-void usb_hstd_forced_termination(usb_utr_t *ptr, uint16_t pipe, uint16_t status)
+void usb_hstd_forced_termination(usb_utr_t* ptr, uint16_t pipe, uint16_t status)
 {
-    uint16_t    buffer;
+    uint16_t buffer;
 
     /* PID = NAK */
     /* Set NAK */
@@ -748,7 +753,8 @@ void usb_hstd_forced_termination(usb_utr_t *ptr, uint16_t pipe, uint16_t status)
     hw_usb_clear_nrdyenb(ptr, pipe);
 
     /* Disable Empty Interrupt */
-    hw_usb_clear_bempenb(ptr, pipe); // This isn't necessary, and I've removed it from when there's been a successful transaction. However, removing it didn't solve occasional i029 on disconnecting / reconnecting hub and many devices.
+    hw_usb_clear_bempenb(ptr,
+        pipe); // This isn't necessary, and I've removed it from when there's been a successful transaction. However, removing it didn't solve occasional i029 on disconnecting / reconnecting hub and many devices.
 
     usb_cstd_clr_transaction_counter(ptr, pipe);
 
@@ -794,8 +800,8 @@ void usb_hstd_forced_termination(usb_utr_t *ptr, uint16_t pipe, uint16_t status)
         g_p_usb_pipe[pipe]->status  = status;
         g_p_usb_pipe[pipe]->pipectr = hw_usb_read_pipectr(ptr, pipe);
         //g_p_usb_pipe[pipe]->errcnt  = (uint8_t)g_usb_hstd_ignore_cnt[ptr->ip][pipe];
-        g_p_usb_pipe[pipe]->ipp     = ptr->ipp;
-        g_p_usb_pipe[pipe]->ip      = ptr->ip;
+        g_p_usb_pipe[pipe]->ipp = ptr->ipp;
+        g_p_usb_pipe[pipe]->ip  = ptr->ip;
         if (USB_NULL != (g_p_usb_pipe[pipe]->complete))
         {
             (g_p_usb_pipe[pipe]->complete)(g_p_usb_pipe[pipe], 0, 0);
@@ -815,7 +821,7 @@ void usb_hstd_forced_termination(usb_utr_t *ptr, uint16_t pipe, uint16_t status)
  ***********************************************************************************************************************/
 usb_regadr_t usb_hstd_get_usb_ip_adr(uint16_t ipnum)
 {
-    usb_regadr_t    ptr;
+    usb_regadr_t ptr;
 
     if (ipnum == USB_USBIP_0)
     {
@@ -842,9 +848,9 @@ usb_regadr_t usb_hstd_get_usb_ip_adr(uint16_t ipnum)
  Return value    : none
  Note            : none
  ***********************************************************************************************************************/
-void usb_hstd_nrdy_endprocess(usb_utr_t *ptr, uint16_t pipe)
+void usb_hstd_nrdy_endprocess(usb_utr_t* ptr, uint16_t pipe)
 {
-    uint16_t    buffer;
+    uint16_t buffer;
 
     /* Host Function */
     buffer = usb_cstd_get_pid(ptr, pipe);
@@ -879,7 +885,7 @@ void usb_hstd_nrdy_endprocess(usb_utr_t *ptr, uint16_t pipe)
         }
     }
 } /* End of function usb_hstd_nrdy_endprocess() */
-#endif  /* (USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST */
+#endif /* (USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST */
 
 /***********************************************************************************************************************
  End of file

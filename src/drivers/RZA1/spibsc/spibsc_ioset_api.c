@@ -45,33 +45,28 @@ Includes <System Includes> , "Project Includes"
 //#pragma arm section rwdata = "DATA_SPIBSC_INIT2"
 //#pragma arm section zidata = "BSS_SPIBSC_INIT2"
 
-
 /******************************************************************************
 Typedef definitions
 ******************************************************************************/
-
 
 /******************************************************************************
 Macro definitions
 ******************************************************************************/
 
-
 /******************************************************************************
 Imported global variables and functions (from other files)
 ******************************************************************************/
-extern int32_t Userdef_SFLASH_Set_Mode(uint32_t ch_no, uint32_t dual, en_sf_req_t req, uint8_t data_width, uint8_t addr_mode);
-
+extern int32_t Userdef_SFLASH_Set_Mode(
+    uint32_t ch_no, uint32_t dual, en_sf_req_t req, uint8_t data_width, uint8_t addr_mode);
 
 /******************************************************************************
 Exported global variables and functions (to be accessed by other files)
 ******************************************************************************/
 
-
 /******************************************************************************
 Private global variables and functions
 ******************************************************************************/
-static int32_t SPIBSC_Exread_Mode_Config(uint32_t ch_no, st_spibsc_cfg_t *spibsccfg);
-
+static int32_t SPIBSC_Exread_Mode_Config(uint32_t ch_no, st_spibsc_cfg_t* spibsccfg);
 
 /******************************************************************************
 * Function Name: R_SFLASH_Exmode
@@ -135,24 +130,25 @@ int32_t R_SFLASH_SpibscStop(uint32_t ch_no)
 * Return Value :  0 : success
 *                -1 : error
 ******************************************************************************/
-int32_t R_SFLASH_Spimode_Init(uint32_t ch_no, uint32_t dual, uint8_t data_width, uint8_t spbr, uint8_t brdv, uint8_t addr_mode)
+int32_t R_SFLASH_Spimode_Init(
+    uint32_t ch_no, uint32_t dual, uint8_t data_width, uint8_t spbr, uint8_t brdv, uint8_t addr_mode)
 {
     int32_t ret;
     en_sf_req_t req;
 
     /* ==== Initialization of SPIBSC ==== */
     ret = spibsc_common_init(ch_no, dual, spbr, brdv, data_width);
-    if(ret !=0)
+    if (ret != 0)
     {
         return ret;
     }
 
     /* ==== setting serial-flash quad mode ==== */
-    if(data_width == SPIBSC_1BIT)
+    if (data_width == SPIBSC_1BIT)
     {
         req = SF_REQ_SERIALMODE;
     }
-    else if(data_width == SPIBSC_4BIT)
+    else if (data_width == SPIBSC_4BIT)
     {
         req = SF_REQ_QUADMODE;
     }
@@ -177,24 +173,24 @@ int32_t R_SFLASH_Spimode_Init(uint32_t ch_no, uint32_t dual, uint8_t data_width,
 * Return Value :  0 : success
 *                -1 : error
 ******************************************************************************/
-int32_t R_SFLASH_Exmode_Init(uint32_t ch_no, uint32_t dual, st_spibsc_cfg_t *spibsccfg)
+int32_t R_SFLASH_Exmode_Init(uint32_t ch_no, uint32_t dual, st_spibsc_cfg_t* spibsccfg)
 {
     int32_t ret;
 
-    if(ch_no > 1)
+    if (ch_no > 1)
     {
         return -1;
     }
 
-    if( dual == SPIBSC_CMNCR_BSZ_SINGLE )
+    if (dual == SPIBSC_CMNCR_BSZ_SINGLE)
     {
         ret = spibsc_bsz_set(ch_no, SPIBSC_CMNCR_BSZ_SINGLE, spibsccfg->udef_data_width);
     }
     else
     {
-        ret = spibsc_bsz_set(ch_no, SPIBSC_CMNCR_BSZ_DUAL,   spibsccfg->udef_data_width);
+        ret = spibsc_bsz_set(ch_no, SPIBSC_CMNCR_BSZ_DUAL, spibsccfg->udef_data_width);
     }
-    if(ret != 0)
+    if (ret != 0)
     {
         return ret;
     }
@@ -204,8 +200,6 @@ int32_t R_SFLASH_Exmode_Init(uint32_t ch_no, uint32_t dual, st_spibsc_cfg_t *spi
     return ret;
 
 } /* End of function R_SFLASH_Exmode_Init() */
-
-
 
 /******************************************************************************
 * Function Name: R_SFLASH_Exmode_Setting
@@ -217,36 +211,32 @@ int32_t R_SFLASH_Exmode_Init(uint32_t ch_no, uint32_t dual, st_spibsc_cfg_t *spi
 * Return Value :  0 : success
 *                -1 : error
 ******************************************************************************/
-int32_t R_SFLASH_Exmode_Setting(uint32_t ch_no, uint32_t dual, st_spibsc_cfg_t *spibsccfg)
+int32_t R_SFLASH_Exmode_Setting(uint32_t ch_no, uint32_t dual, st_spibsc_cfg_t* spibsccfg)
 {
     int32_t ret;
     en_sf_req_t req;
 
     /* ==== check of SPIBSC register ==== */
     ret = SPIBSC_Exread_Mode_Config(ch_no, spibsccfg);
-    if(ret != 0)
+    if (ret != 0)
     {
         return ret;
     }
 
     /* ==== Initialization of SPIBSC ==== */
-    ret = spibsc_common_init(ch_no,
-                             dual,
-                             spibsccfg->udef_spbr,
-                             spibsccfg->udef_brdv,
-                             spibsccfg->udef_data_width);
+    ret = spibsc_common_init(ch_no, dual, spibsccfg->udef_spbr, spibsccfg->udef_brdv, spibsccfg->udef_data_width);
 
-    if(ret != 0)
+    if (ret != 0)
     {
         return ret;
     }
 
     /* ==== setting serial-flash quad mode ==== */
-    if(spibsccfg->udef_data_width == SPIBSC_1BIT)
+    if (spibsccfg->udef_data_width == SPIBSC_1BIT)
     {
         req = SF_REQ_SERIALMODE;
     }
-    else if(spibsccfg->udef_data_width == SPIBSC_4BIT)
+    else if (spibsccfg->udef_data_width == SPIBSC_4BIT)
     {
         req = SF_REQ_QUADMODE;
     }
@@ -256,7 +246,7 @@ int32_t R_SFLASH_Exmode_Setting(uint32_t ch_no, uint32_t dual, st_spibsc_cfg_t *
     }
 
     ret = Userdef_SFLASH_Set_Mode(ch_no, dual, req, spibsccfg->udef_data_width, spibsccfg->udef_addr_mode);
-    if(ret != 0)
+    if (ret != 0)
     {
         return ret;
     }
@@ -287,7 +277,7 @@ void R_SFLASH_WaitTend(uint32_t ch_no)
 * Return Value :  0 : success
 *                -1 : error
 ******************************************************************************/
-int32_t R_SFLASH_Set_Config(uint32_t ch_no, st_spibsc_cfg_t *spibsccfg)
+int32_t R_SFLASH_Set_Config(uint32_t ch_no, st_spibsc_cfg_t* spibsccfg)
 {
     int32_t ret;
 
@@ -305,26 +295,24 @@ int32_t R_SFLASH_Set_Config(uint32_t ch_no, st_spibsc_cfg_t *spibsccfg)
 * Return Value :  0 : success
 *                -1 : error
 ******************************************************************************/
-static int32_t SPIBSC_Exread_Mode_Config(uint32_t ch_no, st_spibsc_cfg_t *spibsccfg)
+static int32_t SPIBSC_Exread_Mode_Config(uint32_t ch_no, st_spibsc_cfg_t* spibsccfg)
 {
-    if( ch_no == 0 )
+    if (ch_no == 0)
     {
-        if((spibsccfg->udef_cmd_width > 2)    || (spibsccfg->udef_addr_width > 2)     ||
-           (spibsccfg->udef_opd_enable > 15)  || (spibsccfg->udef_opd_width > 2)      ||
-           (spibsccfg->udef_dmycyc_num > 7)   || (spibsccfg->udef_dmycyc_enable > 1)  ||
-           (spibsccfg->udef_dmycyc_width > 2) || (spibsccfg->udef_data_width > 2)     ||
-           (spibsccfg->udef_brdv > 3))
+        if ((spibsccfg->udef_cmd_width > 2) || (spibsccfg->udef_addr_width > 2) || (spibsccfg->udef_opd_enable > 15)
+            || (spibsccfg->udef_opd_width > 2) || (spibsccfg->udef_dmycyc_num > 7)
+            || (spibsccfg->udef_dmycyc_enable > 1) || (spibsccfg->udef_dmycyc_width > 2)
+            || (spibsccfg->udef_data_width > 2) || (spibsccfg->udef_brdv > 3))
         {
             return -1;
         }
     }
     else
     {
-        if((spibsccfg->udef_cmd_width > 2)    || (spibsccfg->udef_addr_width > 2)     ||
-           (spibsccfg->udef_opd_enable > 15 ) || (spibsccfg->udef_opd_width > 2)      ||
-           (spibsccfg->udef_dmycyc_num > 7)   || (spibsccfg->udef_dmycyc_enable > 1)  ||
-           (spibsccfg->udef_dmycyc_width > 2) || (spibsccfg->udef_data_width > 2)     ||
-           (spibsccfg->udef_brdv > 3))
+        if ((spibsccfg->udef_cmd_width > 2) || (spibsccfg->udef_addr_width > 2) || (spibsccfg->udef_opd_enable > 15)
+            || (spibsccfg->udef_opd_width > 2) || (spibsccfg->udef_dmycyc_num > 7)
+            || (spibsccfg->udef_dmycyc_enable > 1) || (spibsccfg->udef_dmycyc_width > 2)
+            || (spibsccfg->udef_data_width > 2) || (spibsccfg->udef_brdv > 3))
         {
             return -1;
         }
@@ -333,4 +321,3 @@ static int32_t SPIBSC_Exread_Mode_Config(uint32_t ch_no, st_spibsc_cfg_t *spibsc
     return 0;
 
 } /* End of function SPIBSC_Exread_Mode_Config() */
-

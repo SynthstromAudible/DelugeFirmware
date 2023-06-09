@@ -26,7 +26,7 @@ class Metronome {
 public:
 	Metronome();
 	void trigger(uint32_t newPhaseIncrement);
-	void render(StereoSample *buffer, uint16_t numSamples);
+	void render(StereoSample* buffer, uint16_t numSamples);
 
 	uint32_t phase;
 	uint32_t phaseIncrement;

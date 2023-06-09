@@ -25,13 +25,14 @@
 #include "sounddrum.h"
 #include "Output.h"
 
-
 // Takes the NoteRow's *index*, not id!
 // NoteRow must have a paramManager.
-ModelStackWithThreeMainThings* ModelStackWithTimelineCounter::addNoteRowAndExtraStuff(int noteRowIndex, NoteRow* newNoteRow) const {
+ModelStackWithThreeMainThings* ModelStackWithTimelineCounter::addNoteRowAndExtraStuff(int noteRowIndex,
+                                                                                      NoteRow* newNoteRow) const {
 
 #if ALPHA_OR_BETA_VERSION
-	if (!newNoteRow->paramManager.containsAnyParamCollectionsIncludingExpression()) numericDriver.freezeWithError("E389");
+	if (!newNoteRow->paramManager.containsAnyParamCollectionsIncludingExpression())
+		numericDriver.freezeWithError("E389");
 #endif
 
 	ModelStackWithThreeMainThings* toReturn = (ModelStackWithThreeMainThings*)this;
@@ -41,9 +42,8 @@ ModelStackWithThreeMainThings* ModelStackWithTimelineCounter::addNoteRowAndExtra
 	bool isKit = (output->type == INSTRUMENT_TYPE_KIT);
 	toReturn->noteRowId = isKit ? noteRowIndex : newNoteRow->y;
 	toReturn->setNoteRow(newNoteRow);
-	toReturn->modControllable = (isKit && newNoteRow->drum)
-					? newNoteRow->drum->toModControllable()
-					: output->toModControllable();
+	toReturn->modControllable =
+	    (isKit && newNoteRow->drum) ? newNoteRow->drum->toModControllable() : output->toModControllable();
 	toReturn->paramManager = &newNoteRow->paramManager;
 	return toReturn;
 }
@@ -62,15 +62,15 @@ bool ModelStackWithNoteRow::isCurrentlyPlayingReversed() const {
 
 	// Under a few different conditions, we just use the parent Clip's reversing status.
 	if (!noteRow
-			|| (noteRow->sequenceDirectionMode == SEQUENCE_DIRECTION_OBEY_PARENT
-					&& (!noteRow->loopLengthIfIndependent || ((Clip*)getTimelineCounter())->sequenceDirectionMode != SEQUENCE_DIRECTION_PINGPONG))) {
+	    || (noteRow->sequenceDirectionMode == SEQUENCE_DIRECTION_OBEY_PARENT
+	        && (!noteRow->loopLengthIfIndependent
+	            || ((Clip*)getTimelineCounter())->sequenceDirectionMode != SEQUENCE_DIRECTION_PINGPONG))) {
 		return ((Clip*)getTimelineCounter())->currentlyPlayingReversed;
 	}
 
 	// Otherwise, we use the NoteRow's local one.
 	else return noteRow->currentlyPlayingReversedIfIndependent;
 }
-
 
 int32_t ModelStackWithNoteRow::getLoopLength() const {
 	if (noteRow && noteRow->loopLengthIfIndependent) {
@@ -120,16 +120,22 @@ int32_t ModelStackWithNoteRow::getPosAtWhichPlaybackWillCut() const {
 			}
 
 			else {
-				int32_t ticksTilLaunchEvent = session.launchEventAtSwungTickCount - playbackHandler.lastSwungTickActioned;
+				int32_t ticksTilLaunchEvent =
+				    session.launchEventAtSwungTickCount - playbackHandler.lastSwungTickActioned;
 				if (reversed) ticksTilLaunchEvent = -ticksTilLaunchEvent;
-				cutPos = noteRow->lastProcessedPosIfIndependent + ticksTilLaunchEvent; // Might return a pos beyond the loop length - maybe that's what we want?
+				cutPos =
+				    noteRow->lastProcessedPosIfIndependent
+				    + ticksTilLaunchEvent; // Might return a pos beyond the loop length - maybe that's what we want?
 			}
 
 			// If pingponging, that's actually going to get referred to as a cut.
 			if (noteRow->getEffectiveSequenceDirectionMode(this) == SEQUENCE_DIRECTION_PINGPONG) {
 				if (reversed) {
 					if (cutPos < 0) {
-						cutPos = noteRow->lastProcessedPosIfIndependent ? 0 : -getLoopLength(); // Check we're not right at pos 0, as we briefly will be when we pingpong at the right-hand end of the Clip/etc.
+						cutPos =
+						    noteRow->lastProcessedPosIfIndependent
+						        ? 0
+						        : -getLoopLength(); // Check we're not right at pos 0, as we briefly will be when we pingpong at the right-hand end of the Clip/etc.
 					}
 				}
 				else {
@@ -159,29 +165,28 @@ int32_t ModelStackWithNoteRow::getLivePos() const {
 	}
 }
 
-
 // You must first be sure that noteRow is set, and has a ParamManager
 ModelStackWithThreeMainThings* ModelStackWithNoteRow::addOtherTwoThingsAutomaticallyGivenNoteRow() const {
 	ModelStackWithThreeMainThings* toReturn = (ModelStackWithThreeMainThings*)this;
 	NoteRow* noteRowHere = getNoteRow();
 	InstrumentClip* clip = (InstrumentClip*)getTimelineCounter();
-	toReturn->modControllable = (clip->output->type == INSTRUMENT_TYPE_KIT && noteRowHere->drum) // What if there's no Drum?
-					? noteRowHere->drum->toModControllable()
-					: clip->output->toModControllable();
+	toReturn->modControllable =
+	    (clip->output->type == INSTRUMENT_TYPE_KIT && noteRowHere->drum) // What if there's no Drum?
+	        ? noteRowHere->drum->toModControllable()
+	        : clip->output->toModControllable();
 	toReturn->paramManager = &noteRowHere->paramManager;
 	return toReturn;
 }
 
-
 bool ModelStackWithSoundFlags::checkSourceEverActiveDisregardingMissingSample(int s) {
 	int flagValue = soundFlags[SOUND_FLAG_SOURCE_0_ACTIVE_DISREGARDING_MISSING_SAMPLE + s];
 	if (flagValue == FLAG_TBD) {
-		flagValue = ((Sound*)modControllable)->isSourceActiveEverDisregardingMissingSample(s, (ParamManagerForTimeline*)paramManager);
+		flagValue = ((Sound*)modControllable)
+		                ->isSourceActiveEverDisregardingMissingSample(s, (ParamManagerForTimeline*)paramManager);
 		soundFlags[SOUND_FLAG_SOURCE_0_ACTIVE_DISREGARDING_MISSING_SAMPLE + s] = flagValue;
 	}
 	return flagValue;
 }
-
 
 bool ModelStackWithSoundFlags::checkSourceEverActive(int s) {
 	int flagValue = soundFlags[SOUND_FLAG_SOURCE_0_ACTIVE + s];
@@ -189,10 +194,10 @@ bool ModelStackWithSoundFlags::checkSourceEverActive(int s) {
 		flagValue = checkSourceEverActiveDisregardingMissingSample(s);
 		if (flagValue) { // Does an &&
 			Sound* sound = (Sound*)modControllable;
-			flagValue = sound->synthMode == SYNTH_MODE_FM
-					|| (sound->sources[s].oscType != OSC_TYPE_SAMPLE
-							&& sound->sources[s].oscType != OSC_TYPE_WAVETABLE)
-					|| sound->sources[s].hasAtLeastOneAudioFileLoaded();
+			flagValue =
+			    sound->synthMode == SYNTH_MODE_FM
+			    || (sound->sources[s].oscType != OSC_TYPE_SAMPLE && sound->sources[s].oscType != OSC_TYPE_WAVETABLE)
+			    || sound->sources[s].hasAtLeastOneAudioFileLoaded();
 		}
 		soundFlags[SOUND_FLAG_SOURCE_0_ACTIVE + s] = flagValue;
 	}

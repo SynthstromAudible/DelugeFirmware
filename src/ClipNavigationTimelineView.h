@@ -30,7 +30,7 @@ public:
 protected:
 	void horizontalScrollForLinearRecording(int32_t newXScroll);
 
-    static int32_t xScrollBeforeFollowingAutoExtendingLinearRecording; // -1 means none
+	static int32_t xScrollBeforeFollowingAutoExtendingLinearRecording; // -1 means none
 };
 
 #endif /* CLIPNAVIGATIONTIMELINEVIEW_H_ */

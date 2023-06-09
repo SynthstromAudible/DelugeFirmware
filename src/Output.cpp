@@ -39,13 +39,11 @@ Output::Output(int newType) : type(newType) {
 	wasCreatedForAutoOverdub = false;
 	armedForRecording = false;
 
-    modKnobMode = 1;
+	modKnobMode = 1;
 }
 
 Output::~Output() {
 }
-
-
 
 void Output::setupWithoutActiveClip(ModelStack* modelStack) {
 	inValidState = true;
@@ -69,7 +67,8 @@ void Output::detachActiveClip(Song* song) {
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 }
 
-void Output::pickAnActiveClipIfPossible(ModelStack* modelStack, bool searchSessionClipsIfNeeded, int maySendMIDIPGMs, bool setupWithoutActiveClipIfNeeded) {
+void Output::pickAnActiveClipIfPossible(ModelStack* modelStack, bool searchSessionClipsIfNeeded, int maySendMIDIPGMs,
+                                        bool setupWithoutActiveClipIfNeeded) {
 
 	if (!activeClip) {
 
@@ -124,7 +123,6 @@ yesSetActiveClip:
 	}
 }
 
-
 bool Output::clipHasInstance(Clip* clip) {
 	for (int i = 0; i < clipInstances.getNumElements(); i++) {
 		ClipInstance* instance = clipInstances.getElement(i);
@@ -154,21 +152,18 @@ void Output::clipLengthChanged(Clip* clip, int32_t oldLength) {
 	}
 }
 
-
-
-
 ParamManager* Output::getParamManager(Song* song) {
 
 	if (activeClip) {
 		return &activeClip->paramManager;
 	}
 	else {
-		ParamManager* paramManager = song->getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)toModControllable(), NULL);
+		ParamManager* paramManager =
+		    song->getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)toModControllable(), NULL);
 		if (!paramManager) numericDriver.freezeWithError("E170");
 		return paramManager;
 	}
 }
-
 
 void Output::writeToFile(Clip* clipForSavingOutputOnly, Song* song) {
 
@@ -195,18 +190,18 @@ bool Output::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 	if (!clipForSavingOutputOnly) {
 		if (mutedInArrangementMode) storageManager.writeAttribute("isMutedInArrangement", 1);
 		if (soloingInArrangementMode) storageManager.writeAttribute("isSoloingInArrangement", 1);
-	    storageManager.writeAttribute("isArmedForRecording", armedForRecording);
+		storageManager.writeAttribute("isArmedForRecording", armedForRecording);
 		storageManager.writeAttribute("activeModFunction", modKnobMode);
 
 		if (clipInstances.getNumElements()) {
-		    storageManager.write("\n");
-		    storageManager.printIndents();
-		    storageManager.write("clipInstances=\"0x");
+			storageManager.write("\n");
+			storageManager.printIndents();
+			storageManager.write("clipInstances=\"0x");
 
-		    for (int i = 0; i < clipInstances.getNumElements(); i++) {
-		        ClipInstance* thisInstance = clipInstances.getElement(i);
+			for (int i = 0; i < clipInstances.getNumElements(); i++) {
+				ClipInstance* thisInstance = clipInstances.getElement(i);
 
-		    	char buffer[9];
+				char buffer[9];
 
 				intToHex(thisInstance->pos, buffer);
 				storageManager.write(buffer);
@@ -224,8 +219,8 @@ bool Output::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 
 				intToHex(clipCode, buffer);
 				storageManager.write(buffer);
-		    }
-		    storageManager.write("\"");
+			}
+			storageManager.write("\"");
 		}
 	}
 
@@ -234,71 +229,72 @@ bool Output::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 
 // Most classes inheriting from Output actually override this with their own version...
 int Output::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) {
-    char const* tagName;
+	char const* tagName;
 
-    while (*(tagName = storageManager.readNextTagOrAttributeName())) {
-        bool readAndExited = readTagFromFile(tagName);
+	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+		bool readAndExited = readTagFromFile(tagName);
 
-        if (!readAndExited) storageManager.exitTag();
-    }
+		if (!readAndExited) storageManager.exitTag();
+	}
 
-    return NO_ERROR;
+	return NO_ERROR;
 }
 
 // If this returns false, the caller has to call storageManager.exitTag();
 bool Output::readTagFromFile(char const* tagName) {
 
-    if (!strcmp(tagName, "isMutedInArrangement")) {
-    	mutedInArrangementMode = storageManager.readTagOrAttributeValueInt();
-    }
+	if (!strcmp(tagName, "isMutedInArrangement")) {
+		mutedInArrangementMode = storageManager.readTagOrAttributeValueInt();
+	}
 
-    else if (!strcmp(tagName, "isSoloingInArrangement")) {
-    	soloingInArrangementMode = storageManager.readTagOrAttributeValueInt();
-    }
+	else if (!strcmp(tagName, "isSoloingInArrangement")) {
+		soloingInArrangementMode = storageManager.readTagOrAttributeValueInt();
+	}
 
-    else if (!strcmp(tagName, "isArmedForRecording")) {
-    	armedForRecording = storageManager.readTagOrAttributeValueInt();
-    }
+	else if (!strcmp(tagName, "isArmedForRecording")) {
+		armedForRecording = storageManager.readTagOrAttributeValueInt();
+	}
 
-    else if (!strcmp(tagName, "activeModFunction")) {
-    	modKnobMode = storageManager.readTagOrAttributeValueInt();
-    }
+	else if (!strcmp(tagName, "activeModFunction")) {
+		modKnobMode = storageManager.readTagOrAttributeValueInt();
+	}
 
-    else if (!strcmp(tagName, "trackInstances") || !strcmp(tagName, "clipInstances")) {
+	else if (!strcmp(tagName, "trackInstances") || !strcmp(tagName, "clipInstances")) {
 
-        char buffer[9];
+		char buffer[9];
 
-        int32_t minPos = 0;
+		int32_t minPos = 0;
 
-        int numElementsToAllocateFor = 0;
+		int numElementsToAllocateFor = 0;
 
-    	if (!storageManager.prepareToReadTagOrAttributeValueOneCharAtATime()) goto getOut;
+		if (!storageManager.prepareToReadTagOrAttributeValueOneCharAtATime()) goto getOut;
 
-    	{
+		{
 			char const* firstChars = storageManager.readNextCharsOfTagOrAttributeValue(2);
 			if (!firstChars || *(uint16_t*)firstChars != 'x0') goto getOut;
-    	}
+		}
 
-        while (true) {
+		while (true) {
 
-        	// Every time we've reached the end of a cluster...
-        	if (numElementsToAllocateFor <= 0) {
+			// Every time we've reached the end of a cluster...
+			if (numElementsToAllocateFor <= 0) {
 
-        		// See how many more chars before the end of the cluster. If there are any...
+				// See how many more chars before the end of the cluster. If there are any...
 				uint32_t charsRemaining = storageManager.getNumCharsRemainingInValue();
 				if (charsRemaining) {
 
 					// Allocate space for the right number of notes, and remember how long it'll be before we need to do this check again
 					numElementsToAllocateFor = (uint32_t)(charsRemaining - 1) / 24 + 1;
-					clipInstances.ensureEnoughSpaceAllocated(numElementsToAllocateFor); // If it returns false... oh well. We'll fail later
+					clipInstances.ensureEnoughSpaceAllocated(
+					    numElementsToAllocateFor); // If it returns false... oh well. We'll fail later
 				}
-        	}
+			}
 
-        	char const* hexChars = storageManager.readNextCharsOfTagOrAttributeValue(24);
-        	if (!hexChars) goto getOut;
+			char const* hexChars = storageManager.readNextCharsOfTagOrAttributeValue(24);
+			if (!hexChars) goto getOut;
 
-        	int32_t pos = hexToIntFixedLength(hexChars, 8);
-        	int32_t length = hexToIntFixedLength(&hexChars[8], 8);
+			int32_t pos = hexToIntFixedLength(hexChars, 8);
+			int32_t length = hexToIntFixedLength(&hexChars[8], 8);
 			uint32_t clipCode = hexToIntFixedLength(&hexChars[16], 8);
 
 			// See if that's all allowed
@@ -307,27 +303,26 @@ bool Output::readTagFromFile(char const* tagName) {
 			minPos = pos + length;
 
 			// Ok, make the clipInstance
-            int i = clipInstances.insertAtKey(pos, true);
-            if (i == -1) return true; //ERROR_INSUFFICIENT_RAM;
-            ClipInstance* newInstance = clipInstances.getElement(i);
-            newInstance->length = length;
-            newInstance->clip = (Clip*)clipCode; // Sneaky - disguising int as Clip*
+			int i = clipInstances.insertAtKey(pos, true);
+			if (i == -1) return true; //ERROR_INSUFFICIENT_RAM;
+			ClipInstance* newInstance = clipInstances.getElement(i);
+			newInstance->length = length;
+			newInstance->clip = (Clip*)clipCode; // Sneaky - disguising int as Clip*
 
-            numElementsToAllocateFor--;
-        }
-    }
+			numElementsToAllocateFor--;
+		}
+	}
 
-    else if (!strcmp(tagName, getNameXMLTag())) {
+	else if (!strcmp(tagName, getNameXMLTag())) {
 		storageManager.readTagOrAttributeValueString(&name);
-    }
+	}
 
-    else return false;
+	else return false;
 
 getOut:
-    storageManager.exitTag();
-    return true;
+	storageManager.exitTag();
+	return true;
 }
-
 
 int Output::possiblyBeginArrangementRecording(Song* song, int newPos) {
 
@@ -355,7 +350,6 @@ int Output::possiblyBeginArrangementRecording(Song* song, int newPos) {
 
 	song->arrangementOnlyClips.insertClipAtIndex(newClip, 0); // Will succeed - we checked above
 
-
 	// Set the ClipInstance's length to just 1, which kinda is how long it logically "is" at this point in time before recording has started.
 	// This leaves space directly after it, which the user might choose to suddenly to create another ClipInstance in.
 	// Oh and also, this sets the ClipInstance's Clip to the new Clip we created, above
@@ -380,7 +374,6 @@ int Output::possiblyBeginArrangementRecording(Song* song, int newPos) {
 	return NO_ERROR;
 }
 
-
 void Output::endAnyArrangementRecording(Song* song, int32_t actualEndPosInternalTicks, uint32_t timeRemainder) {
 
 	if (recordingInArrangement) {
@@ -388,12 +381,15 @@ void Output::endAnyArrangementRecording(Song* song, int32_t actualEndPosInternal
 		int i = clipInstances.search(actualEndPosInternalTicks, LESS);
 		ClipInstance* clipInstance = clipInstances.getElement(i);
 		if (ALPHA_OR_BETA_VERSION && !clipInstance) numericDriver.freezeWithError("E261");
-		if (ALPHA_OR_BETA_VERSION && clipInstance->clip != activeClip) numericDriver.freezeWithError("E262"); // Michael B got, in 3.2.0-alpha10. Possibly a general memory corruption thing?
+		if (ALPHA_OR_BETA_VERSION && clipInstance->clip != activeClip)
+			numericDriver.freezeWithError(
+			    "E262"); // Michael B got, in 3.2.0-alpha10. Possibly a general memory corruption thing?
 
 		int32_t lengthSoFarInternalTicks = actualEndPosInternalTicks - clipInstance->pos;
 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithTimelineCounter* modelStack = setupModelStackWithTimelineCounter(modelStackMemory, song, activeClip);
+		ModelStackWithTimelineCounter* modelStack =
+		    setupModelStackWithTimelineCounter(modelStackMemory, song, activeClip);
 		activeClip->finishLinearRecording(modelStack);
 
 		activeClip->expectNoFurtherTicks(song);
@@ -448,8 +444,9 @@ void Output::endAnyArrangementRecording(Song* song, int32_t actualEndPosInternal
 
 			alternativeLongerLength = alternativeLaterEndPos - clipInstance->pos;
 		}
-skipThat: {}
-		activeClip->quantizeLengthForArrangementRecording(modelStack, lengthSoFarInternalTicks, timeRemainder, quantizedEndPos - clipInstance->pos, alternativeLongerLength);
+skipThat : {}
+		activeClip->quantizeLengthForArrangementRecording(modelStack, lengthSoFarInternalTicks, timeRemainder,
+		                                                  quantizedEndPos - clipInstance->pos, alternativeLongerLength);
 
 		// Set the ClipInstance's length to match the Clip's new length
 		Action* action = actionLogger.getNewAction(ACTION_RECORD, true);
@@ -478,8 +475,6 @@ void Output::endArrangementPlayback(Song* song, int32_t actualEndPos, uint32_t t
 
 	endAnyArrangementRecording(song, actualEndPos, timeRemainder);
 }
-
-
 
 /*
 for (int i = 0; i < clipInstances.getNumElements(); i++) {

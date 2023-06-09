@@ -24,48 +24,44 @@
 class MenuItemSourceSelection : public MenuItem {
 public:
 	MenuItemSourceSelection();
-    void beginSession(MenuItem* navigatedBackwardFrom = NULL);
-    void selectEncoderAction(int offset) final;
-    virtual ParamDescriptor getDestinationDescriptor() = 0;
-    uint8_t getIndexOfPatchedParamToBlink() final;
-    uint8_t shouldBlinkPatchingSourceShortcut(int s, uint8_t* colour) final;
-    void readValueAgain() final;
+	void beginSession(MenuItem* navigatedBackwardFrom = NULL);
+	void selectEncoderAction(int offset) final;
+	virtual ParamDescriptor getDestinationDescriptor() = 0;
+	uint8_t getIndexOfPatchedParamToBlink() final;
+	uint8_t shouldBlinkPatchingSourceShortcut(int s, uint8_t* colour) final;
+	void readValueAgain() final;
 
 #if HAVE_OLED
-    void drawPixelsForOled();
-    static int selectedRowOnScreen;
-    int scrollPos; // Each instance needs to store this separately
+	void drawPixelsForOled();
+	static int selectedRowOnScreen;
+	int scrollPos; // Each instance needs to store this separately
 #else
 	void drawValue();
 #endif
 
-    uint8_t s;
+	uint8_t s;
 
 protected:
-    bool sourceIsAllowed(int source);
+	bool sourceIsAllowed(int source);
 	uint8_t shouldDrawDotOnValue();
 };
-
-
 
 class MenuItemSourceSelectionRegular final : public MenuItemSourceSelection {
 public:
 	MenuItemSourceSelectionRegular();
-    void beginSession(MenuItem* navigatedBackwardFrom = NULL);
-    ParamDescriptor getDestinationDescriptor();
-    MenuItem* selectButtonPress();
-    MenuItem* patchingSourceShortcutPress(int newS, bool previousPressStillActive);
+	void beginSession(MenuItem* navigatedBackwardFrom = NULL);
+	ParamDescriptor getDestinationDescriptor();
+	MenuItem* selectButtonPress();
+	MenuItem* patchingSourceShortcutPress(int newS, bool previousPressStillActive);
 };
 
 class MenuItemSourceSelectionRange final : public MenuItemSourceSelection {
 public:
 	MenuItemSourceSelectionRange();
 	ParamDescriptor getDestinationDescriptor();
-    MenuItem* selectButtonPress();
-    MenuItem* patchingSourceShortcutPress(int newS, bool previousPressStillActive);
+	MenuItem* selectButtonPress();
+	MenuItem* patchingSourceShortcutPress(int newS, bool previousPressStillActive);
 };
-
-
 
 extern MenuItemSourceSelectionRegular sourceSelectionMenuRegular;
 extern MenuItemSourceSelectionRange sourceSelectionMenuRange;

@@ -24,29 +24,29 @@
 
 class StereoSample {
 public:
-    StereoSample() {}
-    inline void addMono(int32_t sampleValue) {
-        l += sampleValue;
-        r += sampleValue;
-    }
+	StereoSample() {}
+	inline void addMono(int32_t sampleValue) {
+		l += sampleValue;
+		r += sampleValue;
+	}
 
-    inline void addPannedMono(int32_t sampleValue, int32_t amplitudeL, int32_t amplitudeR) {
-        l += (multiply_32x32_rshift32(sampleValue, amplitudeL) << 2);
-        r += (multiply_32x32_rshift32(sampleValue, amplitudeR) << 2);
-    }
+	inline void addPannedMono(int32_t sampleValue, int32_t amplitudeL, int32_t amplitudeR) {
+		l += (multiply_32x32_rshift32(sampleValue, amplitudeL) << 2);
+		r += (multiply_32x32_rshift32(sampleValue, amplitudeR) << 2);
+	}
 
-    inline void addStereo(int32_t sampleValueL, int32_t sampleValueR) {
-        l += sampleValueL;
-        r += sampleValueR;
-    }
+	inline void addStereo(int32_t sampleValueL, int32_t sampleValueR) {
+		l += sampleValueL;
+		r += sampleValueR;
+	}
 
-    inline void addPannedStereo(int32_t sampleValueL, int32_t sampleValueR, int32_t amplitudeL, int32_t amplitudeR) {
-        l += (multiply_32x32_rshift32(sampleValueL, amplitudeL) << 2);
-        r += (multiply_32x32_rshift32(sampleValueR, amplitudeR) << 2);
-    }
+	inline void addPannedStereo(int32_t sampleValueL, int32_t sampleValueR, int32_t amplitudeL, int32_t amplitudeR) {
+		l += (multiply_32x32_rshift32(sampleValueL, amplitudeL) << 2);
+		r += (multiply_32x32_rshift32(sampleValueR, amplitudeR) << 2);
+	}
 
-    int32_t l;
-    int32_t r;
+	int32_t l;
+	int32_t r;
 };
 
 #endif // AUDIOSAMPLE_H
