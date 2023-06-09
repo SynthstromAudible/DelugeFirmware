@@ -51,6 +51,7 @@ int MenuItemMPEZoneNumMemberChannels::getMaxValue() {
 	if (numMemberChannelsAvailable < 0) numMemberChannelsAvailable = 0;
 	if (numMemberChannelsAvailable == 14) numMemberChannelsAvailable = 15;
 
+
 	return numMemberChannelsAvailable;
 }
 

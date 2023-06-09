@@ -22,6 +22,7 @@
 
 #include "OrderedResizeableArray.h"
 
+
 class Note;
 
 class NoteVector : public OrderedResizeableArrayWith32bitKey {

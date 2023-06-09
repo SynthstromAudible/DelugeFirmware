@@ -31,8 +31,10 @@ public:
 	void drawValue();
 	MenuItem* selectButtonPress();
 	void drawPixelsForOled();
+
 };
 
 extern MenuItemMIDIDevices midiDevicesMenu;
+
 
 #endif /* MENUITEMMIDIDEVICES_H_ */

@@ -18,5 +18,7 @@
 #include <GlobalEffectableForSong.h>
 
 GlobalEffectableForSong::GlobalEffectableForSong() {
-	modKnobMode = 1;
+    modKnobMode = 1;
 }
+
+

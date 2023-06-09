@@ -21,6 +21,7 @@
 #include "r_typedefs.h"
 #include "GateDrum.h"
 
+
 #define GATE_MODE_SPECIAL 2
 
 #define WHICH_GATE_OUTPUT_IS_RUN 2
@@ -47,13 +48,15 @@ public:
 	uint8_t voltsPerOctave;
 	int8_t transpose;
 	int8_t cents;
-	int32_t
-	    pitchBend; // (1 << 23) represents one semitone. So full 32-bit range can be +-256 semitones. This is different to the equivalent calculation in Voice, which needs to get things into a number of octaves.
+	int32_t pitchBend; // (1 << 23) represents one semitone. So full 32-bit range can be +-256 semitones. This is different to the equivalent calculation in Voice, which needs to get things into a number of octaves.
 };
+
 
 class GateChannel {
 public:
-	GateChannel() { on = false; }
+	GateChannel() {
+		on = false;
+	}
 	bool on; // Means either on now, or "awaiting" switch-on
 	uint8_t mode;
 	uint32_t timeLastSwitchedOff;
@@ -72,6 +75,7 @@ public:
 	int32_t calculateVoltage(int note, uint8_t channel);
 	void physicallySwitchGate(int channel);
 
+
 	void analogOutTick();
 	void playbackBegun();
 	void playbackEnded();
@@ -80,6 +84,7 @@ public:
 	bool isTriggerClockOutputEnabled();
 
 	void updateGateOutputs();
+
 
 	GateChannel gateChannels[NUM_GATE_CHANNELS];
 
@@ -105,10 +110,12 @@ public:
 		return (gateChannels[channel].on && cvChannels[channel].noteCurrentlyPlaying == note);
 	}
 
+
 private:
 	void recalculateCVChannelVoltage(uint8_t channel);
 	void switchGateOff(int channel);
 	void switchGateOn(int channel, int doInstantlyIfPossible = false);
+
 };
 
 extern CVEngine cvEngine;

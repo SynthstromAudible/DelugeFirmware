@@ -97,6 +97,7 @@ void BidirectionalLinkedList::test() {
 	Uart::println(count);
 }
 
+
 BidirectionalLinkedListNode::BidirectionalLinkedListNode() {
 	list = NULL;
 }
@@ -104,6 +105,7 @@ BidirectionalLinkedListNode::BidirectionalLinkedListNode() {
 BidirectionalLinkedListNode::~BidirectionalLinkedListNode() {
 	remove();
 }
+
 
 // It's intended that you may call this function even if you're not sure whether the node is in a list or not
 void BidirectionalLinkedListNode::remove() {
@@ -135,6 +137,7 @@ void BidirectionalLinkedListNode::insertOtherNodeBefore(BidirectionalLinkedListN
 	*prevPointer = otherNode;
 	prevPointer = &otherNode->next;
 }
+
 
 // Ok this is a little bit dangerous - you'd better make damn sure list is set before calling this!
 bool BidirectionalLinkedListNode::isLast() {

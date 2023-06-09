@@ -41,6 +41,7 @@ protected:
 #endif
 };
 
+
 extern MenuItemMultiRange multiRangeMenu;
 
 #endif /* MENUITEMMULTIRANGE_H_ */

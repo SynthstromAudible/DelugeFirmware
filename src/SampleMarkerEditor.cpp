@@ -43,11 +43,12 @@
 #include "oled.h"
 
 extern "C" {
-#include "sio_char.h"
-#include "cfunctions.h"
+	#include "sio_char.h"
+	#include "cfunctions.h"
 }
 
 const uint8_t zeroes[] = {0, 0, 0, 0, 0, 0, 0, 0};
+
 
 SampleMarkerEditor sampleMarkerEditor;
 
@@ -64,8 +65,7 @@ MultisampleRange* getCurrentMultisampleRange() {
 }
 
 SampleControls* getCurrentSampleControls() {
-	if (currentSong->currentClip->type == CLIP_TYPE_AUDIO)
-		return &((AudioClip*)currentSong->currentClip)->sampleControls;
+	if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) return &((AudioClip*)currentSong->currentClip)->sampleControls;
 	else return &soundEditor.currentSource->sampleControls;
 }
 
@@ -105,6 +105,8 @@ bool SampleMarkerEditor::opened() {
 	return true;
 }
 
+
+
 void SampleMarkerEditor::recordScrollAndZoom() {
 	if (markerType != MARKER_NONE) {
 		getCurrentSampleHolder()->waveformViewScroll = waveformBasicNavigator.xScroll;
@@ -119,19 +121,22 @@ void SampleMarkerEditor::writeValue(uint32_t value, int markerTypeNow) {
 
 	bool audioClipActive;
 	if (clipType == CLIP_TYPE_AUDIO) {
-		audioClipActive = (playbackHandler.isEitherClockActive() && currentSong->isClipActive(currentSong->currentClip)
-		                   && ((AudioClip*)currentSong->currentClip)->voiceSample);
+		audioClipActive = (playbackHandler.isEitherClockActive() && currentSong->isClipActive(currentSong->currentClip) && ((AudioClip*)currentSong->currentClip)->voiceSample);
 
 		((AudioClip*)currentSong->currentClip)->unassignVoiceSample();
 	}
 
-	if (markerTypeNow == MARKER_START) getCurrentSampleHolder()->startPos = value;
-	else if (markerTypeNow == MARKER_LOOP_START) getCurrentMultisampleRange()->sampleHolder.loopStartPos = value;
-	else if (markerTypeNow == MARKER_LOOP_END) getCurrentMultisampleRange()->sampleHolder.loopEndPos = value;
-	else if (markerTypeNow == MARKER_END) getCurrentSampleHolder()->endPos = value;
 
-	getCurrentSampleHolder()->claimClusterReasons(getCurrentSampleControls()->reversed,
-	                                              CLUSTER_LOAD_IMMEDIATELY_OR_ENQUEUE);
+	if (markerTypeNow == MARKER_START)
+		getCurrentSampleHolder()->startPos = value;
+	else if (markerTypeNow == MARKER_LOOP_START)
+		getCurrentMultisampleRange()->sampleHolder.loopStartPos = value;
+	else if (markerTypeNow == MARKER_LOOP_END)
+		getCurrentMultisampleRange()->sampleHolder.loopEndPos = value;
+	else if (markerTypeNow == MARKER_END)
+		getCurrentSampleHolder()->endPos = value;
+
+	getCurrentSampleHolder()->claimClusterReasons(getCurrentSampleControls()->reversed, CLUSTER_LOAD_IMMEDIATELY_OR_ENQUEUE);
 
 	if (clipType == CLIP_TYPE_AUDIO) {
 		if (audioClipActive) {
@@ -149,13 +154,11 @@ void SampleMarkerEditor::writeValue(uint32_t value, int markerTypeNow) {
 }
 
 int SampleMarkerEditor::getStartColOnScreen(int32_t unscrolledPos) {
-	return divide_round_negative((int32_t)(unscrolledPos - waveformBasicNavigator.xScroll),
-	                             waveformBasicNavigator.xZoom);
+	return divide_round_negative((int32_t)(unscrolledPos - waveformBasicNavigator.xScroll), waveformBasicNavigator.xZoom);
 }
 
 int SampleMarkerEditor::getEndColOnScreen(int32_t unscrolledPos) {
-	return divide_round_negative((int32_t)(unscrolledPos - 1 - waveformBasicNavigator.xScroll),
-	                             waveformBasicNavigator.xZoom);
+	return divide_round_negative((int32_t)(unscrolledPos - 1 - waveformBasicNavigator.xScroll), waveformBasicNavigator.xZoom);
 }
 
 int SampleMarkerEditor::getStartPosFromCol(int col) {
@@ -172,12 +175,10 @@ void SampleMarkerEditor::getColsOnScreen(MarkerColumn* cols) {
 
 	if (currentSong->currentClip->type != CLIP_TYPE_AUDIO) {
 		cols[MARKER_LOOP_START].pos = getCurrentMultisampleRange()->sampleHolder.loopStartPos;
-		cols[MARKER_LOOP_START].colOnScreen =
-		    cols[MARKER_LOOP_START].pos ? getStartColOnScreen(cols[MARKER_LOOP_START].pos) : -2147483648;
+		cols[MARKER_LOOP_START].colOnScreen = cols[MARKER_LOOP_START].pos ? getStartColOnScreen(cols[MARKER_LOOP_START].pos) : -2147483648;
 
 		cols[MARKER_LOOP_END].pos = getCurrentMultisampleRange()->sampleHolder.loopEndPos;
-		cols[MARKER_LOOP_END].colOnScreen =
-		    cols[MARKER_LOOP_END].pos ? getEndColOnScreen(cols[MARKER_LOOP_END].pos) : -2147483648;
+		cols[MARKER_LOOP_END].colOnScreen = cols[MARKER_LOOP_END].pos ? getEndColOnScreen(cols[MARKER_LOOP_END].pos) : -2147483648;
 	}
 
 	else {
@@ -208,6 +209,7 @@ void SampleMarkerEditor::selectEncoderAction(int8_t offset) {
 		if (cols[c].colOnScreen == oldCol || cols[c].colOnScreen == newCol) return;
 	}
 
+
 	int32_t newMarkerPos = (markerType < MARKER_LOOP_END) ? getStartPosFromCol(newCol) : getEndPosFromCol(newCol);
 
 	if (newMarkerPos < 0) newMarkerPos = 0;
@@ -217,8 +219,7 @@ void SampleMarkerEditor::selectEncoderAction(int8_t offset) {
 			if (newMarkerPos < oldPos) return;
 		}
 		else {
-			if (newMarkerPos > waveformBasicNavigator.sample->lengthInSamples)
-				newMarkerPos = waveformBasicNavigator.sample->lengthInSamples;
+			if (newMarkerPos > waveformBasicNavigator.sample->lengthInSamples) newMarkerPos = waveformBasicNavigator.sample->lengthInSamples;
 		}
 	}
 
@@ -228,9 +229,7 @@ void SampleMarkerEditor::selectEncoderAction(int8_t offset) {
 	if (oldCol >= 0 && oldCol < displayWidth) {
 
 		getColsOnScreen(cols);
-		newCol =
-		    cols[markerType]
-		        .colOnScreen; // It might have changed, and despite having a newCol variable above, that's only our desired value - we might have run into the end of the sample
+		newCol = cols[markerType].colOnScreen; // It might have changed, and despite having a newCol variable above, that's only our desired value - we might have run into the end of the sample
 
 		// But isn't anymore...
 		if (newCol < 0 || newCol >= displayWidth) {
@@ -253,6 +252,7 @@ void SampleMarkerEditor::selectEncoderAction(int8_t offset) {
 	displayText();
 #endif
 }
+
 
 int SampleMarkerEditor::padAction(int x, int y, int on) {
 
@@ -279,8 +279,7 @@ int SampleMarkerEditor::padAction(int x, int y, int on) {
 		// Press down
 		if (on) {
 
-			if (currentUIMode && currentUIMode != UI_MODE_AUDITIONING && currentUIMode != UI_MODE_HOLDING_SAMPLE_MARKER)
-				return ACTION_RESULT_DEALT_WITH;
+			if (currentUIMode && currentUIMode != UI_MODE_AUDITIONING && currentUIMode != UI_MODE_HOLDING_SAMPLE_MARKER) return ACTION_RESULT_DEALT_WITH;
 
 			MarkerColumn cols[NUM_MARKER_TYPES];
 			getColsOnScreen(cols);
@@ -289,8 +288,7 @@ int SampleMarkerEditor::padAction(int x, int y, int on) {
 			int markerPressed = -1;
 			for (int m = 0; m < NUM_MARKER_TYPES; m++) {
 				if (cols[m].colOnScreen == x) {
-					if (markerPressed != -1)
-						return ACTION_RESULT_DEALT_WITH; // Get out if there are two markers occupying the same col we pressed
+					if (markerPressed != -1) return ACTION_RESULT_DEALT_WITH; // Get out if there are two markers occupying the same col we pressed
 					markerPressed = m;
 				}
 			}
@@ -327,9 +325,7 @@ int SampleMarkerEditor::padAction(int x, int y, int on) {
 
 						// Limit position
 						if (cols[MARKER_START].colOnScreen >= x) return ACTION_RESULT_DEALT_WITH;
-						if (getCurrentMultisampleRange()->sampleHolder.loopEndPos
-						    && cols[MARKER_LOOP_END].colOnScreen <= x)
-							return ACTION_RESULT_DEALT_WITH;
+						if (getCurrentMultisampleRange()->sampleHolder.loopEndPos && cols[MARKER_LOOP_END].colOnScreen <= x) return ACTION_RESULT_DEALT_WITH;
 						if (cols[MARKER_END].colOnScreen <= x) return ACTION_RESULT_DEALT_WITH;
 
 						newMarkerType = MARKER_LOOP_START;
@@ -354,8 +350,7 @@ ensureNotPastSampleLength:
 
 						// Limit position
 						if (cols[MARKER_START].colOnScreen >= x) return ACTION_RESULT_DEALT_WITH;
-						if (cols[MARKER_LOOP_START].colOnScreen >= x)
-							return ACTION_RESULT_DEALT_WITH; // Will be a big negative number if inactive
+						if (cols[MARKER_LOOP_START].colOnScreen >= x) return ACTION_RESULT_DEALT_WITH; // Will be a big negative number if inactive
 						if (cols[MARKER_END].colOnScreen <= x) return ACTION_RESULT_DEALT_WITH;
 
 						newMarkerType = MARKER_LOOP_END;
@@ -371,7 +366,7 @@ ensureNotPastSampleLength:
 							writeValue(value);
 							markerType = MARKER_START;
 
-exitAfterRemovingLoopMarker:
+	exitAfterRemovingLoopMarker:
 							currentUIMode = UI_MODE_NONE;
 							blinkInvisible = true;
 							goto doRender;
@@ -385,6 +380,7 @@ exitAfterRemovingLoopMarker:
 							markerType = MARKER_END;
 
 							goto exitAfterRemovingLoopMarker;
+
 						}
 						else return ACTION_RESULT_DEALT_WITH;
 					}
@@ -394,6 +390,7 @@ exitAfterRemovingLoopMarker:
 					goto doWriteValue;
 				}
 			}
+
 
 			// Or if user not already holding a marker down...
 			else {
@@ -412,34 +409,29 @@ exitAfterRemovingLoopMarker:
 
 					// Make sure it doesn't go past any other markers it shouldn't
 					if (markerType == MARKER_START) {
-						if (cols[MARKER_LOOP_START].pos && cols[MARKER_LOOP_START].colOnScreen <= x)
-							return ACTION_RESULT_DEALT_WITH;
-						if (cols[MARKER_LOOP_END].pos && cols[MARKER_LOOP_END].colOnScreen <= x)
-							return ACTION_RESULT_DEALT_WITH;
+						if (cols[MARKER_LOOP_START].pos && cols[MARKER_LOOP_START].colOnScreen <= x) return ACTION_RESULT_DEALT_WITH;
+						if (cols[MARKER_LOOP_END].pos && cols[MARKER_LOOP_END].colOnScreen <= x) return ACTION_RESULT_DEALT_WITH;
 						if (cols[MARKER_END].colOnScreen <= x) return ACTION_RESULT_DEALT_WITH;
 					}
 
 					else if (markerType == MARKER_LOOP_START) {
 						if (cols[MARKER_START].colOnScreen >= x) return ACTION_RESULT_DEALT_WITH;
-						if (cols[MARKER_LOOP_END].pos && cols[MARKER_LOOP_END].colOnScreen <= x)
-							return ACTION_RESULT_DEALT_WITH;
+						if (cols[MARKER_LOOP_END].pos && cols[MARKER_LOOP_END].colOnScreen <= x) return ACTION_RESULT_DEALT_WITH;
 						if (cols[MARKER_END].colOnScreen <= x) return ACTION_RESULT_DEALT_WITH;
 					}
 
 					else if (markerType == MARKER_LOOP_END) {
 						if (cols[MARKER_START].colOnScreen >= x) return ACTION_RESULT_DEALT_WITH;
-						if (cols[MARKER_LOOP_START].colOnScreen >= x)
-							return ACTION_RESULT_DEALT_WITH; // Will be a big negative number if inactive
+						if (cols[MARKER_LOOP_START].colOnScreen >= x) return ACTION_RESULT_DEALT_WITH; // Will be a big negative number if inactive
 						if (cols[MARKER_END].colOnScreen <= x) return ACTION_RESULT_DEALT_WITH;
 					}
 
 					else if (markerType == MARKER_END) {
 						if (cols[MARKER_START].colOnScreen >= x) return ACTION_RESULT_DEALT_WITH;
-						if (cols[MARKER_LOOP_START].colOnScreen >= x)
-							return ACTION_RESULT_DEALT_WITH; // Will be a big negative number if inactive
-						if (cols[MARKER_LOOP_END].colOnScreen >= x)
-							return ACTION_RESULT_DEALT_WITH; // Will be a big negative number if inactive
+						if (cols[MARKER_LOOP_START].colOnScreen >= x) return ACTION_RESULT_DEALT_WITH; // Will be a big negative number if inactive
+						if (cols[MARKER_LOOP_END].colOnScreen >= x) return ACTION_RESULT_DEALT_WITH; // Will be a big negative number if inactive
 					}
+
 
 					value = (markerType < MARKER_LOOP_END) ? getStartPosFromCol(x) : getEndPosFromCol(x);
 
@@ -448,10 +440,8 @@ exitAfterRemovingLoopMarker:
 
 						// Only the END marker, and only in some cases, is allowed to be further right than the waveform length
 						if (markerType == MARKER_END && shouldAllowExtraScrollRight()) {
-							if (x > cols[markerType].colOnScreen && value < cols[markerType].pos)
-								return ACTION_RESULT_DEALT_WITH; // Probably not actually necessary
-							if (value > lengthInSamples && value < lengthInSamples + waveformBasicNavigator.xZoom)
-								value = lengthInSamples;
+							if (x > cols[markerType].colOnScreen && value < cols[markerType].pos) return ACTION_RESULT_DEALT_WITH; // Probably not actually necessary
+							if (value > lengthInSamples && value < lengthInSamples + waveformBasicNavigator.xZoom) value = lengthInSamples;
 						}
 
 						else {
@@ -488,6 +478,7 @@ doRender:
 	return ACTION_RESULT_DEALT_WITH;
 }
 
+
 int SampleMarkerEditor::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 
 	// Back button
@@ -498,17 +489,17 @@ int SampleMarkerEditor::buttonAction(int x, int y, bool on, bool inCardRoutine) 
 		}
 	}
 
-	// Horizontal encoder button
-	else if (x == xEncButtonX && y == xEncButtonY) {
-		if (on) {
-			if (isNoUIModeActive() || isUIModeActiveExclusively(UI_MODE_AUDITIONING))
-				currentUIMode |= UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON;
-		}
 
-		else {
-			exitUIMode(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON);
-		}
-	}
+    // Horizontal encoder button
+	else if (x == xEncButtonX && y == xEncButtonY) {
+    	if (on) {
+    		if (isNoUIModeActive() || isUIModeActiveExclusively(UI_MODE_AUDITIONING)) currentUIMode |= UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON;
+    	}
+
+        else {
+        	exitUIMode(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON);
+        }
+    }
 
 	else return ACTION_RESULT_NOT_DEALT_WITH;
 
@@ -519,6 +510,7 @@ void SampleMarkerEditor::exitUI() {
 	numericDriver.setNextTransitionDirection(-1);
 	close();
 }
+
 
 static const uint32_t zoomUIModes[] = {UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON, UI_MODE_AUDITIONING, 0};
 
@@ -558,6 +550,7 @@ int SampleMarkerEditor::horizontalEncoderAction(int offset) {
 	return ACTION_RESULT_DEALT_WITH;
 }
 
+
 // Just for the blinking marker I think
 int SampleMarkerEditor::timerCallback() {
 
@@ -565,8 +558,7 @@ int SampleMarkerEditor::timerCallback() {
 	getColsOnScreen(cols);
 
 	int x = cols[markerType].colOnScreen;
-	if (x < 0 || x >= displayWidth)
-		return ACTION_RESULT_DEALT_WITH; // Shouldn't happen, but let's be safe - and not set the timer again if it's offscreen
+	if (x < 0 || x >= displayWidth) return ACTION_RESULT_DEALT_WITH; // Shouldn't happen, but let's be safe - and not set the timer again if it's offscreen
 
 	blinkInvisible = !blinkInvisible;
 
@@ -585,13 +577,13 @@ int SampleMarkerEditor::timerCallback() {
 	return ACTION_RESULT_DEALT_WITH;
 }
 
-int SampleMarkerEditor::verticalEncoderAction(int offset, bool inCardRoutine) {
-	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(xEncButtonX, xEncButtonY)
-	    || currentSong->currentClip->type == CLIP_TYPE_AUDIO)
-		return ACTION_RESULT_DEALT_WITH;
 
-	int result = instrumentClipView.verticalEncoderAction(
-	    offset, inCardRoutine); // Must say these buttons were not pressed, or else editing might take place
+int SampleMarkerEditor::verticalEncoderAction(int offset, bool inCardRoutine) {
+	if (Buttons::isShiftButtonPressed()
+			|| Buttons::isButtonPressed(xEncButtonX, xEncButtonY)
+			|| currentSong->currentClip->type == CLIP_TYPE_AUDIO) return ACTION_RESULT_DEALT_WITH;
+
+	int result = instrumentClipView.verticalEncoderAction(offset, inCardRoutine); // Must say these buttons were not pressed, or else editing might take place
 
 	if (result == ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE) return result;
 
@@ -602,8 +594,7 @@ int SampleMarkerEditor::verticalEncoderAction(int offset, bool inCardRoutine) {
 	return result;
 }
 
-bool SampleMarkerEditor::renderSidebar(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
-                                       uint8_t occupancyMask[][displayWidth + sideBarWidth]) {
+bool SampleMarkerEditor::renderSidebar(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3], uint8_t occupancyMask[][displayWidth + sideBarWidth]) {
 	if (getRootUI() != &keyboardScreen) return false;
 	return instrumentClipView.renderSidebar(whichRows, image, occupancyMask);
 }
@@ -627,11 +618,8 @@ void SampleMarkerEditor::graphicsRoutine() {
 
 				int newStartPos = ((uint32_t)getNoise() % (44100 * 120)) + 10 * 44100;
 
-				if (newStartPos > soundEditor.currentMultiRange->endPos - minDistance)
-					newStartPos = soundEditor.currentMultiRange->endPos - minDistance;
-				if (soundEditor.currentMultiRange->loopEndPos
-				    && newStartPos >= soundEditor.currentMultiRange->loopEndPos - minDistance)
-					newStartPos = soundEditor.currentMultiRange->loopEndPos - minDistance;
+				if (newStartPos > soundEditor.currentMultiRange->endPos - minDistance) newStartPos = soundEditor.currentMultiRange->endPos - minDistance;
+				if (soundEditor.currentMultiRange->loopEndPos && newStartPos >= soundEditor.currentMultiRange->loopEndPos - minDistance) newStartPos = soundEditor.currentMultiRange->loopEndPos - minDistance;
 
 				writeValue(newStartPos, MARKER_START);
 			}
@@ -641,20 +629,17 @@ void SampleMarkerEditor::graphicsRoutine() {
 				//writeValue(soundEditor.currentMultisampleRange->sample->lengthInSamples, MARKER_END);
 
 				//int newStartPos = soundEditor.currentMultisampleRange->sample->lengthInSamples;// - (((uint32_t)getNoise() % (44100 * 120)) + 10 * 44100);
-				int newStartPos = soundEditor.currentMultiRange->sample->lengthInSamples
-				                  - (((uint32_t)getNoise() % (44100 * 12)) + 0 * 44100);
+				int newStartPos = soundEditor.currentMultiRange->sample->lengthInSamples - (((uint32_t)getNoise() % (44100 * 12)) + 0 * 44100);
 
-				if (newStartPos < soundEditor.currentMultiRange->startPos + minDistance)
-					newStartPos = soundEditor.currentMultiRange->startPos + minDistance;
-				if (soundEditor.currentMultiRange->loopStartPos
-				    && newStartPos <= soundEditor.currentMultiRange->loopStartPos + minDistance)
-					newStartPos = soundEditor.currentMultiRange->loopStartPos + minDistance;
+				if (newStartPos < soundEditor.currentMultiRange->startPos + minDistance) newStartPos = soundEditor.currentMultiRange->startPos + minDistance;
+				if (soundEditor.currentMultiRange->loopStartPos && newStartPos <= soundEditor.currentMultiRange->loopStartPos + minDistance) newStartPos = soundEditor.currentMultiRange->loopStartPos + minDistance;
 
 				writeValue(newStartPos, MARKER_END);
 			}
 		}
 
-		else { //if (r < 128) {
+
+		else {//if (r < 128) {
 			// Change loop point
 
 			if (!soundEditor.currentSource->reversed) {
@@ -666,11 +651,9 @@ void SampleMarkerEditor::graphicsRoutine() {
 				}
 				else {
 					Uart::println("set loop end -------------------------------");
-					newLoopEndPos =
-					    soundEditor.currentMultiRange->startPos + minDistance + ((uint32_t)getNoise() % (44100 * 1));
+					newLoopEndPos = soundEditor.currentMultiRange->startPos + minDistance + ((uint32_t)getNoise() % (44100 * 1));
 
-					if (newLoopEndPos > soundEditor.currentMultiRange->endPos)
-						newLoopEndPos = soundEditor.currentMultiRange->endPos;
+					if (newLoopEndPos > soundEditor.currentMultiRange->endPos) newLoopEndPos = soundEditor.currentMultiRange->endPos;
 				}
 
 				writeValue(newLoopEndPos, MARKER_LOOP_END);
@@ -684,11 +667,9 @@ void SampleMarkerEditor::graphicsRoutine() {
 				}
 				else {
 					Uart::println("set loop end -------------------------------");
-					newLoopEndPos =
-					    soundEditor.currentMultiRange->endPos - minDistance - ((uint32_t)getNoise() % (44100 * 1));
+					newLoopEndPos = soundEditor.currentMultiRange->endPos - minDistance - ((uint32_t)getNoise() % (44100 * 1));
 
-					if (newLoopEndPos < soundEditor.currentMultiRange->startPos)
-						newLoopEndPos = soundEditor.currentMultiRange->startPos;
+					if (newLoopEndPos < soundEditor.currentMultiRange->startPos) newLoopEndPos = soundEditor.currentMultiRange->startPos;
 				}
 
 				writeValue(newLoopEndPos, MARKER_LOOP_START);
@@ -706,6 +687,7 @@ void SampleMarkerEditor::graphicsRoutine() {
 	VoiceSample* voiceSample = NULL;
 	SamplePlaybackGuide* guide = NULL;
 
+
 	// InstrumentClips / Samples
 	if (currentSong->currentClip->type == CLIP_TYPE_INSTRUMENT) {
 
@@ -719,18 +701,16 @@ void SampleMarkerEditor::graphicsRoutine() {
 				Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
 
 				// Ensure correct MultisampleRange.
-				if (thisVoice->guides[soundEditor.currentSourceIndex].audioFileHolder
-				    != soundEditor.currentMultiRange->getAudioFileHolder())
-					continue;
+				if (thisVoice->guides[soundEditor.currentSourceIndex].audioFileHolder != soundEditor.currentMultiRange->getAudioFileHolder()) continue;
 
 				if (!assignedVoice || thisVoice->orderSounded > assignedVoice->orderSounded) {
 					assignedVoice = thisVoice;
 				}
 			}
 
+
 			if (assignedVoice) {
-				VoiceUnisonPartSource* part = &assignedVoice->unisonParts[soundEditor.currentSound->numUnison >> 1]
-				                                   .sources[soundEditor.currentSourceIndex];
+				VoiceUnisonPartSource* part = &assignedVoice->unisonParts[soundEditor.currentSound->numUnison >> 1].sources[soundEditor.currentSourceIndex];
 				if (part && part->active) {
 					voiceSample = part->voiceSample;
 					guide = &assignedVoice->guides[soundEditor.currentSourceIndex];
@@ -758,6 +738,7 @@ void SampleMarkerEditor::graphicsRoutine() {
 	PadLEDs::setTickSquares(tickSquares, zeroes);
 }
 
+
 bool SampleMarkerEditor::shouldAllowExtraScrollRight() {
 
 	if (markerType == MARKER_NONE || getCurrentSampleControls()->reversed) return false;
@@ -770,18 +751,16 @@ bool SampleMarkerEditor::shouldAllowExtraScrollRight() {
 	}
 }
 
-void SampleMarkerEditor::renderForOneCol(int xDisplay, uint8_t thisImage[displayHeight][displayWidth + sideBarWidth][3],
-                                         MarkerColumn* cols) {
 
-	waveformRenderer.renderOneCol(waveformBasicNavigator.sample, xDisplay, thisImage,
-	                              &waveformBasicNavigator.renderData);
+void SampleMarkerEditor::renderForOneCol(int xDisplay, uint8_t thisImage[displayHeight][displayWidth + sideBarWidth][3], MarkerColumn* cols) {
+
+	waveformRenderer.renderOneCol(waveformBasicNavigator.sample, xDisplay, thisImage, &waveformBasicNavigator.renderData);
 
 	renderMarkersForOneCol(xDisplay, thisImage, cols);
 }
 
-void SampleMarkerEditor::renderMarkersForOneCol(int xDisplay,
-                                                uint8_t thisImage[displayHeight][displayWidth + sideBarWidth][3],
-                                                MarkerColumn* cols) {
+
+void SampleMarkerEditor::renderMarkersForOneCol(int xDisplay, uint8_t thisImage[displayHeight][displayWidth + sideBarWidth][3], MarkerColumn* cols) {
 
 	if (markerType != MARKER_NONE) {
 
@@ -850,23 +829,20 @@ void SampleMarkerEditor::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 
 	uint32_t markerPosSamples = cols[markerType].pos;
 
+
 	char const* markerTypeText;
-	switch (markerType) {
+	switch(markerType) {
 	case MARKER_START:
-		markerTypeText = "Start point";
-		break;
+		markerTypeText = "Start point";	break;
 
 	case MARKER_END:
-		markerTypeText = "End point";
-		break;
+		markerTypeText = "End point";	break;
 
 	case MARKER_LOOP_START:
-		markerTypeText = "Loop start";
-		break;
+		markerTypeText = "Loop start";	break;
 
 	case MARKER_LOOP_END:
-		markerTypeText = "Loop end";
-		break;
+		markerTypeText = "Loop end";	break;
 
 	default:
 		__builtin_unreachable();
@@ -881,8 +857,7 @@ void SampleMarkerEditor::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 
 	uint32_t hours = 0;
 	uint32_t minutes = 0;
-	uint64_t hundredmilliseconds =
-	    (uint64_t)markerPosSamples * 100000 / waveformBasicNavigator.sample->sampleRate; // mSec
+	uint64_t hundredmilliseconds = (uint64_t)markerPosSamples * 100000 / waveformBasicNavigator.sample->sampleRate; // mSec
 
 	if (hundredmilliseconds >= 6000000) {
 		minutes = hundredmilliseconds / 6000000;
@@ -894,12 +869,10 @@ void SampleMarkerEditor::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 
 			char buffer[12];
 			intToString(hours, buffer);
-			OLED::drawString(buffer, xPixel, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS, smallTextSpacingX,
-			                 smallTextSizeY);
+			OLED::drawString(buffer, xPixel, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS, smallTextSpacingX, smallTextSizeY);
 			xPixel += strlen(buffer) * smallTextSpacingX;
 
-			OLED::drawChar('h', smallTextSpacingX, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS, smallTextSpacingX,
-			               smallTextSizeY);
+			OLED::drawChar('h', smallTextSpacingX, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS, smallTextSpacingX, smallTextSizeY);
 			xPixel += smallTextSpacingX * 2;
 		}
 
@@ -908,8 +881,7 @@ void SampleMarkerEditor::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 		OLED::drawString(buffer, xPixel, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS, smallTextSpacingX, smallTextSizeY);
 		xPixel += strlen(buffer) * smallTextSpacingX;
 
-		OLED::drawChar('m', smallTextSpacingX, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS, smallTextSpacingX,
-		               smallTextSizeY);
+		OLED::drawChar('m', smallTextSpacingX, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS, smallTextSpacingX, smallTextSizeY);
 		xPixel += smallTextSpacingX * 2;
 	}
 	else goto printSeconds;
@@ -944,8 +916,7 @@ printSeconds:
 		else {
 			xPixel += smallTextSpacingX;
 			char const* secString = (numDecimalPlaces == 2) ? "msec" : "sec";
-			OLED::drawString(secString, xPixel, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS, smallTextSpacingX,
-			                 smallTextSizeY);
+			OLED::drawString(secString, xPixel, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS, smallTextSpacingX, smallTextSizeY);
 		}
 	}
 
@@ -993,12 +964,11 @@ void SampleMarkerEditor::displayText() {
 }
 #endif
 
-bool SampleMarkerEditor::renderMainPads(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
-                                        uint8_t occupancyMask[][displayWidth + sideBarWidth], bool drawUndefinedArea) {
+bool SampleMarkerEditor::renderMainPads(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3], uint8_t occupancyMask[][displayWidth + sideBarWidth],
+    		bool drawUndefinedArea) {
 	if (!image) return true;
 
-	waveformRenderer.renderFullScreen(waveformBasicNavigator.sample, waveformBasicNavigator.xScroll,
-	                                  waveformBasicNavigator.xZoom, image, &waveformBasicNavigator.renderData);
+	waveformRenderer.renderFullScreen(waveformBasicNavigator.sample, waveformBasicNavigator.xScroll, waveformBasicNavigator.xZoom, image, &waveformBasicNavigator.renderData);
 
 	if (markerType != MARKER_NONE) {
 		MarkerColumn cols[NUM_MARKER_TYPES];
@@ -1008,10 +978,13 @@ bool SampleMarkerEditor::renderMainPads(uint32_t whichRows, uint8_t image[][disp
 			renderMarkersForOneCol(xDisplay, image, cols);
 		}
 
-		if (cols[markerType].colOnScreen >= 0 && cols[markerType].colOnScreen < displayWidth) {
+		if (cols[markerType].colOnScreen >= 0
+				&& cols[markerType].colOnScreen < displayWidth) {
 			uiTimerManager.setTimer(TIMER_UI_SPECIFIC, SAMPLE_MARKER_BLINK_TIME);
 		}
 	}
 
+
 	return true;
 }
+

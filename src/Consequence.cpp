@@ -17,10 +17,13 @@
 
 #include "Consequence.h"
 
-Consequence::Consequence() {
+Consequence::Consequence()
+{
 	type = 0;
 }
 
-Consequence::~Consequence() {
+Consequence::~Consequence()
+{
 	// TODO Auto-generated destructor stub
 }
+

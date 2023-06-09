@@ -42,8 +42,7 @@ int MenuItemSampleLoopPoint::checkPermissionToBeginSession(Sound* sound, int whi
 		return MENU_PERMISSION_NO;
 	}
 
-	int permission =
-	    soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(sound, whichThing, true, currentRange);
+	int permission = soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(sound, whichThing, true, currentRange);
 
 	// Before going ahead, make sure a Sample is loaded
 	if (permission == MENU_PERMISSION_YES) {
@@ -54,6 +53,7 @@ int MenuItemSampleLoopPoint::checkPermissionToBeginSession(Sound* sound, int whi
 
 	return permission;
 }
+
 
 void MenuItemSampleLoopPoint::beginSession(MenuItem* navigatedBackwardFrom) {
 
@@ -69,3 +69,5 @@ void MenuItemSampleLoopPoint::beginSession(MenuItem* navigatedBackwardFrom) {
 		uiTimerManager.unsetTimer(TIMER_SHORTCUT_BLINK);
 	}
 }
+
+

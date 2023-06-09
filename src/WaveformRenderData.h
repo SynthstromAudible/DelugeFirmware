@@ -32,4 +32,5 @@ struct WaveformRenderData {
 	uint8_t colStatus[displayWidth];
 };
 
+
 #endif // WAVEFORMRENDERDATA_H_

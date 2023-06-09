@@ -15,7 +15,6 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-// clang-format off
 
 #include "fonts.h"
 

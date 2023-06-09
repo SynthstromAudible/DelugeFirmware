@@ -35,6 +35,7 @@ char const** ContextMenuOverwriteFile::getOptions() {
 	return options;
 }
 
+
 bool ContextMenuOverwriteFile::acceptCurrentOption() {
 	bool dealtWith = currentSaveUI->performSave(true);
 

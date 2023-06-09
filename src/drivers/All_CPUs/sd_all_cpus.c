@@ -36,16 +36,17 @@ int32_t sddev_power_on(int32_t sd_port)
     /* ---Power On SD ---- */
 
     /* ---- Wait for  SD Wake up ---- */
-    sddev_start_timer(100); /* wait 100ms */
+    sddev_start_timer(100);            /* wait 100ms */
     while (sddev_check_timer() == SD_OK)
     {
         /* wait */
-        routineForSD(); // By Rohan
+    	routineForSD(); // By Rohan
     }
     sddev_end_timer();
 
     return SD_OK;
 }
+
 
 /******************************************************************************
 * Function Name: int sddev_int_wait(int sd_port, int time);
@@ -57,14 +58,14 @@ int32_t sddev_power_on(int32_t sd_port)
 int32_t sddev_int_wait(int32_t sd_port, int32_t time)
 {
 
-    logAudioAction("sddev_int_wait");
+	logAudioAction("sddev_int_wait");
     int loop;
 
     if (time > 500)
     {
         /* @1000ms */
         loop = (time / 500);
-        if ((time % 500) != 0)
+        if ( (time % 500) != 0 )
         {
             loop++;
         }
@@ -75,8 +76,7 @@ int32_t sddev_int_wait(int32_t sd_port, int32_t time)
         loop = 1;
     }
 
-    do
-    {
+    do{
         sddev_start_timer(time);
 
         while (1)
@@ -98,7 +98,7 @@ int32_t sddev_int_wait(int32_t sd_port, int32_t time)
         }
 
         loop--;
-        if (loop <= 0)
+        if ( loop <= 0 )
         {
             break;
         }
@@ -110,6 +110,7 @@ int32_t sddev_int_wait(int32_t sd_port, int32_t time)
     return SD_ERR;
 }
 
+
 /******************************************************************************
 * Function Name: static void sddev_start_timer(int msec);
 * Description  : start timer
@@ -118,7 +119,7 @@ int32_t sddev_int_wait(int32_t sd_port, int32_t time)
 ******************************************************************************/
 void sddev_start_timer(int msec)
 {
-    stopTime = *TCNT[TIMER_SYSTEM_SLOW] + msToSlowTimerCount(msec);
+	stopTime = *TCNT[TIMER_SYSTEM_SLOW] + msToSlowTimerCount(msec);
 }
 
 /******************************************************************************
@@ -140,7 +141,7 @@ void sddev_end_timer(void)
 int sddev_check_timer(void)
 {
 
-    uint16_t howFarAbove = *TCNT[TIMER_SYSTEM_SLOW] - stopTime;
+	uint16_t howFarAbove = *TCNT[TIMER_SYSTEM_SLOW] - stopTime;
 
     if (howFarAbove < 16384)
     {

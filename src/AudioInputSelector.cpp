@@ -23,6 +23,7 @@
 #include "IndicatorLEDs.h"
 #include "extern.h"
 
+
 #define VALUE_OFF 0
 
 #define VALUE_LEFT 1
@@ -45,20 +46,12 @@
 
 extern int8_t defaultAudioOutputInputChannel;
 
+
 AudioInputSelector audioInputSelector;
 
 #if HAVE_OLED
-char const* options[] = {"Off",
-                         "Left input",
-                         "Left input (monitoring)",
-                         "Right input",
-                         "Right input (monitoring)",
-                         "Stereo input",
-                         "Stereo input (monitoring)",
-                         "Bal. input",
-                         "Bal. input (monitoring)",
-                         "Deluge mix (pre fx)",
-                         "Deluge output (post fx)"};
+char const* options[] = {"Off", "Left input", "Left input (monitoring)", "Right input", "Right input (monitoring)", "Stereo input", "Stereo input (monitoring)",
+	"Bal. input", "Bal. input (monitoring)", "Deluge mix (pre fx)", "Deluge output (post fx)"};
 #else
 char const* options[] = {"OFF", "LEFT", "LEFT.", "RIGH", "RIGH.", "STER", "STER.", "BALA", "BALA.", "MIX", "OUTP"};
 #endif
@@ -74,7 +67,7 @@ AudioInputSelector::AudioInputSelector() {
 
 bool AudioInputSelector::setupAndCheckAvailability() {
 
-	switch (audioOutput->inputChannel) {
+	switch(audioOutput->inputChannel) {
 	case AUDIO_INPUT_CHANNEL_LEFT:
 		currentOption = VALUE_LEFT;
 		break;
@@ -115,6 +108,7 @@ bool AudioInputSelector::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
 	return true;
 }
 
+
 void AudioInputSelector::selectEncoderAction(int8_t offset) {
 	if (currentUIMode) return;
 
@@ -122,7 +116,7 @@ void AudioInputSelector::selectEncoderAction(int8_t offset) {
 
 	audioOutput->echoing = false;
 
-	switch (currentOption) {
+	switch(currentOption) {
 	case VALUE_LEFT_ECHO:
 		audioOutput->echoing = true;
 	case VALUE_LEFT:

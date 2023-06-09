@@ -19,6 +19,7 @@
 #include <math.h>
 #include "functions.h"
 
+
 extern "C" {
 #include "sio_char.h"
 }
@@ -39,6 +40,7 @@ void println(int32_t number) {
 #endif
 }
 
+
 void print(char const* output) {
 #if ENABLE_TEXT_OUTPUT
 	uartPrint(output);
@@ -53,4 +55,4 @@ void print(int32_t number) {
 #endif
 }
 
-} // namespace Uart
+}

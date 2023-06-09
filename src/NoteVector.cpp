@@ -21,7 +21,8 @@
 #include <string.h>
 #include "uart.h"
 
-NoteVector::NoteVector() : OrderedResizeableArrayWith32bitKey(sizeof(Note)) {
+NoteVector::NoteVector() : OrderedResizeableArrayWith32bitKey(sizeof(Note))
+{
 }
 
 Note* NoteVector::getElement(int index) {
@@ -29,6 +30,8 @@ Note* NoteVector::getElement(int index) {
 	return (Note*)getElementAddress(index);
 }
 
+
 Note* NoteVector::getLast() {
 	return getElement(getNumElements() - 1);
 }
+

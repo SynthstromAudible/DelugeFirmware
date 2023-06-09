@@ -31,8 +31,7 @@ class MultisampleRange final : public MultiRange {
 public:
 	MultisampleRange();
 
-	SampleHolderForVoice
-	    sampleHolder; // Has to be first variable, cos I do a sneaky optimization between both of MultiRange's children.
+	SampleHolderForVoice sampleHolder; // Has to be first variable, cos I do a sneaky optimization between both of MultiRange's children.
 };
 
 #endif /* MULTISAMPLERANGE_H_ */

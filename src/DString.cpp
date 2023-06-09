@@ -59,6 +59,7 @@ void String::clear(bool destructing) {
 	}
 }
 
+
 // Returns error
 int String::set(char const* newChars, int newLength) {
 
@@ -97,8 +98,12 @@ int String::set(char const* newChars, int newLength) {
 			else {
 				// Try extending
 				uint32_t amountExtendedLeft, amountExtendedRight;
-				generalMemoryAllocator.extend(stringMemory - 4, extraMemoryNeeded, extraMemoryNeeded,
-				                              &amountExtendedLeft, &amountExtendedRight);
+				generalMemoryAllocator.extend(
+						stringMemory - 4,
+						extraMemoryNeeded,
+						extraMemoryNeeded,
+						&amountExtendedLeft,
+						&amountExtendedRight);
 
 				stringMemory -= amountExtendedLeft;
 
@@ -140,9 +145,11 @@ void String::beenCloned() {
 	}
 }
 
+
 int String::getLength() {
 	return stringMemory ? strlen(stringMemory) : 0;
 }
+
 
 // Returns error
 int String::shorten(int newLength) {
@@ -179,6 +186,7 @@ int String::concatenate(String* otherString) {
 
 	return concatenate(otherString->get());
 }
+
 
 int String::concatenate(char const* newChars) {
 	return concatenateAtPos(newChars, getLength());
@@ -217,16 +225,19 @@ int String::concatenateAtPos(char const* newChars, int pos, int newCharsLength) 
 
 		// See if we can extend
 		uint32_t amountExtendedLeft, amountExtendedRight;
-		generalMemoryAllocator.extend(stringMemory - 4, extraBytesNeeded, extraBytesNeeded, &amountExtendedLeft,
-		                              &amountExtendedRight);
+		generalMemoryAllocator.extend(
+				stringMemory - 4,
+				extraBytesNeeded,
+				extraBytesNeeded,
+				&amountExtendedLeft,
+				&amountExtendedRight);
 
 		// If that worked...
 		if (amountExtendedLeft || amountExtendedRight) {
 
 			// If extended left, gotta move stuff
 			if (amountExtendedLeft) {
-				memmove(stringMemory - amountExtendedLeft - 4, stringMemory - 4,
-				        pos + 4); // Moves the stored num reasons, too
+				memmove(stringMemory - amountExtendedLeft - 4, stringMemory - 4, pos + 4); // Moves the stored num reasons, too
 				stringMemory -= amountExtendedLeft;
 			}
 		}
@@ -281,7 +292,7 @@ int String::setChar(char newChar, int pos) {
 
 		// Copy the old memory
 		memcpy(newStringMemory, stringMemory, length + 1); // Copies 0 at end, too
-		setNumReasons(oldNumReasons - 1);                  // Reduce reasons on old memory
+		setNumReasons(oldNumReasons - 1); // Reduce reasons on old memory
 		stringMemory = newStringMemory;
 		setNumReasons(1); // Set reasons on new memory
 	}
@@ -297,3 +308,5 @@ bool String::equals(char const* otherChars) {
 bool String::equalsCaseIrrespective(char const* otherChars) {
 	return !strcasecmp(get(), otherChars);
 }
+
+

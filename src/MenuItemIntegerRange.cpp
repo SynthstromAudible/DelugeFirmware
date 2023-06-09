@@ -28,6 +28,7 @@ MenuItemIntegerRange::MenuItemIntegerRange(char const* newName, int newMin, int 
 	maxValue = newMax;
 }
 
+
 void MenuItemIntegerRange::beginSession(MenuItem* navigatedBackwardFrom) {
 	MenuItemRange::beginSession(navigatedBackwardFrom);
 #if HAVE_OLED
@@ -36,6 +37,7 @@ void MenuItemIntegerRange::beginSession(MenuItem* navigatedBackwardFrom) {
 	}
 #endif
 }
+
 
 void MenuItemIntegerRange::selectEncoderAction(int offset) {
 
@@ -93,6 +95,7 @@ justDrawOneNumber:
 		drawValue();
 	}
 }
+
 
 void MenuItemIntegerRange::getText(char* buffer, int* getLeftLength, int* getRightLength, bool mayShowJustOne) {
 

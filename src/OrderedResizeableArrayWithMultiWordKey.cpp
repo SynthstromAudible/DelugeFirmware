@@ -18,12 +18,14 @@
 #include <OrderedResizeableArrayWithMultiWordKey.h>
 #include "uart.h"
 
-OrderedResizeableArrayWithMultiWordKey::OrderedResizeableArrayWithMultiWordKey(int newElementSize, int newNumWordsInKey)
-    : OrderedResizeableArrayWith32bitKey(newElementSize, 16, 15), numWordsInKey(newNumWordsInKey) {
+OrderedResizeableArrayWithMultiWordKey::OrderedResizeableArrayWithMultiWordKey(int newElementSize, int newNumWordsInKey) :
+	OrderedResizeableArrayWith32bitKey(newElementSize, 16, 15),
+	numWordsInKey(newNumWordsInKey)
+{
 }
 
-int OrderedResizeableArrayWithMultiWordKey::searchMultiWord(uint32_t* __restrict__ keyWords, int comparison,
-                                                            int rangeBegin, int rangeEnd) {
+
+int OrderedResizeableArrayWithMultiWordKey::searchMultiWord(uint32_t* __restrict__ keyWords, int comparison, int rangeBegin, int rangeEnd) {
 
 	if (rangeEnd == -1) rangeEnd = numElements;
 
@@ -55,9 +57,9 @@ searchFurtherRight:
 	return rangeBegin + comparison;
 }
 
+
 // Returns -1 if not found
-int OrderedResizeableArrayWithMultiWordKey::searchMultiWordExact(uint32_t* __restrict__ keyWords,
-                                                                 int* getIndexToInsertAt, int rangeBegin) {
+int OrderedResizeableArrayWithMultiWordKey::searchMultiWordExact(uint32_t* __restrict__ keyWords, int* getIndexToInsertAt, int rangeBegin) {
 	int i = searchMultiWord(keyWords, GREATER_OR_EQUAL, rangeBegin);
 	if (i < numElements) {
 		uint32_t* __restrict__ wordsHere = (uint32_t*)getElementAddress(i);
@@ -73,9 +75,9 @@ notFound:
 	return -1;
 }
 
+
 // Returns index created, or -1 if error
-int OrderedResizeableArrayWithMultiWordKey::insertAtKeyMultiWord(uint32_t* __restrict__ keyWords, int rangeBegin,
-                                                                 int rangeEnd) {
+int OrderedResizeableArrayWithMultiWordKey::insertAtKeyMultiWord(uint32_t* __restrict__ keyWords, int rangeBegin, int rangeEnd) {
 	int i = searchMultiWord(keyWords, GREATER_OR_EQUAL, 0, rangeEnd);
 
 	int error = insertAtIndex(i);
@@ -89,6 +91,7 @@ int OrderedResizeableArrayWithMultiWordKey::insertAtKeyMultiWord(uint32_t* __res
 
 	return i;
 }
+
 
 // Returns whether it did actually do a delete
 bool OrderedResizeableArrayWithMultiWordKey::deleteAtKeyMultiWord(uint32_t* __restrict__ keyWords) {

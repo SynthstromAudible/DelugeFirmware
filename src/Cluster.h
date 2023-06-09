@@ -26,6 +26,7 @@ class Sample;
 class SampleCluster;
 class SampleCache;
 
+
 // Please see explanation of Clusters and SD card streaming at the top of AudioFileManager.h
 
 class Cluster final : public Stealable {

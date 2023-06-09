@@ -20,12 +20,14 @@
 #include "uitimermanager.h"
 #include "string.h"
 
-NumericLayerScrollingText::NumericLayerScrollingText() {
+NumericLayerScrollingText::NumericLayerScrollingText()
+{
 	currentDirection = 1;
 	currentPos = 0;
 }
 
-NumericLayerScrollingText::~NumericLayerScrollingText() {
+NumericLayerScrollingText::~NumericLayerScrollingText()
+{
 	// TODO Auto-generated destructor stub
 }
 
@@ -36,6 +38,7 @@ void NumericLayerScrollingText::isNowOnTop() {
 
 	if (currentPos + NUMERIC_DISPLAY_LENGTH >= length) currentDirection = -1;
 }
+
 
 void NumericLayerScrollingText::render(uint8_t* returnSegments) {
 	for (int i = 0; i < NUMERIC_DISPLAY_LENGTH; i++) {
@@ -54,7 +57,9 @@ bool NumericLayerScrollingText::callBack() {
 		currentDirection = -currentDirection;
 	}
 
-	int delayTime = reachedEnd ? 600 : ((currentDirection == 1) ? 140 : 50);
+	int delayTime = reachedEnd ?
+			600 :
+			((currentDirection == 1) ? 140 : 50);
 	uiTimerManager.setTimer(TIMER_DISPLAY, delayTime);
 
 	return false;

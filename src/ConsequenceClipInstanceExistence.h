@@ -35,7 +35,9 @@ public:
 	int32_t pos;
 	int32_t length;
 
+
 	uint8_t type;
+
 };
 
 #endif /* CONSEQUENCECLIPINSTANCEEXISTENCE_H_ */

@@ -19,8 +19,11 @@
 #include "definitions.h"
 #include "numericdriver.h"
 
-VoiceVector::VoiceVector() {
+
+VoiceVector::VoiceVector()
+{
 }
+
 
 void VoiceVector::checkVoiceExists(Voice* voice, Sound* sound, char const* errorCode) {
 

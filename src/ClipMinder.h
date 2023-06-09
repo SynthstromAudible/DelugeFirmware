@@ -25,4 +25,5 @@ public:
 	int buttonAction(int x, int y, bool on);
 };
 
+
 #endif /* CLIPMINDER_H_ */

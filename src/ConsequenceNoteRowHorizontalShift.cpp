@@ -36,9 +36,7 @@ int ConsequenceNoteRowHorizontalShift::revert(int time, ModelStack* modelStack) 
 		amountNow = -amountNow;
 	}
 
-	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addTimelineCounter(modelStack->song->currentClip)
-	                                                   ->addNoteRowId(noteRowId)
-	                                                   ->automaticallyAddNoteRowFromId();
+	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addTimelineCounter(modelStack->song->currentClip)->addNoteRowId(noteRowId)->automaticallyAddNoteRowFromId();
 
 	if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
 #if ALPHA_OR_BETA_VERSION
@@ -47,8 +45,7 @@ int ConsequenceNoteRowHorizontalShift::revert(int time, ModelStack* modelStack) 
 		return ERROR_BUG;
 	}
 
-	((InstrumentClip*)modelStackWithNoteRow->getTimelineCounter())
-	    ->shiftOnlyOneNoteRowHorizontally(modelStackWithNoteRow, amountNow);
+	((InstrumentClip*)modelStackWithNoteRow->getTimelineCounter())->shiftOnlyOneNoteRowHorizontally(modelStackWithNoteRow, amountNow);
 
 	return NO_ERROR;
 }

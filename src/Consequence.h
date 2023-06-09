@@ -25,6 +25,7 @@
 #define CONSEQUENCE_PARAM_CHANGE 3
 #define CONSEQUENCE_NOTE_ARRAY_CHANGE 4
 
+
 class InstrumentClip;
 class Song;
 class ModelStack;

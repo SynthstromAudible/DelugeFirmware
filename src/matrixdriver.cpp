@@ -47,9 +47,19 @@ extern "C" {
 
 MatrixDriver matrixDriver;
 
-MatrixDriver::MatrixDriver() {
+
+MatrixDriver::MatrixDriver()
+{
 	PadLEDs::init();
 }
+
+
+
+
+
+
+
+
 
 void MatrixDriver::noPressesHappening(bool inCardRoutine) {
 
@@ -64,6 +74,7 @@ void MatrixDriver::noPressesHappening(bool inCardRoutine) {
 	}
 }
 
+
 int MatrixDriver::padAction(int x, int y, int velocity) {
 	padStates[x][y] = velocity;
 	int result = getCurrentUI()->padAction(x, y, velocity);
@@ -72,9 +83,12 @@ int MatrixDriver::padAction(int x, int y, int velocity) {
 	return ACTION_RESULT_DEALT_WITH;
 }
 
+
 bool MatrixDriver::isPadPressed(int x, int y) {
 	return padStates[x][y];
 }
+
+
 
 bool MatrixDriver::isUserDoingBootloaderOverwriteAction() {
 	for (int x = 0; x < displayWidth + sideBarWidth; x++) {
@@ -87,3 +101,4 @@ bool MatrixDriver::isUserDoingBootloaderOverwriteAction() {
 	}
 	return true;
 }
+

@@ -17,10 +17,13 @@
 
 #include "CopiedParamAutomation.h"
 
-CopiedParamAutomation::CopiedParamAutomation() {
+CopiedParamAutomation::CopiedParamAutomation()
+{
 	nodes = NULL;
 	numNodes = 0;
 }
 
-CopiedParamAutomation::~CopiedParamAutomation() {
+CopiedParamAutomation::~CopiedParamAutomation()
+{
 }
+

@@ -27,19 +27,17 @@ MenuItemSourceSelectionRegular sourceSelectionMenuRegular;
 MenuItemSourceSelectionRange sourceSelectionMenuRange;
 
 const uint8_t sourceMenuContents[] = {
-    PATCH_SOURCE_ENVELOPE_0, PATCH_SOURCE_ENVELOPE_1, PATCH_SOURCE_LFO_GLOBAL, PATCH_SOURCE_LFO_LOCAL,
-    PATCH_SOURCE_VELOCITY,   PATCH_SOURCE_NOTE,       PATCH_SOURCE_COMPRESSOR, PATCH_SOURCE_RANDOM,
-    PATCH_SOURCE_X,          PATCH_SOURCE_Y,          PATCH_SOURCE_AFTERTOUCH,
+		PATCH_SOURCE_ENVELOPE_0, PATCH_SOURCE_ENVELOPE_1, PATCH_SOURCE_LFO_GLOBAL, PATCH_SOURCE_LFO_LOCAL, PATCH_SOURCE_VELOCITY, PATCH_SOURCE_NOTE,
+		PATCH_SOURCE_COMPRESSOR, PATCH_SOURCE_RANDOM, PATCH_SOURCE_X, PATCH_SOURCE_Y, PATCH_SOURCE_AFTERTOUCH,
 };
 
 MenuItemSourceSelection::MenuItemSourceSelection() {
+
 }
 
+
 uint8_t MenuItemSourceSelection::shouldDrawDotOnValue() {
-	return soundEditor.currentParamManager->getPatchCableSet()->isSourcePatchedToDestinationDescriptorVolumeInspecific(
-	           s, getDestinationDescriptor())
-	           ? 3
-	           : 255;
+	return soundEditor.currentParamManager->getPatchCableSet()->isSourcePatchedToDestinationDescriptorVolumeInspecific(s, getDestinationDescriptor()) ? 3 : 255;
 }
 
 #if HAVE_OLED
@@ -54,6 +52,7 @@ void MenuItemSourceSelection::drawPixelsForOled() {
 	}
 
 	selectedRowOnScreen = 0;
+
 
 	int thisOption = scrollPos;
 	int i = 0;
@@ -83,7 +82,7 @@ void MenuItemSourceSelection::drawPixelsForOled() {
 
 void MenuItemSourceSelection::drawValue() {
 	char* text;
-	switch (sourceMenuContents[soundEditor.currentValue]) {
+	switch(sourceMenuContents[soundEditor.currentValue]) {
 	case PATCH_SOURCE_LFO_GLOBAL:
 		text = "LFO1";
 		break;
@@ -140,8 +139,7 @@ void MenuItemSourceSelection::beginSession(MenuItem* navigatedBackwardFrom) {
 	soundEditor.currentValue = 0;
 
 	if (navigatedBackwardFrom) {
-		while (sourceMenuContents[soundEditor.currentValue] != s)
-			soundEditor.currentValue++;
+		while (sourceMenuContents[soundEditor.currentValue] != s) soundEditor.currentValue++;
 		// Scroll pos will be retained from before.
 	}
 	else {
@@ -150,13 +148,10 @@ void MenuItemSourceSelection::beginSession(MenuItem* navigatedBackwardFrom) {
 			s = sourceMenuContents[soundEditor.currentValue];
 
 			// If patching already exists on this source, we use this as the initial one to show to the user
-			if (soundEditor.currentParamManager->getPatchCableSet()
-			        ->isSourcePatchedToDestinationDescriptorVolumeInspecific(s, getDestinationDescriptor()))
-				break;
+			if (soundEditor.currentParamManager->getPatchCableSet()->isSourcePatchedToDestinationDescriptorVolumeInspecific(s, getDestinationDescriptor())) break;
 
 			// Note down the first "allowed" or "editable" source
-			if (soundEditor.currentValue < firstAllowedIndex && sourceIsAllowed(s))
-				firstAllowedIndex = soundEditor.currentValue;
+			if (soundEditor.currentValue < firstAllowedIndex && sourceIsAllowed(s)) firstAllowedIndex = soundEditor.currentValue;
 
 			soundEditor.currentValue++;
 #if HAVE_OLED
@@ -233,35 +228,24 @@ bool MenuItemSourceSelection::sourceIsAllowed(int source) {
 
 	int p = destinationDescriptor.getJustTheParam();
 
-	// Check that this source is allowed to be patched to the selected param
-	if (p == PARAM_GLOBAL_VOLUME_POST_FX) {
-		return (soundEditor.currentSound->maySourcePatchToParam(
-		            source, PARAM_GLOBAL_VOLUME_POST_FX, (ParamManagerForTimeline*)soundEditor.currentParamManager)
-		            != PATCH_CABLE_ACCEPTANCE_DISALLOWED
-		        || soundEditor.currentSound->maySourcePatchToParam(
-		               source, PARAM_LOCAL_VOLUME, (ParamManagerForTimeline*)soundEditor.currentParamManager)
-		               != PATCH_CABLE_ACCEPTANCE_DISALLOWED
-		        || soundEditor.currentSound->maySourcePatchToParam(
-		               source, PARAM_GLOBAL_VOLUME_POST_REVERB_SEND,
-		               (ParamManagerForTimeline*)soundEditor.currentParamManager)
-		               != PATCH_CABLE_ACCEPTANCE_DISALLOWED);
-	}
-	else {
-		return (soundEditor.currentSound->maySourcePatchToParam(
-		            source, p, (ParamManagerForTimeline*)soundEditor.currentParamManager)
-		        != PATCH_CABLE_ACCEPTANCE_DISALLOWED);
-	}
+    // Check that this source is allowed to be patched to the selected param
+    if (p == PARAM_GLOBAL_VOLUME_POST_FX) {
+    	return (soundEditor.currentSound->maySourcePatchToParam(source, PARAM_GLOBAL_VOLUME_POST_FX, (ParamManagerForTimeline*)soundEditor.currentParamManager) != PATCH_CABLE_ACCEPTANCE_DISALLOWED
+    			|| soundEditor.currentSound->maySourcePatchToParam(source, PARAM_LOCAL_VOLUME, (ParamManagerForTimeline*)soundEditor.currentParamManager) != PATCH_CABLE_ACCEPTANCE_DISALLOWED
+    			|| soundEditor.currentSound->maySourcePatchToParam(source, PARAM_GLOBAL_VOLUME_POST_REVERB_SEND, (ParamManagerForTimeline*)soundEditor.currentParamManager) != PATCH_CABLE_ACCEPTANCE_DISALLOWED);
+    }
+    else {
+    	return (soundEditor.currentSound->maySourcePatchToParam(source, p, (ParamManagerForTimeline*)soundEditor.currentParamManager) != PATCH_CABLE_ACCEPTANCE_DISALLOWED);
+    }
 }
 
 uint8_t MenuItemSourceSelection::getIndexOfPatchedParamToBlink() {
 	return soundEditor.patchingParamSelected;
 }
 
+
 uint8_t MenuItemSourceSelection::shouldBlinkPatchingSourceShortcut(int s, uint8_t* colour) {
-	return soundEditor.currentParamManager->getPatchCableSet()->isSourcePatchedToDestinationDescriptorVolumeInspecific(
-	           s, getDestinationDescriptor())
-	           ? 3
-	           : 255;
+	return soundEditor.currentParamManager->getPatchCableSet()->isSourcePatchedToDestinationDescriptorVolumeInspecific(s, getDestinationDescriptor()) ? 3 : 255;
 }
 
 // -----------------------------------------------------------------
@@ -284,10 +268,9 @@ MenuItem* MenuItemSourceSelectionRegular::selectButtonPress() {
 void MenuItemSourceSelectionRegular::beginSession(MenuItem* navigatedBackwardFrom) {
 
 	if (navigatedBackwardFrom) {
-		if (soundEditor.patchingParamSelected == PARAM_GLOBAL_VOLUME_POST_REVERB_SEND
-		    || soundEditor.patchingParamSelected == PARAM_LOCAL_VOLUME) {
-			soundEditor.patchingParamSelected = PARAM_GLOBAL_VOLUME_POST_FX;
-		}
+    	if (soundEditor.patchingParamSelected == PARAM_GLOBAL_VOLUME_POST_REVERB_SEND || soundEditor.patchingParamSelected == PARAM_LOCAL_VOLUME) {
+    		soundEditor.patchingParamSelected = PARAM_GLOBAL_VOLUME_POST_FX;
+    	}
 	}
 
 	MenuItemSourceSelection::beginSession(navigatedBackwardFrom);
@@ -297,6 +280,7 @@ MenuItem* MenuItemSourceSelectionRegular::patchingSourceShortcutPress(int newS, 
 	s = newS;
 	return &patchCableStrengthMenuRegular;
 }
+
 
 // -----------------------------------------------------------------
 MenuItemSourceSelectionRange::MenuItemSourceSelectionRange() {

@@ -19,8 +19,7 @@
 #include <ConsequenceClipInstanceExistence.h>
 #include "instrument.h"
 
-ConsequenceClipInstanceExistence::ConsequenceClipInstanceExistence(Output* newOutput, ClipInstance* clipInstance,
-                                                                   int newType) {
+ConsequenceClipInstanceExistence::ConsequenceClipInstanceExistence(Output* newOutput, ClipInstance* clipInstance, int newType) {
 	output = newOutput;
 	clip = clipInstance->clip;
 	pos = clipInstance->pos;

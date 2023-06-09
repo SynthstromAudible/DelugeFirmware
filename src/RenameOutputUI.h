@@ -38,7 +38,9 @@ protected:
 
 private:
 	void exitUI();
+
 };
+
 
 extern RenameOutputUI renameOutputUI;
 

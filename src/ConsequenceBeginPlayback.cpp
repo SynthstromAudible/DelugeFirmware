@@ -20,6 +20,7 @@
 
 ConsequenceBeginPlayback::ConsequenceBeginPlayback() {
 	// TODO Auto-generated constructor stub
+
 }
 
 int ConsequenceBeginPlayback::revert(int time, ModelStack* modelStack) {

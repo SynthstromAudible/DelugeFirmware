@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+
 #ifndef CSTRINGARRAY_H_
 #define CSTRINGARRAY_H_
 
@@ -30,6 +31,7 @@ public:
 private:
 	int partitionForStrings(int low, int high);
 	void quickSortForStrings(int low, int high);
+
 };
 
 #endif /* CSTRINGARRAY_H_ */
