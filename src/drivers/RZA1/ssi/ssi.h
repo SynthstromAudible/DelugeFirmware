@@ -20,8 +20,13 @@
 
 #include "r_typedefs.h"
 
+
+
+
 void ssiInit2(const uint32_t ssi_channel);
 void dmaChannelStart(const uint32_t dma_channel);
 void ssiStart(const uint32_t ssi_channel);
+
+
 
 #endif /* SSI_H_ */

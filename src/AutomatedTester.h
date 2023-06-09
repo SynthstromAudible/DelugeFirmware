@@ -18,12 +18,14 @@
 #ifndef AUTOMATEDTESTER_H_
 #define AUTOMATEDTESTER_H_
 
+
 namespace AutomatedTester {
 void init();
 void turnSelectEncoder(int offset);
 void doMomentaryButtonPress(int x, int y);
 void possiblyDoSomething();
 
-} // namespace AutomatedTester
+}
+
 
 #endif /* AUTOMATEDTESTER_H_ */

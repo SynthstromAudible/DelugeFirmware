@@ -40,6 +40,8 @@ extern "C" {
 #include "oled_low_level.h"
 }
 
+
+
 void ramTestUart() {
 	// Test the RAM
 	uint32_t lastErrorAt = 0;
@@ -47,16 +49,16 @@ void ramTestUart() {
 
 	while (1) {
 
-		//while (1) {
+	//while (1) {
 		Uart::println("writing to ram");
 		address = (uint32_t*)EXTERNAL_MEMORY_BEGIN;
 		while (address != (uint32_t*)EXTERNAL_MEMORY_END) {
 			*address = (uint32_t)address;
 			address++;
 		}
-		//}
+	//}
 
-		//while (1) {
+	//while (1) {
 		Uart::println("reading back from ram. Checking for errors every megabyte");
 		address = (uint32_t*)EXTERNAL_MEMORY_BEGIN;
 		while (address != (uint32_t*)EXTERNAL_MEMORY_END) {
@@ -64,8 +66,7 @@ void ramTestUart() {
 
 				uint32_t errorAtBlockNow = ((uint32_t)address) & (0xFFF00000);
 				if (errorAtBlockNow != lastErrorAt) {
-					while (uartGetTxBufferFullnessByItem(UART_ITEM_MIDI) > 100)
-						;
+					while(uartGetTxBufferFullnessByItem(UART_ITEM_MIDI) > 100);
 					Uart::print("error at ");
 					Uart::print((uint32_t)address);
 					Uart::print(". got ");
@@ -76,16 +77,21 @@ void ramTestUart() {
 			}
 			address++;
 		}
-		//}
-		Uart::println("finished checking ram");
+	//}
+	Uart::println("finished checking ram");
 	}
 }
+
+
+
 
 #if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 bool inputStateLastTime = false;
 
 bool nextIsDepress = false;
 int16_t encoderTestPos = 128;
+
+
 
 void setupSquareWave() {
 	// Send square wave
@@ -103,6 +109,7 @@ void setupSquareWave() {
 }
 
 int hardwareTestWhichColour = 0;
+
 
 void sendColoursForHardwareTest(bool testButtonStates[9][16]) {
 	for (int x = 0; x < 9; x++) {
@@ -137,8 +144,8 @@ void readInputsForHardwareTest(bool testButtonStates[9][16]) {
 		inputStateLastTime = inputStateNow;
 	}
 
-	uint8_t value;
-	bool anything = uartGetChar(UART_ITEM_PIC, (char*)&value);
+    uint8_t value;
+    bool anything = uartGetChar(UART_ITEM_PIC, (char*)&value);
 	if (anything) {
 		if (value == 252) {
 			nextIsDepress = true;
@@ -152,6 +159,7 @@ void readInputsForHardwareTest(bool testButtonStates[9][16]) {
 				testButtonStates[x][y] = !nextIsDepress;
 				sendColoursForHardwareTest(testButtonStates);
 			}
+
 
 			if (nextIsDepress) {
 
@@ -176,8 +184,10 @@ void readInputsForHardwareTest(bool testButtonStates[9][16]) {
 #if HAVE_OLED
 		else if (value == oledWaitingForMessage) {
 			//delayUS(2500); // TODO: fix
-			if (value == 248) oledSelectingComplete();
-			else oledDeselectionComplete();
+			if (value == 248)
+				oledSelectingComplete();
+			else
+				oledDeselectionComplete();
 		}
 #endif
 	}
@@ -189,18 +199,18 @@ void readInputsForHardwareTest(bool testButtonStates[9][16]) {
 
 	anything = false;
 	for (int e = 0; e < 4; e++) {
-		if (Encoders::encoders[e].detentPos != 0) {
-			encoderTestPos += Encoders::encoders[e].detentPos;
-			Encoders::encoders[e].detentPos = 0;
-			anything = true;
-		}
+	    if (Encoders::encoders[e].detentPos != 0) {
+	    	encoderTestPos += Encoders::encoders[e].detentPos;
+	    	Encoders::encoders[e].detentPos = 0;
+	    	anything = true;
+	    }
 	}
 	for (int e = 0; e < 2; e++) {
-		if (Encoders::encoders[e + 4].encPos != 0) {
-			encoderTestPos += Encoders::encoders[e + 4].encPos;
-			Encoders::encoders[e + 4].encPos = 0;
-			anything = true;
-		}
+	    if (Encoders::encoders[e + 4].encPos != 0) {
+	    	encoderTestPos += Encoders::encoders[e + 4].encPos;
+	    	Encoders::encoders[e + 4].encPos = 0;
+	    	anything = true;
+	    }
 	}
 
 	if (anything) {
@@ -211,11 +221,13 @@ void readInputsForHardwareTest(bool testButtonStates[9][16]) {
 	}
 
 #if HAVE_OLED
-	oledRoutine();
+    oledRoutine();
 #endif
 	uartFlushIfNotSending(UART_ITEM_PIC);
 	uartFlushIfNotSending(UART_ITEM_MIDI);
 }
+
+
 
 void ramTestLED(bool stuffAlreadySetUp) {
 	bool testButtonStates[9][16];
@@ -227,14 +239,14 @@ void ramTestLED(bool stuffAlreadySetUp) {
 
 #if HAVE_OLED
 	OLED::clearMainImage();
-	OLED::invertArea(0, OLED_MAIN_WIDTH_PIXELS, OLED_MAIN_TOPMOST_PIXEL, OLED_MAIN_HEIGHT_PIXELS - 1,
-	                 OLED::oledMainImage);
+	OLED::invertArea(0, OLED_MAIN_WIDTH_PIXELS, OLED_MAIN_TOPMOST_PIXEL, OLED_MAIN_HEIGHT_PIXELS - 1, OLED::oledMainImage);
 	OLED::sendMainImage();
 #endif
 
 	midiEngine.midiThru = true;
 
 	if (!HARDWARE_TEST_MODE) setupSquareWave();
+
 
 	bufferPICPadsUart(23); // Set flash length
 	bufferPICPadsUart(100);
@@ -269,17 +281,17 @@ void ramTestLED(bool stuffAlreadySetUp) {
 	setOutputState(SPEAKER_ENABLE_1, SPEAKER_ENABLE_2, 1); // Switch it on
 
 	setPinAsInput(HEADPHONE_DETECT_1, HEADPHONE_DETECT_2); // Headphone detect
-	setPinAsInput(6, 6);                                   // Line in detect
-	setPinAsInput(7, 9);                                   // Mic detect
+	setPinAsInput(6, 6); // Line in detect
+	setPinAsInput(7, 9); // Mic detect
 
-	setPinAsOutput(BATTERY_LED_1, BATTERY_LED_2);    // Battery LED control
+	setPinAsOutput(BATTERY_LED_1, BATTERY_LED_2); // Battery LED control
 	setOutputState(BATTERY_LED_1, BATTERY_LED_2, 1); // Switch it off (1 is off for open-drain)
 
 	setPinMux(1, 8 + SYS_VOLT_SENSE_PIN, 1); // Analog input for voltage sense
 
 	setPinAsInput(ANALOG_CLOCK_IN_1, ANALOG_CLOCK_IN_2); // Gate input
 
-	setPinAsOutput(SYNCED_LED_PORT, SYNCED_LED_PIN);    // Synced LED
+	setPinAsOutput(SYNCED_LED_PORT, SYNCED_LED_PIN); // Synced LED
 	setOutputState(SYNCED_LED_PORT, SYNCED_LED_PIN, 0); // Switch it off
 
 	// Line out detect pins
@@ -289,6 +301,7 @@ void ramTestLED(bool stuffAlreadySetUp) {
 	// Test the RAM
 	uint32_t* address;
 	bool ledState = true;
+
 
 	while (1) {
 
@@ -364,6 +377,8 @@ void ramTestLED(bool stuffAlreadySetUp) {
 }
 #endif
 
+
+
 #if AUTOPILOT_TEST_ENABLED
 #define AUTOPILOT_NONE 0
 #define AUTOPILOT_HOLDING_EDIT_PAD 1
@@ -391,7 +406,7 @@ void autoPilotStuff() {
 
 	case 0:
 
-		if (true) { //getCurrentUI() == &instrumentClipView && currentSong->currentClip->output->type == INSTRUMENT_TYPE_KIT) {
+		if (true) {//getCurrentUI() == &instrumentClipView && currentSong->currentClip->output->type == INSTRUMENT_TYPE_KIT) {
 			if (!currentUIMode) {
 				randThing = getRandom255();
 
@@ -447,6 +462,7 @@ void autoPilotStuff() {
 		}
 		break;
 
+
 	case AUTOPILOT_HOLDING_EDIT_PAD:
 		autoPilotMode = AUTOPILOT_NONE;
 		matrixDriver.padAction(autoPilotX, autoPilotY, false);
@@ -468,6 +484,7 @@ void autoPilotStuff() {
 		}
 
 		break;
+
 
 	case AUTOPILOT_IN_MENU:
 
@@ -497,6 +514,7 @@ void autoPilotStuff() {
 		}
 
 		break;
+
 
 	case AUTOPILOT_IN_SONG_SAVER:
 

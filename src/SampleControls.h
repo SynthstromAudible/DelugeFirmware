@@ -23,11 +23,12 @@
 class SampleControls {
 public:
 	SampleControls();
-	int getInterpolationBufferSize(int32_t phaseIncrement);
+    int getInterpolationBufferSize(int32_t phaseIncrement);
 
-	uint8_t interpolationMode;
-	bool pitchAndSpeedAreIndependent;
-	bool reversed;
+    uint8_t interpolationMode;
+    bool pitchAndSpeedAreIndependent;
+    bool reversed;
+
 };
 
 #endif /* SAMPLECONTROLS_H_ */

@@ -20,8 +20,7 @@
 #include "definitions.h"
 #include "NoteRow.h"
 
-ConsequenceNoteArrayChange::ConsequenceNoteArrayChange(InstrumentClip* newClip, int newNoteRowId,
-                                                       NoteVector* newNoteVector, bool stealData) {
+ConsequenceNoteArrayChange::ConsequenceNoteArrayChange(InstrumentClip* newClip, int newNoteRowId, NoteVector* newNoteVector, bool stealData) {
 	type = CONSEQUENCE_NOTE_ARRAY_CHANGE;
 	clip = newClip;
 	noteRowId = newNoteRowId;

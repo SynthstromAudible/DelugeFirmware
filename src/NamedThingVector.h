@@ -22,6 +22,7 @@
 
 #include "DString.h"
 
+
 class NamedThingVectorElement {
 public:
 	NamedThingVectorElement(void* newNamedThing, String* newName);

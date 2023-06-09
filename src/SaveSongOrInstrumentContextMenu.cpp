@@ -29,13 +29,15 @@ SaveSongOrInstrumentContextMenu::SaveSongOrInstrumentContextMenu() {
 #endif
 }
 
+
 char const** SaveSongOrInstrumentContextMenu::getOptions() {
 	static char const* options[] = {"Collect media", "Create folder", "Delete"};
 	return options;
 }
 
+
 bool SaveSongOrInstrumentContextMenu::acceptCurrentOption() {
-	switch (currentOption) {
+	switch(currentOption) {
 	case 0: // Collect media
 		saveSongUI.collectingSamples = true;
 		return saveSongUI.performSave();
@@ -66,13 +68,15 @@ bool SaveSongOrInstrumentContextMenu::acceptCurrentOption() {
 	}
 }
 
+
 bool SaveSongOrInstrumentContextMenu::isCurrentOptionAvailable() {
 
 	FileItem* currentFileItem = Browser::getCurrentFileItem();
 
-	switch (currentOption) {
+	switch(currentOption) {
 	case 0: // Collect media
-		return (isUIOpen(&saveSongUI)) && (!currentFileItem || !currentFileItem->isFolder);
+		return (isUIOpen(&saveSongUI))
+				&& (!currentFileItem || !currentFileItem->isFolder);
 
 	case 1: // Create folder
 		return (!QwertyUI::enteredText.isEmpty() && !currentFileItem);
@@ -85,6 +89,7 @@ bool SaveSongOrInstrumentContextMenu::isCurrentOptionAvailable() {
 		return false;
 	}
 }
+
 
 int SaveSongOrInstrumentContextMenu::padAction(int x, int y, int on) {
 	return getUIUpOneLevel()->padAction(x, y, on);

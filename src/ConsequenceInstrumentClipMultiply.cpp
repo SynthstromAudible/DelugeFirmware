@@ -20,9 +20,12 @@
 #include "song.h"
 #include "ModelStack.h"
 
-ConsequenceInstrumentClipMultiply::ConsequenceInstrumentClipMultiply() {
+ConsequenceInstrumentClipMultiply::ConsequenceInstrumentClipMultiply()
+{
 	// TODO Auto-generated constructor stub
+
 }
+
 
 int ConsequenceInstrumentClipMultiply::revert(int time, ModelStack* modelStack) {
 	InstrumentClip* clip = (InstrumentClip*)modelStack->song->currentClip;

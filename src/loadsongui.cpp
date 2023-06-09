@@ -49,10 +49,15 @@ LoadSongUI loadSongUI;
 extern void songLoaded(Song* song);
 extern void setUIForLoadedSong(Song* song);
 extern "C" {
-void routineForSD(void);
-#include "sio_char.h"
+	void routineForSD(void);
+	#include "sio_char.h"
 }
 extern void setupBlankSong();
+
+
+
+
+
 
 LoadSongUI::LoadSongUI() {
 	qwertyAlwaysVisible = false;
@@ -62,10 +67,11 @@ LoadSongUI::LoadSongUI() {
 #endif
 }
 
+
 bool LoadSongUI::opened() {
 
 	instrumentTypeToLoad = 255;
-	currentDir.set(&currentSong->dirPath);
+    currentDir.set(&currentSong->dirPath);
 
 	int error = beginSlotSession(false, true);
 	if (error) {
@@ -75,70 +81,71 @@ gotError:
 		currentUIMode = UI_MODE_NONE;
 		uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
 		renderingNeededRegardlessOfUI(); // Otherwise we may have left the scrolling-in animation partially done
-		return false;                    // Exit UI instantly
+		return false; // Exit UI instantly
 	}
 
-	currentUIMode = UI_MODE_VERTICAL_SCROLL;
-	scrollDirection = 1;
-	squaresScrolled = 0;
-	scrollingIntoSlot = false;
-	scrollingToNothing = true;
-	deletedPartsOfOldSong = false;
-	timerCallback(); // Start scrolling animation out of the View
+    currentUIMode = UI_MODE_VERTICAL_SCROLL;
+    scrollDirection = 1;
+    squaresScrolled = 0;
+    scrollingIntoSlot = false;
+    scrollingToNothing = true;
+    deletedPartsOfOldSong = false;
+    timerCallback(); // Start scrolling animation out of the View
 
-	PadLEDs::clearTickSquares();
+    PadLEDs::clearTickSquares();
 
-	String searchFilename;
-	searchFilename.set(&currentSong->name);
+    String searchFilename;
+    searchFilename.set(&currentSong->name);
 
-	if (!searchFilename.isEmpty()) {
-		error = searchFilename.concatenate(".XML");
-		if (error) goto gotError;
-	}
+    if (!searchFilename.isEmpty()) {
+    	error = searchFilename.concatenate(".XML");						if (error) goto gotError;
+    }
 
-	error = arrivedInNewFolder(0, searchFilename.get(), "SONGS");
-	if (error) goto gotError;
+    error = arrivedInNewFolder(0, searchFilename.get(), "SONGS");		if (error) goto gotError;
 
 #if SD_TEST_MODE_ENABLED_LOAD_SONGS
-	currentSlot = (currentSlot + 1) % 19;
-	currentSubSlot = (currentSlot == 0) ? 0 : -1;
+    currentSlot = (currentSlot + 1) % 19;
+    currentSubSlot = (currentSlot == 0) ? 0 : -1;
 #endif
 
-	focusRegained();
 
-	squaresScrolled = 0;
-	scrollingIntoSlot = true;
-	scrollingToNothing = false;
+    focusRegained();
 
-	if (currentUIMode != UI_MODE_VERTICAL_SCROLL) {
-		currentUIMode =
-		    UI_MODE_VERTICAL_SCROLL; // Have to reset this again - it might have finished the first bit of the scroll
-		timerCallback();
-	}
+    squaresScrolled = 0;
+    scrollingIntoSlot = true;
+    scrollingToNothing = false;
 
-	IndicatorLEDs::setLedState(synthLedX, synthLedY, false);
-	IndicatorLEDs::setLedState(kitLedX, kitLedY, false);
-	IndicatorLEDs::setLedState(midiLedX, midiLedY, false);
+    if (currentUIMode != UI_MODE_VERTICAL_SCROLL) {
+    	currentUIMode = UI_MODE_VERTICAL_SCROLL; // Have to reset this again - it might have finished the first bit of the scroll
+    	timerCallback();
+    }
 
-	IndicatorLEDs::setLedState(crossScreenEditLedX, crossScreenEditLedY, false);
-	IndicatorLEDs::setLedState(clipViewLedX, clipViewLedY, false);
-	IndicatorLEDs::setLedState(sessionViewLedX, sessionViewLedY, false);
-	IndicatorLEDs::setLedState(scaleModeLedX, scaleModeLedY, false);
+    IndicatorLEDs::setLedState(synthLedX, synthLedY, false);
+    IndicatorLEDs::setLedState(kitLedX, kitLedY, false);
+    IndicatorLEDs::setLedState(midiLedX, midiLedY, false);
 
-	if (ALPHA_OR_BETA_VERSION && currentUIMode == UI_MODE_WAITING_FOR_NEXT_FILE_TO_LOAD) {
-		numericDriver.freezeWithError("E188");
-	}
+    IndicatorLEDs::setLedState(crossScreenEditLedX, crossScreenEditLedY, false);
+    IndicatorLEDs::setLedState(clipViewLedX, clipViewLedY, false);
+    IndicatorLEDs::setLedState(sessionViewLedX, sessionViewLedY, false);
+    IndicatorLEDs::setLedState(scaleModeLedX, scaleModeLedY, false);
 
-	return true;
+    if (ALPHA_OR_BETA_VERSION && currentUIMode == UI_MODE_WAITING_FOR_NEXT_FILE_TO_LOAD) {
+    	numericDriver.freezeWithError("E188");
+    }
+
+    return true;
 }
+
 
 void LoadSongUI::folderContentsReady(int entryDirection) {
 
-	drawSongPreview(currentUIMode == UI_MODE_VERTICAL_SCROLL);
+    drawSongPreview(currentUIMode == UI_MODE_VERTICAL_SCROLL);
 
 	PadLEDs::sendOutMainPadColours();
 	PadLEDs::sendOutSidebarColours();
 }
+
+
 
 void LoadSongUI::enterKeyPress() {
 
@@ -179,63 +186,65 @@ void LoadSongUI::displayLoopsRemainingPopup() {
 }
 #endif
 
+
 int LoadSongUI::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 
-	// Load button or select encoder press. Unlike most (all?) other children of Browser, we override this and don't just call mainButtonAction(),
+    // Load button or select encoder press. Unlike most (all?) other children of Browser, we override this and don't just call mainButtonAction(),
 	// because unlike all the others, we need to action the load immediately on down-press rather than waiting for press-release, because of that special
 	// action where you hold the button down until you want to "launch" the new song.
-	if ((x == loadButtonX && y == loadButtonY) || (x == selectEncButtonX && y == selectEncButtonY)) {
-		if (on) {
-			if (!currentUIMode) {
-				if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+    if ((x == loadButtonX && y == loadButtonY) || (x == selectEncButtonX && y == selectEncButtonY)) {
+        if (on) {
+            if (!currentUIMode) {
+            	if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 
-				enterKeyPress();
-			}
-		}
-		else {
-			// If all essential samples are already loaded, we can arm right away
-			if (currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_UNARMED) {
-				bool result = session.armForSongSwap();
+            	enterKeyPress();
+            }
+        }
+        else {
+        	// If all essential samples are already loaded, we can arm right away
+        	if (currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_UNARMED) {
+            	bool result = session.armForSongSwap();
 
-				// If arming couldn't really be done, and song has already swapped...
-				if (!result) {
-					currentUIMode = UI_MODE_LOADING_SONG_NEW_SONG_PLAYING;
-				}
-				else {
-					currentUIMode = UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED;
+            	// If arming couldn't really be done, and song has already swapped...
+            	if (!result) {
+            		currentUIMode = UI_MODE_LOADING_SONG_NEW_SONG_PLAYING;
+            	}
+            	else {
+            		currentUIMode = UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED;
 #if HAVE_OLED
-					displayArmedPopup();
+            		displayArmedPopup();
 #else
-					sessionView.redrawNumericDisplay();
+            		sessionView.redrawNumericDisplay();
 #endif
-				}
-			}
-		}
-	}
+            	}
+        	}
+        }
+    }
 
-	else return LoadUI::buttonAction(x, y, on, inCardRoutine);
+    else return LoadUI::buttonAction(x, y, on, inCardRoutine);
 
-	return ACTION_RESULT_DEALT_WITH;
+    return ACTION_RESULT_DEALT_WITH;
 }
+
 
 // Before calling this, you must set loadButtonReleased.
 void LoadSongUI::performLoad() {
 
 	FileItem* currentFileItem = getCurrentFileItem();
 
-	if (!currentFileItem) {
-		numericDriver.displayPopup(HAVE_OLED ? "No file selected" : "NONE");
-		return;
-	}
+    if (!currentFileItem) {
+    	numericDriver.displayPopup(HAVE_OLED ? "No file selected" : "NONE");
+    	return;
+    }
 
-	actionLogger.deleteAllLogs();
+    actionLogger.deleteAllLogs();
 
 	if (arrangement.hasPlaybackActive()) {
 		playbackHandler.switchToSession();
 	}
 
-	int error = storageManager.openXMLFile(&currentFileItem->filePointer, "song");
-	if (error) {
+    int error = storageManager.openXMLFile(&currentFileItem->filePointer, "song");
+    if (error) {
 		numericDriver.displayError(error);
 		return;
 	}
@@ -255,8 +264,7 @@ void LoadSongUI::performLoad() {
 
 	// If not currently playing, don't load both songs at once (this avoids any RAM overfilling, fragmentation etc.)
 	if (!playbackHandler.isEitherClockActive()) {
-		uiTimerManager.unsetTimer(
-		    TIMER_PLAY_ENABLE_FLASH); // Otherwise, a timer might get called and try to access Clips that we may have deleted below (really?)
+		uiTimerManager.unsetTimer(TIMER_PLAY_ENABLE_FLASH); // Otherwise, a timer might get called and try to access Clips that we may have deleted below (really?)
 		deleteOldSongBeforeLoadingNew();
 	}
 	else {
@@ -294,11 +302,12 @@ fail:
 		return;
 	}
 
+
 	preLoadedSong = new (songMemory) Song();
 	error = preLoadedSong->paramManager.setupUnpatched();
 	if (error) {
 gotErrorAfterCreatingSong:
-		void* toDealloc = dynamic_cast<void*>(preLoadedSong);
+       	void* toDealloc = dynamic_cast<void*>(preLoadedSong);
 		preLoadedSong->~Song(); // Will also delete paramManager
 		generalMemoryAllocator.dealloc(toDealloc);
 		preLoadedSong = NULL;
@@ -325,12 +334,9 @@ gotErrorAfterCreatingSong:
 	preLoadedSong->dirPath.set(&currentDir);
 
 	String currentFilenameWithoutExtension;
-	error = currentFileItem->getFilenameWithoutExtension(&currentFilenameWithoutExtension);
-	if (error) goto gotErrorAfterCreatingSong;
+	error = currentFileItem->getFilenameWithoutExtension(&currentFilenameWithoutExtension);																if (error) goto gotErrorAfterCreatingSong;
 
-	error = audioFileManager.setupAlternateAudioFileDir(&audioFileManager.alternateAudioFileLoadPath, currentDir.get(),
-	                                                    &currentFilenameWithoutExtension);
-	if (error) goto gotErrorAfterCreatingSong;
+	error = audioFileManager.setupAlternateAudioFileDir(&audioFileManager.alternateAudioFileLoadPath, currentDir.get(), &currentFilenameWithoutExtension);	if (error) goto gotErrorAfterCreatingSong;
 	audioFileManager.thingBeginningLoading(THING_TYPE_SONG);
 
 	// Search existing RAM for all samples, to lay a claim to any which will be needed for this new Song.
@@ -338,8 +344,8 @@ gotErrorAfterCreatingSong:
 	preLoadedSong->loadAllSamples(false);
 
 	// Load samples from files, just for currently playing Sounds (or if not playing, then all Sounds)
-	if (playbackHandler.isEitherClockActive()) preLoadedSong->loadCrucialSamplesOnly();
-	else preLoadedSong->loadAllSamples(true);
+	if (playbackHandler.isEitherClockActive())	preLoadedSong->loadCrucialSamplesOnly();
+	else										preLoadedSong->loadAllSamples(true);
 
 	// Ensure all AudioFile Clusters needed for new song are loaded
 	int count = 0; // Prevent any unforeseen loop. Not sure if that actually could happen
@@ -366,7 +372,7 @@ gotErrorAfterCreatingSong:
 
 			currentUIMode = UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED;
 #if HAVE_OLED
-			displayArmedPopup();
+            displayArmedPopup();
 #else
 			sessionView.redrawNumericDisplay();
 #endif
@@ -410,7 +416,7 @@ swapDone:
 	// Delete the old song
 	AudioEngine::logAction("i");
 	if (toDelete) {
-		void* toDealloc = dynamic_cast<void*>(toDelete);
+       	void* toDealloc = dynamic_cast<void*>(toDelete);
 		toDelete->~Song();
 		generalMemoryAllocator.dealloc(toDealloc);
 	}
@@ -435,8 +441,8 @@ swapDone:
 
 int LoadSongUI::timerCallback() {
 
-	// Progress vertical scrolling
-	if (currentUIMode == UI_MODE_VERTICAL_SCROLL) {
+    // Progress vertical scrolling
+    if (currentUIMode == UI_MODE_VERTICAL_SCROLL) {
 
 		squaresScrolled++;
 		int copyRow = (scrollDirection > 0) ? squaresScrolled - 1 : displayHeight - squaresScrolled;
@@ -446,8 +452,7 @@ int LoadSongUI::timerCallback() {
 		//matrixDriver.greyoutMinYDisplay = (scrollDirection > 0) ? displayHeight - squaresScrolled : squaresScrolled;
 
 		// Move the scrolling region
-		memmove(PadLEDs::image[startSquare], PadLEDs::image[1 - startSquare],
-		        (displayWidth + sideBarWidth) * (displayHeight - 1) * 3);
+		memmove(PadLEDs::image[startSquare], PadLEDs::image[1 - startSquare], (displayWidth + sideBarWidth) * (displayHeight - 1) * 3);
 
 		// And, bring in a row from the temp image (or from nowhere)
 		if (scrollingToNothing) memset(PadLEDs::image[endSquare], 0, (displayWidth + sideBarWidth) * 3);
@@ -461,6 +466,7 @@ int LoadSongUI::timerCallback() {
 			}
 			uartFlushIfNotSending(UART_ITEM_PIC_PADS);
 		}
+
 
 		// If we've finished scrolling...
 		if (squaresScrolled >= displayHeight) {
@@ -484,42 +490,41 @@ int LoadSongUI::timerCallback() {
 			}
 		}
 		else {
-			uiTimerManager.setTimer(TIMER_UI_SPECIFIC,
-			                        UI_MS_PER_REFRESH_SCROLLING * 4); // *2 caused glitches occasionally
+			uiTimerManager.setTimer(TIMER_UI_SPECIFIC, UI_MS_PER_REFRESH_SCROLLING * 4); // *2 caused glitches occasionally
 		}
-getOut : {}
+getOut: {}
 #if DELUGE_MODEL == DELUGE_MODEL_40_PAD
 		PadLEDs::sendOutMainPadColours();
 		PadLEDs::sendOutSidebarColours();
 #endif
 		return ACTION_RESULT_DEALT_WITH;
-	}
+    }
 
-	else {
-		return LoadUI::timerCallback();
-	}
+    else {
+    	return LoadUI::timerCallback();
+    }
 }
 
 void LoadSongUI::scrollFinished() {
-	// If we were scrolling out of one song and we got here, we just need to sit back and wait for the next song to load
-	if (!scrollingIntoSlot) {
-		currentUIMode = UI_MODE_WAITING_FOR_NEXT_FILE_TO_LOAD;
-	}
+    // If we were scrolling out of one song and we got here, we just need to sit back and wait for the next song to load
+    if (!scrollingIntoSlot) {
+    	currentUIMode = UI_MODE_WAITING_FOR_NEXT_FILE_TO_LOAD;
+    }
 
-	// Or, if we've finished scrolling into a new song
-	else {
-		currentUIMode = UI_MODE_NONE;
-	}
+    // Or, if we've finished scrolling into a new song
+    else {
+        currentUIMode = UI_MODE_NONE;
+    }
 }
 
 void LoadSongUI::exitActionWithError() {
-	numericDriver.displayPopup(HAVE_OLED ? "SD card error" : "CARD");
-	exitAction();
+    numericDriver.displayPopup(HAVE_OLED ? "SD card error" : "CARD");
+    exitAction();
 }
 
 void LoadSongUI::exitThisUI() {
-	currentUIMode = UI_MODE_NONE;
-	close();
+    currentUIMode = UI_MODE_NONE;
+    close();
 }
 
 // Returns error
@@ -588,8 +593,7 @@ void LoadSongUI::currentFileChanged(int movementDirection) {
 
 		// Start horizontal scrolling
 		PadLEDs::setupScroll(movementDirection, displayWidth + sideBarWidth, true, displayWidth + sideBarWidth);
-		for (int i = 0; i < displayHeight; i++)
-			PadLEDs::transitionTakingPlaceOnRow[i] = true;
+		for (int i = 0; i < displayHeight; i++) PadLEDs::transitionTakingPlaceOnRow[i] = true;
 		currentUIMode = UI_MODE_HORIZONTAL_SCROLL;
 		scrollingIntoSlot = false;
 		PadLEDs::renderScroll(); // The scrolling animation will begin while file is being found and loaded
@@ -601,11 +605,11 @@ void LoadSongUI::currentFileChanged(int movementDirection) {
 
 		// Set up another horizontal scroll
 		PadLEDs::setupScroll(movementDirection, displayWidth + sideBarWidth, false, displayWidth + sideBarWidth);
-		for (int i = 0; i < displayHeight; i++)
-			PadLEDs::transitionTakingPlaceOnRow[i] = true;
+		for (int i = 0; i < displayHeight; i++) PadLEDs::transitionTakingPlaceOnRow[i] = true;
 		PadLEDs::renderScroll();
 	}
 }
+
 
 void LoadSongUI::selectEncoderAction(int8_t offset) {
 
@@ -626,7 +630,7 @@ void LoadSongUI::selectEncoderAction(int8_t offset) {
 		if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_HORIZONTAL_SCROLL) {
 
 			LoadUI::selectEncoderAction(offset);
-			/*
+/*
 goAgain:
 			qwertyVisible = false;
 
@@ -665,15 +669,19 @@ goAgain:
 	}
 }
 
-int LoadSongUI::verticalEncoderAction(int offset, bool inCardRoutine) {
-	if (!currentUIMode && !Buttons::isButtonPressed(yEncButtonX, yEncButtonY) && !Buttons::isShiftButtonPressed()
-	    && offset < 0) {
-		if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		exitAction(); // Exit if your scroll down
-	}
 
-	return ACTION_RESULT_DEALT_WITH;
+
+
+int LoadSongUI::verticalEncoderAction(int offset, bool inCardRoutine) {
+    if (!currentUIMode && !Buttons::isButtonPressed(yEncButtonX, yEncButtonY) && !Buttons::isShiftButtonPressed() && offset < 0) {
+    	if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+    	exitAction(); // Exit if your scroll down
+    }
+
+    return ACTION_RESULT_DEALT_WITH;
 }
+
+
 
 void LoadSongUI::exitAction() {
 
@@ -683,34 +691,35 @@ void LoadSongUI::exitAction() {
 		return;
 	}
 
-	currentUIMode = UI_MODE_VERTICAL_SCROLL;
-	scrollDirection = -1;
-	scrollingToNothing = false;
-	squaresScrolled = 0;
-	getRootUI()->renderMainPads(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore);
-	getRootUI()->renderSidebar(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore);
-	//((ViewScreen*)getRootUI())->renderToStore(0, true);
-	timerCallback();
+    currentUIMode = UI_MODE_VERTICAL_SCROLL;
+    scrollDirection = -1;
+    scrollingToNothing = false;
+    squaresScrolled = 0;
+    getRootUI()->renderMainPads(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore);
+    getRootUI()->renderSidebar(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore);
+    //((ViewScreen*)getRootUI())->renderToStore(0, true);
+    timerCallback();
 }
+
 
 void LoadSongUI::drawSongPreview(bool toStore) {
 
-	uint8_t(*imageStore)[displayWidth + sideBarWidth][3];
-	if (toStore) imageStore = PadLEDs::imageStore;
-	else imageStore = PadLEDs::image;
+    uint8_t (*imageStore)[displayWidth + sideBarWidth][3];
+    if (toStore) imageStore = PadLEDs::imageStore;
+    else imageStore = PadLEDs::image;
 
 	memset(imageStore, 0, displayHeight * (displayWidth + sideBarWidth) * 3);
 
 	FileItem* currentFileItem = getCurrentFileItem();
 
-	if (!currentFileItem || currentFileItem->isFolder) return;
+    if (!currentFileItem || currentFileItem->isFolder) return;
 
 	int error = storageManager.openXMLFile(&currentFileItem->filePointer, "song", "", true);
-	if (error)
-		if (error) {
-			numericDriver.displayError(error);
-			return;
-		}
+	if (error) 	if (error) {
+		numericDriver.displayError(error);
+		return;
+	}
+
 
 	char const* tagName;
 	int previewNumPads = 40;
@@ -779,6 +788,7 @@ stopLoadingPreview:
 	storageManager.closeFile();
 }
 
+
 void LoadSongUI::displayText(bool blinkImmediately) {
 
 	LoadUI::displayText();
@@ -801,24 +811,26 @@ void LoadSongUI::displayText(bool blinkImmediately) {
 
 int LoadSongUI::padAction(int x, int y, int on) {
 #if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-	if (currentUIMode != UI_MODE_NONE || !on) return ACTION_RESULT_DEALT_WITH;
-	if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
-	performLoad(true);
+    if (currentUIMode != UI_MODE_NONE || !on) return ACTION_RESULT_DEALT_WITH;
+    if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+    performLoad(true);
 #else
 
-	// If QWERTY not visible yet, make it visible now
-	if (!qwertyVisible) {
+    // If QWERTY not visible yet, make it visible now
+    if (!qwertyVisible) {
 		if (on && !currentUIMode) {
-			if (sdRoutineLock) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		    if (sdRoutineLock) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			qwertyVisible = true;
 			displayText(false); // Necessary still? Not quite sure?
 		}
-	}
+    }
 
-	// And process the QWERTY keypress
-	if (qwertyVisible) return LoadUI::padAction(x, y, on);
-	else return ACTION_RESULT_DEALT_WITH;
+    // And process the QWERTY keypress
+    if (qwertyVisible) return LoadUI::padAction(x, y, on);
+    else return ACTION_RESULT_DEALT_WITH;
 
 #endif
 	return ACTION_RESULT_DEALT_WITH;
 }
+
+

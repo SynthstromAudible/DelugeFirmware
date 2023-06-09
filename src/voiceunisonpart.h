@@ -21,15 +21,16 @@
 #include "definitions.h"
 #include "voiceunisonpartsource.h"
 
-class VoiceUnisonPart {
+class VoiceUnisonPart
+{
 public:
 	VoiceUnisonPart();
 
-	uint32_t modulatorPhase[numModulators];
-	uint32_t modulatorPhaseIncrement[numModulators];
-	int32_t modulatorFeedback[numModulators];
+    uint32_t modulatorPhase[numModulators];
+    uint32_t modulatorPhaseIncrement[numModulators];
+    int32_t modulatorFeedback[numModulators];
 
-	VoiceUnisonPartSource sources[NUM_SOURCES];
+    VoiceUnisonPartSource sources[NUM_SOURCES];
 };
 
 #endif // VOICE_H

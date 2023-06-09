@@ -22,12 +22,14 @@
 
 namespace Encoders {
 
+
 extern Encoder encoders[];
 extern uint32_t timeModEncoderLastTurned[];
 
 void init();
 void readEncoders();
 bool interpretEncoders(bool inCardRoutine = false);
-} // namespace Encoders
+}
+
 
 #endif /* ENCODERS_H_ */

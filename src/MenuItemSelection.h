@@ -36,6 +36,7 @@ protected:
 #if HAVE_OLED
 	void drawPixelsForOled();
 #endif
+
 };
 
 #endif /* MENUITEMSELECTION_H_ */

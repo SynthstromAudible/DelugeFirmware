@@ -22,9 +22,12 @@
 #include "View.h"
 #include "song.h"
 
-MenuItemWithCCLearning::MenuItemWithCCLearning() {
+MenuItemWithCCLearning::MenuItemWithCCLearning()
+{
 	// TODO Auto-generated constructor stub
+
 }
+
 
 void MenuItemWithCCLearning::unlearnAction() {
 
@@ -45,8 +48,7 @@ void MenuItemWithCCLearning::unlearnAction() {
 void MenuItemWithCCLearning::learnKnob(MIDIDevice* fromDevice, int whichKnob, int modKnobMode, int midiChannel) {
 	ParamDescriptor paramDescriptor = getLearningThing();
 
-	bool success = soundEditor.currentModControllable->learnKnob(fromDevice, paramDescriptor, whichKnob, modKnobMode,
-	                                                             midiChannel, currentSong);
+	bool success = soundEditor.currentModControllable->learnKnob(fromDevice, paramDescriptor, whichKnob, modKnobMode, midiChannel, currentSong);
 
 	if (success) {
 		numericDriver.displayPopup("LEARNED");

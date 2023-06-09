@@ -24,6 +24,7 @@ class BidirectionalLinkedList;
 
 class BidirectionalLinkedListNode {
 public:
+
 	BidirectionalLinkedListNode();
 	virtual ~BidirectionalLinkedListNode();
 
@@ -31,9 +32,10 @@ public:
 	void insertOtherNodeBefore(BidirectionalLinkedListNode* otherNode);
 	bool isLast();
 
-	BidirectionalLinkedListNode* next;         // Only valid if list is not NULL, contains jibberish otherwise.
-	BidirectionalLinkedListNode** prevPointer; // Only valid if list is not NULL, contains jibberish otherwise.
+	BidirectionalLinkedListNode* next;			// Only valid if list is not NULL, contains jibberish otherwise.
+	BidirectionalLinkedListNode** prevPointer;	// Only valid if list is not NULL, contains jibberish otherwise.
 	BidirectionalLinkedList* list;
+
 };
 
 class BidirectionalLinkedList {
@@ -48,5 +50,6 @@ public:
 	BidirectionalLinkedListNode endNode;
 	BidirectionalLinkedListNode* first;
 };
+
 
 #endif /* BIDIRECTIONALLINKEDLIST_H_ */

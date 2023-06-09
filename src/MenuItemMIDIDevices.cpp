@@ -28,9 +28,7 @@ extern MenuItemSubmenu midiDeviceMenu;
 
 void MenuItemMIDIDevices::beginSession(MenuItem* navigatedBackwardFrom) {
 	if (navigatedBackwardFrom) {
-		for (soundEditor.currentValue = -2;
-		     soundEditor.currentValue < MIDIDeviceManager::hostedMIDIDevices.getNumElements();
-		     soundEditor.currentValue++) {
+		for (soundEditor.currentValue = -2; soundEditor.currentValue < MIDIDeviceManager::hostedMIDIDevices.getNumElements(); soundEditor.currentValue++) {
 			if (getDevice(soundEditor.currentValue) == soundEditor.currentMIDIDevice) goto decidedDevice;
 		}
 	}
@@ -45,6 +43,7 @@ decidedDevice:
 	drawValue();
 #endif
 }
+
 
 void MenuItemMIDIDevices::selectEncoderAction(int offset) {
 	do {
@@ -67,8 +66,7 @@ void MenuItemMIDIDevices::selectEncoderAction(int offset) {
 	// Don't show devices which aren't connected. Sometimes we won't even have a name to display for them.
 
 #if HAVE_OLED
-	if (soundEditor.currentValue < soundEditor.menuCurrentScroll)
-		soundEditor.menuCurrentScroll = soundEditor.currentValue;
+	if (soundEditor.currentValue < soundEditor.menuCurrentScroll) soundEditor.menuCurrentScroll = soundEditor.currentValue;
 
 	if (offset >= 0) {
 		int d = soundEditor.currentValue;
@@ -101,6 +99,7 @@ MIDIDevice* MenuItemMIDIDevices::getDevice(int deviceIndex) {
 	}
 }
 
+
 void MenuItemMIDIDevices::drawValue() {
 #if HAVE_OLED
 	renderUIsForOled();
@@ -110,13 +109,14 @@ void MenuItemMIDIDevices::drawValue() {
 #endif
 }
 
+
 MenuItem* MenuItemMIDIDevices::selectButtonPress() {
 #if HAVE_OLED
-	midiDeviceMenu.basicTitle =
-	    soundEditor.currentMIDIDevice->getDisplayName(); // A bit ugly, but saves us extending a class.
+	midiDeviceMenu.basicTitle = soundEditor.currentMIDIDevice->getDisplayName(); // A bit ugly, but saves us extending a class.
 #endif
 	return &midiDeviceMenu;
 }
+
 
 #if HAVE_OLED
 

@@ -17,6 +17,9 @@
 
 #include "MIDIParam.h"
 
-MIDIParam::MIDIParam() {
+MIDIParam::MIDIParam()
+{
 	// TODO Auto-generated constructor stub
+
 }
+

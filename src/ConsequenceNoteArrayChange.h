@@ -18,6 +18,7 @@
 #ifndef CONSEQUENCENOTEARRAYCHANGE_H_
 #define CONSEQUENCENOTEARRAYCHANGE_H_
 
+
 #include "Consequence.h"
 #include "r_typedefs.h"
 #include "NoteVector.h"

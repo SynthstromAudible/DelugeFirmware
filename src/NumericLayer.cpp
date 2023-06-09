@@ -17,11 +17,13 @@
 
 #include "NumericLayer.h"
 
-NumericLayer::NumericLayer() {
+NumericLayer::NumericLayer()
+{
 	next = NULL;
 }
 
-NumericLayer::~NumericLayer() {
+NumericLayer::~NumericLayer()
+{
 	// TODO Auto-generated destructor stub
 }
 

@@ -30,6 +30,7 @@ public:
 	AudioFileHolder* getAudioFileHolder();
 
 	int16_t topNote;
+
 };
 
 #endif /* MULTIRANGE_H_ */

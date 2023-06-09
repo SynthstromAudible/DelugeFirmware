@@ -45,6 +45,7 @@ ParamManager::~ParamManager() {
 	destructAndForgetParamCollections();
 }
 
+
 #if ALPHA_OR_BETA_VERSION
 ParamManagerForTimeline* ParamManager::toForTimeline() {
 	numericDriver.freezeWithError("E407");
@@ -55,6 +56,7 @@ ParamManagerForTimeline* ParamManagerForTimeline::toForTimeline() {
 	return this;
 }
 #endif
+
 
 int ParamManager::setupMIDI() {
 	void* memory = generalMemoryAllocator.alloc(sizeof(MIDIParamCollection), NULL, false, true);
@@ -102,6 +104,8 @@ ramError2:
 	return NO_ERROR;
 }
 
+
+
 // Make sure other isn't NULL before you call this, you muppet.
 void ParamManager::stealParamCollectionsFrom(ParamManager* other, bool stealExpressionParams) {
 #if ALPHA_OR_BETA_VERSION
@@ -135,10 +139,9 @@ void ParamManager::stealParamCollectionsFrom(ParamManager* other, bool stealExpr
 		summaries[i] = other->summaries[i];
 	}
 
-	summaries[stopAtOther] = hereMpeParamsOrNull; // Could the expression params, or NULL
-	if (hereMpeParamsOrNull.paramCollection)
-		summaries[stopAtOther + 1] = {0}; // If that was expression params, write the actual terminating NULL here
-		                                  // - but not otherwise, cos we could have overflowed past the array's size!
+	summaries[stopAtOther] = hereMpeParamsOrNull;				// Could the expression params, or NULL
+	if (hereMpeParamsOrNull.paramCollection) summaries[stopAtOther + 1] = {0};	// If that was expression params, write the actual terminating NULL here
+																		// - but not otherwise, cos we could have overflowed past the array's size!
 	expressionParamSetOffset = mpeParamsOffsetOther;
 
 	other->summaries[0] = other->summaries[stopAtOther];
@@ -151,29 +154,24 @@ void ParamManager::stealParamCollectionsFrom(ParamManager* other, bool stealExpr
 	other->expressionParamSetOffset = 0;
 }
 
-int ParamManager::cloneParamCollectionsFrom(ParamManager* other, bool copyAutomation, bool cloneExpressionParams,
-                                            int32_t reverseDirectionWithLength) {
+
+int ParamManager::cloneParamCollectionsFrom(ParamManager* other, bool copyAutomation, bool cloneExpressionParams, int32_t reverseDirectionWithLength) {
 
 	ParamCollectionSummary mpeParamsOrNullHere = *getExpressionParamSetSummary();
-	if (mpeParamsOrNullHere.paramCollection)
-		cloneExpressionParams = false; // If we already have expression params, then just don't clone from "other".
+	if (mpeParamsOrNullHere.paramCollection) cloneExpressionParams = false; // If we already have expression params, then just don't clone from "other".
 
 	// First, allocate the memories
-	ParamCollectionSummary newSummaries
-	    [PARAM_COLLECTIONS_STORAGE_NUM]; // Temporary separate storage, so we can clone from self (when this function is called from beenCloned()).
+	ParamCollectionSummary newSummaries[PARAM_COLLECTIONS_STORAGE_NUM]; // Temporary separate storage, so we can clone from self (when this function is called from beenCloned()).
 
 	ParamCollectionSummary* __restrict__ newSummary = newSummaries;
-	ParamCollectionSummary* otherSummary =
-	    other->summaries; // Not __restrict__, because other might be the same as this!
+	ParamCollectionSummary* otherSummary = other->summaries; // Not __restrict__, because other might be the same as this!
 	ParamCollectionSummary const* otherStopAt = &other->summaries[other->expressionParamSetOffset];
 
 	if (cloneExpressionParams && otherStopAt->paramCollection) otherStopAt++;
 
 	while (otherSummary != otherStopAt) {
 
-		newSummary->paramCollection = (ParamCollection*)generalMemoryAllocator.alloc(
-		    otherSummary->paramCollection->objectSize, NULL, false,
-		    true); // To cut corners, we store this currently blank/undefined memory in our array of type ParamCollectionSummary
+		newSummary->paramCollection = (ParamCollection*)generalMemoryAllocator.alloc(otherSummary->paramCollection->objectSize, NULL, false, true); // To cut corners, we store this currently blank/undefined memory in our array of type ParamCollectionSummary
 
 		// If that failed, deallocate all the previous memories
 		if (!newSummary->paramCollection) {
@@ -199,8 +197,7 @@ int ParamManager::cloneParamCollectionsFrom(ParamManager* other, bool copyAutoma
 
 		memcpy(newSummary->paramCollection, otherSummary->paramCollection, otherSummary->paramCollection->objectSize);
 
-		newSummary->paramCollection->beenCloned(
-		    copyAutomation, reverseDirectionWithLength); // Ignore error - just means automation doesn't get cloned.
+		newSummary->paramCollection->beenCloned(copyAutomation, reverseDirectionWithLength); // Ignore error - just means automation doesn't get cloned.
 
 		newSummary->cloneFlagsFrom(otherSummary);
 
@@ -229,6 +226,7 @@ int ParamManager::cloneParamCollectionsFrom(ParamManager* other, bool copyAutoma
 	return NO_ERROR;
 }
 
+
 // This is only called once - for NoteRows after cloning an InstrumentClip.
 int ParamManager::beenCloned(int32_t reverseDirectionWithLength) {
 	return cloneParamCollectionsFrom(this, true, true, reverseDirectionWithLength); // *Does* clone expression params
@@ -246,6 +244,7 @@ void ParamManager::forgetParamCollections() {
 #endif
 }
 
+
 // This one deletes MPE params too
 void ParamManager::destructAndForgetParamCollections() {
 	ParamCollectionSummary* summary = summaries;
@@ -258,6 +257,7 @@ void ParamManager::destructAndForgetParamCollections() {
 	summaries[0] = {0};
 	expressionParamSetOffset = 0;
 }
+
 
 // Returns whether there is one / one could be created.
 bool ParamManager::ensureExpressionParamSetExists(bool forDrum) {
@@ -273,11 +273,13 @@ bool ParamManager::ensureExpressionParamSetExists(bool forDrum) {
 	return true;
 }
 
+
 ExpressionParamSet* ParamManager::getOrCreateExpressionParamSet(bool forDrum) {
 	if (!ensureExpressionParamSetExists(forDrum)) return NULL;
 
 	return getExpressionParamSet();
 }
+
 
 ModelStackWithParamCollection* ParamManager::getPatchCableSet(ModelStackWithThreeMainThings const* modelStack) {
 #if ALPHA_OR_BETA_VERSION
@@ -286,10 +288,12 @@ ModelStackWithParamCollection* ParamManager::getPatchCableSet(ModelStackWithThre
 	return modelStack->addParamCollection(summaries[2].paramCollection, &summaries[2]);
 }
 
+
 ParamManagerForTimeline::ParamManagerForTimeline() {
 	ticksSkipped = 0;
 	ticksTilNextEvent = 0;
 }
+
 
 // Even if it's just expression params.
 void ParamManagerForTimeline::ensureSomeParamCollections() {
@@ -298,37 +302,37 @@ void ParamManagerForTimeline::ensureSomeParamCollections() {
 #endif
 }
 
-#define FOR_EACH_AUTOMATED_PARAM_COLLECTION_DEFINITELY_SOME_START                                                      \
-	ParamCollectionSummary* summary = summaries;                                                                       \
-	do {                                                                                                               \
-		if (summary->containsAutomation()) {                                                                           \
-			ModelStackWithParamCollection* modelStackWithParamCollection =                                             \
-			    modelStack->addParamCollectionSummary(summary);
 
-#define FOR_EACH_AUTOMATED_PARAM_COLLECTION_DEFINITELY_SOME_END                                                        \
-	}                                                                                                                  \
-	summary++;                                                                                                         \
-	}                                                                                                                  \
-	while (summary->paramCollection)                                                                                   \
-		;
+#define FOR_EACH_AUTOMATED_PARAM_COLLECTION_DEFINITELY_SOME_START \
+	ParamCollectionSummary* summary = summaries; \
+	do { \
+		if (summary->containsAutomation()) { \
+			ModelStackWithParamCollection* modelStackWithParamCollection = modelStack->addParamCollectionSummary(summary);
+
+
+#define FOR_EACH_AUTOMATED_PARAM_COLLECTION_DEFINITELY_SOME_END \
+		} \
+		summary++; \
+	} while (summary->paramCollection);
 
 // ------------------------------------------------------------------------------------------------------------------------------------------------------
 
-#define FOR_EACH_AUTOMATED_PARAM_COLLECTION_IF_ANY_START                                                               \
-	ParamCollectionSummary* summary = summaries;                                                                       \
-	while (summary->paramCollection) {                                                                                 \
-		if (summary->containsAutomation()) {                                                                           \
-			ModelStackWithParamCollection* modelStackWithParamCollection =                                             \
-			    modelStack->addParamCollectionSummary(summary);
+#define FOR_EACH_AUTOMATED_PARAM_COLLECTION_IF_ANY_START \
+	ParamCollectionSummary* summary = summaries; \
+	while (summary->paramCollection) { \
+		if (summary->containsAutomation()) { \
+			ModelStackWithParamCollection* modelStackWithParamCollection = modelStack->addParamCollectionSummary(summary);
 
-#define FOR_EACH_AUTOMATED_PARAM_COLLECTION_IF_ANY_END                                                                 \
-	}                                                                                                                  \
-	summary++;                                                                                                         \
+
+#define FOR_EACH_AUTOMATED_PARAM_COLLECTION_IF_ANY_END \
+		} \
+		summary++; \
 	}
 
+
+
 // You'll usually want to call mightContainAutomation() before bothering with this, to save time.
-void ParamManagerForTimeline::processCurrentPos(ModelStackWithThreeMainThings* modelStack, int ticksSinceLast,
-                                                bool reversed, bool didPingpong, bool mayInterpolate) {
+void ParamManagerForTimeline::processCurrentPos(ModelStackWithThreeMainThings* modelStack, int ticksSinceLast, bool reversed, bool didPingpong, bool mayInterpolate) {
 
 #if ALPHA_OR_BETA_VERSION
 	ensureSomeParamCollections(); // If you're going to delete this and allow none, make sure you replace the "do" below with its "while".
@@ -343,13 +347,12 @@ void ParamManagerForTimeline::processCurrentPos(ModelStackWithThreeMainThings* m
 
 		FOR_EACH_AUTOMATED_PARAM_COLLECTION_DEFINITELY_SOME_START
 
-		summary->paramCollection->processCurrentPos(modelStackWithParamCollection, ticksSkipped, reversed, didPingpong,
-		                                            mayInterpolate);
-		ticksTilNextEvent = getMin(ticksTilNextEvent, summary->paramCollection->ticksTilNextEvent);
+			summary->paramCollection->processCurrentPos(modelStackWithParamCollection, ticksSkipped, reversed, didPingpong, mayInterpolate);
+			ticksTilNextEvent = getMin(ticksTilNextEvent, summary->paramCollection->ticksTilNextEvent);
 
 		FOR_EACH_AUTOMATED_PARAM_COLLECTION_DEFINITELY_SOME_END
 
-		ticksSkipped = 0;
+	 	ticksSkipped = 0;
 	}
 }
 
@@ -375,6 +378,7 @@ bool ParamManagerForTimeline::mightContainAutomation() {
 	return false;
 }
 
+
 // You'll usually want to call mightContainAutomation() before bothering with this, to save time.
 void ParamManagerForTimeline::setPlayPos(uint32_t pos, ModelStackWithThreeMainThings* modelStack, bool reversed) {
 #if ALPHA_OR_BETA_VERSION
@@ -383,7 +387,7 @@ void ParamManagerForTimeline::setPlayPos(uint32_t pos, ModelStackWithThreeMainTh
 
 	FOR_EACH_AUTOMATED_PARAM_COLLECTION_DEFINITELY_SOME_START
 
-	summary->paramCollection->setPlayPos(pos, modelStackWithParamCollection, reversed);
+		summary->paramCollection->setPlayPos(pos, modelStackWithParamCollection, reversed);
 
 	FOR_EACH_AUTOMATED_PARAM_COLLECTION_DEFINITELY_SOME_END
 
@@ -399,13 +403,12 @@ void ParamManagerForTimeline::grabValuesFromPos(uint32_t pos, ModelStackWithThre
 
 	FOR_EACH_AUTOMATED_PARAM_COLLECTION_DEFINITELY_SOME_START
 
-	summary->paramCollection->grabValuesFromPos(pos, modelStackWithParamCollection);
+		summary->paramCollection->grabValuesFromPos(pos, modelStackWithParamCollection);
 
 	FOR_EACH_AUTOMATED_PARAM_COLLECTION_DEFINITELY_SOME_END
 }
 
-void ParamManager::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int currentValueChanged,
-                                                bool automationChanged, bool paramAutomatedNow) {
+void ParamManager::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int currentValueChanged, bool automationChanged, bool paramAutomatedNow) {
 	if (automationChanged && paramAutomatedNow) {
 		toForTimeline()->expectEvent(modelStack);
 	}
@@ -415,15 +418,14 @@ void ParamManager::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* m
 	}
 }
 
-void ParamManagerForTimeline::shiftHorizontally(ModelStackWithThreeMainThings* modelStack, int32_t amount,
-                                                int32_t effectiveLength) {
+void ParamManagerForTimeline::shiftHorizontally(ModelStackWithThreeMainThings* modelStack, int32_t amount, int32_t effectiveLength) {
 #if ALPHA_OR_BETA_VERSION
 	ensureSomeParamCollections(); // If you're going to delete this and allow none, make sure you replace the "do" below with its "while".
 #endif
 
 	FOR_EACH_AUTOMATED_PARAM_COLLECTION_DEFINITELY_SOME_START
 
-	summary->paramCollection->shiftHorizontally(modelStackWithParamCollection, amount, effectiveLength);
+		summary->paramCollection->shiftHorizontally(modelStackWithParamCollection, amount, effectiveLength);
 
 	FOR_EACH_AUTOMATED_PARAM_COLLECTION_DEFINITELY_SOME_END
 }
@@ -435,59 +437,51 @@ void ParamManagerForTimeline::deleteAllAutomation(Action* action, ModelStackWith
 
 	FOR_EACH_AUTOMATED_PARAM_COLLECTION_DEFINITELY_SOME_START
 
-	summary->paramCollection->deleteAllAutomation(action, modelStackWithParamCollection);
+		summary->paramCollection->deleteAllAutomation(action, modelStackWithParamCollection);
 
 	FOR_EACH_AUTOMATED_PARAM_COLLECTION_DEFINITELY_SOME_END
 }
 
-void ParamManagerForTimeline::trimToLength(uint32_t newLength, ModelStackWithThreeMainThings* modelStack,
-                                           Action* action, bool maySetupPatching) {
+void ParamManagerForTimeline::trimToLength(uint32_t newLength, ModelStackWithThreeMainThings* modelStack, Action* action, bool maySetupPatching) {
 #if ALPHA_OR_BETA_VERSION
 	ensureSomeParamCollections(); // If you're going to delete this and allow none, make sure you replace the "do" below with its "while".
 #endif
 
 	FOR_EACH_AUTOMATED_PARAM_COLLECTION_DEFINITELY_SOME_START
 
-	summary->paramCollection->trimToLength(newLength, modelStackWithParamCollection, action, maySetupPatching);
+		summary->paramCollection->trimToLength(newLength, modelStackWithParamCollection, action, maySetupPatching);
 
 	FOR_EACH_AUTOMATED_PARAM_COLLECTION_DEFINITELY_SOME_END
 }
 
-void ParamManagerForTimeline::generateRepeats(ModelStackWithThreeMainThings* modelStack, uint32_t oldLength,
-                                              uint32_t newLength, bool shouldPingpong) {
+void ParamManagerForTimeline::generateRepeats(ModelStackWithThreeMainThings* modelStack, uint32_t oldLength, uint32_t newLength, bool shouldPingpong) {
 
 	FOR_EACH_AUTOMATED_PARAM_COLLECTION_IF_ANY_START
 
-	summary->paramCollection->generateRepeats(modelStackWithParamCollection, oldLength, newLength, shouldPingpong);
+		summary->paramCollection->generateRepeats(modelStackWithParamCollection, oldLength, newLength, shouldPingpong);
 
 	FOR_EACH_AUTOMATED_PARAM_COLLECTION_IF_ANY_END
 }
 
-void ParamManagerForTimeline::appendParamManager(ModelStackWithThreeMainThings* modelStack,
-                                                 ModelStackWithThreeMainThings* otherModelStack, int32_t oldLength,
-                                                 int32_t reverseThisRepeatWithLength, bool pingpongingGenerally) {
+void ParamManagerForTimeline::appendParamManager(ModelStackWithThreeMainThings* modelStack, ModelStackWithThreeMainThings* otherModelStack, int32_t oldLength, int32_t reverseThisRepeatWithLength, bool pingpongingGenerally) {
 #if ALPHA_OR_BETA_VERSION
 	ensureSomeParamCollections(); // If you're going to delete this and allow none, make sure you replace the "do" below with its "while".
-	otherModelStack->paramManager->toForTimeline()
-	    ->ensureSomeParamCollections(); // If you're going to delete this and allow none, make sure you replace the "do" below with its "while".
+	otherModelStack->paramManager->toForTimeline()->ensureSomeParamCollections(); // If you're going to delete this and allow none, make sure you replace the "do" below with its "while".
 #endif
+
 
 	ParamCollectionSummary* otherSummary = otherModelStack->paramManager->summaries;
 	FOR_EACH_AUTOMATED_PARAM_COLLECTION_DEFINITELY_SOME_START
 
-	ModelStackWithParamCollection* otherModelStackWithParamCollection =
-	    otherModelStack->addParamCollectionSummary(otherSummary);
-	summary->paramCollection->appendParamCollection(modelStackWithParamCollection, otherModelStackWithParamCollection,
-	                                                oldLength, reverseThisRepeatWithLength, pingpongingGenerally);
-}
-summary++;
-otherSummary++;
-}
-while (summary->paramCollection)
-	;
+			ModelStackWithParamCollection* otherModelStackWithParamCollection = otherModelStack->addParamCollectionSummary(otherSummary);
+			summary->paramCollection->appendParamCollection(modelStackWithParamCollection, otherModelStackWithParamCollection, oldLength, reverseThisRepeatWithLength, pingpongingGenerally);
 
-ticksTilNextEvent =
-    0; // Should probably really call expectEvent(), but we're only called when a tick is just about to happen anyway, so shouldn't matter
+		}
+		summary++;
+		otherSummary++;
+	} while (summary->paramCollection);
+
+ 	ticksTilNextEvent = 0; // Should probably really call expectEvent(), but we're only called when a tick is just about to happen anyway, so shouldn't matter
 }
 
 // Note: you must only call this if playbackHandler.isEitherClockActive()
@@ -500,36 +494,28 @@ void ParamManagerForTimeline::tickSamples(int numSamples, ModelStackWithThreeMai
 
 	ParamCollectionSummary* summary = summaries;
 	do {
-		ModelStackWithParamCollection* modelStackWithParamCollection =
-		    modelStack->addParamCollection(summary->paramCollection, summary);
-		summary->paramCollection->tickSamples(numSamples, modelStackWithParamCollection);
+ 		ModelStackWithParamCollection* modelStackWithParamCollection = modelStack->addParamCollection(summary->paramCollection, summary);
+ 		summary->paramCollection->tickSamples(numSamples, modelStackWithParamCollection);
 		summary++;
 	} while (summary->paramCollection);
 }
 
-void ParamManagerForTimeline::nudgeAutomationHorizontallyAtPos(int32_t pos, int offset, int32_t lengthBeforeLoop,
-                                                               Action* action,
-                                                               ModelStackWithThreeMainThings* modelStack,
-                                                               int32_t moveMPEDataWithinRegionLength) {
+void ParamManagerForTimeline::nudgeAutomationHorizontallyAtPos(int32_t pos, int offset, int32_t lengthBeforeLoop, Action* action, ModelStackWithThreeMainThings* modelStack, int32_t moveMPEDataWithinRegionLength) {
 
 	ParamCollectionSummary* summary = summaries;
 	int i = 0;
 	while (summary->paramCollection) {
-		ModelStackWithParamCollection* modelStackWithParamCollection =
-		    modelStack->addParamCollection(summary->paramCollection, summary);
+ 		ModelStackWithParamCollection* modelStackWithParamCollection = modelStack->addParamCollection(summary->paramCollection, summary);
 
-		// Special case for MPE only - not even "mono" / Clip-level expression.
-		if (moveMPEDataWithinRegionLength && i == getExpressionParamSetOffset()) {
-			((ExpressionParamSet*)summary->paramCollection)
-			    ->moveRegionHorizontally(modelStackWithParamCollection, pos, moveMPEDataWithinRegionLength, offset,
-			                             lengthBeforeLoop, action);
-		}
+ 		// Special case for MPE only - not even "mono" / Clip-level expression.
+ 		if (moveMPEDataWithinRegionLength && i == getExpressionParamSetOffset()) {
+ 			((ExpressionParamSet*)summary->paramCollection)->moveRegionHorizontally(modelStackWithParamCollection, pos, moveMPEDataWithinRegionLength, offset, lengthBeforeLoop, action);
+ 		}
 
-		// Normal case
-		else {
-			summary->paramCollection->nudgeNonInterpolatingNodesAtPos(pos, offset, lengthBeforeLoop, action,
-			                                                          modelStackWithParamCollection);
-		}
+ 		// Normal case
+ 		else {
+ 			summary->paramCollection->nudgeNonInterpolatingNodesAtPos(pos, offset, lengthBeforeLoop, action, modelStackWithParamCollection);
+ 		}
 		summary++;
 		i++;
 	}
@@ -541,10 +527,10 @@ void ParamManagerForTimeline::notifyPingpongOccurred(ModelStackWithThreeMainThin
 #endif
 
 	FOR_EACH_AUTOMATED_PARAM_COLLECTION_DEFINITELY_SOME_START
-	summary->paramCollection->notifyPingpongOccurred(modelStackWithParamCollection);
+		summary->paramCollection->notifyPingpongOccurred(modelStackWithParamCollection);
 	FOR_EACH_AUTOMATED_PARAM_COLLECTION_DEFINITELY_SOME_END
 
-	ticksTilNextEvent = 0;
+ 	ticksTilNextEvent = 0;
 }
 
 void ParamManagerForTimeline::expectNoFurtherTicks(ModelStackWithThreeMainThings* modelStack) {
@@ -554,10 +540,11 @@ void ParamManagerForTimeline::expectNoFurtherTicks(ModelStackWithThreeMainThings
 
 	FOR_EACH_AUTOMATED_PARAM_COLLECTION_DEFINITELY_SOME_START
 
-	summary->paramCollection->playbackHasEnded(modelStackWithParamCollection);
+ 		summary->paramCollection->playbackHasEnded(modelStackWithParamCollection);
 
 	FOR_EACH_AUTOMATED_PARAM_COLLECTION_DEFINITELY_SOME_END
 }
+
 
 /*
 		ParamCollection** paramCollection = paramCollections;

@@ -17,6 +17,7 @@
 
 #include <ContextMenu.h>
 
+
 #include "numericdriver.h"
 #include "functions.h"
 #include "IndicatorLEDs.h"
@@ -36,6 +37,7 @@ ContextMenu::ContextMenu() {
 char const** ContextMenu::getOptions() {
 	return basicOptions;
 }
+
 
 bool ContextMenu::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
 	*cols = 0xFFFFFFFF;
@@ -62,6 +64,7 @@ bool ContextMenu::opened() {
 	return true;
 }
 */
+
 
 void ContextMenu::focusRegained() {
 #if !HAVE_OLED
@@ -100,12 +103,10 @@ void ContextMenu::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 		if (i >= 2) break;
 
 		if (isCurrentOptionAvailable()) {
-			OLED::drawString(options[currentOption], 22, textPixelY, image[0], OLED_MAIN_WIDTH_PIXELS, TEXT_SPACING_X,
-			                 TEXT_SPACING_Y, 0, OLED_MAIN_WIDTH_PIXELS - 22);
+			OLED::drawString(options[currentOption], 22, textPixelY, image[0], OLED_MAIN_WIDTH_PIXELS, TEXT_SPACING_X, TEXT_SPACING_Y, 0, OLED_MAIN_WIDTH_PIXELS - 22);
 			if (currentOption == actualCurrentOption) {
 				OLED::invertArea(22, OLED_MAIN_WIDTH_PIXELS - 44, textPixelY, textPixelY + 8, &image[0]);
-				OLED::setupSideScroller(0, options[currentOption], 22, OLED_MAIN_WIDTH_PIXELS - 22, textPixelY,
-				                        textPixelY + 8, TEXT_SPACING_X, TEXT_SPACING_Y, true);
+				OLED::setupSideScroller(0, options[currentOption], 22, OLED_MAIN_WIDTH_PIXELS - 22, textPixelY, textPixelY + 8, TEXT_SPACING_X, TEXT_SPACING_Y, true);
 			}
 			textPixelY += TEXT_SPACING_Y;
 			i++;
@@ -151,6 +152,7 @@ void ContextMenu::selectEncoderAction(int8_t offset) {
 #endif
 }
 
+
 int ContextMenu::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 
 	if (x == backButtonX && y == backButtonY) {
@@ -180,6 +182,7 @@ probablyAcceptCurrentOption:
 	return ACTION_RESULT_DEALT_WITH;
 }
 
+
 void ContextMenu::drawCurrentOption() {
 	char const** options = getOptions();
 
@@ -191,6 +194,8 @@ void ContextMenu::drawCurrentOption() {
 #endif
 }
 
+
+
 int ContextMenu::padAction(int x, int y, int on) {
 	if (on && !currentUIMode) {
 		if (sdRoutineLock) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -200,6 +205,8 @@ int ContextMenu::padAction(int x, int y, int on) {
 
 	return ACTION_RESULT_DEALT_WITH;
 }
+
+
 
 void ContextMenuForSaving::focusRegained() {
 	IndicatorLEDs::setLedState(loadLedX, loadLedY, false);

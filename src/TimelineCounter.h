@@ -37,16 +37,14 @@ public:
 	virtual bool isPlayingAutomationNow() = 0;
 	virtual bool backtrackingCouldLoopBackToEnd() = 0;
 	virtual int32_t getPosAtWhichPlaybackWillCut(ModelStackWithTimelineCounter const* modelStack) = 0;
-	virtual bool possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* modelStack) {
-		return false;
-	} // Returns whether any change.
+    virtual bool possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* modelStack) { return false; } // Returns whether any change.
 
-	virtual void getActiveModControllable(ModelStackWithTimelineCounter* modelStack) = 0;
-	virtual void expectEvent() = 0;
-	virtual TimelineCounter* getTimelineCounterToRecordTo() = 0;
-	virtual void instrumentBeenEdited() {}
+    virtual void getActiveModControllable(ModelStackWithTimelineCounter* modelStack) = 0;
+    virtual void expectEvent() = 0;
+    virtual TimelineCounter* getTimelineCounterToRecordTo() = 0;
+    virtual void instrumentBeenEdited() {}
 
-	ParamManagerForTimeline paramManager;
+    ParamManagerForTimeline paramManager;
 };
 
 #endif /* TIMELINECOUNTER_H_ */

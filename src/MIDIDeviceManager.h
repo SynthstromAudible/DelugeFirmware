@@ -19,7 +19,8 @@
 #define MIDIDEVICEMANAGER_H_
 #include "definitions.h"
 
-#ifdef __cplusplus
+
+#ifdef    __cplusplus
 #include "NamedThingVector.h"
 class MIDIDevice;
 class MIDIDeviceUSBUpstream;
@@ -30,7 +31,9 @@ class MIDIDeviceUSB;
 struct MIDIDeviceUSB;
 #endif
 
-#ifdef __cplusplus
+
+
+#ifdef    __cplusplus
 class ConnectedUSBMIDIDevice {
 public:
 	MIDIDeviceUSB* device; // If NULL, then no device is connected here
@@ -48,34 +51,33 @@ struct ConnectedUSBMIDIDevice {
 	uint32_t preSendData[16];
 	uint8_t dataSendingNow[64];
 	uint8_t numMessagesQueued;
-	uint8_t
-	    numBytesSendingNow; // This will show a value after the general flush function is called, throughout other Devices being sent to before this one, and until we've completed our send
+	uint8_t numBytesSendingNow; // This will show a value after the general flush function is called, throughout other Devices being sent to before this one, and until we've completed our send
 };
 
-#ifdef __cplusplus
+#ifdef    __cplusplus
 namespace MIDIDeviceManager {
 
-void init();
-void slowRoutine();
-MIDIDevice* readDeviceReferenceFromFile();
-void readDeviceReferenceFromFlash(int whichCommand, uint8_t const* memory);
-void writeDeviceReferenceToFlash(int whichCommand, uint8_t* memory);
-void recountSmallestMPEZones();
-void writeDevicesToFile();
-void readAHostedDeviceFromFile();
-void readDevicesFromFile();
+	void init();
+	void slowRoutine();
+	MIDIDevice* readDeviceReferenceFromFile();
+	void readDeviceReferenceFromFlash(int whichCommand, uint8_t const* memory);
+	void writeDeviceReferenceToFlash(int whichCommand, uint8_t* memory);
+	void recountSmallestMPEZones();
+	void writeDevicesToFile();
+	void readAHostedDeviceFromFile();
+	void readDevicesFromFile();
 
-extern MIDIDeviceUSBUpstream upstreamUSBMIDIDevice;
-extern MIDIDeviceDINPorts dinMIDIPorts;
+	extern MIDIDeviceUSBUpstream upstreamUSBMIDIDevice;
+	extern MIDIDeviceDINPorts dinMIDIPorts;
 
-extern bool differentiatingInputsByDevice;
+	extern bool differentiatingInputsByDevice;
 
-extern NamedThingVector hostedMIDIDevices;
+	extern NamedThingVector hostedMIDIDevices;
 
-extern uint8_t lowestLastMemberChannelOfLowerZoneOnConnectedOutput;
-extern uint8_t highestLastMemberChannelOfUpperZoneOnConnectedOutput;
-extern bool anyChangesToSave;
-} // namespace MIDIDeviceManager
+	extern uint8_t lowestLastMemberChannelOfLowerZoneOnConnectedOutput;
+	extern uint8_t highestLastMemberChannelOfUpperZoneOnConnectedOutput;
+	extern bool anyChangesToSave;
+}
 
 #endif
 

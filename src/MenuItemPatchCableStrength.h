@@ -37,18 +37,12 @@ public:
 	void renderOLED();
 #endif
 
-	void unlearnAction() final {
-		MenuItemWithCCLearning::unlearnAction();
-	}
-	bool allowsLearnMode() final {
-		return MenuItemWithCCLearning::allowsLearnMode();
-	}
-	void learnKnob(MIDIDevice* fromDevice, int whichKnob, int modKnobMode, int midiChannel) final {
-		MenuItemWithCCLearning::learnKnob(fromDevice, whichKnob, modKnobMode, midiChannel);
-	};
+    void unlearnAction() final { MenuItemWithCCLearning::unlearnAction(); }
+    bool allowsLearnMode() final { return MenuItemWithCCLearning::allowsLearnMode(); }
+    void learnKnob(MIDIDevice* fromDevice, int whichKnob, int modKnobMode, int midiChannel) final { MenuItemWithCCLearning::learnKnob(fromDevice, whichKnob, modKnobMode, midiChannel); };
 
 protected:
-	ModelStackWithAutoParam* getModelStack(void* memory, bool allowCreation = false);
+    ModelStackWithAutoParam* getModelStack(void* memory, bool allowCreation = false);
 };
 
 class MenuItemPatchCableStrengthRegular : public MenuItemPatchCableStrength {
@@ -77,13 +71,14 @@ public:
 	MenuItem* patchingSourceShortcutPress(int s, bool previousPressStillActive);
 };
 
+
 extern MenuItemPatchCableStrengthRegular patchCableStrengthMenuRegular;
 extern MenuItemPatchCableStrengthRange patchCableStrengthMenuRange;
 
+
 class MenuItemFixedPatchCableStrength : public MenuItemPatchCableStrengthRegular {
 public:
-	MenuItemFixedPatchCableStrength(char const* newName = NULL, int newP = 0, int newS = 0)
-	    : MenuItemPatchCableStrengthRegular(newName) {
+	MenuItemFixedPatchCableStrength(char const* newName = NULL, int newP = 0, int newS = 0) : MenuItemPatchCableStrengthRegular(newName) {
 		p = newP;
 		s = newS;
 	}

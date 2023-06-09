@@ -32,11 +32,9 @@ int ConsequenceInstrumentClipHorizontalShift::revert(int time, ModelStack* model
 		amountNow = -amountNow;
 	}
 
-	ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
-	    modelStack->addTimelineCounter(modelStack->song->currentClip);
+	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(modelStack->song->currentClip);
 
-	((InstrumentClip*)modelStackWithTimelineCounter->getTimelineCounter())
-	    ->shiftHorizontally(modelStackWithTimelineCounter, amountNow);
+	((InstrumentClip*)modelStackWithTimelineCounter->getTimelineCounter())->shiftHorizontally(modelStackWithTimelineCounter, amountNow);
 
 	return NO_ERROR;
 }

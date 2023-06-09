@@ -17,6 +17,7 @@
 
 #include <MenuItemRange.h>
 
+
 #include "soundeditor.h"
 #include "numericdriver.h"
 #include "functions.h"
@@ -24,6 +25,7 @@
 #include "matrixdriver.h"
 #include "Buttons.h"
 #include "oled.h"
+
 
 void MenuItemRange::beginSession(MenuItem* navigatedBackwardFrom) {
 
@@ -33,6 +35,7 @@ void MenuItemRange::beginSession(MenuItem* navigatedBackwardFrom) {
 	drawValue(0, false);
 #endif
 }
+
 
 void MenuItemRange::horizontalEncoderAction(int offset) {
 
@@ -102,6 +105,8 @@ bool MenuItemRange::cancelEditingIfItsOn() {
 	return true;
 }
 
+
+
 void MenuItemRange::drawValue(int startPos, bool renderSidebarToo) {
 #if HAVE_OLED
 	renderUIsForOled();
@@ -118,6 +123,8 @@ void MenuItemRange::drawValue(int startPos, bool renderSidebarToo) {
 #endif
 }
 
+
+
 void MenuItemRange::drawValueForEditingRange(bool blinkImmediately) {
 #if HAVE_OLED
 	renderUIsForOled();
@@ -129,7 +136,7 @@ void MenuItemRange::drawValueForEditingRange(bool blinkImmediately) {
 
 	int textLength = leftLength + rightLength + 1;
 
-	uint8_t blinkMask[NUMERIC_DISPLAY_LENGTH];
+    uint8_t blinkMask[NUMERIC_DISPLAY_LENGTH];
 	if (soundEditor.editingRangeEdge == RANGE_EDIT_LEFT) {
 		for (int i = 0; i < NUMERIC_DISPLAY_LENGTH; i++) {
 			if (i < leftLength + NUMERIC_DISPLAY_LENGTH - getMin(4, textLength)) blinkMask[i] = 0;
@@ -146,14 +153,13 @@ void MenuItemRange::drawValueForEditingRange(bool blinkImmediately) {
 
 	bool alignRight = (soundEditor.editingRangeEdge == RANGE_EDIT_RIGHT) || (textLength < NUMERIC_DISPLAY_LENGTH);
 
-	IndicatorLEDs::blinkLed(
-	    backLedX, backLedY, 255, 0,
-	    !blinkImmediately); // Sorta hackish, to reset timing of blinking LED and always show text "on" initially on edit value
+	IndicatorLEDs::blinkLed(backLedX, backLedY, 255, 0, !blinkImmediately); // Sorta hackish, to reset timing of blinking LED and always show text "on" initially on edit value
 	numericDriver.setText(buffer, alignRight, 255, true, blinkMask);
 
 	soundEditor.possibleChangeToCurrentRangeDisplay();
 #endif
 }
+
 
 #if HAVE_OLED
 void MenuItemRange::drawPixelsForOled() {
@@ -171,8 +177,7 @@ void MenuItemRange::drawPixelsForOled() {
 	int stringWidth = digitWidth * textLength;
 	int stringStartX = (OLED_MAIN_WIDTH_PIXELS - stringWidth) >> 1;
 
-	OLED::drawString(buffer, stringStartX, baseY, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, digitWidth,
-	                 digitHeight);
+	OLED::drawString(buffer, stringStartX, baseY, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, digitWidth, digitHeight);
 
 	int hilightStartX, hilightWidth;
 

@@ -21,14 +21,16 @@
 #include "r_typedefs.h"
 
 namespace Uart {
-void setBaudRate(uint8_t scifID, uint32_t baudRate);
-void print(char const* output);
-void println(char const* output);
-void println(int32_t number);
-void printlnfloat(float number);
-void printfloat(float number);
-void print(int32_t number);
-unsigned int getTxBufferFullness(uint8_t scifID);
-} // namespace Uart
+	void setBaudRate(uint8_t scifID, uint32_t baudRate);
+	void print(char const* output);
+	void println(char const* output);
+	void println(int32_t number);
+	void printlnfloat(float number);
+	void printfloat(float number);
+	void print(int32_t number);
+	unsigned int getTxBufferFullness(uint8_t scifID);
+}
+
+
 
 #endif /* UART_H_ */

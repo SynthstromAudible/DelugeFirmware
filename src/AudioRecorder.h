@@ -25,13 +25,16 @@ extern "C" {
 #include "fatfs/ff.h"
 }
 
+
+
 class SampleRecorder;
 
 struct RecorderFileSystemStuff {
-	FIL currentFile; /* File object */
+	FIL currentFile;       /* File object */
 };
 
 extern RecorderFileSystemStuff recorderFileSystemStuff;
+
 
 class AudioRecorder final : public UI {
 public:
@@ -47,12 +50,12 @@ public:
 
 	uint8_t recordingSource;
 
-	SampleRecorder* recorder;
+    SampleRecorder* recorder;
 
-	void endRecordingSoon(int buttonLatency = 0);
+    void endRecordingSoon(int buttonLatency = 0);
 
 #if HAVE_OLED
-	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
+    void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
 #endif
 
 private:

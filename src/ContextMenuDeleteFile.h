@@ -28,6 +28,7 @@ public:
 	bool acceptCurrentOption();
 };
 
+
 extern ContextMenuDeleteFile contextMenuDeleteFile;
 
 #endif /* CONTEXTMENUDELETEFILE_H_ */

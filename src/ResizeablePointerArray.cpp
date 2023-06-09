@@ -18,7 +18,8 @@
 #include <ResizeablePointerArray.h>
 #include "definitions.h"
 
-ResizeablePointerArray::ResizeablePointerArray() : ResizeableArray(sizeof(void*)) {
+ResizeablePointerArray::ResizeablePointerArray() : ResizeableArray(sizeof(void*))
+{
 }
 
 int ResizeablePointerArray::insertPointerAtIndex(void* pointer, int index) {

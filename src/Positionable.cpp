@@ -17,6 +17,9 @@
 
 #include "Positionable.h"
 
-Positionable::Positionable() {
+Positionable::Positionable()
+{
 	// TODO Auto-generated constructor stub
+
 }
+

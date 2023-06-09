@@ -29,6 +29,7 @@ void MenuItemValue::beginSession(MenuItem* navigatedBackwardFrom) {
 void MenuItemValue::selectEncoderAction(int offset) {
 	writeCurrentValue();
 
+
 	// For MenuItems referring to an AutoParam (so MenuItemUnpatchedParam and MenuItemPatchedParam), ideally we wouldn't want to render the display here, because that'll happen soon anyway due to a setting of TIMER_DISPLAY_AUTOMATION.
 #if HAVE_OLED
 	renderUIsForOled();
@@ -45,3 +46,4 @@ void MenuItemValue::readValueAgain() {
 	drawValue();
 #endif
 }
+
