@@ -23,30 +23,25 @@
 
 #include "allpass.hpp"
 
-allpass::allpass()
-{
+allpass::allpass() {
 	bufidx = 0;
 }
 
-void allpass::setbuffer(int32_t *buf, int size)
-{
-	buffer = (int32_t* 	)buf;
+void allpass::setbuffer(int32_t* buf, int size) {
+	buffer = (int32_t*)buf;
 	bufsize = size;
 }
 
-void allpass::mute()
-{
-	for (int i=0; i<bufsize; i++)
-		buffer[i]=0;
+void allpass::mute() {
+	for (int i = 0; i < bufsize; i++)
+		buffer[i] = 0;
 }
 
-void allpass::setfeedback(float val) 
-{
+void allpass::setfeedback(float val) {
 	feedback = val * 2147483648u;
 }
 
-float allpass::getfeedback() 
-{
+float allpass::getfeedback() {
 	return (float)feedback / 2147483648u;
 }
 

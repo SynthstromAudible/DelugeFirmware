@@ -19,14 +19,11 @@
 #include "r_typedefs.h"
 #include <string.h>
 
-DrumName::DrumName(String* newName)
-{
+DrumName::DrumName(String* newName) {
 	next = NULL;
 	name.set(newName);
 }
 
-DrumName::~DrumName()
-{
+DrumName::~DrumName() {
 	// TODO Auto-generated destructor stub
 }
-

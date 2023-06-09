@@ -35,8 +35,8 @@
 #endif
 
 extern "C" {
-	#include "sio_char.h"
-	#include "oled_low_level.h"
+#include "sio_char.h"
+#include "oled_low_level.h"
 }
 
 UITimerManager uiTimerManager;
@@ -51,21 +51,20 @@ UITimerManager::UITimerManager() {
 	}
 }
 
-
 void UITimerManager::routine() {
 
 	int32_t timeTilNextEvent = (uint32_t)(timeNextEvent - AudioEngine::audioSampleTimer);
 	if (timeTilNextEvent >= 0) return;
 
 	for (int i = 0; i < NUM_TIMERS; i++) {
-        if (timers[i].active) {
+		if (timers[i].active) {
 
-        	int32_t timeTil = (uint32_t)(timers[i].triggerTime - AudioEngine::audioSampleTimer);
-        	if (timeTil < 0) {
+			int32_t timeTil = (uint32_t)(timers[i].triggerTime - AudioEngine::audioSampleTimer);
+			if (timeTil < 0) {
 
 				timers[i].active = false;
 
-				switch(i) {
+				switch (i) {
 
 				case TIMER_TAP_TEMPO_SWITCH_OFF:
 					playbackHandler.tapTempoAutoSwitchOff();
@@ -76,10 +75,8 @@ void UITimerManager::routine() {
 					break;
 
 				case TIMER_DEFAULT_ROOT_NOTE:
-					if (getCurrentUI() == &instrumentClipView)
-						instrumentClipView.flashDefaultRootNote();
-					else if (getCurrentUI() == &keyboardScreen)
-						keyboardScreen.flashDefaultRootNote();
+					if (getCurrentUI() == &instrumentClipView) instrumentClipView.flashDefaultRootNote();
+					else if (getCurrentUI() == &keyboardScreen) keyboardScreen.flashDefaultRootNote();
 					break;
 
 				case TIMER_PLAY_ENABLE_FLASH:
@@ -151,23 +148,21 @@ void UITimerManager::routine() {
 					OLED::scrollingAndBlinkingTimerEvent();
 					break;
 #endif
-
 				}
-        	}
-        }
-    }
+			}
+		}
+	}
 
-    workOutNextEventTime();
+	workOutNextEventTime();
 }
-
 
 void UITimerManager::setTimer(int i, int ms) {
 	setTimerSamples(i, ms * 44);
 }
 
 void UITimerManager::setTimerSamples(int i, int samples) {
-    timers[i].triggerTime = AudioEngine::audioSampleTimer + samples;
-    timers[i].active = true;
+	timers[i].triggerTime = AudioEngine::audioSampleTimer + samples;
+	timers[i].active = true;
 
 	int32_t oldTimeTilNextEvent = (uint32_t)(timeNextEvent - AudioEngine::audioSampleTimer);
 	if (samples < oldTimeTilNextEvent) {
@@ -181,24 +176,24 @@ void UITimerManager::setTimerByOtherTimer(int i, int j) {
 }
 
 void UITimerManager::unsetTimer(int i) {
-    timers[i].active = false;
-    workOutNextEventTime();
+	timers[i].active = false;
+	workOutNextEventTime();
 }
 
 bool UITimerManager::isTimerSet(int i) {
-    return timers[i].active;
+	return timers[i].active;
 }
 
 void UITimerManager::workOutNextEventTime() {
 
 	int32_t timeTilNextEvent = 2147483647;
 
-    for (int i = 0; i < NUM_TIMERS; i++) {
-        if (timers[i].active) {
-        	int32_t timeTil = timers[i].triggerTime - AudioEngine::audioSampleTimer;
-        	if (timeTil < timeTilNextEvent) timeTilNextEvent = timeTil;
-        }
-    }
+	for (int i = 0; i < NUM_TIMERS; i++) {
+		if (timers[i].active) {
+			int32_t timeTil = timers[i].triggerTime - AudioEngine::audioSampleTimer;
+			if (timeTil < timeTilNextEvent) timeTilNextEvent = timeTil;
+		}
+	}
 
-    timeNextEvent = AudioEngine::audioSampleTimer + (uint32_t)timeTilNextEvent;
+	timeNextEvent = AudioEngine::audioSampleTimer + (uint32_t)timeTilNextEvent;
 }

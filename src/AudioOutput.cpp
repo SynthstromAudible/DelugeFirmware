@@ -37,7 +37,7 @@ extern "C" {
 }
 
 AudioOutput::AudioOutput() : Output(OUTPUT_TYPE_AUDIO) {
-    modKnobMode = 0;
+	modKnobMode = 0;
 	inputChannel = AUDIO_INPUT_CHANNEL_LEFT;
 	echoing = false;
 }
@@ -45,21 +45,23 @@ AudioOutput::AudioOutput() : Output(OUTPUT_TYPE_AUDIO) {
 AudioOutput::~AudioOutput() {
 }
 
-
 void AudioOutput::cloneFrom(ModControllableAudio* other) {
 	GlobalEffectableForClip::cloneFrom(other);
 
 	inputChannel = ((AudioOutput*)other)->inputChannel;
 }
 
-
-void AudioOutput::renderOutput(ModelStack* modelStack, StereoSample *outputBuffer, StereoSample *outputBufferEnd, int numSamples, int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive) {
+void AudioOutput::renderOutput(ModelStack* modelStack, StereoSample* outputBuffer, StereoSample* outputBufferEnd,
+                               int numSamples, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
+                               int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive) {
 
 	ParamManager* paramManager = getParamManager(modelStack->song);
 
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(activeClip);
 
-	GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, outputBuffer, numSamples, reverbBuffer, reverbAmountAdjust, sideChainHitPending, shouldLimitDelayFeedback, isClipActive, OUTPUT_TYPE_AUDIO, 5);
+	GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, outputBuffer, numSamples,
+	                                      reverbBuffer, reverbAmountAdjust, sideChainHitPending,
+	                                      shouldLimitDelayFeedback, isClipActive, OUTPUT_TYPE_AUDIO, 5);
 }
 
 void AudioOutput::resetEnvelope() {
@@ -73,11 +75,12 @@ void AudioOutput::resetEnvelope() {
 	overrideAmplitudeEnvelopeReleaseRate = 0;
 }
 
-
-
 // Beware - unlike usual, modelStack, a ModelStackWithThreeMainThings*,  might have a NULL timelineCounter
-void AudioOutput::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStack, StereoSample* renderBuffer, int32_t* bufferToTransferTo, int numSamples, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
-        		int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive, int32_t pitchAdjust, int32_t amplitudeAtStart, int32_t amplitudeAtEnd) {
+void AudioOutput::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStack, StereoSample* renderBuffer,
+                                                int32_t* bufferToTransferTo, int numSamples, int32_t* reverbBuffer,
+                                                int32_t reverbAmountAdjust, int32_t sideChainHitPending,
+                                                bool shouldLimitDelayFeedback, bool isClipActive, int32_t pitchAdjust,
+                                                int32_t amplitudeAtStart, int32_t amplitudeAtEnd) {
 
 	if (activeClip) {
 		AudioClip* activeAudioClip = (AudioClip*)activeClip;
@@ -87,7 +90,8 @@ void AudioOutput::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* m
 			int32_t attack = getExp(attackNeutralValue, -(activeAudioClip->attack >> 2));
 
 renderEnvelope:
-			int32_t amplitudeLocal = (envelope.render(numSamples, attack, 8388608, 2147483647, 0, decayTableSmall4) >> 1) + 1073741824;
+			int32_t amplitudeLocal =
+			    (envelope.render(numSamples, attack, 8388608, 2147483647, 0, decayTableSmall4) >> 1) + 1073741824;
 
 			if (envelope.state >= ENVELOPE_STAGE_OFF) {
 				if (activeAudioClip->doingLateStart) {
@@ -106,13 +110,16 @@ renderEnvelope:
 					amplitudeLastTime = amplitudeLocal;
 				}
 
-				int32_t amplitudeEffectiveStart = multiply_32x32_rshift32(amplitudeLastTime, amplitudeAtStart); // Reduces amplitude another >>1
-				int32_t amplitudeEffectiveEnd = multiply_32x32_rshift32(amplitudeLocal, amplitudeAtEnd); // Reduces amplitude another >>1
+				int32_t amplitudeEffectiveStart =
+				    multiply_32x32_rshift32(amplitudeLastTime, amplitudeAtStart); // Reduces amplitude another >>1
+				int32_t amplitudeEffectiveEnd =
+				    multiply_32x32_rshift32(amplitudeLocal, amplitudeAtEnd); // Reduces amplitude another >>1
 
 				int32_t amplitudeIncrementEffective = (amplitudeEffectiveEnd - amplitudeEffectiveStart) / numSamples;
 
 				int32_t* intBuffer = (int32_t*)renderBuffer;
-				activeAudioClip->render(modelStack, intBuffer, numSamples, amplitudeEffectiveStart, amplitudeIncrementEffective, pitchAdjust);
+				activeAudioClip->render(modelStack, intBuffer, numSamples, amplitudeEffectiveStart,
+				                        amplitudeIncrementEffective, pitchAdjust);
 
 				amplitudeLastTime = amplitudeLocal;
 
@@ -121,11 +128,11 @@ renderEnvelope:
 
 					// If can write directly into Song buffer...
 					if (bufferToTransferTo) {
-						int32_t const * __restrict__ input = intBuffer;
-						int32_t const * const inputBufferEnd = input + numSamples;
-						int32_t * __restrict__ output = bufferToTransferTo;
+						int32_t const* __restrict__ input = intBuffer;
+						int32_t const* const inputBufferEnd = input + numSamples;
+						int32_t* __restrict__ output = bufferToTransferTo;
 
-						int32_t const * const remainderEnd = input + (numSamples & 1);
+						int32_t const* const remainderEnd = input + (numSamples & 1);
 
 						while (input != remainderEnd) {
 							*output += *input;
@@ -201,12 +208,13 @@ renderEnvelope:
 
 	if (echoing && modelStack->song->isOutputActiveInArrangement(this)) {
 		StereoSample* __restrict__ outputPos = bufferToTransferTo ? (StereoSample*)bufferToTransferTo : renderBuffer;
-		StereoSample const * const outputPosEnd = outputPos + numSamples;
+		StereoSample const* const outputPosEnd = outputPos + numSamples;
 
-	    int32_t const * __restrict__ inputReadPos = (int32_t const *)AudioEngine::i2sRXBufferPos;
+		int32_t const* __restrict__ inputReadPos = (int32_t const*)AudioEngine::i2sRXBufferPos;
 
 		int inputChannelNow = inputChannel;
-		if (inputChannelNow == AUDIO_INPUT_CHANNEL_STEREO && !AudioEngine::renderInStereo) inputChannelNow = 0; // 0 means combine channels
+		if (inputChannelNow == AUDIO_INPUT_CHANNEL_STEREO && !AudioEngine::renderInStereo)
+			inputChannelNow = 0; // 0 means combine channels
 
 		int32_t amplitudeIncrement = (amplitudeAtEnd - amplitudeAtStart) / numSamples;
 		int32_t amplitudeNow = amplitudeAtStart;
@@ -218,7 +226,7 @@ renderEnvelope:
 			int32_t inputL = multiply_32x32_rshift32(inputReadPos[0], amplitudeNow) << 2;
 			int32_t inputR = multiply_32x32_rshift32(inputReadPos[1], amplitudeNow) << 2;
 
-			switch(inputChannelNow) {
+			switch (inputChannelNow) {
 			case AUDIO_INPUT_CHANNEL_LEFT:
 				outputPos->l += inputL;
 				outputPos->r += inputL;
@@ -229,8 +237,7 @@ renderEnvelope:
 				outputPos->r += inputR;
 				break;
 
-			case AUDIO_INPUT_CHANNEL_BALANCED:
-			{
+			case AUDIO_INPUT_CHANNEL_BALANCED: {
 				int32_t difference = (inputL >> 1) - (inputR >> 1);
 				outputPos->l += difference;
 				outputPos->r += difference;
@@ -260,28 +267,23 @@ renderEnvelope:
 	}
 }
 
-
 bool AudioOutput::willRenderAsOneChannelOnlyWhichWillNeedCopying() {
-	return (activeClip
-			&& ((AudioClip*)activeClip)->voiceSample
-			&& (((AudioClip*)activeClip)->sampleHolder.audioFile->numChannels == 1 || !AudioEngine::renderInStereo));
+	return (activeClip && ((AudioClip*)activeClip)->voiceSample
+	        && (((AudioClip*)activeClip)->sampleHolder.audioFile->numChannels == 1 || !AudioEngine::renderInStereo));
 }
-
-
 
 void AudioOutput::cutAllSound() {
 	if (activeClip) {
 		((AudioClip*)activeClip)->unassignVoiceSample();
-		((AudioClip*)activeClip)->abortRecording(); // Needed for when this is being called as part of a song-swap - we can't leave recording happening in such a case.
+		((AudioClip*)activeClip)
+		    ->abortRecording(); // Needed for when this is being called as part of a song-swap - we can't leave recording happening in such a case.
 	}
 }
 
-
-void AudioOutput::getThingWithMostReverb(Sound** soundWithMostReverb, ParamManagerForTimeline** paramManagerWithMostReverb, Kit** kitWithMostReverb,
-			int32_t* highestReverbAmountFound) {
-
+void AudioOutput::getThingWithMostReverb(Sound** soundWithMostReverb,
+                                         ParamManagerForTimeline** paramManagerWithMostReverb, Kit** kitWithMostReverb,
+                                         int32_t* highestReverbAmountFound) {
 }
-
 
 // Unlike for Instruments, AudioOutputs will only be written as part of a Song, so clipForSavingOutputOnly will always be NULL
 bool AudioOutput::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
@@ -293,7 +295,7 @@ bool AudioOutput::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 
 	Output::writeDataToFile(clipForSavingOutputOnly, song);
 
-    GlobalEffectableForClip::writeAttributesToFile(clipForSavingOutputOnly == NULL);
+	GlobalEffectableForClip::writeAttributesToFile(clipForSavingOutputOnly == NULL);
 
 	storageManager.writeOpeningTagEnd();
 
@@ -301,55 +303,52 @@ bool AudioOutput::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 	// If no activeClip, that means no Clip has this Instrument, so there should be a backedUpParamManager that we should use / save
 	if (!activeClip) paramManager = song->getBackedUpParamManagerPreferablyWithClip(this, NULL);
 
-    GlobalEffectableForClip::writeTagsToFile(paramManager, true);
+	GlobalEffectableForClip::writeTagsToFile(paramManager, true);
 
 	return true;
 }
 
-
 // clip will always be NULL and is of no consequence - see note in parent Output.h
 int AudioOutput::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) {
-    char const* tagName;
+	char const* tagName;
 
 	ParamManagerForTimeline paramManager;
 
-    while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 
-        if (!strcmp(tagName, "echoingInput")) {
-        	echoing = storageManager.readTagOrAttributeValueInt();
-            storageManager.exitTag("echoingInput");
-        }
+		if (!strcmp(tagName, "echoingInput")) {
+			echoing = storageManager.readTagOrAttributeValueInt();
+			storageManager.exitTag("echoingInput");
+		}
 
-        else if (!strcmp(tagName, "inputChannel")) {
-        	inputChannel = stringToInputChannel(storageManager.readTagOrAttributeValue());
-            storageManager.exitTag("inputChannel");
-        }
+		else if (!strcmp(tagName, "inputChannel")) {
+			inputChannel = stringToInputChannel(storageManager.readTagOrAttributeValue());
+			storageManager.exitTag("inputChannel");
+		}
 
-        else if (Output::readTagFromFile(tagName)) {}
+		else if (Output::readTagFromFile(tagName)) {}
 
-        else {
+		else {
 
-        	int result = GlobalEffectableForClip::readTagFromFile(tagName, &paramManager, 0, song);
-        	if (result == NO_ERROR) {}
-        	else if (result == RESULT_TAG_UNUSED) {
-        		storageManager.exitTag();
-        	}
-        	else return result;
-        }
-    }
+			int result = GlobalEffectableForClip::readTagFromFile(tagName, &paramManager, 0, song);
+			if (result == NO_ERROR) {}
+			else if (result == RESULT_TAG_UNUSED) {
+				storageManager.exitTag();
+			}
+			else return result;
+		}
+	}
 
-    if (paramManager.containsAnyMainParamCollections()) {
-    	song->backUpParamManager(this, NULL, &paramManager);
-    }
+	if (paramManager.containsAnyMainParamCollections()) {
+		song->backUpParamManager(this, NULL, &paramManager);
+	}
 
-    return NO_ERROR;
+	return NO_ERROR;
 }
-
 
 void AudioOutput::deleteBackedUpParamManagers(Song* song) {
 	song->deleteBackedUpParamManagersForModControllable(this);
 }
-
 
 Clip* AudioOutput::createNewClipForArrangementRecording(ModelStack* modelStack) {
 
@@ -361,7 +360,8 @@ Clip* AudioOutput::createNewClipForArrangementRecording(ModelStack* modelStack) 
 	newClip->setOutput(modelStack->addTimelineCounter(newClip), this);
 
 #if ALPHA_OR_BETA_VERSION
-	if (!newClip->paramManager.summaries[0].paramCollection) numericDriver.freezeWithError("E422"); // Trying to diversify Leo's E410
+	if (!newClip->paramManager.summaries[0].paramCollection)
+		numericDriver.freezeWithError("E422"); // Trying to diversify Leo's E410
 #endif
 
 	return newClip;
@@ -371,9 +371,10 @@ bool AudioOutput::wantsToBeginArrangementRecording() {
 	return (inputChannel && Output::wantsToBeginArrangementRecording());
 }
 
-
 bool AudioOutput::setActiveClip(ModelStackWithTimelineCounter* modelStack, int maySendMIDIPGMs) {
-	if (activeClip && (activeClip != modelStack->getTimelineCounter() || (playbackHandler.playbackState && currentPlaybackMode == &arrangement))) {
+	if (activeClip
+	    && (activeClip != modelStack->getTimelineCounter()
+	        || (playbackHandler.playbackState && currentPlaybackMode == &arrangement))) {
 		((AudioClip*)activeClip)->unassignVoiceSample();
 	}
 	bool clipChanged = Output::setActiveClip(modelStack, maySendMIDIPGMs);
@@ -387,8 +388,9 @@ bool AudioOutput::isSkippingRendering() {
 	return !echoing && (!activeClip || !((AudioClip*)activeClip)->voiceSample);
 }
 
-void AudioOutput::getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb, GlobalEffectableForClip** globalEffectableWithMostReverb, int32_t* highestReverbAmountFound) {
-	GlobalEffectableForClip::getThingWithMostReverb(activeClip, soundWithMostReverb, paramManagerWithMostReverb, globalEffectableWithMostReverb, highestReverbAmountFound);
+void AudioOutput::getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb,
+                                         GlobalEffectableForClip** globalEffectableWithMostReverb,
+                                         int32_t* highestReverbAmountFound) {
+	GlobalEffectableForClip::getThingWithMostReverb(activeClip, soundWithMostReverb, paramManagerWithMostReverb,
+	                                                globalEffectableWithMostReverb, highestReverbAmountFound);
 }
-
-

@@ -38,7 +38,7 @@
 /***********************************************************************************************************************
  Exported global variables (to be accessed by other files)
 ***********************************************************************************************************************/
-usb_int_t   g_usb_pstd_usb_int;
+usb_int_t g_usb_pstd_usb_int;
 
 /***********************************************************************************************************************
  Renesas Abstracted common Interrupt handler functions
@@ -57,17 +57,15 @@ void usb_pstd_usb_handler(uint32_t sense)
 
     usb_pstd_interrupt_clock();
 
-
     /* Push Interrupt info */
-    int alreadyAllDealtWith = usb_pstd_interrupt_handler(&g_usb_pstd_usb_int.buf[g_usb_pstd_usb_int.wp].type,
-                              &g_usb_pstd_usb_int.buf[g_usb_pstd_usb_int.wp].status);
+    int alreadyAllDealtWith = usb_pstd_interrupt_handler(
+        &g_usb_pstd_usb_int.buf[g_usb_pstd_usb_int.wp].type, &g_usb_pstd_usb_int.buf[g_usb_pstd_usb_int.wp].status);
 
+    if (!alreadyAllDealtWith)
+    { //return; // By Rohan
 
-    if (!alreadyAllDealtWith) {//return; // By Rohan
-
-		/* Write countup */
-		g_usb_pstd_usb_int.wp = ((g_usb_pstd_usb_int.wp+1) % USB_INT_BUFSIZE);
-
+        /* Write countup */
+        g_usb_pstd_usb_int.wp = ((g_usb_pstd_usb_int.wp + 1) % USB_INT_BUFSIZE);
     }
 
     /*
@@ -78,7 +76,7 @@ void usb_pstd_usb_handler(uint32_t sense)
 	uartPrintNumber(timePassedNS);
 	*/
 } /* End of function usb_pstd_usb_handler() */
-#endif  /* (USB_CFG_MODE & USB_CFG_PERI) == USB_CFG_REPI */
+#endif /* (USB_CFG_MODE & USB_CFG_PERI) == USB_CFG_REPI */
 
 /***********************************************************************************************************************
  End Of File

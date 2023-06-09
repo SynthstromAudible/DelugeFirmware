@@ -50,8 +50,9 @@ int MenuItemFileSelector::checkPermissionToBeginSession(Sound* sound, int whichT
 
 	if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) return MENU_PERMISSION_YES;
 
-	bool can = (sound->getSynthMode() == SYNTH_MODE_SUBTRACTIVE ||
-			(sound->getSynthMode() == SYNTH_MODE_RINGMOD && sound->sources[whichThing].oscType == OSC_TYPE_WAVETABLE));
+	bool can =
+	    (sound->getSynthMode() == SYNTH_MODE_SUBTRACTIVE
+	     || (sound->getSynthMode() == SYNTH_MODE_RINGMOD && sound->sources[whichThing].oscType == OSC_TYPE_WAVETABLE));
 
 	if (!can) {
 		return MENU_PERMISSION_NO;

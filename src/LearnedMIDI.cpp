@@ -25,7 +25,6 @@ extern "C" {
 #include "cfunctions.h"
 }
 
-
 LearnedMIDI::LearnedMIDI() {
 	clear();
 }
@@ -37,7 +36,7 @@ void LearnedMIDI::clear() {
 }
 
 char const* getTagNameFromMIDIMessageType(int midiMessageType) {
-	switch(midiMessageType) {
+	switch (midiMessageType) {
 	case MIDI_MESSAGE_NOTE:
 		return "note";
 
@@ -62,70 +61,75 @@ void LearnedMIDI::writeAttributesToFile(int midiMessageType) {
 		storageManager.writeAttribute("channel", channelOrZone, false);
 	}
 
-    if (midiMessageType != MIDI_MESSAGE_NONE) {
-    	char const* messageTypeName = getTagNameFromMIDIMessageType(midiMessageType);
+	if (midiMessageType != MIDI_MESSAGE_NONE) {
+		char const* messageTypeName = getTagNameFromMIDIMessageType(midiMessageType);
 
-    	storageManager.writeAttribute(messageTypeName, noteOrCC, false);
-    }
+		storageManager.writeAttribute(messageTypeName, noteOrCC, false);
+	}
 }
 
 void LearnedMIDI::writeToFile(char const* commandName, int midiMessageType) {
 	if (!containsSomething()) return;
 
-    storageManager.writeOpeningTagBeginning(commandName);
-    writeAttributesToFile(midiMessageType);
+	storageManager.writeOpeningTagBeginning(commandName);
+	writeAttributesToFile(midiMessageType);
 
-    if (device) {
-    	storageManager.writeOpeningTagEnd();
-    	device->writeReferenceToFile();
-    	storageManager.writeClosingTag(commandName);
-    }
-    else {
-    	storageManager.closeTag();
-    }
+	if (device) {
+		storageManager.writeOpeningTagEnd();
+		device->writeReferenceToFile();
+		storageManager.writeClosingTag(commandName);
+	}
+	else {
+		storageManager.closeTag();
+	}
 }
-
 
 void LearnedMIDI::readFromFile(int midiMessageType) {
 
-    char const* tagName;
-    while (*(tagName = storageManager.readNextTagOrAttributeName())) {
-        if (!strcmp(tagName, "channel")) {
-            channelOrZone = storageManager.readTagOrAttributeValueInt();
-            channelOrZone = getMin((int)channelOrZone, 15);
-        }
-        else if (!strcmp(tagName, "mpeZone")) {
-        	readMPEZone();
-        }
-        else if (!strcmp(tagName, "device")) {
-            device = MIDIDeviceManager::readDeviceReferenceFromFile();
-        }
-        else if (midiMessageType != MIDI_MESSAGE_NONE && !strcmp(tagName, getTagNameFromMIDIMessageType(midiMessageType))) {
-            noteOrCC = storageManager.readTagOrAttributeValueInt();
-            noteOrCC = getMin((int)noteOrCC, 127);
-        }
-        storageManager.exitTag();
-    }
+	char const* tagName;
+	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+		if (!strcmp(tagName, "channel")) {
+			channelOrZone = storageManager.readTagOrAttributeValueInt();
+			channelOrZone = getMin((int)channelOrZone, 15);
+		}
+		else if (!strcmp(tagName, "mpeZone")) {
+			readMPEZone();
+		}
+		else if (!strcmp(tagName, "device")) {
+			device = MIDIDeviceManager::readDeviceReferenceFromFile();
+		}
+		else if (midiMessageType != MIDI_MESSAGE_NONE
+		         && !strcmp(tagName, getTagNameFromMIDIMessageType(midiMessageType))) {
+			noteOrCC = storageManager.readTagOrAttributeValueInt();
+			noteOrCC = getMin((int)noteOrCC, 127);
+		}
+		storageManager.exitTag();
+	}
 }
 
 void LearnedMIDI::readMPEZone() {
 	char const* text = storageManager.readTagOrAttributeValue();
-	if		(!strcmp(text, "lower")) channelOrZone = MIDI_CHANNEL_MPE_LOWER_ZONE;
-	else if	(!strcmp(text, "upper")) channelOrZone = MIDI_CHANNEL_MPE_UPPER_ZONE;
+	if (!strcmp(text, "lower")) channelOrZone = MIDI_CHANNEL_MPE_LOWER_ZONE;
+	else if (!strcmp(text, "upper")) channelOrZone = MIDI_CHANNEL_MPE_UPPER_ZONE;
 }
 
 bool LearnedMIDI::equalsChannelAllowMPE(MIDIDevice* newDevice, int newChannel) {
-	if (channelOrZone == MIDI_CHANNEL_NONE) return false; // 99% of the time, we'll get out here, because input isn't activated/learned.
+	if (channelOrZone == MIDI_CHANNEL_NONE)
+		return false; // 99% of the time, we'll get out here, because input isn't activated/learned.
 	if (!equalsDevice(newDevice)) return false;
 	if (channelOrZone < 16) return (channelOrZone == newChannel);
-	if (!device) return false; // Could we actually be set to MPE but have no device? Maybe if loaded from weird song file?
-	if (channelOrZone == MIDI_CHANNEL_MPE_LOWER_ZONE) return (newChannel <= device->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeLowerZoneLastMemberChannel);
-	if (channelOrZone == MIDI_CHANNEL_MPE_UPPER_ZONE) return (newChannel >= device->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeUpperZoneLastMemberChannel);
+	if (!device)
+		return false; // Could we actually be set to MPE but have no device? Maybe if loaded from weird song file?
+	if (channelOrZone == MIDI_CHANNEL_MPE_LOWER_ZONE)
+		return (newChannel <= device->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeLowerZoneLastMemberChannel);
+	if (channelOrZone == MIDI_CHANNEL_MPE_UPPER_ZONE)
+		return (newChannel >= device->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeUpperZoneLastMemberChannel);
 	return false; // Theoretically I don't think we'd ever get here...
 }
 
 bool LearnedMIDI::equalsChannelAllowMPEMasterChannels(MIDIDevice* newDevice, int newChannel) {
-	if (channelOrZone == MIDI_CHANNEL_NONE) return false; // 99% of the time, we'll get out here, because input isn't activated/learned.
+	if (channelOrZone == MIDI_CHANNEL_NONE)
+		return false; // 99% of the time, we'll get out here, because input isn't activated/learned.
 	if (!equalsDevice(newDevice)) return false;
 	if (channelOrZone < 16) return (channelOrZone == newChannel);
 	return (newChannel == getMasterChannel());

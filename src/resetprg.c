@@ -51,25 +51,23 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-
 #include "r_typedefs.h"
 #include "sio_char.h"
 #include "definitions.h"
 
 #if defined(__thumb2__) || (defined(__thumb__) && defined(__ARM_ARCH_6M__))
-# define THUMB_V7_V6M
+#define THUMB_V7_V6M
 #endif
 
 /* Defined if this target supports the BLX Rm instruction.  */
-#if  !defined(__ARM_ARCH_2__) && !defined(__ARM_ARCH_3__) && \
-                !defined(__ARM_ARCH_3M__)    && !defined(__ARM_ARCH_4__) \
-                                                   && !defined(__ARM_ARCH_4T__)
-# define HAVE_CALL_INDIRECT
+#if !defined(__ARM_ARCH_2__) && !defined(__ARM_ARCH_3__) && !defined(__ARM_ARCH_3M__) && !defined(__ARM_ARCH_4__)      \
+    && !defined(__ARM_ARCH_4T__)
+#define HAVE_CALL_INDIRECT
 #endif
 
 #ifdef HAVE_INITFINI_ARRAY
-#define _init    __libc_init_array
-#define _fini    __libc_fini_array
+#define _init __libc_init_array
+#define _fini __libc_fini_array
 #endif
 
 extern int R_CACHE_L1Init(void);
@@ -82,20 +80,19 @@ extern int R_CACHE_L1Init(void);
  *******************************************************************************/
 void resetprg(void) {
 
-
 	// Enable all modules' clocks --------------------------------------------------------------
 	STB_Init();
 	// SDRAM pin mux ------------------------------------------------------------------
-	setPinMux(3, 0, 1); // A1
-	setPinMux(3, 1, 1); // A1
-	setPinMux(3, 2, 1); // A1
-	setPinMux(3, 3, 1); // A1
-	setPinMux(3, 4, 1); // A1
-	setPinMux(3, 5, 1); // A1
-	setPinMux(3, 6, 1); // A1
-	setPinMux(3, 7, 1); // A1
-	setPinMux(3, 8, 1); // A1
-	setPinMux(3, 9, 1); // A1
+	setPinMux(3, 0, 1);  // A1
+	setPinMux(3, 1, 1);  // A1
+	setPinMux(3, 2, 1);  // A1
+	setPinMux(3, 3, 1);  // A1
+	setPinMux(3, 4, 1);  // A1
+	setPinMux(3, 5, 1);  // A1
+	setPinMux(3, 6, 1);  // A1
+	setPinMux(3, 7, 1);  // A1
+	setPinMux(3, 8, 1);  // A1
+	setPinMux(3, 9, 1);  // A1
 	setPinMux(3, 10, 1); // A1
 	setPinMux(3, 11, 1); // A1
 	setPinMux(3, 12, 1); // A1
@@ -133,7 +130,6 @@ void resetprg(void) {
 
 	R_CACHE_L1Init(); // Makes everything go about 1000x faster
 
-
 	__enable_irq();
 	__enable_fiq();
 
@@ -144,4 +140,3 @@ void resetprg(void) {
 		__asm__("nop");
 	}
 }
-

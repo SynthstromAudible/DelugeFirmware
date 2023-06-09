@@ -27,15 +27,15 @@ class InstrumentClip;
 
 class PatchCable {
 public:
-    PatchCable();
-    void setup(uint8_t newFrom, uint8_t newTo, int32_t newAmount);
-    bool isActive();
-    void initAmount(int32_t value);
-    void makeUnusable();
+	PatchCable();
+	void setup(uint8_t newFrom, uint8_t newTo, int32_t newAmount);
+	bool isActive();
+	void initAmount(int32_t value);
+	void makeUnusable();
 
-    uint8_t from;
-    ParamDescriptor destinationParamDescriptor;
-    AutoParam param; // Amounts have to be within +1073741824 and -1073741824
-    int32_t const* rangeAdjustmentPointer;
+	uint8_t from;
+	ParamDescriptor destinationParamDescriptor;
+	AutoParam param; // Amounts have to be within +1073741824 and -1073741824
+	int32_t const* rangeAdjustmentPointer;
 };
 #endif /* PATCHCABLE_H_ */

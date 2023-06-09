@@ -21,31 +21,20 @@
 #include "r_typedefs.h"
 #include "definitions.h"
 
-
 #define numLedBlinkers 4
 
-
-
-
 struct LedBlinker {
-    uint8_t x;
-    uint8_t y;
-    bool active;
-    uint8_t blinksLeft;
-    bool returnToState;
-    uint8_t blinkingType;
+	uint8_t x;
+	uint8_t y;
+	bool active;
+	uint8_t blinksLeft;
+	bool returnToState;
+	uint8_t blinkingType;
 };
-
-
 
 namespace IndicatorLEDs {
 
 extern bool ledBlinkState[];
-
-
-
-
-
 
 void setLedState(uint8_t x, uint8_t y, bool newState, bool allowContinuedBlinking = false);
 void blinkLed(uint8_t x, uint8_t y, uint8_t numBlinks = 255, uint8_t blinkingType = 0, bool initialState = true);
@@ -61,8 +50,6 @@ void stopLedBlinking(uint8_t x, uint8_t y, bool resetState = false);
 bool updateBlinkingLedStates(uint8_t blinkingType);
 bool isKnobIndicatorBlinking(int whichKnob);
 
-}
-
-
+} // namespace IndicatorLEDs
 
 #endif /* INDICATORLEDS_H_ */

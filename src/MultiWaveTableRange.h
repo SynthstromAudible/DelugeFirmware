@@ -25,7 +25,8 @@ class MultiWaveTableRange final : public MultiRange {
 public:
 	MultiWaveTableRange();
 
-	WaveTableHolder waveTableHolder; // Has to be first variable, cos I do a sneaky optimization between both of MultiRange's children.
+	WaveTableHolder
+	    waveTableHolder; // Has to be first variable, cos I do a sneaky optimization between both of MultiRange's children.
 };
 
 #endif /* MULTIWAVETABLERANGE_H_ */

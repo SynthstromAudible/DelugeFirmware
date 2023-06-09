@@ -34,13 +34,12 @@ public:
 
 	int32_t lastSampleRead;
 	int32_t lastAngle;
-    int32_t angleLPFMem[DIFFERENCE_LPF_POLES];
+	int32_t angleLPFMem[DIFFERENCE_LPF_POLES];
 
 	uint8_t percBuffer[INPUT_PERC_BUFFER_SIZE];
 
-
-
-	int32_t rawBuffer[INPUT_RAW_BUFFER_SIZE]; // Must be last!!! Cos we're gonna allocate and access it double-length for stereo
+	int32_t rawBuffer
+	    [INPUT_RAW_BUFFER_SIZE]; // Must be last!!! Cos we're gonna allocate and access it double-length for stereo
 };
 
 #endif /* INPUTPERCBUFFER_H_ */

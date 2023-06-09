@@ -26,13 +26,10 @@
 #include "uart.h"
 #include "FileItem.h"
 
-
 bool SlotBrowser::currentFileHasSuffixFormatNameImplied;
-
 
 SlotBrowser::SlotBrowser() {
 }
-
 
 // Todo: turn this into the open() function - which will need to also be able to return error codes?
 int SlotBrowser::beginSlotSession(bool shouldDrawKeys, bool allowIfNoFolder) {
@@ -50,7 +47,6 @@ int SlotBrowser::beginSlotSession(bool shouldDrawKeys, bool allowIfNoFolder) {
 	if (result != FR_OK && !allowIfNoFolder) return false;
 */
 
-
 	bool success = Browser::opened();
 	if (!success) return ERROR_UNSPECIFIED;
 
@@ -67,10 +63,9 @@ int SlotBrowser::beginSlotSession(bool shouldDrawKeys, bool allowIfNoFolder) {
 	return NO_ERROR;
 }
 
-
 #if !HAVE_OLED
 void SlotBrowser::focusRegained() {
-    displayText(false);
+	displayText(false);
 }
 
 int SlotBrowser::horizontalEncoderAction(int offset) {
@@ -126,7 +121,8 @@ void SlotBrowser::convertToPrefixFormatIfPossible() {
 
 	FileItem* currentFileItem = getCurrentFileItem();
 
-	if (currentFileItem && currentFileHasSuffixFormatNameImplied && !enteredText.isEmpty() && !currentFileItem->isFolder) {
+	if (currentFileItem && currentFileHasSuffixFormatNameImplied && !enteredText.isEmpty()
+	    && !currentFileItem->isFolder) {
 
 		int enteredTextLength = enteredText.getLength();
 
@@ -137,7 +133,7 @@ void SlotBrowser::convertToPrefixFormatIfPossible() {
 
 		int multiplier = 1;
 
-		for (int i = enteredTextLength - 1; i >= 0; i--)  {
+		for (int i = enteredTextLength - 1; i >= 0; i--) {
 
 			if (i == enteredTextLength - 1) {
 				if (enteredTextChars[i] >= 'a' && enteredTextChars[i] <= 'z') {
@@ -167,20 +163,22 @@ void SlotBrowser::convertToPrefixFormatIfPossible() {
 	}
 }
 
-
 int SlotBrowser::getCurrentFilenameWithoutExtension(String* filenameWithoutExtension) {
 	int error;
 #if !HAVE_OLED
 	// If numeric...
 	Slot slot = getSlot(enteredText.get());
 	if (slot.slot != -1) {
-		error = filenameWithoutExtension->set(filePrefix);					if (error) return error;
-		error = filenameWithoutExtension->concatenateInt(slot.slot, 3);		if (error) return error;
+		error = filenameWithoutExtension->set(filePrefix);
+		if (error) return error;
+		error = filenameWithoutExtension->concatenateInt(slot.slot, 3);
+		if (error) return error;
 		if (slot.subSlot != -1) {
 			char buffer[2];
 			buffer[0] = 'A' + slot.subSlot;
 			buffer[1] = 0;
-			error = filenameWithoutExtension->concatenate(buffer);			if (error) return error;
+			error = filenameWithoutExtension->concatenate(buffer);
+			if (error) return error;
 		}
 	}
 	else
@@ -192,17 +190,18 @@ int SlotBrowser::getCurrentFilenameWithoutExtension(String* filenameWithoutExten
 	return NO_ERROR;
 }
 
-
-
 int SlotBrowser::getCurrentFilePath(String* path) {
 	path->set(&currentDir);
 
-	int error = path->concatenate("/");											if (error) return error;
+	int error = path->concatenate("/");
+	if (error) return error;
 
 	String filenameWithoutExtension;
-	error = getCurrentFilenameWithoutExtension(&filenameWithoutExtension);		if (error) return error;
+	error = getCurrentFilenameWithoutExtension(&filenameWithoutExtension);
+	if (error) return error;
 
-	error = path->concatenate(&filenameWithoutExtension);						if (error) return error;
+	error = path->concatenate(&filenameWithoutExtension);
+	if (error) return error;
 
 	error = path->concatenate(".XML");
 	return error;

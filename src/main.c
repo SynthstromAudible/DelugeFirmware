@@ -28,9 +28,7 @@
 
 int main2(void);
 
-
-static void midiAndGateOutputTimerInterrupt (uint32_t int_sense)
-{
+static void midiAndGateOutputTimerInterrupt(uint32_t int_sense) {
 
 	/* Stop the count of channel 2 of MTU2. */
 	disableTimer(TIMER_MIDI_GATE_OUTPUT);
@@ -41,8 +39,6 @@ static void midiAndGateOutputTimerInterrupt (uint32_t int_sense)
 	timerClearCompareMatchTGRA(TIMER_MIDI_GATE_OUTPUT);
 	timerGoneOff();
 }
-
-
 
 uint32_t triggerClockRisingEdgeTimes[TRIGGER_CLOCK_INPUT_NUM_TIMES_STORED];
 
@@ -56,24 +52,21 @@ static void clearIRQInterrupt(int irqNumber) {
 	}
 }
 
-static void int_irq6 (uint32_t sense)
-{
+static void int_irq6(uint32_t sense) {
 	uint16_t dummy_read;
 
 	R_INTC_Disable(IRQ_INTERRUPT_0 + 6);
 
-	triggerClockRisingEdgeTimes[triggerClockRisingEdgesReceived & (TRIGGER_CLOCK_INPUT_NUM_TIMES_STORED - 1)] = DMACnNonVolatile(SSI_TX_DMA_CHANNEL).CRSA_n; // Reading this not as volatile works fine
+	triggerClockRisingEdgeTimes[triggerClockRisingEdgesReceived & (TRIGGER_CLOCK_INPUT_NUM_TIMES_STORED - 1)] =
+	    DMACnNonVolatile(SSI_TX_DMA_CHANNEL).CRSA_n; // Reading this not as volatile works fine
 
 	//uartPrintln("int");
 	triggerClockRisingEdgesReceived++;
 
 	clearIRQInterrupt(6);
 
-    R_INTC_Enable(IRQ_INTERRUPT_0 + 6);
+	R_INTC_Enable(IRQ_INTERRUPT_0 + 6);
 }
-
-
-
 
 /******************************************************************************
 * Function Name: main
@@ -84,28 +77,27 @@ static void int_irq6 (uint32_t sense)
 * Arguments    : none
 * Return Value : 0
 ******************************************************************************/
-int_t main1(void)
-{
+int_t main1(void) {
 
 	// SSI pins
-    setPinMux(7, 11, 6); // AUDIO_XOUT
-    setPinMux(6, 9, 3); // SSI0 word select
-    setPinMux(6, 10, 3); // SSI0 tx
-    setPinMux(6, 8, 3); // SSI0 serial clock
+	setPinMux(7, 11, 6); // AUDIO_XOUT
+	setPinMux(6, 9, 3);  // SSI0 word select
+	setPinMux(6, 10, 3); // SSI0 tx
+	setPinMux(6, 8, 3);  // SSI0 serial clock
 #if DELUGE_MODEL != DELUGE_MODEL_40_PAD
-    setPinMux(6, 11, 3); // SSI0 rx
+	setPinMux(6, 11, 3); // SSI0 rx
 #endif
 
-    mtuEnableAccess();
+	mtuEnableAccess();
 
-    // Set up MIDI / gate output timer
+	// Set up MIDI / gate output timer
 	disableTimer(TIMER_MIDI_GATE_OUTPUT);
-    *TCNT[TIMER_MIDI_GATE_OUTPUT] = 0u;
-    timerClearCompareMatchTGRA(TIMER_MIDI_GATE_OUTPUT);
-    timerEnableInterruptsTGRA(TIMER_MIDI_GATE_OUTPUT);
-    timerControlSetup(TIMER_MIDI_GATE_OUTPUT, 1, 64);
+	*TCNT[TIMER_MIDI_GATE_OUTPUT] = 0u;
+	timerClearCompareMatchTGRA(TIMER_MIDI_GATE_OUTPUT);
+	timerEnableInterruptsTGRA(TIMER_MIDI_GATE_OUTPUT);
+	timerControlSetup(TIMER_MIDI_GATE_OUTPUT, 1, 64);
 
-    /* The setup process the interrupt IntTgfa function.*/
+	/* The setup process the interrupt IntTgfa function.*/
 	R_INTC_RegistIntFunc(INTC_ID_TGIA[TIMER_MIDI_GATE_OUTPUT], &midiAndGateOutputTimerInterrupt);
 	R_INTC_SetPriority(INTC_ID_TGIA[TIMER_MIDI_GATE_OUTPUT], 5);
 	// Original comment regarding above priority: "Must be greater than 9, so less prioritized than USB interrupt, so that can still happen while this happening. But must be lower number / more prioritized than MIDI UART TX DMA interrupt! Or else random crash occasionally."
@@ -116,19 +108,18 @@ int_t main1(void)
 
 	// Set up slow system timer - 33 ticks per millisecond (30.30303 microseconds per tick) on A1
 	disableTimer(TIMER_SYSTEM_SLOW);
-    timerControlSetup(TIMER_SYSTEM_SLOW, 0, 1024);
+	timerControlSetup(TIMER_SYSTEM_SLOW, 0, 1024);
 	enableTimer(TIMER_SYSTEM_SLOW);
 
 	// Set up fast system timer - 528 ticks per millisecond (1.893939 microseconds per tick) on A1
 	disableTimer(TIMER_SYSTEM_FAST);
-    timerControlSetup(TIMER_SYSTEM_FAST, 0, 64);
+	timerControlSetup(TIMER_SYSTEM_FAST, 0, 64);
 	enableTimer(TIMER_SYSTEM_FAST);
 
 	// Set up super-fast system timer - 33.792 ticks per microsecond (29.5928 nanoseconds per tick) on A1
 	disableTimer(TIMER_SYSTEM_SUPERFAST);
-    timerControlSetup(TIMER_SYSTEM_SUPERFAST, 0, 1);
+	timerControlSetup(TIMER_SYSTEM_SUPERFAST, 0, 1);
 	enableTimer(TIMER_SYSTEM_SUPERFAST);
-
 
 	// Uart setup and pin mux ------------------------------------------------------------------------------------------
 
@@ -137,7 +128,7 @@ int_t main1(void)
 
 #if UART_CHANNEL_MIDI == 1
 	setPinMux(3, 15, 5); // TX
-	setPinMux(1, 9, 3); // RX
+	setPinMux(1, 9, 3);  // RX
 #elif UART_CHANNEL_MIDI == 0
 	setPinMux(6, 15, 5); // TX
 	setPinMux(6, 14, 5); // RX
@@ -151,7 +142,7 @@ int_t main1(void)
 	setPinMux(1, 7, 3); // RX
 #elif UART_CHANNEL_PIC == 1
 	setPinMux(3, 15, 5); // TX
-	setPinMux(1, 9, 3); // RX
+	setPinMux(1, 9, 3);  // RX
 #endif
 
 	initUartDMA();
@@ -172,19 +163,18 @@ int_t main1(void)
 	setupMMCDMA();
 #endif
 
-
-    /* Configure IRQs detections on falling edge. Due to the presence of a transistor, we want to read falling edges on the trigger clock rather than rising. */
-    INTC.ICR1 = 0b0101010101010101;
+	/* Configure IRQs detections on falling edge. Due to the presence of a transistor, we want to read falling edges on the trigger clock rather than rising. */
+	INTC.ICR1 = 0b0101010101010101;
 
 	R_INTC_Disable(IRQ_INTERRUPT_0 + 6);
-	R_INTC_RegistIntFunc(IRQ_INTERRUPT_0 + 6 , &int_irq6);
-	R_INTC_SetPriority(IRQ_INTERRUPT_0 + 6 , 5);
+	R_INTC_RegistIntFunc(IRQ_INTERRUPT_0 + 6, &int_irq6);
+	R_INTC_SetPriority(IRQ_INTERRUPT_0 + 6, 5);
 	R_INTC_Enable(IRQ_INTERRUPT_0 + 6);
 
 	main2();
 
-    while (1);
+	while (1)
+		;
 }
 
 /* End of File */
-

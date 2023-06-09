@@ -32,13 +32,20 @@ void clearAreaExact(int minX, int minY, int maxX, int maxY, uint8_t image[][OLED
 void drawRectangle(int minX, int minY, int maxX, int maxY, uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
 void drawVerticalLine(int pixelX, int startY, int endY, uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
 void drawHorizontalLine(int pixelY, int startX, int endX, uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
-void drawString(char const* string, int pixelX, int pixelY, uint8_t* image, int imageWidth, int textWidth, int textHeight, int scrollPos = 0, int endX = OLED_MAIN_WIDTH_PIXELS);
-void drawStringFixedLength(char const* string, int length, int pixelX, int pixelY, uint8_t* image, int imageWidth, int textWidth, int textHeight);
-void drawStringCentred(char const* string, int pixelY, uint8_t* image, int imageWidth, int textWidth, int textHeight, int centrePos = (OLED_MAIN_WIDTH_PIXELS >> 1));
-void drawStringCentredShrinkIfNecessary(char const* string, int pixelY, uint8_t* image, int imageWidth, int textWidth, int textHeight);
-void drawStringAlignRight(char const* string, int pixelY, uint8_t* image, int imageWidth, int textWidth, int textHeight, int rightPos = OLED_MAIN_WIDTH_PIXELS);
-void drawChar(uint8_t theChar, int pixelX, int pixelY, uint8_t* image, int imageWidth, int textWidth, int textHeight, int scrollPos = 0, int endX = OLED_MAIN_WIDTH_PIXELS);
-void drawGraphicMultiLine(uint8_t const* graphic, int startX, int startY, int width, uint8_t* image, int height = 8, int numBytesTall = 1);
+void drawString(char const* string, int pixelX, int pixelY, uint8_t* image, int imageWidth, int textWidth,
+                int textHeight, int scrollPos = 0, int endX = OLED_MAIN_WIDTH_PIXELS);
+void drawStringFixedLength(char const* string, int length, int pixelX, int pixelY, uint8_t* image, int imageWidth,
+                           int textWidth, int textHeight);
+void drawStringCentred(char const* string, int pixelY, uint8_t* image, int imageWidth, int textWidth, int textHeight,
+                       int centrePos = (OLED_MAIN_WIDTH_PIXELS >> 1));
+void drawStringCentredShrinkIfNecessary(char const* string, int pixelY, uint8_t* image, int imageWidth, int textWidth,
+                                        int textHeight);
+void drawStringAlignRight(char const* string, int pixelY, uint8_t* image, int imageWidth, int textWidth, int textHeight,
+                          int rightPos = OLED_MAIN_WIDTH_PIXELS);
+void drawChar(uint8_t theChar, int pixelX, int pixelY, uint8_t* image, int imageWidth, int textWidth, int textHeight,
+              int scrollPos = 0, int endX = OLED_MAIN_WIDTH_PIXELS);
+void drawGraphicMultiLine(uint8_t const* graphic, int startX, int startY, int width, uint8_t* image, int height = 8,
+                          int numBytesTall = 1);
 void drawScreenTitle(char const* title);
 
 void setupBlink(int minX, int width, int minY, int maxY, bool shouldBlinkImmediately);
@@ -62,7 +69,8 @@ void setupConsole(int width, int height);
 void consoleText(char const* text);
 
 void stopScrollingAnimation();
-void setupSideScroller(int index, char const* text, int startX, int endX, int startY, int endY, int textSpacingX, int textSizeY, bool doHilight);
+void setupSideScroller(int index, char const* text, int startX, int endX, int startY, int endY, int textSpacingX,
+                       int textSizeY, bool doHilight);
 void drawPermanentPopupLookingText(char const* text);
 
 void freezeWithError(char const* text);
@@ -81,7 +89,7 @@ extern const uint8_t kitIcon[];
 extern const uint8_t downArrowIcon[];
 extern const uint8_t rightArrowIcon[];
 
-}
+} // namespace OLED
 
 extern "C" {
 void consoleTextIfAllBootedUp(char const* text);

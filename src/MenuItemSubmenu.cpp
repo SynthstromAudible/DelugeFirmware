@@ -31,7 +31,6 @@ extern "C" {
 #endif
 }
 
-
 void MenuItemSubmenu::beginSession(MenuItem* navigatedBackwardFrom) {
 	soundEditor.currentSubmenuItem = items;
 	soundEditor.menuCurrentScroll = 0;
@@ -55,7 +54,6 @@ void MenuItemSubmenu::beginSession(MenuItem* navigatedBackwardFrom) {
 	updateDisplay();
 #endif
 }
-
 
 void MenuItemSubmenu::updateDisplay() {
 #if HAVE_OLED
@@ -137,17 +135,16 @@ void MenuItemSubmenu::selectEncoderAction(int offset) {
 #if HAVE_OLED
 	soundEditor.menuCurrentScroll += offset;
 	if (soundEditor.menuCurrentScroll < 0) soundEditor.menuCurrentScroll = 0;
-	else if (soundEditor.menuCurrentScroll > OLED_MENU_NUM_OPTIONS_VISIBLE - 1) soundEditor.menuCurrentScroll = OLED_MENU_NUM_OPTIONS_VISIBLE - 1;
+	else if (soundEditor.menuCurrentScroll > OLED_MENU_NUM_OPTIONS_VISIBLE - 1)
+		soundEditor.menuCurrentScroll = OLED_MENU_NUM_OPTIONS_VISIBLE - 1;
 #endif
 
-    updateDisplay();
+	updateDisplay();
 }
-
 
 MenuItem* MenuItemSubmenu::selectButtonPress() {
 	return *soundEditor.currentSubmenuItem;
 }
-
 
 void MenuItemSubmenu::unlearnAction() {
 	if (soundEditor.getCurrentMenuItem() == this) (*soundEditor.currentSubmenuItem)->unlearnAction();
@@ -159,14 +156,15 @@ bool MenuItemSubmenu::allowsLearnMode() {
 }
 
 void MenuItemSubmenu::learnKnob(MIDIDevice* fromDevice, int whichKnob, int modKnobMode, int midiChannel) {
-	if (soundEditor.getCurrentMenuItem() == this) (*soundEditor.currentSubmenuItem)->learnKnob(fromDevice, whichKnob, modKnobMode, midiChannel);
+	if (soundEditor.getCurrentMenuItem() == this)
+		(*soundEditor.currentSubmenuItem)->learnKnob(fromDevice, whichKnob, modKnobMode, midiChannel);
 }
 
 bool MenuItemSubmenu::learnNoteOn(MIDIDevice* fromDevice, int channel, int noteCode) {
-	if (soundEditor.getCurrentMenuItem() == this) return (*soundEditor.currentSubmenuItem)->learnNoteOn(fromDevice, channel, noteCode);
+	if (soundEditor.getCurrentMenuItem() == this)
+		return (*soundEditor.currentSubmenuItem)->learnNoteOn(fromDevice, channel, noteCode);
 	else return false;
 }
-
 
 // -----------------------------------------------
 void MenuItemSubmenuReferringToOneThing::beginSession(MenuItem* navigatedBackwardFrom) {
@@ -176,18 +174,18 @@ void MenuItemSubmenuReferringToOneThing::beginSession(MenuItem* navigatedBackwar
 	MenuItemSubmenu::beginSession(navigatedBackwardFrom);
 }
 
-
-
 // -----------------------------------------------
 void MenuItemCompressorSubmenu::beginSession(MenuItem* navigatedBackwardFrom) {
-	soundEditor.currentCompressor = forReverbCompressor ? &AudioEngine::reverbCompressor : &soundEditor.currentSound->compressor;
+	soundEditor.currentCompressor =
+	    forReverbCompressor ? &AudioEngine::reverbCompressor : &soundEditor.currentSound->compressor;
 	MenuItemSubmenu::beginSession(navigatedBackwardFrom);
 }
 
 // -----------------------------------------------
 void MenuItemArpeggiatorSubmenu::beginSession(MenuItem* navigatedBackwardFrom) {
 
-	soundEditor.currentArpSettings = soundEditor.editingKit() ? &((SoundDrum*)soundEditor.currentSound)->arpSettings : &((InstrumentClip*)currentSong->currentClip)->arpSettings;
+	soundEditor.currentArpSettings = soundEditor.editingKit()
+	                                     ? &((SoundDrum*)soundEditor.currentSound)->arpSettings
+	                                     : &((InstrumentClip*)currentSong->currentClip)->arpSettings;
 	MenuItemSubmenu::beginSession(navigatedBackwardFrom);
 }
-

@@ -15,7 +15,6 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-
 #ifndef WAVEFORMBASICNAVIGATOR_H_
 #define WAVEFORMBASICNAVIGATOR_H_
 
@@ -27,7 +26,6 @@ class Sample;
 struct MarkerColumn;
 class SampleHolder;
 
-
 // This class supports basic navigation for samples not tied to a timeline - i.e. not AudioClips. Navigation is done and thought about
 // at the individual-sample level. This is used (but not inherited) by SampleMarkerEditor and SampleBrowser
 
@@ -38,7 +36,8 @@ public:
 	int32_t getMaxZoom();
 	bool isZoomedIn();
 
-	bool zoom(int offset, bool shouldAllowExtraScrollRight = false, MarkerColumn* cols = NULL, int markerType = MARKER_NONE);
+	bool zoom(int offset, bool shouldAllowExtraScrollRight = false, MarkerColumn* cols = NULL,
+	          int markerType = MARKER_NONE);
 	bool scroll(int offset, bool shouldAllowExtraScrollRight = false, MarkerColumn* cols = NULL);
 
 	Sample* sample;
@@ -50,6 +49,5 @@ public:
 };
 
 extern WaveformBasicNavigator waveformBasicNavigator;
-
 
 #endif /* WAVEFORMBASICNAVIGATOR_H_ */

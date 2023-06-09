@@ -21,16 +21,16 @@
 #include "definitions.h"
 #include "lookuptables.h"
 
-class PhaseIncrementFineTuner
-{
+class PhaseIncrementFineTuner {
 public:
-    PhaseIncrementFineTuner();
+	PhaseIncrementFineTuner();
 
-    void setup(int32_t detuneScaled);
-    int32_t detune(int32_t phaseIncrement);
-    void setNoDetune();
+	void setup(int32_t detuneScaled);
+	int32_t detune(int32_t phaseIncrement);
+	void setNoDetune();
+
 private:
-    int32_t multiplier;
+	int32_t multiplier;
 };
 
 #endif // PHASEINCREMENTFINETUNER_H

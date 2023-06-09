@@ -22,25 +22,23 @@
 #include "oled.h"
 
 void MenuItemSyncLevel::drawValue() {
-    if (soundEditor.currentValue == 0) {
-        numericDriver.setText("OFF");
-    }
-    else {
-    	char buffer[30];
-    	getNoteLengthName(buffer);
-        numericDriver.setText(buffer);
-    }
+	if (soundEditor.currentValue == 0) {
+		numericDriver.setText("OFF");
+	}
+	else {
+		char buffer[30];
+		getNoteLengthName(buffer);
+		numericDriver.setText(buffer);
+	}
 }
 
-
 void MenuItemSyncLevel::getNoteLengthName(char* buffer) {
-    currentSong->getNoteLengthName(buffer, (uint32_t)3 << (9 - soundEditor.currentValue));
+	currentSong->getNoteLengthName(buffer, (uint32_t)3 << (9 - soundEditor.currentValue));
 }
 
 void MenuItemSyncLevelRelativeToSong::getNoteLengthName(char* buffer) {
 	getNoteLengthNameFromMagnitude(buffer, -6 + 9 - soundEditor.currentValue);
 }
-
 
 #if HAVE_OLED
 void MenuItemSyncLevel::drawPixelsForOled() {
@@ -50,6 +48,7 @@ void MenuItemSyncLevel::drawPixelsForOled() {
 		text = buffer;
 		getNoteLengthName(buffer);
 	}
-	OLED::drawStringCentred(text, 20 + OLED_MAIN_TOPMOST_PIXEL, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, TEXT_BIG_SPACING_X, TEXT_BIG_SIZE_Y);
+	OLED::drawStringCentred(text, 20 + OLED_MAIN_TOPMOST_PIXEL, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
+	                        TEXT_BIG_SPACING_X, TEXT_BIG_SIZE_Y);
 }
 #endif

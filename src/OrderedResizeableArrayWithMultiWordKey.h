@@ -20,7 +20,6 @@
 
 #include "OrderedResizeableArray.h"
 
-
 // This class extends OrderedResizeableArrayWith32bitKey so that if we wish, we can still use that class's single-word search functions, where we only care about the first word.
 
 class OrderedResizeableArrayWithMultiWordKey : public OrderedResizeableArrayWith32bitKey {

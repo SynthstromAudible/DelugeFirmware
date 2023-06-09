@@ -20,7 +20,6 @@
 
 AudioFileReader::AudioFileReader() {
 	// TODO Auto-generated constructor stub
-
 }
 
 // One limitation of this function is that it can never read the final byte of the file. Not a problem for us
@@ -32,7 +31,6 @@ int AudioFileReader::readBytes(char* outputBuffer, int num) {
 	return readBytesPassedErrorChecking(outputBuffer, num);
 }
 
-
 // Check it's not beyond the end of the file, before you call this
 void AudioFileReader::jumpForwardToBytePos(uint32_t newPos) {
 
@@ -41,11 +39,9 @@ void AudioFileReader::jumpForwardToBytePos(uint32_t newPos) {
 	byteIndexWithinCluster += jumpForwardAmount;
 }
 
-
 uint32_t AudioFileReader::getBytePos() {
 	return byteIndexWithinCluster + currentClusterIndex * audioFileManager.clusterSize;
 }
-
 
 int AudioFileReader::advanceClustersIfNecessary() {
 

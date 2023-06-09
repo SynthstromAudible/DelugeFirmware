@@ -36,7 +36,6 @@ class NoteRow;
 class ModelStackWithTimelineCounter;
 class ModelStackWithThreeMainThings;
 
-
 /*
  * An Instrument is the “Output” of a Clip - the thing which turns the sequence or notes into sound (or MIDI or CV output).
  * Instruments include Kit, MIDIInstrument, and CVInsttrument. And then there’s SoundInstrument, which is basically a synth.
@@ -44,38 +43,40 @@ class ModelStackWithThreeMainThings;
 
 class Instrument : public Output {
 public:
-    Instrument(int newType);
-    virtual char const* getFilePrefix() {}
-    String dirPath;	// This needs to be initialized / defaulted to "SYNTHS" or "KITS" (for those Instrument types). The constructor does not do this, partly because
-    				// I don't want it doing memory allocation, and also because in many cases, the function creating the object hard-sets this anyway.
+	Instrument(int newType);
+	virtual char const* getFilePrefix() {}
+	// This needs to be initialized / defaulted to "SYNTHS" or "KITS" (for those Instrument types). The constructor does
+	// not do this, partly because I don't want it doing memory allocation, and also because in many cases, the function
+	// creating the object hard-sets this anyway.
+	String dirPath;
 
-    bool editedByUser;
-    bool existsOnCard;
+	bool editedByUser;
+	bool existsOnCard;
 
-    virtual bool doAnySoundsUseCC(uint8_t channel, uint8_t ccNumber, uint8_t value) { return false; }
-    virtual void beenEdited(bool shouldMoveToEmptySlot = true);
-    virtual void setupPatching(ModelStackWithTimelineCounter* modelStack) {} // You must call this when an Instrument comes into existence or something... for every Clip, not just for the activeClip
-    void deleteAnyInstancesOfClip(InstrumentClip* clip);
+	virtual bool doAnySoundsUseCC(uint8_t channel, uint8_t ccNumber, uint8_t value) { return false; }
+	virtual void beenEdited(bool shouldMoveToEmptySlot = true);
+	virtual void setupPatching(ModelStackWithTimelineCounter* modelStack) {
+	} // You must call this when an Instrument comes into existence or something... for every Clip, not just for the activeClip
+	void deleteAnyInstancesOfClip(InstrumentClip* clip);
 
-    //virtual void writeInstrumentDataToFile(bool savingSong, char const* slotName = "presetSlot", char const* subSlotName = "presetSubSlot");
-    bool writeDataToFile(Clip* clipForSavingOutputOnly, Song* song);
-    bool readTagFromFile(char const* tagName);
+	//virtual void writeInstrumentDataToFile(bool savingSong, char const* slotName = "presetSlot", char const* subSlotName = "presetSubSlot");
+	bool writeDataToFile(Clip* clipForSavingOutputOnly, Song* song);
+	bool readTagFromFile(char const* tagName);
 
-    virtual void compensateInstrumentVolumeForResonance(ModelStackWithThreeMainThings* modelStack) {}
-    virtual bool isNoteRowStillAuditioningAsLinearRecordingEnded(NoteRow* noteRow) = 0;
+	virtual void compensateInstrumentVolumeForResonance(ModelStackWithThreeMainThings* modelStack) {}
+	virtual bool isNoteRowStillAuditioningAsLinearRecordingEnded(NoteRow* noteRow) = 0;
 
-    char const* getNameXMLTag() { return "presetName"; }
-    virtual char const* getSlotXMLTag() { return "presetSlot"; }
-    virtual char const* getSubSlotXMLTag() { return "presetSubSlot"; }
+	char const* getNameXMLTag() { return "presetName"; }
+	virtual char const* getSlotXMLTag() { return "presetSlot"; }
+	virtual char const* getSubSlotXMLTag() { return "presetSubSlot"; }
 
-    virtual bool isAnyAuditioningHappening() = 0;
+	virtual bool isAnyAuditioningHappening() = 0;
 
 	uint8_t defaultVelocity;
 
 protected:
-    Clip* createNewClipForArrangementRecording(ModelStack* modelStack) final;
-    int setupDefaultAudioFileDir();
-
+	Clip* createNewClipForArrangementRecording(ModelStack* modelStack) final;
+	int setupDefaultAudioFileDir();
 };
 
 #endif // INSTRUMENT_H

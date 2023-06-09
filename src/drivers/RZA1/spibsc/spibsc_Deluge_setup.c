@@ -46,13 +46,14 @@
 #include "cpg_iobitmask.h"
 #include "cpu_specific.h"
 
-void initSPIBSC() {
+void initSPIBSC()
+{
 
-	// We've switched back to doing just 1-bit.
-	//setPinMux(4, 2, 2);
-	//setPinMux(4, 3, 2);
+    // We've switched back to doing just 1-bit.
+    //setPinMux(4, 2, 2);
+    //setPinMux(4, 3, 2);
 
-	// For some odd reason, all of this code being here makes it work. This was copied from the bootloader. I'm not sure why it's all relevant
+    // For some odd reason, all of this code being here makes it work. This was copied from the bootloader. I'm not sure why it's all relevant
 
     /* Temporary (unused) variable for synchronisation read. */
     volatile uint16_t temp = 0;
@@ -61,21 +62,21 @@ void initSPIBSC() {
     UNUSED_VARIABLE(temp);
 
     /* Release pin function for memory control without changing pin state. */
-    if(RZA_IO_RegRead_16((uint16_t *)&CPG.DSFR, CPG_DSFR_IOKEEP_SHIFT,  CPG_DSFR_IOKEEP) == 1)
+    if (RZA_IO_RegRead_16((uint16_t*)&CPG.DSFR, CPG_DSFR_IOKEEP_SHIFT, CPG_DSFR_IOKEEP) == 1)
     {
-    	RZA_IO_RegWrite_16((uint16_t *)&CPG.DSFR, 0, CPG_DSFR_IOKEEP_SHIFT,  CPG_DSFR_IOKEEP);
+        RZA_IO_RegWrite_16((uint16_t*)&CPG.DSFR, 0, CPG_DSFR_IOKEEP_SHIFT, CPG_DSFR_IOKEEP);
 
         /* Perform a read after the write for synchronisation. */
-        temp = RZA_IO_RegRead_16((uint16_t *)&CPG.DSFR, CPG_DSFR_IOKEEP_SHIFT,  CPG_DSFR_IOKEEP);
+        temp = RZA_IO_RegRead_16((uint16_t*)&CPG.DSFR, CPG_DSFR_IOKEEP_SHIFT, CPG_DSFR_IOKEEP);
     }
 
     /* SPIBSC stop accessing the SPI in bus mode */
     RZA_IO_RegWrite_32(&SPIBSC0.DRCR, 1, SPIBSC_DRCR_SSLN_SHIFT, SPIBSC_DRCR_SSLN);
 
     /* Wait for the setting to be accepted. */
-    while(1)
+    while (1)
     {
-        if(RZA_IO_RegRead_32(&SPIBSC0.CMNSR, SPIBSC_CMNSR_SSLF_SHIFT, SPIBSC_CMNSR_SSLF) == SPIBSC_SSL_NEGATE)
+        if (RZA_IO_RegRead_32(&SPIBSC0.CMNSR, SPIBSC_CMNSR_SSLF_SHIFT, SPIBSC_CMNSR_SSLF) == SPIBSC_SSL_NEGATE)
         {
             /* This is intentional */
             break;
@@ -83,11 +84,10 @@ void initSPIBSC() {
     }
 
     /* Wait for the final transfers to end (TEND=1) for setting change in SPIBSC. */
-    while(RZA_IO_RegRead_32(&SPIBSC0.CMNSR, SPIBSC_CMNSR_TEND_SHIFT, SPIBSC_CMNSR_TEND) != SPIBSC_TRANS_END)
+    while (RZA_IO_RegRead_32(&SPIBSC0.CMNSR, SPIBSC_CMNSR_TEND_SHIFT, SPIBSC_CMNSR_TEND) != SPIBSC_TRANS_END)
     {
         /* wait for transfer-end */
     }
-
 
     /* The next access delayed setting : 1SPBCLK   */
     /* SPBSSL negate delayed setting   : 1.5SPBCLK */
@@ -101,15 +101,15 @@ void initSPIBSC() {
     /* Data read control register(DRCR) set to enable the Read Cache */
     RZA_IO_RegWrite_32(&SPIBSC0.DRCR, 1, SPIBSC_DRCR_RBE_SHIFT, SPIBSC_DRCR_RBE);
 
-
     R_SFLASH_WaitTend(SPIBSC_CH);
 
-
     st_spibsc_cfg_t g_spibsc_cfg;
-    R_SFLASH_Set_Config(SPIBSC_CH, &g_spibsc_cfg); // Collates a bunch of preset options into the variable-holder g_spibsc_cfg, for us to actually enact in the next step
+    R_SFLASH_Set_Config(SPIBSC_CH,
+        &g_spibsc_cfg); // Collates a bunch of preset options into the variable-holder g_spibsc_cfg, for us to actually enact in the next step
 
-    if( R_SFLASH_Exmode_Setting(SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, &g_spibsc_cfg) != 0 ) // This is the line I had to change from the default RSK config - it would only have worked in "DUAL" mode - when 2x flash chips connected
+    if (R_SFLASH_Exmode_Setting(SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, &g_spibsc_cfg)
+        != 0) // This is the line I had to change from the default RSK config - it would only have worked in "DUAL" mode - when 2x flash chips connected
     {
-    	//Uart::println("flash init didn't work");
+        //Uart::println("flash init didn't work");
     }
 }

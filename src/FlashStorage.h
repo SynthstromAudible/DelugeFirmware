@@ -24,14 +24,13 @@
 #define PREVIEW_ONLY_WHILE_NOT_PLAYING 1
 #define PREVIEW_ON 2
 
-
-
 namespace FlashStorage {
 
 extern uint8_t defaultScale;
 extern bool audioClipRecordMargins;
 extern uint8_t keyboardLayout;
-extern uint8_t recordQuantizeLevel; // Assumes insideWorldTickMagnitude==1, which is not default anymore, so adjust accordingly
+extern uint8_t
+    recordQuantizeLevel; // Assumes insideWorldTickMagnitude==1, which is not default anymore, so adjust accordingly
 extern uint8_t sampleBrowserPreviewMode;
 extern uint8_t defaultVelocity;
 extern int8_t defaultMagnitude;
@@ -42,7 +41,6 @@ void readSettings();
 void writeSettings();
 void resetSettings();
 
-}
-
+} // namespace FlashStorage
 
 #endif /* FLASHSTORAGE_H_ */

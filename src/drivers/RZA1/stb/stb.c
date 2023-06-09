@@ -45,7 +45,6 @@ Includes   <System Includes> , "Project Includes"
 #include "bsc_userdef.h"
 /* System CPG register configuration header */
 
-
 /******************************************************************************
 * Function Name: STB_Init
 * Description  : Configures the standby control register for each peripheral's 
@@ -54,7 +53,7 @@ Includes   <System Includes> , "Project Includes"
 * Arguments    : none
 * Return Value : none
 ******************************************************************************/
-void STB_Init (void)
+void STB_Init(void)
 {
     volatile uint8_t dummy_buf = 0u;
 
@@ -130,6 +129,4 @@ void STB_Init (void)
     dummy_buf = CPG.STBCR12;
 }
 
-
 /* End of File */
-

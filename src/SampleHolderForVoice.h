@@ -28,29 +28,29 @@ public:
 	SampleHolderForVoice();
 	~SampleHolderForVoice();
 	void unassignAllClusterReasons(bool beingDestructed = false);
-    void setCents(int newCents);
-    void recalculateFineTuner();
-    void claimClusterReasons(bool reversed, int clusterLoadInstruction = CLUSTER_ENQUEUE);
-    void setTransposeAccordingToSamplePitch(bool minimizeOctaves = false, bool doingSingleCycle = false, bool rangeCoversJustOneNote = false, bool thatOneNote = 0);
-    uint32_t getMSecLimit(Source* source);
+	void setCents(int newCents);
+	void recalculateFineTuner();
+	void claimClusterReasons(bool reversed, int clusterLoadInstruction = CLUSTER_ENQUEUE);
+	void setTransposeAccordingToSamplePitch(bool minimizeOctaves = false, bool doingSingleCycle = false,
+	                                        bool rangeCoversJustOneNote = false, bool thatOneNote = 0);
+	uint32_t getMSecLimit(Source* source);
 
-    // In samples. 0 means not set
-    uint32_t loopStartPos;
-    uint32_t loopEndPos; // Unlike endPos, this may not be beyond the waveform ever!
+	// In samples. 0 means not set
+	uint32_t loopStartPos;
+	uint32_t loopEndPos; // Unlike endPos, this may not be beyond the waveform ever!
 
 	int16_t transpose;
-    int8_t cents;
-    PhaseIncrementFineTuner fineTuner;
+	int8_t cents;
+	PhaseIncrementFineTuner fineTuner;
 
-    Cluster* clustersForLoopStart[NUM_CLUSTERS_LOADED_AHEAD];
+	Cluster* clustersForLoopStart[NUM_CLUSTERS_LOADED_AHEAD];
 
-    // These two now only exist for loading in data from old files
-    uint32_t startMSec;
-    uint32_t endMSec;
+	// These two now only exist for loading in data from old files
+	uint32_t startMSec;
+	uint32_t endMSec;
 
 protected:
-    void sampleBeenSet(bool reversed, bool manuallySelected);
-
+	void sampleBeenSet(bool reversed, bool manuallySelected);
 };
 
 #endif /* SAMPLEHOLDERFORVOICE_H_ */
