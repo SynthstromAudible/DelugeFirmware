@@ -26,21 +26,26 @@ public:
 	SaveUI();
 	bool opened();
 
-    virtual bool performSave(bool mayOverwrite = false) = 0; // Returns true if success, or if otherwise dealt with (e.g. "overwrite" context menu brought up)
-    void focusRegained();
-    bool renderSidebar(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3] = NULL, uint8_t occupancyMask[][displayWidth + sideBarWidth] = NULL) { return true; }
-    bool canSeeViewUnderneath() final { return (DELUGE_MODEL == DELUGE_MODEL_40_PAD); }
-    int timerCallback();
-    int buttonAction(int x, int y, bool on, bool inCardRoutine);
+	virtual bool performSave(
+	    bool mayOverwrite =
+	        false) = 0; // Returns true if success, or if otherwise dealt with (e.g. "overwrite" context menu brought up)
+	void focusRegained();
+	bool renderSidebar(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3] = NULL,
+	                   uint8_t occupancyMask[][displayWidth + sideBarWidth] = NULL) {
+		return true;
+	}
+	bool canSeeViewUnderneath() final { return (DELUGE_MODEL == DELUGE_MODEL_40_PAD); }
+	int timerCallback();
+	int buttonAction(int x, int y, bool on, bool inCardRoutine);
 
 #if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-    bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows);
+	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows);
 #endif
 
 protected:
-    //void displayText(bool blinkImmediately) final;
-    void enterKeyPress() final;
-    static bool currentFolderIsEmpty;
+	//void displayText(bool blinkImmediately) final;
+	void enterKeyPress() final;
+	static bool currentFolderIsEmpty;
 };
 
 #endif /* SAVEUI_H_ */

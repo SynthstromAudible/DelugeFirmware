@@ -27,86 +27,82 @@
 * Description : INTC driver
 *******************************************************************************/
 
-
 /******************************************************************************
 Includes   <System Includes> , "Project Includes"
 ******************************************************************************/
 #include "r_typedefs.h"
-#include "dev_drv.h"                /* Device Driver common header */
-#include "devdrv_intc.h"            /* INTC Driver Header */
+#include "dev_drv.h"     /* Device Driver common header */
+#include "devdrv_intc.h" /* INTC Driver Header */
 #include "iodefine.h"
 
 /******************************************************************************
 Typedef definitions
 ******************************************************************************/
 
-
 /******************************************************************************
 Macro definitions
 ******************************************************************************/
 /* ==== Total number of registers ==== */
-#define INTC_ICDISR_REG_TOTAL   (((uint16_t)INTC_ID_TOTAL / 32) + 1) /* ICDISR  */
-#define INTC_ICDICFR_REG_TOTAL  (((uint16_t)INTC_ID_TOTAL / 16) + 1) /* ICDICFR */
-#define INTC_ICDIPR_REG_TOTAL   (((uint16_t)INTC_ID_TOTAL /  4) + 1) /* ICDIPR  */
-#define INTC_ICDIPTR_REG_TOTAL  (((uint16_t)INTC_ID_TOTAL /  4) + 1) /* ICDIPTR */
-#define INTC_ICDISER_REG_TOTAL  (((uint16_t)INTC_ID_TOTAL / 32) + 1) /* ICDISER */
-#define INTC_ICDICER_REG_TOTAL  (((uint16_t)INTC_ID_TOTAL / 32) + 1) /* ICDICER */
+#define INTC_ICDISR_REG_TOTAL  (((uint16_t)INTC_ID_TOTAL / 32) + 1) /* ICDISR  */
+#define INTC_ICDICFR_REG_TOTAL (((uint16_t)INTC_ID_TOTAL / 16) + 1) /* ICDICFR */
+#define INTC_ICDIPR_REG_TOTAL  (((uint16_t)INTC_ID_TOTAL / 4) + 1)  /* ICDIPR  */
+#define INTC_ICDIPTR_REG_TOTAL (((uint16_t)INTC_ID_TOTAL / 4) + 1)  /* ICDIPTR */
+#define INTC_ICDISER_REG_TOTAL (((uint16_t)INTC_ID_TOTAL / 32) + 1) /* ICDISER */
+#define INTC_ICDICER_REG_TOTAL (((uint16_t)INTC_ID_TOTAL / 32) + 1) /* ICDICER */
 
 /******************************************************************************
 Imported global variables and functions (from other files)
 ******************************************************************************/
 
-
 /******************************************************************************
 Exported global variables and functions (to be accessed by other files)
 ******************************************************************************/
-
 
 /******************************************************************************
 Private global variables and functions
 ******************************************************************************/
 /* ==== Global variable ==== */
-static uint32_t intc_icdicfrn_table[] =     /* Initial value table of Interrupt Configuration Registers */
-{                          /*           Interrupt ID */
-    0xAAAAAAAA,            /* ICDICFR0  :  15 to   0 */
-    0x00000055,            /* ICDICFR1  :  19 to  16 */
-    0xFFFD5555,            /* ICDICFR2  :  47 to  32 */
-    0x555FFFFF,            /* ICDICFR3  :  63 to  48 */
-    0x55555555,            /* ICDICFR4  :  79 to  64 */
-    0x55555555,            /* ICDICFR5  :  95 to  80 */
-    0x55555555,            /* ICDICFR6  : 111 to  96 */
-    0x55555555,            /* ICDICFR7  : 127 to 112 */
-    0x5555F555,            /* ICDICFR8  : 143 to 128 */
-    0x55555555,            /* ICDICFR9  : 159 to 144 */
-    0x55555555,            /* ICDICFR10 : 175 to 160 */
-    0xF5555555,            /* ICDICFR11 : 191 to 176 */
-    0xF555F555,            /* ICDICFR12 : 207 to 192 */
-    0x5555F555,            /* ICDICFR13 : 223 to 208 */
-    0x55555555,            /* ICDICFR14 : 239 to 224 */
-    0x55555555,            /* ICDICFR15 : 255 to 240 */
-    0x55555555,            /* ICDICFR16 : 271 to 256 */
-    0xFD555555,            /* ICDICFR17 : 287 to 272 */
-    0x55555557,            /* ICDICFR18 : 303 to 288 */
-    0x55555555,            /* ICDICFR19 : 319 to 304 */
-    0xFFD55555,            /* ICDICFR20 : 335 to 320 */
-    0x5F55557F,            /* ICDICFR21 : 351 to 336 */
-    0xFD55555F,            /* ICDICFR22 : 367 to 352 */
-    0x55555557,            /* ICDICFR23 : 383 to 368 */
-    0x55555555,            /* ICDICFR24 : 399 to 384 */
-    0x55555555,            /* ICDICFR25 : 415 to 400 */
-    0x55555555,            /* ICDICFR26 : 431 to 416 */
-    0x55555555,            /* ICDICFR27 : 447 to 432 */
-    0x55555555,            /* ICDICFR28 : 463 to 448 */
-    0x55555555,            /* ICDICFR29 : 479 to 464 */
-    0x55555555,            /* ICDICFR30 : 495 to 480 */
-    0x55555555,            /* ICDICFR31 : 511 to 496 */
-    0x55555555,            /* ICDICFR32 : 527 to 512 */
-    0x55555555,            /* ICDICFR33 : 543 to 528 */
-    0x55555555,            /* ICDICFR34 : 559 to 544 */
-    0x55555555,            /* ICDICFR35 : 575 to 560 */
-    0x00155555             /* ICDICFR36 : 586 to 576 */
+static uint32_t intc_icdicfrn_table[] = /* Initial value table of Interrupt Configuration Registers */
+    {
+        /*           Interrupt ID */
+        0xAAAAAAAA, /* ICDICFR0  :  15 to   0 */
+        0x00000055, /* ICDICFR1  :  19 to  16 */
+        0xFFFD5555, /* ICDICFR2  :  47 to  32 */
+        0x555FFFFF, /* ICDICFR3  :  63 to  48 */
+        0x55555555, /* ICDICFR4  :  79 to  64 */
+        0x55555555, /* ICDICFR5  :  95 to  80 */
+        0x55555555, /* ICDICFR6  : 111 to  96 */
+        0x55555555, /* ICDICFR7  : 127 to 112 */
+        0x5555F555, /* ICDICFR8  : 143 to 128 */
+        0x55555555, /* ICDICFR9  : 159 to 144 */
+        0x55555555, /* ICDICFR10 : 175 to 160 */
+        0xF5555555, /* ICDICFR11 : 191 to 176 */
+        0xF555F555, /* ICDICFR12 : 207 to 192 */
+        0x5555F555, /* ICDICFR13 : 223 to 208 */
+        0x55555555, /* ICDICFR14 : 239 to 224 */
+        0x55555555, /* ICDICFR15 : 255 to 240 */
+        0x55555555, /* ICDICFR16 : 271 to 256 */
+        0xFD555555, /* ICDICFR17 : 287 to 272 */
+        0x55555557, /* ICDICFR18 : 303 to 288 */
+        0x55555555, /* ICDICFR19 : 319 to 304 */
+        0xFFD55555, /* ICDICFR20 : 335 to 320 */
+        0x5F55557F, /* ICDICFR21 : 351 to 336 */
+        0xFD55555F, /* ICDICFR22 : 367 to 352 */
+        0x55555557, /* ICDICFR23 : 383 to 368 */
+        0x55555555, /* ICDICFR24 : 399 to 384 */
+        0x55555555, /* ICDICFR25 : 415 to 400 */
+        0x55555555, /* ICDICFR26 : 431 to 416 */
+        0x55555555, /* ICDICFR27 : 447 to 432 */
+        0x55555555, /* ICDICFR28 : 463 to 448 */
+        0x55555555, /* ICDICFR29 : 479 to 464 */
+        0x55555555, /* ICDICFR30 : 495 to 480 */
+        0x55555555, /* ICDICFR31 : 511 to 496 */
+        0x55555555, /* ICDICFR32 : 527 to 512 */
+        0x55555555, /* ICDICFR33 : 543 to 528 */
+        0x55555555, /* ICDICFR34 : 559 to 544 */
+        0x55555555, /* ICDICFR35 : 575 to 560 */
+        0x00155555  /* ICDICFR36 : 586 to 576 */
 };
-
 
 /******************************************************************************
 * Function Name: R_INTC_RegistIntFunc
@@ -121,15 +117,15 @@ static uint32_t intc_icdicfrn_table[] =     /* Initial value table of Interrupt 
 *              : DEVDRV_ERROR            : Failure of registration of INTC 
 *              :                         : interrupt handler function
 ******************************************************************************/
-int32_t R_INTC_RegistIntFunc(uint16_t int_id, void (* func)(uint32_t int_sense))
+int32_t R_INTC_RegistIntFunc(uint16_t int_id, void (*func)(uint32_t int_sense))
 {
     /* ==== Argument check ==== */
     if (int_id >= INTC_ID_TOTAL)
     {
-        return DEVDRV_ERROR;        /* Argument error */
+        return DEVDRV_ERROR; /* Argument error */
     }
 
-    Userdef_INTC_RegistIntFunc(int_id, func);     /* Register specified interrupt functions */
+    Userdef_INTC_RegistIntFunc(int_id, func); /* Register specified interrupt functions */
 
     return DEVDRV_SUCCESS;
 }
@@ -145,28 +141,28 @@ int32_t R_INTC_RegistIntFunc(uint16_t int_id, void (* func)(uint32_t int_sense))
 void R_INTC_Init(void)
 {
     uint16_t offset;
-    volatile uint32_t * addr;
+    volatile uint32_t* addr;
 
     /* ==== Initial setting 1 to receive GIC interrupt request ==== */
     /* Interrupt Security Registers setting */
-    addr = (volatile uint32_t *)&INTC.ICDISR0;
+    addr = (volatile uint32_t*)&INTC.ICDISR0;
     for (offset = 0; offset < INTC_ICDISR_REG_TOTAL; offset++)
     {
-        *(addr + offset) = 0x00000000uL;    /* Set all interrupts to be secured */
+        *(addr + offset) = 0x00000000uL; /* Set all interrupts to be secured */
     }
 
     /* Interrupt Configuration Registers setting */
-    addr = (volatile uint32_t *)&INTC.ICDICFR0;
+    addr = (volatile uint32_t*)&INTC.ICDICFR0;
     for (offset = 0; offset < INTC_ICDICFR_REG_TOTAL; offset++)
     {
         *(addr + offset) = intc_icdicfrn_table[offset];
     }
 
     /* Interrupt Priority Registers setting */
-    addr = (volatile uint32_t *)&INTC.ICDIPR0;
+    addr = (volatile uint32_t*)&INTC.ICDIPR0;
     for (offset = 0; offset < INTC_ICDIPR_REG_TOTAL; offset++)
     {
-        *(addr + offset) = 0xF8F8F8F8uL;    /* Set the priority for all interrupts to 31 */
+        *(addr + offset) = 0xF8F8F8F8uL; /* Set the priority for all interrupts to 31 */
     }
 
     /* Interrupt Processor Targets Registers setting */
@@ -175,25 +171,25 @@ void R_INTC_Init(void)
     /*   - ICDIPTR0 to ICDIPTR4 are dedicated for main CPU */
     /*   - ICDIPTR5 is dedicated for sub CPU               */
     /*   - ICDIPTR6 to 7 are reserved                      */
-    addr = (volatile uint32_t *)&INTC.ICDIPTR0;
-    for (offset = 8; offset < INTC_ICDIPTR_REG_TOTAL; offset++)     /* Do not initialize ICDIPTR0 to ICDIPTR7 */
+    addr = (volatile uint32_t*)&INTC.ICDIPTR0;
+    for (offset = 8; offset < INTC_ICDIPTR_REG_TOTAL; offset++) /* Do not initialize ICDIPTR0 to ICDIPTR7 */
     {
-        *(addr + offset) = 0x01010101uL;    /* Set the target for all interrupts to main CPU */
+        *(addr + offset) = 0x01010101uL; /* Set the target for all interrupts to main CPU */
     }
 
     /* Interrupt Clear-Enable Registers setting */
-    addr = (volatile uint32_t *)&INTC.ICDICER0;
+    addr = (volatile uint32_t*)&INTC.ICDICER0;
     for (offset = 0; offset < INTC_ICDICER_REG_TOTAL; offset++)
     {
-        *(addr + offset) = 0xFFFFFFFFuL;    /* Set all interrupts to be disabled */
+        *(addr + offset) = 0xFFFFFFFFuL; /* Set all interrupts to be disabled */
     }
 
     /* ==== Initial setting for CPU interface ==== */
     /* Interrupt Priority Mask Register setting */
-    R_INTC_SetMaskLevel(31);                /* Enable priorities for all interrupts */
+    R_INTC_SetMaskLevel(31); /* Enable priorities for all interrupts */
 
     /* Binary Point Register setting */
-    INTC.ICCBPR = 0x00000002uL;             /* Group priority field [7:3], Subpriority field [2:0](Do not use) */
+    INTC.ICCBPR = 0x00000002uL; /* Group priority field [7:3], Subpriority field [2:0](Do not use) */
 
     /* CPU Interface Control Register setting */
     INTC.ICCICR = 0x00000003uL;
@@ -213,7 +209,7 @@ void R_INTC_Init(void)
 int32_t R_INTC_Enable(uint16_t int_id)
 {
     uint32_t mask;
-    volatile uint32_t * addr;
+    volatile uint32_t* addr;
 
     /* ==== Argument check ==== */
     if (int_id >= INTC_ID_TOTAL)
@@ -227,8 +223,8 @@ int32_t R_INTC_Enable(uint16_t int_id)
     /* The target bit can be calclated by (int_id % 32) * 1 */
     /* ICDICERn does not effect on writing "0"              */
     /* The bits except for the target write "0"             */
-    addr = (volatile uint32_t *)&INTC.ICDISER0;
-    mask = 1 << (int_id & 31);   /* Create mask data */
+    addr = (volatile uint32_t*)&INTC.ICDISER0;
+    mask = 1 << (int_id & 31); /* Create mask data */
 
     *(addr + (int_id >> 5)) = mask; /* Write ICDISERn   */
 
@@ -245,7 +241,7 @@ int32_t R_INTC_Enable(uint16_t int_id)
 int32_t R_INTC_Disable(uint16_t int_id)
 {
     uint32_t mask;
-    volatile uint32_t * addr;
+    volatile uint32_t* addr;
 
     /* ==== Argument check ==== */
     if (int_id >= INTC_ID_TOTAL)
@@ -259,8 +255,8 @@ int32_t R_INTC_Disable(uint16_t int_id)
     /* The targe bit can be calculated by (int_id % 32) * 1 */
     /* ICDICERn does no effect on writing "0"               */
     /* Other bits except for the target write "0"           */
-    addr = (volatile uint32_t *)&INTC.ICDICER0;
-    mask = 1 << (int_id & 31);   /* Create mask data */
+    addr = (volatile uint32_t*)&INTC.ICDICER0;
+    mask = 1 << (int_id & 31); /* Create mask data */
 
     *(addr + (int_id >> 5)) = mask; /* Write ICDICERn   */
 
@@ -280,32 +276,32 @@ int32_t R_INTC_SetPriority(uint16_t int_id, uint8_t priority)
 {
     uint32_t icdipr;
     uint32_t mask;
-    volatile uint32_t * addr;
+    volatile uint32_t* addr;
 
     /* ==== Argument check ==== */
     if ((int_id >= INTC_ID_TOTAL) || priority >= 32)
     {
-        return DEVDRV_ERROR;        /* Argument error */
+        return DEVDRV_ERROR; /* Argument error */
     }
 
-    priority = priority << 3;       /* Priority[7:3] of ICDIPRn is valid bit */
+    priority = priority << 3; /* Priority[7:3] of ICDIPRn is valid bit */
 
     /* ICDIPRn has 4 sources in the 32 bits                 */
     /* The n can be calculated by int_id / 4                */
     /* The bit field width is 8 bits                        */
     /* The target bit can be calculated by (int_id % 4) * 8 */
-    addr = (volatile uint32_t *)&INTC.ICDIPR0;
+    addr = (volatile uint32_t*)&INTC.ICDIPR0;
 
-    icdipr = *(addr + (int_id / 4));    /* Read ICDIPRn */
+    icdipr = *(addr + (int_id / 4)); /* Read ICDIPRn */
 
-    mask = (uint32_t)0x000000FFuL;      /* ---- Mask ----      */
-    mask = mask << ((int_id % 4) * 8);  /* Shift to target bit */
-    icdipr &= ~mask;                    /* Clear priority      */
-    mask = (uint32_t)priority;          /* ---- Priority ----  */
-    mask = mask << ((int_id % 4) * 8);  /* Shift to target bit */
-    icdipr |= mask;                     /* Set priority        */
+    mask = (uint32_t)0x000000FFuL;     /* ---- Mask ----      */
+    mask = mask << ((int_id % 4) * 8); /* Shift to target bit */
+    icdipr &= ~mask;                   /* Clear priority      */
+    mask = (uint32_t)priority;         /* ---- Priority ----  */
+    mask = mask << ((int_id % 4) * 8); /* Shift to target bit */
+    icdipr |= mask;                    /* Set priority        */
 
-    *(addr + (int_id / 4)) = icdipr;    /* Write ICDIPRn */
+    *(addr + (int_id / 4)) = icdipr; /* Write ICDIPRn */
 
     return DEVDRV_SUCCESS;
 }
@@ -324,11 +320,11 @@ int32_t R_INTC_SetMaskLevel(uint8_t mask_level)
     /* ==== Argument check ==== */
     if (mask_level >= 32)
     {
-        return DEVDRV_ERROR;        /* Argument error */
+        return DEVDRV_ERROR; /* Argument error */
     }
 
-    mask_level  = mask_level << 3;  /* ICCPMR[7:3] is valid bit */
-    INTC.ICCPMR = mask_level;       /* Write ICCPMR             */
+    mask_level   = mask_level << 3; /* ICCPMR[7:3] is valid bit */
+    INTC.ICCPMR  = mask_level;      /* Write ICCPMR             */
     dummy_buf_8b = INTC.ICCPMR;
 
     return DEVDRV_SUCCESS;
@@ -341,7 +337,7 @@ int32_t R_INTC_SetMaskLevel(uint8_t mask_level)
 * Arguments    : uint8_t * mask_level : Interrupt mask level (0 to 31)
 * Return Value : none
 ******************************************************************************/
-void R_INTC_GetMaskLevel(uint8_t * mask_level)
+void R_INTC_GetMaskLevel(uint8_t* mask_level)
 {
     *mask_level = INTC.ICCPMR;      /* Read ICCPMR              */
     *mask_level = *mask_level >> 3; /* ICCPMR[7:3] is valid bit */
@@ -359,22 +355,22 @@ void R_INTC_GetMaskLevel(uint8_t * mask_level)
 * Return Value : DEVDRV_SUCCESS : Success to obtaine interrupt pending status
 *              : DEVDRV_ERROR   : Failure to obtaine interrupt pending status
 ******************************************************************************/
-int32_t R_INTC_GetPendingStatus(uint16_t int_id, uint32_t * icdicpr)
+int32_t R_INTC_GetPendingStatus(uint16_t int_id, uint32_t* icdicpr)
 {
-    volatile uint32_t * addr;
+    volatile uint32_t* addr;
 
     /* ==== Argument check ==== */
     if (int_id >= INTC_ID_TOTAL)
     {
-        return DEVDRV_ERROR;        /* Argument error */
+        return DEVDRV_ERROR; /* Argument error */
     }
 
     /* ICDICPRn has 32 sources in the 32 bits               */
     /* The n can be calculated by int_id / 32               */
     /* The bit field width is 1 bit                         */
     /* The targe bit can be calculated by (int_id % 32) * 1 */
-    addr = (volatile uint32_t *)&INTC.ICDICPR0;
-    *icdicpr = *(addr + (int_id / 32));     /* Read ICDICPRn */
+    addr     = (volatile uint32_t*)&INTC.ICDICPR0;
+    *icdicpr = *(addr + (int_id / 32)); /* Read ICDICPRn */
     *icdicpr = (*icdicpr >> (int_id % 32)) & 0x00000001;
 
     return DEVDRV_SUCCESS;
@@ -395,12 +391,12 @@ int32_t R_INTC_SetConfiguration(uint16_t int_id, uint32_t int_sense)
 {
     uint32_t icdicfr;
     uint32_t mask;
-    volatile uint32_t * addr;
+    volatile uint32_t* addr;
 
     /* ==== Argument check ==== */
     if (int_id < INTC_ID_TINT0 || int_id >= INTC_ID_TOTAL || int_sense > INTC_EDGE_TRIGGER)
     {
-        return DEVDRV_ERROR;        /* Argument error */
+        return DEVDRV_ERROR; /* Argument error */
     }
 
     /* ICDICFRn has 16 sources in the 32 bits                          */
@@ -408,26 +404,24 @@ int32_t R_INTC_SetConfiguration(uint16_t int_id, uint32_t int_sense)
     /* The bit field width is 2 bits                                   */
     /* Interrupt configuration bit assigned higher 1 bit in the 2 bits */
     /* The targe bit can be calculated by ((int_id % 16) * 2) + 1      */
-    addr = (volatile uint32_t *)&INTC.ICDICFR0;
+    addr = (volatile uint32_t*)&INTC.ICDICFR0;
 
-    icdicfr = *(addr + (int_id / 16));      /* Read ICDICFRn        */
+    icdicfr = *(addr + (int_id / 16)); /* Read ICDICFRn        */
 
     mask = 0x00000001uL;
-    mask <<= (((int_id % 16) * 2) + 1);     /* Shift to target bit  */
+    mask <<= (((int_id % 16) * 2) + 1); /* Shift to target bit  */
     if (INTC_LEVEL_SENSITIVE == int_sense)
     {
-        icdicfr &= ~mask;                   /* Level sense setting  */
+        icdicfr &= ~mask; /* Level sense setting  */
     }
     else
     {
-        icdicfr |= mask;                    /* Edge trigger setting */
+        icdicfr |= mask; /* Edge trigger setting */
     }
 
-    *(addr + (int_id / 16)) = icdicfr;      /* Write ICDICFRn       */
+    *(addr + (int_id / 16)) = icdicfr; /* Write ICDICFRn       */
 
     return DEVDRV_SUCCESS;
 }
 
-
 /* END of File */
-

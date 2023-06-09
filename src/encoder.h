@@ -18,33 +18,31 @@
 #ifndef Encoder_h
 #define Encoder_h
 
-
 #define encMinBacktrackTime (20 * 44) // In milliseconds/44
 #include "r_typedefs.h"
 
-class Encoder
-{
+class Encoder {
 public:
-    Encoder();
-    void read();
-    void setPins(uint8_t pinA1New, uint8_t pinA2New, uint8_t pinB1New, uint8_t pinB2New);
-    void setNonDetentMode();
-    void interrupt(int which);
-    int getLimitedDetentPosAndReset();
-    int8_t encPos; // Keeps track of knob's position relative to centre of closest detent
-    int8_t detentPos; // Number of full detents offset since functions last dealt with
+	Encoder();
+	void read();
+	void setPins(uint8_t pinA1New, uint8_t pinA2New, uint8_t pinB1New, uint8_t pinB2New);
+	void setNonDetentMode();
+	void interrupt(int which);
+	int getLimitedDetentPosAndReset();
+	int8_t encPos;    // Keeps track of knob's position relative to centre of closest detent
+	int8_t detentPos; // Number of full detents offset since functions last dealt with
 private:
-    uint8_t portA;
-    uint8_t pinA;
-    uint8_t portB;
-    uint8_t pinB;
-    bool pinALastSwitch;
-    bool pinBLastSwitch;
-    bool pinALastRead;
-    bool pinBLastRead;
-    int8_t encLastChange; // The "change" applied on the most recently detected action on this knob. Probably 1 or -1.
-    bool doDetents;
-    bool valuesNow[2];
+	uint8_t portA;
+	uint8_t pinA;
+	uint8_t portB;
+	uint8_t pinB;
+	bool pinALastSwitch;
+	bool pinBLastSwitch;
+	bool pinALastRead;
+	bool pinBLastRead;
+	int8_t encLastChange; // The "change" applied on the most recently detected action on this knob. Probably 1 or -1.
+	bool doDetents;
+	bool valuesNow[2];
 };
 
 #endif

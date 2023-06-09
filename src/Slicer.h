@@ -30,7 +30,7 @@ public:
 	int buttonAction(int x, int y, bool on, bool inCardRoutine);
 	int padAction(int x, int y, int velocity);
 #if HAVE_OLED
-    void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
+	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
 #endif
 	int16_t numClips;
 
@@ -39,7 +39,6 @@ private:
 	void redraw();
 #endif
 	void doSlice();
-
 };
 
 extern Slicer slicer;

@@ -21,14 +21,11 @@
 #include "functions.h"
 #include "matrixdriver.h"
 
-
 bool MenuItemDrumName::isRelevant(Sound* sound, int whichThing) {
 	return (DELUGE_MODEL != DELUGE_MODEL_40_PAD && soundEditor.editingKit());
 }
-
 
 void MenuItemDrumName::beginSession(MenuItem* navigatedBackwardFrom) {
 	soundEditor.shouldGoUpOneLevelOnBegin = true;
 	openUI(&renameDrumUI);
 }
-

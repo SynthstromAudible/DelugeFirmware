@@ -31,80 +31,94 @@ class GateDrum;
 class ModelStack;
 class ModelStackWithNoteRow;
 
-class Kit final : public Instrument, public GlobalEffectableForClip
-{
+class Kit final : public Instrument, public GlobalEffectableForClip {
 public:
-    Kit();
-    Drum *getNextDrum(Drum *fromSoundSource);
-    Drum *getPrevDrum(Drum *fromSoundSource);
-    bool writeDataToFile(Clip* clipForSavingOutputOnly, Song* song);
-    void addDrum(Drum* newDrum);
-    int readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos);
-    Drum *getFirstUnassignedDrum(InstrumentClip *clip);
-    ~Kit();
-    int getDrumIndex(Drum *drum);
-    Drum* getDrumFromIndex(int index);
-    void modKnobAction(uint8_t whichKnob, int8_t offset);
-    int loadAllAudioFiles(bool mayActuallyReadFiles);
-    void cutAllSound();
-    void renderOutput(ModelStack* modelStack, StereoSample *startPos, StereoSample *endPos, int numSamples, int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive);
-    void notifySamplesInterruptsSuspended();
-    void offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value, ModelStackWithTimelineCounter* modelStack);
-    bool offerReceivedPitchBendToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2, ModelStackWithTimelineCounter* modelStack);
+	Kit();
+	Drum* getNextDrum(Drum* fromSoundSource);
+	Drum* getPrevDrum(Drum* fromSoundSource);
+	bool writeDataToFile(Clip* clipForSavingOutputOnly, Song* song);
+	void addDrum(Drum* newDrum);
+	int readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos);
+	Drum* getFirstUnassignedDrum(InstrumentClip* clip);
+	~Kit();
+	int getDrumIndex(Drum* drum);
+	Drum* getDrumFromIndex(int index);
+	void modKnobAction(uint8_t whichKnob, int8_t offset);
+	int loadAllAudioFiles(bool mayActuallyReadFiles);
+	void cutAllSound();
+	void renderOutput(ModelStack* modelStack, StereoSample* startPos, StereoSample* endPos, int numSamples,
+	                  int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending,
+	                  bool shouldLimitDelayFeedback, bool isClipActive);
+	void notifySamplesInterruptsSuspended();
+	void offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
+	                                    ModelStackWithTimelineCounter* modelStack);
+	bool offerReceivedPitchBendToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2,
+	                                           ModelStackWithTimelineCounter* modelStack);
 
-    void offerReceivedPitchBend(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2, bool* doingMidiThru);
-    void offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru);
-    void offerReceivedAftertouch(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice, int channel, int value, int noteCode, bool* doingMidiThru);
+	void offerReceivedPitchBend(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
+	                            uint8_t channel, uint8_t data1, uint8_t data2, bool* doingMidiThru);
+	void offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
+	                     uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru);
+	void offerReceivedAftertouch(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
+	                             int channel, int value, int noteCode, bool* doingMidiThru);
 
-    void choke();
-    void resyncLFOs();
-    void removeDrum(Drum* drum);
-    ModControllable* toModControllable();
-    SoundDrum* getDrumFromName(char const* name, bool onlyIfNoNoteRow = false);
-    int makeDrumNameUnique(String* name, int startAtNumber);
-    bool setActiveClip(ModelStackWithTimelineCounter* modelStack, int maySendMIDIPGMs);
-    char const* getFilePrefix() { return "KIT"; }
-    void setupPatching(ModelStackWithTimelineCounter* modelStack);
-    void compensateInstrumentVolumeForResonance(ParamManagerForTimeline* paramManager, Song* song);
-    void deleteBackedUpParamManagers(Song* song);
-    void prepareForHibernationOrDeletion();
-    int32_t doTickForwardForArp(ModelStack* modelStack, int32_t currentPos);
-    void loadCrucialAudioFilesOnly();
-    GateDrum* getGateDrumForChannel(int gateChannel);
-    void resetDrumTempValues();
-    void setupWithoutActiveClip(ModelStack* modelStack);
-    void getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb, GlobalEffectableForClip** globalEffectableWithMostReverb, int32_t* highestReverbAmountFound);
-    uint8_t* getModKnobMode() { return &modKnobMode; }
-    Output* toOutput() { return this; }
-    void offerReceivedNote(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice, bool on, int channel, int note, int velocity, bool shouldRecordNotes, bool* doingMidiThru);
-    bool isNoteRowStillAuditioningAsLinearRecordingEnded(NoteRow* noteRow);
-    bool allowNoteTails(NoteRow* noteRow);
-    void stopAnyAuditioning(ModelStack* modelStack);
-    bool isAnyAuditioningHappening();
-    void beginAuditioningforDrum(ModelStackWithNoteRow* modelStack, Drum* drum, int velocity, int16_t const* mpeValues, int fromMIDIChannel = MIDI_CHANNEL_NONE);
-    void endAuditioningForDrum(ModelStackWithNoteRow* modelStack, Drum* drum, int velocity = DEFAULT_LIFT_VALUE);
-    void offerBendRangeUpdate(ModelStack* modelStack, MIDIDevice* device, int channelOrZone, int whichBendRange, int bendSemitones);
+	void choke();
+	void resyncLFOs();
+	void removeDrum(Drum* drum);
+	ModControllable* toModControllable();
+	SoundDrum* getDrumFromName(char const* name, bool onlyIfNoNoteRow = false);
+	int makeDrumNameUnique(String* name, int startAtNumber);
+	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, int maySendMIDIPGMs);
+	char const* getFilePrefix() { return "KIT"; }
+	void setupPatching(ModelStackWithTimelineCounter* modelStack);
+	void compensateInstrumentVolumeForResonance(ParamManagerForTimeline* paramManager, Song* song);
+	void deleteBackedUpParamManagers(Song* song);
+	void prepareForHibernationOrDeletion();
+	int32_t doTickForwardForArp(ModelStack* modelStack, int32_t currentPos);
+	void loadCrucialAudioFilesOnly();
+	GateDrum* getGateDrumForChannel(int gateChannel);
+	void resetDrumTempValues();
+	void setupWithoutActiveClip(ModelStack* modelStack);
+	void getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb,
+	                            GlobalEffectableForClip** globalEffectableWithMostReverb,
+	                            int32_t* highestReverbAmountFound);
+	uint8_t* getModKnobMode() { return &modKnobMode; }
+	Output* toOutput() { return this; }
+	void offerReceivedNote(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
+	                       bool on, int channel, int note, int velocity, bool shouldRecordNotes, bool* doingMidiThru);
+	bool isNoteRowStillAuditioningAsLinearRecordingEnded(NoteRow* noteRow);
+	bool allowNoteTails(NoteRow* noteRow);
+	void stopAnyAuditioning(ModelStack* modelStack);
+	bool isAnyAuditioningHappening();
+	void beginAuditioningforDrum(ModelStackWithNoteRow* modelStack, Drum* drum, int velocity, int16_t const* mpeValues,
+	                             int fromMIDIChannel = MIDI_CHANNEL_NONE);
+	void endAuditioningForDrum(ModelStackWithNoteRow* modelStack, Drum* drum, int velocity = DEFAULT_LIFT_VALUE);
+	void offerBendRangeUpdate(ModelStack* modelStack, MIDIDevice* device, int channelOrZone, int whichBendRange,
+	                          int bendSemitones);
 
-    void renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStack, StereoSample* globalEffectableBuffer, int32_t* bufferToTransferTo, int numSamples, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
-    		int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive, int32_t pitchAdjust, int32_t amplitudeAtStart, int32_t amplitudeAtEnd);
+	void renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStack, StereoSample* globalEffectableBuffer,
+	                                   int32_t* bufferToTransferTo, int numSamples, int32_t* reverbBuffer,
+	                                   int32_t reverbAmountAdjust, int32_t sideChainHitPending,
+	                                   bool shouldLimitDelayFeedback, bool isClipActive, int32_t pitchAdjust,
+	                                   int32_t amplitudeAtStart, int32_t amplitudeAtEnd);
 
-    char const* getXMLTag() { return "kit"; }
+	char const* getXMLTag() { return "kit"; }
 
-    Drum* firstDrum;
-    Drum* selectedDrum;
+	Drum* firstDrum;
+	Drum* selectedDrum;
 
-    OrderedResizeableArrayWith32bitKey drumsWithRenderingActive;
+	OrderedResizeableArrayWith32bitKey drumsWithRenderingActive;
 
 protected:
-    bool isKit() { return true; }
+	bool isKit() { return true; }
 
 private:
-    int readDrumFromFile(Song* song, Clip* clip, int drumType, int32_t readAutomationUpToPos);
-    void writeDrumToFile(Drum* thisDrum, ParamManager* paramManagerForDrum, bool savingSong, int* selectedDrumIndex, int* drumIndex, Song* song);
+	int readDrumFromFile(Song* song, Clip* clip, int drumType, int32_t readAutomationUpToPos);
+	void writeDrumToFile(Drum* thisDrum, ParamManager* paramManagerForDrum, bool savingSong, int* selectedDrumIndex,
+	                     int* drumIndex, Song* song);
 
-    void removeDrumFromLinkedList(Drum* drum);
-    void drumRemoved(Drum* drum);
-
+	void removeDrumFromLinkedList(Drum* drum);
+	void drumRemoved(Drum* drum);
 };
 
 #endif // KIT_H

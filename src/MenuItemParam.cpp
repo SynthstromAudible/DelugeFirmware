@@ -27,9 +27,6 @@
 #include "Buttons.h"
 #include "ModelStack.h"
 
-
-
-
 int MenuItemParam::getMaxValue() {
 	return 50;
 }
@@ -59,4 +56,3 @@ MenuItem* MenuItemParam::selectButtonPress() {
 	}
 	else return NULL; // Navigate backwards
 }
-

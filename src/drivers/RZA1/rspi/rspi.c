@@ -33,7 +33,6 @@
 *               : 21.10.2014 1.00
 *******************************************************************************/
 
-
 /******************************************************************************
 Includes
 ******************************************************************************/
@@ -56,25 +55,25 @@ Includes
 Global variables and functions
 ******************************************************************************/
 /* RSPI1 transmit buffer address */
-uint32_t * g_prspi1_tx_address;
+uint32_t* g_prspi1_tx_address;
 
 /* RSPI1 transmit data number */
-uint16_t   g_rspi1_tx_count;
+uint16_t g_rspi1_tx_count;
 
 /* RSPI1 receive buffer address */
-uint32_t * g_prspi1_rx_address;
+uint32_t* g_prspi1_rx_address;
 
 /* RSPI1 receive data number */
-uint16_t   g_rspi1_rx_count;
+uint16_t g_rspi1_rx_count;
 
 /* RSPI1 receive data length */
-uint16_t   g_rspi1_rx_length;
+uint16_t g_rspi1_rx_length;
 
 /* SCI5 transmit buffer address */
-uint8_t * g_pspi_tx_address;
+uint8_t* g_pspi_tx_address;
 
 /* SCI5 transmit data number */
-uint16_t  g_spi_tx_count;
+uint16_t g_spi_tx_count;
 
 /*******************************************************************************
 * Function Name: R_RSPI1_Create
@@ -83,54 +82,55 @@ uint16_t  g_spi_tx_count;
 * Return Value : None
 *******************************************************************************/
 
-
-void R_RSPI_Create (uint8_t channel, uint32_t bitRate, uint8_t phase, uint8_t dataSize)
+void R_RSPI_Create(uint8_t channel, uint32_t bitRate, uint8_t phase, uint8_t dataSize)
 {
-	uint16_t dummy_word  = 0u;
-	uint8_t  dummy_byte  = 0u;
+    uint16_t dummy_word = 0u;
+    uint8_t dummy_byte  = 0u;
 
     UNUSED_VARIABLE(dummy_word);
     UNUSED_VARIABLE(dummy_byte);
 
     RSPI(channel).SPPCR = 0u;
-	dummy_byte = RSPI1.SPPCR;
+    dummy_byte          = RSPI1.SPPCR;
 
     /* P1 clock = 66.67MHz, SPI bit rate = 11.11Mbits/s Check Table 16.3 */
-	RSPI(channel).SPBR  = ceil((float)66666666 / (bitRate * 2) - 1);
-	dummy_byte = RSPI(channel).SPBR;
-	if (dataSize == 32) RSPI(channel).SPDCR = 0x60u; // 32-bit
-	else if (dataSize == 16) RSPI(channel).SPDCR = 0x40u; // 16-bit
-	else RSPI(channel).SPDCR = 0x20u; // 8-bit
-    dummy_byte = RSPI(channel).SPDCR;
+    RSPI(channel).SPBR = ceil((float)66666666 / (bitRate * 2) - 1);
+    dummy_byte         = RSPI(channel).SPBR;
+    if (dataSize == 32) RSPI(channel).SPDCR = 0x60u;      // 32-bit
+    else if (dataSize == 16) RSPI(channel).SPDCR = 0x40u; // 16-bit
+    else RSPI(channel).SPDCR = 0x20u;                     // 8-bit
+    dummy_byte          = RSPI(channel).SPDCR;
     RSPI(channel).SPSCR = 0u;
-	dummy_byte = RSPI(channel).SPSCR;
-	RSPI(channel).SPCKD = 0;
-	dummy_byte = RSPI(channel).SPCKD;
-	RSPI(channel).SSLND = 0u;
-    dummy_byte =  RSPI(channel).SSLND;
+    dummy_byte          = RSPI(channel).SPSCR;
+    RSPI(channel).SPCKD = 0;
+    dummy_byte          = RSPI(channel).SPCKD;
+    RSPI(channel).SSLND = 0u;
+    dummy_byte          = RSPI(channel).SSLND;
     RSPI(channel).SPND  = 0u;
-    dummy_byte = RSPI(channel).SPND;
+    dummy_byte          = RSPI(channel).SPND;
     RSPI(channel).SSLP  = 0u;
-    dummy_byte = RSPI(channel).SSLP;
-    RSPI(channel).SPSSR  = 0u;
-    dummy_byte = RSPI(channel).SPSSR;
+    dummy_byte          = RSPI(channel).SSLP;
+    RSPI(channel).SPSSR = 0u;
+    dummy_byte          = RSPI(channel).SPSSR;
     if (dataSize == 32) RSPI(channel).SPBFCR.BYTE = 0b00100010;
     else if (dataSize == 16) RSPI(channel).SPBFCR.BYTE = 0b00100001;
-    else RSPI(channel).SPBFCR.BYTE = 0b00100000; // Receive buffer data triggering number is 1 byte. TX buffer declared "empty" as soon as it has 4 bytes of "space" in it (remember, it has 8 bytes total)
+    else
+        RSPI(channel).SPBFCR.BYTE =
+            0b00100000; // Receive buffer data triggering number is 1 byte. TX buffer declared "empty" as soon as it has 4 bytes of "space" in it (remember, it has 8 bytes total)
     dummy_byte = RSPI(channel).SPBFCR.BYTE;
 
-    if (dataSize == 32) RSPI(channel).SPCMD0 = 0b0000001100000010 | phase; // 32-bit
+    if (dataSize == 32) RSPI(channel).SPCMD0 = 0b0000001100000010 | phase;      // 32-bit
     else if (dataSize == 16) RSPI(channel).SPCMD0 = 0b0000111100000010 | phase; // 16-bit
-    else RSPI(channel).SPCMD0 = 0b0000011100000010 | phase; // 8-bit
+    else RSPI(channel).SPCMD0 = 0b0000011100000010 | phase;                     // 8-bit
     dummy_word = RSPI(channel).SPCMD0;
 
-   	/* Enable master mode */
+    /* Enable master mode */
 #if DELUGE_MODEL <= DELUGE_MODEL_40_PAD
     RSPI(channel).SPCR |= 0b10101000; // "Interrupts" on. This is required for DMA
 #else
     RSPI(channel).SPCR |= 0b00101000; // Just TX interrupt (for DMA). We'll manually enable the RX one when we need it.
 #endif
-	dummy_byte = RSPI(channel).SPCR;
+    dummy_byte = RSPI(channel).SPCR;
 }
 
 /*******************************************************************************
@@ -139,32 +139,30 @@ void R_RSPI_Create (uint8_t channel, uint32_t bitRate, uint8_t phase, uint8_t da
 * Arguments    : None
 * Return Value : None
 *******************************************************************************/
-void R_RSPI_Start (uint8_t channel)
+void R_RSPI_Start(uint8_t channel)
 {
     volatile uint8_t dummy = 0u;
 
     UNUSED_VARIABLE(dummy);
 
     /* Clear error sources */
-    dummy = RSPI(channel).SPSR.BYTE;
+    dummy                   = RSPI(channel).SPSR.BYTE;
     RSPI(channel).SPSR.BYTE = 0x00U;
 
-    if (0 == RZA_IO_RegRead_8( &(RSPI(channel).SPSR.BYTE),
-                               RSPIn_SPSR_MODF_SHIFT,
-    		                   RSPIn_SPSR_MODF))
-	{
-		/* test */
-    	RSPI(channel).SPCR |= 0x40U;
-		dummy = RSPI(channel).SPCR;
-	}
-	else
-	{
-		/* clear the MODF flag then set the SPE bit */
-		dummy = RSPI(channel).SPSR.BYTE;
+    if (0 == RZA_IO_RegRead_8(&(RSPI(channel).SPSR.BYTE), RSPIn_SPSR_MODF_SHIFT, RSPIn_SPSR_MODF))
+    {
+        /* test */
+        RSPI(channel).SPCR |= 0x40U;
+        dummy = RSPI(channel).SPCR;
+    }
+    else
+    {
+        /* clear the MODF flag then set the SPE bit */
+        dummy = RSPI(channel).SPSR.BYTE;
 
-		RSPI(channel).SPCR |= 0x40U;
-		dummy = RSPI(channel).SPCR;
-	}
+        RSPI(channel).SPCR |= 0x40U;
+        dummy = RSPI(channel).SPCR;
+    }
 }
 
 /*******************************************************************************
@@ -173,19 +171,14 @@ void R_RSPI_Start (uint8_t channel)
 * Arguments    : None
 * Return Value : None
 *******************************************************************************/
-void R_RSPI1_Stop (void)
+void R_RSPI1_Stop(void)
 {
     /* Disable RSPI interrupts */
-	R_INTC_Disable(INTC_ID_SPTI4);
+    R_INTC_Disable(INTC_ID_SPTI4);
 
     /* Disable RSPI function */
-	rza_io_reg_write_8( &(RSPI1.SPCR),
-			           0,
-			           RSPIn_SPCR_SPE_SHIFT,
-			           RSPIn_SPCR_SPE);
-
+    rza_io_reg_write_8(&(RSPI1.SPCR), 0, RSPIn_SPCR_SPE_SHIFT, RSPIn_SPCR_SPE);
 }
-
 
 /*******************************************************************************
 * Function Name: R_RSPI1_SendReceive
@@ -199,10 +192,9 @@ void R_RSPI1_Stop (void)
 * Return Value : status -
 *                    MD_OK or MD_ARGERROR
 *******************************************************************************/
-uint8_t R_RSPI1_SendReceive (uint32_t * const tx_buf,
-		                              uint16_t tx_num, uint32_t * const rx_buf)
+uint8_t R_RSPI1_SendReceive(uint32_t* const tx_buf, uint16_t tx_num, uint32_t* const rx_buf)
 {
-	uint8_t status = 0u;
+    uint8_t status = 0u;
 
     if (tx_num < 1U)
     {
@@ -210,90 +202,82 @@ uint8_t R_RSPI1_SendReceive (uint32_t * const tx_buf,
     }
     else
     {
-		g_prspi1_tx_address = tx_buf;
-        g_rspi1_tx_count = tx_num;
+        g_prspi1_tx_address = tx_buf;
+        g_rspi1_tx_count    = tx_num;
 
         g_prspi1_rx_address = rx_buf;
-        g_rspi1_rx_length = tx_num;
-        g_rspi1_rx_count = 0U;
+        g_rspi1_rx_length   = tx_num;
+        g_rspi1_rx_count    = 0U;
 
         /* Enable transmit interrupt */
-    	rza_io_reg_write_8( &(RSPI1.SPCR),
-    			           1,
-    			           RSPIn_SPCR_SPTIE_SHIFT,
-    			           RSPIn_SPCR_SPTIE);
+        rza_io_reg_write_8(&(RSPI1.SPCR), 1, RSPIn_SPCR_SPTIE_SHIFT, RSPIn_SPCR_SPTIE);
 
         /* Enable receive interrupt */
-    	rza_io_reg_write_8( &(RSPI1.SPCR),
-    			           1,
-    			           RSPIn_SPCR_SPRIE_SHIFT,
-    			           RSPIn_SPCR_SPRIE);
+        rza_io_reg_write_8(&(RSPI1.SPCR), 1, RSPIn_SPCR_SPRIE_SHIFT, RSPIn_SPCR_SPRIE);
 
         /* Enable RSPI function */
-    	rza_io_reg_write_8( &(RSPI1.SPCR),
-    			           1,
-    			           RSPIn_SPCR_SPE_SHIFT,
-    			           RSPIn_SPCR_SPE);
+        rza_io_reg_write_8(&(RSPI1.SPCR), 1, RSPIn_SPCR_SPE_SHIFT, RSPIn_SPCR_SPE);
     }
 
     return (status);
 }
 
-uint8_t R_RSPI1_SendReceiveBasic(uint8_t channel, uint8_t data) {
+uint8_t R_RSPI1_SendReceiveBasic(uint8_t channel, uint8_t data)
+{
 
-	// Send data
-	RSPI(channel).SPDR.BYTE.LL = data;
+    // Send data
+    RSPI(channel).SPDR.BYTE.LL = data;
 
-	// Wait til we receive the corresponding data
-    while (0 == RZA_IO_RegRead_8( &(RSPI(channel).SPSR.BYTE), RSPIn_SPSR_SPRF_SHIFT, RSPIn_SPSR_SPRF));
-
-    // Receive data. Note that even if we didn't want the receive data, we still have to read it back, because SPI transmission halts once the RX buffer is full
-	return RSPI(channel).SPDR.BYTE.LL;
-}
-
-uint16_t R_RSPI1_SendReceiveBasic_16(uint8_t channel, uint16_t data) {
-
-	// Send data
-	RSPI(channel).SPDR.WORD.L = data;
-
-	// Wait til we receive the corresponding data
-    while (0 == RZA_IO_RegRead_8( &(RSPI(channel).SPSR.BYTE), RSPIn_SPSR_SPRF_SHIFT, RSPIn_SPSR_SPRF));
+    // Wait til we receive the corresponding data
+    while (0 == RZA_IO_RegRead_8(&(RSPI(channel).SPSR.BYTE), RSPIn_SPSR_SPRF_SHIFT, RSPIn_SPSR_SPRF))
+        ;
 
     // Receive data. Note that even if we didn't want the receive data, we still have to read it back, because SPI transmission halts once the RX buffer is full
-	return RSPI(channel).SPDR.WORD.L;
+    return RSPI(channel).SPDR.BYTE.LL;
 }
 
-uint32_t R_RSPI1_SendReceiveBasic_32(uint8_t channel, uint32_t data) {
+uint16_t R_RSPI1_SendReceiveBasic_16(uint8_t channel, uint16_t data)
+{
 
-	// Send data
-	RSPI(channel).SPDR.LONG = data;
+    // Send data
+    RSPI(channel).SPDR.WORD.L = data;
 
-	// Wait til we receive the corresponding data
-    while (0 == RZA_IO_RegRead_8( &(RSPI(channel).SPSR.BYTE),
-                               RSPIn_SPSR_SPRF_SHIFT,
-    		                   RSPIn_SPSR_SPRF));
+    // Wait til we receive the corresponding data
+    while (0 == RZA_IO_RegRead_8(&(RSPI(channel).SPSR.BYTE), RSPIn_SPSR_SPRF_SHIFT, RSPIn_SPSR_SPRF))
+        ;
 
     // Receive data. Note that even if we didn't want the receive data, we still have to read it back, because SPI transmission halts once the RX buffer is full
-	return RSPI(channel).SPDR.LONG;
+    return RSPI(channel).SPDR.WORD.L;
 }
 
+uint32_t R_RSPI1_SendReceiveBasic_32(uint8_t channel, uint32_t data)
+{
 
+    // Send data
+    RSPI(channel).SPDR.LONG = data;
 
-void R_RSPI_SendAndDontWait(uint8_t channel, uint8_t data) {
+    // Wait til we receive the corresponding data
+    while (0 == RZA_IO_RegRead_8(&(RSPI(channel).SPSR.BYTE), RSPIn_SPSR_SPRF_SHIFT, RSPIn_SPSR_SPRF))
+        ;
 
-	// Grab out any RX data that is there...
-	while (RZA_IO_RegRead_8( &(RSPI(channel).SPSR.BYTE),
-                               RSPIn_SPSR_SPRF_SHIFT,
-    		                   RSPIn_SPSR_SPRF)) {
-
-		// Receive data. Note that even if we didn't want the receive data, we still have to read it back, because SPI transmission halts once the RX buffer is full
-		uint8_t dummy = RSPI(channel).SPDR.BYTE.LL;
-	}
-
-	// Send data
-	RSPI(channel).SPDR.BYTE.LL = data;
+    // Receive data. Note that even if we didn't want the receive data, we still have to read it back, because SPI transmission halts once the RX buffer is full
+    return RSPI(channel).SPDR.LONG;
 }
 
+void R_RSPI_SendAndDontWait(uint8_t channel, uint8_t data)
+{
+
+    // Grab out any RX data that is there...
+    while (RZA_IO_RegRead_8(&(RSPI(channel).SPSR.BYTE), RSPIn_SPSR_SPRF_SHIFT, RSPIn_SPSR_SPRF))
+    {
+
+        // Receive data. Note that even if we didn't want the receive data, we still have to read it back, because SPI transmission halts once the RX buffer is full
+        uint8_t dummy = RSPI(channel).SPDR.BYTE.LL;
+    }
+
+    // Send data
+    RSPI(channel).SPDR.BYTE.LL = data;
+}
 
 /*******************************************************************************
 * Function Name: R_RSPI1_LoopBackReversed
@@ -301,12 +285,9 @@ void R_RSPI_SendAndDontWait(uint8_t channel, uint8_t data) {
 * Arguments    : None
 * Return Value : None
 *******************************************************************************/
-void R_RSPI1_LoopBackReversed (void)
+void R_RSPI1_LoopBackReversed(void)
 {
-	rza_io_reg_write_8( &(RSPI1.SPPCR),
-			           (uint8_t)1,
-			           RSPIn_SPPCR_SPLP_SHIFT,
-			           RSPIn_SPPCR_SPLP);
+    rza_io_reg_write_8(&(RSPI1.SPPCR), (uint8_t)1, RSPIn_SPPCR_SPLP_SHIFT, RSPIn_SPPCR_SPLP);
 }
 
 /*******************************************************************************
@@ -315,13 +296,7 @@ void R_RSPI1_LoopBackReversed (void)
 * Arguments    : None
 * Return Value : None
 *******************************************************************************/
-void R_RSPI1_LoopBackDisable (void)
+void R_RSPI1_LoopBackDisable(void)
 {
-	rza_io_reg_write_8( &(RSPI1.SPPCR),
-			           0,
-			           RSPIn_SPPCR_SPLP_SHIFT,
-			           RSPIn_SPPCR_SPLP);
+    rza_io_reg_write_8(&(RSPI1.SPPCR), 0, RSPIn_SPPCR_SPLP_SHIFT, RSPIn_SPPCR_SPLP);
 }
-
-
-

@@ -19,19 +19,15 @@
 #include "storagemanager.h"
 #include "functions.h"
 
-Note::Note()
-{
-
+Note::Note() {
 }
 
 void Note::writeToFile() {
-  storageManager.writeOpeningTag((char*)"note");
+	storageManager.writeOpeningTag((char*)"note");
 
-  storageManager.writeTag((char*)"length", length);
-  storageManager.writeTag((char*)"velocity", velocity);
-  storageManager.writeTag((char*)"pos", pos);
+	storageManager.writeTag((char*)"length", length);
+	storageManager.writeTag((char*)"velocity", velocity);
+	storageManager.writeTag((char*)"pos", pos);
 
-  storageManager.writeClosingTag((char*)"note");
+	storageManager.writeClosingTag((char*)"note");
 }
-
-

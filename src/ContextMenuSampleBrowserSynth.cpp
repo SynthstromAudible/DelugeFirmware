@@ -32,7 +32,6 @@ ContextMenuSampleBrowserSynth::ContextMenuSampleBrowserSynth() {
 #endif
 }
 
-
 char const** ContextMenuSampleBrowserSynth::getOptions() {
 	static char const* options[] = {"Multisamples", "Basic", "Single-cycle", "Wavetable"};
 	return options;
@@ -50,16 +49,20 @@ bool ContextMenuSampleBrowserSynth::isCurrentOptionAvailable() {
 	// Apart from that option, none of the other ones are valid if currently sitting on a folder-name.
 	if (sampleBrowser.getCurrentFileItem()->isFolder) return false;
 
-	switch(currentOption) {
-	case 1: // "Basic" Sample - unavailable if ringmod.
+	switch (currentOption) {
+	case 1:
+		// "Basic" Sample - unavailable if ringmod.
 		return (soundEditor.currentSound->getSynthMode() != SYNTH_MODE_RINGMOD);
 
-	case 3: // WaveTable
-			// No break - return true.
+	case 3:
+		// WaveTable
+		// No break - return true.
 
-	case 2:	// Single-cycle - available even if we're locked (because of there being other Ranges) to this happening either in Sample or WaveTable mode.
-			// Although, the user could get an error after selecting the option - e.g. if we're locked to WaveTable mode, they've selected single-cycle,
-			// and it realises it can't do this combination of things because it's a stereo file.
+	case 2:
+		// Single-cycle - available even if we're locked (because of there being other Ranges) to this happening either
+		// in Sample or WaveTable mode. Although, the user could get an error after selecting the option - e.g. if
+		// we're locked to WaveTable mode, they've selected single-cycle, and it realises it can't do this
+		// combination of things because it's a stereo file.
 		return true;
 
 	default:
@@ -68,25 +71,22 @@ bool ContextMenuSampleBrowserSynth::isCurrentOptionAvailable() {
 	}
 }
 
-
 bool ContextMenuSampleBrowserSynth::acceptCurrentOption() {
 
-	switch(currentOption) {
+	switch (currentOption) {
 	case 0: // Multisamples
 		return sampleBrowser.importFolderAsMultisamples();
 	case 1: // Basic
 		return sampleBrowser.claimCurrentFile(0, 0, 0);
 	case 2: // Single-cycle
 		return sampleBrowser.claimCurrentFile(2, 2, 1);
-	case 3: // WaveTable
+	case 3:                                             // WaveTable
 		return sampleBrowser.claimCurrentFile(1, 1, 2); // Could probably also be 0,0,2
 	default:
 		__builtin_unreachable();
 		return false;
 	}
 }
-
-
 
 int ContextMenuSampleBrowserSynth::padAction(int x, int y, int on) {
 	return sampleBrowser.padAction(x, y, on);

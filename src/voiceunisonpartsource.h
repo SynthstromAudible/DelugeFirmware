@@ -29,25 +29,23 @@ class Voice;
 class VoiceSample;
 class LivePitchShifter;
 
-
-
-
-
-class VoiceUnisonPartSource
-{
+class VoiceUnisonPartSource {
 public:
 	VoiceUnisonPartSource();
-	bool noteOn(Voice* voice, Source* source, VoiceSamplePlaybackGuide* voiceSource, uint32_t samplesLate, uint32_t oscPhase, bool resetEverything, uint8_t synthMode);
+	bool noteOn(Voice* voice, Source* source, VoiceSamplePlaybackGuide* voiceSource, uint32_t samplesLate,
+	            uint32_t oscPhase, bool resetEverything, uint8_t synthMode);
 	void unassign();
-	bool getPitchAndSpeedParams(Source* source, VoiceSamplePlaybackGuide* voiceSource, uint32_t* phaseIncrement, uint32_t* timeStretchRatio, uint32_t* noteLengthInSamples);
+	bool getPitchAndSpeedParams(Source* source, VoiceSamplePlaybackGuide* voiceSource, uint32_t* phaseIncrement,
+	                            uint32_t* timeStretchRatio, uint32_t* noteLengthInSamples);
 	uint32_t getSpeedParamForNoSyncing(Source* source, int32_t phaseIncrement, int32_t pitchAdjustNeutralValue);
 
-    uint32_t oscPos; // FKA phase. No longer used for Sample playback / rate conversion position. Only waves, including wavetable.
-    uint32_t phaseIncrementStoredValue;
-    int32_t carrierFeedback;
-    bool active;
-    VoiceSample* voiceSample;
-    LivePitchShifter* livePitchShifter;
+	uint32_t
+	    oscPos; // FKA phase. No longer used for Sample playback / rate conversion position. Only waves, including wavetable.
+	uint32_t phaseIncrementStoredValue;
+	int32_t carrierFeedback;
+	bool active;
+	VoiceSample* voiceSample;
+	LivePitchShifter* livePitchShifter;
 };
 
 #endif

@@ -20,7 +20,6 @@
 
 #include "definitions.h"
 
-
 class ParamCollection;
 
 class ParamCollectionSummary {
@@ -28,7 +27,7 @@ public:
 	inline bool containsAutomation() {
 		return (whichParamsAreAutomated[0] | whichParamsAreAutomated[1]
 #if MAX_NUM_UINTS_TO_REP_ALL_PARAMS > 2
-			 | whichParamsAreAutomated[2]
+		        | whichParamsAreAutomated[2]
 #endif
 		);
 	}
@@ -45,7 +44,6 @@ public:
 		}
 	}
 
-
 	void cloneFlagsFrom(ParamCollectionSummary* other) {
 		for (int i = 0; i < MAX_NUM_UINTS_TO_REP_ALL_PARAMS; i++) {
 			whichParamsAreAutomated[i] = other->whichParamsAreAutomated[i];
@@ -57,11 +55,10 @@ public:
 	}
 
 	ParamCollection* paramCollection;
-	uint32_t whichParamsAreAutomated		[MAX_NUM_UINTS_TO_REP_ALL_PARAMS];
-	uint32_t whichParamsAreInterpolating	[MAX_NUM_UINTS_TO_REP_ALL_PARAMS];
+	uint32_t whichParamsAreAutomated[MAX_NUM_UINTS_TO_REP_ALL_PARAMS];
+	uint32_t whichParamsAreInterpolating[MAX_NUM_UINTS_TO_REP_ALL_PARAMS];
 
 	// The list of these ParamCollectionSummarys, in ParamManager, must be terminated by one whose values are *all* zero. This helps because if we know this, we can check for stuff faster.
 };
-
 
 #endif /* PARAMCOLLECTIONSUMMARY_H_ */

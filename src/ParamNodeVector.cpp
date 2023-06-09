@@ -22,9 +22,7 @@
 #include "uart.h"
 #include "ParamNode.h"
 
-
-ParamNodeVector::ParamNodeVector() : OrderedResizeableArrayWith32bitKey(sizeof(ParamNode))
-{
+ParamNodeVector::ParamNodeVector() : OrderedResizeableArrayWith32bitKey(sizeof(ParamNode)) {
 }
 
 ParamNode* ParamNodeVector::getElement(int index) {

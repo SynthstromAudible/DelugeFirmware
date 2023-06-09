@@ -41,22 +41,21 @@ extern "C" {
 #include "uart_all_cpus.h"
 }
 
-#define SAMPLES_TO_CLEAR_AFTER_RECORD 8820 // 200ms
+#define SAMPLES_TO_CLEAR_AFTER_RECORD 8820          // 200ms
 #define SAMPLES_TO_IGNORE_AFTER_BEGIN_OVERRIDE 9200 // 200ms + a bit
-#define TIME_TO_INTERPOLATE_WITHIN 6615 // 150ms
+#define TIME_TO_INTERPOLATE_WITHIN 6615             // 150ms
 
 // These refer to how many samples to wait *after* the override length, which is specified above.
 // And these only apply if we hit a non-interpolated node (which, remember, is all of them for MIDI CCs
-#define UNINTERPOLATED_NODE_CANCELS_OVERRIDING_AFTER_SAMPLES 6630 // 150ms. Only seems to have an effect for MIDI, which is confusing me...
+#define UNINTERPOLATED_NODE_CANCELS_OVERRIDING_AFTER_SAMPLES                                                           \
+	6630 // 150ms. Only seems to have an effect for MIDI, which is confusing me...
 
-AutoParam::AutoParam()
-{
+AutoParam::AutoParam() {
 	init();
 	currentValue = 0;
 	valueIncrementPerHalfTick = 0;
 	renewedOverridingAtTime = 0;
 }
-
 
 void AutoParam::init() {
 	nodes.init();
@@ -69,7 +68,6 @@ void AutoParam::cloneFrom(AutoParam* otherParam, bool copyAutomation) {
 
 	renewedOverridingAtTime = 0;
 }
-
 
 void AutoParam::copyOverridingFrom(AutoParam* otherParam) {
 	if (otherParam->renewedOverridingAtTime) {
@@ -87,21 +85,22 @@ void AutoParam::setCurrentValueWithNoReversionOrRecording(ModelStackWithAutoPara
 	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, false, automatedNow, automatedNow);
 }
 
-
 // Clip not required, but if you don't supply it, you can't record anything.
 // You can assume that this will always change the currentValue.
 // livePos may be supplied as -1, meaning get it live. Or, you can override this by specifying one.
 // The main purpose of mayDeleteNodesInLinearRun is so that it can be prevented from happening for MPE recording - even though MPE will normally interpolate for internal
 // synths, we want to preserve the original MIDI as closely as possible in case they later switch it from Synth to MIDI output.
-void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWithAutoParam const* modelStack, bool shouldLogAction, int32_t livePos, bool mayDeleteNodesInLinearRun, bool doMPEMode) {
+void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWithAutoParam const* modelStack,
+                                                     bool shouldLogAction, int32_t livePos,
+                                                     bool mayDeleteNodesInLinearRun, bool doMPEMode) {
 	int32_t oldValue = currentValue;
 	bool automatedBefore = isAutomated();
 	bool automationChanged = false;
 	valueIncrementPerHalfTick = 0;
 
-	bool isPlaying = (playbackHandler.isEitherClockActive()
-			&& !playbackHandler.ticksLeftInCountIn
-			&& (!modelStack->timelineCounterIsSet() || modelStack->getTimelineCounter()->isPlayingAutomationNow()));
+	bool isPlaying =
+	    (playbackHandler.isEitherClockActive() && !playbackHandler.ticksLeftInCountIn
+	     && (!modelStack->timelineCounterIsSet() || modelStack->getTimelineCounter()->isPlayingAutomationNow()));
 
 	if (isPlaying) {
 
@@ -145,12 +144,13 @@ void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWi
 
 			bool reversed = modelStack->isCurrentlyPlayingReversed();
 
-
 			// Since May 2020, we don't interpolate the start of the region if there was not another node just before it.
 			// Perhaps in a perfect world, we'd also consider how different the new value is from the old value, and maybe even insert a note to interpolate from.
 			bool shouldInterpolateRegionStart = false;
 
-			if (!reversed && nodes.getNumElements()) { // Yeah turns out we just don't need the result from this if we're reversed. RIP the work I put into making this code reverse-compatible.
+			if (!reversed
+			    && nodes
+			           .getNumElements()) { // Yeah turns out we just don't need the result from this if we're reversed. RIP the work I put into making this code reverse-compatible.
 				int prevNodeI = nodes.search(livePos + (int)reversed, reversed ? GREATER_OR_EQUAL : LESS);
 				if (prevNodeI >= 0 && prevNodeI < nodes.getNumElements()) { // If there was a Node before livePos...
 investigatePrevNode:
@@ -192,10 +192,13 @@ investigatePrevNode:
 				bool shouldInterpolateLeft = reversed || shouldInterpolateRegionStart;
 
 #if ALPHA_OR_BETA_VERSION
-				nodes.testSequentiality("E435"); // drbourbon got, when check was inside homogenizeRegion(). Now trying to work out where that came from. March 2022.
+				// drbourbon got, when check was inside homogenizeRegion(). Now trying to work out where that came from.
+				// March 2022.
+				nodes.testSequentiality("E435");
 #endif
 
-				leftI = homogenizeRegion(modelStack, livePos, ticksToClear, value, shouldInterpolateLeft, true, effectiveLength, reversed, posAtWhichPlaybackWillCut);
+				leftI = homogenizeRegion(modelStack, livePos, ticksToClear, value, shouldInterpolateLeft, true,
+				                         effectiveLength, reversed, posAtWhichPlaybackWillCut);
 				if (leftI == -1) goto getOut;
 
 				if (reversed) {
@@ -209,8 +212,12 @@ investigatePrevNode:
 
 			// Now that we've definitely left any previous nodes alone, see if they form a linear run and we can delete some of them?
 			// We'll just not bother with this if reversed, for now... or ever...
-			if (mayDeleteNodesInLinearRun && !reversed && modelStack->paramCollection->mayParamInterpolate(modelStack->paramId) && nodes.getNumElements() >= 3) {
-				bool backtrackingCouldLoopBackToEnd = modelStack->getTimelineCounter()->backtrackingCouldLoopBackToEnd(); // Wait, I can no longer see why this matters...
+			if (mayDeleteNodesInLinearRun && !reversed
+			    && modelStack->paramCollection->mayParamInterpolate(modelStack->paramId)
+			    && nodes.getNumElements() >= 3) {
+				bool backtrackingCouldLoopBackToEnd =
+				    modelStack->getTimelineCounter()
+				        ->backtrackingCouldLoopBackToEnd(); // Wait, I can no longer see why this matters...
 				int prevI = leftI - 1;
 				if (prevI == -1) {
 					if (!backtrackingCouldLoopBackToEnd) goto skipThat;
@@ -218,7 +225,7 @@ investigatePrevNode:
 				}
 				deleteRedundantNodeInLinearRun(prevI, effectiveLength, backtrackingCouldLoopBackToEnd);
 
-				skipThat: {}
+skipThat : {}
 			}
 
 #if ALPHA_OR_BETA_VERSION
@@ -257,12 +264,12 @@ investigatePrevNode:
 getOut:
 	currentValue = value;
 	bool automatedNow = isAutomated();
-	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore, automatedNow);
+	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore,
+	                                                          automatedNow);
 }
 
-
-
-bool AutoParam::deleteRedundantNodeInLinearRun(int lastNodeInRunI, int32_t effectiveLength, bool mayLoopAroundBackToEnd) {
+bool AutoParam::deleteRedundantNodeInLinearRun(int lastNodeInRunI, int32_t effectiveLength,
+                                               bool mayLoopAroundBackToEnd) {
 
 	if (nodes.getNumElements() < 3) return false;
 
@@ -278,7 +285,6 @@ bool AutoParam::deleteRedundantNodeInLinearRun(int lastNodeInRunI, int32_t effec
 
 	if (lastNodeInRun->interpolated || !middleNodeInRun->interpolated) {
 
-
 		int firstNodeInRunI = middleNodeInRunI - 1;
 		if (firstNodeInRunI == -1) {
 			if (!mayLoopAroundBackToEnd) return false;
@@ -286,7 +292,8 @@ bool AutoParam::deleteRedundantNodeInLinearRun(int lastNodeInRunI, int32_t effec
 		}
 		ParamNode* firstNodeInRun = nodes.getElement(firstNodeInRunI);
 
-		if (middleNodeInRun->value == firstNodeInRun->value && (middleNodeInRun->value == lastNodeInRun->value || !middleNodeInRun->interpolated)) {
+		if (middleNodeInRun->value == firstNodeInRun->value
+		    && (middleNodeInRun->value == lastNodeInRun->value || !middleNodeInRun->interpolated)) {
 removeMiddleNodeInRun:
 			nodes.deleteAtIndex(middleNodeInRunI);
 			return true;
@@ -294,9 +301,9 @@ removeMiddleNodeInRun:
 
 		else if (middleNodeInRun->interpolated) {
 
-
 			//float timeFraction = (float)howFarAfter(middleNodeInRun->pos, firstNodeInRun->pos, clip) / howFarAfter(prevNode->pos, firstNodeInRun->pos, clip);
-			float valueFraction = (float)((middleNodeInRun->value >> 1) - (firstNodeInRun->value >> 1)) / ((lastNodeInRun->value >> 1) - (firstNodeInRun->value >> 1));
+			float valueFraction = (float)((middleNodeInRun->value >> 1) - (firstNodeInRun->value >> 1))
+			                      / ((lastNodeInRun->value >> 1) - (firstNodeInRun->value >> 1));
 
 			int distanceFirstToLast = lastNodeInRun->pos - firstNodeInRun->pos;
 			if (distanceFirstToLast <= 0) distanceFirstToLast += effectiveLength;
@@ -305,8 +312,7 @@ removeMiddleNodeInRun:
 			if (distanceFirstToMiddle <= 0) distanceFirstToMiddle += effectiveLength;
 
 			// If nodes lay in a straight line (approximately)
-			if (round(valueFraction * distanceFirstToLast)
-					== distanceFirstToMiddle) {
+			if (round(valueFraction * distanceFirstToLast) == distanceFirstToMiddle) {
 
 				goto removeMiddleNodeInRun;
 			}
@@ -314,7 +320,6 @@ removeMiddleNodeInRun:
 	}
 	return false;
 }
-
 
 // action is optional. If you don't supply it, consequences won't be recorded
 void AutoParam::deleteAutomation(Action* action, ModelStackWithAutoParam const* modelStack, bool shouldNotify) {
@@ -337,7 +342,6 @@ void AutoParam::deleteAutomation(Action* action, ModelStackWithAutoParam const* 
 	}
 }
 
-
 // Beware. As this will do no notifying, the caller must ensure that any required notification is done.
 // I.e. a ParamSet must be notified if automation is deleted.
 void AutoParam::deleteAutomationBasicForSetup() {
@@ -346,10 +350,10 @@ void AutoParam::deleteAutomationBasicForSetup() {
 	renewedOverridingAtTime = 0;
 }
 
-
 #define OVERRIDE_DURATION_MAGNITUDE_INTERPOLATING 15 // Means 2^x audio samples in length
 
-int32_t AutoParam::processCurrentPos(ModelStackWithAutoParam const* modelStack, bool reversed, bool didPinpong, bool mayInterpolate, bool mustUpdateValueAtEveryNode) {
+int32_t AutoParam::processCurrentPos(ModelStackWithAutoParam const* modelStack, bool reversed, bool didPinpong,
+                                     bool mayInterpolate, bool mustUpdateValueAtEveryNode) {
 
 	// If no automation...
 	if (!nodes.getNumElements()) return 2147483647;
@@ -369,15 +373,15 @@ int32_t AutoParam::processCurrentPos(ModelStackWithAutoParam const* modelStack, 
 
 	// If we haven't reached the next node yet...
 	if (howFarUntilThisNode) {
-		if (reversed) howFarUntilThisNode = -howFarUntilThisNode; // Adjust for direction. No need to do until we know we're returning.
+		if (reversed)
+			howFarUntilThisNode =
+			    -howFarUntilThisNode; // Adjust for direction. No need to do until we know we're returning.
 		if (howFarUntilThisNode < 0) howFarUntilThisNode += effectiveLength;
 		return howFarUntilThisNode;
 	}
 
 	int32_t valueJustReached = nodeJustReached->value;
 	bool noNeedToJumpToValue = nodeJustReached->interpolated && mayInterpolate;
-
-
 
 	// Ok, if we're here, we just reached the node!
 
@@ -406,17 +410,19 @@ int32_t AutoParam::processCurrentPos(ModelStackWithAutoParam const* modelStack, 
 		if (iLeft < 0) iLeft += nodes.getNumElements();
 		ParamNode* nodeToLeft = nodes.getElement(iLeft);
 
-		if (!noNeedToJumpToValue) valueJustReached = nodeToLeft->value; // At the time of this condition, weInterpolatedHere still means the interpolation to our *left*.
+		if (!noNeedToJumpToValue)
+			valueJustReached =
+			    nodeToLeft
+			        ->value; // At the time of this condition, weInterpolatedHere still means the interpolation to our *left*.
 		//noNeedToJumpToValue = noNeedToJumpToValue || nodeToRight->interpolated; 	// If playing reversed, we probably want to jump directly to the value of the node to the left,
-																				// unless from the node right here there's a slope left *and* a slope right (cos if there's
-																				// no slope right we'll already be at the correct value from before).
+		// unless from the node right here there's a slope left *and* a slope right (cos if there's
+		// no slope right we'll already be at the correct value from before).
 		nextNodeInOurDirection = nodeToLeft;
 	}
 	else {
 		ParamNode* nodeToRight = nodes.getElement(iRight);
 		nextNodeInOurDirection = nodeToRight;
 	}
-
 
 	// If overriding...
 	if (renewedOverridingAtTime) {
@@ -435,13 +441,16 @@ int32_t AutoParam::processCurrentPos(ModelStackWithAutoParam const* modelStack, 
 			// If not recording, but we're still latching, well latching is only meant to happen as a result of recording, so they must have just cancelled recording.
 			// So, exit out of latching and just give them normal overriding.
 			else {
-				renewedOverridingAtTime = AudioEngine::audioSampleTimer - SAMPLES_TO_CLEAR_AFTER_RECORD; // Copied from below. Specifics don't really matter - this is a rare case
+				renewedOverridingAtTime =
+				    AudioEngine::audioSampleTimer
+				    - SAMPLES_TO_CLEAR_AFTER_RECORD; // Copied from below. Specifics don't really matter - this is a rare case
 				if (renewedOverridingAtTime <= 1) renewedOverridingAtTime = 0xFFFFFFFF;
 				goto getOut; // Nothing else to do. We don't want to even obey any automation just now.
 			}
 		}
 
-		timeSinceOverrideEnd = AudioEngine::audioSampleTimer - (uint32_t)renewedOverridingAtTime - SAMPLES_TO_IGNORE_AFTER_BEGIN_OVERRIDE;
+		timeSinceOverrideEnd =
+		    AudioEngine::audioSampleTimer - (uint32_t)renewedOverridingAtTime - SAMPLES_TO_IGNORE_AFTER_BEGIN_OVERRIDE;
 
 		// If we overrode (turned the knob) less than 0.2s ago and are not recording, then we don't want to obey any automation at all
 		if (timeSinceOverrideEnd <= 0 && !playbackHandler.isCurrentlyRecording()) {
@@ -451,9 +460,13 @@ int32_t AutoParam::processCurrentPos(ModelStackWithAutoParam const* modelStack, 
 		// if (timeSinceOverrideEnd >= UNINTERPOLATED_NODE_CANCELS_OVERRIDING_AFTER_SAMPLES * 2) goto yesCancelOverriding; // Fix I played with in Aug 2021, seems good - I think that if it's been "quite a while", this new node should just cancel overriding no matter what, right?
 
 		// If not interpolating, let it choose to get out of overriding before looking at doing recording (I'm not 100% sure that this was the best way...)
-		shouldCancelOverridingNow = mayInterpolate ?
-				!nextNodeInOurDirection->interpolated && timeSinceOverrideEnd >= UNINTERPOLATED_NODE_CANCELS_OVERRIDING_AFTER_SAMPLES : // For non-MIDI params, this actually doesn't appear necessary and overriding instead gets cancelled like 70 lines below. But I've left it here for safety. This whole function is so complicated...
-				timeSinceOverrideEnd >= UNINTERPOLATED_NODE_CANCELS_OVERRIDING_AFTER_SAMPLES; // Whereas for MIDI CCs, for some reason I now can't work out, this is crucial and cancelling won't happen until this time - but perhaps only for knob-recorded automation, not per-step automation? God.
+		shouldCancelOverridingNow =
+		    mayInterpolate
+		        ? !nextNodeInOurDirection->interpolated
+		              && timeSinceOverrideEnd >= UNINTERPOLATED_NODE_CANCELS_OVERRIDING_AFTER_SAMPLES
+		        : // For non-MIDI params, this actually doesn't appear necessary and overriding instead gets cancelled like 70 lines below. But I've left it here for safety. This whole function is so complicated...
+		        timeSinceOverrideEnd
+		            >= UNINTERPOLATED_NODE_CANCELS_OVERRIDING_AFTER_SAMPLES; // Whereas for MIDI CCs, for some reason I now can't work out, this is crucial and cancelling won't happen until this time - but perhaps only for knob-recorded automation, not per-step automation? God.
 
 		if (shouldCancelOverridingNow) {
 yesCancelOverriding:
@@ -481,7 +494,8 @@ recordOverNodeJustReached:
 				// I used to add 3 onto the end of this cos it helped with ensuring a nice drift-back when we didn't have any latching. But now we do so it's unnecessary...
 				// ...and also, adding any extra constant on here causes latching to sometimes cancel, because an actual record action homogenizes a region that doesn't include that extra
 				// constant bit of length, so can cause a next tick to happen soon enough to cause latching to cancel, just below
-				int32_t ticksToClear = (uint16_t)SAMPLES_TO_CLEAR_AFTER_RECORD / playbackHandler.getTimePerInternalTick();
+				int32_t ticksToClear =
+				    (uint16_t)SAMPLES_TO_CLEAR_AFTER_RECORD / playbackHandler.getTimePerInternalTick();
 
 				int32_t posOverridingEnds;
 				int32_t valueOverridingEnds;
@@ -492,11 +506,13 @@ recordOverNodeJustReached:
 				if (insertingNodeAtEndOfClearing) {
 
 					// Special case for song params for recording session->arrangement. TODO: think about reversing for this
-					if (playbackHandler.recording == RECORDING_ARRANGEMENT && modelStack->getTimelineCounter() == modelStack->song) {
+					if (playbackHandler.recording == RECORDING_ARRANGEMENT
+					    && modelStack->getTimelineCounter() == modelStack->song) {
 
 						// If there's already a node at 0, we don't need to do anything
 						if (nodes.search(1, LESS) >= 0) {
-							insertingNodeAtEndOfClearing = false; // Set this to false, but that doesn't mean we want to do the "else" condition below, so skip past it
+							insertingNodeAtEndOfClearing =
+							    false; // Set this to false, but that doesn't mean we want to do the "else" condition below, so skip past it
 							goto adjustNodeJustReached;
 						}
 
@@ -507,7 +523,9 @@ recordOverNodeJustReached:
 
 					// Or, normal case - we need to insert a node where the overriding ends
 					else {
-						if (reversed) ticksToClear = -ticksToClear; // From here on, ticksToClear is negative if we're reversing. But we only use it one more time.
+						if (reversed)
+							ticksToClear =
+							    -ticksToClear; // From here on, ticksToClear is negative if we're reversing. But we only use it one more time.
 						posOverridingEnds = nodeJustReached->pos + ticksToClear;
 						int32_t posAtWhichClipWillCut = modelStack->getPosAtWhichPlaybackWillCut();
 
@@ -571,11 +589,13 @@ adjustNodeJustReached:
 
 				// Having changed that node's value, there's a chance it may have made the node before it redundant
 				if (!reversed) {
-					needToReGetNextNode = deleteRedundantNodeInLinearRun(iJustReached, effectiveLength); // Shouldn't I make it so this doesn't get called for MPE?
+					needToReGetNextNode = deleteRedundantNodeInLinearRun(
+					    iJustReached, effectiveLength); // Shouldn't I make it so this doesn't get called for MPE?
 				}
 
 				if (insertingNodeAtEndOfClearing) {
-					int iNew = nodes.insertAtKey(posOverridingEnds); // Can only do this now, after updating nodeJustReached, above
+					int iNew = nodes.insertAtKey(
+					    posOverridingEnds); // Can only do this now, after updating nodeJustReached, above
 					if (iNew != -1) {
 						iRight = iNew;
 						nextNodeInOurDirection = nodes.getElement(iRight);
@@ -589,8 +609,10 @@ adjustNodeJustReached:
 						Uart::println(valueOverridingEnds);
 						*/
 						if (!reversed) {
-							needToReGetNextNode = deleteRedundantNodeInLinearRun(iRight, effectiveLength);	// If returns false, storage wasn't changed, and we've got the next node right here!
-																											// Shouldn't I make it so this doesn't get called for MPE?
+							needToReGetNextNode = deleteRedundantNodeInLinearRun(
+							    iRight,
+							    effectiveLength); // If returns false, storage wasn't changed, and we've got the next node right here!
+							                      // Shouldn't I make it so this doesn't get called for MPE?
 						}
 					}
 				}
@@ -648,9 +670,9 @@ getOut:
 	return ticksTilNextNode;
 }
 
-
 // You now much check before calling this that interpolation should happen at all
-void AutoParam::setupInterpolation(ParamNode* nextNodeInOurDirection, int32_t effectiveLength, int32_t currentPos, bool reversed) {
+void AutoParam::setupInterpolation(ParamNode* nextNodeInOurDirection, int32_t effectiveLength, int32_t currentPos,
+                                   bool reversed) {
 
 	if (renewedOverridingAtTime == 1) return; // If it's latched-until-next-node-hit, we're not allowed to interpolate.
 
@@ -668,7 +690,8 @@ void AutoParam::setupInterpolation(ParamNode* nextNodeInOurDirection, int32_t ef
 	// If automation still overridden (at least to some extent), limit how fast interpolation can occur
 	if (renewedOverridingAtTime) {
 
-		int32_t timeSinceOverridden = AudioEngine::audioSampleTimer - (uint32_t)renewedOverridingAtTime - SAMPLES_TO_IGNORE_AFTER_BEGIN_OVERRIDE;
+		int32_t timeSinceOverridden =
+		    AudioEngine::audioSampleTimer - (uint32_t)renewedOverridingAtTime - SAMPLES_TO_IGNORE_AFTER_BEGIN_OVERRIDE;
 
 		// If overriding was renewed aaages ago, we can just stop that.
 		if (timeSinceOverridden >= (1 << OVERRIDE_DURATION_MAGNITUDE_INTERPOLATING)) {
@@ -694,7 +717,9 @@ bool AutoParam::tickSamples(int numSamples) {
 	if (!valueIncrementPerHalfTick) return false;
 
 	int32_t oldValue = currentValue;
-	currentValue += multiply_32x32_rshift32_rounded(valueIncrementPerHalfTick, playbackHandler.getTimePerInternalTickInverse()) * 6 * numSamples;
+	currentValue +=
+	    multiply_32x32_rshift32_rounded(valueIncrementPerHalfTick, playbackHandler.getTimePerInternalTickInverse()) * 6
+	    * numSamples;
 
 	// Ensure no overflow
 	bool overflowOccurred = (valueIncrementPerHalfTick >= 0) ? (currentValue < oldValue) : (currentValue > oldValue);
@@ -706,7 +731,8 @@ bool AutoParam::tickSamples(int numSamples) {
 	return true;
 }
 
-void AutoParam::setValuePossiblyForRegion(int32_t value, ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t length, bool mayDeleteNodesInLinearRun) {
+void AutoParam::setValuePossiblyForRegion(int32_t value, ModelStackWithAutoParam const* modelStack, int32_t pos,
+                                          int32_t length, bool mayDeleteNodesInLinearRun) {
 	if (length && modelStack->timelineCounterIsSet()) {
 		setValueForRegion(pos, length, value, modelStack);
 	}
@@ -714,7 +740,6 @@ void AutoParam::setValuePossiblyForRegion(int32_t value, ModelStackWithAutoParam
 		setCurrentValueInResponseToUserInput(value, modelStack, true, -1, mayDeleteNodesInLinearRun);
 	}
 }
-
 
 // For MPE when a note gets deleted, and we want to just simply delete nodes and let previous ones' value spill into this area.
 void AutoParam::deleteNodesWithinRegion(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t length) {
@@ -772,7 +797,6 @@ void AutoParam::deleteNodesWithinRegion(ModelStackWithAutoParam const* modelStac
 	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, true, true, isAutomated());
 }
 
-
 int AutoParam::setNodeAtPos(int32_t pos, int32_t value, bool shouldInterpolate) {
 	int i = nodes.search(pos, GREATER_OR_EQUAL);
 	ParamNode* ourNode;
@@ -783,9 +807,10 @@ int AutoParam::setNodeAtPos(int32_t pos, int32_t value, bool shouldInterpolate) 
 		if (ourNode->pos == pos) goto setupNode;
 	}
 
-{	int error = nodes.insertAtIndex(i);
-	if (error) return -1;
-}
+	{
+		int error = nodes.insertAtIndex(i);
+		if (error) return -1;
+	}
 	ourNode = nodes.getElement(i);
 	ourNode->pos = pos;
 setupNode:
@@ -795,8 +820,8 @@ setupNode:
 	return i;
 }
 
-
-void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value, ModelStackWithAutoParam const* modelStack, int actionType) {
+void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value,
+                                  ModelStackWithAutoParam const* modelStack, int actionType) {
 
 	int32_t oldValue = currentValue;
 	bool automatedBefore = isAutomated();
@@ -831,8 +856,9 @@ void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value, 
 	else {
 
 #if ALPHA_OR_BETA_VERSION
-		nodes.testSequentiality("E441");	// drbourbon got, when check was inside homogenizeRegion(). Now trying to work out where that came from. March 2022.
-											// Sven got, oddly while editing note velocity. Then again by "Adding some snares while playing".
+		// drbourbon got, when check was inside homogenizeRegion(). Now trying to work out where that came from.
+		// March 2022. Sven got, oddly while editing note velocity. Then again by "Adding some snares while playing".
+		nodes.testSequentiality("E441");
 #endif
 
 		firstI = homogenizeRegion(modelStack, pos, length, value, false, false, effectiveLength, false);
@@ -855,14 +881,17 @@ yesChangeCurrentValue:
 		}
 	}
 
-	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore, isAutomated());
+	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore,
+	                                                          isAutomated());
 }
 
-#define REGION_EDGE_LEFT	0
-#define REGION_EDGE_RIGHT	1
+#define REGION_EDGE_LEFT 0
+#define REGION_EDGE_RIGHT 1
 
 // Returns index of leftmost node of region, or -1 if error
-int AutoParam::homogenizeRegion(ModelStackWithAutoParam const* modelStack, int32_t startPos, int length, int startValue, bool interpolateLeftNode, bool interpolateRightNode, int32_t effectiveLength, bool reversed, int32_t posAtWhichClipWillCut) {
+int AutoParam::homogenizeRegion(ModelStackWithAutoParam const* modelStack, int32_t startPos, int length, int startValue,
+                                bool interpolateLeftNode, bool interpolateRightNode, int32_t effectiveLength,
+                                bool reversed, int32_t posAtWhichClipWillCut) {
 
 #if ALPHA_OR_BETA_VERSION
 	// Chasing "E433" / "GGGG" error (probably now largely solved - except got E435, see below).
@@ -870,7 +899,7 @@ int AutoParam::homogenizeRegion(ModelStackWithAutoParam const* modelStack, int32
 	if (startPos < 0) numericDriver.freezeWithError("E437");
 	// nodes.testSequentiality("E435"); // drbourbon got! March 2022. Now moved check to each caller.
 	if (nodes.getNumElements() && nodes.getFirst()->pos < 0) numericDriver.freezeWithError("E436");
-	// Should probably also check that stuff doesn't exist too far right - but that's a bit more complicated.
+		// Should probably also check that stuff doesn't exist too far right - but that's a bit more complicated.
 #endif
 
 	int32_t edgePositions[2];
@@ -890,7 +919,9 @@ int AutoParam::homogenizeRegion(ModelStackWithAutoParam const* modelStack, int32
 			interpolateRightNode = false;
 			edgePositions[REGION_EDGE_RIGHT] = posAtWhichClipWillCut;
 			anyWrap = (edgePositions[REGION_EDGE_RIGHT] >= effectiveLength);
-			if (anyWrap) edgePositions[REGION_EDGE_RIGHT] = 0; // Gotta wrap it - we're not allowed a node right at e.g. the Clip length point.
+			if (anyWrap)
+				edgePositions[REGION_EDGE_RIGHT] =
+				    0; // Gotta wrap it - we're not allowed a node right at e.g. the Clip length point.
 		}
 
 		// Or if we didn't do that, there could be a loop-point, which we treat almost the same - except we don't let it limit our region length - we just wrap our region end around.
@@ -923,7 +954,8 @@ int AutoParam::homogenizeRegion(ModelStackWithAutoParam const* modelStack, int32
 			edgePositions[REGION_EDGE_LEFT] = posAtWhichClipWillCut;
 			length = edgePositions[REGION_EDGE_RIGHT] - edgePositions[REGION_EDGE_LEFT];
 #if ALPHA_OR_BETA_VERSION
-			if (edgePositions[REGION_EDGE_LEFT] >= edgePositions[REGION_EDGE_RIGHT]) numericDriver.freezeWithError("HHHH");
+			if (edgePositions[REGION_EDGE_LEFT] >= edgePositions[REGION_EDGE_RIGHT])
+				numericDriver.freezeWithError("HHHH");
 #endif
 			interpolateLeftNode = false; // Maybe not really perfect
 			anyWrap = false;
@@ -937,7 +969,6 @@ int AutoParam::homogenizeRegion(ModelStackWithAutoParam const* modelStack, int32
 			}
 		}
 	}
-
 
 	if (anyWrap) { // Temporarily swap edge positions
 		int32_t temp = edgePositions[0];
@@ -974,7 +1005,8 @@ int AutoParam::homogenizeRegion(ModelStackWithAutoParam const* modelStack, int32
 
 	int32_t valueAtLateEdge;
 	if (edgeNodes[!reversed]) {
-		if (reversed && !edgeNodes[!reversed]->interpolated) goto getValueNormalWay; // If reversed, and the node isn't interpolated, we'd actually need the value of the further-left node.
+		if (reversed && !edgeNodes[!reversed]->interpolated)
+			goto getValueNormalWay; // If reversed, and the node isn't interpolated, we'd actually need the value of the further-left node.
 
 		valueAtLateEdge = edgeNodes[!reversed]->value;
 	}
@@ -983,14 +1015,12 @@ getValueNormalWay:
 		valueAtLateEdge = getValueAtPos(edgePositions[!reversed], modelStack, reversed);
 	}
 
-
 	// Sort out rightmost node
 	if (!edgeNodes[REGION_EDGE_RIGHT]) { // If we don't have a rightmost node yet...
 
 		// If there's a further-left node we can just grab and repurpose...
-		if (edgeIndexes[REGION_EDGE_RIGHT] &&
-				(anyWrap
-				  || edgeIndexes[REGION_EDGE_RIGHT] > edgeIndexes[REGION_EDGE_LEFT] + 1)) {
+		if (edgeIndexes[REGION_EDGE_RIGHT]
+		    && (anyWrap || edgeIndexes[REGION_EDGE_RIGHT] > edgeIndexes[REGION_EDGE_LEFT] + 1)) {
 
 			edgeIndexes[REGION_EDGE_RIGHT]--;
 		}
@@ -1009,12 +1039,12 @@ getValueNormalWay:
 	edgeNodes[REGION_EDGE_RIGHT]->value = reversed ? startValue : valueAtLateEdge;
 	edgeNodes[REGION_EDGE_RIGHT]->interpolated = interpolateRightNode;
 
-
 	// And sort out leftmost node
 	if (!edgeNodes[REGION_EDGE_LEFT]) { // If we don't have a leftmost node yet...
 
 		// If there's a further-right node we can just grab and repurpose...
-		if (edgeIndexes[REGION_EDGE_RIGHT] != edgeIndexes[REGION_EDGE_LEFT] && edgeIndexes[REGION_EDGE_LEFT] < nodes.getNumElements()) {
+		if (edgeIndexes[REGION_EDGE_RIGHT] != edgeIndexes[REGION_EDGE_LEFT]
+		    && edgeIndexes[REGION_EDGE_LEFT] < nodes.getNumElements()) {
 			// Cool, we can just update the "pos" of that node.
 		}
 
@@ -1032,7 +1062,6 @@ getValueNormalWay:
 	edgeNodes[REGION_EDGE_LEFT]->value = reversed ? valueAtLateEdge : startValue;
 	edgeNodes[REGION_EDGE_LEFT]->interpolated = interpolateLeftNode;
 
-
 	// Now delete extra nodes. This first bit will delete all of them if no wrap, or the before-wrap bit if there is a wrap.
 	int indexToDeleteFrom = edgeIndexes[REGION_EDGE_LEFT] + 1;
 	int indexToDeleteTo = anyWrap ? nodes.getNumElements() : edgeIndexes[REGION_EDGE_RIGHT];
@@ -1049,7 +1078,8 @@ getValueNormalWay:
 	}
 
 #if ALPHA_OR_BETA_VERSION
-	nodes.testSequentiality("E433"); // Was "GGGG". Leo got. Sven got. (Probably now solved). (Nope, Michael got on V4.1.0-alpha10 (OLED)!)
+	nodes.testSequentiality(
+	    "E433"); // Was "GGGG". Leo got. Sven got. (Probably now solved). (Nope, Michael got on V4.1.0-alpha10 (OLED)!)
 	if (nodes.getNumElements()) {
 		ParamNode* rightmostNode = nodes.getElement(nodes.getNumElements() - 1);
 		if (rightmostNode->pos >= effectiveLength) {
@@ -1061,27 +1091,25 @@ getValueNormalWay:
 	return edgeIndexes[REGION_EDGE_LEFT];
 }
 
-void AutoParam::homogenizeRegionTestSuccess(int pos, int regionEnd, int startValue, bool interpolateStart, bool interpolateEnd) {
+void AutoParam::homogenizeRegionTestSuccess(int pos, int regionEnd, int startValue, bool interpolateStart,
+                                            bool interpolateEnd) {
 
 	nodes.testSequentiality("E317");
 
 	int startI = nodes.search(pos, GREATER_OR_EQUAL);
 	int endI = nodes.search(regionEnd, GREATER_OR_EQUAL);
 
-	if (endI == startI + 1 ||
-			(endI == 0 && startI == nodes.getNumElements() - 1)) {
+	if (endI == startI + 1 || (endI == 0 && startI == nodes.getNumElements() - 1)) {
 		// Fine
 	}
 	else {
 		numericDriver.freezeWithError("E119");
 	}
 
-
 	ParamNode* startNode = nodes.getElement(startI);
 	ParamNode* endNode = nodes.getElement(endI);
 
 	if (!startNode || !endNode) numericDriver.freezeWithError("E118");
-
 
 	if (startNode->value != startValue) numericDriver.freezeWithError("E120");
 	if (startNode->interpolated != interpolateStart) numericDriver.freezeWithError("E121");
@@ -1092,7 +1120,6 @@ int32_t AutoParam::getValuePossiblyAtPos(int32_t pos, ModelStackWithAutoParam* m
 	if (pos < 0) return getCurrentValue();
 	else return getValueAtPos(pos, modelStack);
 }
-
 
 // The reason for specifying whether we're reversing is that at the exact pos of a non-interpolating node, where the value abruptly changes, well whether we want the value to the left or
 // the right depends on which direction we're going.
@@ -1117,7 +1144,8 @@ returnLeftNodeValue:
 
 	if (ticksSinceLeftNode < 0) { // If pos we're looking at is left of leftmost...
 		int32_t lengthBeforeLoop = modelStack->getLoopLength();
-		if (lengthBeforeLoop == 2147483647) { // If infinite length - and we know we're interpolating - well we'd have arrived at the next node value
+		if (lengthBeforeLoop
+		    == 2147483647) { // If infinite length - and we know we're interpolating - well we'd have arrived at the next node value
 			return rightNode->value;
 		}
 		ticksSinceLeftNode += lengthBeforeLoop;
@@ -1126,7 +1154,8 @@ returnLeftNodeValue:
 	int32_t ticksBetweenNodes = rightNode->pos - leftNode->pos;
 	if (ticksBetweenNodes <= 0) { // If pos we're looking at is right of rightmost...
 		int32_t lengthBeforeLoop = modelStack->getLoopLength();
-		if (lengthBeforeLoop == 2147483647) { // If infinite length, we'll still be on prev node's value, despite us interpolating
+		if (lengthBeforeLoop
+		    == 2147483647) { // If infinite length, we'll still be on prev node's value, despite us interpolating
 			goto returnLeftNodeValue;
 		}
 		ticksBetweenNodes += lengthBeforeLoop;
@@ -1156,7 +1185,8 @@ void AutoParam::setPlayPos(uint32_t pos, ModelStackWithAutoParam const* modelSta
 		// Get next node
 		int rightI = nodes.search(pos + (int)!reversed, GREATER_OR_EQUAL);
 		if (rightI == nodes.getNumElements()) rightI = 0;
-		ParamNode* nextNodeOurDirection = nodes.getElement(rightI); // This will initially point to the node to the right, regardless of direction; it'll be corrected to left if we're reversed below.
+		ParamNode* nextNodeOurDirection = nodes.getElement(
+		    rightI); // This will initially point to the node to the right, regardless of direction; it'll be corrected to left if we're reversed below.
 
 		if (nextNodeOurDirection->interpolated) {
 
@@ -1174,7 +1204,6 @@ void AutoParam::setPlayPos(uint32_t pos, ModelStackWithAutoParam const* modelSta
 	}
 }
 
-
 int AutoParam::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) {
 
 	int error = NO_ERROR;
@@ -1184,7 +1213,8 @@ int AutoParam::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLengt
 		int numNodes = nodes.getNumElements();
 
 		if (reverseDirectionWithLength && numNodes) {
-			ParamNodeVector oldNodes = nodes; // Sneakily and temporarily clone this - still pointing to the old AutoParam's nodes' memory.
+			ParamNodeVector oldNodes =
+			    nodes; // Sneakily and temporarily clone this - still pointing to the old AutoParam's nodes' memory.
 			nodes.init();
 
 			error = nodes.insertAtIndex(0, numNodes);
@@ -1220,7 +1250,8 @@ int AutoParam::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLengt
 				}
 			}
 
-			oldNodes.init(); // Because this is about to get destructed, we need to stop it pointing to the old AutoParam's nodes' memory, cos we don't want that getting deallocated.
+			oldNodes
+			    .init(); // Because this is about to get destructed, we need to stop it pointing to the old AutoParam's nodes' memory, cos we don't want that getting deallocated.
 		}
 
 		else {
@@ -1232,7 +1263,6 @@ int AutoParam::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLengt
 	renewedOverridingAtTime = 0;
 	return error;
 }
-
 
 // Wait, surely this should be undoable?
 void AutoParam::generateRepeats(uint32_t oldLength, uint32_t newLength, bool shouldPingpong) {
@@ -1256,7 +1286,9 @@ void AutoParam::generateRepeats(uint32_t oldLength, uint32_t newLength, bool sho
 			// This block is a quick simple alternative to calling getValueAtPos(), which would also require a modelStack and check for a bunch of unnecessary stuff.
 			ParamNode* nodeBeforeWrap = (ParamNode*)nodes.getElementAddress(nodes.getNumElements() - 1);
 
-			bool nodeAfterWrapIsInterpolated = nodeAfterWrap->interpolated; // Make copy, cos we need this even after our pointer is no longer valid, cos we insert below.
+			bool nodeAfterWrapIsInterpolated =
+			    nodeAfterWrap
+			        ->interpolated; // Make copy, cos we need this even after our pointer is no longer valid, cos we insert below.
 
 			int32_t valueAtZero;
 
@@ -1281,7 +1313,8 @@ void AutoParam::generateRepeats(uint32_t oldLength, uint32_t newLength, bool sho
 			nothingAtZero = false;
 		}
 
-		int numRepeats = (uint32_t)(newLength - 1) / oldLength + 1; // Rounded up. Including first "repeat", which already exists.
+		int numRepeats =
+		    (uint32_t)(newLength - 1) / oldLength + 1; // Rounded up. Including first "repeat", which already exists.
 
 		int numNodesBefore = nodes.getNumElements();
 
@@ -1312,7 +1345,8 @@ void AutoParam::generateRepeats(uint32_t oldLength, uint32_t newLength, bool sho
 				}
 
 				newPos += oldLength * r;
-				if (newPos >= newLength) break; // Crude way of stopping part-way through the final repeat if it was only a partial one.
+				if (newPos >= newLength)
+					break; // Crude way of stopping part-way through the final repeat if it was only a partial one.
 
 				int32_t newValue = oldNode->value;
 				bool newInterpolated = oldNode->interpolated;
@@ -1357,8 +1391,8 @@ void AutoParam::generateRepeats(uint32_t oldLength, uint32_t newLength, bool sho
 	}
 }
 
-
-void AutoParam::appendParam(AutoParam* otherParam, int32_t oldLength, int32_t reverseThisRepeatWithLength, bool pingpongingGenerally) {
+void AutoParam::appendParam(AutoParam* otherParam, int32_t oldLength, int32_t reverseThisRepeatWithLength,
+                            bool pingpongingGenerally) {
 
 	int numToInsert = otherParam->nodes.getNumElements();
 	if (!numToInsert) return;
@@ -1366,7 +1400,6 @@ void AutoParam::appendParam(AutoParam* otherParam, int32_t oldLength, int32_t re
 	// When recording session to arranger, you may occasionally end up with nodes beyond the Clip's length. These need to be removed now
 	ParamNode* firstNode = otherParam->nodes.getFirst();
 	deleteNodesBeyondPos(oldLength + firstNode->pos);
-
 
 	ParamNode* nodeAfterWrap = (ParamNode*)otherParam->nodes.getElementAddress(0);
 	bool nothingAtZero = nodeAfterWrap->pos;
@@ -1395,11 +1428,9 @@ void AutoParam::appendParam(AutoParam* otherParam, int32_t oldLength, int32_t re
 		//nothingAtZero = false; // Unlike in generateRepeats(), above, the node we've added is not a part of the same array that represents our source material.
 	}
 
-
 	int oldNumNodes = nodes.getNumElements();
 	int error = nodes.insertAtIndex(oldNumNodes, numToInsert);
 	if (error) return;
-
 
 	if (reverseThisRepeatWithLength) {
 
@@ -1451,7 +1482,6 @@ void AutoParam::appendParam(AutoParam* otherParam, int32_t oldLength, int32_t re
 	}
 }
 
-
 void AutoParam::deleteNodesBeyondPos(int32_t pos) {
 	int i = nodes.search(pos, GREATER_OR_EQUAL);
 	int numToDelete = nodes.getNumElements() - i;
@@ -1472,7 +1502,9 @@ void AutoParam::trimToLength(uint32_t newLength, Action* action, ModelStackWithA
 	}
 
 	// To ensure that the effective value at pos 0 remains the same even after earlier nodes deleted, we might need to add a new, non-interpolating node there.
-	bool needNewNodeAt0 = nodes.getFirst()->pos; // Deactivated for now, but I'm going to enable in the ModelStacks branch, where we have a TimelineCounter here.
+	bool needNewNodeAt0 =
+	    nodes.getFirst()
+	        ->pos; // Deactivated for now, but I'm going to enable in the ModelStacks branch, where we have a TimelineCounter here.
 	int32_t oldValueAt0;
 	if (needNewNodeAt0) oldValueAt0 = getValueAtPos(0, modelStack);
 
@@ -1485,11 +1517,10 @@ void AutoParam::trimToLength(uint32_t newLength, Action* action, ModelStackWithA
 
 		// If no action, just basic trim
 		if (!action) {
-basicTrim:
-			{
-				int numToDelete = nodes.getNumElements() - newNumNodes; // Will always be >= 1
-				nodes.deleteAtIndex(newNumNodes, numToDelete);
-			}
+basicTrim : {
+	int numToDelete = nodes.getNumElements() - newNumNodes; // Will always be >= 1
+	nodes.deleteAtIndex(newNumNodes, numToDelete);
+}
 
 addNewNodeAt0IfNecessary:
 			if (needNewNodeAt0) {
@@ -1507,7 +1538,8 @@ addNewNodeAt0IfNecessary:
 		else {
 
 			// If action already has a backed up snapshot for this param, can still just do a basic trim
-			if (action->containsConsequenceParamChange(modelStack->paramCollection, modelStack->paramId)) goto basicTrim;
+			if (action->containsConsequenceParamChange(modelStack->paramCollection, modelStack->paramId))
+				goto basicTrim;
 
 			// Or, if we need to snapshot, work with that
 			else {
@@ -1536,7 +1568,7 @@ addNewNodeAt0IfNecessary:
 	// Or if no nodes afterwards
 	else {
 		if (action) action->recordParamChangeIfNotAlreadySnapshotted(modelStack, true); // Steal
-		nodes.empty(); // Delete them - either if no action, or if the above chose not to steal them.
+		nodes.empty();                 // Delete them - either if no action, or if the above chose not to steal them.
 		valueIncrementPerHalfTick = 0; // In case we were interpolating.
 	}
 }
@@ -1546,9 +1578,7 @@ void AutoParam::writeToFile(bool writeAutomation, int32_t* valueForOverride) {
 
 	storageManager.write("0x");
 
-	int32_t valueNow = (valueForOverride && isAutomated()) ?
-			*valueForOverride :
-			currentValue;
+	int32_t valueNow = (valueForOverride && isAutomated()) ? *valueForOverride : currentValue;
 
 	intToHex(valueNow, buffer);
 	storageManager.write(buffer);
@@ -1594,7 +1624,6 @@ int AutoParam::readFromFile(int32_t readAutomationUpToPos) {
 		return NO_ERROR;
 	}
 
-
 	// Or, normal case - hex and automation...
 
 	// First, read currentValue
@@ -1620,7 +1649,8 @@ int AutoParam::readFromFile(int32_t readAutomationUpToPos) {
 
 					// Allocate space for the right number of notes, and remember how long it'll be before we need to do this check again
 					numElementsToAllocateFor = (uint32_t)(charsRemaining - 1) / 16 + 1;
-					nodes.ensureEnoughSpaceAllocated(numElementsToAllocateFor); // If it returns false... oh well. We'll fail later
+					nodes.ensureEnoughSpaceAllocated(
+					    numElementsToAllocateFor); // If it returns false... oh well. We'll fail later
 				}
 			}
 
@@ -1711,12 +1741,9 @@ void AutoParam::shiftParamVolumeByDB(float offset) {
 	}
 }
 
-
-
 void AutoParam::shiftHorizontally(int amount, int32_t effectiveLength) {
 	nodes.shiftHorizontal(amount, effectiveLength);
 }
-
 
 void AutoParam::swapState(AutoParamState* state, ModelStackWithAutoParam const* modelStack) {
 	bool automatedBefore = isAutomated();
@@ -1728,10 +1755,12 @@ void AutoParam::swapState(AutoParamState* state, ModelStackWithAutoParam const* 
 
 	bool automatedNow = isAutomated();
 
-	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValueHere, true, automatedBefore, automatedNow);
+	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValueHere, true, automatedBefore,
+	                                                          automatedNow);
 }
 
-void AutoParam::paste(int32_t startPos, int32_t endPos, float scaleFactor, ModelStackWithAutoParam const* modelStack, CopiedParamAutomation* copiedParamAutomation, bool isPatchCable) {
+void AutoParam::paste(int32_t startPos, int32_t endPos, float scaleFactor, ModelStackWithAutoParam const* modelStack,
+                      CopiedParamAutomation* copiedParamAutomation, bool isPatchCable) {
 
 	bool automatedBefore = isAutomated();
 
@@ -1813,10 +1842,12 @@ finishedConsideringRestartNode:
 
 	nodes.testSequentiality("E440");
 
-	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, currentValue, true, automatedBefore, isAutomated());
+	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, currentValue, true, automatedBefore,
+	                                                          isAutomated());
 }
 
-void AutoParam::copy(int32_t startPos, int32_t endPos, CopiedParamAutomation* copiedParamAutomation, bool isPatchCable, ModelStackWithAutoParam const* modelStack) {
+void AutoParam::copy(int32_t startPos, int32_t endPos, CopiedParamAutomation* copiedParamAutomation, bool isPatchCable,
+                     ModelStackWithAutoParam const* modelStack) {
 
 	// And if any of them are in the right zone...
 	int startI = nodes.search(startPos, GREATER_OR_EQUAL);
@@ -1839,7 +1870,8 @@ void AutoParam::copy(int32_t startPos, int32_t endPos, CopiedParamAutomation* co
 	if (copiedParamAutomation->numNodes > 0) {
 
 		// Allocate some memory for the nodes
-		copiedParamAutomation->nodes = (ParamNode*)generalMemoryAllocator.alloc(sizeof(ParamNode) * copiedParamAutomation->numNodes, NULL, true);
+		copiedParamAutomation->nodes =
+		    (ParamNode*)generalMemoryAllocator.alloc(sizeof(ParamNode) * copiedParamAutomation->numNodes, NULL, true);
 
 		if (!copiedParamAutomation->nodes) {
 			copiedParamAutomation->numNodes = 0;
@@ -1863,7 +1895,7 @@ void AutoParam::copy(int32_t startPos, int32_t endPos, CopiedParamAutomation* co
 		// Fill in all the Nodes' details
 		int readingNodeI = startI;
 
-		for ( ; n < copiedParamAutomation->numNodes; n++) {
+		for (; n < copiedParamAutomation->numNodes; n++) {
 			ParamNode* nodeToCopy = nodes.getElement(readingNodeI);
 			ParamNode* newNode = &copiedParamAutomation->nodes[n];
 			newNode->pos = nodeToCopy->pos - startPos;
@@ -1945,7 +1977,9 @@ int AutoParam::makeInterpolationGoodAgain(int32_t clipLength, int quantizationRS
 				newNode->interpolated = true;
 
 				int32_t newBigValue;
-				if (newSmallValue == (1 << (31 - quantizationRShift))) newBigValue = 2147483647; // E.g. if a CC value has come out as high as 64, make sure it fits into the 32-bit signed number when we left-shift.
+				if (newSmallValue == (1 << (31 - quantizationRShift)))
+					newBigValue =
+					    2147483647; // E.g. if a CC value has come out as high as 64, make sure it fits into the 32-bit signed number when we left-shift.
 				else newBigValue = newSmallValue << quantizationRShift;
 				newNode->value = newBigValue;
 			}
@@ -1965,7 +1999,6 @@ void AutoParam::transposeCCValuesToChannelPressureValues() {
 
 	currentValue = (currentValue >> 1) + (1 << 30);
 }
-
 
 void AutoParam::deleteTime(int32_t startPos, int32_t lengthToDelete, ModelStackWithAutoParam* modelStack) {
 
@@ -2010,7 +2043,8 @@ void AutoParam::deleteTime(int32_t startPos, int32_t lengthToDelete, ModelStackW
 		nodes.deleteAtIndex(start, numToDelete, !shouldAddNodeAtPos0);
 
 		if (shouldAddNodeAtPos0) {
-			int error = nodes.insertAtIndex(0); // Shouldn't ever fail as we told it not to shorten its memory previously
+			int error =
+			    nodes.insertAtIndex(0); // Shouldn't ever fail as we told it not to shorten its memory previously
 			if (!error) {
 				ParamNode* newNode = nodes.getElement(0);
 				newNode->value = oldValue;
@@ -2033,7 +2067,6 @@ allDeleted:
 	}
 }
 
-
 void AutoParam::insertTime(int32_t pos, int32_t lengthToInsert) {
 	int start = nodes.search(pos, GREATER_OR_EQUAL);
 
@@ -2043,9 +2076,9 @@ void AutoParam::insertTime(int32_t pos, int32_t lengthToInsert) {
 	}
 }
 
-
 // Offset must be either 1 or -1.
-void AutoParam::moveRegionHorizontally(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t length, int offset, int32_t lengthBeforeLoop, Action* action) {
+void AutoParam::moveRegionHorizontally(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t length,
+                                       int offset, int32_t lengthBeforeLoop, Action* action) {
 
 	if (!nodes.getNumElements()) return;
 
@@ -2152,11 +2185,6 @@ justShiftEverything:
 		}
 	}
 
-
-
-
-
-
 	else { // No wrap
 		int resultingIndexes[2];
 		{
@@ -2220,7 +2248,8 @@ justShiftEverything:
 						else {
 							ParamNode tempNode = *leftMostNode;
 							nodes.deleteAtIndex(0, 1, false);
-							nodes.insertAtIndex(lastNodeIndex); // Yes, lastNodeIndex is still correct. And, this really shouldn't be able to give an error...
+							nodes.insertAtIndex(
+							    lastNodeIndex); // Yes, lastNodeIndex is still correct. And, this really shouldn't be able to give an error...
 							lastNode = nodes.getElement(lastNodeIndex);
 							*lastNode = tempNode;
 						}
@@ -2238,8 +2267,8 @@ justShiftEverything:
 	}
 }
 
-
-void AutoParam::nudgeNonInterpolatingNodesAtPos(int32_t pos, int offset, int32_t lengthBeforeLoop, Action* action, ModelStackWithAutoParam const* modelStack) {
+void AutoParam::nudgeNonInterpolatingNodesAtPos(int32_t pos, int offset, int32_t lengthBeforeLoop, Action* action,
+                                                ModelStackWithAutoParam const* modelStack) {
 	int nodeI = nodes.searchExact(pos);
 	if (nodeI != -1) {
 
@@ -2256,7 +2285,9 @@ void AutoParam::nudgeNonInterpolatingNodesAtPos(int32_t pos, int offset, int32_t
 			// If that's caused wrapping left...
 			if (newNodePos < 0) {
 				newNodePos += lengthBeforeLoop;
-				nextNodeI = nodes.getNumElements() - 2; // Subtract 2 instead of the normal 1 cos we're about to delete one element before doing anything with this index number
+				nextNodeI =
+				    nodes.getNumElements()
+				    - 2; // Subtract 2 instead of the normal 1 cos we're about to delete one element before doing anything with this index number
 
 doWrap:
 				// There should never be just one node
@@ -2284,7 +2315,8 @@ doWrap:
 				else {
 					nextNodeI = nodes.getNumElements();
 					{
-						int error = nodes.insertAtIndex(nextNodeI); // This shouldn't be able to fail, cos we just deleted a node
+						int error = nodes.insertAtIndex(
+						    nextNodeI); // This shouldn't be able to fail, cos we just deleted a node
 						if (ALPHA_OR_BETA_VERSION && error) numericDriver.freezeWithError("E333");
 					}
 
@@ -2312,8 +2344,7 @@ setNodeValue:
 				node->pos = newNodePos;
 
 				// If no previously existing nodes further in that direction at all, that's easy
-				if (nextNodeI < 0 || nextNodeI >= nodes.getNumElements()) {
-				}
+				if (nextNodeI < 0 || nextNodeI >= nodes.getNumElements()) {}
 
 				// Or if some node, have a look at it, and delete it if it's been collided with
 				else {
@@ -2333,12 +2364,12 @@ setNodeValue:
 	nodes.testSequentiality("E334");
 }
 
-
 void AutoParam::notifyPingpongOccurred() {
 	valueIncrementPerHalfTick = -valueIncrementPerHalfTick;
 }
 
-void AutoParam::stealNodes(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t regionLength, int32_t loopLength, Action* action, StolenParamNodes* stolenNodeRecord) {
+void AutoParam::stealNodes(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t regionLength,
+                           int32_t loopLength, Action* action, StolenParamNodes* stolenNodeRecord) {
 
 	int32_t stopAt = pos + regionLength;
 	int32_t durationAfterWrap = (stopAt - loopLength);
@@ -2375,7 +2406,8 @@ void AutoParam::stealNodes(ModelStackWithAutoParam const* modelStack, int32_t po
 				int stopAtI = resultingIndexes[1];
 				int destI = 0;
 
-goAgain:		while (sourceI < stopAtI) {
+goAgain:
+				while (sourceI < stopAtI) {
 					memcpy(&stolenNodes[destI], nodes.getElementAddress(sourceI), sizeof(ParamNode));
 					//stolenNodes[destI] = *(ParamNode*)nodes.getElementAddress(sourceI);
 
@@ -2407,7 +2439,8 @@ goAgain:		while (sourceI < stopAtI) {
 	nodes.testSequentiality("E424");
 }
 
-void AutoParam::insertStolenNodes(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t regionLength, int32_t loopLength, Action* action, StolenParamNodes* stolenNodeRecord) {
+void AutoParam::insertStolenNodes(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t regionLength,
+                                  int32_t loopLength, Action* action, StolenParamNodes* stolenNodeRecord) {
 
 	bool wasAutomatedBefore = isAutomated();
 
@@ -2419,7 +2452,8 @@ void AutoParam::insertStolenNodes(ModelStackWithAutoParam const* modelStack, int
 	// This is really inefficient.
 	for (int sourceI = 0; sourceI < stolenNodeRecord->num; sourceI++) {
 		ParamNode* stolenNode = &stolenNodeRecord->nodes[sourceI];
-		if (stolenNode->pos >= regionLength) break; // If our destination region is shorter than that of the stolen nodes
+		if (stolenNode->pos >= regionLength)
+			break; // If our destination region is shorter than that of the stolen nodes
 		int32_t destPos = stolenNode->pos + pos;
 		if (destPos >= loopLength) destPos -= loopLength;
 
@@ -2432,11 +2466,11 @@ void AutoParam::insertStolenNodes(ModelStackWithAutoParam const* modelStack, int
 		destNode->pos = destPos;
 	}
 
-	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, currentValue, true, wasAutomatedBefore, isAutomated());
+	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, currentValue, true, wasAutomatedBefore,
+	                                                          isAutomated());
 
 	nodes.testSequentiality("E423");
 }
-
 
 // Disregards a node that's right at pos.
 // Maybe I ought to make this take cut-points into consideration... but I can't see a need yet...
@@ -2447,8 +2481,8 @@ int32_t AutoParam::getDistanceToNextNode(ModelStackWithAutoParam const* modelSta
 	if (!nodes.getNumElements()) return effectiveLength;
 
 	int i = nodes.search(pos + !reversed, GREATER_OR_EQUAL) - reversed;
-	if		(i == -1)						i = nodes.getNumElements() - 1;
-	else if	(i == nodes.getNumElements())	i = 0;
+	if (i == -1) i = nodes.getNumElements() - 1;
+	else if (i == nodes.getNumElements()) i = 0;
 
 	ParamNode* node = (ParamNode*)nodes.getElementAddress(i);
 
@@ -2458,7 +2492,6 @@ int32_t AutoParam::getDistanceToNextNode(ModelStackWithAutoParam const* modelSta
 
 	return distance;
 }
-
 
 /*
 	for (int i = 0; i < nodes.getNumElements(); i++) {

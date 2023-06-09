@@ -15,6 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+// clang-format off
+
 #include "lookuptables.h"
 #include "r_typedefs.h"
 

@@ -20,7 +20,6 @@
 #ifndef EXTERN_H_
 #define EXTERN_H_
 
-
 extern bool sdRoutineLock;
 extern int16_t zeroMPEValues[];
 extern bool allowSomeUserActionsEvenWhenInCardRoutine;

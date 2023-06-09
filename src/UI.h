@@ -78,64 +78,66 @@ extern uint32_t currentUIMode;
 #define UI_MODE_AUDITIONING (1 << 30)
 #define UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON ((uint32_t)1 << 31)
 
-
 class UI {
-  public:
+public:
 	UI();
 
-    virtual int padAction(int x, int y, int velocity) { return ACTION_RESULT_DEALT_WITH; }
-    virtual int buttonAction(int x, int y, bool on, bool inCardRoutine) { return ACTION_RESULT_NOT_DEALT_WITH; }
-    virtual int horizontalEncoderAction(int offset) { return ACTION_RESULT_DEALT_WITH; }
-    virtual int verticalEncoderAction(int offset, bool inCardRoutine) { return ACTION_RESULT_DEALT_WITH; }
-    virtual void selectEncoderAction(int8_t offset) {}
-    virtual void modEncoderAction(int whichModEncoder, int offset);
-    virtual void modButtonAction(uint8_t whichButton, bool on);
-    virtual void modEncoderButtonAction(uint8_t whichModEncoder, bool on);
+	virtual int padAction(int x, int y, int velocity) { return ACTION_RESULT_DEALT_WITH; }
+	virtual int buttonAction(int x, int y, bool on, bool inCardRoutine) { return ACTION_RESULT_NOT_DEALT_WITH; }
+	virtual int horizontalEncoderAction(int offset) { return ACTION_RESULT_DEALT_WITH; }
+	virtual int verticalEncoderAction(int offset, bool inCardRoutine) { return ACTION_RESULT_DEALT_WITH; }
+	virtual void selectEncoderAction(int8_t offset) {}
+	virtual void modEncoderAction(int whichModEncoder, int offset);
+	virtual void modButtonAction(uint8_t whichButton, bool on);
+	virtual void modEncoderButtonAction(uint8_t whichModEncoder, bool on);
 
-    virtual void graphicsRoutine();
-    virtual int timerCallback() { return ACTION_RESULT_DEALT_WITH; }
+	virtual void graphicsRoutine();
+	virtual int timerCallback() { return ACTION_RESULT_DEALT_WITH; }
 
+	virtual bool opened() {
+		focusRegained();
+		return true;
+	}
+	virtual void focusRegained() {}
+	virtual bool canSeeViewUnderneath() { return false; }
+	virtual ClipMinder* toClipMinder() { return NULL; }
+	virtual void scrollFinished() {}
+	virtual bool noteOnReceivedForMidiLearn(MIDIDevice* fromDevice, int channel, int note, int velocity) {
+		return false;
+	} // Returns whether it was used, I think?
 
-    virtual bool opened() { focusRegained(); return true; }
-    virtual void focusRegained() {}
-    virtual bool canSeeViewUnderneath() { return false; }
-    virtual ClipMinder* toClipMinder() { return NULL; }
-    virtual void scrollFinished() {}
-    virtual bool noteOnReceivedForMidiLearn(MIDIDevice* fromDevice, int channel, int note, int velocity) { return false; } // Returns whether it was used, I think?
+	virtual bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
+		return false;
+	} // Returning false means obey UI under me
 
-    virtual bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) { return false; } // Returning false means obey UI under me
+	// When these return false it means they're transparent, showing what's underneath.
+	// These *must* check whether image has been supplied - if not, just return, saying whether opaque or not.
+	// Cos we need to be able to quiz these without actually getting any rendering done.
+	virtual bool renderMainPads(uint32_t whichRows = 0, uint8_t image[][displayWidth + sideBarWidth][3] = NULL,
+	                            uint8_t occupancyMask[][displayWidth + sideBarWidth] = NULL,
+	                            bool drawUndefinedArea = true) {
+		return false;
+	}
+	virtual bool renderSidebar(uint32_t whichRows = 0, uint8_t image[][displayWidth + sideBarWidth][3] = NULL,
+	                           uint8_t occupancyMask[][displayWidth + sideBarWidth] = NULL) {
+		return false;
+	}
 
-
-
-    // When these return false it means they're transparent, showing what's underneath.
-    // These *must* check whether image has been supplied - if not, just return, saying whether opaque or not.
-    // Cos we need to be able to quiz these without actually getting any rendering done.
-    virtual bool renderMainPads(uint32_t whichRows = 0, uint8_t image[][displayWidth + sideBarWidth][3] = NULL, uint8_t occupancyMask[][displayWidth + sideBarWidth] = NULL,
-    		bool drawUndefinedArea = true) { return false; }
-    virtual bool renderSidebar(uint32_t whichRows = 0, uint8_t image[][displayWidth + sideBarWidth][3] = NULL, uint8_t occupancyMask[][displayWidth + sideBarWidth] = NULL) { return false; }
-
-    void close();
-
+	void close();
 
 #if HAVE_OLED
-    virtual void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) = 0;
-    bool oledShowsUIUnderneath;
+	virtual void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) = 0;
+	bool oledShowsUIUnderneath;
 #endif
 };
-
-
-
-
-
-
-
-
 
 // UIs
 UI* getCurrentUI();
 RootUI* getRootUI();
 UI* getUIUpOneLevel(int numLevelsUp);
-static UI* getUIUpOneLevel() { return getUIUpOneLevel(1); }
+static UI* getUIUpOneLevel() {
+	return getUIUpOneLevel(1);
+}
 void closeUI(UI* ui);
 bool openUI(UI* newUI);
 void changeRootUI(UI* newUI);

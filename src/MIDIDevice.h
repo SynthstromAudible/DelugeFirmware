@@ -22,20 +22,18 @@
 #include "definitions.h"
 #include "ModelStack.h"
 
-
 // These numbers are what get stored just in the internal Deluge flash memory to represent things.
-#define VENDOR_ID_NONE			0
-#define VENDOR_ID_UPSTREAM_USB	1
-#define VENDOR_ID_DIN			2
+#define VENDOR_ID_NONE 0
+#define VENDOR_ID_UPSTREAM_USB 1
+#define VENDOR_ID_DIN 2
 
-#define MIDI_DIRECTION_INPUT_TO_DELUGE		0
-#define MIDI_DIRECTION_OUTPUT_FROM_DELUGE	1
+#define MIDI_DIRECTION_INPUT_TO_DELUGE 0
+#define MIDI_DIRECTION_OUTPUT_FROM_DELUGE 1
 
 #define MPE_ZONE_LOWER_NUMBERED_FROM_0 0
 #define MPE_ZONE_UPPER_NUMBERED_FROM_0 1
 
 class MIDIDevice;
-
 
 class MIDIPort {
 public:
@@ -51,18 +49,20 @@ public:
 	void moveLowerZoneOutOfWayOfUpperZone();
 
 	inline bool isChannelPartOfAnMPEZone(int channel) {
-		return (channel >= 1 && channel <= 14 && (mpeLowerZoneLastMemberChannel >= channel || mpeUpperZoneLastMemberChannel <= channel));
+		return (channel >= 1 && channel <= 14
+		        && (mpeLowerZoneLastMemberChannel >= channel || mpeUpperZoneLastMemberChannel <= channel));
 	}
 
-	uint8_t mpeLowerZoneLastMemberChannel;	// 0 means off
-	uint8_t mpeUpperZoneLastMemberChannel;	// 15 means off
+	uint8_t mpeLowerZoneLastMemberChannel; // 0 means off
+	uint8_t mpeUpperZoneLastMemberChannel; // 15 means off
 };
 
 class MIDIInputChannel {
 public:
 	MIDIInputChannel() {
-		bendRange = 0;	// Means not set; don't copy value. Also, note this is the "main" bend range; there isn't one for finger-level because this is a non-MPE single MIDI channel.
-		rpnLSB = 127;	// Means no param specified
+		bendRange =
+		    0; // Means not set; don't copy value. Also, note this is the "main" bend range; there isn't one for finger-level because this is a non-MPE single MIDI channel.
+		rpnLSB = 127; // Means no param specified
 		rpnMSB = 127;
 	}
 	uint8_t rpnLSB;
@@ -85,20 +85,16 @@ public:
 	bool worthWritingToFile();
 	void writePorts();
 
-
 	virtual void sendMessage(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2) = 0;
 
-	inline void sendCC(int channel, int cc, int value) {
-		sendMessage(0x0B, channel, cc, value);
-	}
+	inline void sendCC(int channel, int cc, int value) { sendMessage(0x0B, channel, cc, value); }
 
 	void sendRPN(int channel, int rpnMSB, int rpnLSB, int valueMSB);
 
-	inline bool hasDefaultVelocityToLevelSet() {
-		return defaultVelocityToLevel;
-	}
+	inline bool hasDefaultVelocityToLevelSet() { return defaultVelocityToLevel; }
 
-	MIDIPort ports[2]; // I think I used an array here so the settings menu could deal with either one easily - which doesn't seem like a very strong reason really...
+	MIDIPort ports
+	    [2]; // I think I used an array here so the settings menu could deal with either one easily - which doesn't seem like a very strong reason really...
 
 	// These are stored as full-range 16-bit values (scaled up from 7 or 14-bit MIDI depending on which), and you'll want to scale this up again to 32-bit to use them.
 	// X and Y may be both positive and negative, and Z may only be positive (so has been scaled up less from incoming bits).
@@ -112,20 +108,19 @@ public:
 
 	int32_t defaultVelocityToLevel;
 
-	uint8_t connectionFlags;	// 0 if not connected. For USB devices, the bits signal a connection of the corresponding connectedUSBMIDIDevices[].
-								// Of course there'll usually just be one bit set, unless two of the same device are connected.
+	// 0 if not connected. For USB devices, the bits signal a connection of the corresponding connectedUSBMIDIDevices[].
+	// Of course there'll usually just be one bit set, unless two of the same device are connected.
+	uint8_t connectionFlags;
 
 protected:
-	virtual void writeReferenceAttributesToFile() = 0;	// These go both into MIDIDEVICES.XML and also any song/preset files where there's a reference to this Device.
-	void writeDefinitionAttributesToFile();		// These only go into MIDIDEVICES.XML.
+	virtual void
+	writeReferenceAttributesToFile() = 0; // These go both into MIDIDEVICES.XML and also any song/preset files where there's a reference to this Device.
+	void writeDefinitionAttributesToFile(); // These only go into MIDIDEVICES.XML.
 };
-
 
 class MIDIDeviceUSB : public MIDIDevice {
 public:
-	MIDIDeviceUSB() {
-		needsToSendMCMs = 0;
-	}
+	MIDIDeviceUSB() { needsToSendMCMs = 0; }
 	void sendMessage(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2);
 	void connectedNow(int midiDeviceNum);
 	void sendMCMsNowIfNeeded();

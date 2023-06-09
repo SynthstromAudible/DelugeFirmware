@@ -20,4 +20,3 @@
 WaveTableHolder::WaveTableHolder() {
 	audioFileType = AUDIO_FILE_TYPE_WAVETABLE;
 }
-

@@ -41,27 +41,27 @@
 
 #if defined(USB_CFG_HCDC_USE)
 #include "r_usb_hcdc_if.h"
-#endif  /* defined(USB_CFG_PCDC_USE) */
+#endif /* defined(USB_CFG_PCDC_USE) */
 
 #if defined(USB_CFG_HHID_USE)
 #include <drivers/usb/r_usb_hmidi/r_usb_hmidi_if.h>
-#endif  /* defined(USB_CFG_HMSC_USE) */
+#endif /* defined(USB_CFG_HMSC_USE) */
 
 #if defined(USB_CFG_HMSC_USE)
 #include "r_usb_hmsc_if.h"
-#endif  /* defined(USB_CFG_HMSC_USE) */
+#endif /* defined(USB_CFG_HMSC_USE) */
 
 #if defined(USB_CFG_PCDC_USE)
 #include "r_usb_pcdc_if.h"
-#endif  /* defined(USB_CFG_PCDC_USE) */
+#endif /* defined(USB_CFG_PCDC_USE) */
 
 #if defined(USB_CFG_PMSC_USE)
 #include "drivers/usb/r_usb_pmsc/r_usb_pmsc_if.h"
-#endif  /* defined(USB_CFG_PMSC_USE) */
+#endif /* defined(USB_CFG_PMSC_USE) */
 
 #if ((USB_CFG_DTC == USB_CFG_ENABLE) || (USB_CFG_DMA == USB_CFG_ENABLE))
 #include "drivers/usb/r_usb_basic/src/hw/inc/r_usb_dmac.h"
-#endif  /* ((USB_CFG_DTC == USB_CFG_ENABLE) || (USB_CFG_DMA == USB_CFG_ENABLE)) */
+#endif /* ((USB_CFG_DTC == USB_CFG_ENABLE) || (USB_CFG_DMA == USB_CFG_ENABLE)) */
 
 /**********************************************************************************************************************
  Exported global variables
@@ -69,9 +69,9 @@
 extern uint16_t g_usb_usbmode;
 
 #if defined(USB_CFG_HMSC_USE)
-extern uint8_t  g_drive_search_lock;
-extern uint8_t  g_drive_search_que[];
-extern uint8_t  g_drive_search_que_cnt;
+extern uint8_t g_drive_search_lock;
+extern uint8_t g_drive_search_que[];
+extern uint8_t g_drive_search_que_cnt;
 #endif /* defined(USB_CFG_HMSC_USE) */
 
 /**********************************************************************************************************************
@@ -85,7 +85,7 @@ extern uint8_t  g_drive_search_que_cnt;
                  : uint16_t     pipe         : Pipe number.
  Return value    : none
  *********************************************************************************************************************/
-void usb_cstd_nrdy_enable(usb_utr_t *ptr, uint16_t pipe)
+void usb_cstd_nrdy_enable(usb_utr_t* ptr, uint16_t pipe)
 {
     /* Enable NRDY */
     hw_usb_set_nrdyenb(ptr, pipe);
@@ -98,9 +98,9 @@ void usb_cstd_nrdy_enable(usb_utr_t *ptr, uint16_t pipe)
                  : uint16_t     pipe         : Pipe number.
  Return value    : uint16_t PID-bit status
  *********************************************************************************************************************/
-uint16_t usb_cstd_get_pid(usb_utr_t *ptr, uint16_t pipe)
+uint16_t usb_cstd_get_pid(usb_utr_t* ptr, uint16_t pipe)
 {
-    uint16_t    buf;
+    uint16_t buf;
 
     /* PIPE control reg read */
     buf = hw_usb_read_pipectr(ptr, pipe);
@@ -117,10 +117,10 @@ extern uint16_t pipeMaxPs[];
                  : uint16_t     pipe         : Pipe number.
  Return value    : uint16_t MaxPacketSize
  *********************************************************************************************************************/
-uint16_t usb_cstd_get_maxpacket_size(usb_utr_t *ptr, uint16_t pipe)
+uint16_t usb_cstd_get_maxpacket_size(usb_utr_t* ptr, uint16_t pipe)
 {
-    uint16_t    size;
-    uint16_t    buffer;
+    uint16_t size;
+    uint16_t buffer;
 
     if (USB_PIPE0 == pipe)
     {
@@ -144,9 +144,9 @@ uint16_t usb_cstd_get_maxpacket_size(usb_utr_t *ptr, uint16_t pipe)
                  : uint16_t     pipe         : Pipe number.
  Return value    : uint16_t                  : Pipe direction.
  *********************************************************************************************************************/
-uint16_t usb_cstd_get_pipe_dir(usb_utr_t *ptr, uint16_t pipe)
+uint16_t usb_cstd_get_pipe_dir(usb_utr_t* ptr, uint16_t pipe)
 {
-    uint16_t    buffer;
+    uint16_t buffer;
 
     /* Pipe select */
     hw_usb_write_pipesel(ptr, pipe);
@@ -163,9 +163,9 @@ uint16_t usb_cstd_get_pipe_dir(usb_utr_t *ptr, uint16_t pipe)
                  : uint16_t     pipe         : Pipe number.
  Return value    : uint16_t                   : Pipe type
  *********************************************************************************************************************/
-uint16_t usb_cstd_get_pipe_type(usb_utr_t *ptr, uint16_t pipe)
+uint16_t usb_cstd_get_pipe_type(usb_utr_t* ptr, uint16_t pipe)
 {
-    uint16_t    buffer;
+    uint16_t buffer;
 
     /* Pipe select */
     hw_usb_write_pipesel(ptr, pipe);
@@ -176,16 +176,16 @@ uint16_t usb_cstd_get_pipe_type(usb_utr_t *ptr, uint16_t pipe)
     return (uint16_t)(buffer & USB_TYPFIELD);
 } /* End of function usb_pstd_DriverRelease() */
 
-
 extern uint16_t pipeCfgs[];
-uint16_t usb_cstd_get_pipe_type_from_memory(uint16_t pipe) { // Function by Rohan
-	return pipeCfgs[pipe] & USB_TYPFIELD;
+uint16_t usb_cstd_get_pipe_type_from_memory(uint16_t pipe)
+{ // Function by Rohan
+    return pipeCfgs[pipe] & USB_TYPFIELD;
 }
 
-uint16_t usb_cstd_get_pipe_dir_from_memory(uint16_t pipe) { // Function by Rohan
-	return pipeCfgs[pipe] & USB_DIRFIELD;
+uint16_t usb_cstd_get_pipe_dir_from_memory(uint16_t pipe)
+{ // Function by Rohan
+    return pipeCfgs[pipe] & USB_DIRFIELD;
 }
-
 
 /**********************************************************************************************************************
  Function Name   : usb_cstd_do_aclrm
@@ -194,7 +194,7 @@ uint16_t usb_cstd_get_pipe_dir_from_memory(uint16_t pipe) { // Function by Rohan
                  : uint16_t     pipe         : Pipe number.
  Return value    : none
  *********************************************************************************************************************/
-void usb_cstd_do_aclrm(usb_utr_t *ptr, uint16_t pipe)
+void usb_cstd_do_aclrm(usb_utr_t* ptr, uint16_t pipe)
 {
     /* Control ACLRM */
     hw_usb_set_aclrm(ptr, pipe);
@@ -208,7 +208,7 @@ void usb_cstd_do_aclrm(usb_utr_t *ptr, uint16_t pipe)
                  : uint16_t     pipe         : Pipe number.
  Return value    : none
  *********************************************************************************************************************/
-void usb_cstd_set_buf(usb_utr_t *ptr, uint16_t pipe)
+void usb_cstd_set_buf(usb_utr_t* ptr, uint16_t pipe)
 {
     /* PIPE control reg set */
     hw_usb_set_pid(ptr, pipe, USB_PID_BUF);
@@ -223,7 +223,7 @@ void usb_cstd_set_buf(usb_utr_t *ptr, uint16_t pipe)
  Return value    : none
  Note            : PID is set to NAK.
  *********************************************************************************************************************/
-void usb_cstd_clr_stall(usb_utr_t *ptr, uint16_t pipe)
+void usb_cstd_clr_stall(usb_utr_t* ptr, uint16_t pipe)
 {
     /* Set NAK */
     usb_cstd_set_nak(ptr, pipe);
@@ -242,10 +242,10 @@ void usb_cstd_clr_stall(usb_utr_t *ptr, uint16_t pipe)
                  :                           : LSCONNECT : Low-Speed
                  :                           : NOCONNECT : not connect
  *********************************************************************************************************************/
-uint16_t usb_cstd_port_speed(usb_utr_t *ptr, uint16_t port)
+uint16_t usb_cstd_port_speed(usb_utr_t* ptr, uint16_t port)
 {
-    uint16_t    buf;
-    uint16_t    conn_inf;
+    uint16_t buf;
+    uint16_t conn_inf;
 
     buf = hw_usb_read_dvstctr(ptr, port);
 
@@ -259,31 +259,31 @@ uint16_t usb_cstd_port_speed(usb_utr_t *ptr, uint16_t port)
 
             conn_inf = USB_HSCONNECT;
 
-        break;
+            break;
 
         case USB_FSMODE:
 
             conn_inf = USB_FSCONNECT;
 
-        break;
+            break;
 
         case USB_LSMODE:
 
             conn_inf = USB_LSCONNECT;
 
-        break;
+            break;
 
         case USB_HSPROC:
 
             conn_inf = USB_NOCONNECT;
 
-        break;
+            break;
 
         default:
 
             conn_inf = USB_NOCONNECT;
 
-        break;
+            break;
     }
 
     return (conn_inf);
@@ -296,20 +296,19 @@ uint16_t usb_cstd_port_speed(usb_utr_t *ptr, uint16_t port)
                  : usb_ctrl_t   *p_ctrl      : Control structure for USB API.
  Return value    : none
  *********************************************************************************************************************/
-void usb_set_event(uint16_t event, usb_ctrl_t *ctrl)
+void usb_set_event(uint16_t event, usb_ctrl_t* ctrl)
 {
     g_usb_cstd_event.code[g_usb_cstd_event.write_pointer] = event;
     g_usb_cstd_event.ctrl[g_usb_cstd_event.write_pointer] = *ctrl;
     g_usb_cstd_event.write_pointer++;
-    if( g_usb_cstd_event.write_pointer >= USB_EVENT_MAX )
+    if (g_usb_cstd_event.write_pointer >= USB_EVENT_MAX)
     {
         g_usb_cstd_event.write_pointer = 0;
     }
 } /* End of function usb_pstd_DriverRelease() */
 
-
-extern uint8_t      usb_scheduler_id_use;
-extern uint8_t      usb_scheduler_schedule_flag;
+extern uint8_t usb_scheduler_id_use;
+extern uint8_t usb_scheduler_schedule_flag;
 /**********************************************************************************************************************
  Function Name   : usb_cstd_usb_task
  Description     : USB driver main loop processing.
@@ -324,46 +323,47 @@ void usb_cstd_usb_task(void)
 #if defined(USB_CFG_HMSC_USE)
         do
         {
-#endif  /* defined(USB_CFG_HMSC_USE) */
-doMoreIfAnyMore: {}
-		//uint16_t startTime = *TCNT[TIMER_SYSTEM_SUPERFAST];
+#endif /* defined(USB_CFG_HMSC_USE) */
+doMoreIfAnyMore:
+            {
+            }
+            //uint16_t startTime = *TCNT[TIMER_SYSTEM_SUPERFAST];
 
-        usb_cstd_scheduler(); /* Scheduler */
-        if (USB_FLGSET == usb_cstd_check_schedule())    /* Check for any task processing requests flags. */
-        {
-        	switch (usb_scheduler_id_use) {
-        	case USB_HCD_MBX:
-                usb_hstd_hcd_task((usb_vp_int_t) 0);    /* HCD Task */
-                break;
+            usb_cstd_scheduler();                        /* Scheduler */
+            if (USB_FLGSET == usb_cstd_check_schedule()) /* Check for any task processing requests flags. */
+            {
+                switch (usb_scheduler_id_use)
+                {
+                    case USB_HCD_MBX:
+                        usb_hstd_hcd_task((usb_vp_int_t)0); /* HCD Task */
+                        break;
 
-        	case USB_MGR_MBX:
-                usb_hstd_mgr_task((usb_vp_int_t) 0);    /* MGR Task */
-                break;
+                    case USB_MGR_MBX:
+                        usb_hstd_mgr_task((usb_vp_int_t)0); /* MGR Task */
+                        break;
 
-        	case USB_HUB_MBX:
-                usb_hhub_task((usb_vp_int_t) 0);        /* HUB Task */
-                break;
+                    case USB_HUB_MBX:
+                        usb_hhub_task((usb_vp_int_t)0); /* HUB Task */
+                        break;
 
-        	case USB_HMIDI_MBX:
-                usb_class_task();
-                break;
-        	}
+                    case USB_HMIDI_MBX:
+                        usb_class_task();
+                        break;
+                }
 
-
-            /*
+                /*
             uint16_t endTime = *TCNT[TIMER_SYSTEM_SUPERFAST];
 			uint16_t duration = endTime - startTime;
 			uint32_t timePassedNS = superfastTimerCountToNS(duration);
 			uartPrint("host task duration, nSec: ");
 			uartPrintNumber(timePassedNS);
 			*/
-            goto doMoreIfAnyMore; // By Rohan. Want to process everything immediately - especially cos of that bug which means all data reads must be done before any data writes. (Wait, does that still exist?)
-        }
+                goto doMoreIfAnyMore; // By Rohan. Want to process everything immediately - especially cos of that bug which means all data reads must be done before any data writes. (Wait, does that still exist?)
+            }
 #if defined(USB_CFG_HMSC_USE)
-    }
-    while (USB_FALSE != g_drive_search_lock);
-#endif  /* defined(USB_CFG_HMSC_USE) */
-#endif  /* (USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST */
+        } while (USB_FALSE != g_drive_search_lock);
+#endif /* defined(USB_CFG_HMSC_USE) */
+#endif /* (USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST */
     }
     else
     {
@@ -371,8 +371,8 @@ doMoreIfAnyMore: {}
         usb_pstd_pcd_task();
 #if defined(USB_CFG_PMSC_USE)
         usb_pmsc_task();
-#endif  /* defined(USB_CFG_PMSC_USE) */
-#endif  /* (USB_CFG_MODE & USB_CFG_PERI) == USB_CFG_PERI */
+#endif /* defined(USB_CFG_PMSC_USE) */
+#endif /* (USB_CFG_MODE & USB_CFG_PERI) == USB_CFG_PERI */
     }
 } /* End of function usb_cstd_usb_task() */
 
@@ -385,11 +385,11 @@ doMoreIfAnyMore: {}
 void usb_class_task(void)
 {
 #if defined(USB_CFG_HMSC_USE)
-    usb_utr_t   utr;
-    uint16_t    addr;
+    usb_utr_t utr;
+    uint16_t addr;
 
-    R_USB_HmscTask();               /* USB Host MSC driver task */
-    R_USB_HmscStrgDriveTask();      /* HSTRG Task */
+    R_USB_HmscTask();          /* USB Host MSC driver task */
+    R_USB_HmscStrgDriveTask(); /* HSTRG Task */
 
     if (USB_FALSE == g_drive_search_lock)
     {
@@ -403,26 +403,26 @@ void usb_class_task(void)
                 utr.ip = USB_IP1;
             }
 
-            addr = g_drive_search_lock & USB_ADDRESS_MASK;
+            addr    = g_drive_search_lock & USB_ADDRESS_MASK;
             utr.ipp = usb_hstd_get_usb_ip_adr(utr.ip); /* Get the USB IP base address. */
 
             /* Storage drive search. */
-            R_USB_HmscStrgDriveSearch(&utr, addr, (usb_cb_t) usb_hmsc_drive_complete);
+            R_USB_HmscStrgDriveSearch(&utr, addr, (usb_cb_t)usb_hmsc_drive_complete);
         }
     }
-#endif  /* defined(USB_CFG_HMSC_USE) */
+#endif /* defined(USB_CFG_HMSC_USE) */
 
 #if defined(USB_CFG_HCDC_USE)
     R_USB_HcdcTask((usb_vp_int_t)0); /* USB Host CDC driver task */
-#endif  /* defined(USB_CFG_HCDC_USE) */
+#endif                               /* defined(USB_CFG_HCDC_USE) */
 
 #if defined(USB_CFG_HHID_USE)
     R_USB_HhidTask((usb_vp_int_t)0); /* USB Host CDC driver task */
-#endif  /* defined(USB_CFG_HCDC_USE) */
+#endif                               /* defined(USB_CFG_HCDC_USE) */
 
 #if defined(USB_CFG_HMIDI_USE)
     usb_hmidi_task(0);
-#endif  /* defined(USB_CFG_HCDC_USE) */
+#endif /* defined(USB_CFG_HCDC_USE) */
 
 } /* End of function usb_class_task */
 

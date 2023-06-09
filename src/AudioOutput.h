@@ -30,51 +30,61 @@ public:
 	virtual ~AudioOutput();
 	void cloneFrom(ModControllableAudio* other);
 
-	void renderOutput(ModelStack* modelStack, StereoSample *startPos, StereoSample *endPos, int numSamples, int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive);
+	void renderOutput(ModelStack* modelStack, StereoSample* startPos, StereoSample* endPos, int numSamples,
+	                  int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending,
+	                  bool shouldLimitDelayFeedback, bool isClipActive);
 
-    void renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStack, StereoSample* globalEffectableBuffer, int32_t* bufferToTransferTo, int numSamples, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
-        		int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive, int32_t pitchAdjust, int32_t amplitudeAtStart, int32_t amplitudeAtEnd);
+	void renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStack, StereoSample* globalEffectableBuffer,
+	                                   int32_t* bufferToTransferTo, int numSamples, int32_t* reverbBuffer,
+	                                   int32_t reverbAmountAdjust, int32_t sideChainHitPending,
+	                                   bool shouldLimitDelayFeedback, bool isClipActive, int32_t pitchAdjust,
+	                                   int32_t amplitudeAtStart, int32_t amplitudeAtEnd);
 
-    void resetEnvelope();
+	void resetEnvelope();
 
 	ModControllable* toModControllable() { return this; }
 	uint8_t* getModKnobMode() { return &modKnobMode; }
 
 	void cutAllSound();
-	void getThingWithMostReverb(Sound** soundWithMostReverb, ParamManagerForTimeline** paramManagerWithMostReverb, Kit** kitWithMostReverb,
-				int32_t* highestReverbAmountFound);
+	void getThingWithMostReverb(Sound** soundWithMostReverb, ParamManagerForTimeline** paramManagerWithMostReverb,
+	                            Kit** kitWithMostReverb, int32_t* highestReverbAmountFound);
 
 	int readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos);
-    bool writeDataToFile(Clip* clipForSavingOutputOnly, Song* song);
-    void deleteBackedUpParamManagers(Song* song);
-    bool setActiveClip(ModelStackWithTimelineCounter* modelStack, int maySendMIDIPGMs = PGM_CHANGE_SEND_ONCE);
-    bool isSkippingRendering();
-    Output* toOutput() { return this; }
-    void getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb, GlobalEffectableForClip** globalEffectableWithMostReverb, int32_t* highestReverbAmountFound);
+	bool writeDataToFile(Clip* clipForSavingOutputOnly, Song* song);
+	void deleteBackedUpParamManagers(Song* song);
+	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, int maySendMIDIPGMs = PGM_CHANGE_SEND_ONCE);
+	bool isSkippingRendering();
+	Output* toOutput() { return this; }
+	void getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb,
+	                            GlobalEffectableForClip** globalEffectableWithMostReverb,
+	                            int32_t* highestReverbAmountFound);
 
-    // A TimelineCounter is required
-    void offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value, ModelStackWithTimelineCounter* modelStack) {
-        ModControllableAudio::offerReceivedCCToLearnedParams(fromDevice, channel, ccNumber, value, modelStack);
-    }
-    bool offerReceivedPitchBendToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2, ModelStackWithTimelineCounter* modelStack) {
-    	return ModControllableAudio::offerReceivedPitchBendToLearnedParams(fromDevice, channel, data1, data2, modelStack);
-    }
+	// A TimelineCounter is required
+	void offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
+	                                    ModelStackWithTimelineCounter* modelStack) {
+		ModControllableAudio::offerReceivedCCToLearnedParams(fromDevice, channel, ccNumber, value, modelStack);
+	}
+	bool offerReceivedPitchBendToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2,
+	                                           ModelStackWithTimelineCounter* modelStack) {
+		return ModControllableAudio::offerReceivedPitchBendToLearnedParams(fromDevice, channel, data1, data2,
+		                                                                   modelStack);
+	}
 
-    char const* getXMLTag() { return "audioTrack"; }
+	char const* getXMLTag() { return "audioTrack"; }
 
-    Envelope envelope;
+	Envelope envelope;
 
-    int32_t amplitudeLastTime;
+	int32_t amplitudeLastTime;
 
-    int32_t overrideAmplitudeEnvelopeReleaseRate;
+	int32_t overrideAmplitudeEnvelopeReleaseRate;
 
-    int8_t inputChannel;
-    bool echoing; // Doesn't get cloned - we wouldn't want that!
+	int8_t inputChannel;
+	bool echoing; // Doesn't get cloned - we wouldn't want that!
 
 protected:
-    Clip* createNewClipForArrangementRecording(ModelStack* modelStack);
-    bool wantsToBeginArrangementRecording();
-    bool willRenderAsOneChannelOnlyWhichWillNeedCopying();
+	Clip* createNewClipForArrangementRecording(ModelStack* modelStack);
+	bool wantsToBeginArrangementRecording();
+	bool willRenderAsOneChannelOnlyWhichWillNeedCopying();
 };
 
 #endif /* AUDIOOUTPUT_H_ */

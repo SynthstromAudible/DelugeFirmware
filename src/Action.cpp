@@ -38,8 +38,7 @@
 #include "ConsequenceNoteArrayChange.h"
 #include "ModelStack.h"
 
-Action::Action(int newActionType)
-{
+Action::Action(int newActionType) {
 	firstConsequence = NULL;
 	nextAction = NULL;
 	type = newActionType;
@@ -52,7 +51,6 @@ Action::Action(int newActionType)
 	offset = 0;
 }
 
-
 // Call this before the destructor!
 void Action::prepareForDestruction(int whichQueueActionIn, Song* song) {
 
@@ -64,7 +62,7 @@ void Action::prepareForDestruction(int whichQueueActionIn, Song* song) {
 void Action::deleteAllConsequences(int whichQueueActionIn, Song* song, bool destructing) {
 	Consequence* currentConsequence = firstConsequence;
 	while (currentConsequence) {
-    	AudioEngine::routineWithClusterLoading(); // -----------------------------------
+		AudioEngine::routineWithClusterLoading(); // -----------------------------------
 		Consequence* toDelete = currentConsequence;
 		currentConsequence = currentConsequence->next;
 		toDelete->prepareForDestruction(whichQueueActionIn, song);
@@ -93,8 +91,6 @@ int Action::revert(int time, ModelStack* modelStack) {
 		time = BEFORE;
 	}
 
-
-
 	Consequence* newFirstConsequence = NULL;
 
 	int error = NO_ERROR;
@@ -116,7 +112,10 @@ int Action::revert(int time, ModelStack* modelStack) {
 		// Special case for arrangement-record. See big comment above
 		if (type == ACTION_ARRANGEMENT_RECORD) {
 			// Delete the old one
-			thisConsequence->prepareForDestruction(AFTER, modelStack->song); // Have to put AFTER. See the effect this will have in ConsequenceCDelete::prepareForDestruction()
+			thisConsequence->prepareForDestruction(
+			    AFTER,
+			    modelStack
+			        ->song); // Have to put AFTER. See the effect this will have in ConsequenceCDelete::prepareForDestruction()
 			thisConsequence->~Consequence();
 			generalMemoryAllocator.dealloc(thisConsequence);
 		}
@@ -143,12 +142,13 @@ bool Action::containsConsequenceParamChange(ParamCollection* paramCollection, in
 	for (Consequence* thisCons = firstConsequence; thisCons; thisCons = thisCons->next) {
 		if (thisCons->type == CONSEQUENCE_PARAM_CHANGE) {
 			ConsequenceParamChange* thisConsParamChange = (ConsequenceParamChange*)thisCons;
-			if (thisConsParamChange->modelStack.paramCollection == paramCollection && thisConsParamChange->modelStack.paramId == paramId) return true;
+			if (thisConsParamChange->modelStack.paramCollection == paramCollection
+			    && thisConsParamChange->modelStack.paramId == paramId)
+				return true;
 		}
 	}
 	return false;
 }
-
 
 void Action::recordParamChangeIfNotAlreadySnapshotted(ModelStackWithAutoParam const* modelStack, bool stealData) {
 
@@ -196,24 +196,26 @@ bool Action::containsConsequenceNoteArrayChange(InstrumentClip* clip, int noteRo
 	return false;
 }
 
-int Action::recordNoteArrayChangeIfNotAlreadySnapshotted(InstrumentClip* clip, int noteRowId, NoteVector* noteVector, bool stealData, bool moveToFrontIfAlreadySnapshotted) {
+int Action::recordNoteArrayChangeIfNotAlreadySnapshotted(InstrumentClip* clip, int noteRowId, NoteVector* noteVector,
+                                                         bool stealData, bool moveToFrontIfAlreadySnapshotted) {
 	if (containsConsequenceNoteArrayChange(clip, noteRowId, moveToFrontIfAlreadySnapshotted)) return NO_ERROR;
 
 	// If we're still here, we need to snapshot.
 	return recordNoteArrayChangeDefinitely(clip, noteRowId, noteVector, stealData);
 }
 
-int Action::recordNoteArrayChangeDefinitely(InstrumentClip* clip, int noteRowId, NoteVector* noteVector, bool stealData) {
+int Action::recordNoteArrayChangeDefinitely(InstrumentClip* clip, int noteRowId, NoteVector* noteVector,
+                                            bool stealData) {
 	void* consMemory = generalMemoryAllocator.alloc(sizeof(ConsequenceNoteArrayChange));
 
 	if (!consMemory) return ERROR_INSUFFICIENT_RAM;
 
-	ConsequenceNoteArrayChange* newCons = new (consMemory) ConsequenceNoteArrayChange(clip, noteRowId, noteVector, stealData);
+	ConsequenceNoteArrayChange* newCons =
+	    new (consMemory) ConsequenceNoteArrayChange(clip, noteRowId, noteVector, stealData);
 	addConsequence(newCons);
 
 	return NO_ERROR; // Though we wouldn't know if there was a RAM error as ConsequenceNoteArrayChange tried to clone the data...
 }
-
 
 void Action::recordNoteExistenceChange(InstrumentClip* clip, int noteRowId, Note* note, int type) {
 
@@ -222,7 +224,8 @@ void Action::recordNoteExistenceChange(InstrumentClip* clip, int noteRowId, Note
 	void* consMemory = generalMemoryAllocator.alloc(sizeof(ConsequenceNoteExistence));
 
 	if (consMemory) {
-		ConsequenceNoteExistence* newConsequence = new (consMemory) ConsequenceNoteExistence(clip, noteRowId, note, type);
+		ConsequenceNoteExistence* newConsequence =
+		    new (consMemory) ConsequenceNoteExistence(clip, noteRowId, note, type);
 		addConsequence(newConsequence);
 	}
 }
@@ -232,7 +235,8 @@ void Action::recordClipInstanceExistenceChange(Output* output, ClipInstance* cli
 	void* consMemory = generalMemoryAllocator.alloc(sizeof(ConsequenceClipInstanceExistence));
 
 	if (consMemory) {
-		ConsequenceClipInstanceExistence* newConsequence = new (consMemory) ConsequenceClipInstanceExistence(output, clipInstance, type);
+		ConsequenceClipInstanceExistence* newConsequence =
+		    new (consMemory) ConsequenceClipInstanceExistence(output, clipInstance, type);
 		addConsequence(newConsequence);
 	}
 }
@@ -287,7 +291,8 @@ void Action::recordAudioClipSampleChange(AudioClip* clip) {
 void Action::updateYScrollClipViewAfter(InstrumentClip* clip) {
 	if (!numClipStates) return;
 
-	if (numClipStates != currentSong->sessionClips.getNumElements() + currentSong->arrangementOnlyClips.getNumElements()) {
+	if (numClipStates
+	    != currentSong->sessionClips.getNumElements() + currentSong->arrangementOnlyClips.getNumElements()) {
 		numClipStates = 0;
 		generalMemoryAllocator.dealloc(clipStates);
 		clipStates = NULL;
@@ -313,5 +318,8 @@ traverseClips:
 
 		i++;
 	}
-	if (clipArray != &currentSong->arrangementOnlyClips) { clipArray = &currentSong->arrangementOnlyClips; goto traverseClips; }
+	if (clipArray != &currentSong->arrangementOnlyClips) {
+		clipArray = &currentSong->arrangementOnlyClips;
+		goto traverseClips;
+	}
 }

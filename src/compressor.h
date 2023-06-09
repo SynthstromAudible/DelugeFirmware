@@ -22,33 +22,32 @@
 
 class Song;
 
-class Compressor
-{
+class Compressor {
 public:
-    Compressor();
-    void cloneFrom(Compressor* other);
+	Compressor();
+	void cloneFrom(Compressor* other);
 
-    uint8_t status;
-    uint32_t pos;
-    int32_t lastValue;
-    int32_t pendingHitStrength;
+	uint8_t status;
+	uint32_t pos;
+	int32_t lastValue;
+	int32_t pendingHitStrength;
 
-    int32_t envelopeOffset;
-    int32_t envelopeHeight;
+	int32_t envelopeOffset;
+	int32_t envelopeHeight;
 
-    int32_t attack;
-    int32_t release;
+	int32_t attack;
+	int32_t release;
 
-    uint8_t sync; // Basically, 0 is off, max value is 9. Higher numbers are shorter intervals (higher speed). 6 represents 8th-notes normally
+	uint8_t
+	    sync; // Basically, 0 is off, max value is 9. Higher numbers are shorter intervals (higher speed). 6 represents 8th-notes normally
 
-    int32_t render(uint16_t numSamples, int32_t shapeValue);
-    void registerHit(int32_t strength);
-    void registerHitRetrospectively(int32_t strength, uint32_t numSamplesAgo);
+	int32_t render(uint16_t numSamples, int32_t shapeValue);
+	void registerHit(int32_t strength);
+	void registerHitRetrospectively(int32_t strength, uint32_t numSamplesAgo);
 
 private:
-    int32_t getActualAttackRate();
-    int32_t getActualReleaseRate();
-
+	int32_t getActualAttackRate();
+	int32_t getActualReleaseRate();
 };
 
 #endif // COMPRESSOR_H

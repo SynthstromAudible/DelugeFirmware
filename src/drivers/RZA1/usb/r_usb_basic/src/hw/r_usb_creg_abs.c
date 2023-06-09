@@ -39,8 +39,9 @@
  Exported global variables (to be accessed by other files)
  ***********************************************************************************************************************/
 #if ((USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST)
-uint16_t    g_usb_hstd_use_pipe[USB_NUM_USBIP]; // Keeps a record of which pipes are in use, with one bit representing each pipe
-#endif  /* (USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST */
+uint16_t
+    g_usb_hstd_use_pipe[USB_NUM_USBIP]; // Keeps a record of which pipes are in use, with one bit representing each pipe
+#endif                                  /* (USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST */
 
 // Added by Rohan
 #include "definitions.h"
@@ -56,10 +57,10 @@ extern uint16_t pipeCfgs[];
                  : uint16_t     pipe         : Pipe number.
  Return value    : uint16_t                  : FIFO buffer size or max packet size.
  ***********************************************************************************************************************/
-uint16_t usb_cstd_get_buf_size(usb_utr_t *ptr, uint16_t pipe)
+uint16_t usb_cstd_get_buf_size(usb_utr_t* ptr, uint16_t pipe)
 {
-    uint16_t    size;
-    uint16_t    buffer;
+    uint16_t size;
+    uint16_t buffer;
 
     if (USB_PIPE0 == pipe)
     {
@@ -90,7 +91,7 @@ uint16_t usb_cstd_get_buf_size(usb_utr_t *ptr, uint16_t pipe)
         else
         {
             /* Max Packet Size */
-            size = (uint16_t) (pipeMaxPs[pipe] & USB_MXPS);
+            size = (uint16_t)(pipeMaxPs[pipe] & USB_MXPS);
         }
     }
 
@@ -106,28 +107,30 @@ uint16_t usb_cstd_get_buf_size(usb_utr_t *ptr, uint16_t pipe)
                  : uint16_t     ofs          : Endpoint table offset
  Return value    : none
  ***********************************************************************************************************************/
-void usb_cstd_pipe_init(usb_utr_t *ptr, uint16_t pipe, uint16_t *tbl, uint16_t ofs)
+void usb_cstd_pipe_init(usb_utr_t* ptr, uint16_t pipe, uint16_t* tbl, uint16_t ofs)
 {
-    uint16_t    useport = USB_CUSE;
-    int ip;															// Bugfix added by Rohan - we need this in case ptr is supplied as NULL, which happens always in peripheral mode
+    uint16_t useport = USB_CUSE;
+    int ip; // Bugfix added by Rohan - we need this in case ptr is supplied as NULL, which happens always in peripheral mode
 
     if (USB_NULL == ptr)
     {
-    	ip = USB_CFG_USE_USBIP;										// Bugfix added by Rohan - we need this in case ptr is supplied as NULL, which happens always in peripheral mode
+        ip =
+            USB_CFG_USE_USBIP; // Bugfix added by Rohan - we need this in case ptr is supplied as NULL, which happens always in peripheral mode
 #if ((USB_CFG_MODE & USB_CFG_PERI) == USB_CFG_PERI)
-        g_p_usb_pipe[pipe] = (usb_utr_t *)USB_NULL;
-        useport = usb_pstd_pipe2fport(pipe);
+        g_p_usb_pipe[pipe] = (usb_utr_t*)USB_NULL;
+        useport            = usb_pstd_pipe2fport(pipe);
 
-#endif  /* (USB_CFG_MODE & USB_CFG_PERI) == USB_CFG_PERI */
+#endif /* (USB_CFG_MODE & USB_CFG_PERI) == USB_CFG_PERI */
     }
     else
     {
-    	ip = ptr->ip;												// Bugfix added by Rohan - we need this in case ptr is supplied as NULL, which happens always in peripheral mode
+        ip =
+            ptr->ip; // Bugfix added by Rohan - we need this in case ptr is supplied as NULL, which happens always in peripheral mode
 #if ((USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST)
-        g_p_usb_pipe[pipe] = (usb_utr_t*) USB_NULL;
-        useport = usb_hstd_pipe2fport(ptr, pipe);
+        g_p_usb_pipe[pipe] = (usb_utr_t*)USB_NULL;
+        useport            = usb_hstd_pipe2fport(ptr, pipe);
 
-#endif  /* (USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST */
+#endif /* (USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST */
     }
 
     /* Interrupt Disable */
@@ -150,14 +153,18 @@ void usb_cstd_pipe_init(usb_utr_t *ptr, uint16_t pipe, uint16_t *tbl, uint16_t o
     /* Update use pipe no info */
     if (USB_NULL != tbl[ofs + 1])
     {
-        g_usb_hstd_use_pipe[ip] |= ((uint16_t)1 << pipe);			// Bugfix added by Rohan - we need this in case ptr is supplied as NULL, which happens always in peripheral mode
+        g_usb_hstd_use_pipe[ip] |=
+            ((uint16_t)1
+                << pipe); // Bugfix added by Rohan - we need this in case ptr is supplied as NULL, which happens always in peripheral mode
     }
     else
     {
-        g_usb_hstd_use_pipe[ip] &= (~((uint16_t)1 << pipe));		// Bugfix added by Rohan - we need this in case ptr is supplied as NULL, which happens always in peripheral mode
+        g_usb_hstd_use_pipe[ip] &= (~(
+            (uint16_t)1
+            << pipe)); // Bugfix added by Rohan - we need this in case ptr is supplied as NULL, which happens always in peripheral mode
     }
 
-#endif  /* (USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST */
+#endif /* (USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST */
 
     if ((USB_D0DMA == useport) || (USB_D1DMA == useport))
     {
@@ -194,20 +201,19 @@ void usb_cstd_pipe_init(usb_utr_t *ptr, uint16_t pipe, uint16_t *tbl, uint16_t o
     //hw_usb_set_bempenb(USB_NULL, pipe); // Added by Rohan - we now just enable this here once, rather than at the start of every transfer. Actually no, doesn't work... though I thought it did for a bit...
 } /* End of function usb_cstd_pipe_init() */
 
-
 // Function by Rohan obviously
-void change_destination_of_send_pipe(usb_utr_t *ptr, uint16_t pipe, uint16_t *tbl, int sq)
+void change_destination_of_send_pipe(usb_utr_t* ptr, uint16_t pipe, uint16_t* tbl, int sq)
 {
 
     /* PIPE Configuration */
     hw_usb_write_pipesel(NULL, pipe);
 
 #if ((USB_CFG_DTC == USB_CFG_ENABLE) || (USB_CFG_DMA == USB_CFG_ENABLE))
-    uint16_t    useport = USB_CUSE;
+    uint16_t useport = USB_CUSE;
 #if ((USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST)
-	g_p_usb_pipe[pipe] = (usb_utr_t*)USB_NULL;
-	useport = usb_hstd_pipe2fport(ptr, pipe);
-#endif  /* (USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST */
+    g_p_usb_pipe[pipe] = (usb_utr_t*)USB_NULL;
+    useport            = usb_hstd_pipe2fport(ptr, pipe);
+#endif /* (USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST */
 
     if ((USB_D0DMA == useport) || (USB_D1DMA == useport))
     {
@@ -217,15 +223,16 @@ void change_destination_of_send_pipe(usb_utr_t *ptr, uint16_t pipe, uint16_t *tb
 
     hw_usb_write_pipecfg(NULL, tbl[1], pipe);
     // We won't set the PIPEBUF, cos I (Rohan) have made it so each pipe number always has the same buffer number, and we're still on the same pipe.
-    hw_usb_write_pipemaxp(NULL, tbl[3], pipe); // This sets the destination USB peripheral address, so yes we need to change this.
-    hw_usb_write_pipeperi(NULL, tbl[4]); // Probably worth doing. This sets stuff relating to "flushing" and "intervals" - possibly more relevant to ISO or interrupt endpoints, but this driver does indeed work out a value to put for this in the table, so we'd better grab it
+    hw_usb_write_pipemaxp(
+        NULL, tbl[3], pipe); // This sets the destination USB peripheral address, so yes we need to change this.
+    hw_usb_write_pipeperi(NULL,
+        tbl[4]); // Probably worth doing. This sets stuff relating to "flushing" and "intervals" - possibly more relevant to ISO or interrupt endpoints, but this driver does indeed work out a value to put for this in the table, so we'd better grab it
 
     /* SQCLR */
-    volatile uint16_t* p_reg = ((uint16_t *)&(USB200.PIPE1CTR) + (pipe - 1));
+    volatile uint16_t* p_reg = ((uint16_t*)&(USB200.PIPE1CTR) + (pipe - 1));
     (*p_reg) |= (USB_SQCLR >> sq);
 
 } /* End of function usb_cstd_pipe_init() */
-
 
 //#include "drivers/usb/userdef/r_usb_hmidi_config.h"
 
@@ -236,25 +243,25 @@ void change_destination_of_send_pipe(usb_utr_t *ptr, uint16_t pipe, uint16_t *tb
                  : uint16_t     pipe_no      : pipe number
  Return value    : none
  ***********************************************************************************************************************/
-void usb_cstd_clr_pipe_cnfg(usb_utr_t *ptr, uint16_t pipe_no)
+void usb_cstd_clr_pipe_cnfg(usb_utr_t* ptr, uint16_t pipe_no)
 {
 
-	//if (pipe_no == USB_CFG_HMIDI_BULK_SEND || pipe_no == USB_CFG_HMIDI_INT_SEND) return; // Don't deconfigure the send-pipe cos it's shared - Rohan
+    //if (pipe_no == USB_CFG_HMIDI_BULK_SEND || pipe_no == USB_CFG_HMIDI_INT_SEND) return; // Don't deconfigure the send-pipe cos it's shared - Rohan
 
-	uartPrint("clearing config for pipe ");
-	uartPrintNumber(pipe_no);
+    uartPrint("clearing config for pipe ");
+    uartPrintNumber(pipe_no);
 
     if (USB_NULL == ptr)
     {
 #if ((USB_CFG_MODE & USB_CFG_PERI) == USB_CFG_PERI)
-        g_p_usb_pipe[pipe_no] = (usb_utr_t *)USB_NULL;
-#endif  /* (USB_CFG_MODE & USB_CFG_PERI) == USB_CFG_PERI */
+        g_p_usb_pipe[pipe_no] = (usb_utr_t*)USB_NULL;
+#endif /* (USB_CFG_MODE & USB_CFG_PERI) == USB_CFG_PERI */
     }
     else
     {
 #if ((USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST)
-        g_p_usb_pipe[pipe_no] = (usb_utr_t*) USB_NULL;
-#endif  /* (USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST */
+        g_p_usb_pipe[pipe_no] = (usb_utr_t*)USB_NULL;
+#endif /* (USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST */
     }
 
     /* PID=NAK & clear STALL */
@@ -271,13 +278,14 @@ void usb_cstd_clr_pipe_cnfg(usb_utr_t *ptr, uint16_t pipe_no)
     hw_usb_clear_bempenb(ptr, pipe_no);
 
     /* PIPE Configuration */
-    usb_cstd_chg_curpipe(ptr, (uint16_t) USB_PIPE0, (uint16_t) USB_CUSE, USB_FALSE);
+    usb_cstd_chg_curpipe(ptr, (uint16_t)USB_PIPE0, (uint16_t)USB_CUSE, USB_FALSE);
     hw_usb_write_pipesel(ptr, pipe_no);
 
 #if ((USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST)
     /* Clear use pipe no info. Added by Rohan - I can't see why this wouldn't have already been done, and the USB library doesn't even make use of this info anyway, so modification should be fine. */
-    g_usb_hstd_use_pipe[USB_CFG_USE_USBIP] &= (~((uint16_t)1 << pipe_no)); // Uses "hard-coded" USB_CFG_USE_USBIP because ptr is sometimes NULL
-#endif  /* (USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST */
+    g_usb_hstd_use_pipe[USB_CFG_USE_USBIP] &=
+        (~((uint16_t)1 << pipe_no)); // Uses "hard-coded" USB_CFG_USE_USBIP because ptr is sometimes NULL
+#endif                               /* (USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST */
 
     hw_usb_write_pipecfg(ptr, 0, pipe_no);
     hw_usb_write_pipebuf(ptr, 0, pipe_no);
@@ -314,13 +322,13 @@ void usb_cstd_clr_pipe_cnfg(usb_utr_t *ptr, uint16_t pipe_no)
                  : uint16_t     pipe         : Pipe Number
  Return value    : none
  ***********************************************************************************************************************/
-void usb_cstd_set_nak(usb_utr_t *ptr, uint16_t pipe)
+void usb_cstd_set_nak(usb_utr_t* ptr, uint16_t pipe)
 {
-    uint16_t    buf;
-    uint16_t    n;
+    uint16_t buf;
+    uint16_t n;
 
     /* Set NAK */
-    hw_usb_clear_pid(ptr, pipe, (uint16_t) USB_PID_BUF);
+    hw_usb_clear_pid(ptr, pipe, (uint16_t)USB_PID_BUF);
 
     /* The state of PBUSY continues while transmitting the packet when it is a detach. */
     /* 1ms comes off when leaving because the packet duration might not exceed 1ms.  */
@@ -337,12 +345,13 @@ void usb_cstd_set_nak(usb_utr_t *ptr, uint16_t pipe)
 } /* End of function usb_cstd_set_nak() */
 
 // For non-zero pipe; no pointer
-void usb_cstd_set_nak_fast_rohan(uint16_t pipe) {
-    uint16_t    n;
+void usb_cstd_set_nak_fast_rohan(uint16_t pipe)
+{
+    uint16_t n;
 
     /* Set NAK */
-    volatile uint16_t   *p_reg = ((uint16_t *)&(USB200.PIPE1CTR) + (pipe - 1));
-    (*p_reg) &= (~(uint16_t) USB_PID_BUF);
+    volatile uint16_t* p_reg = ((uint16_t*)&(USB200.PIPE1CTR) + (pipe - 1));
+    (*p_reg) &= (~(uint16_t)USB_PID_BUF);
 
     // A bit of a weird one... my copying and simplifying all this stuff into one function caused i029 (unknown interrupt) error when sending MIDI.
     // It seems that we actually need a tiny ~1uS delay here. I couldn't work out just why that would be required. And the kinda cryptic original comment
@@ -356,7 +365,7 @@ void usb_cstd_set_nak_fast_rohan(uint16_t pipe) {
 	}
 #endif
 
-	// And then there seems no need to check PBUSY anymore...
+    // And then there seems no need to check PBUSY anymore...
 #if 0
     /* The state of PBUSY continues while transmitting the packet when it is a detach. */
     /* 1ms comes off when leaving because the packet duration might not exceed 1ms.  */
@@ -371,42 +380,44 @@ void usb_cstd_set_nak_fast_rohan(uint16_t pipe) {
 #endif
 }
 
-
 // I've optimized this copy much better than the original.
 //usb_cstd_is_set_frdy(USB_NULL, pipe, USB_CUSE, USB_FALSE);
-uint16_t usb_cstd_is_set_frdy_rohan(uint16_t pipe) {
+uint16_t usb_cstd_is_set_frdy_rohan(uint16_t pipe)
+{
 
     /* Changes the FIFO port by the pipe. */
     //usb_cstd_chg_curpipe(USB_NULL, pipe, USB_CUSE, USB_FALSE);
-	usb_cstd_chg_curpipe_rohan_fast(pipe);
+    usb_cstd_chg_curpipe_rohan_fast(pipe);
 
-	volatile uint16_t    *p_reg;
+    volatile uint16_t* p_reg;
 #if USB_CFG_USE_USBIP == USB_CFG_IP0
-	p_reg = (void *)&(USB200.CFIFOCTR);
+    p_reg = (void*)&(USB200.CFIFOCTR);
 #else
-	p_reg = (void *)&(USB201.CFIFOCTR);
-#endif  /* USB_CFG_USE_USBIP == USB_CFG_IP0 */
+    p_reg = (void*)&(USB201.CFIFOCTR);
+#endif /* USB_CFG_USE_USBIP == USB_CFG_IP0 */
 
-	// I drastically rearranged the code from usb_cstd_is_set_frdy(), here. Basically, it's meant to time out with error if not FRDY within 100ns.
-	uint16_t startTime = *TCNT[TIMER_SYSTEM_SUPERFAST];
+    // I drastically rearranged the code from usb_cstd_is_set_frdy(), here. Basically, it's meant to time out with error if not FRDY within 100ns.
+    uint16_t startTime = *TCNT[TIMER_SYSTEM_SUPERFAST];
 
-	uint16_t buffer;
+    uint16_t buffer;
 
-	while (true) {
-		buffer = *p_reg;
-		if (buffer & USB_FRDY) {
-			return buffer;
-		}
-    	uint16_t timeNow = *TCNT[TIMER_SYSTEM_SUPERFAST];
-		uint16_t timePassed = timeNow - startTime;
-		if (timePassed >= 5) { // Definitely more than 100ns then. (It's 29.5928 nanoseconds per tick.)
-			break;
-		}
-	}
+    while (true)
+    {
+        buffer = *p_reg;
+        if (buffer & USB_FRDY)
+        {
+            return buffer;
+        }
+        uint16_t timeNow    = *TCNT[TIMER_SYSTEM_SUPERFAST];
+        uint16_t timePassed = timeNow - startTime;
+        if (timePassed >= 5)
+        { // Definitely more than 100ns then. (It's 29.5928 nanoseconds per tick.)
+            break;
+        }
+    }
 
-	return USB_FIFOERROR;
+    return USB_FIFOERROR;
 }
-
 
 /***********************************************************************************************************************
  Function Name   : usb_cstd_is_set_frdy
@@ -418,10 +429,10 @@ uint16_t usb_cstd_is_set_frdy_rohan(uint16_t pipe) {
                  : uint16_t     isel         : ISEL bit status
  Return value    : FRDY status
  ***********************************************************************************************************************/
-uint16_t usb_cstd_is_set_frdy(usb_utr_t *ptr, uint16_t pipe, uint16_t fifosel, uint16_t isel)
+uint16_t usb_cstd_is_set_frdy(usb_utr_t* ptr, uint16_t pipe, uint16_t fifosel, uint16_t isel)
 {
-    uint16_t    buffer;
-    uint16_t    i;
+    uint16_t buffer;
+    uint16_t i;
 
     /* Changes the FIFO port by the pipe. */
     usb_cstd_chg_curpipe(ptr, pipe, fifosel, isel);
@@ -433,7 +444,8 @@ uint16_t usb_cstd_is_set_frdy(usb_utr_t *ptr, uint16_t pipe, uint16_t fifosel, u
         if ((uint16_t)(buffer & USB_FRDY) == USB_FRDY)
         {
             return (buffer);
-        } USB_PRINTF1("*** FRDY wait pipe = %d\n", pipe);
+        }
+        USB_PRINTF1("*** FRDY wait pipe = %d\n", pipe);
 
         /* Caution!!!
          * Depending on the external bus speed of CPU, you may need to wait
@@ -448,7 +460,6 @@ uint16_t usb_cstd_is_set_frdy(usb_utr_t *ptr, uint16_t pipe, uint16_t fifosel, u
     return (USB_FIFOERROR);
 } /* End of function usb_cstd_is_set_frdy() */
 
-
 extern uint16_t fifoSels[];
 
 /***********************************************************************************************************************
@@ -460,54 +471,52 @@ extern uint16_t fifoSels[];
                  : uint16_t     isel         : CFIFO Port Access Direction.(Pipe1 to 9:Set to 0)
  Return value    : none
  ***********************************************************************************************************************/
-void usb_cstd_chg_curpipe(usb_utr_t *ptr, uint16_t pipe, uint16_t fifosel, uint16_t isel)
+void usb_cstd_chg_curpipe(usb_utr_t* ptr, uint16_t pipe, uint16_t fifosel, uint16_t isel)
 {
-    uint16_t    buffer;
+    uint16_t buffer;
 
     /* Select FIFO */
     switch (fifosel)
     {
-        case USB_CUSE:      /* CFIFO use */
+        case USB_CUSE: /* CFIFO use */
 
-        	if ((fifoSels[USB_CUSE] & (uint16_t) (USB_ISEL | USB_CURPIPE)) == (uint16_t) (isel | pipe)) break;
+            if ((fifoSels[USB_CUSE] & (uint16_t)(USB_ISEL | USB_CURPIPE)) == (uint16_t)(isel | pipe)) break;
 
             /* ISEL=1, CURPIPE=0 */
             hw_usb_rmw_fifosel(ptr, USB_CUSE, ((USB_RCNT | isel) | pipe), ((USB_RCNT | USB_ISEL) | USB_CURPIPE));
             do
             {
                 buffer = hw_usb_read_fifosel(ptr, USB_CUSE);
-            } while ((buffer & (uint16_t) (USB_ISEL | USB_CURPIPE)) != (uint16_t) (isel | pipe));
+            } while ((buffer & (uint16_t)(USB_ISEL | USB_CURPIPE)) != (uint16_t)(isel | pipe));
 
-        break;
+            break;
 
-        case USB_D0USE:     /* D0FIFO use */
-
-            /* continue */
-
-        break;
-
-           
-        case USB_D1USE:     /* D1FIFO use */
+        case USB_D0USE: /* D0FIFO use */
 
             /* continue */
 
-        break;
+            break;
+
+        case USB_D1USE: /* D1FIFO use */
+
+            /* continue */
+
+            break;
 
 #if ((USB_CFG_DTC == USB_CFG_ENABLE) || (USB_CFG_DMA == USB_CFG_ENABLE))
-    
-        case USB_D0DMA:     /* D0FIFO DMA */
+
+        case USB_D0DMA: /* D0FIFO DMA */
 
             /* D0FIFO pipe select */
             hw_usb_set_curpipe(ptr, USB_D0DMA, pipe);
             do
             {
                 buffer = hw_usb_read_fifosel(ptr, USB_D0DMA);
-            }
-            while((uint16_t)(buffer & USB_CURPIPE) != pipe);
+            } while ((uint16_t)(buffer & USB_CURPIPE) != pipe);
 
-        break;
+            break;
 
-        case USB_D1DMA:     /* D1FIFO DMA */
+        case USB_D1DMA: /* D1FIFO DMA */
 
             /* D1FIFO pipe select */
             hw_usb_set_curpipe(ptr, USB_D1DMA, pipe);
@@ -515,14 +524,13 @@ void usb_cstd_chg_curpipe(usb_utr_t *ptr, uint16_t pipe, uint16_t fifosel, uint1
             do
             {
                 buffer = hw_usb_read_fifosel(ptr, USB_D1DMA);
-            }
-            while((uint16_t)(buffer & USB_CURPIPE) != pipe);
+            } while ((uint16_t)(buffer & USB_CURPIPE) != pipe);
 
-        break;
-#endif  /* ((USB_CFG_DTC == USB_CFG_ENABLE) || (USB_CFG_DMA == USB_CFG_ENABLE)) */
+            break;
+#endif /* ((USB_CFG_DTC == USB_CFG_ENABLE) || (USB_CFG_DMA == USB_CFG_ENABLE)) */
 
-        default :
-        break;
+        default:
+            break;
     }
 } /* End of function usb_cstd_chg_curpipe() */
 
@@ -534,7 +542,7 @@ void usb_cstd_chg_curpipe(usb_utr_t *ptr, uint16_t pipe, uint16_t fifosel, uint1
                  : uint16_t     trncnt       : Transaction counter
  Return value    : none
  ***********************************************************************************************************************/
-void usb_cstd_set_transaction_counter(usb_utr_t *ptr, uint16_t trnreg, uint16_t trncnt)
+void usb_cstd_set_transaction_counter(usb_utr_t* ptr, uint16_t trnreg, uint16_t trncnt)
 {
     hw_usb_set_trclr(ptr, trnreg);
     hw_usb_write_pipetrn(ptr, trnreg, trncnt);
@@ -548,7 +556,7 @@ void usb_cstd_set_transaction_counter(usb_utr_t *ptr, uint16_t trnreg, uint16_t 
                  : uint16_t     trnreg       : Pipe Number
  Return value    : none
  ***********************************************************************************************************************/
-void usb_cstd_clr_transaction_counter(usb_utr_t *ptr, uint16_t trnreg)
+void usb_cstd_clr_transaction_counter(usb_utr_t* ptr, uint16_t trnreg)
 {
     hw_usb_clear_trenb(ptr, trnreg);
     hw_usb_set_trclr(ptr, trnreg);
@@ -557,4 +565,3 @@ void usb_cstd_clr_transaction_counter(usb_utr_t *ptr, uint16_t trnreg)
 /***********************************************************************************************************************
  End of file
  ***********************************************************************************************************************/
-
