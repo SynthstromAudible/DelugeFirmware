@@ -21,15 +21,12 @@
 #include <CStringArray.h>
 #include "QwertyUI.h"
 
-
 extern "C" {
 #include "fatfs/ff.h"
 
-FRESULT f_readdir_get_filepointer (
-	DIR* dp,			/* Pointer to the open directory object */
-	FILINFO* fno,		/* Pointer to file information to return */
-	FilePointer* filePointer
-);
+FRESULT f_readdir_get_filepointer(DIR* dp,      /* Pointer to the open directory object */
+                                  FILINFO* fno, /* Pointer to file information to return */
+                                  FilePointer* filePointer);
 }
 
 class Instrument;
@@ -55,9 +52,9 @@ struct Slot {
 
 #define NUM_FILES_ON_SCREEN 3
 
-#define CATALOG_SEARCH_LEFT		0
-#define CATALOG_SEARCH_RIGHT	1
-#define CATALOG_SEARCH_BOTH		2
+#define CATALOG_SEARCH_LEFT 0
+#define CATALOG_SEARCH_RIGHT 1
+#define CATALOG_SEARCH_BOTH 2
 
 extern char const* allowedFileExtensionsXML[];
 
@@ -69,74 +66,81 @@ public:
 	virtual int getCurrentFilePath(String* path) = 0;
 	int buttonAction(int x, int y, bool on, bool inCardRoutine);
 	void currentFileDeleted();
-    int goIntoFolder(char const* folderName);
-    int createFolder();
-    void selectEncoderAction(int8_t offset);
-    static FileItem* getCurrentFileItem();
-    static int readFileItemsForFolder(char const* filePrefixHere, bool allowFolders, char const** allowedFileExtensionsHere,
-    		char const* filenameToStartAt, int newMaxNumFileItems, int newCatalogSearchDirection = CATALOG_SEARCH_BOTH);
-    static void sortFileItems();
-    static FileItem* getNewFileItem();
-    static void emptyFileItems();
-    static void deleteSomeFileItems(int startAt, int stopAt);
-    static void deleteFolderAndDuplicateItems(int instrumentAvailabilityRequirement = AVAILABILITY_ANY);
-    static PresetNavigationResult doPresetNavigation(int offset, Instrument* oldInstrument, int availabilityRequirement, bool doBlink);
-    static int getUnusedSlot(int instrumentType, String* newName, char const* thingName);
-    static ReturnOfConfirmPresetOrNextUnlaunchedOne confirmPresetOrNextUnlaunchedOne(int instrumentType, String* searchName, int availabilityRequirement);
-    static ReturnOfConfirmPresetOrNextUnlaunchedOne findAnUnlaunchedPresetIncludingWithinSubfolders(Song* song, int instrumentType, int availabilityRequirement);
-    bool opened();
-    static void cullSomeFileItems();
+	int goIntoFolder(char const* folderName);
+	int createFolder();
+	void selectEncoderAction(int8_t offset);
+	static FileItem* getCurrentFileItem();
+	static int readFileItemsForFolder(char const* filePrefixHere, bool allowFolders,
+	                                  char const** allowedFileExtensionsHere, char const* filenameToStartAt,
+	                                  int newMaxNumFileItems, int newCatalogSearchDirection = CATALOG_SEARCH_BOTH);
+	static void sortFileItems();
+	static FileItem* getNewFileItem();
+	static void emptyFileItems();
+	static void deleteSomeFileItems(int startAt, int stopAt);
+	static void deleteFolderAndDuplicateItems(int instrumentAvailabilityRequirement = AVAILABILITY_ANY);
+	static PresetNavigationResult doPresetNavigation(int offset, Instrument* oldInstrument, int availabilityRequirement,
+	                                                 bool doBlink);
+	static int getUnusedSlot(int instrumentType, String* newName, char const* thingName);
+	static ReturnOfConfirmPresetOrNextUnlaunchedOne
+	confirmPresetOrNextUnlaunchedOne(int instrumentType, String* searchName, int availabilityRequirement);
+	static ReturnOfConfirmPresetOrNextUnlaunchedOne
+	findAnUnlaunchedPresetIncludingWithinSubfolders(Song* song, int instrumentType, int availabilityRequirement);
+	bool opened();
+	static void cullSomeFileItems();
 
 #if HAVE_OLED
-    void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
+	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
 #endif
 
-    static String currentDir;
-    static CStringArray fileItems;
-    static int numFileItemsDeletedAtStart;
-    static int numFileItemsDeletedAtEnd;
-    static char const* firstFileItemRemaining;
-    static char const* lastFileItemRemaining;
+	static String currentDir;
+	static CStringArray fileItems;
+	static int numFileItemsDeletedAtStart;
+	static int numFileItemsDeletedAtEnd;
+	static char const* firstFileItemRemaining;
+	static char const* lastFileItemRemaining;
 
-    static int instrumentTypeToLoad;
-    static char const* filenameToStartSearchAt;
-
+	static int instrumentTypeToLoad;
+	static char const* filenameToStartSearchAt;
 
 protected:
-    int setEnteredTextFromCurrentFilename();
-    int goUpOneDirectoryLevel();
-    virtual int arrivedInNewFolder(int direction, char const* filenameToStartAt = NULL, char const* defaultDir = NULL);
-    bool predictExtendedText();
-    void goIntoDeleteFileContextMenu();
-    int mainButtonAction(bool on);
-    virtual void exitAction();
-    virtual int backButtonAction();
-    virtual void folderContentsReady(int entryDirection) {}
-    virtual void currentFileChanged(int movementDirection) {}
-    void displayText(bool blinkImmediately = false);
+	int setEnteredTextFromCurrentFilename();
+	int goUpOneDirectoryLevel();
+	virtual int arrivedInNewFolder(int direction, char const* filenameToStartAt = NULL, char const* defaultDir = NULL);
+	bool predictExtendedText();
+	void goIntoDeleteFileContextMenu();
+	int mainButtonAction(bool on);
+	virtual void exitAction();
+	virtual int backButtonAction();
+	virtual void folderContentsReady(int entryDirection) {
+	}
+	virtual void currentFileChanged(int movementDirection) {
+	}
+	void displayText(bool blinkImmediately = false);
 	static Slot getSlot(char const* displayName);
-	static int readFileItemsFromFolderAndMemory(Song* song, int instrumentType, char const* filePrefixHere, char const* filenameToStartAt,
-			char const* defaultDirToAlsoTry, bool allowFoldersint, int availabilityRequirement = AVAILABILITY_ANY, int newCatalogSearchDirection = CATALOG_SEARCH_RIGHT);
+	static int readFileItemsFromFolderAndMemory(Song* song, int instrumentType, char const* filePrefixHere,
+	                                            char const* filenameToStartAt, char const* defaultDirToAlsoTry,
+	                                            bool allowFoldersint, int availabilityRequirement = AVAILABILITY_ANY,
+	                                            int newCatalogSearchDirection = CATALOG_SEARCH_RIGHT);
 
-    static int fileIndexSelected; // If -1, we have not selected any real file/folder. Maybe there are no files, or maybe we're typing a new name.
-    static int scrollPosVertical;
-    static int numCharsInPrefix; // Only used for deciding Drum names within Kit. Oh and initial text scroll position.
-    static bool qwertyVisible;
-    static bool arrivedAtFileByTyping;
-    static bool allowFoldersSharingNameWithFile;
-    static char const** allowedFileExtensions;
+	static int
+	    fileIndexSelected; // If -1, we have not selected any real file/folder. Maybe there are no files, or maybe we're typing a new name.
+	static int scrollPosVertical;
+	static int numCharsInPrefix; // Only used for deciding Drum names within Kit. Oh and initial text scroll position.
+	static bool qwertyVisible;
+	static bool arrivedAtFileByTyping;
+	static bool allowFoldersSharingNameWithFile;
+	static char const** allowedFileExtensions;
 
 #if HAVE_OLED
-    const uint8_t* fileIcon;
+	const uint8_t* fileIcon;
 #else
-    static int8_t numberEditPos; // -1 is default
-    static NumericLayerScrollingText* scrollingText;
-    bool shouldWrapFolderContents; // As in, wrap around at the end.
+	static int8_t numberEditPos; // -1 is default
+	static NumericLayerScrollingText* scrollingText;
+	bool shouldWrapFolderContents; // As in, wrap around at the end.
 #endif
-    bool allowBrandNewNames;
-    bool qwertyAlwaysVisible;
-    char const* filePrefix;
-
+	bool allowBrandNewNames;
+	bool qwertyAlwaysVisible;
+	char const* filePrefix;
 };
 
 #endif /* BROWSER_H_ */

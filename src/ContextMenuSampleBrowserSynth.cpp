@@ -32,7 +32,6 @@ ContextMenuSampleBrowserSynth::ContextMenuSampleBrowserSynth() {
 #endif
 }
 
-
 char const** ContextMenuSampleBrowserSynth::getOptions() {
 	static char const* options[] = {"Multisamples", "Basic", "Single-cycle", "Wavetable"};
 	return options;
@@ -50,7 +49,7 @@ bool ContextMenuSampleBrowserSynth::isCurrentOptionAvailable() {
 	// Apart from that option, none of the other ones are valid if currently sitting on a folder-name.
 	if (sampleBrowser.getCurrentFileItem()->isFolder) return false;
 
-	switch(currentOption) {
+	switch (currentOption) {
 	case 1:
 		// "Basic" Sample - unavailable if ringmod.
 		return (soundEditor.currentSound->getSynthMode() != SYNTH_MODE_RINGMOD);
@@ -72,25 +71,22 @@ bool ContextMenuSampleBrowserSynth::isCurrentOptionAvailable() {
 	}
 }
 
-
 bool ContextMenuSampleBrowserSynth::acceptCurrentOption() {
 
-	switch(currentOption) {
+	switch (currentOption) {
 	case 0: // Multisamples
 		return sampleBrowser.importFolderAsMultisamples();
 	case 1: // Basic
 		return sampleBrowser.claimCurrentFile(0, 0, 0);
 	case 2: // Single-cycle
 		return sampleBrowser.claimCurrentFile(2, 2, 1);
-	case 3: // WaveTable
+	case 3:                                             // WaveTable
 		return sampleBrowser.claimCurrentFile(1, 1, 2); // Could probably also be 0,0,2
 	default:
 		__builtin_unreachable();
 		return false;
 	}
 }
-
-
 
 int ContextMenuSampleBrowserSynth::padAction(int x, int y, int on) {
 	return sampleBrowser.padAction(x, y, on);

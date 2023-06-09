@@ -40,7 +40,6 @@ void MenuItemInteger::selectEncoderAction(int offset) {
 	MenuItemNumber::selectEncoderAction(offset);
 }
 
-
 #if !HAVE_OLED
 void MenuItemInteger::drawValue() {
 	numericDriver.setTextAsNumber(soundEditor.currentValue);
@@ -52,14 +51,13 @@ void MenuItemIntegerWithOff::drawValue() {
 }
 #endif
 
-
 #if HAVE_OLED
 void MenuItemInteger::drawInteger(int textWidth, int textHeight, int yPixel) {
 	char buffer[12];
 	intToString(soundEditor.currentValue, buffer, 1);
-	OLED::drawStringCentred(buffer, yPixel + OLED_MAIN_TOPMOST_PIXEL, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, textWidth, textHeight);
+	OLED::drawStringCentred(buffer, yPixel + OLED_MAIN_TOPMOST_PIXEL, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
+	                        textWidth, textHeight);
 }
-
 
 void MenuItemInteger::drawPixelsForOled() {
 	drawInteger(TEXT_HUGE_SPACING_X, TEXT_HUGE_SIZE_Y, 18);
@@ -76,7 +74,7 @@ void MenuItemIntegerContinuous::drawBar(int yTop, int marginL, int marginR) {
 
 	int endLineHalfHeight = 8;
 
-/*
+	/*
 	OLED::drawHorizontalLine(y, leftMost, rightMost, OLED::oledMainImage);
 	OLED::drawVerticalLine(leftMost, y, y + endLineHalfHeight, OLED::oledMainImage);
 	OLED::drawVerticalLine(rightMost, y, y + endLineHalfHeight, OLED::oledMainImage);

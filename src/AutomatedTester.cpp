@@ -34,18 +34,15 @@ class TestState;
 
 class TestAction {
 public:
-	TestAction() {
-	}
+	TestAction() {}
 	virtual TestState* perform() = 0; // Returns new state, or NULL to stay in same state
 	virtual int getTimeBetween() = 0; // Return 0 to say don't do this action at all for now
 };
-
 
 class TestState {
 public:
 	virtual TestAction* const* getActions() = 0;
 };
-
 
 //---------------------------------------------
 
@@ -55,11 +52,8 @@ public:
 		AutomatedTester::turnSelectEncoder((getRandom255() >= 128) ? 1 : -1);
 		return NULL;
 	}
-	int getTimeBetween() {
-		return 2 * 44100;
-	}
+	int getTimeBetween() { return 2 * 44100; }
 } changePresetTestAction;
-
 
 class PlayButtonTestAction final : public TestAction {
 public:
@@ -67,12 +61,8 @@ public:
 		AutomatedTester::doMomentaryButtonPress(playButtonX, playButtonY);
 		return NULL;
 	}
-	int getTimeBetween() {
-		return 1 * 44100;
-	}
+	int getTimeBetween() { return 1 * 44100; }
 } playButtonTestAction;
-
-
 
 class InstrumentClipViewTestState final : public TestState {
 public:
@@ -82,9 +72,7 @@ public:
 	};
 } instrumentClipViewTestState;
 
-
 //---------------------------------------------
-
 
 namespace AutomatedTester {
 
@@ -133,8 +121,6 @@ void possiblyDoSomething() {
 
 	timeLastCall = timeNow;
 }
-}
-
-
+} // namespace AutomatedTester
 
 #endif

@@ -28,7 +28,6 @@
 
 namespace Encoders {
 
-
 Encoder encoders[NUM_ENCODERS];
 uint32_t timeModEncoderLastTurned[2];
 int8_t modEncoderInitialTurnDirection[2];
@@ -37,8 +36,6 @@ uint32_t timeNextSDTestAction = 0;
 int nextSDTestDirection = 1;
 
 uint32_t encodersWaitingForCardRoutineEnd;
-
-
 
 void init() {
 
@@ -66,17 +63,15 @@ void init() {
 	encoders[ENCODER_MOD_1].setNonDetentMode();
 }
 
-
 void readEncoders() {
-    for (int i = 0; i < NUM_ENCODERS; i++) {
-        encoders[i].read();
-    }
+	for (int i = 0; i < NUM_ENCODERS; i++) {
+		encoders[i].read();
+	}
 }
 
 extern "C" void readEncoder(int e, int whichPin) {
 	encoders[e].interrupt(whichPin);
 }
-
 
 bool interpretEncoders(bool inCardRoutine) {
 
@@ -85,14 +80,15 @@ bool interpretEncoders(bool inCardRoutine) {
 	if (!inCardRoutine) encodersWaitingForCardRoutineEnd = 0;
 
 #if SD_TEST_MODE_ENABLED
-	if (!inCardRoutine && playbackHandler.isEitherClockActive() && (int32_t)(AudioEngine::audioSampleTimer - timeNextSDTestAction) >= 0) {
+	if (!inCardRoutine && playbackHandler.isEitherClockActive()
+	    && (int32_t)(AudioEngine::audioSampleTimer - timeNextSDTestAction) >= 0) {
 
 		if (getRandom255() < 96) nextSDTestDirection *= -1;
 		getCurrentUI()->selectEncoderAction(nextSDTestDirection);
 
 		int random = getRandom255();
 
-		timeNextSDTestAction = AudioEngine::audioSampleTimer + ((random) << 6);// * 44 / 13;
+		timeNextSDTestAction = AudioEngine::audioSampleTimer + ((random) << 6); // * 44 / 13;
 		anything = true;
 	}
 #endif
@@ -101,8 +97,8 @@ bool interpretEncoders(bool inCardRoutine) {
 
 		if (e != ENCODER_SCROLL_Y)
 
-		// Basically disables all function encoders during SD routine
-		if (inCardRoutine && currentUIMode != UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED) continue;
+			// Basically disables all function encoders during SD routine
+			if (inCardRoutine && currentUIMode != UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED) continue;
 
 		if (encodersWaitingForCardRoutineEnd & (1 << e)) continue;
 
@@ -131,7 +127,8 @@ checkResult:
 				break;
 
 			case ENCODER_SCROLL_Y:
-				if (Buttons::isShiftButtonPressed() && Buttons::isButtonPressed(learnButtonX, learnButtonY)) changeDimmerInterval(limitedDetentPos);
+				if (Buttons::isShiftButtonPressed() && Buttons::isButtonPressed(learnButtonX, learnButtonY))
+					changeDimmerInterval(limitedDetentPos);
 				else {
 					result = getCurrentUI()->verticalEncoderAction(limitedDetentPos, inCardRoutine);
 					goto checkResult;
@@ -139,18 +136,18 @@ checkResult:
 				break;
 
 			case ENCODER_TEMPO:
-				playbackHandler.tempoEncoderAction(limitedDetentPos, Buttons::isButtonPressed(tempoEncButtonX, tempoEncButtonY), Buttons::isShiftButtonPressed());
+				playbackHandler.tempoEncoderAction(limitedDetentPos,
+				                                   Buttons::isButtonPressed(tempoEncButtonX, tempoEncButtonY),
+				                                   Buttons::isShiftButtonPressed());
 				break;
 
 			case ENCODER_SELECT:
 				if (Buttons::isButtonPressed(clipViewButtonX, clipViewButtonY)) changeRefreshTime(limitedDetentPos);
-				else
-					getCurrentUI()->selectEncoderAction(limitedDetentPos);
+				else getCurrentUI()->selectEncoderAction(limitedDetentPos);
 				break;
 			}
 		}
 	}
-
 
 	if (!inCardRoutine || currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED) {
 		// Mod knobs
@@ -185,10 +182,9 @@ checkResult:
 				else {
 
 					// If the other one also hasn't been turned for a while...
-					bool otherTurnedRecently = (AudioEngine::audioSampleTimer - timeModEncoderLastTurned[1 - e] < (44100 >> 1));
+					bool otherTurnedRecently =
+					    (AudioEngine::audioSampleTimer - timeModEncoderLastTurned[1 - e] < (44100 >> 1));
 					if (!otherTurnedRecently) actionLogger.closeAction(ACTION_PARAM_UNAUTOMATED_VALUE_CHANGE);
-
-
 
 					modEncoderInitialTurnDirection[e] = encoders[ENCODER_MOD_0 - e].encPos;
 
@@ -201,9 +197,7 @@ checkResult:
 		}
 	}
 
-    return anything;
+	return anything;
 }
 
-
-
-}
+} // namespace Encoders

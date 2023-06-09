@@ -42,11 +42,11 @@
                  : uint16_t     port         : Port number.
  Return value    : none
  ***********************************************************************************************************************/
-void usb_hstd_test_stop(usb_utr_t *ptr, uint16_t port)
+void usb_hstd_test_stop(usb_utr_t* ptr, uint16_t port)
 {
     /* USBRST=0, RESUME=0, UACT=1 */
     usb_hstd_set_uact(ptr, port);
-}/* End of function usb_hstd_test_stop() */
+} /* End of function usb_hstd_test_stop() */
 
 /***********************************************************************************************************************
  Function Name   : usb_hstd_test_signal
@@ -56,9 +56,9 @@ void usb_hstd_test_stop(usb_utr_t *ptr, uint16_t port)
                  : uint16_t     command      : Command
  Return value    : none
  ***********************************************************************************************************************/
-void usb_hstd_test_signal(usb_utr_t *ptr, uint16_t port, uint16_t command)
+void usb_hstd_test_signal(usb_utr_t* ptr, uint16_t port, uint16_t command)
 {
-    uint16_t    buff;
+    uint16_t buff;
 
     switch (command)
     {
@@ -66,25 +66,25 @@ void usb_hstd_test_signal(usb_utr_t *ptr, uint16_t port, uint16_t command)
 
             buff = USB_H_TST_J;
 
-        break;
+            break;
 
         case 2:
 
             buff = USB_H_TST_K;
 
-        break;
+            break;
 
         case 3:
 
             buff = USB_H_TST_SE0_NAK;
 
-        break;
+            break;
 
         case 4:
 
             buff = USB_H_TST_PACKET;
 
-        break;
+            break;
 
         default:
 
@@ -92,7 +92,7 @@ void usb_hstd_test_signal(usb_utr_t *ptr, uint16_t port, uint16_t command)
             hw_usb_set_utst(ptr, buff);
             usb_hstd_sw_reset(ptr);
 
-        break;
+            break;
     }
 
     usb_hstd_test_uact_ctrl(ptr, port, (uint16_t)USB_UACTOFF);
@@ -108,7 +108,7 @@ void usb_hstd_test_signal(usb_utr_t *ptr, uint16_t port, uint16_t command)
                  : uint16_t     command      : USB_UACTON / OFF
  Return value    : none
  ***********************************************************************************************************************/
-void usb_hstd_test_uact_ctrl(usb_utr_t *ptr, uint16_t port, uint16_t command)
+void usb_hstd_test_uact_ctrl(usb_utr_t* ptr, uint16_t port, uint16_t command)
 {
 
     if (USB_UACTON == command)
@@ -134,7 +134,7 @@ void usb_hstd_test_uact_ctrl(usb_utr_t *ptr, uint16_t port, uint16_t command)
                  : uint16_t     command      : USB_UACTON / OFF
  Return value    : none
  ***********************************************************************************************************************/
-void usb_hstd_test_vbus_ctrl(usb_utr_t *ptr, uint16_t port, uint16_t command)
+void usb_hstd_test_vbus_ctrl(usb_utr_t* ptr, uint16_t port, uint16_t command)
 {
     if (USB_VBON == command)
     {
@@ -158,7 +158,7 @@ void usb_hstd_test_vbus_ctrl(usb_utr_t *ptr, uint16_t port, uint16_t command)
                  : uint16_t     port         : Port number.
  Return value    : none
  ***********************************************************************************************************************/
-void usb_hstd_test_bus_reset(usb_utr_t *ptr, uint16_t port)
+void usb_hstd_test_bus_reset(usb_utr_t* ptr, uint16_t port)
 {
     /* USBRST=1, UACT=0 */
     hw_usb_rmw_dvstctr(ptr, port, USB_USBRST, (USB_USBRST | USB_UACT));
@@ -168,7 +168,7 @@ void usb_hstd_test_bus_reset(usb_utr_t *ptr, uint16_t port)
 
     /* USBRST=0 */
     hw_usb_clear_dvstctr(ptr, USB_PORT0, USB_USBRST); //for UTMI
-    usb_cpu_delay_1us(300);//for UTMI
+    usb_cpu_delay_1us(300);                           //for UTMI
 
     /* USBRST=0, RESUME=0, UACT=1 */
     usb_hstd_set_uact(ptr, port);
@@ -184,7 +184,7 @@ void usb_hstd_test_bus_reset(usb_utr_t *ptr, uint16_t port)
                  : uint16_t     port         : Port number.
  Return value    : none
  ***********************************************************************************************************************/
-void usb_hstd_test_suspend(usb_utr_t *ptr, uint16_t port)
+void usb_hstd_test_suspend(usb_utr_t* ptr, uint16_t port)
 {
     /* SOF out disable */
     hw_usb_hclear_uact(ptr, port);
@@ -200,7 +200,7 @@ void usb_hstd_test_suspend(usb_utr_t *ptr, uint16_t port)
                  : uint16_t     port         : Port number.
  Return value    : none
  ***********************************************************************************************************************/
-void usb_hstd_test_resume(usb_utr_t *ptr, uint16_t port)
+void usb_hstd_test_resume(usb_utr_t* ptr, uint16_t port)
 {
     /* RESUME bit on */
     hw_usb_hset_resume(ptr, port);
@@ -215,7 +215,7 @@ void usb_hstd_test_resume(usb_utr_t *ptr, uint16_t port)
     hw_usb_hset_uact(ptr, port);
 } /* End of function usb_hstd_test_resume() */
 
-#endif  /* (USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST */
+#endif /* (USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST */
 
 /***********************************************************************************************************************
  End of file

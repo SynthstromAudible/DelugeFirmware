@@ -15,36 +15,33 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-
 #ifndef MENUITEMRANGE_H_
 #define MENUITEMRANGE_H_
 
 #include "MenuItem.h"
 
-
 #define RANGE_EDIT_OFF 0
 #define RANGE_EDIT_LEFT 1
 #define RANGE_EDIT_RIGHT 2
 
-
 class MenuItemRange : public MenuItem {
 public:
-	MenuItemRange(char const* newName = NULL) : MenuItem(newName) {};
+	MenuItemRange(char const* newName = NULL) : MenuItem(newName){};
 
 	void beginSession(MenuItem* navigatedBackwardFrom);
 	void horizontalEncoderAction(int offset) final;
 	bool cancelEditingIfItsOn();
 
 protected:
-	virtual void getText(char* buffer, int* getLeftLength = NULL, int* getRightLength = NULL, bool mayShowJustOne = true) = 0;
+	virtual void getText(char* buffer, int* getLeftLength = NULL, int* getRightLength = NULL,
+	                     bool mayShowJustOne = true) = 0;
 	virtual bool mayEditRangeEdge(int whichEdge) { return true; }
 	void drawValue(int startPos = 0, bool renderSidebarToo = true);
 	void drawValueForEditingRange(bool blinkImmediately);
 
-	#if HAVE_OLED
+#if HAVE_OLED
 	void drawPixelsForOled();
 #endif
-
 };
 
 #endif /* MENUITEMRANGE_H_ */

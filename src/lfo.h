@@ -20,13 +20,12 @@
 
 #include "definitions.h"
 
-class LFO
-{
+class LFO {
 public:
-    LFO();
-    uint32_t phase;
-    int32_t render(int numSamples, int waveType, uint32_t phaseIncrement);
-    void tick(int numSamples, uint32_t phaseIncrement);
+	LFO();
+	uint32_t phase;
+	int32_t render(int numSamples, int waveType, uint32_t phaseIncrement);
+	void tick(int numSamples, uint32_t phaseIncrement);
 };
 
 #endif // LFO_H

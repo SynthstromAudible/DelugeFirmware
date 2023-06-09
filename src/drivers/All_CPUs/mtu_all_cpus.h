@@ -20,14 +20,14 @@
 
 #include "mtu.h"
 
-static inline void timerEnableInterruptsTGRA(int timerNo) {
-	*TIER[timerNo] = 1;
+static inline void timerEnableInterruptsTGRA(int timerNo)
+{
+    *TIER[timerNo] = 1;
 }
 
-static inline void timerDisableInterruptsTGRA(int timerNo) {
-	*TIER[timerNo] = 0;
+static inline void timerDisableInterruptsTGRA(int timerNo)
+{
+    *TIER[timerNo] = 0;
 }
-
-
 
 #endif /* DRIVERS_ALL_CPUS_MTU_ALL_CPUS_H_ */

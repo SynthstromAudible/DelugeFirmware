@@ -46,11 +46,11 @@ public:
 
 	ClipInstanceVector clipInstances;
 	Clip* activeClip;
-	String name;	// Contains the display name as the user sees it.
-					// E.g. on numeric Deluge, SYNT000 will be just "0". Definitely no leading zeros, so not "000".
-					// On OLED Deluge I thiiink SYNT000 would be "SYNT000"?
-					// Definitely does not contain the ".XML" on the end.
-    Output* next;
+	String name; // Contains the display name as the user sees it.
+	             // E.g. on numeric Deluge, SYNT000 will be just "0". Definitely no leading zeros, so not "000".
+	             // On OLED Deluge I thiiink SYNT000 would be "SYNT000"?
+	             // Definitely does not contain the ".XML" on the end.
+	Output* next;
 	const uint8_t type;
 	bool mutedInArrangementMode;
 	bool soloingInArrangementMode;
@@ -58,74 +58,95 @@ public:
 	bool wasCreatedForAutoOverdub;
 	bool armedForRecording;
 
-    uint8_t modKnobMode;
+	uint8_t modKnobMode;
 
-    // Temp stuff for doLaunch()
-    bool alreadyGotItsNewClip;
-    bool isGettingSoloingClip;
+	// Temp stuff for doLaunch()
+	bool alreadyGotItsNewClip;
+	bool isGettingSoloingClip;
 
-    bool nextClipFoundShouldGetArmed; // Temp thing for Session::armClipsToStartOrSoloWithQuantization
+	bool nextClipFoundShouldGetArmed; // Temp thing for Session::armClipsToStartOrSoloWithQuantization
 
-    // reverbAmountAdjust has "1" as 67108864
-    // Only gets called if there's an activeClip
-    virtual void renderOutput(ModelStack* modelStack, StereoSample *startPos, StereoSample *endPos, int numSamples, int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive) = 0;
+	// reverbAmountAdjust has "1" as 67108864
+	// Only gets called if there's an activeClip
+	virtual void renderOutput(ModelStack* modelStack, StereoSample* startPos, StereoSample* endPos, int numSamples,
+	                          int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending,
+	                          bool shouldLimitDelayFeedback, bool isClipActive) = 0;
 
-
-    virtual void setupWithoutActiveClip(ModelStack* modelStack);
-    virtual bool setActiveClip(ModelStackWithTimelineCounter* modelStack, int maySendMIDIPGMs = PGM_CHANGE_SEND_ONCE); // Will have no effect if it already had that Clip
+	virtual void setupWithoutActiveClip(ModelStack* modelStack);
+	virtual bool
+	setActiveClip(ModelStackWithTimelineCounter* modelStack,
+	              int maySendMIDIPGMs = PGM_CHANGE_SEND_ONCE); // Will have no effect if it already had that Clip
 	void pickAnActiveClipForArrangementPos(ModelStack* modelStack, int arrangementPos, int maySendMIDIPGMs);
-    void pickAnActiveClipIfPossible(ModelStack* modelStack, bool searchSessionClipsIfNeeded = true, int maySendMIDIPGMs = PGM_CHANGE_SEND_ONCE, bool setupWithoutActiveClipIfNeeded = true);
-    void detachActiveClip(Song* currentSong);
+	void pickAnActiveClipIfPossible(ModelStack* modelStack, bool searchSessionClipsIfNeeded = true,
+	                                int maySendMIDIPGMs = PGM_CHANGE_SEND_ONCE,
+	                                bool setupWithoutActiveClipIfNeeded = true);
+	void detachActiveClip(Song* currentSong);
 
-    virtual ModControllable* toModControllable() { return NULL; }
-    virtual bool isSkippingRendering() { return true; } // Not valid for Kits
-    bool clipHasInstance(Clip* clip);
-    void clipLengthChanged(Clip* clip, int32_t oldLength);
-    virtual void cutAllSound() {}
-	virtual void getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb, GlobalEffectableForClip** globalEffectableWithMostReverb,
-			int32_t* highestReverbAmountFound) {}
-    virtual bool offerReceivedPitchBendToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2, ModelStackWithTimelineCounter* modelStack) { return false; } // A TimelineCounter is required
-    virtual void offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value, ModelStackWithTimelineCounter* modelStack) {} // A TimelineCounter is required
+	virtual ModControllable* toModControllable() { return NULL; }
+	virtual bool isSkippingRendering() { return true; } // Not valid for Kits
+	bool clipHasInstance(Clip* clip);
+	void clipLengthChanged(Clip* clip, int32_t oldLength);
+	virtual void cutAllSound() {}
+	virtual void getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb,
+	                                    GlobalEffectableForClip** globalEffectableWithMostReverb,
+	                                    int32_t* highestReverbAmountFound) {}
+	virtual bool offerReceivedPitchBendToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1,
+	                                                   uint8_t data2, ModelStackWithTimelineCounter* modelStack) {
+		return false;
+	} // A TimelineCounter is required
+	virtual void offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber,
+	                                            uint8_t value, ModelStackWithTimelineCounter* modelStack) {
+	} // A TimelineCounter is required
 	virtual int32_t doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) { return 2147483647; }
-    void endAnyArrangementRecording(Song* song, int32_t actualEndPos, uint32_t timeRemainder);
-    virtual bool wantsToBeginArrangementRecording() { return armedForRecording; }
+	void endAnyArrangementRecording(Song* song, int32_t actualEndPos, uint32_t timeRemainder);
+	virtual bool wantsToBeginArrangementRecording() { return armedForRecording; }
 
-    virtual int readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos); // I think that supplying clip here is only a hangover from old pre-2.0 files...
-    virtual bool readTagFromFile(char const* tagName);
-    void writeToFile(Clip* clipForSavingOutputOnly, Song* song);
-    virtual bool writeDataToFile(Clip* clipForSavingOutputOnly, Song* song); // Returns true if it's ended the opening tag and gone into the sub-tags
+	virtual int readFromFile(
+	    Song* song, Clip* clip,
+	    int32_t readAutomationUpToPos); // I think that supplying clip here is only a hangover from old pre-2.0 files...
+	virtual bool readTagFromFile(char const* tagName);
+	void writeToFile(Clip* clipForSavingOutputOnly, Song* song);
+	virtual bool writeDataToFile(Clip* clipForSavingOutputOnly,
+	                             Song* song); // Returns true if it's ended the opening tag and gone into the sub-tags
 
-    virtual int loadAllAudioFiles(bool mayActuallyReadFiles) { return NO_ERROR; }
-    virtual void loadCrucialAudioFilesOnly() {} // Caller must check that there is an activeClip.
+	virtual int loadAllAudioFiles(bool mayActuallyReadFiles) { return NO_ERROR; }
+	virtual void loadCrucialAudioFilesOnly() {} // Caller must check that there is an activeClip.
 
-    virtual void resyncLFOs() {}; // No activeClip needed. Call anytime the Instrument comes into existence on the main list thing
-    virtual void sendMIDIPGM() {};
-    virtual void deleteBackedUpParamManagers(Song* song) {}
-    virtual void prepareForHibernationOrDeletion() {}
+	virtual void
+	resyncLFOs(){}; // No activeClip needed. Call anytime the Instrument comes into existence on the main list thing
+	virtual void sendMIDIPGM(){};
+	virtual void deleteBackedUpParamManagers(Song* song) {}
+	virtual void prepareForHibernationOrDeletion() {}
 
-    virtual char const* getXMLTag() = 0;
+	virtual char const* getXMLTag() = 0;
 
-    virtual ParamManager* getParamManager(Song* song);
+	virtual ParamManager* getParamManager(Song* song);
 
-    virtual char const* getNameXMLTag() { return "name"; }
+	virtual char const* getNameXMLTag() { return "name"; }
 
-    virtual void offerReceivedNote(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice, bool on, int channel, int note, int velocity, bool shouldRecordNotes, bool* doingMidiThru) {}
-    virtual void offerReceivedPitchBend(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2, bool* doingMidiThru) {}
-    virtual void offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru) {}
-    virtual void offerReceivedAftertouch(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice, int channel, int value, int noteCode, bool* doingMidiThru) {}
+	virtual void offerReceivedNote(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
+	                               bool on, int channel, int note, int velocity, bool shouldRecordNotes,
+	                               bool* doingMidiThru) {}
+	virtual void offerReceivedPitchBend(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+	                                    MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2,
+	                                    bool* doingMidiThru) {}
+	virtual void offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
+	                             uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru) {}
+	virtual void offerReceivedAftertouch(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+	                                     MIDIDevice* fromDevice, int channel, int value, int noteCode,
+	                                     bool* doingMidiThru) {}
 
-    virtual void stopAnyAuditioning(ModelStack* modelStack) {}
-    virtual void offerBendRangeUpdate(ModelStack* modelStack, MIDIDevice* device, int channelOrZone, int whichBendRange, int bendSemitones) {}
+	virtual void stopAnyAuditioning(ModelStack* modelStack) {}
+	virtual void offerBendRangeUpdate(ModelStack* modelStack, MIDIDevice* device, int channelOrZone, int whichBendRange,
+	                                  int bendSemitones) {}
 
-
-    // Arrangement stuff
-    int possiblyBeginArrangementRecording(Song* song, int newPos);
-    void endArrangementPlayback(Song* song, int32_t actualEndPos, uint32_t timeRemainder);
-    bool recordingInArrangement;
-
+	// Arrangement stuff
+	int possiblyBeginArrangementRecording(Song* song, int newPos);
+	void endArrangementPlayback(Song* song, int32_t actualEndPos, uint32_t timeRemainder);
+	bool recordingInArrangement;
 
 protected:
-    virtual Clip* createNewClipForArrangementRecording(ModelStack* modelStack) = 0;
+	virtual Clip* createNewClipForArrangementRecording(ModelStack* modelStack) = 0;
 };
 
 #endif /* OUTPUT_H_ */

@@ -21,5 +21,5 @@
 #include "Clip.h"
 
 int ClipMinder::buttonAction(int x, int y, bool on) {
-   	return ACTION_RESULT_NOT_DEALT_WITH;
+	return ACTION_RESULT_NOT_DEALT_WITH;
 }

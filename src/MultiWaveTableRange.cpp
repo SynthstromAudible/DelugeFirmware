@@ -19,4 +19,3 @@
 
 MultiWaveTableRange::MultiWaveTableRange() {
 }
-

@@ -27,7 +27,6 @@ public:
 	uint8_t* getModKnobMode() { return &modKnobMode; }
 
 	uint8_t modKnobMode;
-
 };
 
 #endif /* GLOBALEFFECTABLEFORSONG_H_ */

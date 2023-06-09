@@ -23,8 +23,7 @@
 #include <new>
 #include "definitions.h"
 
-ConsequenceParamChange::ConsequenceParamChange(ModelStackWithAutoParam const* modelStack, bool stealData)
-{
+ConsequenceParamChange::ConsequenceParamChange(ModelStackWithAutoParam const* modelStack, bool stealData) {
 	type = CONSEQUENCE_PARAM_CHANGE;
 	memcpy(modelStackMemory, modelStack, sizeof(ModelStackWithParamId));
 
@@ -40,7 +39,6 @@ ConsequenceParamChange::ConsequenceParamChange(ModelStackWithAutoParam const* mo
 		state.nodes.cloneFrom(&modelStack->autoParam->nodes);
 	}
 }
-
 
 int ConsequenceParamChange::revert(int time, ModelStack* modelStackWithSong) {
 

@@ -126,7 +126,6 @@ public:
 	ModelStackWithTimelineCounter* addTimelineCounter(TimelineCounter* newTimelineCounter) const;
 };
 
-
 class ModelStackWithTimelineCounter {
 public:
 	Song* song;
@@ -134,16 +133,16 @@ public:
 	ModelStackWithNoteRow* addNoteRow(int noteRowId, NoteRow* noteRow) const;
 	ModelStackWithNoteRowId* addNoteRowId(int noteRowId) const;
 	ModelStackWithThreeMainThings* addNoteRowAndExtraStuff(int noteRowIndex, NoteRow* newNoteRow) const;
-	ModelStackWithThreeMainThings* addOtherTwoThingsButNoNoteRow(ModControllable* newModControllable, ParamManager* newParamManager) const;
+	ModelStackWithThreeMainThings* addOtherTwoThingsButNoNoteRow(ModControllable* newModControllable,
+	                                                             ParamManager* newParamManager) const;
 	ModelStackWithModControllable* addModControllableButNoNoteRow(ModControllable* newModControllable) const;
 
-	inline ModelStack* toWithSong() const { // I thiiiink you're supposed to just be real careful about when you call this etc...
+	inline ModelStack*
+	toWithSong() const { // I thiiiink you're supposed to just be real careful about when you call this etc...
 		return (ModelStack*)this;
 	}
 
-	inline bool timelineCounterIsSet() const {
-		return timelineCounter;
-	}
+	inline bool timelineCounterIsSet() const { return timelineCounter; }
 
 	inline TimelineCounter* getTimelineCounter() const {
 #if ALPHA_OR_BETA_VERSION
@@ -167,16 +166,13 @@ protected:
 class ModelStackWithNoteRowId {
 public:
 	Song* song;
+
 protected:
 	TimelineCounter* timelineCounter; // Allowed to be NULL
 public:
-	inline ModelStackWithTimelineCounter* toWithTimelineCounter() const {
-		return (ModelStackWithTimelineCounter*)this;
-	}
+	inline ModelStackWithTimelineCounter* toWithTimelineCounter() const { return (ModelStackWithTimelineCounter*)this; }
 
-	inline TimelineCounter* getTimelineCounter() const {
-		return toWithTimelineCounter()->getTimelineCounter();
-	}
+	inline TimelineCounter* getTimelineCounter() const { return toWithTimelineCounter()->getTimelineCounter(); }
 
 	inline TimelineCounter* getTimelineCounterAllowNull() const {
 		return toWithTimelineCounter()->getTimelineCounterAllowNull();
@@ -186,17 +182,13 @@ public:
 		toWithTimelineCounter()->setTimelineCounter(newTimelineCounter);
 	}
 
-	inline bool timelineCounterIsSet() const {
-		return toWithTimelineCounter()->timelineCounterIsSet();
-	}
-
+	inline bool timelineCounterIsSet() const { return toWithTimelineCounter()->timelineCounterIsSet(); }
 
 	ModelStackWithNoteRow* automaticallyAddNoteRowFromId() const;
 	int noteRowId; // Valid and mandatory, iff noteRow is set
 };
 
-
-class ModelStackWithNoteRow: public ModelStackWithNoteRowId {
+class ModelStackWithNoteRow : public ModelStackWithNoteRowId {
 public:
 	inline void setNoteRow(NoteRow* newNoteRow, int newNoteRowId) {
 		noteRow = newNoteRow;
@@ -218,7 +210,8 @@ public:
 		noteRow = newNoteRow;
 	}
 
-	ModelStackWithThreeMainThings* addOtherTwoThings(ModControllable* newModControllable, ParamManager* newParamManager) const;
+	ModelStackWithThreeMainThings* addOtherTwoThings(ModControllable* newModControllable,
+	                                                 ParamManager* newParamManager) const;
 	ModelStackWithModControllable* addModControllable(ModControllable* newModControllable) const;
 	ModelStackWithThreeMainThings* addOtherTwoThingsAutomaticallyGivenNoteRow() const;
 
@@ -233,29 +226,29 @@ protected:
 	NoteRow* noteRow; // Very often will be NULL
 };
 
-class ModelStackWithModControllable: public ModelStackWithNoteRow {
+class ModelStackWithModControllable : public ModelStackWithNoteRow {
 public:
 	ModControllable* modControllable;
 	ModelStackWithThreeMainThings* addParamManager(ParamManagerForTimeline* newParamManager) const;
-
 };
 
-class ModelStackWithThreeMainThings: public ModelStackWithModControllable {
+class ModelStackWithThreeMainThings : public ModelStackWithModControllable {
 public:
 	ParamManager* paramManager;
 
-	ModelStackWithParamCollection* addParamCollection(ParamCollection* newParamCollection, ParamCollectionSummary* newSummary) const;
+	ModelStackWithParamCollection* addParamCollection(ParamCollection* newParamCollection,
+	                                                  ParamCollectionSummary* newSummary) const;
 	ModelStackWithParamCollection* addParamCollectionSummary(ParamCollectionSummary* newSummary) const;
-	ModelStackWithParamId* addParamCollectionAndId(ParamCollection* newParamCollection, ParamCollectionSummary* newSummary, int newParamId) const;
-	ModelStackWithAutoParam* addParam(ParamCollection* newParamCollection, ParamCollectionSummary* newSummary, int newParamId, AutoParam* newAutoParam) const;
+	ModelStackWithParamId* addParamCollectionAndId(ParamCollection* newParamCollection,
+	                                               ParamCollectionSummary* newSummary, int newParamId) const;
+	ModelStackWithAutoParam* addParam(ParamCollection* newParamCollection, ParamCollectionSummary* newSummary,
+	                                  int newParamId, AutoParam* newAutoParam) const;
 
 	inline ModelStackWithSoundFlags* addSoundFlags() const;
 	inline ModelStackWithSoundFlags* addDummySoundFlags() const;
-
 };
 
-
-class ModelStackWithParamCollection: public ModelStackWithThreeMainThings {
+class ModelStackWithParamCollection : public ModelStackWithThreeMainThings {
 public:
 	ParamCollection* paramCollection;
 	ParamCollectionSummary* summary;
@@ -264,21 +257,17 @@ public:
 	ModelStackWithAutoParam* addAutoParam(int newParamId, AutoParam* newAutoParam) const;
 };
 
-
-class ModelStackWithParamId: public ModelStackWithParamCollection {
+class ModelStackWithParamId : public ModelStackWithParamCollection {
 public:
 	int paramId;
 
 	ModelStackWithAutoParam* addAutoParam(AutoParam* newAutoParam) const;
 };
 
-
-
-class ModelStackWithAutoParam: public ModelStackWithParamId {
+class ModelStackWithAutoParam : public ModelStackWithParamId {
 public:
 	AutoParam* autoParam;
 };
-
 
 #define SOUND_FLAG_SOURCE_0_ACTIVE_DISREGARDING_MISSING_SAMPLE 0
 #define SOUND_FLAG_SOURCE_1_ACTIVE_DISREGARDING_MISSING_SAMPLE 1
@@ -291,8 +280,7 @@ public:
 #define FLAG_TBD 2
 #define FLAG_SHOULDNT_BE_NEEDED 3
 
-
-class ModelStackWithSoundFlags: public ModelStackWithThreeMainThings {
+class ModelStackWithSoundFlags : public ModelStackWithThreeMainThings {
 public:
 	uint8_t soundFlags[NUM_SOUND_FLAGS];
 
@@ -301,24 +289,12 @@ public:
 	bool checkSourceEverActive(int s);
 };
 
-
-class ModelStackWithVoice: public ModelStackWithSoundFlags {
+class ModelStackWithVoice : public ModelStackWithSoundFlags {
 public:
 	Voice* voice;
 };
 
 #define MODEL_STACK_MAX_SIZE sizeof(ModelStackWithAutoParam)
-
-
-
-
-
-
-
-
-
-
-
 
 inline ModelStack* setupModelStackWithSong(void* memory, Song* newSong) {
 	ModelStack* modelStack = (ModelStack*)memory;
@@ -327,7 +303,8 @@ inline ModelStack* setupModelStackWithSong(void* memory, Song* newSong) {
 	return modelStack;
 }
 
-inline ModelStackWithTimelineCounter* setupModelStackWithTimelineCounter(void* memory, Song* newSong, TimelineCounter* newTimelineCounter) {
+inline ModelStackWithTimelineCounter* setupModelStackWithTimelineCounter(void* memory, Song* newSong,
+                                                                         TimelineCounter* newTimelineCounter) {
 	ModelStackWithTimelineCounter* modelStack = (ModelStackWithTimelineCounter*)memory;
 	modelStack->song = newSong;
 	modelStack->setTimelineCounter(newTimelineCounter);
@@ -335,26 +312,36 @@ inline ModelStackWithTimelineCounter* setupModelStackWithTimelineCounter(void* m
 	return modelStack;
 }
 
-inline ModelStackWithModControllable* setupModelStackWithModControllable(void* memory, Song* newSong, TimelineCounter* newTimelineCounter, ModControllable* newModControllable) {
+inline ModelStackWithModControllable* setupModelStackWithModControllable(void* memory, Song* newSong,
+                                                                         TimelineCounter* newTimelineCounter,
+                                                                         ModControllable* newModControllable) {
 
-	return setupModelStackWithSong(memory, newSong)->addTimelineCounter(newTimelineCounter)->addNoteRow(0, NULL)->addModControllable(newModControllable);
+	return setupModelStackWithSong(memory, newSong)
+	    ->addTimelineCounter(newTimelineCounter)
+	    ->addNoteRow(0, NULL)
+	    ->addModControllable(newModControllable);
 }
 
-inline ModelStackWithThreeMainThings* setupModelStackWithThreeMainThingsButNoNoteRow(void* memory, Song* newSong, ModControllable* newModControllable, TimelineCounter* newTimelineCounter, ParamManager* newParamManager) {
+inline ModelStackWithThreeMainThings*
+setupModelStackWithThreeMainThingsButNoNoteRow(void* memory, Song* newSong, ModControllable* newModControllable,
+                                               TimelineCounter* newTimelineCounter, ParamManager* newParamManager) {
 
-	return setupModelStackWithSong(memory, newSong)->addTimelineCounter(newTimelineCounter)->addNoteRow(0, NULL)->addOtherTwoThings(newModControllable, newParamManager);
+	return setupModelStackWithSong(memory, newSong)
+	    ->addTimelineCounter(newTimelineCounter)
+	    ->addNoteRow(0, NULL)
+	    ->addOtherTwoThings(newModControllable, newParamManager);
 }
 
+inline ModelStackWithThreeMainThings*
+setupModelStackWithThreeMainThingsIncludingNoteRow(void* memory, Song* newSong, TimelineCounter* newTimelineCounter,
+                                                   int noteRowId, NoteRow* noteRow, ModControllable* newModControllable,
+                                                   ParamManagerForTimeline* newParamManager) {
 
-inline ModelStackWithThreeMainThings* setupModelStackWithThreeMainThingsIncludingNoteRow(void* memory, Song* newSong, TimelineCounter* newTimelineCounter, int noteRowId, NoteRow* noteRow, ModControllable* newModControllable, ParamManagerForTimeline* newParamManager) {
-
-	return setupModelStackWithSong(memory, newSong)->addTimelineCounter(newTimelineCounter)->addNoteRow(noteRowId, noteRow)->addOtherTwoThings(newModControllable, newParamManager);
+	return setupModelStackWithSong(memory, newSong)
+	    ->addTimelineCounter(newTimelineCounter)
+	    ->addNoteRow(noteRowId, noteRow)
+	    ->addOtherTwoThings(newModControllable, newParamManager);
 }
-
-
-
-
-
 
 inline ModelStackWithTimelineCounter* ModelStack::addTimelineCounter(TimelineCounter* newTimelineCounter) const {
 	ModelStackWithTimelineCounter* toReturn = (ModelStackWithTimelineCounter*)this;
@@ -375,40 +362,43 @@ inline ModelStackWithNoteRow* ModelStackWithTimelineCounter::addNoteRow(int note
 	return toReturn;
 }
 
-
-inline ModelStackWithModControllable* ModelStackWithTimelineCounter::addModControllableButNoNoteRow(ModControllable* newModControllable) const {
+inline ModelStackWithModControllable*
+ModelStackWithTimelineCounter::addModControllableButNoNoteRow(ModControllable* newModControllable) const {
 	return addNoteRow(0, NULL)->addModControllable(newModControllable);
 }
 
-
-inline ModelStackWithThreeMainThings* ModelStackWithTimelineCounter::addOtherTwoThingsButNoNoteRow(ModControllable* newModControllable, ParamManager* newParamManager) const {
+inline ModelStackWithThreeMainThings*
+ModelStackWithTimelineCounter::addOtherTwoThingsButNoNoteRow(ModControllable* newModControllable,
+                                                             ParamManager* newParamManager) const {
 	return addNoteRow(0, NULL)->addOtherTwoThings(newModControllable, newParamManager);
 }
 
-
-inline ModelStackWithModControllable* ModelStackWithNoteRow::addModControllable(ModControllable* newModControllable) const {
+inline ModelStackWithModControllable*
+ModelStackWithNoteRow::addModControllable(ModControllable* newModControllable) const {
 	ModelStackWithModControllable* toReturn = (ModelStackWithModControllable*)this;
 	toReturn->modControllable = newModControllable;
 	return toReturn;
 }
 
-
-inline ModelStackWithThreeMainThings* ModelStackWithNoteRow::addOtherTwoThings(ModControllable* newModControllable, ParamManager* newParamManager) const {
+inline ModelStackWithThreeMainThings* ModelStackWithNoteRow::addOtherTwoThings(ModControllable* newModControllable,
+                                                                               ParamManager* newParamManager) const {
 	ModelStackWithThreeMainThings* toReturn = (ModelStackWithThreeMainThings*)this;
 	toReturn->modControllable = newModControllable;
 	toReturn->paramManager = newParamManager;
 	return toReturn;
 }
 
-
-inline ModelStackWithThreeMainThings* ModelStackWithModControllable::addParamManager(ParamManagerForTimeline* newParamManager) const {
+inline ModelStackWithThreeMainThings*
+ModelStackWithModControllable::addParamManager(ParamManagerForTimeline* newParamManager) const {
 	ModelStackWithThreeMainThings* toReturn = (ModelStackWithThreeMainThings*)this;
 	toReturn->paramManager = newParamManager;
 	return toReturn;
 }
 
 // Although the ParamCollection is referenced inside the Summary, this is to call when you've already grabbed that pointer out, to avoid the CPU having to go and look at it again.
-inline ModelStackWithParamCollection* ModelStackWithThreeMainThings::addParamCollection(ParamCollection* newParamCollection, ParamCollectionSummary* newSummary) const {
+inline ModelStackWithParamCollection*
+ModelStackWithThreeMainThings::addParamCollection(ParamCollection* newParamCollection,
+                                                  ParamCollectionSummary* newSummary) const {
 	ModelStackWithParamCollection* toReturn = (ModelStackWithParamCollection*)this;
 	toReturn->paramCollection = newParamCollection;
 	toReturn->summary = newSummary;
@@ -416,14 +406,17 @@ inline ModelStackWithParamCollection* ModelStackWithThreeMainThings::addParamCol
 }
 
 // To call when you haven't already separately grabbed the paramCollection pointer out - for convenience.
-inline ModelStackWithParamCollection* ModelStackWithThreeMainThings::addParamCollectionSummary(ParamCollectionSummary* newSummary) const {
+inline ModelStackWithParamCollection*
+ModelStackWithThreeMainThings::addParamCollectionSummary(ParamCollectionSummary* newSummary) const {
 	ModelStackWithParamCollection* toReturn = (ModelStackWithParamCollection*)this;
 	toReturn->summary = newSummary;
 	toReturn->paramCollection = newSummary->paramCollection;
 	return toReturn;
 }
 
-inline ModelStackWithParamId* ModelStackWithThreeMainThings::addParamCollectionAndId(ParamCollection* newParamCollection, ParamCollectionSummary* newSummary, int newParamId) const {
+inline ModelStackWithParamId*
+ModelStackWithThreeMainThings::addParamCollectionAndId(ParamCollection* newParamCollection,
+                                                       ParamCollectionSummary* newSummary, int newParamId) const {
 	ModelStackWithParamId* toReturn = (ModelStackWithParamId*)this;
 	toReturn->paramCollection = newParamCollection;
 	toReturn->summary = newSummary;
@@ -431,7 +424,9 @@ inline ModelStackWithParamId* ModelStackWithThreeMainThings::addParamCollectionA
 	return toReturn;
 }
 
-inline ModelStackWithAutoParam* ModelStackWithThreeMainThings::addParam(ParamCollection* newParamCollection, ParamCollectionSummary* newSummary, int newParamId, AutoParam* newAutoParam) const {
+inline ModelStackWithAutoParam* ModelStackWithThreeMainThings::addParam(ParamCollection* newParamCollection,
+                                                                        ParamCollectionSummary* newSummary,
+                                                                        int newParamId, AutoParam* newAutoParam) const {
 	ModelStackWithAutoParam* toReturn = (ModelStackWithAutoParam*)this;
 	toReturn->paramCollection = newParamCollection;
 	toReturn->summary = newSummary;
@@ -446,7 +441,8 @@ inline ModelStackWithParamId* ModelStackWithParamCollection::addParamId(int newP
 	return toReturn;
 }
 
-inline ModelStackWithAutoParam* ModelStackWithParamCollection::addAutoParam(int newParamId, AutoParam* newAutoParam) const {
+inline ModelStackWithAutoParam* ModelStackWithParamCollection::addAutoParam(int newParamId,
+                                                                            AutoParam* newAutoParam) const {
 	ModelStackWithAutoParam* toReturn = (ModelStackWithAutoParam*)this;
 	toReturn->paramId = newParamId;
 	toReturn->autoParam = newAutoParam;
@@ -477,7 +473,6 @@ inline ModelStackWithSoundFlags* ModelStackWithThreeMainThings::addDummySoundFla
 	return toReturn;
 }
 
-
 inline ModelStackWithVoice* ModelStackWithSoundFlags::addVoice(Voice* voice) const {
 	ModelStackWithVoice* toReturn = (ModelStackWithVoice*)this;
 	toReturn->voice = voice;
@@ -492,7 +487,6 @@ char modelStackMemory[MODEL_STACK_MAX_SIZE];
 ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 */
-
 
 /*
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];

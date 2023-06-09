@@ -32,14 +32,16 @@ class AudioFileHolder {
 public:
 	AudioFileHolder();
 	virtual ~AudioFileHolder();
-    virtual void setAudioFile(AudioFile* newSample, bool reversed = false, bool manuallySelected = false, int clusterLoadInstruction = CLUSTER_ENQUEUE);
-    int loadFile(bool reversed, bool manuallySelected, bool mayActuallyReadFile, int clusterLoadInstruction = CLUSTER_ENQUEUE, FilePointer* filePointer = NULL, bool makeWaveTableWorkAtAllCosts = false);
-    virtual void unassignAllClusterReasons(bool beingDestructed = false) {}
+	virtual void setAudioFile(AudioFile* newSample, bool reversed = false, bool manuallySelected = false,
+	                          int clusterLoadInstruction = CLUSTER_ENQUEUE);
+	int loadFile(bool reversed, bool manuallySelected, bool mayActuallyReadFile,
+	             int clusterLoadInstruction = CLUSTER_ENQUEUE, FilePointer* filePointer = NULL,
+	             bool makeWaveTableWorkAtAllCosts = false);
+	virtual void unassignAllClusterReasons(bool beingDestructed = false) {}
 
-    String filePath;
-    AudioFile* audioFile;
-    uint8_t audioFileType;
-
+	String filePath;
+	AudioFile* audioFile;
+	uint8_t audioFileType;
 };
 
 #endif /* AUDIOFILEHOLDER_H_ */

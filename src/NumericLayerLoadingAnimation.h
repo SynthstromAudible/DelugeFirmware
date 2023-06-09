@@ -30,7 +30,6 @@ public:
 
 	int8_t loadingAnimationPos;
 	bool animationIsTransparent;
-
 };
 
 #endif /* NUMERICLAYERLOADINGANIMATION_H_ */

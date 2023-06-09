@@ -20,20 +20,22 @@
 #include "mtu_all_cpus.h"
 
 int getNumDecimalDigits(uint32_t number) {
-    uint32_t sizeTest = 10;
-    int totalNumDigits = 1;
-    while (number >= sizeTest) {
-    	totalNumDigits++;
-    	if (totalNumDigits == 10) break;
-    	sizeTest *= 10;
-    }
-    return totalNumDigits;
+	uint32_t sizeTest = 10;
+	int totalNumDigits = 1;
+	while (number >= sizeTest) {
+		totalNumDigits++;
+		if (totalNumDigits == 10) break;
+		sizeTest *= 10;
+	}
+	return totalNumDigits;
 }
 
 void intToString(int32_t number, char* __restrict__ buffer, int minNumDigits) {
 
 	int isNegative = (number < 0);
-	if (isNegative) number = (uint32_t)0 - (uint32_t)number; // Can't just go "-number", cos somehow that doesn't work for negative 2 billion!
+	if (isNegative)
+		number = (uint32_t)0
+		         - (uint32_t)number; // Can't just go "-number", cos somehow that doesn't work for negative 2 billion!
 
 	int totalNumDigits = getNumDecimalDigits(number);
 
@@ -46,7 +48,7 @@ void intToString(int32_t number, char* __restrict__ buffer, int minNumDigits) {
 
 	buffer[totalNumDigits] = 0;
 	int charPos = totalNumDigits - 1;
-	while(1) {
+	while (1) {
 		if (charPos == isNegative) {
 			buffer[charPos] = '0' + number;
 			break;
@@ -56,7 +58,6 @@ void intToString(int32_t number, char* __restrict__ buffer, int minNumDigits) {
 		number = divided;
 	}
 }
-
 
 void floatToString(float number, char* __restrict__ buffer, int minNumDecimalPlaces, int maxNumDecimalPlaces) {
 
@@ -130,7 +131,6 @@ void floatToString(float number, char* __restrict__ buffer, int minNumDecimalPla
 		decimalPlace++;
 	}
 
-
 	// We've reached our max number of decimal places, but still got a remainder.
 	*writePos = 0;
 	char* oldEndPos;
@@ -169,7 +169,9 @@ moveBackOneDigit:
 		while (true) {
 			writePos--;
 			if (decimalPlace <= minNumDecimalPlaces) {
-				if (*writePos == '.') *writePos = 0; // If min decimal places was 0 and we got that far back, get rid of the decimal point.
+				if (*writePos == '.')
+					*writePos =
+					    0; // If min decimal places was 0 and we got that far back, get rid of the decimal point.
 				break;
 			}
 			decimalPlace--;
@@ -180,7 +182,7 @@ moveBackOneDigit:
 	return;
 
 	// If we reached left of string, oh no, we can't move back any further. So move everything else instead.
-needExtraDigitOnLeft: {}
+needExtraDigitOnLeft : {}
 	char* readPos = oldEndPos;
 	while (readPos >= leftmostDigitPos) {
 		*(readPos + 1) = *readPos;
@@ -189,17 +191,14 @@ needExtraDigitOnLeft: {}
 	*leftmostDigitPos = '1';
 }
 
-
-
-
 void slotToString(int slot, int subSlot, char* __restrict__ buffer, int minNumDigits) {
-    intToString(slot, buffer, minNumDigits);
+	intToString(slot, buffer, minNumDigits);
 
-    if (subSlot != -1) {
-        int stringLength = strlen(buffer);
-        buffer[stringLength] = subSlot + 'A';
-        buffer[stringLength + 1] = 0;
-    }
+	if (subSlot != -1) {
+		int stringLength = strlen(buffer);
+		buffer[stringLength] = subSlot + 'A';
+		buffer[stringLength + 1] = 0;
+	}
 }
 
 uint32_t superfastTimerCountToNS(uint32_t timerCount) {
@@ -225,11 +224,13 @@ uint32_t msToSlowTimerCount(uint32_t ms) {
 void delayMS(uint32_t ms) {
 	uint16_t startTime = *TCNT[TIMER_SYSTEM_SLOW];
 	uint16_t stopTime = startTime + msToSlowTimerCount(ms);
-	while ((uint16_t)(*TCNT[TIMER_SYSTEM_SLOW] - stopTime) >= 8);
+	while ((uint16_t)(*TCNT[TIMER_SYSTEM_SLOW] - stopTime) >= 8)
+		;
 }
 
 void delayUS(uint32_t us) {
 	uint16_t startTime = *TCNT[TIMER_SYSTEM_FAST];
 	uint16_t stopTime = startTime + usToFastTimerCount(us);
-	while ((int16_t)(*TCNT[TIMER_SYSTEM_FAST] - stopTime) < 0);
+	while ((int16_t)(*TCNT[TIMER_SYSTEM_FAST] - stopTime) < 0)
+		;
 }

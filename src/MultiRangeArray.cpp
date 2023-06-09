@@ -21,11 +21,9 @@
 #include <new>
 #include "numericdriver.h"
 
-MultiRangeArray::MultiRangeArray() :
-	OrderedResizeableArray(sizeof(MultisampleRange), 16, __builtin_offsetof(MultiRange, topNote), 0, 0)
-{
+MultiRangeArray::MultiRangeArray()
+    : OrderedResizeableArray(sizeof(MultisampleRange), 16, __builtin_offsetof(MultiRange, topNote), 0, 0) {
 }
-
 
 // This function could sorta be done without...
 MultiRange* MultiRangeArray::getElement(int i) {
@@ -46,7 +44,6 @@ MultiRange* MultiRangeArray::insertMultiRange(int i) {
 	}
 	return range;
 }
-
 
 int MultiRangeArray::changeType(int newSize) {
 
@@ -76,7 +73,8 @@ int MultiRangeArray::changeType(int newSize) {
 
 		newRange->topNote = oldRange->topNote;
 
-		oldRange->~MultiRange(); // Always have to do this manually - the Array doesn't otherwise take care of destructing these.
+		oldRange
+		    ->~MultiRange(); // Always have to do this manually - the Array doesn't otherwise take care of destructing these.
 	}
 
 	empty();

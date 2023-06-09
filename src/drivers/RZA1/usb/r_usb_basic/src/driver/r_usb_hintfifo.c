@@ -45,9 +45,9 @@
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
  Return value    : none
  ***********************************************************************************************************************/
-void usb_hstd_brdy_pipe(usb_utr_t *ptr)
+void usb_hstd_brdy_pipe(usb_utr_t* ptr)
 {
-    uint16_t    bitsts;
+    uint16_t bitsts;
 
     bitsts = ptr->status;
 
@@ -61,7 +61,8 @@ void usb_hstd_brdy_pipe(usb_utr_t *ptr)
             /* Data stage of Control read transfer */
             case USB_DATARD:
 
-                switch (usb_pstd_read_data(USB_PIPE0, USB_CUSE)) // Modified by Rohan to call the PSTD function, since they're the same now
+                switch (usb_pstd_read_data(
+                    USB_PIPE0, USB_CUSE)) // Modified by Rohan to call the PSTD function, since they're the same now
                 {
                     /* End of data read */
                     case USB_READEND:
@@ -70,11 +71,11 @@ void usb_hstd_brdy_pipe(usb_utr_t *ptr)
 
                         usb_hstd_status_start(ptr);
 
-                    break;
+                        break;
 
                     /* Continue of data read */
                     case USB_READING:
-                    break;
+                        break;
 
                     /* FIFO access error */
                     case USB_READOVER:
@@ -83,7 +84,7 @@ void usb_hstd_brdy_pipe(usb_utr_t *ptr)
                         /* Control Read/Write End */
                         usb_hstd_ctrl_end(ptr, (uint16_t)USB_DATA_OVR);
 
-                    break;
+                        break;
 
                     /* FIFO access error */
                     case USB_FIFOERROR:
@@ -92,18 +93,19 @@ void usb_hstd_brdy_pipe(usb_utr_t *ptr)
                         /* Control Read/Write End */
                         usb_hstd_ctrl_end(ptr, (uint16_t)USB_DATA_ERR);
 
-                    break;
+                        break;
 
                     default:
-                    break;
+                        break;
                 }
 
-            break;
+                break;
 
             /* Data stage of Control read transfer */
             case USB_DATARDCNT:
 
-                switch (usb_pstd_read_data(USB_PIPE0, USB_CUSE)) // Modified by Rohan to call the PSTD function, since they're the same now
+                switch (usb_pstd_read_data(
+                    USB_PIPE0, USB_CUSE)) // Modified by Rohan to call the PSTD function, since they're the same now
                 {
                     /* End of data read */
                     case USB_READEND:
@@ -111,7 +113,7 @@ void usb_hstd_brdy_pipe(usb_utr_t *ptr)
                         /* Control Read/Write End */
                         usb_hstd_ctrl_end(ptr, (uint16_t)USB_CTRL_READING);
 
-                    break;
+                        break;
 
                     /* End of data read */
                     case USB_READSHRT:
@@ -119,11 +121,11 @@ void usb_hstd_brdy_pipe(usb_utr_t *ptr)
                         /* Control Read/Write Status */
                         usb_hstd_status_start(ptr);
 
-                    break;
+                        break;
 
                     /* Continue of data read */
                     case USB_READING:
-                    break;
+                        break;
 
                     /* FIFO access error */
                     case USB_READOVER:
@@ -132,7 +134,7 @@ void usb_hstd_brdy_pipe(usb_utr_t *ptr)
                         /* Control Read/Write End */
                         usb_hstd_ctrl_end(ptr, (uint16_t)USB_DATA_OVR);
 
-                    break;
+                        break;
 
                     /* FIFO access error */
                     case USB_FIFOERROR:
@@ -141,13 +143,13 @@ void usb_hstd_brdy_pipe(usb_utr_t *ptr)
                         /* Control Read/Write End */
                         usb_hstd_ctrl_end(ptr, (uint16_t)USB_DATA_ERR);
 
-                    break;
+                        break;
 
                     default:
-                    break;
+                        break;
                 }
 
-            break;
+                break;
 
             /* Status stage of Control write (NoData control) transfer */
             case USB_STATUSWR:
@@ -155,10 +157,10 @@ void usb_hstd_brdy_pipe(usb_utr_t *ptr)
                 /* Control Read/Write End */
                 usb_hstd_ctrl_end(ptr, (uint16_t)USB_CTRL_END);
 
-            break;
+                break;
 
             default:
-            break;
+                break;
         }
     }
     /* BRDY interrupt */
@@ -171,10 +173,10 @@ void usb_hstd_brdy_pipe(usb_utr_t *ptr)
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
  Return value    : none
  ***********************************************************************************************************************/
-void usb_hstd_nrdy_pipe(usb_utr_t *ptr)
+void usb_hstd_nrdy_pipe(usb_utr_t* ptr)
 {
-    uint16_t    buffer;
-    uint16_t    bitsts;
+    uint16_t buffer;
+    uint16_t bitsts;
 
     bitsts = ptr->status;
 
@@ -187,7 +189,7 @@ void usb_hstd_nrdy_pipe(usb_utr_t *ptr)
 
         /* STALL ? */
         if ((buffer & USB_PID_STALL) == USB_PID_STALL)
-        {           
+        {
             USB_PRINTF0("### STALL Pipe 0\n");
             /* PIPE0 STALL call back */
             usb_hstd_ctrl_end(ptr, (uint16_t)USB_DATA_STALL);
@@ -225,10 +227,10 @@ void usb_hstd_nrdy_pipe(usb_utr_t *ptr)
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
  Return value    : none
  ***********************************************************************************************************************/
-void usb_hstd_bemp_pipe(usb_utr_t *ptr)
+void usb_hstd_bemp_pipe(usb_utr_t* ptr)
 {
-    uint16_t    buffer;
-    uint16_t    bitsts;
+    uint16_t buffer;
+    uint16_t bitsts;
 
     bitsts = ptr->status;
 
@@ -236,13 +238,13 @@ void usb_hstd_bemp_pipe(usb_utr_t *ptr)
     /* only one BEMP message is issued even when the demand of PIPE0 and PIPEx has been generated at the same time. */
     if (true || (bitsts & USB_BEMP0) == USB_BEMP0) // Modified by Rohan - now we only come here for BEMP0
     {
-        
-        buffer = usb_cstd_get_pid(ptr, (uint16_t)USB_PIPE0);    /* Get Pipe PID from pipe number */
-        if ((buffer & USB_PID_STALL) == USB_PID_STALL)          /* MAX packet size error ? */
+
+        buffer = usb_cstd_get_pid(ptr, (uint16_t)USB_PIPE0); /* Get Pipe PID from pipe number */
+        if ((buffer & USB_PID_STALL) == USB_PID_STALL)       /* MAX packet size error ? */
         {
             USB_PRINTF0("### STALL Pipe 0\n");
-            usb_hstd_ctrl_end(ptr, (uint16_t)USB_DATA_STALL);   /* PIPE0 STALL call back */
-        } 
+            usb_hstd_ctrl_end(ptr, (uint16_t)USB_DATA_STALL); /* PIPE0 STALL call back */
+        }
         else
         {
             /* Branch  by the Control transfer stage management */
@@ -257,27 +259,27 @@ void usb_hstd_bemp_pipe(usb_utr_t *ptr)
                         /* End of data write */
                         case USB_WRITESHRT:
 
-                            g_usb_hstd_ctsq[ptr->ip] = USB_STATUSWR;        /* Next stage is Control write status stage */
-                            hw_usb_set_bempenb(ptr, (uint16_t)USB_PIPE0);   /* Enable Empty Interrupt */
+                            g_usb_hstd_ctsq[ptr->ip] = USB_STATUSWR;      /* Next stage is Control write status stage */
+                            hw_usb_set_bempenb(ptr, (uint16_t)USB_PIPE0); /* Enable Empty Interrupt */
 
                             //usb_cstd_nrdy_enable(ptr, (uint16_t)USB_PIPE0); /* Enable Not Ready Interrupt */
                             // We ignore NRDY interrupts anyway, as there are tons of them continuously, and enabling them at all was causing freezes
                             // (or was it UART / SD lockups?), right since we first added this "new" (2016) USB driver (in 2019).
 
-                        break;
+                            break;
 
                         /* End of data write (not null) */
                         case USB_WRITEEND:
                         /* Continue of data write */
                         case USB_WRITING:
 
-                            hw_usb_set_bempenb(ptr, (uint16_t)USB_PIPE0);   /* Enable Empty Interrupt */
+                            hw_usb_set_bempenb(ptr, (uint16_t)USB_PIPE0); /* Enable Empty Interrupt */
 
                             //usb_cstd_nrdy_enable(ptr, (uint16_t)USB_PIPE0); /* Enable Not Ready Interrupt */
                             // We ignore NRDY interrupts anyway, as there are tons of them continuously, and enabling them at all was causing freezes
                             // (or was it UART / SD lockups?), right since we first added this "new" (2016) USB driver (in 2019).
 
-                        break;
+                            break;
 
                         /* FIFO access error */
                         case USB_FIFOERROR:
@@ -285,13 +287,13 @@ void usb_hstd_bemp_pipe(usb_utr_t *ptr)
                             USB_PRINTF0("### FIFO access error \n");
                             usb_hstd_ctrl_end(ptr, (uint16_t)USB_DATA_ERR); /* Control Read/Write End */
 
-                        break;
+                            break;
 
                         default:
-                        break;
+                            break;
                     }
 
-                break;
+                    break;
 
                 /* Next stage to Control write data */
                 case USB_DATAWRCNT:
@@ -302,32 +304,32 @@ void usb_hstd_bemp_pipe(usb_utr_t *ptr)
                         /* End of data write */
                         case USB_WRITESHRT:
 
-                            g_usb_hstd_ctsq[ptr->ip] = USB_STATUSWR;        /* Next stage is Control write status stage */
-                            hw_usb_set_bempenb(ptr, (uint16_t)USB_PIPE0);   /* Enable Empty Interrupt */
+                            g_usb_hstd_ctsq[ptr->ip] = USB_STATUSWR;      /* Next stage is Control write status stage */
+                            hw_usb_set_bempenb(ptr, (uint16_t)USB_PIPE0); /* Enable Empty Interrupt */
 
                             //usb_cstd_nrdy_enable(ptr, (uint16_t)USB_PIPE0); /* Enable Not Ready Interrupt */
                             // We ignore NRDY interrupts anyway, as there are tons of them continuously, and enabling them at all was causing freezes
                             // (or was it UART / SD lockups?), right since we first added this "new" (2016) USB driver (in 2019).
 
-                        break;
+                            break;
 
                         /* End of data write (not null) */
                         case USB_WRITEEND:
 
                             usb_hstd_ctrl_end(ptr, (uint16_t)USB_CTRL_WRITING); /* Control Read/Write End */
 
-                        break;
+                            break;
 
                         /* Continue of data write */
                         case USB_WRITING:
 
-                            hw_usb_set_bempenb(ptr, (uint16_t)USB_PIPE0);   /* Enable Empty Interrupt */
+                            hw_usb_set_bempenb(ptr, (uint16_t)USB_PIPE0); /* Enable Empty Interrupt */
 
                             //usb_cstd_nrdy_enable(ptr, (uint16_t)USB_PIPE0); /* Enable Not Ready Interrupt */
                             // We ignore NRDY interrupts anyway, as there are tons of them continuously, and enabling them at all was causing freezes
                             // (or was it UART / SD lockups?), right since we first added this "new" (2016) USB driver (in 2019).
 
-                        break;
+                            break;
 
                         /* FIFO access error */
                         case USB_FIFOERROR:
@@ -335,36 +337,36 @@ void usb_hstd_bemp_pipe(usb_utr_t *ptr)
                             USB_PRINTF0("### FIFO access error \n");
                             usb_hstd_ctrl_end(ptr, (uint16_t)USB_DATA_ERR); /* Control Read/Write End */
 
-                        break;
+                            break;
 
                         default:
-                        break;
+                            break;
                     }
-                break;
+                    break;
 
                 /* End of data stage (Control write) */
                 case USB_STATUSWR:
 
                     usb_hstd_status_start(ptr);
 
-                break;
+                    break;
 
                 /* Status stage of Control read transfer */
                 case USB_STATUSRD:
 
                     usb_hstd_ctrl_end(ptr, (uint16_t)USB_CTRL_END); /* Control Read/Write End */
 
-                break;
+                    break;
 
                 default:
-                break;
+                    break;
             }
         }
     }
     /* BEMP interrupt */
     //usb_hstd_bemp_pipe_process(ptr, bitsts);
 } /* End of function usb_hstd_bemp_pipe() */
-#endif  /* (USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST */
+#endif /* (USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST */
 
 /***********************************************************************************************************************
  End Of File

@@ -35,26 +35,28 @@ public:
 	virtual ~SampleHolder();
 	void unassignAllClusterReasons(bool beingDestructed = false);
 	int64_t getEndPos(bool forTimeStretching = false);
-    int64_t getDurationInSamples(bool forTimeStretching = false);
-    void beenClonedFrom(SampleHolder* other, bool reversed);
-    virtual void claimClusterReasons(bool reversed, int clusterLoadInstruction = CLUSTER_ENQUEUE);
-    int32_t getLengthInSamplesAtSystemSampleRate(bool forTimeStretching = false);
-    void setAudioFile(AudioFile* newAudioFile, bool reversed = false, bool manuallySelected = false, int clusterLoadInstruction = CLUSTER_ENQUEUE);
+	int64_t getDurationInSamples(bool forTimeStretching = false);
+	void beenClonedFrom(SampleHolder* other, bool reversed);
+	virtual void claimClusterReasons(bool reversed, int clusterLoadInstruction = CLUSTER_ENQUEUE);
+	int32_t getLengthInSamplesAtSystemSampleRate(bool forTimeStretching = false);
+	void setAudioFile(AudioFile* newAudioFile, bool reversed = false, bool manuallySelected = false,
+	                  int clusterLoadInstruction = CLUSTER_ENQUEUE);
 
-    // In samples.
-    uint64_t startPos;
-    uint64_t endPos; // Don't access this directly. Call getPos(). This variable may be beyond the end of the sample
+	// In samples.
+	uint64_t startPos;
+	uint64_t endPos; // Don't access this directly. Call getPos(). This variable may be beyond the end of the sample
 
-    int32_t waveformViewScroll;
-    int32_t waveformViewZoom; // 0 means neither of these vars set up yet
+	int32_t waveformViewScroll;
+	int32_t waveformViewZoom; // 0 means neither of these vars set up yet
 
-    int32_t neutralPhaseIncrement;
+	int32_t neutralPhaseIncrement;
 
-    Cluster* clustersForStart[NUM_CLUSTERS_LOADED_AHEAD];
+	Cluster* clustersForStart[NUM_CLUSTERS_LOADED_AHEAD];
 
 protected:
-    void claimClusterReasonsForMarker(Cluster** clusters, uint32_t startPlaybackAtByte, int playDirection, int clusterLoadInstruction);
-    virtual void sampleBeenSet(bool reversed, bool manuallySelected) {}
+	void claimClusterReasonsForMarker(Cluster** clusters, uint32_t startPlaybackAtByte, int playDirection,
+	                                  int clusterLoadInstruction);
+	virtual void sampleBeenSet(bool reversed, bool manuallySelected) {}
 };
 
 #endif /* SAMPLEHOLDER_H_ */

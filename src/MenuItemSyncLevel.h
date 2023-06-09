@@ -32,10 +32,7 @@ protected:
 #if HAVE_OLED
 	void drawPixelsForOled();
 #endif
-
 };
-
-
 
 // This one is "relative to the song". In that it'll show its text value to the user, e.g. "16ths", regardless of any song variables, and
 // then when its value gets used for anything, it'll be transposed into the song's magnitude by adding / subtracting the song's insideWorldTickMagnitude

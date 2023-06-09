@@ -17,6 +17,5 @@
 
 #include "ParamNode.h"
 
-ParamNode::ParamNode()
-{
+ParamNode::ParamNode() {
 }

@@ -19,11 +19,9 @@
 #include "song.h"
 #include "ModelStack.h"
 
-ConsequenceScaleAddNote::ConsequenceScaleAddNote(int newNoteWithinOctave)
-{
+ConsequenceScaleAddNote::ConsequenceScaleAddNote(int newNoteWithinOctave) {
 	noteWithinOctave = newNoteWithinOctave;
 }
-
 
 int ConsequenceScaleAddNote::revert(int time, ModelStack* modelStack) {
 
@@ -33,9 +31,7 @@ int ConsequenceScaleAddNote::revert(int time, ModelStack* modelStack) {
 	if (time == BEFORE) {
 		modelStack->song->removeYNoteFromMode(noteWithinOctave);
 	}
-	else {
-
-	}
+	else {}
 
 	return NO_ERROR;
 }

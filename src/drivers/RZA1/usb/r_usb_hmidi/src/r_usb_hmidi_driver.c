@@ -42,24 +42,21 @@
  Exported global variables
  ******************************************************************************/
 
-
 /******************************************************************************
  Private global variables and functions
  ******************************************************************************/
 /* variables */
-static uint16_t     usb_shmidi_class_request_setup[USB_NUM_USBIP][5];    /* Control Transfer Request field */
-static usb_utr_t    usb_shmidi_string_req[USB_NUM_USBIP];                /* Request for String discriptor */
+static uint16_t usb_shmidi_class_request_setup[USB_NUM_USBIP][5]; /* Control Transfer Request field */
+static usb_utr_t usb_shmidi_string_req[USB_NUM_USBIP];            /* Request for String discriptor */
 
 /* functions */
-static uint16_t     usb_hmidi_cmd_submit(usb_utr_t *ptr, usb_cb_t complete);
-static void         usb_hhid_in_transfer_result(usb_utr_t *mess, uint16_t data1, uint16_t data2);
-static usb_er_t     usb_hhid_class_request_process(usb_utr_t *ptr);
-static void         usb_hhid_class_request_trans_result(usb_utr_t *mess, uint16_t data1, uint16_t data2);
-static void         usb_hmidi_check_result(usb_utr_t *ptr, uint16_t unused, uint16_t status);
-static usb_er_t     usb_hhid_data_trans(usb_utr_t *ptr, uint16_t pipe, uint32_t size, uint8_t *table, usb_cb_t complete);
-static void         usb_hmidi_enumeration_sequence(usb_utr_t *mess);
-
-
+static uint16_t usb_hmidi_cmd_submit(usb_utr_t* ptr, usb_cb_t complete);
+static void usb_hhid_in_transfer_result(usb_utr_t* mess, uint16_t data1, uint16_t data2);
+static usb_er_t usb_hhid_class_request_process(usb_utr_t* ptr);
+static void usb_hhid_class_request_trans_result(usb_utr_t* mess, uint16_t data1, uint16_t data2);
+static void usb_hmidi_check_result(usb_utr_t* ptr, uint16_t unused, uint16_t status);
+static usb_er_t usb_hhid_data_trans(usb_utr_t* ptr, uint16_t pipe, uint32_t size, uint8_t* table, usb_cb_t complete);
+static void usb_hmidi_enumeration_sequence(usb_utr_t* mess);
 
 extern uint8_t currentDeviceNumWithSendPipe[];
 
@@ -67,54 +64,53 @@ extern uint8_t currentDeviceNumWithSendPipe[];
  Exported global variables (to be accessed by other files)
  ******************************************************************************/
 /* Host HID TPL */
-const uint16_t g_usb_hmidi_devicetpl[] =
-{
+const uint16_t g_usb_hmidi_devicetpl[] = {
     USB_CFG_TPLCNT, /* Number of tpl table */
     0,              /* Reserved */
     USB_CFG_TPL     /* Vendor ID, Product ID */
 };
 
 /* Host HID Pipe Information Table (or "endpoint table"). */
-uint16_t    g_usb_hmidi_tmp_ep_tbl[USB_NUM_USBIP][MAX_NUM_USB_MIDI_DEVICES][(USB_EPL * 2) + 1] =
-{
-    {   /* USB IP 0 */
+uint16_t g_usb_hmidi_tmp_ep_tbl[USB_NUM_USBIP][MAX_NUM_USB_MIDI_DEVICES][(USB_EPL * 2) + 1] = {
+    {
+        /* USB IP 0 */
         {
-        		USB_NULL,    /* Pipe No. */
+            USB_NULL, /* Pipe No. */
             /* TYPE  / DIR      / EPNUM */
-            USB_NULL | USB_NULL | USB_NULL,     /* PIPECFG */
-            USB_NULL,                           /* rsv */
-            USB_NULL,                           /* PIPEMAXP */
-            USB_NULL,                           /* PIPEPERI */
-            USB_NULL,                           /* rsv */
+            USB_NULL | USB_NULL | USB_NULL, /* PIPECFG */
+            USB_NULL,                       /* rsv */
+            USB_NULL,                       /* PIPEMAXP */
+            USB_NULL,                       /* PIPEPERI */
+            USB_NULL,                       /* rsv */
 
-			USB_NULL,               /* Pipe No. */
+            USB_NULL, /* Pipe No. */
             /* TYPE  / DIR      / EPNUM */
-            USB_NULL | USB_NULL | USB_NULL,     /* PIPECFG */
-            USB_NULL,                           /* rsv */
-            USB_NULL,                           /* PIPEMAXP */
-            USB_NULL,                           /* PIPEPERI */
-            USB_NULL,                           /* rsv */
+            USB_NULL | USB_NULL | USB_NULL, /* PIPECFG */
+            USB_NULL,                       /* rsv */
+            USB_NULL,                       /* PIPEMAXP */
+            USB_NULL,                       /* PIPEPERI */
+            USB_NULL,                       /* rsv */
 
             /* Pipe end */
             USB_PDTBLEND,
         },
 #if MAX_NUM_USB_MIDI_DEVICES >= 2
         {
-        		USB_NULL,               /* Pipe No. */
+            USB_NULL, /* Pipe No. */
             /* TYPE  / DIR      / EPNUM */
-            USB_NULL | USB_NULL | USB_NULL,     /* PIPECFG */
-            USB_NULL,                           /* rsv */
-            USB_NULL,                           /* PIPEMAXP */
-            USB_NULL,                           /* PIPEPERI */
-            USB_NULL,                           /* rsv */
+            USB_NULL | USB_NULL | USB_NULL, /* PIPECFG */
+            USB_NULL,                       /* rsv */
+            USB_NULL,                       /* PIPEMAXP */
+            USB_NULL,                       /* PIPEPERI */
+            USB_NULL,                       /* rsv */
 
-			USB_NULL,                           /* Pipe No. */
+            USB_NULL, /* Pipe No. */
             /* TYPE  / DIR      / EPNUM */
-            USB_NULL | USB_NULL | USB_NULL,     /* PIPECFG */
-            USB_NULL,                           /* rsv */
-            USB_NULL,                           /* PIPEMAXP */
-            USB_NULL,                           /* PIPEPERI */
-            USB_NULL,                           /* rsv */
+            USB_NULL | USB_NULL | USB_NULL, /* PIPECFG */
+            USB_NULL,                       /* rsv */
+            USB_NULL,                       /* PIPEMAXP */
+            USB_NULL,                       /* PIPEPERI */
+            USB_NULL,                       /* rsv */
 
             /* Pipe end */
             USB_PDTBLEND,
@@ -122,21 +118,21 @@ uint16_t    g_usb_hmidi_tmp_ep_tbl[USB_NUM_USBIP][MAX_NUM_USB_MIDI_DEVICES][(USB
 #endif /* MAX_NUM_USB_MIDI_DEVICES >= 2 */
 #if MAX_NUM_USB_MIDI_DEVICES >= 3
         {
-        		USB_NULL,               /* Pipe No. */
+            USB_NULL, /* Pipe No. */
             /* TYPE  / DIR      / EPNUM */
-            USB_NULL | USB_NULL | USB_NULL,     /* PIPECFG */
-            USB_NULL,                           /* rsv */
-            USB_NULL,                           /* PIPEMAXP */
-            USB_NULL,                           /* PIPEPERI */
-            USB_NULL,                           /* rsv */
+            USB_NULL | USB_NULL | USB_NULL, /* PIPECFG */
+            USB_NULL,                       /* rsv */
+            USB_NULL,                       /* PIPEMAXP */
+            USB_NULL,                       /* PIPEPERI */
+            USB_NULL,                       /* rsv */
 
-			USB_NULL,                           /* Pipe No. */
+            USB_NULL, /* Pipe No. */
             /* TYPE  / DIR      / EPNUM */
-            USB_NULL | USB_NULL | USB_NULL,     /* PIPECFG */
-            USB_NULL,                           /* rsv */
-            USB_NULL,                           /* PIPEMAXP */
-            USB_NULL,                           /* PIPEPERI */
-            USB_NULL,                           /* rsv */
+            USB_NULL | USB_NULL | USB_NULL, /* PIPECFG */
+            USB_NULL,                       /* rsv */
+            USB_NULL,                       /* PIPEMAXP */
+            USB_NULL,                       /* PIPEPERI */
+            USB_NULL,                       /* rsv */
 
             /* Pipe end */
             USB_PDTBLEND,
@@ -144,21 +140,21 @@ uint16_t    g_usb_hmidi_tmp_ep_tbl[USB_NUM_USBIP][MAX_NUM_USB_MIDI_DEVICES][(USB
 #endif /* MAX_NUM_USB_MIDI_DEVICES >= 4 */
 #if MAX_NUM_USB_MIDI_DEVICES >= 4
         {
-        		USB_NULL,               /* Pipe No. */
+            USB_NULL, /* Pipe No. */
             /* TYPE  / DIR      / EPNUM */
-            USB_NULL | USB_NULL | USB_NULL,     /* PIPECFG */
-            USB_NULL,                           /* rsv */
-            USB_NULL,                           /* PIPEMAXP */
-            USB_NULL,                           /* PIPEPERI */
-            USB_NULL,                           /* rsv */
+            USB_NULL | USB_NULL | USB_NULL, /* PIPECFG */
+            USB_NULL,                       /* rsv */
+            USB_NULL,                       /* PIPEMAXP */
+            USB_NULL,                       /* PIPEPERI */
+            USB_NULL,                       /* rsv */
 
-			USB_NULL,                           /* Pipe No. */
+            USB_NULL, /* Pipe No. */
             /* TYPE  / DIR      / EPNUM */
-            USB_NULL | USB_NULL | USB_NULL,     /* PIPECFG */
-            USB_NULL,                           /* rsv */
-            USB_NULL,                           /* PIPEMAXP */
-            USB_NULL,                           /* PIPEPERI */
-            USB_NULL,                           /* rsv */
+            USB_NULL | USB_NULL | USB_NULL, /* PIPECFG */
+            USB_NULL,                       /* rsv */
+            USB_NULL,                       /* PIPEMAXP */
+            USB_NULL,                       /* PIPEPERI */
+            USB_NULL,                       /* rsv */
 
             /* Pipe end */
             USB_PDTBLEND,
@@ -166,21 +162,21 @@ uint16_t    g_usb_hmidi_tmp_ep_tbl[USB_NUM_USBIP][MAX_NUM_USB_MIDI_DEVICES][(USB
 #endif /* MAX_NUM_USB_MIDI_DEVICES >= 4 */
 #if MAX_NUM_USB_MIDI_DEVICES >= 5
         {
-        		USB_NULL,               /* Pipe No. */
+            USB_NULL, /* Pipe No. */
             /* TYPE  / DIR      / EPNUM */
-            USB_NULL | USB_NULL | USB_NULL,     /* PIPECFG */
-            USB_NULL,                           /* rsv */
-            USB_NULL,                           /* PIPEMAXP */
-            USB_NULL,                           /* PIPEPERI */
-            USB_NULL,                           /* rsv */
+            USB_NULL | USB_NULL | USB_NULL, /* PIPECFG */
+            USB_NULL,                       /* rsv */
+            USB_NULL,                       /* PIPEMAXP */
+            USB_NULL,                       /* PIPEPERI */
+            USB_NULL,                       /* rsv */
 
-			USB_NULL,                           /* Pipe No. */
+            USB_NULL, /* Pipe No. */
             /* TYPE  / DIR      / EPNUM */
-            USB_NULL | USB_NULL | USB_NULL,     /* PIPECFG */
-            USB_NULL,                           /* rsv */
-            USB_NULL,                           /* PIPEMAXP */
-            USB_NULL,                           /* PIPEPERI */
-            USB_NULL,                           /* rsv */
+            USB_NULL | USB_NULL | USB_NULL, /* PIPECFG */
+            USB_NULL,                       /* rsv */
+            USB_NULL,                       /* PIPEMAXP */
+            USB_NULL,                       /* PIPEPERI */
+            USB_NULL,                       /* rsv */
 
             /* Pipe end */
             USB_PDTBLEND,
@@ -188,66 +184,66 @@ uint16_t    g_usb_hmidi_tmp_ep_tbl[USB_NUM_USBIP][MAX_NUM_USB_MIDI_DEVICES][(USB
 #endif /* MAX_NUM_USB_MIDI_DEVICES >= 5 */
 #if MAX_NUM_USB_MIDI_DEVICES >= 6
         {
-        		USB_NULL,               /* Pipe No. */
+            USB_NULL, /* Pipe No. */
             /* TYPE  / DIR      / EPNUM */
-            USB_NULL | USB_NULL | USB_NULL,     /* PIPECFG */
-            USB_NULL,                           /* rsv */
-            USB_NULL,                           /* PIPEMAXP */
-            USB_NULL,                           /* PIPEPERI */
-            USB_NULL,                           /* rsv */
+            USB_NULL | USB_NULL | USB_NULL, /* PIPECFG */
+            USB_NULL,                       /* rsv */
+            USB_NULL,                       /* PIPEMAXP */
+            USB_NULL,                       /* PIPEPERI */
+            USB_NULL,                       /* rsv */
 
-			USB_NULL,                           /* Pipe No. */
+            USB_NULL, /* Pipe No. */
             /* TYPE  / DIR      / EPNUM */
-            USB_NULL | USB_NULL | USB_NULL,     /* PIPECFG */
-            USB_NULL,                           /* rsv */
-            USB_NULL,                           /* PIPEMAXP */
-            USB_NULL,                           /* PIPEPERI */
-            USB_NULL,                           /* rsv */
+            USB_NULL | USB_NULL | USB_NULL, /* PIPECFG */
+            USB_NULL,                       /* rsv */
+            USB_NULL,                       /* PIPEMAXP */
+            USB_NULL,                       /* PIPEPERI */
+            USB_NULL,                       /* rsv */
 
             /* Pipe end */
             USB_PDTBLEND,
         },
 #endif /* MAX_NUM_USB_MIDI_DEVICES >= 6 */
-	},
+    },
 #if USB_NUM_USBIP >= 2
-    {   /* USB IP 1 */
+    {/* USB IP 1 */
         {
-            USB_CFG_HMIDI_BULK_SEND,                /* Pipe No. */
+            USB_CFG_HMIDI_BULK_SEND, /* Pipe No. */
             /* TYPE  / DIR      / EPNUM */
-            USB_NULL | USB_NULL | USB_NULL,     /* PIPECFG */
-            USB_NULL,                           /* rsv */
-            USB_NULL,                           /* PIPEMAXP */
-            USB_NULL,                           /* PIPEPERI */
-            USB_NULL,                           /* rsv */
+            USB_NULL | USB_NULL | USB_NULL, /* PIPECFG */
+            USB_NULL,                       /* rsv */
+            USB_NULL,                       /* PIPEMAXP */
+            USB_NULL,                       /* PIPEPERI */
+            USB_NULL,                       /* rsv */
 
-            USB_CFG_HMIDI_BULK_RECV1,               /* Pipe No. */
+            USB_CFG_HMIDI_BULK_RECV1, /* Pipe No. */
             /* TYPE  / DIR      / EPNUM */
-            USB_NULL | USB_NULL | USB_NULL,     /* PIPECFG */
-            USB_NULL,                           /* rsv */
-            USB_NULL,                           /* PIPEMAXP */
-            USB_NULL,                           /* PIPEPERI */
-            USB_NULL,                           /* rsv */
+            USB_NULL | USB_NULL | USB_NULL, /* PIPECFG */
+            USB_NULL,                       /* rsv */
+            USB_NULL,                       /* PIPEMAXP */
+            USB_NULL,                       /* PIPEPERI */
+            USB_NULL,                       /* rsv */
 
             /* Pipe end */
             USB_PDTBLEND,
         },
 #if MAX_NUM_USB_MIDI_DEVICES >= 2
         {
-            USB_CFG_HMIDI_BULK_IN2,               /* Pipe No. */
+            USB_CFG_HMIDI_BULK_IN2, /* Pipe No. */
             /* TYPE  / DIR      / EPNUM */
-            USB_NULL | USB_NULL | USB_NULL,     /* PIPECFG */
-            USB_NULL,                           /* rsv */
-            USB_NULL,                           /* PIPEMAXP */
-            USB_NULL,                           /* PIPEPERI */
-            USB_NULL,                           /* rsv */
+            USB_NULL | USB_NULL | USB_NULL, /* PIPECFG */
+            USB_NULL,                       /* rsv */
+            USB_NULL,                       /* PIPEMAXP */
+            USB_NULL,                       /* PIPEPERI */
+            USB_NULL,                       /* rsv */
 
-            USB_NULL,                           /* Pipe No. */
+            USB_NULL, /* Pipe No. */
             /* TYPE  / DIR      / EPNUM */
-            USB_NULL | USB_NULL | USB_NULL,     /* PIPECFG */
-            USB_NULL,                           /* rsv */
-            USB_NULL,                           /* PIPEMAXP */
-            USB_NULL,                           /* PIPEPERI */
-            USB_NULL,                           /* rsv */
+            USB_NULL | USB_NULL | USB_NULL, /* PIPECFG */
+            USB_NULL,                       /* rsv */
+            USB_NULL,                       /* PIPEMAXP */
+            USB_NULL,                       /* PIPEPERI */
+            USB_NULL,                       /* rsv */
 
             /* Pipe end */
             USB_PDTBLEND,
@@ -255,21 +251,21 @@ uint16_t    g_usb_hmidi_tmp_ep_tbl[USB_NUM_USBIP][MAX_NUM_USB_MIDI_DEVICES][(USB
 #endif /* MAX_NUM_USB_MIDI_DEVICES >= 2 */
 #if MAX_NUM_USB_MIDI_DEVICES == 3
         {
-            USB_CFG_HMIDI_BULK_IN3,               /* Pipe No. */
+            USB_CFG_HMIDI_BULK_IN3, /* Pipe No. */
             /* TYPE  / DIR      / EPNUM */
-            USB_NULL | USB_NULL | USB_NULL,     /* PIPECFG */
-            USB_NULL,                           /* rsv */
-            USB_NULL,                           /* PIPEMAXP */
-            USB_NULL,                           /* PIPEPERI */
-            USB_NULL,                           /* rsv */
+            USB_NULL | USB_NULL | USB_NULL, /* PIPECFG */
+            USB_NULL,                       /* rsv */
+            USB_NULL,                       /* PIPEMAXP */
+            USB_NULL,                       /* PIPEPERI */
+            USB_NULL,                       /* rsv */
 
-            USB_NULL,                           /* Pipe No. */
+            USB_NULL, /* Pipe No. */
             /* TYPE  / DIR      / EPNUM */
-            USB_NULL | USB_NULL | USB_NULL,     /* PIPECFG */
-            USB_NULL,                           /* rsv */
-            USB_NULL,                           /* PIPEMAXP */
-            USB_NULL,                           /* PIPEPERI */
-            USB_NULL,                           /* rsv */
+            USB_NULL | USB_NULL | USB_NULL, /* PIPECFG */
+            USB_NULL,                       /* rsv */
+            USB_NULL,                       /* PIPEMAXP */
+            USB_NULL,                       /* PIPEPERI */
+            USB_NULL,                       /* rsv */
 
             /* Pipe end */
             USB_PDTBLEND,
@@ -280,14 +276,14 @@ uint16_t    g_usb_hmidi_tmp_ep_tbl[USB_NUM_USBIP][MAX_NUM_USB_MIDI_DEVICES][(USB
 };
 
 // These seem to all store temporary data for while the device is being set up.
-uint8_t     g_usb_hmidi_str_desc_data[USB_NUM_USBIP][USB_HMIDI_CLSDATASIZE];
-uint16_t    g_usb_hmidi_devaddr[USB_NUM_USBIP];                                  /* Device Address */
-uint16_t    g_usb_hmidi_enum_seq[USB_NUM_USBIP];                                 /* Enumeration Sequence */
-uint16_t    g_usb_hmidi_speed[USB_NUM_USBIP];                                    /* Device speed */
-uint16_t    *g_p_usb_hmidi_pipe_table[USB_NUM_USBIP];                            /* Pipe Table(DefEP) */
-uint8_t     *g_p_usb_hmidi_config_table[USB_NUM_USBIP];                          /* Configuration Descriptor Table */
-uint8_t     *g_p_usb_hmidi_device_table[USB_NUM_USBIP];                          /* Device Descriptor Table */
-uint8_t     *g_p_usb_hmidi_interface_table[USB_NUM_USBIP];                       /* Interface Descriptor Table */
+uint8_t g_usb_hmidi_str_desc_data[USB_NUM_USBIP][USB_HMIDI_CLSDATASIZE];
+uint16_t g_usb_hmidi_devaddr[USB_NUM_USBIP];           /* Device Address */
+uint16_t g_usb_hmidi_enum_seq[USB_NUM_USBIP];          /* Enumeration Sequence */
+uint16_t g_usb_hmidi_speed[USB_NUM_USBIP];             /* Device speed */
+uint16_t* g_p_usb_hmidi_pipe_table[USB_NUM_USBIP];     /* Pipe Table(DefEP) */
+uint8_t* g_p_usb_hmidi_config_table[USB_NUM_USBIP];    /* Configuration Descriptor Table */
+uint8_t* g_p_usb_hmidi_device_table[USB_NUM_USBIP];    /* Device Descriptor Table */
+uint8_t* g_p_usb_hmidi_interface_table[USB_NUM_USBIP]; /* Interface Descriptor Table */
 
 /******************************************************************************
  Renesas Abstracted USB Driver functions
@@ -301,35 +297,35 @@ uint8_t     *g_p_usb_hmidi_interface_table[USB_NUM_USBIP];                      
                  : uint16_t     status       : Not use
  Return          : none
  ******************************************************************************/
-static void usb_hmidi_check_result(usb_utr_t *ptr, uint16_t unused, uint16_t status)
+static void usb_hmidi_check_result(usb_utr_t* ptr, uint16_t unused, uint16_t status)
 {
-    usb_mh_t        p_blf;
-    usb_er_t        err;
-    usb_clsinfo_t   *cp;
+    usb_mh_t p_blf;
+    usb_er_t err;
+    usb_clsinfo_t* cp;
 
     /* Get mem pool blk */
     err = USB_PGET_BLK(USB_HMIDI_MPL, &p_blf);
     if (USB_OK == err)
     {
-        cp = (usb_clsinfo_t *)p_blf;
+        cp          = (usb_clsinfo_t*)p_blf;
         cp->msghead = (usb_mh_t)USB_NULL;
         cp->msginfo = USB_HHID_TCMD_OPEN;
         cp->ip      = ptr->ip;
         cp->ipp     = ptr->ipp;
 
         /* Send message */
-        err = USB_SND_MSG(USB_HMIDI_MBX, (usb_msg_t* )cp);
+        err = USB_SND_MSG(USB_HMIDI_MBX, (usb_msg_t*)cp);
         if (USB_OK != err)
         {
             /* error */
-            err = USB_REL_BLK(USB_HMIDI_MPL, (usb_mh_t )p_blf);
+            err = USB_REL_BLK(USB_HMIDI_MPL, (usb_mh_t)p_blf);
             USB_PRINTF0("### usb_open_hstd function snd_msg error\n");
         }
     }
     else
     {
         /* error */
-        USB_PRINTF0( "### usb_open_hstd function pget_blk error\n");
+        USB_PRINTF0("### usb_open_hstd function pget_blk error\n");
     }
 } /* End of function usb_hhid_check_result() */
 
@@ -345,17 +341,17 @@ void giveDetailsOfDeviceBeingSetUp(int ip, char const* name, uint16_t vendorId, 
  Argument        : usb_utr_t    *mess
  Return value    : none
  ******************************************************************************/
-static void usb_hmidi_enumeration_sequence(usb_utr_t *mess)
+static void usb_hmidi_enumeration_sequence(usb_utr_t* mess)
 {
-    uint16_t    retval;
-    uint8_t     string;
-    uint8_t     *p_desc;
-    uint8_t     *p_iftable;
-    uint16_t    desc_len;
-    uint8_t     protocol;
+    uint16_t retval;
+    uint8_t string;
+    uint8_t* p_desc;
+    uint8_t* p_iftable;
+    uint16_t desc_len;
+    uint8_t protocol;
 #ifdef USB_DEBUGPRINT_PP
-    uint8_t     *table;
-    uint8_t     pdata[32],j;
+    uint8_t* table;
+    uint8_t pdata[32], j;
 #endif /* #ifdef USB_DEBUGPRINT_PP */
 
     /* Branch for Enumeration Sequence */
@@ -365,12 +361,13 @@ static void usb_hmidi_enumeration_sequence(usb_utr_t *mess)
         case USB_HHID_ENUM_STR_DT0_REQ:
 
             /* Get String descriptor */
-            usb_hmidi_get_string_desc(mess, g_usb_hmidi_devaddr[mess->ip], (uint16_t)0, (usb_cb_t)&usb_hmidi_check_result);
+            usb_hmidi_get_string_desc(
+                mess, g_usb_hmidi_devaddr[mess->ip], (uint16_t)0, (usb_cb_t)&usb_hmidi_check_result);
 
             /* String Descriptor #0 Receive wait */
             g_usb_hmidi_enum_seq[mess->ip]++;
 
-        break;
+            break;
 
         /* Enumeration Sequence String Descriptor #0 Receive complete */
         case USB_HHID_ENUM_STR_DT0_WAIT:
@@ -382,18 +379,21 @@ static void usb_hmidi_enumeration_sequence(usb_utr_t *mess)
                 string = g_p_usb_hmidi_device_table[mess->ip][15];
 
                 /* Get String descriptor */
-                usb_hmidi_get_string_desc(mess, g_usb_hmidi_devaddr[mess->ip], (uint16_t)string, (usb_cb_t)&usb_hmidi_check_result);
+                usb_hmidi_get_string_desc(
+                    mess, g_usb_hmidi_devaddr[mess->ip], (uint16_t)string, (usb_cb_t)&usb_hmidi_check_result);
             }
 
             /* StringDescriptor iProduct Receive */
             g_usb_hmidi_enum_seq[mess->ip]++;
 
-        break;
+            break;
 
             /* StringDescriptor iProduct Receive complete */
-        case USB_HHID_ENUM_STR_IPRODUCT_WAIT: {}
+        case USB_HHID_ENUM_STR_IPRODUCT_WAIT:
+            {
+            }
 
-        	char const* deviceName = "Unnamed device";
+            char const* deviceName = "Unnamed device";
 
             /* String descriptor check */
             if ((usb_er_t)USB_CTRL_END == mess->status)
@@ -427,14 +427,14 @@ static void usb_hmidi_enumeration_sequence(usb_utr_t *mess)
             }
 
             // Send some info about this device to the device manager
-            uint16_t vendorId	= *(uint16_t*)&g_p_usb_hmidi_device_table[USB_CFG_USE_USBIP][8];
-            uint16_t productId	= *(uint16_t*)&g_p_usb_hmidi_device_table[USB_CFG_USE_USBIP][10];
+            uint16_t vendorId  = *(uint16_t*)&g_p_usb_hmidi_device_table[USB_CFG_USE_USBIP][8];
+            uint16_t productId = *(uint16_t*)&g_p_usb_hmidi_device_table[USB_CFG_USE_USBIP][10];
             giveDetailsOfDeviceBeingSetUp(USB_CFG_USE_USBIP, deviceName, vendorId, productId);
 
             p_desc = g_p_usb_hmidi_config_table[mess->ip];
 
-            desc_len = ((uint16_t)*(p_desc + 3)) << 8;
-            desc_len += (uint16_t)*(p_desc + 2);
+            desc_len = ((uint16_t) * (p_desc + 3)) << 8;
+            desc_len += (uint16_t) * (p_desc + 2);
 
             /* Searching InterfaceDescriptor */
             p_iftable = g_p_usb_hmidi_interface_table[mess->ip];
@@ -465,14 +465,14 @@ static void usb_hmidi_enumeration_sequence(usb_utr_t *mess)
             /* return to MGR */
             usb_hstd_return_enu_mgr(mess, retval);
 
-        break;
+            break;
 
         default:
-        break;
+            break;
     }
 } /* End of function usb_hhid_enumeration_sequence() */
 
-extern usb_msg_t*   p_usb_scheduler_add_use;
+extern usb_msg_t* p_usb_scheduler_add_use;
 
 /******************************************************************************
  Function Name   : usb_hhid_task
@@ -482,20 +482,20 @@ extern usb_msg_t*   p_usb_scheduler_add_use;
  ******************************************************************************/
 void usb_hmidi_task(usb_vp_int_t stacd)
 {
-    usb_utr_t   *p_mess = p_usb_scheduler_add_use;
-    usb_er_t    err = 0l;
+    usb_utr_t* p_mess = p_usb_scheduler_add_use;
+    usb_er_t err      = 0l;
 
-	if (p_mess->msginfo == USB_HHID_TCMD_OPEN) {
-		usb_hmidi_enumeration_sequence(p_mess);
-	}
+    if (p_mess->msginfo == USB_HHID_TCMD_OPEN)
+    {
+        usb_hmidi_enumeration_sequence(p_mess);
+    }
 
-	err = USB_REL_BLK(USB_HMIDI_MPL, (usb_mh_t )p_mess);
-	if (USB_OK != err)
-	{
-		USB_PRINTF0("### USB HHID Task rel_blk error\n");
-	}
+    err = USB_REL_BLK(USB_HMIDI_MPL, (usb_mh_t)p_mess);
+    if (USB_OK != err)
+    {
+        USB_PRINTF0("### USB HHID Task rel_blk error\n");
+    }
 } /* End of function usb_hhid_task() */
-
 
 extern uint16_t g_usb_hstd_use_pipe[USB_NUM_USBIP];
 /******************************************************************************
@@ -508,14 +508,14 @@ extern uint16_t g_usb_hstd_use_pipe[USB_NUM_USBIP];
                  : uint16_t     count        : Pipe tabel index
  Return value    : uint16_t                  : Error info
  ******************************************************************************/
-uint16_t usb_hmidi_pipe_info(usb_utr_t *ptr, uint8_t *table, uint16_t speed, uint16_t length)
+uint16_t usb_hmidi_pipe_info(usb_utr_t* ptr, uint8_t* table, uint16_t speed, uint16_t length)
 {
     /* Offset for Descriptor Top Address */
-    uint16_t    ofdsc;
-    uint16_t    retval;
-    uint16_t    *pipetbl;
-    uint16_t    detect_in_pipe = USB_OFF;
-    uint16_t    detect_out_pipe = USB_OFF;
+    uint16_t ofdsc;
+    uint16_t retval;
+    uint16_t* pipetbl;
+    uint16_t detect_in_pipe  = USB_OFF;
+    uint16_t detect_out_pipe = USB_OFF;
 
     /* Check configuration descriptor */
     if (USB_DT_INTERFACE != table[1])
@@ -541,7 +541,7 @@ uint16_t usb_hmidi_pipe_info(usb_utr_t *ptr, uint8_t *table, uint16_t speed, uin
                 USB_PRINTF0("### Endpoint Descriptor error(HUB).\n");
                 return USB_ERROR;
 
-            break;
+                break;
 
                 /* Endpoint Descriptor */
             case USB_DT_ENDPOINT:
@@ -559,50 +559,56 @@ uint16_t usb_hmidi_pipe_info(usb_utr_t *ptr, uint8_t *table, uint16_t speed, uin
 
                 // Depending whether it's an in or out pipe, decide where to put its details
                 // "Receive" pipe
-                if (endpointDirection == USB_EP_IN) {
-                	uartPrintln("found in-pipe");
-                    detect_in_pipe = USB_ON;
+                if (endpointDirection == USB_EP_IN)
+                {
+                    uartPrintln("found in-pipe");
+                    detect_in_pipe  = USB_ON;
                     pipeTableOffset = USB_EPL;
 
-                	int minPipe, maxPipe;
-                	if (endpointType == USB_EP_BULK) {
-                		minPipe = USB_CFG_HMIDI_BULK_RECV_MIN;
-                		maxPipe = USB_CFG_HMIDI_BULK_RECV_MAX;
-                	}
-                	else {
-                		minPipe = USB_CFG_HMIDI_INT_RECV_MIN;
-                		maxPipe = USB_CFG_HMIDI_INT_RECV_MAX;
-                	}
+                    int minPipe, maxPipe;
+                    if (endpointType == USB_EP_BULK)
+                    {
+                        minPipe = USB_CFG_HMIDI_BULK_RECV_MIN;
+                        maxPipe = USB_CFG_HMIDI_BULK_RECV_MAX;
+                    }
+                    else
+                    {
+                        minPipe = USB_CFG_HMIDI_INT_RECV_MIN;
+                        maxPipe = USB_CFG_HMIDI_INT_RECV_MAX;
+                    }
 
-                	int pipe;
+                    int pipe;
 
-                	// Look for an unused pipe
-                	for (pipe = minPipe; pipe <= maxPipe; pipe++) {
-                		if (!(g_usb_hstd_use_pipe[ptr->ip] & (1 << pipe))) goto pickedReceivePipe;
-                	}
+                    // Look for an unused pipe
+                    for (pipe = minPipe; pipe <= maxPipe; pipe++)
+                    {
+                        if (!(g_usb_hstd_use_pipe[ptr->ip] & (1 << pipe))) goto pickedReceivePipe;
+                    }
 
-                	// If still here, we didn't find a pipe
-                	uartPrintln("no free pipe");
+                    // If still here, we didn't find a pipe
+                    uartPrintln("no free pipe");
 #if HAVE_OLED
-                	consoleTextIfAllBootedUp("Maximum number of USB devices already hosted");
+                    consoleTextIfAllBootedUp("Maximum number of USB devices already hosted");
 #else
-                	displayPopupIfAllBootedUp("FULL");
+                    displayPopupIfAllBootedUp("FULL");
 #endif
-                	goto moveOnToNextDescriptor;
+                    goto moveOnToNextDescriptor;
 
 pickedReceivePipe:
-					uartPrint("picked receive pipe: ");
-					uartPrintNumber(pipe);
-					pipetbl[pipeTableOffset] = pipe;
+                    uartPrint("picked receive pipe: ");
+                    uartPrintNumber(pipe);
+                    pipetbl[pipeTableOffset] = pipe;
                 }
 
                 // "Send" pipe
-                else {
-                	uartPrintln("found out-pipe");
+                else
+                {
+                    uartPrintln("found out-pipe");
                     detect_out_pipe = USB_ON;
                     pipeTableOffset = 0;
 
-                	pipetbl[pipeTableOffset] = (endpointType == USB_EP_BULK) ? USB_CFG_HMIDI_BULK_SEND : USB_CFG_HMIDI_INT_SEND;
+                    pipetbl[pipeTableOffset] =
+                        (endpointType == USB_EP_BULK) ? USB_CFG_HMIDI_BULK_SEND : USB_CFG_HMIDI_INT_SEND;
                 }
 
                 // We now have to set the buffer number for the pipe. I wasn't doing this for ages, resulting in the insane bug
@@ -613,66 +619,69 @@ pickedReceivePipe:
                 // So long as every pipe has a different buffer number than every other pipe, we won't get that crazy bug as before.
 
                 uint16_t bufferNumber;
-                switch(pipetbl[pipeTableOffset]) {
-                case USB_PIPE0:
-                	bufferNumber = 0;
-                	break;
+                switch (pipetbl[pipeTableOffset])
+                {
+                    case USB_PIPE0:
+                        bufferNumber = 0;
+                        break;
 
-                case USB_PIPE1:
-                	bufferNumber = 8;
-                	break;
+                    case USB_PIPE1:
+                        bufferNumber = 8;
+                        break;
 
-                case USB_PIPE2:
-                	bufferNumber = 9;
-                	break;
+                    case USB_PIPE2:
+                        bufferNumber = 9;
+                        break;
 
-                case USB_PIPE3:
-                	bufferNumber = 10;
-                	break;
+                    case USB_PIPE3:
+                        bufferNumber = 10;
+                        break;
 
-                case USB_PIPE4:
-                	bufferNumber = 11;
-                	break;
+                    case USB_PIPE4:
+                        bufferNumber = 11;
+                        break;
 
-                case USB_PIPE5:
-                	bufferNumber = 12;
-                	break;
+                    case USB_PIPE5:
+                        bufferNumber = 12;
+                        break;
 
-                case USB_PIPE6:
-                	bufferNumber = 4;
-                	break;
+                    case USB_PIPE6:
+                        bufferNumber = 4;
+                        break;
 
-                case USB_PIPE7:
-                	bufferNumber = 5;
-                	break;
+                    case USB_PIPE7:
+                        bufferNumber = 5;
+                        break;
 
-                case USB_PIPE8:
-                	bufferNumber = 6;
-                	break;
+                    case USB_PIPE8:
+                        bufferNumber = 6;
+                        break;
 
-                case USB_PIPE9:
-                	bufferNumber = 7;
-                	break;
+                    case USB_PIPE9:
+                        bufferNumber = 7;
+                        break;
                 }
 
                 pipetbl[pipeTableOffset + 2] = (uint16_t)USB_BUF_SIZE(64u) | USB_BUF_NUMB(bufferNumber);
 
                 /* Check pipe information */
-                retval = usb_hstd_chk_pipe_info(speed, (uint16_t*)&pipetbl[pipeTableOffset], &table[ofdsc]); // We could check the return for error if we wanted...
+                retval = usb_hstd_chk_pipe_info(speed, (uint16_t*)&pipetbl[pipeTableOffset],
+                    &table[ofdsc]); // We could check the return for error if we wanted...
 
                 if ((USB_ON == detect_in_pipe) && (USB_ON == detect_out_pipe))
                 {
                     return USB_OK;
                 }
 
-            	// No break
+                // No break
 
             default:
 moveOnToNextDescriptor:
-				if (!table[ofdsc]) return USB_ERROR; // Prevent infinite loop if there's somehow a zero there. Got this while quickly plugging and unplugging lots of devices / hub, to test.
-                ofdsc += table[ofdsc];  /* Next descriptor point set */
+                if (!table[ofdsc])
+                    return USB_ERROR; // Prevent infinite loop if there's somehow a zero there. Got this while quickly plugging and unplugging lots of devices / hub, to test.
+                ofdsc += table[ofdsc]; /* Next descriptor point set */
 
-            break;
+                break;
 
             case USB_DT_DEVICE_QUALIFIER:
             case USB_DT_OTHER_SPEED_CONF:
@@ -681,7 +690,7 @@ moveOnToNextDescriptor:
                 USB_PRINTF0("### Endpoint Descriptor error.\n");
                 return USB_ERROR;
 
-            break;
+                break;
         }
     }
 
@@ -697,11 +706,11 @@ moveOnToNextDescriptor:
                  : usb_cb_t     complete     : callback function
  Return value    : uint16_t                  : error info
  ******************************************************************************/
-uint16_t usb_hmidi_get_string_desc(usb_utr_t *ptr, uint16_t addr, uint16_t string, usb_cb_t complete)
+uint16_t usb_hmidi_get_string_desc(usb_utr_t* ptr, uint16_t addr, uint16_t string, usb_cb_t complete)
 {
-    uint16_t    i;
+    uint16_t i;
 
-    if (0 ==  string)
+    if (0 == string)
     {
         usb_shmidi_class_request_setup[ptr->ip][2] = (uint16_t)0x0000;
         usb_shmidi_class_request_setup[ptr->ip][3] = (uint16_t)0x0004;
@@ -710,7 +719,8 @@ uint16_t usb_hmidi_get_string_desc(usb_utr_t *ptr, uint16_t addr, uint16_t strin
     {
         /* Set LanguageID */
         usb_shmidi_class_request_setup[ptr->ip][2] = (uint16_t)(g_usb_hmidi_str_desc_data[ptr->ip][2]);
-        usb_shmidi_class_request_setup[ptr->ip][2] |= (uint16_t)((uint16_t)(g_usb_hmidi_str_desc_data[ptr->ip][3]) << 8);
+        usb_shmidi_class_request_setup[ptr->ip][2] |=
+            (uint16_t)((uint16_t)(g_usb_hmidi_str_desc_data[ptr->ip][3]) << 8);
         usb_shmidi_class_request_setup[ptr->ip][3] = (uint16_t)USB_HMIDI_CLSDATASIZE;
     }
     usb_shmidi_class_request_setup[ptr->ip][0] = (USB_GET_DESCRIPTOR | USB_DEV_TO_HOST | USB_STANDARD | USB_DEVICE);
@@ -732,9 +742,9 @@ uint16_t usb_hmidi_get_string_desc(usb_utr_t *ptr, uint16_t addr, uint16_t strin
                  : usb_cb_t     complete     : callback info
  Return value    : uint16_t                  : USB_DONE
  ******************************************************************************/
-static uint16_t usb_hmidi_cmd_submit(usb_utr_t *ptr, usb_cb_t complete)
+static uint16_t usb_hmidi_cmd_submit(usb_utr_t* ptr, usb_cb_t complete)
 {
-    usb_er_t    err;
+    usb_er_t err;
 
     usb_shmidi_string_req[ptr->ip].p_tranadr = (void*)g_usb_hmidi_str_desc_data[ptr->ip];
     usb_shmidi_string_req[ptr->ip].complete  = complete;
@@ -749,19 +759,17 @@ static uint16_t usb_hmidi_cmd_submit(usb_utr_t *ptr, usb_cb_t complete)
     if (USB_QOVR == err)
     {
         /* error */
-        USB_PRINTF0( "### usb_hhid_cmd_submit() : USB_E_QOVR \n");
+        USB_PRINTF0("### usb_hhid_cmd_submit() : USB_E_QOVR \n");
     }
 
     return USB_OK;
 } /* End of function usb_hhid_cmd_submit() */
-
 
 /******************************************************************************
  Callback functions
  ******************************************************************************/
 
 void hostedDeviceConfigured(int ip, int midiDeviceNum);
-
 
 /******************************************************************************
  Function Name   : hid_configured
@@ -771,7 +779,7 @@ void hostedDeviceConfigured(int ip, int midiDeviceNum);
                  : uint16_t     data2        : Not use
  Return value    : none
  ******************************************************************************/
-void hmidi_configured(usb_utr_t *ptr, uint16_t devadr, uint16_t data2)
+void hmidi_configured(usb_utr_t* ptr, uint16_t devadr, uint16_t data2)
 {
     R_USB_HmidiSetPipeRegistration(ptr, devadr); /* Host HID Pipe registration */
 
@@ -780,19 +788,19 @@ void hmidi_configured(usb_utr_t *ptr, uint16_t devadr, uint16_t data2)
     // Totally hackish way of getting the device number from our offset from the start of the "endpoint table", but it's the only way the "driver" actually keeps track of this
     int midiDeviceNum = (pipetbl - (uint16_t*)g_usb_hmidi_tmp_ep_tbl) / ((USB_EPL * 2) + 1);
 
-	uartPrint("configured MIDI device: ");
-	uartPrintNumber(midiDeviceNum);
+    uartPrint("configured MIDI device: ");
+    uartPrintNumber(midiDeviceNum);
 
-    int sendPipe = g_usb_hmidi_tmp_ep_tbl[ptr->ip][midiDeviceNum][0];
+    int sendPipe    = g_usb_hmidi_tmp_ep_tbl[ptr->ip][midiDeviceNum][0];
     int isInterrupt = (sendPipe == USB_CFG_HMIDI_INT_SEND);
 
     if (currentDeviceNumWithSendPipe[isInterrupt] == midiDeviceNum)
-    	currentDeviceNumWithSendPipe[isInterrupt] = MAX_NUM_USB_MIDI_DEVICES; // Force a reset of pipe setup if it was already set to this deviceNum
+        currentDeviceNumWithSendPipe[isInterrupt] =
+            MAX_NUM_USB_MIDI_DEVICES; // Force a reset of pipe setup if it was already set to this deviceNum
 
     hostedDeviceConfigured(USB_CFG_USE_USBIP, midiDeviceNum);
 
 } /* End of function hid_configured() */
-
 
 void hostedDeviceDetached(int ip, int midiDeviceNum);
 
@@ -804,21 +812,22 @@ void hostedDeviceDetached(int ip, int midiDeviceNum);
                  : uint16_t     data2        : Not use
  Return value    : none
  ******************************************************************************/
-void hmidi_detach(usb_utr_t *ptr, uint16_t devadr, uint16_t data2)
+void hmidi_detach(usb_utr_t* ptr, uint16_t devadr, uint16_t data2)
 {
-	// Have to get the MIDI device num by searching through the info left in the endpoint table
-	int d;
-	for (d = 0; d < MAX_NUM_USB_MIDI_DEVICES; d++) {
-		int devAddrHere = g_usb_hmidi_tmp_ep_tbl[USB_CFG_USE_USBIP][d][3] >> USB_DEVADDRBIT;
-		if (devAddrHere == devadr) break;
-	}
+    // Have to get the MIDI device num by searching through the info left in the endpoint table
+    int d;
+    for (d = 0; d < MAX_NUM_USB_MIDI_DEVICES; d++)
+    {
+        int devAddrHere = g_usb_hmidi_tmp_ep_tbl[USB_CFG_USE_USBIP][d][3] >> USB_DEVADDRBIT;
+        if (devAddrHere == devadr) break;
+    }
 
-	// Clear endpoint table
-	g_usb_hmidi_tmp_ep_tbl[USB_CFG_USE_USBIP][d][1] &= (uint16_t)(USB_BFREON | USB_CFG_SHTNAKON);   /* PIPECFG */
-	g_usb_hmidi_tmp_ep_tbl[USB_CFG_USE_USBIP][d][3] = (uint16_t)(USB_NULL);                         /* PIPEMAXP */
-	g_usb_hmidi_tmp_ep_tbl[USB_CFG_USE_USBIP][d][4] = (uint16_t)(USB_NULL);                         /* PIPEPERI */
+    // Clear endpoint table
+    g_usb_hmidi_tmp_ep_tbl[USB_CFG_USE_USBIP][d][1] &= (uint16_t)(USB_BFREON | USB_CFG_SHTNAKON); /* PIPECFG */
+    g_usb_hmidi_tmp_ep_tbl[USB_CFG_USE_USBIP][d][3] = (uint16_t)(USB_NULL);                       /* PIPEMAXP */
+    g_usb_hmidi_tmp_ep_tbl[USB_CFG_USE_USBIP][d][4] = (uint16_t)(USB_NULL);                       /* PIPEPERI */
 
-	hostedDeviceDetached(USB_CFG_USE_USBIP, d);
+    hostedDeviceDetached(USB_CFG_USE_USBIP, d);
 } /* End of function hid_detach() */
 
 /******************************************************************************
@@ -829,7 +838,7 @@ void hmidi_detach(usb_utr_t *ptr, uint16_t devadr, uint16_t data2)
                  : uint16_t     data2        : Not use
  Return value    : none
  ******************************************************************************/
-void hmidi_resume_complete(usb_utr_t *ptr, uint16_t devadr, uint16_t data2)
+void hmidi_resume_complete(usb_utr_t* ptr, uint16_t devadr, uint16_t data2)
 {
 } /* End of function hid_resume_complete() */
 
@@ -843,29 +852,28 @@ void hmidi_resume_complete(usb_utr_t *ptr, uint16_t devadr, uint16_t data2)
  Argument        : none
  Return          : none
  ******************************************************************************/
-void usb_registration(usb_utr_t *ptr)
+void usb_registration(usb_utr_t* ptr)
 {
-    usb_hcdreg_t    driver;
-    uint8_t         i;
+    usb_hcdreg_t driver;
+    uint8_t i;
 
-    driver.ifclass      = (uint16_t)USB_IFCLS_AUD;                  /* Interface class */
-    driver.p_tpl        = (uint16_t*)&g_usb_hmidi_devicetpl;         /* Target peripheral list */
-    driver.classinit    = (usb_cb_t)&usb_hstd_dummy_function;       /* Driver init */
-    driver.classcheck   = (usb_cb_check_t)&R_USB_HmidiClassCheck;    /* Driver check */
-    driver.devconfig    = (usb_cb_t)&hmidi_configured;                /* Device configuered */
-    driver.devdetach    = (usb_cb_t)&hmidi_detach;                    /* Device detach */
-    driver.devsuspend   = (usb_cb_t)&usb_hstd_dummy_function;       /* Device suspend */
-    driver.devresume    = (usb_cb_t)&hmidi_resume_complete;           /* Device resume */
+    driver.ifclass    = (uint16_t)USB_IFCLS_AUD;                /* Interface class */
+    driver.p_tpl      = (uint16_t*)&g_usb_hmidi_devicetpl;      /* Target peripheral list */
+    driver.classinit  = (usb_cb_t)&usb_hstd_dummy_function;     /* Driver init */
+    driver.classcheck = (usb_cb_check_t)&R_USB_HmidiClassCheck; /* Driver check */
+    driver.devconfig  = (usb_cb_t)&hmidi_configured;            /* Device configuered */
+    driver.devdetach  = (usb_cb_t)&hmidi_detach;                /* Device detach */
+    driver.devsuspend = (usb_cb_t)&usb_hstd_dummy_function;     /* Device suspend */
+    driver.devresume  = (usb_cb_t)&hmidi_resume_complete;       /* Device resume */
 
-    for (i = 0; i < MAX_NUM_USB_MIDI_DEVICES; i++)    /* Loop support for MIDI device count */
+    for (i = 0; i < MAX_NUM_USB_MIDI_DEVICES; i++) /* Loop support for MIDI device count */
     {
-        driver.p_pipetbl = (uint16_t*)&g_usb_hmidi_tmp_ep_tbl[ptr->ip][i];   /* Pipe def. table address. */
-        usb_hstd_driver_registration(ptr, &driver);                         /* Host HID class driver registration. */
+        driver.p_pipetbl = (uint16_t*)&g_usb_hmidi_tmp_ep_tbl[ptr->ip][i]; /* Pipe def. table address. */
+        usb_hstd_driver_registration(ptr, &driver);                        /* Host HID class driver registration. */
     }
-    usb_cstd_set_task_pri(USB_HUB_TSK, USB_PRI_3);                          /* Hub Task Priority set */
-    usb_hhub_registration(ptr, (usb_hcdreg_t *)USB_NULL);                   /* Hub registration. */
+    usb_cstd_set_task_pri(USB_HUB_TSK, USB_PRI_3);       /* Hub Task Priority set */
+    usb_hhub_registration(ptr, (usb_hcdreg_t*)USB_NULL); /* Hub registration. */
 } /* End of function usb_registration() */
-
 
 /******************************************************************************
  End Of File

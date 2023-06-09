@@ -26,26 +26,27 @@ class NonAudioDrum : public Drum, public ModControllable {
 public:
 	NonAudioDrum(int newType);
 
-    bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false) final;
-    bool anyNoteIsOn() final;
-    bool hasAnyVoices() final;
-    void unassignAllVoices();
-    bool readDrumTagFromFile(char const* tagName);
+	bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false) final;
+	bool anyNoteIsOn() final;
+	bool hasAnyVoices() final;
+	void unassignAllVoices();
+	bool readDrumTagFromFile(char const* tagName);
 
-    virtual int getNumChannels() = 0;
+	virtual int getNumChannels() = 0;
 
-    virtual int8_t modEncoderAction(ModelStackWithThreeMainThings* modelStack, int8_t offset, uint8_t whichModEncoder);
+	virtual int8_t modEncoderAction(ModelStackWithThreeMainThings* modelStack, int8_t offset, uint8_t whichModEncoder);
 
-    ModControllable* toModControllable() { return this; }
+	ModControllable* toModControllable() { return this; }
 
-    bool state;
-    uint8_t lastVelocity;
+	bool state;
+	uint8_t lastVelocity;
 
 	uint8_t channel;
 	int8_t channelEncoderCurrentOffset;
 
 protected:
-	void modChange(ModelStackWithThreeMainThings* modelStack, int offset, int8_t* encoderOffset, uint8_t* value, int numValues);
+	void modChange(ModelStackWithThreeMainThings* modelStack, int offset, int8_t* encoderOffset, uint8_t* value,
+	               int numValues);
 };
 
 #endif /* NONAUDIODRUM_H_ */

@@ -34,7 +34,6 @@ extern "C" {
 #include "cfunctions.h"
 }
 
-
 MenuItem* MenuItemPatchedParam::selectButtonPress() {
 
 	// If shift held down, user wants to delete automation
@@ -51,12 +50,14 @@ MenuItem* MenuItemPatchedParam::selectButtonPress() {
 	}
 }
 
-
 #if !HAVE_OLED
 void MenuItemPatchedParam::drawValue() {
 	ParamDescriptor paramDescriptor;
 	paramDescriptor.setToHaveParamOnly(getP());
-	uint8_t drawDot = soundEditor.currentParamManager->getPatchCableSet()->isAnySourcePatchedToParamVolumeInspecific(paramDescriptor) ? 3 : 255;
+	uint8_t drawDot =
+	    soundEditor.currentParamManager->getPatchCableSet()->isAnySourcePatchedToParamVolumeInspecific(paramDescriptor)
+	        ? 3
+	        : 255;
 	numericDriver.setTextAsNumber(soundEditor.currentValue, drawDot);
 }
 #endif
@@ -64,7 +65,10 @@ void MenuItemPatchedParam::drawValue() {
 uint8_t MenuItemPatchedParam::shouldDrawDotOnName() {
 	ParamDescriptor paramDescriptor;
 	paramDescriptor.setToHaveParamOnly(getP());
-	return soundEditor.currentParamManager->getPatchCableSet()->isAnySourcePatchedToParamVolumeInspecific(paramDescriptor) ? 3 : 255;
+	return soundEditor.currentParamManager->getPatchCableSet()->isAnySourcePatchedToParamVolumeInspecific(
+	           paramDescriptor)
+	           ? 3
+	           : 255;
 }
 
 ParamDescriptor MenuItemPatchedParam::getLearningThing() {
@@ -84,7 +88,10 @@ uint8_t MenuItemPatchedParam::getPatchedParamIndex() {
 uint8_t MenuItemPatchedParam::shouldBlinkPatchingSourceShortcut(int s, uint8_t* colour) {
 	ParamDescriptor paramDescriptor;
 	paramDescriptor.setToHaveParamOnly(getP());
-	return soundEditor.currentParamManager->getPatchCableSet()->isSourcePatchedToDestinationDescriptorVolumeInspecific(s, paramDescriptor) ? 3 : 255;
+	return soundEditor.currentParamManager->getPatchCableSet()->isSourcePatchedToDestinationDescriptorVolumeInspecific(
+	           s, paramDescriptor)
+	           ? 3
+	           : 255;
 }
 
 MenuItem* MenuItemPatchedParam::patchingSourceShortcutPress(int s, bool previousPressStillActive) {
@@ -97,13 +104,17 @@ ModelStackWithAutoParam* MenuItemPatchedParam::getModelStack(void* memory) {
 	ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(memory);
 	ParamCollectionSummary* summary = modelStack->paramManager->getPatchedParamSetSummary();
 	int p = getP();
-	return modelStack->addParam(summary->paramCollection, summary, p, &((ParamSet*)summary->paramCollection)->params[p]);
+	return modelStack->addParam(summary->paramCollection, summary, p,
+	                            &((ParamSet*)summary->paramCollection)->params[p]);
 }
 
 // ---------------------------------------
 
 void MenuItemPatchedParamInteger::readCurrentValue() {
-	soundEditor.currentValue = (((int64_t)soundEditor.currentParamManager->getPatchedParamSet()->getValue(getP()) + 2147483648) * 50 + 2147483648) >> 32;
+	soundEditor.currentValue =
+	    (((int64_t)soundEditor.currentParamManager->getPatchedParamSet()->getValue(getP()) + 2147483648) * 50
+	     + 2147483648)
+	    >> 32;
 }
 
 void MenuItemPatchedParamInteger::writeCurrentValue() {
@@ -113,7 +124,6 @@ void MenuItemPatchedParamInteger::writeCurrentValue() {
 
 	//((ParamManagerBase*)soundEditor.currentParamManager)->setPatchedParamValue(getP(), getFinalValue(), 0xFFFFFFFF, 0, soundEditor.currentSound, currentSong, currentSong->currentClip, true, true);
 }
-
 
 int32_t MenuItemPatchedParamInteger::getFinalValue() {
 	if (soundEditor.currentValue == 25) return 0;
@@ -126,13 +136,15 @@ uint8_t MenuItemSourceDependentPatchedParam::getP() {
 	return MenuItemPatchedParam::getP() + soundEditor.currentSourceIndex;
 }
 
-
 // ---------------------------------------
 #if !HAVE_OLED
 void MenuItemPatchedParamPan::drawValue() {
 	ParamDescriptor paramDescriptor;
 	paramDescriptor.setToHaveParamOnly(getP());
-	uint8_t drawDot = soundEditor.currentParamManager->getPatchCableSet()->isAnySourcePatchedToParamVolumeInspecific(paramDescriptor) ? 3 : 255;
+	uint8_t drawDot =
+	    soundEditor.currentParamManager->getPatchCableSet()->isAnySourcePatchedToParamVolumeInspecific(paramDescriptor)
+	        ? 3
+	        : 255;
 	char buffer[5];
 	intToString(std::abs(soundEditor.currentValue), buffer, 1);
 	if (soundEditor.currentValue < 0) strcat(buffer, "L");
@@ -148,5 +160,6 @@ int32_t MenuItemPatchedParamPan::getFinalValue() {
 }
 
 void MenuItemPatchedParamPan::readCurrentValue() {
-	soundEditor.currentValue = ((int64_t)soundEditor.currentParamManager->getPatchedParamSet()->getValue(getP()) * 64 + 2147483648) >> 32;
+	soundEditor.currentValue =
+	    ((int64_t)soundEditor.currentParamManager->getPatchedParamSet()->getValue(getP()) * 64 + 2147483648) >> 32;
 }

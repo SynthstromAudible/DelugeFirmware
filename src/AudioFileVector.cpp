@@ -19,11 +19,8 @@
 #include "AudioFile.h"
 #include "numericdriver.h"
 
-AudioFileVector::AudioFileVector() :
-		NamedThingVector(__builtin_offsetof(AudioFile, filePath))
-{
+AudioFileVector::AudioFileVector() : NamedThingVector(__builtin_offsetof(AudioFile, filePath)) {
 }
-
 
 // Returns -1 if not found. All times this is called, it actually should get found - but some bugs remain, and the caller must deal with these.
 int AudioFileVector::searchForExactObject(AudioFile* audioFile) {
@@ -51,4 +48,3 @@ int AudioFileVector::searchForExactObject(AudioFile* audioFile) {
 gotIt:
 	return i;
 }
-

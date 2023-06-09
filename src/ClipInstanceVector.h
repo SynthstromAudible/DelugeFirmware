@@ -22,7 +22,7 @@
 
 class ClipInstance;
 
-class ClipInstanceVector: public OrderedResizeableArrayWith32bitKey {
+class ClipInstanceVector : public OrderedResizeableArrayWith32bitKey {
 public:
 	ClipInstanceVector();
 

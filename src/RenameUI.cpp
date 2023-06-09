@@ -45,7 +45,6 @@ void RenameUI::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 	int windowMinY = (OLED_MAIN_HEIGHT_PIXELS - windowHeight) >> 1;
 	int windowMaxY = OLED_MAIN_HEIGHT_PIXELS - windowMinY;
 
-
 	OLED::clearAreaExact(windowMinX + 1, windowMinY + 1, windowMaxX - 1, windowMaxY - 1, image);
 
 	OLED::drawRectangle(windowMinX, windowMinY, windowMaxX, windowMaxY, image);

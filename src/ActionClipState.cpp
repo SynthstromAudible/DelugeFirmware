@@ -20,14 +20,11 @@
 #include "definitions.h"
 #include "kit.h"
 
-ActionClipState::ActionClipState()
-{
+ActionClipState::ActionClipState() {
 }
 
-ActionClipState::~ActionClipState()
-{
+ActionClipState::~ActionClipState() {
 }
-
 
 void ActionClipState::grabFromClip(Clip* thisClip) {
 	//modKnobMode = thisClip->modKnobMode;

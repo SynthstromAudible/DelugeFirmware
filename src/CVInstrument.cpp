@@ -26,15 +26,13 @@
 #include "ModelStack.h"
 #include "TimelineCounter.h"
 
-CVInstrument::CVInstrument() : NonAudioInstrument(INSTRUMENT_TYPE_CV)
-{
+CVInstrument::CVInstrument() : NonAudioInstrument(INSTRUMENT_TYPE_CV) {
 	monophonicPitchBendValue = 0;
 	polyPitchBendValue = 0;
 
-	cachedBendRanges[BEND_RANGE_MAIN]			= FlashStorage::defaultBendRange[BEND_RANGE_MAIN];
-	cachedBendRanges[BEND_RANGE_FINGER_LEVEL]	= FlashStorage::defaultBendRange[BEND_RANGE_FINGER_LEVEL];
+	cachedBendRanges[BEND_RANGE_MAIN] = FlashStorage::defaultBendRange[BEND_RANGE_MAIN];
+	cachedBendRanges[BEND_RANGE_FINGER_LEVEL] = FlashStorage::defaultBendRange[BEND_RANGE_FINGER_LEVEL];
 }
-
 
 void CVInstrument::noteOnPostArp(int noteCodePostArp, ArpNote* arpNote) {
 	// First update pitch bend for the new note
@@ -44,13 +42,12 @@ void CVInstrument::noteOnPostArp(int noteCodePostArp, ArpNote* arpNote) {
 	cvEngine.sendNote(true, channel, noteCodePostArp);
 }
 
-
 void CVInstrument::noteOffPostArp(int noteCodePostArp, int oldMIDIChannel, int velocity) {
 	cvEngine.sendNote(false, channel, noteCodePostArp);
 }
 
-
-void CVInstrument::polyphonicExpressionEventPostArpeggiator(int newValue, int noteCodeAfterArpeggiation, int whichExpressionDimension, ArpNote* arpNote) {
+void CVInstrument::polyphonicExpressionEventPostArpeggiator(int newValue, int noteCodeAfterArpeggiation,
+                                                            int whichExpressionDimension, ArpNote* arpNote) {
 	if (!whichExpressionDimension) { // Pitch bend only
 		if (cvEngine.isNoteOn(channel, noteCodeAfterArpeggiation)) {
 			polyPitchBendValue = newValue;
@@ -59,7 +56,6 @@ void CVInstrument::polyphonicExpressionEventPostArpeggiator(int newValue, int no
 	}
 }
 
-
 void CVInstrument::monophonicExpressionEvent(int newValue, int whichExpressionDimension) {
 	if (!whichExpressionDimension) { // Pitch bend only
 		monophonicPitchBendValue = newValue;
@@ -67,39 +63,38 @@ void CVInstrument::monophonicExpressionEvent(int newValue, int whichExpressionDi
 	}
 }
 
-
 void CVInstrument::updatePitchBendOutput(bool outputToo) {
 
 	ParamManager* paramManager = getParamManager(NULL);
 	if (paramManager) {
 		ExpressionParamSet* expressionParams = paramManager->getExpressionParamSet();
 		if (expressionParams) {
-			cachedBendRanges[BEND_RANGE_MAIN]			= expressionParams->bendRanges[BEND_RANGE_MAIN];
-			cachedBendRanges[BEND_RANGE_FINGER_LEVEL]	= expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL];
+			cachedBendRanges[BEND_RANGE_MAIN] = expressionParams->bendRanges[BEND_RANGE_MAIN];
+			cachedBendRanges[BEND_RANGE_FINGER_LEVEL] = expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL];
 		}
 	}
 
 	// If couldn't update bend ranges that way, no worries - we'll keep our cached ones, cos the user probably intended that.
 
-	int32_t totalBendAmount =  // (1 << 23) represents one semitone. So full 32-bit range can be +-256 semitones. This is different to the equivalent calculation in Voice, which needs to get things into a number of octaves.
-			(monophonicPitchBendValue >> 8) * cachedBendRanges[BEND_RANGE_MAIN]
-			+ (polyPitchBendValue >> 8) * cachedBendRanges[BEND_RANGE_FINGER_LEVEL];
+	int32_t
+	    totalBendAmount = // (1 << 23) represents one semitone. So full 32-bit range can be +-256 semitones. This is different to the equivalent calculation in Voice, which needs to get things into a number of octaves.
+	    (monophonicPitchBendValue >> 8) * cachedBendRanges[BEND_RANGE_MAIN]
+	    + (polyPitchBendValue >> 8) * cachedBendRanges[BEND_RANGE_FINGER_LEVEL];
 
 	cvEngine.setCVPitchBend(channel, totalBendAmount, outputToo);
 }
-
 
 bool CVInstrument::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 	//NonAudioInstrument::writeDataToFile(clipForSavingOutputOnly, song); // Nope, this gets called within the below call
 	writeMelodicInstrumentAttributesToFile(clipForSavingOutputOnly, song);
 
-	if (clipForSavingOutputOnly || !midiInput.containsSomething()) return false; // If we don't need to write a "device" tag, opt not to end the opening tag
+	if (clipForSavingOutputOnly || !midiInput.containsSomething())
+		return false; // If we don't need to write a "device" tag, opt not to end the opening tag
 
 	storageManager.writeOpeningTagEnd();
 	MelodicInstrument::writeMelodicInstrumentTagsToFile(clipForSavingOutputOnly, song);
 	return true;
 }
-
 
 bool CVInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, int maySendMIDIPGMs) {
 	bool clipChanged = NonAudioInstrument::setActiveClip(modelStack, maySendMIDIPGMs);
@@ -108,18 +103,19 @@ bool CVInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, int 
 		ParamManager* paramManager = &modelStack->getTimelineCounter()->paramManager;
 		ExpressionParamSet* expressionParams = paramManager->getExpressionParamSet();
 		if (expressionParams) {
-			monophonicPitchBendValue					= expressionParams->params[0].getCurrentValue();
+			monophonicPitchBendValue = expressionParams->params[0].getCurrentValue();
 
-			cachedBendRanges[BEND_RANGE_MAIN]			= expressionParams->bendRanges[BEND_RANGE_MAIN];
-			cachedBendRanges[BEND_RANGE_FINGER_LEVEL]	= expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL];
+			cachedBendRanges[BEND_RANGE_MAIN] = expressionParams->bendRanges[BEND_RANGE_MAIN];
+			cachedBendRanges[BEND_RANGE_FINGER_LEVEL] = expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL];
 		}
 		else {
 			monophonicPitchBendValue = 0;
 			// TODO: grab bend ranges here too - when we've moved them to the ParamManager?
 		}
 
-		updatePitchBendOutput(false);	// Don't change the CV output voltage right now (we could, but this Clip-change might come with a note that's going to sound "now" anyway...)
-										// - but make it so the next note which sounds will have our new correct bend value / range.
+		updatePitchBendOutput(
+		    false); // Don't change the CV output voltage right now (we could, but this Clip-change might come with a note that's going to sound "now" anyway...)
+		            // - but make it so the next note which sounds will have our new correct bend value / range.
 	}
 
 	return clipChanged;
@@ -130,4 +126,3 @@ void CVInstrument::setupWithoutActiveClip(ModelStack* modelStack) {
 
 	monophonicPitchBendValue = 0;
 }
-

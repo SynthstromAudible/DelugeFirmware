@@ -19,12 +19,10 @@
 #include "soundeditor.h"
 #include "UI.h"
 
-
 MenuItemColour activeColourMenu;
 MenuItemColour stoppedColourMenu;
 MenuItemColour mutedColourMenu;
 MenuItemColour soloColourMenu;
-
 
 void MenuItemColour::readCurrentValue() {
 	soundEditor.currentValue = value;
@@ -39,15 +37,12 @@ char const** MenuItemColour::getOptions() {
 	return options;
 }
 
-
-
-int MenuItemColour::getNumOptions() { return 9; }
-
-
-
+int MenuItemColour::getNumOptions() {
+	return 9;
+}
 
 void MenuItemColour::getRGB(uint8_t rgb[3]) {
-	switch(value) {
+	switch (value) {
 	case 0: // Red
 		rgb[0] = disabledColourRed;
 		rgb[1] = disabledColourGreen;

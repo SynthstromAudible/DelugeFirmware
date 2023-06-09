@@ -18,16 +18,13 @@
 #include "CopiedNoteRow.h"
 #include "GeneralMemoryAllocator.h"
 
-CopiedNoteRow::CopiedNoteRow()
-{
+CopiedNoteRow::CopiedNoteRow() {
 	next = NULL;
 	notes = NULL;
 }
 
-CopiedNoteRow::~CopiedNoteRow()
-{
+CopiedNoteRow::~CopiedNoteRow() {
 	if (notes) {
 		generalMemoryAllocator.dealloc(notes);
 	}
 }
-
