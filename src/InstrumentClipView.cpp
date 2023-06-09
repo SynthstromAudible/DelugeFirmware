@@ -1306,7 +1306,7 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
             		noteStartPos = editPadPresses[i].intendedPos;
             	}
 
-                // First, figure out the lengh to take the note up to the start of the pressed square. Put it in newLength
+                // First, figure out the length to take the note up to the start of the pressed square. Put it in newLength
             	int newLength = squareStart - noteStartPos;
             	if (newLength < 0) newLength += effectiveLength; // Wrapped note
 
