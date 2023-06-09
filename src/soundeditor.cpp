@@ -2440,7 +2440,14 @@ public:
 	void writeCurrentValue() { FlashStorage::defaultBendRange[BEND_RANGE_MAIN] = soundEditor.currentValue; }
 } defaultBendRangeMenu;
 
+// TODO: we need to do this until menuitems have been refactored in some which
+// to not use the `new (&item) Item("name"); pattern` anymore
+bool menusInititialized = false;
+
 SoundEditor::SoundEditor() {
+	if (menusInititialized) {
+		return;
+	}
 	currentParamShorcutX = 255;
 	memset(sourceShortcutBlinkFrequencies, 255, sizeof(sourceShortcutBlinkFrequencies));
 	timeLastAttemptedAutomatedParamEdit = 0;
@@ -3018,25 +3025,6 @@ SoundEditor::SoundEditor() {
 	audioClipHPFResMenu.basicTitle = "HPF resonance";
 
 #endif
-
-#if ALPHA_OR_BETA_VERSION && IN_HARDWARE_DEBUG
-	// Dev vars.......
-	new (&devVarAMenu) DevVarAMenu();
-	new (&devVarBMenu) DevVarBMenu();
-	new (&devVarCMenu) DevVarCMenu();
-	new (&devVarDMenu) DevVarDMenu();
-	new (&devVarEMenu) DevVarEMenu();
-	new (&devVarFMenu) DevVarFMenu();
-	new (&devVarGMenu) DevVarGMenu();
-#endif
-
-	// Patching stuff
-	new (&sourceSelectionMenuRegular) MenuItemSourceSelectionRegular();
-	new (&sourceSelectionMenuRange) MenuItemSourceSelectionRange();
-	new (&patchCableStrengthMenuRegular) MenuItemPatchCableStrengthRegular();
-	new (&patchCableStrengthMenuRange) MenuItemPatchCableStrengthRange();
-
-	new (&multiRangeMenu) MenuItemMultiRange();
 }
 
 bool SoundEditor::editingKit() {

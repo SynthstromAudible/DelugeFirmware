@@ -176,4 +176,17 @@ int_t main1(void) {
 		;
 }
 
+typedef void (*fp)(void);
+
+extern fp __init_array_start[];
+extern fp __init_array_end[];
+
+void init_constructors() {
+	fp *start = __init_array_start;
+	int length = __init_array_end - __init_array_start;
+	for (int i = 0; i < length; i++) {
+		start[i]();
+	}
+}
+
 /* End of File */

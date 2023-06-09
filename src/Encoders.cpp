@@ -39,10 +39,6 @@ uint32_t encodersWaitingForCardRoutineEnd;
 
 void init() {
 
-	for (int i = 0; i < NUM_ENCODERS; i++) {
-		new (&encoders[i]) Encoder;
-	}
-
 #if DELUGE_MODEL == DELUGE_MODEL_40_PAD
 	encoders[ENCODER_SCROLL_Y].setPins(7, 9, 7, 10);
 	encoders[ENCODER_SCROLL_X].setPins(1, 6, 1, 5);

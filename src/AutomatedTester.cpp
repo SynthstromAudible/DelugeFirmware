@@ -79,12 +79,6 @@ namespace AutomatedTester {
 uint32_t timeLastCall;
 TestState* currentState = &instrumentClipViewTestState;
 
-void init() {
-	new (&changePresetTestAction) ChangePresetTestAction;
-	new (&playButtonTestAction) PlayButtonTestAction;
-	new (&instrumentClipViewTestState) InstrumentClipViewTestState;
-}
-
 void turnSelectEncoder(int offset) {
 	Encoders::encoders[ENCODER_THIS_CPU_SELECT].detentPos += offset;
 }

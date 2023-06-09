@@ -171,11 +171,6 @@ Voice* firstUnassignedVoice;
 // You must set up dynamic memory allocation before calling this, because of its call to setupWithPatching()
 void init() {
 
-	new (&reverb) revmodel;
-	new (&reverbCompressor) Compressor;
-	new (&metronome) Metronome;
-	new (&activeVoices) VoiceVector;
-
 	paramManagerForSamplePreview = new ((void*)paramManagerForSamplePreviewMemory) ParamManagerForTimeline();
 	paramManagerForSamplePreview->setupWithPatching(); // Shouldn't be an error at init time...
 	Sound::initParams(paramManagerForSamplePreview);
@@ -195,17 +190,14 @@ void init() {
 	sampleForPreview->sideChainSendLevel = 2147483647;
 
 	for (int i = 0; i < NUM_VOICE_SAMPLES_STATIC; i++) {
-		new (&voiceSamples[i]) VoiceSample();
 		voiceSamples[i].nextUnassigned = (i == NUM_VOICE_SAMPLES_STATIC - 1) ? NULL : &voiceSamples[i + 1];
 	}
 
 	for (int i = 0; i < NUM_TIME_STRETCHERS_STATIC; i++) {
-		new (&timeStretchers[i]) TimeStretcher();
 		timeStretchers[i].nextUnassigned = (i == NUM_TIME_STRETCHERS_STATIC - 1) ? NULL : &timeStretchers[i + 1];
 	}
 
 	for (int i = 0; i < NUM_VOICES_STATIC; i++) {
-		new (&staticVoices[i]) Voice();
 		staticVoices[i].nextUnassigned = (i == NUM_VOICES_STATIC - 1) ? NULL : &staticVoices[i + 1];
 	}
 

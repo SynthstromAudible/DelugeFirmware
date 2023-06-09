@@ -186,32 +186,27 @@ SECTIONS
 		*(.data.*)
 		_edata = .;
 		
-		
-		/* Uncommenting this section back in allows the section at the top of the main C++ file to be uncommented...
-		But I'm not sure if this is really the right place for this. */
-		
-		/*
-		__CTOR_LIST__ = .;
-		. = ALIGN(2);
-		__ctors = .;
-		*(.ctors)
-		__ctors_end = .;
-		__CTOR_END__ = .;
-		__DTOR_LIST__ = .;
-		___dtors = .;
-		*(.dtors)
-		___dtors_end = .;
-		__DTOR_END__ = .;
-		. = ALIGN(2);
-		_mdata = .;
-		*/
-		
 		*(.got.plt) 
 		*(.got)
 		.	= ALIGN(0x8);
 		address_end_data_ROM = .;
 	} > RAM012L
-	
+
+	/* array of constructor and destructor functions for c++ global objects */
+	.init_array :
+	{
+		PROVIDE_HIDDEN (__init_array_start = .);
+		KEEP (*(SORT(.init_array.*)))
+		KEEP (*(.init_array))
+		PROVIDE_HIDDEN (__init_array_end = .);
+	} >RAM012L
+	.fini_array :
+	{
+		PROVIDE_HIDDEN (__fini_array_start = .);
+		KEEP (*(SORT(.fini_array.*)))
+		KEEP (*(.fini_array))
+		PROVIDE_HIDDEN (__fini_array_end = .);
+	} >RAM012L
 	
 	/* The heap-start needs its own section because for some reason, extra stuff is injected after the previous section. */
 	.heap_start : ALIGN(4)

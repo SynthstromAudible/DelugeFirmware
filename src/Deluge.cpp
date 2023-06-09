@@ -501,8 +501,11 @@ extern "C" void usb_cstd_usb_task(void);
 extern "C" volatile uint32_t usbLock;
 
 extern "C" void usb_main_host(void);
+extern "C" void init_constructors(void);
 
 extern "C" int main2(void) {
+
+extern bool menusInititialized;
 
 	// Give the PIC some startup instructions
 
@@ -542,61 +545,10 @@ extern "C" int main2(void) {
 
 	functionsInit();
 
-	/*
-     * For reasons not exactly known, globally declared instances of classes (so, objects) will not get their
-     * constructors called automatically on boot-up as is supposed to happen in C++. This will immediately
-     * cause problems, as things don’t get initialized. And for classes with virtual functions (i.e. using
-     * polymorphism), their vtable won’t even be set, causing an instant crash as soon as any virtual function is called on them.
-	 *
-	 * This is why, right here in Deluge.cpp, every single globally declared object gets manually set up with a “new”
-	 * statement.
-	 *
-	 * See a more technical discussion of the problem here: https://stackoverflow.com/questions/32807964/c-gcc-file-scope-objects-constructors-arent-being-called?noredirect=1#comment53452782_32807964
-     */
-
-	new (&instrumentClipView) InstrumentClipView;
-	new (&sessionView) SessionView;
-	new (&matrixDriver) MatrixDriver;
-	new (&playbackHandler) PlaybackHandler;
+	// Initialize globally declared instances of classes (so, objects) by calling their constructors.
+	init_constructors();
+	menusInititialized = true;
 	new (&soundEditor) SoundEditor;
-	new (&uiTimerManager) UITimerManager;
-	new (&storageManager) StorageManager;
-	new (&loadSongUI) LoadSongUI;
-	new (&saveSongUI) SaveSongUI;
-	new (&contextMenuClearSong) ContextMenuClearSong;
-	new (&saveInstrumentPresetUI) SaveInstrumentPresetUI;
-	new (&loadInstrumentPresetUI) LoadInstrumentPresetUI;
-	new (&sampleBrowser) SampleBrowser;
-	new (&midiEngine) MidiEngine;
-	new (&cvEngine) CVEngine;
-	new (&keyboardScreen) KeyboardScreen;
-	new (&view) View;
-	new (&audioRecorder) AudioRecorder;
-	new (&numericDriver) NumericDriver;
-	new (&session) Session;
-	new (&arrangement) Arrangement;
-	new (&arrangerView) ArrangerView;
-	new (&waveformRenderer) WaveformRenderer;
-	new (&saveSongOrInstrumentContextMenu) SaveSongOrInstrumentContextMenu;
-	new (&contextMenuFileBrowserKit) ContextMenuSampleBrowserKit;
-	new (&contextMenuFileBrowserSynth) ContextMenuSampleBrowserSynth;
-	new (&contextMenuOverwriteFile) ContextMenuOverwriteFile;
-	new (&contextMenuDeleteFile) ContextMenuDeleteFile;
-	new (&renameDrumUI) RenameDrumUI;
-	new (&audioInputSelector) AudioInputSelector;
-	new (&contextMenuLoadInstrumentPreset) ContextMenuLoadInstrumentPreset;
-	new (&sampleMarkerEditor) SampleMarkerEditor;
-	new (&waveformBasicNavigator) WaveformBasicNavigator;
-	new (&audioClipView) AudioClipView;
-	new (&renameOutputUI) RenameOutputUI;
-	new (&QwertyUI::enteredText) String;
-	new (&Browser::currentDir) String;
-	new (&Browser::fileItems) CStringArray(sizeof(FileItem));
-	new (&contextMenuOverwriteBootloader) ContextMenuOverwriteBootloader;
-	MIDIDeviceManager::init();
-#if AUTOMATED_TESTER_ENABLED
-	AutomatedTester::init();
-#endif
 
 	currentPlaybackMode = &session;
 
@@ -681,11 +633,6 @@ extern "C" int main2(void) {
 #if RECORD_TEST_MODE == 1
 	makeTestRecording();
 #endif
-
-	new (&generalMemoryAllocator) GeneralMemoryAllocator;
-	new (&audioFileManager) AudioFileManager;
-	new (&actionLogger) ActionLogger;
-	new (&slicer) Slicer;
 
 	Encoders::init();
 
