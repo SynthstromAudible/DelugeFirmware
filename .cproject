@@ -128,6 +128,7 @@
 									<listOptionValue builtIn="false" value="IN_HARDWARE_DEBUG=1"/>
 									<listOptionValue builtIn="false" value="HAVE_RTT=1"/>
 									<listOptionValue builtIn="false" value="HAVE_OLED=1"/>
+									<listOptionValue builtIn="false" value="ENABLE_TEXT_OUTPUT=1"/>
 								</option>
 								<inputType id="ilg.gnuarmeclipse.managedbuild.cross.tool.cpp.compiler.input.231965655" superClass="ilg.gnuarmeclipse.managedbuild.cross.tool.cpp.compiler.input"/>
 								<inputType id="com.renesas.cdt.managedbuild.gcc.rz.inputType.compiler.c.393655903" superClass="com.renesas.cdt.managedbuild.gcc.rz.inputType.compiler.c"/>
@@ -617,10 +618,10 @@
 							<tool id="com.renesas.cdt.managedbuild.gcc.rz.tool.compiler.cpp.1954281474" name="Cross ARM C++ Compiler" superClass="com.renesas.cdt.managedbuild.gcc.rz.tool.compiler.cpp">
 								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.renesas.cdt.managedbuild.gcc.rz.option.compiler.cpp.include.1121121786" name="Include paths (-I)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.compiler.cpp.include" useByScannerDiscovery="true" valueType="includePath">
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/spibsc&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/ALL_CPUS/usb/userdef&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/ALL_CPUS/usb&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/ALL_CPUS/rspi_all_cpus&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/ALL_CPUS/oled_low_level_all_cpus&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/usb/userdef&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/usb&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/rspi_all_cpus&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/oled_low_level_all_cpus&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/mtu&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/oled&quot;"/>
@@ -655,7 +656,7 @@
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/ssi_all_cpus&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/dmac&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/ALL_CPUS/uart_all_cpus&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/uart_all_cpus&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/NE10/modules&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/NE10/inc&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src&quot;"/>
@@ -1165,10 +1166,10 @@
 							<tool id="com.renesas.cdt.managedbuild.gcc.rz.tool.compiler.cpp.1550879320" name="Cross ARM C++ Compiler" superClass="com.renesas.cdt.managedbuild.gcc.rz.tool.compiler.cpp">
 								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.renesas.cdt.managedbuild.gcc.rz.option.compiler.cpp.include.1354740197" name="Include paths (-I)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.compiler.cpp.include" useByScannerDiscovery="true" valueType="includePath">
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/spibsc&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/ALL_CPUS/usb/userdef&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/ALL_CPUS/usb&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/ALL_CPUS/rspi_all_cpus&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/ALL_CPUS/oled_low_level_all_cpus&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/usb/userdef&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/usb&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/rspi_all_cpus&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/oled_low_level_all_cpus&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/mtu&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/oled&quot;"/>
@@ -1203,7 +1204,7 @@
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/ssi_all_cpus&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/dmac&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/ALL_CPUS/uart_all_cpus&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/uart_all_cpus&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/NE10/modules&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/NE10/inc&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src&quot;"/>
@@ -1709,12 +1710,12 @@
 							<tool id="com.renesas.cdt.managedbuild.gcc.rz.tool.compiler.cpp.369148865" name="Cross ARM C++ Compiler" superClass="com.renesas.cdt.managedbuild.gcc.rz.tool.compiler.cpp">
 								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.renesas.cdt.managedbuild.gcc.rz.option.compiler.cpp.include.552519036" name="Include paths (-I)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.compiler.cpp.include" useByScannerDiscovery="true" valueType="includePath">
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/ALL_CPUS/usb/userdef&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/ALL_CPUS/usb&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/ALL_CPUS/dmac&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/ALL_CPUS/uart_all_cpus&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/ALL_CPUS/rspi_all_cpus&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/ALL_CPUS/oled_low_level_all_cpus&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/usb/userdef&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/usb&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/dmac&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/uart_all_cpus&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/rspi_all_cpus&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/oled_low_level_all_cpus&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/mtu&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/oled&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/spibsc&quot;"/>
@@ -1762,6 +1763,7 @@
 								<option id="com.renesas.cdt.managedbuild.gcc.rz.option.compiler.cpp.language.1989113927" name="Language standard" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.compiler.cpp.language" useByScannerDiscovery="true" value="com.renesas.cdt.managedbuild.gcc.rz.option.compiler.cpp.language.default" valueType="enumerated"/>
 								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.compiler.defs.1465009803" name="Defined symbols (-D)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.compiler.defs" useByScannerDiscovery="true" valueType="definedSymbols">
 									<listOptionValue builtIn="false" value="IN_HARDWARE_DEBUG=1"/>
+									<listOptionValue builtIn="false" value="ENABLE_TEXT_OUTPUT=1"/>
 									<listOptionValue builtIn="false" value="HAVE_RTT=1"/>
 									<listOptionValue builtIn="false" value="HAVE_OLED=0"/>
 								</option>

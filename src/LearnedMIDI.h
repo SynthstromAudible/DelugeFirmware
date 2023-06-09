@@ -47,6 +47,7 @@ public:
 	bool equalsChannelAllowMPE(MIDIDevice* newDevice, int newChannel);
 	bool equalsChannelAllowMPEMasterChannels(MIDIDevice* newDevice, int newChannel);
 
+	//Check that note or CC and channel match, does not check if channel in MPE zone
 	inline bool equalsNoteOrCCAllowMPE(MIDIDevice* newDevice, int newChannel, int newNoteOrCC) {
 		return (newNoteOrCC == noteOrCC && equalsChannelAllowMPE(newDevice, newChannel));
 	}
