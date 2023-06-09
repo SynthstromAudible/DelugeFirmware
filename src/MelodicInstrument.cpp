@@ -185,6 +185,7 @@ doRecord:
 							if (noteRow) {
 								instrumentClip->recordNoteOn(modelStackWithNoteRow, velocity, forcePos0,
 								                             mpeValuesOrNull, midiChannel);
+
 								if (getRootUI()) getRootUI()->noteRowChanged(instrumentClip, noteRow);
 							}
 
@@ -256,6 +257,8 @@ justAuditionNote:
 			                      note, velocity);
 		}
 	}
+	//Handles MPE inputs for melodic instruments - duplicate of MPE check in playback
+	//handler, however playback handler does not pass on MPE info
 	else if (midiInput.channelOrZone == MIDI_CHANNEL_MPE_LOWER_ZONE) {
 		if (midiChannel <= fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeLowerZoneLastMemberChannel) {
 gotMPEInput:
