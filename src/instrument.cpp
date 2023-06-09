@@ -35,10 +35,9 @@
 #include "MIDIInstrument.h"
 #include "functions.h"
 
-Instrument::Instrument(int newType) : Output(newType)
-{
-    editedByUser = false;
-    existsOnCard = true;
+Instrument::Instrument(int newType) : Output(newType) {
+	editedByUser = false;
+	existsOnCard = true;
 	defaultVelocity = FlashStorage::defaultVelocity;
 }
 
@@ -51,7 +50,7 @@ Instrument::~Instrument() {
 
 // Returns whether subslot changed
 void Instrument::beenEdited(bool shouldMoveToEmptySlot) {
-    editedByUser = true;
+	editedByUser = true;
 }
 
 void Instrument::deleteAnyInstancesOfClip(InstrumentClip* clip) {
@@ -64,8 +63,6 @@ void Instrument::deleteAnyInstancesOfClip(InstrumentClip* clip) {
 	}
 }
 
-
-
 bool Instrument::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 
 	if (!clipForSavingOutputOnly) {
@@ -75,7 +72,9 @@ bool Instrument::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 		else {
 			char const* slotXMLTag = getSlotXMLTag();
 			if (type == INSTRUMENT_TYPE_MIDI_OUT && ((MIDIInstrument*)this)->sendsToMPE()) {
-				storageManager.writeAttribute(slotXMLTag, (((NonAudioInstrument*)this)->channel == MIDI_CHANNEL_MPE_LOWER_ZONE) ? "lower" : "upper");
+				storageManager.writeAttribute(
+				    slotXMLTag,
+				    (((NonAudioInstrument*)this)->channel == MIDI_CHANNEL_MPE_LOWER_ZONE) ? "lower" : "upper");
 			}
 			else {
 				storageManager.writeAttribute(slotXMLTag, ((NonAudioInstrument*)this)->channel);
@@ -83,8 +82,7 @@ bool Instrument::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 			char const* subSlotTag = getSubSlotXMLTag();
 			if (subSlotTag) storageManager.writeAttribute(subSlotTag, ((MIDIInstrument*)this)->channelSuffix);
 		}
-		if (!dirPath.isEmpty()
-				&& (type == INSTRUMENT_TYPE_SYNTH || type == INSTRUMENT_TYPE_KIT)) {
+		if (!dirPath.isEmpty() && (type == INSTRUMENT_TYPE_SYNTH || type == INSTRUMENT_TYPE_KIT)) {
 			storageManager.writeAttribute("presetFolder", dirPath.get());
 		}
 		storageManager.writeAttribute("defaultVelocity", defaultVelocity);
@@ -98,39 +96,38 @@ bool Instrument::readTagFromFile(char const* tagName) {
 	char const* slotXMLTag = getSlotXMLTag();
 	char const* subSlotXMLTag = getSubSlotXMLTag();
 
-    if (!strcmp(tagName, slotXMLTag)) {
-    	int slotHere = storageManager.readTagOrAttributeValueInt();
-    	String slotChars;
-    	slotChars.setInt(slotHere, 3);
-    	slotChars.concatenate(&name);
-    	name.set(&slotChars);
-    }
+	if (!strcmp(tagName, slotXMLTag)) {
+		int slotHere = storageManager.readTagOrAttributeValueInt();
+		String slotChars;
+		slotChars.setInt(slotHere, 3);
+		slotChars.concatenate(&name);
+		name.set(&slotChars);
+	}
 
-    else if (!strcmp(tagName, subSlotXMLTag)) {
-    	int subSlotHere = storageManager.readTagOrAttributeValueInt();
-    	if (subSlotHere >= 0 && subSlotHere < 26) {
-    		char buffer[2];
-    		buffer[0] = 'A' + subSlotHere;
-    		buffer[1] = 0;
-    		name.concatenate(buffer);
-    	}
-    }
+	else if (!strcmp(tagName, subSlotXMLTag)) {
+		int subSlotHere = storageManager.readTagOrAttributeValueInt();
+		if (subSlotHere >= 0 && subSlotHere < 26) {
+			char buffer[2];
+			buffer[0] = 'A' + subSlotHere;
+			buffer[1] = 0;
+			name.concatenate(buffer);
+		}
+	}
 
-    else if (!strcmp(tagName, "defaultVelocity")) {
-    	defaultVelocity = storageManager.readTagOrAttributeValueInt();
-    	if (defaultVelocity == 0 || defaultVelocity >= 128) defaultVelocity = FlashStorage::defaultVelocity;
-    }
+	else if (!strcmp(tagName, "defaultVelocity")) {
+		defaultVelocity = storageManager.readTagOrAttributeValueInt();
+		if (defaultVelocity == 0 || defaultVelocity >= 128) defaultVelocity = FlashStorage::defaultVelocity;
+	}
 
-    else if (!strcmp(tagName, "presetFolder")) {
-    	storageManager.readTagOrAttributeValueString(&dirPath);
-    }
+	else if (!strcmp(tagName, "presetFolder")) {
+		storageManager.readTagOrAttributeValueString(&dirPath);
+	}
 
-    else return Output::readTagFromFile(tagName);
+	else return Output::readTagFromFile(tagName);
 
-    storageManager.exitTag();
-    return true;
+	storageManager.exitTag();
+	return true;
 }
-
 
 Clip* Instrument::createNewClipForArrangementRecording(ModelStack* modelStack) {
 
@@ -156,7 +153,8 @@ Clip* Instrument::createNewClipForArrangementRecording(ModelStack* modelStack) {
 	}
 	else if (type == INSTRUMENT_TYPE_CV) {
 		if (activeClip) {
-			newParamManager.cloneParamCollectionsFrom(&activeClip->paramManager, false, true); // Because we want the bend ranges
+			newParamManager.cloneParamCollectionsFrom(&activeClip->paramManager, false,
+			                                          true); // Because we want the bend ranges
 		}
 	}
 
@@ -165,16 +163,17 @@ Clip* Instrument::createNewClipForArrangementRecording(ModelStack* modelStack) {
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(newInstrumentClip);
 
 	newInstrumentClip->setInstrument(this, modelStackWithTimelineCounter->song, &newParamManager);
-	newInstrumentClip->setupAsNewKitClipIfNecessary(modelStackWithTimelineCounter); // Fix added Sept 2020 to stop Kits from screwing up when recording in Arranger. Michael B discovered. Also could cause E314
+	newInstrumentClip->setupAsNewKitClipIfNecessary(
+	    modelStackWithTimelineCounter); // Fix added Sept 2020 to stop Kits from screwing up when recording in Arranger. Michael B discovered. Also could cause E314
 
 	return newInstrumentClip;
 }
 
 int Instrument::setupDefaultAudioFileDir() {
 	char const* dirPathChars = dirPath.get();
-	int error = audioFileManager.setupAlternateAudioFileDir(&audioFileManager.alternateAudioFileLoadPath, dirPathChars, &name);
+	int error =
+	    audioFileManager.setupAlternateAudioFileDir(&audioFileManager.alternateAudioFileLoadPath, dirPathChars, &name);
 	if (error) return error;
 	audioFileManager.thingBeginningLoading(type);
 	return NO_ERROR;
 }
-

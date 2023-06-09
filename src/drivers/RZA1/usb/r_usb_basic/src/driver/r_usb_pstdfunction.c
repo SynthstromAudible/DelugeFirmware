@@ -63,10 +63,10 @@ void usb_pstd_set_feature_function(void)
  ***********************************************************************************************************************/
 uint16_t usb_pstd_chk_vbsts(void)
 {
-    uint16_t    buf1;
-    uint16_t    buf2;
-    uint16_t    buf3;
-    uint16_t    connect_info;
+    uint16_t buf1;
+    uint16_t buf2;
+    uint16_t buf3;
+    uint16_t connect_info;
 
     /* VBUS chattering cut */
     do
@@ -132,27 +132,27 @@ void usb_pstd_suspend_function(void)
  Arguments       : none
  Return value    : none
  ***********************************************************************************************************************/
-void usb_pdriver_init( usb_ctrl_t *ctrl, usb_cfg_t *cfg )
+void usb_pdriver_init(usb_ctrl_t* ctrl, usb_cfg_t* cfg)
 {
-    uint16_t    i;
+    uint16_t i;
 
     for (i = 0; i < USB_EVENT_MAX; i++)
     {
-        g_usb_cstd_event.code[i]    = USB_STS_NONE;
+        g_usb_cstd_event.code[i] = USB_STS_NONE;
     }
-    
+
     for (i = USB_PIPE0; i <= USB_MAX_PIPE_NO; i++)
     {
-        g_usb_pstd_stall_pipe[i]    = USB_FALSE;
-        g_p_usb_pipe[i]        = (usb_utr_t *)USB_NULL;
+        g_usb_pstd_stall_pipe[i] = USB_FALSE;
+        g_p_usb_pipe[i]          = (usb_utr_t*)USB_NULL;
     }
-    
-    g_usb_pstd_config_num = 0;              /* Configuration number */
-    g_usb_pstd_remote_wakeup = USB_FALSE;   /* Remote wakeup enable flag */
+
+    g_usb_pstd_config_num    = 0;         /* Configuration number */
+    g_usb_pstd_remote_wakeup = USB_FALSE; /* Remote wakeup enable flag */
 
     usb_peri_registration(ctrl, cfg);
 } /* End of function usb_pdriver_init() */
-#endif  /* (USB_CFG_MODE & USB_CFG_PERI) == USB_CFG_REPI */
+#endif /* (USB_CFG_MODE & USB_CFG_PERI) == USB_CFG_REPI */
 
 /***********************************************************************************************************************
  End Of File

@@ -25,42 +25,43 @@
 
 class ModelStackWithTimelineCounter;
 
-class SoundDrum final : public Sound, public Drum
-{
+class SoundDrum final : public Sound, public Drum {
 public:
-
-    String name;
-    bool nameIsDiscardable;
+	String name;
+	bool nameIsDiscardable;
 
 	ArpeggiatorForDrum arpeggiator;
-    ArpeggiatorSettings arpSettings;
+	ArpeggiatorSettings arpSettings;
 
-    SoundDrum();
-    bool isDrum() { return true; }
-    bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false);
-    bool anyNoteIsOn();
-    bool hasAnyVoices();
-    void noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, Kit* kit, int16_t const* mpeValues, int fromMIDIChannel = MIDI_CHANNEL_NONE, uint32_t sampleSyncLength = 0, int32_t ticksLate = 0, uint32_t samplesLate = 0);
-    void noteOff(ModelStackWithThreeMainThings* modelStack, int velocity);
-    void unassignAllVoices();
-    void setupPatchingForAllParamManagers(Song* song);
-    bool readTagFromFile(char const* tagName);
-    int loadAllSamples(bool mayActuallyReadFiles);
-    void prepareForHibernation();
-    void writeToFile(bool savingSong, ParamManager* paramManager);
-    void getName(char* buffer);
-    int readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos);
-    void choke(ModelStackWithSoundFlags* modelStack);
-    void setSkippingRendering(bool newSkipping);
-    uint8_t* getModKnobMode();
-    void drumWontBeRenderedForAWhile();
-    ModControllable* toModControllable() { return this; }
+	SoundDrum();
+	bool isDrum() { return true; }
+	bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false);
+	bool anyNoteIsOn();
+	bool hasAnyVoices();
+	void noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, Kit* kit, int16_t const* mpeValues,
+	            int fromMIDIChannel = MIDI_CHANNEL_NONE, uint32_t sampleSyncLength = 0, int32_t ticksLate = 0,
+	            uint32_t samplesLate = 0);
+	void noteOff(ModelStackWithThreeMainThings* modelStack, int velocity);
+	void unassignAllVoices();
+	void setupPatchingForAllParamManagers(Song* song);
+	bool readTagFromFile(char const* tagName);
+	int loadAllSamples(bool mayActuallyReadFiles);
+	void prepareForHibernation();
+	void writeToFile(bool savingSong, ParamManager* paramManager);
+	void getName(char* buffer);
+	int readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos);
+	void choke(ModelStackWithSoundFlags* modelStack);
+	void setSkippingRendering(bool newSkipping);
+	uint8_t* getModKnobMode();
+	void drumWontBeRenderedForAWhile();
+	ModControllable* toModControllable() { return this; }
 
-    void expressionEvent(int newValue, int whichExpressionDimension);
-    void polyphonicExpressionEventOnChannelOrNote(int newValue, int whichExpressionDimension, int channelOrNoteNumber, int whichCharacteristic);
+	void expressionEvent(int newValue, int whichExpressionDimension);
+	void polyphonicExpressionEventOnChannelOrNote(int newValue, int whichExpressionDimension, int channelOrNoteNumber,
+	                                              int whichCharacteristic);
 
-    ArpeggiatorBase* getArp();
-    ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = NULL) { return &arpSettings; }
+	ArpeggiatorBase* getArp();
+	ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = NULL) { return &arpSettings; }
 };
 
 #endif // SOUNDDRUM_H

@@ -15,9 +15,10 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-
 #define numBitsInTableSize 8
-#define rshiftAmount ((24 + INTERPOLATION_MAX_NUM_SAMPLES_MAGNITUDE) - 16 - numBitsInTableSize + 1) // that's (numBitsInInput - 16 - numBitsInTableSize); = 4 for now
+#define rshiftAmount                                                                                                   \
+	((24 + INTERPOLATION_MAX_NUM_SAMPLES_MAGNITUDE) - 16 - numBitsInTableSize                                          \
+	 + 1) // that's (numBitsInInput - 16 - numBitsInTableSize); = 4 for now
 
 #if rshiftAmount >= 0
 uint32_t rshifted = oscPos >> rshiftAmount;
@@ -31,7 +32,6 @@ int progressSmall = oscPos >> (24 + INTERPOLATION_MAX_NUM_SAMPLES_MAGNITUDE - nu
 
 int16x8_t kernelVector[INTERPOLATION_MAX_NUM_SAMPLES >> 3];
 
-
 for (int i = 0; i < (INTERPOLATION_MAX_NUM_SAMPLES >> 3); i++) {
 	int16x8_t value1 = vld1q_s16(&windowedSincKernel[whichKernel][progressSmall][i << 3]);
 	int16x8_t value2 = vld1q_s16(&windowedSincKernel[whichKernel][progressSmall + 1][i << 3]);
@@ -44,10 +44,8 @@ int32x4_t multiplied;
 
 for (int i = 0; i < (INTERPOLATION_MAX_NUM_SAMPLES >> 3); i++) {
 
-	if (i == 0)
-		multiplied = vmull_s16(vget_low_s16(kernelVector[i]), interpolationBuffer[0][i << 1]);
-	else
-		multiplied = vmlal_s16(multiplied, vget_low_s16(kernelVector[i]), interpolationBuffer[0][i << 1]);
+	if (i == 0) multiplied = vmull_s16(vget_low_s16(kernelVector[i]), interpolationBuffer[0][i << 1]);
+	else multiplied = vmlal_s16(multiplied, vget_low_s16(kernelVector[i]), interpolationBuffer[0][i << 1]);
 
 	multiplied = vmlal_s16(multiplied, vget_high_s16(kernelVector[i]), interpolationBuffer[0][(i << 1) + 1]);
 }
@@ -56,17 +54,14 @@ int32x2_t twosies = vadd_s32(vget_high_s32(multiplied), vget_low_s32(multiplied)
 
 sampleRead[0] = vget_lane_s32(twosies, 0) + vget_lane_s32(twosies, 1);
 
-
 if (numChannelsNow == 2) {
 
 	int32x4_t multiplied;
 
 	for (int i = 0; i < (INTERPOLATION_MAX_NUM_SAMPLES >> 3); i++) {
 
-		if (i == 0)
-			multiplied = vmull_s16(vget_low_s16(kernelVector[i]), interpolationBuffer[1][i << 1]);
-		else
-			multiplied = vmlal_s16(multiplied, vget_low_s16(kernelVector[i]), interpolationBuffer[1][i << 1]);
+		if (i == 0) multiplied = vmull_s16(vget_low_s16(kernelVector[i]), interpolationBuffer[1][i << 1]);
+		else multiplied = vmlal_s16(multiplied, vget_low_s16(kernelVector[i]), interpolationBuffer[1][i << 1]);
 
 		multiplied = vmlal_s16(multiplied, vget_high_s16(kernelVector[i]), interpolationBuffer[1][(i << 1) + 1]);
 	}

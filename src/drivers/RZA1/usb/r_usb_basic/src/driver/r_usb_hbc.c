@@ -40,8 +40,8 @@
  Macro definitions
  ***********************************************************************************************************************/
 /* PD Detect Define */
-#define USB_BC_NODET                    (0x00u)
-#define USB_BC_PDDET                    (0x01u)
+#define USB_BC_NODET (0x00u)
+#define USB_BC_PDDET (0x01u)
 
 /***********************************************************************************************************************
  Typedef definitions
@@ -55,20 +55,19 @@
  Exported global variables and functions (to be accessed by other files)
  ***********************************************************************************************************************/
 /* variables */
-usb_bc_status_t     g_usb_hstd_bc[2u];
+usb_bc_status_t g_usb_hstd_bc[2u];
 
 /* functions */
-void                usb_hstd_pddetint_process(usb_utr_t *ptr, uint16_t port);
+void usb_hstd_pddetint_process(usb_utr_t* ptr, uint16_t port);
 
 /* BC State change function table */
-void (*usb_hstd_bc_func[USB_BC_STATE_MAX][USB_BC_EVENT_MAX])(usb_utr_t *ptr, uint16_t port) =
-{
+void (*usb_hstd_bc_func[USB_BC_STATE_MAX][USB_BC_EVENT_MAX])(usb_utr_t* ptr, uint16_t port) = {
     /* VBUS_ON              ATTACH              DETACH */
-    {usb_hstd_bc_init_vb,   usb_hstd_bc_err,    usb_hstd_bc_err},       /* USB_BC_STATE_INIT */
-    {usb_hstd_bc_err,       usb_hstd_bc_det_at, usb_hstd_bc_err},       /* USB_BC_STATE_DET */
-    {usb_hstd_bc_err,       usb_hstd_bc_err,    usb_hstd_bc_cdp_dt},    /* USB_BC_STATE_CDP */
-    {usb_hstd_bc_err,       usb_hstd_bc_err,    usb_hstd_bc_sdp_dt},    /* USB_BC_STATE_SDP */
-    {usb_hstd_bc_err,       usb_hstd_bc_err,    usb_hstd_bc_err}        /* USB_BC_STATE_DCP */
+    {usb_hstd_bc_init_vb, usb_hstd_bc_err, usb_hstd_bc_err}, /* USB_BC_STATE_INIT */
+    {usb_hstd_bc_err, usb_hstd_bc_det_at, usb_hstd_bc_err},  /* USB_BC_STATE_DET */
+    {usb_hstd_bc_err, usb_hstd_bc_err, usb_hstd_bc_cdp_dt},  /* USB_BC_STATE_CDP */
+    {usb_hstd_bc_err, usb_hstd_bc_err, usb_hstd_bc_sdp_dt},  /* USB_BC_STATE_SDP */
+    {usb_hstd_bc_err, usb_hstd_bc_err, usb_hstd_bc_err}      /* USB_BC_STATE_DCP */
 };
 
 /***********************************************************************************************************************
@@ -82,9 +81,9 @@ void (*usb_hstd_bc_func[USB_BC_STATE_MAX][USB_BC_EVENT_MAX])(usb_utr_t *ptr, uin
                  : uint16_t     port         : Port number.
  Return          : none
  ***********************************************************************************************************************/
-void usb_hstd_pddetint_process(usb_utr_t *ptr, uint16_t port)
+void usb_hstd_pddetint_process(usb_utr_t* ptr, uint16_t port)
 {
-    uint16_t    buf[3];
+    uint16_t buf[3];
 
     /* PDDETSTS chattering cut */
     do
@@ -94,19 +93,17 @@ void usb_hstd_pddetint_process(usb_utr_t *ptr, uint16_t port)
         buf[1] = hw_usb_read_bcctrl(ptr);
         usb_cpu_delay_xms(1);
         buf[2] = hw_usb_read_bcctrl(ptr);
-    }
-    while (((buf[0] & USB_PDDETSTS) != (buf[1] & USB_PDDETSTS)) ||
-           ((buf[1] & USB_PDDETSTS) != (buf[2] & USB_PDDETSTS)));
+    } while (
+        ((buf[0] & USB_PDDETSTS) != (buf[1] & USB_PDDETSTS)) || ((buf[1] & USB_PDDETSTS) != (buf[2] & USB_PDDETSTS)));
 
-    if (USB_PDDETSTS == (buf[0] & USB_PDDETSTS))    /* VDPSRC Detect */
+    if (USB_PDDETSTS == (buf[0] & USB_PDDETSTS)) /* VDPSRC Detect */
     {
         if (USB_VDMSRCE != (buf[0] & USB_VDMSRCE))
         {
             hw_usb_set_vdmsrce(ptr);
         }
     }
-    else
-    /* VDPSRC Not detect */
+    else /* VDPSRC Not detect */
     {
         if (USB_VDMSRCE == (buf[0] & USB_VDMSRCE))
         {
@@ -123,10 +120,10 @@ void usb_hstd_pddetint_process(usb_utr_t *ptr, uint16_t port)
                  : uint16_t     port         : Port number.
  Return          : none
  ***********************************************************************************************************************/
-void usb_hstd_bc_err(usb_utr_t *ptr, uint16_t port)
+void usb_hstd_bc_err(usb_utr_t* ptr, uint16_t port)
 {
     /* Nothing */
-}   /* End of function usb_hstd_bc_err() */
+} /* End of function usb_hstd_bc_err() */
 
 /***********************************************************************************************************************
  Function Name   : usb_hstd_bc_init_vb
@@ -135,15 +132,15 @@ void usb_hstd_bc_err(usb_utr_t *ptr, uint16_t port)
                  : uint16_t     port         : Port number.
  Return          : none
  ***********************************************************************************************************************/
-void usb_hstd_bc_init_vb(usb_utr_t *ptr, uint16_t port)
+void usb_hstd_bc_init_vb(usb_utr_t* ptr, uint16_t port)
 {
 #if USB_CFG_DCP == USB_CFG_ENABLE
     g_usb_hstd_bc[ptr->ip].state = USB_BC_STATE_DCP;
-    usb_hstd_bc_dcp_entry(ptr,port);
+    usb_hstd_bc_dcp_entry(ptr, port);
 #else
     g_usb_hstd_bc[ptr->ip].state = USB_BC_STATE_DET;
-    usb_hstd_bc_det_entry(ptr,port);
-#endif  /* USB_CFG_DCP == USB_CFG_ENABLE */
+    usb_hstd_bc_det_entry(ptr, port);
+#endif /* USB_CFG_DCP == USB_CFG_ENABLE */
 } /* End of function usb_hstd_bc_init_vb() */
 
 /***********************************************************************************************************************
@@ -153,9 +150,9 @@ void usb_hstd_bc_init_vb(usb_utr_t *ptr, uint16_t port)
                  : uint16_t     port         : Port number.
  Return          : none
  ***********************************************************************************************************************/
-void usb_hstd_bc_det_at(usb_utr_t *ptr, uint16_t port)
+void usb_hstd_bc_det_at(usb_utr_t* ptr, uint16_t port)
 {
-    usb_hstd_bc_det_exit(ptr,port);
+    usb_hstd_bc_det_exit(ptr, port);
 
     if (g_usb_hstd_bc[ptr->ip].pd_detect)
     {
@@ -165,7 +162,7 @@ void usb_hstd_bc_det_at(usb_utr_t *ptr, uint16_t port)
     else
     {
         g_usb_hstd_bc[ptr->ip].state = USB_BC_STATE_SDP;
-        usb_hstd_bc_sdp_entry(ptr,port);
+        usb_hstd_bc_sdp_entry(ptr, port);
     }
 } /* End of function usb_hstd_bc_det_at() */
 
@@ -176,12 +173,12 @@ void usb_hstd_bc_det_at(usb_utr_t *ptr, uint16_t port)
                  : uint16_t     port         : Port number.
  Return          : none
  ***********************************************************************************************************************/
-void usb_hstd_bc_cdp_dt(usb_utr_t *ptr, uint16_t port)
+void usb_hstd_bc_cdp_dt(usb_utr_t* ptr, uint16_t port)
 {
     usb_hstd_bc_cdp_exit(ptr, port);
     g_usb_hstd_bc[ptr->ip].state = USB_BC_STATE_DET;
     usb_hstd_bc_det_entry(ptr, port);
-}   /* End of function usb_hstd_bc_cdp_dt() */
+} /* End of function usb_hstd_bc_cdp_dt() */
 
 /***********************************************************************************************************************
  Function Name   : usb_hstd_bc_sdp_dt
@@ -190,12 +187,12 @@ void usb_hstd_bc_cdp_dt(usb_utr_t *ptr, uint16_t port)
                  : uint16_t     port         : Port number.
  Return          : none
  ***********************************************************************************************************************/
-void usb_hstd_bc_sdp_dt(usb_utr_t *ptr, uint16_t port)
+void usb_hstd_bc_sdp_dt(usb_utr_t* ptr, uint16_t port)
 {
     usb_hstd_bc_sdp_exit(ptr, port);
     g_usb_hstd_bc[ptr->ip].state = USB_BC_STATE_DET;
     usb_hstd_bc_det_entry(ptr, port);
-}   /* End of function usb_hstd_bc_sdp_dt() */
+} /* End of function usb_hstd_bc_sdp_dt() */
 
 /***********************************************************************************************************************
  Function Name   : usb_hstd_bc_det_entry
@@ -204,7 +201,7 @@ void usb_hstd_bc_sdp_dt(usb_utr_t *ptr, uint16_t port)
                  : uint16_t     port         : Port number.
  Return          : none
  ***********************************************************************************************************************/
-void usb_hstd_bc_det_entry(usb_utr_t *ptr, uint16_t port)
+void usb_hstd_bc_det_entry(usb_utr_t* ptr, uint16_t port)
 {
     hw_usb_set_idpsinke(ptr);
     hw_usb_hclear_sts_pddetint(ptr);
@@ -218,7 +215,7 @@ void usb_hstd_bc_det_entry(usb_utr_t *ptr, uint16_t port)
                  : uint16_t     port         : Port number.
  Return          : none
  ***********************************************************************************************************************/
-void usb_hstd_bc_det_exit(usb_utr_t *ptr, uint16_t port)
+void usb_hstd_bc_det_exit(usb_utr_t* ptr, uint16_t port)
 {
     hw_usb_hset_enb_pddetinte(ptr);
     hw_usb_hclear_sts_pddetint(ptr);
@@ -232,7 +229,7 @@ void usb_hstd_bc_det_exit(usb_utr_t *ptr, uint16_t port)
                  : uint16_t     port         : Port number.
  Return          : none
  ***********************************************************************************************************************/
-void usb_hstd_bc_cdp_entry(usb_utr_t *ptr, uint16_t port)
+void usb_hstd_bc_cdp_entry(usb_utr_t* ptr, uint16_t port)
 {
 } /* End of function usb_hstd_bc_cdp_entry() */
 
@@ -243,7 +240,7 @@ void usb_hstd_bc_cdp_entry(usb_utr_t *ptr, uint16_t port)
                  : uint16_t     port         : Port number.
  Return          : none
  ***********************************************************************************************************************/
-void usb_hstd_bc_cdp_exit(usb_utr_t *ptr, uint16_t port)
+void usb_hstd_bc_cdp_exit(usb_utr_t* ptr, uint16_t port)
 {
     g_usb_hstd_bc[ptr->ip].pd_detect = USB_BC_NODET;
 } /* End of function usb_hstd_bc_cdp_exit() */
@@ -255,7 +252,7 @@ void usb_hstd_bc_cdp_exit(usb_utr_t *ptr, uint16_t port)
                  : uint16_t     port         : Port number.
  Return          : none
  ***********************************************************************************************************************/
-void usb_hstd_bc_sdp_entry(usb_utr_t *ptr, uint16_t port)
+void usb_hstd_bc_sdp_entry(usb_utr_t* ptr, uint16_t port)
 {
 } /* End of function usb_hstd_bc_sdp_entry() */
 
@@ -266,7 +263,7 @@ void usb_hstd_bc_sdp_entry(usb_utr_t *ptr, uint16_t port)
                  : uint16_t     port         : Port number.
  Return          : none
  ***********************************************************************************************************************/
-void usb_hstd_bc_sdp_exit(usb_utr_t *ptr, uint16_t port)
+void usb_hstd_bc_sdp_exit(usb_utr_t* ptr, uint16_t port)
 {
     /* Nothing */
 } /* End of function usb_hstd_bc_sdp_exit() */
@@ -278,14 +275,14 @@ void usb_hstd_bc_sdp_exit(usb_utr_t *ptr, uint16_t port)
                  : uint16_t     port         : Port number.
  Return          : none
  ***********************************************************************************************************************/
-void usb_hstd_bc_dcp_entry(usb_utr_t *ptr, uint16_t port)
+void usb_hstd_bc_dcp_entry(usb_utr_t* ptr, uint16_t port)
 {
     hw_usb_clear_drpd(ptr, port);
     hw_usb_hset_dcpmode(ptr);
 } /* End of function usb_hstd_bc_dcp_entry() */
 
-#endif  /* USB_CFG_BC == USB_CFG_ENABLE */
-#endif  /* (USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST */
+#endif /* USB_CFG_BC == USB_CFG_ENABLE */
+#endif /* (USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST */
 
 /***********************************************************************************************************************
  End of file

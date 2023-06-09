@@ -24,15 +24,14 @@ class ContextMenuSampleBrowserSynth final : public ContextMenu {
 public:
 	ContextMenuSampleBrowserSynth();
 
-    char const** getOptions();
-    int getNumOptions();
-    bool isCurrentOptionAvailable();
-    bool canSeeViewUnderneath();
+	char const** getOptions();
+	int getNumOptions();
+	bool isCurrentOptionAvailable();
+	bool canSeeViewUnderneath();
 
-    bool acceptCurrentOption();
-    int padAction(int x, int y, int velocity);
+	bool acceptCurrentOption();
+	int padAction(int x, int y, int velocity);
 };
-
 
 extern ContextMenuSampleBrowserSynth contextMenuFileBrowserSynth;
 

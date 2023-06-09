@@ -40,9 +40,9 @@
 /***********************************************************************************************************************
  Exported global variables (to be accessed by other files)
  ***********************************************************************************************************************/
-usb_utr_t       g_usb_cstd_int_msg_t[USB_NUM_USBIP][USB_INTMSGMAX]; /* Interrupt message */
-uint16_t        g_usb_cstd_int_msg_t_cnt[USB_NUM_USBIP];             /* Interrupt message count */
-usb_utr_t       g_usb_cstd_int_msg_t_d0fifo;
+usb_utr_t g_usb_cstd_int_msg_t[USB_NUM_USBIP][USB_INTMSGMAX]; /* Interrupt message */
+uint16_t g_usb_cstd_int_msg_t_cnt[USB_NUM_USBIP];             /* Interrupt message count */
+usb_utr_t g_usb_cstd_int_msg_t_d0fifo;
 
 /***********************************************************************************************************************
  Renesas Abstracted common Interrupt handler functions
@@ -55,13 +55,14 @@ usb_utr_t       g_usb_cstd_int_msg_t_d0fifo;
  Arguments       : none
  Return value    : none
  ***********************************************************************************************************************/
-void usb_hstd_usb_handler(uint32_t sense) // This function actually gets called as part of a CPU interrupt, for real! Rohan
+void usb_hstd_usb_handler(
+    uint32_t sense) // This function actually gets called as part of a CPU interrupt, for real! Rohan
 {
-    usb_utr_t   *ptr;
-    usb_er_t    err;
+    usb_utr_t* ptr;
+    usb_er_t err;
 
     /* Initial pointer */
-    ptr = &g_usb_cstd_int_msg_t[0][g_usb_cstd_int_msg_t_cnt[0]];
+    ptr      = &g_usb_cstd_int_msg_t[0][g_usb_cstd_int_msg_t_cnt[0]];
     ptr->ip  = USB_USBIP_0;
     ptr->ipp = usb_hstd_get_usb_ip_adr(ptr->ip);
 
@@ -115,11 +116,11 @@ void usb_hstd_dma_handler(void)
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
  Return value    : none
  ***********************************************************************************************************************/
-void usb_hstd_init_usb_message(usb_utr_t *ptr)
+void usb_hstd_init_usb_message(usb_utr_t* ptr)
 {
     /* TD.5.4 The interruption message of PCD is notified to HCD.  */
-    uint16_t    i;
-    uint16_t    msg_info;
+    uint16_t i;
+    uint16_t msg_info;
 
     /* Host Function */
     msg_info = USB_MSG_HCD_INT;
@@ -131,7 +132,7 @@ void usb_hstd_init_usb_message(usb_utr_t *ptr)
 
     g_usb_cstd_int_msg_t_cnt[ptr->ip] = 0;
 } /* End of function usb_hstd_init_usb_message() */
-#endif  /* (USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST */
+#endif /* (USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST */
 
 /***********************************************************************************************************************
  End Of File

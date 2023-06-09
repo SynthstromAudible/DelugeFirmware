@@ -15,7 +15,6 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-
 #ifndef VIEW_H_
 #define VIEW_H_
 
@@ -49,78 +48,81 @@ class View {
 public:
 	View();
 	void focusRegained();
-    void setTripletsLedState();
-    int buttonAction(int x, int y, bool on, bool inCardRoutine);
-    void setTimeBaseScaleLedState();
-    void setLedStates();
+	void setTripletsLedState();
+	int buttonAction(int x, int y, bool on, bool inCardRoutine);
+	void setTimeBaseScaleLedState();
+	void setLedStates();
 
-
-    void clipStatusMidiLearnPadPressed(bool on, Clip* whichLoopable);
-    void noteRowMuteMidiLearnPadPressed(bool on, NoteRow* whichNoteRow);
-    void endMidiLearnPressSession(uint8_t newThingPressed);
-    void noteOnReceivedForMidiLearn(MIDIDevice* fromDevice, int channel, int note, int velocity);
-    void ccReceivedForMIDILearn(MIDIDevice* fromDevice, int channel, int cc, int value);
-    void drumMidiLearnPadPressed(bool on, Drum* drum, Kit* kit);
-    void melodicInstrumentMidiLearnPadPressed(bool on, MelodicInstrument* instrument);
-    void sectionMidiLearnPadPressed(bool on, uint8_t section);
-    void midiLearnFlash();
-    void setModLedStates();
-    void modEncoderAction(int whichModEncoder, int offset);
-    void modEncoderButtonAction(uint8_t whichModEncoder, bool on);
-    void modButtonAction(uint8_t whichButton, bool on);
-    void setKnobIndicatorLevels();
-    void setKnobIndicatorLevel(uint8_t whichModEncoder);
-    void setActiveModControllableTimelineCounter(TimelineCounter* playPositionCounter);
-    void setActiveModControllableWithoutTimelineCounter(ModControllable* modControllable, ParamManager* paramManager);
-    void cycleThroughReverbPresets();
-    void setModRegion(uint32_t pos = 0xFFFFFFFF, uint32_t length = 0, int noteRowId = 0);
-    void notifyParamAutomationOccurred(ParamManager* paramManager, bool updateModLevels = true);
-    void displayAutomation();
+	void clipStatusMidiLearnPadPressed(bool on, Clip* whichLoopable);
+	void noteRowMuteMidiLearnPadPressed(bool on, NoteRow* whichNoteRow);
+	void endMidiLearnPressSession(uint8_t newThingPressed);
+	void noteOnReceivedForMidiLearn(MIDIDevice* fromDevice, int channel, int note, int velocity);
+	void ccReceivedForMIDILearn(MIDIDevice* fromDevice, int channel, int cc, int value);
+	void drumMidiLearnPadPressed(bool on, Drum* drum, Kit* kit);
+	void melodicInstrumentMidiLearnPadPressed(bool on, MelodicInstrument* instrument);
+	void sectionMidiLearnPadPressed(bool on, uint8_t section);
+	void midiLearnFlash();
+	void setModLedStates();
+	void modEncoderAction(int whichModEncoder, int offset);
+	void modEncoderButtonAction(uint8_t whichModEncoder, bool on);
+	void modButtonAction(uint8_t whichButton, bool on);
+	void setKnobIndicatorLevels();
+	void setKnobIndicatorLevel(uint8_t whichModEncoder);
+	void setActiveModControllableTimelineCounter(TimelineCounter* playPositionCounter);
+	void setActiveModControllableWithoutTimelineCounter(ModControllable* modControllable, ParamManager* paramManager);
+	void cycleThroughReverbPresets();
+	void setModRegion(uint32_t pos = 0xFFFFFFFF, uint32_t length = 0, int noteRowId = 0);
+	void notifyParamAutomationOccurred(ParamManager* paramManager, bool updateModLevels = true);
+	void displayAutomation();
 	void displayOutputName(Output* output, bool doBlink = true, Clip* clip = NULL);
-    void instrumentChanged(ModelStackWithTimelineCounter* modelStack, Instrument* newInstrument);
-	void navigateThroughPresetsForInstrumentClip(int offset, ModelStackWithTimelineCounter* modelStack, bool doBlink = false);
-    void navigateThroughAudioOutputsForAudioClip(int offset, AudioClip* clip, bool doBlink = false);
-    bool changeInstrumentType(int newInstrumentType, ModelStackWithTimelineCounter* modelStack, bool doBlink = false);
-    void drawOutputNameFromDetails(int instrumentType, int slot, int subSlot, char const* name, bool editedByUser, bool doBlink, Clip* clip = NULL);
-    void endMIDILearn();
-    void getClipMuteSquareColour(Clip* clip, uint8_t thisColour[]);
-    int clipStatusPadAction(Clip* clip, bool on, int yDisplayIfInSessionView = -1);
-    void flashPlayEnable();
-    void flashPlayDisable();
+	void instrumentChanged(ModelStackWithTimelineCounter* modelStack, Instrument* newInstrument);
+	void navigateThroughPresetsForInstrumentClip(int offset, ModelStackWithTimelineCounter* modelStack,
+	                                             bool doBlink = false);
+	void navigateThroughAudioOutputsForAudioClip(int offset, AudioClip* clip, bool doBlink = false);
+	bool changeInstrumentType(int newInstrumentType, ModelStackWithTimelineCounter* modelStack, bool doBlink = false);
+	void drawOutputNameFromDetails(int instrumentType, int slot, int subSlot, char const* name, bool editedByUser,
+	                               bool doBlink, Clip* clip = NULL);
+	void endMIDILearn();
+	void getClipMuteSquareColour(Clip* clip, uint8_t thisColour[]);
+	int clipStatusPadAction(Clip* clip, bool on, int yDisplayIfInSessionView = -1);
+	void flashPlayEnable();
+	void flashPlayDisable();
 
 	// MIDI learn stuff
-    uint8_t thingPressedForMidiLearn;
-    bool deleteMidiCommandOnRelease;
-    bool midiLearnFlashOn;
-    bool shouldSaveSettingsAfterMidiLearn;
+	uint8_t thingPressedForMidiLearn;
+	bool deleteMidiCommandOnRelease;
+	bool midiLearnFlashOn;
+	bool shouldSaveSettingsAfterMidiLearn;
 
-    int8_t highestMIDIChannelSeenWhileLearning;
-    int8_t lowestMIDIChannelSeenWhileLearning;
+	int8_t highestMIDIChannelSeenWhileLearning;
+	int8_t lowestMIDIChannelSeenWhileLearning;
 
-    LearnedMIDI* learnedThing;
-    MelodicInstrument* melodicInstrumentPressedForMIDILearn;
-    Drum* drumPressedForMIDILearn;
-    Kit* kitPressedForMIDILearn;
+	LearnedMIDI* learnedThing;
+	MelodicInstrument* melodicInstrumentPressedForMIDILearn;
+	Drum* drumPressedForMIDILearn;
+	Kit* kitPressedForMIDILearn;
 
-    ModelStackWithThreeMainThings activeModControllableModelStack;
+	ModelStackWithThreeMainThings activeModControllableModelStack;
 	uint8_t dummy[MODEL_STACK_MAX_SIZE - sizeof(ModelStackWithThreeMainThings)];
 
 	bool pendingParamAutomationUpdatesModLevels;
 
 	bool clipArmFlashOn;
-    bool blinkOn;
+	bool blinkOn;
 
 	uint32_t timeSaveButtonPressed;
 
 	int modNoteRowId;
-    uint32_t modPos;
-    uint32_t modLength; // 0 if not currently editing a region / step / holding a note. If you're gonna refer to this, you absolutely have to first check that the
-    					// TimelineCounter you're thinking of setting some automation on == activeModControllableTimelineCounter
+	uint32_t modPos;
+	// 0 if not currently editing a region / step / holding a note. If you're gonna refer to this, you absolutely have
+	// to first check that the TimelineCounter you're thinking of setting some automation on
+	// == activeModControllableTimelineCounter
+	uint32_t modLength;
 
 private:
-    void pretendModKnobsUntouchedForAWhile();
-    void instrumentBeenEdited();
-    void clearMelodicInstrumentMonoExpressionIfPossible();
+	void pretendModKnobsUntouchedForAWhile();
+	void instrumentBeenEdited();
+	void clearMelodicInstrumentMonoExpressionIfPossible();
 };
 
 extern View view;

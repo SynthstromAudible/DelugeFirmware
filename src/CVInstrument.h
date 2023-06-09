@@ -28,25 +28,26 @@ class ModelStackWithSoundFlags;
 class CVInstrument final : public NonAudioInstrument {
 public:
 	CVInstrument();
-    void noteOnPostArp(int noteCodePostArp, ArpNote* arpNote);
-    void noteOffPostArp(int noteCode, int oldMIDIChannel, int velocity);
-    void polyphonicExpressionEventPostArpeggiator(int newValue, int noteCodeAfterArpeggiation, int whichExpressionDmiension, ArpNote* arpNote);
-    bool writeDataToFile(Clip* clipForSavingOutputOnly, Song* song);
-    void monophonicExpressionEvent(int newValue, int whichExpressionDmiension);
-    bool setActiveClip(ModelStackWithTimelineCounter* modelStack, int maySendMIDIPGMs);
-    void setupWithoutActiveClip(ModelStack* modelStack);
+	void noteOnPostArp(int noteCodePostArp, ArpNote* arpNote);
+	void noteOffPostArp(int noteCode, int oldMIDIChannel, int velocity);
+	void polyphonicExpressionEventPostArpeggiator(int newValue, int noteCodeAfterArpeggiation,
+	                                              int whichExpressionDmiension, ArpNote* arpNote);
+	bool writeDataToFile(Clip* clipForSavingOutputOnly, Song* song);
+	void monophonicExpressionEvent(int newValue, int whichExpressionDmiension);
+	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, int maySendMIDIPGMs);
+	void setupWithoutActiveClip(ModelStack* modelStack);
 
-    // It's much easier to store local copies of the most recent of these, so we never have to go doing complex quizzing of the arp, or MPE params, which we otherwise would have to do regularly.
-    int32_t monophonicPitchBendValue;
-    int32_t polyPitchBendValue;
+	// It's much easier to store local copies of the most recent of these, so we never have to go doing complex quizzing of the arp, or MPE params, which we otherwise would have to do regularly.
+	int32_t monophonicPitchBendValue;
+	int32_t polyPitchBendValue;
 
-    uint8_t cachedBendRanges[2]; // Cache these here just in case there's no ParamManager - because CVInstruments don't do backedUpParamManagers.
+	uint8_t cachedBendRanges
+	    [2]; // Cache these here just in case there's no ParamManager - because CVInstruments don't do backedUpParamManagers.
 
-    char const* getXMLTag() { return "cvChannel"; }
+	char const* getXMLTag() { return "cvChannel"; }
 
 private:
-    void updatePitchBendOutput(bool outputToo = true);
-
+	void updatePitchBendOutput(bool outputToo = true);
 };
 
 #endif /* CVINSTRUMENT_H_ */

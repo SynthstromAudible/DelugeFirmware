@@ -37,8 +37,8 @@
 /***********************************************************************************************************************
  Exported global variables
  ***********************************************************************************************************************/
-extern usb_utr_t    g_usb_cstd_int_msg_t[][USB_INTMSGMAX];  /* Interrupt message */
-extern uint16_t     g_usb_cstd_int_msg_t_cnt[];              /* Interrupt message count */
+extern usb_utr_t g_usb_cstd_int_msg_t[][USB_INTMSGMAX]; /* Interrupt message */
+extern uint16_t g_usb_cstd_int_msg_t_cnt[];             /* Interrupt message count */
 
 /***********************************************************************************************************************
  Exported global variables (to be accessed by other files)
@@ -57,11 +57,11 @@ extern uint16_t     g_usb_cstd_int_msg_t_cnt[];              /* Interrupt messag
  ***********************************************************************************************************************/
 void usb2_hstd_usb_handler(void)
 {
-    usb_utr_t   *ptr;
-    usb_er_t    err;
+    usb_utr_t* ptr;
+    usb_er_t err;
 
     /* Initial pointer */
-    ptr = &g_usb_cstd_int_msg_t[1][g_usb_cstd_int_msg_t_cnt[1]];
+    ptr      = &g_usb_cstd_int_msg_t[1][g_usb_cstd_int_msg_t_cnt[1]];
     ptr->ip  = USB_USBIP_1;
     ptr->ipp = usb_hstd_get_usb_ip_adr(ptr->ip);
 
@@ -84,8 +84,8 @@ void usb2_hstd_usb_handler(void)
     }
 } /* End of function usb2_hstd_usb_handler() */
 
-#endif  /* #if USB_NUM_USBIP == 2 */
-#endif  /* (USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST */
+#endif /* #if USB_NUM_USBIP == 2 */
+#endif /* (USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST */
 
 /***********************************************************************************************************************
  End Of File

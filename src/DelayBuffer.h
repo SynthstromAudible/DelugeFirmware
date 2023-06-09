@@ -18,7 +18,6 @@
 #ifndef DELAYBUFFER_H_
 #define DELAYBUFFER_H_
 
-
 #include "r_typedefs.h"
 #include <math.h>
 #include "AudioSample.h"
@@ -31,9 +30,9 @@ class StereoSample;
 #define DELAY_BUFFER_NEUTRAL_SIZE 16384
 
 struct DelayBufferSetup {
-	int32_t actualSpinRate; // 1 is represented as 16777216
+	int32_t actualSpinRate;           // 1 is represented as 16777216
 	int32_t spinRateForSpedUpWriting; // Normally the same as actualSpinRate, but subject to some limits for safety
-	uint32_t divideByRate; // 1 is represented as 65536
+	uint32_t divideByRate;            // 1 is represented as 65536
 	int32_t rateMultiple;
 	uint32_t writeSizeAdjustment;
 };
@@ -50,10 +49,7 @@ public:
 	int32_t getIdealBufferSizeFromRate(uint32_t newRate);
 	void empty();
 
-	inline bool isActive() {
-		return (bufferStart != NULL);
-	}
-
+	inline bool isActive() { return (bufferStart != NULL); }
 
 	inline bool clearAndMoveOn() {
 		bufferCurrentPos->l = 0;
@@ -61,13 +57,11 @@ public:
 		return moveOn();
 	}
 
-
 	inline bool moveOn() {
 		bool wrapped = (++bufferCurrentPos == bufferEnd);
 		if (wrapped) bufferCurrentPos = bufferStart;
 		return wrapped;
 	}
-
 
 	inline void writeNative(int32_t toDelayL, int32_t toDelayR) {
 		StereoSample* writePos = bufferCurrentPos - delaySpaceBetweenReadAndWrite;
@@ -75,7 +69,6 @@ public:
 		writePos->l = toDelayL;
 		writePos->r = toDelayR;
 	}
-
 
 	inline void writeNativeAndMoveOn(int32_t toDelayL, int32_t toDelayR, StereoSample** writePos) {
 		(*writePos)->l = toDelayL;
@@ -85,9 +78,8 @@ public:
 		if (*writePos == bufferEnd) *writePos = bufferStart;
 	}
 
-
-
-	inline void writeResampled(int32_t toDelayL, int32_t toDelayR, int32_t strength1, int32_t strength2, DelayBufferSetup* setup) {
+	inline void writeResampled(int32_t toDelayL, int32_t toDelayR, int32_t strength1, int32_t strength2,
+	                           DelayBufferSetup* setup) {
 		// If delay buffer spinning above sample rate...
 		if (setup->actualSpinRate >= 16777216) {
 
@@ -96,16 +88,26 @@ public:
 			// The only real advantage would be that the number of memory writes would be halved at high speeds.
 
 			// For efficiency, we start far-right, then traverse to far-left.
-			int32_t howFarRightToStart = (strength2 + (setup->spinRateForSpedUpWriting >> 8)) >> 16; // I rearranged some algebra to get this from the strengthThisWrite equation
-			int32_t distanceFromMainWrite = (int32_t)howFarRightToStart << 16; // This variable represents one "step" of the delay buffer as 65536. Always positive - absolute distance
+			int32_t howFarRightToStart =
+			    (strength2 + (setup->spinRateForSpedUpWriting >> 8))
+			    >> 16; // I rearranged some algebra to get this from the strengthThisWrite equation
+			int32_t distanceFromMainWrite =
+			    (int32_t)howFarRightToStart
+			    << 16; // This variable represents one "step" of the delay buffer as 65536. Always positive - absolute distance
 
-			StereoSample* writePos = bufferCurrentPos - delaySpaceBetweenReadAndWrite + howFarRightToStart; // Initially is the far-right right pos, not the central "main" one
-			while (writePos < bufferStart) writePos += sizeIncludingExtra;
-			while (writePos >= bufferEnd) writePos -= sizeIncludingExtra;
+			StereoSample* writePos =
+			    bufferCurrentPos - delaySpaceBetweenReadAndWrite
+			    + howFarRightToStart; // Initially is the far-right right pos, not the central "main" one
+			while (writePos < bufferStart)
+				writePos += sizeIncludingExtra;
+			while (writePos >= bufferEnd)
+				writePos -= sizeIncludingExtra;
 
 			// Do all writes to the right of the main write pos
 			while (distanceFromMainWrite != 0) { // For as long as we haven't reached the "main" pos...
-				int32_t strengthThisWrite = (0xFFFFFFFF >> 4) - (((distanceFromMainWrite - strength2) >> 4) * setup->divideByRate); // Check my notebook for a rudimentary diagram
+				int32_t strengthThisWrite = (0xFFFFFFFF >> 4)
+				                            - (((distanceFromMainWrite - strength2) >> 4)
+				                               * setup->divideByRate); // Check my notebook for a rudimentary diagram
 
 				writePos->l += multiply_32x32_rshift32(toDelayL, strengthThisWrite) << 3;
 				writePos->r += multiply_32x32_rshift32(toDelayR, strengthThisWrite) << 3;
@@ -117,8 +119,10 @@ public:
 
 			// Do all writes to the left of (and including) the main write pos
 			while (true) {
-				int32_t strengthThisWrite = (0xFFFFFFFF >> 4) - (((distanceFromMainWrite + strength2) >> 4) * setup->divideByRate);
-				if (strengthThisWrite <= 0) break; // And stop when we've got far enough left that we shouldn't be squirting any more juice here
+				int32_t strengthThisWrite =
+				    (0xFFFFFFFF >> 4) - (((distanceFromMainWrite + strength2) >> 4) * setup->divideByRate);
+				if (strengthThisWrite <= 0)
+					break; // And stop when we've got far enough left that we shouldn't be squirting any more juice here
 
 				writePos->l += multiply_32x32_rshift32(toDelayL, strengthThisWrite) << 3;
 				writePos->r += multiply_32x32_rshift32(toDelayR, strengthThisWrite) << 3;
@@ -127,7 +131,6 @@ public:
 				distanceFromMainWrite += 65536;
 			}
 		}
-
 
 		// Or if delay buffer spinning below sample rate...
 		else {
@@ -142,8 +145,10 @@ public:
 
 			// We've also had to make sure that the "triangles"' corners exactly meet up. Unfortunately this means even a tiny slow-down causes half the bandwidth to be lost
 
-			StereoSample* writePos = bufferCurrentPos - delaySpaceBetweenReadAndWrite + 2; // The furthest right we need to write is 2 steps right from the "main" write
-			while (writePos < bufferStart) writePos += sizeIncludingExtra;
+			StereoSample* writePos = bufferCurrentPos - delaySpaceBetweenReadAndWrite
+			                         + 2; // The furthest right we need to write is 2 steps right from the "main" write
+			while (writePos < bufferStart)
+				writePos += sizeIncludingExtra;
 			//while (writePos >= bufferEnd) writePos -= sizeIncludingExtra; // Not needed - but be careful! Leave this here as a reminder
 
 			int32_t strength[4];
@@ -156,10 +161,12 @@ public:
 			strength[3] = strength[2] - 65536;
 
 			int8_t i = 3;
-			while(true) {
+			while (true) {
 				if (strength[i] > 0) {
-					writePos->l += multiply_32x32_rshift32(toDelayL, (strength[i] >> 2) * setup->writeSizeAdjustment) << 2;
-					writePos->r += multiply_32x32_rshift32(toDelayR, (strength[i] >> 2) * setup->writeSizeAdjustment) << 2;
+					writePos->l += multiply_32x32_rshift32(toDelayL, (strength[i] >> 2) * setup->writeSizeAdjustment)
+					               << 2;
+					writePos->r += multiply_32x32_rshift32(toDelayR, (strength[i] >> 2) * setup->writeSizeAdjustment)
+					               << 2;
 				}
 				if (--i < 0) break;
 				if (--writePos == bufferStart - 1) writePos = bufferEnd - 1;
@@ -167,13 +174,10 @@ public:
 		}
 	}
 
-
-
-
-
 	// For some reason, getting rid of this function and replacing it with the other ones causes actual delays to process like 5% slower...
 
-	inline void write(int32_t toDelayL, int32_t toDelayR, int32_t strength1, int32_t strength2, DelayBufferSetup* setup) {
+	inline void write(int32_t toDelayL, int32_t toDelayR, int32_t strength1, int32_t strength2,
+	                  DelayBufferSetup* setup) {
 		// If no speed adjustment
 		if (!isResampling) {
 			StereoSample* writePos = bufferCurrentPos - delaySpaceBetweenReadAndWrite;
@@ -190,16 +194,26 @@ public:
 			// The only real advantage would be that the number of memory writes would be halved at high speeds.
 
 			// For efficiency, we start far-right, then traverse to far-left.
-			int32_t howFarRightToStart = (strength2 + (setup->spinRateForSpedUpWriting >> 8)) >> 16; // I rearranged some algebra to get this from the strengthThisWrite equation
-			int32_t distanceFromMainWrite = (int32_t)howFarRightToStart << 16; // This variable represents one "step" of the delay buffer as 65536. Always positive - absolute distance
+			int32_t howFarRightToStart =
+			    (strength2 + (setup->spinRateForSpedUpWriting >> 8))
+			    >> 16; // I rearranged some algebra to get this from the strengthThisWrite equation
+			int32_t distanceFromMainWrite =
+			    (int32_t)howFarRightToStart
+			    << 16; // This variable represents one "step" of the delay buffer as 65536. Always positive - absolute distance
 
-			StereoSample* writePos = bufferCurrentPos - delaySpaceBetweenReadAndWrite + howFarRightToStart; // Initially is the far-right right pos, not the central "main" one
-			while (writePos < bufferStart) writePos += sizeIncludingExtra;
-			while (writePos >= bufferEnd) writePos -= sizeIncludingExtra;
+			StereoSample* writePos =
+			    bufferCurrentPos - delaySpaceBetweenReadAndWrite
+			    + howFarRightToStart; // Initially is the far-right right pos, not the central "main" one
+			while (writePos < bufferStart)
+				writePos += sizeIncludingExtra;
+			while (writePos >= bufferEnd)
+				writePos -= sizeIncludingExtra;
 
 			// Do all writes to the right of the main write pos
 			while (distanceFromMainWrite != 0) { // For as long as we haven't reached the "main" pos...
-				int32_t strengthThisWrite = (0xFFFFFFFF >> 4) - (((distanceFromMainWrite - strength2) >> 4) * setup->divideByRate); // Check my notebook for a rudimentary diagram
+				int32_t strengthThisWrite = (0xFFFFFFFF >> 4)
+				                            - (((distanceFromMainWrite - strength2) >> 4)
+				                               * setup->divideByRate); // Check my notebook for a rudimentary diagram
 
 				writePos->l += multiply_32x32_rshift32(toDelayL, strengthThisWrite) << 3;
 				writePos->r += multiply_32x32_rshift32(toDelayR, strengthThisWrite) << 3;
@@ -211,8 +225,10 @@ public:
 
 			// Do all writes to the left of (and including) the main write pos
 			while (true) {
-				int32_t strengthThisWrite = (0xFFFFFFFF >> 4) - (((distanceFromMainWrite + strength2) >> 4) * setup->divideByRate);
-				if (strengthThisWrite <= 0) break; // And stop when we've got far enough left that we shouldn't be squirting any more juice here
+				int32_t strengthThisWrite =
+				    (0xFFFFFFFF >> 4) - (((distanceFromMainWrite + strength2) >> 4) * setup->divideByRate);
+				if (strengthThisWrite <= 0)
+					break; // And stop when we've got far enough left that we shouldn't be squirting any more juice here
 
 				writePos->l += multiply_32x32_rshift32(toDelayL, strengthThisWrite) << 3;
 				writePos->r += multiply_32x32_rshift32(toDelayR, strengthThisWrite) << 3;
@@ -221,7 +237,6 @@ public:
 				distanceFromMainWrite += 65536;
 			}
 		}
-
 
 		// Or if delay buffer spinning below sample rate...
 		else {
@@ -236,8 +251,10 @@ public:
 
 			// We've also had to make sure that the "triangles"' corners exactly meet up. Unfortunately this means even a tiny slow-down causes half the bandwidth to be lost
 
-			StereoSample* writePos = bufferCurrentPos - delaySpaceBetweenReadAndWrite + 2; // The furthest right we need to write is 2 steps right from the "main" write
-			while (writePos < bufferStart) writePos += sizeIncludingExtra;
+			StereoSample* writePos = bufferCurrentPos - delaySpaceBetweenReadAndWrite
+			                         + 2; // The furthest right we need to write is 2 steps right from the "main" write
+			while (writePos < bufferStart)
+				writePos += sizeIncludingExtra;
 			//while (writePos >= bufferEnd) writePos -= sizeIncludingExtra; // Not needed - but be careful! Leave this here as a reminder
 
 			int32_t strength[4];
@@ -250,19 +267,18 @@ public:
 			strength[3] = strength[2] - 65536;
 
 			int8_t i = 3;
-			while(true) {
+			while (true) {
 				if (strength[i] > 0) {
-					writePos->l += multiply_32x32_rshift32(toDelayL, (strength[i] >> 2) * setup->writeSizeAdjustment) << 2;
-					writePos->r += multiply_32x32_rshift32(toDelayR, (strength[i] >> 2) * setup->writeSizeAdjustment) << 2;
+					writePos->l += multiply_32x32_rshift32(toDelayL, (strength[i] >> 2) * setup->writeSizeAdjustment)
+					               << 2;
+					writePos->r += multiply_32x32_rshift32(toDelayR, (strength[i] >> 2) * setup->writeSizeAdjustment)
+					               << 2;
 				}
 				if (--i < 0) break;
 				if (--writePos == bufferStart - 1) writePos = bufferEnd - 1;
 			}
 		}
 	}
-
-
-
 
 	StereoSample* bufferStart;
 	StereoSample* bufferEnd;

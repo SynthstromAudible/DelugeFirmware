@@ -38,14 +38,12 @@
 /***********************************************************************************************************************
  Exported global variables (to be accessed by other files)
  ***********************************************************************************************************************/
-uint16_t        g_usb_cstd_suspend_mode = USB_NORMAL_MODE;
-
+uint16_t g_usb_cstd_suspend_mode = USB_NORMAL_MODE;
 
 #include "dmac_iodefine.h"
 #include "definitions.h"
 
 extern uint32_t timeLastBRDY[];
-
 
 #if ((USB_CFG_MODE & USB_CFG_PERI) == USB_CFG_PERI)
 /***********************************************************************************************************************
@@ -55,30 +53,29 @@ extern uint32_t timeLastBRDY[];
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
  Return value    : none
  ***********************************************************************************************************************/
-int usb_pstd_interrupt_handler(uint16_t * type, uint16_t * status)
+int usb_pstd_interrupt_handler(uint16_t* type, uint16_t* status)
 {
-    uint16_t    intsts0;
+    uint16_t intsts0;
 
     /* Register Save */
 #if USB_CFG_USE_USBIP == USB_CFG_IP0
     intsts0 = USB200.INTSTS0;
-#endif  /* USB_CFG_USE_USBIP == USB_CFG_IP1 */
+#endif /* USB_CFG_USE_USBIP == USB_CFG_IP1 */
 
 #if USB_CFG_USE_USBIP == USB_CFG_IP1
     intsts0 = USB201.INTSTS0;
-#endif  /* USB_CFG_USE_USBIP == USB_CFG_IP0 */
+#endif /* USB_CFG_USE_USBIP == USB_CFG_IP0 */
 
     *type   = USB_INT_UNKNOWN;
     *status = 0;
 
     // Do quick check - it might be that no interrupt type is showing at all.
-    if ((intsts0 & (USB_VBINT | USB_RESM | USB_SOFR | USB_DVST |
-                    USB_CTRT | USB_BEMP | USB_NRDY | USB_BRDY)) == 0u)
+    if ((intsts0 & (USB_VBINT | USB_RESM | USB_SOFR | USB_DVST | USB_CTRT | USB_BEMP | USB_NRDY | USB_BRDY)) == 0u)
     {
         return 1; // All dealt with
     }
 
-    uint16_t    intenb0;
+    uint16_t intenb0;
 
 #if USB_CFG_USE_USBIP == USB_CFG_IP0
     intenb0 = USB200.INTENB0;
@@ -91,11 +88,11 @@ int usb_pstd_interrupt_handler(uint16_t * type, uint16_t * status)
 
     /***** Processing PIPE data *****/
 
-
     // BEMP interrupt - is this buffer empty, as in we've finished sending a transfer - I think? Rohan
-    if (ists0 & USB_BEMP) {
+    if (ists0 & USB_BEMP)
+    {
 
-        uint16_t    bempsts;
+        uint16_t bempsts;
         //uint16_t    bempenb;
 
 #if USB_CFG_USE_USBIP == USB_CFG_IP0
@@ -109,33 +106,36 @@ int usb_pstd_interrupt_handler(uint16_t * type, uint16_t * status)
         //uint16_t ests  = (uint16_t)(bempsts & bempenb);
         uint16_t ests = bempsts;
 
-    	// Pipe 0
-    	if (ests & USB_BEMP0) {
-	#if USB_CFG_USE_USBIP == USB_CFG_IP0
-			USB200.BEMPSTS = (uint16_t)~USB_BEMP0;
-	#else   /* USB_CFG_USE_USBIP == USB_CFG_IP1 */
-			USB201.BEMPSTS = (uint16_t)~USB_BEMP0;
-	#endif  /* USB_CFG_USE_USBIP == USB_CFG_IP1 */
-			*type   = USB_INT_BEMP0;
-			*status = USB_BEMP0;
-    	}
+        // Pipe 0
+        if (ests & USB_BEMP0)
+        {
+#if USB_CFG_USE_USBIP == USB_CFG_IP0
+            USB200.BEMPSTS = (uint16_t)~USB_BEMP0;
+#else  /* USB_CFG_USE_USBIP == USB_CFG_IP1 */
+            USB201.BEMPSTS = (uint16_t)~USB_BEMP0;
+#endif /* USB_CFG_USE_USBIP == USB_CFG_IP1 */
+            *type   = USB_INT_BEMP0;
+            *status = USB_BEMP0;
+        }
 
-    	// Other pipes
-    	else {
-	#if USB_CFG_USE_USBIP == USB_CFG_IP0
-			USB200.BEMPSTS = (uint16_t)~ests;
-	#else   /* USB_CFG_USE_USBIP == USB_CFG_IP1 */
-			USB201.BEMPSTS = (uint16_t)~ests;
-	#endif  /* USB_CFG_USE_USBIP == USB_CFG_IP1 */
-			*type   = USB_INT_BEMP;
-			*status = ests;
-    	}
+        // Other pipes
+        else
+        {
+#if USB_CFG_USE_USBIP == USB_CFG_IP0
+            USB200.BEMPSTS = (uint16_t)~ests;
+#else  /* USB_CFG_USE_USBIP == USB_CFG_IP1 */
+            USB201.BEMPSTS = (uint16_t)~ests;
+#endif /* USB_CFG_USE_USBIP == USB_CFG_IP1 */
+            *type   = USB_INT_BEMP;
+            *status = ests;
+        }
     }
 
     // BRDY interrupt. Usually means a data receive is complete. Rohan
-    else if (ists0 & USB_BRDY) {
+    else if (ists0 & USB_BRDY)
+    {
 
-        uint16_t    brdysts;
+        uint16_t brdysts;
         //uint16_t    brdyenb;
 
 #if USB_CFG_USE_USBIP == USB_CFG_IP0
@@ -149,36 +149,39 @@ int usb_pstd_interrupt_handler(uint16_t * type, uint16_t * status)
         //uint16_t bsts  = (uint16_t)(brdysts & brdyenb);
         uint16_t bsts = brdysts;
 
-    	// Pipe 0
-		if (bsts & USB_BRDY0) {
-	#if USB_CFG_USE_USBIP == USB_CFG_IP0
-			USB200.BRDYSTS = (uint16_t)~USB_BRDY0;
-	#else   /* USB_CFG_USE_USBIP == USB_CFG_IP1 */
-			USB201.BRDYSTS = (uint16_t)~USB_BRDY0;
-	#endif  /* USB_CFG_USE_USBIP == USB_CFG_IP1 */
-			*type   = USB_INT_BRDY0;
-			*status = USB_BRDY0;
-    	}
+        // Pipe 0
+        if (bsts & USB_BRDY0)
+        {
+#if USB_CFG_USE_USBIP == USB_CFG_IP0
+            USB200.BRDYSTS = (uint16_t)~USB_BRDY0;
+#else  /* USB_CFG_USE_USBIP == USB_CFG_IP1 */
+            USB201.BRDYSTS = (uint16_t)~USB_BRDY0;
+#endif /* USB_CFG_USE_USBIP == USB_CFG_IP1 */
+            *type   = USB_INT_BRDY0;
+            *status = USB_BRDY0;
+        }
 
-		// Other pipes
-		else {
+        // Other pipes
+        else
+        {
 
-			//brdyOccurred(0); // Records exact time of message receipt
-			timeLastBRDY[0] = DMACnNonVolatile(SSI_TX_DMA_CHANNEL).CRSA_n;
+            //brdyOccurred(0); // Records exact time of message receipt
+            timeLastBRDY[0] = DMACnNonVolatile(SSI_TX_DMA_CHANNEL).CRSA_n;
 
-	#if USB_CFG_USE_USBIP == USB_CFG_IP0
-			USB200.BRDYSTS = (uint16_t)~bsts;
-	#else   /* USB_CFG_USE_USBIP == USB_CFG_IP1 */
-			USB201.BRDYSTS = (uint16_t)~bsts;
-	#endif  /* USB_CFG_USE_USBIP == USB_CFG_IP1 */
-			*type   = USB_INT_BRDY;
-			*status = bsts;
-		}
+#if USB_CFG_USE_USBIP == USB_CFG_IP0
+            USB200.BRDYSTS = (uint16_t)~bsts;
+#else  /* USB_CFG_USE_USBIP == USB_CFG_IP1 */
+            USB201.BRDYSTS = (uint16_t)~bsts;
+#endif /* USB_CFG_USE_USBIP == USB_CFG_IP1 */
+            *type   = USB_INT_BRDY;
+            *status = bsts;
+        }
     }
 
     // NRDY interrupt. I think this gets generated each time the host requests some data, but we just happen not to have any to send. Rohan
-    else if (ists0 & USB_NRDY) {
-        uint16_t    nrdysts;
+    else if (ists0 & USB_NRDY)
+    {
+        uint16_t nrdysts;
         //uint16_t    nrdyenb;
 
 #if USB_CFG_USE_USBIP == USB_CFG_IP0
@@ -191,37 +194,36 @@ int usb_pstd_interrupt_handler(uint16_t * type, uint16_t * status)
         //uint16_t nsts  = (uint16_t)(nrdysts & nrdyenb);
         uint16_t nsts = nrdysts;
 
-
-    	// Ok, disregard everything else below - NRDY interrupts never actually need dealing with - unless we have ISO endpoints, which MIDI never does.
+        // Ok, disregard everything else below - NRDY interrupts never actually need dealing with - unless we have ISO endpoints, which MIDI never does.
         // We'll just clear the interrupt and get out.
         // I've actually disabled NRDY interrupts for my own code, but it seems many other parts of the USB library enable them.
 #if USB_CFG_USE_USBIP == USB_CFG_IP0
-		USB200.NRDYSTS = (uint16_t)~nsts;
-#else   /* USB_CFG_USE_USBIP == USB_CFG_IP1 */
-		USB201.NRDYSTS = (uint16_t)~nsts;
-#endif  /* USB_CFG_USE_USBIP == USB_CFG_IP1 */
+        USB200.NRDYSTS = (uint16_t)~nsts;
+#else  /* USB_CFG_USE_USBIP == USB_CFG_IP1 */
+        USB201.NRDYSTS = (uint16_t)~nsts;
+#endif /* USB_CFG_USE_USBIP == USB_CFG_IP1 */
 
-    	return 1; // All dealt with
+        return 1; // All dealt with
 
 #if 0
     	// Pipe0
     	if (nsts & USB_NRDY0) {
-	#if USB_CFG_USE_USBIP == USB_CFG_IP0
+#if USB_CFG_USE_USBIP == USB_CFG_IP0
 			USB200.NRDYSTS = (uint16_t)~USB_NRDY0;
-	#else   /* USB_CFG_USE_USBIP == USB_CFG_IP1 */
+#else  /* USB_CFG_USE_USBIP == USB_CFG_IP1 */
 			USB201.NRDYSTS = (uint16_t)~USB_NRDY0;
-	#endif  /* USB_CFG_USE_USBIP == USB_CFG_IP1 */
+#endif /* USB_CFG_USE_USBIP == USB_CFG_IP1 */
 			*type   = USB_INT_NRDY;
 			*status = USB_NRDY0;
     	}
 
     	// Other pipes
     	else {
-	#if USB_CFG_USE_USBIP == USB_CFG_IP0
+#if USB_CFG_USE_USBIP == USB_CFG_IP0
 			USB200.NRDYSTS = (uint16_t)~nsts;
-	#else   /* USB_CFG_USE_USBIP == USB_CFG_IP1 */
+#else  /* USB_CFG_USE_USBIP == USB_CFG_IP1 */
 			USB201.NRDYSTS = (uint16_t)~nsts;
-	#endif  /* USB_CFG_USE_USBIP == USB_CFG_IP1 */
+#endif /* USB_CFG_USE_USBIP == USB_CFG_IP1 */
 			*type   = USB_INT_NRDY;
 			*status = nsts;
 
@@ -269,9 +271,9 @@ int usb_pstd_interrupt_handler(uint16_t * type, uint16_t * status)
     {
 #if USB_CFG_USE_USBIP == USB_CFG_IP0
         USB200.INTSTS0 = (uint16_t)~USB_RESM;
-#else   /* USB_CFG_USE_USBIP == USB_CFG_IP1 */
+#else  /* USB_CFG_USE_USBIP == USB_CFG_IP1 */
         USB201.INTSTS0 = (uint16_t)~USB_RESM;
-#endif  /* USB_CFG_USE_USBIP == USB_CFG_IP1 */
+#endif /* USB_CFG_USE_USBIP == USB_CFG_IP1 */
         *type = USB_INT_RESM;
     }
     /***** Vbus change *****/
@@ -280,9 +282,9 @@ int usb_pstd_interrupt_handler(uint16_t * type, uint16_t * status)
         /* Status clear */
 #if USB_CFG_USE_USBIP == USB_CFG_IP0
         USB200.INTSTS0 = (uint16_t)~USB_VBINT;
-#else   /* USB_CFG_USE_USBIP == USB_CFG_IP1 */
+#else  /* USB_CFG_USE_USBIP == USB_CFG_IP1 */
         USB201.INTSTS0 = (uint16_t)~USB_VBINT;
-#endif  /* USB_CFG_USE_USBIP == USB_CFG_IP1 */
+#endif /* USB_CFG_USE_USBIP == USB_CFG_IP1 */
         *type = USB_INT_VBINT;
     }
     /***** SOFR change *****/
@@ -291,9 +293,9 @@ int usb_pstd_interrupt_handler(uint16_t * type, uint16_t * status)
         /* SOFR Clear */
 #if USB_CFG_USE_USBIP == USB_CFG_IP0
         USB200.INTSTS0 = (uint16_t)~USB_SOFR;
-#else   /* USB_CFG_USE_USBIP == USB_CFG_IP1 */
+#else             /* USB_CFG_USE_USBIP == USB_CFG_IP1 */
         USB201.INTSTS0 = (uint16_t)~USB_SOFR;
-#endif  /* USB_CFG_USE_USBIP == USB_CFG_IP1 */
+#endif            /* USB_CFG_USE_USBIP == USB_CFG_IP1 */
         return 1; // SOFR interrupts don't result in any action when processed. Rohan
         *type = USB_INT_SOFR;
     }
@@ -305,9 +307,9 @@ int usb_pstd_interrupt_handler(uint16_t * type, uint16_t * status)
         /* DVST clear */
 #if USB_CFG_USE_USBIP == USB_CFG_IP0
         USB200.INTSTS0 = (uint16_t)~USB_DVST;
-#else   /* USB_CFG_USE_USBIP == USB_CFG_IP1 */
+#else  /* USB_CFG_USE_USBIP == USB_CFG_IP1 */
         USB201.INTSTS0 = (uint16_t)~USB_DVST;
-#endif  /* USB_CFG_USE_USBIP == USB_CFG_IP1 */
+#endif /* USB_CFG_USE_USBIP == USB_CFG_IP1 */
         *type   = USB_INT_DVST;
         *status = intsts0;
     }
@@ -321,26 +323,25 @@ int usb_pstd_interrupt_handler(uint16_t * type, uint16_t * status)
         /* USB_CTRT clear */
 #if USB_CFG_USE_USBIP == USB_CFG_IP0
         USB200.INTSTS0 = (uint16_t)~USB_CTRT;
-#else   /* USB_CFG_USE_USBIP == USB_CFG_IP1 */
+#else  /* USB_CFG_USE_USBIP == USB_CFG_IP1 */
         USB201.INTSTS0 = (uint16_t)~USB_CTRT;
-#endif  /* USB_CFG_USE_USBIP == USB_CFG_IP1 */
+#endif /* USB_CFG_USE_USBIP == USB_CFG_IP1 */
         *type = USB_INT_CTRT;
 
         if (USB_CS_SQER == (uint8_t)((*status) & USB_CTSQ))
         {
             hw_usb_pclear_sts_valid();
             return 1; // By Rohan
-            *type = USB_INT_UNKNOWN;
-            *status  = 0;
+            *type   = USB_INT_UNKNOWN;
+            *status = 0;
         }
     }
 
     else
     {
         /* Non processing. */
-    	return 1; // By Rohan
+        return 1; // By Rohan
     }
-
 
     return 0;
 } /* End of function usb_pstd_interrupt_handler() */
@@ -370,7 +371,7 @@ void usb_pstd_save_request(void)
  ***********************************************************************************************************************/
 uint16_t usb_pstd_chk_configured(void)
 {
-    uint16_t    buf;
+    uint16_t buf;
 
     buf = hw_usb_read_intsts();
 
@@ -387,7 +388,6 @@ uint16_t usb_pstd_chk_configured(void)
     }
 } /* End of function usb_pstd_chk_configured() */
 
-
 /***********************************************************************************************************************
  Function Name   : usb_pstd_remote_wakeup
  Description     : Set the USB peripheral to implement remote wake up.
@@ -396,7 +396,7 @@ uint16_t usb_pstd_chk_configured(void)
  ***********************************************************************************************************************/
 void usb_pstd_remote_wakeup(void)
 {
-    uint16_t    buf;
+    uint16_t buf;
 
     /* Support remote wakeup ? */
     if (USB_TRUE == g_usb_pstd_remote_wakeup)
@@ -405,7 +405,7 @@ void usb_pstd_remote_wakeup(void)
         hw_usb_pclear_enb_rsme();
 
         /* RESM status read */
-        buf = hw_usb_read_intsts();     /* usb_creg_read_intsts(); */
+        buf = hw_usb_read_intsts(); /* usb_creg_read_intsts(); */
         if ((uint16_t)0 != (buf & USB_RESM))
         {
             /* RESM status clear */
@@ -437,14 +437,14 @@ void usb_pstd_test_mode(void)
         case USB_TEST_SE0_NAK:
         case USB_TEST_PACKET:
 
-            hw_usb_set_utst(USB_NULL,0);
-            hw_usb_set_utst(USB_NULL,(uint16_t)(g_usb_pstd_test_mode_select >> 8));
+            hw_usb_set_utst(USB_NULL, 0);
+            hw_usb_set_utst(USB_NULL, (uint16_t)(g_usb_pstd_test_mode_select >> 8));
 
-        break;
+            break;
 
         case USB_TEST_FORCE_ENABLE:
         default:
-        break;
+            break;
     }
 } /* End of function usb_pstd_test_mode() */
 
@@ -495,47 +495,48 @@ void usb_pstd_set_stall_pipe0(void)
                  : uint16_t     *write_p     : Address of buffer of data to write.
  Return value    : The incremented address of last argument (write_p).
  ***********************************************************************************************************************/
-uint8_t *usb_pstd_write_fifo(uint16_t count, uint16_t pipemode, uint8_t *write_p)
+uint8_t* usb_pstd_write_fifo(uint16_t count, uint16_t pipemode, uint8_t* write_p)
 {
-    uint16_t    even;
-    uint16_t    odd;
+    uint16_t even;
+    uint16_t odd;
 
     for (even = (uint16_t)(count >> 2); (even != 0); --even)
     {
         /* 32bit access */
-        hw_usb_write_fifo32(USB_NULL, pipemode, *((uint32_t *)write_p));
+        hw_usb_write_fifo32(USB_NULL, pipemode, *((uint32_t*)write_p));
 
         /* Renewal write pointer */
         write_p += sizeof(uint32_t);
     }
     odd = count & 3;
-    if (odd) {
-		if ((odd & (uint16_t)0x0002u) != 0u)
-		{
-			/* 16bit access */
-			/* Change FIFO access width */
-			hw_usb_set_mbw(USB_NULL, pipemode, USB_MBW_16);
-			/* FIFO write */
-			hw_usb_write_fifo16(USB_NULL, pipemode, *((uint16_t *)write_p));
+    if (odd)
+    {
+        if ((odd & (uint16_t)0x0002u) != 0u)
+        {
+            /* 16bit access */
+            /* Change FIFO access width */
+            hw_usb_set_mbw(USB_NULL, pipemode, USB_MBW_16);
+            /* FIFO write */
+            hw_usb_write_fifo16(USB_NULL, pipemode, *((uint16_t*)write_p));
 
-			/* Renewal write pointer */
-			write_p += sizeof(uint16_t);
-		}
-		if ((odd & (uint16_t)0x0001u) != 0u)
-		{
-			/* 8bit access */
-			/* count == odd */
-			/* Change FIFO access width */
-			hw_usb_set_mbw(USB_NULL, pipemode, USB_MBW_8);
+            /* Renewal write pointer */
+            write_p += sizeof(uint16_t);
+        }
+        if ((odd & (uint16_t)0x0001u) != 0u)
+        {
+            /* 8bit access */
+            /* count == odd */
+            /* Change FIFO access width */
+            hw_usb_set_mbw(USB_NULL, pipemode, USB_MBW_8);
 
-			/* FIFO write */
-			hw_usb_write_fifo8(USB_NULL, pipemode, *write_p);
+            /* FIFO write */
+            hw_usb_write_fifo8(USB_NULL, pipemode, *write_p);
 
-			/* Renewal write pointer */
-			write_p++;
-		}
-		/* Return FIFO access width */
-		hw_usb_set_mbw(USB_NULL, pipemode, USB_MBW_32);
+            /* Renewal write pointer */
+            write_p++;
+        }
+        /* Return FIFO access width */
+        hw_usb_set_mbw(USB_NULL, pipemode, USB_MBW_32);
     }
 
     return write_p;
@@ -550,16 +551,16 @@ uint8_t *usb_pstd_write_fifo(uint16_t count, uint16_t pipemode, uint8_t *write_p
                  : uint16_t     *write_p     : Address of buffer to store the read data.
  Return value    : Pointer to a buffer that contains the data to be read next.
  ***********************************************************************************************************************/
-uint8_t *usb_pstd_read_fifo(uint16_t count, uint16_t pipemode, uint8_t *read_p)
+uint8_t* usb_pstd_read_fifo(uint16_t count, uint16_t pipemode, uint8_t* read_p)
 {
-    uint16_t    even;
-    uint16_t    odd;
-    uint32_t    odd_byte_data_temp;
+    uint16_t even;
+    uint16_t odd;
+    uint32_t odd_byte_data_temp;
 
     for (even = (uint16_t)(count >> 2); (even != 0); --even)
     {
         /* 32bit FIFO access */
-        *(uint32_t *)read_p= hw_usb_read_fifo32(USB_NULL, pipemode);
+        *(uint32_t*)read_p = hw_usb_read_fifo32(USB_NULL, pipemode);
 
         /* Renewal read pointer */
         read_p += sizeof(uint32_t);
@@ -571,13 +572,14 @@ uint8_t *usb_pstd_read_fifo(uint16_t count, uint16_t pipemode, uint8_t *read_p)
         /* 32bit FIFO access */
         odd_byte_data_temp = hw_usb_read_fifo32(USB_NULL, pipemode);
         /* Condition compilation by the difference of the endian */
-        do{
-            *read_p = (uint8_t)(odd_byte_data_temp & 0x000000ff);
+        do
+        {
+            *read_p            = (uint8_t)(odd_byte_data_temp & 0x000000ff);
             odd_byte_data_temp = odd_byte_data_temp >> 8;
             /* Renewal read pointer */
             read_p += sizeof(uint8_t);
             odd--;
-        }while(odd != 0);
+        } while (odd != 0);
     }
 
     return read_p;
@@ -593,24 +595,24 @@ uint8_t *usb_pstd_read_fifo(uint16_t count, uint16_t pipemode, uint8_t *read_p)
  ***********************************************************************************************************************/
 void usb_pstd_forced_termination(uint16_t pipe, uint16_t status)
 {
-    uint16_t    useport;
+    uint16_t useport;
 
     /* PID = NAK */
-    usb_cstd_set_nak(USB_NULL, pipe);       /* Set NAK */
+    usb_cstd_set_nak(USB_NULL, pipe); /* Set NAK */
 
     /* Disable Interrupt */
-    hw_usb_clear_brdyenb(USB_NULL,pipe);    /* Disable Ready Interrupt */
-    hw_usb_clear_nrdyenb(USB_NULL,pipe);    /* Disable Not Ready Interrupt */
-    hw_usb_clear_bempenb(USB_NULL,pipe);    /* Disable Empty Interrupt */
+    hw_usb_clear_brdyenb(USB_NULL, pipe); /* Disable Ready Interrupt */
+    hw_usb_clear_nrdyenb(USB_NULL, pipe); /* Disable Not Ready Interrupt */
+    hw_usb_clear_bempenb(USB_NULL, pipe); /* Disable Empty Interrupt */
 
     usb_cstd_clr_transaction_counter(USB_NULL, pipe);
 
     /* Pipe number to FIFO port select */
     useport = usb_pstd_pipe2fport(pipe);
     /* Check use FIFO access */
-    switch(useport)
+    switch (useport)
     {
-        case USB_CUSE:  /* CFIFO use */
+        case USB_CUSE: /* CFIFO use */
 
 #if USB_CFG_USE_USBIP == USB_CFG_IP0
             hw_usb_set_mbw(USB_NULL, USB_CUSE, USB0_CFIFO_MBW);
@@ -620,10 +622,10 @@ void usb_pstd_forced_termination(uint16_t pipe, uint16_t status)
             /* Changes the FIFO port by the pipe. */
             usb_cstd_chg_curpipe(USB_NULL, (uint16_t)USB_PIPE0, (uint16_t)USB_CUSE, USB_FALSE);
 
-        break;
+            break;
 
         default:
-        break;
+            break;
     }
 
     /* Do Aclr */
@@ -631,24 +633,22 @@ void usb_pstd_forced_termination(uint16_t pipe, uint16_t status)
 
     /* FIFO buffer SPLIT transaction initialized */
     usb_cstd_chg_curpipe(USB_NULL, (uint16_t)USB_PIPE0, (uint16_t)USB_CUSE, USB_NOUSE);
-    hw_usb_set_csclr(USB_NULL,pipe);
-
+    hw_usb_set_csclr(USB_NULL, pipe);
 
     /* Call Back */
     if (USB_NULL != g_p_usb_pipe[pipe])
     {
         /* Transfer information set */
-        g_p_usb_pipe[pipe]->tranlen  = g_usb_data_cnt[pipe];
-        g_p_usb_pipe[pipe]->status   = status;
-        g_p_usb_pipe[pipe]->pipectr  = hw_usb_read_pipectr(USB_NULL,pipe);
+        g_p_usb_pipe[pipe]->tranlen = g_usb_data_cnt[pipe];
+        g_p_usb_pipe[pipe]->status  = status;
+        g_p_usb_pipe[pipe]->pipectr = hw_usb_read_pipectr(USB_NULL, pipe);
 
         if (USB_NULL != (g_p_usb_pipe[pipe]->complete))
         {
             (g_p_usb_pipe[pipe]->complete)(g_p_usb_pipe[pipe], USB_NULL, USB_NULL);
         }
 
-        g_p_usb_pipe[pipe] = (usb_utr_t *)USB_NULL;
-
+        g_p_usb_pipe[pipe] = (usb_utr_t*)USB_NULL;
     }
 } /* End of function usb_pstd_forced_termination() */
 
@@ -662,7 +662,7 @@ void usb_pstd_interrupt_clock(void)
 {
     if (USB_NORMAL_MODE != g_usb_cstd_suspend_mode)
     {
-        hw_usb_set_suspendm();  /* UTMI Normal Mode (Not Suspend Mode) */
+        hw_usb_set_suspendm(); /* UTMI Normal Mode (Not Suspend Mode) */
         usb_cpu_delay_1us(100);
         g_usb_cstd_suspend_mode = USB_NORMAL_MODE;
     }
@@ -678,7 +678,7 @@ void usb_pstd_self_clock(void)
 {
     if (USB_NORMAL_MODE != g_usb_cstd_suspend_mode)
     {
-        hw_usb_set_suspendm();  /* UTMI Normal Mode (Not Suspend Mode) */
+        hw_usb_set_suspendm(); /* UTMI Normal Mode (Not Suspend Mode) */
         usb_cpu_delay_1us(100);
         g_usb_cstd_suspend_mode = USB_NORMAL_MODE;
     }
@@ -693,9 +693,9 @@ void usb_pstd_self_clock(void)
 void usb_pstd_stop_clock(void)
 {
     g_usb_cstd_suspend_mode = USB_SUSPEND_MODE;
-    hw_usb_clear_suspm();  /* UTMI Suspend Mode */
-}   /* End of function usb_pstd_stop_clock() */
-#endif  /* (USB_CFG_MODE & USB_CFG_PERI) == USB_CFG_PERI */
+    hw_usb_clear_suspm(); /* UTMI Suspend Mode */
+} /* End of function usb_pstd_stop_clock() */
+#endif /* (USB_CFG_MODE & USB_CFG_PERI) == USB_CFG_PERI */
 
 /***********************************************************************************************************************
  End of file

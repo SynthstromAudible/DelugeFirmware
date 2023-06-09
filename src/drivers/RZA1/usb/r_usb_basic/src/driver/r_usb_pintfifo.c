@@ -51,51 +51,51 @@ void usb_pstd_brdy_pipe(uint16_t bitsts)
     /* When operating by the peripheral function, usb_pstd_brdy_pipe() is executed with PIPEx request because */
     /* two BRDY messages are issued even when the demand of PIPE0 and PIPEx has been generated at the same time. */
     //if ((bitsts & USB_BRDY0) == USB_BRDY0) { // Changed by Rohan - now we only come here for pipe0
-        switch (usb_pstd_read_data(USB_PIPE0, USB_CUSE))
-        {
-            /* End of data read */
-            case USB_READEND:
-            /* End of data read */
-            case USB_READSHRT:
+    switch (usb_pstd_read_data(USB_PIPE0, USB_CUSE))
+    {
+        /* End of data read */
+        case USB_READEND:
+        /* End of data read */
+        case USB_READSHRT:
 
-                hw_usb_clear_brdyenb(USB_NULL, (uint16_t)USB_PIPE0);
-
-            break;
-
-            /* Continue of data read */
-            case USB_READING:
-
-                /* PID = BUF */
-                usb_cstd_set_buf(USB_NULL, (uint16_t)USB_PIPE0);
+            hw_usb_clear_brdyenb(USB_NULL, (uint16_t)USB_PIPE0);
 
             break;
 
-            /* FIFO access error */
-            case USB_READOVER:
+        /* Continue of data read */
+        case USB_READING:
 
-                USB_PRINTF0("### Receive data over PIPE0 \n");
-                /* Clear BVAL */
-                hw_usb_set_bclr(USB_NULL, USB_CUSE);
-                /* Control transfer stop(end) */
-                usb_pstd_ctrl_end((uint16_t)USB_DATA_OVR);
+            /* PID = BUF */
+            usb_cstd_set_buf(USB_NULL, (uint16_t)USB_PIPE0);
 
             break;
 
-            /* FIFO access error */
-            case USB_FIFOERROR:
+        /* FIFO access error */
+        case USB_READOVER:
 
-                USB_PRINTF0("### FIFO access error \n");
-
-                /* Control transfer stop(end) */
-                usb_pstd_ctrl_end((uint16_t)USB_DATA_ERR);
+            USB_PRINTF0("### Receive data over PIPE0 \n");
+            /* Clear BVAL */
+            hw_usb_set_bclr(USB_NULL, USB_CUSE);
+            /* Control transfer stop(end) */
+            usb_pstd_ctrl_end((uint16_t)USB_DATA_OVR);
 
             break;
 
-            default:
-            break;
-        }
+        /* FIFO access error */
+        case USB_FIFOERROR:
 
-        /*
+            USB_PRINTF0("### FIFO access error \n");
+
+            /* Control transfer stop(end) */
+            usb_pstd_ctrl_end((uint16_t)USB_DATA_ERR);
+
+            break;
+
+        default:
+            break;
+    }
+
+    /*
     }
     else
     {
@@ -139,40 +139,40 @@ void usb_pstd_bemp_pipe(uint16_t bitsts)
     /* When operating by the peripheral function, usb_pstd_bemp_pipe() is executed with PIPEx request because */
     /* two BEMP messages are issued even when the demand of PIPE0 and PIPEx has been generated at the same time. */
 
-	//if ((bitsts & USB_BEMP0) == USB_BEMP0) // Changed by Rohan - now only bemp for pipe 0 comes to this function
+    //if ((bitsts & USB_BEMP0) == USB_BEMP0) // Changed by Rohan - now only bemp for pipe 0 comes to this function
     //{
-        switch (usb_pstd_write_data(USB_PIPE0, USB_CUSE))
-        {
-            /* End of data write (not null) */
-            case USB_WRITEEND:
-            /* End of data write */
-            case USB_WRITESHRT:
+    switch (usb_pstd_write_data(USB_PIPE0, USB_CUSE))
+    {
+        /* End of data write (not null) */
+        case USB_WRITEEND:
+        /* End of data write */
+        case USB_WRITESHRT:
 
-                /* Enable empty interrupt */
-                hw_usb_clear_bempenb(USB_NULL, (uint16_t)USB_PIPE0);
-
-            break;
-
-            /* Continue of data write */
-            case USB_WRITING:
-
-                /* PID = BUF */
-                usb_cstd_set_buf(USB_NULL, (uint16_t)USB_PIPE0);
+            /* Enable empty interrupt */
+            hw_usb_clear_bempenb(USB_NULL, (uint16_t)USB_PIPE0);
 
             break;
 
-            /* FIFO access error */
-            case USB_FIFOERROR:
+        /* Continue of data write */
+        case USB_WRITING:
 
-                USB_PRINTF0("### FIFO access error \n");
-                /* Control transfer stop(end) */
-                usb_pstd_ctrl_end((uint16_t)USB_DATA_ERR);
+            /* PID = BUF */
+            usb_cstd_set_buf(USB_NULL, (uint16_t)USB_PIPE0);
 
             break;
 
-            default:
+        /* FIFO access error */
+        case USB_FIFOERROR:
+
+            USB_PRINTF0("### FIFO access error \n");
+            /* Control transfer stop(end) */
+            usb_pstd_ctrl_end((uint16_t)USB_DATA_ERR);
+
             break;
-        }
+
+        default:
+            break;
+    }
 #if 0
     }
     else
@@ -182,7 +182,7 @@ void usb_pstd_bemp_pipe(uint16_t bitsts)
     }
 #endif
 } /* End of function usb_pstd_bemp_pipe() */
-#endif  /* (USB_CFG_MODE & USB_CFG_PERI) == USB_CFG_REPI */
+#endif /* (USB_CFG_MODE & USB_CFG_PERI) == USB_CFG_REPI */
 
 /***********************************************************************************************************************
  End Of File

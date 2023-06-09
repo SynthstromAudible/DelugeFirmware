@@ -33,8 +33,8 @@
 #include "song.h"
 #include "AudioClip.h"
 
-
-int MenuItemAudioClipSampleMarkerEditor::checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) {
+int MenuItemAudioClipSampleMarkerEditor::checkPermissionToBeginSession(Sound* sound, int whichThing,
+                                                                       MultiRange** currentRange) {
 
 	if (!isRelevant(sound, whichThing)) {
 		return MENU_PERMISSION_NO;
@@ -48,7 +48,6 @@ int MenuItemAudioClipSampleMarkerEditor::checkPermissionToBeginSession(Sound* so
 	return MENU_PERMISSION_YES;
 }
 
-
 void MenuItemAudioClipSampleMarkerEditor::beginSession(MenuItem* navigatedBackwardFrom) {
 
 	soundEditor.shouldGoUpOneLevelOnBegin = true;
@@ -58,5 +57,3 @@ void MenuItemAudioClipSampleMarkerEditor::beginSession(MenuItem* navigatedBackwa
 		uiTimerManager.unsetTimer(TIMER_SHORTCUT_BLINK);
 	}
 }
-
-

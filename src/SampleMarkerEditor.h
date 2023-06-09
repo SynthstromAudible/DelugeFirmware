@@ -41,12 +41,13 @@ public:
 	int horizontalEncoderAction(int offset);
 	void graphicsRoutine();
 	int timerCallback();
-	bool renderMainPads(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3] = NULL, uint8_t occupancyMask[][displayWidth + sideBarWidth] = NULL,
-	    		bool drawUndefinedArea = true);
-    bool renderSidebar(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3] = NULL, uint8_t occupancyMask[][displayWidth + sideBarWidth] = NULL);
+	bool renderMainPads(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3] = NULL,
+	                    uint8_t occupancyMask[][displayWidth + sideBarWidth] = NULL, bool drawUndefinedArea = true);
+	bool renderSidebar(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3] = NULL,
+	                   uint8_t occupancyMask[][displayWidth + sideBarWidth] = NULL);
 
 #if HAVE_OLED
-    void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
+	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
 #else
 	void displayText();
 #endif
@@ -56,7 +57,6 @@ public:
 
 	int8_t pressX;
 	int8_t pressY;
-
 
 private:
 	void writeValue(uint32_t value, int markerTypeNow = -2);
@@ -69,8 +69,10 @@ private:
 	void getColsOnScreen(MarkerColumn* cols);
 	void recordScrollAndZoom();
 	bool shouldAllowExtraScrollRight();
-	void renderForOneCol(int xDisplay, uint8_t thisImage[displayHeight][displayWidth + sideBarWidth][3], MarkerColumn* cols);
-	void renderMarkersForOneCol(int xDisplay, uint8_t thisImage[displayHeight][displayWidth + sideBarWidth][3], MarkerColumn* cols);
+	void renderForOneCol(int xDisplay, uint8_t thisImage[displayHeight][displayWidth + sideBarWidth][3],
+	                     MarkerColumn* cols);
+	void renderMarkersForOneCol(int xDisplay, uint8_t thisImage[displayHeight][displayWidth + sideBarWidth][3],
+	                            MarkerColumn* cols);
 };
 
 extern SampleMarkerEditor sampleMarkerEditor;

@@ -32,29 +32,29 @@ class ModelStack;
 class ActionLogger {
 public:
 	ActionLogger();
-    Action* getNewAction(int newActionType, int addToExistingIfPossible = ACTION_ADDITION_NOT_ALLOWED);
-    void recordUnautomatedParamChange(ModelStackWithAutoParam const* modelStack, int actionType = ACTION_PARAM_UNAUTOMATED_VALUE_CHANGE);
-    void recordSwingChange(int8_t swingBefore, int8_t swingAfter);
-    void recordTempoChange(uint64_t timePerBigBefore, uint64_t timePerBigAfter);
-    void closeAction(int actionType);
-    void closeActionUnlessCreatedJustNow(int actionType);
-    void deleteAllLogs();
-    void deleteLog(int time);
-    bool revert(int time, bool updateVisually = true, bool doNavigation = true);
-    void updateAction(Action* newAction);
-    void undo();
-    void redo();
-    bool undoJustOneConsequencePerNoteRow(ModelStack* modelStack);
-    bool allowedToDoReversion();
-    void notifyClipRecordingAborted(Clip* clip);
+	Action* getNewAction(int newActionType, int addToExistingIfPossible = ACTION_ADDITION_NOT_ALLOWED);
+	void recordUnautomatedParamChange(ModelStackWithAutoParam const* modelStack,
+	                                  int actionType = ACTION_PARAM_UNAUTOMATED_VALUE_CHANGE);
+	void recordSwingChange(int8_t swingBefore, int8_t swingAfter);
+	void recordTempoChange(uint64_t timePerBigBefore, uint64_t timePerBigAfter);
+	void closeAction(int actionType);
+	void closeActionUnlessCreatedJustNow(int actionType);
+	void deleteAllLogs();
+	void deleteLog(int time);
+	bool revert(int time, bool updateVisually = true, bool doNavigation = true);
+	void updateAction(Action* newAction);
+	void undo();
+	void redo();
+	bool undoJustOneConsequencePerNoteRow(ModelStack* modelStack);
+	bool allowedToDoReversion();
+	void notifyClipRecordingAborted(Clip* clip);
 
-    Action* firstAction[2];
+	Action* firstAction[2];
 
 private:
-    void revertAction(Action* action, bool updateVisually, bool doNavigation, int time);
-    void deleteLastActionIfEmpty();
-    void deleteLastAction();
-
+	void revertAction(Action* action, bool updateVisually, bool doNavigation, int time);
+	void deleteLastActionIfEmpty();
+	void deleteLastAction();
 };
 
 extern ActionLogger actionLogger;

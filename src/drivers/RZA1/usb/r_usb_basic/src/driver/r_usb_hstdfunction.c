@@ -37,29 +37,29 @@
 #if defined(USB_CFG_HCDC_USE)
 #include "r_usb_hcdc_if.h"
 #include "r_usb_hcdc.h"
-#endif  /* defined(USB_CFG_HCDC_USE) */
+#endif /* defined(USB_CFG_HCDC_USE) */
 
 #if defined(USB_CFG_HMSC_USE)
 #include "r_usb_hmsc_if.h"
-#endif  /* defined(USB_CFG_HMSC_USE) */
+#endif /* defined(USB_CFG_HMSC_USE) */
 
 #if defined(USB_CFG_HHID_USE)
 #include "drivers/usb/r_usb_hhid/r_usb_hhid_if.h"
-#endif  /* defined(USB_CFG_HHID_USE) */
+#endif /* defined(USB_CFG_HHID_USE) */
 
 /***********************************************************************************************************************
  Macro definitions
  ***********************************************************************************************************************/
 #if USB_CFG_BC == USB_CFG_DISABLE
 #if USB_CFG_DCP == USB_CFG_ENABLE
-        #error "You can not define USB_CFG_DCP since USB_CFG_BC is not defined \
+#error "You can not define USB_CFG_DCP since USB_CFG_BC is not defined \
                 in r_usb_basic_config.h."
 #endif
 #endif
 
 #if USB_CFG_COMPLIANCE == USB_CFG_DISABLE
 #if USB_CFG_ELECTRICAL == USB_CFG_ENABLE
-        #error "You can not enable USB_CFG_ELECTRICAL in r_usb_basic_config.h \
+#error "You can not enable USB_CFG_ELECTRICAL in r_usb_basic_config.h \
                 when USB_CFG_COMPLIANCE is disabled."
 #endif
 #endif
@@ -69,16 +69,16 @@ Exported global variables
  ***********************************************************************************************************************/
 #if ((USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST)
 //extern uint16_t     g_usb_cstd_driver_open;
-extern void         (*g_usb_hstd_enumaration_process[8])(usb_utr_t *, uint16_t, uint16_t);
+extern void (*g_usb_hstd_enumaration_process[8])(usb_utr_t*, uint16_t, uint16_t);
 
 #if defined(USB_CFG_HCDC_USE)
-extern usb_hcdc_classrequest_utr_t  g_usb_hcdc_cls_req[];
+extern usb_hcdc_classrequest_utr_t g_usb_hcdc_cls_req[];
 #endif /* defined(USB_CFG_HCDC_USE) */
 
 /***********************************************************************************************************************
 Private global variables and functions
 ***********************************************************************************************************************/
-static uint16_t     g_usb_cstd_driver_open = USB_FALSE;
+static uint16_t g_usb_cstd_driver_open = USB_FALSE;
 
 /***********************************************************************************************************************
  Renesas Abstracted Host Standard functions
@@ -91,10 +91,10 @@ static uint16_t     g_usb_cstd_driver_open = USB_FALSE;
  Arguments       : usb_utr_t *ptr            : USB internal structure. Selects e.g. channel.
  Return value    : none
  ***********************************************************************************************************************/
-void usb_hstd_bchg0function(usb_utr_t *ptr)
+void usb_hstd_bchg0function(usb_utr_t* ptr)
 {
-    uint16_t    buf;
-    uint16_t    connect_inf;
+    uint16_t buf;
+    uint16_t connect_inf;
 
     /* SUSPENDED check */
     if (USB_SUSPENDED == g_usb_hstd_remort_port[USB_PORT0])
@@ -144,7 +144,7 @@ void usb_hstd_bchg0function(usb_utr_t *ptr)
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
  Return value    : none
  ***********************************************************************************************************************/
-void usb_hstd_ls_connect_function(usb_utr_t *ptr)
+void usb_hstd_ls_connect_function(usb_utr_t* ptr)
 {
     (*g_usb_hstd_enumaration_process[0])(ptr, (uint16_t)USB_DEVICE_0, (uint16_t)0);
 } /* End of function usb_hstd_ls_connect_function() */
@@ -168,7 +168,7 @@ void usb_hstd_attach_function(void)
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
  Return value    : none
  ***********************************************************************************************************************/
-void usb_hstd_ovrcr0function(usb_utr_t *ptr)
+void usb_hstd_ovrcr0function(usb_utr_t* ptr)
 {
     /* Over-current bit check */
     USB_PRINTF0(" OVCR int port0\n");
@@ -231,20 +231,20 @@ void usb_hstd_enum_function5(void)
                  : usb_cfg_t    *cfg         : Pointer to usb_cfg_t structure.
  Return value    : none
  ***********************************************************************************************************************/
-void usb_hdriver_init( usb_utr_t *ptr, usb_cfg_t *cfg )
+void usb_hdriver_init(usb_utr_t* ptr, usb_cfg_t* cfg)
 {
-    uint16_t    i;
+    uint16_t i;
 
     if (USB_FALSE == g_usb_cstd_driver_open)
     {
-        usb_cstd_sche_init();                           /* Scheduler init */
+        usb_cstd_sche_init(); /* Scheduler init */
 
-        g_usb_cstd_event.write_pointer  = USB_NULL;     /* Write pointer */
-        g_usb_cstd_event.read_pointer   = USB_NULL;     /* Read pointer */
+        g_usb_cstd_event.write_pointer = USB_NULL; /* Write pointer */
+        g_usb_cstd_event.read_pointer  = USB_NULL; /* Read pointer */
         for (i = 0; i < USB_EVENT_MAX; i++)
         {
-            g_usb_cstd_event.code[i]            = USB_STS_NONE;
-            g_usb_cstd_event.ctrl[i].address    = USB_NULL;
+            g_usb_cstd_event.code[i]         = USB_STS_NONE;
+            g_usb_cstd_event.ctrl[i].address = USB_NULL;
         }
 
         g_usb_cstd_driver_open = USB_TRUE;
@@ -259,14 +259,15 @@ void usb_hdriver_init( usb_utr_t *ptr, usb_cfg_t *cfg )
         g_usb_hstd_hs_enable[ptr->ip] = USB_HS_DISABLE;
     }
 
-    usb_hstd_init_usb_message(ptr);             /* USB interrupt message initialize */
+    usb_hstd_init_usb_message(ptr); /* USB interrupt message initialize */
 
-    usb_hstd_mgr_open(ptr);                     /* Manager open */
-    usb_hstd_hcd_open(ptr);                     /* Hcd open */
-#if defined(USB_CFG_HCDC_USE) || defined(USB_CFG_HHID_USE) || defined(USB_CFG_HMSC_USE) || defined(USB_CFG_HVND_USE) || defined(USB_CFG_HMIDI_USE)
-    usb_hstd_class_driver_start(ptr);           /* Init host class driver task. */
+    usb_hstd_mgr_open(ptr); /* Manager open */
+    usb_hstd_hcd_open(ptr); /* Hcd open */
+#if defined(USB_CFG_HCDC_USE) || defined(USB_CFG_HHID_USE) || defined(USB_CFG_HMSC_USE) || defined(USB_CFG_HVND_USE)   \
+    || defined(USB_CFG_HMIDI_USE)
+    usb_hstd_class_driver_start(ptr); /* Init host class driver task. */
     usb_registration(ptr);            /* Class Registration */
-#endif  /* defined(USB_CFG_HCDC_USE)||defined(USB_CFG_HHID_USE)||defined(USB_CFG_HMSC_USE)||defined(USB_CFG_HVND_USE) */
+#endif /* defined(USB_CFG_HCDC_USE)||defined(USB_CFG_HHID_USE)||defined(USB_CFG_HMSC_USE)||defined(USB_CFG_HVND_USE) */
 } /* End of function usb_hdriver_init() */
 
 /***********************************************************************************************************************
@@ -275,26 +276,26 @@ void usb_hdriver_init( usb_utr_t *ptr, usb_cfg_t *cfg )
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
  Return value    : none
  ***********************************************************************************************************************/
-void usb_hstd_class_driver_start(usb_utr_t *ptr)
+void usb_hstd_class_driver_start(usb_utr_t* ptr)
 {
 #if defined(USB_CFG_HCDC_USE)
     R_USB_HcdcDriverStart(ptr);
-#endif  /* defined(USB_CFG_HCDC_USE) */
+#endif /* defined(USB_CFG_HCDC_USE) */
 
 #if defined(USB_CFG_HMSC_USE)
     R_USB_HmscDriverStart(ptr);
-#endif  /* defined(USB_CFG_HMSC_USE) */
+#endif /* defined(USB_CFG_HMSC_USE) */
 
 #if defined(USB_CFG_HHID_USE)
     R_USB_HmidiDriverStart(ptr);
-#endif  /* defined(USB_CFG_HHID_USE) */
+#endif /* defined(USB_CFG_HHID_USE) */
 
 #if defined(USB_CFG_HMIDI_USE)
     R_USB_HmidiDriverStart(ptr);
-#endif  /* defined(USB_CFG_HHID_USE) */
+#endif /* defined(USB_CFG_HHID_USE) */
 
 } /* End of function usb_hstd_class_driver_start() */
-#endif  /* (USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST */
+#endif /* (USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST */
 
 /***********************************************************************************************************************
  End Of File
