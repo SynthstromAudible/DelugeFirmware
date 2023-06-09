@@ -37,13 +37,11 @@ ContextMenuClearSong contextMenuClearSong;
 extern void setUIForLoadedSong(Song* song);
 extern void deleteOldSongBeforeLoadingNew();
 
-
 ContextMenuClearSong::ContextMenuClearSong() {
 #if HAVE_OLED
 	title = "Clear song?";
 #endif
 }
-
 
 char const** ContextMenuClearSong::getOptions() {
 #if HAVE_OLED
@@ -57,29 +55,27 @@ char const** ContextMenuClearSong::getOptions() {
 void ContextMenuClearSong::focusRegained() {
 	ContextMenu::focusRegained();
 
-    // TODO: Switch a bunch of LEDs off (?)
+	// TODO: Switch a bunch of LEDs off (?)
 
-    IndicatorLEDs::setLedState(saveLedX, saveLedY, false);
-    IndicatorLEDs::setLedState(synthLedX, synthLedY, false);
-    IndicatorLEDs::setLedState(kitLedX, kitLedY, false);
+	IndicatorLEDs::setLedState(saveLedX, saveLedY, false);
+	IndicatorLEDs::setLedState(synthLedX, synthLedY, false);
+	IndicatorLEDs::setLedState(kitLedX, kitLedY, false);
 
-    IndicatorLEDs::setLedState(crossScreenEditLedX, crossScreenEditLedY, false);
-    IndicatorLEDs::setLedState(clipViewLedX, clipViewLedY, false);
-    IndicatorLEDs::setLedState(sessionViewLedX, sessionViewLedY, false);
-    IndicatorLEDs::setLedState(scaleModeLedX, scaleModeLedY, false);
+	IndicatorLEDs::setLedState(crossScreenEditLedX, crossScreenEditLedY, false);
+	IndicatorLEDs::setLedState(clipViewLedX, clipViewLedY, false);
+	IndicatorLEDs::setLedState(sessionViewLedX, sessionViewLedY, false);
+	IndicatorLEDs::setLedState(scaleModeLedX, scaleModeLedY, false);
 
-    IndicatorLEDs::blinkLed(loadLedX, loadLedY);
-    IndicatorLEDs::blinkLed(backLedX, backLedY);
+	IndicatorLEDs::blinkLed(loadLedX, loadLedY);
+	IndicatorLEDs::blinkLed(backLedX, backLedY);
 }
 
-
 bool ContextMenuClearSong::acceptCurrentOption() {
-    if (playbackHandler.playbackState
-    		&& ((playbackHandler.playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE)
-    				|| currentPlaybackMode == &arrangement)) {
+	if (playbackHandler.playbackState
+	    && ((playbackHandler.playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE) || currentPlaybackMode == &arrangement)) {
 
-    	playbackHandler.endPlayback();
-    }
+		playbackHandler.endPlayback();
+	}
 
 	actionLogger.deleteAllLogs();
 
@@ -97,9 +93,9 @@ bool ContextMenuClearSong::acceptCurrentOption() {
 	GlobalEffectable::initParams(&preLoadedSong->paramManager);
 	preLoadedSong->setupDefault();
 
-    Song* toDelete = currentSong;
+	Song* toDelete = currentSong;
 
-    preLoadedSong->ensureAtLeastOneSessionClip(); // Will load a synth preset from SD card
+	preLoadedSong->ensureAtLeastOneSessionClip(); // Will load a synth preset from SD card
 
 	playbackHandler.doSongSwap((playbackHandler.playbackState & PLAYBACK_CLOCK_EITHER_ACTIVE));
 	if (toDelete) {

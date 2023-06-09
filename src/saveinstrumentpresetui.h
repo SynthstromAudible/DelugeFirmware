@@ -22,22 +22,23 @@
 class Song;
 class Instrument;
 
-class SaveInstrumentPresetUI final : public SaveUI
-{
+class SaveInstrumentPresetUI final : public SaveUI {
 public:
-    SaveInstrumentPresetUI();
+	SaveInstrumentPresetUI();
 
-    bool opened();
-    //void selectEncoderAction(int8_t offset);
-    void verticalEncoderAction(int offset, bool encoderButtonPressed, bool shiftButtonPressed) {};
-    void endSession() {};
-    bool performSave(bool mayOverwrite);
+	bool opened();
+	//void selectEncoderAction(int8_t offset);
+	void verticalEncoderAction(int offset, bool encoderButtonPressed, bool shiftButtonPressed){};
+	void endSession(){};
+	bool performSave(bool mayOverwrite);
 
-    bool renderSidebar(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3] = NULL, uint8_t occupancyMask[][displayWidth + sideBarWidth] = NULL) { return true; }
+	bool renderSidebar(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3] = NULL,
+	                   uint8_t occupancyMask[][displayWidth + sideBarWidth] = NULL) {
+		return true;
+	}
 
 protected:
-    //int arrivedInNewFolder(int direction);
-
+	//int arrivedInNewFolder(int direction);
 };
 
 extern SaveInstrumentPresetUI saveInstrumentPresetUI;

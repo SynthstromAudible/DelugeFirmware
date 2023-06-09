@@ -34,19 +34,18 @@
  Macro definitions
  ******************************************************************************/
 
-#define USB_HMIDI_CLSDATASIZE                (512)
+#define USB_HMIDI_CLSDATASIZE (512)
 
-/* Host HID Task */ // TODO: should these be changed if I re-introduce actual HID?
-#define USB_HMIDI_TSK                        (USB_TID_4)           /* Task ID */
-#define USB_HMIDI_MBX                        (USB_HMIDI_TSK)        /* Mailbox ID */
-#define USB_HMIDI_MPL                        (USB_HMIDI_TSK)        /* Memorypool ID */
+/* Host HID Task */                   // TODO: should these be changed if I re-introduce actual HID?
+#define USB_HMIDI_TSK (USB_TID_4)     /* Task ID */
+#define USB_HMIDI_MBX (USB_HMIDI_TSK) /* Mailbox ID */
+#define USB_HMIDI_MPL (USB_HMIDI_TSK) /* Memorypool ID */
 
 /*****************************************************************************
  Enumerated Types
  ******************************************************************************/
 /* Host HID Task Command */
-typedef enum
-{
+typedef enum {
     USB_HHID_TCMD_OPEN,
     USB_HHID_TCMD_SEND,
     USB_HHID_TCMD_RECEIVE,
@@ -55,8 +54,7 @@ typedef enum
 } usb_hhid_tcmd_t;
 
 /* Enumeration Sequence */
-typedef enum
-{
+typedef enum {
     /* Enumeration Sequence Complete */
     USB_HHID_ENUM_COMPLETE = 0,
 
@@ -75,44 +73,42 @@ typedef enum
  ******************************************************************************/
 typedef struct
 {
-    uint16_t        devadr;
-    usb_regadr_t    ipp;                /* IP Address(USB0 or USB1)*/
-    uint16_t        ip;                 /* IP number(0 or 1) */
-    uint16_t        brequest_code;
-    void            *p_tranadr;         /* Transfer data Start address */
-    uint32_t        tranlen;            /* Transfer data length */
-    uint16_t        index;
-    uint16_t        duration;
-    uint8_t         set_protocol;
-    usb_cb_t        complete;           /* Call Back Function Info */
+    uint16_t devadr;
+    usb_regadr_t ipp; /* IP Address(USB0 or USB1)*/
+    uint16_t ip;      /* IP number(0 or 1) */
+    uint16_t brequest_code;
+    void* p_tranadr;  /* Transfer data Start address */
+    uint32_t tranlen; /* Transfer data length */
+    uint16_t index;
+    uint16_t duration;
+    uint8_t set_protocol;
+    usb_cb_t complete; /* Call Back Function Info */
 } usb_hhid_class_request_parm_t;
 
 /******************************************************************************
  Exported global variables
  ******************************************************************************/
-extern uint16_t     g_usb_hmidi_maxps[USB_NUM_USBIP][USB_MAXDEVADDR];            /* Max Packet Size */
-extern uint16_t     g_usb_hmidi_devaddr[];                                       /* Device Address */
-extern uint16_t     g_usb_hmidi_speed[];                                         /* Device speed */
-extern uint16_t     g_usb_hmidi_enum_seq[];                                      /* Enumeration Sequence */
-extern uint16_t     *g_p_usb_hmidi_pipe_table[];                                 /* Pipe Table(DefEP) */
-extern uint8_t      *g_p_usb_hmidi_interface_table[];                            /* Interface Descriptor Table */
-extern uint8_t      *g_p_usb_hmidi_device_table[];                               /* Device Descriptor Table */
-extern uint8_t      *g_p_usb_hmidi_config_table[];                               /* Configuration Descriptor Table */
-
+extern uint16_t g_usb_hmidi_maxps[USB_NUM_USBIP][USB_MAXDEVADDR]; /* Max Packet Size */
+extern uint16_t g_usb_hmidi_devaddr[];                            /* Device Address */
+extern uint16_t g_usb_hmidi_speed[];                              /* Device speed */
+extern uint16_t g_usb_hmidi_enum_seq[];                           /* Enumeration Sequence */
+extern uint16_t* g_p_usb_hmidi_pipe_table[];                      /* Pipe Table(DefEP) */
+extern uint8_t* g_p_usb_hmidi_interface_table[];                  /* Interface Descriptor Table */
+extern uint8_t* g_p_usb_hmidi_device_table[];                     /* Device Descriptor Table */
+extern uint8_t* g_p_usb_hmidi_config_table[];                     /* Configuration Descriptor Table */
 
 /*****************************************************************************
  Public Functions
  ******************************************************************************/
 /* Functions */
-void        usb_hmidi_task(usb_vp_int_t stacd);
-uint16_t    usb_hmidi_pipe_info(usb_utr_t *ptr, uint8_t *table, uint16_t speed, uint16_t length);
-uint16_t    usb_hmidi_get_string_desc(usb_utr_t *ptr, uint16_t addr, uint16_t string, usb_cb_t complete);
-void        hmidi_configured(usb_utr_t *ptr, uint16_t dev_addr, uint16_t data2);
-void        hmidi_detach(usb_utr_t *ptr, uint16_t devadr, uint16_t data2);
-void        hmidi_resume_complete(usb_utr_t *ptr, uint16_t devadr, uint16_t data2);
+void usb_hmidi_task(usb_vp_int_t stacd);
+uint16_t usb_hmidi_pipe_info(usb_utr_t* ptr, uint8_t* table, uint16_t speed, uint16_t length);
+uint16_t usb_hmidi_get_string_desc(usb_utr_t* ptr, uint16_t addr, uint16_t string, usb_cb_t complete);
+void hmidi_configured(usb_utr_t* ptr, uint16_t dev_addr, uint16_t data2);
+void hmidi_detach(usb_utr_t* ptr, uint16_t devadr, uint16_t data2);
+void hmidi_resume_complete(usb_utr_t* ptr, uint16_t devadr, uint16_t data2);
 
-
-#endif  /* R_USB_HMIDI_H */
+#endif /* R_USB_HMIDI_H */
 
 /******************************************************************************
  End Of File

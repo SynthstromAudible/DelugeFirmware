@@ -34,41 +34,42 @@
 
 #if ((USB_CFG_DTC == USB_CFG_ENABLE) || (USB_CFG_DMA == USB_CFG_ENABLE))
 #include "drivers/usb/r_usb_basic/src/hw/inc/r_usb_dmac.h"
-#endif  /* ((USB_CFG_DTC == USB_CFG_ENABLE) || (USB_CFG_DMA == USB_CFG_ENABLE)) */
+#endif /* ((USB_CFG_DTC == USB_CFG_ENABLE) || (USB_CFG_DMA == USB_CFG_ENABLE)) */
 
 #if ((USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST)
 /***********************************************************************************************************************
  Macro definitions
  ***********************************************************************************************************************/
-#define USB_IDMAX           (11u)                 /* Maximum Task ID +1 */
-#define USB_PRIMAX          (8u)                  /* Maximum Priority number +1 */
-#define USB_BLKMAX          (20u)                 /* Maximum block */
-#define USB_TABLEMAX        (USB_BLKMAX)          /* Maximum priority table */
-#define USB_WAIT_EVENT_MAX  (5u)
+#define USB_IDMAX          (11u)        /* Maximum Task ID +1 */
+#define USB_PRIMAX         (8u)         /* Maximum Priority number +1 */
+#define USB_BLKMAX         (20u)        /* Maximum block */
+#define USB_TABLEMAX       (USB_BLKMAX) /* Maximum priority table */
+#define USB_WAIT_EVENT_MAX (5u)
 
 /***********************************************************************************************************************
  Private global variables and functions
  ***********************************************************************************************************************/
 /* Priority Table */
-static usb_msg_t*   p_usb_scheduler_table_add[USB_PRIMAX][USB_TABLEMAX];
-static uint8_t      usb_scheduler_table_id[USB_PRIMAX][USB_TABLEMAX];
-static uint8_t      usb_scheduler_pri_r[USB_PRIMAX];
-static uint8_t      usb_scheduler_pri_w[USB_PRIMAX];
-static uint8_t      usb_scheduler_pri[USB_IDMAX];
+static usb_msg_t* p_usb_scheduler_table_add[USB_PRIMAX][USB_TABLEMAX];
+static uint8_t usb_scheduler_table_id[USB_PRIMAX][USB_TABLEMAX];
+static uint8_t usb_scheduler_pri_r[USB_PRIMAX];
+static uint8_t usb_scheduler_pri_w[USB_PRIMAX];
+static uint8_t usb_scheduler_pri[USB_IDMAX];
 
 /* Schedule Set Flag  */
-uint8_t      usb_scheduler_schedule_flag; // Whether something's scheduled to happen right now
+uint8_t usb_scheduler_schedule_flag; // Whether something's scheduled to happen right now
 
 /* Fixed-sized memory pools */
-static usb_utr_t    usb_scheduler_block[USB_BLKMAX];
-static uint8_t      usb_scheduler_blk_flg[USB_BLKMAX];
+static usb_utr_t usb_scheduler_block[USB_BLKMAX];
+static uint8_t usb_scheduler_blk_flg[USB_BLKMAX];
 
-usb_msg_t*   p_usb_scheduler_add_use; // This seems to be the pointer to the actual message that's been scheduled.
-uint8_t      usb_scheduler_id_use; // Ok, this is the ID (e.g. USB_HCD_MBX) of what message the scheduler has decided we should use.
+usb_msg_t* p_usb_scheduler_add_use; // This seems to be the pointer to the actual message that's been scheduled.
+uint8_t
+    usb_scheduler_id_use; // Ok, this is the ID (e.g. USB_HCD_MBX) of what message the scheduler has decided we should use.
 
 /* Wait MSG */
-static usb_msg_t*   p_usb_scheduler_wait_add[USB_IDMAX][USB_WAIT_EVENT_MAX];
-static uint16_t     usb_scheduler_wait_counter[USB_IDMAX][USB_WAIT_EVENT_MAX];
+static usb_msg_t* p_usb_scheduler_wait_add[USB_IDMAX][USB_WAIT_EVENT_MAX];
+static uint16_t usb_scheduler_wait_counter[USB_IDMAX][USB_WAIT_EVENT_MAX];
 
 /***********************************************************************************************************************
  Renesas Scheduler API functions
@@ -104,11 +105,11 @@ usb_er_t usb_cstd_rec_msg(uint8_t id, usb_msg_t** mess, usb_tm_t tm)
  ***********************************************************************************************************************/
 usb_er_t usb_cstd_snd_msg(uint8_t id, usb_msg_t* mess)
 {
-    usb_er_t    status;
+    usb_er_t status;
 
     /* USB interrupt disable */
     usb_cpu_int_disable((usb_utr_t*)mess);
-    status = usb_cstd_isnd_msg(id,mess);
+    status = usb_cstd_isnd_msg(id, mess);
 
     /* USB interrupt enable */
     usb_cpu_int_enable((usb_utr_t*)mess);
@@ -125,14 +126,14 @@ usb_er_t usb_cstd_snd_msg(uint8_t id, usb_msg_t* mess)
  ***********************************************************************************************************************/
 usb_er_t usb_cstd_isnd_msg(uint8_t id, usb_msg_t* mess)
 {
-    uint8_t     usb_pri;        /* Task Priority */
-    uint8_t     usb_write;      /* Priority Table Writing pointer */
+    uint8_t usb_pri;   /* Task Priority */
+    uint8_t usb_write; /* Priority Table Writing pointer */
 
     if (id < USB_IDMAX)
     {
         /* Read priority and table pointer */
-        usb_pri     = usb_scheduler_pri[id];
-        usb_write   = usb_scheduler_pri_w[usb_pri];
+        usb_pri   = usb_scheduler_pri[id];
+        usb_write = usb_scheduler_pri_w[usb_pri];
         if (usb_pri < USB_PRIMAX)
         {
             /* Renewal write pointer */
@@ -150,12 +151,13 @@ usb_er_t usb_cstd_isnd_msg(uint8_t id, usb_msg_t* mess)
 
             /* Save message */
             /* Set priority table */
-            usb_scheduler_table_id[usb_pri][usb_write]      = id;
-            p_usb_scheduler_table_add[usb_pri][usb_write]   = mess;
-            usb_scheduler_pri_w[usb_pri]                    = usb_write;
+            usb_scheduler_table_id[usb_pri][usb_write]    = id;
+            p_usb_scheduler_table_add[usb_pri][usb_write] = mess;
+            usb_scheduler_pri_w[usb_pri]                  = usb_write;
             return USB_OK;
         }
-    }USB_PRINTF0("SND_MSG ERROR !!\n");
+    }
+    USB_PRINTF0("SND_MSG ERROR !!\n");
     return USB_ERROR;
 } /* End of function usb_cstd_isnd_msg() */
 
@@ -168,7 +170,7 @@ usb_er_t usb_cstd_isnd_msg(uint8_t id, usb_msg_t* mess)
  ***********************************************************************************************************************/
 usb_err_t usb_cstd_pget_blk(uint8_t id, usb_utr_t** blk)
 {
-    uint8_t     usb_s_pblk_c;
+    uint8_t usb_s_pblk_c;
 
     if (id < USB_IDMAX)
     {
@@ -178,7 +180,7 @@ usb_err_t usb_cstd_pget_blk(uint8_t id, usb_utr_t** blk)
             if (USB_FLGCLR == usb_scheduler_blk_flg[usb_s_pblk_c])
             {
                 /* Acquire fixed-size memory block */
-                *blk = &usb_scheduler_block[usb_s_pblk_c];
+                *blk                                = &usb_scheduler_block[usb_s_pblk_c];
                 usb_scheduler_blk_flg[usb_s_pblk_c] = USB_FLGSET;
                 return USB_SUCCESS;
             }
@@ -186,9 +188,9 @@ usb_err_t usb_cstd_pget_blk(uint8_t id, usb_utr_t** blk)
         }
 
         /* Error of BLK Table Full !!  */
-        USB_PRINTF1("usb_scBlkFlg[%d][] Full !!\n",id);
+        USB_PRINTF1("usb_scBlkFlg[%d][] Full !!\n", id);
     }
-    return  USB_ERR_NG;
+    return USB_ERR_NG;
 } /* End of function usb_cstd_pget_blk() */
 
 /***********************************************************************************************************************
@@ -198,9 +200,9 @@ usb_err_t usb_cstd_pget_blk(uint8_t id, usb_utr_t** blk)
                  : usb_utr_t    *blk         : Memory block pointer.
  Return          : usb_err_t                 : USB_OK / USB_ERROR
  ***********************************************************************************************************************/
-usb_err_t usb_cstd_rel_blk(uint8_t id,  usb_utr_t* blk)
+usb_err_t usb_cstd_rel_blk(uint8_t id, usb_utr_t* blk)
 {
-    uint16_t    usb_s_rblk_c;
+    uint16_t usb_s_rblk_c;
 
     if (id < USB_IDMAX)
     {
@@ -233,7 +235,7 @@ usb_err_t usb_cstd_rel_blk(uint8_t id,  usb_utr_t* blk)
  ***********************************************************************************************************************/
 usb_err_t usb_cstd_wai_msg(uint8_t id, usb_msg_t* mess, usb_tm_t times)
 {
-    uint8_t     i;
+    uint8_t i;
 
     if (id < USB_IDMAX)
     {
@@ -241,7 +243,7 @@ usb_err_t usb_cstd_wai_msg(uint8_t id, usb_msg_t* mess, usb_tm_t times)
         {
             if (0 == usb_scheduler_wait_counter[id][i])
             {
-                p_usb_scheduler_wait_add[id][i] = mess;
+                p_usb_scheduler_wait_add[id][i]   = mess;
                 usb_scheduler_wait_counter[id][i] = times;
                 return USB_SUCCESS;
             }
@@ -261,9 +263,9 @@ usb_err_t usb_cstd_wai_msg(uint8_t id, usb_msg_t* mess, usb_tm_t times)
  ***********************************************************************************************************************/
 void usb_cstd_wait_scheduler(void)
 {
-    usb_er_t    err;
-    uint8_t     id;
-    uint8_t     i;
+    usb_er_t err;
+    uint8_t id;
+    uint8_t i;
 
     for (id = 0; id < USB_IDMAX; id++)
     {
@@ -293,8 +295,8 @@ void usb_cstd_wait_scheduler(void)
  ***********************************************************************************************************************/
 void usb_cstd_sche_init(void)
 {
-    uint8_t     i;
-    uint8_t     j;
+    uint8_t i;
+    uint8_t j;
 
     /* Initial Scheduler */
     usb_scheduler_id_use        = USB_NULL;
@@ -305,26 +307,26 @@ void usb_cstd_sche_init(void)
     {
         usb_scheduler_pri_r[i] = USB_NULL;
         usb_scheduler_pri_w[i] = USB_NULL;
-        for (j = 0;USB_TABLEMAX != j; j++)
+        for (j = 0; USB_TABLEMAX != j; j++)
         {
             usb_scheduler_table_id[i][j] = USB_IDMAX;
         }
     }
 
     /* Initialize block table */
-    for (i = 0;USB_BLKMAX != i; i++)
+    for (i = 0; USB_BLKMAX != i; i++)
     {
         usb_scheduler_blk_flg[i] = USB_NULL;
     }
 
     /* Initialize priority */
-    for (i = 0;USB_IDMAX != i; i++)
+    for (i = 0; USB_IDMAX != i; i++)
     {
-        usb_scheduler_pri[i] = (uint8_t) USB_IDCLR;
+        usb_scheduler_pri[i] = (uint8_t)USB_IDCLR;
         for (j = 0; j < USB_WAIT_EVENT_MAX; j++)
         {
-            p_usb_scheduler_wait_add[i][j]      = (usb_msg_t*) USB_NULL;
-            usb_scheduler_wait_counter[i][j]    = USB_NULL;
+            p_usb_scheduler_wait_add[i][j]   = (usb_msg_t*)USB_NULL;
+            usb_scheduler_wait_counter[i][j] = USB_NULL;
         }
     }
 } /* End of function usb_cstd_sche_init() */
@@ -337,17 +339,19 @@ void usb_cstd_sche_init(void)
  ***********************************************************************************************************************/
 void usb_cstd_scheduler(void)
 {
-    uint8_t    usb_pri;         /* Priority Counter */
-    uint8_t    usb_read;        /* Priority Table read pointer */
+    uint8_t usb_pri;  /* Priority Counter */
+    uint8_t usb_read; /* Priority Table read pointer */
 
     /* wait msg */
     usb_cstd_wait_scheduler(); // I think this is some horribly inefficient way of delaying messages that are meant to have a delay time. Rohan
 
     /* Priority Table reading */
     usb_pri = USB_CNTCLR;
-    while (usb_pri < USB_PRIMAX) // I think this is cycling through all the priorities, from highest priority, til we find a message to action.
+    while (
+        usb_pri
+        < USB_PRIMAX) // I think this is cycling through all the priorities, from highest priority, til we find a message to action.
     {
-    	// If there are any un-dealt-with messages at this priority level...
+        // If there are any un-dealt-with messages at this priority level...
         usb_read = usb_scheduler_pri_r[usb_pri];
         if (usb_read != usb_scheduler_pri_w[usb_pri])
         {
@@ -359,11 +363,11 @@ void usb_cstd_scheduler(void)
             }
 
             /* Set practise message */
-            usb_scheduler_id_use = usb_scheduler_table_id[usb_pri][usb_read];
-            p_usb_scheduler_add_use = p_usb_scheduler_table_add[usb_pri][usb_read];
+            usb_scheduler_id_use                      = usb_scheduler_table_id[usb_pri][usb_read];
+            p_usb_scheduler_add_use                   = p_usb_scheduler_table_add[usb_pri][usb_read];
             usb_scheduler_table_id[usb_pri][usb_read] = USB_IDMAX;
-            usb_scheduler_pri_r[usb_pri] = usb_read;
-            usb_scheduler_schedule_flag = USB_FLGSET;
+            usb_scheduler_pri_r[usb_pri]              = usb_read;
+            usb_scheduler_schedule_flag               = USB_FLGSET;
             break;
         }
         else
@@ -372,8 +376,8 @@ void usb_cstd_scheduler(void)
         }
     }
 #if ((USB_CFG_DTC == USB_CFG_ENABLE) || (USB_CFG_DMA == USB_CFG_ENABLE))
-    usb_dma_driver();           /* USB DMA driver */
-#endif  /* ((USB_CFG_DTC == USB_CFG_ENABLE) || (USB_CFG_DMA == USB_CFG_ENABLE)) */
+    usb_dma_driver(); /* USB DMA driver */
+#endif                /* ((USB_CFG_DTC == USB_CFG_ENABLE) || (USB_CFG_DMA == USB_CFG_ENABLE)) */
 } /* End of function usb_cstd_scheduler() */
 
 /***********************************************************************************************************************
@@ -391,9 +395,9 @@ void usb_cstd_set_task_pri(uint8_t tasknum, uint8_t pri)
         {
             usb_scheduler_pri[tasknum] = pri;
         }
-        else if ((uint8_t) USB_IDCLR == pri)
+        else if ((uint8_t)USB_IDCLR == pri)
         {
-            usb_scheduler_pri[tasknum] = (uint8_t) USB_IDCLR;
+            usb_scheduler_pri[tasknum] = (uint8_t)USB_IDCLR;
         }
         else
         {
@@ -402,7 +406,7 @@ void usb_cstd_set_task_pri(uint8_t tasknum, uint8_t pri)
     }
 } /* End of function usb_cstd_set_task_pri() */
 
-#endif  /* (USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST */
+#endif /* (USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST */
 
 /***********************************************************************************************************************
  End Of File

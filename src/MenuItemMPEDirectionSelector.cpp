@@ -28,7 +28,8 @@ void MenuItemMPEDirectionSelector::beginSession(MenuItem* navigatedBackwardFrom)
 }
 
 char const** MenuItemMPEDirectionSelector::getOptions() {
-	static char const* options[] = {"In", "Out", NULL}; return options;
+	static char const* options[] = {"In", "Out", NULL};
+	return options;
 }
 
 void MenuItemMPEDirectionSelector::readCurrentValue() {

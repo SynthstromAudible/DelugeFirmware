@@ -37,11 +37,12 @@ extern uint32_t __heap_end;
 
 GeneralMemoryAllocator generalMemoryAllocator;
 
-GeneralMemoryAllocator::GeneralMemoryAllocator()
-{
+GeneralMemoryAllocator::GeneralMemoryAllocator() {
 	lock = false;
-	regions[MEMORY_REGION_SDRAM].setup(emptySpacesMemory, sizeof(emptySpacesMemory), EXTERNAL_MEMORY_BEGIN, EXTERNAL_MEMORY_END);
-	regions[MEMORY_REGION_INTERNAL].setup(emptySpacesMemoryInternal, sizeof(emptySpacesMemoryInternal), (uint32_t)&__heap_start, INTERNAL_MEMORY_END - 8192);
+	regions[MEMORY_REGION_SDRAM].setup(emptySpacesMemory, sizeof(emptySpacesMemory), EXTERNAL_MEMORY_BEGIN,
+	                                   EXTERNAL_MEMORY_END);
+	regions[MEMORY_REGION_INTERNAL].setup(emptySpacesMemoryInternal, sizeof(emptySpacesMemoryInternal),
+	                                      (uint32_t)&__heap_start, INTERNAL_MEMORY_END - 8192);
 
 #if ALPHA_OR_BETA_VERSION
 	regions[MEMORY_REGION_SDRAM].name = "external";
@@ -49,10 +50,7 @@ GeneralMemoryAllocator::GeneralMemoryAllocator()
 #endif
 }
 
-
-
 int closestDistance = 2147483647;
-
 
 void GeneralMemoryAllocator::checkStack(char const* caller) {
 #if ALPHA_OR_BETA_VERSION
@@ -75,8 +73,6 @@ void GeneralMemoryAllocator::checkStack(char const* caller) {
 #endif
 }
 
-
-
 #if TEST_GENERAL_MEMORY_ALLOCATION
 uint32_t totalMallocTime = 0;
 int numMallocTimes = 0;
@@ -88,18 +84,22 @@ extern "C" void* delugeAlloc(int requiredSize) {
 
 // Watch the heck out - in the older V3.1 branch, this had one less argument - makeStealable was missing - so in code from there, thingNotToStealFrom could be interpreted as makeStealable!
 // requiredSize 0 means get biggest allocation available.
-void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, uint32_t* getAllocatedSize, bool mayDeleteFirstUndoAction, bool mayUseOnChipRam, bool makeStealable, void* thingNotToStealFrom, bool getBiggestAllocationPossible) {
+void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, uint32_t* getAllocatedSize, bool mayDeleteFirstUndoAction,
+                                    bool mayUseOnChipRam, bool makeStealable, void* thingNotToStealFrom,
+                                    bool getBiggestAllocationPossible) {
 
-	if (lock) return NULL; // Prevent any weird loops in freeSomeStealableMemory(), which mostly would only be bad cos they could extend the stack an unspecified amount
+	if (lock)
+		return NULL; // Prevent any weird loops in freeSomeStealableMemory(), which mostly would only be bad cos they could extend the stack an unspecified amount
 
 	if (mayUseOnChipRam
 #if TEST_GENERAL_MEMORY_ALLOCATION
-			&& getRandom255() < 128
+	    && getRandom255() < 128
 #endif
-			) {
+	) {
 		lock = true;
 		//uint16_t startTime = *TCNT[TIMER_SYSTEM_FAST];
-		void* address = regions[MEMORY_REGION_INTERNAL].alloc(requiredSize, getAllocatedSize, makeStealable, thingNotToStealFrom, getBiggestAllocationPossible);
+		void* address = regions[MEMORY_REGION_INTERNAL].alloc(requiredSize, getAllocatedSize, makeStealable,
+		                                                      thingNotToStealFrom, getBiggestAllocationPossible);
 		//uint16_t endTime = *TCNT[TIMER_SYSTEM_FAST];
 		lock = false;
 		if (address) {
@@ -127,11 +127,11 @@ void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, uint32_t* getAllocate
 #endif
 
 	lock = true;
-	void* address = regions[MEMORY_REGION_SDRAM].alloc(requiredSize, getAllocatedSize, makeStealable, thingNotToStealFrom, getBiggestAllocationPossible);
+	void* address = regions[MEMORY_REGION_SDRAM].alloc(requiredSize, getAllocatedSize, makeStealable,
+	                                                   thingNotToStealFrom, getBiggestAllocationPossible);
 	lock = false;
 	return address;
 }
-
 
 uint32_t GeneralMemoryAllocator::getAllocatedSize(void* address) {
 	uint32_t* header = (uint32_t*)((uint32_t)address - 4);
@@ -148,12 +148,14 @@ uint32_t GeneralMemoryAllocator::shortenRight(void* address, uint32_t newSize) {
 }
 
 // Returns how much it was shortened by
-uint32_t GeneralMemoryAllocator::shortenLeft(void* address, uint32_t amountToShorten, uint32_t numBytesToMoveRightIfSuccessful) {
+uint32_t GeneralMemoryAllocator::shortenLeft(void* address, uint32_t amountToShorten,
+                                             uint32_t numBytesToMoveRightIfSuccessful) {
 	return regions[getRegion(address)].shortenLeft(address, amountToShorten, numBytesToMoveRightIfSuccessful);
 }
 
-
-void GeneralMemoryAllocator::extend(void* address, uint32_t minAmountToExtend, uint32_t idealAmountToExtend, uint32_t* __restrict__ getAmountExtendedLeft, uint32_t* __restrict__ getAmountExtendedRight, void* thingNotToStealFrom) {
+void GeneralMemoryAllocator::extend(void* address, uint32_t minAmountToExtend, uint32_t idealAmountToExtend,
+                                    uint32_t* __restrict__ getAmountExtendedLeft,
+                                    uint32_t* __restrict__ getAmountExtendedRight, void* thingNotToStealFrom) {
 
 	*getAmountExtendedLeft = 0;
 	*getAmountExtendedRight = 0;
@@ -161,7 +163,8 @@ void GeneralMemoryAllocator::extend(void* address, uint32_t minAmountToExtend, u
 	if (lock) return;
 
 	lock = true;
-	regions[getRegion(address)].extend(address, minAmountToExtend, idealAmountToExtend, getAmountExtendedLeft, getAmountExtendedRight, thingNotToStealFrom);
+	regions[getRegion(address)].extend(address, minAmountToExtend, idealAmountToExtend, getAmountExtendedLeft,
+	                                   getAmountExtendedRight, thingNotToStealFrom);
 	lock = false;
 }
 
@@ -177,7 +180,6 @@ void GeneralMemoryAllocator::dealloc(void* address) {
 	return regions[getRegion(address)].dealloc(address);
 }
 
-
 void GeneralMemoryAllocator::putStealableInQueue(Stealable* stealable, int q) {
 	MemoryRegion* region = &regions[getRegion(stealable)];
 	region->stealableClusterQueues[q].addToEnd(stealable);
@@ -188,9 +190,6 @@ void GeneralMemoryAllocator::putStealableInAppropriateQueue(Stealable* stealable
 	int q = stealable->getAppropriateQueue();
 	putStealableInQueue(stealable, q);
 }
-
-
-
 
 #if TEST_GENERAL_MEMORY_ALLOCATION
 
@@ -220,7 +219,6 @@ public:
 				}
 				generalMemoryAllocator.dealloc(testAllocations[i]);
 				testAllocations[i] = NULL;
-
 			}
 
 			else {
@@ -229,15 +227,10 @@ public:
 			}
 		}
 	}
-	bool mayBeStolen(void* thingNotToStealFrom) {
-		return true;
-	}
-	int getAppropriateQueue() {
-		return 0;
-	}
+	bool mayBeStolen(void* thingNotToStealFrom) { return true; }
+	int getAppropriateQueue() { return 0; }
 	int testIndex;
 };
-
 
 void testReadingMemory(int i) {
 	uint8_t* __restrict__ readPos = (uint8_t*)testAllocations[i];
@@ -250,7 +243,7 @@ void testReadingMemory(int i) {
 			Uart::println(sizes[i]);
 			Uart::print("num bytes in: ");
 			Uart::println((int)readPos - (int)testAllocations[i]);
-			while(1) {}
+			while (1) {}
 		}
 		readPos++;
 		readValue++;
@@ -267,7 +260,8 @@ void testWritingMemory(int i) {
 	}
 }
 
-bool skipConsistencyCheck = false; // Sometimes we want to make sure this check isn't happen, while things temporarily are not in an inspectable state
+bool skipConsistencyCheck =
+    false; // Sometimes we want to make sure this check isn't happen, while things temporarily are not in an inspectable state
 
 void GeneralMemoryAllocator::checkEverythingOk(char const* errorString) {
 	if (skipConsistencyCheck) return;
@@ -328,15 +322,16 @@ void GeneralMemoryAllocator::testMemoryDeallocated(void* address) {
 	}
 }
 
-
 void GeneralMemoryAllocator::testShorten(int i) {
 	int a = getRandom255();
 
 	if (a < 128) {
 
 		if (!getRandom255()) Uart::println("shortening left");
-		int newSize = ((uint32_t)getRandom255() << 17) | ((uint32_t)getRandom255() << 9) | ((uint32_t)getRandom255() << 1);
-		while (newSize > sizes[i]) newSize >>= 1;
+		int newSize =
+		    ((uint32_t)getRandom255() << 17) | ((uint32_t)getRandom255() << 9) | ((uint32_t)getRandom255() << 1);
+		while (newSize > sizes[i])
+			newSize >>= 1;
 		int amountShortened = shortenLeft(testAllocations[i], sizes[i] - newSize);
 
 		sizes[i] -= amountShortened;
@@ -348,14 +343,15 @@ void GeneralMemoryAllocator::testShorten(int i) {
 	else {
 
 		if (!getRandom255()) Uart::println("shortening right");
-		int newSize = ((uint32_t)getRandom255() << 17) | ((uint32_t)getRandom255() << 9) | ((uint32_t)getRandom255() << 1);
-		while (newSize > sizes[i]) newSize >>= 1;
+		int newSize =
+		    ((uint32_t)getRandom255() << 17) | ((uint32_t)getRandom255() << 9) | ((uint32_t)getRandom255() << 1);
+		while (newSize > sizes[i])
+			newSize >>= 1;
 		sizes[i] = shortenRight(testAllocations[i], newSize);
 
 		checkEverythingOk("after shortening right");
 	}
 }
-
 
 void GeneralMemoryAllocator::test() {
 
@@ -382,10 +378,9 @@ void GeneralMemoryAllocator::test() {
 				// Check data is still there
 				if (spaceTypes[i] != SPACE_HEADER_STEALABLE) testReadingMemory(i);
 
-
 				if (spaceTypes[i] == SPACE_HEADER_STEALABLE
-						//|| (uint32_t)testAllocations[i] >= (uint32_t)INTERNAL_MEMORY_BEGIN // If on-chip memory, this is the only option
-						|| getRandom255() < 128) {
+				    //|| (uint32_t)testAllocations[i] >= (uint32_t)INTERNAL_MEMORY_BEGIN // If on-chip memory, this is the only option
+				    || getRandom255() < 128) {
 
 					if (spaceTypes[i] == SPACE_HEADER_STEALABLE) {
 						((Stealable*)testAllocations[i])->~Stealable();
@@ -408,7 +403,9 @@ void GeneralMemoryAllocator::test() {
 						if (!getRandom255()) Uart::println("extending");
 						uint32_t amountExtendedLeft, amountExtendedRight;
 
-						uint32_t idealAmountToExtend = ((uint32_t)getRandom255() << 17) | ((uint32_t)getRandom255() << 9) | ((uint32_t)getRandom255() << 1);
+						uint32_t idealAmountToExtend = ((uint32_t)getRandom255() << 17)
+						                               | ((uint32_t)getRandom255() << 9)
+						                               | ((uint32_t)getRandom255() << 1);
 						int magnitudeReduction = getRandom255() % 25;
 						idealAmountToExtend >>= magnitudeReduction;
 
@@ -420,9 +417,11 @@ void GeneralMemoryAllocator::test() {
 						checkEverythingOk("before extending");
 
 						void* allocationAddress = testAllocations[i];
-						testAllocations[i] = NULL; // Set this to NULL temporarily so we don't do deallocate or shorten it during a steal()
+						testAllocations[i] =
+						    NULL; // Set this to NULL temporarily so we don't do deallocate or shorten it during a steal()
 
-						extend(allocationAddress, minAmountToExtend, idealAmountToExtend, &amountExtendedLeft, &amountExtendedRight);
+						extend(allocationAddress, minAmountToExtend, idealAmountToExtend, &amountExtendedLeft,
+						       &amountExtendedRight);
 
 						testAllocations[i] = allocationAddress;
 
@@ -449,16 +448,15 @@ void GeneralMemoryAllocator::test() {
 				}
 			}
 
-
 			if (getRandom255() < 2) {
 				Uart::print("\nfree spaces: ");
 				Uart::println(regions[MEMORY_REGION_SDRAM].emptySpaces.getNumElements());
 				Uart::print("allocations: ");
 				Uart::println(regions[MEMORY_REGION_SDRAM].numAllocations);
 
-
 				if (regions[MEMORY_REGION_SDRAM].emptySpaces.getNumElements() == 1) {
-					EmptySpaceRecord* firstRecord = (EmptySpaceRecord*)regions[MEMORY_REGION_SDRAM].emptySpaces.getElementAddress(0);
+					EmptySpaceRecord* firstRecord =
+					    (EmptySpaceRecord*)regions[MEMORY_REGION_SDRAM].emptySpaces.getElementAddress(0);
 					Uart::print("free space size: ");
 					Uart::println(firstRecord->length);
 					Uart::print("free space address: ");
@@ -467,9 +465,8 @@ void GeneralMemoryAllocator::test() {
 				delayMS(200);
 			}
 
-
-
-			int desiredSize = ((uint32_t)getRandom255() << 9) | ((uint32_t)getRandom255() << 1); // (uint32_t)getRandom255() << 17) |
+			int desiredSize =
+			    ((uint32_t)getRandom255() << 9) | ((uint32_t)getRandom255() << 1); // (uint32_t)getRandom255() << 17) |
 
 			int magnitudeReduction = getRandom255() % 25;
 			desiredSize >>= magnitudeReduction;
@@ -490,7 +487,7 @@ void GeneralMemoryAllocator::test() {
 					if (actualSize < desiredSize) {
 						Uart::println("got too little!!");
 						Uart::println(desiredSize - actualSize);
-						while(1) {}
+						while (1) {}
 					}
 
 					sizes[i] = actualSize;
@@ -513,7 +510,6 @@ void GeneralMemoryAllocator::test() {
 				checkEverythingOk("after allocating");
 			}
 		}
-
 
 		goingUp = !goingUp;
 	}

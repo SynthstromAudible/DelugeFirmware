@@ -21,7 +21,6 @@
 #include "Consequence.h"
 #include "DString.h"
 
-
 class AudioClip;
 
 class ConsequenceAudioClipSetSample final : public Consequence {

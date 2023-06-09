@@ -69,8 +69,6 @@ class ModelStack;
 #define ACTION_NOTEROW_LENGTH_EDIT 25
 #define ACTION_NOTEROW_HORIZONTAL_SHIFT 26
 
-
-
 class Action {
 public:
 	Action(int newActionType);
@@ -79,11 +77,13 @@ public:
 	bool containsConsequenceParamChange(ParamCollection* paramCollection, int paramId);
 	void recordParamChangeIfNotAlreadySnapshotted(ModelStackWithAutoParam const* modelStack, bool stealData = false);
 	void recordParamChangeDefinitely(ModelStackWithAutoParam const* modelStack, bool stealData);
-	int recordNoteArrayChangeIfNotAlreadySnapshotted(InstrumentClip* clip, int noteRowId, NoteVector* noteVector, bool stealData, bool moveToFrontIfAlreadySnapshotted = false);
+	int recordNoteArrayChangeIfNotAlreadySnapshotted(InstrumentClip* clip, int noteRowId, NoteVector* noteVector,
+	                                                 bool stealData, bool moveToFrontIfAlreadySnapshotted = false);
 	int recordNoteArrayChangeDefinitely(InstrumentClip* clip, int noteRowId, NoteVector* noteVector, bool stealData);
 	bool containsConsequenceNoteArrayChange(InstrumentClip* clip, int noteRowId, bool moveToFrontIfFound = false);
 	void recordNoteExistenceChange(InstrumentClip* clip, int noteRowId, Note* note, int type);
-	void recordNoteChange(InstrumentClip* clip, int noteRowId, Note* note, int32_t lengthAfter, int velocityAfter, int probabilityAfter);
+	void recordNoteChange(InstrumentClip* clip, int noteRowId, Note* note, int32_t lengthAfter, int velocityAfter,
+	                      int probabilityAfter);
 	void updateYScrollClipViewAfter(InstrumentClip* clip = NULL);
 	void recordClipInstanceExistenceChange(Output* output, ClipInstance* clipInstance, int type);
 	void prepareForDestruction(int whichQueueActionIn, Song* song);
@@ -114,14 +114,13 @@ public:
 	bool tripletsOn;
 	uint32_t tripletsLevel;
 
+	//bool inKeyboardView;
 
-    //bool inKeyboardView;
+	UI* view;
 
-    UI* view;
+	Clip* currentClip; // Watch out - this might get set to NULL
 
-    Clip* currentClip; // Watch out - this might get set to NULL
-
-    int32_t posToClearArrangementFrom;
+	int32_t posToClearArrangementFrom;
 
 	Action* nextAction;
 	Consequence* firstConsequence;

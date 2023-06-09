@@ -32,9 +32,7 @@ protected:
 #else
 	void drawValue();
 #endif
-
 };
-
 
 class MenuItemIntegerWithOff : public MenuItemInteger {
 public:
@@ -53,7 +51,6 @@ protected:
 	void drawPixelsForOled();
 	void drawBar(int yTop, int marginL, int marginR = -1);
 #endif
-
 };
 
 #endif /* MENUITEMINTEGER_H_ */

@@ -27,47 +27,45 @@ class ParamManagerForTimeline;
 class WaveTable;
 class SampleHolder;
 
-class Source
-{
+class Source {
 public:
 	Source();
 	~Source();
 
 	SampleControls sampleControls;
 
-    uint8_t oscType;
+	uint8_t oscType;
 
-    // These are not valid for Samples
-    int16_t transpose;
-    int8_t cents;
-    PhaseIncrementFineTuner fineTuner;
+	// These are not valid for Samples
+	int16_t transpose;
+	int8_t cents;
+	PhaseIncrementFineTuner fineTuner;
 
-    MultiRangeArray ranges;
+	MultiRangeArray ranges;
 
-    uint8_t repeatMode;
+	uint8_t repeatMode;
 
-    int8_t timeStretchAmount;
+	int8_t timeStretchAmount;
 
-    int16_t defaultRangeI; // -1 means none yet
+	int16_t defaultRangeI; // -1 means none yet
 
-    bool renderInStereo(SampleHolder* sampleHolder = NULL);
-    void setCents(int newCents);
-    void recalculateFineTuner();
-    int32_t getLengthInSamplesAtSystemSampleRate(int note, bool forTimeStretching = false);
-    void detachAllAudioFiles();
-    int loadAllSamples(bool mayActuallyReadFiles);
-    void setReversed(bool newReversed);
-    int getRangeIndex(int note);
-    MultiRange* getRange(int note);
-    MultiRange* getOrCreateFirstRange();
-    bool hasAtLeastOneAudioFileLoaded();
-    void doneReadingFromFile(Sound* sound);
-    bool hasAnyLoopEndPoint();
-    void setOscType(int newType);
-
+	bool renderInStereo(SampleHolder* sampleHolder = NULL);
+	void setCents(int newCents);
+	void recalculateFineTuner();
+	int32_t getLengthInSamplesAtSystemSampleRate(int note, bool forTimeStretching = false);
+	void detachAllAudioFiles();
+	int loadAllSamples(bool mayActuallyReadFiles);
+	void setReversed(bool newReversed);
+	int getRangeIndex(int note);
+	MultiRange* getRange(int note);
+	MultiRange* getOrCreateFirstRange();
+	bool hasAtLeastOneAudioFileLoaded();
+	void doneReadingFromFile(Sound* sound);
+	bool hasAnyLoopEndPoint();
+	void setOscType(int newType);
 
 private:
-    void destructAllMultiRanges();
+	void destructAllMultiRanges();
 };
 
 #endif

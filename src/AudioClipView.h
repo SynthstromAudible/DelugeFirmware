@@ -26,43 +26,43 @@ class AudioClipView final : public ClipView, public ClipMinder {
 public:
 	AudioClipView();
 
-    bool opened();
-    void focusRegained();
-    bool renderMainPads(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3], uint8_t occupancyMask[][displayWidth + sideBarWidth], bool drawUndefinedArea = true);
-    bool renderSidebar(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3], uint8_t occupancyMask[][displayWidth + sideBarWidth]);
-    bool setupScroll(uint32_t oldScroll);
-    void transitionToSessionView();
-    void tellMatrixDriverWhichRowsContainSomethingZoomable();
-    bool supportsTriplets() { return false; }
-    ClipMinder* toClipMinder() { return this; }
+	bool opened();
+	void focusRegained();
+	bool renderMainPads(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
+	                    uint8_t occupancyMask[][displayWidth + sideBarWidth], bool drawUndefinedArea = true);
+	bool renderSidebar(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
+	                   uint8_t occupancyMask[][displayWidth + sideBarWidth]);
+	bool setupScroll(uint32_t oldScroll);
+	void transitionToSessionView();
+	void tellMatrixDriverWhichRowsContainSomethingZoomable();
+	bool supportsTriplets() { return false; }
+	ClipMinder* toClipMinder() { return this; }
 
-    int buttonAction(int x, int y, bool on, bool inCardRoutine);
-    int padAction(int x, int y, int velocity);
+	int buttonAction(int x, int y, bool on, bool inCardRoutine);
+	int padAction(int x, int y, int velocity);
 
-    void graphicsRoutine();
-    void playbackEnded();
+	void graphicsRoutine();
+	void playbackEnded();
 
-    void clipNeedsReRendering(Clip* clip);
-    void sampleNeedsReRendering(Sample* sample);
-    void selectEncoderAction(int8_t offset);
-    int verticalEncoderAction(int offset, bool inCardRoutine);
-    int timerCallback();
-    uint32_t getMaxLength();
-    unsigned int getMaxZoom();
+	void clipNeedsReRendering(Clip* clip);
+	void sampleNeedsReRendering(Sample* sample);
+	void selectEncoderAction(int8_t offset);
+	int verticalEncoderAction(int offset, bool inCardRoutine);
+	int timerCallback();
+	uint32_t getMaxLength();
+	unsigned int getMaxZoom();
 
 #if HAVE_OLED
-    void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
+	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
 #endif
 
 private:
-    void needsRenderingDependingOnSubMode();
-    int lastTickSquare;
-    bool mustRedrawTickSquares;
-    bool endMarkerVisible;
-    bool blinkOn;
-
+	void needsRenderingDependingOnSubMode();
+	int lastTickSquare;
+	bool mustRedrawTickSquares;
+	bool endMarkerVisible;
+	bool blinkOn;
 };
-
 
 extern AudioClipView audioClipView;
 

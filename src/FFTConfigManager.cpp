@@ -23,15 +23,15 @@ namespace FFTConfigManager {
 
 ne10_fft_r2c_cfg_int32_t configs[FFT_CONFIG_MAX_MAGNITUDE + 1];
 
-
 ne10_fft_r2c_cfg_int32_t getConfig(int magnitude) {
 	if (magnitude > FFT_CONFIG_MAX_MAGNITUDE) return NULL;
 
 	if (!configs[magnitude]) {
-		configs[magnitude] = ne10_fft_alloc_r2c_int32(1 << magnitude); // Allocates and sets up. And we'll just never deallocate.
+		configs[magnitude] =
+		    ne10_fft_alloc_r2c_int32(1 << magnitude); // Allocates and sets up. And we'll just never deallocate.
 	}
 
 	return configs[magnitude];
 }
 
-}
+} // namespace FFTConfigManager

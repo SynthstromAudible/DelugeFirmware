@@ -31,19 +31,18 @@
 #include "ParamSet.h"
 #include "functions.h"
 
-Drum::Drum(int newType) : type(newType)
-{
+Drum::Drum(int newType) : type(newType) {
 	next = NULL;
 
-    earlyNoteVelocity = 0;
-    earlyNoteStillActive = false;
+	earlyNoteVelocity = 0;
+	earlyNoteStillActive = false;
 
-    auditioned = false;
-    lastMIDIChannelAuditioned = MIDI_CHANNEL_NONE;
+	auditioned = false;
+	lastMIDIChannelAuditioned = MIDI_CHANNEL_NONE;
 
-    kit = NULL;
+	kit = NULL;
 
-    memset(lastExpressionInputsReceived, 0, sizeof(lastExpressionInputsReceived));
+	memset(lastExpressionInputsReceived, 0, sizeof(lastExpressionInputsReceived));
 }
 
 void Drum::writeMIDICommandsToFile() {
@@ -51,22 +50,21 @@ void Drum::writeMIDICommandsToFile() {
 	muteMIDICommand.writeNoteToFile("midiMuteCommand");
 }
 
-
 bool Drum::readDrumTagFromFile(char const* tagName) {
 
-    if (!strcmp(tagName, "midiMuteCommand")) {
-    	muteMIDICommand.readNoteFromFile();
-        storageManager.exitTag();
-    }
+	if (!strcmp(tagName, "midiMuteCommand")) {
+		muteMIDICommand.readNoteFromFile();
+		storageManager.exitTag();
+	}
 
-    else if (!strcmp(tagName, "midiInput")) {
-    	midiInput.readNoteFromFile();
-        storageManager.exitTag();
-    }
+	else if (!strcmp(tagName, "midiInput")) {
+		midiInput.readNoteFromFile();
+		storageManager.exitTag();
+	}
 
-    else return false;
+	else return false;
 
-    return true;
+	return true;
 }
 
 void Drum::recordNoteOnEarly(int velocity, bool noteTailsAllowed) {
@@ -82,30 +80,36 @@ extern bool expressionValueChangesMustBeDoneSmoothly;
 
 void Drum::getCombinedExpressionInputs(int16_t* combined) {
 	for (int i = 0; i < NUM_EXPRESSION_DIMENSIONS; i++) {
-		int32_t combinedValue = (int32_t)lastExpressionInputsReceived[0][i] + (int32_t)lastExpressionInputsReceived[1][i];
+		int32_t combinedValue =
+		    (int32_t)lastExpressionInputsReceived[0][i] + (int32_t)lastExpressionInputsReceived[1][i];
 		combined[i] = lshiftAndSaturate(combinedValue, 8);
 	}
 }
 
-void Drum::expressionEventPossiblyToRecord(ModelStackWithTimelineCounter* modelStack, int16_t newValue, int whichExpressionimension, int level) {
+void Drum::expressionEventPossiblyToRecord(ModelStackWithTimelineCounter* modelStack, int16_t newValue,
+                                           int whichExpressionimension, int level) {
 
 	// Ok we have to first combine the expression inputs that the user might have sent at both MPE/polyphonic/finger level, *and* at channel/instrument level.
 	// Yes, we combine these here at the input before the data gets recorded or sounded, because unlike for Instruments, we're a Drum, and all we have is the NoteRow level to store this stuff.
 	lastExpressionInputsReceived[level][whichExpressionimension] = newValue >> 8; // Store value
-	int32_t combinedValue = (int32_t)newValue + ((int32_t)lastExpressionInputsReceived[!level][whichExpressionimension] << 8);
+	int32_t combinedValue =
+	    (int32_t)newValue + ((int32_t)lastExpressionInputsReceived[!level][whichExpressionimension] << 8);
 	combinedValue = lshiftAndSaturate(combinedValue, 16);
 
 	expressionValueChangesMustBeDoneSmoothly = true;
 
 	// If recording, we send the new value to the AutoParam, which will also sound that change right now.
-	if (modelStack->timelineCounterIsSet()) { // && playbackHandler.isEitherClockActive() && playbackHandler.recording) {
-	    modelStack->getTimelineCounter()->possiblyCloneForArrangementRecording(modelStack);
+	if (modelStack
+	        ->timelineCounterIsSet()) { // && playbackHandler.isEitherClockActive() && playbackHandler.recording) {
+		modelStack->getTimelineCounter()->possiblyCloneForArrangementRecording(modelStack);
 
-		ModelStackWithNoteRow* modelStackWithNoteRow = ((InstrumentClip*)modelStack->getTimelineCounter())->getNoteRowForDrum(modelStack, this);
+		ModelStackWithNoteRow* modelStackWithNoteRow =
+		    ((InstrumentClip*)modelStack->getTimelineCounter())->getNoteRowForDrum(modelStack, this);
 		NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
 		if (!noteRow) goto justSend;
 
-		bool success = noteRow->recordPolyphonicExpressionEvent(modelStackWithNoteRow, combinedValue, whichExpressionimension, true);
+		bool success = noteRow->recordPolyphonicExpressionEvent(modelStackWithNoteRow, combinedValue,
+		                                                        whichExpressionimension, true);
 		if (!success) goto justSend;
 	}
 

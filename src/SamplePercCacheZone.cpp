@@ -18,11 +18,9 @@
 #include "SamplePercCacheZone.h"
 #include <string.h>
 
-SamplePercCacheZone::SamplePercCacheZone(int newStartPos)
-{
+SamplePercCacheZone::SamplePercCacheZone(int newStartPos) {
 	startPos = newStartPos;
 	resetEndPos(newStartPos);
-
 
 	samplesAtStartWhichShouldBeReplaced = 0;
 }

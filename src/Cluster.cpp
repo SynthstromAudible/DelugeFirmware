@@ -60,7 +60,8 @@ void Cluster::convertDataIfNecessary() {
 				pos = &data[startPos & (audioFileManager.clusterSize - 1)];
 			}
 			else {
-				uint32_t bytesBeforeStartOfCluster = clusterIndex * audioFileManager.clusterSize - sample->audioDataStartPosBytes;
+				uint32_t bytesBeforeStartOfCluster =
+				    clusterIndex * audioFileManager.clusterSize - sample->audioDataStartPosBytes;
 				int bytesThatWillBeEatingIntoAnother3Byte = bytesBeforeStartOfCluster % 3;
 				if (bytesThatWillBeEatingIntoAnother3Byte == 0) bytesThatWillBeEatingIntoAnother3Byte = 3;
 				pos = &data[3 - bytesThatWillBeEatingIntoAnother3Byte];
@@ -93,7 +94,6 @@ void Cluster::convertDataIfNecessary() {
 				AudioEngine::routine(); // ----------------------------------------------------
 			}
 		}
-
 
 		// Or, all other bit depths
 		else {
@@ -145,23 +145,20 @@ int Cluster::getAppropriateQueue() {
 
 	// If it's a perc cache...
 	if (type == CLUSTER_PERC_CACHE_FORWARDS || type == CLUSTER_PERC_CACHE_REVERSED) {
-		q = sample->numReasonsToBeLoaded ?
-				STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA_PERC_CACHE :
-				STEALABLE_QUEUE_NO_SONG_SAMPLE_DATA_PERC_CACHE;
+		q = sample->numReasonsToBeLoaded ? STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA_PERC_CACHE
+		                                 : STEALABLE_QUEUE_NO_SONG_SAMPLE_DATA_PERC_CACHE;
 	}
 
 	// If it's a regular repitched cache...
 	else if (sampleCache) {
-		q = (sampleCache->sample->numReasonsToBeLoaded) ?
-			STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE :
-			STEALABLE_QUEUE_NO_SONG_SAMPLE_DATA_REPITCHED_CACHE;
+		q = (sampleCache->sample->numReasonsToBeLoaded) ? STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE
+		                                                : STEALABLE_QUEUE_NO_SONG_SAMPLE_DATA_REPITCHED_CACHE;
 	}
 
 	// Or, if it has a Sample...
 	else if (sample) {
-		q = sample->numReasonsToBeLoaded ?
-				STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA :
-				STEALABLE_QUEUE_NO_SONG_SAMPLE_DATA;
+		q = sample->numReasonsToBeLoaded ? STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA
+		                                 : STEALABLE_QUEUE_NO_SONG_SAMPLE_DATA;
 
 		if (sample->rawDataFormat) q++;
 	}
@@ -169,11 +166,10 @@ int Cluster::getAppropriateQueue() {
 	return q;
 }
 
-
 void Cluster::steal(char const* errorCode) {
 
 	// Ok, we're now gonna decide what to do according to the actual "type" field for this Cluster.
-	switch(type) {
+	switch (type) {
 
 	case CLUSTER_SAMPLE:
 		if (ALPHA_OR_BETA_VERSION && !sample) numericDriver.freezeWithError("E181");
@@ -208,7 +204,7 @@ bool Cluster::mayBeStolen(void* thingNotToStealFrom) {
 
 	if (!thingNotToStealFrom) return true;
 
-	switch(type) {
+	switch (type) {
 	case CLUSTER_SAMPLE_CACHE:
 		return (sampleCache != thingNotToStealFrom);
 

@@ -26,7 +26,6 @@
 
 SamplePlaybackGuide::SamplePlaybackGuide() {
 	// TODO Auto-generated constructor stub
-
 }
 
 int SamplePlaybackGuide::getFinalClusterIndex(Sample* sample, bool obeyMarkers, int32_t* getEndPlaybackAtByte) {
@@ -35,11 +34,12 @@ int SamplePlaybackGuide::getFinalClusterIndex(Sample* sample, bool obeyMarkers, 
 
 	int32_t endPlaybackAtByteNow;
 	// If cache, go right to the end of the waveform
-	if (!obeyMarkers) endPlaybackAtByteNow = (playDirection == 1) ? (sample->audioDataStartPosBytes + sample->audioDataLengthBytes) : (sample->audioDataStartPosBytes - sample->byteDepth * sample->numChannels);
+	if (!obeyMarkers)
+		endPlaybackAtByteNow = (playDirection == 1)
+		                           ? (sample->audioDataStartPosBytes + sample->audioDataLengthBytes)
+		                           : (sample->audioDataStartPosBytes - sample->byteDepth * sample->numChannels);
 	// Otherwise, use end or loop-end point
 	else endPlaybackAtByteNow = getBytePosToEndOrLoopPlayback();
-
-
 
 	if (getEndPlaybackAtByte) *getEndPlaybackAtByte = endPlaybackAtByteNow;
 
@@ -54,7 +54,6 @@ int SamplePlaybackGuide::getFinalClusterIndex(Sample* sample, bool obeyMarkers, 
 
 	return finalBytePos >> audioFileManager.clusterSizeMagnitude;
 }
-
 
 void SamplePlaybackGuide::setupPlaybackBounds(bool reversed) {
 	playDirection = reversed ? -1 : 1;
@@ -88,19 +87,20 @@ uint64_t SamplePlaybackGuide::getSyncedNumSamplesIn() {
 
 	uint32_t timeSinceLastInternalTick;
 
-	uint32_t currentTickWithinSample = playbackHandler.getCurrentInternalTickCount(&timeSinceLastInternalTick) - sequenceSyncStartedAtTick;
+	uint32_t currentTickWithinSample =
+	    playbackHandler.getCurrentInternalTickCount(&timeSinceLastInternalTick) - sequenceSyncStartedAtTick;
 
 	uint32_t timePerInternalTick = playbackHandler.getTimePerInternalTick();
 
-	if (timeSinceLastInternalTick >= timePerInternalTick) timeSinceLastInternalTick = timePerInternalTick - 1;	// Ensure it doesn't get bigger.
-																												// If following external clock, that could happen
-																												// TODO: is that still necessary?
+	if (timeSinceLastInternalTick >= timePerInternalTick)
+		timeSinceLastInternalTick = timePerInternalTick - 1; // Ensure it doesn't get bigger.
+		                                                     // If following external clock, that could happen
+		                                                     // TODO: is that still necessary?
 	return (uint64_t)(lengthInSamples * currentTickWithinSample
-			+ (uint64_t)timeSinceLastInternalTick * lengthInSamples / timePerInternalTick
-			+ (sequenceSyncLengthTicks >> 1)) // Rounding
-					/ sequenceSyncLengthTicks;
+	                  + (uint64_t)timeSinceLastInternalTick * lengthInSamples / timePerInternalTick
+	                  + (sequenceSyncLengthTicks >> 1)) // Rounding
+	       / sequenceSyncLengthTicks;
 }
-
 
 int32_t SamplePlaybackGuide::getNumSamplesLaggingBehindSync(VoiceSample* voiceSample) {
 
@@ -118,11 +118,11 @@ int32_t SamplePlaybackGuide::getNumSamplesLaggingBehindSync(VoiceSample* voiceSa
 	return (int32_t)(idealSamplePos - actualSamplePos) * playDirection;
 }
 
-
 int32_t SamplePlaybackGuide::adjustPitchToCorrectDriftFromSync(VoiceSample* voiceSample, int32_t phaseIncrement) {
 
 	// Not if not following external clock source, or clusters not set up yet (in the case of a very-late-start), there's no need
-	if (!(playbackHandler.playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE) || !voiceSample->clusters[0]) return phaseIncrement;
+	if (!(playbackHandler.playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE) || !voiceSample->clusters[0])
+		return phaseIncrement;
 
 	int32_t numSamplesLaggingBehindSync = getNumSamplesLaggingBehindSync(voiceSample);
 
@@ -131,5 +131,3 @@ int32_t SamplePlaybackGuide::adjustPitchToCorrectDriftFromSync(VoiceSample* voic
 	else if (newPhaseIncrement > 2147483647) newPhaseIncrement = 2147483647;
 	return newPhaseIncrement;
 }
-
-

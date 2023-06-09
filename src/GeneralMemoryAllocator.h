@@ -59,11 +59,14 @@ class Stealable;
 class GeneralMemoryAllocator {
 public:
 	GeneralMemoryAllocator();
-	void* alloc(uint32_t requiredSize, uint32_t* getAllocatedSize = NULL, bool mayDeleteFirstUndoAction = false, bool mayUseOnChipRam = false, bool makeStealable = false, void* thingNotToStealFrom = NULL, bool getBiggestAllocationPossible = false);
+	void* alloc(uint32_t requiredSize, uint32_t* getAllocatedSize = NULL, bool mayDeleteFirstUndoAction = false,
+	            bool mayUseOnChipRam = false, bool makeStealable = false, void* thingNotToStealFrom = NULL,
+	            bool getBiggestAllocationPossible = false);
 	void dealloc(void* address);
 	uint32_t shortenRight(void* address, uint32_t newSize);
 	uint32_t shortenLeft(void* address, uint32_t amountToShorten, uint32_t numBytesToMoveRightIfSuccessful = 0);
-	void extend(void* address, uint32_t minAmountToExtend, uint32_t idealAmountToExtend, uint32_t* getAmountExtendedLeft, uint32_t* getAmountExtendedRight, void* thingNotToStealFrom = NULL);
+	void extend(void* address, uint32_t minAmountToExtend, uint32_t idealAmountToExtend,
+	            uint32_t* getAmountExtendedLeft, uint32_t* getAmountExtendedRight, void* thingNotToStealFrom = NULL);
 	uint32_t extendRightAsMuchAsEasilyPossible(void* address);
 	void test();
 	uint32_t getAllocatedSize(void* address);

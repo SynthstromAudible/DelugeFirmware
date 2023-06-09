@@ -49,9 +49,7 @@
 
 AudioRecorder audioRecorder;
 
-
 extern "C" void routineForSD(void);
-
 
 extern "C" {
 #include "fatfs/ff.h"
@@ -66,28 +64,23 @@ extern "C" {
 void oledRoutine();
 }
 
-
 // We keep a separate FIL object here so we can be recording to a file at the same time as another file is open for reading.
 // It no longer needs to be in this struct
 struct RecorderFileSystemStuff recorderFileSystemStuff;
 
-AudioRecorder::AudioRecorder()
-{
+AudioRecorder::AudioRecorder() {
 	recordingSource = AUDIO_INPUT_CHANNEL_NONE;
 	recorder = NULL;
 }
-
 
 bool AudioRecorder::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
 	*cols = 0xFFFFFFFF;
 	return true;
 }
 
-
 bool AudioRecorder::opened() {
 
 	actionLogger.deleteAllLogs();
-
 
 	// If we're already recording (probably the output) then no!
 	if (recordingSource) return false;
@@ -115,18 +108,19 @@ gotError:
 
 	bool inStereo = (AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn);
 	int newNumChannels = inStereo ? 2 : 1;
-	bool success = setupRecordingToFile(inStereo ? AUDIO_INPUT_CHANNEL_STEREO : AUDIO_INPUT_CHANNEL_LEFT, newNumChannels, AUDIO_RECORDING_FOLDER_RECORD);
+	bool success = setupRecordingToFile(inStereo ? AUDIO_INPUT_CHANNEL_STEREO : AUDIO_INPUT_CHANNEL_LEFT,
+	                                    newNumChannels, AUDIO_RECORDING_FOLDER_RECORD);
 	if (success) {
 		soundEditor.setupShortcutBlink(soundEditor.currentSourceIndex, 4, 0);
 		soundEditor.blinkShortcut();
 
-	    IndicatorLEDs::setLedState(synthLedX, synthLedY, !soundEditor.editingKit());
-	    IndicatorLEDs::setLedState(kitLedX, kitLedY, soundEditor.editingKit());
-	    IndicatorLEDs::setLedState(crossScreenEditLedX, crossScreenEditLedY, false);
-	    IndicatorLEDs::setLedState(sessionViewLedX, sessionViewLedY, false);
-	    IndicatorLEDs::setLedState(scaleModeLedX, scaleModeLedY, false);
-	    IndicatorLEDs::blinkLed(backLedX, backLedY);
-	    IndicatorLEDs::blinkLed(recordLedX, recordLedY, 255, 1);
+		IndicatorLEDs::setLedState(synthLedX, synthLedY, !soundEditor.editingKit());
+		IndicatorLEDs::setLedState(kitLedX, kitLedY, soundEditor.editingKit());
+		IndicatorLEDs::setLedState(crossScreenEditLedX, crossScreenEditLedY, false);
+		IndicatorLEDs::setLedState(sessionViewLedX, sessionViewLedY, false);
+		IndicatorLEDs::setLedState(scaleModeLedX, scaleModeLedY, false);
+		IndicatorLEDs::blinkLed(backLedX, backLedY);
+		IndicatorLEDs::blinkLed(recordLedX, recordLedY, 255, 1);
 #if !HAVE_OLED
 		numericDriver.setNextTransitionDirection(0);
 		numericDriver.setText("REC", false, 255, true);
@@ -161,7 +155,6 @@ bool AudioRecorder::setupRecordingToFile(int newMode, int newNumChannels, int fo
 	return true;
 }
 
-
 bool AudioRecorder::beginOutputRecording() {
 	bool success = setupRecordingToFile(AUDIO_INPUT_CHANNEL_OUTPUT, 2, AUDIO_RECORDING_FOLDER_RESAMPLE);
 
@@ -169,16 +162,19 @@ bool AudioRecorder::beginOutputRecording() {
 		IndicatorLEDs::blinkLed(recordLedX, recordLedY, 255, 1);
 	}
 
-	AudioEngine::bypassCulling = true;	// Not 100% sure if this will help. Leo was getting culled voices right on beginning resampling
-										// via an audition pad. But I'd more expect it to happen after the first render-window, which this
-										// won't help. Anyway, I suppose this can't do any harm here.
+	AudioEngine::bypassCulling =
+	    true; // Not 100% sure if this will help. Leo was getting culled voices right on beginning resampling
+	          // via an audition pad. But I'd more expect it to happen after the first render-window, which this
+	          // won't help. Anyway, I suppose this can't do any harm here.
 
 	return success;
 }
 
 void AudioRecorder::endRecordingSoon(int buttonLatency) {
 
-	if (recorder && recorder->status == RECORDER_STATUS_CAPTURING_DATA) { // Make sure we don't call the same thing multiple times - I think there's a few scenarios where this could happen
+	if (recorder
+	    && recorder->status
+	           == RECORDER_STATUS_CAPTURING_DATA) { // Make sure we don't call the same thing multiple times - I think there's a few scenarios where this could happen
 #if HAVE_OLED
 		OLED::displayWorkingAnimation("Working");
 #else
@@ -187,7 +183,6 @@ void AudioRecorder::endRecordingSoon(int buttonLatency) {
 		recorder->endSyncedRecording(buttonLatency);
 	}
 }
-
 
 void AudioRecorder::slowRoutine() {
 	if (recordingSource == AUDIO_INPUT_CHANNEL_OUTPUT) {
@@ -201,7 +196,7 @@ void AudioRecorder::slowRoutine() {
 void AudioRecorder::process() {
 	while (true) {
 
-	    AudioEngine::routineWithClusterLoading();
+		AudioEngine::routineWithClusterLoading();
 
 		uiTimerManager.routine();
 
@@ -210,30 +205,28 @@ void AudioRecorder::process() {
 #endif
 		uartFlushIfNotSending(UART_ITEM_PIC);
 
-	   	readButtonsAndPads();
+		readButtonsAndPads();
 
 		AudioEngine::slowRoutine();
 
 		// If recording has finished...
 		if (recorder->status >= RECORDER_STATUS_COMPLETE || recorder->hadCardError) {
 
-			if (recorder->status == RECORDER_STATUS_ABORTED || recorder->hadCardError) {
-
-			}
+			if (recorder->status == RECORDER_STATUS_ABORTED || recorder->hadCardError) {}
 
 			else {
 				// We want to attach that Sample to a Source right away...
 				soundEditor.currentSound->unassignAllVoices();
 				soundEditor.currentSource->setOscType(OSC_TYPE_SAMPLE);
 				soundEditor.currentMultiRange->getAudioFileHolder()->filePath.set(&recorder->sample->filePath);
-				soundEditor.currentMultiRange->getAudioFileHolder()->setAudioFile(recorder->sample, soundEditor.currentSource->sampleControls.reversed, true);
+				soundEditor.currentMultiRange->getAudioFileHolder()->setAudioFile(
+				    recorder->sample, soundEditor.currentSource->sampleControls.reversed, true);
 			}
 			finishRecording();
 
 			close();
 			return;
 		}
-
 
 		// Or if recording's ongoing...
 		else {
@@ -268,9 +261,8 @@ int AudioRecorder::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 	if (!on) return ACTION_RESULT_NOT_DEALT_WITH;
 
 	// We don't actually wrap up recording here, because this could be in fact called from the SD writing routines as they wait - that'd be a tangle.
-	if ((x == backButtonX && y == backButtonY)
-			|| (x == selectEncButtonX && y == selectEncButtonY)
-			|| (x == recordButtonX && y == recordButtonY)) {
+	if ((x == backButtonX && y == backButtonY) || (x == selectEncButtonX && y == selectEncButtonY)
+	    || (x == recordButtonX && y == recordButtonY)) {
 
 		if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		endRecordingSoon(INTERNAL_BUTTON_PRESS_LATENCY);
@@ -281,5 +273,6 @@ int AudioRecorder::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 }
 
 bool AudioRecorder::isCurrentlyResampling() {
-	return (recordingSource >= AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION && recorder && recorder->status == RECORDER_STATUS_CAPTURING_DATA);
+	return (recordingSource >= AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION && recorder
+	        && recorder->status == RECORDER_STATUS_CAPTURING_DATA);
 }

@@ -23,54 +23,53 @@
 #include "numericdriver.h"
 #include "AudioEngine.h"
 
-
 int workCount;
 
 // This uses Hoare's partitioning scheme, which has the advantage that it won't go slow if the elements are already sorted - which they often will be as filenames read off an SD card.
 int CStringArray::partitionForStrings(int low, int high) {
-    char const* pivotString = *(char const**)getElementAddress((low + high) >> 1); // Pivot - rightmost element. Though this is very bad if the array is already sorted...
+	char const* pivotString = *(char const**)getElementAddress(
+	    (low + high) >> 1); // Pivot - rightmost element. Though this is very bad if the array is already sorted...
 
-    int i = low - 1;
-    int j = high + 1;
+	int i = low - 1;
+	int j = high + 1;
 
-    while (true) {
-    	do {
-    		i++;
-    	} while (strcmpspecial(*(char const**)getElementAddress(i), pivotString, true) < 0);
+	while (true) {
+		do {
+			i++;
+		} while (strcmpspecial(*(char const**)getElementAddress(i), pivotString, true) < 0);
 
-    	do {
-    		j--;
-    	} while (strcmpspecial(*(char const**)getElementAddress(j), pivotString, true) > 0);
+		do {
+			j--;
+		} while (strcmpspecial(*(char const**)getElementAddress(j), pivotString, true) > 0);
 
-    	if (i >= j) return j;
+		if (i >= j) return j;
 
-    	swapElements(i, j);
-    }
+		swapElements(i, j);
+	}
 }
 
-
 void CStringArray::quickSortForStrings(int low, int high) {
-    while (low < high) {
-        /* pi is partitioning index, arr[p] is now
+	while (low < high) {
+		/* pi is partitioning index, arr[p] is now
         at right place */
-        int pi = partitionForStrings(low, high);
+		int pi = partitionForStrings(low, high);
 
 		// Separately sort elements before partition and after partition.
-        // The recursive call gets done on the smaller of those two regions
-        // - otherwise the worst case for the number of recursions of this function is the number of elements, which overflows the stack like crazy!
+		// The recursive call gets done on the smaller of those two regions
+		// - otherwise the worst case for the number of recursions of this function is the number of elements, which overflows the stack like crazy!
 
-        // If most elements to the left of the pi...
-        if ((pi << 1) >= (low + high)) {
-            quickSortForStrings(pi + 1, high);
-            high = pi; // If we weren't using Hoare's partitioning scheme, this would be pi - 1.
-        }
+		// If most elements to the left of the pi...
+		if ((pi << 1) >= (low + high)) {
+			quickSortForStrings(pi + 1, high);
+			high = pi; // If we weren't using Hoare's partitioning scheme, this would be pi - 1.
+		}
 
-        // Or if most elements to the right of the pi...
-        else {
+		// Or if most elements to the right of the pi...
+		else {
 			quickSortForStrings(low, pi); // If we weren't using Hoare's partitioning scheme, this would be pi - 1.
 			low = pi + 1;
-        }
-    }
+		}
+	}
 }
 
 void CStringArray::sortForStrings() {
@@ -79,7 +78,6 @@ void CStringArray::sortForStrings() {
 	workCount = 0;
 	quickSortForStrings(0, numElements - 1);
 }
-
 
 // Array must be sorted before you call this.
 int CStringArray::search(char const* searchString, bool* foundExact) {

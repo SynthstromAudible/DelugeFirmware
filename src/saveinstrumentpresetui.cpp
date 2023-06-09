@@ -43,34 +43,36 @@ SaveInstrumentPresetUI::SaveInstrumentPresetUI() {
 
 bool SaveInstrumentPresetUI::opened() {
 
-    Instrument* currentInstrument = (Instrument*)currentSong->currentClip->output;
-    instrumentTypeToLoad = currentInstrument->type; // Must set this before calling SaveUI::opened(), which uses this to work out folder name
+	Instrument* currentInstrument = (Instrument*)currentSong->currentClip->output;
+	instrumentTypeToLoad =
+	    currentInstrument
+	        ->type; // Must set this before calling SaveUI::opened(), which uses this to work out folder name
 
-    bool success = SaveUI::opened();
+	bool success = SaveUI::opened();
 	if (!success) { // In this case, an error will have already displayed.
 doReturnFalse:
 		renderingNeededRegardlessOfUI(); // Because unlike many UIs we've already gone and drawn the QWERTY interface on the pads.
 		return false;
 	}
 
-    enteredText.set(&currentInstrument->name);
-    enteredTextEditPos = enteredText.getLength();
-    currentFolderIsEmpty = false;
+	enteredText.set(&currentInstrument->name);
+	enteredTextEditPos = enteredText.getLength();
+	currentFolderIsEmpty = false;
 
-    char const* defaultDir = getInstrumentFolder(instrumentTypeToLoad);
+	char const* defaultDir = getInstrumentFolder(instrumentTypeToLoad);
 
-    currentDir.set(&currentInstrument->dirPath);
-    if (currentDir.isEmpty()) { // Would this even be able to happen?
+	currentDir.set(&currentInstrument->dirPath);
+	if (currentDir.isEmpty()) { // Would this even be able to happen?
 tryDefaultDir:
-    	currentDir.set(defaultDir);
-    }
+		currentDir.set(defaultDir);
+	}
 
 #if HAVE_OLED
-    fileIcon	= (instrumentTypeToLoad == INSTRUMENT_TYPE_SYNTH) ? OLED::synthIcon : OLED::kitIcon;
-    title		= (instrumentTypeToLoad == INSTRUMENT_TYPE_SYNTH) ? "Save synth" : "Save kit";
+	fileIcon = (instrumentTypeToLoad == INSTRUMENT_TYPE_SYNTH) ? OLED::synthIcon : OLED::kitIcon;
+	title = (instrumentTypeToLoad == INSTRUMENT_TYPE_SYNTH) ? "Save synth" : "Save kit";
 #endif
 
-    filePrefix	= (instrumentTypeToLoad == INSTRUMENT_TYPE_SYNTH) ? "SYNT" : "KIT";
+	filePrefix = (instrumentTypeToLoad == INSTRUMENT_TYPE_SYNTH) ? "SYNT" : "KIT";
 
 	int error = arrivedInNewFolder(0, enteredText.get(), defaultDir);
 	if (error) {
@@ -79,23 +81,19 @@ gotError:
 		goto doReturnFalse;
 	}
 
+	if (instrumentTypeToLoad == INSTRUMENT_TYPE_SYNTH) IndicatorLEDs::blinkLed(synthLedX, synthLedY);
+	else IndicatorLEDs::blinkLed(kitLedX, kitLedY);
 
-    if (instrumentTypeToLoad == INSTRUMENT_TYPE_SYNTH) IndicatorLEDs::blinkLed(synthLedX, synthLedY);
-    else IndicatorLEDs::blinkLed(kitLedX, kitLedY);
-
-
-    /*
+	/*
 	String filePath;
 	error = getCurrentFilePath(&filePath);
 	if (error) goto gotError;
     currentFileExists = storageManager.fileExists(filePath.get());
 */
 
-    focusRegained();
-    return true;
+	focusRegained();
+	return true;
 }
-
-
 
 bool SaveInstrumentPresetUI::performSave(bool mayOverwrite) {
 
@@ -111,8 +109,10 @@ bool SaveInstrumentPresetUI::performSave(bool mayOverwrite) {
 	if (isDifferentSlot) {
 
 		// We can't save into this slot if another Instrument in this Song already uses it
-		if (currentSong->getInstrumentFromPresetSlot(instrumentTypeToLoad, 0, 0, enteredText.get(), currentDir.get(), false)) {
-			numericDriver.displayPopup(HAVE_OLED ? "Another instrument in the song has the same name / number" : "CANT");
+		if (currentSong->getInstrumentFromPresetSlot(instrumentTypeToLoad, 0, 0, enteredText.get(), currentDir.get(),
+		                                             false)) {
+			numericDriver.displayPopup(HAVE_OLED ? "Another instrument in the song has the same name / number"
+			                                     : "CANT");
 #if HAVE_OLED
 			OLED::removeWorkingAnimation();
 #endif
@@ -123,11 +123,11 @@ bool SaveInstrumentPresetUI::performSave(bool mayOverwrite) {
 		currentSong->deleteHibernatingInstrumentWithSlot(instrumentTypeToLoad, enteredText.get());
 	}
 
-
 	String filePath;
 	int error = getCurrentFilePath(&filePath);
 	if (error) {
-fail:	numericDriver.displayError(error);
+fail:
+		numericDriver.displayError(error);
 		return false;
 	}
 
@@ -159,7 +159,8 @@ fail:	numericDriver.displayError(error);
 
 	char const* endString = (instrumentTypeToLoad == INSTRUMENT_TYPE_SYNTH) ? "\n</sound>\n" : "\n</kit>\n";
 
-	error = storageManager.closeFileAfterWriting(filePath.get(), "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n", endString);
+	error =
+	    storageManager.closeFileAfterWriting(filePath.get(), "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n", endString);
 #if HAVE_OLED
 	OLED::removeWorkingAnimation();
 #endif

@@ -26,11 +26,12 @@
 #include <string.h>
 
 NonAudioInstrument::NonAudioInstrument(int newType) : MelodicInstrument(newType) {
-    channel = 0;
+	channel = 0;
 }
 
-
-void NonAudioInstrument::renderOutput(ModelStack* modelStack, StereoSample *startPos, StereoSample *endPos, int numSamples, int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive) {
+void NonAudioInstrument::renderOutput(ModelStack* modelStack, StereoSample* startPos, StereoSample* endPos,
+                                      int numSamples, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
+                                      int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive) {
 
 	// MIDI / CV arpeggiator
 	if (activeClip) {
@@ -39,14 +40,19 @@ void NonAudioInstrument::renderOutput(ModelStack* modelStack, StereoSample *star
 		if (activeInstrumentClip->arpSettings.mode) {
 			uint32_t gateThreshold = activeInstrumentClip->arpeggiatorGate + 2147483648;
 
-			uint32_t phaseIncrement = activeInstrumentClip->arpSettings.getPhaseIncrement(getFinalParameterValueExp(paramNeutralValues[PARAM_GLOBAL_ARP_RATE], cableToExpParamShortcut(activeInstrumentClip->arpeggiatorRate)));
+			uint32_t phaseIncrement = activeInstrumentClip->arpSettings.getPhaseIncrement(
+			    getFinalParameterValueExp(paramNeutralValues[PARAM_GLOBAL_ARP_RATE],
+			                              cableToExpParamShortcut(activeInstrumentClip->arpeggiatorRate)));
 
 			ArpReturnInstruction instruction;
 
-			arpeggiator.render(&activeInstrumentClip->arpSettings, numSamples, gateThreshold, phaseIncrement, &instruction);
+			arpeggiator.render(&activeInstrumentClip->arpSettings, numSamples, gateThreshold, phaseIncrement,
+			                   &instruction);
 
 			if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE) {
-				noteOffPostArp(instruction.noteCodeOffPostArp, instruction.outputMIDIChannelOff, DEFAULT_LIFT_VALUE); // Is there some better option than using the default lift value? The lift event wouldn't have occurred yet...
+				noteOffPostArp(
+				    instruction.noteCodeOffPostArp, instruction.outputMIDIChannelOff,
+				    DEFAULT_LIFT_VALUE); // Is there some better option than using the default lift value? The lift event wouldn't have occurred yet...
 			}
 
 			if (instruction.noteCodeOnPostArp != ARP_NOTE_NONE) {
@@ -56,8 +62,9 @@ void NonAudioInstrument::renderOutput(ModelStack* modelStack, StereoSample *star
 	}
 }
 
-
-void NonAudioInstrument::sendNote(ModelStackWithThreeMainThings* modelStack, bool isOn, int noteCodePreArp, int16_t const* mpeValues, int fromMIDIChannel, uint8_t velocity, uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate) {
+void NonAudioInstrument::sendNote(ModelStackWithThreeMainThings* modelStack, bool isOn, int noteCodePreArp,
+                                  int16_t const* mpeValues, int fromMIDIChannel, uint8_t velocity,
+                                  uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate) {
 
 	ArpeggiatorSettings* arpSettings = NULL;
 	if (activeClip) {
@@ -89,10 +96,9 @@ void NonAudioInstrument::sendNote(ModelStackWithThreeMainThings* modelStack, boo
 	}
 }
 
-
-
 // Inherit / overrides from both MelodicInstrument and ModControllable
-void NonAudioInstrument::polyphonicExpressionEventOnChannelOrNote(int newValue, int whichExpressionDimension, int channelOrNoteNumber, int whichCharacteristic) {
+void NonAudioInstrument::polyphonicExpressionEventOnChannelOrNote(int newValue, int whichExpressionDimension,
+                                                                  int channelOrNoteNumber, int whichCharacteristic) {
 	ArpeggiatorSettings* settings = getArpSettings();
 
 	int n;
@@ -136,11 +142,11 @@ lookAtArpNote:
 			}
 
 			// Send this even if arp is on and this note isn't currently sounding: its release might still be
-			polyphonicExpressionEventPostArpeggiator(newValue, noteCodeAfterArpeggiation, whichExpressionDimension, arpNote);
+			polyphonicExpressionEventPostArpeggiator(newValue, noteCodeAfterArpeggiation, whichExpressionDimension,
+			                                         arpNote);
 		}
 	}
 }
-
 
 // Returns num ticks til next arp event
 int32_t NonAudioInstrument::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
@@ -148,10 +154,13 @@ int32_t NonAudioInstrument::doTickForwardForArp(ModelStack* modelStack, int32_t 
 
 	ArpReturnInstruction instruction;
 
-	int32_t ticksTilNextArpEvent = arpeggiator.doTickForward(&((InstrumentClip*)activeClip)->arpSettings, &instruction, currentPos, activeClip->currentlyPlayingReversed);
+	int32_t ticksTilNextArpEvent = arpeggiator.doTickForward(&((InstrumentClip*)activeClip)->arpSettings, &instruction,
+	                                                         currentPos, activeClip->currentlyPlayingReversed);
 
 	if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE) {
-		noteOffPostArp(instruction.noteCodeOffPostArp, instruction.outputMIDIChannelOff, DEFAULT_LIFT_VALUE); // Is there some better option than using the default lift value? The lift event wouldn't have occurred yet...
+		noteOffPostArp(
+		    instruction.noteCodeOffPostArp, instruction.outputMIDIChannelOff,
+		    DEFAULT_LIFT_VALUE); // Is there some better option than using the default lift value? The lift event wouldn't have occurred yet...
 	}
 
 	if (instruction.noteCodeOnPostArp != ARP_NOTE_NONE) {
@@ -176,13 +185,12 @@ bool NonAudioInstrument::readTagFromFile(char const* tagName) {
 
 	char const* slotXMLTag = getSlotXMLTag();
 
-    if (!strcmp(tagName, slotXMLTag)) {
-    	channel = storageManager.readTagOrAttributeValueInt();
-    }
+	if (!strcmp(tagName, slotXMLTag)) {
+		channel = storageManager.readTagOrAttributeValueInt();
+	}
 
-    else return MelodicInstrument::readTagFromFile(tagName);
+	else return MelodicInstrument::readTagFromFile(tagName);
 
-    storageManager.exitTag();
-    return true;
+	storageManager.exitTag();
+	return true;
 }
-

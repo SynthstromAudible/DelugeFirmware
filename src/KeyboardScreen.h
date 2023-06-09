@@ -34,16 +34,18 @@ class ModelStack;
 class KeyboardScreen final : public RootUI, public InstrumentClipMinder {
 public:
 	KeyboardScreen();
-    bool opened();
+	bool opened();
 	void focusRegained();
 	int padAction(int x, int y, int velocity);
 	int buttonAction(int x, int y, bool on, bool inCardRoutine);
-	bool renderMainPads(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3], uint8_t occupancyMask[][displayWidth + sideBarWidth], bool drawUndefinedArea = false);
-	bool renderSidebar(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3], uint8_t occupancyMask[][displayWidth + sideBarWidth]);
+	bool renderMainPads(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
+	                    uint8_t occupancyMask[][displayWidth + sideBarWidth], bool drawUndefinedArea = false);
+	bool renderSidebar(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
+	                   uint8_t occupancyMask[][displayWidth + sideBarWidth]);
 	int verticalEncoderAction(int offset, bool inCardRoutine);
 	int horizontalEncoderAction(int offset);
 	void selectEncoderAction(int8_t offset);
-    ClipMinder* toClipMinder() { return this; }
+	ClipMinder* toClipMinder() { return this; }
 	void flashDefaultRootNote();
 	bool oneNoteAuditioning();
 	void setLedStates();
@@ -55,7 +57,9 @@ public:
 	void stopAllAuditioning(ModelStack* modelStack, bool switchOffOnThisEndToo = true);
 
 #if HAVE_OLED
-    void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) { InstrumentClipMinder::renderOLED(image); }
+	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
+		InstrumentClipMinder::renderOLED(image);
+	}
 #endif
 
 private:

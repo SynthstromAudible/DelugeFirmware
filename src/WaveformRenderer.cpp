@@ -42,17 +42,17 @@ extern uint8_t currentlyAccessingCard;
 const uint8_t redColour[] = {255, 0, 0};
 const uint8_t greenColour[] = {0, 255, 0};
 
-
 WaveformRenderer waveformRenderer;
 
 WaveformRenderer::WaveformRenderer() {
 }
 
-
 #define SAMPLES_TO_READ_PER_COL_MAGNITUDE 9
 
 // Returns false if had trouble loading some (will often not be all) Clusters, e.g. cos we're in the card routine
-bool WaveformRenderer::renderFullScreen(Sample* sample, uint64_t xScroll, uint64_t xZoom, uint8_t thisImage[][displayWidth + sideBarWidth][3], WaveformRenderData* data, SampleRecorder* recorder, uint8_t rgb[], bool reversed, int xEnd) {
+bool WaveformRenderer::renderFullScreen(Sample* sample, uint64_t xScroll, uint64_t xZoom,
+                                        uint8_t thisImage[][displayWidth + sideBarWidth][3], WaveformRenderData* data,
+                                        SampleRecorder* recorder, uint8_t rgb[], bool reversed, int xEnd) {
 
 	bool completeSuccess = findPeaksPerCol(sample, xScroll, xZoom, data, recorder);
 	if (!completeSuccess) return false;
@@ -69,9 +69,10 @@ bool WaveformRenderer::renderFullScreen(Sample* sample, uint64_t xScroll, uint64
 	return true;
 }
 
-
 // Returns false if had trouble loading some (will often not be all) Clusters
-bool WaveformRenderer::renderAsSingleRow(Sample* sample, int64_t xScroll, uint64_t xZoom, uint8_t* thisImage, WaveformRenderData* data, SampleRecorder* recorder, uint8_t rgb[], bool reversed, int xStart, int xEnd) {
+bool WaveformRenderer::renderAsSingleRow(Sample* sample, int64_t xScroll, uint64_t xZoom, uint8_t* thisImage,
+                                         WaveformRenderData* data, SampleRecorder* recorder, uint8_t rgb[],
+                                         bool reversed, int xStart, int xEnd) {
 
 	int xStartSource = xStart;
 	int xEndSource = xEnd;
@@ -97,13 +98,15 @@ bool WaveformRenderer::renderAsSingleRow(Sample* sample, int64_t xScroll, uint64
 		}
 
 		int colourValue = getColBrightnessForSingleRow(xDisplaySource, maxPeakFromZero, data);
-		colourValue = (colourValue * colourValue);// >> 8;
+		colourValue = (colourValue * colourValue); // >> 8;
 		//if (colourValue > 255) colourValue = 255; // May sometimes go juuust over
 
 		for (int c = 0; c < 3; c++) {
 			int valueHere = (colourValue * rgb[c]) >> 16;
-			valueHere = (valueHere + 6) & ~15;	// Limit the heck out of the bit depth, to avoid problem with PIC firmware where too many different colour shades cause big problems.
-												// The 6 is quite arbitrary, but I think it looks good
+			valueHere =
+			    (valueHere + 6)
+			    & ~15; // Limit the heck out of the bit depth, to avoid problem with PIC firmware where too many different colour shades cause big problems.
+			           // The 6 is quite arbitrary, but I think it looks good
 			if (valueHere > 255) valueHere = 255;
 			thisImage[xDisplayOutput * 3 + c] = valueHere;
 		}
@@ -111,7 +114,6 @@ bool WaveformRenderer::renderAsSingleRow(Sample* sample, int64_t xScroll, uint64
 
 	return true;
 }
-
 
 // Value out of 255
 int WaveformRenderer::getColBrightnessForSingleRow(int xDisplay, int32_t maxPeakFromZero, WaveformRenderData* data) {
@@ -130,17 +132,19 @@ int WaveformRenderer::getColBrightnessForSingleRow(int xDisplay, int32_t maxPeak
 
 	uint32_t peak16 = ((int64_t)peakHere << 16) / maxPeakFromZero;
 
-	return getMin(peak16 >> 8, 256);	// Max 256 - for now. Looks great and bright.
-										// Must manually limit this, cos if we've ended up with values higher than our maxPeakFromZero,
-										// there'd be trouble otherwise
+	return getMin(peak16 >> 8, 256); // Max 256 - for now. Looks great and bright.
+	    // Must manually limit this, cos if we've ended up with values higher than our maxPeakFromZero,
+	    // there'd be trouble otherwise
 }
 
-
-void WaveformRenderer::renderOneColForCollapseAnimation(int xDisplayWaveform, int xDisplayOutput, int32_t maxPeakFromZero, int progress, uint8_t thisImage[][displayWidth + sideBarWidth][3], WaveformRenderData* data, uint8_t rgb[], bool reversed, int32_t valueCentrePoint, int32_t valueSpan) {
+void WaveformRenderer::renderOneColForCollapseAnimation(int xDisplayWaveform, int xDisplayOutput,
+                                                        int32_t maxPeakFromZero, int progress,
+                                                        uint8_t thisImage[][displayWidth + sideBarWidth][3],
+                                                        WaveformRenderData* data, uint8_t rgb[], bool reversed,
+                                                        int32_t valueCentrePoint, int32_t valueSpan) {
 
 	int xDisplayData = xDisplayWaveform;
 	if (reversed) xDisplayData = displayWidth - 1 - xDisplayData;
-
 
 	if (data->colStatus[xDisplayData] != COL_STATUS_INVESTIGATED) return;
 
@@ -149,12 +153,18 @@ void WaveformRenderer::renderOneColForCollapseAnimation(int xDisplayWaveform, in
 
 	int singleSquareBrightness = getColBrightnessForSingleRow(xDisplayData, maxPeakFromZero, data);
 
-	renderOneColForCollapseAnimationInterpolation(xDisplayOutput, min24, max24, singleSquareBrightness, progress, thisImage, rgb);
+	renderOneColForCollapseAnimationInterpolation(xDisplayOutput, min24, max24, singleSquareBrightness, progress,
+	                                              thisImage, rgb);
 }
 
 // For the explode animation. Crams multiple cols of source material into one col of output material.
 // Crudely grabs the max values from all cols in range, which looks totally fine.
-void WaveformRenderer::renderOneColForCollapseAnimationZoomedOut(int xDisplayWaveformLeftEdge, int xDisplayWaveformRightEdge, int xDisplayOutput, int32_t maxPeakFromZero, int progress, uint8_t thisImage[][displayWidth + sideBarWidth][3], WaveformRenderData* data, uint8_t rgb[], bool reversed, int32_t valueCentrePoint, int32_t valueSpan) {
+void WaveformRenderer::renderOneColForCollapseAnimationZoomedOut(int xDisplayWaveformLeftEdge,
+                                                                 int xDisplayWaveformRightEdge, int xDisplayOutput,
+                                                                 int32_t maxPeakFromZero, int progress,
+                                                                 uint8_t thisImage[][displayWidth + sideBarWidth][3],
+                                                                 WaveformRenderData* data, uint8_t rgb[], bool reversed,
+                                                                 int32_t valueCentrePoint, int32_t valueSpan) {
 
 	int xDisplayDataLeftEdge = xDisplayWaveformLeftEdge;
 	int xDisplayDataRightEdge = xDisplayWaveformRightEdge;
@@ -182,14 +192,15 @@ void WaveformRenderer::renderOneColForCollapseAnimationZoomedOut(int xDisplayWav
 		if (singleSquareBrightness > singleSquareBrightnessTotal) singleSquareBrightnessTotal = singleSquareBrightness;
 	}
 
-
-	renderOneColForCollapseAnimationInterpolation(xDisplayOutput, min24Total, max24Total, singleSquareBrightnessTotal, progress, thisImage, rgb);
+	renderOneColForCollapseAnimationInterpolation(xDisplayOutput, min24Total, max24Total, singleSquareBrightnessTotal,
+	                                              progress, thisImage, rgb);
 }
-
 
 // Once we've derived the appropriate data from the waveform for one final col of pads,
 // this does the vertical animation according to our current amount of expandedness
-void WaveformRenderer::renderOneColForCollapseAnimationInterpolation(int xDisplayOutput, int32_t min24, int32_t max24, int singleSquareBrightness, int progress, uint8_t thisImage[][displayWidth + sideBarWidth][3], uint8_t rgb[]) {
+void WaveformRenderer::renderOneColForCollapseAnimationInterpolation(
+    int xDisplayOutput, int32_t min24, int32_t max24, int singleSquareBrightness, int progress,
+    uint8_t thisImage[][displayWidth + sideBarWidth][3], uint8_t rgb[]) {
 
 	int32_t minStart = ((int32_t)collapseAnimationToWhichRow - (displayHeight >> 1)) << 24;
 	int32_t maxStart = ((int32_t)collapseAnimationToWhichRow - (displayHeight >> 1) + 1) << 24;
@@ -206,7 +217,8 @@ void WaveformRenderer::renderOneColForCollapseAnimationInterpolation(int xDispla
 }
 
 // Returns false if had trouble loading some (will often not be all) Clusters, e.g. cos we're in the card routine
-bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, uint64_t xZoomSamples, WaveformRenderData* data, SampleRecorder* recorder, int xStart, int xEnd) {
+bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, uint64_t xZoomSamples,
+                                       WaveformRenderData* data, SampleRecorder* recorder, int xStart, int xEnd) {
 
 	if (xScrollSamples != data->xScroll || xZoomSamples != data->xZoom) {
 		memset(data->colStatus, 0, sizeof(data->colStatus));
@@ -214,7 +226,6 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 
 	data->xScroll = xScrollSamples;
 	data->xZoom = xZoomSamples;
-
 
 	uint64_t numValidSamples;
 	int endClusters;
@@ -263,13 +274,11 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 			continue;
 		}
 
-
 		int colStartByte = colStartSample * sample->numChannels * sample->byteDepth + sample->audioDataStartPosBytes;
 		int colEndByte = colEndSample * sample->numChannels * sample->byteDepth + sample->audioDataStartPosBytes;
 
 		int colStartCluster = colStartByte >> audioFileManager.clusterSizeMagnitude;
 		int colEndCluster = colEndByte >> audioFileManager.clusterSizeMagnitude;
-
 
 		int clusterIndexToDo;
 		int startByteWithinCluster;
@@ -300,7 +309,8 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 
 			int startByteWithinFirstCluster = colStartByte & (audioFileManager.clusterSize - 1);
 
-			int unusedBytesAtEndOfPrevCluster = (audioFileManager.clusterSize - startByteWithinFirstCluster) % (sample->numChannels * sample->byteDepth);
+			int unusedBytesAtEndOfPrevCluster = (audioFileManager.clusterSize - startByteWithinFirstCluster)
+			                                    % (sample->numChannels * sample->byteDepth);
 			if (unusedBytesAtEndOfPrevCluster == 0) startByteWithinCluster = 0;
 			else startByteWithinCluster = (sample->numChannels * sample->byteDepth) - unusedBytesAtEndOfPrevCluster;
 
@@ -327,7 +337,8 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 			else {
 				clusterIndexToDo = colEndCluster;
 
-				int unusedBytesAtEndOfPrevCluster = (audioFileManager.clusterSize - startByteWithinFirstCluster) % (sample->numChannels * sample->byteDepth);
+				int unusedBytesAtEndOfPrevCluster = (audioFileManager.clusterSize - startByteWithinFirstCluster)
+				                                    % (sample->numChannels * sample->byteDepth);
 				if (unusedBytesAtEndOfPrevCluster == 0) startByteWithinCluster = 0;
 				else startByteWithinCluster = (sample->numChannels * sample->byteDepth) - unusedBytesAtEndOfPrevCluster;
 
@@ -365,19 +376,22 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 				else errorCode = "E344";
 			}
 			else {
-				errorCode = "E341"; // Qui got this, around V3.1.3! And Steven G, 3.1.5. And Brawny, V4.0.1-RC! And then Malte P.
+				errorCode =
+				    "E341"; // Qui got this, around V3.1.3! And Steven G, 3.1.5. And Brawny, V4.0.1-RC! And then Malte P.
 			}
 
 			Cluster* cluster = sampleCluster->getCluster(sample, clusterIndexToDo, CLUSTER_LOAD_IMMEDIATELY);
 			if (!cluster) {
-	cantReadData:
+cantReadData:
 				Uart::println("cant read");
 				data->colStatus[col] = 0;
 				hadAnyTroubleLoading = true;
 				continue;
 			}
 
-			if (cluster->numReasonsToBeLoaded <= 0) numericDriver.freezeWithError(errorCode); // Branko V got this. Trying to catch E340 below, which Ron R got while recording
+			if (cluster->numReasonsToBeLoaded <= 0)
+				numericDriver.freezeWithError(
+				    errorCode); // Branko V got this. Trying to catch E340 below, which Ron R got while recording
 
 			uint32_t numBytesToRead = endByteWithinCluster - startByteWithinCluster;
 
@@ -389,16 +403,18 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 			Cluster* nextCluster = NULL;
 			if (endByteWithinCluster <= startByteWithinCluster && clusterIndexToDo < endClusters - 1) {
 				endByteWithinCluster += overshoot;
-				nextCluster = sample->clusters.getElement(clusterIndexToDo + 1)->getCluster(sample, clusterIndexToDo, CLUSTER_LOAD_IMMEDIATELY);
+				nextCluster = sample->clusters.getElement(clusterIndexToDo + 1)
+				                  ->getCluster(sample, clusterIndexToDo, CLUSTER_LOAD_IMMEDIATELY);
 
-				if (cluster->numReasonsToBeLoaded <= 0) numericDriver.freezeWithError("E342"); // Trying to catch E340 below, which Ron R got while recording
+				if (cluster->numReasonsToBeLoaded <= 0)
+					numericDriver.freezeWithError(
+					    "E342"); // Trying to catch E340 below, which Ron R got while recording
 
 				if (!nextCluster) {
 					audioFileManager.removeReasonFromCluster(cluster, "po8w");
 					goto cantReadData;
 				}
 			}
-
 
 			numBytesToRead = endByteWithinCluster - startByteWithinCluster;
 
@@ -431,7 +447,8 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 			// Go through the actual waveform of this cluster
 			while (bytePos < endByteWithinCluster) {
 
-				int32_t individualSampleValue = *(int32_t*)&cluster->data[bytePos]; // & sample->bitMask; // bitMask hardly matters here
+				int32_t individualSampleValue =
+				    *(int32_t*)&cluster->data[bytePos]; // & sample->bitMask; // bitMask hardly matters here
 
 				if (individualSampleValue > maxThisCol) maxThisCol = individualSampleValue;
 				if (individualSampleValue < minThisCol) minThisCol = individualSampleValue;
@@ -503,8 +520,8 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 	return !hadAnyTroubleLoading;
 }
 
-
-void WaveformRenderer::getColBarPositions(int xDisplay, WaveformRenderData* data, int32_t* min24, int32_t* max24, int32_t valueCentrePoint, int32_t valueSpan) {
+void WaveformRenderer::getColBarPositions(int xDisplay, WaveformRenderData* data, int32_t* min24, int32_t* max24,
+                                          int32_t valueCentrePoint, int32_t valueSpan) {
 	*min24 = ((int64_t)(data->minPerCol[xDisplay] - valueCentrePoint) << 24) / valueSpan;
 	*max24 = ((int64_t)(data->maxPerCol[xDisplay] - valueCentrePoint) << 24) / valueSpan;
 
@@ -516,12 +533,12 @@ void WaveformRenderer::getColBarPositions(int xDisplay, WaveformRenderData* data
 	}
 }
 
-void WaveformRenderer::drawColBar(int xDisplay, int32_t min24, int32_t max24, uint8_t thisImage[][displayWidth + sideBarWidth][3], int brightness, uint8_t rgb[]) {
+void WaveformRenderer::drawColBar(int xDisplay, int32_t min24, int32_t max24,
+                                  uint8_t thisImage[][displayWidth + sideBarWidth][3], int brightness, uint8_t rgb[]) {
 	int yStart = getMax((int)(min24 >> 24), -(displayHeight >> 1));
 	int yStop = getMin((int)(max24 >> 24) + 1, displayHeight >> 1);
 
 	for (int y = yStart; y < yStop; y++) {
-
 
 		int colourAmount; // Out of 256
 
@@ -549,8 +566,8 @@ void WaveformRenderer::drawColBar(int xDisplay, int32_t min24, int32_t max24, ui
 	}
 }
 
-
-void WaveformRenderer::renderOneCol(Sample* sample, int xDisplay, uint8_t thisImage[][displayWidth + sideBarWidth][3], WaveformRenderData* data, bool reversed, uint8_t rgb[]) {
+void WaveformRenderer::renderOneCol(Sample* sample, int xDisplay, uint8_t thisImage[][displayWidth + sideBarWidth][3],
+                                    WaveformRenderData* data, bool reversed, uint8_t rgb[]) {
 	int32_t min24, max24;
 	int brightness = rgb ? 256 : 128;
 
@@ -558,11 +575,9 @@ void WaveformRenderer::renderOneCol(Sample* sample, int xDisplay, uint8_t thisIm
 
 	if (data->colStatus[xDisplaySource] == COL_STATUS_INVESTIGATED) {
 
-		getColBarPositions(xDisplaySource, data, &min24, &max24, sample->getFoundValueCentrePoint(), sample->getValueSpan());
+		getColBarPositions(xDisplaySource, data, &min24, &max24, sample->getFoundValueCentrePoint(),
+		                   sample->getValueSpan());
 
 		drawColBar(xDisplay, min24, max24, thisImage, brightness, rgb);
 	}
 }
-
-
-
