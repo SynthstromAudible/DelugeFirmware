@@ -15,11 +15,16 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "TuningSystem.h"
+
 //int32_t tuningFrequencyOffsetTable[12];
 //int32_t tuningIntervalOffsetTable[12];
+
+TuningSystem tuningSystem;
+
 int32_t selectedTuningBank;
 
-void TuningSystem::TuningSystem()
+TuningSystem::TuningSystem()
 {
 	setDefaultTuning();
 }
@@ -27,10 +32,7 @@ void TuningSystem::TuningSystem()
 void TuningSystem::setDefaultTuning() {
 
 	for(int i = 0; i < 12; i++) {
-		tuningIntervalOffsetTable[i] = 0;
-		tuningFrequencyOffsetTable[i] = 0;
-
-		fineTuners[i].setNoDetune()
+		fineTuners[i].setNoDetune();
 	}
 	selectedTuningBank = 0;
 }
@@ -62,7 +64,11 @@ void TuningSystem::calculateUserTuning() {
 
 void TuningSystem::setOffset(int noteWithinOctave, int32_t offset) {
 
-	offsets[note] = offset;
+	offsets[noteWithinOctave] = offset;
 	calculateOffset(noteWithinOctave);
 }
 
+int32_t TuningSystem::detune(int32_t phaseIncrement, int noteWithinOctave) {
+
+	return fineTuners[noteWithinOctave].detune(phaseIncrement);
+}

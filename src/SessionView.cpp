@@ -58,6 +58,9 @@
 #include "loadsongui.h"
 #include "uitimermanager.h"
 #include "FileItem.h"
+#include "TuningSystem.h"
+#include "MenuItemSubmenu.h"
+#include "MenuItemTuning.h"
 
 #if HAVE_OLED
 #include "oled.h"
@@ -70,10 +73,28 @@ extern "C" {
 
 SessionView sessionView;
 
+MenuItemSubmenu     tuningMenu     ;
+MenuItemSubmenu     songRootMenu   ;
+MenuItemTuningNote  tuningNoteMenu ;
+MenuItemTuningBank  tuningBankMenu ;
+
 extern int8_t defaultAudioClipOverdubOutputCloning;
 
 SessionView::SessionView() {
 	xScrollBeforeFollowingAutoExtendingLinearRecording = -1;
+
+	new (&tuningSystem) TuningSystem();
+	// Song menu -------------------------------------------------------------
+
+	new (&tuningNoteMenu) MenuItemTuningNote("NOTE");
+	new (&tuningBankMenu) MenuItemTuningBank("BANK");
+	static MenuItem* tuningMenuItems[] = {
+		&tuningBankMenu,
+		&tuningNoteMenu,
+	};
+	new (&tuningMenu) MenuItemSubmenu("TUNING", tuningMenuItems);
+	static MenuItem* songRootMenuItems[] = {&tuningMenu, NULL};
+    new (&songRootMenu) MenuItemSubmenu("SONG", songRootMenuItems);
 }
 
 bool SessionView::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
@@ -144,6 +165,11 @@ int SessionView::buttonAction(int x, int y, bool on, bool inCardRoutine) {
         	transitionToViewForClip(); // May fail if no currentClip
         }
     }
+
+	else if (x == selectEncButtonX && y == selectEncButtonY) {
+		songRootMenu.beginSession(NULL);
+	}
+
 
     // Song-view button without shift
 

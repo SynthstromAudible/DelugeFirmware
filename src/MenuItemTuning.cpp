@@ -17,7 +17,7 @@
 */
 
 #include "MenuItemTuning.h"
-#include "tunings.h"
+#include "TuningSystem.h"
 
 const char *tuningBankNames[NUM_TUNING_BANKS+2] = {"12TET", "USER", NULL};
 

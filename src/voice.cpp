@@ -48,6 +48,7 @@
 #include "PatchCableSet.h"
 #include "InstrumentClip.h"
 #include "FlashStorage.h"
+#include "TuningSystem.h"
 
 extern "C" {
 #include "ssi_all_cpus.h"
@@ -351,7 +352,7 @@ void Voice::setupPorta(Sound* sound) {
     int octave = (semitoneAdjustment + 120) / 12;
 
 	int32_t phaseIncrement = noteIntervalTable[noteWithinOctave];
-	phaseIncrement = tuningSystem.fineTuners[noteWithinOctave].detune(phaseIncrement);
+	phaseIncrement = tuningSystem.detune(phaseIncrement, noteWithinOctave);
 
 	int shiftRightAmount = 16 - octave;
 	if (shiftRightAmount >= 0) {
@@ -449,7 +450,7 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
         		}
         	}
 
-			phaseIncrement = tuningSystem.fineTuners[noteWithinOctave].detune(phaseIncrement);
+			phaseIncrement = tuningSystem.detune(phaseIncrement, noteWithinOctave);
         }
 
         // Regular wave osc
@@ -466,7 +467,7 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
         		goto makeInactive;
         	}
 
-			phaseIncrement = tuningSystem.fineTuners[noteWithinOctave].detune(phaseIncrement);
+			phaseIncrement = tuningSystem.detune(phaseIncrement, noteWithinOctave);
         }
 
     	// Cents
@@ -516,7 +517,7 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
         	}
 
 			// Tuning
-			phaseIncrement = tuningSystem.fineTuners[noteWithinOctave].detune(phaseIncrement);
+			phaseIncrement = tuningSystem.detune(phaseIncrement, noteWithinOctave);
 
             // Cents
             phaseIncrement = sound->modulatorTransposers[m].detune(phaseIncrement);

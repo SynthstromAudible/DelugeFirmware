@@ -20,26 +20,28 @@
 #define MENUITEMTUNING_H_
 
 #include "MenuItemDecimal.h"
+#include "MenuItemSelection.h"
+#include "TuningSystem.h"
 
-extern const char *tuningBankNames[NUM_TUNING_BANKS];
+extern const char *tuningBankNames[NUM_TUNING_BANKS+2];
 
-class MenuItemTuningNote final : public MenuItemDecimal {
+class MenuItemTuningNote : public MenuItemDecimal {
 public:
 	MenuItemTuningNote(char const* newName = NULL) : MenuItemDecimal(newName) {}
 	int getMinValue() { return -5000; }
 	int getMaxValue() { return 5000; }
 	int getNumDecimalPlaces() { return 2; }
-	void readCurrentValue() { soundEditor.currentValue = (int32_t)tuningSystem.offsets[soundEditor.currentSourceIndex]; }
-	void writeCurrentValue(){ tuningSystem.setOffset(soundEditor.currentSourceIndex, soundEditor.currentValue); }
-} tuningNoteMenu;
+	void readCurrentValue() { tuningSystem.currentValue = (int32_t)tuningSystem.offsets[tuningSystem.currentNote]; }
+	void writeCurrentValue(){ tuningSystem.setOffset(tuningSystem.currentNote, tuningSystem.currentValue); }
+};
 
-class MenuItemTuningBank final : public MenuItemSelection {
+class MenuItemTuningBank : public MenuItemSelection {
 public:
 	MenuItemTuningBank(char const* newName = NULL) : MenuItemSelection(newName) {}
-	void readCurrentValue() { soundEditor.currentValue = selectedTuningBank; }
-	void writeCurrentValue() { selectedTuningBank = soundEditor.currentValue; }
+	void readCurrentValue() { tuningSystem.currentValue = selectedTuningBank; }
+	void writeCurrentValue() { selectedTuningBank = tuningSystem.currentValue; }
 	int getNumOptions() { return NUM_TUNING_BANKS + 2; }
 	char const** getOptions() { return tuningBankNames; }
-} tuningBankMenu;
+};
 
 #endif
