@@ -19,7 +19,6 @@
 #define PARAMCOLLECTION_H_
 #include "r_typedefs.h"
 
-
 class ParamManagerForTimeline;
 class Sound;
 class InstrumentClip;
@@ -46,16 +45,29 @@ public:
 	virtual void setPlayPos(uint32_t pos, ModelStackWithParamCollection* modelStack, bool reversed);
 	virtual void playbackHasEnded(ModelStackWithParamCollection* modelStack) = 0;
 	virtual void grabValuesFromPos(uint32_t pos, ModelStackWithParamCollection* modelStack) = 0;
-	virtual void generateRepeats(ModelStackWithParamCollection* modelStack, uint32_t oldLength, uint32_t newLength, bool shouldPingpong) = 0;
-	virtual void appendParamCollection(ModelStackWithParamCollection* modelStack, ModelStackWithParamCollection* otherModelStack, int32_t oldLength, int32_t reverseThisRepeatWithLength, bool pingpongingGenerally) = 0;
-	virtual void trimToLength(uint32_t newLength, ModelStackWithParamCollection* modelStack, Action* action, bool maySetupPatching) = 0;
-	virtual void shiftHorizontally(ModelStackWithParamCollection* modelStack, int32_t amount, int32_t effectiveLength) = 0;
-	virtual void processCurrentPos(ModelStackWithParamCollection* modelStack, int ticksSinceLast, bool reversed, bool didPingpong, bool mayInterpolate) = 0;
+	virtual void generateRepeats(ModelStackWithParamCollection* modelStack, uint32_t oldLength, uint32_t newLength,
+	                             bool shouldPingpong) = 0;
+	virtual void appendParamCollection(ModelStackWithParamCollection* modelStack,
+	                                   ModelStackWithParamCollection* otherModelStack, int32_t oldLength,
+	                                   int32_t reverseThisRepeatWithLength, bool pingpongingGenerally) = 0;
+	virtual void trimToLength(uint32_t newLength, ModelStackWithParamCollection* modelStack, Action* action,
+	                          bool maySetupPatching) = 0;
+	virtual void shiftHorizontally(ModelStackWithParamCollection* modelStack, int32_t amount,
+	                               int32_t effectiveLength) = 0;
+	virtual void processCurrentPos(ModelStackWithParamCollection* modelStack, int ticksSinceLast, bool reversed,
+	                               bool didPingpong, bool mayInterpolate) = 0;
 	virtual void remotelySwapParamState(AutoParamState* state, ModelStackWithParamId* modelStack) = 0;
 	virtual void deleteAllAutomation(Action* action, ModelStackWithParamCollection* modelStack) = 0;
-	virtual void nudgeNonInterpolatingNodesAtPos(int32_t pos, int offset, int32_t lengthBeforeLoop, Action* action, ModelStackWithParamCollection* modelStack) = 0;
-	virtual void notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue, bool automationChanged, bool automatedBefore, bool automatedNow); // Watch the heck out! This might delete the AutoParam in question.
-	virtual ModelStackWithAutoParam* getAutoParamFromId(ModelStackWithParamId* modelStack, bool allowCreation = false) = 0; // You must not pass this any child class of ModelStackWithThreeMoreThings (wait why again?). May return NULL
+	virtual void nudgeNonInterpolatingNodesAtPos(int32_t pos, int offset, int32_t lengthBeforeLoop, Action* action,
+	                                             ModelStackWithParamCollection* modelStack) = 0;
+	virtual void
+	notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue, bool automationChanged,
+	                             bool automatedBefore,
+	                             bool automatedNow); // Watch the heck out! This might delete the AutoParam in question.
+	virtual ModelStackWithAutoParam* getAutoParamFromId(
+	    ModelStackWithParamId* modelStack,
+	    bool allowCreation =
+	        false) = 0; // You must not pass this any child class of ModelStackWithThreeMoreThings (wait why again?). May return NULL
 	virtual bool mayParamInterpolate(int paramId);
 	virtual bool shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack) { return false; }
 	virtual bool doesParamIdAllowAutomation(ModelStackWithParamId const* modelStack) { return true; }

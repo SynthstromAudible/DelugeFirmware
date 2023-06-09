@@ -18,8 +18,7 @@
 #include "Metronome.h"
 #include "AudioSample.h"
 
-Metronome::Metronome()
-{
+Metronome::Metronome() {
 	sounding = false;
 }
 
@@ -30,7 +29,7 @@ void Metronome::trigger(uint32_t newPhaseIncrement) {
 	timeSinceTrigger = 0;
 }
 
-void Metronome::render(StereoSample *buffer, uint16_t numSamples) {
+void Metronome::render(StereoSample* buffer, uint16_t numSamples) {
 	if (!sounding) return;
 
 	StereoSample* thisSample = buffer;

@@ -28,7 +28,6 @@ ConsequenceClipLength::ConsequenceClipLength(Clip* newClip, int32_t oldLength) {
 	pointerToMarkerValue = NULL;
 }
 
-
 int ConsequenceClipLength::revert(int time, ModelStack* modelStack) {
 
 	uint64_t markerValueBeforeRevert;

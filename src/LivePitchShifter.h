@@ -28,42 +28,39 @@ public:
 	LivePitchShifter(int newInputType, int32_t phaseIncrement);
 	~LivePitchShifter();
 	void giveInput(int numSamples, int inputType, int32_t phaseIncrement);
-	void render(int32_t* outputBuffer, int numSamplesThisFunctionCall, int32_t phaseIncrement,
-			int32_t amplitude, int32_t amplitudeIncrement, int interpolationBufferSize);
+	void render(int32_t* outputBuffer, int numSamplesThisFunctionCall, int32_t phaseIncrement, int32_t amplitude,
+	            int32_t amplitudeIncrement, int interpolationBufferSize);
 
 	bool mayBeRemovedWithoutClick();
 
 #if INPUT_ENABLE_REPITCHED_BUFFER
 	void interpolate(int32_t* sampleRead, int interpolationBufferSize, int numChannelsNow, int whichKernel);
 	int32_t* repitchedBuffer;
-    int repitchedBufferWritePos;
-    uint64_t repitchedBufferNumSamplesWritten;
-    bool stillWritingToRepitchedBuffer;
-    int32_t interpolationBuffer[2][INTERPOLATION_MAX_NUM_SAMPLES];
-    uint32_t oscPos;
+	int repitchedBufferWritePos;
+	uint64_t repitchedBufferNumSamplesWritten;
+	bool stillWritingToRepitchedBuffer;
+	int32_t interpolationBuffer[2][INTERPOLATION_MAX_NUM_SAMPLES];
+	uint32_t oscPos;
 #endif
-
 
 	int8_t numChannels;
 	uint8_t inputType;
 
-    uint32_t crossfadeProgress; // Out of 16777216
-    uint32_t crossfadeIncrement;
-    int32_t nextCrossfadeLength;
-    int32_t samplesTilHopEnd;
-    int32_t samplesIntoHop;
-
+	uint32_t crossfadeProgress; // Out of 16777216
+	uint32_t crossfadeIncrement;
+	int32_t nextCrossfadeLength;
+	int32_t samplesTilHopEnd;
+	int32_t samplesIntoHop;
 
 	int percThresholdForCut;
 
-
-    LivePitchShifterPlayHead playHeads[2];
+	LivePitchShifterPlayHead playHeads[2];
 
 private:
-    void hopEnd(int32_t phaseIncrement, LiveInputBuffer* liveInputBuffer, uint64_t numRawSamplesProcessed, uint64_t numRawSamplesProcessedLatest);
-    void considerRepitchedBuffer(int32_t phaseIncrement);
+	void hopEnd(int32_t phaseIncrement, LiveInputBuffer* liveInputBuffer, uint64_t numRawSamplesProcessed,
+	            uint64_t numRawSamplesProcessedLatest);
+	void considerRepitchedBuffer(int32_t phaseIncrement);
 	bool olderPlayHeadIsCurrentlySounding();
-
 };
 
 #endif /* LIVEPITCHSHIFTER_H_ */

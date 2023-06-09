@@ -22,39 +22,41 @@
 
 class FilterSetConfig {
 
-	public:
+public:
 	FilterSetConfig();
-	int32_t init(int32_t lpfFrequency, int32_t lpfResonance, int32_t hpfFrequency, int32_t hpfResonance, uint8_t lpfMode, int32_t filterGain, bool adjustVolumeForHPFResonance = true, int32_t* overallOscAmplitude = NULL);
+	int32_t init(int32_t lpfFrequency, int32_t lpfResonance, int32_t hpfFrequency, int32_t hpfResonance,
+	             uint8_t lpfMode, int32_t filterGain, bool adjustVolumeForHPFResonance = true,
+	             int32_t* overallOscAmplitude = NULL);
 
-    int32_t processedResonance; // 1 represented as 1073741824
-    int32_t divideByTotalMoveabilityAndProcessedResonance; // 1 represented as 1073741824
-    int32_t moveability; // 1 represented by 2147483648
-    int32_t divideBy1PlusTannedFrequency; // 1 represented by 2147483648
+	int32_t processedResonance;                            // 1 represented as 1073741824
+	int32_t divideByTotalMoveabilityAndProcessedResonance; // 1 represented as 1073741824
+	int32_t moveability;                                   // 1 represented by 2147483648
+	int32_t divideBy1PlusTannedFrequency;                  // 1 represented by 2147483648
 
-    // All feedbacks have 1 represented as 1073741824
-    int32_t lpf1Feedback;
-    int32_t lpf2Feedback;
-    int32_t lpf3Feedback;
+	// All feedbacks have 1 represented as 1073741824
+	int32_t lpf1Feedback;
+	int32_t lpf2Feedback;
+	int32_t lpf3Feedback;
 
-    int32_t hpfMoveability; // 1 represented by 2147483648
+	int32_t hpfMoveability; // 1 represented by 2147483648
 
-    // All feedbacks have 1 represented as 1073741824
-    int32_t hpfLPF1Feedback;
-    int32_t hpfHPF3Feedback;
+	// All feedbacks have 1 represented as 1073741824
+	int32_t hpfLPF1Feedback;
+	int32_t hpfHPF3Feedback;
 
-    int32_t hpfProcessedResonance; // 1 represented as 1073741824
-    bool hpfDoAntialiasing;
-    int32_t hpfDivideByProcessedResonance;
+	int32_t hpfProcessedResonance; // 1 represented as 1073741824
+	bool hpfDoAntialiasing;
+	int32_t hpfDivideByProcessedResonance;
 
-    int32_t divideByTotalMoveability; // 1 represented as 268435456
+	int32_t divideByTotalMoveability; // 1 represented as 268435456
 
-    int32_t lpfRawResonance;
-    int32_t alteredHpfMomentumMultiplier;
-    int32_t thisHpfResonance;
-    bool doLPF;
-    bool doHPF;
+	int32_t lpfRawResonance;
+	int32_t alteredHpfMomentumMultiplier;
+	int32_t thisHpfResonance;
+	bool doLPF;
+	bool doHPF;
 
-    bool doOversampling;
+	bool doOversampling;
 };
 
 #endif /* FILTERSETCONFIG_H_ */

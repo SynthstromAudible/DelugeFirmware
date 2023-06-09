@@ -21,7 +21,7 @@
 #include "Consequence.h"
 #include "r_typedefs.h"
 
-class ConsequenceTempoChange final : public Consequence{
+class ConsequenceTempoChange final : public Consequence {
 public:
 	ConsequenceTempoChange(uint64_t newTimePerBigBefore, uint64_t newTimePerBigAfter);
 	int revert(int time, ModelStack* modelStack);

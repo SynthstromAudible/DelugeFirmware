@@ -22,9 +22,7 @@
 
 class MenuItemSubmenu : public MenuItem {
 public:
-	MenuItemSubmenu(char const* newName = NULL, MenuItem** newItems = NULL) : MenuItem(newName) {
-		items = newItems;
-	}
+	MenuItemSubmenu(char const* newName = NULL, MenuItem** newItems = NULL) : MenuItem(newName) { items = newItems; }
 	void beginSession(MenuItem* navigatedBackwardFrom = NULL);
 	void updateDisplay();
 	void selectEncoderAction(int offset) final;
@@ -42,7 +40,8 @@ public:
 class MenuItemSubmenuReferringToOneThing : public MenuItemSubmenu {
 public:
 	MenuItemSubmenuReferringToOneThing() {}
-	MenuItemSubmenuReferringToOneThing(char const* newName, MenuItem** newItems, int newThingIndex) : MenuItemSubmenu(newName, newItems) {
+	MenuItemSubmenuReferringToOneThing(char const* newName, MenuItem** newItems, int newThingIndex)
+	    : MenuItemSubmenu(newName, newItems) {
 		thingIndex = newThingIndex;
 	}
 	void beginSession(MenuItem* navigatedBackwardFrom = NULL);
@@ -53,7 +52,8 @@ public:
 class MenuItemCompressorSubmenu final : public MenuItemSubmenu {
 public:
 	MenuItemCompressorSubmenu() {}
-	MenuItemCompressorSubmenu(char const* newName, MenuItem** newItems, bool newForReverbCompressor) : MenuItemSubmenu(newName, newItems) {
+	MenuItemCompressorSubmenu(char const* newName, MenuItem** newItems, bool newForReverbCompressor)
+	    : MenuItemSubmenu(newName, newItems) {
 		forReverbCompressor = newForReverbCompressor;
 	}
 	void beginSession(MenuItem* navigatedBackwardFrom = NULL);

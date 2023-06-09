@@ -22,56 +22,35 @@
 
 #include "Positionable.h"
 
-class Note: public Positionable
-{
+class Note : public Positionable {
 public:
-    Note();
+	Note();
 
-    inline void setLength(int newLength) {
-    	length = newLength;
-    }
+	inline void setLength(int newLength) { length = newLength; }
 
-    inline int getLength() {
-    	return length;
-    }
+	inline int getLength() { return length; }
 
-    inline void setVelocity(int newVelocity) {
-    	velocity = newVelocity;
-    }
+	inline void setVelocity(int newVelocity) { velocity = newVelocity; }
 
-    inline int getVelocity() {
-    	return velocity;
-    }
+	inline int getVelocity() { return velocity; }
 
+	inline void setLift(int newLift) { lift = newLift; }
 
-    inline void setLift(int newLift) {
-    	lift = newLift;
-    }
+	inline int getLift() { return lift; }
 
-    inline int getLift() {
-    	return lift;
-    }
+	inline void setProbability(int newProbability) { probability = newProbability; }
 
+	inline int getProbability() { return probability; }
 
-    inline void setProbability(int newProbability) {
-    	probability = newProbability;
-    }
+	void writeToFile();
 
-    inline int getProbability() {
-    	return probability;
-    }
+	int32_t length;
+	uint8_t velocity;
+	uint8_t probability;
+	uint8_t lift;
 
-    void writeToFile();
-
-    int32_t length;
-    uint8_t velocity;
-    uint8_t probability;
-    uint8_t lift;
-
-
-    // Understanding the probability field: the first bit says whether it's based on a previous one.
-    // So take the rightmost 7 bits. If that's greater than NUM_PROBABILITY_VALUES (20),
+	// Understanding the probability field: the first bit says whether it's based on a previous one.
+	// So take the rightmost 7 bits. If that's greater than NUM_PROBABILITY_VALUES (20),
 };
-
 
 #endif

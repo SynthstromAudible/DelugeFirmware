@@ -29,5 +29,4 @@ void setDMARS(int dmaChannel, uint32_t dmarsValue);
 void initDMAWithLinkDescriptor(int dma_channel, const uint32_t* linkDescriptor, uint32_t dmarsValue);
 void dmaChannelStart(const uint32_t dma_channel);
 
-
 #endif /* DRIVERS_ALL_CPUS_DMAC_DMAC_H_ */

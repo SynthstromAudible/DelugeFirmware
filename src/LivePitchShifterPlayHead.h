@@ -22,7 +22,6 @@
 
 typedef __simd64_int16_t int16x4_t;
 
-
 #define PLAY_HEAD_MODE_REPITCHED_BUFFER 0
 #define PLAY_HEAD_MODE_RAW_REPITCHING 1
 #define PLAY_HEAD_MODE_RAW_DIRECT 2
@@ -33,14 +32,16 @@ class LivePitchShifterPlayHead {
 public:
 	LivePitchShifterPlayHead();
 	~LivePitchShifterPlayHead();
-	void render(int32_t* outputBuffer, int numSamples, int numChannels, int32_t phaseIncrement,
-			int32_t amplitude, int32_t amplitudeIncrement, int32_t* repitchedBuffer, int32_t* rawBuffer, int whichKernel, int interpolationBufferSize);
-	int getEstimatedPlaytimeRemaining(uint32_t repitchedBufferWritePos, LiveInputBuffer* liveInputBuffer, int32_t phaseIncrement);
+	void render(int32_t* outputBuffer, int numSamples, int numChannels, int32_t phaseIncrement, int32_t amplitude,
+	            int32_t amplitudeIncrement, int32_t* repitchedBuffer, int32_t* rawBuffer, int whichKernel,
+	            int interpolationBufferSize);
+	int getEstimatedPlaytimeRemaining(uint32_t repitchedBufferWritePos, LiveInputBuffer* liveInputBuffer,
+	                                  int32_t phaseIncrement);
 
-	int getNumRawSamplesBehindInput(LiveInputBuffer* liveInputBuffer, LivePitchShifter* livePitchShifter, int32_t phaseIncrement);
+	int getNumRawSamplesBehindInput(LiveInputBuffer* liveInputBuffer, LivePitchShifter* livePitchShifter,
+	                                int32_t phaseIncrement);
 
 	void fillInterpolationBuffer(LiveInputBuffer* liveInputBuffer, int numChannels);
-
 
 	uint8_t mode;
 #if INPUT_ENABLE_REPITCHED_BUFFER
@@ -51,7 +52,7 @@ public:
 
 	int16x4_t interpolationBuffer[2][INTERPOLATION_MAX_NUM_SAMPLES >> 2];
 
-    uint32_t percPos;
+	uint32_t percPos;
 
 private:
 	void interpolate(int32_t* sampleRead, int numChannelsNow, int whichKernel);

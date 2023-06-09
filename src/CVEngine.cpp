@@ -34,8 +34,7 @@ extern "C" {
 
 CVEngine cvEngine;
 
-CVEngine::CVEngine()
-{
+CVEngine::CVEngine() {
 	gateOutputPending = false;
 	asapGateOutputPending = false;
 	clockOutputPending = false;
@@ -86,7 +85,6 @@ void CVEngine::init() {
 	updateRunOutput();
 }
 
-
 // Gets called even for run and clock
 void CVEngine::updateGateOutputs() {
 	if (gateOutputPending || clockOutputPending || asapGateOutputPending) {
@@ -132,7 +130,6 @@ void CVEngine::switchGateOn(int channel, int doInstantlyIfPossible) {
 	}
 }
 
-
 // note -32768 means switch "all notes off", or switch on without changing actual CV voltage output
 void CVEngine::sendNote(bool on, uint8_t channel, int16_t note) {
 
@@ -143,7 +140,8 @@ void CVEngine::sendNote(bool on, uint8_t channel, int16_t note) {
 	if (!on) {
 
 		// Switch off, unless the note that's playing is a different one (i.e. if a new one had already cut short this one that we're now saying we wanted to stop)
-		if (gateChannels[channel].on && (channel >= NUM_CV_CHANNELS || note == -32768 || cvChannels[channel].noteCurrentlyPlaying == note)) {
+		if (gateChannels[channel].on
+		    && (channel >= NUM_CV_CHANNELS || note == -32768 || cvChannels[channel].noteCurrentlyPlaying == note)) {
 
 			// Physically switch it right now, to get a head-start before it turns back on
 			switchGateOff(channel);
@@ -211,31 +209,33 @@ void CVEngine::recalculateCVChannelVoltage(uint8_t channel) {
 	sendVoltageOut(channel, voltage);
 }
 
-
 // Represents 1V as 6552. So 10V is 65520.
 int32_t CVEngine::calculateVoltage(int note, uint8_t channel) {
-    double transposedNoteCode = (double)(note + cvChannels[channel].transpose) + (double)cvChannels[channel].cents * 0.01 + (double)cvChannels[channel].pitchBend / (1 << 23);
+	double transposedNoteCode = (double)(note + cvChannels[channel].transpose)
+	                            + (double)cvChannels[channel].cents * 0.01
+	                            + (double)cvChannels[channel].pitchBend / (1 << 23);
 
-    int32_t voltage;
-    // Hz per volt
-    if (cvChannels[channel].voltsPerOctave == 0) {
-        voltage = round(pow((double)2, (transposedNoteCode - 60) / 12) * 6552); // Puts middle C at 1V - I think? Would 2V be better?
-    }
+	int32_t voltage;
+	// Hz per volt
+	if (cvChannels[channel].voltsPerOctave == 0) {
+		voltage = round(pow((double)2, (transposedNoteCode - 60) / 12)
+		                * 6552); // Puts middle C at 1V - I think? Would 2V be better?
+	}
 
-    // Volts per octave
-    else {
-        voltage = (transposedNoteCode - 24) * 5.46 * cvChannels[channel].voltsPerOctave + 0.5; // The 0.5 rounds it. And it's 5.46 rather than 546 because voltsPerOctave is in 0.01's of a volt.
-    }
+	// Volts per octave
+	else {
+		voltage =
+		    (transposedNoteCode - 24) * 5.46 * cvChannels[channel].voltsPerOctave
+		    + 0.5; // The 0.5 rounds it. And it's 5.46 rather than 546 because voltsPerOctave is in 0.01's of a volt.
+	}
 
-    return voltage;
+	return voltage;
 }
-
 
 void CVEngine::analogOutTick() {
 	clockState = !clockState;
 	updateClockOutput();
 }
-
 
 void CVEngine::playbackBegun() {
 	clockState = false;
@@ -260,7 +260,8 @@ void CVEngine::setGateType(uint8_t channel, uint8_t value) {
 
 		// Clock
 		if (channel == WHICH_GATE_OUTPUT_IS_CLOCK) {
-			if (playbackHandler.playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE) playbackHandler.resyncAnalogOutTicksToInternalTicks();
+			if (playbackHandler.playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE)
+				playbackHandler.resyncAnalogOutTicksToInternalTicks();
 			updateClockOutput();
 		}
 
@@ -295,7 +296,9 @@ void CVEngine::updateRunOutput() {
 	bool runState = (playbackHandler.isEitherClockActive() && !playbackHandler.ticksLeftInCountIn);
 
 	if (runState) {
-		switchGateOn(WHICH_GATE_OUTPUT_IS_RUN, true); // Try to do instantly, because it's actually good if RUN can switch on before the first clock is sent
+		switchGateOn(
+		    WHICH_GATE_OUTPUT_IS_RUN,
+		    true); // Try to do instantly, because it's actually good if RUN can switch on before the first clock is sent
 	}
 	else {
 		switchGateOff(WHICH_GATE_OUTPUT_IS_RUN);

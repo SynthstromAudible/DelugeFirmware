@@ -31,19 +31,17 @@
 #include "ParamSet.h"
 #include "ParamCollection.h"
 
-
 GlobalEffectable::GlobalEffectable() {
 	lpfMode = LPF_MODE_TRANSISTOR_24DB;
-    filterSets[0].reset();
-    filterSets[1].reset();
-    modFXType = MOD_FX_TYPE_FLANGER;
-    currentModFXParam = MOD_FX_PARAM_FEEDBACK;
-    currentFilterType = FILTER_TYPE_LPF;
+	filterSets[0].reset();
+	filterSets[1].reset();
+	modFXType = MOD_FX_TYPE_FLANGER;
+	currentModFXParam = MOD_FX_PARAM_FEEDBACK;
+	currentFilterType = FILTER_TYPE_LPF;
 
 	memset(allpassMemory, 0, sizeof(allpassMemory));
 	memset(&phaserMemory, 0, sizeof(phaserMemory));
 }
-
 
 void GlobalEffectable::cloneFrom(ModControllableAudio* other) {
 	ModControllableAudio::cloneFrom(other);
@@ -51,7 +49,6 @@ void GlobalEffectable::cloneFrom(ModControllableAudio* other) {
 	currentModFXParam = ((GlobalEffectable*)other)->currentModFXParam;
 	currentFilterType = ((GlobalEffectable*)other)->currentFilterType;
 }
-
 
 void GlobalEffectable::initParams(ParamManager* paramManager) {
 	ModControllableAudio::initParams(paramManager);
@@ -65,10 +62,13 @@ void GlobalEffectable::initParams(ParamManager* paramManager) {
 	unpatchedParams->params[PARAM_UNPATCHED_GLOBALEFFECTABLE_PAN].setCurrentValueBasicForSetup(0);
 
 	unpatchedParams->params[PARAM_UNPATCHED_GLOBALEFFECTABLE_DELAY_AMOUNT].setCurrentValueBasicForSetup(-2147483648);
-	unpatchedParams->params[PARAM_UNPATCHED_GLOBALEFFECTABLE_REVERB_SEND_AMOUNT].setCurrentValueBasicForSetup(-2147483648);
+	unpatchedParams->params[PARAM_UNPATCHED_GLOBALEFFECTABLE_REVERB_SEND_AMOUNT].setCurrentValueBasicForSetup(
+	    -2147483648);
 
-	unpatchedParams->params[PARAM_UNPATCHED_GLOBALEFFECTABLE_VOLUME].setCurrentValueBasicForSetup(889516852); // 3 quarters of the way up
-	unpatchedParams->params[PARAM_UNPATCHED_GLOBALEFFECTABLE_SIDECHAIN_VOLUME].setCurrentValueBasicForSetup(-2147483648);
+	unpatchedParams->params[PARAM_UNPATCHED_GLOBALEFFECTABLE_VOLUME].setCurrentValueBasicForSetup(
+	    889516852); // 3 quarters of the way up
+	unpatchedParams->params[PARAM_UNPATCHED_GLOBALEFFECTABLE_SIDECHAIN_VOLUME].setCurrentValueBasicForSetup(
+	    -2147483648);
 	unpatchedParams->params[PARAM_UNPATCHED_GLOBALEFFECTABLE_PITCH_ADJUST].setCurrentValueBasicForSetup(0);
 
 	unpatchedParams->params[PARAM_UNPATCHED_GLOBALEFFECTABLE_LPF_RES].setCurrentValueBasicForSetup(-2147483648);
@@ -80,10 +80,9 @@ void GlobalEffectable::initParams(ParamManager* paramManager) {
 
 void GlobalEffectable::initParamsForAudioClip(ParamManagerForTimeline* paramManager) {
 	initParams(paramManager);
-	paramManager->getUnpatchedParamSet()->params[PARAM_UNPATCHED_GLOBALEFFECTABLE_VOLUME].setCurrentValueBasicForSetup(-536870912);
+	paramManager->getUnpatchedParamSet()->params[PARAM_UNPATCHED_GLOBALEFFECTABLE_VOLUME].setCurrentValueBasicForSetup(
+	    -536870912);
 }
-
-
 
 void GlobalEffectable::modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager) {
 
@@ -99,11 +98,9 @@ void GlobalEffectable::modButtonAction(uint8_t whichModButton, bool on, ParamMan
 	endStutter(paramManager);
 }
 
-
-
-
 // Returns whether Instrument changed
-bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack) {
+bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
+                                              ModelStackWithThreeMainThings* modelStack) {
 
 	int modKnobMode = *getModKnobMode();
 
@@ -125,7 +122,7 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on, 
 				modFXType++;
 				if (modFXType >= NUM_MOD_FX_TYPES) modFXType = 1;
 				char* displayText;
-				switch(modFXType) {
+				switch (modFXType) {
 				case MOD_FX_TYPE_FLANGER:
 					displayText = "FLANGER";
 					break;
@@ -151,7 +148,7 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on, 
 				ensureModFXParamIsValid();
 
 				char* displayText;
-				switch(currentModFXParam) {
+				switch (currentModFXParam) {
 				case MOD_FX_PARAM_DEPTH:
 					displayText = "DEPTH";
 					break;
@@ -179,7 +176,7 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on, 
 				if (currentFilterType >= NUM_FILTER_TYPES) currentFilterType = 0;
 
 				char* displayText;
-				switch(currentFilterType) {
+				switch (currentFilterType) {
 				case FILTER_TYPE_LPF:
 					displayText = "LPF";
 					break;
@@ -234,12 +231,8 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on, 
 		return false;
 	}
 
-
 	return false; // Some cases could lead here
-
 }
-
-
 
 // Always check this doesn't return NULL!
 int GlobalEffectable::getParameterFromKnob(int whichModEncoder) {
@@ -251,7 +244,7 @@ int GlobalEffectable::getParameterFromKnob(int whichModEncoder) {
 		else return PARAM_UNPATCHED_GLOBALEFFECTABLE_PAN;
 	}
 	else if (modKnobMode == 1) {
-		switch(currentFilterType) {
+		switch (currentFilterType) {
 		case FILTER_TYPE_LPF:
 			if (whichModEncoder != 0) return PARAM_UNPATCHED_GLOBALEFFECTABLE_LPF_FREQ;
 			else return PARAM_UNPATCHED_GLOBALEFFECTABLE_LPF_RES;
@@ -275,12 +268,9 @@ int GlobalEffectable::getParameterFromKnob(int whichModEncoder) {
 	else if (modKnobMode == 5) {
 		if (whichModEncoder != 0) return PARAM_UNPATCHED_GLOBALEFFECTABLE_MOD_FX_RATE;
 		else {
-			if (currentModFXParam == MOD_FX_PARAM_DEPTH)
-				return PARAM_UNPATCHED_GLOBALEFFECTABLE_MOD_FX_DEPTH;
-			else if (currentModFXParam == MOD_FX_PARAM_OFFSET)
-				return PARAM_UNPATCHED_MOD_FX_OFFSET;
-			else
-				return PARAM_UNPATCHED_MOD_FX_FEEDBACK;
+			if (currentModFXParam == MOD_FX_PARAM_DEPTH) return PARAM_UNPATCHED_GLOBALEFFECTABLE_MOD_FX_DEPTH;
+			else if (currentModFXParam == MOD_FX_PARAM_OFFSET) return PARAM_UNPATCHED_MOD_FX_OFFSET;
+			else return PARAM_UNPATCHED_MOD_FX_FEEDBACK;
 		}
 	}
 	else if (modKnobMode == 6) {
@@ -299,9 +289,9 @@ int GlobalEffectable::getParameterFromKnob(int whichModEncoder) {
 	return 255;
 }
 
-
-
-ModelStackWithAutoParam* GlobalEffectable::getParamFromModEncoder(int whichModEncoder, ModelStackWithThreeMainThings* modelStack, bool allowCreation) {
+ModelStackWithAutoParam* GlobalEffectable::getParamFromModEncoder(int whichModEncoder,
+                                                                  ModelStackWithThreeMainThings* modelStack,
+                                                                  bool allowCreation) {
 	ParamCollectionSummary* summary = modelStack->paramManager->getUnpatchedParamSetSummary();
 	ParamCollection* paramCollection = summary->paramCollection;
 	int paramId;
@@ -313,7 +303,6 @@ ModelStackWithAutoParam* GlobalEffectable::getParamFromModEncoder(int whichModEn
 	if (paramId == 255) return newModelStack1->addAutoParam(NULL); // Communicate there's no param, back to caller
 	else return newModelStack1->paramCollection->getAutoParamFromId(newModelStack1, allowCreation);
 }
-
 
 void GlobalEffectable::ensureModFXParamIsValid() {
 	while (true) {
@@ -340,120 +329,144 @@ ohNo:
 	}
 }
 
-void GlobalEffectable::setupFilterSetConfig(FilterSetConfig* filterSetConfig, int32_t* postFXVolume, ParamManager* paramManager) {
+void GlobalEffectable::setupFilterSetConfig(FilterSetConfig* filterSetConfig, int32_t* postFXVolume,
+                                            ParamManager* paramManager) {
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
-	int lpfFrequency = getFinalParameterValueExp(paramNeutralValues[PARAM_LOCAL_LPF_FREQ], cableToExpParamShortcut(unpatchedParams->getValue(PARAM_UNPATCHED_GLOBALEFFECTABLE_LPF_FREQ)));
-	int lpfResonance = getFinalParameterValueLinear(paramNeutralValues[PARAM_LOCAL_LPF_RESONANCE], cableToLinearParamShortcut(unpatchedParams->getValue(PARAM_UNPATCHED_GLOBALEFFECTABLE_LPF_RES)));
+	int lpfFrequency = getFinalParameterValueExp(
+	    paramNeutralValues[PARAM_LOCAL_LPF_FREQ],
+	    cableToExpParamShortcut(unpatchedParams->getValue(PARAM_UNPATCHED_GLOBALEFFECTABLE_LPF_FREQ)));
+	int lpfResonance = getFinalParameterValueLinear(
+	    paramNeutralValues[PARAM_LOCAL_LPF_RESONANCE],
+	    cableToLinearParamShortcut(unpatchedParams->getValue(PARAM_UNPATCHED_GLOBALEFFECTABLE_LPF_RES)));
 
-	int hpfFrequency = getFinalParameterValueExp(paramNeutralValues[PARAM_LOCAL_HPF_FREQ], cableToExpParamShortcut(unpatchedParams->getValue(PARAM_UNPATCHED_GLOBALEFFECTABLE_HPF_FREQ)));
-	int hpfResonance = getFinalParameterValueLinear(paramNeutralValues[PARAM_LOCAL_HPF_RESONANCE], cableToLinearParamShortcut(unpatchedParams->getValue(PARAM_UNPATCHED_GLOBALEFFECTABLE_HPF_RES)));
+	int hpfFrequency = getFinalParameterValueExp(
+	    paramNeutralValues[PARAM_LOCAL_HPF_FREQ],
+	    cableToExpParamShortcut(unpatchedParams->getValue(PARAM_UNPATCHED_GLOBALEFFECTABLE_HPF_FREQ)));
+	int hpfResonance = getFinalParameterValueLinear(
+	    paramNeutralValues[PARAM_LOCAL_HPF_RESONANCE],
+	    cableToLinearParamShortcut(unpatchedParams->getValue(PARAM_UNPATCHED_GLOBALEFFECTABLE_HPF_RES)));
 
-    filterSetConfig->doLPF = (lpfMode == LPF_MODE_TRANSISTOR_24DB_DRIVE || unpatchedParams->getValue(PARAM_UNPATCHED_GLOBALEFFECTABLE_LPF_FREQ) < 2147483602);
-    filterSetConfig->doHPF = unpatchedParams->getValue(PARAM_UNPATCHED_GLOBALEFFECTABLE_HPF_FREQ) != -2147483648;
+	filterSetConfig->doLPF = (lpfMode == LPF_MODE_TRANSISTOR_24DB_DRIVE
+	                          || unpatchedParams->getValue(PARAM_UNPATCHED_GLOBALEFFECTABLE_LPF_FREQ) < 2147483602);
+	filterSetConfig->doHPF = unpatchedParams->getValue(PARAM_UNPATCHED_GLOBALEFFECTABLE_HPF_FREQ) != -2147483648;
 
-   	*postFXVolume = filterSetConfig->init(lpfFrequency, lpfResonance, hpfFrequency, hpfResonance, lpfMode, *postFXVolume, false, NULL);
-
+	*postFXVolume = filterSetConfig->init(lpfFrequency, lpfResonance, hpfFrequency, hpfResonance, lpfMode,
+	                                      *postFXVolume, false, NULL);
 }
-
 
 void GlobalEffectable::processFilters(StereoSample* buffer, int numSamples, FilterSetConfig* filterSetConfig) {
 
-    if (filterSetConfig->doHPF) {
-    	StereoSample* thisSample = buffer;
-    	StereoSample* bufferEnd = buffer + numSamples;
+	if (filterSetConfig->doHPF) {
+		StereoSample* thisSample = buffer;
+		StereoSample* bufferEnd = buffer + numSamples;
 
-    	do {
+		do {
 			filterSets[0].renderHPF(&thisSample->l, filterSetConfig, 2);
 			filterSets[1].renderHPF(&thisSample->r, filterSetConfig, 2);
-    	} while (++thisSample != bufferEnd);
-    }
+		} while (++thisSample != bufferEnd);
+	}
 
-    if (filterSetConfig->doLPF) {
-    	filterSets[0].renderLPFLong(&buffer->l, &(buffer + numSamples)->l, filterSetConfig, lpfMode, 2, 2, 1);
-    	filterSets[1].renderLPFLong(&buffer->r, &(buffer + numSamples)->r, filterSetConfig, lpfMode, 2, 2, 1);
-    }
+	if (filterSetConfig->doLPF) {
+		filterSets[0].renderLPFLong(&buffer->l, &(buffer + numSamples)->l, filterSetConfig, lpfMode, 2, 2, 1);
+		filterSets[1].renderLPFLong(&buffer->r, &(buffer + numSamples)->r, filterSetConfig, lpfMode, 2, 2, 1);
+	}
 }
 
 void GlobalEffectable::writeAttributesToFile(bool writeAutomation) {
 
 	ModControllableAudio::writeAttributesToFile();
 
-    storageManager.writeAttribute("modFXCurrentParam", (char*)modFXParamToString(currentModFXParam));
-    storageManager.writeAttribute("currentFilterType", (char*)filterTypeToString(currentFilterType));
+	storageManager.writeAttribute("modFXCurrentParam", (char*)modFXParamToString(currentModFXParam));
+	storageManager.writeAttribute("currentFilterType", (char*)filterTypeToString(currentFilterType));
 }
-
 
 void GlobalEffectable::writeTagsToFile(ParamManager* paramManager, bool writeAutomation) {
 
 	ModControllableAudio::writeTagsToFile();
 
 	if (paramManager) {
-	    storageManager.writeOpeningTagBeginning("defaultParams");
-	    GlobalEffectable::writeParamAttributesToFile(paramManager, writeAutomation);
-	    storageManager.writeOpeningTagEnd();
-	    GlobalEffectable::writeParamTagsToFile(paramManager, writeAutomation);
-	    storageManager.writeClosingTag("defaultParams");
+		storageManager.writeOpeningTagBeginning("defaultParams");
+		GlobalEffectable::writeParamAttributesToFile(paramManager, writeAutomation);
+		storageManager.writeOpeningTagEnd();
+		GlobalEffectable::writeParamTagsToFile(paramManager, writeAutomation);
+		storageManager.writeClosingTag("defaultParams");
 	}
 }
 
-
-void GlobalEffectable::writeParamAttributesToFile(ParamManager* paramManager, bool writeAutomation, int32_t* valuesForOverride) {
+void GlobalEffectable::writeParamAttributesToFile(ParamManager* paramManager, bool writeAutomation,
+                                                  int32_t* valuesForOverride) {
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
-	unpatchedParams->writeParamAsAttribute("reverbAmount", PARAM_UNPATCHED_GLOBALEFFECTABLE_REVERB_SEND_AMOUNT, writeAutomation, false, valuesForOverride);
-	unpatchedParams->writeParamAsAttribute("volume", PARAM_UNPATCHED_GLOBALEFFECTABLE_VOLUME, writeAutomation, false, valuesForOverride);
-	unpatchedParams->writeParamAsAttribute("pan", PARAM_UNPATCHED_GLOBALEFFECTABLE_PAN, writeAutomation, false, valuesForOverride);
+	unpatchedParams->writeParamAsAttribute("reverbAmount", PARAM_UNPATCHED_GLOBALEFFECTABLE_REVERB_SEND_AMOUNT,
+	                                       writeAutomation, false, valuesForOverride);
+	unpatchedParams->writeParamAsAttribute("volume", PARAM_UNPATCHED_GLOBALEFFECTABLE_VOLUME, writeAutomation, false,
+	                                       valuesForOverride);
+	unpatchedParams->writeParamAsAttribute("pan", PARAM_UNPATCHED_GLOBALEFFECTABLE_PAN, writeAutomation, false,
+	                                       valuesForOverride);
 
 	if (unpatchedParams->params[PARAM_UNPATCHED_GLOBALEFFECTABLE_PITCH_ADJUST].containsSomething(0))
-		unpatchedParams->writeParamAsAttribute("pitchAdjust", PARAM_UNPATCHED_GLOBALEFFECTABLE_PITCH_ADJUST, writeAutomation, false, valuesForOverride);
+		unpatchedParams->writeParamAsAttribute("pitchAdjust", PARAM_UNPATCHED_GLOBALEFFECTABLE_PITCH_ADJUST,
+		                                       writeAutomation, false, valuesForOverride);
 
 	if (unpatchedParams->params[PARAM_UNPATCHED_GLOBALEFFECTABLE_SIDECHAIN_VOLUME].containsSomething(-2147483648))
-		unpatchedParams->writeParamAsAttribute("sidechainCompressorVolume", PARAM_UNPATCHED_GLOBALEFFECTABLE_SIDECHAIN_VOLUME, writeAutomation, false, valuesForOverride);
+		unpatchedParams->writeParamAsAttribute("sidechainCompressorVolume",
+		                                       PARAM_UNPATCHED_GLOBALEFFECTABLE_SIDECHAIN_VOLUME, writeAutomation,
+		                                       false, valuesForOverride);
 
-	unpatchedParams->writeParamAsAttribute("sidechainCompressorShape", PARAM_UNPATCHED_COMPRESSOR_SHAPE, writeAutomation, false, valuesForOverride);
+	unpatchedParams->writeParamAsAttribute("sidechainCompressorShape", PARAM_UNPATCHED_COMPRESSOR_SHAPE,
+	                                       writeAutomation, false, valuesForOverride);
 
-	unpatchedParams->writeParamAsAttribute("modFXDepth", PARAM_UNPATCHED_GLOBALEFFECTABLE_MOD_FX_DEPTH, writeAutomation, false, valuesForOverride);
-	unpatchedParams->writeParamAsAttribute("modFXRate", PARAM_UNPATCHED_GLOBALEFFECTABLE_MOD_FX_RATE, writeAutomation, false, valuesForOverride);
+	unpatchedParams->writeParamAsAttribute("modFXDepth", PARAM_UNPATCHED_GLOBALEFFECTABLE_MOD_FX_DEPTH, writeAutomation,
+	                                       false, valuesForOverride);
+	unpatchedParams->writeParamAsAttribute("modFXRate", PARAM_UNPATCHED_GLOBALEFFECTABLE_MOD_FX_RATE, writeAutomation,
+	                                       false, valuesForOverride);
 
 	ModControllableAudio::writeParamAttributesToFile(paramManager, writeAutomation, valuesForOverride);
 }
 
-void GlobalEffectable::writeParamTagsToFile(ParamManager* paramManager, bool writeAutomation, int32_t* valuesForOverride) {
+void GlobalEffectable::writeParamTagsToFile(ParamManager* paramManager, bool writeAutomation,
+                                            int32_t* valuesForOverride) {
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
 	storageManager.writeOpeningTagBeginning("delay");
-	unpatchedParams->writeParamAsAttribute("rate", PARAM_UNPATCHED_GLOBALEFFECTABLE_DELAY_RATE, writeAutomation, false, valuesForOverride);
-	unpatchedParams->writeParamAsAttribute("feedback", PARAM_UNPATCHED_GLOBALEFFECTABLE_DELAY_AMOUNT, writeAutomation, false, valuesForOverride);
+	unpatchedParams->writeParamAsAttribute("rate", PARAM_UNPATCHED_GLOBALEFFECTABLE_DELAY_RATE, writeAutomation, false,
+	                                       valuesForOverride);
+	unpatchedParams->writeParamAsAttribute("feedback", PARAM_UNPATCHED_GLOBALEFFECTABLE_DELAY_AMOUNT, writeAutomation,
+	                                       false, valuesForOverride);
 	storageManager.closeTag();
 
 	storageManager.writeOpeningTagBeginning("lpf");
-	unpatchedParams->writeParamAsAttribute("frequency", PARAM_UNPATCHED_GLOBALEFFECTABLE_LPF_FREQ, writeAutomation, false, valuesForOverride);
-	unpatchedParams->writeParamAsAttribute("resonance", PARAM_UNPATCHED_GLOBALEFFECTABLE_LPF_RES, writeAutomation, false, valuesForOverride);
-    storageManager.closeTag();
+	unpatchedParams->writeParamAsAttribute("frequency", PARAM_UNPATCHED_GLOBALEFFECTABLE_LPF_FREQ, writeAutomation,
+	                                       false, valuesForOverride);
+	unpatchedParams->writeParamAsAttribute("resonance", PARAM_UNPATCHED_GLOBALEFFECTABLE_LPF_RES, writeAutomation,
+	                                       false, valuesForOverride);
+	storageManager.closeTag();
 
-    storageManager.writeOpeningTagBeginning("hpf");
-	unpatchedParams->writeParamAsAttribute("frequency", PARAM_UNPATCHED_GLOBALEFFECTABLE_HPF_FREQ, writeAutomation, false, valuesForOverride);
-	unpatchedParams->writeParamAsAttribute("resonance", PARAM_UNPATCHED_GLOBALEFFECTABLE_HPF_RES, writeAutomation, false, valuesForOverride);
-    storageManager.closeTag();
+	storageManager.writeOpeningTagBeginning("hpf");
+	unpatchedParams->writeParamAsAttribute("frequency", PARAM_UNPATCHED_GLOBALEFFECTABLE_HPF_FREQ, writeAutomation,
+	                                       false, valuesForOverride);
+	unpatchedParams->writeParamAsAttribute("resonance", PARAM_UNPATCHED_GLOBALEFFECTABLE_HPF_RES, writeAutomation,
+	                                       false, valuesForOverride);
+	storageManager.closeTag();
 
 	ModControllableAudio::writeParamTagsToFile(paramManager, writeAutomation, valuesForOverride);
 }
 
 void GlobalEffectable::readParamsFromFile(ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos) {
-    char const* tagName;
+	char const* tagName;
 
-    while (*(tagName = storageManager.readNextTagOrAttributeName())) {
-        if (readParamTagFromFile(tagName, paramManager, readAutomationUpToPos)) {}
-        else storageManager.exitTag(tagName);
-    }
+	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+		if (readParamTagFromFile(tagName, paramManager, readAutomationUpToPos)) {}
+		else storageManager.exitTag(tagName);
+	}
 }
 
-
-bool GlobalEffectable::readParamTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos) {
+bool GlobalEffectable::readParamTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager,
+                                            int32_t readAutomationUpToPos) {
 
 	ParamCollectionSummary* unpatchedParamsSummary = paramManager->getUnpatchedParamSetSummary();
 	UnpatchedParamSet* unpatchedParams = (UnpatchedParamSet*)unpatchedParamsSummary->paramCollection;
@@ -461,26 +474,29 @@ bool GlobalEffectable::readParamTagFromFile(char const* tagName, ParamManagerFor
 	if (!strcmp(tagName, "delay")) {
 		while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "rate")) {
-				unpatchedParams->readParam(unpatchedParamsSummary, PARAM_UNPATCHED_GLOBALEFFECTABLE_DELAY_RATE, readAutomationUpToPos);
+				unpatchedParams->readParam(unpatchedParamsSummary, PARAM_UNPATCHED_GLOBALEFFECTABLE_DELAY_RATE,
+				                           readAutomationUpToPos);
 				storageManager.exitTag("rate");
 			}
 			else if (!strcmp(tagName, "feedback")) {
-				unpatchedParams->readParam(unpatchedParamsSummary, PARAM_UNPATCHED_GLOBALEFFECTABLE_DELAY_AMOUNT, readAutomationUpToPos);
+				unpatchedParams->readParam(unpatchedParamsSummary, PARAM_UNPATCHED_GLOBALEFFECTABLE_DELAY_AMOUNT,
+				                           readAutomationUpToPos);
 				storageManager.exitTag("feedback");
 			}
 		}
 		storageManager.exitTag("delay");
 	}
 
-
 	else if (!strcmp(tagName, "lpf")) {
 		while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "frequency")) {
-				unpatchedParams->readParam(unpatchedParamsSummary, PARAM_UNPATCHED_GLOBALEFFECTABLE_LPF_FREQ, readAutomationUpToPos);
+				unpatchedParams->readParam(unpatchedParamsSummary, PARAM_UNPATCHED_GLOBALEFFECTABLE_LPF_FREQ,
+				                           readAutomationUpToPos);
 				storageManager.exitTag("frequency");
 			}
 			else if (!strcmp(tagName, "resonance")) {
-				unpatchedParams->readParam(unpatchedParamsSummary, PARAM_UNPATCHED_GLOBALEFFECTABLE_LPF_RES, readAutomationUpToPos);
+				unpatchedParams->readParam(unpatchedParamsSummary, PARAM_UNPATCHED_GLOBALEFFECTABLE_LPF_RES,
+				                           readAutomationUpToPos);
 				storageManager.exitTag("resonance");
 			}
 		}
@@ -490,11 +506,13 @@ bool GlobalEffectable::readParamTagFromFile(char const* tagName, ParamManagerFor
 	else if (!strcmp(tagName, "hpf")) {
 		while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "frequency")) {
-				unpatchedParams->readParam(unpatchedParamsSummary, PARAM_UNPATCHED_GLOBALEFFECTABLE_HPF_FREQ, readAutomationUpToPos);
+				unpatchedParams->readParam(unpatchedParamsSummary, PARAM_UNPATCHED_GLOBALEFFECTABLE_HPF_FREQ,
+				                           readAutomationUpToPos);
 				storageManager.exitTag("frequency");
 			}
 			else if (!strcmp(tagName, "resonance")) {
-				unpatchedParams->readParam(unpatchedParamsSummary, PARAM_UNPATCHED_GLOBALEFFECTABLE_HPF_RES, readAutomationUpToPos);
+				unpatchedParams->readParam(unpatchedParamsSummary, PARAM_UNPATCHED_GLOBALEFFECTABLE_HPF_RES,
+				                           readAutomationUpToPos);
 				storageManager.exitTag("resonance");
 			}
 		}
@@ -502,17 +520,20 @@ bool GlobalEffectable::readParamTagFromFile(char const* tagName, ParamManagerFor
 	}
 
 	else if (!strcmp(tagName, "reverbAmount")) {
-		unpatchedParams->readParam(unpatchedParamsSummary, PARAM_UNPATCHED_GLOBALEFFECTABLE_REVERB_SEND_AMOUNT, readAutomationUpToPos);
+		unpatchedParams->readParam(unpatchedParamsSummary, PARAM_UNPATCHED_GLOBALEFFECTABLE_REVERB_SEND_AMOUNT,
+		                           readAutomationUpToPos);
 		storageManager.exitTag("reverbAmount");
 	}
 
 	else if (!strcmp(tagName, "volume")) {
-		unpatchedParams->readParam(unpatchedParamsSummary, PARAM_UNPATCHED_GLOBALEFFECTABLE_VOLUME, readAutomationUpToPos);
+		unpatchedParams->readParam(unpatchedParamsSummary, PARAM_UNPATCHED_GLOBALEFFECTABLE_VOLUME,
+		                           readAutomationUpToPos);
 		storageManager.exitTag("volume");
 	}
 
 	else if (!strcmp(tagName, "sidechainCompressorVolume")) {
-		unpatchedParams->readParam(unpatchedParamsSummary, PARAM_UNPATCHED_GLOBALEFFECTABLE_SIDECHAIN_VOLUME, readAutomationUpToPos);
+		unpatchedParams->readParam(unpatchedParamsSummary, PARAM_UNPATCHED_GLOBALEFFECTABLE_SIDECHAIN_VOLUME,
+		                           readAutomationUpToPos);
 		storageManager.exitTag("sidechainCompressorVolume");
 	}
 
@@ -527,17 +548,20 @@ bool GlobalEffectable::readParamTagFromFile(char const* tagName, ParamManagerFor
 	}
 
 	else if (!strcmp(tagName, "pitchAdjust")) {
-		unpatchedParams->readParam(unpatchedParamsSummary, PARAM_UNPATCHED_GLOBALEFFECTABLE_PITCH_ADJUST, readAutomationUpToPos);
+		unpatchedParams->readParam(unpatchedParamsSummary, PARAM_UNPATCHED_GLOBALEFFECTABLE_PITCH_ADJUST,
+		                           readAutomationUpToPos);
 		storageManager.exitTag("pitchAdjust");
 	}
 
 	else if (!strcmp(tagName, "modFXDepth")) {
-		unpatchedParams->readParam(unpatchedParamsSummary, PARAM_UNPATCHED_GLOBALEFFECTABLE_MOD_FX_DEPTH, readAutomationUpToPos);
+		unpatchedParams->readParam(unpatchedParamsSummary, PARAM_UNPATCHED_GLOBALEFFECTABLE_MOD_FX_DEPTH,
+		                           readAutomationUpToPos);
 		storageManager.exitTag("modFXDepth");
 	}
 
 	else if (!strcmp(tagName, "modFXRate")) {
-		unpatchedParams->readParam(unpatchedParamsSummary, PARAM_UNPATCHED_GLOBALEFFECTABLE_MOD_FX_RATE, readAutomationUpToPos);
+		unpatchedParams->readParam(unpatchedParamsSummary, PARAM_UNPATCHED_GLOBALEFFECTABLE_MOD_FX_RATE,
+		                           readAutomationUpToPos);
 		storageManager.exitTag("modFXRate");
 	}
 
@@ -548,25 +572,25 @@ bool GlobalEffectable::readParamTagFromFile(char const* tagName, ParamManagerFor
 	return true;
 }
 
-
 // paramManager is optional
-int GlobalEffectable::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos, Song* song) {
+int GlobalEffectable::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager,
+                                      int32_t readAutomationUpToPos, Song* song) {
 
 	// This is here for compatibility only for people (Lou and Ian) who saved songs with firmware in September 2016
 	//if (paramManager && strcmp(tagName, "delay") && GlobalEffectable::readParamTagFromFile(tagName, paramManager, readAutomation)) {}
 
-    //else
-    if (paramManager && !strcmp(tagName, "defaultParams")) {
+	//else
+	if (paramManager && !strcmp(tagName, "defaultParams")) {
 
-    	if (!paramManager->containsAnyMainParamCollections()) {
-    		int error = paramManager->setupUnpatched();
-    		if (error) return error;
-    		initParams(paramManager);
-    	}
+		if (!paramManager->containsAnyMainParamCollections()) {
+			int error = paramManager->setupUnpatched();
+			if (error) return error;
+			initParams(paramManager);
+		}
 
-    	GlobalEffectable::readParamsFromFile(paramManager, readAutomationUpToPos);
-        storageManager.exitTag("defaultParams");
-    }
+		GlobalEffectable::readParamsFromFile(paramManager, readAutomationUpToPos);
+		storageManager.exitTag("defaultParams");
+	}
 
 	else if (!strcmp(tagName, "modFXType")) {
 		modFXType = stringToFXType(storageManager.readTagOrAttributeValue());
@@ -587,10 +611,8 @@ int GlobalEffectable::readTagFromFile(char const* tagName, ParamManagerForTimeli
 		return ModControllableAudio::readTagFromFile(tagName, NULL, readAutomationUpToPos, song);
 	}
 
-    return NO_ERROR;
+	return NO_ERROR;
 }
-
-
 
 // Before calling this, check that (storageManager.firmwareVersionOfFileBeingRead < FIRMWARE_1P2P0 && !paramManager->resonanceBackwardsCompatibilityProcessed)
 void GlobalEffectable::compensateVolumeForResonance(ParamManagerForTimeline* paramManager) {
@@ -599,140 +621,146 @@ void GlobalEffectable::compensateVolumeForResonance(ParamManagerForTimeline* par
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
-
 	// If no LPF on, and resonance is at 50%, set it to 0%
 	if (!unpatchedParams->params[PARAM_UNPATCHED_GLOBALEFFECTABLE_LPF_FREQ].isAutomated()
-			&& unpatchedParams->params[PARAM_UNPATCHED_GLOBALEFFECTABLE_LPF_FREQ].getCurrentValue() >= 2147483602
-			&& !unpatchedParams->params[PARAM_UNPATCHED_GLOBALEFFECTABLE_LPF_RES].containsSomething(0)
-	) {
+	    && unpatchedParams->params[PARAM_UNPATCHED_GLOBALEFFECTABLE_LPF_FREQ].getCurrentValue() >= 2147483602
+	    && !unpatchedParams->params[PARAM_UNPATCHED_GLOBALEFFECTABLE_LPF_RES].containsSomething(0)) {
 		unpatchedParams->params[PARAM_UNPATCHED_GLOBALEFFECTABLE_LPF_RES].currentValue = -2147483648;
 	}
 
 	// If no HPF on, and resonance is at 25%, set it to 0%
 	if (!unpatchedParams->params[PARAM_UNPATCHED_GLOBALEFFECTABLE_HPF_FREQ].containsSomething(-2147483648)
-			&& !unpatchedParams->params[PARAM_UNPATCHED_GLOBALEFFECTABLE_LPF_RES].containsSomething(-1073741824)
-	) {
+	    && !unpatchedParams->params[PARAM_UNPATCHED_GLOBALEFFECTABLE_LPF_RES].containsSomething(-1073741824)) {
 		unpatchedParams->params[PARAM_UNPATCHED_GLOBALEFFECTABLE_HPF_RES].currentValue = -2147483648;
 	}
 }
 
-
 int GlobalEffectable::getActiveModFXType(ParamManager* paramManager) {
-   	int modFXTypeNow = modFXType;
+	int modFXTypeNow = modFXType;
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
-   	if ((currentModFXParam == MOD_FX_PARAM_DEPTH && unpatchedParams->getValue(PARAM_UNPATCHED_GLOBALEFFECTABLE_MOD_FX_DEPTH) == -2147483648)
-   			|| (currentModFXParam == MOD_FX_PARAM_FEEDBACK && unpatchedParams->getValue(PARAM_UNPATCHED_MOD_FX_FEEDBACK) == -2147483648)
-   			|| (currentModFXParam == MOD_FX_PARAM_OFFSET && unpatchedParams->getValue(PARAM_UNPATCHED_MOD_FX_OFFSET) == -2147483648)
-			) {
-   		modFXTypeNow = MOD_FX_TYPE_NONE;
-   	}
-   	return modFXTypeNow;
+	if ((currentModFXParam == MOD_FX_PARAM_DEPTH
+	     && unpatchedParams->getValue(PARAM_UNPATCHED_GLOBALEFFECTABLE_MOD_FX_DEPTH) == -2147483648)
+	    || (currentModFXParam == MOD_FX_PARAM_FEEDBACK
+	        && unpatchedParams->getValue(PARAM_UNPATCHED_MOD_FX_FEEDBACK) == -2147483648)
+	    || (currentModFXParam == MOD_FX_PARAM_OFFSET
+	        && unpatchedParams->getValue(PARAM_UNPATCHED_MOD_FX_OFFSET) == -2147483648)) {
+		modFXTypeNow = MOD_FX_TYPE_NONE;
+	}
+	return modFXTypeNow;
 }
 
-void GlobalEffectable::setupDelayWorkingState(DelayWorkingState* delayWorkingState, ParamManager* paramManager, bool shouldLimitDelayFeedback) {
+void GlobalEffectable::setupDelayWorkingState(DelayWorkingState* delayWorkingState, ParamManager* paramManager,
+                                              bool shouldLimitDelayFeedback) {
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
-   	delayWorkingState->delayFeedbackAmount = getFinalParameterValueLinear(paramNeutralValues[PARAM_GLOBAL_DELAY_FEEDBACK], cableToLinearParamShortcut(unpatchedParams->getValue(PARAM_UNPATCHED_GLOBALEFFECTABLE_DELAY_AMOUNT)));
-   	if (shouldLimitDelayFeedback) {
-   		delayWorkingState->delayFeedbackAmount = getMin(delayWorkingState->delayFeedbackAmount, (int32_t)(1 << 30) - (1 << 26));
-   	}
-   	delayWorkingState->userDelayRate = getFinalParameterValueExp(paramNeutralValues[PARAM_GLOBAL_DELAY_RATE], cableToExpParamShortcut(unpatchedParams->getValue(PARAM_UNPATCHED_GLOBALEFFECTABLE_DELAY_RATE)));
-   	delay.setupWorkingState(delayWorkingState);
+	delayWorkingState->delayFeedbackAmount = getFinalParameterValueLinear(
+	    paramNeutralValues[PARAM_GLOBAL_DELAY_FEEDBACK],
+	    cableToLinearParamShortcut(unpatchedParams->getValue(PARAM_UNPATCHED_GLOBALEFFECTABLE_DELAY_AMOUNT)));
+	if (shouldLimitDelayFeedback) {
+		delayWorkingState->delayFeedbackAmount =
+		    getMin(delayWorkingState->delayFeedbackAmount, (int32_t)(1 << 30) - (1 << 26));
+	}
+	delayWorkingState->userDelayRate = getFinalParameterValueExp(
+	    paramNeutralValues[PARAM_GLOBAL_DELAY_RATE],
+	    cableToExpParamShortcut(unpatchedParams->getValue(PARAM_UNPATCHED_GLOBALEFFECTABLE_DELAY_RATE)));
+	delay.setupWorkingState(delayWorkingState);
 }
 
-
-void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, int numSamples, int32_t* postFXVolume, ParamManager* paramManager, DelayWorkingState* delayWorkingState, int analogDelaySaturationAmount) {
+void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, int numSamples, int32_t* postFXVolume,
+                                                    ParamManager* paramManager, DelayWorkingState* delayWorkingState,
+                                                    int analogDelaySaturationAmount) {
 
 	StereoSample* inputBufferEnd = inputBuffer + numSamples;
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
-	int32_t modFXRate = getFinalParameterValueExp(paramNeutralValues[PARAM_GLOBAL_MOD_FX_RATE], cableToExpParamShortcut(unpatchedParams->getValue(PARAM_UNPATCHED_GLOBALEFFECTABLE_MOD_FX_RATE)));
-	int32_t modFXDepth = getFinalParameterValueVolume(paramNeutralValues[PARAM_GLOBAL_MOD_FX_DEPTH], cableToLinearParamShortcut(unpatchedParams->getValue(PARAM_UNPATCHED_GLOBALEFFECTABLE_MOD_FX_DEPTH)));
+	int32_t modFXRate = getFinalParameterValueExp(
+	    paramNeutralValues[PARAM_GLOBAL_MOD_FX_RATE],
+	    cableToExpParamShortcut(unpatchedParams->getValue(PARAM_UNPATCHED_GLOBALEFFECTABLE_MOD_FX_RATE)));
+	int32_t modFXDepth = getFinalParameterValueVolume(
+	    paramNeutralValues[PARAM_GLOBAL_MOD_FX_DEPTH],
+	    cableToLinearParamShortcut(unpatchedParams->getValue(PARAM_UNPATCHED_GLOBALEFFECTABLE_MOD_FX_DEPTH)));
 
-   	int modFXTypeNow = getActiveModFXType(paramManager);
+	int modFXTypeNow = getActiveModFXType(paramManager);
 
-   	// For GlobalEffectables, mod FX buffer memory is allocated here in the rendering routine - this might seem strange, but
-   	// it's because unlike for Sounds, the effect can be switched on and off by changing a parameter like "depth".
-   	if (modFXTypeNow == MOD_FX_TYPE_FLANGER || modFXTypeNow == MOD_FX_TYPE_CHORUS) {
-   		if (!modFXBuffer) {
-            modFXBuffer = (StereoSample*)generalMemoryAllocator.alloc(modFXBufferSize * sizeof(StereoSample), NULL, false, true);
-            if (!modFXBuffer) modFXTypeNow = 0;
-            else memset(modFXBuffer, 0, modFXBufferSize * sizeof(StereoSample));
-   		}
-   	}
-   	else {
-   		if (modFXBuffer) {
-   			generalMemoryAllocator.dealloc(modFXBuffer);
-   			modFXBuffer = NULL;
-   		}
-   	}
+	// For GlobalEffectables, mod FX buffer memory is allocated here in the rendering routine - this might seem strange, but
+	// it's because unlike for Sounds, the effect can be switched on and off by changing a parameter like "depth".
+	if (modFXTypeNow == MOD_FX_TYPE_FLANGER || modFXTypeNow == MOD_FX_TYPE_CHORUS) {
+		if (!modFXBuffer) {
+			modFXBuffer =
+			    (StereoSample*)generalMemoryAllocator.alloc(modFXBufferSize * sizeof(StereoSample), NULL, false, true);
+			if (!modFXBuffer) modFXTypeNow = 0;
+			else memset(modFXBuffer, 0, modFXBufferSize * sizeof(StereoSample));
+		}
+	}
+	else {
+		if (modFXBuffer) {
+			generalMemoryAllocator.dealloc(modFXBuffer);
+			modFXBuffer = NULL;
+		}
+	}
 
-	processFX(inputBuffer, numSamples, modFXTypeNow, modFXRate, modFXDepth, delayWorkingState, postFXVolume, paramManager, analogDelaySaturationAmount);
+	processFX(inputBuffer, numSamples, modFXTypeNow, modFXRate, modFXDepth, delayWorkingState, postFXVolume,
+	          paramManager, analogDelaySaturationAmount);
 }
-
-
 
 char const* GlobalEffectable::paramToString(uint8_t param) {
 
-    switch (param) {
+	switch (param) {
 
-   	// Unpatched params just for GlobalEffectables
+		// Unpatched params just for GlobalEffectables
 
-    case PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_GLOBALEFFECTABLE_MOD_FX_RATE:
+	case PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_GLOBALEFFECTABLE_MOD_FX_RATE:
 		return "modFXRate";
 
-    case PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_GLOBALEFFECTABLE_MOD_FX_DEPTH:
+	case PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_GLOBALEFFECTABLE_MOD_FX_DEPTH:
 		return "modFXDepth";
 
-    case PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_GLOBALEFFECTABLE_DELAY_RATE:
+	case PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_GLOBALEFFECTABLE_DELAY_RATE:
 		return "delayRate";
 
-    case PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_GLOBALEFFECTABLE_DELAY_AMOUNT:
+	case PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_GLOBALEFFECTABLE_DELAY_AMOUNT:
 		return "delayFeedback";
 
-    case PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_GLOBALEFFECTABLE_PAN:
+	case PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_GLOBALEFFECTABLE_PAN:
 		return "pan";
 
-    case PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_GLOBALEFFECTABLE_LPF_FREQ:
+	case PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_GLOBALEFFECTABLE_LPF_FREQ:
 		return "lpfFrequency";
 
-    case PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_GLOBALEFFECTABLE_LPF_RES:
+	case PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_GLOBALEFFECTABLE_LPF_RES:
 		return "lpfResonance";
 
-    case PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_GLOBALEFFECTABLE_HPF_FREQ:
+	case PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_GLOBALEFFECTABLE_HPF_FREQ:
 		return "hpfFrequency";
 
-    case PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_GLOBALEFFECTABLE_HPF_RES:
+	case PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_GLOBALEFFECTABLE_HPF_RES:
 		return "hpfResonance";
 
-    case PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_GLOBALEFFECTABLE_REVERB_SEND_AMOUNT:
+	case PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_GLOBALEFFECTABLE_REVERB_SEND_AMOUNT:
 		return "reverbAmount";
 
-    case PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_GLOBALEFFECTABLE_VOLUME:
+	case PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_GLOBALEFFECTABLE_VOLUME:
 		return "volume";
 
-    case PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_GLOBALEFFECTABLE_SIDECHAIN_VOLUME:
+	case PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_GLOBALEFFECTABLE_SIDECHAIN_VOLUME:
 		return "sidechainCompressorVolume";
 
-    case PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_GLOBALEFFECTABLE_PITCH_ADJUST:
+	case PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_GLOBALEFFECTABLE_PITCH_ADJUST:
 		return "pitchAdjust";
-
 
 	default:
 		return ModControllableAudio::paramToString(param);
-    }
+	}
 }
-
 
 int GlobalEffectable::stringToParam(char const* string) {
-    for (int p = PARAM_UNPATCHED_SECTION + NUM_SHARED_UNPATCHED_PARAMS; p < PARAM_UNPATCHED_SECTION + MAX_NUM_UNPATCHED_PARAMS; p++) {
-        if (!strcmp(string, GlobalEffectable::paramToString(p))) return p;
-    }
-    return ModControllableAudio::stringToParam(string);
+	for (int p = PARAM_UNPATCHED_SECTION + NUM_SHARED_UNPATCHED_PARAMS;
+	     p < PARAM_UNPATCHED_SECTION + MAX_NUM_UNPATCHED_PARAMS; p++) {
+		if (!strcmp(string, GlobalEffectable::paramToString(p))) return p;
+	}
+	return ModControllableAudio::stringToParam(string);
 }
-
-

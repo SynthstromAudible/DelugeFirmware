@@ -35,9 +35,10 @@ extern "C" {
 
 void TimelineView::scrollFinished() {
 	exitUIMode(UI_MODE_HORIZONTAL_SCROLL);
-	uiNeedsRendering(this, 0xFFFFFFFF, 0); // Needed because sometimes we initiate a scroll before reverting an Action, so we need to properly render again afterwards
+	uiNeedsRendering(
+	    this, 0xFFFFFFFF,
+	    0); // Needed because sometimes we initiate a scroll before reverting an Action, so we need to properly render again afterwards
 }
-
 
 // Virtual function
 bool TimelineView::setupScroll(uint32_t oldScroll) {
@@ -48,81 +49,76 @@ bool TimelineView::setupScroll(uint32_t oldScroll) {
 	return true;
 }
 
-
 bool TimelineView::calculateZoomPinSquares(uint32_t oldScroll, uint32_t newScroll, uint32_t newZoom, uint32_t oldZoom) {
 
 	int32_t zoomPinSquareBig = ((int64_t)(int32_t)(oldScroll - newScroll) << 16) / (int32_t)(newZoom - oldZoom);
 
-    for (int i = 0; i < displayHeight; i++) {
-        PadLEDs::zoomPinSquare[i] = zoomPinSquareBig;
-    }
+	for (int i = 0; i < displayHeight; i++) {
+		PadLEDs::zoomPinSquare[i] = zoomPinSquareBig;
+	}
 
-    tellMatrixDriverWhichRowsContainSomethingZoomable();
+	tellMatrixDriverWhichRowsContainSomethingZoomable();
 
-    return true;
+	return true;
 }
-
 
 int TimelineView::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 
-    // Horizontal encoder button
-    if (x == xEncButtonX && y == xEncButtonY) {
-    	if (on) {
+	// Horizontal encoder button
+	if (x == xEncButtonX && y == xEncButtonY) {
+		if (on) {
 			// Show current zoom level
 			if (isNoUIModeActive()) displayZoomLevel();
 
 			enterUIMode(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON);
-    	}
+		}
 
-        else {
+		else {
 
-        	if (isUIModeActive(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)) {
-                numericDriver.cancelPopup();
-                exitUIMode(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON);
-        	}
-        }
-    }
+			if (isUIModeActive(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)) {
+				numericDriver.cancelPopup();
+				exitUIMode(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON);
+			}
+		}
+	}
 
-    // Triplets button
-    else if (x == tripletsButtonX && y == tripletsButtonY) {
-        if (on) {
-        	if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
-        	tripletsButtonPressed();
-        }
-    }
+	// Triplets button
+	else if (x == tripletsButtonX && y == tripletsButtonY) {
+		if (on) {
+			if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			tripletsButtonPressed();
+		}
+	}
 
 #ifdef soloButtonX
-    // Solo button
-    else if (x == soloButtonX && y == soloButtonY) {
-    	if (on) {
-        	if (isNoUIModeActive()) {
-        		enterUIMode(UI_MODE_SOLO_BUTTON_HELD);
-        		IndicatorLEDs::blinkLed(soloLedX, soloLedY, 255, 1);
-        	}
-    	}
-    	else {
-    		exitUIMode(UI_MODE_SOLO_BUTTON_HELD);
-    		IndicatorLEDs::setLedState(soloLedX, soloLedY, false);
-    	}
-    }
+	// Solo button
+	else if (x == soloButtonX && y == soloButtonY) {
+		if (on) {
+			if (isNoUIModeActive()) {
+				enterUIMode(UI_MODE_SOLO_BUTTON_HELD);
+				IndicatorLEDs::blinkLed(soloLedX, soloLedY, 255, 1);
+			}
+		}
+		else {
+			exitUIMode(UI_MODE_SOLO_BUTTON_HELD);
+			IndicatorLEDs::setLedState(soloLedX, soloLedY, false);
+		}
+	}
 
 #endif
 
-    else return view.buttonAction(x, y, on, inCardRoutine);
+	else return view.buttonAction(x, y, on, inCardRoutine);
 
-    return ACTION_RESULT_DEALT_WITH;
+	return ACTION_RESULT_DEALT_WITH;
 }
-
-
 
 void TimelineView::displayZoomLevel(bool justPopup) {
 
-    char text[30];
-    currentSong->getNoteLengthName(text, currentSong->xZoom[getNavSysId()], true);
+	char text[30];
+	currentSong->getNoteLengthName(text, currentSong->xZoom[getNavSysId()], true);
 
-    numericDriver.displayPopup(text, justPopup ? 3 : 0, true);
+	numericDriver.displayPopup(text, justPopup ? 3 : 0, true);
 }
-
 
 bool horizontalEncoderActionLock = false;
 extern bool pendingUIRenderingLock;
@@ -133,16 +129,18 @@ int TimelineView::horizontalEncoderAction(int offset) {
 
 	// These next two, I had here before adding the actual SD lock check / remind-later above. Maybe they're not still necessary? If either was true, wouldn't
 	// sdRoutineLock be true also for us to have gotten here?
-	if (pendingUIRenderingLock) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE; // Would possibly prefer to have this case cause it to still come back later and do it, but oh well
-	if (horizontalEncoderActionLock) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE; // Really wouldn't want to get in here multiple times, while pre-rendering the waveforms for the new navigation
+	if (pendingUIRenderingLock)
+		return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE; // Would possibly prefer to have this case cause it to still come back later and do it, but oh well
+	if (horizontalEncoderActionLock)
+		return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE; // Really wouldn't want to get in here multiple times, while pre-rendering the waveforms for the new navigation
 	horizontalEncoderActionLock = true;
 
 	int navSysId = getNavSysId();
 
-    // Encoder button pressed, zoom.
-    if (isUIModeActive(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)) {
+	// Encoder button pressed, zoom.
+	if (isUIModeActive(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)) {
 
-    	if (isUIModeActiveExclusively(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)) {
+		if (isUIModeActiveExclusively(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)) {
 			int oldXZoom = currentSong->xZoom[navSysId];
 
 			int zoomMagnitude = -offset;
@@ -162,11 +160,11 @@ int TimelineView::horizontalEncoderAction(int offset) {
 
 			initiateXZoom(zoomMagnitude, newScroll, oldXZoom);
 			displayZoomLevel();
-    	}
+		}
 	}
 
 	// Encoder button not pressed, scroll
-	else if (isNoUIModeActive() || isUIModeActiveExclusively(UI_MODE_AUDITIONING)){
+	else if (isNoUIModeActive() || isUIModeActiveExclusively(UI_MODE_AUDITIONING)) {
 		// If shift button not pressed
 		if (!Buttons::isShiftButtonPressed()) {
 
@@ -186,10 +184,9 @@ int TimelineView::horizontalEncoderAction(int offset) {
 	}
 
 getOut:
-    horizontalEncoderActionLock = false;
-    return ACTION_RESULT_DEALT_WITH;
+	horizontalEncoderActionLock = false;
+	return ACTION_RESULT_DEALT_WITH;
 }
-
 
 void TimelineView::displayScrollPos() {
 
@@ -200,9 +197,8 @@ void TimelineView::displayScrollPos() {
 	displayNumberOfBarsAndBeats(currentSong->xScroll[navSysId], quantization, true, "FAR");
 }
 
-
-
-void TimelineView::displayNumberOfBarsAndBeats(uint32_t number, uint32_t quantization, bool countFromOne, char const* tooLongText) {
+void TimelineView::displayNumberOfBarsAndBeats(uint32_t number, uint32_t quantization, bool countFromOne,
+                                               char const* tooLongText) {
 
 	uint32_t oneBar = currentSong->getBarLength();
 
@@ -271,57 +267,55 @@ putBeatCountOnFarRight:
 #endif
 }
 
-
 // Changes the actual xScroll.
 void TimelineView::initiateXScroll(uint32_t newXScroll, int numSquaresToScroll) {
 
-    uint32_t oldXScroll = currentSong->xScroll[getNavSysId()];
+	uint32_t oldXScroll = currentSong->xScroll[getNavSysId()];
 
-    int scrollDirection = (newXScroll > currentSong->xScroll[getNavSysId()]) ? 1 : -1;
+	int scrollDirection = (newXScroll > currentSong->xScroll[getNavSysId()]) ? 1 : -1;
 
-    currentSong->xScroll[getNavSysId()] = newXScroll;
+	currentSong->xScroll[getNavSysId()] = newXScroll;
 
-    bool anyAnimationToDo = setupScroll(oldXScroll);
+	bool anyAnimationToDo = setupScroll(oldXScroll);
 
-    if (anyAnimationToDo) {
-   		currentUIMode |= UI_MODE_HORIZONTAL_SCROLL; // Must set this before calling PadLEDs::setupScroll(), which might then unset it
+	if (anyAnimationToDo) {
+		currentUIMode |=
+		    UI_MODE_HORIZONTAL_SCROLL; // Must set this before calling PadLEDs::setupScroll(), which might then unset it
 		PadLEDs::setupScroll(scrollDirection, displayWidth, false, numSquaresToScroll);
-    }
+	}
 }
-
 
 // Returns whether any zooming took place - I think?
 bool TimelineView::zoomToMax(bool inOnly) {
-    unsigned int maxZoom = getMaxZoom();
-    uint32_t oldZoom = currentSong->xZoom[getNavSysId()];
-    if (maxZoom != oldZoom && (!inOnly || maxZoom < oldZoom)) {
+	unsigned int maxZoom = getMaxZoom();
+	uint32_t oldZoom = currentSong->xZoom[getNavSysId()];
+	if (maxZoom != oldZoom && (!inOnly || maxZoom < oldZoom)) {
 
-    	// Zoom to view what's new
-        currentSong->xZoom[getNavSysId()] = maxZoom;
+		// Zoom to view what's new
+		currentSong->xZoom[getNavSysId()] = maxZoom;
 
 		int32_t newScroll = currentSong->xScroll[getNavSysId()] / (maxZoom * displayWidth) * (maxZoom * displayWidth);
 
-        initiateXZoom(howMuchMoreMagnitude(maxZoom, oldZoom), newScroll, oldZoom);
-        return true;
-    }
-    else {
-        return false;
-    }
+		initiateXZoom(howMuchMoreMagnitude(maxZoom, oldZoom), newScroll, oldZoom);
+		return true;
+	}
+	else {
+		return false;
+	}
 }
-
-
 
 // Puts us into zoom mode. Assumes we've already altered currentSong->xZoom.
 void TimelineView::initiateXZoom(int zoomMagnitude, int32_t newScroll, uint32_t oldZoom) {
 
-    memcpy(PadLEDs::imageStore[(zoomMagnitude < 0) ? displayHeight : 0], PadLEDs::image, (displayWidth + sideBarWidth) * displayHeight * 3);
+	memcpy(PadLEDs::imageStore[(zoomMagnitude < 0) ? displayHeight : 0], PadLEDs::image,
+	       (displayWidth + sideBarWidth) * displayHeight * 3);
 
-    uint32_t oldScroll = currentSong->xScroll[getNavSysId()];
+	uint32_t oldScroll = currentSong->xScroll[getNavSysId()];
 
-    currentSong->xScroll[getNavSysId()] = newScroll;
-    bool anyToAnimate = calculateZoomPinSquares(oldScroll, newScroll, currentSong->xZoom[getNavSysId()], oldZoom);
+	currentSong->xScroll[getNavSysId()] = newScroll;
+	bool anyToAnimate = calculateZoomPinSquares(oldScroll, newScroll, currentSong->xZoom[getNavSysId()], oldZoom);
 
-    if (anyToAnimate) {
+	if (anyToAnimate) {
 
 		int storeOffset = (zoomMagnitude < 0) ? 0 : displayHeight;
 
@@ -333,164 +327,165 @@ void TimelineView::initiateXZoom(int zoomMagnitude, int32_t newScroll, uint32_t 
 		enterUIMode(UI_MODE_HORIZONTAL_ZOOM);
 		PadLEDs::recordTransitionBegin(zoomSpeed);
 		PadLEDs::renderZoom();
-    }
+	}
 }
-
 
 bool TimelineView::scrollRightToEndOfLengthIfNecessary(int32_t maxLength) {
 
-    // If we're not scrolled all the way to the right, go there now
-    if (getPosFromSquare(displayWidth) < maxLength) {
+	// If we're not scrolled all the way to the right, go there now
+	if (getPosFromSquare(displayWidth) < maxLength) {
 
-    	uint32_t displayLength = currentSong->xZoom[getNavSysId()] * displayWidth;
+		uint32_t displayLength = currentSong->xZoom[getNavSysId()] * displayWidth;
 
-        initiateXScroll((maxLength - 1) / displayLength * displayLength);
-        //displayScrollPos();
-        return true;
-    }
-    return false;
+		initiateXScroll((maxLength - 1) / displayLength * displayLength);
+		//displayScrollPos();
+		return true;
+	}
+	return false;
 }
-
 
 bool TimelineView::scrollLeftIfTooFarRight(int32_t maxLength) {
 
-    if (getPosFromSquare(0) >= maxLength) {
-        initiateXScroll(currentSong->xScroll[getNavSysId()] - currentSong->xZoom[getNavSysId()] * displayWidth);
-        //displayScrollPos();
-        return true;
-    }
-    return false;
+	if (getPosFromSquare(0) >= maxLength) {
+		initiateXScroll(currentSong->xScroll[getNavSysId()] - currentSong->xZoom[getNavSysId()] * displayWidth);
+		//displayScrollPos();
+		return true;
+	}
+	return false;
 }
-
 
 void TimelineView::tripletsButtonPressed() {
 
 	currentSong->tripletsOn = !currentSong->tripletsOn;
-    if (currentSong->tripletsOn) currentSong->tripletsLevel = currentSong->xZoom[getNavSysId()] * 4 / 3;
-    uiNeedsRendering(this, 0xFFFFFFFF, 0);
-    view.setTripletsLedState();
+	if (currentSong->tripletsOn) currentSong->tripletsLevel = currentSong->xZoom[getNavSysId()] * 4 / 3;
+	uiNeedsRendering(this, 0xFFFFFFFF, 0);
+	view.setTripletsLedState();
 }
-
 
 int32_t TimelineView::getPosFromSquare(int32_t square, int32_t xScroll, uint32_t xZoom) {
 
-    if (inTripletsView()) {
-        // If zoomed in just a normal amount...
-        if (xZoom < currentSong->tripletsLevel) {
-            int32_t prevBlockStart = xScroll / (currentSong->tripletsLevel * 3) * (currentSong->tripletsLevel * 3);
-            int32_t blockStartRelativeToScroll = (prevBlockStart - xScroll) / 3 * 4; // Negative or 0
+	if (inTripletsView()) {
+		// If zoomed in just a normal amount...
+		if (xZoom < currentSong->tripletsLevel) {
+			int32_t prevBlockStart = xScroll / (currentSong->tripletsLevel * 3) * (currentSong->tripletsLevel * 3);
+			int32_t blockStartRelativeToScroll = (prevBlockStart - xScroll) / 3 * 4; // Negative or 0
 
-            int32_t posRelativeToBlock = ((int32_t)square) * (xZoom * 4 / 3) - blockStartRelativeToScroll; // Relative to block start pos
-            uint32_t numBlocksIn = posRelativeToBlock / (currentSong->tripletsLevel * 4);
+			int32_t posRelativeToBlock =
+			    ((int32_t)square) * (xZoom * 4 / 3) - blockStartRelativeToScroll; // Relative to block start pos
+			uint32_t numBlocksIn = posRelativeToBlock / (currentSong->tripletsLevel * 4);
 
-            // These two lines affect the resulting "pos" of cols which are "undefined" so they can be detected as such
-            uint32_t numTripletsIn = posRelativeToBlock / currentSong->tripletsLevel;
-            if (numTripletsIn % 4 == 3) posRelativeToBlock = (numBlocksIn + 1) * currentSong->tripletsLevel * 3;
+			// These two lines affect the resulting "pos" of cols which are "undefined" so they can be detected as such
+			uint32_t numTripletsIn = posRelativeToBlock / currentSong->tripletsLevel;
+			if (numTripletsIn % 4 == 3) posRelativeToBlock = (numBlocksIn + 1) * currentSong->tripletsLevel * 3;
 
-            else posRelativeToBlock -= numBlocksIn * currentSong->tripletsLevel;
+			else posRelativeToBlock -= numBlocksIn * currentSong->tripletsLevel;
 
-            return posRelativeToBlock + prevBlockStart;
-        }
-        else if (xZoom < currentSong->tripletsLevel * 2) {
-            return xScroll + square * xZoom + (square % 2) * currentSong->tripletsLevel / 2;
-        }
-    }
+			return posRelativeToBlock + prevBlockStart;
+		}
+		else if (xZoom < currentSong->tripletsLevel * 2) {
+			return xScroll + square * xZoom + (square % 2) * currentSong->tripletsLevel / 2;
+		}
+	}
 
-    return xScroll + square * xZoom;
+	return xScroll + square * xZoom;
 }
-
 
 int32_t TimelineView::getPosFromSquare(int32_t square, int32_t xScroll) {
 
 	int navSys = getNavSysId();
 
-    if (xScroll == -1) {
-        xScroll = currentSong->xScroll[navSys]; // Sets default
-    }
+	if (xScroll == -1) {
+		xScroll = currentSong->xScroll[navSys]; // Sets default
+	}
 
-    uint32_t xZoom = currentSong->xZoom[navSys];
+	uint32_t xZoom = currentSong->xZoom[navSys];
 
-    return getPosFromSquare(square, xScroll, xZoom);
+	return getPosFromSquare(square, xScroll, xZoom);
 }
 
+int32_t TimelineView::getSquareFromPos(int32_t pos, bool* rightOnSquare, int32_t xScroll, uint32_t xZoom) {
 
-int32_t TimelineView::getSquareFromPos(int32_t pos, bool *rightOnSquare, int32_t xScroll, uint32_t xZoom) {
+	int32_t posRelativeToScroll = pos - xScroll;
 
-    int32_t posRelativeToScroll = pos - xScroll;
+	if (inTripletsView()) {
+		if (xZoom < currentSong->tripletsLevel) {
+			int32_t blockStartPos = xScroll / (currentSong->tripletsLevel * 3) * (currentSong->tripletsLevel * 3);
+			int32_t blockStartRelativeToScroll = blockStartPos - xScroll; // Will be negative or 0
+			int32_t posRelativeToBlockStart = pos - blockStartPos;
 
-    if (inTripletsView()) {
-        if (xZoom < currentSong->tripletsLevel) {
-            int32_t blockStartPos = xScroll / (currentSong->tripletsLevel * 3) * (currentSong->tripletsLevel * 3);
-            int32_t blockStartRelativeToScroll = blockStartPos - xScroll; // Will be negative or 0
-            int32_t posRelativeToBlockStart = pos - blockStartPos;
+			if (rightOnSquare)
+				*rightOnSquare =
+				    (posRelativeToBlockStart % (xZoom * 4 / 3) == 0); // Will the % be ok if it's negative? No! :O
 
-            if (rightOnSquare) *rightOnSquare = (posRelativeToBlockStart % (xZoom * 4 / 3) == 0); // Will the % be ok if it's negative? No! :O
+			int32_t numBlocksIn =
+			    divide_round_negative(posRelativeToBlockStart,
+			                          currentSong->tripletsLevel * 3); // Keep as separate step, for rounding purposes
 
-            int32_t numBlocksIn = divide_round_negative(posRelativeToBlockStart, currentSong->tripletsLevel * 3); // Keep as separate step, for rounding purposes
+			int32_t semiFinal =
+			    posRelativeToBlockStart + blockStartRelativeToScroll * 4 / 3 + numBlocksIn * currentSong->tripletsLevel;
+			int32_t final = divide_round_negative(semiFinal, xZoom * 4 / 3);
+			return final;
+		}
+		else if (xZoom < currentSong->tripletsLevel * 2) {
+			int posRelativeToTripletsStart =
+			    posRelativeToScroll % (currentSong->tripletsLevel * 3); // Will the % be ok if it's negative? No! :O
+			if (rightOnSquare)
+				*rightOnSquare =
+				    (posRelativeToTripletsStart == 0 || posRelativeToTripletsStart == currentSong->tripletsLevel * 2);
 
-            int32_t semiFinal = posRelativeToBlockStart + blockStartRelativeToScroll * 4 / 3 + numBlocksIn * currentSong->tripletsLevel;
-            int32_t final = divide_round_negative(semiFinal, xZoom * 4 / 3);
-            return final;
-        }
-        else if (xZoom < currentSong->tripletsLevel * 2) {
-            int posRelativeToTripletsStart = posRelativeToScroll % (currentSong->tripletsLevel * 3); // Will the % be ok if it's negative? No! :O
-            if (rightOnSquare) *rightOnSquare = (posRelativeToTripletsStart == 0 || posRelativeToTripletsStart == currentSong->tripletsLevel * 2);
+			if (posRelativeToTripletsStart >= currentSong->tripletsLevel * 2)
+				posRelativeToTripletsStart -= currentSong->tripletsLevel * 2;
+			return divide_round_negative(posRelativeToScroll - posRelativeToTripletsStart, xZoom);
+		}
+	}
 
-            if (posRelativeToTripletsStart >= currentSong->tripletsLevel * 2) posRelativeToTripletsStart -= currentSong->tripletsLevel * 2;
-            return divide_round_negative(posRelativeToScroll - posRelativeToTripletsStart, xZoom);
-        }
-    }
+	if (rightOnSquare)
+		*rightOnSquare = (posRelativeToScroll >= 0
+		                  && (posRelativeToScroll % xZoom) == 0); // Will the % be ok if it's negative? No! :O
 
-    if (rightOnSquare) *rightOnSquare = (posRelativeToScroll >= 0 && (posRelativeToScroll % xZoom) == 0); // Will the % be ok if it's negative? No! :O
-
-    // Have to divide the two things separately before subtracting, otherwise negative results get rounded the wrong way!
-    return divide_round_negative(pos - xScroll, xZoom);
+	// Have to divide the two things separately before subtracting, otherwise negative results get rounded the wrong way!
+	return divide_round_negative(pos - xScroll, xZoom);
 }
 
-
-int32_t TimelineView::getSquareFromPos(int32_t pos, bool *rightOnSquare, int32_t xScroll) {
+int32_t TimelineView::getSquareFromPos(int32_t pos, bool* rightOnSquare, int32_t xScroll) {
 
 	int navSys = getNavSysId();
 
-    if (xScroll == -1) {
-        xScroll = currentSong->xScroll[navSys]; // Defaults to main currentSong->xScroll
-    }
+	if (xScroll == -1) {
+		xScroll = currentSong->xScroll[navSys]; // Defaults to main currentSong->xScroll
+	}
 
-    uint32_t xZoom = currentSong->xZoom[navSys];
+	uint32_t xZoom = currentSong->xZoom[navSys];
 
-    return getSquareFromPos(pos, rightOnSquare, xScroll, xZoom);
+	return getSquareFromPos(pos, rightOnSquare, xScroll, xZoom);
 }
-
 
 int32_t TimelineView::getSquareEndFromPos(int32_t pos, int32_t localScroll) {
-    bool rightOnSquare;
-    int32_t square = getSquareFromPos(pos, &rightOnSquare, localScroll);
-    if (!rightOnSquare) square++;
-    return square;
+	bool rightOnSquare;
+	int32_t square = getSquareFromPos(pos, &rightOnSquare, localScroll);
+	if (!rightOnSquare) square++;
+	return square;
 }
-
 
 bool TimelineView::isSquareDefined(int square, int32_t xScroll, uint32_t xZoom) {
-    if (!inTripletsView()) return true;
-    if (xZoom > currentSong->tripletsLevel) return true;
-    return (getPosFromSquare(square + 1, xScroll, xZoom) > getPosFromSquare(square, xScroll, xZoom));
+	if (!inTripletsView()) return true;
+	if (xZoom > currentSong->tripletsLevel) return true;
+	return (getPosFromSquare(square + 1, xScroll, xZoom) > getPosFromSquare(square, xScroll, xZoom));
 }
-
 
 // Deprecate this.
 bool TimelineView::isSquareDefined(int square, int32_t xScroll) {
 	if (!inTripletsView()) return true;
-    else {
-        if (currentSong->xZoom[getNavSysId()] > currentSong->tripletsLevel) return true;
-        return (getPosFromSquare(square + 1, xScroll) > getPosFromSquare(square, xScroll));
-    }
+	else {
+		if (currentSong->xZoom[getNavSysId()] > currentSong->tripletsLevel) return true;
+		return (getPosFromSquare(square + 1, xScroll) > getPosFromSquare(square, xScroll));
+	}
 }
 
 bool TimelineView::inTripletsView() {
-    return (supportsTriplets() && currentSong->tripletsOn);
+	return (supportsTriplets() && currentSong->tripletsOn);
 }
 
 void TimelineView::midiLearnFlash() {
 	uiNeedsRendering(this, 0, 0xFFFFFFFF);
 }
-

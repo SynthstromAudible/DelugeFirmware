@@ -19,59 +19,57 @@
 #include "uitimermanager.h"
 #include "string.h"
 
-NumericLayerScrollTransition::NumericLayerScrollTransition()
-{
+NumericLayerScrollTransition::NumericLayerScrollTransition() {
 	// TODO Auto-generated constructor stub
-
 }
 
-NumericLayerScrollTransition::~NumericLayerScrollTransition()
-{
+NumericLayerScrollTransition::~NumericLayerScrollTransition() {
 	// TODO Auto-generated destructor stub
 }
 
 void NumericLayerScrollTransition::isNowOnTop() {
-    uiTimerManager.setTimer(TIMER_DISPLAY, 32);
+	uiTimerManager.setTimer(TIMER_DISPLAY, 32);
 }
 
 bool NumericLayerScrollTransition::callBack() {
-    int writingTo;
+	int writingTo;
 
-    // Move characters currently displayed
+	// Move characters currently displayed
 
-    bool allBlank = true;
+	bool allBlank = true;
 
-    if (transitionDirection == 1) {
-        for (writingTo = 0; writingTo < NUMERIC_DISPLAY_LENGTH - 1; writingTo++) {
-            segments[writingTo] = segments[writingTo + 1];
-            if (segments[writingTo] != 0) allBlank = false;
-        }
-    }
+	if (transitionDirection == 1) {
+		for (writingTo = 0; writingTo < NUMERIC_DISPLAY_LENGTH - 1; writingTo++) {
+			segments[writingTo] = segments[writingTo + 1];
+			if (segments[writingTo] != 0) allBlank = false;
+		}
+	}
 
-    else {
-        for (writingTo = NUMERIC_DISPLAY_LENGTH - 1; writingTo > 0; writingTo--) {
-        	segments[writingTo] = segments[writingTo - 1];
-            if (segments[writingTo] != 0) allBlank = false;
-        }
-    }
+	else {
+		for (writingTo = NUMERIC_DISPLAY_LENGTH - 1; writingTo > 0; writingTo--) {
+			segments[writingTo] = segments[writingTo - 1];
+			if (segments[writingTo] != 0) allBlank = false;
+		}
+	}
 
-    int8_t progressFlipped = (transitionProgress + transitionDirection) * transitionDirection;
+	int8_t progressFlipped = (transitionProgress + transitionDirection) * transitionDirection;
 
-    // Fill character at the end with either a new one, or blank space
-    if (progressFlipped > 0 && next) {
-        int readingFrom = (transitionDirection == 1) ? transitionProgress : (NUMERIC_DISPLAY_LENGTH + transitionProgress - 1);
+	// Fill character at the end with either a new one, or blank space
+	if (progressFlipped > 0 && next) {
+		int readingFrom =
+		    (transitionDirection == 1) ? transitionProgress : (NUMERIC_DISPLAY_LENGTH + transitionProgress - 1);
 
-        uint8_t segmentsTransitioningTo[NUMERIC_DISPLAY_LENGTH];
-        next->render(segmentsTransitioningTo);
+		uint8_t segmentsTransitioningTo[NUMERIC_DISPLAY_LENGTH];
+		next->render(segmentsTransitioningTo);
 
-        segments[writingTo] = segmentsTransitioningTo[readingFrom];
-    }
-    else {
-    	segments[writingTo] = 0;
+		segments[writingTo] = segmentsTransitioningTo[readingFrom];
+	}
+	else {
+		segments[writingTo] = 0;
 
-        // TODO: make this work proper! Fails if scrolling left to a display with only the right-most character occupied
+		// TODO: make this work proper! Fails if scrolling left to a display with only the right-most character occupied
 
-        /*
+		/*
         if (allBlank) {
             transitionProgress = -transitionDirection;
 
@@ -89,19 +87,18 @@ bool NumericLayerScrollTransition::callBack() {
             }
         }
         */
-    }
+	}
 
-    // Remember to continue transition, if there's some left
-    transitionProgress += transitionDirection;
-    if (transitionProgress * transitionDirection < NUMERIC_DISPLAY_LENGTH) {
-        int timeToWait = (transitionProgress == 0) ? 160 : 32;
-        uiTimerManager.setTimer(TIMER_DISPLAY, timeToWait);
-        return false;
-    }
+	// Remember to continue transition, if there's some left
+	transitionProgress += transitionDirection;
+	if (transitionProgress * transitionDirection < NUMERIC_DISPLAY_LENGTH) {
+		int timeToWait = (transitionProgress == 0) ? 160 : 32;
+		uiTimerManager.setTimer(TIMER_DISPLAY, timeToWait);
+		return false;
+	}
 
-    else return true;
+	else return true;
 }
-
 
 void NumericLayerScrollTransition::render(uint8_t* returnSegments) {
 

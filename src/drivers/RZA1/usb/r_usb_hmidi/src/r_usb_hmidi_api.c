@@ -38,7 +38,6 @@
 #include "r_usb_reg_access.h"
 #include "r_usb_hmidi_config.h"
 
-
 /******************************************************************************
  Renesas Abstracted USB Driver functions
  ******************************************************************************/
@@ -49,11 +48,10 @@
  Arguments       : usb_utr_t    *ptr         : IP info (mode, IP no., reg address).
  Return          : none
  ******************************************************************************/
-void R_USB_HmidiDriverStart(usb_utr_t *ptr)
+void R_USB_HmidiDriverStart(usb_utr_t* ptr)
 {
     usb_cstd_set_task_pri(USB_HMIDI_TSK, USB_PRI_3); /* Host HID task priority set */
 } /* End of function R_USB_HhidDriverStart() */
-
 
 uint8_t usbHostOutPipeInitializedForHub[2] = {0, 0};
 
@@ -64,50 +62,51 @@ uint8_t usbHostOutPipeInitializedForHub[2] = {0, 0};
                  : uint16_t     devadr       : Device address
  Return          : none
  ******************************************************************************/
-void R_USB_HmidiSetPipeRegistration(usb_utr_t *ptr, uint16_t devadr)
+void R_USB_HmidiSetPipeRegistration(usb_utr_t* ptr, uint16_t devadr)
 {
-    uint16_t    *pipetbl;
+    uint16_t* pipetbl;
 
     pipetbl = R_USB_HmidiGetPipetbl(ptr, devadr);
 
     /* Device Address Set for Endpoint Table */
     pipetbl[3] |= (uint16_t)(devadr << USB_DEVADDRBIT);
 
-	pipetbl[3 + USB_EPL] |= (uint16_t)(devadr << USB_DEVADDRBIT);   /* OUT Pipe */
+    pipetbl[3 + USB_EPL] |= (uint16_t)(devadr << USB_DEVADDRBIT); /* OUT Pipe */
 
-	int pipeToSetup;
+    int pipeToSetup;
 
-	// If not on hub...
-	if (devadr == 1) {
+    // If not on hub...
+    if (devadr == 1)
+    {
 
-		// Note that if we go back on a hub in the future, everything's not set up
-		usbHostOutPipeInitializedForHub[0] = 0;
-		usbHostOutPipeInitializedForHub[1] = 0;
+        // Note that if we go back on a hub in the future, everything's not set up
+        usbHostOutPipeInitializedForHub[0] = 0;
+        usbHostOutPipeInitializedForHub[1] = 0;
 
 setupBothPipes:
-		pipeToSetup = USB_USEPIPE; // Set up all pipes
-	}
+        pipeToSetup = USB_USEPIPE; // Set up all pipes
+    }
 
-	// Or, if we are on a hub...
-	else {
-		int sendPipe = pipetbl[0];
-	    int isInterrupt = (sendPipe == USB_CFG_HMIDI_INT_SEND);
+    // Or, if we are on a hub...
+    else
+    {
+        int sendPipe    = pipetbl[0];
+        int isInterrupt = (sendPipe == USB_CFG_HMIDI_INT_SEND);
 
-	    // If the send-pipe hasn't been set up yet, we want to do that now
-	    if (!usbHostOutPipeInitializedForHub[isInterrupt]) {
-	    	usbHostOutPipeInitializedForHub[isInterrupt] = 1;
-	    	goto setupBothPipes;
-	    }
+        // If the send-pipe hasn't been set up yet, we want to do that now
+        if (!usbHostOutPipeInitializedForHub[isInterrupt])
+        {
+            usbHostOutPipeInitializedForHub[isInterrupt] = 1;
+            goto setupBothPipes;
+        }
 
-	    // Otherwise, if the send-pipe has already been set up, we only have to set up the receive-pipe
-	    pipeToSetup = pipetbl[USB_EPL];
-	}
+        // Otherwise, if the send-pipe has already been set up, we only have to set up the receive-pipe
+        pipeToSetup = pipetbl[USB_EPL];
+    }
 
-	/* Set pipe configuration request(Interrupt IN) */
-	usb_hstd_set_pipe_registration(ptr, pipetbl, pipeToSetup);
+    /* Set pipe configuration request(Interrupt IN) */
+    usb_hstd_set_pipe_registration(ptr, pipetbl, pipeToSetup);
 } /* End of function R_USB_HhidSetPipeRegistration() */
-
-
 
 /******************************************************************************
  Function Name   : R_USB_HhidClassCheck
@@ -116,19 +115,19 @@ setupBothPipes:
                  : uint16_t     **table
  Return value    : none
  ******************************************************************************/
-void R_USB_HmidiClassCheck(usb_utr_t *ptr, uint16_t **table)
+void R_USB_HmidiClassCheck(usb_utr_t* ptr, uint16_t** table)
 {
-	uartPrintln("R_USB_HaudClassCheck");
-    usb_mh_t        p_blf;
-    usb_er_t        err;
-    usb_clsinfo_t   *cp;
+    uartPrintln("R_USB_HaudClassCheck");
+    usb_mh_t p_blf;
+    usb_er_t err;
+    usb_clsinfo_t* cp;
 
-    g_p_usb_hmidi_device_table[ptr->ip]      = (uint8_t*)((uint16_t*)table[0]);  /* Device Descriptor Table */
-    g_p_usb_hmidi_config_table[ptr->ip]      = (uint8_t*)((uint16_t*)table[1]);  /* Configuration Descriptor Table */
-    g_usb_hmidi_speed[ptr->ip]               = (uint16_t)(*table[6]);            /* Device speed */
-    g_usb_hmidi_devaddr[ptr->ip]             = (uint16_t)(*table[7]);            /* Device Address */
-    g_p_usb_hmidi_pipe_table[ptr->ip]        = (uint16_t*)(table[8]);            /* Pipe Table(DefEP) */
-    g_p_usb_hmidi_interface_table[ptr->ip]   = (uint8_t*)((uint16_t*)table[2]);  /* Interface Descriptor Table */
+    g_p_usb_hmidi_device_table[ptr->ip]    = (uint8_t*)((uint16_t*)table[0]); /* Device Descriptor Table */
+    g_p_usb_hmidi_config_table[ptr->ip]    = (uint8_t*)((uint16_t*)table[1]); /* Configuration Descriptor Table */
+    g_usb_hmidi_speed[ptr->ip]             = (uint16_t)(*table[6]);           /* Device speed */
+    g_usb_hmidi_devaddr[ptr->ip]           = (uint16_t)(*table[7]);           /* Device Address */
+    g_p_usb_hmidi_pipe_table[ptr->ip]      = (uint16_t*)(table[8]);           /* Pipe Table(DefEP) */
+    g_p_usb_hmidi_interface_table[ptr->ip] = (uint8_t*)((uint16_t*)table[2]); /* Interface Descriptor Table */
 
     /* Enumeration Sequence String Descriptor #0 receive request */
     g_usb_hmidi_enum_seq[ptr->ip] = (uint16_t)USB_HHID_ENUM_STR_DT0_REQ;
@@ -140,14 +139,14 @@ void R_USB_HmidiClassCheck(usb_utr_t *ptr, uint16_t **table)
     err = USB_PGET_BLK(USB_HMIDI_MPL, &p_blf);
     if (USB_OK == err)
     {
-        cp = (usb_clsinfo_t*)p_blf;
+        cp          = (usb_clsinfo_t*)p_blf;
         cp->msghead = (usb_mh_t)USB_NULL;
-        cp->msginfo = USB_HHID_TCMD_OPEN;   /* Set message information :USB transfer. */
-        cp->ip      = ptr->ip;              /* IP number (0 or 1) */
-        cp->ipp     = ptr->ipp;             /* IP address (USB0 or USB1) */
+        cp->msginfo = USB_HHID_TCMD_OPEN; /* Set message information :USB transfer. */
+        cp->ip      = ptr->ip;            /* IP number (0 or 1) */
+        cp->ipp     = ptr->ipp;           /* IP address (USB0 or USB1) */
 
         /* Send message */
-        err = USB_SND_MSG(USB_HMIDI_MBX, (usb_msg_t *)cp);
+        err = USB_SND_MSG(USB_HMIDI_MBX, (usb_msg_t*)cp);
         if (USB_OK != err)
         {
             /* Error */
@@ -166,7 +165,6 @@ void R_USB_HmidiClassCheck(usb_utr_t *ptr, uint16_t **table)
     }
 } /* End of function R_USB_HhidClassCheck() */
 
-
 /******************************************************************************
  Function Name   : R_USB_HhidGetPipetbl
  Description     : Get pipe table address.
@@ -174,14 +172,14 @@ void R_USB_HmidiClassCheck(usb_utr_t *ptr, uint16_t **table)
                  : uint16_t     devadr       : Device address
  Return value    : Pipe table address.
  ******************************************************************************/
-uint16_t* R_USB_HmidiGetPipetbl(usb_utr_t *ptr, uint16_t devadr)
+uint16_t* R_USB_HmidiGetPipetbl(usb_utr_t* ptr, uint16_t devadr)
 {
     if (devadr == g_usb_hmidi_devaddr[ptr->ip]) /* Device Address */
     {
-        return (uint16_t *)g_p_usb_hmidi_pipe_table[ptr->ip];    /* Pipe Table(DefEP) */
+        return (uint16_t*)g_p_usb_hmidi_pipe_table[ptr->ip]; /* Pipe Table(DefEP) */
     }
 
-    return (uint16_t *)USB_ERROR;
+    return (uint16_t*)USB_ERROR;
 } /* End of function R_USB_HhidGetPipetbl() */
 
 /******************************************************************************

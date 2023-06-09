@@ -35,9 +35,7 @@ public:
 	void getRangeForSound(Sound* sound, int* __restrict__ ends);
 	void checkVoiceExists(Voice* voice, Sound* sound, char const* errorCode);
 
-	inline Voice* getVoice(int index) {
-		return ((VoiceVectorElement*)getElementAddress(index))->voice;
-	}
+	inline Voice* getVoice(int index) { return ((VoiceVectorElement*)getElementAddress(index))->voice; }
 };
 
 #endif /* VOICEVECTOR_H_ */

@@ -25,18 +25,15 @@
 #include "Buttons.h"
 #include "extern.h"
 
-
 RenameOutputUI renameOutputUI;
-
 
 RenameOutputUI::RenameOutputUI() {
 }
 
-
 bool RenameOutputUI::opened() {
 #if HAVE_OLED
-	if (output->type == OUTPUT_TYPE_AUDIO)	title = "Rename track";
-	else									title = "Rename instrument";
+	if (output->type == OUTPUT_TYPE_AUDIO) title = "Rename track";
+	else title = "Rename instrument";
 #endif
 	bool success = QwertyUI::opened();
 	if (!success) return false;
@@ -66,13 +63,13 @@ int RenameOutputUI::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 		}
 	}
 
-    // Select encoder button
+	// Select encoder button
 	else if (x == selectEncButtonX && y == selectEncButtonY) {
 		if (on && !currentUIMode) {
 			if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			enterKeyPress();
 		}
-    }
+	}
 
 	else return ACTION_RESULT_NOT_DEALT_WITH;
 
@@ -100,7 +97,6 @@ void RenameOutputUI::exitUI() {
 	close();
 }
 
-
 int RenameOutputUI::padAction(int x, int y, int on) {
 
 	// Main pad
@@ -119,8 +115,8 @@ int RenameOutputUI::padAction(int x, int y, int on) {
 	return ACTION_RESULT_DEALT_WITH;
 }
 
-
 int RenameOutputUI::verticalEncoderAction(int offset, bool inCardRoutine) {
-	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(xEncButtonX, xEncButtonY)) return ACTION_RESULT_DEALT_WITH;
+	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(xEncButtonX, xEncButtonY))
+		return ACTION_RESULT_DEALT_WITH;
 	return arrangerView.verticalEncoderAction(offset, inCardRoutine);
 }

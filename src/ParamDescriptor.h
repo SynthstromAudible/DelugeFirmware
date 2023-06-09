@@ -22,38 +22,23 @@
 
 class ParamDescriptor {
 public:
+	inline void setToHaveParamOnly(int p) { data = p | 0xFFFFFF00; }
 
-	inline void setToHaveParamOnly(int p) {
-		data = p | 0xFFFFFF00;
-	}
-
-	inline void setToHaveParamAndSource(int p, int s) {
-		data = p | (s << 8) | 0xFFFF0000;
-	}
+	inline void setToHaveParamAndSource(int p, int s) { data = p | (s << 8) | 0xFFFF0000; }
 
 	inline void setToHaveParamAndTwoSources(int p, int s, int sLowestLevel) {
 		data = p | (s << 8) | (sLowestLevel << 16) | 0xFF000000;
 	}
 
-	inline bool isSetToParamWithNoSource(int p) {
-		return (data == (p | 0xFFFFFF00));
-	}
+	inline bool isSetToParamWithNoSource(int p) { return (data == (p | 0xFFFFFF00)); }
 
-	inline bool isSetToParamAndSource(int p, int s) {
-		return (data == (p | (s << 8) | 0xFFFF0000));
-	}
+	inline bool isSetToParamAndSource(int p, int s) { return (data == (p | (s << 8) | 0xFFFF0000)); }
 
-	inline bool isJustAParam() {
-		return (data & 0x0000FF00) == 0x0000FF00;
-	}
+	inline bool isJustAParam() { return (data & 0x0000FF00) == 0x0000FF00; }
 
-	inline int getJustTheParam() {
-		return data & 0xFF;
-	}
+	inline int getJustTheParam() { return data & 0xFF; }
 
-	inline void changeParam(int newParam) {
-		data = (data & 0xFFFFFF00) | newParam;
-	}
+	inline void changeParam(int newParam) { data = (data & 0xFFFFFF00) | newParam; }
 
 	inline int getBottomLevelSource() { // As in, the one furthest away from the param.
 		if ((data & 0x00FF0000) == 0x00FF0000) {
@@ -95,26 +80,22 @@ public:
 		return (data & 0x0000FF00) >> 8;
 	}
 
-	inline int getSecondSourceFromTop() {
-		return (data & 0x00FF0000) >> 16;
-	}
+	inline int getSecondSourceFromTop() { return (data & 0x00FF0000) >> 16; }
 
-	inline bool hasSecondSource() {
-		return ((data & 0x00FF0000) != 0x00FF0000);
-	}
+	inline bool hasSecondSource() { return ((data & 0x00FF0000) != 0x00FF0000); }
 
-	inline void setToNull() {
-		data = 0xFFFFFFFF;
-	}
+	inline void setToNull() { data = 0xFFFFFFFF; }
 
-	inline bool isNull() {
-		return (data == 0xFFFFFFFF);
-	}
+	inline bool isNull() { return (data == 0xFFFFFFFF); }
 
 	uint32_t data;
 };
 
-inline bool operator==(const ParamDescriptor& lhs, const ParamDescriptor& rhs){ return (lhs.data == rhs.data); }
-inline bool operator!=(const ParamDescriptor& lhs, const ParamDescriptor& rhs){ return !(lhs == rhs); }
+inline bool operator==(const ParamDescriptor& lhs, const ParamDescriptor& rhs) {
+	return (lhs.data == rhs.data);
+}
+inline bool operator!=(const ParamDescriptor& lhs, const ParamDescriptor& rhs) {
+	return !(lhs == rhs);
+}
 
 #endif /* PARAMDESCRIPTOR_H_ */

@@ -30,7 +30,7 @@
 #define MTU2_IOBITMASK_H
 
 
-/* ==== IOレジスタへのマスク値 ==== */
+/* ==== MTU2 IO ==== */
 #define MTU2_TCR_2_TPSC                         (0x07u)
 #define MTU2_TCR_2_CKEG                         (0x18u)
 #define MTU2_TCR_2_CCLR                         (0x60u)
@@ -317,7 +317,7 @@
 #define MTU2_TICCR_I2BE                         (0x08u)
 
 
-/* ==== IOレジスタへのシフト値 ==== */
+/* ==== MTU 2 IO ==== */
 #define MTU2_TCR_2_TPSC_SHIFT                   (0u)
 #define MTU2_TCR_2_CKEG_SHIFT                   (3u)
 #define MTU2_TCR_2_CCLR_SHIFT                   (5u)

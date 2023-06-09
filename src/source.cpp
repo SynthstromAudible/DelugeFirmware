@@ -40,13 +40,12 @@ Source::Source() {
 	repeatMode = SAMPLE_REPEAT_CUT;
 
 	// Synth stuff
-    oscType = OSC_TYPE_SQUARE;
+	oscType = OSC_TYPE_SQUARE;
 
-    timeStretchAmount = 0;
+	timeStretchAmount = 0;
 
-    defaultRangeI = -1;
+	defaultRangeI = -1;
 }
-
 
 Source::~Source() {
 	destructAllMultiRanges();
@@ -56,11 +55,10 @@ Source::~Source() {
 void Source::destructAllMultiRanges() {
 	for (int e = 0; e < ranges.getNumElements(); e++) {
 		AudioEngine::logAction("destructAllMultiRanges()");
-    	AudioEngine::routineWithClusterLoading(); // -----------------------------------
+		AudioEngine::routineWithClusterLoading(); // -----------------------------------
 		ranges.getElement(e)->~MultiRange();
 	}
 }
-
 
 // Only to be called if already determined that oscType == OSC_TYPE_SAMPLE
 int32_t Source::getLengthInSamplesAtSystemSampleRate(int note, bool forTimeStretching) {
@@ -71,45 +69,46 @@ int32_t Source::getLengthInSamplesAtSystemSampleRate(int note, bool forTimeStret
 	else return 1; // Why did I put 1?
 }
 
-
 void Source::setCents(int newCents) {
 	cents = newCents;
 	recalculateFineTuner();
 }
 
 void Source::recalculateFineTuner() {
-    fineTuner.setup((int32_t)cents * 42949672);
+	fineTuner.setup((int32_t)cents * 42949672);
 }
-
 
 // This function has to give the same result as Sound::renderingVoicesInStereo(). The duplication is for optimization.
 bool Source::renderInStereo(SampleHolder* sampleHolder) {
 	if (!AudioEngine::renderInStereo) return false;
 
-	return (oscType == OSC_TYPE_SAMPLE && sampleHolder && sampleHolder->audioFile && sampleHolder->audioFile->numChannels == 2)
-			|| (oscType == OSC_TYPE_INPUT_STEREO && (AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn));
+	return (oscType == OSC_TYPE_SAMPLE && sampleHolder && sampleHolder->audioFile
+	        && sampleHolder->audioFile->numChannels == 2)
+	       || (oscType == OSC_TYPE_INPUT_STEREO && (AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn));
 }
-
 
 void Source::detachAllAudioFiles() {
 	for (int e = 0; e < ranges.getNumElements(); e++) {
-		if (!(e & 7)) AudioEngine::routineWithClusterLoading(); // --------------------------------------- // 7 works, 15 occasionally drops voices - for multisampled synths
+		if (!(e & 7))
+			AudioEngine::
+			    routineWithClusterLoading(); // --------------------------------------- // 7 works, 15 occasionally drops voices - for multisampled synths
 		ranges.getElement(e)->getAudioFileHolder()->setAudioFile(NULL);
 	}
 }
 
-
 int Source::loadAllSamples(bool mayActuallyReadFiles) {
 	for (int e = 0; e < ranges.getNumElements(); e++) {
 		AudioEngine::logAction("Source::loadAllSamples");
-		if (!(e & 3)) AudioEngine::routineWithClusterLoading(); // -------------------------------------- // 3 works, 7 occasionally drops voices - for multisampled synths
-    	if (mayActuallyReadFiles && shouldAbortLoading()) return ERROR_ABORTED_BY_USER;
-		ranges.getElement(e)->getAudioFileHolder()->loadFile(sampleControls.reversed, false, mayActuallyReadFiles, CLUSTER_ENQUEUE, 0, true);
+		if (!(e & 3))
+			AudioEngine::
+			    routineWithClusterLoading(); // -------------------------------------- // 3 works, 7 occasionally drops voices - for multisampled synths
+		if (mayActuallyReadFiles && shouldAbortLoading()) return ERROR_ABORTED_BY_USER;
+		ranges.getElement(e)->getAudioFileHolder()->loadFile(sampleControls.reversed, false, mayActuallyReadFiles,
+		                                                     CLUSTER_ENQUEUE, 0, true);
 	}
 
 	return NO_ERROR;
 }
-
 
 // Only to be called if already determined that oscType == OSC_TYPE_SAMPLE
 void Source::setReversed(bool newReversed) {
@@ -126,7 +125,6 @@ void Source::setReversed(bool newReversed) {
 		}
 	}
 }
-
 
 MultiRange* Source::getRange(int note) {
 	if (ranges.getNumElements() == 1) return ranges.getElement(0);
@@ -149,7 +147,8 @@ int Source::getRangeIndex(int note) {
 
 MultiRange* Source::getOrCreateFirstRange() {
 	if (!ranges.getNumElements()) {
-		MultiRange* newRange = ranges.insertMultiRange(0); // Default option - allowed e.g. for a new Sound where the current process is the Ranges get set up before oscType is switched over to SAMPLE - but this can't happen for WAVETABLE so that's ok
+		MultiRange* newRange = ranges.insertMultiRange(
+		    0); // Default option - allowed e.g. for a new Sound where the current process is the Ranges get set up before oscType is switched over to SAMPLE - but this can't happen for WAVETABLE so that's ok
 		if (!newRange) return NULL;
 
 		newRange->topNote = 32767;
@@ -167,7 +166,6 @@ bool Source::hasAtLeastOneAudioFileLoaded() {
 	}
 	return false;
 }
-
 
 void Source::doneReadingFromFile(Sound* sound) {
 
@@ -210,8 +208,6 @@ bool Source::hasAnyLoopEndPoint() {
 	return false;
 }
 
-
-
 // If setting to SAMPLE or WAVETABLE, you must call unassignAllVoices before this, because ranges is going to get emptied.
 void Source::setOscType(int newType) {
 
@@ -242,8 +238,10 @@ doChangeType:
 
 			getOrCreateFirstRange(); // Ensure there's at least 1. If this returns NULL and we're in the SoundEditor or something, we're screwed.
 
-			if (soundEditor.currentMultiRangeIndex >= 0 && soundEditor.currentMultiRangeIndex < ranges.getNumElements()) {
-				soundEditor.currentMultiRange = (MultiRange*)ranges.getElementAddress(soundEditor.currentMultiRangeIndex);
+			if (soundEditor.currentMultiRangeIndex >= 0
+			    && soundEditor.currentMultiRangeIndex < ranges.getNumElements()) {
+				soundEditor.currentMultiRange =
+				    (MultiRange*)ranges.getElementAddress(soundEditor.currentMultiRangeIndex);
 			}
 		}
 	}
@@ -254,8 +252,6 @@ doChangeType:
 
 	oscType = newType;
 }
-
-
 
 /*
 	for (int e = 0; e < ranges.getNumElements(); e++) {

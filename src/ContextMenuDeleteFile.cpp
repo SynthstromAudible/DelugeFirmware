@@ -28,17 +28,13 @@ extern "C" {
 
 ContextMenuDeleteFile contextMenuDeleteFile;
 
-
 ContextMenuDeleteFile::ContextMenuDeleteFile() {
 }
 
-
 char const** ContextMenuDeleteFile::getOptions() {
 #if HAVE_OLED
-	if (getUIUpOneLevel() == &saveSongOrInstrumentContextMenu)
-		title = "Are you sure?";
-	else
-		title = "Delete?";
+	if (getUIUpOneLevel() == &saveSongOrInstrumentContextMenu) title = "Are you sure?";
+	else title = "Delete?";
 
 	static char const* options[] = {"OK"};
 	return options;
@@ -46,13 +42,10 @@ char const** ContextMenuDeleteFile::getOptions() {
 	static char const* options[] = {"DELETE"};
 	static char const* optionsSure[] = {"SURE"};
 
-	if (getUIUpOneLevel() == &saveSongOrInstrumentContextMenu)
-		return optionsSure;
-	else
-		return options;
+	if (getUIUpOneLevel() == &saveSongOrInstrumentContextMenu) return optionsSure;
+	else return options;
 #endif
 }
-
 
 bool ContextMenuDeleteFile::acceptCurrentOption() {
 
@@ -63,16 +56,16 @@ bool ContextMenuDeleteFile::acceptCurrentOption() {
 
 	Browser* browser = (Browser*)ui;
 
-    String filePath;
-    int error = browser->getCurrentFilePath(&filePath);
-    if (error) {
-    	numericDriver.displayError(error);
-    	return false;
-    }
+	String filePath;
+	int error = browser->getCurrentFilePath(&filePath);
+	if (error) {
+		numericDriver.displayError(error);
+		return false;
+	}
 
-    FRESULT result = f_unlink(filePath.get());
+	FRESULT result = f_unlink(filePath.get());
 
-    // If didn't work
+	// If didn't work
 	if (result != FR_OK) {
 		numericDriver.displayPopup(HAVE_OLED ? "Error deleting file" : "ERROR");
 		// But we'll still go back to the Browser
@@ -82,11 +75,10 @@ bool ContextMenuDeleteFile::acceptCurrentOption() {
 		browser->currentFileDeleted();
 	}
 
-    close();
-    if (getCurrentUI() == &saveSongOrInstrumentContextMenu) {
-    	saveSongOrInstrumentContextMenu.close();
-    }
-
+	close();
+	if (getCurrentUI() == &saveSongOrInstrumentContextMenu) {
+		saveSongOrInstrumentContextMenu.close();
+	}
 
 	return true;
 }

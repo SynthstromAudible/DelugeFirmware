@@ -27,9 +27,9 @@ public:
 	CopiedParamAutomation();
 	virtual ~CopiedParamAutomation();
 
-    int32_t width;
-    ParamNode* nodes;
-    int numNodes;
+	int32_t width;
+	ParamNode* nodes;
+	int numNodes;
 };
 
 #endif /* COPIEDPARAMAUTOMATION_H_ */

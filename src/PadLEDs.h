@@ -18,7 +18,6 @@
 #ifndef PADLEDS_H_
 #define PADLEDS_H_
 
-
 #include "r_typedefs.h"
 #include "definitions.h"
 
@@ -26,15 +25,13 @@
 #define FLASH_CURSOR_OFF 1
 #define FLASH_CURSOR_SLOW 2
 
-
-
 class AudioClip;
 
 namespace PadLEDs {
-extern uint8_t image[displayHeight][displayWidth + sideBarWidth][3]; // 255 = full brightness
-extern uint8_t occupancyMask[displayHeight][displayWidth + sideBarWidth]; // 64 = full occupancy
-extern uint8_t imageStore[displayHeight * 2][displayWidth + sideBarWidth][3]; // 255 = full brightness
-extern uint8_t occupancyMaskStore[displayHeight * 2][displayWidth + sideBarWidth];  // 64 = full occupancy
+extern uint8_t image[displayHeight][displayWidth + sideBarWidth][3];               // 255 = full brightness
+extern uint8_t occupancyMask[displayHeight][displayWidth + sideBarWidth];          // 64 = full occupancy
+extern uint8_t imageStore[displayHeight * 2][displayWidth + sideBarWidth][3];      // 255 = full brightness
+extern uint8_t occupancyMaskStore[displayHeight * 2][displayWidth + sideBarWidth]; // 64 = full occupancy
 
 extern bool transitionTakingPlaceOnRow[displayHeight];
 
@@ -53,9 +50,6 @@ extern uint8_t numAnimatedRows;
 extern int zoomPinSquare[displayHeight];
 extern bool zoomingIn;
 extern int8_t zoomMagnitude;
-
-
-
 
 void init();
 void sortLedsForCol(int x);
@@ -76,12 +70,13 @@ void reassessGreyout(bool doInstantly = false);
 void doGreyoutInstantly();
 
 void renderZoom();
-void renderZoomWithProgress(int inImageTimesBiggerThanNative, uint32_t inImageFadeAmount, uint8_t* innerImage, uint8_t* outerImage,
-				int innerImageLeftEdge, int outerImageLeftEdge,
-				int innerImageRightEdge, int outerImageRightEdge,
-				int innerImageTotalWidth, int outerImageTotalWidth);
+void renderZoomWithProgress(int inImageTimesBiggerThanNative, uint32_t inImageFadeAmount, uint8_t* innerImage,
+                            uint8_t* outerImage, int innerImageLeftEdge, int outerImageLeftEdge,
+                            int innerImageRightEdge, int outerImageRightEdge, int innerImageTotalWidth,
+                            int outerImageTotalWidth);
 void renderScroll();
-void setupScroll(int8_t thisScrollDirection, uint8_t thisAreaToScroll, bool scrollIntoNothing = false, int numSquaresToScroll = displayWidth);
+void setupScroll(int8_t thisScrollDirection, uint8_t thisAreaToScroll, bool scrollIntoNothing = false,
+                 int numSquaresToScroll = displayWidth);
 
 void sendRGBForOnePadFast(int x, int y, const uint8_t* colourSource);
 void clearTickSquares(bool shouldSend = true);
@@ -96,13 +91,13 @@ void renderAudioClipExpandOrCollapse();
 void setupInstrumentClipCollapseAnimation(bool collapsingOutOfClipMinder);
 void setupAudioClipCollapseOrExplodeAnimation(AudioClip* clip);
 
-
 void setGreyoutAmount(float newAmount);
 
 inline void sendRGBForOneCol(int x);
 void setTimerForSoon();
-void renderZoomedSquare(int32_t outputSquareStartOnOutImage, int32_t outputSquareEndOnOutImage, uint32_t outImageTimesBigerThanNormal,
-		unsigned int sourceImageFade, uint32_t* output, uint8_t* inputImageRow, int inputImageWidth, bool* drawingAnything);
+void renderZoomedSquare(int32_t outputSquareStartOnOutImage, int32_t outputSquareEndOnOutImage,
+                        uint32_t outImageTimesBigerThanNormal, unsigned int sourceImageFade, uint32_t* output,
+                        uint8_t* inputImageRow, int inputImageWidth, bool* drawingAnything);
 bool shouldNotRenderDuringTimerRoutine();
 void renderAudioClipCollapseAnimation(int progress);
 
@@ -110,8 +105,6 @@ void timerRoutine();
 void copyBetweenImageStores(uint8_t* dest, uint8_t* source, int destWidth, int sourceWidth, int copyWidth);
 void moveBetweenImageStores(uint8_t* dest, uint8_t* source, int destWidth, int sourceWidth, int copyWidth);
 
-}
-
-
+} // namespace PadLEDs
 
 #endif /* PADLEDS_H_ */
