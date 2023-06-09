@@ -28,30 +28,33 @@ class Arrangement final : public PlaybackMode {
 public:
 	Arrangement();
 
-    // PlaybackMode implementation
-    void setupPlayback();
-    bool endPlayback(); // Returns whether to do an instant song swap
-    void doTickForward(int posIncrement);
-    void resetPlayPos(int32_t newPos, bool doingComplete = true, int buttonPressLatency = 0);
-    void resyncToSongTicks(Song* song);
-    void reversionDone();
-    bool isOutputAvailable(Output* output);
-    void stopOutputRecordingAtLoopEnd();
-    int32_t getPosAtWhichClipWillCut(ModelStackWithTimelineCounter const* modelStack);
-    bool willClipContinuePlayingAtEnd(ModelStackWithTimelineCounter const* modelStack);
-    bool willClipLoopAtSomePoint(ModelStackWithTimelineCounter const* modelStack);
-    void reSyncClip(ModelStackWithTimelineCounter* modelStack, bool mustSetPosToSomething, bool mayResumeClip);
+	// PlaybackMode implementation
+	void setupPlayback();
+	bool endPlayback(); // Returns whether to do an instant song swap
+	void doTickForward(int posIncrement);
+	void resetPlayPos(int32_t newPos, bool doingComplete = true, int buttonPressLatency = 0);
+	void resyncToSongTicks(Song* song);
+	void reversionDone();
+	bool isOutputAvailable(Output* output);
+	void stopOutputRecordingAtLoopEnd();
+	int32_t getPosAtWhichClipWillCut(ModelStackWithTimelineCounter const* modelStack);
+	bool willClipContinuePlayingAtEnd(ModelStackWithTimelineCounter const* modelStack);
+	bool willClipLoopAtSomePoint(ModelStackWithTimelineCounter const* modelStack);
+	void reSyncClip(ModelStackWithTimelineCounter* modelStack, bool mustSetPosToSomething, bool mayResumeClip);
 
-    // Clips remain "active" even after playback has stopped, or after they've finished playing but the next Clip for the Instrument / row hasn't started yet.
-    // It'll also become active if the user starts editing one
-	void resumeClipInstancePlayback(ClipInstance* clipInstance, bool doingComplete = true, bool mayActuallyResumeClip = true);
-	void rowEdited(Output* output, int32_t startPos, int32_t endPos, Clip* clipRemoved, ClipInstance* clipInstanceAdded);
-	int doUniqueCloneOnClipInstance(ClipInstance* clipInstance, int32_t newLength = -1, bool shouldCloneRepeats = false);
+	// Clips remain "active" even after playback has stopped, or after they've finished playing but the next Clip for the Instrument / row hasn't started yet.
+	// It'll also become active if the user starts editing one
+	void resumeClipInstancePlayback(ClipInstance* clipInstance, bool doingComplete = true,
+	                                bool mayActuallyResumeClip = true);
+	void rowEdited(Output* output, int32_t startPos, int32_t endPos, Clip* clipRemoved,
+	               ClipInstance* clipInstanceAdded);
+	int doUniqueCloneOnClipInstance(ClipInstance* clipInstance, int32_t newLength = -1,
+	                                bool shouldCloneRepeats = false);
 	int32_t getLivePos(uint32_t* timeRemainder = NULL);
 	void endAnyLinearRecording();
 
-    int32_t lastProcessedPos;
-    int32_t playbackStartedAtPos;
+	int32_t lastProcessedPos;
+	int32_t playbackStartedAtPos;
 };
 
 extern Arrangement arrangement;

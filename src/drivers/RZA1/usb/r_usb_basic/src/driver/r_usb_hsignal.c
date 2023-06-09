@@ -47,15 +47,15 @@
                  : uint16_t     command      : ON / OFF.
  Return value    : none
  ***********************************************************************************************************************/
-void usb_hstd_vbus_control(usb_utr_t *ptr, uint16_t port, uint16_t command)
+void usb_hstd_vbus_control(usb_utr_t* ptr, uint16_t port, uint16_t command)
 {
     if (USB_VBON == command)
     {
         hw_usb_set_vbout(ptr, port);
 #if USB_CFG_BC == USB_CFG_ENABLE
-//        if (USB_BC_SUPPORT_IP == ptr->ip)
-//        {
-            usb_hstd_bc_func[g_usb_hstd_bc[ptr->ip].state][USB_BC_EVENT_VB](ptr, port);
+        //        if (USB_BC_SUPPORT_IP == ptr->ip)
+        //        {
+        usb_hstd_bc_func[g_usb_hstd_bc[ptr->ip].state][USB_BC_EVENT_VB](ptr, port);
 //        }
 #endif
     }
@@ -73,7 +73,7 @@ void usb_hstd_vbus_control(usb_utr_t *ptr, uint16_t port, uint16_t command)
                  : uint16_t     port         : Port number.
  Return value    : none
  ***********************************************************************************************************************/
-void usb_hstd_suspend_process(usb_utr_t *ptr, uint16_t port)
+void usb_hstd_suspend_process(usb_utr_t* ptr, uint16_t port)
 {
     /* SUSPENDED check */
     if (USB_SUSPENDED == g_usb_hstd_remort_port[port])
@@ -112,7 +112,7 @@ void usb_hstd_suspend_process(usb_utr_t *ptr, uint16_t port)
                  : uint16_t     port         : Port number.
  Return value    : none
  ***********************************************************************************************************************/
-void usb_hstd_attach(usb_utr_t *ptr, uint16_t result, uint16_t port)
+void usb_hstd_attach(usb_utr_t* ptr, uint16_t result, uint16_t port)
 {
     /* DTCH  interrupt enable */
     usb_hstd_dtch_enable(ptr, port);
@@ -123,9 +123,9 @@ void usb_hstd_attach(usb_utr_t *ptr, uint16_t result, uint16_t port)
     /* USB Mng API */
     usb_hstd_notif_ator_detach(ptr, result, port);
 #if USB_CFG_BC == USB_CFG_ENABLE
-//    if(USB_BC_SUPPORT_IP == ptr->ip)
-//    {
-        usb_hstd_bc_func[g_usb_hstd_bc[ptr->ip].state][USB_BC_EVENT_AT](ptr, port);
+    //    if(USB_BC_SUPPORT_IP == ptr->ip)
+    //    {
+    usb_hstd_bc_func[g_usb_hstd_bc[ptr->ip].state][USB_BC_EVENT_AT](ptr, port);
 //    }
 #endif /* USB_CFG_BC == USB_CFG_ENABLE */
 } /* End of function usb_hstd_attach() */
@@ -138,12 +138,12 @@ void usb_hstd_attach(usb_utr_t *ptr, uint16_t result, uint16_t port)
                  : uint16_t     port         : Port number.
  Return value    : none
  ***********************************************************************************************************************/
-void usb_hstd_detach(usb_utr_t *ptr, uint16_t port)
+void usb_hstd_detach(usb_utr_t* ptr, uint16_t port)
 {
 #if USB_CFG_BC == USB_CFG_ENABLE
-//    if(USB_BC_SUPPORT_IP == ptr->ip)
-//    {
-        usb_hstd_bc_func[g_usb_hstd_bc[ptr->ip].state][USB_BC_EVENT_DT](ptr, port);
+    //    if(USB_BC_SUPPORT_IP == ptr->ip)
+    //    {
+    usb_hstd_bc_func[g_usb_hstd_bc[ptr->ip].state][USB_BC_EVENT_DT](ptr, port);
 //    }
 #endif /* USB_CFG_BC == USB_CFG_ENABLE */
 
@@ -156,7 +156,7 @@ void usb_hstd_detach(usb_utr_t *ptr, uint16_t port)
     /* USB Mng API */
     usb_hstd_notif_ator_detach(ptr, (uint16_t)USB_DETACH, port);
 } /* End of function usb_hstd_detach() */
-#endif  /* (USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST */
+#endif /* (USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST */
 
 /***********************************************************************************************************************
  End Of File

@@ -20,8 +20,7 @@
 #include "definitions.h"
 #include <new>
 
-SampleClusterArray::SampleClusterArray() : ResizeableArray(sizeof(SampleCluster))
-{
+SampleClusterArray::SampleClusterArray() : ResizeableArray(sizeof(SampleCluster)) {
 }
 
 int SampleClusterArray::insertSampleClustersAtEnd(int numToInsert) {
@@ -36,8 +35,6 @@ int SampleClusterArray::insertSampleClustersAtEnd(int numToInsert) {
 
 	return NO_ERROR;
 }
-
-
 
 SampleCluster* SampleClusterArray::getElement(int i) {
 	return (SampleCluster*)getElementAddress(i);

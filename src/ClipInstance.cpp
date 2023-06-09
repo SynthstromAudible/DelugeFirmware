@@ -24,13 +24,9 @@
 #include "Action.h"
 #include <new>
 
-ClipInstance::ClipInstance()
-{
+ClipInstance::ClipInstance() {
 	// TODO Auto-generated constructor stub
-
 }
-
-
 
 void ClipInstance::getColour(uint8_t* colour) {
 	if (!clip || clip->isArrangementOnlyClip()) {
@@ -46,7 +42,8 @@ void ClipInstance::change(Action* action, Output* output, int32_t newPos, int32_
 		void* consMemory = generalMemoryAllocator.alloc(sizeof(ConsequenceClipInstanceChange));
 
 		if (consMemory) {
-			ConsequenceClipInstanceChange* newConsequence = new (consMemory) ConsequenceClipInstanceChange(output, this, newPos, newLength, newClip);
+			ConsequenceClipInstanceChange* newConsequence =
+			    new (consMemory) ConsequenceClipInstanceChange(output, this, newPos, newLength, newClip);
 			action->addConsequence(newConsequence);
 		}
 	}

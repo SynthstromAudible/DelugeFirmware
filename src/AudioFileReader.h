@@ -22,9 +22,7 @@
 
 class AudioFile;
 
-
 // The reason we have this class and don't do it all in the AudioFile is that this class contains variables that are only needed during the reading process.
-
 
 class AudioFileReader {
 public:

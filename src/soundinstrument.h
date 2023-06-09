@@ -27,58 +27,63 @@ class ParamManagerForTimeline;
 class ModelStack;
 class ModelStackWithThreeMainThings;
 
-class SoundInstrument final : public Sound, public MelodicInstrument
-{
+class SoundInstrument final : public Sound, public MelodicInstrument {
 public:
 	SoundInstrument();
-    bool writeDataToFile(Clip* clipForSavingOutputOnly, Song* song);
-    int readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos);
-    void cutAllSound();
-    bool noteIsOn(int noteCode);
+	bool writeDataToFile(Clip* clipForSavingOutputOnly, Song* song);
+	int readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos);
+	void cutAllSound();
+	bool noteIsOn(int noteCode);
 
-    void renderOutput(ModelStack* modelStack, StereoSample *startPos, StereoSample *endPos, int numSamples, int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive);
+	void renderOutput(ModelStack* modelStack, StereoSample* startPos, StereoSample* endPos, int numSamples,
+	                  int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending,
+	                  bool shouldLimitDelayFeedback, bool isClipActive);
 
-    // A timelineCounter is required
-    void offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value, ModelStackWithTimelineCounter* modelStack) {
-    	Sound::offerReceivedCCToLearnedParams(fromDevice, channel, ccNumber, value, modelStack);
-    }
-    bool offerReceivedPitchBendToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2, ModelStackWithTimelineCounter* modelStack) {
-    	return Sound::offerReceivedPitchBendToLearnedParams(fromDevice, channel, data1, data2, modelStack);
-    }
+	// A timelineCounter is required
+	void offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
+	                                    ModelStackWithTimelineCounter* modelStack) {
+		Sound::offerReceivedCCToLearnedParams(fromDevice, channel, ccNumber, value, modelStack);
+	}
+	bool offerReceivedPitchBendToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2,
+	                                           ModelStackWithTimelineCounter* modelStack) {
+		return Sound::offerReceivedPitchBendToLearnedParams(fromDevice, channel, data1, data2, modelStack);
+	}
 
+	int loadAllAudioFiles(bool mayActuallyReadFiles);
+	void resyncLFOs();
+	ModControllable* toModControllable();
+	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, int maySendMIDIPGMs);
+	void setupPatchingForAllParamManagers(Song* song);
+	char const* getFilePrefix() { return "SYNT"; }
+	void setupPatching(ModelStackWithTimelineCounter* modelStack);
 
-    int loadAllAudioFiles(bool mayActuallyReadFiles);
-    void resyncLFOs();
-    ModControllable* toModControllable();
-    bool setActiveClip(ModelStackWithTimelineCounter* modelStack, int maySendMIDIPGMs);
-    void setupPatchingForAllParamManagers(Song* song);
-    char const* getFilePrefix() { return "SYNT"; }
-    void setupPatching(ModelStackWithTimelineCounter* modelStack);
+	void deleteBackedUpParamManagers(Song* song);
+	void polyphonicExpressionEventOnChannelOrNote(int newValue, int whichExpressionDimension, int channelOrNoteNumber,
+	                                              int whichCharacteristic);
+	void monophonicExpressionEvent(int newValue, int whichExpressionDimension);
 
-    void deleteBackedUpParamManagers(Song* song);
-    void polyphonicExpressionEventOnChannelOrNote(int newValue, int whichExpressionDimension, int channelOrNoteNumber, int whichCharacteristic);
-    void monophonicExpressionEvent(int newValue, int whichExpressionDimension);
+	void sendNote(ModelStackWithThreeMainThings* modelStack, bool isOn, int noteCode, int16_t const* mpeValues,
+	              int fromMIDIChannel, uint8_t velocity, uint32_t sampleSyncLength, int32_t ticksLate,
+	              uint32_t samplesLate);
 
-    void sendNote(ModelStackWithThreeMainThings* modelStack, bool isOn, int noteCode, int16_t const* mpeValues, int fromMIDIChannel, uint8_t velocity, uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate);
+	ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = NULL);
+	bool readTagFromFile(char const* tagName);
 
-    ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = NULL);
-    bool readTagFromFile(char const* tagName);
+	void prepareForHibernationOrDeletion();
+	void compensateInstrumentVolumeForResonance(ModelStackWithThreeMainThings* modelStack);
+	bool isSkippingRendering() { return skippingRendering; }
+	void loadCrucialAudioFilesOnly();
+	void beenEdited(bool shouldMoveToEmptySlot = true);
+	int32_t doTickForwardForArp(ModelStack* modelStack, int32_t currentPos);
+	void setupWithoutActiveClip(ModelStack* modelStack);
+	void getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb,
+	                            GlobalEffectableForClip** globalEffectableWithMostReverb,
+	                            int32_t* highestReverbAmountFound);
+	uint8_t* getModKnobMode() { return &modKnobMode; }
+	ArpeggiatorBase* getArp();
+	char const* getXMLTag() { return "sound"; }
 
-    void prepareForHibernationOrDeletion();
-    void compensateInstrumentVolumeForResonance(ModelStackWithThreeMainThings* modelStack);
-    bool isSkippingRendering() { return skippingRendering; }
-    void loadCrucialAudioFilesOnly();
-    void beenEdited(bool shouldMoveToEmptySlot = true);
-    int32_t doTickForwardForArp(ModelStack* modelStack, int32_t currentPos);
-    void setupWithoutActiveClip(ModelStack* modelStack);
-    void getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb, GlobalEffectableForClip** globalEffectableWithMostReverb,
-    			int32_t* highestReverbAmountFound);
-    uint8_t* getModKnobMode() { return &modKnobMode; }
-    ArpeggiatorBase* getArp();
-    char const* getXMLTag() { return "sound"; }
-
-    ArpeggiatorSettings defaultArpSettings;
-
+	ArpeggiatorSettings defaultArpSettings;
 };
 
 #endif

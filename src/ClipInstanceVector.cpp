@@ -18,10 +18,8 @@
 #include <ClipInstance.h>
 #include <ClipInstanceVector.h>
 
-ClipInstanceVector::ClipInstanceVector() : OrderedResizeableArrayWith32bitKey(sizeof(ClipInstance))
-{
+ClipInstanceVector::ClipInstanceVector() : OrderedResizeableArrayWith32bitKey(sizeof(ClipInstance)) {
 }
-
 
 ClipInstance* ClipInstanceVector::getElement(int index) {
 	if (index < 0 || index >= getNumElements()) return NULL;

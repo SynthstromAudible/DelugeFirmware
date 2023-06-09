@@ -28,6 +28,5 @@
 #include "functions.h"
 #include "storagemanager.h"
 
-MultisampleRange::MultisampleRange()
-{
+MultisampleRange::MultisampleRange() {
 }

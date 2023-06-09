@@ -26,8 +26,7 @@
 #include "song.h"
 #include "FlashStorage.h"
 
-Delay::Delay()
-{
+Delay::Delay() {
 	pingPong = true;
 	analog = false;
 	repeatsUntilAbandon = 0;
@@ -44,7 +43,6 @@ Delay::Delay()
 	}
 }
 
-
 void Delay::cloneFrom(Delay* other) {
 	pingPong = other->pingPong;
 	analog = other->analog;
@@ -57,7 +55,7 @@ void Delay::informWhetherActive(bool newActive, int32_t userDelayRate) {
 
 	if (previouslyActive != newActive) {
 		if (newActive) {
-		setupSecondaryBuffer:
+setupSecondaryBuffer:
 			uint8_t result = secondaryBuffer.init(userDelayRate);
 			if (result != NO_ERROR) return;
 			prepareToBeginWriting();
@@ -76,7 +74,8 @@ void Delay::informWhetherActive(bool newActive, int32_t userDelayRate) {
 		if (previouslyActive) {
 			// If no writing has happened yet to this Delay, check that the buffer is the right size.
 			// The delay time might have changed since it was set up, and we could be better off making a new buffer, which is easily done now, before anything's been written
-			if (!primaryBuffer.isActive() && secondaryBuffer.isActive() && sizeLeftUntilBufferSwap == getAmountToWriteBeforeReadingBegins()) {
+			if (!primaryBuffer.isActive() && secondaryBuffer.isActive()
+			    && sizeLeftUntilBufferSwap == getAmountToWriteBeforeReadingBegins()) {
 
 				int32_t idealBufferSize = secondaryBuffer.getIdealBufferSizeFromRate(userDelayRate);
 				idealBufferSize = getMin(idealBufferSize, (int32_t)DELAY_BUFFER_MAX_SIZE);
@@ -95,16 +94,15 @@ void Delay::informWhetherActive(bool newActive, int32_t userDelayRate) {
 	}
 }
 
-
 void Delay::copySecondaryToPrimary() {
 	primaryBuffer.discard();
-	primaryBuffer = secondaryBuffer; // Does actual copying
+	primaryBuffer = secondaryBuffer;    // Does actual copying
 	secondaryBuffer.bufferStart = NULL; // Make sure this doesn't try to get "deallocated" later
 }
 
 void Delay::copyPrimaryToSecondary() {
 	secondaryBuffer.discard();
-	secondaryBuffer = primaryBuffer; // Does actual copying
+	secondaryBuffer = primaryBuffer;  // Does actual copying
 	primaryBuffer.bufferStart = NULL; // Make sure this doesn't try to get "deallocated" later
 }
 
@@ -123,14 +121,18 @@ bool Delay::isActive() {
 // Set the rate and feedback in the workingState before calling this
 void Delay::setupWorkingState(DelayWorkingState* workingState, bool anySoundComingIn) {
 
-    // Set some stuff up that we need before we make some decisions
-    bool mightDoDelay = (workingState->delayFeedbackAmount >= 256 && (anySoundComingIn || repeatsUntilAbandon)); // TODO: we want to be able to reduce the 256 to 1, but for some reason, the patching engine spits out 112 even when this should be 0...
+	// Set some stuff up that we need before we make some decisions
+	bool mightDoDelay =
+	    (workingState->delayFeedbackAmount >= 256
+	     && (anySoundComingIn
+	         || repeatsUntilAbandon)); // TODO: we want to be able to reduce the 256 to 1, but for some reason, the patching engine spits out 112 even when this should be 0...
 
 	if (mightDoDelay) {
 
 		if (sync != 0) {
 
-			workingState->userDelayRate = multiply_32x32_rshift32_rounded(workingState->userDelayRate, playbackHandler.getTimePerInternalTickInverse(true));
+			workingState->userDelayRate = multiply_32x32_rshift32_rounded(
+			    workingState->userDelayRate, playbackHandler.getTimePerInternalTickInverse(true));
 
 			// Limit to the biggest number we can store...
 			int32_t limit = 2147483647 >> (sync + 5);
@@ -139,8 +141,9 @@ void Delay::setupWorkingState(DelayWorkingState* workingState, bool anySoundComi
 		}
 	}
 
-	informWhetherActive(mightDoDelay, workingState->userDelayRate); // Tell it to allocate memory if that hasn't already happened
-	workingState->doDelay = isActive(); // Check that ram actually is allocated
+	informWhetherActive(mightDoDelay,
+	                    workingState->userDelayRate); // Tell it to allocate memory if that hasn't already happened
+	workingState->doDelay = isActive();               // Check that ram actually is allocated
 
 	if (workingState->doDelay) {
 		// If feedback has changed, or sound is coming in, reassess how long to leave the delay sounding for

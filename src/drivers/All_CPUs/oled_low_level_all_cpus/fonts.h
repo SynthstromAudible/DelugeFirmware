@@ -20,11 +20,11 @@
 
 #include "r_typedefs.h"
 
- typedef struct
+typedef struct
 {
-	uint16_t glyph_index;
-	uint8_t w_px;
-}lv_font_glyph_dsc_t;
+    uint16_t glyph_index;
+    uint8_t w_px;
+} lv_font_glyph_dsc_t;
 
 extern const uint8_t font_metric_bold_20px[];
 extern const lv_font_glyph_dsc_t font_metric_bold_20px_desc[];

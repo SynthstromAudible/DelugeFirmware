@@ -37,9 +37,9 @@ MIDIDevice::MIDIDevice() {
 }
 
 void MIDIDevice::writeReferenceToFile(char const* tagName) {
-    storageManager.writeOpeningTagBeginning(tagName);
-    writeReferenceAttributesToFile();
-    storageManager.closeTag();
+	storageManager.writeOpeningTagBeginning(tagName);
+	writeReferenceAttributesToFile();
+	storageManager.closeTag();
 }
 
 void MIDIDevice::dataEntryMessageReceived(ModelStack* modelStack, int channel, int msb) {
@@ -84,9 +84,11 @@ setMPEBendRange:
 			if (channel == 0) {
 				zone = MPE_ZONE_LOWER_NUMBERED_FROM_0;
 				ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeLowerZoneLastMemberChannel = msb;
-				ports[MIDI_DIRECTION_INPUT_TO_DELUGE].moveUpperZoneOutOfWayOfLowerZone(); // Move other zone out of the way if necessary (MPE spec says to do this).
+				ports[MIDI_DIRECTION_INPUT_TO_DELUGE]
+				    .moveUpperZoneOutOfWayOfLowerZone(); // Move other zone out of the way if necessary (MPE spec says to do this).
 
-resetBendRanges:// Have to reset pitch bend range for zone, according to MPE spec. Unless we just deactivated the MPE zone...
+resetBendRanges
+    : // Have to reset pitch bend range for zone, according to MPE spec. Unless we just deactivated the MPE zone...
 				if (msb) {
 					mpeZoneBendRanges[zone][BEND_RANGE_MAIN] = 2;
 					mpeZoneBendRanges[zone][BEND_RANGE_FINGER_LEVEL] = 48;
@@ -94,7 +96,8 @@ resetBendRanges:// Have to reset pitch bend range for zone, according to MPE spe
 					// Inform the Song about the changed bend ranges
 					int channelOrZone = zone + MIDI_CHANNEL_MPE_LOWER_ZONE;
 					for (int r = 0; r < 2; r++) {
-						modelStack->song->midiDeviceBendRangeUpdatedViaMessage(modelStack, this, channelOrZone, r, mpeZoneBendRanges[zone][r]);
+						modelStack->song->midiDeviceBendRangeUpdatedViaMessage(modelStack, this, channelOrZone, r,
+						                                                       mpeZoneBendRanges[zone][r]);
 					}
 				}
 
@@ -110,7 +113,8 @@ resetBendRanges:// Have to reset pitch bend range for zone, according to MPE spe
 			else if (channel == 15) {
 				zone = MPE_ZONE_UPPER_NUMBERED_FROM_0;
 				ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeUpperZoneLastMemberChannel = 15 - msb;
-				ports[MIDI_DIRECTION_INPUT_TO_DELUGE].moveLowerZoneOutOfWayOfUpperZone(); // Move other zone out of the way if necessary (MPE spec says to do this).
+				ports[MIDI_DIRECTION_INPUT_TO_DELUGE]
+				    .moveLowerZoneOutOfWayOfUpperZone(); // Move other zone out of the way if necessary (MPE spec says to do this).
 
 				goto resetBendRanges;
 			}
@@ -120,7 +124,7 @@ resetBendRanges:// Have to reset pitch bend range for zone, according to MPE spe
 }
 
 bool MIDIDevice::wantsToOutputMIDIOnChannel(int channel, int filter) {
-	switch(filter) {
+	switch (filter) {
 	case MIDI_CHANNEL_MPE_LOWER_ZONE:
 		return (ports[MIDI_DIRECTION_OUTPUT_FROM_DELUGE].mpeLowerZoneLastMemberChannel != 0);
 
@@ -128,8 +132,10 @@ bool MIDIDevice::wantsToOutputMIDIOnChannel(int channel, int filter) {
 		return (ports[MIDI_DIRECTION_OUTPUT_FROM_DELUGE].mpeUpperZoneLastMemberChannel != 15);
 
 	default:
-		return (ports[MIDI_DIRECTION_OUTPUT_FROM_DELUGE].mpeLowerZoneLastMemberChannel == 0 || ports[MIDI_DIRECTION_OUTPUT_FROM_DELUGE].mpeLowerZoneLastMemberChannel < channel)
-				&& (ports[MIDI_DIRECTION_OUTPUT_FROM_DELUGE].mpeUpperZoneLastMemberChannel == 15 || ports[MIDI_DIRECTION_OUTPUT_FROM_DELUGE].mpeUpperZoneLastMemberChannel > channel);
+		return (ports[MIDI_DIRECTION_OUTPUT_FROM_DELUGE].mpeLowerZoneLastMemberChannel == 0
+		        || ports[MIDI_DIRECTION_OUTPUT_FROM_DELUGE].mpeLowerZoneLastMemberChannel < channel)
+		       && (ports[MIDI_DIRECTION_OUTPUT_FROM_DELUGE].mpeUpperZoneLastMemberChannel == 15
+		           || ports[MIDI_DIRECTION_OUTPUT_FROM_DELUGE].mpeUpperZoneLastMemberChannel > channel);
 	}
 }
 
@@ -147,7 +153,6 @@ void MIDIDevice::sendRPN(int channel, int rpnMSB, int rpnLSB, int valueMSB) {
 	sendCC(channel, 0x65, 0x7F);
 }
 
-
 void MIDIDevice::sendAllMCMs() {
 	MIDIPort* port = &ports[MIDI_DIRECTION_OUTPUT_FROM_DELUGE];
 
@@ -162,8 +167,7 @@ void MIDIDevice::sendAllMCMs() {
 
 bool MIDIDevice::worthWritingToFile() {
 	return (ports[MIDI_DIRECTION_INPUT_TO_DELUGE].worthWritingToFile()
-		 || ports[MIDI_DIRECTION_OUTPUT_FROM_DELUGE].worthWritingToFile()
-		 || hasDefaultVelocityToLevelSet());
+	        || ports[MIDI_DIRECTION_OUTPUT_FROM_DELUGE].worthWritingToFile() || hasDefaultVelocityToLevelSet());
 }
 
 void MIDIDevice::writePorts() {
@@ -171,24 +175,23 @@ void MIDIDevice::writePorts() {
 	ports[MIDI_DIRECTION_OUTPUT_FROM_DELUGE].writeToFile("output");
 }
 
-
 // Not to be called for MIDIDeviceUSBHosted. readAHostedDeviceFromFile() handles that and needs to read the name and ids.
 void MIDIDevice::readFromFile() {
-    char const* tagName;
-    while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+	char const* tagName;
+	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 
-    	if (!strcmp(tagName, "input")) {
+		if (!strcmp(tagName, "input")) {
 			ports[MIDI_DIRECTION_INPUT_TO_DELUGE].readFromFile(NULL);
-    	}
-        else if (!strcmp(tagName, "output")) {
+		}
+		else if (!strcmp(tagName, "output")) {
 			ports[MIDI_DIRECTION_OUTPUT_FROM_DELUGE].readFromFile(this);
-        }
-        else if (!strcmp(tagName, "defaultVolumeVelocitySensitivity")) {
-        	defaultVelocityToLevel = storageManager.readTagOrAttributeValueInt();
-        }
+		}
+		else if (!strcmp(tagName, "defaultVolumeVelocitySensitivity")) {
+			defaultVelocityToLevel = storageManager.readTagOrAttributeValueInt();
+		}
 
-    	storageManager.exitTag();
-    }
+		storageManager.exitTag();
+	}
 }
 
 void MIDIDevice::writeDefinitionAttributesToFile() { // These only go into MIDIDEVICES.XML.
@@ -207,8 +210,10 @@ void MIDIDevice::writeToFile(char const* tagName) {
 }
 
 int MIDIPort::channelToZone(int inputChannel) {
-	if (mpeLowerZoneLastMemberChannel && mpeLowerZoneLastMemberChannel >= inputChannel) return MIDI_CHANNEL_MPE_LOWER_ZONE;
-	if (mpeUpperZoneLastMemberChannel < 15 && mpeUpperZoneLastMemberChannel <= inputChannel) return MIDI_CHANNEL_MPE_UPPER_ZONE;
+	if (mpeLowerZoneLastMemberChannel && mpeLowerZoneLastMemberChannel >= inputChannel)
+		return MIDI_CHANNEL_MPE_LOWER_ZONE;
+	if (mpeUpperZoneLastMemberChannel < 15 && mpeUpperZoneLastMemberChannel <= inputChannel)
+		return MIDI_CHANNEL_MPE_UPPER_ZONE;
 	return inputChannel;
 }
 
@@ -252,15 +257,14 @@ void MIDIPort::writeToFile(char const* tagName) {
 	}
 }
 
-
 void MIDIPort::readFromFile(MIDIDevice* deviceToSendMCMsOn) {
-    char const* tagName;
-    while (*(tagName = storageManager.readNextTagOrAttributeName())) {
-        if (!strcmp(tagName, "mpeLowerZone")) {
+	char const* tagName;
+	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+		if (!strcmp(tagName, "mpeLowerZone")) {
 
-            char const* tagName;
-            while (*(tagName = storageManager.readNextTagOrAttributeName())) {
-                if (!strcmp(tagName, "numMemberChannels")) {
+			char const* tagName;
+			while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+				if (!strcmp(tagName, "numMemberChannels")) {
 
 					if (!mpeLowerZoneLastMemberChannel) { // If value was already set, then leave it - the user or an MCM might have changed it since the file was last read.
 						int newMPELowerZoneLastMemberChannel = storageManager.readTagOrAttributeValueInt();
@@ -270,33 +274,35 @@ void MIDIPort::readFromFile(MIDIDevice* deviceToSendMCMsOn) {
 							if (deviceToSendMCMsOn) deviceToSendMCMsOn->sendRPN(0, 0, 6, mpeLowerZoneLastMemberChannel);
 						}
 					}
-                }
+				}
 
-                storageManager.exitTag();
-            }
-        }
-        else if (!strcmp(tagName, "mpeUpperZone")) {
+				storageManager.exitTag();
+			}
+		}
+		else if (!strcmp(tagName, "mpeUpperZone")) {
 
-            char const* tagName;
-            while (*(tagName = storageManager.readNextTagOrAttributeName())) {
-                if (!strcmp(tagName, "numMemberChannels")) {
+			char const* tagName;
+			while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+				if (!strcmp(tagName, "numMemberChannels")) {
 
-					if (mpeUpperZoneLastMemberChannel == 15) { // If value was already set, then leave it - the user or an MCM might have changed it since the file was last read.
+					if (mpeUpperZoneLastMemberChannel
+					    == 15) { // If value was already set, then leave it - the user or an MCM might have changed it since the file was last read.
 						int numUpperMemberChannels = storageManager.readTagOrAttributeValueInt();
 						if (numUpperMemberChannels >= 0 && numUpperMemberChannels < 16) {
 							mpeUpperZoneLastMemberChannel = 15 - numUpperMemberChannels;
 							moveUpperZoneOutOfWayOfLowerZone(); // Move self out of way of other - just in case user or MCM has set other and that's the important one they want now.
-							if (deviceToSendMCMsOn) deviceToSendMCMsOn->sendRPN(15, 0, 6, 15 - mpeUpperZoneLastMemberChannel);
+							if (deviceToSendMCMsOn)
+								deviceToSendMCMsOn->sendRPN(15, 0, 6, 15 - mpeUpperZoneLastMemberChannel);
 						}
 					}
-                }
+				}
 
-                storageManager.exitTag();
-            }
-        }
+				storageManager.exitTag();
+			}
+		}
 
-    	storageManager.exitTag();
-    }
+		storageManager.exitTag();
+	}
 }
 
 bool MIDIPort::worthWritingToFile() {
@@ -317,7 +323,6 @@ void MIDIDeviceUSB::sendMCMsNowIfNeeded() {
 	}
 }
 
-
 void MIDIDeviceUSB::sendMessage(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2) {
 	if (!connectionFlags) return;
 
@@ -333,29 +338,25 @@ void MIDIDeviceUSB::sendMessage(uint8_t statusType, uint8_t channel, uint8_t dat
 	}
 }
 
-
 void MIDIDeviceUSBHosted::writeReferenceAttributesToFile() {
-    storageManager.writeAttribute("name", name.get());
-    storageManager.writeAttributeHex("vendorId", vendorId, 4);
-    storageManager.writeAttributeHex("productId", productId, 4);
+	storageManager.writeAttribute("name", name.get());
+	storageManager.writeAttributeHex("vendorId", vendorId, 4);
+	storageManager.writeAttributeHex("productId", productId, 4);
 }
 
 void MIDIDeviceUSBHosted::writeToFlash(uint8_t* memory) {
-	*(uint16_t*)memory			= vendorId;
-	*(uint16_t*)(memory + 2)	= productId;
+	*(uint16_t*)memory = vendorId;
+	*(uint16_t*)(memory + 2) = productId;
 }
 
 char const* MIDIDeviceUSBHosted::getDisplayName() {
 	return name.get();
 }
 
-
-
-
-
-
 void MIDIDeviceUSBUpstream::writeReferenceAttributesToFile() {
-	storageManager.writeAttribute("port", "upstreamUSB", false); // Same line. Usually the user wouldn't have default velocity sensitivity set for their computer.
+	storageManager.writeAttribute(
+	    "port", "upstreamUSB",
+	    false); // Same line. Usually the user wouldn't have default velocity sensitivity set for their computer.
 }
 
 void MIDIDeviceUSBUpstream::writeToFlash(uint8_t* memory) {
@@ -366,11 +367,9 @@ char const* MIDIDeviceUSBUpstream::getDisplayName() {
 	return HAVE_OLED ? "Upstream USB device / computer" : "Computer";
 }
 
-
-
-
 void MIDIDeviceDINPorts::writeReferenceAttributesToFile() {
-	storageManager.writeAttribute("port", "din", false); // Same line. Usually the user wouldn't have default velocity sensitivity set
+	storageManager.writeAttribute("port", "din",
+	                              false); // Same line. Usually the user wouldn't have default velocity sensitivity set
 }
 
 void MIDIDeviceDINPorts::writeToFlash(uint8_t* memory) {

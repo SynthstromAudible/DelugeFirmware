@@ -30,7 +30,6 @@ ContextMenuSampleBrowserKit::ContextMenuSampleBrowserKit() {
 #endif
 }
 
-
 char const** ContextMenuSampleBrowserKit::getOptions() {
 #if HAVE_OLED
 	static char const* options[] = {"Load all", "Slice"};
@@ -45,7 +44,7 @@ int ContextMenuSampleBrowserKit::getNumOptions() {
 }
 
 bool ContextMenuSampleBrowserKit::isCurrentOptionAvailable() {
-	switch(currentOption) {
+	switch (currentOption) {
 	case 0: // "ALL" option - to import whole folder. Works whether they're currently on a file or a folder.
 		return true;
 	default: // Slicer option - only works if currently on a file, not a folder.
@@ -54,7 +53,7 @@ bool ContextMenuSampleBrowserKit::isCurrentOptionAvailable() {
 }
 
 bool ContextMenuSampleBrowserKit::acceptCurrentOption() {
-	switch(currentOption) {
+	switch (currentOption) {
 	case 0: // Import whole folder
 		return sampleBrowser.importFolderAsKit();
 	default: // Slicer
@@ -64,10 +63,6 @@ bool ContextMenuSampleBrowserKit::acceptCurrentOption() {
 	}
 }
 
-
-
-
-
 int ContextMenuSampleBrowserKit::padAction(int x, int y, int on) {
 	return sampleBrowser.padAction(x, y, on);
 }
@@ -75,4 +70,3 @@ int ContextMenuSampleBrowserKit::padAction(int x, int y, int on) {
 bool ContextMenuSampleBrowserKit::canSeeViewUnderneath() {
 	return sampleBrowser.canSeeViewUnderneath();
 }
-

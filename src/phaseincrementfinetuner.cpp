@@ -18,14 +18,12 @@
 #include "phaseincrementfinetuner.h"
 #include "functions.h"
 
-PhaseIncrementFineTuner::PhaseIncrementFineTuner()
-{
+PhaseIncrementFineTuner::PhaseIncrementFineTuner() {
 	setNoDetune();
 }
 
-
 void PhaseIncrementFineTuner::setup(int32_t detuneScaled) {
-    multiplier = interpolateTable(2147483648u + detuneScaled, 32, centAdjustTableSmall);
+	multiplier = interpolateTable(2147483648u + detuneScaled, 32, centAdjustTableSmall);
 }
 
 void PhaseIncrementFineTuner::setNoDetune() {
@@ -33,5 +31,5 @@ void PhaseIncrementFineTuner::setNoDetune() {
 }
 
 int32_t PhaseIncrementFineTuner::detune(int32_t phaseIncrement) {
-    return multiply_32x32_rshift32(phaseIncrement, multiplier) << 2;
+	return multiply_32x32_rshift32(phaseIncrement, multiplier) << 2;
 }

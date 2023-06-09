@@ -30,9 +30,9 @@ void MenuItemMPEZoneSelector::beginSession(MenuItem* navigatedBackwardFrom) {
 char const** MenuItemMPEZoneSelector::getOptions() {
 	static char const* options[] =
 #if HAVE_OLED
-	{"Lower zone", "Upper zone", NULL};
+	    {"Lower zone", "Upper zone", NULL};
 #else
-		{"Lowe", "Uppe", NULL};
+	    {"Lowe", "Uppe", NULL};
 #endif
 	return options;
 }

@@ -20,9 +20,7 @@
 #include "ModelStack.h"
 #include "AutoParam.h"
 
-ParamCollection::ParamCollection(int newObjectSize, ParamCollectionSummary* summary) :
-	objectSize(newObjectSize)
-{
+ParamCollection::ParamCollection(int newObjectSize, ParamCollectionSummary* summary) : objectSize(newObjectSize) {
 	for (int i = 0; i < MAX_NUM_UINTS_TO_REP_ALL_PARAMS; i++) { // Just do both even if we're only using one.
 		summary->whichParamsAreAutomated[i] = 0;
 	}
@@ -32,16 +30,16 @@ ParamCollection::ParamCollection(int newObjectSize, ParamCollectionSummary* summ
 	}
 }
 
-ParamCollection::~ParamCollection()
-{
+ParamCollection::~ParamCollection() {
 }
 
-
-
-void ParamCollection::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue, bool automationChanged, bool automatedBefore, bool automatedNow) {
+void ParamCollection::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
+                                                   bool automationChanged, bool automatedBefore, bool automatedNow) {
 
 	bool currentValueChanged = (oldValue != modelStack->autoParam->getCurrentValue());
-	if (currentValueChanged || automationChanged) modelStack->paramManager->notifyParamModifiedInSomeWay(modelStack, currentValueChanged, automationChanged, automatedNow);
+	if (currentValueChanged || automationChanged)
+		modelStack->paramManager->notifyParamModifiedInSomeWay(modelStack, currentValueChanged, automationChanged,
+		                                                       automatedNow);
 
 	if (automationChanged && automatedNow) {
 		ticksTilNextEvent = 0;
@@ -51,7 +49,6 @@ void ParamCollection::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const
 bool ParamCollection::mayParamInterpolate(int paramId) {
 	return true;
 }
-
 
 int ParamCollection::paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack) {
 	if (paramValue >= (int32_t)(0x80000000 - (1 << 24))) return 64;

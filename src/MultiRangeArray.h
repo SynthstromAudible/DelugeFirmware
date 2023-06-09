@@ -30,7 +30,6 @@ public:
 	MultiRange* getElement(int i);
 	MultiRange* insertMultiRange(int i);
 	int changeType(int newSize);
-
 };
 
 #endif /* MULTIRANGEARRAY_H_ */

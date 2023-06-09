@@ -27,41 +27,40 @@
 #include "r_typedefs.h"
 #include "functions.h"
 
-class comb
-{
+class comb {
 public:
-					comb();
-			void	setbuffer(int32_t *buf, int size);
-	inline  int32_t	process(int32_t inp);
-			void	mute();
-			void	setdamp(float val);
-			float	getdamp();
-			void	setfeedback(int32_t val);
-			int32_t	getfeedback();
-private:
-	int32_t	feedback;
-	int32_t	filterstore;
-	int32_t	damp1;
-	int32_t	damp2;
-	int32_t	*buffer;
-	int		bufsize;
-	int		bufidx;
-};
+	comb();
+	void setbuffer(int32_t* buf, int size);
+	inline int32_t process(int32_t inp);
+	void mute();
+	void setdamp(float val);
+	float getdamp();
+	void setfeedback(int32_t val);
+	int32_t getfeedback();
 
+private:
+	int32_t feedback;
+	int32_t filterstore;
+	int32_t damp1;
+	int32_t damp2;
+	int32_t* buffer;
+	int bufsize;
+	int bufidx;
+};
 
 // Big to inline - but crucial for speed
 
-inline int32_t comb::process(int32_t input)
-{
+inline int32_t comb::process(int32_t input) {
 	int32_t output;
 
 	output = buffer[bufidx];
 
-	filterstore = (multiply_32x32_rshift32_rounded(output, damp2) + multiply_32x32_rshift32_rounded(filterstore, damp1)) << 1;
+	filterstore = (multiply_32x32_rshift32_rounded(output, damp2) + multiply_32x32_rshift32_rounded(filterstore, damp1))
+	              << 1;
 
 	buffer[bufidx] = input + (multiply_32x32_rshift32_rounded(filterstore, feedback) << 1);
 
-	if(++bufidx>=bufsize) bufidx = 0;
+	if (++bufidx >= bufsize) bufidx = 0;
 
 	return output;
 }

@@ -20,17 +20,14 @@
 
 #include "ContextMenu.h"
 
-class ContextMenuClearSong final : public ContextMenuForLoading
-{
+class ContextMenuClearSong final : public ContextMenuForLoading {
 public:
-    ContextMenuClearSong();
-    void focusRegained();
-    bool canSeeViewUnderneath() { return true; }
+	ContextMenuClearSong();
+	void focusRegained();
+	bool canSeeViewUnderneath() { return true; }
 
 	char const** getOptions();
 	bool acceptCurrentOption();
-
-
 };
 
 extern ContextMenuClearSong contextMenuClearSong;

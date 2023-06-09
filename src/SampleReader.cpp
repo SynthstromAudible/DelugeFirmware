@@ -22,9 +22,7 @@
 
 SampleReader::SampleReader() {
 	// TODO Auto-generated constructor stub
-
 }
-
 
 int SampleReader::readBytesPassedErrorChecking(char* outputBuffer, int num) {
 
@@ -40,11 +38,12 @@ int SampleReader::readBytesPassedErrorChecking(char* outputBuffer, int num) {
 	return NO_ERROR;
 }
 
-
 int SampleReader::readNewCluster() {
 	if (currentCluster) audioFileManager.removeReasonFromCluster(currentCluster, "E031");
 
-	currentCluster = ((Sample*)audioFile)->clusters.getElement(currentClusterIndex)->getCluster((Sample*)audioFile, currentClusterIndex, CLUSTER_LOAD_IMMEDIATELY);
+	currentCluster = ((Sample*)audioFile)
+	                     ->clusters.getElement(currentClusterIndex)
+	                     ->getCluster((Sample*)audioFile, currentClusterIndex, CLUSTER_LOAD_IMMEDIATELY);
 	if (!currentCluster) return ERROR_SD_CARD; // Failed to load cluster from card
 	else return NO_ERROR;
 }

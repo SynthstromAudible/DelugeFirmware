@@ -26,14 +26,13 @@ extern "C" {
 #include "cfunctions.h"
 }
 
-MIDIDrum::MIDIDrum() : NonAudioDrum(DRUM_TYPE_MIDI)
-{
+MIDIDrum::MIDIDrum() : NonAudioDrum(DRUM_TYPE_MIDI) {
 	channel = 0;
 	note = 0;
 }
 
-
-void MIDIDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, Kit* kit, int16_t const* mpeValues, int fromMIDIChannel, uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate) {
+void MIDIDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, Kit* kit, int16_t const* mpeValues,
+                      int fromMIDIChannel, uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate) {
 	lastVelocity = velocity;
 	midiEngine.sendNote(true, note, velocity, channel, MIDI_OUTPUT_FILTER_NO_MPE);
 	state = true;
@@ -51,35 +50,34 @@ void MIDIDrum::unassignAllVoices() {
 }
 
 void MIDIDrum::writeToFile(bool savingSong, ParamManager* paramManager) {
-    storageManager.writeOpeningTagBeginning("midiOutput");
+	storageManager.writeOpeningTagBeginning("midiOutput");
 
-    storageManager.writeAttribute("channel", channel, false);
-    storageManager.writeAttribute("note", note, false);
+	storageManager.writeAttribute("channel", channel, false);
+	storageManager.writeAttribute("note", note, false);
 
-    if (savingSong) {
+	if (savingSong) {
 		storageManager.writeOpeningTagEnd();
 		Drum::writeMIDICommandsToFile();
 		storageManager.writeClosingTag("midiOutput");
-    }
-    else {
-    	storageManager.closeTag();
-    }
+	}
+	else {
+		storageManager.closeTag();
+	}
 }
 
-
 int MIDIDrum::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) {
-    char const* tagName;
+	char const* tagName;
 
-    while (*(tagName = storageManager.readNextTagOrAttributeName())) {
-        if (!strcmp(tagName, "note")) {
-        	note = storageManager.readTagOrAttributeValueInt();
-            storageManager.exitTag("note");
-        }
-        else if (NonAudioDrum::readDrumTagFromFile(tagName)) {}
-        else storageManager.exitTag(tagName);
-    }
+	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+		if (!strcmp(tagName, "note")) {
+			note = storageManager.readTagOrAttributeValueInt();
+			storageManager.exitTag("note");
+		}
+		else if (NonAudioDrum::readDrumTagFromFile(tagName)) {}
+		else storageManager.exitTag(tagName);
+	}
 
-    return NO_ERROR;
+	return NO_ERROR;
 }
 
 void MIDIDrum::getName(char* buffer) {
@@ -105,7 +103,6 @@ void MIDIDrum::getName(char* buffer) {
 	intToString(note, &buffer[strlen(buffer)]);
 }
 
-
 int8_t MIDIDrum::modEncoderAction(ModelStackWithThreeMainThings* modelStack, int8_t offset, uint8_t whichModEncoder) {
 
 	NonAudioDrum::modEncoderAction(modelStack, offset, whichModEncoder);
@@ -128,7 +125,8 @@ void MIDIDrum::expressionEvent(int newValue, int whichExpressionDimension) {
 	}
 }
 
-void MIDIDrum::polyphonicExpressionEventOnChannelOrNote(int newValue, int whichExpressionDimension, int channelOrNoteNumber, int whichCharacteristic) {
+void MIDIDrum::polyphonicExpressionEventOnChannelOrNote(int newValue, int whichExpressionDimension,
+                                                        int channelOrNoteNumber, int whichCharacteristic) {
 	// Because this is a Drum, we disregard the noteCode (which is what channelOrNoteNumber always is in our case - but yeah, that's all irrelevant.
 	expressionEvent(newValue, whichExpressionDimension);
 }

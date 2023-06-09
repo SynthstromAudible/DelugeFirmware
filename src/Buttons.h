@@ -29,7 +29,6 @@ bool isNewOrShiftButtonPressed();
 void noPressesHappening(bool inCardRoutine);
 
 extern bool recordButtonPressUsedUp;
-}
-
+} // namespace Buttons
 
 #endif /* BUTTONS_H_ */

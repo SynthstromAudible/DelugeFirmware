@@ -41,7 +41,6 @@ extern const int16_t triangleWaveAntiAliasing15[];
 extern const int16_t triangleWaveAntiAliasing21[];
 extern const int16_t triangleWaveAntiAliasing31[];
 
-
 extern const int16_t sawWave1[];
 extern const int16_t sawWave3[];
 extern const int16_t sawWave5[];
@@ -56,7 +55,6 @@ extern const int16_t sawWave76[];
 extern const int16_t sawWave109[];
 extern const int16_t sawWave153[];
 extern const int16_t sawWave215[];
-
 
 extern const int16_t squareWave1[];
 extern const int16_t squareWave3[];
@@ -82,7 +80,6 @@ extern const int16_t mysterySynthASaw_861[];
 extern const int16_t mysterySynthASaw_1217[];
 extern const int16_t mysterySynthASaw_1722[];
 
-
 extern const int16_t mysterySynthBSaw_1[];
 extern const int16_t mysterySynthBSaw_3[];
 extern const int16_t mysterySynthBSaw_5[];
@@ -95,8 +92,6 @@ extern const int16_t mysterySynthBSaw_39[];
 extern const int16_t mysterySynthBSaw_53[];
 extern const int16_t mysterySynthBSaw_76[];
 extern const int16_t mysterySynthBSaw_109[];
-
-
 
 extern const int16_t analogSquare_1[];
 extern const int16_t analogSquare_3[];
@@ -118,8 +113,6 @@ extern const int16_t analogSquare_609[];
 extern const int16_t analogSquare_861[];
 extern const int16_t analogSquare_1217[];
 extern const int16_t analogSquare_1722[];
-
-
 
 // Begins at E (4 semitones above C). So that this octave contains the largest values (phase increments) possible without going over 22.05kHz (2147483648),
 // even when shifted up a semitone (via osc-cents and unison combined)
@@ -150,6 +143,5 @@ extern const uint8_t defaultClipGroupColours[];
 
 extern const uint8_t noteCodeToNoteLetter[];
 extern const bool noteCodeIsSharp[];
-
 
 #endif // LOOKUPTABLES_H

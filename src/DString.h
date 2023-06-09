@@ -43,13 +43,13 @@ public:
 	bool equalsCaseIrrespective(char const* otherChars);
 
 	inline bool equals(String* otherString) {
-		if (stringMemory == otherString->stringMemory) return true; // Works if both lengths are 0, too
+		if (stringMemory == otherString->stringMemory) return true;    // Works if both lengths are 0, too
 		if (!stringMemory || !otherString->stringMemory) return false; // If just one is empty, then not equal
 		return equals(otherString->get());
 	}
 
 	inline bool equalsCaseIrrespective(String* otherString) {
-		if (stringMemory == otherString->stringMemory) return true; // Works if both lengths are 0, too
+		if (stringMemory == otherString->stringMemory) return true;    // Works if both lengths are 0, too
 		if (!stringMemory || !otherString->stringMemory) return false; // If just one is empty, then not equal
 		return equalsCaseIrrespective(otherString->get());
 	}
@@ -59,9 +59,7 @@ public:
 		else return stringMemory;
 	}
 
-	inline bool isEmpty() {
-		return !stringMemory;
-	}
+	inline bool isEmpty() { return !stringMemory; }
 
 private:
 	int32_t getNumReasons();

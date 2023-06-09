@@ -31,10 +31,7 @@
 #include <new>
 #include "Clip.h"
 
-SoundDrum::SoundDrum() :
-		Drum(DRUM_TYPE_SOUND),
-		arpeggiator()
-{
+SoundDrum::SoundDrum() : Drum(DRUM_TYPE_SOUND), arpeggiator() {
 	nameIsDiscardable = false;
 }
 
@@ -52,15 +49,15 @@ Drum* SoundDrum::clone() {
 */
 
 bool SoundDrum::readTagFromFile(char const* tagName) {
-    if (!strcmp(tagName, "name")) {
+	if (!strcmp(tagName, "name")) {
 		storageManager.readTagOrAttributeValueString(&name);
-        storageManager.exitTag("name");
-    }
+		storageManager.exitTag("name");
+	}
 
-    else if (readDrumTagFromFile(tagName)) {}
-    else return false;
+	else if (readDrumTagFromFile(tagName)) {}
+	else return false;
 
-    return true;
+	return true;
 }
 
 bool SoundDrum::allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop) {
@@ -75,21 +72,20 @@ bool SoundDrum::hasAnyVoices() {
 	return Sound::hasAnyVoices();
 }
 
-void SoundDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, Kit* kit, int16_t const* mpeValues, int fromMIDIChannel, uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate) {
+void SoundDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, Kit* kit, int16_t const* mpeValues,
+                       int fromMIDIChannel, uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate) {
 
 	// If part of a Kit, and in choke mode, choke other drums
 	if (polyphonic == POLYPHONY_CHOKE) {
 		kit->choke();
 	}
 
-	Sound::noteOn(modelStack, &arpeggiator, NOTE_FOR_DRUM, mpeValues, sampleSyncLength, ticksLate, samplesLate, velocity, fromMIDIChannel);
+	Sound::noteOn(modelStack, &arpeggiator, NOTE_FOR_DRUM, mpeValues, sampleSyncLength, ticksLate, samplesLate,
+	              velocity, fromMIDIChannel);
 }
 void SoundDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int velocity) {
 	Sound::allNotesOff(modelStack, &arpeggiator);
 }
-
-
-
 
 extern bool expressionValueChangesMustBeDoneSmoothly;
 
@@ -101,8 +97,8 @@ void SoundDrum::expressionEvent(int newValue, int whichExpressionDimension) {
 
 	int ends[2];
 	AudioEngine::activeVoices.getRangeForSound(this, ends);
-    for (int v = ends[0]; v < ends[1]; v++) {
-    	Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
+	for (int v = ends[0]; v < ends[1]; v++) {
+		Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
 		if (expressionValueChangesMustBeDoneSmoothly) {
 			thisVoice->expressionEventSmooth(newValue, s);
 		}
@@ -111,11 +107,12 @@ void SoundDrum::expressionEvent(int newValue, int whichExpressionDimension) {
 		}
 	}
 
-    // Must update MPE values in Arp too - useful either if it's on, or if we're in true monophonic mode - in either case, we could need to suddenly do a note-on for a different note that the Arp knows about, and need these MPE values.
+	// Must update MPE values in Arp too - useful either if it's on, or if we're in true monophonic mode - in either case, we could need to suddenly do a note-on for a different note that the Arp knows about, and need these MPE values.
 	arpeggiator.arpNote.mpeValues[whichExpressionDimension] = newValue >> 16;
 }
 
-void SoundDrum::polyphonicExpressionEventOnChannelOrNote(int newValue, int whichExpressionDimension, int channelOrNoteNumber, int whichCharacteristic) {
+void SoundDrum::polyphonicExpressionEventOnChannelOrNote(int newValue, int whichExpressionDimension,
+                                                         int channelOrNoteNumber, int whichCharacteristic) {
 	// Because this is a Drum, we disregard the noteCode (which is what channelOrNoteNumber always is in our case - but yeah, that's all irrelevant.
 	expressionEvent(newValue, whichExpressionDimension);
 }
@@ -123,7 +120,6 @@ void SoundDrum::polyphonicExpressionEventOnChannelOrNote(int newValue, int which
 void SoundDrum::unassignAllVoices() {
 	Sound::unassignAllVoices();
 }
-
 
 void SoundDrum::setupPatchingForAllParamManagers(Song* song) {
 	song->setupPatchingForAllParamManagersForDrum(this);
@@ -153,7 +149,8 @@ void SoundDrum::getName(char* buffer) {
 
 int SoundDrum::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithModControllable* modelStack = setupModelStackWithSong(modelStackMemory, song)->addTimelineCounter(clip)->addModControllableButNoNoteRow(this);
+	ModelStackWithModControllable* modelStack =
+	    setupModelStackWithSong(modelStackMemory, song)->addTimelineCounter(clip)->addModControllableButNoNoteRow(this);
 
 	return Sound::readFromFile(modelStack, readAutomationUpToPos, &arpSettings);
 }
@@ -170,7 +167,6 @@ void SoundDrum::choke(ModelStackWithSoundFlags* modelStack) {
 	}
 }
 
-
 void SoundDrum::setSkippingRendering(bool newSkipping) {
 	if (kit && newSkipping != skippingRendering) {
 		if (newSkipping) {
@@ -183,8 +179,6 @@ void SoundDrum::setSkippingRendering(bool newSkipping) {
 
 	Sound::setSkippingRendering(newSkipping);
 }
-
-
 
 uint8_t* SoundDrum::getModKnobMode() {
 	return &kit->modKnobMode;

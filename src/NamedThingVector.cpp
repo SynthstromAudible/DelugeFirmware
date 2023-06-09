@@ -19,17 +19,13 @@
 #include <new>
 #include <string.h>
 
-NamedThingVectorElement::NamedThingVectorElement(void* newNamedThing, String* newName)
-{
+NamedThingVectorElement::NamedThingVectorElement(void* newNamedThing, String* newName) {
 	namedThing = newNamedThing;
 	name.set(newName);
 }
 
-
-NamedThingVector::NamedThingVector(int newStringOffset) :
-		ResizeableArray(sizeof(NamedThingVectorElement)),
-		stringOffset(newStringOffset)
-{
+NamedThingVector::NamedThingVector(int newStringOffset)
+    : ResizeableArray(sizeof(NamedThingVectorElement)), stringOffset(newStringOffset) {
 }
 
 int NamedThingVector::search(char const* searchString, int comparison, bool* foundExact) {
@@ -57,7 +53,6 @@ int NamedThingVector::search(char const* searchString, int comparison, bool* fou
 	return rangeBegin + comparison;
 }
 
-
 NamedThingVectorElement* NamedThingVector::getMemory(int index) {
 	return (NamedThingVectorElement*)getElementAddress(index);
 }
@@ -81,7 +76,9 @@ int NamedThingVector::insertElement(void* namedThing) {
 }
 
 int NamedThingVector::insertElement(void* namedThing, int i) {
-	int error = insertAtIndex(i, 1, this); // While inserting, the stealing of any AudioFiles would cause a simultaneous delete. They all know not to allow theft when passed this AudioFileVector.
+	int error = insertAtIndex(
+	    i, 1,
+	    this); // While inserting, the stealing of any AudioFiles would cause a simultaneous delete. They all know not to allow theft when passed this AudioFileVector.
 	if (error) return error;
 
 	String* name = getName(namedThing);
@@ -90,12 +87,10 @@ int NamedThingVector::insertElement(void* namedThing, int i) {
 	return NO_ERROR;
 }
 
-
 void NamedThingVector::removeElement(int i) {
 	getMemory(i)->~NamedThingVectorElement(); // Have to call this so String gets destructed!
 	deleteAtIndex(i);
 }
-
 
 // Check the new name is in fact different before calling this, if you want.
 void NamedThingVector::renameMember(int i, String* newName) {
@@ -103,8 +98,8 @@ void NamedThingVector::renameMember(int i, String* newName) {
 	int newI = search(newName->get(), GREATER_OR_EQUAL);
 
 	NamedThingVectorElement* memory = getMemory(i);
-	memory->name.set(newName);					 // Can't fail
-	getName(memory->namedThing)->set(newName);	 // Can't fail
+	memory->name.set(newName);                 // Can't fail
+	getName(memory->namedThing)->set(newName); // Can't fail
 
 	// Probably need to move element now we've changed its name.
 	if (newI > i + 1) {

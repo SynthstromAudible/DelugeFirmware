@@ -20,12 +20,10 @@
 
 #include "Consequence.h"
 
-
 class ConsequenceBeginPlayback final : public Consequence {
 public:
 	ConsequenceBeginPlayback();
 	int revert(int time, ModelStack* modelStack);
-
 };
 
 #endif /* CONSEQUENCEBEGINPLAYBACK_H_ */

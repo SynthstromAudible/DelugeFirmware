@@ -28,15 +28,11 @@ extern "C" {
 #include "uart_all_cpus.h"
 }
 
-OrderedResizeableArray::OrderedResizeableArray(int newElementSize, int keyNumBits, int newKeyOffset, int newMaxNumEmptySpacesToKeep, int newNumExtraSpacesToAllocate) :
-	ResizeableArray(newElementSize, newMaxNumEmptySpacesToKeep, newNumExtraSpacesToAllocate),
-	keyMask(0xFFFFFFFF >> (32 - keyNumBits)),
-	keyOffset(newKeyOffset),
-	keyShiftAmount(32 - keyNumBits)
-{
-
+OrderedResizeableArray::OrderedResizeableArray(int newElementSize, int keyNumBits, int newKeyOffset,
+                                               int newMaxNumEmptySpacesToKeep, int newNumExtraSpacesToAllocate)
+    : ResizeableArray(newElementSize, newMaxNumEmptySpacesToKeep, newNumExtraSpacesToAllocate),
+      keyMask(0xFFFFFFFF >> (32 - keyNumBits)), keyOffset(newKeyOffset), keyShiftAmount(32 - keyNumBits) {
 }
-
 
 // With duplicate keys, this will work correctly, returning the leftmost matching (or greater) one if doing GREATER_OR_EQUAL, or the rightmost less one if doing LESS.
 // This behaviour for duplicates can be tested with TEST_VECTOR_DUPLICATES / testDuplicates().
@@ -64,16 +60,14 @@ int OrderedResizeableArray::searchExact(int32_t key) {
 	return -1;
 }
 
-
-
 struct SearchRecord {
 	int defaultRangeEnd;
 	int lastsUntilSearchTerm;
 };
 
-
 // Like searchMultiple(), but much less complex as we know it's only doing 2 search terms.
-void OrderedResizeableArrayWith32bitKey::searchDual(int32_t const* __restrict__ searchTerms, int* __restrict__ resultingIndexes) {
+void OrderedResizeableArrayWith32bitKey::searchDual(int32_t const* __restrict__ searchTerms,
+                                                    int* __restrict__ resultingIndexes) {
 
 	int rangeBegin = 0;
 	int rangeEnd = numElements;
@@ -97,10 +91,10 @@ void OrderedResizeableArrayWith32bitKey::searchDual(int32_t const* __restrict__ 
 	resultingIndexes[1] = search(searchTerms[1], GREATER_OR_EQUAL, rangeBegin, rangeEndForSecondTerm);
 }
 
-
 // Returns results as if GREATER_OR_EQUAL had been supplied to search. To turn this into LESS, subtract 1
 // Results are written back into the searchTerms array
-void OrderedResizeableArrayWith32bitKey::searchMultiple(int32_t* __restrict__ searchTerms, int numSearchTerms, int rangeEnd) {
+void OrderedResizeableArrayWith32bitKey::searchMultiple(int32_t* __restrict__ searchTerms, int numSearchTerms,
+                                                        int rangeEnd) {
 
 	if (rangeEnd == -1) rangeEnd = numElements;
 
@@ -187,7 +181,6 @@ void OrderedResizeableArrayWith32bitKey::searchMultiple(int32_t* __restrict__ se
 	//Uart::println(maxSearchRecord);
 }
 
-
 bool OrderedResizeableArrayWith32bitKey::generateRepeats(int32_t wrapPoint, int32_t endPos) {
 	if (!memory) return true;
 
@@ -196,7 +189,9 @@ bool OrderedResizeableArrayWith32bitKey::generateRepeats(int32_t wrapPoint, int3
 	int32_t endPosWithinFirstRepeat = endPos - numCompleteRepeats * wrapPoint;
 	int iEndPosWithinFirstRepeat = search(endPosWithinFirstRepeat, GREATER_OR_EQUAL);
 
-	int oldNum = search(wrapPoint, GREATER_OR_EQUAL); // Do this rather than just copying numElements - this is better because it ensures we ignore / chop off any elements >= wrapPoint
+	int oldNum = search(
+	    wrapPoint,
+	    GREATER_OR_EQUAL); // Do this rather than just copying numElements - this is better because it ensures we ignore / chop off any elements >= wrapPoint
 	int newNum = oldNum * numCompleteRepeats + iEndPosWithinFirstRepeat;
 
 	if (!ensureEnoughSpaceAllocated(newNum - numElements)) return false;
@@ -217,7 +212,6 @@ bool OrderedResizeableArrayWith32bitKey::generateRepeats(int32_t wrapPoint, int3
 	return true;
 }
 
-
 // Returns index created, or -1 if error
 int OrderedResizeableArray::insertAtKey(int32_t key, bool isDefinitelyLast) {
 
@@ -234,19 +228,12 @@ int OrderedResizeableArray::insertAtKey(int32_t key, bool isDefinitelyLast) {
 	return i;
 }
 
-
-
-
 void OrderedResizeableArray::deleteAtKey(int32_t key) {
 	int i = searchExact(key);
 	if (i != -1) {
 		deleteAtIndex(i);
 	}
 }
-
-
-
-
 
 void OrderedResizeableArray::testSequentiality(char const* errorCode) {
 	if (!ALPHA_OR_BETA_VERSION) return;
@@ -260,16 +247,16 @@ void OrderedResizeableArray::testSequentiality(char const* errorCode) {
 	}
 }
 
-
-
 #define TEST_SEARCH_MULTIPLE_NUM_ITEMS 50000
 #define TEST_SEARCH_MULTIPLE_NUM_SEARCH_TERMS 10000
 
 void OrderedResizeableArrayWith32bitKey::testSearchMultiple() {
 	insertAtIndex(0, TEST_SEARCH_MULTIPLE_NUM_ITEMS);
 
-	int32_t* searchPos = (int32_t*)generalMemoryAllocator.alloc(TEST_SEARCH_MULTIPLE_NUM_SEARCH_TERMS * sizeof(int32_t), NULL, false, false);
-	int32_t* resultingIndexes = (int32_t*)generalMemoryAllocator.alloc(TEST_SEARCH_MULTIPLE_NUM_SEARCH_TERMS * sizeof(int32_t), NULL, false, false);
+	int32_t* searchPos = (int32_t*)generalMemoryAllocator.alloc(TEST_SEARCH_MULTIPLE_NUM_SEARCH_TERMS * sizeof(int32_t),
+	                                                            NULL, false, false);
+	int32_t* resultingIndexes = (int32_t*)generalMemoryAllocator.alloc(
+	    TEST_SEARCH_MULTIPLE_NUM_SEARCH_TERMS * sizeof(int32_t), NULL, false, false);
 
 	while (true) {
 
@@ -331,7 +318,8 @@ void OrderedResizeableArray::test() {
 			}
 
 startAgain:
-			int32_t value = ((uint32_t)getRandom255() << 16) | ((uint32_t)getRandom255() << 8) | (uint32_t)getRandom255();
+			int32_t value =
+			    ((uint32_t)getRandom255() << 16) | ((uint32_t)getRandom255() << 8) | (uint32_t)getRandom255();
 
 			// Check that value doesn't already exist
 			int i = search(value, GREATER_OR_EQUAL);
@@ -392,7 +380,7 @@ startAgain:
 		moveCount = 0;
 
 		// Delete the stuff
-		for (int v = 0; v < NUM_TEST_INSERTIONS; ) {
+		for (int v = 0; v < NUM_TEST_INSERTIONS;) {
 
 			int i = search(values[v], GREATER_OR_EQUAL);
 			if (i >= numElements) {
@@ -430,7 +418,6 @@ startAgain:
 				numToDelete++;
 			}
 
-
 			//if (numToDelete == 15) Uart::println("deleting 15");
 
 			deleteAtIndex(i, numToDelete);
@@ -448,8 +435,6 @@ startAgain:
 	}
 }
 #endif
-
-
 
 #if TEST_VECTOR_DUPLICATES
 #define NUM_DUPLICATES_TO_TEST 1000
@@ -469,7 +454,6 @@ void OrderedResizeableArray::testDuplicates() {
 			}
 		}
 
-
 		for (int j = 0; j < 1000; j++) {
 			int searchKey = (getNoise() >> 16) & 1023;
 			int i = search(searchKey, GREATER_OR_EQUAL);
@@ -481,7 +465,8 @@ void OrderedResizeableArray::testDuplicates() {
 				keyAtSearchResult = getKeyAtIndex(i);
 				if (keyAtSearchResult < searchKey) {
 					Uart::println("key too low");
-					while (1);
+					while (1)
+						;
 				}
 				else if (keyAtSearchResult == searchKey) {
 					// Key matches exactly
@@ -493,7 +478,8 @@ void OrderedResizeableArray::testDuplicates() {
 			if (i) {
 				if (getKeyAtIndex(i - 1) >= searchKey) {
 					Uart::println("invalid");
-					while (1);
+					while (1)
+						;
 				}
 			}
 		}
@@ -503,20 +489,12 @@ void OrderedResizeableArray::testDuplicates() {
 }
 #endif
 
-
-
-
-
-
-
-
 // 32-bit key
-OrderedResizeableArrayWith32bitKey::OrderedResizeableArrayWith32bitKey(int newElementSize, int newMaxNumEmptySpacesToKeep, int newNumExtraSpacesToAllocate) :
-		OrderedResizeableArray(newElementSize, 32, 0, newMaxNumEmptySpacesToKeep, newNumExtraSpacesToAllocate)
-{
+OrderedResizeableArrayWith32bitKey::OrderedResizeableArrayWith32bitKey(int newElementSize,
+                                                                       int newMaxNumEmptySpacesToKeep,
+                                                                       int newNumExtraSpacesToAllocate)
+    : OrderedResizeableArray(newElementSize, 32, 0, newMaxNumEmptySpacesToKeep, newNumExtraSpacesToAllocate) {
 }
-
-
 
 void OrderedResizeableArrayWith32bitKey::shiftHorizontal(int32_t shiftAmount, int32_t effectiveLength) {
 
@@ -537,13 +515,15 @@ void OrderedResizeableArrayWith32bitKey::shiftHorizontal(int32_t shiftAmount, in
 
 	if (shiftAmount < 0) shiftAmount += effectiveLength;
 
-	int cutoffIndex = search(cutoffPos, GREATER_OR_EQUAL); // This relates to the key/position cutoff - nothing to do with the memory location wrap point!
+	int cutoffIndex = search(
+	    cutoffPos,
+	    GREATER_OR_EQUAL); // This relates to the key/position cutoff - nothing to do with the memory location wrap point!
 
 	// Update the elements' keys (positions) - starting with those left of the cutoffIndex.
 	int i = 0;
 	int stopAt = cutoffIndex;
 updateKeys:
-	for ( ; i < stopAt; i++) {
+	for (; i < stopAt; i++) {
 		void* address = getElementAddress(i);
 		int32_t oldKey = getKeyAtMemoryLocation(address);
 		int32_t newKey = oldKey + shiftAmount;
@@ -580,7 +560,8 @@ updateKeys:
 				// Or, vice versa
 				else {
 					int newMemoryStart = memoryStart - memoryTooBigBy;
-					memmove((char*)memory + newMemoryStart * elementSize, (char*)memory + memoryStart * elementSize, numElementsBeforeWrap * elementSize);
+					memmove((char*)memory + newMemoryStart * elementSize, (char*)memory + memoryStart * elementSize,
+					        numElementsBeforeWrap * elementSize);
 					memoryStart = newMemoryStart;
 				}
 			}
@@ -604,4 +585,3 @@ updateKeys:
 	testSequentiality("E378");
 #endif
 }
-

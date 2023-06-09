@@ -25,20 +25,23 @@
 #include "numericdriver.h"
 #include "uart.h"
 
-
 #if RESIZEABLE_ARRAY_DO_LOCKS
-#define LOCK_ENTRY if (lock) { numericDriver.freezeWithError("i008"); } lock = true;
+#define LOCK_ENTRY                                                                                                     \
+	if (lock) {                                                                                                        \
+		numericDriver.freezeWithError("i008");                                                                         \
+	}                                                                                                                  \
+	lock = true;
 #define LOCK_EXIT lock = false;
 #else
-#define LOCK_ENTRY {}
-#define LOCK_EXIT {}
+#define LOCK_ENTRY                                                                                                     \
+	{}
+#define LOCK_EXIT                                                                                                      \
+	{}
 #endif
 
-ResizeableArray::ResizeableArray(int newElementSize, int newMaxNumEmptySpacesToKeep, int newNumExtrarSpacesToAllocate) :
-	elementSize(newElementSize),
-	maxNumEmptySpacesToKeep(newMaxNumEmptySpacesToKeep),
-	numExtraSpacesToAllocate(newNumExtrarSpacesToAllocate)
-{
+ResizeableArray::ResizeableArray(int newElementSize, int newMaxNumEmptySpacesToKeep, int newNumExtrarSpacesToAllocate)
+    : elementSize(newElementSize), maxNumEmptySpacesToKeep(newMaxNumEmptySpacesToKeep),
+      numExtraSpacesToAllocate(newNumExtrarSpacesToAllocate) {
 	emptyingShouldFreeMemory = true;
 	staticMemoryAllocationSize = 0;
 
@@ -49,8 +52,7 @@ ResizeableArray::ResizeableArray(int newElementSize, int newMaxNumEmptySpacesToK
 	init();
 }
 
-ResizeableArray::~ResizeableArray()
-{
+ResizeableArray::~ResizeableArray() {
 	LOCK_ENTRY
 
 	if (memory) generalMemoryAllocator.dealloc(memoryAllocationStart);
@@ -58,7 +60,6 @@ ResizeableArray::~ResizeableArray()
 
 	LOCK_EXIT
 }
-
 
 void ResizeableArray::init() {
 
@@ -72,7 +73,6 @@ void ResizeableArray::init() {
 
 	LOCK_EXIT
 }
-
 
 void ResizeableArray::empty() {
 
@@ -92,7 +92,6 @@ void ResizeableArray::empty() {
 	LOCK_EXIT
 }
 
-
 // Returns error
 int ResizeableArray::beenCloned() {
 
@@ -109,7 +108,6 @@ int ResizeableArray::beenCloned() {
 	return error;
 }
 
-
 bool ResizeableArray::cloneFrom(ResizeableArray* other) {
 
 	LOCK_ENTRY
@@ -123,7 +121,8 @@ bool ResizeableArray::cloneFrom(ResizeableArray* other) {
 }
 
 // Returns error
-int ResizeableArray::copyElementsFromOldMemory(void* __restrict__ otherMemory, int otherMemorySize, int otherMemoryStart) {
+int ResizeableArray::copyElementsFromOldMemory(void* __restrict__ otherMemory, int otherMemorySize,
+                                               int otherMemoryStart) {
 
 	memoryStart = 0;
 
@@ -153,20 +152,19 @@ int ResizeableArray::copyElementsFromOldMemory(void* __restrict__ otherMemory, i
 
 		// Copy everything before other's wrap
 		int numBytesBefore = getMin(elementsBeforeWrap, numElements) * elementSize;
-		memcpy((char* __restrict__)memory, (char* __restrict__)otherMemory + (otherMemoryStart * elementSize), numBytesBefore);
+		memcpy((char* __restrict__)memory, (char* __restrict__)otherMemory + (otherMemoryStart * elementSize),
+		       numBytesBefore);
 
 		// And everything after other's wrap, if there was some
 		int elementsAfterWrap = numElements - elementsBeforeWrap;
 		if (elementsAfterWrap > 0) {
-			memcpy((char* __restrict__)memory + (elementsBeforeWrap * elementSize), otherMemory, elementsAfterWrap * elementSize);
+			memcpy((char* __restrict__)memory + (elementsBeforeWrap * elementSize), otherMemory,
+			       elementsAfterWrap * elementSize);
 		}
 	}
 
 	return NO_ERROR;
 }
-
-
-
 
 void ResizeableArray::swapStateWith(ResizeableArray* other) {
 
@@ -192,9 +190,6 @@ void ResizeableArray::swapStateWith(ResizeableArray* other) {
 
 	LOCK_EXIT
 }
-
-
-
 
 void ResizeableArray::attemptMemoryShorten() {
 	if (staticMemoryAllocationSize) return;
@@ -270,19 +265,17 @@ mostBasicDelete:
 			memorySize -= numToDelete;
 			memoryStart -= elementsToDeleteAfterWrap;
 			if (memoryStart < 0) memoryStart += memorySize; // Could this happen?
-			}
+		}
 
 		else {
 
 			int distanceFromEndPoint = getMin(i, numElements - i - numToDelete);
 
 			int distanceFromWrapPoint;
-			if (i >= elementsBeforeWrap)
-				distanceFromWrapPoint = i - elementsBeforeWrap;
+			if (i >= elementsBeforeWrap) distanceFromWrapPoint = i - elementsBeforeWrap;
 			else if (i + numToDelete <= elementsBeforeWrap)
 				distanceFromWrapPoint = elementsBeforeWrap - (i + numToDelete);
-			else
-				distanceFromWrapPoint = 0;
+			else distanceFromWrapPoint = 0;
 
 			// If closer to either start or end than wrap-point AND there isn't too much wasted empty space between these...
 			if (distanceFromEndPoint <= distanceFromWrapPoint) {
@@ -290,14 +283,12 @@ mostBasicDelete:
 				// If we have a fixed memory allocation, then we don't need to worry about wasted empty space, and we can just do the most basic delete.
 				// Careful with this - it seemed to cause a crash when first introduced in commit "Tidied up some stuff in ResizeableArray",
 				// though that seems to have been because of the bugs fixed in commit "Fixed horrendous problem with ResizeableArray[...]".
-				if (staticMemoryAllocationSize || !mayShortenMemoryAfter)
-					goto mostBasicDelete;
+				if (staticMemoryAllocationSize || !mayShortenMemoryAfter) goto mostBasicDelete;
 
 				int freeMemory = memorySize - newNum; // After deletion
 
 				// If we're not going to end up with more free memory than we're allowed, then the best option is to do the most basic delete
-				if (freeMemory < maxNumEmptySpacesToKeep)
-					goto mostBasicDelete;
+				if (freeMemory < maxNumEmptySpacesToKeep) goto mostBasicDelete;
 
 				// Ok, if we're still here, we're looking to reduce memory usage
 
@@ -317,8 +308,7 @@ mostBasicDelete:
 						// Move bit left of deletion point right
 						if (i != 0) {
 							memmove((char* __restrict__)memory + (memoryStart + numToDelete) * elementSize,
-									(char* __restrict__)memory + (memoryStart) * elementSize,
-									i * elementSize);
+							        (char* __restrict__)memory + (memoryStart)*elementSize, i * elementSize);
 #if TEST_VECTOR
 							moveCount += i;
 #endif
@@ -328,9 +318,8 @@ mostBasicDelete:
 						if (memoryStart >= memorySize) memoryStart -= memorySize;
 
 						// And move bit right of wrap point right too
-						memmove((char* __restrict__)memory + contractMemoryBy * elementSize,
-								memory,
-								elementsAfterWrap * elementSize);
+						memmove((char* __restrict__)memory + contractMemoryBy * elementSize, memory,
+						        elementsAfterWrap * elementSize);
 #if TEST_VECTOR
 						moveCount += elementsAfterWrap;
 #endif
@@ -343,17 +332,18 @@ mostBasicDelete:
 						// Move bit right of deletion point left
 						if (i != numElements - numToDelete) {
 							memmove((char* __restrict__)memory + (memoryStart + i - memorySize) * elementSize,
-									(char* __restrict__)memory + (memoryStart + i + numToDelete - memorySize) * elementSize,
-									(numElements - i - numToDelete) * elementSize);
+							        (char* __restrict__)memory
+							            + (memoryStart + i + numToDelete - memorySize) * elementSize,
+							        (numElements - i - numToDelete) * elementSize);
 #if TEST_VECTOR
 							moveCount += (numElements - i - numToDelete);
 #endif
-							}
+						}
 
 						// Move bit left of wrap point left too
 						memmove((char* __restrict__)memory + (memoryStart - contractMemoryBy) * elementSize,
-								(char* __restrict__)memory + (memoryStart) * elementSize,
-								elementsBeforeWrap * elementSize);
+						        (char* __restrict__)memory + (memoryStart)*elementSize,
+						        elementsBeforeWrap * elementSize);
 #if TEST_VECTOR
 						moveCount += elementsBeforeWrap;
 #endif
@@ -376,8 +366,8 @@ moveBitBetweenWrapPointAndDeletionPoint:
 					// Move elements left
 					if (i != elementsBeforeWrap - numToDelete) {
 						memmove((char* __restrict__)memory + (memoryStart + i) * elementSize,
-								(char* __restrict__)memory + (memoryStart + i + numToDelete) * elementSize,
-								(elementsBeforeWrap - i - numToDelete) * elementSize);
+						        (char* __restrict__)memory + (memoryStart + i + numToDelete) * elementSize,
+						        (elementsBeforeWrap - i - numToDelete) * elementSize);
 #if TEST_VECTOR
 						moveCount += (elementsBeforeWrap - i - numToDelete);
 #endif
@@ -392,9 +382,8 @@ moveBitBetweenWrapPointAndDeletionPoint:
 
 					// Move elements right
 					if (i != elementsBeforeWrap) {
-						memmove((char* __restrict__)memory + numToDelete * elementSize,
-								(char* __restrict__)memory,
-								(i - elementsBeforeWrap) * elementSize);
+						memmove((char* __restrict__)memory + numToDelete * elementSize, (char* __restrict__)memory,
+						        (i - elementsBeforeWrap) * elementSize);
 #if TEST_VECTOR
 						moveCount += (i - elementsBeforeWrap);
 #endif
@@ -427,7 +416,6 @@ moveBitBetweenWrapPointAndDeletionPoint:
 	LOCK_EXIT
 }
 
-
 // Currently this doesn't really support having a static memory allocation, so don't call this
 bool ResizeableArray::ensureEnoughSpaceAllocated(int numAdditionalElementsNeeded) {
 
@@ -442,7 +430,8 @@ bool ResizeableArray::ensureEnoughSpaceAllocated(int numAdditionalElementsNeeded
 
 		uint32_t allocatedMemorySize;
 
-		void* newMemory = generalMemoryAllocator.alloc(numAdditionalElementsNeeded * elementSize, &allocatedMemorySize, false, true);
+		void* newMemory =
+		    generalMemoryAllocator.alloc(numAdditionalElementsNeeded * elementSize, &allocatedMemorySize, false, true);
 		if (!newMemory) {
 			LOCK_EXIT
 			return false;
@@ -453,10 +442,8 @@ bool ResizeableArray::ensureEnoughSpaceAllocated(int numAdditionalElementsNeeded
 		return true;
 	}
 
-
 	int elementsBeforeWrap = memorySize - memoryStart;
 	int elementsAfterWrap = numElements - elementsBeforeWrap;
-
 
 	int newNum = numElements + numAdditionalElementsNeeded;
 
@@ -464,7 +451,6 @@ bool ResizeableArray::ensureEnoughSpaceAllocated(int numAdditionalElementsNeeded
 	void* __restrict__ oldMemoryAllocationStart = memoryAllocationStart;
 	int oldMemoryStart = memoryStart;
 	int oldMemorySize = memorySize;
-
 
 tryAgain:
 	uint32_t allocatedSize = generalMemoryAllocator.getAllocatedSize(memoryAllocationStart);
@@ -496,14 +482,15 @@ tryAgain:
 #ifdef TEST_VECTOR
 		if (getRandom255() < 10) goto getBrandNewMemory;
 #endif
-		generalMemoryAllocator.extend(memoryAllocationStart, (newNum) * elementSize - allocatedSize, (newNum + numExtraSpacesToAllocate) * elementSize - allocatedSize, &amountExtendedLeft, &amountExtendedRight);
+		generalMemoryAllocator.extend(memoryAllocationStart, (newNum)*elementSize - allocatedSize,
+		                              (newNum + numExtraSpacesToAllocate) * elementSize - allocatedSize,
+		                              &amountExtendedLeft, &amountExtendedRight);
 
 		// If successfully extended...
 		if (amountExtendedLeft || amountExtendedRight) {
 			memoryAllocationStart = (char* __restrict__)memoryAllocationStart - amountExtendedLeft;
 			goto tryAgain;
 		}
-
 
 getBrandNewMemory:
 
@@ -520,7 +507,8 @@ getBrandNewMemory:
 		}
 #endif
 
-		newMemory = generalMemoryAllocator.alloc((newNum + numExtraSpacesToAllocate) * elementSize, &newMemoryAllocationSize, false, true);
+		newMemory = generalMemoryAllocator.alloc((newNum + numExtraSpacesToAllocate) * elementSize,
+		                                         &newMemoryAllocationSize, false, true);
 		if (!newMemory) {
 			newMemory = generalMemoryAllocator.alloc(newNum * elementSize, &newMemoryAllocationSize, false, true);
 		}
@@ -551,7 +539,8 @@ allocationFail:
 
 		// And after wrap point...
 		if (elementsAfterWrap > 0) {
-			copyToNewMemory(newMemory, elementsBeforeWrap, getElementAddress(elementsBeforeWrap + memoryIncreasedBy), elementsAfterWrap, newMemorySize, newMemoryStartIndex);
+			copyToNewMemory(newMemory, elementsBeforeWrap, getElementAddress(elementsBeforeWrap + memoryIncreasedBy),
+			                elementsAfterWrap, newMemorySize, newMemoryStartIndex);
 		}
 
 		generalMemoryAllocator.dealloc(memoryAllocationStart);
@@ -594,8 +583,8 @@ allocationFail:
 	return true;
 }
 
-
-bool ResizeableArray::attemptMemoryExpansion(int minNumToExtend, int idealNumToExtendIfExtendingAllocation, bool mayExtendAllocation, void* thingNotToStealFrom) {
+bool ResizeableArray::attemptMemoryExpansion(int minNumToExtend, int idealNumToExtendIfExtendingAllocation,
+                                             bool mayExtendAllocation, void* thingNotToStealFrom) {
 
 	void* __restrict__ oldMemory = memory;
 	int oldMemorySize = memorySize;
@@ -605,8 +594,10 @@ startAgain:
 	// If we actually had a bit more already, left...
 	uint32_t extraBytesLeft = (uint32_t)memory - (uint32_t)memoryAllocationStart;
 	if (extraBytesLeft >= elementSize) {
-		int extraElementsLeft = extraBytesLeft / elementSize; // See how many extra elements there are space for on the left
-		if (extraElementsLeft > minNumToExtend) extraElementsLeft = minNumToExtend; // We might not want all the extra space
+		int extraElementsLeft =
+		    extraBytesLeft / elementSize; // See how many extra elements there are space for on the left
+		if (extraElementsLeft > minNumToExtend)
+			extraElementsLeft = minNumToExtend; // We might not want all the extra space
 
 		memory = (char* __restrict__)memory - (elementSize * extraElementsLeft);
 		memorySize += extraElementsLeft;
@@ -620,11 +611,14 @@ startAgain:
 
 	// If we actually had a bit more already, right...
 	uint32_t potentialMemorySize = staticMemoryAllocationSize;
-	if (!potentialMemorySize) potentialMemorySize = generalMemoryAllocator.getAllocatedSize(memoryAllocationStart) - extraBytesLeft;
+	if (!potentialMemorySize)
+		potentialMemorySize = generalMemoryAllocator.getAllocatedSize(memoryAllocationStart) - extraBytesLeft;
 	uint32_t extraBytesRight = potentialMemorySize - (memorySize * elementSize);
 	if (extraBytesRight >= elementSize) {
-		int extraElementsRight = extraBytesRight / elementSize; // See how many extra elements there are space for on the right
-		if (extraElementsRight > minNumToExtend) extraElementsRight = minNumToExtend; // We might not want all the extra space
+		int extraElementsRight =
+		    extraBytesRight / elementSize; // See how many extra elements there are space for on the right
+		if (extraElementsRight > minNumToExtend)
+			extraElementsRight = minNumToExtend; // We might not want all the extra space
 
 		memorySize += extraElementsRight;
 
@@ -644,13 +638,9 @@ startAgain:
 		// Try extending memory.
 		// TODO: in a perfect world, we'd be able to specify a minimum amount as well as a step-size for left and right, or something like that
 		uint32_t amountExtendedLeft, amountExtendedRight;
-		generalMemoryAllocator.extend(
-				memoryAllocationStart,
-				minNumToExtend * elementSize,
-				idealNumToExtendIfExtendingAllocation * elementSize,
-				&amountExtendedLeft,
-				&amountExtendedRight,
-				thingNotToStealFrom);
+		generalMemoryAllocator.extend(memoryAllocationStart, minNumToExtend * elementSize,
+		                              idealNumToExtendIfExtendingAllocation * elementSize, &amountExtendedLeft,
+		                              &amountExtendedRight, thingNotToStealFrom);
 
 		if (amountExtendedLeft || amountExtendedRight) {
 			memoryAllocationStart = (char* __restrict__)memoryAllocationStart - amountExtendedLeft;
@@ -665,8 +655,9 @@ startAgain:
 	return false;
 }
 
-
-void ResizeableArray::copyToNewMemory(void* __restrict__ newMemory, uint32_t destinationIndex, void* __restrict__ source, uint32_t numElementsToCopy, uint32_t newMemorySize, uint32_t newMemoryStartIndex) {
+void ResizeableArray::copyToNewMemory(void* __restrict__ newMemory, uint32_t destinationIndex,
+                                      void* __restrict__ source, uint32_t numElementsToCopy, uint32_t newMemorySize,
+                                      uint32_t newMemoryStartIndex) {
 
 	destinationIndex += newMemoryStartIndex;
 #if TEST_VECTOR
@@ -683,8 +674,10 @@ void ResizeableArray::copyToNewMemory(void* __restrict__ newMemory, uint32_t des
 		// Or if begins before wrap point...
 		else {
 			int elementsBeforeWrap = newMemorySize - destinationIndex;
-			memcpy((char* __restrict__)newMemory + destinationIndex * elementSize, source, elementsBeforeWrap * elementSize);
-			memcpy((char* __restrict__)newMemory, (char* __restrict__)source + elementsBeforeWrap * elementSize, (numElementsToCopy - elementsBeforeWrap) * elementSize);
+			memcpy((char* __restrict__)newMemory + destinationIndex * elementSize, source,
+			       elementsBeforeWrap * elementSize);
+			memcpy((char* __restrict__)newMemory, (char* __restrict__)source + elementsBeforeWrap * elementSize,
+			       (numElementsToCopy - elementsBeforeWrap) * elementSize);
 			return;
 		}
 	}
@@ -736,12 +729,12 @@ void ResizeableArray::moveElementsLeft(int oldStartIndex, int oldStopIndex, int 
 		}
 
 		// Move the elements that need to move past the wrap point
-		int startPastWrapPoint = getMax(oldStartIndex - elementsBeforeWrap, 0); // These two new ints are relative to memory, not to memoryStart
+		int startPastWrapPoint = getMax(oldStartIndex - elementsBeforeWrap,
+		                                0); // These two new ints are relative to memory, not to memoryStart
 		int stopPastWrapPoint = getMin(oldStopIndex - elementsBeforeWrap, distance);
 		int numToMovePastWrapPoint = stopPastWrapPoint - startPastWrapPoint;
 		memcpy((char*)memory + (memorySize - distance + startPastWrapPoint) * elementSize,
-				(char*)memory + startPastWrapPoint * elementSize,
-				elementSize * numToMovePastWrapPoint);
+		       (char*)memory + startPastWrapPoint * elementSize, elementSize * numToMovePastWrapPoint);
 #if TEST_VECTOR
 		moveCount += numToMovePastWrapPoint;
 #endif
@@ -802,8 +795,8 @@ void ResizeableArray::moveElementsRight(int oldStartIndex, int oldStopIndex, int
 		int stopPastWrapPoint = getMin(oldStopIndex - elementsBeforeWrap + distance, distance);
 		int numToMovePastWrapPoint = stopPastWrapPoint - startPastWrapPoint;
 		memcpy((char*)memory + startPastWrapPoint * elementSize,
-				(char*)memory + (memorySize - distance + startPastWrapPoint) * elementSize,
-				elementSize * numToMovePastWrapPoint);
+		       (char*)memory + (memorySize - distance + startPastWrapPoint) * elementSize,
+		       elementSize * numToMovePastWrapPoint);
 #if TEST_VECTOR
 		moveCount += numToMovePastWrapPoint;
 #endif
@@ -819,7 +812,6 @@ void ResizeableArray::moveElementsRight(int oldStartIndex, int oldStopIndex, int
 		}
 	}
 }
-
 
 // You can only call this if there definitely isn't already any memory set
 void ResizeableArray::setMemory(void* newMemory, int newMemorySize) {
@@ -840,7 +832,6 @@ void ResizeableArray::setStaticMemory(void* newMemory, int newMemorySize) {
 	setMemory(newMemory, newMemorySize);
 }
 
-
 // Returns error code
 int ResizeableArray::insertAtIndex(int i, int numToInsert, void* thingNotToStealFrom) {
 
@@ -858,17 +849,20 @@ int ResizeableArray::insertAtIndex(int i, int numToInsert, void* thingNotToSteal
 			return ERROR_INSUFFICIENT_RAM;
 		}
 
-		int newMemorySize = (numExtraSpacesToAllocate >> 1) + numToInsert; // The >>1 is arbirtary - we just don't wanna be allocating lots
+		int newMemorySize = (numExtraSpacesToAllocate >> 1)
+		                    + numToInsert; // The >>1 is arbirtary - we just don't wanna be allocating lots
 
 		uint32_t allocatedMemorySize;
 
-		void* newMemory = generalMemoryAllocator.alloc(newMemorySize * elementSize, &allocatedMemorySize, false, true, false, thingNotToStealFrom);
+		void* newMemory = generalMemoryAllocator.alloc(newMemorySize * elementSize, &allocatedMemorySize, false, true,
+		                                               false, thingNotToStealFrom);
 		if (!newMemory) {
 			LOCK_EXIT
 			return ERROR_INSUFFICIENT_RAM;
 		}
 
-		if (ALPHA_OR_BETA_VERSION && allocatedMemorySize < newMemorySize * elementSize) numericDriver.freezeWithError("FFFF");
+		if (ALPHA_OR_BETA_VERSION && allocatedMemorySize < newMemorySize * elementSize)
+			numericDriver.freezeWithError("FFFF");
 
 		setMemory(newMemory, allocatedMemorySize);
 	}
@@ -884,7 +878,8 @@ int ResizeableArray::insertAtIndex(int i, int numToInsert, void* thingNotToSteal
 
 			// If not enough memory...
 			if (newNum > memorySize) {
-				bool success = attemptMemoryExpansion(numToInsert, numToInsert + numExtraSpacesToAllocate, !staticMemoryAllocationSize, thingNotToStealFrom);
+				bool success = attemptMemoryExpansion(numToInsert, numToInsert + numExtraSpacesToAllocate,
+				                                      !staticMemoryAllocationSize, thingNotToStealFrom);
 				if (!success) goto getBrandNewMemory;
 			}
 
@@ -893,7 +888,8 @@ workNormally:
 			if ((i << 1) < numElements) {
 				memoryStart -= numToInsert;
 				if (memoryStart < 0) memoryStart += memorySize;
-				moveElementsLeft(numToInsert, i + numToInsert, numToInsert); // There might be a wrap after moving them...
+				moveElementsLeft(numToInsert, i + numToInsert,
+				                 numToInsert); // There might be a wrap after moving them...
 			}
 
 			// If inserting in second half...
@@ -901,7 +897,6 @@ workNormally:
 				moveElementsRight(i, numElements, numToInsert); // There might be a wrap after moving them...
 			}
 		}
-
 
 		// Or, if wrap...
 		else {
@@ -923,7 +918,8 @@ workNormally:
 				else {
 
 					// ... and we can't extend memory...
-					if (!attemptMemoryExpansion(numToInsert, numToInsert + numExtraSpacesToAllocate, !staticMemoryAllocationSize, thingNotToStealFrom)) {
+					if (!attemptMemoryExpansion(numToInsert, numToInsert + numExtraSpacesToAllocate,
+					                            !staticMemoryAllocationSize, thingNotToStealFrom)) {
 
 						// Only choice is to get brand new memory
 						goto getBrandNewMemory;
@@ -935,7 +931,8 @@ workNormally:
 			else {
 
 				// If can't or won't grab some extra memory at the wrap-point...
-				if (!attemptMemoryExpansion(numToInsert, numToInsert + numExtraSpacesToAllocate, !staticMemoryAllocationSize, thingNotToStealFrom)) {
+				if (!attemptMemoryExpansion(numToInsert, numToInsert + numExtraSpacesToAllocate,
+				                            !staticMemoryAllocationSize, thingNotToStealFrom)) {
 
 					// If we do actually have enough memory, working "normally" is still an option, and it's now the best option
 					if (newNum <= memorySize) goto workNormally;
@@ -944,7 +941,6 @@ workNormally:
 					else goto getBrandNewMemory;
 				}
 			}
-
 
 			// If we're here, memorySize has just been expanded by numToInsert
 
@@ -955,11 +951,14 @@ workNormally:
 			if (i < elementsBeforeWrap) {
 
 				int elementsBetweenInsertionAndWrap = elementsBeforeWrap - i;
-				int otherOption = i + elementsAfterWrap; // The other option is to separately move the elements before the insertion, and the ones after the wrap
+				int otherOption =
+				    i
+				    + elementsAfterWrap; // The other option is to separately move the elements before the insertion, and the ones after the wrap
 				if (elementsBetweenInsertionAndWrap <= otherOption) {
 
 					// Move elements between insertion point and wrap point right
-					moveElementsRight(i, elementsBeforeWrap, numToInsert); // No-wrap seems to work here, but I can't quite see why
+					moveElementsRight(i, elementsBeforeWrap,
+					                  numToInsert); // No-wrap seems to work here, but I can't quite see why
 				}
 
 				else {
@@ -1014,7 +1013,8 @@ getBrandNewMemory:
 
 getBrandNewMemoryAgain:
 			uint32_t allocatedSize;
-			void* __restrict__ newMemory = generalMemoryAllocator.alloc(desiredSize, &allocatedSize, false, true, false, thingNotToStealFrom);
+			void* __restrict__ newMemory =
+			    generalMemoryAllocator.alloc(desiredSize, &allocatedSize, false, true, false, thingNotToStealFrom);
 
 			// If that didn't work...
 			if (!newMemory) {
@@ -1049,7 +1049,8 @@ getBrandNewMemoryAgain:
 			if (firstElements < elementsBeforeWrap) {
 				int secondElementsTotal = getMin(elementsBeforeWrap, numElements);
 				if (secondElementsTotal > 0) {
-					copyToNewMemory(newMemory, firstElements + numToInsert, getElementAddress(firstElements), secondElementsTotal - firstElements, newMemorySize, newMemoryStartIndex);
+					copyToNewMemory(newMemory, firstElements + numToInsert, getElementAddress(firstElements),
+					                secondElementsTotal - firstElements, newMemorySize, newMemoryStartIndex);
 				}
 			}
 
@@ -1057,16 +1058,17 @@ getBrandNewMemoryAgain:
 			// See if we need to do any more before the insertion point...
 			int elementsAfterWrapBeforeInsertion = i - elementsBeforeWrap;
 			if (elementsAfterWrapBeforeInsertion > 0) {
-				copyToNewMemory(newMemory, elementsBeforeWrap, memory, elementsAfterWrapBeforeInsertion, newMemorySize, newMemoryStartIndex);
+				copyToNewMemory(newMemory, elementsBeforeWrap, memory, elementsAfterWrapBeforeInsertion, newMemorySize,
+				                newMemoryStartIndex);
 			}
 
 			// Ok, we've now passed the wrap point *and* the insertion point. See what's left
 			int upTo = getMax(elementsBeforeWrap, i);
 			int elementsLeft = numElements - upTo;
 			if (elementsLeft > 0) {
-				copyToNewMemory(newMemory, upTo + numToInsert, getElementAddress(upTo), elementsLeft, newMemorySize, newMemoryStartIndex);
+				copyToNewMemory(newMemory, upTo + numToInsert, getElementAddress(upTo), elementsLeft, newMemorySize,
+				                newMemoryStartIndex);
 			}
-
 
 			// That copy may have taken ages, particularly in the case where they're recording / resampling a sample and the array of clusters has grown.
 			AudioEngine::bypassCulling = true;

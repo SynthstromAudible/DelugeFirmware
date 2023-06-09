@@ -22,7 +22,6 @@
 #include "BidirectionalLinkedList.h"
 #include "definitions.h"
 
-
 struct EmptySpaceRecord {
 	uint32_t length;
 	uint32_t address;
@@ -41,16 +40,16 @@ struct NeighbouringMemoryGrabAttemptResult {
 #define SPACE_TYPE_MASK 0xC0000000
 #define SPACE_SIZE_MASK 0x3FFFFFFF
 
-
-
 class MemoryRegion {
 public:
 	MemoryRegion();
 	void setup(void* emptySpacesMemory, int emptySpacesMemorySize, uint32_t regionBegin, uint32_t regionEnd);
-	void* alloc(uint32_t requiredSize, uint32_t* getAllocatedSize, bool makeStealable, void* thingNotToStealFrom, bool getBiggestAllocationPossible);
+	void* alloc(uint32_t requiredSize, uint32_t* getAllocatedSize, bool makeStealable, void* thingNotToStealFrom,
+	            bool getBiggestAllocationPossible);
 	uint32_t shortenRight(void* address, uint32_t newSize);
 	uint32_t shortenLeft(void* address, uint32_t amountToShorten, uint32_t numBytesToMoveRightIfSuccessful = 0);
-	void extend(void* address, uint32_t minAmountToExtend, uint32_t idealAmountToExtend, uint32_t* getAmountExtendedLeft, uint32_t* getAmountExtendedRight, void* thingNotToStealFrom);
+	void extend(void* address, uint32_t minAmountToExtend, uint32_t idealAmountToExtend,
+	            uint32_t* getAmountExtendedLeft, uint32_t* getAmountExtendedRight, void* thingNotToStealFrom);
 	uint32_t extendRightAsMuchAsEasilyPossible(void* spaceAddress);
 	void dealloc(void* address);
 	void verifyMemoryNotFree(void* address, uint32_t spaceSize);
@@ -70,7 +69,10 @@ public:
 private:
 	uint32_t freeSomeStealableMemory(int totalSizeNeeded, void* thingNotToStealFrom, int* __restrict__ foundSpaceSize);
 	void markSpaceAsEmpty(uint32_t spaceStart, uint32_t spaceSize, bool mayLookLeft = true, bool mayLookRight = true);
-	NeighbouringMemoryGrabAttemptResult attemptToGrabNeighbouringMemory(void* originalSpaceAddress, int originalSpaceSize, int minAmountToExtend, int idealAmountToExtend, void* thingNotToStealFrom, uint32_t markWithTraversalNo = 0, bool originalSpaceNeedsStealing = false);
+	NeighbouringMemoryGrabAttemptResult
+	attemptToGrabNeighbouringMemory(void* originalSpaceAddress, int originalSpaceSize, int minAmountToExtend,
+	                                int idealAmountToExtend, void* thingNotToStealFrom,
+	                                uint32_t markWithTraversalNo = 0, bool originalSpaceNeedsStealing = false);
 	void writeTempHeadersBeforeASteal(uint32_t newStartAddress, uint32_t newSize);
 	void sanityCheck();
 };

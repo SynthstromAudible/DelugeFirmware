@@ -27,7 +27,6 @@
 class Sample;
 class WaveTableReader;
 
-
 class WaveTableBand {
 public:
 	~WaveTableBand();
@@ -46,13 +45,14 @@ public:
 	WaveTable();
 	~WaveTable();
 	int cloneFromSample(Sample* sample);
-	uint32_t render(int32_t* outputBuffer, int numSamples, uint32_t phaseIncrementNow, uint32_t phase,
-			bool doOscSync, uint32_t resetterPhase, uint32_t resetterPhaseIncrement, uint32_t resetterDivideByPhaseIncrement, uint32_t retriggerPhase,
-			int32_t waveIndex, int32_t waveIndexIncrement);
-	int setup(Sample* sample, int nativeNumSamplesPerCycle = 0, uint32_t audioDataStartPosBytes = 0, uint32_t audioDataLengthBytes = 0, int byteDepth = 0, int rawDataFormat = 0, WaveTableReader* reader = NULL);
+	uint32_t render(int32_t* outputBuffer, int numSamples, uint32_t phaseIncrementNow, uint32_t phase, bool doOscSync,
+	                uint32_t resetterPhase, uint32_t resetterPhaseIncrement, uint32_t resetterDivideByPhaseIncrement,
+	                uint32_t retriggerPhase, int32_t waveIndex, int32_t waveIndexIncrement);
+	int setup(Sample* sample, int nativeNumSamplesPerCycle = 0, uint32_t audioDataStartPosBytes = 0,
+	          uint32_t audioDataLengthBytes = 0, int byteDepth = 0, int rawDataFormat = 0,
+	          WaveTableReader* reader = NULL);
 	void deleteAllBandsAndData();
 	void bandDataBeingStolen(WaveTableBandData* bandData);
-
 
 	int numCycles;
 	int numCyclesMagnitude;
@@ -63,19 +63,18 @@ public:
 	OrderedResizeableArrayWith32bitKey bands;
 
 protected:
-    void numReasonsIncreasedFromZero();
-    void numReasonsDecreasedToZero(char const* errorCode);
+	void numReasonsIncreasedFromZero();
+	void numReasonsDecreasedToZero(char const* errorCode);
 
 private:
-	void doRenderingLoop(int32_t* __restrict__ thisSample, int32_t const* bufferEnd,
-			int firstCycleNumber, WaveTableBand*  __restrict__ bandHere,
-			uint32_t phase, uint32_t phaseIncrement,
-			uint32_t waveIndexScaled, int32_t waveIndexIncrementScaled, const int16_t* __restrict__ kernel);
+	void doRenderingLoop(int32_t* __restrict__ thisSample, int32_t const* bufferEnd, int firstCycleNumber,
+	                     WaveTableBand* __restrict__ bandHere, uint32_t phase, uint32_t phaseIncrement,
+	                     uint32_t waveIndexScaled, int32_t waveIndexIncrementScaled,
+	                     const int16_t* __restrict__ kernel);
 
 	void doRenderingLoopSingleCycle(int32_t* __restrict__ thisSample, int32_t const* bufferEnd,
-			WaveTableBand*  __restrict__ bandHere,
-			uint32_t phase, uint32_t phaseIncrement,
-			const int16_t* __restrict__ kernel);
+	                                WaveTableBand* __restrict__ bandHere, uint32_t phase, uint32_t phaseIncrement,
+	                                const int16_t* __restrict__ kernel);
 };
 
 #endif /* WAVETABLE_H_ */

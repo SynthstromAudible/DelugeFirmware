@@ -75,43 +75,41 @@ justDrawRange:
 	}
 }
 
-
 void MenuItemKeyRange::getText(char* buffer, int* getLeftLength, int* getRightLength, bool mayShowJustOne) {
 
 	*(buffer++) = noteCodeToNoteLetter[lower];
 	int leftLength = 1;
 
-    if (noteCodeIsSharp[lower]) {
-    	*(buffer++) = HAVE_OLED ? '#' : '.';
+	if (noteCodeIsSharp[lower]) {
+		*(buffer++) = HAVE_OLED ? '#' : '.';
 #if HAVE_OLED
-    	leftLength++;
+		leftLength++;
 #endif
-    }
+	}
 
 	if (getLeftLength) *getLeftLength = leftLength;
 
-    if (mayShowJustOne && lower == upper) {
-    	*buffer = 0;
-    	if (getRightLength) *getRightLength = 0;
-    	return;
-    }
+	if (mayShowJustOne && lower == upper) {
+		*buffer = 0;
+		if (getRightLength) *getRightLength = 0;
+		return;
+	}
 
-    *(buffer++) = '-';
+	*(buffer++) = '-';
 
 	*(buffer++) = noteCodeToNoteLetter[upper];
 	int rightLength = 1;
-    if (noteCodeIsSharp[upper]) {
-    	*(buffer++) = HAVE_OLED ? '#' : '.';
+	if (noteCodeIsSharp[upper]) {
+		*(buffer++) = HAVE_OLED ? '#' : '.';
 #if HAVE_OLED
-    	rightLength++;
+		rightLength++;
 #endif
-    }
+	}
 
-    *buffer = 0;
+	*buffer = 0;
 
 	if (getRightLength) *getRightLength = rightLength;
 }
-
 
 // Call seedRandom() before you call this
 int MenuItemKeyRange::getRandomValueInRange() {

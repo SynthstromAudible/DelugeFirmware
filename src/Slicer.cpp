@@ -81,10 +81,12 @@ void Slicer::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 
 	OLED::drawRectangle(windowMinX, windowMinY, windowMaxX, windowMaxY, image);
 	OLED::drawHorizontalLine(windowMinY + 15, 26, OLED_MAIN_WIDTH_PIXELS - 22, &image[0]);
-	OLED::drawString("Num. slices", 30, windowMinY + 6, image[0], OLED_MAIN_WIDTH_PIXELS, TEXT_SPACING_X, TEXT_SPACING_Y);
+	OLED::drawString("Num. slices", 30, windowMinY + 6, image[0], OLED_MAIN_WIDTH_PIXELS, TEXT_SPACING_X,
+	                 TEXT_SPACING_Y);
 	char buffer[12];
 	intToString(numClips, buffer);
-	OLED::drawStringCentred(buffer, windowMinY + 18, image[0], OLED_MAIN_WIDTH_PIXELS, TEXT_SPACING_X, TEXT_SPACING_Y, (OLED_MAIN_WIDTH_PIXELS >> 1) + horizontalShift);
+	OLED::drawStringCentred(buffer, windowMinY + 18, image[0], OLED_MAIN_WIDTH_PIXELS, TEXT_SPACING_X, TEXT_SPACING_Y,
+	                        (OLED_MAIN_WIDTH_PIXELS >> 1) + horizontalShift);
 }
 
 #else
@@ -104,7 +106,6 @@ void Slicer::selectEncoderAction(int8_t offset) {
 	redraw();
 #endif
 }
-
 
 int Slicer::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 	if (currentUIMode != UI_MODE_NONE || !on) return ACTION_RESULT_NOT_DEALT_WITH;
@@ -128,7 +129,6 @@ int Slicer::padAction(int x, int y, int on) {
 	return sampleBrowser.padAction(x, y, on);
 }
 
-
 void Slicer::doSlice() {
 
 	AudioEngine::stopAnyPreviewing();
@@ -150,14 +150,14 @@ getOut:
 		soundEditor.currentSource->setOscType(OSC_TYPE_SAMPLE);
 	}
 
-
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	{
 		ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
 		ParamCollectionSummary* summary = modelStack->paramManager->getPatchedParamSetSummary();
 		ParamSet* paramSet = (ParamSet*)summary->paramCollection;
 		int paramId = PARAM_LOCAL_OSC_A_VOLUME + soundEditor.currentSourceIndex;
-		ModelStackWithAutoParam* modelStackWithParam = modelStack->addParam(paramSet, summary, paramId, &paramSet->params[paramId]);
+		ModelStackWithAutoParam* modelStackWithParam =
+		    modelStack->addParam(paramSet, summary, paramId, &paramSet->params[paramId]);
 
 		// Reset osc volume, if it's not automated
 		if (!modelStackWithParam->autoParam->isAutomated()) {
@@ -180,8 +180,8 @@ getOut:
 		uint32_t lengthSamplesPerSlice = lengthInSamples / numClips;
 		uint32_t lengthMSPerSlice = lengthSamplesPerSlice * 1000 / sample->sampleRate;
 
-		bool doEnvelopes = (lengthMSPerSlice >= 90); // Only do fades in and out if we've got at least 100ms to play with
-
+		bool doEnvelopes =
+		    (lengthMSPerSlice >= 90); // Only do fades in and out if we've got at least 100ms to play with
 
 		firstRange->sampleHolder.startPos = 0;
 		uint32_t nextDrumStart = lengthInSamples / numClips;
@@ -192,17 +192,20 @@ getOut:
 		firstDrum->sources[0].sampleControls.reversed = false;
 
 #if 1 || ALPHA_OR_BETA_VERSION
-		if (!firstRange->sampleHolder.audioFile) numericDriver.freezeWithError("i032"); // Trying to narrow down E368 that Kevin F got
+		if (!firstRange->sampleHolder.audioFile)
+			numericDriver.freezeWithError("i032"); // Trying to narrow down E368 that Kevin F got
 #endif
 
 		firstRange->sampleHolder.claimClusterReasons(firstDrum->sources[0].sampleControls.reversed, CLUSTER_ENQUEUE);
 		if (doEnvelopes) {
 			ParamCollectionSummary* summary = modelStack->paramManager->getPatchedParamSetSummary();
-			ModelStackWithParamId* modelStackWithParamId = modelStack->addParamCollectionAndId(summary->paramCollection, summary, PARAM_LOCAL_ENV_0_RELEASE);
-			ModelStackWithAutoParam* modelStackWithAutoParam = modelStackWithParamId->paramCollection->getAutoParamFromId(modelStackWithParamId);
-			modelStackWithAutoParam->autoParam->setCurrentValueWithNoReversionOrRecording(modelStackWithAutoParam, getParamFromUserValue(PARAM_LOCAL_ENV_0_RELEASE, 1));
+			ModelStackWithParamId* modelStackWithParamId =
+			    modelStack->addParamCollectionAndId(summary->paramCollection, summary, PARAM_LOCAL_ENV_0_RELEASE);
+			ModelStackWithAutoParam* modelStackWithAutoParam =
+			    modelStackWithParamId->paramCollection->getAutoParamFromId(modelStackWithParamId);
+			modelStackWithAutoParam->autoParam->setCurrentValueWithNoReversionOrRecording(
+			    modelStackWithAutoParam, getParamFromUserValue(PARAM_LOCAL_ENV_0_RELEASE, 1));
 		}
-
 
 		// Do the rest of the Drums
 		for (int i = 1; i < numClips; i++) {
@@ -219,7 +222,6 @@ ramError:
 				goto getOut;
 			}
 
-
 			SoundDrum* newDrum = new (drumMemory) SoundDrum();
 
 			MultisampleRange* range = (MultisampleRange*)newDrum->sources[0].getOrCreateFirstRange();
@@ -229,7 +231,6 @@ ramError2:
 				generalMemoryAllocator.dealloc(drumMemory);
 				goto ramError;
 			}
-
 
 			char newName[5];
 			intToString(i + 1, newName);
@@ -251,13 +252,16 @@ ramError2:
 			range->sampleHolder.loadFile(false, false, true);
 
 			if (doEnvelopes) {
-				paramManager.getPatchedParamSet()->params[PARAM_LOCAL_ENV_0_ATTACK].setCurrentValueBasicForSetup(getParamFromUserValue(PARAM_LOCAL_ENV_0_ATTACK, 1));
+				paramManager.getPatchedParamSet()->params[PARAM_LOCAL_ENV_0_ATTACK].setCurrentValueBasicForSetup(
+				    getParamFromUserValue(PARAM_LOCAL_ENV_0_ATTACK, 1));
 				if (i != numClips - 1) {
-					paramManager.getPatchedParamSet()->params[PARAM_LOCAL_ENV_0_RELEASE].setCurrentValueBasicForSetup(getParamFromUserValue(PARAM_LOCAL_ENV_0_RELEASE, 1));
+					paramManager.getPatchedParamSet()->params[PARAM_LOCAL_ENV_0_RELEASE].setCurrentValueBasicForSetup(
+					    getParamFromUserValue(PARAM_LOCAL_ENV_0_RELEASE, 1));
 				}
 			}
 
-			currentSong->backUpParamManager(newDrum, currentSong->currentClip, &paramManager, true); // I moved this here, from being earlier/above. Is this fine?
+			currentSong->backUpParamManager(newDrum, currentSong->currentClip, &paramManager,
+			                                true); // I moved this here, from being earlier/above. Is this fine?
 		}
 
 		// Make NoteRows for all these new Drums

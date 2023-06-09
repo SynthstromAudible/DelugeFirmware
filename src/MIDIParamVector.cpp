@@ -19,10 +19,8 @@
 #include "MIDIParam.h"
 #include <new>
 
-MIDIParamVector::MIDIParamVector() : OrderedResizeableArray(sizeof(MIDIParam), 8)
-{
+MIDIParamVector::MIDIParamVector() : OrderedResizeableArray(sizeof(MIDIParam), 8) {
 }
-
 
 MIDIParam* MIDIParamVector::getParamFromCC(int cc) {
 	int i = searchExact(cc);
@@ -48,7 +46,6 @@ doesntExistYet:
 	return param;
 }
 
-
 MIDIParam* MIDIParamVector::insertParam(int i) {
 	int error = insertAtIndex(i);
 	if (error) return NULL;
@@ -59,8 +56,6 @@ MIDIParam* MIDIParamVector::insertParam(int i) {
 		return param;
 	}
 }
-
-
 
 MIDIParam* MIDIParamVector::getElement(int i) {
 	return (MIDIParam*)getElementAddress(i);

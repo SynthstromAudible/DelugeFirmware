@@ -20,46 +20,42 @@
 
 #include "LoadUI.h"
 
-
-class LoadSongUI final : public LoadUI
-{
+class LoadSongUI final : public LoadUI {
 public:
-    LoadSongUI();
-    int buttonAction(int x, int y, bool on, bool inCardRoutine);
-    int timerCallback();
-    int verticalEncoderAction(int offset, bool inCardRoutine);
-    void graphicsRoutine() {}
-    void scrollFinished();
-    int padAction(int x, int y, int velocity);
-    bool opened();
-    void selectEncoderAction(int8_t offset);
-    void performLoad();
-    void displayLoopsRemainingPopup();
+	LoadSongUI();
+	int buttonAction(int x, int y, bool on, bool inCardRoutine);
+	int timerCallback();
+	int verticalEncoderAction(int offset, bool inCardRoutine);
+	void graphicsRoutine() {}
+	void scrollFinished();
+	int padAction(int x, int y, int velocity);
+	bool opened();
+	void selectEncoderAction(int8_t offset);
+	void performLoad();
+	void displayLoopsRemainingPopup();
 
-    bool deletedPartsOfOldSong;
+	bool deletedPartsOfOldSong;
 
 protected:
-    void displayText(bool blinkImmediately = false);
-    void enterKeyPress();
-    void folderContentsReady(int entryDirection);
-    void currentFileChanged(int movementDirection);
-    void exitAction();
+	void displayText(bool blinkImmediately = false);
+	void enterKeyPress();
+	void folderContentsReady(int entryDirection);
+	void currentFileChanged(int movementDirection);
+	void exitAction();
 
 private:
-    void drawSongPreview(bool toStore = true);
+	void drawSongPreview(bool toStore = true);
 #if HAVE_OLED
-    void displayArmedPopup();
+	void displayArmedPopup();
 #endif
 
-    uint8_t squaresScrolled;
-    int8_t scrollDirection;
-    bool scrollingToNothing;
-    bool scrollingIntoSlot;
-    //int findNextFile(int offset);
-    void exitThisUI();
-    void exitActionWithError();
-
-
+	uint8_t squaresScrolled;
+	int8_t scrollDirection;
+	bool scrollingToNothing;
+	bool scrollingIntoSlot;
+	//int findNextFile(int offset);
+	void exitThisUI();
+	void exitActionWithError();
 };
 extern LoadSongUI loadSongUI;
 

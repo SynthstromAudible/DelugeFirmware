@@ -43,57 +43,54 @@ Includes   <System Includes> , "Project Includes"
 #include "devdrv_intc.h"
 #include "uart_all_cpus.h"
 
+#define SCIF_UART_MODE_W  (1)
+#define SCIF_UART_MODE_R  (2)
+#define SCIF_UART_MODE_RW (3)
 
-
-
-#define SCIF_UART_MODE_W        (1)
-#define SCIF_UART_MODE_R        (2)
-#define SCIF_UART_MODE_RW       (3)
-
-typedef enum scif_cks_division
-{
+typedef enum scif_cks_division {
     SCIF_CKS_DIVISION_1,
     SCIF_CKS_DIVISION_4,
     SCIF_CKS_DIVISION_16,
     SCIF_CKS_DIVISION_64
 } scif_cks_division_t;
 
-
-
-
-
 /******************************************************************************
 Functions Prototypes
 ******************************************************************************/
 
-void   IoInitScif2(void);
+void IoInitScif2(void);
 char_t IoGetchar(uint8_t scifID);
-void   IoPutchar(uint8_t scifID, char_t buffer);
+void IoPutchar(uint8_t scifID, char_t buffer);
 
-
-void io_init_scif (uint8_t scifID);
+void io_init_scif(uint8_t scifID);
 
 void uartInit(int uartItem, uint32_t baudRate);
 void uartSetBaudRate(uint8_t scifID, uint32_t baudRate);
 
-
-void Userdef_SCIF_UART_Init (uint8_t channel, uint8_t mode, uint16_t cks, uint32_t baudRate);
-
-
+void Userdef_SCIF_UART_Init(uint8_t channel, uint8_t mode, uint16_t cks, uint32_t baudRate);
 
 extern char_t picTxBuffer[];
 extern char_t midiTxBuffer[];
 
-
 // These are not thread safe! Do not call in ISRs.
-#define bufferPICUart(charToSend) { picTxBuffer[uartItems[UART_ITEM_PIC].txBufferWritePos + UNCACHED_MIRROR_OFFSET] = charToSend; uartItems[UART_ITEM_PIC].txBufferWritePos = (uartItems[UART_ITEM_PIC].txBufferWritePos + 1) & (PIC_TX_BUFFER_SIZE - 1); }
-#define bufferMIDIUart(charToSend) { midiTxBuffer[uartItems[UART_ITEM_MIDI].txBufferWritePos + UNCACHED_MIRROR_OFFSET] = charToSend; uartItems[UART_ITEM_MIDI].txBufferWritePos = (uartItems[UART_ITEM_MIDI].txBufferWritePos + 1) & (MIDI_TX_BUFFER_SIZE - 1); }
+#define bufferPICUart(charToSend)                                                                                      \
+    {                                                                                                                  \
+        picTxBuffer[uartItems[UART_ITEM_PIC].txBufferWritePos + UNCACHED_MIRROR_OFFSET] = charToSend;                  \
+        uartItems[UART_ITEM_PIC].txBufferWritePos =                                                                    \
+            (uartItems[UART_ITEM_PIC].txBufferWritePos + 1) & (PIC_TX_BUFFER_SIZE - 1);                                \
+    }
+#define bufferMIDIUart(charToSend)                                                                                     \
+    {                                                                                                                  \
+        midiTxBuffer[uartItems[UART_ITEM_MIDI].txBufferWritePos + UNCACHED_MIRROR_OFFSET] = charToSend;                \
+        uartItems[UART_ITEM_MIDI].txBufferWritePos =                                                                   \
+            (uartItems[UART_ITEM_MIDI].txBufferWritePos + 1) & (MIDI_TX_BUFFER_SIZE - 1);                              \
+    }
 
 // Aliases
 #define bufferPICIndicatorsUart(charToSend) bufferPICUart(charToSend)
-#define bufferPICPadsUart(charToSend) bufferPICUart(charToSend)
+#define bufferPICPadsUart(charToSend)       bufferPICUart(charToSend)
 
 /* SIO_CHAR_H */
-#endif  
+#endif
 
 /* End of File */
