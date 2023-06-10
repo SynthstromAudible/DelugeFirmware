@@ -451,12 +451,12 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 			int shiftRightAmount = 20 - octave;
 			if (shiftRightAmount >= 0) {
 				phaseIncrement = noteFrequencyTable[noteWithinOctave] >> shiftRightAmount;
+				phaseIncrement = tuningSystem.detune(phaseIncrement, noteWithinOctave);
 			}
 
 			else {
 				goto makeInactive;
 			}
-			phaseIncrement = tuningSystem.detune(phaseIncrement, noteWithinOctave);
 		}
 
 		// Cents

@@ -22,6 +22,7 @@
 #include "MenuItemDecimal.h"
 #include "MenuItemSelection.h"
 #include "TuningSystem.h"
+#include "soundeditor.h"
 
 extern const char *tuningBankNames[NUM_TUNING_BANKS+2];
 
@@ -31,17 +32,78 @@ public:
 	int getMinValue() { return -5000; }
 	int getMaxValue() { return 5000; }
 	int getNumDecimalPlaces() { return 2; }
-	void readCurrentValue() { tuningSystem.currentValue = (int32_t)tuningSystem.offsets[tuningSystem.currentNote]; }
-	void writeCurrentValue(){ tuningSystem.setOffset(tuningSystem.currentNote, tuningSystem.currentValue); }
+	void readCurrentValue() { soundEditor.currentValue = (int32_t)tuningSystem.offsets[tuningSystem.currentNote]; }
+	void writeCurrentValue(){ tuningSystem.setOffset(tuningSystem.currentNote, soundEditor.currentValue); }
 };
 
 class MenuItemTuningBank : public MenuItemSelection {
 public:
 	MenuItemTuningBank(char const* newName = NULL) : MenuItemSelection(newName) {}
-	void readCurrentValue() { tuningSystem.currentValue = selectedTuningBank; }
-	void writeCurrentValue() { selectedTuningBank = tuningSystem.currentValue; }
+	void readCurrentValue() { soundEditor.currentValue = selectedTuningBank; }
+	void writeCurrentValue() { selectedTuningBank = soundEditor.currentValue; }
 	int getNumOptions() { return NUM_TUNING_BANKS + 2; }
 	char const** getOptions() { return tuningBankNames; }
+};
+
+#if HAVE_OLED
+static char const* octaveNotes[] = {
+	"C",
+	"C#",
+	"D",
+	"D#",
+	"E",
+	"F",
+	"F#",
+	"G",
+	"G#",
+	"A",
+	"A#",
+	"B",
+	NULL
+};
+#else
+static char const* octaveNotes[] = {
+	"C",
+	"C.",
+	"D",
+	"D.",
+	"E",
+	"F",
+	"F.",
+	"G",
+	"G.",
+	"A",
+	"A.",
+	"B",
+	NULL
+};
+#endif
+
+extern MenuItemTuningNote tuningNoteMenu;
+
+class MenuItemTuningNotes final : public MenuItemSelection {
+public:
+	MenuItemTuningNotes(char const* newName = NULL) : MenuItemSelection(newName) {
+#if HAVE_OLED
+		basicTitle = "NOTES";
+#endif
+		basicOptions = octaveNotes;
+	}
+	void beginSession(MenuItem* navigatedBackwardFrom) {
+		if (!navigatedBackwardFrom) soundEditor.currentValue = 0;
+		else soundEditor.currentValue = tuningSystem.currentNote;
+		MenuItemSelection::beginSession(navigatedBackwardFrom);
+	}
+
+	MenuItem* selectButtonPress() {
+		tuningSystem.currentNote = soundEditor.currentValue;
+		tuningSystem.currentValue = tuningSystem.offsets[tuningSystem.currentNote];
+#if HAVE_OLED
+		tuningNoteMenu.basicTitle = octaveNotes[soundEditor.currentValue];
+		// noteTitle = octaveNotes[tuningSystem.currentNote];
+#endif
+		return &tuningNoteMenu;
+	}
 };
 
 #endif

@@ -1902,6 +1902,7 @@ public:
 MenuItemSubmenu settingsRootMenu;
 
 MenuItemTuningNote  tuningNoteMenu ;
+MenuItemTuningNotes tuningNotesMenu;
 MenuItemTuningBank  tuningBankMenu ;
 MenuItemSubmenu     tuningMenu     ;
 MenuItemSubmenu     songRootMenu   ;
@@ -2549,11 +2550,13 @@ SoundEditor::SoundEditor() {
 	// Song menu -------------------------------------------------------------
 	new (&tuningSystem) TuningSystem();
 
-	new (&tuningNoteMenu) MenuItemTuningNote("NOTE");
+	new (&tuningNoteMenu) MenuItemTuningNote("C");
+	new (&tuningNotesMenu) MenuItemTuningNotes("NOTES");
+
 	new (&tuningBankMenu) MenuItemTuningBank("BANK");
 	static MenuItem* tuningMenuItems[] = {
 		&tuningBankMenu,
-		&tuningNoteMenu,
+		&tuningNotesMenu,
 		NULL,
 	};
 	new (&tuningMenu) MenuItemSubmenu("TUNING", tuningMenuItems);
