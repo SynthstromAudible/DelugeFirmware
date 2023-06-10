@@ -130,6 +130,9 @@ public:
 	void reportNoteOffForMPEEditing(ModelStackWithNoteRow* modelStack);
 	void dontDeleteNotesOnDepress();
 
+    inline void getRowColour(int y, uint8_t color[3])   {     color[0] =rowColour[y][0];  color[1] =rowColour[y][1];color[2] =rowColour[y][2];  }//
+
+
 #if HAVE_OLED
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 		InstrumentClipMinder::renderOLED(image);
