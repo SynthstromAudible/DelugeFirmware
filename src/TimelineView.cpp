@@ -21,6 +21,7 @@
 #include "matrixdriver.h"
 #include "string.h"
 #include "song.h"
+#include "songeditor.h"
 #include "View.h"
 #include "PadLEDs.h"
 #include "numericdriver.h"

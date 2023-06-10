@@ -82,6 +82,9 @@
 #include "PatchCableSet.h"
 #include "MIDIDevice.h"
 #include "ContextMenuOverwriteBootloader.h"
+#include "TuningSystem.h"
+#include "MenuItemSubmenu.h"
+#include "MenuItemTuning.h"
 
 #if HAVE_OLED
 #include "oled.h"
@@ -1898,6 +1901,11 @@ public:
 
 MenuItemSubmenu settingsRootMenu;
 
+MenuItemTuningNote  tuningNoteMenu ;
+MenuItemTuningBank  tuningBankMenu ;
+MenuItemSubmenu     tuningMenu     ;
+MenuItemSubmenu     songRootMenu   ;
+
 #if HAVE_OLED
 char cvTransposeTitle[] = "CVx transpose";
 char cvVoltsTitle[] = "CVx V/octave";
@@ -2536,6 +2544,22 @@ SoundEditor::SoundEditor() {
 	    &defaultsSubmenu, &swingIntervalMenu, &padsSubmenu,         &sampleBrowserPreviewModeMenu,
 	    &flashStatusMenu, &recordSubmenu,     &firmwareVersionMenu, NULL};
 	new (&settingsRootMenu) MenuItemSubmenu("Settings", rootSettingsMenuItems);
+
+
+	// Song menu -------------------------------------------------------------
+	new (&tuningSystem) TuningSystem();
+
+	new (&tuningNoteMenu) MenuItemTuningNote("NOTE");
+	new (&tuningBankMenu) MenuItemTuningBank("BANK");
+	static MenuItem* tuningMenuItems[] = {
+		&tuningBankMenu,
+		&tuningNoteMenu,
+		NULL,
+	};
+	new (&tuningMenu) MenuItemSubmenu("TUNING", tuningMenuItems);
+	static MenuItem* songRootMenuItems[] = {&tuningMenu, NULL};
+	new (&songRootMenu) MenuItemSubmenu("SONG", songRootMenuItems);
+
 
 	// CV menu
 	new (&cvVoltsMenu) MenuItemCVVolts("Volts per octave");
