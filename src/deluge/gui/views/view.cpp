@@ -993,7 +993,7 @@ void View::setModLedStates() {
 #if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 	bool affectEntire = getRootUI() && getRootUI()->getAffectEntire();
 	if (!itsTheSong) {
-		if (getRootUI() != &instrumentClipView) affectEntire = true;
+		if (getRootUI() != &instrumentClipView  && getRootUI() != &keyboardScreen ) affectEntire = true;
 		else affectEntire = ((InstrumentClip*)currentSong->currentClip)->affectEntire;
 	}
 	IndicatorLEDs::setLedState(affectEntireLedX, affectEntireLedY, affectEntire);

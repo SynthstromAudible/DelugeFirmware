@@ -121,6 +121,9 @@ int KeyboardScreen::padAction(int x, int y, int velocity) {
 			noteCode = getNoteCodeFromCoords(x, y);
 
 			int yDisplay = noteCode - getCurrentClip()->yScrollKeyboardScreen;
+			if (instrument->type == INSTRUMENT_TYPE_KIT) {//
+				yDisplay = (int)(x/4) + (int)(y/4)*4;
+			}
 			if (yDisplayActive[yDisplay]) return ACTION_RESULT_DEALT_WITH;
 
 			// Change editing range if necessary
@@ -147,8 +150,17 @@ int KeyboardScreen::padAction(int x, int y, int velocity) {
 
 			{
 				int velocityToSound = instrument->defaultVelocity;
-				((MelodicInstrument*)instrument)
-				    ->beginAuditioningForNote(modelStack, noteCode, velocityToSound, zeroMPEValues);
+				if (instrument->type == INSTRUMENT_TYPE_KIT) {//
+					//instrumentClipView.sendAuditionNote(true, 0, 64, 0);
+					int myY= (int)(x/4) + (int)(y/4)*4;
+					int myV= ((x%4)*8) + ((y%4)*32) + 7;
+					instrumentClipView.auditionPadAction(myV, myY, false);
+
+				}else{
+
+					((MelodicInstrument*)instrument)->beginAuditioningForNote(modelStack, noteCode, velocityToSound, zeroMPEValues);
+
+				}
 			}
 
 			drawNoteCode(noteCode);
@@ -177,6 +189,9 @@ foundIt:
 			padPresses[p].x = 255;
 			noteCode = getNoteCodeFromCoords(x, y);
 			int yDisplay = noteCode - getCurrentClip()->yScrollKeyboardScreen;
+			if (instrument->type == INSTRUMENT_TYPE_KIT) {//
+				yDisplay = (int)(x/4) + (int)(y/4)*4;
+			}
 
 			// We need to check that we had actually switched the note on here - it might have already been sounding, from the sequence
 			if (!yDisplayActive[yDisplay]) return ACTION_RESULT_DEALT_WITH;
@@ -200,7 +215,20 @@ foundIt:
 			// If that was not the case, well, we still did want to potentially exit audition mode above, cos users been reporting stuck note problems,
 			// even though I can't see quite how we'd get stuck there
 			if (yDisplayActive[yDisplay]) {
-				((MelodicInstrument*)instrument)->endAuditioningForNote(modelStack, noteCode);
+
+
+				if (instrument->type == INSTRUMENT_TYPE_KIT) {//
+
+					int myY= (int)(x/4) + (int)(y/4)*4;
+					instrumentClipView.auditionPadAction(0, myY, false);
+
+
+				}else{
+
+					((MelodicInstrument*)instrument)->endAuditioningForNote(modelStack, noteCode);
+
+				}
+
 				yDisplayActive[yDisplay] = false;
 			}
 
@@ -217,7 +245,7 @@ foundIt:
 		}
 
 		// Recording - this only works *if* the Clip that we're viewing right now is the Instrument's activeClip
-		if (clipIsActiveOnInstrument && playbackHandler.shouldRecordNotesNow()
+		if (instrument->type != INSTRUMENT_TYPE_KIT/**/ && clipIsActiveOnInstrument && playbackHandler.shouldRecordNotesNow()
 		    && currentSong->isClipActive(currentSong->currentClip)) {
 
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
@@ -334,6 +362,9 @@ int KeyboardScreen::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 		}
 	}
 
+
+
+
 	// Song view button
 	else if (x == sessionViewButtonX && y == sessionViewButtonY) {
 		if (on && currentUIMode == UI_MODE_NONE) {
@@ -372,6 +403,7 @@ doOther:
 	}
 
 	else {
+		uiNeedsRendering(this, 0xFFFFFFFF, 0);//
 		int result = InstrumentClipMinder::buttonAction(x, y, on, inCardRoutine);
 		if (result != ACTION_RESULT_NOT_DEALT_WITH) return result;
 
@@ -383,10 +415,18 @@ doOther:
 
 void KeyboardScreen::selectEncoderAction(int8_t offset) {
 	InstrumentClipMinder::selectEncoderAction(offset);
+	instrumentClipView.scrollVertical(0, 0, false);
+	uiNeedsRendering(this, 0xFFFFFFFF, 0);
 }
 
 int KeyboardScreen::getNoteCodeFromCoords(int x, int y) {
-	return getCurrentClip()->yScrollKeyboardScreen + x + y * KEYBOARD_ROW_INTERVAL;
+	Instrument* instrument = (Instrument*)currentSong->currentClip->output;
+	if (instrument->type == INSTRUMENT_TYPE_KIT) {//
+
+		return 60+   (int)(x/4) + (int)(y/4)*4  ;
+	}else{
+		return getCurrentClip()->yScrollKeyboardScreen + x + y * KEYBOARD_ROW_INTERVAL;
+	}
 }
 
 void KeyboardScreen::exitAuditionMode() {
@@ -457,6 +497,12 @@ bool KeyboardScreen::renderMainPads(uint32_t whichRows, uint8_t image[][displayW
 	memset(image, 0, sizeof(uint8_t) * displayHeight * (displayWidth + sideBarWidth) * 3);
 	memset(occupancyMask, 0, sizeof(uint8_t) * displayHeight * (displayWidth + sideBarWidth));
 
+	uint8_t myArr[] = {127,127,127};
+	Instrument* instrument = (Instrument*)currentSong->currentClip->output;
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
+	ModelStackWithTimelineCounter* modelStackWithTimelineCounter =  modelStack->addTimelineCounter(currentSong->currentClip);
+
 	// Flashing default root note
 	if (uiTimerManager.isTimerSet(TIMER_DEFAULT_ROOT_NOTE)) {
 		if (flashDefaultRootNoteOn) {
@@ -505,6 +551,26 @@ doFullColour:
 				}
 				// Otherwise, square will just get left black, from its having been wiped above
 
+				if (instrument->type == INSTRUMENT_TYPE_KIT) {//
+					int myV= ((x%4)*16) + ((y%4)*64) + 8;
+					int myY= (int)(x/4) + (int)(y/4)*4;
+
+					ModelStackWithNoteRow* modelStackWithNoteRowOnCurrentClip = getCurrentClip()->getNoteRowOnScreen(myY, modelStackWithTimelineCounter);
+
+					if (modelStackWithNoteRowOnCurrentClip->getNoteRowAllowNull()) {
+
+						instrumentClipView.getRowColour(myY,myArr);
+						//dimColour(&myArr);
+						myArr[0]=(char)((myArr[0]*myV/255)/3);
+						myArr[1]=(char)((myArr[1]*myV/255)/3);
+						myArr[2]=(char)((myArr[2]*myV/255)/3);
+
+					}else{
+						myArr[0]=2;	myArr[1]=2; myArr[2]=2;
+					}
+					memcpy(image[y][x], myArr , 3);
+				}
+
 				// If we're selecting ranges...
 				if (getCurrentUI() == &sampleBrowser || getCurrentUI() == &audioRecorder
 				    || (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem()->isRangeDependent())) {
@@ -552,14 +618,24 @@ int KeyboardScreen::verticalEncoderAction(int offset, bool inCardRoutine) {
 		if (inCardRoutine && !allowSomeUserActionsEvenWhenInCardRoutine)
 			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
 
-		doScroll(offset * KEYBOARD_ROW_INTERVAL);
+		//
+		Instrument* instrument = (Instrument*)currentSong->currentClip->output;
+		if (instrument->type == INSTRUMENT_TYPE_KIT) {//
+			instrumentClipView.verticalEncoderAction(offset, inCardRoutine);
+			uiNeedsRendering(this, 0xFFFFFFFF, 0);
+
+		}else{
+			doScroll(offset * KEYBOARD_ROW_INTERVAL);
+		}
 	}
 
 	return ACTION_RESULT_DEALT_WITH;
 }
 
 int KeyboardScreen::horizontalEncoderAction(int offset) {
-	doScroll(offset);
+	if(currentSong->currentClip->output->type != INSTRUMENT_TYPE_KIT){
+		doScroll(offset);
+	}
 	return ACTION_RESULT_DEALT_WITH;
 }
 

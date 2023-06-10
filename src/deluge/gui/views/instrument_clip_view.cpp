@@ -254,10 +254,10 @@ doOther:
 		if (on && currentUIMode == UI_MODE_NONE) {
 			if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 
-			if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_KIT) {
+			/*if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_KIT) {
 				IndicatorLEDs::indicateAlertOnLed(kitLedX, kitLedY);
 			}
-			else changeRootUI(&keyboardScreen);
+			else */changeRootUI(&keyboardScreen);//
 		}
 	}
 #endif
@@ -2796,7 +2796,7 @@ justReRender:
 			if (isUIModeActive(UI_MODE_RECORD_COUNT_IN)) {
 				if (isKit) {
 					if (drum) {
-						drum->recordNoteOnEarly(instrument->defaultVelocity,
+						drum->recordNoteOnEarly( (velocity==1)?  instrument->defaultVelocity : velocity/**/,
 						                        getCurrentClip()->allowNoteTails(modelStackWithNoteRowOnCurrentClip));
 					}
 				}
@@ -2814,12 +2814,13 @@ justReRender:
 
 				// May need to create NoteRow if there wasn't one previously
 				if (!modelStackWithNoteRowOnCurrentClip->getNoteRowAllowNull()) {
-					modelStackWithNoteRowOnCurrentClip =
-					    createNoteRowForYDisplay(modelStackWithTimelineCounter, yDisplay);
+					//if (!drum) {//
+						modelStackWithNoteRowOnCurrentClip =createNoteRowForYDisplay(modelStackWithTimelineCounter, yDisplay);
+					//}
 				}
 
 				if (modelStackWithNoteRowOnCurrentClip->getNoteRowAllowNull()) {
-					getCurrentClip()->recordNoteOn(modelStackWithNoteRowOnCurrentClip, instrument->defaultVelocity);
+					getCurrentClip()->recordNoteOn(modelStackWithNoteRowOnCurrentClip,  (velocity==1)?  instrument->defaultVelocity : velocity/**/ );
 					goto maybeRenderRow;
 				}
 			}
@@ -2860,6 +2861,7 @@ maybeRenderRow:
 		// If note on...
 		if (velocity) {
 			int velocityToSound = ((Instrument*)currentSong->currentClip->output)->defaultVelocity;
+			if(velocity>=2){velocityToSound=velocity;}//
 
 			auditionPadIsPressed[yDisplay] =
 			    velocityToSound; // Yup, need to do this even if we're going to do a "silent" audition, so pad lights up etc.
