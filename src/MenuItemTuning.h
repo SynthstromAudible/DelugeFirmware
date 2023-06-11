@@ -23,8 +23,23 @@
 #include "MenuItemSelection.h"
 #include "TuningSystem.h"
 #include "soundeditor.h"
+#include "functions.h"
 
 extern const char *tuningBankNames[NUM_TUNING_BANKS+2];
+
+class MenuItemTuningReference : public MenuItemDecimal {
+public:
+	MenuItemTuningReference(char const* newName = NULL) : MenuItemDecimal(newName) {}
+	int getMinValue() { return 4000; }
+	int getMaxValue() { return 5000; }
+	int getNumDecimalPlaces() { return 1; }
+	void readCurrentValue() {
+		soundEditor.currentValue = tuningSystem.getReference();
+	}
+	void writeCurrentValue(){
+		tuningSystem.setReference(soundEditor.currentValue);
+	}
+};
 
 class MenuItemTuningNote : public MenuItemDecimal {
 public:

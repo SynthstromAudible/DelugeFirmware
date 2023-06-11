@@ -42,21 +42,43 @@ void TuningSystem::calculateOffset(int noteWithinOctave) {
 	tuningIntervalTable[noteWithinOctave] = lround(value);
 }
 
-void TuningSystem::calculateUserTuning() {
+void TuningSystem::calculateAll() {
 
 	for(int i = 0; i < 12; i++) {
 		calculateOffset(i);
 	}
+}
 
+int32_t TuningSystem::noteFrequency(int noteWithinOctave) {
+	return tuningFrequencyTable[noteWithinOctave];
+}
+
+int32_t TuningSystem::noteInterval(int noteWithinOctave) {
+	return tuningIntervalTable[noteWithinOctave];
+}
+
+int32_t TuningSystem::getReference() {
+	return int(referenceFrequency * 10.0);
+}
+
+void TuningSystem::setReference(int32_t scaled) {
+	referenceFrequency = scaled / 10.0;
+	calculateAll();
+}
+
+void TuningSystem::setOffset(int noteWithinOctave, int32_t offset) {
+
+	offsets[noteWithinOctave] = offset;
+	calculateOffset(noteWithinOctave);
 }
 
 void TuningSystem::setDefaultTuning() {
 
-	for(int i = 0; i < 12; i++) {
-		offsets[i] = 0;
-		calculateOffset(i);
-	}
 	selectedTuningBank = 0;
+	setReference(4400);
+	for(int i = 0; i < 12; i++) {
+		setOffset(i, 0);
+	}
 }
 
 void TuningSystem::setBank(int bank) {
@@ -71,23 +93,8 @@ void TuningSystem::setBank(int bank) {
 	}
 }
 
-int32_t TuningSystem::noteFrequency(int noteWithinOctave) {
-	return tuningFrequencyTable[noteWithinOctave];
-}
-
-int32_t TuningSystem::noteInterval(int noteWithinOctave) {
-	return tuningIntervalTable[noteWithinOctave];
-}
-
-void TuningSystem::setOffset(int noteWithinOctave, int32_t offset) {
-
-	offsets[noteWithinOctave] = offset;
-	calculateOffset(noteWithinOctave);
-}
-
 TuningSystem::TuningSystem()
 {
-	referenceFrequency = 440.0;
 	setDefaultTuning();
 }
 

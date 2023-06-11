@@ -1901,11 +1901,12 @@ public:
 
 MenuItemSubmenu settingsRootMenu;
 
-MenuItemTuningNote  tuningNoteMenu ;
-MenuItemTuningNotes tuningNotesMenu;
-MenuItemTuningBank  tuningBankMenu ;
-MenuItemSubmenu     tuningMenu     ;
-MenuItemSubmenu     songRootMenu   ;
+MenuItemTuningReference  tuningReferenceMenu;
+MenuItemTuningNote       tuningNoteMenu     ;
+MenuItemTuningNotes      tuningNotesMenu    ;
+MenuItemTuningBank       tuningBankMenu     ;
+MenuItemSubmenu          tuningMenu         ;
+MenuItemSubmenu          songRootMenu       ;
 
 #if HAVE_OLED
 char cvTransposeTitle[] = "CVx transpose";
@@ -2540,21 +2541,17 @@ SoundEditor::SoundEditor() {
 	new (&recordSubmenu) MenuItemSubmenu("Recording", recordMenuItems);
 	new (&firmwareVersionMenu) MenuItemFirmwareVersion("Firmware version");
 
-	static MenuItem* rootSettingsMenuItems[] = {
-	    &cvSelectionMenu, &gateSelectionMenu, &triggerClockMenu,    &midiMenu,
-	    &defaultsSubmenu, &swingIntervalMenu, &padsSubmenu,         &sampleBrowserPreviewModeMenu,
-	    &flashStatusMenu, &recordSubmenu,     &firmwareVersionMenu, NULL};
-	new (&settingsRootMenu) MenuItemSubmenu("Settings", rootSettingsMenuItems);
 
-
-	// Song menu -------------------------------------------------------------
+	// Tuning menu
 	new (&tuningSystem) TuningSystem();
 
 	new (&tuningNoteMenu) MenuItemTuningNote("C");
 	new (&tuningNotesMenu) MenuItemTuningNotes("NOTES");
 
+	new (&tuningReferenceMenu) MenuItemTuningReference("REFERENCE");
 	new (&tuningBankMenu) MenuItemTuningBank("BANK");
 	static MenuItem* tuningMenuItems[] = {
+		&tuningReferenceMenu,
 		&tuningBankMenu,
 		&tuningNotesMenu,
 		NULL,
@@ -2562,6 +2559,13 @@ SoundEditor::SoundEditor() {
 	new (&tuningMenu) MenuItemSubmenu("TUNING", tuningMenuItems);
 	static MenuItem* songRootMenuItems[] = {&tuningMenu, NULL};
 	new (&songRootMenu) MenuItemSubmenu("SONG", songRootMenuItems);
+
+	static MenuItem* rootSettingsMenuItems[] = {
+	    &tuningMenu,
+	    &cvSelectionMenu, &gateSelectionMenu, &triggerClockMenu,    &midiMenu,
+	    &defaultsSubmenu, &swingIntervalMenu, &padsSubmenu,         &sampleBrowserPreviewModeMenu,
+	    &flashStatusMenu, &recordSubmenu,     &firmwareVersionMenu, NULL};
+	new (&settingsRootMenu) MenuItemSubmenu("Settings", rootSettingsMenuItems);
 
 
 	// CV menu

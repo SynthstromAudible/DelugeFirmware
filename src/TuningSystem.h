@@ -41,7 +41,11 @@ public:
 
 	int32_t noteInterval(int);
 	int32_t noteFrequency(int);
+
+	int32_t getReference();
+	void setReference(int32_t);
 private:
+	void calculateAll();
 	void calculateOffset(int);
 	void calculateUserTuning();
 };
