@@ -17,6 +17,10 @@
 
 /*
  * Portions of this code initially copied from the relevant sample code by Renesas.
+ *
+ * These global config definitions are used in USBConnection.c
+ *
+ * The connect functions in USBConnection.c are called around line 800 of main2
  */
 
 /***********************************************************************************************************************
@@ -36,20 +40,32 @@ Macro definitions
 #define USB_VENDORID (0x16D0)  /* Vendor ID */
 #define USB_PRODUCTID (0x0CE2) /* Product ID */
 
+//size of the USB configuration, including all interfaces
 #define USB_MIDI_CD_WTOTALLENGTH (68u)
 
+//Good summary ref on overall USB structure https://www.beyondlogic.org/usbnutshell/usb5.shtml
 /***********************************************************************************************************************
 Exported global variables (to be accessed by other files)
 ***********************************************************************************************************************/
-/* Standard Device Descriptor */
+/* Standard Device Descriptor
+ * Top level USB descriptor
+ * Used by host to enumerate device - e.g. what is this
+ * bytes 4-7 declares that the device is specified at the interface level
+ * bytes 8-16 declare that it's a synthstrom deluge (presumably)
+ * byte 17 says how many configurations are available - e.g. it could
+ * offer both an FS and HS configuration and allow the host to choose,
+ * but in this case we offer a single USB midi FS config
+*/
 uint8_t g_midi_device[USB_DD_BLENGTH + (USB_DD_BLENGTH % 2)] = {
     USB_DD_BLENGTH,                                           /*  0:bLength */
     USB_DT_DEVICE,                                            /*  1:bDescriptorType */
     (uint8_t)(USB_BCDNUM&(uint8_t)0xff),                      /*  2:bcdUSB_lo */
     (uint8_t)((uint8_t)(USB_BCDNUM >> 8) & (uint8_t)0xff),    /*  3:bcdUSB_hi */
+	//Device to be specified at interface level
     0x00,                                                     /*  4:bDeviceClass */
     0x00,                                                     /*  5:bDeviceSubClass */
     0x00,                                                     /*  6:bDeviceProtocol */
+
     (uint8_t)USB_DCPMAXP,                                     /*  7:bMAXPacketSize(for DCP) */
     (uint8_t)(USB_VENDORID&(uint8_t)0xff),                    /*  8:idVendor_lo */
     (uint8_t)((uint8_t)(USB_VENDORID >> 8) & (uint8_t)0xff),  /*  9:idVendor_hi */
@@ -67,6 +83,11 @@ uint8_t g_midi_device[USB_DD_BLENGTH + (USB_DD_BLENGTH % 2)] = {
 * Configuration Or Other_Speed_Configuration Descriptor     *
 ************************************************************/
 
+/* USB Configuration description - USB spec 9.6.3
+ * 2nd level of USB declaration - defines power and number of interfaces
+ * This config specifies that it is configuration 1 and has a single interface
+ * To add usb audio we would add a second interface under this configuration
+ */
 uint8_t g_midi_configuration[USB_MIDI_CD_WTOTALLENGTH + (USB_MIDI_CD_WTOTALLENGTH % 2)] = {
     USB_CD_BLENGTH,                            /*  0:bLength */
     USB_DT_CONFIGURATION,                      /*  1:bDescriptorType */
@@ -78,7 +99,10 @@ uint8_t g_midi_configuration[USB_MIDI_CD_WTOTALLENGTH + (USB_MIDI_CD_WTOTALLENGT
     (uint8_t)(USB_CF_RESERVED),                /*  7:bmAttributes */
     (uint8_t)(500 / 2),                        /*  8:bMaxPower (2mA unit) */
 
-    /* Interface Descriptor */
+
+    /* Interface Descriptor
+     * 3rd level of USB declarations. This declares a single USB midi endpoint (subclass of audio)
+     */
     USB_ID_BLENGTH,   /*  0:bLength */
     USB_DT_INTERFACE, /*  1:bDescriptorType */
     0,                /*  2:bInterfaceNumber */
@@ -89,12 +113,26 @@ uint8_t g_midi_configuration[USB_MIDI_CD_WTOTALLENGTH + (USB_MIDI_CD_WTOTALLENGT
     0,                /*  7:bInterfaceProtocol */
     0,                /*  8:iInterface */
 
+	/* Midi Streaming Interface descriptors
+	 * A level below interface, specific to USB midi
+	 * ref - https://www.usb.org/sites/default/files/midi10.pdf
+	 */
+	//Header
     0x07, 0x24, 0x01, 0x00, 0x01, 50, 0x00,                                          // CS Interface (midi)
-    0x06, 0x24, 0x02, 0x01, 0x01, 0x03,                                              //   IN  Jack 1 (emb)
-    0x09, 0x24, 0x03, 0x01, 0x02, 0x01, 0x02, 0x01, 0x04,                            //   OUT Jack 3 (emb)
-    0x09, 0x05, (uint8_t)(USB_EP_OUT | USB_EP2), 0x02, 0x40, 0x00, 0x00, 0x00, 0x00, // Endpoint OUT
+    // MIDI_IN
+	0x06, 0x24, 0x02, 0x01, 0x01, 0x03,                                              //   IN  Jack 1 (emb)
+    // MIDI_OUT
+	0x09, 0x24, 0x03, 0x01, 0x02, 0x01, 0x02, 0x01, 0x04,                            //   OUT Jack 3 (emb)
+
+	/* MidiStreaming Endpoint Descriptors
+	 * Next level down from the midi streaming interfaces
+	 */
+
+	//EP 2 out
+	0x09, 0x05, (uint8_t)(USB_EP_OUT | USB_EP2), 0x02, 0x40, 0x00, 0x00, 0x00, 0x00, // Endpoint OUT
     0x05, 0x25, 0x01, 0x01, 0x01,                                                    //   CS EP IN  Jack
-    0x09, 0x05, (uint8_t)(USB_EP_IN | USB_EP1), 0x02, 0x40, 0x00, 0x00, 0x00, 0x00,  // Endpoint IN
+    //EP 1 in
+	0x09, 0x05, (uint8_t)(USB_EP_IN | USB_EP1), 0x02, 0x40, 0x00, 0x00, 0x00, 0x00,  // Endpoint IN
     0x05, 0x25, 0x01, 0x01, 0x02                                                     //   CS EP OUT Jack
 };
 
