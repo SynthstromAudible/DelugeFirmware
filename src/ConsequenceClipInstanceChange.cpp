@@ -20,8 +20,8 @@
 #include "definitions.h"
 #include "instrument.h"
 
-ConsequenceClipInstanceChange::ConsequenceClipInstanceChange(Output* newOutput, ClipInstance* clipInstance, int32_t posAfter, int32_t lengthAfter, Clip* clipAfter)
-{
+ConsequenceClipInstanceChange::ConsequenceClipInstanceChange(Output* newOutput, ClipInstance* clipInstance,
+                                                             int32_t posAfter, int32_t lengthAfter, Clip* clipAfter) {
 	output = newOutput;
 	pos[BEFORE] = clipInstance->pos;
 	pos[AFTER] = posAfter;
@@ -33,11 +33,11 @@ ConsequenceClipInstanceChange::ConsequenceClipInstanceChange(Output* newOutput, 
 
 int ConsequenceClipInstanceChange::revert(int time, ModelStack* modelStack) {
 	int i = output->clipInstances.search(pos[1 - time], GREATER_OR_EQUAL);
-	ClipInstance* trackInstance = output->clipInstances.getElement(i);
-	if (!trackInstance) return ERROR_BUG;
-	trackInstance->pos = pos[time];
-	trackInstance->length = length[time];
-	trackInstance->clip = clip[time];
+	ClipInstance* clipInstance = output->clipInstances.getElement(i);
+	if (!clipInstance) return ERROR_BUG;
+	clipInstance->pos = pos[time];
+	clipInstance->length = length[time];
+	clipInstance->clip = clip[time];
 
 	return NO_ERROR;
 }

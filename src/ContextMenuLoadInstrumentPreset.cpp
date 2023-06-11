@@ -25,20 +25,17 @@ ContextMenuLoadInstrumentPreset::ContextMenuLoadInstrumentPreset() {
 #if HAVE_OLED
 	title = "Load preset";
 #endif
-
 }
-
 
 char const** ContextMenuLoadInstrumentPreset::getOptions() {
 	static char const* options[] = {"Clone"}; // "REFRESH",
 	return options;
 }
 
-
 bool ContextMenuLoadInstrumentPreset::acceptCurrentOption() {
 	int error;
 
-	switch(currentOption) {
+	switch (currentOption) {
 	/*
 	case 0: // Refresh
 		return true;

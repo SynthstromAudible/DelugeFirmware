@@ -25,7 +25,7 @@ class Note;
 
 class ConsequenceNoteExistence final : public Consequence {
 public:
-	ConsequenceNoteExistence(InstrumentClip* newTrack, int newNoteRowId, Note* note, int newType);
+	ConsequenceNoteExistence(InstrumentClip* newClip, int newNoteRowId, Note* note, int newType);
 	int revert(int time, ModelStack* modelStack);
 
 	InstrumentClip* clip;
@@ -36,9 +36,7 @@ public:
 	int8_t probability;
 	uint8_t lift;
 
-
 	uint8_t type;
-
 };
 
 #endif /* CONSEQUENCENOTEEXISTENCE_H_ */

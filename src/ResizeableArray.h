@@ -52,9 +52,7 @@ public:
 		return (char* __restrict__)memory + (absoluteIndex * elementSize);
 	}
 
-	inline int getNumElements() {
-		return numElements;
-	}
+	inline int getNumElements() { return numElements; }
 
 	unsigned int elementSize;
 	bool emptyingShouldFreeMemory;
@@ -75,8 +73,10 @@ protected:
 
 private:
 	void attemptMemoryShorten();
-	bool attemptMemoryExpansion(int minNumToExtend, int idealNumToExtend, bool mayExtendAllocation, void* thingNotToStealFrom);
-	void copyToNewMemory(void* newMemory, uint32_t destinationIndex, void* source, uint32_t numElementsToCopy, uint32_t newMemorySize, uint32_t newMemoryStartIndex);
+	bool attemptMemoryExpansion(int minNumToExtend, int idealNumToExtend, bool mayExtendAllocation,
+	                            void* thingNotToStealFrom);
+	void copyToNewMemory(void* newMemory, uint32_t destinationIndex, void* source, uint32_t numElementsToCopy,
+	                     uint32_t newMemorySize, uint32_t newMemoryStartIndex);
 	int copyElementsFromOldMemory(void* otherMemory, int otherMemorySize, int otherMemoryStart);
 
 	void moveElementsRightNoWrap(int oldStartIndex, int oldStopIndex, int distance);
@@ -84,8 +84,8 @@ private:
 
 	void* memoryAllocationStart; // This might be slightly to the left of "memory"
 
-	const int maxNumEmptySpacesToKeep;	// Can go down to 0
-	const int numExtraSpacesToAllocate;	// Can go down to 0
+	const int maxNumEmptySpacesToKeep;  // Can go down to 0
+	const int numExtraSpacesToAllocate; // Can go down to 0
 };
 
 #endif /* RESIZEABLEARRAY_H_ */

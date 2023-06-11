@@ -26,8 +26,8 @@ public:
 	MenuItemValue(char const* newName = NULL) : MenuItem(newName) {}
 	void beginSession(MenuItem* navigatedBackwardFrom);
 	void selectEncoderAction(int offset);
-    void readValueAgain() final;
-    bool selectEncoderActionEditsInstrument() final { return true; }
+	void readValueAgain() final;
+	bool selectEncoderActionEditsInstrument() final { return true; }
 
 protected:
 	virtual void readCurrentValue() {}

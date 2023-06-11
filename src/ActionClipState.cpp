@@ -20,21 +20,18 @@
 #include "definitions.h"
 #include "kit.h"
 
-ActionClipState::ActionClipState()
-{
+ActionClipState::ActionClipState() {
 }
 
-ActionClipState::~ActionClipState()
-{
+ActionClipState::~ActionClipState() {
 }
 
-
-void ActionClipState::grabFromTrack(Clip* thisClip) {
+void ActionClipState::grabFromClip(Clip* thisClip) {
 	//modKnobMode = thisClip->modKnobMode;
 
 	if (thisClip->type == CLIP_TYPE_INSTRUMENT) {
 		InstrumentClip* instrumentClip = (InstrumentClip*)thisClip;
-		yScrollTrackView[BEFORE] = instrumentClip->yScroll;
+		yScrollSessionView[BEFORE] = instrumentClip->yScroll;
 		affectEntire = instrumentClip->affectEntire;
 		wrapEditing = instrumentClip->wrapEditing;
 		wrapEditLevel = instrumentClip->wrapEditLevel;

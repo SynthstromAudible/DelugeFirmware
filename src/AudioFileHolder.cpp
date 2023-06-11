@@ -16,49 +16,51 @@
 */
 
 #include <AudioFileHolder.h>
+#include <AudioFileManager.h>
 
-#include "SampleManager.h"
 #include "AudioFile.h"
 #include "numericdriver.h"
 
 AudioFileHolder::AudioFileHolder() {
-    audioFile = NULL;
+	audioFile = NULL;
 }
 
 AudioFileHolder::~AudioFileHolder() {
 }
 
-
 // Loads file from filePath, which would already be set.
 // Returns error, but NO_ERROR doesn't necessarily mean there's now a file loaded - it might be that filePath was NULL, but that's not a problem. Or that the SD card would need to be accessed but we didn't have permission for that (!mayActuallyReadFile).
-int AudioFileHolder::loadFile(bool reversed, bool manuallySelected, bool mayActuallyReadFile, int chunkLoadInstruction, FilePointer* filePointer, bool makeWaveTableWorkAtAllCosts) {
+int AudioFileHolder::loadFile(bool reversed, bool manuallySelected, bool mayActuallyReadFile,
+                              int clusterLoadInstruction, FilePointer* filePointer, bool makeWaveTableWorkAtAllCosts) {
 
-    // See if this AudioFile object already all loaded up
+	// See if this AudioFile object already all loaded up
 	if (audioFile) return NO_ERROR;
 
 	if (filePath.isEmpty()) return NO_ERROR; // This could happen if the filename tag wasn't present in the file
 
 	uint8_t error;
-	AudioFile* newAudioFile = sampleManager.getAudioFileFromFilename(&filePath, mayActuallyReadFile, &error, filePointer, audioFileType, makeWaveTableWorkAtAllCosts);
+	AudioFile* newAudioFile = audioFileManager.getAudioFileFromFilename(
+	    &filePath, mayActuallyReadFile, &error, filePointer, audioFileType, makeWaveTableWorkAtAllCosts);
 
 	// If we found it...
 	if (newAudioFile) {
 
 		// We only actually set it after already setting it up, processing the wavetable, etc. - so there's no risk of the audio routine trying to
 		// sound it before it's all set up.
-		setAudioFile(newAudioFile, reversed, manuallySelected, chunkLoadInstruction);
+		setAudioFile(newAudioFile, reversed, manuallySelected, clusterLoadInstruction);
 	}
 
 	return error;
 }
 
-
 // For if we've already got a pointer to the AudioFile in memory.
-void AudioFileHolder::setAudioFile(AudioFile* newAudioFile, bool reversed, bool manuallySelected, int chunkLoadInstruction) {
+void AudioFileHolder::setAudioFile(AudioFile* newAudioFile, bool reversed, bool manuallySelected,
+                                   int clusterLoadInstruction) {
 	if (audioFile) {
 		unassignAllClusterReasons();
 #if ALPHA_OR_BETA_VERSION
-		if (audioFile->numReasons <= 0) numericDriver.freezeWithError("E220"); // I put this here to try and catch an E004 Luc got
+		if (audioFile->numReasonsToBeLoaded <= 0)
+			numericDriver.freezeWithError("E220"); // I put this here to try and catch an E004 Luc got
 #endif
 		audioFile->removeReason("E391");
 	}

@@ -26,8 +26,7 @@ class Sample;
 class SampleCluster;
 class SampleCache;
 
-
-
+// Please see explanation of Clusters and SD card streaming at the top of AudioFileManager.h
 
 class Cluster final : public Stealable {
 public:
@@ -43,7 +42,7 @@ public:
 	bool extraBytesAtEndConverted;
 	int32_t numReasonsToBeLoaded;
 	Sample* sample;
-	uint32_t chunkIndex;
+	uint32_t clusterIndex;
 	SampleCache* sampleCache;
 	char firstThreeBytesPreDataConversion[3];
 	bool loaded;

@@ -20,14 +20,11 @@
 
 PlaybackMode* currentPlaybackMode;
 
-PlaybackMode::PlaybackMode()
-{
+PlaybackMode::PlaybackMode() {
 	// TODO Auto-generated constructor stub
-
 }
 
-PlaybackMode::~PlaybackMode()
-{
+PlaybackMode::~PlaybackMode() {
 	// TODO Auto-generated destructor stub
 }
 

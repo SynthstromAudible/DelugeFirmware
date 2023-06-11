@@ -15,8 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <AudioFileManager.h>
 #include <SampleHolderForVoice.h>
-#include "SampleManager.h"
 #include "Sample.h"
 #include "storagemanager.h"
 #include "source.h"
@@ -33,43 +33,41 @@ SampleHolderForVoice::SampleHolderForVoice() {
 	startMSec = 0;
 	endMSec = 0;
 
-
-	for (int l = 0; l < NUM_SAMPLE_CHUNKS_LOADED_AHEAD; l++) {
-		loadedSampleChunksForLoopStart[l] = NULL;
+	for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD; l++) {
+		clustersForLoopStart[l] = NULL;
 	}
 }
 
 SampleHolderForVoice::~SampleHolderForVoice() {
 	// We have to unassign reasons here, even though our parent destructor will call unassignAllReasons() - our overriding of that virtual function
 	// won't happen as we've already been destructed!
-	for (int l = 0; l < NUM_SAMPLE_CHUNKS_LOADED_AHEAD; l++) {
-		if (loadedSampleChunksForLoopStart[l]) {
-			sampleManager.removeReasonFromLoadedSampleChunk(loadedSampleChunksForLoopStart[l], "E247");
+	for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD; l++) {
+		if (clustersForLoopStart[l]) {
+			audioFileManager.removeReasonFromCluster(clustersForLoopStart[l], "E247");
 		}
 	}
 }
-
 
 void SampleHolderForVoice::unassignAllClusterReasons(bool beingDestructed) {
 	SampleHolder::unassignAllClusterReasons(beingDestructed);
-	for (int l = 0; l < NUM_SAMPLE_CHUNKS_LOADED_AHEAD; l++) {
-		if (loadedSampleChunksForLoopStart[l]) {
-			sampleManager.removeReasonFromLoadedSampleChunk(loadedSampleChunksForLoopStart[l], "E320"); // Happened to me while auto-pilot testing, I think
-			if (!beingDestructed) loadedSampleChunksForLoopStart[l] = NULL;
+	for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD; l++) {
+		if (clustersForLoopStart[l]) {
+			audioFileManager.removeReasonFromCluster(clustersForLoopStart[l],
+			                                         "E320"); // Happened to me while auto-pilot testing, I think
+			if (!beingDestructed) clustersForLoopStart[l] = NULL;
 		}
 	}
 }
 
-
-// Reassesses which LoadedSampleChunks we want to be a "reason" for.
+// Reassesses which Clusters we want to be a "reason" for.
 // Ensure there is a sample before you call this.
-void SampleHolderForVoice::claimClusterReasons(bool reversed, int chunkLoadInstruction) {
+void SampleHolderForVoice::claimClusterReasons(bool reversed, int clusterLoadInstruction) {
 
 #if ALPHA_OR_BETA_VERSION
 	if (!audioFile) numericDriver.freezeWithError("i030"); // Trying to narrow down E368 that Kevin F got
 #endif
 
-	SampleHolder::claimClusterReasons(reversed, chunkLoadInstruction);
+	SampleHolder::claimClusterReasons(reversed, clusterLoadInstruction);
 
 	int playDirection = reversed ? -1 : 1;
 	int bytesPerSample = ((Sample*)audioFile)->numChannels * ((Sample*)audioFile)->byteDepth;
@@ -81,21 +79,22 @@ void SampleHolderForVoice::claimClusterReasons(bool reversed, int chunkLoadInstr
 	}
 
 	if (loopStartPlaybackAtSample) {
-		int loopStartPlaybackAtByte = ((Sample*)audioFile)->audioDataStartPosBytes + loopStartPlaybackAtSample * bytesPerSample;
-		claimClusterReasonsForMarker(loadedSampleChunksForLoopStart, loopStartPlaybackAtByte, playDirection, chunkLoadInstruction);
+		int loopStartPlaybackAtByte =
+		    ((Sample*)audioFile)->audioDataStartPosBytes + loopStartPlaybackAtSample * bytesPerSample;
+		claimClusterReasonsForMarker(clustersForLoopStart, loopStartPlaybackAtByte, playDirection,
+		                             clusterLoadInstruction);
 	}
 
 	// Or if no loop start point now, clear out any reasons we had before
 	else {
-		for (int l = 0; l < NUM_SAMPLE_CHUNKS_LOADED_AHEAD; l++) {
-			if (loadedSampleChunksForLoopStart[l]) {
-				sampleManager.removeReasonFromLoadedSampleChunk(loadedSampleChunksForLoopStart[l], "E246");
-				loadedSampleChunksForLoopStart[l] = NULL;
+		for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD; l++) {
+			if (clustersForLoopStart[l]) {
+				audioFileManager.removeReasonFromCluster(clustersForLoopStart[l], "E246");
+				clustersForLoopStart[l] = NULL;
 			}
 		}
 	}
 }
-
 
 void SampleHolderForVoice::setCents(int newCents) {
 	cents = newCents;
@@ -103,7 +102,7 @@ void SampleHolderForVoice::setCents(int newCents) {
 }
 
 void SampleHolderForVoice::recalculateFineTuner() {
-    fineTuner.setup((int32_t)cents * 42949672);
+	fineTuner.setup((int32_t)cents * 42949672);
 }
 
 uint32_t SampleHolderForVoice::getMSecLimit(Source* source) {
@@ -114,7 +113,8 @@ uint32_t SampleHolderForVoice::getMSecLimit(Source* source) {
 	}
 }
 
-void SampleHolderForVoice::setTransposeAccordingToSamplePitch(bool minimizeOctaves, bool doingSingleCycle, bool rangeCoversJustOneNote, bool thatOneNote) {
+void SampleHolderForVoice::setTransposeAccordingToSamplePitch(bool minimizeOctaves, bool doingSingleCycle,
+                                                              bool rangeCoversJustOneNote, bool thatOneNote) {
 	((Sample*)audioFile)->workOutMIDINote(doingSingleCycle);
 	float midiNote = ((Sample*)audioFile)->midiNote;
 	if (midiNote != -1000) {
@@ -124,8 +124,10 @@ void SampleHolderForVoice::setTransposeAccordingToSamplePitch(bool minimizeOctav
 
 		// If it's the only range, minimize the transpose
 		if (minimizeOctaves) {
-			while (semitonesInt <= -6) semitonesInt += 12;
-			while (semitonesInt > 6) semitonesInt -= 12;
+			while (semitonesInt <= -6)
+				semitonesInt += 12;
+			while (semitonesInt > 6)
+				semitonesInt -= 12;
 		}
 
 		else if (rangeCoversJustOneNote) {
@@ -141,9 +143,6 @@ void SampleHolderForVoice::setTransposeAccordingToSamplePitch(bool minimizeOctav
 		setCents(cents);
 	}
 }
-
-
-
 
 void SampleHolderForVoice::sampleBeenSet(bool reversed, bool manuallySelected) {
 
@@ -170,8 +169,12 @@ void SampleHolderForVoice::sampleBeenSet(bool reversed, bool manuallySelected) {
 			}
 
 			// Grab loop start from file too, if it's not erroneously late
-			if (((Sample*)audioFile)->fileLoopStartSamples < lengthInSamples && (!((Sample*)audioFile)->fileLoopEndSamples || ((Sample*)audioFile)->fileLoopStartSamples < ((Sample*)audioFile)->fileLoopEndSamples)) {
-				loopStartPos = ((Sample*)audioFile)->fileLoopStartSamples; // If it's 0, that'll translate to meaning no loop start pos, which is exactly what we want in that case
+			if (((Sample*)audioFile)->fileLoopStartSamples < lengthInSamples
+			    && (!((Sample*)audioFile)->fileLoopEndSamples
+			        || ((Sample*)audioFile)->fileLoopStartSamples < ((Sample*)audioFile)->fileLoopEndSamples)) {
+				loopStartPos =
+				    ((Sample*)audioFile)
+				        ->fileLoopStartSamples; // If it's 0, that'll translate to meaning no loop start pos, which is exactly what we want in that case
 			}
 		}
 	}
@@ -194,7 +197,7 @@ void SampleHolderForVoice::sampleBeenSet(bool reversed, bool manuallySelected) {
 				startMSec = 0;
 			}
 			if (endMSec) {
-				if ((!endPos || endPos == lengthInSamples)) {// && endMSec > startMSec) {
+				if ((!endPos || endPos == lengthInSamples)) { // && endMSec > startMSec) {
 					endPos = (uint64_t)endMSec * ((Sample*)audioFile)->sampleRate / 1000;
 					if (endPos > lengthInSamples && endPos <= lengthInSamples + 45) endPos = lengthInSamples;
 					convertedMSecValues = true;
@@ -220,5 +223,3 @@ void SampleHolderForVoice::sampleBeenSet(bool reversed, bool manuallySelected) {
 		}
 	}
 }
-
-

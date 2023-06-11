@@ -39,7 +39,7 @@
 /***********************************************************************************************************************
  External variables and functions
  ***********************************************************************************************************************/
-extern uint8_t      g_usb_std_uclksel;
+extern uint8_t g_usb_std_uclksel;
 
 /***********************************************************************************************************************
  Function Name   : hw_usb_hset_rwupe
@@ -50,7 +50,7 @@ extern uint8_t      g_usb_std_uclksel;
                  : uint16_t     port         : Port number.
  Return value    : none
  ***********************************************************************************************************************/
-void hw_usb_hset_rwupe(usb_utr_t *ptr, uint16_t port)
+void hw_usb_hset_rwupe(usb_utr_t* ptr, uint16_t port)
 {
     if (USB_PORT0 == port)
     {
@@ -67,7 +67,7 @@ void hw_usb_hset_rwupe(usb_utr_t *ptr, uint16_t port)
                  : uint16_t     port         : Port number.
  Return value    : none
  ***********************************************************************************************************************/
-void hw_usb_hclear_rwupe(usb_utr_t *ptr, uint16_t port)
+void hw_usb_hclear_rwupe(usb_utr_t* ptr, uint16_t port)
 {
     if (USB_PORT0 == port)
     {
@@ -83,7 +83,7 @@ void hw_usb_hclear_rwupe(usb_utr_t *ptr, uint16_t port)
                  : uint16_t     port         : Port number.
  Return value    : none
  ***********************************************************************************************************************/
-void hw_usb_hset_resume(usb_utr_t *ptr, uint16_t port)
+void hw_usb_hset_resume(usb_utr_t* ptr, uint16_t port)
 {
     if (USB_PORT0 == port)
     {
@@ -100,7 +100,7 @@ void hw_usb_hset_resume(usb_utr_t *ptr, uint16_t port)
                  : uint16_t     port         : Port number.
  Return value    : none
  ***********************************************************************************************************************/
-void hw_usb_hclear_resume(usb_utr_t *ptr, uint16_t port)
+void hw_usb_hclear_resume(usb_utr_t* ptr, uint16_t port)
 {
     if (USB_PORT0 == port)
     {
@@ -116,7 +116,7 @@ void hw_usb_hclear_resume(usb_utr_t *ptr, uint16_t port)
                  : uint16_t     port         : Port number.
  Return value    : none
  ***********************************************************************************************************************/
-void hw_usb_hset_uact(usb_utr_t *ptr, uint16_t port)
+void hw_usb_hset_uact(usb_utr_t* ptr, uint16_t port)
 {
     if (USB_PORT0 == port)
     {
@@ -132,7 +132,7 @@ void hw_usb_hset_uact(usb_utr_t *ptr, uint16_t port)
                  : uint16_t     port         : Port number.
  Return value    : none
  ***********************************************************************************************************************/
-void hw_usb_hclear_uact(usb_utr_t *ptr, uint16_t port)
+void hw_usb_hclear_uact(usb_utr_t* ptr, uint16_t port)
 {
     if (USB_PORT0 == port)
     {
@@ -148,7 +148,7 @@ void hw_usb_hclear_uact(usb_utr_t *ptr, uint16_t port)
                  : uint16_t  data            : The value to write.
  Return value    : none
  ***********************************************************************************************************************/
-void hw_usb_hwrite_intenb (usb_utr_t *ptr, uint16_t port, uint16_t data)
+void hw_usb_hwrite_intenb(usb_utr_t* ptr, uint16_t port, uint16_t data)
 {
     if (USB_PORT0 == port)
     {
@@ -164,7 +164,7 @@ void hw_usb_hwrite_intenb (usb_utr_t *ptr, uint16_t port, uint16_t data)
                  : uint16_t     port         : Port number.
  Return value    : none
  ***********************************************************************************************************************/
-void hw_usb_hset_enb_ovrcre(usb_utr_t *ptr, uint16_t port)
+void hw_usb_hset_enb_ovrcre(usb_utr_t* ptr, uint16_t port)
 {
 } /* End of function hw_usb_hset_enb_ovrcre() */
 
@@ -176,7 +176,7 @@ void hw_usb_hset_enb_ovrcre(usb_utr_t *ptr, uint16_t port)
                  : uint16_t     port         : Port number.
  Return value    : none
  ***********************************************************************************************************************/
-void hw_usb_hclear_enb_ovrcre(usb_utr_t *ptr, uint16_t port)
+void hw_usb_hclear_enb_ovrcre(usb_utr_t* ptr, uint16_t port)
 {
 } /* End of function hw_usb_hclear_enb_ovrcre() */
 
@@ -189,7 +189,7 @@ void hw_usb_hclear_enb_ovrcre(usb_utr_t *ptr, uint16_t port)
                  : uint16_t     port         : Port number.
  Return value    : none
  ***********************************************************************************************************************/
-void hw_usb_hset_enb_bchge(usb_utr_t *ptr, uint16_t port)
+void hw_usb_hset_enb_bchge(usb_utr_t* ptr, uint16_t port)
 {
     if (USB_PORT0 == port)
     {
@@ -205,7 +205,7 @@ void hw_usb_hset_enb_bchge(usb_utr_t *ptr, uint16_t port)
                  : uint16_t     port         : Port number.
  Return value    : none
  ***********************************************************************************************************************/
-void hw_usb_hclear_enb_bchge(usb_utr_t *ptr, uint16_t port)
+void hw_usb_hclear_enb_bchge(usb_utr_t* ptr, uint16_t port)
 {
     if (USB_PORT0 == port)
     {
@@ -221,7 +221,7 @@ void hw_usb_hclear_enb_bchge(usb_utr_t *ptr, uint16_t port)
                  : uint16_t     port         : Port number.
  Return value    : none
  ***********************************************************************************************************************/
-void hw_usb_hset_enb_dtche(usb_utr_t *ptr, uint16_t port)
+void hw_usb_hset_enb_dtche(usb_utr_t* ptr, uint16_t port)
 {
     if (USB_PORT0 == port)
     {
@@ -237,7 +237,7 @@ void hw_usb_hset_enb_dtche(usb_utr_t *ptr, uint16_t port)
                  : uint16_t     port         : Port number.
  Return value    : none
  ***********************************************************************************************************************/
-void hw_usb_hclear_enb_dtche(usb_utr_t *ptr, uint16_t port)
+void hw_usb_hclear_enb_dtche(usb_utr_t* ptr, uint16_t port)
 {
     if (USB_PORT0 == port)
     {
@@ -253,7 +253,7 @@ void hw_usb_hclear_enb_dtche(usb_utr_t *ptr, uint16_t port)
                  : uint16_t     port         : Port number.
  Return value    : none
  ***********************************************************************************************************************/
-void hw_usb_hset_enb_attche(usb_utr_t *ptr, uint16_t port)
+void hw_usb_hset_enb_attche(usb_utr_t* ptr, uint16_t port)
 {
     if (USB_PORT0 == port)
     {
@@ -269,7 +269,7 @@ void hw_usb_hset_enb_attche(usb_utr_t *ptr, uint16_t port)
                  : uint16_t     port         : Port number.
  Return value    : none
  ***********************************************************************************************************************/
-void hw_usb_hclear_enb_attche(usb_utr_t *ptr, uint16_t port)
+void hw_usb_hclear_enb_attche(usb_utr_t* ptr, uint16_t port)
 {
     if (USB_PORT0 == port)
     {
@@ -284,7 +284,7 @@ void hw_usb_hclear_enb_attche(usb_utr_t *ptr, uint16_t port)
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
  Return value    : none
  ***********************************************************************************************************************/
-void hw_usb_hset_enb_signe(usb_utr_t *ptr)
+void hw_usb_hset_enb_signe(usb_utr_t* ptr)
 {
     ptr->ipp->INTENB1 |= USB_SIGNE;
 } /* End of function hw_usb_hset_enb_signe() */
@@ -296,7 +296,7 @@ void hw_usb_hset_enb_signe(usb_utr_t *ptr)
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
  Return value    : none
  ***********************************************************************************************************************/
-void hw_usb_hset_enb_sacke(usb_utr_t *ptr)
+void hw_usb_hset_enb_sacke(usb_utr_t* ptr)
 {
     ptr->ipp->INTENB1 |= USB_SACKE;
 } /* End of function hw_usb_hset_enb_sacke() */
@@ -309,7 +309,7 @@ void hw_usb_hset_enb_sacke(usb_utr_t *ptr)
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
  Return value    : none
  ***********************************************************************************************************************/
-void hw_usb_hset_enb_pddetinte(usb_utr_t *ptr)
+void hw_usb_hset_enb_pddetinte(usb_utr_t* ptr)
 {
 } /* End of function hw_usb_hset_enb_pddetinte() */
 
@@ -322,7 +322,7 @@ void hw_usb_hset_enb_pddetinte(usb_utr_t *ptr)
                  : uint16_t     data         : Setting value.
  Return value    : none
  ***********************************************************************************************************************/
-void hw_usb_hwrite_intsts(usb_utr_t *ptr, uint16_t port, uint16_t data)
+void hw_usb_hwrite_intsts(usb_utr_t* ptr, uint16_t port, uint16_t data)
 {
     if (USB_PORT0 == port)
     {
@@ -338,7 +338,7 @@ void hw_usb_hwrite_intsts(usb_utr_t *ptr, uint16_t port, uint16_t data)
                  : uint16_t     port         : Port number.
  Return value    : none
  ***********************************************************************************************************************/
-void hw_usb_hclear_sts_ovrcr(usb_utr_t *ptr, uint16_t port)
+void hw_usb_hclear_sts_ovrcr(usb_utr_t* ptr, uint16_t port)
 {
 } /* End of function hw_usb_hclear_sts_ovrcr() */
 
@@ -350,7 +350,7 @@ void hw_usb_hclear_sts_ovrcr(usb_utr_t *ptr, uint16_t port)
                  : uint16_t     port         : Port number.
  Return value    : none
  ***********************************************************************************************************************/
-void hw_usb_hclear_sts_bchg(usb_utr_t *ptr, uint16_t port)
+void hw_usb_hclear_sts_bchg(usb_utr_t* ptr, uint16_t port)
 {
     if (USB_PORT0 == port)
     {
@@ -366,11 +366,11 @@ void hw_usb_hclear_sts_bchg(usb_utr_t *ptr, uint16_t port)
                  : uint16_t     port         : Port number.
  Return value    : none
  ***********************************************************************************************************************/
-void hw_usb_hclear_sts_dtch(usb_utr_t *ptr, uint16_t port)
+void hw_usb_hclear_sts_dtch(usb_utr_t* ptr, uint16_t port)
 {
     if (USB_PORT0 == port)
     {
-        ptr->ipp->INTSTS1 = (uint16_t) (~USB_DTCH & INTSTS1_MASK);
+        ptr->ipp->INTSTS1 = (uint16_t)(~USB_DTCH & INTSTS1_MASK);
     }
 } /* End of function hw_usb_hclear_sts_dtch() */
 
@@ -381,11 +381,11 @@ void hw_usb_hclear_sts_dtch(usb_utr_t *ptr, uint16_t port)
                  : uint16_t     port         : Port number.
  Return value    : none
  ***********************************************************************************************************************/
-void hw_usb_hclear_sts_attch(usb_utr_t *ptr, uint16_t port)
+void hw_usb_hclear_sts_attch(usb_utr_t* ptr, uint16_t port)
 {
     if (USB_PORT0 == port)
     {
-        ptr->ipp->INTSTS1 = (uint16_t) (~USB_ATTCH & INTSTS1_MASK);
+        ptr->ipp->INTSTS1 = (uint16_t)(~USB_ATTCH & INTSTS1_MASK);
     }
 } /* End of function hw_usb_hclear_sts_attch() */
 
@@ -396,7 +396,7 @@ void hw_usb_hclear_sts_attch(usb_utr_t *ptr, uint16_t port)
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
  Return value    : none
  ***********************************************************************************************************************/
-void hw_usb_hclear_sts_sign(usb_utr_t *ptr)
+void hw_usb_hclear_sts_sign(usb_utr_t* ptr)
 {
     ptr->ipp->INTSTS1 = (uint16_t)(~USB_SIGN & INTSTS1_MASK);
 } /* End of function hw_usb_hclear_sts_sign() */
@@ -409,9 +409,10 @@ void hw_usb_hclear_sts_sign(usb_utr_t *ptr)
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
  Return value    : none
  ***********************************************************************************************************************/
-void hw_usb_hclear_sts_sack(usb_utr_t *ptr)
+void hw_usb_hclear_sts_sack(usb_utr_t* ptr)
 {
-    ptr->ipp->INTSTS1 = (uint16_t) (~USB_SACK & INTSTS1_MASK);;
+    ptr->ipp->INTSTS1 = (uint16_t)(~USB_SACK & INTSTS1_MASK);
+    ;
 } /* End of function hw_usb_hclear_sts_sack() */
 
 /***********************************************************************************************************************
@@ -421,7 +422,7 @@ void hw_usb_hclear_sts_sack(usb_utr_t *ptr)
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
  Return value    : none
  ***********************************************************************************************************************/
-void hw_usb_hclear_sts_pddetint(usb_utr_t *ptr)
+void hw_usb_hclear_sts_pddetint(usb_utr_t* ptr)
 {
 } /* End of function hw_usb_hclear_sts_pddetint() */
 
@@ -435,7 +436,7 @@ void hw_usb_hclear_sts_pddetint(usb_utr_t *ptr)
                  : uint16_t     data         : Setting value.
  Return value    : none
  ***********************************************************************************************************************/
-void hw_usb_hwrite_usbreq(usb_utr_t *ptr, uint16_t data)
+void hw_usb_hwrite_usbreq(usb_utr_t* ptr, uint16_t data)
 {
     ptr->ipp->USBREQ = data;
 } /* End of function hw_usb_hwrite_usbreq() */
@@ -450,7 +451,7 @@ void hw_usb_hwrite_usbreq(usb_utr_t *ptr, uint16_t data)
                  : uint16_t     data         : Setting value.
  Return value    : none
  ***********************************************************************************************************************/
-void hw_usb_hset_usbval(usb_utr_t *ptr, uint16_t data)
+void hw_usb_hset_usbval(usb_utr_t* ptr, uint16_t data)
 {
     ptr->ipp->USBVAL = data;
 } /* End of function hw_usb_hset_usbval() */
@@ -464,7 +465,7 @@ void hw_usb_hset_usbval(usb_utr_t *ptr, uint16_t data)
                  : uint16_t     data         : Setting value.
  Return value    : none
  ***********************************************************************************************************************/
-void hw_usb_hset_usbindx(usb_utr_t *ptr, uint16_t data)
+void hw_usb_hset_usbindx(usb_utr_t* ptr, uint16_t data)
 {
     ptr->ipp->USBINDX = data;
 } /* End of function hw_usb_hset_usbindx() */
@@ -477,7 +478,7 @@ void hw_usb_hset_usbindx(usb_utr_t *ptr, uint16_t data)
                  : uint16_t     data         : Setting value.
  Return value    : none
  ***********************************************************************************************************************/
-void hw_usb_hset_usbleng(usb_utr_t *ptr, uint16_t data)
+void hw_usb_hset_usbleng(usb_utr_t* ptr, uint16_t data)
 {
     ptr->ipp->USBLENG = data;
 } /* End of function hw_usb_hset_usbleng() */
@@ -489,7 +490,7 @@ void hw_usb_hset_usbleng(usb_utr_t *ptr, uint16_t data)
                  : uint16_t     data         : Setting value.
  Return value    : none
  ***********************************************************************************************************************/
-void hw_usb_hwrite_dcpctr(usb_utr_t *ptr, uint16_t data)
+void hw_usb_hwrite_dcpctr(usb_utr_t* ptr, uint16_t data)
 {
     ptr->ipp->DCPCTR = data;
 } /* End of function hw_usb_hwrite_dcpctr() */
@@ -501,7 +502,7 @@ void hw_usb_hwrite_dcpctr(usb_utr_t *ptr, uint16_t data)
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
  Return value    : none
  ***********************************************************************************************************************/
-void hw_usb_hset_sureq(usb_utr_t *ptr)
+void hw_usb_hset_sureq(usb_utr_t* ptr)
 {
     ptr->ipp->DCPCTR |= USB_SUREQ;
 } /* End of function hw_usb_hset_sureq() */
@@ -513,21 +514,21 @@ void hw_usb_hset_sureq(usb_utr_t *ptr)
                  : uint16_t     devsel       ; USB device address value 
  Return value    : DEVADDx content
  ***********************************************************************************************************************/
-uint16_t hw_usb_hread_devadd(usb_utr_t *ptr, uint16_t devsel)
+uint16_t hw_usb_hread_devadd(usb_utr_t* ptr, uint16_t devsel)
 {
-    volatile uint16_t   *p_reg;
-    uint16_t            devadr;
-    uint16_t            return_value;
+    volatile uint16_t* p_reg;
+    uint16_t devadr;
+    uint16_t return_value;
 
     devadr = devsel >> USB_DEVADDRBIT;
 
-    if(devadr > USB_MAXDEVADDR)
+    if (devadr > USB_MAXDEVADDR)
     {
         return USB_ERROR;
     }
     else
     {
-        p_reg = (uint16_t *)&(ptr->ipp->DEVADD0) + devadr;
+        p_reg        = (uint16_t*)&(ptr->ipp->DEVADD0) + devadr;
         return_value = ((*p_reg) & (USB_UPPHUB | USB_HUBPORT | USB_USBSPD));
         return return_value;
     }
@@ -542,15 +543,15 @@ uint16_t hw_usb_hread_devadd(usb_utr_t *ptr, uint16_t devsel)
                  : uint16_t     width        : Bit pattern to read-modify-write.
  Return value    : none
  ***********************************************************************************************************************/
-void hw_usb_hrmw_devadd(usb_utr_t *ptr, uint16_t devsel, uint16_t data, uint16_t width)
+void hw_usb_hrmw_devadd(usb_utr_t* ptr, uint16_t devsel, uint16_t data, uint16_t width)
 {
-    volatile uint16_t   *p_reg;
-    uint16_t            buf;
-    uint16_t            devadr;
+    volatile uint16_t* p_reg;
+    uint16_t buf;
+    uint16_t devadr;
 
     devadr = devsel >> USB_DEVADDRBIT;
 
-    p_reg = (uint16_t *)&(ptr->ipp->DEVADD0) + devadr;
+    p_reg = (uint16_t*)&(ptr->ipp->DEVADD0) + devadr;
 
     buf = *p_reg;
     buf &= (~width);
@@ -566,14 +567,14 @@ void hw_usb_hrmw_devadd(usb_utr_t *ptr, uint16_t devsel, uint16_t data, uint16_t
                  : uint16_t     data         : Setting value.
  Return value    : none
  ***********************************************************************************************************************/
-void hw_usb_hset_usbspd(usb_utr_t *ptr, uint16_t devsel, uint8_t data)
+void hw_usb_hset_usbspd(usb_utr_t* ptr, uint16_t devsel, uint8_t data)
 {
-    volatile uint16_t   *p_reg;
-    uint16_t            devadr;
+    volatile uint16_t* p_reg;
+    uint16_t devadr;
 
     devadr = devsel >> USB_DEVADDRBIT;
 
-    p_reg = (uint16_t *)&(ptr->ipp->DEVADD0) + devadr;
+    p_reg = (uint16_t*)&(ptr->ipp->DEVADD0) + devadr;
 
     (*p_reg) &= (~USB_USBSPD);
     (*p_reg) |= data;
@@ -585,10 +586,9 @@ void hw_usb_hset_usbspd(usb_utr_t *ptr, uint16_t devsel, uint8_t data)
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
  Return value    : none
  ***********************************************************************************************************************/
-void hw_usb_hset_dcpmode(usb_utr_t *ptr)
+void hw_usb_hset_dcpmode(usb_utr_t* ptr)
 {
 } /* End of function hw_usb_hset_dcpmode() */
-
 
 uint8_t anythingInitiallyAttachedAsUSBHost = 0;
 
@@ -598,60 +598,61 @@ uint8_t anythingInitiallyAttachedAsUSBHost = 0;
  Arguments       : none
  Return value    : none
  ***********************************************************************************************************************/
-void hw_usb_hmodule_init(usb_ctrl_t *p_ctrl)
+void hw_usb_hmodule_init(usb_ctrl_t* p_ctrl)
 {
-    uint16_t    sts;
-    uint16_t    reg0;
+    uint16_t sts;
+    uint16_t reg0;
 
     if (g_usb_std_uclksel == USB_FALSE)
     {
         USB200.SUSPMODE &= ~(USB_SUSPM);
         USB201.SUSPMODE &= ~(USB_SUSPM);
 #if USB_CFG_CLKSEL == USB_CFG_12MHZ
-        USB200.SYSCFG0  |= USB_UCKSEL;
+        USB200.SYSCFG0 |= USB_UCKSEL;
 #elif USB_CFG_CLKSEL == USB_CFG_48MHZ
-        USB200.SYSCFG0  &= ~(USB_UCKSEL);
-#endif  /* USB_CFG_CLKSEL == USB_CFG_12MHZ */
-        USB200.SYSCFG0  |= USB_UPLLE;
-        usb_cpu_delay_xms(1);                   /* 1ms wait */
+        USB200.SYSCFG0 &= ~(USB_UCKSEL);
+#endif /* USB_CFG_CLKSEL == USB_CFG_12MHZ */
+        USB200.SYSCFG0 |= USB_UPLLE;
+        usb_cpu_delay_xms(1); /* 1ms wait */
 
         g_usb_std_uclksel = USB_TRUE;
     }
 
-    if (USB_IP0 == p_ctrl->module)       /* USB200 */
+    if (USB_IP0 == p_ctrl->module) /* USB200 */
     {
         USB200.SUSPMODE |= USB_SUSPM;
-        USB200.BUSWAIT  = USB_CFG_BUSWAIT;
-        USB200.SYSCFG0  |= USB_DCFM;
-        USB200.SYSCFG0  &= ~USB_DPRPU; // Added by Rohan. Otherwise, incorrectly thinks a device is already connected if we'd previously initialized the peripheral module
-        USB200.SYSCFG0  |= USB_DRPD;
-        USB200.SYSCFG0  |= USB_USBE;
+        USB200.BUSWAIT = USB_CFG_BUSWAIT;
+        USB200.SYSCFG0 |= USB_DCFM;
+        USB200.SYSCFG0 &=
+            ~USB_DPRPU; // Added by Rohan. Otherwise, incorrectly thinks a device is already connected if we'd previously initialized the peripheral module
+        USB200.SYSCFG0 |= USB_DRPD;
+        USB200.SYSCFG0 |= USB_USBE;
 
-        sts = usb_chattaring((uint16_t *)&USB200.SYSSTS0);
+        sts = usb_chattaring((uint16_t*)&USB200.SYSSTS0);
 
-        USB200.CFIFOSEL     = USB_MBW_32;
-        USB200.D0FIFOSEL    = USB_MBW_32;
-        USB200.D1FIFOSEL    = USB_MBW_32;
+        USB200.CFIFOSEL  = USB_MBW_32;
+        USB200.D0FIFOSEL = USB_MBW_32;
+        USB200.D1FIFOSEL = USB_MBW_32;
 
-#if USB_CFG_ENDIAN ==USB_CFG_BIG
-        USB200.CFIFOSEL     |= USB_BIGEND;
-        USB200.D0FIFOSEL    |= USB_BIGEND;
-        USB200.D1FIFOSEL    |= USB_BIGEND;
+#if USB_CFG_ENDIAN == USB_CFG_BIG
+        USB200.CFIFOSEL |= USB_BIGEND;
+        USB200.D0FIFOSEL |= USB_BIGEND;
+        USB200.D1FIFOSEL |= USB_BIGEND;
 #endif
 
-        switch(sts)
+        switch (sts)
         {
-            case USB_FS_JSTS:    /* USB device already connected */
+            case USB_FS_JSTS: /* USB device already connected */
             case USB_LS_JSTS:
-            	anythingInitiallyAttachedAsUSBHost = 1; // By Rohan
+                anythingInitiallyAttachedAsUSBHost = 1; // By Rohan
 
-                if(USB_FS_JSTS == sts)
+                if (USB_FS_JSTS == sts)
                 {
                     USB200.SYSCFG0 |= USB_HSE;
                 }
 
                 USB200.DVSTCTR0 |= USB_USBRST;
-                usb_cpu_delay_xms((uint16_t)50);    /* Need to wait greater equal 10ms in USB spec */
+                usb_cpu_delay_xms((uint16_t)50); /* Need to wait greater equal 10ms in USB spec */
                 USB200.DVSTCTR0 &= ~USB_USBRST;
                 usb_cpu_delay_1us(300);
                 USB200.DVSTCTR0 |= USB_UACT;
@@ -660,61 +661,60 @@ void hw_usb_hmodule_init(usb_ctrl_t *p_ctrl)
                 {
                     reg0 = USB200.DVSTCTR0;
                     reg0 &= USB_HSPROC;
-                }
-                while (reg0 == USB_HSPROC);
+                } while (reg0 == USB_HSPROC);
 
-                if(USB_LSMODE == (USB200.DVSTCTR0 & USB_RHST))
+                if (USB_LSMODE == (USB200.DVSTCTR0 & USB_RHST))
                 {
                     USB200.SOFCFG |= USB_TRNENSEL;
                 }
 
-            break;
+                break;
 
-            case USB_SE0:        /* USB device no connected */
+            case USB_SE0: /* USB device no connected */
 
                 USB200.INTENB1 = USB_ATTCH;
 
-            break;
+                break;
 
             default:
-            break;
+                break;
         }
 
         USB200.INTENB0 = (USB_BEMPE | USB_NRDYE | USB_BRDYE);
         USB200.INTENB1 = (USB_ATTCH);
     }
-    else if(USB_IP1 == p_ctrl->module)  /* USB201 */
+    else if (USB_IP1 == p_ctrl->module) /* USB201 */
     {
         USB201.SUSPMODE |= USB_SUSPM;
-        USB201.BUSWAIT  = USB_CFG_BUSWAIT;
-        USB201.SYSCFG0  |= USB_DCFM;
-        USB201.SYSCFG0  |= USB_DRPD;
-        USB201.SYSCFG0  |= USB_USBE;
+        USB201.BUSWAIT = USB_CFG_BUSWAIT;
+        USB201.SYSCFG0 |= USB_DCFM;
+        USB201.SYSCFG0 |= USB_DRPD;
+        USB201.SYSCFG0 |= USB_USBE;
 
-        sts = usb_chattaring((uint16_t *)&USB201.SYSSTS0);
+        sts = usb_chattaring((uint16_t*)&USB201.SYSSTS0);
 
-        USB201.CFIFOSEL     = USB_MBW_32;
-        USB201.D0FIFOSEL    = USB_MBW_32;
-        USB201.D1FIFOSEL    = USB_MBW_32;
+        USB201.CFIFOSEL  = USB_MBW_32;
+        USB201.D0FIFOSEL = USB_MBW_32;
+        USB201.D1FIFOSEL = USB_MBW_32;
 
-#if USB_CFG_ENDIAN ==USB_CFG_BIG
-        USB201.CFIFOSEL     |= USB_BIGEND;
-        USB201.D0FIFOSEL    |= USB_BIGEND;
-        USB201.D1FIFOSEL    |= USB_BIGEND;
+#if USB_CFG_ENDIAN == USB_CFG_BIG
+        USB201.CFIFOSEL |= USB_BIGEND;
+        USB201.D0FIFOSEL |= USB_BIGEND;
+        USB201.D1FIFOSEL |= USB_BIGEND;
 #endif
 
-        switch(sts)
+        switch (sts)
         {
-            case USB_FS_JSTS:    /* USB device already connected */
+            case USB_FS_JSTS: /* USB device already connected */
             case USB_LS_JSTS:
 
-                if(USB_FS_JSTS == sts)
+                if (USB_FS_JSTS == sts)
                 {
                     USB201.SYSCFG0 |= USB_HSE;
                 }
 
                 USB201.DVSTCTR0 |= USB_USBRST;
-                usb_cpu_delay_xms((uint16_t)50);    /* Need to wait greater equal 10ms in USB spec */
+                usb_cpu_delay_xms((uint16_t)50); /* Need to wait greater equal 10ms in USB spec */
                 USB201.DVSTCTR0 &= ~USB_USBRST;
                 usb_cpu_delay_1us(300);
                 USB201.DVSTCTR0 |= USB_UACT;
@@ -723,24 +723,23 @@ void hw_usb_hmodule_init(usb_ctrl_t *p_ctrl)
                 {
                     reg0 = USB201.DVSTCTR0;
                     reg0 &= USB_HSPROC;
-                }
-                while (reg0 == USB_HSPROC);
+                } while (reg0 == USB_HSPROC);
 
-                if(USB_LSMODE == (USB201.DVSTCTR0 & USB_RHST))
+                if (USB_LSMODE == (USB201.DVSTCTR0 & USB_RHST))
                 {
                     USB201.SOFCFG |= USB_TRNENSEL;
                 }
 
-            break;
+                break;
 
-            case USB_SE0:        /* USB device no connected */
+            case USB_SE0: /* USB device no connected */
 
                 USB201.INTENB1 = USB_ATTCH;
 
-            break;
+                break;
 
             default:
-            break;
+                break;
         }
 
         USB201.INTENB0 = (USB_BEMPE | USB_NRDYE | USB_BRDYE);
@@ -756,11 +755,11 @@ void hw_usb_hmodule_init(usb_ctrl_t *p_ctrl)
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
  Return value    : none
  ***********************************************************************************************************************/
-void hw_usb_hset_trnensel(usb_utr_t *ptr)
+void hw_usb_hset_trnensel(usb_utr_t* ptr)
 {
     ptr->ipp->SOFCFG |= USB_TRNENSEL;
 } /* End of function hw_usb_hset_trnensel() */
-#endif  /* (USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST */
+#endif /* (USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST */
 
 /***********************************************************************************************************************
  End of file

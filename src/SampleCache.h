@@ -26,16 +26,17 @@ class Cluster;
 
 class SampleCache {
 public:
-	SampleCache(Sample* newSample, int newNumChunks, int newWaveformLengthBytes, int newPhaseIncrement, int newTimeStretchRatio, int newSkipSamplesAtStart);
+	SampleCache(Sample* newSample, int newNumClusters, int newWaveformLengthBytes, int newPhaseIncrement,
+	            int newTimeStretchRatio, int newSkipSamplesAtStart);
 	~SampleCache();
-	void chunkStolen(int chunkIndex);
-	bool setupNewChunk(int cachedChunkIndex);
-	Cluster* getChunk(int chunkIndex);
+	void clusterStolen(int clusterIndex);
+	bool setupNewCluster(int cachedClusterIndex);
+	Cluster* getCluster(int clusterIndex);
 	void setWriteBytePos(int newWriteBytePos);
 
 	int32_t writeBytePos;
 #if ALPHA_OR_BETA_VERSION
-	int numChunks;
+	int numClusters;
 #endif
 	int waveformLengthBytes;
 	Sample* sample;
@@ -43,18 +44,13 @@ public:
 	int32_t timeStretchRatio;
 	int skipSamplesAtStart;
 
-
 private:
-	void unlinkChunks(int startAtIndex, bool beingDestructed);
-	int getNumExistentChunks(int32_t thisWriteBytePos);
-	void prioritizeNotStealingChunk(int chunkIndex);
-
-
-
-
+	void unlinkClusters(int startAtIndex, bool beingDestructed);
+	int getNumExistentClusters(int32_t thisWriteBytePos);
+	void prioritizeNotStealingCluster(int clusterIndex);
 
 	// This has to be last!!!
-	Cluster* loadedSampleChunks[1]; // These are not initialized, and are only "valid" as far as writeBytePos dictates
+	Cluster* clusters[1]; // These are not initialized, and are only "valid" as far as writeBytePos dictates
 };
 
 #endif /* SAMPLEPITCHADJUSTMENT_H_ */

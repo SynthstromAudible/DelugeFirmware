@@ -1,0 +1,5 @@
+# Don't do any formatting in this folder, it's upstream Renesas code and mostly
+# preprocessor defines
+SortIncludes: Never
+DisableFormat: true
+

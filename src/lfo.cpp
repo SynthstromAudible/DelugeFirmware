@@ -19,35 +19,33 @@
 #include "functions.h"
 #include "lookuptables.h"
 
-LFO::LFO()
-{
+LFO::LFO() {
 }
 
 int32_t LFO::render(int numSamples, int waveType, uint32_t phaseIncrement) {
-    int32_t value;
-    switch(waveType) {
-    case LFO_TYPE_SAW:
-        value = phase;
-        break;
+	int32_t value;
+	switch (waveType) {
+	case LFO_TYPE_SAW:
+		value = phase;
+		break;
 
-    case LFO_TYPE_SQUARE:
-        value = getSquare(phase);
-        break;
+	case LFO_TYPE_SQUARE:
+		value = getSquare(phase);
+		break;
 
-    case LFO_TYPE_SINE:
-        value = getSine(phase);
-        break;
+	case LFO_TYPE_SINE:
+		value = getSine(phase);
+		break;
 
-    case LFO_TYPE_TRIANGLE:
-        value = getTriangle(phase);
-        break;
-    }
+	case LFO_TYPE_TRIANGLE:
+		value = getTriangle(phase);
+		break;
+	}
 
-    phase += phaseIncrement * numSamples;
-    return value;
+	phase += phaseIncrement * numSamples;
+	return value;
 }
 
 void LFO::tick(int numSamples, uint32_t phaseIncrement) {
-    phase += phaseIncrement * numSamples;
+	phase += phaseIncrement * numSamples;
 }
-

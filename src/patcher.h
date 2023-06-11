@@ -43,28 +43,31 @@ struct PatchableInfo {
 	uint8_t globality;
 };
 
-
-
 class Patcher {
 public:
 	Patcher(const PatchableInfo* newInfo);
-    void performInitialPatching(Sound* sound, ParamManager* paramManager);
-    void performPatching(uint32_t sourcesChanged, Sound* sound, ParamManagerForTimeline* paramManager);
-    void recalculateFinalValueForParamWithNoCables(int p, Sound* sound, ParamManagerForTimeline* paramManager);
+	void performInitialPatching(Sound* sound, ParamManager* paramManager);
+	void performPatching(uint32_t sourcesChanged, Sound* sound, ParamManagerForTimeline* paramManager);
+	void recalculateFinalValueForParamWithNoCables(int p, Sound* sound, ParamManagerForTimeline* paramManager);
 
 private:
-    void applyRangeAdjustment(int32_t *patchedValue, PatchCable* patchCable);
-    int32_t combineCablesLinearForRangeParam(Destination const* destination, ParamManager* paramManager);
-    int32_t combineCablesLinear(Destination const* destination, unsigned int p, Sound* sound, ParamManager* paramManager);
-    int32_t combineCablesExp(Destination const* destination, unsigned int p, Sound* sound, ParamManager* paramManager);
-    void cableToLinearParamWithoutRangeAdjustment(int32_t sourceValue, int32_t cableStrength, int32_t* runningTotalCombination);
-    void cableToLinearParam(int32_t sourceValue, int32_t cableStrength, int32_t* runningTotalCombination, PatchCable* patchCable);
-    void cableToExpParamWithoutRangeAdjustment(int32_t sourceValue, int32_t cableStrength, int32_t* runningTotalCombination);
-    void cableToExpParam(int32_t sourceValue, int32_t cableStrength, int32_t* runningTotalCombination, PatchCable* patchCable);
-    int32_t* getParamFinalValuesPointer();
-    int32_t getSourceValue(int s);
+	void applyRangeAdjustment(int32_t* patchedValue, PatchCable* patchCable);
+	int32_t combineCablesLinearForRangeParam(Destination const* destination, ParamManager* paramManager);
+	int32_t combineCablesLinear(Destination const* destination, unsigned int p, Sound* sound,
+	                            ParamManager* paramManager);
+	int32_t combineCablesExp(Destination const* destination, unsigned int p, Sound* sound, ParamManager* paramManager);
+	void cableToLinearParamWithoutRangeAdjustment(int32_t sourceValue, int32_t cableStrength,
+	                                              int32_t* runningTotalCombination);
+	void cableToLinearParam(int32_t sourceValue, int32_t cableStrength, int32_t* runningTotalCombination,
+	                        PatchCable* patchCable);
+	void cableToExpParamWithoutRangeAdjustment(int32_t sourceValue, int32_t cableStrength,
+	                                           int32_t* runningTotalCombination);
+	void cableToExpParam(int32_t sourceValue, int32_t cableStrength, int32_t* runningTotalCombination,
+	                     PatchCable* patchCable);
+	int32_t* getParamFinalValuesPointer();
+	int32_t getSourceValue(int s);
 
-    const PatchableInfo* const patchableInfo;
+	const PatchableInfo* const patchableInfo;
 };
 
 #endif // PATCHABLE_H

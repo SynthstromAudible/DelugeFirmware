@@ -41,29 +41,29 @@
 Macro definitions
 ******************************************************************************/
 /* CS0 */
-#define BSC_AREA_CS0    (0x01)
+#define BSC_AREA_CS0 (0x01)
 /* CS1 */
-#define BSC_AREA_CS1    (0x02)
+#define BSC_AREA_CS1 (0x02)
 /* CS2 */
-#define BSC_AREA_CS2    (0x04)
+#define BSC_AREA_CS2 (0x04)
 /* CS3 */
-#define BSC_AREA_CS3    (0x08)
+#define BSC_AREA_CS3 (0x08)
 /* CS4 */
-#define BSC_AREA_CS4    (0x10)
+#define BSC_AREA_CS4 (0x10)
 /* CS5 */
-#define BSC_AREA_CS5    (0x20)
+#define BSC_AREA_CS5 (0x20)
 
 /******************************************************************************
 Functions Prototypes
 ******************************************************************************/
 //void BSC_Init (uint8_t area);
 
-void userdef_bsc_cs0_init (void);
-void userdef_bsc_cs1_init (void);
-void userdef_bsc_cs2_init (uint8_t);
-void userdef_bsc_cs3_init (void);
-void userdef_bsc_cs4_init (void);
-void userdef_bsc_cs5_init (void);
+void userdef_bsc_cs0_init(void);
+void userdef_bsc_cs1_init(void);
+void userdef_bsc_cs2_init(uint8_t);
+void userdef_bsc_cs3_init(void);
+void userdef_bsc_cs4_init(void);
+void userdef_bsc_cs5_init(void);
 
 /* BSC_USERDEF_H */
 #endif

@@ -27,15 +27,13 @@
 * Description : INTC Driver - Handler process
 *******************************************************************************/
 
-
 /******************************************************************************
 Includes   <System Includes> , "Project Includes"
 ******************************************************************************/
 #include "r_typedefs.h"
-#include "devdrv_intc.h"        /* INTC Driver Header */
+#include "devdrv_intc.h" /* INTC Driver Header */
 #include "intc_handler.h"
 #include "iodefine.h"
-
 
 #ifdef __ICCARM__
 #include <intrinsics.h>
@@ -55,16 +53,13 @@ Includes   <System Includes> , "Project Includes"
 Typedef definitions
 ******************************************************************************/
 
-
 /******************************************************************************
 Macro definitions
 ******************************************************************************/
 
-
 /******************************************************************************
 Imported global variables and functions (from other files)
 ******************************************************************************/
-
 
 /******************************************************************************
 Exported global variables and functions (to be accessed by other files)
@@ -75,30 +70,32 @@ void INTC_Handler_Interrupt(uint32_t icciar);
 __fiq __arm void FiqHandler_Interrupt(void);
 #endif
 
-
 /******************************************************************************
 Private global variables and functions
 ******************************************************************************/
 
-
-void enable_irq () {
-	asm("CPSIE   i");
-	asm("ISB");
+void enable_irq()
+{
+    asm("CPSIE   i");
+    asm("ISB");
 }
 
-void disable_irq () {
-	asm("CPSID   i");
-	asm("ISB");
+void disable_irq()
+{
+    asm("CPSID   i");
+    asm("ISB");
 }
 
-void enable_fiq () {
-	asm("CPSIE   f");
-	asm("ISB");
+void enable_fiq()
+{
+    asm("CPSIE   f");
+    asm("ISB");
 }
 
-void disable_fiq () {
-	asm("CPSID   f");
-	asm("ISB");
+void disable_fiq()
+{
+    asm("CPSID   f");
+    asm("ISB");
 }
 
 /******************************************************************************
@@ -121,40 +118,40 @@ void INTC_Handler_Interrupt(uint32_t icciar)
     uint32_t mask;
     uint32_t int_sense;
     uint16_t int_id;
-    uint32_t volatile * addr;
+    uint32_t volatile* addr;
 
     int_id = (uint16_t)(icciar & 0x000003FFuL); /* Obtain interrupt ID */
 
-    if (int_id >= INTC_ID_TOTAL)    /* In case of unsupported interrupt ID */
+    if (int_id >= INTC_ID_TOTAL) /* In case of unsupported interrupt ID */
     {
-    	// Insane thing that keeps happening - we get here somehow, with int_id 1023.
-    	//freezeWithError("i029");
-    	uartPrintln("i029 ----------------------------------------------------!!");
-    	return; // Just keep running - it seems to work at least most of the time?
+        // Insane thing that keeps happening - we get here somehow, with int_id 1023.
+        //freezeWithError("i029");
+        uartPrintln("i029 ----------------------------------------------------!!");
+        return; // Just keep running - it seems to work at least most of the time?
         //Userdef_INTC_UndefId(int_id); // Previously, it'd just go in here and freeze.
     }
 
     /* ==== Interrupt handler call ==== */
-    enable_irq();         /* IRQ interrupt enabled */
+    enable_irq(); /* IRQ interrupt enabled */
 
     /* ICDICFRn has 16 sources in the 32 bits                                  */
     /* The n can be calculated by int_id / 16                                  */
     /* The upper 1 bit out of 2 bits for the bit field width is the target bit */
     /* The target bit can be calculated by ((int_id % 16) * 2) + 1             */
-    addr = (volatile uint32_t *)&INTC.ICDICFR0;
+    addr = (volatile uint32_t*)&INTC.ICDICFR0;
     mask = 1 << (((int_id % 16) * 2) + 1);
-    if (0 == (*(addr + (int_id / 16)) & mask))  /* In the case of level sense */
+    if (0 == (*(addr + (int_id / 16)) & mask)) /* In the case of level sense */
     {
         int_sense = INTC_LEVEL_SENSITIVE;
     }
-    else                                        /* In the case of edge trigger */
+    else /* In the case of edge trigger */
     {
         int_sense = INTC_EDGE_TRIGGER;
     }
 
-    Userdef_INTC_HandlerExe(int_id, int_sense);     /* Call interrupt handler */
+    Userdef_INTC_HandlerExe(int_id, int_sense); /* Call interrupt handler */
 
-    disable_irq();        /* IRQ interrupt disabled */
+    disable_irq(); /* IRQ interrupt disabled */
 }
 
 /*******************************************************************************
@@ -164,11 +161,9 @@ void INTC_Handler_Interrupt(uint32_t icciar)
 * Arguments    : none
 * Return Value : none
 *******************************************************************************/
-void fiq_handler_interrupt (void)
+void fiq_handler_interrupt(void)
 {
     Userdef_FIQ_HandlerExe();
 }
 
-
 /* END of File */
-

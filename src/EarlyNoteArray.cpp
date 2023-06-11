@@ -21,7 +21,6 @@
 EarlyNoteArray::EarlyNoteArray() : OrderedResizeableArray(sizeof(EarlyNote), 16) {
 }
 
-
 int EarlyNoteArray::insertElementIfNonePresent(int note, int velocity, bool newStillActive) {
 
 	int i = search(note, GREATER_OR_EQUAL);

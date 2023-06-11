@@ -43,13 +43,10 @@ Includes   <System Includes> , "Project Includes"
 /* I/O Register root header */
 #include "iodefine.h"
 
-
-
 /*******************************************************************************
 Private global variables and functions
 *******************************************************************************/
 static void CPG_Init(void);
-
 
 /*******************************************************************************
 * Function Name: Peripheral_Basic_Init
@@ -61,7 +58,7 @@ static void CPG_Init(void);
 * Arguments    : none
 * Return Value : none
 *******************************************************************************/
-void Peripheral_Basic_Init (void)
+void Peripheral_Basic_Init(void)
 {
     /* ==== CPG setting ====*/
     CPG_Init();
@@ -84,20 +81,20 @@ void Peripheral_Basic_Init (void)
 * Arguments    : none
 * Return Value : none
 *******************************************************************************/
-static void CPG_Init (void)
+static void CPG_Init(void)
 {
     volatile uint32_t dummy = 0;
 
     UNUSED_VARIABLE(dummy);
 
     /* standby_mode_en bit of Power Control Register setting */
-    (*(volatile uint32_t *)(0x3fffff80)) = 0x00000001;
-    dummy = (*(volatile uint32_t *)(0x3fffff80));
+    (*(volatile uint32_t*)(0x3fffff80)) = 0x00000001;
+    dummy                               = (*(volatile uint32_t*)(0x3fffff80));
 
     /* ==== CPG Settings ==== */
 
     /* PLL(x30), I:G:B:P1:P0 = 30:20:10:5:5/2 */
-    CPG.FRQCR  = 0x1035u;
+    CPG.FRQCR = 0x1035u;
 
     /* CKIO:Output at time usually output     *
      * when bus right is opened output at     *
@@ -112,6 +109,5 @@ static void CPG_Init (void)
 
     /* ----  Writing to On-Chip Data-Retention RAM is enabled. ---- */
     CPG.SYSCR3 = 0x0Fu;
-    dummy = CPG.SYSCR3;
+    dummy      = CPG.SYSCR3;
 }
-

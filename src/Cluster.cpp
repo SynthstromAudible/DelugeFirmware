@@ -16,18 +16,18 @@
 */
 
 #include <AudioEngine.h>
+#include <AudioFileManager.h>
 #include <Cluster.h>
 #include "uart.h"
 #include "Sample.h"
 #include "functions.h"
-#include "SampleManager.h"
 #include <string.h>
 #include "SampleCache.h"
 #include "numericdriver.h"
 
 Cluster::Cluster() {
 	sample = NULL;
-	chunkIndex = 0;
+	clusterIndex = 0;
 	sampleCache = NULL;
 	extraBytesAtStartConverted = false;
 	extraBytesAtEndConverted = false;
@@ -46,9 +46,9 @@ void Cluster::convertDataIfNecessary() {
 		memcpy(firstThreeBytesPreDataConversion, data, 3);
 
 		int startPos = sample->audioDataStartPosBytes;
-		int startChunk = startPos >> sampleManager.clusterSizeMagnitude;
+		int startCluster = startPos >> audioFileManager.clusterSizeMagnitude;
 
-		if (chunkIndex < startChunk) { // Hmm, there must have been a case where this happens...
+		if (clusterIndex < startCluster) { // Hmm, there must have been a case where this happens...
 			return;
 		}
 
@@ -56,24 +56,25 @@ void Cluster::convertDataIfNecessary() {
 		if (sample->rawDataFormat == RAW_DATA_ENDIANNESS_WRONG_24) {
 			char* pos;
 
-			if (chunkIndex == startChunk) {
-				pos = &data[startPos & (sampleManager.clusterSize - 1)];
+			if (clusterIndex == startCluster) {
+				pos = &data[startPos & (audioFileManager.clusterSize - 1)];
 			}
 			else {
-				uint32_t bytesBeforeStartOfChunk = chunkIndex * sampleManager.clusterSize - sample->audioDataStartPosBytes;
-				int bytesThatWillBeEatingIntoAnother3Byte = bytesBeforeStartOfChunk % 3;
+				uint32_t bytesBeforeStartOfCluster =
+				    clusterIndex * audioFileManager.clusterSize - sample->audioDataStartPosBytes;
+				int bytesThatWillBeEatingIntoAnother3Byte = bytesBeforeStartOfCluster % 3;
 				if (bytesThatWillBeEatingIntoAnother3Byte == 0) bytesThatWillBeEatingIntoAnother3Byte = 3;
 				pos = &data[3 - bytesThatWillBeEatingIntoAnother3Byte];
 			}
 
 			char const* endPos;
-			if (chunkIndex == sample->getFirstChunkIndexWithNoAudioData() - 1) {
+			if (clusterIndex == sample->getFirstClusterIndexWithNoAudioData() - 1) {
 				uint32_t endAtBytePos = sample->audioDataStartPosBytes + sample->audioDataLengthBytes;
-				uint32_t endAtPosWithinChunk = endAtBytePos & (sampleManager.clusterSize - 1);
-				endPos = &data[endAtPosWithinChunk];
+				uint32_t endAtPosWithinCluster = endAtBytePos & (audioFileManager.clusterSize - 1);
+				endPos = &data[endAtPosWithinCluster];
 			}
 			else {
-				endPos = &data[sampleManager.clusterSize - 2];
+				endPos = &data[audioFileManager.clusterSize - 2];
 			}
 
 			while (true) {
@@ -94,26 +95,25 @@ void Cluster::convertDataIfNecessary() {
 			}
 		}
 
-
 		// Or, all other bit depths
 		else {
 			int32_t* pos;
 
-			if (chunkIndex == startChunk) {
-				pos = (int32_t*)&data[startPos & (sampleManager.clusterSize - 1)];
+			if (clusterIndex == startCluster) {
+				pos = (int32_t*)&data[startPos & (audioFileManager.clusterSize - 1)];
 			}
 			else {
 				pos = (int32_t*)&data[startPos & 0b11];
 			}
 
 			int32_t* endPos;
-			if (chunkIndex == sample->getFirstChunkIndexWithNoAudioData() - 1) {
+			if (clusterIndex == sample->getFirstClusterIndexWithNoAudioData() - 1) {
 				uint32_t endAtBytePos = sample->audioDataStartPosBytes + sample->audioDataLengthBytes;
-				uint32_t endAtPosWithinChunk = endAtBytePos & (sampleManager.clusterSize - 1);
-				endPos = (int32_t*)&data[endAtPosWithinChunk];
+				uint32_t endAtPosWithinCluster = endAtBytePos & (audioFileManager.clusterSize - 1);
+				endPos = (int32_t*)&data[endAtPosWithinCluster];
 			}
 			else {
-				endPos = (int32_t*)&data[sampleManager.clusterSize - 3];
+				endPos = (int32_t*)&data[audioFileManager.clusterSize - 3];
 			}
 
 			//uint16_t startTime = MTU2.TCNT_0;
@@ -131,7 +131,7 @@ void Cluster::convertDataIfNecessary() {
 			/*
 			uint16_t endTime = MTU2.TCNT_0;
 
-			if (chunkIndex != startChunk) {
+			if (clusterIndex != startCluster) {
 				Uart::print("time to convert: ");
 				Uart::println((uint16_t)(endTime - startTime));
 			}
@@ -144,24 +144,21 @@ int Cluster::getAppropriateQueue() {
 	int q;
 
 	// If it's a perc cache...
-	if (type == LOADED_SAMPLE_CHUNK_PERC_CACHE_FORWARDS || type == LOADED_SAMPLE_CHUNK_PERC_CACHE_REVERSED) {
-		q = sample->numReasons ?
-				STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA_PERC_CACHE :
-				STEALABLE_QUEUE_NO_SONG_SAMPLE_DATA_PERC_CACHE;
+	if (type == CLUSTER_PERC_CACHE_FORWARDS || type == CLUSTER_PERC_CACHE_REVERSED) {
+		q = sample->numReasonsToBeLoaded ? STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA_PERC_CACHE
+		                                 : STEALABLE_QUEUE_NO_SONG_SAMPLE_DATA_PERC_CACHE;
 	}
 
 	// If it's a regular repitched cache...
 	else if (sampleCache) {
-		q = (sampleCache->sample->numReasons) ?
-			STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE :
-			STEALABLE_QUEUE_NO_SONG_SAMPLE_DATA_REPITCHED_CACHE;
+		q = (sampleCache->sample->numReasonsToBeLoaded) ? STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE
+		                                                : STEALABLE_QUEUE_NO_SONG_SAMPLE_DATA_REPITCHED_CACHE;
 	}
 
 	// Or, if it has a Sample...
 	else if (sample) {
-		q = sample->numReasons ?
-				STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA :
-				STEALABLE_QUEUE_NO_SONG_SAMPLE_DATA;
+		q = sample->numReasonsToBeLoaded ? STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA
+		                                 : STEALABLE_QUEUE_NO_SONG_SAMPLE_DATA;
 
 		if (sample->rawDataFormat) q++;
 	}
@@ -169,33 +166,32 @@ int Cluster::getAppropriateQueue() {
 	return q;
 }
 
-
 void Cluster::steal(char const* errorCode) {
 
 	// Ok, we're now gonna decide what to do according to the actual "type" field for this Cluster.
-	switch(type) {
+	switch (type) {
 
-	case LOADED_SAMPLE_CHUNK_SAMPLE:
+	case CLUSTER_SAMPLE:
 		if (ALPHA_OR_BETA_VERSION && !sample) numericDriver.freezeWithError("E181");
-		sample->clusters.getElement(chunkIndex)->loadedSampleChunk = NULL;
+		sample->clusters.getElement(clusterIndex)->cluster = NULL;
 		break;
 
-	case LOADED_SAMPLE_CHUNK_SAMPLE_CACHE:
+	case CLUSTER_SAMPLE_CACHE:
 		if (ALPHA_OR_BETA_VERSION && !sampleCache) numericDriver.freezeWithError("E183");
-		sampleCache->chunkStolen(chunkIndex);
+		sampleCache->clusterStolen(clusterIndex);
 
-		// If first chunk, delete whole cache. Wait, no, something might still be pointing to the cache...
+		// If first Cluster, delete whole cache. Wait, no, something might still be pointing to the cache...
 		/*
-		if (!chunkIndex) {
+		if (!clusterIndex) {
 			sampleCache->sample->deleteCache(sampleCache);
 		}
 		*/
 		break;
 
-	case LOADED_SAMPLE_CHUNK_PERC_CACHE_FORWARDS:
-	case LOADED_SAMPLE_CHUNK_PERC_CACHE_REVERSED:
+	case CLUSTER_PERC_CACHE_FORWARDS:
+	case CLUSTER_PERC_CACHE_REVERSED:
 		if (ALPHA_OR_BETA_VERSION && !sample) numericDriver.freezeWithError("E184");
-		sample->percCacheChunkStolen(this);
+		sample->percCacheClusterStolen(this);
 		break;
 
 	default: // Otherwise, nothing needs to happen
@@ -208,12 +204,12 @@ bool Cluster::mayBeStolen(void* thingNotToStealFrom) {
 
 	if (!thingNotToStealFrom) return true;
 
-	switch(type) {
-	case LOADED_SAMPLE_CHUNK_SAMPLE_CACHE:
+	switch (type) {
+	case CLUSTER_SAMPLE_CACHE:
 		return (sampleCache != thingNotToStealFrom);
 
-	case LOADED_SAMPLE_CHUNK_PERC_CACHE_FORWARDS:
-	case LOADED_SAMPLE_CHUNK_PERC_CACHE_REVERSED:
+	case CLUSTER_PERC_CACHE_FORWARDS:
+	case CLUSTER_PERC_CACHE_REVERSED:
 		return (sample != thingNotToStealFrom);
 	}
 	return true;

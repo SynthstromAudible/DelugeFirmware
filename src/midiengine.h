@@ -24,53 +24,52 @@
 
 class MIDIDevice;
 
-class MidiEngine
-{
+class MidiEngine {
 public:
-    MidiEngine();
+	MidiEngine();
 
-    void sendNote(bool on, int note, uint8_t velocity, uint8_t channel, int filter);
-    void sendCC(int channel, int cc, int value, int filter);
-    bool checkIncomingSerialMidi();
-    void checkIncomingUsbMidi();
-    void sendMidi(uint8_t statusType, uint8_t channel, uint8_t data1 = 0, uint8_t data2 = 0, int filter = MIDI_OUTPUT_FILTER_NO_MPE, bool sendUSB = true);
-    void sendClock(bool sendUSB = true, int howMany = 1);
-    void sendStart();
-    void sendStop();
-    void sendPositionPointer(uint16_t positionPointer);
-    void sendContinue();
-    void flushMIDI();
-    void sendUsbMidi(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2, int filter);
-    void sendSerialMidi(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2);
-    void sendPGMChange(int channel, int pgm, int filter);
-    void sendAllNotesOff(int channel, int filter);
-    void sendBank(int channel, int num, int filter);
-    void sendSubBank(int channel, int num, int filter);
-    void sendPitchBend(int channel, uint8_t lsbs, uint8_t msbs, int filter);
-    void sendChannelAftertouch(int channel, uint8_t value, int filter);
-    void sendPolyphonicAftertouch(int channel, uint8_t value, uint8_t noteCode, int filter);
-    bool anythingInOutputBuffer();
-    void setupUSBHostReceiveTransfer(int ip, int midiDeviceNum);
-    void flushUSBMIDIOutput();
+	void sendNote(bool on, int note, uint8_t velocity, uint8_t channel, int filter);
+	void sendCC(int channel, int cc, int value, int filter);
+	bool checkIncomingSerialMidi();
+	void checkIncomingUsbMidi();
+	void sendMidi(uint8_t statusType, uint8_t channel, uint8_t data1 = 0, uint8_t data2 = 0,
+	              int filter = MIDI_OUTPUT_FILTER_NO_MPE, bool sendUSB = true);
+	void sendClock(bool sendUSB = true, int howMany = 1);
+	void sendStart();
+	void sendStop();
+	void sendPositionPointer(uint16_t positionPointer);
+	void sendContinue();
+	void flushMIDI();
+	void sendUsbMidi(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2, int filter);
+	void sendSerialMidi(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2);
+	void sendPGMChange(int channel, int pgm, int filter);
+	void sendAllNotesOff(int channel, int filter);
+	void sendBank(int channel, int num, int filter);
+	void sendSubBank(int channel, int num, int filter);
+	void sendPitchBend(int channel, uint8_t lsbs, uint8_t msbs, int filter);
+	void sendChannelAftertouch(int channel, uint8_t value, int filter);
+	void sendPolyphonicAftertouch(int channel, uint8_t value, uint8_t noteCode, int filter);
+	bool anythingInOutputBuffer();
+	void setupUSBHostReceiveTransfer(int ip, int midiDeviceNum);
+	void flushUSBMIDIOutput();
 
+	LearnedMIDI globalMIDICommands
+	    [NUM_GLOBAL_MIDI_COMMANDS]; // If bit "16" (actually bit 4) is 1, this is a program change. (Wait, still?)
 
-    LearnedMIDI globalMIDICommands[NUM_GLOBAL_MIDI_COMMANDS]; // If bit "16" (actually bit 4) is 1, this is a program change. (Wait, still?)
-
-    bool midiThru;
+	bool midiThru;
 
 private:
-    uint8_t serialMidiInput[3];
-    uint8_t numSerialMidiInput;
-    uint8_t lastStatusByteSent;
+	uint8_t serialMidiInput[3];
+	uint8_t numSerialMidiInput;
+	uint8_t lastStatusByteSent;
 
-    bool currentlyReceivingSysEx;
+	bool currentlyReceivingSysEx;
 
-    int getMidiMessageLength(uint8_t statusuint8_t);
-    void midiMessageReceived(MIDIDevice* fromDevice, uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2, uint32_t* timer = NULL);
-    int getPotentialNumConnectedUSBMIDIDevices(int ip);
-
+	int getMidiMessageLength(uint8_t statusuint8_t);
+	void midiMessageReceived(MIDIDevice* fromDevice, uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2,
+	                         uint32_t* timer = NULL);
+	int getPotentialNumConnectedUSBMIDIDevices(int ip);
 };
-
 
 uint32_t setupUSBMessage(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2);
 

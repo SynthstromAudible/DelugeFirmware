@@ -51,9 +51,9 @@ class ModelStack;
 #define ACTION_PARAM_UNAUTOMATED_VALUE_CHANGE 7
 #define ACTION_SWING_CHANGE 8
 #define ACTION_TEMPO_CHANGE 9
-#define ACTION_TRACK_MULTIPLY 10
+#define ACTION_CLIP_MULTIPLY 10
 #define ACTION_CLIP_CLEAR 11
-#define ACTION_TRACK_DELETE 12
+#define ACTION_CLIP_DELETE 12
 #define ACTION_NOTES_PASTE 13
 #define ACTION_AUTOMATION_PASTE 14
 #define ACTION_CLIP_INSTANCE_EDIT 15
@@ -69,8 +69,6 @@ class ModelStack;
 #define ACTION_NOTEROW_LENGTH_EDIT 25
 #define ACTION_NOTEROW_HORIZONTAL_SHIFT 26
 
-
-
 class Action {
 public:
 	Action(int newActionType);
@@ -79,13 +77,15 @@ public:
 	bool containsConsequenceParamChange(ParamCollection* paramCollection, int paramId);
 	void recordParamChangeIfNotAlreadySnapshotted(ModelStackWithAutoParam const* modelStack, bool stealData = false);
 	void recordParamChangeDefinitely(ModelStackWithAutoParam const* modelStack, bool stealData);
-	int recordNoteArrayChangeIfNotAlreadySnapshotted(InstrumentClip* track, int noteRowId, NoteVector* noteVector, bool stealData, bool moveToFrontIfAlreadySnapshotted = false);
-	int recordNoteArrayChangeDefinitely(InstrumentClip* track, int noteRowId, NoteVector* noteVector, bool stealData);
-	bool containsConsequenceNoteArrayChange(InstrumentClip* track, int noteRowId, bool moveToFrontIfFound = false);
-	void recordNoteExistenceChange(InstrumentClip* track, int noteRowId, Note* note, int type);
-	void recordNoteChange(InstrumentClip* track, int noteRowId, Note* note, int32_t lengthAfter, int velocityAfter, int probabilityAfter);
-	void updateYScrollClipViewAfter(InstrumentClip* track = NULL);
-	void recordClipInstanceExistenceChange(Output* output, ClipInstance* trackInstance, int type);
+	int recordNoteArrayChangeIfNotAlreadySnapshotted(InstrumentClip* clip, int noteRowId, NoteVector* noteVector,
+	                                                 bool stealData, bool moveToFrontIfAlreadySnapshotted = false);
+	int recordNoteArrayChangeDefinitely(InstrumentClip* clip, int noteRowId, NoteVector* noteVector, bool stealData);
+	bool containsConsequenceNoteArrayChange(InstrumentClip* clip, int noteRowId, bool moveToFrontIfFound = false);
+	void recordNoteExistenceChange(InstrumentClip* clip, int noteRowId, Note* note, int type);
+	void recordNoteChange(InstrumentClip* clip, int noteRowId, Note* note, int32_t lengthAfter, int velocityAfter,
+	                      int probabilityAfter);
+	void updateYScrollClipViewAfter(InstrumentClip* clip = NULL);
+	void recordClipInstanceExistenceChange(Output* output, ClipInstance* clipInstance, int type);
 	void prepareForDestruction(int whichQueueActionIn, Song* song);
 	void recordClipLengthChange(Clip* clip, int32_t oldLength);
 	bool recordClipExistenceChange(Song* song, ClipArray* clipArray, Clip* clip, int type);
@@ -96,9 +96,9 @@ public:
 	bool openForAdditions;
 
 	// A bunch of snapshot-things here store their state both before or after the action - because the action could have changed these
-	int xScrollTrack[2];
+	int xScrollClip[2];
 	int yScrollSongView[2];
-	int xZoomTrack[2];
+	int xZoomClip[2];
 
 	int xScrollArranger[2];
 	int yScrollArranger[2];
@@ -114,14 +114,13 @@ public:
 	bool tripletsOn;
 	uint32_t tripletsLevel;
 
+	//bool inKeyboardView;
 
-    //bool inKeyboardView;
+	UI* view;
 
-    UI* view;
+	Clip* currentClip; // Watch out - this might get set to NULL
 
-    Clip* currentClip; // Watch out - this might get set to NULL
-
-    int32_t posToClearArrangementFrom;
+	int32_t posToClearArrangementFrom;
 
 	Action* nextAction;
 	Consequence* firstConsequence;

@@ -15,12 +15,11 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include <AudioFileManager.h>
 #include <AudioFileReader.h>
-#include "SampleManager.h"
 
 AudioFileReader::AudioFileReader() {
 	// TODO Auto-generated constructor stub
-
 }
 
 // One limitation of this function is that it can never read the final byte of the file. Not a problem for us
@@ -32,7 +31,6 @@ int AudioFileReader::readBytes(char* outputBuffer, int num) {
 	return readBytesPassedErrorChecking(outputBuffer, num);
 }
 
-
 // Check it's not beyond the end of the file, before you call this
 void AudioFileReader::jumpForwardToBytePos(uint32_t newPos) {
 
@@ -41,20 +39,18 @@ void AudioFileReader::jumpForwardToBytePos(uint32_t newPos) {
 	byteIndexWithinCluster += jumpForwardAmount;
 }
 
-
 uint32_t AudioFileReader::getBytePos() {
-	return byteIndexWithinCluster + currentClusterIndex * sampleManager.clusterSize;
+	return byteIndexWithinCluster + currentClusterIndex * audioFileManager.clusterSize;
 }
-
 
 int AudioFileReader::advanceClustersIfNecessary() {
 
-	int numClustersToAdvance = byteIndexWithinCluster >> sampleManager.clusterSizeMagnitude;
+	int numClustersToAdvance = byteIndexWithinCluster >> audioFileManager.clusterSizeMagnitude;
 
 	if (!numClustersToAdvance) return NO_ERROR;
 
 	currentClusterIndex += numClustersToAdvance;
-	byteIndexWithinCluster &= sampleManager.clusterSize - 1;
+	byteIndexWithinCluster &= audioFileManager.clusterSize - 1;
 
 	return readNewCluster();
 }

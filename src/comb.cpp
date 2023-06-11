@@ -23,45 +23,37 @@
 
 #include "comb.hpp"
 
-comb::comb()
-{
+comb::comb() {
 	filterstore = 0;
 	bufidx = 0;
 }
 
-void comb::setbuffer(int32_t *buf, int size)
-{
+void comb::setbuffer(int32_t* buf, int size) {
 	buffer = buf;
 	bufsize = size;
 }
 
-void comb::mute()
-{
-	for (int i=0; i<bufsize; i++)
-		buffer[i]=0;
+void comb::mute() {
+	for (int i = 0; i < bufsize; i++)
+		buffer[i] = 0;
 }
 
-void comb::setdamp(float val) 
-{
+void comb::setdamp(float val) {
 	damp1 = val * 2147483647;
 	damp2 = 2147483647 - damp1;
 }
 
-float comb::getdamp() 
-{
+float comb::getdamp() {
 	return damp1 / 2147483647;
 }
 
-void comb::setfeedback(int32_t val)
-{
+void comb::setfeedback(int32_t val) {
 	//feedback = val;
 	feedback = val;
 }
 
-int32_t comb::getfeedback()
-{
+int32_t comb::getfeedback() {
 	return feedback;
 }
-
 
 // ends

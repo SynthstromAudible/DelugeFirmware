@@ -16,25 +16,21 @@
  */
 
 #include <AudioEngine.h>
+#include <AudioFileManager.h>
 #include "NoteRowVector.h"
 #include "NoteRow.h"
-#include "SampleManager.h"
 #include <new>
 
-NoteRowVector::NoteRowVector() :
-	OrderedResizeableArray(sizeof(NoteRow), 16, 0, 16, 7)
-{
+NoteRowVector::NoteRowVector() : OrderedResizeableArray(sizeof(NoteRow), 16, 0, 16, 7) {
 }
-
 
 NoteRowVector::~NoteRowVector() {
 	for (int i = 0; i < numElements; i++) {
-    	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+		AudioEngine::routineWithClusterLoading(); // -----------------------------------
 
-    	getElement(i)->~NoteRow();
+		getElement(i)->~NoteRow();
 	}
 }
-
 
 NoteRow* NoteRowVector::insertNoteRowAtIndex(int index) {
 	int error = insertAtIndex(index);

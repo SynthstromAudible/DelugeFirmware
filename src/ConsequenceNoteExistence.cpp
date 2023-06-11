@@ -21,9 +21,8 @@
 #include "Note.h"
 #include "NoteRow.h"
 
-ConsequenceNoteExistence::ConsequenceNoteExistence(InstrumentClip* newTrack, int newNoteRowId, Note* note, int newType)
-{
-	clip = newTrack;
+ConsequenceNoteExistence::ConsequenceNoteExistence(InstrumentClip* newClip, int newNoteRowId, Note* note, int newType) {
+	clip = newClip;
 	noteRowId = newNoteRowId;
 	pos = note->pos;
 	length = note->getLength();
@@ -34,7 +33,6 @@ ConsequenceNoteExistence::ConsequenceNoteExistence(InstrumentClip* newTrack, int
 	type = newType;
 }
 
-
 int ConsequenceNoteExistence::revert(int time, ModelStack* modelStack) {
 	NoteRow* noteRow = clip->getNoteRowFromId(noteRowId);
 	if (!noteRow) return ERROR_BUG;
@@ -43,7 +41,7 @@ int ConsequenceNoteExistence::revert(int time, ModelStack* modelStack) {
 		// Delete a note now
 		int i = noteRow->notes.search(pos, GREATER_OR_EQUAL);
 		if (i < 0 || i >= noteRow->notes.getNumElements() || noteRow->notes.getElement(i)->pos != pos) {
-			return NO_ERROR; // This can happen, and is fine, when redoing a "track multiply" action with notes with iteration dependence
+			return NO_ERROR; // This can happen, and is fine, when redoing a "Clip multiply" action with notes with iteration dependence
 		}
 		noteRow->notes.deleteAtIndex(i);
 	}

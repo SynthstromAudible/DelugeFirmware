@@ -19,21 +19,18 @@
 #include <sound.h>
 #include "PatchCable.h"
 
-PatchCable::PatchCable()
-{
+PatchCable::PatchCable() {
 }
 
-
 void PatchCable::setup(uint8_t newFrom, uint8_t newTo, int32_t newAmount) {
-    from = newFrom;
-    destinationParamDescriptor.setToHaveParamOnly(newTo);
-    initAmount(newAmount);
+	from = newFrom;
+	destinationParamDescriptor.setToHaveParamOnly(newTo);
+	initAmount(newAmount);
 }
 
 bool PatchCable::isActive() {
 	return param.containsSomething(0);
 }
-
 
 void PatchCable::initAmount(int32_t value) {
 	param.nodes.empty();

@@ -30,24 +30,19 @@ public:
 	virtual bool is14Bit() = 0;
 	virtual bool topValueIs127() = 0;
 	ParamDescriptor paramDescriptor;
-
 };
 
-class MIDIKnob: public Knob {
+class MIDIKnob : public Knob {
 public:
 	MIDIKnob() {}
 	bool isRelative() { return relative; }
-	bool is14Bit() {
-		return (midiInput.noteOrCC == 128);
-	}
-	bool topValueIs127() {
-		return (midiInput.noteOrCC < 128 && !relative);
-	}
+	bool is14Bit() { return (midiInput.noteOrCC == 128); }
+	bool topValueIs127() { return (midiInput.noteOrCC < 128 && !relative); }
 	LearnedMIDI midiInput;
-    bool relative;
+	bool relative;
 };
 
-class ModKnob: public Knob {
+class ModKnob : public Knob {
 public:
 	bool isRelative() { return true; }
 	bool is14Bit() { return false; }

@@ -29,7 +29,6 @@ ConsequenceClipBeginLinearRecord::ConsequenceClipBeginLinearRecord(Clip* newClip
 	type = CONSEQUENCE_CLIP_BEGIN_LINEAR_RECORD;
 }
 
-
 int ConsequenceClipBeginLinearRecord::revert(int time, ModelStack* modelStack) {
 
 	// Going backwards...
