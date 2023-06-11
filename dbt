@@ -1,0 +1,52 @@
+#!/bin/sh
+
+# Deluge Build Tool (DBT)
+# 
+# Build script for DelugeFirmware, blatantly borrowed from 'fbt' used by
+# flipperdevices/flipperzero-firmware and licensed under GNU GPL
+
+# shellcheck disable=SC2086 source=/dev/null
+# unofficial strict mode
+set -eu;
+
+# private variables
+N_GIT_THREADS="$(getconf _NPROCESSORS_ONLN)";
+SCRIPT_PATH="$(cd "$(dirname "$0")" && pwd -P)";
+SCONS_DEFAULT_FLAGS="--warn=target-not-built";
+SCONS_EP="python3 -m SCons";
+
+# public variables
+DBT_NOENV="${DBT_NOENV:-""}";
+DBT_NO_SYNC="${DBT_NO_SYNC:-""}";
+DBT_TOOLCHAIN_PATH="${DBT_TOOLCHAIN_PATH:-$SCRIPT_PATH}";
+DBT_VERBOSE="${DBT_VERBOSE:-""}";
+
+if [ -z "$DBT_NOENV" ]; then
+    DBT_VERBOSE="$DBT_VERBOSE" . "$SCRIPT_PATH/scripts/toolchain/dbtenv.sh";
+fi
+
+if [ -z "$DBT_NO_SYNC" ]; then
+    if [ ! -d "$SCRIPT_PATH/.git" ]; then
+        echo "\".git\" directory not found, please clone repo via \"git clone\"";
+        exit 1;
+    fi
+    git submodule update --init --depth 1 --jobs "$N_GIT_THREADS";
+fi
+
+# Install python wheels if not already installed, upgrade pip
+# afterward (needs certifi in place).
+pip_cmd="python3 -m pip";
+pip_wheel_path="${TOOLCHAIN_ARCH_DIR}/python/wheel";
+pip_wheels=$(ls "${pip_wheel_path}" | grep -ve '^pip')
+for wheel in $pip_wheels; do
+    $pip_cmd install -q "${pip_wheel_path}/${wheel}"
+done
+$pip_cmd install -q --upgrade pip
+# Oops, forgot to bundle scons in the toolchain
+$pip_cmd show SCons 1>/dev/null 2>/dev/null
+if [ $? -eq 1 ]; then
+    $pip_cmd install -q SCons==4.5.2
+fi
+
+# $SCONS_EP $SCONS_DEFAULT_FLAGS "$@"
+echo "Beyond downloading and updating the toolchains, dbt is currently not fully functional."
