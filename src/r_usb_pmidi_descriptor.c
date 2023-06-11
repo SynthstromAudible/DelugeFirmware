@@ -44,6 +44,11 @@ Macro definitions
 #define USB_MIDI_CD_WTOTALLENGTH (68u)
 
 //Good summary ref on overall USB structure https://www.beyondlogic.org/usbnutshell/usb5.shtml
+
+//USB midi defines
+#define CS_INTERFACE 0x24
+#define MIDI_IN_JACK 0x02
+#define MIDI_OUT_JACK 0x03
 /***********************************************************************************************************************
 Exported global variables (to be accessed by other files)
 ***********************************************************************************************************************/
@@ -57,14 +62,14 @@ Exported global variables (to be accessed by other files)
  * but in this case we offer a single USB midi FS config
 */
 uint8_t g_midi_device[USB_DD_BLENGTH + (USB_DD_BLENGTH % 2)] = {
-    USB_DD_BLENGTH,                                           /*  0:bLength */
-    USB_DT_DEVICE,                                            /*  1:bDescriptorType */
-    (uint8_t)(USB_BCDNUM&(uint8_t)0xff),                      /*  2:bcdUSB_lo */
-    (uint8_t)((uint8_t)(USB_BCDNUM >> 8) & (uint8_t)0xff),    /*  3:bcdUSB_hi */
-	//Device to be specified at interface level
-    0x00,                                                     /*  4:bDeviceClass */
-    0x00,                                                     /*  5:bDeviceSubClass */
-    0x00,                                                     /*  6:bDeviceProtocol */
+    USB_DD_BLENGTH,                                        /*  0:bLength */
+    USB_DT_DEVICE,                                         /*  1:bDescriptorType */
+    (uint8_t)(USB_BCDNUM&(uint8_t)0xff),                   /*  2:bcdUSB_lo */
+    (uint8_t)((uint8_t)(USB_BCDNUM >> 8) & (uint8_t)0xff), /*  3:bcdUSB_hi */
+                                                           //Device to be specified at interface level
+    0x00,                                                  /*  4:bDeviceClass */
+    0x00,                                                  /*  5:bDeviceSubClass */
+    0x00,                                                  /*  6:bDeviceProtocol */
 
     (uint8_t)USB_DCPMAXP,                                     /*  7:bMAXPacketSize(for DCP) */
     (uint8_t)(USB_VENDORID&(uint8_t)0xff),                    /*  8:idVendor_lo */
@@ -99,7 +104,6 @@ uint8_t g_midi_configuration[USB_MIDI_CD_WTOTALLENGTH + (USB_MIDI_CD_WTOTALLENGT
     (uint8_t)(USB_CF_RESERVED),                /*  7:bmAttributes */
     (uint8_t)(500 / 2),                        /*  8:bMaxPower (2mA unit) */
 
-
     /* Interface Descriptor
      * 3rd level of USB declarations. This declares a single USB midi endpoint (subclass of audio)
      */
@@ -113,27 +117,71 @@ uint8_t g_midi_configuration[USB_MIDI_CD_WTOTALLENGTH + (USB_MIDI_CD_WTOTALLENGT
     0,                /*  7:bInterfaceProtocol */
     0,                /*  8:iInterface */
 
-	/* Midi Streaming Interface descriptors
+    /* Midi Streaming Interface descriptors
 	 * A level below interface, specific to USB midi
-	 * ref - https://www.usb.org/sites/default/files/midi10.pdf
+	 * ref - https://www.usb.org/sites/default/files/midi10.pdf sect 6.1.2
+	 * to add endpoints add more jacks here
 	 */
-	//Header
-    0x07, 0x24, 0x01, 0x00, 0x01, 50, 0x00,                                          // CS Interface (midi)
+    //Header
+    0x07,       //header length
+    0x24,       //bDescriptorType - CS interface
+    0x01,       //Subtype - Midi Streaming Header
+    0x00, 0x01, //BCD revision (1.00)
+    0x32, 0x00, //TotalLength
     // MIDI_IN
-	0x06, 0x24, 0x02, 0x01, 0x01, 0x03,                                              //   IN  Jack 1 (emb)
+    0x06, //bLength
+    0x24, //bDescriptorType
+    0x02, //bDescriptorSubtype - MIDI_IN_JACK
+    0x01, //bJackType - EMBEDDED
+    0x01, //bJackID - 1
+    0x00, //iJack (unused)
+
     // MIDI_OUT
-	0x09, 0x24, 0x03, 0x01, 0x02, 0x01, 0x02, 0x01, 0x04,                            //   OUT Jack 3 (emb)
+    0x09, //bLength
+    0x24, //bDescriptorType - CS_I
+    0x03, //bDescriptorSubtype - MIDI_OUT_JACK
+    0x01, //bJackType - EMBEDDED
+    0x02, //bJackID - 2
+    0x01, //bNrInputPins (I can't find an explanation for what this means)
+    0x02, //BaSourceID (ditto here)
+    0x01, //BaSourcePin (ditto)
+    0x00, //iJack (unused)
 
-	/* MidiStreaming Endpoint Descriptors
-	 * Next level down from the midi streaming interfaces
+    /* MidiStreaming Endpoint Descriptors - USBMidi spec 6.2.1
+	 * These endpoints are shared across all jacks
 	 */
+	//28 bytes for bulk endpoints
+    //USB standard bulk out -
+    0x09,                            //bLength
+    0x05,                            //bDescriptorType = ENDPOINT
+    (uint8_t)(USB_EP_OUT | USB_EP2), //bEndpointAddress. D7 direction, low 4 addr
+    0x02,                            //bmAttributes (bulk)
+    0x40, 0x00,                      //wMaxPacketSize
+    0x00,                            //bInterval
+    0x00,                            //bRefresh
+    0x00,                            //bSynchAddress
+                                     //midi class specific bulk out
+    0x05,                            //bLength
+    0x25,                            //bDescriptorSubtype - CS_ENDPOINT
+    0x01,                            //bJackType - MS_GENERAL
+    0x01,                            //bNumEmbMidiJack - number of MIDI IN jacks
+    0x01,                            //BaAssocJackID - ID of first associated jack
 
-	//EP 2 out
-	0x09, 0x05, (uint8_t)(USB_EP_OUT | USB_EP2), 0x02, 0x40, 0x00, 0x00, 0x00, 0x00, // Endpoint OUT
-    0x05, 0x25, 0x01, 0x01, 0x01,                                                    //   CS EP IN  Jack
-    //EP 1 in
-	0x09, 0x05, (uint8_t)(USB_EP_IN | USB_EP1), 0x02, 0x40, 0x00, 0x00, 0x00, 0x00,  // Endpoint IN
-    0x05, 0x25, 0x01, 0x01, 0x02                                                     //   CS EP OUT Jack
+    //USB standard bulk in - same fields as above, differences annotated
+    0x09,                           //bLength
+    0x05,                           //bDescriptor
+    (uint8_t)(USB_EP_IN | USB_EP1), //different address
+    0x02,                           //bmAttributes
+    0x40, 0x00,                     //wMaxPacketSize
+    0x00,                           //bInterval
+    0x00,                           //bRefresh
+    0x00,                           //bSynchAddress
+                                    //midi specific bulk in
+    0x05,                           //bLength
+    0x25,                           //bDescriptorSubtype
+    0x01,                           //bJackType
+    0x01,                           //bNumEmbMidiJack - number of MIDI OUT jacks
+    0x02                            //BaAssocJackID
 };
 
 /*************************************
