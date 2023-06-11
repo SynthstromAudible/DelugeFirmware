@@ -1124,11 +1124,15 @@ int StorageManager::loadScalaFile(FilePointer* filePointer) {
 			tuningSystem.setDivisions(divisions);
 		}
 		else if (effectiveLine < divisions) {
+			int left, right;
 			if (strstr(fileClusterBuffer, ".")) { // Cents
+				double value = left / (double)right;
+				tuningSystem.setNextCents(value);
 			} else if(strstr(fileClusterBuffer, "/")) { // Ratio
+				tuningSystem.setNextRatio(left, right);
 			} else { // Integer
+				tuningSystem.setNextRatio(left, 1);
 			}
-			//tuningSystem.setNextValue(value);
 		}
 		effectiveLine++;
 	}

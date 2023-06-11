@@ -806,6 +806,30 @@ int32_t stringToUIntOrError(char const* __restrict__ mem) {
 	return number;
 }
 
+double stringToDouble(char const *__restrict__ mem) {
+	double number = 0.0;
+	int ipart, fpart;
+	int denominator;
+	bool dot = false;
+	while (mem != memEnd) {
+		if (*mem == '.') {
+			dot = true;
+			continue;
+		}
+		if (*mem < '0' || *mem > '9') return -1;
+		if (dot) {
+			fpart *= 10;
+			fpart += (*mem - '0');
+			denominator *= 10;
+		} else {
+			ipart *= 10;
+			ipart += (*mem - '0');
+		}
+		mem++;
+	}
+	return ipart + fpart / (double)denominator;
+}
+
 int32_t memToUIntOrError(char const* __restrict__ mem, char const* const memEnd) {
 	uint32_t number = 0;
 	while (mem != memEnd) {
