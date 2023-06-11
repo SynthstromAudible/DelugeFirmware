@@ -14,3 +14,4 @@
 /e2-build-release-oled/
 *.launch
 /toolchain/*
+__pycache__
