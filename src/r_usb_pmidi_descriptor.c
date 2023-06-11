@@ -162,8 +162,8 @@ uint8_t g_midi_configuration[USB_MIDI_CD_WTOTALLENGTH + (USB_MIDI_CD_WTOTALLENGT
     0x00,                            //bSynchAddress
                                      //midi class specific bulk out
     0x05,                            //bLength
-    0x25,                            //bDescriptorSubtype - CS_ENDPOINT
-    0x01,                            //bJackType - MS_GENERAL
+    0x25,                            //bDescriptorType - CS_ENDPOINT
+    0x01,                            //bDescriptorSubType - MS_GENERAL
     0x01,                            //bNumEmbMidiJack - number of MIDI IN jacks
     0x01,                            //BaAssocJackID - ID of first associated jack
 
@@ -178,8 +178,8 @@ uint8_t g_midi_configuration[USB_MIDI_CD_WTOTALLENGTH + (USB_MIDI_CD_WTOTALLENGT
     0x00,                           //bSynchAddress
                                     //midi specific bulk in
     0x05,                           //bLength
-    0x25,                           //bDescriptorSubtype
-    0x01,                           //bJackType
+    0x25,                           //bDescriptorType
+    0x01,                           //bDescriptorSubtype
     0x01,                           //bNumEmbMidiJack - number of MIDI OUT jacks
     0x02                            //BaAssocJackID
 };
