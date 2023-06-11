@@ -113,6 +113,7 @@ public:
 
 	int yScroll;
 	int yScrollKeyboardScreen;
+	int keyboardRowInterval;
 
 	int32_t ticksTilNextNoteRowEvent;
 	int32_t noteRowsNumTicksBehindClip;

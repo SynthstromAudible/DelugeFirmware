@@ -615,7 +615,7 @@ typedef enum SyncLevel_ {
 
 #define ALLOW_SPAM_MODE 0 // For debugging I think?
 
-#define KEYBOARD_ROW_INTERVAL 5
+#define KEYBOARD_ROW_INTERVAL_MAX 16
 
 // UART
 #define MIDI_TX_BUFFER_SIZE 1024
