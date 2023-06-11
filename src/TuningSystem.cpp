@@ -89,7 +89,7 @@ void TuningSystem::setBank(int bank) {
 
 	else {
 		// TODO load other tunings
-		calculateUserTuning();
+		calculateAll();
 	}
 }
 
