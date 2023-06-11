@@ -44,6 +44,10 @@ public:
 
 	int32_t getReference();
 	void setReference(int32_t);
+
+	//void setNextValue(int32_t, int32_t);
+	void setup(char *);
+	void setDivisions(int);
 private:
 	void calculateAll();
 	void calculateOffset(int);

@@ -50,6 +50,7 @@
 #include "Buttons.h"
 #include "MIDIParamCollection.h"
 #include "uitimermanager.h"
+#include "TuningSystem.h"
 
 extern "C" {
 #include "ff.h"
@@ -1098,6 +1099,39 @@ bool StorageManager::lseek(uint32_t pos) {
 	}
 
 	return (result == FR_OK);
+}
+
+int StorageManager::loadScalaFile(FilePointer* filePointer) {
+	
+	AudioEngine::logAction("openScalaFile");
+
+	openFilePointer(filePointer);
+
+	// Prep to read first Cluster shortly
+	fileBufferCurrentPos = audioFileManager.clusterSize;
+	currentReadBufferEndPos = audioFileManager.clusterSize;
+
+	TCHAR* ok;
+	int effectiveLine;
+	int divisions;
+	while (f_gets((TCHAR*)fileClusterBuffer, audioFileManager.clusterSize, &fileSystemStuff.currentFile) != NULL) {
+		if (fileClusterBuffer[0] == '!') continue;
+		if (effectiveLine == 0) {
+			tuningSystem.setup(fileClusterBuffer);
+		}
+		else if (effectiveLine == 1) {
+			divisions = stringToInt(fileClusterBuffer);
+			tuningSystem.setDivisions(divisions);
+		}
+		else if (effectiveLine < divisions) {
+			if (strstr(fileClusterBuffer, ".")) { // Cents
+			} else if(strstr(fileClusterBuffer, "/")) { // Ratio
+			} else { // Integer
+			}
+			//tuningSystem.setNextValue(value);
+		}
+		effectiveLine++;
+	}
 }
 
 int StorageManager::openXMLFile(FilePointer* filePointer, char const* firstTagName, char const* altTagName,
