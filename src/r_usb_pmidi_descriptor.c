@@ -41,7 +41,14 @@ Macro definitions
 #define USB_PRODUCTID (0x0CE2) /* Product ID */
 
 //size of the USB configuration, including all interfaces
-#define USB_MIDI_CD_WTOTALLENGTH (68u)
+/* 9 - config description
+ * 9 - interface description
+ * 7 - MIDI streaming header
+ * (6+9)*ncables - in and out jack per cable
+ * (9+4+ncables)*2 - shared bulk endpoint, descriptors include list of cables
+ * for easy c+p -> 9+9+7+((6+9)*ncables)+(9+4+ncables)*2
+ */
+#define USB_MIDI_CD_WTOTALLENGTH (85u)
 
 //Good summary ref on overall USB structure https://www.beyondlogic.org/usbnutshell/usb5.shtml
 
@@ -128,7 +135,7 @@ uint8_t g_midi_configuration[USB_MIDI_CD_WTOTALLENGTH + (USB_MIDI_CD_WTOTALLENGT
     0x01,       //Subtype - Midi Streaming Header
     0x00, 0x01, //BCD revision (1.00)
     0x32, 0x00, //TotalLength
-    // MIDI_IN
+    // MIDI_IN 1
     0x06, //bLength
     0x24, //bDescriptorType
     0x02, //bDescriptorSubtype - MIDI_IN_JACK
@@ -136,16 +143,37 @@ uint8_t g_midi_configuration[USB_MIDI_CD_WTOTALLENGTH + (USB_MIDI_CD_WTOTALLENGT
     0x01, //bJackID - 1
     0x00, //iJack (unused)
 
-    // MIDI_OUT
+    // MIDI_OUT 1
     0x09, //bLength
     0x24, //bDescriptorType - CS_I
     0x03, //bDescriptorSubtype - MIDI_OUT_JACK
     0x01, //bJackType - EMBEDDED
     0x02, //bJackID - 2
     0x01, //bNrInputPins (I can't find an explanation for what this means)
-    0x02, //BaSourceID (ditto here)
+    0x01, //BaSourceID (ditto here but I think it is asking which midi in jack is associated?)
     0x01, //BaSourcePin (ditto)
     0x00, //iJack (unused)
+
+    // MIDI_IN 2
+    0x06, //bLength
+    0x24, //bDescriptorType
+    0x02, //bDescriptorSubtype - MIDI_IN_JACK
+    0x01, //bJackType - EMBEDDED
+    0x03, //bJackID
+    0x00, //iJack (unused)
+
+    // MIDI_OUT 2
+    0x09, //bLength
+    0x24, //bDescriptorType - CS_I
+    0x03, //bDescriptorSubtype - MIDI_OUT_JACK
+    0x01, //bJackType - EMBEDDED
+    0x04, //bJackID
+    0x01, //bNrInputPins (I can't find an explanation for what this means)
+    0x02, //BaSourceID (ditto here but I think it is asking which midi in jack is associated?)
+    0x01, //BaSourcePin (ditto)
+    0x00, //iJack (unused)
+
+
 
     /* MidiStreaming Endpoint Descriptors - USBMidi spec 6.2.1
 	 * These endpoints are shared across all jacks
@@ -161,12 +189,12 @@ uint8_t g_midi_configuration[USB_MIDI_CD_WTOTALLENGTH + (USB_MIDI_CD_WTOTALLENGT
     0x00,                            //bRefresh
     0x00,                            //bSynchAddress
                                      //midi class specific bulk out
-    0x05,                            //bLength
+    0x06,                            //bLength
     0x25,                            //bDescriptorType - CS_ENDPOINT
     0x01,                            //bDescriptorSubType - MS_GENERAL
-    0x01,                            //bNumEmbMidiJack - number of MIDI IN jacks
+    0x02,                            //bNumEmbMidiJack - number of MIDI IN jacks
     0x01,                            //BaAssocJackID - ID of first associated jack
-
+	0x03,							 //ID of second associated jack
     //USB standard bulk in - same fields as above, differences annotated
     0x09,                           //bLength
     0x05,                           //bDescriptor
@@ -177,11 +205,12 @@ uint8_t g_midi_configuration[USB_MIDI_CD_WTOTALLENGTH + (USB_MIDI_CD_WTOTALLENGT
     0x00,                           //bRefresh
     0x00,                           //bSynchAddress
                                     //midi specific bulk in
-    0x05,                           //bLength
+    0x06,                           //bLength
     0x25,                           //bDescriptorType
     0x01,                           //bDescriptorSubtype
-    0x01,                           //bNumEmbMidiJack - number of MIDI OUT jacks
-    0x02                            //BaAssocJackID
+    0x02,                           //bNumEmbMidiJack - number of MIDI OUT jacks
+    0x02,                           //BaAssocJackID
+	0x04							//Second associated jack
 };
 
 /*************************************
