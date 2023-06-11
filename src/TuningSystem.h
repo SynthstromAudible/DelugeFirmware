@@ -19,11 +19,11 @@
 #define TUNINGSYSTEM_H_
 
 #include "r_typedefs.h"
-#include "phaseincrementfinetuner.h"
 
 #define NUM_TUNING_BANKS 1
-//extern int32_t tuningFrequencyOffsetTable[12];
-//extern int32_t tuningIntervalOffsetTable[12];
+
+extern int32_t tuningFrequencyTable[12];
+extern int32_t tuningIntervalTable[12];
 extern int32_t selectedTuningBank;
 
 class TuningSystem
@@ -33,13 +33,14 @@ public:
 	void setDefaultTuning();
 	void setOffset(int,int32_t);
 	void setBank(int);
-	int32_t detune(int32_t, int);
 
+	double referenceFrequency;
 	int currentNote;
 	int currentValue;
 	int32_t offsets[12]; // cents -5000..+5000
-protected:
-	PhaseIncrementFineTuner fineTuners[12];
+
+	int32_t noteInterval(int);
+	int32_t noteFrequency(int);
 private:
 	void calculateOffset(int);
 	void calculateUserTuning();

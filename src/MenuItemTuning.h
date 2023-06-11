@@ -32,8 +32,12 @@ public:
 	int getMinValue() { return -5000; }
 	int getMaxValue() { return 5000; }
 	int getNumDecimalPlaces() { return 2; }
-	void readCurrentValue() { soundEditor.currentValue = (int32_t)tuningSystem.offsets[tuningSystem.currentNote]; }
-	void writeCurrentValue(){ tuningSystem.setOffset(tuningSystem.currentNote, soundEditor.currentValue); }
+	void readCurrentValue() {
+		soundEditor.currentValue = (int32_t)tuningSystem.offsets[tuningSystem.currentNote];
+	}
+	void writeCurrentValue(){
+		tuningSystem.setOffset(tuningSystem.currentNote, soundEditor.currentValue);
+	}
 };
 
 class MenuItemTuningBank : public MenuItemSelection {
@@ -47,10 +51,6 @@ public:
 
 #if HAVE_OLED
 static char const* octaveNotes[] = {
-	"C",
-	"C#",
-	"D",
-	"D#",
 	"E",
 	"F",
 	"F#",
@@ -59,14 +59,14 @@ static char const* octaveNotes[] = {
 	"A",
 	"A#",
 	"B",
+	"C",
+	"C#",
+	"D",
+	"D#",
 	NULL
 };
 #else
 static char const* octaveNotes[] = {
-	"C",
-	"C.",
-	"D",
-	"D.",
 	"E",
 	"F",
 	"F.",
@@ -75,6 +75,10 @@ static char const* octaveNotes[] = {
 	"A",
 	"A.",
 	"B",
+	"C",
+	"C.",
+	"D",
+	"D.",
 	NULL
 };
 #endif

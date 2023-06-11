@@ -18,16 +18,21 @@
 #include "phaseincrementfinetuner.h"
 #include "functions.h"
 
+#define TWO_30 1073741824
+#define TWO_31 2147483648u
+
 PhaseIncrementFineTuner::PhaseIncrementFineTuner() {
 	setNoDetune();
 }
 
 void PhaseIncrementFineTuner::setup(int32_t detuneScaled) {
-	multiplier = interpolateTable(2147483648u + detuneScaled, 32, centAdjustTableSmall);
+	uint32_t input = TWO_31 + detuneScaled;
+
+	multiplier = interpolateTable(input, 32 /*numBitsInInput*/, centAdjustTableSmall, 0 /*numBitsInTableSize*/);
 }
 
 void PhaseIncrementFineTuner::setNoDetune() {
-	multiplier = 1073741824;
+	multiplier = TWO_30;
 }
 
 int32_t PhaseIncrementFineTuner::detune(int32_t phaseIncrement) {

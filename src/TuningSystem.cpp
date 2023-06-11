@@ -15,24 +15,46 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include <math.h>
 #include "TuningSystem.h"
 
-//int32_t tuningFrequencyOffsetTable[12];
-//int32_t tuningIntervalOffsetTable[12];
+int32_t tuningFrequencyTable[12];
+int32_t tuningIntervalTable[12];
 
 TuningSystem tuningSystem;
 
 int32_t selectedTuningBank;
 
-TuningSystem::TuningSystem()
-{
-	setDefaultTuning();
+const double sampleRateDiv4 = 11025.0;
+
+void TuningSystem::calculateOffset(int noteWithinOctave) {
+
+	double cents = 100 * (noteWithinOctave - 5);
+	cents += offsets[noteWithinOctave] / 100.0;
+	double frequency = referenceFrequency * pow(2.0, cents / 1200.0);
+
+
+	double value = frequency / 1378.125;
+	value *= pow(2.0, 32);
+	tuningFrequencyTable[noteWithinOctave] = lround(value);
+
+	value = pow(2.0, noteWithinOctave / 12.0) * pow(2.0, 30);
+	tuningIntervalTable[noteWithinOctave] = lround(value);
+}
+
+void TuningSystem::calculateUserTuning() {
+
+	for(int i = 0; i < 12; i++) {
+		calculateOffset(i);
+	}
+
 }
 
 void TuningSystem::setDefaultTuning() {
 
 	for(int i = 0; i < 12; i++) {
-		fineTuners[i].setNoDetune();
+		offsets[i] = 0;
+		calculateOffset(i);
 	}
 	selectedTuningBank = 0;
 }
@@ -49,17 +71,12 @@ void TuningSystem::setBank(int bank) {
 	}
 }
 
-void TuningSystem::calculateOffset(int noteWithinOctave) {
-
-	fineTuners[noteWithinOctave].setup(offsets[noteWithinOctave] * 42949672); // scale by 2^30 div 50
+int32_t TuningSystem::noteFrequency(int noteWithinOctave) {
+	return tuningFrequencyTable[noteWithinOctave];
 }
 
-void TuningSystem::calculateUserTuning() {
-
-	for(int i = 0; i < 12; i++) {
-		calculateOffset(i);
-	}
-
+int32_t TuningSystem::noteInterval(int noteWithinOctave) {
+	return tuningIntervalTable[noteWithinOctave];
 }
 
 void TuningSystem::setOffset(int noteWithinOctave, int32_t offset) {
@@ -68,7 +85,9 @@ void TuningSystem::setOffset(int noteWithinOctave, int32_t offset) {
 	calculateOffset(noteWithinOctave);
 }
 
-int32_t TuningSystem::detune(int32_t phaseIncrement, int noteWithinOctave) {
-
-	return fineTuners[noteWithinOctave].detune(phaseIncrement);
+TuningSystem::TuningSystem()
+{
+	referenceFrequency = 440.0;
+	setDefaultTuning();
 }
+
