@@ -414,14 +414,17 @@ void KeyboardScreen::selectEncoderAction(int8_t offset) {
 }
 
 int KeyboardScreen::getNoteCodeFromCoords(int x, int y) {
+
 	Instrument* instrument = (Instrument*)currentSong->currentClip->output;
 	if (instrument->type == INSTRUMENT_TYPE_KIT) { //
 
 		return 60 + (int)(x / 4) + (int)(y / 4) * 4;
 	}
 	else {
-		return getCurrentClip()->yScrollKeyboardScreen + x + y * KEYBOARD_ROW_INTERVAL;
+		InstrumentClip* clip = getCurrentClip();
+		return clip->yScrollKeyboardScreen + x + y * clip->keyboardRowInterval;;
 	}
+
 }
 
 void KeyboardScreen::exitAuditionMode() {
@@ -469,8 +472,9 @@ void KeyboardScreen::openedInBackground() {
 }
 
 void KeyboardScreen::recalculateColours() {
-	for (int i = 0; i < displayHeight * KEYBOARD_ROW_INTERVAL + displayWidth; i++) {
-		getCurrentClip()->getMainColourFromY(getCurrentClip()->yScrollKeyboardScreen + i, 0, noteColours[i]);
+	InstrumentClip* clip = getCurrentClip();
+	for (int i = 0; i < displayHeight * clip->keyboardRowInterval + displayWidth; i++) {
+		clip->getMainColourFromY(clip->yScrollKeyboardScreen + i, 0, noteColours[i]);
 	}
 }
 
@@ -624,32 +628,54 @@ int KeyboardScreen::verticalEncoderAction(int offset, bool inCardRoutine) {
 			uiNeedsRendering(this, 0xFFFFFFFF, 0);
 		}
 		else {
-			doScroll(offset * KEYBOARD_ROW_INTERVAL);
+			doScroll(offset * getCurrentClip()->keyboardRowInterval);
 		}
+
 	}
 
 	return ACTION_RESULT_DEALT_WITH;
 }
 
 int KeyboardScreen::horizontalEncoderAction(int offset) {
+
 	if (currentSong->currentClip->output->type != INSTRUMENT_TYPE_KIT) {
-		doScroll(offset);
+		if (Buttons::isShiftButtonPressed()) {
+			if (isUIModeWithinRange(padActionUIModes)) {
+				InstrumentClip* clip = getCurrentClip();
+				clip->keyboardRowInterval += offset;
+				if (clip->keyboardRowInterval < 1) {
+					clip->keyboardRowInterval = 1;
+				}
+				else if (clip->keyboardRowInterval > KEYBOARD_ROW_INTERVAL_MAX) {
+					clip->keyboardRowInterval = KEYBOARD_ROW_INTERVAL_MAX;
+				}
+
+				char buffer[13] = "row step:   ";
+				intToString(clip->keyboardRowInterval, buffer + (HAVE_OLED ? 10 : 0), 1);
+				numericDriver.displayPopup(buffer);
+
+				doScroll(0, true);
+			}
+		}
+		else {
+			doScroll(offset);
+		}
 	}
 	return ACTION_RESULT_DEALT_WITH;
 }
 
-void KeyboardScreen::doScroll(int offset) {
+void KeyboardScreen::doScroll(int offset, bool force) {
 
 	if (isUIModeWithinRange(padActionUIModes)) {
 
 		// Check we're not scrolling out of range
 		int newYNote;
 		if (offset >= 0) {
-			newYNote = getCurrentClip()->yScrollKeyboardScreen + (displayHeight - 1) * KEYBOARD_ROW_INTERVAL
-			           + displayWidth - 1;
+			newYNote = getCurrentClip()->yScrollKeyboardScreen
+			           + (displayHeight - 1) * getCurrentClip()->keyboardRowInterval + displayWidth - 1;
 		}
 		else newYNote = getCurrentClip()->yScrollKeyboardScreen;
-		if (!getCurrentClip()->isScrollWithinRange(offset, newYNote + offset)) return;
+		if (!force && !getCurrentClip()->isScrollWithinRange(offset, newYNote + offset)) return;
 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);

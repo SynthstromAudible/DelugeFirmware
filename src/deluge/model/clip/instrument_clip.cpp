@@ -77,6 +77,8 @@ InstrumentClip::InstrumentClip(Song* song) : Clip(CLIP_TYPE_INSTRUMENT) {
 	midiSub = 128;  // Means none
 	midiPGM = 128;  // Means none
 
+	keyboardRowInterval = 5;
+
 	currentlyRecordingLinearly = false;
 
 	if (song) colourOffset -= song->rootNote;
@@ -103,7 +105,7 @@ InstrumentClip::InstrumentClip(Song* song) : Clip(CLIP_TYPE_INSTRUMENT) {
 		yScroll =
 		    0; // Only for safety. Shouldn't actually get here if we're not going to overwrite this elsewhere I think...
 	}
-	yScrollKeyboardScreen = 60 - (displayHeight >> 2) * KEYBOARD_ROW_INTERVAL;
+	yScrollKeyboardScreen = 60 - (displayHeight >> 2) * keyboardRowInterval;
 
 	instrumentTypeWhileLoading = 0;
 }
@@ -1219,7 +1221,7 @@ bool InstrumentClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack
 
 	// Special case if we're a simple keyboard-mode Clip
 	if (onKeyboardScreen && !containsAnyNotes()) {
-		int increment = (displayWidth + (displayHeight * KEYBOARD_ROW_INTERVAL)) / displayWidth;
+		int increment = (displayWidth + (displayHeight * keyboardRowInterval)) / displayWidth;
 		for (int x = xStart; x < xEnd; x++) {
 			getMainColourFromY(yScrollKeyboardScreen + x * increment, 0, &image[x * 3]);
 		}
@@ -1994,6 +1996,7 @@ void InstrumentClip::writeDataToFile(Song* song) {
 	storageManager.writeAttribute("inKeyMode", inScaleMode);
 	storageManager.writeAttribute("yScroll", yScroll);
 	storageManager.writeAttribute("yScrollKeyboard", yScrollKeyboardScreen);
+	storageManager.writeAttribute("keyboardRowInterval", keyboardRowInterval);
 	if (onKeyboardScreen) storageManager.writeAttribute("onKeyboardScreen", (char*)"1");
 	if (wrapEditing) storageManager.writeAttribute("crossScreenEditLevel", wrapEditLevel);
 	if (output->type == INSTRUMENT_TYPE_KIT) storageManager.writeAttribute("affectEntire", affectEntire);
@@ -2198,6 +2201,10 @@ someError:
 
 		else if (!strcmp(tagName, "yScrollKeyboard")) {
 			yScrollKeyboardScreen = storageManager.readTagOrAttributeValueInt();
+		}
+
+		else if (!strcmp(tagName, "keyboardRowInterval")) {
+			keyboardRowInterval = storageManager.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "crossScreenEditLevel")) {
