@@ -114,7 +114,7 @@ uint8_t g_midi_configuration[USB_MIDI_CD_WTOTALLENGTH + (USB_MIDI_CD_WTOTALLENGT
     (uint8_t)(500 / 2),                        /*  8:bMaxPower (2mA unit) */
 
     /* Interface Descriptor
-     * 3rd level of USB declarations. This declares a single USB midi endpoint (subclass of audio)
+     * 3rd level of USB declarations. This declares a single USB midi interface with 2 endpoints (subclass of audio)
      */
     USB_ID_BLENGTH,   /*  0:bLength */
     USB_DT_INTERFACE, /*  1:bDescriptorType */
@@ -133,7 +133,7 @@ uint8_t g_midi_configuration[USB_MIDI_CD_WTOTALLENGTH + (USB_MIDI_CD_WTOTALLENGT
 	 */
     //Header
     0x07,                        //header length
-    0x24,                        //bDescriptorType - CS interface
+    CS_INTERFACE,                //bDescriptorType - CS interface
     0x01,                        //Subtype - Midi Streaming Header
     0x00, 0x01,                  //BCD revision (1.00)
     (uint8_t)(7 + 15 * NCABLES), //TotalLength - LSB of interface descriptors - 7+15*ncables
