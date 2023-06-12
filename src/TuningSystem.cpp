@@ -33,7 +33,6 @@ void TuningSystem::calculateOffset(int noteWithinOctave) {
 	cents += offsets[noteWithinOctave] / 100.0;
 	double frequency = referenceFrequency * pow(2.0, cents / 1200.0);
 
-
 	double value = frequency / 1378.125;
 	value *= pow(2.0, 32);
 	tuningFrequencyTable[noteWithinOctave] = lround(value);
@@ -44,7 +43,7 @@ void TuningSystem::calculateOffset(int noteWithinOctave) {
 
 void TuningSystem::calculateAll() {
 
-	for(int i = 0; i < 12; i++) {
+	for (int i = 0; i < 12; i++) {
 		calculateOffset(i);
 	}
 }
@@ -76,7 +75,7 @@ void TuningSystem::setDefaultTuning() {
 
 	selectedTuningBank = 0;
 	setReference(4400);
-	for(int i = 0; i < 12; i++) {
+	for (int i = 0; i < 12; i++) {
 		setOffset(i, 0);
 	}
 }
@@ -93,8 +92,6 @@ void TuningSystem::setBank(int bank) {
 	}
 }
 
-TuningSystem::TuningSystem()
-{
+TuningSystem::TuningSystem() {
 	setDefaultTuning();
 }
-

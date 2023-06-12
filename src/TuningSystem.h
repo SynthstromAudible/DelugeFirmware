@@ -26,12 +26,11 @@ extern int32_t tuningFrequencyTable[12];
 extern int32_t tuningIntervalTable[12];
 extern int32_t selectedTuningBank;
 
-class TuningSystem
-{
+class TuningSystem {
 public:
 	TuningSystem();
 	void setDefaultTuning();
-	void setOffset(int,int32_t);
+	void setOffset(int, int32_t);
 	void setBank(int);
 
 	double referenceFrequency;
@@ -44,6 +43,7 @@ public:
 
 	int32_t getReference();
 	void setReference(int32_t);
+
 private:
 	void calculateAll();
 	void calculateOffset(int);

@@ -414,7 +414,8 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 			int noteWithinOctave = (uint16_t)(transposedNoteCode + 240) % 12;
 			int octave = (uint16_t)(transposedNoteCode + 120) / 12;
 
-			phaseIncrement = multiply_32x32_rshift32(tuningSystem.noteInterval(noteWithinOctave), pitchAdjustNeutralValue);
+			phaseIncrement =
+			    multiply_32x32_rshift32(tuningSystem.noteInterval(noteWithinOctave), pitchAdjustNeutralValue);
 
 			int shiftRightAmount = 13 - octave;
 
