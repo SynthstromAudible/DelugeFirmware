@@ -1102,7 +1102,7 @@ bool StorageManager::lseek(uint32_t pos) {
 }
 
 int StorageManager::loadScalaFile(FilePointer* filePointer) {
-	
+
 	AudioEngine::logAction("openScalaFile");
 
 	openFilePointer(filePointer);
@@ -1114,24 +1114,39 @@ int StorageManager::loadScalaFile(FilePointer* filePointer) {
 	TCHAR* ok;
 	int effectiveLine;
 	int divisions;
+	char* start;
 	while (f_gets((TCHAR*)fileClusterBuffer, audioFileManager.clusterSize, &fileSystemStuff.currentFile) != NULL) {
 		if (fileClusterBuffer[0] == '!') continue;
+
+		start = fileClusterBuffer;
+		while (*start != '\0') {
+			if (*start != ' ' && *start != '\t') {
+				break;
+			}
+			start++;
+		}
+		if (start[0] == '\0') continue;
+
 		if (effectiveLine == 0) {
-			tuningSystem.setup(fileClusterBuffer);
+			tuningSystem.setup(start);
 		}
 		else if (effectiveLine == 1) {
-			divisions = stringToInt(fileClusterBuffer);
+			divisions = stringToInt(start);
 			tuningSystem.setDivisions(divisions);
 		}
 		else if (effectiveLine < divisions) {
-			int left, right;
-			if (strstr(fileClusterBuffer, ".")) { // Cents
-				double value = left / (double)right;
-				tuningSystem.setNextCents(value);
-			} else if(strstr(fileClusterBuffer, "/")) { // Ratio
-				tuningSystem.setNextRatio(left, right);
-			} else { // Integer
-				tuningSystem.setNextRatio(left, 1);
+			char* dot = strchr(start, '.');
+			char* slash = strchr(start, '/');
+			if (dot != NULL) { // Cents
+				tuningSystem.setNextCents(stringToDouble(start));
+			}
+			else if (slash != NULL) { // Ratio
+				int32_t numerator = memToUIntOrError(start, slash);
+				int32_t denominator = stringToInt(slash + 1);
+				tuningSystem.setNextRatio(numerator, denominator);
+			}
+			else { // Integer
+				tuningSystem.setNextRatio(stringToInt(start), 1);
 			}
 		}
 		effectiveLine++;

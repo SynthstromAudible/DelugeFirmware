@@ -25,14 +25,11 @@ TuningSystem tuningSystem;
 
 int32_t selectedTuningBank;
 
-const double sampleRateDiv4 = 11025.0;
+void TuningSystem::calculateNote(int noteWithinOctave) {
 
-void TuningSystem::calculateOffset(int noteWithinOctave) {
-
-	double cents = 100 * (noteWithinOctave - 5);
+	double cents = 100 * (noteWithinOctave - referenceNote);
 	cents += offsets[noteWithinOctave] / 100.0;
 	double frequency = referenceFrequency * pow(2.0, cents / 1200.0);
-
 
 	double value = frequency / 1378.125;
 	value *= pow(2.0, 32);
@@ -44,41 +41,42 @@ void TuningSystem::calculateOffset(int noteWithinOctave) {
 
 void TuningSystem::calculateAll() {
 
-	for(int i = 0; i < 12; i++) {
-		calculateOffset(i);
+	for (int i = 0; i < 12; i++) {
+		calculateNote(i);
 	}
 }
 
 int32_t TuningSystem::noteFrequency(int noteWithinOctave) {
+
 	return tuningFrequencyTable[noteWithinOctave];
 }
 
 int32_t TuningSystem::noteInterval(int noteWithinOctave) {
+
 	return tuningIntervalTable[noteWithinOctave];
 }
 
 int32_t TuningSystem::getReference() {
+
 	return int(referenceFrequency * 10.0);
 }
 
 void TuningSystem::setReference(int32_t scaled) {
+
 	referenceFrequency = scaled / 10.0;
 	calculateAll();
+}
+
+void TuningSystem::setNoteCents(int noteWithinOctave, double cents) {
+	noteCents[noteWithinOctave] = cents;
+	offsets[noteWithinOctave] = cents - 100.0 * noteWithinOctave;
 }
 
 void TuningSystem::setOffset(int noteWithinOctave, int32_t offset) {
 
 	offsets[noteWithinOctave] = offset;
-	calculateOffset(noteWithinOctave);
-}
-
-void TuningSystem::setDefaultTuning() {
-
-	selectedTuningBank = 0;
-	setReference(4400);
-	for(int i = 0; i < 12; i++) {
-		setOffset(i, 0);
-	}
+	noteCents[noteWithinOctave] = noteWithinOctave * 100.0 + offset;
+	calculateNote(noteWithinOctave);
 }
 
 void TuningSystem::setBank(int bank) {
@@ -93,8 +91,45 @@ void TuningSystem::setBank(int bank) {
 	}
 }
 
-TuningSystem::TuningSystem()
-{
-	setDefaultTuning();
+void TuningSystem::setNextCents(double cents) {
+
+	int note = nextNote++;
+	noteCents[note] = cents;
+	offsets[note] = cents - 100.0 * note;
 }
 
+void TuningSystem::setNextRatio(int numerator, int denominator) {
+
+	int note = nextNote++;
+	noteCents[note] = 1200.0 * log2(numerator / (double)denominator);
+	offsets[note] = noteCents[note] - 100.0 * note;
+}
+
+void TuningSystem::setDivisions(int divs) {
+
+	divisions = divs;
+	if (divisions > MAX_DIVISIONS) {
+		divisions = MAX_DIVISIONS;
+		// TODO flash a warning
+	}
+}
+
+void TuningSystem::setup(const char* description) {
+
+	nextNote = 0;
+}
+
+void TuningSystem::setDefaultTuning() {
+
+	selectedTuningBank = 0;
+	setDivisions(12);
+	for (int i = 0; i < divisions; i++) {
+		setOffset(i, 0);
+	}
+	setReference(4400);
+}
+
+TuningSystem::TuningSystem() {
+	referenceNote = 5; // noteWithinOctave: 0=E, 2=F#, 4=G#, 5=A=440 Hz
+	setDefaultTuning();
+}
