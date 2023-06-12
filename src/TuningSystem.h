@@ -33,7 +33,6 @@ public:
 	TuningSystem();
 	void setDefaultTuning();
 	void setOffset(int, int32_t);
-	void setNoteCents(int, double);
 	void setBank(int);
 
 	int referenceNote; // default 5=A
@@ -48,6 +47,8 @@ public:
 
 	int32_t getReference();
 	void setReference(int32_t);
+
+	void setNoteCents(int, double);
 
 	void setNextRatio(int, int);
 	void setNextCents(double);

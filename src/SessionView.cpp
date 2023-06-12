@@ -73,7 +73,6 @@ extern "C" {
 SessionView sessionView;
 extern MenuItemSubmenu songRootMenu;
 
-
 extern int8_t defaultAudioClipOverdubOutputCloning;
 
 SessionView::SessionView() {
@@ -376,7 +375,6 @@ moveAfterClipInstance:
 			openUI(&soundEditor);
 		}
 	}
-
 
 	// Which-instrument-type buttons
 	else if (x == synthButtonX && y == synthButtonY) {

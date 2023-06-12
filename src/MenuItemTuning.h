@@ -25,7 +25,7 @@
 #include "soundeditor.h"
 #include "functions.h"
 
-extern const char *tuningBankNames[NUM_TUNING_BANKS+2];
+extern const char* tuningBankNames[NUM_TUNING_BANKS + 2];
 
 class MenuItemTuningReference : public MenuItemDecimal {
 public:
@@ -33,12 +33,8 @@ public:
 	int getMinValue() { return 4000; }
 	int getMaxValue() { return 5000; }
 	int getNumDecimalPlaces() { return 1; }
-	void readCurrentValue() {
-		soundEditor.currentValue = tuningSystem.getReference();
-	}
-	void writeCurrentValue(){
-		tuningSystem.setReference(soundEditor.currentValue);
-	}
+	void readCurrentValue() { soundEditor.currentValue = tuningSystem.getReference(); }
+	void writeCurrentValue() { tuningSystem.setReference(soundEditor.currentValue); }
 };
 
 class MenuItemTuningNote : public MenuItemDecimal {
@@ -47,12 +43,8 @@ public:
 	int getMinValue() { return -5000; }
 	int getMaxValue() { return 5000; }
 	int getNumDecimalPlaces() { return 2; }
-	void readCurrentValue() {
-		soundEditor.currentValue = (int32_t)tuningSystem.offsets[tuningSystem.currentNote];
-	}
-	void writeCurrentValue(){
-		tuningSystem.setOffset(tuningSystem.currentNote, soundEditor.currentValue);
-	}
+	void readCurrentValue() { soundEditor.currentValue = (int32_t)tuningSystem.offsets[tuningSystem.currentNote]; }
+	void writeCurrentValue() { tuningSystem.setOffset(tuningSystem.currentNote, soundEditor.currentValue); }
 };
 
 class MenuItemTuningBank : public MenuItemSelection {
@@ -65,37 +57,9 @@ public:
 };
 
 #if HAVE_OLED
-static char const* octaveNotes[] = {
-	"E",
-	"F",
-	"F#",
-	"G",
-	"G#",
-	"A",
-	"A#",
-	"B",
-	"C",
-	"C#",
-	"D",
-	"D#",
-	NULL
-};
+static char const* octaveNotes[] = {"E", "F", "F#", "G", "G#", "A", "A#", "B", "C", "C#", "D", "D#", NULL};
 #else
-static char const* octaveNotes[] = {
-	"E",
-	"F",
-	"F.",
-	"G",
-	"G.",
-	"A",
-	"A.",
-	"B",
-	"C",
-	"C.",
-	"D",
-	"D.",
-	NULL
-};
+static char const* octaveNotes[] = {"E", "F", "F.", "G", "G.", "A", "A.", "B", "C", "C.", "D", "D.", NULL};
 #endif
 
 extern MenuItemTuningNote tuningNoteMenu;
