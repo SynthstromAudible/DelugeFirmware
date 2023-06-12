@@ -19,7 +19,7 @@
 #define SOUNDEDITOR_H
 
 #include "UI.h"
-#include "MenuItem.h"
+#include "MenuItemSubmenu.h"
 #include "Arpeggiator.h"
 
 #define SHORTCUTS_VERSION_1 0
@@ -28,6 +28,8 @@
 
 extern void enterEditor();
 extern void enterSaveSynthPresetUI();
+
+extern MenuItemSubmenu rootMenuSong;
 
 class Drum;
 class Sound;

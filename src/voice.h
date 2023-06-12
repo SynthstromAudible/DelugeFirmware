@@ -114,6 +114,7 @@ private:
 	                       bool getOutAfterPhaseIncrements, int32_t waveIndexIncrement);
 	bool adjustPitch(uint32_t* phaseIncrement, int32_t adjustment);
 
+
 	void renderSineWaveWithFeedback(int32_t* thisSample, int numSamples, uint32_t* phase, int32_t amplitude,
 	                                uint32_t phaseIncrement, int32_t feedbackAmount, int32_t* lastFeedbackValue,
 	                                bool add, int32_t amplitudeIncrement);

@@ -97,6 +97,7 @@ SoundEditor soundEditor;
 MenuItemSubmenu soundEditorRootMenu;
 MenuItemSubmenu soundEditorRootMenuMIDIOrCV;
 MenuItemSubmenu soundEditorRootMenuAudioClip;
+MenuItemSubmenu rootMenuSong;
 
 // Dev vars
 
@@ -509,11 +510,11 @@ class MenuItemRetriggerPhase final : public MenuItemDecimal {
 public:
 	MenuItemRetriggerPhase(char const* newName = NULL, bool newForModulator = false) : MenuItemDecimal(newName) {
 		forModulator = newForModulator;
+		basicMaxValue = 360;
+		basicNumDecimalPlaces = 0;
+		basicDefaultEditPos = 1;
 	}
 	int getMinValue() { return -soundEditor.numberEditSize; }
-	int getMaxValue() { return 360; }
-	int getNumDecimalPlaces() { return 0; }
-	int getDefaultEditPos() { return 1; }
 	void readCurrentValue() {
 		uint32_t value = *getValueAddress();
 		if (value == 0xFFFFFFFF) soundEditor.currentValue = -soundEditor.numberEditSize;
@@ -1767,6 +1768,53 @@ MenuItemUnpatchedParam audioClipDelayRateMenu;
 MenuItemUnpatchedParam audioClipLevelMenu;
 MenuItemUnpatchedParamPan audioClipPanMenu;
 
+
+
+
+// Song-level menus ------------------------------------------------
+class MenuItemSongTuning final : public MenuItemDecimal {
+public:
+	MenuItemSongTuning(char const* newName = NULL) : MenuItemDecimal(newName) {
+#if HAVE_OLED
+		basicTitle = "Song tuning";
+#endif
+		basicMinValue = 2640;
+		basicMaxValue = 5280;
+		basicNumDecimalPlaces = 1;
+		basicDefaultEditPos = 1;
+	}
+	void readCurrentValue() {
+		soundEditor.currentValue = ((uint64_t)currentSong->baseFrequency * (uint64_t)6075765868uL + ((uint64_t)1 << 49)) >> 50;
+	}
+	void writeCurrentValue() {
+		currentSong->baseFrequency = (uint32_t)soundEditor.currentValue * 185310;
+		currentSong->calculateNoteFrequencies();
+	}
+} songTuningMenu;
+
+
+MenuItemSubmenu temperamentMenu;
+
+class MenuItemSongTemperamentNumNotes final : public MenuItemInteger {
+public:
+	MenuItemSongTemperamentNumNotes(char const* newName = NULL) : MenuItemInteger(newName) {
+#if HAVE_OLED
+		basicTitle = "Temperament num notes";
+#endif
+		basicMinValue = 5;
+		basicMaxValue = OCTAVE_MAX_NUM_MICROTONAL_NOTES;
+	}
+	void readCurrentValue() {
+		soundEditor.currentValue = currentSong->octaveNumMicrotonalNotes;
+	}
+	void writeCurrentValue() {
+		currentSong->setNumNotesInTemperament(soundEditor.currentValue);
+		currentSong->calculateNoteFrequencies();
+	}
+} songTemperamentNumNotesMenu;
+
+
+
 MenuItemFixedPatchCableStrength vibratoMenu;
 
 #define comingSoonMenu (MenuItem*)0xFFFFFFFF
@@ -2879,6 +2927,21 @@ SoundEditor::SoundEditor() {
 	new (&midiBankMenu) MenuItemMIDIBank("BANK");
 	new (&midiSubMenu) MenuItemMIDISub(HAVE_OLED ? "Sub-bank" : "SUB");
 	new (&midiPGMMenu) MenuItemMIDIPGM("PGM");
+
+	// Song-level menu -----------------------------------------------------
+	new (&songTuningMenu) MenuItemSongTuning(HAVE_OLED ? "Tuning" : "TUNE");
+	
+	new (&songTemperamentNumNotesMenu) MenuItemSongTemperamentNumNotes(HAVE_OLED ? "Num. notes" : "NUM");
+	
+	static MenuItem* temperamentMenuItems[] = {&songTemperamentNumNotesMenu, NULL};
+	
+	new (&temperamentMenu) MenuItemSubmenu("Temperament", temperamentMenuItems);
+	
+	static MenuItem* rootMenuItemsSong[] = {&songTuningMenu, &temperamentMenu, NULL};
+	
+	// Root menu for Song
+	new (&rootMenuSong) MenuItemSubmenu("Song", rootMenuItemsSong);
+	
 
 	// Root menu for MIDI / CV
 	static MenuItem* soundEditorRootMenuItemsMIDIOrCV[] = {&midiPGMMenu, &midiBankMenu,          &midiSubMenu, &arpMenu,

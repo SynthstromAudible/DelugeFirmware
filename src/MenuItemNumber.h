@@ -24,11 +24,14 @@
 
 class MenuItemNumber : public MenuItemValue {
 public:
-	MenuItemNumber(char const* newName = NULL) : MenuItemValue(newName) {}
+	MenuItemNumber(char const* newName = NULL) ;
+
+	int basicMaxValue;
+	int basicMinValue;
 
 protected:
-	virtual int getMaxValue() = 0;
-	virtual int getMinValue() { return 0; }
+	virtual int getMaxValue();
+	virtual int getMinValue();
 };
 
 #endif /* MENUITEMNUMBER_H_ */

@@ -444,13 +444,13 @@ bool KeyboardScreen::renderMainPads(uint32_t whichRows, uint8_t image[][displayW
 	if (!image) return true;
 
 	// First, piece together a picture of all notes-within-an-octave which are active
-	bool notesWithinOctaveActive[12];
+	bool notesWithinOctaveActive[OCTAVE_MAX_NUM_MICROTONAL_NOTES];
 	memset(notesWithinOctaveActive, 0, sizeof(notesWithinOctaveActive));
 	for (int p = 0; p < MAX_NUM_KEYBOARD_PAD_PRESSES; p++) {
 		if (padPresses[p].x != 255) {
 			int noteCode = getNoteCodeFromCoords(padPresses[p].x, padPresses[p].y);
-			int noteWithinOctave = (noteCode - currentSong->rootNote + 120) % 12;
-			notesWithinOctaveActive[noteWithinOctave] = true;
+	    	NoteWithinOctave octaveAndNote = currentSong->getOctaveAndNoteWithin(noteCode - currentSong->rootNote);
+			notesWithinOctaveActive[octaveAndNote.noteWithin] = true;
 		}
 	}
 
@@ -463,16 +463,16 @@ bool KeyboardScreen::renderMainPads(uint32_t whichRows, uint8_t image[][displayW
 			for (int y = 0; y < displayHeight; y++) {
 				int noteCode = getNoteCodeFromCoords(0, y);
 				int yDisplay = noteCode - getCurrentClip()->yScrollKeyboardScreen;
-				int noteWithinOctave = (noteCode - defaultRootNote + 120) % 12;
+		    	NoteWithinOctave octaveAndNote = currentSong->getOctaveAndNoteWithin(noteCode - defaultRootNote);
 				for (int x = 0; x < displayWidth; x++) {
 
-					if (!noteWithinOctave) {
+					if (!octaveAndNote.noteWithin) {
 						memcpy(image[y][x], noteColours[yDisplay], 3);
 					}
 
 					yDisplay++;
-					noteWithinOctave++;
-					if (noteWithinOctave == 12) noteWithinOctave = 0;
+					octaveAndNote.noteWithin++;
+					if (octaveAndNote.noteWithin == currentSong->octaveNumMicrotonalNotes) octaveAndNote.noteWithin = 0;
 				}
 			}
 		}
@@ -483,7 +483,7 @@ bool KeyboardScreen::renderMainPads(uint32_t whichRows, uint8_t image[][displayW
 		for (int y = 0; y < displayHeight; y++) {
 			int noteCode = getNoteCodeFromCoords(0, y);
 			int yDisplay = noteCode - getCurrentClip()->yScrollKeyboardScreen;
-			int noteWithinOctave = (uint16_t)(noteCode - currentSong->rootNote + 120) % (uint8_t)12;
+			int noteWithinOctave = currentSong->getRootNoteWithinOctave();
 
 			for (int x = 0; x < displayWidth; x++) {
 
@@ -519,7 +519,7 @@ doFullColour:
 				noteCode++;
 				yDisplay++;
 				noteWithinOctave++;
-				if (noteWithinOctave == 12) noteWithinOctave = 0;
+				if (noteWithinOctave == currentSong->octaveNumMicrotonalNotes) noteWithinOctave = 0;
 			}
 		}
 	}

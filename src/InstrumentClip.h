@@ -227,8 +227,8 @@ public:
 	                                                                   char* otherModelStackMemory);
 	void incrementPos(ModelStackWithTimelineCounter* modelStack, int32_t numTicks);
 
-	// ----- TimelineCounter implementation -------
-	void getActiveModControllable(ModelStackWithTimelineCounter* modelStack);
+    // ----- TimelineCounter implementation -------
+    void getActiveModControllable(ModelStackWithTimelineCounter* modelStack);
 
 protected:
 	void posReachedEnd(ModelStackWithTimelineCounter* modelStack);

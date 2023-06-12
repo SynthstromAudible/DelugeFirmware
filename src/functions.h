@@ -482,7 +482,6 @@ inline int increaseMagnitudeAndSaturate(int32_t number, int magnitude) {
 }
 
 int howMuchMoreMagnitude(unsigned int to, unsigned int from);
-void noteCodeToString(int noteCode, char* buffer, int* getLengthWithoutDot = NULL);
 double ConvertFromIeeeExtended(unsigned char* bytes /* LCN */);
 int32_t divide_round_negative(int32_t dividend, int32_t divisor);
 void dissectIterationDependence(int probability, int* getDivisor, int* getWhichIterationWithinDivisor);

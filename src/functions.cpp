@@ -1914,25 +1914,6 @@ int howMuchMoreMagnitude(unsigned int to, unsigned int from) {
 	return getMagnitudeOld(to) - getMagnitudeOld(from);
 }
 
-void noteCodeToString(int noteCode, char* buffer, int* getLengthWithoutDot) {
-	char* thisChar = buffer;
-	int octave = (noteCode) / 12 - 2;
-	int noteCodeWithinOctave = (uint16_t)(noteCode + 120) % (uint8_t)12;
-
-	*thisChar = noteCodeToNoteLetter[noteCodeWithinOctave];
-	thisChar++;
-	if (noteCodeIsSharp[noteCodeWithinOctave]) {
-		*thisChar = HAVE_OLED ? '#' : '.';
-		thisChar++;
-	}
-	intToString(octave, thisChar, 1);
-
-	if (getLengthWithoutDot) {
-		*getLengthWithoutDot = strlen(buffer);
-		if (noteCodeIsSharp[noteCodeWithinOctave]) (*getLengthWithoutDot)--;
-	}
-}
-
 void seedRandom() {
 	jcong = *TCNT[TIMER_SYSTEM_FAST];
 }

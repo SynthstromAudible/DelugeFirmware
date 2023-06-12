@@ -330,21 +330,22 @@ void Voice::changeNoteCode(ModelStackWithVoice* modelStack, int newNoteCodeBefor
 	ParamManagerForTimeline* paramManager = (ParamManagerForTimeline*)modelStack->paramManager;
 	Sound* sound = (Sound*)modelStack->modControllable;
 
-	if (paramManager->getUnpatchedParamSet()->getValue(PARAM_UNPATCHED_SOUND_PORTA) != -2147483648) setupPorta(sound);
+	if (paramManager->getUnpatchedParamSet()->getValue(PARAM_UNPATCHED_SOUND_PORTA) != -2147483648)
+		setupPorta(sound);
 
 	calculatePhaseIncrements(modelStack);
 }
 
-void Voice::setupPorta(Sound* sound) {
+void Voice::setupPorta(ModelStackWithVoice* modelStack) {
 	portaEnvelopePos = 0;
+	Sound* sound = (Sound*)modelStack->modControllable;
 	int semitoneAdjustment = sound->lastNoteCode - noteCodeAfterArpeggiation;
 
-	int noteWithinOctave = (semitoneAdjustment + 120) % 12;
-	int octave = (semitoneAdjustment + 120) / 12;
+	NoteWithinOctave octaveAndNote = modelStack->song->getOctaveAndNoteWithin(semitoneAdjustment);
 
-	int32_t phaseIncrement = noteIntervalTable[noteWithinOctave];
+	int32_t phaseIncrement = noteIntervalTable[octaveAndNote.noteWithin];
 
-	int shiftRightAmount = 16 - octave;
+	int shiftRightAmount = 16 - octaveAndNote.octave;
 	if (shiftRightAmount >= 0) {
 		phaseIncrement >>= shiftRightAmount;
 	}
@@ -400,22 +401,23 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 
 		uint32_t phaseIncrement;
 
+		NoteWithinOctave octaveAndNote = modelStack->song->getOctaveAndNoteWithin(transposedNoteCode);
 		// Sample-osc
-		if (sound->getSynthMode() != SYNTH_MODE_FM
-		    && (source->oscType == OSC_TYPE_SAMPLE || source->oscType == OSC_TYPE_INPUT_L
-		        || source->oscType == OSC_TYPE_INPUT_R || source->oscType == OSC_TYPE_INPUT_STEREO)) {
+		if (sound->getSynthMode() != SYNTH_MODE_FM &&
+				(source->oscType == OSC_TYPE_SAMPLE
+				|| source->oscType == OSC_TYPE_INPUT_L
+				|| source->oscType == OSC_TYPE_INPUT_R
+				|| source->oscType == OSC_TYPE_INPUT_STEREO
+				)) {
 
 			int32_t pitchAdjustNeutralValue;
 			if (source->oscType == OSC_TYPE_SAMPLE)
 				pitchAdjustNeutralValue = ((SampleHolder*)guides[s].audioFileHolder)->neutralPhaseIncrement;
 			else pitchAdjustNeutralValue = 16777216;
 
-			int noteWithinOctave = (uint16_t)(transposedNoteCode + 240) % 12;
-			int octave = (uint16_t)(transposedNoteCode + 120) / 12;
-
-			phaseIncrement = multiply_32x32_rshift32(noteIntervalTable[noteWithinOctave], pitchAdjustNeutralValue);
-
-			int shiftRightAmount = 13 - octave;
+			phaseIncrement = multiply_32x32_rshift32(noteIntervalTable[octaveAndNote.noteWithin], pitchAdjustNeutralValue);
+		
+			int shiftRightAmount = 3 - octaveAndNote.octave;
 
 			// If shifting right...
 			if (shiftRightAmount >= 0) {
@@ -441,12 +443,10 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 
 		// Regular wave osc
 		else {
-			int noteWithinOctave = (uint16_t)(transposedNoteCode + 240 - 4) % 12;
-			int octave = (transposedNoteCode + 120 - 4) / 12;
-
-			int shiftRightAmount = 20 - octave;
+		
+			int shiftRightAmount = 10 - octaveAndNote.octave;
 			if (shiftRightAmount >= 0) {
-				phaseIncrement = noteFrequencyTable[noteWithinOctave] >> shiftRightAmount;
+				phaseIncrement = modelStack->song->noteFrequencyTable[octaveAndNote.noteWithin] >> shiftRightAmount;
 			}
 
 			else {
@@ -481,16 +481,17 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 
 			if (sound->getSmoothedPatchedParamValue(PARAM_LOCAL_MODULATOR_0_VOLUME + m, paramManager) == -2147483648)
 				continue; // Only if modulator active
-
+			
 			int transposedNoteCode = noteCodeWithMasterTranspose + sound->modulatorTranspose[m];
-			int noteWithinOctave = (transposedNoteCode + 120 - 4) % 12;
-			int octave = (transposedNoteCode + 120 - 4) / 12;
-			int shiftRightAmount = 20 - octave;
-
+			
+			NoteWithinOctave octaveAndNote = modelStack->song->getOctaveAndNoteWithin(transposedNoteCode);
+			
+			int shiftRightAmount = 10 - octaveAndNote.octave;
+			
 			int phaseIncrement;
-
+			
 			if (shiftRightAmount >= 0) {
-				phaseIncrement = noteFrequencyTable[noteWithinOctave] >> shiftRightAmount;
+				phaseIncrement = modelStack->song->noteFrequencyTable[octaveAndNote.noteWithin] >> shiftRightAmount;
 			}
 
 			else {

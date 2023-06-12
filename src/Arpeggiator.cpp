@@ -285,7 +285,7 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 
 	playedFirstArpeggiatedNoteYet = true;
 
-	noteCodeCurrentlyOnPostArp = NOTE_FOR_DRUM + (int)currentOctave * 12;
+	noteCodeCurrentlyOnPostArp = NOTE_FOR_DRUM + (int)currentOctave * currentSong->octaveNumMicrotonalNotes;
 
 	instruction->noteCodeOnPostArp = noteCodeCurrentlyOnPostArp;
 	instruction->arpNoteOn = &arpNote;
@@ -393,7 +393,7 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 
 	ArpNote* arpNote = (ArpNote*)notes.getElementAddress(whichNoteCurrentlyOnPostArp);
 
-	noteCodeCurrentlyOnPostArp = arpNote->inputCharacteristics[MIDI_CHARACTERISTIC_NOTE] + (int)currentOctave * 12;
+	noteCodeCurrentlyOnPostArp = arpNote->inputCharacteristics[MIDI_CHARACTERISTIC_NOTE] + (int)currentOctave * currentSong->octaveNumMicrotonalNotes;
 
 	instruction->noteCodeOnPostArp = noteCodeCurrentlyOnPostArp;
 	instruction->arpNoteOn = arpNote;

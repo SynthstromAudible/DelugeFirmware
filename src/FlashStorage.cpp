@@ -121,6 +121,11 @@ uint8_t defaultBendRange[2] = {
     2,
     48}; // The 48 isn't editable. And the 2 actually should only apply to non-MPE MIDI, because it's editable, whereas for MPE it's meant to always stay at 2.
 
+int a440Frequency = 44000; // Is 440 multiplied by 100.
+
+int a440Transpose = 0;
+int a440Cents = 0;
+
 void resetSettings() {
 
 	cvEngine.setCVVoltsPerOctave(0, 100);

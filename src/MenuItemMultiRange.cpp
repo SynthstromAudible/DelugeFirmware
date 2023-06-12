@@ -32,6 +32,7 @@
 #include "Buttons.h"
 #include "MultiWaveTableRange.h"
 #include "oled.h"
+#include "song.h"
 
 MenuItemMultiRange multiRangeMenu;
 
@@ -315,7 +316,7 @@ void MenuItemMultiRange::getText(char* buffer, int* getLeftLength, int* getRight
 	}
 	else {
 		int note = soundEditor.currentSource->ranges.getElement(soundEditor.currentValue - 1)->topNote + 1;
-		noteCodeToString(note, buffer, getLeftLength);
+		currentSong->noteCodeToString(note, buffer, getLeftLength);
 	}
 
 	char* bufferPos = buffer + strlen(buffer);
@@ -348,7 +349,7 @@ void MenuItemMultiRange::getText(char* buffer, int* getLeftLength, int* getRight
 
 		*(bufferPos++) = '-';
 		*(bufferPos++) = ' ';
-		noteCodeToString(note, bufferPos, getRightLength);
+		currentSong->noteCodeToString(note, bufferPos, getRightLength);
 	}
 }
 

@@ -18,6 +18,7 @@
 #include <SampleHolderForClip.h>
 #include "lookuptables.h"
 #include "Sample.h"
+#include "song.h"
 
 SampleHolderForClip::SampleHolderForClip() {
 	transpose = 0;
@@ -39,10 +40,9 @@ void SampleHolderForClip::recalculateNeutralPhaseIncrement() {
 
 	if (audioFile) {
 
-		int noteWithinOctave = (uint16_t)(transpose + 240) % 12;
-		int octave = ((uint16_t)(transpose + 120) / 12) - 10;
+    	NoteWithinOctave octaveAndNote = currentSong->getOctaveAndNoteWithin(transpose);
 
-		neutralPhaseIncrement = noteIntervalTable[noteWithinOctave] >> (6 - octave);
+    	neutralPhaseIncrement = noteIntervalTable[octaveAndNote.noteWithin] >> (6 - octaveAndNote.octave);
 
 		if (((Sample*)audioFile)->sampleRate != 44100) {
 			neutralPhaseIncrement = (uint64_t)neutralPhaseIncrement * ((Sample*)audioFile)->sampleRate / 44100;

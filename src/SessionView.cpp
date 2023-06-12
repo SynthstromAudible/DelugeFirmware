@@ -58,6 +58,7 @@
 #include "loadsongui.h"
 #include "uitimermanager.h"
 #include "FileItem.h"
+#include "soundeditor.h"
 
 #if HAVE_OLED
 #include "oled.h"
@@ -345,18 +346,21 @@ moveAfterClipInstance:
 				replaceInstrumentClipWithAudioClip();
 			}
 			else if (currentUIMode == UI_MODE_NONE) {
-				if (session.hasPlaybackActive()) {
-					if (session.launchEventAtSwungTickCount) {
-						session.cancelAllArming();
-						session.cancelAllLaunchScheduling();
-						session.lastSectionArmed = 255;
+				if (session.hasPlaybackActive() && session.launchEventAtSwungTickCount) {
+					session.cancelAllArming();
+					session.cancelAllLaunchScheduling();
+					session.lastSectionArmed = 255;
 #if HAVE_OLED
-						renderUIsForOled();
+					renderUIsForOled();
 #else
-						redrawNumericDisplay();
+					redrawNumericDisplay();
 #endif
-						uiNeedsRendering(this, 0, 0xFFFFFFFF);
-					}
+					uiNeedsRendering(this, 0, 0xFFFFFFFF);
+				}
+				else {
+					numericDriver.setNextTransitionDirection(1);
+					soundEditor.setup(NULL, &rootMenuSong, 0);
+					openUI(&soundEditor);
 				}
 			}
 		}
