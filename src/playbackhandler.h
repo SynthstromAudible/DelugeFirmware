@@ -61,7 +61,7 @@ public:
     void recordButtonPressed();
     void setupPlaybackUsingInternalClock(int buttonPressLatencyForTempolessRecord = 0, bool allowCountIn = true);
     void setupPlaybackUsingExternalClock(bool switchingFromInternalClock = false, bool fromContinueCommand = false);
-    void setupPlayback(int newPlaybackState, int32_t playFromPos, bool doOneLastAudioRoutineCall = false, bool shouldShiftAccordingToTrackInstance = true, int buttonPressLatencyForTempolessRecord = 0);
+    void setupPlayback(int newPlaybackState, int32_t playFromPos, bool doOneLastAudioRoutineCall = false, bool shouldShiftAccordingToClipInstance = true, int buttonPressLatencyForTempolessRecord = 0);
     void endPlayback();
     void inputTick(bool fromTriggerClock = false, uint32_t time = 0);
     void startMessageReceived();

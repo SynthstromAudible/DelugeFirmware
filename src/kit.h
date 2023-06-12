@@ -40,14 +40,14 @@ public:
     bool writeDataToFile(Clip* clipForSavingOutputOnly, Song* song);
     void addDrum(Drum* newDrum);
     int readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos);
-    Drum *getFirstUnassignedDrum(InstrumentClip *track);
+    Drum *getFirstUnassignedDrum(InstrumentClip *clip);
     ~Kit();
     int getDrumIndex(Drum *drum);
     Drum* getDrumFromIndex(int index);
     void modKnobAction(uint8_t whichKnob, int8_t offset);
     int loadAllAudioFiles(bool mayActuallyReadFiles);
     void cutAllSound();
-    void renderOutput(ModelStack* modelStack, StereoSample *startPos, StereoSample *endPos, int numSamples, int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isTrackActive);
+    void renderOutput(ModelStack* modelStack, StereoSample *startPos, StereoSample *endPos, int numSamples, int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive);
     void notifySamplesInterruptsSuspended();
     void offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value, ModelStackWithTimelineCounter* modelStack);
     bool offerReceivedPitchBendToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2, ModelStackWithTimelineCounter* modelStack);
@@ -73,7 +73,7 @@ public:
     GateDrum* getGateDrumForChannel(int gateChannel);
     void resetDrumTempValues();
     void setupWithoutActiveClip(ModelStack* modelStack);
-    void getThingWithMostReverb(Sound** patchingConfigWithMostReverb, ParamManager** paramManagerWithMostReverb, GlobalEffectableForClip** globalEffectableWithMostReverb, int32_t* highestReverbAmountFound);
+    void getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb, GlobalEffectableForClip** globalEffectableWithMostReverb, int32_t* highestReverbAmountFound);
     uint8_t* getModKnobMode() { return &modKnobMode; }
     Output* toOutput() { return this; }
     void offerReceivedNote(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice, bool on, int channel, int note, int velocity, bool shouldRecordNotes, bool* doingMidiThru);

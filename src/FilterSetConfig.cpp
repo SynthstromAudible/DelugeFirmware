@@ -18,7 +18,6 @@
 #include <AudioEngine.h>
 #include "FilterSetConfig.h"
 #include "functions.h"
-//#include <algorithm>
 #include "uart.h"
 #include "storagemanager.h"
 
@@ -218,21 +217,21 @@ int32_t FilterSetConfig::init(int32_t lpfFrequency, int32_t lpfResonance, int32_
 			}
 		}
 
-		int32_t moveability = instantTan(lshiftAndSaturate(lpfFrequency, 5)); // Between 0 and 8, by my making. 1 represented by 268435456
+		int32_t tannedFrequency = instantTan(lshiftAndSaturate(lpfFrequency, 5)); // Between 0 and 8, by my making. 1 represented by 268435456
 		{
 
 			// Cold transistor ladder
 			if (lpfMode != LPF_MODE_TRANSISTOR_24DB_DRIVE) {
 				// Some long-winded stuff to make it so if frequency goes really low, resonance goes down. This is tuned a bit, but isn't perfect
 				int32_t howMuchTooLow = 0;
-				if (moveability < 6000000) {
-					howMuchTooLow = 6000000 - moveability;
+				if (tannedFrequency < 6000000) {
+					howMuchTooLow = 6000000 - tannedFrequency;
 				}
 
 				int32_t howMuchToKeep = 2147483647 - howMuchTooLow * 33;
 
 				int32_t resonanceUpperLimit = 510000000; // Prone to feeding back lots
-				moveability = getMax(moveability, (int32_t)540817); // We really want to keep the frequency from going lower than it has to - it causes problems
+				tannedFrequency = getMax(tannedFrequency, (int32_t)540817); // We really want to keep the frequency from going lower than it has to - it causes problems
 
 				int32_t resonance = 2147483647 - (getMin(lpfResonance, resonanceUpperLimit) << 2); // Limits it
 
@@ -241,42 +240,30 @@ int32_t FilterSetConfig::init(int32_t lpfFrequency, int32_t lpfResonance, int32_
 				processedResonance = multiply_32x32_rshift32_rounded(processedResonance, howMuchToKeep) << 1;
 			}
 
-			divideBy1PlusMoveability = (int64_t)2147483648u * 134217728 / (134217728 + (moveability >> 1)); // Between ~0.1 and 1. 1 represented by 2147483648
-			moveability = multiply_32x32_rshift32_rounded(moveability, divideBy1PlusMoveability) << 4; // Between 0 and 1. 1 represented by 2147483648 I'm pretty sure
+			divideBy1PlusTannedFrequency = (int64_t)2147483648u * 134217728 / (134217728 + (tannedFrequency >> 1)); // Between ~0.1 and 1. 1 represented by 2147483648
+			moveability = multiply_32x32_rshift32_rounded(tannedFrequency, divideBy1PlusTannedFrequency) << 4; // Between 0 and 1. 1 represented by 2147483648 I'm pretty sure
 
 			// Half ladder
 			if (lpfMode == LPF_MODE_12DB) {
 				int32_t moveabilityNegative = moveability - 1073741824; // Between -2 and 0. 1 represented as 1073741824
-				lpf2Feedback = multiply_32x32_rshift32_rounded(moveabilityNegative, divideBy1PlusMoveability) << 1;
+				lpf2Feedback = multiply_32x32_rshift32_rounded(moveabilityNegative, divideBy1PlusTannedFrequency) << 1;
 				lpf1Feedback = multiply_32x32_rshift32_rounded(lpf2Feedback, moveability) << 1;
-
-				divideByTotalMoveabilityAndProcessedResonance = (int64_t)67108864 * 1073741824
-						/ (67108864 +
-								multiply_32x32_rshift32_rounded(processedResonance,
-										multiply_32x32_rshift32_rounded(moveabilityNegative,
-												multiply_32x32_rshift32_rounded(moveability,
-														moveability))));
+				divideByTotalMoveabilityAndProcessedResonance = (int64_t)67108864 * 1073741824 / (67108864 + multiply_32x32_rshift32_rounded(processedResonance, multiply_32x32_rshift32_rounded(moveabilityNegative, multiply_32x32_rshift32_rounded(moveability, moveability))));
 			}
 
 			// Full ladder
 			else {
-				lpf3Feedback = multiply_32x32_rshift32_rounded(divideBy1PlusMoveability, moveability);
+				lpf3Feedback = multiply_32x32_rshift32_rounded(divideBy1PlusTannedFrequency, moveability);
 				lpf2Feedback = multiply_32x32_rshift32_rounded(lpf3Feedback, moveability) << 1;
 				lpf1Feedback = multiply_32x32_rshift32_rounded(lpf2Feedback, moveability) << 1;
-
-				int32_t onePlusThing = 67108864
-						+ (multiply_32x32_rshift32_rounded(moveability,
-								multiply_32x32_rshift32_rounded(moveability,
-										multiply_32x32_rshift32_rounded(moveability,
-												multiply_32x32_rshift32_rounded(moveability,
-														processedResonance))))); // 1 represented as 67108864
+				int32_t onePlusThing = 67108864 + (multiply_32x32_rshift32_rounded(moveability, multiply_32x32_rshift32_rounded(moveability, multiply_32x32_rshift32_rounded(moveability, multiply_32x32_rshift32_rounded(moveability, processedResonance))))); // 1 represented as 67108864
 				divideByTotalMoveabilityAndProcessedResonance = (int64_t)67108864 * 1073741824 / onePlusThing;
 			}
 
 
 			if (lpfMode != LPF_MODE_TRANSISTOR_24DB_DRIVE) { // Cold transistor ladder only
 				// Extra feedback - but only if freq isn't too high. Otherwise we get aliasing
-				if (moveability <= 304587486)
+				if (tannedFrequency <= 304587486)
 					processedResonance = multiply_32x32_rshift32_rounded(processedResonance, 1150000000) << 1;
 				else
 					processedResonance >>= 1;
@@ -312,9 +299,9 @@ int32_t FilterSetConfig::init(int32_t lpfFrequency, int32_t lpfResonance, int32_
 
 		int32_t extraFeedback = 1200000000;
 
-		int32_t moveability = instantTan(lshiftAndSaturate(hpfFrequency, 5)); // Between 0 and 8, by my making. 1 represented by 268435456
+		int32_t tannedFrequency = instantTan(lshiftAndSaturate(hpfFrequency, 5)); // Between 0 and 8, by my making. 1 represented by 268435456
 
-		int32_t hpfDivideBy1PlusMoveability = (int64_t)2147483648u * 134217728 / (134217728 + (moveability >> 1)); // Between ~0.1 and 1. 1 represented by 2147483648
+		int32_t hpfDivideBy1PlusTannedFrequency = (int64_t)2147483648u * 134217728 / (134217728 + (tannedFrequency >> 1)); // Between ~0.1 and 1. 1 represented by 2147483648
 
 		int32_t resonanceUpperLimit = 536870911;
 		int32_t resonance = 2147483647 - (getMin(hpfResonance, resonanceUpperLimit) << 2); // Limits it
@@ -331,13 +318,13 @@ int32_t FilterSetConfig::init(int32_t lpfFrequency, int32_t lpfResonance, int32_
 
 		hpfDivideByProcessedResonance = 2147483648u / (hpfProcessedResonance >> (23));
 
-		hpfMoveability = multiply_32x32_rshift32_rounded(moveability, hpfDivideBy1PlusMoveability) << 4;
+		hpfMoveability = multiply_32x32_rshift32_rounded(tannedFrequency, hpfDivideBy1PlusTannedFrequency) << 4;
 
 		int32_t moveabilityTimesProcessedResonance = multiply_32x32_rshift32(hpfProcessedResonanceUnaltered, hpfMoveability); // 1 = 536870912
 		int32_t moveabilitySquaredTimesProcessedResonance = multiply_32x32_rshift32(moveabilityTimesProcessedResonance, hpfMoveability); // 1 = 268435456
 
-		hpfHPF3Feedback = -multiply_32x32_rshift32_rounded(hpfMoveability, hpfDivideBy1PlusMoveability);
-		hpfLPF1Feedback = hpfDivideBy1PlusMoveability >> 1;
+		hpfHPF3Feedback = -multiply_32x32_rshift32_rounded(hpfMoveability, hpfDivideBy1PlusTannedFrequency);
+		hpfLPF1Feedback = hpfDivideBy1PlusTannedFrequency >> 1;
 
 		uint32_t toDivideBy = ((int32_t)268435456 - (moveabilityTimesProcessedResonance >> 1) + moveabilitySquaredTimesProcessedResonance);
 		divideByTotalMoveability = (int32_t)((uint64_t)hpfProcessedResonance * 67108864 / toDivideBy);

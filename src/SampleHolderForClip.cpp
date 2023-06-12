@@ -28,9 +28,9 @@ SampleHolderForClip::SampleHolderForClip() {
 SampleHolderForClip::~SampleHolderForClip() {
 }
 
-void SampleHolderForClip::setAudioFile(AudioFile* newAudioFile, bool reversed, bool manuallySelected, int chunkLoadInstruction) {
+void SampleHolderForClip::setAudioFile(AudioFile* newAudioFile, bool reversed, bool manuallySelected, int clusterLoadInstruction) {
 
-	SampleHolder::setAudioFile(newAudioFile, reversed, manuallySelected, chunkLoadInstruction);
+	SampleHolder::setAudioFile(newAudioFile, reversed, manuallySelected, clusterLoadInstruction);
 
 	recalculateNeutralPhaseIncrement();
 }

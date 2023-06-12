@@ -42,16 +42,89 @@ class Metronome;
 class ModelStackWithSoundFlags;
 class SoundDrum;
 
+/*
+ * ================== Audio rendering ==================
+ *
+ * The Deluge renders its audio in “windows” (or you could more or less say “buffers”),
+ * a certain number of samples long. In fact, the Deluge’s audio output buffer is a circular,
+ * 128-sample one, whose contents are continuously output to the DAC / codec via I2S
+ * (Renesas calls this SSI) at 44,100hz. That buffer is an array called ssiTxBuffer.
+ *
+ * Each time the audio routine, AudioEngine::routine(), is called, the code checks where the
+ * DMA outputting has gotten up to in ssiTxBuffer, considers where its rendering of the previous
+ * “window” had ended at, and so determines how many new samples it may now render and write into
+ * ssiTxBuffer without “getting ahead of itself”.
+ *
+ * This scheme is primarily useful because it regulates CPU load somewhat, for a slight tradeoff
+ * in audio rendering quality (more on that below) by using longer windows for each render. For instance,
+ * if the CPU load is very light (as in, not many sounds playing), rendering a window will happen very fast,
+ * so when the audio routine is finished and is then called again the next time, only say one or two
+ * samples will have been output via DMA to the DAC. This means the next window length is set at just
+ * one or two samples. I.e. lighter CPU load means shorter windows.
+ *
+ * Often the window length will be rounded to a multiple of 4, because various parts of the rendering code
+ * (e.g. oscillator table lookup / interpolation) use Arm NEON optimizations, which are implemented in
+ * a way that happens to perform best working on chunks of 4 samples. Also, and taking precedence over that,
+ * windows will be shortened to always end at the precise audio sample where an event (e.g. note-on)
+ * is to occur on the Deluge’s sequencer.
+ *
+ * The window length has strictly speaking no effect on the output or quality of oscillators
+ * (including sync, FM, ringmod and wavetable), filters, most effects, sample playback, or timings/jitter
+ * from the Deluge’s sequencer. Where it primarily does have a (barely audible) effect is on envelope shapes.
+ * The current “stage” of the envelope (i.e. A, D, S or R) is only recalculated at the beginning of each window,
+ * so the minimum attack, decay or release time is the length of that window, *unless* that parameter
+ * is in fact set to 0, in which case that stage is skipped. So, you can get a 0ms (well, 1 sample) attack time,
+ * but depending on the window length (which depends on CPU load), your 0.1ms attack time could theoretically
+ * get as long as 2.9ms (128 samples), though it would normally end up quite a bit shorter.
+ *
+ * With envelopes (and LFO position actually) only being recalculated at the start of each “window”,
+ * you might be wondering whether you’ll get an audible “zipper” or stepped effect as the output of these
+ * changes sporadically. The answer is, usually not, because most parameters for which this would be audible
+ * (e.g. definitely anything level/volume related) will linearly interpolate their value change throughout
+ * the window, usually using a variable named something to do with “increment”. This is done per parameter,
+ * rather than per modulation source, essentially for ease / performance. Wavetable position and FM amounts
+ * are other important parameters to do this to.
+ *
+ * But for many parameters, the stepping is not audible in the first place, so there is no interpolation.
+ * This includes filter resonance and oscillator / sample-playback pitch. Especially sample-playback
+ * pitch would be very difficult to interpolate this way because the (unchanging) pitch for the window
+ * is used at the start to calculate how many raw audio-samples (i.e. how many bytes) will need to be
+ * read from memory to render the (repitched) audio-sample window.
+ */
+
+/*
+ * ====================== Audio / CPU performance ======================
+ * A huge number of factors influence the performance of a particular Deluge firmware build.
+ * Subpar performance will usually be noticed in the form of sounds dropping out in songs which
+ * performed better in other firmware versions. As an open source contributer, ensuring optimal performance of any code modifications you make,
+ * and subsequently their builds, will be a big challenge. But don’t sweat it too much - if you’ve
+ * added some cool features which are useful to you or others, maybe lowered audio performance is a reasonable tradeoff?
+ *
+ * The Deluge codebase, since 2021, has been built with GCC 9.2. I (Rohan) compared this with the other 9.x GCC versions,
+ * some 10.x ones, and the 6.x version(s) that the Deluge had used earlier. Performance differences were
+ * negligible in most cases, and ultimately I settled on GCC 9.2 because it resulted in a built binary which was
+ * smaller by a number of kilobytes compared to other versions. GCC 10.x was particularly bad in this regard.
+ *
+ * The build process includes LTO - this helps performance a fair bit. And normal O2 optimization.
+ * These are both disabled in the HardwareDebug build configuration though, for faster build times and
+ * ease of code debugging. If you’re using live code uploading via a J-link and want to do some tests for
+ * real-world performance, you should enable these for this configuration, at least while doing your tests.
+ *
+ * A few other of the standard compiler optimizations are enabled, like –gc-sections to remove unused code from the build.
+ * Beyond that, I’ve experimented with enabling various of the most advanced GCC optimizations,
+ * but haven’t found any that improve overall performance.
+ */
+
 namespace AudioEngine {
     void routine();
-    void routineWithChunkLoading(bool mayProcessUserActionsBetween = false);
+    void routineWithClusterLoading(bool mayProcessUserActionsBetween = false);
 
     void init();
     void previewSample(String* path, FilePointer* filePointer, bool shouldActuallySound);
     void stopAnyPreviewing();
 
-    Voice* solicitVoice(Sound* forPatchingConfig);
-    void unassignVoice(Voice* voice, Sound* patchingConfig, ModelStackWithSoundFlags* modelStack = NULL, bool removeFromVector = true, bool shouldDispose = true);
+    Voice* solicitVoice(Sound* forSound);
+    void unassignVoice(Voice* voice, Sound* sound, ModelStackWithSoundFlags* modelStack = NULL, bool removeFromVector = true, bool shouldDispose = true);
     void disposeOfVoice(Voice* voice);
 
     void songSwapAboutToHappen();

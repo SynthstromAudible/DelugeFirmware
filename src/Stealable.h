@@ -20,6 +20,8 @@
 
 #include "BidirectionalLinkedList.h"
 
+// Please see explanation of memory allocation and "stealing" at the top of GeneralMemoryAllocator.h
+
 class Stealable : public BidirectionalLinkedListNode {
 public:
 	Stealable();

@@ -136,7 +136,7 @@ void SampleMarkerEditor::writeValue(uint32_t value, int markerTypeNow) {
 	else if (markerTypeNow == MARKER_END)
 		getCurrentSampleHolder()->endPos = value;
 
-	getCurrentSampleHolder()->claimClusterReasons(getCurrentSampleControls()->reversed, CHUNK_LOAD_IMMEDIATELY_OR_ENQUEUE);
+	getCurrentSampleHolder()->claimClusterReasons(getCurrentSampleControls()->reversed, CLUSTER_LOAD_IMMEDIATELY_OR_ENQUEUE);
 
 	if (clipType == CLIP_TYPE_AUDIO) {
 		if (audioClipActive) {
@@ -148,7 +148,7 @@ void SampleMarkerEditor::writeValue(uint32_t value, int markerTypeNow) {
 	else {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithSoundFlags* modelStack = soundEditor.getCurrentModelStack(modelStackMemory)->addSoundFlags();
-		soundEditor.currentPatchingConfig->sampleZoneChanged(markerTypeNow, soundEditor.currentSourceIndex, modelStack);
+		soundEditor.currentSound->sampleZoneChanged(markerTypeNow, soundEditor.currentSourceIndex, modelStack);
 		((Instrument*)currentSong->currentClip->output)->beenEdited(true);
 	}
 }
@@ -691,12 +691,12 @@ void SampleMarkerEditor::graphicsRoutine() {
 	// InstrumentClips / Samples
 	if (currentSong->currentClip->type == CLIP_TYPE_INSTRUMENT) {
 
-		if (soundEditor.currentPatchingConfig->hasAnyVoices()) {
+		if (soundEditor.currentSound->hasAnyVoices()) {
 
 			Voice* assignedVoice = NULL;
 
 			int ends[2];
-			AudioEngine::activeVoices.getRangeForPatchingConfig(soundEditor.currentPatchingConfig, ends);
+			AudioEngine::activeVoices.getRangeForSound(soundEditor.currentSound, ends);
 			for (int v = ends[0]; v < ends[1]; v++) {
 				Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
 
@@ -710,7 +710,7 @@ void SampleMarkerEditor::graphicsRoutine() {
 
 
 			if (assignedVoice) {
-				VoiceUnisonPartSource* part = &assignedVoice->unisonParts[soundEditor.currentPatchingConfig->numUnison >> 1].sources[soundEditor.currentSourceIndex];
+				VoiceUnisonPartSource* part = &assignedVoice->unisonParts[soundEditor.currentSound->numUnison >> 1].sources[soundEditor.currentSourceIndex];
 				if (part && part->active) {
 					voiceSample = part->voiceSample;
 					guide = &assignedVoice->guides[soundEditor.currentSourceIndex];

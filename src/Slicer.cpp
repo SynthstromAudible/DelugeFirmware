@@ -146,7 +146,7 @@ getOut:
 
 	// Ensure osc type is "sample"
 	if (soundEditor.currentSource->oscType != OSC_TYPE_SAMPLE) {
-		soundEditor.currentPatchingConfig->unassignAllVoices();
+		soundEditor.currentSound->unassignAllVoices();
 		soundEditor.currentSource->setOscType(OSC_TYPE_SAMPLE);
 	}
 
@@ -162,10 +162,10 @@ getOut:
 		// Reset osc volume, if it's not automated
 		if (!modelStackWithParam->autoParam->isAutomated()) {
 			modelStackWithParam->autoParam->setCurrentValueWithNoReversionOrRecording(modelStackWithParam, 2147483647);
-			//((ParamManagerBase*)soundEditor.currentParamManager)->setPatchedParamValue(PARAM_LOCAL_OSC_A_VOLUME + soundEditor.currentSourceIndex, 2147483647, 0xFFFFFFFF, 0, soundEditor.currentPatchingConfig, currentSong, currentSong->currentClip, false);
+			//((ParamManagerBase*)soundEditor.currentParamManager)->setPatchedParamValue(PARAM_LOCAL_OSC_A_VOLUME + soundEditor.currentSourceIndex, 2147483647, 0xFFFFFFFF, 0, soundEditor.currentSound, currentSong, currentSong->currentClip, false);
 		}
 
-		SoundDrum* firstDrum = (SoundDrum*)soundEditor.currentPatchingConfig;
+		SoundDrum* firstDrum = (SoundDrum*)soundEditor.currentSound;
 
 		if (firstDrum->nameIsDiscardable) {
 			firstDrum->name.set("1");
@@ -195,7 +195,7 @@ getOut:
 		if (!firstRange->sampleHolder.audioFile) numericDriver.freezeWithError("i032"); // Trying to narrow down E368 that Kevin F got
 #endif
 
-		firstRange->sampleHolder.claimClusterReasons(firstDrum->sources[0].sampleControls.reversed, CHUNK_ENQUEUE);
+		firstRange->sampleHolder.claimClusterReasons(firstDrum->sources[0].sampleControls.reversed, CLUSTER_ENQUEUE);
 		if (doEnvelopes) {
 			ParamCollectionSummary* summary = modelStack->paramManager->getPatchedParamSetSummary();
 			ModelStackWithParamId* modelStackWithParamId = modelStack->addParamCollectionAndId(summary->paramCollection, summary, PARAM_LOCAL_ENV_0_RELEASE);

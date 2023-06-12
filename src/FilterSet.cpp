@@ -131,7 +131,7 @@ inline int32_t FilterSet::do24dBLPFOnSample(int32_t input, FilterSetConfig* filt
 	int32_t moveability = filterSetConfig->moveability + multiply_32x32_rshift32(filterSetConfig->moveability, noiseLastValue);
 
 	int32_t feedbacksSum = (lpfLPF1.getFeedbackOutputWithoutLshift(filterSetConfig->lpf1Feedback) + lpfLPF2.getFeedbackOutputWithoutLshift(filterSetConfig->lpf2Feedback)
-			+ lpfLPF3.getFeedbackOutputWithoutLshift(filterSetConfig->lpf3Feedback) + lpfLPF4.getFeedbackOutputWithoutLshift(filterSetConfig->divideBy1PlusMoveability)) << 2;
+			+ lpfLPF3.getFeedbackOutputWithoutLshift(filterSetConfig->lpf3Feedback) + lpfLPF4.getFeedbackOutputWithoutLshift(filterSetConfig->divideBy1PlusTannedFrequency)) << 2;
 
 	// Note: in the line above, we "should" halve filterSetConfig->divideBy1plusg to get it into the 1=1073741824 range. But it doesn't sound as good.
 	// Primarily it stops us getting to full resonance. But even if we allow further resonance increase, the sound just doesn't quite compare.
@@ -158,7 +158,7 @@ inline int32_t FilterSet::doDriveLPFOnSample(int32_t input, FilterSetConfig* fil
 	int32_t moveability = filterSetConfig->moveability + multiply_32x32_rshift32(filterSetConfig->moveability, noiseLastValue);
 
 	int32_t feedbacksSum = (lpfLPF1.getFeedbackOutputWithoutLshift(filterSetConfig->lpf1Feedback) + lpfLPF2.getFeedbackOutputWithoutLshift(filterSetConfig->lpf2Feedback)
-			+ lpfLPF3.getFeedbackOutputWithoutLshift(filterSetConfig->lpf3Feedback) + lpfLPF4.getFeedbackOutputWithoutLshift(filterSetConfig->divideBy1PlusMoveability)) << 2;
+			+ lpfLPF3.getFeedbackOutputWithoutLshift(filterSetConfig->lpf3Feedback) + lpfLPF4.getFeedbackOutputWithoutLshift(filterSetConfig->divideBy1PlusTannedFrequency)) << 2;
 
 	// Note: in the line above, we "should" halve filterSetConfig->divideBy1plusg to get it into the 1=1073741824 range. But it doesn't sound as good.
 	// Primarily it stops us getting to full resonance. But even if we allow further resonance increase, the sound just doesn't quite compare.
@@ -205,7 +205,7 @@ void FilterSet::renderLPFLong(int32_t* startSample, int32_t* endSample, FilterSe
 			noiseLastValue += distanceToGo >> 7;//storageManager.devVarB;
 			int32_t moveability = filterSetConfig->moveability + multiply_32x32_rshift32(filterSetConfig->moveability, noiseLastValue);
 
-			int32_t feedbacksSum = lpfLPF1.getFeedbackOutput(filterSetConfig->lpf1Feedback) + lpfLPF2.getFeedbackOutput(filterSetConfig->lpf2Feedback) + lpfLPF3.getFeedbackOutput(filterSetConfig->divideBy1PlusMoveability);
+			int32_t feedbacksSum = lpfLPF1.getFeedbackOutput(filterSetConfig->lpf1Feedback) + lpfLPF2.getFeedbackOutput(filterSetConfig->lpf2Feedback) + lpfLPF3.getFeedbackOutput(filterSetConfig->divideBy1PlusTannedFrequency);
 			int32_t x = multiply_32x32_rshift32_rounded((*currentSample - (multiply_32x32_rshift32_rounded(feedbacksSum, filterSetConfig->processedResonance) << 3)), filterSetConfig->divideByTotalMoveabilityAndProcessedResonance) << 2;
 
 			// Only saturate if resonance is high enough. Surprisingly, saturation makes no audible difference until very near the point of feedback

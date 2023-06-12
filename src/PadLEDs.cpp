@@ -925,7 +925,7 @@ void renderClipExpandOrCollapse() {
 			}
 			else {
 				changeRootUI(&instrumentClipView);
-				// If we need to zoom in horizontally because the track's too short...
+				// If we need to zoom in horizontally because the Clip's too short...
 				bool anyZoomingDone = instrumentClipView.zoomToMax(true);
 				if (anyZoomingDone) uiNeedsRendering(&instrumentClipView, 0, 0xFFFFFFFF);
 			}
@@ -1101,7 +1101,7 @@ void renderZoomWithProgress(int inImageTimesBiggerThanNative, uint32_t inImageFa
 		outerImage += outerImageTotalWidth * 3;
 	}
 	if (DELUGE_MODEL != DELUGE_MODEL_40_PAD) {
-    	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+    	AudioEngine::routineWithClusterLoading(); // -----------------------------------
 	}
 }
 

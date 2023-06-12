@@ -15,8 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <AudioFileManager.h>
 #include <SampleReader.h>
-#include "SampleManager.h"
 #include "Sample.h"
 #include "Cluster.h"
 
@@ -42,9 +42,9 @@ int SampleReader::readBytesPassedErrorChecking(char* outputBuffer, int num) {
 
 
 int SampleReader::readNewCluster() {
-	if (currentCluster) sampleManager.removeReasonFromLoadedSampleChunk(currentCluster, "E031");
+	if (currentCluster) audioFileManager.removeReasonFromCluster(currentCluster, "E031");
 
-	currentCluster = ((Sample*)audioFile)->clusters.getElement(currentClusterIndex)->getLoadedSampleChunk((Sample*)audioFile, currentClusterIndex, CHUNK_LOAD_IMMEDIATELY);
+	currentCluster = ((Sample*)audioFile)->clusters.getElement(currentClusterIndex)->getCluster((Sample*)audioFile, currentClusterIndex, CLUSTER_LOAD_IMMEDIATELY);
 	if (!currentCluster) return ERROR_SD_CARD; // Failed to load cluster from card
 	else return NO_ERROR;
 }

@@ -16,6 +16,7 @@
  */
 
 #include <AudioEngine.h>
+#include <AudioFileManager.h>
 #include <InstrumentClip.h>
 #include <soundinstrument.h>
 #include "uart.h"
@@ -30,7 +31,6 @@
 #include "voice.h"
 #include "ParamSet.h"
 #include "PatchCableSet.h"
-#include "SampleManager.h"
 
 SoundInstrument::SoundInstrument() : MelodicInstrument(INSTRUMENT_TYPE_SYNTH)
 {
@@ -51,7 +51,7 @@ bool SoundInstrument::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song)
 	// Or if saving Song...
 	else {
 
-		// If no activeTrack, that means no Clip has this Output, so there should be a backedUpParamManager that we should use
+		// If no activeClip, that means no Clip has this Output, so there should be a backedUpParamManager that we should use
 		if (!activeClip) paramManager = song->getBackedUpParamManagerPreferablyWithClip(this, NULL);
 
 		else paramManager = NULL;
@@ -151,7 +151,7 @@ yesTickParamManagerForClip:
 
 int SoundInstrument::loadAllAudioFiles(bool mayActuallyReadFiles) {
 
-	bool doingAlternatePath = mayActuallyReadFiles && (sampleManager.alternateLoadDirStatus == ALTERNATE_LOAD_DIR_NONE_SET);
+	bool doingAlternatePath = mayActuallyReadFiles && (audioFileManager.alternateLoadDirStatus == ALTERNATE_LOAD_DIR_NONE_SET);
 	if (doingAlternatePath) {
 		int error = setupDefaultAudioFileDir();
 		if (error) return error;
@@ -160,7 +160,7 @@ int SoundInstrument::loadAllAudioFiles(bool mayActuallyReadFiles) {
 	int error = Sound::loadAllAudioFiles(mayActuallyReadFiles);
 
     if (doingAlternatePath) {
-    	sampleManager.thingFinishedLoading();
+    	audioFileManager.thingFinishedLoading();
     }
 
 	return error;
@@ -267,7 +267,7 @@ void SoundInstrument::monophonicExpressionEvent(int newValue, int whichExpressio
 }
 
 
-// Alternative to what's in the NonAudioInstrument:: implementation, which would almost work here, but we cut corner for Sound by avoiding going through the Arp and just talk straight to the Voices.
+// Alternative to what's in the NonAudioInstrument:: implementation, which would almost work here, but we cut corner for Sound by avoiding going through the Arp and just talk directly to the Voices.
 // (Despite my having made it now actually need to talk to the Arp too, as below...)
 // Note, this virtual function actually overrides/implements from two base classes - MelodicInstrument and ModControllable.
 void SoundInstrument::polyphonicExpressionEventOnChannelOrNote(int newValue, int whichExpressionDimension, int channelOrNoteNumber, int whichCharacteristic) {
@@ -276,7 +276,7 @@ void SoundInstrument::polyphonicExpressionEventOnChannelOrNote(int newValue, int
 	//sourcesChanged |= 1 << s; // We'd ideally not want to apply this to all voices though...
 
 	int ends[2];
-	AudioEngine::activeVoices.getRangeForPatchingConfig(this, ends);
+	AudioEngine::activeVoices.getRangeForSound(this, ends);
     for (int v = ends[0]; v < ends[1]; v++) {
     	Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
 		if (thisVoice->inputCharacteristics[whichCharacteristic] == channelOrNoteNumber) {
@@ -355,7 +355,7 @@ void SoundInstrument::loadCrucialAudioFilesOnly() {
 	loadAllAudioFiles(true);
 }
 
-// Any time it gets edited, we want to grab the default arp settings from the activeTrack
+// Any time it gets edited, we want to grab the default arp settings from the activeClip
 void SoundInstrument::beenEdited(bool shouldMoveToEmptySlot) {
 	if (activeClip) defaultArpSettings.cloneFrom(&((InstrumentClip*)activeClip)->arpSettings);
 	Instrument::beenEdited(shouldMoveToEmptySlot);
@@ -393,9 +393,9 @@ int32_t SoundInstrument::doTickForwardForArp(ModelStack* modelStack, int32_t cur
 }
 
 
-void SoundInstrument::getThingWithMostReverb(Sound** patchingConfigWithMostReverb, ParamManager** paramManagerWithMostReverb, GlobalEffectableForClip** globalEffectableWithMostReverb, int32_t* highestReverbAmountFound) {
+void SoundInstrument::getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb, GlobalEffectableForClip** globalEffectableWithMostReverb, int32_t* highestReverbAmountFound) {
 	if (activeClip) {
-		Sound::getThingWithMostReverb(patchingConfigWithMostReverb, paramManagerWithMostReverb, globalEffectableWithMostReverb, highestReverbAmountFound, &activeClip->paramManager);
+		Sound::getThingWithMostReverb(soundWithMostReverb, paramManagerWithMostReverb, globalEffectableWithMostReverb, highestReverbAmountFound, &activeClip->paramManager);
 	}
 }
 
@@ -420,7 +420,7 @@ bool SoundInstrument::noteIsOn(int noteCode) {
 	if (!numVoicesAssigned) return false;
 
 	int ends[2];
-	AudioEngine::activeVoices.getRangeForPatchingConfig(this, ends);
+	AudioEngine::activeVoices.getRangeForSound(this, ends);
     for (int v = ends[0]; v < ends[1]; v++) {
     	Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
 		if ((thisVoice->noteCodeAfterArpeggiation == noteCode) && thisVoice->envelopes[0].state < ENVELOPE_STAGE_RELEASE) { // Ignore releasing notes. Is this right?

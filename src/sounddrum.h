@@ -15,8 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef PATCHINGCONFIGDRUM_H
-#define PATCHINGCONFIGDRUM_H
+#ifndef SOUNDDRUM_H
+#define SOUNDDRUM_H
 
 #include <sound.h>
 #include "definitions.h"
@@ -63,4 +63,4 @@ public:
     ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = NULL) { return &arpSettings; }
 };
 
-#endif // DRUM_H
+#endif // SOUNDDRUM_H

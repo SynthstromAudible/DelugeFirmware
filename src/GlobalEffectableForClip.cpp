@@ -104,7 +104,7 @@ void GlobalEffectableForClip::renderOutput(ModelStackWithTimelineCounter* modelS
 
 	static StereoSample globalEffectableBuffer[SSI_TX_BUFFER_NUM_SAMPLES] __attribute__ ((aligned (CACHE_LINE_SIZE)));
 
-	bool canRenderStraightIntoSongBuffer =
+	bool canRenderDirectlyIntoSongBuffer =
 			!isKit()
 			&& !filterSetConfig.doLPF
 			&& !filterSetConfig.doHPF
@@ -119,7 +119,7 @@ void GlobalEffectableForClip::renderOutput(ModelStackWithTimelineCounter* modelS
 			&& getActiveModFXType(paramManagerForClip) == MOD_FX_TYPE_NONE
 			&& stutterer.status == STUTTERER_STATUS_OFF;
 
-	if (canRenderStraightIntoSongBuffer) {
+	if (canRenderDirectlyIntoSongBuffer) {
 
 		int32_t postFXAndReverbVolumeStart = (multiply_32x32_rshift32(postReverbVolumeLastTime, volumePostFX) << 5);
 		if (postFXAndReverbVolumeStart > 134217728) goto doNormal; // If it's too loud, this optimized routine can't handle it. This is a design flaw...
@@ -232,7 +232,7 @@ bool GlobalEffectableForClip::modEncoderButtonAction(uint8_t whichModEncoder, bo
 
 // We pass activeClip into this because although each child of GlobalEffectableForClip inherits Output, one of them does so via Instrument, so
 // we can't make GlobalEffectableForClip inherit directly from Output, so no access to activeClip
-void GlobalEffectableForClip::getThingWithMostReverb(Clip* activeClip, Sound** patchingConfigWithMostReverb, ParamManager** paramManagerWithMostReverb, GlobalEffectableForClip** globalEffectableWithMostReverb, int32_t* highestReverbAmountFound) {
+void GlobalEffectableForClip::getThingWithMostReverb(Clip* activeClip, Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb, GlobalEffectableForClip** globalEffectableWithMostReverb, int32_t* highestReverbAmountFound) {
 
 	if (activeClip) {
 
@@ -246,7 +246,7 @@ void GlobalEffectableForClip::getThingWithMostReverb(Clip* activeClip, Sound** p
 			int32_t reverbHere = unpatchedParams->getValue(PARAM_UNPATCHED_GLOBALEFFECTABLE_REVERB_SEND_AMOUNT);
 			if (*highestReverbAmountFound < reverbHere) {
 				*highestReverbAmountFound = reverbHere;
-				*patchingConfigWithMostReverb = NULL;
+				*soundWithMostReverb = NULL;
 				*paramManagerWithMostReverb = activeParamManager;
 				*globalEffectableWithMostReverb = this;
 			}

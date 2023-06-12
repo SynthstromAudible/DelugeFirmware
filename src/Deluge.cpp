@@ -20,6 +20,7 @@
 
 #include <ArrangerView.h>
 #include <AudioEngine.h>
+#include <AudioFileManager.h>
 #include <contextmenuclearsong.h>
 #include <ContextMenuSampleBrowserKit.h>
 #include <ContextMenuSampleBrowserSynth.h>
@@ -50,7 +51,6 @@
 #include "matrixdriver.h"
 #include "uitimermanager.h"
 #include "Note.h"
-#include "SampleManager.h"
 #include "ActionLogger.h"
 #include "Slicer.h"
 #include "encoder.h"
@@ -561,11 +561,24 @@ extern "C" int main2(void) {
 #endif
 
 
-    // Setup SDRAM. Have to do this before setting up AudioDriver
+    // Setup SDRAM. Have to do this before setting up AudioEngine
 	userdef_bsc_cs2_init(0); // 64MB, hardcoded
 
     functionsInit();
-	new (&instrumentClipView) InstrumentClipView;
+
+    /*
+     * For reasons not exactly known, globally declared instances of classes (so, objects) will not get their
+     * constructors called automatically on boot-up as is supposed to happen in C++. This will immediately
+     * cause problems, as things don’t get initialized. And for classes with virtual functions (i.e. using
+     * polymorphism), their vtable won’t even be set, causing an instant crash as soon as any virtual function is called on them.
+	 *
+	 * This is why, right here in Deluge.cpp, every single globally declared object gets manually set up with a “new”
+	 * statement.
+	 *
+	 * See a more technical discussion of the problem here: https://stackoverflow.com/questions/32807964/c-gcc-file-scope-objects-constructors-arent-being-called?noredirect=1#comment53452782_32807964
+     */
+
+    new (&instrumentClipView) InstrumentClipView;
 	new (&sessionView) SessionView;
 	new (&matrixDriver) MatrixDriver;
 	new (&playbackHandler) PlaybackHandler;
@@ -701,7 +714,7 @@ extern "C" int main2(void) {
 
 
 	new (&generalMemoryAllocator) GeneralMemoryAllocator;
-	new (&sampleManager) SampleManager;
+	new (&audioFileManager) AudioFileManager;
 	new (&actionLogger) ActionLogger;
 	new (&slicer) Slicer;
 
@@ -730,7 +743,7 @@ extern "C" int main2(void) {
 	ramTestLED();
 #endif
 
-    sampleManager.init();
+    audioFileManager.init();
 
 
 	// Set up OLED now
@@ -934,25 +947,25 @@ resetSettings:
 #endif
     	uartFlushIfNotSending(UART_ITEM_PIC);
 
-    	AudioEngine::routineWithChunkLoading(true); // -----------------------------------
+    	AudioEngine::routineWithClusterLoading(true); // -----------------------------------
 
 	    int count = 0;
 	    while (readButtonsAndPads() && count < 16) {
-	    	if (!(count & 3)) AudioEngine::routineWithChunkLoading(true); // -----------------------------------
+	    	if (!(count & 3)) AudioEngine::routineWithClusterLoading(true); // -----------------------------------
 	    	count++;
 	    }
 
 	    Encoders::readEncoders();
         bool anything = Encoders::interpretEncoders();
 	    if (anything) {
-	    	AudioEngine::routineWithChunkLoading(true); // -----------------------------------
+	    	AudioEngine::routineWithClusterLoading(true); // -----------------------------------
 	    }
 
 	    doAnyPendingUIRendering();
 
-    	AudioEngine::routineWithChunkLoading(true); // -----------------------------------
+    	AudioEngine::routineWithClusterLoading(true); // -----------------------------------
 
-	    sampleManager.slowRoutine(); // Only actually needs calling a couple of times per second, but we can't put it in uiTimerManager cos that gets called in card routine
+	    audioFileManager.slowRoutine(); // Only actually needs calling a couple of times per second, but we can't put it in uiTimerManager cos that gets called in card routine
 	    AudioEngine::slowRoutine();
 
 	    audioRecorder.slowRoutine();
@@ -1007,12 +1020,12 @@ extern "C" void sdCardInserted(void) {
 }
 
 extern "C" void sdCardEjected(void) {
-	sampleManager.cardEjected = true;
+	audioFileManager.cardEjected = true;
 }
 
 
-extern "C" void loadAnyEnqueuedSampleChunksRoutine() {
-	sampleManager.loadAnyEnqueuedSampleChunks();
+extern "C" void loadAnyEnqueuedClustersRoutine() {
+	audioFileManager.loadAnyEnqueuedClusters();
 }
 
 
@@ -1026,8 +1039,8 @@ extern "C" void setNumericNumber(int number) {
 }
 #endif
 
-extern "C" void routineWithChunkLoading() {
-	AudioEngine::routineWithChunkLoading(false);
+extern "C" void routineWithClusterLoading() {
+	AudioEngine::routineWithClusterLoading(false);
 }
 
 void deleteOldSongBeforeLoadingNew() {

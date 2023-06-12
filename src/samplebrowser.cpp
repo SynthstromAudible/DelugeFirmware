@@ -33,11 +33,11 @@
 #include <ParamManager.h>
 #include "Kit.h"
 #include "Slicer.h"
-#include "SampleManager.h"
+#include <AudioFileManager.h>
 #include <Cluster.h>
 #include "WaveTable.h"
 #include "NumericLayerScrollingText.h"
-#include "SampleManager.h"
+#include <AudioFileManager.h>
 #include "ActionLogger.h"
 #include "MultisampleRange.h"
 #include "GeneralMemoryAllocator.h"
@@ -166,7 +166,6 @@ dissectionDone:
 	IndicatorLEDs::setLedState(kitLedX, kitLedY, soundEditor.editingKit());
 
 	IndicatorLEDs::setLedState(crossScreenEditLedX, crossScreenEditLedY, false);
-	//IndicatorLEDs::setLedState(trackViewLedX, trackViewLedY, false);
 	IndicatorLEDs::setLedState(sessionViewLedX, sessionViewLedY, false);
 	IndicatorLEDs::setLedState(scaleModeLedX, scaleModeLedY, false);
 
@@ -263,7 +262,7 @@ void SampleBrowser::exitAction() {
 				&& ((Kit*)currentSong->currentClip->output)->getFirstUnassignedDrum((InstrumentClip*)currentSong->currentClip) // Only if some unassigned Drums
 				&& soundEditor.getCurrentAudioFileHolder()->filePath.isEmpty()
 				) {
-			instrumentClipView.deleteDrum((SoundDrum*)soundEditor.currentPatchingConfig);
+			instrumentClipView.deleteDrum((SoundDrum*)soundEditor.currentSound);
 			redrawUI = &instrumentClipView;
 		}
 	}
@@ -366,7 +365,7 @@ void SampleBrowser::enterKeyPress() {
 			// If user wants to slice...
 			if (Buttons::isShiftButtonPressed()) {
 
-				// Can only do this for Kit Tracks, and for source 0, not 1, AND there has to be only one drum present, which is assigned to the first NoteRow
+				// Can only do this for Kit Clips, and for source 0, not 1, AND there has to be only one drum present, which is assigned to the first NoteRow
 				if (currentSong->currentClip->type == CLIP_TYPE_INSTRUMENT && canImportWholeKit()) {
 					numericDriver.displayPopup("SLICER");
 					openUI(&slicer);
@@ -411,7 +410,7 @@ int SampleBrowser::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 						return ACTION_RESULT_DEALT_WITH;
 					}
 
-					bool allFine = sampleManager.tryToDeleteAudioFileFromMemoryIfItExists(filePath.get());
+					bool allFine = audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(filePath.get());
 
 					if (!allFine) {
 						numericDriver.displayPopup(
@@ -465,7 +464,7 @@ int SampleBrowser::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 bool SampleBrowser::canImportWholeKit() {
 	return (soundEditor.editingKit()
 							&& soundEditor.currentSourceIndex == 0
-							&& (SoundDrum*)((InstrumentClip*)currentSong->currentClip)->noteRows.getElement(0)->drum == soundEditor.currentPatchingConfig
+							&& (SoundDrum*)((InstrumentClip*)currentSong->currentClip)->noteRows.getElement(0)->drum == soundEditor.currentSound
 							&& (!((Kit*)currentSong->currentClip->output)->firstDrum->next));
 }
 
@@ -718,7 +717,7 @@ int SampleBrowser::claimAudioFileForInstrument(bool makeWaveTableWorkAtAllCosts)
 	int error = getCurrentFilePath(&holder->filePath);
 	if (error) return error;
 
-	return holder->loadFile(soundEditor.currentSource->sampleControls.reversed, true, true, CHUNK_ENQUEUE, 0, makeWaveTableWorkAtAllCosts);
+	return holder->loadFile(soundEditor.currentSource->sampleControls.reversed, true, true, CLUSTER_ENQUEUE, 0, makeWaveTableWorkAtAllCosts);
 }
 
 int SampleBrowser::claimAudioFileForAudioClip() {
@@ -799,9 +798,9 @@ removeLoadingAnimationAndGetOut:
 	// Otherwise, we're something to do with an Instrument...
 	else {
 
-		soundEditor.currentPatchingConfig->unassignAllVoices(); // We used to only do this if osc type wasn't already SAMPLE...
+		soundEditor.currentSound->unassignAllVoices(); // We used to only do this if osc type wasn't already SAMPLE...
 
-		bool makeWaveTableWorkAtAllCosts = (mayDoWaveTable == 2) || (mayDoSingleCycle == 2) || (soundEditor.currentPatchingConfig->getSynthMode() == SYNTH_MODE_RINGMOD);
+		bool makeWaveTableWorkAtAllCosts = (mayDoWaveTable == 2) || (mayDoSingleCycle == 2) || (soundEditor.currentSound->getSynthMode() == SYNTH_MODE_RINGMOD);
 
 		int numTypesTried = 0;
 
@@ -829,7 +828,7 @@ doLoadAsWaveTable:
 				if (error == ERROR_FILE_NOT_LOADABLE_AS_WAVETABLE || error == ERROR_FILE_NOT_LOADABLE_AS_WAVETABLE_BECAUSE_STEREO) {
 
 					// If that was what the user really specified they wanted, and we couldn't do it, then we have to tell them no.
-					if (mayDoWaveTable == 2 || numTypesTried > 1 || (soundEditor.currentPatchingConfig->getSynthMode() == SYNTH_MODE_RINGMOD)) {
+					if (mayDoWaveTable == 2 || numTypesTried > 1 || (soundEditor.currentSound->getSynthMode() == SYNTH_MODE_RINGMOD)) {
 						goto removeLoadingAnimationAndGetOut;
 					}
 
@@ -844,14 +843,14 @@ doLoadAsWaveTable:
 			// Alright, if we're still here, it was successfully loaded as a WaveTable!
 
 			if (soundEditor.currentSourceIndex == 0) { // Osc 1
-				soundEditor.currentPatchingConfig->modKnobs[7][1].paramDescriptor.setToHaveParamOnly(PARAM_LOCAL_OSC_A_WAVE_INDEX);
+				soundEditor.currentSound->modKnobs[7][1].paramDescriptor.setToHaveParamOnly(PARAM_LOCAL_OSC_A_WAVE_INDEX);
 
-				if (!soundEditor.currentPatchingConfig->modKnobs[7][0].paramDescriptor.isSetToParamWithNoSource(PARAM_LOCAL_OSC_B_WAVE_INDEX)) {
-					soundEditor.currentPatchingConfig->modKnobs[7][0].paramDescriptor.setToHaveParamAndSource(PARAM_LOCAL_OSC_A_WAVE_INDEX, PATCH_SOURCE_LFO_LOCAL);
+				if (!soundEditor.currentSound->modKnobs[7][0].paramDescriptor.isSetToParamWithNoSource(PARAM_LOCAL_OSC_B_WAVE_INDEX)) {
+					soundEditor.currentSound->modKnobs[7][0].paramDescriptor.setToHaveParamAndSource(PARAM_LOCAL_OSC_A_WAVE_INDEX, PATCH_SOURCE_LFO_LOCAL);
 				}
 			}
 			else { // Osc 2
-				soundEditor.currentPatchingConfig->modKnobs[7][0].paramDescriptor.setToHaveParamOnly(PARAM_LOCAL_OSC_B_WAVE_INDEX);
+				soundEditor.currentSound->modKnobs[7][0].paramDescriptor.setToHaveParamOnly(PARAM_LOCAL_OSC_B_WAVE_INDEX);
 			}
 			currentSong->currentClip->output->modKnobMode = 7;
 			view.setKnobIndicatorLevels(); // Visually update.
@@ -938,7 +937,7 @@ doLoadAsSample:
 			// If Kit...
 			if (soundEditor.editingKit()) {
 
-				SoundDrum* drum = (SoundDrum*)soundEditor.currentPatchingConfig;
+				SoundDrum* drum = (SoundDrum*)soundEditor.currentSound;
 
 				autoDetectSideChainSending(drum, soundEditor.currentSource, enteredText.get());
 
@@ -986,12 +985,12 @@ doLoadAsSample:
 			// So remove WaveTable gold knob assignments.
 			bool anyChange = false;
 			int p = PARAM_LOCAL_OSC_A_WAVE_INDEX + soundEditor.currentSourceIndex;
-			if (soundEditor.currentPatchingConfig->modKnobs[7][0].paramDescriptor.getJustTheParam() == p) {
-				soundEditor.currentPatchingConfig->modKnobs[7][0].paramDescriptor.setToHaveParamOnly(PARAM_UNPATCHED_BITCRUSHING + PARAM_UNPATCHED_SECTION);
+			if (soundEditor.currentSound->modKnobs[7][0].paramDescriptor.getJustTheParam() == p) {
+				soundEditor.currentSound->modKnobs[7][0].paramDescriptor.setToHaveParamOnly(PARAM_UNPATCHED_BITCRUSHING + PARAM_UNPATCHED_SECTION);
 				anyChange = true;
 			}
-			if (soundEditor.currentPatchingConfig->modKnobs[7][1].paramDescriptor.getJustTheParam() == p) {
-				soundEditor.currentPatchingConfig->modKnobs[7][1].paramDescriptor.setToHaveParamOnly(PARAM_UNPATCHED_SAMPLE_RATE_REDUCTION + PARAM_UNPATCHED_SECTION);
+			if (soundEditor.currentSound->modKnobs[7][1].paramDescriptor.getJustTheParam() == p) {
+				soundEditor.currentSound->modKnobs[7][1].paramDescriptor.setToHaveParamOnly(PARAM_UNPATCHED_SAMPLE_RATE_REDUCTION + PARAM_UNPATCHED_SECTION);
 				anyChange = true;
 			}
 
@@ -1047,7 +1046,7 @@ void SampleBrowser::audioFileIsNowSet() {
 		modelStackWithParam->autoParam->setCurrentValueWithNoReversionOrRecording(modelStackWithParam, 2147483647);
 
 		// Hmm crap, we probably still do need to notify...
-		//((ParamManagerBase*)soundEditor.currentParamManager)->setPatchedParamValue(PARAM_LOCAL_OSC_A_VOLUME + soundEditor.currentSourceIndex, 2147483647, 0xFFFFFFFF, 0, soundEditor.currentPatchingConfig, currentSong, currentSong->currentClip, false);
+		//((ParamManagerBase*)soundEditor.currentParamManager)->setPatchedParamValue(PARAM_LOCAL_OSC_A_VOLUME + soundEditor.currentSourceIndex, 2147483647, 0xFFFFFFFF, 0, soundEditor.currentSound, currentSong, currentSong->currentClip, false);
 	}
 }
 
@@ -1072,7 +1071,7 @@ void sortSamples(bool (*sortFunction)(Sample*, Sample*), int numSamples, Sample*
 	// Go through various iterations of numComparing
 	while (numComparing < numSamples) {
 
-		AudioEngine::routineWithChunkLoading(); // --------------------------------------------------
+		AudioEngine::routineWithClusterLoading(); // --------------------------------------------------
 
 		// And now, for this selected comparison size, do a number of comparisions
 		for (int whichComparison = 0; whichComparison * numComparing * 2 < numSamples; whichComparison++) {
@@ -1162,8 +1161,8 @@ bool SampleBrowser::loadAllSamplesInFolder(bool detectPitch, int* getNumSamples,
 	if (false) {
 removeReasonsFromSamplesAndGetOut:
 		// Remove reasons from any samples we loaded in just before
-		for (int e = 0; e < sampleManager.audioFiles.getNumElements(); e++) {
-			AudioFile* audioFile = (AudioFile*)sampleManager.audioFiles.getElement(e);
+		for (int e = 0; e < audioFileManager.audioFiles.getNumElements(); e++) {
+			AudioFile* audioFile = (AudioFile*)audioFileManager.audioFiles.getElement(e);
 
 			if (audioFile->type == AUDIO_FILE_TYPE_SAMPLE) {
 				Sample* thisSample = (Sample*)audioFile;
@@ -1172,7 +1171,7 @@ removeReasonsFromSamplesAndGetOut:
 				if (thisSample->partOfFolderBeingLoaded) {
 					thisSample->partOfFolderBeingLoaded = false;
 	#if ALPHA_OR_BETA_VERSION
-					if (thisSample->numReasons <= 0) numericDriver.freezeWithError("E213"); // I put this here to try and catch an E004 Luc got
+					if (thisSample->numReasonsToBeLoaded <= 0) numericDriver.freezeWithError("E213"); // I put this here to try and catch an E004 Luc got
 	#endif
 					thisSample->removeReason("E392"); // Remove that temporary reason we added
 				}
@@ -1184,7 +1183,7 @@ removeReasonsFromSamplesAndGetOut:
 	}
 
 
-	AudioEngine::routineWithChunkLoading(); // --------------------------------------------------
+	AudioEngine::routineWithClusterLoading(); // --------------------------------------------------
 
 
 	int numCharsInPrefixForFolderLoad = 65535;
@@ -1198,7 +1197,7 @@ removeReasonsFromSamplesAndGetOut:
 	}
 
 	while (true) {
-        sampleManager.loadAnyEnqueuedSampleChunks();
+        audioFileManager.loadAnyEnqueuedClusters();
 		FilePointer thisFilePointer;
 
 		result = f_readdir_get_filepointer(&staticDIR, &staticFNO, &thisFilePointer);                   /* Read a directory item */
@@ -1224,7 +1223,7 @@ removeReasonsFromSamplesAndGetOut:
 
 		filePath.concatenateAtPos(staticFNO.fname, dirWithSlashLength);
 
-		Sample* newSample = (Sample*)sampleManager.getAudioFileFromFilename(&filePath, true, &error, &thisFilePointer, AUDIO_FILE_TYPE_SAMPLE); // We really want to be able to pass a file pointer in here
+		Sample* newSample = (Sample*)audioFileManager.getAudioFileFromFilename(&filePath, true, &error, &thisFilePointer, AUDIO_FILE_TYPE_SAMPLE); // We really want to be able to pass a file pointer in here
 		if (error || !newSample) {
 			f_closedir(&staticDIR);
 			goto removeReasonsFromSamplesAndGetOut;
@@ -1276,8 +1275,8 @@ removeReasonsFromSamplesAndGetOut:
 
 	// Go through each sample in memory that was from the folder in question, adding them to our pointer list
 	int sampleI = 0;
-	for (int e = 0; e < sampleManager.audioFiles.getNumElements(); e++) {
-		AudioFile* audioFile = (AudioFile*)sampleManager.audioFiles.getElement(e);
+	for (int e = 0; e < audioFileManager.audioFiles.getNumElements(); e++) {
+		AudioFile* audioFile = (AudioFile*)audioFileManager.audioFiles.getElement(e);
 
 		if (audioFile->type == AUDIO_FILE_TYPE_SAMPLE) {
 
@@ -1559,17 +1558,17 @@ doReturnFalse:
 
 	Uart::println("loaded and sorted samples");
 
-	AudioEngine::routineWithChunkLoading(); // --------------------------------------------------
+	AudioEngine::routineWithClusterLoading(); // --------------------------------------------------
 
 	// Delete all but first pre-existing range
 	int oldNumRanges = soundEditor.currentSource->ranges.getNumElements();
 	for (int i = oldNumRanges - 1; i >= 1; i--) {
-		soundEditor.currentPatchingConfig->deleteMultiRange(soundEditor.currentSourceIndex, i);
+		soundEditor.currentSound->deleteMultiRange(soundEditor.currentSourceIndex, i);
 	}
 
 	// If we now want more than one range, be efficient by getting our array of ranges to pre-allocate all the memory it's going to use
 	if (numSamples > 1) {
-		soundEditor.currentPatchingConfig->unassignAllVoices();
+		soundEditor.currentSound->unassignAllVoices();
 		AudioEngine::audioRoutineLocked = true;
 		bool success = soundEditor.currentSource->ranges.ensureEnoughSpaceAllocated(numSamples - 1);
 		AudioEngine::audioRoutineLocked = false;
@@ -1579,7 +1578,7 @@ doReturnFalse:
 			for (int s = 0; s < numSamples; s++) {
 				Sample* thisSample = sortArea[s];
 #if ALPHA_OR_BETA_VERSION
-				if (thisSample->numReasons <= 0) numericDriver.freezeWithError("E215"); // I put this here to try and catch an E004 Luc got
+				if (thisSample->numReasonsToBeLoaded <= 0) numericDriver.freezeWithError("E215"); // I put this here to try and catch an E004 Luc got
 #endif
 				thisSample->removeReason("E393"); // Remove that temporary reason we added above
 			}
@@ -1651,7 +1650,7 @@ skipOctaveCorrection:
 	int numWithResultingLoopEndPoints = 0;
 
 	if (soundEditor.currentSource->oscType != OSC_TYPE_SAMPLE) {
-		soundEditor.currentPatchingConfig->unassignAllVoices();
+		soundEditor.currentSound->unassignAllVoices();
 		soundEditor.currentSource->setOscType(OSC_TYPE_SAMPLE);
 	}
 
@@ -1659,7 +1658,7 @@ skipOctaveCorrection:
 
 	for (int s = 0; s < numSamples; s++) {
 
-		if (!(s & 31)) AudioEngine::routineWithChunkLoading(); // --------------------------------------------------
+		if (!(s & 31)) AudioEngine::routineWithClusterLoading(); // --------------------------------------------------
 
 		Sample* thisSample = sortArea[s];
 
@@ -1713,7 +1712,7 @@ skipOctaveCorrection:
 		if (thisSample->fileLoopEndSamples) numWithFileLoopPoints++;
 		if (range->sampleHolder.loopEndPos) numWithResultingLoopEndPoints++;
 
-		if (ALPHA_OR_BETA_VERSION && thisSample->numReasons <= 0) numericDriver.freezeWithError("E216"); // I put this here to try and catch an E004 Luc got
+		if (ALPHA_OR_BETA_VERSION && thisSample->numReasonsToBeLoaded <= 0) numericDriver.freezeWithError("E216"); // I put this here to try and catch an E004 Luc got
 		thisSample->removeReason("E394"); // Remove that temporary reason we added above
 
 		rangeIndex++;
@@ -1796,7 +1795,7 @@ doReturnFalse:
 	}
 
 	Kit* kit = (Kit*)currentSong->currentClip->output;
-	SoundDrum* firstDrum = (SoundDrum*)soundEditor.currentPatchingConfig;
+	SoundDrum* firstDrum = (SoundDrum*)soundEditor.currentSound;
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	{
@@ -1826,7 +1825,7 @@ getOut:
 
 				// Ensure osc type is "sample". For the later drums, calling setupAsSample() does this same thing
 				if (soundEditor.currentSource->oscType != OSC_TYPE_SAMPLE) {
-					soundEditor.currentPatchingConfig->unassignAllVoices();
+					soundEditor.currentSound->unassignAllVoices();
 					soundEditor.currentSource->setOscType(OSC_TYPE_SAMPLE);
 				}
 
@@ -1911,7 +1910,7 @@ getOut:
 			source->repeatMode = (thisSample->getLengthInMSec() < 2002) ? SAMPLE_REPEAT_ONCE : SAMPLE_REPEAT_CUT;
 
 	#if ALPHA_OR_BETA_VERSION
-			if (thisSample->numReasons <= 0) numericDriver.freezeWithError("E217"); // I put this here to try and catch an E004 Luc got
+			if (thisSample->numReasonsToBeLoaded <= 0) numericDriver.freezeWithError("E217"); // I put this here to try and catch an E004 Luc got
 	#endif
 			thisSample->removeReason("E395");
 		}

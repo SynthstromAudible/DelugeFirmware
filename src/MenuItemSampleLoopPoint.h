@@ -24,9 +24,9 @@ class MenuItemSampleLoopPoint : public MenuItem {
 public:
 	MenuItemSampleLoopPoint(char const* newName = NULL) : MenuItem(newName) {}
 	void beginSession(MenuItem* navigatedBackwardFrom = NULL) final;
-	bool isRelevant(Sound* patchingConfig, int whichThing) final;
+	bool isRelevant(Sound* sound, int whichThing) final;
 	bool isRangeDependent() final { return true; }
-	int checkPermissionToBeginSession(Sound* patchingConfig, int whichThing, MultiRange** currentRange) final;
+	int checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) final;
 
 	int32_t xZoom;
 	int32_t xScroll;

@@ -45,12 +45,12 @@ public:
 			int32_t timeStretchRatio, int32_t phaseIncrement, uint64_t combinedIncrement, int playDirection, int loopingType, int priorityRating);
 	void beenUnassigned();
 	void unassignAllReasonsForPercLookahead();
-	void unassignAllReasonsForPercCacheChunks();
+	void unassignAllReasonsForPercCacheClusters();
 	bool hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample, Sample* sample, int numChannels,
 			int32_t timeStretchRatio, int32_t phaseIncrement, uint64_t combinedIncrement, int playDirection, int loopingType, int priorityRating);
 
-	void rememberPercCacheChunk(Cluster* loadedSampleChunk);
-	void updateLoadedSampleChunksForPercLookahead(Sample* sample, uint32_t sourceBytePos, int playDirection);
+	void rememberPercCacheCluster(Cluster* cluster);
+	void updateClustersForPercLookahead(Sample* sample, uint32_t sourceBytePos, int playDirection);
 
 	int32_t getSamplePos(int playDirection);
 	bool allocateBuffer(int numChannels);
@@ -94,9 +94,9 @@ public:
 #endif
 
 
-    Cluster* loadedSampleChunksForPercLookahead[NUM_SAMPLE_CHUNKS_LOADED_AHEAD];
+    Cluster* clustersForPercLookahead[NUM_CLUSTERS_LOADED_AHEAD];
 
-    Cluster* percCacheChunksNearby[2]; // Remembers and acts as a "reason" for the two most recently needed / accessed chunks, basically
+    Cluster* percCacheClustersNearby[2]; // Remembers and acts as a "reason" for the two most recently needed / accessed Clusters, basically
 
 private:
     bool setupNewPlayHead(Sample* sample, VoiceSample* voiceSample, SamplePlaybackGuide* guide, int newHeadBytePos, int additionalOscPos, int priorityRating, int loopingType);

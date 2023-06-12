@@ -80,7 +80,7 @@ DRESULT disk_read (
 {
 	logAudioAction("disk_read");
 
-	loadAnyEnqueuedSampleChunksRoutine(); // Always ensure SD streaming is fulfilled before anything else
+	loadAnyEnqueuedClustersRoutine(); // Always ensure SD streaming is fulfilled before anything else
 
 	DRESULT result = disk_read_without_streaming_first(pdrv, buff, sector, count);
 
@@ -632,7 +632,7 @@ static
 void deselect (void)
 {
 	CS_HIGH();			/* Set CS# high */
-	xchg_spi(0xFF);		/* Dummy clock (force MMC DO hi-z for multiple slave SPI) */
+	xchg_spi(0xFF);		/* Dummy clock (force MMC DO hi-z for multiple follower SPI) */
 }
 
 
@@ -1009,7 +1009,7 @@ DRESULT disk_write (
 )
 {
 
-	loadAnyEnqueuedSampleChunksRoutine(); // Always ensure SD streaming is fulfilled before anything else
+	loadAnyEnqueuedClustersRoutine(); // Always ensure SD streaming is fulfilled before anything else
 
 	if (pdrv || !count) return RES_PARERR;
 	if (Stat & STA_NOINIT) return RES_NOTRDY;
@@ -1364,7 +1364,7 @@ DRESULT disk_write (
 )
 {
 
-	loadAnyEnqueuedSampleChunksRoutine(); // Always ensure SD streaming is fulfilled before anything else
+	loadAnyEnqueuedClustersRoutine(); // Always ensure SD streaming is fulfilled before anything else
 
 	BYTE err;
 

@@ -127,7 +127,7 @@ void MenuItemPatchCableStrength::writeCurrentValue() {
 }
 
 
-int MenuItemPatchCableStrength::checkPermissionToBeginSession(Sound* patchingConfig, int whichThing, MultiRange** currentRange) {
+int MenuItemPatchCableStrength::checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) {
 
 	ParamDescriptor destinationDescriptor = getDestinationDescriptor();
 	int s = getS();
@@ -147,7 +147,7 @@ int MenuItemPatchCableStrength::checkPermissionToBeginSession(Sound* patchingCon
 
 	int p = destinationDescriptor.getJustTheParam();
 
-	if (!patchingConfig->maySourcePatchToParam(s, p, ((ParamManagerForTimeline*)soundEditor.currentParamManager))) {	// Note, that requires soundEditor.currentParamManager be set before this is called, which isn't quite ideal.
+	if (!sound->maySourcePatchToParam(s, p, ((ParamManagerForTimeline*)soundEditor.currentParamManager))) {	// Note, that requires soundEditor.currentParamManager be set before this is called, which isn't quite ideal.
 		return MENU_PERMISSION_NO;
 	}
 
@@ -307,10 +307,10 @@ MenuItem* MenuItemPatchCableStrengthRange::patchingSourceShortcutPress(int newS,
 
 // MenuItemFixedPatchCableStrength ----------------------------------------------------------------------------
 
-int MenuItemFixedPatchCableStrength::checkPermissionToBeginSession(Sound* patchingConfig, int whichThing, MultiRange** currentRange) {
+int MenuItemFixedPatchCableStrength::checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) {
 	soundEditor.patchingParamSelected = p;
 	sourceSelectionMenuRegular.s = s;
-	return MenuItemPatchCableStrength::checkPermissionToBeginSession(patchingConfig, whichThing, currentRange);
+	return MenuItemPatchCableStrength::checkPermissionToBeginSession(sound, whichThing, currentRange);
 }
 
 uint8_t MenuItemFixedPatchCableStrength::shouldBlinkPatchingSourceShortcut(int s, uint8_t* sourceShortcutBlinkColours) {

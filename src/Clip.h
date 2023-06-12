@@ -48,7 +48,7 @@ public:
     virtual int clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlattenReversing = false) = 0;
     void cloneFrom(Clip* other);
     void beginInstance(Song* song, int32_t arrangementRecordPos);
-    void endInstance(int32_t arrangementRecordPos, bool evenIfOtherTrack = false);
+    void endInstance(int32_t arrangementRecordPos, bool evenIfOtherClip = false);
     virtual void setPos(ModelStackWithTimelineCounter* modelStack, int32_t newPos, bool useActualPosForParamManagers = true);
     virtual void setPosForParamManagers(ModelStackWithTimelineCounter* modelStack, bool useActualPos = true);
     virtual void expectNoFurtherTicks(Song* song, bool actuallySoundChange = true) = 0;
@@ -70,7 +70,7 @@ public:
     virtual int transferVoicesToOriginalClipFromThisClone(ModelStackWithTimelineCounter* modelStackOriginal, ModelStackWithTimelineCounter* modelStackClone) { return NO_ERROR; }
     virtual void increaseLengthWithRepeats(ModelStackWithTimelineCounter* modelStack, int32_t newLength, int independentNoteRowInstruction, bool completelyRenderOutIterationDependence = false, Action* action = NULL) {} // This is not implemented for AudioClips - because in the cases where we call this, we don't want it to happen for AudioClips
     virtual void lengthChanged(ModelStackWithTimelineCounter* modelStack, int32_t oldLength, Action* action = NULL);
-    virtual void getSuggestedParamManager(Clip* newClip, ParamManagerForTimeline** suggestedParamManager, Sound* patchingConfig);
+    virtual void getSuggestedParamManager(Clip* newClip, ParamManagerForTimeline** suggestedParamManager, Sound* sound);
 
     virtual void detachFromOutput(ModelStackWithTimelineCounter* modelStack, bool shouldRememberDrumName, bool shouldDeleteEmptyNoteRowsAtEndOfList = false,
     		bool shouldRetainLinksToSounds = false, bool keepNoteRowsWithMIDIInput = true, bool shouldGrabMidiCommands = false,

@@ -53,7 +53,7 @@ LivePitchShifter::LivePitchShifter(int newInputType, int32_t phaseIncrement) {
 #endif
 	considerRepitchedBuffer(phaseIncrement);
 
-	playHeads[PLAY_HEAD_NEWER].mode = PLAY_HEAD_MODE_RAW_STRAIGHT;
+	playHeads[PLAY_HEAD_NEWER].mode = PLAY_HEAD_MODE_RAW_DIRECT;
 	playHeads[PLAY_HEAD_NEWER].oscPos = 0;
 
 	playHeads[PLAY_HEAD_NEWER].rawBufferReadPos = 0;
@@ -188,7 +188,7 @@ startRenderAgain:
 #if !MEASURE_HOP_END_PERFORMANCE
 	// If the percussiveness is higher at "now" time than at the newer play head, end the hop.
 	// This was designed with pitching-down in mind, but sounds good on pitching-up too
-	if (!justDidHop && !olderPlayHeadIsCurrentlySounding() && samplesTilHopEnd && playHeads[PLAY_HEAD_NEWER].mode != PLAY_HEAD_MODE_RAW_STRAIGHT) {
+	if (!justDidHop && !olderPlayHeadIsCurrentlySounding() && samplesTilHopEnd && playHeads[PLAY_HEAD_NEWER].mode != PLAY_HEAD_MODE_RAW_DIRECT) {
 
 		int howFarBack = playHeads[PLAY_HEAD_NEWER].getNumRawSamplesBehindInput(liveInputBuffer, this, phaseIncrement);
 
@@ -592,7 +592,7 @@ stopPercSearch:
 
 
 	// If we're all good to do the moving averages...
-	if (lengthPerMovingAverage && playHeads[PLAY_HEAD_OLDER].mode != PLAY_HEAD_MODE_RAW_STRAIGHT) {
+	if (lengthPerMovingAverage && playHeads[PLAY_HEAD_OLDER].mode != PLAY_HEAD_MODE_RAW_DIRECT) {
 
 
 		// Ok, and now we're going to get that moving-average info for the new play-head in the position where we're currently proposing we put it -
@@ -740,12 +740,12 @@ stopSearch:
 		}
 	}
 #endif
-	// If still here, use raw buffer - usually because we're pitching down
+	// If still here, use raw direct buffer - usually because we're pitching down
 
 	if (phaseIncrement == 16777216) {
-		playHeads[PLAY_HEAD_NEWER].mode = PLAY_HEAD_MODE_RAW_STRAIGHT;
+		playHeads[PLAY_HEAD_NEWER].mode = PLAY_HEAD_MODE_RAW_DIRECT;
 		playHeads[PLAY_HEAD_NEWER].rawBufferReadPos = numRawSamplesProcessedAtNowTime & (INPUT_RAW_BUFFER_SIZE - 1);
-		Uart::println("straight hop");
+		Uart::println("raw hop");
 	}
 
 	else {
@@ -841,7 +841,7 @@ bool LivePitchShifter::olderPlayHeadIsCurrentlySounding() {
 }
 
 bool LivePitchShifter::mayBeRemovedWithoutClick() {
-	return (!olderPlayHeadIsCurrentlySounding() && playHeads[PLAY_HEAD_NEWER].mode == PLAY_HEAD_MODE_RAW_STRAIGHT);
+	return (!olderPlayHeadIsCurrentlySounding() && playHeads[PLAY_HEAD_NEWER].mode == PLAY_HEAD_MODE_RAW_DIRECT);
 }
 
 #if INPUT_ENABLE_REPITCHED_BUFFER

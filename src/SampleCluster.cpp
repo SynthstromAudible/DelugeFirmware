@@ -15,9 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <AudioFileManager.h>
 #include <Cluster.h>
 #include <SampleCluster.h>
-#include "SampleManager.h"
 #include "uart.h"
 #include "functions.h"
 #include "Sample.h"
@@ -26,7 +26,7 @@
 
 SampleCluster::SampleCluster()
 {
-	loadedSampleChunk = NULL;
+	cluster = NULL;
 
 	investigatedWholeLength = false;
 	minValue = 127;
@@ -36,11 +36,11 @@ SampleCluster::SampleCluster()
 
 
 SampleCluster::~SampleCluster() {
-	if (loadedSampleChunk) {
+	if (cluster) {
 
 #if ALPHA_OR_BETA_VERSION
-		int numReasonsToBeLoaded = loadedSampleChunk->numReasonsToBeLoaded;
-		if (loadedSampleChunk == sampleManager.loadedSampleChunkBeingLoaded) numReasonsToBeLoaded --;
+		int numReasonsToBeLoaded = cluster->numReasonsToBeLoaded;
+		if (cluster == audioFileManager.clusterBeingLoaded) numReasonsToBeLoaded --;
 
 		if (numReasonsToBeLoaded) {
 			Uart::print("uh oh, some reasons left... ");
@@ -49,18 +49,18 @@ SampleCluster::~SampleCluster() {
 			numericDriver.freezeWithError("E036");
 		}
 #endif
-		sampleManager.deallocateLoadedSampleChunk(loadedSampleChunk);
+		audioFileManager.deallocateCluster(cluster);
 	}
 }
 
 void SampleCluster::ensureNoReason(Sample* sample) {
-	if (loadedSampleChunk) {
-		if (loadedSampleChunk->numReasonsToBeLoaded) {
-			Uart::print("chunk has reason! ");
-			Uart::println(loadedSampleChunk->numReasonsToBeLoaded);
+	if (cluster) {
+		if (cluster->numReasonsToBeLoaded) {
+			Uart::print("Cluster has reason! ");
+			Uart::println(cluster->numReasonsToBeLoaded);
 			Uart::println(sample->filePath.get());
 
-			if (loadedSampleChunk->numReasonsToBeLoaded >= 0)
+			if (cluster->numReasonsToBeLoaded >= 0)
 				numericDriver.freezeWithError("E068");
 			else
 				numericDriver.freezeWithError("E069");
@@ -70,14 +70,14 @@ void SampleCluster::ensureNoReason(Sample* sample) {
 	}
 }
 
-// Calling this will add a reason to the loaded chunk!
+// Calling this will add a reason to the loaded Cluster!
 // priorityRating is only relevant if enqueuing.
-Cluster* SampleCluster::getLoadedSampleChunk(Sample* sample, uint32_t chunkIndex, int loadInstruction, uint32_t priorityRating, uint8_t* error) {
+Cluster* SampleCluster::getCluster(Sample* sample, uint32_t clusterIndex, int loadInstruction, uint32_t priorityRating, uint8_t* error) {
 
 	if (error) *error = NO_ERROR;
 
 	// If the Cluster hasn't been created yet
-	if (!loadedSampleChunk) {
+	if (!cluster) {
 
 		// If the file can no longer be found on the card, we're in trouble
 		if (sample->unloadable) {
@@ -87,60 +87,60 @@ Cluster* SampleCluster::getLoadedSampleChunk(Sample* sample, uint32_t chunkIndex
 		}
 
 		//Uart::println("loading");
-		loadedSampleChunk = sampleManager.allocateLoadedSampleChunk(); // Adds 1 reason
+		cluster = audioFileManager.allocateCluster(); // Adds 1 reason
 
-		if (!loadedSampleChunk) {
+		if (!cluster) {
 			Uart::println("couldn't allocate");
 			if (error) *error = ERROR_INSUFFICIENT_RAM;
 			return NULL;
 		}
 
 #if 1 || ALPHA_OR_BETA_VERSION // Switching permanently on for now, as users on on V4.0.x have been getting E341.
-		if (loadedSampleChunk->numReasonsToBeLoaded < 1) numericDriver.freezeWithError("i005"); // Diversifying Qui's E341. It should actually be exactly 1
-		if (loadedSampleChunk->type != LOADED_SAMPLE_CHUNK_SAMPLE) numericDriver.freezeWithError("E256"); // Cos I got E236
+		if (cluster->numReasonsToBeLoaded < 1) numericDriver.freezeWithError("i005"); // Diversifying Qui's E341. It should actually be exactly 1
+		if (cluster->type != CLUSTER_SAMPLE) numericDriver.freezeWithError("E256"); // Cos I got E236
 #endif
 
-		loadedSampleChunk->sample = sample;
-		loadedSampleChunk->chunkIndex = chunkIndex;
+		cluster->sample = sample;
+		cluster->clusterIndex = clusterIndex;
 
-		// Sometimes we don't actually want to load at all - if we're re-processing a WAV file and want to overwrite a whole chunk
-		if (loadInstruction == CHUNK_DONT_LOAD) return loadedSampleChunk;
+		// Sometimes we don't actually want to load at all - if we're re-processing a WAV file and want to overwrite a whole Cluster
+		if (loadInstruction == CLUSTER_DONT_LOAD) return cluster;
 
 		// If loading later...
-		if (loadInstruction == CHUNK_ENQUEUE) {
+		if (loadInstruction == CLUSTER_ENQUEUE) {
 justEnqueue:
 
-			if (ALPHA_OR_BETA_VERSION && loadedSampleChunk->type != LOADED_SAMPLE_CHUNK_SAMPLE) numericDriver.freezeWithError("E236"); // Cos Chris F got an E205
+			if (ALPHA_OR_BETA_VERSION && cluster->type != CLUSTER_SAMPLE) numericDriver.freezeWithError("E236"); // Cos Chris F got an E205
 
-			sampleManager.enqueueLoadedSampleChunk(loadedSampleChunk, priorityRating); // TODO: If that fails, it'll just get awkwardly forgotten about
+			audioFileManager.enqueueCluster(cluster, priorityRating); // TODO: If that fails, it'll just get awkwardly forgotten about
 #if 1 || ALPHA_OR_BETA_VERSION // Switching permanently on for now, as users on on V4.0.x have been getting E341.
-			if (loadedSampleChunk && loadedSampleChunk->numReasonsToBeLoaded <= 0) numericDriver.freezeWithError("i027"); // Diversifying Ron R's i004, which was diversifying Qui's E341
+			if (cluster && cluster->numReasonsToBeLoaded <= 0) numericDriver.freezeWithError("i027"); // Diversifying Ron R's i004, which was diversifying Qui's E341
 #endif
 		}
 
 		// Or if want to try to load now...
-		else { // CHUNK_LOAD_IMMEDIATELY or CHUNK_LOAD_IMMEDIATELY_OR_ENQUEUE
+		else { // CLUSTER_LOAD_IMMEDIATELY or CLUSTER_LOAD_IMMEDIATELY_OR_ENQUEUE
 
-			// loadedSampleChunk has (at least?) one reason - added above
+			// cluster has (at least?) one reason - added above
 
-			if (ALPHA_OR_BETA_VERSION && loadedSampleChunk->type != LOADED_SAMPLE_CHUNK_SAMPLE) numericDriver.freezeWithError("E234"); // Cos Chris F got an E205
-			bool result = sampleManager.loadSampleChunk(loadedSampleChunk, 1);
+			if (ALPHA_OR_BETA_VERSION && cluster->type != CLUSTER_SAMPLE) numericDriver.freezeWithError("E234"); // Cos Chris F got an E205
+			bool result = audioFileManager.loadCluster(cluster, 1);
 
 			// If that didn't work...
 			if (!result) {
 
 				// If also an acceptable option, then just enqueue it, and we'll keep the "reason" and return the pointer
-				if (loadInstruction == CHUNK_LOAD_IMMEDIATELY_OR_ENQUEUE) goto justEnqueue;
+				if (loadInstruction == CLUSTER_LOAD_IMMEDIATELY_OR_ENQUEUE) goto justEnqueue;
 
 				// Or if it was a must-load-now...
 				// Free and remove our link to the unloaded Cluster - otherwise the next time we try to load it, it'd still exist but never get enqueued for loading
-				sampleManager.deallocateLoadedSampleChunk(loadedSampleChunk); // This removes the 1 reason that it'd still have
+				audioFileManager.deallocateCluster(cluster); // This removes the 1 reason that it'd still have
 
 				if (error) *error = ERROR_UNSPECIFIED; // TODO: get actual error. Although sometimes it'd just be a "can't do it now cos card's being accessed, and that's fine, thanks for checking."
-				loadedSampleChunk = NULL;
+				cluster = NULL;
 			}
 #if 1 || ALPHA_OR_BETA_VERSION // Switching permanently on for now, as users on on V4.0.x have been getting E341.
-			if (loadedSampleChunk && loadedSampleChunk->numReasonsToBeLoaded <= 0) numericDriver.freezeWithError("i026"); // Michael B got - insane.
+			if (cluster && cluster->numReasonsToBeLoaded <= 0) numericDriver.freezeWithError("i026"); // Michael B got - insane.
 #endif
 		}
 	}
@@ -148,33 +148,33 @@ justEnqueue:
 	// Or if it had previously been created...
 	else {
 
-#if 1 || ALPHA_OR_BETA_VERSION // Switching permanently on for now, as users on on V4.0.x have been getting E341.
-		if (loadedSampleChunk && loadedSampleChunk->numReasonsToBeLoaded < 0) numericDriver.freezeWithError("i028"); // Diversifying Ron R's i004, which was diversifying Qui's E341
+#if 1 || ALPHA_OR_BETA_VERSION // Switching permanently on for now, as users on V4.0.x have been getting E341.
+		if (cluster && cluster->numReasonsToBeLoaded < 0) numericDriver.freezeWithError("i028"); // bnhrsch got this!!
 #endif
 
 		// If they'd prefer it loaded immediately and it's not loaded, try speeding loading along
-		if ((loadInstruction == CHUNK_LOAD_IMMEDIATELY || loadInstruction == CHUNK_LOAD_IMMEDIATELY_OR_ENQUEUE) && !loadedSampleChunk->loaded) {
-			sampleManager.loadAnyEnqueuedSampleChunks();
+		if ((loadInstruction == CLUSTER_LOAD_IMMEDIATELY || loadInstruction == CLUSTER_LOAD_IMMEDIATELY_OR_ENQUEUE) && !cluster->loaded) {
+			audioFileManager.loadAnyEnqueuedClusters();
 
 			// If it's still not loaded and it was a must-load-now...
-			if (loadInstruction == CHUNK_LOAD_IMMEDIATELY && !loadedSampleChunk->loaded) {
+			if (loadInstruction == CLUSTER_LOAD_IMMEDIATELY && !cluster->loaded) {
 				Uart::print("hurrying loading along failed for index: ");
-				Uart::println(chunkIndex);
+				Uart::println(clusterIndex);
 				if (error) *error = ERROR_UNSPECIFIED; // TODO: get actual error
 				return NULL;
 			}
 		}
 
-		sampleManager.addReasonToLoadedSampleChunk(loadedSampleChunk);
+		audioFileManager.addReasonToCluster(cluster);
 
 #if 1 || ALPHA_OR_BETA_VERSION // Switching permanently on for now, as users on on V4.0.x have been getting E341.
-		if (loadedSampleChunk && loadedSampleChunk->numReasonsToBeLoaded <= 0) numericDriver.freezeWithError("i025"); // Diversifying Ron R's i004, which was diversifying Qui's E341
+		if (cluster && cluster->numReasonsToBeLoaded <= 0) numericDriver.freezeWithError("i025"); // Diversifying Ron R's i004, which was diversifying Qui's E341
 #endif
 	}
 
 #if 1 || ALPHA_OR_BETA_VERSION // Switching permanently on for now, as users on on V4.0.x have been getting E341.
-	if (loadedSampleChunk && loadedSampleChunk->numReasonsToBeLoaded <= 0) numericDriver.freezeWithError("i004"); // Diversifying Qui's E341
+	if (cluster && cluster->numReasonsToBeLoaded <= 0) numericDriver.freezeWithError("i004"); // Ron R got this! Diversifying Qui's E341
 #endif
 
-	return loadedSampleChunk;
+	return cluster;
 }

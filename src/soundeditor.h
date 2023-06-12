@@ -54,7 +54,7 @@ public:
     bool opened();
     void focusRegained();
     bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows);
-    Sound* currentPatchingConfig;
+    Sound* currentSound;
     ModControllableAudio* currentModControllable;
     int8_t currentSourceIndex;
     Source* currentSource;
@@ -121,7 +121,7 @@ public:
 	bool isUntransposedNoteWithinRange(int noteCode);
 	void setCurrentMultiRange(int i);
 	void possibleChangeToCurrentRangeDisplay();
-	int checkPermissionToBeginSessionForRangeSpecificParam(Sound* patchingConfig, int whichThing, bool automaticallySelectIfOnlyOne, MultiRange** previouslySelectedRange);
+	int checkPermissionToBeginSessionForRangeSpecificParam(Sound* sound, int whichThing, bool automaticallySelectIfOnlyOne, MultiRange** previouslySelectedRange);
     void setupExclusiveShortcutBlink(int x, int y);
     void setShortcutsVersion(int newVersion);
     ModelStackWithThreeMainThings* getCurrentModelStack(void* memory);

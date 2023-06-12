@@ -15,9 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <AudioFileManager.h>
 #include <WaveTableReader.h>
 #include "storagemanager.h"
-#include "SampleManager.h"
 
 WaveTableReader::WaveTableReader() {
 	// TODO Auto-generated constructor stub
@@ -42,7 +42,7 @@ int WaveTableReader::readBytesPassedErrorChecking(char* outputBuffer, int num) {
 int WaveTableReader::readNewCluster() {
 
 	UINT bytesRead;
-	FRESULT result = f_read(&fileSystemStuff.currentFile, storageManager.fileClusterBuffer, sampleManager.clusterSize, &bytesRead);
+	FRESULT result = f_read(&fileSystemStuff.currentFile, storageManager.fileClusterBuffer, audioFileManager.clusterSize, &bytesRead);
 	if (result) return ERROR_SD_CARD; // Failed to load cluster from card
 	else return NO_ERROR;
 }

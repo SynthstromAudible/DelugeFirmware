@@ -17,6 +17,7 @@
 
 #include <ArrangerView.h>
 #include <AudioEngine.h>
+#include <AudioFileManager.h>
 #include <ClipInstance.h>
 #include <InstrumentClipMinder.h>
 #include <InstrumentClipView.h>
@@ -44,7 +45,6 @@
 #include "MIDIParam.h"
 #include "saveinstrumentpresetui.h"
 #include "midiengine.h"
-#include "SampleManager.h"
 #include "storagemanager.h"
 #include "LoadInstrumentPresetUI.h"
 #include "song.h"
@@ -293,16 +293,16 @@ void InstrumentClipMinder::setLedStates() {
 #if DELUGE_MODEL == DELUGE_MODEL_40_PAD
     if (getCurrentClip()->output->type == INSTRUMENT_TYPE_KIT) {
     	if (getCurrentClip()->affectEntire)
-    		IndicatorLEDs::blinkLed(trackViewLedX, trackViewLedY);
+    		IndicatorLEDs::blinkLed(clipViewLedX, clipViewLedY);
     	else
-    		IndicatorLEDs::setLedState(trackViewLedX, trackViewLedY, true);
+    		IndicatorLEDs::setLedState(clipViewLedX, clipViewLedY, true);
     }
 
     else {
     	if (getCurrentUI() == &keyboardScreen)
-    		IndicatorLEDs::blinkLed(trackViewLedX, trackViewLedY);
+    		IndicatorLEDs::blinkLed(clipViewLedX, clipViewLedY);
     	else
-    		IndicatorLEDs::setLedState(trackViewLedX, trackViewLedY, true);
+    		IndicatorLEDs::setLedState(clipViewLedX, clipViewLedY, true);
     }
 #endif
 }
@@ -454,8 +454,8 @@ void InstrumentClipMinder::changeInstrumentType(int newInstrumentType) {
 }
 
 void InstrumentClipMinder::calculateDefaultRootNote() {
-    // If there are any other Tracks in scale-mode, we use their root note
-    if (currentSong->anyScaleModeTracks()) defaultRootNote = currentSong->rootNote;
+    // If there are any other Clips in scale-mode, we use their root note
+    if (currentSong->anyScaleModeClips()) defaultRootNote = currentSong->rootNote;
 
     // Otherwise, intelligently guess the root note
     else defaultRootNote = getCurrentClip()->guessRootNote(currentSong, currentSong->rootNote);

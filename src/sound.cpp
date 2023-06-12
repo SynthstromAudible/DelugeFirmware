@@ -16,6 +16,7 @@
  */
 
 #include <AudioEngine.h>
+#include <AudioFileManager.h>
 #include <InstrumentClip.h>
 #include "functions.h"
 #include "storagemanager.h"
@@ -29,7 +30,6 @@
 #include "kit.h"
 #include "numericdriver.h"
 #include "view.h"
-#include "SampleManager.h"
 #include "Action.h"
 #include "ActionLogger.h"
 #include <string.h>
@@ -138,7 +138,7 @@ Sound::Sound() : patcher(&patchableInfoForSound)
 
 #if DELUGE_MODEL != DELUGE_MODEL_40_PAD
     modKnobs[6][1].paramDescriptor.setToHaveParamOnly(PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_STUTTER_RATE);
-    modKnobs[6][0].paramDescriptor.setToHaveParamOnly(PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_PATCHINGCONFIG_PORTA);
+    modKnobs[6][0].paramDescriptor.setToHaveParamOnly(PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_SOUND_PORTA);
 
     modKnobs[7][1].paramDescriptor.setToHaveParamOnly(PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_SAMPLE_RATE_REDUCTION);
     modKnobs[7][0].paramDescriptor.setToHaveParamOnly(PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_BITCRUSHING);
@@ -161,9 +161,9 @@ void Sound::initParams(ParamManager* paramManager) {
 	ModControllableAudio::initParams(paramManager);
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-    unpatchedParams->params[PARAM_UNPATCHED_PATCHINGCONFIG_ARP_GATE].setCurrentValueBasicForSetup(0);
+    unpatchedParams->params[PARAM_UNPATCHED_SOUND_ARP_GATE].setCurrentValueBasicForSetup(0);
     unpatchedParams->params[PARAM_UNPATCHED_MOD_FX_FEEDBACK].setCurrentValueBasicForSetup(0);
-    unpatchedParams->params[PARAM_UNPATCHED_PATCHINGCONFIG_PORTA].setCurrentValueBasicForSetup(-2147483648);
+    unpatchedParams->params[PARAM_UNPATCHED_SOUND_PORTA].setCurrentValueBasicForSetup(-2147483648);
 
     PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
     patchedParams->params[PARAM_LOCAL_VOLUME].setCurrentValueBasicForSetup(0);
@@ -383,7 +383,7 @@ void Sound::recalculatePatchingToParam(uint8_t p, ParamManagerForTimeline* param
 		else {
 			if (numVoicesAssigned) {
 				int ends[2];
-		    	AudioEngine::activeVoices.getRangeForPatchingConfig(this, ends);
+		    	AudioEngine::activeVoices.getRangeForSound(this, ends);
 		        for (int v = ends[0]; v < ends[1]; v++) {
 		        	Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
 					thisVoice->patcher.recalculateFinalValueForParamWithNoCables(p, this, paramManager);
@@ -576,7 +576,7 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
             }
             else if (!strcmp(tagName, "gate")) { // This is here for compatibility only for people (Lou and Ian) who saved songs with firmware in September 2016
             	ENSURE_PARAM_MANAGER_EXISTS
-				unpatchedParams->readParam(unpatchedParamsSummary, PARAM_UNPATCHED_PATCHINGCONFIG_ARP_GATE, readAutomationUpToPos);
+				unpatchedParams->readParam(unpatchedParamsSummary, PARAM_UNPATCHED_SOUND_ARP_GATE, readAutomationUpToPos);
                 storageManager.exitTag("gate");
             }
             else {
@@ -600,7 +600,7 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 
     else if (!strcmp(tagName, "portamento")) {  // This is here for compatibility only for people (Lou and Ian) who saved songs with firmware in September 2016
     	ENSURE_PARAM_MANAGER_EXISTS
-		unpatchedParams->readParam(unpatchedParamsSummary, PARAM_UNPATCHED_PATCHINGCONFIG_PORTA, readAutomationUpToPos);
+		unpatchedParams->readParam(unpatchedParamsSummary, PARAM_UNPATCHED_SOUND_PORTA, readAutomationUpToPos);
         storageManager.exitTag("portamento");
     }
 
@@ -1240,7 +1240,7 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int note
     if (numVoicesAssigned && polyphonic != POLYPHONY_POLY) {
 
 		int ends[2];
-    	AudioEngine::activeVoices.getRangeForPatchingConfig(this, ends);
+    	AudioEngine::activeVoices.getRangeForSound(this, ends);
         for (int v = ends[0]; v < ends[1]; v++) {
         	Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
 
@@ -1356,7 +1356,7 @@ void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int not
 	if (!numVoicesAssigned) return;
 
 	int ends[2];
-	AudioEngine::activeVoices.getRangeForPatchingConfig(this, ends);
+	AudioEngine::activeVoices.getRangeForSound(this, ends);
     for (int v = ends[0]; v < ends[1]; v++) {
     	Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
 		if ((thisVoice->noteCodeAfterArpeggiation == noteCode || noteCode == -32768) && thisVoice->envelopes[0].state < ENVELOPE_STAGE_RELEASE) { // Don't bother if it's already "releasing"
@@ -1502,10 +1502,10 @@ bool Sound::hasCutModeSamples(ParamManagerForTimeline* paramManager) {
 	return true;
 }
 
-bool Sound::allowsVeryLateNoteStart(InstrumentClip* track, ParamManagerForTimeline* paramManager) {
+bool Sound::allowsVeryLateNoteStart(InstrumentClip* clip, ParamManagerForTimeline* paramManager) {
 
 	// If arpeggiator, we can always start very late
-	ArpeggiatorSettings* arpSettings = getArpSettings(track);
+	ArpeggiatorSettings* arpSettings = getArpSettings(clip);
 	if (arpSettings && arpSettings->mode) return true;
 
 	if (synthMode == SYNTH_MODE_FM) return false;
@@ -1584,7 +1584,7 @@ void Sound::sampleZoneChanged(int markerType, int s, ModelStackWithSoundFlags* m
 	if (sources[s].sampleControls.reversed) markerType = NUM_MARKER_TYPES - 1 - markerType;
 
 	int ends[2];
-	AudioEngine::activeVoices.getRangeForPatchingConfig(this, ends);
+	AudioEngine::activeVoices.getRangeForSound(this, ends);
     for (int v = ends[0]; v < ends[1]; v++) {
     	Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
     	ModelStackWithVoice* modelStackWithVoice = modelStack->addVoice(thisVoice);
@@ -1654,7 +1654,7 @@ yupStartSkipping:
 	}
 }
 
-void Sound::getThingWithMostReverb(Sound** patchingConfigWithMostReverb, ParamManager** paramManagerWithMostReverb, GlobalEffectableForClip** globalEffectableWithMostReverb, int32_t* highestReverbAmountFound, ParamManagerForTimeline* paramManager) {
+void Sound::getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb, GlobalEffectableForClip** globalEffectableWithMostReverb, int32_t* highestReverbAmountFound, ParamManagerForTimeline* paramManager) {
 
 	PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
 	if (!patchedParams->params[PARAM_GLOBAL_REVERB_AMOUNT].isAutomated() && patchedParams->params[PARAM_GLOBAL_REVERB_AMOUNT].containsSomething(-2147483648)) {
@@ -1663,7 +1663,7 @@ void Sound::getThingWithMostReverb(Sound** patchingConfigWithMostReverb, ParamMa
 		int32_t reverbHere = patchedParams->getValue(PARAM_GLOBAL_REVERB_AMOUNT);
 		if (*highestReverbAmountFound < reverbHere) {
 			*highestReverbAmountFound = reverbHere;
-			*patchingConfigWithMostReverb = this;
+			*soundWithMostReverb = this;
 			*paramManagerWithMostReverb = paramManager;
 			*globalEffectableWithMostReverb = NULL;
 		}
@@ -1736,7 +1736,7 @@ void Sound::doParamLPF(int numSamples, ModelStackWithSoundFlags* modelStack) {
     else {
         int32_t amountToAdd = diff * numSamples;
     	paramLPF.currentValue += amountToAdd;
-    	//patchedParamPresetValueChanged(paramLPF.p, notifyPatchingConfig, oldValue, paramLPF.currentValue);
+    	//patchedParamPresetValueChanged(paramLPF.p, notifySound, oldValue, paramLPF.currentValue);
     	patchedParamPresetValueChanged(paramLPF.p, modelStack, oldValue, paramLPF.currentValue);
     }
 }
@@ -1746,7 +1746,7 @@ void Sound::stopParamLPF(ModelStackWithSoundFlags* modelStack) {
 	bool wasActive = paramLPF.p != PARAM_LPF_OFF;
 	if (wasActive) {
 		int p = paramLPF.p;
-		paramLPF.p = PARAM_LPF_OFF; // Must do this first, because the below call will involve the PatchingConfig calling us back for the current value
+		paramLPF.p = PARAM_LPF_OFF; // Must do this first, because the below call will involve the Sound calling us back for the current value
 		if (modelStack) patchedParamPresetValueChanged(p, modelStack, paramLPF.currentValue, modelStack->paramManager->getPatchedParamSet()->getValue(p));
 	}
 }
@@ -1790,7 +1790,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample *outp
     if (arpSettings && arpSettings->mode) {
 
     	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-		uint32_t gateThreshold = (uint32_t)unpatchedParams->getValue(PARAM_UNPATCHED_PATCHINGCONFIG_ARP_GATE) + 2147483648;
+		uint32_t gateThreshold = (uint32_t)unpatchedParams->getValue(PARAM_UNPATCHED_SOUND_ARP_GATE) + 2147483648;
 		uint32_t phaseIncrement = arpSettings->getPhaseIncrement(paramFinalValues[PARAM_GLOBAL_ARP_RATE - FIRST_GLOBAL_PARAM]);
 
 		ArpReturnInstruction instruction;
@@ -1846,7 +1846,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample *outp
 		*/
 
 		int ends[2];
-    	AudioEngine::activeVoices.getRangeForPatchingConfig(this, ends);
+    	AudioEngine::activeVoices.getRangeForSound(this, ends);
         for (int v = ends[0]; v < ends[1]; v++) {
         	Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
         	/*
@@ -2020,7 +2020,7 @@ void Sound::unassignAllVoices() {
 	if (!numVoicesAssigned) return;
 
 	int ends[2];
-	AudioEngine::activeVoices.getRangeForPatchingConfig(this, ends);
+	AudioEngine::activeVoices.getRangeForSound(this, ends);
     for (int v = ends[0]; v < ends[1]; v++) {
     	Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
 		AudioEngine::activeVoices.checkVoiceExists(thisVoice, this, "E203");	// ronronsen got error! https://forums.synthstrom.com/discussion/4090/e203-by-changing-a-drum-kit#latest
@@ -2045,13 +2045,13 @@ void Sound::confirmNumVoices(char const* error) {
 	int reasonCount = 0;
 	Voice* endAssignedVoices = audioDriver.endAssignedVoices;
 	for (Voice* thisVoice = audioDriver.voices; thisVoice != endAssignedVoices; thisVoice++) {
-		if (thisVoice->assignedToPatchingConfig == this) {
+		if (thisVoice->assignedToSound == this) {
 			voiceCount++;
 
 			for (int u = 0; u < maxNumUnison; u++) {
 				for (int s = 0; s < NUM_SOURCES; s++) {
-					for (int l = 0; l < NUM_SAMPLE_CHUNKS_LOADED_AHEAD; l++) {
-						if (thisVoice->unisonParts[u].sources[s].loadedSampleChunks[l]) {
+					for (int l = 0; l < NUM_SAMPLE_CLUSTERS_LOADED_AHEAD; l++) {
+						if (thisVoice->unisonParts[u].sources[s].clusters[l]) {
 							reasonCount++;
 						}
 					}
@@ -2071,8 +2071,8 @@ void Sound::confirmNumVoices(char const* error) {
 
 	int reasonCountSources = 0;
 
-	for (int l = 0; l < NUM_SAMPLE_CHUNKS_LOADED_AHEAD; l++) {
-		if (sources[0].loadedSampleChunks[l]) reasonCountSources++;
+	for (int l = 0; l < NUM_SAMPLE_CLUSTERS_LOADED_AHEAD; l++) {
+		if (sources[0].clusters[l]) reasonCountSources++;
 	}
 
 
@@ -2084,11 +2084,11 @@ void Sound::confirmNumVoices(char const* error) {
 			Uart::println(sources[0].sample->fileName);
 			Uart::print("voices: ");
 			Uart::println(voiceCount);
-			Uart::print("reasons on loadedSampleChunks: ");
+			Uart::print("reasons on clusters: ");
 			Uart::println(totalNumReasons);
-			Uart::print("Num voice unison part pointers to those loadedSampleChunks: ");
+			Uart::print("Num voice unison part pointers to those clusters: ");
 			Uart::println(reasonCount);
-			Uart::print("Num source pointers to those loadedSampleChunks: ");
+			Uart::print("Num source pointers to those clusters: ");
 			Uart::println(reasonCountSources);
 
 			char buffer[5];
@@ -2110,19 +2110,6 @@ uint32_t Sound::getGlobalLFOPhaseIncrement() {
     return phaseIncrement;
 }
 
-/*
-uint32_t PatchingConfig::getArpeggiatorPhaseIncrement() {
-    uint32_t phaseIncrement;
-    if (arpeggiator.syncLevel == 0)
-        phaseIncrement = globalParamFinalValues[PARAM_GLOBAL_ARP_RATE - FIRST_GLOBAL_PARAM];
-    else {
-    	int rightShiftAmount = 9 - 8 - arpeggiator.syncLevel; // Will be max 0
-        phaseIncrement = multiply_32x32_rshift32(playbackHandler.getTimePerInternalTickInverse(), globalParamFinalValues[PARAM_GLOBAL_ARP_RATE - FIRST_GLOBAL_PARAM]);
-        phaseIncrement <<= (0 - rightShiftAmount);
-    }
-    return phaseIncrement;
-}
-*/
 
 
 void Sound::setLFOGlobalSyncLevel(uint8_t newLevel) {
@@ -2407,7 +2394,7 @@ void Sound::recalculateAllVoicePhaseIncrements(ModelStackWithSoundFlags* modelSt
 	if (!numVoicesAssigned || !modelStack) return; // These two "should" always be false in tandem...
 
 	int ends[2];
-	AudioEngine::activeVoices.getRangeForPatchingConfig(this, ends);
+	AudioEngine::activeVoices.getRangeForSound(this, ends);
     for (int v = ends[0]; v < ends[1]; v++) {
     	Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
     	ModelStackWithVoice* modelStackWithVoice = modelStack->addVoice(thisVoice);
@@ -2426,7 +2413,7 @@ void Sound::setNumUnison(int newNum, ModelStackWithSoundFlags* modelStack) {
     if (numVoicesAssigned) {
 
     	int ends[2];
-    	AudioEngine::activeVoices.getRangeForPatchingConfig(this, ends);
+    	AudioEngine::activeVoices.getRangeForSound(this, ends);
         for (int v = ends[0]; v < ends[1]; v++) {
         	Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
 
@@ -2472,7 +2459,7 @@ void Sound::setNumUnison(int newNum, ModelStackWithSoundFlags* modelStack) {
 							}
 						}
 						else if (newNum < oldNum){
-							for (int l = 0; l < NUM_SAMPLE_CHUNKS_LOADED_AHEAD; l++) {
+							for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD; l++) {
 								thisVoice->unisonParts[newNum].sources[s].unassign();
 							}
 						}
@@ -2968,11 +2955,11 @@ bool Sound::readParamTagFromFile(char const* tagName, ParamManagerForTimeline* p
 	PatchedParamSet* patchedParams = (PatchedParamSet*)patchedParamsSummary->paramCollection;
 
     if (!strcmp(tagName, "arpeggiatorGate")) {
-		unpatchedParams->readParam(unpatchedParamsSummary, PARAM_UNPATCHED_PATCHINGCONFIG_ARP_GATE, readAutomationUpToPos);
+		unpatchedParams->readParam(unpatchedParamsSummary, PARAM_UNPATCHED_SOUND_ARP_GATE, readAutomationUpToPos);
         storageManager.exitTag("arpeggiatorGate");
     }
     else if (!strcmp(tagName, "portamento")) {
-		unpatchedParams->readParam(unpatchedParamsSummary, PARAM_UNPATCHED_PATCHINGCONFIG_PORTA, readAutomationUpToPos);
+		unpatchedParams->readParam(unpatchedParamsSummary, PARAM_UNPATCHED_SOUND_PORTA, readAutomationUpToPos);
         storageManager.exitTag("portamento");
     }
     else if (!strcmp(tagName, "compressorShape")) {
@@ -3162,8 +3149,8 @@ void Sound::writeParamsToFile(ParamManager* paramManager, bool writeAutomation) 
 	PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
-    unpatchedParams->writeParamAsAttribute("arpeggiatorGate", PARAM_UNPATCHED_PATCHINGCONFIG_ARP_GATE, writeAutomation);
-    unpatchedParams->writeParamAsAttribute("portamento", PARAM_UNPATCHED_PATCHINGCONFIG_PORTA, writeAutomation);
+    unpatchedParams->writeParamAsAttribute("arpeggiatorGate", PARAM_UNPATCHED_SOUND_ARP_GATE, writeAutomation);
+    unpatchedParams->writeParamAsAttribute("portamento", PARAM_UNPATCHED_SOUND_PORTA, writeAutomation);
     unpatchedParams->writeParamAsAttribute("compressorShape", PARAM_UNPATCHED_COMPRESSOR_SHAPE, writeAutomation);
 
     patchedParams->writeParamAsAttribute("oscAVolume", PARAM_LOCAL_OSC_A_VOLUME, writeAutomation);
@@ -3580,7 +3567,7 @@ void Sound::fastReleaseAllVoices(ModelStackWithSoundFlags* modelStack) {
 	if (!numVoicesAssigned) return;
 
 	int ends[2];
-	AudioEngine::activeVoices.getRangeForPatchingConfig(this, ends);
+	AudioEngine::activeVoices.getRangeForSound(this, ends);
     for (int v = ends[0]; v < ends[1]; v++) {
     	Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
 		bool stillGoing = thisVoice->doFastRelease();
@@ -3603,7 +3590,7 @@ void Sound::prepareForHibernation() {
 void Sound::wontBeRenderedForAWhile() {
 	ModControllableAudio::wontBeRenderedForAWhile();
 
-	unassignAllVoices(); // Can't remember if this is always necessary, but it is when this is called from Track::detachFromInstrument()
+	unassignAllVoices(); // Can't remember if this is always necessary, but it is when this is called from Instrumentclip::detachFromInstrument()
 
 	getArp()->reset(); // Surely this shouldn't be quite necessary?
     compressor.status = ENVELOPE_STAGE_OFF;
@@ -3679,7 +3666,7 @@ bool Sound::renderingVoicesInStereo(ModelStackWithSoundFlags* modelStack) {
 	if (mustExamineSourceInEachVoice) {
 
 		int ends[2];
-		AudioEngine::activeVoices.getRangeForPatchingConfig(this, ends);
+		AudioEngine::activeVoices.getRangeForSound(this, ends);
 		for (int v = ends[0]; v < ends[1]; v++) {
 			Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
 
@@ -3828,12 +3815,12 @@ char const* Sound::paramToString(uint8_t param) {
     case PARAM_LOCAL_CARRIER_1_FEEDBACK:
         return "carrier2Feedback";
 
-   	// Unpatched params just for PatchingConfigs
+   	// Unpatched params just for Sounds
 
-    case PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_PATCHINGCONFIG_ARP_GATE:
+    case PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_SOUND_ARP_GATE:
 		return "arpGate";
 
-    case PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_PATCHINGCONFIG_PORTA:
+    case PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_SOUND_PORTA:
 		return "portamento";
 
 	default:
@@ -3896,7 +3883,7 @@ ModelStackWithAutoParam* Sound::getParamFromMIDIKnob(MIDIKnob* knob, ModelStackW
 /*
 
 int startV, endV;
-audioDriver.voices.getRangeForPatchingConfig(this, &startV, &endV);
+audioDriver.voices.getRangeForSound(this, &startV, &endV);
 for (int v = startV; v < endV; v++) {
 	Voice* thisVoice = audioDriver.voices.getElement(v)->voice;
 }

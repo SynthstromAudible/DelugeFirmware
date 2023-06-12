@@ -39,23 +39,23 @@ void MenuItemFileSelector::beginSession(MenuItem* navigatedBackwardFrom) {
 		uiTimerManager.unsetTimer(TIMER_SHORTCUT_BLINK);
 	}
 }
-bool MenuItemFileSelector::isRelevant(Sound* patchingConfig, int whichThing) {
+bool MenuItemFileSelector::isRelevant(Sound* sound, int whichThing) {
 	if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) return true;
-	Source* source = &patchingConfig->sources[whichThing];
+	Source* source = &sound->sources[whichThing];
 
-	if (source->oscType == OSC_TYPE_WAVETABLE) return (patchingConfig->getSynthMode() != SYNTH_MODE_FM);
-	else return (patchingConfig->getSynthMode() == SYNTH_MODE_SUBTRACTIVE && source->oscType == OSC_TYPE_SAMPLE);
+	if (source->oscType == OSC_TYPE_WAVETABLE) return (sound->getSynthMode() != SYNTH_MODE_FM);
+	else return (sound->getSynthMode() == SYNTH_MODE_SUBTRACTIVE && source->oscType == OSC_TYPE_SAMPLE);
 }
-int MenuItemFileSelector::checkPermissionToBeginSession(Sound* patchingConfig, int whichThing, MultiRange** currentRange) {
+int MenuItemFileSelector::checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) {
 
 	if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) return MENU_PERMISSION_YES;
 
-	bool can = (patchingConfig->getSynthMode() == SYNTH_MODE_SUBTRACTIVE ||
-			(patchingConfig->getSynthMode() == SYNTH_MODE_RINGMOD && patchingConfig->sources[whichThing].oscType == OSC_TYPE_WAVETABLE));
+	bool can = (sound->getSynthMode() == SYNTH_MODE_SUBTRACTIVE ||
+			(sound->getSynthMode() == SYNTH_MODE_RINGMOD && sound->sources[whichThing].oscType == OSC_TYPE_WAVETABLE));
 
 	if (!can) {
 		return MENU_PERMISSION_NO;
 	}
 
-	return soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(patchingConfig, whichThing, false, currentRange);
+	return soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(sound, whichThing, false, currentRange);
 }

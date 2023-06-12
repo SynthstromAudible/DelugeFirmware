@@ -15,8 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef PATCHINGCONFIGINSTRUMENT_H
-#define PATCHINGCONFIGINSTRUMENT_H
+#ifndef SOUNDINSTRUMENT_H
+#define SOUNDINSTRUMENT_H
 
 #include <sound.h>
 #include "MelodicInstrument.h"
@@ -36,7 +36,7 @@ public:
     void cutAllSound();
     bool noteIsOn(int noteCode);
 
-    void renderOutput(ModelStack* modelStack, StereoSample *startPos, StereoSample *endPos, int numSamples, int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isTrackActive);
+    void renderOutput(ModelStack* modelStack, StereoSample *startPos, StereoSample *endPos, int numSamples, int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive);
 
     // A timelineCounter is required
     void offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value, ModelStackWithTimelineCounter* modelStack) {
@@ -61,7 +61,7 @@ public:
 
     void sendNote(ModelStackWithThreeMainThings* modelStack, bool isOn, int noteCode, int16_t const* mpeValues, int fromMIDIChannel, uint8_t velocity, uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate);
 
-    ArpeggiatorSettings* getArpSettings(InstrumentClip* track = NULL);
+    ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = NULL);
     bool readTagFromFile(char const* tagName);
 
     void prepareForHibernationOrDeletion();
@@ -71,7 +71,7 @@ public:
     void beenEdited(bool shouldMoveToEmptySlot = true);
     int32_t doTickForwardForArp(ModelStack* modelStack, int32_t currentPos);
     void setupWithoutActiveClip(ModelStack* modelStack);
-    void getThingWithMostReverb(Sound** patchingConfigWithMostReverb, ParamManager** paramManagerWithMostReverb, GlobalEffectableForClip** globalEffectableWithMostReverb,
+    void getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb, GlobalEffectableForClip** globalEffectableWithMostReverb,
     			int32_t* highestReverbAmountFound);
     uint8_t* getModKnobMode() { return &modKnobMode; }
     ArpeggiatorBase* getArp();

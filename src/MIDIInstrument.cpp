@@ -464,10 +464,10 @@ traverseClips2:
 			if (clip->output != this) continue;
 		}
 		else {
-			ClipInstance* trackInstance = clipInstances.getElement(c);
-			if (!trackInstance->clip) continue;
-			if (!trackInstance->clip->isArrangementOnlyClip()) continue;
-			clip = trackInstance->clip;
+			ClipInstance* clipInstance = clipInstances.getElement(c);
+			if (!clipInstance->clip) continue;
+			if (!clipInstance->clip->isArrangementOnlyClip()) continue;
+			clip = clipInstance->clip;
 		}
 
 		moveAutomationToDifferentCC(*cc, newCC, modelStack);
@@ -484,7 +484,7 @@ void MIDIInstrument::offerReceivedNote(ModelStackWithTimelineCounter* modelStack
 
 	if (midiInput.channelOrZone == receivedChannel) {
 
-		// If it's a MIDI track, and it's outputting on the same channel as this MIDI message came in, don't do MIDI thru!
+		// If it's a MIDI Clip, and it's outputting on the same channel as this MIDI message came in, don't do MIDI thru!
 		if (doingMidiThru && type == INSTRUMENT_TYPE_MIDI_OUT && receivedChannel == channel) { // We'll just say don't do anything to midi-thru if any MPE in the picture, for now
 			*doingMidiThru = false;
 		}

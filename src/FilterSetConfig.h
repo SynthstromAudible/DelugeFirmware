@@ -29,7 +29,7 @@ class FilterSetConfig {
     int32_t processedResonance; // 1 represented as 1073741824
     int32_t divideByTotalMoveabilityAndProcessedResonance; // 1 represented as 1073741824
     int32_t moveability; // 1 represented by 2147483648
-    int32_t divideBy1PlusMoveability; // 1 represented by 2147483648
+    int32_t divideBy1PlusTannedFrequency; // 1 represented by 2147483648
 
     // All feedbacks have 1 represented as 1073741824
     int32_t lpf1Feedback;

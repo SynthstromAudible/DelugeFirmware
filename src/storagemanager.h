@@ -90,7 +90,7 @@ public:
     void writeFirmwareVersion();
     bool checkSDPresent();
     bool checkSDInitialized();
-    bool readXMLFileChunk();
+    bool readXMLFileCluster();
     int getNumCharsRemainingInValue();
     Instrument* createNewInstrument(uint8_t newInstrumentType, ParamManager* getParamManager = NULL);
     int loadInstrumentFromFile(Song* song, InstrumentClip* clip, int instrumentType, bool mayReadSamplesFromFiles, Instrument** getInstrument, FilePointer* filePointer, String* name, String* dirPath);
@@ -146,7 +146,7 @@ private:
     int32_t readIntUntilChar(char endChar);
     bool getIntoAttributeValue();
     int32_t readAttributeValueInt();
-    bool readXMLFileChunkIfNecessary();
+    bool readXMLFileClusterIfNecessary();
     int readStringUntilChar(String* string, char endChar);
     int readAttributeValueString(String* string);
     void restoreBackedUpCharIfNecessary();

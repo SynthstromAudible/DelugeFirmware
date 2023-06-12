@@ -143,7 +143,7 @@ int buttonAction(int x, int y, bool on, bool inCardRoutine) {
     }
 
 #if ALLOW_SPAM_MODE
-    else if (x == selectEncButtonX && y == selectEncButtonY && isButtonPressed(trackViewButtonX, trackViewButtonY) && isButtonPressed(shiftButtonX, shiftButtonY)) {
+    else if (x == selectEncButtonX && y == selectEncButtonY && isButtonPressed(clipViewButtonX, clipViewButtonY) && isButtonPressed(shiftButtonX, shiftButtonY)) {
     	spamMode();
     }
 #endif

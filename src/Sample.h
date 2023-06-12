@@ -52,21 +52,21 @@ public:
 	~Sample();
 
 	void workOutBitMask();
-	int initialize(int numChunks);
+	int initialize(int numClusters);
 	void markAsUnloadable();
 	float determinePitch(bool doingSingleCycle, float minFreqHz, float maxFreqHz, bool doPrimeTest);
 	void workOutMIDINote(bool doingSingleCycle, float minFreqHz = 20, float maxFreqHz = 10000, bool doPrimeTest = true);
 	uint32_t getLengthInMSec();
 	SampleCache* getOrCreateCache(SampleHolder* sampleHolder, int32_t phaseIncrement, int32_t timeStretchRatio, bool reversed, bool mayCreate, bool* created);
 	void deleteCache(SampleCache* cache);
-	int getFirstChunkIndexWithAudioData();
-	int getFirstChunkIndexWithNoAudioData();
+	int getFirstClusterIndexWithAudioData();
+	int getFirstClusterIndexWithNoAudioData();
 	int fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSamples, int32_t endPosSamples, int playDirection, int maxNumSamplesToProcess);
-	void percCacheChunkStolen(Cluster* chunk);
+	void percCacheClusterStolen(Cluster* cluster);
 	void deletePercCache(bool beingDestructed = false);
 	uint8_t* prepareToReadPercCache(int pixellatedPos, int playDirection, int* earliestPixellatedPos, int* latestPixellatedPos);
 	bool getAveragesForCrossfade(int32_t* totals, int startBytePos, int crossfadeLengthSamples, int playDirection, int lengthToAverageEach);
-	void convertDataOnAnyLoadedSampleChunksIfNecessary();
+	void convertDataOnAnyClustersIfNecessary();
 	int32_t getMaxPeakFromZero();
 	int32_t getFoundValueCentrePoint();
 	int32_t getValueSpan();
@@ -129,8 +129,8 @@ public:
     uint8_t* percCacheMemory[2]; // One for each play-direction: 0=forwards; 1=reversed
     OrderedResizeableArrayWith32bitKey percCacheZones[2]; // One for each play-direction: 0=forwards; 1=reversed
 
-    Cluster** percCacheChunks[2]; // One for each play-direction: 0=forwards; 1=reversed
-    int numPercCacheChunks;
+    Cluster** percCacheClusters[2]; // One for each play-direction: 0=forwards; 1=reversed
+    int numPercCacheClusters;
 
     int32_t beginningOffsetForPitchDetection;
     bool beginningOffsetForPitchDetectionFound;

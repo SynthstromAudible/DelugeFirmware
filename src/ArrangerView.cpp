@@ -17,6 +17,7 @@
 
 #include <ArrangerView.h>
 #include <AudioEngine.h>
+#include <AudioFileManager.h>
 #include <ClipInstance.h>
 #include <ConsequenceClipExistence.h>
 #include <ConsequenceClipInstanceChange.h>
@@ -45,7 +46,6 @@
 #include "kit.h"
 #include "drum.h"
 #include "MIDIInstrument.h"
-#include "SampleManager.h"
 #include <new>
 #include "ConsequenceArrangerParamsTimeInserted.h"
 #include "storagemanager.h"
@@ -314,7 +314,7 @@ void ArrangerView::deleteOutput() {
 	char const* errorMessage;
 
 	if (currentSong->getNumOutputs() <= 1) {
-		errorMessage = "Can't delete final track";
+		errorMessage = "Can't delete final Clip";
 cant:
 		numericDriver.displayPopup(HAVE_OLED ? errorMessage : "CANT");
 		return;
@@ -332,7 +332,7 @@ cant:
 		goto cant;
 	}
 
-	output->clipInstances.empty(); // Because none of these have Tracks, this is ok
+	output->clipInstances.empty(); // Because none of these have Clips, this is ok
 	output->cutAllSound();
 	currentSong->deleteOrHibernateOutput(output);
 
@@ -1160,8 +1160,8 @@ makeNewInstance:
 					// Test thing
 					{
 						int j = output->clipInstances.search(squareStart, GREATER_OR_EQUAL);
-						ClipInstance* nextTrackInstance = output->clipInstances.getElement(j);
-						if (nextTrackInstance && nextTrackInstance->pos == squareStart) {
+						ClipInstance* nextClipInstance = output->clipInstances.getElement(j);
+						if (nextClipInstance && nextClipInstance->pos == squareStart) {
 							 numericDriver.freezeWithError("E233"); // Yes, this happened to someone. Including me!!
 						}
 					}
@@ -1306,54 +1306,47 @@ getItFromSection:
 					int32_t oldSquareStart = getPosFromSquare(xPressed);
 					int32_t oldSquareEnd = getPosFromSquare(xPressed + 1);
 
-					// Search for previously pressed TrackInstance
-					ClipInstance* trackInstance = output->clipInstances.getElement(pressedClipInstanceIndex);
+					// Search for previously pressed ClipInstance
+					ClipInstance* clipInstance = output->clipInstances.getElement(pressedClipInstanceIndex);
 
-					int32_t lengthTilNewSquareStart = squareStart - trackInstance->pos;
+					int32_t lengthTilNewSquareStart = squareStart - clipInstance->pos;
 
-					desiredLength = trackInstance->length; // I don't think this should still be here...
+					desiredLength = clipInstance->length; // I don't think this should still be here...
 
 					// Shorten
-					if (trackInstance->length > lengthTilNewSquareStart) {
+					if (clipInstance->length > lengthTilNewSquareStart) {
 						Action* action = actionLogger.getNewAction(ACTION_CLIP_INSTANCE_EDIT, true);
-						if (trackInstance->clip) arrangement.rowEdited(output, trackInstance->pos + lengthTilNewSquareStart, trackInstance->pos + trackInstance->length, trackInstance->clip, NULL);
-						trackInstance->change(action, output, trackInstance->pos, lengthTilNewSquareStart, trackInstance->clip);
+						if (clipInstance->clip) arrangement.rowEdited(output, clipInstance->pos + lengthTilNewSquareStart, clipInstance->pos + clipInstance->length, clipInstance->clip, NULL);
+						clipInstance->change(action, output, clipInstance->pos, lengthTilNewSquareStart, clipInstance->clip);
 					}
 
 					// Lengthen
 					else {
 
-						int32_t oldLength = trackInstance->length;
+						int32_t oldLength = clipInstance->length;
 
-						int32_t newLength = squareEnd - trackInstance->pos;
+						int32_t newLength = squareEnd - clipInstance->pos;
 
-						// Make sure it doesn't collide with next TrackInstance
-						ClipInstance* nextTrackInstance = output->clipInstances.getElement(pressedClipInstanceIndex + 1);
-						if (nextTrackInstance) {
-							int32_t maxLength = nextTrackInstance->pos - trackInstance->pos;
+						// Make sure it doesn't collide with next ClipInstance
+						ClipInstance* nextClipInstance = output->clipInstances.getElement(pressedClipInstanceIndex + 1);
+						if (nextClipInstance) {
+							int32_t maxLength = nextClipInstance->pos - clipInstance->pos;
 							if (newLength > maxLength) newLength = maxLength;
 						}
 
-						if (newLength > MAX_SEQUENCE_LENGTH - trackInstance->pos) newLength = MAX_SEQUENCE_LENGTH - trackInstance->pos;
+						if (newLength > MAX_SEQUENCE_LENGTH - clipInstance->pos) newLength = MAX_SEQUENCE_LENGTH - clipInstance->pos;
 
-						// If we are in fact able to lengthenn it...
+						// If we are in fact able to lengthen it...
 						if (newLength > oldLength) {
 
 							Action* action = actionLogger.getNewAction(ACTION_CLIP_INSTANCE_EDIT, true);
 
-							// Update length of Track itself
-							/*
-							if (trackInstance->track && trackInstance->track->section == 255 && trackInstance->track->length == oldLength) {
-								trackInstance->track->length = newLength; // TODO: undoability!
-							}
-							*/
-
-							trackInstance->change(action, output, trackInstance->pos, newLength, trackInstance->clip);
-							arrangement.rowEdited(output, trackInstance->pos + oldLength, trackInstance->pos + trackInstance->length, NULL, trackInstance);
+							clipInstance->change(action, output, clipInstance->pos, newLength, clipInstance->clip);
+							arrangement.rowEdited(output, clipInstance->pos + oldLength, clipInstance->pos + clipInstance->length, NULL, clipInstance);
 						}
 					}
 
-					desiredLength = trackInstance->length;
+					desiredLength = clipInstance->length;
 
 					uiNeedsRendering(this, 1 << y, 0);
 				}
@@ -1397,7 +1390,7 @@ justGetOut:
 						// Otherwise, go into Clip
 						else {
 
-							// In this case, we leave the activeModControllableTrack the same
+							// In this case, we leave the activeModControllableClip the same
 
 							// If Clip wasn't created yet, create it first. This does both AudioClips and InstrumentClips
 							if (!clipInstance->clip) {
@@ -1419,7 +1412,7 @@ justGetOut:
 
 								newClip->loopLength = clipInstance->length;
 								newClip->section = 255;
-								newClip->activeIfNoSolo = false; // Always need to set arrangement-only tracks like this on create
+								newClip->activeIfNoSolo = false; // Always need to set arrangement-only Clips like this on create
 
 								char modelStackMemory[MODEL_STACK_MAX_SIZE];
 								ModelStackWithTimelineCounter* modelStack = setupModelStackWithTimelineCounter(modelStackMemory, currentSong, newClip);
@@ -1444,8 +1437,8 @@ justGetOut:
 									((InstrumentClip*)newClip)->setupAsNewKitClipIfNecessary(modelStack);
 								}
 
-								// Possibly want to set this as the activeTrack, if Instrument didn't have one yet.
-								// Crucial that we do this not long after calling setInstrument, in case this is the first Track with the Instrument
+								// Possibly want to set this as the activeClip, if Instrument didn't have one yet.
+								// Crucial that we do this not long after calling setInstrument, in case this is the first Clip with the Instrument
 								// and we just grabbed the backedUpParamManager for it, which it might go and look for again if the audio routine
 								// was called in the interim
 								if (!output->activeClip) {
@@ -1546,7 +1539,7 @@ void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 
 	if (clip->type == CLIP_TYPE_AUDIO) {
 
-    	// If no sample, just skip straight there
+    	// If no sample, just skip directly there
     	if (!((AudioClip*)clip)->sampleHolder.audioFile) {
     		currentUIMode = UI_MODE_NONE;
 			changeRootUI(&audioClipView);
@@ -1613,7 +1606,7 @@ void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 	PadLEDs::explodeAnimationXWidthBig = ((uint32_t)(end - start) / currentSong->xZoom[NAVIGATION_ARRANGEMENT]) << 16;
 
 
-	PadLEDs::recordTransitionBegin(trackCollapseSpeed);
+	PadLEDs::recordTransitionBegin(clipCollapseSpeed);
 	PadLEDs::animationDirection = 1;
 	if (clip->type == CLIP_TYPE_AUDIO) {
 		PadLEDs::renderAudioClipExplodeAnimation(0);
@@ -1631,7 +1624,7 @@ bool ArrangerView::transitionToArrangementEditor() {
 
 	if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) {
 
-    	// If no sample, just skip straight there
+    	// If no sample, just skip directly there
     	if (!((AudioClip*)currentSong->currentClip)->sampleHolder.audioFile) {
     		changeRootUI(&arrangerView);
 			return true;
@@ -1640,8 +1633,8 @@ bool ArrangerView::transitionToArrangementEditor() {
 
 	Output* output = currentSong->currentClip->output;
 	int i = output->clipInstances.search(currentSong->lastClipInstanceEnteredStartPos, GREATER_OR_EQUAL);
-	ClipInstance* trackInstance = output->clipInstances.getElement(i);
-	if (!trackInstance || trackInstance->clip != currentSong->currentClip) {
+	ClipInstance* clipInstance = output->clipInstances.getElement(i);
+	if (!clipInstance || clipInstance->clip != currentSong->currentClip) {
 		Uart::println("no go");
 		return false;
 	}
@@ -1679,36 +1672,36 @@ bool ArrangerView::transitionToArrangementEditor() {
 	}
 
     int64_t clipLengthBig = ((uint64_t)currentSong->currentClip->loopLength << 16) / currentSong->xZoom[NAVIGATION_ARRANGEMENT];
-    int64_t xStartBig = getSquareFromPos(trackInstance->pos + start) << 16;
+    int64_t xStartBig = getSquareFromPos(clipInstance->pos + start) << 16;
 
-    int64_t potentialMidTrack = xStartBig + (clipLengthBig >> 1);
+    int64_t potentialMidClip = xStartBig + (clipLengthBig >> 1);
 
-    int numExtraRepeats = (uint32_t)(trackInstance->length - 1) / (uint32_t)currentSong->currentClip->loopLength;
+    int numExtraRepeats = (uint32_t)(clipInstance->length - 1) / (uint32_t)currentSong->currentClip->loopLength;
 
-    int64_t midTrackDistanceFromMidDisplay;
+    int64_t midClipDistanceFromMidDisplay;
 
     for (int i = 0; i < numExtraRepeats; i++) {
     	if (i == 0) {
-			midTrackDistanceFromMidDisplay = potentialMidTrack - ((displayWidth >> 1) << 16);
-			if (midTrackDistanceFromMidDisplay < 0) midTrackDistanceFromMidDisplay = -midTrackDistanceFromMidDisplay;
+			midClipDistanceFromMidDisplay = potentialMidClip - ((displayWidth >> 1) << 16);
+			if (midClipDistanceFromMidDisplay < 0) midClipDistanceFromMidDisplay = -midClipDistanceFromMidDisplay;
     	}
 
     	int64_t nextPotentialStart = xStartBig + clipLengthBig;
-    	potentialMidTrack = nextPotentialStart + (clipLengthBig >> 1);
+    	potentialMidClip = nextPotentialStart + (clipLengthBig >> 1);
 
-		int64_t newMidTrackDistanceFromMidDisplay = potentialMidTrack - ((displayWidth >> 1) << 16);
-		if (newMidTrackDistanceFromMidDisplay < 0) newMidTrackDistanceFromMidDisplay = -newMidTrackDistanceFromMidDisplay;
+		int64_t newMidClipDistanceFromMidDisplay = potentialMidClip - ((displayWidth >> 1) << 16);
+		if (newMidClipDistanceFromMidDisplay < 0) newMidClipDistanceFromMidDisplay = -newMidClipDistanceFromMidDisplay;
 
-    	if (newMidTrackDistanceFromMidDisplay >= midTrackDistanceFromMidDisplay) break;
+    	if (newMidClipDistanceFromMidDisplay >= midClipDistanceFromMidDisplay) break;
     	xStartBig = nextPotentialStart;
-    	midTrackDistanceFromMidDisplay = newMidTrackDistanceFromMidDisplay;
+    	midClipDistanceFromMidDisplay = newMidClipDistanceFromMidDisplay;
     }
 
     PadLEDs::explodeAnimationXStartBig = xStartBig;
     PadLEDs::explodeAnimationXWidthBig = ((end - start) / currentSong->xZoom[NAVIGATION_ARRANGEMENT]) << 16;
 
 
-    PadLEDs::recordTransitionBegin(trackCollapseSpeed);
+    PadLEDs::recordTransitionBegin(clipCollapseSpeed);
     PadLEDs::animationDirection = -1;
 
 
@@ -2113,17 +2106,17 @@ void ArrangerView::selectEncoderAction(int8_t offset) {
 
 		if (!pressedClipInstanceIsInValidPosition) return;
 
-		ClipInstance* trackInstance = output->clipInstances.getElement(pressedClipInstanceIndex);
+		ClipInstance* clipInstance = output->clipInstances.getElement(pressedClipInstanceIndex);
 
-		// If an arrangement-only track, can't do anything
-		if (trackInstance->clip && trackInstance->clip->section == 255) return;
+		// If an arrangement-only Clip, can't do anything
+		if (clipInstance->clip && clipInstance->clip->section == 255) return;
 
-		Clip* newClip = currentSong->getNextSessionClipWithOutput(offset, output, trackInstance->clip);
+		Clip* newClip = currentSong->getNextSessionClipWithOutput(offset, output, clipInstance->clip);
 
-		// If no other tracks to switch to...
-		if (newClip == trackInstance->clip) return;
+		// If no other Clips to switch to...
+		if (newClip == clipInstance->clip) return;
 
-		if (trackInstance->clip) arrangement.rowEdited(output, trackInstance->pos, trackInstance->pos + trackInstance->length, trackInstance->clip, NULL);
+		if (clipInstance->clip) arrangement.rowEdited(output, clipInstance->pos, clipInstance->pos + clipInstance->length, clipInstance->clip, NULL);
 
 		int32_t newLength;
 
@@ -2136,23 +2129,23 @@ void ArrangerView::selectEncoderAction(int8_t offset) {
 		}
 
 		// Make sure it's not too long
-		ClipInstance* nextTrackInstance = output->clipInstances.getElement(pressedClipInstanceIndex + 1);
-		if (nextTrackInstance) {
-			int32_t maxLength = nextTrackInstance->pos - trackInstance->pos;
+		ClipInstance* nextClipInstance = output->clipInstances.getElement(pressedClipInstanceIndex + 1);
+		if (nextClipInstance) {
+			int32_t maxLength = nextClipInstance->pos - clipInstance->pos;
 
 			if (newLength > maxLength) newLength = maxLength;
 		}
-		if (newLength > MAX_SEQUENCE_LENGTH - trackInstance->pos) newLength = MAX_SEQUENCE_LENGTH - trackInstance->pos;
+		if (newLength > MAX_SEQUENCE_LENGTH - clipInstance->pos) newLength = MAX_SEQUENCE_LENGTH - clipInstance->pos;
 
 
 		Action* action = actionLogger.getNewAction(ACTION_CLIP_INSTANCE_EDIT, true);
-		trackInstance->change(action, output, trackInstance->pos, newLength, newClip);
+		clipInstance->change(action, output, clipInstance->pos, newLength, newClip);
 
 		view.setActiveModControllableTimelineCounter(newClip);
 
-		arrangement.rowEdited(output, trackInstance->pos, trackInstance->pos + trackInstance->length, NULL, trackInstance);
+		arrangement.rowEdited(output, clipInstance->pos, clipInstance->pos + clipInstance->length, NULL, clipInstance);
 
-		rememberInteractionWithClipInstance(yPressedEffective, trackInstance);
+		rememberInteractionWithClipInstance(yPressedEffective, clipInstance);
 
 		uiNeedsRendering(this, 1 << yPressedEffective, 0);
 	}
@@ -2318,7 +2311,7 @@ removeWorkingAnimationAndGetOut:
 
 	view.setActiveModControllableTimelineCounter(oldInstrument->activeClip);
 
-	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+	AudioEngine::routineWithClusterLoading(); // -----------------------------------
 
 	beginAudition(oldInstrument);
 }

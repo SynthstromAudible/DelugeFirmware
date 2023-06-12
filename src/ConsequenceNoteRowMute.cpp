@@ -35,7 +35,7 @@ int ConsequenceNoteRowMute::revert(int time, ModelStack* modelStack) {
 	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addTimelineCounter(clip)->addNoteRow(noteRowId, noteRow);
 
 
-	// Call this instead of Track::toggleNoteRowMute(), cos that'd go and log another Action
+	// Call this instead of Clip::toggleNoteRowMute(), cos that'd go and log another Action
 	noteRow->toggleMute(modelStackWithNoteRow, (playbackHandler.playbackState & PLAYBACK_CLOCK_EITHER_ACTIVE) && modelStackWithNoteRow->song->isClipActive(clip));
 
 	return NO_ERROR;

@@ -48,7 +48,7 @@ Clip::Clip(int newType) : type(newType) {
     soloingInSessionMode = false;
     armState = ARM_STATE_OFF;
     activeIfNoSolo = true;
-    wasActiveBefore = false; // Want to set this default in case a Track was created during playback
+    wasActiveBefore = false; // Want to set this default in case a Clip was created during playback
 
     section = 0;
     output = NULL;
@@ -413,7 +413,7 @@ Clip* Clip::getClipToRecordTo() {
 // This is only to be called if playbackHandler.isEitherClockActive().
 void Clip::reGetParameterAutomation(ModelStackWithTimelineCounter* modelStack) {
 
-	if (!isActiveOnOutput()) return; // Definitely don't do this if we're not an active Track!
+	if (!isActiveOnOutput()) return; // Definitely don't do this if we're not an active Clip!
 
 	if (paramManager.containsAnyParamCollectionsIncludingExpression()) {
 		uint32_t actualPos = getLivePos();
@@ -429,7 +429,7 @@ int Clip::resumeOriginalClipFromThisClone(ModelStackWithTimelineCounter* modelSt
 
 	// Take back control!
 	activeIfNoSolo = false;
-	beingRecordedFromClip = NULL; // This now just gets set by endInstancesOfActiveTracks()
+	beingRecordedFromClip = NULL; // This now just gets set by endInstancesOfActiveClips()
 
 	Clip* originalClip = (Clip*)modelStackOriginal->getTimelineCounter();
 	originalClip->activeIfNoSolo = true; // Must set this before calling setPos, otherwise, ParamManagers won't know to expectEvent()
@@ -466,7 +466,7 @@ void Clip::beginInstance(Song* song, int32_t arrangementRecordPos) {
 		if (maxLength <= 0) { // Shouldn't normally go below 0...
 			song->deletingClipInstanceForClip(output, clipInstance->clip, NULL, false); // Calls audio routine...
 			clipInstanceI--;
-			goto setupTrackInstance;
+			goto setupClipInstance;
 		}
 		else {
 			if (clipInstance->length > maxLength) clipInstance->length = maxLength;
@@ -475,7 +475,7 @@ void Clip::beginInstance(Song* song, int32_t arrangementRecordPos) {
 
 	if (!output->clipInstances.insertAtIndex(clipInstanceI)) {
 		clipInstance = output->clipInstances.getElement(clipInstanceI);
-setupTrackInstance:
+setupClipInstance:
 		clipInstance->clip = this;
 		clipInstance->length = loopLength;
 		clipInstance->pos = arrangementRecordPos;
@@ -483,15 +483,15 @@ setupTrackInstance:
 }
 
 
-void Clip::endInstance(int32_t arrangementRecordPos, bool evenIfOtherTrack) {
+void Clip::endInstance(int32_t arrangementRecordPos, bool evenIfOtherClip) {
 	int clipInstanceI = output->clipInstances.search(arrangementRecordPos, LESS);
 	if (clipInstanceI >= 0) {
 		ClipInstance* clipInstance = output->clipInstances.getElement(clipInstanceI);
 
-		// evenIfOtherTrack is an emergency hung over New Year's Day 2019 fix to the problem where this could get called on the wrong Track
-		// (same Instrument though) because getTrackToRecordTo() returns wrong Track because activeTrack has already been changed on Instrument
-		// because other Track became it already in same launch.
-		if (clipInstance->clip == this || evenIfOtherTrack) {
+		// evenIfOtherClip is an emergency hung over New Year's Day 2019 fix to the problem where this could get called on the wrong Clip
+		// (same Instrument though) because getClipToRecordTo() returns wrong Clip because activeClip has already been changed on Instrument
+		// because other Clip became it already in same launch.
+		if (clipInstance->clip == this || evenIfOtherClip) {
 			clipInstance->length = arrangementRecordPos - clipInstance->pos;
 		}
 	}
@@ -555,7 +555,7 @@ int32_t Clip::getPosAtWhichPlaybackWillCut(ModelStackWithTimelineCounter const* 
 
 
 
-void Clip::getSuggestedParamManager(Clip* newClip, ParamManagerForTimeline** suggestedParamManager, Sound* patchingConfig) {
+void Clip::getSuggestedParamManager(Clip* newClip, ParamManagerForTimeline** suggestedParamManager, Sound* sound) {
 	*suggestedParamManager = &newClip->paramManager;
 }
 
@@ -678,7 +678,7 @@ void Clip::readTagFromFile(char const* tagName, Song* song, int32_t* readAutomat
     else if (!strcmp(tagName, "isSyncScaleTrack") || !strcmp(tagName, "isSyncScaleClip")) {
         bool is = storageManager.readTagOrAttributeValueInt();
 
-        // This is naughty - inputTickScaleTrack shouldn't be accessed directly. But for simplicity, I'm using it to hold this Track for now, and then
+        // This is naughty - inputTickScaleClip shouldn't be accessed directly. But for simplicity, I'm using it to hold this Clip for now, and then
         // in song.cpp this gets made right in a moment...
         if (is) song->syncScalingClip = this;
     }
@@ -816,7 +816,7 @@ yesMakeItActive:
 	}
 
 	else {
-		// In any case, we want the newInstrument to have an activeTrack, and if it doesn't yet have one, the supplied track makes a perfect candidate
+		// In any case, we want the newInstrument to have an activeClip, and if it doesn't yet have one, the supplied Clip makes a perfect candidate
 		if (!newOutput->activeClip) goto yesMakeItActive;
 	}
 }

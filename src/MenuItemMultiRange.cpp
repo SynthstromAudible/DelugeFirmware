@@ -194,7 +194,7 @@ void MenuItemMultiRange::selectEncoderAction(int offset) {
 			if (offset == 1) newI++;
 
 			// Because range storage is about to change, must unassign all voices, and make sure no more can be assigned during memory allocation
-			soundEditor.currentPatchingConfig->unassignAllVoices();
+			soundEditor.currentSound->unassignAllVoices();
 			AudioEngine::audioRoutineLocked = true;
 			MultiRange* newRange = soundEditor.currentSource->ranges.insertMultiRange(newI);
 			AudioEngine::audioRoutineLocked = false;
@@ -271,7 +271,7 @@ void MenuItemMultiRange::deletePress() {
 	MultiRange* oldRange = soundEditor.currentSource->ranges.getElement(soundEditor.currentValue);
 	int oldTopNote = oldRange->topNote;
 
-	soundEditor.currentPatchingConfig->deleteMultiRange(soundEditor.currentSourceIndex, soundEditor.currentValue); // Unassigns all Voices
+	soundEditor.currentSound->deleteMultiRange(soundEditor.currentSourceIndex, soundEditor.currentValue); // Unassigns all Voices
 
 	// If bottom one, nothing to do
 	if (soundEditor.currentValue == 0) {

@@ -66,8 +66,8 @@ void AudioOutput::resetEnvelope() {
 	if (activeClip) {
 		AudioClip* activeAudioClip = (AudioClip*)activeClip;
 
-		bool straightToDecay = (activeAudioClip->attack == -2147483648);
-		envelope.noteOn(straightToDecay);
+		bool directlyToDecay = (activeAudioClip->attack == -2147483648);
+		envelope.noteOn(directlyToDecay);
 	}
 	amplitudeLastTime = 0;
 	overrideAmplitudeEnvelopeReleaseRate = 0;
@@ -119,7 +119,7 @@ renderEnvelope:
 				// If we need to duplicate mono to stereo...
 				if (AudioOutput::willRenderAsOneChannelOnlyWhichWillNeedCopying()) {
 
-					// If can write straight into Song buffer...
+					// If can write directly into Song buffer...
 					if (bufferToTransferTo) {
 						int32_t const * __restrict__ input = intBuffer;
 						int32_t const * const inputBufferEnd = input + numSamples;
@@ -277,7 +277,7 @@ void AudioOutput::cutAllSound() {
 }
 
 
-void AudioOutput::getThingWithMostReverb(Sound** patchingConfigWithMostReverb, ParamManagerForTimeline** paramManagerWithMostReverb, Kit** kitWithMostReverb,
+void AudioOutput::getThingWithMostReverb(Sound** soundWithMostReverb, ParamManagerForTimeline** paramManagerWithMostReverb, Kit** kitWithMostReverb,
 			int32_t* highestReverbAmountFound) {
 
 }
@@ -387,8 +387,8 @@ bool AudioOutput::isSkippingRendering() {
 	return !echoing && (!activeClip || !((AudioClip*)activeClip)->voiceSample);
 }
 
-void AudioOutput::getThingWithMostReverb(Sound** patchingConfigWithMostReverb, ParamManager** paramManagerWithMostReverb, GlobalEffectableForClip** globalEffectableWithMostReverb, int32_t* highestReverbAmountFound) {
-	GlobalEffectableForClip::getThingWithMostReverb(activeClip, patchingConfigWithMostReverb, paramManagerWithMostReverb, globalEffectableWithMostReverb, highestReverbAmountFound);
+void AudioOutput::getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb, GlobalEffectableForClip** globalEffectableWithMostReverb, int32_t* highestReverbAmountFound) {
+	GlobalEffectableForClip::getThingWithMostReverb(activeClip, soundWithMostReverb, paramManagerWithMostReverb, globalEffectableWithMostReverb, highestReverbAmountFound);
 }
 
 

@@ -16,9 +16,9 @@
  */
 
 #include <AudioEngine.h>
+#include <AudioFileManager.h>
 #include <SamplePlaybackGuide.h>
 #include "Sample.h"
-#include "SampleManager.h"
 #include "SampleHolder.h"
 #include "playbackhandler.h"
 #include "VoiceSample.h"
@@ -29,9 +29,9 @@ SamplePlaybackGuide::SamplePlaybackGuide() {
 
 }
 
-int SamplePlaybackGuide::getFinalChunkIndex(Sample* sample, bool obeyMarkers, int32_t* getEndPlaybackAtByte) {
+int SamplePlaybackGuide::getFinalClusterIndex(Sample* sample, bool obeyMarkers, int32_t* getEndPlaybackAtByte) {
 
-	generalMemoryAllocator.checkStack("SamplePlaybackGuide::getFinalChunkIndex");
+	generalMemoryAllocator.checkStack("SamplePlaybackGuide::getFinalClusterIndex");
 
 	int32_t endPlaybackAtByteNow;
 	// If cache, go right to the end of the waveform
@@ -52,7 +52,7 @@ int SamplePlaybackGuide::getFinalChunkIndex(Sample* sample, bool obeyMarkers, in
 		finalBytePos = endPlaybackAtByteNow + sample->byteDepth * sample->numChannels;
 	}
 
-	return finalBytePos >> sampleManager.clusterSizeMagnitude;
+	return finalBytePos >> audioFileManager.clusterSizeMagnitude;
 }
 
 
@@ -121,8 +121,8 @@ int32_t SamplePlaybackGuide::getNumSamplesLaggingBehindSync(VoiceSample* voiceSa
 
 int32_t SamplePlaybackGuide::adjustPitchToCorrectDriftFromSync(VoiceSample* voiceSample, int32_t phaseIncrement) {
 
-	// Not if not slaved, or loadedSampleChunks not set up yet (in the case of a very-late-start), there's no need
-	if (!(playbackHandler.playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE) || !voiceSample->loadedSampleChunks[0]) return phaseIncrement;
+	// Not if not following external clock source, or clusters not set up yet (in the case of a very-late-start), there's no need
+	if (!(playbackHandler.playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE) || !voiceSample->clusters[0]) return phaseIncrement;
 
 	int32_t numSamplesLaggingBehindSync = getNumSamplesLaggingBehindSync(voiceSample);
 

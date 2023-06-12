@@ -16,6 +16,7 @@
 */
 
 #include <AudioEngine.h>
+#include <AudioFileManager.h>
 #include <InstrumentClip.h>
 #include <InstrumentClipMinder.h>
 #include <InstrumentClipView.h>
@@ -30,7 +31,6 @@
 #include <new>
 #include "GeneralMemoryAllocator.h"
 #include "GateDrum.h"
-#include "SampleManager.h"
 #include "NoteRow.h"
 #include "song.h"
 #include "playbackhandler.h"
@@ -58,7 +58,7 @@ Kit::~Kit() {
     // Delete all Drums
     while (firstDrum) {
     	AudioEngine::logAction("~Kit");
-    	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+    	AudioEngine::routineWithClusterLoading(); // -----------------------------------
     	Drum* toDelete = firstDrum;
         firstDrum = firstDrum->next;
 
@@ -310,7 +310,7 @@ int Kit::loadAllAudioFiles(bool mayActuallyReadFiles) {
 
 	int error = NO_ERROR;
 
-	bool doingAlternatePath = mayActuallyReadFiles && (sampleManager.alternateLoadDirStatus == ALTERNATE_LOAD_DIR_NONE_SET);
+	bool doingAlternatePath = mayActuallyReadFiles && (audioFileManager.alternateLoadDirStatus == ALTERNATE_LOAD_DIR_NONE_SET);
 	if (doingAlternatePath) {
 		error = setupDefaultAudioFileDir();
 		if (error) return error;
@@ -328,7 +328,7 @@ int Kit::loadAllAudioFiles(bool mayActuallyReadFiles) {
 
 getOut:
     if (doingAlternatePath) {
-    	sampleManager.thingFinishedLoading();
+    	audioFileManager.thingFinishedLoading();
     }
 
     return error;
@@ -338,7 +338,7 @@ getOut:
 // Caller must check that there is an activeClip.
 void Kit::loadCrucialAudioFilesOnly() {
 
-	bool doingAlternatePath = (sampleManager.alternateLoadDirStatus == ALTERNATE_LOAD_DIR_NONE_SET);
+	bool doingAlternatePath = (audioFileManager.alternateLoadDirStatus == ALTERNATE_LOAD_DIR_NONE_SET);
 	if (doingAlternatePath) {
 		int error = setupDefaultAudioFileDir();
 		if (error) return;
@@ -353,7 +353,7 @@ void Kit::loadCrucialAudioFilesOnly() {
 	}
 
     if (doingAlternatePath) {
-    	sampleManager.thingFinishedLoading();
+    	audioFileManager.thingFinishedLoading();
     }
 }
 
@@ -394,9 +394,9 @@ void Kit::drumRemoved(Drum* drum) {
 #endif
 }
 
-Drum* Kit::getFirstUnassignedDrum(InstrumentClip* track) {
+Drum* Kit::getFirstUnassignedDrum(InstrumentClip* clip) {
     for (Drum* thisDrum = firstDrum; thisDrum != NULL; thisDrum = thisDrum->next) {
-        if (!track->getNoteRowForDrum(thisDrum)) return thisDrum;
+        if (!clip->getNoteRowForDrum(thisDrum)) return thisDrum;
     }
 
     return NULL;
@@ -642,16 +642,16 @@ void Kit::setupWithoutActiveClip(ModelStack* modelStack) {
 		if (thisDrum->type == DRUM_TYPE_SOUND) {
 
         	if (!(count & 7)) {
-            	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+            	AudioEngine::routineWithClusterLoading(); // -----------------------------------
         	}
         	count++;
 
-			SoundDrum* patchingConfigDrum = (SoundDrum*)thisDrum;
+			SoundDrum* soundDrum = (SoundDrum*)thisDrum;
 
-			ParamManager* paramManager = modelStackWithTimelineCounter->song->getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)patchingConfigDrum, NULL);
+			ParamManager* paramManager = modelStackWithTimelineCounter->song->getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)soundDrum, NULL);
 			if (!paramManager) numericDriver.freezeWithError("E174");
 
-			patchingConfigDrum->patcher.performInitialPatching(patchingConfigDrum, (ParamManagerForTimeline*)paramManager);
+			soundDrum->patcher.performInitialPatching(soundDrum, (ParamManagerForTimeline*)paramManager);
 		}
 	}
 
@@ -672,15 +672,15 @@ void Kit::setupPatching(ModelStackWithTimelineCounter* modelStack) {
 			if (thisNoteRow->drum && thisNoteRow->drum->type == DRUM_TYPE_SOUND) {
 
 				if (!(count & 7)) {
-			    	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+			    	AudioEngine::routineWithClusterLoading(); // -----------------------------------
 				}
 				count++;
 
-				SoundDrum* patchingConfigDrum = (SoundDrum*)thisNoteRow->drum;
+				SoundDrum* soundDrum = (SoundDrum*)thisNoteRow->drum;
 
-				ModelStackWithThreeMainThings* modelStackWithThreeMainThings = modelStack->addNoteRow(i, thisNoteRow)->addOtherTwoThings(patchingConfigDrum, &thisNoteRow->paramManager);
+				ModelStackWithThreeMainThings* modelStackWithThreeMainThings = modelStack->addNoteRow(i, thisNoteRow)->addOtherTwoThings(soundDrum, &thisNoteRow->paramManager);
 
-				patchingConfigDrum->ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(modelStackWithThreeMainThings);
+				soundDrum->ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(modelStackWithThreeMainThings);
 
 				ModelStackWithParamCollection* modelStackWithParamCollection = modelStackWithThreeMainThings->addParamCollectionSummary(thisNoteRow->paramManager.getPatchCableSetSummary());
 				((PatchCableSet*)modelStackWithParamCollection->paramCollection)->setupPatching(modelStackWithParamCollection);
@@ -693,18 +693,18 @@ void Kit::setupPatching(ModelStackWithTimelineCounter* modelStack) {
 			if (thisDrum->type == DRUM_TYPE_SOUND) {
 
 				if (!(count & 7)) {
-			    	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+			    	AudioEngine::routineWithClusterLoading(); // -----------------------------------
 				}
 				count++;
 
-				SoundDrum* patchingConfigDrum = (SoundDrum*)thisDrum;
+				SoundDrum* soundDrum = (SoundDrum*)thisDrum;
 
-				ParamManager* paramManager = modelStack->song->getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)patchingConfigDrum, NULL);
+				ParamManager* paramManager = modelStack->song->getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)soundDrum, NULL);
 				if (!paramManager) numericDriver.freezeWithError("E172");
 
-				patchingConfigDrum->ensureInaccessibleParamPresetValuesWithoutKnobsAreZeroWithMinimalDetails((ParamManagerForTimeline*)paramManager);
+				soundDrum->ensureInaccessibleParamPresetValuesWithoutKnobsAreZeroWithMinimalDetails((ParamManagerForTimeline*)paramManager);
 
-				ModelStackWithThreeMainThings* modelStackWithThreeMainThings = modelStack->addOtherTwoThingsButNoNoteRow(patchingConfigDrum, paramManager);
+				ModelStackWithThreeMainThings* modelStackWithThreeMainThings = modelStack->addOtherTwoThingsButNoNoteRow(soundDrum, paramManager);
 				ModelStackWithParamCollection* modelStackWithParamCollection = modelStackWithThreeMainThings->addParamCollectionSummary(paramManager->getPatchCableSetSummary());
 
 				((PatchCableSet*)modelStackWithParamCollection->paramCollection)->setupPatching(modelStackWithParamCollection);
@@ -734,13 +734,13 @@ bool Kit::setActiveClip(ModelStackWithTimelineCounter* modelStack, int maySendMI
 				if (thisNoteRow->drum->type == DRUM_TYPE_SOUND) {
 
 		        	if (!(count & 7)) {
-		            	AudioEngine::routineWithChunkLoading(); // ----------------------------------- I guess very often this wouldn't work cos the audio routine would be locked
+		            	AudioEngine::routineWithClusterLoading(); // ----------------------------------- I guess very often this wouldn't work cos the audio routine would be locked
 		        	}
 		        	count++;
 
-					SoundDrum* patchingConfigDrum = (SoundDrum*)thisNoteRow->drum;
+					SoundDrum* soundDrum = (SoundDrum*)thisNoteRow->drum;
 
-					patchingConfigDrum->patcher.performInitialPatching(patchingConfigDrum, &thisNoteRow->paramManager);
+					soundDrum->patcher.performInitialPatching(soundDrum, &thisNoteRow->paramManager);
 				}
 			}
 		}
@@ -768,7 +768,7 @@ void Kit::prepareForHibernationOrDeletion() {
 
 void Kit::compensateInstrumentVolumeForResonance(ParamManagerForTimeline* paramManager, Song* song) {
 
-    // If it was an old-firmware file, we need to compensate for resonance
+    // If it was a pre-V1.2.0 firmware file, we need to compensate for resonance
     if (storageManager.firmwareVersionOfFileBeingRead < FIRMWARE_1P2P0 && !paramManager->resonanceBackwardsCompatibilityProcessed) {
 
     	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
@@ -778,8 +778,8 @@ void Kit::compensateInstrumentVolumeForResonance(ParamManagerForTimeline* paramM
 
 		if (compensationDB > 0.1) unpatchedParams->shiftParamVolumeByDB(PARAM_UNPATCHED_GLOBALEFFECTABLE_VOLUME, compensationDB);
 
-    	// The PatchingConfigDrums, like all PatchingConfigs, will have already had resonance compensation done on their default ParamManagers if and when any were in fact loaded.
-    	// Or, if we're going through a Song doing this to all ParamManagers within Tracks, the Track will automatically do all NoteRows / Drums next.
+    	// The SoundDrums, like all Sounds, will have already had resonance compensation done on their default ParamManagers if and when any were in fact loaded.
+    	// Or, if we're going through a Song doing this to all ParamManagers within Clips, the Clip will automatically do all NoteRows / Drums next.
 
     	GlobalEffectableForClip::compensateVolumeForResonance(paramManager);
     }
@@ -791,7 +791,7 @@ void Kit::deleteBackedUpParamManagers(Song* song) {
 
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 		if (thisDrum->type == DRUM_TYPE_SOUND) {
-	    	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+	    	AudioEngine::routineWithClusterLoading(); // -----------------------------------
 			song->deleteBackedUpParamManagersForModControllable((SoundDrum*)thisDrum);
 		}
 	}
@@ -809,7 +809,7 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 	for (int i = 0; i < ((InstrumentClip*)activeClip)->noteRows.getNumElements(); i++) {
 		NoteRow* thisNoteRow = ((InstrumentClip*)activeClip)->noteRows.getElement(i);
     	if (thisNoteRow->drum && thisNoteRow->drum->type == DRUM_TYPE_SOUND) { // For now, only SoundDrums have Arps, but that's actually a kinda pointless restriction...
-    		SoundDrum* patchingConfigDrum = (SoundDrum*)thisNoteRow->drum;
+    		SoundDrum* soundDrum = (SoundDrum*)thisNoteRow->drum;
 
     		ArpReturnInstruction instruction;
 
@@ -820,16 +820,16 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 
     		bool reversed = (clipIsActive && modelStackWithNoteRow->isCurrentlyPlayingReversed());
 
-    		int32_t ticksTilNextArpEventThisDrum = patchingConfigDrum->arpeggiator.doTickForward(&patchingConfigDrum->arpSettings, &instruction, currentPosThisRow, reversed);
+    		int32_t ticksTilNextArpEventThisDrum = soundDrum->arpeggiator.doTickForward(&soundDrum->arpSettings, &instruction, currentPosThisRow, reversed);
 
-    		ModelStackWithSoundFlags* modelStackWithSoundFlags = modelStackWithNoteRow->addOtherTwoThings(patchingConfigDrum, &thisNoteRow->paramManager)->addSoundFlags();
+    		ModelStackWithSoundFlags* modelStackWithSoundFlags = modelStackWithNoteRow->addOtherTwoThings(soundDrum, &thisNoteRow->paramManager)->addSoundFlags();
 
     		if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE) {
-    			patchingConfigDrum->noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.noteCodeOffPostArp);
+    			soundDrum->noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.noteCodeOffPostArp);
     		}
 
     		if (instruction.noteCodeOnPostArp != ARP_NOTE_NONE) {
-    			patchingConfigDrum->noteOnPostArpeggiator(
+    			soundDrum->noteOnPostArpeggiator(
     					modelStackWithSoundFlags,
     					instruction.arpNoteOn->inputCharacteristics[MIDI_CHARACTERISTIC_NOTE],
 						instruction.noteCodeOnPostArp,
@@ -864,16 +864,16 @@ void Kit::resetDrumTempValues() {
 	}
 }
 
-void Kit::getThingWithMostReverb(Sound** patchingConfigWithMostReverb, ParamManager** paramManagerWithMostReverb, GlobalEffectableForClip** globalEffectableWithMostReverb, int32_t* highestReverbAmountFound) {
+void Kit::getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb, GlobalEffectableForClip** globalEffectableWithMostReverb, int32_t* highestReverbAmountFound) {
 
-	GlobalEffectableForClip::getThingWithMostReverb(activeClip, patchingConfigWithMostReverb, paramManagerWithMostReverb, globalEffectableWithMostReverb, highestReverbAmountFound);
+	GlobalEffectableForClip::getThingWithMostReverb(activeClip, soundWithMostReverb, paramManagerWithMostReverb, globalEffectableWithMostReverb, highestReverbAmountFound);
 
 	if (activeClip) {
 
 		for (int i = 0; i < ((InstrumentClip*)activeClip)->noteRows.getNumElements(); i++) {
 			NoteRow* thisNoteRow = ((InstrumentClip*)activeClip)->noteRows.getElement(i);
 			if (!thisNoteRow->drum || thisNoteRow->drum->type != DRUM_TYPE_SOUND) continue;
-			((SoundDrum*)thisNoteRow->drum)->getThingWithMostReverb(patchingConfigWithMostReverb, paramManagerWithMostReverb, globalEffectableWithMostReverb, highestReverbAmountFound, &thisNoteRow->paramManager);
+			((SoundDrum*)thisNoteRow->drum)->getThingWithMostReverb(soundWithMostReverb, paramManagerWithMostReverb, globalEffectableWithMostReverb, highestReverbAmountFound, &thisNoteRow->paramManager);
 		}
 	}
 }

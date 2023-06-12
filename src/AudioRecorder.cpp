@@ -16,6 +16,7 @@
 */
 
 #include <AudioEngine.h>
+#include <AudioFileManager.h>
 #include <Cluster.h>
 #include <InstrumentClip.h>
 #include <InstrumentClipMinder.h>
@@ -33,7 +34,6 @@
 #include "Kit.h"
 #include "song.h"
 #include "uitimermanager.h"
-#include "SampleManager.h"
 #include "ActionLogger.h"
 #include <string.h>
 #include "GeneralMemoryAllocator.h"
@@ -95,7 +95,7 @@ bool AudioRecorder::opened() {
 	// If recording for a Drum, set the name of the Drum
 	if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_KIT) {
 		Kit* kit = (Kit*)currentSong->currentClip->output;
-		SoundDrum* drum = (SoundDrum*)soundEditor.currentPatchingConfig;
+		SoundDrum* drum = (SoundDrum*)soundEditor.currentSound;
 		String newName;
 
 		int error = newName.set("REC");
@@ -201,7 +201,7 @@ void AudioRecorder::slowRoutine() {
 void AudioRecorder::process() {
 	while (true) {
 
-	    AudioEngine::routineWithChunkLoading();
+	    AudioEngine::routineWithClusterLoading();
 
 		uiTimerManager.routine();
 
@@ -223,7 +223,7 @@ void AudioRecorder::process() {
 
 			else {
 				// We want to attach that Sample to a Source right away...
-				soundEditor.currentPatchingConfig->unassignAllVoices();
+				soundEditor.currentSound->unassignAllVoices();
 				soundEditor.currentSource->setOscType(OSC_TYPE_SAMPLE);
 				soundEditor.currentMultiRange->getAudioFileHolder()->filePath.set(&recorder->sample->filePath);
 				soundEditor.currentMultiRange->getAudioFileHolder()->setAudioFile(recorder->sample, soundEditor.currentSource->sampleControls.reversed, true);

@@ -15,8 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef LOADEDSAMPLECHUNKALLOCATIONQUEUE_H_
-#define LOADEDSAMPLECHUNKALLOCATIONQUEUE_H_
+#ifndef BIDIRECTIONALLINKEDLIST_H_
+#define BIDIRECTIONALLINKEDLIST_H_
 
 #include "r_typedefs.h"
 
@@ -43,7 +43,7 @@ public:
 	BidirectionalLinkedList();
 	void addToEnd(BidirectionalLinkedListNode* node);
 	BidirectionalLinkedListNode* getFirst();
-	BidirectionalLinkedListNode* getNext(BidirectionalLinkedListNode* loadedSampleChunk);
+	BidirectionalLinkedListNode* getNext(BidirectionalLinkedListNode* node);
 	void test();
 	int getNum();
 
@@ -52,4 +52,4 @@ public:
 };
 
 
-#endif /* LOADEDSAMPLECHUNKALLOCATIONQUEUE_H_ */
+#endif /* BIDIRECTIONALLINKEDLIST_H_ */

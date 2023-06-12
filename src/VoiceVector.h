@@ -24,7 +24,7 @@ class Voice;
 class Sound;
 
 struct VoiceVectorElement {
-	Sound* patchingConfig;
+	Sound* sound;
 	Voice* voice;
 };
 
@@ -32,8 +32,8 @@ class VoiceVector : public OrderedResizeableArrayWithMultiWordKey {
 public:
 	VoiceVector();
 
-	void getRangeForPatchingConfig(Sound* patchingConfig, int* __restrict__ ends);
-	void checkVoiceExists(Voice* voice, Sound* patchingConfig, char const* errorCode);
+	void getRangeForSound(Sound* sound, int* __restrict__ ends);
+	void checkVoiceExists(Voice* voice, Sound* sound, char const* errorCode);
 
 	inline Voice* getVoice(int index) {
 		return ((VoiceVectorElement*)getElementAddress(index))->voice;

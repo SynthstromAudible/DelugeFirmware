@@ -16,6 +16,7 @@
  */
 
 #include <AudioEngine.h>
+#include <AudioFileManager.h>
 #include <Cluster.h>
 #include <samplebrowser.h>
 #include <sound.h>
@@ -23,7 +24,6 @@
 #include "uart.h"
 #include "functions.h"
 #include "storagemanager.h"
-#include "SampleManager.h"
 #include "Sample.h"
 #include "numericdriver.h"
 #include <string.h>
@@ -56,7 +56,7 @@ Source::~Source() {
 void Source::destructAllMultiRanges() {
 	for (int e = 0; e < ranges.getNumElements(); e++) {
 		AudioEngine::logAction("destructAllMultiRanges()");
-    	AudioEngine::routineWithChunkLoading(); // -----------------------------------
+    	AudioEngine::routineWithClusterLoading(); // -----------------------------------
 		ranges.getElement(e)->~MultiRange();
 	}
 }
@@ -82,7 +82,7 @@ void Source::recalculateFineTuner() {
 }
 
 
-// This function has to give the same result as PatchingConfig::renderingVoicesInStereo()
+// This function has to give the same result as Sound::renderingVoicesInStereo(). The duplication is for optimization.
 bool Source::renderInStereo(SampleHolder* sampleHolder) {
 	if (!AudioEngine::renderInStereo) return false;
 
@@ -93,7 +93,7 @@ bool Source::renderInStereo(SampleHolder* sampleHolder) {
 
 void Source::detachAllAudioFiles() {
 	for (int e = 0; e < ranges.getNumElements(); e++) {
-		if (!(e & 7)) AudioEngine::routineWithChunkLoading(); // --------------------------------------- // 7 works, 15 occasionally drops voices - for multisampled synths
+		if (!(e & 7)) AudioEngine::routineWithClusterLoading(); // --------------------------------------- // 7 works, 15 occasionally drops voices - for multisampled synths
 		ranges.getElement(e)->getAudioFileHolder()->setAudioFile(NULL);
 	}
 }
@@ -102,9 +102,9 @@ void Source::detachAllAudioFiles() {
 int Source::loadAllSamples(bool mayActuallyReadFiles) {
 	for (int e = 0; e < ranges.getNumElements(); e++) {
 		AudioEngine::logAction("Source::loadAllSamples");
-		if (!(e & 3)) AudioEngine::routineWithChunkLoading(); // -------------------------------------- // 3 works, 7 occasionally drops voices - for multisampled synths
+		if (!(e & 3)) AudioEngine::routineWithClusterLoading(); // -------------------------------------- // 3 works, 7 occasionally drops voices - for multisampled synths
     	if (mayActuallyReadFiles && shouldAbortLoading()) return ERROR_ABORTED_BY_USER;
-		ranges.getElement(e)->getAudioFileHolder()->loadFile(sampleControls.reversed, false, mayActuallyReadFiles, CHUNK_ENQUEUE, 0, true);
+		ranges.getElement(e)->getAudioFileHolder()->loadFile(sampleControls.reversed, false, mayActuallyReadFiles, CLUSTER_ENQUEUE, 0, true);
 	}
 
 	return NO_ERROR;
@@ -169,9 +169,9 @@ bool Source::hasAtLeastOneAudioFileLoaded() {
 }
 
 
-void Source::doneReadingFromFile(Sound* patchingConfig) {
+void Source::doneReadingFromFile(Sound* sound) {
 
-	int synthMode = patchingConfig->getSynthMode();
+	int synthMode = sound->getSynthMode();
 
 	if (synthMode == SYNTH_MODE_FM) oscType = OSC_TYPE_SINE;
 	else if (synthMode == SYNTH_MODE_RINGMOD) oscType = getMin((int)oscType, NUM_OSC_TYPES_RINGMODDABLE - 1);
