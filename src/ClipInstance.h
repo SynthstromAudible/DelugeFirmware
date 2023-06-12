@@ -26,7 +26,7 @@ class Action;
 class Output;
 class Clip;
 
-class ClipInstance: public Positionable {
+class ClipInstance : public Positionable {
 public:
 	ClipInstance();
 	void getColour(uint8_t* colour);

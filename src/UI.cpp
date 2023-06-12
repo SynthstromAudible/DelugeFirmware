@@ -26,24 +26,22 @@
 #include "oled.h"
 
 extern "C" {
-	#include "sio_char.h"
+#include "sio_char.h"
 }
 
 UI::UI() {
 #if HAVE_OLED
 	oledShowsUIUnderneath = false;
 #endif
-
 }
 
 void UI::modEncoderAction(int whichModEncoder, int offset) {
-    view.modEncoderAction(whichModEncoder, offset);
+	view.modEncoderAction(whichModEncoder, offset);
 }
 
 void UI::modButtonAction(uint8_t whichButton, bool on) {
 	view.modButtonAction(whichButton, on);
 }
-
 
 void UI::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 	view.modEncoderButtonAction(whichModEncoder, on);
@@ -56,9 +54,6 @@ void UI::graphicsRoutine() {
 void UI::close() {
 	closeUI(this);
 }
-
-
-
 
 #define UI_NAVIGATION_HISTORY_LENGTH 16
 UI* uiNavigationHierarchy[UI_NAVIGATION_HISTORY_LENGTH];
@@ -77,7 +72,6 @@ void getUIGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
 	}
 }
 
-
 bool changeUIAtLevel(UI* newUI, int level) {
 	UI* oldUI = getCurrentUI();
 	UI* oldRootUI = uiNavigationHierarchy[level];
@@ -85,17 +79,15 @@ bool changeUIAtLevel(UI* newUI, int level) {
 	uiNavigationHierarchy[level] = newUI;
 	numUIsOpen = level + 1;
 
-
-    uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
+	uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
 	PadLEDs::reassessGreyout();
 	bool success = newUI->opened();
-
 
 	if (!success) {
 		numUIsOpen = oldNumUIs;
 		uiNavigationHierarchy[level] = oldRootUI;
 		PadLEDs::reassessGreyout();
-        oldUI->focusRegained();
+		oldUI->focusRegained();
 	}
 	return success;
 }
@@ -129,7 +121,6 @@ bool changeUISideways(UI* newUI) {
 	return success;
 }
 
-
 UI* getCurrentUI() {
 	if (numUIsOpen == 0) return lastUIBeforeNullifying; // Very ugly work-around to stop everything breaking
 	return uiNavigationHierarchy[numUIsOpen - 1];
@@ -160,7 +151,6 @@ UI* getUIUpOneLevel(int numLevelsUp) {
 	else return uiNavigationHierarchy[numUIsOpen - 1 - numLevelsUp];
 }
 
-
 // If UI not found, chaos
 void closeUI(UI* uiToClose) {
 
@@ -180,8 +170,8 @@ void closeUI(UI* uiToClose) {
 	UI* newUI = uiNavigationHierarchy[u - 1];
 	numUIsOpen = u;
 
-    uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
-    PadLEDs::reassessGreyout();
+	uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
+	PadLEDs::reassessGreyout();
 	newUI->focusRegained();
 #if HAVE_OLED
 	renderUIsForOled();
@@ -194,7 +184,8 @@ void closeUI(UI* uiToClose) {
 		if (!redrawMainPads && !redrawSidebar) break;
 
 		UI* thisUI = uiNavigationHierarchy[u];
-		if (redrawMainPads) redrawMainPads = !thisUI->renderMainPads(0xFFFFFFFF, PadLEDs::image, PadLEDs::occupancyMask);
+		if (redrawMainPads)
+			redrawMainPads = !thisUI->renderMainPads(0xFFFFFFFF, PadLEDs::image, PadLEDs::occupancyMask);
 		if (redrawSidebar) redrawSidebar = !thisUI->renderSidebar(0xFFFFFFFF, PadLEDs::image, PadLEDs::occupancyMask);
 	}
 
@@ -207,21 +198,21 @@ bool openUI(UI* newUI) {
 	uiNavigationHierarchy[numUIsOpen] = newUI;
 	numUIsOpen++;
 
-    uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
-    PadLEDs::reassessGreyout();
+	uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
+	PadLEDs::reassessGreyout();
 	bool success = newUI->opened();
 
 	if (!success) {
 		numUIsOpen--;
 		PadLEDs::reassessGreyout();
-        oldUI->focusRegained(); // Or maybe we should instead let the caller deal with this failure, and call this if they wish?
+		oldUI
+		    ->focusRegained(); // Or maybe we should instead let the caller deal with this failure, and call this if they wish?
 	}
 #if HAVE_OLED
 	renderUIsForOled();
 #endif
 	return success;
 }
-
 
 bool isUIOpen(UI* ui) {
 	for (int u = 0; u < numUIsOpen; u++) {
@@ -235,8 +226,6 @@ void nullifyUIs() {
 	numUIsOpen = 0;
 }
 
-
-
 #if HAVE_OLED
 void renderUIsForOled() {
 	int u = numUIsOpen - 1;
@@ -246,7 +235,7 @@ void renderUIsForOled() {
 
 	OLED::clearMainImage();
 
-	for ( ; u < numUIsOpen; u++) {
+	for (; u < numUIsOpen; u++) {
 		OLED::stopScrollingAnimation();
 		uiNavigationHierarchy[u]->renderOLED(OLED::oledMainImage);
 	}
@@ -266,7 +255,6 @@ void renderingNeededRegardlessOfUI(uint32_t whichMainRows, uint32_t whichSideRow
 	whichMainRowsNeedRendering |= whichMainRows;
 	whichSideRowsNeedRendering |= whichSideRows;
 }
-
 
 void uiNeedsRendering(UI* ui, uint32_t whichMainRows, uint32_t whichSideRows) {
 
@@ -297,7 +285,8 @@ void doAnyPendingUIRendering() {
 
 	if (currentUIMode == UI_MODE_HORIZONTAL_SCROLL || currentUIMode == UI_MODE_HORIZONTAL_ZOOM) return;
 
-	if (uartGetTxBufferSpace(UART_ITEM_PIC_PADS) <= (NUM_BYTES_IN_MAIN_PAD_REDRAW + NUM_BYTES_IN_SIDEBAR_REDRAW) * 2) return; // Trialling the *2 to fix flickering when flicking through presets very fast
+	if (uartGetTxBufferSpace(UART_ITEM_PIC_PADS) <= (NUM_BYTES_IN_MAIN_PAD_REDRAW + NUM_BYTES_IN_SIDEBAR_REDRAW) * 2)
+		return; // Trialling the *2 to fix flickering when flicking through presets very fast
 
 	pendingUIRenderingLock = true;
 
@@ -334,7 +323,6 @@ void doAnyPendingUIRendering() {
 	pendingUIRenderingLock = false;
 }
 
-
 uint32_t currentUIMode = 0;
 
 bool isUIModeActive(uint32_t uiMode) {
@@ -350,7 +338,6 @@ bool isUIModeActive(uint32_t uiMode) {
 bool isUIModeActiveExclusively(uint32_t uiMode) {
 	return (currentUIMode == uiMode);
 }
-
 
 // Checks that all of the currently active UI modes are within the list of modes provided. As well as making things tidy, the main point of this is to still return true
 // when more than one of the modes on the list provided is active.
@@ -398,5 +385,3 @@ void enterUIMode(uint32_t uiMode) {
 		currentUIMode = (currentUIMode & ~EXCLUSIVE_UI_MODES_MASK) | uiMode;
 	}
 }
-
-

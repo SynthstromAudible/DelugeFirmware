@@ -28,22 +28,23 @@ extern "C" {
 #include "cfunctions.h"
 }
 
-MenuItemUnpatchedParam::MenuItemUnpatchedParam()
-{
+MenuItemUnpatchedParam::MenuItemUnpatchedParam() {
 	// TODO Auto-generated constructor stub
-
 }
 
-
 void MenuItemUnpatchedParam::readCurrentValue() {
-	soundEditor.currentValue = (((int64_t)soundEditor.currentParamManager->getUnpatchedParamSet()->getValue(getP()) + 2147483648) * 50 + 2147483648) >> 32;
+	soundEditor.currentValue =
+	    (((int64_t)soundEditor.currentParamManager->getUnpatchedParamSet()->getValue(getP()) + 2147483648) * 50
+	     + 2147483648)
+	    >> 32;
 }
 
 ModelStackWithAutoParam* MenuItemUnpatchedParam::getModelStack(void* memory) {
 	ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(memory);
 	ParamCollectionSummary* summary = modelStack->paramManager->getUnpatchedParamSetSummary();
 	int p = getP();
-	return modelStack->addParam(summary->paramCollection, summary, p, &((ParamSet*)summary->paramCollection)->params[p]);
+	return modelStack->addParam(summary->paramCollection, summary, p,
+	                            &((ParamSet*)summary->paramCollection)->params[p]);
 }
 
 void MenuItemUnpatchedParam::writeCurrentValue() {
@@ -67,18 +68,15 @@ ParamSet* MenuItemUnpatchedParam::getParamSet() {
 	return soundEditor.currentParamManager->getUnpatchedParamSet();
 }
 
-
-
 // ---------------------------------------
 void MenuItemUnpatchedParamPan::drawValue() { // TODO: should really combine this with the "patched" version
-	uint8_t drawDot = 255;//soundEditor.doesParamHaveAnyCables(getP()) ? 3 : 255;
+	uint8_t drawDot = 255;                    //soundEditor.doesParamHaveAnyCables(getP()) ? 3 : 255;
 	char buffer[5];
 	intToString(std::abs(soundEditor.currentValue), buffer, 1);
 	if (soundEditor.currentValue < 0) strcat(buffer, "L");
 	else if (soundEditor.currentValue > 0) strcat(buffer, "R");
 	numericDriver.setText(buffer, true, drawDot);
 }
-
 
 int32_t MenuItemUnpatchedParamPan::getFinalValue() {
 	if (soundEditor.currentValue == 32) return 2147483647;
@@ -87,9 +85,9 @@ int32_t MenuItemUnpatchedParamPan::getFinalValue() {
 }
 
 void MenuItemUnpatchedParamPan::readCurrentValue() {
-	soundEditor.currentValue = ((int64_t)soundEditor.currentParamManager->getUnpatchedParamSet()->getValue(getP()) * 64 + 2147483648) >> 32;
+	soundEditor.currentValue =
+	    ((int64_t)soundEditor.currentParamManager->getUnpatchedParamSet()->getValue(getP()) * 64 + 2147483648) >> 32;
 }
-
 
 // ---------------------------------------
 void MenuItemUnpatchedParamUpdatingReverbParams::writeCurrentValue() {

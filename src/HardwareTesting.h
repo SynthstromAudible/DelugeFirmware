@@ -18,7 +18,6 @@
 #ifndef HARDWARETESTING_H_
 #define HARDWARETESTING_H_
 
-
 void ramTestUart();
 void ramTestLED(bool stuffAlreadySetUp = false);
 void autoPilotStuff();

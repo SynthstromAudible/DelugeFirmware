@@ -39,8 +39,8 @@
  Exported global variables
  ***********************************************************************************************************************/
 #if USB_CFG_BC == USB_CFG_ENABLE
-extern uint16_t     g_usb_bc_detect;
-#endif  /* USB_CFG_BC == USB_CFG_ENABLE */
+extern uint16_t g_usb_bc_detect;
+#endif /* USB_CFG_BC == USB_CFG_ENABLE */
 
 /***********************************************************************************************************************
  Renesas Abstracted Peripheral signal control functions
@@ -54,7 +54,7 @@ extern uint16_t     g_usb_bc_detect;
  ***********************************************************************************************************************/
 void usb_pstd_bus_reset(void)
 {
-    uint16_t    connect_info;
+    uint16_t connect_info;
 
     /* Bus Reset */
     usb_pstd_busreset_function();
@@ -68,9 +68,9 @@ void usb_pstd_bus_reset(void)
     {
 #if USB_CFG_BC == USB_CFG_ENABLE
         (*g_usb_pstd_driver.devdefault)(USB_NULL, connect_info, g_usb_bc_detect);
-#else   /* USB_CFG_BC == USB_CFG_ENABLE */
+#else  /* USB_CFG_BC == USB_CFG_ENABLE */
         (*g_usb_pstd_driver.devdefault)(USB_NULL, connect_info, USB_NULL);
-#endif  /* USB_CFG_BC == USB_CFG_ENABLE */
+#endif /* USB_CFG_BC == USB_CFG_ENABLE */
     }
 
     /* DCP configuration register  (0x5C) */
@@ -91,9 +91,9 @@ void usb_pstd_attach_process(void)
     usb_cpu_delay_xms((uint16_t)10);
 #if USB_CFG_BC == USB_CFG_ENABLE
     usb_pstd_bc_detect_process();
-#endif  /* USB_CFG_BC == USB_CFG_ENABLE */
+#endif /* USB_CFG_BC == USB_CFG_ENABLE */
     hw_usb_pset_dprpu();
-}   /* End of function usb_pstd_attach_process() */
+} /* End of function usb_pstd_attach_process() */
 
 /***********************************************************************************************************************
  Function Name   : usb_pstd_detach_process
@@ -104,8 +104,8 @@ void usb_pstd_attach_process(void)
  ***********************************************************************************************************************/
 void usb_pstd_detach_process(void)
 {
-    uint16_t    i;
-    uint16_t    *p_tbl;
+    uint16_t i;
+    uint16_t* p_tbl;
 
     hw_usb_clear_cnen(USB_NULL);
 
@@ -148,14 +148,14 @@ void usb_pstd_detach_process(void)
  ***********************************************************************************************************************/
 void usb_pstd_suspend_process(void)
 {
-    uint16_t    intsts0;
-    uint16_t    buf;
+    uint16_t intsts0;
+    uint16_t buf;
 
     /* Resume interrupt enable */
     hw_usb_pset_enb_rsme();
 
     intsts0 = hw_usb_read_intsts();
-    buf = hw_usb_read_syssts(USB_NULL, USB_NULL);
+    buf     = hw_usb_read_syssts(USB_NULL, USB_NULL);
     if (((intsts0 & USB_DS_SUSP) != (uint16_t)0) && ((buf & USB_LNST) == USB_FS_JSTS))
     {
         /* Suspend */
@@ -179,7 +179,7 @@ void usb_pstd_suspend_process(void)
         hw_usb_pclear_enb_rsme();
     }
 } /* End of function usb_pstd_suspend_process() */
-#endif  /* (USB_CFG_MODE & USB_CFG_PERI) == USB_CFG_REPI */
+#endif /* (USB_CFG_MODE & USB_CFG_PERI) == USB_CFG_REPI */
 
 /***********************************************************************************************************************
  End Of File

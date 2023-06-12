@@ -34,12 +34,11 @@ ClipView::ClipView() {
 }
 
 unsigned int ClipView::getMaxZoom() {
-    return currentSong->currentClip->getMaxZoom();
+	return currentSong->currentClip->getMaxZoom();
 }
 
-
 uint32_t ClipView::getMaxLength() {
-    return currentSong->currentClip->getMaxLength();
+	return currentSong->currentClip->getMaxLength();
 }
 
 void ClipView::focusRegained() {
@@ -48,29 +47,26 @@ void ClipView::focusRegained() {
 
 int ClipView::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 
-    // Horizontal encoder button press-down - don't let it do its zoom level thing if zooming etc not currently accessible
-    if (x == xEncButtonX && y == xEncButtonY && on && !currentSong->currentClip->currentlyScrollableAndZoomable()) {
-    }
+	// Horizontal encoder button press-down - don't let it do its zoom level thing if zooming etc not currently accessible
+	if (x == xEncButtonX && y == xEncButtonY && on && !currentSong->currentClip->currentlyScrollableAndZoomable()) {}
 
 #ifdef BUTTON_SEQUENCE_DIRECTION_X
-    else if (x == BUTTON_SEQUENCE_DIRECTION_X && y == BUTTON_SEQUENCE_DIRECTION_Y) {
-    	if (on && isNoUIModeActive()) {
-    		currentSong->currentClip->sequenceDirection++;
-    		if (currentSong->currentClip->sequenceDirection == NUM_SEQUENCE_DIRECTION_OPTIONS) {
-    			currentSong->currentClip->sequenceDirection = 0;
-    		}
-    		view.setModLedStates();
-    	}
-    }
+	else if (x == BUTTON_SEQUENCE_DIRECTION_X && y == BUTTON_SEQUENCE_DIRECTION_Y) {
+		if (on && isNoUIModeActive()) {
+			currentSong->currentClip->sequenceDirection++;
+			if (currentSong->currentClip->sequenceDirection == NUM_SEQUENCE_DIRECTION_OPTIONS) {
+				currentSong->currentClip->sequenceDirection = 0;
+			}
+			view.setModLedStates();
+		}
+	}
 #endif
-    else return ClipNavigationTimelineView::buttonAction(x, y, on, inCardRoutine);
+	else return ClipNavigationTimelineView::buttonAction(x, y, on, inCardRoutine);
 
 	return ACTION_RESULT_DEALT_WITH;
 }
 
-
 extern bool allowResyncingDuringClipLengthChange;
-
 
 // Check newLength valid before calling this
 Action* ClipView::lengthenClip(int32_t newLength) {
@@ -78,20 +74,21 @@ Action* ClipView::lengthenClip(int32_t newLength) {
 	Action* action = NULL;
 
 	// If the last action was a shorten, undo it
-	bool undoing = (actionLogger.firstAction[BEFORE]
-											 && actionLogger.firstAction[BEFORE]->openForAdditions
-											 && actionLogger.firstAction[BEFORE]->type == ACTION_CLIP_LENGTH_DECREASE
-											 && actionLogger.firstAction[BEFORE]->currentClip == currentSong->currentClip);
+	bool undoing = (actionLogger.firstAction[BEFORE] && actionLogger.firstAction[BEFORE]->openForAdditions
+	                && actionLogger.firstAction[BEFORE]->type == ACTION_CLIP_LENGTH_DECREASE
+	                && actionLogger.firstAction[BEFORE]->currentClip == currentSong->currentClip);
 
 	if (undoing) {
-		allowResyncingDuringClipLengthChange = false; // Little bit of a hack. We don't want any resyncing to happen to this Clip
+		allowResyncingDuringClipLengthChange =
+		    false; // Little bit of a hack. We don't want any resyncing to happen to this Clip
 		actionLogger.revert(BEFORE, false, false);
 		allowResyncingDuringClipLengthChange = true;
 	}
 
 	// Only if that didn't get us directly to the correct length, manually set length. This will do a resync if playback active
 	if (currentSong->currentClip->loopLength != newLength) {
-		int actionType = (newLength < currentSong->currentClip->loopLength) ? ACTION_CLIP_LENGTH_DECREASE : ACTION_CLIP_LENGTH_INCREASE;
+		int actionType = (newLength < currentSong->currentClip->loopLength) ? ACTION_CLIP_LENGTH_DECREASE
+		                                                                    : ACTION_CLIP_LENGTH_INCREASE;
 
 		action = actionLogger.getNewAction(actionType, true);
 		if (action && action->currentClip != currentSong->currentClip) {
@@ -104,8 +101,8 @@ Action* ClipView::lengthenClip(int32_t newLength) {
 	// Otherwise, do the resync that we missed out on doing
 	else {
 		if (undoing && playbackHandler.isEitherClockActive()) {
-		    char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		    ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 			currentPlaybackMode->reSyncClip(modelStack);
 		}
@@ -124,22 +121,24 @@ Action* ClipView::shortenClip(int32_t newLength) {
 		action = actionLogger.getNewAction(ACTION_CLIP_LENGTH_DECREASE, false);
 	}
 
-	currentSong->setClipLength(currentSong->currentClip, newLength, action);	// Subsequently shortening by more squares won't cause additional Consequences to be added to the same
-																				// Action - it checks, and only stores the data (snapshots and original length) once
+	currentSong->setClipLength(
+	    currentSong->currentClip, newLength,
+	    action); // Subsequently shortening by more squares won't cause additional Consequences to be added to the same
+	             // Action - it checks, and only stores the data (snapshots and original length) once
 	return action;
 }
 
 int ClipView::horizontalEncoderAction(int offset) {
 
 	// Shift button pressed - edit length
-    if (isNoUIModeActive() && !Buttons::isButtonPressed(yEncButtonX, yEncButtonY)
-    	&& (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(clipViewButtonX, clipViewButtonY))) {
+	if (isNoUIModeActive() && !Buttons::isButtonPressed(yEncButtonX, yEncButtonY)
+	    && (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(clipViewButtonX, clipViewButtonY))) {
 
-    	// If tempoless recording, don't allow
-    	if (!currentSong->currentClip->currentlyScrollableAndZoomable()) {
-    		numericDriver.displayPopup(HAVE_OLED ? "Can't edit length" : "CANT");
-    		return ACTION_RESULT_DEALT_WITH;
-    	}
+		// If tempoless recording, don't allow
+		if (!currentSong->currentClip->currentlyScrollableAndZoomable()) {
+			numericDriver.displayPopup(HAVE_OLED ? "Can't edit length" : "CANT");
+			return ACTION_RESULT_DEALT_WITH;
+		}
 
 		uint32_t oldLength = currentSong->currentClip->loopLength;
 
@@ -207,57 +206,54 @@ doReRender:
 		return ACTION_RESULT_DEALT_WITH;
 	}
 
+	// Or, if shift button not pressed...
+	else {
 
-    // Or, if shift button not pressed...
-    else {
+		// If tempoless recording, don't allow
+		if (!currentSong->currentClip->currentlyScrollableAndZoomable()) {
+			return ACTION_RESULT_DEALT_WITH;
+		}
 
-    	// If tempoless recording, don't allow
-    	if (!currentSong->currentClip->currentlyScrollableAndZoomable()) {
-    		return ACTION_RESULT_DEALT_WITH;
-    	}
-
-    	// Otherwise, let parent do scrolling and zooming
-    	return ClipNavigationTimelineView::horizontalEncoderAction(offset);
-    }
+		// Otherwise, let parent do scrolling and zooming
+		return ClipNavigationTimelineView::horizontalEncoderAction(offset);
+	}
 }
-
-
 
 int32_t ClipView::getLengthChopAmount(int32_t square) {
 
-    square--; // We want the width of the square before
-    while (!isSquareDefined(square)) square--;
+	square--; // We want the width of the square before
+	while (!isSquareDefined(square))
+		square--;
 
-    uint32_t xZoom = currentSong->xZoom[getNavSysId()];
+	uint32_t xZoom = currentSong->xZoom[getNavSysId()];
 
-    if (inTripletsView()) {
-        if (xZoom < currentSong->tripletsLevel) {
-            return xZoom * 4 / 3;
-        }
-        else if (xZoom < currentSong->tripletsLevel * 2) {
-            return xZoom * 2 / 3 * (((square + 1) % 2) + 1);
-        }
-    }
-    return xZoom;
+	if (inTripletsView()) {
+		if (xZoom < currentSong->tripletsLevel) {
+			return xZoom * 4 / 3;
+		}
+		else if (xZoom < currentSong->tripletsLevel * 2) {
+			return xZoom * 2 / 3 * (((square + 1) % 2) + 1);
+		}
+	}
+	return xZoom;
 }
-
-
 
 int32_t ClipView::getLengthExtendAmount(int32_t square) {
 
-    while (!isSquareDefined(square)) square++;
+	while (!isSquareDefined(square))
+		square++;
 
-    uint32_t xZoom = currentSong->xZoom[getNavSysId()];
+	uint32_t xZoom = currentSong->xZoom[getNavSysId()];
 
-    if (inTripletsView()) {
-        if (xZoom < currentSong->tripletsLevel) {
-            return xZoom * 4 / 3;
-        }
-        else if (xZoom < currentSong->tripletsLevel * 2) {
-            return xZoom * 2 / 3 * (((square + 1) % 2) + 1);
-        }
-    }
-    return xZoom;
+	if (inTripletsView()) {
+		if (xZoom < currentSong->tripletsLevel) {
+			return xZoom * 4 / 3;
+		}
+		else if (xZoom < currentSong->tripletsLevel * 2) {
+			return xZoom * 2 / 3 * (((square + 1) % 2) + 1);
+		}
+	}
+	return xZoom;
 }
 
 int ClipView::getTickSquare() {
@@ -267,13 +263,15 @@ int ClipView::getTickSquare() {
 	// See if we maybe want to do an auto-scroll
 	if (currentSong->currentClip->getCurrentlyRecordingLinearly()) {
 
-		if (newTickSquare == displayWidth && (!currentUIMode || currentUIMode == UI_MODE_AUDITIONING) && getCurrentUI() == this && // currentPlaybackMode == &session &&
-				(!currentSong->currentClip->armState || xScrollBeforeFollowingAutoExtendingLinearRecording != -1)) {
+		if (newTickSquare == displayWidth && (!currentUIMode || currentUIMode == UI_MODE_AUDITIONING)
+		    && getCurrentUI() == this && // currentPlaybackMode == &session &&
+		    (!currentSong->currentClip->armState || xScrollBeforeFollowingAutoExtendingLinearRecording != -1)) {
 
+			if (xScrollBeforeFollowingAutoExtendingLinearRecording == -1)
+				xScrollBeforeFollowingAutoExtendingLinearRecording = currentSong->xScroll[NAVIGATION_CLIP];
 
-			if (xScrollBeforeFollowingAutoExtendingLinearRecording == -1) xScrollBeforeFollowingAutoExtendingLinearRecording = currentSong->xScroll[NAVIGATION_CLIP];
-
-			int32_t newXScroll = currentSong->xScroll[NAVIGATION_CLIP] + currentSong->xZoom[NAVIGATION_CLIP] * displayWidth;
+			int32_t newXScroll =
+			    currentSong->xScroll[NAVIGATION_CLIP] + currentSong->xZoom[NAVIGATION_CLIP] * displayWidth;
 
 			horizontalScrollForLinearRecording(newXScroll);
 		}

@@ -25,16 +25,16 @@ public:
 	SampleHolderForClip();
 	virtual ~SampleHolderForClip();
 
-    void setAudioFile(AudioFile* newAudioFile, bool reversed = false, bool manuallySelected = false, int clusterLoadInstruction = CLUSTER_ENQUEUE);
-    void recalculateNeutralPhaseIncrement();
-    void beenClonedFrom(SampleHolderForClip* other, bool reversed);
+	void setAudioFile(AudioFile* newAudioFile, bool reversed = false, bool manuallySelected = false,
+	                  int clusterLoadInstruction = CLUSTER_ENQUEUE);
+	void recalculateNeutralPhaseIncrement();
+	void beenClonedFrom(SampleHolderForClip* other, bool reversed);
 
-    int16_t transpose;
-    int8_t cents;
+	int16_t transpose;
+	int8_t cents;
 
 protected:
-    void sampleBeenSet(bool reversed, bool manuallySelected);
-
+	void sampleBeenSet(bool reversed, bool manuallySelected);
 };
 
 #endif /* SAMPLEHOLDERFORCLIP_H_ */

@@ -62,10 +62,10 @@ void OpenAddressingHashTable::empty(bool destructing) {
 // https://stackoverflow.com/questions/664014/what-integer-hash-function-are-good-that-accepts-an-integer-hash-key
 // http://www.azillionmonkeys.com/qed/hash.html
 unsigned int hash(unsigned int x) {
-    x = ((x >> 16) ^ x) * 0x45d9f3b;
-    x = ((x >> 16) ^ x) * 0x45d9f3b;
-    x = (x >> 16) ^ x;
-    return x;
+	x = ((x >> 16) ^ x) * 0x45d9f3b;
+	x = ((x >> 16) ^ x) * 0x45d9f3b;
+	x = (x >> 16) ^ x;
+	return x;
 }
 
 int OpenAddressingHashTable::getBucketIndex(uint32_t key) {
@@ -79,7 +79,6 @@ void* OpenAddressingHashTable::getBucketAddress(int b) {
 void* OpenAddressingHashTable::secondaryMemoryGetBucketAddress(int b) {
 	return (void*)((uint32_t)secondaryMemory + b * elementSize);
 }
-
 
 void* OpenAddressingHashTable::insert(uint32_t key, bool* onlyIfNotAlreadyPresent) {
 
@@ -291,12 +290,6 @@ bool OpenAddressingHashTable::remove(uint32_t key) {
 	return true;
 }
 
-
-
-
-
-
-
 // 32-bit key
 OpenAddressingHashTableWith32bitKey::OpenAddressingHashTableWith32bitKey() {
 	elementSize = sizeof(uint32_t);
@@ -313,7 +306,6 @@ void OpenAddressingHashTableWith32bitKey::setKeyAtAddress(uint32_t key, void* ad
 bool OpenAddressingHashTableWith32bitKey::doesKeyIndicateEmptyBucket(uint32_t key) {
 	return (key == (uint32_t)0xFFFFFFFF);
 }
-
 
 // 16-bit key
 OpenAddressingHashTableWith16bitKey::OpenAddressingHashTableWith16bitKey() {
@@ -332,7 +324,6 @@ bool OpenAddressingHashTableWith16bitKey::doesKeyIndicateEmptyBucket(uint32_t ke
 	return (key == (uint32_t)0xFFFF);
 }
 
-
 // 8-bit key
 OpenAddressingHashTableWith8bitKey::OpenAddressingHashTableWith8bitKey() {
 	elementSize = sizeof(uint8_t);
@@ -350,9 +341,6 @@ bool OpenAddressingHashTableWith8bitKey::doesKeyIndicateEmptyBucket(uint32_t key
 	return (key == (uint32_t)0xFF);
 }
 
-
-
-
 #define NUM_ELEMENTS_TO_ADD 64
 void OpenAddressingHashTable::test() {
 	uint32_t elementsAdded[NUM_ELEMENTS_TO_ADD];
@@ -369,27 +357,32 @@ void OpenAddressingHashTable::test() {
 		while (numElementsAdded < NUM_ELEMENTS_TO_ADD) {
 			do {
 				elementsAdded[numElementsAdded] = getNoise() & 0xFF;
-			} while (!elementsAdded[numElementsAdded] || (uint8_t)elementsAdded[numElementsAdded] == 0xFF); // Don't allow 0 - we'll use that for special test. Or 0xFF, cos that means empty
+			} while (!elementsAdded[numElementsAdded]
+			         || (uint8_t)elementsAdded[numElementsAdded]
+			                == 0xFF); // Don't allow 0 - we'll use that for special test. Or 0xFF, cos that means empty
 
 			bool result = insert(elementsAdded[numElementsAdded]);
 			numElementsAdded++;
 
 			if (!result) {
 				Uart::println("couldn't add element");
-				while (1);
+				while (1)
+					;
 			}
 		}
 
 		if (numElements != NUM_ELEMENTS_TO_ADD) {
 			Uart::println("wrong numElements");
-			while (1);
+			while (1)
+				;
 		}
 
 		// See if it'll let us remove an element that doesn't exist
 		bool result = remove(0);
 		if (result) {
 			Uart::println("reported successful removal of nonexistent element");
-			while (1);
+			while (1)
+				;
 		}
 
 		for (int i = 0; i < NUM_ELEMENTS_TO_ADD; i++) {
@@ -403,21 +396,23 @@ void OpenAddressingHashTable::test() {
 				Uart::println(numElements);
 				Uart::print("key == ");
 				Uart::println(elementsAdded[i]);
-				while (1);
+				while (1)
+					;
 			}
 		}
 
 		if (numElements != 0) {
 			Uart::println("numElements didn't return to 0");
-			while (1);
+			while (1)
+				;
 		}
 
 		// See if it'll let us remove an element that doesn't exist
 		result = remove(0);
 		if (result) {
 			Uart::println("reported successful removal of element when there are no elements at all");
-			while (1);
+			while (1)
+				;
 		}
-
 	}
 }

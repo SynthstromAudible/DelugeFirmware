@@ -30,33 +30,32 @@ class ModelStack;
 class InstrumentClipMinder : public ClipMinder {
 public:
 	InstrumentClipMinder();
-    static void redrawNumericDisplay();
-    void createNewInstrument(int newInstrumentType);
-    void setLedStates();
-    void focusRegained();
-    int buttonAction(int x, int y, bool on, bool inCardRoutine);
-    void calculateDefaultRootNote();
-    void drawActualNoteCode(int16_t noteCode);
-    void cycleThroughScales();
-    void displayScaleName(int scale);
-    void displayCurrentScaleName();
-    void selectEncoderAction(int offset);
-    static void drawMIDIControlNumber(int controlNumber, bool automationExists);
-    bool makeCurrentClipActiveOnInstrumentIfPossible(ModelStack* modelStack);
-    void changeInstrumentType(int newInstrumentType);
-    void opened();
+	static void redrawNumericDisplay();
+	void createNewInstrument(int newInstrumentType);
+	void setLedStates();
+	void focusRegained();
+	int buttonAction(int x, int y, bool on, bool inCardRoutine);
+	void calculateDefaultRootNote();
+	void drawActualNoteCode(int16_t noteCode);
+	void cycleThroughScales();
+	void displayScaleName(int scale);
+	void displayCurrentScaleName();
+	void selectEncoderAction(int offset);
+	static void drawMIDIControlNumber(int controlNumber, bool automationExists);
+	bool makeCurrentClipActiveOnInstrumentIfPossible(ModelStack* modelStack);
+	void changeInstrumentType(int newInstrumentType);
+	void opened();
 
 #if HAVE_OLED
-    void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
+	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
 #endif
 
-    static int16_t defaultRootNote; // Stores the calculated "default" root note between the user pressing the scale-mode button and releasing it
-    static bool exitScaleModeOnButtonRelease;
-    static bool flashDefaultRootNoteOn;
+	static int16_t
+	    defaultRootNote; // Stores the calculated "default" root note between the user pressing the scale-mode button and releasing it
+	static bool exitScaleModeOnButtonRelease;
+	static bool flashDefaultRootNoteOn;
 
-    static uint8_t editingMIDICCForWhichModKnob;
-
+	static uint8_t editingMIDICCForWhichModKnob;
 };
-
 
 #endif /* INSTRUMENTCLIPMINDER_H_ */

@@ -34,7 +34,7 @@ class Drum;
 class ModelStack;
 class ModelStackWithNoteRow;
 
-class ArrangerView final: public TimelineView {
+class ArrangerView final : public TimelineView {
 public:
 	ArrangerView();
 	bool opened();
@@ -45,10 +45,13 @@ public:
 	void selectEncoderAction(int8_t offset);
 
 	void repopulateOutputsOnScreen(bool doRender = true);
-	bool renderSidebar(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3], uint8_t occupancyMask[][displayWidth + sideBarWidth]);
+	bool renderSidebar(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
+	                   uint8_t occupancyMask[][displayWidth + sideBarWidth]);
 	void drawMuteSquare(int yDisplay, uint8_t thisImage[][3]);
-	bool renderMainPads(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3], uint8_t occupancyMask[][displayWidth + sideBarWidth], bool drawUndefinedArea = true);
-	bool renderRow(ModelStack* modelStack, int yDisplay, int32_t xScroll, uint32_t xZoom, uint8_t* thisImage, uint8_t thisOccupancyMask[], int renderWidth);
+	bool renderMainPads(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
+	                    uint8_t occupancyMask[][displayWidth + sideBarWidth], bool drawUndefinedArea = true);
+	bool renderRow(ModelStack* modelStack, int yDisplay, int32_t xScroll, uint32_t xZoom, uint8_t* thisImage,
+	               uint8_t thisOccupancyMask[], int renderWidth);
 	void editPadAction(int x, int y, bool on);
 	int horizontalEncoderAction(int offset);
 	uint32_t getMaxLength();
@@ -70,13 +73,13 @@ public:
 	void playbackEnded();
 	void clipNeedsReRendering(Clip* clip);
 	void exitSubModeWithoutAction();
-    bool transitionToArrangementEditor();
-    bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows);
-    void setLedStates();
-    int verticalScrollOneSquare(int direction);
-    int horizontalScrollOneSquare(int direction);
+	bool transitionToArrangementEditor();
+	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows);
+	void setLedStates();
+	int verticalScrollOneSquare(int direction);
+	int horizontalScrollOneSquare(int direction);
 #if HAVE_OLED
-    void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
+	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
 #endif
 
 	Output* outputsOnScreen[displayHeight];
@@ -89,18 +92,15 @@ public:
 	int32_t originallyPressedClipActualLength;
 	bool pressedHead;
 
-
 	int pressedClipInstanceIndex;
 	Output* pressedClipInstanceOutput;
 	int32_t pressedClipInstanceXScrollWhenLastInValidPosition;
 	bool pressedClipInstanceIsInValidPosition;
 
-
 	bool blinkOn;
 
-
 	bool doingAutoScrollNow;
-    bool mustRedrawTickSquares;
+	bool mustRedrawTickSquares;
 
 	int autoScrollNumSquaresBehind;
 
@@ -110,8 +110,7 @@ public:
 
 	int lastTickSquare;
 
-    int32_t xScrollWhenPlaybackStarted;
-
+	int32_t xScrollWhenPlaybackStarted;
 
 private:
 	void changeInstrumentType(int newInstrumentType);
@@ -126,19 +125,21 @@ private:
 	void outputActivated(Output* output);
 	void outputDeactivated(Output* output);
 	void transitionToClipView(ClipInstance* clipInstance);
-	void deleteClipInstance(Output* output, int clipInstanceIndex, ClipInstance* clipInstance, Action* action, bool clearingWholeArrangement = false);
+	void deleteClipInstance(Output* output, int clipInstanceIndex, ClipInstance* clipInstance, Action* action,
+	                        bool clearingWholeArrangement = false);
 	void clearArrangement();
 	void rememberInteractionWithClipInstance(int yDisplay, ClipInstance* clipInstance);
 	void deleteOutput();
 	void auditionEnded();
 	void goToSongView();
 	void changeOutputToAudio();
-	bool renderRowForOutput(ModelStack* modelStack, Output* output, int32_t xScroll, uint32_t xZoom, uint8_t* image, uint8_t occupancyMask[], int renderWidth, int ignoreI);
+	bool renderRowForOutput(ModelStack* modelStack, Output* output, int32_t xScroll, uint32_t xZoom, uint8_t* image,
+	                        uint8_t occupancyMask[], int renderWidth, int ignoreI);
 	Instrument* createNewInstrument(int newInstrumentType, bool* instrumentAlreadyInSong);
 	void changeOutputToInstrument(int newInstrumentType);
-    uint32_t doActualRender(int32_t xScroll, uint32_t xZoom, uint32_t whichRows, uint8_t* image, uint8_t occupancyMask[][displayWidth + sideBarWidth], int renderWidth, int imageWidth);
+	uint32_t doActualRender(int32_t xScroll, uint32_t xZoom, uint32_t whichRows, uint8_t* image,
+	                        uint8_t occupancyMask[][displayWidth + sideBarWidth], int renderWidth, int imageWidth);
 };
-
 
 extern ArrangerView arrangerView;
 

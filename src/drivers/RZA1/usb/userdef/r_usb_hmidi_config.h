@@ -37,19 +37,18 @@
  * USB_CFG_HHID_INT_IN2     : Pipe number (USB_PIPE6 to USB_PIPE9) 2nd Device HID Interrupt In Pipe
  * USB_CFG_HHID_INT_IN3     : Pipe number (USB_PIPE6 to USB_PIPE9) 3rd Device HID Interrupt In Pipe
  */
-#define USB_CFG_HMIDI_BULK_SEND             (USB_PIPE1)
-#define USB_CFG_HMIDI_INT_SEND             (USB_PIPE6)
+#define USB_CFG_HMIDI_BULK_SEND (USB_PIPE1)
+#define USB_CFG_HMIDI_INT_SEND  (USB_PIPE6)
 
-#define USB_CFG_HMIDI_BULK_RECV_MIN			(USB_PIPE2)
-#define USB_CFG_HMIDI_BULK_RECV_MAX			(USB_PIPE5)
+#define USB_CFG_HMIDI_BULK_RECV_MIN (USB_PIPE2)
+#define USB_CFG_HMIDI_BULK_RECV_MAX (USB_PIPE5)
 
-#define USB_CFG_HMIDI_INT_RECV_MIN			(USB_PIPE7)
-#define USB_CFG_HMIDI_INT_RECV_MAX			(USB_PIPE8)
+#define USB_CFG_HMIDI_INT_RECV_MIN (USB_PIPE7)
+#define USB_CFG_HMIDI_INT_RECV_MAX (USB_PIPE8)
 
 // Hub uses PIPE9
 
-
-#endif  /* R_USB_HMIDI_CONFIG_H */
+#endif /* R_USB_HMIDI_CONFIG_H */
 /******************************************************************************
  End  Of File
  ******************************************************************************/

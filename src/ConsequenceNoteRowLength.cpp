@@ -26,21 +26,22 @@ ConsequenceNoteRowLength::ConsequenceNoteRowLength(int newNoteRowId, int newLeng
 	backedUpLength = newLength;
 }
 
-
 int ConsequenceNoteRowLength::revert(int time, ModelStack* modelStack) {
-	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addTimelineCounter(modelStack->song->currentClip)->addNoteRowId(noteRowId)->automaticallyAddNoteRowFromId();
+	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addTimelineCounter(modelStack->song->currentClip)
+	                                                   ->addNoteRowId(noteRowId)
+	                                                   ->automaticallyAddNoteRowFromId();
 	performChange(modelStackWithNoteRow, NULL, modelStackWithNoteRow->getLastProcessedPos(),
-			modelStackWithNoteRow->getNoteRow()->hasIndependentPlayPos());
+	              modelStackWithNoteRow->getNoteRow()->hasIndependentPlayPos());
 	return NO_ERROR;
 }
 
 void ConsequenceNoteRowLength::performChange(ModelStackWithNoteRow* modelStack, Action* actionToRecordTo,
-		int32_t oldPos,	// Sometimes needs overriding
-		bool hadIndependentPlayPosBefore
-		) {
+                                             int32_t oldPos, // Sometimes needs overriding
+                                             bool hadIndependentPlayPosBefore) {
 	int32_t prevLength = modelStack->getLoopLength();
 
-	modelStack->getNoteRow()->setLength(modelStack, backedUpLength, actionToRecordTo, oldPos, hadIndependentPlayPosBefore);
+	modelStack->getNoteRow()->setLength(modelStack, backedUpLength, actionToRecordTo, oldPos,
+	                                    hadIndependentPlayPosBefore);
 
 	backedUpLength = prevLength;
 }

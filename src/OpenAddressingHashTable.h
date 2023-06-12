@@ -49,7 +49,6 @@ public:
 	int8_t initialNumBuckets;
 };
 
-
 class OpenAddressingHashTableWith32bitKey final : public OpenAddressingHashTable {
 public:
 	OpenAddressingHashTableWith32bitKey();

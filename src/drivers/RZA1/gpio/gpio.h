@@ -27,5 +27,4 @@ uint16_t getOutputState(uint8_t p, uint8_t q);
 void setOutputState(uint8_t p, uint8_t q, uint16_t state);
 uint16_t readInput(uint8_t p, uint8_t q);
 
-
 #endif /* DRIVERS_RZA1_GPIO_GPIO_H_ */

@@ -36,7 +36,9 @@
 
 #define MEASURE_HOP_END_PERFORMANCE 0
 
-bool TimeStretcher::init(Sample* sample, VoiceSample* voiceSample, SamplePlaybackGuide* guide, int64_t newSamplePosBig, int numChannels, int32_t phaseIncrement, int32_t timeStretchRatio, int playDirection, int priorityRating, int fudgingNumSamplesTilLoop, int loopingType) {
+bool TimeStretcher::init(Sample* sample, VoiceSample* voiceSample, SamplePlaybackGuide* guide, int64_t newSamplePosBig,
+                         int numChannels, int32_t phaseIncrement, int32_t timeStretchRatio, int playDirection,
+                         int priorityRating, int fudgingNumSamplesTilLoop, int loopingType) {
 
 	AudioEngine::logAction("TimeStretcher::init");
 
@@ -87,17 +89,20 @@ bool TimeStretcher::init(Sample* sample, VoiceSample* voiceSample, SamplePlaybac
 		int numSamplesIntoPreMarginToStartSource = fudgingNumSamplesTilLoop;
 
 		if (phaseIncrement != 16777216) {
-			fudgingNumSamplesTilLoop = ((uint64_t)fudgingNumSamplesTilLoop * (uint32_t)phaseIncrement + (1 << 23)) >> 24; // Round
+			fudgingNumSamplesTilLoop =
+			    ((uint64_t)fudgingNumSamplesTilLoop * (uint32_t)phaseIncrement + (1 << 23)) >> 24; // Round
 		}
 
 		int bytesPerSample = sample->byteDepth * sample->numChannels;
 
-
-		int newBytePos = guide->getBytePosToStartPlayback(true) - fudgingNumSamplesTilLoop * bytesPerSample * playDirection;
+		int newBytePos =
+		    guide->getBytePosToStartPlayback(true) - fudgingNumSamplesTilLoop * bytesPerSample * playDirection;
 
 		int32_t startByte = sample->audioDataStartPosBytes;
-		if (playDirection != 1) startByte += sample->audioDataLengthBytes - bytesPerSample; // The actual first sample of the waveform in our given direction, regardless of our elected start-point
-
+		if (playDirection != 1)
+			startByte +=
+			    sample->audioDataLengthBytes
+			    - bytesPerSample; // The actual first sample of the waveform in our given direction, regardless of our elected start-point
 
 		// If there's actually some waveform where we propose to start, do it!
 		if ((newBytePos - startByte) * playDirection >= 0) {}
@@ -108,7 +113,8 @@ bool TimeStretcher::init(Sample* sample, VoiceSample* voiceSample, SamplePlaybac
 
 		samplesTilHopEnd = 2147483647; // We don't want to do a hop-end
 
-		crossfadeIncrement = (uint32_t)(16777216 + fudgingNumSamplesTilLoop) / (uint32_t)fudgingNumSamplesTilLoop; // Round up
+		crossfadeIncrement =
+		    (uint32_t)(16777216 + fudgingNumSamplesTilLoop) / (uint32_t)fudgingNumSamplesTilLoop; // Round up
 		crossfadeProgress = 0;
 	}
 
@@ -126,14 +132,14 @@ bool TimeStretcher::init(Sample* sample, VoiceSample* voiceSample, SamplePlaybac
 		crossfadeIncrement = 0;
 	}
 
-
 	AudioEngine::logAction("---/");
 
 	return true;
 }
 
-void TimeStretcher::reInit(int64_t newSamplePosBig, SamplePlaybackGuide* guide, VoiceSample* voiceSample, Sample* sample, int numChannels,
-		int32_t timeStretchRatio, int32_t phaseIncrement, uint64_t combinedIncrement, int playDirection, int loopingType, int priorityRating) {
+void TimeStretcher::reInit(int64_t newSamplePosBig, SamplePlaybackGuide* guide, VoiceSample* voiceSample,
+                           Sample* sample, int numChannels, int32_t timeStretchRatio, int32_t phaseIncrement,
+                           uint64_t combinedIncrement, int playDirection, int loopingType, int priorityRating) {
 
 	samplePosBig = newSamplePosBig;
 
@@ -147,7 +153,8 @@ void TimeStretcher::reInit(int64_t newSamplePosBig, SamplePlaybackGuide* guide, 
 	// Or if the newer play-head is inactive, force a hop now. Is this the best way? Not sure if maybe we wanna instead just do an init() or at least force the new
 	// play-head to exactly the start-pos-sample or something?
 	if (!playHeadStillActive[PLAY_HEAD_NEWER]) {
-		hopEnd(guide, voiceSample, sample, numChannels, timeStretchRatio, phaseIncrement, combinedIncrement, playDirection, loopingType, priorityRating);
+		hopEnd(guide, voiceSample, sample, numChannels, timeStretchRatio, phaseIncrement, combinedIncrement,
+		       playDirection, loopingType, priorityRating);
 	}
 }
 
@@ -157,8 +164,6 @@ void TimeStretcher::beenUnassigned() {
 	olderPartReader.unassignAllReasons();
 	if (buffer) generalMemoryAllocator.dealloc(buffer);
 }
-
-
 
 void TimeStretcher::unassignAllReasonsForPercLookahead() {
 	for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD; l++) {
@@ -178,45 +183,39 @@ void TimeStretcher::unassignAllReasonsForPercCacheClusters() {
 	}
 }
 
-
-
 const int16_t minHopSizeCoarse[] = {2500, 3000, 3000, 600, 300};
 const int16_t minHopSizeFine[] = {
-		3000, 3000, 3000, 3000, 3000, 3000, 3000, 3000, // -12, ....
-		3000, 2500, 2000, 1500, 1000, 900, 800, 700, // +0, ....
-		600 // +12
+    3000, 3000, 3000, 3000, 3000, 3000, 3000, 3000, // -12, ....
+    3000, 2500, 2000, 1500, 1000, 900,  800,  700,  // +0, ....
+    600                                             // +12
 };
-
 
 const int16_t maxHopSizeCoarse[] = {5000, 6500, 11000, 4000, 2500};
 const int16_t maxHopSizeFine[] = {
-		6500, 7000, 8000, 9000, 9500, 9750, 10000, 11000, // -12, ....
-		11000, 7500, 8000, 6500, 5000, 4750, 4500, 4250, // +0, ....
-		4000 // +12
+    6500,  7000, 8000, 9000, 9500, 9750, 10000, 11000, // -12, ....
+    11000, 7500, 8000, 6500, 5000, 4750, 4500,  4250,  // +0, ....
+    4000                                               // +12
 };
-
 
 const int16_t crossfadeProportionalCoarse[] = {200, 160, 0, 9, 9};
 const int16_t crossfadeProportionalFine[] = {
-		160, 140, 125, 110, 90, 70, 50, 20,  // -12, ....
-		0, 20, 20, 20, 20, 17, 14, 11, // +0, ....
-		9 // +12
+    160, 140, 125, 110, 90, 70, 50, 20, // -12, ....
+    0,   20,  20,  20,  20, 17, 14, 11, // +0, ....
+    9                                   // +12
 };
-
 
 const int16_t crossfadeAbsoluteCoarse[] = {10, 10, 60, 40, 20};
 const int16_t crossfadeAbsoluteFine[] = {
-		10, 10, 10, 10, 10, 10, 10, 170, // -12, ....
-		60, 90, 20, 30, 40, 40, 40, 40, // +0, ....
-		40 // +12
+    10, 10, 10, 10, 10, 10, 10, 170, // -12, ....
+    60, 90, 20, 30, 40, 40, 40, 40,  // +0, ....
+    40                               // +12
 };
-
 
 const int16_t randomCoarse[] = {85, 120, 0, 0, 0};
 const int16_t randomFine[] = {
-		120, 95, 70, 45, 20, 15, 10, 10, // -12, ....
-		0, 0, 0, 0, 0, 0, 0, 0, // +0, ....
-		0 // +12
+    120, 95, 70, 45, 20, 15, 10, 10, // -12, ....
+    0,   0,  0,  0,  0,  0,  0,  0,  // +0, ....
+    0                                // +12
 };
 
 /*
@@ -228,13 +227,10 @@ const int16_t lookaheadFine[] = {
 };
 */
 
-
-
-
 // Returns false if sound needs to cut due to a load error or similar
 bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample, Sample* sample, int numChannels,
-		int32_t timeStretchRatio, int32_t phaseIncrement, uint64_t combinedIncrement, int playDirection, int loopingType, int priorityRating) {
-
+                           int32_t timeStretchRatio, int32_t phaseIncrement, uint64_t combinedIncrement,
+                           int playDirection, int loopingType, int priorityRating) {
 
 	AudioEngine::logAction("hopEnd");
 
@@ -261,7 +257,7 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 	//AudioEngine::bypassCulling = true; // This is kinda dangerous, but I think it should kinda be ok...
 
 #if MEASURE_HOP_END_PERFORMANCE
-    uint16_t startTime = MTU2.TCNT_0;
+	uint16_t startTime = MTU2.TCNT_0;
 #endif
 
 	int reversed = (playDirection == 1) ? 0 : 1;
@@ -283,7 +279,6 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 
 	int maxHopLength = 2147483647;
 
-
 	int64_t samplePos;
 
 	// If guide is synced to the actual sequence's ticks, we can peeeerfectly get the pos we want.
@@ -295,7 +290,7 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 		uint64_t numSamplesIn = guide->getSyncedNumSamplesIn();
 
 		uint64_t startSample = (uint32_t)(guide->startPlaybackAtByte - sample->audioDataStartPosBytes)
-				/ (uint8_t)(sample->numChannels * sample->byteDepth);
+		                       / (uint8_t)(sample->numChannels * sample->byteDepth);
 
 		samplePos = startSample + numSamplesIn * playDirection;
 		// There should be no risk of that passing the end of the sample zone I think...
@@ -307,7 +302,6 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 	else {
 		samplePos = getSamplePos(playDirection);
 	}
-
 
 	int speedLog = quickLog(timeStretchRatio);
 
@@ -351,7 +345,7 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 	//Uart::print("maxBeamWidth: ");
 	//Uart::println(maxBeamWidth);
 
-/*
+	/*
 	minBeamWidth = storageManager.devVarA * 10;
 	maxBeamWidth = storageManager.devVarB * 100;
 	crossfadeProportional = storageManager.devVarC << 24;
@@ -361,7 +355,8 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 
 	// Apply random element
 #if !MEASURE_HOP_END_PERFORMANCE
-	minBeamWidth += (multiply_32x32_rshift32(minBeamWidth, multiply_32x32_rshift32(getNoise(), randomElement << 8)) << 2);
+	minBeamWidth +=
+	    (multiply_32x32_rshift32(minBeamWidth, multiply_32x32_rshift32(getNoise(), randomElement << 8)) << 2);
 #endif
 
 	int32_t newHeadBytePos;
@@ -370,7 +365,10 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 	int32_t additionalOscPos = 0;
 
 	int32_t waveformStartByte = sample->audioDataStartPosBytes;
-	if (playDirection != 1) waveformStartByte += sample->audioDataLengthBytes - bytesPerSample; // The actual first sample of the waveform in our given direction, regardless of our elected start-point
+	if (playDirection != 1)
+		waveformStartByte +=
+		    sample->audioDataLengthBytes
+		    - bytesPerSample; // The actual first sample of the waveform in our given direction, regardless of our elected start-point
 
 	// If this is for some looping piece of audio (possibly an AudioClip, but also a looping instrument sample or something,
 	// see if we want to place our next hop in the pre-margin.
@@ -380,28 +378,35 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 
 		// First, check whether there's any pre-margin at all
 
-		int numBytesOfPreMarginAvailable = (int32_t)(guide->getBytePosToStartPlayback(true) - waveformStartByte) * playDirection;
+		int numBytesOfPreMarginAvailable =
+		    (int32_t)(guide->getBytePosToStartPlayback(true) - waveformStartByte) * playDirection;
 
 		if (numBytesOfPreMarginAvailable > 0) {
 
-			uint32_t loopEndSample = (uint32_t)(guide->getBytePosToEndOrLoopPlayback() - sample->audioDataStartPosBytes) // This will refer to the loop point - not the actual end of the waveform
-					/ (uint8_t)(sample->numChannels * sample->byteDepth);
+			uint32_t loopEndSample =
+			    (uint32_t)(guide->getBytePosToEndOrLoopPlayback()
+			               - sample
+			                     ->audioDataStartPosBytes) // This will refer to the loop point - not the actual end of the waveform
+			    / (uint8_t)(sample->numChannels * sample->byteDepth);
 
 			int sourceSamplesTilLoop = (int32_t)(loopEndSample - samplePos) * playDirection;
 
 			if (sourceSamplesTilLoop >= 0) { // This can fail for an AudioClip if we've just stopped playback
 
-				int outputSamplesTilLoop = (((uint64_t)sourceSamplesTilLoop << 24) + (combinedIncrement >> 1)) / combinedIncrement; // Round
+				int outputSamplesTilLoop =
+				    (((uint64_t)sourceSamplesTilLoop << 24) + (combinedIncrement >> 1)) / combinedIncrement; // Round
 
 				// If we're right near the end and it's time to do a crossfade...
 				if (outputSamplesTilLoop < ANTI_CLICK_CROSSFADE_LENGTH) {
 
 					int numSamplesIntoPreMarginToStartSource = outputSamplesTilLoop;
 					if (phaseIncrement != 16777216)
-						numSamplesIntoPreMarginToStartSource = (((uint64_t)sourceSamplesTilLoop << 24) + (timeStretchRatio >> 1)) / timeStretchRatio; // Round
+						numSamplesIntoPreMarginToStartSource =
+						    (((uint64_t)sourceSamplesTilLoop << 24) + (timeStretchRatio >> 1))
+						    / timeStretchRatio; // Round
 
-					newHeadBytePos = guide->getBytePosToStartPlayback(true) - numSamplesIntoPreMarginToStartSource * bytesPerSample * playDirection;
-
+					newHeadBytePos = guide->getBytePosToStartPlayback(true)
+					                 - numSamplesIntoPreMarginToStartSource * bytesPerSample * playDirection;
 
 					// If there's actually some waveform where we propose to start, do it!
 					if ((int32_t)(newHeadBytePos - waveformStartByte) * playDirection >= 0) {
@@ -410,10 +415,13 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 
 						crossfadeLengthSamples = getMax(outputSamplesTilLoop, 10); // Min crossfade length
 
-						samplesTilHopEnd = minBeamWidth >> 2; // Bigger sounds bad. Need to make smaller to match similarly resulting deduction which happens in the "normal" case
+						samplesTilHopEnd =
+						    minBeamWidth
+						    >> 2; // Bigger sounds bad. Need to make smaller to match similarly resulting deduction which happens in the "normal" case
 						samplesTilHopEnd = getMax(samplesTilHopEnd, crossfadeLengthSamples);
 
-						crossfadeIncrement = (uint32_t)(16777215 + crossfadeLengthSamples) / (uint32_t)crossfadeLengthSamples; // Round up
+						crossfadeIncrement = (uint32_t)(16777215 + crossfadeLengthSamples)
+						                     / (uint32_t)crossfadeLengthSamples; // Round up
 						crossfadeProgress = 0;
 
 						hasLoopedBackIntoPreMargin = true;
@@ -441,7 +449,6 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 		}
 	}
 
-
 	{
 		// Apply repitching
 		minBeamWidth = ((uint64_t)(uint32_t)minBeamWidth * phaseIncrement) >> 24;
@@ -449,12 +456,11 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 
 		int bestBeamWidth = (minBeamWidth + maxBeamWidth) >> 1;
 
-
 		int32_t beamPosAtTop = samplePos >> PERC_BUFFER_REDUCTION_MAGNITUDE; // Pixellated
 
 		int earliestPixellatedPos, latestPixellatedPos;
-		uint8_t* percCache = sample->prepareToReadPercCache(beamPosAtTop, playDirection, &earliestPixellatedPos, &latestPixellatedPos);
-
+		uint8_t* percCache =
+		    sample->prepareToReadPercCache(beamPosAtTop, playDirection, &earliestPixellatedPos, &latestPixellatedPos);
 
 		if (percCache) {
 
@@ -465,10 +471,17 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 			int bestTotal = 0;
 			int bestPixellatedBeamWidth = 1;
 
-			for (uint32_t beamWidthNow = minBeamWidth; beamWidthNow < maxBeamWidth; beamWidthNow += PERC_BUFFER_REDUCTION_SIZE) {
+			for (uint32_t beamWidthNow = minBeamWidth; beamWidthNow < maxBeamWidth;
+			     beamWidthNow += PERC_BUFFER_REDUCTION_SIZE) {
 
-				int beamBackEdge = beamPosAtTop + (int32_t)(((int64_t)beamWidthNow * (timeStretchRatio - 16777216)) >> (25 + PERC_BUFFER_REDUCTION_MAGNITUDE)) * playDirection;
-				int beamFrontEdge = beamPosAtTop + (int32_t)(((uint64_t)beamWidthNow * (timeStretchRatio + 16777216)) >> (25 + PERC_BUFFER_REDUCTION_MAGNITUDE)) * playDirection;
+				int beamBackEdge = beamPosAtTop
+				                   + (int32_t)(((int64_t)beamWidthNow * (timeStretchRatio - 16777216))
+				                               >> (25 + PERC_BUFFER_REDUCTION_MAGNITUDE))
+				                         * playDirection;
+				int beamFrontEdge = beamPosAtTop
+				                    + (int32_t)(((uint64_t)beamWidthNow * (timeStretchRatio + 16777216))
+				                                >> (25 + PERC_BUFFER_REDUCTION_MAGNITUDE))
+				                          * playDirection;
 
 				int pixellatedBeamWidth = (beamFrontEdge - beamBackEdge) * playDirection;
 				if (pixellatedBeamWidth) { // It might be zero near the start
@@ -510,20 +523,32 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 			}
 		}
 
-		int beamBackEdge = samplePos + (int32_t)(((int64_t)bestBeamWidth * (timeStretchRatio - 16777216)) >> 25) * playDirection; // The real, non-pixelated one
+		int beamBackEdge = samplePos
+		                   + (int32_t)(((int64_t)bestBeamWidth * (timeStretchRatio - 16777216)) >> 25)
+		                         * playDirection; // The real, non-pixelated one
 
-		int32_t waveformStartSample = (playDirection == 1) ? 0 : sample->lengthInSamples - 1; // The actual first sample of the waveform in our given direction, regardless of our elected start-point
-		int32_t waveformEndSample = (playDirection == 1) ? sample->lengthInSamples : -1; // The actual last sample of the waveform in our given direction, regardless of our elected start-point
+		int32_t waveformStartSample =
+		    (playDirection == 1)
+		        ? 0
+		        : sample->lengthInSamples
+		              - 1; // The actual first sample of the waveform in our given direction, regardless of our elected start-point
+		int32_t waveformEndSample =
+		    (playDirection == 1)
+		        ? sample->lengthInSamples
+		        : -1; // The actual last sample of the waveform in our given direction, regardless of our elected start-point
 
 		// Still must make sure we didn't go back beyond the start of the waveform, which can end up happening from the heavily pixellated search thing above
 		if ((int32_t)(beamBackEdge - waveformStartSample) * playDirection < 0) beamBackEdge = waveformStartSample;
 
 		if (!olderPartReader.clusters[0]) Uart::println("No cluster!!!");
 
-		samplesTilHopEnd = ((uint64_t)bestBeamWidth << 24) / (uint32_t)phaseIncrement; // That's the beamWidthOnRepitchedWaveform
-		if (samplesTilHopEnd < 1) samplesTilHopEnd = 1; // Can happen if pitch up very high and also time-stretch sped up a lot
+		samplesTilHopEnd =
+		    ((uint64_t)bestBeamWidth << 24) / (uint32_t)phaseIncrement; // That's the beamWidthOnRepitchedWaveform
+		if (samplesTilHopEnd < 1)
+			samplesTilHopEnd = 1; // Can happen if pitch up very high and also time-stretch sped up a lot
 
-		crossfadeLengthSamples = multiply_32x32_rshift32_rounded(samplesTilHopEnd, crossfadeProportional) + crossfadeAbsolute * 4;
+		crossfadeLengthSamples =
+		    multiply_32x32_rshift32_rounded(samplesTilHopEnd, crossfadeProportional) + crossfadeAbsolute * 4;
 		if (crossfadeLengthSamples >= (samplesTilHopEnd >> 1)) crossfadeLengthSamples = (samplesTilHopEnd >> 1);
 
 		samplesTilHopEnd -= crossfadeLengthSamples;
@@ -553,20 +578,25 @@ skipPercStuff:
 	if (playHeadStillActive[PLAY_HEAD_OLDER]) { // Added condition, Aug 2019. Surely this makes sense...
 		int lengthToAverageEach = ((uint64_t)phaseIncrement * TIME_STRETCH_CROSSFADE_MOVING_AVERAGE_LENGTH) >> 24;
 		lengthToAverageEach = getMax(lengthToAverageEach, 1);
-		lengthToAverageEach = getMin(lengthToAverageEach, TIME_STRETCH_CROSSFADE_MOVING_AVERAGE_LENGTH * 2); // Keep things sensible
+		lengthToAverageEach =
+		    getMin(lengthToAverageEach, TIME_STRETCH_CROSSFADE_MOVING_AVERAGE_LENGTH * 2); // Keep things sensible
 
 		int crossfadeLengthSamplesSource = ((uint64_t)crossfadeLengthSamples * phaseIncrement) >> 24;
 
 		bool success;
 
 		int32_t oldHeadTotals[TIME_STRETCH_CROSSFADE_NUM_MOVING_AVERAGES];
-		if (oldHeadBytePos < (int32_t)sample->audioDataStartPosBytes) goto skipSearch; // Would probably be possible on a pitch-adjusted reversed waveform if we'd got past the end and were "buffering zeros"
-		success = sample->getAveragesForCrossfade(oldHeadTotals, oldHeadBytePos, crossfadeLengthSamplesSource, playDirection, lengthToAverageEach);
+		if (oldHeadBytePos < (int32_t)sample->audioDataStartPosBytes)
+			goto skipSearch; // Would probably be possible on a pitch-adjusted reversed waveform if we'd got past the end and were "buffering zeros"
+		success = sample->getAveragesForCrossfade(oldHeadTotals, oldHeadBytePos, crossfadeLengthSamplesSource,
+		                                          playDirection, lengthToAverageEach);
 		if (!success) goto skipSearch;
 
 		int32_t newHeadTotals[TIME_STRETCH_CROSSFADE_NUM_MOVING_AVERAGES];
-		if (ALPHA_OR_BETA_VERSION && newHeadBytePos < (int32_t)sample->audioDataStartPosBytes) numericDriver.freezeWithError("E285");
-		success = sample->getAveragesForCrossfade(newHeadTotals, newHeadBytePos, crossfadeLengthSamplesSource, playDirection, lengthToAverageEach);
+		if (ALPHA_OR_BETA_VERSION && newHeadBytePos < (int32_t)sample->audioDataStartPosBytes)
+			numericDriver.freezeWithError("E285");
+		success = sample->getAveragesForCrossfade(newHeadTotals, newHeadBytePos, crossfadeLengthSamplesSource,
+		                                          playDirection, lengthToAverageEach);
 		if (!success) goto skipSearch;
 
 		int32_t bestDifferenceAbs = getTotalDifferenceAbs(oldHeadTotals, newHeadTotals);
@@ -574,11 +604,7 @@ skipPercStuff:
 
 		int32_t initialTotalChange = getTotalChange(oldHeadTotals, newHeadTotals);
 
-
-
 		int searchDirection = playDirection;
-
-
 
 		int readByte[TIME_STRETCH_CROSSFADE_NUM_MOVING_AVERAGES + 1];
 
@@ -586,11 +612,10 @@ skipPercStuff:
 
 		int samplePosMidCrossfade = samplePos + (crossfadeLengthSamplesSource >> 1) * playDirection;
 
-		int readSample = samplePosMidCrossfade - ((lengthToAverageEach * TIME_STRETCH_CROSSFADE_NUM_MOVING_AVERAGES) >> 1) * playDirection;
+		int readSample = samplePosMidCrossfade
+		                 - ((lengthToAverageEach * TIME_STRETCH_CROSSFADE_NUM_MOVING_AVERAGES) >> 1) * playDirection;
 
 		int firstReadByte = readSample * bytesPerSample + sample->audioDataStartPosBytes;
-
-
 
 		int maxSearchSize = (samplesTilHopEnd * 40) >> 8; // I don't remember the logic behind this line...
 		maxSearchSize = ((uint64_t)maxSearchSize * phaseIncrement) >> 24;
@@ -599,11 +624,12 @@ skipPercStuff:
 		maxSearchSize = 441;
 #endif
 
-		int limit = (sample->sampleRate / 45) >> 1; // Allow tracking down to around 45Hz, at input. We >>1 again because this limit is just for searching in one direction, and we're going to do both directions.
+		int limit =
+		    (sample->sampleRate / 45)
+		    >> 1; // Allow tracking down to around 45Hz, at input. We >>1 again because this limit is just for searching in one direction, and we're going to do both directions.
 		maxSearchSize = getMin(maxSearchSize, limit);
 		//Uart::print("max search length: ");
 		//Uart::println(maxSearchSize);
-
 
 		int numFullDirectionsSearched = 0;
 		int timesSignFlipped = 0;
@@ -648,9 +674,10 @@ startSearch:
 			// Setup the various points between the moving averages
 			for (int i = 0; i < TIME_STRETCH_CROSSFADE_NUM_MOVING_AVERAGES + 1; i++) {
 
-				int bytesTilWaveformEnd = (searchDirection == 1) ?
-						(sample->audioDataStartPosBytes + sample->audioDataLengthBytes - readByte[i]) :
-						readByte[i] - ((int32_t)sample->audioDataStartPosBytes - bytesPerSample);
+				int bytesTilWaveformEnd =
+				    (searchDirection == 1)
+				        ? (sample->audioDataStartPosBytes + sample->audioDataLengthBytes - readByte[i])
+				        : readByte[i] - ((int32_t)sample->audioDataStartPosBytes - bytesPerSample);
 
 				if (bytesTilWaveformEnd <= 0) goto searchNextDirection;
 
@@ -660,7 +687,10 @@ startSearch:
 
 				int bytePosWithinCluster = readByte[i] & (audioFileManager.clusterSize - 1);
 
-				int bytesLeftThisCluster = (searchDirection == -1) ? (bytePosWithinCluster + bytesPerSample) : (audioFileManager.clusterSize - bytePosWithinCluster + bytesPerSample - 1);
+				int bytesLeftThisCluster =
+				    (searchDirection == -1)
+				        ? (bytePosWithinCluster + bytesPerSample)
+				        : (audioFileManager.clusterSize - bytePosWithinCluster + bytesPerSample - 1);
 
 				int bytesWeMayRead = getMin(bytesTilWaveformEnd, bytesLeftThisCluster);
 
@@ -683,9 +713,10 @@ startSearch:
 				goto entryPoint;
 
 				// Grab this sample for each moving-average-boundary
-				for ( ; i < TIME_STRETCH_CROSSFADE_NUM_MOVING_AVERAGES + 1; i++) { // Manually unrolling didn't speed up
+				for (; i < TIME_STRETCH_CROSSFADE_NUM_MOVING_AVERAGES + 1; i++) { // Manually unrolling didn't speed up
 
-					thisRunningTotal = newHeadRunningTotals[i - 1] - readValueRelativeToBothDirections; // Subtracts the one from last iteration
+					thisRunningTotal = newHeadRunningTotals[i - 1]
+					                   - readValueRelativeToBothDirections; // Subtracts the one from last iteration
 entryPoint:
 
 					int32_t readValueHere = *(int32_t*)currentPos[i] >> 16;
@@ -707,7 +738,8 @@ entryPoint:
 				int32_t differenceAbs = getTotalDifferenceAbs(oldHeadTotals, newHeadRunningTotals);
 
 				// If our very first read is worse, let's switch search direction right now - that'll improve our odds
-				if (offsetNow == 0 && searchDirectionRelativeToPlayDirection == 1 && !numFullDirectionsSearched && differenceAbs > bestDifferenceAbs) {
+				if (offsetNow == 0 && searchDirectionRelativeToPlayDirection == 1 && !numFullDirectionsSearched
+				    && differenceAbs > bestDifferenceAbs) {
 					goto restartSearchWithOtherDirection;
 				}
 
@@ -727,12 +759,19 @@ entryPoint:
 
 					// Try going in between the samples for the most accurate positioning, lining-up-wise.
 					// The benefit of this is visible on a spectrum analysis if you're pitching a high-pitched sine wave right down, while also time stretching it
-					if (phaseIncrement != 16777216 && (thisOffsetIsBestMatch || bestOffset == offsetNow - bytesPerSampleTimesSearchDirection)) { // If best was this one or last one
+					if (phaseIncrement != 16777216
+					    && (thisOffsetIsBestMatch
+					        || bestOffset
+					               == offsetNow
+					                      - bytesPerSampleTimesSearchDirection)) { // If best was this one or last one
 						uint32_t thisTotalDifferenceAbs = std::abs(thisTotalChange);
 						uint32_t lastTotalDifferenceAbs = std::abs(lastTotalChange);
-						additionalOscPos = ((uint64_t)lastTotalDifferenceAbs << 24) / (uint32_t)(lastTotalDifferenceAbs + thisTotalDifferenceAbs);
-						if (searchDirectionRelativeToPlayDirection == -1) additionalOscPos = 16777216 - additionalOscPos;
-						if (thisOffsetIsBestMatch != (searchDirectionRelativeToPlayDirection == -1)) bestOffset -= bytesPerSample * playDirection;
+						additionalOscPos = ((uint64_t)lastTotalDifferenceAbs << 24)
+						                   / (uint32_t)(lastTotalDifferenceAbs + thisTotalDifferenceAbs);
+						if (searchDirectionRelativeToPlayDirection == -1)
+							additionalOscPos = 16777216 - additionalOscPos;
+						if (thisOffsetIsBestMatch != (searchDirectionRelativeToPlayDirection == -1))
+							bestOffset -= bytesPerSample * playDirection;
 					}
 
 					// After sign has flipped a certain number of times (in total, including both search directions), we can be fairly sure we've found a good fit
@@ -769,7 +808,6 @@ stopSearch:
 			}
 		}
 
-
 		newHeadBytePos += bestOffset;
 
 		// The above is supposed to not go back beyond the start of the waveform, but there must be some bug because it does. Until I fix that,
@@ -783,12 +821,10 @@ stopSearch:
 
 skipSearch:
 
-
 #if TIME_STRETCH_ENABLE_BUFFER
 	// If we might want to set up reading from buffer...
 	if (bufferFillingMode != BUFFER_FILLING_OFF // If not OFF, it can only be OLDER or NEITHER - it gets changed above
-			&& phaseIncrement != 16777216
-			) {
+	    && phaseIncrement != 16777216) {
 
 		if (!olderPartReader.clusters[0]) {
 			Uart::println("aaa");
@@ -801,7 +837,6 @@ skipSearch:
 
 		// Only proceed if newer head is earlier than older one
 		if (bytesBehind < 0) goto optForDirectReading;
-
 
 		uint32_t samplesBehind = (uint32_t)bytesBehind / (uint8_t)(sample->numChannels * sample->byteDepth);
 		int samplesBehindOnRepitchedWaveform = ((uint64_t)samplesBehind << 24) / (uint32_t)phaseIncrement;
@@ -830,12 +865,14 @@ skipSearch:
 			newerHeadReadingFromBuffer = false;
 			olderHeadReadingFromBuffer = true;
 			olderBufferReadPos = bufferWritePos; // TODO: is this right?
-			if (olderBufferReadPos != bufferWritePos) Uart::println("aaaaaaaaaaaa!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+			if (olderBufferReadPos != bufferWritePos)
+				Uart::println("aaaaaaaaaaaa!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
 			bufferFillingMode = BUFFER_FILLING_NEWER;
 		}
 		else {
 			//Uart::println("new head reading buffered");
-			newerBufferReadPos = (uint32_t)(bufferWritePos - samplesBehindOnRepitchedWaveform) & (TIME_STRETCH_BUFFER_SIZE - 1);
+			newerBufferReadPos =
+			    (uint32_t)(bufferWritePos - samplesBehindOnRepitchedWaveform) & (TIME_STRETCH_BUFFER_SIZE - 1);
 			newerHeadReadingFromBuffer = true;
 			//Uart::print("samples behind: ");
 			//Uart::println(samplesBehindOnRepitchedWaveform);
@@ -846,12 +883,11 @@ skipSearch:
 	else {
 optForDirectReading:
 		//Uart::println("head reading non-buffered");
-newerHeadReadingFromBuffer = false;
+		newerHeadReadingFromBuffer = false;
 #endif
 
-
-
-		bool success = setupNewPlayHead(sample, voiceSample, guide, newHeadBytePos, additionalOscPos, priorityRating, loopingType);
+		bool success =
+		    setupNewPlayHead(sample, voiceSample, guide, newHeadBytePos, additionalOscPos, priorityRating, loopingType);
 		if (!success) {
 
 			Uart::println("setupNewPlayHead failed. Sticking with old");
@@ -874,7 +910,8 @@ newerHeadReadingFromBuffer = false;
 
 #else
 	// If no one's reading from the buffer anymore, stop filling it
-	if (buffer && !olderHeadReadingFromBuffer) { // olderHeadReadingFromBuffer will always be false - we set it above, at the start
+	if (buffer
+	    && !olderHeadReadingFromBuffer) { // olderHeadReadingFromBuffer will always be false - we set it above, at the start
 		generalMemoryAllocator.dealloc(buffer);
 		buffer = NULL;
 		Uart::println("abandoning buffer!!!!!!!!!!!!!!!!");
@@ -883,24 +920,25 @@ newerHeadReadingFromBuffer = false;
 #endif
 
 #if MEASURE_HOP_END_PERFORMANCE
-    uint16_t endTime = MTU2.TCNT_0;
-    uint16_t timeTaken = endTime - startTime;
-    Uart::print("hop end time: ");
-    Uart::println(timeTaken);
+	uint16_t endTime = MTU2.TCNT_0;
+	uint16_t timeTaken = endTime - startTime;
+	Uart::print("hop end time: ");
+	Uart::println(timeTaken);
 #endif
-
 
 	AudioEngine::logAction("/hopEnd");
 
-    return true;
+	return true;
 }
 
-
-bool TimeStretcher::setupNewPlayHead(Sample* sample, VoiceSample* voiceSample, SamplePlaybackGuide* guide, int newHeadBytePos, int additionalOscPos, int priorityRating, int loopingType) {
+bool TimeStretcher::setupNewPlayHead(Sample* sample, VoiceSample* voiceSample, SamplePlaybackGuide* guide,
+                                     int newHeadBytePos, int additionalOscPos, int priorityRating, int loopingType) {
 	bool success = voiceSample->setupClustersForPlayFromByte(guide, sample, newHeadBytePos, priorityRating);
 	if (!success) return false;
 
-	success = voiceSample->changeClusterIfNecessary(guide, sample, (loopingType == LOOP_LOW_LEVEL), priorityRating); // Set looping as false - change in June 2019. Pretty sure this is right...
+	success = voiceSample->changeClusterIfNecessary(
+	    guide, sample, (loopingType == LOOP_LOW_LEVEL),
+	    priorityRating); // Set looping as false - change in June 2019. Pretty sure this is right...
 	if (!success) return false;
 
 	voiceSample->interpolationBufferSizeLastTime = 0;
@@ -913,21 +951,15 @@ bool TimeStretcher::setupNewPlayHead(Sample* sample, VoiceSample* voiceSample, S
 	return true;
 }
 
-
-
-
-
-
 #if TIME_STRETCH_ENABLE_BUFFER
-void TimeStretcher::reassessWhetherToBeFillingBuffer(int32_t phaseIncrement, int32_t timeStretchRatio, int newBufferFillingMode, int numChannels) {
+void TimeStretcher::reassessWhetherToBeFillingBuffer(int32_t phaseIncrement, int32_t timeStretchRatio,
+                                                     int newBufferFillingMode, int numChannels) {
 
 	// If not currently filling buffer...
 	if (bufferFillingMode == BUFFER_FILLING_OFF) {
 
 		// If need to start filling buffer...
-		if (phaseIncrement != 16777216
-				&& timeStretchRatio < 16777216
-				) {
+		if (phaseIncrement != 16777216 && timeStretchRatio < 16777216) {
 
 			bool success = allocateBuffer(numChannels);
 			if (success) {
@@ -957,13 +989,14 @@ void TimeStretcher::reassessWhetherToBeFillingBuffer(int32_t phaseIncrement, int
 #endif
 
 bool TimeStretcher::allocateBuffer(int numChannels) {
-	buffer = (int32_t*)generalMemoryAllocator.alloc(TIME_STRETCH_BUFFER_SIZE * sizeof(int32_t) * numChannels, NULL, false, true);
+	buffer = (int32_t*)generalMemoryAllocator.alloc(TIME_STRETCH_BUFFER_SIZE * sizeof(int32_t) * numChannels, NULL,
+	                                                false, true);
 	return (buffer != NULL);
 }
 
-void TimeStretcher::readFromBuffer(int32_t* __restrict__ oscBufferPos, int numSamples, int numChannels, int numChannelsAfterCondensing,
-		int32_t sourceAmplitudeNow, int32_t amplitudeIncrementNow, int* __restrict__ bufferReadPos) {
-
+void TimeStretcher::readFromBuffer(int32_t* __restrict__ oscBufferPos, int numSamples, int numChannels,
+                                   int numChannelsAfterCondensing, int32_t sourceAmplitudeNow,
+                                   int32_t amplitudeIncrementNow, int* __restrict__ bufferReadPos) {
 
 	int32_t* oscBufferEndNow = oscBufferPos + numSamples * numChannels;
 
@@ -988,7 +1021,8 @@ void TimeStretcher::readFromBuffer(int32_t* __restrict__ oscBufferPos, int numSa
 		sourceAmplitudeNow += amplitudeIncrementNow;
 
 		// Mono / left channel (or stereo condensed to mono)
-		*oscBufferPos += multiply_32x32_rshift32(sampleRead[0], sourceAmplitudeNow); // sourceAmplitude is modified above
+		*oscBufferPos +=
+		    multiply_32x32_rshift32(sampleRead[0], sourceAmplitudeNow); // sourceAmplitude is modified above
 		oscBufferPos++;
 
 		// Right channel
@@ -1003,21 +1037,20 @@ void TimeStretcher::readFromBuffer(int32_t* __restrict__ oscBufferPos, int numSa
 // And just to be super clear, this is for remembering links to *PERC CACHE Clusters*! Not just regular audio data Clusters.
 void TimeStretcher::rememberPercCacheCluster(Cluster* cluster) {
 
-	if (	percCacheClustersNearby[0] == cluster
-		||	percCacheClustersNearby[1] == cluster) {
+	if (percCacheClustersNearby[0] == cluster || percCacheClustersNearby[1] == cluster) {
 		return;
 	}
 
 	audioFileManager.addReasonToCluster(cluster);
 
 	if (percCacheClustersNearby[0]) {
-		audioFileManager.removeReasonFromCluster(percCacheClustersNearby[0], "E133"); // Steven G got this on V3.1.5, Feb 2021!
+		audioFileManager.removeReasonFromCluster(percCacheClustersNearby[0],
+		                                         "E133"); // Steven G got this on V3.1.5, Feb 2021!
 	}
 	percCacheClustersNearby[0] = percCacheClustersNearby[1];
 
 	percCacheClustersNearby[1] = cluster;
 }
-
 
 // This is just responsible for adding reasons to the upcoming Clusters of sample audio data that the perc lookahead is going to need in the next little while, to reserve it and hopefully make sure it's loaded and in memory when we need it.
 void TimeStretcher::updateClustersForPercLookahead(Sample* sample, uint32_t sourceBytePos, int playDirection) {
@@ -1028,15 +1061,16 @@ void TimeStretcher::updateClustersForPercLookahead(Sample* sample, uint32_t sour
 
 		int nextClusterIndex = clusterIndex;
 		for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD; l++) {
-			if (nextClusterIndex < sample->getFirstClusterIndexWithAudioData() || nextClusterIndex >= sample->getFirstClusterIndexWithNoAudioData()) break; // If no more Clusters
-			clustersForPercLookahead[l] = sample->clusters.getElement(nextClusterIndex)->getCluster(sample, nextClusterIndex, CLUSTER_ENQUEUE);
+			if (nextClusterIndex < sample->getFirstClusterIndexWithAudioData()
+			    || nextClusterIndex >= sample->getFirstClusterIndexWithNoAudioData())
+				break; // If no more Clusters
+			clustersForPercLookahead[l] =
+			    sample->clusters.getElement(nextClusterIndex)->getCluster(sample, nextClusterIndex, CLUSTER_ENQUEUE);
 			if (!clustersForPercLookahead[l]) break;
 			nextClusterIndex += playDirection;
 		}
 	}
 }
-
-
 
 void TimeStretcher::setupCrossfadeFromCache(SampleCache* cache, int cacheBytePos, int numChannels) {
 
@@ -1059,7 +1093,9 @@ void TimeStretcher::setupCrossfadeFromCache(SampleCache* cache, int cacheBytePos
 	}
 	int32_t* __restrict__ readPos = (int32_t*)&cacheCluster->data[bytePosWithinCluster - 4 + CACHE_BYTE_DEPTH];
 
-	int bytesTilCacheClusterEnd = audioFileManager.clusterSize - bytePosWithinCluster + (CACHE_BYTE_DEPTH * numChannels - 1); // Add one-byte-less-than-a-sample to it, so it'll round up
+	int bytesTilCacheClusterEnd =
+	    audioFileManager.clusterSize - bytePosWithinCluster
+	    + (CACHE_BYTE_DEPTH * numChannels - 1); // Add one-byte-less-than-a-sample to it, so it'll round up
 	if (bytesTilCacheClusterEnd <= CACHE_BYTE_DEPTH * numChannels) return; // TODO: allow it go to the next Cluster
 
 	if (!buffer) {
@@ -1077,13 +1113,16 @@ void TimeStretcher::setupCrossfadeFromCache(SampleCache* cache, int cacheBytePos
 	int bytesTilThisWindowEnd = getMin(bytesTilCacheClusterEnd, bytesTilCacheEnd);
 
 #if CACHE_BYTE_DEPTH == 3
-	int samplesTilThisWindowEnd = (uint32_t)bytesTilThisWindowEnd / (uint8_t)(numChannels * CACHE_BYTE_DEPTH); // Will round up, cos we did that additional bit above
+	int samplesTilThisWindowEnd =
+	    (uint32_t)bytesTilThisWindowEnd
+	    / (uint8_t)(numChannels * CACHE_BYTE_DEPTH); // Will round up, cos we did that additional bit above
 #else
 	int samplesTilThisWindowEnd = bytesTilThisWindowEnd >> CACHE_BYTE_DEPTH_MAGNITUDE;
 	if (numChannels == 2) samplesTilThisWindowEnd >>= 1;
 #endif
 
-	if (samplesTilThisWindowEnd < numSamplesThisCacheRead) numSamplesThisCacheRead = samplesTilThisWindowEnd; // Only do this after we're sure we're not cancelling caching
+	if (samplesTilThisWindowEnd < numSamplesThisCacheRead)
+		numSamplesThisCacheRead = samplesTilThisWindowEnd; // Only do this after we're sure we're not cancelling caching
 
 	if (ALPHA_OR_BETA_VERSION && numSamplesThisCacheRead <= 0) numericDriver.freezeWithError("E179");
 
@@ -1113,7 +1152,6 @@ void TimeStretcher::setupCrossfadeFromCache(SampleCache* cache, int cacheBytePos
 	bufferFillingMode = BUFFER_FILLING_OFF;
 #endif
 }
-
 
 int32_t TimeStretcher::getSamplePos(int playDirection) {
 	if (playDirection == 1) return samplePosBig >> 24;

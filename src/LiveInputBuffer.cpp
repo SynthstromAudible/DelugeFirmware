@@ -25,15 +25,12 @@ extern "C" {
 #include "ssi_all_cpus.h"
 }
 
-
-LiveInputBuffer::LiveInputBuffer()
-{
+LiveInputBuffer::LiveInputBuffer() {
 	upToTime = 0;
 	numRawSamplesProcessed = 0;
 }
 
-LiveInputBuffer::~LiveInputBuffer()
-{
+LiveInputBuffer::~LiveInputBuffer() {
 	// TODO Auto-generated destructor stub
 }
 
@@ -49,9 +46,9 @@ void LiveInputBuffer::giveInput(int numSamples, uint32_t currentTime, int inputT
 		memset(angleLPFMem, 0, sizeof(angleLPFMem));
 	}
 
-    int32_t const * __restrict__ inputReadPos = (int32_t const *)AudioEngine::i2sRXBufferPos;
+	int32_t const* __restrict__ inputReadPos = (int32_t const*)AudioEngine::i2sRXBufferPos;
 
-    uint32_t endNumRawSamplesProcessed = numRawSamplesProcessed + numSamples;
+	uint32_t endNumRawSamplesProcessed = numRawSamplesProcessed + numSamples;
 
 	do {
 
@@ -70,8 +67,6 @@ void LiveInputBuffer::giveInput(int numSamples, uint32_t currentTime, int inputT
 			rawBuffer[(numRawSamplesProcessed & (INPUT_RAW_BUFFER_SIZE - 1)) * 2] = inputReadPos[0];
 			rawBuffer[(numRawSamplesProcessed & (INPUT_RAW_BUFFER_SIZE - 1)) * 2 + 1] = inputReadPos[1];
 		}
-
-
 
 		int32_t angle = thisSampleRead - lastSampleRead;
 		lastSampleRead = thisSampleRead;
@@ -93,7 +88,8 @@ void LiveInputBuffer::giveInput(int numSamples, uint32_t currentTime, int inputT
 
 			percussiveness = getTanH(percussiveness, 23);
 
-			percBuffer[(numRawSamplesProcessed >> PERC_BUFFER_REDUCTION_MAGNITUDE) & (INPUT_PERC_BUFFER_SIZE - 1)] = percussiveness;
+			percBuffer[(numRawSamplesProcessed >> PERC_BUFFER_REDUCTION_MAGNITUDE) & (INPUT_PERC_BUFFER_SIZE - 1)] =
+			    percussiveness;
 		}
 		lastAngle = angle;
 
@@ -105,8 +101,6 @@ void LiveInputBuffer::giveInput(int numSamples, uint32_t currentTime, int inputT
 
 	upToTime = currentTime + numSamples;
 }
-
-
 
 bool LiveInputBuffer::getAveragesForCrossfade(int32_t* totals, int startPos, int lengthToAverageEach, int numChannels) {
 
@@ -129,5 +123,3 @@ bool LiveInputBuffer::getAveragesForCrossfade(int32_t* totals, int startPos, int
 
 	return true;
 }
-
-

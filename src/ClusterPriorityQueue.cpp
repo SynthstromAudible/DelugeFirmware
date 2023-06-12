@@ -21,13 +21,9 @@
 
 class Cluster;
 
-
-
-ClusterPriorityQueue::ClusterPriorityQueue() :
-		OrderedResizeableArrayWith32bitKey(sizeof(PriorityQueueElement), 32, 31)
-{
+ClusterPriorityQueue::ClusterPriorityQueue()
+    : OrderedResizeableArrayWith32bitKey(sizeof(PriorityQueueElement), 32, 31) {
 }
-
 
 // Returns error
 int ClusterPriorityQueue::add(Cluster* cluster, uint32_t priorityRating) {
@@ -59,7 +55,6 @@ bool ClusterPriorityQueue::removeIfPresent(Cluster* cluster) {
 
 	return false;
 }
-
 
 bool ClusterPriorityQueue::checkPresent(Cluster* cluster) {
 	for (int i = 0; i < numElements; i++) {

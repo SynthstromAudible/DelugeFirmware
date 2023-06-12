@@ -51,28 +51,24 @@ Includes   <System Includes> , "Project Includes"
 Typedef definitions
 ******************************************************************************/
 
-
 /******************************************************************************
 Macro definitions
 ******************************************************************************/
 /* The address when writing in a SDRAM mode register */
-#define SDRAM_MODE_CS2    (*(volatile uint16_t *)(0x3FFFD040))
-#define SDRAM_MODE_CS3    (*(volatile uint16_t *)(0x3FFFE040))
+#define SDRAM_MODE_CS2 (*(volatile uint16_t*)(0x3FFFD040))
+#define SDRAM_MODE_CS3 (*(volatile uint16_t*)(0x3FFFE040))
 
 /******************************************************************************
 Imported global variables and functions (from other files)
 ******************************************************************************/
 
-
 /******************************************************************************
 Exported global variables and functions (to be accessed by other files)
 ******************************************************************************/
 
-
 /******************************************************************************
 Private global variables and functions
 ******************************************************************************/
-
 
 /******************************************************************************
 * Function Name: userdef_bsc_cs0Init
@@ -85,7 +81,7 @@ Private global variables and functions
 * Arguments    : none
 * Return Value : none
 ******************************************************************************/
-void userdef_bsc_cs0_init (void)
+void userdef_bsc_cs0_init(void)
 {
     /* ---- CS0BCR settings ---- */
     /* Idle Cycles between Write-read Cycles    */
@@ -114,14 +110,13 @@ void userdef_bsc_cs0_init (void)
 * Arguments    : none
 * Return Value : none
 ******************************************************************************/
-void userdef_bsc_cs1_init (void)
+void userdef_bsc_cs1_init(void)
 {
     /* ---- CS1BCR settings ---- */
     /* Idle Cycles between Write-read Cycles    */
     /*  and Write-write Cycles : 1 idle cycle   */
     /* Data Bus Size: 16-bit                    */
     BSC.CS1BCR = 0x10000C00uL;
-
 
     /* ---- CS1WCR settings ----  */
     /* Number of Delay Cycles from Address,     */
@@ -159,7 +154,7 @@ void userdef_bsc_cs1_init (void)
 * Arguments    : none
 * Return Value : none
 ******************************************************************************/
-void userdef_bsc_cs2_init (uint8_t ramSize)
+void userdef_bsc_cs2_init(uint8_t ramSize)
 {
     /* ==== CS2BCR settings ==== */
     /* Idle Cycles between Write-read Cycles  */
@@ -203,7 +198,7 @@ void userdef_bsc_cs2_init (uint8_t ramSize)
     /* Row address for Area 3 : 13-bit    */
     /* Column Address for Area 3 : 9-bit  */
     if (ramSize != 0) BSC.SDCR = 0x00110911ul; // CS3 cols 9-bit. For 32MB chip
-    else BSC.SDCR = 0x00110912ul; // CS3 cols 10-bit. For 64MB chip
+    else BSC.SDCR = 0x00110912ul;              // CS3 cols 10-bit. For 64MB chip
 
     /* ==== RTCOR settings ==== */
     /* 7.64usec / 240nsec              */
@@ -235,7 +230,7 @@ void userdef_bsc_cs2_init (uint8_t ramSize)
 * Arguments    : none
 * Return Value : none
 ******************************************************************************/
-void userdef_bsc_cs3_init (void)
+void userdef_bsc_cs3_init(void)
 {
     /* SDRAM WORKAROUND - see Note inside function userdef_bsc_cs2_init */
 }
@@ -248,7 +243,7 @@ void userdef_bsc_cs3_init (void)
 * Arguments    : none
 * Return Value : none
 ******************************************************************************/
-void userdef_bsc_cs4_init (void)
+void userdef_bsc_cs4_init(void)
 {
     /* Add processing when using CS4 space */
 }
@@ -261,11 +256,9 @@ void userdef_bsc_cs4_init (void)
 * Arguments    : none
 * Return Value : none
 ******************************************************************************/
-void userdef_bsc_cs5_init (void)
+void userdef_bsc_cs5_init(void)
 {
     /* Add processing when using CS5 space */
 }
 
-
 /* End of File */
-

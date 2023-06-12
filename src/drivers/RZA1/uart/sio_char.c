@@ -46,43 +46,38 @@ Includes   <System Includes> , "Project Includes"
 #include <stdlib.h>
 #include "cpu_specific.h"
 
+char_t picTxBuffer[PIC_TX_BUFFER_SIZE] __attribute__((aligned(CACHE_LINE_SIZE)));
+char_t midiTxBuffer[MIDI_TX_BUFFER_SIZE] __attribute__((aligned(CACHE_LINE_SIZE)));
 
+char_t picRxBuffer[PIC_RX_BUFFER_SIZE] __attribute__((aligned(CACHE_LINE_SIZE)));
+char_t midiRxBuffer[MIDI_RX_BUFFER_SIZE] __attribute__((aligned(CACHE_LINE_SIZE)));
+uint32_t midiRxTimingBuffer[MIDI_RX_TIMING_BUFFER_SIZE] __attribute__((aligned(
+    CACHE_LINE_SIZE))); // I'd like to store just 16 bits per entry for this, but the DMA wouldn't do it - whether or not I also set its source data size to 16 bits
 
-char_t picTxBuffer[PIC_TX_BUFFER_SIZE] __attribute__ ((aligned (CACHE_LINE_SIZE)));
-char_t midiTxBuffer[MIDI_TX_BUFFER_SIZE] __attribute__ ((aligned (CACHE_LINE_SIZE)));
-
-char_t picRxBuffer[PIC_RX_BUFFER_SIZE] __attribute__ ((aligned (CACHE_LINE_SIZE)));
-char_t midiRxBuffer[MIDI_RX_BUFFER_SIZE] __attribute__ ((aligned (CACHE_LINE_SIZE)));
-uint32_t midiRxTimingBuffer[MIDI_RX_TIMING_BUFFER_SIZE] __attribute__ ((aligned (CACHE_LINE_SIZE))); // I'd like to store just 16 bits per entry for this, but the DMA wouldn't do it - whether or not I also set its source data size to 16 bits
-
-char_t* const txBuffers[] = {picTxBuffer, midiTxBuffer};
+char_t* const txBuffers[]      = {picTxBuffer, midiTxBuffer};
 const uint16_t txBufferSizes[] = {PIC_TX_BUFFER_SIZE, MIDI_TX_BUFFER_SIZE};
 
-char_t* const rxBuffers[] = {picRxBuffer, midiRxBuffer};
+char_t* const rxBuffers[]      = {picRxBuffer, midiRxBuffer};
 const uint16_t rxBufferSizes[] = {PIC_RX_BUFFER_SIZE, MIDI_RX_BUFFER_SIZE};
 
-const uint8_t uartChannels[] = {UART_CHANNEL_PIC, UART_CHANNEL_MIDI};
+const uint8_t uartChannels[]  = {UART_CHANNEL_PIC, UART_CHANNEL_MIDI};
 const uint8_t txDmaChannels[] = {PIC_TX_DMA_CHANNEL, MIDI_TX_DMA_CHANNEL};
 const uint8_t rxDmaChannels[] = {PIC_RX_DMA_CHANNEL, MIDI_RX_DMA_CHANNEL};
 
 char_t* rxBufferReadAddr[] = {picRxBuffer, midiRxBuffer};
 
-char_t const timingCaptureItems[] = {UART_ITEM_MIDI};
+char_t const timingCaptureItems[]         = {UART_ITEM_MIDI};
 uint16_t const timingCaptureBufferSizes[] = {MIDI_RX_TIMING_BUFFER_SIZE};
-uint32_t* const timingCaptureBuffers[] = {midiRxTimingBuffer};
-uint8_t const timingCaptureDMAChannels[] = {MIDI_RX_TIMING_DMA_CHANNEL};
+uint32_t* const timingCaptureBuffers[]    = {midiRxTimingBuffer};
+uint8_t const timingCaptureDMAChannels[]  = {MIDI_RX_TIMING_DMA_CHANNEL};
 
+void uartInit(int item, uint32_t baudRate)
+{
 
+    int scifID = uartChannels[item];
 
-
-void uartInit(int item, uint32_t baudRate) {
-
-	int scifID = uartChannels[item];
-
-	Userdef_SCIF_UART_Init(scifID, SCIF_UART_MODE_RW, SCIF_CKS_DIVISION_1, baudRate);
+    Userdef_SCIF_UART_Init(scifID, SCIF_UART_MODE_RW, SCIF_CKS_DIVISION_1, baudRate);
 }
-
-
 
 void Userdef_SCIF_UART_Init(uint8_t channel, uint8_t mode, uint16_t cks, uint32_t baudRate)
 {
@@ -112,19 +107,13 @@ void Userdef_SCIF_UART_Init(uint8_t channel, uint8_t mode, uint16_t cks, uint32_
     if (SCIF_UART_MODE_W == (mode & SCIF_UART_MODE_W))
     {
         /* Transmit FIFO reset */
-        RZA_IO_RegWrite_16((uint16_t *)&SCIFA(channel).SCFCR,
-        		           1,
-        		           SCIF2_SCFCR_TFRST_SHIFT,
-        		           SCIF2_SCFCR_TFRST);
+        RZA_IO_RegWrite_16((uint16_t*)&SCIFA(channel).SCFCR, 1, SCIF2_SCFCR_TFRST_SHIFT, SCIF2_SCFCR_TFRST);
     }
 
     if (SCIF_UART_MODE_R == (mode & SCIF_UART_MODE_R))
     {
         /* Receive FIFO data register reset */
-        RZA_IO_RegWrite_16((uint16_t *)&SCIFA(channel).SCFCR,
-        		            1,
-        		            SCIF2_SCFCR_RFRST_SHIFT,
-        		            SCIF2_SCFCR_RFRST);
+        RZA_IO_RegWrite_16((uint16_t*)&SCIFA(channel).SCFCR, 1, SCIF2_SCFCR_RFRST_SHIFT, SCIF2_SCFCR_RFRST);
     }
 
     /* Serial status register (SCFSR2) setting */
@@ -133,17 +122,11 @@ void Userdef_SCIF_UART_Init(uint8_t channel, uint8_t mode, uint16_t cks, uint32_
 
     /* Line status register (SCLSR2) setting */
     /* ORER bit clear */
-    RZA_IO_RegWrite_16((uint16_t *)&SCIFA(channel).SCLSR,
-    		           0,
-    		           SCIF2_SCLSR_ORER_SHIFT,
-    		           SCIF2_SCLSR_ORER);
+    RZA_IO_RegWrite_16((uint16_t*)&SCIFA(channel).SCLSR, 0, SCIF2_SCLSR_ORER_SHIFT, SCIF2_SCLSR_ORER);
 
     /* Serial control register (SCSCR2) setting */
     /* B'00 : Internal CLK */
-    RZA_IO_RegWrite_16((uint16_t *)&SCIFA(channel).SCSCR,
-    		           0,
-    		           SCIF2_SCSCR_CKE_SHIFT,
-    		           SCIF2_SCSCR_CKE);
+    RZA_IO_RegWrite_16((uint16_t*)&SCIFA(channel).SCSCR, 0, SCIF2_SCSCR_CKE_SHIFT, SCIF2_SCSCR_CKE);
 
     /* Serial mode register (SCSMR2) setting
     b7    C/A  - Communication mode : Asynchronous mode
@@ -161,7 +144,7 @@ void Userdef_SCIF_UART_Init(uint8_t channel, uint8_t mode, uint16_t cks, uint32_
 
     uartSetBaudRate(channel, baudRate);
 
-   /*
+    /*
 	b10:b8 RSTRG - RTS output active trigger         : Initial value
 	b7:b6  RTRG  - Receive FIFO data trigger         : 1-data
 	b5:b4  TTRG  - Transmit FIFO data trigger        : 0-data
@@ -170,7 +153,7 @@ void Userdef_SCIF_UART_Init(uint8_t channel, uint8_t mode, uint16_t cks, uint32_
 	b1     RFRST - Receive FIFO data register reset  : Disabled
 	b0     LOOP  - Loop-back test                    : Disabled */
     SCIFA(channel).SCFCR = 0x0030u; // TX trigger 0; RX trigger 1
-    SCIFA(channel).SCFCR = 0; // TX trigger 8; RX trigger 1
+    SCIFA(channel).SCFCR = 0;       // TX trigger 8; RX trigger 1
 
     /* Serial port register (SCSPTR2) setting
     b1 SPB2IO - Serial port break output : Enabled
@@ -178,74 +161,69 @@ void Userdef_SCIF_UART_Init(uint8_t channel, uint8_t mode, uint16_t cks, uint32_
     SCIFA(channel).SCSPTR |= 0x0003u;
 }
 
-void uartSetBaudRate(uint8_t channel, uint32_t baudRate) {
+void uartSetBaudRate(uint8_t channel, uint32_t baudRate)
+{
 
-	uint8_t scbrr = round((float)(XTAL_SPEED_MHZ * 5) / (16 * baudRate) - 1);
+    uint8_t scbrr = round((float)(XTAL_SPEED_MHZ * 5) / (16 * baudRate) - 1);
 
     /* Bit rate register (SCBRR2) setting */
-	SCIFA(channel).SCBRR = scbrr;
+    SCIFA(channel).SCBRR = scbrr;
 }
 
-
-
-
-
-static void PIC_TX_INT_TrnEnd(uint32_t int_sense) {
-	tx_interrupt(UART_ITEM_PIC);
+static void PIC_TX_INT_TrnEnd(uint32_t int_sense)
+{
+    tx_interrupt(UART_ITEM_PIC);
 }
 
-static void MIDI_TX_INT_TrnEnd(uint32_t int_sense) {
-	tx_interrupt(UART_ITEM_MIDI);
+static void MIDI_TX_INT_TrnEnd(uint32_t int_sense)
+{
+    tx_interrupt(UART_ITEM_MIDI);
 }
 
 const void (*txInterruptFunctions[])(uint32_t) = {PIC_TX_INT_TrnEnd, MIDI_TX_INT_TrnEnd};
 
 const uint8_t txInterruptPriorities[] = {
-		5,
-		13 // This has to be higher number / lower priority than the MIDI-send timer interrupt
+    5,
+    13 // This has to be higher number / lower priority than the MIDI-send timer interrupt
 };
 
-const uint32_t picUartDmaRxLinkDescriptor[] __attribute__ ((aligned (CACHE_LINE_SIZE))) = {
-		0b1101, // Header
-		(uint32_t)&SCIFA(UART_CHANNEL_PIC).SCFRDR, // Source address
-		(uint32_t)picRxBuffer, // Destination address
-		PIC_RX_BUFFER_SIZE, // Transaction size
-		0b10000001000100000000000001100000 | DMA_AM_FOR_SCIF | (PIC_RX_DMA_CHANNEL & 7), // Config
-		0, // Interval
-		0, // Extension
-		(uint32_t)picUartDmaRxLinkDescriptor // Next link address (this one again)
+const uint32_t picUartDmaRxLinkDescriptor[] __attribute__((aligned(CACHE_LINE_SIZE))) = {
+    0b1101,                                                                          // Header
+    (uint32_t)&SCIFA(UART_CHANNEL_PIC).SCFRDR,                                       // Source address
+    (uint32_t)picRxBuffer,                                                           // Destination address
+    PIC_RX_BUFFER_SIZE,                                                              // Transaction size
+    0b10000001000100000000000001100000 | DMA_AM_FOR_SCIF | (PIC_RX_DMA_CHANNEL & 7), // Config
+    0,                                                                               // Interval
+    0,                                                                               // Extension
+    (uint32_t)picUartDmaRxLinkDescriptor // Next link address (this one again)
 };
 
-const uint32_t midiUartDmaRxLinkDescriptor[] __attribute__ ((aligned (CACHE_LINE_SIZE))) = {
-		0b1101, // Header
-		(uint32_t)&SCIFA(UART_CHANNEL_MIDI).SCFRDR, // Source address
-		(uint32_t)midiRxBuffer, // Destination address
-		MIDI_RX_BUFFER_SIZE, // Transaction size
-		0b10000001000100000000000001100000 | DMA_AM_FOR_SCIF | (MIDI_RX_DMA_CHANNEL & 7), // Config
-		0, // Interval
-		0, // Extension
-		(uint32_t)midiUartDmaRxLinkDescriptor // Next link address (this one again)
+const uint32_t midiUartDmaRxLinkDescriptor[] __attribute__((aligned(CACHE_LINE_SIZE))) = {
+    0b1101,                                                                           // Header
+    (uint32_t)&SCIFA(UART_CHANNEL_MIDI).SCFRDR,                                       // Source address
+    (uint32_t)midiRxBuffer,                                                           // Destination address
+    MIDI_RX_BUFFER_SIZE,                                                              // Transaction size
+    0b10000001000100000000000001100000 | DMA_AM_FOR_SCIF | (MIDI_RX_DMA_CHANNEL & 7), // Config
+    0,                                                                                // Interval
+    0,                                                                                // Extension
+    (uint32_t)midiUartDmaRxLinkDescriptor // Next link address (this one again)
 };
 
-const uint32_t midiUartDmaRxTimingLinkDescriptor[] __attribute__ ((aligned (CACHE_LINE_SIZE))) = {
-		0b1101, // Header
-		(uint32_t)&DMACnNonVolatile(SSI_TX_DMA_CHANNEL).CRSA_n, // Source address
-		(uint32_t)midiRxTimingBuffer, // Destination address
-		sizeof(midiRxTimingBuffer), // Transaction size
-		0b10000001000100100010000000100000 | DMA_AM_FOR_SCIF | (MIDI_RX_TIMING_DMA_CHANNEL & 7), // Config. LVL has to be set to 0 for some reason, otherwise we get duplicates of each value
-		0, // Interval
-		0, // Extension
-		(uint32_t)midiUartDmaRxTimingLinkDescriptor // Next link address (this one again)
+const uint32_t midiUartDmaRxTimingLinkDescriptor[] __attribute__((aligned(CACHE_LINE_SIZE))) = {
+    0b1101,                                                 // Header
+    (uint32_t)&DMACnNonVolatile(SSI_TX_DMA_CHANNEL).CRSA_n, // Source address
+    (uint32_t)midiRxTimingBuffer,                           // Destination address
+    sizeof(midiRxTimingBuffer),                             // Transaction size
+    0b10000001000100100010000000100000 | DMA_AM_FOR_SCIF
+        | (MIDI_RX_TIMING_DMA_CHANNEL
+            & 7), // Config. LVL has to be set to 0 for some reason, otherwise we get duplicates of each value
+    0,            // Interval
+    0,            // Extension
+    (uint32_t)midiUartDmaRxTimingLinkDescriptor // Next link address (this one again)
 };
-
 
 const uint32_t* const uartRxLinkDescriptors[] = {picUartDmaRxLinkDescriptor, midiUartDmaRxLinkDescriptor};
 
 const uint32_t* const timingCaptureLinkDescriptors[] = {midiUartDmaRxTimingLinkDescriptor};
 
-
-
-
-
 /* End of File */
-

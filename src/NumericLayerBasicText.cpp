@@ -20,33 +20,27 @@
 #include "uitimermanager.h"
 #include "IndicatorLEDs.h"
 
-NumericLayerBasicText::NumericLayerBasicText()
-{
+NumericLayerBasicText::NumericLayerBasicText() {
 	// TODO Auto-generated constructor stub
-
 }
 
-NumericLayerBasicText::~NumericLayerBasicText()
-{
+NumericLayerBasicText::~NumericLayerBasicText() {
 	// TODO Auto-generated destructor stub
 }
-
 
 void NumericLayerBasicText::isNowOnTop() {
 	if (blinkSpeed) {
 
 		if (blinkSpeed == 1 && uiTimerManager.isTimerSet(TIMER_LED_BLINK)) {
-		    uiTimerManager.setTimerByOtherTimer(TIMER_DISPLAY, TIMER_LED_BLINK);
+			uiTimerManager.setTimerByOtherTimer(TIMER_DISPLAY, TIMER_LED_BLINK);
 			if (!IndicatorLEDs::ledBlinkState[0]) currentlyBlanked = !currentlyBlanked; // Cheating
 		}
 		else {
 			int speed = (blinkSpeed == 1 && !currentlyBlanked) ? initialFlashTime : flashTime;
-		    uiTimerManager.setTimer(TIMER_DISPLAY, speed);
+			uiTimerManager.setTimer(TIMER_DISPLAY, speed);
 		}
 	}
 }
-
-
 
 bool NumericLayerBasicText::callBack() {
 
@@ -57,16 +51,17 @@ bool NumericLayerBasicText::callBack() {
 		if (blinkCount == 0) return true;
 	}
 
-    uiTimerManager.setTimer(TIMER_DISPLAY, flashTime);
+	uiTimerManager.setTimer(TIMER_DISPLAY, flashTime);
 
 	return false;
 }
 
 void NumericLayerBasicText::render(uint8_t* returnSegments) {
 	if (!currentlyBlanked) renderWithoutBlink(returnSegments);
-	else for (int c = 0; c < NUMERIC_DISPLAY_LENGTH; c++) {
-		returnSegments[c] = blinkedSegments[c];
-    }
+	else
+		for (int c = 0; c < NUMERIC_DISPLAY_LENGTH; c++) {
+			returnSegments[c] = blinkedSegments[c];
+		}
 }
 
 void NumericLayerBasicText::renderWithoutBlink(uint8_t* returnSegments) {

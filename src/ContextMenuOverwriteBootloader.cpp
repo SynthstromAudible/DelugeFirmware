@@ -44,7 +44,6 @@ char const** ContextMenuOverwriteBootloader::getOptions() {
 	return options;
 }
 
-
 #define FLASH_WRITE_SIZE 256 // Bigger doesn't seem to work...
 
 bool ContextMenuOverwriteBootloader::acceptCurrentOption() {
@@ -78,7 +77,7 @@ longError:
 	while (true) {
 
 		FILINFO fno;
-		result = f_readdir(&staticDIR, &fno); // Read a directory item
+		result = f_readdir(&staticDIR, &fno);            // Read a directory item
 		if (result != FR_OK || fno.fname[0] == 0) break; // Break on error or end of dir
 
 		if (fno.fname[0] == '_') continue; // Avoid hidden files created by stupid Macs
@@ -90,7 +89,7 @@ longError:
 		if (dotPos != 0 && !strcasecmp(dotPos, ".BIN")) {
 
 			// We found our .bin file!
-		    //displayPrompt("Found file");
+			//displayPrompt("Found file");
 
 			uint32_t fileSize = fno.fsize;
 
@@ -159,11 +158,11 @@ gotFlashError:
 
 			uint32_t eraseAddress = startFlashAddress;
 			while (numFlashSectors-- && eraseAddress < 0x01000000) {
-				int32_t flashError = R_SFLASH_EraseSector(eraseAddress, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
+				int32_t flashError =
+				    R_SFLASH_EraseSector(eraseAddress, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
 				if (flashError) goto gotFlashError;
 				eraseAddress += 0x10000; // 64K
 			}
-
 
 			// Copy new program from RAM to flash memory
 			uint32_t flashWriteAddress = startFlashAddress;
@@ -177,7 +176,8 @@ gotFlashError:
 				int bytesToWrite = bytesLeft;
 				if (bytesToWrite > FLASH_WRITE_SIZE) bytesToWrite = FLASH_WRITE_SIZE;
 
-				int32_t error = R_SFLASH_ByteProgram(flashWriteAddress, readAddress, bytesToWrite, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT, SPIBSC_OUTPUT_ADDR_24);
+				int32_t error = R_SFLASH_ByteProgram(flashWriteAddress, readAddress, bytesToWrite, SPIBSC_CH,
+				                                     SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT, SPIBSC_OUTPUT_ADDR_24);
 				if (error) goto gotFlashError;
 
 				flashWriteAddress += FLASH_WRITE_SIZE;

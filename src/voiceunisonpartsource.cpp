@@ -32,13 +32,14 @@ VoiceUnisonPartSource::VoiceUnisonPartSource() {
 	livePitchShifter = NULL;
 }
 
-
-
-bool VoiceUnisonPartSource::noteOn(Voice* voice, Source* source, VoiceSamplePlaybackGuide* guide, uint32_t samplesLate, uint32_t oscRetriggerPhase, bool resetEverything, uint8_t synthMode) {
+bool VoiceUnisonPartSource::noteOn(Voice* voice, Source* source, VoiceSamplePlaybackGuide* guide, uint32_t samplesLate,
+                                   uint32_t oscRetriggerPhase, bool resetEverything, uint8_t synthMode) {
 
 	if (synthMode != SYNTH_MODE_FM && source->oscType == OSC_TYPE_SAMPLE) {
 
-		if (!guide->audioFileHolder || !guide->audioFileHolder->audioFile || ((Sample*)guide->audioFileHolder->audioFile)->unplayable) return true; // We didn't succeed, but don't want to stop the whole Voice from sounding necessarily
+		if (!guide->audioFileHolder || !guide->audioFileHolder->audioFile
+		    || ((Sample*)guide->audioFileHolder->audioFile)->unplayable)
+			return true; // We didn't succeed, but don't want to stop the whole Voice from sounding necessarily
 
 		if (!voiceSample) { // We might actually already have one, and just be restarting this voice
 			voiceSample = AudioEngine::solicitVoiceSample();
@@ -49,13 +50,9 @@ bool VoiceUnisonPartSource::noteOn(Voice* voice, Source* source, VoiceSamplePlay
 		return voiceSample->setupClusersForInitialPlay(guide, (Sample*)guide->audioFileHolder->audioFile, 0, false, 1);
 	}
 
-
-	if (synthMode != SYNTH_MODE_FM &&
-			(source->oscType == OSC_TYPE_SAMPLE
-			|| source->oscType == OSC_TYPE_INPUT_L
-			|| source->oscType == OSC_TYPE_INPUT_R
-			|| source->oscType == OSC_TYPE_INPUT_STEREO)
-			) {
+	if (synthMode != SYNTH_MODE_FM
+	    && (source->oscType == OSC_TYPE_SAMPLE || source->oscType == OSC_TYPE_INPUT_L
+	        || source->oscType == OSC_TYPE_INPUT_R || source->oscType == OSC_TYPE_INPUT_STEREO)) {
 		//oscPos = 0;
 	}
 	else {
@@ -66,8 +63,6 @@ bool VoiceUnisonPartSource::noteOn(Voice* voice, Source* source, VoiceSamplePlay
 
 	return true;
 }
-
-
 
 void VoiceUnisonPartSource::unassign() {
 	active = false;
@@ -83,8 +78,9 @@ void VoiceUnisonPartSource::unassign() {
 	}
 }
 
-
-bool VoiceUnisonPartSource::getPitchAndSpeedParams(Source* source, VoiceSamplePlaybackGuide* guide, uint32_t* phaseIncrement, uint32_t* timeStretchRatio, uint32_t* noteLengthInSamples) {
+bool VoiceUnisonPartSource::getPitchAndSpeedParams(Source* source, VoiceSamplePlaybackGuide* guide,
+                                                   uint32_t* phaseIncrement, uint32_t* timeStretchRatio,
+                                                   uint32_t* noteLengthInSamples) {
 
 	int32_t pitchAdjustNeutralValue = ((SampleHolder*)guide->audioFileHolder)->neutralPhaseIncrement;
 
@@ -93,8 +89,11 @@ bool VoiceUnisonPartSource::getPitchAndSpeedParams(Source* source, VoiceSamplePl
 
 		*timeStretchRatio = 16777216;
 
-		uint32_t sampleLengthInSamples = ((SampleHolder*)guide->audioFileHolder)->getLengthInSamplesAtSystemSampleRate(true); // That is, after converted to 44.1kHz
-		*noteLengthInSamples = (playbackHandler.getTimePerInternalTickBig() * guide->sequenceSyncLengthTicks) >> 32; // No rounding. Should be fine?
+		uint32_t sampleLengthInSamples =
+		    ((SampleHolder*)guide->audioFileHolder)
+		        ->getLengthInSamplesAtSystemSampleRate(true); // That is, after converted to 44.1kHz
+		*noteLengthInSamples = (playbackHandler.getTimePerInternalTickBig() * guide->sequenceSyncLengthTicks)
+		                       >> 32; // No rounding. Should be fine?
 
 		// To stop things getting insane, limit to 32x speed
 		if ((sampleLengthInSamples >> 5) > *noteLengthInSamples) return false;
@@ -125,7 +124,6 @@ bool VoiceUnisonPartSource::getPitchAndSpeedParams(Source* source, VoiceSamplePl
 					}
 				}
 			}
-
 		}
 
 		// Or if pitch-stretch, achieve syncing that way
@@ -154,10 +152,10 @@ bool VoiceUnisonPartSource::getPitchAndSpeedParams(Source* source, VoiceSamplePl
 	return true;
 }
 
-
 // This normally only gets called from the getPitchAndSpeedParams() function, above, but occasionally we'll also call it from Voice::renderBasicSource() when doing a
 // "late start" on a Sample and we need to disregard any pitch modulation, so send this the non-modulated phaseIncrement.
-uint32_t VoiceUnisonPartSource::getSpeedParamForNoSyncing(Source* source, int32_t phaseIncrement, int32_t pitchAdjustNeutralValue) {
+uint32_t VoiceUnisonPartSource::getSpeedParamForNoSyncing(Source* source, int32_t phaseIncrement,
+                                                          int32_t pitchAdjustNeutralValue) {
 
 	uint32_t timeStretchRatio = 16777216;
 

@@ -26,21 +26,17 @@ class ModelStackWithAutoParam;
 // Note that this does *not* inherit from MenuItem actually!
 class MenuItemParam {
 public:
-	MenuItemParam(int newP = 0) {
-		p = newP;
-	}
+	MenuItemParam(int newP = 0) { p = newP; }
 	int getMaxValue();
 	int getMinValue();
 	virtual uint8_t getP();
-    MenuItem* selectButtonPress();
-    virtual ModelStackWithAutoParam* getModelStack(void* memory) = 0;
+	MenuItem* selectButtonPress();
+	virtual ModelStackWithAutoParam* getModelStack(void* memory) = 0;
 
 	uint8_t p;
 
 protected:
 	virtual ParamSet* getParamSet() = 0;
 };
-
-
 
 #endif /* MENUITEMPARAM_H_ */

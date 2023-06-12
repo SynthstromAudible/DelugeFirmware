@@ -22,7 +22,6 @@
 
 class AudioFile;
 
-
 class AudioFileVector final : public NamedThingVector {
 public:
 	AudioFileVector();

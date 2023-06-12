@@ -32,7 +32,6 @@
 #include "oled.h"
 #endif
 
-
 bool QwertyUI::predictionInterrupted;
 String QwertyUI::enteredText;
 int16_t QwertyUI::enteredTextEditPos;
@@ -43,7 +42,7 @@ QwertyUI::QwertyUI() {
 
 bool QwertyUI::opened() {
 
-    IndicatorLEDs::blinkLed(backLedX, backLedY);
+	IndicatorLEDs::blinkLed(backLedX, backLedY);
 
 	enteredTextEditPos = 0;
 	enteredText.clear();
@@ -56,21 +55,21 @@ void QwertyUI::drawKeys() {
 	PadLEDs::clearTickSquares(false);
 
 	// General key area
-	memset(PadLEDs::image[QWERTY_HOME_ROW + 2][3], 64, 10*3); // 1234
+	memset(PadLEDs::image[QWERTY_HOME_ROW + 2][3], 64, 10 * 3); // 1234
 	memset(PadLEDs::image[QWERTY_HOME_ROW + 2][13], 10, 3);
-	memset(PadLEDs::image[QWERTY_HOME_ROW + 1][3], 10, 10*3); // qwer
-	memset(PadLEDs::image[QWERTY_HOME_ROW][3], 10, 11*3); // asdf
-	memset(PadLEDs::image[QWERTY_HOME_ROW - 1][3], 10, 9*3); // zxcv
+	memset(PadLEDs::image[QWERTY_HOME_ROW + 1][3], 10, 10 * 3); // qwer
+	memset(PadLEDs::image[QWERTY_HOME_ROW][3], 10, 11 * 3);     // asdf
+	memset(PadLEDs::image[QWERTY_HOME_ROW - 1][3], 10, 9 * 3);  // zxcv
 
 	// Home row
-	memset(PadLEDs::image[QWERTY_HOME_ROW][3], 64, 3*3);
+	memset(PadLEDs::image[QWERTY_HOME_ROW][3], 64, 3 * 3);
 	memset(PadLEDs::image[QWERTY_HOME_ROW][6], 160, 3);
 
-	memset(PadLEDs::image[QWERTY_HOME_ROW][10], 64, 3*3);
+	memset(PadLEDs::image[QWERTY_HOME_ROW][10], 64, 3 * 3);
 	memset(PadLEDs::image[QWERTY_HOME_ROW][9], 160, 3);
 
 	// Space bar
-	memset(PadLEDs::image[QWERTY_HOME_ROW - 2][5], 160, 6*3);
+	memset(PadLEDs::image[QWERTY_HOME_ROW - 2][5], 160, 6 * 3);
 
 	// Backspace
 	for (int x = 14; x < 16; x++) {
@@ -100,7 +99,8 @@ void QwertyUI::drawKeys() {
 }
 
 #if HAVE_OLED
-void QwertyUI::drawTextForOLEDEditing(int xPixel, int xPixelMax, int yPixel, int maxNumChars, uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
+void QwertyUI::drawTextForOLEDEditing(int xPixel, int xPixelMax, int yPixel, int maxNumChars,
+                                      uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 
 	char const* displayName = enteredText.get();
 	int displayStringLength = enteredText.getLength();
@@ -115,11 +115,13 @@ void QwertyUI::drawTextForOLEDEditing(int xPixel, int xPixelMax, int yPixel, int
 	scrollPosHorizontal = getMax(scrollPosHorizontal, minXScroll);
 
 	// Prevent being scrolled too far right.
-	int maxXScroll = getMin(displayStringLength - maxNumChars + atVeryEnd, enteredTextEditPos - 3); // First part of this might not be needed I think?
+	int maxXScroll = getMin(displayStringLength - maxNumChars + atVeryEnd,
+	                        enteredTextEditPos - 3); // First part of this might not be needed I think?
 	maxXScroll = getMax(maxXScroll, 0);
 	scrollPosHorizontal = getMin(scrollPosHorizontal, maxXScroll);
 
-	OLED::drawString(&displayName[scrollPosHorizontal], xPixel, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS, TEXT_SPACING_X, TEXT_SPACING_Y);
+	OLED::drawString(&displayName[scrollPosHorizontal], xPixel, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS,
+	                 TEXT_SPACING_X, TEXT_SPACING_Y);
 
 	int hilightStartX = xPixel + TEXT_SPACING_X * (enteredTextEditPos - scrollPosHorizontal);
 	//int hilightEndX = xPixel + TEXT_SIZE_X * (displayStringLength - scrollPosHorizontal);
@@ -144,7 +146,8 @@ void QwertyUI::displayText(bool blinkImmediately) {
 	int totalTextLength = enteredText.getLength();
 
 	bool encodedEditPosAndAHalf;
-	int encodedEditPos = numericDriver.getEncodedPosFromLeft(enteredTextEditPos, enteredText.get(), &encodedEditPosAndAHalf);
+	int encodedEditPos =
+	    numericDriver.getEncodedPosFromLeft(enteredTextEditPos, enteredText.get(), &encodedEditPosAndAHalf);
 
 	bool encodedEndPosAndAHalf;
 	int encodedEndPos = numericDriver.getEncodedPosFromLeft(totalTextLength, enteredText.get(), &encodedEndPosAndAHalf);
@@ -161,49 +164,49 @@ void QwertyUI::displayText(bool blinkImmediately) {
 	uint8_t encodedAddition[NUMERIC_DISPLAY_LENGTH];
 	memset(encodedAddition, 0, NUMERIC_DISPLAY_LENGTH);
 	if (totalTextLength == enteredTextEditPos || enteredText.get()[enteredTextEditPos] == ' ') {
-		if (ALPHA_OR_BETA_VERSION && (editPosOnscreen < 0 || editPosOnscreen >= NUMERIC_DISPLAY_LENGTH)) numericDriver.freezeWithError("E292");
+		if (ALPHA_OR_BETA_VERSION && (editPosOnscreen < 0 || editPosOnscreen >= NUMERIC_DISPLAY_LENGTH))
+			numericDriver.freezeWithError("E292");
 		encodedAddition[editPosOnscreen] = 0x08;
-		encodedEditPosAndAHalf = false; // Hard to put into words why this is needed, but without it, the blinking _ after a . just won't blink
+		encodedEditPosAndAHalf =
+		    false; // Hard to put into words why this is needed, but without it, the blinking _ after a . just won't blink
 	}
 
 	uint8_t blinkMask[NUMERIC_DISPLAY_LENGTH];
 	for (int i = 0; i < NUMERIC_DISPLAY_LENGTH; i++) {
-		if (i < editPosOnscreen)									blinkMask[i] = 255;			// Blink none
-		else if (i == editPosOnscreen && encodedEditPosAndAHalf)	blinkMask[i] = 0b01111111;	// Blink the dot
-		else 														blinkMask[i] = 0;			// Blink all
+		if (i < editPosOnscreen) blinkMask[i] = 255;                                        // Blink none
+		else if (i == editPosOnscreen && encodedEditPosAndAHalf) blinkMask[i] = 0b01111111; // Blink the dot
+		else blinkMask[i] = 0;                                                              // Blink all
 	}
 
 	IndicatorLEDs::ledBlinkTimeout(0, true, !blinkImmediately);
 
 	// Set the text, replacing the bottom layer - cos in some cases, we want this to slip under an existing loading animation layer
-	numericDriver.setText(enteredText.get(), false, 255, true, blinkMask, false, false, scrollPos, encodedAddition, false);
+	numericDriver.setText(enteredText.get(), false, 255, true, blinkMask, false, false, scrollPos, encodedAddition,
+	                      false);
 }
 #endif
 
-const char keyboardChars[][5][11] = {
-		{
-			{'1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-'},
-			{'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', 0},
-			{'A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 0, '\''},
-			{'Z', 'X', 'C', 'V', 'B', 'N', 'M', ',', '.', 0, 0},
-			{  0,   0, ' ', ' ', ' ', ' ', ' ', ' ',   0, 0, 0},
-		},
-		{
-			{'1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-'},
-			{'A', 'Z', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', 0},
-			{'Q', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 'M', '\''},
-			{'W', 'X', 'C', 'V', 'B', 'N', ',', '.', 0, 0, 0},
-			{  0,   0, ' ', ' ', ' ', ' ', ' ', ' ',   0, 0, 0},
-		},
-		{
-			{'1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-'},
-			{'Q', 'W', 'E', 'R', 'T', 'Z', 'U', 'I', 'O', 'P', 'U'},
-			{'A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 'O', 'A'},
-			{'Y', 'X', 'C', 'V', 'B', 'N', 'M', ',', '.', '\'', 0},
-			{  0,   0, ' ', ' ', ' ', ' ', ' ', ' ',   0, 0, 0},
-		}
-};
-
+const char keyboardChars[][5][11] = {{
+                                         {'1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-'},
+                                         {'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', 0},
+                                         {'A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 0, '\''},
+                                         {'Z', 'X', 'C', 'V', 'B', 'N', 'M', ',', '.', 0, 0},
+                                         {0, 0, ' ', ' ', ' ', ' ', ' ', ' ', 0, 0, 0},
+                                     },
+                                     {
+                                         {'1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-'},
+                                         {'A', 'Z', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', 0},
+                                         {'Q', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 'M', '\''},
+                                         {'W', 'X', 'C', 'V', 'B', 'N', ',', '.', 0, 0, 0},
+                                         {0, 0, ' ', ' ', ' ', ' ', ' ', ' ', 0, 0, 0},
+                                     },
+                                     {
+                                         {'1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-'},
+                                         {'Q', 'W', 'E', 'R', 'T', 'Z', 'U', 'I', 'O', 'P', 'U'},
+                                         {'A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 'O', 'A'},
+                                         {'Y', 'X', 'C', 'V', 'B', 'N', 'M', ',', '.', '\'', 0},
+                                         {0, 0, ' ', ' ', ' ', ' ', ' ', ' ', 0, 0, 0},
+                                     }};
 
 int QwertyUI::padAction(int x, int y, int on) {
 
@@ -272,16 +275,17 @@ int QwertyUI::padAction(int x, int y, int on) {
 
 				// First character must be alphanumerical
 				if (!enteredTextEditPos) {
-					if ((newChar >= 'A' && newChar <= 'Z') || (newChar >= '0' && newChar <= '9')) {} // Then everything's fine
+					if ((newChar >= 'A' && newChar <= 'Z') || (newChar >= '0' && newChar <= '9')) {
+					} // Then everything's fine
 					else return ACTION_RESULT_DEALT_WITH;
 				}
 
 				// If holding shift...
 				if (y == QWERTY_HOME_ROW + 2) {
-					if (		matrixDriver.isPadPressed(1, QWERTY_HOME_ROW - 1)
-							||	matrixDriver.isPadPressed(2, QWERTY_HOME_ROW - 1)
-							||	matrixDriver.isPadPressed(13, QWERTY_HOME_ROW - 1)
-							||	matrixDriver.isPadPressed(14, QWERTY_HOME_ROW - 1)) {
+					if (matrixDriver.isPadPressed(1, QWERTY_HOME_ROW - 1)
+					    || matrixDriver.isPadPressed(2, QWERTY_HOME_ROW - 1)
+					    || matrixDriver.isPadPressed(13, QWERTY_HOME_ROW - 1)
+					    || matrixDriver.isPadPressed(14, QWERTY_HOME_ROW - 1)) {
 
 						// Apply that to keys which have a shift character
 						if (newChar == '-') newChar = '_';
@@ -323,8 +327,7 @@ int QwertyUI::padAction(int x, int y, int on) {
 							// If following another letter, make it lowercase
 							if (enteredTextEditPos > 0) {
 								char prevChar = enteredText.get()[enteredTextEditPos - 1];
-								if (	(prevChar >= 'A' && prevChar <= 'Z') ||
-										(prevChar >= 'a' && prevChar <= 'z')) {
+								if ((prevChar >= 'A' && prevChar <= 'Z') || (prevChar >= 'a' && prevChar <= 'z')) {
 									newChar += 32;
 								}
 							}
@@ -343,7 +346,8 @@ int QwertyUI::padAction(int x, int y, int on) {
 
 						enteredTextEditPos++;
 
-						bool success = predictExtendedText(); // This may get cut short if user interrupts by pressing another pad
+						bool success =
+						    predictExtendedText(); // This may get cut short if user interrupts by pressing another pad
 						if (!success) {
 							enteredTextEditPos--;
 						}
@@ -369,7 +373,6 @@ void QwertyUI::processBackspace() {
 		displayText();
 	}
 }
-
 
 int QwertyUI::horizontalEncoderAction(int offset) {
 	if (offset == 1) {

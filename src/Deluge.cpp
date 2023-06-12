@@ -15,9 +15,6 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-
-
-
 #include <ArrangerView.h>
 #include <AudioEngine.h>
 #include <AudioFileManager.h>
@@ -30,12 +27,8 @@
 #include <samplebrowser.h>
 #include "iodefine.h"
 
-
-
 #include <stdlib.h>
 #include <new>
-
-
 
 #include "UI.h"
 #include "song.h"
@@ -89,7 +82,6 @@
 #include "oled.h"
 #include "ContextMenuOverwriteBootloader.h"
 
-
 #if AUTOMATED_TESTER_ENABLED
 #include "AutomatedTester.h"
 #endif
@@ -116,9 +108,7 @@ extern "C" {
 
 extern uint8_t currentlyAccessingCard;
 
-
-extern "C" void disk_timerproc (UINT msPassed);
-
+extern "C" void disk_timerproc(UINT msPassed);
 
 Song* currentSong = NULL;
 Song* preLoadedSong = NULL;
@@ -180,8 +170,8 @@ void inputRoutine() {
 		setOutputState(SPEAKER_ENABLE_1, SPEAKER_ENABLE_2, speakerOn);
 	}
 
-	AudioEngine::renderInStereo = (AudioEngine::headphonesPluggedIn || outputPluggedInR || AudioEngine::isAnyInternalRecordingHappening());
-
+	AudioEngine::renderInStereo =
+	    (AudioEngine::headphonesPluggedIn || outputPluggedInR || AudioEngine::isAnyInternalRecordingHappening());
 
 	bool lineInNow = readInput(6, 6);
 	if (lineInNow != AudioEngine::lineInPluggedIn) {
@@ -194,7 +184,6 @@ void inputRoutine() {
 	AudioEngine::renderInStereo = !(outputPluggedInL && !outputPluggedInR);
 #endif
 
-
 	// Battery voltage
 #if DELUGE_MODEL >= DELUGE_MODEL_144_PAD
 	// If analog read is ready...
@@ -205,8 +194,9 @@ void inputRoutine() {
 		int voltageReading = numericReading * 3300;
 		int distanceToGo = voltageReading - voltageReadingLastTime;
 		voltageReadingLastTime += distanceToGo >> 4;
-		batteryMV = (voltageReadingLastTime) >>
-				15; // We only >> by 15 so that we intentionally double the value, because the incoming voltage is halved by a resistive divider already
+		batteryMV =
+		    (voltageReadingLastTime)
+		    >> 15; // We only >> by 15 so that we intentionally double the value, because the incoming voltage is halved by a resistive divider already
 		//uartPrint("batt mV: ");
 		//uartPrintNumber(batteryMV);
 
@@ -246,8 +236,6 @@ makeBattLEDSolid:
 	uiTimerManager.setTimer(TIMER_READ_INPUTS, 100);
 }
 
-
-
 bool nextPadPressIsOn = true; // Not actually used for 40-pad
 bool alreadyDoneScroll = false;
 bool waitingForSDRoutineToEnd = false;
@@ -271,7 +259,6 @@ extern "C" void closeUSBHost();
 extern "C" void openUSBPeripheral();
 extern "C" void closeUSBPeripheral(void);
 
-
 int picFirmwareVersion = 0;
 bool picSaysOLEDPresent = false;
 
@@ -290,7 +277,6 @@ bool readButtonsAndPads() {
 		closedPeripheral = true;
 	}
 	*/
-
 
 	if (waitingForSDRoutineToEnd) {
 		if (sdRoutineLock) return false;
@@ -330,8 +316,8 @@ bool readButtonsAndPads() {
 	}
 #endif
 
-    uint8_t value;
-    bool anything = uartGetChar(UART_ITEM_PIC, (char*)&value);
+	uint8_t value;
+	bool anything = uartGetChar(UART_ITEM_PIC, (char*)&value);
 	if (anything) {
 
 		if (value < PAD_AND_BUTTON_MESSAGES_END) {
@@ -343,8 +329,8 @@ bool readButtonsAndPads() {
 			int x = (unsigned int)value % 10;
 			int y = ((unsigned int)value % 70) / 10;
 
-			if (y < displayHeight)	result = matrixDriver.padAction(x, y, thisPadPressIsOn, inSDRoutine);
-			else					result = Buttons::buttonAction(x, y - displayHeight, thisPadPressIsOn, sdRoutineLock);
+			if (y < displayHeight) result = matrixDriver.padAction(x, y, thisPadPressIsOn, inSDRoutine);
+			else result = Buttons::buttonAction(x, y - displayHeight, thisPadPressIsOn, sdRoutineLock);
 
 #else
 			bool thisPadPressIsOn = nextPadPressIsOn;
@@ -417,12 +403,11 @@ bool readButtonsAndPads() {
 	}
 #endif
 
-
 #if UNDO_REDO_TEST_ENABLED
 	if (playbackHandler.currentlyPlaying && (int32_t)(AudioEngine::audioSampleTimer - timeNextSDTestAction) >= 0) {
 
 		int random0 = getRandom255();
-    preLoadedSong = NULL;
+		preLoadedSong = NULL;
 
 		if (random0 < 64 && getCurrentUI() == &instrumentClipView) {
 			Buttons::buttonAction(songViewButtonX, songViewButtonY, true);
@@ -432,11 +417,10 @@ bool readButtonsAndPads() {
 		else actionLogger.revert(AFTER);
 
 		int random = getRandom255();
-		timeNextSDTestAction = AudioEngine::audioSampleTimer + ((random) << 4);// * 44 / 13;
+		timeNextSDTestAction = AudioEngine::audioSampleTimer + ((random) << 4); // * 44 / 13;
 		anything = true;
 	}
 #endif
-
 
 #if LAUNCH_CLIP_TEST_ENABLED
 	if (playbackHandler.playbackState && (int32_t)(audioDriver.audioSampleTimer - timeNextSDTestAction) >= 0) {
@@ -444,7 +428,7 @@ bool readButtonsAndPads() {
 		matrixDriver.padAction(displayWidth, getRandom255() & 7, true, inSDRoutine);
 		matrixDriver.buttonStates[shiftButtonX][shiftButtonY] = false;
 		int random = getRandom255();
-		timeNextSDTestAction = audioDriver.audioSampleTimer + ((random) << 4);// * 44 / 13;
+		timeNextSDTestAction = audioDriver.audioSampleTimer + ((random) << 4); // * 44 / 13;
 		anything = true;
 	}
 
@@ -453,67 +437,62 @@ bool readButtonsAndPads() {
 	return anything;
 }
 
-
-
 void setUIForLoadedSong(Song* song) {
 
 	UI* newUI;
 
-    // If in a Clip-minder view
-    if (song->currentClip && song->inClipMinderViewOnLoad) {
-    	if (song->currentClip->type == CLIP_TYPE_INSTRUMENT) {
+	// If in a Clip-minder view
+	if (song->currentClip && song->inClipMinderViewOnLoad) {
+		if (song->currentClip->type == CLIP_TYPE_INSTRUMENT) {
 			if (((InstrumentClip*)song->currentClip)->onKeyboardScreen) {
 				newUI = &keyboardScreen;
 			}
 			else {
 				newUI = &instrumentClipView;
 			}
-    	}
-    	else {
-    		newUI = &audioClipView;
-    	}
-    }
+		}
+		else {
+			newUI = &audioClipView;
+		}
+	}
 
-    // Otherwise we're in session or arranger view
-    else {
-    	if (song->lastClipInstanceEnteredStartPos != -1) {
+	// Otherwise we're in session or arranger view
+	else {
+		if (song->lastClipInstanceEnteredStartPos != -1) {
 			newUI = &arrangerView;
-    	}
-    	else {
+		}
+		else {
 			newUI = &sessionView;
-    	}
-    }
+		}
+	}
 
-    setRootUILowLevel(newUI);
+	setRootUILowLevel(newUI);
 
-    getCurrentUI()->opened();
+	getCurrentUI()->opened();
 #if HAVE_OLED
-    renderUIsForOled();
+	renderUIsForOled();
 #endif
 }
 
-
 void setupBlankSong() {
 	void* songMemory = generalMemoryAllocator.alloc(sizeof(Song), NULL, false, true); // TODO: error checking
-    preLoadedSong = new (songMemory) Song();
+	preLoadedSong = new (songMemory) Song();
 
-    preLoadedSong->paramManager.setupUnpatched(); // TODO: error checking
+	preLoadedSong->paramManager.setupUnpatched(); // TODO: error checking
 	GlobalEffectable::initParams(&preLoadedSong->paramManager);
-    preLoadedSong->setupDefault();
+	preLoadedSong->setupDefault();
 
 	setRootUILowLevel(&instrumentClipView); // Prevents crash. (Wait, I'd like to know more about what crash...)
 	preLoadedSong->ensureAtLeastOneSessionClip();
 
-    currentSong = preLoadedSong;
-    preLoadedSong = NULL;
+	currentSong = preLoadedSong;
+	preLoadedSong = NULL;
 
-    AudioEngine::getReverbParamsFromSong(currentSong);
+	AudioEngine::getReverbParamsFromSong(currentSong);
 
-    setUIForLoadedSong(currentSong);
-    AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
+	setUIForLoadedSong(currentSong);
+	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 }
-
-
 
 extern "C" void usb_pstd_pcd_task(void);
 extern "C" void usb_cstd_usb_task(void);
@@ -522,9 +501,7 @@ extern "C" volatile uint32_t usbLock;
 
 extern "C" void usb_main_host(void);
 
-
 extern "C" int main2(void) {
-
 
 	// Give the PIC some startup instructions
 
@@ -552,21 +529,19 @@ extern "C" int main2(void) {
 
 #endif
 
-
 #if DELUGE_MODEL >= DELUGE_MODEL_144_PAD
 	int newSpeedNumber = 4000000.0f / UART_FULL_SPEED_PIC_PADS_HZ - 0.5f;
-	bufferPICPadsUart(225); // Set UART speed
+	bufferPICPadsUart(225);            // Set UART speed
 	bufferPICPadsUart(newSpeedNumber); // Speed is 4MHz / (x + 1)
 	uartFlushIfNotSending(UART_ITEM_PIC_PADS);
 #endif
 
-
-    // Setup SDRAM. Have to do this before setting up AudioEngine
+	// Setup SDRAM. Have to do this before setting up AudioEngine
 	userdef_bsc_cs2_init(0); // 64MB, hardcoded
 
-    functionsInit();
+	functionsInit();
 
-    /*
+	/*
      * For reasons not exactly known, globally declared instances of classes (so, objects) will not get their
      * constructors called automatically on boot-up as is supposed to happen in C++. This will immediately
      * cause problems, as things don’t get initialized. And for classes with virtual functions (i.e. using
@@ -578,7 +553,7 @@ extern "C" int main2(void) {
 	 * See a more technical discussion of the problem here: https://stackoverflow.com/questions/32807964/c-gcc-file-scope-objects-constructors-arent-being-called?noredirect=1#comment53452782_32807964
      */
 
-    new (&instrumentClipView) InstrumentClipView;
+	new (&instrumentClipView) InstrumentClipView;
 	new (&sessionView) SessionView;
 	new (&matrixDriver) MatrixDriver;
 	new (&playbackHandler) PlaybackHandler;
@@ -624,12 +599,11 @@ extern "C" int main2(void) {
 
 	currentPlaybackMode = &session;
 
-
 	setOutputState(BATTERY_LED_1, BATTERY_LED_2, 1); // Switch it off (1 is off for open-drain)
-	setPinAsOutput(BATTERY_LED_1, BATTERY_LED_2); // Battery LED control
+	setPinAsOutput(BATTERY_LED_1, BATTERY_LED_2);    // Battery LED control
 
 	setOutputState(SYNCED_LED_PORT, SYNCED_LED_PIN, 0); // Switch it off
-	setPinAsOutput(SYNCED_LED_PORT, SYNCED_LED_PIN); // Synced LED
+	setPinAsOutput(SYNCED_LED_PORT, SYNCED_LED_PIN);    // Synced LED
 
 #if DELUGE_MODEL >= DELUGE_MODEL_144_PAD
 
@@ -642,8 +616,8 @@ extern "C" int main2(void) {
 	setOutputState(SPEAKER_ENABLE_1, SPEAKER_ENABLE_2, 0); // Switch it off
 
 	setPinAsInput(HEADPHONE_DETECT_1, HEADPHONE_DETECT_2); // Headphone detect
-	setPinAsInput(6, 6); // Line in detect
-	setPinAsInput(7, 9); // Mic detect
+	setPinAsInput(6, 6);                                   // Line in detect
+	setPinAsInput(7, 9);                                   // Mic detect
 
 	setPinMux(1, 8 + SYS_VOLT_SENSE_PIN, 1); // Analog input for voltage sense
 
@@ -653,8 +627,8 @@ extern "C" int main2(void) {
 
 	// SPI 0 for SD
 	R_RSPI_Create(0, 400000, 1, 8); // 400000
-    R_RSPI_Start(0);
-    setPinMux(6, 0, 3);
+	R_RSPI_Start(0);
+	setPinMux(6, 0, 3);
 	setPinMux(6, 2, 3);
 	setPinMux(6, 3, 3);
 	// Non-automatic SSL pin for SD SPI
@@ -663,24 +637,22 @@ extern "C" int main2(void) {
 	setOutputState(6, 1, 1);
 #endif
 
-
 	// Trigger clock input
 	setPinMux(ANALOG_CLOCK_IN_1, ANALOG_CLOCK_IN_2, 2);
-
 
 	// Line out detect pins
 	setPinAsInput(LINE_OUT_DETECT_L_1, LINE_OUT_DETECT_L_2);
 	setPinAsInput(LINE_OUT_DETECT_R_1, LINE_OUT_DETECT_R_2);
 
-
 	// SPI for CV
-	R_RSPI_Create(SPI_CHANNEL_CV,
+	R_RSPI_Create(
+	    SPI_CHANNEL_CV,
 #if HAVE_OLED
-			10000000, // Higher than this would probably work... but let's stick to the OLED datasheet's spec of 100ns (10MHz).
+	    10000000, // Higher than this would probably work... but let's stick to the OLED datasheet's spec of 100ns (10MHz).
 #else
-			30000000,
+	    30000000,
 #endif
-			0, 32);
+	    0, 32);
 	R_RSPI_Start(SPI_CHANNEL_CV);
 #if SPI_CHANNEL_CV == 1
 	setPinMux(6, 12, 3);
@@ -688,7 +660,7 @@ extern "C" int main2(void) {
 	setPinMux(6, 13, 3);
 #elif SPI_CHANNEL_CV == 0
 	setPinMux(6, 0, 3); // CLK
-	setPinMux(6, 2, 3);	// MOSI
+	setPinMux(6, 2, 3); // MOSI
 #if !HAVE_OLED
 	setPinMux(6, 1, 3); // SSL
 #else
@@ -705,13 +677,9 @@ extern "C" int main2(void) {
 	// Setup audio output on SSI0
 	ssiInit(0, 1);
 
-
 #if RECORD_TEST_MODE == 1
 	makeTestRecording();
 #endif
-
-
-
 
 	new (&generalMemoryAllocator) GeneralMemoryAllocator;
 	new (&audioFileManager) AudioFileManager;
@@ -721,9 +689,8 @@ extern "C" int main2(void) {
 	Encoders::init();
 
 #ifdef TEST_GENERAL_MEMORY_ALLOCATION
-    generalMemoryAllocator.test();
+	generalMemoryAllocator.test();
 #endif
-
 
 	// Setup for gate output
 	cvEngine.init();
@@ -737,24 +704,23 @@ extern "C" int main2(void) {
 	setOutputState(6, 12, 1); // Enable codec
 #endif
 
-    AudioEngine::init();
+	AudioEngine::init();
 
 #if HARDWARE_TEST_MODE
 	ramTestLED();
 #endif
 
-    audioFileManager.init();
-
+	audioFileManager.init();
 
 	// Set up OLED now
 #if HAVE_OLED
 
-    //delayMS(10);
+	//delayMS(10);
 
 	// Set up 8-bit
-	RSPI0.SPDCR = 0x20u; // 8-bit
+	RSPI0.SPDCR = 0x20u;               // 8-bit
 	RSPI0.SPCMD0 = 0b0000011100000010; // 8-bit
-	RSPI0.SPBFCR.BYTE = 0b01100000;//0b00100000;
+	RSPI0.SPBFCR.BYTE = 0b01100000;    //0b00100000;
 
 	bufferPICUart(250); // D/C low
 	bufferPICUart(247); // Enable OLED
@@ -771,30 +737,29 @@ extern "C" int main2(void) {
 	uartFlushIfNotSending(UART_ITEM_PIC);
 #endif
 
-
-
 	// Setup SPIBSC. Crucial that this only be done now once everything else is running, because I've injected graphics and audio routines into the SPIBSC wait routines, so that
-    // has to be running
+	// has to be running
 	setPinMux(4, 2, 2);
 	setPinMux(4, 3, 2);
 	setPinMux(4, 4, 2);
 	setPinMux(4, 5, 2);
 	setPinMux(4, 6, 2);
 	setPinMux(4, 7, 2);
-    initSPIBSC(); // This will run the audio routine! Ideally, have external RAM set up by now.
+	initSPIBSC(); // This will run the audio routine! Ideally, have external RAM set up by now.
 
-    bufferPICIndicatorsUart(245); // Request PIC firmware version
+	bufferPICIndicatorsUart(245);                          // Request PIC firmware version
 	bufferPICIndicatorsUart(RESEND_BUTTON_STATES_MESSAGE); // Tell PIC to re-send button states
 	uartFlushIfNotSending(UART_ITEM_PIC_INDICATORS);
 
-    // Check if the user is holding down the select knob to do a factory reset
+	// Check if the user is holding down the select knob to do a factory reset
 	uint16_t timeWaitBegan = *TCNT[TIMER_SYSTEM_FAST];
-    bool readingFirmwareVersion = false;
-    bool looksOk = true;
+	bool readingFirmwareVersion = false;
+	bool looksOk = true;
 
-    while ((uint16_t)(*TCNT[TIMER_SYSTEM_FAST] - timeWaitBegan) < 32768) { // Safety timer, in case we don't receive anything
-        uint8_t value;
-    	if (!uartGetChar(UART_ITEM_PIC, (char*)&value)) continue;
+	while ((uint16_t)(*TCNT[TIMER_SYSTEM_FAST] - timeWaitBegan)
+	       < 32768) { // Safety timer, in case we don't receive anything
+		uint8_t value;
+		if (!uartGetChar(UART_ITEM_PIC, (char*)&value)) continue;
 
 		if (readingFirmwareVersion) {
 			readingFirmwareVersion = false;
@@ -808,11 +773,11 @@ extern "C" int main2(void) {
 			else if (value == 253) break;
 			else if (value ==
 #if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-					(110 + selectEncButtonY * 10 + selectEncButtonX)
+			         (110 + selectEncButtonY * 10 + selectEncButtonX)
 #else
-					175
+			         175
 #endif
-					) {
+			) {
 				if (looksOk) goto resetSettings;
 			}
 			else if (value >= 246 && value <= 251) {} // OLED D/C low ack
@@ -820,11 +785,11 @@ extern "C" int main2(void) {
 				looksOk = false;
 			}
 		}
-    }
+	}
 
 	FlashStorage::readSettings();
 
-    if (false) {
+	if (false) {
 resetSettings:
 #if HAVE_OLED
 		OLED::consoleText("Factory reset");
@@ -833,8 +798,7 @@ resetSettings:
 #endif
 		FlashStorage::resetSettings();
 		FlashStorage::writeSettings();
-    }
-
+	}
 
 	usbLock = 1;
 	openUSBHost();
@@ -854,55 +818,53 @@ resetSettings:
 
 	MIDIDeviceManager::readDevicesFromFile(); // Hopefully we can read this file now.
 
-    setupBlankSong(); // Can only happen after settings, which includes default settings, have been read
-
+	setupBlankSong(); // Can only happen after settings, which includes default settings, have been read
 
 #ifdef TEST_BST
-    BST bst;
-    bst.test();
+	BST bst;
+	bst.test();
 #endif
 
 #ifdef TEST_VECTOR
-    NoteVector noteVector;
-    noteVector.test();
+	NoteVector noteVector;
+	noteVector.test();
 #endif
 
 #ifdef TEST_VECTOR_SEARCH_MULTIPLE
-    NoteVector noteVector;
-    noteVector.testSearchMultiple();
+	NoteVector noteVector;
+	noteVector.testSearchMultiple();
 #endif
 
 #ifdef TEST_VECTOR_DUPLICATES
-    NoteVector noteVector;
-    noteVector.testDuplicates();
+	NoteVector noteVector;
+	noteVector.testDuplicates();
 #endif
 
 #ifdef TEST_OPEN_ADDRESSING_HASH_TABLE
-    OpenAddressingHashTableWith8bitKey table;
-    table.test();
+	OpenAddressingHashTableWith8bitKey table;
+	table.test();
 #endif
 
 #ifdef TEST_SD_WRITE
 
-	FIL fil;       // File object
+	FIL fil; // File object
 	FATFS fs;
 	DIR dp;
-	FRESULT result;    //	 FatFs return code
+	FRESULT result; //	 FatFs return code
 	int sdTotalBytesWritten;
 
 	int count = 0;
 
-    while (true) {
+	while (true) {
 
-    	numericDriver.setTextAsNumber(count);
+		numericDriver.setTextAsNumber(count);
 
-    	int fileNumber = (uint32_t)getNoise() % 10000;
-    	int fileSize = (uint32_t)getNoise() % 1000000;
+		int fileNumber = (uint32_t)getNoise() % 10000;
+		int fileSize = (uint32_t)getNoise() % 1000000;
 
-    	char fileName[20];
-    	strcpy(fineName, "TEST/")
-    	intToString(fileNumber, &fileName[5], 4);
-    	strcat(fileName, ".TXT");
+		char fileName[20];
+		strcpy(fineName, "TEST/") intToString(fileNumber, &fileName[5], 4);
+		strcat(fileName, ".TXT");
 
 		result = f_open(&fil, fileName, FA_CREATE_ALWAYS | FA_WRITE);
 		if (result) {
@@ -927,7 +889,7 @@ resetSettings:
 		f_close(&fil);
 
 		count++;
-    }
+	}
 #endif
 
 	inputRoutine();
@@ -937,49 +899,47 @@ resetSettings:
 	Uart::println("going into main loop");
 	sdRoutineLock = false; // Allow SD routine to start happening
 
-    while (1) {
+	while (1) {
 
-    	uiTimerManager.routine();
+		uiTimerManager.routine();
 
-    	// Flush stuff - we just have to do this, regularly
+		// Flush stuff - we just have to do this, regularly
 #if HAVE_OLED
-    	oledRoutine();
+		oledRoutine();
 #endif
-    	uartFlushIfNotSending(UART_ITEM_PIC);
+		uartFlushIfNotSending(UART_ITEM_PIC);
 
-    	AudioEngine::routineWithClusterLoading(true); // -----------------------------------
+		AudioEngine::routineWithClusterLoading(true); // -----------------------------------
 
-	    int count = 0;
-	    while (readButtonsAndPads() && count < 16) {
-	    	if (!(count & 3)) AudioEngine::routineWithClusterLoading(true); // -----------------------------------
-	    	count++;
-	    }
+		int count = 0;
+		while (readButtonsAndPads() && count < 16) {
+			if (!(count & 3)) AudioEngine::routineWithClusterLoading(true); // -----------------------------------
+			count++;
+		}
 
-	    Encoders::readEncoders();
-        bool anything = Encoders::interpretEncoders();
-	    if (anything) {
-	    	AudioEngine::routineWithClusterLoading(true); // -----------------------------------
-	    }
+		Encoders::readEncoders();
+		bool anything = Encoders::interpretEncoders();
+		if (anything) {
+			AudioEngine::routineWithClusterLoading(true); // -----------------------------------
+		}
 
-	    doAnyPendingUIRendering();
+		doAnyPendingUIRendering();
 
-    	AudioEngine::routineWithClusterLoading(true); // -----------------------------------
+		AudioEngine::routineWithClusterLoading(true); // -----------------------------------
 
-	    audioFileManager.slowRoutine(); // Only actually needs calling a couple of times per second, but we can't put it in uiTimerManager cos that gets called in card routine
-	    AudioEngine::slowRoutine();
+		audioFileManager
+		    .slowRoutine(); // Only actually needs calling a couple of times per second, but we can't put it in uiTimerManager cos that gets called in card routine
+		AudioEngine::slowRoutine();
 
-	    audioRecorder.slowRoutine();
+		audioRecorder.slowRoutine();
 
 #if AUTOPILOT_TEST_ENABLED
-	    autoPilotStuff();
+		autoPilotStuff();
 #endif
-    }
+	}
 
-    return 0;
+	return 0;
 }
-
-
-
 
 bool inSpamMode = false;
 
@@ -997,37 +957,33 @@ extern "C" void routineForSD(void) {
 	sdRoutineLock = true;
 
 	AudioEngine::logAction("from routineForSD()");
-    AudioEngine::routine();
+	AudioEngine::routine();
 
 	uiTimerManager.routine();
 
 #if HAVE_OLED
-    	oledRoutine();
+	oledRoutine();
 #endif
 	uartFlushIfNotSending(UART_ITEM_PIC);
 
-    Encoders::readEncoders();
-    Encoders::interpretEncoders(true);
-   	readButtonsAndPads();
-    doAnyPendingUIRendering();
+	Encoders::readEncoders();
+	Encoders::interpretEncoders(true);
+	readButtonsAndPads();
+	doAnyPendingUIRendering();
 
-    sdRoutineLock = false;
+	sdRoutineLock = false;
 }
 
-
 extern "C" void sdCardInserted(void) {
-
 }
 
 extern "C" void sdCardEjected(void) {
 	audioFileManager.cardEjected = true;
 }
 
-
 extern "C" void loadAnyEnqueuedClustersRoutine() {
 	audioFileManager.loadAnyEnqueuedClusters();
 }
-
 
 #if !HAVE_OLED
 extern "C" void setNumeric(char* text) {
@@ -1047,25 +1003,19 @@ void deleteOldSongBeforeLoadingNew() {
 
 	currentSong->stopAllAuditioning();
 
-	AudioEngine::unassignAllVoices(true); // Need to do this now that we're not bothering getting the old Song's Instruments detached and everything on delete
+	AudioEngine::unassignAllVoices(
+	    true); // Need to do this now that we're not bothering getting the old Song's Instruments detached and everything on delete
 
 	view.activeModControllableModelStack.modControllable = NULL;
 	view.activeModControllableModelStack.setTimelineCounter(NULL);
 	view.activeModControllableModelStack.paramManager = NULL;
 
-    Song* toDelete = currentSong;
-    currentSong = NULL;
-   	void* toDealloc = dynamic_cast<void*>(toDelete);
-    toDelete->~Song();
-    generalMemoryAllocator.dealloc(toDelete);
+	Song* toDelete = currentSong;
+	currentSong = NULL;
+	void* toDealloc = dynamic_cast<void*>(toDelete);
+	toDelete->~Song();
+	generalMemoryAllocator.dealloc(toDelete);
 }
-
-
-
-
-
-
-
 
 #if ALLOW_SPAM_MODE
 
@@ -1084,10 +1034,9 @@ void deleteOldSongBeforeLoadingNew() {
 bool spamStates[NUM_SPAM_THINGS];
 int currentSpamThing = 0;
 
-
 void redrawSpamDisplay() {
 	char* thingName;
-	switch(currentSpamThing) {
+	switch (currentSpamThing) {
 	case SPAM_RAM:
 		thingName = "RAM";
 		break;
@@ -1132,7 +1081,6 @@ void spamMode() {
 	inSpamMode = true;
 	memset(spamStates, 1, sizeof(spamStates));
 
-
 	uint32_t* ramReadAddress = (uint32_t*)0x0C000000;
 	uint32_t* ramWriteAddress = (uint32_t*)0x0E000000;
 
@@ -1148,10 +1096,10 @@ void spamMode() {
 	uint16_t timeLastUSB = 0;
 	int lastCol = 0;
 
-	FIL fil;       // File object
+	FIL fil; // File object
 	FATFS fs;
 	DIR dp;
-	FRESULT result;    //	 FatFs return code
+	FRESULT result; //	 FatFs return code
 
 	redrawSpamDisplay();
 
@@ -1204,7 +1152,6 @@ void spamMode() {
 			}
 		}
 
-
 		if (spamStates[SPAM_SD]) {
 
 			// Writing
@@ -1238,7 +1185,6 @@ void spamMode() {
 					}
 				}
 			}
-
 
 			// Reading
 			else {
@@ -1277,7 +1223,6 @@ void spamMode() {
 
 		if (spamStates[SPAM_PIC]) {
 
-
 			uint16_t timeSince = (uint16_t)(MTU2.TCNT_0 - timeLastPIC);
 			if (timeSince >= 5000) {
 				timeLastPIC = MTU2.TCNT_0;
@@ -1288,105 +1233,95 @@ void spamMode() {
 					for (int colour = 0; colour < 3; colour++) {
 						if (colour == whichColour && (getRandom255() % 3) == 0)
 							Uart::putChar(UART_CHANNEL_PIC, getRandom255());
-						else
-							Uart::putChar(UART_CHANNEL_PIC, 0);
+						else Uart::putChar(UART_CHANNEL_PIC, 0);
 					}
 				}
 
 				lastCol = (lastCol + 1) % 9;
 			}
-
 		}
-
-
-
-
 
 		// Selector
 		readEncoders();
 
 		// Select encoder
 		int limitedDetentPos = encoders[ENCODER_SELECT].detentPos;
-        encoders[ENCODER_SELECT].detentPos = 0; // Reset. Crucial that this happens before we call selectEncoderAction()
+		encoders[ENCODER_SELECT].detentPos = 0; // Reset. Crucial that this happens before we call selectEncoderAction()
 
-    	if (limitedDetentPos != 0) {
-    		currentSpamThing += limitedDetentPos;
-    		if (currentSpamThing == NUM_SPAM_THINGS) currentSpamThing = 0;
-    		else if (currentSpamThing == -1) currentSpamThing = NUM_SPAM_THINGS - 1;
+		if (limitedDetentPos != 0) {
+			currentSpamThing += limitedDetentPos;
+			if (currentSpamThing == NUM_SPAM_THINGS) currentSpamThing = 0;
+			else if (currentSpamThing == -1) currentSpamThing = NUM_SPAM_THINGS - 1;
 
-    		redrawSpamDisplay();
-    	}
-
+			redrawSpamDisplay();
+		}
 
 		// Vertical encoder
 		limitedDetentPos = encoders[ENCODER_SCROLL_Y].detentPos;
-        encoders[ENCODER_SCROLL_Y].detentPos = 0; // Reset. Crucial that this happens before we call selectEncoderAction()
-        if (limitedDetentPos != 0) {
-        	spamStates[currentSpamThing] = !spamStates[currentSpamThing];
-    		redrawSpamDisplay();
+		encoders[ENCODER_SCROLL_Y].detentPos =
+		    0; // Reset. Crucial that this happens before we call selectEncoderAction()
+		if (limitedDetentPos != 0) {
+			spamStates[currentSpamThing] = !spamStates[currentSpamThing];
+			redrawSpamDisplay();
 
-    		// Audio
-    		if (currentSpamThing == SPAM_AUDIO) {
+			// Audio
+			if (currentSpamThing == SPAM_AUDIO) {
 
-    			// Disable
-    			if (!spamStates[currentSpamThing]) {
-    				setPinAsInput(7, 11);
-    				setPinAsInput(6, 9);
-    				setPinAsInput(6, 10);
-    				setPinAsInput(6, 8);
-    				setPinAsInput(6, 11);
+				// Disable
+				if (!spamStates[currentSpamThing]) {
+					setPinAsInput(7, 11);
+					setPinAsInput(6, 9);
+					setPinAsInput(6, 10);
+					setPinAsInput(6, 8);
+					setPinAsInput(6, 11);
 
-    				setOutputState(6, 12, 0); // Switch codec off
+					setOutputState(6, 12, 0); // Switch codec off
 
-    				setOutputState(SPEAKER_ENABLE_1, SPEAKER_ENABLE_2, 0); // Speaker off
-    			}
+					setOutputState(SPEAKER_ENABLE_1, SPEAKER_ENABLE_2, 0); // Speaker off
+				}
 
-    			// Enable
-    			else {
-    			    setPinMux(7, 11, 6); // AUDIO_XOUT
-    			    setPinMux(6, 9, 3); // SSI0 word select
-    			    setPinMux(6, 10, 3); // SSI0 tx
-    			    setPinMux(6, 8, 3); // SSI0 serial clock
-    			#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
-    			    setPinMux(6, 11, 3); // SSI0 rx
-				#endif
-    				setOutputState(6, 12, 1); // Switch codec on
+				// Enable
+				else {
+					setPinMux(7, 11, 6); // AUDIO_XOUT
+					setPinMux(6, 9, 3);  // SSI0 word select
+					setPinMux(6, 10, 3); // SSI0 tx
+					setPinMux(6, 8, 3);  // SSI0 serial clock
+#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
+					setPinMux(6, 11, 3); // SSI0 rx
+#endif
+					setOutputState(6, 12, 1); // Switch codec on
 
-    				setOutputState(SPEAKER_ENABLE_1, SPEAKER_ENABLE_2, 1); // Speaker on
-    			}
-    		}
+					setOutputState(SPEAKER_ENABLE_1, SPEAKER_ENABLE_2, 1); // Speaker on
+				}
+			}
 
-    		// PIC
-    		else if (currentSpamThing == SPAM_PIC) {
+			// PIC
+			else if (currentSpamThing == SPAM_PIC) {
 
-    			// Disable
-    			if (!spamStates[currentSpamThing]) {
-    				Uart::putChar(UART_CHANNEL_PIC, 227);
-    			}
+				// Disable
+				if (!spamStates[currentSpamThing]) {
+					Uart::putChar(UART_CHANNEL_PIC, 227);
+				}
 
-    			// Enable
-    			else {
-    			}
-    		}
+				// Enable
+				else {}
+			}
 
+			// Clock
+			else if (currentSpamThing == SPAM_CLOCK) {
 
-    		// Clock
-    		else if (currentSpamThing == SPAM_CLOCK) {
+				// Disable
+				if (!spamStates[currentSpamThing]) {
+					CPG.FRQCR |= 0b0011000000000000;
+				}
 
-    			// Disable
-    			if (!spamStates[currentSpamThing]) {
-    				CPG.FRQCR |= 0b0011000000000000;
-    			}
-
-    			// Enable
-    			else {
-    				CPG.FRQCR &= ~0b0011000000000000;
-    			}
-    		}
-        }
+				// Enable
+				else {
+					CPG.FRQCR &= ~0b0011000000000000;
+				}
+			}
+		}
 	}
 }
-
-
 
 #endif

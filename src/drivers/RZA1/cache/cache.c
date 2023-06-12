@@ -27,7 +27,6 @@
 * Description : Cache maintenance operations
 *******************************************************************************/
 
-
 /******************************************************************************
 Includes   <System Includes> , "Project Includes"
 ******************************************************************************/
@@ -46,21 +45,19 @@ Includes   <System Includes> , "Project Includes"
 Typedef definitions
 ******************************************************************************/
 
-
 /******************************************************************************
 Macro definitions
 ******************************************************************************/
-#define L1CACHE_FLUSH       (0)         /* L1 cache flush                */
-#define L1CACHE_WB          (1)         /* L1 cache write back           */
-#define L1CACHE_WB_FLUSH    (2)         /* L1 cache write back and flush */
+#define L1CACHE_FLUSH    (0) /* L1 cache flush                */
+#define L1CACHE_WB       (1) /* L1 cache write back           */
+#define L1CACHE_WB_FLUSH (2) /* L1 cache write back and flush */
 /* The value to set to the L2 cache maintenance operation registers */
 /* (reg7_inv_way, reg7_clean_way, reg7_clean_inv_way).              */
-#define L2CACHE_8WAY    (0x000000FFuL)  /* All entries(8way) in the L2 cache */
+#define L2CACHE_8WAY (0x000000FFuL) /* All entries(8way) in the L2 cache */
 
 /******************************************************************************
 Imported global variables and functions (from other files)
 ******************************************************************************/
-
 
 /******************************************************************************
 Exported global variables and functions (to be accessed by other files)
@@ -79,7 +76,6 @@ extern void L1PrefetchDisableAsm(void);
 /******************************************************************************
 Private global variables and functions
 ******************************************************************************/
-
 
 /******************************************************************************
 * Function Name: L1_I_CacheFlushAll
@@ -243,10 +239,10 @@ void L2CacheFlushAll(void)
 ******************************************************************************/
 void L2CacheEnable(void)
 {
-    L2C.REG2_INT_CLEAR   = 0x000001FFuL;    /* Clear the reg2_int_raw_status register */
+    L2C.REG2_INT_CLEAR   = 0x000001FFuL; /* Clear the reg2_int_raw_status register */
     L2C.REG9_D_LOCKDOWN0 = 0x00000000uL;
 
-    L2C.REG1_CONTROL = 0x00000001uL;        /* Enable L2 cache */
+    L2C.REG1_CONTROL = 0x00000001uL; /* Enable L2 cache */
 }
 
 /******************************************************************************
@@ -257,9 +253,7 @@ void L2CacheEnable(void)
 ******************************************************************************/
 void L2CacheDisable(void)
 {
-    L2C.REG1_CONTROL = 0x00000000uL;        /* Disable L2 cache */
+    L2C.REG1_CONTROL = 0x00000000uL; /* Disable L2 cache */
 }
 
-
 /* End of File */
-

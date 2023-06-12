@@ -45,7 +45,6 @@ class MultisampleRange;
 class TimeStretcher;
 class SampleHolder;
 
-
 class Sample final : public AudioFile {
 public:
 	Sample();
@@ -57,15 +56,19 @@ public:
 	float determinePitch(bool doingSingleCycle, float minFreqHz, float maxFreqHz, bool doPrimeTest);
 	void workOutMIDINote(bool doingSingleCycle, float minFreqHz = 20, float maxFreqHz = 10000, bool doPrimeTest = true);
 	uint32_t getLengthInMSec();
-	SampleCache* getOrCreateCache(SampleHolder* sampleHolder, int32_t phaseIncrement, int32_t timeStretchRatio, bool reversed, bool mayCreate, bool* created);
+	SampleCache* getOrCreateCache(SampleHolder* sampleHolder, int32_t phaseIncrement, int32_t timeStretchRatio,
+	                              bool reversed, bool mayCreate, bool* created);
 	void deleteCache(SampleCache* cache);
 	int getFirstClusterIndexWithAudioData();
 	int getFirstClusterIndexWithNoAudioData();
-	int fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSamples, int32_t endPosSamples, int playDirection, int maxNumSamplesToProcess);
+	int fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSamples, int32_t endPosSamples, int playDirection,
+	                  int maxNumSamplesToProcess);
 	void percCacheClusterStolen(Cluster* cluster);
 	void deletePercCache(bool beingDestructed = false);
-	uint8_t* prepareToReadPercCache(int pixellatedPos, int playDirection, int* earliestPixellatedPos, int* latestPixellatedPos);
-	bool getAveragesForCrossfade(int32_t* totals, int startBytePos, int crossfadeLengthSamples, int playDirection, int lengthToAverageEach);
+	uint8_t* prepareToReadPercCache(int pixellatedPos, int playDirection, int* earliestPixellatedPos,
+	                                int* latestPixellatedPos);
+	bool getAveragesForCrossfade(int32_t* totals, int startBytePos, int crossfadeLengthSamples, int playDirection,
+	                             int lengthToAverageEach);
 	void convertDataOnAnyClustersIfNecessary();
 	int32_t getMaxPeakFromZero();
 	int32_t getFoundValueCentrePoint();
@@ -91,51 +94,50 @@ public:
 	}
 
 	String tempFilePathForRecording;
-    uint8_t byteDepth;
-    uint32_t sampleRate;
-    uint32_t audioDataStartPosBytes; // That is, the offset from the start of the WAV file
-    uint64_t audioDataLengthBytes;
-    uint32_t bitMask;
+	uint8_t byteDepth;
+	uint32_t sampleRate;
+	uint32_t audioDataStartPosBytes; // That is, the offset from the start of the WAV file
+	uint64_t audioDataLengthBytes;
+	uint32_t bitMask;
 
+	uint64_t lengthInSamples;
 
-    uint64_t lengthInSamples;
+	// These two are for holding a value loaded from file
+	uint32_t fileLoopStartSamples; // And during recording, this one also stores the final value once known
+	uint32_t fileLoopEndSamples;
 
-    // These two are for holding a value loaded from file
-    uint32_t fileLoopStartSamples; // And during recording, this one also stores the final value once known
-    uint32_t fileLoopEndSamples;
+	float midiNoteFromFile; // -1 means none
 
-    float midiNoteFromFile; // -1 means none
+	uint8_t rawDataFormat;
 
-    uint8_t rawDataFormat;
-
-    bool unloadable; // Only gets set to true if user has re-inserted the card and the sample appears to have been deleted / moved / modified
-    bool unplayable;
-    bool partOfFolderBeingLoaded;
-    bool fileExplicitlySpecifiesSelfAsWaveTable;
+	bool
+	    unloadable; // Only gets set to true if user has re-inserted the card and the sample appears to have been deleted / moved / modified
+	bool unplayable;
+	bool partOfFolderBeingLoaded;
+	bool fileExplicitlySpecifiesSelfAsWaveTable;
 
 #if SAMPLE_DO_LOCKS
 	bool lock;
 #endif
 
+	float midiNote; // -999 means not worked out yet. -1000 means error working out
 
-    float midiNote; // -999 means not worked out yet. -1000 means error working out
+	//int32_t valueSpan; // -2147483648 means both these are uninitialized
+	int32_t minValueFound;
+	int32_t maxValueFound;
 
-    //int32_t valueSpan; // -2147483648 means both these are uninitialized
-    int32_t minValueFound;
-    int32_t maxValueFound;
+	OrderedResizeableArrayWithMultiWordKey caches;
 
-    OrderedResizeableArrayWithMultiWordKey caches;
+	uint8_t* percCacheMemory[2];                          // One for each play-direction: 0=forwards; 1=reversed
+	OrderedResizeableArrayWith32bitKey percCacheZones[2]; // One for each play-direction: 0=forwards; 1=reversed
 
-    uint8_t* percCacheMemory[2]; // One for each play-direction: 0=forwards; 1=reversed
-    OrderedResizeableArrayWith32bitKey percCacheZones[2]; // One for each play-direction: 0=forwards; 1=reversed
+	Cluster** percCacheClusters[2]; // One for each play-direction: 0=forwards; 1=reversed
+	int numPercCacheClusters;
 
-    Cluster** percCacheClusters[2]; // One for each play-direction: 0=forwards; 1=reversed
-    int numPercCacheClusters;
+	int32_t beginningOffsetForPitchDetection;
+	bool beginningOffsetForPitchDetectionFound;
 
-    int32_t beginningOffsetForPitchDetection;
-    bool beginningOffsetForPitchDetectionFound;
-
-    uint32_t waveTableCycleSize; // In case this later gets used for a WaveTable
+	uint32_t waveTableCycleSize; // In case this later gets used for a WaveTable
 
 	SampleClusterArray clusters;
 
@@ -145,8 +147,9 @@ protected:
 #endif
 
 private:
-	int investigateFundamentalPitch(int fundamentalIndexProvided, int tableSize, int32_t* heightTable, uint64_t* sumTable, float* floatIndexTable, float* getFreq, int numDoublings, bool doPrimeTest);
-
+	int investigateFundamentalPitch(int fundamentalIndexProvided, int tableSize, int32_t* heightTable,
+	                                uint64_t* sumTable, float* floatIndexTable, float* getFreq, int numDoublings,
+	                                bool doPrimeTest);
 };
 
 #endif /* SAMPLE_H_ */

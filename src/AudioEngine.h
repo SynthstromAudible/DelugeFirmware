@@ -116,84 +116,84 @@ class SoundDrum;
  */
 
 namespace AudioEngine {
-    void routine();
-    void routineWithClusterLoading(bool mayProcessUserActionsBetween = false);
+void routine();
+void routineWithClusterLoading(bool mayProcessUserActionsBetween = false);
 
-    void init();
-    void previewSample(String* path, FilePointer* filePointer, bool shouldActuallySound);
-    void stopAnyPreviewing();
+void init();
+void previewSample(String* path, FilePointer* filePointer, bool shouldActuallySound);
+void stopAnyPreviewing();
 
-    Voice* solicitVoice(Sound* forSound);
-    void unassignVoice(Voice* voice, Sound* sound, ModelStackWithSoundFlags* modelStack = NULL, bool removeFromVector = true, bool shouldDispose = true);
-    void disposeOfVoice(Voice* voice);
+Voice* solicitVoice(Sound* forSound);
+void unassignVoice(Voice* voice, Sound* sound, ModelStackWithSoundFlags* modelStack = NULL,
+                   bool removeFromVector = true, bool shouldDispose = true);
+void disposeOfVoice(Voice* voice);
 
-    void songSwapAboutToHappen();
-    void unassignAllVoices(bool deletingSong = false);
-    void logAction(char const* string);
-    void logAction(int number);
+void songSwapAboutToHappen();
+void unassignAllVoices(bool deletingSong = false);
+void logAction(char const* string);
+void logAction(int number);
 
-    void getReverbParamsFromSong(Song* song);
+void getReverbParamsFromSong(Song* song);
 
-    VoiceSample* solicitVoiceSample();
-    void voiceSampleUnassigned(VoiceSample* voiceSample);
+VoiceSample* solicitVoiceSample();
+void voiceSampleUnassigned(VoiceSample* voiceSample);
 
-    TimeStretcher* solicitTimeStretcher();
-    void timeStretcherUnassigned(TimeStretcher* timeStretcher);
+TimeStretcher* solicitTimeStretcher();
+void timeStretcherUnassigned(TimeStretcher* timeStretcher);
 
-    LiveInputBuffer* getOrCreateLiveInputBuffer(int inputType, bool mayCreate);
-    void slowRoutine();
-    void doRecorderCardRoutines();
+LiveInputBuffer* getOrCreateLiveInputBuffer(int inputType, bool mayCreate);
+void slowRoutine();
+void doRecorderCardRoutines();
 
-    int getNumSamplesLeftToOutputFromPreviousRender();
+int getNumSamplesLeftToOutputFromPreviousRender();
 
-    void registerSideChainHit(int32_t strength);
+void registerSideChainHit(int32_t strength);
 
-
-	SampleRecorder* getNewRecorder(int numChannels, int folderID, int mode, bool keepFirstReasons = false, bool writeLoopPoints = false, int buttonPressLatency = 0);
-	void discardRecorder(SampleRecorder* recorder);
-	bool isAnyInternalRecordingHappening();
+SampleRecorder* getNewRecorder(int numChannels, int folderID, int mode, bool keepFirstReasons = false,
+                               bool writeLoopPoints = false, int buttonPressLatency = 0);
+void discardRecorder(SampleRecorder* recorder);
+bool isAnyInternalRecordingHappening();
 
 #ifdef FLIGHTDATA
-    char log[32][64];
-    uint8_t logNextIndex = 0;
-    uint32_t logAbsoluteIndex = 0;
-    char *getEmptyLogEntry();
-    void printLog();
+char log[32][64];
+uint8_t logNextIndex = 0;
+uint32_t logAbsoluteIndex = 0;
+char* getEmptyLogEntry();
+void printLog();
 #endif
 
-    int getNumVoices();
-    Voice* cullVoice(bool saveVoice = false, bool justDoFastRelease = false);
+int getNumVoices();
+Voice* cullVoice(bool saveVoice = false, bool justDoFastRelease = false);
 
-    bool doSomeOutputting();
-    void updateReverbParams();
+bool doSomeOutputting();
+void updateReverbParams();
 
-    extern bool headphonesPluggedIn;
-    extern bool micPluggedIn;
-    extern bool lineInPluggedIn;
-    extern bool renderInStereo;
-    extern uint32_t audioSampleTimer;
-    extern bool mustUpdateReverbParamsBeforeNextRender;
-    extern bool bypassCulling;
-    extern uint32_t i2sTXBufferPos;
-    extern uint32_t i2sRXBufferPos;
-    extern int cpuDireness;
-    extern uint8_t inputMonitoringMode;
-    extern bool audioRoutineLocked;
-    extern uint8_t numHopsEndedThisRoutineCall;
-    extern Compressor reverbCompressor;
-    extern uint32_t timeThereWasLastSomeReverb;
-    extern VoiceVector activeVoices;
-    extern revmodel reverb;
-    extern uint32_t nextVoiceState;
-    extern SoundDrum* sampleForPreview;
-    extern int32_t reverbCompressorVolume;
-    extern int32_t reverbCompressorShape;
-    extern int32_t reverbPan;
-    extern SampleRecorder* firstRecorder;
-    extern Metronome metronome;
-    extern uint32_t timeLastSideChainHit;
-    extern int32_t sizeLastSideChainHit;
-}
-
+extern bool headphonesPluggedIn;
+extern bool micPluggedIn;
+extern bool lineInPluggedIn;
+extern bool renderInStereo;
+extern uint32_t audioSampleTimer;
+extern bool mustUpdateReverbParamsBeforeNextRender;
+extern bool bypassCulling;
+extern uint32_t i2sTXBufferPos;
+extern uint32_t i2sRXBufferPos;
+extern int cpuDireness;
+extern uint8_t inputMonitoringMode;
+extern bool audioRoutineLocked;
+extern uint8_t numHopsEndedThisRoutineCall;
+extern Compressor reverbCompressor;
+extern uint32_t timeThereWasLastSomeReverb;
+extern VoiceVector activeVoices;
+extern revmodel reverb;
+extern uint32_t nextVoiceState;
+extern SoundDrum* sampleForPreview;
+extern int32_t reverbCompressorVolume;
+extern int32_t reverbCompressorShape;
+extern int32_t reverbPan;
+extern SampleRecorder* firstRecorder;
+extern Metronome metronome;
+extern uint32_t timeLastSideChainHit;
+extern int32_t sizeLastSideChainHit;
+} // namespace AudioEngine
 
 #endif // AUDIODRIVER_H

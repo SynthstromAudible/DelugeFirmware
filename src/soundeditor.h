@@ -45,100 +45,98 @@ class ModelStackWithThreeMainThings;
 class AudioFileHolder;
 class MIDIDevice;
 
-class SoundEditor final : public UI
-{
+class SoundEditor final : public UI {
 public:
-    SoundEditor();
-    bool opened();
-    void focusRegained();
-    bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows);
-    Sound* currentSound;
-    ModControllableAudio* currentModControllable;
-    int8_t currentSourceIndex;
-    Source* currentSource;
-    ParamManagerForTimeline* currentParamManager;
-    Compressor* currentCompressor;
-    ArpeggiatorSettings* currentArpSettings;
-    MultiRange* currentMultiRange;
-    SampleControls* currentSampleControls;
-    uint8_t* currentPriority;
-    int16_t currentMultiRangeIndex;
-    MIDIDevice* currentMIDIDevice;
+	SoundEditor();
+	bool opened();
+	void focusRegained();
+	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows);
+	Sound* currentSound;
+	ModControllableAudio* currentModControllable;
+	int8_t currentSourceIndex;
+	Source* currentSource;
+	ParamManagerForTimeline* currentParamManager;
+	Compressor* currentCompressor;
+	ArpeggiatorSettings* currentArpSettings;
+	MultiRange* currentMultiRange;
+	SampleControls* currentSampleControls;
+	uint8_t* currentPriority;
+	int16_t currentMultiRangeIndex;
+	MIDIDevice* currentMIDIDevice;
 	uint8_t editingRangeEdge;
 
-    int buttonAction(int x, int y, bool on, bool inCardRoutine);
-    int padAction(int x, int y, int velocity);
-    int verticalEncoderAction(int offset, bool inCardRoutine);
-    void modEncoderAction(int whichModEncoder, int offset);
-    int horizontalEncoderAction(int offset);
-    bool editingKit();
+	int buttonAction(int x, int y, bool on, bool inCardRoutine);
+	int padAction(int x, int y, int velocity);
+	int verticalEncoderAction(int offset, bool inCardRoutine);
+	void modEncoderAction(int whichModEncoder, int offset);
+	int horizontalEncoderAction(int offset);
+	bool editingKit();
 
-    void setupShortcutBlink(int x, int y, int frequency);
+	void setupShortcutBlink(int x, int y, int frequency);
 
-    int32_t currentValue;
-    int menuCurrentScroll;
+	int32_t currentValue;
+	int menuCurrentScroll;
 
-    uint8_t navigationDepth;
-    uint8_t patchingParamSelected;
-    uint8_t currentParamShorcutX;
-    uint8_t currentParamShorcutY;
-    uint8_t paramShortcutBlinkFrequency;
-    uint8_t sourceShortcutBlinkFrequencies[2][displayHeight];
-    uint8_t sourceShortcutBlinkColours[2][displayHeight];
-    uint32_t shortcutBlinkCounter;
+	uint8_t navigationDepth;
+	uint8_t patchingParamSelected;
+	uint8_t currentParamShorcutX;
+	uint8_t currentParamShorcutY;
+	uint8_t paramShortcutBlinkFrequency;
+	uint8_t sourceShortcutBlinkFrequencies[2][displayHeight];
+	uint8_t sourceShortcutBlinkColours[2][displayHeight];
+	uint32_t shortcutBlinkCounter;
 
-    uint32_t timeLastAttemptedAutomatedParamEdit;
+	uint32_t timeLastAttemptedAutomatedParamEdit;
 
-    int8_t numberScrollAmount;
-    uint32_t numberEditSize;
-    int8_t numberEditPos;
+	int8_t numberScrollAmount;
+	uint32_t numberEditSize;
+	int8_t numberEditPos;
 
-    uint8_t shortcutsVersion;
+	uint8_t shortcutsVersion;
 
-    MenuItem* menuItemNavigationRecord[16];
+	MenuItem* menuItemNavigationRecord[16];
 
 	MenuItem** currentSubmenuItem;
 
 	bool shouldGoUpOneLevelOnBegin;
 
-    bool midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value);
-    bool pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2);
-    void selectEncoderAction(int8_t offset);
-    bool canSeeViewUnderneath() { return true; }
-    bool setup(Clip* clip = NULL, const MenuItem* item = NULL, int sourceIndex = 0);
-    void blinkShortcut();
-    int potentialShortcutPadAction(int x, int y, bool on);
-    bool editingReverbCompressor();
-    MenuItem* getCurrentMenuItem();
-    bool inSettingsMenu();
-    void exitCompletely();
-    void goUpOneLevel();
-    bool noteOnReceivedForMidiLearn(MIDIDevice* fromDevice, int channel, int note, int velocity);
-    void markInstrumentAsEdited();
-    bool editingCVOrMIDIClip();
+	bool midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value);
+	bool pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2);
+	void selectEncoderAction(int8_t offset);
+	bool canSeeViewUnderneath() { return true; }
+	bool setup(Clip* clip = NULL, const MenuItem* item = NULL, int sourceIndex = 0);
+	void blinkShortcut();
+	int potentialShortcutPadAction(int x, int y, bool on);
+	bool editingReverbCompressor();
+	MenuItem* getCurrentMenuItem();
+	bool inSettingsMenu();
+	void exitCompletely();
+	void goUpOneLevel();
+	bool noteOnReceivedForMidiLearn(MIDIDevice* fromDevice, int channel, int note, int velocity);
+	void markInstrumentAsEdited();
+	bool editingCVOrMIDIClip();
 	bool isUntransposedNoteWithinRange(int noteCode);
 	void setCurrentMultiRange(int i);
 	void possibleChangeToCurrentRangeDisplay();
-	int checkPermissionToBeginSessionForRangeSpecificParam(Sound* sound, int whichThing, bool automaticallySelectIfOnlyOne, MultiRange** previouslySelectedRange);
-    void setupExclusiveShortcutBlink(int x, int y);
-    void setShortcutsVersion(int newVersion);
-    ModelStackWithThreeMainThings* getCurrentModelStack(void* memory);
+	int checkPermissionToBeginSessionForRangeSpecificParam(Sound* sound, int whichThing,
+	                                                       bool automaticallySelectIfOnlyOne,
+	                                                       MultiRange** previouslySelectedRange);
+	void setupExclusiveShortcutBlink(int x, int y);
+	void setShortcutsVersion(int newVersion);
+	ModelStackWithThreeMainThings* getCurrentModelStack(void* memory);
 
-    void cutSound();
-    AudioFileHolder* getCurrentAudioFileHolder();
-    void mpeZonesPotentiallyUpdated();
-
+	void cutSound();
+	AudioFileHolder* getCurrentAudioFileHolder();
+	void mpeZonesPotentiallyUpdated();
 
 #if HAVE_OLED
-    void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
+	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
 #endif
 
 private:
-
-    bool beginScreen(MenuItem* oldMenuItem = NULL);
-    uint8_t getActualParamFromScreen(uint8_t screen);
-    void setLedStates();
-
+	bool beginScreen(MenuItem* oldMenuItem = NULL);
+	uint8_t getActualParamFromScreen(uint8_t screen);
+	void setLedStates();
 };
 
 extern SoundEditor soundEditor;
