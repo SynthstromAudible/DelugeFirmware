@@ -26,5 +26,6 @@ MultiRange::~MultiRange() {
 }
 
 AudioFileHolder* MultiRange::getAudioFileHolder() {
-	return &((MultisampleRange*)this)->sampleHolder; // Very sneaky optimization. Relies on both of this class's children having an AudioFileHolder at the same position.
+	return &((MultisampleRange*)this)
+	            ->sampleHolder; // Very sneaky optimization. Relies on both of this class's children having an AudioFileHolder at the same position.
 }

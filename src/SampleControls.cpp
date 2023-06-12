@@ -21,9 +21,9 @@
 #include "functions.h"
 
 SampleControls::SampleControls() {
-    interpolationMode = INTERPOLATION_MODE_SMOOTH;
-    pitchAndSpeedAreIndependent = false;
-    reversed = false;
+	interpolationMode = INTERPOLATION_MODE_SMOOTH;
+	pitchAndSpeedAreIndependent = false;
+	reversed = false;
 }
 
 int SampleControls::getInterpolationBufferSize(int32_t phaseIncrement) {
@@ -35,8 +35,12 @@ useLinearInterpolation:
 
 		// If CPU dire...
 		if (AudioEngine::cpuDireness) {
-			int octave = getMagnitudeOld(phaseIncrement); // Unstretched, and the first octave going up from that, would be '25'
-			if (octave >= 26 - (AudioEngine::cpuDireness >> 2)) { // So, under max direness (14), everything from octave 23 up will be linearly interpolated. That's from 2 octaves down, upward
+			int octave =
+			    getMagnitudeOld(phaseIncrement); // Unstretched, and the first octave going up from that, would be '25'
+			if (octave
+			    >= 26
+			           - (AudioEngine::cpuDireness
+			              >> 2)) { // So, under max direness (14), everything from octave 23 up will be linearly interpolated. That's from 2 octaves down, upward
 				goto useLinearInterpolation;
 			}
 		}

@@ -22,7 +22,6 @@ extern "C" {
 #include "gpio.h"
 }
 
-
 Encoder::Encoder() {
 	encPos = 0;
 	detentPos = 0;
@@ -114,9 +113,7 @@ void Encoder::interrupt(int which) {
 	pinALastRead = valuesNow[0];
 }
 
-
-void Encoder::setPins(uint8_t pinA1New, uint8_t pinA2New, uint8_t pinB1New,
-		uint8_t pinB2New) {
+void Encoder::setPins(uint8_t pinA1New, uint8_t pinA2New, uint8_t pinB1New, uint8_t pinB2New) {
 	portA = pinA1New;
 	pinA = pinA2New;
 	portB = pinB1New;
@@ -130,7 +127,6 @@ void Encoder::setNonDetentMode() {
 	pinALastSwitch = readInput(portA, pinA);
 	pinBLastSwitch = readInput(portB, pinB);
 }
-
 
 int Encoder::getLimitedDetentPosAndReset() {
 	int toReturn = (detentPos >= 0) ? 1 : -1;

@@ -35,12 +35,7 @@ extern MenuItemIntegerRange defaultTempoMenu;
 extern MenuItemIntegerRange defaultSwingMenu;
 extern MenuItemKeyRange defaultKeyMenu;
 
-
-
 namespace FlashStorage {
-
-
-
 
 /* Settings as stored in flash memory, byte by byte:
 
@@ -111,11 +106,6 @@ namespace FlashStorage {
 112: default MIDI bend range
 */
 
-
-
-
-
-
 uint8_t defaultScale;
 bool audioClipRecordMargins;
 uint8_t keyboardLayout;
@@ -125,336 +115,335 @@ uint8_t defaultVelocity;
 int8_t defaultMagnitude;
 
 bool settingsBeenRead; // Whether the settings have been read from the flash chip yet
-uint8_t ramSize; // Deprecated
+uint8_t ramSize;       // Deprecated
 
-uint8_t defaultBendRange[2] = {2, 48}; // The 48 isn't editable. And the 2 actually should only apply to non-MPE MIDI, because it's editable, whereas for MPE it's meant to always stay at 2.
-
+uint8_t defaultBendRange[2] = {
+    2,
+    48}; // The 48 isn't editable. And the 2 actually should only apply to non-MPE MIDI, because it's editable, whereas for MPE it's meant to always stay at 2.
 
 void resetSettings() {
 
-    cvEngine.setCVVoltsPerOctave(0, 100);
-    cvEngine.setCVVoltsPerOctave(1, 100);
+	cvEngine.setCVVoltsPerOctave(0, 100);
+	cvEngine.setCVVoltsPerOctave(1, 100);
 
-    cvEngine.setCVTranspose(0, 0, 0);
-    cvEngine.setCVTranspose(1, 0, 0);
+	cvEngine.setCVTranspose(0, 0, 0);
+	cvEngine.setCVTranspose(1, 0, 0);
 
-    for (int i = 0; i < NUM_GATE_CHANNELS; i++) {
-    	cvEngine.setGateType(i, GATE_MODE_V_TRIG);
-    }
+	for (int i = 0; i < NUM_GATE_CHANNELS; i++) {
+		cvEngine.setGateType(i, GATE_MODE_V_TRIG);
+	}
 
+	cvEngine.minGateOffTime = 10;
 
-    cvEngine.minGateOffTime = 10;
+	playbackHandler.analogClockInputAutoStart = true;
+	playbackHandler.analogInTicksPPQN = 24;
+	playbackHandler.analogOutTicksPPQN = 24;
+	playbackHandler.midiOutClockEnabled = true;
+	playbackHandler.midiInClockEnabled = true;
+	playbackHandler.tempoMagnitudeMatchingEnabled = false;
 
-    playbackHandler.analogClockInputAutoStart = true;
-    playbackHandler.analogInTicksPPQN = 24;
-    playbackHandler.analogOutTicksPPQN = 24;
-    playbackHandler.midiOutClockEnabled = true;
-    playbackHandler.midiInClockEnabled = true;
-    playbackHandler.tempoMagnitudeMatchingEnabled = false;
+	PadLEDs::flashCursor = FLASH_CURSOR_SLOW;
 
-    PadLEDs::flashCursor = FLASH_CURSOR_SLOW;
+	midiEngine.midiThru = false;
 
-    midiEngine.midiThru = false;
+	for (int i = 0; i < NUM_GLOBAL_MIDI_COMMANDS; i++) {
+		midiEngine.globalMIDICommands[i].clear();
+	}
 
-    for (int i = 0; i < NUM_GLOBAL_MIDI_COMMANDS; i++) {
-    	midiEngine.globalMIDICommands[i].clear();
-    }
+	AudioEngine::inputMonitoringMode = INPUT_MONITORING_SMART;
+	recordQuantizeLevel = 8;
 
-    AudioEngine::inputMonitoringMode = INPUT_MONITORING_SMART;
-    recordQuantizeLevel = 8;
+	defaultTempoMenu.lower = 120;
+	defaultTempoMenu.upper = 120;
 
-    defaultTempoMenu.lower = 120;
-    defaultTempoMenu.upper = 120;
+	defaultSwingMenu.lower = 50;
+	defaultSwingMenu.upper = 50;
 
-    defaultSwingMenu.lower = 50;
-    defaultSwingMenu.upper = 50;
+	defaultKeyMenu.lower = 0;
+	defaultKeyMenu.upper = 0;
 
-    defaultKeyMenu.lower = 0;
-    defaultKeyMenu.upper = 0;
+	defaultScale = 0;
 
-    defaultScale = 0;
+	soundEditor.setShortcutsVersion(SHORTCUTS_VERSION_3);
 
-    soundEditor.setShortcutsVersion(SHORTCUTS_VERSION_3);
+	audioClipRecordMargins = true;
+	playbackHandler.countInEnabled = false;
+	keyboardLayout = KEYBOARD_LAYOUT_QWERTY;
+	sampleBrowserPreviewMode = PREVIEW_ONLY_WHILE_NOT_PLAYING;
 
-    audioClipRecordMargins = true;
-    playbackHandler.countInEnabled = false;
-    keyboardLayout = KEYBOARD_LAYOUT_QWERTY;
-    sampleBrowserPreviewMode = PREVIEW_ONLY_WHILE_NOT_PLAYING;
+	defaultVelocity = 64;
 
-    defaultVelocity = 64;
+	activeColourMenu.value = 1;  // Green
+	stoppedColourMenu.value = 0; // Red
+	mutedColourMenu.value = 3;   // Yellow
+	soloColourMenu.value = 2;    // Blue
 
-    activeColourMenu.value = 1; // Green
-    stoppedColourMenu.value = 0; // Red
-    mutedColourMenu.value = 3; // Yellow
-    soloColourMenu.value = 2; // Blue
+	defaultMagnitude = 2;
 
-    defaultMagnitude = 2;
+	MIDIDeviceManager::differentiatingInputsByDevice = false;
 
-    MIDIDeviceManager::differentiatingInputsByDevice = false;
-
-    defaultBendRange[BEND_RANGE_MAIN] = 2;
+	defaultBendRange[BEND_RANGE_MAIN] = 2;
 }
 
 void readSettings() {
-    uint8_t* buffer = (uint8_t*)miscStringBuffer;
-    R_SFLASH_ByteRead(0x80000 - 0x1000, buffer, 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT, SPIBSC_OUTPUT_ADDR_24);
+	uint8_t* buffer = (uint8_t*)miscStringBuffer;
+	R_SFLASH_ByteRead(0x80000 - 0x1000, buffer, 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,
+	                  SPIBSC_OUTPUT_ADDR_24);
 
-    settingsBeenRead = true;
+	settingsBeenRead = true;
 
-    int previouslySavedByFirmwareVersion = buffer[0];
+	int previouslySavedByFirmwareVersion = buffer[0];
 
-    // If no settings were previously saved, get out
-    if (previouslySavedByFirmwareVersion == 0xFF) {
-    	resetSettings();
-    	return;
-    }
+	// If no settings were previously saved, get out
+	if (previouslySavedByFirmwareVersion == 0xFF) {
+		resetSettings();
+		return;
+	}
 
-    ramSize = buffer[2];
+	ramSize = buffer[2];
 
-    cvEngine.setCVVoltsPerOctave(0, buffer[12]);
-    cvEngine.setCVVoltsPerOctave(1, buffer[13]);
+	cvEngine.setCVVoltsPerOctave(0, buffer[12]);
+	cvEngine.setCVVoltsPerOctave(1, buffer[13]);
 
-    cvEngine.setCVTranspose(0, buffer[14], buffer[18]);
-    cvEngine.setCVTranspose(1, buffer[15], buffer[19]);
+	cvEngine.setCVTranspose(0, buffer[14], buffer[18]);
+	cvEngine.setCVTranspose(1, buffer[15], buffer[19]);
 
-    for (int i = 0; i < NUM_GATE_CHANNELS; i++) {
-    	cvEngine.setGateType(i, buffer[22 + i]);
-    }
+	for (int i = 0; i < NUM_GATE_CHANNELS; i++) {
+		cvEngine.setGateType(i, buffer[22 + i]);
+	}
 
-    cvEngine.minGateOffTime = buffer[30];
+	cvEngine.minGateOffTime = buffer[30];
 
-    playbackHandler.analogClockInputAutoStart = buffer[31];
-    playbackHandler.analogInTicksPPQN = buffer[32];
-    playbackHandler.analogOutTicksPPQN = buffer[33];
-    playbackHandler.midiOutClockEnabled = buffer[34];
-    playbackHandler.midiInClockEnabled = (previouslySavedByFirmwareVersion < FIRMWARE_2P1P0_BETA) ? true : buffer[52];
-    playbackHandler.tempoMagnitudeMatchingEnabled = buffer[35];
+	playbackHandler.analogClockInputAutoStart = buffer[31];
+	playbackHandler.analogInTicksPPQN = buffer[32];
+	playbackHandler.analogOutTicksPPQN = buffer[33];
+	playbackHandler.midiOutClockEnabled = buffer[34];
+	playbackHandler.midiInClockEnabled = (previouslySavedByFirmwareVersion < FIRMWARE_2P1P0_BETA) ? true : buffer[52];
+	playbackHandler.tempoMagnitudeMatchingEnabled = buffer[35];
 
-    if (previouslySavedByFirmwareVersion < FIRMWARE_1P3P1) {
-    	PadLEDs::flashCursor = FLASH_CURSOR_SLOW;
-    }
-    else {
-    	PadLEDs::flashCursor = buffer[36];
-    }
-
-    midiEngine.midiThru = buffer[37];
-
-    midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_PLAYBACK_RESTART].channelOrZone = buffer[38] - 1;
-    midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_PLAYBACK_RESTART].noteOrCC = buffer[39] - 1;
-    midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_PLAY].channelOrZone = buffer[40] - 1;
-    midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_PLAY].noteOrCC = buffer[41] - 1;
-    midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_RECORD].channelOrZone = buffer[42] - 1;
-    midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_RECORD].noteOrCC = buffer[43] - 1;
-    midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_TAP].channelOrZone = buffer[44] - 1;
-    midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_TAP].noteOrCC = buffer[45] - 1;
-    midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_LOOP].channelOrZone = buffer[63] - 1;
-    midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_LOOP].noteOrCC = buffer[64] - 1;
-    midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_UNDO].channelOrZone = buffer[65] - 1;
-    midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_UNDO].noteOrCC = buffer[66] - 1;
-    midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_REDO].channelOrZone = buffer[67] - 1;
-    midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_REDO].noteOrCC = buffer[68] - 1;
-    midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_LOOP_CONTINUOUS_LAYERING].channelOrZone = buffer[70] - 1;
-    midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_LOOP_CONTINUOUS_LAYERING].noteOrCC = buffer[71] - 1;
-
-
-    if (previouslySavedByFirmwareVersion >= FIRMWARE_3P2P0_ALPHA) {
-		MIDIDeviceManager::readDeviceReferenceFromFlash(GLOBAL_MIDI_COMMAND_PLAYBACK_RESTART,			&buffer[80]);
-		MIDIDeviceManager::readDeviceReferenceFromFlash(GLOBAL_MIDI_COMMAND_PLAY,						&buffer[84]);
-		MIDIDeviceManager::readDeviceReferenceFromFlash(GLOBAL_MIDI_COMMAND_RECORD,						&buffer[88]);
-		MIDIDeviceManager::readDeviceReferenceFromFlash(GLOBAL_MIDI_COMMAND_TAP,						&buffer[92]);
-		MIDIDeviceManager::readDeviceReferenceFromFlash(GLOBAL_MIDI_COMMAND_LOOP,						&buffer[96]);
-		MIDIDeviceManager::readDeviceReferenceFromFlash(GLOBAL_MIDI_COMMAND_LOOP_CONTINUOUS_LAYERING,	&buffer[100]);
-		MIDIDeviceManager::readDeviceReferenceFromFlash(GLOBAL_MIDI_COMMAND_UNDO,						&buffer[104]);
-		MIDIDeviceManager::readDeviceReferenceFromFlash(GLOBAL_MIDI_COMMAND_REDO,						&buffer[108]);
-    }
-
-    AudioEngine::inputMonitoringMode = buffer[50];
-
-    recordQuantizeLevel = buffer[51] + 8;
-    if (recordQuantizeLevel == 10) recordQuantizeLevel = 8; // Since I've deprecated the ZOOM option
-
-    if (previouslySavedByFirmwareVersion < FIRMWARE_2P1P0_BETA || !buffer[53]) { // Remove the true!
-        defaultTempoMenu.lower = 120;
-        defaultTempoMenu.upper = 120;
-
-        defaultSwingMenu.lower = 50;
-        defaultSwingMenu.upper = 50;
-
-        defaultKeyMenu.lower = 0;
-        defaultKeyMenu.upper = 0;
-
-        defaultScale = 0;
-    }
-
-    else {
-        defaultTempoMenu.lower = buffer[53];
-        defaultTempoMenu.upper = buffer[54];
-
-        defaultSwingMenu.lower = buffer[55];
-        defaultSwingMenu.upper = buffer[56];
-
-        defaultKeyMenu.lower = buffer[57];
-        defaultKeyMenu.upper = buffer[58];
-
-        defaultScale = buffer[59];
-    }
-
-    soundEditor.setShortcutsVersion((previouslySavedByFirmwareVersion < FIRMWARE_2P1P3_BETA) ?
-    		SHORTCUTS_VERSION_1 :
-			buffer[60]);
-
-    if (previouslySavedByFirmwareVersion < FIRMWARE_3P0P0_ALPHA) {
-    	audioClipRecordMargins = true;
-        playbackHandler.countInEnabled = false;
-        keyboardLayout = KEYBOARD_LAYOUT_QWERTY;
-    }
-    else {
-    	audioClipRecordMargins = buffer[61];
-        playbackHandler.countInEnabled = buffer[62];
-        keyboardLayout = buffer[69];
-    }
-
-    if (previouslySavedByFirmwareVersion < FIRMWARE_3P0P0_BETA) {
-    	sampleBrowserPreviewMode = PREVIEW_ON;
-    }
-    else {
-        sampleBrowserPreviewMode = buffer[72];
-    }
-
-    defaultVelocity = buffer[73];
-    if (defaultVelocity >= 128 || defaultVelocity <= 0) defaultVelocity = 64;
-
-    if (previouslySavedByFirmwareVersion < FIRMWARE_3P1P0_ALPHA) {
-    	activeColourMenu.value = 1; // Green
-        stoppedColourMenu.value = 0; // Red
-        mutedColourMenu.value = 3; // Yellow
-        soloColourMenu.value = 2; // Blue
-
-        defaultMagnitude = 2;
-
-        MIDIDeviceManager::differentiatingInputsByDevice = false;
-    }
-    else {
-    	activeColourMenu.value = buffer[74];
-    	stoppedColourMenu.value = buffer[75];
-    	mutedColourMenu.value = buffer[76];
-    	soloColourMenu.value = buffer[77];
-
-    	defaultMagnitude = buffer[78];
-
-    	MIDIDeviceManager::differentiatingInputsByDevice = buffer[79];
-
-    	if (previouslySavedByFirmwareVersion == FIRMWARE_3P1P0_ALPHA) { // Could surely delete this code?
-    		if (!activeColourMenu.value) activeColourMenu.value = 1;
-    		if (!mutedColourMenu.value) mutedColourMenu.value = 3;
-    		if (!soloColourMenu.value) soloColourMenu.value = 2;
-
-    		if (!defaultMagnitude) defaultMagnitude = 2;
-    	}
-    }
-
-	if (previouslySavedByFirmwareVersion < FIRMWARE_3P2P0_ALPHA) {
-        defaultBendRange[BEND_RANGE_MAIN] = 12; // This was the old default
+	if (previouslySavedByFirmwareVersion < FIRMWARE_1P3P1) {
+		PadLEDs::flashCursor = FLASH_CURSOR_SLOW;
 	}
 	else {
-    	defaultBendRange[BEND_RANGE_MAIN] = buffer[112];
+		PadLEDs::flashCursor = buffer[36];
+	}
+
+	midiEngine.midiThru = buffer[37];
+
+	midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_PLAYBACK_RESTART].channelOrZone = buffer[38] - 1;
+	midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_PLAYBACK_RESTART].noteOrCC = buffer[39] - 1;
+	midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_PLAY].channelOrZone = buffer[40] - 1;
+	midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_PLAY].noteOrCC = buffer[41] - 1;
+	midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_RECORD].channelOrZone = buffer[42] - 1;
+	midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_RECORD].noteOrCC = buffer[43] - 1;
+	midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_TAP].channelOrZone = buffer[44] - 1;
+	midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_TAP].noteOrCC = buffer[45] - 1;
+	midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_LOOP].channelOrZone = buffer[63] - 1;
+	midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_LOOP].noteOrCC = buffer[64] - 1;
+	midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_UNDO].channelOrZone = buffer[65] - 1;
+	midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_UNDO].noteOrCC = buffer[66] - 1;
+	midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_REDO].channelOrZone = buffer[67] - 1;
+	midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_REDO].noteOrCC = buffer[68] - 1;
+	midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_LOOP_CONTINUOUS_LAYERING].channelOrZone = buffer[70] - 1;
+	midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_LOOP_CONTINUOUS_LAYERING].noteOrCC = buffer[71] - 1;
+
+	if (previouslySavedByFirmwareVersion >= FIRMWARE_3P2P0_ALPHA) {
+		MIDIDeviceManager::readDeviceReferenceFromFlash(GLOBAL_MIDI_COMMAND_PLAYBACK_RESTART, &buffer[80]);
+		MIDIDeviceManager::readDeviceReferenceFromFlash(GLOBAL_MIDI_COMMAND_PLAY, &buffer[84]);
+		MIDIDeviceManager::readDeviceReferenceFromFlash(GLOBAL_MIDI_COMMAND_RECORD, &buffer[88]);
+		MIDIDeviceManager::readDeviceReferenceFromFlash(GLOBAL_MIDI_COMMAND_TAP, &buffer[92]);
+		MIDIDeviceManager::readDeviceReferenceFromFlash(GLOBAL_MIDI_COMMAND_LOOP, &buffer[96]);
+		MIDIDeviceManager::readDeviceReferenceFromFlash(GLOBAL_MIDI_COMMAND_LOOP_CONTINUOUS_LAYERING, &buffer[100]);
+		MIDIDeviceManager::readDeviceReferenceFromFlash(GLOBAL_MIDI_COMMAND_UNDO, &buffer[104]);
+		MIDIDeviceManager::readDeviceReferenceFromFlash(GLOBAL_MIDI_COMMAND_REDO, &buffer[108]);
+	}
+
+	AudioEngine::inputMonitoringMode = buffer[50];
+
+	recordQuantizeLevel = buffer[51] + 8;
+	if (recordQuantizeLevel == 10) recordQuantizeLevel = 8; // Since I've deprecated the ZOOM option
+
+	if (previouslySavedByFirmwareVersion < FIRMWARE_2P1P0_BETA || !buffer[53]) { // Remove the true!
+		defaultTempoMenu.lower = 120;
+		defaultTempoMenu.upper = 120;
+
+		defaultSwingMenu.lower = 50;
+		defaultSwingMenu.upper = 50;
+
+		defaultKeyMenu.lower = 0;
+		defaultKeyMenu.upper = 0;
+
+		defaultScale = 0;
+	}
+
+	else {
+		defaultTempoMenu.lower = buffer[53];
+		defaultTempoMenu.upper = buffer[54];
+
+		defaultSwingMenu.lower = buffer[55];
+		defaultSwingMenu.upper = buffer[56];
+
+		defaultKeyMenu.lower = buffer[57];
+		defaultKeyMenu.upper = buffer[58];
+
+		defaultScale = buffer[59];
+	}
+
+	soundEditor.setShortcutsVersion((previouslySavedByFirmwareVersion < FIRMWARE_2P1P3_BETA) ? SHORTCUTS_VERSION_1
+	                                                                                         : buffer[60]);
+
+	if (previouslySavedByFirmwareVersion < FIRMWARE_3P0P0_ALPHA) {
+		audioClipRecordMargins = true;
+		playbackHandler.countInEnabled = false;
+		keyboardLayout = KEYBOARD_LAYOUT_QWERTY;
+	}
+	else {
+		audioClipRecordMargins = buffer[61];
+		playbackHandler.countInEnabled = buffer[62];
+		keyboardLayout = buffer[69];
+	}
+
+	if (previouslySavedByFirmwareVersion < FIRMWARE_3P0P0_BETA) {
+		sampleBrowserPreviewMode = PREVIEW_ON;
+	}
+	else {
+		sampleBrowserPreviewMode = buffer[72];
+	}
+
+	defaultVelocity = buffer[73];
+	if (defaultVelocity >= 128 || defaultVelocity <= 0) defaultVelocity = 64;
+
+	if (previouslySavedByFirmwareVersion < FIRMWARE_3P1P0_ALPHA) {
+		activeColourMenu.value = 1;  // Green
+		stoppedColourMenu.value = 0; // Red
+		mutedColourMenu.value = 3;   // Yellow
+		soloColourMenu.value = 2;    // Blue
+
+		defaultMagnitude = 2;
+
+		MIDIDeviceManager::differentiatingInputsByDevice = false;
+	}
+	else {
+		activeColourMenu.value = buffer[74];
+		stoppedColourMenu.value = buffer[75];
+		mutedColourMenu.value = buffer[76];
+		soloColourMenu.value = buffer[77];
+
+		defaultMagnitude = buffer[78];
+
+		MIDIDeviceManager::differentiatingInputsByDevice = buffer[79];
+
+		if (previouslySavedByFirmwareVersion == FIRMWARE_3P1P0_ALPHA) { // Could surely delete this code?
+			if (!activeColourMenu.value) activeColourMenu.value = 1;
+			if (!mutedColourMenu.value) mutedColourMenu.value = 3;
+			if (!soloColourMenu.value) soloColourMenu.value = 2;
+
+			if (!defaultMagnitude) defaultMagnitude = 2;
+		}
+	}
+
+	if (previouslySavedByFirmwareVersion < FIRMWARE_3P2P0_ALPHA) {
+		defaultBendRange[BEND_RANGE_MAIN] = 12; // This was the old default
+	}
+	else {
+		defaultBendRange[BEND_RANGE_MAIN] = buffer[112];
 		if (!defaultBendRange[BEND_RANGE_MAIN]) defaultBendRange[BEND_RANGE_MAIN] = 12;
 	}
 }
 
 void writeSettings() {
-    uint8_t* buffer = (uint8_t*)miscStringBuffer;
-    memset(buffer, 0, FILENAME_BUFFER_SIZE);
+	uint8_t* buffer = (uint8_t*)miscStringBuffer;
+	memset(buffer, 0, FILENAME_BUFFER_SIZE);
 
-    buffer[0] = CURRENT_FIRMWARE_VERSION;
+	buffer[0] = CURRENT_FIRMWARE_VERSION;
 
-    buffer[2] = ramSize;
+	buffer[2] = ramSize;
 
-    buffer[12] = cvEngine.cvChannels[0].voltsPerOctave;
-    buffer[13] = cvEngine.cvChannels[1].voltsPerOctave;
+	buffer[12] = cvEngine.cvChannels[0].voltsPerOctave;
+	buffer[13] = cvEngine.cvChannels[1].voltsPerOctave;
 
-    buffer[14] = cvEngine.cvChannels[0].transpose;
-    buffer[15] = cvEngine.cvChannels[1].transpose;
+	buffer[14] = cvEngine.cvChannels[0].transpose;
+	buffer[15] = cvEngine.cvChannels[1].transpose;
 
-    buffer[18] = cvEngine.cvChannels[0].cents;
-    buffer[19] = cvEngine.cvChannels[1].cents;
+	buffer[18] = cvEngine.cvChannels[0].cents;
+	buffer[19] = cvEngine.cvChannels[1].cents;
 
-    for (int i = 0; i < NUM_GATE_CHANNELS; i++) {
-    	buffer[22 + i] = cvEngine.gateChannels[i].mode;
-    }
+	for (int i = 0; i < NUM_GATE_CHANNELS; i++) {
+		buffer[22 + i] = cvEngine.gateChannels[i].mode;
+	}
 
-    buffer[30] = cvEngine.minGateOffTime;
-    buffer[31] = playbackHandler.analogClockInputAutoStart;
-    buffer[32] = playbackHandler.analogInTicksPPQN;
-    buffer[33] = playbackHandler.analogOutTicksPPQN;
-    buffer[34] = playbackHandler.midiOutClockEnabled;
-    buffer[52] = playbackHandler.midiInClockEnabled;
-    buffer[35] = playbackHandler.tempoMagnitudeMatchingEnabled;
-    buffer[36] = PadLEDs::flashCursor;
-    buffer[37] = midiEngine.midiThru;
-    buffer[38] = midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_PLAYBACK_RESTART].channelOrZone + 1;
-    buffer[39] = midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_PLAYBACK_RESTART].noteOrCC + 1;
-    buffer[40] = midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_PLAY].channelOrZone + 1;
-    buffer[41] = midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_PLAY].noteOrCC + 1;
-    buffer[42] = midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_RECORD].channelOrZone + 1;
-    buffer[43] = midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_RECORD].noteOrCC + 1;
-    buffer[44] = midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_TAP].channelOrZone + 1;
-    buffer[45] = midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_TAP].noteOrCC + 1;
-    buffer[63] = midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_LOOP].channelOrZone + 1;
-    buffer[64] = midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_LOOP].noteOrCC + 1;
-    buffer[65] = midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_UNDO].channelOrZone + 1;
-    buffer[66] = midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_UNDO].noteOrCC + 1;
-    buffer[67] = midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_REDO].channelOrZone + 1;
-    buffer[68] = midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_REDO].noteOrCC + 1;
-    buffer[70] = midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_LOOP_CONTINUOUS_LAYERING].channelOrZone + 1;
-    buffer[71] = midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_LOOP_CONTINUOUS_LAYERING].noteOrCC + 1;
+	buffer[30] = cvEngine.minGateOffTime;
+	buffer[31] = playbackHandler.analogClockInputAutoStart;
+	buffer[32] = playbackHandler.analogInTicksPPQN;
+	buffer[33] = playbackHandler.analogOutTicksPPQN;
+	buffer[34] = playbackHandler.midiOutClockEnabled;
+	buffer[52] = playbackHandler.midiInClockEnabled;
+	buffer[35] = playbackHandler.tempoMagnitudeMatchingEnabled;
+	buffer[36] = PadLEDs::flashCursor;
+	buffer[37] = midiEngine.midiThru;
+	buffer[38] = midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_PLAYBACK_RESTART].channelOrZone + 1;
+	buffer[39] = midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_PLAYBACK_RESTART].noteOrCC + 1;
+	buffer[40] = midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_PLAY].channelOrZone + 1;
+	buffer[41] = midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_PLAY].noteOrCC + 1;
+	buffer[42] = midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_RECORD].channelOrZone + 1;
+	buffer[43] = midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_RECORD].noteOrCC + 1;
+	buffer[44] = midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_TAP].channelOrZone + 1;
+	buffer[45] = midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_TAP].noteOrCC + 1;
+	buffer[63] = midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_LOOP].channelOrZone + 1;
+	buffer[64] = midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_LOOP].noteOrCC + 1;
+	buffer[65] = midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_UNDO].channelOrZone + 1;
+	buffer[66] = midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_UNDO].noteOrCC + 1;
+	buffer[67] = midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_REDO].channelOrZone + 1;
+	buffer[68] = midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_REDO].noteOrCC + 1;
+	buffer[70] = midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_LOOP_CONTINUOUS_LAYERING].channelOrZone + 1;
+	buffer[71] = midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_LOOP_CONTINUOUS_LAYERING].noteOrCC + 1;
 
-	MIDIDeviceManager::writeDeviceReferenceToFlash(GLOBAL_MIDI_COMMAND_PLAYBACK_RESTART,			&buffer[80]);
-	MIDIDeviceManager::writeDeviceReferenceToFlash(GLOBAL_MIDI_COMMAND_PLAY,						&buffer[84]);
-	MIDIDeviceManager::writeDeviceReferenceToFlash(GLOBAL_MIDI_COMMAND_RECORD,						&buffer[88]);
-	MIDIDeviceManager::writeDeviceReferenceToFlash(GLOBAL_MIDI_COMMAND_TAP,							&buffer[92]);
-	MIDIDeviceManager::writeDeviceReferenceToFlash(GLOBAL_MIDI_COMMAND_LOOP,						&buffer[96]);
-	MIDIDeviceManager::writeDeviceReferenceToFlash(GLOBAL_MIDI_COMMAND_LOOP_CONTINUOUS_LAYERING,	&buffer[100]);
-	MIDIDeviceManager::writeDeviceReferenceToFlash(GLOBAL_MIDI_COMMAND_UNDO,						&buffer[104]);
-	MIDIDeviceManager::writeDeviceReferenceToFlash(GLOBAL_MIDI_COMMAND_REDO,						&buffer[108]);
+	MIDIDeviceManager::writeDeviceReferenceToFlash(GLOBAL_MIDI_COMMAND_PLAYBACK_RESTART, &buffer[80]);
+	MIDIDeviceManager::writeDeviceReferenceToFlash(GLOBAL_MIDI_COMMAND_PLAY, &buffer[84]);
+	MIDIDeviceManager::writeDeviceReferenceToFlash(GLOBAL_MIDI_COMMAND_RECORD, &buffer[88]);
+	MIDIDeviceManager::writeDeviceReferenceToFlash(GLOBAL_MIDI_COMMAND_TAP, &buffer[92]);
+	MIDIDeviceManager::writeDeviceReferenceToFlash(GLOBAL_MIDI_COMMAND_LOOP, &buffer[96]);
+	MIDIDeviceManager::writeDeviceReferenceToFlash(GLOBAL_MIDI_COMMAND_LOOP_CONTINUOUS_LAYERING, &buffer[100]);
+	MIDIDeviceManager::writeDeviceReferenceToFlash(GLOBAL_MIDI_COMMAND_UNDO, &buffer[104]);
+	MIDIDeviceManager::writeDeviceReferenceToFlash(GLOBAL_MIDI_COMMAND_REDO, &buffer[108]);
 
-    buffer[50] = AudioEngine::inputMonitoringMode;
+	buffer[50] = AudioEngine::inputMonitoringMode;
 
-    buffer[51] = recordQuantizeLevel - 8;
+	buffer[51] = recordQuantizeLevel - 8;
 
-    buffer[53] = defaultTempoMenu.lower;
-    buffer[54] = defaultTempoMenu.upper;
+	buffer[53] = defaultTempoMenu.lower;
+	buffer[54] = defaultTempoMenu.upper;
 
-    buffer[55] = defaultSwingMenu.lower;
-    buffer[56] = defaultSwingMenu.upper;
+	buffer[55] = defaultSwingMenu.lower;
+	buffer[56] = defaultSwingMenu.upper;
 
-    buffer[57] = defaultKeyMenu.lower;
-    buffer[58] = defaultKeyMenu.upper;
+	buffer[57] = defaultKeyMenu.lower;
+	buffer[58] = defaultKeyMenu.upper;
 
-    buffer[59] = defaultScale;
-    buffer[60] = soundEditor.shortcutsVersion;
+	buffer[59] = defaultScale;
+	buffer[60] = soundEditor.shortcutsVersion;
 
-    buffer[61] = audioClipRecordMargins;
-    buffer[62] = playbackHandler.countInEnabled;
+	buffer[61] = audioClipRecordMargins;
+	buffer[62] = playbackHandler.countInEnabled;
 
-    buffer[69] = keyboardLayout;
-    buffer[72] = sampleBrowserPreviewMode;
+	buffer[69] = keyboardLayout;
+	buffer[72] = sampleBrowserPreviewMode;
 
-    buffer[73] = defaultVelocity;
+	buffer[73] = defaultVelocity;
 
-    buffer[74] = activeColourMenu.value;
-    buffer[75] = stoppedColourMenu.value;
-    buffer[76] = mutedColourMenu.value;
-    buffer[77] = soloColourMenu.value;
+	buffer[74] = activeColourMenu.value;
+	buffer[75] = stoppedColourMenu.value;
+	buffer[76] = mutedColourMenu.value;
+	buffer[77] = soloColourMenu.value;
 
-    buffer[78] = defaultMagnitude;
-    buffer[79] = MIDIDeviceManager::differentiatingInputsByDevice;
+	buffer[78] = defaultMagnitude;
+	buffer[79] = MIDIDeviceManager::differentiatingInputsByDevice;
 
-    buffer[112] = defaultBendRange[BEND_RANGE_MAIN];
+	buffer[112] = defaultBendRange[BEND_RANGE_MAIN];
 
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
-	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer, 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT, SPIBSC_OUTPUT_ADDR_24);
+	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer, 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,
+	                     SPIBSC_OUTPUT_ADDR_24);
 }
 
-
-}
+} // namespace FlashStorage

@@ -29,10 +29,10 @@ extern volatile bool_t spiTransferQueueCurrentlySending;
 extern volatile uint8_t spiTransferQueueReadPos;
 extern uint8_t spiTransferQueueWritePos;
 
-
-struct SpiTransferQueueItem {
-	uint8_t destinationId;
-	uint8_t const* dataAddress;
+struct SpiTransferQueueItem
+{
+    uint8_t destinationId;
+    uint8_t const* dataAddress;
 };
 
 extern struct SpiTransferQueueItem spiTransferQueue[SPI_TRANSFER_QUEUE_SIZE];

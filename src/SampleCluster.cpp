@@ -24,8 +24,7 @@
 #include "numericdriver.h"
 #include "GeneralMemoryAllocator.h"
 
-SampleCluster::SampleCluster()
-{
+SampleCluster::SampleCluster() {
 	cluster = NULL;
 
 	investigatedWholeLength = false;
@@ -34,13 +33,12 @@ SampleCluster::SampleCluster()
 	sdAddress = 0; // 0 means invalid, and we check for this as a last resort before writing
 }
 
-
 SampleCluster::~SampleCluster() {
 	if (cluster) {
 
 #if ALPHA_OR_BETA_VERSION
 		int numReasonsToBeLoaded = cluster->numReasonsToBeLoaded;
-		if (cluster == audioFileManager.clusterBeingLoaded) numReasonsToBeLoaded --;
+		if (cluster == audioFileManager.clusterBeingLoaded) numReasonsToBeLoaded--;
 
 		if (numReasonsToBeLoaded) {
 			Uart::print("uh oh, some reasons left... ");
@@ -60,19 +58,17 @@ void SampleCluster::ensureNoReason(Sample* sample) {
 			Uart::println(cluster->numReasonsToBeLoaded);
 			Uart::println(sample->filePath.get());
 
-			if (cluster->numReasonsToBeLoaded >= 0)
-				numericDriver.freezeWithError("E068");
-			else
-				numericDriver.freezeWithError("E069");
+			if (cluster->numReasonsToBeLoaded >= 0) numericDriver.freezeWithError("E068");
+			else numericDriver.freezeWithError("E069");
 			delayMS(50);
-
 		}
 	}
 }
 
 // Calling this will add a reason to the loaded Cluster!
 // priorityRating is only relevant if enqueuing.
-Cluster* SampleCluster::getCluster(Sample* sample, uint32_t clusterIndex, int loadInstruction, uint32_t priorityRating, uint8_t* error) {
+Cluster* SampleCluster::getCluster(Sample* sample, uint32_t clusterIndex, int loadInstruction, uint32_t priorityRating,
+                                   uint8_t* error) {
 
 	if (error) *error = NO_ERROR;
 
@@ -96,7 +92,8 @@ Cluster* SampleCluster::getCluster(Sample* sample, uint32_t clusterIndex, int lo
 		}
 
 #if 1 || ALPHA_OR_BETA_VERSION // Switching permanently on for now, as users on on V4.0.x have been getting E341.
-		if (cluster->numReasonsToBeLoaded < 1) numericDriver.freezeWithError("i005"); // Diversifying Qui's E341. It should actually be exactly 1
+		if (cluster->numReasonsToBeLoaded < 1)
+			numericDriver.freezeWithError("i005"); // Diversifying Qui's E341. It should actually be exactly 1
 		if (cluster->type != CLUSTER_SAMPLE) numericDriver.freezeWithError("E256"); // Cos I got E236
 #endif
 
@@ -110,11 +107,14 @@ Cluster* SampleCluster::getCluster(Sample* sample, uint32_t clusterIndex, int lo
 		if (loadInstruction == CLUSTER_ENQUEUE) {
 justEnqueue:
 
-			if (ALPHA_OR_BETA_VERSION && cluster->type != CLUSTER_SAMPLE) numericDriver.freezeWithError("E236"); // Cos Chris F got an E205
+			if (ALPHA_OR_BETA_VERSION && cluster->type != CLUSTER_SAMPLE)
+				numericDriver.freezeWithError("E236"); // Cos Chris F got an E205
 
-			audioFileManager.enqueueCluster(cluster, priorityRating); // TODO: If that fails, it'll just get awkwardly forgotten about
+			audioFileManager.enqueueCluster(
+			    cluster, priorityRating); // TODO: If that fails, it'll just get awkwardly forgotten about
 #if 1 || ALPHA_OR_BETA_VERSION // Switching permanently on for now, as users on on V4.0.x have been getting E341.
-			if (cluster && cluster->numReasonsToBeLoaded <= 0) numericDriver.freezeWithError("i027"); // Diversifying Ron R's i004, which was diversifying Qui's E341
+			if (cluster && cluster->numReasonsToBeLoaded <= 0)
+				numericDriver.freezeWithError("i027"); // Diversifying Ron R's i004, which was diversifying Qui's E341
 #endif
 		}
 
@@ -123,7 +123,8 @@ justEnqueue:
 
 			// cluster has (at least?) one reason - added above
 
-			if (ALPHA_OR_BETA_VERSION && cluster->type != CLUSTER_SAMPLE) numericDriver.freezeWithError("E234"); // Cos Chris F got an E205
+			if (ALPHA_OR_BETA_VERSION && cluster->type != CLUSTER_SAMPLE)
+				numericDriver.freezeWithError("E234"); // Cos Chris F got an E205
 			bool result = audioFileManager.loadCluster(cluster, 1);
 
 			// If that didn't work...
@@ -136,11 +137,14 @@ justEnqueue:
 				// Free and remove our link to the unloaded Cluster - otherwise the next time we try to load it, it'd still exist but never get enqueued for loading
 				audioFileManager.deallocateCluster(cluster); // This removes the 1 reason that it'd still have
 
-				if (error) *error = ERROR_UNSPECIFIED; // TODO: get actual error. Although sometimes it'd just be a "can't do it now cos card's being accessed, and that's fine, thanks for checking."
+				if (error)
+					*error =
+					    ERROR_UNSPECIFIED; // TODO: get actual error. Although sometimes it'd just be a "can't do it now cos card's being accessed, and that's fine, thanks for checking."
 				cluster = NULL;
 			}
 #if 1 || ALPHA_OR_BETA_VERSION // Switching permanently on for now, as users on on V4.0.x have been getting E341.
-			if (cluster && cluster->numReasonsToBeLoaded <= 0) numericDriver.freezeWithError("i026"); // Michael B got - insane.
+			if (cluster && cluster->numReasonsToBeLoaded <= 0)
+				numericDriver.freezeWithError("i026"); // Michael B got - insane.
 #endif
 		}
 	}
@@ -153,7 +157,8 @@ justEnqueue:
 #endif
 
 		// If they'd prefer it loaded immediately and it's not loaded, try speeding loading along
-		if ((loadInstruction == CLUSTER_LOAD_IMMEDIATELY || loadInstruction == CLUSTER_LOAD_IMMEDIATELY_OR_ENQUEUE) && !cluster->loaded) {
+		if ((loadInstruction == CLUSTER_LOAD_IMMEDIATELY || loadInstruction == CLUSTER_LOAD_IMMEDIATELY_OR_ENQUEUE)
+		    && !cluster->loaded) {
 			audioFileManager.loadAnyEnqueuedClusters();
 
 			// If it's still not loaded and it was a must-load-now...
@@ -168,12 +173,14 @@ justEnqueue:
 		audioFileManager.addReasonToCluster(cluster);
 
 #if 1 || ALPHA_OR_BETA_VERSION // Switching permanently on for now, as users on on V4.0.x have been getting E341.
-		if (cluster && cluster->numReasonsToBeLoaded <= 0) numericDriver.freezeWithError("i025"); // Diversifying Ron R's i004, which was diversifying Qui's E341
+		if (cluster && cluster->numReasonsToBeLoaded <= 0)
+			numericDriver.freezeWithError("i025"); // Diversifying Ron R's i004, which was diversifying Qui's E341
 #endif
 	}
 
 #if 1 || ALPHA_OR_BETA_VERSION // Switching permanently on for now, as users on on V4.0.x have been getting E341.
-	if (cluster && cluster->numReasonsToBeLoaded <= 0) numericDriver.freezeWithError("i004"); // Ron R got this! Diversifying Qui's E341
+	if (cluster && cluster->numReasonsToBeLoaded <= 0)
+		numericDriver.freezeWithError("i004"); // Ron R got this! Diversifying Qui's E341
 #endif
 
 	return cluster;

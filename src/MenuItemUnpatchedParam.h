@@ -33,11 +33,13 @@ public:
 	ParamDescriptor getLearningThing() final;
 	int getMaxValue() { return MenuItemParam::getMaxValue(); }
 	int getMinValue() { return MenuItemParam::getMinValue(); }
-    MenuItem* selectButtonPress() final { return MenuItemParam::selectButtonPress(); }
+	MenuItem* selectButtonPress() final { return MenuItemParam::selectButtonPress(); }
 
-    void unlearnAction() final { MenuItemWithCCLearning::unlearnAction(); }
-    bool allowsLearnMode() final { return MenuItemWithCCLearning::allowsLearnMode(); }
-    void learnKnob(MIDIDevice* fromDevice, int whichKnob, int modKnobMode, int midiChannel) final { MenuItemWithCCLearning::learnKnob(fromDevice, whichKnob, modKnobMode, midiChannel); };
+	void unlearnAction() final { MenuItemWithCCLearning::unlearnAction(); }
+	bool allowsLearnMode() final { return MenuItemWithCCLearning::allowsLearnMode(); }
+	void learnKnob(MIDIDevice* fromDevice, int whichKnob, int modKnobMode, int midiChannel) final {
+		MenuItemWithCCLearning::learnKnob(fromDevice, whichKnob, modKnobMode, midiChannel);
+	};
 
 	ParamSet* getParamSet() final;
 	ModelStackWithAutoParam* getModelStack(void* memory) final;
@@ -46,23 +48,22 @@ protected:
 	virtual int32_t getFinalValue();
 };
 
-
 class MenuItemUnpatchedParamPan final : public MenuItemUnpatchedParam {
 public:
 	MenuItemUnpatchedParamPan(char const* newName = 0, int newP = 0) : MenuItemUnpatchedParam(newName, newP) {}
-    void drawValue();
+	void drawValue();
+
 protected:
-    int getMaxValue() { return 32; }
-    int getMinValue() { return -32; }
+	int getMaxValue() { return 32; }
+	int getMinValue() { return -32; }
 	int32_t getFinalValue();
 	void readCurrentValue();
 };
 
-
-
 class MenuItemUnpatchedParamUpdatingReverbParams final : public MenuItemUnpatchedParam {
 public:
-	MenuItemUnpatchedParamUpdatingReverbParams(char const* newName = 0, int newP = 0) : MenuItemUnpatchedParam(newName, newP) {}
+	MenuItemUnpatchedParamUpdatingReverbParams(char const* newName = 0, int newP = 0)
+	    : MenuItemUnpatchedParam(newName, newP) {}
 	void writeCurrentValue();
 };
 

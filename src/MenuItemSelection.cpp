@@ -68,7 +68,6 @@ void MenuItemSelection::selectEncoderAction(int offset) {
 	MenuItemValue::selectEncoderAction(offset);
 }
 
-
 void MenuItemSelection::drawValue() {
 #if HAVE_OLED
 	renderUIsForOled();
@@ -77,12 +76,13 @@ void MenuItemSelection::drawValue() {
 #endif
 }
 
-
 #if HAVE_OLED
 void MenuItemSelection::drawPixelsForOled() {
 	// Move scroll
-	if (soundEditor.menuCurrentScroll > soundEditor.currentValue) soundEditor.menuCurrentScroll = soundEditor.currentValue;
-	else if (soundEditor.menuCurrentScroll < soundEditor.currentValue - OLED_MENU_NUM_OPTIONS_VISIBLE + 1) soundEditor.menuCurrentScroll = soundEditor.currentValue - OLED_MENU_NUM_OPTIONS_VISIBLE + 1;
+	if (soundEditor.menuCurrentScroll > soundEditor.currentValue)
+		soundEditor.menuCurrentScroll = soundEditor.currentValue;
+	else if (soundEditor.menuCurrentScroll < soundEditor.currentValue - OLED_MENU_NUM_OPTIONS_VISIBLE + 1)
+		soundEditor.menuCurrentScroll = soundEditor.currentValue - OLED_MENU_NUM_OPTIONS_VISIBLE + 1;
 
 	char const** options = &getOptions()[soundEditor.menuCurrentScroll];
 	int selectedOption = soundEditor.currentValue - soundEditor.menuCurrentScroll;

@@ -21,43 +21,50 @@
 #include "ModControllableAudio.h"
 #include "FilterSet.h"
 
-
 class GlobalEffectable : public ModControllableAudio {
 public:
 	GlobalEffectable();
-    void cloneFrom(ModControllableAudio* other);
+	void cloneFrom(ModControllableAudio* other);
 
-    static void initParams(ParamManager* paramManager);
-    static void initParamsForAudioClip(ParamManagerForTimeline* paramManager);
-    void modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager);
-    bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack);
-    ModelStackWithAutoParam* getParamFromModEncoder(int whichModEncoder, ModelStackWithThreeMainThings* modelStack, bool allowCreation = true);
-    void setupFilterSetConfig(FilterSetConfig* filterSetConfig, int32_t* postFXVolume, ParamManager* paramManager);
-    void processFilters(StereoSample* buffer, int numSamples, FilterSetConfig* filterSetConfig);
-    void compensateVolumeForResonance(ParamManagerForTimeline* paramManager);
-    void processFXForGlobalEffectable(StereoSample* inputBuffer, int numSamples, int32_t* postFXVolume, ParamManager* paramManager, DelayWorkingState* delayWorkingState, int analogDelaySaturationAmount);
+	static void initParams(ParamManager* paramManager);
+	static void initParamsForAudioClip(ParamManagerForTimeline* paramManager);
+	void modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager);
+	bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack);
+	ModelStackWithAutoParam* getParamFromModEncoder(int whichModEncoder, ModelStackWithThreeMainThings* modelStack,
+	                                                bool allowCreation = true);
+	void setupFilterSetConfig(FilterSetConfig* filterSetConfig, int32_t* postFXVolume, ParamManager* paramManager);
+	void processFilters(StereoSample* buffer, int numSamples, FilterSetConfig* filterSetConfig);
+	void compensateVolumeForResonance(ParamManagerForTimeline* paramManager);
+	void processFXForGlobalEffectable(StereoSample* inputBuffer, int numSamples, int32_t* postFXVolume,
+	                                  ParamManager* paramManager, DelayWorkingState* delayWorkingState,
+	                                  int analogDelaySaturationAmount);
 
-    void writeAttributesToFile(bool writeToFile);
-    void writeTagsToFile(ParamManager* paramManager, bool writeToFile);
-    int readTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos, Song* song);
-    static void writeParamAttributesToFile(ParamManager* paramManager, bool writeAutomation, int32_t* valuesForOverride = NULL);
-    static void writeParamTagsToFile(ParamManager* paramManager, bool writeAutomation, int32_t* valuesForOverride = NULL);
-    static void readParamsFromFile(ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos);
-    static bool readParamTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos);
-    char const* paramToString(uint8_t param);
-    int stringToParam(char const* string);
-    void setupDelayWorkingState(DelayWorkingState* delayWorkingState, ParamManager* paramManager, bool shouldLimitDelayFeedback = false);
+	void writeAttributesToFile(bool writeToFile);
+	void writeTagsToFile(ParamManager* paramManager, bool writeToFile);
+	int readTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos,
+	                    Song* song);
+	static void writeParamAttributesToFile(ParamManager* paramManager, bool writeAutomation,
+	                                       int32_t* valuesForOverride = NULL);
+	static void writeParamTagsToFile(ParamManager* paramManager, bool writeAutomation,
+	                                 int32_t* valuesForOverride = NULL);
+	static void readParamsFromFile(ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos);
+	static bool readParamTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager,
+	                                 int32_t readAutomationUpToPos);
+	char const* paramToString(uint8_t param);
+	int stringToParam(char const* string);
+	void setupDelayWorkingState(DelayWorkingState* delayWorkingState, ParamManager* paramManager,
+	                            bool shouldLimitDelayFeedback = false);
 
-    FilterSet filterSets[2];
-    uint8_t currentModFXParam;
-    uint8_t currentFilterType;
+	FilterSet filterSets[2];
+	uint8_t currentModFXParam;
+	uint8_t currentFilterType;
 
 protected:
-    virtual int getParameterFromKnob(int whichModEncoder);
-    int getActiveModFXType(ParamManager* paramManager);
+	virtual int getParameterFromKnob(int whichModEncoder);
+	int getActiveModFXType(ParamManager* paramManager);
 
 private:
-    void ensureModFXParamIsValid();
+	void ensureModFXParamIsValid();
 };
 
 #endif /* GLOBALEFFECTABLE_H_ */

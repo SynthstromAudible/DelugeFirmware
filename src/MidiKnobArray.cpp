@@ -19,10 +19,8 @@
 #include "Knob.h"
 #include <new>
 
-MidiKnobArray::MidiKnobArray() : ResizeableArray(sizeof(MIDIKnob))
-{
+MidiKnobArray::MidiKnobArray() : ResizeableArray(sizeof(MIDIKnob)) {
 }
-
 
 MIDIKnob* MidiKnobArray::insertKnob(int i) {
 	int error = insertAtIndex(i);
@@ -38,8 +36,6 @@ MIDIKnob* MidiKnobArray::insertKnob(int i) {
 MIDIKnob* MidiKnobArray::insertKnobAtEnd() {
 	return insertKnob(getNumElements());
 }
-
-
 
 MIDIKnob* MidiKnobArray::getElement(int i) {
 	return (MIDIKnob*)getElementAddress(i);

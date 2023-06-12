@@ -38,7 +38,6 @@ class SampleRecorder;
 #define ALTERNATE_LOAD_DIR_MIGHT_EXIST 2
 #define ALTERNATE_LOAD_DIR_DOES_EXIST 3
 
-
 /*
  * ===================== SD card audio streaming ==================
  *
@@ -78,7 +77,8 @@ public:
 	AudioFileVector audioFiles;
 
 	void init();
-	AudioFile* getAudioFileFromFilename(String* fileName, bool mayReadCard, uint8_t* error, FilePointer* filePointer, int type, bool makeWaveTableWorkAtAllCosts = false);
+	AudioFile* getAudioFileFromFilename(String* fileName, bool mayReadCard, uint8_t* error, FilePointer* filePointer,
+	                                    int type, bool makeWaveTableWorkAtAllCosts = false);
 	Cluster* allocateCluster(int type = CLUSTER_SAMPLE, bool shouldAddReasons = true, void* dontStealFromThing = NULL);
 	int enqueueCluster(Cluster* cluster, uint32_t priorityRating = 0xFFFFFFFF);
 	bool loadCluster(Cluster* cluster, int minNumReasonsAfter = 0);
@@ -94,7 +94,8 @@ public:
 	int setupAlternateAudioFilePath(String* newPath, int dirPathLength, String* oldPath);
 	int setupAlternateAudioFileDir(String* newPath, char const* rootDir, String* songFilenameWithoutExtension);
 	bool loadingQueueHasAnyLowestPriorityElements();
-	int getUnusedAudioRecordingFilePath(String* filePath, String* tempFilePathForRecording, int folderID, uint32_t* getNumber);
+	int getUnusedAudioRecordingFilePath(String* filePath, String* tempFilePathForRecording, int folderID,
+	                                    uint32_t* getNumber);
 	void deleteAnyTempRecordedSamplesFromMemory();
 	void deleteUnusedAudioFileFromMemory(AudioFile* audioFile, int i);
 	void deleteUnusedAudioFileFromMemoryIndexUnknown(AudioFile* audioFile);
@@ -128,10 +129,10 @@ public:
 private:
 	void setClusterSize(uint32_t newSize);
 	void cardReinserted();
-	int readBytes(char* buffer, int num, int* byteIndexWithinCluster, Cluster** currentCluster, uint32_t* currentClusterIndex, uint32_t fileSize, Sample* sample);
+	int readBytes(char* buffer, int num, int* byteIndexWithinCluster, Cluster** currentCluster,
+	              uint32_t* currentClusterIndex, uint32_t fileSize, Sample* sample);
 	int loadAiff(Sample* newSample, uint32_t fileSize, Cluster** currentCluster, uint32_t* currentClusterIndex);
 	int loadWav(Sample* newSample, uint32_t fileSize, Cluster** currentCluster, uint32_t* currentClusterIndex);
-
 };
 
 extern AudioFileManager audioFileManager;

@@ -22,7 +22,6 @@
 
 class MIDIDevice;
 
-
 class MenuItemMidiCommand final : public MenuItem {
 public:
 	MenuItemMidiCommand(char const* newName = NULL, int newCommandNumber = 0) : MenuItem(newName) {

@@ -22,26 +22,22 @@
 #include "r_typedefs.h"
 #include "WaveformRenderData.h"
 
-
 class AudioClip;
 
-class MatrixDriver
-{
+class MatrixDriver {
 public:
-    MatrixDriver();
+	MatrixDriver();
 
-    bool isPadPressed(int x, int y);
+	bool isPadPressed(int x, int y);
 
-    int padAction(int x, int y, int velocity);
-    void noPressesHappening(bool inCardRoutine);
-    bool isUserDoingBootloaderOverwriteAction();
+	int padAction(int x, int y, int velocity);
+	void noPressesHappening(bool inCardRoutine);
+	bool isUserDoingBootloaderOverwriteAction();
 
-    bool padStates[displayWidth + sideBarWidth][displayHeight];
-
+	bool padStates[displayWidth + sideBarWidth][displayHeight];
 };
 
 extern char* matrixDriverDisplayWritePos;
-
 
 extern MatrixDriver matrixDriver;
 #endif // DISPLAYMANAGER_H

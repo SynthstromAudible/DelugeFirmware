@@ -25,14 +25,12 @@ extern "C" {
 #include "cfunctions.h"
 }
 
-GateDrum::GateDrum() : NonAudioDrum(DRUM_TYPE_GATE)
-{
+GateDrum::GateDrum() : NonAudioDrum(DRUM_TYPE_GATE) {
 	channel = 2;
 }
 
-
-
-void GateDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, Kit* kit, int16_t const* mpeValues, int fromMIDIChannel, uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate) {
+void GateDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, Kit* kit, int16_t const* mpeValues,
+                      int fromMIDIChannel, uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate) {
 	cvEngine.sendNote(true, channel);
 	state = true;
 }
@@ -42,33 +40,31 @@ void GateDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int velocity) 
 	state = false;
 }
 
-
 void GateDrum::writeToFile(bool savingSong, ParamManager* paramManager) {
-    storageManager.writeOpeningTagBeginning("gateOutput");
+	storageManager.writeOpeningTagBeginning("gateOutput");
 
-    storageManager.writeAttribute("channel", channel, false);
+	storageManager.writeAttribute("channel", channel, false);
 
-    if (savingSong) {
-        storageManager.writeOpeningTagEnd();
-    	Drum::writeMIDICommandsToFile();
-        storageManager.writeClosingTag("gateOutput");
-    }
-    else {
-    	storageManager.closeTag();
-    }
+	if (savingSong) {
+		storageManager.writeOpeningTagEnd();
+		Drum::writeMIDICommandsToFile();
+		storageManager.writeClosingTag("gateOutput");
+	}
+	else {
+		storageManager.closeTag();
+	}
 }
 
 int GateDrum::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) {
-    char const* tagName;
+	char const* tagName;
 
-    while (*(tagName = storageManager.readNextTagOrAttributeName())) {
-        if (NonAudioDrum::readDrumTagFromFile(tagName)) {}
-        else storageManager.exitTag(tagName);
-    }
+	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+		if (NonAudioDrum::readDrumTagFromFile(tagName)) {}
+		else storageManager.exitTag(tagName);
+	}
 
-    return NO_ERROR;
+	return NO_ERROR;
 }
-
 
 void GateDrum::getName(char* buffer) {
 	strcpy(buffer, "GAT");

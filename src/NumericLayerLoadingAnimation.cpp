@@ -19,31 +19,27 @@
 #include "uitimermanager.h"
 #include "string.h"
 
-NumericLayerLoadingAnimation::NumericLayerLoadingAnimation()
-{
+NumericLayerLoadingAnimation::NumericLayerLoadingAnimation() {
 	loadingAnimationPos = 0;
-
 }
 
-NumericLayerLoadingAnimation::~NumericLayerLoadingAnimation()
-{
+NumericLayerLoadingAnimation::~NumericLayerLoadingAnimation() {
 	// TODO Auto-generated destructor stub
 }
 
 void NumericLayerLoadingAnimation::isNowOnTop() {
-    uiTimerManager.setTimer(TIMER_DISPLAY, flashTime);
+	uiTimerManager.setTimer(TIMER_DISPLAY, flashTime);
 }
 
 bool NumericLayerLoadingAnimation::callBack() {
 
-    loadingAnimationPos++;
-    if (loadingAnimationPos == 10) loadingAnimationPos = 0;
+	loadingAnimationPos++;
+	if (loadingAnimationPos == 10) loadingAnimationPos = 0;
 
-    uiTimerManager.setTimer(TIMER_DISPLAY, flashTime);
+	uiTimerManager.setTimer(TIMER_DISPLAY, flashTime);
 
-    return false;
+	return false;
 }
-
 
 void NumericLayerLoadingAnimation::render(uint8_t* returnSegments) {
 	if (animationIsTransparent && next) {
@@ -51,8 +47,8 @@ void NumericLayerLoadingAnimation::render(uint8_t* returnSegments) {
 	}
 	else memset(returnSegments, 0, NUMERIC_DISPLAY_LENGTH);
 
-    if (loadingAnimationPos < 4) returnSegments[loadingAnimationPos] ^= 0x40;
-    else if (loadingAnimationPos == 4) returnSegments[3] ^= 0x30;
-    else if (loadingAnimationPos < 9) returnSegments[3 - (loadingAnimationPos - 5)] ^= 0x08;
-    else returnSegments[0] ^= 0x06;
+	if (loadingAnimationPos < 4) returnSegments[loadingAnimationPos] ^= 0x40;
+	else if (loadingAnimationPos == 4) returnSegments[3] ^= 0x30;
+	else if (loadingAnimationPos < 9) returnSegments[3 - (loadingAnimationPos - 5)] ^= 0x08;
+	else returnSegments[0] ^= 0x06;
 }

@@ -26,11 +26,9 @@ int32_t ClipNavigationTimelineView::xScrollBeforeFollowingAutoExtendingLinearRec
 ClipNavigationTimelineView::ClipNavigationTimelineView() {
 }
 
-
 void ClipNavigationTimelineView::focusRegained() {
 	xScrollBeforeFollowingAutoExtendingLinearRecording = -1;
 }
-
 
 int ClipNavigationTimelineView::horizontalEncoderAction(int offset) {
 
@@ -41,7 +39,8 @@ int ClipNavigationTimelineView::horizontalEncoderAction(int offset) {
 void ClipNavigationTimelineView::horizontalScrollForLinearRecording(int32_t newXScroll) {
 	// Make sure we don't scroll too far right
 	if (newXScroll < getMaxLength()) {
-		if (!PadLEDs::renderingLock && (!currentUIMode || currentUIMode == UI_MODE_AUDITIONING) && getCurrentUI() == this) {
+		if (!PadLEDs::renderingLock && (!currentUIMode || currentUIMode == UI_MODE_AUDITIONING)
+		    && getCurrentUI() == this) {
 			initiateXScroll(newXScroll);
 		}
 		else {

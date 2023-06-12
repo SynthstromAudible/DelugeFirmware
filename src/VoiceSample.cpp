@@ -31,22 +31,18 @@
 #include "playbackhandler.h"
 #include "uart.h"
 
-extern "C" {
-}
+extern "C" {}
 
 extern int32_t spareRenderingBuffer[][SSI_TX_BUFFER_NUM_SAMPLES];
 
-VoiceSample::VoiceSample()
-{
+VoiceSample::VoiceSample() {
 	timeStretcher = NULL;
 }
-
 
 void VoiceSample::beenUnassigned() {
 	unassignAllReasons();
 	endTimeStretching();
 }
-
 
 // You'll normally want to call setupClustersForInitialPlay() after this
 void VoiceSample::noteOn(SamplePlaybackGuide* guide, uint32_t samplesLate, int priorityRating) {
@@ -54,15 +50,14 @@ void VoiceSample::noteOn(SamplePlaybackGuide* guide, uint32_t samplesLate, int p
 	doneFirstRenderYet = false;
 	cache = NULL;
 
-	pendingSamplesLate = samplesLate; // We store this to deal with later, because in order to deal with this we need to know the pitch-adjustment, and that's not calculated yet
+	pendingSamplesLate =
+	    samplesLate; // We store this to deal with later, because in order to deal with this we need to know the pitch-adjustment, and that's not calculated yet
 	oscPos = 0;
 	interpolationBufferSizeLastTime = 0;
 	timeStretcher = NULL; // Just in case
 	fudging = false;
 	forAudioClip = false;
 }
-
-
 
 // Returns false if error
 bool VoiceSample::noteOffWhenLoopEndPointExists(Voice* voice, VoiceSamplePlaybackGuide* guide) {
@@ -74,14 +69,12 @@ bool VoiceSample::noteOffWhenLoopEndPointExists(Voice* voice, VoiceSamplePlaybac
 	else {
 		if (timeStretcher) return true;
 		else {
-			return reassessReassessmentLocation(guide, (Sample*)guide->audioFileHolder->audioFile, voice->getPriorityRating());
+			return reassessReassessmentLocation(guide, (Sample*)guide->audioFileHolder->audioFile,
+			                                    voice->getPriorityRating());
 			// That's only going to make reassessmentLocation later, so no need to check we haven't shot past it I think...
 		}
 	}
 }
-
-
-
 
 void VoiceSample::endTimeStretching() {
 	fudging = false;
@@ -93,8 +86,6 @@ void VoiceSample::endTimeStretching() {
 	}
 }
 
-
-
 void VoiceSample::setupCacheLoopPoints(SamplePlaybackGuide* guide, Sample* sample, int loopingType) {
 	//Uart::println("VoiceSample::setupCacheLoopPoints");
 
@@ -102,9 +93,10 @@ void VoiceSample::setupCacheLoopPoints(SamplePlaybackGuide* guide, Sample* sampl
 
 	uint64_t combinedIncrement = ((uint64_t)(uint32_t)cache->phaseIncrement * (uint32_t)cache->timeStretchRatio) >> 24;
 
-	bool endPointIsRightAtEnd = (guide->playDirection == 1) ?
-			(guide->endPlaybackAtByte == sample->audioDataStartPosBytes + sample->audioDataLengthBytes) :
-			(guide->endPlaybackAtByte == sample->audioDataStartPosBytes - bytesPerSample);
+	bool endPointIsRightAtEnd =
+	    (guide->playDirection == 1)
+	        ? (guide->endPlaybackAtByte == sample->audioDataStartPosBytes + sample->audioDataLengthBytes)
+	        : (guide->endPlaybackAtByte == sample->audioDataStartPosBytes - bytesPerSample);
 
 	// End point: if it's right at the actual end of the sample, we can just fill the cache til it's full.
 	if (endPointIsRightAtEnd) { // Easy
@@ -113,9 +105,10 @@ void VoiceSample::setupCacheLoopPoints(SamplePlaybackGuide* guide, Sample* sampl
 
 	// Otherwise, have to calculate the exact byte at which we're ending
 	else { // Hard
-		uint32_t endPointBytes = (guide->playDirection == 1) ?
-				guide->endPlaybackAtByte - sample->audioDataStartPosBytes :
-				sample->audioDataStartPosBytes + sample->audioDataLengthBytes - guide->endPlaybackAtByte - 1;
+		uint32_t endPointBytes =
+		    (guide->playDirection == 1)
+		        ? guide->endPlaybackAtByte - sample->audioDataStartPosBytes
+		        : sample->audioDataStartPosBytes + sample->audioDataLengthBytes - guide->endPlaybackAtByte - 1;
 		uint32_t endPointSamples = endPointBytes / bytesPerSample - cache->skipSamplesAtStart;
 		uint64_t endPointSamplesBig = (uint64_t)endPointSamples << 24;
 		uint32_t endPointCombinedIncrements = (endPointSamplesBig - 1) / combinedIncrement + 1;
@@ -140,50 +133,60 @@ void VoiceSample::setupCacheLoopPoints(SamplePlaybackGuide* guide, Sample* sampl
 
 		// Loop start point
 		int loopStartPointBytesRaw = guide->getLoopStartPlaybackAtByte();
-		uint32_t loopStartPointBytes = (guide->playDirection == 1) ?
-				loopStartPointBytesRaw - sample->audioDataStartPosBytes :
-				sample->audioDataStartPosBytes + sample->audioDataLengthBytes - loopStartPointBytesRaw - 1;
+		uint32_t loopStartPointBytes =
+		    (guide->playDirection == 1)
+		        ? loopStartPointBytesRaw - sample->audioDataStartPosBytes
+		        : sample->audioDataStartPosBytes + sample->audioDataLengthBytes - loopStartPointBytesRaw - 1;
 		int loopStartPointSamples = loopStartPointBytes / bytesPerSample - cache->skipSamplesAtStart;
 
 		// Loop end point
 		int loopEndPointBytesRaw = guide->getLoopEndPlaybackAtByte();
 
-		int loopEndPointBytes = (guide->playDirection == 1) ?
-				loopEndPointBytesRaw - sample->audioDataStartPosBytes :
-				sample->audioDataStartPosBytes + sample->audioDataLengthBytes - loopEndPointBytesRaw - 1;
+		int loopEndPointBytes =
+		    (guide->playDirection == 1)
+		        ? loopEndPointBytesRaw - sample->audioDataStartPosBytes
+		        : sample->audioDataStartPosBytes + sample->audioDataLengthBytes - loopEndPointBytesRaw - 1;
 		int loopEndPointSamples = loopEndPointBytes / bytesPerSample - cache->skipSamplesAtStart;
 
 		// Loop length
 		uint32_t loopLengthSamples = loopEndPointSamples - loopStartPointSamples;
 		uint64_t loopLengthSamplesBig = (uint64_t)loopLengthSamples << 24;
-		uint32_t loopLengthCombinedIncrements = (loopLengthSamplesBig + (combinedIncrement >> 1)) / combinedIncrement; // Rounds
+		uint32_t loopLengthCombinedIncrements =
+		    (loopLengthSamplesBig + (combinedIncrement >> 1)) / combinedIncrement; // Rounds
 		cacheLoopLengthBytes = loopLengthCombinedIncrements * CACHE_BYTE_DEPTH * sample->numChannels;
 
 		// Loop end point again
 		uint64_t loopEndPointSamplesBig = (uint64_t)loopEndPointSamples << 24;
-		uint32_t loopEndPointCombinedIncrements = (loopEndPointSamplesBig + (combinedIncrement >> 1)) / combinedIncrement; // Rounds
+		uint32_t loopEndPointCombinedIncrements =
+		    (loopEndPointSamplesBig + (combinedIncrement >> 1)) / combinedIncrement; // Rounds
 		cacheLoopEndPointBytes = loopEndPointCombinedIncrements * CACHE_BYTE_DEPTH * sample->numChannels;
 	}
 }
 
 // Returns a status such as LATE_START_ATTEMPT_WAIT
-int VoiceSample::attemptLateSampleStart(SamplePlaybackGuide* voiceSource, Sample* sample, int64_t rawSamplesSinceStart, int numSamples) {
+int VoiceSample::attemptLateSampleStart(SamplePlaybackGuide* voiceSource, Sample* sample, int64_t rawSamplesSinceStart,
+                                        int numSamples) {
 
 	int bytesPerSample = sample->numChannels * sample->byteDepth;
 
-	int64_t startAtByte = rawSamplesSinceStart * bytesPerSample * voiceSource->playDirection + voiceSource->startPlaybackAtByte;
+	int64_t startAtByte =
+	    rawSamplesSinceStart * bytesPerSample * voiceSource->playDirection + voiceSource->startPlaybackAtByte;
 
 	// If we've already passed the end of the sample (how would that occur in the real world, again?)
-	if ((int64_t)(startAtByte - voiceSource->endPlaybackAtByte) * voiceSource->playDirection >= 0) return LATE_START_ATTEMPT_FAILURE;
+	if ((int64_t)(startAtByte - voiceSource->endPlaybackAtByte) * voiceSource->playDirection >= 0)
+		return LATE_START_ATTEMPT_FAILURE;
 
-	if ((int64_t)(startAtByte - voiceSource->startPlaybackAtByte) * voiceSource->playDirection < 0) numericDriver.freezeWithError("E439");	// Chasing "E366".
+	if ((int64_t)(startAtByte - voiceSource->startPlaybackAtByte) * voiceSource->playDirection < 0)
+		numericDriver.freezeWithError("E439"); // Chasing "E366".
 
 	uint32_t startAtClusterIndex = startAtByte >> audioFileManager.clusterSizeMagnitude;
-	if (startAtClusterIndex >= sample->getFirstClusterIndexWithNoAudioData()) numericDriver.freezeWithError("E366");	// This can occur if some overflowing happened on the previous check due to an
-																									// insanely high rawSamplesSinceStart being supplied due to some other bug.
-																									// This was a problem around V3.1.0 release, so currently keeping this check
-																									// even outside of ALPHA_OR_BETA_VERSION.
-																									// Sven got! 4.0.0-beta4.
+	if (startAtClusterIndex >= sample->getFirstClusterIndexWithNoAudioData())
+		numericDriver.freezeWithError(
+		    "E366"); // This can occur if some overflowing happened on the previous check due to an
+		             // insanely high rawSamplesSinceStart being supplied due to some other bug.
+		             // This was a problem around V3.1.0 release, so currently keeping this check
+		             // even outside of ALPHA_OR_BETA_VERSION.
+		             // Sven got! 4.0.0-beta4.
 
 	int finalClusterIndex = voiceSource->getFinalClusterIndex(sample, cache); // Think this is right...
 
@@ -235,10 +238,8 @@ goodToGo:
 		// Or, if we're actually not very far into the first Cluster, that's fine too - the second one should still have time to load
 		else {
 			int numBytesIn;
-			if (voiceSource->playDirection == 1)
-				numBytesIn = bytesPosWithinCluster;
-			else
-				numBytesIn = audioFileManager.clusterSize - bytesPosWithinCluster;
+			if (voiceSource->playDirection == 1) numBytesIn = bytesPosWithinCluster;
+			else numBytesIn = audioFileManager.clusterSize - bytesPosWithinCluster;
 
 			if (numBytesIn < (audioFileManager.clusterSize >> 1)) {
 				goto goodToGo;
@@ -251,9 +252,9 @@ goodToGo:
 	return LATE_START_ATTEMPT_WAIT;
 }
 
-
 // Returns false if becoming unassigned now
-bool VoiceSample::fudgeTimeStretchingToAvoidClick(Sample* sample, SamplePlaybackGuide* guide, int32_t phaseIncrement, int numSamplesTilLoop, int playDirection, int priorityRating) {
+bool VoiceSample::fudgeTimeStretchingToAvoidClick(Sample* sample, SamplePlaybackGuide* guide, int32_t phaseIncrement,
+                                                  int numSamplesTilLoop, int playDirection, int priorityRating) {
 
 	//Uart::print("fudging ");
 	//Uart::println(numSamplesTilLoop);
@@ -264,16 +265,23 @@ bool VoiceSample::fudgeTimeStretchingToAvoidClick(Sample* sample, SamplePlayback
 		return true; // That failed, but no need to unassign
 	}
 
-	int32_t playByte = getPlayByteLowLevel(sample, guide) - sample->audioDataStartPosBytes; // Allow for this to be negative. I'm not sure if it could in this exact case of "fudging", but see the similar code below in weShouldBeTimeStretchingNow() - better safe than sorry.
+	int32_t playByte =
+	    getPlayByteLowLevel(sample, guide)
+	    - sample
+	          ->audioDataStartPosBytes; // Allow for this to be negative. I'm not sure if it could in this exact case of "fudging", but see the similar code below in weShouldBeTimeStretchingNow() - better safe than sorry.
 	int32_t playSample = divide_round_negative(playByte, sample->numChannels * sample->byteDepth);
 
-	bool success = timeStretcher->init(sample, this, guide, (int64_t)playSample << 24, sample->numChannels, phaseIncrement, 16777216, playDirection, priorityRating, numSamplesTilLoop, 0); // Tell it no looping
+	bool success =
+	    timeStretcher->init(sample, this, guide, (int64_t)playSample << 24, sample->numChannels, phaseIncrement,
+	                        16777216, playDirection, priorityRating, numSamplesTilLoop, 0); // Tell it no looping
 	if (!success) {
 		Uart::println("fudging FAIL!!!!");
 		return false; // It's too late to salvage anything - our play pos has probably been mucked around
 	}
 
-	success = reassessReassessmentLocation(guide, sample, priorityRating); // Got to - because time stretching affects the SampleLowLevelReader's adherence to markers
+	success = reassessReassessmentLocation(
+	    guide, sample,
+	    priorityRating); // Got to - because time stretching affects the SampleLowLevelReader's adherence to markers
 	// That's only going to make reassessmentLocation later, so no need to check we haven't shot past it I think...
 	if (!success) {
 		Uart::println("fudging FAIL!!!!");
@@ -285,20 +293,27 @@ bool VoiceSample::fudgeTimeStretchingToAvoidClick(Sample* sample, SamplePlayback
 	return true;
 }
 
-
 // Returns false if becoming unassigned now
-bool VoiceSample::weShouldBeTimeStretchingNow(Sample* sample, SamplePlaybackGuide* guide, int numSamples, int32_t phaseIncrement, int32_t timeStretchRatio, int playDirection, int priorityRating, int loopingType) {
+bool VoiceSample::weShouldBeTimeStretchingNow(Sample* sample, SamplePlaybackGuide* guide, int numSamples,
+                                              int32_t phaseIncrement, int32_t timeStretchRatio, int playDirection,
+                                              int priorityRating, int loopingType) {
 
 	// If not set up yet, do it
 	if (!timeStretcher) {
 		timeStretcher = AudioEngine::solicitTimeStretcher();
 		if (!timeStretcher) return false;
 
-		int32_t playByte = getPlayByteLowLevel(sample, guide) - sample->audioDataStartPosBytes; // May return negative number - I think particularly if we're going in reversed and just cancelled reading from cache
+		int32_t playByte =
+		    getPlayByteLowLevel(sample, guide)
+		    - sample
+		          ->audioDataStartPosBytes; // May return negative number - I think particularly if we're going in reversed and just cancelled reading from cache
 		int32_t playSample = divide_round_negative(playByte, sample->numChannels * sample->byteDepth);
 
-		timeStretcher->init(sample, this, guide, (int64_t)playSample << 24, sample->numChannels, phaseIncrement, timeStretchRatio, playDirection, priorityRating, 0, loopingType);
-		bool success = reassessReassessmentLocation(guide, sample, priorityRating); // Got to - because time stretching affects the SampleLowLevelReader's adherence to markers
+		timeStretcher->init(sample, this, guide, (int64_t)playSample << 24, sample->numChannels, phaseIncrement,
+		                    timeStretchRatio, playDirection, priorityRating, 0, loopingType);
+		bool success = reassessReassessmentLocation(
+		    guide, sample,
+		    priorityRating); // Got to - because time stretching affects the SampleLowLevelReader's adherence to markers
 		// That's only going to make reassessmentLocation later, so no need to check we haven't shot past it I think...
 		if (!success) return false;
 	}
@@ -312,12 +327,11 @@ bool VoiceSample::weShouldBeTimeStretchingNow(Sample* sample, SamplePlaybackGuid
 	int maxNumSamplesToProcess = numSamples * ((cache && writingToCache) ? 32 : 6);
 
 	if (timeStretchRatio != 16777216)
-		sample->fillPercCache(timeStretcher, playSample, playSample + (phaseIncrement >> 10) * playDirection, playDirection, maxNumSamplesToProcess);
+		sample->fillPercCache(timeStretcher, playSample, playSample + (phaseIncrement >> 10) * playDirection,
+		                      playDirection, maxNumSamplesToProcess);
 
 	return true;
 }
-
-
 
 bool VoiceSample::stopReadingFromCache() {
 	// Have to check Cluster is loaded, because we chose not to check this before, cos we didn't know if we'd actually be reading from it
@@ -331,7 +345,8 @@ bool VoiceSample::stopReadingFromCache() {
 }
 
 // Returns false if fail, which can happen if we've actually ended up past the finalClusterIndex cos we were reading cache before
-bool VoiceSample::stopUsingCache(SamplePlaybackGuide* guide, Sample* sample, int priorityRating, bool loopingAtLowLevel) {
+bool VoiceSample::stopUsingCache(SamplePlaybackGuide* guide, Sample* sample, int priorityRating,
+                                 bool loopingAtLowLevel) {
 
 	// If we were *writing* to the cache, nothing needs to change other than our discarding it. But if we were reading from it...
 	if (!writingToCache) {
@@ -345,7 +360,9 @@ bool VoiceSample::stopUsingCache(SamplePlaybackGuide* guide, Sample* sample, int
 	// Now that cache is off, the SampleLowLevelReader probably needs to obey loop points (if no time stretching),
 	// Although, as a side note, if we just abandoned reading cache, we might be just about to set time stretching up.
 	if (shouldObeyMarkers()) {
-		bool stillGoing = reassessReassessmentLocation(guide, sample, priorityRating); // Returns false if fail, which can happen if we've actually ended up past the finalClusterIndex cos we were reading cache before
+		bool stillGoing = reassessReassessmentLocation(
+		    guide, sample,
+		    priorityRating); // Returns false if fail, which can happen if we've actually ended up past the finalClusterIndex cos we were reading cache before
 		if (!stillGoing) return false;
 
 		// This step added Sept 2020 after finding another similar bug which made me fairly sure this needs to be here, to ensure currentPlayPos isn't past the new reassessmentLocation
@@ -356,17 +373,15 @@ bool VoiceSample::stopUsingCache(SamplePlaybackGuide* guide, Sample* sample, int
 	return true;
 }
 
-
 #if TIME_STRETCH_DEFAULT_FIRST_HOP_LENGTH < SSI_TX_BUFFER_NUM_SAMPLES
 #error "problems with crossfading out of cache into new timeStretcher"
 #endif
 
 // Returning false means instant unassign
-bool VoiceSample::render(SamplePlaybackGuide* guide, int32_t* __restrict__ outputBuffer, int numSamples,
-		Sample* sample, int sampleSourceNumChannels, int loopingType, int32_t phaseIncrement, int32_t timeStretchRatio,
-		int32_t amplitude, int32_t amplitudeIncrement,
-		int interpolationBufferSize, int desiredInterpolationMode,
-		int priorityRating) {
+bool VoiceSample::render(SamplePlaybackGuide* guide, int32_t* __restrict__ outputBuffer, int numSamples, Sample* sample,
+                         int sampleSourceNumChannels, int loopingType, int32_t phaseIncrement, int32_t timeStretchRatio,
+                         int32_t amplitude, int32_t amplitudeIncrement, int interpolationBufferSize,
+                         int desiredInterpolationMode, int priorityRating) {
 
 	int playDirection = guide->playDirection;
 
@@ -375,7 +390,9 @@ bool VoiceSample::render(SamplePlaybackGuide* guide, int32_t* __restrict__ outpu
 
 		// If relevant params have changed since before, we have to stop using the cache which those params previously described
 		if (phaseIncrement != cache->phaseIncrement || timeStretchRatio != cache->timeStretchRatio
-				|| (phaseIncrement != 16777216 && (desiredInterpolationMode != INTERPOLATION_MODE_SMOOTH || (interpolationBufferSize <= 2 && writingToCache)))) {
+		    || (phaseIncrement != 16777216
+		        && (desiredInterpolationMode != INTERPOLATION_MODE_SMOOTH
+		            || (interpolationBufferSize <= 2 && writingToCache)))) {
 
 			bool needToAvoidClick = (!writingToCache && cache->timeStretchRatio != 16777216);
 			SampleCache* oldCache = cache;
@@ -385,7 +402,8 @@ bool VoiceSample::render(SamplePlaybackGuide* guide, int32_t* __restrict__ outpu
 			// Avoid click if cancelling reading time-stretched cache
 			if (needToAvoidClick) {
 
-				success = weShouldBeTimeStretchingNow(sample, guide, numSamples, phaseIncrement, timeStretchRatio, playDirection, priorityRating, loopingType);
+				success = weShouldBeTimeStretchingNow(sample, guide, numSamples, phaseIncrement, timeStretchRatio,
+				                                      playDirection, priorityRating, loopingType);
 				if (!success) return false;
 				timeStretcher->setupCrossfadeFromCache(oldCache, cacheBytePos, sampleSourceNumChannels);
 				goto timeStretchingConsidered;
@@ -412,10 +430,11 @@ bool VoiceSample::render(SamplePlaybackGuide* guide, int32_t* __restrict__ outpu
 
 				// If cache is time-stretched and we're almost at the end of what was written, we'd better switch out of cache-reading mode now
 				// so we can use that last little bit of the cache to crossfade smoothly out of it
-				if (timeStretchRatio != 16777216
-						&& cache->writeBytePos < cacheEndPointBytes
-						&& cache->writeBytePos < cacheLoopEndPointBytes
-						&& cache->writeBytePos < cacheBytePos + (TIME_STRETCH_DEFAULT_FIRST_HOP_LENGTH * CACHE_BYTE_DEPTH * sampleSourceNumChannels)) {
+				if (timeStretchRatio != 16777216 && cache->writeBytePos < cacheEndPointBytes
+				    && cache->writeBytePos < cacheLoopEndPointBytes
+				    && cache->writeBytePos < cacheBytePos
+				                                 + (TIME_STRETCH_DEFAULT_FIRST_HOP_LENGTH * CACHE_BYTE_DEPTH
+				                                    * sampleSourceNumChannels)) {
 
 					Uart::println("avoiding click near end");
 
@@ -425,20 +444,23 @@ bool VoiceSample::render(SamplePlaybackGuide* guide, int32_t* __restrict__ outpu
 					// Beware - having just stopped reading from cache, our currentPlayPos might be way out of bounds, potentially delivering even a negative sample / byte number.
 					// This needs to be maintained cohesively until it's ultimately dealt with.
 
-					success = weShouldBeTimeStretchingNow(sample, guide, numSamples, phaseIncrement, timeStretchRatio, playDirection, priorityRating, loopingType);
+					success = weShouldBeTimeStretchingNow(sample, guide, numSamples, phaseIncrement, timeStretchRatio,
+					                                      playDirection, priorityRating, loopingType);
 					if (!success) return false;
 					timeStretcher->setupCrossfadeFromCache(cache, cacheBytePos, sampleSourceNumChannels);
 
 					// Check that all that setting up didn't steal any of our cache to the left of where we are now - in which case we can't
 					// continue to write to it, and there's nothing else we want it for, so forget about it.
 					// Also can't continue to write if doing linear interpolation now
-					if (cache->writeBytePos < cacheBytePos || (phaseIncrement != 16777216 && interpolationBufferSize != INTERPOLATION_MAX_NUM_SAMPLES)) {
+					if (cache->writeBytePos < cacheBytePos
+					    || (phaseIncrement != 16777216 && interpolationBufferSize != INTERPOLATION_MAX_NUM_SAMPLES)) {
 						cache = NULL;
 					}
 
 					// Or if we're still all good
 					else {
-						cache->setWriteBytePos(cacheBytePos); // Re-write the last little bit of the cache, from where we are now
+						cache->setWriteBytePos(
+						    cacheBytePos); // Re-write the last little bit of the cache, from where we are now
 						writingToCache = true;
 					}
 
@@ -448,13 +470,13 @@ bool VoiceSample::render(SamplePlaybackGuide* guide, int32_t* __restrict__ outpu
 		}
 	}
 
-
 	// If not reading from a cache (but possibly writing to one)...
 	if (!cache || writingToCache) {
 
 		// If we should be time stretching now...
 		if (timeStretchRatio != 16777216) {
-			bool stillGoing = weShouldBeTimeStretchingNow(sample, guide, numSamples, phaseIncrement, timeStretchRatio, playDirection, priorityRating, loopingType);
+			bool stillGoing = weShouldBeTimeStretchingNow(sample, guide, numSamples, phaseIncrement, timeStretchRatio,
+			                                              playDirection, priorityRating, loopingType);
 			if (!stillGoing) return false;
 
 			// If writing to cache, there's a chance that setting up time stretching and generating perc data could have stolen Clusters,
@@ -473,22 +495,24 @@ bool VoiceSample::render(SamplePlaybackGuide* guide, int32_t* __restrict__ outpu
 
 				// We're only allowed to stop once all the play-pos's line up, otherwise there's a big ol' click
 				bool canExit;
-		#if TIME_STRETCH_ENABLE_BUFFER
+#if TIME_STRETCH_ENABLE_BUFFER
 				if (timeStretcher->buffer) {
 					canExit = (timeStretcher->bufferFillingMode == BUFFER_FILLING_NEWER
-							&& timeStretcher->olderHeadReadingFromBuffer
-							&& timeStretcher->bufferWritePos == timeStretcher->olderBufferReadPos);
+					           && timeStretcher->olderHeadReadingFromBuffer
+					           && timeStretcher->bufferWritePos == timeStretcher->olderBufferReadPos);
 				}
 				else
-		#endif
+#endif
 				{
 					canExit = (currentPlayPos == timeStretcher->olderPartReader.currentPlayPos
-							&& (!guide->sequenceSyncLengthTicks || !guide->getNumSamplesLaggingBehindSync(this)));
+					           && (!guide->sequenceSyncLengthTicks || !guide->getNumSamplesLaggingBehindSync(this)));
 				}
 				if (canExit) {
 					Uart::println("time stretcher no longer needed");
 					endTimeStretching();
-					bool stillGoing = reassessReassessmentLocation(guide, sample, priorityRating); // Got to - because time stretching affects the SampleLowLevelReader's adherence to markers
+					bool stillGoing = reassessReassessmentLocation(
+					    guide, sample,
+					    priorityRating); // Got to - because time stretching affects the SampleLowLevelReader's adherence to markers
 					if (!stillGoing) return false;
 
 					// Bugfix Sept 2020. Could end up beyond reassessmentLocation otherwise, violating assumptions if playing Sample at non-native rate.
@@ -528,7 +552,6 @@ timeStretchingConsidered:
 		combinedIncrement = ((uint64_t)(uint32_t)timeStretchRatio * (uint32_t)phaseIncrement) >> 24;
 	}
 
-
 	// Loop over and over until we've read all the samples we want, until numSamples is 0
 
 	// Replaying cached stuff!
@@ -541,7 +564,8 @@ readCachedWindow:
 
 		// If we've reached the loop end point...
 		int bytesTilLoopEndPoint = cacheLoopEndPointBytes - cacheBytePos;
-		if (bytesTilLoopEndPoint <= 0) { // Might be less than 0 if it was just changed... although the code that does that is suppose to also detect that we're past it and restart the loop...
+		if (bytesTilLoopEndPoint
+		    <= 0) { // Might be less than 0 if it was just changed... although the code that does that is suppose to also detect that we're past it and restart the loop...
 			Uart::println("Loop endpoint reached, reading cache");
 			// Jump back to the loop start point. We'll find out in a moment whether that Cluster still exists (though it will if the one we were just at existed)
 			cacheBytePos -= cacheLoopLengthBytes;
@@ -562,8 +586,10 @@ readCachedWindow:
 			//Uart::println("Reached end of what's been cached");
 
 			// If we're here, then timeStretchRatio should be 16777216, and phaseIncrement should *not*
-			if (ALPHA_OR_BETA_VERSION && timeStretchRatio != 16777216) numericDriver.freezeWithError("E240"); // This should have been caught and dealt with above
-			if (ALPHA_OR_BETA_VERSION && phaseIncrement == 16777216) numericDriver.freezeWithError("E241"); // If this were the case, there'd be no reason to have a cache
+			if (ALPHA_OR_BETA_VERSION && timeStretchRatio != 16777216)
+				numericDriver.freezeWithError("E240"); // This should have been caught and dealt with above
+			if (ALPHA_OR_BETA_VERSION && phaseIncrement == 16777216)
+				numericDriver.freezeWithError("E241"); // If this were the case, there'd be no reason to have a cache
 
 			if (!stopReadingFromCache()) return false;
 
@@ -579,7 +605,9 @@ readCachedWindow:
 
 			// I think the reason I have it doing reassessReassessmentLocation() here is because while writing cache,
 			// low-level loop points aren't obeyed and we loop at the writing-to-cache level instead?
-			bool stillGoing = reassessReassessmentLocation(guide, sample, priorityRating); // Returns false if fail, which can happen if we've actually ended up past the finalClusterIndex cos we were reading cache before
+			bool stillGoing = reassessReassessmentLocation(
+			    guide, sample,
+			    priorityRating); // Returns false if fail, which can happen if we've actually ended up past the finalClusterIndex cos we were reading cache before
 			// TODO: need to call changeClusterIfNecessary()? Or are we guaranteed not to have passed that loop point / reassessment location?
 			if (!stillGoing) return false;
 
@@ -601,7 +629,8 @@ readCachedWindow:
 		int bytePosWithinCluster = cacheBytePos & (audioFileManager.clusterSize - 1);
 
 		Cluster* cacheCluster = cache->getCluster(cachedClusterIndex);
-		if (ALPHA_OR_BETA_VERSION && !cacheCluster) { // If it got stolen - but we should have already detected this above
+		if (ALPHA_OR_BETA_VERSION
+		    && !cacheCluster) { // If it got stolen - but we should have already detected this above
 			numericDriver.freezeWithError("E157");
 		}
 		int32_t* __restrict__ readPos = (int32_t*)&cacheCluster->data[bytePosWithinCluster - 4 + CACHE_BYTE_DEPTH];
@@ -617,20 +646,24 @@ readCachedWindow:
 		bytesTilThisWindowEnd = getMin(bytesTilThisWindowEnd, bytesTilWaveformEnd);
 
 #if CACHE_BYTE_DEPTH == 3
-		int samplesTilThisWindowEnd = (uint32_t)(bytesTilThisWindowEnd - 1) / (uint8_t)(sampleSourceNumChannels * CACHE_BYTE_DEPTH) + 1; // Round up
+		int samplesTilThisWindowEnd =
+		    (uint32_t)(bytesTilThisWindowEnd - 1) / (uint8_t)(sampleSourceNumChannels * CACHE_BYTE_DEPTH)
+		    + 1; // Round up
 #else
 		int samplesTilThisWindowEnd = bytesTilThisWindowEnd >> CACHE_BYTE_DEPTH_MAGNITUDE;
 		if (sampleSourceNumChannels == 2) samplesTilThisWindowEnd >>= 1;
 #endif
 
-		if (samplesTilThisWindowEnd < numSamplesThisCacheRead) numSamplesThisCacheRead = samplesTilThisWindowEnd; // Only do this after we're sure we're not cancelling caching
+		if (samplesTilThisWindowEnd < numSamplesThisCacheRead)
+			numSamplesThisCacheRead =
+			    samplesTilThisWindowEnd; // Only do this after we're sure we're not cancelling caching
 
 		if (ALPHA_OR_BETA_VERSION && numSamplesThisCacheRead <= 0) numericDriver.freezeWithError("E156");
 
-
 		// Ok, now we know how many samples we can read from the cache right now. Do it.
 		// Note: I tried putting this loop in another function, but it just wasn't quite as fast, even with it set to inline.
-		int32_t const* const oscBufferEndNow = outputBufferWritePos + numSamplesThisCacheRead * numChannelsInOutputBuffer;
+		int32_t const* const oscBufferEndNow =
+		    outputBufferWritePos + numSamplesThisCacheRead * numChannelsInOutputBuffer;
 
 		while (true) {
 
@@ -651,13 +684,15 @@ readCachedWindow:
 			amplitude += amplitudeIncrement;
 
 			// Mono / left channel (or stereo condensed to mono)
-			*outputBufferWritePos = multiply_accumulate_32x32_rshift32_rounded(existingValueL, sampleRead[0], amplitude); // Yup, accumulate is faster
+			*outputBufferWritePos = multiply_accumulate_32x32_rshift32_rounded(existingValueL, sampleRead[0],
+			                                                                   amplitude); // Yup, accumulate is faster
 			outputBufferWritePos++;
 
 			// Right channel. Surprisingly, putting this as an "else" inside the above "numChannels == 2" was slightly slower
 			if (numChannelsInOutputBuffer == 2) {
 				int32_t existingValueR = *outputBufferWritePos;
-				*outputBufferWritePos = multiply_accumulate_32x32_rshift32_rounded(existingValueR, sampleRead[1], amplitude);
+				*outputBufferWritePos =
+				    multiply_accumulate_32x32_rshift32_rounded(existingValueR, sampleRead[1], amplitude);
 				outputBufferWritePos++;
 			}
 
@@ -680,9 +715,10 @@ readCachedWindow:
 		uint64_t combinedIncrement = ((uint64_t)(uint32_t)phaseIncrement * (uint32_t)timeStretchRatio) >> 24;
 		uint64_t uncachedSamplePosBig = (uint64_t)cacheSamplePos * combinedIncrement;
 		int32_t uncachedSamplePos = (int32_t)(uncachedSamplePosBig >> 24) + cache->skipSamplesAtStart;
-		int32_t uncachedBytePos = (playDirection == 1) ?
-				sample->audioDataStartPosBytes + uncachedSamplePos * bytesPerSample :
-				sample->audioDataStartPosBytes + sample->audioDataLengthBytes - (uncachedSamplePos + 1) * bytesPerSample;
+		int32_t uncachedBytePos = (playDirection == 1)
+		                              ? sample->audioDataStartPosBytes + uncachedSamplePos * bytesPerSample
+		                              : sample->audioDataStartPosBytes + sample->audioDataLengthBytes
+		                                    - (uncachedSamplePos + 1) * bytesPerSample;
 
 		int uncachedClusterIndex = uncachedBytePos >> audioFileManager.clusterSizeMagnitude;
 
@@ -690,7 +726,8 @@ readCachedWindow:
 		// It's basically ok for our current Cluster index and currentPlayPos to sit outside the waveform - this will be dealt with if we do stop using the cache.
 
 		// But, if we're more than 1 cluster outside of the waveform, let's just not be silly.
-		if (uncachedClusterIndex < sample->getFirstClusterIndexWithAudioData() - 1 || uncachedClusterIndex > sample->getFirstClusterIndexWithNoAudioData()) {
+		if (uncachedClusterIndex < sample->getFirstClusterIndexWithAudioData() - 1
+		    || uncachedClusterIndex > sample->getFirstClusterIndexWithNoAudioData()) {
 			unassignAllReasons(); // Remember, this doesn't cut the voice - just sets clusters[0] to NULL.
 			currentPlayPos = 0;
 		}
@@ -711,7 +748,8 @@ readCachedWindow:
 
 				int nextUncachedClusterIndex = uncachedClusterIndex;
 				for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD; l++) {
-					clusters[l] = sample->clusters.getElement(nextUncachedClusterIndex)->getCluster(sample, nextUncachedClusterIndex, CLUSTER_ENQUEUE);
+					clusters[l] = sample->clusters.getElement(nextUncachedClusterIndex)
+					                  ->getCluster(sample, nextUncachedClusterIndex, CLUSTER_ENQUEUE);
 					if (!clusters[l]) break;
 					if (nextUncachedClusterIndex == finalClusterIndex) break; // If no more Clusters
 					nextUncachedClusterIndex += playDirection;
@@ -720,7 +758,8 @@ readCachedWindow:
 
 			if (clusters[0]) {
 				oscPos = uncachedSamplePosBig & 16777215;
-				int uncachedBytePosWithinCluster = uncachedBytePos - uncachedClusterIndex * audioFileManager.clusterSize;
+				int uncachedBytePosWithinCluster =
+				    uncachedBytePos - uncachedClusterIndex * audioFileManager.clusterSize;
 				currentPlayPos = &clusters[0]->data[uncachedBytePosWithinCluster];
 				currentPlayPos = currentPlayPos - 4 + sample->byteDepth;
 			}
@@ -730,7 +769,6 @@ readCachedWindow:
 		numSamples -= numSamplesThisCacheRead;
 		if (numSamples) goto readCachedWindow;
 	}
-
 
 	// Or, not replaying cached stuff (but potentially writing into the cache for next time)
 	else {
@@ -746,7 +784,8 @@ uncachedPlayback:
 
 			// If reached loop end, switch to playing the cached loop back
 			int cachingBytesTilLoopEnd = cacheLoopEndPointBytes - cache->writeBytePos;
-			if (cachingBytesTilLoopEnd <= 0) { // Might be less than 0 if it was just changed... although the code that does that is suppose to also detect that we're past it and restart the loop...
+			if (cachingBytesTilLoopEnd
+			    <= 0) { // Might be less than 0 if it was just changed... although the code that does that is suppose to also detect that we're past it and restart the loop...
 				Uart::println("Loop endpoint reached, writing cache");
 				switchToReadingCacheFromWriting();
 				goto readCachedWindow;
@@ -772,29 +811,35 @@ uncachedPlayback:
 				bool setupSuccess = cache->setupNewCluster(cacheClusterIndex);
 				if (!setupSuccess) {
 					// Cancel cache writing. Everything else is still the same - we weren't *reading* the cache, remember
-					bool stopSuccess = stopUsingCache(guide, sample, priorityRating, loopingType == LOOP_LOW_LEVEL); // Want to obey loop points now
+					bool stopSuccess = stopUsingCache(guide, sample, priorityRating,
+					                                  loopingType == LOOP_LOW_LEVEL); // Want to obey loop points now
 					if (!stopSuccess) return false;
 					goto uncachedPlaybackNotWriting;
 				}
 			}
 
 			Cluster* cacheCluster = cache->getCluster(cacheClusterIndex);
-			if (ALPHA_OR_BETA_VERSION && !cacheCluster) numericDriver.freezeWithError("E166"); // Check that the Cluster hasn't been stolen - but this should have been detected right at the start
+			if (ALPHA_OR_BETA_VERSION && !cacheCluster)
+				numericDriver.freezeWithError(
+				    "E166"); // Check that the Cluster hasn't been stolen - but this should have been detected right at the start
 			cacheWritePos = &cacheCluster->data[bytePosWithinCluster];
 
 			int cachingBytesTilClusterEnd = audioFileManager.clusterSize - bytePosWithinCluster;
 			int cachingBytesTilUncachedReadEnd = getMin(cachingBytesTilClusterEnd, cachingBytesTilLoopEnd);
 			cachingBytesTilUncachedReadEnd = getMin(cachingBytesTilUncachedReadEnd, cachingBytesTilWaveformEnd);
 
-
 #if CACHE_BYTE_DEPTH == 3
-			int cachingSamplesTilUncachedReadEnd = (uint32_t)(cachingBytesTilUncachedReadEnd - 1) / (uint8_t)(sampleSourceNumChannels * CACHE_BYTE_DEPTH) + 1; // Round up
+			int cachingSamplesTilUncachedReadEnd =
+			    (uint32_t)(cachingBytesTilUncachedReadEnd - 1) / (uint8_t)(sampleSourceNumChannels * CACHE_BYTE_DEPTH)
+			    + 1; // Round up
 #else
 			int cachingSamplesTilUncachedReadEnd = cachingBytesTilUncachedReadEnd >> CACHE_BYTE_DEPTH_MAGNITUDE;
 			if (sampleSourceNumChannels == 2) cachingSamplesTilUncachedReadEnd >>= 1;
 #endif
 
-			if (cachingSamplesTilUncachedReadEnd < numSamplesThisUncachedRead) numSamplesThisUncachedRead = cachingSamplesTilUncachedReadEnd; // Only do this after we're sure we're not cancelling caching
+			if (cachingSamplesTilUncachedReadEnd < numSamplesThisUncachedRead)
+				numSamplesThisUncachedRead =
+				    cachingSamplesTilUncachedReadEnd; // Only do this after we're sure we're not cancelling caching
 
 			if (ALPHA_OR_BETA_VERSION && numSamplesThisUncachedRead <= 0) numericDriver.freezeWithError("E155");
 		}
@@ -815,9 +860,11 @@ uncachedPlaybackNotWriting:
 				int64_t combinedIncrementingThisUncachedRead = combinedIncrement * numSamplesThisUncachedRead;
 
 assessLoopPointAgainTimestretched:
-				int64_t samplePosBigAfterThisUncachedRead = timeStretcher->samplePosBig + combinedIncrementingThisUncachedRead * playDirection;
+				int64_t samplePosBigAfterThisUncachedRead =
+				    timeStretcher->samplePosBig + combinedIncrementingThisUncachedRead * playDirection;
 				if (playDirection == -1) samplePosBigAfterThisUncachedRead += 16777215;
-				int bytePosAfterThisUncachedRead = (int32_t)(samplePosBigAfterThisUncachedRead >> 24) * bytesPerSample + sample->audioDataStartPosBytes;
+				int bytePosAfterThisUncachedRead = (int32_t)(samplePosBigAfterThisUncachedRead >> 24) * bytesPerSample
+				                                   + sample->audioDataStartPosBytes;
 
 				int overshootBytes = (bytePosAfterThisUncachedRead - reassessmentPos) * playDirection;
 
@@ -825,33 +872,42 @@ assessLoopPointAgainTimestretched:
 				if (overshootBytes > 0) {
 
 					// Ok, we passed the quick check, so now do the divide operation
-					int32_t reassessmentPosBytesRelativeToAudioDataStart = reassessmentPos - sample->audioDataStartPosBytes;
-					int loopEndAtSample = (reassessmentPosBytesRelativeToAudioDataStart >= 0) ?
-							(uint32_t)reassessmentPosBytesRelativeToAudioDataStart / (uint8_t)bytesPerSample :
-							-1; // This is plausible, cos going in reverse, the "end pos" is -1 sample
+					int32_t reassessmentPosBytesRelativeToAudioDataStart =
+					    reassessmentPos - sample->audioDataStartPosBytes;
+					int loopEndAtSample =
+					    (reassessmentPosBytesRelativeToAudioDataStart >= 0)
+					        ? (uint32_t)reassessmentPosBytesRelativeToAudioDataStart / (uint8_t)bytesPerSample
+					        : -1; // This is plausible, cos going in reverse, the "end pos" is -1 sample
 
-					int64_t combinedIncrementingLeftToDo = ((int64_t)loopEndAtSample << 24) - timeStretcher->samplePosBig;
+					int64_t combinedIncrementingLeftToDo =
+					    ((int64_t)loopEndAtSample << 24) - timeStretcher->samplePosBig;
 					int64_t combinedIncrementingLeftToDoAbsolute = combinedIncrementingLeftToDo * playDirection;
 
 					// Maybe we're at the reassessment-point right now, so need to reassess...
-					if (combinedIncrementingLeftToDoAbsolute < (int64_t)combinedIncrement) { // It seems that without the (int64_t) enforced, it was behaving wrong
+					if (combinedIncrementingLeftToDoAbsolute < (int64_t)
+					        combinedIncrement) { // It seems that without the (int64_t) enforced, it was behaving wrong
 
 						// If want to actually loop... (Remember though, this whole bit doesn't apply to synced samples / AudioClips.)
 						if (loopingType) { // For either type of looping
 
 							Uart::println("loop point reached, timestretching");
 
-							int32_t newSamplePos = (uint32_t)(guide->getBytePosToStartPlayback(true) - sample->audioDataStartPosBytes) / (uint8_t)bytesPerSample; // Not including the overshoot yet
-							int64_t newSamplePosBigOvershot = ((int64_t)newSamplePos << 24) - combinedIncrementingLeftToDo;
+							int32_t newSamplePos =
+							    (uint32_t)(guide->getBytePosToStartPlayback(true) - sample->audioDataStartPosBytes)
+							    / (uint8_t)bytesPerSample; // Not including the overshoot yet
+							int64_t newSamplePosBigOvershot =
+							    ((int64_t)newSamplePos << 24) - combinedIncrementingLeftToDo;
 
-							timeStretcher->reInit(newSamplePosBigOvershot, guide, this, sample, sampleSourceNumChannels, timeStretchRatio, phaseIncrement, combinedIncrement, playDirection, loopingType, priorityRating);
+							timeStretcher->reInit(newSamplePosBigOvershot, guide, this, sample, sampleSourceNumChannels,
+							                      timeStretchRatio, phaseIncrement, combinedIncrement, playDirection,
+							                      loopingType, priorityRating);
 
-	#if ALPHA_OR_BETA_VERSION
+#if ALPHA_OR_BETA_VERSION
 							if (count >= 1024) {
 								numericDriver.freezeWithError("E169");
 							}
 							count++;
-	#endif
+#endif
 							goto assessLoopPointAgainTimestretched;
 						}
 
@@ -874,7 +930,8 @@ assessLoopPointAgainTimestretched:
 			}
 		}
 
-		numSamples -= numSamplesThisUncachedRead; // Do it now because we're about to start decrementing numSamplesThisUncachedRead
+		numSamples -=
+		    numSamplesThisUncachedRead; // Do it now because we're about to start decrementing numSamplesThisUncachedRead
 
 		// If no time stretching
 		if (!timeStretcher) {
@@ -883,7 +940,10 @@ readNonTimestretched:
 
 			int numSamplesThisNonTimestretchedRead = numSamplesThisUncachedRead;
 
-			bool stillActive = considerUpcomingWindow(guide, sample, &numSamplesThisNonTimestretchedRead, phaseIncrement, loopingType, interpolationBufferSize, (cache != NULL), priorityRating); // Keep it reading silence forever so we can definitely fill up the cache
+			bool stillActive = considerUpcomingWindow(
+			    guide, sample, &numSamplesThisNonTimestretchedRead, phaseIncrement, loopingType,
+			    interpolationBufferSize, (cache != NULL),
+			    priorityRating); // Keep it reading silence forever so we can definitely fill up the cache
 			if (!stillActive) {
 				return false;
 			}
@@ -891,8 +951,9 @@ readNonTimestretched:
 			// No pitch adjustment - in which case we know we're not writing to cache either
 			if (phaseIncrement == 16777216) {
 
-				readSamplesNative((int32_t**)&outputBufferWritePos, numSamplesThisNonTimestretchedRead, sample, jumpAmount, sampleSourceNumChannels, numChannelsInOutputBuffer,
-						&amplitude, amplitudeIncrement);
+				readSamplesNative((int32_t**)&outputBufferWritePos, numSamplesThisNonTimestretchedRead, sample,
+				                  jumpAmount, sampleSourceNumChannels, numChannelsInOutputBuffer, &amplitude,
+				                  amplitudeIncrement);
 			}
 
 			// Yes pitch adjustment - meaning we might be wanting to write to a cache, too...
@@ -907,8 +968,10 @@ readNonTimestretched:
 				bool doneAnySamplesYet = false;
 
 				// This stuff is in its own function rather than here in VoiceSample because for some reason it's faster (re-check that?)
-				readSamplesResampled((int32_t**)&outputBufferWritePos, numSamplesThisNonTimestretchedRead, sample, jumpAmount, sampleSourceNumChannels, numChannelsInOutputBuffer, phaseIncrement,
-						&amplitude, amplitudeIncrement, interpolationBufferSize, (cache != NULL), &cacheWritePos, &doneAnySamplesYet, NULL, false, whichKernel);
+				readSamplesResampled((int32_t**)&outputBufferWritePos, numSamplesThisNonTimestretchedRead, sample,
+				                     jumpAmount, sampleSourceNumChannels, numChannelsInOutputBuffer, phaseIncrement,
+				                     &amplitude, amplitudeIncrement, interpolationBufferSize, (cache != NULL),
+				                     &cacheWritePos, &doneAnySamplesYet, NULL, false, whichKernel);
 			}
 
 			if (cache) {
@@ -920,10 +983,8 @@ readNonTimestretched:
 			if (numSamplesThisUncachedRead) goto readNonTimestretched;
 		}
 
-
 		// Or, if yes time stretching
 		else { // TODO: move this all into the TimeStretcher class?
-
 
 			//AudioEngine::logAction("yes timestretching");
 
@@ -935,7 +996,8 @@ readNonTimestretched:
 			if (cache) { // If writing cache...
 
 				// Because we're writing cache, and if both play-heads have finished up, clearing that cache is all that's actually required!
-				if (!timeStretcher->playHeadStillActive[PLAY_HEAD_OLDER] && !timeStretcher->playHeadStillActive[PLAY_HEAD_NEWER]) {
+				if (!timeStretcher->playHeadStillActive[PLAY_HEAD_OLDER]
+				    && !timeStretcher->playHeadStillActive[PLAY_HEAD_NEWER]) {
 
 					memset(cacheWritePos, 0, numSamplesThisUncachedRead * CACHE_BYTE_DEPTH * sampleSourceNumChannels);
 
@@ -957,7 +1019,8 @@ readNonTimestretched:
 				numChannelsInTimeStretchResult = numChannelsInOutputBuffer;
 			}
 
-			int numSamplesThisUncachedReadUntouched = numSamplesThisUncachedRead; // This one won't get decremented between multiple timestretch iterations
+			int numSamplesThisUncachedReadUntouched =
+			    numSamplesThisUncachedRead; // This one won't get decremented between multiple timestretch iterations
 
 readTimestretched:
 			int numSamplesThisTimestretchedRead = numSamplesThisUncachedRead;
@@ -972,15 +1035,20 @@ readTimestretched:
 				// Basically, if other hops have already happened in this routine, we want to defer doing one, to spread the CPU load.
 				// But, the more times we've been skipped in this way, the more we start insisting that yes, it's our turn.
 				bool allowedToDoHop = (AudioEngine::numHopsEndedThisRoutineCall < 3
-						&& (uint32_t)timeStretcher->numTimesMissedHop >= ((uint32_t)AudioEngine::numHopsEndedThisRoutineCall << 1));
+				                       && (uint32_t)timeStretcher->numTimesMissedHop
+				                              >= ((uint32_t)AudioEngine::numHopsEndedThisRoutineCall << 1));
 
 				if (wantToDoHopNow) {
 					if (allowedToDoHop) {
-						bool success = timeStretcher->hopEnd(guide, this, sample, sampleSourceNumChannels, timeStretchRatio, phaseIncrement, combinedIncrement, playDirection, loopingType, priorityRating);
-						if (!success) return false; // Can fail if tried to jump to a bit in an unloaded Cluster. Shouldn't actually happen
+						bool success = timeStretcher->hopEnd(guide, this, sample, sampleSourceNumChannels,
+						                                     timeStretchRatio, phaseIncrement, combinedIncrement,
+						                                     playDirection, loopingType, priorityRating);
+						if (!success)
+							return false; // Can fail if tried to jump to a bit in an unloaded Cluster. Shouldn't actually happen
 
 						// Check this again, cos newer play-head can become inactive in hopEnd(). This probably isn't really crucial. Added June 2019
-						if (!cache && !loopingType && !timeStretcher->playHeadStillActive[PLAY_HEAD_OLDER] && !timeStretcher->playHeadStillActive[PLAY_HEAD_NEWER]) {
+						if (!cache && !loopingType && !timeStretcher->playHeadStillActive[PLAY_HEAD_OLDER]
+						    && !timeStretcher->playHeadStillActive[PLAY_HEAD_NEWER]) {
 							return false;
 						}
 					}
@@ -990,7 +1058,8 @@ readTimestretched:
 				}
 
 				if (allowedToDoHop) {
-					numSamplesThisTimestretchedRead = getMin((int32_t)numSamplesThisTimestretchedRead, timeStretcher->samplesTilHopEnd);
+					numSamplesThisTimestretchedRead =
+					    getMin((int32_t)numSamplesThisTimestretchedRead, timeStretcher->samplesTilHopEnd);
 				}
 			}
 
@@ -1000,13 +1069,17 @@ readTimestretched:
 			int32_t newerAmplitudeIncrementNow;
 			int32_t olderSourceAmplitudeNow;
 			int32_t olderAmplitudeIncrementNow;
-			bool olderPlayHeadAudibleHere = (timeStretcher->playHeadStillActive[PLAY_HEAD_OLDER] && timeStretcher->crossfadeProgress < 16777216);
+			bool olderPlayHeadAudibleHere =
+			    (timeStretcher->playHeadStillActive[PLAY_HEAD_OLDER] && timeStretcher->crossfadeProgress < 16777216);
 
 			bool didShortening1 = false;
 #if TIME_STRETCH_ENABLE_BUFFER
-			if (timeStretcher->newerHeadReadingFromBuffer && !(timeStretcher->playHeadStillActive[PLAY_HEAD_OLDER] && timeStretcher->bufferFillingMode == BUFFER_FILLING_OLDER)) {
+			if (timeStretcher->newerHeadReadingFromBuffer
+			    && !(timeStretcher->playHeadStillActive[PLAY_HEAD_OLDER]
+			         && timeStretcher->bufferFillingMode == BUFFER_FILLING_OLDER)) {
 
-				int samplesTilChangeover = (timeStretcher->bufferWritePos - timeStretcher->newerBufferReadPos) & (TIME_STRETCH_BUFFER_SIZE - 1);
+				int samplesTilChangeover = (timeStretcher->bufferWritePos - timeStretcher->newerBufferReadPos)
+				                           & (TIME_STRETCH_BUFFER_SIZE - 1);
 				if (numSamplesThisTimestretchedRead > samplesTilChangeover) {
 					Uart::println("shortening 1");
 					numSamplesThisTimestretchedRead = samplesTilChangeover;
@@ -1014,11 +1087,12 @@ readTimestretched:
 				}
 			}
 
-
 			if (olderPlayHeadAudibleHere) {
 
-				if (timeStretcher->olderHeadReadingFromBuffer && timeStretcher->bufferFillingMode != BUFFER_FILLING_NEWER) {
-					int samplesTilChangeover = (timeStretcher->bufferWritePos - timeStretcher->olderBufferReadPos) & (TIME_STRETCH_BUFFER_SIZE - 1);
+				if (timeStretcher->olderHeadReadingFromBuffer
+				    && timeStretcher->bufferFillingMode != BUFFER_FILLING_NEWER) {
+					int samplesTilChangeover = (timeStretcher->bufferWritePos - timeStretcher->olderBufferReadPos)
+					                           & (TIME_STRETCH_BUFFER_SIZE - 1);
 					if (numSamplesThisTimestretchedRead > samplesTilChangeover) {
 						Uart::println("shortening 2");
 						numSamplesThisTimestretchedRead = samplesTilChangeover;
@@ -1052,10 +1126,12 @@ readTimestretched:
 
 				int32_t newerHopAmplitudeAfter = lshiftAndSaturate(timeStretcher->crossfadeProgress, 7);
 
-				int32_t newerHopAmplitudeIncrement = (int32_t)(newerHopAmplitudeAfter - newerHopAmplitudeNow) / (int32_t)numSamplesThisTimestretchedRead;
+				int32_t newerHopAmplitudeIncrement =
+				    (int32_t)(newerHopAmplitudeAfter - newerHopAmplitudeNow) / (int32_t)numSamplesThisTimestretchedRead;
 				int32_t olderHopAmplitudeIncrement = -newerHopAmplitudeIncrement;
 
-				int32_t hopAmplitudeChange = multiply_32x32_rshift32(preCacheAmplitude, newerHopAmplitudeIncrement) << 1;
+				int32_t hopAmplitudeChange = multiply_32x32_rshift32(preCacheAmplitude, newerHopAmplitudeIncrement)
+				                             << 1;
 
 				newerAmplitudeIncrementNow = preCacheAmplitudeIncrement + hopAmplitudeChange;
 				newerSourceAmplitudeNow = multiply_32x32_rshift32(preCacheAmplitude, newerHopAmplitudeNow) << 1;
@@ -1071,10 +1147,12 @@ readTimestretched:
 				// No need to set the "older" ones, cos that's not going to be rendered
 			}
 
-
-
 #if TIME_STRETCH_ENABLE_BUFFER
-			bool swappingOrder = (timeStretcher->playHeadStillActive[PLAY_HEAD_NEWER] && timeStretcher->bufferFillingMode == BUFFER_FILLING_OLDER && (timeStretcher->playHeadStillActive[PLAY_HEAD_OLDER]));// || !timeStretcher->newerHeadReadingFromBuffer));
+			bool swappingOrder =
+			    (timeStretcher->playHeadStillActive[PLAY_HEAD_NEWER]
+			     && timeStretcher->bufferFillingMode == BUFFER_FILLING_OLDER
+			     && (timeStretcher
+			             ->playHeadStillActive[PLAY_HEAD_OLDER])); // || !timeStretcher->newerHeadReadingFromBuffer));
 #else
 			bool swappingOrder = false;
 #endif
@@ -1086,28 +1164,32 @@ readNewerHead:
 #if TIME_STRETCH_ENABLE_BUFFER
 				// If reading buffer...
 				if (timeStretcher->newerHeadReadingFromBuffer) {
-					timeStretcher->readFromBuffer(timeStretchResultWritePos, writePosNowR, numSamplesThisTimestretchedRead, sampleSourceNumChannels, numChannelsInOutputBuffer, newerSourceAmplitudeNow, newerAmplitudeIncrementNow,
-							&timeStretcher->newerBufferReadPos, writeIncrement);
+					timeStretcher->readFromBuffer(
+					    timeStretchResultWritePos, writePosNowR, numSamplesThisTimestretchedRead,
+					    sampleSourceNumChannels, numChannelsInOutputBuffer, newerSourceAmplitudeNow,
+					    newerAmplitudeIncrementNow, &timeStretcher->newerBufferReadPos, writeIncrement);
 				}
 
 				// Or if reading normal unbuffered Cluster data...
 				else
 #endif
 				{
-					bool success = readSamplesForTimeStretching(timeStretchResultWritePos, guide, sample, numSamplesThisTimestretchedRead, sampleSourceNumChannels, numChannelsInTimeStretchResult, phaseIncrement,
-							newerSourceAmplitudeNow, newerAmplitudeIncrementNow, (loopingType == LOOP_LOW_LEVEL), jumpAmount, interpolationBufferSize, timeStretcher,
+					bool success = readSamplesForTimeStretching(
+					    timeStretchResultWritePos, guide, sample, numSamplesThisTimestretchedRead,
+					    sampleSourceNumChannels, numChannelsInTimeStretchResult, phaseIncrement,
+					    newerSourceAmplitudeNow, newerAmplitudeIncrementNow, (loopingType == LOOP_LOW_LEVEL),
+					    jumpAmount, interpolationBufferSize, timeStretcher,
 #if TIME_STRETCH_ENABLE_BUFFER
-							(timeStretcher->bufferFillingMode == BUFFER_FILLING_NEWER),
+					    (timeStretcher->bufferFillingMode == BUFFER_FILLING_NEWER),
 #else
-							false,
+					    false,
 #endif
-							PLAY_HEAD_NEWER, whichKernel, priorityRating);
+					    PLAY_HEAD_NEWER, whichKernel, priorityRating);
 
 					if (!success) return false;
 				}
 			}
 			if (swappingOrder) goto headsFinishedReading;
-
 
 considerOlderHead:
 			// Read older play-head if still active
@@ -1115,21 +1197,26 @@ considerOlderHead:
 
 				// If reading buffer...
 				if (timeStretcher->olderHeadReadingFromBuffer) {
-					timeStretcher->readFromBuffer(timeStretchResultWritePos, numSamplesThisTimestretchedRead, sampleSourceNumChannels, numChannelsInTimeStretchResult, olderSourceAmplitudeNow, olderAmplitudeIncrementNow,
-							&timeStretcher->olderBufferReadPos);
+					timeStretcher->readFromBuffer(timeStretchResultWritePos, numSamplesThisTimestretchedRead,
+					                              sampleSourceNumChannels, numChannelsInTimeStretchResult,
+					                              olderSourceAmplitudeNow, olderAmplitudeIncrementNow,
+					                              &timeStretcher->olderBufferReadPos);
 				}
 
 				// Or if reading normal Cluster data...
 				else {
 readOlderHeadUnbuffered:
-					bool success = timeStretcher->olderPartReader.readSamplesForTimeStretching(timeStretchResultWritePos, guide, sample, numSamplesThisTimestretchedRead, sampleSourceNumChannels, numChannelsInTimeStretchResult, phaseIncrement,
-							olderSourceAmplitudeNow, olderAmplitudeIncrementNow, (loopingType == LOOP_LOW_LEVEL), jumpAmount, interpolationBufferSize, timeStretcher,
+					bool success = timeStretcher->olderPartReader.readSamplesForTimeStretching(
+					    timeStretchResultWritePos, guide, sample, numSamplesThisTimestretchedRead,
+					    sampleSourceNumChannels, numChannelsInTimeStretchResult, phaseIncrement,
+					    olderSourceAmplitudeNow, olderAmplitudeIncrementNow, (loopingType == LOOP_LOW_LEVEL),
+					    jumpAmount, interpolationBufferSize, timeStretcher,
 #if TIME_STRETCH_ENABLE_BUFFER
-							(timeStretcher->bufferFillingMode == BUFFER_FILLING_OLDER),
+					    (timeStretcher->bufferFillingMode == BUFFER_FILLING_OLDER),
 #else
-							false,
+					    false,
 #endif
-							PLAY_HEAD_OLDER, whichKernel, priorityRating);
+					    PLAY_HEAD_OLDER, whichKernel, priorityRating);
 
 					if (!success) return false;
 				}
@@ -1137,9 +1224,10 @@ readOlderHeadUnbuffered:
 				// If just stopped being active...
 				if (timeStretcher->crossfadeProgress >= 16777216
 #if TIME_STRETCH_ENABLE_BUFFER
-						&& !(timeStretcher->bufferFillingMode == BUFFER_FILLING_OLDER && !timeStretcher->newerHeadReadingFromBuffer)
+				    && !(timeStretcher->bufferFillingMode == BUFFER_FILLING_OLDER
+				         && !timeStretcher->newerHeadReadingFromBuffer)
 #endif
-						) {
+				) {
 					//timeStretcher->olderPartReader.unassignAllReasons();
 					//if (olderPlayHeadActive) Uart::println("older head faded out");
 					timeStretcher->playHeadStillActive[PLAY_HEAD_OLDER] = false;
@@ -1156,7 +1244,6 @@ readOlderHeadUnbuffered:
 				}
 			}
 
-
 headsFinishedReading:
 
 			timeStretcher->samplePosBig += (int64_t)combinedIncrement * numSamplesThisTimestretchedRead * playDirection;
@@ -1164,8 +1251,10 @@ headsFinishedReading:
 #if TIME_STRETCH_ENABLE_BUFFER
 			if (timeStretcher->bufferFillingMode != BUFFER_FILLING_OFF) {
 
-				if (timeStretcher->newerHeadReadingFromBuffer && timeStretcher->newerBufferReadPos == timeStretcher->bufferWritePos
-						&& !(timeStretcher->playHeadStillActive[PLAY_HEAD_OLDER] && timeStretcher->bufferFillingMode == BUFFER_FILLING_OLDER)) {
+				if (timeStretcher->newerHeadReadingFromBuffer
+				    && timeStretcher->newerBufferReadPos == timeStretcher->bufferWritePos
+				    && !(timeStretcher->playHeadStillActive[PLAY_HEAD_OLDER]
+				         && timeStretcher->bufferFillingMode == BUFFER_FILLING_OLDER)) {
 
 					Uart::println("switch to filling newerrrrrrrrrrrrrrrr");
 					//if (timeStretcher->bufferFillingMode == BUFFER_FILLING_OLDER) Uart::println(" - was filling older");
@@ -1175,7 +1264,10 @@ headsFinishedReading:
 					if (!clusters[0]) Uart::println("no clusters[0]");
 				}
 
-				else if (timeStretcher->playHeadStillActive[PLAY_HEAD_OLDER] && timeStretcher->olderHeadReadingFromBuffer && timeStretcher->olderBufferReadPos == timeStretcher->bufferWritePos && timeStretcher->bufferFillingMode != BUFFER_FILLING_NEWER) {
+				else if (timeStretcher->playHeadStillActive[PLAY_HEAD_OLDER]
+				         && timeStretcher->olderHeadReadingFromBuffer
+				         && timeStretcher->olderBufferReadPos == timeStretcher->bufferWritePos
+				         && timeStretcher->bufferFillingMode != BUFFER_FILLING_NEWER) {
 					timeStretcher->olderHeadReadingFromBuffer = false;
 					timeStretcher->bufferFillingMode = BUFFER_FILLING_OLDER;
 					//timeStretcher->olderPartReader.cloneFrom(this, false);
@@ -1184,8 +1276,8 @@ headsFinishedReading:
 			}
 #endif
 
-
-			if (!cache && !loopingType && !timeStretcher->playHeadStillActive[PLAY_HEAD_OLDER] && !timeStretcher->playHeadStillActive[PLAY_HEAD_NEWER]) {
+			if (!cache && !loopingType && !timeStretcher->playHeadStillActive[PLAY_HEAD_OLDER]
+			    && !timeStretcher->playHeadStillActive[PLAY_HEAD_NEWER]) {
 				return false;
 			}
 
@@ -1202,7 +1294,6 @@ headsFinishedReading:
 				goto readTimestretched;
 			}
 
-
 			// If we were writing to a temp buffer instead of the output buffer because we need to cache,
 			// now we copy from the temp buffer to both the cache and the output buffer
 			if (cache) {
@@ -1213,7 +1304,8 @@ headsFinishedReading:
 				sampleRead[0] = *tempBufferReadPos;
 				int32_t existingValueL = *outputBufferWritePos;
 
-				int32_t const* const outputBufferEndNow = outputBufferWritePos + numSamplesThisUncachedReadUntouched * numChannelsInOutputBuffer;
+				int32_t const* const outputBufferEndNow =
+				    outputBufferWritePos + numSamplesThisUncachedReadUntouched * numChannelsInOutputBuffer;
 
 				// We'll do an ugly hack here - fudging is where a TimeStretcher is added just at the end of a play-through, to do a crossfade.
 				// This leads to a rare case where if we're recording a cache, our whether-there's-a-TimeStretcher changes, but we still keep the same cache.
@@ -1263,13 +1355,15 @@ headsFinishedReading:
 					}
 
 					// Mono / left channel (or stereo condensed to mono)
-					*outputBufferWritePos = multiply_accumulate_32x32_rshift32_rounded(existingValueL, sampleRead[0], amplitude); // amplitude is modified above
+					*outputBufferWritePos = multiply_accumulate_32x32_rshift32_rounded(
+					    existingValueL, sampleRead[0], amplitude); // amplitude is modified above
 					outputBufferWritePos++;
 
 					// Right channel
 					if (numChannelsInOutputBuffer == 2) {
 						int32_t existingValueR = *outputBufferWritePos;
-						*outputBufferWritePos = multiply_accumulate_32x32_rshift32_rounded(existingValueR, sampleRead[1], amplitude);
+						*outputBufferWritePos =
+						    multiply_accumulate_32x32_rshift32_rounded(existingValueR, sampleRead[1], amplitude);
 						outputBufferWritePos++;
 					}
 
@@ -1280,7 +1374,8 @@ headsFinishedReading:
 				}
 
 				if (cache) { // Might not be true anymore if we had to abandon the cache just above cos it got Clusters stolen.
-					cacheWritePos = cacheWritePosNow; // Not necessary I don't think - cacheWritePos doesn't get used again does it?
+					cacheWritePos =
+					    cacheWritePosNow; // Not necessary I don't think - cacheWritePos doesn't get used again does it?
 
 					cacheBytePos += numSamplesThisUncachedReadUntouched * CACHE_BYTE_DEPTH * sampleSourceNumChannels;
 					cache->writeBytePos = cacheBytePos; // These two were and are now still the same
@@ -1306,11 +1401,9 @@ finishedTimestretchedRead:
 	return true;
 }
 
-
-
-
 // Returns false if became inactive
-bool VoiceSample::sampleZoneChanged(SamplePlaybackGuide* voiceSource, Sample* sample, int markerType, int loopingType, int priorityRating, bool forAudioClip) {
+bool VoiceSample::sampleZoneChanged(SamplePlaybackGuide* voiceSource, Sample* sample, int markerType, int loopingType,
+                                    int priorityRating, bool forAudioClip) {
 
 	Uart::println("VoiceSample::sampleZoneChanged");
 
@@ -1318,7 +1411,6 @@ bool VoiceSample::sampleZoneChanged(SamplePlaybackGuide* voiceSource, Sample* sa
 	if (cache && markerType != MARKER_START) {
 		setupCacheLoopPoints(voiceSource, sample, loopingType);
 	}
-
 
 	if (markerType == MARKER_START) {
 
@@ -1358,8 +1450,11 @@ loopBackToStartCached:
 				Uart::println("timeStretcher");
 
 				if (((VoiceSamplePlaybackGuide*)voiceSource)->shouldObeyLoopEndPointNow()) {
-					int bytePos = timeStretcher->getSamplePos(voiceSource->playDirection) * (sample->byteDepth * sample->numChannels) + sample->audioDataStartPosBytes;
-					int overshootBytes = (bytePos - ((VoiceSamplePlaybackGuide*)voiceSource)->loopEndPlaybackAtByte) * voiceSource->playDirection;
+					int bytePos = timeStretcher->getSamplePos(voiceSource->playDirection)
+					                  * (sample->byteDepth * sample->numChannels)
+					              + sample->audioDataStartPosBytes;
+					int overshootBytes = (bytePos - ((VoiceSamplePlaybackGuide*)voiceSource)->loopEndPlaybackAtByte)
+					                     * voiceSource->playDirection;
 
 					if (overshootBytes >= 0) {
 						goto loopBackToStartTimeStretched;
@@ -1370,7 +1465,11 @@ loopBackToStartCached:
 				Uart::println("no timeStretcher");
 
 				// If we've shot past the loop end point...
-				if (((VoiceSamplePlaybackGuide*)voiceSource)->shouldObeyLoopEndPointNow() && (int32_t)(getPlayByteLowLevel(sample, voiceSource) - ((VoiceSamplePlaybackGuide*)voiceSource)->loopEndPlaybackAtByte) * voiceSource->playDirection >= 0) {
+				if (((VoiceSamplePlaybackGuide*)voiceSource)->shouldObeyLoopEndPointNow()
+				    && (int32_t)(getPlayByteLowLevel(sample, voiceSource)
+				                 - ((VoiceSamplePlaybackGuide*)voiceSource)->loopEndPlaybackAtByte)
+				               * voiceSource->playDirection
+				           >= 0) {
 					Uart::println("shot past");
 					goto loopBackToStartUncached;
 				}
@@ -1401,8 +1500,13 @@ loopBackToStartCached:
 
 			if (timeStretcher) {
 
-				if (voiceSource->endPlaybackAtByte && (forAudioClip || !((VoiceSamplePlaybackGuide*)voiceSource)->noteOffReceived)) { // Wait, wouldn't there always be a voiceSource->endPlaybackAtByte()?
-					int bytePos = timeStretcher->getSamplePos(voiceSource->playDirection) * (sample->byteDepth * sample->numChannels) + sample->audioDataStartPosBytes;
+				if (voiceSource->endPlaybackAtByte
+				    && (forAudioClip
+				        || !((VoiceSamplePlaybackGuide*)voiceSource)
+				                ->noteOffReceived)) { // Wait, wouldn't there always be a voiceSource->endPlaybackAtByte()?
+					int bytePos = timeStretcher->getSamplePos(voiceSource->playDirection)
+					                  * (sample->byteDepth * sample->numChannels)
+					              + sample->audioDataStartPosBytes;
 					int overshootBytes = (bytePos - voiceSource->endPlaybackAtByte) * voiceSource->playDirection;
 
 					if (overshootBytes >= 0) {
@@ -1420,11 +1524,13 @@ loopBackToStartCached:
 
 			else {
 				// If we've shot past the end...
-				if ((int32_t)(getPlayByteLowLevel(sample, voiceSource) - voiceSource->endPlaybackAtByte) * voiceSource->playDirection >= 0) {
+				if ((int32_t)(getPlayByteLowLevel(sample, voiceSource) - voiceSource->endPlaybackAtByte)
+				        * voiceSource->playDirection
+				    >= 0) {
 
 					// If we're looping, restart it
 					if (loopingType) {
-	loopBackToStartUncached:
+loopBackToStartUncached:
 						unassignAllReasons();
 						setupClusersForInitialPlay(voiceSource, sample, 0, true, priorityRating);
 					}
@@ -1434,7 +1540,7 @@ loopBackToStartCached:
 				}
 				// Or if everything's still fine...
 				else {
-	justDoReassessment:
+justDoReassessment:
 					return reassessReassessmentLocation(voiceSource, sample, priorityRating);
 					// I think this function has already taken care of making sure we're not past the new reassessmentLocation...
 				}
@@ -1450,12 +1556,10 @@ loopBackToStartTimeStretched:
 
 		// Must call this before ending time stretching, cos the presence of the TimeStretcher causes the SampleLowLevelReader to ignore markers, which is how we want it (no, wait, that's wrong I think? I've undone that for now anyway)
 		setupClusersForInitialPlay(voiceSource, sample, 0, true, priorityRating);
-
 	}
 
 	return true;
 }
-
 
 int32_t VoiceSample::getPlaySample(Sample* sample, SamplePlaybackGuide* guide) {
 	if (timeStretcher) {
@@ -1474,16 +1578,19 @@ void VoiceSample::switchToReadingCacheFromWriting() {
 	endTimeStretching();
 }
 
-
 // If returns false, means everything's failed badly and must cut whole VoiceSource (instantUnassign)
-bool VoiceSample::possiblySetUpCache(SampleControls* sampleControls, SamplePlaybackGuide* guide, int32_t phaseIncrement, int32_t timeStretchRatio, int priorityRating, int loopingType) {
+bool VoiceSample::possiblySetUpCache(SampleControls* sampleControls, SamplePlaybackGuide* guide, int32_t phaseIncrement,
+                                     int32_t timeStretchRatio, int priorityRating, int loopingType) {
 
 	if (phaseIncrement == 16777216) return true;
-	if (guide->sequenceSyncLengthTicks && (playbackHandler.playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE)) return true; // No syncing to external clock
+	if (guide->sequenceSyncLengthTicks && (playbackHandler.playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE))
+		return true; // No syncing to external clock
 	if (sampleControls->interpolationMode != INTERPOLATION_MODE_SMOOTH) return true;
 
 	bool mayCreate = (sampleControls->getInterpolationBufferSize(phaseIncrement) == INTERPOLATION_MAX_NUM_SAMPLES);
-	cache = ((Sample*)guide->audioFileHolder->audioFile)->getOrCreateCache((SampleHolder*)guide->audioFileHolder, phaseIncrement, timeStretchRatio, guide->playDirection == -1, mayCreate, &writingToCache);
+	cache = ((Sample*)guide->audioFileHolder->audioFile)
+	            ->getOrCreateCache((SampleHolder*)guide->audioFileHolder, phaseIncrement, timeStretchRatio,
+	                               guide->playDirection == -1, mayCreate, &writingToCache);
 
 	if (cache) {
 		//Uart::println("cache gotten");
@@ -1498,5 +1605,3 @@ bool VoiceSample::possiblySetUpCache(SampleControls* sampleControls, SamplePlayb
 
 	return true;
 }
-
-

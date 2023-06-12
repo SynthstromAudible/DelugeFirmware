@@ -36,9 +36,7 @@ public:
 	int8_t probability;
 	uint8_t lift;
 
-
 	uint8_t type;
-
 };
 
 #endif /* CONSEQUENCENOTEEXISTENCE_H_ */

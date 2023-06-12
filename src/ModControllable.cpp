@@ -29,24 +29,24 @@ int ModControllable::getKnobPosForNonExistentParam(int whichModEncoder, ModelSta
 	return -64;
 }
 
-
 void setTheAutoParamToNull(ModelStackWithThreeMainThings* modelStack) {
 	ModelStackWithAutoParam* modelStackWithAutoParam = (ModelStackWithAutoParam*)modelStack;
 	modelStackWithAutoParam->autoParam = NULL;
 }
 
-ModelStackWithAutoParam* ModControllable::getParamFromModEncoder(int whichModEncoder, ModelStackWithThreeMainThings* modelStack, bool allowCreation) {
+ModelStackWithAutoParam* ModControllable::getParamFromModEncoder(int whichModEncoder,
+                                                                 ModelStackWithThreeMainThings* modelStack,
+                                                                 bool allowCreation) {
 	setTheAutoParamToNull(modelStack);
 	return (ModelStackWithAutoParam*)modelStack;
 }
 
-
-ModelStackWithAutoParam* ModControllable::getParamFromMIDIKnob(MIDIKnob* knob, ModelStackWithThreeMainThings* modelStack) {
+ModelStackWithAutoParam* ModControllable::getParamFromMIDIKnob(MIDIKnob* knob,
+                                                               ModelStackWithThreeMainThings* modelStack) {
 
 	setTheAutoParamToNull(modelStack);
 	return (ModelStackWithAutoParam*)modelStack;
 }
-
 
 uint8_t* ModControllable::getModKnobMode() {
 	return NULL;

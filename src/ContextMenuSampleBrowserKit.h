@@ -20,19 +20,17 @@
 
 #include "ContextMenu.h"
 
-
 class ContextMenuSampleBrowserKit final : public ContextMenu {
 public:
 	ContextMenuSampleBrowserKit();
 
-    char const** getOptions();
-    int getNumOptions();
-    bool isCurrentOptionAvailable();
-    bool canSeeViewUnderneath();
+	char const** getOptions();
+	int getNumOptions();
+	bool isCurrentOptionAvailable();
+	bool canSeeViewUnderneath();
 
-    int padAction(int x, int y, int velocity);
-    bool acceptCurrentOption();
-
+	int padAction(int x, int y, int velocity);
+	bool acceptCurrentOption();
 };
 
 extern ContextMenuSampleBrowserKit contextMenuFileBrowserKit;

@@ -34,14 +34,13 @@
  ******************************************************************************/
 #include "r_usb_basic_if.h"
 
-
 /******************************************************************************
  Exported global functions (to be accessed by other files)
  ******************************************************************************/
 
-void        R_USB_HmidiClassCheck(usb_utr_t *ptr, uint16_t **table);
-void        R_USB_HmidiDriverStart(usb_utr_t *ptr);
-void        R_USB_HmidiSetPipeRegistration(usb_utr_t *ptr, uint16_t devadr);
-uint16_t*	R_USB_HmidiGetPipetbl(usb_utr_t *ptr, uint16_t devadr);
+void R_USB_HmidiClassCheck(usb_utr_t* ptr, uint16_t** table);
+void R_USB_HmidiDriverStart(usb_utr_t* ptr);
+void R_USB_HmidiSetPipeRegistration(usb_utr_t* ptr, uint16_t devadr);
+uint16_t* R_USB_HmidiGetPipetbl(usb_utr_t* ptr, uint16_t devadr);
 
 #endif /* USB_HMIDI_IF_H */

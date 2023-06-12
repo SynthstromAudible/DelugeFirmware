@@ -25,28 +25,27 @@ class Sound;
 class Voice;
 class ParamManagerForTimeline;
 
-class Envelope
-{
+class Envelope {
 public:
-    Envelope();
+	Envelope();
 
-    uint32_t pos;
-    uint8_t state; // You may not set this directly, even from this class. Call setState()
-    int32_t lastValue;
-    int32_t lastValuePreCurrentStage;
-    uint32_t timeEnteredState;
-    bool ignoredNoteOff;
-    uint32_t fastReleaseIncrement;
-    int32_t noteOn(bool directlyToDecay);
-    int32_t noteOn(uint8_t envelopeIndex, Sound* sound, Voice* voice);
-    void noteOff(uint8_t envelopeIndex, Sound* sound, ParamManagerForTimeline* paramManager);
-    int32_t render(uint32_t numSamples, uint32_t attack, uint32_t decay, uint32_t sustain, uint32_t release, const uint16_t* releaseTable);
-    void unconditionalRelease(uint8_t typeOfRelease = ENVELOPE_STAGE_RELEASE, uint32_t newFastReleaseIncrement = 4096);
-    void resumeAttack(int32_t oldLastValue);
+	uint32_t pos;
+	uint8_t state; // You may not set this directly, even from this class. Call setState()
+	int32_t lastValue;
+	int32_t lastValuePreCurrentStage;
+	uint32_t timeEnteredState;
+	bool ignoredNoteOff;
+	uint32_t fastReleaseIncrement;
+	int32_t noteOn(bool directlyToDecay);
+	int32_t noteOn(uint8_t envelopeIndex, Sound* sound, Voice* voice);
+	void noteOff(uint8_t envelopeIndex, Sound* sound, ParamManagerForTimeline* paramManager);
+	int32_t render(uint32_t numSamples, uint32_t attack, uint32_t decay, uint32_t sustain, uint32_t release,
+	               const uint16_t* releaseTable);
+	void unconditionalRelease(uint8_t typeOfRelease = ENVELOPE_STAGE_RELEASE, uint32_t newFastReleaseIncrement = 4096);
+	void resumeAttack(int32_t oldLastValue);
 
 private:
-    void setState(uint8_t newState);
+	void setState(uint8_t newState);
 };
-
 
 #endif // ENVELOPE_H

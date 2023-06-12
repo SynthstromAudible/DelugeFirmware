@@ -25,36 +25,38 @@
 class QwertyUI : public UI {
 public:
 	QwertyUI();
-    int padAction(int x, int y, int velocity);
-    int horizontalEncoderAction(int offset);
-    int timerCallback();
-    bool renderMainPads(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3] = NULL, uint8_t occupancyMask[][displayWidth + sideBarWidth] = NULL,
-        		bool drawUndefinedArea = true) { return true; }
+	int padAction(int x, int y, int velocity);
+	int horizontalEncoderAction(int offset);
+	int timerCallback();
+	bool renderMainPads(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3] = NULL,
+	                    uint8_t occupancyMask[][displayWidth + sideBarWidth] = NULL, bool drawUndefinedArea = true) {
+		return true;
+	}
 
-    static bool predictionInterrupted;
-    static String enteredText;
+	static bool predictionInterrupted;
+	static String enteredText;
 
 protected:
 	bool opened();
 	virtual bool predictExtendedText() { return true; } // Returns whether we're allowed that new character.
 	void drawKeys();
-    virtual void processBackspace(); // May be called in card routine
-    virtual void enterKeyPress() = 0;
+	virtual void processBackspace(); // May be called in card routine
+	virtual void enterKeyPress() = 0;
 
-    // This may be called in card routine so long as either !currentFileExists (which is always the case in a processBackspace()),
-    // or we are not LoadSongUI
+	// This may be called in card routine so long as either !currentFileExists (which is always the case in a processBackspace()),
+	// or we are not LoadSongUI
 #if HAVE_OLED
-    char const* title;
+	char const* title;
 	virtual void displayText(bool blinkImmediately = false) = 0;
-	void drawTextForOLEDEditing(int textStartX, int xPixelMax, int yPixel, int maxChars, uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
+	void drawTextForOLEDEditing(int textStartX, int xPixelMax, int yPixel, int maxChars,
+	                            uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
 #else
 	virtual void displayText(bool blinkImmediately = false);
 #endif
-    static int16_t enteredTextEditPos;
-    static int scrollPosHorizontal;
+	static int16_t enteredTextEditPos;
+	static int scrollPosHorizontal;
 
 private:
-
 };
 
 #endif /* QWERTYUI_H_ */

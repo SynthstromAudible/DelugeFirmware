@@ -23,7 +23,8 @@
 #include "Sample.h"
 #include "GeneralMemoryAllocator.h"
 
-SampleCache::SampleCache(Sample* newSample, int newNumClusters, int newWaveformLengthBytes, int newPhaseIncrement, int newTimeStretchRatio, int newSkipSamplesAtStart) {
+SampleCache::SampleCache(Sample* newSample, int newNumClusters, int newWaveformLengthBytes, int newPhaseIncrement,
+                         int newTimeStretchRatio, int newSkipSamplesAtStart) {
 	sample = newSample;
 	phaseIncrement = newPhaseIncrement;
 	timeStretchRatio = newTimeStretchRatio;
@@ -40,11 +41,9 @@ SampleCache::SampleCache(Sample* newSample, int newNumClusters, int newWaveformL
 	*/
 }
 
-SampleCache::~SampleCache()
-{
+SampleCache::~SampleCache() {
 	unlinkClusters(0, true);
 }
-
 
 void SampleCache::clusterStolen(int clusterIndex) {
 
@@ -60,8 +59,11 @@ void SampleCache::clusterStolen(int clusterIndex) {
 
 	uint8_t bytesPerSample = sample->numChannels * CACHE_BYTE_DEPTH;
 
-	writeBytePos = (uint32_t)((uint32_t)((clusterIndex << audioFileManager.clusterSizeMagnitude) + bytesPerSample - 1) / bytesPerSample) * bytesPerSample; // Make it a multiple of bytesPerSample - but round up.
-																																// If you try and simplify this, make sure it still works for 0 and doesn't go negative or anything!
+	// Make it a multiple of bytesPerSample - but round up.
+	// If you try and simplify this, make sure it still works for 0 and doesn't go negative or anything!
+	writeBytePos = (uint32_t)((uint32_t)((clusterIndex << audioFileManager.clusterSizeMagnitude) + bytesPerSample - 1)
+	                          / bytesPerSample)
+	               * bytesPerSample;
 
 #if ALPHA_OR_BETA_VERSION
 	if (writeBytePos < 0) numericDriver.freezeWithError("E298");
@@ -72,7 +74,8 @@ void SampleCache::clusterStolen(int clusterIndex) {
 	if (numExistentClusters != clusterIndex) {
 		numericDriver.freezeWithError("E295");
 	}
-	clusters[clusterIndex] = NULL; // No need to remove this first Cluster from a queue or anything - that's already all done by the thing that's stealing it
+	clusters[clusterIndex] =
+	    NULL; // No need to remove this first Cluster from a queue or anything - that's already all done by the thing that's stealing it
 #endif
 }
 
@@ -96,7 +99,8 @@ void SampleCache::setWriteBytePos(int newWriteBytePos) {
 	if (newWriteBytePos > waveformLengthBytes) numericDriver.freezeWithError("E301");
 
 	uint32_t bytesPerSample = sample->numChannels * CACHE_BYTE_DEPTH;
-	if (newWriteBytePos != (uint32_t)newWriteBytePos / bytesPerSample * bytesPerSample) numericDriver.freezeWithError("E302");
+	if (newWriteBytePos != (uint32_t)newWriteBytePos / bytesPerSample * bytesPerSample)
+		numericDriver.freezeWithError("E302");
 #endif
 
 	// When setting it earlier, we may have to discard some Clusters.
@@ -107,10 +111,9 @@ void SampleCache::setWriteBytePos(int newWriteBytePos) {
 
 	writeBytePos = newWriteBytePos;
 
-	if (ALPHA_OR_BETA_VERSION && getNumExistentClusters(writeBytePos) != newNumExistentClusters) numericDriver.freezeWithError("E294");
+	if (ALPHA_OR_BETA_VERSION && getNumExistentClusters(writeBytePos) != newNumExistentClusters)
+		numericDriver.freezeWithError("E294");
 }
-
-
 
 // Does not move the new Cluster to the appropriate "availability queue", because it's expected that the caller is just about to call getCluster(), to get it,
 // which will call prioritizeNotStealingCluster(), and that'll do it
@@ -122,8 +125,9 @@ bool SampleCache::setupNewCluster(int clusterIndex) {
 	if (clusterIndex > getNumExistentClusters(writeBytePos)) numericDriver.freezeWithError("E293");
 #endif
 
-	clusters[clusterIndex] = audioFileManager.allocateCluster(CLUSTER_SAMPLE_CACHE, false, this); // Do not add reasons, and don't steal from this SampleCache
-	if (!clusters[clusterIndex]) { // If that allocation failed...
+	clusters[clusterIndex] = audioFileManager.allocateCluster(
+	    CLUSTER_SAMPLE_CACHE, false, this); // Do not add reasons, and don't steal from this SampleCache
+	if (!clusters[clusterIndex]) {          // If that allocation failed...
 		Uart::println("allocation fail");
 		return false;
 	}
@@ -134,11 +138,10 @@ bool SampleCache::setupNewCluster(int clusterIndex) {
 	return true;
 }
 
-
-
 void SampleCache::prioritizeNotStealingCluster(int clusterIndex) {
 
-	if (generalMemoryAllocator.getRegion(clusters[clusterIndex]) != MEMORY_REGION_SDRAM) return; // Sorta just have to do this
+	if (generalMemoryAllocator.getRegion(clusters[clusterIndex]) != MEMORY_REGION_SDRAM)
+		return; // Sorta just have to do this
 
 	// This ensures, one Cluster at a time, that this Cache's Clusters are right at the far end of their queue (so won't be stolen for a while),
 	// but in reverse order so that the later-in-sample of those cache Clusters will be stolen first
@@ -147,25 +150,33 @@ void SampleCache::prioritizeNotStealingCluster(int clusterIndex) {
 
 	// First Cluster
 	if (clusterIndex == 0) {
-		if (clusters[clusterIndex]->list != &generalMemoryAllocator.regions[MEMORY_REGION_SDRAM].stealableClusterQueues[STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE]
-				|| !clusters[clusterIndex]->isLast()) {
+		if (clusters[clusterIndex]->list
+		        != &generalMemoryAllocator.regions[MEMORY_REGION_SDRAM]
+		                .stealableClusterQueues[STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE]
+		    || !clusters[clusterIndex]->isLast()) {
 
 			clusters[clusterIndex]->remove(); // Remove from old list, if it was already in one (might not have been).
-			generalMemoryAllocator.regions[MEMORY_REGION_SDRAM].stealableClusterQueues[STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE].addToEnd(clusters[clusterIndex]);
-			generalMemoryAllocator.regions[MEMORY_REGION_SDRAM].stealableClusterQueueLongestRuns[STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE] = 0xFFFFFFFF; // TODO: make good.
+			generalMemoryAllocator.regions[MEMORY_REGION_SDRAM]
+			    .stealableClusterQueues[STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE]
+			    .addToEnd(clusters[clusterIndex]);
+			generalMemoryAllocator.regions[MEMORY_REGION_SDRAM]
+			    .stealableClusterQueueLongestRuns[STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE] =
+			    0xFFFFFFFF; // TODO: make good.
 		}
 	}
 
 	// Later Clusters
 	else {
 
-		if (generalMemoryAllocator.getRegion(clusters[clusterIndex - 1]) != MEMORY_REGION_SDRAM) return; // Sorta just have to do this
+		if (generalMemoryAllocator.getRegion(clusters[clusterIndex - 1]) != MEMORY_REGION_SDRAM)
+			return; // Sorta just have to do this
 
 		// In most cases, we'll want to do this thing to alter the ordering - including if the Cluster in question hasn't actually been added to a queue at all yet,
 		// because this functions serves the additional purpose of being what puts Clusters in their queue in the first place.
-		if (clusters[clusterIndex]->list != &generalMemoryAllocator.regions[MEMORY_REGION_SDRAM].stealableClusterQueues[STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE]
-				||
-				clusters[clusterIndex]->next != clusters[clusterIndex - 1]) {
+		if (clusters[clusterIndex]->list
+		        != &generalMemoryAllocator.regions[MEMORY_REGION_SDRAM]
+		                .stealableClusterQueues[STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE]
+		    || clusters[clusterIndex]->next != clusters[clusterIndex - 1]) {
 
 			clusters[clusterIndex]->remove(); // Remove from old list, if it was already in one (might not have been).
 			clusters[clusterIndex - 1]->insertOtherNodeBefore(clusters[clusterIndex]);
@@ -174,18 +185,17 @@ void SampleCache::prioritizeNotStealingCluster(int clusterIndex) {
 	}
 }
 
-
 Cluster* SampleCache::getCluster(int clusterIndex) {
 	prioritizeNotStealingCluster(clusterIndex);
 	return clusters[clusterIndex];
 }
 
-
 int SampleCache::getNumExistentClusters(int32_t thisWriteBytePos) {
 	int bytesPerSample = sample->numChannels * CACHE_BYTE_DEPTH;
 
 	// Remember, a cache Cluster actually gets (bytesPerSample - 1) extra usable bytes after it.
-	int numExistentClusters = (thisWriteBytePos + audioFileManager.clusterSize - bytesPerSample) >> audioFileManager.clusterSizeMagnitude;
+	int numExistentClusters =
+	    (thisWriteBytePos + audioFileManager.clusterSize - bytesPerSample) >> audioFileManager.clusterSizeMagnitude;
 
 #if ALPHA_OR_BETA_VERSION
 	if (numExistentClusters < 0) numericDriver.freezeWithError("E303");

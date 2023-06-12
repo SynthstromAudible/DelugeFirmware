@@ -46,14 +46,14 @@
                  : uint8_t      *table       : Start address of read data buffer.
  Return value    : uint16_t                  : USB_WRITESHRT/USB_WRITE_END/USB_WRITING/USB_FIFOERROR.
  ***********************************************************************************************************************/
-uint16_t usb_pstd_ctrl_read(uint32_t bsize, uint8_t *table)
+uint16_t usb_pstd_ctrl_read(uint32_t bsize, uint8_t* table)
 {
-    uint16_t    end_flag;
+    uint16_t end_flag;
 
     g_usb_pstd_pipe0_request = USB_ON;
 
-    g_usb_data_cnt[USB_PIPE0]  = bsize;
-    g_p_usb_data[USB_PIPE0]    = table;
+    g_usb_data_cnt[USB_PIPE0] = bsize;
+    g_p_usb_data[USB_PIPE0]   = table;
 
     usb_cstd_chg_curpipe(USB_NULL, (uint16_t)USB_PIPE0, (uint16_t)USB_CUSE, (uint16_t)USB_ISEL);
 
@@ -79,7 +79,7 @@ uint16_t usb_pstd_ctrl_read(uint32_t bsize, uint8_t *table)
             /* Set PID=BUF */
             usb_cstd_set_buf(USB_NULL, (uint16_t)USB_PIPE0);
 
-        break;
+            break;
 
         /* End of data write (not null) */
         case USB_WRITEEND:
@@ -97,16 +97,16 @@ uint16_t usb_pstd_ctrl_read(uint32_t bsize, uint8_t *table)
             /* Set PID=BUF */
             usb_cstd_set_buf(USB_NULL, (uint16_t)USB_PIPE0);
 
-        break;
+            break;
 
         /* FIFO access error */
         case USB_FIFOERROR:
-        break;
+            break;
 
         default:
-        break;
+            break;
     }
-    return (end_flag);      /* End or error or continue */
+    return (end_flag); /* End or error or continue */
 } /* End of function usb_pstd_ctrl_read() */
 
 /***********************************************************************************************************************
@@ -116,12 +116,12 @@ uint16_t usb_pstd_ctrl_read(uint32_t bsize, uint8_t *table)
                  : uint8_t      *table       : Start address of write data buffer.
  Return value    : none
  ***********************************************************************************************************************/
-void usb_pstd_ctrl_write(uint32_t bsize, uint8_t *table)
+void usb_pstd_ctrl_write(uint32_t bsize, uint8_t* table)
 {
     g_usb_pstd_pipe0_request = USB_ON;
 
-    g_usb_data_cnt[USB_PIPE0]  = bsize;
-    g_p_usb_data[USB_PIPE0]    = table;
+    g_usb_data_cnt[USB_PIPE0] = bsize;
+    g_p_usb_data[USB_PIPE0]   = table;
 
     usb_cstd_chg_curpipe(USB_NULL, (uint16_t)USB_PIPE0, (uint16_t)USB_CUSE, USB_FALSE);
 
@@ -183,7 +183,7 @@ void usb_pstd_ctrl_end(uint16_t status)
         hw_usb_pset_ccpl();
     }
 } /* End of function usb_pstd_ctrl_end() */
-#endif  /* (USB_CFG_MODE & USB_CFG_PERI) == USB_CFG_REPI */
+#endif /* (USB_CFG_MODE & USB_CFG_PERI) == USB_CFG_REPI */
 
 /***********************************************************************************************************************
  End Of File

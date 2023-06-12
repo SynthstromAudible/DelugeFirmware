@@ -37,5 +37,4 @@ public:
 
 extern MenuItemMPEZoneSelector mpeZoneSelectorMenu;
 
-
 #endif /* MENUITEMMPEZONESELECTOR_H_ */

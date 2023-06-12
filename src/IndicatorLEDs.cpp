@@ -30,69 +30,57 @@ bool ledStates[NUM_LED_COLS][NUM_LED_ROWS];
 LedBlinker ledBlinkers[numLedBlinkers];
 bool ledBlinkState[NUM_LEVEL_INDICATORS];
 
-
 uint8_t knobIndicatorLevels[NUM_LEVEL_INDICATORS];
 
 uint8_t whichLevelIndicatorBlinking;
 bool levelIndicatorBlinkOn;
 uint8_t levelIndicatorBlinksLeft;
 
-
-
-
-
-
-
-
-
-
 void setLedState(uint8_t x, uint8_t y, bool newState, bool allowContinuedBlinking) {
 
-    if (!allowContinuedBlinking) stopLedBlinking(x, y);
+	if (!allowContinuedBlinking) stopLedBlinking(x, y);
 
-    ledStates[x][y] = newState;
+	ledStates[x][y] = newState;
 
 #if DELUGE_MODEL >= DELUGE_MODEL_144_PAD
-    bufferPICIndicatorsUart(152 + x + y * 9 + (newState ? 36 : 0));
+	bufferPICIndicatorsUart(152 + x + y * 9 + (newState ? 36 : 0));
 #else
-    bufferPICIndicatorsUart(120 + x + y * 10 + (newState ? 40 : 0));
+	bufferPICIndicatorsUart(120 + x + y * 10 + (newState ? 40 : 0));
 #endif
 }
 
-
-
 void blinkLed(uint8_t x, uint8_t y, uint8_t numBlinks, uint8_t blinkingType, bool initialState) {
 
-    stopLedBlinking(x, y, true);
+	stopLedBlinking(x, y, true);
 
-    // Find unallocated blinker
-    int i;
-    for (i = 0; i < numLedBlinkers - 1; i++) {
-        if (!ledBlinkers[i].active) break;
-    }
+	// Find unallocated blinker
+	int i;
+	for (i = 0; i < numLedBlinkers - 1; i++) {
+		if (!ledBlinkers[i].active) break;
+	}
 
-    ledBlinkers[i].x = x;
-    ledBlinkers[i].y = y;
-    ledBlinkers[i].active = true;
-    ledBlinkers[i].blinkingType = blinkingType;
+	ledBlinkers[i].x = x;
+	ledBlinkers[i].y = y;
+	ledBlinkers[i].active = true;
+	ledBlinkers[i].blinkingType = blinkingType;
 
-    if (numBlinks == 255) ledBlinkers[i].blinksLeft = 255;
-    else {
-        ledBlinkers[i].returnToState = ledStates[x][y];
-        ledBlinkers[i].blinksLeft = numBlinks * 2;
-    }
+	if (numBlinks == 255) ledBlinkers[i].blinksLeft = 255;
+	else {
+		ledBlinkers[i].returnToState = ledStates[x][y];
+		ledBlinkers[i].blinksLeft = numBlinks * 2;
+	}
 
-    ledBlinkState[blinkingType] = initialState;
-    updateBlinkingLedStates(blinkingType);
+	ledBlinkState[blinkingType] = initialState;
+	updateBlinkingLedStates(blinkingType);
 
-    int thisInitialFlashTime;
-    if (blinkingType) thisInitialFlashTime = fastFlashTime;
-    else {
-    	if (initialState) thisInitialFlashTime = initialFlashTime;
-    	else thisInitialFlashTime = flashTime;
-    }
+	int thisInitialFlashTime;
+	if (blinkingType) thisInitialFlashTime = fastFlashTime;
+	else {
+		if (initialState) thisInitialFlashTime = initialFlashTime;
+		else thisInitialFlashTime = flashTime;
+	}
 
-    uiTimerManager.setTimer(TIMER_LED_BLINK + blinkingType, thisInitialFlashTime);
+	uiTimerManager.setTimer(TIMER_LED_BLINK + blinkingType, thisInitialFlashTime);
 }
 
 void ledBlinkTimeout(uint8_t blinkingType, bool forceReset, bool resetToState) {
@@ -103,57 +91,56 @@ void ledBlinkTimeout(uint8_t blinkingType, bool forceReset, bool resetToState) {
 		ledBlinkState[blinkingType] = !ledBlinkState[blinkingType];
 	}
 
-    bool anyActive = updateBlinkingLedStates(blinkingType);
+	bool anyActive = updateBlinkingLedStates(blinkingType);
 
-    int thisFlashTime = (blinkingType ? fastFlashTime : flashTime);
-    if (anyActive) uiTimerManager.setTimer(TIMER_LED_BLINK + blinkingType, thisFlashTime);
+	int thisFlashTime = (blinkingType ? fastFlashTime : flashTime);
+	if (anyActive) uiTimerManager.setTimer(TIMER_LED_BLINK + blinkingType, thisFlashTime);
 }
 
 // Returns true if some blinking still active
 bool updateBlinkingLedStates(uint8_t blinkingType) {
-    bool anyActive = false;
-    for (int i = 0; i < numLedBlinkers ; i++) {
-        if (ledBlinkers[i].active && ledBlinkers[i].blinkingType == blinkingType) {
+	bool anyActive = false;
+	for (int i = 0; i < numLedBlinkers; i++) {
+		if (ledBlinkers[i].active && ledBlinkers[i].blinkingType == blinkingType) {
 
-            // If only doing a fixed number of blinks...
-            if (ledBlinkers[i].blinksLeft != 255) {
-                ledBlinkers[i].blinksLeft--;
+			// If only doing a fixed number of blinks...
+			if (ledBlinkers[i].blinksLeft != 255) {
+				ledBlinkers[i].blinksLeft--;
 
-                // If no more blinks...
-                if (ledBlinkers[i].blinksLeft == 0) {
-                    ledBlinkers[i].active = false;
-                    setLedState(ledBlinkers[i].x, ledBlinkers[i].y, ledBlinkers[i].returnToState, true);
-                    continue;
-                }
-            }
+				// If no more blinks...
+				if (ledBlinkers[i].blinksLeft == 0) {
+					ledBlinkers[i].active = false;
+					setLedState(ledBlinkers[i].x, ledBlinkers[i].y, ledBlinkers[i].returnToState, true);
+					continue;
+				}
+			}
 
-            // We only get here if we haven't run out of blinks..
-            anyActive = true;
-            setLedState(ledBlinkers[i].x, ledBlinkers[i].y, ledBlinkState[blinkingType], true);
-        }
-    }
-    return anyActive;
+			// We only get here if we haven't run out of blinks..
+			anyActive = true;
+			setLedState(ledBlinkers[i].x, ledBlinkers[i].y, ledBlinkState[blinkingType], true);
+		}
+	}
+	return anyActive;
 }
 
 void stopLedBlinking(uint8_t x, uint8_t y, bool resetState) {
-    uint8_t i = getLedBlinkerIndex(x, y);
-    if (i != 255) {
-        ledBlinkers[i].active = false;
-        if (resetState) setLedState(x, y, ledBlinkers[i].returnToState, true);
-    }
+	uint8_t i = getLedBlinkerIndex(x, y);
+	if (i != 255) {
+		ledBlinkers[i].active = false;
+		if (resetState) setLedState(x, y, ledBlinkers[i].returnToState, true);
+	}
 }
 
 uint8_t getLedBlinkerIndex(uint8_t x, uint8_t y) {
 	for (uint8_t i = 0; i < numLedBlinkers; i++) {
-        if (ledBlinkers[i].x == x && ledBlinkers[i].y == y && ledBlinkers[i].active) return i;
-    }
-    return 255;
+		if (ledBlinkers[i].x == x && ledBlinkers[i].y == y && ledBlinkers[i].active) return i;
+	}
+	return 255;
 }
 
 void indicateAlertOnLed(uint8_t x, uint8_t y) {
-    blinkLed(x, y, 3, 1);
+	blinkLed(x, y, 3, 1);
 }
-
 
 // Level is out of 128
 void setKnobIndicatorLevel(uint8_t whichKnob, uint8_t level) {
@@ -220,28 +207,10 @@ bool isKnobIndicatorBlinking(int whichKnob) {
 	return (levelIndicatorBlinksLeft && whichLevelIndicatorBlinking == whichKnob);
 }
 
-
 void clearKnobIndicatorLevels() {
 	for (int i = 0; i < NUM_LEVEL_INDICATORS; i++) {
-	    setKnobIndicatorLevel(i, 0);
+		setKnobIndicatorLevel(i, 0);
 	}
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-}
+} // namespace IndicatorLEDs

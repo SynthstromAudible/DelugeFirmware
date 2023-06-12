@@ -19,9 +19,6 @@
 #define MODCONTROLLABLE_H_
 #include "definitions.h"
 
-
-
-
 class ParamManagerForTimeline;
 class ParamManagerForTimeline;
 class InstrumentClip;
@@ -39,17 +36,29 @@ class ModelStackWithSoundFlags;
 class ModControllable {
 public:
 	ModControllable();
-    virtual bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack) { return false; } // Returns whether Instrument was changed
-    virtual void modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager) {};
-    virtual ModelStackWithAutoParam* getParamFromModEncoder(int whichModEncoder, ModelStackWithThreeMainThings* modelStack, bool allowCreation = true); // Check that autoParam isn't NULL, after calling this.
-    virtual ModelStackWithAutoParam* getParamFromMIDIKnob(MIDIKnob* knob, ModelStackWithThreeMainThings* modelStack); // Check that autoParam isn't NULL, after calling this
-    virtual uint8_t* getModKnobMode(); // Return NULL if different modes not supported
-    virtual bool isKit() { return false; }
-    virtual int getKnobPosForNonExistentParam(int whichModEncoder, ModelStackWithAutoParam* modelStack); // modelStack->autoParam will be NULL in this rare case!!
-    virtual int modEncoderActionForNonExistentParam(int offset, int whichModEncoder, ModelStackWithAutoParam* modelStack) { return ACTION_RESULT_NOT_DEALT_WITH; }
-    virtual bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false) { return true; }
-    virtual void polyphonicExpressionEventOnChannelOrNote(int newValue, int whichExpressionDimension, int channelOrNoteNumber, int whichCharacteristic) {}
-    virtual void monophonicExpressionEvent(int newValue, int whichExpressionDimension) {}
+	virtual bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack) {
+		return false;
+	} // Returns whether Instrument was changed
+	virtual void modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager){};
+	virtual ModelStackWithAutoParam*
+	getParamFromModEncoder(int whichModEncoder, ModelStackWithThreeMainThings* modelStack,
+	                       bool allowCreation = true); // Check that autoParam isn't NULL, after calling this.
+	virtual ModelStackWithAutoParam* getParamFromMIDIKnob(
+	    MIDIKnob* knob,
+	    ModelStackWithThreeMainThings* modelStack); // Check that autoParam isn't NULL, after calling this
+	virtual uint8_t* getModKnobMode();              // Return NULL if different modes not supported
+	virtual bool isKit() { return false; }
+	virtual int getKnobPosForNonExistentParam(
+	    int whichModEncoder,
+	    ModelStackWithAutoParam* modelStack); // modelStack->autoParam will be NULL in this rare case!!
+	virtual int modEncoderActionForNonExistentParam(int offset, int whichModEncoder,
+	                                                ModelStackWithAutoParam* modelStack) {
+		return ACTION_RESULT_NOT_DEALT_WITH;
+	}
+	virtual bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false) { return true; }
+	virtual void polyphonicExpressionEventOnChannelOrNote(int newValue, int whichExpressionDimension,
+	                                                      int channelOrNoteNumber, int whichCharacteristic) {}
+	virtual void monophonicExpressionEvent(int newValue, int whichExpressionDimension) {}
 };
 
 #endif /* MODCONTROLLABLE_H_ */

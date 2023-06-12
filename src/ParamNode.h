@@ -21,14 +21,13 @@
 
 #include "Positionable.h"
 
-class ParamNode: public Positionable {
+class ParamNode : public Positionable {
 public:
 	ParamNode();
 
 	int32_t value;
 	bool interpolated; // From the previous node
 };
-
 
 struct StolenParamNodes {
 	int num;

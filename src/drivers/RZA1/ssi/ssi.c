@@ -38,7 +38,6 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-
 #include "ssi.h"
 #include "ssif_iodefine.h"
 #include "devdrv_intc.h"
@@ -49,22 +48,20 @@
 #include "cpu_specific.h"
 #include "ssi_all_cpus.h"
 
-#define DMA_FIX_PRIO_MODE   (0u)
-#define SSI_CHANNEL_MAX     (6u)
+#define DMA_FIX_PRIO_MODE (0u)
+#define SSI_CHANNEL_MAX   (6u)
 
-#define SSI_CLEAR_VALUE                     (0)
-#define SSI_SET_VALUE                       (1)
-#define SSI_WSET_VALUE                      (3)
+#define SSI_CLEAR_VALUE (0)
+#define SSI_SET_VALUE   (1)
+#define SSI_WSET_VALUE  (3)
 
+void ssiInit(uint8_t ssiChannel, uint8_t dmaChannel)
+{
+    ssiInit2(SSI_CHANNEL);
 
-
-
-void ssiInit(uint8_t ssiChannel, uint8_t dmaChannel) {
-	ssiInit2(SSI_CHANNEL);
-
-	initDMAWithLinkDescriptor(SSI_TX_DMA_CHANNEL, ssiDmaTxLinkDescriptor, DMARS_FOR_SSI0_TX + SSI_CHANNEL * 4);
+    initDMAWithLinkDescriptor(SSI_TX_DMA_CHANNEL, ssiDmaTxLinkDescriptor, DMARS_FOR_SSI0_TX + SSI_CHANNEL * 4);
 #if DELUGE_MODEL != DELUGE_MODEL_40_PAD
-	initDMAWithLinkDescriptor(SSI_RX_DMA_CHANNEL, ssiDmaRxLinkDescriptor, DMARS_FOR_SSI0_RX + SSI_CHANNEL * 4);
+    initDMAWithLinkDescriptor(SSI_RX_DMA_CHANNEL, ssiDmaRxLinkDescriptor, DMARS_FOR_SSI0_RX + SSI_CHANNEL * 4);
 #endif
 
     dmaChannelStart(SSI_TX_DMA_CHANNEL);
@@ -75,55 +72,50 @@ void ssiInit(uint8_t ssiChannel, uint8_t dmaChannel) {
     ssiStart(SSI_CHANNEL);
 }
 
+void ssiInit2(const uint32_t ssi_channel)
+{
 
-void ssiInit2(const uint32_t ssi_channel) {
+    /* ---- SSI Software reset ---- */
+    CPG.SWRSTCR1 |= (uint8_t)(1 << (6 - ssi_channel));
+    CPG.SWRSTCR1; /* Dummy read */
 
-	/* ---- SSI Software reset ---- */
-	CPG.SWRSTCR1 |= (uint8_t)(1 << (6 - ssi_channel));
-	CPG.SWRSTCR1; /* Dummy read */
+    // And release reset
+    CPG.SWRSTCR1 &= ~(uint8_t)(1 << (6 - ssi_channel));
+    CPG.SWRSTCR1; /* Dummy read */
 
-	// And release reset
-	CPG.SWRSTCR1 &= ~(uint8_t)(1 << (6 - ssi_channel));
-	CPG.SWRSTCR1; /* Dummy read */
+    /* ---- SSI TDM Mode Register Setting ---- */
+    *ssif[ssi_channel].ssitdmr = 0;
 
-	/* ---- SSI TDM Mode Register Setting ---- */
-	*ssif[ssi_channel].ssitdmr = 0;
+    /* ---- SSI Control Register Setting ---- */
+    // Selects AUDIO_X1 clock input. Doesn't enable interrupts - Rohan
+    *ssif[ssi_channel].ssicr = SSI_SSICR0_USER_INIT_VALUE;
 
-	/* ---- SSI Control Register Setting ---- */
-	// Selects AUDIO_X1 clock input. Doesn't enable interrupts - Rohan
-	*ssif[ssi_channel].ssicr = SSI_SSICR0_USER_INIT_VALUE;
-
-	/* ---- SSI FIFO Control Register Setting ---- */
-	// Doesn't enable interrupts. Puts FIFOs into reset state
-	*ssif[ssi_channel].ssifcr = SSI_SSIFCR_BASE_INIT_VALUE;
+    /* ---- SSI FIFO Control Register Setting ---- */
+    // Doesn't enable interrupts. Puts FIFOs into reset state
+    *ssif[ssi_channel].ssifcr = SSI_SSIFCR_BASE_INIT_VALUE;
 }
 
+void ssiStart(const uint32_t ssi_channel)
+{
 
+    /* ==== Set SSI(Tx) ==== */
+    /* ---- SSI Tx FIFO Buf reset release ---- */
+    *ssif[ssi_channel].ssifcr &= ~(uint32_t)(1 << 1); // TFRST
 
-void ssiStart(const uint32_t ssi_channel) {
-
-	/* ==== Set SSI(Tx) ==== */
-	/* ---- SSI Tx FIFO Buf reset release ---- */
-	*ssif[ssi_channel].ssifcr &= ~(uint32_t)(1 << 1); // TFRST
-
-	// ---- SSI Tx Empty Int enable ----
-	*ssif[ssi_channel].ssifcr |= (uint32_t)(1 << 3); // TIE
+    // ---- SSI Tx Empty Int enable ----
+    *ssif[ssi_channel].ssifcr |= (uint32_t)(1 << 3); // TIE
 
     // ---- SSI Rx FIFO Buf reset release ----
-	*ssif[ssi_channel].ssifcr &= ~(uint32_t)(1 << 0); // RFRST
+    *ssif[ssi_channel].ssifcr &= ~(uint32_t)(1 << 0); // RFRST
 
     /* ---- SSI Rx Full Int enable ---- */
-	*ssif[ssi_channel].ssifcr |= (uint32_t)(1 << 2); // RIE
+    *ssif[ssi_channel].ssifcr |= (uint32_t)(1 << 2); // RIE
 
 #if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-	/* ---- SSI Tx enable ---- */
-	*ssif[ssi_channel].ssicr |= (uint32_t)(1 << 1); // TEN
+    /* ---- SSI Tx enable ---- */
+    *ssif[ssi_channel].ssicr |= (uint32_t)(1 << 1); // TEN
 #else
-	/* ---- SSI Tx and Rx enable ---- */
-	*ssif[ssi_channel].ssicr |= (uint32_t)0b11; // TEN and REN
+    /* ---- SSI Tx and Rx enable ---- */
+    *ssif[ssi_channel].ssicr |= (uint32_t)0b11; // TEN and REN
 #endif
 }
-
-
-
-

@@ -39,62 +39,65 @@
 /***********************************************************************************************************************
  Private global variables and functions
  ***********************************************************************************************************************/
-static uint16_t         usb_shstd_std_request[USB_NUM_USBIP][5];
-static uint16_t         usb_shstd_dummy_data;
-static usb_utr_t        usb_shstd_std_req_msg[USB_NUM_USBIP];
+static uint16_t usb_shstd_std_request[USB_NUM_USBIP][5];
+static uint16_t usb_shstd_dummy_data;
+static usb_utr_t usb_shstd_std_req_msg[USB_NUM_USBIP];
 
 /* Condition compilation by the difference of the operating system */
-static uint16_t         usb_shstd_reg_pointer[USB_NUM_USBIP];
-static usb_mgrinfo_t    *p_usb_shstd_mgr_msg[USB_NUM_USBIP];
-static uint16_t         usb_shstd_mgr_msginfo[USB_NUM_USBIP];
-static usb_cb_t         usb_shstd_mgr_callback[USB_NUM_USBIP];
-static uint16_t         usb_shstd_suspend_seq[USB_NUM_USBIP];
-static uint16_t         usb_shstd_resume_seq[USB_NUM_USBIP];
-static void             usb_hstd_susp_cont(usb_utr_t *ptr, uint16_t devaddr, uint16_t rootport);
-static void             usb_hstd_resu_cont(usb_utr_t *ptr, uint16_t devaddr, uint16_t rootport);
+static uint16_t usb_shstd_reg_pointer[USB_NUM_USBIP];
+static usb_mgrinfo_t* p_usb_shstd_mgr_msg[USB_NUM_USBIP];
+static uint16_t usb_shstd_mgr_msginfo[USB_NUM_USBIP];
+static usb_cb_t usb_shstd_mgr_callback[USB_NUM_USBIP];
+static uint16_t usb_shstd_suspend_seq[USB_NUM_USBIP];
+static uint16_t usb_shstd_resume_seq[USB_NUM_USBIP];
+static void usb_hstd_susp_cont(usb_utr_t* ptr, uint16_t devaddr, uint16_t rootport);
+static void usb_hstd_resu_cont(usb_utr_t* ptr, uint16_t devaddr, uint16_t rootport);
 
-static uint16_t         usb_hstd_chk_device_class(usb_utr_t *ptr, usb_hcdreg_t *driver, uint16_t port);
-static void             usb_hstd_enumeration_err(uint16_t Rnum);
-static uint16_t         usb_hstd_cmd_submit(usb_utr_t *ptr, usb_cb_t complete);
-static uint16_t         usb_hstd_chk_remote(usb_utr_t *ptr);
+static uint16_t usb_hstd_chk_device_class(usb_utr_t* ptr, usb_hcdreg_t* driver, uint16_t port);
+static void usb_hstd_enumeration_err(uint16_t Rnum);
+static uint16_t usb_hstd_cmd_submit(usb_utr_t* ptr, usb_cb_t complete);
+static uint16_t usb_hstd_chk_remote(usb_utr_t* ptr);
 
-static void usb_hstd_mgr_rel_mpl(usb_utr_t *ptr,uint16_t n);
+static void usb_hstd_mgr_rel_mpl(usb_utr_t* ptr, uint16_t n);
 
 /***********************************************************************************************************************
  Exported global variables (to be accessed by other files)
  ***********************************************************************************************************************/
 /* Manager */
-uint16_t                g_usb_hstd_enum_seq[USB_NUM_USBIP];   /* Enumeration request */
-uint16_t                g_usb_hstd_device_descriptor[USB_NUM_USBIP][USB_DEVICESIZE / 2u];
-uint16_t                g_usb_hstd_config_descriptor[USB_NUM_USBIP][USB_CONFIGSIZE / 2u];
-uint16_t                g_usb_hstd_suspend_pipe[USB_NUM_USBIP][USB_MAX_PIPE_NO + 1u];
+uint16_t g_usb_hstd_enum_seq[USB_NUM_USBIP]; /* Enumeration request */
+uint16_t g_usb_hstd_device_descriptor[USB_NUM_USBIP][USB_DEVICESIZE / 2u];
+uint16_t g_usb_hstd_config_descriptor[USB_NUM_USBIP][USB_CONFIGSIZE / 2u];
+uint16_t g_usb_hstd_suspend_pipe[USB_NUM_USBIP][USB_MAX_PIPE_NO + 1u];
 
-uint16_t                g_usb_hstd_check_enu_result[USB_NUM_USBIP];
-uint8_t                 g_usb_hstd_enu_wait[USB_NUM_USBIP + (USB_NUM_USBIP%2u)];
+uint16_t g_usb_hstd_check_enu_result[USB_NUM_USBIP];
+uint8_t g_usb_hstd_enu_wait[USB_NUM_USBIP + (USB_NUM_USBIP % 2u)];
 
-uint8_t                 g_usb_hstd_class_data[USB_NUM_USBIP][CLSDATASIZE];
-usb_utr_t               g_usb_hstd_class_ctrl[USB_NUM_USBIP];
-uint16_t                g_usb_hstd_class_request[USB_NUM_USBIP][5];
+uint8_t g_usb_hstd_class_data[USB_NUM_USBIP][CLSDATASIZE];
+usb_utr_t g_usb_hstd_class_ctrl[USB_NUM_USBIP];
+uint16_t g_usb_hstd_class_request[USB_NUM_USBIP][5];
 
 /* Enumeration Table */
-void (*g_usb_hstd_enumaration_process[8])(usb_utr_t *, uint16_t, uint16_t) =
-{
-    usb_hstd_enum_get_descriptor,     usb_hstd_enum_set_address,
-    usb_hstd_enum_get_descriptor,     usb_hstd_enum_get_descriptor,
-    usb_hstd_enum_get_descriptor,     usb_hstd_enum_get_descriptor,
-    usb_hstd_enum_set_configuration,  usb_hstd_enum_dummy_request,
+void (*g_usb_hstd_enumaration_process[8])(usb_utr_t*, uint16_t, uint16_t) = {
+    usb_hstd_enum_get_descriptor,
+    usb_hstd_enum_set_address,
+    usb_hstd_enum_get_descriptor,
+    usb_hstd_enum_get_descriptor,
+    usb_hstd_enum_get_descriptor,
+    usb_hstd_enum_get_descriptor,
+    usb_hstd_enum_set_configuration,
+    usb_hstd_enum_dummy_request,
 };
 
 #if USB_CFG_COMPLIANCE == USB_CFG_ENABLE
-uint16_t                g_usb_disp_param_set;
-usb_compliance_t        g_usb_disp_param;
+uint16_t g_usb_disp_param_set;
+usb_compliance_t g_usb_disp_param;
 #endif /* USB_CFG_COMPLIANCE == USB_CFG_ENABLE */
 
 /***********************************************************************************************************************
  Exported global variables
  ***********************************************************************************************************************/
 /* Enumeration Table */
-extern void (*g_usb_hstd_enumaration_process[8]) (usb_utr_t *, uint16_t, uint16_t); /* Enumeration Table */
+extern void (*g_usb_hstd_enumaration_process[8])(usb_utr_t*, uint16_t, uint16_t); /* Enumeration Table */
 
 /***********************************************************************************************************************
  Function Name   : usb_hstd_mgr_rel_mpl
@@ -103,11 +106,11 @@ extern void (*g_usb_hstd_enumaration_process[8]) (usb_utr_t *, uint16_t, uint16_
                  : uint16_t     rootport     : Root port number
  Return          : none
  ***********************************************************************************************************************/
-static void usb_hstd_mgr_rel_mpl(usb_utr_t *ptr,uint16_t n)
+static void usb_hstd_mgr_rel_mpl(usb_utr_t* ptr, uint16_t n)
 {
-    usb_er_t    err;
+    usb_er_t err;
 
-    err = USB_REL_BLK(USB_MGR_MPL, (usb_mh_t )p_usb_shstd_mgr_msg[ptr->ip]);
+    err = USB_REL_BLK(USB_MGR_MPL, (usb_mh_t)p_usb_shstd_mgr_msg[ptr->ip]);
     if (USB_OK != err)
     {
         USB_PRINTF1("### USB MGR rel_blk error: %d\n", n);
@@ -122,7 +125,7 @@ static void usb_hstd_mgr_rel_mpl(usb_utr_t *ptr,uint16_t n)
                  : uint16_t     rootport     : Port no.
  Return          : none
  ***********************************************************************************************************************/
-static void usb_hstd_mgr_chgdevst_cb(usb_utr_t *ptr, uint16_t rootport)
+static void usb_hstd_mgr_chgdevst_cb(usb_utr_t* ptr, uint16_t rootport)
 {
     if (0 != usb_shstd_mgr_msginfo[ptr->ip])
     {
@@ -137,22 +140,22 @@ static void usb_hstd_mgr_chgdevst_cb(usb_utr_t *ptr, uint16_t rootport)
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
  Return          : uint16_t                  : Enumeration status.
  ***********************************************************************************************************************/
-static uint16_t usb_hstd_enumeration(usb_utr_t *ptr)
+static uint16_t usb_hstd_enumeration(usb_utr_t* ptr)
 {
 #if USB_CFG_COMPLIANCE == USB_CFG_ENABLE
-    uint16_t        vendor_id;
-    uint16_t        product_id;
-#endif  /* USB_CFG_COMPLIANCE == USB_CFG_ENABLE */
+    uint16_t vendor_id;
+    uint16_t product_id;
+#endif /* USB_CFG_COMPLIANCE == USB_CFG_ENABLE */
 
-    uint16_t        md;
-    uint16_t        flg;
-    usb_hcdreg_t    *driver;
-    uint16_t        enume_mode;     /* Enumeration mode (device state) */
-    uint8_t         *descriptor_table;
-    uint16_t        rootport;
-    uint16_t        pipenum;
-    uint16_t        devsel;
-    usb_ctrl_t      ctrl;
+    uint16_t md;
+    uint16_t flg;
+    usb_hcdreg_t* driver;
+    uint16_t enume_mode; /* Enumeration mode (device state) */
+    uint8_t* descriptor_table;
+    uint16_t rootport;
+    uint16_t pipenum;
+    uint16_t devsel;
+    usb_ctrl_t ctrl;
 
     /* Attach Detect Mode */
     enume_mode = USB_NONDEVICE;
@@ -168,34 +171,34 @@ static uint16_t usb_hstd_enumeration(usb_utr_t *ptr)
     /* Manager Mode Change */
     switch (p_usb_shstd_mgr_msg[ptr->ip]->result)
     {
-        case USB_CTRL_END :
+        case USB_CTRL_END:
             enume_mode = USB_DEVICEENUMERATION;
             switch (g_usb_hstd_enum_seq[ptr->ip])
             {
                 /* Receive Device Descriptor */
                 case 0:
-                break;
+                    break;
 
                 /* Set Address */
                 case 1:
 
-                    descriptor_table = (uint8_t*) g_usb_hstd_device_descriptor[ptr->ip];
-                    devsel = (uint16_t) (g_usb_hstd_device_addr[ptr->ip] << USB_DEVADDRBIT);
+                    descriptor_table = (uint8_t*)g_usb_hstd_device_descriptor[ptr->ip];
+                    devsel           = (uint16_t)(g_usb_hstd_device_addr[ptr->ip] << USB_DEVADDRBIT);
 
                     /* Set device speed */
                     usb_hstd_set_dev_addr(ptr, devsel, g_usb_hstd_device_speed[ptr->ip], rootport);
                     g_usb_hstd_dcp_register[ptr->ip][g_usb_hstd_device_addr[ptr->ip]] =
-                            (uint16_t) ((uint16_t) (descriptor_table[7] & USB_MAXPFIELD) | devsel);
+                        (uint16_t)((uint16_t)(descriptor_table[7] & USB_MAXPFIELD) | devsel);
 
-                break;
+                    break;
 
                 /* Receive Device Descriptor(18) */
                 case 2:
-                break;
+                    break;
 
                 /* Receive Configuration Descriptor(9) */
                 case 3:
-                break;
+                    break;
 
                 /* Receive Configuration Descriptor(xx) */
                 case 4:
@@ -210,12 +213,12 @@ static uint16_t usb_hstd_enumeration(usb_utr_t *ptr)
                     /* product_id : 0x0101 - 0x0108 , 0x0200 */
 
                     vendor_id = (uint16_t)(descriptor_table[USB_DEV_ID_VENDOR_L]
-                            + ((uint16_t)descriptor_table[USB_DEV_ID_VENDOR_H] << 8));
+                                           + ((uint16_t)descriptor_table[USB_DEV_ID_VENDOR_H] << 8));
 
                     if (0x1A0A == vendor_id)
                     {
                         product_id = (uint16_t)(descriptor_table[USB_DEV_ID_PRODUCT_L]
-                                + ((uint16_t)descriptor_table[USB_DEV_ID_PRODUCT_H] << 8));
+                                                + ((uint16_t)descriptor_table[USB_DEV_ID_PRODUCT_H] << 8));
 
                         descriptor_table = (uint8_t*)g_usb_hstd_config_descriptor[ptr->ip];
 #if USB_CFG_ELECTRICAL == USB_CFG_ENABLE
@@ -227,7 +230,7 @@ static uint16_t usb_hstd_enumeration(usb_utr_t *ptr)
                             break;
                         }
 
-#endif  /* USB_CFG_ELECTRICAL == USB_CFG_ENABLE */
+#endif /* USB_CFG_ELECTRICAL == USB_CFG_ENABLE */
 
                         if (0x0200 == product_id)
                         {
@@ -236,7 +239,7 @@ static uint16_t usb_hstd_enumeration(usb_utr_t *ptr)
                         }
                     }
 
-#endif  /* USB_CFG_ELECTRICAL == USB_CFG_ENABLE */
+#endif /* USB_CFG_ELECTRICAL == USB_CFG_ENABLE */
 
                     /* Device enumeration function */
                     switch (usb_hstd_enum_function1())
@@ -245,7 +248,7 @@ static uint16_t usb_hstd_enumeration(usb_utr_t *ptr)
                         case USB_OK:
 
 #if USB_CFG_COMPLIANCE == USB_CFG_ENABLE
-                            g_usb_disp_param_set    = USB_OFF;
+                            g_usb_disp_param_set = USB_OFF;
 #endif /* USB_CFG_COMPLIANCE == USB_CFG_ENABLE */
 
                             for (flg = 0u, md = 0; (md < g_usb_hstd_device_num[ptr->ip]) && (0u == flg); md++)
@@ -263,7 +266,7 @@ static uint16_t usb_hstd_enumeration(usb_utr_t *ptr)
                                     if (USB_OK == retval)
                                     {
                                         usb_shstd_reg_pointer[ptr->ip] = md;
-                                        flg = 1; /* break; */
+                                        flg                            = 1; /* break; */
                                     }
                                 }
                             }
@@ -271,20 +274,21 @@ static uint16_t usb_hstd_enumeration(usb_utr_t *ptr)
 #if USB_CFG_COMPLIANCE == USB_CFG_ENABLE
                             if (USB_ON == g_usb_disp_param_set)
                             {
-                                usb_compliance_disp((void *)&g_usb_disp_param);
+                                usb_compliance_disp((void*)&g_usb_disp_param);
                             }
 #endif /* USB_CFG_COMPLIANCE == USB_CFG_ENABLE */
 
                             if (1 != flg)
                             {
 #if HAVE_OLED
-                            	consoleTextIfAllBootedUp("USB device not recognized");
+                                consoleTextIfAllBootedUp("USB device not recognized");
 #else
-                            	displayPopupIfAllBootedUp("UNKN"); // By Rohan. Means couldn't find an available "driver" for this device. It could be a 2nd hub.
+                                displayPopupIfAllBootedUp(
+                                    "UNKN"); // By Rohan. Means couldn't find an available "driver" for this device. It could be a 2nd hub.
 #endif
-                                ctrl.address = g_usb_hstd_device_addr[ptr->ip];     /* USB Device address */
-                                ctrl.module = ptr->ip;                              /* Module number setting */
-                                usb_set_event(USB_STS_NOT_SUPPORT, &ctrl);          /* Set Event()  */
+                                ctrl.address = g_usb_hstd_device_addr[ptr->ip]; /* USB Device address */
+                                ctrl.module  = ptr->ip;                         /* Module number setting */
+                                usb_set_event(USB_STS_NOT_SUPPORT, &ctrl);      /* Set Event()  */
 #if USB_CFG_COMPLIANCE == USB_CFG_ENABLE
                                 g_usb_hstd_enum_seq[ptr->ip] = g_usb_hstd_enum_seq[ptr->ip] + 2;
 
@@ -294,7 +298,7 @@ static uint16_t usb_hstd_enumeration(usb_utr_t *ptr)
 #endif /* USB_CFG_COMPLIANCE == USB_CFG_ENABLE */
                             }
 
-                        break;
+                            break;
 
                             /* Descriptor error */
                         case USB_ERROR:
@@ -302,16 +306,16 @@ static uint16_t usb_hstd_enumeration(usb_utr_t *ptr)
                             USB_PRINTF0("### Enumeration is stoped(ClassCode-ERROR)\n");
                             enume_mode = USB_NOTTPL; /* Attach Detect Mode */
 
-                        break;
+                            break;
 
                         default:
 
                             enume_mode = USB_NONDEVICE; /* Attach Detect Mode */
 
-                        break;
+                            break;
                     }
 
-                break;
+                    break;
 
                     /* Class Check Result */
                 case 5:
@@ -321,26 +325,27 @@ static uint16_t usb_hstd_enumeration(usb_utr_t *ptr)
                         case USB_OK:
 
                             driver = &g_usb_hstd_device_drv[ptr->ip][usb_shstd_reg_pointer[ptr->ip]];
-                            g_usb_hstd_device_info[ptr->ip][g_usb_hstd_device_addr[ptr->ip]][0] = rootport; /* Root port */
+                            g_usb_hstd_device_info[ptr->ip][g_usb_hstd_device_addr[ptr->ip]][0] =
+                                rootport; /* Root port */
                             driver->rootport = rootport;
-                            driver->devaddr = g_usb_hstd_device_addr[ptr->ip];
+                            driver->devaddr  = g_usb_hstd_device_addr[ptr->ip];
 
-                        break;
+                            break;
 
                         case USB_ERROR:
 
                             enume_mode = USB_NOTTPL;
 
-                        break;
+                            break;
 
                         default:
 
                             enume_mode = USB_NONDEVICE;
 
-                        break;
+                            break;
                     }
 
-                break;
+                    break;
 
                 /* Set Configuration */
                 case 6:
@@ -359,21 +364,22 @@ static uint16_t usb_hstd_enumeration(usb_utr_t *ptr)
 
                                 /* Device speed */
                                 g_usb_hstd_device_info[ptr->ip][g_usb_hstd_device_addr[ptr->ip]][4] =
-                                        g_usb_hstd_device_speed[ptr->ip];
+                                    g_usb_hstd_device_speed[ptr->ip];
 
                                 /* Device state */
                                 driver->devstate = USB_CONFIGURED;
-                                (*driver->devconfig)(ptr, g_usb_hstd_device_addr[ptr->ip], (uint16_t) USB_NO_ARG); /* Call Back */
+                                (*driver->devconfig)(
+                                    ptr, g_usb_hstd_device_addr[ptr->ip], (uint16_t)USB_NO_ARG); /* Call Back */
                                 return (USB_COMPLETEPIPESET);
                             }
                         }
                         enume_mode = USB_COMPLETEPIPESET;
                     }
 
-                break;
+                    break;
 
                 default:
-                break;
+                    break;
             }
             g_usb_hstd_enum_seq[ptr->ip]++;
 
@@ -383,55 +389,56 @@ static uint16_t usb_hstd_enumeration(usb_utr_t *ptr)
                 switch (g_usb_hstd_enum_seq[ptr->ip])
                 {
                     case 1:
-                        (*g_usb_hstd_enumaration_process[1])(ptr, (uint16_t) USB_DEVICE_0, g_usb_hstd_device_addr[ptr->ip]);
+                        (*g_usb_hstd_enumaration_process[1])(
+                            ptr, (uint16_t)USB_DEVICE_0, g_usb_hstd_device_addr[ptr->ip]);
 
-                    break;
+                        break;
 
                     case 5:
-                    break;
+                        break;
 
                     case 6:
 
-                        descriptor_table = (uint8_t*) g_usb_hstd_config_descriptor[ptr->ip];
+                        descriptor_table = (uint8_t*)g_usb_hstd_config_descriptor[ptr->ip];
 
                         /* Device state */
                         g_usb_hstd_device_info[ptr->ip][g_usb_hstd_device_addr[ptr->ip]][2] = descriptor_table[5];
-                        (*g_usb_hstd_enumaration_process[6])(ptr, g_usb_hstd_device_addr[ptr->ip], 
-                                (uint16_t) (descriptor_table[5]));
+                        (*g_usb_hstd_enumaration_process[6])(
+                            ptr, g_usb_hstd_device_addr[ptr->ip], (uint16_t)(descriptor_table[5]));
 
-                    break;
+                        break;
 
 #if USB_CFG_COMPLIANCE == USB_CFG_ENABLE
                     case 7:
 
                         enume_mode = USB_NOTTPL;
 
-                    break;
+                        break;
 #endif /* USB_CFG_COMPLIANCE == USB_CFG_ENABLE */
 
                     default:
-                        (*g_usb_hstd_enumaration_process[g_usb_hstd_enum_seq[ptr->ip]])(ptr,
-                                g_usb_hstd_device_addr[ptr->ip], g_usb_hstd_enum_seq[ptr->ip]);
+                        (*g_usb_hstd_enumaration_process[g_usb_hstd_enum_seq[ptr->ip]])(
+                            ptr, g_usb_hstd_device_addr[ptr->ip], g_usb_hstd_enum_seq[ptr->ip]);
 
-                    break;
+                        break;
                 }
             }
 
-        break;
+            break;
 
         case USB_DATA_ERR:
 
             USB_PRINTF0("### Enumeration is stoped(SETUP or DATA-ERROR)\n");
             usb_hstd_enumeration_err(g_usb_hstd_enum_seq[ptr->ip]);
 
-        break;
+            break;
 
         case USB_DATA_OVR:
 
             USB_PRINTF0("### Enumeration is stoped(receive data over)\n");
             usb_hstd_enumeration_err(g_usb_hstd_enum_seq[ptr->ip]);
 
-        break;
+            break;
 
         case USB_DATA_STALL:
 
@@ -441,14 +448,14 @@ static uint16_t usb_hstd_enumeration(usb_utr_t *ptr)
             /* Device enumeration function */
             usb_hstd_enum_function4(&g_usb_hstd_enum_seq[ptr->ip], &enume_mode, g_usb_hstd_device_addr[ptr->ip]);
 
-        break;
+            break;
 
         default:
 
             USB_PRINTF0("### Enumeration is stoped(result error)\n");
             usb_hstd_enumeration_err(g_usb_hstd_enum_seq[ptr->ip]);
 
-        break;
+            break;
     }
     return (enume_mode);
 } /* End of function usb_hstd_enumeration() */
@@ -463,52 +470,52 @@ static void usb_hstd_enumeration_err(uint16_t Rnum)
 {
 /* Condition compilation by the difference of useful function */
 #if defined(USB_DEBUG_ON)
-    switch (Rnum) 
+    switch (Rnum)
     {
         case 0:
 
             USB_PRINTF0(" Get_DeviceDescrip(8)\n");
 
-        break;
+            break;
 
         case 1:
 
             USB_PRINTF0(" Set_Address\n");
 
-        break;
+            break;
 
         case 2:
 
             USB_PRINTF0(" Get_DeviceDescrip(18)\n");
 
-        break;
+            break;
 
         case 3:
 
             USB_PRINTF0(" Get_ConfigDescrip(9)\n");
 
-        break;
+            break;
 
         case 4:
 
             USB_PRINTF0(" Get_ConfigDescrip(xx)\n");
 
-        break;
+            break;
 
         case 5: /* Device enumeration function */
 
             usb_hstd_enum_function5();
 
-        break;
+            break;
 
         case 6:
 
             USB_PRINTF0(" Set_Configuration\n");
 
-        break;
+            break;
 
         default:
-        break;
+            break;
     }
 #endif /* defined(USB_DEBUG_ON) */
 } /* End of function usb_hstd_enumeration_err() */
@@ -521,29 +528,29 @@ static void usb_hstd_enumeration_err(uint16_t Rnum)
                  : uint16_t     port         : Port no.
  Return          : uint16_t                  : USB_OK / USB_ERROR
  ***********************************************************************************************************************/
-static uint16_t usb_hstd_chk_device_class(usb_utr_t *ptr, usb_hcdreg_t *driver, uint16_t port)
+static uint16_t usb_hstd_chk_device_class(usb_utr_t* ptr, usb_hcdreg_t* driver, uint16_t port)
 {
-    uint8_t         *descriptor_table;
-    uint16_t        total_length1;
-    uint16_t        total_length2;
-    uint16_t        result;
-    uint16_t        hub_device;
-    uint16_t        *table[9];
-    uint16_t        tmp4;
-    uint16_t        tmp5;
-    uint16_t        tmp6;
-    uint16_t        vendor_id;
-    uint16_t        product_id;
-    uint16_t        id_check;
-    uint16_t        i;
-    usb_ctrl_t      ctrl;
+    uint8_t* descriptor_table;
+    uint16_t total_length1;
+    uint16_t total_length2;
+    uint16_t result;
+    uint16_t hub_device;
+    uint16_t* table[9];
+    uint16_t tmp4;
+    uint16_t tmp5;
+    uint16_t tmp6;
+    uint16_t vendor_id;
+    uint16_t product_id;
+    uint16_t id_check;
+    uint16_t i;
+    usb_ctrl_t ctrl;
 
     descriptor_table = (uint8_t*)g_usb_hstd_device_descriptor[ptr->ip];
-    
+
     /* Device class check */
-    tmp4 = descriptor_table[USB_DEV_B_DEVICE_CLASS];
-    tmp5 = descriptor_table[USB_DEV_B_DEVICE_SUBCLASS];
-    tmp6 = descriptor_table[USB_DEV_B_DEVICE_PROTOCOL];
+    tmp4       = descriptor_table[USB_DEV_B_DEVICE_CLASS];
+    tmp5       = descriptor_table[USB_DEV_B_DEVICE_SUBCLASS];
+    tmp6       = descriptor_table[USB_DEV_B_DEVICE_PROTOCOL];
     hub_device = USB_OK;
     if (((0xFF == tmp4) && (0xFF == tmp5)) && (0xFF == tmp6))
     {
@@ -553,7 +560,7 @@ static uint16_t usb_hstd_chk_device_class(usb_utr_t *ptr, usb_hcdreg_t *driver, 
     {
         USB_PRINTF0("*** Full-Speed HUB device.\n\n");
         hub_device = USB_FSHUB;
-    } 
+    }
     else if (((USB_IFCLS_HUB == tmp4) && (0x00 == tmp5)) && (0x01 == tmp6))
     {
         USB_PRINTF0("*** High-Speed single TT device.\n\n");
@@ -576,10 +583,10 @@ static uint16_t usb_hstd_chk_device_class(usb_utr_t *ptr, usb_hcdreg_t *driver, 
     id_check = USB_ERROR;
     for (i = 0; i < driver->p_tpl[0]; i++)
     {
-        vendor_id = (uint16_t)(descriptor_table[USB_DEV_ID_VENDOR_L]
-                + ((uint16_t)descriptor_table[USB_DEV_ID_VENDOR_H] << 8));
+        vendor_id =
+            (uint16_t)(descriptor_table[USB_DEV_ID_VENDOR_L] + ((uint16_t)descriptor_table[USB_DEV_ID_VENDOR_H] << 8));
         product_id = (uint16_t)(descriptor_table[USB_DEV_ID_PRODUCT_L]
-                + ((uint16_t)descriptor_table[USB_DEV_ID_PRODUCT_H] << 8));
+                                + ((uint16_t)descriptor_table[USB_DEV_ID_PRODUCT_H] << 8));
 
         if ((driver->p_tpl[(i * 2) + 2] == USB_NOVENDOR) || (driver->p_tpl[(i * 2) + 2] == vendor_id))
         {
@@ -617,17 +624,17 @@ static uint16_t usb_hstd_chk_device_class(usb_utr_t *ptr, usb_hcdreg_t *driver, 
         }
 #endif /* USB_CFG_COMPLIANCE == USB_CFG_ENABLE */
 
-//        ctrl.address    = g_usb_hstd_device_addr[ptr->ip];  /* USB Device address */
-//        ctrl.module     = ptr->ip;                          /* Module number setting */
-//        usb_set_event(USB_STS_NOT_SUPPORT, &ctrl);          /* Set Event()  */
+        //        ctrl.address    = g_usb_hstd_device_addr[ptr->ip];  /* USB Device address */
+        //        ctrl.module     = ptr->ip;                          /* Module number setting */
+        //        usb_set_event(USB_STS_NOT_SUPPORT, &ctrl);          /* Set Event()  */
 
         return USB_ERROR;
     }
 
-    descriptor_table = (uint8_t*) g_usb_hstd_config_descriptor[ptr->ip];
-    total_length1 = 0;
-    total_length2 = (uint16_t) (descriptor_table[USB_DEV_W_TOTAL_LENGTH_L]
-            + ((uint16_t) descriptor_table[USB_DEV_W_TOTAL_LENGTH_H] << 8));
+    descriptor_table = (uint8_t*)g_usb_hstd_config_descriptor[ptr->ip];
+    total_length1    = 0;
+    total_length2    = (uint16_t)(descriptor_table[USB_DEV_W_TOTAL_LENGTH_L]
+                               + ((uint16_t)descriptor_table[USB_DEV_W_TOTAL_LENGTH_H] << 8));
 
     if (total_length2 > USB_CONFIGSIZE)
     {
@@ -640,44 +647,47 @@ static uint16_t usb_hstd_chk_device_class(usb_utr_t *ptr, usb_hcdreg_t *driver, 
         switch (descriptor_table[total_length1 + 1])
         {
             /* Configuration Descriptor ? */
-            case USB_DT_CONFIGURATION :
+            case USB_DT_CONFIGURATION:
 
-                table[1] = (uint16_t*) &descriptor_table[total_length1];
+                table[1] = (uint16_t*)&descriptor_table[total_length1];
 
-            break;
+                break;
 
                 /* Interface Descriptor ? */
-            case USB_DT_INTERFACE :
+            case USB_DT_INTERFACE:
 
-                if ((uint16_t) descriptor_table[total_length1 + 5] == driver->ifclass)
+                if ((uint16_t)descriptor_table[total_length1 + 5] == driver->ifclass)
                 {
 
-                	// If audio class, ensure MIDI subclass. Rohan
-                	if (descriptor_table[total_length1 + 5] == USB_IFCLS_AUD && descriptor_table[total_length1 + 6] != 0x03) break;
+                    // If audio class, ensure MIDI subclass. Rohan
+                    if (descriptor_table[total_length1 + 5] == USB_IFCLS_AUD
+                        && descriptor_table[total_length1 + 6] != 0x03)
+                        break;
 
-                    result = USB_ERROR;
-                    table[0] = (uint16_t*) &g_usb_hstd_device_descriptor[ptr->ip];
-                    table[2] = (uint16_t*) &descriptor_table[total_length1];
+                    result   = USB_ERROR;
+                    table[0] = (uint16_t*)&g_usb_hstd_device_descriptor[ptr->ip];
+                    table[2] = (uint16_t*)&descriptor_table[total_length1];
                     table[3] = &result;
                     table[4] = &hub_device;
                     table[5] = &port;
                     table[6] = &g_usb_hstd_device_speed[ptr->ip];
                     table[7] = &g_usb_hstd_device_addr[ptr->ip];
-                    table[8] = (uint16_t*) driver->p_pipetbl;
-                    (*driver->classcheck)(ptr, (uint16_t**) &table);
+                    table[8] = (uint16_t*)driver->p_pipetbl;
+                    (*driver->classcheck)(ptr, (uint16_t**)&table);
 
                     /* Interface Class */
-                    g_usb_hstd_device_info[ptr->ip][g_usb_hstd_device_addr[ptr->ip]][3] = descriptor_table[total_length1 + 5];
+                    g_usb_hstd_device_info[ptr->ip][g_usb_hstd_device_addr[ptr->ip]][3] =
+                        descriptor_table[total_length1 + 5];
                     return result;
                 }
 
                 /*          USB_PRINTF2("*** Interface class is 0x%02x (not 0x%02x)\n", 
                  descriptor_table[total_length1 + 5], driver->ifclass);*/
 
-            break;
+                break;
 
-            default :
-            break;
+            default:
+                break;
         }
         total_length1 += descriptor_table[total_length1];
         if (0 == descriptor_table[total_length1])
@@ -696,7 +706,7 @@ static uint16_t usb_hstd_chk_device_class(usb_utr_t *ptr, usb_hcdreg_t *driver, 
                  : uint16_t     port         : Port number.
  Return          : none
  ***********************************************************************************************************************/
-void usb_hstd_notif_ator_detach(usb_utr_t *ptr, uint16_t result, uint16_t port)
+void usb_hstd_notif_ator_detach(usb_utr_t* ptr, uint16_t result, uint16_t port)
 {
     usb_hstd_mgr_snd_mbx(ptr, (uint16_t)USB_MSG_MGR_AORDETACH, port, result);
 } /* End of function usb_hstd_notif_ator_detach() */
@@ -708,10 +718,10 @@ void usb_hstd_notif_ator_detach(usb_utr_t *ptr, uint16_t result, uint16_t port)
                  : uint16_t     port         : Port number.
  Return          : none
  ***********************************************************************************************************************/
-void usb_hstd_ovcr_notifiation(usb_utr_t *ptr, uint16_t port)
+void usb_hstd_ovcr_notifiation(usb_utr_t* ptr, uint16_t port)
 {
     usb_hstd_mgr_snd_mbx(ptr, (uint16_t)USB_MSG_MGR_OVERCURRENT, port, (uint16_t)0u);
-}   /* End of function usb_hstd_ovcr_notifiation() */
+} /* End of function usb_hstd_ovcr_notifiation() */
 
 /***********************************************************************************************************************
  Function Name   : usb_hstd_status_result
@@ -723,7 +733,7 @@ void usb_hstd_ovcr_notifiation(usb_utr_t *ptr, uint16_t port)
                  : uint16_t     result       : Result.
  Return          : none
  ***********************************************************************************************************************/
-void usb_hstd_status_result(usb_utr_t *ptr, uint16_t port, uint16_t result)
+void usb_hstd_status_result(usb_utr_t* ptr, uint16_t port, uint16_t result)
 {
     usb_hstd_mgr_snd_mbx(ptr, (uint16_t)USB_MSG_MGR_STATUSRESULT, port, result);
 } /* End of function usb_hstd_status_result() */
@@ -736,7 +746,7 @@ void usb_hstd_status_result(usb_utr_t *ptr, uint16_t port, uint16_t result)
                  : uint16_t     data2        : Not used.
  Return          : none
  ***********************************************************************************************************************/
-void usb_hstd_submit_result(usb_utr_t *ptr, uint16_t data1, uint16_t data2)
+void usb_hstd_submit_result(usb_utr_t* ptr, uint16_t data1, uint16_t data2)
 {
     usb_hstd_mgr_snd_mbx(ptr, (uint16_t)USB_MSG_MGR_SUBMITRESULT, ptr->keyword, ptr->status);
 } /* End of function usb_hstd_submit_result() */
@@ -748,9 +758,9 @@ void usb_hstd_submit_result(usb_utr_t *ptr, uint16_t data1, uint16_t data2)
                  : uint16_t cnt_value        : Enumeration sequence
  Return          : none
  ***********************************************************************************************************************/
-void usb_hstd_enum_get_descriptor(usb_utr_t *ptr, uint16_t addr, uint16_t cnt_value)
+void usb_hstd_enum_get_descriptor(usb_utr_t* ptr, uint16_t addr, uint16_t cnt_value)
 {
-    uint8_t         *data_table;
+    uint8_t* data_table;
 
     switch (cnt_value)
     {
@@ -768,7 +778,7 @@ void usb_hstd_enum_get_descriptor(usb_utr_t *ptr, uint16_t addr, uint16_t cnt_va
             }
             usb_shstd_std_req_msg[ptr->ip].p_tranadr = g_usb_hstd_device_descriptor[ptr->ip];
 
-        break;
+            break;
 
         case 2:
 
@@ -782,7 +792,7 @@ void usb_hstd_enum_get_descriptor(usb_utr_t *ptr, uint16_t addr, uint16_t cnt_va
             }
             usb_shstd_std_req_msg[ptr->ip].p_tranadr = g_usb_hstd_device_descriptor[ptr->ip];
 
-        break;
+            break;
 
         case 3:
 
@@ -792,11 +802,11 @@ void usb_hstd_enum_get_descriptor(usb_utr_t *ptr, uint16_t addr, uint16_t cnt_va
             usb_shstd_std_request[ptr->ip][3] = (uint16_t)0x0009;
             usb_shstd_std_req_msg[ptr->ip].p_tranadr = g_usb_hstd_config_descriptor[ptr->ip];
 
-        break;
+            break;
 
         case 4:
 
-            data_table = (uint8_t*)g_usb_hstd_config_descriptor[ptr->ip];
+            data_table                        = (uint8_t*)g_usb_hstd_config_descriptor[ptr->ip];
             usb_shstd_std_request[ptr->ip][0] = (USB_GET_DESCRIPTOR | USB_DEV_TO_HOST | USB_STANDARD | USB_DEVICE);
             usb_shstd_std_request[ptr->ip][1] = (uint16_t)USB_CONF_DESCRIPTOR;
             usb_shstd_std_request[ptr->ip][2] = (uint16_t)0x0000;
@@ -808,13 +818,13 @@ void usb_hstd_enum_get_descriptor(usb_utr_t *ptr, uint16_t addr, uint16_t cnt_va
             }
             usb_shstd_std_req_msg[ptr->ip].p_tranadr = g_usb_hstd_config_descriptor[ptr->ip];
 
-        break;
+            break;
 
         default:
 
             return;
 
-        break;
+            break;
     }
     usb_shstd_std_request[ptr->ip][4]       = addr;
     usb_shstd_std_req_msg[ptr->ip].keyword  = (uint16_t)USB_PIPE0;
@@ -824,8 +834,8 @@ void usb_hstd_enum_get_descriptor(usb_utr_t *ptr, uint16_t addr, uint16_t cnt_va
     usb_shstd_std_req_msg[ptr->ip].complete = (usb_cb_t)&usb_hstd_submit_result;
     usb_shstd_std_req_msg[ptr->ip].segment  = USB_TRAN_END;
 
-    usb_shstd_std_req_msg[ptr->ip].ipp      = ptr->ipp;
-    usb_shstd_std_req_msg[ptr->ip].ip       = ptr->ip;
+    usb_shstd_std_req_msg[ptr->ip].ipp = ptr->ipp;
+    usb_shstd_std_req_msg[ptr->ip].ip  = ptr->ip;
 
     usb_hstd_transfer_start(&usb_shstd_std_req_msg[ptr->ip]);
 } /* End of function usb_hstd_enum_get_descriptor() */
@@ -838,23 +848,23 @@ void usb_hstd_enum_get_descriptor(usb_utr_t *ptr, uint16_t addr, uint16_t cnt_va
                  : uint16_t     setaddr      : New address.
  Return          : none
  ***********************************************************************************************************************/
-void usb_hstd_enum_set_address(usb_utr_t *ptr, uint16_t addr, uint16_t setaddr)
+void usb_hstd_enum_set_address(usb_utr_t* ptr, uint16_t addr, uint16_t setaddr)
 {
-    usb_shstd_std_request[ptr->ip][0]           = (USB_SET_ADDRESS | USB_HOST_TO_DEV | USB_STANDARD | USB_DEVICE);
-    usb_shstd_std_request[ptr->ip][1]           = setaddr;
-    usb_shstd_std_request[ptr->ip][2]           = (uint16_t)0x0000;
-    usb_shstd_std_request[ptr->ip][3]           = (uint16_t)0x0000;
-    usb_shstd_std_request[ptr->ip][4]           = addr;
-    usb_shstd_std_req_msg[ptr->ip].keyword      = (uint16_t)USB_PIPE0;
-    usb_shstd_std_req_msg[ptr->ip].p_tranadr    = (void *)&usb_shstd_dummy_data;
-    usb_shstd_std_req_msg[ptr->ip].tranlen      = (uint32_t)usb_shstd_std_request[ptr->ip][3];
-    usb_shstd_std_req_msg[ptr->ip].p_setup      = usb_shstd_std_request[ptr->ip];
-    usb_shstd_std_req_msg[ptr->ip].status       = USB_DATA_NONE;
-    usb_shstd_std_req_msg[ptr->ip].complete     = (usb_cb_t)&usb_hstd_submit_result;
-    usb_shstd_std_req_msg[ptr->ip].segment      = USB_TRAN_END;
+    usb_shstd_std_request[ptr->ip][0]        = (USB_SET_ADDRESS | USB_HOST_TO_DEV | USB_STANDARD | USB_DEVICE);
+    usb_shstd_std_request[ptr->ip][1]        = setaddr;
+    usb_shstd_std_request[ptr->ip][2]        = (uint16_t)0x0000;
+    usb_shstd_std_request[ptr->ip][3]        = (uint16_t)0x0000;
+    usb_shstd_std_request[ptr->ip][4]        = addr;
+    usb_shstd_std_req_msg[ptr->ip].keyword   = (uint16_t)USB_PIPE0;
+    usb_shstd_std_req_msg[ptr->ip].p_tranadr = (void*)&usb_shstd_dummy_data;
+    usb_shstd_std_req_msg[ptr->ip].tranlen   = (uint32_t)usb_shstd_std_request[ptr->ip][3];
+    usb_shstd_std_req_msg[ptr->ip].p_setup   = usb_shstd_std_request[ptr->ip];
+    usb_shstd_std_req_msg[ptr->ip].status    = USB_DATA_NONE;
+    usb_shstd_std_req_msg[ptr->ip].complete  = (usb_cb_t)&usb_hstd_submit_result;
+    usb_shstd_std_req_msg[ptr->ip].segment   = USB_TRAN_END;
 
-    usb_shstd_std_req_msg[ptr->ip].ipp          = ptr->ipp;
-    usb_shstd_std_req_msg[ptr->ip].ip           = ptr->ip;
+    usb_shstd_std_req_msg[ptr->ip].ipp = ptr->ipp;
+    usb_shstd_std_req_msg[ptr->ip].ip  = ptr->ip;
 
     usb_hstd_transfer_start(&usb_shstd_std_req_msg[ptr->ip]);
 } /* End of function usb_hstd_enum_set_address() */
@@ -867,23 +877,23 @@ void usb_hstd_enum_set_address(usb_utr_t *ptr, uint16_t addr, uint16_t setaddr)
                  : uint16_t     confnum      : Configuration number.
  Return          : none
  ***********************************************************************************************************************/
-void usb_hstd_enum_set_configuration(usb_utr_t *ptr, uint16_t addr, uint16_t confnum)
+void usb_hstd_enum_set_configuration(usb_utr_t* ptr, uint16_t addr, uint16_t confnum)
 {
-    usb_shstd_std_request[ptr->ip][0]           = (USB_SET_CONFIGURATION | USB_HOST_TO_DEV | USB_STANDARD | USB_DEVICE);
-    usb_shstd_std_request[ptr->ip][1]           = confnum;
-    usb_shstd_std_request[ptr->ip][2]           = (uint16_t)0x0000;
-    usb_shstd_std_request[ptr->ip][3]           = (uint16_t)0x0000;
-    usb_shstd_std_request[ptr->ip][4]           = addr;
-    usb_shstd_std_req_msg[ptr->ip].keyword      = (uint16_t)USB_PIPE0;
-    usb_shstd_std_req_msg[ptr->ip].p_tranadr    = (void *)&usb_shstd_dummy_data;
-    usb_shstd_std_req_msg[ptr->ip].tranlen      = (uint32_t)usb_shstd_std_request[ptr->ip][3];
-    usb_shstd_std_req_msg[ptr->ip].p_setup      = usb_shstd_std_request[ptr->ip];
-    usb_shstd_std_req_msg[ptr->ip].status       = USB_DATA_NONE;
-    usb_shstd_std_req_msg[ptr->ip].complete     = (usb_cb_t)&usb_hstd_submit_result;
-    usb_shstd_std_req_msg[ptr->ip].segment      = USB_TRAN_END;
+    usb_shstd_std_request[ptr->ip][0]        = (USB_SET_CONFIGURATION | USB_HOST_TO_DEV | USB_STANDARD | USB_DEVICE);
+    usb_shstd_std_request[ptr->ip][1]        = confnum;
+    usb_shstd_std_request[ptr->ip][2]        = (uint16_t)0x0000;
+    usb_shstd_std_request[ptr->ip][3]        = (uint16_t)0x0000;
+    usb_shstd_std_request[ptr->ip][4]        = addr;
+    usb_shstd_std_req_msg[ptr->ip].keyword   = (uint16_t)USB_PIPE0;
+    usb_shstd_std_req_msg[ptr->ip].p_tranadr = (void*)&usb_shstd_dummy_data;
+    usb_shstd_std_req_msg[ptr->ip].tranlen   = (uint32_t)usb_shstd_std_request[ptr->ip][3];
+    usb_shstd_std_req_msg[ptr->ip].p_setup   = usb_shstd_std_request[ptr->ip];
+    usb_shstd_std_req_msg[ptr->ip].status    = USB_DATA_NONE;
+    usb_shstd_std_req_msg[ptr->ip].complete  = (usb_cb_t)&usb_hstd_submit_result;
+    usb_shstd_std_req_msg[ptr->ip].segment   = USB_TRAN_END;
 
-    usb_shstd_std_req_msg[ptr->ip].ipp          = ptr->ipp;
-    usb_shstd_std_req_msg[ptr->ip].ip           = ptr->ip;
+    usb_shstd_std_req_msg[ptr->ip].ipp = ptr->ipp;
+    usb_shstd_std_req_msg[ptr->ip].ip  = ptr->ip;
 
     usb_hstd_transfer_start(&usb_shstd_std_req_msg[ptr->ip]);
 } /* End of function usb_hstd_enum_set_configuration() */
@@ -896,10 +906,10 @@ void usb_hstd_enum_set_configuration(usb_utr_t *ptr, uint16_t addr, uint16_t con
                  : uint16_t     cnt_value    : Enumeration Sequence
  Return          : none
  ***********************************************************************************************************************/
-void usb_hstd_enum_dummy_request(usb_utr_t *ptr, uint16_t addr, uint16_t cnt_value)
+void usb_hstd_enum_dummy_request(usb_utr_t* ptr, uint16_t addr, uint16_t cnt_value)
 {
     /* Non */
-}   /* End of function usb_hstd_enum_dummy_request() */
+} /* End of function usb_hstd_enum_dummy_request() */
 
 /***********************************************************************************************************************
  Function Name   : usb_hstd_mgr_suspend
@@ -907,12 +917,12 @@ void usb_hstd_enum_dummy_request(usb_utr_t *ptr, uint16_t addr, uint16_t cnt_val
  Argument        : uint16_t     info         : Pointer to usb_utr_t structure.
  Return          : none
  ***********************************************************************************************************************/
-void usb_hstd_mgr_suspend(usb_utr_t *ptr, uint16_t info)
+void usb_hstd_mgr_suspend(usb_utr_t* ptr, uint16_t info)
 {
-    uint16_t        rootport;
-    uint16_t        devaddr;
-    uint16_t        devsel;
-    uint16_t        j;
+    uint16_t rootport;
+    uint16_t devaddr;
+    uint16_t devsel;
+    uint16_t j;
 
     devaddr = p_usb_shstd_mgr_msg[ptr->ip]->keyword;
     devsel  = (uint16_t)(devaddr << USB_DEVADDRBIT);
@@ -940,7 +950,7 @@ void usb_hstd_mgr_suspend(usb_utr_t *ptr, uint16_t info)
         usb_hstd_susp_cont(ptr, (uint16_t)devaddr, (uint16_t)rootport);
         g_usb_hstd_mgr_mode[ptr->ip][rootport] = USB_SUSPENDED_PROCESS;
     }
-    usb_hstd_mgr_rel_mpl(ptr,info);
+    usb_hstd_mgr_rel_mpl(ptr, info);
 } /* End of function usb_hstd_mgr_suspend() */
 
 /***********************************************************************************************************************
@@ -952,7 +962,7 @@ void usb_hstd_mgr_suspend(usb_utr_t *ptr, uint16_t info)
                  : uint16_t     msginfo      : Request type.
  Return          : none
  ***********************************************************************************************************************/
-void usb_hstd_device_state_ctrl(usb_utr_t *ptr, uint16_t devaddr, uint16_t msginfo)
+void usb_hstd_device_state_ctrl(usb_utr_t* ptr, uint16_t devaddr, uint16_t msginfo)
 {
     switch (devaddr)
     {
@@ -960,13 +970,13 @@ void usb_hstd_device_state_ctrl(usb_utr_t *ptr, uint16_t devaddr, uint16_t msgin
 
             USB_PRINTF0("### usbd_message device address error\n");
 
-        break;
+            break;
 
         case USB_DEVICEADDR:
 
-            usb_hstd_hcd_snd_mbx(ptr, msginfo, USB_PORT0, (uint16_t*) 0, &usb_hstd_status_result);
+            usb_hstd_hcd_snd_mbx(ptr, msginfo, USB_PORT0, (uint16_t*)0, &usb_hstd_status_result);
 
-        break;
+            break;
 
         default:
 
@@ -975,7 +985,7 @@ void usb_hstd_device_state_ctrl(usb_utr_t *ptr, uint16_t devaddr, uint16_t msgin
                 /* Non */
             }
 
-        break;
+            break;
     }
 } /* End of function usb_hstd_device_state_ctrl() */
 
@@ -990,7 +1000,8 @@ void usb_hstd_device_state_ctrl(usb_utr_t *ptr, uint16_t devaddr, uint16_t msgin
                  : uint16_t     mgr_msginfo  : Request type for MGR
  Return          : none
  ***********************************************************************************************************************/
-void usb_hstd_device_state_ctrl2(usb_utr_t *ptr, usb_cb_t complete, uint16_t devaddr, uint16_t msginfo, uint16_t mgr_msginfo)
+void usb_hstd_device_state_ctrl2(
+    usb_utr_t* ptr, usb_cb_t complete, uint16_t devaddr, uint16_t msginfo, uint16_t mgr_msginfo)
 {
     usb_shstd_mgr_callback[ptr->ip] = complete;
     usb_shstd_mgr_msginfo[ptr->ip]  = mgr_msginfo;
@@ -1004,7 +1015,7 @@ void usb_hstd_device_state_ctrl2(usb_utr_t *ptr, usb_cb_t complete, uint16_t dev
                  : uint16_t     devaddr      : Device address.
  Return          : none
 ***********************************************************************************************************************/
-void usb_hstd_mgr_reset(usb_utr_t *ptr, uint16_t addr)
+void usb_hstd_mgr_reset(usb_utr_t* ptr, uint16_t addr)
 {
     usb_hstd_device_state_ctrl(ptr, addr, (uint16_t)USB_MSG_HCD_USBRESET);
     if (USB_DEVICEADDR == addr)
@@ -1024,11 +1035,11 @@ void usb_hstd_mgr_reset(usb_utr_t *ptr, uint16_t addr)
                  : uint16_t     info         : Information.
  Return          : none
  ***********************************************************************************************************************/
-void usb_hstd_mgr_resume(usb_utr_t *ptr, uint16_t info)
+void usb_hstd_mgr_resume(usb_utr_t* ptr, uint16_t info)
 {
-    uint16_t    rootport;
-    uint16_t    devaddr;
-    uint16_t    devsel;
+    uint16_t rootport;
+    uint16_t devaddr;
+    uint16_t devsel;
 
     devaddr = p_usb_shstd_mgr_msg[ptr->ip]->keyword;
     devsel  = (uint16_t)(devaddr << USB_DEVADDRBIT);
@@ -1040,9 +1051,9 @@ void usb_hstd_mgr_resume(usb_utr_t *ptr, uint16_t info)
         /* Device resume */
         usb_hstd_device_state_ctrl(ptr, devaddr, p_usb_shstd_mgr_msg[ptr->ip]->msginfo);
         g_usb_hstd_mgr_mode[ptr->ip][rootport] = USB_RESUME_PROCESS;
-        usb_shstd_resume_seq[ptr->ip] = 0;
+        usb_shstd_resume_seq[ptr->ip]          = 0;
     }
-    usb_hstd_mgr_rel_mpl(ptr,info);
+    usb_hstd_mgr_rel_mpl(ptr, info);
 } /* End of function usb_hstd_mgr_resume() */
 
 /***********************************************************************************************************************
@@ -1053,20 +1064,20 @@ void usb_hstd_mgr_resume(usb_utr_t *ptr, uint16_t info)
                  : uint16_t     rootport     : Port number.
  Return          : none
  ***********************************************************************************************************************/
-static void usb_hstd_susp_cont(usb_utr_t *ptr, uint16_t devaddr, uint16_t rootport)
+static void usb_hstd_susp_cont(usb_utr_t* ptr, uint16_t devaddr, uint16_t rootport)
 {
-    uint16_t    checkerr;
-    
+    uint16_t checkerr;
+
     checkerr = p_usb_shstd_mgr_msg[ptr->ip]->result;
 
-    switch(usb_shstd_suspend_seq[ptr->ip])
+    switch (usb_shstd_suspend_seq[ptr->ip])
     {
         case 0:
 
             usb_hstd_get_config_desc(ptr, devaddr, (uint16_t)0x09, (usb_cb_t)&usb_hstd_submit_result);
             usb_shstd_suspend_seq[ptr->ip]++;
 
-        break;
+            break;
 
         case 1:
 
@@ -1085,20 +1096,20 @@ static void usb_hstd_susp_cont(usb_utr_t *ptr, uint16_t devaddr, uint16_t rootpo
                 }
             }
 
-        break;
+            break;
 
         case 2:
 
-            if(usb_hstd_std_req_check(checkerr) == USB_OK)
+            if (usb_hstd_std_req_check(checkerr) == USB_OK)
             {
                 usb_hstd_device_state_ctrl(ptr, devaddr, (uint16_t)USB_MSG_HCD_REMOTE);
                 g_usb_hstd_mgr_mode[ptr->ip][rootport] = USB_SUSPENDED;
             }
 
-        break;
+            break;
 
         default:
-        break;
+            break;
     }
 } /* End of function usb_hstd_susp_cont() */
 
@@ -1110,33 +1121,33 @@ static void usb_hstd_susp_cont(usb_utr_t *ptr, uint16_t devaddr, uint16_t rootpo
                  : uint16_t     rootport     : Port number.
  Return          : none
  ***********************************************************************************************************************/
-static void usb_hstd_resu_cont(usb_utr_t *ptr, uint16_t devaddr, uint16_t rootport)
+static void usb_hstd_resu_cont(usb_utr_t* ptr, uint16_t devaddr, uint16_t rootport)
 {
-    uint16_t        devsel;
-    uint16_t        j;
-    uint16_t        md;
-    usb_hcdreg_t    *driver;
-    uint16_t        checkerr;
+    uint16_t devsel;
+    uint16_t j;
+    uint16_t md;
+    usb_hcdreg_t* driver;
+    uint16_t checkerr;
 
-    devsel      = (uint16_t)(devaddr << USB_DEVADDRBIT);
-    checkerr    = p_usb_shstd_mgr_msg[ptr->ip]->result;
-    
+    devsel   = (uint16_t)(devaddr << USB_DEVADDRBIT);
+    checkerr = p_usb_shstd_mgr_msg[ptr->ip]->result;
+
     switch (usb_shstd_resume_seq[ptr->ip])
     {
-        case 0 :
+        case 0:
 
-            usb_hstd_get_config_desc(ptr, devaddr, (uint16_t) 0x09, (usb_cb_t) &usb_hstd_submit_result);
+            usb_hstd_get_config_desc(ptr, devaddr, (uint16_t)0x09, (usb_cb_t)&usb_hstd_submit_result);
             usb_shstd_resume_seq[ptr->ip]++;
 
-        break;
+            break;
 
-        case 1 :
+        case 1:
 
             if (usb_hstd_std_req_check(checkerr) == USB_OK)
             {
                 if (usb_hstd_chk_remote(ptr) == USB_TRUE)
                 {
-                    usb_hstd_clr_feature(ptr, devaddr, (uint16_t) 0xFF, (usb_cb_t) &usb_hstd_submit_result);
+                    usb_hstd_clr_feature(ptr, devaddr, (uint16_t)0xFF, (usb_cb_t)&usb_hstd_submit_result);
                     usb_shstd_resume_seq[ptr->ip]++;
                 }
                 else
@@ -1145,19 +1156,19 @@ static void usb_hstd_resu_cont(usb_utr_t *ptr, uint16_t devaddr, uint16_t rootpo
                 }
             }
 
-        break;
+            break;
 
-        case 2 :
+        case 2:
 
             if (usb_hstd_std_req_check(checkerr) == USB_OK)
             {
                 g_usb_hstd_mgr_mode[ptr->ip][rootport] = USB_CONFIGURED;
             }
 
-        break;
+            break;
 
-        default :
-        break;
+        default:
+            break;
     }
 
     if (USB_CONFIGURED == g_usb_hstd_mgr_mode[ptr->ip][rootport])
@@ -1181,7 +1192,7 @@ static void usb_hstd_resu_cont(usb_utr_t *ptr, uint16_t devaddr, uint16_t rootpo
             driver = &g_usb_hstd_device_drv[ptr->ip][md];
             if ((rootport + USB_DEVICEADDR) == driver->devaddr)
             {
-                (*driver->devresume)(ptr, driver->devaddr, (uint16_t) USB_NO_ARG);
+                (*driver->devresume)(ptr, driver->devaddr, (uint16_t)USB_NO_ARG);
 
                 /* Device state */
                 g_usb_hstd_device_info[ptr->ip][driver->devaddr][1] = USB_CONFIGURED;
@@ -1204,7 +1215,7 @@ static void usb_hstd_resu_cont(usb_utr_t *ptr, uint16_t devaddr, uint16_t rootpo
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
  Return value    : uint16_t                  : Error info
  ***********************************************************************************************************************/
-static uint16_t usb_hstd_chk_remote(usb_utr_t *ptr)
+static uint16_t usb_hstd_chk_remote(usb_utr_t* ptr)
 {
     if ((g_usb_hstd_class_data[ptr->ip][7] & USB_CF_RWUPON) != (uint8_t)0)
     {
@@ -1221,20 +1232,20 @@ static uint16_t usb_hstd_chk_remote(usb_utr_t *ptr)
                  : usb_cb_t     complete     : Callback info
  Return value    : uint16_t                  : USB_OK
  ***********************************************************************************************************************/
-static uint16_t usb_hstd_cmd_submit(usb_utr_t *ptr, usb_cb_t complete)
+static uint16_t usb_hstd_cmd_submit(usb_utr_t* ptr, usb_cb_t complete)
 {
-    g_usb_hstd_class_ctrl[ptr->ip].p_tranadr    = (void*) g_usb_hstd_class_data[ptr->ip];
-    g_usb_hstd_class_ctrl[ptr->ip].complete     = complete;
-    g_usb_hstd_class_ctrl[ptr->ip].tranlen      = (uint32_t) g_usb_hstd_class_request[ptr->ip][3];
-    g_usb_hstd_class_ctrl[ptr->ip].keyword      = USB_PIPE0;
-    g_usb_hstd_class_ctrl[ptr->ip].p_setup      = g_usb_hstd_class_request[ptr->ip];
-    g_usb_hstd_class_ctrl[ptr->ip].segment      = USB_TRAN_END;
+    g_usb_hstd_class_ctrl[ptr->ip].p_tranadr = (void*)g_usb_hstd_class_data[ptr->ip];
+    g_usb_hstd_class_ctrl[ptr->ip].complete  = complete;
+    g_usb_hstd_class_ctrl[ptr->ip].tranlen   = (uint32_t)g_usb_hstd_class_request[ptr->ip][3];
+    g_usb_hstd_class_ctrl[ptr->ip].keyword   = USB_PIPE0;
+    g_usb_hstd_class_ctrl[ptr->ip].p_setup   = g_usb_hstd_class_request[ptr->ip];
+    g_usb_hstd_class_ctrl[ptr->ip].segment   = USB_TRAN_END;
 
-    g_usb_hstd_class_ctrl[ptr->ip].ip           = ptr->ip;
-    g_usb_hstd_class_ctrl[ptr->ip].ipp          = ptr->ipp;
+    g_usb_hstd_class_ctrl[ptr->ip].ip  = ptr->ip;
+    g_usb_hstd_class_ctrl[ptr->ip].ipp = ptr->ipp;
 
     usb_hstd_transfer_start(&g_usb_hstd_class_ctrl[ptr->ip]);
-    
+
     return USB_OK;
 } /* End of function usb_hstd_cmd_submit() */
 
@@ -1247,7 +1258,7 @@ static uint16_t usb_hstd_cmd_submit(usb_utr_t *ptr, usb_cb_t complete)
                  : usb_cb_t     complete     : Callback function
  Return value    : uint16_t                  : Error info
  ***********************************************************************************************************************/
-uint16_t usb_hstd_set_feature(usb_utr_t *ptr, uint16_t addr, uint16_t epnum, usb_cb_t complete)
+uint16_t usb_hstd_set_feature(usb_utr_t* ptr, uint16_t addr, uint16_t epnum, usb_cb_t complete)
 {
     if (0xFF == epnum)
     {
@@ -1278,9 +1289,9 @@ uint16_t usb_hstd_set_feature(usb_utr_t *ptr, uint16_t addr, uint16_t epnum, usb
                  : usb_cb_t     complete     : Callback function
  Return value    : uint16_t                  : Error info
  ***********************************************************************************************************************/
-uint16_t usb_hstd_get_config_desc(usb_utr_t *ptr, uint16_t addr, uint16_t length, usb_cb_t complete)
+uint16_t usb_hstd_get_config_desc(usb_utr_t* ptr, uint16_t addr, uint16_t length, usb_cb_t complete)
 {
-    uint16_t    i;
+    uint16_t i;
 
     /* Get Configuration Descriptor */
     g_usb_hstd_class_request[ptr->ip][0] = USB_GET_DESCRIPTOR | USB_DEV_TO_HOST | USB_STANDARD | USB_DEVICE;
@@ -1313,23 +1324,23 @@ uint16_t usb_hstd_std_req_check(uint16_t errcheck)
     if (USB_DATA_TMO == errcheck)
     {
         USB_PRINTF0("*** Standard Request Timeout error !\n");
-        return  USB_ERROR;
+        return USB_ERROR;
     }
     else if (USB_DATA_STALL == errcheck)
     {
         USB_PRINTF0("*** Standard Request STALL !\n");
-        return  USB_ERROR;
+        return USB_ERROR;
     }
     else if (USB_CTRL_END != errcheck)
     {
         USB_PRINTF0("*** Standard Request error !\n");
-        return  USB_ERROR;
+        return USB_ERROR;
     }
     else
     {
         /* Non */
     }
-    return  USB_OK;
+    return USB_OK;
 } /* End of function usb_hstd_std_req_check() */
 
 /***********************************************************************************************************************
@@ -1341,9 +1352,9 @@ uint16_t usb_hstd_std_req_check(uint16_t errcheck)
                  : usb_cb_t     complete     : Callback function
  Return value    : uint16_t                  : Error info
  ***********************************************************************************************************************/
-uint16_t usb_hstd_get_string_desc(usb_utr_t *ptr, uint16_t addr, uint16_t string, usb_cb_t complete)
+uint16_t usb_hstd_get_string_desc(usb_utr_t* ptr, uint16_t addr, uint16_t string, usb_cb_t complete)
 {
-    uint16_t    i;
+    uint16_t i;
 
     if (0 == string)
     {
@@ -1379,13 +1390,13 @@ uint16_t usb_hstd_get_string_desc(usb_utr_t *ptr, uint16_t addr, uint16_t string
                  : uint16_t     port         : Rootport number
  Return          : none
  ***********************************************************************************************************************/
-void usb_hstd_electrical_test_mode(usb_utr_t *ptr, uint16_t product_id, uint16_t port)
+void usb_hstd_electrical_test_mode(usb_utr_t* ptr, uint16_t product_id, uint16_t port)
 {
-    uint16_t    brdysts;
+    uint16_t brdysts;
 
-    switch(product_id)
+    switch (product_id)
     {
-        case 0x0101:    /* Test_SE0_NAK */
+        case 0x0101: /* Test_SE0_NAK */
 
             usb_hstd_test_signal(ptr, port, 3);
             while (1)
@@ -1393,9 +1404,9 @@ void usb_hstd_electrical_test_mode(usb_utr_t *ptr, uint16_t product_id, uint16_t
                 /* This loops infinitely until it's reset. */
             }
 
-        break;
+            break;
 
-        case 0x0102:    /* Test_J */
+        case 0x0102: /* Test_J */
 
             usb_hstd_test_signal(ptr, port, 1);
             while (1)
@@ -1403,9 +1414,9 @@ void usb_hstd_electrical_test_mode(usb_utr_t *ptr, uint16_t product_id, uint16_t
                 /* This loops infinitely until it's reset. */
             }
 
-        break;
+            break;
 
-        case 0x0103:    /* Test_K */
+        case 0x0103: /* Test_K */
 
             usb_hstd_test_signal(ptr, port, 2);
             while (1)
@@ -1413,9 +1424,9 @@ void usb_hstd_electrical_test_mode(usb_utr_t *ptr, uint16_t product_id, uint16_t
                 /* This loops infinitely until it's reset. */
             }
 
-        break;
+            break;
 
-        case 0x0104:    /* Test_Packet */
+        case 0x0104: /* Test_Packet */
 
             usb_hstd_test_signal(ptr, port, 4);
             while (1)
@@ -1423,31 +1434,31 @@ void usb_hstd_electrical_test_mode(usb_utr_t *ptr, uint16_t product_id, uint16_t
                 /* This loops infinitely until it's reset. */
             }
 
-        break;
+            break;
 
-        case 0x0105:    /* Reserved */
-        break;
+        case 0x0105: /* Reserved */
+            break;
 
-        case 0x0106:    /* HS_HOST_PORT_SUSPEND_RESUME */
+        case 0x0106: /* HS_HOST_PORT_SUSPEND_RESUME */
 
-            usb_cpu_delay_xms(15000);   /* wait 15sec */
+            usb_cpu_delay_xms(15000); /* wait 15sec */
             usb_hstd_test_suspend(ptr, port);
-            usb_cpu_delay_xms(15000);   /* wait 15sec */
+            usb_cpu_delay_xms(15000); /* wait 15sec */
             usb_hstd_test_resume(ptr, port);
 
-        break;
+            break;
 
-        case 0x0107:    /* SINGLE_STEP_GET_DEV_DESC */
+        case 0x0107: /* SINGLE_STEP_GET_DEV_DESC */
 
-            usb_cpu_delay_xms(15000);   /* wait 15sec */
+            usb_cpu_delay_xms(15000); /* wait 15sec */
             hw_usb_hwrite_usbreq(ptr, (USB_GET_DESCRIPTOR | USB_DEV_TO_HOST | USB_STANDARD | USB_DEVICE));
             hw_usb_hset_usbval(ptr, USB_DEV_DESCRIPTOR);
             hw_usb_hset_usbleng(ptr, 0x0012);
             hw_usb_hset_sureq(ptr);
 
-        break;
+            break;
 
-        case 0x0108:    /* SINGLE_STEP_GET_DEV_DESC_DATA */
+        case 0x0108: /* SINGLE_STEP_GET_DEV_DESC_DATA */
 
             hw_usb_hwrite_usbreq(ptr, (USB_GET_DESCRIPTOR | USB_DEV_TO_HOST | USB_STANDARD | USB_DEVICE));
             hw_usb_hset_usbval(ptr, USB_DEV_DESCRIPTOR);
@@ -1459,30 +1470,30 @@ void usb_hstd_electrical_test_mode(usb_utr_t *ptr, uint16_t product_id, uint16_t
             usb_cstd_set_nak(ptr, USB_PIPE0);
             hw_usb_write_dcpcfg(ptr, 0);
 
-            hw_usb_hwrite_dcpctr(ptr,USB_SQSET);
+            hw_usb_hwrite_dcpctr(ptr, USB_SQSET);
             usb_hstd_do_sqtgl(ptr, (uint16_t)USB_PIPE0, USB_SQMON);
 
-            hw_usb_rmw_fifosel(ptr, USB_CUSE, (USB_RCNT|USB_PIPE0), (USB_RCNT|USB_ISEL|USB_CURPIPE));
+            hw_usb_rmw_fifosel(ptr, USB_CUSE, (USB_RCNT | USB_PIPE0), (USB_RCNT | USB_ISEL | USB_CURPIPE));
             hw_usb_set_bclr(ptr, USB_CUSE);
-            usb_cstd_set_buf(ptr,USB_PIPE0);
+            usb_cstd_set_buf(ptr, USB_PIPE0);
             do
             {
                 brdysts = hw_usb_read_brdysts(ptr);
-            }while (!(brdysts&USB_BRDY0));
+            } while (!(brdysts & USB_BRDY0));
             usb_cstd_set_nak(ptr, USB_PIPE0);
             hw_usb_set_sqclr(ptr, USB_PIPE0);
             hw_usb_set_bclr(ptr, USB_CUSE);
 
-        break;
+            break;
 
         default:
-        break;
+            break;
     }
 } /* End of function usb_hstd_electrical_test_mode() */
-#endif  /* USB_CFG_ELECTRICAL == USB_CFG_ENABLE */
-#endif  /* USB_CFG_COMPLIANCE == USB_CFG_ENABLE */
+#endif /* USB_CFG_ELECTRICAL == USB_CFG_ENABLE */
+#endif /* USB_CFG_COMPLIANCE == USB_CFG_ENABLE */
 
-extern usb_msg_t*   p_usb_scheduler_add_use;
+extern usb_msg_t* p_usb_scheduler_add_use;
 
 /***********************************************************************************************************************
  Function Name   : usb_hstd_mgr_task
@@ -1492,499 +1503,499 @@ extern usb_msg_t*   p_usb_scheduler_add_use;
  ***********************************************************************************************************************/
 void usb_hstd_mgr_task(usb_vp_int_t stacd)
 {
-    usb_utr_t           *mess = p_usb_scheduler_add_use;
-    usb_utr_t           *ptr;
-    usb_er_t            err;
-    usb_hcdreg_t        *driver;
-    usb_hcdinfo_t       *hp;
-    uint16_t            rootport;
-    uint16_t            devaddr;
-    uint16_t            devsel;
-    uint16_t            pipenum;
-    uint16_t            msginfo;
-    uint16_t            md;
-    uint16_t            enume_mode; /* Enumeration mode (device state) */
-    uint16_t            connect_speed;
-    usb_ctrl_t          ctrl;
+    usb_utr_t* mess = p_usb_scheduler_add_use;
+    usb_utr_t* ptr;
+    usb_er_t err;
+    usb_hcdreg_t* driver;
+    usb_hcdinfo_t* hp;
+    uint16_t rootport;
+    uint16_t devaddr;
+    uint16_t devsel;
+    uint16_t pipenum;
+    uint16_t msginfo;
+    uint16_t md;
+    uint16_t enume_mode; /* Enumeration mode (device state) */
+    uint16_t connect_speed;
+    usb_ctrl_t ctrl;
 #if USB_CFG_COMPLIANCE == USB_CFG_ENABLE
-    usb_compliance_t    disp_param;
+    usb_compliance_t disp_param;
 #endif /* USB_CFG_COMPLIANCE == USB_CFG_ENABLE */
 
-	p_usb_shstd_mgr_msg[mess->ip] = (usb_mgrinfo_t*) mess;
-	rootport = p_usb_shstd_mgr_msg[mess->ip]->keyword;
-	devaddr = p_usb_shstd_mgr_msg[mess->ip]->keyword;
-	pipenum = p_usb_shstd_mgr_msg[mess->ip]->keyword;
-	devsel = (uint16_t) (devaddr << USB_DEVADDRBIT);
-	hp = (usb_hcdinfo_t*) mess;
-	ptr = mess;
+    p_usb_shstd_mgr_msg[mess->ip] = (usb_mgrinfo_t*)mess;
+    rootport                      = p_usb_shstd_mgr_msg[mess->ip]->keyword;
+    devaddr                       = p_usb_shstd_mgr_msg[mess->ip]->keyword;
+    pipenum                       = p_usb_shstd_mgr_msg[mess->ip]->keyword;
+    devsel                        = (uint16_t)(devaddr << USB_DEVADDRBIT);
+    hp                            = (usb_hcdinfo_t*)mess;
+    ptr                           = mess;
 
-	/* Detach is all device */
-	msginfo = p_usb_shstd_mgr_msg[ptr->ip]->msginfo;
-	switch (p_usb_shstd_mgr_msg[ptr->ip]->msginfo)
-	{
-		/* USB-bus control (change device state) */
-		case USB_MSG_MGR_STATUSRESULT :
-			switch (g_usb_hstd_mgr_mode[ptr->ip][rootport])
-			{
-				/* End of reset signal */
-				case USB_DEFAULT :
+    /* Detach is all device */
+    msginfo = p_usb_shstd_mgr_msg[ptr->ip]->msginfo;
+    switch (p_usb_shstd_mgr_msg[ptr->ip]->msginfo)
+    {
+        /* USB-bus control (change device state) */
+        case USB_MSG_MGR_STATUSRESULT:
+            switch (g_usb_hstd_mgr_mode[ptr->ip][rootport])
+            {
+                /* End of reset signal */
+                case USB_DEFAULT:
 
-					g_usb_hstd_device_speed[ptr->ip] = p_usb_shstd_mgr_msg[ptr->ip]->result;
+                    g_usb_hstd_device_speed[ptr->ip] = p_usb_shstd_mgr_msg[ptr->ip]->result;
 
-					/* Set device speed */
-					usb_hstd_set_dev_addr(ptr, (uint16_t) USB_DEVICE_0, g_usb_hstd_device_speed[ptr->ip], rootport);
-					g_usb_hstd_dcp_register[ptr->ip][0] = (uint16_t) (USB_DEFPACKET + USB_DEVICE_0);
-					g_usb_hstd_enum_seq[ptr->ip] = 0;
-					switch (g_usb_hstd_device_speed[ptr->ip])
-					{
-						case USB_HSCONNECT : /* Hi Speed Device Connect */
+                    /* Set device speed */
+                    usb_hstd_set_dev_addr(ptr, (uint16_t)USB_DEVICE_0, g_usb_hstd_device_speed[ptr->ip], rootport);
+                    g_usb_hstd_dcp_register[ptr->ip][0] = (uint16_t)(USB_DEFPACKET + USB_DEVICE_0);
+                    g_usb_hstd_enum_seq[ptr->ip]        = 0;
+                    switch (g_usb_hstd_device_speed[ptr->ip])
+                    {
+                        case USB_HSCONNECT: /* Hi Speed Device Connect */
 
-							USB_PRINTF0(" Hi-Speed Device\n");
-							(*g_usb_hstd_enumaration_process[0])(ptr, (uint16_t) USB_DEVICE_0, (uint16_t) 0);
+                            USB_PRINTF0(" Hi-Speed Device\n");
+                            (*g_usb_hstd_enumaration_process[0])(ptr, (uint16_t)USB_DEVICE_0, (uint16_t)0);
 
-						break;
+                            break;
 
-						case USB_FSCONNECT : /* Full Speed Device Connect */
+                        case USB_FSCONNECT: /* Full Speed Device Connect */
 
-							USB_PRINTF0(" Full-Speed Device\n");
-							(*g_usb_hstd_enumaration_process[0])(ptr, (uint16_t) USB_DEVICE_0, (uint16_t) 0);
+                            USB_PRINTF0(" Full-Speed Device\n");
+                            (*g_usb_hstd_enumaration_process[0])(ptr, (uint16_t)USB_DEVICE_0, (uint16_t)0);
 
-						break;
+                            break;
 
-						case USB_LSCONNECT : /* Low Speed Device Connect */
+                        case USB_LSCONNECT: /* Low Speed Device Connect */
 
-							USB_PRINTF0(" Low-Speed Device\n");
-							usb_hstd_ls_connect_function(ptr);
+                            USB_PRINTF0(" Low-Speed Device\n");
+                            usb_hstd_ls_connect_function(ptr);
 
-						break;
+                            break;
 
-						default :
+                        default:
 
-							USB_PRINTF0(" Device/Detached\n");
-							g_usb_hstd_mgr_mode[ptr->ip][rootport] = USB_DETACHED;
+                            USB_PRINTF0(" Device/Detached\n");
+                            g_usb_hstd_mgr_mode[ptr->ip][rootport] = USB_DETACHED;
 
-						break;
-					}
+                            break;
+                    }
 
-				break;
+                    break;
 
-				/* End of resume signal */
-				case USB_CONFIGURED :
+                /* End of resume signal */
+                case USB_CONFIGURED:
 
-				/* This Resume Sorce is moved to usb_hResuCont() by nonOS */
-				break;
+                    /* This Resume Sorce is moved to usb_hResuCont() by nonOS */
+                    break;
 
-				/* Start of suspended state */
-				case USB_SUSPENDED :
+                /* Start of suspended state */
+                case USB_SUSPENDED:
 
-					for (md = 0; md < g_usb_hstd_device_num[ptr->ip]; md++)
-					{
-						driver = &g_usb_hstd_device_drv[ptr->ip][md];
-						if ((rootport + USB_DEVICEADDR) == driver->devaddr)
-						{
-							(*driver->devsuspend)(ptr, driver->devaddr, (uint16_t) USB_NO_ARG);
+                    for (md = 0; md < g_usb_hstd_device_num[ptr->ip]; md++)
+                    {
+                        driver = &g_usb_hstd_device_drv[ptr->ip][md];
+                        if ((rootport + USB_DEVICEADDR) == driver->devaddr)
+                        {
+                            (*driver->devsuspend)(ptr, driver->devaddr, (uint16_t)USB_NO_ARG);
 
-							if (USB_DO_GLOBAL_SUSPEND == usb_shstd_mgr_msginfo[ptr->ip])
-							{
-								usb_hstd_mgr_chgdevst_cb(ptr, rootport);
-							}
+                            if (USB_DO_GLOBAL_SUSPEND == usb_shstd_mgr_msginfo[ptr->ip])
+                            {
+                                usb_hstd_mgr_chgdevst_cb(ptr, rootport);
+                            }
 
-							/* Device state */
-							g_usb_hstd_device_info[ptr->ip][driver->devaddr][1] = USB_SUSPENDED;
+                            /* Device state */
+                            g_usb_hstd_device_info[ptr->ip][driver->devaddr][1] = USB_SUSPENDED;
 
-							/* Device state */
-							driver->devstate = USB_SUSPENDED;
-						}
-					}
+                            /* Device state */
+                            driver->devstate = USB_SUSPENDED;
+                        }
+                    }
 
-				break;
+                    break;
 
-				/* Continue of resume signal */
-				case USB_RESUME_PROCESS :
+                /* Continue of resume signal */
+                case USB_RESUME_PROCESS:
 
-					/* Resume Sequence Number is 0 */
-					usb_hstd_resu_cont(ptr, (uint16_t) (USB_DEVICEADDR + rootport), (uint16_t) rootport);
+                    /* Resume Sequence Number is 0 */
+                    usb_hstd_resu_cont(ptr, (uint16_t)(USB_DEVICEADDR + rootport), (uint16_t)rootport);
 
-				break;
+                    break;
 
-				case USB_DETACHED :
+                case USB_DETACHED:
 
-					switch (usb_shstd_mgr_msginfo[ptr->ip])
-					{
-						case USB_PORT_DISABLE :
+                    switch (usb_shstd_mgr_msginfo[ptr->ip])
+                    {
+                        case USB_PORT_DISABLE:
 
-							usb_hstd_mgr_chgdevst_cb(ptr, rootport);
+                            usb_hstd_mgr_chgdevst_cb(ptr, rootport);
 
-						break;
+                            break;
 
-						default :
-						break;
-					}
+                        default:
+                            break;
+                    }
 
-				break;
+                    break;
 
-				default :
-				break;
-			}
-			usb_hstd_mgr_rel_mpl(ptr, msginfo);
+                default:
+                    break;
+            }
+            usb_hstd_mgr_rel_mpl(ptr, msginfo);
 
-		break;
+            break;
 
-		case USB_MSG_MGR_SUBMITRESULT :
+        case USB_MSG_MGR_SUBMITRESULT:
 
-			/* Agreement device address */
-			devsel = usb_hstd_get_devsel(ptr, pipenum);
+            /* Agreement device address */
+            devsel = usb_hstd_get_devsel(ptr, pipenum);
 
-			/* Get root port number from device addr */
-			rootport = usb_hstd_get_rootport(ptr, devsel);
-			switch (g_usb_hstd_mgr_mode[ptr->ip][rootport])
-			{
-				/* Resume */
-				case USB_RESUME_PROCESS :
+            /* Get root port number from device addr */
+            rootport = usb_hstd_get_rootport(ptr, devsel);
+            switch (g_usb_hstd_mgr_mode[ptr->ip][rootport])
+            {
+                /* Resume */
+                case USB_RESUME_PROCESS:
 
-					/* Resume Sequence Number is 1 to 2 */
-					usb_hstd_resu_cont(ptr, (uint16_t) (devsel >> USB_DEVADDRBIT), (uint16_t) rootport);
+                    /* Resume Sequence Number is 1 to 2 */
+                    usb_hstd_resu_cont(ptr, (uint16_t)(devsel >> USB_DEVADDRBIT), (uint16_t)rootport);
 
-				break;
+                    break;
 
-					/* Suspend */
-				case USB_SUSPENDED_PROCESS :
+                    /* Suspend */
+                case USB_SUSPENDED_PROCESS:
 
-					usb_hstd_susp_cont(ptr, (uint16_t) (devsel >> USB_DEVADDRBIT), (uint16_t) rootport);
+                    usb_hstd_susp_cont(ptr, (uint16_t)(devsel >> USB_DEVADDRBIT), (uint16_t)rootport);
 
-				break;
+                    break;
 
-					/* Enumeration */
-				case USB_DEFAULT :
+                    /* Enumeration */
+                case USB_DEFAULT:
 
-					/* Peripheral Device Speed support check */
-					connect_speed = usb_hstd_support_speed_check(ptr, rootport);
-					if (USB_NOCONNECT != connect_speed)
-					{
-						enume_mode = usb_hstd_enumeration(ptr);
-						switch (enume_mode)
-						{
-							/* Detach Mode */
-							case USB_NONDEVICE :
+                    /* Peripheral Device Speed support check */
+                    connect_speed = usb_hstd_support_speed_check(ptr, rootport);
+                    if (USB_NOCONNECT != connect_speed)
+                    {
+                        enume_mode = usb_hstd_enumeration(ptr);
+                        switch (enume_mode)
+                        {
+                            /* Detach Mode */
+                            case USB_NONDEVICE:
 
-								USB_PRINTF1("### Enumeration error (address%d)\n", g_usb_hstd_device_addr[ptr->ip]);
-								g_usb_hstd_mgr_mode[ptr->ip][rootport] = USB_DETACHED;
+                                USB_PRINTF1("### Enumeration error (address%d)\n", g_usb_hstd_device_addr[ptr->ip]);
+                                g_usb_hstd_mgr_mode[ptr->ip][rootport] = USB_DETACHED;
 
-								if ((USB_DO_RESET_AND_ENUMERATION == usb_shstd_mgr_msginfo[ptr->ip])
-										|| (USB_PORT_ENABLE == usb_shstd_mgr_msginfo[ptr->ip]))
-								{
-									usb_hstd_mgr_chgdevst_cb(ptr, rootport);
-								}
+                                if ((USB_DO_RESET_AND_ENUMERATION == usb_shstd_mgr_msginfo[ptr->ip])
+                                    || (USB_PORT_ENABLE == usb_shstd_mgr_msginfo[ptr->ip]))
+                                {
+                                    usb_hstd_mgr_chgdevst_cb(ptr, rootport);
+                                }
 
-							break;
+                                break;
 
-								/* Detach Mode */
-							case USB_NOTTPL :
+                                /* Detach Mode */
+                            case USB_NOTTPL:
 
-								USB_PRINTF1("### Not support device (address%d)\n", g_usb_hstd_device_addr[ptr->ip]);
-								g_usb_hstd_mgr_mode[ptr->ip][rootport] = USB_DETACHED;
+                                USB_PRINTF1("### Not support device (address%d)\n", g_usb_hstd_device_addr[ptr->ip]);
+                                g_usb_hstd_mgr_mode[ptr->ip][rootport] = USB_DETACHED;
 
-								if ((USB_DO_RESET_AND_ENUMERATION == usb_shstd_mgr_msginfo[ptr->ip])
-										|| (USB_PORT_ENABLE == usb_shstd_mgr_msginfo[ptr->ip]))
-								{
-									usb_hstd_mgr_chgdevst_cb(ptr, rootport);
-								}
+                                if ((USB_DO_RESET_AND_ENUMERATION == usb_shstd_mgr_msginfo[ptr->ip])
+                                    || (USB_PORT_ENABLE == usb_shstd_mgr_msginfo[ptr->ip]))
+                                {
+                                    usb_hstd_mgr_chgdevst_cb(ptr, rootport);
+                                }
 
-							break;
+                                break;
 
-							case USB_COMPLETEPIPESET :
+                            case USB_COMPLETEPIPESET:
 
-								g_usb_hstd_mgr_mode[ptr->ip][rootport] = USB_CONFIGURED;
+                                g_usb_hstd_mgr_mode[ptr->ip][rootport] = USB_CONFIGURED;
 
-								if ((USB_DO_RESET_AND_ENUMERATION == usb_shstd_mgr_msginfo[ptr->ip])
-										|| (USB_PORT_ENABLE == usb_shstd_mgr_msginfo[ptr->ip]))
-								{
-									usb_hstd_mgr_chgdevst_cb(ptr, rootport);
-								}
+                                if ((USB_DO_RESET_AND_ENUMERATION == usb_shstd_mgr_msginfo[ptr->ip])
+                                    || (USB_PORT_ENABLE == usb_shstd_mgr_msginfo[ptr->ip]))
+                                {
+                                    usb_hstd_mgr_chgdevst_cb(ptr, rootport);
+                                }
 
-							break;
+                                break;
 
-							default :
-							break;
-						}
-					}
+                            default:
+                                break;
+                        }
+                    }
 
-				break;
+                    break;
 
-				default :
-				break;
-			}
-			usb_hstd_mgr_rel_mpl(ptr, msginfo);
+                default:
+                    break;
+            }
+            usb_hstd_mgr_rel_mpl(ptr, msginfo);
 
-		break;
+            break;
 
-		case USB_MSG_MGR_AORDETACH :
+        case USB_MSG_MGR_AORDETACH:
 
-			switch (p_usb_shstd_mgr_msg[ptr->ip]->result)
-			{
-				case USB_DETACH :
+            switch (p_usb_shstd_mgr_msg[ptr->ip]->result)
+            {
+                case USB_DETACH:
 
 #if USB_CFG_COMPLIANCE == USB_CFG_ENABLE
-					disp_param.status = USB_CT_DETTACH;
-					disp_param.pid    = USB_NULL;
-					disp_param.vid    = USB_NULL;
-					usb_compliance_disp ((void *)&disp_param);
+                    disp_param.status = USB_CT_DETTACH;
+                    disp_param.pid    = USB_NULL;
+                    disp_param.vid    = USB_NULL;
+                    usb_compliance_disp((void*)&disp_param);
 #endif /* USB_CFG_COMPLIANCE == USB_CFG_ENABLE */
-					USB_PRINTF1(" [Detach Device port%d] \n", rootport);
-					g_usb_hstd_mgr_mode[ptr->ip][rootport] = USB_DETACHED;
-					g_usb_hstd_device_speed[ptr->ip] = USB_NOCONNECT;
+                    USB_PRINTF1(" [Detach Device port%d] \n", rootport);
+                    g_usb_hstd_mgr_mode[ptr->ip][rootport] = USB_DETACHED;
+                    g_usb_hstd_device_speed[ptr->ip]       = USB_NOCONNECT;
 
-					for (md = 0; md < g_usb_hstd_device_num[ptr->ip]; md++)
-					{
-						driver = &g_usb_hstd_device_drv[ptr->ip][md];
-						if ((rootport + USB_DEVICEADDR) == driver->devaddr)
-						{
+                    for (md = 0; md < g_usb_hstd_device_num[ptr->ip]; md++)
+                    {
+                        driver = &g_usb_hstd_device_drv[ptr->ip][md];
+                        if ((rootport + USB_DEVICEADDR) == driver->devaddr)
+                        {
 #if defined(USB_CFG_HHID_USE) || defined(USB_CFG_HMIDI_USE)
-							if (USB_DEVICEADDR == driver->devaddr)
-							{
-								g_usb_change_device_state[ptr->ip] = USB_NULL;
-							}
-#endif  /* defined(USB_CFG_HHID_USE) */
+                            if (USB_DEVICEADDR == driver->devaddr)
+                            {
+                                g_usb_change_device_state[ptr->ip] = USB_NULL;
+                            }
+#endif /* defined(USB_CFG_HHID_USE) */
 
-							(*driver->devdetach)(ptr, driver->devaddr, (uint16_t) USB_NO_ARG);
+                            (*driver->devdetach)(ptr, driver->devaddr, (uint16_t)USB_NO_ARG);
 
-							/* Root port */
-							g_usb_hstd_device_info[ptr->ip][driver->devaddr][0] = USB_NOPORT;
+                            /* Root port */
+                            g_usb_hstd_device_info[ptr->ip][driver->devaddr][0] = USB_NOPORT;
 
-							/* Device state */
-							g_usb_hstd_device_info[ptr->ip][driver->devaddr][1] = USB_DETACHED;
+                            /* Device state */
+                            g_usb_hstd_device_info[ptr->ip][driver->devaddr][1] = USB_DETACHED;
 
-							/* Not configured */
-							g_usb_hstd_device_info[ptr->ip][driver->devaddr][2] = (uint16_t) 0;
+                            /* Not configured */
+                            g_usb_hstd_device_info[ptr->ip][driver->devaddr][2] = (uint16_t)0;
 
-							/* Interface Class : NO class */
-							g_usb_hstd_device_info[ptr->ip][driver->devaddr][3] = (uint16_t) USB_IFCLS_NOT;
+                            /* Interface Class : NO class */
+                            g_usb_hstd_device_info[ptr->ip][driver->devaddr][3] = (uint16_t)USB_IFCLS_NOT;
 
-							/* No connect */
-							g_usb_hstd_device_info[ptr->ip][driver->devaddr][4] = (uint16_t) USB_NOCONNECT;
+                            /* No connect */
+                            g_usb_hstd_device_info[ptr->ip][driver->devaddr][4] = (uint16_t)USB_NOCONNECT;
 
-							/* Root port */
-							driver->rootport = USB_NOPORT;
+                            /* Root port */
+                            driver->rootport = USB_NOPORT;
 
-							/* Device address */
-							driver->devaddr = USB_NODEVICE;
+                            /* Device address */
+                            driver->devaddr = USB_NODEVICE;
 
-							/* Device state */
-							driver->devstate = USB_DETACHED;
-						}
-					}
-					usb_hstd_mgr_rel_mpl(ptr, msginfo);
+                            /* Device state */
+                            driver->devstate = USB_DETACHED;
+                        }
+                    }
+                    usb_hstd_mgr_rel_mpl(ptr, msginfo);
 
-				break;
+                    break;
 
-				case USB_ATTACHL :
-				case USB_ATTACHF :
+                case USB_ATTACHL:
+                case USB_ATTACHF:
 
 #if USB_CFG_COMPLIANCE == USB_CFG_ENABLE
-					disp_param.status = USB_CT_ATTACH;
-					disp_param.pid    = USB_NULL;
-					disp_param.vid    = USB_NULL;
-					usb_compliance_disp ((void *)&disp_param);
+                    disp_param.status = USB_CT_ATTACH;
+                    disp_param.pid    = USB_NULL;
+                    disp_param.vid    = USB_NULL;
+                    usb_compliance_disp((void*)&disp_param);
 #endif /* USB_CFG_COMPLIANCE == USB_CFG_ENABLE */
 
-					if (USB_DETACHED == g_usb_hstd_mgr_mode[ptr->ip][rootport])
-					{
-						/* enumeration wait setting */
-						g_usb_hstd_enu_wait[ptr->ip] = (uint8_t) USB_MGR_TSK;
-						g_usb_hstd_device_addr[ptr->ip] = (uint16_t) (rootport + USB_DEVICEADDR);
-						if (USB_MAXDEVADDR < g_usb_hstd_device_addr[ptr->ip])
-						{
-							/* For port1 */
-							USB_PRINTF0("Device address error\n");
-						}
-						else
-						{
-							g_usb_hstd_mgr_mode[ptr->ip][rootport] = USB_DEFAULT;
+                    if (USB_DETACHED == g_usb_hstd_mgr_mode[ptr->ip][rootport])
+                    {
+                        /* enumeration wait setting */
+                        g_usb_hstd_enu_wait[ptr->ip]    = (uint8_t)USB_MGR_TSK;
+                        g_usb_hstd_device_addr[ptr->ip] = (uint16_t)(rootport + USB_DEVICEADDR);
+                        if (USB_MAXDEVADDR < g_usb_hstd_device_addr[ptr->ip])
+                        {
+                            /* For port1 */
+                            USB_PRINTF0("Device address error\n");
+                        }
+                        else
+                        {
+                            g_usb_hstd_mgr_mode[ptr->ip][rootport] = USB_DEFAULT;
 
 #if USB_CFG_BC == USB_CFG_ENABLE
-							/* Call Back */
-							/*USB_BC_ATTACH(ptr, g_usb_hstd_device_addr[ptr->ip], (uint16_t)g_usb_hstd_bc[ptr->ip].state); */
-							if (USB_BC_STATE_CDP == g_usb_hstd_bc[ptr->ip].state)
-							{
-								ctrl.address = g_usb_hstd_device_addr[ptr->ip]; /* USB Device address */
-								ctrl.module = ptr->ip;                          /* Module number setting */
-								usb_set_event(USB_STS_BC, &ctrl);               /* Set Event()  */
-							}
+                            /* Call Back */
+                            /*USB_BC_ATTACH(ptr, g_usb_hstd_device_addr[ptr->ip], (uint16_t)g_usb_hstd_bc[ptr->ip].state); */
+                            if (USB_BC_STATE_CDP == g_usb_hstd_bc[ptr->ip].state)
+                            {
+                                ctrl.address = g_usb_hstd_device_addr[ptr->ip]; /* USB Device address */
+                                ctrl.module  = ptr->ip;                         /* Module number setting */
+                                usb_set_event(USB_STS_BC, &ctrl);               /* Set Event()  */
+                            }
 #endif /* USB_CFG_BC == USB_CFG_ENABLE */
 
-							usb_hstd_attach_function();
-							usb_hstd_mgr_reset(ptr, g_usb_hstd_device_addr[ptr->ip]);
-						}
-						usb_hstd_mgr_rel_mpl(ptr, msginfo);
-					}
-					else
-					{
-						/* enumeration wait setting */
-						g_usb_hstd_enu_wait[ptr->ip] = (uint8_t) USB_MGR_TSK;
-						usb_hstd_mgr_rel_mpl(ptr, msginfo);
-					}
-				break;
+                            usb_hstd_attach_function();
+                            usb_hstd_mgr_reset(ptr, g_usb_hstd_device_addr[ptr->ip]);
+                        }
+                        usb_hstd_mgr_rel_mpl(ptr, msginfo);
+                    }
+                    else
+                    {
+                        /* enumeration wait setting */
+                        g_usb_hstd_enu_wait[ptr->ip] = (uint8_t)USB_MGR_TSK;
+                        usb_hstd_mgr_rel_mpl(ptr, msginfo);
+                    }
+                    break;
 
-				default :
+                default:
 
-					usb_hstd_mgr_rel_mpl(ptr, msginfo);
+                    usb_hstd_mgr_rel_mpl(ptr, msginfo);
 
-				break;
-			}
+                    break;
+            }
 
-		break;
+            break;
 
-		case USB_MSG_MGR_OVERCURRENT :
+        case USB_MSG_MGR_OVERCURRENT:
 
-			ctrl.module = ptr->ip; /* Module number setting */
-			usb_set_event(USB_STS_OVERCURRENT, &ctrl); /* Set Event()  */
+            ctrl.module = ptr->ip;                     /* Module number setting */
+            usb_set_event(USB_STS_OVERCURRENT, &ctrl); /* Set Event()  */
 
-			USB_PRINTF0(" Please detach device \n ");
-			USB_PRINTF1("VBUS off port%d\n", rootport);
-			usb_hstd_vbus_control(ptr, rootport, (uint16_t) USB_VBOFF);
-			g_usb_hstd_mgr_mode[ptr->ip][rootport] = USB_DEFAULT;
-			for (md = 0; md < g_usb_hstd_device_num[ptr->ip]; md++)
-			{
-				driver = &g_usb_hstd_device_drv[ptr->ip][md];
-				if (driver->rootport == rootport)
-				{
-					/* Root port */
-					g_usb_hstd_device_info[ptr->ip][driver->devaddr][0] = USB_NOPORT;
+            USB_PRINTF0(" Please detach device \n ");
+            USB_PRINTF1("VBUS off port%d\n", rootport);
+            usb_hstd_vbus_control(ptr, rootport, (uint16_t)USB_VBOFF);
+            g_usb_hstd_mgr_mode[ptr->ip][rootport] = USB_DEFAULT;
+            for (md = 0; md < g_usb_hstd_device_num[ptr->ip]; md++)
+            {
+                driver = &g_usb_hstd_device_drv[ptr->ip][md];
+                if (driver->rootport == rootport)
+                {
+                    /* Root port */
+                    g_usb_hstd_device_info[ptr->ip][driver->devaddr][0] = USB_NOPORT;
 
-					/* Device state */
-					g_usb_hstd_device_info[ptr->ip][driver->devaddr][1] = USB_DETACHED;
+                    /* Device state */
+                    g_usb_hstd_device_info[ptr->ip][driver->devaddr][1] = USB_DETACHED;
 
-					/* Not configured */
-					g_usb_hstd_device_info[ptr->ip][driver->devaddr][2] = (uint16_t) 0;
+                    /* Not configured */
+                    g_usb_hstd_device_info[ptr->ip][driver->devaddr][2] = (uint16_t)0;
 
-					/* Interface Class : NO class */
-					g_usb_hstd_device_info[ptr->ip][driver->devaddr][3] = (uint16_t) USB_IFCLS_NOT;
+                    /* Interface Class : NO class */
+                    g_usb_hstd_device_info[ptr->ip][driver->devaddr][3] = (uint16_t)USB_IFCLS_NOT;
 
-					/* No connect */
-					g_usb_hstd_device_info[ptr->ip][driver->devaddr][4] = (uint16_t) USB_NOCONNECT;
+                    /* No connect */
+                    g_usb_hstd_device_info[ptr->ip][driver->devaddr][4] = (uint16_t)USB_NOCONNECT;
 
-					/* Root port */
-					driver->rootport = USB_NOPORT;
+                    /* Root port */
+                    driver->rootport = USB_NOPORT;
 
-					/* Device address */
-					driver->devaddr = USB_NODEVICE;
+                    /* Device address */
+                    driver->devaddr = USB_NODEVICE;
 
-					/* Device state */
-					driver->devstate = USB_DETACHED;
-				}
-			}
-			usb_hstd_mgr_rel_mpl(ptr, msginfo);
+                    /* Device state */
+                    driver->devstate = USB_DETACHED;
+                }
+            }
+            usb_hstd_mgr_rel_mpl(ptr, msginfo);
 
-		break;
+            break;
 
-		/* USB_MSG_HCD_ATTACH */
-		case USB_DO_RESET_AND_ENUMERATION :
+        /* USB_MSG_HCD_ATTACH */
+        case USB_DO_RESET_AND_ENUMERATION:
 
-			ptr->msginfo = USB_MSG_HCD_ATTACH_MGR;
+            ptr->msginfo = USB_MSG_HCD_ATTACH_MGR;
 
-			if (USB_DEVICEADDR == devaddr)
-			{
-				g_usb_hstd_mgr_mode[ptr->ip][USB_PORT0] = USB_DETACHED;
-			}
-			else
-			{
-				/* Non */
-			}
+            if (USB_DEVICEADDR == devaddr)
+            {
+                g_usb_hstd_mgr_mode[ptr->ip][USB_PORT0] = USB_DETACHED;
+            }
+            else
+            {
+                /* Non */
+            }
 
-			usb_hstd_device_state_ctrl2(ptr, hp->complete, devaddr, ptr->msginfo, msginfo);
-			usb_hstd_mgr_rel_mpl(ptr, msginfo);
+            usb_hstd_device_state_ctrl2(ptr, hp->complete, devaddr, ptr->msginfo, msginfo);
+            usb_hstd_mgr_rel_mpl(ptr, msginfo);
 
-		break;
+            break;
 
-		/* USB_MSG_HCD_VBON */
-		case USB_PORT_ENABLE :
+        /* USB_MSG_HCD_VBON */
+        case USB_PORT_ENABLE:
 
-			ptr->msginfo = USB_MSG_HCD_VBON;
-			if (USB_DEVICEADDR == devaddr)
-			{
-				g_usb_hstd_mgr_mode[ptr->ip][USB_PORT0] = USB_DETACHED;
-			}
-			else
-			{
-				/* Non */
-			}
-			usb_hstd_device_state_ctrl2(ptr, hp->complete, devaddr, ptr->msginfo, msginfo);
-			usb_hstd_mgr_rel_mpl(ptr, msginfo);
+            ptr->msginfo = USB_MSG_HCD_VBON;
+            if (USB_DEVICEADDR == devaddr)
+            {
+                g_usb_hstd_mgr_mode[ptr->ip][USB_PORT0] = USB_DETACHED;
+            }
+            else
+            {
+                /* Non */
+            }
+            usb_hstd_device_state_ctrl2(ptr, hp->complete, devaddr, ptr->msginfo, msginfo);
+            usb_hstd_mgr_rel_mpl(ptr, msginfo);
 
-		break;
+            break;
 
-		/* USB_MSG_HCD_VBOFF */
-		case USB_PORT_DISABLE :
+        /* USB_MSG_HCD_VBOFF */
+        case USB_PORT_DISABLE:
 
-			/* VBUS is off at the time of the abnormalities in a device */
-			ptr->msginfo = USB_MSG_HCD_VBOFF;
-			if (USB_DEVICEADDR == devaddr)
-			{
-				g_usb_hstd_mgr_mode[ptr->ip][USB_PORT0] = USB_DETACHED;
-			}
-			else
-			{
-				/* Non */
-			}
-			usb_hstd_device_state_ctrl2(ptr, hp->complete, devaddr, ptr->msginfo, msginfo);
-			usb_hstd_mgr_rel_mpl(ptr, msginfo);
+            /* VBUS is off at the time of the abnormalities in a device */
+            ptr->msginfo = USB_MSG_HCD_VBOFF;
+            if (USB_DEVICEADDR == devaddr)
+            {
+                g_usb_hstd_mgr_mode[ptr->ip][USB_PORT0] = USB_DETACHED;
+            }
+            else
+            {
+                /* Non */
+            }
+            usb_hstd_device_state_ctrl2(ptr, hp->complete, devaddr, ptr->msginfo, msginfo);
+            usb_hstd_mgr_rel_mpl(ptr, msginfo);
 
-		break;
+            break;
 
-		/* USB_MSG_HCD_SUSPEND */
-		case USB_DO_GLOBAL_SUSPEND :
+        /* USB_MSG_HCD_SUSPEND */
+        case USB_DO_GLOBAL_SUSPEND:
 
-			ptr->msginfo = USB_MSG_HCD_REMOTE;
-			usb_shstd_mgr_callback[ptr->ip] = hp->complete;
-			usb_shstd_mgr_msginfo[ptr->ip] = msginfo;
-			usb_hstd_mgr_suspend(ptr, msginfo);
+            ptr->msginfo                    = USB_MSG_HCD_REMOTE;
+            usb_shstd_mgr_callback[ptr->ip] = hp->complete;
+            usb_shstd_mgr_msginfo[ptr->ip]  = msginfo;
+            usb_hstd_mgr_suspend(ptr, msginfo);
 
-		break;
+            break;
 
-		/* USB_MSG_HCD_SUSPEND */
-		case USB_DO_SELECTIVE_SUSPEND :
+        /* USB_MSG_HCD_SUSPEND */
+        case USB_DO_SELECTIVE_SUSPEND:
 
-			ptr->msginfo = USB_MSG_HCD_REMOTE;
-			usb_hstd_mgr_suspend(ptr, msginfo);
-			usb_hstd_device_state_ctrl2(ptr, hp->complete, devaddr, ptr->msginfo, msginfo);
+            ptr->msginfo = USB_MSG_HCD_REMOTE;
+            usb_hstd_mgr_suspend(ptr, msginfo);
+            usb_hstd_device_state_ctrl2(ptr, hp->complete, devaddr, ptr->msginfo, msginfo);
 
-		break;
+            break;
 
-		/* USB_MSG_HCD_RESUME */
-		case USB_DO_GLOBAL_RESUME :
+        /* USB_MSG_HCD_RESUME */
+        case USB_DO_GLOBAL_RESUME:
 
-			ptr->msginfo = USB_MSG_HCD_RESUME;
-			usb_shstd_mgr_callback[ptr->ip] = hp->complete;
-			usb_shstd_mgr_msginfo[ptr->ip] = msginfo;
-			usb_hstd_mgr_resume(ptr, msginfo);
+            ptr->msginfo                    = USB_MSG_HCD_RESUME;
+            usb_shstd_mgr_callback[ptr->ip] = hp->complete;
+            usb_shstd_mgr_msginfo[ptr->ip]  = msginfo;
+            usb_hstd_mgr_resume(ptr, msginfo);
 
-		break;
+            break;
 
-		/* USB_MSG_HCD_RESUME */
-		case USB_MSG_HCD_RESUME :
+        /* USB_MSG_HCD_RESUME */
+        case USB_MSG_HCD_RESUME:
 
-			usb_shstd_mgr_msginfo[ptr->ip] = msginfo;
-			usb_hstd_mgr_resume(ptr, msginfo);
+            usb_shstd_mgr_msginfo[ptr->ip] = msginfo;
+            usb_hstd_mgr_resume(ptr, msginfo);
 
-		break;
+            break;
 
-		/* USB_MSG_HCD_RESUME */
-		case USB_DO_SELECTIVE_RESUME :
+        /* USB_MSG_HCD_RESUME */
+        case USB_DO_SELECTIVE_RESUME:
 
-			ptr->msginfo = USB_MSG_HCD_RESUME;
-			usb_hstd_mgr_resume(ptr, msginfo);
-			usb_hstd_device_state_ctrl2(ptr, hp->complete, devaddr, ptr->msginfo, msginfo);
+            ptr->msginfo = USB_MSG_HCD_RESUME;
+            usb_hstd_mgr_resume(ptr, msginfo);
+            usb_hstd_device_state_ctrl2(ptr, hp->complete, devaddr, ptr->msginfo, msginfo);
 
-		break;
+            break;
 
-		default :
+        default:
 
-			usb_hstd_mgr_rel_mpl(ptr, msginfo);
+            usb_hstd_mgr_rel_mpl(ptr, msginfo);
 
-		break;
-	}
+            break;
+    }
 } /* End of function usb_hstd_mgr_task() */
-#endif  /* (USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST */
+#endif /* (USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST */
 
 /***********************************************************************************************************************
  End Of File

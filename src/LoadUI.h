@@ -20,7 +20,6 @@
 
 #include <SlotBrowser.h>
 
-
 class LoadUI : public SlotBrowser {
 public:
 	LoadUI();
@@ -28,7 +27,7 @@ public:
 	void focusRegained();
 
 protected:
-    virtual void searchMemoryForBetterFile(int offset, char* bestFilenameFound) {}
+	virtual void searchMemoryForBetterFile(int offset, char* bestFilenameFound) {}
 };
 
 #endif /* LOADUI_H_ */

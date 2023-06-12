@@ -22,7 +22,7 @@
 
 class MIDIParam;
 
-class MIDIParamVector: public OrderedResizeableArray {
+class MIDIParamVector : public OrderedResizeableArray {
 public:
 	MIDIParamVector();
 	MIDIParam* getElement(int i);

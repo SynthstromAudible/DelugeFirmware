@@ -29,41 +29,45 @@ class ModelStack;
 class ModelStackWithThreeMainThings;
 class ModelStackWithTimelineCounter;
 
-class GlobalEffectableForClip : public GlobalEffectable
-{
+class GlobalEffectableForClip : public GlobalEffectable {
 public:
 	GlobalEffectableForClip();
 
-    int32_t getSidechainVolumeAmountAsPatchCableDepth(ParamManager* paramManager);
-    bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack) final;
-    virtual Output* toOutput() = 0;
-    void getThingWithMostReverb(Clip* activeClip, Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb, GlobalEffectableForClip** globalEffectableWithMostReverb, int32_t* highestReverbAmountFound);
+	int32_t getSidechainVolumeAmountAsPatchCableDepth(ParamManager* paramManager);
+	bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack) final;
+	virtual Output* toOutput() = 0;
+	void getThingWithMostReverb(Clip* activeClip, Sound** soundWithMostReverb,
+	                            ParamManager** paramManagerWithMostReverb,
+	                            GlobalEffectableForClip** globalEffectableWithMostReverb,
+	                            int32_t* highestReverbAmountFound);
 
-    inline void saturate(int32_t* data, uint32_t* workingValue) {
-    	// Clipping
-    	if (clippingAmount) {
-    		int shiftAmount = (clippingAmount >= 3) ? (clippingAmount - 3) : 0;
-    		//*data = getTanHUnknown(*data, 5 + clippingAmount) << (shiftAmount);
-    		*data = getTanHAntialiased(*data, workingValue, 3 + clippingAmount) << (shiftAmount);
-    	}
-    }
+	inline void saturate(int32_t* data, uint32_t* workingValue) {
+		// Clipping
+		if (clippingAmount) {
+			int shiftAmount = (clippingAmount >= 3) ? (clippingAmount - 3) : 0;
+			//*data = getTanHUnknown(*data, 5 + clippingAmount) << (shiftAmount);
+			*data = getTanHAntialiased(*data, workingValue, 3 + clippingAmount) << (shiftAmount);
+		}
+	}
 
-    int32_t postReverbVolumeLastTime;
-    uint32_t lastSaturationTanHWorkingValue[2];
-
+	int32_t postReverbVolumeLastTime;
+	uint32_t lastSaturationTanHWorkingValue[2];
 
 protected:
-    int getParameterFromKnob(int whichModEncoder) final;
-    void renderOutput(ModelStackWithTimelineCounter* modelStack, ParamManager* paramManagerForClip,
-    		StereoSample* outputBuffer, int numSamples,
-    		int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending,
-    		bool shouldLimitDelayFeedback, bool isClipActive, int outputType,
-			int analogDelaySaturationAmount);
+	int getParameterFromKnob(int whichModEncoder) final;
+	void renderOutput(ModelStackWithTimelineCounter* modelStack, ParamManager* paramManagerForClip,
+	                  StereoSample* outputBuffer, int numSamples, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
+	                  int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive, int outputType,
+	                  int analogDelaySaturationAmount);
 
-    virtual void renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStack, StereoSample* globalEffectableBuffer, int32_t* bufferToTransferTo, int numSamples, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
-        		int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive, int32_t pitchAdjust, int32_t amplitudeAtStart, int32_t amplitudeAtEnd) = 0;
+	virtual void renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStack,
+	                                           StereoSample* globalEffectableBuffer, int32_t* bufferToTransferTo,
+	                                           int numSamples, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
+	                                           int32_t sideChainHitPending, bool shouldLimitDelayFeedback,
+	                                           bool isClipActive, int32_t pitchAdjust, int32_t amplitudeAtStart,
+	                                           int32_t amplitudeAtEnd) = 0;
 
-    virtual bool willRenderAsOneChannelOnlyWhichWillNeedCopying() { return false; }
+	virtual bool willRenderAsOneChannelOnlyWhichWillNeedCopying() { return false; }
 };
 
 #endif /* GLOBALEFFECTABLEFORCLIP_H_ */

@@ -32,9 +32,8 @@ public:
 	//uint8_t modKnobMode;
 	bool affectEntire;
 	bool wrapEditing;
-    uint32_t wrapEditLevel;
-    int selectedDrumIndex; // -1 means none
-
+	uint32_t wrapEditLevel;
+	int selectedDrumIndex; // -1 means none
 };
 
 #endif /* ACTIONCLIPSTATE_H_ */

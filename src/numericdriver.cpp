@@ -32,68 +32,36 @@
 #include "oled.h"
 #endif
 
-
 extern "C" {
 #include "sio_char.h"
 #include "cfunctions.h"
-
 }
-
 
 NumericDriver numericDriver;
 
+uint8_t numberSegments[10] = {0x7E, 0x30, 0x6D, 0x79, 0x33, 0x5B, 0x5F, 0x70, 0x7F, 0x7B};
 
-uint8_t numberSegments[10] = {
-    0x7E,
-    0x30,
-    0x6D,
-    0x79,
-    0x33,
-    0x5B,
-    0x5F,
-    0x70,
-    0x7F,
-    0x7B
-};
+uint8_t letterSegments[26] = {0x77, 0x1F, 0x4E, 0x3D, 0x4F,
+                              0x47, //F
+                              0x5E,
+                              0x37, //H
+                              0x04,
+                              0x38, //J
+                              0x57, //0x2F,
+                              0x0E, //L
+                              0x55,
+                              0x15, //N
+                              0x1D, 0x67,
+                              0x73, //Q
+                              0x05, 0x5B,
+                              0x0F, //T
+                              0x3E, 0x27, 0x5C, 0x49, 0x3B, 0x6D};
 
-uint8_t letterSegments[26] = {
-    0x77,
-    0x1F,
-    0x4E,
-    0x3D,
-    0x4F,
-    0x47, //F
-    0x5E,
-    0x37, //H
-    0x04,
-    0x38, //J
-    0x57, //0x2F,
-    0x0E, //L
-    0x55,
-    0x15, //N
-    0x1D,
-    0x67,
-    0x73, //Q
-    0x05,
-    0x5B,
-    0x0F, //T
-    0x3E,
-    0x27,
-    0x5C,
-    0x49,
-    0x3B,
-    0x6D
-};
-
-
-
-NumericDriver::NumericDriver()
-{
-    popupActive = false;
-    topLayer = NULL;
-    nextTransitionDirection = 0;
+NumericDriver::NumericDriver() {
+	popupActive = false;
+	topLayer = NULL;
+	nextTransitionDirection = 0;
 }
-
 
 #if !HAVE_OLED
 void NumericDriver::setTopLayer(NumericLayer* newTopLayer) {
@@ -108,12 +76,12 @@ void NumericDriver::setTopLayer(NumericLayer* newTopLayer) {
 }
 
 void NumericDriver::deleteAllLayers() {
-    while (topLayer) {
+	while (topLayer) {
 		NumericLayer* toDelete = topLayer;
 		topLayer = topLayer->next;
 		toDelete->~NumericLayer();
 		generalMemoryAllocator.dealloc(toDelete);
-    }
+	}
 }
 
 void NumericDriver::removeTopLayer() {
@@ -133,7 +101,9 @@ void NumericDriver::removeTopLayer() {
 }
 #endif
 
-void NumericDriver::setText(char const* newText, bool alignRight, uint8_t drawDot, bool doBlink, uint8_t* newBlinkMask, bool blinkImmediately, bool shouldBlinkFast, int scrollPos, uint8_t* encodedAddition, bool justReplaceBottomLayer) {
+void NumericDriver::setText(char const* newText, bool alignRight, uint8_t drawDot, bool doBlink, uint8_t* newBlinkMask,
+                            bool blinkImmediately, bool shouldBlinkFast, int scrollPos, uint8_t* encodedAddition,
+                            bool justReplaceBottomLayer) {
 #if !HAVE_OLED
 	void* layerSpace = generalMemoryAllocator.alloc(sizeof(NumericLayerBasicText));
 	if (!layerSpace) return;
@@ -174,10 +144,6 @@ void NumericDriver::setText(char const* newText, bool alignRight, uint8_t drawDo
 #endif
 }
 
-
-
-
-
 #if !HAVE_OLED
 NumericLayerScrollingText* NumericDriver::setScrollingText(char const* newText, int startAtTextPos, int initialDelay) {
 	void* layerSpace = generalMemoryAllocator.alloc(sizeof(NumericLayerScrollingText));
@@ -200,16 +166,15 @@ NumericLayerScrollingText* NumericDriver::setScrollingText(char const* newText, 
 	return newLayer;
 }
 
-
 void NumericDriver::replaceBottomLayer(NumericLayer* newLayer) {
 	NumericLayer** prevPointer = &topLayer;
-	while ((*prevPointer)->next) prevPointer = &(*prevPointer)->next;
+	while ((*prevPointer)->next)
+		prevPointer = &(*prevPointer)->next;
 
 	NumericLayer* toDelete = *prevPointer;
 	*prevPointer = newLayer;
 	toDelete->~NumericLayer();
 	generalMemoryAllocator.dealloc(toDelete);
-
 
 	if (!popupActive && topLayer == newLayer) {
 		uiTimerManager.unsetTimer(TIMER_DISPLAY);
@@ -218,7 +183,6 @@ void NumericDriver::replaceBottomLayer(NumericLayer* newLayer) {
 
 	render();
 }
-
 
 void NumericDriver::transitionToNewLayer(NumericLayer* newLayer) {
 
@@ -229,7 +193,7 @@ void NumericDriver::transitionToNewLayer(NumericLayer* newLayer) {
 
 		void* layerSpace = generalMemoryAllocator.alloc(sizeof(NumericLayerScrollTransition));
 
-		if (layerSpace)  {
+		if (layerSpace) {
 			scrollTransition = new (layerSpace) NumericLayerScrollTransition();
 			scrollTransition->transitionDirection = nextTransitionDirection;
 
@@ -250,90 +214,89 @@ void NumericDriver::transitionToNewLayer(NumericLayer* newLayer) {
 	else {
 		setTopLayer(newLayer);
 	}
-    nextTransitionDirection = 0;
+	nextTransitionDirection = 0;
 }
 
 // Automatically stops at end of string
 int NumericDriver::getEncodedPosFromLeft(int textPos, char const* text, bool* andAHalf) {
 
 	int encodedPos = 0;
-	bool lastSegmentHasDot = true; // Pretend this initially, cos the segment before the first one doesn't exist, obviously
+	bool lastSegmentHasDot =
+	    true; // Pretend this initially, cos the segment before the first one doesn't exist, obviously
 	*andAHalf = false;
-
 
 	for (int i = 0; true; i++) {
 		char thisChar = *text;
 		if (!thisChar) break; // Stop at end of string
-        bool isDot = (thisChar == '.' || thisChar == '#' || thisChar == ',');
+		bool isDot = (thisChar == '.' || thisChar == '#' || thisChar == ',');
 
-        // If dot here, and we haven't just had a dot previously, then this dot just gets crammed into prev encoded char
-        if (isDot && !lastSegmentHasDot) {
-        	lastSegmentHasDot = true;
-        	*andAHalf = true;
-        	encodedPos--;
-        }
-        else {
-        	lastSegmentHasDot = (isDot || thisChar == '!');
-        	*andAHalf = false;
-        }
+		// If dot here, and we haven't just had a dot previously, then this dot just gets crammed into prev encoded char
+		if (isDot && !lastSegmentHasDot) {
+			lastSegmentHasDot = true;
+			*andAHalf = true;
+			encodedPos--;
+		}
+		else {
+			lastSegmentHasDot = (isDot || thisChar == '!');
+			*andAHalf = false;
+		}
 
-        if (i == textPos) break;
+		if (i == textPos) break;
 
-        text++;
-    	encodedPos++;
+		text++;
+		encodedPos++;
 	}
 
 	return encodedPos;
 }
 
-
-
 // Returns encoded length
 // scrollPos may only be set when aligning left
-int NumericDriver::encodeText(char const* newText, uint8_t* destination, bool alignRight, uint8_t drawDot, bool limitToDisplayLength, int scrollPos) {
+int NumericDriver::encodeText(char const* newText, uint8_t* destination, bool alignRight, uint8_t drawDot,
+                              bool limitToDisplayLength, int scrollPos) {
 
 	int writePos;
-    int readPos;
+	int readPos;
 
-    if (!alignRight) {
-    	readPos = 0;
-    	writePos = -scrollPos;
-    }
-    else {
-    	writePos = NUMERIC_DISPLAY_LENGTH - 1;
-    	readPos = strlen(newText) - 1;
-    }
+	if (!alignRight) {
+		readPos = 0;
+		writePos = -scrollPos;
+	}
+	else {
+		writePos = NUMERIC_DISPLAY_LENGTH - 1;
+		readPos = strlen(newText) - 1;
+	}
 
-    bool carryingDot = false;
-    uint8_t prevSegment;
+	bool carryingDot = false;
+	uint8_t prevSegment;
 
-    while (true) {
-        unsigned char thisChar = newText[readPos];
-        uint8_t* segments = &destination[getMax(writePos, 0)];
+	while (true) {
+		unsigned char thisChar = newText[readPos];
+		uint8_t* segments = &destination[getMax(writePos, 0)];
 
-        // First, check if it's a dot, which we might want to add to a previous position
-        bool isDot = (thisChar == '.' || thisChar == '#' || thisChar == ',');
+		// First, check if it's a dot, which we might want to add to a previous position
+		bool isDot = (thisChar == '.' || thisChar == '#' || thisChar == ',');
 
-        if (isDot) {
-        	if (alignRight) {
+		if (isDot) {
+			if (alignRight) {
 
-        		// If already carrying a dot, we'd better just insert that old one
-        		if (carryingDot) {
-        			*segments = 0b10000000;
-        			if (!writePos) {
-        				writePos = -1;
-        				break;
-        			}
-        		}
-        		else {
+				// If already carrying a dot, we'd better just insert that old one
+				if (carryingDot) {
+					*segments = 0b10000000;
+					if (!writePos) {
+						writePos = -1;
+						break;
+					}
+				}
+				else {
 					carryingDot = true;
 					writePos++;
 					segments++;
-        		}
-        	}
+				}
+			}
 
-        	else {
-        		// If we're not the first character, and the previous character didn't already have its dot illuminated, we'll just illuminate it
+			else {
+				// If we're not the first character, and the previous character didn't already have its dot illuminated, we'll just illuminate it
 				if (writePos != -scrollPos && !(prevSegment & 0b10000000)) {
 					writePos--;
 					if (writePos >= 0) segments--;
@@ -344,20 +307,19 @@ int NumericDriver::encodeText(char const* newText, uint8_t* destination, bool al
 				else {
 					*segments = 0b10000000;
 				}
-        	}
-        }
-        else {
+			}
+		}
+		else {
 
-        	// Now that we've checked the dot, we can see if we need to stop
-            if (alignRight) {
-            	if (readPos < 0 || writePos < 0) break;
-            }
-            else {
-            	if (!newText[readPos] || (limitToDisplayLength && writePos >= NUMERIC_DISPLAY_LENGTH)) break;
-            }
+			// Now that we've checked the dot, we can see if we need to stop
+			if (alignRight) {
+				if (readPos < 0 || writePos < 0) break;
+			}
+			else {
+				if (!newText[readPos] || (limitToDisplayLength && writePos >= NUMERIC_DISPLAY_LENGTH)) break;
+			}
 
-
-			switch(thisChar) {
+			switch (thisChar) {
 			case 'A' ... 'Z':
 				*segments = letterSegments[thisChar - 'A']; // Letters
 				break;
@@ -394,54 +356,54 @@ int NumericDriver::encodeText(char const* newText, uint8_t* destination, bool al
 				*segments = 0;
 			}
 
-	        // If we need to add a dot from before...
-	        if (alignRight && carryingDot) {
+			// If we need to add a dot from before...
+			if (alignRight && carryingDot) {
 
-	        	// If this char already has some form of dot, we need to instead insert the carried dot to its right
-	        	if (*segments & 0b10000000) {
-	        		uint8_t newSegments = *segments;
-	        		*segments = 0b10000000;
+				// If this char already has some form of dot, we need to instead insert the carried dot to its right
+				if (*segments & 0b10000000) {
+					uint8_t newSegments = *segments;
+					*segments = 0b10000000;
 
-	        		writePos--;
-	        		segments--;
-	        		if (writePos < 0) break; // If we've hit the left, get out
+					writePos--;
+					segments--;
+					if (writePos < 0) break; // If we've hit the left, get out
 
-	        		*segments = newSegments;
-	        	}
+					*segments = newSegments;
+				}
 
-	        	else {
-	        		*segments |= 0b10000000;
-	        	}
-	        	carryingDot = false;
-	        }
-        }
+				else {
+					*segments |= 0b10000000;
+				}
+				carryingDot = false;
+			}
+		}
 
-        prevSegment = *segments;
+		prevSegment = *segments;
 
-        if (alignRight) {
-        	readPos--;
-        	writePos--;
-        }
-        else {
-        	readPos++;
-        	writePos++;
-        }
-    }
+		if (alignRight) {
+			readPos--;
+			writePos--;
+		}
+		else {
+			readPos++;
+			writePos++;
+		}
+	}
 
-    if (limitToDisplayLength) {
+	if (limitToDisplayLength) {
 		// Fill whitespace
-    	if (alignRight) {
-    		while (writePos >= 0) {
-    			destination[writePos] = 0;
-    			writePos--;
-    		}
-    	}
-    	else {
-    		while (writePos < NUMERIC_DISPLAY_LENGTH) {
-    			destination[writePos] = 0;
-    			writePos++;
-    		}
-    	}
+		if (alignRight) {
+			while (writePos >= 0) {
+				destination[writePos] = 0;
+				writePos--;
+			}
+		}
+		else {
+			while (writePos < NUMERIC_DISPLAY_LENGTH) {
+				destination[writePos] = 0;
+				writePos++;
+			}
+		}
 
 		if (drawDot < NUMERIC_DISPLAY_LENGTH) {
 			destination[drawDot] |= 128;
@@ -453,46 +415,46 @@ int NumericDriver::encodeText(char const* newText, uint8_t* destination, bool al
 				}
 			}
 		}
-    }
-    return writePos;
+	}
+	return writePos;
 }
-
 
 void NumericDriver::setTextAsNumber(int16_t number, uint8_t drawDot, bool doBlink) {
-    char text[12];
-    intToString(number, text, 1);
+	char text[12];
+	intToString(number, text, 1);
 
-    setText(text, true, drawDot, doBlink);
+	setText(text, true, drawDot, doBlink);
 }
 
-
-void NumericDriver::setTextAsSlot(int16_t currentSlot, int8_t currentSubSlot, bool currentSlotExists, bool doBlink, int blinkPos, bool blinkImmediately) {
-    char text[12];
+void NumericDriver::setTextAsSlot(int16_t currentSlot, int8_t currentSubSlot, bool currentSlotExists, bool doBlink,
+                                  int blinkPos, bool blinkImmediately) {
+	char text[12];
 
 	//int minNumDigits = getMax(1, blinkPos + 1);
 	int minNumDigits = (blinkPos == -1) ? -1 : 3;
 
 	slotToString(currentSlot, currentSubSlot, text, minNumDigits);
 
-    uint8_t blinkMask[NUMERIC_DISPLAY_LENGTH];
-    if (blinkPos == -1) {
-    	memset(&blinkMask, 0, NUMERIC_DISPLAY_LENGTH);
-    }
-    else {
-    	blinkPos++; // Move an extra space left if we have a sub-slot / letter suffix
-    	memset(&blinkMask, 255, NUMERIC_DISPLAY_LENGTH);
-    	blinkMask[3 - blinkPos] = 0;
-    }
+	uint8_t blinkMask[NUMERIC_DISPLAY_LENGTH];
+	if (blinkPos == -1) {
+		memset(&blinkMask, 0, NUMERIC_DISPLAY_LENGTH);
+	}
+	else {
+		blinkPos++; // Move an extra space left if we have a sub-slot / letter suffix
+		memset(&blinkMask, 255, NUMERIC_DISPLAY_LENGTH);
+		blinkMask[3 - blinkPos] = 0;
+	}
 
-    setText(text, (blinkPos == -1), currentSlotExists ? 3 : 255, doBlink, blinkMask, blinkImmediately);
+	setText(text, (blinkPos == -1), currentSlotExists ? 3 : 255, doBlink, blinkMask, blinkImmediately);
 }
 #endif
 
 void NumericDriver::setNextTransitionDirection(int8_t thisDirection) {
-    nextTransitionDirection = thisDirection;
+	nextTransitionDirection = thisDirection;
 }
 
-void NumericDriver::displayPopup(char const* newText, int8_t numFlashes, bool alignRight, uint8_t drawDot, int blinkSpeed) {
+void NumericDriver::displayPopup(char const* newText, int8_t numFlashes, bool alignRight, uint8_t drawDot,
+                                 int blinkSpeed) {
 
 #if HAVE_OLED
 	OLED::popupText(newText, !numFlashes);
@@ -506,8 +468,8 @@ void NumericDriver::displayPopup(char const* newText, int8_t numFlashes, bool al
 	popup.blinkSpeed = blinkSpeed;
 
 	IndicatorLEDs::ledBlinkTimeout(0, true);
-    popup.isNowOnTop();
-    render();
+	popup.isNowOnTop();
+	render();
 #endif
 }
 
@@ -523,7 +485,6 @@ void NumericDriver::cancelPopup() {
 	}
 #endif
 }
-
 
 #if !HAVE_OLED
 void NumericDriver::timerRoutine() {
@@ -550,21 +511,18 @@ void NumericDriver::render() {
 	if (popupActive) layer = &popup;
 	else layer = topLayer;
 
-
 	uint8_t segments[NUMERIC_DISPLAY_LENGTH];
 	layer->render(segments);
 
-
-	#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-		bufferPICUart(116);
-	#else
-		bufferPICUart(224);
-	#endif
-		for (int whichChar = 0; whichChar < NUMERIC_DISPLAY_LENGTH; whichChar++) {
-			bufferPICUart(segments[whichChar]);
-	    }
+#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
+	bufferPICUart(116);
+#else
+	bufferPICUart(224);
+#endif
+	for (int whichChar = 0; whichChar < NUMERIC_DISPLAY_LENGTH; whichChar++) {
+		bufferPICUart(segments[whichChar]);
+	}
 }
-
 
 // Call this to make the loading animation happen
 void NumericDriver::displayLoadingAnimation(bool delayed, bool transparent) {
@@ -577,7 +535,6 @@ void NumericDriver::displayLoadingAnimation(bool delayed, bool transparent) {
 	setTopLayer(loadingAnimation);
 }
 
-
 void NumericDriver::setTextVeryBasicA1(char const* text) {
 
 	uint8_t segments[NUMERIC_DISPLAY_LENGTH];
@@ -589,8 +546,7 @@ void NumericDriver::setTextVeryBasicA1(char const* text) {
 #endif
 	for (int whichChar = 0; whichChar < NUMERIC_DISPLAY_LENGTH; whichChar++) {
 		bufferPICUart(segments[whichChar]);
-    }
-
+	}
 }
 #endif
 
@@ -604,7 +560,7 @@ void NumericDriver::freezeWithError(char const* text) {
 #else
 	setTextVeryBasicA1(text);
 
-	while(1) {
+	while (1) {
 		uartFlushIfNotSending(UART_ITEM_PIC);
 		uartFlushIfNotSending(UART_ITEM_MIDI);
 
@@ -616,7 +572,6 @@ void NumericDriver::freezeWithError(char const* text) {
 	setTextVeryBasicA1("OK");
 #endif
 }
-
 
 extern "C" void freezeWithError(char const* error) {
 	if (ALPHA_OR_BETA_VERSION) numericDriver.freezeWithError(error);
@@ -644,7 +599,7 @@ void NumericDriver::displayError(int error) {
 
 	char const* message;
 
-	switch(error) {
+	switch (error) {
 	case NO_ERROR:
 	case ERROR_ABORTED_BY_USER:
 		return;
