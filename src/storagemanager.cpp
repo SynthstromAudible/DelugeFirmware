@@ -1111,11 +1111,12 @@ int StorageManager::loadScalaFile(FilePointer* filePointer) {
 	fileBufferCurrentPos = audioFileManager.clusterSize;
 	currentReadBufferEndPos = audioFileManager.clusterSize;
 
-	TCHAR* ok;
 	int effectiveLine;
 	int divisions;
 	char* start;
-	while (f_gets((TCHAR*)fileClusterBuffer, audioFileManager.clusterSize, &fileSystemStuff.currentFile) != NULL) {
+	TCHAR* got = "";
+	while (!f_eof(&fileSystemStuff.currentFile)) {
+		got = f_gets((TCHAR*)fileClusterBuffer, audioFileManager.clusterSize, &fileSystemStuff.currentFile);
 		if (fileClusterBuffer[0] == '!') continue;
 
 		start = fileClusterBuffer;
@@ -1150,6 +1151,9 @@ int StorageManager::loadScalaFile(FilePointer* filePointer) {
 			}
 		}
 		effectiveLine++;
+	}
+	if (!f_eof(&fileSystemStuff.currentFile)) {
+		// TODO exception handling
 	}
 }
 

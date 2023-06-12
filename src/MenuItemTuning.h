@@ -31,7 +31,7 @@ class MenuItemTuningReference : public MenuItemDecimal {
 public:
 	MenuItemTuningReference(char const* newName = NULL) : MenuItemDecimal(newName) {}
 	int getMinValue() { return 4000; }
-	int getMaxValue() { return 5000; }
+	int getMaxValue() { return 4598; } // wants to go higher, but currently exceeds signed 32-bit integer range
 	int getNumDecimalPlaces() { return 1; }
 	void readCurrentValue() { soundEditor.currentValue = tuningSystem.getReference(); }
 	void writeCurrentValue() { tuningSystem.setReference(soundEditor.currentValue); }
@@ -50,8 +50,10 @@ public:
 class MenuItemTuningBank : public MenuItemSelection {
 public:
 	MenuItemTuningBank(char const* newName = NULL) : MenuItemSelection(newName) {}
+	void beginSession(MenuItem* navigatedBackwardFrom);
 	void readCurrentValue() { soundEditor.currentValue = selectedTuningBank; }
 	void writeCurrentValue() { selectedTuningBank = soundEditor.currentValue; }
+	void loadTuningsFromCard();
 	int getNumOptions() { return NUM_TUNING_BANKS + 2; }
 	char const** getOptions() { return tuningBankNames; }
 };
