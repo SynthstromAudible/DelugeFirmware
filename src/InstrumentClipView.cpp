@@ -2596,13 +2596,15 @@ doRenderRow:
 			if (newValue < 100 && newValue > -100) {
 				currentSong->centAdjustForNotesInTemperament[octaveAndNote.noteWithin] = newValue;
 				currentSong->calculateNoteFrequencies();
+				// TODO: Need to ultimately call Sound::recalculateAllVoicePhaseIncrements() to get the change instantly audible.
 			}
-
+		
 			char buffer[12];
 			intToString(currentSong->centAdjustForNotesInTemperament[octaveAndNote.noteWithin], buffer);
 			numericDriver.displayPopup(buffer, 3, true);
+			return;
 		}
-	}
+    }
 
 	// Switch Drums, if we're in Kit mode
 	else {

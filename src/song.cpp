@@ -4816,6 +4816,8 @@ void Song::calculateNoteFrequencies() {
 			noteFrequencyTable[i] = multiply_32x32_rshift32_rounded(noteFrequenciesRelativeToKey[i], noteFrequencyTable[0]) << 30;
 		}
 	}
+
+	// TODO: Need to ultimately call Sound::recalculateAllVoicePhaseIncrements() on each Sound to get the change instantly audible.
 }
 
 
