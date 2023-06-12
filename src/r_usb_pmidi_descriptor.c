@@ -48,12 +48,14 @@ Macro definitions
  * (9+4+ncables)*2 - shared bulk endpoint, descriptors include list of cables
  * for easy c+p -> 9+9+7+((6+9)*ncables)+(9+4+ncables)*2
  */
-#define USB_MIDI_CD_WTOTALLENGTH (102u)
+#define NCABLES 3
+#define USB_MIDI_CD_WTOTALLENGTH (9 + 9 + 7 + (15 * NCABLES) + (13 + NCABLES) * 2)
 
 //Good summary ref on overall USB structure https://www.beyondlogic.org/usbnutshell/usb5.shtml
 
 //USB midi defines
 #define CS_INTERFACE 0x24
+#define CS_ENDPOINT 0x25
 #define MIDI_IN_JACK 0x02
 #define MIDI_OUT_JACK 0x03
 /***********************************************************************************************************************
@@ -130,73 +132,73 @@ uint8_t g_midi_configuration[USB_MIDI_CD_WTOTALLENGTH + (USB_MIDI_CD_WTOTALLENGT
 	 * to add endpoints add more jacks here
 	 */
     //Header
-    0x07,       //header length
-    0x24,       //bDescriptorType - CS interface
-    0x01,       //Subtype - Midi Streaming Header
-    0x00, 0x01, //BCD revision (1.00)
-    0x34, 0x00, //TotalLength of interface descriptors - 7+15*ncables
+    0x07,                        //header length
+    0x24,                        //bDescriptorType - CS interface
+    0x01,                        //Subtype - Midi Streaming Header
+    0x00, 0x01,                  //BCD revision (1.00)
+    (uint8_t)(7 + 15 * NCABLES), //TotalLength - LSB of interface descriptors - 7+15*ncables
+    0x00,                        //Interface descriptors MSB
     // MIDI_IN 1
-    0x06, //bLength
-    0x24, //bDescriptorType
-    0x02, //bDescriptorSubtype - MIDI_IN_JACK
-    0x01, //bJackType - EMBEDDED
-    0x01, //bJackID - 1
-    0x00, //iJack (unused)
+    0x06,         //bLength
+    CS_INTERFACE, //bDescriptorType
+    MIDI_IN_JACK, //bDescriptorSubtype - MIDI_IN_JACK
+    0x01,         //bJackType - EMBEDDED
+    0x01,         //bJackID - 1
+    0x00,         //iJack (unused)
 
     // MIDI_OUT 1
-    0x09, //bLength
-    0x24, //bDescriptorType - CS_I
-    0x03, //bDescriptorSubtype - MIDI_OUT_JACK
-    0x01, //bJackType - EMBEDDED
-    0x02, //bJackID - 2
-    0x01, //bNrInputPins (I can't find an explanation for what this means)
-    0x01, //BaSourceID (ditto here but I think it is asking which midi in jack is associated?)
-    0x01, //BaSourcePin (ditto)
-    0x00, //iJack (unused)
+    0x09,          //bLength
+    CS_INTERFACE,  //bDescriptorType - CS_I
+    MIDI_OUT_JACK, //bDescriptorSubtype - MIDI_OUT_JACK
+    0x01,          //bJackType - EMBEDDED
+    0x02,          //bJackID - 2
+    0x01,          //bNrInputPins (I can't find an explanation for what this means)
+    0x01,          //BaSourceID (ditto here but I think it is asking which midi in jack is associated?)
+    0x01,          //BaSourcePin (ditto)
+    0x00,          //iJack (unused)
 
     // MIDI_IN 2
-    0x06, //bLength
-    0x24, //bDescriptorType
-    0x02, //bDescriptorSubtype - MIDI_IN_JACK
-    0x01, //bJackType - EMBEDDED
-    0x03, //bJackID
-    0x00, //iJack (unused)
+    0x06,         //bLength
+    CS_INTERFACE, //bDescriptorType
+    0x02,         //bDescriptorSubtype - MIDI_IN_JACK
+    0x01,         //bJackType - EMBEDDED
+    0x03,         //bJackID
+    0x00,         //iJack (unused)
 
     // MIDI_OUT 2
-    0x09, //bLength
-    0x24, //bDescriptorType - CS_I
-    0x03, //bDescriptorSubtype - MIDI_OUT_JACK
-    0x01, //bJackType - EMBEDDED
-    0x04, //bJackID
-    0x01, //bNrInputPins (I can't find an explanation for what this means)
-    0x02, //BaSourceID (ditto here but I think it is asking which midi in jack is associated?)
-    0x01, //BaSourcePin (ditto)
-    0x00, //iJack (unused)
+    0x09,          //bLength
+    CS_INTERFACE,  //bDescriptorType - CS_I
+    MIDI_OUT_JACK, //bDescriptorSubtype - MIDI_OUT_JACK
+    0x01,          //bJackType - EMBEDDED
+    0x04,          //bJackID
+    0x01,          //bNrInputPins (I can't find an explanation for what this means)
+    0x02,          //BaSourceID (ditto here but I think it is asking which midi in jack is associated?)
+    0x01,          //BaSourcePin (ditto)
+    0x00,          //iJack (unused)
 
     // MIDI_IN 3
-    0x06, //bLength
-    0x24, //bDescriptorType
-    0x02, //bDescriptorSubtype - MIDI_IN_JACK
-    0x01, //bJackType - EMBEDDED
-    0x05, //bJackID
-    0x00, //iJack (unused)
+    0x06,         //bLength
+    CS_INTERFACE, //bDescriptorType
+    MIDI_IN_JACK, //bDescriptorSubtype - MIDI_IN_JACK
+    0x01,         //bJackType - EMBEDDED
+    0x05,         //bJackID
+    0x00,         //iJack (unused)
 
     // MIDI_OUT 3
-    0x09, //bLength
-    0x24, //bDescriptorType - CS_I
-    0x03, //bDescriptorSubtype - MIDI_OUT_JACK
-    0x01, //bJackType - EMBEDDED
-    0x06, //bJackID
-    0x01, //bNrInputPins (I can't find an explanation for what this means)
-    0x05, //BaSourceID (ditto here but I think it is asking which midi in jack is associated?)
-    0x01, //BaSourcePin (ditto)
-    0x00, //iJack (unused)
-
+    0x09,          //bLength
+    CS_INTERFACE,  //bDescriptorType - CS_I
+    MIDI_OUT_JACK, //bDescriptorSubtype - MIDI_OUT_JACK
+    0x01,          //bJackType - EMBEDDED
+    0x06,          //bJackID
+    0x01,          //bNrInputPins (I can't find an explanation for what this means)
+    0x05,          //BaSourceID (ditto here but I think it is asking which midi in jack is associated?)
+    0x01,          //BaSourcePin (ditto)
+    0x00,          //iJack (unused)
 
     /* MidiStreaming Endpoint Descriptors - USBMidi spec 6.2.1
 	 * These endpoints are shared across all jacks
 	 */
-	//28 bytes for bulk endpoints
+    //28 bytes for bulk endpoints
     //USB standard bulk out -
     0x09,                            //bLength
     0x05,                            //bDescriptorType = ENDPOINT
@@ -207,16 +209,15 @@ uint8_t g_midi_configuration[USB_MIDI_CD_WTOTALLENGTH + (USB_MIDI_CD_WTOTALLENGT
     0x00,                            //bRefresh
     0x00,                            //bSynchAddress
                                      //midi class specific bulk out
-    0x07,                            //bLength - 4+ncables
+    (uint8_t)(4 + NCABLES),          //bLength - 4+ncables
     0x25,                            //bDescriptorType - CS_ENDPOINT
     0x01,                            //bDescriptorSubType - MS_GENERAL
     0x03,                            //bNumEmbMidiJack - number of MIDI IN jacks
     0x01,                            //BaAssocJackID - ID of first associated jack
-	0x03,
-	0x05,							 //ID of last associated jack
+    0x03,
+    0x05, //ID of last associated jack
 
-
-	//USB standard bulk in - same fields as above, differences annotated
+    //USB standard bulk in - same fields as above, differences annotated
     0x09,                           //bLength
     0x05,                           //bDescriptor
     (uint8_t)(USB_EP_IN | USB_EP1), //different address
@@ -226,13 +227,13 @@ uint8_t g_midi_configuration[USB_MIDI_CD_WTOTALLENGTH + (USB_MIDI_CD_WTOTALLENGT
     0x00,                           //bRefresh
     0x00,                           //bSynchAddress
                                     //midi specific bulk in
-    0x07,                           //bLength - 4+ncables
-    0x25,                           //bDescriptorType
+    (uint8_t)(4 + NCABLES),         //bLength - 4+ncables
+    CS_ENDPOINT,                    //bDescriptorType - CS_ENDPOINT
     0x01,                           //bDescriptorSubtype
     0x03,                           //bNumEmbMidiJack - number of MIDI OUT jacks
     0x02,                           //BaAssocJackID - first associated jack
-	0x04,
-	0x06,							//Last associated jack
+    0x04,
+    0x06, //Last associated jack
 };
 
 /*************************************
