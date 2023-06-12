@@ -83,7 +83,10 @@ Basic tools and supplies you will almost certainly need if you aim to complete a
 
 * a clean, freshly tinned precision soldering iron
 * thin gauge flux-core solder wire for fine electronics work
-* full size Phillips (X) head & precision Phillips (X) and Hex screwdrivers for opening and closing the chassis
+* a few different screwdrivers for opening and closing the chassis:
+  * full size Phillips (X) #2
+  * precision Phillips (X) #1
+  * 1.5mm hex driver
 * wire cutters (or scissors)
 * wire strippers
 * needlenose pliers and/or an adjustable wrench (for removing nuts holding on the faceplate)
@@ -277,7 +280,7 @@ After your wait, get ready to put the Deluge back together again, but this time 
 
 ![Back Panel Siliconed and Attached](assets/BackPanelSiliconedAndAttached.jpg)
 
-Close up your case, put all the screws and knobs back on, and fire it up to make sure everything still works.
+To close up your case, make sure the silicone pads are properly aligned on the PCB -- most of them have little nubs that sit in the PCB to help with this. Pay partiular attention to the holes through the PCB that will be used to join it to the faceplate! If some of the silicone pad ends up between the PCB and the faceplate standoff, the PCB will be bent (not permanantly) and the pads will feel extra-mushy when you press them. Then you should be able to drop the faceplate on top and press the plate and PCB together. Now put all the screws and knobs back on, and fire it up to make sure everything still works.
 
 Congrats, you're done with the hardest parts!
 
