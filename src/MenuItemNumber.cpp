@@ -16,3 +16,17 @@
 */
 
 #include "MenuItemNumber.h"
+
+
+MenuItemNumber::MenuItemNumber(char const* newName) : MenuItemValue(newName) {
+	basicMinValue = 0;
+}
+
+
+int MenuItemNumber::getMinValue() {
+	return basicMinValue;
+}
+
+int MenuItemNumber::getMaxValue() {
+	return basicMaxValue;
+}

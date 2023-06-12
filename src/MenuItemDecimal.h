@@ -24,15 +24,17 @@
 
 class MenuItemDecimal : public MenuItemNumber {
 public:
-	MenuItemDecimal(char const* newName = NULL) : MenuItemNumber(newName) {}
+	MenuItemDecimal(char const* newName = NULL);
 	void beginSession(MenuItem* navigatedBackwardFrom = NULL);
 	void selectEncoderAction(int offset) final;
 	void horizontalEncoderAction(int offset);
+	int basicNumDecimalPlaces;
+	int basicDefaultEditPos;
 
 protected:
 	void drawValue();
-	virtual int getNumDecimalPlaces() = 0;
-	virtual int getDefaultEditPos() { return 2; }
+	virtual int getNumDecimalPlaces();
+	virtual int getDefaultEditPos() { return basicDefaultEditPos; }
 #if HAVE_OLED
 	void drawPixelsForOled();
 #else

@@ -3327,7 +3327,7 @@ void Sound::writeToFile(bool savingSong, ParamManager* paramManager, Arpeggiator
 }
 
 
-int16_t Sound::getMaxOscTranspose(InstrumentClip* track) {
+int16_t Sound::getMaxOscTranspose(InstrumentClip* clip) {
 
 	int maxRawOscTranspose = -32768;
 	for (int s = 0; s < NUM_SOURCES; s++) {
@@ -3343,10 +3343,10 @@ int16_t Sound::getMaxOscTranspose(InstrumentClip* track) {
 
     if (maxRawOscTranspose == -32768) maxRawOscTranspose = 0;
 
-    ArpeggiatorSettings* arpSettings = getArpSettings(track);
+    ArpeggiatorSettings* arpSettings = getArpSettings(clip);
 
     if (arpSettings && arpSettings->mode) {
-    	maxRawOscTranspose += (arpSettings->numOctaves - 1) * 12;
+    	maxRawOscTranspose += (arpSettings->numOctaves - 1) * currentSong->octaveNumMicrotonalNotes;
     }
 
     return maxRawOscTranspose + transpose;

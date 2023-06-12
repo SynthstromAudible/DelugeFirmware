@@ -618,8 +618,7 @@ void ArrangerView::beginAudition(Output* output) {
 			if (drum) kit->beginAuditioningforDrum(modelStackWithNoteRow, drum, kit->defaultVelocity, zeroMPEValues);
 		}
 		else {
-			int note = (currentSong->rootNote + 120) % 12;
-			note += 60;
+			int note = currentSong->getRootNoteWithinOctave() + 60;
 			((MelodicInstrument*)instrument)->beginAuditioningForNote(modelStack, note, instrument->defaultVelocity, zeroMPEValues);
 		}
 	}
@@ -655,8 +654,7 @@ void ArrangerView::endAudition(Output* output, bool evenIfPlaying) {
 			if (drum) kit->endAuditioningForDrum(modelStackWithNoteRow, drum);
 		}
 		else {
-			int note = (currentSong->rootNote + 120) % 12;
-			note += 60;
+			int note = currentSong->getRootNoteWithinOctave() + 60;
 			((MelodicInstrument*)instrument)->endAuditioningForNote(modelStack, note);
 		}
 	}
@@ -738,8 +736,7 @@ displayError:
 
 void ArrangerView::auditionPadAction(bool on, int y) {
 
-	int note = (currentSong->rootNote + 120) % 12;
-	note += 60;
+	int note = currentSong->getRootNoteWithinOctave() + 60;
 
 	// Press on
 	if (on) {

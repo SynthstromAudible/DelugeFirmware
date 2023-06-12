@@ -157,7 +157,7 @@ class InstrumentClip final : public Clip {
     ModelStackWithNoteRow* getOrCreateNoteRowForYNote(int yNote, ModelStackWithTimelineCounter* modelStack, Action* action = NULL, bool* scaleAltered = NULL);
 
     bool hasSameInstrument(InstrumentClip *otherTrack);
-    bool isScaleModeTrack();
+    bool isScaleModeClip();
     bool allowNoteTails(ModelStackWithNoteRow* modelStack);
     int setAudioInstrument(Instrument* newInstrument, Song* song, bool shouldNotifyInstrument, ParamManager* newParamManager, InstrumentClip* favourTrackForCloningParamManager = NULL);
 

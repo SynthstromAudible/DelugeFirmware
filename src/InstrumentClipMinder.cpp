@@ -280,7 +280,7 @@ void InstrumentClipMinder::setLedStates() {
     IndicatorLEDs::setLedState(cvLedX, cvLedY, getCurrentClip()->output->type == INSTRUMENT_TYPE_CV);
 
     IndicatorLEDs::setLedState(crossScreenEditLedX, crossScreenEditLedY, getCurrentClip()->wrapEditing);
-    IndicatorLEDs::setLedState(scaleModeLedX, scaleModeLedY, getCurrentClip()->isScaleModeTrack());
+    IndicatorLEDs::setLedState(scaleModeLedX, scaleModeLedY, getCurrentClip()->isScaleModeClip());
     IndicatorLEDs::setLedState(backLedX, backLedY, false);
 
 #ifdef currentClipStatusButtonX
@@ -462,24 +462,23 @@ void InstrumentClipMinder::calculateDefaultRootNote() {
 }
 
 void InstrumentClipMinder::drawActualNoteCode(int16_t noteCode) {
-    int octave = (noteCode) / 12 - 2;
-    int noteCodeWithinOctave = (uint16_t)(noteCode + 120) % (uint8_t)12;
+	NoteWithinOctave octaveAndNote = currentSong->getOctaveAndNoteWithin(noteCode);
 
     char noteName[5];
-    noteName[0] = noteCodeToNoteLetter[noteCodeWithinOctave];
+    noteName[0] = noteCodeToNoteLetter[octaveAndNote.noteWithin];
     char* writePos = &noteName[1];
 #if HAVE_OLED
-    if (noteCodeIsSharp[noteCodeWithinOctave]) {
+    if (noteCodeIsSharp[octaveAndNote.noteWithin]) {
     	*writePos = '#';
     	writePos++;
     }
 #endif
-    intToString(octave, writePos, 1);
+    intToString(octaveAndNote.octave - 2, writePos, 1);
 
 #if HAVE_OLED
     OLED::popupText(noteName, true);
 #else
-    uint8_t drawDot = noteCodeIsSharp[noteCodeWithinOctave] ? 0 : 255;
+    uint8_t drawDot = noteCodeIsSharp[octaveAndNote.noteWithin] ? 0 : 255;
     numericDriver.setText(noteName, false, drawDot, true);
 #endif
 }
