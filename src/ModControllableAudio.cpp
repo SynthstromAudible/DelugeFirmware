@@ -1171,6 +1171,9 @@ doReadPatchedParam:
 	}
 
 	else if (!strcmp(tagName, "compressor")) { // Remember, Song doesn't use this
+		// Set default values in case they are not configured
+		compressor.syncType = SYNC_TYPE_EVEN;
+		compressor.syncLevel = SYNC_LEVEL_NONE;
 
 		while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "attack")) {
@@ -1181,8 +1184,12 @@ doReadPatchedParam:
 				compressor.release = storageManager.readTagOrAttributeValueInt();
 				storageManager.exitTag("release");
 			}
+			else if (!strcmp(tagName, "syncType")) {
+				compressor.syncType = storageManager.readSyncTypeFromFile(song);
+				storageManager.exitTag("syncType");
+			}
 			else if (!strcmp(tagName, "syncLevel")) {
-				compressor.sync = storageManager.readAbsoluteSyncLevelFromFile(song);
+				compressor.syncLevel = storageManager.readAbsoluteSyncLevelFromFile(song);
 				storageManager.exitTag("syncLevel");
 			}
 			else {

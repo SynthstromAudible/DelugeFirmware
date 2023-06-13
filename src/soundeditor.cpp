@@ -1383,9 +1383,14 @@ public:
 class MenuItemSidechainSync final : public MenuItemSyncLevel {
 public:
 	MenuItemSidechainSync(char const* newName = NULL) : MenuItemSyncLevel(newName) {}
-	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentCompressor->sync; }
+	int getNumOptions() override { return 10; };
+	void readCurrentValue() {
+		soundEditor.currentValue = syncTypeAndLevelToMenuOption(soundEditor.currentCompressor->syncType,
+		                                                        soundEditor.currentCompressor->syncLevel);
+	}
 	void writeCurrentValue() {
-		soundEditor.currentCompressor->sync = soundEditor.currentValue;
+		soundEditor.currentCompressor->syncType = menuOptionToSyncType(soundEditor.currentValue);
+		soundEditor.currentCompressor->syncLevel = menuOptionToSyncLevel(soundEditor.currentValue);
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	}
 	bool isRelevant(Sound* sound, int whichThing) {

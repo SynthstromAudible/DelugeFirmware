@@ -125,7 +125,7 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	reverbPan = 0;
 	reverbCompressorVolume = getParamFromUserValue(PARAM_STATIC_COMPRESSOR_VOLUME, -1);
 	reverbCompressorShape = -601295438;
-	reverbCompressorSync = 6;
+	reverbCompressorSync = SYNC_LEVEL_8TH;
 
 	dirPath.set("SONGS");
 }
@@ -1118,8 +1118,8 @@ int Song::readFromFile() {
 							storageManager.exitTag("shape");
 						}
 						else if (!strcmp(tagName, "syncLevel")) {
-							reverbCompressorSync = storageManager.readTagOrAttributeValueInt();
-							reverbCompressorSync = getMin(reverbCompressorSync, (uint8_t)9);
+							reverbCompressorSync = storageManager.readAbsoluteSyncLevelFromFile(this);
+							reverbCompressorSync = (SyncLevel)getMin((uint8_t)reverbCompressorSync, (uint8_t)9);
 							storageManager.exitTag("syncLevel");
 						}
 						else {
