@@ -1022,8 +1022,14 @@ public:
 class MenuItemArpSync final : public MenuItemSyncLevel {
 public:
 	MenuItemArpSync(char const* newName = NULL) : MenuItemSyncLevel(newName) {}
-	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentArpSettings->syncLevel; }
-	void writeCurrentValue() { soundEditor.currentArpSettings->syncLevel = soundEditor.currentValue; }
+	void readCurrentValue() {
+		soundEditor.currentValue = syncTypeAndLevelToMenuOption(soundEditor.currentArpSettings->syncType,
+		                                                        soundEditor.currentArpSettings->syncLevel);
+	}
+	void writeCurrentValue() {
+		soundEditor.currentArpSettings->syncType = menuOptionToSyncType(soundEditor.currentValue);
+		soundEditor.currentArpSettings->syncLevel = menuOptionToSyncLevel(soundEditor.currentValue);
+	}
 } arpSyncMenu;
 
 class MenuItemArpOctaves final : public MenuItemInteger {

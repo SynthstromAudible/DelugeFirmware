@@ -33,11 +33,12 @@ ArpeggiatorSettings::ArpeggiatorSettings() {
 	Song* song = preLoadedSong;
 	if (!song) song = currentSong;
 	if (song) {
-		syncLevel = 8 - (song->insideWorldTickMagnitude + song->insideWorldTickMagnitudeOffsetFromBPM);
+		syncLevel = (SyncLevel)(8 - (song->insideWorldTickMagnitude + song->insideWorldTickMagnitudeOffsetFromBPM));
 	}
 	else {
-		syncLevel = 8 - FlashStorage::defaultMagnitude;
+		syncLevel = (SyncLevel)(8 - FlashStorage::defaultMagnitude);
 	}
+	syncType = SYNC_TYPE_EVEN;
 }
 
 ArpeggiatorForDrum::ArpeggiatorForDrum() {
@@ -442,6 +443,9 @@ int32_t ArpeggiatorBase::doTickForward(ArpeggiatorSettings* settings, ArpReturnI
 	if (!settings->mode || !settings->syncLevel) return 2147483647;
 
 	uint32_t ticksPerPeriod = 3 << (9 - settings->syncLevel);
+	if (settings->syncType == SYNC_TYPE_EVEN) {} // Do nothing
+	else if (settings->syncType == SYNC_TYPE_TRIPLET) ticksPerPeriod = ticksPerPeriod * 2 / 3;
+	else if (settings->syncType == SYNC_TYPE_DOTTED) ticksPerPeriod = ticksPerPeriod * 3 / 2;
 
 	int howFarIntoPeriod = clipCurrentPos % ticksPerPeriod;
 
