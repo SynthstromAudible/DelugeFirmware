@@ -1151,9 +1151,13 @@ public:
 class MenuItemLFO1Sync final : public MenuItemSyncLevel {
 public:
 	MenuItemLFO1Sync(char const* newName = NULL) : MenuItemSyncLevel(newName) {}
-	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentSound->lfoGlobalSyncLevel; }
+	void readCurrentValue() {
+		soundEditor.currentValue = syncTypeAndLevelToMenuOption(soundEditor.currentSound->lfoGlobalSyncType,
+		                                                        soundEditor.currentSound->lfoGlobalSyncLevel);
+	}
 	void writeCurrentValue() {
-		soundEditor.currentSound->setLFOGlobalSyncLevel(soundEditor.currentValue);
+		soundEditor.currentSound->setLFOGlobalSyncType(menuOptionToSyncType(soundEditor.currentValue));
+		soundEditor.currentSound->setLFOGlobalSyncLevel(menuOptionToSyncLevel(soundEditor.currentValue));
 		soundEditor.currentSound->setupPatchingForAllParamManagers(currentSong);
 	}
 } lfo1SyncMenu;
