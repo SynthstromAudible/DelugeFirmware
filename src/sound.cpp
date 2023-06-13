@@ -568,6 +568,10 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 	}
 
 	else if (!strcmp(tagName, "arpeggiator")) {
+		// Set default values in case they are not configured
+		arpSettings->syncType = SYNC_TYPE_EVEN;
+		arpSettings->syncLevel = SYNC_LEVEL_NONE;
+
 		while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 
 			if (!strcmp(
@@ -580,6 +584,10 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 			else if (!strcmp(tagName, "numOctaves")) {
 				if (arpSettings) arpSettings->numOctaves = storageManager.readTagOrAttributeValueInt();
 				storageManager.exitTag("numOctaves");
+			}
+			else if (!strcmp(tagName, "syncType")) {
+				if (arpSettings) arpSettings->syncType = storageManager.readSyncTypeFromFile(song);
+				storageManager.exitTag("syncType");
 			}
 			else if (!strcmp(tagName, "syncLevel")) {
 				if (arpSettings) arpSettings->syncLevel = storageManager.readAbsoluteSyncLevelFromFile(song);
