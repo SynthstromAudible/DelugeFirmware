@@ -104,8 +104,10 @@ public:
 	int readTagOrAttributeValueString(String* string);
 	int checkSpaceOnCard();
 
-	int readAbsoluteSyncLevelFromFile(Song* song);
-	void writeAbsoluteSyncLevelToFile(Song* song, char const* name, int internalValue, bool onNewLine = true);
+	SyncType readSyncTypeFromFile(Song* song);
+	void writeSyncTypeToFile(Song* song, char const* name, SyncType value, bool onNewLine = true);
+	SyncLevel readAbsoluteSyncLevelFromFile(Song* song);
+	void writeAbsoluteSyncLevelToFile(Song* song, char const* name, SyncLevel internalValue, bool onNewLine = true);
 
 	bool fileAccessFailedDuring;
 
