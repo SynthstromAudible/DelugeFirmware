@@ -248,7 +248,7 @@ class MenuItemLFOShape : public MenuItemSelection {
 public:
 	MenuItemLFOShape(char const* newName = NULL) : MenuItemSelection(newName) {}
 	char const** getOptions() {
-		static char const* options[] = {"Sine", "Triangle", "Square", "Saw", NULL};
+		static char const* options[] = {"Sine", "Triangle", "Square", "Saw", "S&H", "Random Walk", NULL};
 		return options;
 	}
 	int getNumOptions() { return NUM_LFO_TYPES; }

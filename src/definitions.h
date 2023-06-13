@@ -489,8 +489,10 @@
 #define LFO_TYPE_TRIANGLE 1
 #define LFO_TYPE_SQUARE 2
 #define LFO_TYPE_SAW 3
+#define LFO_TYPE_SAH 4
+#define LFO_TYPE_RWALK 5
 
-#define NUM_LFO_TYPES 4
+#define NUM_LFO_TYPES 6
 
 #define SYNTH_MODE_SUBTRACTIVE 0
 #define SYNTH_MODE_FM 1
