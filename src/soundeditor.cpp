@@ -1280,8 +1280,14 @@ public:
 class MenuItemDelaySync final : public MenuItemSyncLevel {
 public:
 	MenuItemDelaySync(char const* newName = NULL) : MenuItemSyncLevel(newName) {}
-	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentModControllable->delay.sync; }
-	void writeCurrentValue() { soundEditor.currentModControllable->delay.sync = soundEditor.currentValue; }
+	void readCurrentValue() {
+		soundEditor.currentValue = syncTypeAndLevelToMenuOption(soundEditor.currentModControllable->delay.syncType,
+		                                                        soundEditor.currentModControllable->delay.syncLevel);
+	}
+	void writeCurrentValue() {
+		soundEditor.currentModControllable->delay.syncType = menuOptionToSyncType(soundEditor.currentValue);
+		soundEditor.currentModControllable->delay.syncLevel = menuOptionToSyncLevel(soundEditor.currentValue);
+	}
 } delaySyncMenu;
 
 // Reverb ----------------------------------------------------------------------------------
