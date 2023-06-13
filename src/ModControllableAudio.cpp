@@ -964,12 +964,14 @@ void ModControllableAudio::writeTagsToFile() {
 	storageManager.writeOpeningTagBeginning("delay");
 	storageManager.writeAttribute("pingPong", delay.pingPong);
 	storageManager.writeAttribute("analog", delay.analog);
-	storageManager.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", delay.sync);
+	storageManager.writeSyncTypeToFile(currentSong, "syncType", delay.syncType);
+	storageManager.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", delay.syncLevel);
 	storageManager.closeTag();
 
 	// Sidechain compressor
 	storageManager.writeOpeningTagBeginning("compressor");
-	storageManager.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", compressor.sync);
+	storageManager.writeSyncTypeToFile(currentSong, "syncType", compressor.syncType);
+	storageManager.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", compressor.syncLevel);
 	storageManager.writeAttribute("attack", compressor.attack);
 	storageManager.writeAttribute("release", compressor.release);
 	storageManager.closeTag();

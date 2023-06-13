@@ -494,6 +494,28 @@
 
 #define NUM_LFO_TYPES 6
 
+// SyncType values correspond to the index of the first option of the specific
+// type in the selection menu. There are 9 different levels for each type (see
+// also SyncLevel)
+typedef enum SyncType_ {
+	SYNC_TYPE_EVEN = 0,
+	SYNC_TYPE_TRIPLET = 10,
+	SYNC_TYPE_DOTTED = 19,
+} SyncType;
+
+typedef enum SyncLevel_ {
+	SYNC_LEVEL_NONE = 0,
+	SYNC_LEVEL_WHOLE = 1,
+	SYNC_LEVEL_2ND = 2,
+	SYNC_LEVEL_4TH = 3,
+	SYNC_LEVEL_8TH = 4,
+	SYNC_LEVEL_16TH = 5,
+	SYNC_LEVEL_32ND = 6,
+	SYNC_LEVEL_64TH = 7,
+	SYNC_LEVEL_128TH = 8,
+	SYNC_LEVEL_256TH = 9,
+} SyncLevel;
+
 #define SYNTH_MODE_SUBTRACTIVE 0
 #define SYNTH_MODE_FM 1
 #define SYNTH_MODE_RINGMOD 2

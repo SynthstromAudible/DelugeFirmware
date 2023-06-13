@@ -24,9 +24,12 @@
 class MenuItemSyncLevel : public MenuItemSelection {
 public:
 	MenuItemSyncLevel(char const* newName = NULL) : MenuItemSelection(newName) {}
+	SyncType menuOptionToSyncType(int option);
+	SyncLevel menuOptionToSyncLevel(int option);
+	int syncTypeAndLevelToMenuOption(SyncType type, SyncLevel level);
 
 protected:
-	int getNumOptions() final { return 10; }
+	int getNumOptions() { return 28; }
 	void drawValue() final;
 	virtual void getNoteLengthName(char* buffer);
 #if HAVE_OLED

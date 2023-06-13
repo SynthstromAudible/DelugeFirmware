@@ -3366,6 +3366,7 @@ void Sound::writeToFile(bool savingSong, ParamManager* paramManager, Arpeggiator
 	// LFOs
 	storageManager.writeOpeningTagBeginning("lfo1");
 	storageManager.writeAttribute("type", lfoTypeToString(lfoGlobalWaveType), false);
+	storageManager.writeSyncTypeToFile(currentSong, "syncLevel", lfoGlobalSyncType, false);
 	storageManager.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", lfoGlobalSyncLevel, false);
 	storageManager.closeTag();
 
@@ -3406,6 +3407,7 @@ void Sound::writeToFile(bool savingSong, ParamManager* paramManager, Arpeggiator
 		storageManager.writeOpeningTagBeginning("arpeggiator");
 		storageManager.writeAttribute("mode", arpModeToString(arpSettings->mode));
 		storageManager.writeAttribute("numOctaves", arpSettings->numOctaves);
+		storageManager.writeSyncTypeToFile(currentSong, "syncType", arpSettings->syncType);
 		storageManager.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", arpSettings->syncLevel);
 		storageManager.closeTag();
 	}

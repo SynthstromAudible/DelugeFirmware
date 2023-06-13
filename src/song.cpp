@@ -952,7 +952,7 @@ weAreInArrangementEditorOrInClipInstance:
 	storageManager.writeAttribute("inputTickMagnitude",
 	                              insideWorldTickMagnitude + insideWorldTickMagnitudeOffsetFromBPM);
 	storageManager.writeAttribute("swingAmount", swingAmount);
-	storageManager.writeAbsoluteSyncLevelToFile(this, "swingInterval", swingInterval);
+	storageManager.writeAbsoluteSyncLevelToFile(this, "swingInterval", (SyncLevel)swingInterval);
 
 	if (tripletsOn) storageManager.writeAttribute("tripletsLevel", tripletsLevel);
 
@@ -990,7 +990,7 @@ weAreInArrangementEditorOrInClipInstance:
 	storageManager.writeAttribute("release", AudioEngine::reverbCompressor.release);
 	storageManager.writeAttribute("volume", AudioEngine::reverbCompressorVolume);
 	storageManager.writeAttribute("shape", AudioEngine::reverbCompressorShape);
-	storageManager.writeAttribute("syncLevel", AudioEngine::reverbCompressor.sync);
+	storageManager.writeAttribute("syncLevel", AudioEngine::reverbCompressor.syncLevel);
 	storageManager.closeTag();
 
 	storageManager.writeClosingTag("reverb");
