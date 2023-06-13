@@ -24,6 +24,7 @@ class LFO {
 public:
 	LFO();
 	uint32_t phase;
+	uint32_t holdValue;
 	int32_t render(int numSamples, int waveType, uint32_t phaseIncrement);
 	void tick(int numSamples, uint32_t phaseIncrement);
 };

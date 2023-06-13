@@ -40,6 +40,25 @@ int32_t LFO::render(int numSamples, int waveType, uint32_t phaseIncrement) {
 	case LFO_TYPE_TRIANGLE:
 		value = getTriangle(phase);
 		break;
+
+	case LFO_TYPE_SAH:
+		if (phase == 0) {
+			value = CONG;
+			holdValue = value;
+		}
+		else if (phase + phaseIncrement * numSamples < phase) holdValue = CONG;
+		else value = holdValue;
+		break;
+
+	case LFO_TYPE_RWALK:
+        uint32_t range = 4294967295u / 20;
+		if (phase == 0) {
+			value = holdValue + (range / 2) - CONG % range;
+			holdValue = value;
+		}
+		else if (phase + phaseIncrement * numSamples < phase) holdValue += (range / 2) - CONG % range;
+		else value = holdValue;
+		break;
 	}
 
 	phase += phaseIncrement * numSamples;
