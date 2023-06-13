@@ -37,17 +37,18 @@ Compressor::Compressor() {
 	Song* song = preLoadedSong;
 	if (!song) song = currentSong;
 	if (song) {
-		sync = 7 - (song->insideWorldTickMagnitude + song->insideWorldTickMagnitudeOffsetFromBPM);
+		syncLevel = (SyncLevel)(7 - (song->insideWorldTickMagnitude + song->insideWorldTickMagnitudeOffsetFromBPM));
 	}
 	else {
-		sync = 7 - FlashStorage::defaultMagnitude;
+		syncLevel = (SyncLevel)(7 - FlashStorage::defaultMagnitude);
 	}
+	syncType = SYNC_TYPE_EVEN;
 }
 
 void Compressor::cloneFrom(Compressor* other) {
 	attack = other->attack;
 	release = other->release;
-	sync = other->sync;
+	syncLevel = other->syncLevel;
 }
 
 void Compressor::registerHit(int32_t strength) {
@@ -90,9 +91,9 @@ void Compressor::registerHitRetrospectively(int32_t strength, uint32_t numSample
 
 int32_t Compressor::getActualAttackRate() {
 	int32_t alteredAttack;
-	if (sync == 0) alteredAttack = attack;
+	if (syncLevel == SYNC_LEVEL_NONE) alteredAttack = attack;
 	else {
-		int rshiftAmount = (9 - sync) - 2;
+		int rshiftAmount = (9 - syncLevel) - 2;
 		alteredAttack = multiply_32x32_rshift32(attack << 11, playbackHandler.getTimePerInternalTickInverse());
 
 		if (rshiftAmount >= 0) alteredAttack >>= rshiftAmount;
@@ -103,10 +104,10 @@ int32_t Compressor::getActualAttackRate() {
 
 int32_t Compressor::getActualReleaseRate() {
 	int32_t alteredRelease;
-	if (sync == 0) alteredRelease = release;
+	if (syncLevel == SYNC_LEVEL_NONE) alteredRelease = release;
 	else {
 		alteredRelease =
-		    multiply_32x32_rshift32(release << 13, playbackHandler.getTimePerInternalTickInverse()) >> (9 - sync);
+		    multiply_32x32_rshift32(release << 13, playbackHandler.getTimePerInternalTickInverse()) >> (9 - syncLevel);
 	}
 	return alteredRelease;
 }

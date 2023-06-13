@@ -3680,12 +3680,12 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 			}
 			else insideWorldTickMagnitude = FlashStorage::defaultMagnitude;
 
-			if (compressor.sync == 7 - insideWorldTickMagnitude) {
-				compressor.sync = 9 - insideWorldTickMagnitude;
+			if (compressor.syncLevel == (SyncLevel)(7 - insideWorldTickMagnitude)) {
+				compressor.syncLevel = (SyncLevel)(9 - insideWorldTickMagnitude);
 				numericDriver.displayPopup(HAVE_OLED ? "Fast sidechain compressor" : "FAST");
 			}
 			else {
-				compressor.sync = 7 - insideWorldTickMagnitude;
+				compressor.syncLevel = (SyncLevel)(7 - insideWorldTickMagnitude);
 				numericDriver.displayPopup(HAVE_OLED ? "Slow sidechain compressor" : "SLOW");
 			}
 			return true;
