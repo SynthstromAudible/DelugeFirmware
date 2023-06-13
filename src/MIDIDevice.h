@@ -93,6 +93,7 @@ public:
 
 	inline bool hasDefaultVelocityToLevelSet() { return defaultVelocityToLevel; }
 
+	//Only 2 ports per device, but this is functionally set in stone due to existing code
 	MIDIPort ports
 	    [2]; // I think I used an array here so the settings menu could deal with either one easily - which doesn't seem like a very strong reason really...
 

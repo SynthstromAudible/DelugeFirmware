@@ -49,6 +49,7 @@ struct {
 	uint16_t productId;
 } usbDeviceCurrentlyBeingSetUp[USB_NUM_USBIP];
 
+//will need to make a USB virtual port class and init here
 MIDIDeviceUSBUpstream upstreamUSBMIDIDevice;
 MIDIDeviceDINPorts dinMIDIPorts;
 
@@ -57,6 +58,7 @@ uint8_t highestLastMemberChannelOfUpperZoneOnConnectedOutput = 0;
 
 bool anyChangesToSave = false;
 
+//called by main2 line 595
 void init() {
 	new (&hostedMIDIDevices) NamedThingVector(__builtin_offsetof(MIDIDeviceUSBHosted, name));
 
@@ -190,7 +192,7 @@ void recountSmallestMPEZones() {
 }
 
 extern "C" void hostedDeviceConfigured(int ip, int midiDeviceNum) {
-
+	//well we're at it should recognize multiple virtual ports here too
 	MIDIDeviceUSBHosted* device = getOrCreateHostedMIDIDeviceFromDetails(&usbDeviceCurrentlyBeingSetUp[ip].name,
 	                                                                     usbDeviceCurrentlyBeingSetUp[ip].vendorId,
 	                                                                     usbDeviceCurrentlyBeingSetUp[ip].productId);
@@ -242,9 +244,12 @@ extern "C" void hostedDeviceDetached(int ip, int midiDeviceNum) {
 	connectedUSBMIDIDevices[ip][midiDeviceNum].device = NULL;
 }
 
+//called by USB setup
 extern "C" void configuredAsPeripheral(int ip) {
+	//Leave this - we'll use this device for all upstream ports
 	ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][0];
 
+	//init 2 more devices here - will differentiate with virtual cables
 	connectedDevice->setup();
 	connectedDevice->device = &upstreamUSBMIDIDevice;
 	connectedDevice->canHaveMIDISent = 1;
@@ -256,6 +261,7 @@ extern "C" void configuredAsPeripheral(int ip) {
 }
 
 extern "C" void detachedAsPeripheral(int ip) {
+	//will need to reset all devices if more are added
 	connectedUSBMIDIDevices[ip][0].device = NULL;
 	upstreamUSBMIDIDevice.connectionFlags = 0;
 
