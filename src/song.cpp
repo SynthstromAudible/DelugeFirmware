@@ -450,20 +450,6 @@ void Song::setRootNote(int newRootNote, InstrumentClip* clipToAvoidAdjustingScro
 			if (notesWithinOctavePresent[9]) majorness++;
 		}
 
-		// Determine the majorness or minorness of the scale
-		int majorness = 0;
-
-		// The 3rd is the main indicator of majorness, to my ear
-		if (notesWithinOctavePresent[4]) majorness++;
-		if (notesWithinOctavePresent[3]) majorness--;
-
-		// If it's still a tie, try the 2nd, 6th, and 7th to help us decide
-		if (majorness == 0) {
-			if (notesWithinOctavePresent[1]) majorness--;
-			if (notesWithinOctavePresent[8]) majorness--;
-			if (notesWithinOctavePresent[9]) majorness++;
-		}
-
 		bool moreMajor = (majorness >= 0);
 
 		modeNotes[0] = 0;
@@ -508,20 +494,16 @@ void Song::setRootNote(int newRootNote, InstrumentClip* clipToAvoidAdjustingScro
 		addMajorDependentModeNotes(10, moreMajor, notesWithinOctavePresent);
     }
 
-    // Adjust scroll for Clips with the scale. Crudely - not as high quality as happens for the Clip being processed in instrumentClipView.enterScaleMode();
-    int numMoreNotes = (int)numModeNotes - oldNumModeNotes;
-
-    // Compensation for the change in root note itself
-    int rootNoteChange = rootNote - oldRootNote;
-    int rootNoteChangeEffect = rootNoteChange * (octaveNumMicrotonalNotes - numModeNotes) / octaveNumMicrotonalNotes; // I wasn't quite sure whether this should use numModeNotes or oldNumModeNotes
+	// Adjust scroll for Clips with the scale. Crudely - not as high quality as happens for the Clip being processed in instrumentClipView.enterScaleMode();
+	int numMoreNotes = (int)numModeNotes - oldNumModeNotes;
 
 	// Compensation for the change in root note itself
 	int rootNoteChange = rootNote - oldRootNote;
-	int rootNoteChangeEffect = rootNoteChange * (12 - numModeNotes)
-	                           / 12; // I wasn't quite sure whether this should use numModeNotes or oldNumModeNotes
+	int rootNoteChangeEffect = rootNoteChange * (octaveNumMicrotonalNotes - numModeNotes)
+		/ octaveNumMicrotonalNotes; // I wasn't quite sure whether this should use numModeNotes or oldNumModeNotes
 
 	// All InstrumentClips in session and arranger
-    ClipArray* clipArray = &sessionClips;
+	ClipArray* clipArray = &sessionClips;
 traverseClips2:
 	for (int c = 0; c < clipArray->getNumElements(); c++) {
 		Clip* clip = clipArray->getClipAtIndex(c);

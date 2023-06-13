@@ -199,6 +199,10 @@ public:
 
 	String dirPath;
 
+	bool getAnyClipsSoloing();
+	uint32_t getInputTickScale();
+	Clip* getSyncScalingClip();
+	void setInputTickScaleClip(Clip* clip);
 	int32_t noteFrequenciesRelativeToKey[OCTAVE_MAX_NUM_MICROTONAL_NOTES];
 	int8_t centAdjustForNotesInTemperament[OCTAVE_MAX_NUM_MICROTONAL_NOTES];
 	int32_t noteFrequencyTable[OCTAVE_MAX_NUM_MICROTONAL_NOTES];

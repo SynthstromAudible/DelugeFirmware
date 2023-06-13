@@ -125,7 +125,7 @@ private:
 	                             int32_t amplitude, uint32_t phaseIncrement, int32_t feedbackAmount,
 	                             int32_t* lastFeedbackValue, int32_t amplitudeIncrement);
 	bool areAllUnisonPartsInactive(ModelStackWithVoice* modelStackWithVoice);
-	void setupPorta(Sound* sound);
+	void setupPorta(ModelStackWithVoice* modelStack);
 	int32_t combineExpressionValues(Sound* sound, int whichExpressionDimension);
 };
 

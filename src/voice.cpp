@@ -168,7 +168,7 @@ bool Voice::noteOn(ModelStackWithVoice* modelStack, int newNoteCodeBeforeArpeggi
 	if (sound->polyphonic != POLYPHONY_LEGATO
 	    && paramManager->getUnpatchedParamSet()->getValue(PARAM_UNPATCHED_SOUND_PORTA) != -2147483648
 	    && sound->lastNoteCode != -2147483648) {
-		setupPorta(sound);
+		setupPorta(modelStack);
 	}
 
 	else portaEnvelopePos = 0xFFFFFFFF; // No porta
@@ -331,7 +331,7 @@ void Voice::changeNoteCode(ModelStackWithVoice* modelStack, int newNoteCodeBefor
 	Sound* sound = (Sound*)modelStack->modControllable;
 
 	if (paramManager->getUnpatchedParamSet()->getValue(PARAM_UNPATCHED_SOUND_PORTA) != -2147483648)
-		setupPorta(sound);
+		setupPorta(modelStack);
 
 	calculatePhaseIncrements(modelStack);
 }
