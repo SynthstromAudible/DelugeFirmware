@@ -1119,7 +1119,9 @@ int ModControllableAudio::readTagFromFile(char const* tagName, ParamManagerForTi
 	}
 
 	else if (!strcmp(tagName, "delay")) {
-		delay.sync = 0; // Default, in case this info wasn't included... although it always is since July 2015
+		// Set default values in case they are not configured
+		delay.syncType = SYNC_TYPE_EVEN;
+		delay.syncLevel = SYNC_LEVEL_NONE;
 
 		while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 
@@ -1153,8 +1155,12 @@ doReadPatchedParam:
 				delay.analog = getMax((int32_t)0, getMin((int32_t)1, contents));
 				storageManager.exitTag("analog");
 			}
+			else if (!strcmp(tagName, "syncType")) {
+				delay.syncType = storageManager.readSyncTypeFromFile(song);
+				storageManager.exitTag("syncType");
+			}
 			else if (!strcmp(tagName, "syncLevel")) {
-				delay.sync = storageManager.readAbsoluteSyncLevelFromFile(song);
+				delay.syncLevel = storageManager.readAbsoluteSyncLevelFromFile(song);
 				storageManager.exitTag("syncLevel");
 			}
 			else {
