@@ -1272,6 +1272,7 @@ void usb_hstd_brdy_pipe_process_rohan_midi_and_hub(usb_utr_t* ptr, uint16_t bits
                                     //g_p_usb_pipe[pipe] = (usb_utr_t*) USB_NULL; // Moved by Rohan - set this to NULL before the callback so the callback can do another transfer, which sets this to something else
                                     //(temp->complete)(temp, 0, 0); // This does our callback on our outgoing transfers. Rohan
 
+                                    //will need update to assign devicenum based on read cable number
                                     unsigned int deviceNum = temp - &g_usb_midi_recv_utr[0][0];
 
                                     if (deviceNum < MAX_NUM_USB_MIDI_DEVICES)

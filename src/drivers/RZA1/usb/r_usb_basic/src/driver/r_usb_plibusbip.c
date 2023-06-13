@@ -933,7 +933,7 @@ void usb_pstd_brdy_pipe_process_rohan_midi(uint16_t bitsts)
                                 //((usb_cb_t)g_p_usb_pstd_pipe[pipe]->complete)(g_p_usb_pstd_pipe[pipe], USB_NULL, USB_NULL);
                                 //usbReceiveComplete(0, 0, g_usb_pstd_data_cnt[pipe]);
                                 g_p_usb_pipe[pipe] = (usb_utr_t*)USB_NULL; // Is this necessary? Doesn't look like it
-
+                                // Only sets received bytes for first device
                                 // I've just pasted the relevant contents of usbReceiveComplete() in here
                                 connectedUSBMIDIDevices[0][0].numBytesReceived =
                                     64
