@@ -257,6 +257,8 @@ void MidiEngine::flushUSBMIDIOutput() {
 			if (!connectedDevice->numMessagesQueued) continue;
 
 			// Copy the data into the actual output buffer
+			// Note - does this mean it's fine to have multiple devices sharing one physical device?
+			// Or would that slow it down? Probably depends how fast this section is
 			connectedDevice->numBytesSendingNow = connectedDevice->numMessagesQueued << 2;
 			connectedDevice->numMessagesQueued = 0;
 			memcpy(connectedDevice->dataSendingNow, connectedDevice->preSendData, connectedDevice->numBytesSendingNow);
@@ -416,7 +418,7 @@ void MidiEngine::sendMidi(uint8_t statusType, uint8_t channel, uint8_t data1, ui
 }
 
 uint32_t setupUSBMessage(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2) {
-
+	//format message per USB midi spec on virtual cable 0
 	uint8_t cin;
 	uint8_t firstByte = (channel & 15) | (statusType << 4);
 
@@ -434,7 +436,9 @@ uint32_t setupUSBMessage(uint8_t statusType, uint8_t channel, uint8_t data1, uin
 }
 
 void MidiEngine::sendUsbMidi(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2, int filter) {
+	//TODO: Differentiate between ports on usb midi
 
+	//formats message per USB midi spec on virtual cable 0
 	uint32_t fullMessage = setupUSBMessage(statusType, channel, data1, data2);
 
 	for (int ip = 0; ip < USB_NUM_USBIP; ip++) {
@@ -445,6 +449,8 @@ void MidiEngine::sendUsbMidi(uint8_t statusType, uint8_t channel, uint8_t data1,
 			if (connectedDevice->device && connectedDevice->canHaveMIDISent
 			    && (statusType == 0x0F || connectedDevice->device->wantsToOutputMIDIOnChannel(channel, filter))) {
 
+				//Probable change - use the connectedDevice->Device->Output function
+				//so that multiple virtual usb cables can share a device
 				connectedDevice->bufferMessage(fullMessage);
 			}
 		}
