@@ -2226,7 +2226,7 @@ public:
 // Colours submenu
 MenuItemSubmenu coloursSubmenu;
 
-char const* firmwareString = "4.1.4-alpha3";
+char const* firmwareString = "4.1.4-MUPADUW_TS";
 
 // this class is haunted for some reason, clang-format mangles it
 // clang-format off
