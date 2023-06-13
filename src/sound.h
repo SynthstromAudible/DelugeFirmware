@@ -82,7 +82,8 @@ public:
 	LFO globalLFO;
 	uint8_t lfoGlobalWaveType;
 	uint8_t lfoLocalWaveType;
-	uint8_t lfoGlobalSyncLevel;
+	SyncType lfoGlobalSyncType;
+	SyncLevel lfoGlobalSyncLevel;
 
 	ModKnob modKnobs[NUM_MOD_BUTTONS][NUM_PHYSICAL_MOD_KNOBS];
 
@@ -155,7 +156,8 @@ public:
 
 	uint8_t maySourcePatchToParam(uint8_t s, uint8_t p, ParamManager* paramManager);
 
-	void setLFOGlobalSyncLevel(uint8_t newLevel);
+	void setLFOGlobalSyncType(SyncType newType);
+	void setLFOGlobalSyncLevel(SyncLevel newLevel);
 	void resyncGlobalLFO();
 	void setLFOGlobalWave(uint8_t newWave);
 
