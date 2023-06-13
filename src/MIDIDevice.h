@@ -70,6 +70,13 @@ public:
 	uint8_t bendRange;
 };
 
+/*
+ * MidiDevice primarily holds configuration settings and associated data - the sendMessage function
+ * is used only during setup, and data is r/w directly from the super device (connectedUSBMIDIDevice)
+ * or the serial ports as applicable
+ * See MIDIDeviceManager or midiengine.cpp for details
+ */
+
 // These never get destructed. So we're safe having various Instruments etc holding pointers to them.
 class MIDIDevice {
 public:

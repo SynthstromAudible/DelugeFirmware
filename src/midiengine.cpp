@@ -601,6 +601,7 @@ void MidiEngine::checkIncomingUsbMidi() {
 
 		bool aPeripheral = (g_usb_usbmode != USB_HOST);
 		if (aPeripheral && !g_usb_peri_connected) continue;
+		//assumes only single device in peripheral mode
 		int numDevicesNow = aPeripheral ? 1 : MAX_NUM_USB_MIDI_DEVICES;
 
 		for (int d = 0; d < numDevicesNow; d++) {
@@ -617,8 +618,9 @@ void MidiEngine::checkIncomingUsbMidi() {
 					// Receive all the stuff from this device
 					for (; readPos < stopAt; readPos += 4) {
 
-						uint8_t statusType = readPos[0] & 15;
-						uint8_t channel = readPos[1] & 15;
+						//ignores the midi cable number
+						uint8_t statusType = readPos[0] & 0x0F;
+						uint8_t channel = readPos[1] & 0x0F;
 						uint8_t data1 = readPos[2];
 						uint8_t data2 = readPos[3];
 
@@ -656,7 +658,8 @@ void MidiEngine::checkIncomingUsbMidi() {
 				// Or as host
 				else if (connectedUSBMIDIDevices[ip][d].device) {
 
-					// Only allowed to setup receive-transfer if not in the process of sending to various devices. (Wait, still? Was this just because of that insane bug that's now fixed?)
+					// Only allowed to setup receive-transfer if not in the process of sending to various devices.
+					// (Wait, still? Was this just because of that insane bug that's now fixed?)
 					if (usbDeviceNumBeingSentToNow[ip] == stopSendingAfterDeviceNum[ip]) {
 						usbLock = 1;
 						setupUSBHostReceiveTransfer(ip, d);

@@ -31,6 +31,22 @@ struct MIDIDeviceUSB;
 #endif
 
 #ifdef __cplusplus
+/*A ConnectedUSBMIDIDevice is used directly to interface with the USB driver
+ * When a ConnectedUSBMIDIDevice has a numMessagesQueued>16 and tries to add another,
+ * all outputs are sent. The send routine calls the USB output function, points the
+ * USB pipes FIFO buffer directly at the dataSendingNow array, and then sends.
+ * Sends can also be triggered by the midiAndGateOutput interrupt
+ *
+ * Reads are more complicated.
+ * Actual reads are done by usb_cstd_usb_task, which has a commented out interrupt associated
+ * The function is instead called in the midiengine::checkincomingUSBmidi function, which is called
+ * in the audio engine loop
+ *
+ * The USB read function is configured by setupUSBHostReceiveTransfer, which is called to
+ * setup the next device after each successful read. Data is written directly into the receiveData
+ * array from the USB device, it's set as the USB pipe address during midi engine setup
+ */
+//
 class ConnectedUSBMIDIDevice {
 public:
 	MIDIDeviceUSB* device; // If NULL, then no device is connected here
