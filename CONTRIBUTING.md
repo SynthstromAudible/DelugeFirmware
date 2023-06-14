@@ -11,7 +11,7 @@ Even if you are not a software developer you can contribute immensely by informi
 
 * Please submit an [issue](https://github.com/SynthstromAudible/DelugeFirmware/issues) highlighting as much *relevant* context about the bug as possible.
 * Quality of information (rather than quantity, necessarily) is key! See [How to Report Bugs Effectively](https://www.chiark.greenend.org.uk/~sgtatham/bugs.html) by Simon Tatham for more on this topic.
-* Do let us know whether the bug was found on an OLED or 7seg Deluge as this may be important as well as the source and version of firmware (branch/etc).
+* Do let us know whether the bug was found on an OLED or 7seg Deluge as this may be important as well as the source and version of firmware (branch/etc.).
 * Where the bug exists in build scripts, e2, or other development, building, and debugging processes, please provide excerpts of the relevant logs if you suspect they might be helpful.
 * Bugs in related projects should be submitted to the appropriate issue tracker:
     * DelugeProbe: [litui/delugeprobe](https://github.com/litui/delugeprobe).
@@ -22,7 +22,7 @@ Even if you are not a software developer you can contribute immensely by informi
 
 Please use the [Discussions](https://github.com/SynthstromAudible/DelugeFirmware/discussions) feature in our repository which allows both creating discussion, ideas, polls and more as well as voting on existing topics. 
 
-* Please search first if there is alreay a (draft) [Pull request](https://github.com/SynthstromAudible/DelugeFirmware/pulls) or existing Discussion item related to your idea and start your discussion from there if possible.
+* Please search first if there is already a (draft) [Pull request](https://github.com/SynthstromAudible/DelugeFirmware/pulls) or existing Discussion item related to your idea and start your discussion from there if possible.
 * Reading, voting and commenting on discussion items and Pull requests will help a lot to improve the direction of the project.
 * Please don't use the repository [issue](https://github.com/SynthstromAudible/DelugeFirmware/issues) tracker only for bug reports.
 * For further inspiration and discussion there is also the [Deluge Suggestions area](https://forums.synthstrom.com/categories/deluge-suggestions) and [Open Source area](https://forums.synthstrom.com/categories/open-source-) on the [Synthstrom Forum](https://forums.synthstrom.com).
@@ -34,49 +34,57 @@ Please use the [Discussions](https://github.com/SynthstromAudible/DelugeFirmware
 Pull requests that are no longer marked as Draft and are open for merging should be ready to test and any help is appreciated. 
 
 * This includes both building and testing the firmware as well as reading and reviewing the source code.
-* Please use the review and discussion funcationality provided within GitHub.
+* Please use the review and discussion functionality provided within GitHub.
 * Code reviews are intended to increase quality and should not go into nitpicking, please remember the [Code of Conduct](CODE_OF_CONDUCT.md).
-* Final desicions about merging of Pull requests is up to the code owners, see below and in [Governance](GOVERNANCE.md).
+* Final decisions about merging of Pull requests is up to the code owners, see below and in [Governance](GOVERNANCE.md).
 
 
 # Repository contributions
 
 Everybody is invited to contribute to this repository as further outlined below:
 
-* All contributions are handled with the Pull request mechanic in GitHub. If you start working on something please submit a Draft PR so everyone is informed (see below).
-* Contributions can be anything that improves the project and fulfills the requirements outlined below.
-* As an inspiration here is a small and incomplete list of improvement areas: documentation, code commentation, refactoring to: make code easier to read/improve clarity/be more efficient/improve maintainability/ease modification, feature improvements, new features, easier accessibility, toolchain improvements, unit tests and many many more.
-* For information on the decision making process for accepting Pull requests please also see the [Governance](GOVERNANCE.md) documentation.
+* All contributions are handled with the [Pull request](https://github.com/SynthstromAudible/DelugeFirmware/pulls) mechanic in GitHub. If you start working on something please submit a Draft PR so everyone is informed (see below).
+* Contributions can be anything that improves the project while fulfilling the requirements outlined below.
+* As an inspiration here is a small and incomplete list of improvement areas: documentation, commenting complex code mechanics, refactoring (make code easier to read/improve clarity/make execution more efficient/improve maintainability/ease modification/improve structure), feature improvements, new features, easier accessibility, toolchain improvements, unit tests and many, many more.
+* For information on the decision making process for accepting Pull requests please see below and also see the [Governance](GOVERNANCE.md) documentation.
 
 
 ## Requirements
 
-@TODO: General comments
+The following requirements must be fulfilled for a Pull request to be mergable to the community branch:
 
-@TODO: Finish and convert to uniform wording
-* Appropriate branch name (try to follow the git flow terminology where possible)
-* Clearly scoped change / pull request
-* There is no written standard on formatting and coding guidelines yet so please try to make your code look and feel like the rest of the repository and respect the styling decisions taken therein (for example brace position). clang formatting has been included in the GitHub Actions and should help with this.
-* Pull requests exclusively fixing insignificant typos in code comments, one-off formatting mistakes, and whitespace will be rejected (though these may be collected together in a bulk fix for a later date).
-* Automated PR submissions by clout/karma-seeking accounts (see also: [Hacktoberfest](https://blog.domenic.me/hacktoberfest/)) will not be tolerated or accepted.
-* Compatible with all HW variants (OLED and 7SEG)
-* Changes that change user interaction or massively alter system performance require (> 5% cycle load)
-    * A runtime configuration setting that allows to enable or disable the feature/change in behavior
-    * If a runtime setting is not possible a preprocessor switch must be implemented
-* Changes that massively alter image size (> +5% of memory) also require a preprocessor switch so they can be enabled or disabled
-* Code has to be tested and does not break any existing functionality
-* At least one approval from one member of the CODEOWNERS
-* Whenever possible two approved reviews in total
+### General
+
+* The contribution must be meaningful to the project. There must be a clear and articulate link between the change and an improvement for the developers, users or overall community.
+* The Pull request must have a clear scope outlined in the description, please don't commit changes unrelated to the scope.
+* Appropriate branch name, if possible following standard conventions like git flow (e.g. feature/shiny_new_feature_name).
+* No small Pull requests exclusively fixing single insignificant typos in code comments, one-off formatting mistakes or whitespace. Aggregate Pull requests fixing bigger areas can be accepted.
+* Automated and low effort Pull requests will not be will not be tolerated or accepted (see [Hacktoberfest](https://blog.domenic.me/hacktoberfest/) for an example on why this rule is necessary).
+
+### Code specific
+
+* There is no written standard on formatting and coding guidelines yet so the current requirement is to make your code look and feel like the rest of the repository and respect the styling decisions taken therein (for example brace position). Clang formatting has been included in the GitHub Actions and should help with this.
+* All changes to the firmware have to be tested to make sure they work as expected and don't break any existing functionality before submitting as ready to merge. This does not apply to Draft Pull requests.
+* All changes need to be compatible with all available hardware variants, this currently includes OLED and 7-Segment.
+
+### Application specific
+
+* Pull requests that change how users can interact with the device or massively alter system performance (> 3% permanent cycle load) require either
+    * A runtime configuration setting that allows to enable or disable the feature/change in behavior, see documentation on adding optional feature settings TBD
+    * Or if a runtime setting is not possible a preprocessor switch that allows creating firmware without the change
+* Changes that massively increase image size (> 5% of total memory) also require a preprocessor switch so they can be enabled or disabled
 
 
 ## Workflow
 
-@TODO: General comments
+Please follow the following steps for every pull request to ensure every contribution can be handled as frictionless and transparent as possible: 
 
-@TODO: Finish and convert to uniform wording
-* Create a Draft PR including a description on what will be changed
-* Work on the PR and collaborate with the community
-* Upstream changes from the community branch need to be merged into all pull requests before they can be reviewed. It is everyones duty to help make merging into community as painless as possible so please try to align if you see that your pull requests works in a similar area as another one.
-* Update the PR once it is ready to be included and make sure all Requirements are met
-* If required update the PR to conform with the requirements and get approval from the CODEOWNERS
-* If all is well 
+1. Create a [Draft Pull request](https://github.blog/2019-02-14-introducing-draft-pull-requests/) including a description on what will be changed and what impact you expect. The title can start with "[Draft] " during development.
+2. Work on the Pull request
+3. Before a Pull request can be considered ready all upstream changes from the community branch need to be merged into it. It is the duty of everyone to help make merging into community as painless as possible so please try to align if you see that your Pull requests works in a similar area as another one.
+4. Once the Pull request is ready, fulfills all requirements outlined above and is up to date with the community branch it can be converted from Draft and marked as ready for review.
+5. If possible every Pull request should have at least two reviews. Reviews from community members not mentioned in the [CODEOWNERS](CODEOWNERS) file should be taken serious and used as an important source of feedback but have no decisional power on what gets merged into the community branch.
+5. At least one member of the [CODEOWNERS](CODEOWNERS) file needs to review every pull request while also considering community reviews in their decision.
+    * CODEOWNERS can decline merging a Pull request if it does not fulfill the requirements outlined above. They need to give clear feedback on which requirements have not been met and also provide opportunity to improve the Pull request to meet the requirements within reasonable boundaries (e.g. there are limits on how much work can be expected from a CODEOWNER for a specific Pull request).
+    * If one or more CODEOWNERS are sure the requirements have been met they will merge the change into the community branch.
+    * For more information about governance and handling of decisional matters please take a look at the [Governance](GOVERNANCE.md) document.
