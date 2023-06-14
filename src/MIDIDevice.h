@@ -26,6 +26,7 @@
 #define VENDOR_ID_NONE 0
 #define VENDOR_ID_UPSTREAM_USB 1
 #define VENDOR_ID_DIN 2
+#define VENDOR_ID_UPSTREAM_USB2 3
 
 #define MIDI_DIRECTION_INPUT_TO_DELUGE 0
 #define MIDI_DIRECTION_OUTPUT_FROM_DELUGE 1
@@ -150,10 +151,11 @@ public:
 
 class MIDIDeviceUSBUpstream final : public MIDIDeviceUSB {
 public:
-	MIDIDeviceUSBUpstream() {}
+	MIDIDeviceUSBUpstream(uint8_t portNum=0) {portNumber=portNum;}
 	void writeReferenceAttributesToFile();
 	void writeToFlash(uint8_t* memory);
 	char const* getDisplayName();
+	uint8_t portNumber;
 };
 
 class MIDIDeviceDINPorts final : public MIDIDevice {
