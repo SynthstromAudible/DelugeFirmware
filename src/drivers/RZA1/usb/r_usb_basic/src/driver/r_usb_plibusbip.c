@@ -629,7 +629,7 @@ uint16_t usb_read_data_fast_rohan(uint16_t pipe)
     return USB_READEND; // It might also have been a READSHRT, but the distinction doesn't matter to us.
 }
 
-uint16_t g_usb_usbmode;
+extern uint16_t g_usb_usbmode;
 
 /***********************************************************************************************************************
  Function Name   : usb_pstd_read_data
