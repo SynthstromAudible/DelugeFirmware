@@ -4,19 +4,77 @@ Above all, thank you for your interest in both the Synthstrom Deluge and being a
 
 Please see also, the [Code of Conduct](CODE_OF_CONDUCT.md) document.
 
-## Bug reports
+# Bug reports
 
-* Please submit an issue highlighting as much *relevant* context about the bug as possible
+Even if you are not a software developer you can contribute immensely by informing us about bugs and other problems you notice during usage or testing of the firmwares created from this repository and related projects:
+
+* Please submit an [issue](https://github.com/SynthstromAudible/DelugeFirmware/issues) highlighting as much *relevant* context about the bug as possible
 
 * Quality of information (rather than quantity, necessarily) is key! See [How to Report Bugs Effectively](https://www.chiark.greenend.org.uk/~sgtatham/bugs.html) by Simon Tatham for more on this topic.
 
-* Do let us know whether the bug was found on an OLED or 7seg Deluge as this may be important.
+* Do let us know whether the bug was found on an OLED or 7seg Deluge as this may be important as well as the source and version of firmware (branch/etc.)
 
 * Where the bug exists in build scripts, e2, or other development, building, and debugging processes, please provide excerpts of the relevant logs if you suspect they might be helpful.
 
 * Bugs in related projects should be submitted to the appropriate issue tracker:
     * DelugeProbe: [litui/delugeprobe](https://github.com/litui/delugeprobe)
     * DBT-Toolchain: [litui/dbt-toolchain](https://github.com/litui/dbt-toolchain)
+
+# Ideas, feature requests, suggestions and discussions
+
+Please use the [Discussions](https://github.com/SynthstromAudible/DelugeFirmware/discussions) feature in our repository which allows both creating discussion, ideas, polls and more as well as voting on existing topics. 
+
+* Please search first if there is alreay a (draft) [Pull request](https://github.com/SynthstromAudible/DelugeFirmware/pulls) or existing Discussion item related to your idea and start your discussion from there if possible.
+* Reading, voting and commenting on discussion items and Pull requests will help a lot to improve the direction of the project
+* Please don't use the repository [issue](https://github.com/SynthstromAudible/DelugeFirmware/issues) tracker only for bug reports
+* For further inspiration and discussion there is also the [Deluge Suggestions area](https://forums.synthstrom.com/categories/deluge-suggestions) and [Open Source area](https://forums.synthstrom.com/categories/open-source-) on the [Synthstrom Forum](https://forums.synthstrom.com)
+* For more in-depth technical discussion you are welcome to join the #dev-chat channel in the [Deluge User Discord](https://discord.com/invite/gWaJEh6pPP)
+
+## Code review and testing
+
+Pull requests that are no longer marked as Draft and are open for merging should be ready to test and any help is appreciated. 
+* This includes both building and testing the firmware as well as reading and reviewing the source code
+* Please use the review and discussion funcationality provided within GitHub
+* Code reviews are intended to increase quality and should not go into nitpicking, please remember the [Code of Conduct](CODE_OF_CONDUCT.md).
+* Final desicions about merging of Pull requests is up to the code owners, see below and in [Governance](GOVERNANCE.md)
+
+
+# @TODO - All of the following
+
+# Repository contributions
+
+Everybody is invited to contribute to the community branch of this repository in various ways outlined below. For information on the decision making process for accepting changes into please also see the [Governance](GOVERNANCE.md) documentation.
+
+## Core improvements and features
+
+Core improvements include everything that makes the overall project better including documentation, code commentation, refactoring for clarity, rea, 
+
+
+
+
+## Requirements
+* Compatible with OLED and 7SEG
+* Changes that change user interact require either runtime configuration or compiler switch
+* Changes that massively alter system performance
+* Changes that massively alter image size
+
+
+## Workflow 
+
+
+
+https://github.blog/2017-07-06-introducing-code-owners/ -> At least one person
+
+
+
+
+
+
+
+
+
+
+
 
 ## Pull Requests (PR)
 
@@ -28,14 +86,6 @@ Please see also, the [Code of Conduct](CODE_OF_CONDUCT.md) document.
 
 * As formatting standards are developed, please ensure you are formatting your code accordingly. clang formatting has been included in the GitHub Actions to help with this.
 
-### New features
-
-* If you're looking for ideas for a new feature, please check out the upvoted posts in the [Deluge Suggestions area](https://forums.synthstrom.com/categories/deluge-suggestions) on the [Synthstrom Forum](https://forums.synthstrom.com).
-
-* If you have an idea for a new feature, please check existing [Draft PRs](https://github.com/SynthstromAudible/DelugeFirmware/pulls?q=is%3Apr+is%3Aopen+is%3Adraft) to see if others are working on something similar already.
-    * Even if someone else is doing something similar, there may still be opportunity to contribute. Comment on the draft PR with your questions and suggestions.
-
-* Issues and Draft PRs are *not* the place for feature requests by non-developers.
 
 ### Low-effort Pull Requests
 
@@ -46,3 +96,18 @@ Please see also, the [Code of Conduct](CODE_OF_CONDUCT.md) document.
 ## Documentation
 
 * Documentation standards TBD
+
+
+
+* Types of contributions
+    * Bug reports
+
+    * Core improvements
+    * Features
+    * Documentation
+* Workflow
+    * Pull requests
+        * Draft PR
+        * Review
+        * 
+    * Governance
