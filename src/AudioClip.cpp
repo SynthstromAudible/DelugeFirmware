@@ -493,10 +493,10 @@ void AudioClip::render(ModelStackWithTimelineCounter* modelStack, int32_t* outpu
 
 	uint64_t requiredSpeedAdjustment = ((uint64_t)sampleLengthInSamples << 24) / clipLengthInSamples;
 
-	/* CBC: maybe we can just ... ?
-	 * but how do we determine that here?
-	*/
-	goto justDontTimeStretch;
+	// Control using shift+syncScaleButton. Not saved to song XML.
+	if (modelStack->song->timeStretchDisabled) {
+		goto justDontTimeStretch;
+	}
 
 	// If we're squishing time...
 	if (sampleControls.pitchAndSpeedAreIndependent) {

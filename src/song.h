@@ -165,6 +165,7 @@ public:
 	String name;
 
 	bool affectEntire;
+	bool timeStretchDisabled;
 
 	int songViewYScroll;
 	int arrangementYScroll;
