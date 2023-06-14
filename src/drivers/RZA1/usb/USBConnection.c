@@ -88,7 +88,7 @@ void openUSBPeripheral(void)
 
     ctrl.module        = WHICH_USB_MODULE;
     ctrl.type          = USB_PMSC;
-    cfg.usb_speed      = USB_HS;
+    cfg.usb_speed      = USB_FS;
     cfg.usb_mode       = USB_PERI;
     cfg.p_usb_reg      = &usb_descriptor;
     usb_err_t ret_code = R_USB_Open(&ctrl, &cfg); /* Initializes the USB module */
