@@ -151,7 +151,7 @@ public:
 
 class MIDIDeviceUSBUpstream final : public MIDIDeviceUSB {
 public:
-	MIDIDeviceUSBUpstream(uint8_t portNum=0) {portNumber=portNum;}
+	MIDIDeviceUSBUpstream(uint8_t portNum = 0) { portNumber = portNum; }
 	void writeReferenceAttributesToFile();
 	void writeToFlash(uint8_t* memory);
 	char const* getDisplayName();

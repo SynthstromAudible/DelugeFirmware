@@ -51,7 +51,7 @@ Macro definitions
 #define NCABLES 3
 #define USB_MIDI_CD_WTOTALLENGTH (9 + 7 + (15 * NCABLES) + (13 + NCABLES) * 2)
 //9 for config descriptor. Add any additional config lengths here
-#define TOTAL_CONFIG_LENGTH (9+USB_MIDI_CD_WTOTALLENGTH)
+#define TOTAL_CONFIG_LENGTH (9 + USB_MIDI_CD_WTOTALLENGTH)
 //Good summary ref on overall USB structure https://www.beyondlogic.org/usbnutshell/usb5.shtml
 
 //USB midi defines
@@ -104,15 +104,15 @@ uint8_t g_midi_device[USB_DD_BLENGTH + (USB_DD_BLENGTH % 2)] = {
  * To add usb audio we would add a second interface under this configuration
  */
 uint8_t g_midi_configuration[TOTAL_CONFIG_LENGTH + (TOTAL_CONFIG_LENGTH % 2)] = {
-    USB_CD_BLENGTH,                            /*  0:bLength */
-    USB_DT_CONFIGURATION,                      /*  1:bDescriptorType */
+    USB_CD_BLENGTH,                       /*  0:bLength */
+    USB_DT_CONFIGURATION,                 /*  1:bDescriptorType */
     (uint8_t)(TOTAL_CONFIG_LENGTH % 256), /*  2:wTotalLength(L) */
     (uint8_t)(TOTAL_CONFIG_LENGTH / 256), /*  3:wTotalLength(H) */
-    1,                                         /*  4:bNumInterfaces */
-    1,                                         /*  5:bConfigurationValue */
-    0,                                         /*  6:iConfiguration */
-    (uint8_t)(USB_CF_RESERVED),                /*  7:bmAttributes */
-    (uint8_t)(500 / 2),                        /*  8:bMaxPower (2mA unit) */
+    1,                                    /*  4:bNumInterfaces */
+    1,                                    /*  5:bConfigurationValue */
+    0,                                    /*  6:iConfiguration */
+    (uint8_t)(USB_CF_RESERVED),           /*  7:bmAttributes */
+    (uint8_t)(500 / 2),                   /*  8:bMaxPower (2mA unit) */
 
     /* Interface Descriptor
      * 3rd level of USB declarations. This declares a single USB midi interface with 2 endpoints (subclass of audio)
