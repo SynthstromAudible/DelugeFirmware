@@ -48,13 +48,13 @@ struct MIDIDeviceUSB;
  */
 class ConnectedUSBMIDIDevice {
 public:
-	MIDIDeviceUSB* device; // If NULL, then no device is connected here
+	MIDIDeviceUSB* device[4]; // If NULL, then no device is connected here
 	void bufferMessage(uint32_t fullMessage);
 	void setup();
 #else
 	//warning - accessed as a C struct from usb driver
 struct ConnectedUSBMIDIDevice {
-	struct MIDIDeviceUSB* device;
+	struct MIDIDeviceUSB* device[4];
 #endif
 	uint8_t currentlyWaitingToReceive;
 	uint8_t sq; // Only for connections as HOST
@@ -64,8 +64,10 @@ struct ConnectedUSBMIDIDevice {
 	uint32_t preSendData[16];
 	uint8_t dataSendingNow[64];
 	uint8_t numMessagesQueued;
-	uint8_t
-	    numBytesSendingNow; // This will show a value after the general flush function is called, throughout other Devices being sent to before this one, and until we've completed our send
+
+	// This will show a value after the general flush function is called, throughout other Devices being sent to before this one, and until we've completed our send
+	uint8_t numBytesSendingNow;
+	uint8_t maxPortConnected;
 };
 
 #ifdef __cplusplus
