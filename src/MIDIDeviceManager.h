@@ -52,7 +52,7 @@ public:
 	void bufferMessage(uint32_t fullMessage);
 	void setup();
 #else
-	//warning - accessed as a C struct from usb driver
+//warning - accessed as a C struct from usb driver
 struct ConnectedUSBMIDIDevice {
 	struct MIDIDeviceUSB* device[4];
 #endif

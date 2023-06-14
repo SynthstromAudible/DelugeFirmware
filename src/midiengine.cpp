@@ -447,14 +447,15 @@ void MidiEngine::sendUsbMidi(uint8_t statusType, uint8_t channel, uint8_t data1,
 		for (int d = 0; d < potentialNumDevices; d++) {
 			ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][d];
 			int maxPort = connectedDevice->maxPortConnected;
-			for (int p = 0; p<=maxPort;p++){
+			for (int p = 0; p <= maxPort; p++) {
 
 				if (connectedDevice->device[p] && connectedDevice->canHaveMIDISent
-					&& (statusType == 0x0F || connectedDevice->device[p]->wantsToOutputMIDIOnChannel(channel, filter))) {
+				    && (statusType == 0x0F
+				        || connectedDevice->device[p]->wantsToOutputMIDIOnChannel(channel, filter))) {
 
 					//Or with the port to add the cable number to the full message. This
 					//is a bit hacky but it works
-					connectedDevice->bufferMessage(fullMessage|(p<<4));
+					connectedDevice->bufferMessage(fullMessage | (p << 4));
 				}
 			}
 		}
@@ -623,7 +624,7 @@ void MidiEngine::checkIncomingUsbMidi() {
 					for (; readPos < stopAt; readPos += 4) {
 
 						uint8_t statusType = readPos[0] & 0x0F;
-						uint8_t cable = (readPos[0] & 0xF0)>>4;
+						uint8_t cable = (readPos[0] & 0xF0) >> 4;
 						uint8_t channel = readPos[1] & 0x0F;
 						uint8_t data1 = readPos[2];
 						uint8_t data2 = readPos[3];
@@ -637,8 +638,8 @@ void MidiEngine::checkIncomingUsbMidi() {
 							}
 						}
 						//select appropriate device based on the cable number
-						midiMessageReceived(connectedUSBMIDIDevices[ip][d].device[cable], statusType, channel, data1, data2,
-						                    &timeLastBRDY[ip]);
+						midiMessageReceived(connectedUSBMIDIDevices[ip][d].device[cable], statusType, channel, data1,
+						                    data2, &timeLastBRDY[ip]);
 					}
 				}
 

@@ -65,7 +65,7 @@ void init() {
 	new (&hostedMIDIDevices) NamedThingVector(__builtin_offsetof(MIDIDeviceUSBHosted, name));
 
 	new (&upstreamUSBMIDIDevice_port1) MIDIDeviceUSBUpstream;
-	new (&upstreamUSBMIDIDevice_port2) MIDIDeviceUSBUpstream (2);
+	new (&upstreamUSBMIDIDevice_port2) MIDIDeviceUSBUpstream(2);
 	new (&dinMIDIPorts) MIDIDeviceDINPorts;
 
 	// TODO: If I'm going to recall MPE zones from flash mem or file, for the din port, I'd better call recountSmallestMPEZones after doing that.
@@ -211,7 +211,7 @@ extern "C" void hostedDeviceConfigured(int ip, int midiDeviceNum) {
 
 	connectedDevice->setup();
 	int ports = connectedDevice->maxPortConnected;
-	for (int i=0; i<=ports; i++){
+	for (int i = 0; i <= ports; i++) {
 		connectedUSBMIDIDevices[ip][0].device[i] = device;
 	}
 
@@ -243,7 +243,7 @@ extern "C" void hostedDeviceDetached(int ip, int midiDeviceNum) {
 	uartPrintNumber(midiDeviceNum);
 	ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][midiDeviceNum];
 	int ports = connectedDevice->maxPortConnected;
-	for (int i=0; i<=ports; i++){
+	for (int i = 0; i <= ports; i++) {
 		MIDIDeviceUSB* device = connectedDevice->device[i];
 		if (device) { // Surely always has one?
 
@@ -254,7 +254,6 @@ extern "C" void hostedDeviceDetached(int ip, int midiDeviceNum) {
 
 		connectedDevice->device[i] = NULL;
 	}
-
 }
 
 //called by USB setup
@@ -279,7 +278,7 @@ extern "C" void configuredAsPeripheral(int ip) {
 extern "C" void detachedAsPeripheral(int ip) {
 	//will need to reset all devices if more are added
 	int ports = connectedUSBMIDIDevices[ip][0].maxPortConnected;
-	for (int i=0; i<=ports; i++){
+	for (int i = 0; i <= ports; i++) {
 		connectedUSBMIDIDevices[ip][0].device[i] = NULL;
 	}
 	upstreamUSBMIDIDevice_port1.connectionFlags = 0;
@@ -384,7 +383,6 @@ worthIt:
 	if (dinMIDIPorts.worthWritingToFile()) dinMIDIPorts.writeToFile("dinPorts");
 	if (upstreamUSBMIDIDevice_port1.worthWritingToFile()) upstreamUSBMIDIDevice_port1.writeToFile("upstreamUSBDevice");
 	if (upstreamUSBMIDIDevice_port2.worthWritingToFile()) upstreamUSBMIDIDevice_port2.writeToFile("upstreamUSBDevice2");
-
 
 	for (int d = 0; d < hostedMIDIDevices.getNumElements(); d++) {
 		MIDIDeviceUSBHosted* device = (MIDIDeviceUSBHosted*)hostedMIDIDevices.getElement(d);
@@ -514,7 +512,7 @@ void ConnectedUSBMIDIDevice::setup() {
 	numBytesReceived = 0;
 
 	//default to only a single port
-	maxPortConnected=0;
+	maxPortConnected = 0;
 }
 
 /*
