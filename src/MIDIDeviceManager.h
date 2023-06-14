@@ -46,13 +46,13 @@ struct MIDIDeviceUSB;
  * setup the next device after each successful read. Data is written directly into the receiveData
  * array from the USB device, it's set as the USB pipe address during midi engine setup
  */
-//
 class ConnectedUSBMIDIDevice {
 public:
 	MIDIDeviceUSB* device; // If NULL, then no device is connected here
 	void bufferMessage(uint32_t fullMessage);
 	void setup();
 #else
+	//warning - accessed as a C struct from usb driver
 struct ConnectedUSBMIDIDevice {
 	struct MIDIDeviceUSB* device;
 #endif
