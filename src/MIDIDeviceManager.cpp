@@ -210,7 +210,11 @@ extern "C" void hostedDeviceConfigured(int ip, int midiDeviceNum) {
 	ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][midiDeviceNum];
 
 	connectedDevice->setup();
-	connectedDevice->device = device;
+	int ports = connectedDevice->maxPortConnected;
+	for (int i=0; i<=ports; i++){
+		connectedUSBMIDIDevices[ip][0].device[i] = device;
+	}
+
 	connectedDevice->sq = 0;
 	connectedDevice->canHaveMIDISent = (bool)strcmp(device->name.get(), "Synthstrom MIDI Foot Controller");
 
@@ -237,16 +241,20 @@ extern "C" void hostedDeviceDetached(int ip, int midiDeviceNum) {
 
 	uartPrint("detached MIDI device: ");
 	uartPrintNumber(midiDeviceNum);
+	ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][midiDeviceNum];
+	int ports = connectedDevice->maxPortConnected;
+	for (int i=0; i<=ports; i++){
+		MIDIDeviceUSB* device = connectedDevice->device[i];
+		if (device) { // Surely always has one?
 
-	MIDIDeviceUSB* device = connectedUSBMIDIDevices[ip][midiDeviceNum].device;
-	if (device) { // Surely always has one?
+			device->connectionFlags &= ~(1 << midiDeviceNum);
 
-		device->connectionFlags &= ~(1 << midiDeviceNum);
+			recountSmallestMPEZones();
+		}
 
-		recountSmallestMPEZones();
+		connectedDevice->device[i] = NULL;
 	}
 
-	connectedUSBMIDIDevices[ip][midiDeviceNum].device = NULL;
 }
 
 //called by USB setup
@@ -256,7 +264,9 @@ extern "C" void configuredAsPeripheral(int ip) {
 
 	//add second port here
 	connectedDevice->setup();
-	connectedDevice->device = &upstreamUSBMIDIDevice_port1;
+	connectedDevice->device[0] = &upstreamUSBMIDIDevice_port1;
+	connectedDevice->device[1] = &upstreamUSBMIDIDevice_port1;
+	connectedDevice->maxPortConnected = 1;
 	connectedDevice->canHaveMIDISent = 1;
 
 	anyUSBSendingStillHappening[ip] = 0; // Initialize this. There's obviously nothing sending yet right now.
@@ -268,7 +278,10 @@ extern "C" void configuredAsPeripheral(int ip) {
 
 extern "C" void detachedAsPeripheral(int ip) {
 	//will need to reset all devices if more are added
-	connectedUSBMIDIDevices[ip][0].device = NULL;
+	int ports = connectedUSBMIDIDevices[ip][0].maxPortConnected;
+	for (int i=0; i<=ports; i++){
+		connectedUSBMIDIDevices[ip][0].device[i] = NULL;
+	}
 	upstreamUSBMIDIDevice_port1.connectionFlags = 0;
 	upstreamUSBMIDIDevice_port2.connectionFlags = 0;
 	anyUSBSendingStillHappening[ip] =
@@ -499,6 +512,9 @@ void ConnectedUSBMIDIDevice::setup() {
 	numBytesSendingNow = 0;
 	currentlyWaitingToReceive = false;
 	numBytesReceived = 0;
+
+	//default to only a single port
+	maxPortConnected=0;
 }
 
 /*
