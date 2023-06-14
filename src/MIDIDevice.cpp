@@ -355,7 +355,7 @@ char const* MIDIDeviceUSBHosted::getDisplayName() {
 
 void MIDIDeviceUSBUpstream::writeReferenceAttributesToFile() {
 	storageManager.writeAttribute(
-	    "port", "upstreamUSB",
+	    "port",portNumber? "upstreamUSB2":"upstreamUSB",
 	    false); // Same line. Usually the user wouldn't have default velocity sensitivity set for their computer.
 }
 
@@ -364,7 +364,11 @@ void MIDIDeviceUSBUpstream::writeToFlash(uint8_t* memory) {
 }
 
 char const* MIDIDeviceUSBUpstream::getDisplayName() {
-	return HAVE_OLED ? "Upstream USB device / computer" : "Computer";
+#if HAVE_OLED
+	return portNumber? "upstream USB port 2":"upstream USB port 1";
+#else
+	return portNumber ? "Computer 2" : "Computer 1";
+#endif
 }
 
 void MIDIDeviceDINPorts::writeReferenceAttributesToFile() {

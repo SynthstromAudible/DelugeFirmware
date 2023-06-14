@@ -81,7 +81,8 @@ void writeDevicesToFile();
 void readAHostedDeviceFromFile();
 void readDevicesFromFile();
 
-extern MIDIDeviceUSBUpstream upstreamUSBMIDIDevice;
+extern MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port1;
+extern MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port2;
 extern MIDIDeviceDINPorts dinMIDIPorts;
 
 extern bool differentiatingInputsByDevice;

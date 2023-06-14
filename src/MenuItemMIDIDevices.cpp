@@ -28,14 +28,14 @@ extern MenuItemSubmenu midiDeviceMenu;
 
 void MenuItemMIDIDevices::beginSession(MenuItem* navigatedBackwardFrom) {
 	if (navigatedBackwardFrom) {
-		for (soundEditor.currentValue = -2;
+		for (soundEditor.currentValue = -3;
 		     soundEditor.currentValue < MIDIDeviceManager::hostedMIDIDevices.getNumElements();
 		     soundEditor.currentValue++) {
 			if (getDevice(soundEditor.currentValue) == soundEditor.currentMIDIDevice) goto decidedDevice;
 		}
 	}
 
-	soundEditor.currentValue = -2; // Start on "DIN". That's the only one that'll always be there.
+	soundEditor.currentValue = -3; // Start on "DIN". That's the only one that'll always be there.
 
 decidedDevice:
 	soundEditor.currentMIDIDevice = getDevice(soundEditor.currentValue);
@@ -52,9 +52,9 @@ void MenuItemMIDIDevices::selectEncoderAction(int offset) {
 
 		if (newValue >= MIDIDeviceManager::hostedMIDIDevices.getNumElements()) {
 			if (HAVE_OLED) return;
-			newValue = -2;
+			newValue = -3;
 		}
-		else if (newValue < -2) {
+		else if (newValue < -3) {
 			if (HAVE_OLED) return;
 			newValue = MIDIDeviceManager::hostedMIDIDevices.getNumElements() - 1;
 		}
@@ -90,11 +90,14 @@ void MenuItemMIDIDevices::selectEncoderAction(int offset) {
 }
 
 MIDIDevice* MenuItemMIDIDevices::getDevice(int deviceIndex) {
-	if (deviceIndex == -2) {
+	if (deviceIndex == -3) {
 		return &MIDIDeviceManager::dinMIDIPorts;
 	}
+	else if (deviceIndex == -2) {
+		return &MIDIDeviceManager::upstreamUSBMIDIDevice_port1;
+	}
 	else if (deviceIndex == -1) {
-		return &MIDIDeviceManager::upstreamUSBMIDIDevice;
+		return &MIDIDeviceManager::upstreamUSBMIDIDevice_port2;
 	}
 	else {
 		return (MIDIDevice*)MIDIDeviceManager::hostedMIDIDevices.getElement(deviceIndex);

@@ -49,8 +49,10 @@ struct {
 	uint16_t productId;
 } usbDeviceCurrentlyBeingSetUp[USB_NUM_USBIP];
 
-//will need to make a USB virtual port class and init here
-MIDIDeviceUSBUpstream upstreamUSBMIDIDevice;
+//This class represents a thing you can send midi too,
+//the virtual cable is an implementation detail
+MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port1;
+MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port2;
 MIDIDeviceDINPorts dinMIDIPorts;
 
 uint8_t lowestLastMemberChannelOfLowerZoneOnConnectedOutput = 15;
@@ -62,7 +64,8 @@ bool anyChangesToSave = false;
 void init() {
 	new (&hostedMIDIDevices) NamedThingVector(__builtin_offsetof(MIDIDeviceUSBHosted, name));
 
-	new (&upstreamUSBMIDIDevice) MIDIDeviceUSBUpstream;
+	new (&upstreamUSBMIDIDevice_port1) MIDIDeviceUSBUpstream;
+	new (&upstreamUSBMIDIDevice_port2) MIDIDeviceUSBUpstream (2);
 	new (&dinMIDIPorts) MIDIDeviceDINPorts;
 
 	// TODO: If I'm going to recall MPE zones from flash mem or file, for the din port, I'd better call recountSmallestMPEZones after doing that.
@@ -74,7 +77,8 @@ void init() {
 
 // Gets called within UITimerManager, which may get called during SD card routine.
 void slowRoutine() {
-	upstreamUSBMIDIDevice.sendMCMsNowIfNeeded();
+	upstreamUSBMIDIDevice_port1.sendMCMsNowIfNeeded();
+	upstreamUSBMIDIDevice_port2.sendMCMsNowIfNeeded();
 
 	for (int d = 0; d < hostedMIDIDevices.getNumElements(); d++) {
 		MIDIDeviceUSBHosted* device = (MIDIDeviceUSBHosted*)hostedMIDIDevices.getElement(d);
@@ -182,7 +186,8 @@ void recountSmallestMPEZones() {
 	lowestLastMemberChannelOfLowerZoneOnConnectedOutput = 15;
 	highestLastMemberChannelOfUpperZoneOnConnectedOutput = 0;
 
-	recountSmallestMPEZonesForDevice(&upstreamUSBMIDIDevice);
+	recountSmallestMPEZonesForDevice(&upstreamUSBMIDIDevice_port1);
+	recountSmallestMPEZonesForDevice(&upstreamUSBMIDIDevice_port2);
 	recountSmallestMPEZonesForDevice(&dinMIDIPorts);
 
 	for (int d = 0; d < hostedMIDIDevices.getNumElements(); d++) {
@@ -249,22 +254,23 @@ extern "C" void configuredAsPeripheral(int ip) {
 	//Leave this - we'll use this device for all upstream ports
 	ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][0];
 
-	//init 2 more devices here - will differentiate with virtual cables
+	//add second port here
 	connectedDevice->setup();
-	connectedDevice->device = &upstreamUSBMIDIDevice;
+	connectedDevice->device = &upstreamUSBMIDIDevice_port1;
 	connectedDevice->canHaveMIDISent = 1;
 
 	anyUSBSendingStillHappening[ip] = 0; // Initialize this. There's obviously nothing sending yet right now.
 
-	upstreamUSBMIDIDevice.connectedNow(0);
+	upstreamUSBMIDIDevice_port1.connectedNow(0);
+	upstreamUSBMIDIDevice_port2.connectedNow(0);
 	recountSmallestMPEZones();
 }
 
 extern "C" void detachedAsPeripheral(int ip) {
 	//will need to reset all devices if more are added
 	connectedUSBMIDIDevices[ip][0].device = NULL;
-	upstreamUSBMIDIDevice.connectionFlags = 0;
-
+	upstreamUSBMIDIDevice_port1.connectionFlags = 0;
+	upstreamUSBMIDIDevice_port2.connectionFlags = 0;
 	anyUSBSendingStillHappening[ip] =
 	    0; // Reset this again. Been meaning to do this, and can no longer quite remember reason or whether technically essential, but adds to safety at least.
 
@@ -292,7 +298,8 @@ MIDIDevice* readDeviceReferenceFromFile() {
 		}
 		else if (!strcmp(tagName, "port")) {
 			char const* port = storageManager.readTagOrAttributeValue();
-			if (!strcmp(port, "upstreamUSB")) device = &upstreamUSBMIDIDevice;
+			if (!strcmp(port, "upstreamUSB")) device = &upstreamUSBMIDIDevice_port1;
+			else if (!strcmp(port, "upstreamUSB2")) device = &upstreamUSBMIDIDevice_port2;
 			else if (!strcmp(port, "din")) device = &dinMIDIPorts;
 		}
 
@@ -316,7 +323,8 @@ void readDeviceReferenceFromFlash(int whichCommand, uint8_t const* memory) {
 	MIDIDevice* device;
 
 	if (vendorId == VENDOR_ID_NONE) device = NULL;
-	else if (vendorId == VENDOR_ID_UPSTREAM_USB) device = &upstreamUSBMIDIDevice;
+	else if (vendorId == VENDOR_ID_UPSTREAM_USB) device = &upstreamUSBMIDIDevice_port1;
+	else if (vendorId == VENDOR_ID_UPSTREAM_USB2) device = &upstreamUSBMIDIDevice_port2;
 	else if (vendorId == VENDOR_ID_DIN) device = &dinMIDIPorts;
 
 	else {
@@ -339,7 +347,8 @@ void writeDevicesToFile() {
 
 	// First, see if it's even worth writing anything
 	if (dinMIDIPorts.worthWritingToFile()) goto worthIt;
-	if (upstreamUSBMIDIDevice.worthWritingToFile()) goto worthIt;
+	if (upstreamUSBMIDIDevice_port1.worthWritingToFile()) goto worthIt;
+	if (upstreamUSBMIDIDevice_port2.worthWritingToFile()) goto worthIt;
 
 	for (int d = 0; d < hostedMIDIDevices.getNumElements(); d++) {
 		MIDIDeviceUSBHosted* device = (MIDIDeviceUSBHosted*)hostedMIDIDevices.getElement(d);
@@ -360,7 +369,9 @@ worthIt:
 	storageManager.writeOpeningTagEnd();
 
 	if (dinMIDIPorts.worthWritingToFile()) dinMIDIPorts.writeToFile("dinPorts");
-	if (upstreamUSBMIDIDevice.worthWritingToFile()) upstreamUSBMIDIDevice.writeToFile("upstreamUSBDevice");
+	if (upstreamUSBMIDIDevice_port1.worthWritingToFile()) upstreamUSBMIDIDevice_port1.writeToFile("upstreamUSBDevice");
+	if (upstreamUSBMIDIDevice_port2.worthWritingToFile()) upstreamUSBMIDIDevice_port2.writeToFile("upstreamUSBDevice2");
+
 
 	for (int d = 0; d < hostedMIDIDevices.getNumElements(); d++) {
 		MIDIDeviceUSBHosted* device = (MIDIDeviceUSBHosted*)hostedMIDIDevices.getElement(d);
@@ -392,7 +403,10 @@ void readDevicesFromFile() {
 			dinMIDIPorts.readFromFile();
 		}
 		else if (!strcmp(tagName, "upstreamUSBDevice")) {
-			upstreamUSBMIDIDevice.readFromFile();
+			upstreamUSBMIDIDevice_port1.readFromFile();
+		}
+		else if (!strcmp(tagName, "upstreamUSBDevice2")) {
+			upstreamUSBMIDIDevice_port2.readFromFile();
 		}
 		else if (!strcmp(tagName, "hostedUSBDevice")) {
 			readAHostedDeviceFromFile();
