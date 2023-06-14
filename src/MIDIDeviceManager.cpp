@@ -265,7 +265,7 @@ extern "C" void configuredAsPeripheral(int ip) {
 	//add second port here
 	connectedDevice->setup();
 	connectedDevice->device[0] = &upstreamUSBMIDIDevice_port1;
-	connectedDevice->device[1] = &upstreamUSBMIDIDevice_port1;
+	connectedDevice->device[1] = &upstreamUSBMIDIDevice_port2;
 	connectedDevice->maxPortConnected = 1;
 	connectedDevice->canHaveMIDISent = 1;
 

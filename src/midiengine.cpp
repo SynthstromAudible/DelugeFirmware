@@ -448,12 +448,13 @@ void MidiEngine::sendUsbMidi(uint8_t statusType, uint8_t channel, uint8_t data1,
 			ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][d];
 			int maxPort = connectedDevice->maxPortConnected;
 			for (int p = 0; p<=maxPort;p++){
+
 				if (connectedDevice->device[p] && connectedDevice->canHaveMIDISent
 					&& (statusType == 0x0F || connectedDevice->device[p]->wantsToOutputMIDIOnChannel(channel, filter))) {
 
-					//Probable change - use the connectedDevice->Device->Output function
-					//so that multiple virtual usb cables can share a device
-					connectedDevice->bufferMessage(fullMessage);
+					//Or with the port to add the cable number to the full message. This
+					//is a bit hacky but it works
+					connectedDevice->bufferMessage(fullMessage|(p<<4));
 				}
 			}
 		}
@@ -621,8 +622,6 @@ void MidiEngine::checkIncomingUsbMidi() {
 					// Receive all the stuff from this device
 					for (; readPos < stopAt; readPos += 4) {
 
-						//ignores the midi cable number
-
 						uint8_t statusType = readPos[0] & 0x0F;
 						uint8_t cable = (readPos[0] & 0xF0)>>4;
 						uint8_t channel = readPos[1] & 0x0F;
@@ -637,6 +636,7 @@ void MidiEngine::checkIncomingUsbMidi() {
 								continue;
 							}
 						}
+						//select appropriate device based on the cable number
 						midiMessageReceived(connectedUSBMIDIDevices[ip][d].device[cable], statusType, channel, data1, data2,
 						                    &timeLastBRDY[ip]);
 					}
