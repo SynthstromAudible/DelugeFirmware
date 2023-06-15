@@ -455,7 +455,8 @@ void MidiEngine::sendUsbMidi(uint8_t statusType, uint8_t channel, uint8_t data1,
 
 					//Or with the port to add the cable number to the full message. This
 					//is a bit hacky but it works
-					connectedDevice->bufferMessage(fullMessage | (p << 4));
+					uint32_t channeled_message = fullMessage | (p << 4);
+					connectedDevice->bufferMessage(channeled_message);
 				}
 			}
 		}
