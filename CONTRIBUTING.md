@@ -68,18 +68,18 @@ The following requirements must be fulfilled for a Pull request to be mergable t
 * All changes to the firmware have to be tested on a best effort basis to make sure they work as expected and don't break any existing functionality before submitting as ready to merge. This does not apply to Draft Pull requests.
 * All changes need to be compatible with all available hardware variants, this currently includes OLED and 7-Segment.
 * All changes need to be compatible with the currently official toolchain as described in the [Readme](README.md).
-* If a CI system has been established the acceptance of the CI system is also a requirement (comprising probably of compilation and (unit) testing)
+* If a CI system has been established the acceptance of the CI system is also a requirement (comprising probably of compilation and (unit) testing).
 
 ### Application specific
 
-* Pull requests that change how users can interact with the device or massively alter system performance (> 3% permanent cycle load) require either
-    * A runtime configuration setting that allows to enable or disable the feature/change in behavior, see documentation on adding optional feature settings TBD
-    * Or if a runtime setting is not possible a preprocessor switch that allows creating firmware without the change
-* Changes that massively increase image size (> 5% of total memory) also require a preprocessor switch so they can be enabled or disabled
-* If the Pull request requires changes in structure of user files (e.g. project/synth or other xml files)
-    * It must ensure that files created with the official firmware or previous community releases stay compatible or are automatically upgraded (upward compatibility)
-    * If possible files created with the changes of the Pull request can be used with older firmwares not having the change (downward compatibility)
-* If the Pull request changes end user behavoir or introduces new features a new entry in the [CommunityFeatures.md](CommunityFeatures.md) file needs to be created in the preexisting style describing the feature and it's options as a small manual to users
+* Pull requests that change how users can interact with the device or massively alter system performance (> 3% permanent cycle load) require either.
+    * A runtime configuration setting that allows to enable or disable the feature/change in behavior, see documentation on adding optional feature settings TBD.
+    * Or if a runtime setting is not possible a preprocessor switch that allows creating firmware without the change.
+* Changes that massively increase image size (> 5% of total memory) also require a preprocessor switch so they can be enabled or disabled.
+* If the Pull request requires changes in structure of user files (e.g. project/synth or other xml files) or flash configuration.
+    * It must ensure that files or flash configuration created with the official firmware or previous community releases stay compatible or are automatically upgraded (upward compatibility).
+    * If possible files and flash configuration created with the changes of the Pull request can be used with older firmwares not having the change (downward compatibility). Older firmwares must not break if a newer configuration was stored on the device.
+* If the Pull request changes end user behavoir or introduces new features a new entry in the [CommunityFeatures.md](CommunityFeatures.md) file needs to be created in the preexisting style describing the feature and it's options as a small manual to users.
 
 ## Workflow
 
@@ -96,6 +96,6 @@ Please follow the following steps for every pull request to ensure every contrib
     * For more information about governance and handling of decisional matters please take a look at the [Governance](GOVERNANCE.md) document.
 
 In addition to this workflow it is not a requirement but would be nice if developers could help the maintenance of the project by:
-* Do houskeeping of the Pull request including processing community feedback
-* Tagging the pull request appropriately
-* Trying to keep some sense of ownership over the touched areas of the codebase and support in case of problems, questions or future developments
+* Do houskeeping of the Pull request including processing community feedback.
+* Tagging the pull request appropriately.
+* Trying to keep some sense of ownership over the touched areas of the codebase and support in case of problems, questions or future developments.
