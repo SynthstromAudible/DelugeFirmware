@@ -101,15 +101,16 @@ public:
 
 	inline bool hasDefaultVelocityToLevelSet() { return defaultVelocityToLevel; }
 
-	//Only 2 ports per device, but this is functionally set in stone due to existing code
-	//Originally done to ease integration to the midi device setting menu
-	MIDIPort ports
-	    [2];
+	// Only 2 ports per device, but this is functionally set in stone due to existing code
+	// Originally done to ease integration to the midi device setting menu
+	MIDIPort ports[2];
 
-	// These are stored as full-range 16-bit values (scaled up from 7 or 14-bit MIDI depending on which), and you'll want to scale this up again to 32-bit to use them.
-	// X and Y may be both positive and negative, and Z may only be positive (so has been scaled up less from incoming bits).
-	// These default to 0.
-	// These are just for MelodicInstruments. For Drums, the values get stored in the Drum itself.
+	/* These are stored as full-range 16-bit values (scaled up from 7 or 14-bit MIDI depending on which), and you'll want to scale this up again to 32-bit to use them.
+	 * X and Y may be both positive and negative, and Z may only be positive (so has been scaled up less from incoming bits).
+	 * These default to 0.
+	 * These are just for MelodicInstruments. For Drums, the values get stored in the Drum itself.
+	 */
+
 	int16_t defaultInputMPEValuesPerMIDIChannel[16][NUM_EXPRESSION_DIMENSIONS];
 
 	uint8_t mpeZoneBendRanges[2][2]; // 0 means none set. It's [zone][whichBendRange].
