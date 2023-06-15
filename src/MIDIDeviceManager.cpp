@@ -65,7 +65,7 @@ void init() {
 	new (&hostedMIDIDevices) NamedThingVector(__builtin_offsetof(MIDIDeviceUSBHosted, name));
 
 	new (&upstreamUSBMIDIDevice_port1) MIDIDeviceUSBUpstream;
-	new (&upstreamUSBMIDIDevice_port2) MIDIDeviceUSBUpstream(2);
+	new (&upstreamUSBMIDIDevice_port2) MIDIDeviceUSBUpstream(1);
 	new (&dinMIDIPorts) MIDIDeviceDINPorts;
 
 	// TODO: If I'm going to recall MPE zones from flash mem or file, for the din port, I'd better call recountSmallestMPEZones after doing that.
