@@ -360,7 +360,7 @@ void MIDIDeviceUSBUpstream::writeReferenceAttributesToFile() {
 }
 
 void MIDIDeviceUSBUpstream::writeToFlash(uint8_t* memory) {
-	*(uint16_t*)memory = portNumber? VENDOR_ID_UPSTREAM_USB: VENDOR_ID_UPSTREAM_USB2;
+	*(uint16_t*)memory = portNumber ? VENDOR_ID_UPSTREAM_USB : VENDOR_ID_UPSTREAM_USB2;
 }
 
 char const* MIDIDeviceUSBUpstream::getDisplayName() {
