@@ -2226,6 +2226,15 @@ public:
 // Colours submenu
 MenuItemSubmenu coloursSubmenu;
 
+
+// Community features
+class MenuItemCommunityFeatures final : public MenuItem {
+public:
+	MenuItemCommunityFeatures(char const* newName = 0) : MenuItem(newName){}
+
+	//@TODO: Implement
+} communityFeaturesMenu;
+
 char const* firmwareString = "4.1.4-alpha3";
 
 // this class is haunted for some reason, clang-format mangles it
@@ -2529,12 +2538,14 @@ SoundEditor::SoundEditor() {
 	new (&sampleBrowserPreviewModeMenu) MenuItemSampleBrowserPreviewMode(HAVE_OLED ? "Sample preview" : "PREV");
 	new (&flashStatusMenu) MenuItemFlashStatus(HAVE_OLED ? "Play-cursor" : "CURS");
 	new (&recordSubmenu) MenuItemSubmenu("Recording", recordMenuItems);
+	new (&communityFeaturesMenu) MenuItemCommunityFeatures("Community features");
 	new (&firmwareVersionMenu) MenuItemFirmwareVersion("Firmware version");
 
 	static MenuItem* rootSettingsMenuItems[] = {
-	    &cvSelectionMenu, &gateSelectionMenu, &triggerClockMenu,    &midiMenu,
-	    &defaultsSubmenu, &swingIntervalMenu, &padsSubmenu,         &sampleBrowserPreviewModeMenu,
-	    &flashStatusMenu, &recordSubmenu,     &firmwareVersionMenu, NULL};
+	    &cvSelectionMenu, &gateSelectionMenu, &triggerClockMenu,      &midiMenu,
+	    &defaultsSubmenu, &swingIntervalMenu, &padsSubmenu,           &sampleBrowserPreviewModeMenu,
+	    &flashStatusMenu, &recordSubmenu,     &communityFeaturesMenu, &firmwareVersionMenu, 
+		NULL};
 	new (&settingsRootMenu) MenuItemSubmenu("Settings", rootSettingsMenuItems);
 
 	// CV menu
@@ -2574,6 +2585,7 @@ SoundEditor::SoundEditor() {
 
 	recordCountInMenu.basicTitle = "Rec count-in";
 	monitorModeMenu.basicTitle = "Monitoring";
+	communityFeaturesMenu.basicTitle = "Community ft.";
 	firmwareVersionMenu.basicTitle = "Firmware ver.";
 #endif
 
