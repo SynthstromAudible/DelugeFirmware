@@ -196,8 +196,8 @@ void recountSmallestMPEZones() {
 	}
 }
 
+//Create the midi device configuration and add to the USB midi array
 extern "C" void hostedDeviceConfigured(int ip, int midiDeviceNum) {
-	//well we're at it should recognize multiple virtual ports here too
 	MIDIDeviceUSBHosted* device = getOrCreateHostedMIDIDeviceFromDetails(&usbDeviceCurrentlyBeingSetUp[ip].name,
 	                                                                     usbDeviceCurrentlyBeingSetUp[ip].vendorId,
 	                                                                     usbDeviceCurrentlyBeingSetUp[ip].productId);
@@ -246,14 +246,11 @@ extern "C" void hostedDeviceDetached(int ip, int midiDeviceNum) {
 	for (int i = 0; i <= ports; i++) {
 		MIDIDeviceUSB* device = connectedDevice->device[i];
 		if (device) { // Surely always has one?
-
 			device->connectionFlags &= ~(1 << midiDeviceNum);
-
-			recountSmallestMPEZones();
 		}
-
 		connectedDevice->device[i] = NULL;
 	}
+	recountSmallestMPEZones();
 }
 
 //called by USB setup
