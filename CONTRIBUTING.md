@@ -76,6 +76,9 @@ The following requirements must be fulfilled for a Pull request to be mergable t
     * A runtime configuration setting that allows to enable or disable the feature/change in behavior, see documentation on adding optional feature settings TBD
     * Or if a runtime setting is not possible a preprocessor switch that allows creating firmware without the change
 * Changes that massively increase image size (> 5% of total memory) also require a preprocessor switch so they can be enabled or disabled
+* If the Pull request requires changes in structure of user files (e.g. project/synth or other xml files)
+    * It must ensure that files created with the official firmware or previous community releases stay compatible or are automatically upgraded (upward compatibility)
+    * If possible files created with the changes of the Pull request can be used with older firmwares not having the change (downward compatibility)
 * If the Pull request changes end user behavoir or introduces new features a new entry in the [CommunityFeatures.md](CommunityFeatures.md) file needs to be created in the preexisting style describing the feature and it's options as a small manual to users
 
 ## Workflow
