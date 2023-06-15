@@ -102,8 +102,9 @@ public:
 	inline bool hasDefaultVelocityToLevelSet() { return defaultVelocityToLevel; }
 
 	//Only 2 ports per device, but this is functionally set in stone due to existing code
+	//Originally done to ease integration to the midi device setting menu
 	MIDIPort ports
-	    [2]; // I think I used an array here so the settings menu could deal with either one easily - which doesn't seem like a very strong reason really...
+	    [2];
 
 	// These are stored as full-range 16-bit values (scaled up from 7 or 14-bit MIDI depending on which), and you'll want to scale this up again to 32-bit to use them.
 	// X and Y may be both positive and negative, and Z may only be positive (so has been scaled up less from incoming bits).
