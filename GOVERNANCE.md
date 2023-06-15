@@ -1,46 +1,38 @@
-# Governance of the Deluge Community Firmware Project
+# Ownership
 
-## Direction and Strategy
+The community firmware project is owned by Synthstrom Audible and they named @jamiefaye as the [Open-source Project Manager](https://forums.synthstrom.com/discussion/5280/deluge-goes-open-source).
+* Ultimately this means that Synthstrom Audible owns the right to make any decision and change in this project.
+* Synthstrom Audible has [communicated](https://github.com/SynthstromAudible/DelugeFirmware/discussions/13#discussioncomment-6147993) that they intend to let the community run the project without direct influence but might want to contribute with resources helping in the project in the future.
+@TODO: describe relationship and delegated rights to contributors named by Synthstrom as well as delegation mechanism via CODEOWNERS
 
-At present, Ian and Rohan of Synthstrom Audible are taking a "hands-off" approach to the Community repository. While they may offer comments and suggestions from time to time on its direction, [@ian-jorgensen has indicated](https://github.com/SynthstromAudible/DelugeFirmware/discussions/13#discussioncomment-6147993) that Synthstrom would ideally like the community to work out what the `community` fork's direction and strategy will be:
 
-> I think it's going to take a wee while for this to become clearer. Things are moving really fast and I guess key thing is that developments that use key UI are thoughtfully considered/voted on before being implemented. The community firmware does need to be at least pretty stable - compared to the experimental releases and its going to do peoples heads in if UI keeps changing for the community release.
-> We (Synthstrom) are trying to stay a little hands off with this tbh and let the community work it out. We've got people helping with PR's and general support, but I felt it wouldn't be that fair for us to also have people setting up strategy etc, at that point its more or less us and no point to this all, haha. But I guess it might pay for someone to take a bit more of a 'strategy' role and create some documents which outline all the avail UI - slotting in possible features into that and making sure nothing is given up too hastily.
-> Create communication methods for the community to feedback directly to the dev's. There is lots that can be done in that regards, just needs some peeps with time and desire to manage that sort of planning.
-> Also, the creator has to be wiling to give their code back to the community. Lots of things need to come together and it might take a little while for things to get clearer.
+# Goal
 
-Via @jamiefaye in Discord:
+Goal of the DelugeFirmware community is to produce high quality firmware application releases for users of the Deluge hardware with improvements and new features coming from our community of contributors. To be as transparent and inclusive as possible [contribution guidelines](CONTRIBUTING.md) have been defined with the intent to help reach this goal. Please also see the [Code of Conduct](CODE_OF_CONDUCT.md).
 
-> There are two levels of [governance] here. What goes into the Community branch and what goes into the Official branch. The Official level is up to Synthstrom. My goal as a contributor will be to make stuff that eventually goes into Official, with Community as a waypoint.
 
-Via @litui in [Discord](https://discord.com/channels/608916579421257728/1107026299945496577/1117474217475199016):
+# Development strategy
 
-> I think at some point community will need to level-set on vision for the Deluge. Will it aim for more comprehensive complexity like a DAW or will it aim to shorten the path to production?  Are these the same or different goals? etc etc.
+In order to give everyone in the project clear expecatations and transparency on what is going on all development is organized in the form of Pull requests. This ensures visibility on the ongoing activities and prevents intransparent internal changes from disrupting community work on Pull request. 
 
-> More features in a build doesn't necessarily make music-making easier. Sometimes simplicity is best.
+There is no official roamdap or project activities, instead all contirbutors are welcome to participate in the discussion and planning process as outlined in the [contribution guidelines](CONTRIBUTING.md). Members of the community can build informal working groups to achieve greater goals and work on them in the form of collaborative Pull requests.
 
-### Stability First and Foremost?
 
-Via @phalk in [Discord](https://discord.com/channels/608916579421257728/1107026299945496577/1117505878208286771):
+# Release strategy
 
-> My opinion on community firmware merge and release strategy is that we should have at least one branch that works similarly to how the official firmware has worked until now. Only stable changes that don't break compatibility, work for both OLED and 7seg and don't break the classic UI should be merged, so people can rely on a stable interface and crash free software for live performances etc.
+There are releases coming from the ```develop``` branch as beta as well as the ```community``` branch as official releases. 
 
-> Of course, there can also be more experimental branches, but for that it would make sense to have a dedicated branch manager with a vision and a set of goals in my opinion.
+For ```develop``` or beta releases:
+* All incoming changes come from merging Pull requests from the community.
+* For every merged Pull request a new beta firmware will be generated and published on GitHub Releases tagged as ```beta``` to allow users to test them.
+* The project management team will decide on the right time to pick a promising beta firmware to be a release candidate.
 
-Via @litui in [Discord](https://discord.com/channels/608916579421257728/1107026299945496577/1117469438426484786):
+For ```community``` or official releases the following applies:
+* Before a firmware can be released as official community version it must have been released and published in the Github Releases as release candidate (```rc```) for at least two weeks, giving users and developers the chance to thoroughly test them and give feedback.
+* Only if the project management team has the feeling that the firmware is stable and delivers a better experience than the previous firmware it is released as an official new ```community``` release in the Github Releases. 
 
-> Personally I'd err more on the side of having the community repo be a place for "the best of" kind of showing of what the community has to offer, in as stable a package as possible.
 
-### Accessibility?
 
-Should *Accessibility* be a core goal or a goal for an alternative firmware? Via @litui in [Discord](https://discord.com/channels/608916579421257728/1117475009900847174/1117475987714740406):
 
-> I'd also like to see an accessibility-friendly firmware. Deluge as-is relies too heavily on [visuals and] non-obvious shift-modes for a lot of blind and otherwise disabled folks.
 
-## PR Review and Merges
 
-PRs are currently open to review by the general community and approval/merger by a small team of folks (@jamiefaye and @litui) enlisted by Synthstrom to support the Deluge Open Source project.
-
-Via @jamiefaye in Discord:
-
-> Right now, if something does not sound wrong and builds OK on Windows/e2studio,  it will probably go in.

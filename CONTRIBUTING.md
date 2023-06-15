@@ -1,4 +1,4 @@
-# How to contribute to DelugeFirmware/community
+# How to contribute to DelugeFirmware
 
 Above all, thank you for your interest in both the Synthstrom Deluge and being a contributor!
 
@@ -51,12 +51,13 @@ Everybody is invited to contribute to this repository as further outlined below:
 
 ## Requirements
 
-The following requirements must be fulfilled for a Pull request to be mergable to the community branch:
+The following requirements must be fulfilled for a Pull request to be mergable to the ```develop``` branch:
 
 ### General
 
 * The contribution must be meaningful to the project. There must be a clear and articulate link between the change and an improvement for the developers, users or overall community.
 * The Pull request must have a clear scope outlined in the description, please don't commit changes unrelated to the scope.
+* The description of the Pull request must also contain information on what functional areas have been touched and should be tested, ideally including a small test manual
 * Appropriate branch name, if possible following standard conventions like git flow (e.g. feature/shiny_new_feature_name).
 * No small Pull requests exclusively fixing single insignificant typos in code comments, one-off formatting mistakes or whitespace. Aggregate Pull requests fixing bigger areas can be accepted.
 * Automated and low effort Pull requests will not be will not be tolerated or accepted (see [Hacktoberfest](https://blog.domenic.me/hacktoberfest/) for an example on why this rule is necessary).
@@ -64,8 +65,10 @@ The following requirements must be fulfilled for a Pull request to be mergable t
 ### Code specific
 
 * There is no written standard on formatting and coding guidelines yet so the current requirement is to make your code look and feel like the rest of the repository and respect the styling decisions taken therein (for example brace position). Clang formatting has been included in the GitHub Actions and should help with this.
-* All changes to the firmware have to be tested to make sure they work as expected and don't break any existing functionality before submitting as ready to merge. This does not apply to Draft Pull requests.
+* All changes to the firmware have to be tested on a best effort basis to make sure they work as expected and don't break any existing functionality before submitting as ready to merge. This does not apply to Draft Pull requests.
 * All changes need to be compatible with all available hardware variants, this currently includes OLED and 7-Segment.
+* All changes need to be compatible with the currently official toolchain as described in the [Readme](README.md).
+* If a CI system has been established the acceptance of the CI system is also a requirement (comprising probably of compilation and (unit) testing)
 
 ### Application specific
 
@@ -73,7 +76,7 @@ The following requirements must be fulfilled for a Pull request to be mergable t
     * A runtime configuration setting that allows to enable or disable the feature/change in behavior, see documentation on adding optional feature settings TBD
     * Or if a runtime setting is not possible a preprocessor switch that allows creating firmware without the change
 * Changes that massively increase image size (> 5% of total memory) also require a preprocessor switch so they can be enabled or disabled
-
+* If the Pull request changes end user behavoir or introduces new features a new entry in the [CommunityFeatures.md](CommunityFeatures.md) file needs to be created in the preexisting style describing the feature and it's options as a small manual to users
 
 ## Workflow
 
@@ -81,10 +84,15 @@ Please follow the following steps for every pull request to ensure every contrib
 
 1. Create a [Draft Pull request](https://github.blog/2019-02-14-introducing-draft-pull-requests/) including a description on what will be changed and what impact you expect. The title can start with "[Draft] " during development.
 2. Work on the Pull request
-3. Before a Pull request can be considered ready all upstream changes from the community branch need to be merged into it. It is the duty of everyone to help make merging into community as painless as possible so please try to align if you see that your Pull requests works in a similar area as another one.
-4. Once the Pull request is ready, fulfills all requirements outlined above and is up to date with the community branch it can be converted from Draft and marked as ready for review.
-5. If possible every Pull request should have at least two reviews. Reviews from community members not mentioned in the [CODEOWNERS](CODEOWNERS) file should be taken serious and used as an important source of feedback but have no decisional power on what gets merged into the community branch.
+3. Before a Pull request can be considered ready all upstream changes from the ```develop``` branch need to be merged into it. It is the duty of everyone to help make merging into ```develop``` as painless as possible so please try to align if you see that your Pull requests works in a similar area as another one.
+4. Once the Pull request is ready, fulfills all requirements outlined above and is up to date with the ```develop``` branch it can be converted from Draft and marked as ready for review.
+5. If possible every Pull request should have at least two reviews. Reviews from community members not mentioned in the [CODEOWNERS](CODEOWNERS) file should be taken serious and used as an important source of feedback but have no decisional power on what gets merged into the ```develop``` branch.
 5. At least one member of the [CODEOWNERS](CODEOWNERS) file needs to review every pull request while also considering community reviews in their decision.
     * CODEOWNERS can decline merging a Pull request if it does not fulfill the requirements outlined above. They need to give clear feedback on which requirements have not been met and also provide opportunity to improve the Pull request to meet the requirements within reasonable boundaries (e.g. there are limits on how much work can be expected from a CODEOWNER for a specific Pull request).
-    * If one or more CODEOWNERS are sure the requirements have been met they will merge the change into the community branch.
+    * If one or more CODEOWNERS are sure the requirements have been met they will merge the change into the ```develop``` branch.
     * For more information about governance and handling of decisional matters please take a look at the [Governance](GOVERNANCE.md) document.
+
+In addition to this workflow it is not a requirement but would be nice if developers could help the maintenance of the project by:
+* Do houskeeping of the Pull request including processing community feedback
+* Tagging the pull request appropriately
+* Trying to keep some sense of ownership over the touched areas of the codebase and support in case of problems, questions or future developments
