@@ -1124,7 +1124,7 @@ readTimestretched:
 
 				timeStretcher->crossfadeProgress += timeStretcher->crossfadeIncrement * numSamplesThisTimestretchedRead;
 
-				int32_t newerHopAmplitudeAfter = lshiftAndSaturate(timeStretcher->crossfadeProgress, 7);
+				int32_t newerHopAmplitudeAfter = lshiftAndSaturate<7>(timeStretcher->crossfadeProgress);
 
 				int32_t newerHopAmplitudeIncrement =
 				    (int32_t)(newerHopAmplitudeAfter - newerHopAmplitudeNow) / (int32_t)numSamplesThisTimestretchedRead;

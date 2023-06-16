@@ -423,14 +423,12 @@ void ModControllableAudio::processFX(StereoSample* buffer, int numSamples, int m
 			int32_t* workingBufferPos = delayWorkingBuffer;
 			do {
 				// Leave more headroom, because making it clip sounds bad with pure digital
-				workingBufferPos[0] =
-				    signed_saturate(
-				        multiply_32x32_rshift32(workingBufferPos[0], delayWorkingState->delayFeedbackAmount), 32 - 3)
-				    << 2;
-				workingBufferPos[1] =
-				    signed_saturate(
-				        multiply_32x32_rshift32(workingBufferPos[1], delayWorkingState->delayFeedbackAmount), 32 - 3)
-				    << 2;
+				workingBufferPos[0] = signed_saturate<32 - 3>(multiply_32x32_rshift32(
+				                          workingBufferPos[0], delayWorkingState->delayFeedbackAmount))
+				                      << 2;
+				workingBufferPos[1] = signed_saturate<32 - 3>(multiply_32x32_rshift32(
+				                          workingBufferPos[1], delayWorkingState->delayFeedbackAmount))
+				                      << 2;
 
 				workingBufferPos += 2;
 			} while (workingBufferPos != workingBufferEnd);
@@ -469,8 +467,8 @@ void ModControllableAudio::processFX(StereoSample* buffer, int numSamples, int m
 				}
 
 				else {
-					fromDelayL = signed_saturate(multiply_32x32_rshift32(fromDelayL, delayWorkingState->delayFeedbackAmount), 32 - 3) << 2;
-					fromDelayR = signed_saturate(multiply_32x32_rshift32(fromDelayR, delayWorkingState->delayFeedbackAmount), 32 - 3) << 2;
+					fromDelayL = signed_saturate<delayWorkingState->delayFeedbackAmount>(multiply_32x32_rshift32(fromDelayL), 32 - 3) << 2;
+					fromDelayR = signed_saturate<delayWorkingState->delayFeedbackAmount>(multiply_32x32_rshift32(fromDelayR), 32 - 3) << 2;
 				}
 				*/
 
