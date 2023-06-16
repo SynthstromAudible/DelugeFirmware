@@ -639,7 +639,7 @@ void MidiEngine::checkIncomingUsbMidi() {
 							}
 						}
 						//select appropriate device based on the cable number
-						if (cable < connectedUSBMIDIDevices[ip][d].maxPortConnected) {
+						if (cable <= connectedUSBMIDIDevices[ip][d].maxPortConnected) {
 							//in case the device uses more ports than we can support
 							midiMessageReceived(connectedUSBMIDIDevices[ip][d].device[cable], statusType, channel,
 							                    data1, data2, &timeLastBRDY[ip]);
