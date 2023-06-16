@@ -923,8 +923,8 @@ bool doSomeOutputting() {
 		}
 
 #else
-		i2sTXBufferPosNow[0] = lshiftAndSaturate(lAdjusted, AUDIO_OUTPUT_GAIN_DOUBLINGS);
-		i2sTXBufferPosNow[1] = lshiftAndSaturate(rAdjusted, AUDIO_OUTPUT_GAIN_DOUBLINGS);
+		i2sTXBufferPosNow[0] = lshiftAndSaturate<AUDIO_OUTPUT_GAIN_DOUBLINGS>(lAdjusted);
+		i2sTXBufferPosNow[1] = lshiftAndSaturate<AUDIO_OUTPUT_GAIN_DOUBLINGS>(rAdjusted);
 
 		outputBufferForResampling[numSamplesOutputted].l = i2sTXBufferPosNow[0];
 		outputBufferForResampling[numSamplesOutputted].r = i2sTXBufferPosNow[1];

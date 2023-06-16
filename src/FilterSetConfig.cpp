@@ -115,7 +115,7 @@ int32_t FilterSetConfig::init(int32_t lpfFrequency, int32_t lpfResonance, int32_
 		}
 
 		int32_t tannedFrequency =
-		    instantTan(lshiftAndSaturate(lpfFrequency, 5)); // Between 0 and 8, by my making. 1 represented by 268435456
+		    instantTan(lshiftAndSaturate<5>(lpfFrequency)); // Between 0 and 8, by my making. 1 represented by 268435456
 		{
 
 			// Cold transistor ladder
@@ -219,7 +219,7 @@ int32_t FilterSetConfig::init(int32_t lpfFrequency, int32_t lpfResonance, int32_
 		int32_t extraFeedback = 1200000000;
 
 		int32_t tannedFrequency =
-		    instantTan(lshiftAndSaturate(hpfFrequency, 5)); // Between 0 and 8, by my making. 1 represented by 268435456
+		    instantTan(lshiftAndSaturate<5>(hpfFrequency)); // Between 0 and 8, by my making. 1 represented by 268435456
 
 		int32_t hpfDivideBy1PlusTannedFrequency =
 		    (int64_t)2147483648u * 134217728
