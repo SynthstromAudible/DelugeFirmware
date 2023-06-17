@@ -212,8 +212,8 @@ int32_t getFinalParameterValueLinear(int32_t paramNeutralValue, int32_t patchedV
 
 	// positivePatchedValue's range is ideally 0 ("0") to 1073741824 ("2"), but potentially up to 2147483647 ("4"). 536870912 represents "1".
 
-	return lshiftAndSaturate<3>(multiply_32x32_rshift32(
-	    positivePatchedValue, paramNeutralValue)); // Must saturate, otherwise sustain level can easily overflow
+	// Must saturate, otherwise sustain level can easily overflow
+	return lshiftAndSaturate<3>(multiply_32x32_rshift32(positivePatchedValue, paramNeutralValue));
 }
 
 int32_t getFinalParameterValueExp(int32_t paramNeutralValue, int32_t patchedValue) {
