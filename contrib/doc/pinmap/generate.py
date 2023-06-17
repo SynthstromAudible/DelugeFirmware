@@ -935,9 +935,9 @@ def main():
     ET.register_namespace('', 'http://www.w3.org/2000/svg')
     ET.register_namespace('svg', 'http://www.w3.org/2000/svg')
     root = ET.Element('svg')
-    root.attrib['width'] = '1750'
-    root.attrib['height'] = '1200'
-    root.attrib['viewbox'] = '0 0 1750 1200'
+    root.attrib['width'] = '1704'
+    root.attrib['height'] = '1186'
+    root.attrib['viewbox'] = '0 0 1704 1186'
     root.attrib['version'] = '1.1'
     root.attrib['xmlns'] = 'http://www.w3.org/2000/svg'
 
