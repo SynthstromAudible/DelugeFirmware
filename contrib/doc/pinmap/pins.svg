@@ -1286,7 +1286,7 @@
   <g transform="translate(400, 100)">
    <path d="M 160,131V 891H 62V 637H 100V 574H 62V 336H 100V 241H 62V 131H 100Z" class="peripheral-bsc" />
    <text x="157" y="140.0" text-anchor="end">BSC</text>
-   <path d="M 320,624V 939H 498V 925H 460V 702H 498V 624H 460Z" class="peripheral-ssi0" />
+   <path d="M 320,624V 939H 498V 925H 460V 686H 498V 624H 460Z" class="peripheral-ssi0" />
    <text x="323" y="633.0">SSI 0</text>
    <path d="M 400,781V 907H 498V 781H 460Z" class="peripheral-sdhost" />
    <text x="403" y="790.0">SD HOST</text>
