@@ -77,11 +77,11 @@ The following requirements must be fulfilled for a Pull request to be mergable t
 * Pull requests that change how users can interact with the device or massively alter system performance (> 3% permanent cycle load) require either.
     * A runtime configuration setting that allows to enable or disable the feature/change in behavior, see documentation on adding optional feature settings (Pull request #56).
     * Or if a runtime setting is not possible a preprocessor switch that allows creating firmware without the change.
-* Changes that massively increase image size (> 5% of total memory) also require a preprocessor switch so they can be enabled or disabled.
+* Changes that massively increase image size (> 5% of total memory) also require a preprocessor switch starting with "FEATURE_" so they can be enabled or disabled.
 * If the Pull request requires changes in structure of user files (e.g. project/synth or other xml files) or flash configuration.
     * It must ensure that files or flash configuration created with the official firmware or previous community releases stay compatible or are automatically upgraded (upward compatibility).
     * If possible files and flash configuration created with the changes of the Pull request can be used with older firmwares not having the change (downward compatibility). Older firmwares must not break if a newer configuration was stored on the device.
-* If the Pull request changes end user behavoir or introduces new features a new entry in the [CommunityFeatures.md](CommunityFeatures.md) file needs to be created in the preexisting style describing the feature and it's options as a small manual to users.
+* If the Pull request changes end user behavoir or introduces new features a new entry in the [CommunityFeatures.md](CommunityFeatures.md) file needs to be created in the preexisting style describing the feature and it's options as a small manual to users. This includes all runtime and compile time flags which shall be named in respective sections.
 
 ## Workflow
 
