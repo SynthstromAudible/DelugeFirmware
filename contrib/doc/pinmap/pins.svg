@@ -451,15 +451,15 @@
     </g>
     <g transform="translate(1168, 740)">
      <path d="M -1.0,0 H 105 l 7.0,7.0 l -7.0,7.0 H -1.0" class="input-flag" />
-     <text x="3" y="7.0">Chip Select</text>
+     <text x="3" y="7.0">Word Select</text>
     </g>
     <g transform="translate(1168, 756)">
-     <path d="M 0,0H 105 V 14 H 0 l -7.0,-7.0 Z" class="output-flag" />
-     <text x="3" y="7.0">Data Out</text>
-    </g>
-    <g transform="translate(1168, 772)">
      <path d="M -1.0,0 H 105 l 7.0,7.0 l -7.0,7.0 H -1.0" class="input-flag" />
      <text x="3" y="7.0">Data In</text>
+    </g>
+    <g transform="translate(1168, 772)">
+     <path d="M 0,0H 105 V 14 H 0 l -7.0,-7.0 Z" class="output-flag" />
+     <text x="3" y="7.0">Data Out</text>
     </g>
     <g transform="translate(1168, 788)">
      <path d="M -1.0,0 H 105 l 7.0,7.0 l -7.0,7.0 H -1.0" class="input-flag" />
@@ -1288,6 +1288,7 @@
    <text x="157" y="140.0" text-anchor="end">BSC</text>
    <path d="M 320,624V 939H 498V 925H 460V 686H 498V 624H 460Z" class="peripheral-ssi0" />
    <text x="323" y="633.0">SSI 0</text>
+   <text x="403" y="932.0">AUDIO_XOUT</text>
    <path d="M 400,781V 907H 498V 781H 460Z" class="peripheral-sdhost" />
    <text x="403" y="790.0">SD HOST</text>
    <path d="M 400,704V 734H 498V 704H 460Z" class="peripheral-midi" />
@@ -1378,8 +1379,8 @@
    <path d="M 957,715.0H 1040V 1162.0 H 313.0" class="connection" />
    <path d="M 957,731.0 H 1167.0" class="connection" />
    <path d="M 957,747.0 H 1167.0" class="connection" />
-   <path d="M 957,763.0 H 1161.0" class="connection" />
-   <path d="M 957,779.0 H 1167.0" class="connection" />
+   <path d="M 957,763.0 H 1167.0" class="connection" />
+   <path d="M 957,779.0 H 1161.0" class="connection" />
    <path d="M 957,795.0 H 1167.0" class="connection" />
    <path d="M 957,811.0H 1072v 32H 1360V 882.0 H 1375.0" class="connection" />
    <path d="M 957,827.0H 1056v 23.0H 1344V 898.0 H 1369.0" class="connection" />
@@ -2111,18 +2112,18 @@
      <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
     </g>
     <g transform="translate(1168, 756)">
-     <path d="M 0,0H 105 V 14 H 0 l -7.0,-7.0 Z" class="highlight" />
+     <path d="M -1.0,0 H 105 l 7.0,7.0 l -7.0,7.0 H -1.0" class="highlight" />
     </g>
-    <path d="M 957,763.0 H 1161.0" class="connection" />
+    <path d="M 957,763.0 H 1167.0" class="connection" />
    </g>
    <g class="pin-connection-group">
     <g transform="translate(899, 772)" class="cpu-pin highlight">
      <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
     </g>
     <g transform="translate(1168, 772)">
-     <path d="M -1.0,0 H 105 l 7.0,7.0 l -7.0,7.0 H -1.0" class="highlight" />
+     <path d="M 0,0H 105 V 14 H 0 l -7.0,-7.0 Z" class="highlight" />
     </g>
-    <path d="M 957,779.0 H 1167.0" class="connection" />
+    <path d="M 957,779.0 H 1161.0" class="connection" />
    </g>
    <g class="pin-connection-group">
     <g transform="translate(899, 788)" class="cpu-pin highlight">
