@@ -417,9 +417,9 @@ MOD_AUDIO_JACKS = Module('Audio Jacks', [
 
 MOD_AUDIO_DAC = Module('Audio DAC', [
     Pin('SCLK', 'i'),
-    Pin('Chip Select', 'i'),
-    Pin('Data Out', 'o'),
+    Pin('Word Select', 'i'),
     Pin('Data In', 'i'),
+    Pin('Data Out', 'o'),
     Pin('CODEC Enable', 'i'),
     Pin('MCLK', 'i'),
 ], 'Cirrus Logic CS4270', indirect_pins=[
@@ -560,9 +560,9 @@ PINS = {
         ( 6,  27): MOD_AUDIO_JACKS.pins['Line In Detect'],
         ( 7,  28): MOD_CLOCK_IO.pins['Synced LED'],
         ( 8,  29): MOD_AUDIO_DAC.pins['SCLK'],
-        ( 9,  30): MOD_AUDIO_DAC.pins['Chip Select'],
-        (10,  32): MOD_AUDIO_DAC.pins['Data Out'],
-        (11,  33): MOD_AUDIO_DAC.pins['Data In'],
+        ( 9,  30): MOD_AUDIO_DAC.pins['Word Select'],
+        (10,  32): MOD_AUDIO_DAC.pins['Data In'],
+        (11,  33): MOD_AUDIO_DAC.pins['Data Out'],
         (12,  35): MOD_AUDIO_DAC.pins['CODEC Enable'],
         # (13,  38): not connected?,
         # connected to RX on the RZ/A1L
@@ -817,6 +817,11 @@ def render_peripherals(g, port_tops):
         port_tops[6] + 8 * SPACING + LINE_WEIGHT + HALF_HEIGHT,
         CPU_WIDTH - peripheral_width - CPU_PORT_WIDTH + PADDING,
         'SSI 0'
+    )
+    render_text(g,
+        port_tops[7] + 9 * SPACING + HALF_HEIGHT,
+        CPU_WIDTH - 2 * CPU_PORT_WIDTH + PADDING,
+        'AUDIO_XOUT'
     )
 
     # Render sdhost
