@@ -57,6 +57,7 @@ The following requirements must be fulfilled for a Pull request to be mergable t
 
 * The contribution must be meaningful to the project. There must be a clear and articulate link between the change and an improvement for the developers, users or overall community.
 * The Pull request must have a clear scope outlined in the description, please don't commit changes unrelated to the scope.
+* Refactorings files changed for or related to the Pull request are encouraged. This includes improving code structure and file organisation.
 * The description of the Pull request must also contain information on what functional areas have been touched and should be tested, ideally including a small test manual
 * Appropriate branch name, if possible following standard conventions like git flow (e.g. feature/shiny_new_feature_name).
 * No small Pull requests exclusively fixing single insignificant typos in code comments, one-off formatting mistakes or whitespace. Aggregate Pull requests fixing bigger areas can be accepted.
@@ -74,7 +75,7 @@ The following requirements must be fulfilled for a Pull request to be mergable t
 ### Application specific
 
 * Pull requests that change how users can interact with the device or massively alter system performance (> 3% permanent cycle load) require either.
-    * A runtime configuration setting that allows to enable or disable the feature/change in behavior, see documentation on adding optional feature settings TBD.
+    * A runtime configuration setting that allows to enable or disable the feature/change in behavior, see documentation on adding optional feature settings (Pull request #56).
     * Or if a runtime setting is not possible a preprocessor switch that allows creating firmware without the change.
 * Changes that massively increase image size (> 5% of total memory) also require a preprocessor switch so they can be enabled or disabled.
 * If the Pull request requires changes in structure of user files (e.g. project/synth or other xml files) or flash configuration.
