@@ -807,7 +807,7 @@ def render_peripherals(g, port_tops):
     finger_end = CPU_WIDTH - (CPU_PORT_WIDTH + finger_width)
     p = f'M {CPU_WIDTH - peripheral_width - CPU_PORT_WIDTH},{port_tops[6] + 8 * SPACING}'
     p += path_finger(port_tops, finger_start, finger_end, 7, 9, 9)
-    p += path_finger(port_tops, finger_start, finger_end, 6, 8, 12)
+    p += path_finger(port_tops, finger_start, finger_end, 6, 8, 11)
     p += 'Z'
     path.attrib['d'] = p
     path.attrib['class'] = 'peripheral-ssi0'
