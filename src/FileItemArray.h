@@ -31,8 +31,7 @@ public:
 private:
 	int partition(int low, int high);
 	void quickSort(int low, int high);
-	inline FileItem * getFileItem(int index);
+	inline FileItem* getFileItem(int index);
 };
 
 #endif /* FILEITEMARRAY_H_ */
-

@@ -23,13 +23,12 @@
 #include "numericdriver.h"
 #include "AudioEngine.h"
 
-inline FileItem * FileItemArray::getFileItem(int index) {
-	return (FileItem *)getElementAddress(index);
+inline FileItem* FileItemArray::getFileItem(int index) {
+	return (FileItem*)getElementAddress(index);
 }
 
-int strcmpfileitem(FileItem *a, FileItem *b) {
-	if (a->isFolder == b->isFolder)
-		return strcmpspecial(a->filename.get(), b->filename.get(), true);
+int strcmpfileitem(FileItem* a, FileItem* b) {
+	if (a->isFolder == b->isFolder) return strcmpspecial(a->filename.get(), b->filename.get(), true);
 
 	return a->isFolder ? -1 : 1;
 }
@@ -38,7 +37,7 @@ int strcmpfileitem(FileItem *a, FileItem *b) {
 int FileItemArray::partition(int low, int high) {
 
 	// Pivot - rightmost element. Though this is very bad if the array is already sorted...
-	FileItem *pivotFile = (FileItem *)getElementAddress((low + high) >> 1);
+	FileItem* pivotFile = (FileItem*)getElementAddress((low + high) >> 1);
 
 	int i = low - 1;
 	int j = high + 1;
@@ -99,7 +98,7 @@ int FileItemArray::search(char const* searchString, bool* foundExact) {
 		int rangeSize = rangeEnd - rangeBegin;
 		proposedIndex = rangeBegin + (rangeSize >> 1);
 
-		char const* stringHere = ((FileItem *)getElementAddress(proposedIndex))->filename.get();
+		char const* stringHere = ((FileItem*)getElementAddress(proposedIndex))->filename.get();
 		int result = strcmpspecial(stringHere, searchString, true);
 
 		if (!result) {
