@@ -102,8 +102,8 @@ static inline int32_t add_saturation(int32_t a, int32_t b) {
 }
 
 // computes limit((val >> rshift), 2**bits)
-static inline int32_t signed_saturate(int32_t val, uint8_t bits) __attribute__((always_inline, unused));
-static inline int32_t signed_saturate(int32_t val, uint8_t bits) {
+template <uint8_t bits> static inline int32_t signed_saturate(int32_t val) __attribute__((always_inline, unused));
+template <uint8_t bits> static inline int32_t signed_saturate(int32_t val) {
 	int32_t out;
 	asm("ssat %0, %1, %2" : "=r"(out) : "I"(bits), "r"(val));
 	return out;
@@ -115,50 +115,50 @@ inline int32_t signed_saturate_operand_unknown(int32_t val, int bits) {
 	// Despite having this switch at the per-audio-sample level, it doesn't introduce any slowdown compared to just always saturating by the same amount!
 	switch (bits) {
 	case 31:
-		return signed_saturate(val, 31);
+		return signed_saturate<31>(val);
 	case 30:
-		return signed_saturate(val, 30);
+		return signed_saturate<30>(val);
 	case 29:
-		return signed_saturate(val, 29);
+		return signed_saturate<29>(val);
 	case 28:
-		return signed_saturate(val, 28);
+		return signed_saturate<28>(val);
 	case 27:
-		return signed_saturate(val, 27);
+		return signed_saturate<27>(val);
 	case 26:
-		return signed_saturate(val, 26);
+		return signed_saturate<26>(val);
 	case 25:
-		return signed_saturate(val, 25);
+		return signed_saturate<25>(val);
 	case 24:
-		return signed_saturate(val, 24);
+		return signed_saturate<24>(val);
 	case 23:
-		return signed_saturate(val, 23);
+		return signed_saturate<23>(val);
 	case 22:
-		return signed_saturate(val, 22);
+		return signed_saturate<22>(val);
 	case 21:
-		return signed_saturate(val, 21);
+		return signed_saturate<21>(val);
 	case 20:
-		return signed_saturate(val, 20);
+		return signed_saturate<20>(val);
 	case 19:
-		return signed_saturate(val, 19);
+		return signed_saturate<19>(val);
 	case 18:
-		return signed_saturate(val, 18);
+		return signed_saturate<18>(val);
 	case 17:
-		return signed_saturate(val, 17);
+		return signed_saturate<17>(val);
 	case 16:
-		return signed_saturate(val, 16);
+		return signed_saturate<16>(val);
 	case 15:
-		return signed_saturate(val, 15);
+		return signed_saturate<15>(val);
 	case 14:
-		return signed_saturate(val, 14);
+		return signed_saturate<14>(val);
 	case 13:
-		return signed_saturate(val, 13);
+		return signed_saturate<13>(val);
 	default:
-		return signed_saturate(val, 12);
+		return signed_saturate<12>(val);
 	}
 }
 
-inline int32_t lshiftAndSaturate(int32_t val, uint8_t lshift) {
-	return signed_saturate(val, 32 - lshift) << lshift;
+template <uint8_t lshift> inline int32_t lshiftAndSaturate(int32_t val) {
+	return signed_saturate<32 - lshift>(val) << lshift;
 }
 
 // lshift must be greater than 0! Not 0
@@ -328,10 +328,10 @@ inline int32_t interpolateTableSigned2d(uint32_t inputX, uint32_t inputY, int nu
 	return multiply_32x32_rshift32(value1, strength1) + multiply_32x32_rshift32(value2, strength2);
 }
 
-inline int32_t getTanH(int32_t input, unsigned int saturationAmount) {
+template <unsigned saturationAmount> inline int32_t getTanH(int32_t input) {
 	uint32_t workingValue;
 
-	if (saturationAmount) workingValue = (uint32_t)lshiftAndSaturate(input, saturationAmount) + 2147483648u;
+	if (saturationAmount) workingValue = (uint32_t)lshiftAndSaturate<saturationAmount>(input) + 2147483648u;
 	else workingValue = (uint32_t)input + 2147483648u;
 
 	return interpolateTableSigned(workingValue, 32, tanHSmall, 8) >> (saturationAmount + 2);
