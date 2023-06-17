@@ -608,7 +608,7 @@ doLoading:
 
 				int percussiveness = ((uint64_t)difference * 262144 / angle) >> 1;
 
-				percussiveness = getTanH(percussiveness, 23);
+				percussiveness = getTanH<23>(percussiveness);
 
 				percCacheNow[startPosSamples >> PERC_BUFFER_REDUCTION_MAGNITUDE] = percussiveness;
 			}
@@ -1570,11 +1570,11 @@ void Sample::convertDataOnAnyClustersIfNecessary() {
 }
 
 int32_t Sample::getMaxPeakFromZero() {
-	int32_t halfValue = std::abs(getFoundValueCentrePoint() >> 1) + (maxValueFound >> 2)
-	                    - (minValueFound >> 2); // Comes out one >> of the value we actually want
-	return lshiftAndSaturate(
-	    halfValue,
-	    1); // Does the <<1 and saturates it - this was necessary, it was overflowing sometimes - I think when the audio clipped
+	// Comes out one >> of the value we actually want
+	int32_t halfValue = std::abs(getFoundValueCentrePoint() >> 1) + (maxValueFound >> 2) - (minValueFound >> 2);
+
+	// Does the <<1 and saturates it - this was necessary, it was overflowing sometimes - I think when the audio clipped
+	return lshiftAndSaturate<1>(halfValue);
 }
 
 int32_t Sample::getFoundValueCentrePoint() {

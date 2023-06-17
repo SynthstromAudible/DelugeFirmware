@@ -164,7 +164,7 @@ void functionsInit() {
 int32_t getFinalParameterValueHybrid(int32_t paramNeutralValue, int32_t patchedValue) {
 	// Allows for max output values of +- 1073741824, which the panning code understands as the full range from left to right
 	int32_t preLimits = (paramNeutralValue >> 2) + (patchedValue >> 1);
-	return signed_saturate(preLimits, 32 - 3) << 2;
+	return signed_saturate<32 - 3>(preLimits) << 2;
 }
 
 int32_t getFinalParameterValueVolume(int32_t paramNeutralValue, int32_t patchedValue) {
@@ -197,8 +197,9 @@ int32_t getFinalParameterValueVolume(int32_t paramNeutralValue, int32_t patchedV
 	positivePatchedValue = (positivePatchedValue >> 16) * (positivePatchedValue >> 15);
 
 	//return multiply_32x32_rshift32(positivePatchedValue, paramNeutralValue) << 5;
-	return lshiftAndSaturate(multiply_32x32_rshift32(positivePatchedValue, paramNeutralValue),
-	                         5); // Must saturate, otherwise mod fx depth can easily overflow
+
+	// Must saturate, otherwise mod fx depth can easily overflow
+	return lshiftAndSaturate<5>(multiply_32x32_rshift32(positivePatchedValue, paramNeutralValue));
 }
 
 int32_t getFinalParameterValueLinear(int32_t paramNeutralValue, int32_t patchedValue) {
@@ -211,8 +212,8 @@ int32_t getFinalParameterValueLinear(int32_t paramNeutralValue, int32_t patchedV
 
 	// positivePatchedValue's range is ideally 0 ("0") to 1073741824 ("2"), but potentially up to 2147483647 ("4"). 536870912 represents "1".
 
-	return lshiftAndSaturate(multiply_32x32_rshift32(positivePatchedValue, paramNeutralValue),
-	                         3); // Must saturate, otherwise sustain level can easily overflow
+	// Must saturate, otherwise sustain level can easily overflow
+	return lshiftAndSaturate<3>(multiply_32x32_rshift32(positivePatchedValue, paramNeutralValue));
 }
 
 int32_t getFinalParameterValueExp(int32_t paramNeutralValue, int32_t patchedValue) {

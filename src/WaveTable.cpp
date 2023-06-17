@@ -675,9 +675,10 @@ transformBandToTimeDomain:
 
 			// Copy 32-bit time domain data to final 16-bit destination
 			for (int i = 0; i < band->cycleSizeNoDuplicates; i++) {
-				destination[i] = signed_saturate(currentCycleInt32[i]
-				                                     >> (16 - MAGNITUDE_REDUCTION_FOR_FFT + initialBandCycleMagnitude),
-				                                 32 - 16); // This saturation is possibly a temporary solution...
+				destination[i] = signed_saturate<32 - 16>(
+				    currentCycleInt32[i]
+				    >> (16 - MAGNITUDE_REDUCTION_FOR_FFT
+				        + initialBandCycleMagnitude)); // This saturation is possibly a temporary solution...
 			}
 
 			// And copy the duplicate values again

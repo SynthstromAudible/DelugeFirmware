@@ -1887,7 +1887,7 @@ void AutoParam::copy(int32_t startPos, int32_t endPos, CopiedParamAutomation* co
 			newNode->value = getValueAtPos(startPos, modelStack);
 			newNode->interpolated = false;
 
-			if (isPatchCable) newNode->value = lshiftAndSaturate(newNode->value, 1);
+			if (isPatchCable) newNode->value = lshiftAndSaturate<1>(newNode->value);
 
 			n++;
 		}
@@ -1902,7 +1902,7 @@ void AutoParam::copy(int32_t startPos, int32_t endPos, CopiedParamAutomation* co
 			newNode->value = nodeToCopy->value;
 			newNode->interpolated = nodeToCopy->interpolated;
 
-			if (isPatchCable) newNode->value = lshiftAndSaturate(newNode->value, 1);
+			if (isPatchCable) newNode->value = lshiftAndSaturate<1>(newNode->value);
 
 			readingNodeI++;
 		}
