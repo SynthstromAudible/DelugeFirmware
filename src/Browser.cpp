@@ -43,7 +43,7 @@ extern "C" {
 String Browser::currentDir;
 bool Browser::qwertyVisible;
 
-FileItemArray Browser::fileItems(sizeof(FileItem));
+FileItemArray Browser::fileItems;
 int Browser::scrollPosVertical;
 int Browser::fileIndexSelected;
 int Browser::numCharsInPrefix;

@@ -24,7 +24,7 @@
 
 class FileItemArray : public ResizeableArray {
 public:
-	FileItemArray(int newElementSize) : ResizeableArray(newElementSize) {}
+	FileItemArray() : ResizeableArray(sizeof(FileItem)) {}
 	void sort();
 	int search(char const* searchString, bool* foundExact = NULL);
 
