@@ -31,8 +31,7 @@ int strcmpfileitem(FileItem* a, FileItem* b) {
 
 #ifdef FEATURE_SORT_FOLDERS_FIRST
 #pragma message "Browser will alphabetize folders first, then files"
-	if (a->isFolder != b->isFolder)
-		return a->isFolder ? -1 : 1;
+	if (a->isFolder != b->isFolder) return a->isFolder ? -1 : 1;
 #else
 #pragma message "Browser will alphabetize files and folders equally"
 #endif
