@@ -43,7 +43,7 @@ extern "C" {
 String Browser::currentDir;
 bool Browser::qwertyVisible;
 
-CStringArray Browser::fileItems(sizeof(FileItem));
+FileItemArray Browser::fileItems(sizeof(FileItem));
 int Browser::scrollPosVertical;
 int Browser::fileIndexSelected;
 int Browser::numCharsInPrefix;
@@ -1819,7 +1819,7 @@ int Browser::createFolder() {
 }
 
 void Browser::sortFileItems() {
-	fileItems.sortForStrings();
+	fileItems.sort();
 
 	// If we're just wanting to look to one side or the other of a given filename, then delete everything in the other direction.
 	if (filenameToStartSearchAt && *filenameToStartSearchAt) {
