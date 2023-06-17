@@ -28,9 +28,16 @@ inline FileItem* FileItemArray::getFileItem(int index) {
 }
 
 int strcmpfileitem(FileItem* a, FileItem* b) {
-	if (a->isFolder == b->isFolder) return strcmpspecial(a->filename.get(), b->filename.get(), true);
 
-	return a->isFolder ? -1 : 1;
+#ifdef FEATURE_SORT_FOLDERS_FIRST
+#pragma message "Browser will alphabetize folders first, then files"
+	if (a->isFolder != b->isFolder)
+		return a->isFolder ? -1 : 1;
+#else
+#pragma message "Browser will alphabetize files and folders equally"
+#endif
+
+	return strcmpspecial(a->filename.get(), b->filename.get(), true);
 }
 
 // This uses Hoare's partitioning scheme, which has the advantage that it won't go slow if the elements are already sorted - which they often will be as filenames read off an SD card.
