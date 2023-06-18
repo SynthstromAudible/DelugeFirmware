@@ -4,7 +4,7 @@
 
 # public variables
 DEFAULT_SCRIPT_PATH="$(pwd -P)";
-DBT_TOOLCHAIN_VERSION="${DBT_TOOLCHAIN_VERSION:-"6"}";
+DBT_TOOLCHAIN_VERSION="${DBT_TOOLCHAIN_VERSION:-"7"}";
 
 if [ -z ${DBT_TOOLCHAIN_PATH+x} ] ; then
     DBT_TOOLCHAIN_PATH_WAS_SET=0;
@@ -39,7 +39,7 @@ dbtenv_restore_env()
 {
     TOOLCHAIN_ARCH_DIR_SED="$(echo "$TOOLCHAIN_ARCH_DIR" | sed 's/\//\\\//g')"
     PATH="$(echo "$PATH" | /usr/bin/sed "s/$TOOLCHAIN_ARCH_DIR_SED\/python\/bin://g")";
-    PATH="$(echo "$PATH" | /usr/bin/sed "s/$TOOLCHAIN_ARCH_DIR_SED\/gcc-arm\/bin://g")";
+    PATH="$(echo "$PATH" | /usr/bin/sed "s/$TOOLCHAIN_ARCH_DIR_SED\/gcc-arm-none-eabi\/bin://g")";
     PATH="$(echo "$PATH" | /usr/bin/sed "s/$TOOLCHAIN_ARCH_DIR_SED\/openocd\/bin://g")";
     PATH="$(echo "$PATH" | /usr/bin/sed "s/$TOOLCHAIN_ARCH_DIR_SED\/cmake\/bin://g")";
     # PATH="$(echo "$PATH" | /usr/bin/sed "s/$TOOLCHAIN_ARCH_DIR_SED\/openssl\/bin://g")";
@@ -134,19 +134,17 @@ dbtenv_check_env_vars()
 
 dbtenv_get_kernel_type()
 {
-    SYS_TYPE="$(uname -s)";
-    ARCH_TYPE="$(uname -m)";
-    if [ "$ARCH_TYPE" != "x86_64" ] && [ "$SYS_TYPE" != "Darwin" ]; then
-        echo "We only provide toolchain for x86_64 CPUs, sorry..";
-        return 1;
-    fi
-    if [ "$SYS_TYPE" = "Darwin" ]; then
-        dbtenv_check_rosetta || return 1;
-        TOOLCHAIN_ARCH_DIR="$DBT_TOOLCHAIN_PATH/toolchain/darwin-x86_64";
-        TOOLCHAIN_URL="https://github.com/litui/dbt-toolchain/releases/download/v$DBT_TOOLCHAIN_VERSION/dbt-toolchain-$DBT_TOOLCHAIN_VERSION-darwin-x86_64.tar.gz";
-    elif [ "$SYS_TYPE" = "Linux" ]; then
-        TOOLCHAIN_ARCH_DIR="$DBT_TOOLCHAIN_PATH/toolchain/linux-x86_64";
-        TOOLCHAIN_URL="https://github.com/litui/dbt-toolchain/releases/download/v$DBT_TOOLCHAIN_VERSION/dbt-toolchain-$DBT_TOOLCHAIN_VERSION-linux-x86_64.tar.gz";
+    SYS_TYPE="$(uname -s | tr '[:upper:]' '[:lower:]')";
+    ARCH_TYPE="$(uname -m | tr '[:upper:]' '[:lower:]')";
+    # if [ "$ARCH_TYPE" != "x86_64" ] && [ "$SYS_TYPE" != "darwin" ]; then
+    #     echo "We only provide toolchain for x86_64 CPUs, sorry..";
+    #     return 1;
+    # fi
+    if [[ "${SYS_TYPE}" == "darwin" || "${SYS_TYPE}" == "linux" ]]; then
+        # Disabling rosetta checking now that we've got native arm64
+        # dbtenv_check_rosetta || return 1;
+        TOOLCHAIN_ARCH_DIR="${DBT_TOOLCHAIN_PATH}/toolchain/${SYS_TYPE}-${ARCH_TYPE}";
+        TOOLCHAIN_URL="https://github.com/litui/dbt-toolchain/releases/download/v${DBT_TOOLCHAIN_VERSION}/dbt-toolchain-${DBT_TOOLCHAIN_VERSION}-${SYS_TYPE}-${ARCH_TYPE}.tar.gz";
     elif echo "$SYS_TYPE" | grep -q "MINGW"; then
         echo "In MinGW shell, use \"[u]dbt.cmd\" instead of \"[u]dbt\"";
         return 1;
@@ -318,7 +316,7 @@ dbtenv_main()
     dbtenv_set_shell_prompt;
     dbtenv_print_version;
     PATH="$TOOLCHAIN_ARCH_DIR/python/bin:$PATH";
-    PATH="$TOOLCHAIN_ARCH_DIR/gcc-arm/bin:$PATH";
+    PATH="$TOOLCHAIN_ARCH_DIR/gcc-arm-none-eabi/bin:$PATH";
     PATH="$TOOLCHAIN_ARCH_DIR/openocd/bin:$PATH";
     PATH="$TOOLCHAIN_ARCH_DIR/cmake/bin:$PATH";
     # PATH="$TOOLCHAIN_ARCH_DIR/openssl/bin:$PATH";
@@ -330,7 +328,7 @@ dbtenv_main()
     export SAVED_PYTHONPATH="${PYTHONPATH:-""}";
     export SAVED_PYTHONHOME="${PYTHONHOME:-""}";
 
-    export SSL_CERT_FILE="$TOOLCHAIN_ARCH_DIR/python/lib/python3.10/site-packages/certifi/cacert.pem";
+    export SSL_CERT_FILE="$TOOLCHAIN_ARCH_DIR/python/lib/python3.11/site-packages/certifi/cacert.pem";
     export REQUESTS_CA_BUNDLE="$SSL_CERT_FILE";
     export PYTHONNOUSERSITE=1;
     export PYTHONPATH="$DEFAULT_SCRIPT_PATH/scripts";

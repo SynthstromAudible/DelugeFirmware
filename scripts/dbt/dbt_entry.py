@@ -1,12 +1,12 @@
-from project import EclipseProject
+from project import E2Project
 import logging
 
 
 def main():
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.DEBUG)
     log = logging.getLogger("DBT")
     log.info("Starting...")
-    eclipse = EclipseProject(log)
+    eclipse = E2Project(log)
     log.info("Finishing.")
 
 
