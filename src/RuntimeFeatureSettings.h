@@ -22,6 +22,10 @@ class RuntimeFeatureSettings {
 public:
 	RuntimeFeatureSettings();
 
+public:
+	void readSettingsFromFile();
+    void writeSettingsToFile();
+
 };
 
 extern RuntimeFeatureSettings runtimeFeatureSettings;

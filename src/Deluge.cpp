@@ -81,6 +81,7 @@
 #include "SaveSongUI.h"
 #include "oled.h"
 #include "ContextMenuOverwriteBootloader.h"
+#include "RuntimeFeatureSettings.h"
 
 #if AUTOMATED_TESTER_ENABLED
 #include "AutomatedTester.h"
@@ -800,7 +801,7 @@ resetSettings:
 		FlashStorage::writeSettings();
 	}
 
-	//@TODO: Read runtime feature settings from SD card
+	runtimeFeatureSettings.readSettingsFromFile();
 
 	usbLock = 1;
 	openUSBHost();

@@ -83,6 +83,8 @@
 #include "PatchCableSet.h"
 #include "MIDIDevice.h"
 #include "ContextMenuOverwriteBootloader.h"
+#include "RuntimeFeatureSettings.h"
+
 
 #if HAVE_OLED
 #include "oled.h"
@@ -3268,7 +3270,7 @@ void SoundEditor::exitCompletely() {
 #endif
 		FlashStorage::writeSettings();
 		MIDIDeviceManager::writeDevicesToFile();
-		// @TODO: Implement writing runtime feature settings
+		runtimeFeatureSettings.writeSettingsToFile();
 #if HAVE_OLED
 		OLED::removeWorkingAnimation();
 #endif
