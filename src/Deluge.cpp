@@ -800,6 +800,8 @@ resetSettings:
 		FlashStorage::writeSettings();
 	}
 
+	//@TODO: Read runtime feature settings from SD card
+
 	usbLock = 1;
 	openUSBHost();
 
