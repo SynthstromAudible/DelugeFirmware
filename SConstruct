@@ -2,6 +2,8 @@ import os
 import re
 import logging
 
+Progress(["OwO\r", "owo\r", "uwu\r", "owo\r"], interval=15)
+
 # Set the absolute current working directory so we can pass it around later
 REL_SOURCE_DIR = "src"
 PROJECT_SOURCE_DIR = os.path.abspath(REL_SOURCE_DIR)
@@ -22,46 +24,16 @@ cmd_vars = SConscript("site_scons/commandline.scons", exports={"log_parent": log
 #     variables=cmd_vars,
 # )
 
-env_parent = DefaultEnvironment()
-env_parent["ENV"] = os.environ.copy()
-env_parent.Append(
-    BUILDERS={
-        "HEXBuilder": Builder(
-            action=Action(
-                '${OBJCOPY} -O ihex "${SOURCE}" "${TARGET}"',
-                "${HEXCOMSTR}",
-            ),
-            suffix=".hex",
-            src_suffix=".elf",
-        ),
-        "BINBuilder": Builder(
-            action=Action(
-                '${OBJCOPY} -O binary -S "${SOURCE}" "${TARGET}"',
-                "${BINCOMSTR}",
-            ),
-            suffix=".bin",
-            src_suffix=".elf",
-        ),
-    }
-)
 
-
-def create_source_globs(base, globs=["*.cpp", "*.CPP", "*.c", "*.C"], env=env_parent):
-    files = []
-    for glob in globs:
-        files.extend(env.Glob(os.path.join(base, glob), source=True, strings=True))
-
-    dirs = [
-        os.path.join(base, name)
-        for name in os.listdir(base)
-        if os.path.isdir(os.path.join(base, name)) and name[0] != "."
+def walk_all_sources(base, prefix):
+    walker = list(os.walk(base))
+    sources = [
+        os.path.join(prefix, os.path.relpath(os.path.join(i[0], l)))
+        for i in walker
+        for l in i[2]
+        if re.match(r"\.[cs][p]{0,2}", os.path.splitext(l)[1], re.IGNORECASE)
     ]
-    dirs.sort()
-
-    for dir in dirs:
-        files.extend(create_source_globs(dir, globs, env))
-
-    return files
+    return sources
 
 
 if GetOption("base_config") not in ["e2_xml"]:
@@ -83,7 +55,11 @@ if GetOption("base_config") == "e2_xml":
     dbt_build_targets.sort()
 
     if GetOption("e2_target") not in dbt_build_targets:
-        print('Error: "{}" is not a valid target in the e2_xml config.\n'.format(tgt))
+        print(
+            'Error: "{}" is not a valid target in the e2_xml config.\n'.format(
+                GetOption("e2_target")
+            )
+        )
         print("       Valid targets include:")
         for bt in dbt_build_targets:
             print("           {}".format(bt))
@@ -91,7 +67,7 @@ if GetOption("base_config") == "e2_xml":
         Return()
 
     build_label = GetOption("e2_target")
-    env = env_parent.Clone()
+    env = Environment(ENV=os.environ.copy())
 
     # build_label = "{}build-{}-{}".format(
     #     GetOption("build_dir_prefix"),
@@ -107,44 +83,36 @@ if GetOption("base_config") == "e2_xml":
     build_segs = build_label.split("-")
     firmware_filename = cproject.get_target_filename(e2_target)
 
-    # env.Replace(VARIANT_DIR=build_label, SOURCE_DIR=source_dir)
-    Mkdir(build_label)
-    Mkdir(os.path.relpath(os.path.join(build_dir, "src")))
-    env.VariantDir(
-        os.path.relpath(os.path.join(build_dir, "src")), "#src", duplicate=False
-    )
-
     # Build construction environment for selected or default e2 target
     env.Replace(**cproject.get_toolchain_tools(e2_target))
     # log.debug([i for i, v in dict(env).items() if v])
-    env["ASFLAGS"] = " -x assembler-with-cpp"
-    env["ASMPATH"] = [
-        Dir("{}".format(inc)) for inc in list(cproject.get_asm_includes(e2_target))
-    ]
-    env["ASCOM"] = "$CC $CCFLAGS $ASFLAGS $ASPATH -o $TARGET -c $SOURCE"
-    env["ASPPCOMSTR"] = "Assembling $TARGET"
-    env["CCCOMSTR"] = "Compiling static object $TARGET"
-    env["CCFLAGS"] = cproject.get_c_flags(e2_target)
-    env["CPPFLAGS"] = cproject.get_cpp_flags(e2_target)
-    env["CPPFLAGS"].append("-fdiagnostics-parseable-fixits")
-    env["CPPPATH"] = [
-        Dir("{}".format(p))
-        for p in list(
-            cproject.get_asm_includes(e2_target)
-            + cproject.get_c_includes(e2_target)
-            + cproject.get_cpp_includes(e2_target)
-        )
-    ]
+    env["ASPPFLAGS"] += " -x assembler-with-cpp"
+    env["CCFLAGS"] = " ".join(cproject.get_c_flags(e2_target))
+    env["CPPFLAGS"] = " ".join(cproject.get_cpp_flags(e2_target))
+    env["CPPFLAGS"] += " -fdiagnostics-parseable-fixits"
+    env["ASMPATH"] = [str(p) for p in cproject.get_asm_includes(e2_target)]
+    env["CCPATH"] = [str(p) for p in cproject.get_c_includes(e2_target)]
+    env["CXXPATH"] = [str(p) for p in cproject.get_cpp_includes(e2_target)]
+    env["CPPPATH"] = env["ASMPATH"] + env["CCPATH"] + env["CXXPATH"]
     # log.debug(env["CPPPATH"])
+
+    env["CCCOMSTR"] = "Compiling static object $TARGET"
+    env["CXXCOMSTR"] = "Compiling static object $TARGET"
+    env["ASPPCOMSTR"] = "Assembling $TARGET"
+    env["LINKCOMSTR"] = "Linking $TARGET"
+
     env["ASPATH"] = " {}".format(
         " ".join(['-I"{}"'.format(inc) for inc in env["ASMPATH"]])
     )
-    env["CCCOM"] = "$CC -o $TARGET -c $CFLAGS $CCFLAGS $_CCCOMCOM $SOURCES"
-    env["CXXCOM"] = "$CXX -o $TARGET -c $CXXFLAGS $CCFLAGS $_CCCOMCOM $SOURCES"
-    env["CXXCOMSTR"] = "Compiling static object $TARGET"
+    env[
+        "ASPPCOM"
+    ] = "$CC $ASPPFLAGS $CPPFLAGS $_CPPDEFFLAGS $_CPPINCFLAGS -c -o $TARGET $SOURCES"
+    env["ASCOM"] = "$CC $CCFLAGS $ASFLAGS $ASPATH -o $TARGET -c $SOURCE"
+    # env["CCCOM"] = "$CC -o $TARGET -c $CFLAGS $CCFLAGS $_CCCOMCOM $SOURCES"
+    # env["CXXCOM"] = "$CXX -o $TARGET -c $CXXFLAGS $CCFLAGS $_CCCOMCOM $SOURCES"
+
     env["CPPDEFINES"] = cproject.get_preprocessor_defs(e2_target)
     env["PROGSUFFIX"] = cproject.get_target_ext(e2_target)
-    env["LINKCOMSTR"] = "Linking $TARGET"
     build_src_dir = os.path.join(build_dir, "src")
     env["MAPFILE"] = "{}".format(
         os.path.join(
@@ -155,22 +123,43 @@ if GetOption("base_config") == "e2_xml":
     env["LINKCOM"] = "$CXX $CPPFLAGS -o $TARGET $SOURCES $LINKFLAGS"
     env["FIRMWARE_FILENAME"] = cproject.get_target_filename(e2_target)
     env["BINCOMSTR"] = "Converting .elf to .bin."
-    # env["LIBPATH"] = [str(i) for i in cproject.get_link_libs_order(e2_target)]
+    env["LIBPATH"] = [str(i) for i in cproject.get_link_libs_order(e2_target)]
     # log.debug(env["LIBPATH"])
 
 
-# Collect sources recursively through globbing
-asm_sources = create_source_globs("src", ["*.s", "*.S"], env=env)
-c_sources = create_source_globs("src", env=env)
-sources = [
-    File(os.path.relpath(os.path.join(build_dir, os.path.relpath(src))))
-    for src in asm_sources + c_sources
-]
+env.Append(
+    BUILDERS={
+        "HEXBuilder": Builder(
+            action=Action(
+                '${OBJCOPY} -O ihex "${SOURCE}" "${TARGET}"',
+                "${HEXCOMSTR}",
+            ),
+            suffix=".hex",
+            src_suffix=".elf",
+        ),
+        "BINBuilder": Builder(
+            action=Action(
+                '${OBJCOPY} -O binary -S "${SOURCE}" "${TARGET}"',
+                "${BINCOMSTR}",
+            ),
+            suffix=".bin",
+            src_suffix=".elf",
+        ),
+    }
+)
 
-objects = env.Object(c_sources + asm_sources)
+# VariantDir does the magic to ensure output goes to the dbt- whatever
+# build directory. Careful: this is really finicky if paths aren't set right
+VariantDir(os.path.join(build_label, source_dir), "#src", duplicate=False)
+
+# Using the specified include dirs rather than walking every path in src was
+# preventing a successful .elf build so generically went with the latter approach.
+sources = walk_all_sources(source_dir, build_label)
+
+objects = env.Object(sources)
 
 elf_file = env.Program(
     os.path.join(build_dir, env["FIRMWARE_FILENAME"]), source=objects
 )
 
-env.BINBuilder(env["FIRMWARE_FILENAME"], source=elf_file)
+env.BINBuilder(os.path.join(build_dir, env["FIRMWARE_FILENAME"]), source=elf_file)
