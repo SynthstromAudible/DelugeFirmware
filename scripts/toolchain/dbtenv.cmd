@@ -43,7 +43,7 @@ if defined DBT_VERBOSE (
 )
 
 set "HOME=%USERPROFILE%"
-set "SSL_CERT_FILE=%DBT_TOOLCHAIN_ROOT%/python/lib/python3.11/site-packages/certifi/cacert.pem"
+set "SSL_CERT_FILE=%DBT_TOOLCHAIN_ROOT%/python/Lib/site-packages/certifi/cacert.pem"
 set "PYTHONHOME=%DBT_TOOLCHAIN_ROOT%\python"
 set "PYTHONPATH=%DBT_ROOT%\scripts;%PYTHONPATH%"
 set "PYTHONNOUSERSITE=1"
