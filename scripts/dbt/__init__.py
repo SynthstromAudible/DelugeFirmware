@@ -1,1 +1,1 @@
-from dbt.project import EclipseProject
+from dbt.project import E2Project
