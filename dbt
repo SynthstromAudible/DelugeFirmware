@@ -37,16 +37,13 @@ fi
 # afterward (needs certifi in place).
 pip_cmd="python3 -m pip";
 pip_wheel_path="${TOOLCHAIN_ARCH_DIR}/python/wheel";
-pip_wheels=$(ls "${pip_wheel_path}" | grep -ve '^pip')
+pip_wheels=$(ls "${pip_wheel_path}")
 for wheel in $pip_wheels; do
     $pip_cmd install -q "${pip_wheel_path}/${wheel}"
 done
 $pip_cmd install -q --upgrade pip
-# Oops, forgot to bundle scons in the toolchain
-$pip_cmd show SCons 1>/dev/null 2>/dev/null
-if [ $? -eq 1 ]; then
-    $pip_cmd install -q SCons==4.5.2
-fi
+$pip_cmd install -q kconfiglib==14.1.0
 
-# $SCONS_EP $SCONS_DEFAULT_FLAGS "$@"
-echo "Beyond downloading and updating the toolchains, dbt is currently not fully functional."
+$SCONS_EP $SCONS_DEFAULT_FLAGS "$@"
+# $SCONS_EP "$@"
+# echo "Beyond downloading and updating the toolchains, dbt is currently not fully functional."
