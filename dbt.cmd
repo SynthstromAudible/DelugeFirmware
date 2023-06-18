@@ -20,19 +20,11 @@ if not defined DBT_VERBOSE (
 
 set PIP_CMD=python -m pip
 set "PIP_WHEEL_PATH=%DBT_TOOLCHAIN_ROOT%\python\wheel"
-del 
 for /R %PIP_WHEEL_PATH% %%G in (
     *.whl
 ) do (
-    %PIP_CMD% install -q "%PIP_WHEEL_PATH%\%%G"
+    %PIP_CMD% install -q "%%G"
 )
 %PIP_CMD% install -q --upgrade pip
-@REM @REM Whoops, forgot to bundle scons in the toolchain
-@REM %PIP_CMD% show SCons
-@REM if [%ERRORLEVEL%] == [1]
-@REM     %PIP_CMD% install -q SCons==4.5.2
-@REM fi
 
-@REM %SCONS_EP% %SCONS_DEFAULT_FLAGS% %*
-echo Beyond downloading and updating the toolchains, dbt is currently not fully functional.
-exit
+%SCONS_EP% %SCONS_DEFAULT_FLAGS% %*
