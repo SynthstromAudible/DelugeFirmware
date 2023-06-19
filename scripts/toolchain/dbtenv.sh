@@ -44,9 +44,9 @@ dbtenv_restore_env()
     PATH="$(echo "$PATH" | /usr/bin/sed "s/$TOOLCHAIN_ARCH_DIR_SED\/cmake\/bin://g")";
     # PATH="$(echo "$PATH" | /usr/bin/sed "s/$TOOLCHAIN_ARCH_DIR_SED\/openssl\/bin://g")";
     if [ -n "${PS1:-""}" ]; then
-        PS1="$(echo "$PS1" | sed 's/\[dbt\]//g')";
+        PS1="$(echo "$PS1" | sed 's/\[dbt\] //g')";
     elif [ -n "${PROMPT:-""}" ]; then
-        PROMPT="$(echo "$PROMPT" | sed 's/\[dbt\]//g')";
+        PROMPT="$(echo "$PROMPT" | sed 's/\[dbt\] //g')";
     fi
 
     if [ -n "$SAVED_SSL_CERT_FILE" ]; then
@@ -99,8 +99,8 @@ dbtenv_check_sourced()
 
 dbtenv_check_if_sourced_multiple_times()
 {
-    if ! echo "${PS1:-""}" | grep -qF "[dbt]"; then
-        if ! echo "${PROMPT:-""}" | grep -qF "[dbt]"; then
+    if ! echo "${PS1:-""}" | grep -qF "[dbt] "; then
+        if ! echo "${PROMPT:-""}" | grep -qF "[dbt] "; then
             return 0;
         fi
     fi
@@ -112,9 +112,9 @@ dbtenv_check_if_sourced_multiple_times()
 dbtenv_set_shell_prompt()
 {
     if [ -n "${PS1:-""}" ]; then
-        PS1="[dbt]$PS1";
+        PS1="[dbt] $PS1";
     elif [ -n "${PROMPT:-""}" ]; then
-        PROMPT="[dbt]$PROMPT";
+        PROMPT="[dbt] $PROMPT";
     fi
     return 0;  # all other shells
 }
