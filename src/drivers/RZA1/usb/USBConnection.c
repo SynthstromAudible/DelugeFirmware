@@ -42,8 +42,11 @@ extern uint8_t* g_midi_string_table[];
 static usb_descriptor_t usb_descriptor = {
     (uint8_t*)g_midi_device,        /* Pointer to the device descriptor */
     (uint8_t*)g_midi_configuration, /* Pointer to the configuration descriptor for Full-speed */
-    (uint8_t*)0,
-    /* Pointer to the configuration descriptor for High-speed */ // Won't work if this is set to the same memory as the full-speed one, though it does work if pointing to a duplicate one, weirdly. NULL seems fine
+    (uint8_t*)0,                    /* Pointer to the configuration descriptor for High-speed
+    								 * Does not work in FS mode on most devices if this is a copy of the FS config.
+    								 * It's unused under FS so set to null
+    								 */
+
     (uint8_t*)0,                   // Don't think we need this /* Pointer to the qualifier descriptor */
     (uint8_t**)g_midi_string_table /* Pointer to the string descriptor table */
 };
