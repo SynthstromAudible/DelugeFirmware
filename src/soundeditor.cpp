@@ -2914,10 +2914,13 @@ SoundEditor::SoundEditor() {
 	new (&audioClipReverseMenu) MenuItemAudioClipReverse("REVERSE");
 	new (&audioClipSampleMarkerEditorMenuStart) MenuItemAudioClipSampleMarkerEditor("", MARKER_START);
 	new (&audioClipSampleMarkerEditorMenuEnd) MenuItemAudioClipSampleMarkerEditor("WAVEFORM", MARKER_END);
-	static MenuItem* audioClipSampleMenuItems[] = {&fileSelectorMenu,     &audioClipReverseMenu,
-	                                              &audioClipModeMenu,     &samplePitchSpeedMenu,
-	                                              &audioClipSampleMarkerEditorMenuEnd,
-												  &interpolationMenu, NULL};
+	static MenuItem* audioClipSampleMenuItems[] = {&fileSelectorMenu,
+	                                               &audioClipReverseMenu,
+	                                               &audioClipModeMenu,
+	                                               &samplePitchSpeedMenu,
+	                                               &audioClipSampleMarkerEditorMenuEnd,
+	                                               &interpolationMenu,
+	                                               NULL};
 
 	// LPF menu
 	new (&audioClipLPFFreqMenu) MenuItemAudioClipLPFFreq("Frequency", PARAM_UNPATCHED_GLOBALEFFECTABLE_LPF_FREQ);
