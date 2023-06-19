@@ -1,0 +1,149 @@
+text {
+  font: 10px Ubuntu Mono;
+  dominant-baseline: middle;
+}
+
+.output-flag {
+  stroke: black;
+  stroke-width: 2px;
+  fill: #a1e57e;
+}
+
+.input-flag {
+  stroke: black;
+  stroke-width: 2px;
+  fill: #a1e57e;
+}
+
+.indirect-input-flag {
+  stroke: black;
+  stroke-width: 2px;
+  fill: #e5de7eff;
+}
+
+.indirect-output-flag {
+  stroke: black;
+  stroke-width: 2px;
+  fill: #e5de7eff;
+}
+
+.bus-flag {
+  stroke: black;
+  stroke-width: 2px;
+  fill: #7ee5dfff;
+}
+
+.cpu-label {
+  stroke: black;
+  stroke-width: 2px;
+  fill: #e6e6e6;
+}
+
+.module rect {
+  stroke: black;
+  stroke-width: 2px;
+  fill: #e6e6e6;
+}
+
+.module path {
+  stroke: black;
+  stroke-width: 2px;
+}
+
+.cpu {
+  stroke: black;
+  stroke-width: 2px;
+  fill: white;
+}
+
+.package-pin-backg {
+  fill: #e5de7eff;
+}
+
+.port-pin-backg {
+  fill: #7ee5dfff;
+}
+
+.port-base {
+  stroke: black;
+  stroke-width: 2px;
+  fill: white;
+}
+
+.port-label {
+  stroke: black;
+  stroke-width: 2px;
+  fill: none;
+}
+
+.connection {
+  stroke: #525266;
+  stroke-width: 2px;
+  fill: none;
+}
+
+.pin-connection-group .connection {
+  stroke-width: 5px;
+  stroke: transparent;
+  fill: none;
+}
+
+.pin-connection-group:hover * {
+  stroke: #e67f7f;
+  stroke-width: 3px;
+}
+
+.pin-connection-group .highlight {
+  fill: transparent;
+}
+
+.pin-connection-group .cpu-pin * {
+  fill: transparent;
+  stroke: none;
+}
+
+.pin-connection-group:hover .cpu-pin * {
+  stroke: #e67f7f;
+}
+
+.peripheral-bsc {
+  stroke:black;
+  stroke-width: 2px;
+  fill: #e6cfcf;
+}
+
+.peripheral-sdhost {
+  stroke:black;
+  stroke-width: 2px;
+  fill: #e6e6cf;
+}
+
+.peripheral-ssi0 {
+  stroke:black;
+  stroke-width: 2px;
+  fill: #cfe6cf;
+}
+
+.peripheral-midi {
+  stroke:black;
+  stroke-width: 2px;
+  fill: #cfe6e6;
+}
+
+.peripheral-spi {
+  stroke:black;
+  stroke-width: 2px;
+  fill: #cfcfe6;
+}
+
+.peripheral-multio {
+  stroke:black;
+  stroke-width: 2px;
+  fill: #e6cfe6;
+}
+
+.peripheral-padio {
+  stroke:black;
+  stroke-width: 2px;
+  fill: #cfe6e6;
+}

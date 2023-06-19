@@ -42,7 +42,7 @@ void FilterSet::renderHPF(int32_t* outputSample, FilterSetConfig* filterSetConfi
 		a = getTanHAntialiased(a, &hpfLastWorkingValue, 2 + extraSaturation);
 	}
 	else {
-		hpfLastWorkingValue = (uint32_t)lshiftAndSaturate(a, 2) + 2147483648u;
+		hpfLastWorkingValue = (uint32_t)lshiftAndSaturate<2>(a) + 2147483648u;
 		if (filterSetConfig->hpfProcessedResonance > 750000000) { // 400551738
 			a = getTanHUnknown(a, 2 + extraSaturation);
 		}
@@ -105,14 +105,14 @@ void FilterSet::renderHPFLong(int32_t* outputSample, int32_t* endSample, FilterS
 		// Only saturate / anti-alias if lots of resonance
 		if (hpfDoingAntialiasingNow) { // 890551738
 			if (needToFixSaturation) {
-				hpfLastWorkingValue = (uint32_t)lshiftAndSaturate(a, HPF_LONG_SATURATION) + 2147483648u;
+				hpfLastWorkingValue = (uint32_t)lshiftAndSaturate<HPF_LONG_SATURATION>(a) + 2147483648u;
 				needToFixSaturation = false;
 			}
 			a = getTanHAntialiased(a, &hpfLastWorkingValue, HPF_LONG_SATURATION);
 		}
 		else {
 			if (filterSetConfig->hpfProcessedResonance > 750000000) { // 400551738
-				a = getTanH(a, HPF_LONG_SATURATION);
+				a = getTanH<HPF_LONG_SATURATION>(a);
 			}
 		}
 

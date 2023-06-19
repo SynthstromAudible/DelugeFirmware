@@ -159,7 +159,7 @@ void Patcher::performPatching(uint32_t sourcesChanged, Sound* sound, ParamManage
 
 inline void Patcher::applyRangeAdjustment(int32_t* patchedValue, PatchCable* patchCable) {
 	int32_t small = multiply_32x32_rshift32(*patchedValue, *patchCable->rangeAdjustmentPointer);
-	*patchedValue = signed_saturate(small, 32 - 5) << 3; // Not sure if these limits are as wide as they could be...
+	*patchedValue = signed_saturate<32 - 5>(small) << 3; // Not sure if these limits are as wide as they could be...
 }
 
 // Declaring these next 4 as inline made no performance difference.
@@ -169,7 +169,7 @@ inline void Patcher::cableToLinearParamWithoutRangeAdjustment(int32_t sourceValu
 	int32_t madePositive =
 	    (scaledSource + 536870912); // 0 to 1073741824; 536870912 counts as "1" for next multiplication
 	int32_t preLimits = multiply_32x32_rshift32(*runningTotalCombination, madePositive);
-	*runningTotalCombination = lshiftAndSaturate(preLimits, 3);
+	*runningTotalCombination = lshiftAndSaturate<3>(preLimits);
 }
 
 inline void Patcher::cableToLinearParam(int32_t sourceValue, int32_t cableStrength, int32_t* runningTotalCombination,
@@ -179,7 +179,7 @@ inline void Patcher::cableToLinearParam(int32_t sourceValue, int32_t cableStreng
 	int32_t madePositive =
 	    (scaledSource + 536870912); // 0 to 1073741824; 536870912 counts as "1" for next multiplication
 	int32_t preLimits = multiply_32x32_rshift32(*runningTotalCombination, madePositive);
-	*runningTotalCombination = lshiftAndSaturate(preLimits, 3);
+	*runningTotalCombination = lshiftAndSaturate<3>(preLimits);
 }
 
 inline void Patcher::cableToExpParamWithoutRangeAdjustment(int32_t sourceValue, int32_t cableStrength,
