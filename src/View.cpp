@@ -288,7 +288,6 @@ doEndMidiLearnPressSession:
 		}
 	}
 
-
 	// Sync-scaling button (old behaviour) , see new handler below.
 	//		else if (x == syncScalingButtonX && y == syncScalingButtonY) {
 	//			if (on && currentUIMode == UI_MODE_NONE) {
@@ -336,7 +335,7 @@ doEndMidiLearnPressSession:
 			// show the user the new value with a PopUp message
 			numericDriver.displayPopup(currentSong->timeStretchDisabled ? "TS 0" : "TS 1");
 			// and the syncScaling LED - let's light it solidly on or off
-			IndicatorLEDs::setLedState(syncScalingLedX, syncScalingLedY, currentSong->timeStretchDisabled );
+			IndicatorLEDs::setLedState(syncScalingLedX, syncScalingLedY, currentSong->timeStretchDisabled);
 		}
 	}
 
