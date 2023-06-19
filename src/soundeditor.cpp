@@ -1653,11 +1653,11 @@ class MenuItemAudioClipMode final : public MenuItemSelection {
 public:
 	MenuItemAudioClipMode(char const* newName = NULL) : MenuItemSelection(newName) {}
 	void readCurrentValue() {
-		//		soundEditor.currentValue = ((AudioClip*)currentSong->currentClip)->sampleControls.reversed;
+		soundEditor.currentValue = ((AudioClip*)currentSong->currentClip)->sampleControls.timeStretchEnabled;
 	}
 	void writeCurrentValue() {
 		AudioClip* clip = (AudioClip*)currentSong->currentClip;
-		bool active = (playbackHandler.isEitherClockActive() && currentSong->isClipActive(clip) && clip->voiceSample);
+		clip->sampleControls.timeStretchEnabled = soundEditor.currentValue;
 	}
 } audioClipModeMenu;
 
@@ -2240,7 +2240,7 @@ public:
 // Colours submenu
 MenuItemSubmenu coloursSubmenu;
 
-char const* firmwareString = "4.1.4-MUPADUW_TS_V3";
+char const* firmwareString = "4.1.4-MUPADUW_TS_V4";
 
 // this class is haunted for some reason, clang-format mangles it
 // clang-format off

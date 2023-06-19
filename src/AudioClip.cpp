@@ -493,8 +493,12 @@ void AudioClip::render(ModelStackWithTimelineCounter* modelStack, int32_t* outpu
 
 	uint64_t requiredSpeedAdjustment = ((uint64_t)sampleLengthInSamples << 24) / clipLengthInSamples;
 
-	// Control using shift+syncScaleButton. Not saved to song XML.
+	//	Control using shift+syncScaleButton. Not saved to song XML.
 	if (modelStack->song->timeStretchDisabled) {
+		goto justDontTimeStretch;
+	}
+	// CBC WIP: Even without the global, this clip is possibly not ts enabled
+	if (!sampleControls.timeStretchEnabled) {
 		goto justDontTimeStretch;
 	}
 
