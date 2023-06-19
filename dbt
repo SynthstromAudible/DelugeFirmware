@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
 # Deluge Build Tool (DBT)
 # 
@@ -45,5 +45,3 @@ $pip_cmd install -q --upgrade pip
 $pip_cmd install -q kconfiglib==14.1.0
 
 $SCONS_EP $SCONS_DEFAULT_FLAGS "$@"
-# $SCONS_EP "$@"
-# echo "Beyond downloading and updating the toolchains, dbt is currently not fully functional."

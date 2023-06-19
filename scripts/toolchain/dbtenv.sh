@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
 # shellcheck disable=SC2034,SC2016,SC2086
 
@@ -39,7 +39,7 @@ dbtenv_restore_env()
 {
     TOOLCHAIN_ARCH_DIR_SED="$(echo "$TOOLCHAIN_ARCH_DIR" | sed 's/\//\\\//g')"
     PATH="$(echo "$PATH" | /usr/bin/sed "s/$TOOLCHAIN_ARCH_DIR_SED\/python\/bin://g")";
-    PATH="$(echo "$PATH" | /usr/bin/sed "s/$TOOLCHAIN_ARCH_DIR_SED\/gcc-arm-none-eabi\/bin://g")";
+    PATH="$(echo "$PATH" | /usr/bin/sed "s/$TOOLCHAIN_ARCH_DIR_SED\/arm-none-eabi-gcc\/bin://g")";
     PATH="$(echo "$PATH" | /usr/bin/sed "s/$TOOLCHAIN_ARCH_DIR_SED\/openocd\/bin://g")";
     PATH="$(echo "$PATH" | /usr/bin/sed "s/$TOOLCHAIN_ARCH_DIR_SED\/cmake\/bin://g")";
     # PATH="$(echo "$PATH" | /usr/bin/sed "s/$TOOLCHAIN_ARCH_DIR_SED\/openssl\/bin://g")";
@@ -231,7 +231,14 @@ dbtenv_unpack_toolchain()
 
 dbtenv_cleanup()
 {
+    
+    # Kludgey but, quick path to getting rid of these
+    printf "Removing any nuisance mac dotfiles..";
+    find toolchain | grep -e '\/[.][^\/]*$' | sed -e 's/\(.*\)/rm \"\1\"/' | /usr/bin/env bash;
+    echo "done";
+
     printf "Cleaning up..";
+    
     if [ -n "${DBT_TOOLCHAIN_PATH:-""}" ]; then
         rm -rf "${DBT_TOOLCHAIN_PATH:?}/toolchain/"*.tar.gz;
         rm -rf "${DBT_TOOLCHAIN_PATH:?}/toolchain/"*.part;
@@ -316,7 +323,7 @@ dbtenv_main()
     dbtenv_set_shell_prompt;
     dbtenv_print_version;
     PATH="$TOOLCHAIN_ARCH_DIR/python/bin:$PATH";
-    PATH="$TOOLCHAIN_ARCH_DIR/gcc-arm-none-eabi/bin:$PATH";
+    PATH="$TOOLCHAIN_ARCH_DIR/arm-none-eabi-gcc/bin:$PATH";
     PATH="$TOOLCHAIN_ARCH_DIR/openocd/bin:$PATH";
     PATH="$TOOLCHAIN_ARCH_DIR/cmake/bin:$PATH";
     # PATH="$TOOLCHAIN_ARCH_DIR/openssl/bin:$PATH";
