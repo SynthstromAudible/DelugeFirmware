@@ -713,6 +713,7 @@ public:
 	}
 } sampleReverseMenu;
 
+// CBC for Kit sample menu ...
 class MenuItemSampleRepeat final : public MenuItemSelectionSample {
 public:
 	MenuItemSampleRepeat(char const* newName = NULL) : MenuItemSelectionSample(newName) {}
@@ -1673,6 +1674,7 @@ public:
 
 // Class is named after the Deluge front-panel labelling, where [Sample1-Mode] is the bottom-left most pad.
 // This is the Timestretch on/off menu for the current AudioClip.
+
 class MenuItemAudioClipMode final : public MenuItemSelection {
 public:
 	MenuItemAudioClipMode(char const* newName = NULL) : MenuItemSelection(newName) {}
