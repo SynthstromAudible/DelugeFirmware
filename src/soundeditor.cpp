@@ -712,6 +712,7 @@ public:
 	}
 } sampleReverseMenu;
 
+// CBC for Kit sample menu ...
 class MenuItemSampleRepeat final : public MenuItemSelectionSample {
 public:
 	MenuItemSampleRepeat(char const* newName = NULL) : MenuItemSelectionSample(newName) {}
@@ -1647,6 +1648,19 @@ public:
 	}
 } audioClipReverseMenu;
 
+//CBC WIP
+class MenuItemAudioClipMode final : public MenuItemSelection {
+public:
+	MenuItemAudioClipMode(char const* newName = NULL) : MenuItemSelection(newName) {}
+	void readCurrentValue() {
+		//		soundEditor.currentValue = ((AudioClip*)currentSong->currentClip)->sampleControls.reversed;
+	}
+	void writeCurrentValue() {
+		AudioClip* clip = (AudioClip*)currentSong->currentClip;
+		bool active = (playbackHandler.isEitherClockActive() && currentSong->isClipActive(clip) && clip->voiceSample);
+	}
+} audioClipModeMenu;
+
 class MenuItemAudioClipTranspose final : public MenuItemDecimal, public MenuItemWithCCLearning {
 public:
 	MenuItemAudioClipTranspose(char const* newName = NULL) : MenuItemDecimal(newName) {}
@@ -1804,7 +1818,7 @@ MenuItem* paramShortcutsForSounds[][8] = {
     {&delayRateMenu, &delaySyncMenu, &delayAnalogMenu, &delayFeedbackMenu, &delayPingPongMenu, NULL, NULL, NULL}};
 
 MenuItem* paramShortcutsForAudioClips[][8] = {
-    {NULL, &audioClipReverseMenu, NULL, &samplePitchSpeedMenu, NULL, &fileSelectorMenu,
+    {&audioClipModeMenu, &audioClipReverseMenu, NULL, &samplePitchSpeedMenu, NULL, &fileSelectorMenu, // CBC WIP
      &audioClipSampleMarkerEditorMenuEnd, &audioClipSampleMarkerEditorMenuStart},
     {NULL, &audioClipReverseMenu, NULL, &samplePitchSpeedMenu, NULL, &fileSelectorMenu,
      &audioClipSampleMarkerEditorMenuEnd, &audioClipSampleMarkerEditorMenuStart},
@@ -2226,7 +2240,7 @@ public:
 // Colours submenu
 MenuItemSubmenu coloursSubmenu;
 
-char const* firmwareString = "4.1.4-MUPADUW_TS";
+char const* firmwareString = "4.1.4-MUPADUW_TS_V3";
 
 // this class is haunted for some reason, clang-format mangles it
 // clang-format off
@@ -2895,12 +2909,15 @@ SoundEditor::SoundEditor() {
 	// AudioClip menu system -------------------------------------------------------------------------------------------------------------------------------
 
 	// Sample menu
+
+	new (&audioClipModeMenu) MenuItemAudioClipMode("Stretch mode"); // CBC WIP
 	new (&audioClipReverseMenu) MenuItemAudioClipReverse("REVERSE");
 	new (&audioClipSampleMarkerEditorMenuStart) MenuItemAudioClipSampleMarkerEditor("", MARKER_START);
 	new (&audioClipSampleMarkerEditorMenuEnd) MenuItemAudioClipSampleMarkerEditor("WAVEFORM", MARKER_END);
 	static MenuItem* audioClipSampleMenuItems[] = {&fileSelectorMenu,     &audioClipReverseMenu,
-	                                               &samplePitchSpeedMenu, &audioClipSampleMarkerEditorMenuEnd,
-	                                               &interpolationMenu,    NULL};
+	                                              &audioClipModeMenu,     &samplePitchSpeedMenu,
+	                                              &audioClipSampleMarkerEditorMenuEnd,
+												  &interpolationMenu, NULL};
 
 	// LPF menu
 	new (&audioClipLPFFreqMenu) MenuItemAudioClipLPFFreq("Frequency", PARAM_UNPATCHED_GLOBALEFFECTABLE_LPF_FREQ);
