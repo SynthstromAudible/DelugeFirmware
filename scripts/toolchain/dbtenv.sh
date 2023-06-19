@@ -140,6 +140,13 @@ dbtenv_get_kernel_type()
     #     echo "We only provide toolchain for x86_64 CPUs, sorry..";
     #     return 1;
     # fi
+
+    # Fudge the architecture type if we happen to be on a platform that uses
+    # "aarch64" naming.
+    if [[ "${ARCH_TYPE}" == "aarch64" ]]; then
+        ARCH_TYPE="arm64"
+    fi
+
     if [[ "${SYS_TYPE}" == "darwin" || "${SYS_TYPE}" == "linux" ]]; then
         # Disabling rosetta checking now that we've got native arm64
         # dbtenv_check_rosetta || return 1;
