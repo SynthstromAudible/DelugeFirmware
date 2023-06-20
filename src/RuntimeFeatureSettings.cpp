@@ -18,7 +18,7 @@
 #include "RuntimeFeatureSettings.h"
 #include <new>
 #include <string.h>
-#include "numericDriver.h"
+#include "numericdriver.h"
 #include "storageManager.h"
 
 #define RUNTIME_FEATURE_SETTINGS_FILE "CommunityFeatures.XML"
