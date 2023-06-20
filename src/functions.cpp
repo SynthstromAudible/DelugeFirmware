@@ -897,6 +897,12 @@ char const* lfoTypeToString(int oscType) {
 	case LFO_TYPE_SINE:
 		return "sine";
 
+	case LFO_TYPE_SAH:
+		return "sah";
+
+	case LFO_TYPE_RWALK:
+		return "rwalk";
+
 	default:
 		return "triangle";
 	}
@@ -906,6 +912,8 @@ int stringToLFOType(char const* string) {
 	if (!strcmp(string, "square")) return LFO_TYPE_SQUARE;
 	else if (!strcmp(string, "saw")) return LFO_TYPE_SAW;
 	else if (!strcmp(string, "sine")) return LFO_TYPE_SINE;
+	else if (!strcmp(string, "sah")) return LFO_TYPE_SAH;
+	else if (!strcmp(string, "rwalk")) return LFO_TYPE_RWALK;
 	else return LFO_TYPE_TRIANGLE;
 }
 

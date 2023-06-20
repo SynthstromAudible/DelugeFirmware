@@ -38,7 +38,8 @@ public:
 
 	// Settings
 	uint8_t numOctaves;
-	uint8_t syncLevel;
+	SyncLevel syncLevel;
+	SyncType syncType;
 	uint8_t mode;
 };
 
