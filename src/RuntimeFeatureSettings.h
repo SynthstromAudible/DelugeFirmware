@@ -20,6 +20,8 @@
 
 #include <stdint.h>
 #include "MenuItemRuntimeFeatureSettings.h"
+#include "DString.h"
+#include "ResizeableArray.h"
 
 #define RUNTIME_FEATURE_SETTING_MAX_OPTIONS 8
 
@@ -56,7 +58,6 @@ struct RuntimeFeatureSetting {
     RuntimeFeatureSettingOption options[RUNTIME_FEATURE_SETTING_MAX_OPTIONS]; // Limited to safe memory
 };
 
-
 /// Encapsulating class
 class RuntimeFeatureSettings {
 public:
@@ -70,87 +71,25 @@ public:
 
 protected:
     RuntimeFeatureSetting settings[RuntimeFeatureSettingType::MaxElement] = {
-        //@TODO: Make comment for release
-/*
-        [RuntimeFeatureSettingType::FileFolderSorting] =  { 
-            .displayName = "File/Folder sorting",
-            .xmlName = "fileFolderSorting",
-            .value = RuntimeFeatureStateToggle::Off, // Default value
-            .options = { 
-                { .displayName = "Off", .value = RuntimeFeatureStateToggle::Off }, 
-                { .displayName = "On", .value = RuntimeFeatureStateToggle::On },
-                { .displayName = NULL, .value = 0 }
-            }
-        },
 
-        //@TODO: Remvoe additional stubs
-        [RuntimeFeatureSettingType::Feature2] =  { 
-            .displayName = "Track display mode",
-            .xmlName = "a",
-            .value = RuntimeFeatureStateToggle::Off, // Default value
-            .options = { 
-                { .displayName = "On", .value = RuntimeFeatureStateToggle::On },
-                { .displayName = "Off", .value = RuntimeFeatureStateToggle::Off }, 
-                { .displayName = NULL, .value = 0 }
-            }
-        },
-
-            [RuntimeFeatureSettingType::Feature3] =  { 
-            .displayName = "Very long feature name",
-            .xmlName = "b",
-            .value = RuntimeFeatureStateToggle::Off, // Default value
-            .options = { 
-                { .displayName = "Cheesecake", .value = RuntimeFeatureStateToggle::On },
-                { .displayName = "Off", .value = RuntimeFeatureStateToggle::Off }, 
-                { .displayName = "On", .value = RuntimeFeatureStateToggle::On },
-                { .displayName = NULL, .value = 0 }
-            }
-        }
-*/
-        [RuntimeFeatureSettingType::Feature1] =  { 
-            .displayName = "Setting A",
-            .xmlName = "settingA",
-            .value = 0, // Default value
-            .options = { 
-                { .displayName = "OptionA", .value = 0 }, 
-                { .displayName = "OptionB", .value = 1 },
-                { .displayName = NULL, .value = 0 }
-            }
-        },
-
-        [RuntimeFeatureSettingType::Feature2] =  { 
-            .displayName = "Setting B",
-            .xmlName = "settingB",
-            .value = 1, // Default value
-            .options = { 
-                { .displayName = "OptionC", .value = 0 }, 
-                { .displayName = "OptionD", .value = 1 },
-                { .displayName = "OptionE", .value = 2 },
-                { .displayName = NULL, .value = 0 }
-            }
-        },
-
-        [RuntimeFeatureSettingType::Feature3] =  { 
-            .displayName = "Setting C",
-            .xmlName = "settingC",
-            .value = 6, // Default value
-            .options = { 
-                { .displayName = "OptionF", .value = 3 }, 
-                { .displayName = "OptionG", .value = 4 },
-                { .displayName = "OptionH", .value = 5 },
-                { .displayName = "OptionI", .value = 6 },
-                { .displayName = NULL, .value = 0 }
-            }
-        },
-
-
-
+        //// @TODO: Remove example on first use
+        // [RuntimeFeatureSettingType::FileFolderSorting] =  { 
+        //     .displayName = "File/Folder sorting",
+        //     .xmlName = "fileFolderSorting",
+        //     .value = RuntimeFeatureStateToggle::Off, // Default value
+        //     .options = { 
+        //         { .displayName = "Off", .value = RuntimeFeatureStateToggle::Off }, 
+        //         { .displayName = "On", .value = RuntimeFeatureStateToggle::On },
+        //         { .displayName = NULL, .value = 0 }
+        //     }
+        // },
         
         // Please extend RuntimeFeatureSettingType and here for additional settings
         // Usage example -> (runtimeFeatureSettings.get(RuntimeFeatureSettingType::FileFolderSorting) == RuntimeFeatureStateToggle::On)
     };
 
-    //@TODO: Add unknown settings storage
+private:
+    ResizeableArray unknownSettings;
 
 public:
     friend class MenuItemRuntimeFeatureSetting;
