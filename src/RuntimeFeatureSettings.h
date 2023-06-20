@@ -36,9 +36,7 @@ enum RuntimeFeatureStateToggle : uint32_t {
 
 /// Every setting needs to be delcared in here
 enum RuntimeFeatureSettingType : uint32_t {
-    Feature1,
-    Feature2,
-    Feature3,
+    // FileFolderSorting // @TODO: Replace with actual identifier on first use
     MaxElement              // Keep as boundary
 };
 
