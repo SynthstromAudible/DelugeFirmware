@@ -16,7 +16,10 @@
  */
 
 #include "RuntimeFeatureSettings.h"
+#include "numericDriver.h"
 
+#define RUNTIME_FEATURE_SETTINGS_FILE "CommunityFeatures.XML"
+#define TAG_RUNTIME_FEATURE_SETTINGS "runtimeFeatureSettings"
 //RuntimeFeatureSetting RuntimeFeatureSettings::settings[RuntimeFeatureSettingType::MaxElement] = ;
 
 RuntimeFeatureSettings runtimeFeatureSettings;
@@ -24,6 +27,7 @@ RuntimeFeatureSettings runtimeFeatureSettings;
 RuntimeFeatureSettings::RuntimeFeatureSettings() {}
 
 void RuntimeFeatureSettings::readSettingsFromFile() {
+    numericDriver.displayPopup("LDXML");
 
     //runtimeFeatureSettingsMenu.items
     // Copied code from MIDIDeviceManager for reference
@@ -31,10 +35,10 @@ void RuntimeFeatureSettings::readSettingsFromFile() {
     	if (successfullyReadDevicesFromFile) return; // Yup, we only want to do this once
 
 	FilePointer fp;
-	bool success = storageManager.fileExists("MIDIDevices.XML", &fp);
+	bool success = storageManager.fileExists(RUNTIME_FEATURE_SETTINGS_FILE, &fp);
 	if (!success) return;
 
-	int error = storageManager.openXMLFile(&fp, "midiDevices");
+	int error = storageManager.openXMLFile(&fp, TAG_RUNTIME_FEATURE_SETTINGS);
 	if (error) return;
 
 	char const* tagName;
@@ -119,45 +123,33 @@ checkDevice:
 }
 
 void RuntimeFeatureSettings::writeSettingsToFile() {
-    // Copied code from MIDIDeviceManager for reference
-    /*
-    	if (!anyChangesToSave) return;
-	anyChangesToSave = false;
+	f_unlink(RUNTIME_FEATURE_SETTINGS_FILE); // May give error, but no real consequence from that.
 
-	// First, see if it's even worth writing anything
-	if (dinMIDIPorts.worthWritingToFile()) goto worthIt;
-	if (upstreamUSBMIDIDevice.worthWritingToFile()) goto worthIt;
-
-	for (int d = 0; d < hostedMIDIDevices.getNumElements(); d++) {
-		MIDIDeviceUSBHosted* device = (MIDIDeviceUSBHosted*)hostedMIDIDevices.getElement(d);
-		if (device->worthWritingToFile()) goto worthIt;
-	}
-
-	// If still here, nothing worth writing. Delete the file if there was one.
-	f_unlink("MIDIDevices.XML"); // May give error, but no real consequence from that.
-	return;
-
-worthIt:
-	int error = storageManager.createXMLFile("MIDIDevices.XML", true);
+	int error = storageManager.createXMLFile(RUNTIME_FEATURE_SETTINGS_FILE, true);
 	if (error) return;
 
-	storageManager.writeOpeningTagBeginning("midiDevices");
+	storageManager.writeOpeningTagBeginning(TAG_RUNTIME_FEATURE_SETTINGS);
 	storageManager.writeFirmwareVersion();
-	storageManager.writeEarliestCompatibleFirmwareVersion("4.0.0");
+	storageManager.writeEarliestCompatibleFirmwareVersion("4.1.3");
 	storageManager.writeOpeningTagEnd();
 
-	if (dinMIDIPorts.worthWritingToFile()) dinMIDIPorts.writeToFile("dinPorts");
-	if (upstreamUSBMIDIDevice.worthWritingToFile()) upstreamUSBMIDIDevice.writeToFile("upstreamUSBDevice");
+    for(uint32_t idxSetting = 0; idxSetting < RuntimeFeatureSettingType::MaxElement; ++idxSetting) {
+        //@TODO: Adapt
+        /*
+        storageManager.writeOpeningTagBeginning("sound");
+        storageManager.writeAttribute("name", name.get());
 
-	for (int d = 0; d < hostedMIDIDevices.getNumElements(); d++) {
-		MIDIDeviceUSBHosted* device = (MIDIDeviceUSBHosted*)hostedMIDIDevices.getElement(d);
-		if (device->worthWritingToFile()) {
-			device->writeToFile("hostedUSBDevice");
-		}
-	}
+        Sound::writeToFile(savingSong, paramManager, &arpSettings);
 
-	storageManager.writeClosingTag("midiDevices");
+        if (savingSong) Drum::writeMIDICommandsToFile();
+
+        storageManager.writeClosingTag("sound");
+        */
+    }
+    
+    //@TODO: Write unknown settings
+
+	storageManager.writeClosingTag(TAG_RUNTIME_FEATURE_SETTINGS);
 
 	storageManager.closeFileAfterWriting();
-    */
 }
