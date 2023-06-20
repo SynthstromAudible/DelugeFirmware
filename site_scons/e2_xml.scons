@@ -1,8 +1,10 @@
 import os
-from dbt.project import E2Project
 
 Import("env")
 Import("log_parent")
+Import("cproject")
+Import("e2_build_targets")
+Import("dbt_build_targets")
 
 # Prep the return variable
 success = False
@@ -11,15 +13,6 @@ success = False
 log = log_parent.getChild("e2_xml")
 log.info("Detected e2_xml mode.")
 
-# Crank up the e2studio XML parsing class
-cproject = E2Project(log, GetLaunchDir())
-
-# Brand and sort things appropriately so we follow the general scheme of,
-# but don't overlap with e2 build directories.
-e2_build_targets = list(cproject.get_build_targets())
-dbt_build_targets = [p.replace("e2-build-", "dbt-build-") for p in e2_build_targets]
-e2_build_targets.sort()
-dbt_build_targets.sort()
 
 if env["BUILD_LABEL"] not in dbt_build_targets:
     print(

@@ -74,20 +74,50 @@ if GetOption("base_config") == "e2_xml":
     if GetOption("e2_target"):
         Default(GetOption("e2_target"))
 
+    from dbt.project import E2Project
+
+    # Crank up the e2studio XML parsing class
+    cproject = E2Project(log, GetLaunchDir())
+
+    # Brand and sort things appropriately so we follow the general scheme of,
+    # but don't overlap with e2 build directories.
+    e2_build_targets = list(cproject.get_build_targets())
+    dbt_build_targets = [p.replace("e2-build-", "dbt-build-") for p in e2_build_targets]
+    e2_build_targets.sort()
+    dbt_build_targets.sort()
+
+    if not BUILD_TARGETS:
+        print(
+            "Cannot build without a specified target. Try one or more of the following:"
+        )
+        print("    Direct Targets:")
+        for d_t in dbt_build_targets:
+            print("        {}".format(d_t))
+        # print("    Special Targets:")
+        # print("        all (builds all targets, sequentially)")
+        print("\nTo clean a build, specify a target and use the flag '-c'.")
+        Return()
+
     # Launch and configure a new environment for each target BUILD_TARGETS
     # contains plain commandline targets or the contents of -e2_target
     # ONLY IF there are no commandline targets.
-    for target_entry in BUILD_TARGETS:
+    for target_raw in BUILD_TARGETS:
         # Convert entry to plain string so there are no differences
+        target = str(target_raw)
         # between plain commandline targets and "option" targets
-        target = str(target_entry)
         multienv[target] = env.Clone(
             BUILD_LABEL=target, BUILD_DIR=os.path.abspath(target)
         )
 
         if not multienv[target].SConscript(
             os.path.join("site_scons", "e2_xml.scons"),
-            exports={"env": multienv[target], "log_parent": log},
+            exports={
+                "env": multienv[target],
+                "log_parent": log,
+                "cproject": cproject,
+                "e2_build_targets": e2_build_targets,
+                "dbt_build_targets": dbt_build_targets,
+            },
         ):
             success = False
             Return("success")
