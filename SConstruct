@@ -76,6 +76,10 @@ if GetOption("base_config") == "e2_xml":
 wrap_tempfile(env, "LINKCOM")
 wrap_tempfile(env, "ARCOM")
 
+# Export a `compile_commands.json` for help
+env.Tool("compilation_db")
+env.CompilationDatabase()
+
 # VariantDir does the magic to ensure output goes to the dbt- whatever
 # build directory. Careful: THIS CAN BE REALLY FINICKY if paths aren't set right
 VariantDir(os.path.join(env["BUILD_LABEL"], REL_SOURCE_DIR), "#src", duplicate=False)
