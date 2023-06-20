@@ -15,5 +15,6 @@
 /dbt-build*
 *.launch
 /toolchain/*
+compile_commands.json
 __pycache__
 .sconsign.dblite
