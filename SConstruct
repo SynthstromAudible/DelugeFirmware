@@ -57,11 +57,6 @@ env = Environment(
     MAXLINELENGTH=2048,
 )
 
-# Export a `compile_commands.json` for help
-# Note: no idea how well this plays with multiple targets at once
-env.Tool("compilation_db")
-env.CompilationDatabase()
-
 # Prepare for multiple target environments
 multienv = {}
 
@@ -139,6 +134,13 @@ for target, t_env in multienv.items():
     VariantDir(
         os.path.join(t_env["BUILD_LABEL"], REL_SOURCE_DIR), "#src", duplicate=False
     )
+
+    # Export a `compile_commands.json` for help
+    # t_env["COMPILATIONDB_PATH_FILTER"] = t_env["BUILD_LABEL"]
+    t_env["COMPILATIONDB_USE_ABSPATH"] = True
+    t_env.Tool("compilation_db")
+    cdb_name = "compile_commands.json"
+    cdb = t_env.CompilationDatabase(os.path.join(t_env["BUILD_DIR"], cdb_name))
 
     # Load generic stuff (Builders, etc.) into the environment.
     SConscript(os.path.join("site_scons", "generic_env.scons"), exports={"env": t_env})
