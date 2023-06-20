@@ -1,4 +1,11 @@
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - 'community'
+      - 'synthstrom-official'
+  pull_request:
+    branches:
+      - 'community'
 jobs:
   build:
     name: Build ${{ matrix.profile }}-${{ matrix.hardware }}

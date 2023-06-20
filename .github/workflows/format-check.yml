@@ -1,4 +1,10 @@
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - 'community'
+  pull_request:
+    branches:
+      - 'community'
 jobs:
   formatting-check:
     name: Formatting Check
