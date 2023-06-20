@@ -16,10 +16,10 @@
  */
 
 #include "RuntimeFeatureSettings.h"
+#include <new>
 #include <string.h>
 #include "numericDriver.h"
 #include "storageManager.h"
-#include "DString.h"
 
 #define RUNTIME_FEATURE_SETTINGS_FILE "CommunityFeatures.XML"
 #define TAG_RUNTIME_FEATURE_SETTINGS "runtimeFeatureSettings"
@@ -27,14 +27,17 @@
 #define TAG_RUNTIME_FEATURE_SETTING_ATTR_NAME "name"
 #define TAG_RUNTIME_FEATURE_SETTING_ATTR_VALUE "value"
 
+/// Unknown Settings container
+struct UnknownSetting {
+    String name;
+    uint32_t value;
+};
 
 RuntimeFeatureSettings runtimeFeatureSettings;
 
-RuntimeFeatureSettings::RuntimeFeatureSettings() {}
+RuntimeFeatureSettings::RuntimeFeatureSettings() : unknownSettings(sizeof(UnknownSetting)) {}
 
 void RuntimeFeatureSettings::readSettingsFromFile() {
-    numericDriver.displayPopup("Community file err");
-
 	FilePointer fp;
 	bool success = storageManager.fileExists(RUNTIME_FEATURE_SETTINGS_FILE, &fp);
 	if (!success) return;
@@ -59,7 +62,24 @@ void RuntimeFeatureSettings::readSettingsFromFile() {
             currentValue = storageManager.readTagOrAttributeValueInt();
             storageManager.exitTag();
 
-            //@TODO: Search for the setting and store it either in the setting struct or in the unsupported settings
+            bool found = false;
+            for(uint32_t idxSetting = 0; idxSetting < RuntimeFeatureSettingType::MaxElement; ++idxSetting) {
+                if(strcmp(settings[idxSetting].xmlName, currentName.get()) == 0) {
+                    found = true;
+                    settings[idxSetting].value = currentValue;
+                }
+            }
+
+            // Remember unknown settings for writing them back 
+            if(!found) {
+                //unknownSettings.insertSetting(&currentName, currentValue);
+                int idx = unknownSettings.getNumElements();
+                if (unknownSettings.insertAtIndex(idx) != NO_ERROR) { return; }
+                void* address = unknownSettings.getElementAddress(idx);
+                UnknownSetting* unknownSetting = new (address) UnknownSetting();
+                unknownSetting->name.set(&currentName);
+                unknownSetting->value = currentValue;
+            }
 		}
 
 		storageManager.exitTag();
@@ -87,10 +107,17 @@ void RuntimeFeatureSettings::writeSettingsToFile() {
         storageManager.writeOpeningTagEnd(false);
         storageManager.writeClosingTag(TAG_RUNTIME_FEATURE_SETTING, false);
     }
-    
-    //@TODO: Write unknown settings
+
+    // Write unknown elements
+    for (uint32_t idxUnknownSetting; idxUnknownSetting < unknownSettings.getNumElements(); idxUnknownSetting++) {
+        UnknownSetting* unknownSetting = (UnknownSetting*)unknownSettings.getElementAddress(idxUnknownSetting);
+        storageManager.writeOpeningTagBeginning(TAG_RUNTIME_FEATURE_SETTING);
+        storageManager.writeAttribute(TAG_RUNTIME_FEATURE_SETTING_ATTR_NAME, unknownSetting->name.get(), false);
+        storageManager.writeAttribute(TAG_RUNTIME_FEATURE_SETTING_ATTR_VALUE, unknownSetting->value, false);
+        storageManager.writeOpeningTagEnd(false);
+        storageManager.writeClosingTag(TAG_RUNTIME_FEATURE_SETTING, false);
+    }
 
 	storageManager.writeClosingTag(TAG_RUNTIME_FEATURE_SETTINGS);
-
 	storageManager.closeFileAfterWriting();
 }
