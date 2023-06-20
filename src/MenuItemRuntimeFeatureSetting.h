@@ -27,9 +27,10 @@ public:
 	void writeCurrentValue();
 	char const** getOptions();
 	int getNumOptions();
+
 private:
-    friend class MenuItemRuntimeFeatureSettings;
-    uint32_t currentSettingIndex;
+	friend class MenuItemRuntimeFeatureSettings;
+	uint32_t currentSettingIndex;
 };
 
 extern MenuItemRuntimeFeatureSetting runtimeFeatureSettingMenuItem;

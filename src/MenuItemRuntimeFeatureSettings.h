@@ -30,9 +30,9 @@ public:
 	void drawPixelsForOled();
 
 private:
-    uint32_t lastActiveValue = 0;
-    // getSetting?
-};  
+	uint32_t lastActiveValue = 0;
+	// getSetting?
+};
 
 extern MenuItemRuntimeFeatureSettings runtimeFeatureSettingsMenu;
 

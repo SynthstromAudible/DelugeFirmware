@@ -26,10 +26,10 @@ MenuItemRuntimeFeatureSettings runtimeFeatureSettingsMenu;
 
 void MenuItemRuntimeFeatureSettings::beginSession(MenuItem* navigatedBackwardFrom) {
 	if (!navigatedBackwardFrom) {
-        lastActiveValue = 0; // Reset last active value
-    }
+		lastActiveValue = 0; // Reset last active value
+	}
 
-    soundEditor.currentValue = lastActiveValue; // Restore
+	soundEditor.currentValue = lastActiveValue; // Restore
 
 #if HAVE_OLED
 	soundEditor.menuCurrentScroll = soundEditor.currentValue;
@@ -50,7 +50,7 @@ void MenuItemRuntimeFeatureSettings::selectEncoderAction(int offset) {
 	else if (soundEditor.currentValue < 0) soundEditor.currentValue += numOptions;
 #endif
 
-    lastActiveValue = soundEditor.currentValue;
+	lastActiveValue = soundEditor.currentValue;
 
 #if HAVE_OLED
 	if (soundEditor.currentValue < soundEditor.menuCurrentScroll)
@@ -84,9 +84,10 @@ void MenuItemRuntimeFeatureSettings::drawValue() {
 
 MenuItem* MenuItemRuntimeFeatureSettings::selectButtonPress() {
 #if HAVE_OLED
-	runtimeFeatureSettingMenuItem.basicTitle = runtimeFeatureSettings.settings[soundEditor.currentValue].displayName; // A bit ugly, but saves us extending a class.
+	runtimeFeatureSettingMenuItem.basicTitle = runtimeFeatureSettings.settings[soundEditor.currentValue]
+	                                               .displayName; // A bit ugly, but saves us extending a class.
 #endif
-    runtimeFeatureSettingMenuItem.currentSettingIndex = soundEditor.currentValue;
+	runtimeFeatureSettingMenuItem.currentSettingIndex = soundEditor.currentValue;
 	return &runtimeFeatureSettingMenuItem;
 }
 
@@ -100,10 +101,12 @@ void MenuItemRuntimeFeatureSettings::drawPixelsForOled() {
 	int displayRow = soundEditor.menuCurrentScroll;
 	int row = 0;
 	while (row < OLED_MENU_NUM_OPTIONS_VISIBLE && displayRow < RuntimeFeatureSettingType::MaxElement) {
-        itemNames[row] = runtimeFeatureSettings.settings[displayRow].displayName;
-        if (displayRow == soundEditor.currentValue) { selectedRow = row; }
+		itemNames[row] = runtimeFeatureSettings.settings[displayRow].displayName;
+		if (displayRow == soundEditor.currentValue) {
+			selectedRow = row;
+		}
 		row++;
-        displayRow++;
+		displayRow++;
 	}
 
 	while (row < OLED_MENU_NUM_OPTIONS_VISIBLE) {
