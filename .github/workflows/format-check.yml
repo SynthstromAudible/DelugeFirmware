@@ -10,6 +10,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          sourcE: './src'
+          source: './src'
           extensions: 'c,cpp,h,hpp'
           clangFormatVersion: 14
