@@ -1,11 +1,3 @@
-# Ownership
-
-The community firmware project is owned by Synthstrom Audible and they named @jamiefaye as the [Open-source Project Manager](https://forums.synthstrom.com/discussion/5280/deluge-goes-open-source).
-* Ultimately this means that Synthstrom Audible owns the right to make any decision and change in this project.
-* Synthstrom Audible has [communicated](https://github.com/SynthstromAudible/DelugeFirmware/discussions/13#discussioncomment-6147993) that they intend to let the community run the project without direct influence but might want to contribute with resources helping in the project in the future.
-@TODO: describe relationship and delegated rights to contributors named by Synthstrom as well as delegation mechanism via CODEOWNERS
-
-
 # Goal
 
 Goal of the DelugeFirmware community is to produce high quality firmware application releases for users of the Deluge hardware with improvements and new features coming from our community of contributors. To be as transparent and inclusive as possible [contribution guidelines](CONTRIBUTING.md) have been defined with the intent to help reach this goal. Please also see the [Code of Conduct](CODE_OF_CONDUCT.md).
