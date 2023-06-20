@@ -6,7 +6,7 @@ from SCons.Errors import StopError
 from SCons.Subst import quote_spaces
 
 WINPATHSEP_RE = re.compile(r"\\([^\"'\\]|$)")
-SOURCEWALK_RE = re.compile(r"\.[cs][p]{0,2}", re.IGNORECASE)
+SOURCEWALK_RE = re.compile(r"\.[cs][p]{0,2}$", re.IGNORECASE)
 
 # Used by default when globbing for files with GlobRecursive
 # Excludes all files ending with ~, usually created by editors as backup files
