@@ -187,6 +187,10 @@ env.Append(
     }
 )
 
+# Export a `compile_commands.json` for help
+env.Tool('compilation_db')
+env.CompilationDatabase()
+
 # VariantDir does the magic to ensure output goes to the dbt- whatever
 # build directory. Careful: THIS CAN BE REALLY FINICKY if paths aren't set right
 VariantDir(os.path.join(build_label, source_dir), "#src", duplicate=False)
