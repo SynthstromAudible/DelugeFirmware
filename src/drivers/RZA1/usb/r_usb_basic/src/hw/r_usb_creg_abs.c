@@ -34,6 +34,7 @@
 #include "r_usb_bitdefine.h"
 #include "r_usb_reg_access.h"
 #include "iodefine.h"
+#include "uart_all_cpus.h"
 
 /***********************************************************************************************************************
  Exported global variables (to be accessed by other files)

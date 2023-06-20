@@ -21,6 +21,7 @@
 #include "definitions.h"
 
 #if HAVE_OLED
+#ifdef __cplusplus
 
 namespace OLED {
 
@@ -92,9 +93,14 @@ extern const uint8_t rightArrowIcon[];
 } // namespace OLED
 
 extern "C" {
-void consoleTextIfAllBootedUp(char const* text);
-}
-
 #endif
+
+void consoleTextIfAllBootedUp(char const* text);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* HAVE_OLED */
 
 #endif /* DRIVERS_RZA2_OLED_OLED_H_ */

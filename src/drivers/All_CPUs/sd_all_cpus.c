@@ -20,9 +20,14 @@
 #include "definitions.h"
 #include "mtu_all_cpus.h"
 
+#include "cfunctions.h"
+#include "Deluge.h"
 #include "sdif.h"
 
 uint16_t stopTime;
+void sddev_start_timer(int msec);
+int sddev_check_timer(void);
+void sddev_end_timer(void);
 
 /******************************************************************************
 * Function Name: int sddev_power_on(int sd_port);

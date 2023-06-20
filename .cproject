@@ -79,6 +79,7 @@
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/uart_all_cpus&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/rspi_all_cpus&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/oled_low_level_all_cpus&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/compiler/asm/inc/&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/mtu&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/oled&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/spibsc&quot;"/>
@@ -92,6 +93,7 @@
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/rspi&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi/src/sd/inc&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi/src/sd/inc/access&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/stb/&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_basic&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_basic/src&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_basic/src/hw/inc&quot;"/>
@@ -623,6 +625,7 @@
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/rspi_all_cpus&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/oled_low_level_all_cpus&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/compiler/asm/inc/&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/mtu&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/oled&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi/src&quot;"/>
@@ -635,6 +638,7 @@
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/rspi&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi/src/sd/inc&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi/src/sd/inc/access&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/stb/&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_basic&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_basic/src&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_basic/src/hw/inc&quot;"/>
@@ -1171,6 +1175,7 @@
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/rspi_all_cpus&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/oled_low_level_all_cpus&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/compiler/asm/inc/&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/mtu&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/oled&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi/src&quot;"/>
@@ -1183,6 +1188,7 @@
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/rspi&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi/src/sd/inc&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi/src/sd/inc/access&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/stb/&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_basic&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_basic/src&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_basic/src/hw/inc&quot;"/>
@@ -1716,6 +1722,7 @@
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/uart_all_cpus&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/rspi_all_cpus&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/oled_low_level_all_cpus&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/compiler/asm/inc/&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/mtu&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/oled&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/spibsc&quot;"/>
@@ -1729,6 +1736,7 @@
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/rspi&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi/src/sd/inc&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi/src/sd/inc/access&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/stb/&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_basic&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_basic/src&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_basic/src/hw/inc&quot;"/>

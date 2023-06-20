@@ -38,6 +38,8 @@
 #include "r_usb_reg_access.h"
 #include "r_usb_hmidi_config.h"
 
+#include "uart_all_cpus.h"
+
 /******************************************************************************
  Renesas Abstracted USB Driver functions
  ******************************************************************************/
