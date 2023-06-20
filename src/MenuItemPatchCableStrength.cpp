@@ -95,12 +95,15 @@ void MenuItemPatchCableStrength::renderOLED() {
 	const int digitHeight = TEXT_BIG_SIZE_Y;
 	intToString(soundEditor.currentValue, buffer, 3);
 	int textPixelY = extraY + OLED_MAIN_TOPMOST_PIXEL + 10 + destinationDescriptor.isJustAParam();
-	OLED::drawStringAlignRight(buffer, textPixelY, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, digitWidth, digitHeight);
+	OLED::drawStringAlignRight(buffer, textPixelY, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, digitWidth,
+	                           digitHeight);
 
-	int ourDigitStartX = OLED_MAIN_WIDTH_PIXELS - (soundEditor.numberEditPos+1) * digitWidth;
+	int ourDigitStartX = OLED_MAIN_WIDTH_PIXELS - (soundEditor.numberEditPos + 1) * digitWidth;
 	OLED::setupBlink(ourDigitStartX, digitWidth, 40, 44, movingCursor);
-	OLED::drawVerticalLine(OLED_MAIN_WIDTH_PIXELS-2*digitWidth,   textPixelY+digitHeight+1, textPixelY+digitHeight+3, OLED::oledMainImage);
-	OLED::drawVerticalLine(OLED_MAIN_WIDTH_PIXELS-2*digitWidth-1, textPixelY+digitHeight+1, textPixelY+digitHeight+3, OLED::oledMainImage);
+	OLED::drawVerticalLine(OLED_MAIN_WIDTH_PIXELS - 2 * digitWidth, textPixelY + digitHeight + 1,
+	                       textPixelY + digitHeight + 3, OLED::oledMainImage);
+	OLED::drawVerticalLine(OLED_MAIN_WIDTH_PIXELS - 2 * digitWidth - 1, textPixelY + digitHeight + 1,
+	                       textPixelY + digitHeight + 3, OLED::oledMainImage);
 }
 #endif
 
@@ -134,7 +137,7 @@ void MenuItemPatchCableStrength::writeCurrentValue() {
 	if (!modelStackWithParam->autoParam) return;
 
 	// rescale from 5000 to 2**30. The magic constant is ((2^30)/5000), shifted 32 bits for precision ((1<<(30+32))/5000)
-	int32_t finalValue = ((int64_t)922337203685477*soundEditor.currentValue) >> 32;
+	int32_t finalValue = ((int64_t)922337203685477 * soundEditor.currentValue) >> 32;
 	modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(finalValue, modelStackWithParam);
 }
 
