@@ -25,8 +25,7 @@
 #include "diskio.h"
 #include "definitions.h"
 #include "sio_char.h"
-
-int main2(void);
+#include "Deluge.h"
 
 static void midiAndGateOutputTimerInterrupt(uint32_t int_sense) {
 

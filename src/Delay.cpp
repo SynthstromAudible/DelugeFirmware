@@ -36,17 +36,18 @@ Delay::Delay() {
 	Song* song = preLoadedSong;
 	if (!song) song = currentSong;
 	if (song) {
-		sync = 8 - (song->insideWorldTickMagnitude + song->insideWorldTickMagnitudeOffsetFromBPM);
+		syncLevel = (SyncLevel)(8 - (song->insideWorldTickMagnitude + song->insideWorldTickMagnitudeOffsetFromBPM));
 	}
 	else {
-		sync = 8 - FlashStorage::defaultMagnitude;
+		syncLevel = (SyncLevel)(8 - FlashStorage::defaultMagnitude);
 	}
+	syncType = SYNC_TYPE_EVEN;
 }
 
 void Delay::cloneFrom(Delay* other) {
 	pingPong = other->pingPong;
 	analog = other->analog;
-	sync = other->sync;
+	syncLevel = other->syncLevel;
 }
 
 void Delay::informWhetherActive(bool newActive, int32_t userDelayRate) {
@@ -129,15 +130,18 @@ void Delay::setupWorkingState(DelayWorkingState* workingState, bool anySoundComi
 
 	if (mightDoDelay) {
 
-		if (sync != 0) {
+		if (syncLevel != 0) {
 
 			workingState->userDelayRate = multiply_32x32_rshift32_rounded(
 			    workingState->userDelayRate, playbackHandler.getTimePerInternalTickInverse(true));
 
 			// Limit to the biggest number we can store...
-			int32_t limit = 2147483647 >> (sync + 5);
+			int32_t limit = 2147483647 >> (syncLevel + 5);
 			workingState->userDelayRate = getMin(workingState->userDelayRate, limit);
-			workingState->userDelayRate <<= (sync + 5);
+			if (syncType == SYNC_TYPE_EVEN) {} // Do nothing
+			else if (syncType == SYNC_TYPE_TRIPLET) workingState->userDelayRate = workingState->userDelayRate * 3 / 2;
+			else if (syncType == SYNC_TYPE_DOTTED) workingState->userDelayRate = workingState->userDelayRate * 2 / 3;
+			workingState->userDelayRate <<= (syncLevel + 5);
 		}
 	}
 

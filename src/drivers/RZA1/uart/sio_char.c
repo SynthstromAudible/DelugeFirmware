@@ -45,6 +45,9 @@ Includes   <System Includes> , "Project Includes"
 #include "definitions.h"
 #include <stdlib.h>
 #include "cpu_specific.h"
+#include <math.h>
+
+#include "uart_all_cpus.h"
 
 char_t picTxBuffer[PIC_TX_BUFFER_SIZE] __attribute__((aligned(CACHE_LINE_SIZE)));
 char_t midiTxBuffer[MIDI_TX_BUFFER_SIZE] __attribute__((aligned(CACHE_LINE_SIZE)));

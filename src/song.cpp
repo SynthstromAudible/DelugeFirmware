@@ -125,7 +125,7 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	reverbPan = 0;
 	reverbCompressorVolume = getParamFromUserValue(PARAM_STATIC_COMPRESSOR_VOLUME, -1);
 	reverbCompressorShape = -601295438;
-	reverbCompressorSync = 6;
+	reverbCompressorSync = SYNC_LEVEL_8TH;
 
 	dirPath.set("SONGS");
 }
@@ -952,7 +952,7 @@ weAreInArrangementEditorOrInClipInstance:
 	storageManager.writeAttribute("inputTickMagnitude",
 	                              insideWorldTickMagnitude + insideWorldTickMagnitudeOffsetFromBPM);
 	storageManager.writeAttribute("swingAmount", swingAmount);
-	storageManager.writeAbsoluteSyncLevelToFile(this, "swingInterval", swingInterval);
+	storageManager.writeAbsoluteSyncLevelToFile(this, "swingInterval", (SyncLevel)swingInterval);
 
 	if (tripletsOn) storageManager.writeAttribute("tripletsLevel", tripletsLevel);
 
@@ -990,7 +990,7 @@ weAreInArrangementEditorOrInClipInstance:
 	storageManager.writeAttribute("release", AudioEngine::reverbCompressor.release);
 	storageManager.writeAttribute("volume", AudioEngine::reverbCompressorVolume);
 	storageManager.writeAttribute("shape", AudioEngine::reverbCompressorShape);
-	storageManager.writeAttribute("syncLevel", AudioEngine::reverbCompressor.sync);
+	storageManager.writeAttribute("syncLevel", AudioEngine::reverbCompressor.syncLevel);
 	storageManager.closeTag();
 
 	storageManager.writeClosingTag("reverb");
@@ -1118,8 +1118,8 @@ int Song::readFromFile() {
 							storageManager.exitTag("shape");
 						}
 						else if (!strcmp(tagName, "syncLevel")) {
-							reverbCompressorSync = storageManager.readTagOrAttributeValueInt();
-							reverbCompressorSync = getMin(reverbCompressorSync, (uint8_t)9);
+							reverbCompressorSync = storageManager.readAbsoluteSyncLevelFromFile(this);
+							reverbCompressorSync = (SyncLevel)getMin((uint8_t)reverbCompressorSync, (uint8_t)9);
 							storageManager.exitTag("syncLevel");
 						}
 						else {

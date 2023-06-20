@@ -36,8 +36,12 @@
 
 // Added by Rohan
 #include "r_usb_hmidi_config.h"
-#include "definitions.h"
+
 #include "MIDIDeviceManager.h"
+#include "definitions.h"
+
+#include "midiengine.h"
+#include "uart_all_cpus.h"
 
 #if ((USB_CFG_DTC == USB_CFG_ENABLE) || (USB_CFG_DMA == USB_CFG_ENABLE))
 #include "drivers/usb/r_usb_basic/src/hw/inc/r_usb_dmac.h"

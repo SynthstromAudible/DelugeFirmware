@@ -1,0 +1,2328 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg width="1704" height="1186" viewbox="0 0 1704 1186" version="1.1" xmlns="http://www.w3.org/2000/svg">
+ <defs>
+  <style>text {
+  font: 10px Ubuntu Mono;
+  dominant-baseline: middle;
+}
+
+.output-flag {
+  stroke: black;
+  stroke-width: 2px;
+  fill: #a1e57e;
+}
+
+.input-flag {
+  stroke: black;
+  stroke-width: 2px;
+  fill: #a1e57e;
+}
+
+.indirect-input-flag {
+  stroke: black;
+  stroke-width: 2px;
+  fill: #e5de7eff;
+}
+
+.indirect-output-flag {
+  stroke: black;
+  stroke-width: 2px;
+  fill: #e5de7eff;
+}
+
+.bus-flag {
+  stroke: black;
+  stroke-width: 2px;
+  fill: #7ee5dfff;
+}
+
+.cpu-label {
+  stroke: black;
+  stroke-width: 2px;
+  fill: #e6e6e6;
+}
+
+.module rect {
+  stroke: black;
+  stroke-width: 2px;
+  fill: #e6e6e6;
+}
+
+.module path {
+  stroke: black;
+  stroke-width: 2px;
+}
+
+.cpu {
+  stroke: black;
+  stroke-width: 2px;
+  fill: white;
+}
+
+.package-pin-backg {
+  fill: #e5de7eff;
+}
+
+.port-pin-backg {
+  fill: #7ee5dfff;
+}
+
+.port-base {
+  stroke: black;
+  stroke-width: 2px;
+  fill: white;
+}
+
+.port-label {
+  stroke: black;
+  stroke-width: 2px;
+  fill: none;
+}
+
+.connection {
+  stroke: #525266;
+  stroke-width: 2px;
+  fill: none;
+}
+
+.pin-connection-group .connection {
+  stroke-width: 5px;
+  stroke: transparent;
+  fill: none;
+}
+
+.pin-connection-group:hover * {
+  stroke: #e67f7f;
+  stroke-width: 3px;
+}
+
+.pin-connection-group .highlight {
+  fill: transparent;
+}
+
+.pin-connection-group .cpu-pin * {
+  fill: transparent;
+  stroke: none;
+}
+
+.pin-connection-group:hover .cpu-pin * {
+  stroke: #e67f7f;
+}
+
+.peripheral-bsc {
+  stroke:black;
+  stroke-width: 2px;
+  fill: #e6cfcf;
+}
+
+.peripheral-sdhost {
+  stroke:black;
+  stroke-width: 2px;
+  fill: #e6e6cf;
+}
+
+.peripheral-ssi0 {
+  stroke:black;
+  stroke-width: 2px;
+  fill: #cfe6cf;
+}
+
+.peripheral-midi {
+  stroke:black;
+  stroke-width: 2px;
+  fill: #cfe6e6;
+}
+
+.peripheral-spi {
+  stroke:black;
+  stroke-width: 2px;
+  fill: #cfcfe6;
+}
+
+.peripheral-multio {
+  stroke:black;
+  stroke-width: 2px;
+  fill: #e6cfe6;
+}
+
+.peripheral-padio {
+  stroke:black;
+  stroke-width: 2px;
+  fill: #cfe6e6;
+}
+</style>
+  <clipPath id="cpu-pin-clip">
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" />
+  </clipPath>
+ </defs>
+ <g>
+  <g id="modules">
+   <g>
+    <g transform="translate(50, 206)" class="module">
+     <rect x="0" y="0" rx="5" ry="5" width="120" height="187" />
+     <text x="60.0" y="10.0" text-anchor="middle" dominant-baseline="middle">SDRAM</text>
+     <path d="M 0,20 H 120" />
+     <rect x="10" y="171" rx="5" ry="5" width="110" height="16" />
+     <text x="65.0" y="179.0" text-anchor="middle" dominant-baseline="middle">AS4C32M16SB</text>
+    </g>
+    <g transform="translate(64.0, 231)">
+     <path d="M 107,0 H 0 l -7.0,7.0 l 7.0,7.0 H 107" class="input-flag" />
+     <text x="3" y="7.0">Chip Select</text>
+    </g>
+    <g transform="translate(64.0, 247)">
+     <path d="M 0,0 H 105 l 7.0,7.0 l -7.0,7.0 H 0 Z" class="output-flag" />
+     <text x="3" y="7.0">RAS</text>
+    </g>
+    <g transform="translate(64.0, 263)">
+     <path d="M 0,0 H 105 l 7.0,7.0 l -7.0,7.0 H 0 Z" class="output-flag" />
+     <text x="3" y="7.0">CAS</text>
+    </g>
+    <g transform="translate(64.0, 279)">
+     <path d="M 0,0 H 105 l 7.0,7.0 l -7.0,7.0 H 0 Z" class="output-flag" />
+     <text x="3" y="7.0">CKE</text>
+    </g>
+    <g transform="translate(64.0, 295)">
+     <path d="M 0,0 H 105 l 7.0,7.0 l -7.0,7.0 H 0 Z" class="output-flag" />
+     <text x="3" y="7.0">WE0</text>
+    </g>
+    <g transform="translate(64.0, 311)">
+     <path d="M 0,0 H 105 l 7.0,7.0 l -7.0,7.0 H 0 Z" class="output-flag" />
+     <text x="3" y="7.0">WE1</text>
+    </g>
+    <g transform="translate(64.0, 327)">
+     <path d="M 0,0 H 105 l 7.0,7.0 l -7.0,7.0 H 0 Z" class="output-flag" />
+     <text x="3" y="7.0">RD</text>
+    </g>
+    <g transform="translate(64.0, 343)">
+     <path d="M 0,0 H 105 a 5 5, 0, 0, 1, 0, 14H 0 Z" class="bus-flag" />
+     <text x="3" y="7.0">Address 0..14</text>
+    </g>
+    <g transform="translate(64.0, 359)">
+     <path d="M 0,0 H 105 a 5 5, 0, 0, 1, 0, 14H 0 Z" class="bus-flag" />
+     <text x="3" y="7.0">Data 0..15</text>
+    </g>
+   </g>
+   <g>
+    <g transform="translate(1168, 856)" class="module">
+     <rect x="0" y="0" rx="5" ry="5" width="120" height="118" />
+     <text x="60.0" y="10.0" text-anchor="middle" dominant-baseline="middle">SDCARD</text>
+     <path d="M 0,20 H 120" />
+    </g>
+    <g transform="translate(1168, 881)">
+     <path d="M 0,0H 105 V 14 H 0 l -7.0,-7.0 Z" class="output-flag" />
+     <text x="3" y="7.0">Card Detect</text>
+    </g>
+    <g transform="translate(1168, 897)">
+     <path d="M 0,0H 105 V 14 H 0 l -7.0,-7.0 Z" class="output-flag" />
+     <text x="3" y="7.0">WP</text>
+    </g>
+    <g transform="translate(1168, 913)">
+     <path d="M 105,0 H 0 A 5 5, 0, 0, 0, 0, 14H 105 Z" class="bus-flag" />
+     <text x="3" y="7.0">Data 0..3</text>
+    </g>
+    <g transform="translate(1168, 929)">
+     <path d="M -1.0,0 H 105 l 7.0,7.0 l -7.0,7.0 H -1.0" class="input-flag" />
+     <text x="3" y="7.0">Clock</text>
+    </g>
+    <g transform="translate(1168, 945)">
+     <path d="M -1.0,0 H 105 l 7.0,7.0 l -7.0,7.0 H -1.0" class="input-flag" />
+     <text x="3" y="7.0">Command</text>
+    </g>
+   </g>
+   <g>
+    <g transform="translate(1168, 129)" class="module">
+     <rect x="0" y="0" rx="5" ry="5" width="120" height="70" />
+     <text x="60.0" y="10.0" text-anchor="middle" dominant-baseline="middle">X Encoder</text>
+     <path d="M 0,20 H 120" />
+    </g>
+    <g transform="translate(1168, 154)">
+     <path d="M 0,0H 105 V 14 H 0 l -7.0,-7.0 Z" class="output-flag" />
+     <text x="3" y="7.0">A</text>
+    </g>
+    <g transform="translate(1168, 170)">
+     <path d="M 0,0H 105 V 14 H 0 l -7.0,-7.0 Z" class="output-flag" />
+     <text x="3" y="7.0">B</text>
+    </g>
+   </g>
+   <g>
+    <g transform="translate(1376, 129)" class="module">
+     <rect x="0" y="0" rx="5" ry="5" width="120" height="70" />
+     <text x="60.0" y="10.0" text-anchor="middle" dominant-baseline="middle">Mod0 Encoder</text>
+     <path d="M 0,20 H 120" />
+    </g>
+    <g transform="translate(1376, 154)">
+     <path d="M 0,0H 105 V 14 H 0 l -7.0,-7.0 Z" class="output-flag" />
+     <text x="3" y="7.0">A</text>
+    </g>
+    <g transform="translate(1376, 170)">
+     <path d="M 0,0H 105 V 14 H 0 l -7.0,-7.0 Z" class="output-flag" />
+     <text x="3" y="7.0">B</text>
+    </g>
+   </g>
+   <g>
+    <g transform="translate(1584, 129)" class="module">
+     <rect x="0" y="0" rx="5" ry="5" width="120" height="70" />
+     <text x="60.0" y="10.0" text-anchor="middle" dominant-baseline="middle">Select Encoder</text>
+     <path d="M 0,20 H 120" />
+    </g>
+    <g transform="translate(1584, 154)">
+     <path d="M 0,0H 105 V 14 H 0 l -7.0,-7.0 Z" class="output-flag" />
+     <text x="3" y="7.0">A</text>
+    </g>
+    <g transform="translate(1584, 170)">
+     <path d="M 0,0H 105 V 14 H 0 l -7.0,-7.0 Z" class="output-flag" />
+     <text x="3" y="7.0">B</text>
+    </g>
+   </g>
+   <g>
+    <g transform="translate(1168, 201)" class="module">
+     <rect x="0" y="0" rx="5" ry="5" width="120" height="70" />
+     <text x="60.0" y="10.0" text-anchor="middle" dominant-baseline="middle">Y Encoder</text>
+     <path d="M 0,20 H 120" />
+    </g>
+    <g transform="translate(1168, 226)">
+     <path d="M 0,0H 105 V 14 H 0 l -7.0,-7.0 Z" class="output-flag" />
+     <text x="3" y="7.0">A</text>
+    </g>
+    <g transform="translate(1168, 242)">
+     <path d="M 0,0H 105 V 14 H 0 l -7.0,-7.0 Z" class="output-flag" />
+     <text x="3" y="7.0">B</text>
+    </g>
+   </g>
+   <g>
+    <g transform="translate(1376, 201)" class="module">
+     <rect x="0" y="0" rx="5" ry="5" width="120" height="70" />
+     <text x="60.0" y="10.0" text-anchor="middle" dominant-baseline="middle">Mod1 Encoder</text>
+     <path d="M 0,20 H 120" />
+    </g>
+    <g transform="translate(1376, 226)">
+     <path d="M 0,0H 105 V 14 H 0 l -7.0,-7.0 Z" class="output-flag" />
+     <text x="3" y="7.0">A</text>
+    </g>
+    <g transform="translate(1376, 242)">
+     <path d="M 0,0H 105 V 14 H 0 l -7.0,-7.0 Z" class="output-flag" />
+     <text x="3" y="7.0">B</text>
+    </g>
+   </g>
+   <g>
+    <g transform="translate(1584, 201)" class="module">
+     <rect x="0" y="0" rx="5" ry="5" width="120" height="70" />
+     <text x="60.0" y="10.0" text-anchor="middle" dominant-baseline="middle">Tempo Encoder</text>
+     <path d="M 0,20 H 120" />
+    </g>
+    <g transform="translate(1584, 226)">
+     <path d="M 0,0H 105 V 14 H 0 l -7.0,-7.0 Z" class="output-flag" />
+     <text x="3" y="7.0">A</text>
+    </g>
+    <g transform="translate(1584, 242)">
+     <path d="M 0,0H 105 V 14 H 0 l -7.0,-7.0 Z" class="output-flag" />
+     <text x="3" y="7.0">B</text>
+    </g>
+   </g>
+   <g>
+    <g transform="translate(1168, 0)" class="module">
+     <rect x="0" y="0" rx="5" ry="5" width="120" height="70" />
+     <text x="60.0" y="10.0" text-anchor="middle" dominant-baseline="middle">Power Monitor</text>
+     <path d="M 0,20 H 120" />
+    </g>
+    <g transform="translate(1168, 25)">
+     <path d="M -1.0,0 H 105 l 7.0,7.0 l -7.0,7.0 H -1.0" class="input-flag" />
+     <text x="3" y="7.0">Battery LED</text>
+    </g>
+    <g transform="translate(1168, 41)">
+     <path d="M 0,0H 105 V 14 H 0 l -7.0,-7.0 Z" class="output-flag" />
+     <text x="3" y="7.0">Voltage Sense</text>
+    </g>
+   </g>
+   <g>
+    <g transform="translate(1168, 446)" class="module">
+     <rect x="0" y="0" rx="5" ry="5" width="120" height="86" />
+     <text x="60.0" y="10.0" text-anchor="middle" dominant-baseline="middle">Flash Memory</text>
+     <path d="M 0,20 H 120" />
+    </g>
+    <g transform="translate(1168, 471)">
+     <path d="M 105,0 H 0 A 5 5, 0, 0, 0, 0, 14H 105 Z" class="bus-flag" />
+     <text x="3" y="7.0">SPB IO 0..3</text>
+    </g>
+    <g transform="translate(1168, 487)">
+     <path d="M -1.0,0 H 105 l 7.0,7.0 l -7.0,7.0 H -1.0" class="input-flag" />
+     <text x="3" y="7.0">SPB Clock</text>
+    </g>
+    <g transform="translate(1168, 503)">
+     <path d="M -1.0,0 H 105 l 7.0,7.0 l -7.0,7.0 H -1.0" class="input-flag" />
+     <text x="3" y="7.0">Chip Select</text>
+    </g>
+   </g>
+   <g>
+    <g transform="translate(1168, 571)" class="module">
+     <rect x="0" y="0" rx="5" ry="5" width="120" height="91" />
+     <text x="60.0" y="10.0" text-anchor="middle" dominant-baseline="middle">CV-DAC</text>
+     <path d="M 0,20 H 120" />
+     <rect x="10" y="75" rx="5" ry="5" width="110" height="16" />
+     <text x="65.0" y="83.0" text-anchor="middle" dominant-baseline="middle">MAX5136</text>
+    </g>
+    <g transform="translate(1168, 596)">
+     <path d="M -1.0,0 H 105 l 7.0,7.0 l -7.0,7.0 H -1.0" class="input-flag" />
+     <text x="3" y="7.0">Clock</text>
+    </g>
+    <g transform="translate(1168, 612)">
+     <path d="M -1.0,0 H 105 l 7.0,7.0 l -7.0,7.0 H -1.0" class="input-flag" />
+     <text x="3" y="7.0">CS</text>
+    </g>
+    <g transform="translate(1168, 628)">
+     <path d="M -1.0,0 H 105 l 7.0,7.0 l -7.0,7.0 H -1.0" class="input-flag" />
+     <text x="3" y="7.0">COPI</text>
+    </g>
+   </g>
+   <g>
+    <g transform="translate(1584, 603)" class="module">
+     <rect x="0" y="0" rx="5" ry="5" width="120" height="262" />
+     <text x="60.0" y="10.0" text-anchor="middle" dominant-baseline="middle">Audio Jacks</text>
+     <path d="M 0,20 H 120" />
+    </g>
+    <g transform="translate(1584, 628)">
+     <path d="M -1.0,0 H 105 l 7.0,7.0 l -7.0,7.0 H -1.0" class="input-flag" />
+     <text x="3" y="7.0">Speaker Enable</text>
+    </g>
+    <g transform="translate(1584, 644)">
+     <path d="M 0,0H 105 V 14 H 0 l -7.0,-7.0 Z" class="output-flag" />
+     <text x="3" y="7.0">Line Out Detect L</text>
+    </g>
+    <g transform="translate(1584, 660)">
+     <path d="M 0,0H 105 V 14 H 0 l -7.0,-7.0 Z" class="output-flag" />
+     <text x="3" y="7.0">Line Out Detect R</text>
+    </g>
+    <g transform="translate(1584, 676)">
+     <path d="M 0,0H 105 V 14 H 0 l -7.0,-7.0 Z" class="output-flag" />
+     <text x="3" y="7.0">Headphone Detect</text>
+    </g>
+    <g transform="translate(1584, 692)">
+     <path d="M 0,0H 105 V 14 H 0 l -7.0,-7.0 Z" class="output-flag" />
+     <text x="3" y="7.0">Line In Detect</text>
+    </g>
+    <g transform="translate(1584, 708)">
+     <path d="M -1.0,0 H 105 l 7.0,7.0 l -7.0,7.0 H -1.0" class="indirect-input-flag" />
+     <text x="3" y="7.0">Headphone L</text>
+    </g>
+    <g transform="translate(1584, 724)">
+     <path d="M -1.0,0 H 105 l 7.0,7.0 l -7.0,7.0 H -1.0" class="indirect-input-flag" />
+     <text x="3" y="7.0">¼" Output L</text>
+    </g>
+    <g transform="translate(1584, 740)">
+     <path d="M -1.0,0 H 105 l 7.0,7.0 l -7.0,7.0 H -1.0" class="indirect-input-flag" />
+     <text x="3" y="7.0">Headphone R</text>
+    </g>
+    <g transform="translate(1584, 756)">
+     <path d="M -1.0,0 H 105 l 7.0,7.0 l -7.0,7.0 H -1.0" class="indirect-input-flag" />
+     <text x="3" y="7.0">¼" Output R</text>
+    </g>
+    <g transform="translate(1584, 772)">
+     <path d="M 0,0H 105 V 14 H 0 l -7.0,-7.0 Z" class="indirect-output-flag" />
+     <text x="3" y="7.0">Line In L</text>
+    </g>
+    <g transform="translate(1584, 788)">
+     <path d="M 0,0H 105 V 14 H 0 l -7.0,-7.0 Z" class="indirect-output-flag" />
+     <text x="3" y="7.0">Mic In L</text>
+    </g>
+    <g transform="translate(1584, 804)">
+     <path d="M 0,0H 105 V 14 H 0 l -7.0,-7.0 Z" class="indirect-output-flag" />
+     <text x="3" y="7.0">Line In R</text>
+    </g>
+    <g transform="translate(1584, 820)">
+     <path d="M 0,0H 105 V 14 H 0 l -7.0,-7.0 Z" class="indirect-output-flag" />
+     <text x="3" y="7.0">Mic In R</text>
+    </g>
+    <g transform="translate(1584, 836)">
+     <path d="M 0,0H 105 V 14 H 0 l -7.0,-7.0 Z" class="output-flag" />
+     <text x="3" y="7.0">Mic Detect</text>
+    </g>
+   </g>
+   <g>
+    <g transform="translate(1168, 699)" class="module">
+     <rect x="0" y="0" rx="5" ry="5" width="240" height="139" />
+     <text x="120.0" y="10.0" text-anchor="middle" dominant-baseline="middle">Audio DAC</text>
+     <path d="M 0,20 H 240" />
+     <rect x="10" y="123" rx="5" ry="5" width="230" height="16" />
+     <text x="125.0" y="131.0" text-anchor="middle" dominant-baseline="middle">Cirrus Logic CS4270</text>
+    </g>
+    <g transform="translate(1168, 724)">
+     <path d="M -1.0,0 H 105 l 7.0,7.0 l -7.0,7.0 H -1.0" class="input-flag" />
+     <text x="3" y="7.0">SCLK</text>
+    </g>
+    <g transform="translate(1168, 740)">
+     <path d="M -1.0,0 H 105 l 7.0,7.0 l -7.0,7.0 H -1.0" class="input-flag" />
+     <text x="3" y="7.0">Word Select</text>
+    </g>
+    <g transform="translate(1168, 756)">
+     <path d="M -1.0,0 H 105 l 7.0,7.0 l -7.0,7.0 H -1.0" class="input-flag" />
+     <text x="3" y="7.0">Data In</text>
+    </g>
+    <g transform="translate(1168, 772)">
+     <path d="M 0,0H 105 V 14 H 0 l -7.0,-7.0 Z" class="output-flag" />
+     <text x="3" y="7.0">Data Out</text>
+    </g>
+    <g transform="translate(1168, 788)">
+     <path d="M -1.0,0 H 105 l 7.0,7.0 l -7.0,7.0 H -1.0" class="input-flag" />
+     <text x="3" y="7.0">CODEC Enable</text>
+    </g>
+    <g transform="translate(1168, 804)">
+     <path d="M -1.0,0 H 105 l 7.0,7.0 l -7.0,7.0 H -1.0" class="input-flag" />
+     <text x="3" y="7.0">MCLK</text>
+    </g>
+    <g transform="translate(1302.0, 724)">
+     <path d="M 0,0 H 105 l 7.0,7.0 l -7.0,7.0 H 0 Z" class="indirect-output-flag" />
+     <text x="3" y="7.0">Audio Out L</text>
+    </g>
+    <g transform="translate(1302.0, 740)">
+     <path d="M 0,0 H 105 l 7.0,7.0 l -7.0,7.0 H 0 Z" class="indirect-output-flag" />
+     <text x="3" y="7.0">Audio Out R</text>
+    </g>
+    <g transform="translate(1302.0, 756)">
+     <path d="M 107,0 H 0 l -7.0,7.0 l 7.0,7.0 H 107" class="indirect-input-flag" />
+     <text x="3" y="7.0">Audio In L</text>
+    </g>
+    <g transform="translate(1302.0, 772)">
+     <path d="M 107,0 H 0 l -7.0,7.0 l 7.0,7.0 H 107" class="indirect-input-flag" />
+     <text x="3" y="7.0">Audio In R</text>
+    </g>
+   </g>
+   <g>
+    <g transform="translate(192, 1050)" class="module">
+     <rect x="0" y="0" rx="5" ry="5" width="120" height="134" />
+     <text x="60.0" y="10.0" text-anchor="middle" dominant-baseline="middle">Clock IO</text>
+     <path d="M 0,20 H 120" />
+    </g>
+    <g transform="translate(206.0, 1075)">
+     <path d="M 0,0 H 105 l 7.0,7.0 l -7.0,7.0 H 0 Z" class="output-flag" />
+     <text x="3" y="7.0">Clock In</text>
+    </g>
+    <g transform="translate(206.0, 1091)">
+     <path d="M 107,0 H 0 l -7.0,7.0 l 7.0,7.0 H 107" class="input-flag" />
+     <text x="3" y="7.0">Gate Out 0</text>
+    </g>
+    <g transform="translate(206.0, 1107)">
+     <path d="M 107,0 H 0 l -7.0,7.0 l 7.0,7.0 H 107" class="input-flag" />
+     <text x="3" y="7.0">Gate Out 1</text>
+    </g>
+    <g transform="translate(206.0, 1123)">
+     <path d="M 107,0 H 0 l -7.0,7.0 l 7.0,7.0 H 107" class="input-flag" />
+     <text x="3" y="7.0">Gate Out 2</text>
+    </g>
+    <g transform="translate(206.0, 1139)">
+     <path d="M 107,0 H 0 l -7.0,7.0 l 7.0,7.0 H 107" class="input-flag" />
+     <text x="3" y="7.0">Gate Out 3</text>
+    </g>
+    <g transform="translate(206.0, 1155)">
+     <path d="M 107,0 H 0 l -7.0,7.0 l 7.0,7.0 H 107" class="input-flag" />
+     <text x="3" y="7.0">Synced LED</text>
+    </g>
+   </g>
+   <g>
+    <g transform="translate(1584, 510)" class="module">
+     <rect x="0" y="0" rx="5" ry="5" width="120" height="86" />
+     <text x="60.0" y="10.0" text-anchor="middle" dominant-baseline="middle">OLED</text>
+     <path d="M 0,20 H 120" />
+    </g>
+    <g transform="translate(1584, 535)">
+     <path d="M -1.0,0 H 105 l 7.0,7.0 l -7.0,7.0 H -1.0" class="input-flag" />
+     <text x="3" y="7.0">Clock</text>
+    </g>
+    <g transform="translate(1584, 551)">
+     <path d="M -1.0,0 H 105 l 7.0,7.0 l -7.0,7.0 H -1.0" class="input-flag" />
+     <text x="3" y="7.0">COPI</text>
+    </g>
+    <g transform="translate(1584, 567)">
+     <path d="M -1.0,0 H 105 l 7.0,7.0 l -7.0,7.0 H -1.0" class="indirect-input-flag" />
+     <text x="3" y="7.0">CS</text>
+    </g>
+   </g>
+   <g>
+    <g transform="translate(1168, 1082)" class="module">
+     <rect x="0" y="0" rx="5" ry="5" width="240" height="75" />
+     <text x="120.0" y="10.0" text-anchor="middle" dominant-baseline="middle">LED and Pad Control</text>
+     <path d="M 0,20 H 240" />
+     <rect x="10" y="59" rx="5" ry="5" width="230" height="16" />
+     <text x="125.0" y="67.0" text-anchor="middle" dominant-baseline="middle">PIC24FJ256</text>
+    </g>
+    <g transform="translate(1168, 1107)">
+     <path d="M 0,0H 105 V 14 H 0 l -7.0,-7.0 Z" class="output-flag" />
+     <text x="3" y="7.0">UART TX</text>
+    </g>
+    <g transform="translate(1168, 1123)">
+     <path d="M -1.0,0 H 105 l 7.0,7.0 l -7.0,7.0 H -1.0" class="input-flag" />
+     <text x="3" y="7.0">UART RX</text>
+    </g>
+    <g transform="translate(1302.0, 1107)">
+     <path d="M 0,0 H 105 l 7.0,7.0 l -7.0,7.0 H 0 Z" class="indirect-output-flag" />
+     <text x="3" y="7.0">OLED CS</text>
+    </g>
+   </g>
+   <g>
+    <g transform="translate(1376, 850)" class="module">
+     <rect x="0" y="0" rx="5" ry="5" width="120" height="70" />
+     <text x="60.0" y="10.0" text-anchor="middle" dominant-baseline="middle">MIDI UART</text>
+     <path d="M 0,20 H 120" />
+    </g>
+    <g transform="translate(1376, 875)">
+     <path d="M -1.0,0 H 105 l 7.0,7.0 l -7.0,7.0 H -1.0" class="input-flag" />
+     <text x="3" y="7.0">IN</text>
+    </g>
+    <g transform="translate(1376, 891)">
+     <path d="M 0,0H 105 V 14 H 0 l -7.0,-7.0 Z" class="output-flag" />
+     <text x="3" y="7.0">OUT</text>
+    </g>
+   </g>
+  </g>
+  <g transform="translate(400, 100)">
+   <rect width="560" rx="5" ry="5" class="cpu" height="956" />
+   <rect x="0" y="942" rx="5" ry="5" width="120" height="14" class="cpu-label" />
+   <text x="3" y="949.0">R7S721020VCFP (RZ/A1L)</text>
+  </g>
+  <g transform="translate(403, 103)">
+   <rect x="0" y="0" rx="5" ry="5" width="80" height="95" class="port-base" />
+   <rect x="0" y="0" rx="5" ry="5" width="50" height="14" class="port-label" />
+   <text x="3" y="7.0" text-anchor="left">Port 0</text>
+  </g>
+  <g transform="translate(403, 122)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" x="36" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" x="3">Pin 0</text>
+   <text y="7.0" class="cpu-package-pin" x="55" text-anchor="end">63</text>
+  </g>
+  <g transform="translate(403, 138)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" x="36" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" x="3">Pin 1</text>
+   <text y="7.0" class="cpu-package-pin" x="55" text-anchor="end">64</text>
+  </g>
+  <g transform="translate(403, 154)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" x="36" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" x="3">Pin 2</text>
+   <text y="7.0" class="cpu-package-pin" x="55" text-anchor="end">65</text>
+  </g>
+  <g transform="translate(403, 170)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" x="36" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" x="3">Pin 3</text>
+   <text y="7.0" class="cpu-package-pin" x="55" text-anchor="end">66</text>
+  </g>
+  <g transform="translate(403, 212)">
+   <rect x="0" y="0" rx="5" ry="5" width="80" height="191" class="port-base" />
+   <rect x="0" y="0" rx="5" ry="5" width="50" height="14" class="port-label" />
+   <text x="3" y="7.0" text-anchor="left">Port 2</text>
+  </g>
+  <g transform="translate(403, 231)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" x="36" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" x="3">Pin 0</text>
+   <text y="7.0" class="cpu-package-pin" x="55" text-anchor="end">56</text>
+  </g>
+  <g transform="translate(403, 247)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" x="36" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" x="3">Pin 1</text>
+   <text y="7.0" class="cpu-package-pin" x="55" text-anchor="end">57</text>
+  </g>
+  <g transform="translate(403, 263)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" x="36" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" x="3">Pin 2</text>
+   <text y="7.0" class="cpu-package-pin" x="55" text-anchor="end">59</text>
+  </g>
+  <g transform="translate(403, 279)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" x="36" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" x="3">Pin 3</text>
+   <text y="7.0" class="cpu-package-pin" x="55" text-anchor="end">60</text>
+  </g>
+  <g transform="translate(403, 295)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" x="36" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" x="3">Pin 4</text>
+   <text y="7.0" class="cpu-package-pin" x="55" text-anchor="end">94</text>
+  </g>
+  <g transform="translate(403, 311)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" x="36" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" x="3">Pin 5</text>
+   <text y="7.0" class="cpu-package-pin" x="55" text-anchor="end">96</text>
+  </g>
+  <g transform="translate(403, 327)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" x="36" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" x="3">Pin 6</text>
+   <text y="7.0" class="cpu-package-pin" x="55" text-anchor="end">134</text>
+  </g>
+  <g transform="translate(403, 343)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" x="36" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" x="3">Pin 7</text>
+   <text y="7.0" class="cpu-package-pin" x="55" text-anchor="end">135</text>
+  </g>
+  <g transform="translate(403, 359)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" x="36" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" x="3">Pin 8</text>
+   <text y="7.0" class="cpu-package-pin" x="55" text-anchor="end">136</text>
+  </g>
+  <g transform="translate(403, 375)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" x="36" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" x="3">Pin 9</text>
+   <text y="7.0" class="cpu-package-pin" x="55" text-anchor="end">137</text>
+  </g>
+  <g transform="translate(403, 417)">
+   <rect x="0" y="0" rx="5" ry="5" width="80" height="287" class="port-base" />
+   <rect x="0" y="0" rx="5" ry="5" width="50" height="14" class="port-label" />
+   <text x="3" y="7.0" text-anchor="left">Port 3</text>
+  </g>
+  <g transform="translate(403, 436)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" x="36" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" x="3">Pin 0</text>
+   <text y="7.0" class="cpu-package-pin" x="55" text-anchor="end">103</text>
+  </g>
+  <g transform="translate(403, 452)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" x="36" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" x="3">Pin 1</text>
+   <text y="7.0" class="cpu-package-pin" x="55" text-anchor="end">104</text>
+  </g>
+  <g transform="translate(403, 468)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" x="36" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" x="3">Pin 2</text>
+   <text y="7.0" class="cpu-package-pin" x="55" text-anchor="end">106</text>
+  </g>
+  <g transform="translate(403, 484)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" x="36" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" x="3">Pin 3</text>
+   <text y="7.0" class="cpu-package-pin" x="55" text-anchor="end">108</text>
+  </g>
+  <g transform="translate(403, 500)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" x="36" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" x="3">Pin 4</text>
+   <text y="7.0" class="cpu-package-pin" x="55" text-anchor="end">110</text>
+  </g>
+  <g transform="translate(403, 516)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" x="36" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" x="3">Pin 5</text>
+   <text y="7.0" class="cpu-package-pin" x="55" text-anchor="end">111</text>
+  </g>
+  <g transform="translate(403, 532)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" x="36" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" x="3">Pin 6</text>
+   <text y="7.0" class="cpu-package-pin" x="55" text-anchor="end">112</text>
+  </g>
+  <g transform="translate(403, 548)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" x="36" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" x="3">Pin 7</text>
+   <text y="7.0" class="cpu-package-pin" x="55" text-anchor="end">113</text>
+  </g>
+  <g transform="translate(403, 564)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" x="36" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" x="3">Pin 8</text>
+   <text y="7.0" class="cpu-package-pin" x="55" text-anchor="end">114</text>
+  </g>
+  <g transform="translate(403, 580)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" x="36" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" x="3">Pin 9</text>
+   <text y="7.0" class="cpu-package-pin" x="55" text-anchor="end">115</text>
+  </g>
+  <g transform="translate(403, 596)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" x="36" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" x="3">Pin 10</text>
+   <text y="7.0" class="cpu-package-pin" x="55" text-anchor="end">117</text>
+  </g>
+  <g transform="translate(403, 612)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" x="36" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" x="3">Pin 11</text>
+   <text y="7.0" class="cpu-package-pin" x="55" text-anchor="end">118</text>
+  </g>
+  <g transform="translate(403, 628)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" x="36" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" x="3">Pin 12</text>
+   <text y="7.0" class="cpu-package-pin" x="55" text-anchor="end">120</text>
+  </g>
+  <g transform="translate(403, 644)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" x="36" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" x="3">Pin 13</text>
+   <text y="7.0" class="cpu-package-pin" x="55" text-anchor="end">122</text>
+  </g>
+  <g transform="translate(403, 660)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" x="36" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" x="3">Pin 14</text>
+   <text y="7.0" class="cpu-package-pin" x="55" text-anchor="end">124</text>
+  </g>
+  <g transform="translate(403, 676)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" x="36" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" x="3">Pin 15</text>
+   <text y="7.0" class="cpu-package-pin" x="55" text-anchor="end">133</text>
+  </g>
+  <g transform="translate(403, 718)">
+   <rect x="0" y="0" rx="5" ry="5" width="80" height="287" class="port-base" />
+   <rect x="0" y="0" rx="5" ry="5" width="50" height="14" class="port-label" />
+   <text x="3" y="7.0" text-anchor="left">Port 5</text>
+  </g>
+  <g transform="translate(403, 737)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" x="36" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" x="3">Pin 0</text>
+   <text y="7.0" class="cpu-package-pin" x="55" text-anchor="end">173</text>
+  </g>
+  <g transform="translate(403, 753)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" x="36" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" x="3">Pin 1</text>
+   <text y="7.0" class="cpu-package-pin" x="55" text-anchor="end">175</text>
+  </g>
+  <g transform="translate(403, 769)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" x="36" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" x="3">Pin 2</text>
+   <text y="7.0" class="cpu-package-pin" x="55" text-anchor="end">176</text>
+  </g>
+  <g transform="translate(403, 785)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" x="36" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" x="3">Pin 3</text>
+   <text y="7.0" class="cpu-package-pin" x="55" text-anchor="end">1</text>
+  </g>
+  <g transform="translate(403, 801)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" x="36" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" x="3">Pin 4</text>
+   <text y="7.0" class="cpu-package-pin" x="55" text-anchor="end">2</text>
+  </g>
+  <g transform="translate(403, 817)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" x="36" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" x="3">Pin 5</text>
+   <text y="7.0" class="cpu-package-pin" x="55" text-anchor="end">3</text>
+  </g>
+  <g transform="translate(403, 833)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" x="36" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" x="3">Pin 6</text>
+   <text y="7.0" class="cpu-package-pin" x="55" text-anchor="end">4</text>
+  </g>
+  <g transform="translate(403, 849)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" x="36" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" x="3">Pin 7</text>
+   <text y="7.0" class="cpu-package-pin" x="55" text-anchor="end">5</text>
+  </g>
+  <g transform="translate(403, 865)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" x="36" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" x="3">Pin 8</text>
+   <text y="7.0" class="cpu-package-pin" x="55" text-anchor="end">6</text>
+  </g>
+  <g transform="translate(403, 881)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" x="36" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" x="3">Pin 9</text>
+   <text y="7.0" class="cpu-package-pin" x="55" text-anchor="end">8</text>
+  </g>
+  <g transform="translate(403, 897)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" x="36" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" x="3">Pin 10</text>
+   <text y="7.0" class="cpu-package-pin" x="55" text-anchor="end">10</text>
+  </g>
+  <g transform="translate(403, 913)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" x="36" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" x="3">Pin 11</text>
+   <text y="7.0" class="cpu-package-pin" x="55" text-anchor="end">12</text>
+  </g>
+  <g transform="translate(403, 929)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" x="36" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" x="3">Pin 12</text>
+   <text y="7.0" class="cpu-package-pin" x="55" text-anchor="end">13</text>
+  </g>
+  <g transform="translate(403, 945)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" x="36" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" x="3">Pin 13</text>
+   <text y="7.0" class="cpu-package-pin" x="55" text-anchor="end">14</text>
+  </g>
+  <g transform="translate(403, 961)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" x="36" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" x="3">Pin 14</text>
+   <text y="7.0" class="cpu-package-pin" x="55" text-anchor="end">15</text>
+  </g>
+  <g transform="translate(403, 977)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" x="36" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" x="3">Pin 15</text>
+   <text y="7.0" class="cpu-package-pin" x="55" text-anchor="end">16</text>
+  </g>
+  <g transform="translate(877, 103)">
+   <rect x="0" y="0" rx="5" ry="5" width="80" height="287" class="port-base" />
+   <rect x="0" y="0" rx="5" ry="5" width="50" height="14" class="port-label" />
+   <text x="3" y="7.0" text-anchor="left">Port 1</text>
+  </g>
+  <g transform="translate(899, 122)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" x="22" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" text-anchor="start" x="24">Pin 0</text>
+   <text y="7.0" class="cpu-package-pin" x="3">125</text>
+  </g>
+  <g transform="translate(899, 138)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" x="22" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" text-anchor="start" x="24">Pin 1</text>
+   <text y="7.0" class="cpu-package-pin" x="3">126</text>
+  </g>
+  <g transform="translate(899, 154)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" x="22" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" text-anchor="start" x="24">Pin 2</text>
+   <text y="7.0" class="cpu-package-pin" x="3">127</text>
+  </g>
+  <g transform="translate(899, 170)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" x="22" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" text-anchor="start" x="24">Pin 3</text>
+   <text y="7.0" class="cpu-package-pin" x="3">128</text>
+  </g>
+  <g transform="translate(899, 186)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" x="22" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" text-anchor="start" x="24">Pin 4</text>
+   <text y="7.0" class="cpu-package-pin" x="3">129</text>
+  </g>
+  <g transform="translate(899, 202)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" x="22" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" text-anchor="start" x="24">Pin 5</text>
+   <text y="7.0" class="cpu-package-pin" x="3">130</text>
+  </g>
+  <g transform="translate(899, 218)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" x="22" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" text-anchor="start" x="24">Pin 6</text>
+   <text y="7.0" class="cpu-package-pin" x="3">131</text>
+  </g>
+  <g transform="translate(899, 234)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" x="22" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" text-anchor="start" x="24">Pin 7</text>
+   <text y="7.0" class="cpu-package-pin" x="3">132</text>
+  </g>
+  <g transform="translate(899, 250)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" x="22" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" text-anchor="start" x="24">Pin 8</text>
+   <text y="7.0" class="cpu-package-pin" x="3">78</text>
+  </g>
+  <g transform="translate(899, 266)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" x="22" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" text-anchor="start" x="24">Pin 9</text>
+   <text y="7.0" class="cpu-package-pin" x="3">79</text>
+  </g>
+  <g transform="translate(899, 282)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" x="22" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" text-anchor="start" x="24">Pin 10</text>
+   <text y="7.0" class="cpu-package-pin" x="3">80</text>
+  </g>
+  <g transform="translate(899, 298)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" x="22" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" text-anchor="start" x="24">Pin 11</text>
+   <text y="7.0" class="cpu-package-pin" x="3">81</text>
+  </g>
+  <g transform="translate(899, 314)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" x="22" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" text-anchor="start" x="24">Pin 12</text>
+   <text y="7.0" class="cpu-package-pin" x="3">82</text>
+  </g>
+  <g transform="translate(899, 330)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" x="22" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" text-anchor="start" x="24">Pin 13</text>
+   <text y="7.0" class="cpu-package-pin" x="3">83</text>
+  </g>
+  <g transform="translate(899, 346)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" x="22" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" text-anchor="start" x="24">Pin 14</text>
+   <text y="7.0" class="cpu-package-pin" x="3">84</text>
+  </g>
+  <g transform="translate(899, 362)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" x="22" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" text-anchor="start" x="24">Pin 15</text>
+   <text y="7.0" class="cpu-package-pin" x="3">85</text>
+  </g>
+  <g transform="translate(877, 404)">
+   <rect x="0" y="0" rx="5" ry="5" width="80" height="159" class="port-base" />
+   <rect x="0" y="0" rx="5" ry="5" width="50" height="14" class="port-label" />
+   <text x="3" y="7.0" text-anchor="left">Port 4</text>
+  </g>
+  <g transform="translate(899, 423)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" x="22" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" text-anchor="start" x="24">Pin 0</text>
+   <text y="7.0" class="cpu-package-pin" x="3">164</text>
+  </g>
+  <g transform="translate(899, 439)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" x="22" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" text-anchor="start" x="24">Pin 1</text>
+   <text y="7.0" class="cpu-package-pin" x="3">165</text>
+  </g>
+  <g transform="translate(899, 455)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" x="22" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" text-anchor="start" x="24">Pin 2</text>
+   <text y="7.0" class="cpu-package-pin" x="3">166</text>
+  </g>
+  <g transform="translate(899, 471)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" x="22" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" text-anchor="start" x="24">Pin 3</text>
+   <text y="7.0" class="cpu-package-pin" x="3">167</text>
+  </g>
+  <g transform="translate(899, 487)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" x="22" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" text-anchor="start" x="24">Pin 4</text>
+   <text y="7.0" class="cpu-package-pin" x="3">168</text>
+  </g>
+  <g transform="translate(899, 503)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" x="22" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" text-anchor="start" x="24">Pin 5</text>
+   <text y="7.0" class="cpu-package-pin" x="3">169</text>
+  </g>
+  <g transform="translate(899, 519)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" x="22" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" text-anchor="start" x="24">Pin 6</text>
+   <text y="7.0" class="cpu-package-pin" x="3">170</text>
+  </g>
+  <g transform="translate(899, 535)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" x="22" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" text-anchor="start" x="24">Pin 7</text>
+   <text y="7.0" class="cpu-package-pin" x="3">172</text>
+  </g>
+  <g transform="translate(877, 577)">
+   <rect x="0" y="0" rx="5" ry="5" width="80" height="271" class="port-base" />
+   <rect x="0" y="0" rx="5" ry="5" width="50" height="14" class="port-label" />
+   <text x="3" y="7.0" text-anchor="left">Port 6</text>
+  </g>
+  <g transform="translate(899, 596)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" x="22" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" text-anchor="start" x="24">Pin 0</text>
+   <text y="7.0" class="cpu-package-pin" x="3">17</text>
+  </g>
+  <g transform="translate(899, 612)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" x="22" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" text-anchor="start" x="24">Pin 1</text>
+   <text y="7.0" class="cpu-package-pin" x="3">19</text>
+  </g>
+  <g transform="translate(899, 628)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" x="22" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" text-anchor="start" x="24">Pin 2</text>
+   <text y="7.0" class="cpu-package-pin" x="3">20</text>
+  </g>
+  <g transform="translate(899, 644)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" x="22" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" text-anchor="start" x="24">Pin 3</text>
+   <text y="7.0" class="cpu-package-pin" x="3">22</text>
+  </g>
+  <g transform="translate(899, 660)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" x="22" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" text-anchor="start" x="24">Pin 4</text>
+   <text y="7.0" class="cpu-package-pin" x="3">24</text>
+  </g>
+  <g transform="translate(899, 676)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" x="22" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" text-anchor="start" x="24">Pin 5</text>
+   <text y="7.0" class="cpu-package-pin" x="3">26</text>
+  </g>
+  <g transform="translate(899, 692)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" x="22" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" text-anchor="start" x="24">Pin 6</text>
+   <text y="7.0" class="cpu-package-pin" x="3">27</text>
+  </g>
+  <g transform="translate(899, 708)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" x="22" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" text-anchor="start" x="24">Pin 7</text>
+   <text y="7.0" class="cpu-package-pin" x="3">28</text>
+  </g>
+  <g transform="translate(899, 724)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" x="22" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" text-anchor="start" x="24">Pin 8</text>
+   <text y="7.0" class="cpu-package-pin" x="3">29</text>
+  </g>
+  <g transform="translate(899, 740)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" x="22" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" text-anchor="start" x="24">Pin 9</text>
+   <text y="7.0" class="cpu-package-pin" x="3">30</text>
+  </g>
+  <g transform="translate(899, 756)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" x="22" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" text-anchor="start" x="24">Pin 10</text>
+   <text y="7.0" class="cpu-package-pin" x="3">32</text>
+  </g>
+  <g transform="translate(899, 772)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" x="22" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" text-anchor="start" x="24">Pin 11</text>
+   <text y="7.0" class="cpu-package-pin" x="3">33</text>
+  </g>
+  <g transform="translate(899, 788)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" x="22" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" text-anchor="start" x="24">Pin 12</text>
+   <text y="7.0" class="cpu-package-pin" x="3">35</text>
+  </g>
+  <g transform="translate(899, 804)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" x="22" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" text-anchor="start" x="24">Pin 14</text>
+   <text y="7.0" class="cpu-package-pin" x="3">40</text>
+  </g>
+  <g transform="translate(899, 820)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" x="22" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" text-anchor="start" x="24">Pin 15</text>
+   <text y="7.0" class="cpu-package-pin" x="3">41</text>
+  </g>
+  <g transform="translate(877, 862)">
+   <rect x="0" y="0" rx="5" ry="5" width="80" height="191" class="port-base" />
+   <rect x="0" y="0" rx="5" ry="5" width="50" height="14" class="port-label" />
+   <text x="3" y="7.0" text-anchor="left">Port 7</text>
+  </g>
+  <g transform="translate(899, 881)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" x="22" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" text-anchor="start" x="24">Pin 0</text>
+   <text y="7.0" class="cpu-package-pin" x="3">42</text>
+  </g>
+  <g transform="translate(899, 897)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" x="22" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" text-anchor="start" x="24">Pin 1</text>
+   <text y="7.0" class="cpu-package-pin" x="3">43</text>
+  </g>
+  <g transform="translate(899, 913)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" x="22" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" text-anchor="start" x="24">Pin 2</text>
+   <text y="7.0" class="cpu-package-pin" x="3">44</text>
+  </g>
+  <g transform="translate(899, 929)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" x="22" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" text-anchor="start" x="24">Pin 3</text>
+   <text y="7.0" class="cpu-package-pin" x="3">45</text>
+  </g>
+  <g transform="translate(899, 945)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" x="22" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" text-anchor="start" x="24">Pin 4</text>
+   <text y="7.0" class="cpu-package-pin" x="3">47</text>
+  </g>
+  <g transform="translate(899, 961)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" x="22" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" text-anchor="start" x="24">Pin 5</text>
+   <text y="7.0" class="cpu-package-pin" x="3">48</text>
+  </g>
+  <g transform="translate(899, 977)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" x="22" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" text-anchor="start" x="24">Pin 6</text>
+   <text y="7.0" class="cpu-package-pin" x="3">49</text>
+  </g>
+  <g transform="translate(899, 993)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" x="22" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" text-anchor="start" x="24">Pin 7</text>
+   <text y="7.0" class="cpu-package-pin" x="3">51</text>
+  </g>
+  <g transform="translate(899, 1009)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" x="22" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" text-anchor="start" x="24">Pin 9</text>
+   <text y="7.0" class="cpu-package-pin" x="3">53</text>
+  </g>
+  <g transform="translate(899, 1025)" class="cpu-pin">
+   <rect width="22" height="14" clip-path="url(#cpu-pin-clip)" class="package-pin-backg" />
+   <rect width="36" height="14" clip-path="url(#cpu-pin-clip)" class="port-pin-backg" x="22" />
+   <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+   <text y="7.0" text-anchor="start" x="24">Pin 11</text>
+   <text y="7.0" class="cpu-package-pin" x="3">55</text>
+  </g>
+  <g transform="translate(400, 100)">
+   <path d="M 160,131V 891H 62V 637H 100V 574H 62V 336H 100V 241H 62V 131H 100Z" class="peripheral-bsc" />
+   <text x="157" y="140.0" text-anchor="end">BSC</text>
+   <path d="M 320,624V 939H 498V 925H 460V 686H 498V 624H 460Z" class="peripheral-ssi0" />
+   <text x="323" y="633.0">SSI 0</text>
+   <text x="403" y="932.0">AUDIO_XOUT</text>
+   <path d="M 400,781V 907H 498V 781H 460Z" class="peripheral-sdhost" />
+   <text x="403" y="790.0">SD HOST</text>
+   <path d="M 400,704V 734H 498V 704H 460Z" class="peripheral-midi" />
+   <text x="403" y="713.0">UART 0</text>
+   <path d="M 400,496V 542H 498V 496H 460Z" class="peripheral-spi" />
+   <text x="403" y="505.0">SPI</text>
+   <path d="M 400,355V 449H 498V 355H 460Z" class="peripheral-multio" />
+   <text x="403" y="364.0">SPI Multi-I/O</text>
+   <path d="M 320,180H 498V 166H 240V 576H 62V 590H 320Z" class="peripheral-padio" />
+   <text x="243" y="175.0">UART1</text>
+  </g>
+  <g>
+   <path d="M 957,129.0H 1008V 116H 1312V 161.0 H 1369.0" class="connection" />
+   <path d="M 957,145.0H 976V 32.0 H 1167.0" class="connection" />
+   <path d="M 957,161.0H 1024V 84H 1568V 161.0 H 1577.0" class="connection" />
+   <path d="M 957,177.0H 1040V 100H 1552V 177.0 H 1577.0" class="connection" />
+   <path d="M 957,193.0H 1088V 308H 1360V 233.0 H 1369.0" class="connection" />
+   <path d="M 957,209.0H 1104V 292H 1344V 249.0 H 1369.0" class="connection" />
+   <path d="M 957,225.0H 1120V 340H 1568V 249.0 H 1577.0" class="connection" />
+   <path d="M 957,241.0H 1136V 324H 1552V 233.0 H 1577.0" class="connection" />
+   <path d="M 957,257.0H 1008V 233.0 H 1161.0" class="connection" />
+   <path d="M 957,273.0H 1008V 1114.0 H 1161.0" class="connection" />
+   <path d="M 957,289.0H 1024V 249.0 H 1161.0" class="connection" />
+   <path d="M 957,305.0H 1056V 161.0 H 1161.0" class="connection" />
+   <path d="M 957,321.0H 1072V 177.0 H 1161.0" class="connection" />
+   <path d="M 957,337.0H 992V 48.0 H 1161.0" class="connection" />
+   <path d="M 957,353.0H 992V 1082.0 H 318.0" class="connection" />
+   <path d="M 957,369.0H 1312V 177.0 H 1369.0" class="connection" />
+   <path d="M 403,238.0 H 171.0" class="connection" />
+   <path d="M 403,254.0 H 176.0" class="connection" />
+   <path d="M 403,270.0 H 176.0" class="connection" />
+   <path d="M 403,286.0 H 176.0" class="connection" />
+   <path d="M 403,302.0 H 176.0" class="connection" />
+   <path d="M 403,318.0 H 176.0" class="connection" />
+   <path d="M 403,334.0 H 176.0" class="connection" />
+   <path d="M 403,350.0H 340V 1098.0 H 313.0" class="connection" />
+   <path d="M 403,366.0H 344V 1114.0 H 313.0" class="connection" />
+   <path d="M 403,382.0H 348V 1130.0 H 313.0" class="connection" />
+   <path d="M 403,443.0H 325V 350.0 H 176.0" class="connection" />
+   <path d="M 403,459.0H 321V 350.0 H 176.0" class="connection" />
+   <path d="M 403,475.0H 317V 350.0 H 176.0" class="connection" />
+   <path d="M 403,491.0H 313V 350.0 H 176.0" class="connection" />
+   <path d="M 403,507.0H 309V 350.0 H 176.0" class="connection" />
+   <path d="M 403,523.0H 305V 350.0 H 176.0" class="connection" />
+   <path d="M 403,539.0H 301V 350.0 H 176.0" class="connection" />
+   <path d="M 403,555.0H 297V 350.0 H 176.0" class="connection" />
+   <path d="M 403,571.0H 293V 350.0 H 176.0" class="connection" />
+   <path d="M 403,587.0H 289V 350.0 H 176.0" class="connection" />
+   <path d="M 403,603.0H 285V 350.0 H 176.0" class="connection" />
+   <path d="M 403,619.0H 281V 350.0 H 176.0" class="connection" />
+   <path d="M 403,635.0H 277V 350.0 H 176.0" class="connection" />
+   <path d="M 403,651.0H 273V 350.0 H 176.0" class="connection" />
+   <path d="M 403,667.0H 269V 350.0 H 176.0" class="connection" />
+   <path d="M 403,683.0H 368V 1130.0 H 1167.0" class="connection" />
+   <path d="M 957,430.0H 1024V 1146.0 H 313.0" class="connection" />
+   <path d="M 957,446.0H 1120v -16H 1536V 635.0 H 1583.0" class="connection" />
+   <path d="M 957,462.0H 1056V 478.0 H 1161.0" class="connection" />
+   <path d="M 957,478.0 H 1161.0" class="connection" />
+   <path d="M 957,494.0 H 1167.0" class="connection" />
+   <path d="M 957,510.0 H 1167.0" class="connection" />
+   <path d="M 957,526.0H 1060V 478.0 H 1161.0" class="connection" />
+   <path d="M 957,542.0H 1064V 478.0 H 1161.0" class="connection" />
+   <path d="M 403,744.0H 253V 366.0 H 176.0" class="connection" />
+   <path d="M 403,760.0H 249V 366.0 H 176.0" class="connection" />
+   <path d="M 403,776.0H 245V 366.0 H 176.0" class="connection" />
+   <path d="M 403,792.0H 241V 366.0 H 176.0" class="connection" />
+   <path d="M 403,808.0H 237V 366.0 H 176.0" class="connection" />
+   <path d="M 403,824.0H 233V 366.0 H 176.0" class="connection" />
+   <path d="M 403,840.0H 229V 366.0 H 176.0" class="connection" />
+   <path d="M 403,856.0H 225V 366.0 H 176.0" class="connection" />
+   <path d="M 403,872.0H 221V 366.0 H 176.0" class="connection" />
+   <path d="M 403,888.0H 217V 366.0 H 176.0" class="connection" />
+   <path d="M 403,904.0H 213V 366.0 H 176.0" class="connection" />
+   <path d="M 403,920.0H 209V 366.0 H 176.0" class="connection" />
+   <path d="M 403,936.0H 205V 366.0 H 176.0" class="connection" />
+   <path d="M 403,952.0H 201V 366.0 H 176.0" class="connection" />
+   <path d="M 403,968.0H 197V 366.0 H 176.0" class="connection" />
+   <path d="M 403,984.0H 193V 366.0 H 176.0" class="connection" />
+   <path d="M 957,603.0H 1104V 542.0 H 1583.0" class="connection" />
+   <path d="M 957,603.0 H 1167.0" class="connection" />
+   <path d="M 957,619.0 H 1167.0" class="connection" />
+   <path d="M 957,635.0H 1120V 558.0 H 1583.0" class="connection" />
+   <path d="M 957,635.0 H 1167.0" class="connection" />
+   <path d="M 957,651.0H 1120v 16H 1520V 651.0 H 1577.0" class="connection" />
+   <path d="M 957,667.0H 1104v 7.0H 1536V 667.0 H 1577.0" class="connection" />
+   <path d="M 957,683.0 H 1577.0" class="connection" />
+   <path d="M 957,699.0H 1104v -7.0H 1536V 699.0 H 1577.0" class="connection" />
+   <path d="M 957,715.0H 1040V 1162.0 H 313.0" class="connection" />
+   <path d="M 957,731.0 H 1167.0" class="connection" />
+   <path d="M 957,747.0 H 1167.0" class="connection" />
+   <path d="M 957,763.0 H 1167.0" class="connection" />
+   <path d="M 957,779.0 H 1161.0" class="connection" />
+   <path d="M 957,795.0 H 1167.0" class="connection" />
+   <path d="M 957,811.0H 1072v 32H 1360V 882.0 H 1375.0" class="connection" />
+   <path d="M 957,827.0H 1056v 23.0H 1344V 898.0 H 1369.0" class="connection" />
+   <path d="M 957,888.0 H 1161.0" class="connection" />
+   <path d="M 957,904.0 H 1161.0" class="connection" />
+   <path d="M 957,920.0 H 1161.0" class="connection" />
+   <path d="M 957,936.0H 1056V 920.0 H 1161.0" class="connection" />
+   <path d="M 957,952.0H 1104V 936.0 H 1167.0" class="connection" />
+   <path d="M 957,968.0H 1120V 952.0 H 1167.0" class="connection" />
+   <path d="M 957,984.0H 1060V 920.0 H 1161.0" class="connection" />
+   <path d="M 957,1000.0H 1064V 920.0 H 1161.0" class="connection" />
+   <path d="M 957,1016.0H 1536V 843.0 H 1577.0" class="connection" />
+   <path d="M 957,1032.0H 1088V 811.0 H 1167.0" class="connection" />
+   <path d="M 1414.0,1114.0H 1552V 574.0 H 1583.0" class="connection" />
+   <path d="M 1414.0,731.0H 1536V 715.0 H 1583.0" class="connection" />
+   <path d="M 1414.0,731.0H 1536V 731.0 H 1583.0" class="connection" />
+   <path d="M 1414.0,747.0H 1536V 747.0 H 1583.0" class="connection" />
+   <path d="M 1414.0,747.0H 1536V 763.0 H 1583.0" class="connection" />
+   <path d="M 1409.0,763.0H 1520V 779.0 H 1577.0" class="connection" />
+   <path d="M 1409.0,763.0H 1520V 795.0 H 1577.0" class="connection" />
+   <path d="M 1409.0,779.0H 1504V 811.0 H 1577.0" class="connection" />
+   <path d="M 1409.0,779.0H 1504V 827.0 H 1577.0" class="connection" />
+  </g>
+  <g>
+   <g class="pin-connection-group">
+    <g transform="translate(899, 122)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(1376, 154)">
+     <path d="M 0,0H 105 V 14 H 0 l -7.0,-7.0 Z" class="highlight" />
+    </g>
+    <path d="M 957,129.0H 1008V 116H 1312V 161.0 H 1369.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(899, 138)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(1168, 25)">
+     <path d="M -1.0,0 H 105 l 7.0,7.0 l -7.0,7.0 H -1.0" class="highlight" />
+    </g>
+    <path d="M 957,145.0H 976V 32.0 H 1167.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(899, 154)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(1584, 154)">
+     <path d="M 0,0H 105 V 14 H 0 l -7.0,-7.0 Z" class="highlight" />
+    </g>
+    <path d="M 957,161.0H 1024V 84H 1568V 161.0 H 1577.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(899, 170)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(1584, 170)">
+     <path d="M 0,0H 105 V 14 H 0 l -7.0,-7.0 Z" class="highlight" />
+    </g>
+    <path d="M 957,177.0H 1040V 100H 1552V 177.0 H 1577.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(899, 186)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(1376, 226)">
+     <path d="M 0,0H 105 V 14 H 0 l -7.0,-7.0 Z" class="highlight" />
+    </g>
+    <path d="M 957,193.0H 1088V 308H 1360V 233.0 H 1369.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(899, 202)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(1376, 242)">
+     <path d="M 0,0H 105 V 14 H 0 l -7.0,-7.0 Z" class="highlight" />
+    </g>
+    <path d="M 957,209.0H 1104V 292H 1344V 249.0 H 1369.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(899, 218)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(1584, 242)">
+     <path d="M 0,0H 105 V 14 H 0 l -7.0,-7.0 Z" class="highlight" />
+    </g>
+    <path d="M 957,225.0H 1120V 340H 1568V 249.0 H 1577.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(899, 234)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(1584, 226)">
+     <path d="M 0,0H 105 V 14 H 0 l -7.0,-7.0 Z" class="highlight" />
+    </g>
+    <path d="M 957,241.0H 1136V 324H 1552V 233.0 H 1577.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(899, 250)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(1168, 226)">
+     <path d="M 0,0H 105 V 14 H 0 l -7.0,-7.0 Z" class="highlight" />
+    </g>
+    <path d="M 957,257.0H 1008V 233.0 H 1161.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(899, 266)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(1168, 1107)">
+     <path d="M 0,0H 105 V 14 H 0 l -7.0,-7.0 Z" class="highlight" />
+    </g>
+    <path d="M 957,273.0H 1008V 1114.0 H 1161.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(899, 282)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(1168, 242)">
+     <path d="M 0,0H 105 V 14 H 0 l -7.0,-7.0 Z" class="highlight" />
+    </g>
+    <path d="M 957,289.0H 1024V 249.0 H 1161.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(899, 298)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(1168, 154)">
+     <path d="M 0,0H 105 V 14 H 0 l -7.0,-7.0 Z" class="highlight" />
+    </g>
+    <path d="M 957,305.0H 1056V 161.0 H 1161.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(899, 314)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(1168, 170)">
+     <path d="M 0,0H 105 V 14 H 0 l -7.0,-7.0 Z" class="highlight" />
+    </g>
+    <path d="M 957,321.0H 1072V 177.0 H 1161.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(899, 330)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(1168, 41)">
+     <path d="M 0,0H 105 V 14 H 0 l -7.0,-7.0 Z" class="highlight" />
+    </g>
+    <path d="M 957,337.0H 992V 48.0 H 1161.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(899, 346)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(206.0, 1075)">
+     <path d="M 0,0 H 105 l 7.0,7.0 l -7.0,7.0 H 0 Z" class="highlight" />
+    </g>
+    <path d="M 957,353.0H 992V 1082.0 H 318.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(899, 362)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(1376, 170)">
+     <path d="M 0,0H 105 V 14 H 0 l -7.0,-7.0 Z" class="highlight" />
+    </g>
+    <path d="M 957,369.0H 1312V 177.0 H 1369.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(403, 231)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(64.0, 231)">
+     <path d="M 107,0 H 0 l -7.0,7.0 l 7.0,7.0 H 107" class="highlight" />
+    </g>
+    <path d="M 403,238.0 H 171.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(403, 247)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(64.0, 247)">
+     <path d="M 0,0 H 105 l 7.0,7.0 l -7.0,7.0 H 0 Z" class="highlight" />
+    </g>
+    <path d="M 403,254.0 H 176.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(403, 263)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(64.0, 263)">
+     <path d="M 0,0 H 105 l 7.0,7.0 l -7.0,7.0 H 0 Z" class="highlight" />
+    </g>
+    <path d="M 403,270.0 H 176.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(403, 279)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(64.0, 279)">
+     <path d="M 0,0 H 105 l 7.0,7.0 l -7.0,7.0 H 0 Z" class="highlight" />
+    </g>
+    <path d="M 403,286.0 H 176.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(403, 295)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(64.0, 295)">
+     <path d="M 0,0 H 105 l 7.0,7.0 l -7.0,7.0 H 0 Z" class="highlight" />
+    </g>
+    <path d="M 403,302.0 H 176.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(403, 311)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(64.0, 311)">
+     <path d="M 0,0 H 105 l 7.0,7.0 l -7.0,7.0 H 0 Z" class="highlight" />
+    </g>
+    <path d="M 403,318.0 H 176.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(403, 327)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(64.0, 327)">
+     <path d="M 0,0 H 105 l 7.0,7.0 l -7.0,7.0 H 0 Z" class="highlight" />
+    </g>
+    <path d="M 403,334.0 H 176.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(403, 343)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(206.0, 1091)">
+     <path d="M 107,0 H 0 l -7.0,7.0 l 7.0,7.0 H 107" class="highlight" />
+    </g>
+    <path d="M 403,350.0H 340V 1098.0 H 313.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(403, 359)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(206.0, 1107)">
+     <path d="M 107,0 H 0 l -7.0,7.0 l 7.0,7.0 H 107" class="highlight" />
+    </g>
+    <path d="M 403,366.0H 344V 1114.0 H 313.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(403, 375)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(206.0, 1123)">
+     <path d="M 107,0 H 0 l -7.0,7.0 l 7.0,7.0 H 107" class="highlight" />
+    </g>
+    <path d="M 403,382.0H 348V 1130.0 H 313.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(403, 436)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(64.0, 343)">
+     <path d="M 0,0 H 105 a 5 5, 0, 0, 1, 0, 14H 0 Z" class="highlight" />
+    </g>
+    <path d="M 403,443.0H 325V 350.0 H 176.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(403, 452)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(64.0, 343)">
+     <path d="M 0,0 H 105 a 5 5, 0, 0, 1, 0, 14H 0 Z" class="highlight" />
+    </g>
+    <path d="M 403,459.0H 321V 350.0 H 176.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(403, 468)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(64.0, 343)">
+     <path d="M 0,0 H 105 a 5 5, 0, 0, 1, 0, 14H 0 Z" class="highlight" />
+    </g>
+    <path d="M 403,475.0H 317V 350.0 H 176.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(403, 484)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(64.0, 343)">
+     <path d="M 0,0 H 105 a 5 5, 0, 0, 1, 0, 14H 0 Z" class="highlight" />
+    </g>
+    <path d="M 403,491.0H 313V 350.0 H 176.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(403, 500)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(64.0, 343)">
+     <path d="M 0,0 H 105 a 5 5, 0, 0, 1, 0, 14H 0 Z" class="highlight" />
+    </g>
+    <path d="M 403,507.0H 309V 350.0 H 176.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(403, 516)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(64.0, 343)">
+     <path d="M 0,0 H 105 a 5 5, 0, 0, 1, 0, 14H 0 Z" class="highlight" />
+    </g>
+    <path d="M 403,523.0H 305V 350.0 H 176.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(403, 532)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(64.0, 343)">
+     <path d="M 0,0 H 105 a 5 5, 0, 0, 1, 0, 14H 0 Z" class="highlight" />
+    </g>
+    <path d="M 403,539.0H 301V 350.0 H 176.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(403, 548)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(64.0, 343)">
+     <path d="M 0,0 H 105 a 5 5, 0, 0, 1, 0, 14H 0 Z" class="highlight" />
+    </g>
+    <path d="M 403,555.0H 297V 350.0 H 176.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(403, 564)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(64.0, 343)">
+     <path d="M 0,0 H 105 a 5 5, 0, 0, 1, 0, 14H 0 Z" class="highlight" />
+    </g>
+    <path d="M 403,571.0H 293V 350.0 H 176.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(403, 580)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(64.0, 343)">
+     <path d="M 0,0 H 105 a 5 5, 0, 0, 1, 0, 14H 0 Z" class="highlight" />
+    </g>
+    <path d="M 403,587.0H 289V 350.0 H 176.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(403, 596)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(64.0, 343)">
+     <path d="M 0,0 H 105 a 5 5, 0, 0, 1, 0, 14H 0 Z" class="highlight" />
+    </g>
+    <path d="M 403,603.0H 285V 350.0 H 176.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(403, 612)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(64.0, 343)">
+     <path d="M 0,0 H 105 a 5 5, 0, 0, 1, 0, 14H 0 Z" class="highlight" />
+    </g>
+    <path d="M 403,619.0H 281V 350.0 H 176.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(403, 628)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(64.0, 343)">
+     <path d="M 0,0 H 105 a 5 5, 0, 0, 1, 0, 14H 0 Z" class="highlight" />
+    </g>
+    <path d="M 403,635.0H 277V 350.0 H 176.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(403, 644)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(64.0, 343)">
+     <path d="M 0,0 H 105 a 5 5, 0, 0, 1, 0, 14H 0 Z" class="highlight" />
+    </g>
+    <path d="M 403,651.0H 273V 350.0 H 176.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(403, 660)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(64.0, 343)">
+     <path d="M 0,0 H 105 a 5 5, 0, 0, 1, 0, 14H 0 Z" class="highlight" />
+    </g>
+    <path d="M 403,667.0H 269V 350.0 H 176.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(403, 676)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(1168, 1123)">
+     <path d="M -1.0,0 H 105 l 7.0,7.0 l -7.0,7.0 H -1.0" class="highlight" />
+    </g>
+    <path d="M 403,683.0H 368V 1130.0 H 1167.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(899, 423)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(206.0, 1139)">
+     <path d="M 107,0 H 0 l -7.0,7.0 l 7.0,7.0 H 107" class="highlight" />
+    </g>
+    <path d="M 957,430.0H 1024V 1146.0 H 313.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(899, 439)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(1584, 628)">
+     <path d="M -1.0,0 H 105 l 7.0,7.0 l -7.0,7.0 H -1.0" class="highlight" />
+    </g>
+    <path d="M 957,446.0H 1120v -16H 1536V 635.0 H 1583.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(899, 455)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(1168, 471)">
+     <path d="M 105,0 H 0 A 5 5, 0, 0, 0, 0, 14H 105 Z" class="highlight" />
+    </g>
+    <path d="M 957,462.0H 1056V 478.0 H 1161.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(899, 471)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(1168, 471)">
+     <path d="M 105,0 H 0 A 5 5, 0, 0, 0, 0, 14H 105 Z" class="highlight" />
+    </g>
+    <path d="M 957,478.0 H 1161.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(899, 487)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(1168, 487)">
+     <path d="M -1.0,0 H 105 l 7.0,7.0 l -7.0,7.0 H -1.0" class="highlight" />
+    </g>
+    <path d="M 957,494.0 H 1167.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(899, 503)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(1168, 503)">
+     <path d="M -1.0,0 H 105 l 7.0,7.0 l -7.0,7.0 H -1.0" class="highlight" />
+    </g>
+    <path d="M 957,510.0 H 1167.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(899, 519)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(1168, 471)">
+     <path d="M 105,0 H 0 A 5 5, 0, 0, 0, 0, 14H 105 Z" class="highlight" />
+    </g>
+    <path d="M 957,526.0H 1060V 478.0 H 1161.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(899, 535)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(1168, 471)">
+     <path d="M 105,0 H 0 A 5 5, 0, 0, 0, 0, 14H 105 Z" class="highlight" />
+    </g>
+    <path d="M 957,542.0H 1064V 478.0 H 1161.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(403, 737)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(64.0, 359)">
+     <path d="M 0,0 H 105 a 5 5, 0, 0, 1, 0, 14H 0 Z" class="highlight" />
+    </g>
+    <path d="M 403,744.0H 253V 366.0 H 176.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(403, 753)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(64.0, 359)">
+     <path d="M 0,0 H 105 a 5 5, 0, 0, 1, 0, 14H 0 Z" class="highlight" />
+    </g>
+    <path d="M 403,760.0H 249V 366.0 H 176.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(403, 769)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(64.0, 359)">
+     <path d="M 0,0 H 105 a 5 5, 0, 0, 1, 0, 14H 0 Z" class="highlight" />
+    </g>
+    <path d="M 403,776.0H 245V 366.0 H 176.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(403, 785)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(64.0, 359)">
+     <path d="M 0,0 H 105 a 5 5, 0, 0, 1, 0, 14H 0 Z" class="highlight" />
+    </g>
+    <path d="M 403,792.0H 241V 366.0 H 176.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(403, 801)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(64.0, 359)">
+     <path d="M 0,0 H 105 a 5 5, 0, 0, 1, 0, 14H 0 Z" class="highlight" />
+    </g>
+    <path d="M 403,808.0H 237V 366.0 H 176.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(403, 817)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(64.0, 359)">
+     <path d="M 0,0 H 105 a 5 5, 0, 0, 1, 0, 14H 0 Z" class="highlight" />
+    </g>
+    <path d="M 403,824.0H 233V 366.0 H 176.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(403, 833)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(64.0, 359)">
+     <path d="M 0,0 H 105 a 5 5, 0, 0, 1, 0, 14H 0 Z" class="highlight" />
+    </g>
+    <path d="M 403,840.0H 229V 366.0 H 176.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(403, 849)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(64.0, 359)">
+     <path d="M 0,0 H 105 a 5 5, 0, 0, 1, 0, 14H 0 Z" class="highlight" />
+    </g>
+    <path d="M 403,856.0H 225V 366.0 H 176.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(403, 865)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(64.0, 359)">
+     <path d="M 0,0 H 105 a 5 5, 0, 0, 1, 0, 14H 0 Z" class="highlight" />
+    </g>
+    <path d="M 403,872.0H 221V 366.0 H 176.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(403, 881)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(64.0, 359)">
+     <path d="M 0,0 H 105 a 5 5, 0, 0, 1, 0, 14H 0 Z" class="highlight" />
+    </g>
+    <path d="M 403,888.0H 217V 366.0 H 176.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(403, 897)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(64.0, 359)">
+     <path d="M 0,0 H 105 a 5 5, 0, 0, 1, 0, 14H 0 Z" class="highlight" />
+    </g>
+    <path d="M 403,904.0H 213V 366.0 H 176.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(403, 913)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(64.0, 359)">
+     <path d="M 0,0 H 105 a 5 5, 0, 0, 1, 0, 14H 0 Z" class="highlight" />
+    </g>
+    <path d="M 403,920.0H 209V 366.0 H 176.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(403, 929)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(64.0, 359)">
+     <path d="M 0,0 H 105 a 5 5, 0, 0, 1, 0, 14H 0 Z" class="highlight" />
+    </g>
+    <path d="M 403,936.0H 205V 366.0 H 176.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(403, 945)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(64.0, 359)">
+     <path d="M 0,0 H 105 a 5 5, 0, 0, 1, 0, 14H 0 Z" class="highlight" />
+    </g>
+    <path d="M 403,952.0H 201V 366.0 H 176.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(403, 961)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(64.0, 359)">
+     <path d="M 0,0 H 105 a 5 5, 0, 0, 1, 0, 14H 0 Z" class="highlight" />
+    </g>
+    <path d="M 403,968.0H 197V 366.0 H 176.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(403, 977)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(64.0, 359)">
+     <path d="M 0,0 H 105 a 5 5, 0, 0, 1, 0, 14H 0 Z" class="highlight" />
+    </g>
+    <path d="M 403,984.0H 193V 366.0 H 176.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(899, 596)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(1584, 535)">
+     <path d="M -1.0,0 H 105 l 7.0,7.0 l -7.0,7.0 H -1.0" class="highlight" />
+    </g>
+    <path d="M 957,603.0H 1104V 542.0 H 1583.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(899, 596)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(1168, 596)">
+     <path d="M -1.0,0 H 105 l 7.0,7.0 l -7.0,7.0 H -1.0" class="highlight" />
+    </g>
+    <path d="M 957,603.0 H 1167.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(899, 612)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(1168, 612)">
+     <path d="M -1.0,0 H 105 l 7.0,7.0 l -7.0,7.0 H -1.0" class="highlight" />
+    </g>
+    <path d="M 957,619.0 H 1167.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(899, 628)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(1584, 551)">
+     <path d="M -1.0,0 H 105 l 7.0,7.0 l -7.0,7.0 H -1.0" class="highlight" />
+    </g>
+    <path d="M 957,635.0H 1120V 558.0 H 1583.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(899, 628)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(1168, 628)">
+     <path d="M -1.0,0 H 105 l 7.0,7.0 l -7.0,7.0 H -1.0" class="highlight" />
+    </g>
+    <path d="M 957,635.0 H 1167.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(899, 644)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(1584, 644)">
+     <path d="M 0,0H 105 V 14 H 0 l -7.0,-7.0 Z" class="highlight" />
+    </g>
+    <path d="M 957,651.0H 1120v 16H 1520V 651.0 H 1577.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(899, 660)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(1584, 660)">
+     <path d="M 0,0H 105 V 14 H 0 l -7.0,-7.0 Z" class="highlight" />
+    </g>
+    <path d="M 957,667.0H 1104v 7.0H 1536V 667.0 H 1577.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(899, 676)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(1584, 676)">
+     <path d="M 0,0H 105 V 14 H 0 l -7.0,-7.0 Z" class="highlight" />
+    </g>
+    <path d="M 957,683.0 H 1577.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(899, 692)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(1584, 692)">
+     <path d="M 0,0H 105 V 14 H 0 l -7.0,-7.0 Z" class="highlight" />
+    </g>
+    <path d="M 957,699.0H 1104v -7.0H 1536V 699.0 H 1577.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(899, 708)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(206.0, 1155)">
+     <path d="M 107,0 H 0 l -7.0,7.0 l 7.0,7.0 H 107" class="highlight" />
+    </g>
+    <path d="M 957,715.0H 1040V 1162.0 H 313.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(899, 724)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(1168, 724)">
+     <path d="M -1.0,0 H 105 l 7.0,7.0 l -7.0,7.0 H -1.0" class="highlight" />
+    </g>
+    <path d="M 957,731.0 H 1167.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(899, 740)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(1168, 740)">
+     <path d="M -1.0,0 H 105 l 7.0,7.0 l -7.0,7.0 H -1.0" class="highlight" />
+    </g>
+    <path d="M 957,747.0 H 1167.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(899, 756)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(1168, 756)">
+     <path d="M -1.0,0 H 105 l 7.0,7.0 l -7.0,7.0 H -1.0" class="highlight" />
+    </g>
+    <path d="M 957,763.0 H 1167.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(899, 772)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(1168, 772)">
+     <path d="M 0,0H 105 V 14 H 0 l -7.0,-7.0 Z" class="highlight" />
+    </g>
+    <path d="M 957,779.0 H 1161.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(899, 788)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(1168, 788)">
+     <path d="M -1.0,0 H 105 l 7.0,7.0 l -7.0,7.0 H -1.0" class="highlight" />
+    </g>
+    <path d="M 957,795.0 H 1167.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(899, 804)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(1376, 875)">
+     <path d="M -1.0,0 H 105 l 7.0,7.0 l -7.0,7.0 H -1.0" class="highlight" />
+    </g>
+    <path d="M 957,811.0H 1072v 32H 1360V 882.0 H 1375.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(899, 820)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(1376, 891)">
+     <path d="M 0,0H 105 V 14 H 0 l -7.0,-7.0 Z" class="highlight" />
+    </g>
+    <path d="M 957,827.0H 1056v 23.0H 1344V 898.0 H 1369.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(899, 881)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(1168, 881)">
+     <path d="M 0,0H 105 V 14 H 0 l -7.0,-7.0 Z" class="highlight" />
+    </g>
+    <path d="M 957,888.0 H 1161.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(899, 897)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(1168, 897)">
+     <path d="M 0,0H 105 V 14 H 0 l -7.0,-7.0 Z" class="highlight" />
+    </g>
+    <path d="M 957,904.0 H 1161.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(899, 913)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(1168, 913)">
+     <path d="M 105,0 H 0 A 5 5, 0, 0, 0, 0, 14H 105 Z" class="highlight" />
+    </g>
+    <path d="M 957,920.0 H 1161.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(899, 929)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(1168, 913)">
+     <path d="M 105,0 H 0 A 5 5, 0, 0, 0, 0, 14H 105 Z" class="highlight" />
+    </g>
+    <path d="M 957,936.0H 1056V 920.0 H 1161.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(899, 945)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(1168, 929)">
+     <path d="M -1.0,0 H 105 l 7.0,7.0 l -7.0,7.0 H -1.0" class="highlight" />
+    </g>
+    <path d="M 957,952.0H 1104V 936.0 H 1167.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(899, 961)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(1168, 945)">
+     <path d="M -1.0,0 H 105 l 7.0,7.0 l -7.0,7.0 H -1.0" class="highlight" />
+    </g>
+    <path d="M 957,968.0H 1120V 952.0 H 1167.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(899, 977)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(1168, 913)">
+     <path d="M 105,0 H 0 A 5 5, 0, 0, 0, 0, 14H 105 Z" class="highlight" />
+    </g>
+    <path d="M 957,984.0H 1060V 920.0 H 1161.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(899, 993)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(1168, 913)">
+     <path d="M 105,0 H 0 A 5 5, 0, 0, 0, 0, 14H 105 Z" class="highlight" />
+    </g>
+    <path d="M 957,1000.0H 1064V 920.0 H 1161.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(899, 1009)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(1584, 836)">
+     <path d="M 0,0H 105 V 14 H 0 l -7.0,-7.0 Z" class="highlight" />
+    </g>
+    <path d="M 957,1016.0H 1536V 843.0 H 1577.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(899, 1025)" class="cpu-pin highlight">
+     <rect x="0" y="0" rx="5" ry="5" width="58" height="14" class="port-label" />
+    </g>
+    <g transform="translate(1168, 804)">
+     <path d="M -1.0,0 H 105 l 7.0,7.0 l -7.0,7.0 H -1.0" class="highlight" />
+    </g>
+    <path d="M 957,1032.0H 1088V 811.0 H 1167.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(1302.0, 1107)">
+     <path d="M 0,0 H 105 l 7.0,7.0 l -7.0,7.0 H 0 Z" class="highlight" />
+    </g>
+    <g transform="translate(1584, 567)">
+     <path d="M -1.0,0 H 105 l 7.0,7.0 l -7.0,7.0 H -1.0" class="highlight" />
+    </g>
+    <path d="M 1414.0,1114.0H 1552V 574.0 H 1583.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(1302.0, 724)">
+     <path d="M 0,0 H 105 l 7.0,7.0 l -7.0,7.0 H 0 Z" class="highlight" />
+    </g>
+    <g transform="translate(1584, 708)">
+     <path d="M -1.0,0 H 105 l 7.0,7.0 l -7.0,7.0 H -1.0" class="highlight" />
+    </g>
+    <path d="M 1414.0,731.0H 1536V 715.0 H 1583.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(1302.0, 724)">
+     <path d="M 0,0 H 105 l 7.0,7.0 l -7.0,7.0 H 0 Z" class="highlight" />
+    </g>
+    <g transform="translate(1584, 724)">
+     <path d="M -1.0,0 H 105 l 7.0,7.0 l -7.0,7.0 H -1.0" class="highlight" />
+    </g>
+    <path d="M 1414.0,731.0H 1536V 731.0 H 1583.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(1302.0, 740)">
+     <path d="M 0,0 H 105 l 7.0,7.0 l -7.0,7.0 H 0 Z" class="highlight" />
+    </g>
+    <g transform="translate(1584, 740)">
+     <path d="M -1.0,0 H 105 l 7.0,7.0 l -7.0,7.0 H -1.0" class="highlight" />
+    </g>
+    <path d="M 1414.0,747.0H 1536V 747.0 H 1583.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(1302.0, 740)">
+     <path d="M 0,0 H 105 l 7.0,7.0 l -7.0,7.0 H 0 Z" class="highlight" />
+    </g>
+    <g transform="translate(1584, 756)">
+     <path d="M -1.0,0 H 105 l 7.0,7.0 l -7.0,7.0 H -1.0" class="highlight" />
+    </g>
+    <path d="M 1414.0,747.0H 1536V 763.0 H 1583.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(1302.0, 756)">
+     <path d="M 107,0 H 0 l -7.0,7.0 l 7.0,7.0 H 107" class="highlight" />
+    </g>
+    <g transform="translate(1584, 772)">
+     <path d="M 0,0H 105 V 14 H 0 l -7.0,-7.0 Z" class="highlight" />
+    </g>
+    <path d="M 1409.0,763.0H 1520V 779.0 H 1577.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(1302.0, 756)">
+     <path d="M 107,0 H 0 l -7.0,7.0 l 7.0,7.0 H 107" class="highlight" />
+    </g>
+    <g transform="translate(1584, 788)">
+     <path d="M 0,0H 105 V 14 H 0 l -7.0,-7.0 Z" class="highlight" />
+    </g>
+    <path d="M 1409.0,763.0H 1520V 795.0 H 1577.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(1302.0, 772)">
+     <path d="M 107,0 H 0 l -7.0,7.0 l 7.0,7.0 H 107" class="highlight" />
+    </g>
+    <g transform="translate(1584, 804)">
+     <path d="M 0,0H 105 V 14 H 0 l -7.0,-7.0 Z" class="highlight" />
+    </g>
+    <path d="M 1409.0,779.0H 1504V 811.0 H 1577.0" class="connection" />
+   </g>
+   <g class="pin-connection-group">
+    <g transform="translate(1302.0, 772)">
+     <path d="M 107,0 H 0 l -7.0,7.0 l 7.0,7.0 H 107" class="highlight" />
+    </g>
+    <g transform="translate(1584, 820)">
+     <path d="M 0,0H 105 V 14 H 0 l -7.0,-7.0 Z" class="highlight" />
+    </g>
+    <path d="M 1409.0,779.0H 1504V 827.0 H 1577.0" class="connection" />
+   </g>
+  </g>
+ </g>
+</svg>

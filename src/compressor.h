@@ -18,6 +18,7 @@
 #ifndef COMPRESSOR_H
 #define COMPRESSOR_H
 
+#include "definitions.h"
 #include "r_typedefs.h"
 
 class Song;
@@ -38,8 +39,8 @@ public:
 	int32_t attack;
 	int32_t release;
 
-	uint8_t
-	    sync; // Basically, 0 is off, max value is 9. Higher numbers are shorter intervals (higher speed). 6 represents 8th-notes normally
+	SyncType syncType;
+	SyncLevel syncLevel; // Basically, 0 is off, max value is 9. Higher numbers are shorter intervals (higher speed).
 
 	int32_t render(uint16_t numSamples, int32_t shapeValue);
 	void registerHit(int32_t strength);

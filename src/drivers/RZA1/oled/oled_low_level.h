@@ -27,6 +27,7 @@ void oledDeselectionComplete();
 void enqueueCVMessage(int channel, uint32_t message);
 void cvSPITransferComplete(uint32_t sense);
 void setupSPIInterrupts();
+void sendSPITransferFromQueue();
 void oledLowLevelTimerCallback();
 void oledRoutine();
 

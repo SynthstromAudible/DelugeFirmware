@@ -2252,7 +2252,7 @@ someError:
 					storageManager.exitTag("numOctaves");
 				}
 				else if (!strcmp(tagName, "syncLevel")) {
-					arpSettings.syncLevel = storageManager.readTagOrAttributeValueInt();
+					arpSettings.syncLevel = (SyncLevel)storageManager.readTagOrAttributeValueInt();
 					storageManager.exitTag("syncLevel");
 				}
 				else if (!strcmp(tagName, "mode")) {

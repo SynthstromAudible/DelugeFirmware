@@ -86,7 +86,7 @@ void LiveInputBuffer::giveInput(int numSamples, uint32_t currentTime, int inputT
 
 			int percussiveness = ((uint64_t)difference * 262144 / angle) >> 1;
 
-			percussiveness = getTanH(percussiveness, 23);
+			percussiveness = getTanH<23>(percussiveness);
 
 			percBuffer[(numRawSamplesProcessed >> PERC_BUFFER_REDUCTION_MAGNITUDE) & (INPUT_PERC_BUFFER_SIZE - 1)] =
 			    percussiveness;

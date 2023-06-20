@@ -31,14 +31,30 @@ struct MIDIDeviceUSB;
 #endif
 
 #ifdef __cplusplus
+/*A ConnectedUSBMIDIDevice is used directly to interface with the USB driver
+ * When a ConnectedUSBMIDIDevice has a numMessagesQueued>16 and tries to add another,
+ * all outputs are sent. The send routine calls the USB output function, points the
+ * USB pipes FIFO buffer directly at the dataSendingNow array, and then sends.
+ * Sends can also be triggered by the midiAndGateOutput interrupt
+ *
+ * Reads are more complicated.
+ * Actual reads are done by usb_cstd_usb_task, which has a commented out interrupt associated
+ * The function is instead called in the midiengine::checkincomingUSBmidi function, which is called
+ * in the audio engine loop
+ *
+ * The USB read function is configured by setupUSBHostReceiveTransfer, which is called to
+ * setup the next device after each successful read. Data is written directly into the receiveData
+ * array from the USB device, it's set as the USB pipe address during midi engine setup
+ */
 class ConnectedUSBMIDIDevice {
 public:
-	MIDIDeviceUSB* device; // If NULL, then no device is connected here
+	MIDIDeviceUSB* device[4]; // If NULL, then no device is connected here
 	void bufferMessage(uint32_t fullMessage);
 	void setup();
 #else
+//warning - accessed as a C struct from usb driver
 struct ConnectedUSBMIDIDevice {
-	struct MIDIDeviceUSB* device;
+	struct MIDIDeviceUSB* device[4];
 #endif
 	uint8_t currentlyWaitingToReceive;
 	uint8_t sq; // Only for connections as HOST
@@ -48,8 +64,10 @@ struct ConnectedUSBMIDIDevice {
 	uint32_t preSendData[16];
 	uint8_t dataSendingNow[64];
 	uint8_t numMessagesQueued;
-	uint8_t
-	    numBytesSendingNow; // This will show a value after the general flush function is called, throughout other Devices being sent to before this one, and until we've completed our send
+
+	// This will show a value after the general flush function is called, throughout other Devices being sent to before this one, and until we've completed our send
+	uint8_t numBytesSendingNow;
+	uint8_t maxPortConnected;
 };
 
 #ifdef __cplusplus
@@ -65,7 +83,8 @@ void writeDevicesToFile();
 void readAHostedDeviceFromFile();
 void readDevicesFromFile();
 
-extern MIDIDeviceUSBUpstream upstreamUSBMIDIDevice;
+extern MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port1;
+extern MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port2;
 extern MIDIDeviceDINPorts dinMIDIPorts;
 
 extern bool differentiatingInputsByDevice;
