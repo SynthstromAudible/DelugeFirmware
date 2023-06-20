@@ -38,6 +38,14 @@
 #include "r_usb_hmidi_config.h"
 #include "definitions.h"
 
+#include "uart_all_cpus.h"
+
+#if HAVE_OLED
+#include "oled.h"
+#else
+#include "numericdriver.h"
+#endif
+
 /******************************************************************************
  Exported global variables
  ******************************************************************************/

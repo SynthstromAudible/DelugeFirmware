@@ -18,16 +18,18 @@
 #ifndef MENUITEMPATCHCABLESTRENGTH_H_
 #define MENUITEMPATCHCABLESTRENGTH_H_
 
-#include "MenuItemInteger.h"
+#include "MenuItemDecimal.h"
 #include "MenuItemWithCCLearning.h"
 
-class MenuItemPatchCableStrength : public MenuItemIntegerContinuous, public MenuItemWithCCLearning {
+class MenuItemPatchCableStrength : public MenuItemDecimal, public MenuItemWithCCLearning {
 public:
-	MenuItemPatchCableStrength(char const* newName = NULL) : MenuItemIntegerContinuous(newName) {}
+	MenuItemPatchCableStrength(char const* newName = NULL) : MenuItemDecimal(newName) {}
 	void readCurrentValue() final;
 	void writeCurrentValue();
-	int getMinValue() final { return -50; }
-	int getMaxValue() final { return 50; }
+	int getMinValue() final { return -5000; }
+	int getMaxValue() final { return 5000; }
+	int getNumDecimalPlaces() final { return 2; }
+	virtual int getDefaultEditPos() { return 2; }
 	virtual int checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange);
 	virtual ParamDescriptor getDestinationDescriptor() = 0;
 	virtual uint8_t getS() = 0;
@@ -61,15 +63,11 @@ public:
 	uint8_t shouldBlinkPatchingSourceShortcut(int s, uint8_t* colour);
 	MenuItem* patchingSourceShortcutPress(int s, bool previousPressStillActive);
 	MenuItem* selectButtonPress() final;
-#if !HAVE_OLED
-	void drawValue() final;
-#endif
 };
 
 class MenuItemPatchCableStrengthRange final : public MenuItemPatchCableStrength {
 public:
 	MenuItemPatchCableStrengthRange(char const* newName = NULL) : MenuItemPatchCableStrength(newName) {}
-	void drawValue();
 	ParamDescriptor getDestinationDescriptor();
 	uint8_t getS();
 	ParamDescriptor getLearningThing();

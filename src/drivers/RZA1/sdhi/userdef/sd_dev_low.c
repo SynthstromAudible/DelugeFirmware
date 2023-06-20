@@ -49,7 +49,8 @@ Includes   <System Includes> , "Project Includes"
 #include "../inc/sd_cfg.h"
 #include "sd_dev_dmacdrv.h"
 #include "gpio_iobitmask.h"
-
+#include "uart_all_cpus.h"
+#include "Deluge.h"
 
 /******************************************************************************
 Typedef definitions

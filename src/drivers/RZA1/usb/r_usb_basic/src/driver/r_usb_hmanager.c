@@ -35,6 +35,12 @@
 #include "r_usb_reg_access.h"
 #include "definitions.h"
 
+#ifdef HAVE_OLED
+#include "oled.h"
+#else
+#include "numericdriver.h"
+#endif
+
 #if ((USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST)
 /***********************************************************************************************************************
  Private global variables and functions

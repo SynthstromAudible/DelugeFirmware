@@ -48,6 +48,7 @@ struct UartItem
 
 extern struct UartItem uartItems[];
 
+extern void initUartDMA();
 uint8_t uartGetChar(int item, char_t* readData);
 uint32_t* uartGetCharWithTiming(int timingCaptureItem, char_t* readData);
 void uartPutCharBack(int item);
@@ -62,5 +63,7 @@ void uartPrintFloat(float number);
 void uartFlushIfNotSending(int item);
 int uartGetTxBufferFullnessByItem(int item);
 int uartGetTxBufferSpace(int item);
+
+extern void tx_interrupt(int item);
 
 #endif /* DRIVERS_ALL_CPUS_UART_ALL_CPUS_UART_ALL_CPUS_H_ */

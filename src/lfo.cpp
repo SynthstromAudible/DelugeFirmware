@@ -40,6 +40,36 @@ int32_t LFO::render(int numSamples, int waveType, uint32_t phaseIncrement) {
 	case LFO_TYPE_TRIANGLE:
 		value = getTriangle(phase);
 		break;
+
+	case LFO_TYPE_SAH:
+		if (phase == 0) {
+			value = CONG;
+			holdValue = value;
+		}
+		else if (phase + phaseIncrement * numSamples < phase) holdValue = CONG;
+		else value = holdValue;
+		break;
+
+	case LFO_TYPE_RWALK:
+		uint32_t range = 4294967295u / 20;
+		if (phase == 0) {
+			value = (range / 2) - CONG % range;
+			holdValue = value;
+		}
+		else if (phase + phaseIncrement * numSamples < phase)
+			// (holdValue / -16) adds a slight bias to make the new value move
+			// back towards zero modulation the further holdValue has moved away
+			// from zero. This is probably best explained by showing the edge
+			// cases:
+			// holdValue == 8 * range => (holdValue / -16) + (range / 2) == 0 =>
+			// next holdValue <= current holdValue
+			// holdValue == 0 => (holdValue / -16) + (range / 2) == range / 2 =>
+			// equal chance for next holdValue smaller or lager than current
+			// holdValue == -8 * range => (holdValue / -16) + (range / 2) ==
+			// range => next holdValue >= current holdValuie
+			holdValue += (holdValue / -16) + (range / 2) - CONG % range;
+		else value = holdValue;
+		break;
 	}
 
 	phase += phaseIncrement * numSamples;

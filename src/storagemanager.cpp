@@ -1479,10 +1479,19 @@ int StorageManager::readMIDIParamFromFile(int32_t readAutomationUpToPos, MIDIPar
 
 // For a bunch of params like this, e.g. for syncing delay, LFOs, arps, the value stored in the file is relative to the song insideWorldTickMagnitude -
 // so that if someone loads a preset into a song with a different insideWorldTickMagnitude, the results are what you'd expect.
-int StorageManager::readAbsoluteSyncLevelFromFile(Song* song) {
-	return song->convertSyncLevelFromFileValueToInternalValue(readTagOrAttributeValueInt());
+SyncType StorageManager::readSyncTypeFromFile(Song* song) {
+	return (SyncType)readTagOrAttributeValueInt();
 }
 
-void StorageManager::writeAbsoluteSyncLevelToFile(Song* song, char const* name, int internalValue, bool onNewLine) {
+void StorageManager::writeSyncTypeToFile(Song* song, char const* name, SyncType value, bool onNewLine) {
+	writeAttribute(name, (int)value, onNewLine);
+}
+
+SyncLevel StorageManager::readAbsoluteSyncLevelFromFile(Song* song) {
+	return (SyncLevel)song->convertSyncLevelFromFileValueToInternalValue(readTagOrAttributeValueInt());
+}
+
+void StorageManager::writeAbsoluteSyncLevelToFile(Song* song, char const* name, SyncLevel internalValue,
+                                                  bool onNewLine) {
 	writeAttribute(name, song->convertSyncLevelFromInternalValueToFileValue(internalValue), onNewLine);
 }
