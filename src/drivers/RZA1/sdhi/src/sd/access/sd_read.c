@@ -38,15 +38,16 @@
 #include "../../../inc/sdif.h"
 #include "../inc/access/sd.h"
 
+#include "asm.h"
+#include "uart_all_cpus.h"
+#include "Deluge.h"
+
 #ifdef __CC_ARM
 #pragma arm section code = "CODE_SDHI"
 #pragma arm section rodata = "CONST_SDHI"
 #pragma arm section rwdata = "DATA_SDHI"
 #pragma arm section zidata = "BSS_SDHI"
 #endif
-
-extern void v7_dma_inv_range(start, end);
-
 
 static int _sd_single_read(SDHNDL *hndl,unsigned char *buff,unsigned long psn
 	,int mode);
@@ -309,7 +310,7 @@ int sd_read_sect(int sd_port, unsigned char *buff,unsigned long psn,long cnt)
 
 		if (mode != SD_MODE_SW) {
 			// Invalidate ram
-			v7_dma_inv_range(buff, buff + cnt * 512);
+			v7_dma_inv_range((uintptr_t)buff, (uintptr_t)(buff + cnt * 512));
 		}
 
 		/* clear All end bit */
@@ -534,7 +535,7 @@ static int _sd_single_read(SDHNDL *hndl,unsigned char *buff,unsigned long psn,
 
 	if (mode != SD_MODE_SW) {
 		// Invalidate ram
-		v7_dma_inv_range(buff, buff + 512);
+		v7_dma_inv_range((uintptr_t)buff, (uintptr_t)(buff + 512));
 	}
 
 	/* clear All end bit */

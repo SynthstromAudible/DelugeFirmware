@@ -1,5 +1,5 @@
 /*
- * Copyright © 2021-2023 Synthstrom Audible Limited
+ * Copyright © 2023 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -13,24 +13,36 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
- */
+*/
 
-#ifndef DRIVERS_RZA1_OLED_OLED_LOW_LEVEL_H_
-#define DRIVERS_RZA1_OLED_OLED_LOW_LEVEL_H_
+#ifndef DELUGE_H_
+#define DELUGE_H_
 
-#include "r_typedefs.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-void oledSelectingComplete();
-void sendOledDMA();
-void oledTransferComplete(uint32_t int_sense);
-void oledDeselectionComplete();
-void enqueueCVMessage(int channel, uint32_t message);
-void cvSPITransferComplete(uint32_t sense);
-void setupSPIInterrupts();
-void sendSPITransferFromQueue();
-void oledLowLevelTimerCallback();
-void oledRoutine();
+extern int main1(void);
+extern int main2(void);
 
-extern int oledWaitingForMessage;
+extern void timerGoneOff(void);
 
-#endif /* DRIVERS_RZA1_OLED_OLED_LOW_LEVEL_H_ */
+extern void routineWithClusterLoading(void);
+extern void loadAnyEnqueuedClustersRoutine(void);
+
+extern void logAudioAction(char const* string);
+
+// This is defined in numericdriver.cpp
+extern void freezeWithError(char const* errmsg);
+
+extern void routineForSD(void);
+extern void sdCardInserted(void);
+extern void sdCardEjected(void);
+
+extern void setTimeUSBInitializationEnds(int timeFromNow);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* DELUGE_H_ */

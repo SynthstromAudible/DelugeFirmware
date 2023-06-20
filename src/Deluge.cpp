@@ -81,6 +81,7 @@
 #include "SaveSongUI.h"
 #include "oled.h"
 #include "ContextMenuOverwriteBootloader.h"
+#include "Deluge.h"
 
 #if AUTOMATED_TESTER_ENABLED
 #include "AutomatedTester.h"
@@ -943,7 +944,7 @@ resetSettings:
 
 bool inSpamMode = false;
 
-extern "C" void logAudioAction(char* string) {
+extern "C" void logAudioAction(char const* string) {
 	AudioEngine::logAction(string);
 }
 

@@ -48,6 +48,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include "NE10_macros.h"
 #include "NE10_fft.h"
 
+#include "Deluge.h"
 
 static void ne10_mixed_radix_butterfly_int32_c (ne10_fft_cpx_int32_t * Fout,
         ne10_fft_cpx_int32_t   * Fin,
@@ -1216,8 +1217,9 @@ ne10_fft_r2c_cfg_int32_t ne10_fft_alloc_r2c_int32 (ne10_int32_t nfft)
             twiddles += mstride * (cur_radix - 1);
         }
 
-        routineWithClusterLoading(); // Injected by Rohan. Ideally though, we'd want to have some of these amongst the above loop, which takes longest.
-        							// Actually, should just optimized this function - those floats and trig functions will be snail-speed.
+        // Injected by Rohan. Ideally though, we'd want to have some of these amongst the above loop, which takes
+        // longest. Actually, should just optimized this function - those floats and trig functions will be snail-speed.
+        routineWithClusterLoading();
 
         twiddles = st->super_twiddles;
         for (j = 0; j < ncfft / 2; j++)

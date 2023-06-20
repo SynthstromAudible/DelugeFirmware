@@ -33,6 +33,7 @@
 #include "r_usb_extern.h"
 #include "r_usb_bitdefine.h"
 #include "r_usb_reg_access.h"
+#include "r_usb_hmidi_if.h"
 
 #if defined(USB_CFG_HCDC_USE)
 #include "r_usb_hcdc_if.h"

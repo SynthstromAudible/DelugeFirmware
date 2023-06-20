@@ -51,6 +51,8 @@ Includes
 
 #include "definitions.h"
 
+#include <math.h>
+
 /******************************************************************************
 Global variables and functions
 ******************************************************************************/
@@ -177,7 +179,7 @@ void R_RSPI1_Stop(void)
     R_INTC_Disable(INTC_ID_SPTI4);
 
     /* Disable RSPI function */
-    rza_io_reg_write_8(&(RSPI1.SPCR), 0, RSPIn_SPCR_SPE_SHIFT, RSPIn_SPCR_SPE);
+    RZA_IO_RegWrite_8(&(RSPI1.SPCR), 0, RSPIn_SPCR_SPE_SHIFT, RSPIn_SPCR_SPE);
 }
 
 /*******************************************************************************
@@ -210,13 +212,13 @@ uint8_t R_RSPI1_SendReceive(uint32_t* const tx_buf, uint16_t tx_num, uint32_t* c
         g_rspi1_rx_count    = 0U;
 
         /* Enable transmit interrupt */
-        rza_io_reg_write_8(&(RSPI1.SPCR), 1, RSPIn_SPCR_SPTIE_SHIFT, RSPIn_SPCR_SPTIE);
+        RZA_IO_RegWrite_8(&(RSPI1.SPCR), 1, RSPIn_SPCR_SPTIE_SHIFT, RSPIn_SPCR_SPTIE);
 
         /* Enable receive interrupt */
-        rza_io_reg_write_8(&(RSPI1.SPCR), 1, RSPIn_SPCR_SPRIE_SHIFT, RSPIn_SPCR_SPRIE);
+        RZA_IO_RegWrite_8(&(RSPI1.SPCR), 1, RSPIn_SPCR_SPRIE_SHIFT, RSPIn_SPCR_SPRIE);
 
         /* Enable RSPI function */
-        rza_io_reg_write_8(&(RSPI1.SPCR), 1, RSPIn_SPCR_SPE_SHIFT, RSPIn_SPCR_SPE);
+        RZA_IO_RegWrite_8(&(RSPI1.SPCR), 1, RSPIn_SPCR_SPE_SHIFT, RSPIn_SPCR_SPE);
     }
 
     return (status);
@@ -287,7 +289,7 @@ void R_RSPI_SendAndDontWait(uint8_t channel, uint8_t data)
 *******************************************************************************/
 void R_RSPI1_LoopBackReversed(void)
 {
-    rza_io_reg_write_8(&(RSPI1.SPPCR), (uint8_t)1, RSPIn_SPPCR_SPLP_SHIFT, RSPIn_SPPCR_SPLP);
+    RZA_IO_RegWrite_8(&(RSPI1.SPPCR), (uint8_t)1, RSPIn_SPPCR_SPLP_SHIFT, RSPIn_SPPCR_SPLP);
 }
 
 /*******************************************************************************
@@ -298,5 +300,5 @@ void R_RSPI1_LoopBackReversed(void)
 *******************************************************************************/
 void R_RSPI1_LoopBackDisable(void)
 {
-    rza_io_reg_write_8(&(RSPI1.SPPCR), 0, RSPIn_SPPCR_SPLP_SHIFT, RSPIn_SPPCR_SPLP);
+    RZA_IO_RegWrite_8(&(RSPI1.SPPCR), 0, RSPIn_SPPCR_SPLP_SHIFT, RSPIn_SPPCR_SPLP);
 }
