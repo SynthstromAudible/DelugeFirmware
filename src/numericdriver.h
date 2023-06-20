@@ -19,6 +19,8 @@
 #define NUMERICDRIVER_H
 
 #include "definitions.h"
+
+#ifdef __cplusplus
 #include "NumericLayerBasicText.h"
 class NumericLayerScrollingText;
 
@@ -68,8 +70,15 @@ private:
 #endif
 };
 
-extern "C" void displayPopupIfAllBootedUp(char const* text);
-
 extern NumericDriver numericDriver;
+
+extern "C" {
+#endif
+
+void displayPopupIfAllBootedUp(char const* text);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // NUMERICDRIVER_H

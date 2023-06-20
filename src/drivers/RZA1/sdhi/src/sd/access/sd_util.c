@@ -37,6 +37,7 @@
 ******************************************************************************/
 #include "../../../inc/sdif.h"
 #include "../inc/access/sd.h"
+#include "Deluge.h"
 
 #ifdef __CC_ARM
 #pragma arm section code = "CODE_SDHI"
