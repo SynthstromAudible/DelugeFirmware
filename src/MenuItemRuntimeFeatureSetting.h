@@ -15,25 +15,23 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef MENUITEMRUNTIMEFEATURESETTINGS_H_
-#define MENUITEMRUNTIMEFEATURESETTINGS_H_
+#ifndef MENUITEMRUNTIMEFEATURESETTING_H_
+#define MENUITEMRUNTIMEFEATURESETTING_H_
 
-#include "MenuItem.h"
+#include "MenuItemSelection.h"
 
-class MenuItemRuntimeFeatureSettings final : public MenuItem {
+class MenuItemRuntimeFeatureSetting final : public MenuItemSelection {
 public:
-	MenuItemRuntimeFeatureSettings(char const* newName = 0) : MenuItem(newName) {}
-	void beginSession(MenuItem* navigatedBackwardFrom = NULL);
-	void selectEncoderAction(int offset);
-	void drawValue();
-	MenuItem* selectButtonPress();
-	void drawPixelsForOled();
-
+	MenuItemRuntimeFeatureSetting(char const* newName = NULL);
+	void readCurrentValue();
+	void writeCurrentValue();
+	char const** getOptions();
+	int getNumOptions();
 private:
-    uint32_t lastActiveValue = 0;
-    // getSetting?
-};  
+    friend class MenuItemRuntimeFeatureSettings;
+    uint32_t currentSettingIndex;
+};
 
-extern MenuItemRuntimeFeatureSettings runtimeFeatureSettingsMenu;
+extern MenuItemRuntimeFeatureSetting runtimeFeatureSettingMenuItem;
 
-#endif /* MENUITEMRUNTIMEFEATURESETTINGS_H_ */
+#endif /* MENUITEMRUNTIMEFEATURESETTING_H_ */

@@ -16,27 +16,21 @@
 */
 
 #include <MenuItemRuntimeFeatureSettings.h>
+#include <MenuItemRuntimeFeatureSetting.h>
 #include "RuntimeFeatureSettings.h"
-//#include "soundeditor.h"
-//#include "numericdriver.h"
-#include "MenuItemSubmenu.h"
+#include "soundeditor.h"
+#include "numericdriver.h"
+#include <cstdio>
 
 MenuItemRuntimeFeatureSettings runtimeFeatureSettingsMenu;
 
-/*
 void MenuItemRuntimeFeatureSettings::beginSession(MenuItem* navigatedBackwardFrom) {
-	if (navigatedBackwardFrom) {
-		for (soundEditor.currentValue = -2;
-		     soundEditor.currentValue < MIDIDeviceManager::hostedRuntimeFeatureSettings.getNumElements();
-		     soundEditor.currentValue++) {
-			if (getDevice(soundEditor.currentValue) == soundEditor.currentMIDIDevice) goto decidedDevice;
-		}
-	}
+	if (!navigatedBackwardFrom) {
+        lastActiveValue = 0; // Reset last active value
+    }
 
-	soundEditor.currentValue = -2; // Start on "DIN". That's the only one that'll always be there.
+    soundEditor.currentValue = lastActiveValue; // Restore
 
-decidedDevice:
-	soundEditor.currentMIDIDevice = getDevice(soundEditor.currentValue);
 #if HAVE_OLED
 	soundEditor.menuCurrentScroll = soundEditor.currentValue;
 #else
@@ -45,24 +39,18 @@ decidedDevice:
 }
 
 void MenuItemRuntimeFeatureSettings::selectEncoderAction(int offset) {
-	do {
-		int newValue = soundEditor.currentValue + offset;
+	soundEditor.currentValue += offset;
+	int numOptions = RuntimeFeatureSettingType::MaxElement;
 
-		if (newValue >= MIDIDeviceManager::hostedRuntimeFeatureSettings.getNumElements()) {
-			if (HAVE_OLED) return;
-			newValue = -2;
-		}
-		else if (newValue < -2) {
-			if (HAVE_OLED) return;
-			newValue = MIDIDeviceManager::hostedRuntimeFeatureSettings.getNumElements() - 1;
-		}
+#if HAVE_OLED
+	if (soundEditor.currentValue > numOptions - 1) soundEditor.currentValue = numOptions - 1;
+	else if (soundEditor.currentValue < 0) soundEditor.currentValue = 0;
+#else
+	if (soundEditor.currentValue >= numOptions) soundEditor.currentValue -= numOptions;
+	else if (soundEditor.currentValue < 0) soundEditor.currentValue += numOptions;
+#endif
 
-		soundEditor.currentValue = newValue;
-
-		soundEditor.currentMIDIDevice = getDevice(soundEditor.currentValue);
-
-	} while (!soundEditor.currentMIDIDevice->connectionFlags);
-	// Don't show devices which aren't connected. Sometimes we won't even have a name to display for them.
+    lastActiveValue = soundEditor.currentValue;
 
 #if HAVE_OLED
 	if (soundEditor.currentValue < soundEditor.menuCurrentScroll)
@@ -74,7 +62,6 @@ void MenuItemRuntimeFeatureSettings::selectEncoderAction(int offset) {
 		while (true) {
 			d--;
 			if (d == soundEditor.menuCurrentScroll) break;
-			if (!getDevice(d)->connectionFlags) continue;
 			numSeen++;
 			if (numSeen >= OLED_MENU_NUM_OPTIONS_VISIBLE) {
 				soundEditor.menuCurrentScroll = d;
@@ -87,33 +74,20 @@ void MenuItemRuntimeFeatureSettings::selectEncoderAction(int offset) {
 	drawValue();
 }
 
-MIDIDevice* MenuItemRuntimeFeatureSettings::getDevice(int deviceIndex) {
-	if (deviceIndex == -2) {
-		return &MIDIDeviceManager::dinMIDIPorts;
-	}
-	else if (deviceIndex == -1) {
-		return &MIDIDeviceManager::upstreamUSBMIDIDevice;
-	}
-	else {
-		return (MIDIDevice*)MIDIDeviceManager::hostedRuntimeFeatureSettings.getElement(deviceIndex);
-	}
-}
-
 void MenuItemRuntimeFeatureSettings::drawValue() {
 #if HAVE_OLED
 	renderUIsForOled();
 #else
-	char const* displayName = soundEditor.currentMIDIDevice->getDisplayName();
-	numericDriver.setScrollingText(displayName);
+	numericDriver.setScrollingText(runtimeFeatureSettings.settings[soundEditor.currentValue].displayName);
 #endif
 }
 
 MenuItem* MenuItemRuntimeFeatureSettings::selectButtonPress() {
 #if HAVE_OLED
-	midiDeviceMenu.basicTitle =
-	    soundEditor.currentMIDIDevice->getDisplayName(); // A bit ugly, but saves us extending a class.
+	runtimeFeatureSettingMenuItem.basicTitle = runtimeFeatureSettings.settings[soundEditor.currentValue].displayName; // A bit ugly, but saves us extending a class.
 #endif
-	return &midiDeviceMenu;
+    runtimeFeatureSettingMenuItem.currentSettingIndex = soundEditor.currentValue;
+	return &runtimeFeatureSettingMenuItem;
 }
 
 #if HAVE_OLED
@@ -123,26 +97,20 @@ void MenuItemRuntimeFeatureSettings::drawPixelsForOled() {
 
 	int selectedRow = -1;
 
-	int d = soundEditor.menuCurrentScroll;
-	int r = 0;
-	while (r < OLED_MENU_NUM_OPTIONS_VISIBLE && d < MIDIDeviceManager::hostedRuntimeFeatureSettings.getNumElements()) {
-		MIDIDevice* device = getDevice(d);
-		if (device->connectionFlags) {
-			itemNames[r] = device->getDisplayName();
-			if (d == soundEditor.currentValue) selectedRow = r;
-			r++;
-		}
-		d++;
+	int displayRow = soundEditor.menuCurrentScroll;
+	int row = 0;
+	while (row < OLED_MENU_NUM_OPTIONS_VISIBLE && displayRow < RuntimeFeatureSettingType::MaxElement) {
+        itemNames[row] = runtimeFeatureSettings.settings[displayRow].displayName;
+        if (displayRow == soundEditor.currentValue) { selectedRow = row; }
+		row++;
+        displayRow++;
 	}
 
-	while (r < OLED_MENU_NUM_OPTIONS_VISIBLE) {
-		itemNames[r] = NULL;
-		r++;
+	while (row < OLED_MENU_NUM_OPTIONS_VISIBLE) {
+		itemNames[row++] = NULL;
 	}
 
 	drawItemsForOled(itemNames, selectedRow);
 }
 
 #endif
-
-*/

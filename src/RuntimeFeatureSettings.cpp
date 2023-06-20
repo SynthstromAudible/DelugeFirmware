@@ -17,13 +17,15 @@
 
 #include "RuntimeFeatureSettings.h"
 
+//RuntimeFeatureSetting RuntimeFeatureSettings::settings[RuntimeFeatureSettingType::MaxElement] = ;
+
 RuntimeFeatureSettings runtimeFeatureSettings;
 
-RuntimeFeatureSettings::RuntimeFeatureSettings() {
-
-}
+RuntimeFeatureSettings::RuntimeFeatureSettings() {}
 
 void RuntimeFeatureSettings::readSettingsFromFile() {
+
+    //runtimeFeatureSettingsMenu.items
     // Copied code from MIDIDeviceManager for reference
     /*
     	if (successfullyReadDevicesFromFile) return; // Yup, we only want to do this once
