@@ -74,6 +74,7 @@
 #include "extern.h"
 #include "MultiWaveTableRange.h"
 #include "MenuItemMIDIDevices.h"
+#include "MenuItemRuntimeFeatureSetting.h"
 #include "MenuItemRuntimeFeatureSettings.h"
 #include "MenuItemMPEDirectionSelector.h"
 #include "MenuItemMPEZoneNumMemberChannels.h"
@@ -2532,6 +2533,7 @@ SoundEditor::SoundEditor() {
 	new (&sampleBrowserPreviewModeMenu) MenuItemSampleBrowserPreviewMode(HAVE_OLED ? "Sample preview" : "PREV");
 	new (&flashStatusMenu) MenuItemFlashStatus(HAVE_OLED ? "Play-cursor" : "CURS");
 	new (&recordSubmenu) MenuItemSubmenu("Recording", recordMenuItems);
+	new (&runtimeFeatureSettingMenuItem) MenuItemRuntimeFeatureSetting(NULL); 
 	new (&runtimeFeatureSettingsMenu) MenuItemRuntimeFeatureSettings("Community features");
 	new (&firmwareVersionMenu) MenuItemFirmwareVersion("Firmware version");
 
@@ -2579,7 +2581,7 @@ SoundEditor::SoundEditor() {
 
 	recordCountInMenu.basicTitle = "Rec count-in";
 	monitorModeMenu.basicTitle = "Monitoring";
-	runtimeFeatureSettingsMenu.basicTitle = "Community ft.";
+	runtimeFeatureSettingsMenu.basicTitle = "Community fts.";
 	firmwareVersionMenu.basicTitle = "Firmware ver.";
 #endif
 
