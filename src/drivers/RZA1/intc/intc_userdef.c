@@ -33,12 +33,7 @@ Includes   <System Includes> , "Project Includes"
 #include "r_typedefs.h"
 #include "devdrv_intc.h" /* INTC Driver Header */
 
-#ifdef __ICCARM__
-#include <intrinsics.h>
-#endif
-#ifdef __GNUC__
-//#include "irq.h"
-#endif
+#include "asm.h"
 
 #ifdef __CC_ARM
 #pragma arm section code   = "CODE_HANDLER_JMPTBL"
@@ -708,7 +703,7 @@ void Userdef_INTC_UndefId(uint16_t int_id)
 static void Userdef_INTC_Dummy_Interrupt(uint32_t int_sense)
 {
     /* Execute processing when receiving interrupt ID whicn is not registered */
-    disable_irq();
+    __disable_irq();
 
     while (1)
     {

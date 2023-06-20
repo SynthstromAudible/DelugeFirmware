@@ -33,6 +33,8 @@ Includes   <System Includes> , "Project Includes"
 #include "r_usb_basic_if.h"
 #include "r_typedefs.h"
 
+#include "uart_all_cpus.h"
+
 #define WHICH_USB_MODULE USB_IP0
 
 extern uint8_t g_midi_device[];

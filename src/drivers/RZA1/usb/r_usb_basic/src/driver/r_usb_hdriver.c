@@ -63,6 +63,8 @@
 #include "r_usb_dmac.h"
 #endif /* ((USB_CFG_DTC == USB_CFG_ENABLE) || (USB_CFG_DMA == USB_CFG_ENABLE)) */
 
+#include "uart_all_cpus.h"
+
 #if ((USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST)
 /***********************************************************************************************************************
  Macro definitions

@@ -16,13 +16,16 @@
  */
 
 #include "oled_low_level.h"
-#include "definitions.h"
-#include "sio_char.h"
-#include "rspi_all_cpus.h"
-#include "cfunctions.h"
 #include "oled_low_level_all_cpus.h"
+#include "definitions.h"
+
+#include "asm.h"
+#include "cfunctions.h"
 #include "dmac.h"
+#include "gpio.h"
 #include "mtu.h"
+#include "rspi_all_cpus.h"
+#include "sio_char.h"
 
 #define OLED_CODE_FOR_CV 1
 

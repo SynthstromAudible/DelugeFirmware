@@ -1,5 +1,5 @@
 /*
- * Copyright © 2021-2023 Synthstrom Audible Limited
+ * Copyright © 2023 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -13,24 +13,21 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
- */
+*/
 
-#ifndef DRIVERS_RZA1_OLED_OLED_LOW_LEVEL_H_
-#define DRIVERS_RZA1_OLED_OLED_LOW_LEVEL_H_
+#ifndef COMPILER_ASM_H_
+#define COMPILER_ASM_H_
 
-#include "r_typedefs.h"
+#include <inttypes.h>
 
-void oledSelectingComplete();
-void sendOledDMA();
-void oledTransferComplete(uint32_t int_sense);
-void oledDeselectionComplete();
-void enqueueCVMessage(int channel, uint32_t message);
-void cvSPITransferComplete(uint32_t sense);
-void setupSPIInterrupts();
-void sendSPITransferFromQueue();
-void oledLowLevelTimerCallback();
-void oledRoutine();
+//! \section asm-isr ASM stubs defined in isr.S
+extern void __enable_irq(void);
+extern void __disable_irq(void);
+extern void __enable_fiq(void);
+extern void __disable_fiq(void);
 
-extern int oledWaitingForMessage;
+//! \section asm-invalidate ASM stubs defined in invalidate.S
+extern void v7_dma_inv_range(uintptr_t start, uintptr_t end);
+extern void v7_dma_flush_range(uintptr_t start, uintptr_t end);
 
-#endif /* DRIVERS_RZA1_OLED_OLED_LOW_LEVEL_H_ */
+#endif /* COMPILER_ASM_H_ */

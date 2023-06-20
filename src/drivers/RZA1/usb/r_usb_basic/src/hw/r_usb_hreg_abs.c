@@ -35,6 +35,8 @@
 #include "r_usb_reg_access.h"
 #include "iodefine.h"
 
+#include "numericdriver.h"
+
 #if ((USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST)
 /***********************************************************************************************************************
  Function Name   : usb_hstd_set_hub_port

@@ -38,6 +38,9 @@
 #include "../../../inc/sdif.h"
 #include "../inc/access/sd.h"
 
+#include "asm.h"
+#include "uart_all_cpus.h"
+
 #ifdef __CC_ARM
 #pragma arm section code = "CODE_SDHI"
 #pragma arm section rodata = "CONST_SDHI"
