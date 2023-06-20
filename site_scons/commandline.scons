@@ -17,7 +17,6 @@ AddOption(
 AddOption(
     "--e2_target",
     dest="e2_target",
-    default="dbt-build-release-oled",
     type="string",
     nargs=1,
     action="store",

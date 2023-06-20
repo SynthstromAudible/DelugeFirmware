@@ -4,6 +4,9 @@ from dbt.project import E2Project
 Import("env")
 Import("log_parent")
 
+# Prep the return variable
+success = False
+
 # Beep boop, human lifeform detected.
 log = log_parent.getChild("e2_xml")
 log.info("Detected e2_xml mode.")
@@ -18,28 +21,28 @@ dbt_build_targets = [p.replace("e2-build-", "dbt-build-") for p in e2_build_targ
 e2_build_targets.sort()
 dbt_build_targets.sort()
 
-if GetOption("e2_target") not in dbt_build_targets:
+if env["BUILD_LABEL"] not in dbt_build_targets:
     print(
         'Error: "{}" is not a valid target in the e2_xml config.\n'.format(
-            GetOption("e2_target")
+            env["BUILD_LABEL"]
         )
     )
     print("       Valid targets include:")
     for bt in dbt_build_targets:
         print("           {}".format(bt))
     print("")
-    Return()
+    Return("success")
 
 # And with all that out of the way, we start up our
 # main/construction environment and configure the particulars
 # for e2_xml targeting all within the "if" block.
-build_label = GetOption("e2_target")
+build_label = env["BUILD_LABEL"]
 
 # Some shorthand for all the labels and directories we're
 # going to need below.
 dbt_target_index = dbt_build_targets.index(build_label)
 e2_target = e2_build_targets[dbt_target_index]
-build_dir = os.path.abspath(build_label)
+build_dir = env["BUILD_DIR"]
 source_dir = "src"
 build_src_dir = os.path.join(build_dir, source_dir)
 build_segs = build_label.split("-")
@@ -47,10 +50,6 @@ firmware_filename = cproject.get_target_filename(e2_target)
 
 # Build construction environment for selected or default e2 target
 env.Replace(**cproject.get_toolchain_tools(e2_target))
-
-# Stow where later commands can get hold of these
-env["BUILD_LABEL"] = build_label
-env["BUILD_DIR"] = build_dir
 
 # "Deluge-<build_type>-<model>" for the current e2 target
 env["FIRMWARE_FILENAME"] = firmware_filename
@@ -94,3 +93,7 @@ env["LINKCOM"] = "$CXX $CPPFLAGS -o $TARGET $SOURCES $LINKFLAGS"
 
 # This is questionably useful. I think it might actually be disabled in e2.
 env["LIBPATH"] = [str(i) for i in cproject.get_link_libs_order(e2_target)]
+
+success = True
+# Signal true back to SConstruct
+Return("success")
