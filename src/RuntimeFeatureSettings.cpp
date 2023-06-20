@@ -16,23 +16,24 @@
  */
 
 #include "RuntimeFeatureSettings.h"
+#include <string.h>
 #include "numericDriver.h"
+#include "storageManager.h"
+#include "DString.h"
 
 #define RUNTIME_FEATURE_SETTINGS_FILE "CommunityFeatures.XML"
 #define TAG_RUNTIME_FEATURE_SETTINGS "runtimeFeatureSettings"
-//RuntimeFeatureSetting RuntimeFeatureSettings::settings[RuntimeFeatureSettingType::MaxElement] = ;
+#define TAG_RUNTIME_FEATURE_SETTING "setting"
+#define TAG_RUNTIME_FEATURE_SETTING_ATTR_NAME "name"
+#define TAG_RUNTIME_FEATURE_SETTING_ATTR_VALUE "value"
+
 
 RuntimeFeatureSettings runtimeFeatureSettings;
 
 RuntimeFeatureSettings::RuntimeFeatureSettings() {}
 
 void RuntimeFeatureSettings::readSettingsFromFile() {
-    numericDriver.displayPopup("LDXML");
-
-    //runtimeFeatureSettingsMenu.items
-    // Copied code from MIDIDeviceManager for reference
-    /*
-    	if (successfullyReadDevicesFromFile) return; // Yup, we only want to do this once
+    numericDriver.displayPopup("Community file err");
 
 	FilePointer fp;
 	bool success = storageManager.fileExists(RUNTIME_FEATURE_SETTINGS_FILE, &fp);
@@ -41,85 +42,31 @@ void RuntimeFeatureSettings::readSettingsFromFile() {
 	int error = storageManager.openXMLFile(&fp, TAG_RUNTIME_FEATURE_SETTINGS);
 	if (error) return;
 
-	char const* tagName;
-	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
-		if (!strcmp(tagName, "dinPorts")) {
-			dinMIDIPorts.readFromFile();
-		}
-		else if (!strcmp(tagName, "upstreamUSBDevice")) {
-			upstreamUSBMIDIDevice.readFromFile();
-		}
-		else if (!strcmp(tagName, "hostedUSBDevice")) {
-			readAHostedDeviceFromFile();
+    String currentName;
+    int32_t currentValue = 0;
+	char const* currentTag;
+	while (*(currentTag = storageManager.readNextTagOrAttributeName())) {
+		if (strcmp(currentTag, TAG_RUNTIME_FEATURE_SETTING) == 0) {
+            // Read name
+            currentTag = storageManager.readNextTagOrAttributeName();
+            if (strcmp(currentTag, TAG_RUNTIME_FEATURE_SETTING_ATTR_NAME) != 0) { numericDriver.displayPopup("Community file err"); goto readEnd; }
+            storageManager.readTagOrAttributeValueString(&currentName);
+            storageManager.exitTag();
+
+            // Read value
+            currentTag = storageManager.readNextTagOrAttributeName();
+            if (strcmp(currentTag, TAG_RUNTIME_FEATURE_SETTING_ATTR_VALUE) != 0) { numericDriver.displayPopup("Community file err"); goto readEnd; }
+            currentValue = storageManager.readTagOrAttributeValueInt();
+            storageManager.exitTag();
+
+            //@TODO: Search for the setting and store it either in the setting struct or in the unsupported settings
 		}
 
 		storageManager.exitTag();
 	}
 
+readEnd:
 	storageManager.closeFile();
-
-	recountSmallestMPEZones();
-
-	soundEditor.mpeZonesPotentiallyUpdated();
-
-	successfullyReadDevicesFromFile = true;
-}
-
-void readAHostedDeviceFromFile() {
-	MIDIDeviceUSBHosted* device = NULL;
-
-	String name;
-	uint16_t vendorId;
-	uint16_t productId;
-
-	char const* tagName;
-	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
-
-		int whichPort;
-
-		if (!strcmp(tagName, "vendorId")) {
-			vendorId = storageManager.readTagOrAttributeValueHex(0);
-		}
-		else if (!strcmp(tagName, "productId")) {
-			productId = storageManager.readTagOrAttributeValueHex(0);
-		}
-		else if (!strcmp(tagName, "name")) {
-			storageManager.readTagOrAttributeValueString(&name);
-		}
-		else if (!strcmp(tagName, "input")) {
-			whichPort = MIDI_DIRECTION_INPUT_TO_DELUGE;
-checkDevice:
-			if (!device) {
-				if (!name.isEmpty() || vendorId) {
-					device = getOrCreateHostedMIDIDeviceFromDetails(&name, vendorId,
-					                                                productId); // Will return NULL if error.
-				}
-			}
-
-			if (device) {
-				device->ports[whichPort].readFromFile((whichPort == MIDI_DIRECTION_OUTPUT_FROM_DELUGE) ? device : NULL);
-			}
-		}
-		else if (!strcmp(tagName, "output")) {
-			whichPort = MIDI_DIRECTION_OUTPUT_FROM_DELUGE;
-			goto checkDevice;
-		}
-		else if (!strcmp(tagName, "defaultVolumeVelocitySensitivity")) {
-
-			// Sorry, I cloned this code from above.
-			if (!device) {
-				if (!name.isEmpty() || vendorId) {
-					device = getOrCreateHostedMIDIDeviceFromDetails(&name, vendorId,
-					                                                productId); // Will return NULL if error.
-				}
-			}
-
-			if (device) device->defaultVelocityToLevel = storageManager.readTagOrAttributeValueInt();
-		}
-
-		storageManager.exitTag();
-	}
-    */
 }
 
 void RuntimeFeatureSettings::writeSettingsToFile() {
@@ -134,17 +81,11 @@ void RuntimeFeatureSettings::writeSettingsToFile() {
 	storageManager.writeOpeningTagEnd();
 
     for(uint32_t idxSetting = 0; idxSetting < RuntimeFeatureSettingType::MaxElement; ++idxSetting) {
-        //@TODO: Adapt
-        /*
-        storageManager.writeOpeningTagBeginning("sound");
-        storageManager.writeAttribute("name", name.get());
-
-        Sound::writeToFile(savingSong, paramManager, &arpSettings);
-
-        if (savingSong) Drum::writeMIDICommandsToFile();
-
-        storageManager.writeClosingTag("sound");
-        */
+        storageManager.writeOpeningTagBeginning(TAG_RUNTIME_FEATURE_SETTING);
+        storageManager.writeAttribute(TAG_RUNTIME_FEATURE_SETTING_ATTR_NAME, settings[idxSetting].xmlName, false);
+        storageManager.writeAttribute(TAG_RUNTIME_FEATURE_SETTING_ATTR_VALUE, settings[idxSetting].value, false);
+        storageManager.writeOpeningTagEnd(false);
+        storageManager.writeClosingTag(TAG_RUNTIME_FEATURE_SETTING, false);
     }
     
     //@TODO: Write unknown settings
