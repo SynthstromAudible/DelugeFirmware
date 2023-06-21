@@ -19,7 +19,7 @@
 #include <new>
 #include <string.h>
 #include "numericdriver.h"
-#include "storageManager.h"
+#include "storagemanager.h"
 
 #define RUNTIME_FEATURE_SETTINGS_FILE "CommunityFeatures.XML"
 #define TAG_RUNTIME_FEATURE_SETTINGS "runtimeFeatureSettings"
