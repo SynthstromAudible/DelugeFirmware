@@ -1509,7 +1509,7 @@ extern usb_msg_t* p_usb_scheduler_add_use;
  ***********************************************************************************************************************/
 void usb_hstd_mgr_task(usb_vp_int_t stacd)
 {
-    usb_utr_t* mess = p_usb_scheduler_add_use;
+    usb_utr_t* mess = (usb_utr_t*)p_usb_scheduler_add_use;
     usb_utr_t* ptr;
     usb_er_t err;
     usb_hcdreg_t* driver;
