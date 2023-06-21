@@ -34,6 +34,14 @@
 #include "r_usb_bitdefine.h"
 #include "r_usb_reg_access.h"
 #include "definitions.h"
+#include "uart_all_cpus.h"
+
+#include "Deluge.h"
+#if HAVE_OLED
+#include "oled.h"
+#else
+#include "numericdriver.h"
+#endif
 
 #if ((USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST)
 /***********************************************************************************************************************

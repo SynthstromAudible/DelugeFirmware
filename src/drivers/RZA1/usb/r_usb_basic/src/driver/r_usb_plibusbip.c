@@ -629,7 +629,7 @@ uint16_t usb_read_data_fast_rohan(uint16_t pipe)
     return USB_READEND; // It might also have been a READSHRT, but the distinction doesn't matter to us.
 }
 
-uint16_t g_usb_usbmode;
+extern uint16_t g_usb_usbmode;
 
 /***********************************************************************************************************************
  Function Name   : usb_pstd_read_data
@@ -933,7 +933,7 @@ void usb_pstd_brdy_pipe_process_rohan_midi(uint16_t bitsts)
                                 //((usb_cb_t)g_p_usb_pstd_pipe[pipe]->complete)(g_p_usb_pstd_pipe[pipe], USB_NULL, USB_NULL);
                                 //usbReceiveComplete(0, 0, g_usb_pstd_data_cnt[pipe]);
                                 g_p_usb_pipe[pipe] = (usb_utr_t*)USB_NULL; // Is this necessary? Doesn't look like it
-
+                                // Only sets received bytes for first device
                                 // I've just pasted the relevant contents of usbReceiveComplete() in here
                                 connectedUSBMIDIDevices[0][0].numBytesReceived =
                                     64

@@ -16,8 +16,10 @@
 */
 
 #include "cfunctions.h"
+
 #include "definitions.h"
 #include "mtu_all_cpus.h"
+#include <string.h>
 
 int getNumDecimalDigits(uint32_t number) {
 	uint32_t sizeTest = 10;

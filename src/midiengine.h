@@ -18,6 +18,8 @@
 #ifndef MIDIENGINE_H
 #define MIDIENGINE_H
 
+#ifdef __cplusplus
+
 #include "playbackhandler.h"
 #include "definitions.h"
 #include "LearnedMIDI.h"
@@ -75,5 +77,12 @@ uint32_t setupUSBMessage(uint8_t statusType, uint8_t channel, uint8_t data1, uin
 
 extern MidiEngine midiEngine;
 extern bool anythingInUSBOutputBuffer;
+
+extern "C" {
+#endif
+void usbSendComplete(int ip);
+#ifdef __cplusplus
+}
+#endif
 
 #endif // MIDIENGINE_H

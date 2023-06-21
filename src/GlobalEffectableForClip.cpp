@@ -222,9 +222,9 @@ bool GlobalEffectableForClip::modEncoderButtonAction(uint8_t whichModEncoder, bo
 	if (on && !Buttons::isShiftButtonPressed()) {
 		if (*getModKnobMode() == 4) {
 			if (whichModEncoder == 1) { // Sidechain
-				if (compressor.sync == 6) compressor.sync = 8;
-				else compressor.sync = 6;
-				if (compressor.sync == 6) numericDriver.displayPopup("SLOW");
+				if (compressor.syncLevel == SYNC_LEVEL_32ND) compressor.syncLevel = SYNC_LEVEL_128TH;
+				else compressor.syncLevel = SYNC_LEVEL_32ND;
+				if (compressor.syncLevel == SYNC_LEVEL_32ND) numericDriver.displayPopup("SLOW");
 				else numericDriver.displayPopup("FAST");
 				return true;
 			}
