@@ -79,7 +79,7 @@ public:
 	virtual void setTextAsSlot(int16_t currentSlot, int8_t currentSubSlot, bool currentSlotExists, bool doBlink = false,
 	                           int32_t blinkPos = -1, bool blinkImmediately = false) {}
 	virtual NumericLayerScrollingText* setScrollingText(char const* newText, int32_t startAtPos = 0,
-	                                                    int32_t initialDelay = 600) {
+	                                                    int32_t initialDelay = 600, int count = -1) {
 		return nullptr;
 	}
 

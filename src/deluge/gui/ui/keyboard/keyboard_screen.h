@@ -23,6 +23,7 @@
 #include "gui/ui/ui.h"
 #include "hid/button.h"
 #include "model/clip/instrument_clip_minder.h"
+#include "model/instrument/instrument.h"
 
 class ModelStack;
 
@@ -57,6 +58,8 @@ public:
 	// ui
 	UIType getUIType() { return UIType::KEYBOARD_SCREEN; }
 
+	void checkNewInstrument(Instrument* newInstrument);
+
 private:
 	bool opened();
 	void focusRegained();
@@ -74,7 +77,6 @@ private:
 
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) { InstrumentClipMinder::renderOLED(image); }
 
-private:
 	void selectLayout(int8_t offset);
 	void enterScaleMode(int32_t selectedRootNote = kDefaultCalculateRootNote);
 	void exitScaleMode();

@@ -32,4 +32,6 @@ public:
 	int8_t currentDirection;
 	int8_t currentPos;
 	int16_t initialDelay;
+
+	int scrollsCount = -1;
 };
