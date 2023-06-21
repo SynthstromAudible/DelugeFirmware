@@ -16,6 +16,10 @@ constexpr uint8_t fromXY(int32_t x, int32_t y) {
 
 using Button = uint8_t;
 
+// TODO: these are duplicate
+static constexpr uint8_t ZmodButtonX[8] = {1, 1, 1, 1, 2, 2, 2, 2};
+static constexpr uint8_t ZmodButtonY[8] = {0, 1, 2, 3, 0, 1, 2, 3};
+
 // clang-format off
 enum KnownButtons : Button {
 	AFFECT_ENTIRE     = fromCartesian(affectEntireButtonCoord),
@@ -38,6 +42,8 @@ enum KnownButtons : Button {
 	PLAY              = fromCartesian(playButtonCoord),
 	RECORD            = fromCartesian(recordButtonCoord),
 	SHIFT             = fromCartesian(shiftButtonCoord),
+
+	MOD7              = fromXY(ZmodButtonX[6], ZmodButtonY[6]),
 
 	X_ENC             = fromCartesian(xEncButtonCoord),
 	Y_ENC             = fromCartesian(yEncButtonCoord),

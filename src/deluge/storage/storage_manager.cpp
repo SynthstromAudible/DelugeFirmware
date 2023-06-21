@@ -112,6 +112,27 @@ void StorageManager::writeAttributeHex(char const* name, int32_t number, int32_t
 	writeAttribute(name, buffer, onNewLine);
 }
 
+// numChars may be up to 8
+void StorageManager::writeAttributeHexBytes(char const* name, uint8_t* data, int32_t numBytes, bool onNewLine) {
+
+	if (onNewLine) {
+		write("\n");
+		printIndents();
+	}
+	else {
+		write(" ");
+	}
+	write(name);
+	write("=\"");
+
+	char buffer[3];
+	for (int i = 0; i < numBytes; i++) {
+		intToHex(data[i], &buffer[0], 2);
+		write(buffer);
+	}
+	write("\"");
+}
+
 void StorageManager::writeAttribute(char const* name, char const* value, bool onNewLine) {
 
 	if (onNewLine) {
@@ -766,6 +787,74 @@ int32_t StorageManager::readTagOrAttributeValueHex(int32_t errorValue) {
 		return errorValue;
 	}
 	return hexToInt(&string[2]);
+}
+
+int StorageManager::readTagOrAttributeValueHexBytes(uint8_t* bytes, int32_t maxLen) {
+	switch (xmlArea) {
+
+	case BETWEEN_TAGS:
+		xmlArea = IN_TAG_NAME; // How it'll be after this call
+		return readHexBytesUntil(bytes, maxLen, '<');
+
+	case PAST_ATTRIBUTE_NAME:
+	case PAST_EQUALS_SIGN:
+		if (!getIntoAttributeValue())
+			return 0;
+		xmlArea = IN_TAG_PAST_NAME; // How it'll be after this next call
+		return readHexBytesUntil(bytes, maxLen, charAtEndOfValue);
+
+	case IN_TAG_PAST_NAME: // Could happen if trying to read a value but instead of a value there are multiple more
+	                       // contents, like attributes etc. Obviously not "meant" to happen, but we need to cope.
+		return 0;
+
+	default:
+		FREEZE_WITH_ERROR("BBBB");
+		__builtin_unreachable();
+	}
+}
+
+bool getNibble(char ch, int* nibble) {
+	if ('0' <= ch and ch <= '9') {
+		*nibble = ch - '0';
+	}
+	else if ('a' <= ch and ch <= 'f') {
+		*nibble = ch - 'a' + 10;
+	}
+	else if ('A' <= ch and ch <= 'F') {
+		*nibble = ch - 'A' + 10;
+	}
+	else {
+		return false;
+	}
+	return true;
+}
+
+int StorageManager::readHexBytesUntil(uint8_t* bytes, int32_t maxLen, char endChar) {
+	int read;
+	char thisChar;
+
+	for (read = 0; read < maxLen; read++) {
+		int highNibble, lowNibble;
+
+		if (!readCharXML(&thisChar))
+			return 0;
+		if (!getNibble(thisChar, &highNibble)) {
+			goto getOut;
+		}
+
+		if (!readCharXML(&thisChar))
+			return 0;
+		if (!getNibble(thisChar, &lowNibble)) {
+			goto getOut;
+		}
+
+		bytes[read] = (highNibble << 4) + lowNibble;
+	}
+getOut:
+	if (thisChar != endChar) {
+		skipUntilChar(endChar);
+	}
+	return read;
 }
 
 // Returns memory error

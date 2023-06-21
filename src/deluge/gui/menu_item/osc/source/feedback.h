@@ -29,7 +29,7 @@ public:
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		Sound* sound = static_cast<Sound*>(modControllable);
-		return (sound->getSynthMode() == SynthMode::FM);
+		return (sound->getSynthMode() == SynthMode::FM || sound->sources[whichThing].oscType == OscType::DX7);
 	}
 };
 
