@@ -44,7 +44,6 @@ class ModelStackWithThreeMainThings;
 class Instrument : public Output {
 public:
 	Instrument(int newType);
-	virtual char const* getFilePrefix() {}
 	// This needs to be initialized / defaulted to "SYNTHS" or "KITS" (for those Instrument types). The constructor does
 	// not do this, partly because I don't want it doing memory allocation, and also because in many cases, the function
 	// creating the object hard-sets this anyway.
