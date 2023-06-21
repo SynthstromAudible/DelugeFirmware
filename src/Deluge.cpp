@@ -505,8 +505,6 @@ extern "C" void init_constructors(void);
 
 extern "C" int main2(void) {
 
-extern bool menusInititialized;
-
 	// Give the PIC some startup instructions
 
 #if HAVE_OLED
@@ -547,8 +545,6 @@ extern bool menusInititialized;
 
 	// Initialize globally declared instances of classes (so, objects) by calling their constructors.
 	init_constructors();
-	menusInititialized = true;
-	new (&soundEditor) SoundEditor;
 
 	currentPlaybackMode = &session;
 

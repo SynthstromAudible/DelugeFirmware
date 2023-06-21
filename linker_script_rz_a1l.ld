@@ -193,6 +193,12 @@ SECTIONS
 	} > RAM012L
 
 	/* array of constructor and destructor functions for c++ global objects */
+	 .preinit_array :
+	 {
+	   PROVIDE_HIDDEN (__preinit_array_start = .);
+	   KEEP (*(.preinit_array*))
+	   PROVIDE_HIDDEN (__preinit_array_end = .);
+	} > RAM012L
 	.init_array :
 	{
 		PROVIDE_HIDDEN (__init_array_start = .);
@@ -206,6 +212,9 @@ SECTIONS
 		KEEP (*(SORT(.fini_array.*)))
 		KEEP (*(.fini_array))
 		PROVIDE_HIDDEN (__fini_array_end = .);
+		.	= ALIGN(0x8);
+		__dso_handle = .;
+		.  += 8;
 	} >RAM012L
 	
 	/* The heap-start needs its own section because for some reason, extra stuff is injected after the previous section. */

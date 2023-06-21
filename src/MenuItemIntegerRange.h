@@ -22,7 +22,12 @@
 
 class MenuItemIntegerRange final : public MenuItemRange {
 public:
-	MenuItemIntegerRange(char const* newName = NULL, int newMin = 0, int newMax = 0);
+	MenuItemIntegerRange(char const* newName = NULL) : MenuItemRange(newName) {}
+	void init(char const* newName = NULL, int newMin = 0, int newMax = 0) {
+		name = newName;
+		minValue = newMin;
+		maxValue = newMax;
+	}
 	void beginSession(MenuItem* navigatedBackwardFrom);
 	void getText(char* buffer, int* getLeftLength, int* getRightLength, bool mayShowJustOne);
 	void selectEncoderAction(int offset);

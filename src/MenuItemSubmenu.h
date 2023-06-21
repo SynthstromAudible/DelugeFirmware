@@ -23,6 +23,11 @@
 class MenuItemSubmenu : public MenuItem {
 public:
 	MenuItemSubmenu(char const* newName = NULL, MenuItem** newItems = NULL) : MenuItem(newName) { items = newItems; }
+	void init(char const* newName = NULL, MenuItem** newItems = 0) {
+		name = newName;
+		items = newItems;
+	}
+
 	void beginSession(MenuItem* navigatedBackwardFrom = NULL);
 	void updateDisplay();
 	void selectEncoderAction(int offset) final;
@@ -44,6 +49,11 @@ public:
 	    : MenuItemSubmenu(newName, newItems) {
 		thingIndex = newThingIndex;
 	}
+	void init(char const* newName, MenuItem** newItems, int newThingIndex) {
+		name = newName;
+		items = newItems;
+		thingIndex = newThingIndex;
+	}
 	void beginSession(MenuItem* navigatedBackwardFrom = NULL);
 
 	uint8_t thingIndex;
@@ -56,6 +66,12 @@ public:
 	    : MenuItemSubmenu(newName, newItems) {
 		forReverbCompressor = newForReverbCompressor;
 	}
+	void init(char const* newName, MenuItem** newItems, bool newForReverbCompressor) {
+		name = newName;
+		items = newItems;
+		forReverbCompressor = newForReverbCompressor;
+	}
+
 	void beginSession(MenuItem* navigatedBackwardFrom = NULL);
 
 	bool forReverbCompressor;

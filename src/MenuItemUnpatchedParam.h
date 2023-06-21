@@ -28,6 +28,11 @@ public:
 	MenuItemUnpatchedParam();
 	MenuItemUnpatchedParam(char const* newName, int newP) : MenuItemParam(newP), MenuItemIntegerContinuous(newName) {}
 
+	void init(char const* newName = NULL, int newP = 0) {
+		name = newName;
+		p = newP;
+	}
+
 	void readCurrentValue();
 	void writeCurrentValue();
 	ParamDescriptor getLearningThing() final;

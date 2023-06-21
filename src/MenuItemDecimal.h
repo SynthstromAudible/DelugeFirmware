@@ -47,6 +47,12 @@ class MenuItemTranspose : public MenuItemDecimal, public MenuItemPatchedParam {
 public:
 	MenuItemTranspose(char const* newName = NULL, int newP = 0)
 	    : MenuItemPatchedParam(newP), MenuItemDecimal(newName) {}
+
+	void init(char const* newName = NULL, int newP = 0) {
+		name = newName;
+		p = newP;
+	}
+
 	MenuItem* selectButtonPress() final { return MenuItemPatchedParam::selectButtonPress(); }
 	int getMinValue() final { return -9600; }
 	int getMaxValue() final { return 9600; }

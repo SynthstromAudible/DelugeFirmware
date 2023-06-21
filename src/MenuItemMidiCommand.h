@@ -24,7 +24,9 @@ class MIDIDevice;
 
 class MenuItemMidiCommand final : public MenuItem {
 public:
-	MenuItemMidiCommand(char const* newName = NULL, int newCommandNumber = 0) : MenuItem(newName) {
+	MenuItemMidiCommand(char const* newName = NULL) : MenuItem(newName) {}
+	void init(char const* newName = NULL, int newCommandNumber = 0) {
+		name = newName;
 		commandNumber = newCommandNumber;
 	}
 	void beginSession(MenuItem* navigatedBackwardFrom);

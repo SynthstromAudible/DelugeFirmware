@@ -27,6 +27,7 @@ class MenuItemPatchedParam : public MenuItemParam, public MenuItemWithCCLearning
 public:
 	MenuItemPatchedParam() {}
 	MenuItemPatchedParam(int newP) : MenuItemParam(newP) {}
+
 	MenuItem* selectButtonPress();
 #if !HAVE_OLED
 	void drawValue();
@@ -47,6 +48,12 @@ class MenuItemPatchedParamInteger : public MenuItemPatchedParam, public MenuItem
 public:
 	MenuItemPatchedParamInteger(char const* newName = NULL, int newP = 0)
 	    : MenuItemPatchedParam(newP), MenuItemIntegerContinuous(newName) {}
+
+	void init(char const* newName = NULL, int newP = 0) {
+		name = newName;
+		p = newP;
+	}
+
 #if !HAVE_OLED
 	void drawValue() {
 		MenuItemPatchedParam::drawValue();

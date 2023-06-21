@@ -25,6 +25,10 @@ public:
 	MenuItemAudioClipSampleMarkerEditor(char const* newName = NULL, int newWhichMarker = 0) : MenuItem(newName) {
 		whichMarker = newWhichMarker;
 	}
+	void init(char const* newName = NULL, int newWhichMarker = 0) {
+		name = newName;
+		whichMarker = newWhichMarker;
+	}
 
 	int checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange);
 	void beginSession(MenuItem* navigatedBackwardFrom);

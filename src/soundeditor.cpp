@@ -510,6 +510,12 @@ public:
 	MenuItemRetriggerPhase(char const* newName = NULL, bool newForModulator = false) : MenuItemDecimal(newName) {
 		forModulator = newForModulator;
 	}
+
+	void init(char const* newName = NULL, bool newForModulator = false) {
+		name = newName;
+		forModulator = newForModulator;
+	}
+
 	int getMinValue() { return -soundEditor.numberEditSize; }
 	int getMaxValue() { return 360; }
 	int getNumDecimalPlaces() { return 0; }
@@ -2440,14 +2446,7 @@ public:
 	void writeCurrentValue() { FlashStorage::defaultBendRange[BEND_RANGE_MAIN] = soundEditor.currentValue; }
 } defaultBendRangeMenu;
 
-// TODO: we need to do this until menuitems have been refactored in some which
-// to not use the `new (&item) Item("name"); pattern` anymore
-bool menusInititialized = false;
-
 SoundEditor::SoundEditor() {
-	if (menusInititialized) {
-		return;
-	}
 	currentParamShorcutX = 255;
 	memset(sourceShortcutBlinkFrequencies, 255, sizeof(sourceShortcutBlinkFrequencies));
 	timeLastAttemptedAutomatedParamEdit = 0;
@@ -2455,31 +2454,30 @@ SoundEditor::SoundEditor() {
 
 	// Settings menu -------------------------------------------------------------
 	// Trigger clock in menu
-	new (&triggerInPPQNMenu) MenuItemTriggerInPPQN("PPQN");
-	new (&triggerInAutoStartMenu) MenuItemTriggerInAutoStart("Auto-start");
+	triggerInPPQNMenu.init("PPQN");
+	triggerInAutoStartMenu.init("Auto-start");
 	static MenuItem* triggerClockInMenuItems[] = {&triggerInPPQNMenu, &triggerInAutoStartMenu, NULL};
 
 	// Trigger clock out menu
-	new (&triggerOutPPQNMenu) MenuItemTriggerOutPPQN("PPQN");
+	triggerOutPPQNMenu.init("PPQN");
 	static MenuItem* triggerClockOutMenuItems[] = {&triggerOutPPQNMenu, NULL};
 
 	// MIDI clock menu
-	new (&midiClockInStatusMenu) MenuItemMidiClockInStatus(HAVE_OLED ? "Input" : "IN");
-	new (&midiClockOutStatusMenu) MenuItemMidiClockOutStatus(HAVE_OLED ? "Output" : "OUT");
-	new (&tempoMagnitudeMatchingMenu) MenuItemTempoMagnitudeMatching(HAVE_OLED ? "Tempo magnitude matching" : "MAGN");
+	midiClockInStatusMenu.init(HAVE_OLED ? "Input" : "IN");
+	midiClockOutStatusMenu.init(HAVE_OLED ? "Output" : "OUT");
+	tempoMagnitudeMatchingMenu.init(HAVE_OLED ? "Tempo magnitude matching" : "MAGN");
 	static MenuItem* midiClockMenuItems[] = {&midiClockInStatusMenu, &midiClockOutStatusMenu,
 	                                         &tempoMagnitudeMatchingMenu, NULL};
 
 	// MIDI commands menu
-	new (&playbackRestartMidiCommand) MenuItemMidiCommand("Restart", GLOBAL_MIDI_COMMAND_PLAYBACK_RESTART);
-	new (&playMidiCommand) MenuItemMidiCommand("PLAY", GLOBAL_MIDI_COMMAND_PLAY);
-	new (&recordMidiCommand) MenuItemMidiCommand(HAVE_OLED ? "Record" : "REC", GLOBAL_MIDI_COMMAND_RECORD);
-	new (&tapMidiCommand) MenuItemMidiCommand("Tap tempo", GLOBAL_MIDI_COMMAND_TAP);
-	new (&undoMidiCommand) MenuItemMidiCommand("UNDO", GLOBAL_MIDI_COMMAND_UNDO);
-	new (&redoMidiCommand) MenuItemMidiCommand("REDO", GLOBAL_MIDI_COMMAND_REDO);
-	new (&loopMidiCommand) MenuItemMidiCommand("LOOP", GLOBAL_MIDI_COMMAND_LOOP);
-	new (&loopContinuousLayeringMidiCommand)
-	    MenuItemMidiCommand("LAYERING loop", GLOBAL_MIDI_COMMAND_LOOP_CONTINUOUS_LAYERING);
+	playbackRestartMidiCommand.init("Restart", GLOBAL_MIDI_COMMAND_PLAYBACK_RESTART);
+	playMidiCommand.init("PLAY", GLOBAL_MIDI_COMMAND_PLAY);
+	recordMidiCommand.init(HAVE_OLED ? "Record" : "REC", GLOBAL_MIDI_COMMAND_RECORD);
+	tapMidiCommand.init("Tap tempo", GLOBAL_MIDI_COMMAND_TAP);
+	undoMidiCommand.init("UNDO", GLOBAL_MIDI_COMMAND_UNDO);
+	redoMidiCommand.init("REDO", GLOBAL_MIDI_COMMAND_REDO);
+	loopMidiCommand.init("LOOP", GLOBAL_MIDI_COMMAND_LOOP);
+	loopContinuousLayeringMidiCommand.init("LAYERING loop", GLOBAL_MIDI_COMMAND_LOOP_CONTINUOUS_LAYERING);
 	static MenuItem* midiCommandsMenuItems[] = {&playMidiCommand,
 	                                            &playbackRestartMidiCommand,
 	                                            &recordMidiCommand,
@@ -2491,90 +2489,87 @@ SoundEditor::SoundEditor() {
 	                                            NULL};
 
 	// MIDI menu
-	new (&midiClockMenu) MenuItemSubmenu("CLOCK", midiClockMenuItems);
-	new (&midiThruMenu) MenuItemMidiThru(HAVE_OLED ? "MIDI-thru" : "THRU");
-	new (&midiCommandsMenu) MenuItemSubmenu(HAVE_OLED ? "Commands" : "CMD", midiCommandsMenuItems);
-	new (&midiInputDifferentiationMenu) MenuItemMidiInputDifferentiation("Differentiate inputs");
-	new (&midiDevicesMenu) MenuItemMIDIDevices("Devices");
+	midiClockMenu.init("CLOCK", midiClockMenuItems);
+	midiThruMenu.init(HAVE_OLED ? "MIDI-thru" : "THRU");
+	midiCommandsMenu.init(HAVE_OLED ? "Commands" : "CMD", midiCommandsMenuItems);
+	midiInputDifferentiationMenu.init("Differentiate inputs");
+	midiDevicesMenu.init("Devices");
 	static MenuItem* midiMenuItems[] = {
 	    &midiClockMenu, &midiThruMenu, &midiCommandsMenu, &midiInputDifferentiationMenu, &midiDevicesMenu, NULL};
 
-	new (&mpeZoneNumMemberChannelsMenu) MenuItemMPEZoneNumMemberChannels();
-	new (&mpeZoneSelectorMenu) MenuItemMPEZoneSelector();
-	new (&mpeDirectionSelectorMenu) MenuItemMPEDirectionSelector("MPE");
-	new (&defaultVelocityToLevelMenu) MenuItemDefaultVelocityToLevel("VELOCITY");
+	mpeDirectionSelectorMenu.init("MPE");
+	defaultVelocityToLevelMenu.init("VELOCITY");
 	static MenuItem* midiDeviceMenuItems[] = {&mpeDirectionSelectorMenu, &defaultVelocityToLevelMenu, NULL};
 
-	new (&midiDeviceMenu) MenuItemSubmenu(NULL, midiDeviceMenuItems);
+	midiDeviceMenu.init(NULL, midiDeviceMenuItems);
 
 	// Trigger clock menu
-	new (&triggerClockInMenu) MenuItemSubmenu(HAVE_OLED ? "Input" : "IN", triggerClockInMenuItems);
-	new (&triggerClockOutMenu) MenuItemSubmenu(HAVE_OLED ? "Output" : "OUT", triggerClockOutMenuItems);
+	triggerClockInMenu.init(HAVE_OLED ? "Input" : "IN", triggerClockInMenuItems);
+	triggerClockOutMenu.init(HAVE_OLED ? "Output" : "OUT", triggerClockOutMenuItems);
 	static MenuItem* triggerClockMenuItems[] = {&triggerClockInMenu, &triggerClockOutMenu, NULL};
 
 	// Defaults menu
-	new (&defaultTempoMenu) MenuItemIntegerRange("TEMPO", 60, 240);
-	new (&defaultSwingMenu) MenuItemIntegerRange("SWING", 1, 99);
-	new (&defaultKeyMenu) MenuItemKeyRange("KEY");
-	new (&defaultScaleMenu) MenuItemDefaultScale("SCALE");
-	new (&defaultVelocityMenu) MenuItemDefaultVelocity("VELOCITY");
-	new (&defaultMagnitudeMenu) MenuItemDefaultMagnitude("RESOLUTION");
-	new (&defaultBendRangeMenu) MenuItemBendRangeDefault("Bend range");
+	defaultTempoMenu.init("TEMPO", 60, 240);
+	defaultSwingMenu.init("SWING", 1, 99);
+	defaultKeyMenu.init("KEY");
+	defaultScaleMenu.init("SCALE");
+	defaultVelocityMenu.init("VELOCITY");
+	defaultMagnitudeMenu.init("RESOLUTION");
+	defaultBendRangeMenu.init("Bend range");
 	static MenuItem* defaultsMenuItems[] = {
 	    &defaultTempoMenu,    &defaultSwingMenu,     &defaultKeyMenu,       &defaultScaleMenu,
 	    &defaultVelocityMenu, &defaultMagnitudeMenu, &defaultBendRangeMenu, NULL};
 
 	// Record menu
-	new (&recordQuantizeMenu) MenuItemRecordQuantize("Quantization");
-	new (&recordMarginsMenu) MenuItemRecordMargins(HAVE_OLED ? "Loop margins" : "MARGINS");
-	new (&recordCountInMenu) MenuItemRecordCountIn("Count-in");
-	new (&monitorModeMenu) MenuItemMonitorMode(HAVE_OLED ? "Sampling monitoring" : "MONITORING");
+	recordQuantizeMenu.init("Quantization");
+	recordMarginsMenu.init(HAVE_OLED ? "Loop margins" : "MARGINS");
+	recordCountInMenu.init("Count-in");
+	monitorModeMenu.init(HAVE_OLED ? "Sampling monitoring" : "MONITORING");
 	static MenuItem* recordMenuItems[] = {&recordCountInMenu, &recordQuantizeMenu, &recordMarginsMenu, &monitorModeMenu,
 	                                      NULL};
 
 	// Colours submenu
-	new (&activeColourMenu) MenuItemColour("ACTIVE");
-	new (&stoppedColourMenu) MenuItemColour("STOPPED");
-	new (&mutedColourMenu) MenuItemColour("MUTED");
-	new (&soloColourMenu) MenuItemColour("SOLOED");
+	activeColourMenu.init("ACTIVE");
+	stoppedColourMenu.init("STOPPED");
+	mutedColourMenu.init("MUTED");
+	soloColourMenu.init("SOLOED");
 	static MenuItem* coloursMenuItems[] = {&activeColourMenu, &stoppedColourMenu, &mutedColourMenu, &soloColourMenu,
 	                                       NULL};
 
 	// Pads menu
-	new (&shortcutsVersionMenu) MenuItemShortcutsVersion(HAVE_OLED ? "Shortcuts version" : "SHOR");
-	new (&keyboardLayoutMenu) MenuItemKeyboardLayout(HAVE_OLED ? "Keyboard for text" : "KEYB");
-	new (&coloursSubmenu) MenuItemSubmenu("COLOURS", coloursMenuItems);
+	shortcutsVersionMenu.init(HAVE_OLED ? "Shortcuts version" : "SHOR");
+	keyboardLayoutMenu.init(HAVE_OLED ? "Keyboard for text" : "KEYB");
+	coloursSubmenu.init("COLOURS", coloursMenuItems);
 	static MenuItem* layoutMenuItems[] = {&shortcutsVersionMenu, &keyboardLayoutMenu, &coloursSubmenu, NULL};
 
 	// Root menu
-	new (&cvSelectionMenu) MenuItemCVSelection("CV");
-	new (&gateSelectionMenu) MenuItemGateSelection("GATE");
-	new (&triggerClockMenu) MenuItemSubmenu(HAVE_OLED ? "Trigger clock" : "TCLOCK", triggerClockMenuItems);
-	new (&midiMenu) MenuItemSubmenu("MIDI", midiMenuItems);
-	new (&defaultsSubmenu) MenuItemSubmenu("DEFAULTS", defaultsMenuItems);
-	new (&swingIntervalMenu) MenuItemSwingInterval(HAVE_OLED ? "Swing interval" : "SWIN");
-	new (&padsSubmenu) MenuItemSubmenu("PADS", layoutMenuItems);
-	new (&sampleBrowserPreviewModeMenu) MenuItemSampleBrowserPreviewMode(HAVE_OLED ? "Sample preview" : "PREV");
-	new (&flashStatusMenu) MenuItemFlashStatus(HAVE_OLED ? "Play-cursor" : "CURS");
-	new (&recordSubmenu) MenuItemSubmenu("Recording", recordMenuItems);
-	new (&firmwareVersionMenu) MenuItemFirmwareVersion("Firmware version");
+	cvSelectionMenu.init("CV");
+	gateSelectionMenu.init("GATE");
+	triggerClockMenu.init(HAVE_OLED ? "Trigger clock" : "TCLOCK", triggerClockMenuItems);
+	midiMenu.init("MIDI", midiMenuItems);
+	defaultsSubmenu.init("DEFAULTS", defaultsMenuItems);
+	swingIntervalMenu.init(HAVE_OLED ? "Swing interval" : "SWIN");
+	padsSubmenu.init("PADS", layoutMenuItems);
+	sampleBrowserPreviewModeMenu.init(HAVE_OLED ? "Sample preview" : "PREV");
+	flashStatusMenu.init(HAVE_OLED ? "Play-cursor" : "CURS");
+	recordSubmenu.init("Recording", recordMenuItems);
+	firmwareVersionMenu.init("Firmware version");
 
 	static MenuItem* rootSettingsMenuItems[] = {
 	    &cvSelectionMenu, &gateSelectionMenu, &triggerClockMenu,    &midiMenu,
 	    &defaultsSubmenu, &swingIntervalMenu, &padsSubmenu,         &sampleBrowserPreviewModeMenu,
 	    &flashStatusMenu, &recordSubmenu,     &firmwareVersionMenu, NULL};
-	new (&settingsRootMenu) MenuItemSubmenu("Settings", rootSettingsMenuItems);
+	settingsRootMenu.init("Settings", rootSettingsMenuItems);
 
 	// CV menu
-	new (&cvVoltsMenu) MenuItemCVVolts("Volts per octave");
-	new (&cvTransposeMenu) MenuItemCVTranspose("TRANSPOSE");
+	cvVoltsMenu.init("Volts per octave");
+	cvTransposeMenu.init("TRANSPOSE");
 	static MenuItem* cvMenuItems[] = {&cvVoltsMenu, &cvTransposeMenu, NULL};
 
-	new (&cvSubmenu) MenuItemSubmenu("", cvMenuItems);
+	cvSubmenu.init("", cvMenuItems);
 
 	// Gate stuff
-	new (&gateOffTimeMenu) MenuItemGateOffTime(HAVE_OLED ? "Min. off-time" : "");
-	new (&gateModeMenu) MenuItemGateMode();
+	gateOffTimeMenu.init(HAVE_OLED ? "Min. off-time" : "");
 
 #if HAVE_OLED
 	triggerClockInMenu.basicTitle = "T. clock input";
@@ -2608,33 +2603,32 @@ SoundEditor::SoundEditor() {
 	// Sound editor menu -----------------------------------------------------------------------------
 
 	// Modulator menu
-	new (&modulatorTransposeMenu) MenuItemModulatorTranspose("Transpose", PARAM_LOCAL_MODULATOR_0_PITCH_ADJUST);
-	new (&modulatorVolume)
-	    MenuItemSourceDependentPatchedParamFM(HAVE_OLED ? "Level" : "AMOUNT", PARAM_LOCAL_MODULATOR_0_VOLUME);
-	new (&modulatorFeedbackMenu) MenuItemSourceDependentPatchedParamFM("FEEDBACK", PARAM_LOCAL_MODULATOR_0_FEEDBACK);
-	new (&modulatorDestMenu) MenuItemModulatorDest("Destination");
-	new (&modulatorPhaseMenu) MenuItemRetriggerPhase("Retrigger phase", true);
+	modulatorTransposeMenu.init("Transpose", PARAM_LOCAL_MODULATOR_0_PITCH_ADJUST);
+	modulatorVolume.init(HAVE_OLED ? "Level" : "AMOUNT", PARAM_LOCAL_MODULATOR_0_VOLUME);
+	modulatorFeedbackMenu.init("FEEDBACK", PARAM_LOCAL_MODULATOR_0_FEEDBACK);
+	modulatorDestMenu.init("Destination");
+	modulatorPhaseMenu.init("Retrigger phase", true);
 	static MenuItem* modulatorMenuItems[] = {&modulatorVolume,   &modulatorTransposeMenu, &modulatorFeedbackMenu,
 	                                         &modulatorDestMenu, &modulatorPhaseMenu,     NULL};
 
 	// Osc menu
-	new (&oscTypeMenu) MenuItemOscType("TYPE");
-	new (&sourceWaveIndexMenu) MenuItemSourceWaveIndex("Wave-index", PARAM_LOCAL_OSC_A_WAVE_INDEX);
-	new (&sourceVolumeMenu) MenuItemSourceVolume(HAVE_OLED ? "Level" : "VOLUME", PARAM_LOCAL_OSC_A_VOLUME);
-	new (&sourceFeedbackMenu) MenuItemSourceFeedback("FEEDBACK", PARAM_LOCAL_CARRIER_0_FEEDBACK);
-	new (&fileSelectorMenu) MenuItemFileSelector("File browser");
-	new (&audioRecorderMenu) MenuItemAudioRecorder("Record audio");
-	new (&sampleReverseMenu) MenuItemSampleReverse("REVERSE");
-	new (&sampleRepeatMenu) MenuItemSampleRepeat(HAVE_OLED ? "Repeat mode" : "MODE");
-	new (&sampleStartMenu) MenuItemSampleStart("Start-point");
-	new (&sampleEndMenu) MenuItemSampleEnd("End-point");
-	new (&sourceTransposeMenu) MenuItemSourceTranspose("TRANSPOSE", PARAM_LOCAL_OSC_A_PITCH_ADJUST);
-	new (&samplePitchSpeedMenu) MenuItemSamplePitchSpeed(HAVE_OLED ? "Pitch/speed" : "PISP");
-	new (&timeStretchMenu) MenuItemTimeStretch("SPEED");
-	new (&interpolationMenu) MenuItemInterpolation("INTERPOLATION");
-	new (&pulseWidthMenu) MenuItemPulseWidth("PULSE WIDTH", PARAM_LOCAL_OSC_A_PHASE_WIDTH);
-	new (&oscSyncMenu) MenuItemOscSync(HAVE_OLED ? "Oscillator sync" : "SYNC");
-	new (&oscPhaseMenu) MenuItemRetriggerPhase("Retrigger phase", false);
+	oscTypeMenu.init("TYPE");
+	sourceWaveIndexMenu.init("Wave-index", PARAM_LOCAL_OSC_A_WAVE_INDEX);
+	sourceVolumeMenu.init(HAVE_OLED ? "Level" : "VOLUME", PARAM_LOCAL_OSC_A_VOLUME);
+	sourceFeedbackMenu.init("FEEDBACK", PARAM_LOCAL_CARRIER_0_FEEDBACK);
+	fileSelectorMenu.init("File browser");
+	audioRecorderMenu.init("Record audio");
+	sampleReverseMenu.init("REVERSE");
+	sampleRepeatMenu.init(HAVE_OLED ? "Repeat mode" : "MODE");
+	sampleStartMenu.init("Start-point");
+	sampleEndMenu.init("End-point");
+	sourceTransposeMenu.init("TRANSPOSE", PARAM_LOCAL_OSC_A_PITCH_ADJUST);
+	samplePitchSpeedMenu.init(HAVE_OLED ? "Pitch/speed" : "PISP");
+	timeStretchMenu.init("SPEED");
+	interpolationMenu.init("INTERPOLATION");
+	pulseWidthMenu.init("PULSE WIDTH", PARAM_LOCAL_OSC_A_PHASE_WIDTH);
+	oscSyncMenu.init(HAVE_OLED ? "Oscillator sync" : "SYNC");
+	oscPhaseMenu.init("Retrigger phase", false);
 
 	static MenuItem* oscMenuItems[] = {&oscTypeMenu,        &sourceVolumeMenu,    &sourceWaveIndexMenu,
 	                                   &sourceFeedbackMenu, &fileSelectorMenu,    &audioRecorderMenu,
@@ -2644,93 +2638,92 @@ SoundEditor::SoundEditor() {
 	                                   &oscSyncMenu,        &oscPhaseMenu,        NULL};
 
 	// LPF menu
-	new (&lpfFreqMenu) MenuItemLPFFreq("Frequency", PARAM_LOCAL_LPF_FREQ);
-	new (&lpfResMenu) MenuItemPatchedParamIntegerNonFM("Resonance", PARAM_LOCAL_LPF_RESONANCE);
-	new (&lpfModeMenu) MenuItemLPFMode("MODE");
+	lpfFreqMenu.init("Frequency", PARAM_LOCAL_LPF_FREQ);
+	lpfResMenu.init("Resonance", PARAM_LOCAL_LPF_RESONANCE);
+	lpfModeMenu.init("MODE");
 	static MenuItem* lpfMenuItems[] = {&lpfFreqMenu, &lpfResMenu, &lpfModeMenu, NULL};
 
 	// HPF menu
-	new (&hpfFreqMenu) MenuItemHPFFreq("Frequency", PARAM_LOCAL_HPF_FREQ);
-	new (&hpfResMenu) MenuItemPatchedParamIntegerNonFM("Resonance", PARAM_LOCAL_HPF_RESONANCE);
+	hpfFreqMenu.init("Frequency", PARAM_LOCAL_HPF_FREQ);
+	hpfResMenu.init("Resonance", PARAM_LOCAL_HPF_RESONANCE);
 	static MenuItem* hpfMenuItems[] = {&hpfFreqMenu, &hpfResMenu, NULL};
 
 	// Envelope menu
-	new (&envAttackMenu) MenuItemSourceDependentPatchedParam("ATTACK", PARAM_LOCAL_ENV_0_ATTACK);
-	new (&envDecayMenu) MenuItemSourceDependentPatchedParam("DECAY", PARAM_LOCAL_ENV_0_DECAY);
-	new (&envSustainMenu) MenuItemSourceDependentPatchedParam("SUSTAIN", PARAM_LOCAL_ENV_0_SUSTAIN);
-	new (&envReleaseMenu) MenuItemSourceDependentPatchedParam("RELEASE", PARAM_LOCAL_ENV_0_RELEASE);
+	envAttackMenu.init("ATTACK", PARAM_LOCAL_ENV_0_ATTACK);
+	envDecayMenu.init("DECAY", PARAM_LOCAL_ENV_0_DECAY);
+	envSustainMenu.init("SUSTAIN", PARAM_LOCAL_ENV_0_SUSTAIN);
+	envReleaseMenu.init("RELEASE", PARAM_LOCAL_ENV_0_RELEASE);
 	static MenuItem* envMenuItems[] = {&envAttackMenu, &envDecayMenu, &envSustainMenu, &envReleaseMenu, NULL};
 
 	// Unison menu
-	new (&numUnisonMenu) MenuItemNumUnison(HAVE_OLED ? "Unison number" : "NUM");
-	new (&unisonDetuneMenu) MenuItemUnisonDetune(HAVE_OLED ? "Unison detune" : "DETUNE");
+	numUnisonMenu.init(HAVE_OLED ? "Unison number" : "NUM");
+	unisonDetuneMenu.init(HAVE_OLED ? "Unison detune" : "DETUNE");
 	static MenuItem* unisonMenuItems[] = {&numUnisonMenu, &unisonDetuneMenu, NULL};
 
 	// Arp menu
-	new (&arpModeMenu) MenuItemArpMode("MODE");
-	new (&arpSyncMenu) MenuItemArpSync("SYNC");
-	new (&arpOctavesMenu) MenuItemArpOctaves(HAVE_OLED ? "Number of octaves" : "OCTAVES");
-	new (&arpGateMenu) MenuItemArpGate("GATE", PARAM_UNPATCHED_SOUND_ARP_GATE);
-	new (&arpGateMenuMIDIOrCV) MenuItemArpGateMIDIOrCV("GATE");
-	new (&arpRateMenu) MenuItemArpRate("RATE", PARAM_GLOBAL_ARP_RATE);
-	new (&arpRateMenuMIDIOrCV) MenuItemArpRateMIDIOrCV("RATE");
+	arpModeMenu.init("MODE");
+	arpSyncMenu.init("SYNC");
+	arpOctavesMenu.init(HAVE_OLED ? "Number of octaves" : "OCTAVES");
+	arpGateMenu.init("GATE", PARAM_UNPATCHED_SOUND_ARP_GATE);
+	arpGateMenuMIDIOrCV.init("GATE");
+	arpRateMenu.init("RATE", PARAM_GLOBAL_ARP_RATE);
+	arpRateMenuMIDIOrCV.init("RATE");
 	static MenuItem* arpMenuItems[] = {&arpModeMenu,         &arpSyncMenu, &arpOctavesMenu,      &arpGateMenu,
 	                                   &arpGateMenuMIDIOrCV, &arpRateMenu, &arpRateMenuMIDIOrCV, NULL};
 
 	// Voice menu
-	new (&polyphonyMenu) MenuItemPolyphony("POLYPHONY");
-	new (&unisonMenu) MenuItemSubmenu("UNISON", unisonMenuItems);
-	new (&portaMenu) MenuItemUnpatchedParam("PORTAMENTO", PARAM_UNPATCHED_SOUND_PORTA);
-	new (&arpMenu) MenuItemArpeggiatorSubmenu("ARPEGGIATOR", arpMenuItems);
-	new (&priorityMenu) MenuItemPriority("PRIORITY");
+	polyphonyMenu.init("POLYPHONY");
+	unisonMenu.init("UNISON", unisonMenuItems);
+	portaMenu.init("PORTAMENTO", PARAM_UNPATCHED_SOUND_PORTA);
+	arpMenu.init("ARPEGGIATOR", arpMenuItems);
+	priorityMenu.init("PRIORITY");
 	static MenuItem* voiceMenuItems[] = {&polyphonyMenu, &unisonMenu, &portaMenu, &arpMenu, &priorityMenu, NULL};
 
 	// LFO 1
-	new (&lfo1TypeMenu) MenuItemLFO1Type(HAVE_OLED ? "SHAPE" : "TYPE");
-	new (&lfo1RateMenu) MenuItemLFO1Rate("RATE", PARAM_GLOBAL_LFO_FREQ);
-	new (&lfo1SyncMenu) MenuItemLFO1Sync("SYNC");
+	lfo1TypeMenu.init(HAVE_OLED ? "SHAPE" : "TYPE");
+	lfo1RateMenu.init("RATE", PARAM_GLOBAL_LFO_FREQ);
+	lfo1SyncMenu.init("SYNC");
 	static MenuItem* lfo1MenuItems[] = {&lfo1TypeMenu, &lfo1RateMenu, &lfo1SyncMenu, NULL};
 
 	// LFO 2
-	new (&lfo2TypeMenu) MenuItemLFO2Type(HAVE_OLED ? "SHAPE" : "TYPE");
-	new (&lfo2RateMenu) MenuItemPatchedParamInteger("RATE", PARAM_LOCAL_LFO_LOCAL_FREQ);
+	lfo2TypeMenu.init(HAVE_OLED ? "SHAPE" : "TYPE");
+	lfo2RateMenu.init("RATE", PARAM_LOCAL_LFO_LOCAL_FREQ);
 	static MenuItem* lfo2MenuItems[] = {&lfo2TypeMenu, &lfo2RateMenu, NULL};
 
 	// Mod FX menu
-	new (&modFXTypeMenu) MenuItemModFXType("TYPE");
-	new (&modFXRateMenu) MenuItemPatchedParamInteger("RATE", PARAM_GLOBAL_MOD_FX_RATE);
-	new (&modFXFeedbackMenu) MenuItemModFXFeedback("FEEDBACK", PARAM_UNPATCHED_MOD_FX_FEEDBACK);
-	new (&modFXDepthMenu) MenuItemModFXDepth("DEPTH", PARAM_GLOBAL_MOD_FX_DEPTH);
-	new (&modFXOffsetMenu) MenuItemModFXOffset("OFFSET", PARAM_UNPATCHED_MOD_FX_OFFSET);
+	modFXTypeMenu.init("TYPE");
+	modFXRateMenu.init("RATE", PARAM_GLOBAL_MOD_FX_RATE);
+	modFXFeedbackMenu.init("FEEDBACK", PARAM_UNPATCHED_MOD_FX_FEEDBACK);
+	modFXDepthMenu.init("DEPTH", PARAM_GLOBAL_MOD_FX_DEPTH);
+	modFXOffsetMenu.init("OFFSET", PARAM_UNPATCHED_MOD_FX_OFFSET);
 	static MenuItem* modFXMenuItems[] = {&modFXTypeMenu,  &modFXRateMenu,   &modFXFeedbackMenu,
 	                                     &modFXDepthMenu, &modFXOffsetMenu, NULL};
 
 	// EQ menu
-	new (&bassMenu) MenuItemUnpatchedParam("BASS", PARAM_UNPATCHED_BASS);
-	new (&trebleMenu) MenuItemUnpatchedParam("TREBLE", PARAM_UNPATCHED_TREBLE);
-	new (&bassFreqMenu) MenuItemUnpatchedParam(HAVE_OLED ? "Bass frequency" : "BAFR", PARAM_UNPATCHED_BASS_FREQ);
-	new (&trebleFreqMenu) MenuItemUnpatchedParam(HAVE_OLED ? "Treble frequency" : "TRFR", PARAM_UNPATCHED_TREBLE_FREQ);
+	bassMenu.init("BASS", PARAM_UNPATCHED_BASS);
+	trebleMenu.init("TREBLE", PARAM_UNPATCHED_TREBLE);
+	bassFreqMenu.init(HAVE_OLED ? "Bass frequency" : "BAFR", PARAM_UNPATCHED_BASS_FREQ);
+	trebleFreqMenu.init(HAVE_OLED ? "Treble frequency" : "TRFR", PARAM_UNPATCHED_TREBLE_FREQ);
 	static MenuItem* eqMenuItems[] = {&bassMenu, &trebleMenu, &bassFreqMenu, &trebleFreqMenu, NULL};
 
 	// Delay menu
-	new (&delayFeedbackMenu) MenuItemPatchedParamInteger("AMOUNT", PARAM_GLOBAL_DELAY_FEEDBACK);
-	new (&delayRateMenu) MenuItemPatchedParamInteger("RATE", PARAM_GLOBAL_DELAY_RATE);
-	new (&delayPingPongMenu) MenuItemDelayPingPong("Pingpong");
-	new (&delayAnalogMenu) MenuItemDelayAnalog("TYPE");
-	new (&delaySyncMenu) MenuItemDelaySync("SYNC");
+	delayFeedbackMenu.init("AMOUNT", PARAM_GLOBAL_DELAY_FEEDBACK);
+	delayRateMenu.init("RATE", PARAM_GLOBAL_DELAY_RATE);
+	delayPingPongMenu.init("Pingpong");
+	delayAnalogMenu.init("TYPE");
+	delaySyncMenu.init("SYNC");
 	static MenuItem* delayMenuItems[] = {&delayFeedbackMenu, &delayRateMenu, &delayPingPongMenu,
 	                                     &delayAnalogMenu,   &delaySyncMenu, NULL};
 
 	// Sidechain menu
-	new (&sidechainSendMenu) MenuItemSidechainSend("Send to sidechain");
-	new (&compressorVolumeShortcutMenu) MenuItemCompressorVolumeShortcut(
-	    "Volume ducking", PARAM_GLOBAL_VOLUME_POST_REVERB_SEND, PATCH_SOURCE_COMPRESSOR);
-	new (&reverbCompressorVolumeMenu) MenuItemReverbCompressorVolume("Volume ducking");
-	new (&sidechainSyncMenu) MenuItemSidechainSync("SYNC");
-	new (&compressorAttackMenu) MenuItemCompressorAttack("ATTACK");
-	new (&compressorReleaseMenu) MenuItemCompressorRelease("RELEASE");
-	new (&compressorShapeMenu) MenuItemUnpatchedParamUpdatingReverbParams("SHAPE", PARAM_UNPATCHED_COMPRESSOR_SHAPE);
-	new (&reverbCompressorShapeMenu) MenuItemReverbCompressorShape("SHAPE");
+	sidechainSendMenu.init("Send to sidechain");
+	compressorVolumeShortcutMenu.init( "Volume ducking", PARAM_GLOBAL_VOLUME_POST_REVERB_SEND, PATCH_SOURCE_COMPRESSOR);
+	reverbCompressorVolumeMenu.init("Volume ducking");
+	sidechainSyncMenu.init("SYNC");
+	compressorAttackMenu.init("ATTACK");
+	compressorReleaseMenu.init("RELEASE");
+	compressorShapeMenu.init("SHAPE", PARAM_UNPATCHED_COMPRESSOR_SHAPE);
+	reverbCompressorShapeMenu.init("SHAPE");
 	static MenuItem* sidechainMenuItemsForSound[] = {&sidechainSendMenu,
 	                                                 &compressorVolumeShortcutMenu,
 	                                                 &sidechainSyncMenu,
@@ -2743,13 +2736,12 @@ SoundEditor::SoundEditor() {
 	                                                  &reverbCompressorShapeMenu,  NULL};
 
 	// Reverb menu
-	new (&reverbAmountMenu) MenuItemPatchedParamInteger("AMOUNT", PARAM_GLOBAL_REVERB_AMOUNT);
-	new (&reverbRoomSizeMenu) MenuItemReverbRoomSize(HAVE_OLED ? "Room size" : "SIZE");
-	new (&reverbDampeningMenu) MenuItemReverbDampening("DAMPENING");
-	new (&reverbWidthMenu) MenuItemReverbWidth("WIDTH");
-	new (&reverbPanMenu) MenuItemReverbPan("PAN");
-	new (&reverbCompressorMenu)
-	    MenuItemCompressorSubmenu(HAVE_OLED ? "Reverb sidechain" : "SIDE", sidechainMenuItemsForReverb, true);
+	reverbAmountMenu.init("AMOUNT", PARAM_GLOBAL_REVERB_AMOUNT);
+	reverbRoomSizeMenu.init(HAVE_OLED ? "Room size" : "SIZE");
+	reverbDampeningMenu.init("DAMPENING");
+	reverbWidthMenu.init("WIDTH");
+	reverbPanMenu.init("PAN");
+	reverbCompressorMenu.init(HAVE_OLED ? "Reverb sidechain" : "SIDE", sidechainMenuItemsForReverb, true);
 	static MenuItem* reverbMenuItems[] = {&reverbAmountMenu,
 	                                      &reverbRoomSizeMenu,
 	                                      &reverbDampeningMenu,
@@ -2759,47 +2751,47 @@ SoundEditor::SoundEditor() {
 	                                      NULL};
 
 	// FX menu
-	new (&modFXMenu) MenuItemSubmenu(HAVE_OLED ? "Mod-fx" : "MODU", modFXMenuItems);
-	new (&eqMenu) MenuItemSubmenu("EQ", eqMenuItems);
-	new (&delayMenu) MenuItemSubmenu("DELAY", delayMenuItems);
-	new (&reverbMenu) MenuItemSubmenu("REVERB", reverbMenuItems);
-	new (&clippingMenu) MenuItemClipping("SATURATION");
-	new (&srrMenu) MenuItemUnpatchedParam("DECIMATION", PARAM_UNPATCHED_SAMPLE_RATE_REDUCTION);
-	new (&bitcrushMenu) MenuItemUnpatchedParam(HAVE_OLED ? "Bitcrush" : "CRUSH", PARAM_UNPATCHED_BITCRUSHING);
+	modFXMenu.init(HAVE_OLED ? "Mod-fx" : "MODU", modFXMenuItems);
+	eqMenu.init("EQ", eqMenuItems);
+	delayMenu.init("DELAY", delayMenuItems);
+	reverbMenu.init("REVERB", reverbMenuItems);
+	clippingMenu.init("SATURATION");
+	srrMenu.init("DECIMATION", PARAM_UNPATCHED_SAMPLE_RATE_REDUCTION);
+	bitcrushMenu.init(HAVE_OLED ? "Bitcrush" : "CRUSH", PARAM_UNPATCHED_BITCRUSHING);
 	static MenuItem* fxMenuItems[] = {&modFXMenu,    &eqMenu,  &delayMenu,    &reverbMenu,
 	                                  &clippingMenu, &srrMenu, &bitcrushMenu, NULL};
 
 	// Bend ranges
-	new (&mainBendRangeMenu) MenuItemBendRangeMain("Normal");
-	new (&perFingerBendRangeMenu) MenuItemBendRangePerFinger(HAVE_OLED ? "Poly / finger / MPE" : "MPE");
+	mainBendRangeMenu.init("Normal");
+	perFingerBendRangeMenu.init(HAVE_OLED ? "Poly / finger / MPE" : "MPE");
 	static MenuItem* bendMenuItems[] = {&mainBendRangeMenu, &perFingerBendRangeMenu, NULL};
 
 	// Clip-level stuff
-	new (&sequenceDirectionMenu) MenuItemSequenceDirection(HAVE_OLED ? "Play direction" : "DIRECTION");
+	sequenceDirectionMenu.init(HAVE_OLED ? "Play direction" : "DIRECTION");
 
 	// Root menu
-	new (&source0Menu) MenuItemActualSourceSubmenu(HAVE_OLED ? "Oscillator 1" : "OSC1", oscMenuItems, 0);
-	new (&source1Menu) MenuItemActualSourceSubmenu(HAVE_OLED ? "Oscillator 2" : "OSC2", oscMenuItems, 1);
-	new (&modulator0Menu) MenuItemModulatorSubmenu(HAVE_OLED ? "FM modulator 1" : "MOD1", modulatorMenuItems, 0);
-	new (&modulator1Menu) MenuItemModulatorSubmenu(HAVE_OLED ? "FM modulator 2" : "MOD2", modulatorMenuItems, 1);
-	new (&masterTransposeMenu) MenuItemMasterTranspose(HAVE_OLED ? "Master transpose" : "TRANSPOSE");
-	new (&vibratoMenu) MenuItemFixedPatchCableStrength("VIBRATO", PARAM_LOCAL_PITCH_ADJUST, PATCH_SOURCE_LFO_GLOBAL);
-	new (&noiseMenu) MenuItemPatchedParamIntegerNonFM(HAVE_OLED ? "Noise level" : "NOISE", PARAM_LOCAL_NOISE_VOLUME);
-	new (&lpfMenu) MenuItemFilterSubmenu("LPF", lpfMenuItems);
-	new (&hpfMenu) MenuItemFilterSubmenu("HPF", hpfMenuItems);
-	new (&drumNameMenu) MenuItemDrumName("NAME");
-	new (&synthModeMenu) MenuItemSynthMode(HAVE_OLED ? "Synth mode" : "MODE");
-	new (&env0Menu) MenuItemEnvelopeSubmenu(HAVE_OLED ? "Envelope 1" : "ENV1", envMenuItems, 0);
-	new (&env1Menu) MenuItemEnvelopeSubmenu(HAVE_OLED ? "Envelope 2" : "ENV2", envMenuItems, 1);
-	new (&lfo0Menu) MenuItemSubmenu("LFO1", lfo1MenuItems);
-	new (&lfo1Menu) MenuItemSubmenu("LFO2", lfo2MenuItems);
-	new (&voiceMenu) MenuItemSubmenu("VOICE", voiceMenuItems);
-	new (&fxMenu) MenuItemSubmenu("FX", fxMenuItems);
-	new (&compressorMenu) MenuItemCompressorSubmenu("Sidechain compressor", sidechainMenuItemsForSound, false);
-	new (&bendMenu) MenuItemBendSubmenu("Bend range", bendMenuItems);  // The submenu
-	new (&drumBendRangeMenu) MenuItemBendRangePerFinger("Bend range"); // The single option available for Drums
-	new (&volumeMenu) MenuItemPatchedParamInteger(HAVE_OLED ? "Level" : "VOLUME", PARAM_GLOBAL_VOLUME_POST_FX);
-	new (&panMenu) MenuItemPatchedParamPan("PAN", PARAM_LOCAL_PAN);
+	source0Menu.init(HAVE_OLED ? "Oscillator 1" : "OSC1", oscMenuItems, 0);
+	source1Menu.init(HAVE_OLED ? "Oscillator 2" : "OSC2", oscMenuItems, 1);
+	modulator0Menu.init(HAVE_OLED ? "FM modulator 1" : "MOD1", modulatorMenuItems, 0);
+	modulator1Menu.init(HAVE_OLED ? "FM modulator 2" : "MOD2", modulatorMenuItems, 1);
+	masterTransposeMenu.init(HAVE_OLED ? "Master transpose" : "TRANSPOSE");
+	vibratoMenu.init("VIBRATO", PARAM_LOCAL_PITCH_ADJUST, PATCH_SOURCE_LFO_GLOBAL);
+	noiseMenu.init(HAVE_OLED ? "Noise level" : "NOISE", PARAM_LOCAL_NOISE_VOLUME);
+	lpfMenu.init("LPF", lpfMenuItems);
+	hpfMenu.init("HPF", hpfMenuItems);
+	drumNameMenu.init("NAME");
+	synthModeMenu.init(HAVE_OLED ? "Synth mode" : "MODE");
+	env0Menu.init(HAVE_OLED ? "Envelope 1" : "ENV1", envMenuItems, 0);
+	env1Menu.init(HAVE_OLED ? "Envelope 2" : "ENV2", envMenuItems, 1);
+	lfo0Menu.init("LFO1", lfo1MenuItems);
+	lfo1Menu.init("LFO2", lfo2MenuItems);
+	voiceMenu.init("VOICE", voiceMenuItems);
+	fxMenu.init("FX", fxMenuItems);
+	compressorMenu.init("Sidechain compressor", sidechainMenuItemsForSound, false);
+	bendMenu.init("Bend range", bendMenuItems);  // The submenu
+	drumBendRangeMenu.init("Bend range"); // The single option available for Drums
+	volumeMenu.init(HAVE_OLED ? "Level" : "VOLUME", PARAM_GLOBAL_VOLUME_POST_FX);
+	panMenu.init("PAN", PARAM_LOCAL_PAN);
 	static MenuItem* soundEditorRootMenuItems[] = {&source0Menu,
 	                                               &source1Menu,
 	                                               &modulator0Menu,
@@ -2825,7 +2817,7 @@ SoundEditor::SoundEditor() {
 	                                               &sequenceDirectionMenu,
 	                                               NULL};
 
-	new (&soundEditorRootMenu) MenuItemSubmenu("Sound", soundEditorRootMenuItems);
+	soundEditorRootMenu.init("Sound", soundEditorRootMenuItems);
 
 #if HAVE_OLED
 	reverbAmountMenu.basicTitle = "Reverb amount";
@@ -2904,15 +2896,15 @@ SoundEditor::SoundEditor() {
 
 	// MIDIInstrument menu -------------------------------------------------
 
-	new (&midiBankMenu) MenuItemMIDIBank("BANK");
-	new (&midiSubMenu) MenuItemMIDISub(HAVE_OLED ? "Sub-bank" : "SUB");
-	new (&midiPGMMenu) MenuItemMIDIPGM("PGM");
+	midiBankMenu.init("BANK");
+	midiSubMenu.init(HAVE_OLED ? "Sub-bank" : "SUB");
+	midiPGMMenu.init("PGM");
 
 	// Root menu for MIDI / CV
 	static MenuItem* soundEditorRootMenuItemsMIDIOrCV[] = {&midiPGMMenu, &midiBankMenu,          &midiSubMenu, &arpMenu,
 	                                                       &bendMenu,    &sequenceDirectionMenu, NULL};
 
-	new (&soundEditorRootMenuMIDIOrCV) MenuItemSubmenu("MIDI inst.", soundEditorRootMenuItemsMIDIOrCV);
+	soundEditorRootMenuMIDIOrCV.init("MIDI inst.", soundEditorRootMenuItemsMIDIOrCV);
 
 #if HAVE_OLED
 	midiBankMenu.basicTitle = "MIDI bank";
@@ -2923,33 +2915,33 @@ SoundEditor::SoundEditor() {
 	// AudioClip menu system -------------------------------------------------------------------------------------------------------------------------------
 
 	// Sample menu
-	new (&audioClipReverseMenu) MenuItemAudioClipReverse("REVERSE");
-	new (&audioClipSampleMarkerEditorMenuStart) MenuItemAudioClipSampleMarkerEditor("", MARKER_START);
-	new (&audioClipSampleMarkerEditorMenuEnd) MenuItemAudioClipSampleMarkerEditor("WAVEFORM", MARKER_END);
+	audioClipReverseMenu.init("REVERSE");
+	audioClipSampleMarkerEditorMenuStart.init("", MARKER_START);
+	audioClipSampleMarkerEditorMenuEnd.init("WAVEFORM", MARKER_END);
 	static MenuItem* audioClipSampleMenuItems[] = {&fileSelectorMenu,     &audioClipReverseMenu,
 	                                               &samplePitchSpeedMenu, &audioClipSampleMarkerEditorMenuEnd,
 	                                               &interpolationMenu,    NULL};
 
 	// LPF menu
-	new (&audioClipLPFFreqMenu) MenuItemAudioClipLPFFreq("Frequency", PARAM_UNPATCHED_GLOBALEFFECTABLE_LPF_FREQ);
-	new (&audioClipLPFResMenu) MenuItemUnpatchedParam("Resonance", PARAM_UNPATCHED_GLOBALEFFECTABLE_LPF_RES);
+	audioClipLPFFreqMenu.init("Frequency", PARAM_UNPATCHED_GLOBALEFFECTABLE_LPF_FREQ);
+	audioClipLPFResMenu.init("Resonance", PARAM_UNPATCHED_GLOBALEFFECTABLE_LPF_RES);
 	static MenuItem* audioClipLPFMenuItems[] = {&audioClipLPFFreqMenu, &audioClipLPFResMenu, &lpfModeMenu, NULL};
 
 	// HPF menu
-	new (&audioClipHPFFreqMenu) MenuItemAudioClipHPFFreq("Frequency", PARAM_UNPATCHED_GLOBALEFFECTABLE_HPF_FREQ);
-	new (&audioClipHPFResMenu) MenuItemUnpatchedParam("Resonance", PARAM_UNPATCHED_GLOBALEFFECTABLE_HPF_RES);
+	audioClipHPFFreqMenu.init("Frequency", PARAM_UNPATCHED_GLOBALEFFECTABLE_HPF_FREQ);
+	audioClipHPFResMenu.init("Resonance", PARAM_UNPATCHED_GLOBALEFFECTABLE_HPF_RES);
 	static MenuItem* audioClipHPFMenuItems[] = {&audioClipHPFFreqMenu, &audioClipHPFResMenu, NULL};
 
 	// Mod FX menu
-	new (&audioClipModFXTypeMenu) MenuItemAudioClipModFXType("TYPE");
-	new (&audioClipModFXRateMenu) MenuItemUnpatchedParam("RATE", PARAM_UNPATCHED_GLOBALEFFECTABLE_MOD_FX_RATE);
-	new (&audioClipModFXDepthMenu) MenuItemUnpatchedParam("DEPTH", PARAM_UNPATCHED_GLOBALEFFECTABLE_MOD_FX_DEPTH);
+	audioClipModFXTypeMenu.init("TYPE");
+	audioClipModFXRateMenu.init("RATE", PARAM_UNPATCHED_GLOBALEFFECTABLE_MOD_FX_RATE);
+	audioClipModFXDepthMenu.init("DEPTH", PARAM_UNPATCHED_GLOBALEFFECTABLE_MOD_FX_DEPTH);
 	static MenuItem* audioClipModFXMenuItems[] = {&audioClipModFXTypeMenu,  &audioClipModFXRateMenu, &modFXFeedbackMenu,
 	                                              &audioClipModFXDepthMenu, &modFXOffsetMenu,        NULL};
 
 	// Delay menu
-	new (&audioClipDelayFeedbackMenu) MenuItemUnpatchedParam("AMOUNT", PARAM_UNPATCHED_GLOBALEFFECTABLE_DELAY_AMOUNT);
-	new (&audioClipDelayRateMenu) MenuItemUnpatchedParam("RATE", PARAM_UNPATCHED_GLOBALEFFECTABLE_DELAY_RATE);
+	audioClipDelayFeedbackMenu.init("AMOUNT", PARAM_UNPATCHED_GLOBALEFFECTABLE_DELAY_AMOUNT);
+	audioClipDelayRateMenu.init("RATE", PARAM_UNPATCHED_GLOBALEFFECTABLE_DELAY_RATE);
 	static MenuItem* audioClipDelayMenuItems[] = {&audioClipDelayFeedbackMenu,
 	                                              &audioClipDelayRateMenu,
 	                                              &delayPingPongMenu,
@@ -2958,8 +2950,7 @@ SoundEditor::SoundEditor() {
 	                                              NULL};
 
 	// Reverb menu
-	new (&audioClipReverbSendAmountMenu)
-	    MenuItemUnpatchedParam("AMOUNT", PARAM_UNPATCHED_GLOBALEFFECTABLE_REVERB_SEND_AMOUNT);
+	audioClipReverbSendAmountMenu.init("AMOUNT", PARAM_UNPATCHED_GLOBALEFFECTABLE_REVERB_SEND_AMOUNT);
 	static MenuItem* audioClipReverbMenuItems[] = {&audioClipReverbSendAmountMenu,
 	                                               &reverbRoomSizeMenu,
 	                                               &reverbDampeningMenu,
@@ -2969,30 +2960,28 @@ SoundEditor::SoundEditor() {
 	                                               NULL};
 
 	// FX menu
-	new (&audioClipModFXMenu) MenuItemSubmenu(HAVE_OLED ? "Mod-fx" : "MODU", audioClipModFXMenuItems);
-	new (&audioClipDelayMenu) MenuItemSubmenu("DELAY", audioClipDelayMenuItems);
-	new (&audioClipReverbMenu) MenuItemSubmenu("REVERB", audioClipReverbMenuItems);
+	audioClipModFXMenu.init(HAVE_OLED ? "Mod-fx" : "MODU", audioClipModFXMenuItems);
+	audioClipDelayMenu.init("DELAY", audioClipDelayMenuItems);
+	audioClipReverbMenu.init("REVERB", audioClipReverbMenuItems);
 	static MenuItem* audioClipFXMenuItems[] = {&audioClipModFXMenu, &eqMenu,  &audioClipDelayMenu, &audioClipReverbMenu,
 	                                           &clippingMenu,       &srrMenu, &bitcrushMenu,       NULL};
 
 	// Sidechain menu
-	new (&audioClipCompressorVolumeMenu)
-	    MenuItemUnpatchedParamUpdatingReverbParams("Volume ducking", PARAM_UNPATCHED_GLOBALEFFECTABLE_SIDECHAIN_VOLUME);
+	audioClipCompressorVolumeMenu.init("Volume ducking", PARAM_UNPATCHED_GLOBALEFFECTABLE_SIDECHAIN_VOLUME);
 	static MenuItem* audioClipSidechainMenuItems[] = {&audioClipCompressorVolumeMenu, &sidechainSyncMenu,
 	                                                  &compressorAttackMenu,          &compressorReleaseMenu,
 	                                                  &compressorShapeMenu,           NULL};
 
 	// Root menu for AudioClips
-	new (&audioClipSampleMenu) MenuItemSubmenu("SAMPLE", audioClipSampleMenuItems);
-	new (&audioClipTransposeMenu) MenuItemAudioClipTranspose("TRANSPOSE");
-	new (&audioClipLPFMenu) MenuItemSubmenu("LPF", audioClipLPFMenuItems);
-	new (&audioClipHPFMenu) MenuItemSubmenu("HPF", audioClipHPFMenuItems);
-	new (&audioClipAttackMenu) MenuItemAudioClipAttack("ATTACK");
-	new (&audioClipFXMenu) MenuItemSubmenu("FX", audioClipFXMenuItems);
-	new (&audioClipCompressorMenu) MenuItemSubmenu("Sidechain compressor", audioClipSidechainMenuItems);
-	new (&audioClipLevelMenu)
-	    MenuItemUnpatchedParam(HAVE_OLED ? "Level" : "VOLUME", PARAM_UNPATCHED_GLOBALEFFECTABLE_VOLUME);
-	new (&audioClipPanMenu) MenuItemUnpatchedParamPan("PAN", PARAM_UNPATCHED_GLOBALEFFECTABLE_PAN);
+	audioClipSampleMenu.init("SAMPLE", audioClipSampleMenuItems);
+	audioClipTransposeMenu.init("TRANSPOSE");
+	audioClipLPFMenu.init("LPF", audioClipLPFMenuItems);
+	audioClipHPFMenu.init("HPF", audioClipHPFMenuItems);
+	audioClipAttackMenu.init("ATTACK");
+	audioClipFXMenu.init("FX", audioClipFXMenuItems);
+	audioClipCompressorMenu.init("Sidechain compressor", audioClipSidechainMenuItems);
+	audioClipLevelMenu.init(HAVE_OLED ? "Level" : "VOLUME", PARAM_UNPATCHED_GLOBALEFFECTABLE_VOLUME);
+	audioClipPanMenu.init("PAN", PARAM_UNPATCHED_GLOBALEFFECTABLE_PAN);
 
 	static MenuItem* soundEditorRootMenuItemsAudioClip[] = {&audioClipSampleMenu,
 	                                                        &audioClipTransposeMenu,
@@ -3006,7 +2995,7 @@ SoundEditor::SoundEditor() {
 	                                                        &audioClipPanMenu,
 	                                                        NULL};
 
-	new (&soundEditorRootMenuAudioClip) MenuItemSubmenu("Audio clip", soundEditorRootMenuItemsAudioClip);
+	soundEditorRootMenuAudioClip.init("Audio clip", soundEditorRootMenuItemsAudioClip);
 
 #if HAVE_OLED
 	audioClipReverbSendAmountMenu.basicTitle = "Reverb amount";

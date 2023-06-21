@@ -23,11 +23,6 @@ extern "C" {
 #include "cfunctions.h"
 }
 
-MenuItemIntegerRange::MenuItemIntegerRange(char const* newName, int newMin, int newMax) : MenuItemRange(newName) {
-	minValue = newMin;
-	maxValue = newMax;
-}
-
 void MenuItemIntegerRange::beginSession(MenuItem* navigatedBackwardFrom) {
 	MenuItemRange::beginSession(navigatedBackwardFrom);
 #if HAVE_OLED

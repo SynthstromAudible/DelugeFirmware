@@ -34,6 +34,7 @@ class MIDIDevice;
 class MenuItem {
 public:
 	MenuItem(char const* newName = NULL);
+	void init(char const* newName) { name = newName; }
 
 	char const* name; // As viewed in a menu list. For OLED, up to 20 chars.
 

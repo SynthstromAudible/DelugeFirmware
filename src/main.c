@@ -69,9 +69,9 @@ static void int_irq6(uint32_t sense) {
 
 /******************************************************************************
 * Function Name: main
-* Description  : Displays the sample program information on the terminal 
-*              : connected with the CPU board by the UART, and executes initial 
-*              : setting for the PORT connected with the LEDs on the board. 
+* Description  : Displays the sample program information on the terminal
+*              : connected with the CPU board by the UART, and executes initial
+*              : setting for the PORT connected with the LEDs on the board.
 *              : Executes initial setting for the OSTM channel 0.
 * Arguments    : none
 * Return Value : 0
@@ -178,15 +178,27 @@ int_t main1(void) {
 
 typedef void (*fp)(void);
 
+extern fp __preinit_array_start[];
+extern fp __preinit_array_end[];
+
 extern fp __init_array_start[];
 extern fp __init_array_end[];
 
 void init_constructors() {
-	fp *start = __init_array_start;
-	int length = __init_array_end - __init_array_start;
+	int length = __preinit_array_end - __preinit_array_start;
 	for (int i = 0; i < length; i++) {
-		start[i]();
+		__preinit_array_start[i]();
 	}
+
+	length = __init_array_end - __init_array_start;
+	for (int i = 0; i < length; i++) {
+		__init_array_start[i]();
+	}
+}
+
+void _fini() {
+    while (true)
+        __asm volatile ("NOP");
 }
 
 /* End of File */
