@@ -712,7 +712,6 @@ public:
 	}
 } sampleReverseMenu;
 
-// CBC for Kit sample menu ...
 class MenuItemSampleRepeat final : public MenuItemSelectionSample {
 public:
 	MenuItemSampleRepeat(char const* newName = NULL) : MenuItemSelectionSample(newName) {}
@@ -1648,7 +1647,8 @@ public:
 	}
 } audioClipReverseMenu;
 
-//CBC WIP
+// Class is named after the Deluge front-panel labelling, where [Sample1-Mode] is the bottom-left most pad.
+// This is the Timestretch on/off menu for the current AudioClip.
 class MenuItemAudioClipMode final : public MenuItemSelection {
 public:
 	MenuItemAudioClipMode(char const* newName = NULL) : MenuItemSelection(newName) {}
@@ -1818,7 +1818,7 @@ MenuItem* paramShortcutsForSounds[][8] = {
     {&delayRateMenu, &delaySyncMenu, &delayAnalogMenu, &delayFeedbackMenu, &delayPingPongMenu, NULL, NULL, NULL}};
 
 MenuItem* paramShortcutsForAudioClips[][8] = {
-    {&audioClipModeMenu, &audioClipReverseMenu, NULL, &samplePitchSpeedMenu, NULL, &fileSelectorMenu, // CBC WIP
+    {&audioClipModeMenu, &audioClipReverseMenu, NULL, &samplePitchSpeedMenu, NULL, &fileSelectorMenu,
      &audioClipSampleMarkerEditorMenuEnd, &audioClipSampleMarkerEditorMenuStart},
     {NULL, &audioClipReverseMenu, NULL, &samplePitchSpeedMenu, NULL, &fileSelectorMenu,
      &audioClipSampleMarkerEditorMenuEnd, &audioClipSampleMarkerEditorMenuStart},
@@ -2909,8 +2909,7 @@ SoundEditor::SoundEditor() {
 	// AudioClip menu system -------------------------------------------------------------------------------------------------------------------------------
 
 	// Sample menu
-
-	new (&audioClipModeMenu) MenuItemAudioClipMode("Stretch mode"); // CBC WIP
+	new (&audioClipModeMenu) MenuItemAudioClipMode("Stretch mode");
 	new (&audioClipReverseMenu) MenuItemAudioClipReverse("REVERSE");
 	new (&audioClipSampleMarkerEditorMenuStart) MenuItemAudioClipSampleMarkerEditor("", MARKER_START);
 	new (&audioClipSampleMarkerEditorMenuEnd) MenuItemAudioClipSampleMarkerEditor("WAVEFORM", MARKER_END);

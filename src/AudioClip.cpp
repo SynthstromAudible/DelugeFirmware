@@ -493,11 +493,11 @@ void AudioClip::render(ModelStackWithTimelineCounter* modelStack, int32_t* outpu
 
 	uint64_t requiredSpeedAdjustment = ((uint64_t)sampleLengthInSamples << 24) / clipLengthInSamples;
 
-	//	Control this using shift+syncScaleButton. Not saved to song XML.
+	// Control this using shift+syncScaleButton. Not saved to song XML.
 	if (!modelStack->song->timeStretchEnabled) {
 		goto justDontTimeStretch;
 	}
-	// CBC WIP: per-clip switch using shift+sample-mode shortcut menu
+	// Per-clip timestretch is set using the <shift>+<sample1-mode> shortcut menu
 	if (!sampleControls.timeStretchEnabled) {
 		goto justDontTimeStretch;
 	}
