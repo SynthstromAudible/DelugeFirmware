@@ -88,7 +88,7 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	tripletsOn = false;
 
 	affectEntire = false;
-	timeStretchDisabled = false;
+	timeStretchEnabled = true;
 
 	modeNotes[0] = 0;
 	modeNotes[1] = 2;

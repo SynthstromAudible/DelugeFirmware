@@ -331,11 +331,11 @@ doEndMidiLearnPressSession:
 	// Sync-scaling button NEW invert the current timestretch behaviour
 	else if (x == syncScalingButtonX && y == syncScalingButtonY && Buttons::isShiftButtonPressed()) {
 		if (on) {
-			currentSong->timeStretchDisabled = !currentSong->timeStretchDisabled;
+			currentSong->timeStretchEnabled = !currentSong->timeStretchEnabled;
 			// show the user the new value with a PopUp message
-			numericDriver.displayPopup(currentSong->timeStretchDisabled ? "TS 0" : "TS 1");
+			numericDriver.displayPopup(currentSong->timeStretchEnabled ? "TSON" : "TSOF", 2);
 			// and the syncScaling LED - let's light it solidly on or off
-			IndicatorLEDs::setLedState(syncScalingLedX, syncScalingLedY, currentSong->timeStretchDisabled);
+			IndicatorLEDs::setLedState(syncScalingLedX, syncScalingLedY, !currentSong->timeStretchEnabled);
 		}
 	}
 
