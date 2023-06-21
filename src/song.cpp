@@ -1135,8 +1135,7 @@ int Song::readFromFile() {
 			storageManager.exitTag();
 			break;
 
-		// "xScr..."
-		case 'rcSx':
+		case charsToIntegerConstant('x', 'S', 'c', 'r'):
 
 			switch (*(((uint32_t*)tagName) + 1)) {
 
