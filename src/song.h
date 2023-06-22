@@ -316,7 +316,7 @@ public:
 	int32_t reverbCompressorShape;
 	int32_t reverbCompressorAttack;
 	int32_t reverbCompressorRelease;
-	uint8_t reverbCompressorSync;
+	SyncLevel reverbCompressorSync;
 
 private:
 	void inputTickScalePotentiallyJustChanged(uint32_t oldScale);

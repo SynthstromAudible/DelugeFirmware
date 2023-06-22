@@ -34,6 +34,8 @@ Includes   <System Includes> , "Project Includes"
 #include "devdrv_intc.h" /* INTC Driver Header */
 #include "intc_handler.h"
 #include "iodefine.h"
+#include "asm.h"
+#include "uart_all_cpus.h"
 
 #ifdef __ICCARM__
 #include <intrinsics.h>
@@ -64,39 +66,6 @@ Imported global variables and functions (from other files)
 /******************************************************************************
 Exported global variables and functions (to be accessed by other files)
 ******************************************************************************/
-#ifdef __ICCARM__
-/* ==== Prototype declaration ==== */
-void INTC_Handler_Interrupt(uint32_t icciar);
-__fiq __arm void FiqHandler_Interrupt(void);
-#endif
-
-/******************************************************************************
-Private global variables and functions
-******************************************************************************/
-
-void enable_irq()
-{
-    asm("CPSIE   i");
-    asm("ISB");
-}
-
-void disable_irq()
-{
-    asm("CPSID   i");
-    asm("ISB");
-}
-
-void enable_fiq()
-{
-    asm("CPSIE   f");
-    asm("ISB");
-}
-
-void disable_fiq()
-{
-    asm("CPSID   f");
-    asm("ISB");
-}
 
 /******************************************************************************
 * Function Name: INTC_Handler_Interrupt
@@ -132,7 +101,7 @@ void INTC_Handler_Interrupt(uint32_t icciar)
     }
 
     /* ==== Interrupt handler call ==== */
-    enable_irq(); /* IRQ interrupt enabled */
+    __enable_irq(); /* IRQ interrupt enabled */
 
     /* ICDICFRn has 16 sources in the 32 bits                                  */
     /* The n can be calculated by int_id / 16                                  */
@@ -151,7 +120,7 @@ void INTC_Handler_Interrupt(uint32_t icciar)
 
     Userdef_INTC_HandlerExe(int_id, int_sense); /* Call interrupt handler */
 
-    disable_irq(); /* IRQ interrupt disabled */
+    __disable_irq(); /* IRQ interrupt disabled */
 }
 
 /*******************************************************************************

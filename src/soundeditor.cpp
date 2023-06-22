@@ -248,7 +248,7 @@ class MenuItemLFOShape : public MenuItemSelection {
 public:
 	MenuItemLFOShape(char const* newName = NULL) : MenuItemSelection(newName) {}
 	char const** getOptions() {
-		static char const* options[] = {"Sine", "Triangle", "Square", "Saw", NULL};
+		static char const* options[] = {"Sine", "Triangle", "Square", "Saw", "S&H", "Random Walk", NULL};
 		return options;
 	}
 	int getNumOptions() { return NUM_LFO_TYPES; }
@@ -1022,8 +1022,14 @@ public:
 class MenuItemArpSync final : public MenuItemSyncLevel {
 public:
 	MenuItemArpSync(char const* newName = NULL) : MenuItemSyncLevel(newName) {}
-	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentArpSettings->syncLevel; }
-	void writeCurrentValue() { soundEditor.currentArpSettings->syncLevel = soundEditor.currentValue; }
+	void readCurrentValue() {
+		soundEditor.currentValue = syncTypeAndLevelToMenuOption(soundEditor.currentArpSettings->syncType,
+		                                                        soundEditor.currentArpSettings->syncLevel);
+	}
+	void writeCurrentValue() {
+		soundEditor.currentArpSettings->syncType = menuOptionToSyncType(soundEditor.currentValue);
+		soundEditor.currentArpSettings->syncLevel = menuOptionToSyncLevel(soundEditor.currentValue);
+	}
 } arpSyncMenu;
 
 class MenuItemArpOctaves final : public MenuItemInteger {
@@ -1151,9 +1157,13 @@ public:
 class MenuItemLFO1Sync final : public MenuItemSyncLevel {
 public:
 	MenuItemLFO1Sync(char const* newName = NULL) : MenuItemSyncLevel(newName) {}
-	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentSound->lfoGlobalSyncLevel; }
+	void readCurrentValue() {
+		soundEditor.currentValue = syncTypeAndLevelToMenuOption(soundEditor.currentSound->lfoGlobalSyncType,
+		                                                        soundEditor.currentSound->lfoGlobalSyncLevel);
+	}
 	void writeCurrentValue() {
-		soundEditor.currentSound->setLFOGlobalSyncLevel(soundEditor.currentValue);
+		soundEditor.currentSound->setLFOGlobalSyncType(menuOptionToSyncType(soundEditor.currentValue));
+		soundEditor.currentSound->setLFOGlobalSyncLevel(menuOptionToSyncLevel(soundEditor.currentValue));
 		soundEditor.currentSound->setupPatchingForAllParamManagers(currentSong);
 	}
 } lfo1SyncMenu;
@@ -1270,8 +1280,14 @@ public:
 class MenuItemDelaySync final : public MenuItemSyncLevel {
 public:
 	MenuItemDelaySync(char const* newName = NULL) : MenuItemSyncLevel(newName) {}
-	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentModControllable->delay.sync; }
-	void writeCurrentValue() { soundEditor.currentModControllable->delay.sync = soundEditor.currentValue; }
+	void readCurrentValue() {
+		soundEditor.currentValue = syncTypeAndLevelToMenuOption(soundEditor.currentModControllable->delay.syncType,
+		                                                        soundEditor.currentModControllable->delay.syncLevel);
+	}
+	void writeCurrentValue() {
+		soundEditor.currentModControllable->delay.syncType = menuOptionToSyncType(soundEditor.currentValue);
+		soundEditor.currentModControllable->delay.syncLevel = menuOptionToSyncLevel(soundEditor.currentValue);
+	}
 } delaySyncMenu;
 
 // Reverb ----------------------------------------------------------------------------------
@@ -1367,9 +1383,14 @@ public:
 class MenuItemSidechainSync final : public MenuItemSyncLevel {
 public:
 	MenuItemSidechainSync(char const* newName = NULL) : MenuItemSyncLevel(newName) {}
-	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentCompressor->sync; }
+	int getNumOptions() override { return 10; };
+	void readCurrentValue() {
+		soundEditor.currentValue = syncTypeAndLevelToMenuOption(soundEditor.currentCompressor->syncType,
+		                                                        soundEditor.currentCompressor->syncLevel);
+	}
 	void writeCurrentValue() {
-		soundEditor.currentCompressor->sync = soundEditor.currentValue;
+		soundEditor.currentCompressor->syncType = menuOptionToSyncType(soundEditor.currentValue);
+		soundEditor.currentCompressor->syncLevel = menuOptionToSyncLevel(soundEditor.currentValue);
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	}
 	bool isRelevant(Sound* sound, int whichThing) {

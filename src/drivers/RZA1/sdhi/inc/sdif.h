@@ -245,7 +245,7 @@ int sd_format(int sd_port, int mode,int (*callback)(unsigned long,unsigned long)
 int sd_format2(int sd_port, int mode,unsigned long volserial,int (*callback)(unsigned long,unsigned long));
 int sd_mount(int sd_port, unsigned long mode,unsigned long voltage);
 int sd_read_sect(int sd_port, unsigned char *buff,unsigned long psn,long cnt);
-int sd_write_sect(int sd_port, unsigned char *buff,unsigned long psn,long cnt,int writemode);
+int sd_write_sect(int sd_port, unsigned char const *buff,unsigned long psn,long cnt,int writemode);
 int sd_get_type(int sd_port, unsigned char *type,unsigned char *speed,unsigned char *capa);
 int sd_get_size(int sd_port, unsigned long *user,unsigned long *protect);
 int sd_iswp(int sd_port);

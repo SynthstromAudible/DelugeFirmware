@@ -923,8 +923,8 @@ bool doSomeOutputting() {
 		}
 
 #else
-		i2sTXBufferPosNow[0] = lshiftAndSaturate(lAdjusted, AUDIO_OUTPUT_GAIN_DOUBLINGS);
-		i2sTXBufferPosNow[1] = lshiftAndSaturate(rAdjusted, AUDIO_OUTPUT_GAIN_DOUBLINGS);
+		i2sTXBufferPosNow[0] = lshiftAndSaturate<AUDIO_OUTPUT_GAIN_DOUBLINGS>(lAdjusted);
+		i2sTXBufferPosNow[1] = lshiftAndSaturate<AUDIO_OUTPUT_GAIN_DOUBLINGS>(rAdjusted);
 
 		outputBufferForResampling[numSamplesOutputted].l = i2sTXBufferPosNow[0];
 		outputBufferForResampling[numSamplesOutputted].r = i2sTXBufferPosNow[1];
@@ -1064,7 +1064,7 @@ compressorFound:
 			    paramManagerWithMostReverb->getUnpatchedParamSet()->getValue(PARAM_UNPATCHED_COMPRESSOR_SHAPE);
 			reverbCompressor.attack = modControllable->compressor.attack;
 			reverbCompressor.release = modControllable->compressor.release;
-			reverbCompressor.sync = modControllable->compressor.sync;
+			reverbCompressor.syncLevel = modControllable->compressor.syncLevel;
 			return;
 		}
 
@@ -1120,7 +1120,7 @@ void getReverbParamsFromSong(Song* song) {
 	reverbCompressorShape = song->reverbCompressorShape;
 	reverbCompressor.attack = song->reverbCompressorAttack;
 	reverbCompressor.release = song->reverbCompressorRelease;
-	reverbCompressor.sync = song->reverbCompressorSync;
+	reverbCompressor.syncLevel = song->reverbCompressorSync;
 }
 
 Voice* solicitVoice(Sound* forSound) {

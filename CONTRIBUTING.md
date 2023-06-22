@@ -66,7 +66,7 @@ The following requirements must be fulfilled for a Pull request to be mergable t
 ### Code specific
 
 * All project files, especially source files need to have a compatible license with the project. See [LICENSE](LICENSE).
-* There is no written standard on formatting and coding guidelines yet so the current requirement is to make your code look and feel like the rest of the repository and respect the styling decisions taken therein (for example brace position). Clang formatting has been included in the GitHub Actions and should help with this.
+* There is no written standard on formatting and coding guidelines yet so the current requirement is to make your code look and feel like the rest of the repository and respect the styling decisions taken therein (for example brace position). Clang format checking has been defined in the `.clang-format` file. It is checked in the GitHub Actions to enforce some guidelines. To check for compliance currently Clang 14 should be used since other versions have different behavior.
 * All changes to the firmware have to be tested on a best effort basis to make sure they work as expected and don't break any existing functionality before submitting as ready to merge. This does not apply to Draft Pull requests.
 * All changes need to be compatible with all available hardware variants, this currently includes OLED and 7-Segment.
 * All changes need to be compatible with the currently official toolchain as described in the [Readme](README.md).

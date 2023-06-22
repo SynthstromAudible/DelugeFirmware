@@ -831,7 +831,7 @@ doFinishCapturing:
 			else {
 				do {
 					int32_t rxL = *inputAddress;
-					if (applyGain) rxL = lshiftAndSaturate(rxL, 5);
+					if (applyGain) rxL = lshiftAndSaturate<5>(rxL);
 
 					char* __restrict__ readPos = (char*)&rxL + 1;
 					*(writePosNow++) = *(readPos++);
@@ -852,7 +852,7 @@ doFinishCapturing:
 
 					if (recordingNumChannels == 2) {
 						int32_t rxR = *(inputAddress + 1);
-						if (applyGain) rxR = lshiftAndSaturate(rxR, 5);
+						if (applyGain) rxR = lshiftAndSaturate<5>(rxR);
 
 						readPos = (char*)&rxR + 1;
 						*(writePosNow++) = *(readPos++);

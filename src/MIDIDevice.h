@@ -26,6 +26,7 @@
 #define VENDOR_ID_NONE 0
 #define VENDOR_ID_UPSTREAM_USB 1
 #define VENDOR_ID_DIN 2
+#define VENDOR_ID_UPSTREAM_USB2 3
 
 #define MIDI_DIRECTION_INPUT_TO_DELUGE 0
 #define MIDI_DIRECTION_OUTPUT_FROM_DELUGE 1
@@ -70,6 +71,13 @@ public:
 	uint8_t bendRange;
 };
 
+/*
+ * MidiDevice primarily holds configuration settings and associated data - the sendMessage function
+ * is used only during setup, and data is r/w directly from the super device (connectedUSBMIDIDevice)
+ * or the serial ports as applicable
+ * See MIDIDeviceManager or midiengine.cpp for details
+ */
+
 // These never get destructed. So we're safe having various Instruments etc holding pointers to them.
 class MIDIDevice {
 public:
@@ -93,13 +101,16 @@ public:
 
 	inline bool hasDefaultVelocityToLevelSet() { return defaultVelocityToLevel; }
 
-	MIDIPort ports
-	    [2]; // I think I used an array here so the settings menu could deal with either one easily - which doesn't seem like a very strong reason really...
+	// Only 2 ports per device, but this is functionally set in stone due to existing code
+	// Originally done to ease integration to the midi device setting menu
+	MIDIPort ports[2];
 
-	// These are stored as full-range 16-bit values (scaled up from 7 or 14-bit MIDI depending on which), and you'll want to scale this up again to 32-bit to use them.
-	// X and Y may be both positive and negative, and Z may only be positive (so has been scaled up less from incoming bits).
-	// These default to 0.
-	// These are just for MelodicInstruments. For Drums, the values get stored in the Drum itself.
+	/* These are stored as full-range 16-bit values (scaled up from 7 or 14-bit MIDI depending on which), and you'll want to scale this up again to 32-bit to use them.
+	 * X and Y may be both positive and negative, and Z may only be positive (so has been scaled up less from incoming bits).
+	 * These default to 0.
+	 * These are just for MelodicInstruments. For Drums, the values get stored in the Drum itself.
+	 */
+
 	int16_t defaultInputMPEValuesPerMIDIChannel[16][NUM_EXPRESSION_DIMENSIONS];
 
 	uint8_t mpeZoneBendRanges[2][2]; // 0 means none set. It's [zone][whichBendRange].
@@ -142,10 +153,11 @@ public:
 
 class MIDIDeviceUSBUpstream final : public MIDIDeviceUSB {
 public:
-	MIDIDeviceUSBUpstream() {}
+	MIDIDeviceUSBUpstream(uint8_t portNum = 0) { portNumber = portNum; }
 	void writeReferenceAttributesToFile();
 	void writeToFlash(uint8_t* memory);
 	char const* getDisplayName();
+	uint8_t portNumber;
 };
 
 class MIDIDeviceDINPorts final : public MIDIDevice {

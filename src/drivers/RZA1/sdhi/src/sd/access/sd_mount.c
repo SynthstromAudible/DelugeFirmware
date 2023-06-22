@@ -48,6 +48,8 @@
 
 static unsigned short stat_buff[NUM_PORT][64/sizeof(unsigned short)];
 
+int _sd_calc_erase_sector(SDHNDL *hndl);
+
 /*****************************************************************************
  * ID           :
  * Summary      : mount SD card

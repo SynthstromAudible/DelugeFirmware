@@ -18,6 +18,7 @@
 #include "definitions.h"
 
 #include "oled_low_level_all_cpus.h"
+#include "oled_low_level.h"
 #include "sio_char.h"
 #include "rspi_all_cpus.h"
 #include "dmac.h"

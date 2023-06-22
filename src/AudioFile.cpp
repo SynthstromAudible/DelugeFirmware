@@ -96,7 +96,7 @@ int AudioFile::loadFile(AudioFileReader* reader, bool isAiff, bool makeWaveTable
 			switch (thisChunk.name) {
 
 			// Data chunk - "data"
-			case 'atad': {
+			case charsToIntegerConstant('d', 'a', 't', 'a'): {
 				foundDataChunk = true;
 				audioDataStartPosBytes = bytePosOfThisChunkData;
 				audioDataLengthBytes = bytesCurrentChunkNotRoundedUp;
@@ -122,7 +122,7 @@ doSetupWaveTable:
 			}
 
 			// Format chunk - "fmt "
-			case ' tmf': {
+			case charsToIntegerConstant('f', 'm', 't', ' '): {
 				foundFmtChunk = true;
 
 				// Read and process fmt chunk
@@ -178,7 +178,7 @@ doSetupWaveTable:
 			}
 
 			// Sample chunk - "smpl"
-			case 'lpms': {
+			case charsToIntegerConstant('s', 'm', 'p', 'l'): {
 				if (type == AUDIO_FILE_TYPE_SAMPLE) {
 
 					uint32_t data[9];
@@ -230,7 +230,7 @@ doSetupWaveTable:
 			}
 
 			// Instrument chunk - "inst"
-			case 'tsni': {
+			case charsToIntegerConstant('i', 'n', 's', 't'): {
 				if (type == AUDIO_FILE_TYPE_SAMPLE) {
 
 					uint8_t data[7];
@@ -248,12 +248,12 @@ doSetupWaveTable:
 			}
 
 			// Serum wavetable chunk - "clm "
-			case ' mlc': {
-				char data[6];
+			case charsToIntegerConstant('c', 'l', 'm', ' '): {
+				char data[7];
 				error = reader->readBytes((char*)data, 7);
 				if (error) break;
 
-				if ((*(uint32_t*)data & 0x00FFFFFF) == '>!<') {
+				if ((*(uint32_t*)data & 0x00FFFFFF) == charsToIntegerConstant('<', '!', '>', 0)) {
 					fileExplicitlySpecifiesSelfAsWaveTable = true;
 					int number = memToUIntOrError(&data[3], &data[7]);
 
@@ -274,7 +274,7 @@ doSetupWaveTable:
 			switch (thisChunk.name) {
 
 			// SSND
-			case 'DNSS': {
+			case charsToIntegerConstant('S', 'S', 'N', 'D'): {
 				foundDataChunk = true;
 
 				// Offset
@@ -292,7 +292,7 @@ doSetupWaveTable:
 			}
 
 			// COMM
-			case 'MMOC': {
+			case charsToIntegerConstant('C', 'O', 'M', 'M'): {
 				foundFmtChunk = true;
 
 				if (thisChunk.length != 18) return ERROR_FILE_UNSUPPORTED; // Why'd I do this?
@@ -334,7 +334,7 @@ doSetupWaveTable:
 			}
 
 			// MARK
-			case 'KRAM': {
+			case charsToIntegerConstant('M', 'A', 'R', 'K'): {
 				error = reader->readBytes((char*)&numMarkers, 2);
 				if (error) break;
 				numMarkers = swapEndianness2x16(numMarkers);
@@ -374,7 +374,7 @@ doSetupWaveTable:
 			}
 
 			// INST
-			case 'TSNI': {
+			case charsToIntegerConstant('I', 'N', 'S', 'T'): {
 				if (type == AUDIO_FILE_TYPE_SAMPLE) {
 					uint8_t data[8];
 					error = reader->readBytes((char*)data, 8);

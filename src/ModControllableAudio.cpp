@@ -423,14 +423,12 @@ void ModControllableAudio::processFX(StereoSample* buffer, int numSamples, int m
 			int32_t* workingBufferPos = delayWorkingBuffer;
 			do {
 				// Leave more headroom, because making it clip sounds bad with pure digital
-				workingBufferPos[0] =
-				    signed_saturate(
-				        multiply_32x32_rshift32(workingBufferPos[0], delayWorkingState->delayFeedbackAmount), 32 - 3)
-				    << 2;
-				workingBufferPos[1] =
-				    signed_saturate(
-				        multiply_32x32_rshift32(workingBufferPos[1], delayWorkingState->delayFeedbackAmount), 32 - 3)
-				    << 2;
+				workingBufferPos[0] = signed_saturate<32 - 3>(multiply_32x32_rshift32(
+				                          workingBufferPos[0], delayWorkingState->delayFeedbackAmount))
+				                      << 2;
+				workingBufferPos[1] = signed_saturate<32 - 3>(multiply_32x32_rshift32(
+				                          workingBufferPos[1], delayWorkingState->delayFeedbackAmount))
+				                      << 2;
 
 				workingBufferPos += 2;
 			} while (workingBufferPos != workingBufferEnd);
@@ -469,8 +467,8 @@ void ModControllableAudio::processFX(StereoSample* buffer, int numSamples, int m
 				}
 
 				else {
-					fromDelayL = signed_saturate(multiply_32x32_rshift32(fromDelayL, delayWorkingState->delayFeedbackAmount), 32 - 3) << 2;
-					fromDelayR = signed_saturate(multiply_32x32_rshift32(fromDelayR, delayWorkingState->delayFeedbackAmount), 32 - 3) << 2;
+					fromDelayL = signed_saturate<delayWorkingState->delayFeedbackAmount>(multiply_32x32_rshift32(fromDelayL), 32 - 3) << 2;
+					fromDelayR = signed_saturate<delayWorkingState->delayFeedbackAmount>(multiply_32x32_rshift32(fromDelayR), 32 - 3) << 2;
 				}
 				*/
 
@@ -964,12 +962,14 @@ void ModControllableAudio::writeTagsToFile() {
 	storageManager.writeOpeningTagBeginning("delay");
 	storageManager.writeAttribute("pingPong", delay.pingPong);
 	storageManager.writeAttribute("analog", delay.analog);
-	storageManager.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", delay.sync);
+	storageManager.writeSyncTypeToFile(currentSong, "syncType", delay.syncType);
+	storageManager.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", delay.syncLevel);
 	storageManager.closeTag();
 
 	// Sidechain compressor
 	storageManager.writeOpeningTagBeginning("compressor");
-	storageManager.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", compressor.sync);
+	storageManager.writeSyncTypeToFile(currentSong, "syncType", compressor.syncType);
+	storageManager.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", compressor.syncLevel);
 	storageManager.writeAttribute("attack", compressor.attack);
 	storageManager.writeAttribute("release", compressor.release);
 	storageManager.closeTag();
@@ -1117,7 +1117,9 @@ int ModControllableAudio::readTagFromFile(char const* tagName, ParamManagerForTi
 	}
 
 	else if (!strcmp(tagName, "delay")) {
-		delay.sync = 0; // Default, in case this info wasn't included... although it always is since July 2015
+		// Set default values in case they are not configured
+		delay.syncType = SYNC_TYPE_EVEN;
+		delay.syncLevel = SYNC_LEVEL_NONE;
 
 		while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 
@@ -1151,8 +1153,12 @@ doReadPatchedParam:
 				delay.analog = getMax((int32_t)0, getMin((int32_t)1, contents));
 				storageManager.exitTag("analog");
 			}
+			else if (!strcmp(tagName, "syncType")) {
+				delay.syncType = storageManager.readSyncTypeFromFile(song);
+				storageManager.exitTag("syncType");
+			}
 			else if (!strcmp(tagName, "syncLevel")) {
-				delay.sync = storageManager.readAbsoluteSyncLevelFromFile(song);
+				delay.syncLevel = storageManager.readAbsoluteSyncLevelFromFile(song);
 				storageManager.exitTag("syncLevel");
 			}
 			else {
@@ -1163,6 +1169,9 @@ doReadPatchedParam:
 	}
 
 	else if (!strcmp(tagName, "compressor")) { // Remember, Song doesn't use this
+		// Set default values in case they are not configured
+		compressor.syncType = SYNC_TYPE_EVEN;
+		compressor.syncLevel = SYNC_LEVEL_NONE;
 
 		while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "attack")) {
@@ -1173,8 +1182,12 @@ doReadPatchedParam:
 				compressor.release = storageManager.readTagOrAttributeValueInt();
 				storageManager.exitTag("release");
 			}
+			else if (!strcmp(tagName, "syncType")) {
+				compressor.syncType = storageManager.readSyncTypeFromFile(song);
+				storageManager.exitTag("syncType");
+			}
 			else if (!strcmp(tagName, "syncLevel")) {
-				compressor.sync = storageManager.readAbsoluteSyncLevelFromFile(song);
+				compressor.syncLevel = storageManager.readAbsoluteSyncLevelFromFile(song);
 				storageManager.exitTag("syncLevel");
 			}
 			else {
@@ -1461,7 +1474,7 @@ void ModControllableAudio::endStutter(ParamManagerForTimeline* paramManager) {
 void ModControllableAudio::switchDelayPingPong() {
 	delay.pingPong = !delay.pingPong;
 
-	char* displayText;
+	char const* displayText;
 	switch (delay.pingPong) {
 	case 0:
 		displayText = "Normal delay";

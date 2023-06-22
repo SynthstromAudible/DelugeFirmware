@@ -38,6 +38,14 @@
 #include "r_usb_hmidi_config.h"
 #include "definitions.h"
 
+#include "uart_all_cpus.h"
+
+#if HAVE_OLED
+#include "oled.h"
+#else
+#include "numericdriver.h"
+#endif
+
 /******************************************************************************
  Exported global variables
  ******************************************************************************/
@@ -482,7 +490,7 @@ extern usb_msg_t* p_usb_scheduler_add_use;
  ******************************************************************************/
 void usb_hmidi_task(usb_vp_int_t stacd)
 {
-    usb_utr_t* p_mess = p_usb_scheduler_add_use;
+    usb_utr_t* p_mess = (usb_utr_t*)p_usb_scheduler_add_use;
     usb_er_t err      = 0l;
 
     if (p_mess->msginfo == USB_HHID_TCMD_OPEN)
