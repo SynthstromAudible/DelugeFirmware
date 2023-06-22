@@ -2,6 +2,7 @@ import os
 import re
 
 import SCons
+from SCons.Script.Main import GetOption
 from SCons.Errors import StopError
 from SCons.Subst import quote_spaces
 
@@ -78,3 +79,32 @@ def walk_all_sources(base, prefix):
         if SOURCEWALK_RE.match(os.path.splitext(l)[1])
     ]
     return sources
+
+
+def vcheck():
+    """Verbosity level-checker
+
+    Used to determine current verbosity level from commandline arguments alone
+
+    Verbosity = 0 (silent)
+    Verbosity = 1 (verbose, -warnings)
+    Verbosity = 2 (verbose, +warnings)
+    Verbosity = 3 (verbose, all)
+    """
+    if not GetOption("silent"):
+        if GetOption("spew"):
+            return 3
+        elif GetOption("verbosity"):
+            return int(GetOption("verbosity"))
+        return 1
+
+    return 0
+
+
+def vprint(*args, **kwargs):
+    """Verbosity-aware print function
+
+    Will suppress output based on verbosity/spew/silent flags.
+    """
+    if vcheck():
+        print(*args, **kwargs)

@@ -25,6 +25,8 @@ for /R %PIP_WHEEL_PATH% %%G in (
 ) do (
     %PIP_CMD% install -q "%%G"
 )
-%PIP_CMD% install -q --upgrade pip
+%PIP_CMD% install -q --upgrade pip | find /V "already satisfied"
+%PIP_CMD% install GitPython | find /V "already satisfied"
+%PIP_CMD% install -q kconfiglib==14.1.0 | find /V "already satisfied"
 
 %SCONS_EP% %SCONS_DEFAULT_FLAGS% %*

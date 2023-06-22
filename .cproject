@@ -18,7 +18,7 @@
 				<option id="toolchain.enable" value="false"/>
 			</storageModule>
 			<storageModule moduleId="cdtBuildSystem" version="4.0.0">
-				<configuration artifactName="${ProjName}-debug-oled" buildArtefactType="org.eclipse.cdt.build.core.buildArtefactType.exe" buildProperties="org.eclipse.cdt.build.core.buildArtefactType=org.eclipse.cdt.build.core.buildArtefactType.exe,org.eclipse.cdt.build.core.buildType=org.eclipse.cdt.build.core.buildType.debug" cleanCommand="rm -rf *.lst *.lis *.lpp *.map" description="Debug build with OLED support" id="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug.1445259662" name="e2-build-debug-oled" parent="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug" postbuildStep="arm-none-eabi-objcopy -O binary &quot;Deluge-debug-oled.elf&quot; &quot;Deluge-debug-oled.bin&quot;">
+				<configuration artifactName="${ProjName}-debug-oled" buildArtefactType="org.eclipse.cdt.build.core.buildArtefactType.exe" buildProperties="org.eclipse.cdt.build.core.buildArtefactType=org.eclipse.cdt.build.core.buildArtefactType.exe,org.eclipse.cdt.build.core.buildType=org.eclipse.cdt.build.core.buildType.debug" cleanCommand="rm -rf *.lst *.lis *.lpp *.map" description="Debug build with OLED support" id="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug.1445259662" name="e2-build-debug-oled" parent="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug" postbuildStep="arm-none-eabi-objcopy -O binary &quot;Deluge-debug-oled.elf&quot; &quot;Deluge-debug-oled.bin&quot;" preannouncebuildStep="Additional directory preparation and/or preprocessing by DBT." prebuildStep="${ProjDirPath}/dbt.cmd ${build_project} --only_prepare --e2_orig_prefix">
 					<folderInfo id="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug.1445259662." name="/" resourcePath="">
 						<toolChain id="com.renesas.cdt.managedbuild.gcc.rz.toolchain.elf.debug.933765617" name="GCC for Renesas RZ" superClass="com.renesas.cdt.managedbuild.gcc.rz.toolchain.elf.debug">
 							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.addtools.createflash.1549925981" name="Create flash image" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.addtools.createflash" useByScannerDiscovery="false" value="true" valueType="boolean"/>
@@ -30,7 +30,7 @@
 							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.functionsection.672693751" name="Function sections (-ffunction-sections)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.functionsection" useByScannerDiscovery="true" value="true" valueType="boolean"/>
 							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.datasections.647017895" name="Data sections (-fdata-sections)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.datasections" useByScannerDiscovery="true" value="true" valueType="boolean"/>
 							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.level.288886710" name="Debug level" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.level" useByScannerDiscovery="true" value="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.level.default" valueType="enumerated"/>
-							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.format.664011532" name="Debug format" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.format" useByScannerDiscovery="true"/>
+							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.format.664011532" name="Debug format" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.format" useByScannerDiscovery="true" value="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.format.dwarf4" valueType="enumerated"/>
 							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.toolchain.name.415623502" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.toolchain.name" useByScannerDiscovery="false" value="GNU Tools for ARM Embedded Processors" valueType="string"/>
 							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.architecture.1681692581" name="Architecture" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.architecture" useByScannerDiscovery="false" value="ilg.gnuarmeclipse.managedbuild.cross.option.architecture.arm" valueType="enumerated"/>
 							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.family.1294414468" name="Arm family (-mcpu)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.family" useByScannerDiscovery="false" value="ilg.gnuarmeclipse.managedbuild.cross.option.arm.target.mcpu.cortex-a9" valueType="enumerated"/>
@@ -56,11 +56,12 @@
 							<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="true" id="com.renesas.cdt.managedbuild.gcc.rz.option.otherOptimization.1902940070" name="Other optimization flags" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.otherOptimization" useByScannerDiscovery="true" valueType="stringList"/>
 							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.freestanding.1974536636" name="Assume freestanding environment (-ffreestanding)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.freestanding" value="false" valueType="boolean"/>
 							<targetPlatform archList="all" binaryParser="org.eclipse.cdt.core.ELF" id="ilg.gnuarmeclipse.managedbuild.cross.targetPlatform.160074105" isAbstract="false" osList="all" superClass="ilg.gnuarmeclipse.managedbuild.cross.targetPlatform"/>
-							<builder autoBuildTarget="all" buildPath="${project_path}build/debug-oled" cleanBuildTarget="clean" enableAutoBuild="false" enableCleanBuild="true" enabledIncrementalBuild="true" id="com.renesas.cdt.managedbuild.gcc.rz.builder.884834558" incrementalBuildTarget="all" keepEnvironmentInBuildfile="false" managedBuildOn="true" name="GCC for Renesas Builder" parallelBuildOn="true" parallelizationNumber="optimal" superClass="com.renesas.cdt.managedbuild.gcc.rz.builder"/>
+							<builder arguments="--spew --e2_orig_prefix" autoBuildTarget="e2-build-debug-7seg" buildPath="${workspace_loc:/Deluge}" cleanBuildTarget="e2-build-debug-oled -c" command="${workspace_loc:/Deluge/dbt.cmd}" enableAutoBuild="false" enableCleanBuild="true" enabledIncrementalBuild="true" id="com.renesas.cdt.managedbuild.gcc.rz.builder.884834558" incrementalBuildTarget="e2-build-debug-oled" keepEnvironmentInBuildfile="false" managedBuildOn="false" name="GCC for Renesas Builder" parallelBuildOn="true" parallelizationNumber="optimal" superClass="com.renesas.cdt.managedbuild.gcc.rz.builder"/>
 							<tool id="com.renesas.cdt.managedbuild.gcc.rz.tool.assembler.687716366" name="Cross ARM GNU Assembler" superClass="com.renesas.cdt.managedbuild.gcc.rz.tool.assembler">
 								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.assembler.usepreprocessor.1495736348" name="Use preprocessor" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.assembler.usepreprocessor" useByScannerDiscovery="false" value="true" valueType="boolean"/>
 								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.renesas.cdt.managedbuild.gcc.rz.option.assembler.include.166744455" name="Include paths (-I)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.assembler.include" useByScannerDiscovery="true" valueType="includePath">
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/NE10/common&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/${config_name}/include&quot;"/>
 								</option>
 								<inputType id="ilg.gnuarmeclipse.managedbuild.cross.tool.assembler.input.326587097" superClass="ilg.gnuarmeclipse.managedbuild.cross.tool.assembler.input"/>
 							</tool>
@@ -77,6 +78,7 @@
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/NE10/inc&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/fatfs&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/${config_name}/include&quot;"/>
 								</option>
 								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="true" id="com.renesas.cdt.managedbuild.gcc.rz.option.compiler.cpp.otherOptimization.1576255133" name="Other optimization flags" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.compiler.cpp.otherOptimization" useByScannerDiscovery="true" valueType="stringList"/>
 								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.compiler.nortti.1205384121" name="Do not use RTTI (-fno-rtti)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.compiler.nortti" useByScannerDiscovery="true" value="true" valueType="boolean"/>
@@ -519,7 +521,7 @@
 				<option id="toolchain.enable" value="false"/>
 			</storageModule>
 			<storageModule moduleId="cdtBuildSystem" version="4.0.0">
-				<configuration artifactExtension="elf" artifactName="${ProjName}-release-oled" buildArtefactType="org.eclipse.cdt.build.core.buildArtefactType.exe" buildProperties="org.eclipse.cdt.build.core.buildArtefactType=org.eclipse.cdt.build.core.buildArtefactType.exe,org.eclipse.cdt.build.core.buildType=org.eclipse.cdt.build.core.buildType.debug" cleanCommand="rm -rf *.lst *.lis *.lpp *.map" description="Release build with OLED support" id="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug.1445259662.1946000861" name="e2-build-release-oled" parent="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug" postbuildStep="arm-none-eabi-objcopy -O binary &quot;Deluge-release-oled.elf&quot; &quot;Deluge-release-oled.bin&quot;">
+				<configuration artifactExtension="elf" artifactName="${ProjName}-release-oled" buildArtefactType="org.eclipse.cdt.build.core.buildArtefactType.exe" buildProperties="org.eclipse.cdt.build.core.buildArtefactType=org.eclipse.cdt.build.core.buildArtefactType.exe,org.eclipse.cdt.build.core.buildType=org.eclipse.cdt.build.core.buildType.debug" cleanCommand="rm -rf *.lst *.lis *.lpp *.map" description="Release build with OLED support" id="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug.1445259662.1946000861" name="e2-build-release-oled" parent="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug" postbuildStep="arm-none-eabi-objcopy -O binary &quot;Deluge-release-oled.elf&quot; &quot;Deluge-release-oled.bin&quot;" preannouncebuildStep="Additional directory preparation and/or preprocessing by DBT." prebuildStep="${ProjDirPath}/dbt.cmd ${build_project} --only_prepare --e2_orig_prefix">
 					<folderInfo id="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug.1445259662.1946000861." name="/" resourcePath="">
 						<toolChain id="com.renesas.cdt.managedbuild.gcc.rz.toolchain.elf.debug.412406782" name="GCC for Renesas RZ" superClass="com.renesas.cdt.managedbuild.gcc.rz.toolchain.elf.debug">
 							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.addtools.createflash.1256659619" name="Create flash image" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.addtools.createflash" useByScannerDiscovery="false" value="true" valueType="boolean"/>
@@ -531,7 +533,7 @@
 							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.functionsection.1325360673" name="Function sections (-ffunction-sections)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.functionsection" useByScannerDiscovery="true" value="true" valueType="boolean"/>
 							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.datasections.783140591" name="Data sections (-fdata-sections)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.datasections" useByScannerDiscovery="true" value="true" valueType="boolean"/>
 							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.level.63693081" name="Debug level" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.level" useByScannerDiscovery="true" value="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.level.none" valueType="enumerated"/>
-							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.format.416583827" name="Debug format" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.format" useByScannerDiscovery="true"/>
+							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.format.416583827" name="Debug format" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.format" useByScannerDiscovery="true" value="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.format.dwarf4" valueType="enumerated"/>
 							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.toolchain.name.1959038079" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.toolchain.name" useByScannerDiscovery="false" value="GNU Tools for ARM Embedded Processors" valueType="string"/>
 							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.architecture.220051799" name="Architecture" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.architecture" useByScannerDiscovery="false" value="ilg.gnuarmeclipse.managedbuild.cross.option.architecture.arm" valueType="enumerated"/>
 							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.family.1215922278" name="Arm family (-mcpu)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.family" useByScannerDiscovery="false" value="ilg.gnuarmeclipse.managedbuild.cross.option.arm.target.mcpu.cortex-a9" valueType="enumerated"/>
@@ -560,11 +562,12 @@
 							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.warnings.nulldereference.174354379" name="Null pointer dereference [-Wnull-dereference]" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.warnings.nulldereference" useByScannerDiscovery="false" value="false" valueType="boolean"/>
 							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.freestanding.1216047129" name="Assume freestanding environment (-ffreestanding)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.freestanding" value="false" valueType="boolean"/>
 							<targetPlatform archList="all" binaryParser="org.eclipse.cdt.core.ELF" id="ilg.gnuarmeclipse.managedbuild.cross.targetPlatform.1660326466" isAbstract="false" osList="all" superClass="ilg.gnuarmeclipse.managedbuild.cross.targetPlatform"/>
-							<builder buildPath="${project_path}build/release-oled" id="com.renesas.cdt.managedbuild.gcc.rz.builder.471865172" keepEnvironmentInBuildfile="false" managedBuildOn="true" name="GCC for Renesas Builder" parallelBuildOn="true" parallelizationNumber="optimal" superClass="com.renesas.cdt.managedbuild.gcc.rz.builder"/>
+							<builder arguments="--spew --e2_orig_prefix" buildPath="${workspace_loc:/Deluge}" cleanBuildTarget="e2-build-release-oled -c" command="${workspace_loc:/Deluge/dbt.cmd}" id="com.renesas.cdt.managedbuild.gcc.rz.builder.471865172" incrementalBuildTarget="e2-build-release-oled" keepEnvironmentInBuildfile="false" managedBuildOn="false" name="GCC for Renesas Builder" parallelBuildOn="true" parallelizationNumber="optimal" superClass="com.renesas.cdt.managedbuild.gcc.rz.builder"/>
 							<tool id="com.renesas.cdt.managedbuild.gcc.rz.tool.assembler.1893919465" name="Cross ARM GNU Assembler" superClass="com.renesas.cdt.managedbuild.gcc.rz.tool.assembler">
 								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.assembler.usepreprocessor.349766785" name="Use preprocessor" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.assembler.usepreprocessor" useByScannerDiscovery="false" value="true" valueType="boolean"/>
 								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.renesas.cdt.managedbuild.gcc.rz.option.assembler.include.695435154" name="Include paths (-I)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.assembler.include" useByScannerDiscovery="true" valueType="includePath">
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/NE10/common&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/${config_name}/include&quot;"/>
 								</option>
 								<inputType id="ilg.gnuarmeclipse.managedbuild.cross.tool.assembler.input.647903952" superClass="ilg.gnuarmeclipse.managedbuild.cross.tool.assembler.input"/>
 							</tool>
@@ -1027,7 +1030,7 @@
 				<option id="toolchain.enable" value="false"/>
 			</storageModule>
 			<storageModule moduleId="cdtBuildSystem" version="4.0.0">
-				<configuration artifactExtension="elf" artifactName="${ProjName}-release-7seg" buildArtefactType="org.eclipse.cdt.build.core.buildArtefactType.exe" buildProperties="org.eclipse.cdt.build.core.buildArtefactType=org.eclipse.cdt.build.core.buildArtefactType.exe,org.eclipse.cdt.build.core.buildType=org.eclipse.cdt.build.core.buildType.debug" cleanCommand="rm -rf *.lst *.lis *.lpp *.map" description="Release build with 7-segment display support" id="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug.1445259662.1946000861.804567042" name="e2-build-release-7seg" parent="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug" postbuildStep="arm-none-eabi-objcopy -O binary &quot;Deluge-release-7seg.elf&quot; &quot;Deluge-release-7seg.bin&quot;">
+				<configuration artifactExtension="elf" artifactName="${ProjName}-release-7seg" buildArtefactType="org.eclipse.cdt.build.core.buildArtefactType.exe" buildProperties="org.eclipse.cdt.build.core.buildArtefactType=org.eclipse.cdt.build.core.buildArtefactType.exe,org.eclipse.cdt.build.core.buildType=org.eclipse.cdt.build.core.buildType.debug" cleanCommand="rm -rf *.lst *.lis *.lpp *.map" description="Release build with 7-segment display support" id="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug.1445259662.1946000861.804567042" name="e2-build-release-7seg" parent="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug" postbuildStep="arm-none-eabi-objcopy -O binary &quot;Deluge-release-7seg.elf&quot; &quot;Deluge-release-7seg.bin&quot;" preannouncebuildStep="Additional directory preparation and/or preprocessing by DBT." prebuildStep="${ProjDirPath}/dbt.cmd ${build_project} --only_prepare --e2_orig_prefix">
 					<folderInfo id="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug.1445259662.1946000861.804567042." name="/" resourcePath="">
 						<toolChain id="com.renesas.cdt.managedbuild.gcc.rz.toolchain.elf.debug.1009751527" name="GCC for Renesas RZ" superClass="com.renesas.cdt.managedbuild.gcc.rz.toolchain.elf.debug">
 							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.addtools.createflash.289936862" name="Create flash image" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.addtools.createflash" useByScannerDiscovery="false" value="true" valueType="boolean"/>
@@ -1068,11 +1071,12 @@
 							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.warnings.nulldereference.1643831319" name="Null pointer dereference [-Wnull-dereference]" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.warnings.nulldereference" useByScannerDiscovery="false" value="false" valueType="boolean"/>
 							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.freestanding.2135423734" name="Assume freestanding environment (-ffreestanding)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.freestanding" value="false" valueType="boolean"/>
 							<targetPlatform archList="all" binaryParser="org.eclipse.cdt.core.ELF" id="ilg.gnuarmeclipse.managedbuild.cross.targetPlatform.1562651190" isAbstract="false" osList="all" superClass="ilg.gnuarmeclipse.managedbuild.cross.targetPlatform"/>
-							<builder buildPath="${project_path}build/release-oled" id="com.renesas.cdt.managedbuild.gcc.rz.builder.1291883717" keepEnvironmentInBuildfile="false" managedBuildOn="true" name="GCC for Renesas Builder" parallelBuildOn="true" parallelizationNumber="optimal" superClass="com.renesas.cdt.managedbuild.gcc.rz.builder"/>
+							<builder arguments="--spew --e2_orig_prefix" buildPath="${workspace_loc:/Deluge}" cleanBuildTarget="e2-build-release-7seg -c" command="${workspace_loc:/Deluge/dbt.cmd}" id="com.renesas.cdt.managedbuild.gcc.rz.builder.1291883717" incrementalBuildTarget="e2-build-release-7seg" keepEnvironmentInBuildfile="false" managedBuildOn="false" name="GCC for Renesas Builder" parallelBuildOn="true" parallelizationNumber="optimal" superClass="com.renesas.cdt.managedbuild.gcc.rz.builder"/>
 							<tool id="com.renesas.cdt.managedbuild.gcc.rz.tool.assembler.1589149633" name="Cross ARM GNU Assembler" superClass="com.renesas.cdt.managedbuild.gcc.rz.tool.assembler">
 								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.assembler.usepreprocessor.577623605" name="Use preprocessor" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.assembler.usepreprocessor" useByScannerDiscovery="false" value="true" valueType="boolean"/>
 								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.renesas.cdt.managedbuild.gcc.rz.option.assembler.include.1828999988" name="Include paths (-I)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.assembler.include" useByScannerDiscovery="true" valueType="includePath">
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/NE10/common&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/${config_name}/include&quot;"/>
 								</option>
 								<inputType id="ilg.gnuarmeclipse.managedbuild.cross.tool.assembler.input.1751680437" superClass="ilg.gnuarmeclipse.managedbuild.cross.tool.assembler.input"/>
 							</tool>
@@ -1535,9 +1539,9 @@
 				<option id="toolchain.enable" value="false"/>
 			</storageModule>
 			<storageModule moduleId="cdtBuildSystem" version="4.0.0">
-				<configuration artifactName="${ProjName}-debug-7seg" buildArtefactType="org.eclipse.cdt.build.core.buildArtefactType.exe" buildProperties="org.eclipse.cdt.build.core.buildArtefactType=org.eclipse.cdt.build.core.buildArtefactType.exe,org.eclipse.cdt.build.core.buildType=org.eclipse.cdt.build.core.buildType.debug" cleanCommand="rm -rf *.lst *.lis *.lpp *.map" description="Debug build with 7-segment display support" id="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug.1445259662.2140647267" name="e2-build-debug-7seg" parent="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug" postbuildStep="arm-none-eabi-objcopy -O binary &quot;Deluge-debug-7seg.elf&quot; &quot;Deluge-debug-7seg.bin&quot;">
+				<configuration artifactName="${ProjName}-debug-7seg" buildArtefactType="org.eclipse.cdt.build.core.buildArtefactType.exe" buildProperties="org.eclipse.cdt.build.core.buildArtefactType=org.eclipse.cdt.build.core.buildArtefactType.exe,org.eclipse.cdt.build.core.buildType=org.eclipse.cdt.build.core.buildType.debug" cleanCommand="rm -rf *.lst *.lis *.lpp *.map" description="Debug build with 7-segment display support" id="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug.1445259662.2140647267" name="e2-build-debug-7seg" parent="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug" postbuildStep="arm-none-eabi-objcopy -O binary &quot;Deluge-debug-7seg.elf&quot; &quot;Deluge-debug-7seg.bin&quot;" preannouncebuildStep="" prebuildStep="">
 					<folderInfo id="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug.1445259662.2140647267." name="/" resourcePath="">
-						<toolChain id="com.renesas.cdt.managedbuild.gcc.rz.toolchain.elf.debug.258307926" name="GCC for Renesas RZ" superClass="com.renesas.cdt.managedbuild.gcc.rz.toolchain.elf.debug">
+						<toolChain id="com.renesas.cdt.managedbuild.gcc.rz.toolchain.elf.debug.258307926" name="GCC for Renesas RZ" nonInternalBuilderId="com.renesas.cdt.managedbuild.gcc.rz.builder" superClass="com.renesas.cdt.managedbuild.gcc.rz.toolchain.elf.debug">
 							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.addtools.createflash.1623663148" name="Create flash image" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.addtools.createflash" useByScannerDiscovery="false" value="true" valueType="boolean"/>
 							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.addtools.createlisting.708344804" name="Create extended listing" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.addtools.createlisting" useByScannerDiscovery="false"/>
 							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.addtools.printsize.674494163" name="Print size" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.addtools.printsize" useByScannerDiscovery="false" value="true" valueType="boolean"/>
@@ -1547,7 +1551,7 @@
 							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.functionsection.939388114" name="Function sections (-ffunction-sections)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.functionsection" useByScannerDiscovery="true" value="true" valueType="boolean"/>
 							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.datasections.1924080490" name="Data sections (-fdata-sections)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.datasections" useByScannerDiscovery="true" value="true" valueType="boolean"/>
 							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.level.140782878" name="Debug level" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.level" useByScannerDiscovery="true" value="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.level.default" valueType="enumerated"/>
-							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.format.1436452175" name="Debug format" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.format" useByScannerDiscovery="true"/>
+							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.format.1436452175" name="Debug format" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.format" useByScannerDiscovery="true" value="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.format.gdb" valueType="enumerated"/>
 							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.toolchain.name.1725984606" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.toolchain.name" useByScannerDiscovery="false" value="GNU Tools for ARM Embedded Processors" valueType="string"/>
 							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.architecture.1018937485" name="Architecture" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.architecture" useByScannerDiscovery="false" value="ilg.gnuarmeclipse.managedbuild.cross.option.architecture.arm" valueType="enumerated"/>
 							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.family.586296827" name="Arm family (-mcpu)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.family" useByScannerDiscovery="false" value="ilg.gnuarmeclipse.managedbuild.cross.option.arm.target.mcpu.cortex-a9" valueType="enumerated"/>
@@ -1573,7 +1577,7 @@
 							<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="true" id="com.renesas.cdt.managedbuild.gcc.rz.option.otherOptimization.1232438370" name="Other optimization flags" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.otherOptimization" useByScannerDiscovery="true" valueType="stringList"/>
 							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.freestanding.1878429403" name="Assume freestanding environment (-ffreestanding)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.freestanding" value="false" valueType="boolean"/>
 							<targetPlatform archList="all" binaryParser="org.eclipse.cdt.core.ELF" id="ilg.gnuarmeclipse.managedbuild.cross.targetPlatform.143836944" isAbstract="false" osList="all" superClass="ilg.gnuarmeclipse.managedbuild.cross.targetPlatform"/>
-							<builder autoBuildTarget="all" buildPath="${project_path}build/debug-oled" cleanBuildTarget="clean" enableAutoBuild="false" enableCleanBuild="true" enabledIncrementalBuild="true" id="com.renesas.cdt.managedbuild.gcc.rz.builder.129250777" incrementalBuildTarget="all" keepEnvironmentInBuildfile="false" managedBuildOn="true" name="GCC for Renesas Builder" parallelBuildOn="true" parallelizationNumber="optimal" superClass="com.renesas.cdt.managedbuild.gcc.rz.builder"/>
+							<builder arguments="--e2_orig_prefix" autoBuildTarget="e2-build-debug-7seg" buildPath="${workspace_loc:/Deluge}" cleanBuildTarget="e2-build-debug-7seg -c" command="${workspace_loc:/Deluge/dbt.cmd}" enableAutoBuild="false" enableCleanBuild="true" enabledIncrementalBuild="true" id="com.renesas.cdt.managedbuild.gcc.rz.builder.537461599" incrementalBuildTarget="e2-build-debug-7seg" keepEnvironmentInBuildfile="false" managedBuildOn="false" name="GCC for Renesas Builder" parallelBuildOn="true" parallelizationNumber="optimal" superClass="com.renesas.cdt.managedbuild.gcc.rz.builder"/>
 							<tool id="com.renesas.cdt.managedbuild.gcc.rz.tool.assembler.791687982" name="Cross ARM GNU Assembler" superClass="com.renesas.cdt.managedbuild.gcc.rz.tool.assembler">
 								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.assembler.usepreprocessor.842899264" name="Use preprocessor" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.assembler.usepreprocessor" useByScannerDiscovery="false" value="true" valueType="boolean"/>
 								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.renesas.cdt.managedbuild.gcc.rz.option.assembler.include.396863989" name="Include paths (-I)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.assembler.include" useByScannerDiscovery="true" valueType="includePath">
@@ -2025,6 +2029,8 @@
 	</storageModule>
 	<storageModule moduleId="org.eclipse.cdt.core.LanguageSettingsProviders"/>
 	<storageModule moduleId="refreshScope" versionNumber="2">
+		<configuration configurationName="e2-build-debug-oled"/>
+		<configuration configurationName="e2-build-release-7seg"/>
 		<configuration configurationName="Release_RZ_A1L">
 			<resource resourceType="PROJECT" workspacePath="/Deluge"/>
 		</configuration>
@@ -2041,11 +2047,14 @@
 		<configuration configurationName="build-release-7seg">
 			<resource resourceType="PROJECT" workspacePath="/Deluge"/>
 		</configuration>
+		<configuration configurationName="e2-build-release-oled"/>
 		<configuration configurationName="debug-oled">
 			<resource resourceType="PROJECT" workspacePath="/Deluge"/>
 		</configuration>
+		<configuration configurationName="e2-build-debug-7seg"/>
 	</storageModule>
 	<storageModule moduleId="org.eclipse.cdt.make.core.buildtargets"/>
+	<storageModule moduleId="org.eclipse.cdt.internal.ui.text.commentOwnerProjectMappings"/>
 	<storageModule moduleId="scannerConfiguration">
 		<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
 		<scannerConfigBuildInfo instanceId="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug.1445259662;com.renesas.cdt.managedbuild.gcc.rz.configuration.debug.1445259662.;com.renesas.cdt.managedbuild.gcc.rz.tool.compiler.cpp.1646852958;com.renesas.cdt.managedbuild.gcc.rz.inputType.compiler.c.393655903">
@@ -2054,12 +2063,23 @@
 		<scannerConfigBuildInfo instanceId="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug.1445259662;com.renesas.cdt.managedbuild.gcc.rz.configuration.debug.1445259662.;com.renesas.cdt.managedbuild.gcc.rz.tool.compiler.cpp.1646852958;ilg.gnuarmeclipse.managedbuild.cross.tool.cpp.compiler.input.231965655">
 			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
 		</scannerConfigBuildInfo>
+		<scannerConfigBuildInfo instanceId="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug.1445259662.2140647267;com.renesas.cdt.managedbuild.gcc.rz.configuration.debug.1445259662.2140647267.;com.renesas.cdt.managedbuild.gcc.rz.tool.compiler.cpp.369148865;ilg.gnuarmeclipse.managedbuild.cross.tool.cpp.compiler.input.1691265448">
+			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
+		</scannerConfigBuildInfo>
 		<scannerConfigBuildInfo instanceId="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug.1445259662.1946000861;com.renesas.cdt.managedbuild.gcc.rz.configuration.debug.1445259662.1946000861.;com.renesas.cdt.managedbuild.gcc.rz.tool.compiler.cpp.1954281474;com.renesas.cdt.managedbuild.gcc.rz.inputType.compiler.c.1054132000">
+			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
+		</scannerConfigBuildInfo>
+		<scannerConfigBuildInfo instanceId="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug.1445259662.1946000861.804567042;com.renesas.cdt.managedbuild.gcc.rz.configuration.debug.1445259662.1946000861.804567042.;com.renesas.cdt.managedbuild.gcc.rz.tool.compiler.cpp.1550879320;com.renesas.cdt.managedbuild.gcc.rz.inputType.compiler.c.16349328">
+			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
+		</scannerConfigBuildInfo>
+		<scannerConfigBuildInfo instanceId="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug.1445259662.2140647267;com.renesas.cdt.managedbuild.gcc.rz.configuration.debug.1445259662.2140647267.;com.renesas.cdt.managedbuild.gcc.rz.tool.compiler.cpp.369148865;com.renesas.cdt.managedbuild.gcc.rz.inputType.compiler.c.918775802">
+			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
+		</scannerConfigBuildInfo>
+		<scannerConfigBuildInfo instanceId="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug.1445259662.1946000861.804567042;com.renesas.cdt.managedbuild.gcc.rz.configuration.debug.1445259662.1946000861.804567042.;com.renesas.cdt.managedbuild.gcc.rz.tool.compiler.cpp.1550879320;ilg.gnuarmeclipse.managedbuild.cross.tool.cpp.compiler.input.1700166105">
 			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
 		</scannerConfigBuildInfo>
 		<scannerConfigBuildInfo instanceId="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug.1445259662.1946000861;com.renesas.cdt.managedbuild.gcc.rz.configuration.debug.1445259662.1946000861.;com.renesas.cdt.managedbuild.gcc.rz.tool.compiler.cpp.1954281474;ilg.gnuarmeclipse.managedbuild.cross.tool.cpp.compiler.input.1700284698">
 			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
 		</scannerConfigBuildInfo>
 	</storageModule>
-	<storageModule moduleId="org.eclipse.cdt.internal.ui.text.commentOwnerProjectMappings"/>
 </cproject>
