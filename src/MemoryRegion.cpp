@@ -22,7 +22,7 @@
 #include "GeneralMemoryAllocator.h"
 #include "mtu_all_cpus.h"
 #include "functions.h"
-#include "numericdriver.h";
+#include "numericdriver.h"
 
 MemoryRegion::MemoryRegion() : emptySpaces(sizeof(EmptySpaceRecord)) {
 	numAllocations = 0;
