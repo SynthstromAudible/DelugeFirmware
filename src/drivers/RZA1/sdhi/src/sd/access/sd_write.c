@@ -38,6 +38,9 @@
 #include "../../../inc/sdif.h"
 #include "../inc/access/sd.h"
 
+#include "asm.h"
+#include "uart_all_cpus.h"
+
 #ifdef __CC_ARM
 #pragma arm section code = "CODE_SDHI"
 #pragma arm section rodata = "CONST_SDHI"
@@ -45,7 +48,7 @@
 #pragma arm section zidata = "BSS_SDHI"
 #endif
 
-static int _sd_single_write(SDHNDL *hndl,unsigned char *buff,unsigned long psn,int mode);
+static int _sd_single_write(SDHNDL *hndl,unsigned char const*buff,unsigned long psn,int mode);
 
 /*****************************************************************************
  * ID           :
@@ -67,7 +70,7 @@ static int _sd_single_write(SDHNDL *hndl,unsigned char *buff,unsigned long psn,i
  *              : SD_ERR: end of error
  * Remark       : 
  *****************************************************************************/
-int sd_write_sect(int sd_port, unsigned char *buff,unsigned long psn,long cnt,int writemode)
+int sd_write_sect(int sd_port, unsigned char const*buff,unsigned long psn,long cnt,int writemode)
 {
 	SDHNDL *hndl;
 
@@ -136,7 +139,7 @@ int sd_write_sect(int sd_port, unsigned char *buff,unsigned long psn,long cnt,in
  *              : SD_ERR: end of error
  * Remark       : 
  *****************************************************************************/
-int _sd_write_sect(SDHNDL *hndl,unsigned char *buff,unsigned long psn,
+int _sd_write_sect(SDHNDL *hndl,unsigned char const*buff,unsigned long psn,
 	long cnt,int writemode)
 {
 	long i,j;
@@ -158,7 +161,7 @@ int _sd_write_sect(SDHNDL *hndl,unsigned char *buff,unsigned long psn,
 		mode = SD_MODE_DMA;	/* set DMA mode */
 
 		// Flush ram
-		v7_dma_flush_range(buff, buff + cnt * 512);
+		v7_dma_flush_range((intptr_t)buff, (intptr_t)(buff + cnt * 512));
 
 		#if		(TARGET_RZ_A1 == 1)
 		if(hndl->trans_mode & SD_MODE_DMA_64){
@@ -272,7 +275,9 @@ int _sd_write_sect(SDHNDL *hndl,unsigned char *buff,unsigned long psn,
 			/* enable All end, BWE and errors */
 			_sd_set_int_mask(hndl,SD_INFO1_MASK_DATA_TRNS,SD_INFO2_MASK_BWE);
 			/* software data transfer */
-			trans_ret = _sd_software_trans(hndl,buff,cnt,SD_TRANS_WRITE);
+			// it is safe to cast away const here because _sd_software_trans has pinky-promised not to write to the
+			// memory when in SD_TRANS_WRITE mode
+			trans_ret = _sd_software_trans(hndl,(unsigned char*)buff,cnt,SD_TRANS_WRITE);
 		}
 		else{	/* ==== DMA ==== */
 			/* disable card ins&rem interrupt for FIFO */
@@ -506,7 +511,7 @@ ErrExit:
  *              : SD_ERR: end of error
  * Remark       : 
  *****************************************************************************/
-static int _sd_single_write(SDHNDL *hndl,unsigned char *buff,unsigned long psn,
+static int _sd_single_write(SDHNDL *hndl,unsigned char const*buff,unsigned long psn,
 	int mode)
 {
 	int ret,trans_ret;
@@ -542,7 +547,9 @@ static int _sd_single_write(SDHNDL *hndl,unsigned char *buff,unsigned long psn,
 		/* enable All end, BWE and errors */
 		_sd_set_int_mask(hndl,SD_INFO1_MASK_DATA_TRNS,SD_INFO2_MASK_BWE);
 		/* software data transfer */
-		trans_ret = _sd_software_trans(hndl,buff,1,SD_TRANS_WRITE);
+		// it is safe to cast away const here because _sd_software_trans has pinky-promised not to write to the memory
+		// when in SD_TRANS_WRITE mode
+		trans_ret = _sd_software_trans(hndl,(unsigned char*)buff,1,SD_TRANS_WRITE);
 	}
 	else{	/* ==== DMA ==== */
 		/* disable card ins&rem interrupt for FIFO */

@@ -41,6 +41,8 @@ Includes <System Includes> , "Project Includes"
 #include "spibsc.h"
 #include "r_spibsc_flash_api.h"
 
+#include "Deluge.h"
+
 //#pragma arm section code   = "CODE_SPIBSC_INIT2"
 //#pragma arm section rodata = "CONST_SPIBSC_INIT2"
 //#pragma arm section rwdata = "DATA_SPIBSC_INIT2"

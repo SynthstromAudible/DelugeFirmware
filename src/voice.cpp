@@ -76,7 +76,7 @@ int32_t Voice::combineExpressionValues(Sound* sound, int whichExpressionDimensio
 	int32_t voiceLevelValue = localExpressionSourceValuesBeforeSmoothing[whichExpressionDimension];
 
 	int32_t combinedValue = (synthLevelValue >> 1) + (voiceLevelValue >> 1);
-	return lshiftAndSaturate(combinedValue, 1);
+	return lshiftAndSaturate<1>(combinedValue);
 }
 
 Voice::Voice() : patcher(&patchableInfoForVoice) {
@@ -854,13 +854,11 @@ skipAutoRelease : {}
 
 	// Apply envelope 0 to volume. This takes effect as a cut only; when the envelope is at max height, volume is unaffected.
 	// Important that we use lshiftAndSaturate here - otherwise, number can overflow if combining high velocity patching with big LFO
-	int32_t overallOscAmplitude =
-	    lshiftAndSaturate(multiply_32x32_rshift32(paramFinalValues[PARAM_LOCAL_VOLUME],
-	                                              (sourceValues[PATCH_SOURCE_ENVELOPE_0] >> 1) + 1073741824),
-	                      2);
+	int32_t overallOscAmplitude = lshiftAndSaturate<2>(multiply_32x32_rshift32(
+	    paramFinalValues[PARAM_LOCAL_VOLUME], (sourceValues[PATCH_SOURCE_ENVELOPE_0] >> 1) + 1073741824));
 
-	int32_t
-	    filterGain; // This is the gain which gets applied to compensate for any change in gain that the filter is going to cause
+	// This is the gain which gets applied to compensate for any change in gain that the filter is going to cause
+	int32_t filterGain;
 
 	// Prepare the filters
 	if (sound->hasFilters()) {
@@ -1294,7 +1292,7 @@ decidedWhichBufferRenderingInto:
 cantBeDoingOscSyncForFirstOsc:
 					// Work out pulse width, from parameter. This has no effect if we're not actually using square waves, but just do it anyway, it's a simple calculation
 					int32_t pulseWidth =
-					    (uint32_t)lshiftAndSaturate(paramFinalValues[PARAM_LOCAL_OSC_A_PHASE_WIDTH + s], 1);
+					    (uint32_t)lshiftAndSaturate<1>(paramFinalValues[PARAM_LOCAL_OSC_A_PHASE_WIDTH + s]);
 
 					int oscType = sound->sources[s].oscType;
 
@@ -1623,7 +1621,7 @@ void Voice::renderSineWaveWithFeedback(int32_t* bufferStart, int numSamples, uin
 			int32_t feedback = multiply_32x32_rshift32(feedbackValue, feedbackAmount);
 
 			// We do hard clipping of the feedback amount. Doing tanH causes aliasing - even if we used the anti-aliased version. The hard clipping one sounds really solid.
-			feedback = signed_saturate(feedback, 22);
+			feedback = signed_saturate<22>(feedback);
 
 			feedbackValue = doFMNew(phaseNow += phaseIncrement, feedback);
 
@@ -1702,7 +1700,7 @@ void Voice::renderFMWithFeedback(int32_t* bufferStart, int numSamples, int32_t* 
 			int32_t feedback = multiply_32x32_rshift32(feedbackValue, feedbackAmount);
 
 			// We do hard clipping of the feedback amount. Doing tanH causes aliasing - even if we used the anti-aliased version. The hard clipping one sounds really solid.
-			feedback = signed_saturate(feedback, 22);
+			feedback = signed_saturate<22>(feedback);
 
 			uint32_t sum = (uint32_t)*thisSample + (uint32_t)feedback;
 
@@ -1744,7 +1742,7 @@ void Voice::renderFMWithFeedbackAdd(int32_t* bufferStart, int numSamples, int32_
 			int32_t feedback = multiply_32x32_rshift32(feedbackValue, feedbackAmount);
 
 			// We do hard clipping of the feedback amount. Doing tanH causes aliasing - even if we used the anti-aliased version. The hard clipping one sounds really solid.
-			feedback = signed_saturate(feedback, 22);
+			feedback = signed_saturate<22>(feedback);
 
 			uint32_t sum = (uint32_t) * (fmSample++) + (uint32_t)feedback;
 
@@ -2197,7 +2195,7 @@ dontUseCache : {}
 			    oscBuffer + numSamples; // TODO: we don't really want to be calculating this so early do we?
 
 			// Work out pulse width
-			uint32_t pulseWidth = (uint32_t)lshiftAndSaturate(paramFinalValues[PARAM_LOCAL_OSC_A_PHASE_WIDTH + s], 1);
+			uint32_t pulseWidth = (uint32_t)lshiftAndSaturate<1>(paramFinalValues[PARAM_LOCAL_OSC_A_PHASE_WIDTH + s]);
 
 			renderOsc(s, sound->sources[s].oscType, sourceAmplitude, oscBuffer, oscBufferEnd, numSamples,
 			          phaseIncrement, pulseWidth, &unisonParts[u].sources[s].oscPos, true, amplitudeIncrement,

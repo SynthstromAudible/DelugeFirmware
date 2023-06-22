@@ -21,8 +21,10 @@
 #include "sio_char.h"
 #include <string.h>
 
+#include <math.h>
 #include "scif_iodefine.h"
 #include "devdrv_intc.h"
+#include "cfunctions.h"
 
 #include "RTT/SEGGER_RTT.h"
 

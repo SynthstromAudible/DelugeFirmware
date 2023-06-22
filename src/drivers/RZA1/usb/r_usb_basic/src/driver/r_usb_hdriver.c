@@ -63,6 +63,8 @@
 #include "r_usb_dmac.h"
 #endif /* ((USB_CFG_DTC == USB_CFG_ENABLE) || (USB_CFG_DMA == USB_CFG_ENABLE)) */
 
+#include "uart_all_cpus.h"
+
 #if ((USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST)
 /***********************************************************************************************************************
  Macro definitions
@@ -927,7 +929,7 @@ extern usb_msg_t* p_usb_scheduler_add_use;
  ***********************************************************************************************************************/
 void usb_hstd_hcd_task(usb_vp_int_t stacd)
 {
-    usb_utr_t* p_mess = p_usb_scheduler_add_use;
+    usb_utr_t* p_mess = (usb_utr_t*)p_usb_scheduler_add_use;
     usb_utr_t* ptr;
     usb_er_t err;
     uint16_t rootport;

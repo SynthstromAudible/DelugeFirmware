@@ -34,6 +34,14 @@
 #include "r_usb_bitdefine.h"
 #include "r_usb_reg_access.h"
 #include "definitions.h"
+#include "uart_all_cpus.h"
+
+#include "Deluge.h"
+#if HAVE_OLED
+#include "oled.h"
+#else
+#include "numericdriver.h"
+#endif
 
 #if ((USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST)
 /***********************************************************************************************************************
@@ -511,7 +519,7 @@ extern usb_msg_t* p_usb_scheduler_add_use;
  ***********************************************************************************************************************/
 void usb_hhub_task(usb_vp_int_t stacd)
 {
-    usb_utr_t* mess = p_usb_scheduler_add_use;
+    usb_utr_t* mess = (usb_utr_t*)p_usb_scheduler_add_use;
     usb_er_t err;
 
     switch (mess->msginfo)
