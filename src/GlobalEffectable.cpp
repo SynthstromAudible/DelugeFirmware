@@ -121,7 +121,7 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 			if (on) {
 				modFXType++;
 				if (modFXType >= NUM_MOD_FX_TYPES) modFXType = 1;
-				char* displayText;
+				char const* displayText;
 				switch (modFXType) {
 				case MOD_FX_TYPE_FLANGER:
 					displayText = "FLANGER";
@@ -147,7 +147,7 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 				if (currentModFXParam == NUM_MOD_FX_PARAMS) currentModFXParam = 0;
 				ensureModFXParamIsValid();
 
-				char* displayText;
+				char const* displayText;
 				switch (currentModFXParam) {
 				case MOD_FX_PARAM_DEPTH:
 					displayText = "DEPTH";
@@ -175,7 +175,7 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 				currentFilterType++;
 				if (currentFilterType >= NUM_FILTER_TYPES) currentFilterType = 0;
 
-				char* displayText;
+				char const* displayText;
 				switch (currentFilterType) {
 				case FILTER_TYPE_LPF:
 					displayText = "LPF";

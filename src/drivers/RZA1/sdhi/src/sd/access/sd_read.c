@@ -82,7 +82,7 @@ int doActualReadRohan(int sd_port, SDHNDL *hndl, unsigned char *buff, long cnt, 
 		// for this memory which hasn't been written/flushed back out yet, and that happens during the DMA transfer, overwriting the audio data in actual RAM.
 		// https://support.xilinx.com/s/article/64839?language=en_US - seems to concur with this, and actually suggests that it is normal and necessary to
 		// invalidate both before and after transfer.
-		v7_dma_inv_range(buff, buff + cnt * 512);
+		v7_dma_inv_range((intptr_t)buff, (intptr_t)(buff + cnt * 512));
 
 		/* ---- initialize DMAC ---- */
 		unsigned long reg_base_here = hndl->reg_base;

@@ -1224,7 +1224,7 @@ DSTATUS disk_status(BYTE pdrv /* Physical drive nmuber to identify the drive */
     return diskStatus;
 }
 
-int32_t sdIntCallback(int32_t sd_port, int32_t cd)
+int sdIntCallback(int sd_port, int cd)
 {
     if (sd_port == SD_PORT)
     {
