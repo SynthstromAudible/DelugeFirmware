@@ -13,7 +13,7 @@ if not ["%DBT_NOENV%"] == [""] (
     exit /b 0
 )
 
-set "DBT_TOOLCHAIN_VERSION=7"
+set "DBT_TOOLCHAIN_VERSION=8"
 
 if ["%DBT_TOOLCHAIN_PATH%"] == [""] (
     set "DBT_TOOLCHAIN_PATH=%DBT_ROOT%"
