@@ -49,15 +49,6 @@ Variable Externs
 Functions Prototypes
 ******************************************************************************/
 void INTC_Handler_Interrupt(uint32_t icciar);
-#ifdef __CC_ARM
-__irq void FiqHandler_Interrupt(void);
-#endif
-#ifdef __ICCARM__
-__fiq __arm void FiqHandler_Interrupt(void);
-#endif
-#ifdef __GNUC__
-/*__irq*/ void FiqHandler_Interrupt(void) __attribute__((interrupt("FIQ")));
-#endif
 
 #endif /* INTC_HANDLER_H */
 

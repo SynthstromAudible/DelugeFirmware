@@ -69,7 +69,6 @@ public:
 	SoundDrum* getDrumFromName(char const* name, bool onlyIfNoNoteRow = false);
 	int makeDrumNameUnique(String* name, int startAtNumber);
 	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, int maySendMIDIPGMs);
-	char const* getFilePrefix() { return "KIT"; }
 	void setupPatching(ModelStackWithTimelineCounter* modelStack);
 	void compensateInstrumentVolumeForResonance(ParamManagerForTimeline* paramManager, Song* song);
 	void deleteBackedUpParamManagers(Song* song);

@@ -597,7 +597,7 @@ void MemoryRegion::writeTempHeadersBeforeASteal(uint32_t newStartAddress, uint32
 // Returns new size, or same size if couldn't extend.
 uint32_t MemoryRegion::extendRightAsMuchAsEasilyPossible(void* address) {
 
-	uint32_t* __restrict__ header = (uint32_t*)(address - 4);
+	uint32_t* __restrict__ header = (uint32_t*)(static_cast<char*>(address) - 4);
 	uint32_t spaceSize = (*header & SPACE_SIZE_MASK);
 
 	uint32_t* __restrict__ lookRight = (uint32_t*)((uint32_t)address + spaceSize + 4);
@@ -631,7 +631,7 @@ uint32_t MemoryRegion::extendRightAsMuchAsEasilyPossible(void* address) {
 		*header = newHeaderData;
 
 		// Write footer
-		uint32_t* __restrict__ footer = (uint32_t*)(address + spaceSize);
+		uint32_t* __restrict__ footer = (uint32_t*)(static_cast<char*>(address) + spaceSize);
 		*footer = newHeaderData;
 	}
 

@@ -54,7 +54,6 @@ public:
 	ModControllable* toModControllable();
 	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, int maySendMIDIPGMs);
 	void setupPatchingForAllParamManagers(Song* song);
-	char const* getFilePrefix() { return "SYNT"; }
 	void setupPatching(ModelStackWithTimelineCounter* modelStack);
 
 	void deleteBackedUpParamManagers(Song* song);

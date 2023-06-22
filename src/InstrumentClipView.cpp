@@ -2955,7 +2955,7 @@ void InstrumentClipView::enterDrumCreator(ModelStackWithNoteRow* modelStack, boo
 
 	Uart::println("enterDrumCreator");
 
-	char* prefix;
+	char const* prefix;
 	String soundName;
 
 	if (doRecording) prefix = "TEM"; // Means "temp". Actual "REC" name is set in audioRecorder
