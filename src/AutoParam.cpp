@@ -1613,7 +1613,7 @@ int AutoParam::readFromFile(int32_t readAutomationUpToPos) {
 	if (!firstChars) return NO_ERROR;
 
 	// If a decimal, then read the rest of the digits
-	if (*(uint16_t*)firstChars != 'x0') {
+	if (*(uint16_t*)firstChars != charsToIntegerConstant('0', 'x')) {
 		char buffer[12];
 		buffer[0] = firstChars[0];
 		buffer[1] = firstChars[1];

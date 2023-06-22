@@ -13,7 +13,7 @@ if not ["%DBT_NOENV%"] == [""] (
     exit /b 0
 )
 
-set "DBT_TOOLCHAIN_VERSION=7"
+set "DBT_TOOLCHAIN_VERSION=8"
 
 if ["%DBT_TOOLCHAIN_PATH%"] == [""] (
     set "DBT_TOOLCHAIN_PATH=%DBT_ROOT%"
@@ -47,7 +47,7 @@ set "SSL_CERT_FILE=%DBT_TOOLCHAIN_ROOT%/python/Lib/site-packages/certifi/cacert.
 set "PYTHONHOME=%DBT_TOOLCHAIN_ROOT%\python"
 set "PYTHONPATH=%DBT_ROOT%\scripts;%PYTHONPATH%"
 set "PYTHONNOUSERSITE=1"
-set "PATH=%DBT_TOOLCHAIN_ROOT%\python;%DBT_TOOLCHAIN_ROOT%\python\Scripts;%DBT_TOOLCHAIN_ROOT%\gcc-arm-none-eabi\bin;%DBT_TOOLCHAIN_ROOT%\openocd\bin;%DBT_TOOLCHAIN_ROOT%\cmake\bin;%PATH%"
+set "PATH=%DBT_TOOLCHAIN_ROOT%\python;%DBT_TOOLCHAIN_ROOT%\python\Scripts;%DBT_TOOLCHAIN_ROOT%\arm-none-eabi-gcc\bin;%DBT_TOOLCHAIN_ROOT%\openocd\bin;%DBT_TOOLCHAIN_ROOT%\cmake\bin;%PATH%"
 set "PROMPT=(dbt) %PROMPT%"
 
 :already_set

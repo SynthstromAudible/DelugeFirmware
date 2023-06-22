@@ -271,7 +271,7 @@ bool Output::readTagFromFile(char const* tagName) {
 
 		{
 			char const* firstChars = storageManager.readNextCharsOfTagOrAttributeValue(2);
-			if (!firstChars || *(uint16_t*)firstChars != 'x0') goto getOut;
+			if (!firstChars || *(uint16_t*)firstChars != charsToIntegerConstant('0', 'x')) goto getOut;
 		}
 
 		while (true) {

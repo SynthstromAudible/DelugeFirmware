@@ -17,10 +17,21 @@ AddOption(
 AddOption(
     "--e2_target",
     dest="e2_target",
-    default="dbt-build-release-oled",
     type="string",
     nargs=1,
     action="store",
     metavar="TARGET",
-    help='Build target directory as in e2studio, prefaced with "dbt-" instead of "e2-"',
+    help='Legacy single-target e2 option; target prefaced with "dbt-" instead of "e2-"',
 )
+
+# TODO: allow a default compile_commands.json to be symlinked as part of the build if specified.
+# AddOption(
+#     "--cdb_symlink",
+#     dest="cdb_symlink",
+#     type="string",
+#     nargs=1,
+#     action="store",
+#     metavar="TARGET",
+#     help="If a target is specified with this flag, its 'compile_commands.json' "
+#     "will be symlinked in the root directory",
+# )
