@@ -41,7 +41,8 @@ pip_wheels=$(ls "${pip_wheel_path}")
 for wheel in $pip_wheels; do
     $pip_cmd install -q "${pip_wheel_path}/${wheel}"
 done
-$pip_cmd install -q --upgrade pip
-$pip_cmd install -q kconfiglib==14.1.0
+$pip_cmd install -q --upgrade pip | grep -v "already satisfied"
+$pip_cmd install -q GitPython | grep -v "already satisfied"
+$pip_cmd install -q kconfiglib==14.1.0 | grep -v "already satisfied"
 
 $SCONS_EP $SCONS_DEFAULT_FLAGS "$@"

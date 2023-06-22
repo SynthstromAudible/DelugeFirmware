@@ -1,5 +1,4 @@
 import os
-import logging
 from SCons.Script import *
 from xml.etree import ElementTree as ET
 
@@ -137,14 +136,12 @@ MACRO_VALUES = {
 
 
 class E2Project:
-    def __init__(self, logger: logging.Logger, project_path="."):
-        self._log = logger.getChild("E2Project")
-        self._log.debug("Loading XML...")
+    def __init__(self, project_path="."):
         self._tree = ET.parse(os.path.join(project_path, ".cproject"))
         self._root = self._tree.getroot()
+        self._current_build = ""
         self._builds = {}
         self._configs = self._extract_debug_data()
-        # self._log.info("Final config setup: {}".format(self._configs))
 
     def _extract_debug_data(self):
         debug_id_dict = {}
@@ -161,9 +158,7 @@ class E2Project:
         for module in node.findall(
             ".//storageModule[@moduleId='cdtBuildSystem']/configuration"
         ):
-            self._log.debug(
-                "Found build config for: {}".format(module.attrib.get("name"))
-            )
+            self._current_build = module.attrib.get("name")
             self._builds[module.attrib.get("name")] = {
                 "node": module,
                 "artifact_name": self.rmacro(module.attrib.get("artifactName")),
@@ -188,6 +183,8 @@ class E2Project:
         output = input
         for key, val in MACRO_VALUES.items():
             output = output.replace(key, val)
+            if self._current_build:
+                output = output.replace("${build_project}", self._current_build)
 
         return output
 
@@ -464,7 +461,6 @@ class E2Project:
                 for script in self._builds[target]["tool_link"].get("script_files", [])
             ]
         )
-        self._log.debug(flags)
 
         flags += " -Wl,--start-group -Wl,--end-group -nostartfiles"
 
