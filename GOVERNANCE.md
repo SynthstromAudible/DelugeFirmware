@@ -12,19 +12,17 @@ There is no official roamdap or project activities, instead all contirbutors are
 
 # Release strategy
 
-There are releases coming from the ```develop``` branch as beta as well as the ```community``` branch as official releases. 
+There are nightly releases covering all changes of the day as well as stable `community` releases.
 
-For ```develop``` or beta releases:
-* All incoming changes come from merging Pull requests from the community.
-* For every merged Pull request a new beta firmware will be generated and published on GitHub Releases tagged as ```beta``` to allow users to test them.
+`nightly` (beta) releases:
+* All incoming changes come from merging Pull requests from the community during the day.
+* Every night a new `nightly` firmware will be generated and published on GitHub Releases tagged as `nightly` to allow users to test them.
 * The project management team will decide on the right time to pick a promising beta firmware to be a release candidate.
 
-For ```community``` or official releases the following applies:
-* Before a firmware can be released as official community version it must have been released and published in the Github Releases as release candidate (```rc```) for at least two weeks, giving users and developers the chance to thoroughly test them and give feedback.
-* Only if the project management team has the feeling that the firmware is stable and delivers a better experience than the previous firmware it is released as an official new ```community``` release in the Github Releases. 
+`community` (stable) releases:
+* Before a firmware can be released as official community version it must have been released and published in the Github Releases as release candidate (`rc`) for at least two weeks, giving users and developers the chance to thoroughly test them and give feedback.
+* Only if the project management team has the feeling that the firmware is stable and delivers a better experience than the previous firmware it is released as an official new `community` release in the Github Releases. 
 
+# What to expect and when to expect it
 
-
-
-
-
+The project is a community effort of mostly volunteers that define the pace of development with their generous contributions. This means that both the features that are contributed and the timelines can not be known in advance. The nightly releases should ensure that everyone can test the latest and greatest of what has been achieved as soon as possible (please backup your files before starting any testing). There is also always the possibility to contribute to the project yourself, see the [contribution guidelines](CONTRIBUTING.md).
