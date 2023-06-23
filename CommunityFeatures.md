@@ -5,16 +5,16 @@ Every time a Pull request improves the community firmware it shall note down it'
 
 # General improvements
 
-Here is a list of general improvements that have been made as a list ordere by date:
+Here is a list of general improvements that have been made ordered from newest to oldest:
 
-* 2023-06-17 - This list was started and it's first entry shall be replaced with the first improvement
+* PR #1 - This list was started and it's first entry shall be replaced with the first improvement
 
 
 # Added features
 
-Here is a list of features that have been added to the firmware as a list ordere by date:
+Here is a list of features that have been added to the firmware as a list ordered from newest to oldest:
 
-* 2023-06-17 - This list was started and it's first entry shall be replaced with the first improvement
+* PR #7 - This list was started and it's first entry shall be replaced with the first improvement
 
     A documentation of the feature, how it can be used and configured shall be put in this position below every entry 
 

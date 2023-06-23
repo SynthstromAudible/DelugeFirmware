@@ -70,7 +70,7 @@ The following requirements must be fulfilled for a Pull request to be mergable t
 * All changes to the firmware have to be tested on a best effort basis to make sure they work as expected and don't break any existing functionality before submitting as ready to merge. This does not apply to Draft Pull requests.
 * All changes need to be compatible with all available hardware variants, this currently includes OLED and 7-Segment.
 * All changes need to be compatible with the currently official toolchain as described in the [Readme](README.md).
-* If a CI system has been established the acceptance of the CI system is also a requirement (comprising probably of compilation and (unit) testing).
+* Acceptance of the CI system is also required. It will automatically build open pull requests and check for compilation, formatting and in the future possibly unit testing
 
 ### Application specific
 
@@ -91,7 +91,7 @@ Please follow the following steps for every pull request to ensure every contrib
 2. Work on the Pull request
 3. Before a Pull request can be considered ready all upstream changes from the ```develop``` branch need to be merged into it. It is the duty of everyone to help make merging into ```develop``` as painless as possible so please try to align if you see that your Pull requests works in a similar area as another one.
 4. Once the Pull request is ready, fulfills all requirements outlined above and is up to date with the ```develop``` branch it can be converted from Draft and marked as ready for review.
-5. If possible every Pull request should have at least two reviews. Reviews from community members not mentioned in the [CODEOWNERS](CODEOWNERS) file should be taken serious and used as an important source of feedback but have no decisional power on what gets merged into the ```develop``` branch.
+5. Having multiple reviews for every Pull request would be nice. Reviews from community members not mentioned in the [CODEOWNERS](CODEOWNERS) file should be taken serious and used as an important source of feedback but have no decisional power on what gets merged into the ```develop``` branch.
 5. At least one member of the [CODEOWNERS](CODEOWNERS) file needs to review every pull request while also considering community reviews in their decision.
     * CODEOWNERS can decline merging a Pull request if it does not fulfill the requirements outlined above. They need to give clear feedback on which requirements have not been met and also provide opportunity to improve the Pull request to meet the requirements within reasonable boundaries (e.g. there are limits on how much work can be expected from a CODEOWNER for a specific Pull request).
     * If one or more CODEOWNERS are sure the requirements have been met they will merge the change into the ```develop``` branch.
@@ -99,5 +99,5 @@ Please follow the following steps for every pull request to ensure every contrib
 
 In addition to this workflow it is not a requirement but would be nice if developers could help the maintenance of the project by:
 * Do houskeeping of the Pull request including processing community feedback.
-* Tagging the pull request appropriately.
+* Tagging the pull request appropriately where possible.
 * Trying to keep some sense of ownership over the touched areas of the codebase and support in case of problems, questions or future developments.
