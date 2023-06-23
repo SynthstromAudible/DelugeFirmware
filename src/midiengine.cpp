@@ -666,7 +666,7 @@ void MidiEngine::checkIncomingUsbMidi() {
 				}
 
 				// Or as host
-				else if (connectedUSBMIDIDevices[ip][d].device) {
+				else if (connectedUSBMIDIDevices[ip][d].device[0]) {
 
 					// Only allowed to setup receive-transfer if not in the process of sending to various devices.
 					// (Wait, still? Was this just because of that insane bug that's now fixed?)
