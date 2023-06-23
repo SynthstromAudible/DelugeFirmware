@@ -313,8 +313,14 @@ static void _DoInit(void) {
 	// Copy Id string in three steps to make sure "SEGGER RTT" is not found
 	// in initializer memory (usually flash) by J-Link
 	//
-	STRCPY(&p->acID[7], "RTT", 9);
-	STRCPY(&p->acID[0], "SEGGER", 7);
+	// GCC gets deeply confused by the UNCACHED_MIRROR_OFFSET trickery
+	// happening inside _SEGGER_RTT. It's not easy to explain what we're doing
+	// here either, so simply silence the warning for now.
+#pragma GCC push
+#pragma GCC diagnostic ignored "-Wstringop-overflow"
+	STRCPY((char*)&p->acID[7], "RTT", 9);
+	STRCPY((char*)&p->acID[0], "SEGGER", 7);
+#pragma GCC pop
 	p->acID[6] = ' ';
 }
 

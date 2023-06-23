@@ -49,7 +49,7 @@ Includes   <System Includes> , "Project Includes"
 /******************************************************************************
 Typedef definitions
 ******************************************************************************/
-volatile struct st_spibsc* SPIBSC[SPIBSC_COUNT] = {SPIBSC_ADDRESS_LIST};
+volatile struct st_spibsc* SPIBSC[SPIBSC_COUNT] = SPIBSC_ADDRESS_LIST;
 
 /******************************************************************************
 Macro definitions

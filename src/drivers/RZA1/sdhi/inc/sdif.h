@@ -315,6 +315,9 @@ int sddev_loc_cpu(int sd_port);
 int sddev_unl_cpu(int sd_port);
 int sddev_cmd0_sdio_mount(int sd_port);
 int sddev_cmd8_sdio_mount(int sd_port);
+void sddev_start_timer(int msec);
+int sddev_check_timer(void);
+void sddev_end_timer(void);
 
 #ifdef    __cplusplus
 }
