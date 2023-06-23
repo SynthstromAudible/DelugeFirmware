@@ -611,7 +611,7 @@ void MidiEngine::checkIncomingUsbMidi() {
 		int numDevicesNow = aPeripheral ? 1 : MAX_NUM_USB_MIDI_DEVICES;
 
 		for (int d = 0; d < numDevicesNow; d++) {
-			if (connectedUSBMIDIDevices[ip][d].device && !connectedUSBMIDIDevices[ip][d].currentlyWaitingToReceive) {
+			if (connectedUSBMIDIDevices[ip][d].device[0] && !connectedUSBMIDIDevices[ip][d].currentlyWaitingToReceive) {
 
 				int bytesReceivedHere = connectedUSBMIDIDevices[ip][d].numBytesReceived;
 				if (bytesReceivedHere) {
