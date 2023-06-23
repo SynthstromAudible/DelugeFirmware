@@ -48,6 +48,7 @@ Includes   <System Includes> , "Project Includes"
 #include "../inc/sdif.h"
 #include "../inc/sd_cfg.h"
 #include "sd_dev_dmacdrv.h"
+#include "sdif.h"
 #include "gpio_iobitmask.h"
 #include "uart_all_cpus.h"
 #include "Deluge.h"
@@ -99,9 +100,6 @@ static void sddev_sd_int_handler_0(uint32_t int_sense);
 static void sddev_sd_int_handler_1(uint32_t int_sense);
 static void sddev_sdio_int_handler_0(uint32_t int_sense);
 static void sddev_sdio_int_handler_1(uint32_t int_sense);
-static void sddev_start_timer(int msec);
-static void sddev_end_timer(void);
-static int  sddev_check_timer(void);
 
 /******************************************************************************
 * Function Name: int sddev_cmd0_sdio_mount(int sd_port);
