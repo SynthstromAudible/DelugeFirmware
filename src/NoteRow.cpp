@@ -2727,6 +2727,7 @@ doReadNoteData:
 				if ((probability & 127) > (NUM_PROBABILITY_VALUES + 35) || (probability & 127) == 0
 				    || probability >= (NUM_PROBABILITY_VALUES | 128))
 					probability = NUM_PROBABILITY_VALUES;
+				if (accidentalTranspose < -128 || accidentalTranspose > 127) accidentalTranspose = DEFAULT_ACCIDENTAL_TRANSPOSE;
 
 				minPos = pos + length;
 
@@ -2738,6 +2739,7 @@ doReadNoteData:
 				newNote->setVelocity(velocity);
 				newNote->setLift(lift);
 				newNote->setProbability(probability);
+				newNote->setAccidentalTranspose(accidentalTranspose);
 
 				numElementsToAllocateFor--;
 			}
