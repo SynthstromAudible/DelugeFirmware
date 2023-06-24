@@ -211,6 +211,7 @@ addNewNote:
 
 		newNote->setVelocity(((Instrument*)((Clip*)modelStack->getTimelineCounter())->output)->defaultVelocity);
 		newNote->setLift(DEFAULT_LIFT_VALUE);
+		newNote->setAccidentalTranspose(DEFAULT_ACCIDENTAL_TRANSPOSE);
 		newNote->setProbability(NUM_PROBABILITY_VALUES);
 
 		if (i + 1 < notes.getNumElements()) {
@@ -404,6 +405,7 @@ addNewNote:
 			destNote->pos = posThisScreen;
 			destNote->setVelocity(velocity);
 			destNote->setLift(DEFAULT_LIFT_VALUE);
+			destNote->setAccidentalTranspose(DEFAULT_ACCIDENTAL_TRANSPOSE);
 			destNote->setProbability(NUM_PROBABILITY_VALUES);
 
 			int newLength;
@@ -521,6 +523,7 @@ int NoteRow::attemptNoteAdd(int32_t pos, int32_t length, int velocity, int proba
 	newNote->setLength(length);
 	newNote->setVelocity(velocity);
 	newNote->setLift(DEFAULT_LIFT_VALUE);
+	newNote->setAccidentalTranspose(DEFAULT_ACCIDENTAL_TRANSPOSE);
 	newNote->setProbability(probability);
 
 	// Record consequence
@@ -568,6 +571,7 @@ int NoteRow::attemptNoteAddReversed(ModelStackWithNoteRow* modelStack, int32_t p
 	newNote->setLength(1);
 	newNote->setVelocity(velocity);
 	newNote->setLift(DEFAULT_LIFT_VALUE);
+	newNote->setAccidentalTranspose(DEFAULT_ACCIDENTAL_TRANSPOSE);
 	newNote->setProbability(NUM_PROBABILITY_VALUES);
 
 	((InstrumentClip*)modelStack->getTimelineCounter())->expectEvent();
@@ -2650,6 +2654,7 @@ finishedNormalStuff:
 						newNote->setLength(length);
 						newNote->setVelocity(velocity);
 						newNote->setLift(DEFAULT_LIFT_VALUE);
+						newNote->setAccidentalTranspose(DEFAULT_ACCIDENTAL_TRANSPOSE);
 						newNote->setProbability(NUM_PROBABILITY_VALUES);
 					}
 
@@ -2697,17 +2702,23 @@ doReadNoteData:
 				int32_t length = hexToIntFixedLength(&hexChars[8], 8);
 				uint8_t velocity = hexToIntFixedLength(&hexChars[16], 2);
 				uint8_t lift, probability;
+				int8_t accidentalTranspose = DEFAULT_ACCIDENTAL_TRANSPOSE;
 
-				if (noteHexLength == 22) { // If reading lift...
-					probability = hexToIntFixedLength(&hexChars[20], 2);
-					lift = hexToIntFixedLength(&hexChars[18], 2);
-					if (lift == 0 || lift > 127) goto useDefaultLift;
-				}
-				else { // Or if no lift here to read
+				if (noteHexLength == 20) { // Or if no lift here to read
 					probability = hexToIntFixedLength(&hexChars[18], 2);
-useDefaultLift:
 					lift = DEFAULT_LIFT_VALUE;
 				}
+				if (noteHexLength >= 22) {
+					probability = hexToIntFixedLength(&hexChars[20], 2);
+					lift = hexToIntFixedLength(&hexChars[18], 2);
+					if (lift == 0 || lift > 127) {
+						lift = DEFAULT_LIFT_VALUE;
+					}
+				}
+				if (noteHexLength >= 24) {
+					accidentalTranspose = hexToIntFixedLength(&hexChars[22],2) - 128; // -128: convert unsigned result to signed accidental transpose.
+				}
+
 
 				// See if that's all allowed
 				if (length <= 0) length = 1; // This happened somehow in Simon Wollwage's song, May 2020
@@ -2736,6 +2747,11 @@ getOut : {}
 		// Notes stored as hex data including lift (V3.2 onwards)
 		else if (!strcmp(tagName, "noteDataWithLift")) {
 			noteHexLength = 22;
+			goto doReadNoteData;
+		}
+		// Notes stored as hex data including: lift,accidental transpose. could occur after 2023-06-24, date i write this line.
+		else if (!strcmp(tagName, "noteDataWithTranspose")) {
+			noteHexLength = 24;
 			goto doReadNoteData;
 		}
 
@@ -2783,12 +2799,12 @@ void NoteRow::writeToFile(int drumIndex, InstrumentClip* clip) {
 	if (notes.getNumElements()) {
 		storageManager.write("\n");
 		storageManager.printIndents();
-		storageManager.write("noteDataWithLift=\"0x");
+		storageManager.write("noteDataWithTranspose=\"0x");
 
 		for (int n = 0; n < notes.getNumElements(); n++) {
 			Note* thisNote = notes.getElement(n);
 
-			char buffer[9];
+			char buffer[11];
 
 			intToHex(thisNote->pos, buffer);
 			storageManager.write(buffer);
@@ -2804,6 +2820,10 @@ void NoteRow::writeToFile(int drumIndex, InstrumentClip* clip) {
 
 			intToHex(thisNote->getProbability(), buffer, 2);
 			storageManager.write(buffer);
+
+			intToHex(thisNote->getAccidentalTranspose() + 128, buffer, 2);  // + 128: convert signed value to an unsigned value for the storage manager.
+			storageManager.write(buffer);
+
 		}
 		storageManager.write("\"");
 	}
@@ -3315,6 +3335,7 @@ int NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWith
 				newNote->setProbability(oldNote->getProbability());
 				newNote->setVelocity(oldNote->getVelocity());
 				newNote->setLift(oldNote->getLift());
+				newNote->setAccidentalTranspose(oldNote->getAccidentalTranspose());
 			}
 		}
 
@@ -3350,6 +3371,7 @@ int NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWith
 				newNote->setProbability(oldNote->getProbability());
 				newNote->setVelocity(oldNote->getVelocity());
 				newNote->setLift(oldNote->getLift());
+				newNote->setAccidentalTranspose(oldNote->getAccidentalTranspose());
 			}
 		}
 	}
@@ -3377,6 +3399,7 @@ int NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWith
 			newNote->velocity = oldNote->velocity;
 			newNote->setLift(oldNote->getLift());
 			newNote->probability = oldCondition;
+			newNote->setAccidentalTranspose(oldNote->getAccidentalTranspose());
 		}
 	}
 
