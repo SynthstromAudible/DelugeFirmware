@@ -340,7 +340,9 @@ void FilterSet::reset() {
 	noiseLastValue = 0;
 }
 
-SVF_outs SVFilter::doSVF(int32_t input, FilterSetConfig* filterSetConfig){
+SVF_outs SVFilter::doSVF(int32_t input, FilterSetConfig* filterSetConfig) {
+	int32_t high;
+	int32_t notch;
 	int32_t f = filterSetConfig->moveability;
 	//raw resonance is 0-2, e.g. 1 is 1073741824
 	int32_t q = filterSetConfig->lpfRawResonance;
@@ -351,10 +353,14 @@ SVF_outs SVFilter::doSVF(int32_t input, FilterSetConfig* filterSetConfig){
 	int32_t in = 2147483647 - filterSetConfig->processedResonance;
 
 	low = low + multiply_32x32_rshift32(f, band);
-	int32_t high =
-	    (multiply_32x32_rshift32(input, in) << 1) - low - (multiply_32x32_rshift32(q, band) << 1);
+
+	high = add_saturation((multiply_32x32_rshift32(input, in) << 1),0 - low);
+	high = add_saturation(high, 0-(multiply_32x32_rshift32(q, band) << 1));
 	band = multiply_32x32_rshift32(f, high) + band;
-	int32_t notch = high + low;
+
+	//saturate band feedback
+	band = getTanHUnknown(band,3);
+	notch = high + low;
 	SVF_outs result = {low, band, high, notch};
 	return result;
 }
