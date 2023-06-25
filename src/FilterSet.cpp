@@ -210,6 +210,7 @@ void FilterSet::renderLPFLong(int32_t* startSample, int32_t* endSample, FilterSe
 		lpfLPF2.reset();
 		lpfLPF3.reset();
 		lpfLPF4.reset();
+		svf.reset();
 	}
 
 	// Half ladder
@@ -272,7 +273,7 @@ void FilterSet::renderLPFLong(int32_t* startSample, int32_t* endSample, FilterSe
 	}
 
 	// Full ladder (drive)
-	else {
+	else if (lpfMode == LPF_MODE_TRANSISTOR_24DB_DRIVE){
 
 		if (filterSetConfig->doOversampling) {
 			int32_t* currentSample = startSample;
@@ -310,6 +311,16 @@ void FilterSet::renderLPFLong(int32_t* startSample, int32_t* endSample, FilterSe
 			} while (currentSample < endSample);
 		}
 	}
+	else if (lpfMode == LPF_MODE_SVF){
+
+			int32_t* currentSample = startSample;
+			do {
+				SVF_outs outs = svf.doSVF(*currentSample, filterSetConfig->moveability, filterSetConfig->lpfRawResonance);
+				*currentSample = outs.lpf<<1;
+
+				currentSample += sampleIncrement;
+			} while (currentSample < endSample);
+		}
 }
 
 void FilterSet::reset() {
@@ -324,7 +335,7 @@ void FilterSet::reset() {
 	hpfLastWorkingValue = 2147483648;
 	hpfDoingAntialiasingNow = false;
 	hpfOnLastTime = false;
-
+	svf.reset();
 	lpfOnLastTime = false;
 	noiseLastValue = 0;
 }

@@ -1521,8 +1521,8 @@ void ModControllableAudio::switchLPFMode() {
 		displayText = "DRIVE LPF";
 		break;
 
-	case LPF_MODE_DIODE:
-		displayText = "DIODE LPF";
+	case LPF_MODE_SVF:
+		displayText = "SVF";
 		break;
 	}
 	numericDriver.displayPopup(displayText);

@@ -555,8 +555,8 @@ typedef enum SyncLevel_ {
 #define LPF_MODE_12DB 0
 #define LPF_MODE_TRANSISTOR_24DB 1
 #define LPF_MODE_TRANSISTOR_24DB_DRIVE 2
-#define LPF_MODE_DIODE 3
-#define NUM_LPF_MODES 3
+#define LPF_MODE_SVF 3
+#define NUM_LPF_MODES 4
 
 #define PHASER_NUM_ALLPASS_FILTERS 6
 
