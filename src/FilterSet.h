@@ -35,14 +35,15 @@ struct SVF_outs {
 
 class SVFFilter {
 public:
-	//moveability is tan(f)/(1+tan(f)) and falls between 0 and 1. 1 represented by 2147483648
+	//input f is actually filter 'moveability', tan(f)/(1+tan(f)) and falls between 0 and 1. 1 represented by 2147483648
 	//resonance is 2147483647 - rawResonance2 Always between 0 and 2. 1 represented as 1073741824
 	SVF_outs doSVF(int32_t input, int32_t f, int32_t q) {
-
-		int32_t in = q >> 2; //q close to 0 makes resonance in this filter
+		f = add_saturation(f, (f>>2)); //arbitrary to adjust range on gold knob
+		f = add_saturation(f, 26508640); //slightly under the cutoff for C0
+		int32_t in = q >> 2; //compensate for resonance by lowering input level
 
 		low = low + multiply_32x32_rshift32(f, band);
-		int32_t high = multiply_32x32_rshift32(input, 2147483647 - in) - low - multiply_32x32_rshift32(q,band);
+		int32_t high = (multiply_32x32_rshift32(input, 2147483647 - in)<<1) - low - (multiply_32x32_rshift32(q,band)<<1);
 		band = multiply_32x32_rshift32(f, high) + band;
 		int32_t notch = high + low;
 		SVF_outs result = {
