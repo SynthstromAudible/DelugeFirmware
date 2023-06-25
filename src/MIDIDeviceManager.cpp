@@ -39,7 +39,7 @@ ConnectedUSBMIDIDevice connectedUSBMIDIDevices[USB_NUM_USBIP][MAX_NUM_USB_MIDI_D
 
 namespace MIDIDeviceManager {
 
-NamedThingVector hostedMIDIDevices(0);
+NamedThingVector hostedMIDIDevices{__builtin_offsetof(MIDIDeviceUSBHosted, name)};
 
 bool differentiatingInputsByDevice = true;
 
@@ -51,29 +51,14 @@ struct {
 
 //This class represents a thing you can send midi too,
 //the virtual cable is an implementation detail
-MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port1;
-MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port2;
-MIDIDeviceDINPorts dinMIDIPorts;
+MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port1{};
+MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port2{1};
+MIDIDeviceDINPorts dinMIDIPorts{};
 
 uint8_t lowestLastMemberChannelOfLowerZoneOnConnectedOutput = 15;
 uint8_t highestLastMemberChannelOfUpperZoneOnConnectedOutput = 0;
 
 bool anyChangesToSave = false;
-
-//called by main2 line 595
-void init() {
-	new (&hostedMIDIDevices) NamedThingVector(__builtin_offsetof(MIDIDeviceUSBHosted, name));
-
-	new (&upstreamUSBMIDIDevice_port1) MIDIDeviceUSBUpstream;
-	new (&upstreamUSBMIDIDevice_port2) MIDIDeviceUSBUpstream(1);
-	new (&dinMIDIPorts) MIDIDeviceDINPorts;
-
-	// TODO: If I'm going to recall MPE zones from flash mem or file, for the din port, I'd better call recountSmallestMPEZones after doing that.
-
-	for (int ip = 0; ip < USB_NUM_USBIP; ip++) {
-		new (&usbDeviceCurrentlyBeingSetUp[ip].name) String();
-	}
-}
 
 // Gets called within UITimerManager, which may get called during SD card routine.
 void slowRoutine() {

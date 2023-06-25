@@ -92,8 +92,6 @@ extern "C" {
 #include "cfunctions.h"
 }
 
-SoundEditor soundEditor;
-
 MenuItemSubmenu soundEditorRootMenu;
 MenuItemSubmenu soundEditorRootMenuMIDIOrCV;
 MenuItemSubmenu soundEditorRootMenuAudioClip;
@@ -2439,6 +2437,8 @@ public:
 	void readCurrentValue() { soundEditor.currentValue = FlashStorage::defaultBendRange[BEND_RANGE_MAIN]; }
 	void writeCurrentValue() { FlashStorage::defaultBendRange[BEND_RANGE_MAIN] = soundEditor.currentValue; }
 } defaultBendRangeMenu;
+
+SoundEditor soundEditor;
 
 SoundEditor::SoundEditor() {
 	currentParamShorcutX = 255;

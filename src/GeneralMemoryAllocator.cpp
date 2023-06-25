@@ -35,7 +35,7 @@ char emptySpacesMemoryInternal[sizeof(EmptySpaceRecord) * 1024];
 extern uint32_t __heap_start;
 extern uint32_t __heap_end;
 
-GeneralMemoryAllocator generalMemoryAllocator;
+GeneralMemoryAllocator generalMemoryAllocator{};
 
 GeneralMemoryAllocator::GeneralMemoryAllocator() {
 	lock = false;
