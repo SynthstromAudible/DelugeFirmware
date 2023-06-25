@@ -1474,7 +1474,7 @@ void ModControllableAudio::endStutter(ParamManagerForTimeline* paramManager) {
 void ModControllableAudio::switchDelayPingPong() {
 	delay.pingPong = !delay.pingPong;
 
-	char* displayText;
+	char const* displayText;
 	switch (delay.pingPong) {
 	case 0:
 		displayText = "Normal delay";

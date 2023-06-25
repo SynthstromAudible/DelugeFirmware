@@ -1205,13 +1205,6 @@ DWORD get_fattime(void)
 
 #else
 
-/* Definitions of physical drive number for each drive */
-#define ATA 0 /* Example: Map ATA harddisk to physical drive 0 */
-#define MMC 1 /* Example: Map MMC/SD card to physical drive 1 */
-#define USB 2 /* Example: Map USB MSD to physical drive 2 */
-
-//int32_t cmd_sd_init(int32_t argc, char_t **argv);
-
 BYTE diskStatus = STA_NOINIT;
 
 /*-----------------------------------------------------------------------*/
@@ -1224,7 +1217,7 @@ DSTATUS disk_status(BYTE pdrv /* Physical drive nmuber to identify the drive */
     return diskStatus;
 }
 
-int32_t sdIntCallback(int32_t sd_port, int32_t cd)
+int sdIntCallback(int sd_port, int cd)
 {
     if (sd_port == SD_PORT)
     {

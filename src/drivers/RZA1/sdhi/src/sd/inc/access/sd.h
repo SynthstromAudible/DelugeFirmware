@@ -552,8 +552,7 @@ int _sdio_dma_trans(SDHNDL *hndl,long cnt,unsigned short blocklen);
  /* no function */
 
 /* ---- sd_write.c ---- */
-int _sd_write_sect(SDHNDL *hndl,unsigned char *buff,unsigned long psn,
-	long cnt,int writemode);
+int _sd_write_sect(SDHNDL *hndl,unsigned char const *buff,unsigned long psn, long cnt,int writemode);
 
 /* ---- sd_io_read.c ---- */
 int _sdio_read(SDHNDL *hndl,unsigned char *buff,unsigned long func,

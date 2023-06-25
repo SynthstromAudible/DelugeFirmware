@@ -66,11 +66,6 @@ Imported global variables and functions (from other files)
 /******************************************************************************
 Exported global variables and functions (to be accessed by other files)
 ******************************************************************************/
-#ifdef __ICCARM__
-/* ==== Prototype declaration ==== */
-void INTC_Handler_Interrupt(uint32_t icciar);
-__fiq __arm void FiqHandler_Interrupt(void);
-#endif
 
 /******************************************************************************
 * Function Name: INTC_Handler_Interrupt
