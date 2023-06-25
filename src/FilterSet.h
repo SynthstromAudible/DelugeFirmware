@@ -26,8 +26,44 @@
 class Sound;
 class FilterSetConfig;
 
+struct SVF_outs {
+	int32_t lpf;
+	int32_t bpf;
+	int32_t hpf;
+	int32_t notch;
+};
+
+class SVFFilter {
+public:
+	//moveability is tan(f)/(1+tan(f)) and falls between 0 and 1. 1 represented by 2147483648
+	//resonance is 2147483647 - rawResonance2 Always between 0 and 2. 1 represented as 1073741824
+	SVF_outs doSVF(int32_t input, int32_t f, int32_t q) {
+
+		int32_t in = q >> 2; //q close to 0 makes resonance in this filter
+
+		low = low + multiply_32x32_rshift32(f, band);
+		int32_t high = multiply_32x32_rshift32(input, 2147483647 - in) - low - multiply_32x32_rshift32(q,band);
+		band = multiply_32x32_rshift32(f, high) + band;
+		int32_t notch = high + low;
+		SVF_outs result = {
+			low, band, high, notch
+		};
+		return result;
+	}
+	void reset() {
+		low = 0;
+		band = 0;
+	}
+
+
+	int32_t low;
+	int32_t band;
+
+};
+
 class BasicFilterComponent {
 public:
+	//moveability is tan(f)/(1+tan(f))
 	inline int32_t doFilter(int32_t input, int32_t moveability) {
 		int32_t a = multiply_32x32_rshift32_rounded(input - memory, moveability) << 1;
 		int32_t b = a + memory;
@@ -72,6 +108,8 @@ public:
 	BasicFilterComponent lpfLPF2;
 	BasicFilterComponent lpfLPF3;
 	BasicFilterComponent lpfLPF4;
+
+	SVFFilter            svf;
 
 	BasicFilterComponent hpfHPF1;
 	BasicFilterComponent hpfLPF1;
