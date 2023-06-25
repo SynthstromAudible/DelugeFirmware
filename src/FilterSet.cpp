@@ -273,7 +273,7 @@ void FilterSet::renderLPFLong(int32_t* startSample, int32_t* endSample, FilterSe
 	}
 
 	// Full ladder (drive)
-	else if (lpfMode == LPF_MODE_TRANSISTOR_24DB_DRIVE){
+	else if (lpfMode == LPF_MODE_TRANSISTOR_24DB_DRIVE) {
 
 		if (filterSetConfig->doOversampling) {
 			int32_t* currentSample = startSample;
@@ -311,16 +311,16 @@ void FilterSet::renderLPFLong(int32_t* startSample, int32_t* endSample, FilterSe
 			} while (currentSample < endSample);
 		}
 	}
-	else if (lpfMode == LPF_MODE_SVF){
+	else if (lpfMode == LPF_MODE_SVF) {
 
-			int32_t* currentSample = startSample;
-			do {
-				SVF_outs outs = svf.doSVF(*currentSample, filterSetConfig->moveability, filterSetConfig->lpfRawResonance);
-				*currentSample = outs.lpf<<1;
+		int32_t* currentSample = startSample;
+		do {
+			SVF_outs outs = svf.doSVF(*currentSample, filterSetConfig->moveability, filterSetConfig->lpfRawResonance);
+			*currentSample = outs.lpf << 1;
 
-				currentSample += sampleIncrement;
-			} while (currentSample < endSample);
-		}
+			currentSample += sampleIncrement;
+		} while (currentSample < endSample);
+	}
 }
 
 void FilterSet::reset() {
