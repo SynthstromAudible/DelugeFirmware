@@ -35,7 +35,7 @@
 #include "r_usb_reg_access.h"
 #include "definitions.h"
 
-#ifdef HAVE_OLED
+#if HAVE_OLED
 #include "oled.h"
 #else
 #include "numericdriver.h"
@@ -286,11 +286,11 @@ static uint16_t usb_hstd_enumeration(usb_utr_t* ptr)
 
                             if (1 != flg)
                             {
+                                // By Rohan. Means couldn't find an available "driver" for this device. It could be a 2nd hub.
 #if HAVE_OLED
                                 consoleTextIfAllBootedUp("USB device not recognized");
 #else
-                                displayPopupIfAllBootedUp(
-                                    "UNKN"); // By Rohan. Means couldn't find an available "driver" for this device. It could be a 2nd hub.
+                                displayPopupIfAllBootedUp("UNKN");
 #endif
                                 ctrl.address = g_usb_hstd_device_addr[ptr->ip]; /* USB Device address */
                                 ctrl.module  = ptr->ip;                         /* Module number setting */
