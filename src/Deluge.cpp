@@ -58,6 +58,7 @@
 #include "RenameDrumUI.h"
 #include "ContextMenuOverwriteFile.h"
 #include "ContextMenuDeleteFile.h"
+#include "ContextMenuLaunchStyle.h"
 #include "AudioInputSelector.h"
 #include "ContextMenuLoadInstrumentPreset.h"
 #include "SampleMarkerEditor.h"
@@ -593,6 +594,8 @@ extern "C" int main2(void) {
 	new (&Browser::currentDir) String;
 	new (&Browser::fileItems) CStringArray(sizeof(FileItem));
 	new (&contextMenuOverwriteBootloader) ContextMenuOverwriteBootloader;
+	new (&contextMenuLaunchStyle) ContextMenuLaunchStyle;
+
 	MIDIDeviceManager::init();
 #if AUTOMATED_TESTER_ENABLED
 	AutomatedTester::init();

@@ -59,6 +59,7 @@ Clip::Clip(int newType) : type(newType) {
 	overdubNature = OVERDUB_NORMAL;
 	originalLength = 0;
 	armedForRecording = true;
+	launchStyle = LAUNCH_STYLE_DEFAULT;
 
 #if HAVE_SEQUENCE_STEP_CONTROL
 	sequenceDirectionMode = SEQUENCE_DIRECTION_FORWARD;
@@ -79,6 +80,7 @@ void Clip::cloneFrom(Clip* otherClip) {
 	lastProcessedPos = otherClip->lastProcessedPos;
 	repeatCount = otherClip->repeatCount;
 	armedForRecording = otherClip->armedForRecording;
+	launchStyle = otherClip->launchStyle;
 }
 
 void Clip::copyBasicsFrom(Clip* otherClip) {
@@ -86,6 +88,7 @@ void Clip::copyBasicsFrom(Clip* otherClip) {
 	colourOffset = otherClip->colourOffset;
 	//modKnobMode = otherClip->modKnobMode;
 	section = otherClip->section;
+	launchStyle = otherClip->launchStyle;
 }
 
 void Clip::setupForRecordingAsAutoOverdub(Clip* existingClip, Song* song, int newOverdubNature) {

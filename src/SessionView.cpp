@@ -58,6 +58,7 @@
 #include "loadsongui.h"
 #include "uitimermanager.h"
 #include "FileItem.h"
+#include "ContextMenuLaunchStyle.h"
 
 #if HAVE_OLED
 #include "oled.h"
@@ -338,6 +339,12 @@ moveAfterClipInstance:
 					currentSong->sections[sectionPressed].numRepetitions = 0;
 					drawSectionRepeatNumber();
 				}
+			}
+			else if (currentUIMode == UI_MODE_HOLDING_STATUS_PAD) {
+				//Clip* clip = getClipOnScreen(selectedClipYDisplay);
+				//contextMenuLaunchStyle.clip = clip;
+				contextMenuLaunchStyle.setupAndCheckAvailability();
+				openUI(&contextMenuLaunchStyle);
 			}
 			else if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
 				actionLogger.deleteAllLogs();
