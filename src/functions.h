@@ -166,6 +166,15 @@ inline int32_t lshiftAndSaturateUnknown(int32_t val, uint8_t lshift) {
 	return signed_saturate_operand_unknown(val, 32 - lshift) << lshift;
 }
 
+static constexpr uint32_t charsToIntegerConstant(char a, char b, char c, char d) {
+	return (static_cast<uint32_t>(a)) | (static_cast<uint32_t>(b) << 8) | (static_cast<uint32_t>(c) << 16)
+	       | (static_cast<uint32_t>(d) << 24);
+}
+
+static constexpr uint16_t charsToIntegerConstant(char a, char b) {
+	return (static_cast<uint16_t>(a)) | (static_cast<uint16_t>(b) << 8);
+}
+
 int32_t stringToInt(char const* string);
 int32_t stringToUIntOrError(char const* mem);
 int32_t memToUIntOrError(char const* mem, char const* const memEnd);
