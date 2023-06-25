@@ -1064,7 +1064,7 @@ compressorFound:
 			    paramManagerWithMostReverb->getUnpatchedParamSet()->getValue(PARAM_UNPATCHED_COMPRESSOR_SHAPE);
 			reverbCompressor.attack = modControllable->compressor.attack;
 			reverbCompressor.release = modControllable->compressor.release;
-			reverbCompressor.sync = modControllable->compressor.sync;
+			reverbCompressor.syncLevel = modControllable->compressor.syncLevel;
 			return;
 		}
 
@@ -1120,7 +1120,7 @@ void getReverbParamsFromSong(Song* song) {
 	reverbCompressorShape = song->reverbCompressorShape;
 	reverbCompressor.attack = song->reverbCompressorAttack;
 	reverbCompressor.release = song->reverbCompressorRelease;
-	reverbCompressor.sync = song->reverbCompressorSync;
+	reverbCompressor.syncLevel = song->reverbCompressorSync;
 }
 
 Voice* solicitVoice(Sound* forSound) {

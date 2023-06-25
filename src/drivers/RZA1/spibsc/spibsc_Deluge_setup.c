@@ -42,6 +42,7 @@
 #include "iodefine.h"
 #include "r_spibsc_ioset_api.h"
 #include "r_spibsc_flash_api.h"
+#include "rza_io_regrw.h"
 #include "spibsc_iobitmask.h"
 #include "cpg_iobitmask.h"
 #include "cpu_specific.h"

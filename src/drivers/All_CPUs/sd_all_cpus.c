@@ -20,6 +20,8 @@
 #include "definitions.h"
 #include "mtu_all_cpus.h"
 
+#include "cfunctions.h"
+#include "Deluge.h"
 #include "sdif.h"
 
 uint16_t stopTime;

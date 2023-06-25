@@ -110,7 +110,10 @@ Sound::Sound() : patcher(&patchableInfoForSound) {
 	// LFO
 	lfoGlobalWaveType = LFO_TYPE_TRIANGLE;
 	lfoLocalWaveType = LFO_TYPE_TRIANGLE;
-	lfoGlobalSyncLevel = 0; // This may be set without calling the setter function, because we're setting it to 0
+	lfoGlobalSyncType =
+	    SYNC_TYPE_EVEN; // This may be set without calling the setter function, because we're setting it to 0
+	lfoGlobalSyncLevel =
+	    SYNC_LEVEL_NONE; // This may be set without calling the setter function, because we're setting it to 0
 
 	modKnobs[0][1].paramDescriptor.setToHaveParamOnly(PARAM_GLOBAL_VOLUME_POST_FX);
 	modKnobs[0][0].paramDescriptor.setToHaveParamOnly(PARAM_LOCAL_PAN);
@@ -565,6 +568,10 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 	}
 
 	else if (!strcmp(tagName, "arpeggiator")) {
+		// Set default values in case they are not configured
+		arpSettings->syncType = SYNC_TYPE_EVEN;
+		arpSettings->syncLevel = SYNC_LEVEL_NONE;
+
 		while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 
 			if (!strcmp(
@@ -577,6 +584,10 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 			else if (!strcmp(tagName, "numOctaves")) {
 				if (arpSettings) arpSettings->numOctaves = storageManager.readTagOrAttributeValueInt();
 				storageManager.exitTag("numOctaves");
+			}
+			else if (!strcmp(tagName, "syncType")) {
+				if (arpSettings) arpSettings->syncType = storageManager.readSyncTypeFromFile(song);
+				storageManager.exitTag("syncType");
 			}
 			else if (!strcmp(tagName, "syncLevel")) {
 				if (arpSettings) arpSettings->syncLevel = storageManager.readAbsoluteSyncLevelFromFile(song);
@@ -901,6 +912,10 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 	}
 
 	else if (!strcmp(tagName, "lfo1")) {
+		// Set default values in case they are not configured.
+		// setLFOGlobalSyncLevel will also set type based on value.
+		setLFOGlobalSyncLevel(SYNC_LEVEL_NONE);
+
 		while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "type")) {
 				setLFOGlobalWave(stringToLFOType(storageManager.readTagOrAttributeValue()));
@@ -910,6 +925,10 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 				ENSURE_PARAM_MANAGER_EXISTS
 				patchedParams->readParam(patchedParamsSummary, PARAM_GLOBAL_LFO_FREQ, readAutomationUpToPos);
 				storageManager.exitTag("rate");
+			}
+			else if (!strcmp(tagName, "syncType")) {
+				setLFOGlobalSyncType(storageManager.readSyncTypeFromFile(song));
+				storageManager.exitTag("syncType");
 			}
 			else if (!strcmp(tagName, "syncLevel")) {
 				setLFOGlobalSyncLevel(storageManager.readAbsoluteSyncLevelFromFile(song));
@@ -1223,7 +1242,8 @@ uint8_t Sound::maySourcePatchToParam(uint8_t s, uint8_t p, ParamManager* paramMa
 		           : PATCH_CABLE_ACCEPTANCE_EDITABLE;
 
 	case PARAM_GLOBAL_LFO_FREQ:
-		return (lfoGlobalSyncLevel == 0) ? PATCH_CABLE_ACCEPTANCE_ALLOWED : PATCH_CABLE_ACCEPTANCE_DISALLOWED;
+		return (lfoGlobalSyncLevel == SYNC_LEVEL_NONE) ? PATCH_CABLE_ACCEPTANCE_ALLOWED
+		                                               : PATCH_CABLE_ACCEPTANCE_DISALLOWED;
 
 		// Nothing may patch to post-fx volume. This is for manual control only. The compressor patches to post-reverb volume, and everything else patches to per-voice, "local" volume
 	case PARAM_GLOBAL_VOLUME_POST_FX:
@@ -2212,12 +2232,33 @@ void Sound::confirmNumVoices(char const* error) {
 
 uint32_t Sound::getGlobalLFOPhaseIncrement() {
 	uint32_t phaseIncrement;
-	if (lfoGlobalSyncLevel == 0) phaseIncrement = paramFinalValues[PARAM_GLOBAL_LFO_FREQ - FIRST_GLOBAL_PARAM];
-	else phaseIncrement = (playbackHandler.getTimePerInternalTickInverse()) >> (9 - lfoGlobalSyncLevel);
+	if (lfoGlobalSyncLevel == SYNC_LEVEL_NONE)
+		phaseIncrement = paramFinalValues[PARAM_GLOBAL_LFO_FREQ - FIRST_GLOBAL_PARAM];
+	else {
+		phaseIncrement = (playbackHandler.getTimePerInternalTickInverse()) >> (SYNC_LEVEL_256TH - lfoGlobalSyncLevel);
+		switch (lfoGlobalSyncType) {
+		case SYNC_TYPE_EVEN:
+			// Nothing to do
+			break;
+		case SYNC_TYPE_TRIPLET:
+			phaseIncrement = phaseIncrement * 3 / 2;
+			break;
+		case SYNC_TYPE_DOTTED:
+			phaseIncrement = phaseIncrement * 2 / 3;
+			break;
+		}
+	}
+	//Uart::print("LFO phaseIncrement: ");
+	//Uart::println(phaseIncrement);
 	return phaseIncrement;
 }
 
-void Sound::setLFOGlobalSyncLevel(uint8_t newLevel) {
+void Sound::setLFOGlobalSyncType(SyncType newType) {
+	lfoGlobalSyncType = newType;
+	if (playbackHandler.isEitherClockActive()) resyncGlobalLFO();
+}
+
+void Sound::setLFOGlobalSyncLevel(SyncLevel newLevel) {
 	lfoGlobalSyncLevel = newLevel;
 	if (playbackHandler.isEitherClockActive()) resyncGlobalLFO();
 }
@@ -2245,7 +2286,18 @@ void Sound::resyncGlobalLFO() {
 		// If we're right at the first tick, no need to do anything else!
 		if (!lastInternalTickDone && !timeSinceLastTick) return;
 
-		uint32_t numInternalTicksPerPeriod = 3 << (9 - lfoGlobalSyncLevel);
+		uint32_t numInternalTicksPerPeriod = 3 << (SYNC_LEVEL_256TH - lfoGlobalSyncLevel);
+		switch (lfoGlobalSyncType) {
+		case SYNC_TYPE_EVEN:
+			// Nothing to do
+			break;
+		case SYNC_TYPE_TRIPLET:
+			numInternalTicksPerPeriod = numInternalTicksPerPeriod * 2 / 3;
+			break;
+		case SYNC_TYPE_DOTTED:
+			numInternalTicksPerPeriod = numInternalTicksPerPeriod * 3 / 2;
+			break;
+		}
 		uint32_t offsetTicks = (uint64_t)lastInternalTickDone % (uint16_t)numInternalTicksPerPeriod;
 
 		// If we're right at a bar (or something), no need to do anyting else
@@ -3366,6 +3418,7 @@ void Sound::writeToFile(bool savingSong, ParamManager* paramManager, Arpeggiator
 	// LFOs
 	storageManager.writeOpeningTagBeginning("lfo1");
 	storageManager.writeAttribute("type", lfoTypeToString(lfoGlobalWaveType), false);
+	storageManager.writeSyncTypeToFile(currentSong, "syncType", lfoGlobalSyncType, false);
 	storageManager.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", lfoGlobalSyncLevel, false);
 	storageManager.closeTag();
 
@@ -3406,6 +3459,7 @@ void Sound::writeToFile(bool savingSong, ParamManager* paramManager, Arpeggiator
 		storageManager.writeOpeningTagBeginning("arpeggiator");
 		storageManager.writeAttribute("mode", arpModeToString(arpSettings->mode));
 		storageManager.writeAttribute("numOctaves", arpSettings->numOctaves);
+		storageManager.writeSyncTypeToFile(currentSong, "syncType", arpSettings->syncType);
 		storageManager.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", arpSettings->syncLevel);
 		storageManager.closeTag();
 	}
@@ -3626,12 +3680,12 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 			}
 			else insideWorldTickMagnitude = FlashStorage::defaultMagnitude;
 
-			if (compressor.sync == 7 - insideWorldTickMagnitude) {
-				compressor.sync = 9 - insideWorldTickMagnitude;
+			if (compressor.syncLevel == (SyncLevel)(7 - insideWorldTickMagnitude)) {
+				compressor.syncLevel = (SyncLevel)(9 - insideWorldTickMagnitude);
 				numericDriver.displayPopup(HAVE_OLED ? "Fast sidechain compressor" : "FAST");
 			}
 			else {
-				compressor.sync = 7 - insideWorldTickMagnitude;
+				compressor.syncLevel = (SyncLevel)(7 - insideWorldTickMagnitude);
 				numericDriver.displayPopup(HAVE_OLED ? "Slow sidechain compressor" : "SLOW");
 			}
 			return true;

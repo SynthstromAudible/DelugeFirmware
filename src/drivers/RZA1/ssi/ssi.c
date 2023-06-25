@@ -47,6 +47,7 @@
 #include "dmac_iobitmask.h"
 #include "cpu_specific.h"
 #include "ssi_all_cpus.h"
+#include "dmac.h"
 
 #define DMA_FIX_PRIO_MODE (0u)
 #define SSI_CHANNEL_MAX   (6u)

@@ -37,6 +37,8 @@
 #include "iodefine.h"
 #include <stdbool.h>
 #include "mtu2_iodefine.h"
+#include "cfunctions.h"
+#include "Deluge.h"
 
 // Additions by Rohan
 #include "definitions.h"

@@ -28,12 +28,17 @@
 /
 /-------------------------------------------------------------------------*/
 
-#include "iodefine.h"
 #include "r_typedefs.h"
+#include "definitions.h"
+#include "iodefine.h"
+
+#include "Deluge.h"
+#include "asm.h"
 #include "diskio.h"
 #include "ff.h"
 #include "rspi.h"
-#include "definitions.h"
+#include "rza_io_regrw.h"
+#include "uart_all_cpus.h"
 
 uint8_t currentlyAccessingCard = 0;
 
@@ -48,9 +53,6 @@ uint8_t currentlyAccessingCard = 0;
 #define CT_SD2   0x04              /* SD ver 2 */
 #define CT_SDC   (CT_SD1 | CT_SD2) /* SD */
 #define CT_BLOCK 0x08              /* Block addressing */
-
-extern void v7_dma_inv_range(start, end);
-extern void v7_dma_flush_range(start, end);
 
 void ioRegSet2(volatile uint16_t* reg, uint8_t p, uint8_t q, uint8_t v)
 {
@@ -1203,13 +1205,6 @@ DWORD get_fattime(void)
 
 #else
 
-/* Definitions of physical drive number for each drive */
-#define ATA 0 /* Example: Map ATA harddisk to physical drive 0 */
-#define MMC 1 /* Example: Map MMC/SD card to physical drive 1 */
-#define USB 2 /* Example: Map USB MSD to physical drive 2 */
-
-//int32_t cmd_sd_init(int32_t argc, char_t **argv);
-
 BYTE diskStatus = STA_NOINIT;
 
 /*-----------------------------------------------------------------------*/
@@ -1222,7 +1217,7 @@ DSTATUS disk_status(BYTE pdrv /* Physical drive nmuber to identify the drive */
     return diskStatus;
 }
 
-int32_t sdIntCallback(int32_t sd_port, int32_t cd)
+int sdIntCallback(int sd_port, int cd)
 {
     if (sd_port == SD_PORT)
     {

@@ -82,7 +82,7 @@ void MenuItemSourceSelection::drawPixelsForOled() {
 #else
 
 void MenuItemSourceSelection::drawValue() {
-	char* text;
+	char const* text;
 	switch (sourceMenuContents[soundEditor.currentValue]) {
 	case PATCH_SOURCE_LFO_GLOBAL:
 		text = "LFO1";

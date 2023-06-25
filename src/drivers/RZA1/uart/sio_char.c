@@ -45,6 +45,9 @@ Includes   <System Includes> , "Project Includes"
 #include "definitions.h"
 #include <stdlib.h>
 #include "cpu_specific.h"
+#include <math.h>
+
+#include "uart_all_cpus.h"
 
 char_t picTxBuffer[PIC_TX_BUFFER_SIZE] __attribute__((aligned(CACHE_LINE_SIZE)));
 char_t midiTxBuffer[MIDI_TX_BUFFER_SIZE] __attribute__((aligned(CACHE_LINE_SIZE)));
@@ -180,7 +183,7 @@ static void MIDI_TX_INT_TrnEnd(uint32_t int_sense)
     tx_interrupt(UART_ITEM_MIDI);
 }
 
-const void (*txInterruptFunctions[])(uint32_t) = {PIC_TX_INT_TrnEnd, MIDI_TX_INT_TrnEnd};
+void (*const txInterruptFunctions[])(uint32_t) = {PIC_TX_INT_TrnEnd, MIDI_TX_INT_TrnEnd};
 
 const uint8_t txInterruptPriorities[] = {
     5,

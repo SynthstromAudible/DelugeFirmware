@@ -1133,7 +1133,7 @@ void AudioClip::setPos(ModelStackWithTimelineCounter* modelStack, int32_t newPos
 
 uint64_t AudioClip::getCullImmunity() {
 	uint32_t distanceFromEnd = loopLength - getLivePos();
-	bool doingTimeStretching =
-	    (voiceSample && voiceSample->timeStretcher); // We're gonna cull time-stretching ones first
-	return ((uint64_t)voicePriority << 33) + ((uint32_t)!doingTimeStretching << 32) + distanceFromEnd;
+	// We're gonna cull time-stretching ones first
+	bool doingTimeStretching = (voiceSample && voiceSample->timeStretcher);
+	return ((uint64_t)voicePriority << 33) + ((uint64_t)!doingTimeStretching << 32) + distanceFromEnd;
 }
