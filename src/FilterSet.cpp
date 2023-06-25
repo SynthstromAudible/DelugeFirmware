@@ -315,7 +315,7 @@ void FilterSet::renderLPFLong(int32_t* startSample, int32_t* endSample, FilterSe
 
 		int32_t* currentSample = startSample;
 		do {
-			SVF_outs outs = svf.doSVF(*currentSample, filterSetConfig->moveability, filterSetConfig->lpfRawResonance);
+			SVF_outs outs = svf.doSVF(*currentSample, filterSetConfig);
 			*currentSample = outs.lpf << 1;
 
 			currentSample += sampleIncrement;
@@ -338,4 +338,23 @@ void FilterSet::reset() {
 	svf.reset();
 	lpfOnLastTime = false;
 	noiseLastValue = 0;
+}
+
+SVF_outs SVFilter::doSVF(int32_t input, FilterSetConfig* filterSetConfig){
+	int32_t f = filterSetConfig->moveability;
+	//raw resonance is 0-2, e.g. 1 is 1073741824
+	int32_t q = filterSetConfig->lpfRawResonance;
+	f = add_saturation(f, (f >> 2)); //arbitrary to adjust range on gold knob
+	f = add_saturation(f, 26508640); //slightly under the cutoff for C0
+	//processed resonance is 2-rawresonance^2
+	//compensate for resonance by lowering input level
+	int32_t in = 2147483647 - filterSetConfig->processedResonance;
+
+	low = low + multiply_32x32_rshift32(f, band);
+	int32_t high =
+	    (multiply_32x32_rshift32(input, in) << 1) - low - (multiply_32x32_rshift32(q, band) << 1);
+	band = multiply_32x32_rshift32(f, high) + band;
+	int32_t notch = high + low;
+	SVF_outs result = {low, band, high, notch};
+	return result;
 }
