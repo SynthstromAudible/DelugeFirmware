@@ -48,7 +48,7 @@
 #include "playbackhandler.h"
 #include "oled.h"
 
-ActionLogger actionLogger;
+ActionLogger actionLogger{};
 
 ActionLogger::ActionLogger() {
 	firstAction[BEFORE] = NULL;
