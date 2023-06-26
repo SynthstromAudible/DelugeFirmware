@@ -246,9 +246,15 @@ SECTIONS
 		 . = ALIGN(0x4);
 		 PROVIDE(__bss_end__ = .);
 		 _ebss = .;
-		 _end = .;
 	} >RAM012L
 
+	. = ALIGN(4);
+	/* End of user data. Heap starts from here */
+	end = .; 
+	_end = .;	
+
+	/* For more information see: rdimon's libgloss/arm/syscall.c @ _sbrk */
+	/* See also: https://ww1.microchip.com/downloads/en/DeviceDoc/Frequently-Asked-Questions-4.9.3.26.txt point 12 */	
 	
 	.heap (NOLOAD) :
 	{
@@ -261,7 +267,6 @@ SECTIONS
 		PROVIDE(__heap_end__ = .);
 		PROVIDE(__heap_end = .);
 		PROVIDE(_nl_heap_end = .);
-		PROVIDE(end = .); /* THIS LINE instructs that the heap start here! */	
 	} > RAM012L
 
 	/* Program Stack _must_ be at end of memory due to GeneralMemoryAllocator (see checkStack) */
