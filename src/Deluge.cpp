@@ -591,7 +591,7 @@ extern "C" int main2(void) {
 	new (&renameOutputUI) RenameOutputUI;
 	new (&QwertyUI::enteredText) String;
 	new (&Browser::currentDir) String;
-	new (&Browser::fileItems) CStringArray(sizeof(FileItem));
+	new (&Browser::fileItems) FileItemArray;
 	new (&contextMenuOverwriteBootloader) ContextMenuOverwriteBootloader;
 	MIDIDeviceManager::init();
 #if AUTOMATED_TESTER_ENABLED

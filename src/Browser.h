@@ -18,7 +18,7 @@
 #ifndef BROWSER_H_
 #define BROWSER_H_
 
-#include <CStringArray.h>
+#include "FileItemArray.h"
 #include "QwertyUI.h"
 
 extern "C" {
@@ -93,7 +93,7 @@ public:
 #endif
 
 	static String currentDir;
-	static CStringArray fileItems;
+	static FileItemArray fileItems;
 	static int numFileItemsDeletedAtStart;
 	static int numFileItemsDeletedAtEnd;
 	static char const* firstFileItemRemaining;

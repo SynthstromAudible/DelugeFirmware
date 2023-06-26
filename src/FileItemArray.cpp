@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include <CStringArray.h>
+#include "FileItemArray.h"
 #include "GeneralMemoryAllocator.h"
 #include <string.h>
 #include "DString.h"
@@ -23,12 +23,27 @@
 #include "numericdriver.h"
 #include "AudioEngine.h"
 
-int workCount;
+inline FileItem* FileItemArray::getFileItem(int index) {
+	return (FileItem*)getElementAddress(index);
+}
+
+int strcmpfileitem(FileItem* a, FileItem* b) {
+
+#ifdef FEATURE_SORT_FOLDERS_FIRST
+#pragma message "Browser will alphabetize folders first, then files"
+	if (a->isFolder != b->isFolder) return a->isFolder ? -1 : 1;
+#else
+#pragma message "Browser will alphabetize files and folders equally"
+#endif
+
+	return strcmpspecial(a->filename.get(), b->filename.get(), true);
+}
 
 // This uses Hoare's partitioning scheme, which has the advantage that it won't go slow if the elements are already sorted - which they often will be as filenames read off an SD card.
-int CStringArray::partitionForStrings(int low, int high) {
-	char const* pivotString = *(char const**)getElementAddress(
-	    (low + high) >> 1); // Pivot - rightmost element. Though this is very bad if the array is already sorted...
+int FileItemArray::partition(int low, int high) {
+
+	// Pivot - rightmost element. Though this is very bad if the array is already sorted...
+	FileItem* pivotFile = (FileItem*)getElementAddress((low + high) >> 1);
 
 	int i = low - 1;
 	int j = high + 1;
@@ -36,11 +51,11 @@ int CStringArray::partitionForStrings(int low, int high) {
 	while (true) {
 		do {
 			i++;
-		} while (strcmpspecial(*(char const**)getElementAddress(i), pivotString, true) < 0);
+		} while (strcmpfileitem(getFileItem(i), pivotFile) < 0);
 
 		do {
 			j--;
-		} while (strcmpspecial(*(char const**)getElementAddress(j), pivotString, true) > 0);
+		} while (strcmpfileitem(getFileItem(j), pivotFile) > 0);
 
 		if (i >= j) return j;
 
@@ -48,11 +63,11 @@ int CStringArray::partitionForStrings(int low, int high) {
 	}
 }
 
-void CStringArray::quickSortForStrings(int low, int high) {
+void FileItemArray::quickSort(int low, int high) {
 	while (low < high) {
 		/* pi is partitioning index, arr[p] is now
         at right place */
-		int pi = partitionForStrings(low, high);
+		int pi = FileItemArray::partition(low, high);
 
 		// Separately sort elements before partition and after partition.
 		// The recursive call gets done on the smaller of those two regions
@@ -60,27 +75,26 @@ void CStringArray::quickSortForStrings(int low, int high) {
 
 		// If most elements to the left of the pi...
 		if ((pi << 1) >= (low + high)) {
-			quickSortForStrings(pi + 1, high);
+			quickSort(pi + 1, high);
 			high = pi; // If we weren't using Hoare's partitioning scheme, this would be pi - 1.
 		}
 
 		// Or if most elements to the right of the pi...
 		else {
-			quickSortForStrings(low, pi); // If we weren't using Hoare's partitioning scheme, this would be pi - 1.
+			quickSort(low, pi); // If we weren't using Hoare's partitioning scheme, this would be pi - 1.
 			low = pi + 1;
 		}
 	}
 }
 
-void CStringArray::sortForStrings() {
+void FileItemArray::sort() {
 	if (numElements < 2) return;
 
-	workCount = 0;
-	quickSortForStrings(0, numElements - 1);
+	quickSort(0, numElements - 1);
 }
 
 // Array must be sorted before you call this.
-int CStringArray::search(char const* searchString, bool* foundExact) {
+int FileItemArray::search(char const* searchString, bool* foundExact) {
 
 	int rangeBegin = 0;
 	int rangeEnd = numElements;
@@ -90,7 +104,7 @@ int CStringArray::search(char const* searchString, bool* foundExact) {
 		int rangeSize = rangeEnd - rangeBegin;
 		proposedIndex = rangeBegin + (rangeSize >> 1);
 
-		char const* stringHere = *(char const**)getElementAddress(proposedIndex);
+		char const* stringHere = ((FileItem*)getElementAddress(proposedIndex))->filename.get();
 		int result = strcmpspecial(stringHere, searchString, true);
 
 		if (!result) {

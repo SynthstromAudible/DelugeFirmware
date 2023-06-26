@@ -15,21 +15,23 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CSTRINGARRAY_H_
-#define CSTRINGARRAY_H_
+#ifndef FILEITEMARRAY_H_
+#define FILEITEMARRAY_H_
 
 #include "r_typedefs.h"
 #include "ResizeableArray.h"
+#include "FileItem.h"
 
-class CStringArray : public ResizeableArray {
+class FileItemArray : public ResizeableArray {
 public:
-	CStringArray(int newElementSize) : ResizeableArray(newElementSize) {}
-	void sortForStrings();
+	FileItemArray() : ResizeableArray(sizeof(FileItem)) {}
+	void sort();
 	int search(char const* searchString, bool* foundExact = NULL);
 
 private:
-	int partitionForStrings(int low, int high);
-	void quickSortForStrings(int low, int high);
+	int partition(int low, int high);
+	void quickSort(int low, int high);
+	inline FileItem* getFileItem(int index);
 };
 
-#endif /* CSTRINGARRAY_H_ */
+#endif /* FILEITEMARRAY_H_ */
