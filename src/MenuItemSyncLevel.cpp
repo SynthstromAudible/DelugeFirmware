@@ -26,9 +26,19 @@ void MenuItemSyncLevel::drawValue() {
 		numericDriver.setText("OFF");
 	}
 	else {
-		char buffer[30];
+		char* buffer = shortStringBuffer;
 		getNoteLengthName(buffer);
+
+#if HAVE_OLED
 		numericDriver.setText(buffer);
+#else
+		if (strlen(buffer) <= NUMERIC_DISPLAY_LENGTH) {
+			numericDriver.setText(buffer, true);
+		}
+		else {
+			numericDriver.setScrollingText(buffer, 0);
+		}
+#endif
 	}
 }
 
@@ -40,41 +50,20 @@ void MenuItemSyncLevel::getNoteLengthName(char* buffer) {
 	else if (soundEditor.currentValue < SYNC_TYPE_DOTTED) {
 		currentSong->getNoteLengthName(
 		    buffer, (uint32_t)3 << ((SYNC_TYPE_TRIPLET - 1) + SYNC_LEVEL_256TH - soundEditor.currentValue));
-#if HAVE_OLED
 		strcpy(type, "-tplts");
-#else
-		strcpy(type, "T");
-#endif
 	}
 	else {
 		currentSong->getNoteLengthName(
 		    buffer, (uint32_t)3 << ((SYNC_TYPE_DOTTED - 1) + SYNC_LEVEL_256TH - soundEditor.currentValue));
-#if HAVE_OLED
 		strcpy(type, "-dtted");
-#else
-		strcpy(type, "D");
-#endif
 	}
 	if (strlen(type) > 0) {
 		if (strcmp(&buffer[2], "bar") == 0) {
-#if HAVE_OLED
 			strcpy(buffer, "bar");
 			strcat(buffer, type);
-#else
-			strcpy(buffer, type);
-			strcat(buffer, "bar");
-#endif
 		}
 		else {
-#if HAVE_OLED
-			char* suffix = strstr(buffer, "-notes");
-			strcpy(suffix, type);
-#else
-			char out[5];
-			strncpy(out, type, 1);
-			strncpy(out, &buffer[1], 3);
-			strcpy(buffer, out);
-#endif
+			strcat(buffer, type);
 		}
 	}
 }
