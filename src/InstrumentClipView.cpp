@@ -104,6 +104,8 @@ InstrumentClipView::InstrumentClipView() {
 	timeLastEditPadPress = 0;
 	//newDrumOptionSelected = false;
 	firstCopiedNoteRow = NULL;
+
+	noteEditSelEncoderIndex = 0;
 }
 
 inline InstrumentClip* getCurrentClip() {
@@ -629,7 +631,13 @@ doCancelPopup:
 			else goto doCancelPopup;
 		}
 	}
+	else if (x == selectEncButtonX && y == selectEncButtonY) {
+		// select encoder pressed. if we are editing notes this goes to the next attribute. if we are not editing notes
+		// then the encoder should open the sound menu, so we should call passToOthers.
+        noteEditSelEncoderIndex = 1 - noteEditSelEncoderIndex;
+        modifyNotesWithSelEncoder(0); 
 
+	}
 	else {
 passToOthers:
 		int result = InstrumentClipMinder::buttonAction(x, y, on, inCardRoutine);
@@ -1093,9 +1101,9 @@ void InstrumentClipView::selectEncoderAction(int8_t offset) {
 		}
 	}
 
-	// Or, if user holding a note(s) down, we'll adjust proability instead
+	// Or, if user holding a note(s) down, we'll adjust proability / accidentalTranspose instead
 	else if (currentUIMode == UI_MODE_NOTES_PRESSED) {
-		adjustProbability(offset);
+		modifyNotesWithSelEncoder(offset);
 	}
 
 	// Or, normal option - trying to change Instrument presets
@@ -1491,6 +1499,7 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 					editPadPresses[i].isBlurredSquare = (squareType == SQUARE_BLURRED);
 					editPadPresses[i].intendedVelocity = firstNote->getVelocity();
 					editPadPresses[i].intendedProbability = firstNote->getProbability();
+					editPadPresses[i].intendedAccidentalTranspose = firstNote->getAccidentalTranspose();
 					editPadPresses[i].isActive = true;
 					editPadPresses[i].yDisplay = yDisplay;
 					editPadPresses[i].xDisplay = xDisplay;
@@ -1757,6 +1766,16 @@ void InstrumentClipView::adjustVelocity(int velocityChange) {
 	reassessAllAuditionStatus();
 }
 
+void InstrumentClipView::modifyNotesWithSelEncoder(int offset) {
+	if (noteEditSelEncoderIndex == 0) { 
+		adjustProbability(offset);
+	}
+	else {
+		adjustAccidentalTranspose(offset);
+	}
+
+}
+
 void InstrumentClipView::adjustProbability(int offset) {
 
 	int probabilityValue = -1;
@@ -1810,7 +1829,9 @@ void InstrumentClipView::adjustProbability(int offset) {
 							}
 						}
 					}
-
+					else if (offset == 0) {
+						// do nothing.
+					}
 					// Decrementing
 					else {
 						if (probabilityValue > 1 || prevBase) {
@@ -1988,6 +2009,182 @@ multiplePresses:
 #endif
 	}
 }
+
+void InstrumentClipView::adjustAccidentalTranspose(int offset) {
+
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+
+    int accidentalTransposeValue = 0;
+	// If just one press...
+	if (numEditPadPresses == 1) {
+		// Find it
+		for (int i = 0; i < editPadPressBufferSize; i++) {
+			if (editPadPresses[i].isActive) {
+				editPadPresses[i].deleteOnDepress = false;
+
+				if (editPadPresses[i].isBlurredSquare) goto multiplePresses;
+
+
+
+				// If editing, continue edit
+#if HAVE_OLED
+				if (OLED::isPopupPresent()) {
+#else
+				if (numericDriver.popupActive) {
+#endif
+					Action* action = actionLogger.getNewAction(ACTION_NOTE_EDIT, true);
+					if (!action) return;
+                    
+                    // TODO: get the current value from the note.
+					// Incrementing
+					if (offset == 1) {
+						accidentalTransposeValue  = 1;
+					}
+
+					// Decrementing
+					else {
+						accidentalTransposeValue  = -1;
+					}
+
+
+					int noteRowIndex;
+					NoteRow* noteRow =
+					    getCurrentClip()->getNoteRowOnScreen(editPadPresses[i].yDisplay, currentSong, &noteRowIndex);
+					int noteRowId = getCurrentClip()->getNoteRowId(noteRow, noteRowIndex);
+					ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowId, noteRow);
+
+					noteRow->changeNotesAcrossAllScreens(editPadPresses[i].intendedPos, modelStackWithNoteRow, action,
+					                                     CORRESPONDING_NOTES_SET_ACCIDENTAL_TRANSPOSE,
+					                                     editPadPresses[i].intendedAccidentalTranspose);
+				}
+				break;
+			}
+		}
+	}
+
+	// Or if multiple presses...
+	else {
+multiplePresses:
+		// TODO: this is still probability code. should be accidentalTranspose code.
+		int leftMostPos = 2147483647;
+		int leftMostIndex;
+		int probabilityValue;
+
+		// Find the leftmost one. There may be more than one...
+		for (int i = 0; i < editPadPressBufferSize; i++) {
+			if (editPadPresses[i].isActive) {
+				editPadPresses[i].deleteOnDepress = false;
+
+				// "blurred square" with multiple notes
+				if (editPadPresses[i].isBlurredSquare) {
+					NoteRow* noteRow = getCurrentClip()->getNoteRowOnScreen(editPadPresses[i].yDisplay, currentSong);
+					int noteI = noteRow->notes.search(editPadPresses[i].intendedPos, GREATER_OR_EQUAL);
+					Note* note = noteRow->notes.getElement(noteI);
+					if (note) {
+						editPadPresses[i].intendedProbability =
+						    note->probability; // This might not have been grabbed properly initially
+						if (note->pos < leftMostPos) {
+							leftMostPos = note->pos;
+							leftMostIndex = i;
+						}
+					}
+				}
+
+				// Or, just 1 note in square
+				else {
+
+					if (editPadPresses[i].intendedPos < leftMostPos) {
+						leftMostPos = editPadPresses[i].intendedPos;
+						leftMostIndex = i;
+					}
+				}
+			}
+		}
+
+		// Decide the probability, based on the existing probability of the leftmost note
+		probabilityValue = editPadPresses[leftMostIndex].intendedProbability & 127;
+		probabilityValue += offset;
+		probabilityValue = getMax(1, probabilityValue);
+		probabilityValue = getMin(NUM_PROBABILITY_VALUES + 35, probabilityValue);
+
+		Action* action = actionLogger.getNewAction(ACTION_NOTE_EDIT, true);
+		if (!action) return;
+
+		// Set the probability of the other presses, and update all probabilities with the actual notes
+		for (int i = 0; i < editPadPressBufferSize; i++) {
+			if (editPadPresses[i].isActive) {
+
+				// Update probability
+				editPadPresses[i].intendedProbability = probabilityValue;
+
+				int noteRowIndex;
+				NoteRow* noteRow =
+				    getCurrentClip()->getNoteRowOnScreen(editPadPresses[i].yDisplay, currentSong, &noteRowIndex);
+				int noteRowId = getCurrentClip()->getNoteRowId(noteRow, noteRowIndex);
+
+				ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowId, noteRow);
+
+				// "blurred square" with multiple notes
+				if (editPadPresses[i].isBlurredSquare) {
+
+					int noteI = noteRow->notes.search(editPadPresses[i].intendedPos, GREATER_OR_EQUAL);
+					Note* note = noteRow->notes.getElement(noteI);
+					while (note && note->pos - editPadPresses[i].intendedPos < editPadPresses[i].intendedLength) {
+
+						// And if not one of the leftmost notes, make it a prev-base one - if we're doing actual percentage probabilities
+						if (probabilityValue < NUM_PROBABILITY_VALUES && note->pos != leftMostPos)
+							editPadPresses[i].intendedProbability |= 128; // This isn't perfect...
+						noteRow->changeNotesAcrossAllScreens(note->pos, modelStackWithNoteRow, action,
+						                                     CORRESPONDING_NOTES_SET_PROBABILITY,
+						                                     editPadPresses[i].intendedProbability);
+
+						noteI++;
+						note = noteRow->notes.getElement(noteI);
+					}
+				}
+				// Or, just 1 note in square
+				else {
+					// And if not one of the leftmost notes, make it a prev-base one - if we're doing actual percentage probabilities
+					if (probabilityValue < NUM_PROBABILITY_VALUES && editPadPresses[i].intendedPos != leftMostPos)
+						editPadPresses[i].intendedProbability |= 128;
+					noteRow->changeNotesAcrossAllScreens(editPadPresses[i].intendedPos, modelStackWithNoteRow, action,
+					                                     CORRESPONDING_NOTES_SET_PROBABILITY,
+					                                     editPadPresses[i].intendedProbability);
+				}
+			}
+		}
+	}
+
+    // valid parameter check. true for now.
+	if (true) {
+#if HAVE_OLED
+		char buffer[29];
+#else
+		char buffer[5];
+#endif
+		char* displayString;
+#if HAVE_OLED
+		// TODO: true notename instead of C4
+		strcpy(buffer, "C4 / ");
+		intToString(accidentalTransposeValue, buffer + strlen(buffer));
+#else
+		// TODO: notename instead of number.
+		intToString(accidentalTransposeValue, buffer);
+#endif
+		displayString = buffer;
+
+
+#if HAVE_OLED
+		OLED::popupText(displayString);
+#else
+		numericDriver.displayPopup(displayString, 0, true, 255);
+#endif
+	}
+}
+
+
+
 
 void InstrumentClipView::mutePadPress(uint8_t yDisplay) {
 
