@@ -74,6 +74,8 @@
 #include "extern.h"
 #include "MultiWaveTableRange.h"
 #include "MenuItemMIDIDevices.h"
+#include "MenuItemRuntimeFeatureSetting.h"
+#include "MenuItemRuntimeFeatureSettings.h"
 #include "MenuItemMPEDirectionSelector.h"
 #include "MenuItemMPEZoneNumMemberChannels.h"
 #include "MenuItemMPEZoneSelector.h"
@@ -82,6 +84,7 @@
 #include "PatchCableSet.h"
 #include "MIDIDevice.h"
 #include "ContextMenuOverwriteBootloader.h"
+#include "RuntimeFeatureSettings.h"
 
 #if HAVE_OLED
 #include "oled.h"
@@ -2550,12 +2553,23 @@ SoundEditor::SoundEditor() {
 	new (&sampleBrowserPreviewModeMenu) MenuItemSampleBrowserPreviewMode(HAVE_OLED ? "Sample preview" : "PREV");
 	new (&flashStatusMenu) MenuItemFlashStatus(HAVE_OLED ? "Play-cursor" : "CURS");
 	new (&recordSubmenu) MenuItemSubmenu("Recording", recordMenuItems);
+	new (&runtimeFeatureSettingMenuItem) MenuItemRuntimeFeatureSetting(NULL);
+	new (&runtimeFeatureSettingsMenu) MenuItemRuntimeFeatureSettings("Community features");
 	new (&firmwareVersionMenu) MenuItemFirmwareVersion("Firmware version");
 
-	static MenuItem* rootSettingsMenuItems[] = {
-	    &cvSelectionMenu, &gateSelectionMenu, &triggerClockMenu,    &midiMenu,
-	    &defaultsSubmenu, &swingIntervalMenu, &padsSubmenu,         &sampleBrowserPreviewModeMenu,
-	    &flashStatusMenu, &recordSubmenu,     &firmwareVersionMenu, NULL};
+	static MenuItem* rootSettingsMenuItems[] = {&cvSelectionMenu,
+	                                            &gateSelectionMenu,
+	                                            &triggerClockMenu,
+	                                            &midiMenu,
+	                                            &defaultsSubmenu,
+	                                            &swingIntervalMenu,
+	                                            &padsSubmenu,
+	                                            &sampleBrowserPreviewModeMenu,
+	                                            &flashStatusMenu,
+	                                            &recordSubmenu,
+	                                            &runtimeFeatureSettingsMenu,
+	                                            &firmwareVersionMenu,
+	                                            NULL};
 	new (&settingsRootMenu) MenuItemSubmenu("Settings", rootSettingsMenuItems);
 
 	// CV menu
@@ -2595,6 +2609,7 @@ SoundEditor::SoundEditor() {
 
 	recordCountInMenu.basicTitle = "Rec count-in";
 	monitorModeMenu.basicTitle = "Monitoring";
+	runtimeFeatureSettingsMenu.basicTitle = "Community fts.";
 	firmwareVersionMenu.basicTitle = "Firmware ver.";
 #endif
 
@@ -3285,6 +3300,7 @@ void SoundEditor::exitCompletely() {
 #endif
 		FlashStorage::writeSettings();
 		MIDIDeviceManager::writeDevicesToFile();
+		runtimeFeatureSettings.writeSettingsToFile();
 #if HAVE_OLED
 		OLED::removeWorkingAnimation();
 #endif
