@@ -37,13 +37,12 @@
 #define ENABLE_TEXT_OUTPUT 0
 #endif
 
-struct UartItem
-{ // Exactly 8 bytes, so can align nicely to cache line
-    uint16_t txBufferWritePos;
-    uint16_t txBufferReadPos;
-    uint16_t txBufferReadPosAfterTransfer;
-    uint8_t txSending;
-    uint8_t shouldDoConsecutiveTransferAfter; // Applies to MIDI only - for PIC, always tries to do this
+struct UartItem { // Exactly 8 bytes, so can align nicely to cache line
+	uint16_t txBufferWritePos;
+	uint16_t txBufferReadPos;
+	uint16_t txBufferReadPosAfterTransfer;
+	uint8_t txSending;
+	uint8_t shouldDoConsecutiveTransferAfter; // Applies to MIDI only - for PIC, always tries to do this
 };
 
 extern struct UartItem uartItems[];

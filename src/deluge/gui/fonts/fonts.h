@@ -20,10 +20,9 @@
 
 #include "RZA1/system/r_typedefs.h"
 
-typedef struct
-{
-    uint16_t glyph_index;
-    uint8_t w_px;
+typedef struct {
+	uint16_t glyph_index;
+	uint8_t w_px;
 } lv_font_glyph_dsc_t;
 
 extern const uint8_t font_metric_bold_20px[];
