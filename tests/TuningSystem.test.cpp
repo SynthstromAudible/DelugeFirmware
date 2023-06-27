@@ -63,3 +63,18 @@ TEST(TestTuningSystem, TestStringToDouble)
 	*/
 	printf("\n");
 };
+
+TEST(TestTuningSystem, TestBanks)
+{
+	tuningSystem.setBank(0);
+	CHECK_EQUAL( 4400, tuningSystem.getReference() );
+	for(int i=0; i < 12; i++) {
+		int32_t freq = tuningSystem.noteFrequency(i);
+		int32_t ival = tuningSystem.noteInterval(i);
+		CHECK_EQUAL( expected.freq[i], freq );
+		CHECK_EQUAL( expected.ival[i], ival );
+	}
+
+	tuningSystem.setBank(1);
+	// TODO check applied tuning
+};
