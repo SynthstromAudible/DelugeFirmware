@@ -30,10 +30,10 @@
 /******************************************************************************
 Includes   <System Includes> , "Project Includes"
 ******************************************************************************/
-#include "r_typedefs.h"
-#include "devdrv_intc.h" /* INTC Driver Header */
+#include "RZA1/system/r_typedefs.h"
+#include "RZA1/intc/devdrv_intc.h" /* INTC Driver Header */
 
-#include "asm.h"
+#include "RZA1/compiler/asm/inc/asm.h"
 
 #ifdef __CC_ARM
 #pragma arm section code   = "CODE_HANDLER_JMPTBL"

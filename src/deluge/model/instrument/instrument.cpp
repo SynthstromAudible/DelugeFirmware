@@ -15,25 +15,25 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include <AudioEngine.h>
-#include <AudioFileManager.h>
-#include <ClipInstance.h>
-#include <InstrumentClip.h>
-#include <ParamManager.h>
-#include <ParamManager.h>
-#include "instrument.h"
-#include "storagemanager.h"
-#include "matrixdriver.h"
-#include "lookuptables.h"
+#include "processing/engines/audio_engine.h"
+#include "storage/audio/audio_file_manager.h"
+#include "model/clip/clip_instance.h"
+#include "model/clip/instrument_clip.h"
+#include "modulation/params/param_manager.h"
+#include "modulation/params/param_manager.h"
+#include "model/instrument/instrument.h"
+#include "storage/storage_manager.h"
+#include "hid/matrix/matrix_driver.h"
+#include "util/lookuptables/lookuptables.h"
 #include "string.h"
-#include "uart.h"
-#include "PlaybackMode.h"
-#include "GeneralMemoryAllocator.h"
+#include "io/uart/uart.h"
+#include "playback/mode/playback_mode.h"
+#include "memory/general_memory_allocator.h"
 #include <new>
-#include "FlashStorage.h"
-#include "ModelStack.h"
-#include "MIDIInstrument.h"
-#include "functions.h"
+#include "storage/flash_storage.h"
+#include "model/model_stack.h"
+#include "model/instrument/midi_instrument.h"
+#include "util/functions.h"
 
 Instrument::Instrument(int newType) : Output(newType) {
 	editedByUser = false;

@@ -34,10 +34,10 @@ v7_dma_inv_range:
          sub     r3, r2, #1
          tst     r0, r3
          bic     r0, r0, r3
- #ifdef CONFIG_ARM_ERRATA_764369
+#ifdef CONFIG_ARM_ERRATA_764369
          ALT_SMP(W(dsb))
          ALT_UP(W(nop))
- #endif
+#endif
          mcrne   p15, 0, r0, c7, c14, 1          @ clean & invalidate D / U line
 
          tst     r1, r3
@@ -60,10 +60,10 @@ v7_dma_flush_range:
 		dcache_line_size r2, r3
 		sub     r3, r2, #1
 		bic     r0, r0, r3
-		#ifdef CONFIG_ARM_ERRATA_764369
+	#ifdef CONFIG_ARM_ERRATA_764369
 		ALT_SMP(W(dsb))
 		ALT_UP(W(nop))
-		#endif
+	#endif
 		1:
 		mcr     p15, 0, r0, c7, c14, 1          @ clean & invalidate D / U line
 		add     r0, r0, r2

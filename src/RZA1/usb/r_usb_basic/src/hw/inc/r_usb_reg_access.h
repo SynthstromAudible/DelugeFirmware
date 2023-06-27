@@ -27,9 +27,9 @@
 #ifndef HW_USB_REG_ACCESS_H
 #define HW_USB_REG_ACCESS_H
 
-#include "iodefine.h"
-#include "usb20_iodefine.h"
-#include "r_usb_bitdefine.h"
+#include "RZA1/system/iodefine.h"
+#include "RZA1/system/iodefines/usb20_iodefine.h"
+#include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_bitdefine.h"
 
 // "I'm gonna inline a bunch of these functions." - Rohan
 void* hw_usb_get_fifosel_adr(usb_utr_t* ptr,

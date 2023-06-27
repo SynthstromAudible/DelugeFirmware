@@ -30,10 +30,10 @@
 /***********************************************************************************************************************
 Includes   <System Includes> , "Project Includes"
 ***********************************************************************************************************************/
-#include "r_usb_basic_if.h"
-#include "r_typedefs.h"
+#include "RZA1/usb/r_usb_basic/r_usb_basic_if.h"
+#include "RZA1/system/r_typedefs.h"
 
-#include "uart_all_cpus.h"
+#include "deluge/drivers/uart/uart.h"
 
 #define WHICH_USB_MODULE USB_IP0
 

@@ -18,9 +18,9 @@
 #ifndef KIT_H
 #define KIT_H
 
-#include <GlobalEffectableForClip.h>
-#include "instrument.h"
-#include "OrderedResizeableArray.h"
+#include "model/global_effectable/global_effectable_for_clip.h"
+#include "model/instrument/instrument.h"
+#include "util/container/array/ordered_resizeable_array.h"
 
 class InstrumentClip;
 class Drum;

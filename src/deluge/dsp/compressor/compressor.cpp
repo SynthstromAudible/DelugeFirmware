@@ -15,13 +15,13 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "compressor.h"
+#include "dsp/compressor/compressor.h"
 #include "definitions.h"
-#include "lookuptables.h"
+#include "util/lookuptables/lookuptables.h"
 #include "definitions.h"
-#include "song.h"
-#include "playbackhandler.h"
-#include "FlashStorage.h"
+#include "model/song/song.h"
+#include "playback/playback_handler.h"
+#include "storage/flash_storage.h"
 
 Compressor::Compressor() {
 	status = ENVELOPE_STAGE_OFF;

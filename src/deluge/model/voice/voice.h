@@ -18,13 +18,13 @@
 #ifndef VOICE_H
 #define VOICE_H
 
-#include <patcher.h>
-#include <voicesampleplaybackguide.h>
+#include "modulation/patch/patcher.h"
+#include "model/voice/voice_sample_playback_guide.h"
 #include "definitions.h"
-#include "envelope.h"
-#include "lfo.h"
-#include "voiceunisonpart.h"
-#include "FilterSet.h"
+#include "modulation/envelope.h"
+#include "modulation/lfo.h"
+#include "model/voice/voice_unison_part.h"
+#include "dsp/filter/filter_set.h"
 
 class StereoSample;
 class FilterSetConfig;

@@ -36,18 +36,18 @@
 /******************************************************************************
 Includes   <System Includes> , "Project Includes"
 ******************************************************************************/
-#include <drivers/RZA1/system/rza_io_regrw.h>
-#include "sio_char.h"
-#include "iodefine.h"
-#include "scif_iobitmask.h"
-#include "gpio_iobitmask.h"
-#include "iodefine.h"
+#include "RZA1/system/rza_io_regrw.h"
+#include "RZA1/uart/sio_char.h"
+#include "RZA1/system/iodefine.h"
+#include "RZA1/system/iobitmasks/scif_iobitmask.h"
+#include "RZA1/system/iobitmasks/gpio_iobitmask.h"
+#include "RZA1/system/iodefine.h"
 #include "definitions.h"
 #include <stdlib.h>
-#include "cpu_specific.h"
+#include "RZA1/cpu_specific.h"
 #include <math.h>
 
-#include "uart_all_cpus.h"
+#include "deluge/drivers/uart/uart.h"
 
 char_t picTxBuffer[PIC_TX_BUFFER_SIZE] __attribute__((aligned(CACHE_LINE_SIZE)));
 char_t midiTxBuffer[MIDI_TX_BUFFER_SIZE] __attribute__((aligned(CACHE_LINE_SIZE)));

@@ -18,11 +18,11 @@
 // Most of the contents of this file have been copied from Renesas's SD card driver libraries.
 
 #include "definitions.h"
-#include "mtu_all_cpus.h"
+#include "drivers/mtu/mtu.h"
 
-#include "cfunctions.h"
-#include "Deluge.h"
-#include "sdif.h"
+#include "util/cfunctions.h"
+#include "deluge.h"
+#include "RZA1/sdhi/inc/sdif.h"
 
 uint16_t stopTime;
 

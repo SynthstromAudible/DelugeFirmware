@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "dmac.h"
+#include "drivers/dmac/dmac.h"
 
 void setDMARS(int dmaChannel, uint32_t dmarsValue)
 {

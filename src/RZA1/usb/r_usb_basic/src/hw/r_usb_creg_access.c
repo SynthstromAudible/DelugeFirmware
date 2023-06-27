@@ -28,14 +28,14 @@
 /***********************************************************************************************************************
  Includes   <System Includes> , "Project Includes"
  ***********************************************************************************************************************/
-#include "r_usb_basic_if.h"
-#include "r_usb_typedef.h"
-#include "r_usb_bitdefine.h"
-#include "r_usb_reg_access.h"
+#include "RZA1/usb/r_usb_basic/r_usb_basic_if.h"
+#include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_typedef.h"
+#include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_bitdefine.h"
+#include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_reg_access.h"
 #if ((USB_CFG_DTC == USB_CFG_ENABLE) || (USB_CFG_DMA == USB_CFG_ENABLE))
-#include "r_usb_dmac.h"
+#include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_dmac.h"
 #endif /* ((USB_CFG_DTC == USB_CFG_ENABLE) || (USB_CFG_DMA == USB_CFG_ENABLE)) */
-#include "iodefine.h"
+#include "RZA1/system/iodefine.h"
 
 /***********************************************************************************************************************
 Private global variables and functions

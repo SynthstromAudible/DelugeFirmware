@@ -30,7 +30,7 @@
 							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.functionsection.672693751" name="Function sections (-ffunction-sections)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.functionsection" useByScannerDiscovery="true" value="true" valueType="boolean"/>
 							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.datasections.647017895" name="Data sections (-fdata-sections)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.datasections" useByScannerDiscovery="true" value="true" valueType="boolean"/>
 							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.level.288886710" name="Debug level" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.level" useByScannerDiscovery="true" value="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.level.default" valueType="enumerated"/>
-							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.format.664011532" name="Debug format" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.format" useByScannerDiscovery="true"/>
+							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.format.664011532" name="Debug format" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.format" useByScannerDiscovery="true" value="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.format.dwarf4" valueType="enumerated"/>
 							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.toolchain.name.415623502" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.toolchain.name" useByScannerDiscovery="false" value="GNU Tools for ARM Embedded Processors" valueType="string"/>
 							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.architecture.1681692581" name="Architecture" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.architecture" useByScannerDiscovery="false" value="ilg.gnuarmeclipse.managedbuild.cross.option.architecture.arm" valueType="enumerated"/>
 							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.family.1294414468" name="Arm family (-mcpu)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.family" useByScannerDiscovery="false" value="ilg.gnuarmeclipse.managedbuild.cross.option.arm.target.mcpu.cortex-a9" valueType="enumerated"/>
@@ -45,7 +45,7 @@
 							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.command.make.89424080" name="Build command" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.command.make" useByScannerDiscovery="false" value="make" valueType="string"/>
 							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.command.rm.1177970779" name="Remove command" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.command.rm" useByScannerDiscovery="false" value="rm" valueType="string"/>
 							<option id="com.renesas.cdt.managedbuild.gcc.rz.createlibgen.535825881" name="Create libgen" superClass="com.renesas.cdt.managedbuild.gcc.rz.createlibgen" useByScannerDiscovery="false" value="false" valueType="boolean"/>
-							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.architecture.1295439543" name="Architecture (-march)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.architecture" useByScannerDiscovery="false" value="ilg.gnuarmeclipse.managedbuild.cross.option.arm.target.arch.armv7-a" valueType="enumerated"/>
+							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.architecture.1295439543" name="Architecture (-march)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.architecture" useByScannerDiscovery="false" value="ilg.gnuarmeclipse.managedbuild.cross.option.arm.target.arch.none" valueType="enumerated"/>
 							<option id="com.renesas.cdt.managedbuild.gcc.rz.deviceName.311049156" name="Device name" superClass="com.renesas.cdt.managedbuild.gcc.rz.deviceName" useByScannerDiscovery="false" value="R7S721020" valueType="string"/>
 							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.floatunit.715254982" name="FPU Type" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.floatunit" useByScannerDiscovery="true" value="ilg.gnuarmeclipse.managedbuild.cross.option.arm.target.fpu.unit.neon" valueType="enumerated"/>
 							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.floatabi.234972146" name="Float ABI" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.floatabi" useByScannerDiscovery="true" value="ilg.gnuarmeclipse.managedbuild.cross.option.arm.target.fpu.abi.hard" valueType="enumerated"/>
@@ -72,49 +72,7 @@
 							</tool>
 							<tool id="com.renesas.cdt.managedbuild.gcc.rz.tool.compiler.cpp.1646852958" name="Cross ARM C++ Compiler" superClass="com.renesas.cdt.managedbuild.gcc.rz.tool.compiler.cpp">
 								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.renesas.cdt.managedbuild.gcc.rz.option.compiler.cpp.include.561397158" name="Include paths (-I)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.compiler.cpp.include" useByScannerDiscovery="true" valueType="includePath">
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/usb/userdef&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/usb&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/dmac&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/uart_all_cpus&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/rspi_all_cpus&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/oled_low_level_all_cpus&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/compiler/asm/inc/&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/mtu&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/oled&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/spibsc&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi/src&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi/src/sd/sdio&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi/src/sd&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi/userdef&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi/src/sd/access&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi/inc&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/rspi&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi/src/sd/inc&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi/src/sd/inc/access&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/stb/&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_basic&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_basic/src&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_basic/src/hw/inc&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_basic/src/driver&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_basic/src/hw&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_basic/src/driver/inc&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_hmidi&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_hmidi/src/inc&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/userdef&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/intc&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/system&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/system/iobitmasks&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/system/iodefines&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/bsc&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/dma&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/gpio&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/ssi&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/uart&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/dmac&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/ssi_all_cpus&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/deluge&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/NE10/modules&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/NE10/inc&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src&quot;"/>
@@ -573,7 +531,7 @@
 							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.functionsection.1325360673" name="Function sections (-ffunction-sections)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.functionsection" useByScannerDiscovery="true" value="true" valueType="boolean"/>
 							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.datasections.783140591" name="Data sections (-fdata-sections)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.datasections" useByScannerDiscovery="true" value="true" valueType="boolean"/>
 							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.level.63693081" name="Debug level" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.level" useByScannerDiscovery="true" value="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.level.none" valueType="enumerated"/>
-							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.format.416583827" name="Debug format" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.format" useByScannerDiscovery="true"/>
+							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.format.416583827" name="Debug format" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.format" useByScannerDiscovery="true" value="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.format.dwarf4" valueType="enumerated"/>
 							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.toolchain.name.1959038079" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.toolchain.name" useByScannerDiscovery="false" value="GNU Tools for ARM Embedded Processors" valueType="string"/>
 							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.architecture.220051799" name="Architecture" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.architecture" useByScannerDiscovery="false" value="ilg.gnuarmeclipse.managedbuild.cross.option.architecture.arm" valueType="enumerated"/>
 							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.family.1215922278" name="Arm family (-mcpu)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.family" useByScannerDiscovery="false" value="ilg.gnuarmeclipse.managedbuild.cross.option.arm.target.mcpu.cortex-a9" valueType="enumerated"/>
@@ -588,7 +546,7 @@
 							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.command.make.772233329" name="Build command" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.command.make" useByScannerDiscovery="false" value="make" valueType="string"/>
 							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.command.rm.143338309" name="Remove command" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.command.rm" useByScannerDiscovery="false" value="rm" valueType="string"/>
 							<option id="com.renesas.cdt.managedbuild.gcc.rz.createlibgen.1003991437" name="Create libgen" superClass="com.renesas.cdt.managedbuild.gcc.rz.createlibgen" useByScannerDiscovery="false" value="false" valueType="boolean"/>
-							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.architecture.1759787983" name="Architecture (-march)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.architecture" useByScannerDiscovery="false" value="ilg.gnuarmeclipse.managedbuild.cross.option.arm.target.arch.armv7-a" valueType="enumerated"/>
+							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.architecture.1759787983" name="Architecture (-march)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.architecture" useByScannerDiscovery="false" value="ilg.gnuarmeclipse.managedbuild.cross.option.arm.target.arch.none" valueType="enumerated"/>
 							<option id="com.renesas.cdt.managedbuild.gcc.rz.deviceName.1874350318" name="Device name" superClass="com.renesas.cdt.managedbuild.gcc.rz.deviceName" useByScannerDiscovery="false" value="R7S721020" valueType="string"/>
 							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.floatunit.1008277167" name="FPU Type" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.floatunit" useByScannerDiscovery="true" value="ilg.gnuarmeclipse.managedbuild.cross.option.arm.target.fpu.unit.neon" valueType="enumerated"/>
 							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.floatabi.943649756" name="Float ABI" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.floatabi" useByScannerDiscovery="true" value="ilg.gnuarmeclipse.managedbuild.cross.option.arm.target.fpu.abi.hard" valueType="enumerated"/>
@@ -619,55 +577,15 @@
 							</tool>
 							<tool id="com.renesas.cdt.managedbuild.gcc.rz.tool.compiler.cpp.1954281474" name="Cross ARM C++ Compiler" superClass="com.renesas.cdt.managedbuild.gcc.rz.tool.compiler.cpp">
 								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.renesas.cdt.managedbuild.gcc.rz.option.compiler.cpp.include.1121121786" name="Include paths (-I)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.compiler.cpp.include" useByScannerDiscovery="true" valueType="includePath">
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/spibsc&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/usb/userdef&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/usb&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/rspi_all_cpus&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/oled_low_level_all_cpus&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/compiler/asm/inc/&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/mtu&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/oled&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi/src&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi/src/sd/sdio&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi/src/sd&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi/userdef&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi/src/sd/access&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi/inc&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/rspi&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi/src/sd/inc&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi/src/sd/inc/access&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/stb/&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_basic&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_basic/src&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_basic/src/hw/inc&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_basic/src/driver&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_basic/src/hw&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_basic/src/driver/inc&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_hmidi&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_hmidi/src/inc&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/userdef&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/intc&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/system&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/system/iobitmasks&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/system/iodefines&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/bsc&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/dma&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/gpio&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/ssi&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/uart&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/ssi_all_cpus&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/dmac&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/uart_all_cpus&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/deluge&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/NE10/modules&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/NE10/inc&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/fatfs&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/dmac&quot;"/>
 								</option>
-								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="true" id="com.renesas.cdt.managedbuild.gcc.rz.option.compiler.cpp.otherOptimization.1843283088" name="Other optimization flags" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.compiler.cpp.otherOptimization" useByScannerDiscovery="true" valueType="stringList"/>
+								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.renesas.cdt.managedbuild.gcc.rz.option.compiler.cpp.otherOptimization.1843283088" name="Other optimization flags" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.compiler.cpp.otherOptimization" useByScannerDiscovery="true" valueType="stringList">
+									<listOptionValue builtIn="false" value="-std=gnu++20"/>
+								</option>
 								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.compiler.noexceptions.425527962" name="Do not use exceptions (-fno-exceptions)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.compiler.noexceptions" useByScannerDiscovery="true" value="true" valueType="boolean"/>
 								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.compiler.nortti.1655856323" name="Do not use RTTI (-fno-rtti)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.compiler.nortti" useByScannerDiscovery="true" value="true" valueType="boolean"/>
 								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.compiler.nousecxaatexit.2037815225" name="Do not use _cxa_atexit() (-fno-use-cxa-atexit)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.compiler.nousecxaatexit" useByScannerDiscovery="true" value="true" valueType="boolean"/>
@@ -1123,7 +1041,7 @@
 							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.functionsection.569058538" name="Function sections (-ffunction-sections)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.functionsection" useByScannerDiscovery="true" value="true" valueType="boolean"/>
 							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.datasections.1561705974" name="Data sections (-fdata-sections)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.datasections" useByScannerDiscovery="true" value="true" valueType="boolean"/>
 							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.level.79218294" name="Debug level" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.level" useByScannerDiscovery="true" value="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.level.none" valueType="enumerated"/>
-							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.format.233201911" name="Debug format" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.format" useByScannerDiscovery="true"/>
+							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.format.233201911" name="Debug format" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.format" useByScannerDiscovery="true" value="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.format.dwarf4" valueType="enumerated"/>
 							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.toolchain.name.2090673924" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.toolchain.name" useByScannerDiscovery="false" value="GNU Tools for ARM Embedded Processors" valueType="string"/>
 							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.architecture.756610640" name="Architecture" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.architecture" useByScannerDiscovery="false" value="ilg.gnuarmeclipse.managedbuild.cross.option.architecture.arm" valueType="enumerated"/>
 							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.family.2144731337" name="Arm family (-mcpu)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.family" useByScannerDiscovery="false" value="ilg.gnuarmeclipse.managedbuild.cross.option.arm.target.mcpu.cortex-a9" valueType="enumerated"/>
@@ -1138,7 +1056,7 @@
 							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.command.make.1185937121" name="Build command" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.command.make" useByScannerDiscovery="false" value="make" valueType="string"/>
 							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.command.rm.675131114" name="Remove command" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.command.rm" useByScannerDiscovery="false" value="rm" valueType="string"/>
 							<option id="com.renesas.cdt.managedbuild.gcc.rz.createlibgen.398039442" name="Create libgen" superClass="com.renesas.cdt.managedbuild.gcc.rz.createlibgen" useByScannerDiscovery="false" value="false" valueType="boolean"/>
-							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.architecture.1067162925" name="Architecture (-march)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.architecture" useByScannerDiscovery="false" value="ilg.gnuarmeclipse.managedbuild.cross.option.arm.target.arch.armv7-a" valueType="enumerated"/>
+							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.architecture.1067162925" name="Architecture (-march)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.architecture" useByScannerDiscovery="false" value="ilg.gnuarmeclipse.managedbuild.cross.option.arm.target.arch.none" valueType="enumerated"/>
 							<option id="com.renesas.cdt.managedbuild.gcc.rz.deviceName.778398447" name="Device name" superClass="com.renesas.cdt.managedbuild.gcc.rz.deviceName" useByScannerDiscovery="false" value="R7S721020" valueType="string"/>
 							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.floatunit.142788495" name="FPU Type" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.floatunit" useByScannerDiscovery="true" value="ilg.gnuarmeclipse.managedbuild.cross.option.arm.target.fpu.unit.neon" valueType="enumerated"/>
 							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.floatabi.271752517" name="Float ABI" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.floatabi" useByScannerDiscovery="true" value="ilg.gnuarmeclipse.managedbuild.cross.option.arm.target.fpu.abi.hard" valueType="enumerated"/>
@@ -1169,53 +1087,11 @@
 							</tool>
 							<tool id="com.renesas.cdt.managedbuild.gcc.rz.tool.compiler.cpp.1550879320" name="Cross ARM C++ Compiler" superClass="com.renesas.cdt.managedbuild.gcc.rz.tool.compiler.cpp">
 								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.renesas.cdt.managedbuild.gcc.rz.option.compiler.cpp.include.1354740197" name="Include paths (-I)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.compiler.cpp.include" useByScannerDiscovery="true" valueType="includePath">
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/spibsc&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/usb/userdef&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/usb&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/rspi_all_cpus&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/oled_low_level_all_cpus&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/compiler/asm/inc/&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/mtu&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/oled&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi/src&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi/src/sd/sdio&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi/src/sd&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi/userdef&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi/src/sd/access&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi/inc&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/rspi&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi/src/sd/inc&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi/src/sd/inc/access&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/stb/&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_basic&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_basic/src&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_basic/src/hw/inc&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_basic/src/driver&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_basic/src/hw&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_basic/src/driver/inc&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_hmidi&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_hmidi/src/inc&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/userdef&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/intc&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/system&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/system/iobitmasks&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/system/iodefines&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/bsc&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/dma&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/gpio&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/ssi&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/uart&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/ssi_all_cpus&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/dmac&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/uart_all_cpus&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/deluge&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/NE10/modules&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/NE10/inc&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/fatfs&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/dmac&quot;"/>
 								</option>
 								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="true" id="com.renesas.cdt.managedbuild.gcc.rz.option.compiler.cpp.otherOptimization.1646471475" name="Other optimization flags" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.compiler.cpp.otherOptimization" useByScannerDiscovery="true" valueType="stringList"/>
 								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.compiler.noexceptions.1343827918" name="Do not use exceptions (-fno-exceptions)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.compiler.noexceptions" useByScannerDiscovery="true" value="true" valueType="boolean"/>
@@ -1673,7 +1549,7 @@
 							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.functionsection.939388114" name="Function sections (-ffunction-sections)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.functionsection" useByScannerDiscovery="true" value="true" valueType="boolean"/>
 							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.datasections.1924080490" name="Data sections (-fdata-sections)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.datasections" useByScannerDiscovery="true" value="true" valueType="boolean"/>
 							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.level.140782878" name="Debug level" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.level" useByScannerDiscovery="true" value="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.level.default" valueType="enumerated"/>
-							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.format.1436452175" name="Debug format" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.format" useByScannerDiscovery="true"/>
+							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.format.1436452175" name="Debug format" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.format" useByScannerDiscovery="true" value="ilg.gnuarmeclipse.managedbuild.cross.option.debugging.format.dwarf4" valueType="enumerated"/>
 							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.toolchain.name.1725984606" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.toolchain.name" useByScannerDiscovery="false" value="GNU Tools for ARM Embedded Processors" valueType="string"/>
 							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.architecture.1018937485" name="Architecture" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.architecture" useByScannerDiscovery="false" value="ilg.gnuarmeclipse.managedbuild.cross.option.architecture.arm" valueType="enumerated"/>
 							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.family.586296827" name="Arm family (-mcpu)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.family" useByScannerDiscovery="false" value="ilg.gnuarmeclipse.managedbuild.cross.option.arm.target.mcpu.cortex-a9" valueType="enumerated"/>
@@ -1688,7 +1564,7 @@
 							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.command.make.594594057" name="Build command" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.command.make" useByScannerDiscovery="false" value="make" valueType="string"/>
 							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.command.rm.199784378" name="Remove command" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.command.rm" useByScannerDiscovery="false" value="rm" valueType="string"/>
 							<option id="com.renesas.cdt.managedbuild.gcc.rz.createlibgen.1187502967" name="Create libgen" superClass="com.renesas.cdt.managedbuild.gcc.rz.createlibgen" useByScannerDiscovery="false" value="false" valueType="boolean"/>
-							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.architecture.835423745" name="Architecture (-march)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.architecture" useByScannerDiscovery="false" value="ilg.gnuarmeclipse.managedbuild.cross.option.arm.target.arch.armv7-a" valueType="enumerated"/>
+							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.architecture.835423745" name="Architecture (-march)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.architecture" useByScannerDiscovery="false" value="ilg.gnuarmeclipse.managedbuild.cross.option.arm.target.arch.none" valueType="enumerated"/>
 							<option id="com.renesas.cdt.managedbuild.gcc.rz.deviceName.1750851522" name="Device name" superClass="com.renesas.cdt.managedbuild.gcc.rz.deviceName" useByScannerDiscovery="false" value="R7S721020" valueType="string"/>
 							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.floatunit.501812641" name="FPU Type" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.floatunit" useByScannerDiscovery="true" value="ilg.gnuarmeclipse.managedbuild.cross.option.arm.target.fpu.unit.neon" valueType="enumerated"/>
 							<option id="com.renesas.cdt.managedbuild.gcc.rz.option.floatabi.356674261" name="Float ABI" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.floatabi" useByScannerDiscovery="true" value="ilg.gnuarmeclipse.managedbuild.cross.option.arm.target.fpu.abi.hard" valueType="enumerated"/>
@@ -1715,49 +1591,7 @@
 							</tool>
 							<tool id="com.renesas.cdt.managedbuild.gcc.rz.tool.compiler.cpp.369148865" name="Cross ARM C++ Compiler" superClass="com.renesas.cdt.managedbuild.gcc.rz.tool.compiler.cpp">
 								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.renesas.cdt.managedbuild.gcc.rz.option.compiler.cpp.include.552519036" name="Include paths (-I)" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.compiler.cpp.include" useByScannerDiscovery="true" valueType="includePath">
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/usb/userdef&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/usb&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/dmac&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/uart_all_cpus&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/rspi_all_cpus&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/oled_low_level_all_cpus&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/compiler/asm/inc/&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/mtu&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/oled&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/spibsc&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi/src&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi/src/sd/sdio&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi/src/sd&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi/userdef&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi/src/sd/access&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi/inc&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/rspi&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi/src/sd/inc&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/sdhi/src/sd/inc/access&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/stb/&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_basic&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_basic/src&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_basic/src/hw/inc&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_basic/src/driver&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_basic/src/hw&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_basic/src/driver/inc&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_hmidi&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/r_usb_hmidi/src/inc&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/usb/userdef&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/intc&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/system&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/system/iobitmasks&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/system/iodefines&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/bsc&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/dma&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/gpio&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/ssi&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/RZA1/uart&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/dmac&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/drivers/All_CPUs/ssi_all_cpus&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/deluge&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/NE10/modules&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/NE10/inc&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src&quot;"/>

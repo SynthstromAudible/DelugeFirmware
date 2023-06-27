@@ -18,10 +18,10 @@
 #ifndef DRIVERS_ALL_CPUS_DMAC_DMAC_H_
 #define DRIVERS_ALL_CPUS_DMAC_DMAC_H_
 
-#include "r_typedefs.h"
-#include "dmac_iodefine.h"
-#include "dmac_iobitmask.h"
-#include "cpu_specific.h"
+#include "RZA1/system/r_typedefs.h"
+#include "RZA1/system/iodefines/dmac_iodefine.h"
+#include "RZA1/system/iobitmasks/dmac_iobitmask.h"
+#include "RZA1/cpu_specific.h"
 
 #define DMA_INTERRUPT_0 INTC_ID_DMAINT0
 

@@ -17,8 +17,8 @@
 
 // clang-format off
 
-#include "lookuptables.h"
-#include "functions.h"
+#include "util/lookuptables/lookuptables.h"
+#include "util/functions.h"
 #include "definitions.h"
 
 const uint16_t centAdjustTableSmall[257] = {

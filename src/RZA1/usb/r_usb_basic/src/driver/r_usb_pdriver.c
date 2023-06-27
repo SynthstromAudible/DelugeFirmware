@@ -28,14 +28,14 @@
 /***********************************************************************************************************************
  Includes   <System Includes> , "Project Includes"
  ***********************************************************************************************************************/
-#include "r_usb_basic_if.h"
-#include "r_usb_typedef.h"
-#include "r_usb_extern.h"
-#include "r_usb_bitdefine.h"
-#include "r_usb_reg_access.h"
+#include "RZA1/usb/r_usb_basic/r_usb_basic_if.h"
+#include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_typedef.h"
+#include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_extern.h"
+#include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_bitdefine.h"
+#include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_reg_access.h"
 
 #if ((USB_CFG_DTC == USB_CFG_ENABLE) || (USB_CFG_DMA == USB_CFG_ENABLE))
-#include "r_usb_dmac.h"
+#include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_dmac.h"
 #endif /* ((USB_CFG_DTC == USB_CFG_ENABLE) || (USB_CFG_DMA == USB_CFG_ENABLE)) */
 
 #if ((USB_CFG_MODE & USB_CFG_PERI) == USB_CFG_PERI)
@@ -74,8 +74,8 @@ uint16_t g_usb_peri_connected; /* Status for USB connect. */
 usb_pcdreg_t g_usb_pstd_driver;
 usb_setup_t g_usb_pstd_req_reg; /* Device Request - Request structure */
 
-#include "r_usb_basic_if.h"
-#include "r_usb_pmidi_config.h"
+#include "RZA1/usb/r_usb_basic/r_usb_basic_if.h"
+#include "deluge/drivers/usb/userdef/r_usb_pmidi_config.h"
 #include "definitions.h"
 
 /***********************************************************************************************************************

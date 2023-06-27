@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "mtu.h"
+#include "RZA1/mtu/mtu.h"
 
 void mtuEnableAccess()
 {

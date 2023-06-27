@@ -17,7 +17,7 @@
 
 // clang-format off
 
-#include "fonts.h"
+#include "gui/fonts/fonts.h"
 
 
 // Fonts in this file were generated with https://lvgl.io/tools/font_conv_v5_3

@@ -15,22 +15,22 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include <AudioEngine.h>
-#include <AudioFileManager.h>
-#include <contextmenuclearsong.h>
-#include <ParamManager.h>
-#include "numericdriver.h"
-#include "GeneralMemoryAllocator.h"
-#include "View.h"
-#include "Session.h"
-#include "Arrangement.h"
-#include "ActionLogger.h"
+#include "processing/engines/audio_engine.h"
+#include "storage/audio/audio_file_manager.h"
+#include "gui/context_menu/contextmenuclearsong.h"
+#include "modulation/params/param_manager.h"
+#include "hid/display/numeric_driver.h"
+#include "memory/general_memory_allocator.h"
+#include "gui/views/view.h"
+#include "playback/mode/session.h"
+#include "playback/mode/arrangement.h"
+#include "model/action/action_logger.h"
 #include <new>
-#include "song.h"
-#include "IndicatorLEDs.h"
+#include "model/song/song.h"
+#include "hid/led/indicator_leds.h"
 #include "extern.h"
-#include "playbackhandler.h"
-#include "oled.h"
+#include "playback/playback_handler.h"
+#include "hid/display/oled.h"
 
 ContextMenuClearSong contextMenuClearSong;
 

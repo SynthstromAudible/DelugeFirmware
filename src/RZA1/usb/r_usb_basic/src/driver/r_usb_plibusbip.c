@@ -28,18 +28,18 @@
 /***********************************************************************************************************************
  Includes   <System Includes> , "Project Includes"
  ***********************************************************************************************************************/
-#include "r_usb_basic_if.h"
-#include "r_usb_typedef.h"
-#include "r_usb_extern.h"
-#include "r_usb_bitdefine.h"
-#include "r_usb_reg_access.h"
+#include "RZA1/usb/r_usb_basic/r_usb_basic_if.h"
+#include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_typedef.h"
+#include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_extern.h"
+#include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_bitdefine.h"
+#include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_reg_access.h"
 
 // Added by Rohan
-#include "MIDIDeviceManager.h"
-#include "r_usb_pmidi_config.h"
+#include "deluge/io/midi/midi_device_manager.h"
+#include "deluge/drivers/usb/userdef/r_usb_pmidi_config.h"
 
 #if ((USB_CFG_DTC == USB_CFG_ENABLE) || (USB_CFG_DMA == USB_CFG_ENABLE))
-#include "r_usb_dmac.h"
+#include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_dmac.h"
 #endif /* ((USB_CFG_DTC == USB_CFG_ENABLE) || (USB_CFG_DMA == USB_CFG_ENABLE)) */
 
 #if ((USB_CFG_MODE & USB_CFG_PERI) == USB_CFG_PERI)
@@ -238,10 +238,10 @@ void usb_pstd_send_start(uint16_t pipe) // pipe is never 0. Rohan
     }
 } /* End of function usb_pstd_send_start() */
 
-#include "iodefine.h"
-#include "usb20_iodefine.h"
+#include "RZA1/system/iodefine.h"
+#include "RZA1/system/iodefines/usb20_iodefine.h"
 #include "definitions.h"
-#include "mtu.h"
+#include "RZA1/mtu/mtu.h"
 
 extern uint16_t pipeMaxPs[];
 

@@ -30,9 +30,9 @@
 /******************************************************************************
 Includes   <System Includes> , "Project Includes"
 ******************************************************************************/
-#include "r_typedefs.h"
-#include "cache.h"
-#include "iodefine.h"
+#include "RZA1/system/r_typedefs.h"
+#include "RZA1/cache/cache.h"
+#include "RZA1/system/iodefine.h"
 
 #ifdef __CC_ARM
 #pragma arm section code   = "CODE_CACHE_OPERATION"

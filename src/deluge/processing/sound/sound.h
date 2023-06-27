@@ -18,16 +18,16 @@
 #ifndef SOUND_H
 #define SOUND_H
 
-#include <patcher.h>
+#include "modulation/patch/patcher.h"
 #include "definitions.h"
-#include "compressor.h"
-#include "lfo.h"
-#include "source.h"
-#include "ModControllableAudio.h"
-#include "Arpeggiator.h"
-#include "Knob.h"
-#include "ParamSet.h"
-#include "ParamManager.h"
+#include "dsp/compressor/compressor.h"
+#include "modulation/lfo.h"
+#include "processing/source.h"
+#include "model/mod_controllable/mod_controllable_audio.h"
+#include "modulation/arpeggiator.h"
+#include "modulation/knob.h"
+#include "modulation/params/param_set.h"
+#include "modulation/params/param_manager.h"
 
 struct CableGroup;
 class StereoSample;

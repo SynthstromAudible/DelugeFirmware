@@ -18,7 +18,7 @@
 #ifndef DRIVERS_ALL_CPUS_UART_ALL_CPUS_UART_ALL_CPUS_H_
 #define DRIVERS_ALL_CPUS_UART_ALL_CPUS_UART_ALL_CPUS_H_
 
-#include "r_typedefs.h"
+#include "RZA1/system/r_typedefs.h"
 
 /*
  * ================= DEBUGGING TEXT OUTPUT =================

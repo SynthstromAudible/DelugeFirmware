@@ -18,10 +18,10 @@
 #ifndef INSTRUMENT_H
 #define INSTRUMENT_H
 
-#include <ClipInstanceVector.h>
+#include "model/clip/clip_instance_vector.h"
 #include "definitions.h"
-#include "DString.h"
-#include "Output.h"
+#include "util/d_string.h"
+#include "model/output.h"
 
 class StereoSample;
 class ModControllable;

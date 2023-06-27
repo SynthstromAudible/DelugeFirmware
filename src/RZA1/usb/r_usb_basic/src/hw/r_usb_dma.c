@@ -28,17 +28,17 @@
 /***********************************************************************************************************************
  Includes   <System Includes>, "Project Includes"
  ***********************************************************************************************************************/
-#include "r_usb_basic_if.h"
-#include "r_usb_typedef.h"
-#include "r_usb_extern.h"
-#include "r_usb_bitdefine.h"
-#include "r_usb_reg_access.h"
-#include "iodefine.h"
+#include "RZA1/usb/r_usb_basic/r_usb_basic_if.h"
+#include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_typedef.h"
+#include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_extern.h"
+#include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_bitdefine.h"
+#include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_reg_access.h"
+#include "RZA1/system/iodefine.h"
 
 #if ((USB_CFG_DTC == USB_CFG_ENABLE) || (USB_CFG_DMA == USB_CFG_ENABLE))
 #include "drivers/usb/r_usb_basic/src/hw/inc/r_usb_dmac.h"
-#include "devdrv_intc.h" /* INTC Driver Header   */
-#include "cache.h"
+#include "RZA1/intc/devdrv_intc.h" /* INTC Driver Header   */
+#include "RZA1/cache/cache.h"
 
 /***********************************************************************************************************************
  Exported global functions (to be accessed by other files)

@@ -18,13 +18,13 @@
 #ifndef SONG_H
 #define SONG_H
 
-#include <ClipArray.h>
-#include <GlobalEffectableForSong.h>
-#include <ParamManager.h>
-#include <TimelineCounter.h>
-#include "OrderedResizeableArrayWithMultiWordKey.h"
-#include "DString.h"
-#include "LearnedMIDI.h"
+#include "model/clip/clip_array.h"
+#include "model/global_effectable/global_effectable_for_song.h"
+#include "modulation/params/param_manager.h"
+#include "model/timeline_counter.h"
+#include "util/container/array/ordered_resizeable_array_with_multi_word_key.h"
+#include "util/d_string.h"
+#include "io/midi/learned_midi.h"
 
 class MidiCommand;
 class InstrumentClip;

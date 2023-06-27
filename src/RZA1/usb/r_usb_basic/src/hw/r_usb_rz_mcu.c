@@ -29,23 +29,23 @@
 /***********************************************************************************************************************
  Includes   <System Includes> , "Project Includes"
  ***********************************************************************************************************************/
-#include "r_usb_basic_if.h"
-#include "r_usb_typedef.h"
-#include "r_usb_extern.h"
-#include "r_usb_bitdefine.h"
-#include "devdrv_intc.h" /* INTC Driver Header   */
-#include "iodefine.h"
+#include "RZA1/usb/r_usb_basic/r_usb_basic_if.h"
+#include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_typedef.h"
+#include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_extern.h"
+#include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_bitdefine.h"
+#include "RZA1/intc/devdrv_intc.h" /* INTC Driver Header   */
+#include "RZA1/system/iodefine.h"
 #include <stdbool.h>
-#include "mtu2_iodefine.h"
-#include "cfunctions.h"
-#include "Deluge.h"
+#include "RZA1/system/iodefines/mtu2_iodefine.h"
+#include "deluge/util/cfunctions.h"
+#include "deluge/deluge.h"
 
 // Additions by Rohan
 #include "definitions.h"
-#include "mtu.h"
+#include "RZA1/mtu/mtu.h"
 
 #if ((USB_CFG_DTC == USB_CFG_ENABLE) || (USB_CFG_DMA == USB_CFG_ENABLE))
-#include "r_usb_dmac.h"
+#include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_dmac.h"
 #endif /* ((USB_CFG_DTC == USB_CFG_ENABLE) || (USB_CFG_DMA == USB_CFG_ENABLE)) */
 
 /***********************************************************************************************************************
@@ -289,7 +289,7 @@ TIMER function
 #define MTU_TIMER_CNT 33
 
 #include "definitions.h"
-#include "mtu_all_cpus.h"
+#include "deluge/drivers/mtu/mtu.h"
 
 void usb_cpu_delay_1us(uint16_t time) // Modified by Rohan
 {

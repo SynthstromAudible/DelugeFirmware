@@ -24,8 +24,8 @@
 #ifndef _comb_
 #define _comb_
 
-#include "r_typedefs.h"
-#include "functions.h"
+#include "RZA1/system/r_typedefs.h"
+#include "util/functions.h"
 
 class comb {
 public:

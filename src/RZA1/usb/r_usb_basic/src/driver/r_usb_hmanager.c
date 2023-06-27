@@ -28,17 +28,17 @@
 /***********************************************************************************************************************
  Includes   <System Includes> , "Project Includes"
  ***********************************************************************************************************************/
-#include "r_usb_basic_if.h"
-#include "r_usb_typedef.h"
-#include "r_usb_extern.h"
-#include "r_usb_bitdefine.h"
-#include "r_usb_reg_access.h"
+#include "RZA1/usb/r_usb_basic/r_usb_basic_if.h"
+#include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_typedef.h"
+#include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_extern.h"
+#include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_bitdefine.h"
+#include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_reg_access.h"
 #include "definitions.h"
 
 #if HAVE_OLED
-#include "oled.h"
+#include "deluge/hid/display/oled.h"
 #else
-#include "numericdriver.h"
+#include "deluge/hid/display/numeric_driver.h"
 #endif
 
 #if ((USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST)

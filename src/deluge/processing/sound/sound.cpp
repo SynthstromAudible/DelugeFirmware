@@ -15,47 +15,47 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <AudioEngine.h>
-#include <AudioFileManager.h>
-#include <InstrumentClip.h>
-#include "functions.h"
-#include "storagemanager.h"
+#include "processing/engines/audio_engine.h"
+#include "storage/audio/audio_file_manager.h"
+#include "model/clip/instrument_clip.h"
+#include "util/functions.h"
+#include "storage/storage_manager.h"
 #include <math.h>
-#include <patcher.h>
-#include <ParamManager.h>
-#include <sound.h>
-#include <soundinstrument.h>
-#include "soundeditor.h"
-#include "FilterSetConfig.h"
-#include "kit.h"
-#include "numericdriver.h"
-#include "View.h"
-#include "Action.h"
-#include "ActionLogger.h"
+#include "modulation/patch/patcher.h"
+#include "modulation/params/param_manager.h"
+#include "processing/sound/sound.h"
+#include "processing/sound/sound_instrument.h"
+#include "gui/ui/sound_editor.h"
+#include "dsp/filter/filter_set_config.h"
+#include "model/drum/kit.h"
+#include "hid/display/numeric_driver.h"
+#include "gui/views/view.h"
+#include "model/action/action.h"
+#include "model/action/action_logger.h"
 #include <string.h>
-#include <TimelineCounter.h>
-#include "GeneralMemoryAllocator.h"
-#include "MultisampleRange.h"
-#include "MultiWaveTableRange.h"
-#include "VoiceSample.h"
+#include "model/timeline_counter.h"
+#include "memory/general_memory_allocator.h"
+#include "storage/multi_range/multisample_range.h"
+#include "storage/multi_range/multi_wave_table_range.h"
+#include "model/voice/voice_sample.h"
 #include <new>
-#include "matrixdriver.h"
-#include "playbackhandler.h"
-#include "ParamSet.h"
-#include "song.h"
-#include "RootUI.h"
-#include "Buttons.h"
-#include "voice.h"
-#include "Sample.h"
-#include "VoiceVector.h"
-#include "ModelStack.h"
-#include "IndicatorLEDs.h"
-#include "FlashStorage.h"
-#include "PatchCableSet.h"
+#include "hid/matrix/matrix_driver.h"
+#include "playback/playback_handler.h"
+#include "modulation/params/param_set.h"
+#include "model/song/song.h"
+#include "gui/ui/root_ui.h"
+#include "hid/buttons.h"
+#include "model/voice/voice.h"
+#include "model/sample/sample.h"
+#include "model/voice/voice_vector.h"
+#include "model/model_stack.h"
+#include "hid/led/indicator_leds.h"
+#include "storage/flash_storage.h"
+#include "modulation/patch/patch_cable_set.h"
 
 extern "C" {
-#include "mtu.h"
-#include "uart_all_cpus.h"
+#include "RZA1/mtu/mtu.h"
+#include "drivers/uart/uart.h"
 }
 
 const PatchableInfo patchableInfoForSound = {

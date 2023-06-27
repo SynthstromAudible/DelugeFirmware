@@ -42,7 +42,7 @@
 extern "C" {
 #endif    /* __cplusplus    */
 
-#include "r_typedefs.h"
+#include "RZA1/system/r_typedefs.h"
 
 /* ==== define  ==== */
 /* ---- SD Driver work buffer ---- */

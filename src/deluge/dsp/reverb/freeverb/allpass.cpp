@@ -21,7 +21,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "allpass.hpp"
+#include "dsp/reverb/freeverb/allpass.hpp"
 
 allpass::allpass() {
 	bufidx = 0;

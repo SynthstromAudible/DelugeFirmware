@@ -30,12 +30,12 @@
 /******************************************************************************
 Includes   <System Includes> , "Project Includes"
 ******************************************************************************/
-#include "r_typedefs.h"
-#include "devdrv_intc.h" /* INTC Driver Header */
-#include "intc_handler.h"
-#include "iodefine.h"
-#include "asm.h"
-#include "uart_all_cpus.h"
+#include "RZA1/system/r_typedefs.h"
+#include "RZA1/intc/devdrv_intc.h" /* INTC Driver Header */
+#include "RZA1/intc/intc_handler.h"
+#include "RZA1/system/iodefine.h"
+#include "RZA1/compiler/asm/inc/asm.h"
+#include "deluge/drivers/uart/uart.h"
 
 #ifdef __ICCARM__
 #include <intrinsics.h>

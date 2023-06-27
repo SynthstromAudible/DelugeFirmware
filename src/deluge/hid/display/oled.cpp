@@ -19,21 +19,21 @@
 
 #if HAVE_OLED
 
-#include "oled.h"
+#include "hid/display/oled.h"
 #include <string.h>
-#include "uitimermanager.h"
-#include "AudioEngine.h"
-#include "DString.h"
-#include "mtu.h"
-#include "dmac.h"
+#include "gui/ui_timer_manager.h"
+#include "processing/engines/audio_engine.h"
+#include "util/d_string.h"
+#include "RZA1/mtu/mtu.h"
+#include "drivers/dmac/dmac.h"
 
 extern "C" {
-#include "oled_low_level.h"
-#include "rspi.h"
-#include "oled_low_level_all_cpus.h"
-#include "fonts.h"
-#include "sio_char.h"
-#include "cfunctions.h"
+#include "RZA1/oled/oled_low_level.h"
+#include "RZA1/rspi/rspi.h"
+#include "drivers/oled/oled.h"
+#include "gui/fonts/fonts.h"
+#include "RZA1/uart/sio_char.h"
+#include "util/cfunctions.h"
 extern void v7_dma_flush_range(uint32_t start, uint32_t end);
 }
 

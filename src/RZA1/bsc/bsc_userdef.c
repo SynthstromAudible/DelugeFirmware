@@ -37,15 +37,15 @@
 Includes   <System Includes> , "Project Includes"
 ******************************************************************************/
 /* Default  type definition header */
-#include "r_typedefs.h"
+#include "RZA1/system/r_typedefs.h"
 /* Device driver header */
-#include "dev_drv.h"
+#include "RZA1/system/dev_drv.h"
 /* Common Driver header */
-#include "bsc_userdef.h"
+#include "RZA1/bsc/bsc_userdef.h"
 /* I/O Register root header */
-#include "iodefine.h"
+#include "RZA1/system/iodefine.h"
 /* Bus State Controller User header */
-#include "bsc_userdef.h"
+#include "RZA1/bsc/bsc_userdef.h"
 
 /******************************************************************************
 Typedef definitions

@@ -38,8 +38,8 @@
 #include "../../../inc/sdif.h"
 #include "../inc/access/sd.h"
 
-#include "asm.h"
-#include "uart_all_cpus.h"
+#include "RZA1/compiler/asm/inc/asm.h"
+#include "deluge/drivers/uart/uart.h"
 
 #ifdef __CC_ARM
 #pragma arm section code = "CODE_SDHI"

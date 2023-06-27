@@ -41,17 +41,17 @@ Includes   <System Includes> , "Project Includes"
 ******************************************************************************/
 #include <stdio.h>
 #include <string.h>
-#include "r_typedefs.h"
-#include "iodefine.h"
-#include "rza_io_regrw.h"
-#include "devdrv_intc.h"
+#include "RZA1/system/r_typedefs.h"
+#include "RZA1/system/iodefine.h"
+#include "RZA1/system/rza_io_regrw.h"
+#include "RZA1/intc/devdrv_intc.h"
 #include "../inc/sdif.h"
 #include "../inc/sd_cfg.h"
-#include "sd_dev_dmacdrv.h"
-#include "sdif.h"
-#include "gpio_iobitmask.h"
-#include "uart_all_cpus.h"
-#include "Deluge.h"
+#include "RZA1/sdhi/userdef/sd_dev_dmacdrv.h"
+#include "RZA1/sdhi/inc/sdif.h"
+#include "RZA1/system/iobitmasks/gpio_iobitmask.h"
+#include "deluge/drivers/uart/uart.h"
+#include "deluge/deluge.h"
 
 /******************************************************************************
 Typedef definitions

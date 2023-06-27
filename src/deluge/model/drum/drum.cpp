@@ -15,21 +15,21 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "drum.h"
+#include "model/drum/drum.h"
 
-#include "r_typedefs.h"
-#include "storagemanager.h"
+#include "RZA1/system/r_typedefs.h"
+#include "storage/storage_manager.h"
 #include <string.h>
-#include "ModelStack.h"
-#include "playbackhandler.h"
-#include "InstrumentClip.h"
-#include "NoteRow.h"
-#include "GeneralMemoryAllocator.h"
+#include "model/model_stack.h"
+#include "playback/playback_handler.h"
+#include "model/clip/instrument_clip.h"
+#include "model/note/note_row.h"
+#include "memory/general_memory_allocator.h"
 #include <new>
-#include "View.h"
-#include "InstrumentClipView.h"
-#include "ParamSet.h"
-#include "functions.h"
+#include "gui/views/view.h"
+#include "gui/views/instrument_clip_view.h"
+#include "modulation/params/param_set.h"
+#include "util/functions.h"
 
 Drum::Drum(int newType) : type(newType) {
 	next = NULL;

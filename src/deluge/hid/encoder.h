@@ -19,7 +19,7 @@
 #define Encoder_h
 
 #define encMinBacktrackTime (20 * 44) // In milliseconds/44
-#include "r_typedefs.h"
+#include "RZA1/system/r_typedefs.h"
 
 class Encoder {
 public:

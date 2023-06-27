@@ -15,57 +15,57 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <ArrangerView.h>
-#include <AudioEngine.h>
-#include <AudioFileManager.h>
-#include <ClipInstance.h>
-#include <ConsequenceClipExistence.h>
-#include <InstrumentClip.h>
-#include <InstrumentClipMinder.h>
-#include <ParamManager.h>
-#include <sounddrum.h>
-#include <soundinstrument.h>
-#include "song.h"
-#include "functions.h"
-#include "View.h"
-#include "storagemanager.h"
-#include "matrixdriver.h"
-#include "numericdriver.h"
-#include "NoteRow.h"
-#include "Action.h"
-#include "ActionLogger.h"
+#include "gui/views/arranger_view.h"
+#include "processing/engines/audio_engine.h"
+#include "storage/audio/audio_file_manager.h"
+#include "model/clip/clip_instance.h"
+#include "model/consequence/consequence_clip_existence.h"
+#include "model/clip/instrument_clip.h"
+#include "model/clip/instrument_clip_minder.h"
+#include "modulation/params/param_manager.h"
+#include "processing/sound/sound_drum.h"
+#include "processing/sound/sound_instrument.h"
+#include "model/song/song.h"
+#include "util/functions.h"
+#include "gui/views/view.h"
+#include "storage/storage_manager.h"
+#include "hid/matrix/matrix_driver.h"
+#include "hid/display/numeric_driver.h"
+#include "model/note/note_row.h"
+#include "model/action/action.h"
+#include "model/action/action_logger.h"
 //#include <algorithm>
 #include <string.h>
-#include <SessionView.h>
-#include "playbackhandler.h"
-#include "uart.h"
-#include "midiengine.h"
-#include "GeneralMemoryAllocator.h"
-#include "Session.h"
-#include "kit.h"
-#include "CVInstrument.h"
-#include "MIDIInstrument.h"
+#include "gui/views/session_view.h"
+#include "playback/playback_handler.h"
+#include "io/uart/uart.h"
+#include "io/midi/midi_engine.h"
+#include "memory/general_memory_allocator.h"
+#include "playback/mode/session.h"
+#include "model/drum/kit.h"
+#include "model/instrument/cv_instrument.h"
+#include "model/instrument/midi_instrument.h"
 #include <new>
-#include "Arrangement.h"
-#include "AudioClip.h"
-#include "AudioOutput.h"
-#include "AudioClipView.h"
-#include "SampleRecorder.h"
-#include "CVEngine.h"
-#include "PadLEDs.h"
-#include "FlashStorage.h"
-#include "revmodel.hpp"
-#include "ModelStack.h"
-#include "MIDIDevice.h"
-#include "MIDIDeviceManager.h"
-#include "ParamSet.h"
-#include "PatchCableSet.h"
-#include "Browser.h"
-#include "FileItem.h"
-#include "oled.h"
+#include "playback/mode/arrangement.h"
+#include "model/clip/audio_clip.h"
+#include "processing/audio_output.h"
+#include "gui/views/audio_clip_view.h"
+#include "model/sample/sample_recorder.h"
+#include "processing/engines/cv_engine.h"
+#include "hid/led/pad_leds.h"
+#include "storage/flash_storage.h"
+#include "dsp/reverb/freeverb/revmodel.hpp"
+#include "model/model_stack.h"
+#include "io/midi/midi_device.h"
+#include "io/midi/midi_device_manager.h"
+#include "modulation/params/param_set.h"
+#include "modulation/patch/patch_cable_set.h"
+#include "gui/ui/browser/browser.h"
+#include "storage/file_item.h"
+#include "hid/display/oled.h"
 
 extern "C" {
-#include "sio_char.h"
+#include "RZA1/uart/sio_char.h"
 }
 
 Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
@@ -163,8 +163,8 @@ Song::~Song() {
 	deleteHibernatingMIDIInstrument();
 }
 
-#include "MenuItemIntegerRange.h"
-#include "MenuItemKeyRange.h"
+#include "gui/menu_item/menu_item_integer_range.h"
+#include "gui/menu_item/menu_item_key_range.h"
 extern MenuItemIntegerRange defaultTempoMenu;
 extern MenuItemIntegerRange defaultSwingMenu;
 extern MenuItemKeyRange defaultKeyMenu;

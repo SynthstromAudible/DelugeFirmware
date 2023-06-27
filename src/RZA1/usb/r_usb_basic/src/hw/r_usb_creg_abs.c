@@ -28,13 +28,13 @@
 /***********************************************************************************************************************
  Includes   <System Includes> , "Project Includes"
  ***********************************************************************************************************************/
-#include "r_usb_basic_if.h"
-#include "r_usb_typedef.h"
-#include "r_usb_extern.h"
-#include "r_usb_bitdefine.h"
-#include "r_usb_reg_access.h"
-#include "iodefine.h"
-#include "uart_all_cpus.h"
+#include "RZA1/usb/r_usb_basic/r_usb_basic_if.h"
+#include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_typedef.h"
+#include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_extern.h"
+#include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_bitdefine.h"
+#include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_reg_access.h"
+#include "RZA1/system/iodefine.h"
+#include "deluge/drivers/uart/uart.h"
 
 /***********************************************************************************************************************
  Exported global variables (to be accessed by other files)
@@ -46,7 +46,7 @@ uint16_t
 
 // Added by Rohan
 #include "definitions.h"
-#include "mtu.h"
+#include "RZA1/mtu/mtu.h"
 extern uint16_t pipeBufs[];
 extern uint16_t pipeMaxPs[];
 extern uint16_t pipeCfgs[];

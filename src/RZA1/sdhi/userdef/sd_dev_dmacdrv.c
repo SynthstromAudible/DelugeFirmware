@@ -39,14 +39,14 @@
 /******************************************************************************
 Includes   <System Includes> , "Project Includes"
 ******************************************************************************/
-#include <drivers/RZA1/system/rza_io_regrw.h>
+#include "RZA1/system/rza_io_regrw.h"
 #include <stdio.h>
-#include "r_typedefs.h"
-#include "iodefine.h"
-#include "dev_drv.h"                /* Device Driver common header */
-#include "devdrv_intc.h"            /* INTC Driver Header */
-#include "sd_dev_dmacdrv.h"
-#include "dmac_iobitmask.h"
+#include "RZA1/system/r_typedefs.h"
+#include "RZA1/system/iodefine.h"
+#include "RZA1/system/dev_drv.h"                /* Device Driver common header */
+#include "RZA1/intc/devdrv_intc.h"            /* INTC Driver Header */
+#include "RZA1/sdhi/userdef/sd_dev_dmacdrv.h"
+#include "RZA1/system/iobitmasks/dmac_iobitmask.h"
 
 /******************************************************************************
 Typedef definitions

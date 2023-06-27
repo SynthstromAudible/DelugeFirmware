@@ -18,8 +18,8 @@
 #ifndef DRIVERS_ALL_CPUS_RSPI_ALL_CPUS_RSPI_ALL_CPUS_H_
 #define DRIVERS_ALL_CPUS_RSPI_ALL_CPUS_RSPI_ALL_CPUS_H_
 
-#include "iodefine.h"
-#include "r_typedefs.h"
+#include "RZA1/system/iodefine.h"
+#include "RZA1/system/r_typedefs.h"
 
 void R_RSPI_SendBasic8(uint8_t channel, uint8_t data);
 void R_RSPI_SendBasic32(uint8_t channel, uint32_t data);

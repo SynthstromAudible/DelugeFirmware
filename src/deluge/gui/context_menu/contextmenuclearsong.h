@@ -18,7 +18,7 @@
 #ifndef CLEARSONGUI_H
 #define CLEARSONGUI_H
 
-#include "ContextMenu.h"
+#include "gui/context_menu/context_menu.h"
 
 class ContextMenuClearSong final : public ContextMenuForLoading {
 public:

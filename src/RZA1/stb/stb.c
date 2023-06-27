@@ -37,12 +37,12 @@
 Includes   <System Includes> , "Project Includes"
 ******************************************************************************/
 /* Default  type definition header */
-#include <drivers/RZA1/stb/stb.h>
-#include "r_typedefs.h"
+#include "RZA1/stb/stb.h"
+#include "RZA1/system/r_typedefs.h"
 /* I/O Register root header */
-#include "iodefine.h"
+#include "RZA1/system/iodefine.h"
 /* Common Driver header */
-#include "bsc_userdef.h"
+#include "RZA1/bsc/bsc_userdef.h"
 /* System CPG register configuration header */
 
 /******************************************************************************

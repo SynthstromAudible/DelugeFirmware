@@ -37,11 +37,11 @@
 Includes   <System Includes> , "Project Includes"
 *******************************************************************************/
 /* Default  type definition header */
-#include "rza_io_regrw.h"
-#include "r_typedefs.h"
+#include "RZA1/system/rza_io_regrw.h"
+#include "RZA1/system/r_typedefs.h"
 /* Common Driver header */
 /* I/O Register root header */
-#include "iodefine.h"
+#include "RZA1/system/iodefine.h"
 
 /*******************************************************************************
 Private global variables and functions

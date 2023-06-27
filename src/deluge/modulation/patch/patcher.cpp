@@ -15,15 +15,15 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <patcher.h>
-#include <ParamManager.h>
-#include <sound.h>
-#include "voice.h"
-#include "PatchCableSet.h"
+#include "modulation/patch/patcher.h"
+#include "modulation/params/param_manager.h"
+#include "processing/sound/sound.h"
+#include "model/voice/voice.h"
+#include "modulation/patch/patch_cable_set.h"
 
 extern "C" {
-#include "mtu.h"
-#include "uart_all_cpus.h"
+#include "RZA1/mtu/mtu.h"
+#include "drivers/uart/uart.h"
 }
 
 Patcher::Patcher(const PatchableInfo* newInfo) : patchableInfo(newInfo) {

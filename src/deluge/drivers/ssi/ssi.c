@@ -16,9 +16,9 @@
  */
 
 #include "definitions.h"
-#include "ssif_iodefine.h"
-#include "ssi_all_cpus.h"
-#include "dmac_iodefine.h"
+#include "RZA1/system/iodefines/ssif_iodefine.h"
+#include "drivers/ssi/ssi.h"
+#include "RZA1/system/iodefines/dmac_iodefine.h"
 
 int32_t ssiTxBuffer[SSI_TX_BUFFER_NUM_SAMPLES * NUM_MONO_OUTPUT_CHANNELS] __attribute__((aligned(CACHE_LINE_SIZE)));
 

@@ -28,8 +28,8 @@
 /***********************************************************************************************************************
  Includes   <System Includes> , "Project Includes"
  ***********************************************************************************************************************/
-#include "r_usb_basic_if.h"
-#include "r_usb_typedef.h"
+#include "RZA1/usb/r_usb_basic/r_usb_basic_if.h"
+#include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_typedef.h"
 
 #if defined(USB_CFG_PHID_USE)
 #include "r_usb_phid_if.h"
@@ -44,7 +44,7 @@
 #endif /* defined(USB_CFG_PMSC_USE) */
 
 #if defined(USB_CFG_PMIDI_USE)
-#include "r_usb_pmidi_config.h"
+#include "deluge/drivers/usb/userdef/r_usb_pmidi_config.h"
 #endif
 
 #if ((USB_CFG_MODE & USB_CFG_PERI) == USB_CFG_PERI)
