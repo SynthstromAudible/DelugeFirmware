@@ -134,7 +134,7 @@ int32_t FilterSetConfig::init(int32_t lpfFrequency, int32_t lpfResonance, int32_
 				    (int32_t)540817); // We really want to keep the frequency from going lower than it has to - it causes problems
 
 				int32_t resonance = 2147483647 - (getMin(lpfResonance, resonanceUpperLimit) << 2); // Limits it
-
+				lpfRawResonance = resonance;
 				resonance = multiply_32x32_rshift32_rounded(resonance, resonance) << 1;
 				processedResonance =
 				    2147483647
@@ -191,6 +191,11 @@ int32_t FilterSetConfig::init(int32_t lpfFrequency, int32_t lpfResonance, int32_
 				a = 536870912 - a;
 				int32_t gainModifier = 268435456 + a;
 				filterGain = multiply_32x32_rshift32(filterGain, gainModifier) << 3;
+			}
+
+			else if (lpfMode == LPF_MODE_SVF) {
+				//compensation not needed for SVF
+				filterGain = 0;
 			}
 
 			// Drive filter - increase output amplitude
