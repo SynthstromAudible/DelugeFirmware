@@ -46,7 +46,7 @@ SampleCluster::~SampleCluster() {
 			Uart::print("uh oh, some reasons left... ");
 			Uart::println(numReasonsToBeLoaded);
 
-			numericDriver.freezeWithError("E036");
+			numericDriver.freezeWithError("E036"); // Bay_Mud got this, and thinks a FlashAir card might have been a catalyst. It still "shouldn't" be able to happen though.
 		}
 #endif
 		audioFileManager.deallocateCluster(cluster);
@@ -148,7 +148,7 @@ justEnqueue:
 	// Or if it had previously been created...
 	else {
 
-#if 1 || ALPHA_OR_BETA_VERSION // Switching permanently on for now, as users on V4.0.x have been getting E341.
+#if 1 || ALPHA_OR_BETA_VERSION // Switching permanently on for now, as users on V4.1.3 have been getting E341.
 		if (cluster && cluster->numReasonsToBeLoaded < 0) numericDriver.freezeWithError("i028"); // bnhrsch got this!!
 #endif
 
@@ -167,12 +167,12 @@ justEnqueue:
 
 		audioFileManager.addReasonToCluster(cluster);
 
-#if 1 || ALPHA_OR_BETA_VERSION // Switching permanently on for now, as users on on V4.0.x have been getting E341.
+#if 1 || ALPHA_OR_BETA_VERSION // Switching permanently on for now, as users on V4.0.x have been getting E341.
 		if (cluster && cluster->numReasonsToBeLoaded <= 0) numericDriver.freezeWithError("i025"); // Diversifying Ron R's i004, which was diversifying Qui's E341
 #endif
 	}
 
-#if 1 || ALPHA_OR_BETA_VERSION // Switching permanently on for now, as users on on V4.0.x have been getting E341.
+#if 1 || ALPHA_OR_BETA_VERSION // Switching permanently on for now, as users on V4.0.x have been getting E341.
 	if (cluster && cluster->numReasonsToBeLoaded <= 0) numericDriver.freezeWithError("i004"); // Ron R got this! Diversifying Qui's E341
 #endif
 

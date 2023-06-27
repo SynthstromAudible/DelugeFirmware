@@ -369,7 +369,7 @@
 // Exp params have different sources added together, converted to an exponential scale, then multiplied by the neutral value
 
 
-
+// Local linear params begin
 #define PARAM_LOCAL_OSC_A_VOLUME 0
 #define PARAM_LOCAL_OSC_B_VOLUME 1
 #define PARAM_LOCAL_VOLUME 2
@@ -406,7 +406,7 @@
 #define PARAM_LOCAL_ENV_1_DECAY 30
 #define PARAM_LOCAL_ENV_0_RELEASE 31
 #define PARAM_LOCAL_ENV_1_RELEASE 32
-// Global params begin
+// Global (linear) params begin
 #define PARAM_GLOBAL_VOLUME_POST_FX 33
 #define PARAM_GLOBAL_VOLUME_POST_REVERB_SEND 34
 #define PARAM_GLOBAL_REVERB_AMOUNT 35

@@ -1564,7 +1564,7 @@ skipInstance:
 				// If Instrument mismatch somehow...
 				if (thisInstance->clip->output != thisOutput) {
 #if ALPHA_OR_BETA_VERSION
-					numericDriver.displayPopup("E041");
+					numericDriver.displayPopup("E451"); // Changed from E041 - was a duplicate.
 #endif
 					goto skipInstance;
 				}

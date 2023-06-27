@@ -594,7 +594,7 @@ void NumericDriver::setTextVeryBasicA1(char const* text) {
 }
 #endif
 
-// Highest error code used, main branch: E448
+// Highest error code used, main branch: E451
 // Highest error code used, fix branch: i041
 
 void NumericDriver::freezeWithError(char const* text) {
