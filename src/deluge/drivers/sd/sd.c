@@ -33,20 +33,18 @@ uint16_t stopTime;
 * Return Value : success : SD_OK
 *              : fail    : SD_ERR
 ******************************************************************************/
-int32_t sddev_power_on(int32_t sd_port)
-{
-    /* ---Power On SD ---- */
+int32_t sddev_power_on(int32_t sd_port) {
+	/* ---Power On SD ---- */
 
-    /* ---- Wait for  SD Wake up ---- */
-    sddev_start_timer(100); /* wait 100ms */
-    while (sddev_check_timer() == SD_OK)
-    {
-        /* wait */
-        routineForSD(); // By Rohan
-    }
-    sddev_end_timer();
+	/* ---- Wait for  SD Wake up ---- */
+	sddev_start_timer(100); /* wait 100ms */
+	while (sddev_check_timer() == SD_OK) {
+		/* wait */
+		routineForSD(); // By Rohan
+	}
+	sddev_end_timer();
 
-    return SD_OK;
+	return SD_OK;
 }
 
 /******************************************************************************
@@ -56,60 +54,51 @@ int32_t sddev_power_on(int32_t sd_port)
 * Return Value : get interrupt : SD_OK
 *              : time out      : SD_ERR
 ******************************************************************************/
-int32_t sddev_int_wait(int32_t sd_port, int32_t time)
-{
+int32_t sddev_int_wait(int32_t sd_port, int32_t time) {
 
-    logAudioAction("sddev_int_wait");
-    int loop;
+	logAudioAction("sddev_int_wait");
+	int loop;
 
-    if (time > 500)
-    {
-        /* @1000ms */
-        loop = (time / 500);
-        if ((time % 500) != 0)
-        {
-            loop++;
-        }
-        time = 500;
-    }
-    else
-    {
-        loop = 1;
-    }
+	if (time > 500) {
+		/* @1000ms */
+		loop = (time / 500);
+		if ((time % 500) != 0) {
+			loop++;
+		}
+		time = 500;
+	}
+	else {
+		loop = 1;
+	}
 
-    do
-    {
-        sddev_start_timer(time);
+	do {
+		sddev_start_timer(time);
 
-        while (1)
-        {
+		while (1) {
 
-            /* interrupt generated? */
-            if (sd_check_int(sd_port) == SD_OK)
-            {
-                sddev_end_timer();
-                return SD_OK;
-            }
-            /* detect timeout? */
-            if (sddev_check_timer() == SD_ERR)
-            {
-                break;
-            }
+			/* interrupt generated? */
+			if (sd_check_int(sd_port) == SD_OK) {
+				sddev_end_timer();
+				return SD_OK;
+			}
+			/* detect timeout? */
+			if (sddev_check_timer() == SD_ERR) {
+				break;
+			}
 
-            routineForSD(); // By Rohan, obviously
-        }
+			routineForSD(); // By Rohan, obviously
+		}
 
-        loop--;
-        if (loop <= 0)
-        {
-            break;
-        }
+		loop--;
+		if (loop <= 0) {
+			break;
+		}
 
-    } while (1);
+	} while (1);
 
-    sddev_end_timer();
+	sddev_end_timer();
 
-    return SD_ERR;
+	return SD_ERR;
 }
 
 /******************************************************************************
@@ -118,9 +107,8 @@ int32_t sddev_int_wait(int32_t sd_port, int32_t time)
 * Arguments    :
 * Return Value : none
 ******************************************************************************/
-void sddev_start_timer(int msec)
-{
-    stopTime = *TCNT[TIMER_SYSTEM_SLOW] + msToSlowTimerCount(msec);
+void sddev_start_timer(int msec) {
+	stopTime = *TCNT[TIMER_SYSTEM_SLOW] + msToSlowTimerCount(msec);
 }
 
 /******************************************************************************
@@ -129,8 +117,7 @@ void sddev_start_timer(int msec)
 * Arguments    :
 * Return Value : none
 ******************************************************************************/
-void sddev_end_timer(void)
-{
+void sddev_end_timer(void) {
 }
 
 /******************************************************************************
@@ -139,15 +126,13 @@ void sddev_end_timer(void)
 * Arguments    :
 * Return Value : t
 ******************************************************************************/
-int sddev_check_timer(void)
-{
+int sddev_check_timer(void) {
 
-    uint16_t howFarAbove = *TCNT[TIMER_SYSTEM_SLOW] - stopTime;
+	uint16_t howFarAbove = *TCNT[TIMER_SYSTEM_SLOW] - stopTime;
 
-    if (howFarAbove < 16384)
-    {
-        return SD_ERR;
-    }
+	if (howFarAbove < 16384) {
+		return SD_ERR;
+	}
 
-    return SD_OK;
+	return SD_OK;
 }

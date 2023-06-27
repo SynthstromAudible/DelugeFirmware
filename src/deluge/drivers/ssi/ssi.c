@@ -52,34 +52,28 @@ const uint32_t ssiDmaRxLinkDescriptor[] __attribute__((aligned(CACHE_LINE_SIZE))
 };
 #endif
 
-void* getTxBufferCurrentPlace()
-{
-    return (void*)((DMACn(SSI_TX_DMA_CHANNEL).CRSA_n & ~((NUM_MONO_OUTPUT_CHANNELS * 4) - 1)) + UNCACHED_MIRROR_OFFSET);
+void* getTxBufferCurrentPlace() {
+	return (void*)((DMACn(SSI_TX_DMA_CHANNEL).CRSA_n & ~((NUM_MONO_OUTPUT_CHANNELS * 4) - 1)) + UNCACHED_MIRROR_OFFSET);
 }
 
-void* getRxBufferCurrentPlace()
-{
-    return (void*)((DMACn(SSI_RX_DMA_CHANNEL).CRDA_n & ~((NUM_MONO_INPUT_CHANNELS * 4) - 1)) + UNCACHED_MIRROR_OFFSET);
+void* getRxBufferCurrentPlace() {
+	return (void*)((DMACn(SSI_RX_DMA_CHANNEL).CRDA_n & ~((NUM_MONO_INPUT_CHANNELS * 4) - 1)) + UNCACHED_MIRROR_OFFSET);
 }
 
-int32_t* getTxBufferStart()
-{
-    return (int32_t*)((uint32_t)&ssiTxBuffer[0] + UNCACHED_MIRROR_OFFSET);
+int32_t* getTxBufferStart() {
+	return (int32_t*)((uint32_t)&ssiTxBuffer[0] + UNCACHED_MIRROR_OFFSET);
 }
 
-int32_t* getTxBufferEnd()
-{
-    return (int32_t*)((uint32_t)&ssiTxBuffer[SSI_TX_BUFFER_NUM_SAMPLES * NUM_MONO_OUTPUT_CHANNELS]
-                      + UNCACHED_MIRROR_OFFSET);
+int32_t* getTxBufferEnd() {
+	return (int32_t*)((uint32_t)&ssiTxBuffer[SSI_TX_BUFFER_NUM_SAMPLES * NUM_MONO_OUTPUT_CHANNELS]
+	                  + UNCACHED_MIRROR_OFFSET);
 }
 
-int32_t* getRxBufferStart()
-{
-    return (int32_t*)((uint32_t)&ssiRxBuffer[0] + UNCACHED_MIRROR_OFFSET);
+int32_t* getRxBufferStart() {
+	return (int32_t*)((uint32_t)&ssiRxBuffer[0] + UNCACHED_MIRROR_OFFSET);
 }
 
-int32_t* getRxBufferEnd()
-{
-    return (
-        int32_t*)((uint32_t)&ssiRxBuffer[SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS] + UNCACHED_MIRROR_OFFSET);
+int32_t* getRxBufferEnd() {
+	return (int32_t*)((uint32_t)&ssiRxBuffer[SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS]
+	                  + UNCACHED_MIRROR_OFFSET);
 }
