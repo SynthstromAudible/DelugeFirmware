@@ -18,7 +18,7 @@
 #ifndef DRIVERS_RZA1_GPIO_GPIO_H_
 #define DRIVERS_RZA1_GPIO_GPIO_H_
 
-#include "r_typedefs.h"
+#include "RZA1/system/r_typedefs.h"
 
 void setPinMux(uint8_t p, uint8_t q, uint8_t mux);
 void setPinAsOutput(uint8_t p, uint8_t q);

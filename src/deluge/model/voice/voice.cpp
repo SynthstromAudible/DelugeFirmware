@@ -15,44 +15,44 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <AudioEngine.h>
-#include <AudioFileManager.h>
-#include <Cluster.h>
-#include <sound.h>
-#include "voice.h"
+#include "processing/engines/audio_engine.h"
+#include "storage/audio/audio_file_manager.h"
+#include "storage/cluster/cluster.h"
+#include "processing/sound/sound.h"
+#include "model/voice/voice.h"
 #include "definitions.h"
-#include "FilterSet.h"
-#include "functions.h"
-#include "FilterSetConfig.h"
-#include "song.h"
-#include "TimeStretcher.h"
-#include "Sample.h"
+#include "dsp/filter/filter_set.h"
+#include "util/functions.h"
+#include "dsp/filter/filter_set_config.h"
+#include "model/song/song.h"
+#include "dsp/timestretch/time_stretcher.h"
+#include "model/sample/sample.h"
 #include <string.h>
-#include <WaveformRenderer.h>
-#include "playbackhandler.h"
-#include "WaveTable.h"
-#include "GeneralMemoryAllocator.h"
-#include "MultisampleRange.h"
-#include "storagemanager.h"
-#include "SampleCache.h"
-#include "VoiceSample.h"
-#include "LivePitchShifter.h"
+#include "gui/waveform/waveform_renderer.h"
+#include "playback/playback_handler.h"
+#include "storage/wave_table/wave_table.h"
+#include "memory/general_memory_allocator.h"
+#include "storage/multi_range/multisample_range.h"
+#include "storage/storage_manager.h"
+#include "model/sample/sample_cache.h"
+#include "model/voice/voice_sample.h"
+#include "processing/live/live_pitch_shifter.h"
 #include <new>
 #include "arm_neon.h"
-#include "lookuptables.h"
-#include "uart.h"
-#include "ModelStack.h"
-#include "SampleHolderForVoice.h"
-#include "renderWave.h"
-#include "ParamSet.h"
-#include "PatchCableSet.h"
-#include "InstrumentClip.h"
-#include "FlashStorage.h"
+#include "util/lookuptables/lookuptables.h"
+#include "io/uart/uart.h"
+#include "model/model_stack.h"
+#include "model/sample/sample_holder_for_voice.h"
+#include "processing/render_wave.h"
+#include "modulation/params/param_set.h"
+#include "modulation/patch/patch_cable_set.h"
+#include "model/clip/instrument_clip.h"
+#include "storage/flash_storage.h"
 
 extern "C" {
-#include "ssi_all_cpus.h"
-#include "mtu.h"
-#include "uart_all_cpus.h"
+#include "drivers/ssi/ssi.h"
+#include "RZA1/mtu/mtu.h"
+#include "drivers/uart/uart.h"
 }
 
 int32_t spareRenderingBuffer[3][SSI_TX_BUFFER_NUM_SAMPLES] __attribute__((aligned(CACHE_LINE_SIZE)));

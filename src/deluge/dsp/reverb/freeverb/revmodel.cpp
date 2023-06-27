@@ -21,7 +21,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "revmodel.hpp"
+#include "dsp/reverb/freeverb/revmodel.hpp"
 
 revmodel::revmodel() {
 	// Tie the components to their buffers

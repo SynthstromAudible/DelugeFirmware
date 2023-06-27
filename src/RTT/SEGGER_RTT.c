@@ -77,7 +77,7 @@ Additional information:
 #include "SEGGER_RTT.h"
 
 #include <string.h> // for memcpy
-#include "cpu_specific.h"
+#include "RZA1/cpu_specific.h"
 
 /*********************************************************************
 *

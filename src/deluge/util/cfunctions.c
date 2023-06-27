@@ -15,10 +15,10 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "cfunctions.h"
+#include "util/cfunctions.h"
 
 #include "definitions.h"
-#include "mtu_all_cpus.h"
+#include "drivers/mtu/mtu.h"
 #include <string.h>
 
 int getNumDecimalDigits(uint32_t number) {

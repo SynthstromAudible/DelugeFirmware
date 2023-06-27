@@ -18,10 +18,10 @@
 #ifndef DRIVERS_RZA1_MTU_MTU_H_
 #define DRIVERS_RZA1_MTU_MTU_H_
 
-#include "iodefine.h"
-#include "mtu2_iobitmask.h"
-#include "r_typedefs.h"
-#include "devdrv_intc.h"
+#include "RZA1/system/iodefine.h"
+#include "RZA1/system/iobitmasks/mtu2_iobitmask.h"
+#include "RZA1/system/r_typedefs.h"
+#include "RZA1/intc/devdrv_intc.h"
 
 static const uint8_t timerCST[] = {MTU2_TSTR_CST0, MTU2_TSTR_CST1, MTU2_TSTR_CST2, MTU2_TSTR_CST3, MTU2_TSTR_CST4};
 

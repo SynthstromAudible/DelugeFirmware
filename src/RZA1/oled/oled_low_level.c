@@ -15,17 +15,17 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "oled_low_level.h"
-#include "oled_low_level_all_cpus.h"
+#include "RZA1/oled/oled_low_level.h"
+#include "deluge/drivers/oled/oled.h"
 #include "definitions.h"
 
-#include "asm.h"
-#include "cfunctions.h"
-#include "dmac.h"
-#include "gpio.h"
-#include "mtu.h"
-#include "rspi_all_cpus.h"
-#include "sio_char.h"
+#include "RZA1/compiler/asm/inc/asm.h"
+#include "deluge/util/cfunctions.h"
+#include "deluge/drivers/dmac/dmac.h"
+#include "RZA1/gpio/gpio.h"
+#include "RZA1/mtu/mtu.h"
+#include "deluge/drivers/rspi/rspi.h"
+#include "RZA1/uart/sio_char.h"
 
 #define OLED_CODE_FOR_CV 1
 

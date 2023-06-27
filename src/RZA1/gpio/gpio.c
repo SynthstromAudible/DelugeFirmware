@@ -15,8 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <drivers/RZA1/system/rza_io_regrw.h>
-#include "iodefine.h"
+#include "RZA1/system/rza_io_regrw.h"
+#include "RZA1/system/iodefine.h"
 
 void ioRegSet(volatile uint16_t* reg, uint8_t p, uint8_t q, uint8_t v)
 {

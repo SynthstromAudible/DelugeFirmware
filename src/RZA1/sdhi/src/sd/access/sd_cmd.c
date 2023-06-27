@@ -37,7 +37,7 @@
 *******************************************************************************/
 #include "../../../inc/sdif.h"
 #include "../inc/access/sd.h"
-#include "Deluge.h"
+#include "deluge/deluge.h"
 
 
 #ifdef __CC_ARM

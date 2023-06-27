@@ -18,7 +18,7 @@
 #ifndef LOOKUPTABLES_H
 #define LOOKUPTABLES_H
 
-#include "r_typedefs.h"
+#include "RZA1/system/r_typedefs.h"
 
 extern const uint16_t centAdjustTableSmall[];
 extern const uint16_t decayTableSmall4[];

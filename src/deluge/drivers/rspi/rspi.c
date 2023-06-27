@@ -15,10 +15,10 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "rspi_all_cpus.h"
-#include "rspi_iodefine.h"
-#include "rspi_iobitmask.h"
-#include "rza_io_regrw.h"
+#include "drivers/rspi/rspi.h"
+#include "RZA1/system/iodefines/rspi_iodefine.h"
+#include "RZA1/system/iobitmasks/rspi_iobitmask.h"
+#include "RZA1/system/rza_io_regrw.h"
 
 void R_RSPI_SendBasic8(uint8_t channel, uint8_t data)
 {

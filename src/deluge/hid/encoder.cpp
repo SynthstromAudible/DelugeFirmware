@@ -15,11 +15,11 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include <AudioEngine.h>
-#include "encoder.h"
+#include "processing/engines/audio_engine.h"
+#include "hid/encoder.h"
 
 extern "C" {
-#include "gpio.h"
+#include "RZA1/gpio/gpio.h"
 }
 
 Encoder::Encoder() {

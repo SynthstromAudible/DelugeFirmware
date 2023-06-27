@@ -18,7 +18,7 @@
 #ifndef DRIVERS_ALL_CPUS_SSI_ALL_CPUS_SSI_ALL_CPUS_H_
 #define DRIVERS_ALL_CPUS_SSI_ALL_CPUS_SSI_ALL_CPUS_H_
 
-#include "r_typedefs.h"
+#include "RZA1/system/r_typedefs.h"
 
 extern const uint32_t ssiDmaTxLinkDescriptor[];
 extern const uint32_t ssiDmaRxLinkDescriptor[];

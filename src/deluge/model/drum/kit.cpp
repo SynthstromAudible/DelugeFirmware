@@ -15,36 +15,36 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include <AudioEngine.h>
-#include <AudioFileManager.h>
-#include <InstrumentClip.h>
-#include <InstrumentClipMinder.h>
-#include <InstrumentClipView.h>
-#include <ParamManager.h>
-#include <sounddrum.h>
-#include "kit.h"
-#include "storagemanager.h"
-#include "drum.h"
-#include "functions.h"
-#include "View.h"
+#include "processing/engines/audio_engine.h"
+#include "storage/audio/audio_file_manager.h"
+#include "model/clip/instrument_clip.h"
+#include "model/clip/instrument_clip_minder.h"
+#include "gui/views/instrument_clip_view.h"
+#include "modulation/params/param_manager.h"
+#include "processing/sound/sound_drum.h"
+#include "model/drum/kit.h"
+#include "storage/storage_manager.h"
+#include "model/drum/drum.h"
+#include "util/functions.h"
+#include "gui/views/view.h"
 #include <string.h>
 #include <new>
-#include "GeneralMemoryAllocator.h"
-#include "GateDrum.h"
-#include "NoteRow.h"
-#include "song.h"
-#include "playbackhandler.h"
-#include "PlaybackMode.h"
-#include "UI.h"
-#include "Session.h"
-#include "MIDIDrum.h"
-#include "uart.h"
-#include "numericdriver.h"
-#include "ModelStack.h"
-#include "MIDIDeviceManager.h"
-#include "MIDIDevice.h"
-#include "ParamSet.h"
-#include "PatchCableSet.h"
+#include "memory/general_memory_allocator.h"
+#include "model/drum/gate_drum.h"
+#include "model/note/note_row.h"
+#include "model/song/song.h"
+#include "playback/playback_handler.h"
+#include "playback/mode/playback_mode.h"
+#include "gui/ui/ui.h"
+#include "playback/mode/session.h"
+#include "model/drum/midi_drum.h"
+#include "io/uart/uart.h"
+#include "hid/display/numeric_driver.h"
+#include "model/model_stack.h"
+#include "io/midi/midi_device_manager.h"
+#include "io/midi/midi_device.h"
+#include "modulation/params/param_set.h"
+#include "modulation/patch/patch_cable_set.h"
 
 Kit::Kit() : Instrument(INSTRUMENT_TYPE_KIT), drumsWithRenderingActive(sizeof(Drum*)) {
 	firstDrum = NULL;

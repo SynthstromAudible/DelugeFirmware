@@ -34,8 +34,8 @@
  Includes   <System Includes> , "Project Includes"
  ***********************************************************************************************************************/
 #include <stdint.h>
-#include "r_usb_basic_define.h"
-#include "r_usb_basic_config.h"
+#include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_basic_define.h"
+#include "RZA1/usb/userdef/r_usb_basic_config.h"
 
 /***********************************************************************************************************************
  Macro definitions

@@ -36,7 +36,7 @@
 #ifndef __PFC_IODEFINE_H__
 #define __PFC_IODEFINE_H__
 
-#include "r_typedefs.h"
+#include "RZA1/system/r_typedefs.h"
 
 struct st_pfc_n {                              /* struct PFC    */
        union {                                  /* Pn           */

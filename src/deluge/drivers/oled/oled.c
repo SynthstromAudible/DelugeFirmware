@@ -17,11 +17,11 @@
 
 #include "definitions.h"
 
-#include "oled_low_level_all_cpus.h"
-#include "oled_low_level.h"
-#include "sio_char.h"
-#include "rspi_all_cpus.h"
-#include "dmac.h"
+#include "drivers/oled/oled.h"
+#include "RZA1/oled/oled_low_level.h"
+#include "RZA1/uart/sio_char.h"
+#include "drivers/rspi/rspi.h"
+#include "drivers/dmac/dmac.h"
 
 void MainOLED_WCom(char data)
 {

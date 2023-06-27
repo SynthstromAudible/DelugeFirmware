@@ -37,7 +37,7 @@
 #ifndef RZA_IO_REGRW_H
 #define RZA_IO_REGRW_H
 
-#include "r_typedefs.h"
+#include "RZA1/system/r_typedefs.h"
 
 /******************************************************************************
 Functions Prototypes

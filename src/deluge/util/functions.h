@@ -18,14 +18,14 @@
 #ifndef FUNCTIONS_H
 #define FUNCTIONS_H
 
-#include "r_typedefs.h"
-#include "lookuptables.h"
+#include "RZA1/system/r_typedefs.h"
+#include "util/lookuptables/lookuptables.h"
 #include <string.h>
 #include "ff.h"
 #include "definitions.h"
 
 extern "C" {
-#include "cfunctions.h"
+#include "util/cfunctions.h"
 }
 
 class UI;

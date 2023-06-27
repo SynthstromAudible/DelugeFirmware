@@ -15,23 +15,23 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include <functions.h>
-#include <sound.h>
+#include "util/functions.h"
+#include "processing/sound/sound.h"
 #include "definitions.h"
-#include "numericdriver.h"
+#include "hid/display/numeric_driver.h"
 #include "fatfs/ff.h"
-#include "View.h"
-#include "soundeditor.h"
-#include "ActionLogger.h"
+#include "gui/views/view.h"
+#include "gui/ui/sound_editor.h"
+#include "model/action/action_logger.h"
 #include <string.h>
-#include "uart.h"
-#include "Encoders.h"
-#include "QwertyUI.h"
-#include "oled.h"
+#include "io/uart/uart.h"
+#include "hid/encoders.h"
+#include "gui/ui/qwerty_ui.h"
+#include "hid/display/oled.h"
 
 extern "C" {
-#include "sio_char.h"
-#include "mtu_all_cpus.h"
+#include "RZA1/uart/sio_char.h"
+#include "drivers/mtu/mtu.h"
 }
 
 #if DELUGE_MODEL == DELUGE_MODEL_40_PAD

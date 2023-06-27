@@ -23,8 +23,8 @@
 
 #ifndef _allpass_
 #define _allpass_
-#include "r_typedefs.h"
-#include "functions.h"
+#include "RZA1/system/r_typedefs.h"
+#include "util/functions.h"
 
 class allpass {
 public:

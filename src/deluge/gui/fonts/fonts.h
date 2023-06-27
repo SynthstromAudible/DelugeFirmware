@@ -18,7 +18,7 @@
 #ifndef DRIVERS_ALL_CPUS_OLED_LOW_LEVEL_ALL_CPUS_FONTS_H_
 #define DRIVERS_ALL_CPUS_OLED_LOW_LEVEL_ALL_CPUS_FONTS_H_
 
-#include "r_typedefs.h"
+#include "RZA1/system/r_typedefs.h"
 
 typedef struct
 {

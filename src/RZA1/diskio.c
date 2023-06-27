@@ -28,17 +28,17 @@
 /
 /-------------------------------------------------------------------------*/
 
-#include "r_typedefs.h"
+#include "RZA1/system/r_typedefs.h"
 #include "definitions.h"
-#include "iodefine.h"
+#include "RZA1/system/iodefine.h"
 
-#include "Deluge.h"
-#include "asm.h"
+#include "deluge/deluge.h"
+#include "RZA1/compiler/asm/inc/asm.h"
 #include "diskio.h"
 #include "ff.h"
-#include "rspi.h"
-#include "rza_io_regrw.h"
-#include "uart_all_cpus.h"
+#include "RZA1/rspi/rspi.h"
+#include "RZA1/system/rza_io_regrw.h"
+#include "deluge/drivers/uart/uart.h"
 
 uint8_t currentlyAccessingCard = 0;
 
@@ -87,8 +87,8 @@ DRESULT disk_read(BYTE pdrv, /* Physical drive nmuber (0) */
 }
 
 #if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-#include "devdrv_intc.h"
-#include "dmac_iobitmask.h"
+#include "RZA1/intc/devdrv_intc.h"
+#include "RZA1/system/iobitmasks/dmac_iobitmask.h"
 
 /* Socket controls  (Platform dependent) */
 #define CS_LOW()  ioRegSet2(&GPIO.P1, 6, 1, 0) /* MMC CS = L */
@@ -207,7 +207,7 @@ static BYTE xchg_spi(BYTE dat)
     return R_RSPI1_SendReceiveBasic(0, dat);
 }
 
-#include "rspi_iobitmask.h"
+#include "RZA1/system/iobitmasks/rspi_iobitmask.h"
 
 /* Block SPI transfers */
 
@@ -1242,8 +1242,8 @@ int sdIntCallback(int sd_port, int cd)
 /* Inidialize a Drive                                                    */
 /*-----------------------------------------------------------------------*/
 
-#include "sdif.h"
-#include "sd_cfg.h"
+#include "RZA1/sdhi/inc/sdif.h"
+#include "RZA1/sdhi/inc/sd_cfg.h"
 
 //#define SD_RW_BUFF_SIZE    (1 * 1024)
 //static uint32_t test_sd_rw_buff[ SD_RW_BUFF_SIZE / sizeof(uint32_t) ]; // Actually this buffer never gets used, so I've removed it! - Rohan

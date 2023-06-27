@@ -18,7 +18,7 @@
 #ifndef ENVELOPE_H
 #define ENVELOPE_H
 
-#include "r_typedefs.h"
+#include "RZA1/system/r_typedefs.h"
 #include "definitions.h"
 
 class Sound;

@@ -30,7 +30,7 @@
 #define R7S72100_IODEFINE_H
 #define IODEFINE_H_VERSION  101
 
-#include "r_typedefs.h"
+#include "RZA1/system/r_typedefs.h"
 
 enum iodefine_byte_select_t
 {

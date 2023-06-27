@@ -18,9 +18,9 @@
 #ifndef SOURCE_H
 #define SOURCE_H
 
-#include <MultiRangeArray.h>
-#include "phaseincrementfinetuner.h"
-#include "SampleControls.h"
+#include "storage/multi_range/multi_range_array.h"
+#include "util/phase_increment_fine_tuner.h"
+#include "model/sample/sample_controls.h"
 
 class Sound;
 class ParamManagerForTimeline;

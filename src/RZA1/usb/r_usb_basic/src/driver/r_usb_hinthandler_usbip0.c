@@ -28,13 +28,13 @@
 /***********************************************************************************************************************
  Includes   <System Includes> , "Project Includes"
  ***********************************************************************************************************************/
-#include "r_usb_basic_if.h"
-#include "r_usb_typedef.h"
-#include "r_usb_extern.h"
+#include "RZA1/usb/r_usb_basic/r_usb_basic_if.h"
+#include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_typedef.h"
+#include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_extern.h"
 
 // Added by Rohan
 #include "definitions.h"
-#include "mtu.h"
+#include "RZA1/mtu/mtu.h"
 
 #if ((USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST)
 /***********************************************************************************************************************

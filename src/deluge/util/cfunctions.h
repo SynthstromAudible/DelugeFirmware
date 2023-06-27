@@ -18,7 +18,7 @@
 #ifndef CFUNCTIONS_H_
 #define CFUNCTIONS_H_
 
-#include "r_typedefs.h"
+#include "RZA1/system/r_typedefs.h"
 
 #define getMin(a, b) (((a) < (b)) ? (a) : (b))
 #define getMax(a, b) (((a) > (b)) ? (a) : (b))

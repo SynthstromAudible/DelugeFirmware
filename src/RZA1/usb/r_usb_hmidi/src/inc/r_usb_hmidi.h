@@ -28,7 +28,7 @@
 #ifndef R_USB_HMIDI_H
 #define R_USB_HMIDI_H
 
-#include "r_usb_basic_if.h"
+#include "RZA1/usb/r_usb_basic/r_usb_basic_if.h"
 
 /*****************************************************************************
  Macro definitions

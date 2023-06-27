@@ -30,10 +30,10 @@
 /******************************************************************************
 Includes   <System Includes> , "Project Includes"
 ******************************************************************************/
-#include "r_typedefs.h"
-#include "dev_drv.h"     /* Device Driver common header */
-#include "devdrv_intc.h" /* INTC Driver Header */
-#include "iodefine.h"
+#include "RZA1/system/r_typedefs.h"
+#include "RZA1/system/dev_drv.h"     /* Device Driver common header */
+#include "RZA1/intc/devdrv_intc.h" /* INTC Driver Header */
+#include "RZA1/system/iodefine.h"
 
 /******************************************************************************
 Typedef definitions

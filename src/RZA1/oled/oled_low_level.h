@@ -18,7 +18,7 @@
 #ifndef DRIVERS_RZA1_OLED_OLED_LOW_LEVEL_H_
 #define DRIVERS_RZA1_OLED_OLED_LOW_LEVEL_H_
 
-#include "r_typedefs.h"
+#include "RZA1/system/r_typedefs.h"
 
 void oledSelectingComplete();
 void sendOledDMA();

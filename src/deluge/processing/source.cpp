@@ -15,23 +15,23 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <AudioEngine.h>
-#include <AudioFileManager.h>
-#include <Cluster.h>
-#include <samplebrowser.h>
-#include <sound.h>
-#include "source.h"
-#include "uart.h"
-#include "functions.h"
-#include "storagemanager.h"
-#include "Sample.h"
-#include "numericdriver.h"
+#include "processing/engines/audio_engine.h"
+#include "storage/audio/audio_file_manager.h"
+#include "storage/cluster/cluster.h"
+#include "gui/ui/browser/sample_browser.h"
+#include "processing/sound/sound.h"
+#include "processing/source.h"
+#include "io/uart/uart.h"
+#include "util/functions.h"
+#include "storage/storage_manager.h"
+#include "model/sample/sample.h"
+#include "hid/display/numeric_driver.h"
 #include <string.h>
-#include "WaveTable.h"
-#include "MultisampleRange.h"
-#include "View.h"
-#include "soundeditor.h"
-#include "MultiWaveTableRange.h"
+#include "storage/wave_table/wave_table.h"
+#include "storage/multi_range/multisample_range.h"
+#include "gui/views/view.h"
+#include "gui/ui/sound_editor.h"
+#include "storage/multi_range/multi_wave_table_range.h"
 
 Source::Source() {
 

@@ -24,9 +24,9 @@
 #ifndef _revmodel_
 #define _revmodel_
 
-#include "comb.hpp"
-#include "allpass.hpp"
-#include "tuning.h"
+#include "dsp/reverb/freeverb/comb.hpp"
+#include "dsp/reverb/freeverb/allpass.hpp"
+#include "dsp/reverb/freeverb/tuning.h"
 
 class revmodel {
 public:

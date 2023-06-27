@@ -37,17 +37,17 @@
 Includes
 ******************************************************************************/
 /* Default  type definition header */
-#include <drivers/RZA1/system/rza_io_regrw.h>
-#include "r_typedefs.h"
+#include "RZA1/system/rza_io_regrw.h"
+#include "RZA1/system/r_typedefs.h"
 /* I/O Register root header */
-#include "iodefine.h"
+#include "RZA1/system/iodefine.h"
 /* INTC Driver Header */
-#include "devdrv_intc.h"
+#include "RZA1/intc/devdrv_intc.h"
 /* Device driver for RSPI header */
-#include "rspi.h"
+#include "RZA1/rspi/rspi.h"
 /* Low level register read/write header */
 
-#include "rspi_iobitmask.h"
+#include "RZA1/system/iobitmasks/rspi_iobitmask.h"
 
 #include "definitions.h"
 

@@ -37,7 +37,7 @@
 Includes   <System Includes> , "Project Includes"
 *******************************************************************************/
 /* Default  type definition header */
-#include "r_typedefs.h"
+#include "RZA1/system/r_typedefs.h"
 
 /*******************************************************************************
 * Function Name: rza_io_reg_write_8

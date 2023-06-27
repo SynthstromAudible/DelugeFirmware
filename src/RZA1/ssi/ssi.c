@@ -38,16 +38,16 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "ssi.h"
-#include "ssif_iodefine.h"
-#include "devdrv_intc.h"
-#include "cpg_iodefine.h"
-#include "drv_ssif.h"
+#include "RZA1/ssi/ssi.h"
+#include "RZA1/system/iodefines/ssif_iodefine.h"
+#include "RZA1/intc/devdrv_intc.h"
+#include "RZA1/system/iodefines/cpg_iodefine.h"
+#include "RZA1/ssi/drv_ssif.h"
 #include "definitions.h"
-#include "dmac_iobitmask.h"
-#include "cpu_specific.h"
-#include "ssi_all_cpus.h"
-#include "dmac.h"
+#include "RZA1/system/iobitmasks/dmac_iobitmask.h"
+#include "RZA1/cpu_specific.h"
+#include "deluge/drivers/ssi/ssi.h"
+#include "deluge/drivers/dmac/dmac.h"
 
 #define DMA_FIX_PRIO_MODE (0u)
 #define SSI_CHANNEL_MAX   (6u)

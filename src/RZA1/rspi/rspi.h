@@ -37,7 +37,7 @@
 #ifndef RSPI_H
 #define RSPI_H
 
-#include "rspi_all_cpus.h"
+#include "deluge/drivers/rspi/rspi.h"
 
 /*******************************************************************************
 Macro definitions (Register bit)

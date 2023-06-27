@@ -15,11 +15,11 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include <AudioEngine.h>
-#include <sound.h>
-#include "envelope.h"
-#include "voice.h"
-#include "uart.h"
+#include "processing/engines/audio_engine.h"
+#include "processing/sound/sound.h"
+#include "modulation/envelope.h"
+#include "model/voice/voice.h"
+#include "io/uart/uart.h"
 
 Envelope::Envelope() {
 }

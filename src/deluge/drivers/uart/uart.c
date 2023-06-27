@@ -16,15 +16,15 @@
  */
 
 #include "definitions.h"
-#include "uart_all_cpus.h"
-#include "dmac.h"
-#include "sio_char.h"
+#include "drivers/uart/uart.h"
+#include "drivers/dmac/dmac.h"
+#include "RZA1/uart/sio_char.h"
 #include <string.h>
 
 #include <math.h>
-#include "scif_iodefine.h"
-#include "devdrv_intc.h"
-#include "cfunctions.h"
+#include "RZA1/system/iodefines/scif_iodefine.h"
+#include "RZA1/intc/devdrv_intc.h"
+#include "util/cfunctions.h"
 
 #include "RTT/SEGGER_RTT.h"
 

@@ -28,9 +28,9 @@
 /***********************************************************************************************************************
  Includes <System Includes> , "Project Includes"
  ***********************************************************************************************************************/
-#include "r_usb_basic_if.h"
-#include "r_usb_reg_access.h"
-#include "r_usb_bitdefine.h"
+#include "RZA1/usb/r_usb_basic/r_usb_basic_if.h"
+#include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_reg_access.h"
+#include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_bitdefine.h"
 
 #if ((USB_CFG_MODE & USB_CFG_PERI) == USB_CFG_PERI)
 

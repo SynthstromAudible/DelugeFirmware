@@ -15,12 +15,12 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "uart.h"
+#include "io/uart/uart.h"
 #include <math.h>
-#include "functions.h"
+#include "util/functions.h"
 
 extern "C" {
-#include "sio_char.h"
+#include "RZA1/uart/sio_char.h"
 }
 
 namespace Uart {

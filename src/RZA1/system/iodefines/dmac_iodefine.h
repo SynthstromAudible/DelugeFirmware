@@ -31,7 +31,7 @@
 /* ->QAC 0639 : Over 127 members (C90) */
 /* ->SEC M1.10.1 : Not magic number */
 
-#include "r_typedefs.h"
+#include "RZA1/system/r_typedefs.h"
 
 struct st_dmac
 {                                                          /* DMAC             */

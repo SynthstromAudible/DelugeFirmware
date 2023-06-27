@@ -19,8 +19,8 @@
 #define DRUM_H
 
 #include "definitions.h"
-#include "r_typedefs.h"
-#include "LearnedMIDI.h"
+#include "RZA1/system/r_typedefs.h"
+#include "io/midi/learned_midi.h"
 
 class Kit;
 class ParamManagerForTimeline;

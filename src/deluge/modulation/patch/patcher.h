@@ -18,7 +18,7 @@
 #ifndef PATCHABLE_H
 #define PATCHABLE_H
 
-#include "r_typedefs.h"
+#include "RZA1/system/r_typedefs.h"
 
 struct CableGroup;
 

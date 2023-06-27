@@ -15,9 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "lfo.h"
-#include "functions.h"
-#include "lookuptables.h"
+#include "modulation/lfo.h"
+#include "util/functions.h"
+#include "util/lookuptables/lookuptables.h"
 
 LFO::LFO() {
 }

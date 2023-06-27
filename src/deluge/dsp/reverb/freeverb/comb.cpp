@@ -21,7 +21,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "comb.hpp"
+#include "dsp/reverb/freeverb/comb.hpp"
 
 comb::comb() {
 	filterstore = 0;

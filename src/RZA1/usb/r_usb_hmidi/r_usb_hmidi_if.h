@@ -32,7 +32,7 @@
 /******************************************************************************
  Includes   <System Includes> , "Project Includes"
  ******************************************************************************/
-#include "r_usb_basic_if.h"
+#include "RZA1/usb/r_usb_basic/r_usb_basic_if.h"
 
 /******************************************************************************
  Exported global functions (to be accessed by other files)
