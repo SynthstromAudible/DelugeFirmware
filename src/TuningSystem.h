@@ -26,6 +26,8 @@ extern int32_t tuningFrequencyTable[12];
 extern int32_t tuningIntervalTable[12];
 extern int32_t selectedTuningBank;
 
+#define MAX_DIVISIONS 12
+
 class TuningSystem {
 public:
 	TuningSystem();
@@ -33,10 +35,12 @@ public:
 	void setOffset(int, int32_t);
 	void setBank(int);
 
+	int referenceNote; // default 5=A
 	double referenceFrequency;
 	int currentNote;
 	int currentValue;
-	int32_t offsets[12]; // cents -5000..+5000
+	int32_t offsets[MAX_DIVISIONS]; // cents -5000..+5000
+	int32_t noteCents[MAX_DIVISIONS];
 
 	int32_t noteInterval(int);
 	int32_t noteFrequency(int);
@@ -44,10 +48,20 @@ public:
 	int32_t getReference();
 	void setReference(int32_t);
 
+	void setNoteCents(int, double);
+
+	void setNextRatio(int, int);
+	void setNextCents(double);
+	void setup(const char*);
+	void setDivisions(int);
+
 private:
 	void calculateAll();
-	void calculateOffset(int);
+	void calculateNote(int);
 	void calculateUserTuning();
+
+	int nextNote;
+	int divisions;
 };
 
 extern TuningSystem tuningSystem;

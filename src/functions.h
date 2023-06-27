@@ -167,6 +167,7 @@ inline int32_t lshiftAndSaturateUnknown(int32_t val, uint8_t lshift) {
 }
 
 int32_t stringToInt(char const* string);
+double stringToDouble(char const* string);
 int32_t stringToUIntOrError(char const* mem);
 int32_t memToUIntOrError(char const* mem, char const* const memEnd);
 void getInstrumentPresetFilename(char const* filePrefix, int16_t presetNumber, int8_t presetSubslotNumber,

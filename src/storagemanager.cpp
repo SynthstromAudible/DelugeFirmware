@@ -50,6 +50,7 @@
 #include "Buttons.h"
 #include "MIDIParamCollection.h"
 #include "uitimermanager.h"
+#include "TuningSystem.h"
 
 extern "C" {
 #include "ff.h"
@@ -1098,6 +1099,62 @@ bool StorageManager::lseek(uint32_t pos) {
 	}
 
 	return (result == FR_OK);
+}
+
+int StorageManager::loadScalaFile(FilePointer* filePointer) {
+
+	AudioEngine::logAction("openScalaFile");
+
+	openFilePointer(filePointer);
+
+	// Prep to read first Cluster shortly
+	fileBufferCurrentPos = audioFileManager.clusterSize;
+	currentReadBufferEndPos = audioFileManager.clusterSize;
+
+	int effectiveLine;
+	int divisions;
+	char* start;
+	TCHAR* got = "";
+	while (!f_eof(&fileSystemStuff.currentFile)) {
+		got = f_gets((TCHAR*)fileClusterBuffer, audioFileManager.clusterSize, &fileSystemStuff.currentFile);
+		if (fileClusterBuffer[0] == '!') continue;
+
+		start = fileClusterBuffer;
+		while (*start != '\0') {
+			if (*start != ' ' && *start != '\t') {
+				break;
+			}
+			start++;
+		}
+		if (start[0] == '\0') continue;
+
+		if (effectiveLine == 0) {
+			tuningSystem.setup(start);
+		}
+		else if (effectiveLine == 1) {
+			divisions = stringToInt(start);
+			tuningSystem.setDivisions(divisions);
+		}
+		else if (effectiveLine < divisions) {
+			char* dot = strchr(start, '.');
+			char* slash = strchr(start, '/');
+			if (dot != NULL) { // Cents
+				tuningSystem.setNextCents(stringToDouble(start));
+			}
+			else if (slash != NULL) { // Ratio
+				int32_t numerator = memToUIntOrError(start, slash);
+				int32_t denominator = stringToInt(slash + 1);
+				tuningSystem.setNextRatio(numerator, denominator);
+			}
+			else { // Integer
+				tuningSystem.setNextRatio(stringToInt(start), 1);
+			}
+		}
+		effectiveLine++;
+	}
+	if (!f_eof(&fileSystemStuff.currentFile)) {
+		// TODO exception handling
+	}
 }
 
 int StorageManager::openXMLFile(FilePointer* filePointer, char const* firstTagName, char const* altTagName,

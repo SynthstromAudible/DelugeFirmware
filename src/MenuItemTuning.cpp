@@ -20,3 +20,11 @@
 #include "TuningSystem.h"
 
 const char* tuningBankNames[NUM_TUNING_BANKS + 2] = {"12TET", "USER", NULL};
+
+void MenuItemTuningBank::loadTuningsFromCard() {
+}
+
+void MenuItemTuningBank::beginSession(MenuItem* navigatedBackwardFrom) {
+	loadTuningsFromCard();
+	MenuItemSelection::beginSession(navigatedBackwardFrom);
+}
