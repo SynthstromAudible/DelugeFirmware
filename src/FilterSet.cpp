@@ -210,6 +210,7 @@ void FilterSet::renderLPFLong(int32_t* startSample, int32_t* endSample, FilterSe
 		lpfLPF2.reset();
 		lpfLPF3.reset();
 		lpfLPF4.reset();
+		svf.reset();
 	}
 
 	// Half ladder
@@ -272,7 +273,7 @@ void FilterSet::renderLPFLong(int32_t* startSample, int32_t* endSample, FilterSe
 	}
 
 	// Full ladder (drive)
-	else {
+	else if (lpfMode == LPF_MODE_TRANSISTOR_24DB_DRIVE) {
 
 		if (filterSetConfig->doOversampling) {
 			int32_t* currentSample = startSample;
@@ -310,6 +311,16 @@ void FilterSet::renderLPFLong(int32_t* startSample, int32_t* endSample, FilterSe
 			} while (currentSample < endSample);
 		}
 	}
+	else if (lpfMode == LPF_MODE_SVF) {
+
+		int32_t* currentSample = startSample;
+		do {
+			SVF_outs outs = svf.doSVF(*currentSample, filterSetConfig);
+			*currentSample = outs.lpf << 1;
+
+			currentSample += sampleIncrement;
+		} while (currentSample < endSample);
+	}
 }
 
 void FilterSet::reset() {
@@ -324,7 +335,32 @@ void FilterSet::reset() {
 	hpfLastWorkingValue = 2147483648;
 	hpfDoingAntialiasingNow = false;
 	hpfOnLastTime = false;
-
+	svf.reset();
 	lpfOnLastTime = false;
 	noiseLastValue = 0;
+}
+
+SVF_outs SVFilter::doSVF(int32_t input, FilterSetConfig* filterSetConfig) {
+	int32_t high;
+	int32_t notch;
+	int32_t f = filterSetConfig->moveability;
+	//raw resonance is 0-2, e.g. 1 is 1073741824
+	int32_t q = filterSetConfig->lpfRawResonance;
+	f = add_saturation(f, (f >> 2)); //arbitrary to adjust range on gold knob
+	f = add_saturation(f, 26508640); //slightly under the cutoff for C0
+	//processed resonance is 2-rawresonance^2
+	//compensate for resonance by lowering input level
+	int32_t in = 2147483647 - filterSetConfig->processedResonance;
+
+	low = low + multiply_32x32_rshift32(f, band);
+
+	high = add_saturation((multiply_32x32_rshift32(input, in) << 1), 0 - low);
+	high = add_saturation(high, 0 - (multiply_32x32_rshift32(q, band) << 3));
+	band = multiply_32x32_rshift32(f, high) + band;
+
+	//saturate band feedback
+	band = getTanHUnknown(band, 3);
+	notch = high + low;
+	SVF_outs result = {low, band, high, notch};
+	return result;
 }

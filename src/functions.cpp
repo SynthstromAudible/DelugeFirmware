@@ -1061,6 +1061,9 @@ char const* lpfTypeToString(int lpfType) {
 	case LPF_MODE_TRANSISTOR_24DB_DRIVE:
 		return "24dBDrive";
 
+	case LPF_MODE_SVF:
+		return "SVF";
+
 	default:
 		return "24dB";
 	}
@@ -1069,6 +1072,7 @@ char const* lpfTypeToString(int lpfType) {
 int stringToLPFType(char const* string) {
 	if (!strcmp(string, "24dB")) return LPF_MODE_TRANSISTOR_24DB;
 	else if (!strcmp(string, "24dBDrive")) return LPF_MODE_TRANSISTOR_24DB_DRIVE;
+	else if (!strcmp(string, "SVF")) return LPF_MODE_SVF;
 	else return LPF_MODE_12DB;
 }
 
