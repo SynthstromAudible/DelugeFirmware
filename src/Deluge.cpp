@@ -81,6 +81,7 @@
 #include "SaveSongUI.h"
 #include "oled.h"
 #include "ContextMenuOverwriteBootloader.h"
+#include "RuntimeFeatureSettings.h"
 #include "Deluge.h"
 
 #if AUTOMATED_TESTER_ENABLED
@@ -800,6 +801,9 @@ resetSettings:
 		FlashStorage::resetSettings();
 		FlashStorage::writeSettings();
 	}
+
+	new (&runtimeFeatureSettings) RuntimeFeatureSettings;
+	runtimeFeatureSettings.readSettingsFromFile();
 
 	usbLock = 1;
 	openUSBHost();
