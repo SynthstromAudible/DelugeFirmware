@@ -123,7 +123,7 @@ SECTIONS
 		abt_stack_end = .;
 	} >RAM012L
 	
-	.reset : ALIGN(0x20) /* 0x10 isn't enough. Not sure why any of this is necessary though. */
+	.reset :
 	{
 		execute = .;
 		*start.o (.text)
