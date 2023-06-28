@@ -22,8 +22,8 @@
 extern "C" {
 #endif
 
-extern int main(void);
-extern int deluge_main(void);
+extern int main1(void);
+extern int main2(void);
 
 extern void timerGoneOff(void);
 
