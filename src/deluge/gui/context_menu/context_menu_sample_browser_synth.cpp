@@ -24,7 +24,7 @@
 #include "processing/sound/sound.h"
 #include "storage/file_item.h"
 
-ContextMenuSampleBrowserSynth contextMenuFileBrowserSynth;
+ContextMenuSampleBrowserSynth contextMenuFileBrowserSynth{};
 
 ContextMenuSampleBrowserSynth::ContextMenuSampleBrowserSynth() {
 #if HAVE_OLED

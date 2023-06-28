@@ -43,7 +43,7 @@ extern "C" {
 
 extern uint8_t currentlyAccessingCard;
 
-SaveSongUI saveSongUI;
+SaveSongUI saveSongUI{};
 
 SaveSongUI::SaveSongUI() {
 	filePrefix = "SONG";

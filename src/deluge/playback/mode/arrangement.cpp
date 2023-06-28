@@ -39,7 +39,7 @@
 
 extern "C" {}
 
-Arrangement arrangement;
+Arrangement arrangement{};
 
 Arrangement::Arrangement() {
 }

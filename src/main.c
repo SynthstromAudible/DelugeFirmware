@@ -76,7 +76,7 @@ static void int_irq6(uint32_t sense) {
 * Arguments    : none
 * Return Value : 0
 ******************************************************************************/
-int_t main1(void) {
+int_t main(void) {
 
 	// SSI pins
 	setPinMux(7, 11, 6); // AUDIO_XOUT
@@ -170,7 +170,7 @@ int_t main1(void) {
 	R_INTC_SetPriority(IRQ_INTERRUPT_0 + 6, 5);
 	R_INTC_Enable(IRQ_INTERRUPT_0 + 6);
 
-	main2();
+	deluge_main();
 
 	while (1)
 		;

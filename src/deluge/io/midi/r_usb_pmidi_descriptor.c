@@ -20,7 +20,7 @@
  *
  * These global config definitions are used in USBConnection.c
  *
- * The connect functions in USBConnection.c are called around line 800 of main2
+ * The connect functions in USBConnection.c are called around line 800 of deluge_main
  */
 
 /***********************************************************************************************************************

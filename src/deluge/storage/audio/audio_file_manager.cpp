@@ -57,7 +57,7 @@ extern uint8_t currentlyAccessingCard;
 
 char const* const audioRecordingFolderNames[] = {"SAMPLES/CLIPS", "SAMPLES/RECORD", "SAMPLES/RESAMPLE"};
 
-AudioFileManager audioFileManager;
+AudioFileManager audioFileManager{};
 
 AudioFileManager::AudioFileManager() {
 	cardDisabled = false;

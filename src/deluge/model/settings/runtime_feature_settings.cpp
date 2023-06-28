@@ -33,7 +33,7 @@ struct UnknownSetting {
 	uint32_t value;
 };
 
-RuntimeFeatureSettings runtimeFeatureSettings;
+RuntimeFeatureSettings runtimeFeatureSettings{};
 
 RuntimeFeatureSettings::RuntimeFeatureSettings() : unknownSettings(sizeof(UnknownSetting)) {
 }

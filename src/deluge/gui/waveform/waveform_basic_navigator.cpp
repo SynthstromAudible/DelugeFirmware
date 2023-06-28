@@ -24,7 +24,7 @@
 #include "gui/ui/ui.h"
 #include "hid/led/pad_leds.h"
 
-WaveformBasicNavigator waveformBasicNavigator;
+WaveformBasicNavigator waveformBasicNavigator{};
 
 WaveformBasicNavigator::WaveformBasicNavigator() {
 }

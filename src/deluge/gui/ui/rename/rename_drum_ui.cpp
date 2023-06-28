@@ -32,7 +32,7 @@
 #include "hid/display/oled.h"
 #endif
 
-RenameDrumUI renameDrumUI;
+RenameDrumUI renameDrumUI{};
 
 RenameDrumUI::RenameDrumUI() {
 #if HAVE_OLED

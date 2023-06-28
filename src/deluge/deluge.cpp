@@ -503,7 +503,7 @@ extern "C" volatile uint32_t usbLock;
 
 extern "C" void usb_main_host(void);
 
-extern "C" int main2(void) {
+extern "C" int deluge_main(void) {
 
 	// Give the PIC some startup instructions
 
@@ -555,46 +555,6 @@ extern "C" int main2(void) {
 	 * See a more technical discussion of the problem here: https://stackoverflow.com/questions/32807964/c-gcc-file-scope-objects-constructors-arent-being-called?noredirect=1#comment53452782_32807964
      */
 
-	new (&instrumentClipView) InstrumentClipView;
-	new (&sessionView) SessionView;
-	new (&matrixDriver) MatrixDriver;
-	new (&playbackHandler) PlaybackHandler;
-	new (&soundEditor) SoundEditor;
-	new (&uiTimerManager) UITimerManager;
-	new (&storageManager) StorageManager;
-	new (&loadSongUI) LoadSongUI;
-	new (&saveSongUI) SaveSongUI;
-	new (&contextMenuClearSong) ContextMenuClearSong;
-	new (&saveInstrumentPresetUI) SaveInstrumentPresetUI;
-	new (&loadInstrumentPresetUI) LoadInstrumentPresetUI;
-	new (&sampleBrowser) SampleBrowser;
-	new (&midiEngine) MidiEngine;
-	new (&cvEngine) CVEngine;
-	new (&keyboardScreen) KeyboardScreen;
-	new (&view) View;
-	new (&audioRecorder) AudioRecorder;
-	new (&numericDriver) NumericDriver;
-	new (&session) Session;
-	new (&arrangement) Arrangement;
-	new (&arrangerView) ArrangerView;
-	new (&waveformRenderer) WaveformRenderer;
-	new (&saveSongOrInstrumentContextMenu) SaveSongOrInstrumentContextMenu;
-	new (&contextMenuFileBrowserKit) ContextMenuSampleBrowserKit;
-	new (&contextMenuFileBrowserSynth) ContextMenuSampleBrowserSynth;
-	new (&contextMenuOverwriteFile) ContextMenuOverwriteFile;
-	new (&contextMenuDeleteFile) ContextMenuDeleteFile;
-	new (&renameDrumUI) RenameDrumUI;
-	new (&audioInputSelector) AudioInputSelector;
-	new (&contextMenuLoadInstrumentPreset) ContextMenuLoadInstrumentPreset;
-	new (&sampleMarkerEditor) SampleMarkerEditor;
-	new (&waveformBasicNavigator) WaveformBasicNavigator;
-	new (&audioClipView) AudioClipView;
-	new (&renameOutputUI) RenameOutputUI;
-	new (&QwertyUI::enteredText) String;
-	new (&Browser::currentDir) String;
-	new (&Browser::fileItems) CStringArray(sizeof(FileItem));
-	new (&contextMenuOverwriteBootloader) ContextMenuOverwriteBootloader;
-	MIDIDeviceManager::init();
 #if AUTOMATED_TESTER_ENABLED
 	AutomatedTester::init();
 #endif
@@ -682,11 +642,6 @@ extern "C" int main2(void) {
 #if RECORD_TEST_MODE == 1
 	makeTestRecording();
 #endif
-
-	new (&generalMemoryAllocator) GeneralMemoryAllocator;
-	new (&audioFileManager) AudioFileManager;
-	new (&actionLogger) ActionLogger;
-	new (&slicer) Slicer;
 
 	Encoders::init();
 
@@ -802,7 +757,6 @@ resetSettings:
 		FlashStorage::writeSettings();
 	}
 
-	new (&runtimeFeatureSettings) RuntimeFeatureSettings;
 	runtimeFeatureSettings.readSettingsFromFile();
 
 	usbLock = 1;
