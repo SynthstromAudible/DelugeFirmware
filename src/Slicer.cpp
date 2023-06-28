@@ -43,7 +43,7 @@ extern "C" {
 #include "cfunctions.h"
 }
 
-Slicer slicer;
+Slicer slicer{};
 
 Slicer::Slicer() {
 #if HAVE_OLED

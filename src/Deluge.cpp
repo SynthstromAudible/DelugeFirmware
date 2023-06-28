@@ -643,11 +643,6 @@ extern "C" int main2(void) {
 	makeTestRecording();
 #endif
 
-	new (&generalMemoryAllocator) GeneralMemoryAllocator;
-	new (&audioFileManager) AudioFileManager;
-	new (&actionLogger) ActionLogger;
-	new (&slicer) Slicer;
-
 	Encoders::init();
 
 #ifdef TEST_GENERAL_MEMORY_ALLOCATION
@@ -762,7 +757,6 @@ resetSettings:
 		FlashStorage::writeSettings();
 	}
 
-	new (&runtimeFeatureSettings) RuntimeFeatureSettings;
 	runtimeFeatureSettings.readSettingsFromFile();
 
 	usbLock = 1;
