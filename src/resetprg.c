@@ -80,7 +80,7 @@ void _init(void) {
 	// empty
 }
 
-void _fini(void)  {
+void _fini(void) {
 	// empty
 }
 
@@ -147,7 +147,7 @@ void resetprg(void) {
 
 	__libc_init_array();
 
-	main1();
+	main();
 
 	/* Stops program from running off */
 	while (1) {

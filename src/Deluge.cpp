@@ -503,7 +503,7 @@ extern "C" volatile uint32_t usbLock;
 
 extern "C" void usb_main_host(void);
 
-extern "C" int main2(void) {
+extern "C" int deluge_main(void) {
 
 	// Give the PIC some startup instructions
 
