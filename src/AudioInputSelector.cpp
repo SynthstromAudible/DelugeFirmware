@@ -45,7 +45,7 @@
 
 extern int8_t defaultAudioOutputInputChannel;
 
-AudioInputSelector audioInputSelector;
+AudioInputSelector audioInputSelector{};
 
 #if HAVE_OLED
 char const* options[] = {"Off",

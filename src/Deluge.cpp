@@ -555,14 +555,6 @@ extern "C" int main2(void) {
 	 * See a more technical discussion of the problem here: https://stackoverflow.com/questions/32807964/c-gcc-file-scope-objects-constructors-arent-being-called?noredirect=1#comment53452782_32807964
      */
 
-
-	new (&contextMenuDeleteFile) ContextMenuDeleteFile;
-	new (&renameDrumUI) RenameDrumUI;
-	new (&audioInputSelector) AudioInputSelector;
-	new (&contextMenuLoadInstrumentPreset) ContextMenuLoadInstrumentPreset;
-	new (&sampleMarkerEditor) SampleMarkerEditor;
-	new (&waveformBasicNavigator) WaveformBasicNavigator;
-
 	new (&audioClipView) AudioClipView;
 	new (&renameOutputUI) RenameOutputUI;
 	new (&QwertyUI::enteredText) String;
