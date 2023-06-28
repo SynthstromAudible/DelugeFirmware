@@ -66,7 +66,7 @@
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param_set.h"
 #include "model/note/note_row.h"
-#include "gui/menu_item/menu_item_multi_range.h"
+#include "gui/menu_item/multi_range.h"
 #include "storage/file_item.h"
 #include "playback/playback_handler.h"
 
@@ -1012,7 +1012,7 @@ doLoadAsSample:
 
 		// If there was only one MultiRange, don't go back to the range menu (that's the BOT-TOP thing).
 		if (soundEditor.currentSource->ranges.getNumElements() <= 1 && soundEditor.navigationDepth
-		    && soundEditor.menuItemNavigationRecord[soundEditor.navigationDepth - 1] == &multiRangeMenu) {
+		    && soundEditor.menuItemNavigationRecord[soundEditor.navigationDepth - 1] == &menu_item::multiRangeMenu) {
 			soundEditor.navigationDepth--;
 		}
 	}

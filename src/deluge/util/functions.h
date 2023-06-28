@@ -20,7 +20,7 @@
 
 #include "RZA1/system/r_typedefs.h"
 #include "util/lookuptables/lookuptables.h"
-#include <string.h>
+#include <cstring>
 #include "ff.h"
 #include "definitions.h"
 
