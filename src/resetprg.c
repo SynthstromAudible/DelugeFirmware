@@ -70,18 +70,10 @@
 #define HAVE_CALL_INDIRECT
 #endif
 
-// These are for newlib
-void* __dso_handle = 0;
-
-extern void __libc_init_array(void);
-
-void _init(void) {
-	/* Runs after preinit but before init*/
-}
-
-void _fini(void) {
-	/* Runs after of fini array */
-}
+#ifdef HAVE_INITFINI_ARRAY
+#define _init __libc_init_array
+#define _fini __libc_fini_array
+#endif
 
 extern int R_CACHE_L1Init(void);
 
@@ -145,9 +137,8 @@ void resetprg(void) {
 
 	__enable_irq();
 	__enable_fiq();
-	__libc_init_array();
 
-	main();
+	main1();
 
 	/* Stops program from running off */
 	while (1) {
