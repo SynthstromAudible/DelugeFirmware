@@ -45,7 +45,7 @@ extern "C" {
 #include "sio_char.h"
 }
 
-MatrixDriver matrixDriver;
+MatrixDriver matrixDriver{};
 
 MatrixDriver::MatrixDriver() {
 	PadLEDs::init();

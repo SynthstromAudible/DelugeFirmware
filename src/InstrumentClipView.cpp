@@ -84,7 +84,7 @@ extern "C" {
 #include "sio_char.h"
 }
 
-InstrumentClipView instrumentClipView;
+InstrumentClipView instrumentClipView{};
 
 InstrumentClipView::InstrumentClipView() {
 
