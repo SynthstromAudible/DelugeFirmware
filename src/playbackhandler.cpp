@@ -67,7 +67,7 @@ extern "C" {
 #include "sio_char.h"
 }
 
-PlaybackHandler playbackHandler;
+PlaybackHandler playbackHandler{};
 
 extern void songLoaded(Song* song);
 

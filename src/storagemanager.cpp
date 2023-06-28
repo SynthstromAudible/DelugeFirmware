@@ -64,7 +64,7 @@ FRESULT f_readdir_get_filepointer(DIR* dp,      /* Pointer to the open directory
 void routineForSD(void);
 }
 
-StorageManager storageManager;
+StorageManager storageManager{};
 FILINFO staticFNO;
 DIR staticDIR;
 

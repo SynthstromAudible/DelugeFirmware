@@ -95,7 +95,7 @@ extern "C" {
 #include "cfunctions.h"
 }
 
-SoundEditor soundEditor;
+SoundEditor soundEditor{};
 
 MenuItemSubmenu soundEditorRootMenu;
 MenuItemSubmenu soundEditorRootMenuMIDIOrCV;

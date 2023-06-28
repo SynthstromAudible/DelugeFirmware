@@ -555,25 +555,20 @@ extern "C" int main2(void) {
 	 * See a more technical discussion of the problem here: https://stackoverflow.com/questions/32807964/c-gcc-file-scope-objects-constructors-arent-being-called?noredirect=1#comment53452782_32807964
      */
 
-	new (&instrumentClipView) InstrumentClipView;
-	new (&sessionView) SessionView;
-	new (&matrixDriver) MatrixDriver;
-	new (&playbackHandler) PlaybackHandler;
-	new (&soundEditor) SoundEditor;
-	new (&uiTimerManager) UITimerManager;
-	new (&storageManager) StorageManager;
 	new (&loadSongUI) LoadSongUI;
 	new (&saveSongUI) SaveSongUI;
 	new (&contextMenuClearSong) ContextMenuClearSong;
 	new (&saveInstrumentPresetUI) SaveInstrumentPresetUI;
 	new (&loadInstrumentPresetUI) LoadInstrumentPresetUI;
 	new (&sampleBrowser) SampleBrowser;
+
 	new (&midiEngine) MidiEngine;
 	new (&cvEngine) CVEngine;
 	new (&keyboardScreen) KeyboardScreen;
 	new (&view) View;
 	new (&audioRecorder) AudioRecorder;
 	new (&numericDriver) NumericDriver;
+
 	new (&session) Session;
 	new (&arrangement) Arrangement;
 	new (&arrangerView) ArrangerView;
@@ -582,12 +577,14 @@ extern "C" int main2(void) {
 	new (&contextMenuFileBrowserKit) ContextMenuSampleBrowserKit;
 	new (&contextMenuFileBrowserSynth) ContextMenuSampleBrowserSynth;
 	new (&contextMenuOverwriteFile) ContextMenuOverwriteFile;
+
 	new (&contextMenuDeleteFile) ContextMenuDeleteFile;
 	new (&renameDrumUI) RenameDrumUI;
 	new (&audioInputSelector) AudioInputSelector;
 	new (&contextMenuLoadInstrumentPreset) ContextMenuLoadInstrumentPreset;
 	new (&sampleMarkerEditor) SampleMarkerEditor;
 	new (&waveformBasicNavigator) WaveformBasicNavigator;
+
 	new (&audioClipView) AudioClipView;
 	new (&renameOutputUI) RenameOutputUI;
 	new (&QwertyUI::enteredText) String;
