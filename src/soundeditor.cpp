@@ -2441,7 +2441,6 @@ public:
 	void writeCurrentValue() { FlashStorage::defaultBendRange[BEND_RANGE_MAIN] = soundEditor.currentValue; }
 } defaultBendRangeMenu;
 
-
 SoundEditor soundEditor{};
 
 SoundEditor::SoundEditor() {
