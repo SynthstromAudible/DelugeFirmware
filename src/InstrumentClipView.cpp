@@ -2013,6 +2013,7 @@ void InstrumentClipView::adjustAccidentalTranspose(int offset) {
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
     int accidentalTransposeValue = 0;
+    int noteValueAfterTranspose = 0;
 	// If just one press...
 	if (numEditPadPresses == 1) {
 		// Find it
@@ -2041,8 +2042,10 @@ void InstrumentClipView::adjustAccidentalTranspose(int offset) {
 					// accidentalTranspose should be smaller or equal than 127 - y so that we cannot transpose beyond 127.
 					// NOTE: since noterows themselves can be transposed (i.e. by changing the scale or by flipping the whole octave up)
 					// we have to also clip when playing.
-					accidentalTransposeValue = getMin(getMax(accidentalTransposeValue, 0 - editPadPresses[i].yDisplay), 127 - editPadPresses[i].yDisplay);
-					editPadPresses[i].intendedAccidentalTranspose = editPadPresses[i].intendedAccidentalTranspose;
+					int currentYNote = getCurrentClip()->getYNoteFromYDisplay(editPadPresses[i].yDisplay, currentSong) ;
+					accidentalTransposeValue = getMin(getMax(accidentalTransposeValue, 0 - currentYNote), 127 - currentYNote);
+					noteValueAfterTranspose = accidentalTransposeValue + currentYNote; // 
+					editPadPresses[i].intendedAccidentalTranspose = accidentalTransposeValue;
 
 					int noteRowIndex;
 					NoteRow* noteRow =
@@ -2161,12 +2164,17 @@ multiplePresses:
 #endif
 		char* displayString;
 #if HAVE_OLED
-		// TODO: true notename instead of C4
-		strcpy(buffer, "C4 / ");
+		//  notename " / " transposeValue
+		int lengthWithoutDot = 0;
+		noteCodeToString(noteValueAfterTranspose,buffer,&lengthWithoutDot);
+
+		strcpy(buffer + lengthWithoutDot + 1, " / ");
 		intToString(accidentalTransposeValue, buffer + strlen(buffer));
 #else
-		// TODO: notename instead of number.
-		intToString(accidentalTransposeValue, buffer);
+		int lengthWithoutDot = 0;
+		noteCodeToString(noteValueAfterTranspose,buffer,&lengthWithoutDot);
+		
+
 #endif
 		displayString = buffer;
 
