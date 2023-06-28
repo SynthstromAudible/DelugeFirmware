@@ -33,7 +33,7 @@
 #endif
 
 bool QwertyUI::predictionInterrupted;
-String QwertyUI::enteredText;
+String QwertyUI::enteredText{};
 int16_t QwertyUI::enteredTextEditPos;
 int QwertyUI::scrollPosHorizontal;
 

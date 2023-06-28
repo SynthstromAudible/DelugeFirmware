@@ -49,7 +49,7 @@ extern "C" {
 extern uint8_t currentlyAccessingCard;
 }
 
-AudioClipView audioClipView;
+AudioClipView audioClipView{};
 
 AudioClipView::AudioClipView() {
 }

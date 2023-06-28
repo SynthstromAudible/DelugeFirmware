@@ -555,12 +555,6 @@ extern "C" int main2(void) {
 	 * See a more technical discussion of the problem here: https://stackoverflow.com/questions/32807964/c-gcc-file-scope-objects-constructors-arent-being-called?noredirect=1#comment53452782_32807964
      */
 
-	new (&audioClipView) AudioClipView;
-	new (&renameOutputUI) RenameOutputUI;
-	new (&QwertyUI::enteredText) String;
-	new (&Browser::currentDir) String;
-	new (&Browser::fileItems) CStringArray(sizeof(FileItem));
-	new (&contextMenuOverwriteBootloader) ContextMenuOverwriteBootloader;
 #if AUTOMATED_TESTER_ENABLED
 	AutomatedTester::init();
 #endif
