@@ -19,7 +19,7 @@
 #include "LoadInstrumentPresetUI.h"
 #include "numericdriver.h"
 
-ContextMenuLoadInstrumentPreset contextMenuLoadInstrumentPreset;
+ContextMenuLoadInstrumentPreset contextMenuLoadInstrumentPreset{};
 
 ContextMenuLoadInstrumentPreset::ContextMenuLoadInstrumentPreset() {
 #if HAVE_OLED

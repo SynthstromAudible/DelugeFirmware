@@ -26,7 +26,7 @@ extern "C" {
 #include "fatfs/ff.h"
 }
 
-ContextMenuDeleteFile contextMenuDeleteFile;
+ContextMenuDeleteFile contextMenuDeleteFile{};
 
 ContextMenuDeleteFile::ContextMenuDeleteFile() {
 }
