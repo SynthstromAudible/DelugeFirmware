@@ -169,7 +169,7 @@ void brdyOccurred(int ip) {
 }
 }
 
-MidiEngine midiEngine;
+MidiEngine midiEngine{};
 
 bool anythingInUSBOutputBuffer = false;
 

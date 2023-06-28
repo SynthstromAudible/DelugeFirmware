@@ -43,7 +43,7 @@
 #include "uitimermanager.h"
 #include "oled.h"
 
-KeyboardScreen keyboardScreen;
+KeyboardScreen keyboardScreen{};
 
 inline InstrumentClip* getCurrentClip() {
 	return (InstrumentClip*)currentSong->currentClip;
