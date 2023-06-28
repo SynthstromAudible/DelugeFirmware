@@ -1809,7 +1809,7 @@ void InstrumentClipView::adjustProbability(int offset) {
 					if (!action) return;
 
 					// Incrementing
-					if (offset == 1) {
+					if (offset > 0) {
 						if (probabilityValue < NUM_PROBABILITY_VALUES + 35) {
 							if (prevBase) {
 								probabilityValue++;
@@ -1829,11 +1829,8 @@ void InstrumentClipView::adjustProbability(int offset) {
 							}
 						}
 					}
-					else if (offset == 0) {
-						// do nothing.
-					}
 					// Decrementing
-					else {
+					else if (offset < 0) {
 						if (probabilityValue > 1 || prevBase) {
 							if (prevBase) {
 								prevBase = false;
@@ -2025,7 +2022,7 @@ void InstrumentClipView::adjustAccidentalTranspose(int offset) {
 
 				if (editPadPresses[i].isBlurredSquare) goto multiplePresses;
 
-
+				accidentalTransposeValue = editPadPresses[i].intendedAccidentalTranspose;
 
 				// If editing, continue edit
 #if HAVE_OLED
@@ -2036,17 +2033,16 @@ void InstrumentClipView::adjustAccidentalTranspose(int offset) {
 					Action* action = actionLogger.getNewAction(ACTION_NOTE_EDIT, true);
 					if (!action) return;
                     
-                    // TODO: get the current value from the note.
-					// Incrementing
-					if (offset == 1) {
-						accidentalTransposeValue  = 1;
-					}
-
-					// Decrementing
-					else {
-						accidentalTransposeValue  = -1;
-					}
-
+					// Incrementing/ decrementing
+					accidentalTransposeValue += offset;
+					// clip the accidentalTransposeValue to a value that makes sense for the current noteRow.
+					// THE max and min value are dependent of the y of this noterow
+					// accidentalTranspose should be larger or equal to 0 - y so that we cannot transpose below 0.
+					// accidentalTranspose should be smaller or equal than 127 - y so that we cannot transpose beyond 127.
+					// NOTE: since noterows themselves can be transposed (i.e. by changing the scale or by flipping the whole octave up)
+					// we have to also clip when playing.
+					accidentalTransposeValue = getMin(getMax(accidentalTransposeValue, 0 - editPadPresses[i].yDisplay), 127 - editPadPresses[i].yDisplay);
+					editPadPresses[i].intendedAccidentalTranspose = editPadPresses[i].intendedAccidentalTranspose;
 
 					int noteRowIndex;
 					NoteRow* noteRow =
