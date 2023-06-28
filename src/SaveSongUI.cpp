@@ -87,7 +87,7 @@ gotError:
 
     // TODO: create folder if doesn't exist.
 
-	enteredTextEditPos = enteredText.getLength();
+	enteredTextEditPos = 0;//enteredText.getLength();
 
 	IndicatorLEDs::setLedState(synthLedX, synthLedY, false);
 	IndicatorLEDs::setLedState(kitLedX, kitLedY, false);

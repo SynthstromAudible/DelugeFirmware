@@ -606,13 +606,15 @@ doNormal:	//FileItem* currentFile = (FileItem*)fileItems.getElementAddress(fileI
 			//error = currentFile->getFilenameWithoutExtension(&endSearchString);		if (error) goto gotErrorAfterAllocating;
 			endSearchString.set(&enteredText);
 
-			// Did it already have an underscore at the end?
+			// Did it already have an underscore at the end with a positive integer after it?
 			char const* endSearchStringChars = endSearchString.get();
 			char delimeterChar = '_';
 tryAgain:	char const* delimeterAddress = strrchr(endSearchStringChars, delimeterChar);
 			int numberStartPos;
 			if (delimeterAddress) {
 				int underscorePos = delimeterAddress - endSearchStringChars;
+
+				// Ok, it what comes after the underscore a positive integer?
 				int number = stringToUIntOrError(delimeterAddress + 1);
 				if (number < 0) goto noNumberYet;
 
@@ -639,8 +641,13 @@ noNumberYet:	if (delimeterChar == '_') {
 			FileItem* prevFile = (FileItem*)fileItems.getElementAddress(searchResult - 1);
 			String prevFilename;
 			error = prevFile->getFilenameWithoutExtension(&prevFilename);				if (error) goto gotErrorAfterAllocating;
-			int number = stringToUIntOrError(&prevFilename.get()[numberStartPos]);
-			if (number < 0) number = 1;
+			char const* prevFilenameChars = prevFilename.get();
+			int number;
+			if (prevFilename.getLength() > numberStartPos) {
+				number = stringToUIntOrError(&prevFilenameChars[numberStartPos]);
+				if (number < 0) number = 1;
+			}
+			else number = 1;
 
 			number++;
 			enteredText.set(&endSearchString);
