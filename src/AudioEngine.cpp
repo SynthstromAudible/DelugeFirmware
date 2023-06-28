@@ -90,8 +90,8 @@ int16_t zeroMPEValues[NUM_EXPRESSION_DIMENSIONS] = {0, 0, 0};
 
 namespace AudioEngine {
 
-revmodel reverb;
-Compressor reverbCompressor;
+revmodel reverb{};
+Compressor reverbCompressor{};
 int32_t reverbCompressorVolume;
 int32_t reverbCompressorShape;
 int32_t reverbPan = 0;
@@ -106,7 +106,7 @@ int32_t sideChainHitPending = false;
 uint32_t timeLastSideChainHit = 2147483648;
 int32_t sizeLastSideChainHit;
 
-Metronome metronome;
+Metronome metronome{};
 
 SoundDrum* sampleForPreview;
 ParamManagerForTimeline* paramManagerForSamplePreview;
@@ -138,7 +138,7 @@ uint8_t numHopsEndedThisRoutineCall;
 
 int32_t reverbSendPostLPF = 0;
 
-VoiceVector activeVoices;
+VoiceVector activeVoices{};
 
 LiveInputBuffer* liveInputBuffers[3];
 
@@ -158,24 +158,18 @@ int monitoringAction;
 
 uint32_t saddr;
 
-VoiceSample voiceSamples[NUM_VOICE_SAMPLES_STATIC];
+VoiceSample voiceSamples[NUM_VOICE_SAMPLES_STATIC] = {};
 VoiceSample* firstUnassignedVoiceSample = voiceSamples;
 
-TimeStretcher timeStretchers[NUM_TIME_STRETCHERS_STATIC];
+TimeStretcher timeStretchers[NUM_TIME_STRETCHERS_STATIC] = {};
 TimeStretcher* firstUnassignedTimeStretcher = timeStretchers;
 
-Voice staticVoices
-    [NUM_VOICES_STATIC]; // Hmm, I forgot this was still being used. It's not a great way of doing things... wait does this still actually get used? No?
+// Hmm, I forgot this was still being used. It's not a great way of doing things... wait does this still actually get used? No?
+Voice staticVoices[NUM_VOICES_STATIC] = {};
 Voice* firstUnassignedVoice;
 
 // You must set up dynamic memory allocation before calling this, because of its call to setupWithPatching()
 void init() {
-
-	new (&reverb) revmodel;
-	new (&reverbCompressor) Compressor;
-	new (&metronome) Metronome;
-	new (&activeVoices) VoiceVector;
-
 	paramManagerForSamplePreview = new ((void*)paramManagerForSamplePreviewMemory) ParamManagerForTimeline();
 	paramManagerForSamplePreview->setupWithPatching(); // Shouldn't be an error at init time...
 	Sound::initParams(paramManagerForSamplePreview);
@@ -195,17 +189,14 @@ void init() {
 	sampleForPreview->sideChainSendLevel = 2147483647;
 
 	for (int i = 0; i < NUM_VOICE_SAMPLES_STATIC; i++) {
-		new (&voiceSamples[i]) VoiceSample();
 		voiceSamples[i].nextUnassigned = (i == NUM_VOICE_SAMPLES_STATIC - 1) ? NULL : &voiceSamples[i + 1];
 	}
 
 	for (int i = 0; i < NUM_TIME_STRETCHERS_STATIC; i++) {
-		new (&timeStretchers[i]) TimeStretcher();
 		timeStretchers[i].nextUnassigned = (i == NUM_TIME_STRETCHERS_STATIC - 1) ? NULL : &timeStretchers[i + 1];
 	}
 
 	for (int i = 0; i < NUM_VOICES_STATIC; i++) {
-		new (&staticVoices[i]) Voice();
 		staticVoices[i].nextUnassigned = (i == NUM_VOICES_STATIC - 1) ? NULL : &staticVoices[i + 1];
 	}
 
