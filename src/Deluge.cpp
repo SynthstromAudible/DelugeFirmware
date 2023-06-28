@@ -594,7 +594,6 @@ extern "C" int main2(void) {
 	new (&Browser::currentDir) String;
 	new (&Browser::fileItems) CStringArray(sizeof(FileItem));
 	new (&contextMenuOverwriteBootloader) ContextMenuOverwriteBootloader;
-	MIDIDeviceManager::init();
 #if AUTOMATED_TESTER_ENABLED
 	AutomatedTester::init();
 #endif
