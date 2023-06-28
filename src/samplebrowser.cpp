@@ -78,7 +78,7 @@ extern "C" {
 #include "sio_char.h"
 }
 
-SampleBrowser sampleBrowser;
+SampleBrowser sampleBrowser{};
 
 char const* allowedFileExtensionsAudio[] = {"WAV", "AIFF", "AIF", NULL};
 

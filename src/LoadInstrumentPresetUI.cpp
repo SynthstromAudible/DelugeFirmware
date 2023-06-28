@@ -42,7 +42,7 @@
 #include "FileItem.h"
 #include "oled.h"
 
-LoadInstrumentPresetUI loadInstrumentPresetUI;
+LoadInstrumentPresetUI loadInstrumentPresetUI{};
 
 LoadInstrumentPresetUI::LoadInstrumentPresetUI() {
 }

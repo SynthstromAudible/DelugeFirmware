@@ -32,7 +32,7 @@
 #include "playbackhandler.h"
 #include "oled.h"
 
-ContextMenuClearSong contextMenuClearSong;
+ContextMenuClearSong contextMenuClearSong{};
 
 extern void setUIForLoadedSong(Song* song);
 extern void deleteOldSongBeforeLoadingNew();
