@@ -73,7 +73,6 @@ struct ConnectedUSBMIDIDevice {
 #ifdef __cplusplus
 namespace MIDIDeviceManager {
 
-void init();
 void slowRoutine();
 MIDIDevice* readDeviceReferenceFromFile();
 void readDeviceReferenceFromFlash(int whichCommand, uint8_t const* memory);
