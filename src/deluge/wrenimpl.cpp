@@ -68,8 +68,8 @@ void setupWren() {
 	wrenInitConfiguration(&config);
 	config.writeFn = &writeFn;
 	config.errorFn = &errorFn;
-	config.initialHeapSize = 1024 * 1024;
-	config.minHeapSize = 1024 * 1024;
+	config.initialHeapSize = 16384;
+	config.minHeapSize = 4096;
 
 	vm = wrenNewVM(&config);
 	/*
