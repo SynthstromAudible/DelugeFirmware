@@ -36,7 +36,7 @@
 #include "Buttons.h"
 #include "oled.h"
 
-SaveInstrumentPresetUI saveInstrumentPresetUI;
+SaveInstrumentPresetUI saveInstrumentPresetUI{};
 
 SaveInstrumentPresetUI::SaveInstrumentPresetUI() {
 }
