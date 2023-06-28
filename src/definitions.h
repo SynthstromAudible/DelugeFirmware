@@ -18,8 +18,8 @@
 #ifndef Definitions_h
 #define Definitions_h
 
-#include "r_typedefs.h"
-#include "cpu_specific.h"
+#include "RZA1/system/r_typedefs.h"
+#include "RZA1/cpu_specific.h"
 
 #define FIRMWARE_OLD 0
 #define FIRMWARE_1P2P0 1
