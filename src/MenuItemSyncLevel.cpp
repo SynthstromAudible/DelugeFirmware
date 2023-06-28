@@ -32,12 +32,7 @@ void MenuItemSyncLevel::drawValue() {
 #if HAVE_OLED
 		numericDriver.setText(buffer);
 #else
-		if (strlen(buffer) <= NUMERIC_DISPLAY_LENGTH) {
-			numericDriver.setText(buffer, true);
-		}
-		else {
-			numericDriver.setScrollingText(buffer, 0);
-		}
+		numericDriver.setScrollingText(buffer, 0);
 #endif
 	}
 }
@@ -63,7 +58,12 @@ void MenuItemSyncLevel::getNoteLengthName(char* buffer) {
 			strcat(buffer, type);
 		}
 		else {
+#if HAVE_OLED
+			char* suffix = strstr(buffer, "-notes");
+			strcpy(suffix, type);
+#else
 			strcat(buffer, type);
+#endif
 		}
 	}
 }
