@@ -137,7 +137,9 @@ public:
 	} //
 
 #if HAVE_OLED
-	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) { InstrumentClipMinder::renderOLED(image); }
+	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
+		InstrumentClipMinder::renderOLED(image);
+	}
 #endif
 
 	CopiedNoteRow* firstCopiedNoteRow;
