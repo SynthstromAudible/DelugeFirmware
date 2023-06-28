@@ -21,7 +21,7 @@
 #include "ContextMenuDeleteFile.h"
 #include "FileItem.h"
 
-SaveSongOrInstrumentContextMenu saveSongOrInstrumentContextMenu;
+SaveSongOrInstrumentContextMenu saveSongOrInstrumentContextMenu{};
 
 SaveSongOrInstrumentContextMenu::SaveSongOrInstrumentContextMenu() {
 #if HAVE_OLED
