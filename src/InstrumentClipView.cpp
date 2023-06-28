@@ -631,7 +631,7 @@ doCancelPopup:
 			else goto doCancelPopup;
 		}
 	}
-	else if (x == selectEncButtonX && y == selectEncButtonY) {
+	else if (x == selectEncButtonX && y == selectEncButtonY && on) {
 		// select encoder pressed. if we are editing notes this goes to the next attribute. if we are not editing notes
 		// then the encoder should open the sound menu, so we should call passToOthers.
         noteEditSelEncoderIndex = 1 - noteEditSelEncoderIndex;
