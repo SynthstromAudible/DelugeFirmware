@@ -1366,18 +1366,7 @@ int NoteRow::changeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow*
 				thisNote->setProbability(changeValue);
 			} break;
 			case CORRESPONDING_NOTES_SET_ACCIDENTAL_TRANSPOSE: {
-				
-          
-				// THE max and min value are dependent of the y of this noterow
-				// changeValue should be larger or equal to 0 - y so that we cannot transpose below 0.
-				// changeValue should be smaller or equal than 127 - y so that we cannot transpose beyond 127.
-				// NOTE: since noterows themselves can be transposed (i.e. by changing the scale or by flipping the whole octave up)
-				// we can enter valid values but once we use them they are no longer guaranteed to be valid, so they need to be clipped again at that point.
-				//int newAccidentalTranspose = getMin(getMax(changeValue, 0 - y), 127 - y)
-				
-				// lets do -24...24 instead and fix the clipping in the view and the audio processing.
-				int newAccidentalTranspose = getMin(getMax(changeValue, -24), 24);
-				thisNote->setAccidentalTranspose(newAccidentalTranspose);
+				thisNote->setAccidentalTranspose(changeValue);
 			} break;
 			}
 		}
