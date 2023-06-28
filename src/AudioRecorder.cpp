@@ -47,7 +47,7 @@
 #include "oled.h"
 #include "playbackhandler.h"
 
-AudioRecorder audioRecorder;
+AudioRecorder audioRecorder{};
 
 extern "C" void routineForSD(void);
 

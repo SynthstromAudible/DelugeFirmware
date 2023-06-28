@@ -556,13 +556,6 @@ extern "C" int main2(void) {
      */
 
 
-	new (&midiEngine) MidiEngine;
-	new (&cvEngine) CVEngine;
-	new (&keyboardScreen) KeyboardScreen;
-	new (&view) View;
-	new (&audioRecorder) AudioRecorder;
-	new (&numericDriver) NumericDriver;
-
 	new (&session) Session;
 	new (&arrangement) Arrangement;
 	new (&arrangerView) ArrangerView;

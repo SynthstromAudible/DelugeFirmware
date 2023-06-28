@@ -78,7 +78,7 @@
 extern "C" {
 #include "sio_char.h"
 }
-View view;
+View view{};
 
 extern int8_t pendingGlobalMIDICommand;
 
