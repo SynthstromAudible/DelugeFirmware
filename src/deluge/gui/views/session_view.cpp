@@ -68,7 +68,7 @@ extern "C" {
 #include "RZA1/uart/sio_char.h"
 }
 
-SessionView sessionView;
+SessionView sessionView{};
 
 extern int8_t defaultAudioClipOverdubOutputCloning;
 

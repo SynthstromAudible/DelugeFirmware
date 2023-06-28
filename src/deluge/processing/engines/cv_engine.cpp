@@ -32,7 +32,7 @@ extern "C" {
 #include "RZA1/oled/oled_low_level.h"
 }
 
-CVEngine cvEngine;
+CVEngine cvEngine{};
 
 CVEngine::CVEngine() {
 	gateOutputPending = false;

@@ -42,7 +42,7 @@ extern uint8_t currentlyAccessingCard;
 const uint8_t redColour[] = {255, 0, 0};
 const uint8_t greenColour[] = {0, 255, 0};
 
-WaveformRenderer waveformRenderer;
+WaveformRenderer waveformRenderer{};
 
 WaveformRenderer::WaveformRenderer() {
 }

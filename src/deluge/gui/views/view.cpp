@@ -78,7 +78,7 @@
 extern "C" {
 #include "RZA1/uart/sio_char.h"
 }
-View view;
+View view{};
 
 extern int8_t pendingGlobalMIDICommand;
 

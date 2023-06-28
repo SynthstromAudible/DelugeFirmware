@@ -78,7 +78,7 @@ extern uint8_t currentlyAccessingCard;
 #include "RZA1/uart/sio_char.h"
 }
 
-ArrangerView arrangerView;
+ArrangerView arrangerView{};
 
 ArrangerView::ArrangerView() {
 	doingAutoScrollNow = false;

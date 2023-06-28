@@ -40,10 +40,10 @@ extern "C" {
 #include "drivers/uart/uart.h"
 }
 
-String Browser::currentDir;
+String Browser::currentDir{};
 bool Browser::qwertyVisible;
 
-CStringArray Browser::fileItems(sizeof(FileItem));
+CStringArray Browser::fileItems{sizeof(FileItem)};
 int Browser::scrollPosVertical;
 int Browser::fileIndexSelected;
 int Browser::numCharsInPrefix;

@@ -19,6 +19,7 @@
 #define BROWSER_H_
 
 #include "util/container/array/c_string_array.h"
+#include "storage/file_item.h"
 #include "gui/ui/qwerty_ui.h"
 
 extern "C" {

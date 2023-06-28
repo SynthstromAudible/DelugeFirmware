@@ -22,7 +22,7 @@
 #include "gui/ui/slicer.h"
 #include "storage/file_item.h"
 
-ContextMenuSampleBrowserKit contextMenuFileBrowserKit;
+ContextMenuSampleBrowserKit contextMenuFileBrowserKit{};
 
 ContextMenuSampleBrowserKit::ContextMenuSampleBrowserKit() {
 #if HAVE_OLED

@@ -48,7 +48,7 @@
 #include "model/model_stack.h"
 #include "gui/ui/load/load_song_ui.h"
 
-Session session;
+Session session{};
 
 #define LAUNCH_STATUS_NOTHING_TO_SYNC_TO 0
 #define LAUNCH_STATUS_LAUNCH_USING_QUANTIZATION 1

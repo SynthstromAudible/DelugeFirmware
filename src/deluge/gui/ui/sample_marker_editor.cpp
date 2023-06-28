@@ -49,7 +49,7 @@ extern "C" {
 
 const uint8_t zeroes[] = {0, 0, 0, 0, 0, 0, 0, 0};
 
-SampleMarkerEditor sampleMarkerEditor;
+SampleMarkerEditor sampleMarkerEditor{};
 
 SampleMarkerEditor::SampleMarkerEditor() {
 }

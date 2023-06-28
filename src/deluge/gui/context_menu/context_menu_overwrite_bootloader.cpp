@@ -27,7 +27,7 @@ extern "C" {
 #include "RZA1/spibsc/r_spibsc_flash_api.h"
 }
 
-ContextMenuOverwriteBootloader contextMenuOverwriteBootloader;
+ContextMenuOverwriteBootloader contextMenuOverwriteBootloader{};
 
 ContextMenuOverwriteBootloader::ContextMenuOverwriteBootloader() {
 #if HAVE_OLED

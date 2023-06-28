@@ -39,7 +39,7 @@ extern "C" {
 #include "RZA1/oled/oled_low_level.h"
 }
 
-UITimerManager uiTimerManager;
+UITimerManager uiTimerManager{};
 extern void inputRoutine();
 extern void batteryLEDBlink();
 

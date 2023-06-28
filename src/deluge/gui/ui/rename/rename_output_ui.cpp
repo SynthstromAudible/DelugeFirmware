@@ -25,7 +25,7 @@
 #include "hid/buttons.h"
 #include "extern.h"
 
-RenameOutputUI renameOutputUI;
+RenameOutputUI renameOutputUI{};
 
 RenameOutputUI::RenameOutputUI() {
 }

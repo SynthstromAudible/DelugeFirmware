@@ -44,7 +44,7 @@
 #include "storage/file_item.h"
 #include "hid/display/oled.h"
 
-LoadSongUI loadSongUI;
+LoadSongUI loadSongUI{};
 
 extern void songLoaded(Song* song);
 extern void setUIForLoadedSong(Song* song);
