@@ -48,6 +48,7 @@ struct EditPadPress {
 	bool deleteOnDepress; // Can also mean to delete tail
 	uint8_t intendedVelocity;
 	uint8_t intendedProbability;
+	int8_t intendedAccidentalTranspose;
 	bool deleteOnScroll;
 	bool isBlurredSquare;
 	bool mpeCachedYet;
@@ -178,6 +179,7 @@ private:
 
 	Drum* drumForNewNoteRow;
 	uint8_t yDisplayOfNewNoteRow;
+	uint8_t noteEditSelEncoderIndex; // begins on 0: probability, clicking the sel encoder can cycle through. 1 = accidentalTranspose.  
 
 	uint32_t getSquareWidth(int32_t square, int32_t effectiveLength);
 	void drawNoteCode(uint8_t yDisplay);
@@ -194,7 +196,9 @@ private:
 	bool getAffectEntire();
 	void createNewInstrument(uint8_t instrumentType);
 	Sound* getSoundForNoteRow(NoteRow* noteRow, ParamManagerForTimeline** getParamManager);
+	void modifyNotesWithSelEncoder(int offset);
 	void adjustProbability(int offset);
+	void adjustAccidentalTranspose(int offset);
 	void copyNotes();
 	void pasteNotes();
 	void deleteCopiedNoteRows();

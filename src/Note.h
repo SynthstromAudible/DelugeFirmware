@@ -34,13 +34,18 @@ public:
 
 	inline int getVelocity() { return velocity; }
 
+	inline void setProbability(int newProbability) { probability = newProbability; }
+
+	inline int getProbability() { return probability; }
+
 	inline void setLift(int newLift) { lift = newLift; }
 
 	inline int getLift() { return lift; }
 
-	inline void setProbability(int newProbability) { probability = newProbability; }
+	inline void setAccidentalTranspose(int newAccidentalTranspose) { accidentalTranspose = newAccidentalTranspose; }
 
-	inline int getProbability() { return probability; }
+	inline int getAccidentalTranspose() { return accidentalTranspose; }
+
 
 	void writeToFile();
 
@@ -48,6 +53,7 @@ public:
 	uint8_t velocity;
 	uint8_t probability;
 	uint8_t lift;
+	int8_t accidentalTranspose;
 
 	// Understanding the probability field: the first bit says whether it's based on a previous one.
 	// So take the rightmost 7 bits. If that's greater than NUM_PROBABILITY_VALUES (20),
