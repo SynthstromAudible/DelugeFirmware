@@ -108,6 +108,8 @@ extern "C" {
 #include "RZA1/ssi/ssi.h"
 }
 
+#include "wrenimpl.h"
+
 extern uint8_t currentlyAccessingCard;
 
 extern "C" void disk_timerproc(UINT msPassed);
@@ -857,6 +859,8 @@ resetSettings:
 
 	Uart::println("going into main loop");
 	sdRoutineLock = false; // Allow SD routine to start happening
+
+	setupWren();
 
 	while (1) {
 
