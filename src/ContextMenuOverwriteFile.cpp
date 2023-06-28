@@ -18,7 +18,7 @@
 #include <ContextMenuOverwriteFile.h>
 #include "SaveUI.h"
 
-ContextMenuOverwriteFile contextMenuOverwriteFile;
+ContextMenuOverwriteFile contextMenuOverwriteFile{};
 
 ContextMenuOverwriteFile::ContextMenuOverwriteFile() {
 #if HAVE_OLED

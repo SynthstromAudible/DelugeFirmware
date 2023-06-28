@@ -556,15 +556,6 @@ extern "C" int main2(void) {
      */
 
 
-	new (&session) Session;
-	new (&arrangement) Arrangement;
-	new (&arrangerView) ArrangerView;
-	new (&waveformRenderer) WaveformRenderer;
-	new (&saveSongOrInstrumentContextMenu) SaveSongOrInstrumentContextMenu;
-	new (&contextMenuFileBrowserKit) ContextMenuSampleBrowserKit;
-	new (&contextMenuFileBrowserSynth) ContextMenuSampleBrowserSynth;
-	new (&contextMenuOverwriteFile) ContextMenuOverwriteFile;
-
 	new (&contextMenuDeleteFile) ContextMenuDeleteFile;
 	new (&renameDrumUI) RenameDrumUI;
 	new (&audioInputSelector) AudioInputSelector;
