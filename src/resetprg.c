@@ -77,6 +77,16 @@
 
 extern int R_CACHE_L1Init(void);
 
+void* __dso_handle = NULL;
+
+void _init(void) {
+	// empty
+}
+
+void _fini(void)  {
+	// empty
+}
+
 /*******************************************************************************
  * Function Name: resetprg
  * Description  :
