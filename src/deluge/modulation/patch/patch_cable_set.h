@@ -23,6 +23,7 @@
 
 class Song;
 class ModelStackWithParamCollection;
+class LearnedMIDI;
 
 struct CableGroup {
 	uint8_t first;

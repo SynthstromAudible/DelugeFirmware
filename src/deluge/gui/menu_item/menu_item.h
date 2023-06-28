@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef MENUITEM_H_
-#define MENUITEM_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 #include "definitions.h"
@@ -33,15 +32,20 @@ class MIDIDevice;
 
 class MenuItem {
 public:
-	MenuItem(char const* newName = NULL);
+	MenuItem(char const* newName = NULL) {
+		name = newName;
+#if HAVE_OLED
+		basicTitle = newName;
+#endif
+	}
 
 	char const* name; // As viewed in a menu list. For OLED, up to 20 chars.
+	virtual char const* getName() { return name; }
 
 	virtual void horizontalEncoderAction(int offset) {}
 	virtual void selectEncoderAction(int offset) {}
 	virtual void beginSession(MenuItem* navigatedBackwardFrom = NULL){};
 	virtual bool isRelevant(Sound* sound, int whichThing) { return true; }
-	virtual char const* getName();
 	virtual MenuItem* selectButtonPress() { return NULL; }
 	virtual int checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange);
 	virtual void readValueAgain() {}
@@ -67,8 +71,7 @@ public:
 #if HAVE_OLED
 	char const* basicTitle; // Can get overridden by getTitle(). Actual max num chars for OLED display is 14.
 	virtual void renderOLED();
-	virtual void drawPixelsForOled() {
-	}
+	virtual void drawPixelsForOled() {}
 	void drawItemsForOled(char const** options, int selectedOption);
 	char const*
 	getTitle(); //char* buffer);	// Supplied buffer size must be MENU_ITEM_TITLE_BUFFER_SIZE. Actual max num chars for OLED display is 14.
@@ -79,5 +82,3 @@ public:
 
 #endif
 };
-
-#endif /* MENUITEM_H_ */

@@ -20,7 +20,7 @@
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
 #include "model/consequence/consequence_instrument_clip_multiply.h"
-#include "gui/menu_item/menu_item_multi_range.h"
+#include "gui/menu_item/multi_range.h"
 #include "modulation/params/param_manager.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "processing/sound/sound_drum.h"
@@ -48,7 +48,7 @@
 #include "model/drum/drum.h"
 #include "model/instrument/melodic_instrument.h"
 #include "gui/ui/sample_marker_editor.h"
-#include "gui/menu_item/menu_item_file_selector.h"
+#include "gui/menu_item/file_selector.h"
 #include <new>
 #include "storage/storage_manager.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
@@ -57,7 +57,7 @@
 #include "model/clip/clip.h"
 #include "model/consequence/consequence_instrument_clip_horizontal_shift.h"
 #include "model/consequence/consequence_note_array_change.h"
-#include "gui/menu_item/menu_item_colour.h"
+#include "gui/menu_item/colour.h"
 #include "hid/led/pad_leds.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/buttons.h"
@@ -398,7 +398,7 @@ doOther:
 			if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_SYNTH) {
 				cancelAllAuditioning();
 
-				bool success = soundEditor.setup(getCurrentClip(), &fileSelectorMenu,
+				bool success = soundEditor.setup(getCurrentClip(), &menu_item::fileSelectorMenu,
 				                                 0); // Can't fail because we just set the selected Drum
 				if (success) {
 					openUI(&soundEditor);
@@ -2311,8 +2311,8 @@ int InstrumentClipView::scrollVertical(int scrollAmount, bool inCardRoutine, boo
 				}
 
 				if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_SYNTH) {
-					if (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem() == &multiRangeMenu) {
-						multiRangeMenu.noteOnToChangeRange(
+					if (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem() == &menu_item::multiRangeMenu) {
+						menu_item::multiRangeMenu.noteOnToChangeRange(
 						    getCurrentClip()->getYNoteFromYDisplay(yDisplay, currentSong)
 						    + ((SoundInstrument*)currentSong->currentClip->output)->transpose);
 					}
@@ -2776,8 +2776,8 @@ justReRender:
 	// Or if synth
 	else if (instrument->type == INSTRUMENT_TYPE_SYNTH) {
 		if (velocity) {
-			if (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem() == &multiRangeMenu) {
-				multiRangeMenu.noteOnToChangeRange(getCurrentClip()->getYNoteFromYDisplay(yDisplay, currentSong)
+			if (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem() == &menu_item::multiRangeMenu) {
+				menu_item::multiRangeMenu.noteOnToChangeRange(getCurrentClip()->getYNoteFromYDisplay(yDisplay, currentSong)
 				                                   + ((SoundInstrument*)instrument)->transpose);
 			}
 		}
@@ -3003,7 +3003,7 @@ doDisplayError:
 	setSelectedDrum(newDrum); // Does this really need to render?
 
 	bool success =
-	    soundEditor.setup(getCurrentClip(), &fileSelectorMenu, 0); // Can't fail because we just set the selected Drum
+	    soundEditor.setup(getCurrentClip(), &menu_item::fileSelectorMenu, 0); // Can't fail because we just set the selected Drum
 	// TODO: what if fail because no RAM
 
 	if (doRecording) {
@@ -3427,11 +3427,11 @@ void InstrumentClipView::drawMuteSquare(NoteRow* thisNoteRow, uint8_t thisImage[
 			memset(thisColour, 0, 3);
 		}
 		else {
-			activeColourMenu.getRGB(thisColour);
+			menu_item::activeColourMenu.getRGB(thisColour);
 		}
 	}
 	else {
-		mutedColourMenu.getRGB(thisColour);
+		menu_item::mutedColourMenu.getRGB(thisColour);
 		*thisOccupancy = 64;
 	}
 
