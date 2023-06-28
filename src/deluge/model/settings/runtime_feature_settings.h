@@ -23,7 +23,7 @@
 #include "util/d_string.h"
 #include "util/container/array/resizeable_array.h"
 
-#define RUNTIME_FEATURE_SETTING_MAX_OPTIONS 8
+#define RUNTIME_FEATURE_SETTING_MAX_OPTIONS 16
 
 // State declarations
 enum RuntimeFeatureStateToggle : uint32_t { Off = 0, On = 1 };
@@ -32,7 +32,7 @@ enum RuntimeFeatureStateToggle : uint32_t { Off = 0, On = 1 };
 
 /// Every setting needs to be delcared in here
 enum RuntimeFeatureSettingType : uint32_t {
-	// FileFolderSorting // @TODO: Replace with actual identifier on first use
+	StickyKeys,
 	MaxElement // Keep as boundary
 };
 
@@ -58,28 +58,12 @@ public:
 	// Traded type safety for option values for code simplicity and size, use enum from above to compare
 	inline uint32_t get(RuntimeFeatureSettingType type) { return settings[type].value; };
 
-public:
+	void init();
 	void readSettingsFromFile();
 	void writeSettingsToFile();
 
 protected:
-	RuntimeFeatureSetting settings[RuntimeFeatureSettingType::MaxElement] = {
-
-	    //// @TODO: Remove example on first use
-	    // [RuntimeFeatureSettingType::FileFolderSorting] =  {
-	    //     .displayName = "File/Folder sorting",
-	    //     .xmlName = "fileFolderSorting",
-	    //     .value = RuntimeFeatureStateToggle::Off, // Default value
-	    //     .options = {
-	    //         { .displayName = "Off", .value = RuntimeFeatureStateToggle::Off },
-	    //         { .displayName = "On", .value = RuntimeFeatureStateToggle::On },
-	    //         { .displayName = NULL, .value = 0 }
-	    //     }
-	    // },
-
-	    // Please extend RuntimeFeatureSettingType and here for additional settings
-	    // Usage example -> (runtimeFeatureSettings.get(RuntimeFeatureSettingType::FileFolderSorting) == RuntimeFeatureStateToggle::On)
-	};
+	RuntimeFeatureSetting settings[RuntimeFeatureSettingType::MaxElement] = {};
 
 private:
 	ResizeableArray unknownSettings;

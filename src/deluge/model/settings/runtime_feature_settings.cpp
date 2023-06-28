@@ -15,9 +15,13 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "runtime_feature_settings.h"
 #include <new>
+#include <stdio.h>
 #include <string.h>
+
+#include "runtime_feature_settings.h"
+
+#include "hid/buttons.h"
 #include "hid/display/numeric_driver.h"
 #include "storage/storage_manager.h"
 
@@ -36,6 +40,38 @@ struct UnknownSetting {
 RuntimeFeatureSettings runtimeFeatureSettings{};
 
 RuntimeFeatureSettings::RuntimeFeatureSettings() : unknownSettings(sizeof(UnknownSetting)) {
+}
+
+void RuntimeFeatureSettings::init() {
+	// Sticky Keys
+	settings[RuntimeFeatureSettingType::StickyKeys].displayName = "STICKY KEYS";
+	settings[RuntimeFeatureSettingType::StickyKeys].xmlName = "stickKeys";
+	settings[RuntimeFeatureSettingType::StickyKeys].value = static_cast<uint32_t>(Buttons::StickyKeysMode::Disabled);
+	settings[RuntimeFeatureSettingType::StickyKeys].options[0].displayName = HAVE_OLED ? "DISABLED" : "DISA";
+	settings[RuntimeFeatureSettingType::StickyKeys].options[0].value =
+	    static_cast<uint32_t>(Buttons::StickyKeysMode::Disabled);
+	settings[RuntimeFeatureSettingType::StickyKeys].options[1].displayName = HAVE_OLED ? "ENABLED" : "ENAB";
+	settings[RuntimeFeatureSettingType::StickyKeys].options[1].value =
+	    static_cast<uint32_t>(Buttons::StickyKeysMode::Enabled);
+	settings[RuntimeFeatureSettingType::StickyKeys].options[2].displayName = HAVE_OLED ? "LONGPRESS" : "LONG";
+	settings[RuntimeFeatureSettingType::StickyKeys].options[2].value =
+	    static_cast<uint32_t>(Buttons::StickyKeysMode::LongPress);
+
+	size_t const MAX_STICKY_LABEL_SIZE{5};
+	static char displayNames[Buttons::MAX_SHIFT_PRESSES_TO_STICK - Buttons::MIN_SHIFT_PRESSES_TO_STICK]
+	                        [MAX_STICKY_LABEL_SIZE]{};
+
+	static_assert(Buttons::MAX_SHIFT_PRESSES_TO_STICK - Buttons::MIN_SHIFT_PRESSES_TO_STICK
+	                  < RUNTIME_FEATURE_SETTING_MAX_OPTIONS - 1,
+	              "Too many shift presses allowed");
+	for (auto i = 0; i < Buttons::MAX_SHIFT_PRESSES_TO_STICK - Buttons::MIN_SHIFT_PRESSES_TO_STICK; ++i) {
+		auto& option = settings[RuntimeFeatureSettingType::StickyKeys]
+		                   .options[i + static_cast<uint32_t>(Buttons::StickyKeysMode::EnabledMinPresses)];
+
+		snprintf(displayNames[i], MAX_STICKY_LABEL_SIZE, "%d", i + 2);
+		option.displayName = displayNames[i];
+		option.value = static_cast<uint32_t>(Buttons::StickyKeysMode::EnabledMinPresses) + i;
+	}
 }
 
 void RuntimeFeatureSettings::readSettingsFromFile() {
