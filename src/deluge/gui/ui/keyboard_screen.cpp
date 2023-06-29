@@ -623,7 +623,7 @@ int KeyboardScreen::verticalEncoderAction(int offset, bool inCardRoutine) {
 		//
 		Instrument* instrument = (Instrument*)currentSong->currentClip->output;
 		if (instrument->type == INSTRUMENT_TYPE_KIT) { //
-			instrumentClipView.verticalEncoderAction(offset, inCardRoutine);
+			instrumentClipView.verticalEncoderAction(offset * 4, inCardRoutine);
 			uiNeedsRendering(this, 0xFFFFFFFF, 0);
 		}
 		else {
@@ -635,8 +635,8 @@ int KeyboardScreen::verticalEncoderAction(int offset, bool inCardRoutine) {
 }
 
 int KeyboardScreen::horizontalEncoderAction(int offset) {
-
-	if (currentSong->currentClip->output->type != INSTRUMENT_TYPE_KIT) {
+	Instrument* instrument = (Instrument*)currentSong->currentClip->output;
+	if (instrument->type != INSTRUMENT_TYPE_KIT) {
 		if (Buttons::isShiftButtonPressed()) {
 			if (isUIModeWithinRange(padActionUIModes)) {
 				InstrumentClip* clip = getCurrentClip();
@@ -658,6 +658,10 @@ int KeyboardScreen::horizontalEncoderAction(int offset) {
 		else {
 			doScroll(offset);
 		}
+	}
+	else if (instrument->type == INSTRUMENT_TYPE_KIT) {
+		instrumentClipView.verticalEncoderAction(offset, false);
+		uiNeedsRendering(this, 0xFFFFFFFF, 0);
 	}
 
 	return ACTION_RESULT_DEALT_WITH;
