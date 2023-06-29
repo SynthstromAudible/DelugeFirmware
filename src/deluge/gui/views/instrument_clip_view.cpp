@@ -2797,7 +2797,8 @@ justReRender:
 			if (isUIModeActive(UI_MODE_RECORD_COUNT_IN)) {
 				if (isKit) {
 					if (drum) {
-						drum->recordNoteOnEarly((velocity == 1) ? instrument->defaultVelocity : velocity /**/,
+						//velocity of 1 is only possible here if it originated as bool true from the matrix pad driver
+						drum->recordNoteOnEarly((velocity == USE_DEFAULT_VELOCITY) ? instrument->defaultVelocity : velocity /**/,
 						                        getCurrentClip()->allowNoteTails(modelStackWithNoteRowOnCurrentClip));
 					}
 				}
@@ -2815,10 +2816,10 @@ justReRender:
 
 				// May need to create NoteRow if there wasn't one previously
 				if (!modelStackWithNoteRowOnCurrentClip->getNoteRowAllowNull()) {
-					//if (!drum) {//
+
 					modelStackWithNoteRowOnCurrentClip =
 					    createNoteRowForYDisplay(modelStackWithTimelineCounter, yDisplay);
-					//}
+
 				}
 
 				if (modelStackWithNoteRowOnCurrentClip->getNoteRowAllowNull()) {
@@ -2863,10 +2864,12 @@ maybeRenderRow:
 
 		// If note on...
 		if (velocity) {
-			int velocityToSound = ((Instrument*)currentSong->currentClip->output)->defaultVelocity;
-			if (velocity >= 2) {
-				velocityToSound = velocity;
-			} //
+			int velocityToSound = velocity;
+			if (velocityToSound==USE_DEFAULT_VELOCITY) {
+				velocityToSound = ((Instrument*)currentSong->currentClip->output)->defaultVelocity;
+			}
+
+
 
 			auditionPadIsPressed[yDisplay] =
 			    velocityToSound; // Yup, need to do this even if we're going to do a "silent" audition, so pad lights up etc.
