@@ -1,4 +1,4 @@
 #pragma once
 #include "wren.hpp"
 
-void setupWren();
+WrenVM *setupWren();

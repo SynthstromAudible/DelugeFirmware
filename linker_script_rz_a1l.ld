@@ -86,7 +86,6 @@ FIQ_STACK_SIZE	      = 0x2000;     /* FRQ mode stack                     */
 SVC_STACK_SIZE	      = 0x2000;     /* SVC mode stack                     */
 ABT_STACK_SIZE	      = 0x2000;     /* ABT mode stack                     */
 TTB_SIZE              = 0x8000;     /* Level-1 Translation Table for MMU  */
-NL_HEAP_SIZE       		= 0xC800;     /* Newlib heap size 50k Bytes         */
 
 INTERNAL_RAM_START = 0x20020000;
 INTERNAL_RAM_END = 0x20300000;
@@ -264,7 +263,6 @@ SECTIONS
 		PROVIDE(__heap_start = .);
 		PROVIDE(_nl_heap_start = .);
 		KEEP(*(.heap))
-		.   += NL_HEAP_SIZE;
 		. = ALIGN(0x4);        				
 		PROVIDE(__heap_end__ = .);
 		PROVIDE(__heap_end = .);
