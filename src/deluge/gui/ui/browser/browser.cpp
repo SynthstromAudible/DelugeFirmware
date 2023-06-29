@@ -76,6 +76,7 @@ Browser::Browser() {
 	qwertyAlwaysVisible = true;
 	qwertyVisible = true; // Because for most Browsers, it'll just always be true.
 	filePrefix = NULL;
+	shouldInterpretNoteNamesForThisBrowser = false;
 }
 
 bool Browser::opened() {
@@ -118,7 +119,9 @@ void Browser::emptyFileItems() {
 }
 
 void Browser::deleteSomeFileItems(int startAt, int stopAt) {
-	for (int i = startAt; i < stopAt;) {
+
+	// Call destructors.
+	for (int i = startAt; i < stopAt; ) {
 		FileItem* item = (FileItem*)fileItems.getElementAddress(i);
 		item->~FileItem();
 
@@ -130,9 +133,6 @@ void Browser::deleteSomeFileItems(int startAt, int stopAt) {
 
 	fileItems.deleteAtIndex(startAt, stopAt - startAt);
 }
-
-#define FILE_ITEMS_MAX_NUM_ELEMENTS 20
-#define FILE_ITEMS_MAX_NUM_ELEMENTS_FOR_NAVIGATION 20 // It "should" be able to be way less than this.
 
 int maxNumFileItemsNow;
 
@@ -187,6 +187,8 @@ deleteFromRightSide:
 	// Or if we've been using a search term *and* searching both directions, try to tend towards keeping equal amounts of FileIems either side.
 	else {
 
+		shouldInterpretNoteNames = shouldInterpretNoteNamesForThisBrowser;
+		octaveStartsFromA = false;
 		int foundIndex = fileItems.search(filenameToStartSearchAt);
 
 		// If search-item is in second half, delete from start.
@@ -477,6 +479,9 @@ int Browser::arrivedInNewFolder(int direction, char const* filenameToStartAt, ch
 
 	if (!qwertyAlwaysVisible) qwertyVisible = false;
 
+	shouldInterpretNoteNames = shouldInterpretNoteNamesForThisBrowser;
+	octaveStartsFromA = false;
+
 tryReadingItems:
 	bool doWeHaveASearchString = (filenameToStartAt && *filenameToStartAt);
 	int newCatalogSearchDirection = doWeHaveASearchString ? CATALOG_SEARCH_BOTH : CATALOG_SEARCH_RIGHT;
@@ -608,7 +613,7 @@ doNormal: //FileItem* currentFile = (FileItem*)fileItems.getElementAddress(fileI
 			//error = currentFile->getFilenameWithoutExtension(&endSearchString);		if (error) goto gotErrorAfterAllocating;
 			endSearchString.set(&enteredText);
 
-			// Did it already have an underscore at the end?
+			// Did it already have an underscore at the end with a positive integer after it?
 			char const* endSearchStringChars = endSearchString.get();
 			char delimeterChar = '_';
 tryAgain:
@@ -616,6 +621,8 @@ tryAgain:
 			int numberStartPos;
 			if (delimeterAddress) {
 				int underscorePos = delimeterAddress - endSearchStringChars;
+
+				// Ok, it what comes after the underscore a positive integer?
 				int number = stringToUIntOrError(delimeterAddress + 1);
 				if (number < 0) goto noNumberYet;
 
@@ -645,10 +652,14 @@ noNumberYet:
 #endif
 			FileItem* prevFile = (FileItem*)fileItems.getElementAddress(searchResult - 1);
 			String prevFilename;
-			error = prevFile->getFilenameWithoutExtension(&prevFilename);
-			if (error) goto gotErrorAfterAllocating;
-			int number = stringToUIntOrError(&prevFilename.get()[numberStartPos]);
-			if (number < 0) number = 1;
+			error = prevFile->getFilenameWithoutExtension(&prevFilename);				if (error) goto gotErrorAfterAllocating;
+			char const* prevFilenameChars = prevFilename.get();
+			int number;
+			if (prevFilename.getLength() > numberStartPos) {
+				number = stringToUIntOrError(&prevFilenameChars[numberStartPos]);
+				if (number < 0) number = 1;
+			}
+			else number = 1;
 
 			number++;
 			enteredText.set(&endSearchString);
@@ -694,214 +705,6 @@ everythingFinalized:
 	return NO_ERROR;
 }
 
-// Caller must set currentDir before calling this.
-// Caller must call emptyFileItems() at some point after calling this function.
-// song may be supplied as NULL, in which case it won't be searched for Instruments; sometimes this will get called when the currentSong is not set up.
-ReturnOfConfirmPresetOrNextUnlaunchedOne
-Browser::findAnUnlaunchedPresetIncludingWithinSubfolders(Song* song, int instrumentType, int availabilityRequirement) {
-
-	AudioEngine::logAction("findAnUnlaunchedPresetIncludingWithinSubfolders");
-	allowedFileExtensions = allowedFileExtensionsXML;
-
-	ReturnOfConfirmPresetOrNextUnlaunchedOne toReturn;
-
-	int initialDirLength = currentDir.getLength();
-
-	int folderIndex = -1;
-	bool doingSubfolders = false;
-	String searchNameLocalCopy;
-
-goAgain:
-
-	toReturn.error = readFileItemsFromFolderAndMemory(song, instrumentType, getThingName(instrumentType),
-	                                                  searchNameLocalCopy.get(), NULL, true);
-
-	if (toReturn.error) {
-emptyFileItemsAndReturn:
-		emptyFileItems();
-doReturn:
-		return toReturn;
-	}
-
-	sortFileItems();
-
-	// If that folder-read gave us no files, that's gotta mean we got to the end of the folder.
-	if (!fileItems.getNumElements()) {
-
-		// If we weren't yet looking at subfolders, do that now, going back to the start of this folder's contents.
-		if (!doingSubfolders) {
-startDoingFolders:
-			doingSubfolders = true;
-			searchNameLocalCopy.clear();
-			goto goAgain;
-		}
-
-		// Or if we already were looking at subfolders, we're all outta options now.
-		else {
-noFurtherFiles:
-			toReturn.error = ERROR_NO_FURTHER_FILES_THIS_DIRECTION;
-			goto doReturn;
-		}
-	}
-
-	// Store rightmost display name before filtering, for later.
-	String lastFileItemDisplayNameBeforeFiltering;
-	FileItem* rightmostFileItemBeforeFiltering = (FileItem*)fileItems.getElementAddress(fileItems.getNumElements() - 1);
-	toReturn.error = lastFileItemDisplayNameBeforeFiltering.set(rightmostFileItemBeforeFiltering->displayName);
-	if (toReturn.error) goto doReturn;
-
-	deleteFolderAndDuplicateItems(availabilityRequirement);
-
-	// If we're still looking for preset / XML files, and not subfolders yet...
-	if (!doingSubfolders) {
-
-		// Look through our list of FileItems, for a preset.
-		for (int i = 0; i < fileItems.getNumElements(); i++) {
-			toReturn.fileItem = (FileItem*)fileItems.getElementAddress(i);
-			if (!toReturn.fileItem->isFolder) {
-				goto doReturn; // We found a preset / file.
-			}
-		}
-
-		// Ok, we found none. Should we do some more reading of the folder contents, to get more files, or are there no more?
-		if (numFileItemsDeletedAtEnd) {
-			searchNameLocalCopy.set(&lastFileItemDisplayNameBeforeFiltering); // Can't fail.
-			goto goAgain;
-		}
-
-		// Ok, we've looked at every file, and none were presets we could use. So now we want to look in subfolders. Do we still have the "start" of our folder's contents in memory?
-		if (numFileItemsDeletedAtStart) goto startDoingFolders;
-
-		doingSubfolders = true;
-	}
-
-	// Ok, do folders now.
-	int i;
-	for (i = 0; i < fileItems.getNumElements(); i++) {
-		toReturn.fileItem = (FileItem*)fileItems.getElementAddress(i);
-		if (toReturn.fileItem->isFolder) {
-			goto doThisFolder;
-		}
-	}
-	if (numFileItemsDeletedAtEnd) {
-		searchNameLocalCopy.set(&lastFileItemDisplayNameBeforeFiltering);
-		goto goAgain;
-	}
-	else goto noFurtherFiles;
-
-	if (false) {
-doThisFolder:
-		bool anyMoreForLater = numFileItemsDeletedAtEnd || (i < (fileItems.getNumElements() - 1));
-		searchNameLocalCopy.set(toReturn.fileItem->displayName);
-
-		toReturn.error = currentDir.concatenate("/");
-		if (toReturn.error) goto emptyFileItemsAndReturn;
-		toReturn.error = currentDir.concatenate(&toReturn.fileItem->filename);
-		if (toReturn.error) goto emptyFileItemsAndReturn;
-
-		// Call self
-		toReturn = findAnUnlaunchedPresetIncludingWithinSubfolders(song, instrumentType, availabilityRequirement);
-		if (toReturn.error == ERROR_NO_FURTHER_FILES_THIS_DIRECTION) {
-			if (anyMoreForLater) {
-				currentDir.shorten(initialDirLength);
-				goto goAgain;
-			}
-			else goto doReturn;
-		}
-		else if (toReturn.error) goto emptyFileItemsAndReturn;
-
-		// If still here, the recursive call found something, so return.
-		goto doReturn;
-	}
-}
-
-// Caller must call emptyFileItems() at some point after calling this function.
-// And, set currentDir, before this is called.
-ReturnOfConfirmPresetOrNextUnlaunchedOne
-Browser::confirmPresetOrNextUnlaunchedOne(int instrumentType, String* searchName, int availabilityRequirement) {
-	ReturnOfConfirmPresetOrNextUnlaunchedOne toReturn;
-
-	String searchNameLocalCopy;
-	searchNameLocalCopy.set(searchName); // Can't fail.
-	bool shouldJustGrabLeftmost = false;
-
-doReadFiles:
-	toReturn.error = readFileItemsFromFolderAndMemory(currentSong, instrumentType, getThingName(instrumentType),
-	                                                  searchNameLocalCopy.get(), NULL, false, availabilityRequirement);
-
-	AudioEngine::logAction("confirmPresetOrNextUnlaunchedOne");
-
-	if (toReturn.error == ERROR_FOLDER_DOESNT_EXIST) {
-justGetAnyPreset: // This does *not* favour the currentDir, so you should exhaust all avenues before calling this.
-		toReturn.error = currentDir.set(getInstrumentFolder(instrumentType));
-		if (toReturn.error) goto doReturn;
-		toReturn =
-		    findAnUnlaunchedPresetIncludingWithinSubfolders(currentSong, instrumentType, availabilityRequirement);
-		goto doReturn;
-	}
-	else if (toReturn.error) {
-doReturn:
-		return toReturn;
-	}
-
-	sortFileItems();
-	if (!fileItems.getNumElements()) {
-		if (shouldJustGrabLeftmost) {
-			goto justGetAnyPreset;
-		}
-
-		if (numFileItemsDeletedAtStart) {
-needToGrabLeftmostButHaveToReadFirst:
-			searchNameLocalCopy.clear();
-			shouldJustGrabLeftmost = true;
-			goto doReadFiles;
-		}
-		else {
-			goto justGetAnyPreset;
-		}
-	}
-
-	// Store rightmost display name before filtering, for later.
-	String lastFileItemDisplayNameBeforeFiltering;
-	FileItem* rightmostFileItemBeforeFiltering = (FileItem*)fileItems.getElementAddress(fileItems.getNumElements() - 1);
-	toReturn.error = lastFileItemDisplayNameBeforeFiltering.set(rightmostFileItemBeforeFiltering->displayName);
-	if (toReturn.error) goto doReturn;
-
-	deleteFolderAndDuplicateItems(availabilityRequirement);
-
-	// If we've shot off the end of the list, that means our searched-for preset didn't exist or wasn't available, and any subsequent ones which at first made it onto the
-	// (possibly truncated) list also weren't available.
-	if (!fileItems.getNumElements()) {
-		if (numFileItemsDeletedAtEnd) { // Probably couldn'g happen anymore...
-			// We have to read more FileItems, further to the right.
-			searchNameLocalCopy.set(&lastFileItemDisplayNameBeforeFiltering); // Can't fail.
-			goto doReadFiles;
-		}
-		else {
-			// If we've already been trying to grab just any preset within this folder, well that's failed.
-			if (shouldJustGrabLeftmost) {
-				goto justGetAnyPreset;
-			}
-
-			// Otherwise, let's do that now:
-			// We might have to go back and read FileItems again from the start...
-			else if (numFileItemsDeletedAtStart) {
-				goto needToGrabLeftmostButHaveToReadFirst;
-			}
-
-			// Or, if we've actually managed to fit the whole folder contents into our fileItems...
-			else {
-				// Well, if there's still nothing in that, then we really need to give up.
-				if (!fileItems.getNumElements()) {
-					goto justGetAnyPreset;
-				}
-				// Otherwise, everything's fine and we can just take the first element.
-			}
-		}
-	}
-	toReturn.fileItem = (FileItem*)fileItems.getElementAddress(0);
-	goto doReturn;
-}
 
 // You must set currentDir before calling this.
 int Browser::getUnusedSlot(int instrumentType, String* newName, char const* thingName) {
@@ -991,213 +794,17 @@ emptyFileItemsAndReturn:
 	goto doReturn;
 }
 
-// Caller must call emptyFileItems() at some point after calling this function - unless an error is returned.
-// Caller must remove OLED working animation after calling this too.
-PresetNavigationResult Browser::doPresetNavigation(int offset, Instrument* oldInstrument, int availabilityRequirement,
-                                                   bool doBlink) {
 
-	AudioEngine::logAction("doPresetNavigation");
 
-	currentDir.set(&oldInstrument->dirPath);
-	int instrumentType = oldInstrument->type;
-
-	PresetNavigationResult toReturn;
-
-	String oldNameString; // We only might use this later for temporary storage
-	String newName;
-
-	oldNameString.set(&oldInstrument->name);
-	toReturn.error = oldNameString.concatenate(".XML");
-	if (toReturn.error) {
-doReturn:
-		return toReturn;
-	}
-
-readAgain:
-	int newCatalogSearchDirection = (offset >= 0) ? CATALOG_SEARCH_RIGHT : CATALOG_SEARCH_LEFT;
-readAgainWithSameOffset:
-	toReturn.error =
-	    readFileItemsForFolder(getThingName(instrumentType), false, allowedFileExtensionsXML, oldNameString.get(),
-	                           FILE_ITEMS_MAX_NUM_ELEMENTS_FOR_NAVIGATION, newCatalogSearchDirection);
-
-	if (toReturn.error) goto doReturn;
-
-	AudioEngine::logAction("doPresetNavigation2");
-
-	toReturn.error = currentSong->addInstrumentsToFileItems(instrumentType);
-	if (toReturn.error) {
-emptyFileItemsAndReturn:
-		emptyFileItems();
-		goto doReturn;
-	}
-	AudioEngine::logAction("doPresetNavigation3");
-
-	sortFileItems();
-	AudioEngine::logAction("doPresetNavigation4");
-
-	deleteFolderAndDuplicateItems(AVAILABILITY_INSTRUMENT_AVAILABLE_IN_SESSION);
-	AudioEngine::logAction("doPresetNavigation5");
-
-	// Now that we've deleted duplicates etc...
-	if (!fileItems.getNumElements()) {
-reachedEnd:
-		// If we've reached one end, try going again from the far other end.
-		if (!oldNameString.isEmpty()) {
-			oldNameString.clear();
-			goto readAgainWithSameOffset;
-		}
-		else {
-noErrorButGetOut:
-			toReturn.error = NO_ERROR_BUT_GET_OUT;
-			goto emptyFileItemsAndReturn;
-		}
-	}
-	else if (fileItems.getNumElements() == 1
-	         && ((FileItem*)fileItems.getElementAddress(0))->instrument == oldInstrument)
-		goto reachedEnd;
-
-	int i = (offset >= 0) ? 0 : (fileItems.getNumElements() - 1);
-	/*
-	if (i >= fileItems.getNumElements()) { // If not found *and* we'd be past the end of the list...
-		if (offset >= 0) i = 0;
-		else i = fileItems.getNumElements() - 1;
-		goto doneMoving;
-	}
-	else {
-		int oldNameLength = strlen(oldNameChars);
-		FileItem* searchResultItem = (FileItem*)fileItems.getElementAddress(i);
-		if (memcasecmp(oldNameChars, searchResultItem->displayName, oldNameLength)) {
-notFound:	if (offset < 0) {
-				i--;
-				if (i < 0) i += fileItems.getNumElements();
-			}
-			goto doneMoving;
-		}
-		if (searchResultItem->filenameIncludesExtension) {
-			if (strrchr(searchResultItem->displayName, '.') != &searchResultItem->displayName[oldNameLength]) goto notFound;
-		}
-		else {
-			if (searchResultItem->displayName[oldNameLength] != 0) goto notFound;
-		}
-	}
-*/
-	if (false) {
-moveAgain:
-		// Move along list
-		i += offset;
-	}
-
-	// If moved left off the start of the list...
-	if (i < 0) {
-		if (numFileItemsDeletedAtStart) {
-			goto readAgain;
-		}
-		else { // Wrap to end
-			if (numFileItemsDeletedAtEnd) {
-searchFromOneEnd:
-				oldNameString.clear();
-				uartPrintln("reloading and wrap");
-				goto readAgain;
-			}
-			else {
-				i = fileItems.getNumElements() - 1;
-			}
-		}
-	}
-
-	// Or if moved right off the end of the list...
-	else if (i >= fileItems.getNumElements()) {
-		if (numFileItemsDeletedAtEnd) {
-			goto readAgain;
-		}
-		else { // Wrap to start
-			if (numFileItemsDeletedAtStart) {
-				goto searchFromOneEnd;
-			}
-			else {
-				i = 0;
-			}
-		}
-	}
-
-doneMoving:
-	toReturn.fileItem = (FileItem*)fileItems.getElementAddress(i);
-
-	toReturn.loadedFromFile = false;
-	bool isHibernating = toReturn.fileItem->instrument && !toReturn.fileItem->instrumentAlreadyInSong;
-
-	if (toReturn.fileItem->instrument) {
-		view.displayOutputName(toReturn.fileItem->instrument, doBlink);
-	}
-	else {
-		toReturn.error = toReturn.fileItem->getDisplayNameWithoutExtension(&newName);
-		if (toReturn.error) goto emptyFileItemsAndReturn;
-		toReturn.error = oldNameString.set(toReturn.fileItem->displayName);
-		if (toReturn.error) goto emptyFileItemsAndReturn;
-		view.drawOutputNameFromDetails(instrumentType, 0, 0, newName.get(), false, doBlink);
-	}
-
-#if HAVE_OLED
-	OLED::sendMainImage(); // Sorta cheating - bypassing the UI layered renderer.
-#endif
-
-	if (Encoders::encoders[ENCODER_SELECT].detentPos) {
-		Uart::println("go again 1 --------------------------");
-
-doPendingPresetNavigation:
-		offset = Encoders::encoders[ENCODER_SELECT].getLimitedDetentPosAndReset();
-
-		if (toReturn.loadedFromFile) {
-			currentSong->deleteOutput(toReturn.fileItem->instrument);
-			toReturn.fileItem->instrument = NULL;
-		}
-		goto moveAgain;
-	}
-
-	// Unlike in ClipMinder, there's no need to check whether we came back to the same Instrument, cos we've specified that we were looking for "unused" ones only
-
-	if (!toReturn.fileItem->instrument) {
-		toReturn.error = storageManager.loadInstrumentFromFile(
-		    currentSong, NULL, instrumentType, false, &toReturn.fileItem->instrument, &toReturn.fileItem->filePointer,
-		    &newName, &Browser::currentDir);
-		if (toReturn.error) goto emptyFileItemsAndReturn;
-
-		toReturn.loadedFromFile = true;
-
-		if (Encoders::encoders[ENCODER_SELECT].detentPos) {
-			Uart::println("go again 2 --------------------------");
-			goto doPendingPresetNavigation;
-		}
-	}
-
-	//view.displayOutputName(toReturn.fileItem->instrument);
-
-#if HAVE_OLED
-	OLED::displayWorkingAnimation("Loading");
-#else
-	numericDriver.displayLoadingAnimation(false, true);
-#endif
-	int oldUIMode = currentUIMode;
-	currentUIMode = UI_MODE_LOADING_BUT_ABORT_IF_SELECT_ENCODER_TURNED;
-	toReturn.fileItem->instrument->loadAllAudioFiles(true);
-	currentUIMode = oldUIMode;
-
-	// If user wants to move on...
-	if (Encoders::encoders[ENCODER_SELECT].detentPos) {
-		Uart::println("go again 3 --------------------------");
-		goto doPendingPresetNavigation;
-	}
-
-	if (isHibernating) currentSong->removeInstrumentFromHibernationList(toReturn.fileItem->instrument);
-
-	goto doReturn;
-}
 
 void Browser::selectEncoderAction(int8_t offset) {
 	arrivedAtFileByTyping = false;
 
 	if (currentUIMode != UI_MODE_NONE && currentUIMode != UI_MODE_HORIZONTAL_SCROLL)
 		return; // This was from SampleBrowser. Is it still necessary?
+
+	shouldInterpretNoteNames = shouldInterpretNoteNamesForThisBrowser;
+	octaveStartsFromA = false;
 
 	int newFileIndex;
 
@@ -1346,16 +953,32 @@ searchFromOneEnd:
 		scrollPosVertical = fileIndexSelected - NUM_FILES_ON_SCREEN + 1;
 	}
 
+	enteredTextEditPos = 0;
+#if HAVE_OLED
+	scrollPosHorizontal = 0;
+#else
+	char const* oldCharAddress = enteredText.get();
+	char const* newCharAddress = getCurrentFileItem()->displayName; // Will have file extension, so beware...
+	while (true) {
+		char oldChar = *oldCharAddress;
+		char newChar = *newCharAddress;
+
+		if (oldChar >= 'A' && oldChar <= 'Z') oldChar += 32;
+		if (newChar >= 'A' && newChar <= 'Z') newChar += 32;
+
+		if (oldChar != newChar) break;
+		oldCharAddress++;
+		newCharAddress++;
+		enteredTextEditPos++;
+	}
+#endif
+
 	error = setEnteredTextFromCurrentFilename();
 	if (error) {
 		numericDriver.displayError(error);
 		return;
 	}
 
-	enteredTextEditPos = 0;
-#if HAVE_OLED
-	scrollPosHorizontal = 0;
-#endif
 
 	displayText();
 	currentFileChanged(offset);
@@ -1364,6 +987,8 @@ searchFromOneEnd:
 bool Browser::predictExtendedText() {
 	int error;
 	arrivedAtFileByTyping = true;
+	shouldInterpretNoteNames = shouldInterpretNoteNamesForThisBrowser;
+	octaveStartsFromA = false;
 
 	FileItem* oldFileItem = getCurrentFileItem();
 	DWORD oldClust = 0;
@@ -1637,7 +1262,7 @@ doQWERTYDisplay:
 			}
 
 			else {
-nonNumeric:
+nonNumeric:		goto doQWERTYDisplay; // Abandon the below for now.
 				numberEditPos = -1;
 				if (qwertyVisible) goto doQWERTYDisplay;
 				else scrollingText = numericDriver.setScrollingText(enteredText.get(), numCharsInPrefix);
@@ -1739,6 +1364,7 @@ int Browser::setEnteredTextFromCurrentFilename() {
 	int error = enteredText.set(currentFileItem->displayName);
 	if (error) return error;
 
+	// Cut off the file extension
 	if (!currentFileItem->isFolder) {
 		char const* enteredTextChars = enteredText.get();
 		char const* dotAddress = strrchr(enteredTextChars, '.');
@@ -1819,6 +1445,9 @@ int Browser::createFolder() {
 }
 
 void Browser::sortFileItems() {
+	shouldInterpretNoteNames = shouldInterpretNoteNamesForThisBrowser;
+	octaveStartsFromA = false;
+
 	fileItems.sortForStrings();
 
 	// If we're just wanting to look to one side or the other of a given filename, then delete everything in the other direction.

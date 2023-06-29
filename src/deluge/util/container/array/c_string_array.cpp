@@ -26,6 +26,7 @@
 int workCount;
 
 // This uses Hoare's partitioning scheme, which has the advantage that it won't go slow if the elements are already sorted - which they often will be as filenames read off an SD card.
+// You must set shouldInterpretNoteNames and octaveStartsFromA before calling this.
 int CStringArray::partitionForStrings(int low, int high) {
 	char const* pivotString = *(char const**)getElementAddress(
 	    (low + high) >> 1); // Pivot - rightmost element. Though this is very bad if the array is already sorted...
@@ -33,14 +34,14 @@ int CStringArray::partitionForStrings(int low, int high) {
 	int i = low - 1;
 	int j = high + 1;
 
-	while (true) {
-		do {
-			i++;
-		} while (strcmpspecial(*(char const**)getElementAddress(i), pivotString, true) < 0);
+    while (true) {
+    	do {
+    		i++;
+    	} while (strcmpspecial(*(char const**)getElementAddress(i), pivotString) < 0);
 
-		do {
-			j--;
-		} while (strcmpspecial(*(char const**)getElementAddress(j), pivotString, true) > 0);
+    	do {
+    		j--;
+    	} while (strcmpspecial(*(char const**)getElementAddress(j), pivotString) > 0);
 
 		if (i >= j) return j;
 
@@ -48,6 +49,7 @@ int CStringArray::partitionForStrings(int low, int high) {
 	}
 }
 
+// You must set shouldInterpretNoteNames and octaveStartsFromA before calling this.
 void CStringArray::quickSortForStrings(int low, int high) {
 	while (low < high) {
 		/* pi is partitioning index, arr[p] is now
@@ -72,6 +74,8 @@ void CStringArray::quickSortForStrings(int low, int high) {
 	}
 }
 
+
+// You must set shouldInterpretNoteNames and octaveStartsFromA before calling this.
 void CStringArray::sortForStrings() {
 	if (numElements < 2) return;
 
@@ -80,6 +84,7 @@ void CStringArray::sortForStrings() {
 }
 
 // Array must be sorted before you call this.
+// You must set shouldInterpretNoteNames and octaveStartsFromA before calling this.
 int CStringArray::search(char const* searchString, bool* foundExact) {
 
 	int rangeBegin = 0;
@@ -91,7 +96,7 @@ int CStringArray::search(char const* searchString, bool* foundExact) {
 		proposedIndex = rangeBegin + (rangeSize >> 1);
 
 		char const* stringHere = *(char const**)getElementAddress(proposedIndex);
-		int result = strcmpspecial(stringHere, searchString, true);
+		int result = strcmpspecial(stringHere, searchString);
 
 		if (!result) {
 			if (foundExact) *foundExact = true;

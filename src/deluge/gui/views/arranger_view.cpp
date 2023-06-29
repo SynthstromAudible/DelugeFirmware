@@ -701,8 +701,7 @@ displayError:
 		return NULL;
 	}
 
-	result = Browser::findAnUnlaunchedPresetIncludingWithinSubfolders(currentSong, newInstrumentType,
-	                                                                  AVAILABILITY_INSTRUMENT_UNUSED);
+	result = loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(currentSong, newInstrumentType, AVAILABILITY_INSTRUMENT_UNUSED);
 	if (result.error) goto displayError;
 
 	Instrument* newInstrument = result.fileItem->instrument;
@@ -2269,8 +2268,7 @@ cantDoIt:
 	// Or if we're on a Kit or Synth...
 	else {
 
-		PresetNavigationResult results =
-		    Browser::doPresetNavigation(offset, oldInstrument, AVAILABILITY_INSTRUMENT_UNUSED, true);
+		PresetNavigationResult results = loadInstrumentPresetUI.doPresetNavigation(offset, oldInstrument, AVAILABILITY_INSTRUMENT_UNUSED, true);
 		if (results.error == NO_ERROR_BUT_GET_OUT) {
 removeWorkingAnimationAndGetOut:
 #if HAVE_OLED
