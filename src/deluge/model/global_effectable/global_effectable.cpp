@@ -134,6 +134,11 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 				case MOD_FX_TYPE_CHORUS:
 					displayText = "CHORUS";
 					break;
+
+				case MOD_FX_TYPE_CHORUS_STEREO:
+					displayText = "STEREO CHORUS";
+					break;
+
 				}
 				numericDriver.displayPopup(displayText);
 				ensureModFXParamIsValid();
@@ -312,12 +317,12 @@ void GlobalEffectable::ensureModFXParamIsValid() {
 			}
 		}
 		else if (currentModFXParam == MOD_FX_PARAM_OFFSET) {
-			if (modFXType != MOD_FX_TYPE_CHORUS) {
+			if (modFXType != MOD_FX_TYPE_CHORUS && modFXType != MOD_FX_TYPE_CHORUS_STEREO) {
 				goto ohNo;
 			}
 		}
 		else { // MOD_FX_PARAM_FEEDBACK
-			if (modFXType == MOD_FX_TYPE_CHORUS) {
+			if (modFXType == MOD_FX_TYPE_CHORUS || modFXType == MOD_FX_TYPE_CHORUS_STEREO) {
 				goto ohNo;
 			}
 		}
@@ -688,7 +693,7 @@ void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, i
 
 	// For GlobalEffectables, mod FX buffer memory is allocated here in the rendering routine - this might seem strange, but
 	// it's because unlike for Sounds, the effect can be switched on and off by changing a parameter like "depth".
-	if (modFXTypeNow == MOD_FX_TYPE_FLANGER || modFXTypeNow == MOD_FX_TYPE_CHORUS) {
+	if (modFXTypeNow == MOD_FX_TYPE_FLANGER || modFXTypeNow == MOD_FX_TYPE_CHORUS  || modFXTypeNow == MOD_FX_TYPE_CHORUS_STEREO) {
 		if (!modFXBuffer) {
 			modFXBuffer =
 			    (StereoSample*)generalMemoryAllocator.alloc(modFXBufferSize * sizeof(StereoSample), NULL, false, true);
