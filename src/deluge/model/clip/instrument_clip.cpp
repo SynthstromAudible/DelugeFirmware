@@ -63,6 +63,7 @@
 #include "modulation/params/param_node.h"
 #include "gui/ui/browser/browser.h"
 #include "storage/file_item.h"
+#include "gui/ui/load/load_instrument_preset_ui.h"
 
 #if HAVE_OLED
 #include "hid/display/oled.h"
@@ -3192,7 +3193,7 @@ displayError:
 			}
 		}
 
-		result = Browser::confirmPresetOrNextUnlaunchedOne(newInstrumentType, &newName, availabilityRequirement);
+		result = loadInstrumentPresetUI.confirmPresetOrNextUnlaunchedOne(newInstrumentType, &newName, availabilityRequirement);
 		if (result.error) goto displayError;
 
 		newInstrument = result.fileItem->instrument;

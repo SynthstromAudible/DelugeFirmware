@@ -30,7 +30,8 @@
 	if (lock) {                                                                                                        \
 		numericDriver.freezeWithError("i008");                                                                         \
 	}                                                                                                                  \
-	lock = true;
+	lock =                                                                                                             \
+	    true; // Bay_Mud got this error around V4.0.1 (must have been a beta), and thinks a FlashAir card might have been a catalyst. It still "shouldn't" be able to happen though.
 #define LOCK_EXIT lock = false;
 #else
 #define LOCK_ENTRY                                                                                                     \
