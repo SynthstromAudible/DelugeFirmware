@@ -63,6 +63,7 @@
 #include "Browser.h"
 #include "FileItem.h"
 #include "oled.h"
+#include "LoadInstrumentPresetUI.h"
 
 extern "C" {
 #include "sio_char.h"
@@ -305,7 +306,7 @@ bool Song::ensureAtLeastOneSessionClip() {
     	result.error = Browser::currentDir.set("SYNTHS");
     	if (result.error) goto couldntLoad;
 
-		result = Browser::findAnUnlaunchedPresetIncludingWithinSubfolders(NULL, INSTRUMENT_TYPE_SYNTH, AVAILABILITY_ANY);
+		result = loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(NULL, INSTRUMENT_TYPE_SYNTH, AVAILABILITY_ANY);
 
 		Instrument* newInstrument;
 
@@ -3938,7 +3939,7 @@ displayError:
 			return NULL;
 		}
 
-		result = Browser::findAnUnlaunchedPresetIncludingWithinSubfolders(this, newInstrumentType, AVAILABILITY_INSTRUMENT_UNUSED);
+		result = loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(this, newInstrumentType, AVAILABILITY_INSTRUMENT_UNUSED);
 		if (result.error) goto displayError;
 
 		newInstrument = result.fileItem->instrument;
@@ -4683,7 +4684,7 @@ doHibernatingInstruments:
     	// If different path, it's not relevant.
     	if (!thisInstrument->dirPath.equals(&Browser::currentDir)) continue;
 
-		FileItem* thisItem = Browser::getNewFileItem();
+		FileItem* thisItem = loadInstrumentPresetUI.getNewFileItem();
 		if (!thisItem) {
 			return ERROR_INSUFFICIENT_RAM;
 		}

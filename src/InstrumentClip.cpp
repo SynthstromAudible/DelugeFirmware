@@ -63,6 +63,7 @@
 #include "ParamNode.h"
 #include "Browser.h"
 #include "FileItem.h"
+#include "LoadInstrumentPresetUI.h"
 
 #if HAVE_OLED
 #include "oled.h"
@@ -3115,7 +3116,7 @@ displayError:	numericDriver.displayError(result.error);
 			}
 		}
 
-		result = Browser::confirmPresetOrNextUnlaunchedOne(newInstrumentType, &newName, availabilityRequirement);
+		result = loadInstrumentPresetUI.confirmPresetOrNextUnlaunchedOne(newInstrumentType, &newName, availabilityRequirement);
 		if (result.error) goto displayError;
 
 		newInstrument = result.fileItem->instrument;

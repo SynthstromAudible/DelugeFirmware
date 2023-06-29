@@ -39,6 +39,9 @@ public:
 	bool renderMainPads(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3] = NULL, uint8_t occupancyMask[][displayWidth + sideBarWidth] = NULL,
 		    		bool drawUndefinedArea = true, int navSys = -1) { return true; }
 	bool renderSidebar(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3], uint8_t occupancyMask[][displayWidth + sideBarWidth]);
+    ReturnOfConfirmPresetOrNextUnlaunchedOne findAnUnlaunchedPresetIncludingWithinSubfolders(Song* song, int instrumentType, int availabilityRequirement);
+    ReturnOfConfirmPresetOrNextUnlaunchedOne confirmPresetOrNextUnlaunchedOne(int instrumentType, String* searchName, int availabilityRequirement);
+    PresetNavigationResult doPresetNavigation(int offset, Instrument* oldInstrument, int availabilityRequirement, bool doBlink);
 
 	InstrumentClip* instrumentClipToLoadFor; // Can be NULL - if called from Arranger.
 	Instrument* instrumentToReplace; // The Instrument that's actually successfully loaded and assigned to the Clip.

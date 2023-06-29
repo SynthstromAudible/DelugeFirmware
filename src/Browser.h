@@ -59,6 +59,9 @@ struct Slot {
 #define CATALOG_SEARCH_RIGHT	1
 #define CATALOG_SEARCH_BOTH		2
 
+#define FILE_ITEMS_MAX_NUM_ELEMENTS 20
+#define FILE_ITEMS_MAX_NUM_ELEMENTS_FOR_NAVIGATION 20 // It "should" be able to be way less than this.
+
 extern char const* allowedFileExtensionsXML[];
 
 class Browser : public QwertyUI {
@@ -73,19 +76,16 @@ public:
     int createFolder();
     void selectEncoderAction(int8_t offset);
     static FileItem* getCurrentFileItem();
-    static int readFileItemsForFolder(char const* filePrefixHere, bool allowFolders, char const** allowedFileExtensionsHere,
+    int readFileItemsForFolder(char const* filePrefixHere, bool allowFolders, char const** allowedFileExtensionsHere,
     		char const* filenameToStartAt, int newMaxNumFileItems, int newCatalogSearchDirection = CATALOG_SEARCH_BOTH);
-    static void sortFileItems();
-    static FileItem* getNewFileItem();
+    void sortFileItems();
+    FileItem* getNewFileItem();
     static void emptyFileItems();
     static void deleteSomeFileItems(int startAt, int stopAt);
     static void deleteFolderAndDuplicateItems(int instrumentAvailabilityRequirement = AVAILABILITY_ANY);
-    static PresetNavigationResult doPresetNavigation(int offset, Instrument* oldInstrument, int availabilityRequirement, bool doBlink);
-    static int getUnusedSlot(int instrumentType, String* newName, char const* thingName);
-    static ReturnOfConfirmPresetOrNextUnlaunchedOne confirmPresetOrNextUnlaunchedOne(int instrumentType, String* searchName, int availabilityRequirement);
-    static ReturnOfConfirmPresetOrNextUnlaunchedOne findAnUnlaunchedPresetIncludingWithinSubfolders(Song* song, int instrumentType, int availabilityRequirement);
+    int getUnusedSlot(int instrumentType, String* newName, char const* thingName);
     bool opened();
-    static void cullSomeFileItems();
+    void cullSomeFileItems();
 
 #if HAVE_OLED
     void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
@@ -115,7 +115,7 @@ protected:
     virtual void currentFileChanged(int movementDirection) {}
     void displayText(bool blinkImmediately = false);
 	static Slot getSlot(char const* displayName);
-	static int readFileItemsFromFolderAndMemory(Song* song, int instrumentType, char const* filePrefixHere, char const* filenameToStartAt,
+	int readFileItemsFromFolderAndMemory(Song* song, int instrumentType, char const* filePrefixHere, char const* filenameToStartAt,
 			char const* defaultDirToAlsoTry, bool allowFoldersint, int availabilityRequirement = AVAILABILITY_ANY, int newCatalogSearchDirection = CATALOG_SEARCH_RIGHT);
 
     static int fileIndexSelected; // If -1, we have not selected any real file/folder. Maybe there are no files, or maybe we're typing a new name.
@@ -136,6 +136,7 @@ protected:
     bool allowBrandNewNames;
     bool qwertyAlwaysVisible;
     char const* filePrefix;
+    bool shouldInterpretNoteNamesForThisBrowser;
 
 };
 

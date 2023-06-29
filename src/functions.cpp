@@ -1514,192 +1514,182 @@ int32_t doLanczosCircular(int32_t* data, int32_t pos, uint32_t posWithinPos, int
 	return value;
 }
 
+struct ComparativeNoteNumber {
+	int noteNumber;
+	int stringLength;
+};
 
-// Returns 1 if first > second
-// Returns -1 if first < second
-int strcmpspecial(char const* first, char const* second, bool shouldInterpretNoteNames, bool octaveStartsFromA) {
+// Returns 100000 if the string is not a note name.
+// The returned number is *not* a MIDI note. It's arbitrary, used for comparisons only.
+// noteChar has been made lowercase, which is why we can't just take it from the string.
+ComparativeNoteNumber getComparativeNoteNumberFromChars(char const* string, char noteChar, bool octaveStartsFromA) {
+	char const* stringStart = string;
+	ComparativeNoteNumber toReturn;
 
-	bool previousWasPotentialNoteLetter = false; // FYI, this can only get set to true if shouldInterpretNoteNames is true
+	toReturn.noteNumber = noteChar - 'a';
 
-	int firstNoteCode;
-	int secondNoteCode;
+	if (!octaveStartsFromA) {
+		toReturn.noteNumber -= 2;
+		if (toReturn.noteNumber < 0) toReturn.noteNumber += 7;
+	}
 
-	char firstNoteLetter;
-	char secondNoteLetter;
+	toReturn.noteNumber *= 3; // To make room for flats and sharps, below.
 
-	char const* firstPosBeforeFlatOrSharp;
-	char const* secondPosBeforeFlatOrSharp;
+	string++;
+	if (*string == 'b') {
+		toReturn.noteNumber--;
+		string++;
+	}
+	else if (*string == '#') {
+		toReturn.noteNumber++;
+		string++;
+	}
 
-	char const* firstInitially = first;
-	char const* secondInitially = second;
+	bool numberIsNegative = false;
+	if (*string == '-') {
+		numberIsNegative = true;
+		string++;
+	}
+
+	if (*string < '1' || *string > '9') { // There has to be at least some number there if we're to consider this a note name. And it can't start with 0.
+		toReturn.noteNumber = 100000;
+		toReturn.stringLength = 0;
+		return toReturn;
+	}
+
+	int number = *string - '0';
+	string++;
 
 	while (true) {
-		/*
-		if (*first == 0) {
-			if (*second == 0) {
-				if (previousWasPotentialNoteLetter) {
-					//if (firstNoteCode < secondNoteCode) return -1;
-					//else if (firstNoteCode > secondNoteCode) return 1;
 
-					//if (firstNoteLetter < secondNoteLetter) return -1;
-					//else if (firstNoteLetter > secondNoteLetter) return 1;
-
-					first = firstPosBeforeFlatOrSharp;
-					second = secondPosBeforeFlatOrSharp;
-				}
-				return strcasecmp(first, second); // Have to check that they're exactly the same, regardless of numbers
-			}
-			else return -1;
+		if (*string >= '0' && *string <= '9') {
+			number *= 10;
+			number += *string - '0';
+			string++;
 		}
-		if (*second == 0) return 1;
-		*/
+		else {
+			if (numberIsNegative) number = -number;
+			toReturn.noteNumber += number * 36;
+			toReturn.stringLength = string - stringStart;
+			return toReturn;
+		}
+	}
+}
 
-		if (*first == 0 || *second == 0) {
-			/*
-			if (previousWasPotentialNoteLetter) {
-				first = firstPosBeforeFlatOrSharp;
-				second = secondPosBeforeFlatOrSharp;
-			}
-			*/
-			return strcasecmp(firstInitially, secondInitially); // Have to check that they're exactly the same, regardless of numbers
+
+// Returns positive if first > second
+// Returns negative if first < second
+bool shouldInterpretNoteNames;	// You must set this at some point before calling strcmpspecial. This isn't implemented as an argument because
+								// sometimes you want to set it way up the call tree, and passing it all the way down is a pain.
+
+bool octaveStartsFromA;			// You must set this if setting shouldInterpretNoteNames to true.
+
+int strcmpspecial(char const* first, char const* second) {
+
+	int resultIfGetToEndOfBothStrings = 0;
+
+	while (true) {
+		bool firstIsFinished = (*first == 0);
+		bool secondIsFinished = (*second == 0);
+
+		if (firstIsFinished && secondIsFinished) return resultIfGetToEndOfBothStrings; // If both are finished
+
+		if (firstIsFinished || secondIsFinished) { // If just one is finished
+			return (int)*first - (int)*second;
 		}
 
-		// Only parse negative numbers as part of a note name - that's where they're most commonly used, and elsewhere it's hard to know if the '-' is just a notational dash
-		bool firstIsNegativeNumber = (previousWasPotentialNoteLetter && *first == '-' && *(first + 1) >= '0' && *(first + 1) <= '9');
-		bool secondIsNegativeNumber = (previousWasPotentialNoteLetter && *second == '-' && *(second + 1) >= '0' && *(second + 1) <= '9');
-
-		bool firstIsNumber = (firstIsNegativeNumber || (*first >= '0' && *first <= '9'));
-		bool secondIsNumber = (secondIsNegativeNumber || (*second >= '0' && *second <= '9'));
+		bool firstIsNumber = (*first >= '0' && *first <= '9');
+		bool secondIsNumber = (*second >= '0' && *second <= '9');
 
 		// If they're both numbers...
 		if (firstIsNumber && secondIsNumber) {
 
-			if (firstIsNegativeNumber) first++;
-			if (secondIsNegativeNumber) second++;
+			// If we haven't yet seen a differing number of leading zeros in a number, see if that exists here.
+			if (!resultIfGetToEndOfBothStrings) {
+				char const* firstHere = first;
+				char const* secondHere = second;
+				while (true) {
+					char firstChar = *firstHere;
+					char secondChar = *secondHere;
+					bool firstDigitIsLeadingZero = (firstChar == '0');
+					bool secondDigitIsLeadingZero = (secondChar == '0');
 
-			int firstNumber = 0;
-			int secondNumber = 0;
+					if (firstDigitIsLeadingZero && secondDigitIsLeadingZero) { // If both are zeros, look at next chars.
+						firstHere++;
+						secondHere++;
+						continue;
+					}
 
-			do {
+					//else if (!firstDigitIsLeadingZero || !secondDigitIsLeadingZero) break;	// If both are not zeros, we're done.
+																								// Actually, the same end result is achieved without that line.
+
+					// If we're still here, one is a leading zero and the other isn't.
+					resultIfGetToEndOfBothStrings = (int)firstChar - (int)secondChar;	// Will still end up as zero when that needs to happen.
+					break;
+				}
+			}
+
+			int firstNumber = *first - '0';
+			int secondNumber = *second - '0';
+			first++;
+			second++;
+
+			while (*first >= '0' && *first <= '9') {
 				firstNumber *= 10;
 				firstNumber += *first - '0';
 				first++;
 			}
-			while (*first >= '0' && *first <= '9');
 
-			do {
+			while (*second >= '0' && *second <= '9') {
 				secondNumber *= 10;
 				secondNumber += *second - '0';
 				second++;
 			}
-			while (*second >= '0' && *second <= '9');
 
-			if (firstIsNegativeNumber) firstNumber = -firstNumber;
-			if (secondIsNegativeNumber) secondNumber = -secondNumber;
-
-			if (previousWasPotentialNoteLetter) {
-
-				if (!octaveStartsFromA) {
-					firstNoteCode -= 2 * 3;
-					if (firstNoteCode < 0) firstNoteCode += 7 * 3;
-
-					secondNoteCode -= 2 * 3;
-					if (secondNoteCode < 0) secondNoteCode += 7 * 3;
-				}
-
-
-				firstNumber = firstNumber * 32 + firstNoteCode;
-				secondNumber = secondNumber * 32 + secondNoteCode;
-				previousWasPotentialNoteLetter = false;
-			}
-
-			if (firstNumber < secondNumber) return -1;
-			else if (firstNumber > secondNumber) return 1;
+			int difference = firstNumber - secondNumber;
+			if (difference) return difference;
 		}
 
-		// Otherwise...
+		// Otherwise, if not both numbers...
 		else {
 
 			char firstChar = *first;
 			char secondChar = *second;
 
-			if (previousWasPotentialNoteLetter) {
-
-				// If we got here, we know they're not both numbers...
-
-				bool foundAtLeastOneFlatOrSharp = false;
-				if (firstChar == 'b') {
-					firstNoteCode--;
-					goto incrementFirst;
-				}
-				else if (firstChar == '#') {
-					firstNoteCode++;
-incrementFirst:
-					first++;
-					foundAtLeastOneFlatOrSharp = true;
-				}
-
-				if (secondChar == 'b') {
-					secondNoteCode--;
-					goto incrementSecond;
-				}
-				else if (secondChar == '#') {
-					secondNoteCode++;
-incrementSecond:
-					second++;
-					foundAtLeastOneFlatOrSharp = true;
-				}
-
-				// If found at least one flat or sharp, go do another whole comparison - there might be some numbers next
-				if (foundAtLeastOneFlatOrSharp) continue;
-
-				// Or, if didn't find any (more) flats or sharps...
-				else {
-					// We know that it's not the case that both are numbers. But if one is and the other isn't, we can conclude that the one
-					// with the number has a proper note-name, and the other doesn't - it's just a word happening to start with that letter.
-					// We choose to put notes before non-notes. Without this step, we got a weird loop
-					//if (firstIsNumber) return -1;
-					//if (secondIsNumber) return 1;
-				}
-
-				if (firstNoteLetter < secondNoteLetter) return -1;
-				else if (firstNoteLetter > secondNoteLetter) return 1;
-
-				// Or if we're still here, carry on. Backtrack on any flats or sharps seen.
-				previousWasPotentialNoteLetter = false;
-				first = firstPosBeforeFlatOrSharp;
-				second = secondPosBeforeFlatOrSharp;
-				goto carryOn;
-			}
-
 			// Make lowercase
 			if (firstChar >= 'A' && firstChar <= 'Z') firstChar += 32;
 			if (secondChar >= 'A' && secondChar <= 'Z') secondChar += 32;
 
-			// If we're doing note ordering, and if both characters are potential note letters...
-			if (shouldInterpretNoteNames &&
-					firstChar >= 'a' && firstChar <= 'g' &&
-					secondChar >= 'a' && secondChar <= 'g') {
+			// If we're doing note ordering...
+			if (shouldInterpretNoteNames) {
+				ComparativeNoteNumber firstResult, secondResult;
+				firstResult.noteNumber = 100000;
+				firstResult.stringLength = 0;
+				secondResult.noteNumber = 100000;
+				secondResult.stringLength = 0;
 
-				previousWasPotentialNoteLetter = true;
-				firstPosBeforeFlatOrSharp = first;
-				secondPosBeforeFlatOrSharp = second;
+				if (firstChar >= 'a' && firstChar <= 'g') {
+					firstResult = getComparativeNoteNumberFromChars(first, firstChar, octaveStartsFromA);
+				}
 
-				firstNoteLetter = firstChar;
-				secondNoteLetter = secondChar;
-				firstNoteCode = firstChar - 'a';
-				secondNoteCode = secondChar - 'a';
+				if (secondChar >= 'a' && secondChar <= 'g') {
+					secondResult = getComparativeNoteNumberFromChars(second, secondChar, octaveStartsFromA);
+				}
 
-				firstNoteCode = firstNoteCode * 3 + 1;
-				secondNoteCode = secondNoteCode * 3 + 1;
-				goto carryOn;
+				if (firstResult.noteNumber == secondResult.noteNumber) {
+					if (!firstResult.stringLength && !secondResult.stringLength) goto doNormal;
+					first += firstResult.stringLength;
+					second += secondResult.stringLength;
+				}
+				else {
+					return firstResult.noteNumber - secondResult.noteNumber;
+				}
 			}
 
 			else {
-
+doNormal:
 				// If they're the same, carry on
 				if (firstChar == secondChar) {
-carryOn:
 					first++;
 					second++;
 				}
@@ -1707,17 +1697,13 @@ carryOn:
 				// Otherwise...
 				else {
 					// Dot then underscore comes first
-					if (firstChar == 0) return -1;
-					else if (secondChar == 0) return 1;
-
 					if (firstChar == '.') return -1;
-					else if (secondChar == '.') return 1;
+					else if (secondChar == '.') return 1; // We know they're not both the same - see above.
 
 					if (firstChar == '_') return -1;
 					else if (secondChar == '_') return 1;
 
-					if (firstChar < secondChar) return -1;
-					else return 1;
+					return (int)firstChar - (int)secondChar;
 				}
 			}
 		}
