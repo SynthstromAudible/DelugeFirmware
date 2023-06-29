@@ -335,7 +335,7 @@ void Sound::setupAsBlankSynth(ParamManager* paramManager) {
 
 // Returns false if not enough ram
 bool Sound::setModFXType(int newType) {
-	if (newType == MOD_FX_TYPE_FLANGER || newType == MOD_FX_TYPE_CHORUS) {
+	if (newType == MOD_FX_TYPE_FLANGER || newType == MOD_FX_TYPE_CHORUS || newType == MOD_FX_TYPE_CHORUS_STEREO) {
 		if (!modFXBuffer) {
 			// TODO: should give an error here if no free ram
 			modFXBuffer =
@@ -1718,7 +1718,7 @@ doCutModFXTail:
 					}
 
 					int waitSamples =
-					    (modFXType == MOD_FX_TYPE_CHORUS)
+					    (modFXType == MOD_FX_TYPE_CHORUS || modFXType == MOD_FX_TYPE_CHORUS_STEREO)
 					        ? (20 * 44)
 					        : (90
 					           * 441); // 20 and 900 mS respectively. Lots is required for feeding-back flanger or phaser
