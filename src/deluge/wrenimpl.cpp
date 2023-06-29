@@ -1,21 +1,32 @@
 #include "hid/display/numeric_driver.h"
+#include "storage/storage_manager.h"
 #include "memory/general_memory_allocator.h"
 #include "wrenimpl.h"
 #include "memory/wren_heap.h"
+#include <string>
 
-/*
-extern "C" {
-#include "wren/vm/wren_core.h"
-#include "wren/vm/wren_vm.h"
-#include "wren/vm/wren_utils.h"
-}
-*/
+void Wren::writeFn(WrenVM* vm, const char* text) {
+	bool empty = true;
+	for (size_t i = 0; text[i] != '\0'; i++) {
+		if (!std::isspace(static_cast<unsigned char>(text[i]))) {
+			empty = false;
+		}
+	}
+	if (empty) return;
 
-static void writeFn(WrenVM* vm, const char* text) {
+#if HAVE_OLED
 	numericDriver.displayPopup(text);
+#else
+	if (strlen(text) <= NUMERIC_DISPLAY_LENGTH) {
+		numericDriver.setText(text, true);
+	}
+	else {
+		numericDriver.setScrollingText(text);
+	}
+#endif
 }
 
-static void errorFn(WrenVM* vm, WrenErrorType errorType, const char* mod, const int line, const char* msg) {
+void Wren::errorFn(WrenVM* vm, WrenErrorType errorType, const char* mod, const int line, const char* msg) {
 	switch (errorType) {
 	case WREN_ERROR_COMPILE: {
 		//printf("[%s line %d] [Error] %s\n", mod, line, msg);
@@ -29,13 +40,11 @@ static void errorFn(WrenVM* vm, WrenErrorType errorType, const char* mod, const 
 	}
 }
 
-WrenVM* vm;
-
-WrenVM* setupWren() {
+Wren::Wren() {
 	WrenConfiguration config;
 	wrenInitConfiguration(&config);
-	config.writeFn = &writeFn;
-	config.errorFn = &errorFn;
+	config.writeFn = &Wren::writeFn;
+	config.errorFn = &Wren::errorFn;
 	config.reallocateFn = &wren_heap_realloc;
 	config.initialHeapSize = kWrenHeapSize;
 	config.minHeapSize = 4096;
@@ -43,30 +52,32 @@ WrenVM* setupWren() {
 	wren_heap_init();
 
 	vm = wrenNewVM(&config);
-	return vm;
+	first_run = true;
+}
 
-	/*
-	memset(&vm, 0, sizeof(WrenVM));
+inline WrenInterpretResult Wren::interpret(const char* mod, const char* source) {
+	return wrenInterpret(vm, mod, source);
+}
 
-	vm.config.writeFn = &writeFn;
-	vm.config.errorFn = &errorFn;
-	vm.config.reallocateFn = &reallocateFn;
-	vm.config.initialHeapSize = 1024 * 1024;
-	vm.config.minHeapSize = 1024 * 1024;
+void Wren::tick() {
+	if (first_run) {
+		first_run = false;
+		autoexec();
+	}
+}
 
-	vm.config.resolveModuleFn = NULL;
-	vm.config.loadModuleFn = NULL;
-	vm.config.bindForeignMethodFn = NULL;
-	vm.config.bindForeignClassFn = NULL;
-	vm.config.heapGrowthPercent = 50;
-	vm.config.userData = NULL;
+void Wren::autoexec() {
+	FIL fil;
+	UINT bytesRead = 0;
+	const char* filename = "SCRIPTS/INIT.WREN";
+	if (f_open(&fil, filename, FA_READ) != FR_OK) {
+		return;
+	}
 
-	vm.grayCount = 0;
-	vm.grayCapacity = 4;
-	vm.gray = (Obj**)vm.config.reallocateFn(NULL, vm.grayCapacity * sizeof(Obj*), NULL);
-	vm.nextGC = vm.config.initialHeapSize;
-	wrenSymbolTableInit(&vm.methodNames);
-	vm.modules = wrenNewMap(&vm);
-	wrenInitializeCore(&vm);
-	*/
+	(void)f_read(&fil, &scriptBuffer, SCRIPT_BUFFER_SIZE, &bytesRead);
+	f_close(&fil);
+	scriptBuffer[bytesRead] = '\0';
+
+	const char* mod = "main";
+	(void)interpret(mod, scriptBuffer);
 }

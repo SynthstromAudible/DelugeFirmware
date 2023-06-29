@@ -860,8 +860,7 @@ resetSettings:
 	Uart::println("going into main loop");
 	sdRoutineLock = false; // Allow SD routine to start happening
 
-	WrenVM* wren = setupWren();
-	bool first_run = true;
+	Wren* wren = new Wren();
 
 	while (1) {
 
@@ -901,12 +900,7 @@ resetSettings:
 		autoPilotStuff();
 #endif
 
-		if (first_run) {
-			const char* module = "main";
-			const char* script = "System.print(\"I am running in a VM!\")";
-			WrenInterpretResult result = wrenInterpret(wren, module, script);
-			first_run = false;
-		}
+		wren->tick();
 	}
 
 	return 0;
