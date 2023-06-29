@@ -53,16 +53,15 @@ void MenuItemSyncLevel::getNoteLengthName(char* buffer) {
 		strcpy(type, "-dtted");
 	}
 	if (strlen(type) > 0) {
-		if (strcmp(&buffer[2], "bar") == 0) {
-			strcpy(buffer, "bar");
+		if (strcmp(&buffer[2], "bar") == 0) { // OLED `1-bar` -> '1-bar-trplts`
 			strcat(buffer, type);
 		}
 		else {
 #if HAVE_OLED
-			char* suffix = strstr(buffer, "-notes");
-			strcpy(suffix, type);
+			char* suffix = strstr(buffer, "-notes"); // OLED replace `-notes` with type,
+			strcpy(suffix, type);                    //      eg. `2nd-notes` -> `2nd-trplts`
 #else
-			strcat(buffer, type);
+			strcat(buffer, type); // 7SEG just append the type
 #endif
 		}
 	}
