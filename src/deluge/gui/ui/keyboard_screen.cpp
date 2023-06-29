@@ -631,6 +631,7 @@ int KeyboardScreen::verticalEncoderAction(int offset, bool inCardRoutine) {
 			doScroll(offset * getCurrentClip()->keyboardRowInterval);
 		}
 
+
 	}
 
 	return ACTION_RESULT_DEALT_WITH;
@@ -661,6 +662,7 @@ int KeyboardScreen::horizontalEncoderAction(int offset) {
 			doScroll(offset);
 		}
 	}
+
 	return ACTION_RESULT_DEALT_WITH;
 }
 
