@@ -242,7 +242,7 @@ foundIt:
 		}
 
 		// Recording - this only works *if* the Clip that we're viewing right now is the Instrument's activeClip
-		if (instrument->type != INSTRUMENT_TYPE_KIT /**/ && clipIsActiveOnInstrument
+		if (instrument->type != INSTRUMENT_TYPE_KIT && clipIsActiveOnInstrument
 		    && playbackHandler.shouldRecordNotesNow() && currentSong->isClipActive(currentSong->currentClip)) {
 
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
@@ -422,7 +422,7 @@ int KeyboardScreen::getNoteCodeFromCoords(int x, int y) {
 	}
 	else {
 		InstrumentClip* clip = getCurrentClip();
-		return clip->yScrollKeyboardScreen + x + y * clip->keyboardRowInterval;;
+		return clip->yScrollKeyboardScreen + x + y * clip->keyboardRowInterval;
 	}
 
 }

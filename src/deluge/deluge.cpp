@@ -238,7 +238,7 @@ makeBattLEDSolid:
 	uiTimerManager.setTimer(TIMER_READ_INPUTS, 100);
 }
 
-bool nextPadPressIsOn = true; // Not actually used for 40-pad
+int nextPadPressIsOn = USE_DEFAULT_VELOCITY; // Not actually used for 40-pad
 bool alreadyDoneScroll = false;
 bool waitingForSDRoutineToEnd = false;
 
@@ -335,8 +335,8 @@ bool readButtonsAndPads() {
 			else result = Buttons::buttonAction(x, y - displayHeight, thisPadPressIsOn, sdRoutineLock);
 
 #else
-			bool thisPadPressIsOn = nextPadPressIsOn;
-			nextPadPressIsOn = true;
+			int thisPadPressIsOn = nextPadPressIsOn;
+			nextPadPressIsOn = USE_DEFAULT_VELOCITY;
 
 			int y = (unsigned int)value / 9;
 			int x = value - y * 9;
@@ -348,6 +348,9 @@ bool readButtonsAndPads() {
 					y -= displayHeight;
 					x++;
 				}
+				/* while this function takes an int for velocity, 1 (e.g. true) indicates to the downstream audition pad
+				 * function that it should use the default velocity for the instrument
+				 */
 
 				result = matrixDriver.padAction(x, y, thisPadPressIsOn);
 			}
