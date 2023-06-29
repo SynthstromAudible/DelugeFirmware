@@ -973,6 +973,9 @@ char const* fxTypeToString(int fxType) {
 	case MOD_FX_TYPE_CHORUS:
 		return "chorus";
 
+	case MOD_FX_TYPE_CHORUS_STEREO:
+		return "StereoChorus";
+
 	case MOD_FX_TYPE_PHASER:
 		return "phaser";
 
@@ -984,6 +987,7 @@ char const* fxTypeToString(int fxType) {
 int stringToFXType(char const* string) {
 	if (!strcmp(string, "flanger")) return MOD_FX_TYPE_FLANGER;
 	else if (!strcmp(string, "chorus")) return MOD_FX_TYPE_CHORUS;
+	else if (!strcmp(string, "StereoChorus")) return MOD_FX_TYPE_CHORUS_STEREO;
 	else if (!strcmp(string, "phaser")) return MOD_FX_TYPE_PHASER;
 	else return MOD_FX_TYPE_NONE;
 }
