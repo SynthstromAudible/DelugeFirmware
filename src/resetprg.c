@@ -51,14 +51,14 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "r_typedefs.h"
+#include "RZA1/system/r_typedefs.h"
 
 #include "definitions.h"
-#include "gpio.h"
-#include "sio_char.h"
-#include "stb.h"
-#include "asm.h"
-#include "Deluge.h"
+#include "RZA1/gpio/gpio.h"
+#include "RZA1/uart/sio_char.h"
+#include "RZA1/stb/stb.h"
+#include "RZA1/compiler/asm/inc/asm.h"
+#include "deluge/deluge.h"
 
 #if defined(__thumb2__) || (defined(__thumb__) && defined(__ARM_ARCH_6M__))
 #define THUMB_V7_V6M
@@ -70,12 +70,19 @@
 #define HAVE_CALL_INDIRECT
 #endif
 
-#ifdef HAVE_INITFINI_ARRAY
-#define _init __libc_init_array
-#define _fini __libc_fini_array
-#endif
-
 extern int R_CACHE_L1Init(void);
+
+extern void __libc_init_array(void);
+
+void* __dso_handle = NULL;
+
+void _init(void) {
+	// empty
+}
+
+void _fini(void) {
+	// empty
+}
 
 /*******************************************************************************
  * Function Name: resetprg
@@ -138,7 +145,9 @@ void resetprg(void) {
 	__enable_irq();
 	__enable_fiq();
 
-	main1();
+	__libc_init_array();
+
+	main();
 
 	/* Stops program from running off */
 	while (1) {

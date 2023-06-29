@@ -18,8 +18,8 @@
 #ifndef Definitions_h
 #define Definitions_h
 
-#include "r_typedefs.h"
-#include "cpu_specific.h"
+#include "RZA1/system/r_typedefs.h"
+#include "RZA1/cpu_specific.h"
 
 #define FIRMWARE_OLD 0
 #define FIRMWARE_1P2P0 1
@@ -616,7 +616,7 @@ typedef enum SyncLevel_ {
 
 #define ALLOW_SPAM_MODE 0 // For debugging I think?
 
-#define KEYBOARD_ROW_INTERVAL 5
+#define KEYBOARD_ROW_INTERVAL_MAX 16
 
 // UART
 #define MIDI_TX_BUFFER_SIZE 1024
