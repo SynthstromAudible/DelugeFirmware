@@ -524,7 +524,8 @@ typedef enum SyncLevel_ {
 #define MOD_FX_TYPE_FLANGER 1
 #define MOD_FX_TYPE_CHORUS 2
 #define MOD_FX_TYPE_PHASER 3
-#define NUM_MOD_FX_TYPES 4
+#define MOD_FX_TYPE_CHORUS_STEREO 4
+#define NUM_MOD_FX_TYPES 5
 
 #define SAMPLE_MAX_TRANSPOSE 24
 #define SAMPLE_MIN_TRANSPOSE (-96)
