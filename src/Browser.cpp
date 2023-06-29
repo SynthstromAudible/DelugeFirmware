@@ -940,16 +940,32 @@ searchFromOneEnd:
 		scrollPosVertical = fileIndexSelected - NUM_FILES_ON_SCREEN + 1;
 	}
 
+	enteredTextEditPos = 0;
+#if HAVE_OLED
+	scrollPosHorizontal = 0;
+#else
+	char const* oldCharAddress = enteredText.get();
+	char const* newCharAddress = getCurrentFileItem()->displayName; // Will have file extension, so beware...
+	while (true) {
+		char oldChar = *oldCharAddress;
+		char newChar = *newCharAddress;
+
+		if (oldChar >= 'A' && oldChar <= 'Z') oldChar += 32;
+		if (newChar >= 'A' && newChar <= 'Z') newChar += 32;
+
+		if (oldChar != newChar) break;
+		oldCharAddress++;
+		newCharAddress++;
+		enteredTextEditPos++;
+	}
+#endif
+
 	error = setEnteredTextFromCurrentFilename();
 	if (error) {
 		numericDriver.displayError(error);
 		return;
 	}
 
-	enteredTextEditPos = 0;
-#if HAVE_OLED
-	scrollPosHorizontal = 0;
-#endif
 
 	displayText();
 	currentFileChanged(offset);
@@ -1229,7 +1245,8 @@ doQWERTYDisplay:
 			}
 
 			else {
-nonNumeric:		numberEditPos = -1;
+nonNumeric:		goto doQWERTYDisplay; // Abandon the below for now.
+				numberEditPos = -1;
 				if (qwertyVisible) goto doQWERTYDisplay;
 				else scrollingText = numericDriver.setScrollingText(enteredText.get(), numCharsInPrefix);
 			}
@@ -1335,6 +1352,7 @@ int Browser::setEnteredTextFromCurrentFilename() {
 
 	int error = enteredText.set(currentFileItem->displayName);		if (error) return error;
 
+	// Cut off the file extension
 	if (!currentFileItem->isFolder) {
 		char const* enteredTextChars = enteredText.get();
 		char const* dotAddress = strrchr(enteredTextChars, '.');
