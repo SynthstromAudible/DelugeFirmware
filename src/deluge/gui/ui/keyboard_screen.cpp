@@ -424,7 +424,6 @@ int KeyboardScreen::getNoteCodeFromCoords(int x, int y) {
 		InstrumentClip* clip = getCurrentClip();
 		return clip->yScrollKeyboardScreen + x + y * clip->keyboardRowInterval;
 	}
-
 }
 
 void KeyboardScreen::exitAuditionMode() {
@@ -630,8 +629,6 @@ int KeyboardScreen::verticalEncoderAction(int offset, bool inCardRoutine) {
 		else {
 			doScroll(offset * getCurrentClip()->keyboardRowInterval);
 		}
-
-
 	}
 
 	return ACTION_RESULT_DEALT_WITH;
