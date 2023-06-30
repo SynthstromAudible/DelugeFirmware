@@ -348,7 +348,7 @@ bool readButtonsAndPads() {
 					y -= displayHeight;
 					x++;
 				}
-				/* while this function takes an int for velocity, 1 (e.g. true) indicates to the downstream audition pad
+				/* while this function takes an int for velocity, 255 indicates to the downstream audition pad
 				 * function that it should use the default velocity for the instrument
 				 */
 

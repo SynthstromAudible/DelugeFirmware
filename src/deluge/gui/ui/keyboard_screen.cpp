@@ -149,15 +149,12 @@ int KeyboardScreen::padAction(int x, int y, int velocity) {
 			}
 
 			{
-				int velocityToSound = instrument->defaultVelocity;
-				if (instrument->type == INSTRUMENT_TYPE_KIT) { //
-					//instrumentClipView.sendAuditionNote(true, 0, 64, 0);
-					int myY = (int)(x / 4) + (int)(y / 4) * 4;
-					int myV = ((x % 4) * 8) + ((y % 4) * 32) + 7;
-					instrumentClipView.auditionPadAction(myV, myY, false);
+				if (instrument->type == INSTRUMENT_TYPE_KIT) {
+					int velocityToSound = ((x % 4) * 8) + ((y % 4) * 32) + 7;
+					instrumentClipView.auditionPadAction(velocityToSound, yDisplay, false);
 				}
 				else {
-
+					int velocityToSound = instrument->defaultVelocity;
 					((MelodicInstrument*)instrument)
 					    ->beginAuditioningForNote(modelStack, noteCode, velocityToSound, zeroMPEValues);
 				}
@@ -217,9 +214,7 @@ foundIt:
 			if (yDisplayActive[yDisplay]) {
 
 				if (instrument->type == INSTRUMENT_TYPE_KIT) { //
-
-					int myY = (int)(x / 4) + (int)(y / 4) * 4;
-					instrumentClipView.auditionPadAction(0, myY, false);
+					instrumentClipView.auditionPadAction(0, yDisplay, false);
 				}
 				else {
 
@@ -495,7 +490,7 @@ bool KeyboardScreen::renderMainPads(uint32_t whichRows, uint8_t image[][displayW
 	memset(image, 0, sizeof(uint8_t) * displayHeight * (displayWidth + sideBarWidth) * 3);
 	memset(occupancyMask, 0, sizeof(uint8_t) * displayHeight * (displayWidth + sideBarWidth));
 
-	uint8_t myArr[] = {127, 127, 127};
+	uint8_t noteColour[] = {127, 127, 127};
 	Instrument* instrument = (Instrument*)currentSong->currentClip->output;
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
@@ -548,9 +543,8 @@ doFullColour:
 						occupancyMask[y][x] = 1;
 					}
 				}
-				// Otherwise, square will just get left black, from its having been wiped above
 
-				if (instrument->type == INSTRUMENT_TYPE_KIT) { //
+				if (instrument->type == INSTRUMENT_TYPE_KIT) {
 					int myV = ((x % 4) * 16) + ((y % 4) * 64) + 8;
 					int myY = (int)(x / 4) + (int)(y / 4) * 4;
 
@@ -559,19 +553,21 @@ doFullColour:
 
 					if (modelStackWithNoteRowOnCurrentClip->getNoteRowAllowNull()) {
 
-						instrumentClipView.getRowColour(myY, myArr);
-						//dimColour(&myArr);
-						myArr[0] = (char)((myArr[0] * myV / 255) / 3);
-						myArr[1] = (char)((myArr[1] * myV / 255) / 3);
-						myArr[2] = (char)((myArr[2] * myV / 255) / 3);
+						instrumentClipView.getRowColour(myY, noteColour);
+
+						noteColour[0] = (char)((noteColour[0] * myV / 255) / 3);
+						noteColour[1] = (char)((noteColour[1] * myV / 255) / 3);
+						noteColour[2] = (char)((noteColour[2] * myV / 255) / 3);
 					}
 					else {
-						myArr[0] = 2;
-						myArr[1] = 2;
-						myArr[2] = 2;
+						noteColour[0] = 2;
+						noteColour[1] = 2;
+						noteColour[2] = 2;
 					}
-					memcpy(image[y][x], myArr, 3);
+					memcpy(image[y][x], noteColour, 3);
 				}
+				// Otherwise, square will just get left black, from its having been wiped above
+
 
 				// If we're selecting ranges...
 				if (getCurrentUI() == &sampleBrowser || getCurrentUI() == &audioRecorder

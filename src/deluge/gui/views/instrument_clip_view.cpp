@@ -254,11 +254,7 @@ doOther:
 		if (on && currentUIMode == UI_MODE_NONE) {
 			if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 
-			/*if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_KIT) {
-				IndicatorLEDs::indicateAlertOnLed(kitLedX, kitLedY);
-			}
-			else */
-			changeRootUI(&keyboardScreen); //
+			changeRootUI(&keyboardScreen);
 		}
 	}
 #endif
@@ -2797,7 +2793,6 @@ justReRender:
 			if (isUIModeActive(UI_MODE_RECORD_COUNT_IN)) {
 				if (isKit) {
 					if (drum) {
-						//velocity of 1 is only possible here if it originated as bool true from the matrix pad driver
 						drum->recordNoteOnEarly((velocity == USE_DEFAULT_VELOCITY) ? instrument->defaultVelocity
 						                                                           : velocity,
 						                        getCurrentClip()->allowNoteTails(modelStackWithNoteRowOnCurrentClip));
