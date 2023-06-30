@@ -2253,7 +2253,6 @@ MenuItemSubmenu coloursSubmenu;
 MenuItemRuntimeFeatureSetting runtimeFeatureSettingMenuItem;
 MenuItemRuntimeFeatureSettings runtimeFeatureSettingsMenu;
 
-
 char const* firmwareString = "4.1.4-alpha3";
 
 // this class is haunted for some reason, clang-format mangles it
