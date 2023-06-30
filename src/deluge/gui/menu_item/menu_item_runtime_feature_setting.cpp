@@ -19,8 +19,6 @@
 #include "model/settings/runtime_feature_settings.h"
 #include "gui/ui/sound_editor.h"
 
-MenuItemRuntimeFeatureSetting runtimeFeatureSettingMenuItem;
-
 MenuItemRuntimeFeatureSetting::MenuItemRuntimeFeatureSetting(char const* newName) : MenuItemSelection(newName) {
 }
 
