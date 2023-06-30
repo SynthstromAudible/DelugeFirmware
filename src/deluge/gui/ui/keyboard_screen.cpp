@@ -404,7 +404,7 @@ doOther:
 
 void KeyboardScreen::selectEncoderAction(int8_t offset) {
 	InstrumentClipMinder::selectEncoderAction(offset);
-	instrumentClipView.scrollVertical(0, 0, false);
+	instrumentClipView.recalculateColours();
 	uiNeedsRendering(this, 0xFFFFFFFF, 0);
 }
 
@@ -567,7 +567,6 @@ doFullColour:
 					memcpy(image[y][x], noteColour, 3);
 				}
 				// Otherwise, square will just get left black, from its having been wiped above
-
 
 				// If we're selecting ranges...
 				if (getCurrentUI() == &sampleBrowser || getCurrentUI() == &audioRecorder
