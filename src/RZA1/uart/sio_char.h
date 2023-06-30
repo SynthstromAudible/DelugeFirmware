@@ -88,7 +88,7 @@ extern char_t midiTxBuffer[];
     do                                                                                                                 \
     {                                                                                                                  \
         intptr_t writePos = uartItems[UART_ITEM_MIDI].txBufferWritePos + UNCACHED_MIRROR_OFFSET;                       \
-        *(((volatile char_t*)(&midiTxBuffer[0])) + writePos) = charToSend;                                              \
+        *(((volatile char_t*)(&midiTxBuffer[0])) + writePos) = charToSend;                                             \
                                                                                                                        \
         uartItems[UART_ITEM_MIDI].txBufferWritePos += 1;                                                               \
         uartItems[UART_ITEM_MIDI].txBufferWritePos &= (PIC_TX_BUFFER_SIZE - 1);                                        \
