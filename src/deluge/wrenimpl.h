@@ -8,9 +8,19 @@ public:
 	bool first_run;
 	WrenVM* vm;
 
+	struct {
+		WrenHandle
+			*init,
+			*Deluge;
+	} handles;
+
 	Wren();
+	~Wren();
+	void setupHandles();
+	void releaseHandles();
 	void tick();
-	void autoexec();
+	void loadInitScript();
+	void runInit();
 	inline WrenInterpretResult interpret(const char*, const char*);
 
 private:

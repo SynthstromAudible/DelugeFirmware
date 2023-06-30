@@ -52,7 +52,14 @@ Wren::Wren() {
 	wren_heap_init();
 
 	vm = wrenNewVM(&config);
+	loadInitScript();
+	setupHandles();
 	first_run = true;
+}
+
+Wren::~Wren() {
+	releaseHandles();
+	wrenFreeVM(vm);
 }
 
 inline WrenInterpretResult Wren::interpret(const char* mod, const char* source) {
@@ -61,12 +68,12 @@ inline WrenInterpretResult Wren::interpret(const char* mod, const char* source) 
 
 void Wren::tick() {
 	if (first_run) {
+		runInit();
 		first_run = false;
-		autoexec();
 	}
 }
 
-void Wren::autoexec() {
+void Wren::loadInitScript() {
 	FIL fil;
 	UINT bytesRead = 0;
 	const char* filename = "SCRIPTS/INIT.WREN";
@@ -80,4 +87,28 @@ void Wren::autoexec() {
 
 	const char* mod = "main";
 	(void)interpret(mod, scriptBuffer);
+}
+
+void Wren::runInit() {
+	if (handles.Deluge != NULL and handles.init != NULL) {
+		wrenSetSlotHandle(vm, 0, handles.Deluge);
+		(void)wrenCall(vm, handles.init);
+	}
+}
+
+void Wren::setupHandles() {
+	handles = {NULL, NULL};
+	if (!wrenHasModule(vm, "main")) return;
+
+	handles.init = wrenMakeCallHandle(vm, "init()");
+
+	if (wrenHasVariable(vm, "main", "Deluge")) {
+		wrenEnsureSlots(vm, 1);
+		wrenGetVariable(vm, "main", "Deluge", 0);
+		handles.Deluge = wrenGetSlotHandle(vm, 0);
+	}
+}
+
+void Wren::releaseHandles() {
+	wrenReleaseHandle(vm, handles.init);
 }
