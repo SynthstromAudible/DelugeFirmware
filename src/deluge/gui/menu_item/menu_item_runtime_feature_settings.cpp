@@ -22,8 +22,6 @@
 #include "hid/display/numeric_driver.h"
 #include <cstdio>
 
-MenuItemRuntimeFeatureSettings runtimeFeatureSettingsMenu;
-
 void MenuItemRuntimeFeatureSettings::beginSession(MenuItem* navigatedBackwardFrom) {
 	if (!navigatedBackwardFrom) {
 		lastActiveValue = 0; // Reset last active value
