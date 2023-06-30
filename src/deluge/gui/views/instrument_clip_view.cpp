@@ -74,6 +74,8 @@
 #include "gui/ui_timer_manager.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "model/drum/midi_drum.h"
+#include "storage/multi_range/multi_range.h"
+#include "storage/audio/audio_file_holder.h"
 
 #if HAVE_OLED
 #include "hid/display/oled.h"
@@ -1116,6 +1118,76 @@ const uint32_t auditionPadActionUIModes[] = {UI_MODE_AUDITIONING,
                                              0};
 
 int InstrumentClipView::padAction(int x, int y, int velocity) {
+
+	if (x == 15 && y == 2 && velocity > 0) {
+		int numRandomized = 0;
+		for (int i = 0; i < 8; i++) {
+			if (getCurrentUI() == this && this->auditionPadIsPressed[i]) {
+				if (currentSong->currentClip->output->type != INSTRUMENT_TYPE_KIT) continue;
+				AudioEngine::stopAnyPreviewing();
+				Drum* drum = getCurrentClip()->getNoteRowOnScreen(i, currentSong)->drum;
+				if (drum->type != DRUM_TYPE_SOUND) continue;
+				SoundDrum* soundDrum = (SoundDrum*)drum;
+				MultiRange* r = soundDrum->sources[0].getRange(0);
+				AudioFileHolder* afh = r->getAudioFileHolder();
+
+				static int MaxFiles = 25;
+				String fnArray[MaxFiles];
+				char const* currentPathChars = afh->filePath.get();
+				char const* slashAddress = strrchr(currentPathChars, '/');
+				if (slashAddress) {
+					int slashPos = (uint32_t)slashAddress - (uint32_t)currentPathChars;
+					String dir;
+					dir.set(&afh->filePath);
+					dir.shorten(slashPos);
+					FRESULT result = f_opendir(&staticDIR, dir.get());
+					FilePointer thisFilePointer;
+					int numSamples = 0;
+
+					if (result != FR_OK) {
+						numericDriver.displayError(ERROR_SD_CARD);
+						return false;
+					}
+					while (true) {
+						result = f_readdir_get_filepointer(&staticDIR, &staticFNO,
+						                                   &thisFilePointer);  /* Read a directory item */
+						if (result != FR_OK || staticFNO.fname[0] == 0) break; // Break on error or end of dir
+						if (staticFNO.fname[0] == '.' || staticFNO.fattrib & AM_DIR
+						    || !isAudioFilename(staticFNO.fname))
+							continue; // Ignore dot entry
+						audioFileManager.loadAnyEnqueuedClusters();
+						fnArray[numSamples].set(staticFNO.fname);
+						numSamples++;
+						if (numSamples >= MaxFiles) break;
+					}
+
+					if (numSamples >= 2) {
+						soundDrum->unassignAllVoices();
+						afh->setAudioFile(NULL);
+						String filePath; //add slash
+						filePath.set(&dir);
+						int dirWithSlashLength = filePath.getLength();
+						if (dirWithSlashLength) {
+							filePath.concatenateAtPos("/", dirWithSlashLength);
+							dirWithSlashLength++;
+						}
+						char const* fn = fnArray[random(numSamples - 1)].get();
+						filePath.concatenateAtPos(fn, dirWithSlashLength);
+						AudioEngine::stopAnyPreviewing();
+						afh->filePath.set(&filePath);
+						afh->loadFile(false, true, true, 1, 0, false);
+						soundDrum->name.set(fn);
+						numRandomized++;
+						((Instrument*)currentSong->currentClip->output)->beenEdited();
+					}
+				}
+			}
+		}
+		if (numRandomized > 0) {
+			numericDriver.displayPopup(HAVE_OLED ? "Randomized" : "RND");
+			return ACTION_RESULT_DEALT_WITH;
+		}
+	}
 
 	// Edit pad action...
 	if (x < displayWidth) {
