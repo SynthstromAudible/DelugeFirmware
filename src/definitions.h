@@ -276,6 +276,8 @@
 #define selectedDrumColourGreen 30
 #define selectedDrumColourBlue 10
 
+#define USE_DEFAULT_VELOCITY 255
+
 #define MAX_SEQUENCE_LENGTH 1610612736 // The biggest multiple of 3 which can fit in a signed 32-bit int
 #define noteOnLatenessAllowed 2205     // In audio samples. That's 50mS. Multiply mS by 44.1
 
