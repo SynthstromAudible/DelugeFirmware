@@ -286,7 +286,8 @@ bool Song::ensureAtLeastOneSessionClip() {
 		result.error = Browser::currentDir.set("SYNTHS");
 		if (result.error) goto couldntLoad;
 
-		result = loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(NULL, INSTRUMENT_TYPE_SYNTH, AVAILABILITY_ANY);
+		result = loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(NULL, INSTRUMENT_TYPE_SYNTH,
+		                                                                                AVAILABILITY_ANY);
 
 		Instrument* newInstrument;
 
@@ -4010,7 +4011,8 @@ displayError:
 			return NULL;
 		}
 
-		result = loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(this, newInstrumentType, AVAILABILITY_INSTRUMENT_UNUSED);
+		result = loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(this, newInstrumentType,
+		                                                                                AVAILABILITY_INSTRUMENT_UNUSED);
 		if (result.error) goto displayError;
 
 		newInstrument = result.fileItem->instrument;

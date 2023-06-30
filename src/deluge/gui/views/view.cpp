@@ -1573,7 +1573,8 @@ gotAnInstrument:
 	// Or if we're on a Kit or Synth...
 	else {
 
-    	PresetNavigationResult results = loadInstrumentPresetUI.doPresetNavigation(offset, oldInstrument, availabilityRequirement, false);
+		PresetNavigationResult results =
+		    loadInstrumentPresetUI.doPresetNavigation(offset, oldInstrument, availabilityRequirement, false);
 		if (results.error == NO_ERROR_BUT_GET_OUT) {
 getOut:
 #if HAVE_OLED

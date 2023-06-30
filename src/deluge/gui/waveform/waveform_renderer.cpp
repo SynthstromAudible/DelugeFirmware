@@ -362,7 +362,8 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 
 		SampleCluster* sampleCluster = sample->clusters.getElement(clusterIndexToDo);
 
-		if (sampleCluster->cluster && sampleCluster->cluster->numReasonsToBeLoaded < 0) numericDriver.freezeWithError("E449"); // Trying to catch errer before i028, which users have gotten.
+		if (sampleCluster->cluster && sampleCluster->cluster->numReasonsToBeLoaded < 0)
+			numericDriver.freezeWithError("E449"); // Trying to catch errer before i028, which users have gotten.
 
 		// If we're wanting to investigate the whole length of one Cluster, and that's already actually been done previously, we can just reuse those findings!
 		if (investigatingAWholeCluster && sampleCluster->investigatedWholeLength) {
@@ -406,7 +407,9 @@ cantReadData:
 			if (endByteWithinCluster <= startByteWithinCluster && clusterIndexToDo < endClusters - 1) {
 				endByteWithinCluster += overshoot;
 				SampleCluster* nextSampleCluster = sample->clusters.getElement(clusterIndexToDo + 1);
-				if (nextSampleCluster->cluster && nextSampleCluster->cluster->numReasonsToBeLoaded < 0) numericDriver.freezeWithError("E450"); // Trying to catch errer before i028, which users have gotten.
+				if (nextSampleCluster->cluster && nextSampleCluster->cluster->numReasonsToBeLoaded < 0)
+					numericDriver.freezeWithError(
+					    "E450"); // Trying to catch errer before i028, which users have gotten.
 				nextCluster = nextSampleCluster->getCluster(sample, clusterIndexToDo, CLUSTER_LOAD_IMMEDIATELY);
 
 				if (cluster->numReasonsToBeLoaded <= 0)

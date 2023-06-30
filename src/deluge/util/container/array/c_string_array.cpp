@@ -34,14 +34,14 @@ int CStringArray::partitionForStrings(int low, int high) {
 	int i = low - 1;
 	int j = high + 1;
 
-    while (true) {
-    	do {
-    		i++;
-    	} while (strcmpspecial(*(char const**)getElementAddress(i), pivotString) < 0);
+	while (true) {
+		do {
+			i++;
+		} while (strcmpspecial(*(char const**)getElementAddress(i), pivotString) < 0);
 
-    	do {
-    		j--;
-    	} while (strcmpspecial(*(char const**)getElementAddress(j), pivotString) > 0);
+		do {
+			j--;
+		} while (strcmpspecial(*(char const**)getElementAddress(j), pivotString) > 0);
 
 		if (i >= j) return j;
 
@@ -73,7 +73,6 @@ void CStringArray::quickSortForStrings(int low, int high) {
 		}
 	}
 }
-
 
 // You must set shouldInterpretNoteNames and octaveStartsFromA before calling this.
 void CStringArray::sortForStrings() {

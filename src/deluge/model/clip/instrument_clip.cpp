@@ -3193,7 +3193,8 @@ displayError:
 			}
 		}
 
-		result = loadInstrumentPresetUI.confirmPresetOrNextUnlaunchedOne(newInstrumentType, &newName, availabilityRequirement);
+		result = loadInstrumentPresetUI.confirmPresetOrNextUnlaunchedOne(newInstrumentType, &newName,
+		                                                                 availabilityRequirement);
 		if (result.error) goto displayError;
 
 		newInstrument = result.fileItem->instrument;

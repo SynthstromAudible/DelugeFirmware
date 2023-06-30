@@ -70,20 +70,21 @@ public:
 	virtual int getCurrentFilePath(String* path) = 0;
 	int buttonAction(int x, int y, bool on, bool inCardRoutine);
 	void currentFileDeleted();
-    int goIntoFolder(char const* folderName);
-    int createFolder();
-    void selectEncoderAction(int8_t offset);
-    static FileItem* getCurrentFileItem();
-    int readFileItemsForFolder(char const* filePrefixHere, bool allowFolders, char const** allowedFileExtensionsHere,
-    		char const* filenameToStartAt, int newMaxNumFileItems, int newCatalogSearchDirection = CATALOG_SEARCH_BOTH);
-    void sortFileItems();
-    FileItem* getNewFileItem();
-    static void emptyFileItems();
-    static void deleteSomeFileItems(int startAt, int stopAt);
-    static void deleteFolderAndDuplicateItems(int instrumentAvailabilityRequirement = AVAILABILITY_ANY);
-    int getUnusedSlot(int instrumentType, String* newName, char const* thingName);
-    bool opened();
-    void cullSomeFileItems();
+	int goIntoFolder(char const* folderName);
+	int createFolder();
+	void selectEncoderAction(int8_t offset);
+	static FileItem* getCurrentFileItem();
+	int readFileItemsForFolder(char const* filePrefixHere, bool allowFolders, char const** allowedFileExtensionsHere,
+	                           char const* filenameToStartAt, int newMaxNumFileItems,
+	                           int newCatalogSearchDirection = CATALOG_SEARCH_BOTH);
+	void sortFileItems();
+	FileItem* getNewFileItem();
+	static void emptyFileItems();
+	static void deleteSomeFileItems(int startAt, int stopAt);
+	static void deleteFolderAndDuplicateItems(int instrumentAvailabilityRequirement = AVAILABILITY_ANY);
+	int getUnusedSlot(int instrumentType, String* newName, char const* thingName);
+	bool opened();
+	void cullSomeFileItems();
 
 #if HAVE_OLED
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
@@ -114,16 +115,19 @@ protected:
 	}
 	void displayText(bool blinkImmediately = false);
 	static Slot getSlot(char const* displayName);
-	int readFileItemsFromFolderAndMemory(Song* song, int instrumentType, char const* filePrefixHere, char const* filenameToStartAt,
-			char const* defaultDirToAlsoTry, bool allowFoldersint, int availabilityRequirement = AVAILABILITY_ANY, int newCatalogSearchDirection = CATALOG_SEARCH_RIGHT);
+	int readFileItemsFromFolderAndMemory(Song* song, int instrumentType, char const* filePrefixHere,
+	                                     char const* filenameToStartAt, char const* defaultDirToAlsoTry,
+	                                     bool allowFoldersint, int availabilityRequirement = AVAILABILITY_ANY,
+	                                     int newCatalogSearchDirection = CATALOG_SEARCH_RIGHT);
 
-    static int fileIndexSelected; // If -1, we have not selected any real file/folder. Maybe there are no files, or maybe we're typing a new name.
-    static int scrollPosVertical;
-    static int numCharsInPrefix; // Only used for deciding Drum names within Kit. Oh and initial text scroll position.
-    static bool qwertyVisible;
-    static bool arrivedAtFileByTyping;
-    static bool allowFoldersSharingNameWithFile;
-    static char const** allowedFileExtensions;
+	static int
+	    fileIndexSelected; // If -1, we have not selected any real file/folder. Maybe there are no files, or maybe we're typing a new name.
+	static int scrollPosVertical;
+	static int numCharsInPrefix; // Only used for deciding Drum names within Kit. Oh and initial text scroll position.
+	static bool qwertyVisible;
+	static bool arrivedAtFileByTyping;
+	static bool allowFoldersSharingNameWithFile;
+	static char const** allowedFileExtensions;
 
 #if HAVE_OLED
 	const uint8_t* fileIcon;
@@ -132,11 +136,10 @@ protected:
 	static NumericLayerScrollingText* scrollingText;
 	bool shouldWrapFolderContents; // As in, wrap around at the end.
 #endif
-    bool allowBrandNewNames;
-    bool qwertyAlwaysVisible;
-    char const* filePrefix;
-    bool shouldInterpretNoteNamesForThisBrowser;
-
+	bool allowBrandNewNames;
+	bool qwertyAlwaysVisible;
+	char const* filePrefix;
+	bool shouldInterpretNoteNamesForThisBrowser;
 };
 
 #endif /* BROWSER_H_ */

@@ -121,7 +121,7 @@ void Browser::emptyFileItems() {
 void Browser::deleteSomeFileItems(int startAt, int stopAt) {
 
 	// Call destructors.
-	for (int i = startAt; i < stopAt; ) {
+	for (int i = startAt; i < stopAt;) {
 		FileItem* item = (FileItem*)fileItems.getElementAddress(i);
 		item->~FileItem();
 
@@ -652,7 +652,8 @@ noNumberYet:
 #endif
 			FileItem* prevFile = (FileItem*)fileItems.getElementAddress(searchResult - 1);
 			String prevFilename;
-			error = prevFile->getFilenameWithoutExtension(&prevFilename);				if (error) goto gotErrorAfterAllocating;
+			error = prevFile->getFilenameWithoutExtension(&prevFilename);
+			if (error) goto gotErrorAfterAllocating;
 			char const* prevFilenameChars = prevFilename.get();
 			int number;
 			if (prevFilename.getLength() > numberStartPos) {
@@ -704,7 +705,6 @@ everythingFinalized:
 #endif
 	return NO_ERROR;
 }
-
 
 // You must set currentDir before calling this.
 int Browser::getUnusedSlot(int instrumentType, String* newName, char const* thingName) {
@@ -793,9 +793,6 @@ emptyFileItemsAndReturn:
 	emptyFileItems();
 	goto doReturn;
 }
-
-
-
 
 void Browser::selectEncoderAction(int8_t offset) {
 	arrivedAtFileByTyping = false;
@@ -978,7 +975,6 @@ searchFromOneEnd:
 		numericDriver.displayError(error);
 		return;
 	}
-
 
 	displayText();
 	currentFileChanged(offset);
@@ -1262,7 +1258,8 @@ doQWERTYDisplay:
 			}
 
 			else {
-nonNumeric:		goto doQWERTYDisplay; // Abandon the below for now.
+nonNumeric:
+				goto doQWERTYDisplay; // Abandon the below for now.
 				numberEditPos = -1;
 				if (qwertyVisible) goto doQWERTYDisplay;
 				else scrollingText = numericDriver.setScrollingText(enteredText.get(), numCharsInPrefix);
