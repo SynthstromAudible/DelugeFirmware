@@ -1103,7 +1103,8 @@ int setPresetOrNextUnlaunchedOne(InstrumentClip* clip, int instrumentType, bool*
 	result.error = Browser::currentDir.set(getInstrumentFolder(instrumentType));
 	if (result.error) return result.error;
 
-	result = loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(currentSong, instrumentType, AVAILABILITY_INSTRUMENT_UNUSED);
+	result = loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(currentSong, instrumentType,
+	                                                                                AVAILABILITY_INSTRUMENT_UNUSED);
 	if (result.error) return result.error;
 
 	Instrument* newInstrument = result.fileItem->instrument;

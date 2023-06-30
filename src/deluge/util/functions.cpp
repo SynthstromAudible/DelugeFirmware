@@ -1506,7 +1506,9 @@ ComparativeNoteNumber getComparativeNoteNumberFromChars(char const* string, char
 		string++;
 	}
 
-	if (*string < '1' || *string > '9') { // There has to be at least some number there if we're to consider this a note name. And it can't start with 0.
+	if (*string < '1'
+	    || *string
+	           > '9') { // There has to be at least some number there if we're to consider this a note name. And it can't start with 0.
 		toReturn.noteNumber = 100000;
 		toReturn.stringLength = 0;
 		return toReturn;
@@ -1531,13 +1533,13 @@ ComparativeNoteNumber getComparativeNoteNumberFromChars(char const* string, char
 	}
 }
 
-
 // Returns positive if first > second
 // Returns negative if first < second
-bool shouldInterpretNoteNames;	// You must set this at some point before calling strcmpspecial. This isn't implemented as an argument because
-								// sometimes you want to set it way up the call tree, and passing it all the way down is a pain.
+bool
+    shouldInterpretNoteNames; // You must set this at some point before calling strcmpspecial. This isn't implemented as an argument because
+    // sometimes you want to set it way up the call tree, and passing it all the way down is a pain.
 
-bool octaveStartsFromA;			// You must set this if setting shouldInterpretNoteNames to true.
+bool octaveStartsFromA; // You must set this if setting shouldInterpretNoteNames to true.
 
 int strcmpspecial(char const* first, char const* second) {
 
@@ -1576,10 +1578,11 @@ int strcmpspecial(char const* first, char const* second) {
 					}
 
 					//else if (!firstDigitIsLeadingZero || !secondDigitIsLeadingZero) break;	// If both are not zeros, we're done.
-																								// Actually, the same end result is achieved without that line.
+					// Actually, the same end result is achieved without that line.
 
 					// If we're still here, one is a leading zero and the other isn't.
-					resultIfGetToEndOfBothStrings = (int)firstChar - (int)secondChar;	// Will still end up as zero when that needs to happen.
+					resultIfGetToEndOfBothStrings =
+					    (int)firstChar - (int)secondChar; // Will still end up as zero when that needs to happen.
 					break;
 				}
 			}

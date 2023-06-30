@@ -943,7 +943,9 @@ void LoadInstrumentPresetUI::instrumentEdited(Instrument* instrument) {
 // Caller must set currentDir before calling this.
 // Caller must call emptyFileItems() at some point after calling this function.
 // song may be supplied as NULL, in which case it won't be searched for Instruments; sometimes this will get called when the currentSong is not set up.
-ReturnOfConfirmPresetOrNextUnlaunchedOne LoadInstrumentPresetUI::findAnUnlaunchedPresetIncludingWithinSubfolders(Song* song, int instrumentType, int availabilityRequirement) {
+ReturnOfConfirmPresetOrNextUnlaunchedOne
+LoadInstrumentPresetUI::findAnUnlaunchedPresetIncludingWithinSubfolders(Song* song, int instrumentType,
+                                                                        int availabilityRequirement) {
 
 	AudioEngine::logAction("findAnUnlaunchedPresetIncludingWithinSubfolders");
 	allowedFileExtensions = allowedFileExtensionsXML;
@@ -956,10 +958,10 @@ ReturnOfConfirmPresetOrNextUnlaunchedOne LoadInstrumentPresetUI::findAnUnlaunche
 	bool doingSubfolders = false;
 	String searchNameLocalCopy;
 
-
 goAgain:
 
-	toReturn.error = readFileItemsFromFolderAndMemory(song, instrumentType, getThingName(instrumentType), searchNameLocalCopy.get(), NULL, true);
+	toReturn.error = readFileItemsFromFolderAndMemory(song, instrumentType, getThingName(instrumentType),
+	                                                  searchNameLocalCopy.get(), NULL, true);
 
 	if (toReturn.error) {
 emptyFileItemsAndReturn:
@@ -992,7 +994,8 @@ noFurtherFiles:
 	// Store rightmost display name before filtering, for later.
 	String lastFileItemDisplayNameBeforeFiltering;
 	FileItem* rightmostFileItemBeforeFiltering = (FileItem*)fileItems.getElementAddress(fileItems.getNumElements() - 1);
-	toReturn.error = lastFileItemDisplayNameBeforeFiltering.set(rightmostFileItemBeforeFiltering->displayName);				if (toReturn.error) goto doReturn;
+	toReturn.error = lastFileItemDisplayNameBeforeFiltering.set(rightmostFileItemBeforeFiltering->displayName);
+	if (toReturn.error) goto doReturn;
 
 	deleteFolderAndDuplicateItems(availabilityRequirement);
 
@@ -1038,8 +1041,10 @@ doThisFolder:
 		bool anyMoreForLater = numFileItemsDeletedAtEnd || (i < (fileItems.getNumElements() - 1));
 		searchNameLocalCopy.set(toReturn.fileItem->displayName);
 
-		toReturn.error = currentDir.concatenate("/");								if (toReturn.error) goto emptyFileItemsAndReturn;
-		toReturn.error = currentDir.concatenate(&toReturn.fileItem->filename);		if (toReturn.error) goto emptyFileItemsAndReturn;
+		toReturn.error = currentDir.concatenate("/");
+		if (toReturn.error) goto emptyFileItemsAndReturn;
+		toReturn.error = currentDir.concatenate(&toReturn.fileItem->filename);
+		if (toReturn.error) goto emptyFileItemsAndReturn;
 
 		// Call self
 		toReturn = findAnUnlaunchedPresetIncludingWithinSubfolders(song, instrumentType, availabilityRequirement);
@@ -1057,10 +1062,11 @@ doThisFolder:
 	}
 }
 
-
 // Caller must call emptyFileItems() at some point after calling this function.
 // And, set currentDir, before this is called.
-ReturnOfConfirmPresetOrNextUnlaunchedOne LoadInstrumentPresetUI::confirmPresetOrNextUnlaunchedOne(int instrumentType, String* searchName, int availabilityRequirement) {
+ReturnOfConfirmPresetOrNextUnlaunchedOne
+LoadInstrumentPresetUI::confirmPresetOrNextUnlaunchedOne(int instrumentType, String* searchName,
+                                                         int availabilityRequirement) {
 	ReturnOfConfirmPresetOrNextUnlaunchedOne toReturn;
 
 	String searchNameLocalCopy;
@@ -1068,15 +1074,17 @@ ReturnOfConfirmPresetOrNextUnlaunchedOne LoadInstrumentPresetUI::confirmPresetOr
 	bool shouldJustGrabLeftmost = false;
 
 doReadFiles:
-	toReturn.error = readFileItemsFromFolderAndMemory(currentSong, instrumentType, getThingName(instrumentType), searchNameLocalCopy.get(), NULL, false, availabilityRequirement);
+	toReturn.error = readFileItemsFromFolderAndMemory(currentSong, instrumentType, getThingName(instrumentType),
+	                                                  searchNameLocalCopy.get(), NULL, false, availabilityRequirement);
 
 	AudioEngine::logAction("confirmPresetOrNextUnlaunchedOne");
 
-
 	if (toReturn.error == ERROR_FOLDER_DOESNT_EXIST) {
 justGetAnyPreset: // This does *not* favour the currentDir, so you should exhaust all avenues before calling this.
-		toReturn.error = currentDir.set(getInstrumentFolder(instrumentType));												if (toReturn.error) goto doReturn;
-		toReturn = findAnUnlaunchedPresetIncludingWithinSubfolders(currentSong, instrumentType, availabilityRequirement);
+		toReturn.error = currentDir.set(getInstrumentFolder(instrumentType));
+		if (toReturn.error) goto doReturn;
+		toReturn =
+		    findAnUnlaunchedPresetIncludingWithinSubfolders(currentSong, instrumentType, availabilityRequirement);
 		goto doReturn;
 	}
 	else if (toReturn.error) {
@@ -1104,7 +1112,8 @@ needToGrabLeftmostButHaveToReadFirst:
 	// Store rightmost display name before filtering, for later.
 	String lastFileItemDisplayNameBeforeFiltering;
 	FileItem* rightmostFileItemBeforeFiltering = (FileItem*)fileItems.getElementAddress(fileItems.getNumElements() - 1);
-	toReturn.error = lastFileItemDisplayNameBeforeFiltering.set(rightmostFileItemBeforeFiltering->displayName);				if (toReturn.error) goto doReturn;
+	toReturn.error = lastFileItemDisplayNameBeforeFiltering.set(rightmostFileItemBeforeFiltering->displayName);
+	if (toReturn.error) goto doReturn;
 
 	deleteFolderAndDuplicateItems(availabilityRequirement);
 
@@ -1142,11 +1151,10 @@ needToGrabLeftmostButHaveToReadFirst:
 	goto doReturn;
 }
 
-
-
 // Caller must call emptyFileItems() at some point after calling this function - unless an error is returned.
 // Caller must remove OLED working animation after calling this too.
-PresetNavigationResult LoadInstrumentPresetUI::doPresetNavigation(int offset, Instrument* oldInstrument, int availabilityRequirement, bool doBlink) {
+PresetNavigationResult LoadInstrumentPresetUI::doPresetNavigation(int offset, Instrument* oldInstrument,
+                                                                  int availabilityRequirement, bool doBlink) {
 
 	AudioEngine::logAction("doPresetNavigation");
 
@@ -1165,11 +1173,12 @@ doReturn:
 		return toReturn;
 	}
 
-
 readAgain:
 	int newCatalogSearchDirection = (offset >= 0) ? CATALOG_SEARCH_RIGHT : CATALOG_SEARCH_LEFT;
 readAgainWithSameOffset:
-	toReturn.error = readFileItemsForFolder(getThingName(instrumentType), false, allowedFileExtensionsXML, oldNameString.get(), FILE_ITEMS_MAX_NUM_ELEMENTS_FOR_NAVIGATION, newCatalogSearchDirection);
+	toReturn.error =
+	    readFileItemsForFolder(getThingName(instrumentType), false, allowedFileExtensionsXML, oldNameString.get(),
+	                           FILE_ITEMS_MAX_NUM_ELEMENTS_FOR_NAVIGATION, newCatalogSearchDirection);
 
 	if (toReturn.error) goto doReturn;
 
@@ -1203,10 +1212,12 @@ noErrorButGetOut:
 			goto emptyFileItemsAndReturn;
 		}
 	}
-	else if (fileItems.getNumElements() == 1 && ((FileItem*)fileItems.getElementAddress(0))->instrument == oldInstrument) goto reachedEnd;
+	else if (fileItems.getNumElements() == 1
+	         && ((FileItem*)fileItems.getElementAddress(0))->instrument == oldInstrument)
+		goto reachedEnd;
 
 	int i = (offset >= 0) ? 0 : (fileItems.getNumElements() - 1);
-/*
+	/*
 	if (i >= fileItems.getNumElements()) { // If not found *and* we'd be past the end of the list...
 		if (offset >= 0) i = 0;
 		else i = fileItems.getNumElements() - 1;
@@ -1273,15 +1284,16 @@ doneMoving:
 	toReturn.fileItem = (FileItem*)fileItems.getElementAddress(i);
 
 	toReturn.loadedFromFile = false;
-    bool isHibernating = toReturn.fileItem->instrument && !toReturn.fileItem->instrumentAlreadyInSong;
-
+	bool isHibernating = toReturn.fileItem->instrument && !toReturn.fileItem->instrumentAlreadyInSong;
 
 	if (toReturn.fileItem->instrument) {
 		view.displayOutputName(toReturn.fileItem->instrument, doBlink);
 	}
 	else {
-		toReturn.error = toReturn.fileItem->getDisplayNameWithoutExtension(&newName);			if (toReturn.error) goto emptyFileItemsAndReturn;
-		toReturn.error = oldNameString.set(toReturn.fileItem->displayName);						if (toReturn.error) goto emptyFileItemsAndReturn;
+		toReturn.error = toReturn.fileItem->getDisplayNameWithoutExtension(&newName);
+		if (toReturn.error) goto emptyFileItemsAndReturn;
+		toReturn.error = oldNameString.set(toReturn.fileItem->displayName);
+		if (toReturn.error) goto emptyFileItemsAndReturn;
 		view.drawOutputNameFromDetails(instrumentType, 0, 0, newName.get(), false, doBlink);
 	}
 
@@ -1305,7 +1317,9 @@ doPendingPresetNavigation:
 	// Unlike in ClipMinder, there's no need to check whether we came back to the same Instrument, cos we've specified that we were looking for "unused" ones only
 
 	if (!toReturn.fileItem->instrument) {
-		toReturn.error = storageManager.loadInstrumentFromFile(currentSong, NULL, instrumentType, false, &toReturn.fileItem->instrument, &toReturn.fileItem->filePointer, &newName, &Browser::currentDir);
+		toReturn.error = storageManager.loadInstrumentFromFile(
+		    currentSong, NULL, instrumentType, false, &toReturn.fileItem->instrument, &toReturn.fileItem->filePointer,
+		    &newName, &Browser::currentDir);
 		if (toReturn.error) goto emptyFileItemsAndReturn;
 
 		toReturn.loadedFromFile = true;
@@ -1338,5 +1352,3 @@ doPendingPresetNavigation:
 
 	goto doReturn;
 }
-
-
