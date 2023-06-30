@@ -76,6 +76,7 @@
 #include "model/drum/midi_drum.h"
 #include "storage/multi_range/multi_range.h"
 #include "storage/audio/audio_file_holder.h"
+#include "model/settings/runtime_feature_settings.h"
 
 #if HAVE_OLED
 #include "hid/display/oled.h"
@@ -1119,7 +1120,8 @@ const uint32_t auditionPadActionUIModes[] = {UI_MODE_AUDITIONING,
 
 int InstrumentClipView::padAction(int x, int y, int velocity) {
 
-	if (x == 15 && y == 2 && velocity > 0) {
+	if (x == 15 && y == 2 && velocity > 0
+	    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::DrumRandomizer) == RuntimeFeatureStateToggle::On) {
 		int numRandomized = 0;
 		for (int i = 0; i < 8; i++) {
 			if (getCurrentUI() == this && this->auditionPadIsPressed[i]) {
