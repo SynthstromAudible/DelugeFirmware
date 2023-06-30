@@ -103,8 +103,20 @@ void Wren::tick() {
 	}
 }
 
+#define NL "\n"
 void Wren::setup() {
-	(void)interpret("main", "import \"init\" for Deluge\n");
+	static const char* setupScript =
+		NL "class TDeluge {"
+		NL "  construct new() { _init = Fn.new {} }"
+		NL "  init() { _init.call() }"
+		NL "  init=(val) { _init = val }"
+		NL "}"
+		NL "var Deluge = TDeluge.new()"
+		NL;
+	(void)interpret("main", setupScript);
+
+	char* source = getSourceForModule("init");
+	(void)wrenInterpret(vm, "main", source);
 }
 
 void Wren::runInit() {
