@@ -56,7 +56,10 @@ void MenuItemRuntimeFeatureSettings::selectEncoderAction(int offset) {
 	if (soundEditor.currentValue < soundEditor.menuCurrentScroll)
 		soundEditor.menuCurrentScroll = soundEditor.currentValue;
 
-	if (offset >= 0) {
+	if (numOptions <= 1) {
+		soundEditor.menuCurrentScroll = soundEditor.currentValue;
+	}
+	else if (offset >= 0) {
 		int d = soundEditor.currentValue;
 		int numSeen = 1;
 		while (true) {
