@@ -9,9 +9,7 @@ public:
 	WrenVM* vm;
 
 	struct {
-		WrenHandle
-			*init,
-			*Deluge;
+		WrenHandle *Deluge, *init;
 	} handles;
 
 	Wren();
@@ -19,12 +17,14 @@ public:
 	void setupHandles();
 	void releaseHandles();
 	void tick();
-	void loadInitScript();
+	void setup();
 	void runInit();
 	inline WrenInterpretResult interpret(const char*, const char*);
 
 private:
 	static void errorFn(WrenVM* vm, WrenErrorType errorType, const char* mod, const int line, const char* msg);
 	static void writeFn(WrenVM* vm, const char* text);
-	char scriptBuffer[SCRIPT_BUFFER_SIZE];
+	static WrenLoadModuleResult loadModuleFn(WrenVM* vm, const char* name);
+	static void loadModuleComplete(WrenVM* vm, const char* mod, WrenLoadModuleResult result);
+	static char* getSourceForModule(const char*);
 };

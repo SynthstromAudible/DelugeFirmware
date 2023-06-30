@@ -4,6 +4,9 @@
 #include "wrenimpl.h"
 #include "memory/wren_heap.h"
 #include <string>
+#include "string.h"
+
+static char scriptBuffer[SCRIPT_BUFFER_SIZE];
 
 void Wren::writeFn(WrenVM* vm, const char* text) {
 	bool empty = true;
@@ -40,11 +43,38 @@ void Wren::errorFn(WrenVM* vm, WrenErrorType errorType, const char* mod, const i
 	}
 }
 
+char* Wren::getSourceForModule(const char* name) {
+	FIL fil;
+	UINT bytesRead = 0;
+	TCHAR filename[256];
+	sprintf(filename, "SCRIPTS/%s.wren", name);
+	if (f_open(&fil, filename, FA_READ) == FR_OK) {
+		(void)f_read(&fil, &scriptBuffer, SCRIPT_BUFFER_SIZE, &bytesRead);
+		f_close(&fil);
+	}
+	scriptBuffer[bytesRead] = '\0';
+
+	return scriptBuffer;
+}
+
+WrenLoadModuleResult Wren::loadModuleFn(WrenVM* vm, const char* name) {
+	WrenLoadModuleResult result = {0};
+	char* source = getSourceForModule(name);
+	result.source = source;
+	result.onComplete = &Wren::loadModuleComplete;
+	return result;
+}
+
+void Wren::loadModuleComplete(WrenVM* vm, const char *mod, WrenLoadModuleResult result) {
+	// TODO
+}
+
 Wren::Wren() {
 	WrenConfiguration config;
 	wrenInitConfiguration(&config);
 	config.writeFn = &Wren::writeFn;
 	config.errorFn = &Wren::errorFn;
+	config.loadModuleFn = &Wren::loadModuleFn;
 	config.reallocateFn = &wren_heap_realloc;
 	config.initialHeapSize = kWrenHeapSize;
 	config.minHeapSize = 4096;
@@ -52,7 +82,7 @@ Wren::Wren() {
 	wren_heap_init();
 
 	vm = wrenNewVM(&config);
-	loadInitScript();
+	setup();
 	setupHandles();
 	first_run = true;
 }
@@ -73,20 +103,8 @@ void Wren::tick() {
 	}
 }
 
-void Wren::loadInitScript() {
-	FIL fil;
-	UINT bytesRead = 0;
-	const char* filename = "SCRIPTS/INIT.WREN";
-	if (f_open(&fil, filename, FA_READ) != FR_OK) {
-		return;
-	}
-
-	(void)f_read(&fil, &scriptBuffer, SCRIPT_BUFFER_SIZE, &bytesRead);
-	f_close(&fil);
-	scriptBuffer[bytesRead] = '\0';
-
-	const char* mod = "main";
-	(void)interpret(mod, scriptBuffer);
+void Wren::setup() {
+	(void)interpret("main", "import \"init\" for Deluge\n");
 }
 
 void Wren::runInit() {
@@ -98,15 +116,11 @@ void Wren::runInit() {
 
 void Wren::setupHandles() {
 	handles = {NULL, NULL};
-	if (!wrenHasModule(vm, "main")) return;
 
+	wrenEnsureSlots(vm, 1);
+	wrenGetVariable(vm, "main", "Deluge", 0);
+	handles.Deluge = wrenGetSlotHandle(vm, 0);
 	handles.init = wrenMakeCallHandle(vm, "init()");
-
-	if (wrenHasVariable(vm, "main", "Deluge")) {
-		wrenEnsureSlots(vm, 1);
-		wrenGetVariable(vm, "main", "Deluge", 0);
-		handles.Deluge = wrenGetSlotHandle(vm, 0);
-	}
 }
 
 void Wren::releaseHandles() {
