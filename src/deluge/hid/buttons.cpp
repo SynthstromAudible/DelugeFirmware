@@ -15,17 +15,20 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "processing/engines/audio_engine.h"
-#include "hid/buttons.h"
+#include <limits>
+
 #include "definitions.h"
-#include "gui/ui/ui.h"
 #include "gui/ui/audio_recorder.h"
-#include "playback/playback_handler.h"
-#include "playback/mode/playback_mode.h"
 #include "gui/ui/load/load_song_ui.h"
-#include "testing/hardware_testing.h"
+#include "gui/ui/ui.h"
 #include "gui/views/view.h"
+#include "hid/buttons.h"
 #include "model/mod_controllable/mod_controllable.h"
+#include "model/settings/runtime_feature_settings.h"
+#include "playback/mode/playback_mode.h"
+#include "playback/playback_handler.h"
+#include "processing/engines/audio_engine.h"
+#include "testing/hardware_testing.h"
 
 namespace Buttons {
 
@@ -33,10 +36,46 @@ bool recordButtonPressUsedUp;
 uint32_t timeRecordButtonPressed;
 bool buttonStates[NUM_BUTTON_COLS + 1][NUM_BUTTON_ROWS]; // The extra col is for "fake" buttons
 
+//   Internal variables
+// Records the last N times the
+uint32_t lastShiftTimes[MAX_SHIFT_PRESSES_TO_STICK] = {0};
+uint32_t lastShiftTimeIndex = 0;
+bool shiftChanged;
+bool isShiftPressed;
+bool isShiftSticky;
+
+static void checkEnableStickyKeys(uint32_t currentTime, uint32_t oldestShiftTime, uint32_t threshold, bool checkLess) {
+	uint32_t delta = currentTime - oldestShiftTime;
+	if (delta > std::numeric_limits<uint32_t>::max() / 2) {
+		// Assume the timer wrapped
+		delta = std::numeric_limits<uint32_t>::max() - oldestShiftTime;
+		delta += currentTime;
+	}
+
+	if ((checkLess && delta < threshold) || (delta > threshold)) {
+		// If it has been less than 1 second, toggle stickyness
+		isShiftSticky = !isShiftSticky;
+		// Set the entire time buffer to > 44100 before, to avoid off-by-one taps resulting in immediate
+		// disable
+		for (auto& time : lastShiftTimes) {
+			time = currentTime - threshold;
+		}
+
+		// Notify the user that it's stickykeys time
+		if (isShiftSticky) {
+			numericDriver.displayPopup(HAVE_OLED ? "SHIFT STICKY" : "STCK");
+		}
+		else {
+			numericDriver.displayPopup(HAVE_OLED ? "SHIFT UNSTUCK" : "NSTK");
+		}
+	}
+}
+
 int buttonAction(int x, int y, bool on, bool inCardRoutine) {
 
-	buttonStates[x][y] =
-	    on; // Must happen up here before it's actioned, because if its action accesses SD card, we might multiple-enter this function, and don't want to then be setting this after that later action, erasing what it set
+	// Must happen up here before it's actioned, because if its action accesses SD card, we might multiple-enter this
+	// function, and don't want to then be setting this after that later action, erasing what it set
+	buttonStates[x][y] = on;
 
 #if ALLOW_SPAM_MODE
 	if (x == xEncButtonX && y == xEncButtonY) {
@@ -138,6 +177,55 @@ int buttonAction(int x, int y, bool on, bool inCardRoutine) {
 		}
 	}
 
+	// Shift button.
+	else if (x == shiftButtonX && y == shiftButtonY) {
+		StickyKeysMode mode = currentStickyKeysSetting();
+
+		if (isShiftSticky) {
+			if (on) {
+				isShiftPressed = !isShiftPressed;
+				shiftChanged = true;
+			}
+		}
+		else {
+			isShiftPressed = on;
+			shiftChanged = true;
+		}
+
+		if (on) {
+			lastShiftTimes[lastShiftTimeIndex] = AudioEngine::audioSampleTimer;
+			lastShiftTimeIndex = (lastShiftTimeIndex + 1) % MAX_SHIFT_PRESSES_TO_STICK;
+			switch (mode) {
+			case StickyKeysMode::Disabled:
+				break;
+			case StickyKeysMode::Enabled:
+				break;
+			case StickyKeysMode::LongPress:
+				break;
+			default:
+				// We're handling a n-presses sticky keys mode
+
+				// Compute the number of presses required to activate sticky keys
+				uint32_t requiredPresses =
+				    (static_cast<uint32_t>(mode) - static_cast<uint32_t>(StickyKeysMode::EnabledMinPresses))
+				    + MIN_SHIFT_PRESSES_TO_STICK;
+
+				uint32_t previousTimeIndex =
+				    ((lastShiftTimeIndex + MAX_SHIFT_PRESSES_TO_STICK) - requiredPresses) % MAX_SHIFT_PRESSES_TO_STICK;
+
+				uint32_t currentTime = AudioEngine::audioSampleTimer;
+				uint32_t oldestShiftTime = lastShiftTimes[previousTimeIndex];
+				checkEnableStickyKeys(currentTime, oldestShiftTime, 44100, true);
+				break;
+			}
+		}
+		else if (mode == StickyKeysMode::LongPress) {
+			uint32_t pressStartTime =
+			    lastShiftTimes[(lastShiftTimeIndex + MAX_SHIFT_PRESSES_TO_STICK - 1) % MAX_SHIFT_PRESSES_TO_STICK];
+			checkEnableStickyKeys(AudioEngine::audioSampleTimer, pressStartTime, 44100 * 2, false);
+		}
+	}
+
 #if ALLOW_SPAM_MODE
 	else if (x == selectEncButtonX && y == selectEncButtonY && isButtonPressed(clipViewButtonX, clipViewButtonY)
 	         && isButtonPressed(shiftButtonX, shiftButtonY)) {
@@ -164,8 +252,23 @@ bool isButtonPressed(int x, int y) {
 	return buttonStates[x][y];
 }
 
+StickyKeysMode currentStickyKeysSetting() {
+	auto mode = static_cast<StickyKeysMode>(runtimeFeatureSettings.get(RuntimeFeatureSettingType::StickyKeys));
+	if (mode == StickyKeysMode::Enabled) {
+		isShiftSticky = true;
+	}
+
+	return mode;
+}
+
+bool hasShiftChanged() {
+	bool changed = shiftChanged;
+	shiftChanged = false;
+	return changed;
+}
+
 bool isShiftButtonPressed() {
-	return buttonStates[shiftButtonX][shiftButtonY];
+	return isShiftPressed;
 }
 
 bool isNewOrShiftButtonPressed() {

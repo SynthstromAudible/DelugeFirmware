@@ -19,11 +19,26 @@
 #define BUTTONS_H_
 
 #include "RZA1/system/r_typedefs.h"
+#include <stddef.h>
 
 namespace Buttons {
 
+constexpr size_t MIN_SHIFT_PRESSES_TO_STICK = 2;
+constexpr size_t MAX_SHIFT_PRESSES_TO_STICK = 10;
+
+enum class StickyKeysMode : uint32_t {
+	Disabled,
+	Enabled,
+	LongPress,
+	// This pair should always be the last states
+	EnabledMinPresses,
+	EnabledMaxPresses = EnabledMinPresses + MAX_SHIFT_PRESSES_TO_STICK - MIN_SHIFT_PRESSES_TO_STICK,
+};
+
 int buttonAction(int x, int y, bool on, bool inCardRoutine);
 bool isButtonPressed(int x, int y);
+StickyKeysMode currentStickyKeysSetting();
+bool hasShiftChanged();
 bool isShiftButtonPressed();
 bool isNewOrShiftButtonPressed();
 void noPressesHappening(bool inCardRoutine);

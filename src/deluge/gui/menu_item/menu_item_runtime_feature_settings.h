@@ -23,6 +23,7 @@
 class MenuItemRuntimeFeatureSettings final : public MenuItem {
 public:
 	MenuItemRuntimeFeatureSettings(char const* newName = 0) : MenuItem(newName) {}
+	void init();
 	void beginSession(MenuItem* navigatedBackwardFrom = NULL);
 	void selectEncoderAction(int offset);
 	void drawValue();

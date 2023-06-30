@@ -2556,7 +2556,8 @@ SoundEditor::SoundEditor() {
 	new (&flashStatusMenu) MenuItemFlashStatus(HAVE_OLED ? "Play-cursor" : "CURS");
 	new (&recordSubmenu) MenuItemSubmenu("Recording", recordMenuItems);
 	new (&runtimeFeatureSettingMenuItem) MenuItemRuntimeFeatureSetting(NULL);
-	new (&runtimeFeatureSettingsMenu) MenuItemRuntimeFeatureSettings("Community features");
+	new (&runtimeFeatureSettingsMenu) MenuItemRuntimeFeatureSettings(HAVE_OLED ? "COMMUNITY FEATURES" : "COMF");
+
 	new (&firmwareVersionMenu) MenuItemFirmwareVersion("Firmware version");
 
 	static MenuItem* rootSettingsMenuItems[] = {&cvSelectionMenu,
