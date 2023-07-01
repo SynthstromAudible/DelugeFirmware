@@ -109,7 +109,7 @@ void Wren::setup() {
 		NL "class TDeluge {"
 		NL "  construct new() { _init = Fn.new {} }"
 		NL "  init() { _init.call() }"
-		NL "  init=(val) { _init = val }"
+		NL "  onInit(fn) { _init = fn }"
 		NL "}"
 		NL "var Deluge = TDeluge.new()"
 		NL;
