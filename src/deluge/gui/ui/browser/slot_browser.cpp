@@ -91,7 +91,9 @@ int SlotBrowser::horizontalEncoderAction(int offset) {
 #endif
 	{
 nonNumeric:
+#if HAVE_OLED // Maintain consistency with before - don't do this on numeric.
 		qwertyVisible = true;
+#endif
 		return Browser::horizontalEncoderAction(offset);
 	}
 }

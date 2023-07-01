@@ -91,6 +91,7 @@ SampleBrowser::SampleBrowser() {
 	shouldWrapFolderContents = false;
 #endif
 	qwertyAlwaysVisible = false;
+	shouldInterpretNoteNamesForThisBrowser = true;
 }
 
 bool SampleBrowser::opened() {
@@ -1057,11 +1058,15 @@ bool pitchGreaterOrEqual(Sample* a, Sample* b) {
 }
 
 bool filenameGreaterOrEqual(Sample* a, Sample* b) {
-	return (strcmpspecial(a->filePath.get(), b->filePath.get(), true) >= 0);
+	shouldInterpretNoteNames = true;
+	octaveStartsFromA = false;
+	return (strcmpspecial(a->filePath.get(), b->filePath.get()) >= 0);
 }
 
 bool filenameGreaterOrEqualOctaveStartingFromA(Sample* a, Sample* b) {
-	return (strcmpspecial(a->filePath.get(), b->filePath.get(), true, true) >= 0);
+	shouldInterpretNoteNames = true;
+	octaveStartsFromA = true;
+	return (strcmpspecial(a->filePath.get(), b->filePath.get()) >= 0);
 }
 
 void sortSamples(bool (*sortFunction)(Sample*, Sample*), int numSamples, Sample*** sortAreas, int* readArea,
