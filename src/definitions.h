@@ -18,8 +18,8 @@
 #ifndef Definitions_h
 #define Definitions_h
 
-#include "r_typedefs.h"
-#include "cpu_specific.h"
+#include "RZA1/system/r_typedefs.h"
+#include "RZA1/cpu_specific.h"
 
 #define FIRMWARE_OLD 0
 #define FIRMWARE_1P2P0 1
@@ -276,6 +276,8 @@
 #define selectedDrumColourGreen 30
 #define selectedDrumColourBlue 10
 
+#define USE_DEFAULT_VELOCITY 255
+
 #define MAX_SEQUENCE_LENGTH 1610612736 // The biggest multiple of 3 which can fit in a signed 32-bit int
 #define noteOnLatenessAllowed 2205     // In audio samples. That's 50mS. Multiply mS by 44.1
 
@@ -524,7 +526,8 @@ typedef enum SyncLevel_ {
 #define MOD_FX_TYPE_FLANGER 1
 #define MOD_FX_TYPE_CHORUS 2
 #define MOD_FX_TYPE_PHASER 3
-#define NUM_MOD_FX_TYPES 4
+#define MOD_FX_TYPE_CHORUS_STEREO 4
+#define NUM_MOD_FX_TYPES 5
 
 #define SAMPLE_MAX_TRANSPOSE 24
 #define SAMPLE_MIN_TRANSPOSE (-96)
@@ -555,8 +558,8 @@ typedef enum SyncLevel_ {
 #define LPF_MODE_12DB 0
 #define LPF_MODE_TRANSISTOR_24DB 1
 #define LPF_MODE_TRANSISTOR_24DB_DRIVE 2
-#define LPF_MODE_DIODE 3
-#define NUM_LPF_MODES 3
+#define LPF_MODE_SVF 3
+#define NUM_LPF_MODES 4
 
 #define PHASER_NUM_ALLPASS_FILTERS 6
 
@@ -615,7 +618,7 @@ typedef enum SyncLevel_ {
 
 #define ALLOW_SPAM_MODE 0 // For debugging I think?
 
-#define KEYBOARD_ROW_INTERVAL 5
+#define KEYBOARD_ROW_INTERVAL_MAX 16
 
 // UART
 #define MIDI_TX_BUFFER_SIZE 1024
