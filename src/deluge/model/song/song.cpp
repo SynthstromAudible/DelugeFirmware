@@ -63,6 +63,7 @@
 #include "gui/ui/browser/browser.h"
 #include "storage/file_item.h"
 #include "hid/display/oled.h"
+#include "gui/ui/load/load_instrument_preset_ui.h"
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
@@ -285,8 +286,8 @@ bool Song::ensureAtLeastOneSessionClip() {
 		result.error = Browser::currentDir.set("SYNTHS");
 		if (result.error) goto couldntLoad;
 
-		result =
-		    Browser::findAnUnlaunchedPresetIncludingWithinSubfolders(NULL, INSTRUMENT_TYPE_SYNTH, AVAILABILITY_ANY);
+		result = loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(NULL, INSTRUMENT_TYPE_SYNTH,
+		                                                                                AVAILABILITY_ANY);
 
 		Instrument* newInstrument;
 
@@ -1577,7 +1578,7 @@ skipInstance:
 				// If Instrument mismatch somehow...
 				if (thisInstance->clip->output != thisOutput) {
 #if ALPHA_OR_BETA_VERSION
-					numericDriver.displayPopup("E041");
+					numericDriver.displayPopup("E451"); // Changed from E041 - was a duplicate.
 #endif
 					goto skipInstance;
 				}
@@ -4010,8 +4011,8 @@ displayError:
 			return NULL;
 		}
 
-		result = Browser::findAnUnlaunchedPresetIncludingWithinSubfolders(this, newInstrumentType,
-		                                                                  AVAILABILITY_INSTRUMENT_UNUSED);
+		result = loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(this, newInstrumentType,
+		                                                                                AVAILABILITY_INSTRUMENT_UNUSED);
 		if (result.error) goto displayError;
 
 		newInstrument = result.fileItem->instrument;
@@ -4742,7 +4743,7 @@ doHibernatingInstruments:
 		// If different path, it's not relevant.
 		if (!thisInstrument->dirPath.equals(&Browser::currentDir)) continue;
 
-		FileItem* thisItem = Browser::getNewFileItem();
+		FileItem* thisItem = loadInstrumentPresetUI.getNewFileItem();
 		if (!thisItem) {
 			return ERROR_INSUFFICIENT_RAM;
 		}

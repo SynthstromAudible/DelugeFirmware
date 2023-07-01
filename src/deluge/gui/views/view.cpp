@@ -1574,7 +1574,7 @@ gotAnInstrument:
 	else {
 
 		PresetNavigationResult results =
-		    Browser::doPresetNavigation(offset, oldInstrument, availabilityRequirement, false);
+		    loadInstrumentPresetUI.doPresetNavigation(offset, oldInstrument, availabilityRequirement, false);
 		if (results.error == NO_ERROR_BUT_GET_OUT) {
 getOut:
 #if HAVE_OLED
