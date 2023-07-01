@@ -18,13 +18,17 @@ public:
 	void releaseHandles();
 	void tick();
 	void setup();
-	void runInit();
+	void init();
 	inline WrenInterpretResult interpret(const char*, const char*);
 
-private:
+	static void print(const char* text);
+
+protected:
 	static void errorFn(WrenVM* vm, WrenErrorType errorType, const char* mod, const int line, const char* msg);
 	static void writeFn(WrenVM* vm, const char* text);
 	static WrenLoadModuleResult loadModuleFn(WrenVM* vm, const char* name);
 	static void loadModuleComplete(WrenVM* vm, const char* mod, WrenLoadModuleResult result);
 	static char* getSourceForModule(const char*);
+	static WrenForeignMethodFn bindForeignMethodFn( WrenVM* vm, const char* module, const char* className, bool isStatic, const char* signature);
+	static WrenForeignClassMethods bindForeignClassFn( WrenVM* vm, const char* mod, const char* cls);
 };

@@ -8,7 +8,7 @@
 
 static char scriptBuffer[SCRIPT_BUFFER_SIZE];
 
-void Wren::writeFn(WrenVM* vm, const char* text) {
+void Wren::print(const char* text) {
 	bool empty = true;
 	for (size_t i = 0; text[i] != '\0'; i++) {
 		if (!std::isspace(static_cast<unsigned char>(text[i]))) {
@@ -27,6 +27,10 @@ void Wren::writeFn(WrenVM* vm, const char* text) {
 		numericDriver.setScrollingText(text);
 	}
 #endif
+}
+
+void Wren::writeFn(WrenVM* vm, const char* text) {
+	Wren::print(text);
 }
 
 void Wren::errorFn(WrenVM* vm, WrenErrorType errorType, const char* mod, const int line, const char* msg) {
@@ -69,12 +73,44 @@ void Wren::loadModuleComplete(WrenVM* vm, const char *mod, WrenLoadModuleResult 
 	// TODO
 }
 
+WrenForeignMethodFn Wren::bindForeignMethodFn( WrenVM* vm, const char* moduleName, const char* className, bool isStatic, const char* signature) {
+	std::string mod(moduleName), cls(className), sig(signature);
+	// TODO refactor this to use a hash map
+	// should not cause performance issues since this only happens during setup
+	if (mod == "main") {
+		if (cls == "TDeluge") {
+			if (sig == "print(_)") {
+				return [](WrenVM* vm) -> void {
+					const char* str = wrenGetSlotString(vm, 1);
+					Wren::print(str);
+				};
+			}
+		}
+	}
+	return [](WrenVM* vm) -> void {
+		Wren::print("?");
+	};
+}
+
+WrenForeignClassMethods Wren::bindForeignClassFn( WrenVM* vm, const char* mod, const char* cls) {
+	WrenForeignClassMethods methods;
+	methods.allocate = [](WrenVM* vm) -> void {
+		// TODO
+	};
+	methods.finalize = [](void* data) -> void {
+		// TODO
+	};
+	return methods;
+}
+
 Wren::Wren() {
 	WrenConfiguration config;
 	wrenInitConfiguration(&config);
 	config.writeFn = &Wren::writeFn;
 	config.errorFn = &Wren::errorFn;
 	config.loadModuleFn = &Wren::loadModuleFn;
+	config.bindForeignMethodFn = &Wren::bindForeignMethodFn;
+	config.bindForeignClassFn = &Wren::bindForeignClassFn;
 	config.reallocateFn = &wren_heap_realloc;
 	config.initialHeapSize = kWrenHeapSize;
 	config.minHeapSize = 4096;
@@ -98,7 +134,7 @@ inline WrenInterpretResult Wren::interpret(const char* mod, const char* source) 
 
 void Wren::tick() {
 	if (first_run) {
-		runInit();
+		init();
 		first_run = false;
 	}
 }
@@ -106,20 +142,26 @@ void Wren::tick() {
 #define NL "\n"
 void Wren::setup() {
 	static const char* setupScript =
+		/*
+		NL "class Song {"
+		NL "  foreign static load(name)"
+		NL "}"
+		*/
 		NL "class TDeluge {"
 		NL "  construct new() { _init = Fn.new {} }"
 		NL "  init() { _init.call() }"
 		NL "  onInit(fn) { _init = fn }"
+		NL "  foreign print(text)"
 		NL "}"
 		NL "var Deluge = TDeluge.new()"
 		NL;
 	(void)interpret("main", setupScript);
 
 	char* source = getSourceForModule("init");
-	(void)wrenInterpret(vm, "main", source);
+	(void)interpret("main", source);
 }
 
-void Wren::runInit() {
+void Wren::init() {
 	if (handles.Deluge != NULL and handles.init != NULL) {
 		wrenSetSlotHandle(vm, 0, handles.Deluge);
 		(void)wrenCall(vm, handles.init);
