@@ -51,7 +51,7 @@ Everybody is invited to contribute to this repository as further outlined below:
 
 ## Requirements
 
-The following requirements must be fulfilled for a Pull request to be mergable to the ```develop``` branch:
+The following requirements must be fulfilled for a Pull request to be mergable to the `develop` branch:
 
 ### General
 
@@ -89,12 +89,12 @@ Please follow the following steps for every pull request to ensure every contrib
 
 1. Create a [Draft Pull request](https://github.blog/2019-02-14-introducing-draft-pull-requests/) including a description on what will be changed and what impact you expect. The title can start with "[Draft] " during development.
 2. Work on the Pull request
-3. Before a Pull request can be considered ready all upstream changes from the ```develop``` branch need to be merged into it. It is the duty of everyone to help make merging into ```develop``` as painless as possible so please try to align if you see that your Pull requests works in a similar area as another one.
-4. Once the Pull request is ready, fulfills all requirements outlined above and is up to date with the ```develop``` branch it can be converted from Draft and marked as ready for review.
-5. Having multiple reviews for every Pull request would be nice. Reviews from community members not mentioned in the [CODEOWNERS](CODEOWNERS) file should be taken serious and used as an important source of feedback but have no decisional power on what gets merged into the ```develop``` branch.
+3. Before a Pull request can be considered ready all upstream changes from the `develop` branch need to be merged into it. It is the duty of everyone to help make merging into `develop` as painless as possible so please try to align if you see that your Pull requests works in a similar area as another one.
+4. Once the Pull request is ready, fulfills all requirements outlined above and is up to date with the `develop` branch it can be converted from Draft and marked as ready for review.
+5. Having multiple reviews for every Pull request would be nice. Reviews from community members not mentioned in the [CODEOWNERS](CODEOWNERS) file should be taken serious and used as an important source of feedback but have no decisional power on what gets merged into the `develop` branch.
 5. At least one member of the [CODEOWNERS](CODEOWNERS) file needs to review every pull request while also considering community reviews in their decision.
     * CODEOWNERS can decline merging a Pull request if it does not fulfill the requirements outlined above. They need to give clear feedback on which requirements have not been met and also provide opportunity to improve the Pull request to meet the requirements within reasonable boundaries (e.g. there are limits on how much work can be expected from a CODEOWNER for a specific Pull request).
-    * If one or more CODEOWNERS are sure the requirements have been met they will merge the change into the ```develop``` branch.
+    * If one or more CODEOWNERS are sure the requirements have been met they will merge the change into the `develop` branch.
     * For more information about governance and handling of decisional matters please take a look at the [Governance](GOVERNANCE.md) document.
 
 In addition to this workflow it is not a requirement but would be nice if developers could help the maintenance of the project by:
