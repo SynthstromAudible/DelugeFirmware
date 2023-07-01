@@ -34,6 +34,7 @@ enum RuntimeFeatureStateToggle : uint32_t { Off = 0, On = 1 };
 enum RuntimeFeatureSettingType : uint32_t {
 	// FileFolderSorting // @TODO: Replace with actual identifier on first use
 	DrumRandomizer,
+	Quantize,
 	MaxElement // Keep as boundary
 };
 
@@ -84,6 +85,14 @@ protected:
 	    [RuntimeFeatureSettingType::DrumRandomizer] =
 	        {.displayName = "Drum Randomizer",
 	         .xmlName = "drumRandomizer",
+	         .value = RuntimeFeatureStateToggle::On, // Default value
+	         .options = {{.displayName = "Off", .value = RuntimeFeatureStateToggle::Off},
+	                     {.displayName = "On", .value = RuntimeFeatureStateToggle::On},
+	                     {.displayName = NULL, .value = 0}}},
+
+	    [RuntimeFeatureSettingType::Quantize] =
+	        {.displayName = "Quantize",
+	         .xmlName = "quantize",
 	         .value = RuntimeFeatureStateToggle::On, // Default value
 	         .options = {{.displayName = "Off", .value = RuntimeFeatureStateToggle::Off},
 	                     {.displayName = "On", .value = RuntimeFeatureStateToggle::On},
