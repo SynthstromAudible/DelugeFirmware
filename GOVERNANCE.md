@@ -17,11 +17,11 @@ There are nightly releases covering all changes of the day as well as stable `co
 `nightly` (beta) releases:
 * All incoming changes come from merging Pull requests from the community during the day.
 * Every night a new `nightly` firmware will be generated and published on GitHub Releases tagged as `nightly` to allow users to test them.
-* The project management team will decide on the right time to pick a promising beta firmware to be a release candidate.
 
 `community` (stable) releases:
-* Before a firmware can be released as official community version it must have been released and published in the Github Releases as release candidate (`rc`) for at least two weeks, giving users and developers the chance to thoroughly test them and give feedback.
-* Only if the project management team has the feeling that the firmware is stable and delivers a better experience than the previous firmware it is released as an official new `community` release in the Github Releases. 
+* Community releases will be done in a three months cycle at the end of January, April, July and October
+* Two weeks before every release date there will be a window of two weeks where only bugfix pull requests can be accepted into `develop` while the project management team works on creating a new `community` release from the current `develop` branch. 
+* During this time users and developers can test the release candidate and make sure it is of high quality for the final release on GitHub Releases tagged as `community`.
 
 # What to expect and when to expect it
 
