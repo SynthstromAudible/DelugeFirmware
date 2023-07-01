@@ -1533,14 +1533,14 @@ ComparativeNoteNumber getComparativeNoteNumberFromChars(char const* string, char
 	}
 }
 
-// Returns positive if first > second
-// Returns negative if first < second
-bool
-    shouldInterpretNoteNames; // You must set this at some point before calling strcmpspecial. This isn't implemented as an argument because
-    // sometimes you want to set it way up the call tree, and passing it all the way down is a pain.
+// You must set this at some point before calling strcmpspecial. This isn't implemented as an argument because
+// sometimes you want to set it way up the call tree, and passing it all the way down is a pain.
+bool shouldInterpretNoteNames;
 
 bool octaveStartsFromA; // You must set this if setting shouldInterpretNoteNames to true.
 
+// Returns positive if first > second
+// Returns negative if first < second
 int strcmpspecial(char const* first, char const* second) {
 
 	int resultIfGetToEndOfBothStrings = 0;
