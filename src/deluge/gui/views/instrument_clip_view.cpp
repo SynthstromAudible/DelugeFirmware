@@ -2023,6 +2023,7 @@ void InstrumentClipView::adjustAccidentalTranspose(int offset) {
 
 				if (editPadPresses[i].isBlurredSquare) goto multiplePresses;
 
+				int currentYNote = getCurrentClip()->getYNoteFromYDisplay(editPadPresses[i].yDisplay, currentSong) ;
 				accidentalTransposeValue = editPadPresses[i].intendedAccidentalTranspose;
 				accidentalTransposeValue = getMin(getMax(accidentalTransposeValue, 0 - currentYNote), 127 - currentYNote);
 				noteValueAfterTranspose = accidentalTransposeValue + currentYNote; // 
