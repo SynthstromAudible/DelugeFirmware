@@ -27,12 +27,15 @@
 
 // State declarations
 enum RuntimeFeatureStateToggle : uint32_t { Off = 0, On = 1 };
+enum RuntimeFeatureStateColorScheme : uint32_t { Classic = 0, SmallRange = 1, Blue = 2};
 
 // Declare additional enums for specific multi state settings (e.g. like RuntimeFeatureStateTrackLaunchStyle)
 
 /// Every setting needs to be delcared in here
 enum RuntimeFeatureSettingType : uint32_t {
 	// FileFolderSorting // @TODO: Replace with actual identifier on first use
+	DrumRandomizer,
+	ColorScheme,
 	MaxElement // Keep as boundary
 };
 
@@ -79,6 +82,22 @@ protected:
 
 	    // Please extend RuntimeFeatureSettingType and here for additional settings
 	    // Usage example -> (runtimeFeatureSettings.get(RuntimeFeatureSettingType::FileFolderSorting) == RuntimeFeatureStateToggle::On)
+
+	    [RuntimeFeatureSettingType::DrumRandomizer] =
+	        {.displayName = "Drum Randomizer",
+	         .xmlName = "drumRandomizer",
+	         .value = RuntimeFeatureStateToggle::On, // Default value
+	         .options = {{.displayName = "Off", .value = RuntimeFeatureStateToggle::Off},
+	                     {.displayName = "On", .value = RuntimeFeatureStateToggle::On},
+	                     {.displayName = NULL, .value = 0}}},
+	    [RuntimeFeatureSettingType::ColorScheme] =
+	        {.displayName = "Note color scheme",
+	         .xmlName = "notecolorScheme",
+	         .value = RuntimeFeatureStateColorScheme::Classic, // Default value
+	         .options = {{.displayName = "Classic", .value = RuntimeFeatureStateColorScheme::Classic},
+	                     {.displayName = "Smallrange", .value = RuntimeFeatureStateColorScheme::SmallRange},
+	                     {.displayName = "Blue", .value = RuntimeFeatureStateColorScheme::Blue},
+	                     {.displayName = NULL, .value = 0}}},
 	};
 
 private:
