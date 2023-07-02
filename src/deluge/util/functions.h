@@ -19,6 +19,7 @@
 #define FUNCTIONS_H
 
 #include "RZA1/system/r_typedefs.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "util/lookuptables/lookuptables.h"
 #include <string.h>
 #include "ff.h"
@@ -415,7 +416,8 @@ void seedRandom();
 
 int random(int upperLimit);
 bool shouldDoPanning(int32_t panAmount, int32_t* amplitudeL, int32_t* amplitudeR);
-void hueToRGB(int32_t hue, unsigned char* rgb);
+void hueToRGBWithColorScheme(int32_t hue, unsigned char* rgb, int32_t colorScheme);
+void hueToRGB(int32_t hue, unsigned char* rgb) ;
 void hueToRGBPastel(int32_t hue, unsigned char* rgb);
 uint32_t getLFOInitialPhaseForNegativeExtreme(uint8_t waveType);
 uint32_t getLFOInitialPhaseForZero(uint8_t waveType);
