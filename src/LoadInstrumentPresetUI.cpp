@@ -693,7 +693,10 @@ addNumber:
 int LoadInstrumentPresetUI::performLoad(bool doClone) {
 
 	FileItem* currentFileItem = getCurrentFileItem();
-	if (!currentFileItem) return ERROR_UNSPECIFIED;
+	if (!currentFileItem) {
+		return HAVE_OLED ? ERROR_FILE_NOT_FOUND : ERROR_NO_FURTHER_FILES_THIS_DIRECTION; // Make it say "NONE" on numeric Deluge, for consistency with old times.
+	}
+
 
 	if (currentFileItem->isFolder)										return NO_ERROR;
 	if (currentFileItem->instrument == instrumentToReplace && !doClone)	return NO_ERROR;	// Happens if navigate over a folder's name (Instrument stays the same),

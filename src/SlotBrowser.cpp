@@ -105,7 +105,7 @@ nonNumeric:
 #endif
 
 void SlotBrowser::processBackspace() {
-	QwertyUI::processBackspace();
+	Browser::processBackspace();
 #if HAVE_OLED
 	if (fileIndexSelected == -1) predictExtendedText();
 #else

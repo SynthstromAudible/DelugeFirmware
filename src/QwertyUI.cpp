@@ -221,9 +221,9 @@ int QwertyUI::padAction(int x, int y, int on) {
 			}
 
 			else if (!currentUIMode) {
+				currentUIMode = UI_MODE_HOLDING_BACKSPACE;
 				processBackspace();
 				uiTimerManager.setTimer(TIMER_UI_SPECIFIC, 500);
-				currentUIMode = UI_MODE_HOLDING_BACKSPACE;
 			}
 		}
 		else {
