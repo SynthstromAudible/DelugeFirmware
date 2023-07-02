@@ -1145,7 +1145,7 @@ NoteRow* InstrumentClip::createNewNoteRowForKit(ModelStackWithTimelineCounter* m
 }
 
 void InstrumentClip::getMainColourFromY(int yNote, int8_t noteRowColourOffset, uint8_t rgb[]) {
-	hueToRGB((yNote + colourOffset + noteRowColourOffset) * -8 / 3, rgb);
+	hueToRGBWithColorScheme((yNote + colourOffset + noteRowColourOffset) * -8 / 3, rgb,runtimeFeatureSettings.get(RuntimeFeatureSettingType::ColorScheme));
 }
 
 void InstrumentClip::musicalModeChanged(uint8_t yVisualWithinOctave, int change,

@@ -23,6 +23,7 @@
 #include "definitions.h"
 #include "modulation/arpeggiator.h"
 #include "model/note/note_row_vector.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "util/d_string.h"
 
 class Song;
