@@ -1,8 +1,12 @@
 import os
 import multiprocessing
 
+from SCons.Action import Action
 from SCons.Platform import TempFileMunge
 from SCons.Subst import quote_spaces
+
+from dbt.util import vprint
+from dbt.project import compose_valid_targets
 
 DefaultEnvironment(tools=[])
 
@@ -12,6 +16,13 @@ PROJECT_SOURCE_DIR = os.path.abspath(REL_SOURCE_DIR)
 
 # Commandline arguments are defined in here
 cmd_vars = SConscript("site_scons/commandline.scons")
+cmd_env = Environment(
+    toolpath=["#/scripts/dbt_tools"],
+    tools=[
+        ("dbt_help", {"vars": cmd_vars}),
+    ],
+    variables=cmd_vars,
+)
 
 # Automagically set the number of jobs to the processor count.
 # This probably won't please everyone, but I figure most folks
@@ -31,10 +42,6 @@ from dbt.util import (
     vprint,
 )
 
-if GetOption("base_config") not in ["standalone"]:
-    print("Error: invalid base config mode.")
-    Return()
-
 # Start up a basic environment
 env = Environment(
     ENV=os.environ.copy(),
@@ -44,11 +51,16 @@ env = Environment(
             "crosscc",
             {
                 "toolchain_prefix": "arm-none-eabi-",
-                "versions": (" 12.2",),
+                "versions": (
+                    " 12.0",
+                    " 12.1",
+                    " 12.2",
+                ),
             },
         ),
         "asm_quirks",
         "link_quirks",
+        "scons_modular",
     ],
     TEMPFILE=TempFileMunge,
     TEMPFILEARGESCFUNC=tempfile_arg_esc_func,
@@ -56,7 +68,12 @@ env = Environment(
     SINGLEQUOTEFUNC=single_quote,
     MAXLINELENGTH=2048,
     BUILD_MODE="",
+    ROOT_DIR=GetLaunchDir(),
+    DBT_SCRIPT_DIR=os.path.join(GetLaunchDir(), "scripts"),
+    DBT_CONTRIB_DIR=os.path.join(GetLaunchDir(), "contrib"),
 )
+
+# COMMAND LINE PARSING
 
 # Set verbosity options in priority order:
 # spew -> silent -> verbosity
@@ -74,36 +91,135 @@ print("Deluge Build Tool (DBT) {}".format("[silent mode]" if not vcheck() else "
 vprint()
 vprint("For help use argument: --help\n")
 
-# Prepare for multiple target environments
-multienv = {}
+# Save options if --save-default-options is specified
+if GetOption("save_options"):
+    cmd_vars.Save(GetOption("optionfile"), cmd_env)
+    vprint("Saved options to {}".format(str(GetOption("optionfile"))))
+    vprint()
 
 # Important parameter to avoid conflict with VariantDir when calling SConscripts
 # from another directory
 SConscriptChdir(False)
 
-# Standalone mode configuration.
-if GetOption("base_config") == "standalone":
-    for target in BUILD_TARGETS:
-        build_env = env.Clone(BUILD_MODE="standalone")
-        multienv[target] = build_env
-        build_env.Tool(
-            "mode_standalone",
-            BUILD_LABEL=target,
-            BUILD_DIR=os.path.abspath(target),
-            SOURCE_DIR=os.path.relpath(REL_SOURCE_DIR)
-        )
+# UTIL OPERATIONS
 
-        if not build_env["BUILD_TARGET_IS_VALID"]:
-            Return()
+util_env = env.Clone(tools=["python3", "openocd", "shell", "debug_opts"])
+if "shell" in BUILD_TARGETS:
+    util_env.PhonyTarget(
+        "shell", Action(util_env.CallShell, "Running shell in DBT environment.")
+    )
+    Return()
 
+elif "openocd" in BUILD_TARGETS:
+    # Just start OpenOCD
+    util_env.PhonyTarget("openocd", "${OPENOCDCOM}")
+    Return()
 
-        SConscript(
-            os.path.join("site_scons", "build_opts.scons"), exports={"env": build_env}
-        )
+elif "debug-oled" in BUILD_TARGETS:
+    cmd_env.Replace(DEBUG=1, OLED=1)
+    elf_target = compose_valid_targets(cmd_env)[0]
+    # Load mode standalone to get us the elf file name
+    # some redundancy here, ah well
+    util_env.Tool(
+        "mode_standalone",
+        BUILD_LABEL=elf_target,
+        BUILD_DIR=os.path.abspath(elf_target),
+        SOURCE_DIR=os.path.relpath(REL_SOURCE_DIR),
+    )
+    debug_out = util_env.PhonyTarget(
+        "debug-oled",
+        "${GDBCOM}",
+        source=os.path.join(
+            util_env.get("BUILD_DIR"),
+            "{}.elf".format(util_env.get("FIRMWARE_FILENAME")),
+        ),
+        GDBOPTS="${GDBOPTS_BASE}",
+        GDBREMOTE=cmd_env["GDB_REMOTE"],
+    )
+    Return()
 
+elif "debug-7seg" in BUILD_TARGETS:
+    cmd_env.Replace(DEBUG=1, OLED=0)
+    elf_target = compose_valid_targets(cmd_env)[0]
+    # Load mode standalone to get us the elf file name
+    # some redundancy here, ah well
+    util_env.Tool(
+        "mode_standalone",
+        BUILD_LABEL=elf_target,
+        BUILD_DIR=os.path.abspath(elf_target),
+        SOURCE_DIR=os.path.relpath(REL_SOURCE_DIR),
+    )
+    debug_out = util_env.PhonyTarget(
+        "debug-7seg",
+        "${GDBCOM}",
+        source=os.path.join(
+            util_env.get("BUILD_DIR"),
+            "{}.elf".format(util_env.get("FIRMWARE_FILENAME")),
+        ),
+        GDBOPTS="${GDBOPTS_BASE}",
+        GDBREMOTE=cmd_env["GDB_REMOTE"],
+    )
+    Return()
+    # No Return as we want this to build
+    # We will revisit after the build
 
-# Iterate through multiple environments
-for target, build_env in multienv.items():
+# BUILD OPERATIONS
+
+# Prepare for multiple target environments
+build_multienv = {}
+
+# Target List Building
+# Here we parse out shorthand targets and leave only our directory targets
+
+FOCUS_TARGETS = compose_valid_targets(cmd_env)
+
+# If one of our utility targets is in the list, ignore
+# normal targets or treat them specially.
+
+if "openocd" in BUILD_TARGETS:
+    FOCUS_TARGETS = []
+if "shell" in BUILD_TARGETS:
+    FOCUS_TARGETS = []
+if "debug-oled" in BUILD_TARGETS:
+    FOCUS_TARGETS = []
+if "debug-7seg" in BUILD_TARGETS:
+    FOCUS_TARGETS = []
+
+special_target = None
+for b_target in BUILD_TARGETS:
+    if b_target in ["all", "build", "clean"]:
+        special_target = b_target
+        break
+
+if special_target is not None:
+    # Formally map these aliases to the appropriate targets
+    if special_target == "all":
+        env.Alias("all", FOCUS_TARGETS)
+    if special_target == "build":
+        env.Alias("build", FOCUS_TARGETS)
+    if special_target == "clean":
+        env.Alias("clean", FOCUS_TARGETS)
+        SetOption("clean", True)
+
+for target in FOCUS_TARGETS:
+    build_env = env.Clone(BUILD_MODE="standalone")
+    build_multienv[target] = build_env
+    build_env.Tool(
+        "mode_standalone",
+        BUILD_LABEL=target,
+        BUILD_DIR=os.path.abspath(target),
+        SOURCE_DIR=os.path.relpath(REL_SOURCE_DIR),
+    )
+
+    if not build_env["BUILD_TARGET_IS_VALID"]:
+        Return()
+
+    SConscript(
+        os.path.join("site_scons", "build_opts.scons"), exports={"env": build_env}
+    )
+
+# Iterate through multiple build environments
+for target, build_env in build_multienv.items():
     # Suppress warnings if silent
     if vcheck() < 2:
         build_env.Append(CCFLAGS=" -w")
@@ -148,25 +264,28 @@ for target, build_env in multienv.items():
 
     # Turn those objects into a magical elf! (and a bonus .map file)
     elf_file = build_env.Program(
-        os.path.join(build_env["BUILD_DIR"], build_env["FIRMWARE_FILENAME"]), source=objects
+        os.path.join(build_env["BUILD_DIR"], build_env["FIRMWARE_FILENAME"]),
+        source=objects,
     )
     # Touch it.
     map_file = build_env.MapFile(
-        os.path.join(build_env["BUILD_DIR"], build_env["FIRMWARE_FILENAME"]), source=elf_file
+        os.path.join(build_env["BUILD_DIR"], build_env["FIRMWARE_FILENAME"]),
+        source=elf_file,
     )
     # Bin it.
     bin_file = build_env.BinFile(
-        os.path.join(build_env["BUILD_DIR"], build_env["FIRMWARE_FILENAME"]), source=elf_file
+        os.path.join(build_env["BUILD_DIR"], build_env["FIRMWARE_FILENAME"]),
+        source=elf_file,
     )
     # Hex it.
     hex_file = build_env.HexFile(
-        os.path.join(build_env["BUILD_DIR"], build_env["FIRMWARE_FILENAME"]), source=elf_file
+        os.path.join(build_env["BUILD_DIR"], build_env["FIRMWARE_FILENAME"]),
+        source=elf_file,
     )
     # Size it.
     size_file = build_env.SizeFile(
-        os.path.join(build_env["BUILD_DIR"], build_env["FIRMWARE_FILENAME"]), source=elf_file
+        os.path.join(build_env["BUILD_DIR"], build_env["FIRMWARE_FILENAME"]),
+        source=elf_file,
     )
     # Technologic.
     # Technologic.
-
-

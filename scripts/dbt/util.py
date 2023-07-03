@@ -81,6 +81,12 @@ def walk_all_sources(base, prefix):
     return sources
 
 
+def walk_all_includes(base):
+    walker = list(os.walk(base))
+    include_paths = [i[0] for i in walker if len(i) > 0]
+    return include_paths
+
+
 def vcheck():
     """Verbosity level-checker
 

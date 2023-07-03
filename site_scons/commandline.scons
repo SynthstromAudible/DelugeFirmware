@@ -1,13 +1,4 @@
-AddOption(
-    "--base_config",
-    dest="base_config",
-    default="standalone",
-    type="string",
-    nargs=1,
-    action="store",
-    metavar="SOURCE",
-    help="Source of default environment options for the build (only 'standalone' for now)",
-)
+import os
 
 AddOption(
     "--e2_orig_prefix",
@@ -27,12 +18,29 @@ AddOption(
 )
 
 AddOption(
-    "--only_prepare",
+    "--only-prepare",
     dest="only_prepare",
     action="store_true",
     help="For the given build targets, only prepare for building; do not actually "
     "build objects or binaries. Please put this in your workflow before building using an "
     "external tool.",
+)
+
+AddOption(
+    "--option-file",
+    dest="optionfile",
+    type="string",
+    nargs=1,
+    action="store",
+    default="dbt_options.py",
+    help="Optional file for passing additional arguments.",
+)
+
+AddOption(
+    "--save-default-options",
+    dest="save_options",
+    action="store_true",
+    help="Saves passed in commandline variables to defaults file specified by --option-file.",
 )
 
 AddOption(
@@ -53,3 +61,26 @@ AddOption(
     help="Level of noise DBT should make: 0 sets the --silent/--quiet flag and suppresses "
     "whatever we can; 1 is the default; 2 enables build command output; 3 is equivalent to --spew.",
 )
+
+# COMMANDLINE VARIABLES
+
+vars = Variables(GetOption("optionfile"), ARGUMENTS)
+
+vars.AddVariables(
+    (
+        "DEBUG",
+        "When set to 0 or 1, enables only debug or release targets, respectively.",
+    ),
+    ("GDB_REMOTE", "The host:port or com port of the GDB server.", "localhost:3333"),
+    (
+        "OLED",
+        "When set to 0 or 1, enables only 7-segment or OLED targets, respectively.",
+    ),
+    (
+        "OPENOCD_OPTS",
+        "Alternate options to pass to OpenOCD",
+        "",
+    ),
+)
+
+Return("vars")

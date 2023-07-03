@@ -2,16 +2,16 @@
 https://github.com/flipperdevices/flipperzero-firmware/
 
 Licensed under GNU GPL v3"""
-import os
-import shutil
 
 
 def generate(env):
+    py_name = "python3"
+    if env["PLATFORM"] == "win32":
+        # On Windows, Python 3 executable is usually just "python"
+        py_name = "python"
+
     env.SetDefault(
-        GDB="gdb",
-        GDBPY="gdb-py3",
-        GDBCOM="$GDB $GDBOPTS $SOURCES",  # no $TARGET
-        GDBPYCOM="$GDBPY $GDBOPTS $GDBPYOPTS $SOURCES",  # no $TARGET
+        PYTHON3=py_name,
     )
 
 

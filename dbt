@@ -12,7 +12,7 @@ set -eu;
 # private variables
 N_GIT_THREADS="$(getconf _NPROCESSORS_ONLN)";
 SCRIPT_PATH="$(cd "$(dirname "$0")" && pwd -P)";
-SCONS_DEFAULT_FLAGS="--warn=target-not-built";
+SCONS_DEFAULT_FLAGS="-Q --warn=target-not-built";
 SCONS_EP="python3 -m SCons";
 
 # public variables
@@ -38,11 +38,12 @@ fi
 pip_cmd="python3 -m pip";
 pip_wheel_path="${TOOLCHAIN_ARCH_DIR}/python/wheel";
 pip_wheels=$(ls "${pip_wheel_path}")
+$pip_cmd install -q "${pip_wheel_path}/certifi-2023.5.7-py3-none-any.whl"
 for wheel in $pip_wheels; do
     $pip_cmd install -q "${pip_wheel_path}/${wheel}"
 done
-$pip_cmd install -q --upgrade pip | grep -v "already satisfied"
-$pip_cmd install -q GitPython | grep -v "already satisfied"
-$pip_cmd install -q kconfiglib==14.1.0 | grep -v "already satisfied"
+
+$pip_cmd install -q --upgrade pip
+$pip_cmd install -q lxml==4.9.2
 
 $SCONS_EP $SCONS_DEFAULT_FLAGS "$@"

@@ -5,5 +5,6 @@ def exists():
 def generate(env):
     env.Replace(
         ASPPFLAGS="-x assembler-with-cpp",
-        ASCOM="$CC $CCFLAGS $ASFLAGS $ASPPFLAGS $ASPATH -o $TARGET -c $SOURCE",
+        ASPPCOM="$CC $CCFLAGS $ASPATH $ASPPFLAGS $ASFLAGS -o $TARGET -c $SOURCE",
+        ASCOM="$CC $CCFLAGS $ASPATH $ASPPFLAGS $ASFLAGS -o $TARGET -c $SOURCE",
     )
