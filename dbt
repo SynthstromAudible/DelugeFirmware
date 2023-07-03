@@ -36,12 +36,12 @@ fi
 # Install python wheels if not already installed, upgrade pip
 # afterward (needs certifi in place).
 pip_cmd="python3 -m pip";
+pip_requirements_path="${SCRIPT_PATH}/scripts/toolchain/requirements.txt"
 pip_wheel_path="${TOOLCHAIN_ARCH_DIR}/python/wheel";
-pip_wheels=$(ls "${pip_wheel_path}")
-$pip_cmd install -q "${pip_wheel_path}/certifi-2023.5.7-py3-none-any.whl"
-for wheel in $pip_wheels; do
-    $pip_cmd install -q "${pip_wheel_path}/${wheel}"
-done
+pip_certifi_wheel=$(find $pip_wheel_path/certifi*)
+$pip_cmd install -q "${pip_certifi_wheel}"
+$pip_cmd install -q -f "${pip_wheel_path}" -r "${pip_requirements_path}"
+
 
 $pip_cmd install -q --upgrade pip
 $pip_cmd install -q lxml==4.9.2
