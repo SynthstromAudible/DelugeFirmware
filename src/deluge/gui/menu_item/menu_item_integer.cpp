@@ -50,8 +50,10 @@ void MenuItemInteger::drawValue() {
 }
 
 void MenuItemIntegerWithOff::drawValue() {
-	if (soundEditor.currentValue == 0) numericDriver.setText("OFF");
-	else MenuItemInteger::drawValue();
+	if (soundEditor.currentValue == 0)
+		numericDriver.setText("OFF");
+	else
+		MenuItemInteger::drawValue();
 }
 #endif
 

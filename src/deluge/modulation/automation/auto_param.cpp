@@ -1010,7 +1010,7 @@ int AutoParam::homogenizeRegion(ModelStackWithAutoParam const* modelStack, int32
 	if (nodes.getNumElements() && nodes.getFirst()->pos < 0) {
 		numericDriver.freezeWithError("E436");
 	}
-	    // Should probably also check that stuff doesn't exist too far right - but that's a bit more complicated.
+	// Should probably also check that stuff doesn't exist too far right - but that's a bit more complicated.
 #endif
 
 	int32_t edgePositions[2];
@@ -1734,7 +1734,7 @@ addNewNodeAt0IfNecessary:
 			if (action->containsConsequenceParamChange(modelStack->paramCollection, modelStack->paramId)) {
 				goto basicTrim;
 
-			// Or, if we need to snapshot, work with that
+				// Or, if we need to snapshot, work with that
 			}
 			else {
 				ParamNodeVector newNodes;

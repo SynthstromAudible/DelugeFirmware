@@ -1516,8 +1516,10 @@ justGetOut:
 
 								Clip* newClip;
 
-								if (output->type == OUTPUT_TYPE_AUDIO) newClip = new (memory) AudioClip();
-								else newClip = new (memory) InstrumentClip(currentSong);
+								if (output->type == OUTPUT_TYPE_AUDIO)
+									newClip = new (memory) AudioClip();
+								else
+									newClip = new (memory) InstrumentClip(currentSong);
 
 								newClip->loopLength = clipInstance->length;
 								newClip->section = 255;

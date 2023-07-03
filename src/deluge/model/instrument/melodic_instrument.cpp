@@ -144,7 +144,7 @@ yupItsForUs:
 						    && instrumentClip->isArrangementOnlyClip()) {
 							goto doRecord;
 
-						// If count-in is on, we only got here if it's very nearly finished
+							// If count-in is on, we only got here if it's very nearly finished
 						}
 						else if (currentUIMode == UI_MODE_RECORD_COUNT_IN) {
 recordingEarly:

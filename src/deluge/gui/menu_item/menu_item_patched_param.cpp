@@ -151,8 +151,10 @@ void MenuItemPatchedParamPan::drawValue() {
 	        : 255;
 	char buffer[5];
 	intToString(std::abs(soundEditor.currentValue), buffer, 1);
-	if (soundEditor.currentValue < 0) strcat(buffer, "L");
-	else if (soundEditor.currentValue > 0) strcat(buffer, "R");
+	if (soundEditor.currentValue < 0)
+		strcat(buffer, "L");
+	else if (soundEditor.currentValue > 0)
+		strcat(buffer, "R");
 	numericDriver.setText(buffer, true, drawDot);
 }
 #endif

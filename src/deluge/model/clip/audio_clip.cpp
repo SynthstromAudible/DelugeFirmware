@@ -417,7 +417,7 @@ void AudioClip::resumePlayback(ModelStackWithTimelineCounter* modelStack, bool m
 		if (ALPHA_OR_BETA_VERSION) {
 			numericDriver.freezeWithError("nofg"); // Ron got, Nov 2021. Wait no, he didn't have playback on!
 		}
-		sequenceSyncStartedNumTicksAgo = 0;        // The show must go on
+		sequenceSyncStartedNumTicksAgo = 0; // The show must go on
 	}
 	sequenceSyncStartedNumTicksAgo = (uint32_t)sequenceSyncStartedNumTicksAgo % (uint32_t)loopLength; // Wrapping
 	guide.sequenceSyncStartedAtTick =

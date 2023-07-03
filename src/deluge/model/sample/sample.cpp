@@ -462,8 +462,10 @@ doLoading:
 
 #if MEASURE_PERC_CACHE_PERFORMANCE
 	int length = (endPosSamples - startPosSamples) * playDirection;
-	if (length < PERC_BUFFER_REDUCTION_SIZE * 16) goto doReturnResult;
-	else endPosSamples = startPosSamples + PERC_BUFFER_REDUCTION_SIZE * 16 * playDirection;
+	if (length < PERC_BUFFER_REDUCTION_SIZE * 16)
+		goto doReturnResult;
+	else
+		endPosSamples = startPosSamples + PERC_BUFFER_REDUCTION_SIZE * 16 * playDirection;
 #endif
 
 	// Make sure we don't shoot past end of waveform

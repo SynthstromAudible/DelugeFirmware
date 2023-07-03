@@ -1551,9 +1551,12 @@ Drum* StorageManager::createNewDrum(int drumType) {
 	}
 
 	Drum* newDrum;
-	if (drumType == DRUM_TYPE_SOUND) newDrum = new (drumMemory) SoundDrum();
-	else if (drumType == DRUM_TYPE_MIDI) newDrum = new (drumMemory) MIDIDrum();
-	else if (drumType == DRUM_TYPE_GATE) newDrum = new (drumMemory) GateDrum();
+	if (drumType == DRUM_TYPE_SOUND)
+		newDrum = new (drumMemory) SoundDrum();
+	else if (drumType == DRUM_TYPE_MIDI)
+		newDrum = new (drumMemory) MIDIDrum();
+	else if (drumType == DRUM_TYPE_GATE)
+		newDrum = new (drumMemory) GateDrum();
 
 	return newDrum;
 }

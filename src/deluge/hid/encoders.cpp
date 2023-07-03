@@ -80,7 +80,8 @@ bool interpretEncoders(bool inCardRoutine) {
 	if (!inCardRoutine && playbackHandler.isEitherClockActive()
 	    && (int32_t)(AudioEngine::audioSampleTimer - timeNextSDTestAction) >= 0) {
 
-		if (getRandom255() < 96) nextSDTestDirection *= -1;
+		if (getRandom255() < 96)
+			nextSDTestDirection *= -1;
 		getCurrentUI()->selectEncoderAction(nextSDTestDirection);
 
 		int random = getRandom255();

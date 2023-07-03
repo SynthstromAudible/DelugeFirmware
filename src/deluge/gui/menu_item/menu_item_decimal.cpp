@@ -177,8 +177,10 @@ void MenuItemDecimal::drawActualValue(bool justDidHorizontalScroll) {
 	}
 
 	int dotPos;
-	if (getNumDecimalPlaces()) dotPos = soundEditor.numberScrollAmount + 3 - getNumDecimalPlaces();
-	else dotPos = 255;
+	if (getNumDecimalPlaces())
+		dotPos = soundEditor.numberScrollAmount + 3 - getNumDecimalPlaces();
+	else
+		dotPos = 255;
 
 	IndicatorLEDs::blinkLed(backLedX, backLedY, 255, 0, !justDidHorizontalScroll);
 

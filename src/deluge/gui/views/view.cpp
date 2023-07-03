@@ -1060,7 +1060,8 @@ void View::setModLedStates() {
 			shouldBlink = (clip->output->type == INSTRUMENT_TYPE_KIT) ? clip->affectEntire : clip->onKeyboardScreen;
 		}
 
-		if (!shouldBlink) goto noBlinking;
+		if (!shouldBlink)
+			goto noBlinking;
 		IndicatorLEDs::blinkLed(clipViewLedX, clipViewLedY);
 	}
 

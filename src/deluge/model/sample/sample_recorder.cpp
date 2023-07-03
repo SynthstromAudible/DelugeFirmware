@@ -389,7 +389,7 @@ aborted:
 			// Note: we couldn't pass the actual Sample pointer into this function, cos the Sample might get destructed during the card access! (Though probably not anymore right?)
 			errorToReturn = audioFileManager.getUnusedAudioRecordingFilePath(
 			    &filePath, &tempFilePathForRecording, folderID,
-			    &audioFileNumber);                               // Recording could finish or abort during this!
+			    &audioFileNumber); // Recording could finish or abort during this!
 			if (status == RECORDER_STATUS_ABORTED) {
 				goto aborted; // In case aborted during
 			}

@@ -2243,7 +2243,7 @@ dontUseCache : {}
 					    && (AudioEngine::lineInPluggedIn || AudioEngine::micPluggedIn)) {
 						channelOffset = 1;
 
-					// Or if left or using internal mic
+						// Or if left or using internal mic
 					}
 					else {
 						channelOffset = 0;

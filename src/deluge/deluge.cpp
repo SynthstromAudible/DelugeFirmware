@@ -335,8 +335,10 @@ bool readButtonsAndPads() {
 			int x = (unsigned int)value % 10;
 			int y = ((unsigned int)value % 70) / 10;
 
-			if (y < displayHeight) result = matrixDriver.padAction(x, y, thisPadPressIsOn, inSDRoutine);
-			else result = Buttons::buttonAction(x, y - displayHeight, thisPadPressIsOn, sdRoutineLock);
+			if (y < displayHeight)
+				result = matrixDriver.padAction(x, y, thisPadPressIsOn, inSDRoutine);
+			else
+				result = Buttons::buttonAction(x, y - displayHeight, thisPadPressIsOn, sdRoutineLock);
 
 #else
 			int thisPadPressIsOn = nextPadPressIsOn;
@@ -422,8 +424,10 @@ bool readButtonsAndPads() {
 			Buttons::buttonAction(songViewButtonX, songViewButtonY, true);
 		}
 
-		else if (random0 < 120) actionLogger.revert(BEFORE);
-		else actionLogger.revert(AFTER);
+		else if (random0 < 120)
+			actionLogger.revert(BEFORE);
+		else
+			actionLogger.revert(AFTER);
 
 		int random = getRandom255();
 		timeNextSDTestAction = AudioEngine::audioSampleTimer + ((random) << 4); // * 44 / 13;
@@ -1093,8 +1097,10 @@ void spamMode() {
 
 		if (spamStates[SPAM_RAM]) {
 			*ramWriteAddress = ~(uint32_t)ramWriteAddress - (*ramReadAddress >> 16);
-			if (++ramReadAddress == (uint32_t*)0x10000000) ramReadAddress = (uint32_t*)0x0C000000;
-			if (++ramWriteAddress == (uint32_t*)0x10000000) ramWriteAddress = (uint32_t*)0x0C000000;
+			if (++ramReadAddress == (uint32_t*)0x10000000)
+				ramReadAddress = (uint32_t*)0x0C000000;
+			if (++ramWriteAddress == (uint32_t*)0x10000000)
+				ramWriteAddress = (uint32_t*)0x0C000000;
 		}
 
 		if (spamStates[SPAM_USB]) {
@@ -1143,7 +1149,8 @@ void spamMode() {
 						//Uart::println("couldn't create");
 					}
 					else {
-						if (spamStates[SPAM_MIDI]) Uart::println("writing");
+						if (spamStates[SPAM_MIDI])
+							Uart::println("writing");
 						sdFileCurrentlyOpen = true;
 					}
 				}
@@ -1178,7 +1185,8 @@ void spamMode() {
 					}
 
 					else {
-						if (spamStates[SPAM_MIDI]) Uart::println("reading");
+						if (spamStates[SPAM_MIDI])
+							Uart::println("reading");
 						sdFileCurrentlyOpen = true;
 					}
 				}
@@ -1213,7 +1221,8 @@ void spamMode() {
 					for (int colour = 0; colour < 3; colour++) {
 						if (colour == whichColour && (getRandom255() % 3) == 0)
 							Uart::putChar(UART_CHANNEL_PIC, getRandom255());
-						else Uart::putChar(UART_CHANNEL_PIC, 0);
+						else
+							Uart::putChar(UART_CHANNEL_PIC, 0);
 					}
 				}
 
@@ -1230,8 +1239,10 @@ void spamMode() {
 
 		if (limitedDetentPos != 0) {
 			currentSpamThing += limitedDetentPos;
-			if (currentSpamThing == NUM_SPAM_THINGS) currentSpamThing = 0;
-			else if (currentSpamThing == -1) currentSpamThing = NUM_SPAM_THINGS - 1;
+			if (currentSpamThing == NUM_SPAM_THINGS)
+				currentSpamThing = 0;
+			else if (currentSpamThing == -1)
+				currentSpamThing = NUM_SPAM_THINGS - 1;
 
 			redrawSpamDisplay();
 		}

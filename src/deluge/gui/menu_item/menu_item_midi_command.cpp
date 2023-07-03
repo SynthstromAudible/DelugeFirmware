@@ -83,8 +83,10 @@ void MenuItemMidiCommand::drawPixelsForOled() {
 #else
 void MenuItemMidiCommand::drawValue() {
 	char const* output;
-	if (!midiEngine.globalMIDICommands[commandNumber].containsSomething()) output = "NONE";
-	else output = "SET";
+	if (!midiEngine.globalMIDICommands[commandNumber].containsSomething())
+		output = "NONE";
+	else
+		output = "SET";
 	numericDriver.setText(output);
 }
 #endif

@@ -1006,9 +1006,12 @@ WaveTable::doRenderingLoop(int32_t* __restrict__ thisSample, int32_t const* buff
 const int16_t* getKernel(int32_t phaseIncrement, int32_t bandMaxPhaseIncrement) {
 	int whichKernel = 0;
 #if NUM_OCTAVES_BETWEEN_WAVETABLE_BANDS == 2
-	if (phaseIncrement >= (band->maxPhaseIncrement * 0.65)) whichKernel = 3;
-	else if (phaseIncrement >= (band->maxPhaseIncrement * 0.5)) whichKernel = 2;
-	else if (phaseIncrement >= (band->maxPhaseIncrement * 0.354)) whichKernel = 1;
+	if (phaseIncrement >= (band->maxPhaseIncrement * 0.65))
+		whichKernel = 3;
+	else if (phaseIncrement >= (band->maxPhaseIncrement * 0.5))
+		whichKernel = 2;
+	else if (phaseIncrement >= (band->maxPhaseIncrement * 0.354))
+		whichKernel = 1;
 	if (!getRandom255()) {
 		uartPrint("kernel: ");
 		uartPrintNumber(whichKernel);

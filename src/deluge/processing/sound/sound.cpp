@@ -415,7 +415,8 @@ void Sound::recalculatePatchingToParam(uint8_t p, ParamManagerForTimeline* param
 #define ENSURE_PARAM_MANAGER_EXISTS                                                                                    \
 	if (!paramManager->containsAnyMainParamCollections()) {                                                            \
 		int error = createParamManagerForLoading(paramManager);                                                        \
-		if (error) return error;                                                                                       \
+		if (error)                                                                                                     \
+			return error;                                                                                              \
 	}                                                                                                                  \
 	ParamCollectionSummary* unpatchedParamsSummary = paramManager->getUnpatchedParamSetSummary();                      \
 	UnpatchedParamSet* unpatchedParams = (UnpatchedParamSet*)unpatchedParamsSummary->paramCollection;                  \

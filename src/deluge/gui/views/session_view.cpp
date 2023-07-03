@@ -727,7 +727,7 @@ justEndClipPress:
 						if (sdRoutineLock) {
 							return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE; // If in card routine, might mean it's still loading an Instrument they selected,
 						}
-						        // and we don't want the loading animation or anything to get stuck onscreen
+						// and we don't want the loading animation or anything to get stuck onscreen
 						clipPressEnded();
 					}
 				}
