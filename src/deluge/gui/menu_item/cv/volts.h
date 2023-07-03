@@ -2,6 +2,7 @@
 #include "processing/engines/cv_engine.h"
 #include "gui/menu_item/decimal.h"
 #include "gui/ui/sound_editor.h"
+#include "hid/display/oled.h"
 
 namespace menu_item::cv {
 class Volts final : public Decimal {
