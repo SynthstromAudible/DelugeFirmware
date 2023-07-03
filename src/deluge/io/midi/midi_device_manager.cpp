@@ -530,7 +530,7 @@ checkDevice:
 
 void ConnectedUSBMIDIDevice::bufferMessage(uint32_t fullMessage) {
 	// If buffer already full, flush it
-	if (numMessagesQueued >= 16) {
+	if (numMessagesQueued >= MIDI_SEND_BUFFER_LEN) {
 		midiEngine
 		    .flushUSBMIDIOutput(); // TODO: this is actually far from perfect - what if already sending - and if we want to wait/check for that, we should be calling the routine.
 		                           // And ideally, we'd be able to flush for just one device.
