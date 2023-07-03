@@ -96,8 +96,12 @@ void ContextMenu::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 	int i = 0;
 
 	while (true) {
-		if (currentOption >= numOptions) break;
-		if (i >= 2) break;
+		if (currentOption >= numOptions) {
+			break;
+		}
+		if (i >= 2) {
+			break;
+		}
 
 		if (isCurrentOptionAvailable()) {
 			OLED::drawString(options[currentOption], 22, textPixelY, image[0], OLED_MAIN_WIDTH_PIXELS, TEXT_SPACING_X,
@@ -131,8 +135,12 @@ void ContextMenu::selectEncoderAction(int8_t offset) {
 		}
 	} while (!isCurrentOptionAvailable());
 
-	if (currentOption < scrollPos) scrollPos = currentOption;
-	else if (offset >= 0 && !wasOnScrollPos) scrollPos = oldCurrentOption;
+	if (currentOption < scrollPos) {
+		scrollPos = currentOption;
+	}
+	else if (offset >= 0 && !wasOnScrollPos) {
+		scrollPos = oldCurrentOption;
+	}
 	renderUIsForOled();
 #else
 

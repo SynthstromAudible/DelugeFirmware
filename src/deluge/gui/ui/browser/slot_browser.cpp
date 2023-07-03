@@ -114,7 +114,9 @@ nonNumeric:
 void SlotBrowser::processBackspace() {
 	QwertyUI::processBackspace();
 #if HAVE_OLED
-	if (fileIndexSelected == -1) predictExtendedText();
+	if (fileIndexSelected == -1) {
+		predictExtendedText();
+	}
 #else
 	//currentFileExists = false;
 	currentFileHasSuffixFormatNameImplied = false;

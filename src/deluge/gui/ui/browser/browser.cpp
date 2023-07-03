@@ -576,7 +576,9 @@ useFoundFile:
 				int lastAllowed = fileItems.getNumElements() - BROWSER_AND_MENU_NUM_LINES;
 				if (scrollPosVertical > lastAllowed) {
 					scrollPosVertical = lastAllowed;
-					if (scrollPosVertical < 0) scrollPosVertical = 0;
+					if (scrollPosVertical < 0) {
+						scrollPosVertical = 0;
+					}
 				}
 #endif
 				goto everythingFinalized;
@@ -819,7 +821,9 @@ doReturn:
 		FileItem* fileItem = (FileItem*)fileItems.getElementAddress(fileItems.getNumElements() - 1);
 		String displayName;
 		error = fileItem->getDisplayNameWithoutExtension(&displayName);
-		if (error) goto emptyFileItemsAndReturn;
+		if (error) {
+			goto emptyFileItemsAndReturn;
+		}
 		char const* readingChar = &displayName.get()[strlen(thingName)];
 		freeSlotNumber = 0;
 		minNumDigits = 0;
@@ -833,7 +837,9 @@ doReturn:
 	}
 
 	error = newName->set(thingName);
-	if (error) goto emptyFileItemsAndReturn;
+	if (error) {
+		goto emptyFileItemsAndReturn;
+	}
 	error = newName->concatenateInt(freeSlotNumber, minNumDigits);
 
 #else
@@ -947,9 +953,13 @@ void Browser::selectEncoderAction(int8_t offset) {
 		if (filePrefix && Buttons::isShiftButtonPressed()) {
 			int filePrefixLength = strlen(filePrefix);
 			char const* enteredTextChars = enteredText.get();
-			if (memcasecmp(filePrefix, enteredTextChars, filePrefixLength)) goto nonNumeric;
+			if (memcasecmp(filePrefix, enteredTextChars, filePrefixLength)) {
+				goto nonNumeric;
+			}
 			Slot thisSlot = getSlot(&enteredTextChars[filePrefixLength]);
-			if (thisSlot.slot < 0) goto nonNumeric;
+			if (thisSlot.slot < 0) {
+				goto nonNumeric;
+			}
 			thisSlot.slot += offset;
 
 			char searchString[9];
@@ -1262,7 +1272,9 @@ void Browser::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 			{
 				int i = o + scrollPosVertical;
 
-				if (i >= fileItems.getNumElements()) break;
+				if (i >= fileItems.getNumElements()) {
+					break;
+				}
 
 				FileItem* thisFile = (FileItem*)fileItems.getElementAddress(i);
 				isFolder = thisFile->isFolder;
@@ -1556,7 +1568,9 @@ int Browser::goIntoFolder(char const* folderName) {
 	numericDriver.setNextTransitionDirection(1);
 	error = arrivedInNewFolder(1);
 #if HAVE_OLED
-	if (!error) renderUIsForOled();
+	if (!error) {
+		renderUIsForOled();
+	}
 #endif
 	return error;
 }
@@ -1583,7 +1597,9 @@ int Browser::goUpOneDirectoryLevel() {
 	numericDriver.setNextTransitionDirection(-1);
 	error = arrivedInNewFolder(-1, enteredText.get());
 #if HAVE_OLED
-	if (!error) renderUIsForOled();
+	if (!error) {
+		renderUIsForOled();
+	}
 #endif
 	return error;
 }

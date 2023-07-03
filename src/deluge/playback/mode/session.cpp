@@ -608,8 +608,12 @@ void Session::launchSchedulingMightNeedCancelling() {
 	if (!preLoadedSong && !areAnyClipsArmed()) {
 		cancelAllLaunchScheduling();
 #if HAVE_OLED
-		if (getCurrentUI() == &loadSongUI) loadSongUI.displayLoopsRemainingPopup(); // Wait, could this happen?
-		else if (getRootUI() == &sessionView && !isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)) renderUIsForOled();
+		if (getCurrentUI() == &loadSongUI) {
+			loadSongUI.displayLoopsRemainingPopup(); // Wait, could this happen?
+		}
+		else if (getRootUI() == &sessionView && !isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)) {
+			renderUIsForOled();
+		}
 #else
 		sessionView.redrawNumericDisplay();
 #endif
@@ -1068,8 +1072,9 @@ void Session::armingChanged() {
 		if (getCurrentUI()->canSeeViewUnderneath()) {
 #if HAVE_OLED
 			if (!isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)
-			    && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION))
+			    && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
 				renderUIsForOled();
+			}
 #else
 			sessionView.redrawNumericDisplay();
 #endif
@@ -1947,9 +1952,12 @@ traverseClips:
 		else {
 			launchEventAtSwungTickCount = playbackHandler.lastSwungTickActioned + currentArmedLaunchLengthForOneRepeat;
 #if HAVE_OLED
-			if (getCurrentUI() == &loadSongUI) loadSongUI.displayLoopsRemainingPopup();
-			else if (getRootUI() == &sessionView && !isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW))
+			if (getCurrentUI() == &loadSongUI) {
+				loadSongUI.displayLoopsRemainingPopup();
+			}
+			else if (getRootUI() == &sessionView && !isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)) {
 				renderUIsForOled();
+			}
 #else
 			sessionView.redrawNumericDisplay();
 #endif

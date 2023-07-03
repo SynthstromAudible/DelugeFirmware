@@ -23,7 +23,9 @@
 MenuItemMPEZoneSelector mpeZoneSelectorMenu;
 
 void MenuItemMPEZoneSelector::beginSession(MenuItem* navigatedBackwardFrom) {
-	if (!navigatedBackwardFrom) whichZone = 0;
+	if (!navigatedBackwardFrom) {
+		whichZone = 0;
+	}
 	MenuItemSelection::beginSession(navigatedBackwardFrom);
 }
 

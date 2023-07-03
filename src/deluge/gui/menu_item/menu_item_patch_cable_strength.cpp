@@ -110,7 +110,9 @@ void MenuItemPatchCableStrength::renderOLED() {
 void MenuItemPatchCableStrength::readCurrentValue() {
 	PatchCableSet* patchCableSet = soundEditor.currentParamManager->getPatchCableSet();
 	unsigned int c = patchCableSet->getPatchCableIndex(getS(), getDestinationDescriptor());
-	if (c == 255) soundEditor.currentValue = 0;
+	if (c == 255) {
+		soundEditor.currentValue = 0;
+	}
 	else {
 		int32_t paramValue = patchCableSet->patchCables[c].param.getCurrentValue();
 		// the internal values are stored in the range -(2^30) to 2^30.
@@ -134,7 +136,9 @@ ModelStackWithAutoParam* MenuItemPatchCableStrength::getModelStack(void* memory,
 void MenuItemPatchCableStrength::writeCurrentValue() {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithAutoParam* modelStackWithParam = getModelStack(modelStackMemory, true);
-	if (!modelStackWithParam->autoParam) return;
+	if (!modelStackWithParam->autoParam) {
+		return;
+	}
 
 	// rescale from 5000 to 2**30. The magic constant is ((2^30)/5000), shifted 32 bits for precision ((1<<(30+32))/5000)
 	int32_t finalValue = ((int64_t)922337203685477 * soundEditor.currentValue) >> 32;
@@ -174,9 +178,12 @@ int MenuItemPatchCableStrength::checkPermissionToBeginSession(Sound* sound, int 
 
 uint8_t MenuItemPatchCableStrength::getIndexOfPatchedParamToBlink() {
 	if (soundEditor.patchingParamSelected == PARAM_GLOBAL_VOLUME_POST_REVERB_SEND
-	    || soundEditor.patchingParamSelected == PARAM_LOCAL_VOLUME)
+	    || soundEditor.patchingParamSelected == PARAM_LOCAL_VOLUME) {
 		return PARAM_GLOBAL_VOLUME_POST_FX;
-	else return soundEditor.patchingParamSelected;
+	}
+	else {
+		return soundEditor.patchingParamSelected;
+	}
 }
 
 MenuItem* MenuItemPatchCableStrength::selectButtonPress() {
@@ -194,7 +201,9 @@ MenuItem* MenuItemPatchCableStrength::selectButtonPress() {
 		numericDriver.displayPopup(HAVE_OLED ? "Automation deleted" : "DELETED");
 		return (MenuItem*)0xFFFFFFFF; // No navigation
 	}
-	else return NULL; // Navigate back
+	else {
+		return NULL; // Navigate back
+	}
 }
 
 // MenuItemPatchCableStrengthRegular ----------------------------------------------------------------------------
@@ -246,7 +255,9 @@ int MenuItemPatchCableStrengthRegular::checkPermissionToBeginSession(Sound* soun
 uint8_t MenuItemPatchCableStrengthRegular::shouldBlinkPatchingSourceShortcut(int s, uint8_t* colour) {
 
 	// If this is the actual source we're editing for...
-	if (s == getS()) return 0;
+	if (s == getS()) {
+		return 0;
+	}
 
 	PatchCableSet* patchCableSet = soundEditor.currentParamManager->getPatchCableSet();
 
@@ -256,7 +267,9 @@ uint8_t MenuItemPatchCableStrengthRegular::shouldBlinkPatchingSourceShortcut(int
 		return 3;
 	}
 
-	else return 255;
+	else {
+		return 255;
+	}
 }
 
 MenuItem* MenuItemPatchCableStrengthRegular::patchingSourceShortcutPress(int s, bool previousPressStillActive) {
@@ -264,7 +277,9 @@ MenuItem* MenuItemPatchCableStrengthRegular::patchingSourceShortcutPress(int s, 
 		sourceSelectionMenuRange.s = s;
 		return &patchCableStrengthMenuRange;
 	}
-	else return (MenuItem*)0xFFFFFFFF;
+	else {
+		return (MenuItem*)0xFFFFFFFF;
+	}
 }
 
 // MenuItemPatchCableStrengthRange ----------------------------------------------------------------------------
@@ -295,9 +310,12 @@ uint8_t MenuItemPatchCableStrengthRange::shouldBlinkPatchingSourceShortcut(int s
 	}
 
 	// Or, if it's the source whose range we are controlling...
-	else if (sourceSelectionMenuRegular.s == s) return 3; // Did I get this right? #patchingoverhaul2021
-
-	else return 255;
+	else if (sourceSelectionMenuRegular.s == s) {
+		return 3; // Did I get this right? #patchingoverhaul2021
+	}
+	else {
+		return 255;
+	}
 }
 
 MenuItem* MenuItemPatchCableStrengthRange::patchingSourceShortcutPress(int newS, bool previousPressStillActive) {
@@ -318,9 +336,12 @@ uint8_t MenuItemFixedPatchCableStrength::shouldBlinkPatchingSourceShortcut(int s
 	PatchCableSet* patchCableSet = soundEditor.currentParamManager->getPatchCableSet();
 
 	// If it's the source controlling the range of the source we're editing for...
-	if (patchCableSet->getPatchCableIndex(s, getLearningThing()) != 255) return 3;
-
-	else return 255;
+	if (patchCableSet->getPatchCableIndex(s, getLearningThing()) != 255) {
+		return 3;
+	}
+	else {
+		return 255;
+	}
 }
 
 MenuItem* MenuItemFixedPatchCableStrength::patchingSourceShortcutPress(int s, bool previousPressStillActive) {

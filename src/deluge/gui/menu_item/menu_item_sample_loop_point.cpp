@@ -58,7 +58,9 @@ int MenuItemSampleLoopPoint::checkPermissionToBeginSession(Sound* sound, int whi
 void MenuItemSampleLoopPoint::beginSession(MenuItem* navigatedBackwardFrom) {
 
 	if (getRootUI() == &keyboardScreen) {
-		if (currentUIMode == UI_MODE_AUDITIONING) keyboardScreen.exitAuditionMode();
+		if (currentUIMode == UI_MODE_AUDITIONING) {
+			keyboardScreen.exitAuditionMode();
+		}
 	}
 
 	soundEditor.shouldGoUpOneLevelOnBegin = true;

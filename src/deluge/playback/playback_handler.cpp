@@ -1763,8 +1763,12 @@ void PlaybackHandler::displaySwingAmount() {
 #if HAVE_OLED
 	char buffer[19];
 	strcpy(buffer, "Swing: ");
-	if (currentSong->swingAmount == 0) strcpy(&buffer[7], "off");
-	else intToString(currentSong->swingAmount + 50, &buffer[7]);
+	if (currentSong->swingAmount == 0) {
+		strcpy(&buffer[7], "off");
+	}
+	else {
+		intToString(currentSong->swingAmount + 50, &buffer[7]);
+	}
 	OLED::popupText(buffer);
 
 #else
@@ -2610,8 +2614,10 @@ void PlaybackHandler::switchToArrangement() {
 	arrangement.resetPlayPos(arrangementPosToStartAtOnSwitch);
 	arrangerView.reassessWhetherDoingAutoScroll();
 #if HAVE_OLED
-	if (!isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION))
+	if (!isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)
+	    && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
 		renderUIsForOled();
+	}
 #else
 	sessionView.redrawNumericDisplay();
 #endif

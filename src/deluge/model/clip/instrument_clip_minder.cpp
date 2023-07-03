@@ -146,7 +146,9 @@ void InstrumentClipMinder::drawMIDIControlNumber(int controlNumber, bool automat
 		buffer[2] = ' ';
 		intToString(controlNumber, &buffer[3]);
 	}
-	if (automationExists) strcat(buffer, "\n(automated)");
+	if (automationExists) {
+		strcat(buffer, "\n(automated)");
+	}
 	OLED::popupText(buffer, true);
 
 #else

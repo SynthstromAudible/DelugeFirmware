@@ -126,8 +126,12 @@ void MenuItemPatchedParamInteger::writeCurrentValue() {
 }
 
 int32_t MenuItemPatchedParamInteger::getFinalValue() {
-	if (soundEditor.currentValue == 25) return 0;
-	else return (uint32_t)soundEditor.currentValue * 85899345 - 2147483648;
+	if (soundEditor.currentValue == 25) {
+		return 0;
+	}
+	else {
+		return (uint32_t)soundEditor.currentValue * 85899345 - 2147483648;
+	}
 }
 
 // --------------------------------------
@@ -154,9 +158,15 @@ void MenuItemPatchedParamPan::drawValue() {
 #endif
 
 int32_t MenuItemPatchedParamPan::getFinalValue() {
-	if (soundEditor.currentValue == 32) return 2147483647;
-	else if (soundEditor.currentValue == -32) return -2147483648;
-	else return ((int32_t)soundEditor.currentValue * 33554432 * 2);
+	if (soundEditor.currentValue == 32) {
+		return 2147483647;
+	}
+	else if (soundEditor.currentValue == -32) {
+		return -2147483648;
+	}
+	else {
+		return ((int32_t)soundEditor.currentValue * 33554432 * 2);
+	}
 }
 
 void MenuItemPatchedParamPan::readCurrentValue() {

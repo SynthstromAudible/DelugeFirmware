@@ -2362,10 +2362,16 @@ void getNoteLengthNameFromMagnitude(char* text, int32_t magnitude, bool clarifyP
 		uint32_t numBars = (uint32_t)1 << magnitude;
 		intToString(numBars, text);
 		if (clarifyPerColumn) {
-			if (numBars == 1) strcat(text, " bar (per column)");
-			else strcat(text, " bars (per column)");
+			if (numBars == 1) {
+				strcat(text, " bar (per column)");
+			}
+			else {
+				strcat(text, " bars (per column)");
+			}
 		}
-		else strcat(text, "-bar");
+		else {
+			strcat(text, "-bar");
+		}
 	}
 #else
 	if (magnitude < 0) {

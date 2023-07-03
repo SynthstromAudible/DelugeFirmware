@@ -59,7 +59,9 @@ void MenuItemSourceSelection::drawPixelsForOled() {
 	int i = 0;
 
 	while (i < OLED_MENU_NUM_OPTIONS_VISIBLE) {
-		if (thisOption >= NUM_PATCH_SOURCES) break;
+		if (thisOption >= NUM_PATCH_SOURCES) {
+			break;
+		}
 
 		int sHere = sourceMenuContents[thisOption];
 
@@ -71,7 +73,9 @@ void MenuItemSourceSelection::drawPixelsForOled() {
 			i++;
 		}
 		else {
-			if (thisOption == scrollPos) scrollPos++;
+			if (thisOption == scrollPos) {
+				scrollPos++;
+			}
 		}
 		thisOption++;
 	}
@@ -140,8 +144,9 @@ void MenuItemSourceSelection::beginSession(MenuItem* navigatedBackwardFrom) {
 	soundEditor.currentValue = 0;
 
 	if (navigatedBackwardFrom) {
-		while (sourceMenuContents[soundEditor.currentValue] != s)
+		while (sourceMenuContents[soundEditor.currentValue] != s) {
 			soundEditor.currentValue++;
+		}
 		// Scroll pos will be retained from before.
 	}
 	else {
@@ -151,12 +156,14 @@ void MenuItemSourceSelection::beginSession(MenuItem* navigatedBackwardFrom) {
 
 			// If patching already exists on this source, we use this as the initial one to show to the user
 			if (soundEditor.currentParamManager->getPatchCableSet()
-			        ->isSourcePatchedToDestinationDescriptorVolumeInspecific(s, getDestinationDescriptor()))
+			        ->isSourcePatchedToDestinationDescriptorVolumeInspecific(s, getDestinationDescriptor())) {
 				break;
+			}
 
 			// Note down the first "allowed" or "editable" source
-			if (soundEditor.currentValue < firstAllowedIndex && sourceIsAllowed(s))
+			if (soundEditor.currentValue < firstAllowedIndex && sourceIsAllowed(s)) {
 				firstAllowedIndex = soundEditor.currentValue;
+			}
 
 			soundEditor.currentValue++;
 #if HAVE_OLED
@@ -194,7 +201,9 @@ void MenuItemSourceSelection::selectEncoderAction(int offset) {
 		newValue += offset;
 
 #if HAVE_OLED
-		if (newValue >= NUM_PATCH_SOURCES || newValue < 0) return;
+		if (newValue >= NUM_PATCH_SOURCES || newValue < 0) {
+			return;
+		}
 #else
 		if (newValue >= NUM_PATCH_SOURCES) newValue -= NUM_PATCH_SOURCES;
 		else if (newValue < 0) newValue += NUM_PATCH_SOURCES;
@@ -206,8 +215,12 @@ void MenuItemSourceSelection::selectEncoderAction(int offset) {
 	soundEditor.currentValue = newValue;
 
 #if HAVE_OLED
-	if (soundEditor.currentValue < scrollPos) scrollPos = soundEditor.currentValue;
-	else if (offset >= 0 && selectedRowOnScreen == OLED_MENU_NUM_OPTIONS_VISIBLE - 1) scrollPos++;
+	if (soundEditor.currentValue < scrollPos) {
+		scrollPos = soundEditor.currentValue;
+	}
+	else if (offset >= 0 && selectedRowOnScreen == OLED_MENU_NUM_OPTIONS_VISIBLE - 1) {
+		scrollPos++;
+	}
 
 	renderUIsForOled();
 #else

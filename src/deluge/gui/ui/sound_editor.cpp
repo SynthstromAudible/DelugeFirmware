@@ -562,7 +562,9 @@ public:
 			OLED::drawStringCentred("OFF", 20, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, TEXT_HUGE_SPACING_X,
 			                        TEXT_HUGE_SIZE_Y);
 		}
-		else MenuItemDecimal::drawPixelsForOled();
+		else {
+			MenuItemDecimal::drawPixelsForOled();
+		}
 	}
 #endif
 	void horizontalEncoderAction(int offset) {
@@ -1566,7 +1568,9 @@ public:
 	void drawInteger(int textWidth, int textHeight, int yPixel) {
 		char buffer[12];
 		char const* text;
-		if (soundEditor.currentValue == 128) text = "NONE";
+		if (soundEditor.currentValue == 128) {
+			text = "NONE";
+		}
 		else {
 			intToString(soundEditor.currentValue + 1, buffer, 1);
 			text = buffer;
@@ -2082,7 +2086,9 @@ public:
 			OLED::drawStringCentred("Hz/V", 20, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, TEXT_HUGE_SPACING_X,
 			                        TEXT_HUGE_SIZE_Y);
 		}
-		else MenuItemDecimal::drawPixelsForOled();
+		else {
+			MenuItemDecimal::drawPixelsForOled();
+		}
 	}
 #else
 	void drawValue() {
@@ -4262,7 +4268,9 @@ void SoundEditor::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 	// Sorry - extremely ugly hack here.
 	MenuItem* currentMenuItem = getCurrentMenuItem();
 	if (currentMenuItem == &drumNameMenu) {
-		if (!navigationDepth) return;
+		if (!navigationDepth) {
+			return;
+		}
 		currentMenuItem = menuItemNavigationRecord[navigationDepth - 1];
 	}
 
