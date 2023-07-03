@@ -6,12 +6,7 @@
 namespace menu_item::cv {
 class Transpose final : public Decimal {
 public:
-	Transpose(char const* newName = NULL) : Decimal(newName) {
-#if HAVE_OLED
-		static char cvTransposeTitle[] = "CVx transpose";
-		basicTitle = cvTransposeTitle;
-#endif
-	}
+	using Decimal::Decimal;
 	int getMinValue() const { return -9600; }
 	int getMaxValue() const { return 9600; }
 	int getNumDecimalPlaces() const { return 2; }

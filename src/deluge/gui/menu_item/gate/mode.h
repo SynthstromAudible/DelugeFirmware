@@ -13,9 +13,9 @@ namespace menu_item::gate {
 #endif
 
 #if HAVE_OLED
-	static char const* mode_title = "Gate outX mode";
+static char mode_title[] = "Gate outX mode";
 #else
-	static char const* mode_title = nullptr;
+static char *mode_title = nullptr;
 #endif
 
 class Mode final : public Selection {

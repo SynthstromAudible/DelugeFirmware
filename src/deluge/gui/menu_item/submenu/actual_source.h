@@ -6,6 +6,8 @@
 #include "string.h"
 #include "processing/sound/sound.h"
 
+extern void setOscillatorNumberForTitles(int);
+
 namespace menu_item::submenu {
 
 class ActualSource final : public SubmenuReferringToOneThing {
@@ -15,7 +17,7 @@ public:
 #if HAVE_OLED
 	void beginSession(MenuItem* navigatedBackwardFrom) {
 		setOscillatorNumberForTitles(thingIndex);
-		MenuItemSubmenuReferringToOneThing::beginSession(navigatedBackwardFrom);
+		SubmenuReferringToOneThing::beginSession(navigatedBackwardFrom);
 	}
 #else
 	void drawName() {

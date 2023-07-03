@@ -33,7 +33,5 @@ private:
 	friend class Settings;
 	uint32_t currentSettingIndex;
 };
-
-extern Setting runtimeFeatureSettingMenuItem;
 }
 

@@ -33,9 +33,8 @@
 #include "hid/display/oled.h"
 #include "util/functions.h"
 
-extern bool movingCursor;
-
 namespace menu_item {
+extern bool movingCursor;
 
 #if HAVE_OLED
 void PatchCableStrength::renderOLED() {

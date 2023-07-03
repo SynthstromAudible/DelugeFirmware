@@ -97,6 +97,9 @@ char modulatorLevelTitle[] = "FM ModX level";
 char modulatorFeedbackTitle[] = "FM ModX f.back";
 char modulatorRetriggerPhaseTitle[] = "FM ModX retrig";
 
+char cvVoltsTitle[] = "CVx V/octave";
+char cvTransposeTitle[] = "CVx transpose";
+
 void setOscillatorNumberForTitles(int s) {
 	oscTypeTitle[3] = '1' + s;
 	oscLevelTitle[3] = '1' + s;
@@ -125,6 +128,11 @@ void setModulatorNumberForTitles(int m) {
 	modulatorLevelTitle[6] = '1' + m;
 	modulatorFeedbackTitle[6] = '1' + m;
 	modulatorRetriggerPhaseTitle[6] = '1' + m;
+}
+
+void setCvNumberForTitle(int m) {
+	cvVoltsTitle[2] = '1' + m;
+	cvTransposeTitle[2] = '1' + m;
 }
 #endif
 
@@ -263,7 +271,7 @@ SoundEditor::SoundEditor() {
 	midiClockOutStatusMenu.basicTitle = "MIDI clock out";
 	tempoMagnitudeMatchingMenu.basicTitle = "Tempo m. match";
 	midiCommandsMenu.basicTitle = "MIDI commands";
-	midiDevicesMenu.basicTitle = "MIDI devices";
+	midi::devicesMenu.basicTitle = "MIDI devices";
 
 	defaultTempoMenu.basicTitle = "Default tempo";
 	defaultSwingMenu.basicTitle = "Default swing";
@@ -373,6 +381,8 @@ SoundEditor::SoundEditor() {
 	audioClipHPFFreqMenu.basicTitle = "HPF frequency";
 	audioClipHPFResMenu.basicTitle = "HPF resonance";
 
+	cvVoltsMenu.basicTitle = cvVoltsTitle;
+	cvTransposeMenu.basicTitle = cvTransposeTitle;
 #endif
 
 }

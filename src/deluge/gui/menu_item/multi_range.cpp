@@ -417,7 +417,7 @@ void MultiRange::drawPixelsForOled() {
 	soundEditor.currentValue = actualCurrentRange;
 
 	int selectedOption;
-	if (soundEditor.editingRangeEdge) {
+	if (soundEditor.editingRangeEdge != RangeEdit::OFF) {
 		selectedOption = -1;
 	}
 	else selectedOption = soundEditor.currentValue - soundEditor.menuCurrentScroll;
@@ -425,7 +425,7 @@ void MultiRange::drawPixelsForOled() {
 
 	int hilightStartX, hilightWidth;
 
-	if (soundEditor.editingRangeEdge == RANGE_EDIT_LEFT) {
+	if (soundEditor.editingRangeEdge == RangeEdit::LEFT) {
 		hilightStartX = TEXT_SPACING_X;
 		hilightWidth = TEXT_SPACING_X * 6;
 doHilightJustOneEdge:
@@ -434,7 +434,7 @@ doHilightJustOneEdge:
 		baseY += (soundEditor.currentValue - soundEditor.menuCurrentScroll) * TEXT_SPACING_Y;
 		OLED::invertArea(hilightStartX, hilightWidth, baseY, baseY + TEXT_SPACING_Y, OLED::oledMainImage);
 	}
-	else if (soundEditor.editingRangeEdge == RANGE_EDIT_RIGHT) {
+	else if (soundEditor.editingRangeEdge == RangeEdit::RIGHT) {
 		hilightStartX = TEXT_SPACING_X * 10;
 		hilightWidth = OLED_MAIN_WIDTH_PIXELS - hilightStartX;
 		goto doHilightJustOneEdge;
