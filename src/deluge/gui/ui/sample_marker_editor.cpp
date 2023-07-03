@@ -1021,7 +1021,9 @@ void SampleMarkerEditor::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 		               smallTextSizeY);
 		xPixel += smallTextSpacingX * 2;
 	}
-	else goto printSeconds;
+	else {
+		goto printSeconds;
+	}
 
 	if (hundredmilliseconds) {
 printSeconds:

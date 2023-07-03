@@ -63,7 +63,9 @@ void MenuItem::drawItemsForOled(char const** options, int selectedOption) {
 	baseY += OLED_MAIN_TOPMOST_PIXEL;
 
 	for (int o = 0; o < OLED_HEIGHT_CHARS - 1; o++) {
-		if (!options[o]) break;
+		if (!options[o]) {
+			break;
+		}
 
 		int yPixel = o * TEXT_SPACING_Y + baseY;
 

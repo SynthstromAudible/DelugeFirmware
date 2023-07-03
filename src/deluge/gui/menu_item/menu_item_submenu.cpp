@@ -77,7 +77,9 @@ void MenuItemSubmenu::drawPixelsForOled() {
 	for (int i = selectedRow + 1; i < OLED_MENU_NUM_OPTIONS_VISIBLE; i++) {
 		do {
 			thisSubmenuItem++;
-			if (!*thisSubmenuItem) goto searchBack;
+			if (!*thisSubmenuItem) {
+				goto searchBack;
+			}
 		} while (!(*thisSubmenuItem)->isRelevant(soundEditor.currentSound, soundEditor.currentSourceIndex));
 
 		itemNames[i] = (*thisSubmenuItem)->getName();
@@ -87,7 +89,9 @@ searchBack:
 	thisSubmenuItem = soundEditor.currentSubmenuItem;
 	for (int i = selectedRow - 1; i >= 0; i--) {
 		do {
-			if (thisSubmenuItem == items) goto doneSearching;
+			if (thisSubmenuItem == items) {
+				goto doneSearching;
+			}
 			thisSubmenuItem--;
 		} while (!(*thisSubmenuItem)->isRelevant(soundEditor.currentSound, soundEditor.currentSourceIndex));
 
@@ -134,9 +138,12 @@ void MenuItemSubmenu::selectEncoderAction(int offset) {
 
 #if HAVE_OLED
 	soundEditor.menuCurrentScroll += offset;
-	if (soundEditor.menuCurrentScroll < 0) soundEditor.menuCurrentScroll = 0;
-	else if (soundEditor.menuCurrentScroll > OLED_MENU_NUM_OPTIONS_VISIBLE - 1)
+	if (soundEditor.menuCurrentScroll < 0) {
+		soundEditor.menuCurrentScroll = 0;
+	}
+	else if (soundEditor.menuCurrentScroll > OLED_MENU_NUM_OPTIONS_VISIBLE - 1) {
 		soundEditor.menuCurrentScroll = OLED_MENU_NUM_OPTIONS_VISIBLE - 1;
+	}
 #endif
 
 	updateDisplay();
@@ -147,23 +154,33 @@ MenuItem* MenuItemSubmenu::selectButtonPress() {
 }
 
 void MenuItemSubmenu::unlearnAction() {
-	if (soundEditor.getCurrentMenuItem() == this) (*soundEditor.currentSubmenuItem)->unlearnAction();
+	if (soundEditor.getCurrentMenuItem() == this) {
+		(*soundEditor.currentSubmenuItem)->unlearnAction();
+	}
 }
 
 bool MenuItemSubmenu::allowsLearnMode() {
-	if (soundEditor.getCurrentMenuItem() == this) return (*soundEditor.currentSubmenuItem)->allowsLearnMode();
-	else return false;
+	if (soundEditor.getCurrentMenuItem() == this) {
+		return (*soundEditor.currentSubmenuItem)->allowsLearnMode();
+	}
+	else {
+		return false;
+	}
 }
 
 void MenuItemSubmenu::learnKnob(MIDIDevice* fromDevice, int whichKnob, int modKnobMode, int midiChannel) {
-	if (soundEditor.getCurrentMenuItem() == this)
+	if (soundEditor.getCurrentMenuItem() == this) {
 		(*soundEditor.currentSubmenuItem)->learnKnob(fromDevice, whichKnob, modKnobMode, midiChannel);
+	}
 }
 
 bool MenuItemSubmenu::learnNoteOn(MIDIDevice* fromDevice, int channel, int noteCode) {
-	if (soundEditor.getCurrentMenuItem() == this)
+	if (soundEditor.getCurrentMenuItem() == this) {
 		return (*soundEditor.currentSubmenuItem)->learnNoteOn(fromDevice, channel, noteCode);
-	else return false;
+	}
+	else {
+		return false;
+	}
 }
 
 // -----------------------------------------------

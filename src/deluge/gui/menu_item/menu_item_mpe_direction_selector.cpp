@@ -23,7 +23,9 @@
 MenuItemMPEDirectionSelector mpeDirectionSelectorMenu;
 
 void MenuItemMPEDirectionSelector::beginSession(MenuItem* navigatedBackwardFrom) {
-	if (!navigatedBackwardFrom) whichDirection = MIDI_DIRECTION_INPUT_TO_DELUGE;
+	if (!navigatedBackwardFrom) {
+		whichDirection = MIDI_DIRECTION_INPUT_TO_DELUGE;
+	}
 	MenuItemSelection::beginSession(navigatedBackwardFrom);
 }
 

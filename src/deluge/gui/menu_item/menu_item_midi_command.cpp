@@ -54,8 +54,12 @@ void MenuItemMidiCommand::drawPixelsForOled() {
 		yPixel += TEXT_SPACING_Y;
 
 		char const* channelText;
-		if (command->channelOrZone == MIDI_CHANNEL_MPE_LOWER_ZONE) channelText = "MPE lower zone";
-		else if (command->channelOrZone == MIDI_CHANNEL_MPE_UPPER_ZONE) channelText = "MPE upper zone";
+		if (command->channelOrZone == MIDI_CHANNEL_MPE_LOWER_ZONE) {
+			channelText = "MPE lower zone";
+		}
+		else if (command->channelOrZone == MIDI_CHANNEL_MPE_UPPER_ZONE) {
+			channelText = "MPE upper zone";
+		}
 		else {
 			channelText = "Channel";
 			char buffer[12];
@@ -126,5 +130,7 @@ bool MenuItemMidiCommand::learnNoteOn(MIDIDevice* device, int channel, int noteC
 }
 
 void MenuItemMidiCommand::learnCC(MIDIDevice* device, int channel, int ccNumber, int value) {
-	if (MIDI_CC_FOR_COMMANDS_ENABLED && value) learnNoteOn(device, channel + 16, ccNumber);
+	if (MIDI_CC_FOR_COMMANDS_ENABLED && value) {
+		learnNoteOn(device, channel + 16, ccNumber);
+	}
 }

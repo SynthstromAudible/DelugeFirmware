@@ -54,5 +54,7 @@ MenuItem* MenuItemParam::selectButtonPress() {
 		numericDriver.displayPopup(HAVE_OLED ? "Automation deleted" : "DELETED");
 		return (MenuItem*)0xFFFFFFFF; // Don't navigate away
 	}
-	else return NULL; // Navigate backwards
+	else {
+		return NULL; // Navigate backwards
+	}
 }

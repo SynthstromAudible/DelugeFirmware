@@ -2207,7 +2207,9 @@ multiplePresses:
 			strcpy(buffer, "Probability: ");
 			intToString(probabilityValue * 5, buffer + strlen(buffer));
 			strcat(buffer, "%");
-			if (prevBase) strcat(buffer, " latching");
+			if (prevBase) {
+				strcat(buffer, " latching");
+			}
 #else
 			intToString(probabilityValue * 5, buffer);
 #endif

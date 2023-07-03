@@ -31,10 +31,14 @@ extern "C" {
 void MenuItemInteger::selectEncoderAction(int offset) {
 	soundEditor.currentValue += offset;
 	int maxValue = getMaxValue();
-	if (soundEditor.currentValue > maxValue) soundEditor.currentValue = maxValue;
+	if (soundEditor.currentValue > maxValue) {
+		soundEditor.currentValue = maxValue;
+	}
 	else {
 		int minValue = getMinValue();
-		if (soundEditor.currentValue < minValue) soundEditor.currentValue = minValue;
+		if (soundEditor.currentValue < minValue) {
+			soundEditor.currentValue = minValue;
+		}
 	}
 
 	MenuItemNumber::selectEncoderAction(offset);
@@ -64,7 +68,9 @@ void MenuItemInteger::drawPixelsForOled() {
 }
 
 void MenuItemIntegerContinuous::drawBar(int yTop, int marginL, int marginR) {
-	if (marginR == -1) marginR = marginL;
+	if (marginR == -1) {
+		marginR = marginL;
+	}
 	int height = 7;
 
 	int leftMost = marginL;

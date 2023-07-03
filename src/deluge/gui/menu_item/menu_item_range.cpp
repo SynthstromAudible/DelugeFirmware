@@ -36,7 +36,9 @@ void MenuItemRange::beginSession(MenuItem* navigatedBackwardFrom) {
 
 void MenuItemRange::horizontalEncoderAction(int offset) {
 
-	if (Buttons::isShiftButtonPressed()) return;
+	if (Buttons::isShiftButtonPressed()) {
+		return;
+	}
 
 	// Turn left
 	if (offset < 0) {
@@ -94,7 +96,9 @@ justDrawValueForEditingRange:
 
 // Returns whether there was anything to cancel
 bool MenuItemRange::cancelEditingIfItsOn() {
-	if (!soundEditor.editingRangeEdge) return false;
+	if (!soundEditor.editingRangeEdge) {
+		return false;
+	}
 
 	int startPos = (soundEditor.editingRangeEdge == RANGE_EDIT_RIGHT) ? 999 : 0;
 	soundEditor.editingRangeEdge = RANGE_EDIT_OFF;

@@ -33,8 +33,12 @@ ContextMenuDeleteFile::ContextMenuDeleteFile() {
 
 char const** ContextMenuDeleteFile::getOptions() {
 #if HAVE_OLED
-	if (getUIUpOneLevel() == &saveSongOrInstrumentContextMenu) title = "Are you sure?";
-	else title = "Delete?";
+	if (getUIUpOneLevel() == &saveSongOrInstrumentContextMenu) {
+		title = "Are you sure?";
+	}
+	else {
+		title = "Delete?";
+	}
 
 	static char const* options[] = {"OK"};
 	return options;

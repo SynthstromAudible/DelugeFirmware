@@ -183,8 +183,12 @@ void readInputsForHardwareTest(bool testButtonStates[9][16]) {
 #if HAVE_OLED
 		else if (value == oledWaitingForMessage) {
 			//delayUS(2500); // TODO: fix
-			if (value == 248) oledSelectingComplete();
-			else oledDeselectionComplete();
+			if (value == 248) {
+				oledSelectingComplete();
+			}
+			else {
+				oledDeselectionComplete();
+			}
 		}
 #endif
 	}
