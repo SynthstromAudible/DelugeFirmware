@@ -92,7 +92,7 @@ def generate(env):
 
     # By your powers combined...
     env["VERSION_STRING"] = _get_version_string(env)
-    env.Append(CPPDEFINES='DBT_FW_VERSION_STRING="{}"'.format(env["VERSION_STRING"]))
+    env.Append(CPPDEFINES='DBT_FW_VERSION_STRING=\\"$VERSION_STRING\\"')
     # env["TEMPLATE_SUBST_DICT"] = {
     #     "(DBT_TMPL_VERSION_STRING)": '"{}"'.format(env["VERSION_STRING"]),
     #     "(DBT_TMPL_BUILD_RELEASE)": 1 if env["BUILD_TYPE"] == "release" else 0,
