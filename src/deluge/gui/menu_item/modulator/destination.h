@@ -16,4 +16,4 @@ public:
 	bool isRelevant(Sound* sound, int whichThing) { return (whichThing == 1 && sound->synthMode == SYNTH_MODE_FM); }
 };
 
-}
+} // namespace menu_item::modulator

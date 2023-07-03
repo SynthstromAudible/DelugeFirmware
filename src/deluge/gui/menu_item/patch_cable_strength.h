@@ -53,4 +53,4 @@ protected:
 	ModelStackWithAutoParam* getModelStack(void* memory, bool allowCreation = false);
 };
 
-}
+} // namespace menu_item

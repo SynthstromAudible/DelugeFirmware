@@ -12,4 +12,4 @@ public:
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	}
 };
-} // namespace menu_item
+} // namespace menu_item::unpatched_param

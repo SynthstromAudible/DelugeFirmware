@@ -13,4 +13,4 @@ public:
 	void writeCurrentValue() { AudioEngine::reverb.setroomsize((float)soundEditor.currentValue / 50); }
 	int getMaxValue() const { return 50; }
 };
-}
+} // namespace menu_item::reverb

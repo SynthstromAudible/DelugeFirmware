@@ -41,7 +41,7 @@ public:
 			gate::mode_title[8] = '1' + soundEditor.currentValue;
 #endif
 
-      // TODO: this needs to be a "UpdateOptions" method on gate::Mode
+			// TODO: this needs to be a "UpdateOptions" method on gate::Mode
 			switch (soundEditor.currentValue) {
 			case WHICH_GATE_OUTPUT_IS_CLOCK:
 				mode_options[2] = "Clock";

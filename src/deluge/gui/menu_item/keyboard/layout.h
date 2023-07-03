@@ -3,7 +3,6 @@
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 
-
 namespace menu_item::keyboard {
 class Layout final : public Selection {
 public:
@@ -23,6 +22,8 @@ public:
 		};
 		return options;
 	}
-	int getNumOptions() { return NUM_KEYBOARD_LAYOUTS; }
+	int getNumOptions() {
+		return NUM_KEYBOARD_LAYOUTS;
+	}
 };
-}
+} // namespace menu_item::keyboard

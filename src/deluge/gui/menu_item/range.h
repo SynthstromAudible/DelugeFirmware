@@ -21,7 +21,11 @@
 
 namespace menu_item {
 
-enum class RangeEdit : uint8_t { OFF = 0, LEFT = 1, RIGHT = 2, };
+enum class RangeEdit : uint8_t {
+	OFF = 0,
+	LEFT = 1,
+	RIGHT = 2,
+};
 
 class Range : public MenuItem {
 public:
@@ -42,4 +46,4 @@ protected:
 	void drawPixelsForOled();
 #endif
 };
-}
+} // namespace menu_item

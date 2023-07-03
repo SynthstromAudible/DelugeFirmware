@@ -130,4 +130,4 @@ bool Command::learnNoteOn(MIDIDevice* device, int channel, int noteCode) {
 void Command::learnCC(MIDIDevice* device, int channel, int ccNumber, int value) {
 	if (MIDI_CC_FOR_COMMANDS_ENABLED && value) learnNoteOn(device, channel + 16, ccNumber);
 }
-}
+} // namespace menu_item::midi

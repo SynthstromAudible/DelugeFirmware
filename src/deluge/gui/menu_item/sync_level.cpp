@@ -111,4 +111,4 @@ SyncType SyncLevel::menuOptionToSyncType(int option) {
 int SyncLevel::syncTypeAndLevelToMenuOption(::SyncType type, ::SyncLevel level) {
 	return static_cast<int>(type) + (static_cast<int>(level) - (type != SYNC_TYPE_EVEN ? 1 : 0));
 }
-}
+} // namespace menu_item

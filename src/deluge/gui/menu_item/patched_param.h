@@ -45,4 +45,4 @@ protected:
 	ParamSet* getParamSet();
 };
 
-}
+} // namespace menu_item

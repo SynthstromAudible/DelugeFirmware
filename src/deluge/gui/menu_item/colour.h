@@ -36,4 +36,4 @@ extern Colour stoppedColourMenu;
 extern Colour mutedColourMenu;
 extern Colour soloColourMenu;
 
-}
+} // namespace menu_item

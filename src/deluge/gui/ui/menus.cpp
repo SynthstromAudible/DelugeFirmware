@@ -222,7 +222,6 @@ void setCvNumberForTitle(int m) {
 }
 #endif
 
-
 // Dev vars
 dev_var::AMenu devVarAMenu;
 dev_var::BMenu devVarBMenu;
@@ -769,10 +768,10 @@ MenuItem* paramShortcutsForSounds[][8] = {
     {&delayRateMenu, &delaySyncMenu, &delayAnalogMenu, &delayFeedbackMenu, &delayPingPongMenu, NULL, NULL, NULL}};
 
 MenuItem* paramShortcutsForAudioClips[][8] = {
-    {NULL, &audioClipReverseMenu, NULL, &samplePitchSpeedMenu, NULL, &fileSelectorMenu,
-     &interpolationMenu, &audioClipSampleMarkerEditorMenuEnd},
-    {NULL, &audioClipReverseMenu, NULL, &samplePitchSpeedMenu, NULL, &fileSelectorMenu,
-     &interpolationMenu, &audioClipSampleMarkerEditorMenuEnd},
+    {NULL, &audioClipReverseMenu, NULL, &samplePitchSpeedMenu, NULL, &fileSelectorMenu, &interpolationMenu,
+     &audioClipSampleMarkerEditorMenuEnd},
+    {NULL, &audioClipReverseMenu, NULL, &samplePitchSpeedMenu, NULL, &fileSelectorMenu, &interpolationMenu,
+     &audioClipSampleMarkerEditorMenuEnd},
     {&audioClipLevelMenu, &audioClipTransposeMenu, NULL, NULL, NULL, NULL, NULL, NULL},
     {&audioClipLevelMenu, &audioClipTransposeMenu, NULL, NULL, NULL, NULL, NULL, NULL},
     {NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL},

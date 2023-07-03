@@ -7,7 +7,7 @@
 namespace menu_item::delay {
 class Sync final : public SyncLevel {
 public:
-  using SyncLevel::SyncLevel;
+	using SyncLevel::SyncLevel;
 
 	void readCurrentValue() {
 		soundEditor.currentValue = syncTypeAndLevelToMenuOption(soundEditor.currentModControllable->delay.syncType,
@@ -18,4 +18,4 @@ public:
 		soundEditor.currentModControllable->delay.syncLevel = menuOptionToSyncLevel(soundEditor.currentValue);
 	}
 };
-}
+} // namespace menu_item::delay

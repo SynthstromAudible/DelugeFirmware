@@ -14,4 +14,4 @@ public:
 		return (type == INSTRUMENT_TYPE_SYNTH || type == INSTRUMENT_TYPE_CV);
 	}
 };
-}
+} // namespace menu_item::submenu

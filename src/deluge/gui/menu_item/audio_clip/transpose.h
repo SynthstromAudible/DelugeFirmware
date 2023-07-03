@@ -5,7 +5,6 @@
 #include "gui/ui/sound_editor.h"
 #include "model/song/song.h"
 
-
 namespace menu_item::audio_clip {
 class Transpose final : public Decimal, public MenuItemWithCCLearning {
 public:
@@ -43,4 +42,4 @@ public:
 		return paramDescriptor;
 	}
 };
-}
+} // namespace menu_item::audio_clip

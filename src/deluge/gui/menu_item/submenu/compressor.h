@@ -6,12 +6,11 @@ namespace menu_item::submenu {
 class Compressor final : public Submenu {
 public:
 	Compressor() {}
-	Compressor(char const* newName, MenuItem** newItems, bool newForReverbCompressor)
-	    : Submenu(newName, newItems) {
+	Compressor(char const* newName, MenuItem** newItems, bool newForReverbCompressor) : Submenu(newName, newItems) {
 		forReverbCompressor = newForReverbCompressor;
 	}
 	void beginSession(MenuItem* navigatedBackwardFrom = NULL);
 
 	bool forReverbCompressor;
 };
-}
+} // namespace menu_item::submenu

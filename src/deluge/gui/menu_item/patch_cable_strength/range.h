@@ -12,4 +12,4 @@ public:
 	MenuItem* patchingSourceShortcutPress(int s, bool previousPressStillActive);
 };
 extern Range rangeMenu;
-}
+} // namespace menu_item::patch_cable_strength

@@ -33,5 +33,4 @@ private:
 	friend class Settings;
 	uint32_t currentSettingIndex;
 };
-}
-
+} // namespace menu_item::runtime_feature

@@ -43,5 +43,4 @@ protected:
 };
 
 extern MultiRange multiRangeMenu;
-}
-
+} // namespace menu_item

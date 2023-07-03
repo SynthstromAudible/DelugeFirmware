@@ -47,4 +47,4 @@ public:
 
 	bool usesAffectEntire() { return true; }
 };
-} // namespace menu_item
+} // namespace menu_item::voice

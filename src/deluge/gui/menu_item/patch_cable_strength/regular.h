@@ -16,6 +16,5 @@ public:
 	MenuItem* selectButtonPress() final;
 };
 
-
 extern Regular regularMenu;
-}
+} // namespace menu_item::patch_cable_strength

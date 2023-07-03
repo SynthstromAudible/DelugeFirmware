@@ -6,8 +6,8 @@
 namespace menu_item::midi {
 class ClockOutStatus final : public Selection {
 public:
-  using Selection::Selection;
+	using Selection::Selection;
 	void readCurrentValue() { soundEditor.currentValue = playbackHandler.midiOutClockEnabled; }
 	void writeCurrentValue() { playbackHandler.setMidiOutClockMode(soundEditor.currentValue); }
 };
-}
+} // namespace menu_item::midi

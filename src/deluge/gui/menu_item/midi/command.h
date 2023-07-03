@@ -42,4 +42,4 @@ public:
 
 	uint8_t commandNumber;
 };
-}
+} // namespace menu_item::midi

@@ -14,4 +14,4 @@ public:
 	}
 #endif
 };
-}
+} // namespace menu_item::submenu

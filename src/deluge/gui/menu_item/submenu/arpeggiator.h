@@ -9,4 +9,4 @@ public:
 	Arpeggiator(char const* newName, MenuItem** newItems) : Submenu(newName, newItems) {}
 	void beginSession(MenuItem* navigatedBackwardFrom = NULL);
 };
-}
+} // namespace menu_item::submenu

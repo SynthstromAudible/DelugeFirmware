@@ -2,7 +2,6 @@
 #include "modulation/params/param_descriptor.h"
 #include "gui/ui/sound_editor.h"
 
-
 namespace menu_item::source_selection {
 Regular regularMenu{};
 
@@ -39,4 +38,4 @@ MenuItem* Regular::patchingSourceShortcutPress(int newS, bool previousPressStill
 	return &regularMenu;
 }
 
-}
+} // namespace menu_item::source_selection

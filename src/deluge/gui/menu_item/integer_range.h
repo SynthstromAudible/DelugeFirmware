@@ -33,5 +33,4 @@ public:
 
 	int minValue, maxValue;
 };
-}
-
+} // namespace menu_item

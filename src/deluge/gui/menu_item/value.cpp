@@ -47,4 +47,4 @@ void Value::readValueAgain() {
 	drawValue();
 #endif
 }
-}
+} // namespace menu_item

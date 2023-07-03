@@ -50,4 +50,4 @@ MenuItem* Param::selectButtonPress() {
 	}
 	else return NULL; // Navigate backwards
 }
-}
+} // namespace menu_item

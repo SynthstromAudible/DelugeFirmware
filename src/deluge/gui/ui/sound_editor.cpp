@@ -134,7 +134,7 @@ SoundEditor::SoundEditor() {
 	shouldGoUpOneLevelOnBegin = false;
 
 #if HAVE_OLED
-init_menu_titles();
+	init_menu_titles();
 #endif
 }
 
@@ -247,7 +247,8 @@ int SoundEditor::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 				if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 
 				// Special case if we're editing a range
-				if (getCurrentMenuItem() == &menu_item::multiRangeMenu && menu_item::multiRangeMenu.cancelEditingIfItsOn()) {}
+				if (getCurrentMenuItem() == &menu_item::multiRangeMenu
+				    && menu_item::multiRangeMenu.cancelEditingIfItsOn()) {}
 				else {
 					goUpOneLevel();
 				}

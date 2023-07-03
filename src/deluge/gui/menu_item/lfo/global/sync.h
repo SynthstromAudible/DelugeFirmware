@@ -5,12 +5,11 @@
 #include "gui/ui/sound_editor.h"
 #include "processing/sound/sound.h"
 
-
 namespace menu_item::lfo::global {
 
 class Sync final : public SyncLevel {
 public:
-  using SyncLevel::SyncLevel;
+	using SyncLevel::SyncLevel;
 
 	void readCurrentValue() {
 		soundEditor.currentValue = syncTypeAndLevelToMenuOption(soundEditor.currentSound->lfoGlobalSyncType,

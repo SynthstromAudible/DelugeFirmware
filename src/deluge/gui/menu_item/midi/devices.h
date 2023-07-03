@@ -35,4 +35,4 @@ public:
 };
 
 extern Devices devicesMenu;
-}
+} // namespace menu_item::midi

@@ -8,7 +8,7 @@
 namespace menu_item::defaults {
 class Magnitude final : public Selection {
 public:
-  using Selection::Selection;
+	using Selection::Selection;
 	int getNumOptions() { return 7; }
 	void readCurrentValue() { soundEditor.currentValue = FlashStorage::defaultMagnitude; }
 	void writeCurrentValue() { FlashStorage::defaultMagnitude = soundEditor.currentValue; }
@@ -25,4 +25,4 @@ public:
 	}
 #endif
 };
-}
+} // namespace menu_item::defaults

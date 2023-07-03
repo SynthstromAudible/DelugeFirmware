@@ -6,7 +6,7 @@
 namespace menu_item::gate {
 class OffTime final : public Decimal {
 public:
-  using Decimal::Decimal;
+	using Decimal::Decimal;
 	int getMinValue() const { return 1; }
 	int getMaxValue() const { return 100; }
 	int getNumDecimalPlaces() const { return 1; }
@@ -14,4 +14,4 @@ public:
 	void readCurrentValue() { soundEditor.currentValue = cvEngine.minGateOffTime; }
 	void writeCurrentValue() { cvEngine.minGateOffTime = soundEditor.currentValue; }
 };
-}
+} // namespace menu_item::gate

@@ -36,4 +36,4 @@ public:
 	uint8_t markerType;
 };
 
-}
+} // namespace menu_item::sample

@@ -74,5 +74,4 @@ ParamSet* UnpatchedParam::getParamSet() {
 
 // ---------------------------------------
 
-
-}
+} // namespace menu_item

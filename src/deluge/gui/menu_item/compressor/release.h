@@ -8,7 +8,7 @@ namespace menu_item::compressor {
 class Release final : public Integer {
 public:
 	using Integer::Integer;
-  void readCurrentValue() {
+	void readCurrentValue() {
 		soundEditor.currentValue =
 		    getLookupIndexFromValue(soundEditor.currentCompressor->release >> 3, releaseRateTable, 50);
 	}

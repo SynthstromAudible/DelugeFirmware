@@ -2,7 +2,6 @@
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 
-
 namespace menu_item::voice {
 class Priority final : public Selection {
 public:
@@ -15,4 +14,4 @@ public:
 	}
 	int getNumOptions() { return NUM_PRIORITY_OPTIONS; }
 };
-}
+} // namespace menu_item::voice

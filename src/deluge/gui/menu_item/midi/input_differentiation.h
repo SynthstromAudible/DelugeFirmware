@@ -6,8 +6,8 @@
 namespace menu_item::midi {
 class InputDifferentiation final : public Selection {
 public:
-  using Selection::Selection;
+	using Selection::Selection;
 	void readCurrentValue() { soundEditor.currentValue = MIDIDeviceManager::differentiatingInputsByDevice; }
 	void writeCurrentValue() { MIDIDeviceManager::differentiatingInputsByDevice = soundEditor.currentValue; }
 };
-}
+} // namespace menu_item::midi

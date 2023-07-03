@@ -11,7 +11,7 @@
 namespace menu_item::audio_clip {
 class Reverse final : public Selection {
 public:
-  using Selection::Selection;
+	using Selection::Selection;
 
 	void readCurrentValue() {
 		soundEditor.currentValue = ((AudioClip*)currentSong->currentClip)->sampleControls.reversed;
@@ -46,4 +46,4 @@ public:
 		}
 	}
 };
-}
+} // namespace menu_item::audio_clip

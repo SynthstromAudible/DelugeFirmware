@@ -8,7 +8,7 @@ namespace menu_item::mod_fx {
 
 class Type : public Selection {
 public:
-  using Selection::Selection;
+	using Selection::Selection;
 
 	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentModControllable->modFXType; }
 	void writeCurrentValue() {
@@ -24,4 +24,4 @@ public:
 
 	int getNumOptions() { return NUM_MOD_FX_TYPES; }
 };
-}
+} // namespace menu_item::mod_fx

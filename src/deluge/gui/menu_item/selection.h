@@ -38,4 +38,4 @@ protected:
 	void drawPixelsForOled();
 #endif
 };
-}
+} // namespace menu_item

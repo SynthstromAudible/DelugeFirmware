@@ -32,4 +32,4 @@ public:
 #endif
 };
 
-} // namespace menu_item
+} // namespace menu_item::submenu

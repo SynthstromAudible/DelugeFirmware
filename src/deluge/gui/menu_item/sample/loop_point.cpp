@@ -25,7 +25,6 @@
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
 
-
 namespace menu_item::sample {
 
 bool LoopPoint::isRelevant(Sound* sound, int whichThing) {
@@ -68,4 +67,4 @@ void LoopPoint::beginSession(MenuItem* navigatedBackwardFrom) {
 		uiTimerManager.unsetTimer(TIMER_SHORTCUT_BLINK);
 	}
 }
-}
+} // namespace menu_item::sample

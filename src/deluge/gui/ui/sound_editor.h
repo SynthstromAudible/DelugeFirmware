@@ -44,7 +44,9 @@ class ModControllableAudio;
 class ModelStackWithThreeMainThings;
 class AudioFileHolder;
 class MIDIDevice;
-namespace menu_item { enum class RangeEdit : uint8_t; }
+namespace menu_item {
+enum class RangeEdit : uint8_t;
+}
 
 class SoundEditor final : public UI {
 public:

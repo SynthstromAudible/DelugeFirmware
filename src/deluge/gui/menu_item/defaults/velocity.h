@@ -7,7 +7,7 @@
 namespace menu_item::defaults {
 class Velocity final : public Integer {
 public:
-  using Integer::Integer;
+	using Integer::Integer;
 	int getMinValue() const { return 1; }
 	int getMaxValue() const { return 127; }
 	void readCurrentValue() { soundEditor.currentValue = FlashStorage::defaultVelocity; }
@@ -16,4 +16,4 @@ public:
 		currentSong->setDefaultVelocityForAllInstruments(FlashStorage::defaultVelocity);
 	}
 };
-}
+} // namespace menu_item::defaults

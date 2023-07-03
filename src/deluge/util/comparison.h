@@ -12,7 +12,7 @@ namespace util {
  * @return false value != any comparator
  */
 template <typename T> constexpr bool one_of(T value, std::initializer_list<T> comparators) {
-	for (auto &comparator : comparators) {
+	for (auto& comparator : comparators) {
 		if (value == comparator) {
 			return true;
 		}

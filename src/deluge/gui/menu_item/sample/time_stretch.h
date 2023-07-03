@@ -42,4 +42,4 @@ public:
 		return (sound->getSynthMode() == SYNTH_MODE_SUBTRACTIVE && source->oscType == OSC_TYPE_SAMPLE);
 	}
 };
-}
+} // namespace menu_item::sample

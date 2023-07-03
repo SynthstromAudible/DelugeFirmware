@@ -129,8 +129,10 @@ int KeyboardScreen::padAction(int x, int y, int velocity) {
 			// Change editing range if necessary
 			if (instrument->type == INSTRUMENT_TYPE_SYNTH) {
 				if (velocity) {
-					if (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem() == &menu_item::multiRangeMenu) {
-						menu_item::multiRangeMenu.noteOnToChangeRange(noteCode + ((SoundInstrument*)instrument)->transpose);
+					if (getCurrentUI() == &soundEditor
+					    && soundEditor.getCurrentMenuItem() == &menu_item::multiRangeMenu) {
+						menu_item::multiRangeMenu.noteOnToChangeRange(noteCode
+						                                              + ((SoundInstrument*)instrument)->transpose);
 					}
 				}
 			}

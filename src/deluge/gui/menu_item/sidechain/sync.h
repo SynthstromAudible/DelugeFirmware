@@ -23,4 +23,4 @@ public:
 		return !(soundEditor.editingReverbCompressor() && AudioEngine::reverbCompressorVolume < 0);
 	}
 };
-}
+} // namespace menu_item::sidechain

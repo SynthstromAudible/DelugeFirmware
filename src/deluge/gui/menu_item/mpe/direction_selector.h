@@ -34,4 +34,4 @@ public:
 
 extern DirectionSelector directionSelectorMenu;
 
-}
+} // namespace menu_item::mpe
