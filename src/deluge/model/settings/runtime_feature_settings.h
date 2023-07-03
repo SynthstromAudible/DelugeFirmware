@@ -34,6 +34,7 @@ enum RuntimeFeatureStateToggle : uint32_t { Off = 0, On = 1 };
 enum RuntimeFeatureSettingType : uint32_t {
 	// FileFolderSorting // @TODO: Replace with actual identifier on first use
 	DrumRandomizer,
+	MasterCompressor,
 	MaxElement // Keep as boundary
 };
 
@@ -88,6 +89,15 @@ protected:
 	         .options = {{.displayName = "Off", .value = RuntimeFeatureStateToggle::Off},
 	                     {.displayName = "On", .value = RuntimeFeatureStateToggle::On},
 	                     {.displayName = NULL, .value = 0}}},
+
+	    [RuntimeFeatureSettingType::MasterCompressor] =
+	        {.displayName = "Master Compressor",
+	         .xmlName = "masterCompressor",
+	         .value = RuntimeFeatureStateToggle::On, // Default value
+	         .options = {{.displayName = "Off", .value = RuntimeFeatureStateToggle::Off},
+	                     {.displayName = "On", .value = RuntimeFeatureStateToggle::On},
+	                     {.displayName = NULL, .value = 0}}},
+
 	};
 
 private:
