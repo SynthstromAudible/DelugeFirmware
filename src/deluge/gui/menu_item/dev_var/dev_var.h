@@ -61,4 +61,4 @@ public:
 	int getMaxValue() const override { return 1024; }
 	int getMinValue() const override { return -1024; }
 };
-} // namespace menu_item
+} // namespace menu_item::dev_var

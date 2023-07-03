@@ -135,4 +135,4 @@ bool KeyRange::isTotallyRandom() {
 
 	return (range == 11);
 }
-}
+} // namespace menu_item

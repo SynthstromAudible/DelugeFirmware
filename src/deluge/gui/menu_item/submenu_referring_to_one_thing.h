@@ -14,4 +14,4 @@ public:
 
 	uint8_t thingIndex;
 };
-}
+} // namespace menu_item

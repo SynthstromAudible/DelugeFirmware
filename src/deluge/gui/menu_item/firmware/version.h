@@ -17,9 +17,13 @@ public:
 		                                         20);
 	}
 #else
-	void beginSession(MenuItem* navigatedBackwardFrom) { drawValue(); }
+	void beginSession(MenuItem* navigatedBackwardFrom) {
+		drawValue();
+	}
 
-	void drawValue() { numericDriver.setScrollingText(firmwareString); }
+	void drawValue() {
+		numericDriver.setScrollingText(firmwareString);
+	}
 #endif
 };
 } // namespace menu_item::firmware

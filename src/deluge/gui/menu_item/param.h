@@ -39,5 +39,4 @@ public:
 protected:
 	virtual ParamSet* getParamSet() = 0;
 };
-}
-
+} // namespace menu_item

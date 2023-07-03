@@ -113,4 +113,4 @@ void IntegerContinuous::drawPixelsForOled() {
 	drawBar(35, 10);
 }
 #endif
-}
+} // namespace menu_item

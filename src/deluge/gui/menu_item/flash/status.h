@@ -21,4 +21,4 @@ public:
 	}
 	int getNumOptions() { return 3; }
 };
-}
+} // namespace menu_item::flash

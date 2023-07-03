@@ -6,4 +6,4 @@ class Start final : public LoopPoint {
 public:
 	Start(char const* newName = NULL) : LoopPoint(newName) { markerType = MARKER_START; }
 };
-}
+} // namespace menu_item::sample

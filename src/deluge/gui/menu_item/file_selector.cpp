@@ -62,4 +62,4 @@ int FileSelector::checkPermissionToBeginSession(Sound* sound, int whichThing, ::
 
 	return soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(sound, whichThing, false, currentRange);
 }
-}
+} // namespace menu_item

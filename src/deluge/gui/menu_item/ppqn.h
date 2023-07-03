@@ -4,8 +4,8 @@
 namespace menu_item {
 class PPQN : public Integer {
 public:
-  using Integer::Integer;
+	using Integer::Integer;
 	int getMinValue() const { return 1; }
 	int getMaxValue() const { return 192; }
 };
-}
+} // namespace menu_item

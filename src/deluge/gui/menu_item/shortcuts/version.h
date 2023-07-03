@@ -21,6 +21,8 @@ public:
 		};
 		return options;
 	}
-	int getNumOptions() { return NUM_SHORTCUTS_VERSIONS; }
+	int getNumOptions() {
+		return NUM_SHORTCUTS_VERSIONS;
+	}
 };
-}
+} // namespace menu_item::shortcuts

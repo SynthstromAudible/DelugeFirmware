@@ -46,4 +46,4 @@ protected:
 	bool sourceIsAllowed(int source);
 	uint8_t shouldDrawDotOnValue();
 };
-}
+} // namespace menu_item

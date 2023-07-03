@@ -92,4 +92,4 @@ void Selection::drawPixelsForOled() {
 	drawItemsForOled(options, selectedOption);
 }
 #endif
-}
+} // namespace menu_item

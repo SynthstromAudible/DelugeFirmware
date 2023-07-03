@@ -5,7 +5,7 @@
 namespace menu_item::lfo::global {
 class Rate final : public patched_param::Integer {
 public:
-  using Integer::Integer;
+	using Integer::Integer;
 
 	bool isRelevant(Sound* sound, int whichThing) { return (sound->lfoGlobalSyncLevel == 0); }
 };

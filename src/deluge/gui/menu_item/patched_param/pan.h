@@ -9,9 +9,13 @@ public:
 	void drawValue();
 #endif
 protected:
-	int getMaxValue() { return 32; }
-	int getMinValue() { return -32; }
+	int getMaxValue() {
+		return 32;
+	}
+	int getMinValue() {
+		return -32;
+	}
 	int32_t getFinalValue();
 	void readCurrentValue();
 };
-} // namespace menu_item
+} // namespace menu_item::patched_param

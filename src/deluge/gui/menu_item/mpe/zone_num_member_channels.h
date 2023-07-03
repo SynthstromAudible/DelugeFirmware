@@ -41,5 +41,4 @@ private:
 };
 
 extern ZoneNumMemberChannels zoneNumMemberChannelsMenu;
-}
-
+} // namespace menu_item::mpe

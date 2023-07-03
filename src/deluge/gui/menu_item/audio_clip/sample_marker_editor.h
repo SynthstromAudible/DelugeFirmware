@@ -32,5 +32,4 @@ public:
 	int whichMarker;
 };
 
-}
-
+} // namespace menu_item::audio_clip

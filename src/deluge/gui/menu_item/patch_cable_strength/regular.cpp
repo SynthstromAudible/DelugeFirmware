@@ -56,7 +56,9 @@ int Regular::checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRa
 uint8_t Regular::shouldBlinkPatchingSourceShortcut(int s, uint8_t* colour) {
 
 	// If this is the actual source we're editing for...
-	if (s == getS()) {return 0;}
+	if (s == getS()) {
+		return 0;
+	}
 
 	PatchCableSet* patchCableSet = soundEditor.currentParamManager->getPatchCableSet();
 

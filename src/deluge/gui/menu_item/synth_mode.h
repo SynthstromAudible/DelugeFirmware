@@ -24,4 +24,4 @@ public:
 		        && sound->sources[1].oscType < NUM_OSC_TYPES_RINGMODDABLE);
 	}
 };
-}
+} // namespace menu_item

@@ -6,8 +6,7 @@
 namespace menu_item::sample {
 class Transpose final : public source::Transpose {
 public:
-	Transpose(char const* newName = NULL, int newP = 0)
-	    : source::Transpose(newName, newP) {}
+	Transpose(char const* newName = NULL, int newP = 0) : source::Transpose(newName, newP) {}
 	void readCurrentValue() {
 		int transpose;
 		int cents;
@@ -60,4 +59,4 @@ public:
 	}
 	bool isRangeDependent() { return true; }
 };
-}
+} // namespace menu_item::sample

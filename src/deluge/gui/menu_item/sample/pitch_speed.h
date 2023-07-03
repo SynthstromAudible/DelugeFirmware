@@ -12,13 +12,13 @@ class PitchSpeed final : public Selection {
 public:
 	PitchSpeed(char const* newName = NULL) : Selection(newName) {}
 
-  bool usesAffectEntire() { return true; }
+	bool usesAffectEntire() { return true; }
 
-  void readCurrentValue() {
+	void readCurrentValue() {
 		soundEditor.currentValue = soundEditor.currentSampleControls->pitchAndSpeedAreIndependent;
 	}
 
-  void writeCurrentValue() {
+	void writeCurrentValue() {
 		// If affect-entire button held, do whole kit
 		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKit()) {
 
@@ -40,7 +40,7 @@ public:
 		}
 	}
 
-  char const** getOptions() {
+	char const** getOptions() {
 		static char const* options[] = {"Linked", "Independent", NULL};
 		return options;
 	}

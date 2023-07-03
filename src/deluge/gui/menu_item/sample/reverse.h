@@ -37,4 +37,4 @@ public:
 		}
 	}
 };
-}
+} // namespace menu_item::sample

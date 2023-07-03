@@ -38,4 +38,4 @@ public:
 	MenuItem** items;
 };
 
-}
+} // namespace menu_item

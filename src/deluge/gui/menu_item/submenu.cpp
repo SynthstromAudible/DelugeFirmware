@@ -167,4 +167,4 @@ bool Submenu::learnNoteOn(MIDIDevice* fromDevice, int channel, int noteCode) {
 		return (*soundEditor.currentSubmenuItem)->learnNoteOn(fromDevice, channel, noteCode);
 	else return false;
 }
-}
+} // namespace menu_item

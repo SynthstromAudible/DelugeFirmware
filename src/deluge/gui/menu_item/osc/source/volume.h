@@ -9,4 +9,4 @@ public:
 	using PatchedParam::PatchedParam;
 	bool isRelevant(Sound* sound, int whichThing) { return (sound->getSynthMode() != SYNTH_MODE_RINGMOD); }
 };
-} // namespace menu_item::osc
+} // namespace menu_item::osc::source

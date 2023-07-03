@@ -195,4 +195,4 @@ doHilightJustOneEdge:
 	}
 }
 #endif
-}
+} // namespace menu_item

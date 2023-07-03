@@ -127,4 +127,4 @@ int IntegerRange::getRandomValueInRange() {
 		return lower + random(upper - lower);
 	}
 }
-}
+} // namespace menu_item

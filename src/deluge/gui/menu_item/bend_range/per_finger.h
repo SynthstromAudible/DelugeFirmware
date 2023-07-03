@@ -24,4 +24,4 @@ public:
 		return soundEditor.navigationDepth == 1 || soundEditor.editingKit();
 	}
 };
-}
+} // namespace menu_item::bend_range

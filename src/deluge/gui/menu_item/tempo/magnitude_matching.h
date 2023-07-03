@@ -6,8 +6,8 @@
 namespace menu_item::tempo {
 class MagnitudeMatching final : public Selection {
 public:
-  using Selection::Selection;
+	using Selection::Selection;
 	void readCurrentValue() { soundEditor.currentValue = playbackHandler.tempoMagnitudeMatchingEnabled; }
 	void writeCurrentValue() { playbackHandler.tempoMagnitudeMatchingEnabled = soundEditor.currentValue; }
 };
-}
+} // namespace menu_item::tempo

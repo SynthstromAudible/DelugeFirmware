@@ -4,7 +4,6 @@
 #include "processing/sound/sound_drum.h"
 #include "model/clip/instrument_clip.h"
 
-
 namespace menu_item::submenu {
 
 void Arpeggiator::beginSession(MenuItem* navigatedBackwardFrom) {
@@ -15,4 +14,4 @@ void Arpeggiator::beginSession(MenuItem* navigatedBackwardFrom) {
 	Submenu::beginSession(navigatedBackwardFrom);
 }
 
-}
+} // namespace menu_item::submenu

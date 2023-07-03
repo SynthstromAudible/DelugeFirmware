@@ -17,4 +17,4 @@ public:
 	int getNumOptions() { return NUM_LPF_MODES; }
 	bool isRelevant(Sound* sound, int whichThing) { return (!sound || sound->synthMode != SYNTH_MODE_FM); }
 };
-}
+} // namespace menu_item::filter

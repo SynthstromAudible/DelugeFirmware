@@ -6,8 +6,8 @@
 namespace menu_item::midi {
 class ClockInStatus final : public Selection {
 public:
-  using Selection::Selection;
+	using Selection::Selection;
 	void readCurrentValue() { soundEditor.currentValue = playbackHandler.midiInClockEnabled; }
 	void writeCurrentValue() { playbackHandler.setMidiInClockEnabled(soundEditor.currentValue); }
 };
-}
+} // namespace menu_item::midi

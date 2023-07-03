@@ -32,4 +32,4 @@ void DrumName::beginSession(MenuItem* navigatedBackwardFrom) {
 	openUI(&renameDrumUI);
 }
 
-}
+} // namespace menu_item

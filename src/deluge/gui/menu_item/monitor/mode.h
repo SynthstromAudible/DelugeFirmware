@@ -16,4 +16,4 @@ public:
 	}
 	int getNumOptions() { return NUM_INPUT_MONITORING_MODES; }
 };
-}
+} // namespace menu_item::monitor

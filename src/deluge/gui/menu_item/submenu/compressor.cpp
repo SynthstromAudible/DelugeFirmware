@@ -9,4 +9,4 @@ void Compressor::beginSession(MenuItem* navigatedBackwardFrom) {
 	    forReverbCompressor ? &AudioEngine::reverbCompressor : &soundEditor.currentSound->compressor;
 	Submenu::beginSession(navigatedBackwardFrom);
 }
-}
+} // namespace menu_item::submenu

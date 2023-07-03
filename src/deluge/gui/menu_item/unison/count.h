@@ -17,4 +17,4 @@ public:
 	int getMinValue() const { return 1; }
 	int getMaxValue() const { return maxNumUnison; }
 };
-}
+} // namespace menu_item::unison

@@ -37,5 +37,4 @@ public:
 };
 
 extern ZoneSelector zoneSelectorMenu;
-}
-
+} // namespace menu_item::mpe

@@ -6,7 +6,7 @@ namespace menu_item::mod_fx {
 
 class Offset final : public UnpatchedParam {
 public:
-  using UnpatchedParam::UnpatchedParam;
+	using UnpatchedParam::UnpatchedParam;
 
 	bool isRelevant(Sound* sound, int whichThing) {
 		return (!sound

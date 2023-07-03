@@ -2382,7 +2382,8 @@ int InstrumentClipView::scrollVertical(int scrollAmount, bool inCardRoutine, boo
 				}
 
 				if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_SYNTH) {
-					if (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem() == &menu_item::multiRangeMenu) {
+					if (getCurrentUI() == &soundEditor
+					    && soundEditor.getCurrentMenuItem() == &menu_item::multiRangeMenu) {
 						menu_item::multiRangeMenu.noteOnToChangeRange(
 						    getCurrentClip()->getYNoteFromYDisplay(yDisplay, currentSong)
 						    + ((SoundInstrument*)currentSong->currentClip->output)->transpose);
@@ -2848,8 +2849,9 @@ justReRender:
 	else if (instrument->type == INSTRUMENT_TYPE_SYNTH) {
 		if (velocity) {
 			if (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem() == &menu_item::multiRangeMenu) {
-				menu_item::multiRangeMenu.noteOnToChangeRange(getCurrentClip()->getYNoteFromYDisplay(yDisplay, currentSong)
-				                                   + ((SoundInstrument*)instrument)->transpose);
+				menu_item::multiRangeMenu.noteOnToChangeRange(
+				    getCurrentClip()->getYNoteFromYDisplay(yDisplay, currentSong)
+				    + ((SoundInstrument*)instrument)->transpose);
 			}
 		}
 	}
@@ -3080,8 +3082,8 @@ doDisplayError:
 
 	setSelectedDrum(newDrum); // Does this really need to render?
 
-	bool success =
-	    soundEditor.setup(getCurrentClip(), &menu_item::fileSelectorMenu, 0); // Can't fail because we just set the selected Drum
+	bool success = soundEditor.setup(getCurrentClip(), &menu_item::fileSelectorMenu,
+	                                 0); // Can't fail because we just set the selected Drum
 	// TODO: what if fail because no RAM
 
 	if (doRecording) {

@@ -25,4 +25,4 @@ public:
 	int getMaxValue() const { return 50; }
 	bool isRelevant(Sound* sound, int whichThing) { return soundEditor.editingCVOrMIDIClip(); }
 };
-} // namespace menu_item::arpeggiator
+} // namespace menu_item::arpeggiator::midi_cv

@@ -11,4 +11,4 @@ public:
 		return (sound->getSynthMode() != SYNTH_MODE_FM && source->oscType == OSC_TYPE_WAVETABLE);
 	}
 };
-} // namespace menu_item::osc
+} // namespace menu_item::osc::source

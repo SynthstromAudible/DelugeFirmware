@@ -23,7 +23,9 @@ public:
 		Selection::beginSession(navigatedBackwardFrom);
 	}
 #endif
-	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentSource->oscType; }
+	void readCurrentValue() {
+		soundEditor.currentValue = soundEditor.currentSource->oscType;
+	}
 	void writeCurrentValue() {
 
 		int oldValue = soundEditor.currentSource->oscType;
@@ -76,7 +78,9 @@ public:
 			return NUM_OSC_TYPES - 2;
 		}
 	}
-	bool isRelevant(Sound* sound, int whichThing) { return (sound->getSynthMode() != SYNTH_MODE_FM); }
+	bool isRelevant(Sound* sound, int whichThing) {
+		return (sound->getSynthMode() != SYNTH_MODE_FM);
+	}
 };
 
 } // namespace menu_item::osc

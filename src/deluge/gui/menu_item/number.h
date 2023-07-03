@@ -31,4 +31,4 @@ protected:
 	virtual int getMinValue() const { return 0; }
 };
 
-}
+} // namespace menu_item

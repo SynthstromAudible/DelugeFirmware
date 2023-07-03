@@ -262,4 +262,4 @@ uint8_t SourceSelection::shouldBlinkPatchingSourceShortcut(int s, uint8_t* colou
 	           : 255;
 }
 
-}
+} // namespace menu_item

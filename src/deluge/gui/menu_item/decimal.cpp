@@ -187,4 +187,4 @@ void Decimal::drawActualValue(bool justDidHorizontalScroll) {
 }
 #endif
 
-}
+} // namespace menu_item

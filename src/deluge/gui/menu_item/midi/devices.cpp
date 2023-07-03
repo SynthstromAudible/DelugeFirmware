@@ -151,4 +151,4 @@ void Devices::drawPixelsForOled() {
 }
 
 #endif
-}
+} // namespace menu_item::midi

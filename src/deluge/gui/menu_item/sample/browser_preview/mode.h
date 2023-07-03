@@ -15,4 +15,4 @@ public:
 	}
 	int getNumOptions() { return 3; }
 };
-}
+} // namespace menu_item::sample::browser_preview

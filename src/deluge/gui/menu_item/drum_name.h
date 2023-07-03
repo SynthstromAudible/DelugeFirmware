@@ -27,4 +27,4 @@ public:
 	void beginSession(MenuItem* navigatedBackwardFrom);
 	bool isRelevant(Sound* sound, int whichThing);
 };
-}
+} // namespace menu_item

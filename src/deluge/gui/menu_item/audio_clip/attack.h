@@ -7,7 +7,7 @@
 namespace menu_item::audio_clip {
 class Attack final : public Integer {
 public:
-  using Integer::Integer;
+	using Integer::Integer;
 
 	void readCurrentValue() {
 		soundEditor.currentValue =

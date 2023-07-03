@@ -22,7 +22,7 @@
 
 class MenuItemWithCCLearning {
 public:
-	MenuItemWithCCLearning(){}
+	MenuItemWithCCLearning() {}
 
 	virtual ParamDescriptor getLearningThing() = 0;
 	void unlearnAction();

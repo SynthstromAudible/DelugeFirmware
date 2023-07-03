@@ -17,4 +17,4 @@ public:
 protected:
 	uint8_t getP() final { return p + soundEditor.currentSourceIndex; }
 };
-} // namespace menu_item
+} // namespace menu_item::source

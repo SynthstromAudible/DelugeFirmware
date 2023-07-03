@@ -49,5 +49,4 @@ protected:
 	virtual int32_t getFinalValue();
 };
 
-}
-
+} // namespace menu_item

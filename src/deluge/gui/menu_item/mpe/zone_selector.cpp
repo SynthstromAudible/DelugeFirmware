@@ -50,4 +50,4 @@ void ZoneSelector::writeCurrentValue() {
 MenuItem* ZoneSelector::selectButtonPress() {
 	return &zoneNumMemberChannelsMenu;
 }
-}
+} // namespace menu_item::mpe

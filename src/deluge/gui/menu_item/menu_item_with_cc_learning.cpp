@@ -22,7 +22,6 @@
 #include "gui/views/view.h"
 #include "model/song/song.h"
 
-
 void MenuItemWithCCLearning::unlearnAction() {
 
 	ParamDescriptor paramDescriptor = getLearningThing();

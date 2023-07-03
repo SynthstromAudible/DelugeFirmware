@@ -23,4 +23,4 @@ public:
 		            || source->oscType == OSC_TYPE_INPUT_STEREO));
 	}
 };
-}
+} // namespace menu_item::sample

@@ -48,4 +48,4 @@ MenuItem* DirectionSelector::selectButtonPress() {
 #endif
 	return &zoneSelectorMenu;
 }
-}
+} // namespace menu_item::mpe

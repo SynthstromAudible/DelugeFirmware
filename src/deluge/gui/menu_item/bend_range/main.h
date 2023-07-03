@@ -21,4 +21,4 @@ public:
 		if (expressionParams) expressionParams->bendRanges[BEND_RANGE_MAIN] = soundEditor.currentValue;
 	}
 };
-}
+} // namespace menu_item::bend_range

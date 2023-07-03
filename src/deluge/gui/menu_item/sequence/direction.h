@@ -10,7 +10,7 @@
 namespace menu_item::sequence {
 class Direction final : public Selection {
 public:
-  using Selection::Selection;
+	using Selection::Selection;
 
 	ModelStackWithNoteRow* getIndividualNoteRow(ModelStackWithTimelineCounter* modelStack) {
 		InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
@@ -58,7 +58,7 @@ public:
 	}
 
 	char const** getOptions() {
-    static char const* sequenceDirectionOptions[] = {"FORWARD", "REVERSED", "PING-PONG", NULL, NULL};
+		static char const* sequenceDirectionOptions[] = {"FORWARD", "REVERSED", "PING-PONG", NULL, NULL};
 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
@@ -77,6 +77,5 @@ public:
 			return MENU_PERMISSION_YES;
 		}
 	}
-
 };
-}
+} // namespace menu_item::sequence

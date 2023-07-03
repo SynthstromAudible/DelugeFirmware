@@ -38,4 +38,4 @@ protected:
 #endif
 };
 
-}
+} // namespace menu_item

@@ -13,4 +13,4 @@ public:
 		}
 	}
 };
-}
+} // namespace menu_item::midi

@@ -19,4 +19,4 @@ public:
 		MIDIDeviceManager::anyChangesToSave = true;
 	}
 };
-}
+} // namespace menu_item::midi

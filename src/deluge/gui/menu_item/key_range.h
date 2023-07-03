@@ -18,7 +18,7 @@
 #pragma once
 #include "range.h"
 
-namespace menu_item{
+namespace menu_item {
 
 class KeyRange final : public Range {
 public:
@@ -32,4 +32,4 @@ public:
 private:
 	bool isTotallyRandom();
 };
-}
+} // namespace menu_item

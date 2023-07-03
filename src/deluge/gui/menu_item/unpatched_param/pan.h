@@ -2,7 +2,6 @@
 #include <cstdint>
 #include "gui/menu_item/unpatched_param.h"
 
-
 namespace menu_item::unpatched_param {
 
 class Pan final : public UnpatchedParam {
@@ -16,4 +15,4 @@ protected:
 	int32_t getFinalValue();
 	void readCurrentValue();
 };
-}
+} // namespace menu_item::unpatched_param

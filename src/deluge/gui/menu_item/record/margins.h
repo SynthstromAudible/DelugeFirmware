@@ -5,8 +5,8 @@
 namespace menu_item::record {
 class Margins final : public Selection {
 public:
-  using Selection::Selection;
+	using Selection::Selection;
 	void readCurrentValue() { soundEditor.currentValue = FlashStorage::audioClipRecordMargins; }
 	void writeCurrentValue() { FlashStorage::audioClipRecordMargins = soundEditor.currentValue; }
 };
-}
+} // namespace menu_item::record
