@@ -26,7 +26,7 @@ Please see also, the [Code of Conduct](CODE_OF_CONDUCT.md) document.
 
 * As the *community* branch gets updated, please keep your PR's branch updated so it can be easily merged
 
-* As formatting standards are developed, please ensure you are formatting your code accordingly. clang formatting has been included in the GitHub Actions to help with this.
+* PRs are automatically checked for conformance to the style defined by `.clang-format` files throughout the tree. The format checker currently uses Clang 14. There are known behavioral between Clang 14 and Clang 13/15, so for ease of use it is recommended to use Clang 14.
 
 ### New features
 

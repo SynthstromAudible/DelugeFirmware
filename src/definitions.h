@@ -18,8 +18,8 @@
 #ifndef Definitions_h
 #define Definitions_h
 
-#include "r_typedefs.h"
-#include "cpu_specific.h"
+#include "RZA1/system/r_typedefs.h"
+#include "RZA1/cpu_specific.h"
 
 #define FIRMWARE_OLD 0
 #define FIRMWARE_1P2P0 1
@@ -277,6 +277,8 @@
 #define selectedDrumColourGreen 30
 #define selectedDrumColourBlue 10
 
+#define USE_DEFAULT_VELOCITY 255
+
 #define MAX_SEQUENCE_LENGTH 1610612736 // The biggest multiple of 3 which can fit in a signed 32-bit int
 #define noteOnLatenessAllowed 2205     // In audio samples. That's 50mS. Multiply mS by 44.1
 
@@ -358,6 +360,7 @@
 
 // Exp params have different sources added together, converted to an exponential scale, then multiplied by the neutral value
 
+// Local linear params begin
 #define PARAM_LOCAL_OSC_A_VOLUME 0
 #define PARAM_LOCAL_OSC_B_VOLUME 1
 #define PARAM_LOCAL_VOLUME 2
@@ -394,7 +397,7 @@
 #define PARAM_LOCAL_ENV_1_DECAY 30
 #define PARAM_LOCAL_ENV_0_RELEASE 31
 #define PARAM_LOCAL_ENV_1_RELEASE 32
-// Global params begin
+// Global (linear) params begin
 #define PARAM_GLOBAL_VOLUME_POST_FX 33
 #define PARAM_GLOBAL_VOLUME_POST_REVERB_SEND 34
 #define PARAM_GLOBAL_REVERB_AMOUNT 35
@@ -490,8 +493,32 @@
 #define LFO_TYPE_TRIANGLE 1
 #define LFO_TYPE_SQUARE 2
 #define LFO_TYPE_SAW 3
+#define LFO_TYPE_SAH 4
+#define LFO_TYPE_RWALK 5
 
-#define NUM_LFO_TYPES 4
+#define NUM_LFO_TYPES 6
+
+// SyncType values correspond to the index of the first option of the specific
+// type in the selection menu. There are 9 different levels for each type (see
+// also SyncLevel)
+typedef enum SyncType_ {
+	SYNC_TYPE_EVEN = 0,
+	SYNC_TYPE_TRIPLET = 10,
+	SYNC_TYPE_DOTTED = 19,
+} SyncType;
+
+typedef enum SyncLevel_ {
+	SYNC_LEVEL_NONE = 0,
+	SYNC_LEVEL_WHOLE = 1,
+	SYNC_LEVEL_2ND = 2,
+	SYNC_LEVEL_4TH = 3,
+	SYNC_LEVEL_8TH = 4,
+	SYNC_LEVEL_16TH = 5,
+	SYNC_LEVEL_32ND = 6,
+	SYNC_LEVEL_64TH = 7,
+	SYNC_LEVEL_128TH = 8,
+	SYNC_LEVEL_256TH = 9,
+} SyncLevel;
 
 #define SYNTH_MODE_SUBTRACTIVE 0
 #define SYNTH_MODE_FM 1
@@ -501,7 +528,8 @@
 #define MOD_FX_TYPE_FLANGER 1
 #define MOD_FX_TYPE_CHORUS 2
 #define MOD_FX_TYPE_PHASER 3
-#define NUM_MOD_FX_TYPES 4
+#define MOD_FX_TYPE_CHORUS_STEREO 4
+#define NUM_MOD_FX_TYPES 5
 
 #define SAMPLE_MAX_TRANSPOSE 24
 #define SAMPLE_MIN_TRANSPOSE (-96)
@@ -532,8 +560,8 @@
 #define LPF_MODE_12DB 0
 #define LPF_MODE_TRANSISTOR_24DB 1
 #define LPF_MODE_TRANSISTOR_24DB_DRIVE 2
-#define LPF_MODE_DIODE 3
-#define NUM_LPF_MODES 3
+#define LPF_MODE_SVF 3
+#define NUM_LPF_MODES 4
 
 #define PHASER_NUM_ALLPASS_FILTERS 6
 
@@ -592,7 +620,7 @@
 
 #define ALLOW_SPAM_MODE 0 // For debugging I think?
 
-#define KEYBOARD_ROW_INTERVAL 5
+#define KEYBOARD_ROW_INTERVAL_MAX 16
 
 // UART
 #define MIDI_TX_BUFFER_SIZE 1024

@@ -12,5 +12,9 @@
 /e2-build-debug-oled/
 /e2-build-release-7seg/
 /e2-build-release-oled/
+/dbt-build*
 *.launch
 /toolchain/*
+compile_commands.json
+__pycache__
+.sconsign.dblite

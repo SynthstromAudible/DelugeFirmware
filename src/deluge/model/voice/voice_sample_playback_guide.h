@@ -1,0 +1,48 @@
+/*
+ * Copyright © 2017-2023 Synthstrom Audible Limited
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
+ */
+
+#ifndef VOICE_SOURCE_H
+#define VOICE_SOURCE_H
+
+#include "definitions.h"
+#include "model/sample/sample_playback_guide.h"
+
+class Source;
+class Sample;
+class Voice;
+class SampleCache;
+
+class VoiceSamplePlaybackGuide final : public SamplePlaybackGuide {
+public:
+	VoiceSamplePlaybackGuide();
+	void setupPlaybackBounds(bool reversed);
+	bool shouldObeyLoopEndPointNow();
+	int32_t getBytePosToStartPlayback(bool justLooped);
+	int32_t getBytePosToEndOrLoopPlayback();
+	int getLoopingType(Source* source);
+
+	uint32_t getLoopStartPlaybackAtByte() { return loopStartPlaybackAtByte; }
+	uint32_t getLoopEndPlaybackAtByte() { return loopEndPlaybackAtByte ? loopEndPlaybackAtByte : endPlaybackAtByte; }
+
+	uint32_t
+	    loopStartPlaybackAtByte; // If no loop-start point defined, this will be the same as startPlaybackAtByte, so it can just be referred to when looping happens
+	uint32_t loopEndPlaybackAtByte; // 0 means disabled
+
+	bool noteOffReceived;
+};
+
+#endif
