@@ -183,7 +183,7 @@ bool anythingInUSBOutputBuffer = false;
 MidiEngine::MidiEngine() {
 	numSerialMidiInput = 0;
 	lastStatusByteSent = 0;
-	currentlyReceivingSysEx = false;
+	currentlyReceivingSysExSerial = false;
 	midiThru = false;
 
 	g_usb_peri_connected = 0; // Needs initializing with A2 driver
@@ -534,6 +534,7 @@ bool MidiEngine::checkIncomingSerialMidi() {
 	uint32_t* timer = uartGetCharWithTiming(TIMING_CAPTURE_ITEM_MIDI, (char*)&thisSerialByte);
 	if (timer) {
 		//Uart::println((unsigned int)thisSerialByte);
+		MIDIDevice* dev = &MIDIDeviceManager::dinMIDIPorts;
 
 		// If this is a status byte, then we have to store it as the first byte.
 		if (thisSerialByte & 0x80) {
@@ -548,28 +549,41 @@ bool MidiEngine::checkIncomingSerialMidi() {
 
 			// Or if it's a SysEx start...
 			case 0xF0:
-				currentlyReceivingSysEx = true;
+				currentlyReceivingSysExSerial = true;
 				Uart::println("Sysex start");
+				dev->incomingSysexBuffer[0] = thisSerialByte;
+				dev->incomingSysexPos = 1;
 				//numSerialMidiInput = 0; // This would throw away any running status stuff...
 				return true;
 			}
 
 			// If we didn't return for any of those, then it's just a regular old status message (or Sysex stop message). All these will end any ongoing SysEx
-			currentlyReceivingSysEx = false;
 
 			// If it was a Sysex stop, that's all we need to do
 			if (thisSerialByte == 0xF7) {
 				Uart::println("Sysex end");
+				if (currentlyReceivingSysExSerial) {
+					currentlyReceivingSysExSerial = false;
+					if (dev->incomingSysexPos < sizeof dev->incomingSysexBuffer) {
+						dev->incomingSysexBuffer[dev->incomingSysexPos++] = thisSerialByte;
+						midiSysexReceived(-1, -1, 0, dev->incomingSysexBuffer, dev->incomingSysexPos);
+					}
+				}
 				return true;
 			}
 
+			currentlyReceivingSysExSerial = false;
 			numSerialMidiInput = 0;
 		}
 
 		// If not a status byte...
 		else {
-			// If we're currently receiving a SysEx, throw it away
-			if (currentlyReceivingSysEx) {
+			// If we're currently receiving a SysEx, don't throw it away
+			if (currentlyReceivingSysExSerial) {
+				// TODO: allocate a GMA buffer to some bigger size
+				if (dev->incomingSysexPos < sizeof dev->incomingSysexBuffer) {
+					dev->incomingSysexBuffer[dev->incomingSysexPos++] = thisSerialByte;
+				}
 				Uart::print("Sysex: ");
 				Uart::println(thisSerialByte);
 				return true;
@@ -630,6 +644,114 @@ void MidiEngine::setupUSBHostReceiveTransfer(int ip, int midiDeviceNum) {
 
 uint8_t usbCurrentlyInitialized = false;
 
+void MidiEngine::checkIncomingUsbSysex(uint8_t const* msg, int ip, int d, int cable) {
+	ConnectedUSBMIDIDevice* connected = &connectedUSBMIDIDevices[ip][d];
+	if (cable > connectedUSBMIDIDevices[ip][d].maxPortConnected) {
+		//fallback to cable 0 since we don't support more than one port on hosted devices yet
+		cable = 0;
+	}
+	MIDIDevice* dev = connectedUSBMIDIDevices[ip][d].device[cable];
+
+	uint8_t statusType = msg[0] & 15;
+	int to_read = 0;
+	bool will_end = false;
+	if (statusType == 0x4) {
+		// sysex start or continue
+		if (msg[1] == 0xf0) {
+			dev->incomingSysexPos = 0;
+		}
+		to_read = 3;
+	}
+	else if (statusType >= 0x5 && statusType <= 0x7) {
+		to_read = statusType - 0x4; // read between 1-3 bytes
+		will_end = true;
+	}
+
+	for (int i = 0; i < to_read; i++) {
+		if (dev->incomingSysexPos >= sizeof(dev->incomingSysexBuffer)) {
+			// TODO: allocate a GMA buffer to some bigger size
+			dev->incomingSysexPos = 0;
+			return; // bail out
+		}
+		dev->incomingSysexBuffer[dev->incomingSysexPos++] = msg[i + 1];
+	}
+
+	if (will_end) {
+		if (dev->incomingSysexBuffer[0] == 0xf0) {
+			midiSysexReceived(ip, d, cable, dev->incomingSysexBuffer, dev->incomingSysexPos);
+		}
+		dev->incomingSysexPos = 0;
+	}
+}
+
+void MidiEngine::midiSysexReceived(int ip, int d, int cable, uint8_t* data, int len) {
+	if (len < 4) return;
+
+	// placeholder until we get a real manufacturer id.
+	if (data[1] == 0x7D) {
+		switch (data[2]) {
+		case 0: // PING test message, reply
+		{
+			uint8_t pong[] = {0xf0, data[1], 0x7f, 0x00, 0xf7};
+			if (len >= 5) {
+				pong[3] = data[3];
+			}
+			sendSysex(ip, d, cable, pong, sizeof pong);
+		} break;
+
+		case 1:
+			numericDriver.displayPopup(HAVE_OLED ? "hello sysex" : "SYSX");
+			break;
+
+		case 0x7f: // PONG, reserved
+		default:
+			break;
+		}
+	}
+}
+
+void MidiEngine::sendSysex(int ip, int d, int cable, uint8_t* data, int len) {
+	if (len < 4 || data[0] != 0xf0 || data[len - 1] != 0xf7) {
+		return;
+	}
+
+	if (ip < 0) {
+		// NB: beware of MIDI_TX_BUFFER_SIZE
+		for (int i = 0; i < len; i++) {
+			bufferMIDIUart(data[i]);
+		}
+	}
+	else {
+		int potentialNumDevices = getPotentialNumConnectedUSBMIDIDevices(ip);
+
+		if (d >= potentialNumDevices) return;
+		ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][d];
+		int maxPort = connectedDevice->maxPortConnected;
+		if (cable > maxPort) return;
+
+		int pos = 0;
+		while (pos < len) {
+			int status, byte0 = 0, byte1 = 0, byte2 = 0;
+			byte0 = data[pos];
+			if (pos == 0 || len - pos > 3) {
+				status = 0x4; // sysex start or continue
+				byte1 = data[pos + 1];
+				byte2 = data[pos + 2];
+				pos += 3;
+			}
+			else {
+				status = 0x4 + (len - pos); // sysex end with N bytes
+				if ((len - pos) > 1) byte1 = data[pos + 1];
+				if ((len - pos) > 2) byte2 = data[pos + 2];
+				pos = len;
+			}
+			status |= (cable << 4);
+			uint32_t packed = ((uint32_t)byte2 << 24) | ((uint32_t)byte1 << 16) | ((uint32_t)byte0 << 8) | status;
+			connectedDevice->bufferMessage(packed);
+		}
+	}
+}
+
 void MidiEngine::checkIncomingUsbMidi() {
 
 	if (!usbCurrentlyInitialized) {
@@ -679,6 +801,7 @@ void MidiEngine::checkIncomingUsbMidi() {
 								statusType = 0x0F;
 							}
 							else { // Invalid, or sysex, or something
+								checkIncomingUsbSysex(readPos, ip, d, cable);
 								continue;
 							}
 						}
@@ -729,11 +852,11 @@ void MidiEngine::checkIncomingUsbMidi() {
 }
 
 int MidiEngine::getMidiMessageLength(uint8_t statusByte) {
-	if (statusByte == 0xF0    // System exclusive - TODO!
+	if (statusByte == 0xF0    // System exclusive - dynamic length
 	    || statusByte == 0xF4 // Undefined
 	    || statusByte == 0xF5 // Undefined
 	    || statusByte == 0xF6 // Tune request
-	    || statusByte == 0xF7 // End of exclusive - TODO
+	    || statusByte == 0xF7 // End of exclusive
 	    || statusByte == 0xF8 // Timing clock
 	    || statusByte == 0xF9 // Undefined
 	    || statusByte == 0xFA // Start
