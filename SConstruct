@@ -171,10 +171,25 @@ build_multienv = {}
 # Target List Building
 # Here we parse out shorthand targets and leave only our directory targets
 
-if BUILD_TARGETS:
-    FOCUS_TARGETS = compose_valid_targets(cmd_env)
-else:
-    FOCUS_TARGETS = []
+FOCUS_TARGETS = []
+
+special_target = None
+for b_target in BUILD_TARGETS:
+    if b_target in ["all", "build", "clean"]:
+        special_target = b_target
+        break
+
+if special_target is not None:
+    if BUILD_TARGETS:
+        FOCUS_TARGETS = compose_valid_targets(cmd_env)
+    # Formally map these aliases to the appropriate targets
+    if special_target == "all":
+        env.Alias("all", FOCUS_TARGETS)
+    if special_target == "build":
+        env.Alias("build", FOCUS_TARGETS)
+    if special_target == "clean":
+        env.Alias("clean", FOCUS_TARGETS)
+        SetOption("clean", True)
 
 # If one of our utility targets is in the list, ignore
 # normal targets or treat them specially.
@@ -187,22 +202,6 @@ if "debug-oled" in BUILD_TARGETS:
     FOCUS_TARGETS = []
 if "debug-7seg" in BUILD_TARGETS:
     FOCUS_TARGETS = []
-
-special_target = None
-for b_target in BUILD_TARGETS:
-    if b_target in ["all", "build", "clean"]:
-        special_target = b_target
-        break
-
-if special_target is not None:
-    # Formally map these aliases to the appropriate targets
-    if special_target == "all":
-        env.Alias("all", FOCUS_TARGETS)
-    if special_target == "build":
-        env.Alias("build", FOCUS_TARGETS)
-    if special_target == "clean":
-        env.Alias("clean", FOCUS_TARGETS)
-        SetOption("clean", True)
 
 for target in FOCUS_TARGETS:
     build_env = env.Clone(BUILD_MODE="standalone")
