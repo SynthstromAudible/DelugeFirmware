@@ -36,7 +36,6 @@
 #include "playback/mode/arrangement.h"
 #include "gui/ui_timer_manager.h"
 #include "model/consequence/consequence_clip_length.h"
-#include "model/consequence/consequence_instrument_clip_horizontal_shift.h"
 #include "hid/led/pad_leds.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/buttons.h"
@@ -45,8 +44,6 @@
 #include "model/model_stack.h"
 #include "extern.h"
 #include "model/clip/clip_minder.h"
-#include "memory/general_memory_allocator.h"
-#include <new>
 
 extern "C" {
 extern uint8_t currentlyAccessingCard;
@@ -629,63 +626,6 @@ int AudioClipView::verticalEncoderAction(int offset, bool inCardRoutine) {
 	return ACTION_RESULT_DEALT_WITH;
 }
 
-int AudioClipView::horizontalEncoderAction(int offset) {
-	if ((isNoUIModeActive() && Buttons::isButtonPressed(yEncButtonX, yEncButtonY))
-	    || (isUIModeActiveExclusively(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)
-	        && Buttons::isButtonPressed(clipViewButtonX, clipViewButtonY))) {
-		if (sdRoutineLock) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE; // Just be safe - maybe not necessary
-		int squareSize = getPosFromSquare(1) - getPosFromSquare(0);
-		int shiftAmount = offset * squareSize;
-		AudioClip* clip = getClip();
-
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-
-		bool was_shifted = clip->shiftHorizontally(modelStack, shiftAmount);
-		if (!was_shifted) {
-			numericDriver.displayPopup(HAVE_OLED ? "Can't shift past start" : "CANT");
-			return ACTION_RESULT_DEALT_WITH;
-		}
-
-		uiNeedsRendering(this, 0xFFFFFFFF, 0);
-
-		// If possible, just modify a previous Action to add this new shift amount to it.
-		Action* action = actionLogger.firstAction[BEFORE];
-		if (action && action->type == ACTION_INSTRUMENT_CLIP_HORIZONTAL_SHIFT && action->openForAdditions
-		    && action->currentClip == clip) {
-
-			// If there's no Consequence in the Action, that's probably because we deleted it a previous time with the code just below.
-			// Or possibly because the Action was created but there wasn't enough RAM to create the Consequence. Anyway, just go add a consequence now.
-			if (!action->firstConsequence) goto addConsequenceToAction;
-
-			ConsequenceInstrumentClipHorizontalShift* consequence =
-			    (ConsequenceInstrumentClipHorizontalShift*)action->firstConsequence;
-			consequence->amount += shiftAmount;
-		}
-
-		// Or if no previous Action, go create a new one now.
-		else {
-
-			action = actionLogger.getNewAction(ACTION_INSTRUMENT_CLIP_HORIZONTAL_SHIFT, ACTION_ADDITION_NOT_ALLOWED);
-			if (action) {
-addConsequenceToAction:
-				void* consMemory = generalMemoryAllocator.alloc(sizeof(ConsequenceInstrumentClipHorizontalShift));
-
-				if (consMemory) {
-					ConsequenceInstrumentClipHorizontalShift* newConsequence =
-					    new (consMemory) ConsequenceInstrumentClipHorizontalShift(shiftAmount);
-					action->addConsequence(newConsequence);
-				}
-			}
-		}
-		return ACTION_RESULT_DEALT_WITH;
-	}
-
-	// Or, let parent deal with it
-	else {
-		return ClipView::horizontalEncoderAction(offset);
-	}
-}
 bool AudioClipView::setupScroll(uint32_t oldScroll) {
 
 	if (!getClip()->currentlyScrollableAndZoomable()) {
