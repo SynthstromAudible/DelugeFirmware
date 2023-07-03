@@ -88,7 +88,9 @@ void Voice::setAsUnassigned(ModelStackWithVoice* modelStack, bool deletingSong) 
 
 	unassignStuff();
 
-	if (!deletingSong) assignedToSound->voiceUnassigned(modelStack);
+	if (!deletingSong) {
+		assignedToSound->voiceUnassigned(modelStack);
+	}
 }
 
 void Voice::unassignStuff() {
@@ -114,9 +116,15 @@ bool Voice::noteOn(ModelStackWithVoice* modelStack, int newNoteCodeBeforeArpeggi
 	orderSounded = lastSoundOrder++;
 	overrideAmplitudeEnvelopeReleaseRate = 0;
 
-	if (newNoteCodeAfterArpeggiation >= 128) sourceValues[PATCH_SOURCE_NOTE] = 2147483647;
-	else if (newNoteCodeAfterArpeggiation <= 0) sourceValues[PATCH_SOURCE_NOTE] = -2147483648u;
-	else sourceValues[PATCH_SOURCE_NOTE] = ((int32_t)newNoteCodeAfterArpeggiation - 64) * 33554432;
+	if (newNoteCodeAfterArpeggiation >= 128) {
+		sourceValues[PATCH_SOURCE_NOTE] = 2147483647;
+	}
+	else if (newNoteCodeAfterArpeggiation <= 0) {
+		sourceValues[PATCH_SOURCE_NOTE] = -2147483648u;
+	}
+	else {
+		sourceValues[PATCH_SOURCE_NOTE] = ((int32_t)newNoteCodeAfterArpeggiation - 64) * 33554432;
+	}
 
 	ParamManagerForTimeline* paramManager = (ParamManagerForTimeline*)modelStack->paramManager;
 	Sound* sound = (Sound*)modelStack->modControllable;
@@ -171,7 +179,9 @@ bool Voice::noteOn(ModelStackWithVoice* modelStack, int newNoteCodeBeforeArpeggi
 		setupPorta(sound);
 	}
 
-	else portaEnvelopePos = 0xFFFFFFFF; // No porta
+	else {
+		portaEnvelopePos = 0xFFFFFFFF; // No porta
+	}
 
 	// Patch all sources to exclusive params, to give them an initial value. Exclusive params (params with just 1 source) aren't continuously recalculated, so they need that initial value.
 	// Remember, calculating that initial value also takes into account the "preset value".
@@ -236,7 +246,9 @@ bool Voice::noteOn(ModelStackWithVoice* modelStack, int newNoteCodeBeforeArpeggi
 		}
 		else {
 gotInactive:
-			if (sound->getSynthMode() == SYNTH_MODE_RINGMOD) return false;
+			if (sound->getSynthMode() == SYNTH_MODE_RINGMOD) {
+				return false;
+			}
 			sourceEverActive = false;
 		}
 
@@ -252,14 +264,20 @@ activenessDetermined:
 
 		bool sourceEverActive = modelStack->checkSourceEverActive(s);
 
-		if (!sourceEverActive) continue;
+		if (!sourceEverActive) {
+			continue;
+		}
 
 		Source* source = &sound->sources[s];
 
 		// FM overrides osc type to always be sines
 		int oscType;
-		if (sound->getSynthMode() == SYNTH_MODE_FM) oscType = OSC_TYPE_SINE;
-		else oscType = source->oscType;
+		if (sound->getSynthMode() == SYNTH_MODE_FM) {
+			oscType = OSC_TYPE_SINE;
+		}
+		else {
+			oscType = source->oscType;
+		}
 
 		//int samplesLateHere = samplesLate; // Make our own copy of this - we're going to deactivate it if we're in STRETCH mode, cos that works differently
 
@@ -277,7 +295,9 @@ activenessDetermined:
 				bool success =
 				    unisonParts[u].sources[s].noteOn(this, source, &guides[s], samplesLate, sound->oscRetriggerPhase[s],
 				                                     resetEnvelopes, sound->synthMode);
-				if (!success) return false; // This shouldn't really ever happen I don't think really...
+				if (!success) {
+					return false; // This shouldn't really ever happen I don't think really...
+				}
 			}
 		}
 	}
@@ -286,9 +306,12 @@ activenessDetermined:
 		uint32_t initialPhase = getOscInitialPhaseForZero(OSC_TYPE_SINE);
 		for (int u = 0; u < sound->numUnison; u++) {
 			for (int m = 0; m < numModulators; m++) {
-				if (sound->modulatorRetriggerPhase[m] != 0xFFFFFFFF)
+				if (sound->modulatorRetriggerPhase[m] != 0xFFFFFFFF) {
 					unisonParts[u].modulatorPhase[m] = initialPhase + sound->modulatorRetriggerPhase[m];
-				if (resetEnvelopes) unisonParts[u].modulatorFeedback[m] = 0;
+				}
+				if (resetEnvelopes) {
+					unisonParts[u].modulatorFeedback[m] = 0;
+				}
 			}
 		}
 	}
@@ -330,7 +353,9 @@ void Voice::changeNoteCode(ModelStackWithVoice* modelStack, int newNoteCodeBefor
 	ParamManagerForTimeline* paramManager = (ParamManagerForTimeline*)modelStack->paramManager;
 	Sound* sound = (Sound*)modelStack->modControllable;
 
-	if (paramManager->getUnpatchedParamSet()->getValue(PARAM_UNPATCHED_SOUND_PORTA) != -2147483648) setupPorta(sound);
+	if (paramManager->getUnpatchedParamSet()->getValue(PARAM_UNPATCHED_SOUND_PORTA) != -2147483648) {
+		setupPorta(sound);
+	}
 
 	calculatePhaseIncrements(modelStack);
 }
@@ -348,7 +373,9 @@ void Voice::setupPorta(Sound* sound) {
 	if (shiftRightAmount >= 0) {
 		phaseIncrement >>= shiftRightAmount;
 	}
-	else phaseIncrement = 2147483647;
+	else {
+		phaseIncrement = 2147483647;
+	}
 
 	portaEnvelopeMaxAmplitude = phaseIncrement - 16777216;
 }
@@ -406,9 +433,12 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 		        || source->oscType == OSC_TYPE_INPUT_R || source->oscType == OSC_TYPE_INPUT_STEREO)) {
 
 			int32_t pitchAdjustNeutralValue;
-			if (source->oscType == OSC_TYPE_SAMPLE)
+			if (source->oscType == OSC_TYPE_SAMPLE) {
 				pitchAdjustNeutralValue = ((SampleHolder*)guides[s].audioFileHolder)->neutralPhaseIncrement;
-			else pitchAdjustNeutralValue = 16777216;
+			}
+			else {
+				pitchAdjustNeutralValue = 16777216;
+			}
 
 			int noteWithinOctave = (uint16_t)(transposedNoteCode + 240) % 12;
 			int octave = (uint16_t)(transposedNoteCode + 120) / 12;
@@ -479,8 +509,9 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 	if (sound->getSynthMode() == SYNTH_MODE_FM) {
 		for (int m = 0; m < numModulators; m++) {
 
-			if (sound->getSmoothedPatchedParamValue(PARAM_LOCAL_MODULATOR_0_VOLUME + m, paramManager) == -2147483648)
+			if (sound->getSmoothedPatchedParamValue(PARAM_LOCAL_MODULATOR_0_VOLUME + m, paramManager) == -2147483648) {
 				continue; // Only if modulator active
+			}
 
 			int transposedNoteCode = noteCodeWithMasterTranspose + sound->modulatorTranspose[m];
 			int noteWithinOctave = (transposedNoteCode + 120 - 4) % 12;
@@ -547,7 +578,9 @@ void Voice::noteOff(ModelStackWithVoice* modelStack, bool allowReleaseStage) {
 		}
 	}
 
-	else previouslyIgnoredNoteOff = true;
+	else {
+		previouslyIgnoredNoteOff = true;
+	}
 
 	if (sound->synthMode != SYNTH_MODE_FM) {
 		for (int s = 0; s < NUM_SOURCES; s++) {
@@ -572,8 +605,9 @@ void Voice::noteOff(ModelStackWithVoice* modelStack, bool allowReleaseStage) {
 bool Voice::sampleZoneChanged(ModelStackWithVoice* modelStack, int s, int markerType) {
 
 	AudioFileHolder* holder = guides[s].audioFileHolder;
-	if (!holder)
+	if (!holder) {
 		return true; // If no holder, that means this Source/Sample is not currently playing, e.g. because its volume was set to 0.
+	}
 
 	ParamManagerForTimeline* paramManager = (ParamManagerForTimeline*)modelStack->paramManager;
 	Sound* sound = (Sound*)modelStack->modControllable;
@@ -612,11 +646,15 @@ bool Voice::sampleZoneChanged(ModelStackWithVoice* modelStack, int s, int marker
 
 		s = 1 - s;
 
-		if (!modelStack->checkSourceEverActive(s)) return false;
+		if (!modelStack->checkSourceEverActive(s)) {
+			return false;
+		}
 		else {
 			for (int u = 0; u < sound->numUnison; u++) {
 				VoiceUnisonPartSource* voiceUnisonPartSource = &unisonParts[u].sources[s];
-				if (voiceUnisonPartSource->active) return true;
+				if (voiceUnisonPartSource->active) {
+					return true;
+				}
 			}
 		}
 	}
@@ -648,7 +686,9 @@ bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int nu
 		        & (1 << (PATCH_SOURCE_ENVELOPE_0 + e)))) {
 			int32_t old = sourceValues[PATCH_SOURCE_ENVELOPE_0 + e];
 			int32_t release = paramFinalValues[PARAM_LOCAL_ENV_0_RELEASE + e];
-			if (e == 0 && overrideAmplitudeEnvelopeReleaseRate) release = overrideAmplitudeEnvelopeReleaseRate;
+			if (e == 0 && overrideAmplitudeEnvelopeReleaseRate) {
+				release = overrideAmplitudeEnvelopeReleaseRate;
+			}
 			sourceValues[PATCH_SOURCE_ENVELOPE_0 + e] =
 			    envelopes[e].render(numSamples, paramFinalValues[PARAM_LOCAL_ENV_0_ATTACK + e],
 			                        paramFinalValues[PARAM_LOCAL_ENV_0_DECAY + e],
@@ -713,7 +753,9 @@ bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int nu
 	// Pitch adjust from "external" - e.g. the Kit
 	if (externalPitchAdjust != 16777216) {
 		int32_t output = multiply_32x32_rshift32_rounded(overallPitchAdjust, externalPitchAdjust);
-		if (output > 8388607) output = 8388607; // Limit it a bit. Not really quite sure if necessary?
+		if (output > 8388607) {
+			output = 8388607; // Limit it a bit. Not really quite sure if necessary?
+		}
 		overallPitchAdjust = output << 8;
 	}
 
@@ -737,7 +779,9 @@ bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int nu
 		    16777216 + (multiply_32x32_rshift32_rounded(envValue, portaEnvelopeMaxAmplitude) << 1);
 
 		int32_t a = multiply_32x32_rshift32_rounded(overallPitchAdjust, pitchAdjustmentHere);
-		if (a > 8388607) a = 8388607; // Prevent overflow! Happened to Matt Bates
+		if (a > 8388607) {
+			a = 8388607; // Prevent overflow! Happened to Matt Bates
+		}
 		overallPitchAdjust = a << 8;
 
 		// Move envelope on. Using the "release rate" lookup table gives by far the best range of speed values
@@ -762,15 +806,18 @@ bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int nu
 			Source* source = &sound->sources[s];
 
 			// If this source isn't enabled, skip it
-			if (!modelStack->checkSourceEverActive(s)) continue;
+			if (!modelStack->checkSourceEverActive(s)) {
+				continue;
+			}
 
 			// If it's not a sample, or it's not a play-once, or it has a loop-end point but we haven't received the note-off, then we don't want the auto-release feature for it
 			if (source->oscType != OSC_TYPE_SAMPLE
 			    || source->repeatMode
 			           != SAMPLE_REPEAT_ONCE // Don't do it for anything else. STRETCH is too hard to calculate
 			    || !guides[s].audioFileHolder
-			    || (((SampleHolderForVoice*)guides[s].audioFileHolder)->loopEndPos && !guides[s].noteOffReceived))
+			    || (((SampleHolderForVoice*)guides[s].audioFileHolder)->loopEndPos && !guides[s].noteOffReceived)) {
 				goto skipAutoRelease;
+			}
 
 			whichSourcesNeedAttention |= (1 << s);
 		}
@@ -790,7 +837,9 @@ bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int nu
 
 					// This Source needs an auto release applied. Calculate for the last unison, because that'll have the higher pitch, so will be ending soonest
 					VoiceUnisonPartSource* voiceUnisonPartSource = &unisonParts[sound->numUnison - 1].sources[s];
-					if (!voiceUnisonPartSource->active) continue;
+					if (!voiceUnisonPartSource->active) {
+						continue;
+					}
 
 					VoiceSample* voiceSample = voiceUnisonPartSource->voiceSample;
 
@@ -809,9 +858,12 @@ bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int nu
 					// Work out the actual sample read rate, from the "native" read rate for the last unison, combined with the "pitch adjust" amount, and the pitch adjust for this source alone.
 					// If the pitch goes crazy-high, this will fall through and prevent auto-release from happening
 					uint32_t actualSampleReadRate = voiceUnisonPartSource->phaseIncrementStoredValue;
-					if (!adjustPitch(&actualSampleReadRate, overallPitchAdjust)) continue;
-					if (!adjustPitch(&actualSampleReadRate, paramFinalValues[PARAM_LOCAL_OSC_A_PITCH_ADJUST + s]))
+					if (!adjustPitch(&actualSampleReadRate, overallPitchAdjust)) {
 						continue;
+					}
+					if (!adjustPitch(&actualSampleReadRate, paramFinalValues[PARAM_LOCAL_OSC_A_PITCH_ADJUST + s])) {
+						continue;
+					}
 					// TODO: actualSampleReadRate should probably be affected by time stretching, too. BUT that'd stuff up some existing users' songs -
 					// e.g. Michael B's one I tried during V3.0 beta phase, July 2019
 
@@ -821,7 +873,9 @@ bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int nu
 					}
 
 					// If this sample says it's not time to do auto-release yet, then we don't want to do it yet, so get out
-					if (bytesLeft >= releaseStageLengthBytes) goto skipAutoRelease;
+					if (bytesLeft >= releaseStageLengthBytes) {
+						goto skipAutoRelease;
+					}
 
 					// And also see how many audio samples were left for this source. Only do this in here because it involves time-consuming division
 					int samplesLeft = bytesLeft / (bytesPerSample);
@@ -999,7 +1053,9 @@ skipAutoRelease : {}
 		if (synthMode == SYNTH_MODE_SUBTRACTIVE) {
 
 			for (int s = 0; s < NUM_SOURCES; s++) {
-				if (!sound->isSourceActiveCurrently(s, paramManager)) continue;
+				if (!sound->isSourceActiveCurrently(s, paramManager)) {
+					continue;
+				}
 
 				bool renderingSourceInStereo =
 				    sound->sources[s].renderInStereo((SampleHolder*)guides[s].audioFileHolder);
@@ -1080,7 +1136,9 @@ decidedWhichBufferRenderingInto:
 		}
 
 		// Otherwise, clear the buffer
-		else memset(oscBuffer, 0, numSamples * sizeof(int32_t));
+		else {
+			memset(oscBuffer, 0, numSamples * sizeof(int32_t));
+		}
 
 		// Even if first rendering into a local Voice buffer, we'll very often still just do panning at the Sound level
 		if (!applyingPanAtVoiceLevel) {
@@ -1117,10 +1175,14 @@ decidedWhichBufferRenderingInto:
 			if (!sound->isSourceActiveCurrently(s, paramManager)) {
 
 				// If we're doing osc sync...
-				if (getPhaseIncrements) getOutAfterGettingPhaseIncrements = true;
+				if (getPhaseIncrements) {
+					getOutAfterGettingPhaseIncrements = true;
 
-				// Otherwise, skip it
-				else continue;
+					// Otherwise, skip it
+				}
+				else {
+					continue;
+				}
 			}
 
 			if (!sound->sources[s].renderInStereo((SampleHolder*)guides[s].audioFileHolder)) {
@@ -1130,7 +1192,9 @@ decidedWhichBufferRenderingInto:
 				                  getOutAfterGettingPhaseIncrements, sourceWaveIndexIncrements[s]);
 				anythingInOscBuffer = true;
 			}
-			else sourcesToRenderInStereo |= (1 << s);
+			else {
+				sourcesToRenderInStereo |= (1 << s);
+			}
 		}
 
 		// If any sources need rendering in stereo
@@ -1185,9 +1249,12 @@ decidedWhichBufferRenderingInto:
 						outputSampleR = multiply_32x32_rshift32_rounded(outputSampleR, overallOscAmplitudeNow) << 1;
 
 						// Write to the output buffer, panning or not
-						if (doPanning)
+						if (doPanning) {
 							outputSample->addPannedStereo(outputSampleL, outputSampleR, amplitudeL, amplitudeR);
-						else outputSample->addStereo(outputSampleL, outputSampleR);
+						}
+						else {
+							outputSample->addStereo(outputSampleL, outputSampleR);
+						}
 
 						outputSample++;
 					} while (oscBufferPos != oscBufferEnd);
@@ -1212,9 +1279,12 @@ decidedWhichBufferRenderingInto:
 						sound->saturate(&outputSampleR, &lastSaturationTanHWorkingValue[1]);
 
 						// Write to the output buffer, panning or not
-						if (doPanning)
+						if (doPanning) {
 							outputSample->addPannedStereo(outputSampleL, outputSampleR, amplitudeL, amplitudeR);
-						else outputSample->addStereo(outputSampleL, outputSampleR);
+						}
+						else {
+							outputSample->addStereo(outputSampleL, outputSampleR);
+						}
 
 						outputSample++;
 					} while (oscBufferPos != oscBufferEnd);
@@ -1232,13 +1302,16 @@ decidedWhichBufferRenderingInto:
 
 			// Otherwise, must do a fast-release to avoid a click
 			else {
-				if (envelopes[0].state < ENVELOPE_STAGE_FAST_RELEASE)
+				if (envelopes[0].state < ENVELOPE_STAGE_FAST_RELEASE) {
 					envelopes[0].unconditionalRelease(ENVELOPE_STAGE_FAST_RELEASE);
+				}
 			}
 		}
 
 		// If we rendered sources in stereo, and therefore have already output the osc buffer, skip some stuff
-		if (sourcesToRenderInStereo) goto renderingDone;
+		if (sourcesToRenderInStereo) {
+			goto renderingDone;
+		}
 	}
 
 	// Otherwise (FM and ringmod) we go through each unison first, and for each one we render both sources together
@@ -1259,8 +1332,12 @@ decidedWhichBufferRenderingInto:
 			if (overallPitchAdjust != 16777216) {
 				for (int s = 0; s < NUM_SOURCES; s++) {
 					if (!adjustPitch(&phaseIncrements[s], overallPitchAdjust)) {
-						if (synthMode == SYNTH_MODE_RINGMOD) goto skipUnisonPart;
-						else sourceAmplitudes[s] = 0; // For FM
+						if (synthMode == SYNTH_MODE_RINGMOD) {
+							goto skipUnisonPart;
+						}
+						else {
+							sourceAmplitudes[s] = 0; // For FM
+						}
 					}
 				}
 			}
@@ -1268,8 +1345,12 @@ decidedWhichBufferRenderingInto:
 			// If individual source pitch adjusted...
 			for (int s = 0; s < NUM_SOURCES; s++) {
 				if (!adjustPitch(&phaseIncrements[s], paramFinalValues[PARAM_LOCAL_OSC_A_PITCH_ADJUST + s])) {
-					if (synthMode == SYNTH_MODE_RINGMOD) goto skipUnisonPart;
-					else sourceAmplitudes[s] = 0; // For FM
+					if (synthMode == SYNTH_MODE_RINGMOD) {
+						goto skipUnisonPart;
+					}
+					else {
+						sourceAmplitudes[s] = 0; // For FM
+					}
 				}
 			}
 
@@ -1329,8 +1410,9 @@ cantBeDoingOscSyncForFirstOsc:
 				uint32_t phaseIncrementModulator[numModulators];
 				for (int m = 0; m < numModulators; m++) {
 					phaseIncrementModulator[m] = unisonParts[u].modulatorPhaseIncrement[m];
-					if (phaseIncrementModulator[m] == 0xFFFFFFFF)
+					if (phaseIncrementModulator[m] == 0xFFFFFFFF) {
 						modulatorsActive[m] = false; // If frequency marked as too high
+					}
 				}
 
 				if (overallPitchAdjust != 16777216) {
@@ -1357,7 +1439,9 @@ cantBeDoingOscSyncForFirstOsc:
 				if (modulatorsActive[1]) {
 
 					// If special case where mod1 is modulating mod0 but mod0 is inactive, go away...
-					if (sound->modulator1ToModulator0 && !modulatorsActive[0]) goto noModulatorsActive;
+					if (sound->modulator1ToModulator0 && !modulatorsActive[0]) {
+						goto noModulatorsActive;
+					}
 
 					// Render mod1
 					renderSineWaveWithFeedback(spareRenderingBuffer[1], numSamples, &unisonParts[u].modulatorPhase[1],
@@ -1458,8 +1542,12 @@ skipUnisonPart : {}
 				}
 
 				if (soundRenderingInStereo) {
-					if (doPanning) ((StereoSample*)outputSample)->addPannedMono(output, amplitudeL, amplitudeR);
-					else ((StereoSample*)outputSample)->addMono(output);
+					if (doPanning) {
+						((StereoSample*)outputSample)->addPannedMono(output, amplitudeL, amplitudeR);
+					}
+					else {
+						((StereoSample*)outputSample)->addMono(output);
+					}
 					outputSample += 2;
 				}
 				else {
@@ -1487,8 +1575,12 @@ skipUnisonPart : {}
 				sound->saturate(&output, &lastSaturationTanHWorkingValue[0]);
 
 				if (soundRenderingInStereo) {
-					if (doPanning) ((StereoSample*)outputSample)->addPannedMono(output, amplitudeL, amplitudeR);
-					else ((StereoSample*)outputSample)->addMono(output);
+					if (doPanning) {
+						((StereoSample*)outputSample)->addPannedMono(output, amplitudeL, amplitudeR);
+					}
+					else {
+						((StereoSample*)outputSample)->addMono(output);
+					}
 					outputSample += 2;
 				}
 				else {
@@ -1520,9 +1612,13 @@ bool Voice::areAllUnisonPartsInactive(ModelStackWithVoice* modelStack) {
 
 		// See if all unison parts are now inactive
 		for (int s = 0; s < NUM_SOURCES; s++) {
-			if (!modelStack->checkSourceEverActive(s)) continue;
+			if (!modelStack->checkSourceEverActive(s)) {
+				continue;
+			}
 			for (int u = 0; u < ((Sound*)modelStack->modControllable)->numUnison; u++) {
-				if (unisonParts[u].sources[s].active) return false;
+				if (unisonParts[u].sources[s].active) {
+					return false;
+				}
 			}
 		}
 
@@ -1537,7 +1633,9 @@ bool Voice::areAllUnisonPartsInactive(ModelStackWithVoice* modelStack) {
 bool Voice::adjustPitch(uint32_t* phaseIncrement, int32_t adjustment) {
 	if (adjustment != 16777216) {
 		int32_t output = multiply_32x32_rshift32_rounded(*phaseIncrement, adjustment);
-		if (output >= 8388608) return false;
+		if (output >= 8388608) {
+			return false;
+		}
 		*phaseIncrement = output << 8;
 	}
 	return true;
@@ -1625,8 +1723,12 @@ void Voice::renderSineWaveWithFeedback(int32_t* bufferStart, int numSamples, uin
 
 			feedbackValue = doFMNew(phaseNow += phaseIncrement, feedback);
 
-			if (add) *thisSample = multiply_accumulate_32x32_rshift32_rounded(*thisSample, feedbackValue, amplitudeNow);
-			else *thisSample = multiply_32x32_rshift32(feedbackValue, amplitudeNow);
+			if (add) {
+				*thisSample = multiply_accumulate_32x32_rshift32_rounded(*thisSample, feedbackValue, amplitudeNow);
+			}
+			else {
+				*thisSample = multiply_32x32_rshift32(feedbackValue, amplitudeNow);
+			}
 		} while (++thisSample != bufferEnd);
 
 		*lastFeedbackValue = feedbackValue;
@@ -1784,7 +1886,9 @@ void Voice::renderFMWithFeedbackAdd(int32_t* bufferStart, int numSamples, int32_
 				int32x4_t added = vaddq_s32(existingBufferContents, resultValueVector);
 				vst1q_s32(thisSample, added);
 
-				if (thisSample >= bufferPreEnd) break;
+				if (thisSample >= bufferPreEnd) {
+					break;
+				}
 
 				thisSample += 4;
 				fmSample += 4;
@@ -1803,7 +1907,9 @@ void Voice::renderFMWithFeedbackAdd(int32_t* bufferStart, int numSamples, int32_
 				int32x4_t added = vaddq_s32(existingBufferContents, resultValueVector);
 				vst1q_s32(thisSample, added);
 
-				if (thisSample >= bufferPreEnd) break;
+				if (thisSample >= bufferPreEnd) {
+					break;
+				}
 
 				thisSample += 4;
 				fmSample += 4;
@@ -1840,7 +1946,9 @@ void Voice::renderBasicSource(Sound* sound, ParamManagerForTimeline* paramManage
 		VoiceUnisonPartSource* voiceUnisonPartSource = &unisonParts[u].sources[s];
 
 		// Samples may become inactive
-		if (!voiceUnisonPartSource->active) continue;
+		if (!voiceUnisonPartSource->active) {
+			continue;
+		}
 
 		if (false) {
 instantUnassign:
@@ -1867,7 +1975,9 @@ pitchTooHigh:
 		}
 
 		// Individual source pitch adjustment
-		if (!adjustPitch(&phaseIncrement, paramFinalValues[PARAM_LOCAL_OSC_A_PITCH_ADJUST + s])) goto pitchTooHigh;
+		if (!adjustPitch(&phaseIncrement, paramFinalValues[PARAM_LOCAL_OSC_A_PITCH_ADJUST + s])) {
+			goto pitchTooHigh;
+		}
 
 		if (getPhaseIncrements) {
 			getPhaseIncrements[u] = phaseIncrement;
@@ -1923,7 +2033,9 @@ pitchTooHigh:
 
 			bool stillOk = voiceUnisonPartSource->getPitchAndSpeedParams(
 			    &sound->sources[s], &guides[s], &phaseIncrement, &timeStretchRatio, &noteLengthInSamples);
-			if (!stillOk) goto instantUnassign;
+			if (!stillOk) {
+				goto instantUnassign;
+			}
 
 			// If user unmuted mid-note...
 			bool tryToStartMidNote = voiceSample->pendingSamplesLate;
@@ -1956,8 +2068,12 @@ pitchTooHigh:
 
 				int result = voiceSample->attemptLateSampleStart(&guides[s], sample, rawSamplesLate, numSamples);
 
-				if (result == LATE_START_ATTEMPT_FAILURE) goto instantUnassign;
-				else if (result == LATE_START_ATTEMPT_WAIT) continue;
+				if (result == LATE_START_ATTEMPT_FAILURE) {
+					goto instantUnassign;
+				}
+				else if (result == LATE_START_ATTEMPT_WAIT) {
+					continue;
+				}
 				// Otherwise, it started fine!
 			}
 
@@ -1990,7 +2106,9 @@ pitchTooHigh:
 						    ((uint64_t)(uint32_t)phaseIncrement * (uint32_t)timeStretchRatio) >> 24;
 						int loopLengthCached =
 						    ((uint64_t)(uint32_t)loopLength << 24) / phaseIncrementTimesTimeStretchRatio;
-						if (loopLengthCached < 2205) goto dontUseCache; // Limit is 50mS i.e. 20hZ
+						if (loopLengthCached < 2205) {
+							goto dontUseCache; // Limit is 50mS i.e. 20hZ
+						}
 					}
 
 					// If no changeable sources patched to pitch...
@@ -2030,7 +2148,9 @@ pitchTooHigh:
 						bool everythingOk = voiceSample->possiblySetUpCache(
 						    &sound->sources[s].sampleControls, &guides[s], phaseIncrement, timeStretchRatio,
 						    getPriorityRating(), loopingType);
-						if (!everythingOk) goto instantUnassign;
+						if (!everythingOk) {
+							goto instantUnassign;
+						}
 					}
 
 dontUseCache : {}
@@ -2047,7 +2167,9 @@ dontUseCache : {}
 			    voiceSample->render(&guides[s], oscBuffer, numSamples, sample, numChannels, loopingType, phaseIncrement,
 			                        timeStretchRatio, sourceAmplitude, amplitudeIncrement, interpolationBufferSize,
 			                        sound->sources[s].sampleControls.interpolationMode, getPriorityRating());
-			if (!stillActive) goto instantUnassign;
+			if (!stillActive) {
+				goto instantUnassign;
+			}
 		}
 
 #if DELUGE_MODEL != DELUGE_MODEL_40_PAD
@@ -2118,11 +2240,14 @@ dontUseCache : {}
 					int channelOffset;
 					// If right, but not internal mic
 					if (sound->sources[s].oscType == OSC_TYPE_INPUT_R
-					    && (AudioEngine::lineInPluggedIn || AudioEngine::micPluggedIn))
+					    && (AudioEngine::lineInPluggedIn || AudioEngine::micPluggedIn)) {
 						channelOffset = 1;
 
 					// Or if left or using internal mic
-					else channelOffset = 0;
+					}
+					else {
+						channelOffset = 0;
+					}
 
 					int32_t sourceAmplitudeNow = sourceAmplitudeThisUnison;
 					do {
@@ -2133,8 +2258,9 @@ dontUseCache : {}
 						                     << 4;
 
 						inputReadPos += NUM_MONO_INPUT_CHANNELS;
-						if (inputReadPos >= getRxBufferEnd())
+						if (inputReadPos >= getRxBufferEnd()) {
 							inputReadPos -= SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS;
+						}
 					} while (oscBufferPos != oscBufferEnd);
 				}
 
@@ -2166,8 +2292,9 @@ dontUseCache : {}
 						}
 
 						inputReadPos += NUM_MONO_INPUT_CHANNELS;
-						if (inputReadPos >= getRxBufferEnd())
+						if (inputReadPos >= getRxBufferEnd()) {
 							inputReadPos -= SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS;
+						}
 					} while (oscBufferPos != oscBufferEnd);
 				}
 			}
@@ -2185,7 +2312,9 @@ dontUseCache : {}
 			if (doOscSync) {
 
 				// If freq too high...
-				if (!oscSyncPhaseIncrements[u]) continue;
+				if (!oscSyncPhaseIncrements[u]) {
+					continue;
+				}
 
 				oscSyncPosThisUnison = oscSyncPos[u];
 				oscSyncPhaseIncrementsThisUnison = oscSyncPhaseIncrements[u];
@@ -2383,7 +2512,9 @@ void renderPDWave(const int16_t* table, const int16_t* secondTable, int numBitsI
 			amplitude += amplitudeIncrement;
 			*thisSample += multiply_32x32_rshift32(value, amplitude);
 		}
-		else *thisSample = value;
+		else {
+			*thisSample = value;
+		}
 	} while (++thisSample != bufferEnd);
 }
 
@@ -2528,7 +2659,9 @@ Voice::renderOsc(int s, int type, int32_t amplitude, int32_t* bufferStart, int32
 		if (type == OSC_TYPE_ANALOG_SAW_2) {
 			// Analog saw tables 8 and above are quite saw-shaped and sound relatively similar to the digital saw. So for these, if the CPU load is getting dire,
 			// we can do the crude, aliasing digital saw.
-			if (tableNumber >= 8 && tableNumber < AudioEngine::cpuDireness + 6) type = OSC_TYPE_SAW;
+			if (tableNumber >= 8 && tableNumber < AudioEngine::cpuDireness + 6) {
+				type = OSC_TYPE_SAW;
+			}
 		}
 
 		else if (type == OSC_TYPE_SAW) {
@@ -2561,8 +2694,12 @@ Voice::renderOsc(int s, int type, int32_t amplitude, int32_t* bufferStart, int32
 			}
 
 			else {
-				if (type == OSC_TYPE_SAW) resetterPhase += 2147483648u;
-				else if (type == OSC_TYPE_SINE) resetterPhase -= 3221225472u;
+				if (type == OSC_TYPE_SAW) {
+					resetterPhase += 2147483648u;
+				}
+				else if (type == OSC_TYPE_SINE) {
+					resetterPhase -= 3221225472u;
+				}
 
 				int32_t resetterPhaseToMultiply = resetterPhase >> 1;
 				if ((uint32_t)(resetterPhase) >= (uint32_t) - (resetterPhaseIncrement >> 1)) {
@@ -2647,7 +2784,9 @@ doSine:
 						amplitudeNow += amplitudeIncrement;
 						*thisSample = multiply_accumulate_32x32_rshift32_rounded(*thisSample, value, amplitudeNow);
 					}
-					else *thisSample = value << 1;
+					else {
+						*thisSample = value << 1;
+					}
 				} while (++thisSample != bufferEnd);
 
 				phase = phaseNow;
@@ -2667,7 +2806,9 @@ doSine:
 						amplitudeNow += amplitudeIncrement;
 						*thisSample = multiply_accumulate_32x32_rshift32_rounded(*thisSample, value, amplitudeNow);
 					}
-					else *thisSample = value << 1;
+					else {
+						*thisSample = value << 1;
+					}
 				} while (++thisSample != bufferEnd);
 				return;
 			}
@@ -2678,17 +2819,29 @@ doSine:
 			// Size 7
 			if (phaseIncrement <= 429496729) {
 				tableSizeMagnitude = 7;
-				if (phaseIncrement <= 102261126) table = triangleWaveAntiAliasing21;
-				else if (phaseIncrement <= 143165576) table = triangleWaveAntiAliasing15;
-				else if (phaseIncrement <= 238609294) table = triangleWaveAntiAliasing9;
-				else if (phaseIncrement <= 429496729) table = triangleWaveAntiAliasing5;
+				if (phaseIncrement <= 102261126) {
+					table = triangleWaveAntiAliasing21;
+				}
+				else if (phaseIncrement <= 143165576) {
+					table = triangleWaveAntiAliasing15;
+				}
+				else if (phaseIncrement <= 238609294) {
+					table = triangleWaveAntiAliasing9;
+				}
+				else if (phaseIncrement <= 429496729) {
+					table = triangleWaveAntiAliasing5;
+				}
 			}
 
 			// Size 6
 			else {
 				tableSizeMagnitude = 6;
-				if (phaseIncrement <= 715827882) table = triangleWaveAntiAliasing3;
-				else table = triangleWaveAntiAliasing1;
+				if (phaseIncrement <= 715827882) {
+					table = triangleWaveAntiAliasing3;
+				}
+				else {
+					table = triangleWaveAntiAliasing1;
+				}
 			}
 			goto callRenderWave;
 		}
@@ -2739,7 +2892,9 @@ doSaw:
 							    *thisSample, (int32_t)phaseNow,
 							    amplitudeNow); // Using multiply_accumulate saves like 10% here!
 						}
-						else *thisSample = (int32_t)phaseNow >> 1;
+						else {
+							*thisSample = (int32_t)phaseNow >> 1;
+						}
 					} while (++thisSample != bufferEnd);
 
 					phase = phaseNow;
@@ -2826,7 +2981,9 @@ doSaw:
 							*thisSample = multiply_accumulate_32x32_rshift32_rounded(
 							    *thisSample, getSquare(phaseNow, pulseWidth), amplitudeNow);
 						}
-						else *thisSample = getSquareSmall(phaseNow, pulseWidth);
+						else {
+							*thisSample = getSquareSmall(phaseNow, pulseWidth);
+						}
 					} while (++thisSample != bufferEnd);
 
 					phase = phaseNow;

@@ -88,8 +88,9 @@ void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, uint32_t* getAllocate
                                     bool mayUseOnChipRam, bool makeStealable, void* thingNotToStealFrom,
                                     bool getBiggestAllocationPossible) {
 
-	if (lock)
+	if (lock) {
 		return NULL; // Prevent any weird loops in freeSomeStealableMemory(), which mostly would only be bad cos they could extend the stack an unspecified amount
+	}
 
 	if (mayUseOnChipRam
 #if TEST_GENERAL_MEMORY_ALLOCATION
@@ -160,7 +161,9 @@ void GeneralMemoryAllocator::extend(void* address, uint32_t minAmountToExtend, u
 	*getAmountExtendedLeft = 0;
 	*getAmountExtendedRight = 0;
 
-	if (lock) return;
+	if (lock) {
+		return;
+	}
 
 	lock = true;
 	regions[getRegion(address)].extend(address, minAmountToExtend, idealAmountToExtend, getAmountExtendedLeft,

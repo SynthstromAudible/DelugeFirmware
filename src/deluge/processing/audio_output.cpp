@@ -213,8 +213,9 @@ renderEnvelope:
 		int32_t const* __restrict__ inputReadPos = (int32_t const*)AudioEngine::i2sRXBufferPos;
 
 		int inputChannelNow = inputChannel;
-		if (inputChannelNow == AUDIO_INPUT_CHANNEL_STEREO && !AudioEngine::renderInStereo)
+		if (inputChannelNow == AUDIO_INPUT_CHANNEL_STEREO && !AudioEngine::renderInStereo) {
 			inputChannelNow = 0; // 0 means combine channels
+		}
 
 		int32_t amplitudeIncrement = (amplitudeAtEnd - amplitudeAtStart) / numSamples;
 		int32_t amplitudeNow = amplitudeAtStart;
@@ -262,7 +263,9 @@ renderEnvelope:
 			outputPos++;
 
 			inputReadPos += NUM_MONO_INPUT_CHANNELS;
-			if (inputReadPos >= getRxBufferEnd()) inputReadPos -= SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS;
+			if (inputReadPos >= getRxBufferEnd()) {
+				inputReadPos -= SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS;
+			}
 		} while (outputPos < outputPosEnd);
 	}
 }
@@ -290,7 +293,9 @@ bool AudioOutput::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 
 	storageManager.writeAttribute("name", name.get());
 
-	if (echoing) storageManager.writeAttribute("echoingInput", "1");
+	if (echoing) {
+		storageManager.writeAttribute("echoingInput", "1");
+	}
 	storageManager.writeAttribute("inputChannel", inputChannelToString(inputChannel));
 
 	Output::writeDataToFile(clipForSavingOutputOnly, song);
@@ -301,7 +306,9 @@ bool AudioOutput::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 
 	ParamManager* paramManager = NULL;
 	// If no activeClip, that means no Clip has this Instrument, so there should be a backedUpParamManager that we should use / save
-	if (!activeClip) paramManager = song->getBackedUpParamManagerPreferablyWithClip(this, NULL);
+	if (!activeClip) {
+		paramManager = song->getBackedUpParamManagerPreferablyWithClip(this, NULL);
+	}
 
 	GlobalEffectableForClip::writeTagsToFile(paramManager, true);
 
@@ -335,7 +342,9 @@ int AudioOutput::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpTo
 			else if (result == RESULT_TAG_UNUSED) {
 				storageManager.exitTag();
 			}
-			else return result;
+			else {
+				return result;
+			}
 		}
 	}
 
@@ -354,14 +363,17 @@ Clip* AudioOutput::createNewClipForArrangementRecording(ModelStack* modelStack) 
 
 	// Allocate memory for audio clip
 	void* clipMemory = generalMemoryAllocator.alloc(sizeof(AudioClip), NULL, false, true);
-	if (!clipMemory) return NULL;
+	if (!clipMemory) {
+		return NULL;
+	}
 
 	AudioClip* newClip = new (clipMemory) AudioClip();
 	newClip->setOutput(modelStack->addTimelineCounter(newClip), this);
 
 #if ALPHA_OR_BETA_VERSION
-	if (!newClip->paramManager.summaries[0].paramCollection)
+	if (!newClip->paramManager.summaries[0].paramCollection) {
 		numericDriver.freezeWithError("E422"); // Trying to diversify Leo's E410
+	}
 #endif
 
 	return newClip;
@@ -379,7 +391,9 @@ bool AudioOutput::setActiveClip(ModelStackWithTimelineCounter* modelStack, int m
 	}
 	bool clipChanged = Output::setActiveClip(modelStack, maySendMIDIPGMs);
 
-	if (clipChanged) AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
+	if (clipChanged) {
+		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
+	}
 
 	return clipChanged;
 }

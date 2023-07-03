@@ -56,7 +56,9 @@ void MIDIParamCollection::deleteAllParams(Action* action, bool deleteStorageToo)
 		midiParam->~MIDIParam();
 	}
 
-	if (deleteStorageToo) params.empty();
+	if (deleteStorageToo) {
+		params.empty();
+	}
 }
 
 void MIDIParamCollection::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) {
@@ -155,7 +157,9 @@ void MIDIParamCollection::processCurrentPos(ModelStackWithParamCollection* model
 void MIDIParamCollection::remotelySwapParamState(AutoParamState* state, ModelStackWithParamId* modelStack) {
 
 	MIDIParam* midiParam = params.getOrCreateParamFromCC(modelStack->paramId);
-	if (!midiParam) return;
+	if (!midiParam) {
+		return;
+	}
 
 	AutoParam* param = &midiParam->param;
 
@@ -181,7 +185,9 @@ ModelStackWithAutoParam* MIDIParamCollection::getAutoParamFromId(ModelStackWithP
 	int32_t defaultValue = 0;
 	MIDIParam* midiParam = params.getOrCreateParamFromCC(modelStack->paramId, defaultValue, allowCreation);
 	AutoParam* param = NULL;
-	if (midiParam) param = &midiParam->param;
+	if (midiParam) {
+		param = &midiParam->param;
+	}
 	return modelStack->addAutoParam(param);
 }
 
@@ -190,7 +196,9 @@ void MIDIParamCollection::sendMIDI(int masterChannel, int cc, int32_t newValue, 
 	int32_t roundingAmountToAdd = 1 << (rShift - 1);
 	int32_t maxValue = 2147483647 - roundingAmountToAdd;
 
-	if (newValue > maxValue) newValue = maxValue;
+	if (newValue > maxValue) {
+		newValue = maxValue;
+	}
 	int32_t newValueSmall = (newValue + roundingAmountToAdd) >> rShift;
 
 	midiEngine.sendCC(masterChannel, cc, newValueSmall + 64, midiOutputFilter); // TODO: get master channel
@@ -203,9 +211,13 @@ int MIDIParamCollection::makeInterpolatedCCsGoodAgain(int32_t clipLength) {
 	for (int i = 0; i < params.getNumElements(); i++) {
 		MIDIParam* midiParam = params.getElement(i);
 
-		if (midiParam->cc >= 120) return NO_ERROR;
+		if (midiParam->cc >= 120) {
+			return NO_ERROR;
+		}
 		int error = midiParam->param.makeInterpolationGoodAgain(clipLength, 25);
-		if (error) return error;
+		if (error) {
+			return error;
+		}
 	}
 
 	return NO_ERROR;
@@ -270,7 +282,9 @@ int32_t MIDIParamCollection::knobPosToParamValue(int knobPos, ModelStackWithAuto
 	char buffer[5];
 	int valueForDisplay = knobPos;
 	valueForDisplay += 64;
-	if (valueForDisplay == 128) valueForDisplay = 127;
+	if (valueForDisplay == 128) {
+		valueForDisplay = 127;
+	}
 	intToString(valueForDisplay, buffer);
 	numericDriver.displayPopup(buffer, 3, true);
 
@@ -296,9 +310,12 @@ void MIDIParamCollection::writeToFile() {
 			int cc = midiParam->cc;
 
 			storageManager.writeOpeningTag("param");
-			if (cc == CC_NUMBER_NONE) // Why would I have put this in here?
+			if (cc == CC_NUMBER_NONE) { // Why would I have put this in here?
 				storageManager.writeTag("cc", "none");
-			else storageManager.writeTag("cc", cc);
+			}
+			else {
+				storageManager.writeTag("cc", cc);
+			}
 
 			storageManager.writeOpeningTag("value", false);
 			midiParam->param.writeToFile(true);

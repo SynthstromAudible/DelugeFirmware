@@ -27,7 +27,9 @@ FileItem::FileItem() {
 int FileItem::setupWithInstrument(Instrument* newInstrument, bool hibernating) {
 	filename.set(&newInstrument->name);
 	int error = filename.concatenate(".XML");
-	if (error) return error;
+	if (error) {
+		return error;
+	}
 	filenameIncludesExtension = true;
 	instrument = newInstrument;
 	isFolder = false;
@@ -40,7 +42,9 @@ int FileItem::getFilenameWithExtension(String* filenameWithExtension) {
 	filenameWithExtension->set(&filename);
 	if (!filenameIncludesExtension) {
 		int error = filenameWithExtension->concatenate(".XML");
-		if (error) return error;
+		if (error) {
+			return error;
+		}
 	}
 	return NO_ERROR;
 }
@@ -53,7 +57,9 @@ int FileItem::getFilenameWithoutExtension(String* filenameWithoutExtension) {
 		if (dotAddress) {
 			int newLength = (uint32_t)dotAddress - (uint32_t)chars;
 			int error = filenameWithoutExtension->shorten(newLength);
-			if (error) return error;
+			if (error) {
+				return error;
+			}
 		}
 	}
 	return NO_ERROR;
@@ -63,14 +69,18 @@ int FileItem::getDisplayNameWithoutExtension(String* displayNameWithoutExtension
 #if !HAVE_OLED
 	if (displayName != filename.get()) {
 		int error = displayNameWithoutExtension->set(displayName);
-		if (error) return error;
+		if (error) {
+			return error;
+		}
 		if (filenameIncludesExtension) {
 			char const* chars = displayNameWithoutExtension->get();
 			char const* dotAddress = strrchr(chars, '.');
 			if (dotAddress) {
 				int newLength = (uint32_t)dotAddress - (uint32_t)chars;
 				error = displayNameWithoutExtension->shorten(newLength);
-				if (error) return error;
+				if (error) {
+					return error;
+				}
 			}
 		}
 		return NO_ERROR;

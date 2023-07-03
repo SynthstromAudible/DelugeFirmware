@@ -126,13 +126,19 @@ MIDIDeviceUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(String* name, uint16
 	}
 
 	bool success = hostedMIDIDevices.ensureEnoughSpaceAllocated(1);
-	if (!success) return NULL;
+	if (!success) {
+		return NULL;
+	}
 
 	void* memory = generalMemoryAllocator.alloc(sizeof(MIDIDeviceUSBHosted), NULL, false, true);
-	if (!memory) return NULL;
+	if (!memory) {
+		return NULL;
+	}
 
 	MIDIDeviceUSBHosted* device = new (memory) MIDIDeviceUSBHosted();
-	if (gotAName) device->name.set(name);
+	if (gotAName) {
+		device->name.set(name);
+	}
 	device->vendorId = vendorId;
 	device->productId = productId;
 
@@ -148,7 +154,9 @@ MIDIDeviceUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(String* name, uint16
 }
 
 void recountSmallestMPEZonesForDevice(MIDIDevice* device) {
-	if (!device->connectionFlags) return;
+	if (!device->connectionFlags) {
+		return;
+	}
 
 	if (device->ports[MIDI_DIRECTION_OUTPUT_FROM_DELUGE].mpeLowerZoneLastMemberChannel
 	    && device->ports[MIDI_DIRECTION_OUTPUT_FROM_DELUGE].mpeLowerZoneLastMemberChannel
@@ -189,7 +197,9 @@ extern "C" void hostedDeviceConfigured(int ip, int midiDeviceNum) {
 
 	usbDeviceCurrentlyBeingSetUp[ip].name.clear(); // Save some memory. Not strictly necessary
 
-	if (!device) return; // Only if ran out of RAM - i.e. very unlikely.
+	if (!device) {
+		return; // Only if ran out of RAM - i.e. very unlikely.
+	}
 
 	// Associate with USB port
 	ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][midiDeviceNum];
@@ -221,7 +231,9 @@ extern "C" void hostedDeviceConfigured(int ip, int midiDeviceNum) {
 extern "C" void hostedDeviceDetached(int ip, int midiDeviceNum) {
 
 #if ALPHA_OR_BETA_VERSION
-	if (midiDeviceNum == MAX_NUM_USB_MIDI_DEVICES) numericDriver.freezeWithError("E367");
+	if (midiDeviceNum == MAX_NUM_USB_MIDI_DEVICES) {
+		numericDriver.freezeWithError("E367");
+	}
 #endif
 
 	uartPrint("detached MIDI device: ");
@@ -292,15 +304,23 @@ MIDIDevice* readDeviceReferenceFromFile() {
 		}
 		else if (!strcmp(tagName, "port")) {
 			char const* port = storageManager.readTagOrAttributeValue();
-			if (!strcmp(port, "upstreamUSB")) device = &upstreamUSBMIDIDevice_port1;
-			else if (!strcmp(port, "upstreamUSB2")) device = &upstreamUSBMIDIDevice_port2;
-			else if (!strcmp(port, "din")) device = &dinMIDIPorts;
+			if (!strcmp(port, "upstreamUSB")) {
+				device = &upstreamUSBMIDIDevice_port1;
+			}
+			else if (!strcmp(port, "upstreamUSB2")) {
+				device = &upstreamUSBMIDIDevice_port2;
+			}
+			else if (!strcmp(port, "din")) {
+				device = &dinMIDIPorts;
+			}
 		}
 
 		storageManager.exitTag();
 	}
 
-	if (device) return device;
+	if (device) {
+		return device;
+	}
 
 	// If we got something, go use it
 	if (!name.isEmpty() || vendorId) {
@@ -316,11 +336,18 @@ void readDeviceReferenceFromFlash(int whichCommand, uint8_t const* memory) {
 
 	MIDIDevice* device;
 
-	if (vendorId == VENDOR_ID_NONE) device = NULL;
-	else if (vendorId == VENDOR_ID_UPSTREAM_USB) device = &upstreamUSBMIDIDevice_port1;
-	else if (vendorId == VENDOR_ID_UPSTREAM_USB2) device = &upstreamUSBMIDIDevice_port2;
-	else if (vendorId == VENDOR_ID_DIN) device = &dinMIDIPorts;
-
+	if (vendorId == VENDOR_ID_NONE) {
+		device = NULL;
+	}
+	else if (vendorId == VENDOR_ID_UPSTREAM_USB) {
+		device = &upstreamUSBMIDIDevice_port1;
+	}
+	else if (vendorId == VENDOR_ID_UPSTREAM_USB2) {
+		device = &upstreamUSBMIDIDevice_port2;
+	}
+	else if (vendorId == VENDOR_ID_DIN) {
+		device = &dinMIDIPorts;
+	}
 	else {
 		uint16_t productId = *(uint16_t const*)(memory + 2);
 		device = getOrCreateHostedMIDIDeviceFromDetails(NULL, vendorId, productId);
@@ -336,17 +363,27 @@ void writeDeviceReferenceToFlash(int whichCommand, uint8_t* memory) {
 }
 
 void writeDevicesToFile() {
-	if (!anyChangesToSave) return;
+	if (!anyChangesToSave) {
+		return;
+	}
 	anyChangesToSave = false;
 
 	// First, see if it's even worth writing anything
-	if (dinMIDIPorts.worthWritingToFile()) goto worthIt;
-	if (upstreamUSBMIDIDevice_port1.worthWritingToFile()) goto worthIt;
-	if (upstreamUSBMIDIDevice_port2.worthWritingToFile()) goto worthIt;
+	if (dinMIDIPorts.worthWritingToFile()) {
+		goto worthIt;
+	}
+	if (upstreamUSBMIDIDevice_port1.worthWritingToFile()) {
+		goto worthIt;
+	}
+	if (upstreamUSBMIDIDevice_port2.worthWritingToFile()) {
+		goto worthIt;
+	}
 
 	for (int d = 0; d < hostedMIDIDevices.getNumElements(); d++) {
 		MIDIDeviceUSBHosted* device = (MIDIDeviceUSBHosted*)hostedMIDIDevices.getElement(d);
-		if (device->worthWritingToFile()) goto worthIt;
+		if (device->worthWritingToFile()) {
+			goto worthIt;
+		}
 	}
 
 	// If still here, nothing worth writing. Delete the file if there was one.
@@ -355,16 +392,24 @@ void writeDevicesToFile() {
 
 worthIt:
 	int error = storageManager.createXMLFile("MIDIDevices.XML", true);
-	if (error) return;
+	if (error) {
+		return;
+	}
 
 	storageManager.writeOpeningTagBeginning("midiDevices");
 	storageManager.writeFirmwareVersion();
 	storageManager.writeEarliestCompatibleFirmwareVersion("4.0.0");
 	storageManager.writeOpeningTagEnd();
 
-	if (dinMIDIPorts.worthWritingToFile()) dinMIDIPorts.writeToFile("dinPorts");
-	if (upstreamUSBMIDIDevice_port1.worthWritingToFile()) upstreamUSBMIDIDevice_port1.writeToFile("upstreamUSBDevice");
-	if (upstreamUSBMIDIDevice_port2.worthWritingToFile()) upstreamUSBMIDIDevice_port2.writeToFile("upstreamUSBDevice2");
+	if (dinMIDIPorts.worthWritingToFile()) {
+		dinMIDIPorts.writeToFile("dinPorts");
+	}
+	if (upstreamUSBMIDIDevice_port1.worthWritingToFile()) {
+		upstreamUSBMIDIDevice_port1.writeToFile("upstreamUSBDevice");
+	}
+	if (upstreamUSBMIDIDevice_port2.worthWritingToFile()) {
+		upstreamUSBMIDIDevice_port2.writeToFile("upstreamUSBDevice2");
+	}
 
 	for (int d = 0; d < hostedMIDIDevices.getNumElements(); d++) {
 		MIDIDeviceUSBHosted* device = (MIDIDeviceUSBHosted*)hostedMIDIDevices.getElement(d);
@@ -381,14 +426,20 @@ worthIt:
 bool successfullyReadDevicesFromFile = false; // We'll only do this one time
 
 void readDevicesFromFile() {
-	if (successfullyReadDevicesFromFile) return; // Yup, we only want to do this once
+	if (successfullyReadDevicesFromFile) {
+		return; // Yup, we only want to do this once
+	}
 
 	FilePointer fp;
 	bool success = storageManager.fileExists("MIDIDevices.XML", &fp);
-	if (!success) return;
+	if (!success) {
+		return;
+	}
 
 	int error = storageManager.openXMLFile(&fp, "midiDevices");
-	if (error) return;
+	if (error) {
+		return;
+	}
 
 	char const* tagName;
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
@@ -466,7 +517,9 @@ checkDevice:
 				}
 			}
 
-			if (device) device->defaultVelocityToLevel = storageManager.readTagOrAttributeValueInt();
+			if (device) {
+				device->defaultVelocityToLevel = storageManager.readTagOrAttributeValueInt();
+			}
 		}
 
 		storageManager.exitTag();

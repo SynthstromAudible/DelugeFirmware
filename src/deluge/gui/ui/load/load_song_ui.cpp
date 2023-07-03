@@ -93,11 +93,15 @@ gotError:
 
 	if (!searchFilename.isEmpty()) {
 		error = searchFilename.concatenate(".XML");
-		if (error) goto gotError;
+		if (error) {
+			goto gotError;
+		}
 	}
 
 	error = arrivedInNewFolder(0, searchFilename.get(), "SONGS");
-	if (error) goto gotError;
+	if (error) {
+		goto gotError;
+	}
 
 #if SD_TEST_MODE_ENABLED_LOAD_SONGS
 	currentSlot = (currentSlot + 1) % 19;
@@ -187,7 +191,9 @@ int LoadSongUI::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 	if ((x == loadButtonX && y == loadButtonY) || (x == selectEncButtonX && y == selectEncButtonY)) {
 		if (on) {
 			if (!currentUIMode) {
-				if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				if (inCardRoutine) {
+					return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				}
 
 				enterKeyPress();
 			}
@@ -213,7 +219,9 @@ int LoadSongUI::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 		}
 	}
 
-	else return LoadUI::buttonAction(x, y, on, inCardRoutine);
+	else {
+		return LoadUI::buttonAction(x, y, on, inCardRoutine);
+	}
 
 	return ACTION_RESULT_DEALT_WITH;
 }
@@ -312,7 +320,9 @@ gotErrorAfterCreatingSong:
 	// Will return false if we ran out of RAM. This isn't currently detected for while loading ParamNodes, but chances are, after failing on one of those, it'd try to
 	// load something else and that would fail.
 	error = preLoadedSong->readFromFile();
-	if (error) goto gotErrorAfterCreatingSong;
+	if (error) {
+		goto gotErrorAfterCreatingSong;
+	}
 	AudioEngine::logAction("d");
 
 	bool success = storageManager.closeFile();
@@ -326,11 +336,15 @@ gotErrorAfterCreatingSong:
 
 	String currentFilenameWithoutExtension;
 	error = currentFileItem->getFilenameWithoutExtension(&currentFilenameWithoutExtension);
-	if (error) goto gotErrorAfterCreatingSong;
+	if (error) {
+		goto gotErrorAfterCreatingSong;
+	}
 
 	error = audioFileManager.setupAlternateAudioFileDir(&audioFileManager.alternateAudioFileLoadPath, currentDir.get(),
 	                                                    &currentFilenameWithoutExtension);
-	if (error) goto gotErrorAfterCreatingSong;
+	if (error) {
+		goto gotErrorAfterCreatingSong;
+	}
 	audioFileManager.thingBeginningLoading(THING_TYPE_SONG);
 
 	// Search existing RAM for all samples, to lay a claim to any which will be needed for this new Song.
@@ -338,8 +352,12 @@ gotErrorAfterCreatingSong:
 	preLoadedSong->loadAllSamples(false);
 
 	// Load samples from files, just for currently playing Sounds (or if not playing, then all Sounds)
-	if (playbackHandler.isEitherClockActive()) preLoadedSong->loadCrucialSamplesOnly();
-	else preLoadedSong->loadAllSamples(true);
+	if (playbackHandler.isEitherClockActive()) {
+		preLoadedSong->loadCrucialSamplesOnly();
+	}
+	else {
+		preLoadedSong->loadAllSamples(true);
+	}
 
 	// Ensure all AudioFile Clusters needed for new song are loaded
 	int count = 0; // Prevent any unforeseen loop. Not sure if that actually could happen
@@ -450,8 +468,12 @@ int LoadSongUI::timerCallback() {
 		        (displayWidth + sideBarWidth) * (displayHeight - 1) * 3);
 
 		// And, bring in a row from the temp image (or from nowhere)
-		if (scrollingToNothing) memset(PadLEDs::image[endSquare], 0, (displayWidth + sideBarWidth) * 3);
-		else memcpy(PadLEDs::image[endSquare], PadLEDs::imageStore[copyRow], (displayWidth + sideBarWidth) * 3);
+		if (scrollingToNothing) {
+			memset(PadLEDs::image[endSquare], 0, (displayWidth + sideBarWidth) * 3);
+		}
+		else {
+			memcpy(PadLEDs::image[endSquare], PadLEDs::imageStore[copyRow], (displayWidth + sideBarWidth) * 3);
+		}
 
 		if (DELUGE_MODEL != DELUGE_MODEL_40_PAD) {
 			bufferPICPadsUart((scrollDirection > 0) ? 241 : 242);
@@ -588,8 +610,9 @@ void LoadSongUI::currentFileChanged(int movementDirection) {
 
 		// Start horizontal scrolling
 		PadLEDs::setupScroll(movementDirection, displayWidth + sideBarWidth, true, displayWidth + sideBarWidth);
-		for (int i = 0; i < displayHeight; i++)
+		for (int i = 0; i < displayHeight; i++) {
 			PadLEDs::transitionTakingPlaceOnRow[i] = true;
+		}
 		currentUIMode = UI_MODE_HORIZONTAL_SCROLL;
 		scrollingIntoSlot = false;
 		PadLEDs::renderScroll(); // The scrolling animation will begin while file is being found and loaded
@@ -601,8 +624,9 @@ void LoadSongUI::currentFileChanged(int movementDirection) {
 
 		// Set up another horizontal scroll
 		PadLEDs::setupScroll(movementDirection, displayWidth + sideBarWidth, false, displayWidth + sideBarWidth);
-		for (int i = 0; i < displayHeight; i++)
+		for (int i = 0; i < displayHeight; i++) {
 			PadLEDs::transitionTakingPlaceOnRow[i] = true;
+		}
 		PadLEDs::renderScroll();
 	}
 }
@@ -611,8 +635,12 @@ void LoadSongUI::selectEncoderAction(int8_t offset) {
 
 	if (currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED) {
 		session.numRepeatsTilLaunch += offset;
-		if (session.numRepeatsTilLaunch < 1) session.numRepeatsTilLaunch = 1;
-		else if (session.numRepeatsTilLaunch > 9999) session.numRepeatsTilLaunch = 9999;
+		if (session.numRepeatsTilLaunch < 1) {
+			session.numRepeatsTilLaunch = 1;
+		}
+		else if (session.numRepeatsTilLaunch > 9999) {
+			session.numRepeatsTilLaunch = 9999;
+		}
 #if HAVE_OLED
 		//renderUIsForOled();
 		displayLoopsRemainingPopup();
@@ -668,7 +696,9 @@ goAgain:
 int LoadSongUI::verticalEncoderAction(int offset, bool inCardRoutine) {
 	if (!currentUIMode && !Buttons::isButtonPressed(yEncButtonX, yEncButtonY) && !Buttons::isShiftButtonPressed()
 	    && offset < 0) {
-		if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		if (inCardRoutine) {
+			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		}
 		exitAction(); // Exit if your scroll down
 	}
 
@@ -696,21 +726,28 @@ void LoadSongUI::exitAction() {
 void LoadSongUI::drawSongPreview(bool toStore) {
 
 	uint8_t(*imageStore)[displayWidth + sideBarWidth][3];
-	if (toStore) imageStore = PadLEDs::imageStore;
-	else imageStore = PadLEDs::image;
+	if (toStore) {
+		imageStore = PadLEDs::imageStore;
+	}
+	else {
+		imageStore = PadLEDs::image;
+	}
 
 	memset(imageStore, 0, displayHeight * (displayWidth + sideBarWidth) * 3);
 
 	FileItem* currentFileItem = getCurrentFileItem();
 
-	if (!currentFileItem || currentFileItem->isFolder) return;
+	if (!currentFileItem || currentFileItem->isFolder) {
+		return;
+	}
 
 	int error = storageManager.openXMLFile(&currentFileItem->filePointer, "song", "", true);
-	if (error)
+	if (error) {
 		if (error) {
 			numericDriver.displayError(error);
 			return;
 		}
+	}
 
 	char const* tagName;
 	int previewNumPads = 40;
@@ -751,11 +788,15 @@ void LoadSongUI::drawSongPreview(bool toStore) {
 			int width = endX - startX;
 			int numCharsToRead = width * 3 * 2;
 
-			if (!storageManager.prepareToReadTagOrAttributeValueOneCharAtATime()) goto stopLoadingPreview;
+			if (!storageManager.prepareToReadTagOrAttributeValueOneCharAtATime()) {
+				goto stopLoadingPreview;
+			}
 
 			for (int y = startY; y < endY; y++) {
 				char const* hexChars = storageManager.readNextCharsOfTagOrAttributeValue(numCharsToRead);
-				if (!hexChars) goto stopLoadingPreview;
+				if (!hexChars) {
+					goto stopLoadingPreview;
+				}
 
 				for (int x = startX; x < endX; x++) {
 					for (int colour = 0; colour < 3; colour++) {
@@ -773,7 +814,9 @@ void LoadSongUI::drawSongPreview(bool toStore) {
 			}
 			goto stopLoadingPreview;
 		}
-		else storageManager.exitTag(tagName);
+		else {
+			storageManager.exitTag(tagName);
+		}
 	}
 stopLoadingPreview:
 	storageManager.closeFile();
@@ -809,15 +852,21 @@ int LoadSongUI::padAction(int x, int y, int on) {
 	// If QWERTY not visible yet, make it visible now
 	if (!qwertyVisible) {
 		if (on && !currentUIMode) {
-			if (sdRoutineLock) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			if (sdRoutineLock) {
+				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
 			qwertyVisible = true;
 			displayText(false); // Necessary still? Not quite sure?
 		}
 	}
 
 	// And process the QWERTY keypress
-	if (qwertyVisible) return LoadUI::padAction(x, y, on);
-	else return ACTION_RESULT_DEALT_WITH;
+	if (qwertyVisible) {
+		return LoadUI::padAction(x, y, on);
+	}
+	else {
+		return ACTION_RESULT_DEALT_WITH;
+	}
 
 #endif
 	return ACTION_RESULT_DEALT_WITH;

@@ -47,7 +47,9 @@ int AudioFileReader::advanceClustersIfNecessary() {
 
 	int numClustersToAdvance = byteIndexWithinCluster >> audioFileManager.clusterSizeMagnitude;
 
-	if (!numClustersToAdvance) return NO_ERROR;
+	if (!numClustersToAdvance) {
+		return NO_ERROR;
+	}
 
 	currentClusterIndex += numClustersToAdvance;
 	byteIndexWithinCluster &= audioFileManager.clusterSize - 1;

@@ -38,7 +38,9 @@ int SlotBrowser::beginSlotSession(bool shouldDrawKeys, bool allowIfNoFolder) {
 
 	// We want to check the SD card is generally working here, so that if not, we can exit out before drawing the QWERTY keyboard.
 	int error = storageManager.initSD();
-	if (error) return error;
+	if (error) {
+		return error;
+	}
 
 	// But we won't try to open the folder yet, because we don't yet know what it should be.
 
@@ -48,7 +50,9 @@ int SlotBrowser::beginSlotSession(bool shouldDrawKeys, bool allowIfNoFolder) {
 */
 
 	bool success = Browser::opened();
-	if (!success) return ERROR_UNSPECIFIED;
+	if (!success) {
+		return ERROR_UNSPECIFIED;
+	}
 
 #if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 	if (shouldDrawKeys) {
@@ -70,18 +74,26 @@ void SlotBrowser::focusRegained() {
 
 int SlotBrowser::horizontalEncoderAction(int offset) {
 
-	if (!isNoUIModeActive()) return ACTION_RESULT_DEALT_WITH;
+	if (!isNoUIModeActive()) {
+		return ACTION_RESULT_DEALT_WITH;
+	}
 #if !HAVE_OLED
 	FileItem* currentFileItem = getCurrentFileItem();
 	if (currentFileItem) {
 		// See if it's numeric. Here, filename has already had prefix removed if it's numeric.
 
 		Slot thisSlot = getSlot(enteredText.get());
-		if (thisSlot.slot < 0) goto nonNumeric;
+		if (thisSlot.slot < 0) {
+			goto nonNumeric;
+		}
 
 		numberEditPos -= offset;
-		if (numberEditPos > 2) numberEditPos = 2;
-		else if (numberEditPos < -1) numberEditPos = -1;
+		if (numberEditPos > 2) {
+			numberEditPos = 2;
+		}
+		else if (numberEditPos < -1) {
+			numberEditPos = -1;
+		}
 
 		displayText(numberEditPos >= 0);
 		return ACTION_RESULT_DEALT_WITH;
@@ -153,10 +165,14 @@ void SlotBrowser::convertToPrefixFormatIfPossible() {
 				multiplier *= 10;
 			}
 
-			else return;
+			else {
+				return;
+			}
 		}
 
-		if (multiplier == 1) return;
+		if (multiplier == 1) {
+			return;
+		}
 
 		enteredText.clear();
 		enteredTextEditPos = 0;
@@ -172,15 +188,21 @@ int SlotBrowser::getCurrentFilenameWithoutExtension(String* filenameWithoutExten
 	Slot slot = getSlot(enteredText.get());
 	if (slot.slot != -1) {
 		error = filenameWithoutExtension->set(filePrefix);
-		if (error) return error;
+		if (error) {
+			return error;
+		}
 		error = filenameWithoutExtension->concatenateInt(slot.slot, 3);
-		if (error) return error;
+		if (error) {
+			return error;
+		}
 		if (slot.subSlot != -1) {
 			char buffer[2];
 			buffer[0] = 'A' + slot.subSlot;
 			buffer[1] = 0;
 			error = filenameWithoutExtension->concatenate(buffer);
-			if (error) return error;
+			if (error) {
+				return error;
+			}
 		}
 	}
 	else
@@ -196,14 +218,20 @@ int SlotBrowser::getCurrentFilePath(String* path) {
 	path->set(&currentDir);
 
 	int error = path->concatenate("/");
-	if (error) return error;
+	if (error) {
+		return error;
+	}
 
 	String filenameWithoutExtension;
 	error = getCurrentFilenameWithoutExtension(&filenameWithoutExtension);
-	if (error) return error;
+	if (error) {
+		return error;
+	}
 
 	error = path->concatenate(&filenameWithoutExtension);
-	if (error) return error;
+	if (error) {
+		return error;
+	}
 
 	error = path->concatenate(".XML");
 	return error;

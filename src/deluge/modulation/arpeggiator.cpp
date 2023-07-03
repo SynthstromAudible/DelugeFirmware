@@ -31,7 +31,9 @@ ArpeggiatorSettings::ArpeggiatorSettings() {
 	// Default sync level is used obviously for the default synth sound if no SD card inserted, but also some synth presets, possibly just older ones,
 	// are saved without this so it can be set to the default at the time of loading.
 	Song* song = preLoadedSong;
-	if (!song) song = currentSong;
+	if (!song) {
+		song = currentSong;
+	}
 	if (song) {
 		syncLevel = (SyncLevel)(8 - (song->insideWorldTickMagnitude + song->insideWorldTickMagnitudeOffsetFromBPM));
 	}
@@ -132,15 +134,21 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int noteCode, int veloci
 	if (n < notes.getNumElements()) {
 		arpNote = (ArpNote*)notes.getElementAddress(n);
 		if (arpNote->inputCharacteristics[MIDI_CHARACTERISTIC_NOTE] == noteCode) {
-			if (settings && settings->mode) return; // If we're an arpeggiator, return
-			else goto noteInserted;                 // Otherwise, try again. Actually is this really useful?
+			if (settings && settings->mode) {
+				return; // If we're an arpeggiator, return
+			}
+			else {
+				goto noteInserted; // Otherwise, try again. Actually is this really useful?
+			}
 		}
 	}
 
 	// Insert
 	{
 		int error = notes.insertAtIndex(n);
-		if (error) return;
+		if (error) {
+			return;
+		}
 	}
 
 	arpNote = (ArpNote*)notes.getElementAddress(n);
@@ -214,7 +222,9 @@ void Arpeggiator::noteOff(ArpeggiatorSettings* settings, int noteCodePreArp, Arp
 
 			if (whichNoteCurrentlyOnPostArp >= n) {
 				whichNoteCurrentlyOnPostArp--; // Beware - this could send it negative
-				if (whichNoteCurrentlyOnPostArp < 0) whichNoteCurrentlyOnPostArp = 0;
+				if (whichNoteCurrentlyOnPostArp < 0) {
+					whichNoteCurrentlyOnPostArp = 0;
+				}
 			}
 		}
 	}
@@ -259,8 +269,9 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 
 			if (settings->mode == ARP_MODE_BOTH) {
 
-				if (settings->numOctaves == 1) currentOctave = 0;
-
+				if (settings->numOctaves == 1) {
+					currentOctave = 0;
+				}
 				else {
 					if (currentOctave >= settings->numOctaves - 1) {
 						currentDirection = -1;
@@ -278,8 +289,12 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 				                       ? -1
 				                       : 1; // Have to reset this, in case the user changed the setting.
 				currentOctave += currentDirection;
-				if (currentOctave >= settings->numOctaves) currentOctave = 0;
-				else if (currentOctave < 0) currentOctave = settings->numOctaves - 1;
+				if (currentOctave >= settings->numOctaves) {
+					currentOctave = 0;
+				}
+				else if (currentOctave < 0) {
+					currentOctave = settings->numOctaves - 1;
+				}
 			}
 		}
 	}
@@ -343,7 +358,9 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 						whichNoteCurrentlyOnPostArp -= 2;
 						if (whichNoteCurrentlyOnPostArp < 0) {
 							whichNoteCurrentlyOnPostArp = 0;
-							if (currentOctave > 0) currentOctave--;
+							if (currentOctave > 0) {
+								currentOctave--;
+							}
 						}
 					}
 				}
@@ -371,7 +388,9 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 						whichNoteCurrentlyOnPostArp += 2;
 						if (whichNoteCurrentlyOnPostArp >= notes.getNumElements()) {
 							whichNoteCurrentlyOnPostArp = notes.getNumElements() - 1;
-							if (currentOctave < settings->numOctaves - 1) currentOctave++;
+							if (currentOctave < settings->numOctaves - 1) {
+								currentOctave++;
+							}
 						}
 					}
 				}
@@ -388,8 +407,9 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 	playedFirstArpeggiatedNoteYet = true;
 
 #if ALPHA_OR_BETA_VERSION
-	if (whichNoteCurrentlyOnPostArp < 0 || whichNoteCurrentlyOnPostArp >= notes.getNumElements())
+	if (whichNoteCurrentlyOnPostArp < 0 || whichNoteCurrentlyOnPostArp >= notes.getNumElements()) {
 		numericDriver.freezeWithError("E404");
+	}
 #endif
 
 	ArpNote* arpNote = (ArpNote*)notes.getElementAddress(whichNoteCurrentlyOnPostArp);
@@ -413,7 +433,9 @@ bool ArpeggiatorForDrum::hasAnyInputNotesActive() {
 void ArpeggiatorBase::render(ArpeggiatorSettings* settings, int numSamples, uint32_t gateThreshold,
                              uint32_t phaseIncrement, ArpReturnInstruction* instruction) {
 
-	if (!settings->mode || !hasAnyInputNotesActive()) return;
+	if (!settings->mode || !hasAnyInputNotesActive()) {
+		return;
+	}
 
 	uint32_t gateThresholdSmall = gateThreshold >> 8;
 
@@ -429,7 +451,9 @@ void ArpeggiatorBase::render(ArpeggiatorSettings* settings, int numSamples, uint
 		}
 	}
 
-	if (!syncedNow) gatePos &= 16777215;
+	if (!syncedNow) {
+		gatePos &= 16777215;
+	}
 
 	gatePos += (phaseIncrement >> 8) * numSamples;
 }
@@ -440,12 +464,18 @@ int32_t ArpeggiatorBase::doTickForward(ArpeggiatorSettings* settings, ArpReturnI
                                        uint32_t clipCurrentPos, bool currentlyPlayingReversed) {
 
 	// Make sure we actually intended to sync
-	if (!settings->mode || !settings->syncLevel) return 2147483647;
+	if (!settings->mode || !settings->syncLevel) {
+		return 2147483647;
+	}
 
 	uint32_t ticksPerPeriod = 3 << (9 - settings->syncLevel);
 	if (settings->syncType == SYNC_TYPE_EVEN) {} // Do nothing
-	else if (settings->syncType == SYNC_TYPE_TRIPLET) ticksPerPeriod = ticksPerPeriod * 2 / 3;
-	else if (settings->syncType == SYNC_TYPE_DOTTED) ticksPerPeriod = ticksPerPeriod * 3 / 2;
+	else if (settings->syncType == SYNC_TYPE_TRIPLET) {
+		ticksPerPeriod = ticksPerPeriod * 2 / 3;
+	}
+	else if (settings->syncType == SYNC_TYPE_DOTTED) {
+		ticksPerPeriod = ticksPerPeriod * 3 / 2;
+	}
 
 	int howFarIntoPeriod = clipCurrentPos % ticksPerPeriod;
 
@@ -459,7 +489,9 @@ int32_t ArpeggiatorBase::doTickForward(ArpeggiatorSettings* settings, ArpReturnI
 		howFarIntoPeriod = ticksPerPeriod;
 	}
 	else {
-		if (!currentlyPlayingReversed) howFarIntoPeriod = ticksPerPeriod - howFarIntoPeriod;
+		if (!currentlyPlayingReversed) {
+			howFarIntoPeriod = ticksPerPeriod - howFarIntoPeriod;
+		}
 	}
 
 	return howFarIntoPeriod; // Normally we will have modified this variable above, and it no longer represents what its name says.
@@ -467,7 +499,9 @@ int32_t ArpeggiatorBase::doTickForward(ArpeggiatorSettings* settings, ArpReturnI
 
 uint32_t ArpeggiatorSettings::getPhaseIncrement(int32_t arpRate) {
 	uint32_t phaseIncrement;
-	if (syncLevel == 0) phaseIncrement = arpRate >> 5;
+	if (syncLevel == 0) {
+		phaseIncrement = arpRate >> 5;
+	}
 	else {
 		int rightShiftAmount = 9 - syncLevel; // Will be max 0
 		phaseIncrement =

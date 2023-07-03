@@ -78,12 +78,18 @@ longError:
 
 		FILINFO fno;
 		result = f_readdir(&staticDIR, &fno);            // Read a directory item
-		if (result != FR_OK || fno.fname[0] == 0) break; // Break on error or end of dir
+		if (result != FR_OK || fno.fname[0] == 0) {
+			break; // Break on error or end of dir
+		}
 
-		if (fno.fname[0] == '_') continue; // Avoid hidden files created by stupid Macs
+		if (fno.fname[0] == '_') {
+			continue; // Avoid hidden files created by stupid Macs
+		}
 
 		// Only bootloader bin files should start with "BOOT"
-		if (memcasecmp(fno.fname, "BOOT", 4)) continue;
+		if (memcasecmp(fno.fname, "BOOT", 4)) {
+			continue;
+		}
 
 		char const* dotPos = strchr(fno.fname, '.');
 		if (dotPos != 0 && !strcasecmp(dotPos, ".BIN")) {
@@ -126,7 +132,9 @@ gotFresultErrorAfterAllocating:
 			// The file opened. Copy it to RAM
 			UINT numBytesRead;
 			result = f_read(&currentFile, buffer, fileSize, &numBytesRead);
-			if (result != FR_OK) goto gotFresultErrorAfterAllocating;
+			if (result != FR_OK) {
+				goto gotFresultErrorAfterAllocating;
+			}
 			f_close(&currentFile);
 
 			if (numBytesRead != fileSize) { // Can this happen?
@@ -160,7 +168,9 @@ gotFlashError:
 			while (numFlashSectors-- && eraseAddress < 0x01000000) {
 				int32_t flashError =
 				    R_SFLASH_EraseSector(eraseAddress, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
-				if (flashError) goto gotFlashError;
+				if (flashError) {
+					goto gotFlashError;
+				}
 				eraseAddress += 0x10000; // 64K
 			}
 
@@ -171,14 +181,20 @@ gotFlashError:
 			while (true) {
 
 				int bytesLeft = startFlashAddress + fileSize - flashWriteAddress;
-				if (bytesLeft <= 0) break;
+				if (bytesLeft <= 0) {
+					break;
+				}
 
 				int bytesToWrite = bytesLeft;
-				if (bytesToWrite > FLASH_WRITE_SIZE) bytesToWrite = FLASH_WRITE_SIZE;
+				if (bytesToWrite > FLASH_WRITE_SIZE) {
+					bytesToWrite = FLASH_WRITE_SIZE;
+				}
 
 				int32_t error = R_SFLASH_ByteProgram(flashWriteAddress, readAddress, bytesToWrite, SPIBSC_CH,
 				                                     SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT, SPIBSC_OUTPUT_ADDR_24);
-				if (error) goto gotFlashError;
+				if (error) {
+					goto gotFlashError;
+				}
 
 				flashWriteAddress += FLASH_WRITE_SIZE;
 				readAddress += FLASH_WRITE_SIZE;

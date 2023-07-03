@@ -120,7 +120,9 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 		if (whichModEncoder == 1) {
 			if (on) {
 				modFXType++;
-				if (modFXType >= NUM_MOD_FX_TYPES) modFXType = 1;
+				if (modFXType >= NUM_MOD_FX_TYPES) {
+					modFXType = 1;
+				}
 				char const* displayText;
 				switch (modFXType) {
 				case MOD_FX_TYPE_FLANGER:
@@ -143,12 +145,16 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 				ensureModFXParamIsValid();
 				return true;
 			}
-			else return false;
+			else {
+				return false;
+			}
 		}
 		else {
 			if (on) {
 				currentModFXParam++;
-				if (currentModFXParam == NUM_MOD_FX_PARAMS) currentModFXParam = 0;
+				if (currentModFXParam == NUM_MOD_FX_PARAMS) {
+					currentModFXParam = 0;
+				}
 				ensureModFXParamIsValid();
 
 				char const* displayText;
@@ -177,7 +183,9 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 		if (whichModEncoder == 1) {
 			if (on) {
 				currentFilterType++;
-				if (currentFilterType >= NUM_FILTER_TYPES) currentFilterType = 0;
+				if (currentFilterType >= NUM_FILTER_TYPES) {
+					currentFilterType = 0;
+				}
 
 				char const* displayText;
 				switch (currentFilterType) {
@@ -204,7 +212,9 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 				return true;
 			}
 
-			else return false;
+			else {
+				return false;
+			}
 		}
 	}
 
@@ -215,21 +225,27 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 				switchDelayPingPong();
 				return true;
 			}
-			else return false;
+			else {
+				return false;
+			}
 		}
 		else {
 			if (on) {
 				switchDelayAnalog();
 				return true;
 			}
-			else return false;
+			else {
+				return false;
+			}
 		}
 	}
 
 	// Reverb / sidechain section
 	else if (modKnobMode == 4) {
 		if (whichModEncoder == 0) { // Reverb
-			if (on) view.cycleThroughReverbPresets();
+			if (on) {
+				view.cycleThroughReverbPresets();
+			}
 		}
 
 		return false;
@@ -244,45 +260,81 @@ int GlobalEffectable::getParameterFromKnob(int whichModEncoder) {
 	int modKnobMode = *getModKnobMode();
 
 	if (modKnobMode == 0) {
-		if (whichModEncoder != 0) return PARAM_UNPATCHED_GLOBALEFFECTABLE_VOLUME;
-		else return PARAM_UNPATCHED_GLOBALEFFECTABLE_PAN;
+		if (whichModEncoder != 0) {
+			return PARAM_UNPATCHED_GLOBALEFFECTABLE_VOLUME;
+		}
+		else {
+			return PARAM_UNPATCHED_GLOBALEFFECTABLE_PAN;
+		}
 	}
 	else if (modKnobMode == 1) {
 		switch (currentFilterType) {
 		case FILTER_TYPE_LPF:
-			if (whichModEncoder != 0) return PARAM_UNPATCHED_GLOBALEFFECTABLE_LPF_FREQ;
-			else return PARAM_UNPATCHED_GLOBALEFFECTABLE_LPF_RES;
+			if (whichModEncoder != 0) {
+				return PARAM_UNPATCHED_GLOBALEFFECTABLE_LPF_FREQ;
+			}
+			else {
+				return PARAM_UNPATCHED_GLOBALEFFECTABLE_LPF_RES;
+			}
 		case FILTER_TYPE_HPF:
-			if (whichModEncoder != 0) return PARAM_UNPATCHED_GLOBALEFFECTABLE_HPF_FREQ;
-			else return PARAM_UNPATCHED_GLOBALEFFECTABLE_HPF_RES;
+			if (whichModEncoder != 0) {
+				return PARAM_UNPATCHED_GLOBALEFFECTABLE_HPF_FREQ;
+			}
+			else {
+				return PARAM_UNPATCHED_GLOBALEFFECTABLE_HPF_RES;
+			}
 		default: //case FILTER_TYPE_EQ:
-			if (whichModEncoder != 0) return PARAM_UNPATCHED_TREBLE;
-			else return PARAM_UNPATCHED_BASS;
+			if (whichModEncoder != 0) {
+				return PARAM_UNPATCHED_TREBLE;
+			}
+			else {
+				return PARAM_UNPATCHED_BASS;
+			}
 		}
 	}
 	else if (modKnobMode == 3) {
-		if (whichModEncoder != 0) return PARAM_UNPATCHED_GLOBALEFFECTABLE_DELAY_RATE;
-		else return PARAM_UNPATCHED_GLOBALEFFECTABLE_DELAY_AMOUNT;
+		if (whichModEncoder != 0) {
+			return PARAM_UNPATCHED_GLOBALEFFECTABLE_DELAY_RATE;
+		}
+		else {
+			return PARAM_UNPATCHED_GLOBALEFFECTABLE_DELAY_AMOUNT;
+		}
 	}
 
 	else if (modKnobMode == 4) {
-		if (whichModEncoder == 0) return PARAM_UNPATCHED_GLOBALEFFECTABLE_REVERB_SEND_AMOUNT;
+		if (whichModEncoder == 0) {
+			return PARAM_UNPATCHED_GLOBALEFFECTABLE_REVERB_SEND_AMOUNT;
+		}
 	}
 #if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 	else if (modKnobMode == 5) {
-		if (whichModEncoder != 0) return PARAM_UNPATCHED_GLOBALEFFECTABLE_MOD_FX_RATE;
+		if (whichModEncoder != 0) {
+			return PARAM_UNPATCHED_GLOBALEFFECTABLE_MOD_FX_RATE;
+		}
 		else {
-			if (currentModFXParam == MOD_FX_PARAM_DEPTH) return PARAM_UNPATCHED_GLOBALEFFECTABLE_MOD_FX_DEPTH;
-			else if (currentModFXParam == MOD_FX_PARAM_OFFSET) return PARAM_UNPATCHED_MOD_FX_OFFSET;
-			else return PARAM_UNPATCHED_MOD_FX_FEEDBACK;
+			if (currentModFXParam == MOD_FX_PARAM_DEPTH) {
+				return PARAM_UNPATCHED_GLOBALEFFECTABLE_MOD_FX_DEPTH;
+			}
+			else if (currentModFXParam == MOD_FX_PARAM_OFFSET) {
+				return PARAM_UNPATCHED_MOD_FX_OFFSET;
+			}
+			else {
+				return PARAM_UNPATCHED_MOD_FX_FEEDBACK;
+			}
 		}
 	}
 	else if (modKnobMode == 6) {
-		if (whichModEncoder != 0) return PARAM_UNPATCHED_STUTTER_RATE;
+		if (whichModEncoder != 0) {
+			return PARAM_UNPATCHED_STUTTER_RATE;
+		}
 	}
 	else if (modKnobMode == 7) {
-		if (whichModEncoder != 0) return PARAM_UNPATCHED_SAMPLE_RATE_REDUCTION;
-		else return PARAM_UNPATCHED_BITCRUSHING;
+		if (whichModEncoder != 0) {
+			return PARAM_UNPATCHED_SAMPLE_RATE_REDUCTION;
+		}
+		else {
+			return PARAM_UNPATCHED_BITCRUSHING;
+		}
 	}
 #else
 	else if (modKnobMode == 5) {
@@ -304,8 +356,12 @@ ModelStackWithAutoParam* GlobalEffectable::getParamFromModEncoder(int whichModEn
 
 	ModelStackWithParamId* newModelStack1 = modelStack->addParamCollectionAndId(paramCollection, summary, paramId);
 
-	if (paramId == 255) return newModelStack1->addAutoParam(NULL); // Communicate there's no param, back to caller
-	else return newModelStack1->paramCollection->getAutoParamFromId(newModelStack1, allowCreation);
+	if (paramId == 255) {
+		return newModelStack1->addAutoParam(NULL); // Communicate there's no param, back to caller
+	}
+	else {
+		return newModelStack1->paramCollection->getAutoParamFromId(newModelStack1, allowCreation);
+	}
 }
 
 void GlobalEffectable::ensureModFXParamIsValid() {
@@ -329,7 +385,9 @@ void GlobalEffectable::ensureModFXParamIsValid() {
 
 ohNo:
 		currentModFXParam++;
-		if (currentModFXParam == NUM_MOD_FX_PARAMS) currentModFXParam = 0;
+		if (currentModFXParam == NUM_MOD_FX_PARAMS) {
+			currentModFXParam = 0;
+		}
 	}
 }
 
@@ -411,14 +469,16 @@ void GlobalEffectable::writeParamAttributesToFile(ParamManager* paramManager, bo
 	unpatchedParams->writeParamAsAttribute("pan", PARAM_UNPATCHED_GLOBALEFFECTABLE_PAN, writeAutomation, false,
 	                                       valuesForOverride);
 
-	if (unpatchedParams->params[PARAM_UNPATCHED_GLOBALEFFECTABLE_PITCH_ADJUST].containsSomething(0))
+	if (unpatchedParams->params[PARAM_UNPATCHED_GLOBALEFFECTABLE_PITCH_ADJUST].containsSomething(0)) {
 		unpatchedParams->writeParamAsAttribute("pitchAdjust", PARAM_UNPATCHED_GLOBALEFFECTABLE_PITCH_ADJUST,
 		                                       writeAutomation, false, valuesForOverride);
+	}
 
-	if (unpatchedParams->params[PARAM_UNPATCHED_GLOBALEFFECTABLE_SIDECHAIN_VOLUME].containsSomething(-2147483648))
+	if (unpatchedParams->params[PARAM_UNPATCHED_GLOBALEFFECTABLE_SIDECHAIN_VOLUME].containsSomething(-2147483648)) {
 		unpatchedParams->writeParamAsAttribute("sidechainCompressorVolume",
 		                                       PARAM_UNPATCHED_GLOBALEFFECTABLE_SIDECHAIN_VOLUME, writeAutomation,
 		                                       false, valuesForOverride);
+	}
 
 	unpatchedParams->writeParamAsAttribute("sidechainCompressorShape", PARAM_UNPATCHED_COMPRESSOR_SHAPE,
 	                                       writeAutomation, false, valuesForOverride);
@@ -465,7 +525,9 @@ void GlobalEffectable::readParamsFromFile(ParamManagerForTimeline* paramManager,
 
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 		if (readParamTagFromFile(tagName, paramManager, readAutomationUpToPos)) {}
-		else storageManager.exitTag(tagName);
+		else {
+			storageManager.exitTag(tagName);
+		}
 	}
 }
 
@@ -571,7 +633,9 @@ bool GlobalEffectable::readParamTagFromFile(char const* tagName, ParamManagerFor
 
 	else if (ModControllableAudio::readParamTagFromFile(tagName, paramManager, readAutomationUpToPos)) {}
 
-	else return false;
+	else {
+		return false;
+	}
 
 	return true;
 }
@@ -588,7 +652,9 @@ int GlobalEffectable::readTagFromFile(char const* tagName, ParamManagerForTimeli
 
 		if (!paramManager->containsAnyMainParamCollections()) {
 			int error = paramManager->setupUnpatched();
-			if (error) return error;
+			if (error) {
+				return error;
+			}
 			initParams(paramManager);
 		}
 
@@ -697,8 +763,12 @@ void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, i
 		if (!modFXBuffer) {
 			modFXBuffer =
 			    (StereoSample*)generalMemoryAllocator.alloc(modFXBufferSize * sizeof(StereoSample), NULL, false, true);
-			if (!modFXBuffer) modFXTypeNow = 0;
-			else memset(modFXBuffer, 0, modFXBufferSize * sizeof(StereoSample));
+			if (!modFXBuffer) {
+				modFXTypeNow = 0;
+			}
+			else {
+				memset(modFXBuffer, 0, modFXBufferSize * sizeof(StereoSample));
+			}
 		}
 	}
 	else {
@@ -765,7 +835,9 @@ char const* GlobalEffectable::paramToString(uint8_t param) {
 int GlobalEffectable::stringToParam(char const* string) {
 	for (int p = PARAM_UNPATCHED_SECTION + NUM_SHARED_UNPATCHED_PARAMS;
 	     p < PARAM_UNPATCHED_SECTION + MAX_NUM_UNPATCHED_PARAMS; p++) {
-		if (!strcmp(string, GlobalEffectable::paramToString(p))) return p;
+		if (!strcmp(string, GlobalEffectable::paramToString(p))) {
+			return p;
+		}
 	}
 	return ModControllableAudio::stringToParam(string);
 }

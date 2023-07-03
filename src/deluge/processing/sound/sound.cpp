@@ -296,11 +296,15 @@ void Sound::possiblySetupDefaultExpressionPatching(ParamManager* paramManager) {
 void Sound::setupDefaultExpressionPatching(ParamManager* paramManager) {
 	PatchCableSet* patchCableSet = paramManager->getPatchCableSet();
 
-	if (patchCableSet->numPatchCables >= MAX_NUM_PATCH_CABLES) return;
+	if (patchCableSet->numPatchCables >= MAX_NUM_PATCH_CABLES) {
+		return;
+	}
 	patchCableSet->patchCables[patchCableSet->numPatchCables++].setup(
 	    PATCH_SOURCE_AFTERTOUCH, PARAM_LOCAL_VOLUME, getParamFromUserValue(PARAM_STATIC_PATCH_CABLE, 33));
 
-	if (patchCableSet->numPatchCables >= MAX_NUM_PATCH_CABLES) return;
+	if (patchCableSet->numPatchCables >= MAX_NUM_PATCH_CABLES) {
+		return;
+	}
 
 	if (synthMode == SYNTH_MODE_FM) {
 		patchCableSet->patchCables[patchCableSet->numPatchCables++].setup(
@@ -340,7 +344,9 @@ bool Sound::setModFXType(int newType) {
 			// TODO: should give an error here if no free ram
 			modFXBuffer =
 			    (StereoSample*)generalMemoryAllocator.alloc(modFXBufferSize * sizeof(StereoSample), NULL, false, true);
-			if (!modFXBuffer) return false;
+			if (!modFXBuffer) {
+				return false;
+			}
 		}
 	}
 	else {
@@ -423,13 +429,17 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 
 	if (!strcmp(tagName, "osc1")) {
 		int error = readSourceFromFile(0, paramManager, readAutomationUpToPos);
-		if (error) return error;
+		if (error) {
+			return error;
+		}
 		storageManager.exitTag("osc1");
 	}
 
 	else if (!strcmp(tagName, "osc2")) {
 		int error = readSourceFromFile(1, paramManager, readAutomationUpToPos);
-		if (error) return error;
+		if (error) {
+			return error;
+		}
 		storageManager.exitTag("osc2");
 	}
 
@@ -557,7 +567,9 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 			}
 			else if (!strcmp(tagName, "toModulator1")) {
 				modulator1ToModulator0 = storageManager.readTagOrAttributeValueInt();
-				if (modulator1ToModulator0 != 0) modulator1ToModulator0 = 1;
+				if (modulator1ToModulator0 != 0) {
+					modulator1ToModulator0 = 1;
+				}
 				storageManager.exitTag("toModulator1");
 			}
 			else {
@@ -582,19 +594,27 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 				storageManager.exitTag("rate");
 			}
 			else if (!strcmp(tagName, "numOctaves")) {
-				if (arpSettings) arpSettings->numOctaves = storageManager.readTagOrAttributeValueInt();
+				if (arpSettings) {
+					arpSettings->numOctaves = storageManager.readTagOrAttributeValueInt();
+				}
 				storageManager.exitTag("numOctaves");
 			}
 			else if (!strcmp(tagName, "syncType")) {
-				if (arpSettings) arpSettings->syncType = storageManager.readSyncTypeFromFile(song);
+				if (arpSettings) {
+					arpSettings->syncType = storageManager.readSyncTypeFromFile(song);
+				}
 				storageManager.exitTag("syncType");
 			}
 			else if (!strcmp(tagName, "syncLevel")) {
-				if (arpSettings) arpSettings->syncLevel = storageManager.readAbsoluteSyncLevelFromFile(song);
+				if (arpSettings) {
+					arpSettings->syncLevel = storageManager.readAbsoluteSyncLevelFromFile(song);
+				}
 				storageManager.exitTag("syncLevel");
 			}
 			else if (!strcmp(tagName, "mode")) {
-				if (arpSettings) arpSettings->mode = stringToArpMode(storageManager.readTagOrAttributeValue());
+				if (arpSettings) {
+					arpSettings->mode = stringToArpMode(storageManager.readTagOrAttributeValue());
+				}
 				storageManager.exitTag("mode");
 			}
 			else if (
@@ -696,7 +716,9 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 		ENSURE_PARAM_MANAGER_EXISTS
 
 		MultisampleRange* range = (MultisampleRange*)sources[0].getOrCreateFirstRange();
-		if (!range) return ERROR_INSUFFICIENT_RAM;
+		if (!range) {
+			return ERROR_INSUFFICIENT_RAM;
+		}
 
 		range->getAudioFileHolder()->filePath.set(storageManager.readTagOrAttributeValue());
 		sources[0].oscType = OSC_TYPE_SAMPLE;
@@ -737,7 +759,9 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 	else if (!strcmp(tagName, "zone")) {
 
 		MultisampleRange* range = (MultisampleRange*)sources[0].getOrCreateFirstRange();
-		if (!range) return ERROR_INSUFFICIENT_RAM;
+		if (!range) {
+			return ERROR_INSUFFICIENT_RAM;
+		}
 
 		range->sampleHolder.startMSec = 0;
 		range->sampleHolder.endMSec = 0;
@@ -767,7 +791,9 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 
 	else if (!strcmp(tagName, "ringMod")) {
 		int32_t contents = storageManager.readTagOrAttributeValueInt();
-		if (contents == 1) synthMode = SYNTH_MODE_RINGMOD;
+		if (contents == 1) {
+			synthMode = SYNTH_MODE_RINGMOD;
+		}
 		storageManager.exitTag("ringMod");
 	}
 
@@ -860,7 +886,9 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 	else if (!strcmp(tagName, "modFXType")) {
 		bool result = setModFXType(
 		    stringToFXType(storageManager.readTagOrAttributeValue())); // This might not work if not enough RAM
-		if (!result) numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
+		if (!result) {
+			numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
+		}
 		storageManager.exitTag("modFXType");
 	}
 
@@ -870,7 +898,9 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 			if (!strcmp(tagName, "type")) {
 				bool result = setModFXType(
 				    stringToFXType(storageManager.readTagOrAttributeValue())); // This might not work if not enough RAM
-				if (!result) numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
+				if (!result) {
+					numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
+				}
 				storageManager.exitTag("type");
 			}
 			else if (!strcmp(tagName, "rate")) {
@@ -1115,11 +1145,15 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 	else {
 		int result = ModControllableAudio::readTagFromFile(tagName, paramManager, readAutomationUpToPos, song);
 		if (result == NO_ERROR) {}
-		else if (result != RESULT_TAG_UNUSED) return result;
+		else if (result != RESULT_TAG_UNUSED) {
+			return result;
+		}
 		else if (readTagFromFile(tagName)) {}
 		else {
 			result = storageManager.tryReadingFirmwareTagFromFile(tagName);
-			if (result && result != RESULT_TAG_UNUSED) return result;
+			if (result && result != RESULT_TAG_UNUSED) {
+				return result;
+			}
 			storageManager.exitTag();
 		}
 	}
@@ -1132,20 +1166,28 @@ void Sound::ensureKnobReferencesCorrectVolume(Knob* knob) {
 	int p = knob->paramDescriptor.getJustTheParam();
 
 	if (p == PARAM_GLOBAL_VOLUME_POST_REVERB_SEND || p == PARAM_GLOBAL_VOLUME_POST_FX || p == PARAM_LOCAL_VOLUME) {
-		if (knob->paramDescriptor.isJustAParam()) knob->paramDescriptor.setToHaveParamOnly(PARAM_GLOBAL_VOLUME_POST_FX);
-		else if (knob->paramDescriptor.getTopLevelSource() == PATCH_SOURCE_COMPRESSOR)
+		if (knob->paramDescriptor.isJustAParam()) {
+			knob->paramDescriptor.setToHaveParamOnly(PARAM_GLOBAL_VOLUME_POST_FX);
+		}
+		else if (knob->paramDescriptor.getTopLevelSource() == PATCH_SOURCE_COMPRESSOR) {
 			knob->paramDescriptor.changeParam(PARAM_GLOBAL_VOLUME_POST_REVERB_SEND);
-		else knob->paramDescriptor.changeParam(PARAM_LOCAL_VOLUME);
+		}
+		else {
+			knob->paramDescriptor.changeParam(PARAM_LOCAL_VOLUME);
+		}
 	}
 }
 
 // p=255 means we're just querying the source to see if it can be patched to anything
 uint8_t Sound::maySourcePatchToParam(uint8_t s, uint8_t p, ParamManager* paramManager) {
 
-	if (s == PATCH_SOURCE_NOTE && isDrum()) return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
+	if (s == PATCH_SOURCE_NOTE && isDrum()) {
+		return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
+	}
 
-	if (p != 255 && s != 255 && s >= FIRST_LOCAL_SOURCE && p >= FIRST_GLOBAL_PARAM)
+	if (p != 255 && s != 255 && s >= FIRST_LOCAL_SOURCE && p >= FIRST_GLOBAL_PARAM) {
 		return PATCH_CABLE_ACCEPTANCE_DISALLOWED; // Can't patch local source to global param
+	}
 
 	PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
 
@@ -1161,41 +1203,55 @@ uint8_t Sound::maySourcePatchToParam(uint8_t s, uint8_t p, ParamManager* paramMa
 		           : PATCH_CABLE_ACCEPTANCE_DISALLOWED;
 
 	case PARAM_LOCAL_OSC_A_PHASE_WIDTH:
-		if (getSynthMode() == SYNTH_MODE_FM) return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
+		if (getSynthMode() == SYNTH_MODE_FM) {
+			return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
+		}
 		//if (getSynthMode() == SYNTH_MODE_FM || (sources[0].oscType != OSC_TYPE_SQUARE && sources[0].oscType != OSC_TYPE_JUNO60_SUBOSC)) return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
 		break;
 	case PARAM_LOCAL_OSC_A_VOLUME:
-		if (getSynthMode() == SYNTH_MODE_RINGMOD) return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
+		if (getSynthMode() == SYNTH_MODE_RINGMOD) {
+			return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
+		}
 	case PARAM_LOCAL_OSC_A_PITCH_ADJUST:
 		return (isSourceActiveEverDisregardingMissingSample(0, paramManager)) ? PATCH_CABLE_ACCEPTANCE_ALLOWED
 		                                                                      : PATCH_CABLE_ACCEPTANCE_EDITABLE;
 
 	case PARAM_LOCAL_CARRIER_0_FEEDBACK:
-		if (synthMode != SYNTH_MODE_FM) return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
+		if (synthMode != SYNTH_MODE_FM) {
+			return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
+		}
 		return (isSourceActiveEver(0, paramManager)
 		        && patchedParams->params[PARAM_LOCAL_CARRIER_0_FEEDBACK].containsSomething(-2147483648))
 		           ? PATCH_CABLE_ACCEPTANCE_ALLOWED
 		           : PATCH_CABLE_ACCEPTANCE_EDITABLE;
 
 	case PARAM_LOCAL_OSC_B_PHASE_WIDTH:
-		if (getSynthMode() == SYNTH_MODE_FM) return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
+		if (getSynthMode() == SYNTH_MODE_FM) {
+			return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
+		}
 		//if (getSynthMode() == SYNTH_MODE_FM || (sources[1].oscType != OSC_TYPE_SQUARE && sources[1].oscType != OSC_TYPE_JUNO60_SUBOSC)) return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
 		break;
 	case PARAM_LOCAL_OSC_B_VOLUME:
-		if (getSynthMode() == SYNTH_MODE_RINGMOD) return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
+		if (getSynthMode() == SYNTH_MODE_RINGMOD) {
+			return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
+		}
 	case PARAM_LOCAL_OSC_B_PITCH_ADJUST:
 		return (isSourceActiveEverDisregardingMissingSample(1, paramManager)) ? PATCH_CABLE_ACCEPTANCE_ALLOWED
 		                                                                      : PATCH_CABLE_ACCEPTANCE_EDITABLE;
 
 	case PARAM_LOCAL_CARRIER_1_FEEDBACK:
-		if (synthMode != SYNTH_MODE_FM) return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
+		if (synthMode != SYNTH_MODE_FM) {
+			return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
+		}
 		return (isSourceActiveEver(1, paramManager)
 		        && patchedParams->params[PARAM_LOCAL_CARRIER_1_FEEDBACK].containsSomething(-2147483648))
 		           ? PATCH_CABLE_ACCEPTANCE_ALLOWED
 		           : PATCH_CABLE_ACCEPTANCE_EDITABLE;
 
 	case PARAM_LOCAL_NOISE_VOLUME:
-		if (synthMode == SYNTH_MODE_FM) return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
+		if (synthMode == SYNTH_MODE_FM) {
+			return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
+		}
 		return (patchedParams->params[PARAM_LOCAL_NOISE_VOLUME].containsSomething(-2147483648))
 		           ? PATCH_CABLE_ACCEPTANCE_ALLOWED
 		           : PATCH_CABLE_ACCEPTANCE_EDITABLE;
@@ -1205,23 +1261,31 @@ uint8_t Sound::maySourcePatchToParam(uint8_t s, uint8_t p, ParamManager* paramMa
 
 	case PARAM_LOCAL_LPF_FREQ:
 	case PARAM_LOCAL_LPF_RESONANCE:
-		if (synthMode == SYNTH_MODE_FM) return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
+		if (synthMode == SYNTH_MODE_FM) {
+			return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
+		}
 		break;
 
 	case PARAM_LOCAL_HPF_FREQ:
 	case PARAM_LOCAL_HPF_RESONANCE:
-		if (synthMode == SYNTH_MODE_FM) return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
+		if (synthMode == SYNTH_MODE_FM) {
+			return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
+		}
 		break;
 
 	case PARAM_LOCAL_MODULATOR_0_VOLUME:
 	case PARAM_LOCAL_MODULATOR_0_PITCH_ADJUST:
-		if (synthMode != SYNTH_MODE_FM) return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
+		if (synthMode != SYNTH_MODE_FM) {
+			return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
+		}
 		return (patchedParams->params[PARAM_LOCAL_MODULATOR_0_VOLUME].containsSomething(-2147483648))
 		           ? PATCH_CABLE_ACCEPTANCE_ALLOWED
 		           : PATCH_CABLE_ACCEPTANCE_EDITABLE;
 
 	case PARAM_LOCAL_MODULATOR_0_FEEDBACK:
-		if (synthMode != SYNTH_MODE_FM) return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
+		if (synthMode != SYNTH_MODE_FM) {
+			return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
+		}
 		return (patchedParams->params[PARAM_LOCAL_MODULATOR_0_VOLUME].containsSomething(-2147483648)
 		        && patchedParams->params[PARAM_LOCAL_MODULATOR_0_FEEDBACK].containsSomething(-2147483648))
 		           ? PATCH_CABLE_ACCEPTANCE_ALLOWED
@@ -1229,13 +1293,17 @@ uint8_t Sound::maySourcePatchToParam(uint8_t s, uint8_t p, ParamManager* paramMa
 
 	case PARAM_LOCAL_MODULATOR_1_VOLUME:
 	case PARAM_LOCAL_MODULATOR_1_PITCH_ADJUST:
-		if (synthMode != SYNTH_MODE_FM) return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
+		if (synthMode != SYNTH_MODE_FM) {
+			return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
+		}
 		return (patchedParams->params[PARAM_LOCAL_MODULATOR_1_VOLUME].containsSomething(-2147483648))
 		           ? PATCH_CABLE_ACCEPTANCE_ALLOWED
 		           : PATCH_CABLE_ACCEPTANCE_EDITABLE;
 
 	case PARAM_LOCAL_MODULATOR_1_FEEDBACK:
-		if (synthMode != SYNTH_MODE_FM) return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
+		if (synthMode != SYNTH_MODE_FM) {
+			return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
+		}
 		return (patchedParams->params[PARAM_LOCAL_MODULATOR_1_VOLUME].containsSomething(-2147483648)
 		        && patchedParams->params[PARAM_LOCAL_MODULATOR_1_FEEDBACK].containsSomething(-2147483648))
 		           ? PATCH_CABLE_ACCEPTANCE_ALLOWED
@@ -1250,12 +1318,15 @@ uint8_t Sound::maySourcePatchToParam(uint8_t s, uint8_t p, ParamManager* paramMa
 		return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
 
 	case PARAM_LOCAL_PITCH_ADJUST:
-		if (s == PATCH_SOURCE_X)
+		if (s == PATCH_SOURCE_X) {
 			return PATCH_CABLE_ACCEPTANCE_DISALLOWED; // No patching X to pitch. This happens automatically.
+		}
 		break;
 
 	case PARAM_GLOBAL_VOLUME_POST_REVERB_SEND: // Only the compressor can patch to here
-		if (s != PATCH_SOURCE_COMPRESSOR) return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
+		if (s != PATCH_SOURCE_COMPRESSOR) {
+			return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
+		}
 		break;
 
 		// In a perfect world, we'd only allow patching to LFO rates if the LFO as a source is itself patched somewhere usable
@@ -1272,11 +1343,18 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 
 	ModelStackWithSoundFlags* modelStackWithSoundFlags = modelStack->addSoundFlags();
 
-	if (synthMode == SYNTH_MODE_RINGMOD) goto allFine;
-	if (modelStackWithSoundFlags->checkSourceEverActive(0)) goto allFine;
-	if (modelStackWithSoundFlags->checkSourceEverActive(1)) goto allFine;
-	if (paramManager->getPatchedParamSet()->params[PARAM_LOCAL_NOISE_VOLUME].containsSomething(-2147483648))
+	if (synthMode == SYNTH_MODE_RINGMOD) {
 		goto allFine;
+	}
+	if (modelStackWithSoundFlags->checkSourceEverActive(0)) {
+		goto allFine;
+	}
+	if (modelStackWithSoundFlags->checkSourceEverActive(1)) {
+		goto allFine;
+	}
+	if (paramManager->getPatchedParamSet()->params[PARAM_LOCAL_NOISE_VOLUME].containsSomething(-2147483648)) {
+		goto allFine;
+	}
 
 	return;
 
@@ -1334,7 +1412,9 @@ justUnassign:
 
 					// Or if we'd already found one, have to just unassign this new one
 					else {
-						if (ALPHA_OR_BETA_VERSION) AudioEngine::activeVoices.checkVoiceExists(thisVoice, this, "E198");
+						if (ALPHA_OR_BETA_VERSION) {
+							AudioEngine::activeVoices.checkVoiceExists(thisVoice, this, "E198");
+						}
 						AudioEngine::unassignVoice(thisVoice, this, modelStack);
 						v--;
 						ends[1]--;
@@ -1350,7 +1430,9 @@ justUnassign:
 					if (thisVoice->envelopes[0].state != ENVELOPE_STAGE_FAST_RELEASE) {
 						bool stillGoing = thisVoice->doFastRelease();
 
-						if (!stillGoing) goto justUnassign;
+						if (!stillGoing) {
+							goto justUnassign;
+						}
 					}
 				}
 			}
@@ -1385,7 +1467,9 @@ justUnassign:
 
 		else {
 			newVoice = AudioEngine::solicitVoice(this);
-			if (!newVoice) return; // Should basically never happen
+			if (!newVoice) {
+				return; // Should basically never happen
+			}
 			numVoicesAssigned++;
 			reassessRenderSkippingStatus(
 			    modelStack); // Since we potentially just changed numVoicesAssigned from 0 to 1.
@@ -1393,7 +1477,9 @@ justUnassign:
 			newVoice->randomizeOscPhases(this);
 		}
 
-		if (sideChainSendLevel != 0) AudioEngine::registerSideChainHit(sideChainSendLevel);
+		if (sideChainSendLevel != 0) {
+			AudioEngine::registerSideChainHit(sideChainSendLevel);
+		}
 
 		ModelStackWithVoice* modelStackWithVoice = modelStack->addVoice(newVoice);
 
@@ -1422,9 +1508,10 @@ void Sound::allNotesOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBa
 	arpeggiator->reset();
 
 #if ALPHA_OR_BETA_VERSION
-	if (!modelStack->paramManager)
+	if (!modelStack->paramManager) {
 		numericDriver.freezeWithError(
 		    "E403"); // Previously we were allowed to receive a NULL paramManager, then would just crudely do an unassignAllVoices(). But I'm pretty sure this doesn't exist anymore?
+	}
 #endif
 
 	ModelStackWithSoundFlags* modelStackWithSoundFlags = modelStack->addSoundFlags();
@@ -1434,7 +1521,9 @@ void Sound::allNotesOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBa
 
 // noteCode = -32768 (default) means stop *any* voice, regardless of noteCode
 void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int noteCode) {
-	if (!numVoicesAssigned) return;
+	if (!numVoicesAssigned) {
+		return;
+	}
 
 	int ends[2];
 	AudioEngine::activeVoices.getRangeForSound(this, ends);
@@ -1481,7 +1570,9 @@ void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int not
 						return;
 					}
 				}
-				else goto justSwitchOff;
+				else {
+					goto justSwitchOff;
+				}
 			}
 
 			else {
@@ -1497,16 +1588,21 @@ bool Sound::allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardS
 
 	// If arp on, then definitely yes
 	ArpeggiatorSettings* arpSettings = getArpSettings((InstrumentClip*)modelStack->getTimelineCounterAllowNull());
-	if (arpSettings && arpSettings->mode) return true;
+	if (arpSettings && arpSettings->mode) {
+		return true;
+	}
 
 	// If no sustain ever, we definitely can't have tails
-	if (!envelopeHasSustainEver(0, (ParamManagerForTimeline*)modelStack->paramManager)) return false;
+	if (!envelopeHasSustainEver(0, (ParamManagerForTimeline*)modelStack->paramManager)) {
+		return false;
+	}
 
 	// After that if not subtractive (so no samples) or there's some noise, we definitely can have tails
 	if (synthMode != SYNTH_MODE_SUBTRACTIVE
 	    || modelStack->paramManager->getPatchedParamSet()->params[PARAM_LOCAL_NOISE_VOLUME].containsSomething(
-	        -2147483648))
+	        -2147483648)) {
 		return true;
+	}
 
 	// If we still don't know, just check there's at least one active oscillator that isn't a one-shot sample without a loop-end point
 	bool anyActiveSources = false;
@@ -1527,7 +1623,9 @@ bool Sound::allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardS
 
 int32_t Sound::hasAnyTimeStretchSyncing(ParamManagerForTimeline* paramManager, bool getSampleLength, int note) {
 
-	if (synthMode == SYNTH_MODE_FM) return 0;
+	if (synthMode == SYNTH_MODE_FM) {
+		return 0;
+	}
 
 	for (int s = 0; s < NUM_SOURCES; s++) {
 
@@ -1548,23 +1646,33 @@ int32_t Sound::hasAnyTimeStretchSyncing(ParamManagerForTimeline* paramManager, b
 // Returns sample length in samples
 int32_t Sound::hasCutOrLoopModeSamples(ParamManagerForTimeline* paramManager, int note, bool* anyLooping) {
 
-	if (synthMode == SYNTH_MODE_FM) return 0;
+	if (synthMode == SYNTH_MODE_FM) {
+		return 0;
+	}
 
-	if (isNoiseActiveEver(paramManager)) return 0;
+	if (isNoiseActiveEver(paramManager)) {
+		return 0;
+	}
 
 	int32_t maxLength = 0;
-	if (anyLooping) *anyLooping = false;
+	if (anyLooping) {
+		*anyLooping = false;
+	}
 
 	for (int s = 0; s < NUM_SOURCES; s++) {
 		bool sourceEverActive = s ? isSourceActiveEver(1, paramManager) : isSourceActiveEver(0, paramManager);
-		if (!sourceEverActive) continue;
+		if (!sourceEverActive) {
+			continue;
+		}
 
 		if (sources[s].oscType != OSC_TYPE_SAMPLE) {
 			return 0;
 		}
 		else if (sources[s].repeatMode == SAMPLE_REPEAT_CUT || sources[s].repeatMode == SAMPLE_REPEAT_LOOP) {
 
-			if (anyLooping && sources[s].repeatMode == SAMPLE_REPEAT_LOOP) *anyLooping = true;
+			if (anyLooping && sources[s].repeatMode == SAMPLE_REPEAT_LOOP) {
+				*anyLooping = true;
+			}
 			int32_t length = sources[s].getLengthInSamplesAtSystemSampleRate(note);
 
 			// TODO: need a bit here to take into account the fact that the note pitch may well have lengthened or shortened the sample
@@ -1578,13 +1686,19 @@ int32_t Sound::hasCutOrLoopModeSamples(ParamManagerForTimeline* paramManager, in
 
 bool Sound::hasCutModeSamples(ParamManagerForTimeline* paramManager) {
 
-	if (synthMode == SYNTH_MODE_FM) return false;
+	if (synthMode == SYNTH_MODE_FM) {
+		return false;
+	}
 
-	if (isNoiseActiveEver(paramManager)) return false;
+	if (isNoiseActiveEver(paramManager)) {
+		return false;
+	}
 
 	for (int s = 0; s < NUM_SOURCES; s++) {
 		bool sourceEverActive = s ? isSourceActiveEver(1, paramManager) : isSourceActiveEver(0, paramManager);
-		if (!sourceEverActive) continue;
+		if (!sourceEverActive) {
+			continue;
+		}
 
 		if (sources[s].oscType != OSC_TYPE_SAMPLE || !sources[s].hasAtLeastOneAudioFileLoaded()
 		    || sources[s].repeatMode != SAMPLE_REPEAT_CUT) {
@@ -1599,22 +1713,29 @@ bool Sound::allowsVeryLateNoteStart(InstrumentClip* clip, ParamManagerForTimelin
 
 	// If arpeggiator, we can always start very late
 	ArpeggiatorSettings* arpSettings = getArpSettings(clip);
-	if (arpSettings && arpSettings->mode) return true;
+	if (arpSettings && arpSettings->mode) {
+		return true;
+	}
 
-	if (synthMode == SYNTH_MODE_FM) return false;
+	if (synthMode == SYNTH_MODE_FM) {
+		return false;
+	}
 
 	// Basically, if any wave-based oscillators active, or one-shot samples, that means no not allowed
 	for (int s = 0; s < NUM_SOURCES; s++) {
 
 		bool sourceEverActive = s ? isSourceActiveEver(1, paramManager) : isSourceActiveEver(0, paramManager);
-		if (!sourceEverActive) continue;
+		if (!sourceEverActive) {
+			continue;
+		}
 
 		switch (sources[s].oscType) {
 
 		// Sample - generally ok, but not if one-shot
 		case OSC_TYPE_SAMPLE:
-			if (sources[s].repeatMode == SAMPLE_REPEAT_ONCE || !sources[s].hasAtLeastOneAudioFileLoaded())
+			if (sources[s].repeatMode == SAMPLE_REPEAT_ONCE || !sources[s].hasAtLeastOneAudioFileLoaded()) {
 				return false; // Not quite sure why the must-be-loaded requirement - maybe something would break if it tried to do a late start otherwise?
+			}
 			break;
 
 		// Input - ok
@@ -1657,23 +1778,35 @@ bool Sound::isNoiseActiveEver(ParamManagerForTimeline* paramManager) {
 }
 
 bool Sound::renderingOscillatorSyncCurrently(ParamManagerForTimeline* paramManager) {
-	if (!oscillatorSync) return false;
-	if (synthMode == SYNTH_MODE_FM) return false;
+	if (!oscillatorSync) {
+		return false;
+	}
+	if (synthMode == SYNTH_MODE_FM) {
+		return false;
+	}
 	return (getSmoothedPatchedParamValue(PARAM_LOCAL_OSC_B_VOLUME, paramManager) != -2147483648
 	        || synthMode == SYNTH_MODE_RINGMOD);
 }
 
 bool Sound::renderingOscillatorSyncEver(ParamManager* paramManager) {
-	if (!oscillatorSync) return false;
-	if (synthMode == SYNTH_MODE_FM) return false;
+	if (!oscillatorSync) {
+		return false;
+	}
+	if (synthMode == SYNTH_MODE_FM) {
+		return false;
+	}
 	return (paramManager->getPatchedParamSet()->params[PARAM_LOCAL_OSC_B_VOLUME].containsSomething(-2147483648)
 	        || synthMode == SYNTH_MODE_RINGMOD);
 }
 
 void Sound::sampleZoneChanged(int markerType, int s, ModelStackWithSoundFlags* modelStack) {
-	if (!numVoicesAssigned) return;
+	if (!numVoicesAssigned) {
+		return;
+	}
 
-	if (sources[s].sampleControls.reversed) markerType = NUM_MARKER_TYPES - 1 - markerType;
+	if (sources[s].sampleControls.reversed) {
+		markerType = NUM_MARKER_TYPES - 1 - markerType;
+	}
 
 	int ends[2];
 	AudioEngine::activeVoices.getRangeForSound(this, ends);
@@ -1733,7 +1866,9 @@ doCutModFXTail:
 					}
 
 					// Ok, we wanted to check that before manually cutting the MODFX tail, to save time, but that's still an option...
-					if (shouldJustCutModFX) goto doCutModFXTail;
+					if (shouldJustCutModFX) {
+						goto doCutModFXTail;
+					}
 				}
 			}
 			else {
@@ -1741,7 +1876,9 @@ yupStartSkipping:
 				startSkippingRendering(modelStack);
 			}
 		}
-		else stopSkippingRendering(arpSettings);
+		else {
+			stopSkippingRendering(arpSettings);
+		}
 	}
 
 	else {
@@ -1772,7 +1909,9 @@ void Sound::getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** p
 void Sound::notifyValueChangeViaLPF(int p, bool shouldDoParamLPF, ModelStackWithThreeMainThings const* modelStack,
                                     int32_t oldValue, int32_t newValue, bool fromAutomation) {
 
-	if (skippingRendering) goto dontDoLPF;
+	if (skippingRendering) {
+		goto dontDoLPF;
+	}
 
 	if (!shouldDoParamLPF) {
 		// If param LPF was active for this param, stop it
@@ -1820,7 +1959,9 @@ dontDoLPF:
 }
 
 void Sound::doParamLPF(int numSamples, ModelStackWithSoundFlags* modelStack) {
-	if (paramLPF.p == PARAM_LPF_OFF) return;
+	if (paramLPF.p == PARAM_LPF_OFF) {
+		return;
+	}
 
 	int32_t oldValue = paramLPF.currentValue;
 
@@ -1844,9 +1985,10 @@ void Sound::stopParamLPF(ModelStackWithSoundFlags* modelStack) {
 		int p = paramLPF.p;
 		paramLPF.p =
 		    PARAM_LPF_OFF; // Must do this first, because the below call will involve the Sound calling us back for the current value
-		if (modelStack)
+		if (modelStack) {
 			patchedParamPresetValueChanged(p, modelStack, paramLPF.currentValue,
 			                               modelStack->paramManager->getPatchedParamSet()->getValue(p));
+		}
 	}
 }
 
@@ -1854,7 +1996,9 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
                    int32_t* reverbBuffer, int32_t sideChainHitPending, int32_t reverbAmountAdjust,
                    bool shouldLimitDelayFeedback, int32_t pitchAdjust) {
 
-	if (skippingRendering) return;
+	if (skippingRendering) {
+		return;
+	}
 
 	ParamManagerForTimeline* paramManager = (ParamManagerForTimeline*)modelStack->paramManager;
 
@@ -1881,7 +2025,9 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 	}
 
 	// Perform the actual patching
-	if (sourcesChanged) patcher.performPatching(sourcesChanged, this, paramManager);
+	if (sourcesChanged) {
+		patcher.performPatching(sourcesChanged, this, paramManager);
+	}
 
 	// Setup some reverb-related stuff
 	int32_t reverbSendAmount =
@@ -2034,7 +2180,9 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 		}
 	}
 	else {
-		if (!delayWorkingState.doDelay) reassessRenderSkippingStatus(modelStackWithSoundFlags);
+		if (!delayWorkingState.doDelay) {
+			reassessRenderSkippingStatus(modelStackWithSoundFlags);
+		}
 
 		if (!renderingInStereo) {
 			memset(&soundBuffer[numSamples], 0, numSamples * sizeof(int32_t));
@@ -2044,7 +2192,9 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 	int32_t postFXVolume = paramFinalValues[PARAM_GLOBAL_VOLUME_POST_FX - FIRST_GLOBAL_PARAM];
 	int32_t postReverbVolume = paramFinalValues[PARAM_GLOBAL_VOLUME_POST_REVERB_SEND - FIRST_GLOBAL_PARAM];
 
-	if (postReverbVolumeLastTime == -1) postReverbVolumeLastTime = postReverbVolume;
+	if (postReverbVolumeLastTime == -1) {
+		postReverbVolumeLastTime = postReverbVolume;
+	}
 
 	int32_t modFXDepth = paramFinalValues[PARAM_GLOBAL_MOD_FX_DEPTH - FIRST_GLOBAL_PARAM];
 	int32_t modFXRate = paramFinalValues[PARAM_GLOBAL_MOD_FX_RATE - FIRST_GLOBAL_PARAM];
@@ -2066,8 +2216,9 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 	whichExpressionSourcesChangedAtSynthLevel = 0;
 
 	// Unlike all the other possible reasons we might want to start skipping rendering, delay.repeatsUntilAbandon may have changed state just now.
-	if (!delay.repeatsUntilAbandon || startSkippingRenderingAtTime)
+	if (!delay.repeatsUntilAbandon || startSkippingRenderingAtTime) {
 		reassessRenderSkippingStatus(modelStackWithSoundFlags);
+	}
 
 	doParamLPF(numSamples, modelStackWithSoundFlags);
 }
@@ -2140,7 +2291,9 @@ void Sound::getArpBackInTimeAfterSkippingRendering(ArpeggiatorSettings* arpSetti
 }
 
 void Sound::unassignAllVoices() {
-	if (!numVoicesAssigned) return;
+	if (!numVoicesAssigned) {
+		return;
+	}
 
 	int ends[2];
 	AudioEngine::activeVoices.getRangeForSound(this, ends);
@@ -2154,15 +2307,19 @@ void Sound::unassignAllVoices() {
 	}
 
 	int numToDelete = ends[1] - ends[0];
-	if (numToDelete) AudioEngine::activeVoices.deleteAtIndex(ends[0], numToDelete);
+	if (numToDelete) {
+		AudioEngine::activeVoices.deleteAtIndex(ends[0], numToDelete);
+	}
 
 	if (ALPHA_OR_BETA_VERSION) {
-		if (numVoicesAssigned > 0)
+		if (numVoicesAssigned > 0) {
 			numericDriver.freezeWithError(
 			    "E070"); // ronronsen got error! https://forums.synthstrom.com/discussion/4090/e203-by-changing-a-drum-kit#latest
-		else if (numVoicesAssigned < 0)
+		}
+		else if (numVoicesAssigned < 0) {
 			numericDriver.freezeWithError(
 			    "E071"); // ronronsen got error! https://forums.synthstrom.com/discussion/4090/e203-by-changing-a-drum-kit#latest
+		}
 	}
 
 	// reassessRenderSkippingStatus(); // Nope, this will get called in voiceUnassigned(), which gets called for each voice we unassign above.
@@ -2232,8 +2389,9 @@ void Sound::confirmNumVoices(char const* error) {
 
 uint32_t Sound::getGlobalLFOPhaseIncrement() {
 	uint32_t phaseIncrement;
-	if (lfoGlobalSyncLevel == SYNC_LEVEL_NONE)
+	if (lfoGlobalSyncLevel == SYNC_LEVEL_NONE) {
 		phaseIncrement = paramFinalValues[PARAM_GLOBAL_LFO_FREQ - FIRST_GLOBAL_PARAM];
+	}
 	else {
 		phaseIncrement = (playbackHandler.getTimePerInternalTickInverse()) >> (SYNC_LEVEL_256TH - lfoGlobalSyncLevel);
 		switch (lfoGlobalSyncType) {
@@ -2255,17 +2413,23 @@ uint32_t Sound::getGlobalLFOPhaseIncrement() {
 
 void Sound::setLFOGlobalSyncType(SyncType newType) {
 	lfoGlobalSyncType = newType;
-	if (playbackHandler.isEitherClockActive()) resyncGlobalLFO();
+	if (playbackHandler.isEitherClockActive()) {
+		resyncGlobalLFO();
+	}
 }
 
 void Sound::setLFOGlobalSyncLevel(SyncLevel newLevel) {
 	lfoGlobalSyncLevel = newLevel;
-	if (playbackHandler.isEitherClockActive()) resyncGlobalLFO();
+	if (playbackHandler.isEitherClockActive()) {
+		resyncGlobalLFO();
+	}
 }
 
 void Sound::setLFOGlobalWave(uint8_t newWave) {
 	lfoGlobalWaveType = newWave;
-	if (playbackHandler.isEitherClockActive()) resyncGlobalLFO();
+	if (playbackHandler.isEitherClockActive()) {
+		resyncGlobalLFO();
+	}
 }
 
 // Only call this if playbackHandler.isEitherClockActive(), please
@@ -2275,16 +2439,21 @@ void Sound::resyncGlobalLFO() {
 		timeStartedSkippingRenderingLFO = AudioEngine::
 		    audioSampleTimer; // Resets the thing where the number of samples skipped is later converted into LFO phase increment
 
-		if (lfoGlobalWaveType == OSC_TYPE_SINE || lfoGlobalWaveType == OSC_TYPE_TRIANGLE)
+		if (lfoGlobalWaveType == OSC_TYPE_SINE || lfoGlobalWaveType == OSC_TYPE_TRIANGLE) {
 			globalLFO.phase = getLFOInitialPhaseForZero(lfoGlobalWaveType);
-		else globalLFO.phase = getLFOInitialPhaseForNegativeExtreme(lfoGlobalWaveType);
+		}
+		else {
+			globalLFO.phase = getLFOInitialPhaseForNegativeExtreme(lfoGlobalWaveType);
+		}
 
 		uint32_t timeSinceLastTick;
 
 		int64_t lastInternalTickDone = playbackHandler.getCurrentInternalTickCount(&timeSinceLastTick);
 
 		// If we're right at the first tick, no need to do anything else!
-		if (!lastInternalTickDone && !timeSinceLastTick) return;
+		if (!lastInternalTickDone && !timeSinceLastTick) {
+			return;
+		}
 
 		uint32_t numInternalTicksPerPeriod = 3 << (SYNC_LEVEL_256TH - lfoGlobalSyncLevel);
 		switch (lfoGlobalSyncType) {
@@ -2301,7 +2470,9 @@ void Sound::resyncGlobalLFO() {
 		uint32_t offsetTicks = (uint64_t)lastInternalTickDone % (uint16_t)numInternalTicksPerPeriod;
 
 		// If we're right at a bar (or something), no need to do anyting else
-		if (!timeSinceLastTick && !offsetTicks) return;
+		if (!timeSinceLastTick && !offsetTicks) {
+			return;
+		}
 
 		uint32_t timePerInternalTick = playbackHandler.getTimePerInternalTick();
 		uint32_t timePerPeriod = numInternalTicksPerPeriod * timePerInternalTick;
@@ -2328,7 +2499,9 @@ bool Sound::learnKnob(MIDIDevice* fromDevice, ParamDescriptor paramDescriptor, u
 
 		modKnobs[modKnobMode][whichKnob].paramDescriptor = paramDescriptor;
 
-		if (overwroteExistingKnob) ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(song);
+		if (overwroteExistingKnob) {
+			ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(song);
+		}
 
 		return true;
 	}
@@ -2347,9 +2520,13 @@ void Sound::ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(Song* song) {
 	                                           GREATER_OR_EQUAL); // Search by first word only.
 
 	while (true) {
-		if (i >= song->backedUpParamManagers.getNumElements()) break;
+		if (i >= song->backedUpParamManagers.getNumElements()) {
+			break;
+		}
 		BackedUpParamManager* backedUp = (BackedUpParamManager*)song->backedUpParamManagers.getElementAddress(i);
-		if (backedUp->modControllable != this) break;
+		if (backedUp->modControllable != this) {
+			break;
+		}
 
 		if (backedUp->clip) {
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -2400,17 +2577,23 @@ void Sound::ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(ModelStackWit
 void Sound::ensureParamPresetValueWithoutKnobIsZero(ModelStackWithAutoParam* modelStack) {
 
 	// If the param is automated, we'd better not try setting it to 0 - the user probably wants the automation
-	if (modelStack->autoParam->isAutomated()) return;
+	if (modelStack->autoParam->isAutomated()) {
+		return;
+	}
 
 	for (int k = 0; k < NUM_MOD_BUTTONS; k++) {
 		for (int w = 0; w < NUM_PHYSICAL_MOD_KNOBS; w++) {
-			if (modKnobs[k][w].paramDescriptor.isSetToParamWithNoSource(modelStack->paramId)) return;
+			if (modKnobs[k][w].paramDescriptor.isSetToParamWithNoSource(modelStack->paramId)) {
+				return;
+			}
 		}
 	}
 
 	for (int k = 0; k < midiKnobArray.getNumElements(); k++) {
 		MIDIKnob* knob = midiKnobArray.getElement(k);
-		if (knob->paramDescriptor.isSetToParamWithNoSource(modelStack->paramId)) return;
+		if (knob->paramDescriptor.isSetToParamWithNoSource(modelStack->paramId)) {
+			return;
+		}
 	}
 
 	// If we're here, no knobs were assigned to this param, so make it 0
@@ -2422,17 +2605,23 @@ void Sound::ensureParamPresetValueWithoutKnobIsZeroWithMinimalDetails(ParamManag
 	AutoParam* param = &paramManager->getPatchedParamSet()->params[p];
 
 	// If the param is automated, we'd better not try setting it to 0 - the user probably wants the automation
-	if (param->isAutomated()) return;
+	if (param->isAutomated()) {
+		return;
+	}
 
 	for (int k = 0; k < NUM_MOD_BUTTONS; k++) {
 		for (int w = 0; w < NUM_PHYSICAL_MOD_KNOBS; w++) {
-			if (modKnobs[k][w].paramDescriptor.isSetToParamWithNoSource(p)) return;
+			if (modKnobs[k][w].paramDescriptor.isSetToParamWithNoSource(p)) {
+				return;
+			}
 		}
 	}
 
 	for (int k = 0; k < midiKnobArray.getNumElements(); k++) {
 		MIDIKnob* knob = midiKnobArray.getElement(k);
-		if (knob->paramDescriptor.isSetToParamWithNoSource(p)) return;
+		if (knob->paramDescriptor.isSetToParamWithNoSource(p)) {
+			return;
+		}
 	}
 
 	// If we're here, no knobs were assigned to this param, so make it 0
@@ -2548,7 +2737,9 @@ void Sound::recalculateModulatorTransposer(uint8_t m, ModelStackWithSoundFlags* 
 // Can handle NULL modelStack, which you'd only want to do if no Voices active
 void Sound::recalculateAllVoicePhaseIncrements(ModelStackWithSoundFlags* modelStack) {
 
-	if (!numVoicesAssigned || !modelStack) return; // These two "should" always be false in tandem...
+	if (!numVoicesAssigned || !modelStack) {
+		return; // These two "should" always be false in tandem...
+	}
 
 	int ends[2];
 	AudioEngine::activeVoices.getRangeForSound(this, ends);
@@ -2657,7 +2848,9 @@ void Sound::readParamsFromFile(ParamManagerForTimeline* paramManager, int32_t re
 
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 		if (readParamTagFromFile(tagName, paramManager, readAutomationUpToPos)) {}
-		else storageManager.exitTag(tagName);
+		else {
+			storageManager.exitTag(tagName);
+		}
 	}
 }
 
@@ -2677,8 +2870,12 @@ int Sound::readFromFile(ModelStackWithModControllable* modelStack, int32_t readA
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 		int result = readTagFromFile(tagName, &paramManager, readAutomationUpToPos, arpSettings, modelStack->song);
 		if (result == NO_ERROR) {}
-		else if (result != RESULT_TAG_UNUSED) return result;
-		else storageManager.exitTag(tagName);
+		else if (result != RESULT_TAG_UNUSED) {
+			return result;
+		}
+		else {
+			storageManager.exitTag(tagName);
+		}
 	}
 
 	// If we actually got a paramManager, we can do resonance compensation on it
@@ -2708,7 +2905,9 @@ int Sound::readFromFile(ModelStackWithModControllable* modelStack, int32_t readA
 int Sound::createParamManagerForLoading(ParamManagerForTimeline* paramManager) {
 
 	int error = paramManager->setupWithPatching();
-	if (error) return error;
+	if (error) {
+		return error;
+	}
 
 	initParams(paramManager);
 
@@ -2721,7 +2920,9 @@ void Sound::compensateVolumeForResonance(ModelStackWithThreeMainThings* modelSta
 
 	// If it was an old-firmware file, we need to compensate for resonance
 	if (storageManager.firmwareVersionOfFileBeingRead < FIRMWARE_1P2P0 && synthMode != SYNTH_MODE_FM) {
-		if (modelStack->paramManager->resonanceBackwardsCompatibilityProcessed) return;
+		if (modelStack->paramManager->resonanceBackwardsCompatibilityProcessed) {
+			return;
+		}
 
 		modelStack->paramManager->resonanceBackwardsCompatibilityProcessed = true;
 
@@ -2815,8 +3016,9 @@ int Sound::readSourceFromFile(int s, ParamManagerForTimeline* paramManager, int3
 			storageManager.exitTag("timeStretchAmount");
 		}
 		else if (!strcmp(tagName, "linearInterpolation")) {
-			if (storageManager.readTagOrAttributeValueInt())
+			if (storageManager.readTagOrAttributeValueInt()) {
 				source->sampleControls.interpolationMode = INTERPOLATION_MODE_LINEAR;
+			}
 			storageManager.exitTag("linearInterpolation");
 		}
 		else if (!strcmp(tagName, "retrigPhase")) {
@@ -2826,7 +3028,9 @@ int Sound::readSourceFromFile(int s, ParamManagerForTimeline* paramManager, int3
 		else if (!strcmp(tagName, "fileName")) {
 
 			MultiRange* range = source->getOrCreateFirstRange();
-			if (!range) return ERROR_INSUFFICIENT_RAM;
+			if (!range) {
+				return ERROR_INSUFFICIENT_RAM;
+			}
 
 			storageManager.readTagOrAttributeValueString(&range->getAudioFileHolder()->filePath);
 
@@ -2835,7 +3039,9 @@ int Sound::readSourceFromFile(int s, ParamManagerForTimeline* paramManager, int3
 		else if (!strcmp(tagName, "zone")) {
 
 			MultisampleRange* range = (MultisampleRange*)source->getOrCreateFirstRange();
-			if (!range) return ERROR_INSUFFICIENT_RAM;
+			if (!range) {
+				return ERROR_INSUFFICIENT_RAM;
+			}
 
 			range->sampleHolder.startMSec = 0;
 			range->sampleHolder.endMSec = 0;
@@ -2878,7 +3084,9 @@ int Sound::readSourceFromFile(int s, ParamManagerForTimeline* paramManager, int3
 					storageManager.exitTag("endLoopPos");
 				}
 
-				else storageManager.exitTag(tagName);
+				else {
+					storageManager.exitTag(tagName);
+				}
 			}
 			storageManager.exitTag("zone");
 		}
@@ -2933,7 +3141,9 @@ int Sound::readSourceFromFile(int s, ParamManagerForTimeline* paramManager, int3
 										    storageManager.readTagOrAttributeValueInt();
 										storageManager.exitTag("endLoopPos");
 									}
-									else storageManager.exitTag(tagName);
+									else {
+										storageManager.exitTag(tagName);
+									}
 								}
 								storageManager.exitTag("zone");
 							}
@@ -2946,7 +3156,9 @@ int Sound::readSourceFromFile(int s, ParamManagerForTimeline* paramManager, int3
 								((SampleHolderForVoice*)holder)->cents = storageManager.readTagOrAttributeValueInt();
 								storageManager.exitTag("cents");
 							}
-							else goto justExitTag;
+							else {
+								goto justExitTag;
+							}
 						}
 						else {
 justExitTag:
@@ -2978,7 +3190,9 @@ gotError:
 
 					storageManager.exitTag();
 				}
-				else storageManager.exitTag();
+				else {
+					storageManager.exitTag();
+				}
 			}
 
 			storageManager.exitTag();
@@ -3008,8 +3222,9 @@ void Sound::writeSourceToFile(int s, char const* tagName) {
 		storageManager.writeAttribute("reversed", source->sampleControls.reversed);
 		storageManager.writeAttribute("timeStretchEnable", source->sampleControls.pitchAndSpeedAreIndependent);
 		storageManager.writeAttribute("timeStretchAmount", source->timeStretchAmount);
-		if (source->sampleControls.interpolationMode == INTERPOLATION_MODE_LINEAR)
+		if (source->sampleControls.interpolationMode == INTERPOLATION_MODE_LINEAR) {
 			storageManager.writeAttribute("linearInterpolation", 1);
+		}
 
 		int numRanges = source->ranges.getNumElements();
 
@@ -3032,22 +3247,29 @@ void Sound::writeSourceToFile(int s, char const* tagName) {
 			storageManager.writeAttribute("fileName", range->sampleHolder.audioFile
 			                                              ? range->sampleHolder.audioFile->filePath.get()
 			                                              : range->sampleHolder.filePath.get());
-			if (range->sampleHolder.transpose)
+			if (range->sampleHolder.transpose) {
 				storageManager.writeAttribute("transpose", range->sampleHolder.transpose);
-			if (range->sampleHolder.cents) storageManager.writeAttribute("cents", range->sampleHolder.cents);
+			}
+			if (range->sampleHolder.cents) {
+				storageManager.writeAttribute("cents", range->sampleHolder.cents);
+			}
 
 			storageManager.writeOpeningTagEnd();
 
 			storageManager.writeOpeningTagBeginning("zone");
 			storageManager.writeAttribute("startSamplePos", range->sampleHolder.startPos);
 			storageManager.writeAttribute("endSamplePos", range->sampleHolder.endPos);
-			if (range->sampleHolder.loopStartPos)
+			if (range->sampleHolder.loopStartPos) {
 				storageManager.writeAttribute("startLoopPos", range->sampleHolder.loopStartPos);
-			if (range->sampleHolder.loopEndPos)
+			}
+			if (range->sampleHolder.loopEndPos) {
 				storageManager.writeAttribute("endLoopPos", range->sampleHolder.loopEndPos);
+			}
 			storageManager.closeTag();
 
-			if (numRanges > 1) storageManager.writeClosingTag("sampleRange");
+			if (numRanges > 1) {
+				storageManager.writeClosingTag("sampleRange");
+			}
 		}
 
 		if (numRanges > 1) {
@@ -3312,7 +3534,9 @@ bool Sound::readParamTagFromFile(char const* tagName, ParamManagerForTimeline* p
 	}
 	else if (ModControllableAudio::readParamTagFromFile(tagName, paramManager, readAutomationUpToPos)) {}
 
-	else return false;
+	else {
+		return false;
+	}
 
 	return true;
 }
@@ -3402,11 +3626,15 @@ void Sound::writeToFile(bool savingSong, ParamManager* paramManager, Arpeggiator
 	storageManager.writeAttribute("voicePriority", voicePriority);
 
 	// Send level
-	if (sideChainSendLevel != 0) storageManager.writeAttribute("sideChainSend", sideChainSendLevel);
+	if (sideChainSendLevel != 0) {
+		storageManager.writeAttribute("sideChainSend", sideChainSendLevel);
+	}
 
 	storageManager.writeAttribute("mode", (char*)synthModeToString(synthMode));
 
-	if (transpose != 0) storageManager.writeAttribute("transpose", transpose);
+	if (transpose != 0) {
+		storageManager.writeAttribute("transpose", transpose);
+	}
 
 	ModControllableAudio::writeAttributesToFile();
 
@@ -3501,7 +3729,9 @@ int16_t Sound::getMaxOscTranspose(InstrumentClip* clip) {
 		maxRawOscTranspose = getMax(maxRawOscTranspose, (int)modulatorTranspose[1]);
 	}
 
-	if (maxRawOscTranspose == -32768) maxRawOscTranspose = 0;
+	if (maxRawOscTranspose == -32768) {
+		maxRawOscTranspose = 0;
+	}
 
 	ArpeggiatorSettings* arpSettings = getArpSettings(clip);
 
@@ -3526,7 +3756,9 @@ int16_t Sound::getMinOscTranspose() {
 		minRawOscTranspose = getMin(minRawOscTranspose, (int)modulatorTranspose[1]);
 	}
 
-	if (minRawOscTranspose == 32767) minRawOscTranspose = 0;
+	if (minRawOscTranspose == 32767) {
+		minRawOscTranspose = 0;
+	}
 
 	return minRawOscTranspose + transpose;
 }
@@ -3537,7 +3769,9 @@ int Sound::loadAllAudioFiles(bool mayActuallyReadFiles) {
 	for (int s = 0; s < NUM_SOURCES; s++) {
 		if (sources[s].oscType == OSC_TYPE_SAMPLE || sources[s].oscType == OSC_TYPE_WAVETABLE) {
 			int error = sources[s].loadAllSamples(mayActuallyReadFiles);
-			if (error) return error;
+			if (error) {
+				return error;
+			}
 		}
 	}
 
@@ -3642,7 +3876,9 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 			switchDelayPingPong();
 			return true;
 		}
-		else return false;
+		else {
+			return false;
+		}
 	}
 
 	// Switch delay analog sim
@@ -3651,7 +3887,9 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 			switchDelayAnalog();
 			return true;
 		}
-		else return false;
+		else {
+			return false;
+		}
 	}
 
 	// Switch LPF mode
@@ -3660,12 +3898,16 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 			switchLPFMode();
 			return true;
 		}
-		else return false;
+		else {
+			return false;
+		}
 	}
 
 	// Cycle through reverb presets
 	else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(PARAM_GLOBAL_REVERB_AMOUNT)) {
-		if (on) view.cycleThroughReverbPresets();
+		if (on) {
+			view.cycleThroughReverbPresets();
+		}
 		return false;
 	}
 
@@ -3678,7 +3920,9 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 				insideWorldTickMagnitude =
 				    (currentSong->insideWorldTickMagnitude + currentSong->insideWorldTickMagnitudeOffsetFromBPM);
 			}
-			else insideWorldTickMagnitude = FlashStorage::defaultMagnitude;
+			else {
+				insideWorldTickMagnitude = FlashStorage::defaultMagnitude;
+			}
 
 			if (compressor.syncLevel == (SyncLevel)(7 - insideWorldTickMagnitude)) {
 				compressor.syncLevel = (SyncLevel)(9 - insideWorldTickMagnitude);
@@ -3690,7 +3934,9 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 			}
 			return true;
 		}
-		else return false;
+		else {
+			return false;
+		}
 	}
 
 	// Switching between LPF, HPF and EQ
@@ -3741,7 +3987,9 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 
 // modelStack may be NULL
 void Sound::fastReleaseAllVoices(ModelStackWithSoundFlags* modelStack) {
-	if (!numVoicesAssigned) return;
+	if (!numVoicesAssigned) {
+		return;
+	}
 
 	int ends[2];
 	AudioEngine::activeVoices.getRangeForSound(this, ends);
@@ -3799,16 +4047,23 @@ void Sound::deleteMultiRange(int s, int r) {
 bool Sound::renderingVoicesInStereo(ModelStackWithSoundFlags* modelStack) {
 
 	// audioDriver deciding we're rendering in mono overrides everything
-	if (!AudioEngine::renderInStereo) return false;
+	if (!AudioEngine::renderInStereo) {
+		return false;
+	}
 
-	if (!numVoicesAssigned) return false;
+	if (!numVoicesAssigned) {
+		return false;
+	}
 
 	// Stereo live-input
 	if ((sources[0].oscType == OSC_TYPE_INPUT_STEREO || sources[1].oscType == OSC_TYPE_INPUT_STEREO)
-	    && (AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn))
+	    && (AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn)) {
 		return true;
+	}
 
-	if (modelStack->paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(PARAM_LOCAL_PAN)) return true;
+	if (modelStack->paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(PARAM_LOCAL_PAN)) {
+		return true;
+	}
 
 	unsigned int mustExamineSourceInEachVoice = 0;
 
@@ -3816,7 +4071,9 @@ bool Sound::renderingVoicesInStereo(ModelStackWithSoundFlags* modelStack) {
 	for (int s = 0; s < NUM_SOURCES; s++) {
 		Source* source = &sources[s];
 
-		if (!modelStack->checkSourceEverActive(s)) continue;
+		if (!modelStack->checkSourceEverActive(s)) {
+			continue;
+		}
 
 		if (source->oscType == OSC_TYPE_SAMPLE) { // Just SAMPLE, because WAVETABLEs can't be stereo.
 
@@ -3832,7 +4089,9 @@ bool Sound::renderingVoicesInStereo(ModelStackWithSoundFlags* modelStack) {
 				MultiRange* range = source->ranges.getElement(0);
 				AudioFileHolder* holder = range->getAudioFileHolder();
 
-				if (holder->audioFile && holder->audioFile->numChannels == 2) return true;
+				if (holder->audioFile && holder->audioFile->numChannels == 2) {
+					return true;
+				}
 			}
 		}
 	}
@@ -3848,7 +4107,9 @@ bool Sound::renderingVoicesInStereo(ModelStackWithSoundFlags* modelStack) {
 			for (int s = 0; s < NUM_SOURCES; s++) {
 				if (mustExamineSourceInEachVoice & (1 << s)) {
 					AudioFileHolder* holder = thisVoice->guides[s].audioFileHolder;
-					if (holder && holder->audioFile && holder->audioFile->numChannels == 2) return true;
+					if (holder && holder->audioFile && holder->audioFile->numChannels == 2) {
+						return true;
+					}
 				}
 			}
 		}
@@ -4003,15 +4264,21 @@ char const* Sound::paramToString(uint8_t param) {
 
 int Sound::stringToParam(char const* string) {
 	for (int p = 0; p < NUM_PARAMS; p++) {
-		if (!strcmp(string, Sound::paramToString(p))) return p;
+		if (!strcmp(string, Sound::paramToString(p))) {
+			return p;
+		}
 	}
 
 	for (int p = PARAM_UNPATCHED_SECTION + NUM_SHARED_UNPATCHED_PARAMS;
 	     p < PARAM_UNPATCHED_SECTION + MAX_NUM_UNPATCHED_PARAM_FOR_SOUNDS; p++) {
-		if (!strcmp(string, Sound::paramToString(p))) return p;
+		if (!strcmp(string, Sound::paramToString(p))) {
+			return p;
+		}
 	}
 
-	if (!strcmp(string, "range")) return PARAM_PLACEHOLDER_RANGE; // For compatibility reading files from before V3.2.0
+	if (!strcmp(string, "range")) {
+		return PARAM_PLACEHOLDER_RANGE; // For compatibility reading files from before V3.2.0
+	}
 
 	return ModControllableAudio::stringToParam(string);
 }
