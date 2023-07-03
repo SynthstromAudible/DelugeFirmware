@@ -276,6 +276,8 @@
 #define selectedDrumColourGreen 30
 #define selectedDrumColourBlue 10
 
+#define USE_DEFAULT_VELOCITY 255
+
 #define MAX_SEQUENCE_LENGTH 1610612736 // The biggest multiple of 3 which can fit in a signed 32-bit int
 #define noteOnLatenessAllowed 2205     // In audio samples. That's 50mS. Multiply mS by 44.1
 
@@ -357,6 +359,7 @@
 
 // Exp params have different sources added together, converted to an exponential scale, then multiplied by the neutral value
 
+// Local linear params begin
 #define PARAM_LOCAL_OSC_A_VOLUME 0
 #define PARAM_LOCAL_OSC_B_VOLUME 1
 #define PARAM_LOCAL_VOLUME 2
@@ -393,7 +396,7 @@
 #define PARAM_LOCAL_ENV_1_DECAY 30
 #define PARAM_LOCAL_ENV_0_RELEASE 31
 #define PARAM_LOCAL_ENV_1_RELEASE 32
-// Global params begin
+// Global (linear) params begin
 #define PARAM_GLOBAL_VOLUME_POST_FX 33
 #define PARAM_GLOBAL_VOLUME_POST_REVERB_SEND 34
 #define PARAM_GLOBAL_REVERB_AMOUNT 35
@@ -524,7 +527,8 @@ typedef enum SyncLevel_ {
 #define MOD_FX_TYPE_FLANGER 1
 #define MOD_FX_TYPE_CHORUS 2
 #define MOD_FX_TYPE_PHASER 3
-#define NUM_MOD_FX_TYPES 4
+#define MOD_FX_TYPE_CHORUS_STEREO 4
+#define NUM_MOD_FX_TYPES 5
 
 #define SAMPLE_MAX_TRANSPOSE 24
 #define SAMPLE_MIN_TRANSPOSE (-96)
@@ -615,7 +619,7 @@ typedef enum SyncLevel_ {
 
 #define ALLOW_SPAM_MODE 0 // For debugging I think?
 
-#define KEYBOARD_ROW_INTERVAL 5
+#define KEYBOARD_ROW_INTERVAL_MAX 16
 
 // UART
 #define MIDI_TX_BUFFER_SIZE 1024

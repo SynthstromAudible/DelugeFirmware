@@ -197,7 +197,7 @@ extern "C" void hostedDeviceConfigured(int ip, int midiDeviceNum) {
 	connectedDevice->setup();
 	int ports = connectedDevice->maxPortConnected;
 	for (int i = 0; i <= ports; i++) {
-		connectedUSBMIDIDevices[ip][0].device[i] = device;
+		connectedDevice->device[i] = device;
 	}
 
 	connectedDevice->sq = 0;

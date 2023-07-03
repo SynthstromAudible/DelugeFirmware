@@ -413,6 +413,9 @@ inline int32_t getNoise() {
 
 void seedRandom();
 
+extern bool shouldInterpretNoteNames;
+extern bool octaveStartsFromA;
+
 int random(int upperLimit);
 bool shouldDoPanning(int32_t panAmount, int32_t* amplitudeL, int32_t* amplitudeR);
 void hueToRGB(int32_t hue, unsigned char* rgb);
@@ -421,8 +424,7 @@ uint32_t getLFOInitialPhaseForNegativeExtreme(uint8_t waveType);
 uint32_t getLFOInitialPhaseForZero(uint8_t waveType);
 uint32_t getOscInitialPhaseForZero(uint8_t waveType);
 int32_t fastPythag(int32_t x, int32_t y);
-int strcmpspecial(char const* first, char const* second, bool shouldInterpretNoteNames = false,
-                  bool octaveStartsFromA = false);
+int strcmpspecial(char const* first, char const* second);
 int32_t doLanczos(int32_t* data, int32_t pos, uint32_t posWithinPos, int memoryNumElements);
 int32_t doLanczosCircular(int32_t* data, int32_t pos, uint32_t posWithinPos, int memoryNumElements);
 int stringToFirmwareVersion(char const* firmwareVersionString);
