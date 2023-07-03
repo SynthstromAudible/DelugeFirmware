@@ -1,3 +1,4 @@
+from functools import partial
 import multiprocessing
 import subprocess
 import sys
@@ -19,7 +20,7 @@ def run(args, redirect_input: bool = True, redirect_output: bool = True):
     return process.returncode
 
 
-def find_cmd_with_fallback(cmd:str, fallback: str = None):
+def find_cmd_with_fallback(cmd: str, fallback: str = None):
     if not fallback:
         fallback = cmd
     which_result = shutil.which(cmd)
@@ -48,8 +49,9 @@ def get_git_root():
     git_root = convert_path_if_mingw(git_root)
     return Path(git_root)
 
+
 # from https://stackoverflow.com/a/34482761
-def progressbar(it, prefix:str, size:int=60, out=sys.stdout):
+def progressbar(it, prefix: str, size: int = 60, out=sys.stdout):
     count = len(it)
 
     def show(j):
@@ -67,13 +69,45 @@ def progressbar(it, prefix:str, size:int=60, out=sys.stdout):
         show(i + 1)
     print("", flush=True, file=out)
 
+
 def do_parallel(func, it):
-    p = multiprocessing.Process(target=func, args=it)
-    p.start()
-    p.join()
-  
-def do_parallel_progressbar(func, it, prefix:str, size:int=60, out=sys.stdout):
+    pool = multiprocessing.Pool()
+    result = pool.map_async(func, it)
+    while not result.ready():
+        time.sleep(1)
+    pool.close()
+    pool.join()
+
+
+class Counter(object):
+    def __init__(self, initval=0):
+        self.val = multiprocessing.RawValue("i", initval)
+        self.lock = multiprocessing.Lock()
+
+    def increment(self):
+        with self.lock:
+            self.val.value += 1
+
+    @property
+    def value(self):
+        return self.val.value
+
+
+## Multiprocessing
+
+def init_globals(cntr):
+    global counter
+    counter = cntr
+
+
+def call_and_increment(func, arg):
+    func(arg)
+    counter.increment()
+
+
+def do_parallel_progressbar(func, it, prefix: str, size: int = 60, out=sys.stdout):
     count = len(it)
+
     def show(j):
         x = int(size * j / count)
         print(
@@ -82,14 +116,18 @@ def do_parallel_progressbar(func, it, prefix:str, size:int=60, out=sys.stdout):
             file=out,
             flush=True,
         )
-    show(0)    
 
-    pool = multiprocessing.Pool()
-    result = pool.map_async(func, it)
+    show(0)
+
+    counter = Counter()
+    pool = multiprocessing.Pool(
+        multiprocessing.cpu_count(), initializer=init_globals, initargs=(counter,)
+    )
+    result = pool.map_async(partial(call_and_increment, func), it)
     while not result.ready():
-        show(count - result._number_left)
-        time.sleep(1)
-    show(count)
+        show(counter.value)
+        time.sleep(0.1)
+    show(counter.value)
     pool.close()
     pool.join()
     print("", flush=True, file=out)
