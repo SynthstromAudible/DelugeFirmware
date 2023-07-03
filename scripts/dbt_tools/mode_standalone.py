@@ -4,29 +4,10 @@ from git import Repo, InvalidGitRepositoryError
 from SCons.Script import GetLaunchDir, GetOption, Exit
 from SCons.Action import Action
 from dbt.exit_codes import ExitCodes
+from dbt.project import compose_valid_targets
 from dbt.util import vcheck, vprint
 
-BUILD_HARDWARE_CHOICE = ["7seg", "oled"]
-BUILD_TYPE_CHOICE = ["debug", "release"]
-BUILD_PREFIX_CHOICE = ["dbt"]
-
-if GetOption("e2_orig_prefix"):
-    BUILD_PREFIX_CHOICE.append("e2")
-
 EXIT_VALUE = False
-
-
-def _compose_valid_targets(env):
-    """Target name composition"""
-    valid_targets = []
-
-    for bp in BUILD_PREFIX_CHOICE:
-        for bt in BUILD_TYPE_CHOICE:
-            for bh in BUILD_HARDWARE_CHOICE:
-                val_targ = "{}-build-{}-{}".format(bp, bt, bh)
-                valid_targets.append(val_targ)
-
-    return valid_targets
 
 
 def _validate_build_target(env, valid_targets):
@@ -36,19 +17,15 @@ def _validate_build_target(env, valid_targets):
 
 
 def exists():
-    if GetOption("base_config") == "standalone":
-        return True
-
-    return False
+    return True
 
 
 def generate(env, **kwargs):
     env.Replace(**kwargs)
 
-    valid_targets = _compose_valid_targets(env)
+    valid_targets = compose_valid_targets()
     env["BUILD_TARGET_IS_VALID"] = False
     if _validate_build_target(env, valid_targets):
-        vprint("Found valid standalone target: {}".format(env["BUILD_LABEL"]))
         env["BUILD_TARGET_IS_VALID"] = True
     else:
         vprint(
