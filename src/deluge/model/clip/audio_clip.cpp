@@ -1198,26 +1198,40 @@ void AudioClip::setPos(ModelStackWithTimelineCounter* modelStack, int32_t newPos
 }
 
 bool AudioClip::shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int amount) {
+	// No horizontal shift when recording
+	if (recorder) return false;
+	// No horizontal shift when no sample is loaded
+	if (!sampleHolder.audioFile) return false;
+
+	int64_t newStartPos = int64_t(sampleHolder.startPos) - getSamplesFromTicks(amount);
+	uint64_t sampleLength = ((Sample*)sampleHolder.audioFile)->lengthInSamples;
+
+	if (newStartPos < 0 || newStartPos > sampleLength) {
+		return false;
+	}
+
 	if (paramManager.containsAnyParamCollectionsIncludingExpression()) {
 		paramManager.shiftHorizontally(
 		    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager), amount, loopLength);
 	}
 
-	int64_t newStartPos = int64_t(sampleHolder.startPos) + getSamplesFromTicks(amount);
-	if (newStartPos < 0) {
-		return false;
-	}
-
 	uint64_t length = sampleHolder.endPos - sampleHolder.startPos;
+
+	// Stop the clip if it is playing
+	bool active = (playbackHandler.isEitherClockActive() && modelStack->song->isClipActive(this) && voiceSample);
+	unassignVoiceSample();
 
 	sampleHolder.startPos = newStartPos;
 	sampleHolder.endPos = newStartPos + length;
-	
-  sampleHolder.claimClusterReasons(sampleControls.reversed, CLUSTER_LOAD_IMMEDIATELY_OR_ENQUEUE);
 
-	if (playbackHandler.isEitherClockActive() && modelStack->song->isClipActive(this)) {
+	sampleHolder.claimClusterReasons(sampleControls.reversed, CLUSTER_LOAD_IMMEDIATELY_OR_ENQUEUE);
+
+	if (active) {
 		expectEvent();
 		reGetParameterAutomation(modelStack);
+
+		// Resume the clip if it was playing before
+		currentSong->currentClip->resumePlayback(modelStack, true);
 	}
 	return true;
 }
