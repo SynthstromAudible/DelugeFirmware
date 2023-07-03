@@ -960,6 +960,7 @@ weAreInArrangementEditorOrInClipInstance:
 
 	storageManager.writeAttribute("affectEntire", affectEntire);
 	storageManager.writeAttribute("activeModFunction", globalEffectable.modKnobMode);
+	storageManager.writeAttribute("timeStretchEnabled", timeStretchEnabled);
 
 	globalEffectable.writeAttributesToFile(false);
 
@@ -1324,6 +1325,11 @@ unknownTag:
 					else storageManager.exitTag(tagName);
 				}
 				storageManager.exitTag("modeNotes");
+			}
+
+			else if (!strcmp(tagName, "timeStretchEnabled")) {
+				timeStretchEnabled = storageManager.readTagOrAttributeValueInt();
+				storageManager.exitTag("timeStretchEnabled");
 			}
 
 			else if (!strcmp(tagName, "sections")) {
