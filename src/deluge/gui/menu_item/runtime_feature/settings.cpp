@@ -53,22 +53,14 @@ void Settings::selectEncoderAction(int offset) {
 	lastActiveValue = soundEditor.currentValue;
 
 #if HAVE_OLED
-	if (soundEditor.currentValue < soundEditor.menuCurrentScroll)
+	if (soundEditor.currentValue < soundEditor.menuCurrentScroll) {
 		soundEditor.menuCurrentScroll = soundEditor.currentValue;
-
-	if (offset >= 0) {
-		int d = soundEditor.currentValue;
-		int numSeen = 1;
-		while (true) {
-			d--;
-			if (d == soundEditor.menuCurrentScroll) break;
-			numSeen++;
-			if (numSeen >= OLED_MENU_NUM_OPTIONS_VISIBLE) {
-				soundEditor.menuCurrentScroll = d;
-				break;
-			}
-		}
 	}
+
+	if (soundEditor.currentValue > (soundEditor.menuCurrentScroll + (OLED_MENU_NUM_OPTIONS_VISIBLE - 1))) {
+		soundEditor.menuCurrentScroll = soundEditor.currentValue - (OLED_MENU_NUM_OPTIONS_VISIBLE - 1);
+	}
+
 #endif
 
 	drawValue();

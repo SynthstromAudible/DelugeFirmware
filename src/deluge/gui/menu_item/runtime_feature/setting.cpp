@@ -18,10 +18,7 @@
 #include "setting.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "gui/ui/sound_editor.h"
-
 namespace menu_item::runtime_feature {
-
-Setting runtimeFeatureSettingMenuItem;
 
 void Setting::readCurrentValue() {
 	for (uint32_t idx = 0; idx < RUNTIME_FEATURE_SETTING_MAX_OPTIONS; ++idx) {

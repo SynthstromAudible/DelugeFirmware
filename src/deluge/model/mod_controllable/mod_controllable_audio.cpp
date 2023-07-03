@@ -158,7 +158,7 @@ void ModControllableAudio::processFX(StereoSample* buffer, int numSamples, int m
 				modFXLFOWaveType = OSC_TYPE_SINE;
 			}
 		}
-		else if (modFXType == MOD_FX_TYPE_CHORUS) {
+		else if (modFXType == MOD_FX_TYPE_CHORUS || modFXType == MOD_FX_TYPE_CHORUS_STEREO) {
 			modFXDelayOffset = multiply_32x32_rshift32(
 			    modFXMaxDelay, (unpatchedParams->getValue(PARAM_UNPATCHED_MOD_FX_OFFSET) >> 1) + 1073741824);
 			thisModFXDelayDepth = multiply_32x32_rshift32(modFXDelayOffset, modFXDepth) << 2;
@@ -208,6 +208,13 @@ void ModControllableAudio::processFX(StereoSample* buffer, int numSamples, int m
 				int32_t scaledValue2L =
 				    multiply_32x32_rshift32_rounded(modFXBuffer[(sample1Pos - 1) & modFXBufferIndexMask].l, strength2);
 				int32_t modFXOutputL = scaledValue1L + scaledValue2L;
+
+				if (modFXType == MOD_FX_TYPE_CHORUS_STEREO) {
+					delayTime = multiply_32x32_rshift32(lfoOutput, -thisModFXDelayDepth) + modFXDelayOffset;
+					strength2 = (delayTime & 65535) << 15;
+					strength1 = (65535 << 15) - strength2;
+					sample1Pos = modFXBufferWriteIndex - ((delayTime) >> 16);
+				}
 
 				int32_t scaledValue1R =
 				    multiply_32x32_rshift32_rounded(modFXBuffer[sample1Pos & modFXBufferIndexMask].r, strength1);
@@ -1535,7 +1542,7 @@ void ModControllableAudio::wontBeRenderedForAWhile() {
 }
 
 void ModControllableAudio::clearModFXMemory() {
-	if (modFXType == MOD_FX_TYPE_FLANGER || modFXType == MOD_FX_TYPE_CHORUS) {
+	if (modFXType == MOD_FX_TYPE_FLANGER || modFXType == MOD_FX_TYPE_CHORUS || modFXType == MOD_FX_TYPE_CHORUS_STEREO) {
 		if (modFXBuffer) {
 			memset(modFXBuffer, 0, modFXBufferSize * sizeof(StereoSample));
 		}
