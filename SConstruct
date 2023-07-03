@@ -171,7 +171,10 @@ build_multienv = {}
 # Target List Building
 # Here we parse out shorthand targets and leave only our directory targets
 
-FOCUS_TARGETS = compose_valid_targets(cmd_env)
+if BUILD_TARGETS:
+    FOCUS_TARGETS = compose_valid_targets(cmd_env)
+else:
+    FOCUS_TARGETS = []
 
 # If one of our utility targets is in the list, ignore
 # normal targets or treat them specially.
