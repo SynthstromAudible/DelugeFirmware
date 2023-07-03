@@ -1202,16 +1202,18 @@ bool AudioClip::shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int
 		paramManager.shiftHorizontally(
 		    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager), amount, loopLength);
 	}
+
+	int64_t newStartPos = int64_t(sampleHolder.startPos) + getSamplesFromTicks(amount);
+	if (newStartPos < 0) {
+		return false;
+	}
+
+	uint64_t length = sampleHolder.endPos - sampleHolder.startPos;
+
+	sampleHolder.startPos = newStartPos;
+	sampleHolder.endPos = newStartPos + length;
 	
-  int64_t newStartPos = int64_t(sampleHolder.startPos) + getSamplesFromTicks(amount);
-  if (newStartPos < 0) {
-    return false;
-  }
-  
-  uint64_t length = sampleHolder.endPos - sampleHolder.startPos;
-  
-  sampleHolder.startPos = newStartPos;
-  sampleHolder.endPos = newStartPos + length;
+  sampleHolder.claimClusterReasons(sampleControls.reversed, CLUSTER_LOAD_IMMEDIATELY_OR_ENQUEUE);
 
 	if (playbackHandler.isEitherClockActive() && modelStack->song->isClipActive(this)) {
 		expectEvent();
