@@ -6,9 +6,10 @@ from dbt.util import vcheck, vprint
 def compose_valid_targets(cmd_env=None):
     """Target name composition"""
 
-    build_prefix_choice = ["dbt"]
     if GetOption("e2_orig_prefix"):
-        build_prefix_choice.append("e2")
+        build_prefix_choice = ["e2"]
+    else:
+        build_prefix_choice = ["dbt"]
 
     if cmd_env:
         # When the variable is None/undefined select both
