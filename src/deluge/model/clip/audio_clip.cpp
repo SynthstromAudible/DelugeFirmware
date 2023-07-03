@@ -932,6 +932,8 @@ void AudioClip::writeDataToFile(Song* song) {
 	storageManager.writeAttribute("startSamplePos", sampleHolder.startPos);
 	storageManager.writeAttribute("endSamplePos", sampleHolder.endPos);
 	storageManager.writeAttribute("pitchSpeedIndependent", sampleControls.pitchAndSpeedAreIndependent);
+	storageManager.writeAttribute("timeStretchEnabled", sampleControls.timeStretchEnabled);
+
 	if (sampleControls.interpolationMode == INTERPOLATION_MODE_LINEAR)
 		storageManager.writeAttribute("linearInterpolation", 1);
 	if (sampleControls.reversed) storageManager.writeAttribute("reversed", "1");
@@ -993,6 +995,10 @@ someError:
 
 		else if (!strcmp(tagName, "pitchSpeedIndependent")) {
 			sampleControls.pitchAndSpeedAreIndependent = storageManager.readTagOrAttributeValueInt();
+		}
+
+		else if (!strcmp(tagName, "timeStretchEnabled")) {
+			sampleControls.timeStretchEnabled = storageManager.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "linearInterpolation")) {

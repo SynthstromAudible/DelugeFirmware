@@ -288,54 +288,58 @@ doEndMidiLearnPressSession:
 		}
 	}
 
-	// Sync-scaling button (old behaviour) , see new handler below.
-	//		else if (x == syncScalingButtonX && y == syncScalingButtonY) {
-	//			if (on && currentUIMode == UI_MODE_NONE) {
-	//
-	//				if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
-	//	cant:
-	//					numericDriver.displayPopup(HAVE_OLED ? "Recording to arrangement" : "CANT");
-	//					return ACTION_RESULT_DEALT_WITH;
-	//				}
-	//
-	//				if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
-	//
-	//				// If no scaling currently, start it, if we're on a Clip-minder screen
-	//				if (!currentSong->getSyncScalingClip()) {
-	//					if (!getCurrentUI()->toClipMinder()) {
-	//						IndicatorLEDs::indicateAlertOnLed(clipViewLedX, clipViewLedY);
-	//						return ACTION_RESULT_DEALT_WITH;
-	//					}
-	//
-	//					// Can't do it for arranger-only Clips
-	//					if (currentSong->currentClip->isArrangementOnlyClip()) goto cant;
-	//
-	//					// Can't do it for Clips recording linearly
-	//					if (currentSong->currentClip->getCurrentlyRecordingLinearly()) goto cant;
-	//
-	//					currentSong->setInputTickScaleClip(currentSong->currentClip);
-	//				}
-	//
-	//				// Or if scaling already, stop it
-	//				else {
-	//					currentSong->setInputTickScaleClip(NULL);
-	//				}
-	//
-	//				actionLogger.deleteAllLogs(); // Can't undo past this.
-	//
-	//				playbackHandler.resyncInternalTicksToInputTicks(currentSong);
-	//				setTimeBaseScaleLedState();
-	//			}
-	//		}
+	else if (x == syncScalingButtonX && y == syncScalingButtonY) {
 
-	// Sync-scaling button NEW invert the current timestretch behaviour
-	else if (x == syncScalingButtonX && y == syncScalingButtonY && Buttons::isShiftButtonPressed()) {
-		if (on) {
-			currentSong->timeStretchEnabled = !currentSong->timeStretchEnabled;
-			// show the user the new value with a PopUp message
-			numericDriver.displayPopup(currentSong->timeStretchEnabled ? "TSON" : "TSOF", 2);
-			// and the syncScaling LED - let's light it solidly on or off
-			IndicatorLEDs::setLedState(syncScalingLedX, syncScalingLedY, !currentSong->timeStretchEnabled);
+		// <shift><Sync-scaling> -> change song time-stretching CBC
+		if (on && Buttons::isShiftButtonPressed()) {
+			if (on) {
+				currentSong->timeStretchEnabled = !currentSong->timeStretchEnabled;
+				// show the user the new value with a PopUp message
+				if (currentSong->timeStretchEnabled) {
+					numericDriver.displayPopup(HAVE_OLED ? "Time-stretch: On" : "TSON", 2);
+				}
+				else {
+					numericDriver.displayPopup(HAVE_OLED ? "Time-stretch: Off" : "TSOF", 2);
+				}
+			}
+		}
+
+		// legacy sync-scaling behaviour
+		else if (on && currentUIMode == UI_MODE_NONE) {
+
+			if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
+cant:
+				numericDriver.displayPopup(HAVE_OLED ? "Recording to arrangement" : "CANT");
+				return ACTION_RESULT_DEALT_WITH;
+			}
+
+			if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+
+			// If no scaling currently, start it, if we're on a Clip-minder screen
+			if (!currentSong->getSyncScalingClip()) {
+				if (!getCurrentUI()->toClipMinder()) {
+					IndicatorLEDs::indicateAlertOnLed(clipViewLedX, clipViewLedY);
+					return ACTION_RESULT_DEALT_WITH;
+				}
+
+				// Can't do it for arranger-only Clips
+				if (currentSong->currentClip->isArrangementOnlyClip()) goto cant;
+
+				// Can't do it for Clips recording linearly
+				if (currentSong->currentClip->getCurrentlyRecordingLinearly()) goto cant;
+
+				currentSong->setInputTickScaleClip(currentSong->currentClip);
+			}
+
+			// Or if scaling already, stop it
+			else {
+				currentSong->setInputTickScaleClip(NULL);
+			}
+
+			actionLogger.deleteAllLogs(); // Can't undo past this.
+
+			playbackHandler.resyncInternalTicksToInputTicks(currentSong);
+			setTimeBaseScaleLedState();
 		}
 	}
 
@@ -393,7 +397,7 @@ possiblyRevert:
 		if (on && currentUIMode == UI_MODE_NONE) {
 
 			if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
-				numericDriver.displayPopup(HAVE_OLED ? "Recording to arrangement" : "CANT");
+				numericDriver.displayPopup(HAVE_OLED ? "Recording to arrangement" : "CANT"); //CBC Why show CANT for 7SEG??
 				return ACTION_RESULT_DEALT_WITH;
 			}
 

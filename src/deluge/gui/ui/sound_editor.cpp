@@ -2267,7 +2267,7 @@ MenuItemSubmenu coloursSubmenu;
 MenuItemRuntimeFeatureSetting runtimeFeatureSettingMenuItem;
 MenuItemRuntimeFeatureSettings runtimeFeatureSettingsMenu;
 
-char const* firmwareString = "4.1.4-MUPADUW_TS_V4E"; //new community features Jul 2nd
+char const* firmwareString = "4.1.4-MUPADUW_TS_V4F";
 
 // this class is haunted for some reason, clang-format mangles it
 // clang-format off
