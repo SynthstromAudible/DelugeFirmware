@@ -22,7 +22,10 @@ def _prepare_git_info(env):
         print("DBT must be run from within a valid Git repository.")
         Exit(ExitCodes.INVALID_GIT_REPOSITORY)
 
-    env["GIT_BRANCH_NAME"] = repo.active_branch
+    if repo.head.is_detached:
+        env["GIT_BRANCH_NAME"] = "{}-detached".format(repo.commit().hexsha[0:7])
+    else:
+        env["GIT_BRANCH_NAME"] = repo.active_branch
     env["GIT_IS_COMMUNITY"] = False  # TODO: better detection through remotes
     env["GIT_IS_OFFICIAL"] = False  # TODO: better detection through remotes
     env["GIT_COMMIT"] = repo.commit(repo.head).hexsha
