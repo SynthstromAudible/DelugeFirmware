@@ -28,7 +28,7 @@ public:
 		else {
 			soundEditor.currentValue = soundEditor.currentSourceIndex;
 		}
-		Selection::beginSession(navigatedBackwardFrom);
+		menu_item::Selection::beginSession(navigatedBackwardFrom);
 	}
 
 	MenuItem* selectButtonPress() {
