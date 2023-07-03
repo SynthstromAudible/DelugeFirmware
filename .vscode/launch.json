@@ -1,0 +1,55 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug 7SEG (GDB/JLinkGDB Remote)",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceRoot}/dbt-build-debug-7seg/Deluge-debug-7seg.elf",
+      "MIMode": "gdb",
+      "miDebuggerPath": "arm-none-eabi-gdb",
+      "miDebuggerServerAddress": "localhost:2345",
+      "externalConsole": true,
+      "useExtendedRemote": true,
+      "cwd": "${workspaceRoot}",
+      "svdPath": "${workspaceRoot}/contrib/rza1.svd",
+    },
+    {
+      // NOTE: Do not try `load`ing the program using this config
+      "name": "Debug 7SEG (LLDB/JLinkGDB Remote)",
+      "type": "lldb",
+      "request": "launch",
+      "targetCreateCommands": [
+        "target create ${workspaceFolder}/dbt-build-debug-7seg/Deluge-debug-7seg.elf"
+      ],
+      "processCreateCommands": [
+        "gdb-remote localhost:2345"
+      ],
+    },
+    {
+      "name": "Debug OLED (GDB/JLinkGDB Remote)",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceRoot}/dbt-build-debug-oled/Deluge-debug-oled.elf",
+      "MIMode": "gdb",
+      "miDebuggerPath": "arm-none-eabi-gdb",
+      "miDebuggerServerAddress": "localhost:2345",
+      "externalConsole": true,
+      "useExtendedRemote": true,
+      "cwd": "${workspaceRoot}",
+      "svdPath": "${workspaceRoot}/contrib/rza1.svd",
+    },
+    {
+      // NOTE: Do not try `load`ing the program using this config
+      "name": "Debug OLED (LLDB/JLinkGDB Remote)",
+      "type": "lldb",
+      "request": "launch",
+      "targetCreateCommands": [
+        "target create ${workspaceFolder}/dbt-build-debug-oled/Deluge-debug-oled.elf"
+      ],
+      "processCreateCommands": [
+        "gdb-remote localhost:2345"
+      ],
+    }
+  ]
+}
