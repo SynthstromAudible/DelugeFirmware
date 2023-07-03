@@ -34,7 +34,7 @@
 #include <new>
 
 static Clip* getCurrentClip() {
-  return currentSong->currentClip;
+	return currentSong->currentClip;
 }
 
 ClipView::ClipView() {
@@ -96,8 +96,8 @@ Action* ClipView::lengthenClip(int32_t newLength) {
 
 	// Only if that didn't get us directly to the correct length, manually set length. This will do a resync if playback active
 	if (getCurrentClip()->loopLength != newLength) {
-		int actionType = (newLength < getCurrentClip()->loopLength) ? ACTION_CLIP_LENGTH_DECREASE
-		                                                                    : ACTION_CLIP_LENGTH_INCREASE;
+		int actionType =
+		    (newLength < getCurrentClip()->loopLength) ? ACTION_CLIP_LENGTH_DECREASE : ACTION_CLIP_LENGTH_INCREASE;
 
 		action = actionLogger.getNewAction(actionType, true);
 		if (action && action->currentClip != getCurrentClip()) {
@@ -235,10 +235,10 @@ doReRender:
 
 		bool wasShifted = clip->shiftHorizontally(modelStack, shiftAmount);
 		if (!wasShifted) {
-			numericDriver.displayPopup(HAVE_OLED ? "Can't shift past start" : "CANT");
+			// No need to show the user why it didnt succeed, usually these cases are fairly trivial
 			return ACTION_RESULT_DEALT_WITH;
 		}
-		
+
 		uiNeedsRendering(this, 0xFFFFFFFF, 0);
 
 		// If possible, just modify a previous Action to add this new shift amount to it.
@@ -250,8 +250,7 @@ doReRender:
 			// Or possibly because the Action was created but there wasn't enough RAM to create the Consequence. Anyway, just go add a consequence now.
 			if (!action->firstConsequence) goto addConsequenceToAction;
 
-			ConsequenceClipHorizontalShift* consequence =
-			    (ConsequenceClipHorizontalShift*)action->firstConsequence;
+			ConsequenceClipHorizontalShift* consequence = (ConsequenceClipHorizontalShift*)action->firstConsequence;
 			consequence->amount += shiftAmount;
 
 			// It might look tempting that if we've completed one whole loop, we could delete the Consequence because everything would be back the same -
