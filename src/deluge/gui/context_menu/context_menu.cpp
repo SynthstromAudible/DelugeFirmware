@@ -139,11 +139,15 @@ void ContextMenu::selectEncoderAction(int8_t offset) {
 	do {
 		if (offset >= 0) {
 			currentOption++;
-			if (currentOption >= numOptions) currentOption -= numOptions;
+			if (currentOption >= numOptions) {
+				currentOption -= numOptions;
+			}
 		}
 		else {
 			currentOption--;
-			if (currentOption < 0) currentOption += numOptions;
+			if (currentOption < 0) {
+				currentOption += numOptions;
+			}
 		}
 
 	} while (!isCurrentOptionAvailable());
@@ -155,7 +159,9 @@ int ContextMenu::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 
 	if (x == backButtonX && y == backButtonY) {
 		if (on && !currentUIMode) {
-			if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			if (inCardRoutine) {
+				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
 getOut:
 			numericDriver.setNextTransitionDirection(-1);
 			close();
@@ -165,9 +171,13 @@ getOut:
 	else if (x == selectEncButtonX && y == selectEncButtonY) {
 probablyAcceptCurrentOption:
 		if (on && !currentUIMode) {
-			if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			if (inCardRoutine) {
+				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
 			bool success = acceptCurrentOption();
-			if (!success) goto getOut;
+			if (!success) {
+				goto getOut;
+			}
 		}
 	}
 
@@ -175,7 +185,9 @@ probablyAcceptCurrentOption:
 		goto probablyAcceptCurrentOption;
 	}
 
-	else return ACTION_RESULT_NOT_DEALT_WITH;
+	else {
+		return ACTION_RESULT_NOT_DEALT_WITH;
+	}
 
 	return ACTION_RESULT_DEALT_WITH;
 }
@@ -193,7 +205,9 @@ void ContextMenu::drawCurrentOption() {
 
 int ContextMenu::padAction(int x, int y, int on) {
 	if (on && !currentUIMode) {
-		if (sdRoutineLock) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		if (sdRoutineLock) {
+			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		}
 		numericDriver.setNextTransitionDirection(-1);
 		close();
 	}

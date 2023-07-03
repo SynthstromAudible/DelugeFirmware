@@ -83,7 +83,9 @@ bool Arrangement::endPlayback() {
 	currentSong->paramManager.expectNoFurtherTicks(modelStack);
 
 	for (Output* output = currentSong->firstOutput; output; output = output->next) {
-		if (!currentSong->isOutputActiveInArrangement(output)) continue;
+		if (!currentSong->isOutputActiveInArrangement(output)) {
+			continue;
+		}
 
 		output->endArrangementPlayback(currentSong, actualPos, timeRemainder);
 	}
@@ -131,7 +133,9 @@ void Arrangement::doTickForward(int posIncrement) {
 		// If recording, we only stop when we hit the next ClipInstance
 		if (output->recordingInArrangement) {
 			int32_t searchPos = lastProcessedPos;
-			if (!posIncrement) searchPos++; // If first, 0-length tick, don't look at the one that starts here.
+			if (!posIncrement) {
+				searchPos++; // If first, 0-length tick, don't look at the one that starts here.
+			}
 			int nextI = output->clipInstances.search(searchPos, GREATER_OR_EQUAL);
 
 			ClipInstance* nextClipInstance = output->clipInstances.getElement(nextI);
@@ -170,9 +174,10 @@ notRecording:
 
 					if (lastProcessedPos < endPos) {
 						int32_t ticksTilEnd = endPos - lastProcessedPos;
-						if (ticksTilEnd > 0)
+						if (ticksTilEnd > 0) {
 							playbackHandler.swungTicksTilNextEvent =
 							    getMin(playbackHandler.swungTicksTilNextEvent, ticksTilEnd);
+						}
 					}
 				}
 			}
@@ -196,7 +201,9 @@ notRecording:
 								thisClip->expectNoFurtherTicks(currentSong);
 								thisClip->activeIfNoSolo = false;
 
-								if (!thisClip->isArrangementOnlyClip()) anyChangeToSessionClipsPlaying = true;
+								if (!thisClip->isArrangementOnlyClip()) {
+									anyChangeToSessionClipsPlaying = true;
+								}
 							}
 						}
 
@@ -226,7 +233,9 @@ notRecording:
 
 				do {
 					i++;
-					if (i >= output->clipInstances.getNumElements()) goto justDoArp;
+					if (i >= output->clipInstances.getNumElements()) {
+						goto justDoArp;
+					}
 					nextClipInstance = output->clipInstances.getElement(i);
 					thisClip = nextClipInstance->clip;
 				} while (!thisClip);
@@ -251,9 +260,13 @@ notRecording:
 
 					thisClip->processCurrentPos(modelStackWithTimelineCounter, 0);
 
-					if (!thisClip->isArrangementOnlyClip()) anyChangeToSessionClipsPlaying = true;
+					if (!thisClip->isArrangementOnlyClip()) {
+						anyChangeToSessionClipsPlaying = true;
+					}
 
-					if (getCurrentUI() == &arrangerView) arrangerView.notifyActiveClipChangedOnOutput(output);
+					if (getCurrentUI() == &arrangerView) {
+						arrangerView.notifyActiveClipChangedOnOutput(output);
+					}
 
 					// Make sure we come back here when the clipInstance ends
 					playbackHandler.swungTicksTilNextEvent =
@@ -270,8 +283,12 @@ notRecording:
 
 justDoArp:
 		int32_t posForArp;
-		if (output->activeClip && output->activeClip->activeIfNoSolo) posForArp = output->activeClip->lastProcessedPos;
-		else posForArp = lastProcessedPos;
+		if (output->activeClip && output->activeClip->activeIfNoSolo) {
+			posForArp = output->activeClip->lastProcessedPos;
+		}
+		else {
+			posForArp = lastProcessedPos;
+		}
 
 		int32_t ticksTilNextArpEvent = output->doTickForwardForArp(modelStack, posForArp);
 		nearestArpTickTime = getMin(ticksTilNextArpEvent, nearestArpTickTime);
@@ -322,7 +339,9 @@ void Arrangement::resetPlayPos(int32_t newPos, bool doingComplete, int buttonPre
 	}
 
 	for (Output* output = currentSong->firstOutput; output; output = output->next) {
-		if (!currentSong->isOutputActiveInArrangement(output)) continue;
+		if (!currentSong->isOutputActiveInArrangement(output)) {
+			continue;
+		}
 
 		int i = output->clipInstances.search(lastProcessedPos + 1, LESS);
 		ClipInstance* clipInstance = output->clipInstances.getElement(i);
@@ -337,7 +356,9 @@ void Arrangement::resetPlayPos(int32_t newPos, bool doingComplete, int buttonPre
 			if (doingComplete && playbackHandler.recording && output->wantsToBeginArrangementRecording()) {
 
 				int error = output->possiblyBeginArrangementRecording(currentSong, newPos);
-				if (error) numericDriver.displayError(error);
+				if (error) {
+					numericDriver.displayError(error);
+				}
 			}
 		}
 	}
@@ -383,7 +404,9 @@ void Arrangement::reSyncClip(ModelStackWithTimelineCounter* modelStack, bool mus
 
 	Output* output = clip->output;
 
-	if (!modelStack->song->isOutputActiveInArrangement(output)) return;
+	if (!modelStack->song->isOutputActiveInArrangement(output)) {
+		return;
+	}
 
 	int32_t actualPos = getLivePos();
 
@@ -406,23 +429,33 @@ void Arrangement::reversionDone() {
 	int32_t actualPos = getLivePos();
 
 	for (Output* output = currentSong->firstOutput; output; output = output->next) {
-		if (!currentSong->isOutputActiveInArrangement(output)) continue;
+		if (!currentSong->isOutputActiveInArrangement(output)) {
+			continue;
+		}
 
 		int i = output->clipInstances.search(actualPos + 1, LESS);
 		ClipInstance* clipInstance = output->clipInstances.getElement(i);
 		if (clipInstance && clipInstance->pos + clipInstance->length > actualPos + 1) {
 			resumeClipInstancePlayback(clipInstance);
 		}
-		else output->cutAllSound(); // I'd kinda prefer to "release" all voices...
+		else {
+			output->cutAllSound(); // I'd kinda prefer to "release" all voices...
+		}
 	}
 }
 
 bool Arrangement::isOutputAvailable(Output* output) {
-	if (!playbackHandler.playbackState || !output->activeClip) return true;
+	if (!playbackHandler.playbackState || !output->activeClip) {
+		return true;
+	}
 
-	if (output->recordingInArrangement) return false;
+	if (output->recordingInArrangement) {
+		return false;
+	}
 
-	if (!currentSong->isOutputActiveInArrangement(output)) return true;
+	if (!currentSong->isOutputActiveInArrangement(output)) {
+		return true;
+	}
 
 	int i = output->clipInstances.search(lastProcessedPos + 1, LESS);
 	ClipInstance* clipInstance = output->clipInstances.getElement(i);
@@ -450,7 +483,9 @@ void Arrangement::rowEdited(Output* output, int32_t startPos, int32_t endPos, Cl
 
 // First, be sure the clipInstance has a Clip
 int Arrangement::doUniqueCloneOnClipInstance(ClipInstance* clipInstance, int32_t newLength, bool shouldCloneRepeats) {
-	if (!currentSong->arrangementOnlyClips.ensureEnoughSpaceAllocated(1)) return ERROR_INSUFFICIENT_RAM;
+	if (!currentSong->arrangementOnlyClips.ensureEnoughSpaceAllocated(1)) {
+		return ERROR_INSUFFICIENT_RAM;
+	}
 	Clip* oldClip = clipInstance->clip;
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -458,7 +493,9 @@ int Arrangement::doUniqueCloneOnClipInstance(ClipInstance* clipInstance, int32_t
 	    setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(oldClip);
 
 	int error = oldClip->clone(modelStack, true);
-	if (error) return error;
+	if (error) {
+		return error;
+	}
 
 	Clip* newClip = (Clip*)modelStack->getTimelineCounter();
 
@@ -477,7 +514,9 @@ int Arrangement::doUniqueCloneOnClipInstance(ClipInstance* clipInstance, int32_t
 	rowEdited(oldClip->output, clipInstance->pos, clipInstance->pos + clipInstance->length, clipInstance->clip, NULL);
 
 	clipInstance->clip = newClip;
-	if (newLength != -1) clipInstance->length = newLength;
+	if (newLength != -1) {
+		clipInstance->length = newLength;
+	}
 
 	rowEdited(oldClip->output, clipInstance->pos, clipInstance->pos + clipInstance->length, NULL, clipInstance);
 
@@ -503,20 +542,25 @@ int32_t Arrangement::getPosAtWhichClipWillCut(ModelStackWithTimelineCounter cons
 
 	int i = clip->output->clipInstances.search(lastProcessedPos + 1, LESS);
 	ClipInstance* clipInstance = clip->output->clipInstances.getElement(i);
-	if (!clipInstance || clipInstance->clip != clip)
+	if (!clipInstance || clipInstance->clip != clip) {
 		return clip->currentlyPlayingReversed ? (-2147483648) : 2147483647; // This shouldn't normally happen right?
+	}
 
 	int32_t cutPos = clipInstance->length - clip->loopLength * clip->repeatCount;
 	if (cutPos == clip->loopLength) { // If cutting right at the end of the current repeat...
 
-		if (clip->currentlyPlayingReversed) cutPos = 0; // Since we already knew it was loopLength.
+		if (clip->currentlyPlayingReversed) {
+			cutPos = 0; // Since we already knew it was loopLength.
+		}
 
 		// See if the next ClipInstance has the same Clip and begins right as this one ends
 		ClipInstance* nextClipInstance = clip->output->clipInstances.getElement(i + 1);
 		if (nextClipInstance) {
 			if (nextClipInstance->clip == clip && nextClipInstance->pos == clipInstance->pos + clipInstance->length) {
 				int32_t toAdd = nextClipInstance->length;
-				if (clip->currentlyPlayingReversed) toAdd = -toAdd;
+				if (clip->currentlyPlayingReversed) {
+					toAdd = -toAdd;
+				}
 				cutPos += toAdd;
 			}
 		}
@@ -547,8 +591,12 @@ bool Arrangement::willClipContinuePlayingAtEnd(ModelStackWithTimelineCounter con
 
 	int32_t cutPos = getPosAtWhichClipWillCut(modelStack);
 
-	if (clip->currentlyPlayingReversed) return (cutPos < 0);
-	else return (cutPos > clip->loopLength);
+	if (clip->currentlyPlayingReversed) {
+		return (cutPos < 0);
+	}
+	else {
+		return (cutPos > clip->loopLength);
+	}
 }
 
 // This includes it "looping" before the Clip's full length due to that ClipInstance ending, and there being another instance of the same Clip right after.
@@ -559,12 +607,16 @@ bool Arrangement::willClipLoopAtSomePoint(ModelStackWithTimelineCounter const* m
 
 	int i = clip->output->clipInstances.search(lastProcessedPos + 1, LESS);
 	ClipInstance* clipInstance = clip->output->clipInstances.getElement(i);
-	if (!clipInstance || clipInstance->clip != clip) return false;
+	if (!clipInstance || clipInstance->clip != clip) {
+		return false;
+	}
 
 	// If we're still not too near the end of this Instance, it'll loop
 	int32_t instanceEndPos = clipInstance->pos + clipInstance->length;
 	int32_t distanceFromInstanceEnd = instanceEndPos - lastProcessedPos;
-	if (distanceFromInstanceEnd > clip->loopLength) return true;
+	if (distanceFromInstanceEnd > clip->loopLength) {
+		return true;
+	}
 
 	// See if the next ClipInstance has the same Clip and begins right as this one ends
 	ClipInstance* nextClipInstance = clip->output->clipInstances.getElement(i + 1);

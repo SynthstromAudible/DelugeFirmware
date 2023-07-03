@@ -261,7 +261,9 @@ void readSettings() {
 	AudioEngine::inputMonitoringMode = buffer[50];
 
 	recordQuantizeLevel = buffer[51] + 8;
-	if (recordQuantizeLevel == 10) recordQuantizeLevel = 8; // Since I've deprecated the ZOOM option
+	if (recordQuantizeLevel == 10) {
+		recordQuantizeLevel = 8; // Since I've deprecated the ZOOM option
+	}
 
 	if (previouslySavedByFirmwareVersion < FIRMWARE_2P1P0_BETA || !buffer[53]) { // Remove the true!
 		defaultTempoMenu.lower = 120;
@@ -311,7 +313,9 @@ void readSettings() {
 	}
 
 	defaultVelocity = buffer[73];
-	if (defaultVelocity >= 128 || defaultVelocity <= 0) defaultVelocity = 64;
+	if (defaultVelocity >= 128 || defaultVelocity <= 0) {
+		defaultVelocity = 64;
+	}
 
 	if (previouslySavedByFirmwareVersion < FIRMWARE_3P1P0_ALPHA) {
 		activeColourMenu.value = 1;  // Green
@@ -334,11 +338,19 @@ void readSettings() {
 		MIDIDeviceManager::differentiatingInputsByDevice = buffer[79];
 
 		if (previouslySavedByFirmwareVersion == FIRMWARE_3P1P0_ALPHA) { // Could surely delete this code?
-			if (!activeColourMenu.value) activeColourMenu.value = 1;
-			if (!mutedColourMenu.value) mutedColourMenu.value = 3;
-			if (!soloColourMenu.value) soloColourMenu.value = 2;
+			if (!activeColourMenu.value) {
+				activeColourMenu.value = 1;
+			}
+			if (!mutedColourMenu.value) {
+				mutedColourMenu.value = 3;
+			}
+			if (!soloColourMenu.value) {
+				soloColourMenu.value = 2;
+			}
 
-			if (!defaultMagnitude) defaultMagnitude = 2;
+			if (!defaultMagnitude) {
+				defaultMagnitude = 2;
+			}
 		}
 	}
 
@@ -347,7 +359,9 @@ void readSettings() {
 	}
 	else {
 		defaultBendRange[BEND_RANGE_MAIN] = buffer[112];
-		if (!defaultBendRange[BEND_RANGE_MAIN]) defaultBendRange[BEND_RANGE_MAIN] = 12;
+		if (!defaultBendRange[BEND_RANGE_MAIN]) {
+			defaultBendRange[BEND_RANGE_MAIN] = 12;
+		}
 	}
 }
 

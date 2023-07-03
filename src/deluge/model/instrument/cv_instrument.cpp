@@ -88,8 +88,9 @@ bool CVInstrument::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 	//NonAudioInstrument::writeDataToFile(clipForSavingOutputOnly, song); // Nope, this gets called within the below call
 	writeMelodicInstrumentAttributesToFile(clipForSavingOutputOnly, song);
 
-	if (clipForSavingOutputOnly || !midiInput.containsSomething())
+	if (clipForSavingOutputOnly || !midiInput.containsSomething()) {
 		return false; // If we don't need to write a "device" tag, opt not to end the opening tag
+	}
 
 	storageManager.writeOpeningTagEnd();
 	MelodicInstrument::writeMelodicInstrumentTagsToFile(clipForSavingOutputOnly, song);

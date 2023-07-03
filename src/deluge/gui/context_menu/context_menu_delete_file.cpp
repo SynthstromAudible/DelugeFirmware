@@ -42,8 +42,12 @@ char const** ContextMenuDeleteFile::getOptions() {
 	static char const* options[] = {"DELETE"};
 	static char const* optionsSure[] = {"SURE"};
 
-	if (getUIUpOneLevel() == &saveSongOrInstrumentContextMenu) return optionsSure;
-	else return options;
+	if (getUIUpOneLevel() == &saveSongOrInstrumentContextMenu) {
+		return optionsSure;
+	}
+	else {
+		return options;
+	}
 #endif
 }
 

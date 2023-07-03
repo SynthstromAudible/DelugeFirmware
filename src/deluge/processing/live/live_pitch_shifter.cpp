@@ -74,7 +74,9 @@ void LivePitchShifter::render(int32_t* __restrict__ outputBuffer, int numSamples
                               int interpolationBufferSize) {
 
 	LiveInputBuffer* liveInputBuffer = AudioEngine::getOrCreateLiveInputBuffer(inputType, false);
-	if (ALPHA_OR_BETA_VERSION && !liveInputBuffer) numericDriver.freezeWithError("E165");
+	if (ALPHA_OR_BETA_VERSION && !liveInputBuffer) {
+		numericDriver.freezeWithError("E165");
+	}
 
 	liveInputBuffer->giveInput(numSamplesThisFunctionCall, AudioEngine::audioSampleTimer, inputType);
 
@@ -399,8 +401,12 @@ void LivePitchShifter::hopEnd(int32_t phaseIncrement, LiveInputBuffer* liveInput
 
 	// Or if outside of that...
 	else {
-		if (pitchLog > (896 << 20)) pitchLog = (896 << 20);
-		else if (pitchLog < (768 << 20)) pitchLog = (768 << 20);
+		if (pitchLog > (896 << 20)) {
+			pitchLog = (896 << 20);
+		}
+		else if (pitchLog < (768 << 20)) {
+			pitchLog = (768 << 20);
+		}
 
 		int position = pitchLog - (768 << 20);
 
@@ -500,7 +506,9 @@ void LivePitchShifter::hopEnd(int32_t phaseIncrement, LiveInputBuffer* liveInput
 
 				while (howFarBackSearched < backEdge) {
 					howFarBackSearched++;
-					if (howFarBackSearched > percPos) goto stopPercSearch;
+					if (howFarBackSearched > percPos) {
+						goto stopPercSearch;
+					}
 					int percHere =
 					    liveInputBuffer
 					        ->percBuffer[(uint32_t)(percPos - howFarBackSearched) & (PERC_BUFFER_REDUCTION_SIZE - 1)];
@@ -528,10 +536,13 @@ stopPercSearch:
 		}
 
 		samplesTilHopEnd = ((uint64_t)howFarBack << 24) / (uint32_t)(phaseIncrement - 16777216) - nextCrossfadeLength;
-		if (samplesTilHopEnd < 100)
+		if (samplesTilHopEnd < 100) {
 			samplesTilHopEnd =
 			    100; // Must be 100, not 200. Otherwise, shifting up 2 octaves gets messed up. (Though maybe not anymore?)
-		else if (samplesTilHopEnd > maxHopLength) samplesTilHopEnd = maxHopLength;
+		}
+		else if (samplesTilHopEnd > maxHopLength) {
+			samplesTilHopEnd = maxHopLength;
+		}
 
 		int minDistanceBack = numRawSamplesProcessedAtNowTime - numRawSamplesProcessedLatest
 		                      + averagesStartOffsetFromHead
@@ -591,12 +602,14 @@ stopPercSearch:
 		// but we're then going to experiment with shifting that, below
 
 		if (((uint32_t)(averagesStartPosNewHead - averagesStartOffsetFromHead) & (INPUT_RAW_BUFFER_SIZE - 1))
-		    >= numRawSamplesProcessedLatest)
+		    >= numRawSamplesProcessedLatest) {
 			goto stopSearch;
+		}
 
 		if ((uint32_t)(numRawSamplesProcessedLatest - averagesStartPosNewHead)
-		    & (INPUT_RAW_BUFFER_SIZE - 1) < lengthPerMovingAverage * TIME_STRETCH_CROSSFADE_NUM_MOVING_AVERAGES)
+		    & (INPUT_RAW_BUFFER_SIZE - 1) < lengthPerMovingAverage * TIME_STRETCH_CROSSFADE_NUM_MOVING_AVERAGES) {
 			goto stopSearch;
+		}
 
 		int32_t newHeadTotals[TIME_STRETCH_CROSSFADE_NUM_MOVING_AVERAGES];
 		liveInputBuffer->getAveragesForCrossfade(newHeadTotals, averagesStartPosNewHead, lengthPerMovingAverage,
@@ -632,7 +645,9 @@ startSearch:
 				searchSizeBoundary =
 				    averagesStartPosNewHead - averagesStartOffsetFromHead
 				    - 1; // The -1 is becacuse of the 1 we subtract from readPos[0] above when searching left
-				if (searchSizeBoundary <= 0) goto searchNextDirection;
+				if (searchSizeBoundary <= 0) {
+					goto searchNextDirection;
+				}
 			}
 		}
 		else {
@@ -657,10 +672,13 @@ startSearch:
 
 				readPos[i] = (uint32_t)(readPos[i] + searchDirection) & (INPUT_RAW_BUFFER_SIZE - 1);
 
-				if (i < TIME_STRETCH_CROSSFADE_NUM_MOVING_AVERAGES)
+				if (i < TIME_STRETCH_CROSSFADE_NUM_MOVING_AVERAGES) {
 					newHeadRunningTotals[i] -= readValue * searchDirection;
+				}
 
-				if (i > 0) newHeadRunningTotals[i - 1] += readValue * searchDirection;
+				if (i > 0) {
+					newHeadRunningTotals[i - 1] += readValue * searchDirection;
+				}
 			}
 
 			int32_t differenceAbs = getTotalDifferenceAbs(oldHeadTotals, newHeadRunningTotals);
@@ -694,14 +712,20 @@ startSearch:
 					uint32_t lastTotalDifferenceAbs = std::abs(lastTotalChange);
 					additionalOscPos = ((uint64_t)lastTotalDifferenceAbs << 24)
 					                   / (uint32_t)(lastTotalDifferenceAbs + thisTotalDifferenceAbs);
-					if (searchDirection == -1) additionalOscPos = 16777216 - additionalOscPos;
-					if (thisOffsetIsBestMatch != (searchDirection == -1)) bestOffset--;
+					if (searchDirection == -1) {
+						additionalOscPos = 16777216 - additionalOscPos;
+					}
+					if (thisOffsetIsBestMatch != (searchDirection == -1)) {
+						bestOffset--;
+					}
 				}
 
 				// After sign has flipped twice (in total, including both search directions), we can be fairly sure we've found a good fit
 				timesSignFlipped++;
 #if !MEASURE_HOP_END_PERFORMANCE
-				if (timesSignFlipped >= 2) goto stopSearch;
+				if (timesSignFlipped >= 2) {
+					goto stopSearch;
+				}
 #endif
 			}
 

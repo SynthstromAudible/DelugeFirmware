@@ -238,7 +238,9 @@ class MenuItemSelectionSample : public MenuItemSelection {
 public:
 	MenuItemSelectionSample(char const* newName = NULL) : MenuItemSelection(newName) {}
 	bool isRelevant(Sound* sound, int whichThing) {
-		if (!sound) return true; // For AudioClips
+		if (!sound) {
+			return true; // For AudioClips
+		}
 		Source* source = &sound->sources[whichThing];
 		return (sound->getSynthMode() == SYNTH_MODE_SUBTRACTIVE && source->oscType == OSC_TYPE_SAMPLE
 		        && source->hasAtLeastOneAudioFileLoaded());
@@ -274,7 +276,9 @@ public:
 			intToString(thingIndex + 1, buffer + 3);
 			numericDriver.setText(buffer);
 		}
-		else MenuItemSubmenuReferringToOneThing::drawName();
+		else {
+			MenuItemSubmenuReferringToOneThing::drawName();
+		}
 	}
 #endif
 };
@@ -409,7 +413,10 @@ class MenuItemLPFFreq final : public MenuItemPatchedParamIntegerNonFM{
 		        PARAM_LOCAL_LPF_FREQ)) {
 			numericDriver.setText("Off");
 }
-else MenuItemPatchedParamIntegerNonFM::drawValue(); }
+else {
+	MenuItemPatchedParamIntegerNonFM::drawValue();
+}
+}
 #endif
 }
 lpfFreqMenu;
@@ -439,7 +446,10 @@ class MenuItemHPFFreq final : public MenuItemPatchedParamIntegerNonFM{
 		        PARAM_LOCAL_HPF_FREQ)) {
 			numericDriver.setText("OFF");
 }
-else MenuItemPatchedParamIntegerNonFM::drawValue(); }
+else {
+	MenuItemPatchedParamIntegerNonFM::drawValue();
+}
+}
 #endif
 }
 hpfFreqMenu;
@@ -482,8 +492,12 @@ public:
 		return options;
 	}
 	int getNumOptions() { // Hack-ish way of hiding the "choke" option when not editing a Kit
-		if (soundEditor.editingKit()) return NUM_POLYPHONY_TYPES;
-		else return NUM_POLYPHONY_TYPES - 1;
+		if (soundEditor.editingKit()) {
+			return NUM_POLYPHONY_TYPES;
+		}
+		else {
+			return NUM_POLYPHONY_TYPES - 1;
+		}
 	}
 	bool usesAffectEntire() { return true; }
 } polyphonyMenu;
@@ -517,18 +531,30 @@ public:
 	int getDefaultEditPos() { return 1; }
 	void readCurrentValue() {
 		uint32_t value = *getValueAddress();
-		if (value == 0xFFFFFFFF) soundEditor.currentValue = -soundEditor.numberEditSize;
-		else soundEditor.currentValue = value / 11930464;
+		if (value == 0xFFFFFFFF) {
+			soundEditor.currentValue = -soundEditor.numberEditSize;
+		}
+		else {
+			soundEditor.currentValue = value / 11930464;
+		}
 	}
 	void writeCurrentValue() {
 		uint32_t value;
-		if (soundEditor.currentValue < 0) value = 0xFFFFFFFF;
-		else value = soundEditor.currentValue * 11930464;
+		if (soundEditor.currentValue < 0) {
+			value = 0xFFFFFFFF;
+		}
+		else {
+			value = soundEditor.currentValue * 11930464;
+		}
 		*getValueAddress() = value;
 	}
 	void drawValue() {
-		if (soundEditor.currentValue < 0) numericDriver.setText("OFF", false, 255, true);
-		else MenuItemDecimal::drawValue();
+		if (soundEditor.currentValue < 0) {
+			numericDriver.setText("OFF", false, 255, true);
+		}
+		else {
+			MenuItemDecimal::drawValue();
+		}
 	}
 #if HAVE_OLED
 	void drawPixelsForOled() {
@@ -540,20 +566,28 @@ public:
 	}
 #endif
 	void horizontalEncoderAction(int offset) {
-		if (soundEditor.currentValue >= 0) MenuItemDecimal::horizontalEncoderAction(offset);
+		if (soundEditor.currentValue >= 0) {
+			MenuItemDecimal::horizontalEncoderAction(offset);
+		}
 	}
 
 	bool isRelevant(Sound* sound, int whichThing) {
 		Source* source = &sound->sources[whichThing];
-		if (forModulator && sound->getSynthMode() != SYNTH_MODE_FM) return false;
+		if (forModulator && sound->getSynthMode() != SYNTH_MODE_FM) {
+			return false;
+		}
 		return (source->oscType != OSC_TYPE_SAMPLE || sound->getSynthMode() == SYNTH_MODE_FM);
 	}
 
 private:
 	bool forModulator;
 	uint32_t* getValueAddress() {
-		if (forModulator) return &soundEditor.currentSound->modulatorRetriggerPhase[soundEditor.currentSourceIndex];
-		else return &soundEditor.currentSound->oscRetriggerPhase[soundEditor.currentSourceIndex];
+		if (forModulator) {
+			return &soundEditor.currentSound->modulatorRetriggerPhase[soundEditor.currentSourceIndex];
+		}
+		else {
+			return &soundEditor.currentSound->oscRetriggerPhase[soundEditor.currentSourceIndex];
+		}
 	}
 };
 
@@ -616,8 +650,9 @@ public:
 		}
 
 		soundEditor.currentSource->setOscType(newValue);
-		if (oldValue == OSC_TYPE_SQUARE || newValue == OSC_TYPE_SQUARE)
+		if (oldValue == OSC_TYPE_SQUARE || newValue == OSC_TYPE_SQUARE) {
 			soundEditor.currentSound->setupPatchingForAllParamManagers(currentSong);
+		}
 	}
 
 	//char const** getOptions() { static char const* options[] = {"SINE", "TRIANGLE", "SQUARE", "SAW", "MMS1", "SUB1", "SAMPLE", "INL", "INR", "INLR", "SQ50", "SQ02", "SQ01", "SUB2", "SQ20", "SA50", "S101", "S303", "MMS2", "MMS3", "TABLE"}; return options; }
@@ -642,10 +677,15 @@ public:
 	}
 
 	int getNumOptions() {
-		if (soundEditor.currentSound->getSynthMode() == SYNTH_MODE_RINGMOD) return NUM_OSC_TYPES_RINGMODDABLE;
-		else if (AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn || DELUGE_MODEL == DELUGE_MODEL_40_PAD)
+		if (soundEditor.currentSound->getSynthMode() == SYNTH_MODE_RINGMOD) {
+			return NUM_OSC_TYPES_RINGMODDABLE;
+		}
+		else if (AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn || DELUGE_MODEL == DELUGE_MODEL_40_PAD) {
 			return NUM_OSC_TYPES;
-		else return NUM_OSC_TYPES - 2;
+		}
+		else {
+			return NUM_OSC_TYPES - 2;
+		}
 	}
 	bool isRelevant(Sound* sound, int whichThing) {
 		return (sound->getSynthMode() != SYNTH_MODE_FM);
@@ -659,10 +699,14 @@ public:
 		soundEditor.shouldGoUpOneLevelOnBegin = true;
 		bool success = openUI(&audioRecorder);
 		if (!success) {
-			if (getCurrentUI() == &soundEditor) soundEditor.goUpOneLevel();
+			if (getCurrentUI() == &soundEditor) {
+				soundEditor.goUpOneLevel();
+			}
 			uiTimerManager.unsetTimer(TIMER_SHORTCUT_BLINK);
 		}
-		else audioRecorder.process();
+		else {
+			audioRecorder.process();
+		}
 	}
 	bool isRelevant(Sound* sound, int whichThing) {
 		Source* source = &sound->sources[whichThing];
@@ -829,8 +873,9 @@ public:
 		Source* source = &sound->sources[whichThing];
 
 		if (sound->getSynthMode() == SYNTH_MODE_FM
-		    || (source->oscType != OSC_TYPE_SAMPLE && source->oscType != OSC_TYPE_WAVETABLE))
+		    || (source->oscType != OSC_TYPE_SAMPLE && source->oscType != OSC_TYPE_WAVETABLE)) {
 			return MENU_PERMISSION_YES;
+		}
 
 		return soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(sound, whichThing, true, currentRange);
 	}
@@ -882,7 +927,9 @@ public:
 		return options;
 	}
 	bool isRelevant(Sound* sound, int whichThing) {
-		if (!sound) return true;
+		if (!sound) {
+			return true;
+		}
 		Source* source = &sound->sources[whichThing];
 		return (sound->getSynthMode() == SYNTH_MODE_SUBTRACTIVE
 		        && ((source->oscType == OSC_TYPE_SAMPLE && source->hasAtLeastOneAudioFileLoaded())
@@ -935,7 +982,9 @@ public:
 		    ((int64_t)soundEditor.currentParamManager->getPatchedParamSet()->getValue(getP()) * 100 + 2147483648) >> 32;
 	}
 	bool isRelevant(Sound* sound, int whichThing) {
-		if (sound->getSynthMode() == SYNTH_MODE_FM) return false;
+		if (sound->getSynthMode() == SYNTH_MODE_FM) {
+			return false;
+		}
 		int oscType = sound->sources[whichThing].oscType;
 		return (oscType != OSC_TYPE_SAMPLE && oscType != OSC_TYPE_INPUT_L && oscType != OSC_TYPE_INPUT_R
 		        && oscType != OSC_TYPE_INPUT_STEREO);
@@ -1326,8 +1375,12 @@ public:
 	void drawValue() {
 		char buffer[5];
 		intToString(std::abs(soundEditor.currentValue), buffer, 1);
-		if (soundEditor.currentValue < 0) strcat(buffer, "L");
-		else if (soundEditor.currentValue > 0) strcat(buffer, "R");
+		if (soundEditor.currentValue < 0) {
+			strcat(buffer, "L");
+		}
+		else if (soundEditor.currentValue > 0) {
+			strcat(buffer, "R");
+		}
 		numericDriver.setText(buffer, true);
 	}
 
@@ -1348,8 +1401,12 @@ public:
 		soundEditor.currentValue = ((uint64_t)soundEditor.currentSound->sideChainSendLevel * 50 + 1073741824) >> 31;
 	}
 	void writeCurrentValue() {
-		if (soundEditor.currentValue == 50) soundEditor.currentSound->sideChainSendLevel = 2147483647;
-		else soundEditor.currentSound->sideChainSendLevel = soundEditor.currentValue * 42949673;
+		if (soundEditor.currentValue == 50) {
+			soundEditor.currentSound->sideChainSendLevel = 2147483647;
+		}
+		else {
+			soundEditor.currentSound->sideChainSendLevel = soundEditor.currentValue * 42949673;
+		}
 	}
 	int getMaxValue() { return 50; }
 	bool isRelevant(Sound* sound, int whichThing) { return (soundEditor.editingKit()); }
@@ -1367,8 +1424,12 @@ public:
 	int getMinValue() { return -1; }
 #if !HAVE_OLED
 	void drawValue() {
-		if (soundEditor.currentValue < 0) numericDriver.setText("AUTO");
-		else MenuItemInteger::drawValue();
+		if (soundEditor.currentValue < 0) {
+			numericDriver.setText("AUTO");
+		}
+		else {
+			MenuItemInteger::drawValue();
+		}
 	}
 #endif
 } reverbCompressorVolumeMenu;
@@ -1469,7 +1530,9 @@ public:
 	void writeCurrentValue() {
 		ExpressionParamSet* expressionParams =
 		    soundEditor.currentParamManager->getOrCreateExpressionParamSet(soundEditor.editingKit());
-		if (expressionParams) expressionParams->bendRanges[BEND_RANGE_MAIN] = soundEditor.currentValue;
+		if (expressionParams) {
+			expressionParams->bendRanges[BEND_RANGE_MAIN] = soundEditor.currentValue;
+		}
 	}
 } mainBendRangeMenu;
 
@@ -1485,7 +1548,9 @@ public:
 	void writeCurrentValue() {
 		ExpressionParamSet* expressionParams =
 		    soundEditor.currentParamManager->getOrCreateExpressionParamSet(soundEditor.editingKit());
-		if (expressionParams) expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL] = soundEditor.currentValue;
+		if (expressionParams) {
+			expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL] = soundEditor.currentValue;
+		}
 	}
 	bool isRelevant(Sound* sound, int whichThing) {
 		return soundEditor.navigationDepth == 1 || soundEditor.editingKit();
@@ -1511,8 +1576,12 @@ public:
 	}
 #else
 	void drawValue() {
-		if (soundEditor.currentValue == 128) numericDriver.setText("NONE");
-		else numericDriver.setTextAsNumber(soundEditor.currentValue + 1);
+		if (soundEditor.currentValue == 128) {
+			numericDriver.setText("NONE");
+		}
+		else {
+			numericDriver.setTextAsNumber(soundEditor.currentValue + 1);
+		}
 	}
 #endif
 	bool isRelevant(Sound* sound, int whichThing) {
@@ -1520,8 +1589,12 @@ public:
 	}
 	void selectEncoderAction(int offset) {
 		soundEditor.currentValue += offset;
-		if (soundEditor.currentValue >= 129) soundEditor.currentValue -= 129;
-		else if (soundEditor.currentValue < 0) soundEditor.currentValue += 129;
+		if (soundEditor.currentValue >= 129) {
+			soundEditor.currentValue -= 129;
+		}
+		else if (soundEditor.currentValue < 0) {
+			soundEditor.currentValue += 129;
+		}
 		MenuItemNumber::selectEncoderAction(offset);
 	}
 };
@@ -1737,7 +1810,10 @@ class MenuItemAudioClipLPFFreq final : public MenuItemUnpatchedParam{
 		if (soundEditor.currentValue == 50) {
 			numericDriver.setText("OFF");
 }
-else MenuItemUnpatchedParam::drawValue(); }
+else {
+	MenuItemUnpatchedParam::drawValue();
+}
+}
 #endif
 }
 audioClipLPFFreqMenu;
@@ -1752,7 +1828,10 @@ class MenuItemAudioClipHPFFreq final : public MenuItemUnpatchedParam{
 		if (soundEditor.currentValue == 0) {
 			numericDriver.setText("OFF");
 }
-else MenuItemUnpatchedParam::drawValue(); }
+else {
+	MenuItemUnpatchedParam::drawValue();
+}
+}
 #endif
 }
 audioClipHPFFreqMenu;
@@ -1774,8 +1853,12 @@ public:
 		soundEditor.currentValue += offset;
 		int numOptions = getNumOptions();
 
-		if (soundEditor.currentValue >= numOptions) soundEditor.currentValue -= (numOptions - 1);
-		else if (soundEditor.currentValue < 1) soundEditor.currentValue += (numOptions - 1);
+		if (soundEditor.currentValue >= numOptions) {
+			soundEditor.currentValue -= (numOptions - 1);
+		}
+		else if (soundEditor.currentValue < 1) {
+			soundEditor.currentValue += (numOptions - 1);
+		}
 
 		MenuItemValue::selectEncoderAction(offset);
 	}
@@ -2003,12 +2086,18 @@ public:
 	}
 #else
 	void drawValue() {
-		if (soundEditor.currentValue == 0) numericDriver.setText("HZPV", false, 255, true);
-		else MenuItemDecimal::drawValue();
+		if (soundEditor.currentValue == 0) {
+			numericDriver.setText("HZPV", false, 255, true);
+		}
+		else {
+			MenuItemDecimal::drawValue();
+		}
 	}
 #endif
 	void horizontalEncoderAction(int offset) {
-		if (soundEditor.currentValue != 0) MenuItemDecimal::horizontalEncoderAction(offset);
+		if (soundEditor.currentValue != 0) {
+			MenuItemDecimal::horizontalEncoderAction(offset);
+		}
 	}
 } cvVoltsMenu;
 
@@ -2056,8 +2145,12 @@ public:
 		basicOptions = cvOutputChannel;
 	}
 	void beginSession(MenuItem* navigatedBackwardFrom) {
-		if (!navigatedBackwardFrom) soundEditor.currentValue = 0;
-		else soundEditor.currentValue = soundEditor.currentSourceIndex;
+		if (!navigatedBackwardFrom) {
+			soundEditor.currentValue = 0;
+		}
+		else {
+			soundEditor.currentValue = soundEditor.currentSourceIndex;
+		}
 		MenuItemSelection::beginSession(navigatedBackwardFrom);
 	}
 
@@ -2085,13 +2178,19 @@ public:
 		basicOptions = options;
 	}
 	void beginSession(MenuItem* navigatedBackwardFrom) {
-		if (!navigatedBackwardFrom) soundEditor.currentValue = 0;
-		else soundEditor.currentValue = soundEditor.currentSourceIndex;
+		if (!navigatedBackwardFrom) {
+			soundEditor.currentValue = 0;
+		}
+		else {
+			soundEditor.currentValue = soundEditor.currentSourceIndex;
+		}
 		MenuItemSelection::beginSession(navigatedBackwardFrom);
 	}
 
 	MenuItem* selectButtonPress() {
-		if (soundEditor.currentValue == NUM_GATE_CHANNELS) return &gateOffTimeMenu;
+		if (soundEditor.currentValue == NUM_GATE_CHANNELS) {
+			return &gateOffTimeMenu;
+		}
 		else {
 			soundEditor.currentSourceIndex = soundEditor.currentValue;
 #if HAVE_OLED
@@ -2126,8 +2225,12 @@ public:
 		int numOptions = getNumOptions();
 
 		// Wrap value
-		if (soundEditor.currentValue >= numOptions) soundEditor.currentValue -= (numOptions - 1);
-		else if (soundEditor.currentValue < 1) soundEditor.currentValue += (numOptions - 1);
+		if (soundEditor.currentValue >= numOptions) {
+			soundEditor.currentValue -= (numOptions - 1);
+		}
+		else if (soundEditor.currentValue < 1) {
+			soundEditor.currentValue += (numOptions - 1);
+		}
 
 		MenuItemValue::selectEncoderAction(offset);
 	}
@@ -2163,7 +2266,9 @@ public:
 	void readCurrentValue() { soundEditor.currentValue = PadLEDs::flashCursor; }
 	void writeCurrentValue() {
 
-		if (PadLEDs::flashCursor == FLASH_CURSOR_SLOW) PadLEDs::clearTickSquares();
+		if (PadLEDs::flashCursor == FLASH_CURSOR_SLOW) {
+			PadLEDs::clearTickSquares();
+		}
 
 		PadLEDs::flashCursor = soundEditor.currentValue;
 	}
@@ -2367,8 +2472,9 @@ public:
 	void readCurrentValue() { soundEditor.currentValue = playbackHandler.analogInTicksPPQN; }
 	void writeCurrentValue() {
 		playbackHandler.analogInTicksPPQN = soundEditor.currentValue;
-		if ((playbackHandler.playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE) && playbackHandler.usingAnalogClockInput)
+		if ((playbackHandler.playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE) && playbackHandler.usingAnalogClockInput) {
 			playbackHandler.resyncInternalTicksToInputTicks(currentSong);
+		}
 	}
 } triggerInPPQNMenu;
 
@@ -3069,7 +3175,9 @@ bool SoundEditor::editingCVOrMIDIClip() {
 }
 
 bool SoundEditor::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
-	if (getRootUI() == &keyboardScreen) return false;
+	if (getRootUI() == &keyboardScreen) {
+		return false;
+	}
 	else if (getRootUI() == &instrumentClipView) {
 		*cols = 0xFFFFFFFE;
 	}
@@ -3082,8 +3190,9 @@ bool SoundEditor::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
 bool SoundEditor::opened() {
 	bool success =
 	    beginScreen(); // Could fail for instance if going into WaveformView but sample not found on card, or going into SampleBrowser but card not present
-	if (!success)
+	if (!success) {
 		return true; // Must return true, which means everything is dealt with - because this UI would already have been exited if there was a problem
+	}
 
 	setLedStates();
 
@@ -3098,7 +3207,9 @@ void SoundEditor::focusRegained() {
 		shouldGoUpOneLevelOnBegin = false;
 
 		// If that already exited this UI, then get out now before setting any LEDs
-		if (getCurrentUI() != this) return;
+		if (getCurrentUI() != this) {
+			return;
+		}
 
 		PadLEDs::skipGreyoutFade();
 	}
@@ -3133,7 +3244,9 @@ int SoundEditor::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 	if (x == selectEncButtonX && y == selectEncButtonY) {
 		if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_AUDITIONING) {
 			if (on) {
-				if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				if (inCardRoutine) {
+					return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				}
 				MenuItem* newItem = getCurrentMenuItem()->selectButtonPress();
 				if (newItem) {
 					if (newItem != (MenuItem*)0xFFFFFFFF) {
@@ -3156,7 +3269,9 @@ int SoundEditor::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 						}
 					}
 				}
-				else goUpOneLevel();
+				else {
+					goUpOneLevel();
+				}
 			}
 		}
 	}
@@ -3165,7 +3280,9 @@ int SoundEditor::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 	else if (x == backButtonX && y == backButtonY) {
 		if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_AUDITIONING) {
 			if (on) {
-				if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				if (inCardRoutine) {
+					return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				}
 
 				// Special case if we're editing a range
 				if (getCurrentMenuItem() == &multiRangeMenu && multiRangeMenu.cancelEditingIfItsOn()) {}
@@ -3180,7 +3297,9 @@ int SoundEditor::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 	else if (x == saveButtonX && y == saveButtonY) {
 		if (on && currentUIMode == UI_MODE_NONE && !inSettingsMenu() && !editingCVOrMIDIClip()
 		    && currentSong->currentClip->type != CLIP_TYPE_AUDIO) {
-			if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			if (inCardRoutine) {
+				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
 
 			if (Buttons::isShiftButtonPressed()) {
 				if (getCurrentMenuItem() == &multiRangeMenu) {
@@ -3195,7 +3314,9 @@ int SoundEditor::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 
 	// MIDI learn button
 	else if (x == learnButtonX && y == learnButtonY) {
-		if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		if (inCardRoutine) {
+			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		}
 		if (on) {
 			if (!currentUIMode) {
 				if (!getCurrentMenuItem()->allowsLearnMode()) {
@@ -3220,7 +3341,9 @@ int SoundEditor::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 				IndicatorLEDs::setLedState(learnLedX, learnLedY, false);
 			}
 
-			if (currentUIMode == UI_MODE_MIDI_LEARN) currentUIMode = UI_MODE_NONE;
+			if (currentUIMode == UI_MODE_MIDI_LEARN) {
+				currentUIMode = UI_MODE_NONE;
+			}
 		}
 	}
 
@@ -3233,7 +3356,9 @@ int SoundEditor::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 	// Affect-entire button
 	else if (x == affectEntireButtonX && y == affectEntireButtonY && getRootUI() == &instrumentClipView) {
 		if (getCurrentMenuItem()->usesAffectEntire() && editingKit()) {
-			if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			if (inCardRoutine) {
+				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
 			if (on) {
 				if (currentUIMode == UI_MODE_NONE) {
 					IndicatorLEDs::blinkLed(affectEntireLedX, affectEntireLedY, 255, 1);
@@ -3255,7 +3380,9 @@ int SoundEditor::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 	// Keyboard button
 	else if (x == keyboardButtonX && y == keyboardButtonY) {
 		if (on && currentUIMode == UI_MODE_NONE && !editingKit()) {
-			if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			if (inCardRoutine) {
+				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
 
 			if (getRootUI() == &keyboardScreen) {
 				swapOutRootUILowLevel(&instrumentClipView);
@@ -3273,7 +3400,9 @@ int SoundEditor::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 	}
 #endif
 
-	else return ACTION_RESULT_NOT_DEALT_WITH;
+	else {
+		return ACTION_RESULT_NOT_DEALT_WITH;
+	}
 
 	return ACTION_RESULT_DEALT_WITH;
 }
@@ -3290,7 +3419,9 @@ void SoundEditor::goUpOneLevel() {
 	numericDriver.setNextTransitionDirection(-1);
 
 	MenuItem* oldItem = menuItemNavigationRecord[navigationDepth + 1];
-	if (oldItem == &multiRangeMenu) oldItem = multiRangeMenu.menuItemHeadingTo;
+	if (oldItem == &multiRangeMenu) {
+		oldItem = multiRangeMenu.menuItemHeadingTo;
+	}
 
 	beginScreen(oldItem);
 }
@@ -3323,8 +3454,9 @@ bool SoundEditor::beginScreen(MenuItem* oldMenuItem) {
 
 	// If that didn't succeed (file browser)
 	if (getCurrentUI() != &soundEditor && getCurrentUI() != &sampleBrowser && getCurrentUI() != &audioRecorder
-	    && getCurrentUI() != &sampleMarkerEditor && getCurrentUI() != &renameDrumUI)
+	    && getCurrentUI() != &sampleMarkerEditor && getCurrentUI() != &renameDrumUI) {
 		return false;
+	}
 
 #if HAVE_OLED
 	renderUIsForOled();
@@ -3378,16 +3510,22 @@ doSetupBlinkingForAudioClip:
 		// Or the "normal" case, for Sounds
 		else {
 
-			if (currentItem == &multiRangeMenu) currentItem = multiRangeMenu.menuItemHeadingTo;
+			if (currentItem == &multiRangeMenu) {
+				currentItem = multiRangeMenu.menuItemHeadingTo;
+			}
 
 			// First, see if there's a shortcut for the actual MenuItem we're currently on
 			for (int x = 0; x < 15; x++) {
 				for (int y = 0; y < displayHeight; y++) {
 					if (paramShortcutsForSounds[x][y] == currentItem) {
 
-						if (x == 10 && y < 6 && editingReverbCompressor()) goto stopThat;
+						if (x == 10 && y < 6 && editingReverbCompressor()) {
+							goto stopThat;
+						}
 
-						if (currentParamShorcutX != 255 && (x & 1) && currentSourceIndex == 0) goto stopThat;
+						if (currentParamShorcutX != 255 && (x & 1) && currentSourceIndex == 0) {
+							goto stopThat;
+						}
 						setupShortcutBlink(x, y, 0);
 					}
 				}
@@ -3404,7 +3542,9 @@ doSetupBlinkingForAudioClip:
 							    && ((MenuItem*)paramShortcutsForSounds[x][y])->getPatchedParamIndex()
 							           == paramLookingFor) {
 
-								if (currentParamShorcutX != 255 && (x & 1) && currentSourceIndex == 0) goto stopThat;
+								if (currentParamShorcutX != 255 && (x & 1) && currentSourceIndex == 0) {
+									goto stopThat;
+								}
 
 								setupShortcutBlink(x, y, 3);
 							}
@@ -3419,9 +3559,10 @@ stopThat : {}
 				for (int x = 0; x < 2; x++) {
 					for (int y = 0; y < displayHeight; y++) {
 						uint8_t source = modSourceShortcuts[x][y];
-						if (source < NUM_PATCH_SOURCES)
+						if (source < NUM_PATCH_SOURCES) {
 							sourceShortcutBlinkFrequencies[x][y] = currentItem->shouldBlinkPatchingSourceShortcut(
 							    source, &sourceShortcutBlinkColours[x][y]);
+						}
 					}
 				}
 			}
@@ -3528,8 +3669,9 @@ int SoundEditor::horizontalEncoderAction(int offset) {
 void SoundEditor::selectEncoderAction(int8_t offset) {
 
 	if (currentUIMode != UI_MODE_NONE && currentUIMode != UI_MODE_AUDITIONING
-	    && currentUIMode != UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR)
+	    && currentUIMode != UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR) {
 		return;
+	}
 
 	bool hadNoteTails;
 
@@ -3546,8 +3688,9 @@ void SoundEditor::selectEncoderAction(int8_t offset) {
 	getCurrentMenuItem()->selectEncoderAction(offset);
 
 	if (currentSound) {
-		if (getCurrentMenuItem()->selectEncoderActionEditsInstrument())
+		if (getCurrentMenuItem()->selectEncoderActionEditsInstrument()) {
 			markInstrumentAsEdited(); // TODO: make reverb and reverb-compressor stuff exempt from this
+		}
 
 		// If envelope param preset values were changed, there's a chance that there could have been a change to whether notes have tails
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -3576,12 +3719,15 @@ int SoundEditor::potentialShortcutPadAction(int x, int y, bool on) {
 
 	if (!on || DELUGE_MODEL == DELUGE_MODEL_40_PAD || x >= displayWidth
 	    || (!Buttons::isShiftButtonPressed()
-	        && !(currentUIMode == UI_MODE_AUDITIONING && getRootUI() == &instrumentClipView)))
+	        && !(currentUIMode == UI_MODE_AUDITIONING && getRootUI() == &instrumentClipView))) {
 		return ACTION_RESULT_NOT_DEALT_WITH;
+	}
 
 	if (on && isUIModeWithinRange(shortcutPadUIModes)) {
 
-		if (sdRoutineLock) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		if (sdRoutineLock) {
+			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		}
 
 		const MenuItem* item = NULL;
 
@@ -3600,11 +3746,17 @@ int SoundEditor::potentialShortcutPadAction(int x, int y, bool on) {
 			if (x < 14 || (x == 14 && y < 5)) {
 
 				if (editingCVOrMIDIClip()) {
-					if (x == 11) item = midiOrCVParamShortcuts[y];
-					else if (x == 4) {
-						if (y == 7) item = &sequenceDirectionMenu;
+					if (x == 11) {
+						item = midiOrCVParamShortcuts[y];
 					}
-					else item = NULL;
+					else if (x == 4) {
+						if (y == 7) {
+							item = &sequenceDirectionMenu;
+						}
+					}
+					else {
+						item = NULL;
+					}
 				}
 				else {
 					item = paramShortcutsForSounds[x][y];
@@ -3665,14 +3817,20 @@ doSetup:
 			else if (getCurrentUI() == &soundEditor) {
 
 				uint8_t source = modSourceShortcuts[x - 14][y];
-				if (source == 254) numericDriver.displayPopup("SOON");
+				if (source == 254) {
+					numericDriver.displayPopup("SOON");
+				}
 
-				if (source >= NUM_PATCH_SOURCES) return ACTION_RESULT_DEALT_WITH;
+				if (source >= NUM_PATCH_SOURCES) {
+					return ACTION_RESULT_DEALT_WITH;
+				}
 
 				bool previousPressStillActive = false;
 				for (int h = 0; h < 2; h++) {
 					for (int i = 0; i < displayHeight; i++) {
-						if (h == 0 && i < 5) continue;
+						if (h == 0 && i < 5) {
+							continue;
+						}
 
 						if ((h + 14 != x || i != y) && matrixDriver.isPadPressed(14 + h, i)) {
 							previousPressStillActive = true;
@@ -3711,7 +3869,9 @@ getOut:
 						                                                  &currentMultiRange)) {
 							navigationDepth = newNavigationDepth + 1;
 							menuItemNavigationRecord[navigationDepth] = newMenuItem;
-							if (!wentBack) numericDriver.setNextTransitionDirection(1);
+							if (!wentBack) {
+								numericDriver.setNextTransitionDirection(1);
+							}
 							beginScreen();
 						}
 
@@ -3728,11 +3888,15 @@ getOut:
 extern uint16_t batteryMV;
 
 int SoundEditor::padAction(int x, int y, int on) {
-	if (sdRoutineLock) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+	if (sdRoutineLock) {
+		return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+	}
 
 	if (!inSettingsMenu()) {
 		int result = potentialShortcutPadAction(x, y, on);
-		if (result != ACTION_RESULT_NOT_DEALT_WITH) return result;
+		if (result != ACTION_RESULT_NOT_DEALT_WITH) {
+			return result;
+		}
 	}
 
 	if (getRootUI() == &keyboardScreen) {
@@ -3776,8 +3940,9 @@ int SoundEditor::padAction(int x, int y, int on) {
 }
 
 int SoundEditor::verticalEncoderAction(int offset, bool inCardRoutine) {
-	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(xEncButtonX, xEncButtonY))
+	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(xEncButtonX, xEncButtonY)) {
 		return ACTION_RESULT_DEALT_WITH;
+	}
 	return getRootUI()->verticalEncoderAction(offset, inCardRoutine);
 }
 
@@ -3828,7 +3993,9 @@ void SoundEditor::modEncoderAction(int whichModEncoder, int offset) {
 	}
 
 	// Otherwise, send the action to the Editor as usual
-	else UI::modEncoderAction(whichModEncoder, offset);
+	else {
+		UI::modEncoderAction(whichModEncoder, offset);
+	}
 }
 
 bool SoundEditor::setup(Clip* clip, const MenuItem* item, int sourceIndex) {
@@ -3850,7 +4017,9 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int sourceIndex) {
 				if (selectedDrum) {
 					if (selectedDrum->type == DRUM_TYPE_SOUND) {
 						NoteRow* noteRow = ((InstrumentClip*)clip)->getNoteRowForDrum(selectedDrum);
-						if (noteRow == NULL) return false;
+						if (noteRow == NULL) {
+							return false;
+						}
 						newSound = (SoundDrum*)selectedDrum;
 						newModControllable = newSound;
 						newParamManager = &noteRow->paramManager;
@@ -3902,7 +4071,9 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int sourceIndex) {
 
 	MenuItem* newItem;
 
-	if (item) newItem = (MenuItem*)item;
+	if (item) {
+		newItem = (MenuItem*)item;
+	}
 	else {
 		if (clip) {
 
@@ -3938,8 +4109,10 @@ doMIDIOrCV:
 
 	MultiRange* newRange = currentMultiRange;
 
-	if ((getCurrentUI() != &soundEditor && getCurrentUI() != &sampleMarkerEditor) || sourceIndex != currentSourceIndex)
+	if ((getCurrentUI() != &soundEditor && getCurrentUI() != &sampleMarkerEditor)
+	    || sourceIndex != currentSourceIndex) {
 		newRange = NULL;
+	}
 
 	// This isn't a very nice solution, but we have to set currentParamManager before calling checkPermissionToBeginSession(),
 	// because in a minority of cases, like "patch cable strength" / "modulation depth", it needs this.
@@ -4031,8 +4204,9 @@ int SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam(Sound* sound
 		return MENU_PERMISSION_YES;
 	}
 
-	if (getCurrentUI() == &soundEditor && *previouslySelectedRange && currentSourceIndex == whichThing)
+	if (getCurrentUI() == &soundEditor && *previouslySelectedRange && currentSourceIndex == whichThing) {
 		return MENU_PERMISSION_YES;
+	}
 
 	return MENU_PERMISSION_MUST_SELECT_RANGE;
 }
@@ -4052,7 +4226,9 @@ AudioFileHolder* SoundEditor::getCurrentAudioFileHolder() {
 		return &((AudioClip*)currentSong->currentClip)->sampleHolder;
 	}
 
-	else return currentMultiRange->getAudioFileHolder();
+	else {
+		return currentMultiRange->getAudioFileHolder();
+	}
 }
 
 ModelStackWithThreeMainThings* SoundEditor::getCurrentModelStack(void* memory) {

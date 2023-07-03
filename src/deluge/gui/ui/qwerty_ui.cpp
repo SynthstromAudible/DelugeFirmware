@@ -154,7 +154,9 @@ void QwertyUI::displayText(bool blinkImmediately) {
 
 	int scrollPos = encodedEditPos - (NUMERIC_DISPLAY_LENGTH >> 1) + encodedEditPosAndAHalf;
 	int maxScrollPos = encodedEndPos - NUMERIC_DISPLAY_LENGTH;
-	if (totalTextLength == enteredTextEditPos) maxScrollPos++;
+	if (totalTextLength == enteredTextEditPos) {
+		maxScrollPos++;
+	}
 	scrollPos = getMin(scrollPos, maxScrollPos);
 	scrollPos = getMax(scrollPos, 0);
 
@@ -164,8 +166,9 @@ void QwertyUI::displayText(bool blinkImmediately) {
 	uint8_t encodedAddition[NUMERIC_DISPLAY_LENGTH];
 	memset(encodedAddition, 0, NUMERIC_DISPLAY_LENGTH);
 	if (totalTextLength == enteredTextEditPos || enteredText.get()[enteredTextEditPos] == ' ') {
-		if (ALPHA_OR_BETA_VERSION && (editPosOnscreen < 0 || editPosOnscreen >= NUMERIC_DISPLAY_LENGTH))
+		if (ALPHA_OR_BETA_VERSION && (editPosOnscreen < 0 || editPosOnscreen >= NUMERIC_DISPLAY_LENGTH)) {
 			numericDriver.freezeWithError("E292");
+		}
 		encodedAddition[editPosOnscreen] = 0x08;
 		encodedEditPosAndAHalf =
 		    false; // Hard to put into words why this is needed, but without it, the blinking _ after a . just won't blink
@@ -173,9 +176,15 @@ void QwertyUI::displayText(bool blinkImmediately) {
 
 	uint8_t blinkMask[NUMERIC_DISPLAY_LENGTH];
 	for (int i = 0; i < NUMERIC_DISPLAY_LENGTH; i++) {
-		if (i < editPosOnscreen) blinkMask[i] = 255;                                        // Blink none
-		else if (i == editPosOnscreen && encodedEditPosAndAHalf) blinkMask[i] = 0b01111111; // Blink the dot
-		else blinkMask[i] = 0;                                                              // Blink all
+		if (i < editPosOnscreen) {
+			blinkMask[i] = 255; // Blink none
+		}
+		else if (i == editPosOnscreen && encodedEditPosAndAHalf) {
+			blinkMask[i] = 0b01111111; // Blink the dot
+		}
+		else {
+			blinkMask[i] = 0; // Blink all
+		}
 	}
 
 	IndicatorLEDs::ledBlinkTimeout(0, true, !blinkImmediately);
@@ -251,7 +260,9 @@ int QwertyUI::padAction(int x, int y, int on) {
 			}
 
 			else if (!currentUIMode) {
-				if (sdRoutineLock) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				if (sdRoutineLock) {
+					return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				}
 				enterKeyPress();
 			}
 		}
@@ -271,13 +282,17 @@ int QwertyUI::padAction(int x, int y, int on) {
 			else if (!currentUIMode || currentUIMode == UI_MODE_LOADING_BUT_ABORT_IF_SELECT_ENCODER_TURNED) {
 
 				char newChar = keyboardChars[FlashStorage::keyboardLayout][QWERTY_HOME_ROW - y + 2][x - 3];
-				if (newChar == 0) return ACTION_RESULT_DEALT_WITH;
+				if (newChar == 0) {
+					return ACTION_RESULT_DEALT_WITH;
+				}
 
 				// First character must be alphanumerical
 				if (!enteredTextEditPos) {
 					if ((newChar >= 'A' && newChar <= 'Z') || (newChar >= '0' && newChar <= '9')) {
 					} // Then everything's fine
-					else return ACTION_RESULT_DEALT_WITH;
+					else {
+						return ACTION_RESULT_DEALT_WITH;
+					}
 				}
 
 				// If holding shift...
@@ -288,10 +303,18 @@ int QwertyUI::padAction(int x, int y, int on) {
 					    || matrixDriver.isPadPressed(14, QWERTY_HOME_ROW - 1)) {
 
 						// Apply that to keys which have a shift character
-						if (newChar == '-') newChar = '_';
-						else if (newChar == '1') newChar = '!';
-						else if (newChar == '3') newChar = '#';
-						else if (newChar == '6') newChar = '^';
+						if (newChar == '-') {
+							newChar = '_';
+						}
+						else if (newChar == '1') {
+							newChar = '!';
+						}
+						else if (newChar == '3') {
+							newChar = '#';
+						}
+						else if (newChar == '6') {
+							newChar = '^';
+						}
 					}
 				}
 
@@ -302,7 +325,9 @@ int QwertyUI::padAction(int x, int y, int on) {
 					if (currentUIMode == UI_MODE_LOADING_BUT_ABORT_IF_SELECT_ENCODER_TURNED) {}
 
 					// But if otherwise accessing card, not fine - e.g. if loading song visual preview
-					else if (sdRoutineLock) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+					else if (sdRoutineLock) {
+						return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+					}
 
 					enteredTextEditPos++;
 				}
@@ -318,8 +343,9 @@ int QwertyUI::padAction(int x, int y, int on) {
 
 					// Or if the card is just generally being accessed (e.g. samples being buffered), come back soon,
 					// because we couldn't do anything like a "prediction" right now
-					else if (sdRoutineLock) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
-
+					else if (sdRoutineLock) {
+						return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+					}
 					else {
 						// If char is a letter...
 						if (newChar >= 'A' && newChar <= 'Z') {
@@ -382,13 +408,17 @@ int QwertyUI::horizontalEncoderAction(int offset) {
 			predictExtendedText();
 
 			// If not, get out
-			if (enteredTextEditPos == enteredText.getLength()) return ACTION_RESULT_DEALT_WITH;
+			if (enteredTextEditPos == enteredText.getLength()) {
+				return ACTION_RESULT_DEALT_WITH;
+			}
 
 			goto doDisplayText;
 		}
 	}
 	else {
-		if (enteredTextEditPos == 0) return ACTION_RESULT_DEALT_WITH;
+		if (enteredTextEditPos == 0) {
+			return ACTION_RESULT_DEALT_WITH;
+		}
 	}
 
 	enteredTextEditPos += offset;

@@ -35,7 +35,9 @@ ConsequenceNoteExistence::ConsequenceNoteExistence(InstrumentClip* newClip, int 
 
 int ConsequenceNoteExistence::revert(int time, ModelStack* modelStack) {
 	NoteRow* noteRow = clip->getNoteRowFromId(noteRowId);
-	if (!noteRow) return ERROR_BUG;
+	if (!noteRow) {
+		return ERROR_BUG;
+	}
 
 	if (time == type) {
 		// Delete a note now
@@ -49,7 +51,9 @@ int ConsequenceNoteExistence::revert(int time, ModelStack* modelStack) {
 		// Create a note now
 		int i = noteRow->notes.insertAtKey(pos);
 		Note* note = noteRow->notes.getElement(i);
-		if (!note) return ERROR_INSUFFICIENT_RAM;
+		if (!note) {
+			return ERROR_INSUFFICIENT_RAM;
+		}
 		note->setLength(length);
 		note->setVelocity(velocity);
 		note->setProbability(probability);

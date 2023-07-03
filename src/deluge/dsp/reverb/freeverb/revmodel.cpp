@@ -71,7 +71,9 @@ revmodel::revmodel() {
 }
 
 void revmodel::mute() {
-	if (getmode() >= freezemode) return;
+	if (getmode() >= freezemode) {
+		return;
+	}
 
 	for (int i = 0; i < numcombs; i++) {
 		combL[i].mute();
@@ -159,8 +161,12 @@ void revmodel::setmode(float value) {
 }
 
 float revmodel::getmode() {
-	if (mode >= freezemode) return 1;
-	else return 0;
+	if (mode >= freezemode) {
+		return 1;
+	}
+	else {
+		return 0;
+	}
 }
 
 //ends

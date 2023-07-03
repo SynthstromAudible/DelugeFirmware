@@ -67,16 +67,23 @@ Kit::~Kit() {
 }
 
 Drum* Kit::getNextDrum(Drum* fromDrum) {
-	if (fromDrum == NULL) return firstDrum;
-	else return fromDrum->next;
+	if (fromDrum == NULL) {
+		return firstDrum;
+	}
+	else {
+		return fromDrum->next;
+	}
 }
 
 Drum* Kit::getPrevDrum(Drum* fromDrum) {
-	if (fromDrum == firstDrum) return NULL;
+	if (fromDrum == firstDrum) {
+		return NULL;
+	}
 
 	Drum* thisDrum = firstDrum;
-	while (thisDrum->next != fromDrum)
+	while (thisDrum->next != fromDrum) {
 		thisDrum = thisDrum->next;
+	}
 	return thisDrum;
 }
 
@@ -85,12 +92,16 @@ bool Kit::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 	Instrument::writeDataToFile(clipForSavingOutputOnly, song);
 
 	ParamManager* paramManager;
-	if (clipForSavingOutputOnly) paramManager = &clipForSavingOutputOnly->paramManager;
+	if (clipForSavingOutputOnly) {
+		paramManager = &clipForSavingOutputOnly->paramManager;
+	}
 	else {
 		paramManager = NULL;
 
 		// If no activeClip, that means no Clip has this Instrument, so there should be a backedUpParamManager that we should use
-		if (!activeClip) paramManager = song->getBackedUpParamManagerPreferablyWithClip(this, NULL);
+		if (!activeClip) {
+			paramManager = song->getBackedUpParamManagerPreferablyWithClip(this, NULL);
+		}
 	}
 
 	GlobalEffectableForClip::writeAttributesToFile(clipForSavingOutputOnly == NULL);
@@ -144,7 +155,9 @@ bool Kit::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 	while (true) {
 
 		Drum* thisDrum = *prevPointer;
-		if (!thisDrum) break;
+		if (!thisDrum) {
+			break;
+		}
 
 		ParamManager* paramManagerForDrum = NULL;
 
@@ -152,7 +165,9 @@ bool Kit::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 		if (clipForSavingOutputOnly) {
 			Uart::println("yup, clipForSavingOutputOnly");
 			NoteRow* noteRow = song->findNoteRowForDrum(this, thisDrum);
-			if (!noteRow) goto moveOn;
+			if (!noteRow) {
+				goto moveOn;
+			}
 			paramManagerForDrum =
 			    &noteRow->paramManager; // Of course there won't be one if it's a NonAudioDrum, but that's fine
 		}
@@ -165,7 +180,9 @@ bool Kit::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 				Uart::println("nah, !activeClip");
 				if (thisDrum->type == DRUM_TYPE_SOUND) {
 					paramManagerForDrum = song->getBackedUpParamManagerPreferablyWithClip((SoundDrum*)thisDrum, NULL);
-					if (!paramManagerForDrum) goto moveOn;
+					if (!paramManagerForDrum) {
+						goto moveOn;
+					}
 				}
 			}
 
@@ -213,7 +230,9 @@ moveOn:
 
 void Kit::writeDrumToFile(Drum* thisDrum, ParamManager* paramManagerForDrum, bool savingSong, int* selectedDrumIndex,
                           int* drumIndex, Song* song) {
-	if (thisDrum == selectedDrum) *selectedDrumIndex = *drumIndex;
+	if (thisDrum == selectedDrum) {
+		*selectedDrumIndex = *drumIndex;
+	}
 
 	thisDrum->writeToFile(savingSong, paramManagerForDrum);
 	(*drumIndex)++;
@@ -236,7 +255,9 @@ int Kit::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) {
 					drumType = DRUM_TYPE_SOUND;
 doReadDrum:
 					int error = readDrumFromFile(song, clip, drumType, readAutomationUpToPos);
-					if (error) return error;
+					if (error) {
+						return error;
+					}
 					storageManager.exitTag();
 				}
 				else if (!strcmp(tagName, "midiOutput")) {
@@ -247,7 +268,9 @@ doReadDrum:
 					drumType = DRUM_TYPE_GATE;
 					goto doReadDrum;
 				}
-				else storageManager.exitTag(tagName);
+				else {
+					storageManager.exitTag(tagName);
+				}
 			}
 			storageManager.exitTag("soundSources");
 		}
@@ -258,12 +281,16 @@ doReadDrum:
 		else {
 			int result = GlobalEffectableForClip::readTagFromFile(tagName, &paramManager, readAutomationUpToPos, song);
 			if (result == NO_ERROR) {}
-			else if (result != RESULT_TAG_UNUSED) return result;
+			else if (result != RESULT_TAG_UNUSED) {
+				return result;
+			}
 			else {
 				if (Instrument::readTagFromFile(tagName)) {}
 				else {
 					int result = storageManager.tryReadingFirmwareTagFromFile(tagName);
-					if (result && result != RESULT_TAG_UNUSED) return result;
+					if (result && result != RESULT_TAG_UNUSED) {
+						return result;
+					}
 					storageManager.exitTag(tagName);
 				}
 			}
@@ -285,7 +312,9 @@ doReadDrum:
 int Kit::readDrumFromFile(Song* song, Clip* clip, int drumType, int32_t readAutomationUpToPos) {
 
 	Drum* newDrum = storageManager.createNewDrum(drumType);
-	if (!newDrum) return ERROR_INSUFFICIENT_RAM;
+	if (!newDrum) {
+		return ERROR_INSUFFICIENT_RAM;
+	}
 
 	int error = newDrum->readFromFile(
 	    song, clip, readAutomationUpToPos); // Will create and "back up" a new ParamManager if anything to read into it
@@ -309,7 +338,9 @@ int Kit::loadAllAudioFiles(bool mayActuallyReadFiles) {
 	    mayActuallyReadFiles && (audioFileManager.alternateLoadDirStatus == ALTERNATE_LOAD_DIR_NONE_SET);
 	if (doingAlternatePath) {
 		error = setupDefaultAudioFileDir();
-		if (error) return error;
+		if (error) {
+			return error;
+		}
 	}
 
 	AudioEngine::logAction("Kit::loadAllSamples");
@@ -319,7 +350,9 @@ int Kit::loadAllAudioFiles(bool mayActuallyReadFiles) {
 			goto getOut;
 		}
 		error = thisDrum->loadAllSamples(mayActuallyReadFiles);
-		if (error) goto getOut;
+		if (error) {
+			goto getOut;
+		}
 	}
 
 getOut:
@@ -336,7 +369,9 @@ void Kit::loadCrucialAudioFilesOnly() {
 	bool doingAlternatePath = (audioFileManager.alternateLoadDirStatus == ALTERNATE_LOAD_DIR_NONE_SET);
 	if (doingAlternatePath) {
 		int error = setupDefaultAudioFileDir();
-		if (error) return;
+		if (error) {
+			return;
+		}
 	}
 
 	AudioEngine::logAction("Kit::loadCrucialSamplesOnly");
@@ -354,8 +389,9 @@ void Kit::loadCrucialAudioFilesOnly() {
 
 void Kit::addDrum(Drum* newDrum) {
 	Drum** prevPointer = &firstDrum;
-	while (*prevPointer != NULL)
+	while (*prevPointer != NULL) {
 		prevPointer = &((*prevPointer)->next);
+	}
 	*prevPointer = newDrum;
 
 	newDrum->kit = this;
@@ -379,7 +415,9 @@ void Kit::removeDrumFromLinkedList(Drum* drum) {
 }
 
 void Kit::drumRemoved(Drum* drum) {
-	if (selectedDrum == drum) selectedDrum = NULL;
+	if (selectedDrum == drum) {
+		selectedDrum = NULL;
+	}
 
 #if ALPHA_OR_BETA_VERSION
 	int i = drumsWithRenderingActive.searchExact((int32_t)drum);
@@ -391,7 +429,9 @@ void Kit::drumRemoved(Drum* drum) {
 
 Drum* Kit::getFirstUnassignedDrum(InstrumentClip* clip) {
 	for (Drum* thisDrum = firstDrum; thisDrum != NULL; thisDrum = thisDrum->next) {
-		if (!clip->getNoteRowForDrum(thisDrum)) return thisDrum;
+		if (!clip->getNoteRowForDrum(thisDrum)) {
+			return thisDrum;
+		}
 	}
 
 	return NULL;
@@ -407,7 +447,9 @@ int Kit::getDrumIndex(Drum* drum) {
 
 Drum* Kit::getDrumFromIndex(int index) {
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
-		if (index == 0) return thisDrum;
+		if (index == 0) {
+			return thisDrum;
+		}
 		index--;
 	}
 
@@ -418,10 +460,13 @@ Drum* Kit::getDrumFromIndex(int index) {
 SoundDrum* Kit::getDrumFromName(char const* name, bool onlyIfNoNoteRow) {
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 
-		if (onlyIfNoNoteRow && thisDrum->noteRowAssignedTemp) continue;
+		if (onlyIfNoNoteRow && thisDrum->noteRowAssignedTemp) {
+			continue;
+		}
 
-		if (thisDrum->type == DRUM_TYPE_SOUND && ((SoundDrum*)thisDrum)->name.equalsCaseIrrespective(name))
+		if (thisDrum->type == DRUM_TYPE_SOUND && ((SoundDrum*)thisDrum)->name.equalsCaseIrrespective(name)) {
 			return (SoundDrum*)thisDrum;
+		}
 	}
 
 	return NULL;
@@ -444,11 +489,15 @@ void Kit::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStac
 	for (int d = drumsWithRenderingActive.getNumElements() - 1; d >= 0; d--) {
 		Drum* thisDrum = (Drum*)drumsWithRenderingActive.getKeyAtIndex(d);
 
-		if (ALPHA_OR_BETA_VERSION && thisDrum->type != DRUM_TYPE_SOUND) numericDriver.freezeWithError("E253");
+		if (ALPHA_OR_BETA_VERSION && thisDrum->type != DRUM_TYPE_SOUND) {
+			numericDriver.freezeWithError("E253");
+		}
 
 		SoundDrum* soundDrum = (SoundDrum*)thisDrum;
 
-		if (ALPHA_OR_BETA_VERSION && soundDrum->skippingRendering) numericDriver.freezeWithError("E254");
+		if (ALPHA_OR_BETA_VERSION && soundDrum->skippingRendering) {
+			numericDriver.freezeWithError("E254");
+		}
 
 		ParamManager* drumParamManager;
 		NoteRow* thisNoteRow = NULL;
@@ -641,7 +690,9 @@ int Kit::makeDrumNameUnique(String* name, int startAtNumber) {
 		char numberString[12];
 		intToString(startAtNumber, numberString);
 		int error = name->concatenateAtPos(numberString, originalLength);
-		if (error) return error;
+		if (error) {
+			return error;
+		}
 		startAtNumber++;
 	} while (getDrumFromName(name->get()));
 
@@ -667,7 +718,9 @@ void Kit::setupWithoutActiveClip(ModelStack* modelStack) {
 
 			ParamManager* paramManager = modelStackWithTimelineCounter->song->getBackedUpParamManagerPreferablyWithClip(
 			    (ModControllableAudio*)soundDrum, NULL);
-			if (!paramManager) numericDriver.freezeWithError("E174");
+			if (!paramManager) {
+				numericDriver.freezeWithError("E174");
+			}
 
 			soundDrum->patcher.performInitialPatching(soundDrum, (ParamManagerForTimeline*)paramManager);
 		}
@@ -722,7 +775,9 @@ void Kit::setupPatching(ModelStackWithTimelineCounter* modelStack) {
 
 				ParamManager* paramManager =
 				    modelStack->song->getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)soundDrum, NULL);
-				if (!paramManager) numericDriver.freezeWithError("E172");
+				if (!paramManager) {
+					numericDriver.freezeWithError("E172");
+				}
 
 				soundDrum->ensureInaccessibleParamPresetValuesWithoutKnobsAreZeroWithMinimalDetails(
 				    (ParamManagerForTimeline*)paramManager);
@@ -804,8 +859,9 @@ void Kit::compensateInstrumentVolumeForResonance(ParamManagerForTimeline* paramM
 		                           oldResonanceCompensation, 3);
 		float compensationDB = (float)compensation / (1024 << 16);
 
-		if (compensationDB > 0.1)
+		if (compensationDB > 0.1) {
 			unpatchedParams->shiftParamVolumeByDB(PARAM_UNPATCHED_GLOBALEFFECTABLE_VOLUME, compensationDB);
+		}
 
 		// The SoundDrums, like all Sounds, will have already had resonance compensation done on their default ParamManagers if and when any were in fact loaded.
 		// Or, if we're going through a Song doing this to all ParamManagers within Clips, the Clip will automatically do all NoteRows / Drums next.
@@ -827,7 +883,9 @@ void Kit::deleteBackedUpParamManagers(Song* song) {
 
 // Returns num ticks til next arp event
 int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
-	if (!activeClip) return 2147483647;
+	if (!activeClip) {
+		return 2147483647;
+	}
 
 	bool clipIsActive = modelStack->song->isClipActive(activeClip);
 
@@ -879,7 +937,9 @@ GateDrum* Kit::getGateDrumForChannel(int gateChannel) {
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 		if (thisDrum->type == DRUM_TYPE_GATE) {
 			GateDrum* gateDrum = (GateDrum*)thisDrum;
-			if (gateDrum->channel == gateChannel) return gateDrum;
+			if (gateDrum->channel == gateChannel) {
+				return gateDrum;
+			}
 		}
 	}
 	return NULL;
@@ -902,7 +962,9 @@ void Kit::getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** par
 
 		for (int i = 0; i < ((InstrumentClip*)activeClip)->noteRows.getNumElements(); i++) {
 			NoteRow* thisNoteRow = ((InstrumentClip*)activeClip)->noteRows.getElement(i);
-			if (!thisNoteRow->drum || thisNoteRow->drum->type != DRUM_TYPE_SOUND) continue;
+			if (!thisNoteRow->drum || thisNoteRow->drum->type != DRUM_TYPE_SOUND) {
+				continue;
+			}
 			((SoundDrum*)thisNoteRow->drum)
 			    ->getThingWithMostReverb(soundWithMostReverb, paramManagerWithMostReverb,
 			                             globalEffectableWithMostReverb, highestReverbAmountFound,
@@ -951,7 +1013,9 @@ void Kit::offerReceivedNote(ModelStackWithTimelineCounter* modelStack, MIDIDevic
 					instrumentClip =
 					    (InstrumentClip*)modelStack->getTimelineCounter(); // Re-get it, cos it might have changed
 
-					if (instrumentClip->isArrangementOnlyClip()) shouldRecordNoteOn = true;
+					if (instrumentClip->isArrangementOnlyClip()) {
+						shouldRecordNoteOn = true;
+					}
 				}
 
 				// If count-in is on, we only got here if it's very nearly finished
@@ -984,7 +1048,9 @@ goingToRecordNoteOnEarly:
 			if (instrumentClip) {
 				modelStackWithNoteRow = instrumentClip->getNoteRowForDrum(modelStack, thisDrum);
 				thisNoteRow = modelStackWithNoteRow->getNoteRowAllowNull();
-				if (!thisNoteRow) continue; // Yeah, we won't even let them sound one with no NoteRow
+				if (!thisNoteRow) {
+					continue; // Yeah, we won't even let them sound one with no NoteRow
+				}
 			}
 			else {
 				modelStackWithNoteRow = modelStack->addNoteRow(0, NULL);
@@ -1031,14 +1097,17 @@ goingToRecordNoteOnEarly:
 						}
 
 						instrumentClip->recordNoteOn(modelStackWithNoteRow, velocity, false, mpeValuesOrNull);
-						if (getRootUI()) getRootUI()->noteRowChanged(instrumentClip, thisNoteRow);
+						if (getRootUI()) {
+							getRootUI()->noteRowChanged(instrumentClip, thisNoteRow);
+						}
 					}
 					// TODO: possibly should change the MPE params' currentValue to the initial values, since that usually does get updated by the
 					// subsequent MPE that will come in. Or does that not matter?
 
 					if (thisNoteRow && thisDrum->type == DRUM_TYPE_SOUND
-					    && !thisNoteRow->paramManager.containsAnyMainParamCollections())
+					    && !thisNoteRow->paramManager.containsAnyMainParamCollections()) {
 						numericDriver.freezeWithError("E326"); // Trying to catch an E313 that Vinz got
+					}
 
 					beginAuditioningforDrum(modelStackWithNoteRow, thisDrum, velocity, mpeValues, channel);
 				}
@@ -1056,7 +1125,9 @@ goingToRecordNoteOnEarly:
 						    && !instrumentClip->isArrangementOnlyClip()) {}
 						else {
 							instrumentClip->recordNoteOff(modelStackWithNoteRow, velocity);
-							if (getRootUI()) getRootUI()->noteRowChanged(instrumentClip, thisNoteRow);
+							if (getRootUI()) {
+								getRootUI()->noteRowChanged(instrumentClip, thisNoteRow);
+							}
 						}
 					}
 					instrumentClipView.reportNoteOffForMPEEditing(modelStackWithNoteRow);
@@ -1120,8 +1191,12 @@ yesThisDrum:
 void Kit::offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
                           uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru) {
 
-	if (ccNumber != 74) return;
-	if (!fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isChannelPartOfAnMPEZone(channel)) return;
+	if (ccNumber != 74) {
+		return;
+	}
+	if (!fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isChannelPartOfAnMPEZone(channel)) {
+		return;
+	}
 
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 		if (thisDrum->midiInput.equalsChannelAllowMPE(fromDevice, channel)) {
@@ -1192,9 +1267,10 @@ yesThisDrum:
 void Kit::offerBendRangeUpdate(ModelStack* modelStack, MIDIDevice* device, int channelOrZone, int whichBendRange,
                                int bendSemitones) {
 
-	if (whichBendRange == BEND_RANGE_MAIN)
+	if (whichBendRange == BEND_RANGE_MAIN) {
 		return; // This is not used in Kits for Drums. Drums use their BEND_RANGE_FINGER_LEVEL for both kinds of bend.
-		    // TODO: Hmm, for non-MPE instruments we'd want to use this kind of bend range update and just paste it into BEND_RANGE_FINGER_LEVEL though...
+	}
+	        // TODO: Hmm, for non-MPE instruments we'd want to use this kind of bend range update and just paste it into BEND_RANGE_FINGER_LEVEL though...
 
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 		if (thisDrum->midiInput.equalsChannelOrZone(device, channelOrZone)) {
@@ -1254,15 +1330,17 @@ void Kit::beginAuditioningforDrum(ModelStackWithNoteRow* modelStack, Drum* drum,
 
 	if (modelStack->getNoteRowAllowNull()) {
 		paramManagerForDrum = &modelStack->getNoteRow()->paramManager;
-		if (!paramManagerForDrum->containsAnyMainParamCollections() && drum->type == DRUM_TYPE_SOUND)
+		if (!paramManagerForDrum->containsAnyMainParamCollections() && drum->type == DRUM_TYPE_SOUND) {
 			numericDriver.freezeWithError("E313"); // Vinz got this!
+		}
 	}
 	else {
 		if (drum->type == DRUM_TYPE_SOUND) {
 			paramManagerForDrum = modelStack->song->getBackedUpParamManagerPreferablyWithClip((SoundDrum*)drum, NULL);
-			if (!paramManagerForDrum)
+			if (!paramManagerForDrum) {
 				numericDriver.freezeWithError(
 				    "E314"); // Ron got this, June 2020, while "dragging" a row vertically in arranger
+			}
 		}
 	}
 
@@ -1299,8 +1377,9 @@ void Kit::endAuditioningForDrum(ModelStackWithNoteRow* modelStack, Drum* drum, i
 
 		// If still here, haven't found paramManager yet
 		paramManagerForDrum = modelStack->song->getBackedUpParamManagerPreferablyWithClip((SoundDrum*)drum, NULL);
-		if (!paramManagerForDrum)
+		if (!paramManagerForDrum) {
 			numericDriver.freezeWithError("E312"); // Should make ALPHA_OR_BETA_VERSION after V3.0.0 release
+		}
 	}
 
 gotParamManager:
@@ -1310,7 +1389,9 @@ gotParamManager:
 
 	drum->noteOff(modelStackWithThreeMainThings);
 
-	if (activeClip) activeClip->expectEvent(); // Because the absence of auditioning here means sequenced notes may play
+	if (activeClip) {
+		activeClip->expectEvent(); // Because the absence of auditioning here means sequenced notes may play
+	}
 }
 
 // for (Drum* drum = firstDrum; drum; drum = drum->next) {

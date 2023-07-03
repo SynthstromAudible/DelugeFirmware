@@ -158,13 +158,19 @@ void StorageManager::closeTag() {
 }
 
 void StorageManager::writeOpeningTagEnd(bool startNewLineAfter) {
-	if (startNewLineAfter) write(">\n");
-	else write(">");
+	if (startNewLineAfter) {
+		write(">\n");
+	}
+	else {
+		write(">");
+	}
 }
 
 void StorageManager::writeClosingTag(char const* tag, bool shouldPrintIndents) {
 	indentAmount--;
-	if (shouldPrintIndents) printIndents();
+	if (shouldPrintIndents) {
+		printIndents();
+	}
 	write("</");
 	write(tag);
 	write(">\n");
@@ -375,7 +381,9 @@ char const* StorageManager::readNextTagOrAttributeName() {
 	case IN_TAG_PAST_NAME:
 		toReturn = readNextAttributeName();
 		// If depth has changed, this means we met a /> and must get out
-		if (*toReturn || tagDepthFile != tagDepthStart) break;
+		if (*toReturn || tagDepthFile != tagDepthStart) {
+			break;
+		}
 		// No break
 
 	case BETWEEN_TAGS:
@@ -463,7 +471,9 @@ inAttributeValue:
 // Only call if PAST_ATTRIBUTE_NAME or PAST_EQUALS_SIGN
 char const* StorageManager::readAttributeValue() {
 
-	if (!getIntoAttributeValue()) return "";
+	if (!getIntoAttributeValue()) {
+		return "";
+	}
 	xmlArea = IN_TAG_PAST_NAME; // How it'll be after this next call
 	return readUntilChar(charAtEndOfValue);
 }
@@ -471,7 +481,9 @@ char const* StorageManager::readAttributeValue() {
 // Only call if PAST_ATTRIBUTE_NAME or PAST_EQUALS_SIGN
 int32_t StorageManager::readAttributeValueInt() {
 
-	if (!getIntoAttributeValue()) return 0;
+	if (!getIntoAttributeValue()) {
+		return 0;
+	}
 	xmlArea = IN_TAG_PAST_NAME; // How it'll be after this next call
 	return readIntUntilChar(charAtEndOfValue);
 }
@@ -485,7 +497,9 @@ int StorageManager::readAttributeValueString(String* string) {
 	}
 	else {
 		int error = readStringUntilChar(string, charAtEndOfValue);
-		if (!error) xmlArea = IN_TAG_PAST_NAME;
+		if (!error) {
+			xmlArea = IN_TAG_PAST_NAME;
+		}
 		return error;
 	}
 }
@@ -639,8 +653,12 @@ char const* StorageManager::readNextCharsOfTagOrAttributeValue(int numChars) {
 	// And, additional bit we jump to when end-char reached
 reachedEndCharEarly:
 	fileBufferCurrentPos++; // Gets us past the endChar
-	if (charAtEndOfValue == '<') xmlArea = IN_TAG_NAME;
-	else xmlArea = IN_TAG_PAST_NAME; // Could be ' or "
+	if (charAtEndOfValue == '<') {
+		xmlArea = IN_TAG_NAME;
+	}
+	else {
+		xmlArea = IN_TAG_PAST_NAME; // Could be ' or "
+	}
 	return NULL;
 }
 
@@ -648,10 +666,16 @@ reachedEndCharEarly:
 char StorageManager::readNextCharOfTagOrAttributeValue() {
 
 	char thisChar;
-	if (!readCharXML(&thisChar)) return 0;
+	if (!readCharXML(&thisChar)) {
+		return 0;
+	}
 	if (thisChar == charAtEndOfValue) {
-		if (charAtEndOfValue == '<') xmlArea = IN_TAG_NAME;
-		else xmlArea = IN_TAG_PAST_NAME; // Could be ' or "
+		if (charAtEndOfValue == '<') {
+			xmlArea = IN_TAG_NAME;
+		}
+		else {
+			xmlArea = IN_TAG_PAST_NAME; // Could be ' or "
+		}
 		xmlReadDone();
 		return 0;
 	}
@@ -663,14 +687,20 @@ int32_t StorageManager::readIntUntilChar(char endChar) {
 	uint32_t number = 0;
 	char thisChar;
 
-	if (!readCharXML(&thisChar)) return 0;
+	if (!readCharXML(&thisChar)) {
+		return 0;
+	}
 
 	bool isNegative = (thisChar == '-');
-	if (!isNegative) goto readDigit;
+	if (!isNegative) {
+		goto readDigit;
+	}
 
 	while (readCharXML(&thisChar)) {
 readDigit:
-		if (!(thisChar >= '0' && thisChar <= '9')) goto getOut;
+		if (!(thisChar >= '0' && thisChar <= '9')) {
+			goto getOut;
+		}
 		number *= 10;
 		number += (thisChar - '0');
 	}
@@ -683,10 +713,16 @@ getOut:
 	}
 
 	if (isNegative) {
-		if (number >= 2147483648) return -2147483648;
-		else return -(int32_t)number;
+		if (number >= 2147483648) {
+			return -2147483648;
+		}
+		else {
+			return -(int32_t)number;
+		}
 	}
-	else return number;
+	else {
+		return number;
+	}
 }
 
 char const* StorageManager::readTagOrAttributeValue() {
@@ -734,7 +770,9 @@ int32_t StorageManager::readTagOrAttributeValueInt() {
 // This isn't super optimal, like the int version is, but only rarely used
 int32_t StorageManager::readTagOrAttributeValueHex(int errorValue) {
 	char const* string = readTagOrAttributeValue();
-	if (string[0] != '0' || string[1] != 'x') return errorValue;
+	if (string[0] != '0' || string[1] != 'x') {
+		return errorValue;
+	}
 	return hexToInt(&string[2]);
 }
 
@@ -746,7 +784,9 @@ int StorageManager::readTagOrAttributeValueString(String* string) {
 	switch (xmlArea) {
 	case BETWEEN_TAGS:
 		error = readStringUntilChar(string, '<');
-		if (!error) xmlArea = IN_TAG_NAME;
+		if (!error) {
+			xmlArea = IN_TAG_NAME;
+		}
 		return error;
 
 	case PAST_ATTRIBUTE_NAME:
@@ -757,7 +797,9 @@ int StorageManager::readTagOrAttributeValueString(String* string) {
 		return ERROR_FILE_CORRUPTED;
 
 	default:
-		if (ALPHA_OR_BETA_VERSION) numericDriver.freezeWithError("BBBB");
+		if (ALPHA_OR_BETA_VERSION) {
+			numericDriver.freezeWithError("BBBB");
+		}
 		__builtin_unreachable();
 	}
 }
@@ -786,7 +828,9 @@ bool StorageManager::prepareToReadTagOrAttributeValueOneCharAtATime() {
 		return getIntoAttributeValue();
 
 	default:
-		if (ALPHA_OR_BETA_VERSION) numericDriver.freezeWithError("CCCC");
+		if (ALPHA_OR_BETA_VERSION) {
+			numericDriver.freezeWithError("CCCC");
+		}
 		__builtin_unreachable();
 	}
 }
@@ -815,7 +859,9 @@ bool StorageManager::readXMLFileClusterIfNecessary() {
 uint32_t StorageManager::readCharXML(char* thisChar) {
 
 	bool stillGoing = readXMLFileClusterIfNecessary();
-	if (xmlReachedEnd) return 0;
+	if (xmlReachedEnd) {
+		return 0;
+	}
 
 	*thisChar = fileClusterBuffer[fileBufferCurrentPos];
 
@@ -828,7 +874,9 @@ void StorageManager::exitTag(char const* exitTagName) {
 
 	while (tagDepthFile >= tagDepthCaller) {
 
-		if (xmlReachedEnd) return;
+		if (xmlReachedEnd) {
+			return;
+		}
 
 		switch (xmlArea) {
 
@@ -857,8 +905,9 @@ void StorageManager::exitTag(char const* exitTagName) {
 			break;
 
 		default:
-			if (ALPHA_OR_BETA_VERSION)
+			if (ALPHA_OR_BETA_VERSION) {
 				numericDriver.freezeWithError("AAAA"); // Really shouldn't be possible anymore, I feel fairly certain...
+			}
 			__builtin_unreachable();
 		}
 	}
@@ -895,16 +944,24 @@ int StorageManager::checkSpaceOnCard() {
 int StorageManager::createFile(FIL* file, char const* filePath, bool mayOverwrite) {
 
 	int error = initSD();
-	if (error) return error;
+	if (error) {
+		return error;
+	}
 
 	error = checkSpaceOnCard();
-	if (error) return error;
+	if (error) {
+		return error;
+	}
 
 	bool triedCreatingFolder = false;
 
 	BYTE mode = FA_WRITE;
-	if (mayOverwrite) mode |= FA_CREATE_ALWAYS;
-	else mode |= FA_CREATE_NEW;
+	if (mayOverwrite) {
+		mode |= FA_CREATE_ALWAYS;
+	}
+	else {
+		mode |= FA_CREATE_NEW;
+	}
 
 tryAgain:
 	FRESULT result = f_open(file, filePath, mode);
@@ -914,39 +971,52 @@ tryAgain:
 processError:
 		// If folder doesn't exist, try creating it - once only
 		if (result == FR_NO_PATH) {
-			if (triedCreatingFolder) return ERROR_FOLDER_DOESNT_EXIST;
+			if (triedCreatingFolder) {
+				return ERROR_FOLDER_DOESNT_EXIST;
+			}
 			triedCreatingFolder = true;
 
 			String folderPath;
 			error = folderPath.set(filePath);
-			if (error) return error;
+			if (error) {
+				return error;
+			}
 
 			// Get just the folder path
 cutFolderPathAndTryCreating:
 			char const* folderPathChars = folderPath.get();
 			char const* slashAddr = strrchr(folderPathChars, '/');
-			if (!slashAddr) return ERROR_UNSPECIFIED; // Shouldn't happen
+			if (!slashAddr) {
+				return ERROR_UNSPECIFIED; // Shouldn't happen
+			}
 			int slashPos = (uint32_t)slashAddr - (uint32_t)folderPathChars;
 
 			error = folderPath.shorten(slashPos);
-			if (error) return error;
+			if (error) {
+				return error;
+			}
 
 			// Try making the folder
 			result = f_mkdir(folderPath.get());
-			if (result == FR_OK) goto tryAgain;
+			if (result == FR_OK) {
+				goto tryAgain;
+			}
 			else if (result
 			         == FR_NO_PATH) { // If that folder couldn't be created because its parent folder didn't exist...
 				triedCreatingFolder = false;      // Let it do multiple tries again
 				goto cutFolderPathAndTryCreating; // Go and try creating the parent folder
 			}
-			else goto processError;
+			else {
+				goto processError;
+			}
 		}
 
 		// Otherwise, just return the appropriate error.
 		else {
 			error = fresultToDelugeErrorCode(result);
-			if (error == ERROR_SD_CARD)
+			if (error == ERROR_SD_CARD) {
 				error = ERROR_WRITE_FAIL; // Get a bit more specific if we only got the most general error.
+			}
 			return error;
 		}
 	}
@@ -957,7 +1027,9 @@ cutFolderPathAndTryCreating:
 int StorageManager::createXMLFile(char const* filePath, bool mayOverwrite) {
 
 	int error = createFile(&fileSystemStuff.currentFile, filePath, mayOverwrite);
-	if (error) return error;
+	if (error) {
+		return error;
+	}
 
 	fileBufferCurrentPos = 0;
 	fileTotalBytesWritten = 0;
@@ -972,7 +1044,9 @@ int StorageManager::createXMLFile(char const* filePath, bool mayOverwrite) {
 
 bool StorageManager::fileExists(char const* pathName) {
 	int error = initSD();
-	if (error) return false;
+	if (error) {
+		return false;
+	}
 
 	FRESULT result = f_stat(pathName, &staticFNO);
 	return (result == FR_OK);
@@ -981,10 +1055,14 @@ bool StorageManager::fileExists(char const* pathName) {
 // Lets you get the FilePointer for the file.
 bool StorageManager::fileExists(char const* pathName, FilePointer* fp) {
 	int error = initSD();
-	if (error) return false;
+	if (error) {
+		return false;
+	}
 
 	FRESULT result = f_open(&fileSystemStuff.currentFile, pathName, FA_READ);
-	if (result != FR_OK) return false;
+	if (result != FR_OK) {
+		return false;
+	}
 
 	fp->sclust = fileSystemStuff.currentFile.obj.sclust;
 	fp->objsize = fileSystemStuff.currentFile.obj.objsize;
@@ -1046,30 +1124,43 @@ int StorageManager::writeBufferToFile() {
 
 // Returns false if some error, including error while writing
 int StorageManager::closeFileAfterWriting(char const* path, char const* beginningString, char const* endString) {
-	if (fileAccessFailedDuring)
+	if (fileAccessFailedDuring) {
 		return ERROR_WRITE_FAIL; // Calling f_close if this is false might be dangerous - if access has failed, we don't want it to flush any data to the card or anything
+	}
 	int error = writeBufferToFile();
-	if (error) return ERROR_WRITE_FAIL;
+	if (error) {
+		return ERROR_WRITE_FAIL;
+	}
 
 	FRESULT result = f_close(&fileSystemStuff.currentFile);
-	if (result) return ERROR_WRITE_FAIL;
+	if (result) {
+		return ERROR_WRITE_FAIL;
+	}
 
 	if (path) {
 		// Check file exists
 		result = f_open(&fileSystemStuff.currentFile, path, FA_READ);
-		if (result) return ERROR_WRITE_FAIL;
+		if (result) {
+			return ERROR_WRITE_FAIL;
+		}
 	}
 
 	// Check size
-	if (f_size(&fileSystemStuff.currentFile) != fileTotalBytesWritten) return ERROR_WRITE_FAIL;
+	if (f_size(&fileSystemStuff.currentFile) != fileTotalBytesWritten) {
+		return ERROR_WRITE_FAIL;
+	}
 
 	// Check beginning
 	if (beginningString) {
 		UINT dontCare;
 		int length = strlen(beginningString);
 		result = f_read(&fileSystemStuff.currentFile, miscStringBuffer, length, &dontCare);
-		if (result) return ERROR_WRITE_FAIL;
-		if (memcmp(miscStringBuffer, beginningString, length)) return ERROR_WRITE_FAIL;
+		if (result) {
+			return ERROR_WRITE_FAIL;
+		}
+		if (memcmp(miscStringBuffer, beginningString, length)) {
+			return ERROR_WRITE_FAIL;
+		}
 	}
 
 	// Check end
@@ -1078,15 +1169,23 @@ int StorageManager::closeFileAfterWriting(char const* path, char const* beginnin
 		int length = strlen(endString);
 
 		result = f_lseek(&fileSystemStuff.currentFile, fileTotalBytesWritten - length);
-		if (result) return ERROR_WRITE_FAIL;
+		if (result) {
+			return ERROR_WRITE_FAIL;
+		}
 
 		result = f_read(&fileSystemStuff.currentFile, miscStringBuffer, length, &dontCare);
-		if (result) return ERROR_WRITE_FAIL;
-		if (memcmp(miscStringBuffer, endString, length)) return ERROR_WRITE_FAIL;
+		if (result) {
+			return ERROR_WRITE_FAIL;
+		}
+		if (memcmp(miscStringBuffer, endString, length)) {
+			return ERROR_WRITE_FAIL;
+		}
 	}
 
 	result = f_close(&fileSystemStuff.currentFile);
-	if (result) return ERROR_WRITE_FAIL;
+	if (result) {
+		return ERROR_WRITE_FAIL;
+	}
 
 	return NO_ERROR;
 }
@@ -1122,10 +1221,14 @@ int StorageManager::openXMLFile(FilePointer* filePointer, char const* firstTagNa
 
 	while (*(tagName = readNextTagOrAttributeName())) {
 
-		if (!strcmp(tagName, firstTagName) || !strcmp(tagName, altTagName)) return NO_ERROR;
+		if (!strcmp(tagName, firstTagName) || !strcmp(tagName, altTagName)) {
+			return NO_ERROR;
+		}
 
 		int result = tryReadingFirmwareTagFromFile(tagName, ignoreIncorrectFirmware);
-		if (result && result != RESULT_TAG_UNUSED) return result;
+		if (result && result != RESULT_TAG_UNUSED) {
+			return result;
+		}
 		exitTag(tagName);
 	}
 
@@ -1150,7 +1253,9 @@ int StorageManager::tryReadingFirmwareTagFromFile(char const* tagName, bool igno
 		}
 	}
 
-	else return RESULT_TAG_UNUSED;
+	else {
+		return RESULT_TAG_UNUSED;
+	}
 
 	return NO_ERROR;
 }
@@ -1167,7 +1272,9 @@ bool StorageManager::readXMLFileCluster() {
 	}
 
 	// If error or we reached end of file
-	if (!currentReadBufferEndPos) return false;
+	if (!currentReadBufferEndPos) {
+		return false;
+	}
 
 	fileBufferCurrentPos = 0;
 
@@ -1176,8 +1283,9 @@ bool StorageManager::readXMLFileCluster() {
 
 // Returns false if some error, including error while writing
 bool StorageManager::closeFile() {
-	if (fileAccessFailedDuring)
+	if (fileAccessFailedDuring) {
 		return false; // Calling f_close if this is false might be dangerous - if access has failed, we don't want it to flush any data to the card or anything
+	}
 	FRESULT result = f_close(&fileSystemStuff.currentFile);
 	return (result == FR_OK);
 }
@@ -1272,7 +1380,9 @@ int StorageManager::loadInstrumentFromFile(Song* song, InstrumentClip* clip, int
 	AudioEngine::logAction("loadInstrumentFromFile");
 
 	int error = openInstrumentFile(instrumentType, filePointer);
-	if (error) return error;
+	if (error) {
+		return error;
+	}
 
 	AudioEngine::logAction("loadInstrumentFromFile");
 	Instrument* newInstrument = createNewInstrument(instrumentType);
@@ -1289,7 +1399,9 @@ int StorageManager::loadInstrumentFromFile(Song* song, InstrumentClip* clip, int
 	// If that somehow didn't work...
 	if (error || !fileSuccess) {
 
-		if (!fileSuccess) error = ERROR_SD_CARD;
+		if (!fileSuccess) {
+			error = ERROR_SD_CARD;
+		}
 
 deleteInstrumentAndGetOut:
 		newInstrument->deleteBackedUpParamManagers(song);
@@ -1309,7 +1421,9 @@ deleteInstrumentAndGetOut:
 		if (firmwareVersionOfFileBeingRead < FIRMWARE_2P0P0_BETA && instrumentType == INSTRUMENT_TYPE_KIT) {
 			ParamManagerForTimeline paramManager;
 			error = paramManager.setupUnpatched();
-			if (error) goto deleteInstrumentAndGetOut;
+			if (error) {
+				goto deleteInstrumentAndGetOut;
+			}
 
 			GlobalEffectableForClip::initParams(&paramManager);
 			((Kit*)newInstrument)->compensateInstrumentVolumeForResonance(&paramManager, song); // Necessary?
@@ -1386,7 +1500,9 @@ paramManagerSetupError:
 	else {
 		if (paramManager) {
 			error = paramManager->setupUnpatched();
-			if (error) goto paramManagerSetupError;
+			if (error) {
+				goto paramManagerSetupError;
+			}
 
 			GlobalEffectableForClip::initParams(paramManager);
 		}
@@ -1419,9 +1535,15 @@ Instrument* StorageManager::createNewNonAudioInstrument(int instrumentType, int 
 
 Drum* StorageManager::createNewDrum(int drumType) {
 	int memorySize;
-	if (drumType == DRUM_TYPE_SOUND) memorySize = sizeof(SoundDrum);
-	else if (drumType == DRUM_TYPE_MIDI) memorySize = sizeof(MIDIDrum);
-	else if (drumType == DRUM_TYPE_GATE) memorySize = sizeof(GateDrum);
+	if (drumType == DRUM_TYPE_SOUND) {
+		memorySize = sizeof(SoundDrum);
+	}
+	else if (drumType == DRUM_TYPE_MIDI) {
+		memorySize = sizeof(MIDIDrum);
+	}
+	else if (drumType == DRUM_TYPE_GATE) {
+		memorySize = sizeof(GateDrum);
+	}
 
 	void* drumMemory = generalMemoryAllocator.alloc(memorySize, NULL, false, true);
 	if (!drumMemory) {
@@ -1449,12 +1571,19 @@ int StorageManager::readMIDIParamFromFile(int32_t readAutomationUpToPos, MIDIPar
 	while (*(tagName = readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "cc")) {
 			char const* contents = readTagOrAttributeValue();
-			if (!strcasecmp(contents, "bend")) cc = CC_NUMBER_PITCH_BEND;
-			else if (!strcasecmp(contents, "aftertouch")) cc = CC_NUMBER_AFTERTOUCH;
+			if (!strcasecmp(contents, "bend")) {
+				cc = CC_NUMBER_PITCH_BEND;
+			}
+			else if (!strcasecmp(contents, "aftertouch")) {
+				cc = CC_NUMBER_AFTERTOUCH;
+			}
 			else if (!strcasecmp(contents, "none")
-			         || !strcmp(contents, "120")) // We used to write 120 for "none", pre V2.0
+			         || !strcmp(contents, "120")) { // We used to write 120 for "none", pre V2.0
 				cc = CC_NUMBER_NONE;
-			else cc = stringToInt(contents);
+			}
+			else {
+				cc = stringToInt(contents);
+			}
 			// TODO: Pre-V2.0 files could still have CC74, so ideally I'd move that to "expression" params here...
 			exitTag("cc");
 		}
@@ -1462,17 +1591,25 @@ int StorageManager::readMIDIParamFromFile(int32_t readAutomationUpToPos, MIDIPar
 			if (cc != CC_NUMBER_NONE && midiParamCollection) {
 
 				MIDIParam* midiParam = midiParamCollection->params.getOrCreateParamFromCC(cc, 0);
-				if (!midiParam) return ERROR_INSUFFICIENT_RAM;
+				if (!midiParam) {
+					return ERROR_INSUFFICIENT_RAM;
+				}
 
 				int error = midiParam->param.readFromFile(readAutomationUpToPos);
-				if (error) return error;
+				if (error) {
+					return error;
+				}
 			}
 			exitTag("value");
 		}
-		else exitTag(tagName);
+		else {
+			exitTag(tagName);
+		}
 	}
 
-	if (getCC) *getCC = cc;
+	if (getCC) {
+		*getCC = cc;
+	}
 
 	return NO_ERROR;
 }

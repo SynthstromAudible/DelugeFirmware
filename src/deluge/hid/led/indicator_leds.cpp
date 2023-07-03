@@ -38,7 +38,9 @@ uint8_t levelIndicatorBlinksLeft;
 
 void setLedState(uint8_t x, uint8_t y, bool newState, bool allowContinuedBlinking) {
 
-	if (!allowContinuedBlinking) stopLedBlinking(x, y);
+	if (!allowContinuedBlinking) {
+		stopLedBlinking(x, y);
+	}
 
 	ledStates[x][y] = newState;
 
@@ -56,7 +58,9 @@ void blinkLed(uint8_t x, uint8_t y, uint8_t numBlinks, uint8_t blinkingType, boo
 	// Find unallocated blinker
 	int i;
 	for (i = 0; i < numLedBlinkers - 1; i++) {
-		if (!ledBlinkers[i].active) break;
+		if (!ledBlinkers[i].active) {
+			break;
+		}
 	}
 
 	ledBlinkers[i].x = x;
@@ -64,7 +68,9 @@ void blinkLed(uint8_t x, uint8_t y, uint8_t numBlinks, uint8_t blinkingType, boo
 	ledBlinkers[i].active = true;
 	ledBlinkers[i].blinkingType = blinkingType;
 
-	if (numBlinks == 255) ledBlinkers[i].blinksLeft = 255;
+	if (numBlinks == 255) {
+		ledBlinkers[i].blinksLeft = 255;
+	}
 	else {
 		ledBlinkers[i].returnToState = ledStates[x][y];
 		ledBlinkers[i].blinksLeft = numBlinks * 2;
@@ -74,10 +80,16 @@ void blinkLed(uint8_t x, uint8_t y, uint8_t numBlinks, uint8_t blinkingType, boo
 	updateBlinkingLedStates(blinkingType);
 
 	int thisInitialFlashTime;
-	if (blinkingType) thisInitialFlashTime = fastFlashTime;
+	if (blinkingType) {
+		thisInitialFlashTime = fastFlashTime;
+	}
 	else {
-		if (initialState) thisInitialFlashTime = initialFlashTime;
-		else thisInitialFlashTime = flashTime;
+		if (initialState) {
+			thisInitialFlashTime = initialFlashTime;
+		}
+		else {
+			thisInitialFlashTime = flashTime;
+		}
 	}
 
 	uiTimerManager.setTimer(TIMER_LED_BLINK + blinkingType, thisInitialFlashTime);
@@ -94,7 +106,9 @@ void ledBlinkTimeout(uint8_t blinkingType, bool forceReset, bool resetToState) {
 	bool anyActive = updateBlinkingLedStates(blinkingType);
 
 	int thisFlashTime = (blinkingType ? fastFlashTime : flashTime);
-	if (anyActive) uiTimerManager.setTimer(TIMER_LED_BLINK + blinkingType, thisFlashTime);
+	if (anyActive) {
+		uiTimerManager.setTimer(TIMER_LED_BLINK + blinkingType, thisFlashTime);
+	}
 }
 
 // Returns true if some blinking still active
@@ -127,13 +141,17 @@ void stopLedBlinking(uint8_t x, uint8_t y, bool resetState) {
 	uint8_t i = getLedBlinkerIndex(x, y);
 	if (i != 255) {
 		ledBlinkers[i].active = false;
-		if (resetState) setLedState(x, y, ledBlinkers[i].returnToState, true);
+		if (resetState) {
+			setLedState(x, y, ledBlinkers[i].returnToState, true);
+		}
 	}
 }
 
 uint8_t getLedBlinkerIndex(uint8_t x, uint8_t y) {
 	for (uint8_t i = 0; i < numLedBlinkers; i++) {
-		if (ledBlinkers[i].x == x && ledBlinkers[i].y == y && ledBlinkers[i].active) return i;
+		if (ledBlinkers[i].x == x && ledBlinkers[i].y == y && ledBlinkers[i].active) {
+			return i;
+		}
 	}
 	return 255;
 }
@@ -149,7 +167,9 @@ void setKnobIndicatorLevel(uint8_t whichKnob, uint8_t level) {
 		uiTimerManager.unsetTimer(TIMER_LEVEL_INDICATOR_BLINK);
 	}
 	else {
-		if (level == knobIndicatorLevels[whichKnob]) return;
+		if (level == knobIndicatorLevels[whichKnob]) {
+			return;
+		}
 	}
 
 #if DELUGE_MODEL == DELUGE_MODEL_40_PAD
@@ -169,8 +189,12 @@ void setKnobIndicatorLevel(uint8_t whichKnob, uint8_t level) {
 	for (int i = 0; i < 4; i++) {
 		int brightnessOutputValue = 0;
 
-		if (i < numIndicatorLedsFullyOn) brightnessOutputValue = 255;
-		else if (i == numIndicatorLedsFullyOn) brightnessOutputValue = brightness;
+		if (i < numIndicatorLedsFullyOn) {
+			brightnessOutputValue = 255;
+		}
+		else if (i == numIndicatorLedsFullyOn) {
+			brightnessOutputValue = brightness;
+		}
 		bufferPICIndicatorsUart(brightnessOutputValue);
 	}
 
@@ -180,7 +204,9 @@ void setKnobIndicatorLevel(uint8_t whichKnob, uint8_t level) {
 void blinkKnobIndicator(int whichKnob) {
 	if (uiTimerManager.isTimerSet(TIMER_LEVEL_INDICATOR_BLINK)) {
 		uiTimerManager.unsetTimer(TIMER_LEVEL_INDICATOR_BLINK);
-		if (whichLevelIndicatorBlinking != whichKnob) setKnobIndicatorLevel(whichLevelIndicatorBlinking, 64);
+		if (whichLevelIndicatorBlinking != whichKnob) {
+			setKnobIndicatorLevel(whichLevelIndicatorBlinking, 64);
+		}
 	}
 
 	whichLevelIndicatorBlinking = whichKnob;
@@ -200,7 +226,9 @@ void blinkKnobIndicatorLevelTimeout() {
 	setKnobIndicatorLevel(whichLevelIndicatorBlinking, levelIndicatorBlinkOn ? 64 : 0);
 
 	levelIndicatorBlinkOn = !levelIndicatorBlinkOn;
-	if (--levelIndicatorBlinksLeft) uiTimerManager.setTimer(TIMER_LEVEL_INDICATOR_BLINK, 20);
+	if (--levelIndicatorBlinksLeft) {
+		uiTimerManager.setTimer(TIMER_LEVEL_INDICATOR_BLINK, 20);
+	}
 }
 
 bool isKnobIndicatorBlinking(int whichKnob) {

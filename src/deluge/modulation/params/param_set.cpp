@@ -56,8 +56,12 @@ void ParamSet::copyOverridingFrom(ParamSet* otherParamSet) {
 void ParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
                                             bool automationChanged, bool automatedBefore, bool automatedNow) {
 	if (automatedBefore != automatedNow) {
-		if (automatedNow) paramHasAutomationNow(modelStack->summary, modelStack->paramId);
-		else paramHasNoAutomationNow(modelStack, modelStack->paramId);
+		if (automatedNow) {
+			paramHasAutomationNow(modelStack->summary, modelStack->paramId);
+		}
+		else {
+			paramHasNoAutomationNow(modelStack, modelStack->paramId);
+		}
 	}
 	ParamCollection::notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore,
 	                                              automatedNow);
@@ -160,7 +164,9 @@ void ParamSet::setPlayPos(uint32_t pos, ModelStackWithParamCollection* modelStac
 
 void ParamSet::writeParamAsAttribute(char const* name, int p, bool writeAutomation, bool onlyIfContainsSomething,
                                      int32_t* valuesForOverride) {
-	if (onlyIfContainsSomething && !params[p].containsSomething()) return;
+	if (onlyIfContainsSomething && !params[p].containsSomething()) {
+		return;
+	}
 
 	int32_t* valueForOverride = valuesForOverride ? &valuesForOverride[p] : NULL;
 
@@ -174,7 +180,9 @@ void ParamSet::writeParamAsAttribute(char const* name, int p, bool writeAutomati
 
 void ParamSet::readParam(ParamCollectionSummary* summary, int p, int32_t readAutomationUpToPos) {
 	params[p].readFromFile(readAutomationUpToPos);
-	if (params[p].isAutomated()) paramHasAutomationNow(summary, p);
+	if (params[p].isAutomated()) {
+		paramHasAutomationNow(summary, p);
+	}
 }
 
 void ParamSet::playbackHasEnded(ModelStackWithParamCollection* modelStack) {
@@ -433,7 +441,9 @@ int PatchedParamSet::paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoP
 	if (modelStack->paramId == PARAM_LOCAL_OSC_A_PHASE_WIDTH || modelStack->paramId == PARAM_LOCAL_OSC_B_PHASE_WIDTH) {
 		return (paramValue >> 24) - 64;
 	}
-	else return ParamSet::paramValueToKnobPos(paramValue, modelStack);
+	else {
+		return ParamSet::paramValueToKnobPos(paramValue, modelStack);
+	}
 }
 
 int32_t PatchedParamSet::knobPosToParamValue(int knobPos, ModelStackWithAutoParam* modelStack) {
@@ -444,7 +454,9 @@ int32_t PatchedParamSet::knobPosToParamValue(int knobPos, ModelStackWithAutoPara
 		}
 		return paramValue;
 	}
-	else return ParamSet::knobPosToParamValue(knobPos, modelStack);
+	else {
+		return ParamSet::knobPosToParamValue(knobPos, modelStack);
+	}
 }
 
 bool PatchedParamSet::shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack) {
@@ -505,22 +517,30 @@ int32_t ExpressionParamSet::knobPosToParamValue(int knobPos, ModelStackWithAutoP
 	int valueForDisplay = knobPos;
 	if (modelStack->paramId == 2) { // Just for aftertouch
 		valueForDisplay += 64;
-		if (valueForDisplay == 128) valueForDisplay = 127;
+		if (valueForDisplay == 128) {
+			valueForDisplay = 127;
+		}
 	}
 	intToString(valueForDisplay, buffer);
 	numericDriver.displayPopup(buffer, 3, true);
 
 	// Everything but aftertouch gets handled by parent from here
-	if (modelStack->paramId != 2) return ParamSet::knobPosToParamValue(knobPos, modelStack);
+	if (modelStack->paramId != 2) {
+		return ParamSet::knobPosToParamValue(knobPos, modelStack);
+	}
 
-	if (knobPos == 64) return 2147483647;
+	if (knobPos == 64) {
+		return 2147483647;
+	}
 	return (knobPos + 64) << 24;
 }
 
 int ExpressionParamSet::paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack) {
 
 	// Everything but aftertouch gets handled by parent
-	if (modelStack->paramId != 2) return ParamSet::paramValueToKnobPos(paramValue, modelStack);
+	if (modelStack->paramId != 2) {
+		return ParamSet::paramValueToKnobPos(paramValue, modelStack);
+	}
 
 	int knobPos = (paramValue >> 24) - 64;
 	return knobPos;
@@ -536,7 +556,9 @@ bool ExpressionParamSet::writeToFile(bool mustWriteOpeningTagEndFirst) {
 		if (params[p].containsSomething()) {
 			if (!writtenAnyYet) {
 				writtenAnyYet = true;
-				if (mustWriteOpeningTagEndFirst) storageManager.writeOpeningTagEnd();
+				if (mustWriteOpeningTagEndFirst) {
+					storageManager.writeOpeningTagEnd();
+				}
 
 				storageManager.writeOpeningTagBeginning("expressionData");
 			}
@@ -545,7 +567,9 @@ bool ExpressionParamSet::writeToFile(bool mustWriteOpeningTagEndFirst) {
 		}
 	}
 
-	if (writtenAnyYet) storageManager.closeTag();
+	if (writtenAnyYet) {
+		storageManager.closeTag();
+	}
 
 	return writtenAnyYet;
 }

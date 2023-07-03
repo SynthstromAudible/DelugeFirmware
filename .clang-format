@@ -9,7 +9,7 @@ ColumnLimit: 120
 ReflowComments: False
 AllowShortBlocksOnASingleLine: Empty
 AllowShortFunctionsOnASingleLine: InlineOnly
-AllowShortIfStatementsOnASingleLine: AllIfsAndElse
+AllowShortIfStatementsOnASingleLine: Never
 IndentGotoLabels: False
 PointerAlignment: Left
 BreakBeforeBinaryOperators: NonAssignment
