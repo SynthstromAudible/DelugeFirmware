@@ -18,7 +18,6 @@
 #ifndef MASTERCOMPRESSOR_H_
 #define MASTERCOMPRESSOR_H_
 
-
 #include "RZA1/system/r_typedefs.h"
 #include "dsp/master_compressor/simpleSource/SimpleComp.h"
 
@@ -31,11 +30,15 @@ public:
 	double makeup;
 	double gr;
 	double wet;
-	inline void setMakeup(double dB){ makeup=   pow(10.0,(dB/20.0)); if(fabs(1.0-makeup)<0.0001)makeup=1.0; if(makeup>20.0)makeup=20.0; if(makeup<0.0001)makeup=0.0; }
-	inline double getMakeup(){ return   20.0 * log10(makeup) ;}
+	inline void setMakeup(double dB) {
+		makeup = pow(10.0, (dB / 20.0));
+		if (fabs(1.0 - makeup) < 0.0001) makeup = 1.0;
+		if (makeup > 20.0) makeup = 20.0;
+		if (makeup < 0.0001) makeup = 0.0;
+	}
+	inline double getMakeup() { return 20.0 * log10(makeup); }
 
 	chunkware_simple::SimpleComp compressor;
-
 };
 
 #endif /* MASTERCOMPRESSOR_H_ */
