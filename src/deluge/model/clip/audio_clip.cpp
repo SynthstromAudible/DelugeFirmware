@@ -1197,6 +1197,29 @@ void AudioClip::setPos(ModelStackWithTimelineCounter* modelStack, int32_t newPos
 	setPosForParamManagers(modelStack, useActualPosForParamManagers);
 }
 
+bool AudioClip::shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int amount) {
+	if (paramManager.containsAnyParamCollectionsIncludingExpression()) {
+		paramManager.shiftHorizontally(
+		    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager), amount, loopLength);
+	}
+	
+  int64_t newStartPos = int64_t(sampleHolder.startPos) + getSamplesFromTicks(amount);
+  if (newStartPos < 0) {
+    return false;
+  }
+  
+  uint64_t length = sampleHolder.endPos - sampleHolder.startPos;
+  
+  sampleHolder.startPos = newStartPos;
+  sampleHolder.endPos = newStartPos + length;
+
+	if (playbackHandler.isEitherClockActive() && modelStack->song->isClipActive(this)) {
+		expectEvent();
+		reGetParameterAutomation(modelStack);
+	}
+	return true;
+}
+
 uint64_t AudioClip::getCullImmunity() {
 	uint32_t distanceFromEnd = loopLength - getLivePos();
 	// We're gonna cull time-stretching ones first

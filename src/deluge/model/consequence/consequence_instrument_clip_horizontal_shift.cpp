@@ -18,6 +18,7 @@
 #include "model/consequence/consequence_instrument_clip_horizontal_shift.h"
 #include "model/song/song.h"
 #include "model/clip/instrument_clip.h"
+#include "model/clip/audio_clip.h"
 #include "model/model_stack.h"
 
 ConsequenceInstrumentClipHorizontalShift::ConsequenceInstrumentClipHorizontalShift(int32_t newAmount) {
@@ -35,8 +36,14 @@ int ConsequenceInstrumentClipHorizontalShift::revert(int time, ModelStack* model
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
 	    modelStack->addTimelineCounter(modelStack->song->currentClip);
 
-	((InstrumentClip*)modelStackWithTimelineCounter->getTimelineCounter())
-	    ->shiftHorizontally(modelStackWithTimelineCounter, amountNow);
+	Clip* clip = (Clip*)modelStackWithTimelineCounter->getTimelineCounter();
+
+	if (clip->type == CLIP_TYPE_INSTRUMENT) {
+		((InstrumentClip*)clip)->shiftHorizontally(modelStackWithTimelineCounter, amountNow);
+	}
+	else if (clip->type == CLIP_TYPE_AUDIO) {
+		((AudioClip*)clip)->shiftHorizontally(modelStackWithTimelineCounter, amountNow);
+	}
 
 	return NO_ERROR;
 }
