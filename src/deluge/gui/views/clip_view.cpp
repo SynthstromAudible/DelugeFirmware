@@ -30,15 +30,19 @@
 #include "gui/views/view.h"
 #include "definitions.h"
 
+static Clip* getCurrentClip() {
+  return currentSong->currentClip;
+}
+
 ClipView::ClipView() {
 }
 
 unsigned int ClipView::getMaxZoom() {
-	return currentSong->currentClip->getMaxZoom();
+	return getCurrentClip()->getMaxZoom();
 }
 
 uint32_t ClipView::getMaxLength() {
-	return currentSong->currentClip->getMaxLength();
+	return getCurrentClip()->getMaxLength();
 }
 
 void ClipView::focusRegained() {
@@ -48,14 +52,14 @@ void ClipView::focusRegained() {
 int ClipView::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 
 	// Horizontal encoder button press-down - don't let it do its zoom level thing if zooming etc not currently accessible
-	if (x == xEncButtonX && y == xEncButtonY && on && !currentSong->currentClip->currentlyScrollableAndZoomable()) {}
+	if (x == xEncButtonX && y == xEncButtonY && on && !getCurrentClip()->currentlyScrollableAndZoomable()) {}
 
 #ifdef BUTTON_SEQUENCE_DIRECTION_X
 	else if (x == BUTTON_SEQUENCE_DIRECTION_X && y == BUTTON_SEQUENCE_DIRECTION_Y) {
 		if (on && isNoUIModeActive()) {
-			currentSong->currentClip->sequenceDirection++;
-			if (currentSong->currentClip->sequenceDirection == NUM_SEQUENCE_DIRECTION_OPTIONS) {
-				currentSong->currentClip->sequenceDirection = 0;
+			getCurrentClip()->sequenceDirection++;
+			if (getCurrentClip()->sequenceDirection == NUM_SEQUENCE_DIRECTION_OPTIONS) {
+				getCurrentClip()->sequenceDirection = 0;
 			}
 			view.setModLedStates();
 		}
@@ -78,7 +82,7 @@ Action* ClipView::lengthenClip(int32_t newLength) {
 	// If the last action was a shorten, undo it
 	bool undoing = (actionLogger.firstAction[BEFORE] && actionLogger.firstAction[BEFORE]->openForAdditions
 	                && actionLogger.firstAction[BEFORE]->type == ACTION_CLIP_LENGTH_DECREASE
-	                && actionLogger.firstAction[BEFORE]->currentClip == currentSong->currentClip);
+	                && actionLogger.firstAction[BEFORE]->currentClip == getCurrentClip());
 
 	if (undoing) {
 		allowResyncingDuringClipLengthChange =
@@ -88,16 +92,16 @@ Action* ClipView::lengthenClip(int32_t newLength) {
 	}
 
 	// Only if that didn't get us directly to the correct length, manually set length. This will do a resync if playback active
-	if (currentSong->currentClip->loopLength != newLength) {
-		int actionType = (newLength < currentSong->currentClip->loopLength) ? ACTION_CLIP_LENGTH_DECREASE
+	if (getCurrentClip()->loopLength != newLength) {
+		int actionType = (newLength < getCurrentClip()->loopLength) ? ACTION_CLIP_LENGTH_DECREASE
 		                                                                    : ACTION_CLIP_LENGTH_INCREASE;
 
 		action = actionLogger.getNewAction(actionType, true);
-		if (action && action->currentClip != currentSong->currentClip) {
+		if (action && action->currentClip != getCurrentClip()) {
 			action = actionLogger.getNewAction(actionType, false);
 		}
 
-		currentSong->setClipLength(currentSong->currentClip, newLength, action);
+		currentSong->setClipLength(getCurrentClip(), newLength, action);
 	}
 
 	// Otherwise, do the resync that we missed out on doing
@@ -119,12 +123,12 @@ Action* ClipView::shortenClip(int32_t newLength) {
 	Action* action = NULL;
 
 	action = actionLogger.getNewAction(ACTION_CLIP_LENGTH_DECREASE, true);
-	if (action && action->currentClip != currentSong->currentClip) {
+	if (action && action->currentClip != getCurrentClip()) {
 		action = actionLogger.getNewAction(ACTION_CLIP_LENGTH_DECREASE, false);
 	}
 
 	currentSong->setClipLength(
-	    currentSong->currentClip, newLength,
+	    getCurrentClip(), newLength,
 	    action); // Subsequently shortening by more squares won't cause additional Consequences to be added to the same
 	             // Action - it checks, and only stores the data (snapshots and original length) once
 	return action;
@@ -137,12 +141,12 @@ int ClipView::horizontalEncoderAction(int offset) {
 	    && (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(clipViewButtonX, clipViewButtonY))) {
 
 		// If tempoless recording, don't allow
-		if (!currentSong->currentClip->currentlyScrollableAndZoomable()) {
+		if (!getCurrentClip()->currentlyScrollableAndZoomable()) {
 			numericDriver.displayPopup(HAVE_OLED ? "Can't edit length" : "CANT");
 			return ACTION_RESULT_DEALT_WITH;
 		}
 
-		uint32_t oldLength = currentSong->currentClip->loopLength;
+		uint32_t oldLength = getCurrentClip()->loopLength;
 
 		// If we're not scrolled all the way to the right, go there now
 		if (scrollRightToEndOfLengthIfNecessary(oldLength)) {
@@ -218,7 +222,7 @@ doReRender:
 	else {
 
 		// If tempoless recording, don't allow
-		if (!currentSong->currentClip->currentlyScrollableAndZoomable()) {
+		if (!getCurrentClip()->currentlyScrollableAndZoomable()) {
 			return ACTION_RESULT_DEALT_WITH;
 		}
 
@@ -268,14 +272,14 @@ int32_t ClipView::getLengthExtendAmount(int32_t square) {
 
 int ClipView::getTickSquare() {
 
-	int newTickSquare = getSquareFromPos(currentSong->currentClip->getLivePos());
+	int newTickSquare = getSquareFromPos(getCurrentClip()->getLivePos());
 
 	// See if we maybe want to do an auto-scroll
-	if (currentSong->currentClip->getCurrentlyRecordingLinearly()) {
+	if (getCurrentClip()->getCurrentlyRecordingLinearly()) {
 
 		if (newTickSquare == displayWidth && (!currentUIMode || currentUIMode == UI_MODE_AUDITIONING)
 		    && getCurrentUI() == this && // currentPlaybackMode == &session &&
-		    (!currentSong->currentClip->armState || xScrollBeforeFollowingAutoExtendingLinearRecording != -1)) {
+		    (!getCurrentClip()->armState || xScrollBeforeFollowingAutoExtendingLinearRecording != -1)) {
 
 			if (xScrollBeforeFollowingAutoExtendingLinearRecording == -1) {
 				xScrollBeforeFollowingAutoExtendingLinearRecording = currentSong->xScroll[NAVIGATION_CLIP];
