@@ -356,7 +356,8 @@ startAgain:
 			// Check that value doesn't already exist
 			int i = search(value, GREATER_OR_EQUAL);
 			if (i < numElements) {
-				if (getKeyAtIndex(i) == value) goto startAgain;
+				if (getKeyAtIndex(i) == value)
+					goto startAgain;
 			}
 
 			int numToInsert = 1;
@@ -365,20 +366,24 @@ startAgain:
 			if (true || getRandom255() < 16) {
 				int desiredNumToInsert = getRandom255() & 15;
 
-				if (desiredNumToInsert < 1) desiredNumToInsert = 1;
+				if (desiredNumToInsert < 1)
+					desiredNumToInsert = 1;
 				int32_t valueNow = value;
 
 				while (numToInsert < desiredNumToInsert) {
 					valueNow++;
-					if (valueNow < value) break;
-					if (i < numElements && getKeyAtIndex(i) == valueNow) break;
+					if (valueNow < value)
+						break;
+					if (i < numElements && getKeyAtIndex(i) == valueNow)
+						break;
 
 					numToInsert++;
 				}
 			}
 
 			// Make sure we don't shoot past the end of values[NUM_TEST_INSERTIONS]
-			if (numToInsert > NUM_TEST_INSERTIONS - v) numToInsert = NUM_TEST_INSERTIONS - v;
+			if (numToInsert > NUM_TEST_INSERTIONS - v)
+				numToInsert = NUM_TEST_INSERTIONS - v;
 
 			//if (numToInsert == 15) Uart::println("inserting 15");
 
@@ -431,10 +436,12 @@ startAgain:
 
 			while (true) {
 				w++;
-				if (w >= NUM_TEST_INSERTIONS) break;
+				if (w >= NUM_TEST_INSERTIONS)
+					break;
 
 				value++;
-				if (values[w] != value) break;
+				if (values[w] != value)
+					break;
 
 				j++;
 				if (j >= numElements) {

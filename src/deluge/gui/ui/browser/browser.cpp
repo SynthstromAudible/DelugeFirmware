@@ -672,7 +672,8 @@ useFoundFile:
 				char newSuffix = enteredTextChars[length - 1] + 1;
 				enteredText.concatenateAtPos(&newSuffix, length - 1, 1);
 			}
-			else goto doNormal;
+			else
+				goto doNormal;
 		}
 #endif
 		else {
@@ -1082,17 +1083,17 @@ searchFromOneEnd:
 		char oldChar = *oldCharAddress;
 		char newChar = *newCharAddress;
 
-	    if (oldChar >= 'A' && oldChar <= 'Z') {
-		    oldChar += 32;
-	    }
-	    if (newChar >= 'A' && newChar <= 'Z') {
-		    newChar += 32;
-	    }
+		if (oldChar >= 'A' && oldChar <= 'Z') {
+			oldChar += 32;
+		}
+		if (newChar >= 'A' && newChar <= 'Z') {
+			newChar += 32;
+		}
 
-	    if (oldChar != newChar) {
-		    break;
-	    }
-	    oldCharAddress++;
+		if (oldChar != newChar) {
+			break;
+		}
+		oldCharAddress++;
 		newCharAddress++;
 		enteredTextEditPos++;
 	}

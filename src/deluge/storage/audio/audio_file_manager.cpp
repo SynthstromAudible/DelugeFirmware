@@ -930,7 +930,7 @@ bool AudioFileManager::loadCluster(Cluster* cluster, int minNumReasonsAfter) {
 		numericDriver.freezeWithError(
 		    "E204"); // Ok, I think we know there's at least 1 reason at the point this function's called, because
 	}
-	                 // it'd only be in the loading queue if it had a "reason".
+	// it'd only be in the loading queue if it had a "reason".
 	if (!sample) {
 		numericDriver.freezeWithError("E206");
 	}
@@ -1252,13 +1252,16 @@ void AudioFileManager::slowRoutine() {
 			do {
 				if (!node) {
 					q++;
-					if (q == NUM_LOADED_SAMPLE_CHUNK_ALLOCATION_QUEUES) q = 1;
-					if (q == startQ) break;
+					if (q == NUM_LOADED_SAMPLE_CHUNK_ALLOCATION_QUEUES)
+						q = 1;
+					if (q == startQ)
+						break;
 
 					node = availableClusterQueues[q].getFirst();
 				}
 
-				else node = availableClusterQueues[q].getNext(node);
+				else
+					node = availableClusterQueues[q].getNext(node);
 			} while (!node);
 
 			numToSkip--;

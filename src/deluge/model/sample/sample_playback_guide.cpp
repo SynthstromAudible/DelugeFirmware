@@ -38,7 +38,7 @@ int SamplePlaybackGuide::getFinalClusterIndex(Sample* sample, bool obeyMarkers, 
 		endPlaybackAtByteNow = (playDirection == 1)
 		                           ? (sample->audioDataStartPosBytes + sample->audioDataLengthBytes)
 		                           : (sample->audioDataStartPosBytes - sample->byteDepth * sample->numChannels);
-	// Otherwise, use end or loop-end point
+		// Otherwise, use end or loop-end point
 	}
 	else {
 		endPlaybackAtByteNow = getBytePosToEndOrLoopPlayback();
@@ -100,8 +100,8 @@ uint64_t SamplePlaybackGuide::getSyncedNumSamplesIn() {
 	if (timeSinceLastInternalTick >= timePerInternalTick) {
 		timeSinceLastInternalTick = timePerInternalTick - 1; // Ensure it doesn't get bigger.
 	}
-	                                                         // If following external clock, that could happen
-		                                                     // TODO: is that still necessary?
+	// If following external clock, that could happen
+	// TODO: is that still necessary?
 	return (uint64_t)(lengthInSamples * currentTickWithinSample
 	                  + (uint64_t)timeSinceLastInternalTick * lengthInSamples / timePerInternalTick
 	                  + (sequenceSyncLengthTicks >> 1)) // Rounding

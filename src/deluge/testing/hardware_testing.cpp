@@ -399,10 +399,12 @@ uint32_t timeNextAutoPilotAction = 0;
 
 void autoPilotStuff() {
 
-	if (!playbackHandler.recording) return;
+	if (!playbackHandler.recording)
+		return;
 
 	int timeTilNextAction = timeNextAutoPilotAction - AudioEngine::audioSampleTimer;
-	if (timeTilNextAction > 0) return;
+	if (timeTilNextAction > 0)
+		return;
 
 	int randThing;
 
@@ -532,7 +534,8 @@ void autoPilotStuff() {
 
 	case AUTOPILOT_IN_SONG_LOADER:
 
-		if (currentUIMode) break;
+		if (currentUIMode)
+			break;
 
 		// Maybe we already actually exited
 		if (getCurrentUI() == getRootUI()) {

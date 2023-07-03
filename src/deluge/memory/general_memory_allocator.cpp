@@ -267,7 +267,8 @@ bool skipConsistencyCheck =
     false; // Sometimes we want to make sure this check isn't happen, while things temporarily are not in an inspectable state
 
 void GeneralMemoryAllocator::checkEverythingOk(char const* errorString) {
-	if (skipConsistencyCheck) return;
+	if (skipConsistencyCheck)
+		return;
 
 	for (int i = 0; i < NUM_TEST_ALLOCATIONS; i++) {
 		if (testAllocations[i]) {
@@ -330,7 +331,8 @@ void GeneralMemoryAllocator::testShorten(int i) {
 
 	if (a < 128) {
 
-		if (!getRandom255()) Uart::println("shortening left");
+		if (!getRandom255())
+			Uart::println("shortening left");
 		int newSize =
 		    ((uint32_t)getRandom255() << 17) | ((uint32_t)getRandom255() << 9) | ((uint32_t)getRandom255() << 1);
 		while (newSize > sizes[i])
@@ -345,7 +347,8 @@ void GeneralMemoryAllocator::testShorten(int i) {
 
 	else {
 
-		if (!getRandom255()) Uart::println("shortening right");
+		if (!getRandom255())
+			Uart::println("shortening right");
 		int newSize =
 		    ((uint32_t)getRandom255() << 17) | ((uint32_t)getRandom255() << 9) | ((uint32_t)getRandom255() << 1);
 		while (newSize > sizes[i])
@@ -379,7 +382,8 @@ void GeneralMemoryAllocator::test() {
 			if (testAllocations[i]) {
 
 				// Check data is still there
-				if (spaceTypes[i] != SPACE_HEADER_STEALABLE) testReadingMemory(i);
+				if (spaceTypes[i] != SPACE_HEADER_STEALABLE)
+					testReadingMemory(i);
 
 				if (spaceTypes[i] == SPACE_HEADER_STEALABLE
 				    //|| (uint32_t)testAllocations[i] >= (uint32_t)INTERNAL_MEMORY_BEGIN // If on-chip memory, this is the only option
@@ -403,7 +407,8 @@ void GeneralMemoryAllocator::test() {
 					}
 
 					else {
-						if (!getRandom255()) Uart::println("extending");
+						if (!getRandom255())
+							Uart::println("extending");
 						uint32_t amountExtendedLeft, amountExtendedRight;
 
 						uint32_t idealAmountToExtend = ((uint32_t)getRandom255() << 17)
@@ -474,13 +479,15 @@ void GeneralMemoryAllocator::test() {
 			int magnitudeReduction = getRandom255() % 25;
 			desiredSize >>= magnitudeReduction;
 
-			if (desiredSize < 1) desiredSize = 1;
+			if (desiredSize < 1)
+				desiredSize = 1;
 
 			uint32_t actualSize;
 			if (!testAllocations[i]) {
 
 				bool makeStealable = false;
-				if (desiredSize >= sizeof(StealableTest)) makeStealable = getRandom255() & 1;
+				if (desiredSize >= sizeof(StealableTest))
+					makeStealable = getRandom255() & 1;
 
 				testAllocations[i] = alloc(desiredSize, &actualSize, false, true, makeStealable);
 				if (testAllocations[i]) {

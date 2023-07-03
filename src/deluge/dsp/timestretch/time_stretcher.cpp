@@ -876,14 +876,16 @@ skipSearch:
 		//Uart::println(bytesBehind);
 
 		// Only proceed if newer head is earlier than older one
-		if (bytesBehind < 0) goto optForDirectReading;
+		if (bytesBehind < 0)
+			goto optForDirectReading;
 
 		uint32_t samplesBehind = (uint32_t)bytesBehind / (uint8_t)(sample->numChannels * sample->byteDepth);
 		int samplesBehindOnRepitchedWaveform = ((uint64_t)samplesBehind << 24) / (uint32_t)phaseIncrement;
 		int maxSamplesBehind = TIME_STRETCH_BUFFER_SIZE - (SSI_TX_BUFFER_NUM_SAMPLES - 1);
 
 		// Check we're not earlier by too much - which would usually be because we just looped
-		if (samplesBehindOnRepitchedWaveform > maxSamplesBehind) goto optForDirectReading;
+		if (samplesBehindOnRepitchedWaveform > maxSamplesBehind)
+			goto optForDirectReading;
 
 		if (bufferSamplesWritten < samplesBehindOnRepitchedWaveform) {
 
@@ -942,7 +944,8 @@ optForDirectReading:
 
 #if TIME_STRETCH_ENABLE_BUFFER
 		// We've stopped writing to the buffer for now, but it might still be being read from
-		if (bufferFillingMode == BUFFER_FILLING_OLDER) bufferFillingMode = BUFFER_FILLING_NEITHER;
+		if (bufferFillingMode == BUFFER_FILLING_OLDER)
+			bufferFillingMode = BUFFER_FILLING_NEITHER;
 	}
 
 	int newBufferFillingMode = BUFFER_FILLING_NEWER; // Letting it fill from the older buffer initially caused problems
@@ -1012,8 +1015,10 @@ void TimeStretcher::reassessWhetherToBeFillingBuffer(int32_t phaseIncrement, int
 				bufferWritePos = 0;
 				bufferSamplesWritten = 0;
 				Uart::println("setting up buffer !!!!!!!!!!!!!!!!");
-				if (bufferFillingMode == BUFFER_FILLING_OLDER) Uart::println(" - filling older");
-				else Uart::println(" - filling newer");
+				if (bufferFillingMode == BUFFER_FILLING_OLDER)
+					Uart::println(" - filling older");
+				else
+					Uart::println(" - filling newer");
 			}
 		}
 	}
@@ -1171,7 +1176,8 @@ void TimeStretcher::setupCrossfadeFromCache(SampleCache* cache, int cacheBytePos
 	    / (uint8_t)(numChannels * CACHE_BYTE_DEPTH); // Will round up, cos we did that additional bit above
 #else
 	int samplesTilThisWindowEnd = bytesTilThisWindowEnd >> CACHE_BYTE_DEPTH_MAGNITUDE;
-	if (numChannels == 2) samplesTilThisWindowEnd >>= 1;
+	if (numChannels == 2)
+		samplesTilThisWindowEnd >>= 1;
 #endif
 
 	if (samplesTilThisWindowEnd < numSamplesThisCacheRead) {

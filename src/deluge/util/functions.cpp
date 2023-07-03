@@ -1475,7 +1475,6 @@ void hueToRGB(int32_t hue, unsigned char* rgb) {
 			channelDarkness = getMin(64, std::abs(c * 64 - hue));
 		}
 
-
 		if (channelDarkness < 64) {
 			rgb[c] = ((uint32_t)getSine(((channelDarkness << 3) + 256) & 1023, 10) + 2147483648u) >> 24;
 		}
@@ -1499,7 +1498,6 @@ void hueToRGBPastel(int32_t hue, unsigned char* rgb) {
 			else {
 				channelDarkness = getMin(64, std::abs(192 - hue));
 			}
-
 		}
 		else {
 			channelDarkness = getMin(64, std::abs(c * 64 - hue));

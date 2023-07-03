@@ -77,7 +77,7 @@ longError:
 	while (true) {
 
 		FILINFO fno;
-		result = f_readdir(&staticDIR, &fno);            // Read a directory item
+		result = f_readdir(&staticDIR, &fno); // Read a directory item
 		if (result != FR_OK || fno.fname[0] == 0) {
 			break; // Break on error or end of dir
 		}

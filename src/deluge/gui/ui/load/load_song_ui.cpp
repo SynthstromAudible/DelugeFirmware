@@ -844,8 +844,10 @@ void LoadSongUI::displayText(bool blinkImmediately) {
 
 int LoadSongUI::padAction(int x, int y, int on) {
 #if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-	if (currentUIMode != UI_MODE_NONE || !on) return ACTION_RESULT_DEALT_WITH;
-	if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+	if (currentUIMode != UI_MODE_NONE || !on)
+		return ACTION_RESULT_DEALT_WITH;
+	if (inCardRoutine)
+		return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	performLoad(true);
 #else
 

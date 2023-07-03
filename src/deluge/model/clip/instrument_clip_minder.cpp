@@ -291,13 +291,17 @@ void InstrumentClipMinder::setLedStates() {
 
 #if DELUGE_MODEL == DELUGE_MODEL_40_PAD
 	if (getCurrentClip()->output->type == INSTRUMENT_TYPE_KIT) {
-		if (getCurrentClip()->affectEntire) IndicatorLEDs::blinkLed(clipViewLedX, clipViewLedY);
-		else IndicatorLEDs::setLedState(clipViewLedX, clipViewLedY, true);
+		if (getCurrentClip()->affectEntire)
+			IndicatorLEDs::blinkLed(clipViewLedX, clipViewLedY);
+		else
+			IndicatorLEDs::setLedState(clipViewLedX, clipViewLedY, true);
 	}
 
 	else {
-		if (getCurrentUI() == &keyboardScreen) IndicatorLEDs::blinkLed(clipViewLedX, clipViewLedY);
-		else IndicatorLEDs::setLedState(clipViewLedX, clipViewLedY, true);
+		if (getCurrentUI() == &keyboardScreen)
+			IndicatorLEDs::blinkLed(clipViewLedX, clipViewLedY);
+		else
+			IndicatorLEDs::setLedState(clipViewLedX, clipViewLedY, true);
 	}
 #endif
 }

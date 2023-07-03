@@ -510,7 +510,8 @@ tryAgain:
 		uint32_t amountExtendedLeft, amountExtendedRight;
 
 #ifdef TEST_VECTOR
-		if (getRandom255() < 10) goto getBrandNewMemory;
+		if (getRandom255() < 10)
+			goto getBrandNewMemory;
 #endif
 		generalMemoryAllocator.extend(memoryAllocationStart, (newNum)*elementSize - allocatedSize,
 		                              (newNum + numExtraSpacesToAllocate) * elementSize - allocatedSize,

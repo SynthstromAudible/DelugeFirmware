@@ -147,7 +147,7 @@ void ParamManager::stealParamCollectionsFrom(ParamManager* other, bool stealExpr
 	if (hereMpeParamsOrNull.paramCollection) {
 		summaries[stopAtOther + 1] = {0}; // If that was expression params, write the actual terminating NULL here
 	}
-	                                      // - but not otherwise, cos we could have overflowed past the array's size!
+	// - but not otherwise, cos we could have overflowed past the array's size!
 	expressionParamSetOffset = mpeParamsOffsetOther;
 
 	other->summaries[0] = other->summaries[stopAtOther];

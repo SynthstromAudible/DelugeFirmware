@@ -81,7 +81,8 @@ DRESULT disk_read(BYTE pdrv, /* Physical drive nmuber (0) */
 
     DRESULT result = disk_read_without_streaming_first(pdrv, buff, sector, count);
 
-    if (currentlySearchingForCluster) pendingGlobalMIDICommandNumClustersWritten++;
+    if (currentlySearchingForCluster)
+        pendingGlobalMIDICommandNumClustersWritten++;
 
     return result;
 }
@@ -167,7 +168,8 @@ BYTE currentDataLength = 8;
 
 static void setDataLength(BYTE newLength)
 {
-    if (newLength == currentDataLength) return;
+    if (newLength == currentDataLength)
+        return;
 
     currentDataLength = newLength;
     if (currentDataLength == 32)
@@ -250,7 +252,8 @@ static void xmit_spi_multi(const BYTE* buff, /* Data to be sent */
             // Receive data. Note that even if we didn't want the receive data, we still have to read it back, because SPI transmission halts once the RX buffer is full
             RSPIx.SPDR.UINT32;
         }
-        else doneAny = true;
+        else
+            doneAny = true;
     } while (cnt);
 
     // Wait til we receive the corresponding data
@@ -359,7 +362,8 @@ returnError:
                 else
                 {
                     // Add a delay before each SPI transaction - we're expecting to have to keep quizzing for a while, and we want to avoid doing this very often.
-                    if (transferSectorsLeft != transferOriginalCount) DMACn(send_dma_channel).CHITVL_n = 512;
+                    if (transferSectorsLeft != transferOriginalCount)
+                        DMACn(send_dma_channel).CHITVL_n = 512;
                     spiDMARx(dmaTokenBuffer + 2, 1);
                 }
             }
@@ -569,7 +573,8 @@ static void rcvr_spi_multi(BYTE* buff, /* Buffer to store received data */
     {
 
         // Send data
-        if (cnt > 4) RSPIx.SPDR.UINT32 = 0xFFFFFFFF;
+        if (cnt > 4)
+            RSPIx.SPDR.UINT32 = 0xFFFFFFFF;
 
         // With 33MHz clock, we'll get here 23.6x per audio sample (at 44.1KHz).
         //if (((countUp++) & 15 == 0)) routineForSD();
@@ -631,7 +636,8 @@ static int select(void) /* 1:Successful, 0:Timeout */
     CS_LOW();       /* Set CS# low */
     xchg_spi(0xFF); /* Dummy clock (force MMC DO enabled) */
 
-    if (wait_ready()) return 1; /* Wait for card ready */
+    if (wait_ready())
+        return 1; /* Wait for card ready */
 
     deselect();
     return 0; /* Timeout */
@@ -652,11 +658,13 @@ static int rcvr_datablock(/* 1:OK, 0:Failed */
     while (true)
     { /* Wait for data packet in timeout of 100ms */
         token = xchg_spi(0xFF);
-        if (!((token == 0xFF) && Timer1)) break;
+        if (!((token == 0xFF) && Timer1))
+            break;
         routineForSD();
     }
 
-    if (token != 0xFE) return 0; /* If not valid data token, return with error */
+    if (token != 0xFE)
+        return 0; /* If not valid data token, return with error */
 
     rcvr_spi_multi(buff, btr); /* Receive the data block into buffer */
     xchg_spi(0xFF);            /* Discard CRC */
@@ -677,7 +685,8 @@ static int xmit_datablock(/* 1:OK, 0:Failed */
 {
     BYTE resp;
 
-    if (!wait_ready()) return 0;
+    if (!wait_ready())
+        return 0;
 
     xchg_spi(token); /* Xmit a token */
     if (token != 0xFD)
@@ -738,14 +747,16 @@ static BYTE send_cmd(BYTE cmd, /* Command byte */
     { /* ACMD<n> is the command sequense of CMD55-CMD<n> */
         cmd &= 0x7F;
         res = send_cmd(CMD55, 0);
-        if (res > 1) return res;
+        if (res > 1)
+            return res;
     }
 
     /* Select the card and wait for ready except to stop multiple block read */
     if (cmd != CMD12)
     {
         deselect();
-        if (!select()) return 0xFF; // This will call the audio routine
+        if (!select())
+            return 0xFF; // This will call the audio routine
     }
 
     /* Send command packet */
@@ -757,8 +768,10 @@ static BYTE send_cmd(BYTE cmd, /* Command byte */
     RSPIx.SPDR.UINT8[0] = (BYTE)(arg >> 8);  /* Argument[15..8] */
     RSPIx.SPDR.UINT8[0] = (BYTE)arg;         /* Argument[7..0] */
     n                   = 0x01;              /* Dummy CRC + Stop */
-    if (cmd == CMD0) n = 0x95;               /* Valid CRC for CMD0(0) + Stop */
-    if (cmd == CMD8) n = 0x87;               /* Valid CRC for CMD8(0x1AA) + Stop */
+    if (cmd == CMD0)
+        n = 0x95; /* Valid CRC for CMD0(0) + Stop */
+    if (cmd == CMD8)
+        n = 0x87; /* Valid CRC for CMD8(0x1AA) + Stop */
     RSPIx.SPDR.UINT8[0] = n;
 
     int bytesSent = 6;
@@ -843,12 +856,15 @@ DRESULT disk_read_without_streaming_first(BYTE pdrv, /* Physical drive nmuber (0
     UINT count                                       /* Sector count (1..128) */
 )
 {
-    if (!count) return RES_PARERR;
-    if (Stat & STA_NOINIT) return RES_NOTRDY;
+    if (!count)
+        return RES_PARERR;
+    if (Stat & STA_NOINIT)
+        return RES_NOTRDY;
 
     currentlyAccessingCard = 1;
 
-    if (!(CardType & CT_BLOCK)) sector *= 512; /* Convert to byte address if needed */
+    if (!(CardType & CT_BLOCK))
+        sector *= 512; /* Convert to byte address if needed */
 
     UINT oldCount = count;
 
@@ -859,7 +875,8 @@ DRESULT disk_read_without_streaming_first(BYTE pdrv, /* Physical drive nmuber (0
 
         if (count == 1)
         {
-            if (rcvr_datablock(buff, 512)) count = 0;
+            if (rcvr_datablock(buff, 512))
+                count = 0;
 
             // Theoretically, I should be able to replace the above with this function, which does DMA. It doesn't work for some reason. It's ok - since this would only be for 1 sector,
             // I have this idea that this might actually be faster.
@@ -874,7 +891,8 @@ DRESULT disk_read_without_streaming_first(BYTE pdrv, /* Physical drive nmuber (0
 
             do
             {
-                if (!rcvr_datablock(buff, 512)) break;
+                if (!rcvr_datablock(buff, 512))
+                    break;
                 buff += 512;
             } while (--count);
 
@@ -902,7 +920,8 @@ DRESULT disk_read_without_streaming_first(BYTE pdrv, /* Physical drive nmuber (0
 DSTATUS disk_status(BYTE pdrv /* Physical drive nmuber (0) */
 )
 {
-    if (pdrv != 0) return STA_NOINIT; /* Supports only single drive */
+    if (pdrv != 0)
+        return STA_NOINIT; /* Supports only single drive */
 
     return Stat;
 }
@@ -916,8 +935,10 @@ DSTATUS disk_initialize(BYTE pdrv /* Physical drive nmuber (0) */
 {
     BYTE n, cmd, ty, ocr[4];
 
-    if (pdrv != 0) return STA_NOINIT;   /* Supports only single drive */
-    if (Stat & STA_NODISK) return Stat; /* No card in the socket */
+    if (pdrv != 0)
+        return STA_NOINIT; /* Supports only single drive */
+    if (Stat & STA_NODISK)
+        return Stat; /* No card in the socket */
 
     currentlyAccessingCard = 1;
 
@@ -1005,13 +1026,17 @@ DRESULT disk_write(BYTE pdrv, /* Physical drive nmuber (0) */
 
     loadAnyEnqueuedClustersRoutine(); // Always ensure SD streaming is fulfilled before anything else
 
-    if (pdrv || !count) return RES_PARERR;
-    if (Stat & STA_NOINIT) return RES_NOTRDY;
-    if (Stat & STA_PROTECT) return RES_WRPRT;
+    if (pdrv || !count)
+        return RES_PARERR;
+    if (Stat & STA_NOINIT)
+        return RES_NOTRDY;
+    if (Stat & STA_PROTECT)
+        return RES_WRPRT;
 
     currentlyAccessingCard = 1;
 
-    if (!(CardType & CT_BLOCK)) sector *= 512; /* Convert to byte address if needed */
+    if (!(CardType & CT_BLOCK))
+        sector *= 512; /* Convert to byte address if needed */
 
     if (count == 1)
     {                                      /* Single block write */
@@ -1021,7 +1046,8 @@ DRESULT disk_write(BYTE pdrv, /* Physical drive nmuber (0) */
     }
     else
     { /* Multiple block write */
-        if (CardType & CT_SDC) send_cmd(ACMD23, count);
+        if (CardType & CT_SDC)
+            send_cmd(ACMD23, count);
         if (send_cmd(CMD25, sector) == 0)
         { /* WRITE_MULTIPLE_BLOCK */
             spiDMAWriteSectors(buff, &count);
@@ -1051,14 +1077,17 @@ DRESULT disk_ioctl(BYTE pdrv, /* Physical drive nmuber (0) */
     BYTE n, csd[16], *ptr = (BYTE*)buff;
     DWORD csz;
 
-    if (pdrv) return RES_PARERR;
-    if (Stat & STA_NOINIT) return RES_NOTRDY;
+    if (pdrv)
+        return RES_PARERR;
+    if (Stat & STA_NOINIT)
+        return RES_NOTRDY;
 
     res = RES_ERROR;
     switch (cmd)
     {
         case CTRL_SYNC: /* Flush write-back cache, Wait for end of internal process */
-            if (select()) res = RES_OK;
+            if (select())
+                res = RES_OK;
             break;
 
         case GET_SECTOR_COUNT: /* Get number of sectors on the disk (WORD) */
@@ -1143,7 +1172,8 @@ DRESULT disk_ioctl(BYTE pdrv, /* Physical drive nmuber (0) */
             if ((CardType & CT_SD2) && send_cmd(ACMD13, 0) == 0)
             { /* SD_STATUS */
                 xchg_spi(0xFF);
-                if (rcvr_datablock((BYTE*)buff, 64)) res = RES_OK;
+                if (rcvr_datablock((BYTE*)buff, 64))
+                    res = RES_OK;
             }
             break;
 
@@ -1175,25 +1205,33 @@ void disk_timerproc(UINT msPassed)
     n = Timer1; /* 1000Hz decrement timer with zero stopped */
     if (n)
     {
-        if (n <= msPassed) Timer1 = 0;
-        else Timer1 = n - msPassed;
+        if (n <= msPassed)
+            Timer1 = 0;
+        else
+            Timer1 = n - msPassed;
     }
     n = Timer2;
     if (n)
     {
-        if (n <= msPassed) Timer2 = 0;
-        else Timer2 = n - msPassed;
+        if (n <= msPassed)
+            Timer2 = 0;
+        else
+            Timer2 = n - msPassed;
     }
 
     /* Update socket status */
 
     s = Stat;
 
-    if (WP) s |= STA_PROTECT;
-    else s &= ~STA_PROTECT;
+    if (WP)
+        s |= STA_PROTECT;
+    else
+        s &= ~STA_PROTECT;
 
-    if (CD) s &= ~STA_NODISK;
-    else s |= (STA_NODISK | STA_NOINIT);
+    if (CD)
+        s &= ~STA_NODISK;
+    else
+        s |= (STA_NODISK | STA_NOINIT);
 
     Stat = s;
 }
@@ -1255,7 +1293,8 @@ DSTATUS disk_initialize(BYTE pdrv /* Physical drive nmuber to identify the drive
     //uartPrintln("disk_initialize");
 
     // If no card present, nothing more we can do
-    if (diskStatus & STA_NODISK) return SD_ERR_NO_CARD;
+    if (diskStatus & STA_NODISK)
+        return SD_ERR_NO_CARD;
 
     int error;
 
@@ -1264,7 +1303,8 @@ DSTATUS disk_initialize(BYTE pdrv /* Physical drive nmuber to identify the drive
 processError:
         diskStatus = STA_NOINIT;
 
-        if (error == SD_ERR_NO_CARD) diskStatus |= STA_NODISK;
+        if (error == SD_ERR_NO_CARD)
+            diskStatus |= STA_NODISK;
 
         return diskStatus;
     }
@@ -1275,7 +1315,8 @@ processError:
     error                  = sd_init(SD_PORT, SDCFG_IP1_BASE, &initializationWorkArea[0], SD_CD_SOCKET);
     currentlyAccessingCard = 0;
 
-    if (error) goto processError;
+    if (error)
+        goto processError;
 
 #ifdef SDCFG_CD_INT
     //uartPrintln("set card detect by interrupt\n");
@@ -1284,7 +1325,8 @@ processError:
     //uartPrintln("set card detect by polling\n");
     error = sd_cd_int(1, SD_CD_INT_DISABLE, 0);
 #endif
-    if (error) goto processError;
+    if (error)
+        goto processError;
 
     //sd_set_buffer(SD_PORT, &test_sd_rw_buff[0], SD_RW_BUFF_SIZE); // Actually this buffer never gets used, so I've removed it! - Rohan
 
@@ -1293,7 +1335,8 @@ processError:
     error                  = sd_mount(SD_PORT, SDCFG_DRIVER_MODE, SD_VOLT_3_3);
     currentlyAccessingCard = 0;
 
-    if (error) goto processError;
+    if (error)
+        goto processError;
 
     diskStatus = 0; // Disk is ok!
 
@@ -1315,7 +1358,8 @@ DRESULT disk_read_without_streaming_first(BYTE pdrv, /* Physical drive nmuber to
 
     BYTE err;
 
-    if (currentlyAccessingCard) freezeWithError("E259"); // Operatricks got! But I think I fixed.
+    if (currentlyAccessingCard)
+        freezeWithError("E259"); // Operatricks got! But I think I fixed.
 
     //uint16_t startTime = MTU2.TCNT_0;
 
@@ -1358,7 +1402,8 @@ DRESULT disk_write(BYTE pdrv, /* Physical drive nmuber to identify the drive */
 
     BYTE err;
 
-    if (currentlyAccessingCard) freezeWithError("E258");
+    if (currentlyAccessingCard)
+        freezeWithError("E258");
 
     currentlyAccessingCard = 1;
 
@@ -1388,8 +1433,10 @@ DRESULT disk_ioctl(BYTE pdrv, /* Physical drive nmuber (0..) */
     DRESULT res;
     int result;
 
-    if (pdrv) return RES_PARERR;
-    if (diskStatus & STA_NOINIT) return RES_NOTRDY;
+    if (pdrv)
+        return RES_PARERR;
+    if (diskStatus & STA_NOINIT)
+        return RES_NOTRDY;
 
     switch (cmd)
     {

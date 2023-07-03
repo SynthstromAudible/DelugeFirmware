@@ -1270,7 +1270,7 @@ void Kit::offerBendRangeUpdate(ModelStack* modelStack, MIDIDevice* device, int c
 	if (whichBendRange == BEND_RANGE_MAIN) {
 		return; // This is not used in Kits for Drums. Drums use their BEND_RANGE_FINGER_LEVEL for both kinds of bend.
 	}
-	        // TODO: Hmm, for non-MPE instruments we'd want to use this kind of bend range update and just paste it into BEND_RANGE_FINGER_LEVEL though...
+	// TODO: Hmm, for non-MPE instruments we'd want to use this kind of bend range update and just paste it into BEND_RANGE_FINGER_LEVEL though...
 
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 		if (thisDrum->midiInput.equalsChannelOrZone(device, channelOrZone)) {

@@ -806,8 +806,10 @@ tryNotStealingFirst:
 #if TEST_GENERAL_MEMORY_ALLOCATION
 			if (actuallyGrabbing) {
 				Uart::println("grabbed extension without reaching min size"); // This happened recently!
-				if (originalSpaceNeedsStealing) Uart::println("during steal");
-				else Uart::println("during extend");
+				if (originalSpaceNeedsStealing)
+					Uart::println("during steal");
+				else
+					Uart::println("during extend");
 				while (1) {}
 			}
 #endif

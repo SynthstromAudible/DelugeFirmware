@@ -1027,7 +1027,8 @@ bool doSomeOutputting() {
 
 void logAction(char const* string) {
 #if DO_AUDIO_LOG
-	if (numAudioLogItems >= AUDIO_LOG_SIZE) return;
+	if (numAudioLogItems >= AUDIO_LOG_SIZE)
+		return;
 	audioLogTimes[numAudioLogItems] = *TCNT[TIMER_SYSTEM_FAST];
 	strcpy(audioLogStrings[numAudioLogItems], string);
 	numAudioLogItems++;

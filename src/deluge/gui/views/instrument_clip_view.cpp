@@ -247,7 +247,8 @@ doOther:
 	// Clip view button
 	else if (x == clipViewButtonX && y == clipViewButtonY) {
 		if (on && Buttons::isShiftButtonPressed() && currentUIMode == UI_MODE_NONE) {
-			if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			if (inCardRoutine)
+				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 
 			InstrumentClip* currentClip = getCurrentClip();
 
@@ -1255,7 +1256,7 @@ int InstrumentClipView::padAction(int x, int y, int velocity) {
 					}
 					while (true) {
 						result = f_readdir_get_filepointer(&staticDIR, &staticFNO,
-						                                   &thisFilePointer);  /* Read a directory item */
+						                                   &thisFilePointer); /* Read a directory item */
 						if (result != FR_OK || staticFNO.fname[0] == 0) {
 							break; // Break on error or end of dir
 						}

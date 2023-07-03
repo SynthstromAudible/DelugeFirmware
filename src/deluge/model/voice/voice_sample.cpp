@@ -188,10 +188,10 @@ int VoiceSample::attemptLateSampleStart(SamplePlaybackGuide* voiceSource, Sample
 		numericDriver.freezeWithError(
 		    "E366"); // This can occur if some overflowing happened on the previous check due to an
 	}
-	                 // insanely high rawSamplesSinceStart being supplied due to some other bug.
-		             // This was a problem around V3.1.0 release, so currently keeping this check
-		             // even outside of ALPHA_OR_BETA_VERSION.
-		             // Sven got! 4.0.0-beta4.
+	// insanely high rawSamplesSinceStart being supplied due to some other bug.
+	// This was a problem around V3.1.0 release, so currently keeping this check
+	// even outside of ALPHA_OR_BETA_VERSION.
+	// Sven got! 4.0.0-beta4.
 
 	int finalClusterIndex = voiceSource->getFinalClusterIndex(sample, cache); // Think this is right...
 
@@ -699,7 +699,8 @@ readCachedWindow:
 		    + 1; // Round up
 #else
 		int samplesTilThisWindowEnd = bytesTilThisWindowEnd >> CACHE_BYTE_DEPTH_MAGNITUDE;
-		if (sampleSourceNumChannels == 2) samplesTilThisWindowEnd >>= 1;
+		if (sampleSourceNumChannels == 2)
+			samplesTilThisWindowEnd >>= 1;
 #endif
 
 		if (samplesTilThisWindowEnd < numSamplesThisCacheRead) {
@@ -901,7 +902,8 @@ uncachedPlayback:
 			    + 1; // Round up
 #else
 			int cachingSamplesTilUncachedReadEnd = cachingBytesTilUncachedReadEnd >> CACHE_BYTE_DEPTH_MAGNITUDE;
-			if (sampleSourceNumChannels == 2) cachingSamplesTilUncachedReadEnd >>= 1;
+			if (sampleSourceNumChannels == 2)
+				cachingSamplesTilUncachedReadEnd >>= 1;
 #endif
 
 			if (cachingSamplesTilUncachedReadEnd < numSamplesThisUncachedRead) {
@@ -1348,7 +1350,8 @@ headsFinishedReading:
 					timeStretcher->newerHeadReadingFromBuffer = false;
 					timeStretcher->bufferFillingMode = BUFFER_FILLING_NEWER;
 					cloneFrom(&timeStretcher->olderPartReader, false);
-					if (!clusters[0]) Uart::println("no clusters[0]");
+					if (!clusters[0])
+						Uart::println("no clusters[0]");
 				}
 
 				else if (timeStretcher->playHeadStillActive[PLAY_HEAD_OLDER]

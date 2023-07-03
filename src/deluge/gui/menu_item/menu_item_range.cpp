@@ -136,15 +136,19 @@ void MenuItemRange::drawValueForEditingRange(bool blinkImmediately) {
 	uint8_t blinkMask[NUMERIC_DISPLAY_LENGTH];
 	if (soundEditor.editingRangeEdge == RANGE_EDIT_LEFT) {
 		for (int i = 0; i < NUMERIC_DISPLAY_LENGTH; i++) {
-			if (i < leftLength + NUMERIC_DISPLAY_LENGTH - getMin(4, textLength)) blinkMask[i] = 0;
-			else blinkMask[i] = 255;
+			if (i < leftLength + NUMERIC_DISPLAY_LENGTH - getMin(4, textLength))
+				blinkMask[i] = 0;
+			else
+				blinkMask[i] = 255;
 		}
 	}
 
 	else {
 		for (int i = 0; i < NUMERIC_DISPLAY_LENGTH; i++) {
-			if (NUMERIC_DISPLAY_LENGTH - 1 - i < rightLength) blinkMask[i] = 0;
-			else blinkMask[i] = 255;
+			if (NUMERIC_DISPLAY_LENGTH - 1 - i < rightLength)
+				blinkMask[i] = 0;
+			else
+				blinkMask[i] = 255;
 		}
 	}
 

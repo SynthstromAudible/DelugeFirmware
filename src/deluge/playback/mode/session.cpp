@@ -2256,7 +2256,7 @@ bool Session::willClipContinuePlayingAtEnd(ModelStackWithTimelineCounter const* 
 	if (!modelStack->song->isClipActive(clip)) {
 		return false; // If Clip not active, just say it won't loop. We need that, cos an AudioClip's Sample may
 	}
-	                  // keep playing just after its Clip has stopped, and we don't wanna think it needs to loop
+	// keep playing just after its Clip has stopped, and we don't wanna think it needs to loop
 
 	// Note: this isn't quite perfect - it doesn’t know if Clip will cut out due to another one launching. But the ill effects of this are pretty minor.
 	bool willLoop =

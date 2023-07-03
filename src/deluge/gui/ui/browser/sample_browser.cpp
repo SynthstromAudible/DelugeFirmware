@@ -1815,7 +1815,7 @@ skipOctaveCorrection:
 		if (ALPHA_OR_BETA_VERSION && thisSample->numReasonsToBeLoaded <= 0) {
 			numericDriver.freezeWithError("E216"); // I put this here to try and catch an E004 Luc got
 		}
-		thisSample->removeReason("E394");          // Remove that temporary reason we added above
+		thisSample->removeReason("E394"); // Remove that temporary reason we added above
 
 		rangeIndex++;
 		lastTopNote = topNote;

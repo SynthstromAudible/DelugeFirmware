@@ -205,8 +205,10 @@ void MenuItemSourceSelection::selectEncoderAction(int offset) {
 			return;
 		}
 #else
-		if (newValue >= NUM_PATCH_SOURCES) newValue -= NUM_PATCH_SOURCES;
-		else if (newValue < 0) newValue += NUM_PATCH_SOURCES;
+		if (newValue >= NUM_PATCH_SOURCES)
+			newValue -= NUM_PATCH_SOURCES;
+		else if (newValue < 0)
+			newValue += NUM_PATCH_SOURCES;
 #endif
 		s = sourceMenuContents[newValue];
 

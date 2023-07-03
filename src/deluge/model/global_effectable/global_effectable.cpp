@@ -338,8 +338,10 @@ int GlobalEffectable::getParameterFromKnob(int whichModEncoder) {
 	}
 #else
 	else if (modKnobMode == 5) {
-		if (whichModEncoder != 0) return PARAM_UNPATCHED_STUTTER_RATE;
-		else return PARAM_UNPATCHED_SAMPLE_RATE_REDUCTION;
+		if (whichModEncoder != 0)
+			return PARAM_UNPATCHED_STUTTER_RATE;
+		else
+			return PARAM_UNPATCHED_SAMPLE_RATE_REDUCTION;
 	}
 #endif
 	return 255;

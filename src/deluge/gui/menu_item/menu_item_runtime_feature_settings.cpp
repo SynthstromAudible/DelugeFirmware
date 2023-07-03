@@ -48,8 +48,10 @@ void MenuItemRuntimeFeatureSettings::selectEncoderAction(int offset) {
 		soundEditor.currentValue = 0;
 	}
 #else
-	if (soundEditor.currentValue >= numOptions) soundEditor.currentValue -= numOptions;
-	else if (soundEditor.currentValue < 0) soundEditor.currentValue += numOptions;
+	if (soundEditor.currentValue >= numOptions)
+		soundEditor.currentValue -= numOptions;
+	else if (soundEditor.currentValue < 0)
+		soundEditor.currentValue += numOptions;
 #endif
 
 	lastActiveValue = soundEditor.currentValue;

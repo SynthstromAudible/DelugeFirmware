@@ -114,7 +114,8 @@ void clearTickSquares(bool shouldSend) {
 		for (int y = 0; y < displayHeight; y++) {
 
 #if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-			if (slowFlashSquares[y] != 255) colsToSend |= (1 << slowFlashSquares[y]);
+			if (slowFlashSquares[y] != 255)
+				colsToSend |= (1 << slowFlashSquares[y]);
 #else
 			if (slowFlashSquares[y] != 255) {
 				colsToSend |= (1 << (slowFlashSquares[y] >> 1));
@@ -156,10 +157,12 @@ void setTickSquares(const uint8_t* squares, const uint8_t* colours) {
 
 #if DELUGE_MODEL == DELUGE_MODEL_40_PAD
 					// Remember to update the new column
-					if (squares[y] != 255) colsToSend |= (1 << squares[y]);
+					if (squares[y] != 255)
+						colsToSend |= (1 << squares[y]);
 
 					// And the old column
-					if (slowFlashSquares[y] != 255) colsToSend |= (1 << slowFlashSquares[y]);
+					if (slowFlashSquares[y] != 255)
+						colsToSend |= (1 << slowFlashSquares[y]);
 #else
 					// Remember to update the new column
 					if (squares[y] != 255) {
