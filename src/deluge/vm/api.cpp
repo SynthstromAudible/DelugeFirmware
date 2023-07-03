@@ -24,7 +24,7 @@ ModuleMap WrenAPI::modules() {
 						wrenEnsureSlots(vm, 4);
 						int x = (int)wrenGetSlotDouble(vm, 1);
 						int y = (int)wrenGetSlotDouble(vm, 2);
-						int z = (int)wrenGetSlotDouble(vm, 3);
+						int z = (int)wrenGetSlotBool(vm, 3);
 						Buttons::buttonAction(x, y, z, false);
 					}
 				}},

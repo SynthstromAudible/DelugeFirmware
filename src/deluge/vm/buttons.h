@@ -2,7 +2,7 @@
 #define ITOA(i) STRINGIFY(i)
 #define WREN_BUTTON(shortname, name) "static " #shortname " { [" ITOA(name##ButtonX) "," ITOA(name##ButtonY) "] }\n"
 
-const char* WrenAPI::buttonsSource = "(class Buttons {\n"
+const char* WrenAPI::buttonsSource = "class Buttons {\n"
 	WREN_BUTTON(affectEntire, affectEntire)
 	WREN_BUTTON(song, sessionView)
 	WREN_BUTTON(clip, clipView)
