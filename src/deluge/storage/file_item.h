@@ -31,7 +31,9 @@ public:
 	int getDisplayNameWithoutExtension(String* displayNameWithoutExtension);
 
 	char const*
-	    displayName; // Usually points to filePointer.get(), but for "numeric" files, will cut off the prefix, e.g. "SONG". And I think this always includes the file extension...
+	    displayName; // Usually points to filePointer.get(), but for "numeric" files, will cut off the prefix, e.g. "SONG".
+	                 // And I think this always includes the file extension...
+
 	String filename; // May or may not include file extension. (Or actually I think it always does now...)
 	FilePointer filePointer;
 	Instrument* instrument;

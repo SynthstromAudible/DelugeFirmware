@@ -168,7 +168,7 @@ gotError:
 		return;
 	}
 
-	error = Browser::getUnusedSlot(newInstrumentType, &newName, thingName);
+	error = loadInstrumentPresetUI.getUnusedSlot(newInstrumentType, &newName, thingName);
 	if (error) goto gotError;
 
 	if (newName.isEmpty()) {

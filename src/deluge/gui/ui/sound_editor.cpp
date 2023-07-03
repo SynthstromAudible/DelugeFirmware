@@ -1208,7 +1208,7 @@ public:
 		}
 	}
 	char const** getOptions() {
-		static char const* options[] = {"OFF", "FLANGER", "CHORUS", "PHASER", NULL};
+		static char const* options[] = {"OFF", "FLANGER", "CHORUS", "PHASER", "STEREO CHORUS", NULL};
 		return options;
 	}
 	int getNumOptions() { return NUM_MOD_FX_TYPES; }
@@ -1229,7 +1229,8 @@ class MenuItemModFXDepth final : public MenuItemPatchedParamInteger {
 public:
 	MenuItemModFXDepth(char const* newName = 0, int newP = 0) : MenuItemPatchedParamInteger(newName, newP) {}
 	bool isRelevant(Sound* sound, int whichThing) {
-		return (sound->modFXType == MOD_FX_TYPE_CHORUS || sound->modFXType == MOD_FX_TYPE_PHASER);
+		return (sound->modFXType == MOD_FX_TYPE_CHORUS || sound->modFXType == MOD_FX_TYPE_CHORUS_STEREO
+		        || sound->modFXType == MOD_FX_TYPE_PHASER);
 	}
 } modFXDepthMenu;
 
@@ -1237,8 +1238,9 @@ class MenuItemModFXOffset final : public MenuItemUnpatchedParam {
 public:
 	MenuItemModFXOffset(char const* newName = 0, int newP = 0) : MenuItemUnpatchedParam(newName, newP) {}
 	bool isRelevant(Sound* sound, int whichThing) {
-		return (!sound
-		        || sound->modFXType == MOD_FX_TYPE_CHORUS); // TODO: really want to receive a ModControllableAudio here!
+		return (!sound || sound->modFXType == MOD_FX_TYPE_CHORUS
+		        || sound->modFXType
+		               == MOD_FX_TYPE_CHORUS_STEREO); // TODO: really want to receive a ModControllableAudio here!
 	}
 } modFXOffsetMenu;
 
@@ -2247,6 +2249,9 @@ public:
 
 // Colours submenu
 MenuItemSubmenu coloursSubmenu;
+
+MenuItemRuntimeFeatureSetting runtimeFeatureSettingMenuItem;
+MenuItemRuntimeFeatureSettings runtimeFeatureSettingsMenu;
 
 char const* firmwareString = "4.1.4-alpha3";
 
