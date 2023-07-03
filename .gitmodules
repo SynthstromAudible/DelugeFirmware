@@ -1,0 +1,3 @@
+[submodule "wren"]
+	path = wren
+	url = https://github.com/wren-lang/wren
