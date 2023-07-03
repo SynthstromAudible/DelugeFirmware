@@ -4,9 +4,9 @@
 #include "processing/sound/sound.h"
 
 namespace menu_item::osc {
-class PulseWidth final : public source::PatchedParam {
+class PulseWidth final : public menu_item::source::PatchedParam {
 public:
-	PulseWidth(char const* newName = 0, int newP = 0) : PatchedParam(newName, newP) {}
+	using menu_item::source::PatchedParam::PatchedParam;
 
 	int32_t getFinalValue() { return (uint32_t)soundEditor.currentValue * (85899345 >> 1); }
 

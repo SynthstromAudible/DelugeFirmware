@@ -59,6 +59,7 @@
 #include "storage/multi_range/multi_wave_table_range.h"
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
+#include "util/comparison.h"
 #include "util/functions.h"
 #include <new>
 #include <string.h>
@@ -73,122 +74,9 @@ extern "C" {
 }
 
 #include "menus.h"
-
-#if HAVE_OLED
-char oscTypeTitle[] = "OscX type";
-char oscLevelTitle[] = "OscX level";
-char waveIndexTitle[] = "OscX wave-ind.";
-char carrierFeedback[] = "CarrierX feed.";
-char sampleReverseTitle[] = "SampX reverse";
-char sampleModeTitle[] = "SampX repeat";
-char oscTransposeTitle[] = "OscX transpose";
-char sampleSpeedTitle[] = "SampX speed";
-char sampleInterpolationTitle[] = "SampX interp.";
-char pulseWidthTitle[] = "OscX p. width";
-char retriggerPhaseTitle[] = "OscX r. phase";
-
-char attackTitle[] = "EnvX attack";
-char decayTitle[] = "EnvX decay";
-char sustainTitle[] = "EnvX sustain";
-char releaseTitle[] = "EnvX release";
-
-char modulatorTransposeTitle[] = "FM ModX tran.";
-char modulatorLevelTitle[] = "FM ModX level";
-char modulatorFeedbackTitle[] = "FM ModX f.back";
-char modulatorRetriggerPhaseTitle[] = "FM ModX retrig";
-
-char cvVoltsTitle[] = "CVx V/octave";
-char cvTransposeTitle[] = "CVx transpose";
-
-void setOscillatorNumberForTitles(int s) {
-	oscTypeTitle[3] = '1' + s;
-	oscLevelTitle[3] = '1' + s;
-	waveIndexTitle[3] = '1' + s;
-	oscTransposeTitle[3] = '1' + s;
-	pulseWidthTitle[3] = '1' + s;
-	retriggerPhaseTitle[3] = '1' + s;
-
-	carrierFeedback[7] = '1' + s;
-
-	sampleReverseTitle[4] = '1' + s;
-	sampleModeTitle[4] = '1' + s;
-	sampleSpeedTitle[4] = '1' + s;
-	sampleInterpolationTitle[4] = '1' + s;
-}
-
-void setEnvelopeNumberForTitles(int e) {
-	attackTitle[3] = '1' + e;
-	decayTitle[3] = '1' + e;
-	sustainTitle[3] = '1' + e;
-	releaseTitle[3] = '1' + e;
-}
-
-void setModulatorNumberForTitles(int m) {
-	modulatorTransposeTitle[6] = '1' + m;
-	modulatorLevelTitle[6] = '1' + m;
-	modulatorFeedbackTitle[6] = '1' + m;
-	modulatorRetriggerPhaseTitle[6] = '1' + m;
-}
-
-void setCvNumberForTitle(int m) {
-	cvVoltsTitle[2] = '1' + m;
-	cvTransposeTitle[2] = '1' + m;
-}
-#endif
+using namespace menu_item;
 
 #define comingSoonMenu (MenuItem*)0xFFFFFFFF
-
-MenuItem* paramShortcutsForSounds[][8] = {
-    // Pre V3
-    {&sampleRepeatMenu, &sampleReverseMenu, &timeStretchMenu, &samplePitchSpeedMenu, &audioRecorderMenu,
-     &fileSelectorMenu, &sampleEndMenu, &sampleStartMenu},
-    {&sampleRepeatMenu, &sampleReverseMenu, &timeStretchMenu, &samplePitchSpeedMenu, &audioRecorderMenu,
-     &fileSelectorMenu, &sampleEndMenu, &sampleStartMenu},
-    {&sourceVolumeMenu, &sourceTransposeMenu, &oscTypeMenu, &pulseWidthMenu, &oscPhaseMenu, &sourceFeedbackMenu,
-     &noiseMenu, &sourceWaveIndexMenu},
-    {&sourceVolumeMenu, &sourceTransposeMenu, &oscTypeMenu, &pulseWidthMenu, &oscPhaseMenu, &sourceFeedbackMenu,
-     &oscSyncMenu, &sourceWaveIndexMenu},
-    {&modulatorVolume, &modulatorTransposeMenu, comingSoonMenu, comingSoonMenu, &modulatorPhaseMenu,
-     &modulatorFeedbackMenu, comingSoonMenu, &sequenceDirectionMenu},
-    {&modulatorVolume, &modulatorTransposeMenu, comingSoonMenu, comingSoonMenu, &modulatorPhaseMenu,
-     &modulatorFeedbackMenu, &modulatorDestMenu, NULL},
-    {&volumeMenu, &masterTransposeMenu, &vibratoMenu, &panMenu, &synthModeMenu, &srrMenu, &bitcrushMenu, &clippingMenu},
-    {&portaMenu, &polyphonyMenu, &priorityMenu, &unisonDetuneMenu, &numUnisonMenu, NULL, NULL, NULL},
-    {&envReleaseMenu, &envSustainMenu, &envDecayMenu, &envAttackMenu, NULL, &lpfModeMenu, &lpfResMenu, &lpfFreqMenu},
-    {&envReleaseMenu, &envSustainMenu, &envDecayMenu, &envAttackMenu, NULL, comingSoonMenu, &hpfResMenu, &hpfFreqMenu},
-    {&compressorReleaseMenu, &sidechainSyncMenu, &compressorVolumeShortcutMenu, &compressorAttackMenu,
-     &compressorShapeMenu, &sidechainSendMenu, &bassMenu, &bassFreqMenu},
-    {&arpRateMenu, &arpSyncMenu, &arpGateMenu, &arpOctavesMenu, &arpModeMenu, &drumNameMenu, &trebleMenu,
-     &trebleFreqMenu},
-    {&lfo1RateMenu, &lfo1SyncMenu, &lfo1TypeMenu, &modFXTypeMenu, &modFXOffsetMenu, &modFXFeedbackMenu, &modFXDepthMenu,
-     &modFXRateMenu},
-    {&lfo2RateMenu, comingSoonMenu, &lfo2TypeMenu, &reverbAmountMenu, &reverbPanMenu, &reverbWidthMenu,
-     &reverbDampeningMenu, &reverbRoomSizeMenu},
-    {&delayRateMenu, &delaySyncMenu, &delayAnalogMenu, &delayFeedbackMenu, &delayPingPongMenu, NULL, NULL, NULL}};
-
-MenuItem* paramShortcutsForAudioClips[][8] = {
-    {NULL, &audioClipReverseMenu, NULL, &samplePitchSpeedMenu, NULL, &fileSelectorMenu,
-     &audioClipSampleMarkerEditorMenuEnd, &audioClipSampleMarkerEditorMenuStart},
-    {NULL, &audioClipReverseMenu, NULL, &samplePitchSpeedMenu, NULL, &fileSelectorMenu,
-     &audioClipSampleMarkerEditorMenuEnd, &audioClipSampleMarkerEditorMenuStart},
-    {&audioClipLevelMenu, &audioClipTransposeMenu, NULL, NULL, NULL, NULL, NULL, NULL},
-    {&audioClipLevelMenu, &audioClipTransposeMenu, NULL, NULL, NULL, NULL, NULL, NULL},
-    {NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL},
-    {NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL},
-    {&audioClipLevelMenu, &audioClipTransposeMenu, NULL, &audioClipPanMenu, NULL, &srrMenu, &bitcrushMenu,
-     &clippingMenu},
-    {NULL, NULL, &priorityMenu, NULL, NULL, NULL, NULL, NULL},
-    {NULL, NULL, NULL, &audioClipAttackMenu, NULL, &lpfModeMenu, &audioClipLPFResMenu, &audioClipLPFFreqMenu},
-    {NULL, NULL, NULL, &audioClipAttackMenu, NULL, comingSoonMenu, &audioClipHPFResMenu, &audioClipHPFFreqMenu},
-    {&compressorReleaseMenu, &sidechainSyncMenu, &audioClipCompressorVolumeMenu, &compressorAttackMenu,
-     &compressorShapeMenu, NULL, &bassMenu, &bassFreqMenu},
-    {NULL, NULL, NULL, NULL, NULL, NULL, &trebleMenu, &trebleFreqMenu},
-    {NULL, NULL, NULL, &audioClipModFXTypeMenu, &modFXOffsetMenu, &modFXFeedbackMenu, &audioClipModFXDepthMenu,
-     &audioClipModFXRateMenu},
-    {NULL, NULL, NULL, &audioClipReverbSendAmountMenu, &reverbPanMenu, &reverbWidthMenu, &reverbDampeningMenu,
-     &reverbRoomSizeMenu},
-    {&audioClipDelayRateMenu, &delaySyncMenu, &delayAnalogMenu, &audioClipDelayFeedbackMenu, &delayPingPongMenu, NULL,
-     NULL, NULL}};
 
 // 255 means none. 254 means soon
 uint8_t modSourceShortcuts[2][8] = {
@@ -232,23 +120,8 @@ void SoundEditor::setShortcutsVersion(int newVersion) {
 		break;
 
 	default: // VERSION_3
-
-		paramShortcutsForAudioClips[0][7] = &audioClipSampleMarkerEditorMenuEnd;
-		paramShortcutsForAudioClips[1][7] = &audioClipSampleMarkerEditorMenuEnd;
-
-		paramShortcutsForAudioClips[0][6] = &interpolationMenu;
-		paramShortcutsForAudioClips[1][6] = &interpolationMenu;
-
-		paramShortcutsForSounds[0][6] = &interpolationMenu;
-		paramShortcutsForSounds[1][6] = &interpolationMenu;
-
-		paramShortcutsForSounds[2][6] = &sourceWaveIndexMenu;
-		paramShortcutsForSounds[3][6] = &sourceWaveIndexMenu;
-
-		paramShortcutsForSounds[2][7] = &noiseMenu;
-		paramShortcutsForSounds[3][7] = &oscSyncMenu;
-		modSourceShortcuts[0][7] = PATCH_SOURCE_X;
-		modSourceShortcuts[1][7] = PATCH_SOURCE_Y;
+		// Uses defaults
+		break;
 	}
 }
 
@@ -261,130 +134,8 @@ SoundEditor::SoundEditor() {
 	shouldGoUpOneLevelOnBegin = false;
 
 #if HAVE_OLED
-	triggerClockInMenu.basicTitle = "T. clock input";
-	triggerClockOutMenu.basicTitle = "T. clock out";
-	triggerInPPQNMenu.basicTitle = "Input PPQN";
-	triggerOutPPQNMenu.basicTitle = "Output PPQN";
-
-	midiClockMenu.basicTitle = "MIDI clock";
-	midiClockInStatusMenu.basicTitle = "MIDI clock in";
-	midiClockOutStatusMenu.basicTitle = "MIDI clock out";
-	tempoMagnitudeMatchingMenu.basicTitle = "Tempo m. match";
-	midiCommandsMenu.basicTitle = "MIDI commands";
-	midi::devicesMenu.basicTitle = "MIDI devices";
-
-	defaultTempoMenu.basicTitle = "Default tempo";
-	defaultSwingMenu.basicTitle = "Default swing";
-	defaultKeyMenu.basicTitle = "Default key";
-	defaultScaleMenu.basicTitle = "Default scale";
-	defaultVelocityMenu.basicTitle = "Default veloc.";
-	defaultMagnitudeMenu.basicTitle = "Default resol.";
-	defaultBendRangeMenu.basicTitle = "Default bend r";
-
-	shortcutsVersionMenu.basicTitle = "Shortcuts ver.";
-	keyboardLayoutMenu.basicTitle = "Key layout";
-
-	recordCountInMenu.basicTitle = "Rec count-in";
-	monitorModeMenu.basicTitle = "Monitoring";
-	runtimeFeatureSettingsMenu.basicTitle = "Community fts.";
-	firmwareVersionMenu.basicTitle = "Firmware ver.";
-
-	reverbAmountMenu.basicTitle = "Reverb amount";
-	reverbWidthMenu.basicTitle = "Reverb width";
-	reverbPanMenu.basicTitle = "Reverb pan";
-	reverbCompressorMenu.basicTitle = "Reverb sidech.";
-
-	sidechainSendMenu.basicTitle = "Send to sidech";
-	sidechainSyncMenu.basicTitle = "Sidechain sync";
-	compressorAttackMenu.basicTitle = "Sidech. attack";
-	compressorReleaseMenu.basicTitle = "Sidech release";
-	compressorShapeMenu.basicTitle = "Sidech. shape";
-	reverbCompressorShapeMenu.basicTitle = "Sidech. shape";
-
-	modFXTypeMenu.basicTitle = "MOD FX type";
-	modFXRateMenu.basicTitle = "MOD FX rate";
-	modFXFeedbackMenu.basicTitle = "MODFX feedback";
-	modFXDepthMenu.basicTitle = "MOD FX depth";
-	modFXOffsetMenu.basicTitle = "MOD FX offset";
-
-	delayFeedbackMenu.basicTitle = "Delay amount";
-	delayRateMenu.basicTitle = "Delay rate";
-	delayPingPongMenu.basicTitle = "Delay pingpong";
-	delayAnalogMenu.basicTitle = "Delay type";
-	delaySyncMenu.basicTitle = "Delay sync";
-
-	lfo1TypeMenu.basicTitle = "LFO1 type";
-	lfo1RateMenu.basicTitle = "LFO1 rate";
-	lfo1SyncMenu.basicTitle = "LFO1 sync";
-
-	lfo2TypeMenu.basicTitle = "LFO2 type";
-	lfo2RateMenu.basicTitle = "LFO2 rate";
-
-	oscTypeMenu.basicTitle = oscTypeTitle;
-	sourceVolumeMenu.basicTitle = oscLevelTitle;
-	sourceWaveIndexMenu.basicTitle = waveIndexTitle;
-	sourceFeedbackMenu.basicTitle = carrierFeedback;
-	sampleReverseMenu.basicTitle = sampleReverseTitle;
-	sampleRepeatMenu.basicTitle = sampleModeTitle;
-	sourceTransposeMenu.basicTitle = oscTransposeTitle;
-	timeStretchMenu.basicTitle = sampleSpeedTitle;
-	interpolationMenu.basicTitle = sampleInterpolationTitle;
-	pulseWidthMenu.basicTitle = pulseWidthTitle;
-	oscPhaseMenu.basicTitle = retriggerPhaseTitle;
-
-	modulatorTransposeMenu.basicTitle = modulatorTransposeTitle;
-	modulatorDestMenu.basicTitle = "FM Mod2 dest.";
-	modulatorVolume.basicTitle = modulatorLevelTitle;
-	modulatorFeedbackMenu.basicTitle = modulatorFeedbackTitle;
-	modulatorPhaseMenu.basicTitle = modulatorRetriggerPhaseTitle;
-
-	lpfFreqMenu.basicTitle = "LPF frequency";
-	lpfResMenu.basicTitle = "LPF resonance";
-	lpfModeMenu.basicTitle = "LPF mode";
-
-	hpfFreqMenu.basicTitle = "HPF frequency";
-	hpfResMenu.basicTitle = "HPF resonance";
-
-	envAttackMenu.basicTitle = attackTitle;
-	envDecayMenu.basicTitle = decayTitle;
-	envSustainMenu.basicTitle = sustainTitle;
-	envReleaseMenu.basicTitle = releaseTitle;
-
-	arpModeMenu.basicTitle = "Arp. mode";
-	arpSyncMenu.basicTitle = "Arp. sync";
-	arpOctavesMenu.basicTitle = "Arp. octaves";
-	arpGateMenu.basicTitle = "Arp. gate";
-	arpGateMenuMIDIOrCV.basicTitle = "Arp. gate";
-	arpRateMenu.basicTitle = "Arp. rate";
-	arpRateMenuMIDIOrCV.basicTitle = "Arp. rate";
-
-	masterTransposeMenu.basicTitle = "Master tran.";
-	compressorMenu.basicTitle = "Sidechain comp";
-	volumeMenu.basicTitle = "Master level";
-
-	midiBankMenu.basicTitle = "MIDI bank";
-	midiSubMenu.basicTitle = "MIDI sub-bank";
-	midiPGMMenu.basicTitle = "MIDI PGM numb.";
-
-	audioClipReverbSendAmountMenu.basicTitle = "Reverb amount";
-
-	audioClipDelayFeedbackMenu.basicTitle = "Delay amount";
-	audioClipDelayRateMenu.basicTitle = "Delay rate";
-
-	audioClipModFXTypeMenu.basicTitle = "MOD FX type";
-	audioClipModFXRateMenu.basicTitle = "MOD FX rate";
-	audioClipModFXDepthMenu.basicTitle = "MOD FX depth";
-
-	audioClipLPFFreqMenu.basicTitle = "LPF frequency";
-	audioClipLPFResMenu.basicTitle = "LPF resonance";
-
-	audioClipHPFFreqMenu.basicTitle = "HPF frequency";
-	audioClipHPFResMenu.basicTitle = "HPF resonance";
-
-	cvVoltsMenu.basicTitle = cvVoltsTitle;
-	cvTransposeMenu.basicTitle = cvTransposeTitle;
+init_menu_titles();
 #endif
-
 }
 
 bool SoundEditor::editingKit() {
@@ -662,7 +413,7 @@ bool SoundEditor::beginScreen(MenuItem* oldMenuItem) {
 
 	if (!inSettingsMenu() && currentItem != &sampleStartMenu && currentItem != &sampleEndMenu
 	    && currentItem != &audioClipSampleMarkerEditorMenuStart && currentItem != &audioClipSampleMarkerEditorMenuEnd
-	    && currentItem != &fileSelectorMenu && currentItem != &drumNameMenu) {
+	    && currentItem != &fileSelectorMenu && currentItem != static_cast<void*>(&drumNameMenu)) {
 
 		memset(sourceShortcutBlinkFrequencies, 255, sizeof(sourceShortcutBlinkFrequencies));
 		memset(sourceShortcutBlinkColours, 0, sizeof(sourceShortcutBlinkColours));
@@ -1413,7 +1164,7 @@ void SoundEditor::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 
 	// Sorry - extremely ugly hack here.
 	MenuItem* currentMenuItem = getCurrentMenuItem();
-	if (currentMenuItem == &drumNameMenu) {
+	if (currentMenuItem == static_cast<void*>(&drumNameMenu)) {
 		if (!navigationDepth) return;
 		currentMenuItem = menuItemNavigationRecord[navigationDepth - 1];
 	}

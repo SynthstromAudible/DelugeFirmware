@@ -2,6 +2,7 @@
 #include "gui/menu_item/decimal.h"
 #include "processing/sound/sound.h"
 #include "gui/ui/sound_editor.h"
+#include "hid/display/oled.h"
 
 namespace menu_item::osc {
 class RetriggerPhase final : public Decimal {
