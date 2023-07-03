@@ -35,7 +35,7 @@ void IntegerRange::beginSession(MenuItem* navigatedBackwardFrom) {
 	Range::beginSession(navigatedBackwardFrom);
 #if HAVE_OLED
 	if (lower != upper) {
-		soundEditor.editingRangeEdge = RANGE_EDIT_LEFT;
+		soundEditor.editingRangeEdge = RangeEdit::LEFT;
 	}
 #endif
 }

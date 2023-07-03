@@ -22,6 +22,8 @@
 #include "hid/display/numeric_driver.h"
 #include <cstdio>
 
+extern menu_item::runtime_feature::Setting runtimeFeatureSettingMenuItem;
+
 namespace menu_item::runtime_feature {
 
 void Settings::beginSession(MenuItem* navigatedBackwardFrom) {

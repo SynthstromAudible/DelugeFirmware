@@ -1,6 +1,7 @@
 // This is bad, I know it's bad, it's a temporary solution
 
 #pragma once
+#include "gui/menu_item/runtime_feature/setting.h"
 #include "gui/menu_item/runtime_feature/settings.h"
 #include "gui/menu_item/arpeggiator/gate.h"
 #include "gui/menu_item/arpeggiator/midi_cv/gate.h"
@@ -484,6 +485,7 @@ flash::Status flashStatusMenu{HAVE_OLED ? "Play-cursor" : "CURS"};
 char const* firmwareString = "4.1.4-alpha3";
 firmware::Version firmwareVersionMenu{"Firmware version"};
 
+runtime_feature::Setting runtimeFeatureSettingMenuItem;
 runtime_feature::Settings runtimeFeatureSettingsMenu;
 
 // CV menu

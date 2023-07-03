@@ -6,12 +6,7 @@
 namespace menu_item::cv {
 class Volts final : public Decimal {
 public:
-	Volts(char const* newName = NULL) : Decimal(newName) {
-#if HAVE_OLED
-		static char cvVoltsTitle[] = "CVx V/octave";
-		basicTitle = cvVoltsTitle;
-#endif
-	}
+	using Decimal::Decimal;
 	int getMinValue() const { return 0; }
 	int getMaxValue() const { return 200; }
 	int getNumDecimalPlaces() const { return 2; }

@@ -7,8 +7,8 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/source.h"
 #include "util/comparison.h"
-#include <initializer_list>
 
+extern char oscTypeTitle[];
 namespace menu_item::osc {
 class Type final : public Selection {
 public:
@@ -20,7 +20,7 @@ public:
 #if HAVE_OLED
 	void beginSession(MenuItem* navigatedBackwardFrom) {
 		oscTypeTitle[3] = '1' + soundEditor.currentSourceIndex;
-		MenuItemSelection::beginSession(navigatedBackwardFrom);
+		Selection::beginSession(navigatedBackwardFrom);
 	}
 #endif
 	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentSource->oscType; }
