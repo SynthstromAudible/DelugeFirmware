@@ -685,7 +685,8 @@ void MidiEngine::checkIncomingUsbSysex(uint8_t const* msg, int ip, int d, int ca
 }
 
 void MidiEngine::midiSysexReceived(int ip, int d, int cable, uint8_t* data, int len) {
-	if (len < 4) return;
+	if (len < 4)
+		return;
 
 	// placeholder until we get a real manufacturer id.
 	if (data[1] == 0x7D) {
@@ -724,10 +725,14 @@ void MidiEngine::sendSysex(int ip, int d, int cable, uint8_t* data, int len) {
 	else {
 		int potentialNumDevices = getPotentialNumConnectedUSBMIDIDevices(ip);
 
-		if (d >= potentialNumDevices) return;
+		if (d >= potentialNumDevices) {
+			return;
+		}
 		ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][d];
 		int maxPort = connectedDevice->maxPortConnected;
-		if (cable > maxPort) return;
+		if (cable > maxPort) {
+			return;
+		}
 
 		int pos = 0;
 		while (pos < len) {
@@ -741,8 +746,12 @@ void MidiEngine::sendSysex(int ip, int d, int cable, uint8_t* data, int len) {
 			}
 			else {
 				status = 0x4 + (len - pos); // sysex end with N bytes
-				if ((len - pos) > 1) byte1 = data[pos + 1];
-				if ((len - pos) > 2) byte2 = data[pos + 2];
+				if ((len - pos) > 1) {
+					byte1 = data[pos + 1];
+				}
+				if ((len - pos) > 2) {
+					byte2 = data[pos + 2];
+				}
 				pos = len;
 			}
 			status |= (cable << 4);
