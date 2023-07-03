@@ -40,10 +40,8 @@ pip_requirements_path="${SCRIPT_PATH}/scripts/toolchain/requirements.txt"
 pip_wheel_path="${TOOLCHAIN_ARCH_DIR}/python/wheel";
 pip_certifi_wheel=$(find $pip_wheel_path/certifi*)
 $pip_cmd install -q "${pip_certifi_wheel}"
+$pip_cmd install -q --upgrade pip
 $pip_cmd install -q -f "${pip_wheel_path}" -r "${pip_requirements_path}"
 
-
-$pip_cmd install -q --upgrade pip
-$pip_cmd install -q lxml==4.9.2
 
 $SCONS_EP $SCONS_DEFAULT_FLAGS "$@"
