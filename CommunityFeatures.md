@@ -39,6 +39,7 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
 
 ### Instrument Keyboard View
  - ([#46]) Note offset between rows is now configurable by holding shift and using the horizontal encoder. This allows e.g. an isomorphic keyboard layout by setting the row offset to 12. The setting is saved per clip in the song file.
+ - ([]) TODO: Finish description of extended Keyboard View
 
 ### Kit Clip View
  - ([#122]) Pressing "AUDITION + RANDOM" on a drum kit row will load a random sample from the same folder as the currently enabled sample and load it as the sound for that row. Currently limited to 25 files for performance reasons. This feature can be toggled in the [runtime features menu](#runtime-features).
