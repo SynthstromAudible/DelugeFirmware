@@ -48,7 +48,6 @@ public:
 	void sampleNeedsReRendering(Sample* sample);
 	void selectEncoderAction(int8_t offset);
 	int verticalEncoderAction(int offset, bool inCardRoutine);
-	int horizontalEncoderAction(int offset);
 	int timerCallback();
 	uint32_t getMaxLength();
 	unsigned int getMaxZoom();
