@@ -10,8 +10,8 @@ In general, we try to maintain file compatibility with the official firmware. Ho
 Here is a list of general improvements that have been made ordered from newest to oldest:
 
 * PR [#17] - Increase the resolution of "patch cables" between mod sources and destinations.
-* PR [#29] - Distinguish between MPE and non-MPE kit rows.
-* PR [#47] - Extra MIDI ports on the USB interface for MPE. This improves the usability of MPE-capable devices through the USB interface by providing more virtual cables.
+* PR [#29] - Bugfix to respect MPE zones in kit rows. In the official firmware kit rows with midi learned to a channel would be triggered by an MPE zone which uses that channel. With this change they respect zones in the same way as synth and midi clips.
+* PR [#47] - Extra MIDI ports on the USB interface for MPE. Port 2 shows in the midi device menu, and improves the usability of MPE-capable devices through the USB interface by allowing MPE zones to be sent to port 2 and non-MPE to be sent to port 1 (or vice versa). A third port is added for future use such as a desktop/mobile companion app, DAW control or Mackie HUI emulation.
 
 
 # Added features
@@ -33,7 +33,7 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
  - ([#32]) Dotted. Synchronizes the LFO to "dotted" (2/3) divisions.
 
 ### Filters
- - ([#103]) adds a new filter in the low-pass slot, a state-variable filter.
+ - ([#103]) adds a new filter in the low-pass slot, a state-variable filter. This filter has significantly less distortion than the ladder filters, think sequential vs. moog. Cutoff and resonance ranges are subject to change with further testing.
 
 ## New behaviors
 
@@ -44,7 +44,7 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
  - ([#122]) Pressing "AUDITION + RANDOM" on a drum kit row will load a random sample from the same folder as the currently enabled sample and load it as the sound for that row. Currently limited to 25 files for performance reasons. This feature can be toggled in the [runtime features menu](#runtime-features).
 
 ### Kit Keyboard View
- - ([#112]) All-new use for the "keyboard" button in kit clips, uses the main pad grid for MPC-style 16 level playing.
+ - ([#112]) All-new use for the "keyboard" button in kit clips, uses the main pad grid for MPC-style 16 level playing. Horizonatal encoder scrolls by one pad at a time, allowing positioning drums left to right, and vertical encoder jumps vertically by rows.
 
 
 <h1 id="runtime-features">Runtime settings aka Community Features Menu</h1>
