@@ -108,7 +108,7 @@ extern "C" {
 #include "RZA1/ssi/ssi.h"
 }
 
-#include "wrenimpl.h"
+#include "vm/wrenimpl.h"
 
 extern uint8_t currentlyAccessingCard;
 

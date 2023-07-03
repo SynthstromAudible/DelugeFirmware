@@ -2,6 +2,7 @@
 #include "storage/storage_manager.h"
 #include "memory/general_memory_allocator.h"
 #include "wrenimpl.h"
+#include "api.h"
 #include "memory/wren_heap.h"
 #include <string>
 #include "string.h"
@@ -35,15 +36,21 @@ void Wren::writeFn(WrenVM* vm, const char* text) {
 
 void Wren::errorFn(WrenVM* vm, WrenErrorType errorType, const char* mod, const int line, const char* msg) {
 	switch (errorType) {
-	case WREN_ERROR_COMPILE: {
+	case WREN_ERROR_COMPILE:
+		Wren::print("E compile");
 		//printf("[%s line %d] [Error] %s\n", mod, line, msg);
-	} break;
-	case WREN_ERROR_STACK_TRACE: {
+		break;
+	case WREN_ERROR_STACK_TRACE:
+		Wren::print("E stacktrace");
 		//printf("[%s line %d] in %s\n", mod, line, msg);
-	} break;
-	case WREN_ERROR_RUNTIME: {
+		break;
+	case WREN_ERROR_RUNTIME:
+		Wren::print("E runtime");
 		//printf("[Runtime Error] %s\n", msg);
-	} break;
+		break;
+	default:
+		Wren::print("E other");
+		break;
 	}
 }
 
@@ -75,32 +82,50 @@ void Wren::loadModuleComplete(WrenVM* vm, const char *mod, WrenLoadModuleResult 
 
 WrenForeignMethodFn Wren::bindForeignMethodFn( WrenVM* vm, const char* moduleName, const char* className, bool isStatic, const char* signature) {
 	std::string mod(moduleName), cls(className), sig(signature);
-	// TODO refactor this to use a hash map
-	// should not cause performance issues since this only happens during setup
-	if (mod == "main") {
-		if (cls == "TDeluge") {
-			if (sig == "print(_)") {
-				return [](WrenVM* vm) -> void {
-					const char* str = wrenGetSlotString(vm, 1);
-					Wren::print(str);
-				};
+
+	if (WrenAPI::modules().count(mod) > 0) {
+		auto m = WrenAPI::modules()[mod];
+		if (m.count(cls) > 0) {
+			auto c = m[cls];
+			if (c.count(sig) > 0) {
+				auto s = c[sig];
+				if (s.isStatic == isStatic) {
+					return s.fn;
+				} else {
+					Wren::print("static?");
+				}
+			} else {
+				Wren::print(signature);
 			}
+		} else {
+			Wren::print(className);
 		}
+	} else {
+		Wren::print(moduleName);
 	}
 	return [](WrenVM* vm) -> void {
-		Wren::print("?");
 	};
 }
 
-WrenForeignClassMethods Wren::bindForeignClassFn( WrenVM* vm, const char* mod, const char* cls) {
+WrenForeignClassMethods Wren::bindForeignClassFn( WrenVM* vm, const char* moduleName, const char* className) {
 	WrenForeignClassMethods methods;
-	methods.allocate = [](WrenVM* vm) -> void {
-		// TODO
+	std::string mod(moduleName), cls(className);
+	if (mod == "main") {
+		if (cls == "File") {
+			return {
+				.allocate = [](WrenVM* vm) -> void {
+					// TODO
+				},
+				.finalize = [](void* data) -> void {
+					// TODO
+				},
+			};
+		}
+	}
+	return {
+		.allocate = [](WrenVM* vm) -> void {},
+		.finalize = [](void* data) -> void {},
 	};
-	methods.finalize = [](void* data) -> void {
-		// TODO
-	};
-	return methods;
 }
 
 Wren::Wren() {
@@ -139,33 +164,17 @@ void Wren::tick() {
 	}
 }
 
-#define NL "\n"
 void Wren::setup() {
-	static const char* setupScript =
-		/*
-		NL "class Song {"
-		NL "  foreign static load(name)"
-		NL "}"
-		*/
-		NL "class TDeluge {"
-		NL "  construct new() { _init = Fn.new {} }"
-		NL "  init() { _init.call() }"
-		NL "  onInit(fn) { _init = fn }"
-		NL "  foreign print(text)"
-		NL "}"
-		NL "var Deluge = TDeluge.new()"
-		NL;
-	(void)interpret("main", setupScript);
+	(void)interpret("main", WrenAPI::buttonsSource);
+	(void)interpret("main", WrenAPI::mainModuleSource);
 
 	char* source = getSourceForModule("init");
 	(void)interpret("main", source);
 }
 
 void Wren::init() {
-	if (handles.Deluge != NULL and handles.init != NULL) {
-		wrenSetSlotHandle(vm, 0, handles.Deluge);
-		(void)wrenCall(vm, handles.init);
-	}
+	wrenSetSlotHandle(vm, 0, handles.Deluge);
+	(void)wrenCall(vm, handles.init);
 }
 
 void Wren::setupHandles() {
