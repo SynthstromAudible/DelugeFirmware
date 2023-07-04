@@ -18,17 +18,20 @@
 #ifndef BUTTONS_H_
 #define BUTTONS_H_
 
+#include "vm/wrenimpl.h"
 #include "RZA1/system/r_typedefs.h"
 
 namespace Buttons {
 
 int buttonAction(int x, int y, bool on, bool inCardRoutine);
+int buttonActionNoRe(int x, int y, bool on, bool inCardRoutine);
 bool isButtonPressed(int x, int y);
 bool isShiftButtonPressed();
 bool isNewOrShiftButtonPressed();
 void noPressesHappening(bool inCardRoutine);
 
 extern bool recordButtonPressUsedUp;
+extern Wren* wren;
 } // namespace Buttons
 
 #endif /* BUTTONS_H_ */

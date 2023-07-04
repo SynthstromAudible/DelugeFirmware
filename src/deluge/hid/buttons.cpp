@@ -32,8 +32,14 @@ namespace Buttons {
 bool recordButtonPressUsedUp;
 uint32_t timeRecordButtonPressed;
 bool buttonStates[NUM_BUTTON_COLS + 1][NUM_BUTTON_ROWS]; // The extra col is for "fake" buttons
+Wren* wren;
 
 int buttonAction(int x, int y, bool on, bool inCardRoutine) {
+	wren->buttonAction(x, y, on);
+	return buttonActionNoRe(x, y, on, inCardRoutine);
+}
+
+int buttonActionNoRe(int x, int y, bool on, bool inCardRoutine) {
 
 	buttonStates[x][y] =
 	    on; // Must happen up here before it's actioned, because if its action accesses SD card, we might multiple-enter this function, and don't want to then be setting this after that later action, erasing what it set

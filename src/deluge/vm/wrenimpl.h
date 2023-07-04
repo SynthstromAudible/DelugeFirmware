@@ -9,7 +9,7 @@ public:
 	WrenVM* vm;
 
 	struct {
-		WrenHandle *Deluge, *init;
+		WrenHandle *Deluge, *init, *Button, *buttonAction;
 	} handles;
 
 	Wren();
@@ -19,6 +19,7 @@ public:
 	void tick();
 	void setup();
 	void init();
+	void buttonAction(int x, int y, bool on);
 	inline WrenInterpretResult interpret(const char*, const char*);
 
 	static void print(const char* text);
@@ -29,6 +30,7 @@ protected:
 	static WrenLoadModuleResult loadModuleFn(WrenVM* vm, const char* name);
 	static void loadModuleComplete(WrenVM* vm, const char* mod, WrenLoadModuleResult result);
 	static char* getSourceForModule(const char*);
-	static WrenForeignMethodFn bindForeignMethodFn( WrenVM* vm, const char* module, const char* className, bool isStatic, const char* signature);
-	static WrenForeignClassMethods bindForeignClassFn( WrenVM* vm, const char* mod, const char* cls);
+	static WrenForeignMethodFn bindForeignMethodFn(WrenVM* vm, const char* module, const char* className, bool isStatic,
+	                                               const char* signature);
+	static WrenForeignClassMethods bindForeignClassFn(WrenVM* vm, const char* mod, const char* cls);
 };
