@@ -49,6 +49,8 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
 ### Audio Clip View
  - ([#141]) Holding the vertical encoder down while turning the horizontal encoder will shift the clip along the underlying audio file, similar to the same interface for instrument clips.
 
+### Keyboard View
+ - ([#151]) "Learn" can be used in keyboard view to learn a midi input to the current instrument, like when holding learn and pressing audition in normal clip view. This also works with kits, where each row can be learned individually.
 
 <h1 id="runtime-features">Runtime settings aka Community Features Menu</h1>
 
