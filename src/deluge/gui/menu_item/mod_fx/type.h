@@ -10,18 +10,18 @@ class Type : public Selection {
 public:
 	using Selection::Selection;
 
-	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentModControllable->modFXType; }
-	void writeCurrentValue() {
+	void readCurrentValue() override { soundEditor.currentValue = soundEditor.currentModControllable->modFXType; }
+	void writeCurrentValue() override {
 		if (!soundEditor.currentModControllable->setModFXType(soundEditor.currentValue)) {
 			numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
 		}
 	}
 
-	char const** getOptions() {
-		static char const* options[] = {"OFF", "FLANGER", "CHORUS", "PHASER", NULL};
+	char const** getOptions() override {
+		static char const* options[] = {"OFF", "FLANGER", "CHORUS", "PHASER", "STEREO CHORUS", NULL};
 		return options;
 	}
 
-	int getNumOptions() { return NUM_MOD_FX_TYPES; }
+	int getNumOptions() override { return NUM_MOD_FX_TYPES; }
 };
 } // namespace menu_item::mod_fx

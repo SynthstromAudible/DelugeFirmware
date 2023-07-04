@@ -238,6 +238,7 @@ patched_param::IntegerNonFM lpfResMenu{"Resonance", PARAM_LOCAL_LPF_RESONANCE};
 filter::LPFMode lpfModeMenu{"MODE"};
 
 MenuItem* lpfMenuItems[] = {&lpfFreqMenu, &lpfResMenu, &lpfModeMenu, NULL};
+submenu::Filter lpfMenu{"LPF", lpfMenuItems};
 
 // HPF menu ----------------------------------------------------------------------------------------------------
 
@@ -245,6 +246,7 @@ filter::HPFFreq hpfFreqMenu{"Frequency", PARAM_LOCAL_HPF_FREQ};
 patched_param::IntegerNonFM hpfResMenu{"Resonance", PARAM_LOCAL_HPF_RESONANCE};
 
 MenuItem* hpfMenuItems[] = {&hpfFreqMenu, &hpfResMenu, NULL};
+submenu::Filter hpfMenu{"HPF", hpfMenuItems};
 
 // Envelope menu ----------------------------------------------------------------------------------------------------
 
@@ -253,6 +255,9 @@ source::PatchedParam envDecayMenu{"DECAY", PARAM_LOCAL_ENV_0_DECAY};
 source::PatchedParam envSustainMenu{"SUSTAIN", PARAM_LOCAL_ENV_0_SUSTAIN};
 source::PatchedParam envReleaseMenu{"RELEASE", PARAM_LOCAL_ENV_0_RELEASE};
 MenuItem* envMenuItems[] = {&envAttackMenu, &envDecayMenu, &envSustainMenu, &envReleaseMenu, NULL};
+
+submenu::Envelope env0Menu{HAVE_OLED ? "Envelope 1" : "ENV1", envMenuItems, 0};
+submenu::Envelope env1Menu{HAVE_OLED ? "Envelope 2" : "ENV2", envMenuItems, 1};
 
 // Osc menu -------------------------------------------------------------------------------------------------------
 
@@ -272,6 +277,16 @@ sample::Interpolation interpolationMenu{"INTERPOLATION"};
 osc::PulseWidth pulseWidthMenu{"PULSE WIDTH", PARAM_LOCAL_OSC_A_PHASE_WIDTH};
 osc::Sync oscSyncMenu{HAVE_OLED ? "Oscillator sync" : "SYNC"};
 osc::RetriggerPhase oscPhaseMenu{"Retrigger phase", false};
+
+MenuItem* oscMenuItems[] = {&oscTypeMenu,        &sourceVolumeMenu,    &sourceWaveIndexMenu,
+                            &sourceFeedbackMenu, &fileSelectorMenu,    &audioRecorderMenu,
+                            &sampleReverseMenu,  &sampleRepeatMenu,    &sampleStartMenu,
+                            &sampleEndMenu,      &sourceTransposeMenu, &samplePitchSpeedMenu,
+                            &timeStretchMenu,    &interpolationMenu,   &pulseWidthMenu,
+                            &oscSyncMenu,        &oscPhaseMenu,        NULL};
+
+submenu::ActualSource source0Menu{HAVE_OLED ? "Oscillator 1" : "OSC1", oscMenuItems, 0};
+submenu::ActualSource source1Menu{HAVE_OLED ? "Oscillator 2" : "OSC2", oscMenuItems, 1};
 
 // Unison --------------------------------------------------------------------------------------
 
@@ -624,19 +639,7 @@ MenuItem* defaultsMenuItems[] = {&defaultTempoMenu,    &defaultSwingMenu,     &d
 
 Submenu defaultsSubmenu{"DEFAULTS", defaultsMenuItems};
 
-// Root menu ----------------------------------------------------------------------------------------------------
-
-MenuItem* oscMenuItems[] = {&oscTypeMenu,        &sourceVolumeMenu,    &sourceWaveIndexMenu,
-                            &sourceFeedbackMenu, &fileSelectorMenu,    &audioRecorderMenu,
-                            &sampleReverseMenu,  &sampleRepeatMenu,    &sampleStartMenu,
-                            &sampleEndMenu,      &sourceTransposeMenu, &samplePitchSpeedMenu,
-                            &timeStretchMenu,    &interpolationMenu,   &pulseWidthMenu,
-                            &oscSyncMenu,        &oscPhaseMenu,        NULL};
-
 // Sound editor menu -----------------------------------------------------------------------------
-
-submenu::ActualSource source0Menu{HAVE_OLED ? "Oscillator 1" : "OSC1", oscMenuItems, 0};
-submenu::ActualSource source1Menu{HAVE_OLED ? "Oscillator 2" : "OSC2", oscMenuItems, 1};
 
 // FM only
 MenuItem* modulatorMenuItems[] = {&modulatorVolume,   &modulatorTransposeMenu, &modulatorFeedbackMenu,
@@ -652,17 +655,11 @@ MasterTranspose masterTransposeMenu{HAVE_OLED ? "Master transpose" : "TRANSPOSE"
 
 patch_cable_strength::Fixed vibratoMenu{"VIBRATO", PARAM_LOCAL_PITCH_ADJUST, PATCH_SOURCE_LFO_GLOBAL};
 
-submenu::Filter lpfMenu{"LPF", lpfMenuItems};
-submenu::Filter hpfMenu{"HPF", hpfMenuItems};
-
 // Drum only
 menu_item::DrumName drumNameMenu{"NAME"};
 
 // Synth only
 SynthMode synthModeMenu{HAVE_OLED ? "Synth mode" : "MODE"};
-
-submenu::Envelope env0Menu{HAVE_OLED ? "Envelope 1" : "ENV1", envMenuItems, 0};
-submenu::Envelope env1Menu{HAVE_OLED ? "Envelope 2" : "ENV2", envMenuItems, 1};
 
 Submenu lfo0Menu{"LFO1", lfo1MenuItems};
 Submenu lfo1Menu{"LFO2", lfo2MenuItems};

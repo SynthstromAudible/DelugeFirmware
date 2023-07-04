@@ -6,8 +6,8 @@ class Type final : public menu_item::mod_fx::Type {
 public:
 	using menu_item::mod_fx::Type::Type;
 
-	void selectEncoderAction(
-	    int offset) { // We override this to set min value to 1. We don't inherit any getMinValue() function to override more easily
+	// We override this to set min value to 1. We don't inherit any getMinValue() function to override more easily
+	void selectEncoderAction(int offset) override {
 		soundEditor.currentValue += offset;
 		int numOptions = getNumOptions();
 

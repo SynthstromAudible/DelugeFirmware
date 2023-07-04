@@ -11,7 +11,7 @@ public:
 	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentModControllable->lpfMode; }
 	void writeCurrentValue() { soundEditor.currentModControllable->lpfMode = soundEditor.currentValue; }
 	char const** getOptions() {
-		static char const* options[] = {"12dB", "24dB", "Drive", NULL};
+		static char const* options[] = {"12dB", "24dB", "Drive", "SVF", NULL};
 		return options;
 	}
 	int getNumOptions() { return NUM_LPF_MODES; }
