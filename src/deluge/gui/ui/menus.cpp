@@ -141,7 +141,6 @@
 #include "gui/menu_item/sync_level/relative_to_song.h"
 #include "gui/menu_item/sync_level.h"
 #include "gui/menu_item/synth_mode.h"
-#include "gui/menu_item/temp.h"
 #include "gui/menu_item/tempo/magnitude_matching.h"
 #include "gui/menu_item/transpose.h"
 #include "gui/menu_item/trigger/in/auto_start.h"
