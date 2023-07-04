@@ -768,7 +768,9 @@ int LoadInstrumentPresetUI::performLoad(bool doClone) {
 
 	FileItem* currentFileItem = getCurrentFileItem();
 	if (!currentFileItem) {
-		return ERROR_UNSPECIFIED;
+		return HAVE_OLED
+		           ? ERROR_FILE_NOT_FOUND
+		           : ERROR_NO_FURTHER_FILES_THIS_DIRECTION; // Make it say "NONE" on numeric Deluge, for consistency with old times.
 	}
 
 	if (currentFileItem->isFolder) {

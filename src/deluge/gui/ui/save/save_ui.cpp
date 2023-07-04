@@ -30,7 +30,7 @@
 bool SaveUI::currentFolderIsEmpty;
 
 SaveUI::SaveUI() {
-	allowBrandNewNames = true;
+	mayDefaultToBrandNewNameOnEntry = true;
 }
 
 bool SaveUI::opened() {

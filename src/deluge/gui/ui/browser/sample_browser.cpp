@@ -339,57 +339,60 @@ void SampleBrowser::enterKeyPress() {
 
 	FileItem* currentFileItem = getCurrentFileItem();
 
-	// Make sure we're looking at a valid file / folder
-	if (currentFileItem) {
+	if (!currentFileItem) {
+		numericDriver.displayError(
+		    HAVE_OLED
+		        ? ERROR_FILE_NOT_FOUND
+		        : ERROR_NO_FURTHER_FILES_THIS_DIRECTION); // Make it say "NONE" on numeric Deluge, for consistency with old times.
+		return;
+	}
 
-		AudioEngine::stopAnyPreviewing();
+	AudioEngine::stopAnyPreviewing();
 
-		// If it's a directory...
-		if (currentFileItem->isFolder) {
+	// If it's a directory...
+	if (currentFileItem->isFolder) {
 
-			// Don't allow user to go into TEMP clips folder
-			if (currentFileItem->filename.equalsCaseIrrespective("TEMP")
-			    && currentDir.equalsCaseIrrespective("SAMPLES/CLIPS")) {
-				numericDriver.displayPopup(HAVE_OLED ? "TEMP folder can't be browsed" : "CANT");
-				return;
+		// Don't allow user to go into TEMP clips folder
+		if (currentFileItem->filename.equalsCaseIrrespective("TEMP")
+		    && currentDir.equalsCaseIrrespective("SAMPLES/CLIPS")) {
+			numericDriver.displayPopup(HAVE_OLED ? "TEMP folder can't be browsed" : "CANT");
+			return;
+		}
+
+		// Extremely weirdly, if we try to just put this inside the parentheses in the next line,
+		// it returns an empty string (&nothing). Surely this is a compiler error??
+		char const* filenameChars = currentFileItem->filename.get();
+
+		int error = goIntoFolder(filenameChars);
+
+		if (error) {
+			numericDriver.displayError(error);
+			close(); // Don't use goBackToSoundEditor() because that would do a left-scroll
+			return;
+		}
+	}
+
+	// Or if it's an audio file...
+	else {
+
+		// If we're here, we know that the file has fully loaded
+
+		// If user wants to slice...
+		if (Buttons::isShiftButtonPressed()) {
+
+			// Can only do this for Kit Clips, and for source 0, not 1, AND there has to be only one drum present, which is assigned to the first NoteRow
+			if (currentSong->currentClip->type == CLIP_TYPE_INSTRUMENT && canImportWholeKit()) {
+				numericDriver.displayPopup("SLICER");
+				openUI(&slicer);
 			}
-
-			char const* filenameChars =
-			    currentFileItem->filename
-			        .get(); // Extremely weirdly, if we try to just put this inside the parentheses in the next line,
-			                // it returns an empty string (&nothing). Surely this is a compiler error??
-
-			int error = goIntoFolder(filenameChars);
-
-			if (error) {
-				numericDriver.displayError(error);
-				close(); // Don't use goBackToSoundEditor() because that would do a left-scroll
-				return;
+			else {
+				numericDriver.displayPopup(HAVE_OLED ? "Can only user slicer for brand-new kit" : "CANT");
 			}
 		}
 
-		// Or if it's an audio file...
+		// Otherwise, load it normally
 		else {
-
-			// If we're here, we know that the file has fully loaded
-
-			// If user wants to slice...
-			if (Buttons::isShiftButtonPressed()) {
-
-				// Can only do this for Kit Clips, and for source 0, not 1, AND there has to be only one drum present, which is assigned to the first NoteRow
-				if (currentSong->currentClip->type == CLIP_TYPE_INSTRUMENT && canImportWholeKit()) {
-					numericDriver.displayPopup("SLICER");
-					openUI(&slicer);
-				}
-				else {
-					numericDriver.displayPopup(HAVE_OLED ? "Can only user slicer for brand-new kit" : "CANT");
-				}
-			}
-
-			// Otherwise, load it normally
-			else {
-				claimCurrentFile();
-			}
+			claimCurrentFile();
 		}
 	}
 }
