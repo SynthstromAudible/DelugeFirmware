@@ -27,6 +27,7 @@
 #include "gui/ui/sound_editor.h"
 #include "gui/menu_item/mpe/zone_num_member_channels.h"
 #include "hid/display/oled.h"
+#include "util/functions.h"
 
 extern "C" {
 #include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_basic_define.h"
@@ -530,15 +531,51 @@ checkDevice:
 
 void ConnectedUSBMIDIDevice::bufferMessage(uint32_t fullMessage) {
 	// If buffer already full, flush it
-	if (numMessagesQueued >= MIDI_SEND_BUFFER_LEN) {
-		midiEngine
-		    .flushUSBMIDIOutput(); // TODO: this is actually far from perfect - what if already sending - and if we want to wait/check for that, we should be calling the routine.
-		                           // And ideally, we'd be able to flush for just one device.
-		numMessagesQueued = 0;
+	// if (numMessagesQueued >= MIDI_SEND_BUFFER_LEN) {
+	// 	midiEngine
+	// 	    .flushUSBMIDIOutput(); // TODO: this is actually far from perfect - what if already sending - and if we want to wait/check for that, we should be calling the routine.
+	// 	                           // And ideally, we'd be able to flush for just one device.
+	// 	numMessagesQueued = 0;
+	// }
+	//
+	int queued = ringBufWriteIdx - ringBufReadIdx;
+	// if (queued > some_smaller_number) {
+	//   if (notAlreadySending) {
+	//     startTheSend();
+	//   }
+	// }
+	if (queued > MIDI_SEND_BUFFER_LEN_RING) {
+		// TODO: le panik
+		return;
 	}
 
-	preSendData[numMessagesQueued++] = fullMessage;
+	sendDataRingBuf[ringBufWriteIdx & MIDI_SEND_RING_MASK] = fullMessage;
+	ringBufWriteIdx++;
+
 	anythingInUSBOutputBuffer = true;
+}
+
+bool ConnectedUSBMIDIDevice::hasRingBuffered() {
+	// must me the same unsigned type as ringBufWriteIdx/ringBufReadIdx
+	uint32_t queued = ringBufWriteIdx - ringBufReadIdx;
+	return queued > 0;
+}
+
+bool ConnectedUSBMIDIDevice::consumeBytes() {
+	uint32_t queued = ringBufWriteIdx - ringBufReadIdx;
+	if (queued == 0) {
+		return false;
+	}
+
+	int i = 0;
+	int to_send = getMin(queued, MIDI_SEND_BUFFER_LEN_INNER);
+	for (i = 0; i < to_send; i++) {
+		memcpy(dataSendingNow + (i * 4), &sendDataRingBuf[ringBufReadIdx & MIDI_SEND_RING_MASK], 4);
+		ringBufReadIdx++;
+	}
+
+	numBytesSendingNow = to_send * 4;
+	return true;
 }
 
 void ConnectedUSBMIDIDevice::setup() {

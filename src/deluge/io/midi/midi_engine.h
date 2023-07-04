@@ -89,7 +89,10 @@ extern bool anythingInUSBOutputBuffer;
 
 extern "C" {
 #endif
+// used in host mode
 void usbSendComplete(int ip);
+// used in peripheral mode
+void usbSendCompleteAsPeripheral(int ip);
 #ifdef __cplusplus
 }
 #endif

@@ -122,7 +122,7 @@ public:
 	// Of course there'll usually just be one bit set, unless two of the same device are connected.
 	uint8_t connectionFlags;
 
-	uint8_t incomingSysexBuffer[128];
+	uint8_t incomingSysexBuffer[1024];
 	int incomingSysexPos = 0;
 
 protected:
