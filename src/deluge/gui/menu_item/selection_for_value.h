@@ -4,7 +4,8 @@
 #include <array>
 
 namespace menu_item {
-template <typename T> class SelectionForValue : public Selection {
+template <typename T>
+class SelectionForValue : public Selection {
 	T& ref_;
 
 public:

@@ -1,6 +1,7 @@
 #pragma once
 #include "gui/menu_item/unpatched_param.h"
 #include "processing/sound/sound.h"
+#include "util/comparison.h"
 
 namespace menu_item::mod_fx {
 
@@ -9,8 +10,8 @@ public:
 	using UnpatchedParam::UnpatchedParam;
 
 	bool isRelevant(Sound* sound, int whichThing) {
-		return (!sound
-		        || sound->modFXType == MOD_FX_TYPE_CHORUS); // TODO: really want to receive a ModControllableAudio here!
+		// TODO: really want to receive a ModControllableAudio here!
+		return (!sound || util::one_of<uint8_t>(sound->modFXType, {MOD_FX_TYPE_CHORUS, MOD_FX_TYPE_CHORUS_STEREO}));
 	}
 };
 
