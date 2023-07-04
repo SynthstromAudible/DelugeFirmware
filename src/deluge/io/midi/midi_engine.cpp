@@ -685,8 +685,9 @@ void MidiEngine::checkIncomingUsbSysex(uint8_t const* msg, int ip, int d, int ca
 }
 
 void MidiEngine::midiSysexReceived(int ip, int d, int cable, uint8_t* data, int len) {
-	if (len < 4)
+	if (len < 4) {
 		return;
+	}
 
 	// placeholder until we get a real manufacturer id.
 	if (data[1] == 0x7D) {
