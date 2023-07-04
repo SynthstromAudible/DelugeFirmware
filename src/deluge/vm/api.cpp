@@ -54,5 +54,3 @@ ModuleMap WrenAPI::modules() {
 	return map_;
 }
 // clang-format on
-
-
