@@ -2952,10 +2952,6 @@ traverseClips:
 			                                             (InstrumentClip*)favourClipForCloningParamManager,
 			                                             keepNoteRowsWithMIDIInput, true); // Will call audio routine
 			// TODO: deal with errors!
-
-			if (newOutput->type == INSTRUMENT_TYPE_KIT) {
-				instrumentClip->onKeyboardScreen = false;
-			}
 		}
 
 		// If this is the first Clip we dealt with, tell all the rest of the Clips to just clone it from this one (if there isn't already a ParamManager backed up in memory for them)

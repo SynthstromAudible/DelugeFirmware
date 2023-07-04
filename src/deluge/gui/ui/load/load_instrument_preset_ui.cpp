@@ -292,15 +292,8 @@ doChangeInstrumentType:
 
 	// Kit button
 	else if (x == kitButtonX && y == kitButtonY) {
-		if (instrumentClipToLoadFor && instrumentClipToLoadFor->onKeyboardScreen) {
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
-			IndicatorLEDs::indicateAlertOnLed(keyboardLedX, keyboardLedX);
-#endif
-		}
-		else {
-			newInstrumentType = INSTRUMENT_TYPE_KIT;
-			goto doChangeInstrumentType;
-		}
+		newInstrumentType = INSTRUMENT_TYPE_KIT;
+		goto doChangeInstrumentType;
 	}
 
 	// MIDI button

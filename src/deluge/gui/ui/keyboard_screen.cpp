@@ -422,15 +422,6 @@ doOther:
 		}
 	}
 
-	// Kit button
-	else if (x == kitButtonX && y == kitButtonY && currentUIMode == UI_MODE_NONE) {
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
-		if (on) {
-			IndicatorLEDs::indicateAlertOnLed(keyboardLedX, keyboardLedX);
-		}
-#endif
-	}
-
 	else {
 		uiNeedsRendering(this, 0xFFFFFFFF, 0); //
 		int result = InstrumentClipMinder::buttonAction(x, y, on, inCardRoutine);
@@ -514,6 +505,21 @@ void KeyboardScreen::recalculateColours() {
 	for (int i = 0; i < displayHeight * clip->keyboardRowInterval + displayWidth; i++) {
 		clip->getMainColourFromY(clip->yScrollKeyboardScreen + i, 0, noteColours[i]);
 	}
+}
+
+void KeyboardScreen::changeInstrumentType(int newInstrumentType) {
+	if (currentSong->currentClip->output->type == newInstrumentType) return;
+  InstrumentClipMinder::changeInstrumentType(newInstrumentType);
+  instrumentClipView.recalculateColours();
+  recalculateColours();
+	uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
+}
+
+void KeyboardScreen::createNewInstrument(int newInstrumentType) {
+  InstrumentClipMinder::createNewInstrument(newInstrumentType);
+  instrumentClipView.recalculateColours();
+  recalculateColours();
+	uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 }
 
 bool KeyboardScreen::renderMainPads(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],

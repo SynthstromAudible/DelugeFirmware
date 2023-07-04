@@ -359,15 +359,8 @@ yesLoadInstrument:
 		}
 
 		else if (x == kitButtonX && y == kitButtonY) {
-			if (getCurrentClip()->onKeyboardScreen) {
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
-				IndicatorLEDs::indicateAlertOnLed(keyboardLedX, keyboardLedX);
-#endif
-			}
-			else {
-				Browser::instrumentTypeToLoad = INSTRUMENT_TYPE_KIT;
-				goto yesLoadInstrument;
-			}
+			Browser::instrumentTypeToLoad = INSTRUMENT_TYPE_KIT;
+			goto yesLoadInstrument;
 		}
 	}
 
@@ -435,6 +428,15 @@ yesLoadInstrument:
 			else {
 				changeInstrumentType(INSTRUMENT_TYPE_SYNTH);
 			}
+		}
+	}
+	
+	else if (x == kitButtonX && y == kitButtonY) {
+		if (on && currentUIMode == UI_MODE_NONE) {
+			if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+
+			if (Buttons::isNewOrShiftButtonPressed()) createNewInstrument(INSTRUMENT_TYPE_KIT);
+			else changeInstrumentType(INSTRUMENT_TYPE_KIT);
 		}
 	}
 
