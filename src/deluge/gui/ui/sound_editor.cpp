@@ -206,7 +206,9 @@ public:
 		MenuItemSubmenuReferringToOneThing::beginSession(navigatedBackwardFrom);
 	}
 #endif
-	bool isRelevant(Sound* sound, int whichThing) { return (sound->synthMode == SYNTH_MODE_FM); }
+	bool isRelevant(Sound* sound, int whichThing) {
+		return (sound->synthMode == SYNTH_MODE_FM);
+	}
 };
 
 class MenuItemFilterSubmenu final : public MenuItemSubmenu {
@@ -287,17 +289,27 @@ public:
 		return MenuItemPatchedParam::patchingSourceShortcutPress(s, previousPressStillActive);
 	}
 #if !HAVE_OLED
-	void drawValue() { MenuItemPatchedParam::drawValue(); }
+	void drawValue() {
+		MenuItemPatchedParam::drawValue();
+	}
 #endif
 
-	void unlearnAction() { MenuItemWithCCLearning::unlearnAction(); }
-	bool allowsLearnMode() { return MenuItemWithCCLearning::allowsLearnMode(); }
+	void unlearnAction() {
+		MenuItemWithCCLearning::unlearnAction();
+	}
+	bool allowsLearnMode() {
+		return MenuItemWithCCLearning::allowsLearnMode();
+	}
 	void learnKnob(MIDIDevice* fromDevice, int whichKnob, int modKnobMode, int midiChannel) {
 		MenuItemWithCCLearning::learnKnob(fromDevice, whichKnob, modKnobMode, midiChannel);
 	};
 
-	int getMinValue() { return -96; }
-	int getMaxValue() { return 96; }
+	int getMinValue() {
+		return -96;
+	}
+	int getMaxValue() {
+		return 96;
+	}
 } masterTransposeMenu;
 
 class MenuItemPatchedParamIntegerNonFM : public MenuItemPatchedParamInteger {
@@ -567,7 +579,9 @@ public:
 		MenuItemSelection::beginSession(navigatedBackwardFrom);
 	}
 #endif
-	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentSource->oscType; }
+	void readCurrentValue() {
+		soundEditor.currentValue = soundEditor.currentSource->oscType;
+	}
 	void writeCurrentValue() {
 
 		int oldValue = soundEditor.currentSource->oscType;
@@ -617,7 +631,9 @@ public:
 			return NUM_OSC_TYPES;
 		else return NUM_OSC_TYPES - 2;
 	}
-	bool isRelevant(Sound* sound, int whichThing) { return (sound->getSynthMode() != SYNTH_MODE_FM); }
+	bool isRelevant(Sound* sound, int whichThing) {
+		return (sound->getSynthMode() != SYNTH_MODE_FM);
+	}
 } oscTypeMenu;
 
 class MenuItemAudioRecorder final : public MenuItem {
@@ -1913,8 +1929,12 @@ public:
 	    ) {
 		basicOptions = gateModeOptions;
 	}
-	void readCurrentValue() { soundEditor.currentValue = cvEngine.gateChannels[soundEditor.currentSourceIndex].mode; }
-	void writeCurrentValue() { cvEngine.setGateType(soundEditor.currentSourceIndex, soundEditor.currentValue); }
+	void readCurrentValue() {
+		soundEditor.currentValue = cvEngine.gateChannels[soundEditor.currentSourceIndex].mode;
+	}
+	void writeCurrentValue() {
+		cvEngine.setGateType(soundEditor.currentSourceIndex, soundEditor.currentValue);
+	}
 } gateModeMenu;
 
 class MenuItemGateOffTime final : public MenuItemDecimal {
@@ -1939,14 +1959,24 @@ public:
 		basicTitle = cvVoltsTitle;
 #endif
 	}
-	int getMinValue() { return 0; }
-	int getMaxValue() { return 200; }
-	int getNumDecimalPlaces() { return 2; }
-	int getDefaultEditPos() { return 1; }
+	int getMinValue() {
+		return 0;
+	}
+	int getMaxValue() {
+		return 200;
+	}
+	int getNumDecimalPlaces() {
+		return 2;
+	}
+	int getDefaultEditPos() {
+		return 1;
+	}
 	void readCurrentValue() {
 		soundEditor.currentValue = cvEngine.cvChannels[soundEditor.currentSourceIndex].voltsPerOctave;
 	}
-	void writeCurrentValue() { cvEngine.setCVVoltsPerOctave(soundEditor.currentSourceIndex, soundEditor.currentValue); }
+	void writeCurrentValue() {
+		cvEngine.setCVVoltsPerOctave(soundEditor.currentSourceIndex, soundEditor.currentValue);
+	}
 #if HAVE_OLED
 	void drawPixelsForOled() {
 		if (soundEditor.currentValue == 0) {
@@ -1973,9 +2003,15 @@ public:
 		basicTitle = cvTransposeTitle;
 #endif
 	}
-	int getMinValue() { return -9600; }
-	int getMaxValue() { return 9600; }
-	int getNumDecimalPlaces() { return 2; }
+	int getMinValue() {
+		return -9600;
+	}
+	int getMaxValue() {
+		return 9600;
+	}
+	int getNumDecimalPlaces() {
+		return 2;
+	}
 	void readCurrentValue() {
 		soundEditor.currentValue = (int32_t)cvEngine.cvChannels[soundEditor.currentSourceIndex].transpose * 100
 		                           + cvEngine.cvChannels[soundEditor.currentSourceIndex].cents;
@@ -2167,7 +2203,9 @@ public:
 		};
 		return options;
 	}
-	int getNumOptions() { return NUM_SHORTCUTS_VERSIONS; }
+	int getNumOptions() {
+		return NUM_SHORTCUTS_VERSIONS;
+	}
 } shortcutsVersionMenu;
 
 class MenuItemKeyboardLayout final : public MenuItemSelection {
@@ -2188,7 +2226,9 @@ public:
 		};
 		return options;
 	}
-	int getNumOptions() { return NUM_KEYBOARD_LAYOUTS; }
+	int getNumOptions() {
+		return NUM_KEYBOARD_LAYOUTS;
+	}
 } keyboardLayoutMenu;
 
 // Colours submenu
@@ -2381,7 +2421,9 @@ public:
 		                        18, 20);
 	}
 #else
-	void drawValue() { numericDriver.setTextAsNumber(96 << soundEditor.currentValue); }
+	void drawValue() {
+		numericDriver.setTextAsNumber(96 << soundEditor.currentValue);
+	}
 #endif
 } defaultMagnitudeMenu;
 
