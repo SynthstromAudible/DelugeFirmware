@@ -136,7 +136,7 @@ protected:
 	static NumericLayerScrollingText* scrollingText;
 	bool shouldWrapFolderContents; // As in, wrap around at the end.
 #endif
-	bool allowBrandNewNames;
+    bool mayDefaultToBrandNewNameOnEntry;
 	bool qwertyAlwaysVisible;
 	char const* filePrefix;
 	bool shouldInterpretNoteNamesForThisBrowser;
