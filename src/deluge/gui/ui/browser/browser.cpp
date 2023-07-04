@@ -1033,7 +1033,8 @@ gotErrorAfterAllocating:
 
 		// Otherwise if we already tried that, then our whole search is fruitless.
 notFound:
-		if (false && !mayDefaultToBrandNewNameOnEntry) { // Disabled - now you're again always allowed to type characters even if no such file exists.
+		if (false
+		    && !mayDefaultToBrandNewNameOnEntry) { // Disabled - now you're again always allowed to type characters even if no such file exists.
 			if (fileIndexSelected >= 0) {
 				setEnteredTextFromCurrentFilename(); // Set it back
 			}
