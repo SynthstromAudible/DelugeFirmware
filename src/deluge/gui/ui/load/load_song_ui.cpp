@@ -162,7 +162,7 @@ void LoadSongUI::enterKeyPress() {
 
 	else {
 		LoadUI::enterKeyPress(); // Converts name to numeric-only if it was typed as text
-		performLoad();
+		performLoad();           // May fail
 	}
 }
 
@@ -232,7 +232,10 @@ void LoadSongUI::performLoad() {
 	FileItem* currentFileItem = getCurrentFileItem();
 
 	if (!currentFileItem) {
-		numericDriver.displayPopup(HAVE_OLED ? "No file selected" : "NONE");
+		numericDriver.displayError(
+		    HAVE_OLED
+		        ? ERROR_FILE_NOT_FOUND
+		        : ERROR_NO_FURTHER_FILES_THIS_DIRECTION); // Make it say "NONE" on numeric Deluge, for consistency with old times.
 		return;
 	}
 
