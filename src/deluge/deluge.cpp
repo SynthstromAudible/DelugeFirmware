@@ -863,7 +863,7 @@ resetSettings:
 	Uart::println("going into main loop");
 	sdRoutineLock = false; // Allow SD routine to start happening
 
-	Wren* wren = new Wren();
+	Wren::VM* wren = new Wren::VM();
 	Buttons::wren = wren;
 
 	while (1) {

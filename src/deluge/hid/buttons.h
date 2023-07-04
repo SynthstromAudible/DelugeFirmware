@@ -31,7 +31,7 @@ bool isNewOrShiftButtonPressed();
 void noPressesHappening(bool inCardRoutine);
 
 extern bool recordButtonPressUsedUp;
-extern Wren* wren;
+extern Wren::VM* wren;
 } // namespace Buttons
 
 #endif /* BUTTONS_H_ */

@@ -3,7 +3,9 @@
 
 #define SCRIPT_BUFFER_SIZE 1024
 
-class Wren {
+namespace Wren {
+
+class VM {
 public:
 	bool first_run;
 	WrenVM* vm;
@@ -12,8 +14,8 @@ public:
 		WrenHandle *Deluge, *init, *Button, *buttonAction;
 	} handles;
 
-	Wren();
-	~Wren();
+	VM();
+	~VM();
 	void setupHandles();
 	void releaseHandles();
 	void tick();
@@ -34,3 +36,5 @@ protected:
 	                                               const char* signature);
 	static WrenForeignClassMethods bindForeignClassFn(WrenVM* vm, const char* mod, const char* cls);
 };
+
+}

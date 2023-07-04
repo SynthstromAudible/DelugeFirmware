@@ -7,7 +7,7 @@
 
 // clang-format off
 
-const button_s WrenAPI::buttonValues[] = {
+const button_s buttonValues[] = {
 	[ButtonIndex::none]         = { 127, 127 },
 	[ButtonIndex::affectEntire] = { affectEntireButtonX, affectEntireButtonY },
 	[ButtonIndex::song]         = { sessionViewButtonX, sessionViewButtonY },
@@ -31,7 +31,7 @@ const button_s WrenAPI::buttonValues[] = {
 	[ButtonIndex::shift]        = { shiftButtonX, shiftButtonY },
 };
 
-const char* WrenAPI::buttonsSource =
+const char* buttonsSource =
 	"foreign "
 	"class Button {"
 	"\n  construct new(index) {}"

@@ -11,9 +11,11 @@ extern "C" {
 #include "drivers/uart/uart.h"
 }
 
+namespace Wren {
+
 static char scriptBuffer[SCRIPT_BUFFER_SIZE];
 
-void Wren::print(const char* text) {
+void VM::print(const char* text) {
 	bool empty = true;
 	for (size_t i = 0; text[i] != '\0'; i++) {
 		if (!std::isspace(static_cast<unsigned char>(text[i]))) {
@@ -34,13 +36,13 @@ void Wren::print(const char* text) {
 #endif
 }
 
-void Wren::writeFn(WrenVM* vm, const char* text) {
-	Wren::print(text);
+void VM::writeFn(WrenVM* vm, const char* text) {
+	VM::print(text);
 }
 
 //#define WREN_LOG(x) len = strlen(x); if(len > 200) len = 200; f_write(&fil, x, len, &written);
 
-void Wren::errorFn(WrenVM* vm, WrenErrorType errorType, const char* mod, const int line, const char* msg) {
+void VM::errorFn(WrenVM* vm, WrenErrorType errorType, const char* mod, const int line, const char* msg) {
 	//UINT written;
 	//FIL fil;
 	//auto res = storageManager.createFile(&fil, "SCRIPTS/log.txt", true);
@@ -48,7 +50,7 @@ void Wren::errorFn(WrenVM* vm, WrenErrorType errorType, const char* mod, const i
 
 	switch (errorType) {
 	case WREN_ERROR_COMPILE:
-		Wren::print("E compile");
+		VM::print("E compile");
 
 		uartPrint(mod);
 		uartPrint(":");
@@ -57,7 +59,7 @@ void Wren::errorFn(WrenVM* vm, WrenErrorType errorType, const char* mod, const i
 		uartPrintln(msg);
 		break;
 	case WREN_ERROR_STACK_TRACE:
-		Wren::print("E stacktrace");
+		VM::print("E stacktrace");
 
 		uartPrint(mod);
 		uartPrint(":");
@@ -67,13 +69,13 @@ void Wren::errorFn(WrenVM* vm, WrenErrorType errorType, const char* mod, const i
 
 		break;
 	case WREN_ERROR_RUNTIME:
-		Wren::print("E runtime");
+		VM::print("E runtime");
 
 		uartPrint("E runtime ");
 		uartPrintln(msg);
 		break;
 	default:
-		Wren::print("E unknown");
+		VM::print("E unknown");
 
 		uartPrintln("E unknown");
 		break;
@@ -82,8 +84,8 @@ void Wren::errorFn(WrenVM* vm, WrenErrorType errorType, const char* mod, const i
 	//f_close(&fil);
 }
 
-void Wren::buttonAction(int x, int y, bool on) {
-	ButtonIndex index = WrenAPI::findButton(x, y);
+void VM::buttonAction(int x, int y, bool on) {
+	API::ButtonIndex index = Wren::API::findButton(x, y);
 	wrenEnsureSlots(vm, 3);
 	wrenSetSlotHandle(vm, 0, handles.Deluge);
 	wrenSetSlotDouble(vm, 1, index);
@@ -91,7 +93,7 @@ void Wren::buttonAction(int x, int y, bool on) {
 	(void)wrenCall(vm, handles.buttonAction);
 }
 
-char* Wren::getSourceForModule(const char* name) {
+char* VM::getSourceForModule(const char* name) {
 	FIL fil;
 	UINT bytesRead = 0;
 	TCHAR filename[256];
@@ -105,24 +107,24 @@ char* Wren::getSourceForModule(const char* name) {
 	return scriptBuffer;
 }
 
-WrenLoadModuleResult Wren::loadModuleFn(WrenVM* vm, const char* name) {
+WrenLoadModuleResult VM::loadModuleFn(WrenVM* vm, const char* name) {
 	WrenLoadModuleResult result = {0};
 	char* source = getSourceForModule(name);
 	result.source = source;
-	result.onComplete = &Wren::loadModuleComplete;
+	result.onComplete = &VM::loadModuleComplete;
 	return result;
 }
 
-void Wren::loadModuleComplete(WrenVM* vm, const char* mod, WrenLoadModuleResult result) {
+void VM::loadModuleComplete(WrenVM* vm, const char* mod, WrenLoadModuleResult result) {
 	// TODO
 }
 
-WrenForeignMethodFn Wren::bindForeignMethodFn(WrenVM* vm, const char* moduleName, const char* className, bool isStatic,
+WrenForeignMethodFn VM::bindForeignMethodFn(WrenVM* vm, const char* moduleName, const char* className, bool isStatic,
                                               const char* signature) {
 	std::string mod(moduleName), cls(className), sig(signature);
 
-	if (WrenAPI::modules().count(mod) > 0) {
-		auto m = WrenAPI::modules()[mod];
+	if (Wren::API::modules().count(mod) > 0) {
+		auto m = Wren::API::modules()[mod];
 		if (m.count(cls) > 0) {
 			auto c = m[cls];
 			if (c.count(sig) > 0) {
@@ -131,33 +133,33 @@ WrenForeignMethodFn Wren::bindForeignMethodFn(WrenVM* vm, const char* moduleName
 					return s.fn;
 				}
 				else {
-					Wren::print("static?");
+					VM::print("static?");
 				}
 			}
 			else {
-				Wren::print(signature);
+				VM::print(signature);
 			}
 		}
 		else {
-			Wren::print(className);
+			VM::print(className);
 		}
 	}
 	else {
-		Wren::print(moduleName);
+		VM::print(moduleName);
 	}
 	return [](WrenVM* vm) -> void {};
 }
 
-WrenForeignClassMethods Wren::bindForeignClassFn(WrenVM* vm, const char* moduleName, const char* className) {
+WrenForeignClassMethods VM::bindForeignClassFn(WrenVM* vm, const char* moduleName, const char* className) {
 	WrenForeignClassMethods methods;
 	std::string mod(moduleName), cls(className);
 	if (mod == "main") {
 		if (cls == "Button") {
 			return {
 			    .allocate = [](WrenVM* vm) -> void {
-				    button_s* data = (button_s*)wrenSetSlotNewForeign(vm, 0, 0, sizeof(button_s));
+					API::button_s* data = (API::button_s*)wrenSetSlotNewForeign(vm, 0, 0, sizeof(API::button_s));
 				    int index = (int)wrenGetSlotDouble(vm, 1);
-				    *data = WrenAPI::buttonValues[index];
+				    *data = API::buttonValues[index];
 			    },
 			    .finalize = [](void* data) -> void { data = NULL; },
 			};
@@ -169,14 +171,14 @@ WrenForeignClassMethods Wren::bindForeignClassFn(WrenVM* vm, const char* moduleN
 	};
 }
 
-Wren::Wren() {
+VM::VM() {
 	WrenConfiguration config;
 	wrenInitConfiguration(&config);
-	config.writeFn = &Wren::writeFn;
-	config.errorFn = &Wren::errorFn;
-	config.loadModuleFn = &Wren::loadModuleFn;
-	config.bindForeignMethodFn = &Wren::bindForeignMethodFn;
-	config.bindForeignClassFn = &Wren::bindForeignClassFn;
+	config.writeFn = &VM::writeFn;
+	config.errorFn = &VM::errorFn;
+	config.loadModuleFn = &VM::loadModuleFn;
+	config.bindForeignMethodFn = &VM::bindForeignMethodFn;
+	config.bindForeignClassFn = &VM::bindForeignClassFn;
 	config.reallocateFn = &wren_heap_realloc;
 	config.initialHeapSize = kWrenHeapSize;
 	config.minHeapSize = 4096;
@@ -189,36 +191,36 @@ Wren::Wren() {
 	first_run = true;
 }
 
-Wren::~Wren() {
+VM::~VM() {
 	releaseHandles();
 	wrenFreeVM(vm);
 }
 
-inline WrenInterpretResult Wren::interpret(const char* mod, const char* source) {
+inline WrenInterpretResult VM::interpret(const char* mod, const char* source) {
 	return wrenInterpret(vm, mod, source);
 }
 
-void Wren::tick() {
+void VM::tick() {
 	if (first_run) {
 		init();
 		first_run = false;
 	}
 }
 
-void Wren::setup() {
-	(void)interpret("main", WrenAPI::buttonsSource);
-	(void)interpret("main", WrenAPI::mainModuleSource);
+void VM::setup() {
+	(void)interpret("main", Wren::API::buttonsSource);
+	(void)interpret("main", Wren::API::mainModuleSource);
 
 	char* source = getSourceForModule("init");
 	(void)interpret("main", source);
 }
 
-void Wren::init() {
+void VM::init() {
 	wrenSetSlotHandle(vm, 0, handles.Deluge);
 	(void)wrenCall(vm, handles.init);
 }
 
-void Wren::setupHandles() {
+void VM::setupHandles() {
 	handles = {0};
 
 	wrenEnsureSlots(vm, 1);
@@ -232,6 +234,8 @@ void Wren::setupHandles() {
 	handles.buttonAction = wrenMakeCallHandle(vm, "buttonAction(_,_)");
 }
 
-void Wren::releaseHandles() {
+void VM::releaseHandles() {
 	wrenReleaseHandle(vm, handles.init);
+}
+
 }

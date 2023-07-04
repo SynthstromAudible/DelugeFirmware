@@ -3,12 +3,15 @@
 #include "definitions.h"
 #include "RZA1/cpu_specific.h"
 
-const char* WrenAPI::mainModuleSource =
+namespace Wren {
+namespace API {
+
+const char* mainModuleSource =
 #include "main.wren.inc"
     ;
 #include "buttons.h"
 
-ButtonIndex WrenAPI::findButton(uint8_t x, uint8_t y) {
+ButtonIndex findButton(uint8_t x, uint8_t y) {
 	for (int i = 1; i < ButtonIndex::maxButtonIndex; i++) {
 		if (buttonValues[i].x == x and buttonValues[i].y == y) {
 			return (ButtonIndex)i;
@@ -18,14 +21,14 @@ ButtonIndex WrenAPI::findButton(uint8_t x, uint8_t y) {
 }
 
 // clang-format off
-ModuleMap WrenAPI::modules() {
+ModuleMap modules() {
 	static const ModuleMap map_ = {
 		{"main", {
 			{"TDeluge", {
 				{"print(_)", {false,
 					[](WrenVM* vm) -> void {
 						const char* str = wrenGetSlotString(vm, 1);
-						Wren::print(str);
+						VM::print(str);
 					}
 				}},
 				{"pressButton(_,_)", {false,
@@ -53,4 +56,6 @@ ModuleMap WrenAPI::modules() {
 	};
 	return map_;
 }
+
+}}
 // clang-format on
