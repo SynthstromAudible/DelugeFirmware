@@ -75,7 +75,7 @@ int KeyboardScreen::padAction(int x, int y, int velocity) {
 		return soundEditorResult;
 	}
 
-	Instrument* instrument = (Instrument*)currentSong->currentClip->output;
+	Instrument* instrument = (Instrument*)getCurrentClip()->output;
 	if (isUIModeActiveExclusively(UI_MODE_SCALE_MODE_BUTTON_PRESSED)) {
 		if (sdRoutineLock) {
 			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -450,10 +450,8 @@ void KeyboardScreen::selectEncoderAction(int8_t offset) {
 }
 
 int KeyboardScreen::getNoteCodeFromCoords(int x, int y) {
-
-	Instrument* instrument = (Instrument*)currentSong->currentClip->output;
 	InstrumentClip* clip = getCurrentClip();
-	if (instrument->type == INSTRUMENT_TYPE_KIT) { //
+	if (clip->output->type == INSTRUMENT_TYPE_KIT) { //
 		return clip->yScroll + ((x / 4) + (y / 4) * 4);
 	}
 	else {
@@ -477,13 +475,13 @@ void KeyboardScreen::exitAuditionMode() {
 
 void KeyboardScreen::stopAllAuditioning(ModelStack* modelStack, bool switchOffOnThisEndToo) {
 
-	if (currentSong->currentClip->output->type != INSTRUMENT_TYPE_KIT) {
+	if (getCurrentClip()->output->type != INSTRUMENT_TYPE_KIT) {
 		for (int p = 0; p < MAX_NUM_KEYBOARD_PAD_PRESSES; p++) {
 			if (padPresses[p].x != 255) {
 				int noteCode = getNoteCodeFromCoords(padPresses[p].x, padPresses[p].y);
-				((MelodicInstrument*)currentSong->currentClip->output)->endAuditioningForNote(modelStack, noteCode);
+				((MelodicInstrument*)getCurrentClip()->output)->endAuditioningForNote(modelStack, noteCode);
 				if (switchOffOnThisEndToo) {
-				padPresses[p].x = 255;
+  				padPresses[p].x = 255;
 				}
 			}
 		}
@@ -520,7 +518,7 @@ void KeyboardScreen::recalculateColours() {
 }
 
 void KeyboardScreen::changeInstrumentType(int newInstrumentType) {
-	if (currentSong->currentClip->output->type == newInstrumentType) return;
+	if (getCurrentClip()->output->type == newInstrumentType) return;
 	InstrumentClipMinder::changeInstrumentType(newInstrumentType);
 	instrumentClipView.recalculateColours();
 	recalculateColours();
@@ -544,11 +542,11 @@ bool KeyboardScreen::renderMainPads(uint32_t whichRows, uint8_t image[][displayW
 	memset(occupancyMask, 0, sizeof(uint8_t) * displayHeight * (displayWidth + sideBarWidth));
 
 	uint8_t noteColour[] = {127, 127, 127};
-	Instrument* instrument = (Instrument*)currentSong->currentClip->output;
+	Instrument* instrument = (Instrument*)getCurrentClip()->output;
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
-	    modelStack->addTimelineCounter(currentSong->currentClip);
+	    modelStack->addTimelineCounter(getCurrentClip());
 
 	// Flashing default root note
 	if (uiTimerManager.isTimerSet(TIMER_DEFAULT_ROOT_NOTE)) {
@@ -727,7 +725,7 @@ int KeyboardScreen::verticalEncoderAction(int offset, bool inCardRoutine) {
 		}
 
 		//
-		Instrument* instrument = (Instrument*)currentSong->currentClip->output;
+		Instrument* instrument = (Instrument*)getCurrentClip()->output;
 		if (instrument->type == INSTRUMENT_TYPE_KIT) { //
 			instrumentClipView.verticalEncoderAction(offset * 4, inCardRoutine);
 			uiNeedsRendering(this, 0xFFFFFFFF, 0);
@@ -741,7 +739,7 @@ int KeyboardScreen::verticalEncoderAction(int offset, bool inCardRoutine) {
 }
 
 int KeyboardScreen::horizontalEncoderAction(int offset) {
-	Instrument* instrument = (Instrument*)currentSong->currentClip->output;
+	Instrument* instrument = (Instrument*)getCurrentClip()->output;
 	if (instrument->type != INSTRUMENT_TYPE_KIT) {
 		if (Buttons::isShiftButtonPressed()) {
 			if (isUIModeWithinRange(padActionUIModes)) {
@@ -805,10 +803,10 @@ void KeyboardScreen::doScroll(int offset, bool force) {
 			drawNoteCode(highestNoteCode);
 
 			// Change editing range if necessary
-			if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_SYNTH) {
+			if (getCurrentClip()->output->type == INSTRUMENT_TYPE_SYNTH) {
 				if (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem() == &menu_item::multiRangeMenu) {
 					menu_item::multiRangeMenu.noteOnToChangeRange(
-					    highestNoteCode + ((SoundInstrument*)currentSong->currentClip->output)->transpose);
+					    highestNoteCode + ((SoundInstrument*)getCurrentClip()->output)->transpose);
 				}
 			}
 		}
@@ -826,9 +824,9 @@ void KeyboardScreen::doScroll(int offset, bool force) {
 					}
 				}
 
-				((MelodicInstrument*)currentSong->currentClip->output)
+				((MelodicInstrument*)getCurrentClip()->output)
 				    ->beginAuditioningForNote(modelStack, noteCode,
-				                              ((Instrument*)currentSong->currentClip->output)->defaultVelocity,
+				                              ((Instrument*)getCurrentClip()->output)->defaultVelocity,
 				                              zeroMPEValues);
 			}
 		}
@@ -924,8 +922,8 @@ void KeyboardScreen::drawNoteCode(int noteCode) {
 		return;
 	}
 
-	if (currentSong->currentClip->output->type != INSTRUMENT_TYPE_KIT) {
-		drawActualNoteCode(noteCode);
+	if (getCurrentClip()->output->type != INSTRUMENT_TYPE_KIT) {
+  	drawActualNoteCode(noteCode);
 	}
 }
 
@@ -949,19 +947,19 @@ void KeyboardScreen::graphicsRoutine() {
 	const uint8_t* colours = keyboardTickColoursBasicRecording;
 
 	if (!playbackHandler.isEitherClockActive() || !playbackHandler.isCurrentlyRecording()
-	    || !currentSong->isClipActive(currentSong->currentClip) || currentUIMode == UI_MODE_EXPLODE_ANIMATION
+	    || !currentSong->isClipActive(getCurrentClip()) || currentUIMode == UI_MODE_EXPLODE_ANIMATION
 	    || playbackHandler.ticksLeftInCountIn) {
 		newTickSquare = 255;
 	}
 	else {
-		newTickSquare = (uint64_t)(currentSong->currentClip->lastProcessedPos
+		newTickSquare = (uint64_t)(getCurrentClip()->lastProcessedPos
 		                           + playbackHandler.getNumSwungTicksInSinceLastActionedSwungTick())
-		                * displayWidth / currentSong->currentClip->loopLength;
+		                * displayWidth / getCurrentClip()->loopLength;
 		if (newTickSquare < 0 || newTickSquare >= displayWidth) {
 			newTickSquare = 255;
 		}
 
-		if (currentSong->currentClip->getCurrentlyRecordingLinearly()) {
+		if (getCurrentClip()->getCurrentlyRecordingLinearly()) {
 			colours = keyboardTickColoursLinearRecording;
 		}
 	}
