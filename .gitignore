@@ -13,6 +13,7 @@
 /e2-build-release-7seg/
 /e2-build-release-oled/
 /dbt-build*
+/docs
 *.launch
 /toolchain/*
 compile_commands.json
