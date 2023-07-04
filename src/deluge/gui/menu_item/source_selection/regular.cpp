@@ -1,4 +1,5 @@
 #include "regular.h"
+#include "gui/menu_item/patch_cable_strength/regular.h"
 #include "modulation/params/param_descriptor.h"
 #include "gui/ui/sound_editor.h"
 
@@ -18,7 +19,7 @@ ParamDescriptor Regular::getDestinationDescriptor() {
 }
 
 MenuItem* Regular::selectButtonPress() {
-	return &regularMenu;
+	return &patch_cable_strength::regularMenu;
 }
 
 void Regular::beginSession(MenuItem* navigatedBackwardFrom) {
