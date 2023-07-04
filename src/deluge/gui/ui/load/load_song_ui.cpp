@@ -158,7 +158,7 @@ void LoadSongUI::enterKeyPress() {
 
 	else {
 		LoadUI::enterKeyPress(); // Converts name to numeric-only if it was typed as text
-		performLoad(); // May fail
+		performLoad();           // May fail
 	}
 }
 
@@ -223,10 +223,13 @@ void LoadSongUI::performLoad() {
 
 	FileItem* currentFileItem = getCurrentFileItem();
 
-    if (!currentFileItem) {
-    	numericDriver.displayError(HAVE_OLED ? ERROR_FILE_NOT_FOUND : ERROR_NO_FURTHER_FILES_THIS_DIRECTION); // Make it say "NONE" on numeric Deluge, for consistency with old times.
-    	return;
-    }
+	if (!currentFileItem) {
+		numericDriver.displayError(
+		    HAVE_OLED
+		        ? ERROR_FILE_NOT_FOUND
+		        : ERROR_NO_FURTHER_FILES_THIS_DIRECTION); // Make it say "NONE" on numeric Deluge, for consistency with old times.
+		return;
+	}
 
 	actionLogger.deleteAllLogs();
 
