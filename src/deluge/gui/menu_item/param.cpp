@@ -29,10 +29,6 @@
 
 namespace menu_item {
 
-uint8_t Param::getP() {
-	return p;
-}
-
 MenuItem* Param::selectButtonPress() {
 
 	// If shift button pressed, delete automation

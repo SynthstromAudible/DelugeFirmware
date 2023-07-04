@@ -30,7 +30,7 @@ public:
 	Param(int newP = 0) { p = newP; }
 	int getMaxValue() const { return 50; }
 	int getMinValue() const { return 0; }
-	virtual uint8_t getP();
+	virtual uint8_t getP() { return p; };
 	MenuItem* selectButtonPress();
 	virtual ModelStackWithAutoParam* getModelStack(void* memory) = 0;
 

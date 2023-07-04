@@ -48,7 +48,7 @@ MenuItem* PatchedParam::selectButtonPress() {
 #if 0 && HAVE_OLED
 		return NULL;
 #else
-		soundEditor.patchingParamSelected = getP();
+		soundEditor.patchingParamSelected = this->getP();
 		return &source_selection::regularMenu;
 #endif
 	}
@@ -57,7 +57,7 @@ MenuItem* PatchedParam::selectButtonPress() {
 #if !HAVE_OLED
 void PatchedParam::drawValue() {
 	ParamDescriptor paramDescriptor;
-	paramDescriptor.setToHaveParamOnly(getP());
+	paramDescriptor.setToHaveParamOnly(this->getP());
 	uint8_t drawDot =
 	    soundEditor.currentParamManager->getPatchCableSet()->isAnySourcePatchedToParamVolumeInspecific(paramDescriptor)
 	        ? 3
@@ -68,7 +68,7 @@ void PatchedParam::drawValue() {
 
 uint8_t PatchedParam::shouldDrawDotOnName() {
 	ParamDescriptor paramDescriptor;
-	paramDescriptor.setToHaveParamOnly(getP());
+	paramDescriptor.setToHaveParamOnly(this->getP());
 	return soundEditor.currentParamManager->getPatchCableSet()->isAnySourcePatchedToParamVolumeInspecific(
 	           paramDescriptor)
 	           ? 3
@@ -77,7 +77,7 @@ uint8_t PatchedParam::shouldDrawDotOnName() {
 
 ParamDescriptor PatchedParam::getLearningThing() {
 	ParamDescriptor paramDescriptor;
-	paramDescriptor.setToHaveParamOnly(getP());
+	paramDescriptor.setToHaveParamOnly(this->getP());
 	return paramDescriptor;
 }
 
@@ -86,12 +86,12 @@ ParamSet* PatchedParam::getParamSet() {
 }
 
 uint8_t PatchedParam::getPatchedParamIndex() {
-	return getP();
+	return this->getP();
 }
 
 uint8_t PatchedParam::shouldBlinkPatchingSourceShortcut(int s, uint8_t* colour) {
 	ParamDescriptor paramDescriptor;
-	paramDescriptor.setToHaveParamOnly(getP());
+	paramDescriptor.setToHaveParamOnly(this->getP());
 	return soundEditor.currentParamManager->getPatchCableSet()->isSourcePatchedToDestinationDescriptorVolumeInspecific(
 	           s, paramDescriptor)
 	           ? 3
@@ -99,7 +99,7 @@ uint8_t PatchedParam::shouldBlinkPatchingSourceShortcut(int s, uint8_t* colour) 
 }
 
 MenuItem* PatchedParam::patchingSourceShortcutPress(int s, bool previousPressStillActive) {
-	soundEditor.patchingParamSelected = getP();
+	soundEditor.patchingParamSelected = this->getP();
 	source_selection::regularMenu.s = s;
 	return &patch_cable_strength::regularMenu;
 }
@@ -107,7 +107,7 @@ MenuItem* PatchedParam::patchingSourceShortcutPress(int s, bool previousPressSti
 ModelStackWithAutoParam* PatchedParam::getModelStack(void* memory) {
 	ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(memory);
 	ParamCollectionSummary* summary = modelStack->paramManager->getPatchedParamSetSummary();
-	int p = getP();
+	int p = this->getP();
 	return modelStack->addParam(summary->paramCollection, summary, p,
 	                            &((ParamSet*)summary->paramCollection)->params[p]);
 }
