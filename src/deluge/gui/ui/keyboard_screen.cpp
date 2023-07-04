@@ -42,6 +42,8 @@
 #include "gui/views/session_view.h"
 #include "gui/ui_timer_manager.h"
 #include "hid/display/oled.h"
+#include "model/drum/drum.h"
+#include "model/drum/kit.h"
 
 KeyboardScreen keyboardScreen{};
 
@@ -73,13 +75,12 @@ int KeyboardScreen::padAction(int x, int y, int velocity) {
 		return soundEditorResult;
 	}
 
-	if (currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED) {
+	Instrument* instrument = (Instrument*)currentSong->currentClip->output;
+	if (isUIModeActiveExclusively(UI_MODE_SCALE_MODE_BUTTON_PRESSED)) {
 		if (sdRoutineLock) {
 			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
-		if (velocity
-		    && currentSong->currentClip->output->type
-		           != INSTRUMENT_TYPE_KIT) { // We probably couldn't have got this far if it was a Kit, but let's just check
+		if (velocity && instrument->type != INSTRUMENT_TYPE_KIT) {
 			int noteCode = getNoteCodeFromCoords(x, y);
 			exitScaleModeOnButtonRelease = false;
 			if (getCurrentClip()->inScaleMode) {
@@ -92,9 +93,27 @@ int KeyboardScreen::padAction(int x, int y, int velocity) {
 			}
 		}
 	}
-	else if (!velocity || isUIModeWithinRange(padActionUIModes)) {
 
-		int noteCode;
+	int noteCode = getNoteCodeFromCoords(x, y);
+	int yDisplay = noteCode - getCurrentClip()->yScrollKeyboardScreen;
+	if (instrument->type == INSTRUMENT_TYPE_KIT) { //
+		yDisplay = (int)(x / 4) + (int)(y / 4) * 4;
+	}
+
+	if (isUIModeActiveExclusively(UI_MODE_MIDI_LEARN)) {
+		if (sdRoutineLock) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+
+		if (instrument->type == INSTRUMENT_TYPE_KIT) {
+			NoteRow* noteRow = ((InstrumentClip*)instrument->activeClip)->getNoteRowOnScreen(yDisplay, currentSong);
+			if (!noteRow || !noteRow->drum) return ACTION_RESULT_DEALT_WITH;
+			view.drumMidiLearnPadPressed(velocity, noteRow->drum, (Kit*)instrument);
+		}
+		else {
+			view.melodicInstrumentMidiLearnPadPressed(velocity, (MelodicInstrument*)instrument);
+		}
+	}
+
+	else if (!velocity || isUIModeWithinRange(padActionUIModes)) {
 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
@@ -103,8 +122,6 @@ int KeyboardScreen::padAction(int x, int y, int velocity) {
 		if (!clipIsActiveOnInstrument && velocity) {
 			IndicatorLEDs::indicateAlertOnLed(sessionViewButtonX, sessionViewButtonY);
 		}
-
-		Instrument* instrument = (Instrument*)currentSong->currentClip->output;
 
 		// NOTE: Most of this refers to the Instrument's activeClip - *not* the Clip we're viewing,
 		// which might not be the activeClip, even though we did call makeClipActiveOnInstrumentIfPossible() above
@@ -126,13 +143,6 @@ int KeyboardScreen::padAction(int x, int y, int velocity) {
 			// If no spare presses, return
 			if (emptyPressIndex == MAX_NUM_KEYBOARD_PAD_PRESSES) {
 				return ACTION_RESULT_DEALT_WITH;
-			}
-
-			noteCode = getNoteCodeFromCoords(x, y);
-
-			int yDisplay = noteCode - getCurrentClip()->yScrollKeyboardScreen;
-			if (instrument->type == INSTRUMENT_TYPE_KIT) { //
-				yDisplay = (int)(x / 4) + (int)(y / 4) * 4;
 			}
 			if (yDisplayActive[yDisplay]) {
 				return ACTION_RESULT_DEALT_WITH;
@@ -235,12 +245,10 @@ foundIt:
 			// If that was not the case, well, we still did want to potentially exit audition mode above, cos users been reporting stuck note problems,
 			// even though I can't see quite how we'd get stuck there
 			if (yDisplayActive[yDisplay]) {
-
 				if (instrument->type == INSTRUMENT_TYPE_KIT) { //
 					instrumentClipView.auditionPadAction(0, yDisplay, false);
 				}
 				else {
-
 					((MelodicInstrument*)instrument)->endAuditioningForNote(modelStack, noteCode);
 				}
 
@@ -444,12 +452,11 @@ void KeyboardScreen::selectEncoderAction(int8_t offset) {
 int KeyboardScreen::getNoteCodeFromCoords(int x, int y) {
 
 	Instrument* instrument = (Instrument*)currentSong->currentClip->output;
+	InstrumentClip* clip = getCurrentClip();
 	if (instrument->type == INSTRUMENT_TYPE_KIT) { //
-
-		return 60 + (int)(x / 4) + (int)(y / 4) * 4;
+		return clip->yScroll + ((x / 4) + (y / 4) * 4);
 	}
 	else {
-		InstrumentClip* clip = getCurrentClip();
 		return clip->yScrollKeyboardScreen + x + y * clip->keyboardRowInterval;
 	}
 }
@@ -470,14 +477,19 @@ void KeyboardScreen::exitAuditionMode() {
 
 void KeyboardScreen::stopAllAuditioning(ModelStack* modelStack, bool switchOffOnThisEndToo) {
 
-	for (int p = 0; p < MAX_NUM_KEYBOARD_PAD_PRESSES; p++) {
-		if (padPresses[p].x != 255) {
-			int noteCode = getNoteCodeFromCoords(padPresses[p].x, padPresses[p].y);
-			((MelodicInstrument*)currentSong->currentClip->output)->endAuditioningForNote(modelStack, noteCode);
-			if (switchOffOnThisEndToo) {
+	if (currentSong->currentClip->output->type != INSTRUMENT_TYPE_KIT) {
+		for (int p = 0; p < MAX_NUM_KEYBOARD_PAD_PRESSES; p++) {
+			if (padPresses[p].x != 255) {
+				int noteCode = getNoteCodeFromCoords(padPresses[p].x, padPresses[p].y);
+				((MelodicInstrument*)currentSong->currentClip->output)->endAuditioningForNote(modelStack, noteCode);
+				if (switchOffOnThisEndToo) {
 				padPresses[p].x = 255;
+				}
 			}
 		}
+	}
+	else {
+		// TODO: Implement for kits
 	}
 }
 
@@ -509,16 +521,16 @@ void KeyboardScreen::recalculateColours() {
 
 void KeyboardScreen::changeInstrumentType(int newInstrumentType) {
 	if (currentSong->currentClip->output->type == newInstrumentType) return;
-  InstrumentClipMinder::changeInstrumentType(newInstrumentType);
-  instrumentClipView.recalculateColours();
-  recalculateColours();
+	InstrumentClipMinder::changeInstrumentType(newInstrumentType);
+	instrumentClipView.recalculateColours();
+	recalculateColours();
 	uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 }
 
 void KeyboardScreen::createNewInstrument(int newInstrumentType) {
-  InstrumentClipMinder::createNewInstrument(newInstrumentType);
-  instrumentClipView.recalculateColours();
-  recalculateColours();
+	InstrumentClipMinder::createNewInstrument(newInstrumentType);
+	instrumentClipView.recalculateColours();
+	recalculateColours();
 	uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 }
 
@@ -526,17 +538,6 @@ bool KeyboardScreen::renderMainPads(uint32_t whichRows, uint8_t image[][displayW
                                     uint8_t occupancyMask[][displayWidth + sideBarWidth], bool drawUndefinedArea) {
 	if (!image) {
 		return true;
-	}
-
-	// First, piece together a picture of all notes-within-an-octave which are active
-	bool notesWithinOctaveActive[12];
-	memset(notesWithinOctaveActive, 0, sizeof(notesWithinOctaveActive));
-	for (int p = 0; p < MAX_NUM_KEYBOARD_PAD_PRESSES; p++) {
-		if (padPresses[p].x != 255) {
-			int noteCode = getNoteCodeFromCoords(padPresses[p].x, padPresses[p].y);
-			int noteWithinOctave = (noteCode - currentSong->rootNote + 120) % 12;
-			notesWithinOctaveActive[noteWithinOctave] = true;
-		}
 	}
 
 	memset(image, 0, sizeof(uint8_t) * displayHeight * (displayWidth + sideBarWidth) * 3);
@@ -574,46 +575,16 @@ bool KeyboardScreen::renderMainPads(uint32_t whichRows, uint8_t image[][displayW
 
 	// Or normal
 	else {
-		for (int y = 0; y < displayHeight; y++) {
-			int noteCode = getNoteCodeFromCoords(0, y);
-			int yDisplay = noteCode - getCurrentClip()->yScrollKeyboardScreen;
-			int noteWithinOctave = (uint16_t)(noteCode - currentSong->rootNote + 120) % (uint8_t)12;
-
-			for (int x = 0; x < displayWidth; x++) {
-
-				// If auditioning note with finger - or same note in different octave...
-				if (notesWithinOctaveActive[noteWithinOctave]) {
-doFullColour:
-					memcpy(image[y][x], noteColours[yDisplay], 3);
-					occupancyMask[y][x] = 64;
-				}
-				// Show root note within each octave as full colour
-				else if (!noteWithinOctave) {
-					goto doFullColour;
-
-					// Or, if this note is just within the current scale, show it dim
-				}
-				else {
-					if (getCurrentClip()->inScaleMode && currentSong->modeContainsYNote(noteCode)) {
-						getTailColour(image[y][x], noteColours[yDisplay]);
-						occupancyMask[y][x] = 1;
-					}
-				}
-
-				if (instrument->type == INSTRUMENT_TYPE_KIT) {
-					int myV = ((x % 4) * 16) + ((y % 4) * 64) + 8;
-					int myY = (int)(x / 4) + (int)(y / 4) * 4;
-
-					ModelStackWithNoteRow* modelStackWithNoteRowOnCurrentClip =
-					    getCurrentClip()->getNoteRowOnScreen(myY, modelStackWithTimelineCounter);
-
-					if (modelStackWithNoteRowOnCurrentClip->getNoteRowAllowNull()) {
-
-						instrumentClipView.getRowColour(myY, noteColour);
-
-						noteColour[0] = (char)((noteColour[0] * myV / 255) / 3);
-						noteColour[1] = (char)((noteColour[1] * myV / 255) / 3);
-						noteColour[2] = (char)((noteColour[2] * myV / 255) / 3);
+		if (instrument->type == INSTRUMENT_TYPE_KIT) {
+			for (int y = 0; y < displayHeight; y++) {
+				for (int x = 0; x < displayWidth; x++) {
+					int noteVelocity = ((x % 4) * 16) + ((y % 4) * 64) + 8;
+					int yDisplay = (int)(x / 4) + (int)(y / 4) * 4;
+					if (getCurrentClip()->getNoteRowOnScreen(yDisplay, currentSong)) {
+						instrumentClipView.getRowColour(yDisplay, noteColour);
+						noteColour[0] = (char)((noteColour[0] * noteVelocity / 255) / 3);
+						noteColour[1] = (char)((noteColour[1] * noteVelocity / 255) / 3);
+						noteColour[2] = (char)((noteColour[2] * noteVelocity / 255) / 3);
 					}
 					else {
 						noteColour[0] = 2;
@@ -622,24 +593,102 @@ doFullColour:
 					}
 					memcpy(image[y][x], noteColour, 3);
 				}
-				// Otherwise, square will just get left black, from its having been wiped above
+			}
+		}
+		else {
 
-				// If we're selecting ranges...
-				if (getCurrentUI() == &sampleBrowser || getCurrentUI() == &audioRecorder
-				    || (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem()->isRangeDependent())) {
-					if (soundEditor.isUntransposedNoteWithinRange(noteCode)) {
-						for (int colour = 0; colour < 3; colour++) {
-							int value = (int)image[y][x][colour] + 35;
-							image[y][x][colour] = getMin(value, 255);
+			// First, piece together a picture of all notes-within-an-octave which are active
+			bool notesWithinOctaveActive[12];
+			memset(notesWithinOctaveActive, 0, sizeof(notesWithinOctaveActive));
+			for (int p = 0; p < MAX_NUM_KEYBOARD_PAD_PRESSES; p++) {
+				if (padPresses[p].x != 255) {
+					int noteCode = getNoteCodeFromCoords(padPresses[p].x, padPresses[p].y);
+					int noteWithinOctave = (noteCode - currentSong->rootNote + 120) % 12;
+					notesWithinOctaveActive[noteWithinOctave] = true;
+				}
+			}
+
+			for (int y = 0; y < displayHeight; y++) {
+				int noteCode = getNoteCodeFromCoords(0, y);
+				int yDisplay = noteCode - getCurrentClip()->yScrollKeyboardScreen;
+				int noteWithinOctave = (uint16_t)(noteCode - currentSong->rootNote + 120) % (uint8_t)12;
+
+				for (int x = 0; x < displayWidth; x++) {
+					// If auditioning note with finger - or same note in different octave...
+					if (notesWithinOctaveActive[noteWithinOctave]) {
+doFullColour:
+						memcpy(image[y][x], noteColours[yDisplay], 3);
+						occupancyMask[y][x] = 64;
+					}
+					// Show root note within each octave as full colour
+					else if (!noteWithinOctave) goto doFullColour;
+
+					// Or, if this note is just within the current scale, show it dim
+					else {
+						if (getCurrentClip()->inScaleMode && currentSong->modeContainsYNote(noteCode)) {
+							getTailColour(image[y][x], noteColours[yDisplay]);
+							occupancyMask[y][x] = 1;
 						}
 					}
-				}
 
-				noteCode++;
-				yDisplay++;
-				noteWithinOctave++;
-				if (noteWithinOctave == 12) {
-					noteWithinOctave = 0;
+					// If we're selecting ranges...
+					if (getCurrentUI() == &sampleBrowser || getCurrentUI() == &audioRecorder
+					    || (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem()->isRangeDependent())) {
+						if (soundEditor.isUntransposedNoteWithinRange(noteCode)) {
+							for (int colour = 0; colour < 3; colour++) {
+								int value = (int)image[y][x][colour] + 35;
+								image[y][x][colour] = getMin(value, 255);
+							}
+						}
+					}
+
+					noteCode++;
+					yDisplay++;
+					noteWithinOctave++;
+					if (noteWithinOctave == 12) noteWithinOctave = 0;
+				}
+			}
+		}
+
+		if (view.midiLearnFlashOn) {
+			for (int y = 0; y < displayHeight; y++) {
+				for (int x = 0; x < displayWidth; x++) {
+					bool midiCommandAssigned;
+					bool holdingDown = false;
+					if (instrument->type == INSTRUMENT_TYPE_KIT) {
+						int yDisplay = (int)(x / 4) + (int)(y / 4) * 4;
+						NoteRow* noteRow = getCurrentClip()->getNoteRowOnScreen(yDisplay, modelStack->song);
+						midiCommandAssigned =
+						    (noteRow && noteRow->drum && noteRow->drum->midiInput.containsSomething());
+						if (view.thingPressedForMidiLearn == MIDI_LEARN_DRUM_INPUT) {
+							holdingDown = (&noteRow->drum->midiInput == view.learnedThing);
+						}
+					}
+					else {
+						midiCommandAssigned = (((MelodicInstrument*)instrument)->midiInput.containsSomething());
+						if (view.thingPressedForMidiLearn == MIDI_LEARN_MELODIC_INSTRUMENT_INPUT) {
+							holdingDown = true;
+						}
+					}
+
+					// If MIDI command already assigned...
+					if (midiCommandAssigned) {
+						if (image[y][x][0] != 0 || image[y][x][1] != 0 || image[y][x][2] != 0) {
+							image[y][x][0] = midiCommandColourRed;
+							image[y][x][1] = midiCommandColourGreen;
+							image[y][x][2] = midiCommandColourBlue;
+						}
+					}
+
+					// Or if not assigned but we're holding it down...
+					else {
+
+						if (holdingDown) {
+							image[y][x][0] >>= 1;
+							image[y][x][1] >>= 1;
+							image[y][x][2] >>= 1;
+						}
+					}
 				}
 			}
 		}
@@ -920,4 +969,8 @@ void KeyboardScreen::graphicsRoutine() {
 	keyboardTickSquares[displayHeight - 1] = newTickSquare;
 
 	PadLEDs::setTickSquares(keyboardTickSquares, colours);
+}
+
+void KeyboardScreen::midiLearnFlash() {
+	uiNeedsRendering(this, 0xFFFFFFFF, 0);
 }
