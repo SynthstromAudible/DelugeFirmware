@@ -335,11 +335,12 @@ bool readButtonsAndPads() {
 			int x = (unsigned int)value % 10;
 			int y = ((unsigned int)value % 70) / 10;
 
-			if (y < displayHeight)
+			if (y < displayHeight) {
 				result = matrixDriver.padAction(x, y, thisPadPressIsOn, inSDRoutine);
-			else
+			}
+			else {
 				result = Buttons::buttonAction(x, y - displayHeight, thisPadPressIsOn, sdRoutineLock);
-
+			}
 #else
 			int thisPadPressIsOn = nextPadPressIsOn;
 			nextPadPressIsOn = USE_DEFAULT_VELOCITY;

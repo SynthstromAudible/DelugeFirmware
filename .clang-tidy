@@ -9,7 +9,6 @@ Checks: >
   readability-*,
   modernize-*,
   llvm-include-order,
-  llvm-header-guard,
   performance-for-range-copy,
   performance-implicit-conversion-in-loop,
   performance-inefficient-algorithm,
