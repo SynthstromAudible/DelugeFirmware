@@ -2543,7 +2543,7 @@ void PlaybackHandler::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, ui
 		}
 
 		if (value) {
-			if (tryGlobalMIDICommands(fromDevice, channel + 16, ccNumber)) return;
+			if (tryGlobalMIDICommands(fromDevice, channel + IS_A_CC, ccNumber)) return;
 		}
 	}
 

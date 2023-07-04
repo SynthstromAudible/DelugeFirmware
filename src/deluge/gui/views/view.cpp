@@ -717,16 +717,15 @@ void View::ccReceivedForMIDILearn(MIDIDevice* fromDevice, int channel, int cc, i
 				}
 			}
 		}
-#if MIDI_CC_FOR_COMMANDS_ENABLED
+
 		// Or, for all other types of things the user might be holding down...
 		else {
 
 			// So long as the value wasn't 0, pretend it was a note-on for command-learn purposes
 			if (value) {
-				noteOnReceivedForMidiLearn(channelOrZone + 16, cc, 127);
+				noteOnReceivedForMidiLearn(fromDevice, channel + IS_A_CC, cc, 127);
 			}
 		}
-#endif
 	}
 }
 
