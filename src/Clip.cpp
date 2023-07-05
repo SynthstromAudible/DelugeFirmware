@@ -60,6 +60,7 @@ Clip::Clip(int newType) : type(newType) {
 	originalLength = 0;
 	armedForRecording = true;
 	launchStyle = LAUNCH_STYLE_DEFAULT;
+	fillEventAtTickCount = 0;
 
 #if HAVE_SEQUENCE_STEP_CONTROL
 	sequenceDirectionMode = SEQUENCE_DIRECTION_FORWARD;

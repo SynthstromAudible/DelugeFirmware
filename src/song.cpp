@@ -3556,7 +3556,7 @@ traverseClips:
 	for (int c = 0; c < clipArray->getNumElements(); c++) {
 		Clip* clip = clipArray->getClipAtIndex(c);
 
-		if (clip != excludeClip && isClipActive(clip)) {
+		if (clip != excludeClip && isClipActive(clip) && clip->launchStyle != LAUNCH_STYLE_FILL) {
 			int32_t clipLength = clip->loopLength;
 			if (clipLength == targetLength
 			    || (clipLength > targetLength && ((uint32_t)clipLength % (uint32_t)targetLength) == 0)

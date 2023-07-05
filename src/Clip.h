@@ -186,6 +186,7 @@ public:
 	uint32_t indexForSaving; // For use only while saving song
 
 	uint8_t launchStyle;
+	int64_t fillEventAtTickCount;
 
 protected:
 	virtual void

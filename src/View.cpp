@@ -1847,16 +1847,16 @@ int View::clipStatusPadAction(Clip* clip, bool on, int yDisplayIfInSessionView) 
 			enterUIMode(UI_MODE_HOLDING_STATUS_PAD);
 			contextMenuLaunchStyle.clip = clip;
 			sessionView.performActionOnPadRelease = false; // Even though there's a chance we're not in session view
-			if(clip->launchStyle == LAUNCH_STYLE_DEFAULT) {
-				session.toggleClipStatus(clip, NULL, Buttons::isShiftButtonPressed(), INTERNAL_BUTTON_PRESS_LATENCY);
-			} else {
+			//if(clip->launchStyle == LAUNCH_STYLE_DEFAULT) {
+			session.toggleClipStatus(clip, NULL, Buttons::isShiftButtonPressed(), INTERNAL_BUTTON_PRESS_LATENCY);
+			/*} else {
 				if (clip->activeIfNoSolo) {
 					session.toggleClipStatus(clip, NULL, false, INTERNAL_BUTTON_PRESS_LATENCY);
 				} else {
 					session.toggleClipStatus(clip, NULL, true, INTERNAL_BUTTON_PRESS_LATENCY);
 					session.toggleClipStatus(clip, NULL, false, INTERNAL_BUTTON_PRESS_LATENCY);
 				}
-			}
+			}*/
 		} else {
 			exitUIMode(UI_MODE_HOLDING_STATUS_PAD);
 		}
