@@ -16,6 +16,7 @@
 */
 
 #include "gui/views/instrument_clip_view.h"
+#include "gui/views/note_renderer.h"
 #include "gui/views/arranger_view.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
@@ -4624,7 +4625,7 @@ void InstrumentClipView::performActualRender(uint32_t whichRows, uint8_t* image,
 
 			// Otherwise render the row
 			else {
-				noteRow->renderRow(this, rowColour[yDisplay], rowTailColour[yDisplay], rowBlurColour[yDisplay], image,
+				noteRenderer.renderNoteRow(noteRow,this, rowColour[yDisplay], rowTailColour[yDisplay], rowBlurColour[yDisplay], image,
 				                   occupancyMaskOfRow, true, modelStackWithNoteRow->getLoopLength(),
 				                   clip->allowNoteTails(modelStackWithNoteRow), renderWidth, xScroll, xZoom, 0,
 				                   renderWidth, false);

@@ -23,6 +23,7 @@
 #include "gui/context_menu/context_menu_sample_browser_synth.h"
 #include "model/clip/instrument_clip_minder.h"
 #include "gui/views/instrument_clip_view.h"
+#include "gui/views/note_renderer.h"
 #include "modulation/params/param_manager.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "RZA1/system/iodefine.h"
@@ -556,6 +557,7 @@ extern "C" int main2(void) {
      */
 
 	new (&instrumentClipView) InstrumentClipView;
+	new (&noteRenderer) NoteRenderer;
 	new (&sessionView) SessionView;
 	new (&matrixDriver) MatrixDriver;
 	new (&playbackHandler) PlaybackHandler;
