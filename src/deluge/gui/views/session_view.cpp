@@ -48,7 +48,7 @@
 #include "gui/waveform/waveform_renderer.h"
 #include "model/sample/sample_recorder.h"
 #include "model/instrument/melodic_instrument.h"
-#include "gui/menu_item/menu_item_colour.h"
+#include "gui/menu_item/colour.h"
 #include "hid/led/pad_leds.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/buttons.h"

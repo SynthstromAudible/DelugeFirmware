@@ -15,6 +15,7 @@ PointerAlignment: Left
 BreakBeforeBinaryOperators: NonAssignment
 BreakBeforeTernaryOperators: True
 AccessModifierOffset: -4
+AlwaysBreakTemplateDeclarations: Yes
 
 # Not sure about this one, it's a lot of changed lines but I also like
 # alphabetic ordering
