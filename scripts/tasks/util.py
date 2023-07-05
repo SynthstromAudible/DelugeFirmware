@@ -5,6 +5,7 @@ import shutil
 import sysconfig
 from pathlib import Path
 import time
+import fileinput
 
 
 def run(args, redirect_input: bool = True, redirect_output: bool = True):
@@ -19,7 +20,11 @@ def run(args, redirect_input: bool = True, redirect_output: bool = True):
     return process.returncode
 
 
-def find_cmd_with_fallback(cmd:str, fallback: str = None):
+def run_get_output(args):
+    return subprocess.run(args, stdout=subprocess.PIPE).stdout.decode().strip()
+
+
+def find_cmd_with_fallback(cmd: str, fallback: str = None):
     if not fallback:
         fallback = cmd
     which_result = shutil.which(cmd)
@@ -33,8 +38,25 @@ def absolute_path_str(path: str):
     return str(Path(path).absolute())
 
 
-def run_get_output(args):
-    return subprocess.run(args, stdout=subprocess.PIPE).stdout.decode().strip()
+def get_header_and_source_files(path: Path, recursive: bool):
+    glob = path.rglob if recursive else path.glob
+    globs = [
+        glob("*.cc"),
+        glob("*.hh"),
+        glob("*.[ch]xx"),
+        glob("*.[ch]pp"),
+        glob("*.[ch]"),
+    ]
+    return [file for files in globs for file in list(files)]
+
+
+def prepend_file(text: str, path: Path):
+    for linenum, line in enumerate(fileinput.FileInput(path.absolute(), inplace=1)):
+        if linenum == 0:
+            print(text)
+            print(line.rstrip())
+        else:
+            print(line.rstrip())
 
 
 def convert_path_if_mingw(path: str):
@@ -48,8 +70,9 @@ def get_git_root():
     git_root = convert_path_if_mingw(git_root)
     return Path(git_root)
 
+
 # from https://stackoverflow.com/a/34482761
-def progressbar(it, prefix:str, size:int=60, out=sys.stdout):
+def progressbar(it, prefix: str, size: int = 60, out=sys.stdout):
     count = len(it)
 
     def show(j):
@@ -67,13 +90,46 @@ def progressbar(it, prefix:str, size:int=60, out=sys.stdout):
         show(i + 1)
     print("", flush=True, file=out)
 
+
 def do_parallel(func, it):
-    p = multiprocessing.Process(target=func, args=it)
-    p.start()
-    p.join()
-  
-def do_parallel_progressbar(func, it, prefix:str, size:int=60, out=sys.stdout):
+    pool = multiprocessing.Pool()
+    result = pool.map_async(func, it)
+    while not result.ready():
+        time.sleep(1)
+    pool.close()
+    pool.join()
+
+
+class Counter(object):
+    def __init__(self, initval=0):
+        self.val = multiprocessing.RawValue("i", initval)
+        self.lock = multiprocessing.Lock()
+
+    def increment(self):
+        with self.lock:
+            self.val.value += 1
+
+    @property
+    def value(self):
+        return self.val.value
+
+
+## Multiprocessing
+
+
+def init_globals(cntr):
+    global counter
+    counter = cntr
+
+
+def call_and_increment(func, arg):
+    func(arg)
+    counter.increment()
+
+
+def do_parallel_progressbar(func, it, prefix: str, size: int = 60, out=sys.stdout):
     count = len(it)
+
     def show(j):
         x = int(size * j / count)
         print(
@@ -82,7 +138,8 @@ def do_parallel_progressbar(func, it, prefix:str, size:int=60, out=sys.stdout):
             file=out,
             flush=True,
         )
-    show(0)    
+
+    show(0)
 
     pool = multiprocessing.Pool()
     result = pool.map_async(func, it)
