@@ -24,8 +24,9 @@ MidiKnobArray::MidiKnobArray() : ResizeableArray(sizeof(MIDIKnob)) {
 
 MIDIKnob* MidiKnobArray::insertKnob(int i) {
 	int error = insertAtIndex(i);
-	if (error) return NULL;
-
+	if (error) {
+		return NULL;
+	}
 	else {
 		void* address = getElementAddress(i);
 		MIDIKnob* knob = new (address) MIDIKnob();

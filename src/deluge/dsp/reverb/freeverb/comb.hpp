@@ -60,7 +60,8 @@ inline int32_t comb::process(int32_t input) {
 
 	buffer[bufidx] = input + (multiply_32x32_rshift32_rounded(filterstore, feedback) << 1);
 
-	if (++bufidx >= bufsize) bufidx = 0;
+	if (++bufidx >= bufsize)
+		bufidx = 0;
 
 	return output;
 }

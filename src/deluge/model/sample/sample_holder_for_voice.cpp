@@ -54,7 +54,9 @@ void SampleHolderForVoice::unassignAllClusterReasons(bool beingDestructed) {
 		if (clustersForLoopStart[l]) {
 			audioFileManager.removeReasonFromCluster(clustersForLoopStart[l],
 			                                         "E320"); // Happened to me while auto-pilot testing, I think
-			if (!beingDestructed) clustersForLoopStart[l] = NULL;
+			if (!beingDestructed) {
+				clustersForLoopStart[l] = NULL;
+			}
 		}
 	}
 }
@@ -64,7 +66,9 @@ void SampleHolderForVoice::unassignAllClusterReasons(bool beingDestructed) {
 void SampleHolderForVoice::claimClusterReasons(bool reversed, int clusterLoadInstruction) {
 
 #if ALPHA_OR_BETA_VERSION
-	if (!audioFile) numericDriver.freezeWithError("i030"); // Trying to narrow down E368 that Kevin F got
+	if (!audioFile) {
+		numericDriver.freezeWithError("i030"); // Trying to narrow down E368 that Kevin F got
+	}
 #endif
 
 	SampleHolder::claimClusterReasons(reversed, clusterLoadInstruction);
@@ -75,7 +79,9 @@ void SampleHolderForVoice::claimClusterReasons(bool reversed, int clusterLoadIns
 	int loopStartPlaybackAtSample = reversed ? loopEndPos : loopStartPos;
 
 	if (reversed) { // Don't mix this with the above - we want to keep 0s as 0
-		if (loopStartPlaybackAtSample) loopStartPlaybackAtSample--;
+		if (loopStartPlaybackAtSample) {
+			loopStartPlaybackAtSample--;
+		}
 	}
 
 	if (loopStartPlaybackAtSample) {
@@ -106,10 +112,16 @@ void SampleHolderForVoice::recalculateFineTuner() {
 }
 
 uint32_t SampleHolderForVoice::getMSecLimit(Source* source) {
-	if (source->repeatMode == SAMPLE_REPEAT_STRETCH) return 9999999;
+	if (source->repeatMode == SAMPLE_REPEAT_STRETCH) {
+		return 9999999;
+	}
 	else {
-		if (!audioFile) return 0;
-		else return ((Sample*)audioFile)->getLengthInMSec();
+		if (!audioFile) {
+			return 0;
+		}
+		else {
+			return ((Sample*)audioFile)->getLengthInMSec();
+		}
 	}
 }
 
@@ -124,10 +136,12 @@ void SampleHolderForVoice::setTransposeAccordingToSamplePitch(bool minimizeOctav
 
 		// If it's the only range, minimize the transpose
 		if (minimizeOctaves) {
-			while (semitonesInt <= -6)
+			while (semitonesInt <= -6) {
 				semitonesInt += 12;
-			while (semitonesInt > 6)
+			}
+			while (semitonesInt > 6) {
 				semitonesInt -= 12;
+			}
 		}
 
 		else if (rangeCoversJustOneNote) {
@@ -199,7 +213,9 @@ void SampleHolderForVoice::sampleBeenSet(bool reversed, bool manuallySelected) {
 			if (endMSec) {
 				if ((!endPos || endPos == lengthInSamples)) { // && endMSec > startMSec) {
 					endPos = (uint64_t)endMSec * ((Sample*)audioFile)->sampleRate / 1000;
-					if (endPos > lengthInSamples && endPos <= lengthInSamples + 45) endPos = lengthInSamples;
+					if (endPos > lengthInSamples && endPos <= lengthInSamples + 45) {
+						endPos = lengthInSamples;
+					}
 					convertedMSecValues = true;
 				}
 				endMSec = 0;
@@ -210,13 +226,19 @@ void SampleHolderForVoice::sampleBeenSet(bool reversed, bool manuallySelected) {
 				startPos = lengthInSamples - endPos;
 				endPos = lengthInSamples - oldStartPos;
 
-				if (startPos < 0) startPos = 0;
+				if (startPos < 0) {
+					startPos = 0;
+				}
 			}
 		}
 
 		// Check for illegal values - we could have a problem if an audio file got replaced with a shorter one
-		if (loopEndPos > ((Sample*)audioFile)->lengthInSamples) loopEndPos = 0;
-		if (loopStartPos > ((Sample*)audioFile)->lengthInSamples) loopStartPos = 0;
+		if (loopEndPos > ((Sample*)audioFile)->lengthInSamples) {
+			loopEndPos = 0;
+		}
+		if (loopStartPos > ((Sample*)audioFile)->lengthInSamples) {
+			loopStartPos = 0;
+		}
 
 		if (loopEndPos && loopStartPos >= loopEndPos) {
 			loopStartPos = 0; // It's arbitrary which one we set to 0

@@ -66,7 +66,9 @@ AudioClip::AudioClip() : Clip(CLIP_TYPE_AUDIO) {
 }
 
 AudioClip::~AudioClip() {
-	if (recorder) numericDriver.freezeWithError("E278");
+	if (recorder) {
+		numericDriver.freezeWithError("E278");
+	}
 
 	// Sirhc actually got this in a V3.0.5 RC! No idea how. Also Qui got around V3.1.3.
 	// I suspect that recorder is somehow still set when this Clip gets "deleted" by being put in a ConsequenceClipExistence.
@@ -78,7 +80,9 @@ AudioClip::~AudioClip() {
 int AudioClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlattenReversing) {
 
 	void* clipMemory = generalMemoryAllocator.alloc(sizeof(AudioClip), NULL, false, true);
-	if (!clipMemory) return ERROR_INSUFFICIENT_RAM;
+	if (!clipMemory) {
+		return ERROR_INSUFFICIENT_RAM;
+	}
 
 	AudioClip* newClip = new (clipMemory) AudioClip();
 
@@ -113,7 +117,9 @@ void AudioClip::copyBasicsFrom(Clip* otherClip) {
 
 void AudioClip::abortRecording() {
 
-	if (!recorder) return; // This is allowed to happen
+	if (!recorder) {
+		return; // This is allowed to happen
+	}
 
 	renderData.xScroll = -1; // Force re-render
 
@@ -125,7 +131,9 @@ void AudioClip::abortRecording() {
 
 	session.justAbortedSomeLinearRecording();
 
-	if (getRootUI()) getRootUI()->clipNeedsReRendering(this);
+	if (getRootUI()) {
+		getRootUI()->clipNeedsReRendering(this);
+	}
 
 	actionLogger.notifyClipRecordingAborted(this);
 }
@@ -151,14 +159,18 @@ int AudioClip::beginLinearRecording(ModelStackWithTimelineCounter* modelStack, i
 
 	recorder = AudioEngine::getNewRecorder(numChannels, AUDIO_RECORDING_FOLDER_CLIPS, inputChannel, true,
 	                                       shouldRecordMarginsNow, buttonPressLatency);
-	if (!recorder) return ERROR_INSUFFICIENT_RAM;
+	if (!recorder) {
+		return ERROR_INSUFFICIENT_RAM;
+	}
 	recorder->autoDeleteWhenDone = true;
 	return Clip::beginLinearRecording(modelStack, buttonPressLatency);
 }
 
 void AudioClip::finishLinearRecording(ModelStackWithTimelineCounter* modelStack, Clip* nextPendingOverdub,
                                       int buttonLatencyForTempolessRecord) {
-	if (!recorder) return; // Shouldn't ever happen?
+	if (!recorder) {
+		return; // Shouldn't ever happen?
+	}
 
 	// Got to check reachedMaxFileSize here, cos that'll go true a bit before cardRoutine() sets status to ERROR
 	if (recorder->status == RECORDER_STATUS_ABORTED || recorder->reachedMaxFileSize) {
@@ -185,7 +197,9 @@ void AudioClip::finishLinearRecording(ModelStackWithTimelineCounter* modelStack,
 	// SampleRecorder will also call sampleNeedsReRendering() when "capturing" is finished, but in plenty of cases, that
 	// will have happened in the above call to endSyncedRecording(), and our sample hasn't been set yet, so that won't have
 	// been effective. So, we have to call this here too, to cover our bases.
-	if (getRootUI()) getRootUI()->clipNeedsReRendering(this);
+	if (getRootUI()) {
+		getRootUI()->clipNeedsReRendering(this);
+	}
 
 	sampleHolder.filePath.set(&recorder->sample->filePath);
 	sampleHolder.setAudioFile(
@@ -230,18 +244,23 @@ ramError:
 	}
 
 #if ALPHA_OR_BETA_VERSION
-	if (!newClip->paramManager.summaries[0].paramCollection)
+	if (!newClip->paramManager.summaries[0].paramCollection) {
 		numericDriver.freezeWithError("E421"); // Trying to diversify Leo's E410
+	}
 #endif
 
 	return newClip;
 }
 
 bool AudioClip::cloneOutput(ModelStackWithTimelineCounter* modelStack) {
-	if (!overdubsShouldCloneOutput) return false;
+	if (!overdubsShouldCloneOutput) {
+		return false;
+	}
 
 	AudioOutput* newOutput = modelStack->song->createNewAudioOutput();
-	if (!newOutput) return false;
+	if (!newOutput) {
+		return false;
+	}
 
 	newOutput->cloneFrom((AudioOutput*)output);
 
@@ -254,7 +273,9 @@ bool AudioClip::cloneOutput(ModelStackWithTimelineCounter* modelStack) {
 void AudioClip::processCurrentPos(ModelStackWithTimelineCounter* modelStack, uint32_t ticksSinceLast) {
 
 	Clip::processCurrentPos(modelStack, ticksSinceLast);
-	if (modelStack->getTimelineCounter() != this) return;
+	if (modelStack->getTimelineCounter() != this) {
+		return;
+	}
 
 	// If we have a recorder that's gotten into error/aborted state, but we haven't registered that here yet, do that now. This isn't really the ideal place for this...
 	if (recorder && recorder->status == RECORDER_STATUS_ABORTED) {
@@ -308,16 +329,21 @@ doUnassignment:
 
 					// If no pre-margin, then still do go and do the unassignment and start afresh - cos we'll wanna hear that sharp start-point perfectly rather than just fading into it after a play-head reaches its end
 					uint32_t waveformStartByte = ((Sample*)sampleHolder.audioFile)->audioDataStartPosBytes;
-					if (sampleControls.reversed)
+					if (sampleControls.reversed) {
 						waveformStartByte +=
 						    ((Sample*)sampleHolder.audioFile)->audioDataLengthBytes
 						    - sampleHolder.audioFile->numChannels
 						          * ((Sample*)sampleHolder.audioFile)
 						                ->byteDepth; // The actual first sample of the waveform in our given direction, regardless of our elected start-point
+					}
 					int numBytesOfPreMarginAvailable =
 					    (int32_t)(guide.getBytePosToStartPlayback(true) - waveformStartByte);
-					if (sampleControls.reversed) numBytesOfPreMarginAvailable = -numBytesOfPreMarginAvailable;
-					if (numBytesOfPreMarginAvailable <= 0) goto doUnassignment;
+					if (sampleControls.reversed) {
+						numBytesOfPreMarginAvailable = -numBytesOfPreMarginAvailable;
+					}
+					if (numBytesOfPreMarginAvailable <= 0) {
+						goto doUnassignment;
+					}
 
 					// If we were "fudging" a time-stretch just to get a free crossfade, then we can now stop doing all of that. (It should automatically stop eventually anyway, but let's be clean and efficient and just kill it now.)
 					if (voiceSample->fudging) {
@@ -332,7 +358,9 @@ doUnassignment:
 			// Otherwise, get a new VoiceSample
 			else {
 				voiceSample = AudioEngine::solicitVoiceSample();
-				if (!voiceSample) return;
+				if (!voiceSample) {
+					return;
+				}
 			}
 
 			// Ok, get playback all set up
@@ -346,7 +374,9 @@ doUnassignment:
 			voiceSample->setupClusersForInitialPlay(&guide, ((Sample*)sampleHolder.audioFile), 0, false, 1);
 
 possiblyResetEnvelopeAndGetOut:
-			if (shouldResetEnvelope) ((AudioOutput*)output)->resetEnvelope();
+			if (shouldResetEnvelope) {
+				((AudioOutput*)output)->resetEnvelope();
+			}
 		}
 	}
 }
@@ -355,11 +385,14 @@ possiblyResetEnvelopeAndGetOut:
 void AudioClip::resumePlayback(ModelStackWithTimelineCounter* modelStack, bool mayMakeSound) {
 
 #if ALPHA_OR_BETA_VERSION
-	if (!playbackHandler.isEitherClockActive() || !modelStack->song->isClipActive(this))
+	if (!playbackHandler.isEitherClockActive() || !modelStack->song->isClipActive(this)) {
 		numericDriver.freezeWithError("E430");
+	}
 #endif
 
-	if (!sampleHolder.audioFile || ((Sample*)sampleHolder.audioFile)->unplayable) return;
+	if (!sampleHolder.audioFile || ((Sample*)sampleHolder.audioFile)->unplayable) {
+		return;
+	}
 
 	// If reading or writing cache, that's not gonna be valid now that we've moved our play position, so gotta stop that.
 	if (voiceSample && voiceSample->cache) {
@@ -381,9 +414,10 @@ void AudioClip::resumePlayback(ModelStackWithTimelineCounter* modelStack, bool m
 	int32_t currentInternalTickCount = playbackHandler.getCurrentInternalTickCount();
 	int32_t sequenceSyncStartedNumTicksAgo = currentInternalTickCount - sequenceSyncStartedAtTickTrivialValue;
 	if (sequenceSyncStartedNumTicksAgo < 0) { // Shouldn't happen
-		if (ALPHA_OR_BETA_VERSION)
+		if (ALPHA_OR_BETA_VERSION) {
 			numericDriver.freezeWithError("nofg"); // Ron got, Nov 2021. Wait no, he didn't have playback on!
-		sequenceSyncStartedNumTicksAgo = 0;        // The show must go on
+		}
+		sequenceSyncStartedNumTicksAgo = 0; // The show must go on
 	}
 	sequenceSyncStartedNumTicksAgo = (uint32_t)sequenceSyncStartedNumTicksAgo % (uint32_t)loopLength; // Wrapping
 	guide.sequenceSyncStartedAtTick =
@@ -392,7 +426,9 @@ void AudioClip::resumePlayback(ModelStackWithTimelineCounter* modelStack, bool m
 	setupPlaybackBounds();
 	sampleZoneChanged(modelStack); // Will only do any thing if there is in fact a voiceSample - which is what we want
 
-	if (!mayMakeSound) return;
+	if (!mayMakeSound) {
+		return;
+	}
 
 	// If already time stretching, no need to do anything - that'll take care of the new play-position.
 	// Also can only do this if envelope not releasing, which (possibly not anymore since I fixed other bug) it can still be if this is our second quick successive <>+play starting playback partway through Clip
@@ -417,7 +453,9 @@ void AudioClip::resumePlayback(ModelStackWithTimelineCounter* modelStack, bool m
 	// Otherwise, get a new VoiceSample
 	else {
 		voiceSample = AudioEngine::solicitVoiceSample();
-		if (!voiceSample) return;
+		if (!voiceSample) {
+			return;
+		}
 
 		voiceSample->noteOn(&guide, 0, 1);
 		voiceSample->forAudioClip = true;
@@ -457,7 +495,9 @@ int64_t AudioClip::getNumSamplesTilLoop(ModelStackWithTimelineCounter* modelStac
 void AudioClip::render(ModelStackWithTimelineCounter* modelStack, int32_t* outputBuffer, int numSamples,
                        int32_t amplitude, int32_t amplitudeIncrement, int32_t pitchAdjust) {
 
-	if (!voiceSample) return;
+	if (!voiceSample) {
+		return;
+	}
 
 	Sample* sample = ((Sample*)sampleHolder.audioFile);
 
@@ -575,10 +615,11 @@ justDontTimeStretch:
 			int bytesPerSample = sample->byteDepth * sample->numChannels;
 
 			int32_t startByte = sample->audioDataStartPosBytes;
-			if (guide.playDirection != 1)
+			if (guide.playDirection != 1) {
 				startByte +=
 				    sample->audioDataLengthBytes
 				    - bytesPerSample; // The actual first sample of the waveform in our given direction, regardless of our elected start-point
+			}
 
 			int numBytesOfPreMarginAvailable =
 			    (int32_t)(guide.getBytePosToStartPlayback(true) - startByte) * guide.playDirection;
@@ -608,7 +649,9 @@ justDontTimeStretch:
 							// Fudge some time-stretching
 							bool success = voiceSample->fudgeTimeStretchingToAvoidClick(
 							    sample, &guide, phaseIncrement, numSamplesTilLoop, guide.playDirection, priorityRating);
-							if (!success) goto doUnassign;
+							if (!success) {
+								goto doUnassign;
+							}
 						}
 					}
 				}
@@ -648,7 +691,9 @@ justDontTimeStretch:
 		// We want it to think this, otherwise problems if we've put the end point after the actual waveform end.
 		bool everythingOk =
 		    voiceSample->possiblySetUpCache(&sampleControls, &guide, phaseIncrement, timeStretchRatio, 1, 0);
-		if (!everythingOk) goto doUnassign;
+		if (!everythingOk) {
+			goto doUnassign;
+		}
 	}
 
 	{
@@ -741,8 +786,12 @@ void AudioClip::posReachedEnd(ModelStackWithTimelineCounter* modelStack) {
 		Uart::print("AudioClip::posReachedEnd, at pos: ");
 		Uart::println(playbackHandler.getActualArrangementRecordPos());
 
-		if (!modelStack->song->arrangementOnlyClips.ensureEnoughSpaceAllocated(1)) return;
-		if (!output->clipInstances.ensureEnoughSpaceAllocated(1)) return;
+		if (!modelStack->song->arrangementOnlyClips.ensureEnoughSpaceAllocated(1)) {
+			return;
+		}
+		if (!output->clipInstances.ensureEnoughSpaceAllocated(1)) {
+			return;
+		}
 
 		int32_t arrangementRecordPos = playbackHandler.getActualArrangementRecordPos();
 
@@ -756,7 +805,9 @@ void AudioClip::posReachedEnd(ModelStackWithTimelineCounter* modelStack) {
 		}
 
 		int error = beingRecordedFromClip->clone(modelStack); // Puts the new Clip in the modelStack.
-		if (error) return;
+		if (error) {
+			return;
+		}
 
 		Clip* newClip = (Clip*)modelStack->getTimelineCounter();
 
@@ -770,7 +821,9 @@ void AudioClip::posReachedEnd(ModelStackWithTimelineCounter* modelStack) {
 		clipInstanceI++;
 
 		error = output->clipInstances.insertAtIndex(clipInstanceI); // Shouldn't be able to fail...
-		if (error) return;
+		if (error) {
+			return;
+		}
 
 		ClipInstance* clipInstance = output->clipInstances.getElement(clipInstanceI);
 		clipInstance->clip = newClip;
@@ -817,7 +870,9 @@ doNormal:
 
 			ParamManagerForTimeline newParamManager;
 			int error = newParamManager.cloneParamCollectionsFrom(&paramManager, true);
-			if (error) goto doNormal; // If out of RAM, leave ParamManager behind
+			if (error) {
+				goto doNormal; // If out of RAM, leave ParamManager behind
+			}
 
 			song->backUpParamManager((ModControllableAudio*)output->toModControllable(), NULL, &newParamManager);
 			// Obscure bug fixed, Oct 2022. Previously, we filed it away under not just the ModControllable, but also this Clip.
@@ -827,7 +882,9 @@ doNormal:
 		}
 	}
 
-	if (!shouldRetainLinksToOutput) output = NULL;
+	if (!shouldRetainLinksToOutput) {
+		output = NULL;
+	}
 }
 
 int64_t AudioClip::getSamplesFromTicks(int32_t ticks) {
@@ -879,10 +936,13 @@ bool AudioClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, Tim
 	//Uart::println("AudioClip::renderAsSingleRow");
 
 	Sample* sample;
-	if (recorder)
+	if (recorder) {
 		sample =
 		    ((recorder->status == RECORDER_STATUS_ABORTED || recorder->reachedMaxFileSize) ? NULL : recorder->sample);
-	else sample = ((Sample*)sampleHolder.audioFile);
+	}
+	else {
+		sample = ((Sample*)sampleHolder.audioFile);
+	}
 
 	if (sample) {
 
@@ -908,8 +968,9 @@ bool AudioClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, Tim
 		                        noteRowIndexStart, noteRowIndexEnd, xStart, xEnd, allowBlur, drawRepeats);
 	}
 
-	if (addUndefinedArea)
+	if (addUndefinedArea) {
 		drawUndefinedArea(xScroll, xZoom, loopLength, image, occupancyMask, displayWidth, editorScreen, false);
+	}
 
 	return true;
 }
@@ -923,14 +984,21 @@ void AudioClip::writeDataToFile(Song* song) {
 	storageManager.writeAttribute("startSamplePos", sampleHolder.startPos);
 	storageManager.writeAttribute("endSamplePos", sampleHolder.endPos);
 	storageManager.writeAttribute("pitchSpeedIndependent", sampleControls.pitchAndSpeedAreIndependent);
-	if (sampleControls.interpolationMode == INTERPOLATION_MODE_LINEAR)
+	if (sampleControls.interpolationMode == INTERPOLATION_MODE_LINEAR) {
 		storageManager.writeAttribute("linearInterpolation", 1);
-	if (sampleControls.reversed) storageManager.writeAttribute("reversed", "1");
+	}
+	if (sampleControls.reversed) {
+		storageManager.writeAttribute("reversed", "1");
+	}
 	storageManager.writeAttribute("attack", attack);
 	storageManager.writeAttribute("priority", voicePriority);
 
-	if (sampleHolder.transpose) storageManager.writeAttribute("transpose", sampleHolder.transpose);
-	if (sampleHolder.cents) storageManager.writeAttribute("cents", sampleHolder.cents);
+	if (sampleHolder.transpose) {
+		storageManager.writeAttribute("transpose", sampleHolder.transpose);
+	}
+	if (sampleHolder.cents) {
+		storageManager.writeAttribute("cents", sampleHolder.cents);
+	}
 
 	storageManager.writeAttribute("overdubsShouldCloneAudioTrack", overdubsShouldCloneOutput);
 
@@ -987,8 +1055,9 @@ someError:
 		}
 
 		else if (!strcmp(tagName, "linearInterpolation")) {
-			if (storageManager.readTagOrAttributeValueInt())
+			if (storageManager.readTagOrAttributeValueInt()) {
 				sampleControls.interpolationMode = INTERPOLATION_MODE_LINEAR;
+			}
 		}
 
 		else if (!strcmp(tagName, "attack")) {
@@ -1017,7 +1086,9 @@ someError:
 			GlobalEffectableForClip::readParamsFromFile(&paramManager, readAutomationUpToPos);
 		}
 
-		else readTagFromFile(tagName, song, &readAutomationUpToPos);
+		else {
+			readTagFromFile(tagName, song, &readAutomationUpToPos);
+		}
 
 		storageManager.exitTag();
 	}
@@ -1038,7 +1109,9 @@ int AudioClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 
 void AudioClip::loadSample(bool mayActuallyReadFile) {
 	int error = sampleHolder.loadFile(sampleControls.reversed, false, mayActuallyReadFile);
-	if (error) numericDriver.displayError(error);
+	if (error) {
+		numericDriver.displayError(error);
+	}
 }
 
 // Keeps same ParamManager
@@ -1052,7 +1125,9 @@ int AudioClip::setOutput(ModelStackWithTimelineCounter* modelStack, Output* newO
                          AudioClip* favourClipForCloningParamManager) {
 	output = newOutput;
 	int error = solicitParamManager(modelStack->song, NULL, favourClipForCloningParamManager);
-	if (error) return error;
+	if (error) {
+		return error;
+	}
 
 	outputChanged(modelStack, newOutput);
 

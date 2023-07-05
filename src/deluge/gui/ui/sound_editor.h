@@ -44,6 +44,9 @@ class ModControllableAudio;
 class ModelStackWithThreeMainThings;
 class AudioFileHolder;
 class MIDIDevice;
+namespace menu_item {
+enum class RangeEdit : uint8_t;
+}
 
 class SoundEditor final : public UI {
 public:
@@ -63,7 +66,7 @@ public:
 	uint8_t* currentPriority;
 	int16_t currentMultiRangeIndex;
 	MIDIDevice* currentMIDIDevice;
-	uint8_t editingRangeEdge;
+	menu_item::RangeEdit editingRangeEdge;
 
 	int buttonAction(int x, int y, bool on, bool inCardRoutine);
 	int padAction(int x, int y, int velocity);
