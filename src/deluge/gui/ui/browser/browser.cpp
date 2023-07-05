@@ -72,7 +72,7 @@ Browser::Browser() {
 	scrollingText = NULL;
 	shouldWrapFolderContents = true;
 #endif
-	allowBrandNewNames = false;
+	mayDefaultToBrandNewNameOnEntry = false;
 	qwertyAlwaysVisible = true;
 	qwertyVisible = true; // Because for most Browsers, it'll just always be true.
 	filePrefix = NULL;
@@ -506,7 +506,7 @@ gotErrorAfterAllocating:
 noExactFileFound:
 			// We did not find exact file.
 			// Normally, we'll need to just use one of the ones we found. (That's just always the first one, I think...)
-			if (!allowBrandNewNames || direction) {
+			if (!mayDefaultToBrandNewNameOnEntry || direction) {
 
 				// But since we're going to just use the first file, if we've deleted items at the start (meaning we had a search string), we need to go back and get them.
 				if (numFileItemsDeletedAtStart) {
@@ -542,7 +542,7 @@ useFoundFile:
 		fileIndexSelected = i;
 
 		// Usually we'll just use that file.
-		if (!allowBrandNewNames || direction) goto setEnteredTextAndUseFoundFile;
+		if (!mayDefaultToBrandNewNameOnEntry || direction) goto setEnteredTextAndUseFoundFile;
 
 		// We found an exact file. But if we've just entered the Browser and are allowed, then we need to find a new subslot variation.
 		// Come up with a new name variation.
@@ -676,7 +676,7 @@ noNumberYet:
 	// Or if no files found at all...
 	else {
 		// Can we just pick a brand new name?
-		if (allowBrandNewNames && !direction) {
+		if (mayDefaultToBrandNewNameOnEntry && !direction) {
 pickBrandNewNameIfNoneNominated:
 			if (enteredText.isEmpty()) {
 				error = getUnusedSlot(255, &enteredText, "SONG");
@@ -1033,7 +1033,8 @@ gotErrorAfterAllocating:
 
 		// Otherwise if we already tried that, then our whole search is fruitless.
 notFound:
-		if (!allowBrandNewNames) {
+		if (false
+		    && !mayDefaultToBrandNewNameOnEntry) { // Disabled - now you're again always allowed to type characters even if no such file exists.
 			if (fileIndexSelected >= 0) {
 				setEnteredTextFromCurrentFilename(); // Set it back
 			}
