@@ -417,66 +417,58 @@ void drawChar(uint8_t theChar, int pixelX, int pixelY, uint8_t* image, int image
 	uint8_t const* font;
 	int fontNativeHeight;
 
-	if (textHeight == 20) {
-use20pxFont:
-		fontNativeHeight = 20;
-		descriptor = font_metric_bold_20px_desc;
-		font = font_metric_bold_20px;
-renderFont:
-		descriptor += charIndex;
-
-#if DO_CHARACTER_SCALING
-		int scaledFontWidth =
-		    (uint16_t)(descriptor->w_px * textHeight + (fontNativeHeight >> 1) - 1) / (uint8_t)fontNativeHeight;
-#else
-		int scaledFontWidth = descriptor->w_px;
-#endif
-		pixelX += (spacingX - scaledFontWidth) >> 1;
-
-		if (pixelX < 0) {
-			scrollPos += -pixelX;
-			pixelX = 0;
-		}
-
-		int bytesPerCol = ((textHeight - 1) >> 3) + 1;
-
-		int textWidth = descriptor->w_px - scrollPos;
-		drawGraphicMultiLine(&font[descriptor->glyph_index + scrollPos * bytesPerCol], pixelX, pixelY, textWidth, image,
-		                     textHeight, bytesPerCol);
-	}
-
-	else if (textHeight == 13) {
-		descriptor = font_metric_bold_13px_desc;
-		font = font_metric_bold_13px;
-		fontNativeHeight = 13;
-		goto renderFont;
-	}
-
-	else if (textHeight == 10) {
+	switch (textHeight) {
+	case 9:
+		pixelY++;
+		[[fallthrough]];
+	case 7:
+		[[fallthrough]];
+	case 8:
+		textHeight = 7;
+		descriptor = font_apple_desc;
+		font = font_apple;
+		fontNativeHeight = 8;
+		break;
+	case 10:
 		textHeight = 9;
 		descriptor = font_metric_bold_9px_desc;
 		font = font_metric_bold_9px;
 		fontNativeHeight = 9;
-		goto renderFont;
+		break;
+	case 13:
+		descriptor = font_metric_bold_13px_desc;
+		font = font_metric_bold_13px;
+		fontNativeHeight = 13;
+		break;
+	case 20:
+		[[fallthrough]];
+	default:
+		fontNativeHeight = 20;
+		descriptor = font_metric_bold_20px_desc;
+		font = font_metric_bold_20px;
+		break;
 	}
 
-	else if (textHeight == 9) {
-		pixelY++;
-		goto use7pxFont;
+	descriptor += charIndex;
+
+#if DO_CHARACTER_SCALING
+	int scaledFontWidth =
+	    (uint16_t)(descriptor->w_px * textHeight + (fontNativeHeight >> 1) - 1) / (uint8_t)fontNativeHeight;
+#else
+	int scaledFontWidth = descriptor->w_px;
+#endif
+	pixelX += (spacingX - scaledFontWidth) >> 1;
+
+	if (pixelX < 0) {
+		scrollPos += -pixelX;
+		pixelX = 0;
 	}
 
-	else if (textHeight == 7 || textHeight == 8) {
-use7pxFont:
-		textHeight = 7;
-		descriptor = font_apple_desc;
-		font = font_apple;
-		fontNativeHeight = 7;
-		goto renderFont;
-	}
+	int bytesPerCol = ((textHeight - 1) >> 3) + 1;
 
-	else {
-		goto use20pxFont;
-	}
+	int textWidth = descriptor->w_px - scrollPos;
+	drawGraphicMultiLine(&font[descriptor->glyph_index + scrollPos * bytesPerCol], pixelX, pixelY, textWidth, image,
+	                     textHeight, bytesPerCol);
 }
 
 void drawScreenTitle(char const* title) {
