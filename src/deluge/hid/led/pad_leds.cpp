@@ -18,9 +18,9 @@
 #include "processing/engines/audio_engine.h"
 #include "hid/led/pad_leds.h"
 #include "gui/waveform/waveform_render_data.h"
-#include <string.h>
+#include <cstring>
 #include "gui/ui_timer_manager.h"
-#include "gui/menu_item/menu_item_colour.h"
+#include "gui/menu_item/colour.h"
 #include "model/song/song.h"
 #include "gui/views/session_view.h"
 #include "model/clip/audio_clip.h"
@@ -186,7 +186,7 @@ void setTickSquares(const uint8_t* squares, const uint8_t* colours) {
 				if (colours[y] == 1) { // "Muted" colour
 					colourMessage = 10;
 					uint8_t mutedColour[3];
-					mutedColourMenu.getRGB(mutedColour);
+					menu_item::mutedColourMenu.getRGB(mutedColour);
 					for (int c = 0; c < 3; c++) {
 						if (mutedColour[c] >= 64) {
 							colourMessage += (1 << c);
@@ -283,7 +283,7 @@ void sendRGBForOnePadFast(int x, int y, const uint8_t* colourSource) {
 
 	if (flashCursor == FLASH_CURSOR_SLOW && slowFlashSquares[y] == x && currentUIMode != UI_MODE_HORIZONTAL_SCROLL) {
 		if (slowFlashColours[y] == 1) { // If it's to be the "muted" colour, get that
-			mutedColourMenu.getRGB(temp);
+			menu_item::mutedColourMenu.getRGB(temp);
 			colourSource = temp;
 		}
 		else { // Otherwise, pull from a referenced table line

@@ -18,8 +18,8 @@
 #ifndef RUNTIMEFEATURESETTINGS_H_
 #define RUNTIMEFEATURESETTINGS_H_
 
-#include <stdint.h>
-#include "gui/menu_item/menu_item_runtime_feature_setting.h"
+#include <cstdint>
+#include "gui/menu_item/runtime_feature/setting.h"
 #include "util/d_string.h"
 #include "util/container/array/resizeable_array.h"
 
@@ -103,8 +103,8 @@ private:
 	ResizeableArray unknownSettings;
 
 public:
-	friend class MenuItemRuntimeFeatureSetting;
-	friend class MenuItemRuntimeFeatureSettings;
+	friend class menu_item::runtime_feature::Setting;
+	friend class menu_item::runtime_feature::Settings;
 };
 
 /// Static instance for external access

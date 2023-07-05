@@ -25,7 +25,7 @@
 #include "storage/storage_manager.h"
 #include "io/midi/midi_engine.h"
 #include "gui/ui/sound_editor.h"
-#include "gui/menu_item/menu_item_mpe_zone_num_member_channels.h"
+#include "gui/menu_item/mpe/zone_num_member_channels.h"
 #include "hid/display/oled.h"
 
 extern "C" {

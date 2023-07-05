@@ -20,7 +20,7 @@
 
 #include "RZA1/system/r_typedefs.h"
 #include "util/lookuptables/lookuptables.h"
-#include <string.h>
+#include <cstring>
 #include "ff.h"
 #include "definitions.h"
 
@@ -102,8 +102,10 @@ static inline int32_t add_saturation(int32_t a, int32_t b) {
 }
 
 // computes limit((val >> rshift), 2**bits)
-template <uint8_t bits> static inline int32_t signed_saturate(int32_t val) __attribute__((always_inline, unused));
-template <uint8_t bits> static inline int32_t signed_saturate(int32_t val) {
+template <uint8_t bits>
+static inline int32_t signed_saturate(int32_t val) __attribute__((always_inline, unused));
+template <uint8_t bits>
+static inline int32_t signed_saturate(int32_t val) {
 	int32_t out;
 	asm("ssat %0, %1, %2" : "=r"(out) : "I"(bits), "r"(val));
 	return out;
@@ -157,7 +159,8 @@ inline int32_t signed_saturate_operand_unknown(int32_t val, int bits) {
 	}
 }
 
-template <uint8_t lshift> inline int32_t lshiftAndSaturate(int32_t val) {
+template <uint8_t lshift>
+inline int32_t lshiftAndSaturate(int32_t val) {
 	return signed_saturate<32 - lshift>(val) << lshift;
 }
 
@@ -344,7 +347,8 @@ inline int32_t interpolateTableSigned2d(uint32_t inputX, uint32_t inputY, int nu
 	return multiply_32x32_rshift32(value1, strength1) + multiply_32x32_rshift32(value2, strength2);
 }
 
-template <unsigned saturationAmount> inline int32_t getTanH(int32_t input) {
+template <unsigned saturationAmount>
+inline int32_t getTanH(int32_t input) {
 	uint32_t workingValue;
 
 	if (saturationAmount)

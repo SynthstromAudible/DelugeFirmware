@@ -61,7 +61,7 @@
 #include "gui/ui/ui.h"
 #include "gui/views/audio_clip_view.h"
 #include "gui/waveform/waveform_renderer.h"
-#include "gui/menu_item/menu_item_colour.h"
+#include "gui/menu_item/colour.h"
 #include "hid/led/pad_leds.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/encoders.h"
@@ -520,7 +520,7 @@ doBlack:
 
 	// Soloing - blue
 	else if (outputsOnScreen[yDisplay]->soloingInArrangementMode) {
-		soloColourMenu.getRGB(thisColour);
+		menu_item::soloColourMenu.getRGB(thisColour);
 	}
 
 	// Or if not soloing...
@@ -528,12 +528,12 @@ doBlack:
 
 		// Muted - yellow
 		if (outputsOnScreen[yDisplay]->mutedInArrangementMode) {
-			mutedColourMenu.getRGB(thisColour);
+			menu_item::mutedColourMenu.getRGB(thisColour);
 		}
 
 		// Otherwise, green
 		else {
-			activeColourMenu.getRGB(thisColour);
+			menu_item::activeColourMenu.getRGB(thisColour);
 		}
 
 		if (currentSong->getAnyOutputsSoloingInArrangement()) {
