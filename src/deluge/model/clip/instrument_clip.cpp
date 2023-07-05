@@ -3181,7 +3181,7 @@ NoteRow* InstrumentClip::getNoteRowFromId(int id) {
 	}
 }
 
-void InstrumentClip::shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int amount) {
+bool InstrumentClip::shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int amount) {
 
 	if (paramManager.containsAnyParamCollectionsIncludingExpression()) {
 		paramManager.shiftHorizontally(
@@ -3199,6 +3199,7 @@ void InstrumentClip::shiftHorizontally(ModelStackWithTimelineCounter* modelStack
 		expectEvent();
 		reGetParameterAutomation(modelStack); // Re-gets all NoteRow-level param automation too
 	}
+	return true;
 }
 
 void InstrumentClip::shiftOnlyOneNoteRowHorizontally(ModelStackWithNoteRow* modelStack, int shiftAmount) {
