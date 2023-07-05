@@ -142,6 +142,8 @@ int SessionView::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 			uint8_t* modKnobModePointer = view.activeModControllableModelStack.modControllable->getModKnobMode();
 			if (modKnobModePointer) modKnobMode = *modKnobModePointer;
 		}
+		const char* paramLabels[] = {"THRE", "MAKE", "ATTK", "REL", "RATI", "MIX"};
+
 		if (modKnobMode == 4 && x == modEncoder1ButtonX && y == modEncoder1ButtonY && on) {
 			masterCompEditMode++;
 			masterCompEditMode = masterCompEditMode % 6; //toggle master compressor setting
@@ -150,24 +152,7 @@ int SessionView::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 				modEncoderAction(1, 0);
 			}
 			else {
-				if (masterCompEditMode == 0) {
-					numericDriver.displayPopup("THRE");
-				}
-				else if (masterCompEditMode == 1) {
-					numericDriver.displayPopup("MAKE");
-				}
-				else if (masterCompEditMode == 2) {
-					numericDriver.displayPopup("ATTK");
-				}
-				else if (masterCompEditMode == 3) {
-					numericDriver.displayPopup("REL");
-				}
-				else if (masterCompEditMode == 4) {
-					numericDriver.displayPopup("RATI");
-				}
-				else if (masterCompEditMode == 5) {
-					numericDriver.displayPopup("WET");
-				}
+				numericDriver.displayPopup(paramLabels[masterCompEditMode]);
 			}
 			return ACTION_RESULT_DEALT_WITH;
 		}
@@ -499,6 +484,45 @@ void SessionView::beginEditingSectionRepeatsNum() {
 }
 
 int SessionView::padAction(int xDisplay, int yDisplay, int on) {
+
+	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressor)
+	    == RuntimeFeatureStateToggle::On) { //master compressor
+		int modKnobMode = -1;
+		if (view.activeModControllableModelStack.modControllable) {
+			uint8_t* modKnobModePointer = view.activeModControllableModelStack.modControllable->getModKnobMode();
+			if (modKnobModePointer) modKnobMode = *modKnobModePointer;
+		}
+		const char* paramLabels[] = {"THRE", "MAKE", "ATTK", "REL", "RATI", "MIX"};
+
+		if (modKnobMode == 4 && Buttons::isShiftButtonPressed() && xDisplay == 10 && yDisplay < 6 && on) {
+			if (yDisplay == 0) {        //[RELEASE]
+				masterCompEditMode = 3; //REL
+			}
+			else if (yDisplay == 1) {   //[SYNC]
+				masterCompEditMode = 1; //MAKE
+			}
+			else if (yDisplay == 2) {   //[VOL DUCK]
+				masterCompEditMode = 0; //THRE
+			}
+			else if (yDisplay == 3) {   //[ATTAK]
+				masterCompEditMode = 2; //ATTK
+			}
+			else if (yDisplay == 4) {   //[SHAPE]
+				masterCompEditMode = 4; //RATI
+			}
+			else if (yDisplay == 5) {   //[SEND]
+				masterCompEditMode = 5; //MIX
+			}
+
+			if (HAVE_OLED) {
+				modEncoderAction(1, 0);
+			}
+			else {
+				numericDriver.displayPopup(paramLabels[masterCompEditMode]);
+			}
+			return ACTION_RESULT_DEALT_WITH;
+		}
+	}
 
 	Clip* clip = getClipOnScreen(yDisplay);
 	int clipIndex = yDisplay + currentSong->songViewYScroll;

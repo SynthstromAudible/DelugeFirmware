@@ -56,7 +56,7 @@ void invertArea(int xMin, int width, int startY, int endY, uint8_t image[][OLED_
 
 void sendMainImage();
 
-void setupPopup(int width, int height /*, uint8_t image[][OLED_MAIN_WIDTH_PIXELS]*/);
+void setupPopup(int width, int height);
 void removePopup();
 void popupText(char const* text, bool persistent = false);
 bool isPopupPresent();

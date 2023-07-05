@@ -23,7 +23,6 @@ MasterCompressor::MasterCompressor() {
 	compressor.initRuntime();
 	compressor.setAttack(10.0);
 	compressor.setRelease(100.0);
-	//compressor.setThresh(0.5f);// dB = 20 * log10(value) , value = 10^(dB/20)
 	compressor.setThresh(0.0);       //threshold (dB) 0...-69
 	compressor.setRatio(1.0 / 4.00); //ratio (compression: < 1 ; expansion: > 1)
 	makeup = 1.0;                    //value;
@@ -37,12 +36,8 @@ void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples) {
 	StereoSample* bufferEnd = buffer + numSamples;
 	if (compressor.getThresh() < -0.001) {
 		do {
-			double l =
-			    thisSample->l
-			    / 2147483648.0; //(thisSample->l < 0)? thisSample->l / 2147483648.0 : thisSample->l / 2147483647.0 ;
-			double r =
-			    thisSample->r
-			    / 2147483648.0; //(thisSample->r < 0)? thisSample->r / 2147483648.0 : thisSample->r / 2147483647.0 ;
+			double l = thisSample->l / 2147483648.0;
+			double r = thisSample->r / 2147483648.0;
 			double rawl = l;
 			double rawr = r;
 			compressor.process(l, r);
@@ -59,9 +54,78 @@ void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples) {
 				r = rawr * (1.0 - wet) + r * wet;
 			}
 
-			thisSample->l = l * 2147483647; //l < 0? (int)(l*2147483648) : (int)(l*2147483647);
-			thisSample->r = r * 2147483647; //r < 0? (int)(r*2147483648) : (int)(r*2147483647);
+			thisSample->l = l * 2147483647;
+			thisSample->r = r * 2147483647;
 
 		} while (++thisSample != bufferEnd);
 	}
 }
+
+namespace chunkware_simple {
+//-------------------------------------------------------------
+// envelope detector
+//-------------------------------------------------------------
+EnvelopeDetector::EnvelopeDetector(double timeConstant, double sampleRate) {
+	assert(sampleRate > 0.0);
+	assert(timeConstant > 0.0);
+	sampleRate_ = sampleRate;
+	timeConstant_ = timeConstant;
+	setCoef();
+}
+//-------------------------------------------------------------
+void EnvelopeDetector::setTc(double timeConstant) {
+	assert(timeConstant > 0.0);
+	timeConstant_ = timeConstant;
+	setCoef();
+}
+//-------------------------------------------------------------
+void EnvelopeDetector::setSampleRate(double sampleRate) {
+	assert(sampleRate > 0.0);
+	sampleRate_ = sampleRate;
+	setCoef();
+}
+//-------------------------------------------------------------
+void EnvelopeDetector::setCoef(void) {
+	nSamplesInverse_ = exp(-1000.0 / (timeConstant_ * sampleRate_));
+}
+
+//-------------------------------------------------------------
+// attack/release envelope
+//-------------------------------------------------------------
+AttRelEnvelope::AttRelEnvelope(double att_ms, double rel_ms, double sampleRate)
+    : attackEnvelope_(att_ms, sampleRate), releaseEnvelope_(rel_ms, sampleRate) {
+}
+//-------------------------------------------------------------
+void AttRelEnvelope::setAttack(double ms) {
+	attackEnvelope_.setTc(ms);
+}
+//-------------------------------------------------------------
+void AttRelEnvelope::setRelease(double ms) {
+	releaseEnvelope_.setTc(ms);
+}
+//-------------------------------------------------------------
+void AttRelEnvelope::setSampleRate(double sampleRate) {
+	attackEnvelope_.setSampleRate(sampleRate);
+	releaseEnvelope_.setSampleRate(sampleRate);
+}
+
+//-------------------------------------------------------------
+// simple compressor
+//-------------------------------------------------------------
+SimpleComp::SimpleComp() : AttRelEnvelope(10.0, 100.0), threshdB_(0.0), ratio_(1.0), envdB_(DC_OFFSET) {
+}
+//-------------------------------------------------------------
+void SimpleComp::setThresh(double dB) {
+	threshdB_ = dB;
+}
+//-------------------------------------------------------------
+void SimpleComp::setRatio(double ratio) {
+	assert(ratio > 0.0);
+	ratio_ = ratio;
+}
+//-------------------------------------------------------------
+void SimpleComp::initRuntime(void) {
+	envdB_ = DC_OFFSET;
+}
+
+} // end namespace chunkware_simple
