@@ -174,11 +174,11 @@ Song::~Song() {
 	deleteHibernatingMIDIInstrument();
 }
 
-#include "gui/menu_item/menu_item_integer_range.h"
-#include "gui/menu_item/menu_item_key_range.h"
-extern MenuItemIntegerRange defaultTempoMenu;
-extern MenuItemIntegerRange defaultSwingMenu;
-extern MenuItemKeyRange defaultKeyMenu;
+#include "gui/menu_item/integer_range.h"
+#include "gui/menu_item/key_range.h"
+extern menu_item::IntegerRange defaultTempoMenu;
+extern menu_item::IntegerRange defaultSwingMenu;
+extern menu_item::KeyRange defaultKeyMenu;
 
 void Song::setupDefault() {
 	inClipMinderViewOnLoad = true;
