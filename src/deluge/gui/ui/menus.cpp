@@ -93,6 +93,7 @@
 #include "gui/menu_item/patch_cable_strength/fixed.h"
 #include "gui/menu_item/patch_cable_strength/range.h"
 #include "gui/menu_item/patch_cable_strength/regular.h"
+#include "gui/menu_item/patch_cables.h"
 #include "gui/menu_item/patched_param.h"
 #include "gui/menu_item/patched_param/integer.h"
 #include "gui/menu_item/patched_param/integer_non_fm.h"
@@ -832,13 +833,36 @@ bend_range::PerFinger drumBendRangeMenu{"Bend range"}; // The single option avai
 patched_param::Integer volumeMenu{HAVE_OLED ? "Level" : "VOLUME", "Master level", ::Param::Global::VOLUME_POST_FX};
 patched_param::Pan panMenu{"PAN", ::Param::Local::PAN};
 
+PatchCables patchCablesMenu{"mod matrix"};
+
 menu_item::Submenu soundEditorRootMenu{
     "Sound",
     {
-        &source0Menu,    &source1Menu, &modulator0Menu,    &modulator1Menu,    &noiseMenu,    &masterTransposeMenu,
-        &vibratoMenu,    &lpfMenu,     &hpfMenu,           &filterRoutingMenu, &drumNameMenu, &synthModeMenu,
-        &env0Menu,       &env1Menu,    &lfo0Menu,          &lfo1Menu,          &voiceMenu,    &fxMenu,
-        &compressorMenu, &bendMenu,    &drumBendRangeMenu, &volumeMenu,        &panMenu,      &sequenceDirectionMenu,
+        &source0Menu,
+        &source1Menu,
+        &modulator0Menu,
+        &modulator1Menu,
+        &noiseMenu,
+        &masterTransposeMenu,
+        &vibratoMenu,
+        &lpfMenu,
+        &hpfMenu,
+        &filterRoutingMenu,
+        &drumNameMenu,
+        &synthModeMenu,
+        &env0Menu,
+        &env1Menu,
+        &lfo0Menu,
+        &lfo1Menu,
+        &voiceMenu,
+        &fxMenu,
+        &compressorMenu,
+        &bendMenu,
+        &drumBendRangeMenu,
+        &volumeMenu,
+        &panMenu,
+        &patchCablesMenu,
+        &sequenceDirectionMenu,
     },
 };
 

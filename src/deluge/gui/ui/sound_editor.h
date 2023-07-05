@@ -76,7 +76,11 @@ public:
 	ActionResult horizontalEncoderAction(int32_t offset);
 	bool editingKit();
 
+	ActionResult timerCallback() override;
+
 	void setupShortcutBlink(int32_t x, int32_t y, int32_t frequency);
+	bool findPatchedParam(int32_t paramLookingFor, int32_t* xout, int32_t* yout);
+	void updateSourceBlinks(MenuItem* currentItem);
 
 	int32_t menuCurrentScroll;
 
