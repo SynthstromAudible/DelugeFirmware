@@ -129,6 +129,8 @@ public:
 	void setSequenceDirectionMode(ModelStackWithTimelineCounter* modelStack, int newSequenceDirection);
 	bool possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* modelStack);
 	virtual void incrementPos(ModelStackWithTimelineCounter* modelStack, int32_t numTicks);
+	/// Return true if successfully shifted
+	virtual bool shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int amount) = 0;
 
 	// ----- PlayPositionCounter implementation -------
 	int32_t getLoopLength();
