@@ -25,7 +25,9 @@ namespace menu_item::mpe {
 ZoneSelector zoneSelectorMenu{};
 
 void ZoneSelector::beginSession(MenuItem* navigatedBackwardFrom) {
-	if (!navigatedBackwardFrom) whichZone = 0;
+	if (!navigatedBackwardFrom) {
+		whichZone = 0;
+	}
 	Selection::beginSession(navigatedBackwardFrom);
 }
 

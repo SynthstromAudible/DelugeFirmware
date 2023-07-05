@@ -34,7 +34,9 @@ Delay::Delay() {
 
 	// I'm so sorry, this is incredibly ugly, but in order to decide the default sync level, we have to look at the current song, or even better the one being preloaded.
 	Song* song = preLoadedSong;
-	if (!song) song = currentSong;
+	if (!song) {
+		song = currentSong;
+	}
 	if (song) {
 		syncLevel = (SyncLevel)(8 - (song->insideWorldTickMagnitude + song->insideWorldTickMagnitudeOffsetFromBPM));
 	}
@@ -58,7 +60,9 @@ void Delay::informWhetherActive(bool newActive, int32_t userDelayRate) {
 		if (newActive) {
 setupSecondaryBuffer:
 			uint8_t result = secondaryBuffer.init(userDelayRate);
-			if (result != NO_ERROR) return;
+			if (result != NO_ERROR) {
+				return;
+			}
 			prepareToBeginWriting();
 			postLPFL = 0;
 			postLPFR = 0;
@@ -139,8 +143,12 @@ void Delay::setupWorkingState(DelayWorkingState* workingState, bool anySoundComi
 			int32_t limit = 2147483647 >> (syncLevel + 5);
 			workingState->userDelayRate = getMin(workingState->userDelayRate, limit);
 			if (syncType == SYNC_TYPE_EVEN) {} // Do nothing
-			else if (syncType == SYNC_TYPE_TRIPLET) workingState->userDelayRate = workingState->userDelayRate * 3 / 2;
-			else if (syncType == SYNC_TYPE_DOTTED) workingState->userDelayRate = workingState->userDelayRate * 2 / 3;
+			else if (syncType == SYNC_TYPE_TRIPLET) {
+				workingState->userDelayRate = workingState->userDelayRate * 3 / 2;
+			}
+			else if (syncType == SYNC_TYPE_DOTTED) {
+				workingState->userDelayRate = workingState->userDelayRate * 2 / 3;
+			}
 			workingState->userDelayRate <<= (syncLevel + 5);
 		}
 	}
@@ -160,28 +168,59 @@ void Delay::setupWorkingState(DelayWorkingState* workingState, bool anySoundComi
 
 void Delay::setTimeToAbandon(DelayWorkingState* workingState) {
 
-	if (!workingState->doDelay) repeatsUntilAbandon = 0;
-
-	else if (workingState->delayFeedbackAmount < 33554432) repeatsUntilAbandon = 1;
-	else if (workingState->delayFeedbackAmount <= 100663296) repeatsUntilAbandon = 2;
-	else if (workingState->delayFeedbackAmount <= 218103808) repeatsUntilAbandon = 3;
-	else if (workingState->delayFeedbackAmount < 318767104) repeatsUntilAbandon = 4;
-	else if (workingState->delayFeedbackAmount < 352321536) repeatsUntilAbandon = 5;
-	else if (workingState->delayFeedbackAmount < 452984832) repeatsUntilAbandon = 6;
-	else if (workingState->delayFeedbackAmount < 520093696) repeatsUntilAbandon = 9;
-	else if (workingState->delayFeedbackAmount < 637534208) repeatsUntilAbandon = 12;
-	else if (workingState->delayFeedbackAmount < 704643072) repeatsUntilAbandon = 13;
-	else if (workingState->delayFeedbackAmount < 771751936) repeatsUntilAbandon = 18;
-	else if (workingState->delayFeedbackAmount < 838860800) repeatsUntilAbandon = 24;
-	else if (workingState->delayFeedbackAmount < 939524096) repeatsUntilAbandon = 40;
-	else if (workingState->delayFeedbackAmount < 1040187392) repeatsUntilAbandon = 110;
-	else repeatsUntilAbandon = 255;
+	if (!workingState->doDelay) {
+		repeatsUntilAbandon = 0;
+	}
+	else if (workingState->delayFeedbackAmount < 33554432) {
+		repeatsUntilAbandon = 1;
+	}
+	else if (workingState->delayFeedbackAmount <= 100663296) {
+		repeatsUntilAbandon = 2;
+	}
+	else if (workingState->delayFeedbackAmount <= 218103808) {
+		repeatsUntilAbandon = 3;
+	}
+	else if (workingState->delayFeedbackAmount < 318767104) {
+		repeatsUntilAbandon = 4;
+	}
+	else if (workingState->delayFeedbackAmount < 352321536) {
+		repeatsUntilAbandon = 5;
+	}
+	else if (workingState->delayFeedbackAmount < 452984832) {
+		repeatsUntilAbandon = 6;
+	}
+	else if (workingState->delayFeedbackAmount < 520093696) {
+		repeatsUntilAbandon = 9;
+	}
+	else if (workingState->delayFeedbackAmount < 637534208) {
+		repeatsUntilAbandon = 12;
+	}
+	else if (workingState->delayFeedbackAmount < 704643072) {
+		repeatsUntilAbandon = 13;
+	}
+	else if (workingState->delayFeedbackAmount < 771751936) {
+		repeatsUntilAbandon = 18;
+	}
+	else if (workingState->delayFeedbackAmount < 838860800) {
+		repeatsUntilAbandon = 24;
+	}
+	else if (workingState->delayFeedbackAmount < 939524096) {
+		repeatsUntilAbandon = 40;
+	}
+	else if (workingState->delayFeedbackAmount < 1040187392) {
+		repeatsUntilAbandon = 110;
+	}
+	else {
+		repeatsUntilAbandon = 255;
+	}
 
 	//if (!getRandom255()) Uart::println(workingState->delayFeedbackAmount);
 }
 
 void Delay::hasWrapped() {
-	if (repeatsUntilAbandon == 255) return;
+	if (repeatsUntilAbandon == 255) {
+		return;
+	}
 
 	repeatsUntilAbandon--;
 	if (!repeatsUntilAbandon) {

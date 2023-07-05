@@ -41,10 +41,14 @@ RuntimeFeatureSettings::RuntimeFeatureSettings() : unknownSettings(sizeof(Unknow
 void RuntimeFeatureSettings::readSettingsFromFile() {
 	FilePointer fp;
 	bool success = storageManager.fileExists(RUNTIME_FEATURE_SETTINGS_FILE, &fp);
-	if (!success) return;
+	if (!success) {
+		return;
+	}
 
 	int error = storageManager.openXMLFile(&fp, TAG_RUNTIME_FEATURE_SETTINGS);
-	if (error) return;
+	if (error) {
+		return;
+	}
 
 	String currentName;
 	int32_t currentValue = 0;
@@ -102,7 +106,9 @@ void RuntimeFeatureSettings::writeSettingsToFile() {
 	f_unlink(RUNTIME_FEATURE_SETTINGS_FILE); // May give error, but no real consequence from that.
 
 	int error = storageManager.createXMLFile(RUNTIME_FEATURE_SETTINGS_FILE, true);
-	if (error) return;
+	if (error) {
+		return;
+	}
 
 	storageManager.writeOpeningTagBeginning(TAG_RUNTIME_FEATURE_SETTINGS);
 	storageManager.writeFirmwareVersion();

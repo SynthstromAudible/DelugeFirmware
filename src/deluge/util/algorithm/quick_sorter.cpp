@@ -89,7 +89,9 @@ void QuickSorter::sort(int numElements) {
 	int lastKey = getKey(0);
 	for (int i = 1; i < numElements; i++) {
 		int keyHere = getKey(i);
-		if (keyHere < lastKey) numericDriver.freezeWithError("SORT");
+		if (keyHere < lastKey) {
+			numericDriver.freezeWithError("SORT");
+		}
 		lastKey = keyHere;
 	}
 #endif

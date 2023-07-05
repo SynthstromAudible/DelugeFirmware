@@ -37,16 +37,24 @@ void Pan::drawValue() {
 	        : 255;
 	char buffer[5];
 	intToString(std::abs(soundEditor.currentValue), buffer, 1);
-	if (soundEditor.currentValue < 0) strcat(buffer, "L");
-	else if (soundEditor.currentValue > 0) strcat(buffer, "R");
+	if (soundEditor.currentValue < 0) {
+		strcat(buffer, "L");
+	}
+	else if (soundEditor.currentValue > 0) {
+		strcat(buffer, "R");
+	}
 	numericDriver.setText(buffer, true, drawDot);
 }
 #endif
 
 int32_t Pan::getFinalValue() {
-	if (soundEditor.currentValue == 32) return 2147483647;
-	else if (soundEditor.currentValue == -32) return -2147483648;
-	else return ((int32_t)soundEditor.currentValue * 33554432 * 2);
+	if (soundEditor.currentValue == 32) {
+		return 2147483647;
+	}
+	if (soundEditor.currentValue == -32) {
+		return -2147483648;
+	}
+	return ((int32_t)soundEditor.currentValue * 33554432 * 2);
 }
 
 void Pan::readCurrentValue() {

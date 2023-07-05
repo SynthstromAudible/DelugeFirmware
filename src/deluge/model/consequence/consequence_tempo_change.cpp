@@ -33,7 +33,8 @@ int ConsequenceTempoChange::revert(int time, ModelStack* modelStack) {
 
 	float newBPM = playbackHandler.calculateBPM(modelStack->song->getTimePerTimerTickFloat());
 
-	if (oldBPM >= 1000 && newBPM < 1000 && playbackHandler.recording != RECORDING_ARRANGEMENT)
+	if (oldBPM >= 1000 && newBPM < 1000 && playbackHandler.recording != RECORDING_ARRANGEMENT) {
 		playbackHandler.forceResetPlayPos(modelStack->song);
+	}
 	return NO_ERROR;
 }

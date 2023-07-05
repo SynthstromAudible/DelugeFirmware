@@ -25,7 +25,9 @@ namespace menu_item::mpe {
 DirectionSelector directionSelectorMenu{"MPE"};
 
 void DirectionSelector::beginSession(MenuItem* navigatedBackwardFrom) {
-	if (!navigatedBackwardFrom) whichDirection = MIDI_DIRECTION_INPUT_TO_DELUGE;
+	if (!navigatedBackwardFrom) {
+		whichDirection = MIDI_DIRECTION_INPUT_TO_DELUGE;
+	}
 	Selection::beginSession(navigatedBackwardFrom);
 }
 

@@ -48,9 +48,11 @@ uint8_t Range::shouldBlinkPatchingSourceShortcut(int s, uint8_t* colour) {
 	}
 
 	// Or, if it's the source whose range we are controlling...
-	else if (source_selection::regularMenu.s == s) return 3; // Did I get this right? #patchingoverhaul2021
+	if (source_selection::regularMenu.s == s) {
+		return 3; // Did I get this right? #patchingoverhaul2021
+	}
 
-	else return 255;
+	return 255;
 }
 
 MenuItem* Range::patchingSourceShortcutPress(int newS, bool previousPressStillActive) {

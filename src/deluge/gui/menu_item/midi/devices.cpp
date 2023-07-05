@@ -33,7 +33,9 @@ void Devices::beginSession(MenuItem* navigatedBackwardFrom) {
 		for (soundEditor.currentValue = -3;
 		     soundEditor.currentValue < MIDIDeviceManager::hostedMIDIDevices.getNumElements();
 		     soundEditor.currentValue++) {
-			if (getDevice(soundEditor.currentValue) == soundEditor.currentMIDIDevice) goto decidedDevice;
+			if (getDevice(soundEditor.currentValue) == soundEditor.currentMIDIDevice) {
+				goto decidedDevice;
+			}
 		}
 	}
 
@@ -53,11 +55,15 @@ void Devices::selectEncoderAction(int offset) {
 		int newValue = soundEditor.currentValue + offset;
 
 		if (newValue >= MIDIDeviceManager::hostedMIDIDevices.getNumElements()) {
-			if (HAVE_OLED) return;
+			if (HAVE_OLED) {
+				return;
+			}
 			newValue = -3;
 		}
 		else if (newValue < -3) {
-			if (HAVE_OLED) return;
+			if (HAVE_OLED) {
+				return;
+			}
 			newValue = MIDIDeviceManager::hostedMIDIDevices.getNumElements() - 1;
 		}
 
@@ -69,16 +75,21 @@ void Devices::selectEncoderAction(int offset) {
 	// Don't show devices which aren't connected. Sometimes we won't even have a name to display for them.
 
 #if HAVE_OLED
-	if (soundEditor.currentValue < soundEditor.menuCurrentScroll)
+	if (soundEditor.currentValue < soundEditor.menuCurrentScroll) {
 		soundEditor.menuCurrentScroll = soundEditor.currentValue;
+	}
 
 	if (offset >= 0) {
 		int d = soundEditor.currentValue;
 		int numSeen = 1;
 		while (true) {
 			d--;
-			if (d == soundEditor.menuCurrentScroll) break;
-			if (!getDevice(d)->connectionFlags) continue;
+			if (d == soundEditor.menuCurrentScroll) {
+				break;
+			}
+			if (!getDevice(d)->connectionFlags) {
+				continue;
+			}
 			numSeen++;
 			if (numSeen >= OLED_MENU_NUM_OPTIONS_VISIBLE) {
 				soundEditor.menuCurrentScroll = d;
@@ -136,7 +147,9 @@ void Devices::drawPixelsForOled() {
 		MIDIDevice* device = getDevice(d);
 		if (device->connectionFlags) {
 			itemNames[r] = device->getDisplayName();
-			if (d == soundEditor.currentValue) selectedRow = r;
+			if (d == soundEditor.currentValue) {
+				selectedRow = r;
+			}
 			r++;
 		}
 		d++;

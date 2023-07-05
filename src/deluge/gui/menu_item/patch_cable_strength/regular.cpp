@@ -84,7 +84,7 @@ uint8_t Regular::shouldBlinkPatchingSourceShortcut(int s, uint8_t* colour) {
 		return 3;
 	}
 
-	else return 255;
+	return 255;
 }
 
 MenuItem* Regular::patchingSourceShortcutPress(int s, bool previousPressStillActive) {
@@ -92,7 +92,7 @@ MenuItem* Regular::patchingSourceShortcutPress(int s, bool previousPressStillAct
 		source_selection::rangeMenu.s = s;
 		return &patch_cable_strength::rangeMenu;
 	}
-	else return (MenuItem*)0xFFFFFFFF;
+	return (MenuItem*)0xFFFFFFFF;
 }
 
 } // namespace menu_item::patch_cable_strength

@@ -31,8 +31,9 @@ ModelStackWithThreeMainThings* ModelStackWithTimelineCounter::addNoteRowAndExtra
                                                                                       NoteRow* newNoteRow) const {
 
 #if ALPHA_OR_BETA_VERSION
-	if (!newNoteRow->paramManager.containsAnyParamCollectionsIncludingExpression())
+	if (!newNoteRow->paramManager.containsAnyParamCollectionsIncludingExpression()) {
 		numericDriver.freezeWithError("E389");
+	}
 #endif
 
 	ModelStackWithThreeMainThings* toReturn = (ModelStackWithThreeMainThings*)this;
@@ -69,7 +70,9 @@ bool ModelStackWithNoteRow::isCurrentlyPlayingReversed() const {
 	}
 
 	// Otherwise, we use the NoteRow's local one.
-	else return noteRow->currentlyPlayingReversedIfIndependent;
+	else {
+		return noteRow->currentlyPlayingReversedIfIndependent;
+	}
 }
 
 int32_t ModelStackWithNoteRow::getLoopLength() const {
@@ -122,7 +125,9 @@ int32_t ModelStackWithNoteRow::getPosAtWhichPlaybackWillCut() const {
 			else {
 				int32_t ticksTilLaunchEvent =
 				    session.launchEventAtSwungTickCount - playbackHandler.lastSwungTickActioned;
-				if (reversed) ticksTilLaunchEvent = -ticksTilLaunchEvent;
+				if (reversed) {
+					ticksTilLaunchEvent = -ticksTilLaunchEvent;
+				}
 				cutPos =
 				    noteRow->lastProcessedPosIfIndependent
 				    + ticksTilLaunchEvent; // Might return a pos beyond the loop length - maybe that's what we want?
@@ -140,7 +145,9 @@ int32_t ModelStackWithNoteRow::getPosAtWhichPlaybackWillCut() const {
 				}
 				else {
 					int32_t loopLength = getLoopLength();
-					if (cutPos > loopLength) cutPos = loopLength;
+					if (cutPos > loopLength) {
+						cutPos = loopLength;
+					}
 				}
 			}
 

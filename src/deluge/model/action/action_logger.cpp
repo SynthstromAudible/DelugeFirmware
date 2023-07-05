@@ -81,7 +81,9 @@ Action* ActionLogger::getNewAction(int newActionType, int addToExistingIfPossibl
 	deleteLog(AFTER);
 
 	// If not on a View, not allowed!
-	if (getCurrentUI() != getRootUI()) return NULL;
+	if (getCurrentUI() != getRootUI()) {
+		return NULL;
+	}
 
 	Action* newAction;
 
@@ -90,7 +92,9 @@ Action* ActionLogger::getNewAction(int newActionType, int addToExistingIfPossibl
 		return NULL;
 
 		// If there's no action for that, we're really screwed, we'd better get out
-		if (!firstAction[BEFORE] || firstAction[BEFORE]->type != ACTION_ARRANGEMENT_RECORD) return NULL;
+		if (!firstAction[BEFORE] || firstAction[BEFORE]->type != ACTION_ARRANGEMENT_RECORD) {
+			return NULL;
+		}
 
 		// Only a couple of kinds of new actions are allowed to add to that action
 		if (newActionType == ACTION_SWING_CHANGE || newActionType == ACTION_TEMPO_CHANGE) {
@@ -98,7 +102,9 @@ Action* ActionLogger::getNewAction(int newActionType, int addToExistingIfPossibl
 		}
 
 		// Otherwise, not allowed
-		else return NULL;
+		else {
+			return NULL;
+		}
 	}
 
 	// See if we can add to an existing action...
@@ -115,7 +121,9 @@ Action* ActionLogger::getNewAction(int newActionType, int addToExistingIfPossibl
 		deleteLastActionIfEmpty();
 
 		// Make sure we close off any existing action
-		if (firstAction[BEFORE]) firstAction[BEFORE]->openForAdditions = false;
+		if (firstAction[BEFORE]) {
+			firstAction[BEFORE]->openForAdditions = false;
+		}
 
 		// And make a new one
 		void* actionMemory = generalMemoryAllocator.alloc(sizeof(Action), NULL, true);
@@ -236,7 +244,9 @@ traverseClips2:
 void ActionLogger::recordUnautomatedParamChange(ModelStackWithAutoParam const* modelStack, int actionType) {
 
 	Action* action = getNewAction(actionType, true);
-	if (!action) return;
+	if (!action) {
+		return;
+	}
 
 	action->recordParamChangeIfNotAlreadySnapshotted(modelStack, false);
 }
@@ -244,7 +254,9 @@ void ActionLogger::recordUnautomatedParamChange(ModelStackWithAutoParam const* m
 void ActionLogger::recordSwingChange(int8_t swingBefore, int8_t swingAfter) {
 
 	Action* action = getNewAction(ACTION_SWING_CHANGE, true);
-	if (!action) return;
+	if (!action) {
+		return;
+	}
 
 	// See if there's a previous one we can update
 	if (action->firstConsequence) {
@@ -264,7 +276,9 @@ void ActionLogger::recordSwingChange(int8_t swingBefore, int8_t swingAfter) {
 void ActionLogger::recordTempoChange(uint64_t timePerBigBefore, uint64_t timePerBigAfter) {
 
 	Action* action = getNewAction(ACTION_TEMPO_CHANGE, true);
-	if (!action) return;
+	if (!action) {
+		return;
+	}
 
 	// See if there's a previous one we can update
 	if (action->firstConsequence) {
@@ -446,8 +460,12 @@ traverseClips:
 
 						if (clip->output->type == INSTRUMENT_TYPE_KIT) {
 							Kit* kit = (Kit*)clip->output;
-							if (action->clipStates[i].selectedDrumIndex == -1) kit->selectedDrum = NULL;
-							else kit->selectedDrum = kit->getDrumFromIndex(action->clipStates[i].selectedDrumIndex);
+							if (action->clipStates[i].selectedDrumIndex == -1) {
+								kit->selectedDrum = NULL;
+							}
+							else {
+								kit->selectedDrum = kit->getDrumFromIndex(action->clipStates[i].selectedDrumIndex);
+							}
 						}
 					}
 
@@ -497,20 +515,23 @@ otherOption:
 		if (whichAnimation == ANIMATION_SCROLL && getCurrentUI() != &arrangerView) {
 			((TimelineView*)getCurrentUI())->initiateXScroll(action->xScrollClip[time]);
 		}
-		else if (getCurrentUI() == &arrangerView || whichAnimation != ANIMATION_ZOOM)
+		else if (getCurrentUI() == &arrangerView || whichAnimation != ANIMATION_ZOOM) {
 			currentSong->xScroll[NAVIGATION_CLIP] =
 			    action->xScrollClip
 			        [time]; // Have to do this if we didn't do the actual scroll animation yet some scrolling happened
+		}
 
 		if (whichAnimation == ANIMATION_ZOOM) {
-			if (getCurrentUI() == &arrangerView)
+			if (getCurrentUI() == &arrangerView) {
 				arrangerView.initiateXZoom(
 				    howMuchMoreMagnitude(action->xZoomArranger[time], arrangerZoomBeforeTransition),
 				    action->xScrollArranger[time], arrangerZoomBeforeTransition);
-			else
+			}
+			else {
 				((TimelineView*)getCurrentUI())
 				    ->initiateXZoom(howMuchMoreMagnitude(action->xZoomClip[time], songZoomBeforeTransition),
 				                    action->xScrollClip[time], songZoomBeforeTransition);
+			}
 		}
 
 		else if (whichAnimation == ANIMATION_CLIP_MINDER_TO_SESSION) {
@@ -552,7 +573,9 @@ currentClipSwitchedOver:
 	}
 
 	else if (whichAnimation == ANIMATION_CHANGE_CLIP) {
-		if (action->view != getCurrentUI()) changeRootUI(action->view);
+		if (action->view != getCurrentUI()) {
+			changeRootUI(action->view);
+		}
 		else {
 			getCurrentUI()->focusRegained();
 			renderingNeededRegardlessOfUI(); // Didn't have this til March 2020, and stuff didn't update. Guess this is just needed? Can't remember specifics just now
@@ -564,9 +587,15 @@ currentClipSwitchedOver:
 	}
 
 	else if (whichAnimation == ANIMATION_ARRANGEMENT_TO_CLIP_MINDER) {
-		if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) changeRootUI(&audioClipView);
-		else if (((InstrumentClip*)currentSong->currentClip)->onKeyboardScreen) changeRootUI(&keyboardScreen);
-		else changeRootUI(&instrumentClipView);
+		if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) {
+			changeRootUI(&audioClipView);
+		}
+		else if (((InstrumentClip*)currentSong->currentClip)->onKeyboardScreen) {
+			changeRootUI(&keyboardScreen);
+		}
+		else {
+			changeRootUI(&instrumentClipView);
+		}
 	}
 
 	else if (whichAnimation == ANIMATION_SESSION_TO_ARRANGEMENT) {
@@ -640,7 +669,9 @@ currentClipSwitchedOver:
 		}
 	}
 
-	if (playbackHandler.isEitherClockActive()) currentPlaybackMode->reversionDone(); // Re-gets automation and stuff
+	if (playbackHandler.isEitherClockActive()) {
+		currentPlaybackMode->reversionDone(); // Re-gets automation and stuff
+	}
 
 	// If there was an actual error in the reversion itself...
 	if (error) {
