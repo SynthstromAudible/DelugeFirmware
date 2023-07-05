@@ -15,17 +15,17 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include <gpio.h>
-#include <rza_io_regrw.h>
+#include "RZA1/gpio/gpio.h"
+#include "RZA1/system/rza_io_regrw.h"
 #include <stdio.h>
-#include "r_typedefs.h"
-#include "gpio_iobitmask.h"
-#include "iodefine.h"
-#include "mtu_all_cpus.h"
+#include "RZA1/system/r_typedefs.h"
+#include "RZA1/system/iobitmasks/gpio_iobitmask.h"
+#include "RZA1/system/iodefine.h"
+#include "deluge/drivers/mtu/mtu.h"
 #include "diskio.h"
 #include "definitions.h"
-#include "sio_char.h"
-#include "Deluge.h"
+#include "RZA1/uart/sio_char.h"
+#include "deluge/deluge.h"
 
 static void midiAndGateOutputTimerInterrupt(uint32_t int_sense) {
 
@@ -76,7 +76,7 @@ static void int_irq6(uint32_t sense) {
 * Arguments    : none
 * Return Value : 0
 ******************************************************************************/
-int_t main1(void) {
+int_t main(void) {
 
 	// SSI pins
 	setPinMux(7, 11, 6); // AUDIO_XOUT
@@ -170,7 +170,7 @@ int_t main1(void) {
 	R_INTC_SetPriority(IRQ_INTERRUPT_0 + 6, 5);
 	R_INTC_Enable(IRQ_INTERRUPT_0 + 6);
 
-	main2();
+	deluge_main();
 
 	while (1)
 		;
