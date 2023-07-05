@@ -194,33 +194,4 @@ void noPressesHappening(bool inCardRoutine) {
 		}
 	}
 }
-
-button_s charToButton(uint8_t value) {
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-	int x = (unsigned int)value % 10;
-	int y = ((unsigned int)value % 70) / 10;
-	return {x, y - displayHeight};
-#else
-	int y = (unsigned int)value / 9;
-	int x = value - y * 9;
-	return {x, y - displayHeight * 2};
-#endif
-}
-
-uint8_t buttonToChar(button_s b) {
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-	return 10 * (b.y + displayHeight) + b.x;
-#else
-	return 9 * (b.y + displayHeight * 2) + b.x;
-#endif
-}
-
-bool isButton(uint8_t value) {
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-	return value >= displayHeight * 10;
-#else
-	return value >= displayHeight * 2 * 9;
-#endif
-}
-
 } // namespace Buttons
