@@ -15,16 +15,16 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "model/consequence/consequence_instrument_clip_horizontal_shift.h"
+#include "model/consequence/consequence_clip_horizontal_shift.h"
 #include "model/song/song.h"
-#include "model/clip/instrument_clip.h"
+#include "model/clip/clip.h"
 #include "model/model_stack.h"
 
-ConsequenceInstrumentClipHorizontalShift::ConsequenceInstrumentClipHorizontalShift(int32_t newAmount) {
+ConsequenceClipHorizontalShift::ConsequenceClipHorizontalShift(int32_t newAmount) {
 	amount = newAmount;
 }
 
-int ConsequenceInstrumentClipHorizontalShift::revert(int time, ModelStack* modelStack) {
+int ConsequenceClipHorizontalShift::revert(int time, ModelStack* modelStack) {
 
 	int32_t amountNow = amount;
 
@@ -35,7 +35,7 @@ int ConsequenceInstrumentClipHorizontalShift::revert(int time, ModelStack* model
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
 	    modelStack->addTimelineCounter(modelStack->song->currentClip);
 
-	((InstrumentClip*)modelStackWithTimelineCounter->getTimelineCounter())
+	((Clip*)modelStackWithTimelineCounter->getTimelineCounter())
 	    ->shiftHorizontally(modelStackWithTimelineCounter, amountNow);
 
 	return NO_ERROR;
