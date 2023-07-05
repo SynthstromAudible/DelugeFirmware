@@ -45,7 +45,7 @@
 #include <new>
 #include "hid/matrix/matrix_driver.h"
 #include "gui/ui/sound_editor.h"
-#include "gui/menu_item/menu_item_colour.h"
+#include "gui/menu_item/colour.h"
 #include "hid/led/pad_leds.h"
 #include "hid/buttons.h"
 #include "modulation/midi/midi_param_collection.h"
