@@ -77,6 +77,7 @@
 #include "storage/multi_range/multi_range.h"
 #include "storage/audio/audio_file_holder.h"
 #include "model/settings/runtime_feature_settings.h"
+#include "playback/playback_handler.h"
 
 #if HAVE_OLED
 #include "hid/display/oled.h"
@@ -539,6 +540,10 @@ doOther:
 		}
 	}
 
+	else if (x == tempoEncButtonX && y == tempoEncButtonY && isUIModeActiveExclusively(UI_MODE_NOTES_PRESSED)
+	         && runtimeFeatureSettings.get(RuntimeFeatureSettingType::Quantize) == RuntimeFeatureStateToggle::On) {
+		//prevent Tempo pop-up , when note is pressed
+	}
 	// Horizontal encoder button
 	else if (x == xEncButtonX && y == xEncButtonY) {
 
@@ -564,21 +569,7 @@ doOther:
 		else {
 			if (isUIModeActiveExclusively(UI_MODE_NOTES_PRESSED)) {
 				if (on) {
-					if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::Quantize)
-					    == RuntimeFeatureStateToggle::On) {
-						if (Buttons::isShiftButtonPressed()) {
-							nudgeMode = (nudgeMode + 1) % 3;
-						}
-						if (nudgeMode == NUDGEMODE_NUDGE) {
-							nudgeNotes(0);
-						}
-						else if (nudgeMode == NUDGEMODE_QUANTIZE || nudgeMode == NUDGEMODE_QUANTIZE_ALL) {
-							quantizeNotes(0);
-						}
-					}
-					else {
-						nudgeNotes(0);
-					}
+					nudgeNotes(0);
 				}
 				else {
 doCancelPopup:
@@ -1726,6 +1717,7 @@ void InstrumentClipView::checkIfAllEditPadPressesEnded(bool mayRenderSidebar) {
 		view.setModRegion();
 		exitUIMode(UI_MODE_NOTES_PRESSED);
 		actionLogger.closeAction(ACTION_NOTE_EDIT);
+		quantizeAmount = 0;
 	}
 }
 
@@ -3843,17 +3835,7 @@ int InstrumentClipView::horizontalEncoderAction(int offset) {
 				if (sdRoutineLock)
 					return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE; // Just be safe - maybe not necessary
 
-				if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::Quantize) == RuntimeFeatureStateToggle::On) {
-					if (nudgeMode == NUDGEMODE_NUDGE) {
-						nudgeNotes(offset);
-					}
-					else if (nudgeMode == NUDGEMODE_QUANTIZE || nudgeMode == NUDGEMODE_QUANTIZE_ALL) {
-						quantizeNotes(offset);
-					}
-				}
-				else {
-					nudgeNotes(offset);
-				}
+				nudgeNotes(offset);
 			}
 		}
 		return ACTION_RESULT_DEALT_WITH;
@@ -3958,7 +3940,24 @@ addConsequenceToAction:
 	}
 }
 
-void InstrumentClipView::quantizeNotes(int offset) {
+void InstrumentClipView::tempoEncoderAction(int8_t offset, bool encoderButtonPressed, bool shiftButtonPressed) {
+
+	if (isUIModeActive(UI_MODE_NOTES_PRESSED)
+	    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::Quantize)
+	           == RuntimeFeatureStateToggle::On) { //quantize
+		if (encoderButtonPressed) {
+			quantizeNotes(offset, NUDGEMODE_QUANTIZE_ALL);
+		}
+		else {
+			quantizeNotes(offset, NUDGEMODE_QUANTIZE);
+		}
+	}
+	else {
+		playbackHandler.tempoEncoderAction(offset, encoderButtonPressed, shiftButtonPressed);
+	}
+}
+
+void InstrumentClipView::quantizeNotes(int offset, int nudgeMode) {
 
 	shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress = true;
 
