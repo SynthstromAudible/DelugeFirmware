@@ -20,3 +20,4 @@ compile_commands.json
 __pycache__
 .sconsign.dblite
 /dbt_options.py
+/scripts/debug/openocd.log
