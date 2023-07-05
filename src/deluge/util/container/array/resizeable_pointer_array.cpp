@@ -23,7 +23,9 @@ ResizeablePointerArray::ResizeablePointerArray() : ResizeableArray(sizeof(void*)
 
 int ResizeablePointerArray::insertPointerAtIndex(void* pointer, int index) {
 	int error = insertAtIndex(index);
-	if (error) return error;
+	if (error) {
+		return error;
+	}
 	*(void**)getElementAddress(index) = pointer;
 	return NO_ERROR;
 }

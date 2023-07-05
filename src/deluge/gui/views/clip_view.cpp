@@ -61,7 +61,9 @@ int ClipView::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 		}
 	}
 #endif
-	else return ClipNavigationTimelineView::buttonAction(x, y, on, inCardRoutine);
+	else {
+		return ClipNavigationTimelineView::buttonAction(x, y, on, inCardRoutine);
+	}
 
 	return ACTION_RESULT_DEALT_WITH;
 }
@@ -143,11 +145,15 @@ int ClipView::horizontalEncoderAction(int offset) {
 		uint32_t oldLength = currentSong->currentClip->loopLength;
 
 		// If we're not scrolled all the way to the right, go there now
-		if (scrollRightToEndOfLengthIfNecessary(oldLength)) return ACTION_RESULT_DEALT_WITH;
+		if (scrollRightToEndOfLengthIfNecessary(oldLength)) {
+			return ACTION_RESULT_DEALT_WITH;
+		}
 
 		// Or if still here, we've already scrolled far-right
 
-		if (sdRoutineLock) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		if (sdRoutineLock) {
+			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		}
 
 		uint32_t newLength;
 
@@ -202,7 +208,9 @@ doReRender:
 
 		displayNumberOfBarsAndBeats(newLength, currentSong->xZoom[NAVIGATION_CLIP], false, "LONG");
 
-		if (action) action->xScrollClip[AFTER] = currentSong->xScroll[NAVIGATION_CLIP];
+		if (action) {
+			action->xScrollClip[AFTER] = currentSong->xScroll[NAVIGATION_CLIP];
+		}
 		return ACTION_RESULT_DEALT_WITH;
 	}
 
@@ -222,8 +230,9 @@ doReRender:
 int32_t ClipView::getLengthChopAmount(int32_t square) {
 
 	square--; // We want the width of the square before
-	while (!isSquareDefined(square))
+	while (!isSquareDefined(square)) {
 		square--;
+	}
 
 	uint32_t xZoom = currentSong->xZoom[getNavSysId()];
 
@@ -240,8 +249,9 @@ int32_t ClipView::getLengthChopAmount(int32_t square) {
 
 int32_t ClipView::getLengthExtendAmount(int32_t square) {
 
-	while (!isSquareDefined(square))
+	while (!isSquareDefined(square)) {
 		square++;
+	}
 
 	uint32_t xZoom = currentSong->xZoom[getNavSysId()];
 
@@ -267,8 +277,9 @@ int ClipView::getTickSquare() {
 		    && getCurrentUI() == this && // currentPlaybackMode == &session &&
 		    (!currentSong->currentClip->armState || xScrollBeforeFollowingAutoExtendingLinearRecording != -1)) {
 
-			if (xScrollBeforeFollowingAutoExtendingLinearRecording == -1)
+			if (xScrollBeforeFollowingAutoExtendingLinearRecording == -1) {
 				xScrollBeforeFollowingAutoExtendingLinearRecording = currentSong->xScroll[NAVIGATION_CLIP];
+			}
 
 			int32_t newXScroll =
 			    currentSong->xScroll[NAVIGATION_CLIP] + currentSong->xZoom[NAVIGATION_CLIP] * displayWidth;

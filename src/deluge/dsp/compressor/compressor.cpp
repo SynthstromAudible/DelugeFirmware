@@ -35,7 +35,9 @@ Compressor::Compressor() {
 	// Default sync level is used obviously for the default synth sound if no SD card inserted, but also some synth presets, possibly just older ones,
 	// are saved without this so it can be set to the default at the time of loading.
 	Song* song = preLoadedSong;
-	if (!song) song = currentSong;
+	if (!song) {
+		song = currentSong;
+	}
 	if (song) {
 		syncLevel = (SyncLevel)(7 - (song->insideWorldTickMagnitude + song->insideWorldTickMagnitudeOffsetFromBPM));
 	}
@@ -91,20 +93,28 @@ void Compressor::registerHitRetrospectively(int32_t strength, uint32_t numSample
 
 int32_t Compressor::getActualAttackRate() {
 	int32_t alteredAttack;
-	if (syncLevel == SYNC_LEVEL_NONE) alteredAttack = attack;
+	if (syncLevel == SYNC_LEVEL_NONE) {
+		alteredAttack = attack;
+	}
 	else {
 		int rshiftAmount = (9 - syncLevel) - 2;
 		alteredAttack = multiply_32x32_rshift32(attack << 11, playbackHandler.getTimePerInternalTickInverse());
 
-		if (rshiftAmount >= 0) alteredAttack >>= rshiftAmount;
-		else alteredAttack <<= -rshiftAmount;
+		if (rshiftAmount >= 0) {
+			alteredAttack >>= rshiftAmount;
+		}
+		else {
+			alteredAttack <<= -rshiftAmount;
+		}
 	}
 	return alteredAttack;
 }
 
 int32_t Compressor::getActualReleaseRate() {
 	int32_t alteredRelease;
-	if (syncLevel == SYNC_LEVEL_NONE) alteredRelease = release;
+	if (syncLevel == SYNC_LEVEL_NONE) {
+		alteredRelease = release;
+	}
 	else {
 		alteredRelease =
 		    multiply_32x32_rshift32(release << 13, playbackHandler.getTimePerInternalTickInverse()) >> (9 - syncLevel);
@@ -175,7 +185,9 @@ doRelease:
 			preValue = pos << 8;
 		}
 		else {
-			if (curvedness16 > 65536) curvedness16 = 65536;
+			if (curvedness16 > 65536) {
+				curvedness16 = 65536;
+			}
 			int straightness = 65536 - curvedness16;
 			preValue = straightness * (pos >> 8) + (getDecay8(8388608 - pos, 23) >> 16) * curvedness16;
 		}

@@ -34,7 +34,9 @@ public:
 	void writeCurrentValue() {
 		ExpressionParamSet* expressionParams =
 		    soundEditor.currentParamManager->getOrCreateExpressionParamSet(soundEditor.editingKit());
-		if (expressionParams) expressionParams->bendRanges[BEND_RANGE_MAIN] = soundEditor.currentValue;
+		if (expressionParams) {
+			expressionParams->bendRanges[BEND_RANGE_MAIN] = soundEditor.currentValue;
+		}
 	}
 };
 } // namespace menu_item::bend_range

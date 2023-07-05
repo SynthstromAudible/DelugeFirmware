@@ -31,14 +31,22 @@ void KeyRange::selectEncoderAction(int offset) {
 		if (soundEditor.editingRangeEdge == RangeEdit::LEFT) {
 
 			int newValue = lower + offset;
-			if (newValue < 0) newValue += 12;
-			else if (newValue >= 12) newValue -= 12;
+			if (newValue < 0) {
+				newValue += 12;
+			}
+			else if (newValue >= 12) {
+				newValue -= 12;
+			}
 
 			if (offset == 1) {
-				if (lower == upper) goto justDrawRange;
+				if (lower == upper) {
+					goto justDrawRange;
+				}
 			}
 			else {
-				if (newValue == upper) goto justDrawRange;
+				if (newValue == upper) {
+					goto justDrawRange;
+				}
 			}
 
 			lower = newValue;
@@ -48,14 +56,22 @@ void KeyRange::selectEncoderAction(int offset) {
 		else {
 
 			int newValue = upper + offset;
-			if (newValue < 0) newValue += 12;
-			else if (newValue >= 12) newValue -= 12;
+			if (newValue < 0) {
+				newValue += 12;
+			}
+			else if (newValue >= 12) {
+				newValue -= 12;
+			}
 
 			if (offset == 1) {
-				if (newValue == lower) goto justDrawRange;
+				if (newValue == lower) {
+					goto justDrawRange;
+				}
 			}
 			else {
-				if (upper == lower) goto justDrawRange;
+				if (upper == lower) {
+					goto justDrawRange;
+				}
 			}
 
 			upper = newValue;
@@ -66,11 +82,17 @@ justDrawRange:
 	}
 
 	else {
-		if (upper != lower) return;
+		if (upper != lower) {
+			return;
+		}
 
 		lower += offset;
-		if (lower < 0) lower += 12;
-		else if (lower >= 12) lower -= 12;
+		if (lower < 0) {
+			lower += 12;
+		}
+		else if (lower >= 12) {
+			lower -= 12;
+		}
 
 		upper = lower;
 
@@ -90,11 +112,15 @@ void KeyRange::getText(char* buffer, int* getLeftLength, int* getRightLength, bo
 #endif
 	}
 
-	if (getLeftLength) *getLeftLength = leftLength;
+	if (getLeftLength) {
+		*getLeftLength = leftLength;
+	}
 
 	if (mayShowJustOne && lower == upper) {
 		*buffer = 0;
-		if (getRightLength) *getRightLength = 0;
+		if (getRightLength) {
+			*getRightLength = 0;
+		}
 		return;
 	}
 
@@ -111,7 +137,9 @@ void KeyRange::getText(char* buffer, int* getLeftLength, int* getRightLength, bo
 
 	*buffer = 0;
 
-	if (getRightLength) *getRightLength = rightLength;
+	if (getRightLength) {
+		*getRightLength = rightLength;
+	}
 }
 
 // Call seedRandom() before you call this
@@ -121,17 +149,23 @@ int KeyRange::getRandomValueInRange() {
 	}
 	else {
 		int range = upper - lower;
-		if (range < 0) range += 12;
+		if (range < 0) {
+			range += 12;
+		}
 
 		int value = lower + random(range);
-		if (range >= 12) range -= 12;
+		if (range >= 12) {
+			range -= 12;
+		}
 		return value;
 	}
 }
 
 bool KeyRange::isTotallyRandom() {
 	int range = upper - lower;
-	if (range < 0) range += 12;
+	if (range < 0) {
+		range += 12;
+	}
 
 	return (range == 11);
 }

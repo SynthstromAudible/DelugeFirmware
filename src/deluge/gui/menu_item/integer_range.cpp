@@ -49,12 +49,18 @@ void IntegerRange::selectEncoderAction(int offset) {
 		if (soundEditor.editingRangeEdge == RangeEdit::LEFT) {
 			if (offset == 1) {
 				if (lower == upper) {
-					if (upper >= maxValue) goto justDrawRange;
-					else upper++;
+					if (upper >= maxValue) {
+						goto justDrawRange;
+					}
+					else {
+						upper++;
+					}
 				}
 			}
 			else {
-				if (lower <= minValue) goto justDrawRange;
+				if (lower <= minValue) {
+					goto justDrawRange;
+				}
 			}
 
 			lower += offset;
@@ -63,12 +69,18 @@ void IntegerRange::selectEncoderAction(int offset) {
 		// Editing upper
 		else {
 			if (offset == 1) {
-				if (upper >= maxValue) goto justDrawRange;
+				if (upper >= maxValue) {
+					goto justDrawRange;
+				}
 			}
 			else {
 				if (upper == lower) {
-					if (lower <= minValue) goto justDrawRange;
-					else lower--;
+					if (lower <= minValue) {
+						goto justDrawRange;
+					}
+					else {
+						lower--;
+					}
 				}
 			}
 
@@ -80,13 +92,19 @@ justDrawRange:
 	}
 
 	else {
-		if (upper != lower) return;
+		if (upper != lower) {
+			return;
+		}
 
 		if (offset == 1) {
-			if (lower == maxValue) goto justDrawOneNumber;
+			if (lower == maxValue) {
+				goto justDrawOneNumber;
+			}
 		}
 		else {
-			if (lower == minValue) goto justDrawOneNumber;
+			if (lower == minValue) {
+				goto justDrawOneNumber;
+			}
 		}
 
 		lower += offset;
@@ -102,10 +120,14 @@ void IntegerRange::getText(char* buffer, int* getLeftLength, int* getRightLength
 	intToString(lower, buffer);
 
 	int leftLength = strlen(buffer);
-	if (getLeftLength) *getLeftLength = leftLength;
+	if (getLeftLength) {
+		*getLeftLength = leftLength;
+	}
 
 	if (mayShowJustOne && lower == upper) {
-		if (getRightLength) *getRightLength = 0;
+		if (getRightLength) {
+			*getRightLength = 0;
+		}
 		return;
 	}
 
@@ -115,7 +137,9 @@ void IntegerRange::getText(char* buffer, int* getLeftLength, int* getRightLength
 
 	intToString(upper, bufferPos);
 
-	if (getRightLength) *getRightLength = strlen(bufferPos);
+	if (getRightLength) {
+		*getRightLength = strlen(bufferPos);
+	}
 }
 
 // Call seedRandom() before you call this

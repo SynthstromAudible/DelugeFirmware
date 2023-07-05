@@ -74,13 +74,16 @@ bool interpretEncoders(bool inCardRoutine) {
 
 	bool anything = false;
 
-	if (!inCardRoutine) encodersWaitingForCardRoutineEnd = 0;
+	if (!inCardRoutine) {
+		encodersWaitingForCardRoutineEnd = 0;
+	}
 
 #if SD_TEST_MODE_ENABLED
 	if (!inCardRoutine && playbackHandler.isEitherClockActive()
 	    && (int32_t)(AudioEngine::audioSampleTimer - timeNextSDTestAction) >= 0) {
 
-		if (getRandom255() < 96) nextSDTestDirection *= -1;
+		if (getRandom255() < 96)
+			nextSDTestDirection *= -1;
 		getCurrentUI()->selectEncoderAction(nextSDTestDirection);
 
 		int random = getRandom255();
@@ -92,12 +95,17 @@ bool interpretEncoders(bool inCardRoutine) {
 
 	for (int e = 0; e < NUM_FUNCTION_ENCODERS; e++) {
 
-		if (e != ENCODER_SCROLL_Y)
+		if (e != ENCODER_SCROLL_Y) {
 
 			// Basically disables all function encoders during SD routine
-			if (inCardRoutine && currentUIMode != UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED) continue;
+			if (inCardRoutine && currentUIMode != UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED) {
+				continue;
+			}
+		}
 
-		if (encodersWaitingForCardRoutineEnd & (1 << e)) continue;
+		if (encodersWaitingForCardRoutineEnd & (1 << e)) {
+			continue;
+		}
 
 		if (encoders[e].detentPos != 0) {
 			anything = true;
@@ -105,8 +113,12 @@ bool interpretEncoders(bool inCardRoutine) {
 			// Limit. Some functions can break if they receive bigger numbers, e.g. LoadSongUI::selectEncoderAction()
 			int limitedDetentPos = encoders[e].detentPos;
 			encoders[e].detentPos = 0; // Reset. Crucial that this happens before we call selectEncoderAction()
-			if (limitedDetentPos >= 0) limitedDetentPos = 1;
-			else limitedDetentPos = -1;
+			if (limitedDetentPos >= 0) {
+				limitedDetentPos = 1;
+			}
+			else {
+				limitedDetentPos = -1;
+			}
 
 			int result;
 
@@ -124,8 +136,9 @@ checkResult:
 				break;
 
 			case ENCODER_SCROLL_Y:
-				if (Buttons::isShiftButtonPressed() && Buttons::isButtonPressed(learnButtonX, learnButtonY))
+				if (Buttons::isShiftButtonPressed() && Buttons::isButtonPressed(learnButtonX, learnButtonY)) {
 					changeDimmerInterval(limitedDetentPos);
+				}
 				else {
 					result = getCurrentUI()->verticalEncoderAction(limitedDetentPos, inCardRoutine);
 					goto checkResult;
@@ -149,8 +162,12 @@ checkResult:
 				break;
 
 			case ENCODER_SELECT:
-				if (Buttons::isButtonPressed(clipViewButtonX, clipViewButtonY)) changeRefreshTime(limitedDetentPos);
-				else getCurrentUI()->selectEncoderAction(limitedDetentPos);
+				if (Buttons::isButtonPressed(clipViewButtonX, clipViewButtonY)) {
+					changeRefreshTime(limitedDetentPos);
+				}
+				else {
+					getCurrentUI()->selectEncoderAction(limitedDetentPos);
+				}
 				break;
 			}
 		}
@@ -191,7 +208,9 @@ checkResult:
 					// If the other one also hasn't been turned for a while...
 					bool otherTurnedRecently =
 					    (AudioEngine::audioSampleTimer - timeModEncoderLastTurned[1 - e] < (44100 >> 1));
-					if (!otherTurnedRecently) actionLogger.closeAction(ACTION_PARAM_UNAUTOMATED_VALUE_CHANGE);
+					if (!otherTurnedRecently) {
+						actionLogger.closeAction(ACTION_PARAM_UNAUTOMATED_VALUE_CHANGE);
+					}
 
 					modEncoderInitialTurnDirection[e] = encoders[ENCODER_MOD_0 - e].encPos;
 

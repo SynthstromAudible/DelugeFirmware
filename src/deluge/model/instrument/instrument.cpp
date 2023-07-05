@@ -58,8 +58,12 @@ void Instrument::deleteAnyInstancesOfClip(InstrumentClip* clip) {
 
 	while (i < clipInstances.getNumElements()) {
 		ClipInstance* instance = clipInstances.getElement(i);
-		if (instance->clip == clip) clipInstances.deleteAtIndex(i);
-		else i++;
+		if (instance->clip == clip) {
+			clipInstances.deleteAtIndex(i);
+		}
+		else {
+			i++;
+		}
 	}
 }
 
@@ -80,7 +84,9 @@ bool Instrument::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 				storageManager.writeAttribute(slotXMLTag, ((NonAudioInstrument*)this)->channel);
 			}
 			char const* subSlotTag = getSubSlotXMLTag();
-			if (subSlotTag) storageManager.writeAttribute(subSlotTag, ((MIDIInstrument*)this)->channelSuffix);
+			if (subSlotTag) {
+				storageManager.writeAttribute(subSlotTag, ((MIDIInstrument*)this)->channelSuffix);
+			}
 		}
 		if (!dirPath.isEmpty() && (type == INSTRUMENT_TYPE_SYNTH || type == INSTRUMENT_TYPE_KIT)) {
 			storageManager.writeAttribute("presetFolder", dirPath.get());
@@ -116,14 +122,18 @@ bool Instrument::readTagFromFile(char const* tagName) {
 
 	else if (!strcmp(tagName, "defaultVelocity")) {
 		defaultVelocity = storageManager.readTagOrAttributeValueInt();
-		if (defaultVelocity == 0 || defaultVelocity >= 128) defaultVelocity = FlashStorage::defaultVelocity;
+		if (defaultVelocity == 0 || defaultVelocity >= 128) {
+			defaultVelocity = FlashStorage::defaultVelocity;
+		}
 	}
 
 	else if (!strcmp(tagName, "presetFolder")) {
 		storageManager.readTagOrAttributeValueString(&dirPath);
 	}
 
-	else return Output::readTagFromFile(tagName);
+	else {
+		return Output::readTagFromFile(tagName);
+	}
 
 	storageManager.exitTag();
 	return true;
@@ -173,7 +183,9 @@ int Instrument::setupDefaultAudioFileDir() {
 	char const* dirPathChars = dirPath.get();
 	int error =
 	    audioFileManager.setupAlternateAudioFileDir(&audioFileManager.alternateAudioFileLoadPath, dirPathChars, &name);
-	if (error) return error;
+	if (error) {
+		return error;
+	}
 	audioFileManager.thingBeginningLoading(type);
 	return NO_ERROR;
 }

@@ -48,7 +48,9 @@ void UI::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 }
 
 void UI::graphicsRoutine() {
-	if (getRootUI() && canSeeViewUnderneath()) getRootUI()->graphicsRoutine();
+	if (getRootUI() && canSeeViewUnderneath()) {
+		getRootUI()->graphicsRoutine();
+	}
 }
 
 void UI::close() {
@@ -68,7 +70,9 @@ void getUIGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
 
 	for (int u = numUIsOpen - 1; u >= 0; u--) {
 		bool useThis = uiNavigationHierarchy[u]->getGreyoutRowsAndCols(cols, rows);
-		if (useThis) return;
+		if (useThis) {
+			return;
+		}
 	}
 }
 
@@ -97,7 +101,9 @@ void changeRootUI(UI* newUI) {
 	uiNavigationHierarchy[0] = newUI;
 	numUIsOpen = 1;
 
-	if (currentUIMode != UI_MODE_HOLDING_ARRANGEMENT_ROW) uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
+	if (currentUIMode != UI_MODE_HOLDING_ARRANGEMENT_ROW) {
+		uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
+	}
 	PadLEDs::reassessGreyout();
 	newUI->opened(); // These all can't fail, I guess.
 
@@ -122,13 +128,17 @@ bool changeUISideways(UI* newUI) {
 }
 
 UI* getCurrentUI() {
-	if (numUIsOpen == 0) return lastUIBeforeNullifying; // Very ugly work-around to stop everything breaking
+	if (numUIsOpen == 0) {
+		return lastUIBeforeNullifying; // Very ugly work-around to stop everything breaking
+	}
 	return uiNavigationHierarchy[numUIsOpen - 1];
 }
 
 // This will be NULL while waiting to swap songs, so you'd better check for this anytime you're gonna call a function on the result!
 RootUI* getRootUI() {
-	if (numUIsOpen == 0) return NULL;
+	if (numUIsOpen == 0) {
+		return NULL;
+	}
 	return (RootUI*)uiNavigationHierarchy[0];
 }
 
@@ -147,8 +157,12 @@ void swapOutRootUILowLevel(UI* newUI) {
 }
 
 UI* getUIUpOneLevel(int numLevelsUp) {
-	if (numUIsOpen < (1 + numLevelsUp)) return NULL;
-	else return uiNavigationHierarchy[numUIsOpen - 1 - numLevelsUp];
+	if (numUIsOpen < (1 + numLevelsUp)) {
+		return NULL;
+	}
+	else {
+		return uiNavigationHierarchy[numUIsOpen - 1 - numLevelsUp];
+	}
 }
 
 // If UI not found, chaos
@@ -164,7 +178,9 @@ void closeUI(UI* uiToClose) {
 		redrawMainPads |= thisUI->renderMainPads();
 		redrawSidebar |= thisUI->renderSidebar();
 
-		if (thisUI == uiToClose) break;
+		if (thisUI == uiToClose) {
+			break;
+		}
 	}
 
 	UI* newUI = uiNavigationHierarchy[u - 1];
@@ -181,16 +197,25 @@ void closeUI(UI* uiToClose) {
 	bool redrawSidebarOrig = redrawSidebar;
 
 	for (u = numUIsOpen - 1; u >= 0; u--) {
-		if (!redrawMainPads && !redrawSidebar) break;
+		if (!redrawMainPads && !redrawSidebar) {
+			break;
+		}
 
 		UI* thisUI = uiNavigationHierarchy[u];
-		if (redrawMainPads)
+		if (redrawMainPads) {
 			redrawMainPads = !thisUI->renderMainPads(0xFFFFFFFF, PadLEDs::image, PadLEDs::occupancyMask);
-		if (redrawSidebar) redrawSidebar = !thisUI->renderSidebar(0xFFFFFFFF, PadLEDs::image, PadLEDs::occupancyMask);
+		}
+		if (redrawSidebar) {
+			redrawSidebar = !thisUI->renderSidebar(0xFFFFFFFF, PadLEDs::image, PadLEDs::occupancyMask);
+		}
 	}
 
-	if (redrawMainPadsOrig) PadLEDs::sendOutMainPadColours();
-	if (redrawSidebarOrig) PadLEDs::sendOutSidebarColours();
+	if (redrawMainPadsOrig) {
+		PadLEDs::sendOutMainPadColours();
+	}
+	if (redrawSidebarOrig) {
+		PadLEDs::sendOutSidebarColours();
+	}
 }
 
 bool openUI(UI* newUI) {
@@ -216,7 +241,9 @@ bool openUI(UI* newUI) {
 
 bool isUIOpen(UI* ui) {
 	for (int u = 0; u < numUIsOpen; u++) {
-		if (uiNavigationHierarchy[u] == ui) return true;
+		if (uiNavigationHierarchy[u] == ui) {
+			return true;
+		}
 	}
 	return false;
 }
@@ -268,10 +295,16 @@ void uiNeedsRendering(UI* ui, uint32_t whichMainRows, uint32_t whichSideRows) {
 			break;
 		}
 
-		if (whichMainRows && thisUI->renderMainPads()) whichMainRows = 0;
-		if (whichSideRows && thisUI->renderSidebar()) whichSideRows = 0;
+		if (whichMainRows && thisUI->renderMainPads()) {
+			whichMainRows = 0;
+		}
+		if (whichSideRows && thisUI->renderSidebar()) {
+			whichSideRows = 0;
+		}
 
-		if (!whichMainRows && !whichSideRows) break;
+		if (!whichMainRows && !whichSideRows) {
+			break;
+		}
 	}
 }
 
@@ -279,14 +312,21 @@ bool pendingUIRenderingLock = false;
 
 void doAnyPendingUIRendering() {
 
-	if (pendingUIRenderingLock) return; // There's no point going in here multiple times inside each other
+	if (pendingUIRenderingLock) {
+		return; // There's no point going in here multiple times inside each other
+	}
 
-	if (!whichMainRowsNeedRendering && !whichSideRowsNeedRendering) return;
+	if (!whichMainRowsNeedRendering && !whichSideRowsNeedRendering) {
+		return;
+	}
 
-	if (currentUIMode == UI_MODE_HORIZONTAL_SCROLL || currentUIMode == UI_MODE_HORIZONTAL_ZOOM) return;
+	if (currentUIMode == UI_MODE_HORIZONTAL_SCROLL || currentUIMode == UI_MODE_HORIZONTAL_ZOOM) {
+		return;
+	}
 
-	if (uartGetTxBufferSpace(UART_ITEM_PIC_PADS) <= (NUM_BYTES_IN_MAIN_PAD_REDRAW + NUM_BYTES_IN_SIDEBAR_REDRAW) * 2)
+	if (uartGetTxBufferSpace(UART_ITEM_PIC_PADS) <= (NUM_BYTES_IN_MAIN_PAD_REDRAW + NUM_BYTES_IN_SIDEBAR_REDRAW) * 2) {
 		return; // Trialling the *2 to fix flickering when flicking through presets very fast
+	}
 
 	pendingUIRenderingLock = true;
 
@@ -299,14 +339,18 @@ void doAnyPendingUIRendering() {
 
 	for (int u = numUIsOpen - 1; u >= 0; u--) {
 
-		if (!mainRowsNow && !sideRowsNow) break;
+		if (!mainRowsNow && !sideRowsNow) {
+			break;
+		}
 
 		UI* thisUI = uiNavigationHierarchy[u];
 
 		if (mainRowsNow) {
 			bool usedUp = thisUI->renderMainPads(mainRowsNow, PadLEDs::image, PadLEDs::occupancyMask);
 			if (usedUp) {
-				if (!whichMainRowsNeedRendering) PadLEDs::sendOutMainPadColours();
+				if (!whichMainRowsNeedRendering) {
+					PadLEDs::sendOutMainPadColours();
+				}
 				mainRowsNow = 0;
 			}
 		}
@@ -314,7 +358,9 @@ void doAnyPendingUIRendering() {
 		if (sideRowsNow) {
 			bool usedUp = thisUI->renderSidebar(sideRowsNow, PadLEDs::image, PadLEDs::occupancyMask);
 			if (usedUp) {
-				if (!whichSideRowsNeedRendering) PadLEDs::sendOutSidebarColours();
+				if (!whichSideRowsNeedRendering) {
+					PadLEDs::sendOutSidebarColours();
+				}
 				sideRowsNow = 0;
 			}
 		}
@@ -348,7 +394,9 @@ bool isUIModeWithinRange(const uint32_t* modes) {
 	while (*modes) {
 		// If looking at an exclusive mode...
 		if (*modes <= EXCLUSIVE_UI_MODES_MASK) {
-			if (*modes == exclusivesOnly) exclusivesOnly = 0;
+			if (*modes == exclusivesOnly) {
+				exclusivesOnly = 0;
+			}
 		}
 
 		// Or if looking at a non-exclusive mode...

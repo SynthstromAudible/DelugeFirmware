@@ -24,8 +24,12 @@ MIDIParamVector::MIDIParamVector() : OrderedResizeableArray(sizeof(MIDIParam), 8
 
 MIDIParam* MIDIParamVector::getParamFromCC(int cc) {
 	int i = searchExact(cc);
-	if (i == -1) return NULL;
-	else return getElement(i);
+	if (i == -1) {
+		return NULL;
+	}
+	else {
+		return getElement(i);
+	}
 }
 
 MIDIParam* MIDIParamVector::getOrCreateParamFromCC(int cc, int32_t defaultValue, bool allowCreation) {
@@ -33,23 +37,30 @@ MIDIParam* MIDIParamVector::getOrCreateParamFromCC(int cc, int32_t defaultValue,
 	MIDIParam* param;
 	if (i >= getNumElements()) {
 doesntExistYet:
-		if (!allowCreation) return NULL;
+		if (!allowCreation) {
+			return NULL;
+		}
 		param = insertParam(i);
-		if (!param) return NULL;
+		if (!param) {
+			return NULL;
+		}
 		param->cc = cc;
 		param->param.setCurrentValueBasicForSetup(defaultValue);
 	}
 	else {
 		param = getElement(i);
-		if (param->cc != cc) goto doesntExistYet;
+		if (param->cc != cc) {
+			goto doesntExistYet;
+		}
 	}
 	return param;
 }
 
 MIDIParam* MIDIParamVector::insertParam(int i) {
 	int error = insertAtIndex(i);
-	if (error) return NULL;
-
+	if (error) {
+		return NULL;
+	}
 	else {
 		void* address = getElementAddress(i);
 		MIDIParam* param = new (address) MIDIParam();

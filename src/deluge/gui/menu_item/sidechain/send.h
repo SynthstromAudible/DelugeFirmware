@@ -27,8 +27,12 @@ public:
 		soundEditor.currentValue = ((uint64_t)soundEditor.currentSound->sideChainSendLevel * 50 + 1073741824) >> 31;
 	}
 	void writeCurrentValue() {
-		if (soundEditor.currentValue == 50) soundEditor.currentSound->sideChainSendLevel = 2147483647;
-		else soundEditor.currentSound->sideChainSendLevel = soundEditor.currentValue * 42949673;
+		if (soundEditor.currentValue == 50) {
+			soundEditor.currentSound->sideChainSendLevel = 2147483647;
+		}
+		else {
+			soundEditor.currentSound->sideChainSendLevel = soundEditor.currentValue * 42949673;
+		}
 	}
 	int getMaxValue() const { return 50; }
 	bool isRelevant(Sound* sound, int whichThing) { return (soundEditor.editingKit()); }

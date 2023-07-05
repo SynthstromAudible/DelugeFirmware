@@ -34,7 +34,9 @@ void NumericLayerLoadingAnimation::isNowOnTop() {
 bool NumericLayerLoadingAnimation::callBack() {
 
 	loadingAnimationPos++;
-	if (loadingAnimationPos == 10) loadingAnimationPos = 0;
+	if (loadingAnimationPos == 10) {
+		loadingAnimationPos = 0;
+	}
 
 	uiTimerManager.setTimer(TIMER_DISPLAY, flashTime);
 
@@ -45,10 +47,20 @@ void NumericLayerLoadingAnimation::render(uint8_t* returnSegments) {
 	if (animationIsTransparent && next) {
 		next->render(returnSegments);
 	}
-	else memset(returnSegments, 0, NUMERIC_DISPLAY_LENGTH);
+	else {
+		memset(returnSegments, 0, NUMERIC_DISPLAY_LENGTH);
+	}
 
-	if (loadingAnimationPos < 4) returnSegments[loadingAnimationPos] ^= 0x40;
-	else if (loadingAnimationPos == 4) returnSegments[3] ^= 0x30;
-	else if (loadingAnimationPos < 9) returnSegments[3 - (loadingAnimationPos - 5)] ^= 0x08;
-	else returnSegments[0] ^= 0x06;
+	if (loadingAnimationPos < 4) {
+		returnSegments[loadingAnimationPos] ^= 0x40;
+	}
+	else if (loadingAnimationPos == 4) {
+		returnSegments[3] ^= 0x30;
+	}
+	else if (loadingAnimationPos < 9) {
+		returnSegments[3 - (loadingAnimationPos - 5)] ^= 0x08;
+	}
+	else {
+		returnSegments[0] ^= 0x06;
+	}
 }

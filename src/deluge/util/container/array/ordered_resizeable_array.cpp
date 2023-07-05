@@ -43,8 +43,12 @@ int OrderedResizeableArray::search(int32_t searchKey, int comparison, int rangeB
 
 		int32_t keyHere = getKeyAtIndex(proposedIndex);
 
-		if (keyHere < searchKey) rangeBegin = proposedIndex + 1;
-		else rangeEnd = proposedIndex;
+		if (keyHere < searchKey) {
+			rangeBegin = proposedIndex + 1;
+		}
+		else {
+			rangeEnd = proposedIndex;
+		}
 	}
 
 	return rangeBegin + comparison;
@@ -55,7 +59,9 @@ int OrderedResizeableArray::searchExact(int32_t key) {
 	int i = search(key, GREATER_OR_EQUAL);
 	if (i < numElements) {
 		int32_t keyHere = getKeyAtIndex(i);
-		if (keyHere == key) return i;
+		if (keyHere == key) {
+			return i;
+		}
 	}
 	return -1;
 }
@@ -78,12 +84,16 @@ void OrderedResizeableArrayWith32bitKey::searchDual(int32_t const* __restrict__ 
 
 		int32_t keyHere = getKeyAtIndex(proposedIndex);
 
-		if (keyHere < searchTerms[0]) rangeBegin = proposedIndex + 1;
+		if (keyHere < searchTerms[0]) {
+			rangeBegin = proposedIndex + 1;
+		}
 		else {
 			rangeEnd = proposedIndex;
 
 			// And we can also narrow down our next search, if that's going to be left of our proposedIndex too.
-			if (keyHere >= searchTerms[1]) rangeEndForSecondTerm = proposedIndex;
+			if (keyHere >= searchTerms[1]) {
+				rangeEndForSecondTerm = proposedIndex;
+			}
 		}
 	}
 
@@ -96,7 +106,9 @@ void OrderedResizeableArrayWith32bitKey::searchDual(int32_t const* __restrict__ 
 void OrderedResizeableArrayWith32bitKey::searchMultiple(int32_t* __restrict__ searchTerms, int numSearchTerms,
                                                         int rangeEnd) {
 
-	if (rangeEnd == -1) rangeEnd = numElements;
+	if (rangeEnd == -1) {
+		rangeEnd = numElements;
+	}
 
 	int const maxNumSearchRecords = FILENAME_BUFFER_SIZE / sizeof(SearchRecord);
 	SearchRecord* const __restrict__ searchRecords = (SearchRecord*)miscStringBuffer;
@@ -113,7 +125,9 @@ void OrderedResizeableArrayWith32bitKey::searchMultiple(int32_t* __restrict__ se
 	// Go through each search term. rangeBegin carries over between search terms
 	for (int t = 0; t < numSearchTerms; t++) {
 
-		if (t >= searchRecords[currentSearchRecord].lastsUntilSearchTerm) currentSearchRecord--;
+		if (t >= searchRecords[currentSearchRecord].lastsUntilSearchTerm) {
+			currentSearchRecord--;
+		}
 
 		int rangeEnd = searchRecords[currentSearchRecord].defaultRangeEnd;
 		int searchTermsRangeEnd = searchRecords[currentSearchRecord].lastsUntilSearchTerm;
@@ -155,7 +169,9 @@ void OrderedResizeableArrayWith32bitKey::searchMultiple(int32_t* __restrict__ se
 
 						// But, if the stack was going to overflow, the beauty is, we can just not put our new item on the stack at all. Everything will still work fine,
 						// though not quite as efficiently as it could have
-						if (currentSearchRecord == maxNumSearchRecords - 1) continue;
+						if (currentSearchRecord == maxNumSearchRecords - 1) {
+							continue;
+						}
 
 						currentSearchRecord++;
 						//if (currentSearchRecord > maxSearchRecord) maxSearchRecord = currentSearchRecord;
@@ -182,7 +198,9 @@ void OrderedResizeableArrayWith32bitKey::searchMultiple(int32_t* __restrict__ se
 }
 
 bool OrderedResizeableArrayWith32bitKey::generateRepeats(int32_t wrapPoint, int32_t endPos) {
-	if (!memory) return true;
+	if (!memory) {
+		return true;
+	}
 
 	int numCompleteRepeats = (uint32_t)endPos / (uint32_t)wrapPoint;
 
@@ -194,13 +212,17 @@ bool OrderedResizeableArrayWith32bitKey::generateRepeats(int32_t wrapPoint, int3
 	    GREATER_OR_EQUAL); // Do this rather than just copying numElements - this is better because it ensures we ignore / chop off any elements >= wrapPoint
 	int newNum = oldNum * numCompleteRepeats + iEndPosWithinFirstRepeat;
 
-	if (!ensureEnoughSpaceAllocated(newNum - numElements)) return false;
+	if (!ensureEnoughSpaceAllocated(newNum - numElements)) {
+		return false;
+	}
 
 	numElements = newNum;
 
 	for (int r = 1; r <= numCompleteRepeats; r++) { // For each repeat
 		for (int i = 0; i < oldNum; i++) {
-			if (r == numCompleteRepeats && i >= iEndPosWithinFirstRepeat) break;
+			if (r == numCompleteRepeats && i >= iEndPosWithinFirstRepeat) {
+				break;
+			}
 			memcpy(getElementAddress(i + oldNum * r), getElementAddress(i), elementSize);
 
 			int32_t newPos = getKeyAtIndex(i) + wrapPoint * r;
@@ -217,11 +239,17 @@ int OrderedResizeableArray::insertAtKey(int32_t key, bool isDefinitelyLast) {
 
 	int i;
 
-	if (isDefinitelyLast) i = numElements;
-	else i = search(key, GREATER_OR_EQUAL);
+	if (isDefinitelyLast) {
+		i = numElements;
+	}
+	else {
+		i = search(key, GREATER_OR_EQUAL);
+	}
 
 	int error = insertAtIndex(i);
-	if (error) return -1;
+	if (error) {
+		return -1;
+	}
 
 	setKeyAtIndex(key, i);
 
@@ -236,12 +264,16 @@ void OrderedResizeableArray::deleteAtKey(int32_t key) {
 }
 
 void OrderedResizeableArray::testSequentiality(char const* errorCode) {
-	if (!ALPHA_OR_BETA_VERSION) return;
+	if (!ALPHA_OR_BETA_VERSION) {
+		return;
+	}
 
 	int32_t lastKey = -2147483648;
 	for (int i = 0; i < getNumElements(); i++) {
 		int32_t key = getKeyAtIndex(i);
-		if (key <= lastKey) numericDriver.freezeWithError(errorCode);
+		if (key <= lastKey) {
+			numericDriver.freezeWithError(errorCode);
+		}
 
 		lastKey = key;
 	}
@@ -324,7 +356,8 @@ startAgain:
 			// Check that value doesn't already exist
 			int i = search(value, GREATER_OR_EQUAL);
 			if (i < numElements) {
-				if (getKeyAtIndex(i) == value) goto startAgain;
+				if (getKeyAtIndex(i) == value)
+					goto startAgain;
 			}
 
 			int numToInsert = 1;
@@ -333,20 +366,24 @@ startAgain:
 			if (true || getRandom255() < 16) {
 				int desiredNumToInsert = getRandom255() & 15;
 
-				if (desiredNumToInsert < 1) desiredNumToInsert = 1;
+				if (desiredNumToInsert < 1)
+					desiredNumToInsert = 1;
 				int32_t valueNow = value;
 
 				while (numToInsert < desiredNumToInsert) {
 					valueNow++;
-					if (valueNow < value) break;
-					if (i < numElements && getKeyAtIndex(i) == valueNow) break;
+					if (valueNow < value)
+						break;
+					if (i < numElements && getKeyAtIndex(i) == valueNow)
+						break;
 
 					numToInsert++;
 				}
 			}
 
 			// Make sure we don't shoot past the end of values[NUM_TEST_INSERTIONS]
-			if (numToInsert > NUM_TEST_INSERTIONS - v) numToInsert = NUM_TEST_INSERTIONS - v;
+			if (numToInsert > NUM_TEST_INSERTIONS - v)
+				numToInsert = NUM_TEST_INSERTIONS - v;
 
 			//if (numToInsert == 15) Uart::println("inserting 15");
 
@@ -399,10 +436,12 @@ startAgain:
 
 			while (true) {
 				w++;
-				if (w >= NUM_TEST_INSERTIONS) break;
+				if (w >= NUM_TEST_INSERTIONS)
+					break;
 
 				value++;
-				if (values[w] != value) break;
+				if (values[w] != value)
+					break;
 
 				j++;
 				if (j >= numElements) {
@@ -498,7 +537,9 @@ OrderedResizeableArrayWith32bitKey::OrderedResizeableArrayWith32bitKey(int newEl
 
 void OrderedResizeableArrayWith32bitKey::shiftHorizontal(int32_t shiftAmount, int32_t effectiveLength) {
 
-	if (!numElements) return;
+	if (!numElements) {
+		return;
+	}
 
 	// Wrap the amount to the length.
 	if (shiftAmount >= effectiveLength) {
@@ -508,12 +549,18 @@ void OrderedResizeableArrayWith32bitKey::shiftHorizontal(int32_t shiftAmount, in
 		shiftAmount = -((uint32_t)(-shiftAmount) % (uint32_t)effectiveLength);
 	}
 
-	if (!shiftAmount) return;
+	if (!shiftAmount) {
+		return;
+	}
 
 	int32_t cutoffPos = -shiftAmount;
-	if (cutoffPos < 0) cutoffPos += effectiveLength;
+	if (cutoffPos < 0) {
+		cutoffPos += effectiveLength;
+	}
 
-	if (shiftAmount < 0) shiftAmount += effectiveLength;
+	if (shiftAmount < 0) {
+		shiftAmount += effectiveLength;
+	}
 
 	int cutoffIndex = search(
 	    cutoffPos,

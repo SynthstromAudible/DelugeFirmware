@@ -34,13 +34,19 @@ void NumericLayerScrollingText::isNowOnTop() {
 		uiTimerManager.setTimer(TIMER_DISPLAY, initialDelay);
 	}
 
-	if (currentPos + NUMERIC_DISPLAY_LENGTH >= length) currentDirection = -1;
+	if (currentPos + NUMERIC_DISPLAY_LENGTH >= length) {
+		currentDirection = -1;
+	}
 }
 
 void NumericLayerScrollingText::render(uint8_t* returnSegments) {
 	for (int i = 0; i < NUMERIC_DISPLAY_LENGTH; i++) {
-		if (i + currentPos < length) returnSegments[i] = text[i + currentPos];
-		else returnSegments[i] = 0;
+		if (i + currentPos < length) {
+			returnSegments[i] = text[i + currentPos];
+		}
+		else {
+			returnSegments[i] = 0;
+		}
 	}
 }
 

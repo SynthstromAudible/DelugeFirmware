@@ -34,7 +34,9 @@ public:
 	void writeCurrentValue() {
 		ExpressionParamSet* expressionParams =
 		    soundEditor.currentParamManager->getOrCreateExpressionParamSet(soundEditor.editingKit());
-		if (expressionParams) expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL] = soundEditor.currentValue;
+		if (expressionParams) {
+			expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL] = soundEditor.currentValue;
+		}
 	}
 	bool isRelevant(Sound* sound, int whichThing) {
 		return soundEditor.navigationDepth == 1 || soundEditor.editingKit();

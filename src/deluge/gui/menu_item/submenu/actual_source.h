@@ -43,7 +43,9 @@ public:
 			intToString(thingIndex + 1, buffer + 3);
 			numericDriver.setText(buffer);
 		}
-		else SubmenuReferringToOneThing::drawName();
+		else {
+			SubmenuReferringToOneThing::drawName();
+		}
 	}
 #endif
 };
