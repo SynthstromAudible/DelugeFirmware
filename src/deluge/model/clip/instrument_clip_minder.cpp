@@ -430,13 +430,16 @@ yesLoadInstrument:
 			}
 		}
 	}
-	
+
 	else if (x == kitButtonX && y == kitButtonY) {
 		if (on && currentUIMode == UI_MODE_NONE) {
-			if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			if (inCardRoutine)
+				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 
-			if (Buttons::isNewOrShiftButtonPressed()) createNewInstrument(INSTRUMENT_TYPE_KIT);
-			else changeInstrumentType(INSTRUMENT_TYPE_KIT);
+			if (Buttons::isNewOrShiftButtonPressed())
+				createNewInstrument(INSTRUMENT_TYPE_KIT);
+			else
+				changeInstrumentType(INSTRUMENT_TYPE_KIT);
 		}
 	}
 

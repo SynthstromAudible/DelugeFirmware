@@ -101,11 +101,13 @@ int KeyboardScreen::padAction(int x, int y, int velocity) {
 	}
 
 	if (isUIModeActiveExclusively(UI_MODE_MIDI_LEARN)) {
-		if (sdRoutineLock) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		if (sdRoutineLock)
+			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 
 		if (instrument->type == INSTRUMENT_TYPE_KIT) {
 			NoteRow* noteRow = ((InstrumentClip*)instrument->activeClip)->getNoteRowOnScreen(yDisplay, currentSong);
-			if (!noteRow || !noteRow->drum) return ACTION_RESULT_DEALT_WITH;
+			if (!noteRow || !noteRow->drum)
+				return ACTION_RESULT_DEALT_WITH;
 			view.drumMidiLearnPadPressed(velocity, noteRow->drum, (Kit*)instrument);
 		}
 		else {
@@ -481,7 +483,7 @@ void KeyboardScreen::stopAllAuditioning(ModelStack* modelStack, bool switchOffOn
 				int noteCode = getNoteCodeFromCoords(padPresses[p].x, padPresses[p].y);
 				((MelodicInstrument*)getCurrentClip()->output)->endAuditioningForNote(modelStack, noteCode);
 				if (switchOffOnThisEndToo) {
-  				padPresses[p].x = 255;
+					padPresses[p].x = 255;
 				}
 			}
 		}
@@ -518,7 +520,8 @@ void KeyboardScreen::recalculateColours() {
 }
 
 void KeyboardScreen::changeInstrumentType(int newInstrumentType) {
-	if (getCurrentClip()->output->type == newInstrumentType) return;
+	if (getCurrentClip()->output->type == newInstrumentType)
+		return;
 	InstrumentClipMinder::changeInstrumentType(newInstrumentType);
 	instrumentClipView.recalculateColours();
 	recalculateColours();
@@ -545,8 +548,7 @@ bool KeyboardScreen::renderMainPads(uint32_t whichRows, uint8_t image[][displayW
 	Instrument* instrument = (Instrument*)getCurrentClip()->output;
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
-	ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
-	    modelStack->addTimelineCounter(getCurrentClip());
+	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(getCurrentClip());
 
 	// Flashing default root note
 	if (uiTimerManager.isTimerSet(TIMER_DEFAULT_ROOT_NOTE)) {
@@ -619,7 +621,8 @@ doFullColour:
 						occupancyMask[y][x] = 64;
 					}
 					// Show root note within each octave as full colour
-					else if (!noteWithinOctave) goto doFullColour;
+					else if (!noteWithinOctave)
+						goto doFullColour;
 
 					// Or, if this note is just within the current scale, show it dim
 					else {
@@ -643,7 +646,8 @@ doFullColour:
 					noteCode++;
 					yDisplay++;
 					noteWithinOctave++;
-					if (noteWithinOctave == 12) noteWithinOctave = 0;
+					if (noteWithinOctave == 12)
+						noteWithinOctave = 0;
 				}
 			}
 		}
@@ -826,8 +830,7 @@ void KeyboardScreen::doScroll(int offset, bool force) {
 
 				((MelodicInstrument*)getCurrentClip()->output)
 				    ->beginAuditioningForNote(modelStack, noteCode,
-				                              ((Instrument*)getCurrentClip()->output)->defaultVelocity,
-				                              zeroMPEValues);
+				                              ((Instrument*)getCurrentClip()->output)->defaultVelocity, zeroMPEValues);
 			}
 		}
 	}
@@ -923,7 +926,7 @@ void KeyboardScreen::drawNoteCode(int noteCode) {
 	}
 
 	if (getCurrentClip()->output->type != INSTRUMENT_TYPE_KIT) {
-  	drawActualNoteCode(noteCode);
+		drawActualNoteCode(noteCode);
 	}
 }
 
