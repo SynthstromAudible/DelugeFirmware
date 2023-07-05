@@ -26,8 +26,8 @@ jobs:
           docker run --rm \
             --user=$(id --user):$(id --group) \
             -v $(pwd):/src \
-            ghcr.io/bobtwinkles/deluge-ci-images:v$(cat toolchain/REQUIRED_VERSION) \
-            --e2_target=dbt-build-${{ matrix.profile }}-${{ matrix.hardware }}
+            ghcr.io/litui/dbt-toolchain:v$(cat toolchain/REQUIRED_VERSION) \
+            dbt-build-${{ matrix.profile }}-${{ matrix.hardware }}
       - name: Publish built firmware (bin)
         uses: actions/upload-artifact@v3
         with:
