@@ -55,7 +55,9 @@ bool SoundDrum::readTagFromFile(char const* tagName) {
 	}
 
 	else if (readDrumTagFromFile(tagName)) {}
-	else return false;
+	else {
+		return false;
+	}
 
 	return true;
 }
@@ -139,7 +141,9 @@ void SoundDrum::writeToFile(bool savingSong, ParamManager* paramManager) {
 
 	Sound::writeToFile(savingSong, paramManager, &arpSettings);
 
-	if (savingSong) Drum::writeMIDICommandsToFile();
+	if (savingSong) {
+		Drum::writeMIDICommandsToFile();
+	}
 
 	storageManager.writeClosingTag("sound");
 }
@@ -160,7 +164,9 @@ void SoundDrum::choke(ModelStackWithSoundFlags* modelStack) {
 	if (polyphonic == POLYPHONY_CHOKE) {
 
 		// Don't choke it if it's auditioned
-		if (getRootUI() == &instrumentClipView && instrumentClipView.isDrumAuditioned(this)) return;
+		if (getRootUI() == &instrumentClipView && instrumentClipView.isDrumAuditioned(this)) {
+			return;
+		}
 
 		// Ok, choke it
 		fastReleaseAllVoices(modelStack); // Accepts NULL

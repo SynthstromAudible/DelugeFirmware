@@ -134,7 +134,9 @@ void CVEngine::switchGateOn(int channel, int doInstantlyIfPossible) {
 void CVEngine::sendNote(bool on, uint8_t channel, int16_t note) {
 
 	// If this gate channel is reserved for a special purpose, don't do anything
-	if (gateChannels[channel].mode == GATE_MODE_SPECIAL) return;
+	if (gateChannels[channel].mode == GATE_MODE_SPECIAL) {
+		return;
+	}
 
 	// Note-off
 	if (!on) {
@@ -165,7 +167,9 @@ void CVEngine::sendNote(bool on, uint8_t channel, int16_t note) {
 
 		switchGateOn(channel);
 
-		if (channel < NUM_CV_CHANNELS) cvChannels[channel].noteCurrentlyPlaying = note;
+		if (channel < NUM_CV_CHANNELS) {
+			cvChannels[channel].noteCurrentlyPlaying = note;
+		}
 	}
 }
 
@@ -197,7 +201,9 @@ void CVEngine::setCVTranspose(uint8_t channel, int semitones, int cents) {
 
 void CVEngine::setCVPitchBend(uint8_t channel, int32_t value, bool outputToo) {
 	cvChannels[channel].pitchBend = value;
-	if (outputToo) recalculateCVChannelVoltage(channel);
+	if (outputToo) {
+		recalculateCVChannelVoltage(channel);
+	}
 }
 
 // Does it even if the corresponding gate isn't "on", because the note might still be audible on the connected physical synth
@@ -260,8 +266,9 @@ void CVEngine::setGateType(uint8_t channel, uint8_t value) {
 
 		// Clock
 		if (channel == WHICH_GATE_OUTPUT_IS_CLOCK) {
-			if (playbackHandler.playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE)
+			if (playbackHandler.playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE) {
 				playbackHandler.resyncAnalogOutTicksToInternalTicks();
+			}
 			updateClockOutput();
 		}
 
@@ -284,14 +291,18 @@ void CVEngine::setGateType(uint8_t channel, uint8_t value) {
 }
 
 void CVEngine::updateClockOutput() {
-	if (gateChannels[WHICH_GATE_OUTPUT_IS_CLOCK].mode != GATE_MODE_SPECIAL) return;
+	if (gateChannels[WHICH_GATE_OUTPUT_IS_CLOCK].mode != GATE_MODE_SPECIAL) {
+		return;
+	}
 
 	gateChannels[WHICH_GATE_OUTPUT_IS_CLOCK].on = clockState;
 	clockOutputPending = true;
 }
 
 void CVEngine::updateRunOutput() {
-	if (gateChannels[WHICH_GATE_OUTPUT_IS_RUN].mode != GATE_MODE_SPECIAL) return;
+	if (gateChannels[WHICH_GATE_OUTPUT_IS_RUN].mode != GATE_MODE_SPECIAL) {
+		return;
+	}
 
 	bool runState = (playbackHandler.isEitherClockActive() && !playbackHandler.ticksLeftInCountIn);
 

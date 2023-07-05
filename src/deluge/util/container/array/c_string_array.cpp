@@ -43,7 +43,9 @@ int CStringArray::partitionForStrings(int low, int high) {
 			j--;
 		} while (strcmpspecial(*(char const**)getElementAddress(j), pivotString) > 0);
 
-		if (i >= j) return j;
+		if (i >= j) {
+			return j;
+		}
 
 		swapElements(i, j);
 	}
@@ -76,7 +78,9 @@ void CStringArray::quickSortForStrings(int low, int high) {
 
 // You must set shouldInterpretNoteNames and octaveStartsFromA before calling this.
 void CStringArray::sortForStrings() {
-	if (numElements < 2) return;
+	if (numElements < 2) {
+		return;
+	}
 
 	workCount = 0;
 	quickSortForStrings(0, numElements - 1);
@@ -98,13 +102,21 @@ int CStringArray::search(char const* searchString, bool* foundExact) {
 		int result = strcmpspecial(stringHere, searchString);
 
 		if (!result) {
-			if (foundExact) *foundExact = true;
+			if (foundExact) {
+				*foundExact = true;
+			}
 			return proposedIndex;
 		}
-		else if (result < 0) rangeBegin = proposedIndex + 1;
-		else rangeEnd = proposedIndex;
+		else if (result < 0) {
+			rangeBegin = proposedIndex + 1;
+		}
+		else {
+			rangeEnd = proposedIndex;
+		}
 	}
 
-	if (foundExact) *foundExact = false;
+	if (foundExact) {
+		*foundExact = false;
+	}
 	return rangeBegin;
 }
