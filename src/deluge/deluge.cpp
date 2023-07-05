@@ -336,15 +336,15 @@ bool readButtonsAndPads() {
 #endif
 
 			int result;
-			if (MatrixDriver::isPad(value)) {
-				auto p = MatrixDriver::charToPad(value);
+			if (Pad::isPad(value)) {
+				auto p = Pad(value);
 				result = matrixDriver.padAction(p.x, p.y, thisPadPressIsOn);
 				/* while this function takes an int for velocity, 255 indicates to the downstream audition pad
 				 * function that it should use the default velocity for the instrument
 				 */
 			}
 			else {
-				auto b = Buttons::charToButton(value);
+				auto b = hid::Button(value);
 				result = Buttons::buttonAction(b.x, b.y, thisPadPressIsOn, sdRoutineLock);
 			}
 
