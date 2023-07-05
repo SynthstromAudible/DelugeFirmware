@@ -324,42 +324,25 @@ bool readButtonsAndPads() {
 
 		if (value < PAD_AND_BUTTON_MESSAGES_END) {
 
-			int result;
-
 #if DELUGE_MODEL == DELUGE_MODEL_40_PAD
 			bool thisPadPressIsOn = (value >= 70);
-			int x = (unsigned int)value % 10;
-			int y = ((unsigned int)value % 70) / 10;
-
-			if (y < displayHeight) result = matrixDriver.padAction(x, y, thisPadPressIsOn, inSDRoutine);
-			else result = Buttons::buttonAction(x, y - displayHeight, thisPadPressIsOn, sdRoutineLock);
-
 #else
 			int thisPadPressIsOn = nextPadPressIsOn;
 			nextPadPressIsOn = USE_DEFAULT_VELOCITY;
+#endif
 
-			int y = (unsigned int)value / 9;
-			int x = value - y * 9;
-
-			// If pad...
-			if (y < displayHeight * 2) {
-				x <<= 1;
-				if (y >= displayHeight) {
-					y -= displayHeight;
-					x++;
-				}
+			int result;
+			if (MatrixDriver::isPad(value)) {
+				auto p = MatrixDriver::charToPad(value);
+				result = matrixDriver.padAction(p.x, p.y, thisPadPressIsOn);
 				/* while this function takes an int for velocity, 255 indicates to the downstream audition pad
 				 * function that it should use the default velocity for the instrument
 				 */
-
-				result = matrixDriver.padAction(x, y, thisPadPressIsOn);
 			}
-
-			// Or if button...
 			else {
-				result = Buttons::buttonAction(x, y - displayHeight * 2, thisPadPressIsOn, sdRoutineLock);
+				auto b = Buttons::charToButton(value);
+				result = Buttons::buttonAction(b.x, b.y, thisPadPressIsOn, sdRoutineLock);
 			}
-#endif
 
 			if (result == ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE) {
 				nextPadPressIsOn = thisPadPressIsOn;

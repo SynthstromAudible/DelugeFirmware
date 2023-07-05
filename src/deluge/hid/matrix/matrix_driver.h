@@ -24,6 +24,10 @@
 
 class AudioClip;
 
+struct pad_s {
+	int x, y;
+};
+
 class MatrixDriver {
 public:
 	MatrixDriver();
@@ -35,6 +39,10 @@ public:
 	bool isUserDoingBootloaderOverwriteAction();
 
 	bool padStates[displayWidth + sideBarWidth][displayHeight];
+
+	static uint8_t padToChar(pad_s p);
+	static pad_s charToPad(uint8_t value);
+	static bool isPad(uint8_t value);
 };
 
 extern char* matrixDriverDisplayWritePos;

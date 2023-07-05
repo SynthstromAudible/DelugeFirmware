@@ -22,11 +22,19 @@
 
 namespace Buttons {
 
+struct button_s {
+	int x, y;
+};
+
 int buttonAction(int x, int y, bool on, bool inCardRoutine);
 bool isButtonPressed(int x, int y);
 bool isShiftButtonPressed();
 bool isNewOrShiftButtonPressed();
 void noPressesHappening(bool inCardRoutine);
+
+button_s charToButton(uint8_t value);
+uint8_t buttonToChar(button_s b);
+bool isButton(uint8_t value);
 
 extern bool recordButtonPressUsedUp;
 } // namespace Buttons
