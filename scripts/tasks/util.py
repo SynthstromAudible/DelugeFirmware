@@ -1,3 +1,4 @@
+from functools import partial
 import multiprocessing
 import subprocess
 import sys
@@ -116,7 +117,6 @@ class Counter(object):
 
 ## Multiprocessing
 
-
 def init_globals(cntr):
     global counter
     counter = cntr
@@ -141,12 +141,15 @@ def do_parallel_progressbar(func, it, prefix: str, size: int = 60, out=sys.stdou
 
     show(0)
 
-    pool = multiprocessing.Pool()
-    result = pool.map_async(func, it)
+    counter = Counter()
+    pool = multiprocessing.Pool(
+        multiprocessing.cpu_count(), initializer=init_globals, initargs=(counter,)
+    )
+    result = pool.map_async(partial(call_and_increment, func), it)
     while not result.ready():
-        show(count - result._number_left)
-        time.sleep(1)
-    show(count)
+        show(counter.value)
+        time.sleep(0.1)
+    show(counter.value)
     pool.close()
     pool.join()
     print("", flush=True, file=out)

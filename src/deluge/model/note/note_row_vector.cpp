@@ -34,7 +34,9 @@ NoteRowVector::~NoteRowVector() {
 
 NoteRow* NoteRowVector::insertNoteRowAtIndex(int index) {
 	int error = insertAtIndex(index);
-	if (error) return NULL;
+	if (error) {
+		return NULL;
+	}
 	void* memory = getElementAddress(index);
 
 	return new (memory) NoteRow();
@@ -51,7 +53,9 @@ NoteRow* NoteRowVector::insertNoteRowAtY(int y, int* getIndex) {
 	int i = search(y, GREATER_OR_EQUAL);
 	NoteRow* noteRow = insertNoteRowAtIndex(i);
 	if (noteRow) {
-		if (getIndex) *getIndex = i;
+		if (getIndex) {
+			*getIndex = i;
+		}
 		noteRow->y = y;
 	}
 	return noteRow;

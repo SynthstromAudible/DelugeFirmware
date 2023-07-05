@@ -27,8 +27,12 @@ public:
 		soundEditor.currentValue += offset;
 		int numOptions = getNumOptions();
 
-		if (soundEditor.currentValue >= numOptions) soundEditor.currentValue -= (numOptions - 1);
-		else if (soundEditor.currentValue < 1) soundEditor.currentValue += (numOptions - 1);
+		if (soundEditor.currentValue >= numOptions) {
+			soundEditor.currentValue -= (numOptions - 1);
+		}
+		else if (soundEditor.currentValue < 1) {
+			soundEditor.currentValue += (numOptions - 1);
+		}
 
 		Value::selectEncoderAction(offset);
 	}

@@ -36,8 +36,10 @@ void Integer::writeCurrentValue() {
 }
 
 int32_t Integer::getFinalValue() {
-	if (soundEditor.currentValue == 25) return 0;
-	else return (uint32_t)soundEditor.currentValue * 85899345 - 2147483648;
+	if (soundEditor.currentValue == 25) {
+		return 0;
+	}
+	return (uint32_t)soundEditor.currentValue * 85899345 - 2147483648;
 }
 
 } // namespace menu_item::patched_param

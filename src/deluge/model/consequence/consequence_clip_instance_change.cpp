@@ -34,7 +34,9 @@ ConsequenceClipInstanceChange::ConsequenceClipInstanceChange(Output* newOutput, 
 int ConsequenceClipInstanceChange::revert(int time, ModelStack* modelStack) {
 	int i = output->clipInstances.search(pos[1 - time], GREATER_OR_EQUAL);
 	ClipInstance* clipInstance = output->clipInstances.getElement(i);
-	if (!clipInstance) return ERROR_BUG;
+	if (!clipInstance) {
+		return ERROR_BUG;
+	}
 	clipInstance->pos = pos[time];
 	clipInstance->length = length[time];
 	clipInstance->clip = clip[time];

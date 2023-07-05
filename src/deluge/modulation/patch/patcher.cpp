@@ -75,15 +75,21 @@ void Patcher::performPatching(uint32_t sourcesChanged, Sound* sound, ParamManage
 	PatchCableSet* patchCableSet = paramManager->getPatchCableSet();
 	int globality = patchableInfo->globality;
 	Destination* destination = patchCableSet->destinations[globality];
-	if (!destination) return;
+	if (!destination) {
+		return;
+	}
 
 	sourcesChanged &= patchCableSet->sourcesPatchedToAnything[globality];
-	if (!sourcesChanged) return;
+	if (!sourcesChanged) {
+		return;
+	}
 
 	// First, "range" Destinations
 	int i = 0;
 	for (; destination->destinationParamDescriptor.data < (uint32_t)0xFFFFFF00; destination++) {
-		if (!(destination->sources & sourcesChanged)) continue; // And don't increment i.
+		if (!(destination->sources & sourcesChanged)) {
+			continue; // And don't increment i.
+		}
 
 		int32_t cablesCombination = combineCablesLinearForRangeParam(destination, paramManager);
 
@@ -103,7 +109,9 @@ void Patcher::performPatching(uint32_t sourcesChanged, Sound* sound, ParamManage
 		// Now normal, actual params/destinations
 		uint32_t firstHybridParam = patchableInfo->firstHybridParam | 0xFFFFFF00;
 		for (; destination->destinationParamDescriptor.data < firstHybridParam; destination++) {
-			if (!(destination->sources & sourcesChanged)) continue;
+			if (!(destination->sources & sourcesChanged)) {
+				continue;
+			}
 
 			int p = destination->destinationParamDescriptor.getJustTheParam();
 			cableCombinations[numParamsPatched] = combineCablesLinear(destination, p, sound, paramManager);
@@ -112,7 +120,9 @@ void Patcher::performPatching(uint32_t sourcesChanged, Sound* sound, ParamManage
 		}
 
 		for (; destination->sources; destination++) {
-			if (!(destination->sources & sourcesChanged)) continue;
+			if (!(destination->sources & sourcesChanged)) {
+				continue;
+			}
 
 			int p = destination->destinationParamDescriptor.getJustTheParam();
 			cableCombinations[numParamsPatched] = combineCablesExp(destination, p, sound, paramManager);

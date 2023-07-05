@@ -181,9 +181,12 @@ int32_t FilterSetConfig::init(int32_t lpfFrequency, int32_t lpfResonance, int32_
 
 			if (lpfMode != LPF_MODE_TRANSISTOR_24DB_DRIVE) { // Cold transistor ladder only
 				// Extra feedback - but only if freq isn't too high. Otherwise we get aliasing
-				if (tannedFrequency <= 304587486)
+				if (tannedFrequency <= 304587486) {
 					processedResonance = multiply_32x32_rshift32_rounded(processedResonance, 1150000000) << 1;
-				else processedResonance >>= 1;
+				}
+				else {
+					processedResonance >>= 1;
+				}
 
 				int32_t a = getMin(lpfResonance, (int32_t)536870911);
 				a = 536870912 - a;

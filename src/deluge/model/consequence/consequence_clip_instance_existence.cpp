@@ -33,14 +33,18 @@ int ConsequenceClipInstanceExistence::revert(int time, ModelStack* modelStack) {
 
 	if (time == type) { // (Re-)delete
 		int i = output->clipInstances.search(pos, GREATER_OR_EQUAL);
-		if (i < 0 || i >= output->clipInstances.getNumElements()) return ERROR_BUG;
+		if (i < 0 || i >= output->clipInstances.getNumElements()) {
+			return ERROR_BUG;
+		}
 		output->clipInstances.deleteAtIndex(i);
 	}
 
 	else { // (Re-)create
 		int i = output->clipInstances.insertAtKey(pos);
 		ClipInstance* clipInstance = output->clipInstances.getElement(i);
-		if (!clipInstance) return ERROR_INSUFFICIENT_RAM;
+		if (!clipInstance) {
+			return ERROR_INSUFFICIENT_RAM;
+		}
 		clipInstance->length = length;
 		clipInstance->clip = clip;
 	}

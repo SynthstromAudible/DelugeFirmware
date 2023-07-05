@@ -60,11 +60,17 @@ void Selection::selectEncoderAction(int offset) {
 	int numOptions = getNumOptions();
 
 #if HAVE_OLED
-	if (soundEditor.currentValue > numOptions - 1) soundEditor.currentValue = numOptions - 1;
-	else if (soundEditor.currentValue < 0) soundEditor.currentValue = 0;
+	if (soundEditor.currentValue > numOptions - 1) {
+		soundEditor.currentValue = numOptions - 1;
+	}
+	else if (soundEditor.currentValue < 0) {
+		soundEditor.currentValue = 0;
+	}
 #else
-	if (soundEditor.currentValue >= numOptions) soundEditor.currentValue -= numOptions;
-	else if (soundEditor.currentValue < 0) soundEditor.currentValue += numOptions;
+	if (soundEditor.currentValue >= numOptions)
+		soundEditor.currentValue -= numOptions;
+	else if (soundEditor.currentValue < 0)
+		soundEditor.currentValue += numOptions;
 #endif
 
 	Value::selectEncoderAction(offset);
@@ -81,10 +87,12 @@ void Selection::drawValue() {
 #if HAVE_OLED
 void Selection::drawPixelsForOled() {
 	// Move scroll
-	if (soundEditor.menuCurrentScroll > soundEditor.currentValue)
+	if (soundEditor.menuCurrentScroll > soundEditor.currentValue) {
 		soundEditor.menuCurrentScroll = soundEditor.currentValue;
-	else if (soundEditor.menuCurrentScroll < soundEditor.currentValue - OLED_MENU_NUM_OPTIONS_VISIBLE + 1)
+	}
+	else if (soundEditor.menuCurrentScroll < soundEditor.currentValue - OLED_MENU_NUM_OPTIONS_VISIBLE + 1) {
 		soundEditor.menuCurrentScroll = soundEditor.currentValue - OLED_MENU_NUM_OPTIONS_VISIBLE + 1;
+	}
 
 	char const** options = &getOptions()[soundEditor.menuCurrentScroll];
 	int selectedOption = soundEditor.currentValue - soundEditor.menuCurrentScroll;

@@ -34,9 +34,13 @@ int AudioFileHolder::loadFile(bool reversed, bool manuallySelected, bool mayActu
                               int clusterLoadInstruction, FilePointer* filePointer, bool makeWaveTableWorkAtAllCosts) {
 
 	// See if this AudioFile object already all loaded up
-	if (audioFile) return NO_ERROR;
+	if (audioFile) {
+		return NO_ERROR;
+	}
 
-	if (filePath.isEmpty()) return NO_ERROR; // This could happen if the filename tag wasn't present in the file
+	if (filePath.isEmpty()) {
+		return NO_ERROR; // This could happen if the filename tag wasn't present in the file
+	}
 
 	uint8_t error;
 	AudioFile* newAudioFile = audioFileManager.getAudioFileFromFilename(
@@ -59,8 +63,9 @@ void AudioFileHolder::setAudioFile(AudioFile* newAudioFile, bool reversed, bool 
 	if (audioFile) {
 		unassignAllClusterReasons();
 #if ALPHA_OR_BETA_VERSION
-		if (audioFile->numReasonsToBeLoaded <= 0)
+		if (audioFile->numReasonsToBeLoaded <= 0) {
 			numericDriver.freezeWithError("E220"); // I put this here to try and catch an E004 Luc got
+		}
 #endif
 		audioFile->removeReason("E391");
 	}

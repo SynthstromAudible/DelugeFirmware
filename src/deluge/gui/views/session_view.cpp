@@ -94,12 +94,16 @@ bool SessionView::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
 		*cols = 0b11;
 		return true;
 	}
-	else return false;
+	else {
+		return false;
+	}
 }
 
 bool SessionView::opened() {
 
-	if (playbackHandler.playbackState && currentPlaybackMode == &arrangement) PadLEDs::skipGreyoutFade();
+	if (playbackHandler.playbackState && currentPlaybackMode == &arrangement) {
+		PadLEDs::skipGreyoutFade();
+	}
 
 	IndicatorLEDs::setLedState(crossScreenEditLedX, crossScreenEditLedY, false);
 	IndicatorLEDs::setLedState(scaleModeLedX, scaleModeLedY, false);
@@ -163,7 +167,9 @@ int SessionView::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 	// Clip-view button
 	if (x == clipViewButtonX && y == clipViewButtonY) {
 		if (on && currentUIMode == UI_MODE_NONE && playbackHandler.recording != RECORDING_ARRANGEMENT) {
-			if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			if (inCardRoutine) {
+				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
 			transitionToViewForClip(); // May fail if no currentClip
 		}
 	}
@@ -177,7 +183,9 @@ int SessionView::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 	else if (x == sessionViewButtonX && y == sessionViewButtonY && !Buttons::isShiftButtonPressed()) {
 #endif
 		if (on) {
-			if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			if (inCardRoutine) {
+				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
 
 			// If holding record button...
 			if (Buttons::isButtonPressed(recordButtonX, recordButtonY)) {
@@ -189,7 +197,9 @@ int SessionView::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 					Action* action = actionLogger.getNewAction(ACTION_ARRANGEMENT_RECORD, false);
 
 					arrangerView.xScrollWhenPlaybackStarted = currentSong->xScroll[NAVIGATION_ARRANGEMENT];
-					if (action) action->posToClearArrangementFrom = arrangerView.xScrollWhenPlaybackStarted;
+					if (action) {
+						action->posToClearArrangementFrom = arrangerView.xScrollWhenPlaybackStarted;
+					}
 
 					currentSong->clearArrangementBeyondPos(
 					    arrangerView.xScrollWhenPlaybackStarted,
@@ -320,7 +330,9 @@ moveAfterClipInstance:
 				uiTimerManager.setTimer(TIMER_UI_SPECIFIC, 500);
 				view.blinkOn = true;
 			}
-			else goto notDealtWith;
+			else {
+				goto notDealtWith;
+			}
 		}
 		else {
 			if (isUIModeActive(UI_MODE_VIEWING_RECORD_ARMING)) {
@@ -328,7 +340,9 @@ moveAfterClipInstance:
 				PadLEDs::reassessGreyout(false);
 				uiNeedsRendering(this, 0, 0xFFFFFFFF);
 			}
-			else goto notDealtWith;
+			else {
+				goto notDealtWith;
+			}
 		}
 		return ACTION_RESULT_NOT_DEALT_WITH; // Make the MatrixDriver do its normal thing with it too
 	}
@@ -343,7 +357,9 @@ moveAfterClipInstance:
 				return ACTION_RESULT_DEALT_WITH;
 			}
 
-			if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			if (inCardRoutine) {
+				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
 
 			actionLogger.deleteAllLogs();
 			int yDisplay = selectedClipYDisplay;
@@ -355,10 +371,14 @@ moveAfterClipInstance:
 	// Select encoder button
 	else if (x == selectEncButtonX && y == selectEncButtonY && !Buttons::isShiftButtonPressed()) {
 		if (on) {
-			if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			if (inCardRoutine) {
+				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
 
 			if (currentUIMode == UI_MODE_HOLDING_SECTION_PAD) {
-				if (performActionOnSectionPadRelease) beginEditingSectionRepeatsNum();
+				if (performActionOnSectionPadRelease) {
+					beginEditingSectionRepeatsNum();
+				}
 				else {
 					currentSong->sections[sectionPressed].numRepetitions = 0;
 					drawSectionRepeatNumber();
@@ -401,7 +421,9 @@ changeInstrumentType:
 				return ACTION_RESULT_DEALT_WITH;
 			}
 
-			if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			if (inCardRoutine) {
+				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
 
 			Clip* clip = getClipOnScreen(selectedClipYDisplay);
 
@@ -537,7 +559,9 @@ int SessionView::padAction(int xDisplay, int yDisplay, int on) {
 
 			if (!Buttons::isShiftButtonPressed()) {
 
-				if (currentUIMode == UI_MODE_VIEWING_RECORD_ARMING) goto holdingRecord;
+				if (currentUIMode == UI_MODE_VIEWING_RECORD_ARMING) {
+					goto holdingRecord;
+				}
 
 				// If no Clip previously pressed...
 				if (currentUIMode == UI_MODE_NONE) {
@@ -552,18 +576,23 @@ holdingRecord:
 
 							Clip* sourceClip = getClipOnScreen(yDisplay + 1);
 
-							if (!sourceClip) return ACTION_RESULT_DEALT_WITH;
+							if (!sourceClip) {
+								return ACTION_RESULT_DEALT_WITH;
+							}
 
 							// If already has a pending overdub, get out
-							if (currentSong->getPendingOverdubWithOutput(sourceClip->output))
+							if (currentSong->getPendingOverdubWithOutput(sourceClip->output)) {
 								return ACTION_RESULT_DEALT_WITH;
+							}
 
 							if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
 								numericDriver.displayPopup(HAVE_OLED ? "Recording to arrangement" : "CANT");
 								return ACTION_RESULT_DEALT_WITH;
 							}
 
-							if (sdRoutineLock) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+							if (sdRoutineLock) {
+								return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+							}
 
 							int clipIndex = yDisplay + currentSong->songViewYScroll + 1;
 
@@ -618,8 +647,9 @@ holdingRecord:
 						// If it's a pending overdub, delete it
 						else if (clip->isPendingOverdub) {
 removePendingOverdub:
-							if (sdRoutineLock)
+							if (sdRoutineLock) {
 								return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE; // Possibly not quite necessary...
+							}
 							removeClip(yDisplay);
 							session.justAbortedSomeLinearRecording();
 						}
@@ -645,17 +675,27 @@ startHoldingDown:
 					// Otherwise, try and create one
 					else {
 
-						if (Buttons::isButtonPressed(recordButtonX, recordButtonY)) return ACTION_RESULT_DEALT_WITH;
-						if (sdRoutineLock) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+						if (Buttons::isButtonPressed(recordButtonX, recordButtonY)) {
+							return ACTION_RESULT_DEALT_WITH;
+						}
+						if (sdRoutineLock) {
+							return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+						}
 
 						//if (possiblyCreatePendingNextOverdub(clipIndex, OVERDUB_EXTENDING)) return ACTION_RESULT_DEALT_WITH;
 
 						clip = createNewInstrumentClip(yDisplay);
-						if (!clip) return ACTION_RESULT_DEALT_WITH;
+						if (!clip) {
+							return ACTION_RESULT_DEALT_WITH;
+						}
 
 						int numClips = currentSong->sessionClips.getNumElements();
-						if (clipIndex < 0) clipIndex = 0;
-						else if (clipIndex >= numClips) clipIndex = numClips - 1;
+						if (clipIndex < 0) {
+							clipIndex = 0;
+						}
+						else if (clipIndex >= numClips) {
+							clipIndex = numClips - 1;
+						}
 
 						selectedClipYDisplay = clipIndex - currentSong->songViewYScroll;
 						uiNeedsRendering(this, 0, 1 << selectedClipYDisplay);
@@ -672,7 +712,9 @@ startHoldingDown:
 							return ACTION_RESULT_DEALT_WITH;
 						}
 
-						if (sdRoutineLock) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+						if (sdRoutineLock) {
+							return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+						}
 
 						actionLogger.deleteAllLogs();
 						cloneClip(selectedClipYDisplay, yDisplay);
@@ -685,7 +727,9 @@ startHoldingDown:
 
 						// AudioClip
 						if (clip->type == CLIP_TYPE_AUDIO) {
-							if (sdRoutineLock) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+							if (sdRoutineLock) {
+								return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+							}
 							view.endMIDILearn();
 							audioInputSelector.audioOutput = (AudioOutput*)clip->output;
 							audioInputSelector.setupAndCheckAvailability();
@@ -699,7 +743,9 @@ midiLearnMelodicInstrumentAction:
 							    || clip->output->type == INSTRUMENT_TYPE_MIDI_OUT
 							    || clip->output->type == INSTRUMENT_TYPE_CV) {
 
-								if (sdRoutineLock) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+								if (sdRoutineLock) {
+									return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+								}
 								view.melodicInstrumentMidiLearnPadPressed(on, (MelodicInstrument*)clip->output);
 							}
 						}
@@ -729,7 +775,9 @@ midiLearnMelodicInstrumentAction:
 						goto justEndClipPress;
 					}
 
-					if (sdRoutineLock) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+					if (sdRoutineLock) {
+						return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+					}
 
 					// Enter Clip
 					Clip* clip = getClipOnScreen(selectedClipYDisplay);
@@ -740,9 +788,10 @@ midiLearnMelodicInstrumentAction:
 				else {
 					if (yDisplay == selectedClipPressYDisplay && xDisplay == selectedClipPressXDisplay) {
 justEndClipPress:
-						if (sdRoutineLock)
+						if (sdRoutineLock) {
 							return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE; // If in card routine, might mean it's still loading an Instrument they selected,
-							    // and we don't want the loading animation or anything to get stuck onscreen
+						}
+						// and we don't want the loading animation or anything to get stuck onscreen
 						clipPressEnded();
 					}
 				}
@@ -760,7 +809,9 @@ justEndClipPress:
 			// but the uiMode hasn't been set to "holding down" yet and control hasn't been released back to the user, and this is the user releasing their press,
 			// so we definitely want to be reminded of this later after the above has happened.
 			else {
-				if (sdRoutineLock) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				if (sdRoutineLock) {
+					return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				}
 			}
 		}
 	}
@@ -770,7 +821,9 @@ justEndClipPress:
 
 		if (playbackHandler.playbackState && currentPlaybackMode == &arrangement) {
 			if (currentUIMode == UI_MODE_NONE) {
-				if (sdRoutineLock) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				if (sdRoutineLock) {
+					return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				}
 				playbackHandler.switchToSession();
 			}
 		}
@@ -778,7 +831,9 @@ justEndClipPress:
 		else {
 
 			if (clip && clip->isPendingOverdub) {
-				if (on && !currentUIMode) goto removePendingOverdub;
+				if (on && !currentUIMode) {
+					goto removePendingOverdub;
+				}
 			}
 
 			// Status pad
@@ -805,7 +860,9 @@ justEndClipPress:
 
 					switch (currentUIMode) {
 					case UI_MODE_MIDI_LEARN:
-						if (sdRoutineLock) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+						if (sdRoutineLock) {
+							return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+						}
 						view.sectionMidiLearnPadPressed(on, clip->section);
 						break;
 
@@ -842,7 +899,9 @@ void SessionView::sectionPadAction(uint8_t y, bool on) {
 
 	Clip* clip = getClipOnScreen(y);
 
-	if (!clip) return;
+	if (!clip) {
+		return;
+	}
 
 	if (on) {
 
@@ -868,7 +927,9 @@ void SessionView::sectionPadAction(uint8_t y, bool on) {
 				for (int c = 0; c < currentSong->sessionClips.getNumElements(); c++) {
 					Clip* thisClip = currentSong->sessionClips.getClipAtIndex(c);
 
-					if (thisClip->section < MAX_NUM_SECTIONS) sectionUsed[thisClip->section] = true;
+					if (thisClip->section < MAX_NUM_SECTIONS) {
+						sectionUsed[thisClip->section] = true;
+					}
 				}
 
 				// Mark first unused section as available
@@ -978,12 +1039,18 @@ void SessionView::drawSectionRepeatNumber() {
 
 void SessionView::selectEncoderAction(int8_t offset) {
 	if (currentUIMode == UI_MODE_HOLDING_SECTION_PAD) {
-		if (performActionOnSectionPadRelease) beginEditingSectionRepeatsNum();
+		if (performActionOnSectionPadRelease) {
+			beginEditingSectionRepeatsNum();
+		}
 		else {
 			int16_t* numRepetitions = &currentSong->sections[sectionPressed].numRepetitions;
 			*numRepetitions += offset;
-			if (*numRepetitions > 9999) *numRepetitions = 9999;
-			else if (*numRepetitions < -1) *numRepetitions = -1;
+			if (*numRepetitions > 9999) {
+				*numRepetitions = 9999;
+			}
+			else if (*numRepetitions < -1) {
+				*numRepetitions = -1;
+			}
 			drawSectionRepeatNumber();
 		}
 	}
@@ -1023,8 +1090,12 @@ void SessionView::selectEncoderAction(int8_t offset) {
 
 void SessionView::editNumRepeatsTilLaunch(int offset) {
 	session.numRepeatsTilLaunch += offset;
-	if (session.numRepeatsTilLaunch < 1) session.numRepeatsTilLaunch = 1;
-	else if (session.numRepeatsTilLaunch > 9999) session.numRepeatsTilLaunch = 9999;
+	if (session.numRepeatsTilLaunch < 1) {
+		session.numRepeatsTilLaunch = 1;
+	}
+	else if (session.numRepeatsTilLaunch > 9999) {
+		session.numRepeatsTilLaunch = 9999;
+	}
 	else {
 #if HAVE_OLED
 		renderUIsForOled();
@@ -1054,8 +1125,9 @@ int SessionView::verticalEncoderAction(int offset, bool inCardRoutine) {
 	if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW
 	    || currentUIMode == UI_MODE_VIEWING_RECORD_ARMING) {
 
-		if (inCardRoutine && !allowSomeUserActionsEvenWhenInCardRoutine)
+		if (inCardRoutine && !allowSomeUserActionsEvenWhenInCardRoutine) {
 			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
+		}
 
 		return verticalScrollOneSquare(offset);
 	}
@@ -1066,11 +1138,14 @@ int SessionView::verticalEncoderAction(int offset, bool inCardRoutine) {
 int SessionView::verticalScrollOneSquare(int direction) {
 
 	if (direction == 1) {
-		if (currentSong->songViewYScroll >= currentSong->sessionClips.getNumElements() - 1)
+		if (currentSong->songViewYScroll >= currentSong->sessionClips.getNumElements() - 1) {
 			return ACTION_RESULT_DEALT_WITH;
+		}
 	}
 	else {
-		if (currentSong->songViewYScroll <= 1 - displayHeight) return ACTION_RESULT_DEALT_WITH;
+		if (currentSong->songViewYScroll <= 1 - displayHeight) {
+			return ACTION_RESULT_DEALT_WITH;
+		}
 	}
 
 	// Drag Clip along with scroll if one is selected
@@ -1087,13 +1162,19 @@ int SessionView::verticalScrollOneSquare(int direction) {
 		int oldIndex = selectedClipYDisplay + currentSong->songViewYScroll;
 
 		if (direction == 1) {
-			if (oldIndex >= currentSong->sessionClips.getNumElements() - 1) return ACTION_RESULT_DEALT_WITH;
+			if (oldIndex >= currentSong->sessionClips.getNumElements() - 1) {
+				return ACTION_RESULT_DEALT_WITH;
+			}
 		}
 		else {
-			if (oldIndex <= 0) return ACTION_RESULT_DEALT_WITH;
+			if (oldIndex <= 0) {
+				return ACTION_RESULT_DEALT_WITH;
+			}
 		}
 
-		if (sdRoutineLock) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		if (sdRoutineLock) {
+			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		}
 
 		actionLogger.deleteAllLogs();
 
@@ -1104,14 +1185,18 @@ int SessionView::verticalScrollOneSquare(int direction) {
 	currentSong->songViewYScroll += direction;
 	redrawClipsOnScreen();
 
-	if (isUIModeActive(UI_MODE_VIEWING_RECORD_ARMING)) PadLEDs::reassessGreyout(true);
+	if (isUIModeActive(UI_MODE_VIEWING_RECORD_ARMING)) {
+		PadLEDs::reassessGreyout(true);
+	}
 
 	return ACTION_RESULT_DEALT_WITH;
 }
 
 bool SessionView::renderSidebar(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
                                 uint8_t occupancyMask[][displayWidth + sideBarWidth]) {
-	if (!image) return true;
+	if (!image) {
+		return true;
+	}
 
 	for (int i = 0; i < displayHeight; i++) {
 		if (whichRows & (1 << i)) {
@@ -1129,8 +1214,12 @@ void SessionView::drawStatusSquare(uint8_t yDisplay, uint8_t thisImage[][3]) {
 	Clip* clip = getClipOnScreen(yDisplay);
 
 	// If no Clip, black
-	if (!clip) memset(thisColour, 0, 3);
-	else view.getClipMuteSquareColour(clip, thisColour);
+	if (!clip) {
+		memset(thisColour, 0, 3);
+	}
+	else {
+		view.getClipMuteSquareColour(clip, thisColour);
+	}
 }
 
 void SessionView::drawSectionSquare(uint8_t yDisplay, uint8_t thisImage[][3]) {
@@ -1139,7 +1228,9 @@ void SessionView::drawSectionSquare(uint8_t yDisplay, uint8_t thisImage[][3]) {
 	Clip* clip = getClipOnScreen(yDisplay);
 
 	// If no Clip, black
-	if (!clip) memset(thisColour, 0, 3);
+	if (!clip) {
+		memset(thisColour, 0, 3);
+	}
 	else {
 		if (view.midiLearnFlashOn && currentSong->sections[clip->section].launchMIDICommand.containsSomething()) {
 			thisColour[0] = midiCommandColourRed;
@@ -1165,11 +1256,15 @@ void SessionView::drawSectionSquare(uint8_t yDisplay, uint8_t thisImage[][3]) {
 int setPresetOrNextUnlaunchedOne(InstrumentClip* clip, int instrumentType, bool* instrumentAlreadyInSong) {
 	ReturnOfConfirmPresetOrNextUnlaunchedOne result;
 	result.error = Browser::currentDir.set(getInstrumentFolder(instrumentType));
-	if (result.error) return result.error;
+	if (result.error) {
+		return result.error;
+	}
 
 	result = loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(currentSong, instrumentType,
 	                                                                                AVAILABILITY_INSTRUMENT_UNUSED);
-	if (result.error) return result.error;
+	if (result.error) {
+		return result.error;
+	}
 
 	Instrument* newInstrument = result.fileItem->instrument;
 	bool isHibernating = newInstrument && !result.fileItem->instrumentAlreadyInSong;
@@ -1185,9 +1280,13 @@ int setPresetOrNextUnlaunchedOne(InstrumentClip* clip, int instrumentType, bool*
 
 	Browser::emptyFileItems();
 
-	if (result.error) return result.error;
+	if (result.error) {
+		return result.error;
+	}
 
-	if (isHibernating) currentSong->removeInstrumentFromHibernationList(newInstrument);
+	if (isHibernating) {
+		currentSong->removeInstrumentFromHibernationList(newInstrument);
+	}
 
 #if HAVE_OLED
 	OLED::displayWorkingAnimation("Loading");
@@ -1286,7 +1385,9 @@ doGetInstrument:
 		session.reSyncClip(modelStackWithTimelineCounter, true);
 	}
 
-	if (!instrumentAlreadyInSong) currentSong->addOutput(newClip->output);
+	if (!instrumentAlreadyInSong) {
+		currentSong->addOutput(newClip->output);
+	}
 
 	// Possibly want to set this as the active Clip...
 	if (!newClip->output->activeClip) {
@@ -1300,7 +1401,9 @@ void SessionView::replaceAudioClipWithInstrumentClip(int instrumentType) {
 
 	Clip* oldClip = getClipOnScreen(selectedClipYDisplay);
 
-	if (!oldClip || oldClip->type != CLIP_TYPE_AUDIO) return;
+	if (!oldClip || oldClip->type != CLIP_TYPE_AUDIO) {
+		return;
+	}
 
 	AudioClip* audioClip = (AudioClip*)oldClip;
 	if (audioClip->sampleHolder.audioFile || audioClip->getCurrentlyRecordingLinearly()) {
@@ -1342,7 +1445,9 @@ gotErrorDontDisplay:
 	else {
 		Instrument* newInstrument = currentSong->getNonAudioInstrumentToSwitchTo(
 		    instrumentType, AVAILABILITY_INSTRUMENT_UNUSED, 0, -1, &instrumentAlreadyInSong);
-		if (!newInstrument) goto gotErrorDontDisplay;
+		if (!newInstrument) {
+			goto gotErrorDontDisplay;
+		}
 
 		error = newClip->setNonAudioInstrument(newInstrument, currentSong);
 		if (error) {
@@ -1351,7 +1456,9 @@ gotErrorDontDisplay:
 		}
 	}
 
-	if (!instrumentAlreadyInSong) currentSong->addOutput(newClip->output);
+	if (!instrumentAlreadyInSong) {
+		currentSong->addOutput(newClip->output);
+	}
 
 	// Possibly want to set this as the active Clip...
 	if (!newClip->output->activeClip) {
@@ -1377,7 +1484,9 @@ gotErrorDontDisplay:
 void SessionView::replaceInstrumentClipWithAudioClip() {
 	Clip* oldClip = getClipOnScreen(selectedClipYDisplay);
 
-	if (!oldClip || oldClip->type != CLIP_TYPE_INSTRUMENT) return;
+	if (!oldClip || oldClip->type != CLIP_TYPE_INSTRUMENT) {
+		return;
+	}
 
 	InstrumentClip* instrumentClip = (InstrumentClip*)oldClip;
 	if (instrumentClip->containsAnyNotes() || instrumentClip->output->clipHasInstance(oldClip)) {
@@ -1413,7 +1522,9 @@ void SessionView::removeClip(uint8_t yDisplay) {
 
 	Clip* clip = getClipOnScreen(yDisplay);
 
-	if (!clip) return;
+	if (!clip) {
+		return;
+	}
 
 	// If last session Clip left, just don't allow. Easiest
 	if (currentSong->sessionClips.getNumElements() == 1) {
@@ -1444,7 +1555,9 @@ void SessionView::removeClip(uint8_t yDisplay) {
 Clip* SessionView::getClipOnScreen(int yDisplay) {
 	int index = yDisplay + currentSong->songViewYScroll;
 
-	if (index < 0 || index >= currentSong->sessionClips.getNumElements()) return NULL;
+	if (index < 0 || index >= currentSong->sessionClips.getNumElements()) {
+		return NULL;
+	}
 
 	return currentSong->sessionClips.getClipAtIndex(index);
 }
@@ -1497,14 +1610,18 @@ yesDoIt:
 
 void SessionView::redrawNumericDisplay() {
 
-	if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) return;
+	if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
+		return;
+	}
 
 	// If playback on...
 	if (playbackHandler.isEitherClockActive()) {
 
 		// Session playback
 		if (currentPlaybackMode == &session) {
-			if (!session.launchEventAtSwungTickCount) goto nothingToDisplay;
+			if (!session.launchEventAtSwungTickCount) {
+				goto nothingToDisplay;
+			}
 
 			if (getCurrentUI() == &loadSongUI) {
 				if (currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED) {
@@ -1518,8 +1635,12 @@ yesDoIt:
 			else if (getCurrentUI() == &arrangerView) {
 				if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW
 				    || currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
-					if (session.switchToArrangementAtLaunchEvent) goto yesDoIt;
-					else goto setBlank;
+					if (session.switchToArrangementAtLaunchEvent) {
+						goto yesDoIt;
+					}
+					else {
+						goto setBlank;
+					}
 				}
 			}
 
@@ -1537,7 +1658,9 @@ yesDoIt:
 					if (playbackHandler.stopOutputRecordingAtLoopEnd) {
 						numericDriver.setText("1", true, 255, true, NULL, false, true);
 					}
-					else goto setBlank;
+					else {
+						goto setBlank;
+					}
 				}
 			}
 			else if (getCurrentUI() == this) {
@@ -1572,7 +1695,9 @@ void SessionView::setCentralLEDStates() {
 	IndicatorLEDs::setLedState(keyboardLedX, keyboardLedY, false);
 #endif
 
-	if (getCurrentUI() == this) IndicatorLEDs::setLedState(crossScreenEditLedX, crossScreenEditLedY, false);
+	if (getCurrentUI() == this) {
+		IndicatorLEDs::setLedState(crossScreenEditLedX, crossScreenEditLedY, false);
+	}
 }
 
 unsigned int SessionView::getMaxZoom() {
@@ -1581,7 +1706,9 @@ unsigned int SessionView::getMaxZoom() {
 
 void SessionView::cloneClip(uint8_t yDisplayFrom, uint8_t yDisplayTo) {
 	Clip* clipToClone = getClipOnScreen(yDisplayFrom);
-	if (!clipToClone) return;
+	if (!clipToClone) {
+		return;
+	}
 
 	// Just don't allow cloning of Clips which are linearly recording
 	if (clipToClone->getCurrentlyRecordingLinearly()) {
@@ -1601,7 +1728,9 @@ ramError:
 	    setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(clipToClone);
 
 	int error = clipToClone->clone(modelStack);
-	if (error) goto ramError;
+	if (error) {
+		goto ramError;
+	}
 
 	Clip* newClip = (Clip*)modelStack->getTimelineCounter();
 
@@ -1614,7 +1743,9 @@ ramError:
 		newIndex++;
 	}
 
-	if (newIndex < 0) newIndex = 0;
+	if (newIndex < 0) {
+		newIndex = 0;
+	}
 	else if (newIndex > currentSong->sessionClips.getNumElements()) {
 		newIndex = currentSong->sessionClips.getNumElements();
 	}
@@ -1687,7 +1818,9 @@ void SessionView::graphicsRoutine() {
 				if (clip->sequenceDirectionMode == SEQUENCE_DIRECTION_REVERSE
 				    || (clip->sequenceDirectionMode == SEQUENCE_DIRECTION_PINGPONG && (whichRepeat & 1))) {
 					livePos = -livePos;
-					if (livePos < 0) livePos += clip->loopLength;
+					if (livePos < 0) {
+						livePos += clip->loopLength;
+					}
 				}
 			}
 
@@ -1721,7 +1854,9 @@ void SessionView::graphicsRoutine() {
 				colours[yDisplay] = 0;
 			}
 
-			if (newTickSquare < 0 || newTickSquare >= displayWidth) newTickSquare = 255;
+			if (newTickSquare < 0 || newTickSquare >= displayWidth) {
+				newTickSquare = 255;
+			}
 		}
 
 		tickSquares[yDisplay] = newTickSquare;
@@ -1737,8 +1872,9 @@ void SessionView::graphicsRoutine() {
 
 			if (!currentUIMode && getCurrentUI() == this) {
 
-				if (xScrollBeforeFollowingAutoExtendingLinearRecording == -1)
+				if (xScrollBeforeFollowingAutoExtendingLinearRecording == -1) {
 					xScrollBeforeFollowingAutoExtendingLinearRecording = currentSong->xScroll[NAVIGATION_CLIP];
+				}
 
 				int32_t newXScroll =
 				    currentSong->xScroll[NAVIGATION_CLIP] + currentSong->xZoom[NAVIGATION_CLIP] * displayWidth;
@@ -1797,7 +1933,9 @@ bool SessionView::calculateZoomPinSquares(uint32_t oldScroll, uint32_t newScroll
 			PadLEDs::transitionTakingPlaceOnRow[yDisplay] = true;
 			anyToDo = true;
 		}
-		else PadLEDs::transitionTakingPlaceOnRow[yDisplay] = false;
+		else {
+			PadLEDs::transitionTakingPlaceOnRow[yDisplay] = false;
+		}
 	}
 
 	return anyToDo;
@@ -1888,8 +2026,9 @@ void SessionView::modButtonAction(uint8_t whichButton, bool on) {
 
 void SessionView::noteRowChanged(InstrumentClip* instrumentClip, NoteRow* noteRow) {
 
-	if (currentUIMode == UI_MODE_HORIZONTAL_SCROLL)
+	if (currentUIMode == UI_MODE_HORIZONTAL_SCROLL) {
 		return; // Is this 100% correct? What if that one Clip isn't visually scrolling?
+	}
 
 	for (int yDisplay = 0; yDisplay < displayHeight; yDisplay++) {
 		Clip* clip = getClipOnScreen(yDisplay);
@@ -1913,7 +2052,9 @@ uint32_t SessionView::getGreyedOutRowsNotRepresentingOutput(Output* output) {
 
 bool SessionView::renderMainPads(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
                                  uint8_t occupancyMask[][displayWidth + sideBarWidth], bool drawUndefinedArea) {
-	if (!image) return true;
+	if (!image) {
+		return true;
+	}
 
 	uint32_t whichRowsCouldntBeRendered = 0;
 
@@ -1932,7 +2073,9 @@ bool SessionView::renderMainPads(uint32_t whichRows, uint8_t image[][displayWidt
 	}
 	PadLEDs::renderingLock = false;
 
-	if (whichRowsCouldntBeRendered && image == PadLEDs::image) uiNeedsRendering(this, whichRowsCouldntBeRendered, 0);
+	if (whichRowsCouldntBeRendered && image == PadLEDs::image) {
+		uiNeedsRendering(this, whichRowsCouldntBeRendered, 0);
+	}
 
 	return true;
 }
@@ -2116,7 +2259,9 @@ void SessionView::playbackEnded() {
 		}
 	}
 
-	if (whichRowsToReRender) uiNeedsRendering(this, whichRowsToReRender, 0);
+	if (whichRowsToReRender) {
+		uiNeedsRendering(this, whichRowsToReRender, 0);
+	}
 }
 
 void SessionView::clipNeedsReRendering(Clip* clip) {

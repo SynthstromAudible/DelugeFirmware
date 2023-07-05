@@ -30,13 +30,17 @@ int EarlyNoteArray::insertElementIfNonePresent(int note, int velocity, bool newS
 	if (i >= getNumElements()) {
 doInsert:
 		int error = insertAtIndex(i);
-		if (error) return error;
+		if (error) {
+			return error;
+		}
 		earlyNote = (EarlyNote*)getElementAddress(i);
 		earlyNote->note = note;
 	}
 	else {
 		earlyNote = (EarlyNote*)getElementAddress(i);
-		if ((int)earlyNote->note != note) goto doInsert;
+		if ((int)earlyNote->note != note) {
+			goto doInsert;
+		}
 	}
 
 	earlyNote->velocity = velocity;

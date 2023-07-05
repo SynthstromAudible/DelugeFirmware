@@ -56,8 +56,12 @@ void UnpatchedParam::writeCurrentValue() {
 }
 
 int32_t UnpatchedParam::getFinalValue() {
-	if (soundEditor.currentValue == 25) return 0;
-	else return (uint32_t)soundEditor.currentValue * 85899345 - 2147483648;
+	if (soundEditor.currentValue == 25) {
+		return 0;
+	}
+	else {
+		return (uint32_t)soundEditor.currentValue * 85899345 - 2147483648;
+	}
 }
 
 ParamDescriptor UnpatchedParam::getLearningThing() {

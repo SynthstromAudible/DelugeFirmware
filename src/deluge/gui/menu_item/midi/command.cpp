@@ -56,8 +56,12 @@ void Command::drawPixelsForOled() {
 		yPixel += TEXT_SPACING_Y;
 
 		char const* channelText;
-		if (command->channelOrZone == MIDI_CHANNEL_MPE_LOWER_ZONE) channelText = "MPE lower zone";
-		else if (command->channelOrZone == MIDI_CHANNEL_MPE_UPPER_ZONE) channelText = "MPE upper zone";
+		if (command->channelOrZone == MIDI_CHANNEL_MPE_LOWER_ZONE) {
+			channelText = "MPE lower zone";
+		}
+		else if (command->channelOrZone == MIDI_CHANNEL_MPE_UPPER_ZONE) {
+			channelText = "MPE upper zone";
+		}
 		else {
 			channelText = "Channel";
 			char buffer[12];
@@ -81,8 +85,10 @@ void Command::drawPixelsForOled() {
 #else
 void Command::drawValue() {
 	char const* output;
-	if (!midiEngine.globalMIDICommands[commandNumber].containsSomething()) output = "NONE";
-	else output = "SET";
+	if (!midiEngine.globalMIDICommands[commandNumber].containsSomething())
+		output = "NONE";
+	else
+		output = "SET";
 	numericDriver.setText(output);
 }
 #endif
@@ -128,6 +134,8 @@ bool Command::learnNoteOn(MIDIDevice* device, int channel, int noteCode) {
 }
 
 void Command::learnCC(MIDIDevice* device, int channel, int ccNumber, int value) {
-	if (MIDI_CC_FOR_COMMANDS_ENABLED && value) learnNoteOn(device, channel + 16, ccNumber);
+	if (MIDI_CC_FOR_COMMANDS_ENABLED && value) {
+		learnNoteOn(device, channel + 16, ccNumber);
+	}
 }
 } // namespace menu_item::midi

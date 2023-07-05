@@ -81,8 +81,12 @@ gotError:
 		goto doReturnFalse;
 	}
 
-	if (instrumentTypeToLoad == INSTRUMENT_TYPE_SYNTH) IndicatorLEDs::blinkLed(synthLedX, synthLedY);
-	else IndicatorLEDs::blinkLed(kitLedX, kitLedY);
+	if (instrumentTypeToLoad == INSTRUMENT_TYPE_SYNTH) {
+		IndicatorLEDs::blinkLed(synthLedX, synthLedY);
+	}
+	else {
+		IndicatorLEDs::blinkLed(kitLedX, kitLedY);
+	}
 
 	/*
 	String filePath;
@@ -149,7 +153,9 @@ fail:
 		}
 	}
 
-	else if (error) goto fail;
+	else if (error) {
+		goto fail;
+	}
 
 #if HAVE_OLED
 	OLED::displayWorkingAnimation("Saving");
@@ -164,7 +170,9 @@ fail:
 #if HAVE_OLED
 	OLED::removeWorkingAnimation();
 #endif
-	if (error) goto fail;
+	if (error) {
+		goto fail;
+	}
 
 	// Give the Instrument in memory its new slot
 	instrumentToSave->name.set(&enteredText);

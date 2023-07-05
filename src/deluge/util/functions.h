@@ -270,7 +270,8 @@ static void convertFloatToIntAtMemoryLocation(uint32_t* pos) {
 	int32_t outputValue = (exponent >= 0) ? 2147483647 : (uint32_t)((readValue << 8) | 0x80000000) >> (-exponent);
 
 	// Sign bit
-	if (readValue >> 31) outputValue = -outputValue;
+	if (readValue >> 31)
+		outputValue = -outputValue;
 
 	*pos = outputValue;
 }
@@ -282,7 +283,8 @@ static int32_t floatToInt(float theFloat) {
 	int32_t outputValue = (exponent >= 0) ? 2147483647 : (uint32_t)((readValue << 8) | 0x80000000) >> (-exponent);
 
 	// Sign bit
-	if (readValue >> 31) outputValue = -outputValue;
+	if (readValue >> 31)
+		outputValue = -outputValue;
 
 	return outputValue;
 }
@@ -293,7 +295,8 @@ static int32_t floatBitPatternToInt(uint32_t readValue) {
 	int32_t outputValue = (exponent >= 0) ? 2147483647 : (uint32_t)((readValue << 8) | 0x80000000) >> (-exponent);
 
 	// Sign bit
-	if (readValue >> 31) outputValue = -outputValue;
+	if (readValue >> 31)
+		outputValue = -outputValue;
 
 	return outputValue;
 }
@@ -304,8 +307,10 @@ inline int32_t interpolateTableSigned(uint32_t input, int numBitsInInput, const 
 	int whichValue = input >> (numBitsInInput - numBitsInTableSize);
 	int rshiftAmount = numBitsInInput - 16 - numBitsInTableSize;
 	uint32_t rshifted;
-	if (rshiftAmount >= 0) rshifted = input >> rshiftAmount;
-	else rshifted = input << (-rshiftAmount);
+	if (rshiftAmount >= 0)
+		rshifted = input >> rshiftAmount;
+	else
+		rshifted = input << (-rshiftAmount);
 	int strength2 = rshifted & 65535;
 	int strength1 = 65536 - strength2;
 	return (int32_t)table[whichValue] * strength1 + (int32_t)table[whichValue + 1] * strength2;
@@ -333,8 +338,10 @@ inline int32_t interpolateTableSigned2d(uint32_t inputX, uint32_t inputY, int nu
 
 	uint32_t strength2;
 
-	if (lshiftAmount >= 0) strength2 = (inputY << lshiftAmount) & 2147483647;
-	else strength2 = (inputY >> (0 - lshiftAmount)) & 2147483647;
+	if (lshiftAmount >= 0)
+		strength2 = (inputY << lshiftAmount) & 2147483647;
+	else
+		strength2 = (inputY >> (0 - lshiftAmount)) & 2147483647;
 
 	uint32_t strength1 = 2147483647 - strength2;
 	return multiply_32x32_rshift32(value1, strength1) + multiply_32x32_rshift32(value2, strength2);
@@ -344,8 +351,10 @@ template <unsigned saturationAmount>
 inline int32_t getTanH(int32_t input) {
 	uint32_t workingValue;
 
-	if (saturationAmount) workingValue = (uint32_t)lshiftAndSaturate<saturationAmount>(input) + 2147483648u;
-	else workingValue = (uint32_t)input + 2147483648u;
+	if (saturationAmount)
+		workingValue = (uint32_t)lshiftAndSaturate<saturationAmount>(input) + 2147483648u;
+	else
+		workingValue = (uint32_t)input + 2147483648u;
 
 	return interpolateTableSigned(workingValue, 32, tanHSmall, 8) >> (saturationAmount + 2);
 }
@@ -353,8 +362,10 @@ inline int32_t getTanH(int32_t input) {
 inline int32_t getTanHUnknown(int32_t input, unsigned int saturationAmount) {
 	uint32_t workingValue;
 
-	if (saturationAmount) workingValue = (uint32_t)lshiftAndSaturateUnknown(input, saturationAmount) + 2147483648u;
-	else workingValue = (uint32_t)input + 2147483648u;
+	if (saturationAmount)
+		workingValue = (uint32_t)lshiftAndSaturateUnknown(input, saturationAmount) + 2147483648u;
+	else
+		workingValue = (uint32_t)input + 2147483648u;
 
 	return interpolateTableSigned(workingValue, 32, tanHSmall, 8) >> (saturationAmount + 2);
 }
@@ -388,7 +399,8 @@ inline int32_t getSquareSmall(uint32_t phase, uint32_t phaseWidth = 2147483648u)
  */
 
 inline int32_t getTriangleSmall(uint32_t phase) {
-	if (phase >= 2147483648u) phase = -phase;
+	if (phase >= 2147483648u)
+		phase = -phase;
 	return phase - 1073741824;
 }
 
@@ -487,13 +499,17 @@ inline void getBlurColour(uint8_t rgb[], uint8_t fromRgb[]) {
 }
 
 inline int increaseMagnitude(int number, int magnitude) {
-	if (magnitude >= 0) return number << magnitude;
-	else return number >> (-magnitude);
+	if (magnitude >= 0)
+		return number << magnitude;
+	else
+		return number >> (-magnitude);
 }
 
 inline int increaseMagnitudeAndSaturate(int32_t number, int magnitude) {
-	if (magnitude > 0) return lshiftAndSaturateUnknown(number, magnitude);
-	else return number >> (-magnitude);
+	if (magnitude > 0)
+		return lshiftAndSaturateUnknown(number, magnitude);
+	else
+		return number >> (-magnitude);
 }
 
 int howMuchMoreMagnitude(unsigned int to, unsigned int from);

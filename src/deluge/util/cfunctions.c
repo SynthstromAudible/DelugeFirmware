@@ -26,7 +26,9 @@ int getNumDecimalDigits(uint32_t number) {
 	int totalNumDigits = 1;
 	while (number >= sizeTest) {
 		totalNumDigits++;
-		if (totalNumDigits == 10) break;
+		if (totalNumDigits == 10) {
+			break;
+		}
 		sizeTest *= 10;
 	}
 	return totalNumDigits;
@@ -35,13 +37,16 @@ int getNumDecimalDigits(uint32_t number) {
 void intToString(int32_t number, char* __restrict__ buffer, int minNumDigits) {
 
 	int isNegative = (number < 0);
-	if (isNegative)
+	if (isNegative) {
 		number = (uint32_t)0
 		         - (uint32_t)number; // Can't just go "-number", cos somehow that doesn't work for negative 2 billion!
+	}
 
 	int totalNumDigits = getNumDecimalDigits(number);
 
-	if (totalNumDigits < minNumDigits) totalNumDigits = minNumDigits;
+	if (totalNumDigits < minNumDigits) {
+		totalNumDigits = minNumDigits;
+	}
 
 	if (isNegative) {
 		totalNumDigits++;
@@ -142,7 +147,9 @@ void floatToString(float number, char* __restrict__ buffer, int minNumDecimalPla
 		oldEndPos = writePos;
 moveBackOneDigit:
 		// If we reached left of string, oh no, we can't move back any further. So move everything else instead.
-		if (writePos == leftmostDigitPos) goto needExtraDigitOnLeft;
+		if (writePos == leftmostDigitPos) {
+			goto needExtraDigitOnLeft;
+		}
 
 		writePos--;
 		decimalPlace--;
@@ -171,13 +178,16 @@ moveBackOneDigit:
 		while (true) {
 			writePos--;
 			if (decimalPlace <= minNumDecimalPlaces) {
-				if (*writePos == '.')
+				if (*writePos == '.') {
 					*writePos =
 					    0; // If min decimal places was 0 and we got that far back, get rid of the decimal point.
+				}
 				break;
 			}
 			decimalPlace--;
-			if (*writePos != '0') break;
+			if (*writePos != '0') {
+				break;
+			}
 			*writePos = 0;
 		}
 	}
@@ -226,13 +236,15 @@ uint32_t msToSlowTimerCount(uint32_t ms) {
 void delayMS(uint32_t ms) {
 	uint16_t startTime = *TCNT[TIMER_SYSTEM_SLOW];
 	uint16_t stopTime = startTime + msToSlowTimerCount(ms);
-	while ((uint16_t)(*TCNT[TIMER_SYSTEM_SLOW] - stopTime) >= 8)
+	while ((uint16_t)(*TCNT[TIMER_SYSTEM_SLOW] - stopTime) >= 8) {
 		;
+	}
 }
 
 void delayUS(uint32_t us) {
 	uint16_t startTime = *TCNT[TIMER_SYSTEM_FAST];
 	uint16_t stopTime = startTime + usToFastTimerCount(us);
-	while ((int16_t)(*TCNT[TIMER_SYSTEM_FAST] - stopTime) < 0)
+	while ((int16_t)(*TCNT[TIMER_SYSTEM_FAST] - stopTime) < 0) {
 		;
+	}
 }

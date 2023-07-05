@@ -208,6 +208,8 @@ void oledDeselectionComplete()
 
 void oledLowLevelTimerCallback()
 {
-    if (oledWaitingForMessage == 248) oledSelectingComplete();
-    else oledDeselectionComplete();
+    if (oledWaitingForMessage == 248)
+        oledSelectingComplete();
+    else
+        oledDeselectionComplete();
 }
