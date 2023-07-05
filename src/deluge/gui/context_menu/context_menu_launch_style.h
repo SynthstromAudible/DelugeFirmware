@@ -8,7 +8,7 @@
 #ifndef CONTEXTMENULAUNCHSTYLE_H_
 #define CONTEXTMENULAUNCHSTYLE_H_
 
-#include <ContextMenu.h>
+#include "context_menu.h"
 
 class Clip;
 

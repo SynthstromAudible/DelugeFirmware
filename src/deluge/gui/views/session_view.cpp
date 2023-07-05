@@ -58,7 +58,7 @@
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui_timer_manager.h"
 #include "storage/file_item.h"
-#include "ContextMenuLaunchStyle.h"
+#include "gui/context_menu/context_menu_launch_style.h"
 
 #if HAVE_OLED
 #include "hid/display/oled.h"

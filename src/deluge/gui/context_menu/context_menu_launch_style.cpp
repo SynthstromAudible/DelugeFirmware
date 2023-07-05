@@ -5,13 +5,13 @@
  *      Author: Robin
  */
 
-#include <ContextMenuLaunchStyle.h>
-#include <RootUI.h>
-#include "matrixdriver.h"
-#include "numericdriver.h"
-#include "IndicatorLEDs.h"
+#include "context_menu_launch_style.h"
+#include "gui/ui/root_ui.h"
+#include "hid/matrix/matrix_driver.h"
+#include "hid/display/numeric_driver.h"
+#include "hid/led/indicator_leds.h"
 #include "extern.h"
-#include "Clip.h"
+#include "model/clip/clip.h"
 
 #define VALUE_DEFA 0
 #define VALUE_FILL 1
