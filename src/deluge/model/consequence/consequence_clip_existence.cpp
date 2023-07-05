@@ -43,7 +43,9 @@ void ConsequenceClipExistence::prepareForDestruction(int whichQueueActionIn, Son
 
 #if ALPHA_OR_BETA_VERSION
 		if (clip->type == CLIP_TYPE_AUDIO) {
-			if (((AudioClip*)clip)->recorder) numericDriver.freezeWithError("i002"); // Trying to diversify Qui's E278
+			if (((AudioClip*)clip)->recorder) {
+				numericDriver.freezeWithError("i002"); // Trying to diversify Qui's E278
+			}
 		}
 #endif
 
@@ -57,7 +59,9 @@ int ConsequenceClipExistence::revert(int time, ModelStack* modelStack) {
 
 	if (time != type) { // (Re-)create
 
-		if (!clipArray->ensureEnoughSpaceAllocated(1)) return ERROR_INSUFFICIENT_RAM;
+		if (!clipArray->ensureEnoughSpaceAllocated(1)) {
+			return ERROR_INSUFFICIENT_RAM;
+		}
 
 		int error = clip->undoDetachmentFromOutput(modelStackWithTimelineCounter);
 		if (error) { // This shouldn't actually happen, but if it does...
@@ -68,8 +72,9 @@ int ConsequenceClipExistence::revert(int time, ModelStack* modelStack) {
 		}
 
 #if ALPHA_OR_BETA_VERSION
-		if (clip->type == CLIP_TYPE_AUDIO && !clip->paramManager.summaries[0].paramCollection)
+		if (clip->type == CLIP_TYPE_AUDIO && !clip->paramManager.summaries[0].paramCollection) {
 			numericDriver.freezeWithError("E419"); // Trying to diversify Leo's E410
+		}
 #endif
 
 		clipArray->insertClipAtIndex(clip, clipIndex);
@@ -79,7 +84,9 @@ int ConsequenceClipExistence::revert(int time, ModelStack* modelStack) {
 
 		if (shouldBeActiveWhileExistent && !(playbackHandler.playbackState && currentPlaybackMode == &arrangement)) {
 			session.toggleClipStatus(clip, &clipIndex, true, 0);
-			if (!clip->activeIfNoSolo) Uart::println("still not active!");
+			if (!clip->activeIfNoSolo) {
+				Uart::println("still not active!");
+			}
 		}
 
 		if (!clip->output->activeClip) {
@@ -106,7 +113,9 @@ int ConsequenceClipExistence::revert(int time, ModelStack* modelStack) {
 		clip->armState = ARM_STATE_OFF; // Not 100% sure if necessary... probably.
 
 		clipIndex = clipArray->getIndexForClip(clip);
-		if (clipIndex == -1) numericDriver.freezeWithError("E244");
+		if (clipIndex == -1) {
+			numericDriver.freezeWithError("E244");
+		}
 
 		if (clipArray == &modelStackWithTimelineCounter->song->sessionClips) {
 
@@ -125,18 +134,22 @@ int ConsequenceClipExistence::revert(int time, ModelStack* modelStack) {
 		// But it will (unusually) leave clip->output pointing to the Output, and the same for any NoteRows' Drums. So that we can revert this stuff later.
 		Output* oldOutput = clip->output;
 
-		if (clip->isActiveOnOutput() && playbackHandler.isEitherClockActive())
+		if (clip->isActiveOnOutput() && playbackHandler.isEitherClockActive()) {
 			clip->expectNoFurtherTicks(modelStackWithTimelineCounter->song); // Still necessary? Probably.
+		}
 
 #if ALPHA_OR_BETA_VERSION
 		if (clip->type == CLIP_TYPE_AUDIO) {
-			if (((AudioClip*)clip)->recorder) numericDriver.freezeWithError("i003"); // Trying to diversify Qui's E278
+			if (((AudioClip*)clip)->recorder) {
+				numericDriver.freezeWithError("i003"); // Trying to diversify Qui's E278
+			}
 		}
 #endif
 
 #if ALPHA_OR_BETA_VERSION
-		if (clip->type == CLIP_TYPE_AUDIO && !clip->paramManager.summaries[0].paramCollection)
+		if (clip->type == CLIP_TYPE_AUDIO && !clip->paramManager.summaries[0].paramCollection) {
 			numericDriver.freezeWithError("E420"); // Trying to diversify Leo's E410
+		}
 #endif
 
 		clip->detachFromOutput(modelStackWithTimelineCounter, false, false, true);

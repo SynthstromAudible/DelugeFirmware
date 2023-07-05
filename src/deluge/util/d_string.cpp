@@ -116,7 +116,9 @@ clearAndAllocateNew:
 
 	{
 		void* newMemory = generalMemoryAllocator.alloc(newLength + 1 + 4, NULL, false, false);
-		if (!newMemory) return ERROR_INSUFFICIENT_RAM;
+		if (!newMemory) {
+			return ERROR_INSUFFICIENT_RAM;
+		}
 		stringMemory = (char*)newMemory + 4;
 	}
 
@@ -146,7 +148,9 @@ int String::getLength() {
 
 // Returns error
 int String::shorten(int newLength) {
-	if (!newLength) clear();
+	if (!newLength) {
+		clear();
+	}
 	else {
 
 		int oldNumReasons = getNumReasons();
@@ -154,7 +158,9 @@ int String::shorten(int newLength) {
 		// If reasons, we have to do a clone
 		if (oldNumReasons > 1) {
 			void* newMemory = generalMemoryAllocator.alloc(newLength + 1 + 4, NULL, false, false);
-			if (!newMemory) return ERROR_INSUFFICIENT_RAM;
+			if (!newMemory) {
+				return ERROR_INSUFFICIENT_RAM;
+			}
 
 			setNumReasons(oldNumReasons - 1); // Reduce reasons on old memory
 
@@ -235,14 +241,18 @@ int String::concatenateAtPos(char const* newChars, int pos, int newCharsLength) 
 		else {
 allocateNewMemory:
 			void* newMemory = generalMemoryAllocator.alloc(requiredSize, NULL, false, false);
-			if (!newMemory) return ERROR_INSUFFICIENT_RAM;
+			if (!newMemory) {
+				return ERROR_INSUFFICIENT_RAM;
+			}
 
 			char* newStringMemory = (char*)newMemory + 4;
 
 			// Copy the bit we want to keep of the old memory
 			memcpy(newStringMemory, stringMemory, pos);
 
-			if (deallocateAfter) generalMemoryAllocator.dealloc(stringMemory - 4);
+			if (deallocateAfter) {
+				generalMemoryAllocator.dealloc(stringMemory - 4);
+			}
 			stringMemory = newStringMemory;
 			setNumReasons(1);
 		}
@@ -275,7 +285,9 @@ int String::setChar(char newChar, int pos) {
 
 		int requiredSize = length + 4 + 1;
 		void* newMemory = generalMemoryAllocator.alloc(requiredSize, NULL, false, false);
-		if (!newMemory) return ERROR_INSUFFICIENT_RAM;
+		if (!newMemory) {
+			return ERROR_INSUFFICIENT_RAM;
+		}
 
 		char* newStringMemory = (char*)newMemory + 4;
 

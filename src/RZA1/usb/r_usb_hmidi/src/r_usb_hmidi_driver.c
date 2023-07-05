@@ -559,7 +559,8 @@ uint16_t usb_hmidi_pipe_info(usb_utr_t* ptr, uint8_t* table, uint16_t speed, uin
                 int endpointType = table[ofdsc + 3] & USB_EP_TRNSMASK;
 
                 // Only allow bulk or interrupt endpoints
-                if (endpointType != USB_EP_BULK && endpointType != USB_EP_INT) goto moveOnToNextDescriptor;
+                if (endpointType != USB_EP_BULK && endpointType != USB_EP_INT)
+                    goto moveOnToNextDescriptor;
 
                 int endpointDirection = table[ofdsc + 2] & USB_EP_DIRMASK;
 
@@ -590,7 +591,8 @@ uint16_t usb_hmidi_pipe_info(usb_utr_t* ptr, uint8_t* table, uint16_t speed, uin
                     // Look for an unused pipe
                     for (pipe = minPipe; pipe <= maxPipe; pipe++)
                     {
-                        if (!(g_usb_hstd_use_pipe[ptr->ip] & (1 << pipe))) goto pickedReceivePipe;
+                        if (!(g_usb_hstd_use_pipe[ptr->ip] & (1 << pipe)))
+                            goto pickedReceivePipe;
                     }
 
                     // If still here, we didn't find a pipe
@@ -827,7 +829,8 @@ void hmidi_detach(usb_utr_t* ptr, uint16_t devadr, uint16_t data2)
     for (d = 0; d < MAX_NUM_USB_MIDI_DEVICES; d++)
     {
         int devAddrHere = g_usb_hmidi_tmp_ep_tbl[USB_CFG_USE_USBIP][d][3] >> USB_DEVADDRBIT;
-        if (devAddrHere == devadr) break;
+        if (devAddrHere == devadr)
+            break;
     }
 
     // Clear endpoint table

@@ -197,8 +197,10 @@ void userdef_bsc_cs2_init(uint8_t ramSize)
     /* BACTV :Auto-precharge mode         */
     /* Row address for Area 3 : 13-bit    */
     /* Column Address for Area 3 : 9-bit  */
-    if (ramSize != 0) BSC.SDCR = 0x00110911ul; // CS3 cols 9-bit. For 32MB chip
-    else BSC.SDCR = 0x00110912ul;              // CS3 cols 10-bit. For 64MB chip
+    if (ramSize != 0)
+        BSC.SDCR = 0x00110911ul; // CS3 cols 9-bit. For 32MB chip
+    else
+        BSC.SDCR = 0x00110912ul; // CS3 cols 10-bit. For 64MB chip
 
     /* ==== RTCOR settings ==== */
     /* 7.64usec / 240nsec              */

@@ -43,15 +43,20 @@ bool SoundInstrument::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song)
 	ParamManager* paramManager;
 
 	// If saving Output only...
-	if (clipForSavingOutputOnly) paramManager = &clipForSavingOutputOnly->paramManager;
+	if (clipForSavingOutputOnly) {
+		paramManager = &clipForSavingOutputOnly->paramManager;
 
-	// Or if saving Song...
+		// Or if saving Song...
+	}
 	else {
 
 		// If no activeClip, that means no Clip has this Output, so there should be a backedUpParamManager that we should use
-		if (!activeClip) paramManager = song->getBackedUpParamManagerPreferablyWithClip(this, NULL);
-
-		else paramManager = NULL;
+		if (!activeClip) {
+			paramManager = song->getBackedUpParamManagerPreferablyWithClip(this, NULL);
+		}
+		else {
+			paramManager = NULL;
+		}
 	}
 
 	Sound::writeToFile(clipForSavingOutputOnly == NULL, paramManager,
@@ -166,7 +171,9 @@ int SoundInstrument::loadAllAudioFiles(bool mayActuallyReadFiles) {
 	    mayActuallyReadFiles && (audioFileManager.alternateLoadDirStatus == ALTERNATE_LOAD_DIR_NONE_SET);
 	if (doingAlternatePath) {
 		int error = setupDefaultAudioFileDir();
-		if (error) return error;
+		if (error) {
+			return error;
+		}
 	}
 
 	int error = Sound::loadAllAudioFiles(mayActuallyReadFiles);
@@ -246,7 +253,9 @@ void SoundInstrument::setupWithoutActiveClip(ModelStack* modelStack) {
 
 	ParamManager* paramManager =
 	    modelStackWithTimelineCounter->song->getBackedUpParamManagerPreferablyWithClip(this, NULL);
-	if (!paramManager) numericDriver.freezeWithError("E173");
+	if (!paramManager) {
+		numericDriver.freezeWithError("E173");
+	}
 	patcher.performInitialPatching(this, paramManager);
 
 	// Clear mono expression params
@@ -324,7 +333,9 @@ void SoundInstrument::sendNote(ModelStackWithThreeMainThings* modelStack, bool i
                                int16_t const* mpeValues, int fromMIDIChannel, uint8_t velocity,
                                uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate) {
 
-	if (!inValidState) return;
+	if (!inValidState) {
+		return;
+	}
 
 	if (isOn) {
 		noteOn(modelStack, &arpeggiator, noteCode, mpeValues, sampleSyncLength, ticksLate, samplesLate, velocity,
@@ -340,9 +351,10 @@ void SoundInstrument::sendNote(ModelStackWithThreeMainThings* modelStack, bool i
 		if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE) {
 
 #if ALPHA_OR_BETA_VERSION
-			if (!modelStack->paramManager)
+			if (!modelStack->paramManager) {
 				numericDriver.freezeWithError(
 				    "E402"); // Previously we were allowed to receive a NULL paramManager, then would just crudely do an unassignAllVoices(). But I'm pretty sure this doesn't exist anymore?
+			}
 #endif
 			ModelStackWithSoundFlags* modelStackWithSoundFlags = modelStack->addSoundFlags();
 
@@ -371,13 +383,17 @@ void SoundInstrument::loadCrucialAudioFilesOnly() {
 
 // Any time it gets edited, we want to grab the default arp settings from the activeClip
 void SoundInstrument::beenEdited(bool shouldMoveToEmptySlot) {
-	if (activeClip) defaultArpSettings.cloneFrom(&((InstrumentClip*)activeClip)->arpSettings);
+	if (activeClip) {
+		defaultArpSettings.cloneFrom(&((InstrumentClip*)activeClip)->arpSettings);
+	}
 	Instrument::beenEdited(shouldMoveToEmptySlot);
 }
 
 // Returns num ticks til next arp event
 int32_t SoundInstrument::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
-	if (!activeClip) return 2147483647;
+	if (!activeClip) {
+		return 2147483647;
+	}
 
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 	    modelStack->addTimelineCounter(activeClip)
@@ -426,13 +442,17 @@ bool SoundInstrument::noteIsOn(int noteCode) {
 		if (arpSettings->mode != ARP_MODE_OFF || polyphonic == POLYPHONY_LEGATO || polyphonic == POLYPHONY_MONO) {
 
 			int n = arpeggiator.notes.search(noteCode, GREATER_OR_EQUAL);
-			if (n >= arpeggiator.notes.getNumElements()) return false;
+			if (n >= arpeggiator.notes.getNumElements()) {
+				return false;
+			}
 			ArpNote* arpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
 			return (arpNote->inputCharacteristics[MIDI_CHARACTERISTIC_NOTE] == noteCode);
 		}
 	}
 
-	if (!numVoicesAssigned) return false;
+	if (!numVoicesAssigned) {
+		return false;
+	}
 
 	int ends[2];
 	AudioEngine::activeVoices.getRangeForSound(this, ends);

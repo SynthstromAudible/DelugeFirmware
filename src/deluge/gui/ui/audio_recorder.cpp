@@ -83,7 +83,9 @@ bool AudioRecorder::opened() {
 	actionLogger.deleteAllLogs();
 
 	// If we're already recording (probably the output) then no!
-	if (recordingSource) return false;
+	if (recordingSource) {
+		return false;
+	}
 
 	// If recording for a Drum, set the name of the Drum
 	if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_KIT) {
@@ -99,7 +101,9 @@ gotError:
 		}
 
 		error = kit->makeDrumNameUnique(&newName, 1);
-		if (error) goto gotError;
+		if (error) {
+			goto gotError;
+		}
 
 		drum->name.set(&newName);
 	}
@@ -127,7 +131,9 @@ gotError:
 #endif
 	}
 
-	if (currentUIMode == UI_MODE_AUDITIONING) instrumentClipView.cancelAllAuditioning();
+	if (currentUIMode == UI_MODE_AUDITIONING) {
+		instrumentClipView.cancelAllAuditioning();
+	}
 
 	return success;
 }
@@ -140,7 +146,9 @@ void AudioRecorder::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 
 bool AudioRecorder::setupRecordingToFile(int newMode, int newNumChannels, int folderID) {
 
-	if (ALPHA_OR_BETA_VERSION && recordingSource) numericDriver.freezeWithError("E242");
+	if (ALPHA_OR_BETA_VERSION && recordingSource) {
+		numericDriver.freezeWithError("E242");
+	}
 
 	recorder = AudioEngine::getNewRecorder(newNumChannels, folderID, newMode, INTERNAL_BUTTON_PRESS_LATENCY);
 	if (!recorder) {
@@ -258,16 +266,22 @@ void AudioRecorder::finishRecording() {
 }
 
 int AudioRecorder::buttonAction(int x, int y, bool on, bool inCardRoutine) {
-	if (!on) return ACTION_RESULT_NOT_DEALT_WITH;
+	if (!on) {
+		return ACTION_RESULT_NOT_DEALT_WITH;
+	}
 
 	// We don't actually wrap up recording here, because this could be in fact called from the SD writing routines as they wait - that'd be a tangle.
 	if ((x == backButtonX && y == backButtonY) || (x == selectEncButtonX && y == selectEncButtonY)
 	    || (x == recordButtonX && y == recordButtonY)) {
 
-		if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		if (inCardRoutine) {
+			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		}
 		endRecordingSoon(INTERNAL_BUTTON_PRESS_LATENCY);
 	}
-	else return ACTION_RESULT_NOT_DEALT_WITH;
+	else {
+		return ACTION_RESULT_NOT_DEALT_WITH;
+	}
 
 	return ACTION_RESULT_DEALT_WITH;
 }

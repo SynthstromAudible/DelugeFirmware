@@ -67,8 +67,12 @@ int buttonAction(int x, int y, bool on, bool inCardRoutine) {
 
 	result = getCurrentUI()->buttonAction(x, y, on, inCardRoutine);
 
-	if (result == ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
-	else if (result == ACTION_RESULT_DEALT_WITH) goto dealtWith;
+	if (result == ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE) {
+		return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+	}
+	else if (result == ACTION_RESULT_DEALT_WITH) {
+		goto dealtWith;
+	}
 
 	// Play button
 	if (x == playButtonX && y == playButtonY) {
@@ -131,9 +135,13 @@ int buttonAction(int x, int y, bool on, bool inCardRoutine) {
 	// Tempo encoder button
 	else if (x == tempoEncButtonX && y == tempoEncButtonY) {
 		if (on) {
-			if (isShiftButtonPressed()) playbackHandler.displaySwingAmount();
+			if (isShiftButtonPressed()) {
+				playbackHandler.displaySwingAmount();
+			}
 			else {
-				if (getCurrentUI() != &loadSongUI) playbackHandler.displayTempoByCalculation();
+				if (getCurrentUI() != &loadSongUI) {
+					playbackHandler.displayTempoByCalculation();
+				}
 			}
 		}
 	}

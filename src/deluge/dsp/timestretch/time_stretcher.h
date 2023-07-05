@@ -108,7 +108,8 @@ inline int32_t getTotalDifferenceAbs(int32_t* totals1, int32_t* totals2) {
 	int32_t totalDifferenceAbs = 0;
 	for (int i = 0; i < TIME_STRETCH_CROSSFADE_NUM_MOVING_AVERAGES; i++) {
 		int32_t differenceAbsHere = totals2[i] - totals1[i];
-		if (differenceAbsHere < 0) differenceAbsHere = -differenceAbsHere;
+		if (differenceAbsHere < 0)
+			differenceAbsHere = -differenceAbsHere;
 		totalDifferenceAbs += differenceAbsHere;
 	}
 	return totalDifferenceAbs;
