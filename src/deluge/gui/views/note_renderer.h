@@ -3,6 +3,7 @@
 
 class NoteRow;
 class TimelineView;
+class Note;
 
 #include "definitions.h"
 
@@ -21,10 +22,24 @@ public:
 */
 
     // this function was previously in noterow but now has a noterow as parameter
-    void renderNoteRow(NoteRow* noteRow, TimelineView* editorScreen, uint8_t rowColour[], uint8_t rowTailColour[],
-                        uint8_t rowBlurColour[], uint8_t* image, uint8_t occupancyMask[], bool overwriteExisting,
+    void renderNoteRow(NoteRow* noteRow, TimelineView* editorScreen, uint8_t* image, uint8_t occupancyMask[], bool overwriteExisting,
                         uint32_t effectiveRowLength, bool allowNoteTails, int renderWidth, int32_t xScroll,
                         uint32_t xZoom, int xStartNow, int xEnd, bool drawRepeats);
+
+private:
+	// based on IntrumentClip::getMainColorFromY , but left out noterow color offset
+	// because it also doesnt seem used in instrument clip view.
+	void getNoteColourFromY(int yNote, uint8_t rgb[]);
+
+	// applies color changes based on note properties such as accidentalTranspose.
+	void getNoteSpecificColours(int yNote,	             
+		                   Note* note, 
+	                       uint8_t rowDefaultColour[],
+	                       uint8_t rowDefaultBlurColour[],
+	                       uint8_t rowDefaultTailColour[],
+	                       uint8_t noteColour[],
+                           uint8_t noteBlurColour[],
+                           uint8_t noteTailColour[]);
 };
 
 extern NoteRenderer noteRenderer;

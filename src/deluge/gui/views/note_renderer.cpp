@@ -2,6 +2,7 @@
 #include "gui/views/timeline_view.h"
 #include "model/note/note_row.h"
 #include "model/note/note.h"
+#include "util/functions.h"
 #include <string.h>
 
 NoteRenderer noteRenderer;
@@ -19,17 +20,12 @@ void NoteRenderer::recalculateColours() {
 void NoteRenderer::recalculateColour(uint8_t yDisplay) {
 
 }
-
-void NoteRenderer::performActualRender(uint32_t whichRows, uint8_t* image, uint8_t occupancyMask[][displayWidth + sideBarWidth],
-                         int32_t xScroll, uint32_t xZoom, int renderWidth, int imageWidth,
-                         bool drawUndefinedArea = true) {
-
-}
 */
 
-// this function was previously in noterow but now has a noterow as parameter
-void NoteRenderer::renderNoteRow(NoteRow* noteRow, TimelineView* editorScreen, uint8_t rowColour[], uint8_t rowTailColour[],
-                    uint8_t rowBlurColour[], uint8_t* image, uint8_t occupancyMask[], bool overwriteExisting,
+
+// this function was previously in noterow but now has a noterow as parameter.
+// the color parameters have been removed.
+void NoteRenderer::renderNoteRow(NoteRow* noteRow, TimelineView* editorScreen, uint8_t* image, uint8_t occupancyMask[], bool overwriteExisting,
                     uint32_t effectiveRowLength, bool allowNoteTails, int renderWidth, int32_t xScroll,
                     uint32_t xZoom, int xStartNow, int xEnd, bool drawRepeats) {
 
@@ -85,6 +81,16 @@ void NoteRenderer::renderNoteRow(NoteRow* noteRow, TimelineView* editorScreen, u
 		int squareStartPos =
 		    editorScreen->getPosFromSquare(xStartNow, xScroll, xZoom) - effectiveRowLength * whichRepeat;
 
+		uint8_t rowDefaultColour[3];
+		uint8_t rowDefaultBlurColour[3];
+		uint8_t rowDefaultTailColour[3];
+		uint8_t noteColour[3];
+		uint8_t noteBlurColour[3];
+		uint8_t noteTailColour[3];
+        getNoteColourFromY(noteRow->y, rowDefaultColour);
+        getBlurColour(rowDefaultColour, rowDefaultBlurColour);
+        getTailColour(rowDefaultTailColour, rowDefaultTailColour);
+
 		for (int xDisplay = xStartNow; xDisplay < xEndNow; xDisplay++) {
 			if (xDisplay != xStartNow) squareStartPos = squareEndPos[xDisplay - xStartNow - 1];
 			int i = searchTerms[xDisplay - xStartNow];
@@ -93,19 +99,23 @@ void NoteRenderer::renderNoteRow(NoteRow* noteRow, TimelineView* editorScreen, u
 
 			uint8_t* pixel = image + xDisplay * 3;
 
+			if (note) {
+				getNoteSpecificColours(noteRow->y, note, rowDefaultColour, rowDefaultBlurColour, rowDefaultTailColour, noteColour, noteBlurColour, noteTailColour);
+			}
+
 			// If Note starts somewhere within square, draw the blur colour
 			if (note && note->pos > squareStartPos) {
-				pixel[0] = rowBlurColour[0];
-				pixel[1] = rowBlurColour[1];
-				pixel[2] = rowBlurColour[2];
+				pixel[0] = rowDefaultColour[0];
+				pixel[1] = rowDefaultColour[1];
+				pixel[2] = rowDefaultColour[2];
 				if (occupancyMask) occupancyMask[xDisplay] = 64;
 			}
 
 			// Or if Note starts exactly on square...
 			else if (note && note->pos == squareStartPos) {
-				pixel[0] = rowColour[0];
-				pixel[1] = rowColour[1];
-				pixel[2] = rowColour[2];
+				pixel[0] = noteColour[0];
+				pixel[1] = noteColour[1];
+				pixel[2] = noteColour[2];
 				if (occupancyMask) occupancyMask[xDisplay] = 64;
 			}
 
@@ -116,9 +126,9 @@ void NoteRenderer::renderNoteRow(NoteRow* noteRow, TimelineView* editorScreen, u
 				int noteEnd = note->pos + note->length;
 				if (wrapping) noteEnd -= effectiveRowLength;
 				if (noteEnd > squareStartPos && allowNoteTails) {
-					pixel[0] = rowTailColour[0];
-					pixel[1] = rowTailColour[1];
-					pixel[2] = rowTailColour[2];
+					pixel[0] = noteTailColour[0];
+					pixel[1] = noteTailColour[1];
+					pixel[2] = noteTailColour[2];
 					if (occupancyMask) occupancyMask[xDisplay] = 64;
 				}
 			}
@@ -131,4 +141,36 @@ void NoteRenderer::renderNoteRow(NoteRow* noteRow, TimelineView* editorScreen, u
 	    xStartNow
 	    != xEnd); // This will only do another repeat if we'd modified xEndNow, which can only happen if drawRepeats
 
+}
+
+// this function gets the color for a certain pitch.
+// in previous versions (InstrumentClip::getMainColorFromY)
+// each clip had a color offset and each noterow had a colour offset as well.
+// but it didn't seem that they were used in all render functions so i left them out
+// for now. if nothing breaks, this comment can be removed.
+void NoteRenderer::getNoteColourFromY(int yNote, uint8_t rgb[]) {
+	hueToRGBWithColorScheme(yNote * -8 / 3, rgb,runtimeFeatureSettings.get(RuntimeFeatureSettingType::ColorScheme));
+}
+
+void NoteRenderer::getNoteSpecificColours(int y,
+	                                     Note* note, 
+	                                     uint8_t rowDefaultColour[],
+	                                     uint8_t rowDefaultBlurColour[],
+	                                     uint8_t rowDefaultTailColour[],
+	                                     uint8_t  noteColour[],
+                                         uint8_t  noteBlurColour[],
+                                         uint8_t  noteTailColour[]) {
+	// copy either the defaults or tranpose
+	if (note->getAccidentalTranspose() == 0) {
+		memcpy(rowDefaultColour, noteColour, 3 * sizeof(uint8_t));
+		memcpy(rowDefaultBlurColour, noteBlurColour, 3 * sizeof(uint8_t));
+		memcpy(rowDefaultTailColour, noteTailColour, 3 * sizeof(uint8_t));
+	}
+	else {
+		// for now we treat it like adding. which is what we want for some colorschemes.
+		// but not for all color schemes.
+		getNoteColourFromY(y + note->getAccidentalTranspose(), noteColour);
+	    getBlurColour(noteColour,noteBlurColour);
+	    getTailColour(noteColour,noteTailColour);  	
+	}
 }
