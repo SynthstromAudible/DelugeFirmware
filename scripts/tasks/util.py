@@ -6,6 +6,7 @@ import shutil
 import sysconfig
 from pathlib import Path
 import time
+import fileinput
 
 
 def run(args, redirect_input: bool = True, redirect_output: bool = True):
@@ -18,6 +19,10 @@ def run(args, redirect_input: bool = True, redirect_output: bool = True):
     )
 
     return process.returncode
+
+
+def run_get_output(args):
+    return subprocess.run(args, stdout=subprocess.PIPE).stdout.decode().strip()
 
 
 def find_cmd_with_fallback(cmd: str, fallback: str = None):
@@ -34,8 +39,25 @@ def absolute_path_str(path: str):
     return str(Path(path).absolute())
 
 
-def run_get_output(args):
-    return subprocess.run(args, stdout=subprocess.PIPE).stdout.decode().strip()
+def get_header_and_source_files(path: Path, recursive: bool):
+    glob = path.rglob if recursive else path.glob
+    globs = [
+        glob("*.cc"),
+        glob("*.hh"),
+        glob("*.[ch]xx"),
+        glob("*.[ch]pp"),
+        glob("*.[ch]"),
+    ]
+    return [file for files in globs for file in list(files)]
+
+
+def prepend_file(text: str, path: Path):
+    for linenum, line in enumerate(fileinput.FileInput(path.absolute(), inplace=1)):
+        if linenum == 0:
+            print(text)
+            print(line.rstrip())
+        else:
+            print(line.rstrip())
 
 
 def convert_path_if_mingw(path: str):

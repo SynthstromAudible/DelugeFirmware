@@ -58,7 +58,7 @@
 #include "dsp/reverb/freeverb/revmodel.hpp"
 #include "model/model_stack.h"
 #include "modulation/automation/auto_param.h"
-#include "gui/menu_item/menu_item_colour.h"
+#include "gui/menu_item/colour.h"
 #include "extern.h"
 #include "hid/led/pad_leds.h"
 #include "io/midi/midi_device_manager.h"
@@ -1862,7 +1862,7 @@ void View::getClipMuteSquareColour(Clip* clip, uint8_t thisColour[]) {
 
 	// If it's soloed or armed to solo, blue
 	else if (clip->soloingInSessionMode || clip->armState == ARM_STATE_ON_TO_SOLO) {
-		soloColourMenu.getRGB(thisColour);
+		menu_item::soloColourMenu.getRGB(thisColour);
 	}
 
 	// Or if not soloing...
@@ -1870,12 +1870,12 @@ void View::getClipMuteSquareColour(Clip* clip, uint8_t thisColour[]) {
 
 		// If it's stopped, red.
 		if (!clip->activeIfNoSolo) {
-			stoppedColourMenu.getRGB(thisColour);
+			menu_item::stoppedColourMenu.getRGB(thisColour);
 		}
 
 		// Or, green.
 		else {
-			activeColourMenu.getRGB(thisColour);
+			menu_item::activeColourMenu.getRGB(thisColour);
 		}
 
 		if (currentSong->getAnyClipsSoloing()) {

@@ -20,7 +20,7 @@
 #include "processing/engines/audio_engine.h"
 #include "model/clip/instrument_clip.h"
 #include "gui/views/instrument_clip_view.h"
-#include "gui/menu_item/menu_item_multi_range.h"
+#include "gui/menu_item/multi_range.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "processing/sound/sound_instrument.h"
 #include "RZA1/system/r_typedefs.h"
@@ -141,8 +141,10 @@ int KeyboardScreen::padAction(int x, int y, int velocity) {
 			// Change editing range if necessary
 			if (instrument->type == INSTRUMENT_TYPE_SYNTH) {
 				if (velocity) {
-					if (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem() == &multiRangeMenu) {
-						multiRangeMenu.noteOnToChangeRange(noteCode + ((SoundInstrument*)instrument)->transpose);
+					if (getCurrentUI() == &soundEditor
+					    && soundEditor.getCurrentMenuItem() == &menu_item::multiRangeMenu) {
+						menu_item::multiRangeMenu.noteOnToChangeRange(noteCode
+						                                              + ((SoundInstrument*)instrument)->transpose);
 					}
 				}
 			}
@@ -749,8 +751,8 @@ void KeyboardScreen::doScroll(int offset, bool force) {
 
 			// Change editing range if necessary
 			if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_SYNTH) {
-				if (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem() == &multiRangeMenu) {
-					multiRangeMenu.noteOnToChangeRange(
+				if (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem() == &menu_item::multiRangeMenu) {
+					menu_item::multiRangeMenu.noteOnToChangeRange(
 					    highestNoteCode + ((SoundInstrument*)currentSong->currentClip->output)->transpose);
 				}
 			}
