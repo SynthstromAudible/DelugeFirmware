@@ -20,7 +20,7 @@ jobs:
         uses: actions/checkout@v3
       - name: Fetch container image
         run: |
-          docker pull ghcr.io/bobtwinkles/deluge-ci-images:v$(cat toolchain/REQUIRED_VERSION)
+          docker pull ghcr.io/litui/dbt-toolchain:v$(cat toolchain/REQUIRED_VERSION)
       - name: Run build
         run: |
           docker run --rm \
