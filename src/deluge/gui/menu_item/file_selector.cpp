@@ -34,7 +34,9 @@ FileSelector fileSelectorMenu{"File browser"};
 
 void FileSelector::beginSession(MenuItem* navigatedBackwardFrom) {
 	soundEditor.shouldGoUpOneLevelOnBegin = true;
-	if (getRootUI() == &keyboardScreen && currentUIMode == UI_MODE_AUDITIONING) keyboardScreen.exitAuditionMode();
+	if (getRootUI() == &keyboardScreen && currentUIMode == UI_MODE_AUDITIONING) {
+		keyboardScreen.exitAuditionMode();
+	}
 	bool success = openUI(&sampleBrowser);
 	if (!success) {
 		//if (getCurrentUI() == &soundEditor) soundEditor.goUpOneLevel();
@@ -42,15 +44,22 @@ void FileSelector::beginSession(MenuItem* navigatedBackwardFrom) {
 	}
 }
 bool FileSelector::isRelevant(Sound* sound, int whichThing) {
-	if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) return true;
+	if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) {
+		return true;
+	}
 	Source* source = &sound->sources[whichThing];
 
-	if (source->oscType == OSC_TYPE_WAVETABLE) return (sound->getSynthMode() != SYNTH_MODE_FM);
-	else return (sound->getSynthMode() == SYNTH_MODE_SUBTRACTIVE && source->oscType == OSC_TYPE_SAMPLE);
+	if (source->oscType == OSC_TYPE_WAVETABLE) {
+		return (sound->getSynthMode() != SYNTH_MODE_FM);
+	}
+
+	return (sound->getSynthMode() == SYNTH_MODE_SUBTRACTIVE && source->oscType == OSC_TYPE_SAMPLE);
 }
 int FileSelector::checkPermissionToBeginSession(Sound* sound, int whichThing, ::MultiRange** currentRange) {
 
-	if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) return MENU_PERMISSION_YES;
+	if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) {
+		return MENU_PERMISSION_YES;
+	}
 
 	bool can =
 	    (sound->getSynthMode() == SYNTH_MODE_SUBTRACTIVE

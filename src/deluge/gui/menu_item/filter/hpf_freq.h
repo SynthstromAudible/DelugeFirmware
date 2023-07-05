@@ -31,7 +31,9 @@ public:
 		        PARAM_LOCAL_HPF_FREQ)) {
 			numericDriver.setText("OFF");
 		}
-		else patched_param::IntegerNonFM::drawValue();
+		else {
+			patched_param::IntegerNonFM::drawValue();
+		}
 	}
 #endif
 };

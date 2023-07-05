@@ -42,7 +42,9 @@ RenameDrumUI::RenameDrumUI() {
 
 bool RenameDrumUI::opened() {
 	bool success = QwertyUI::opened();
-	if (!success) return false;
+	if (!success) {
+		return false;
+	}
 
 	enteredText.set(&getDrum()->name);
 
@@ -68,7 +70,9 @@ int RenameDrumUI::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 	// Back button
 	if (x == backButtonX && y == backButtonY) {
 		if (on && !currentUIMode) {
-			if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			if (inCardRoutine) {
+				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
 			exitUI();
 		}
 	}
@@ -76,19 +80,25 @@ int RenameDrumUI::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 	// Select encoder button
 	else if (x == selectEncButtonX && y == selectEncButtonY) {
 		if (on && !currentUIMode) {
-			if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			if (inCardRoutine) {
+				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
 			enterKeyPress();
 		}
 	}
 
-	else return ACTION_RESULT_NOT_DEALT_WITH;
+	else {
+		return ACTION_RESULT_NOT_DEALT_WITH;
+	}
 
 	return ACTION_RESULT_DEALT_WITH;
 }
 
 void RenameDrumUI::enterKeyPress() {
 
-	if (enteredText.isEmpty()) return;
+	if (enteredText.isEmpty()) {
+		return;
+	}
 
 	// If actually changing it...
 	if (!getDrum()->name.equalsCaseIrrespective(&enteredText)) {
@@ -122,7 +132,9 @@ int RenameDrumUI::padAction(int x, int y, int on) {
 	// Otherwise, exit
 	else {
 		if (on && !currentUIMode) {
-			if (sdRoutineLock) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			if (sdRoutineLock) {
+				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
 			exitUI();
 		}
 	}
@@ -131,7 +143,8 @@ int RenameDrumUI::padAction(int x, int y, int on) {
 }
 
 int RenameDrumUI::verticalEncoderAction(int offset, bool inCardRoutine) {
-	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(xEncButtonX, xEncButtonY))
+	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(xEncButtonX, xEncButtonY)) {
 		return ACTION_RESULT_DEALT_WITH;
+	}
 	return instrumentClipView.verticalEncoderAction(offset, inCardRoutine);
 }

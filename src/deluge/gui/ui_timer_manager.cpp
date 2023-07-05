@@ -54,7 +54,9 @@ UITimerManager::UITimerManager() {
 void UITimerManager::routine() {
 
 	int32_t timeTilNextEvent = (uint32_t)(timeNextEvent - AudioEngine::audioSampleTimer);
-	if (timeTilNextEvent >= 0) return;
+	if (timeTilNextEvent >= 0) {
+		return;
+	}
 
 	for (int i = 0; i < NUM_TIMERS; i++) {
 		if (timers[i].active) {
@@ -75,12 +77,18 @@ void UITimerManager::routine() {
 					break;
 
 				case TIMER_DEFAULT_ROOT_NOTE:
-					if (getCurrentUI() == &instrumentClipView) instrumentClipView.flashDefaultRootNote();
-					else if (getCurrentUI() == &keyboardScreen) keyboardScreen.flashDefaultRootNote();
+					if (getCurrentUI() == &instrumentClipView) {
+						instrumentClipView.flashDefaultRootNote();
+					}
+					else if (getCurrentUI() == &keyboardScreen) {
+						keyboardScreen.flashDefaultRootNote();
+					}
 					break;
 
 				case TIMER_PLAY_ENABLE_FLASH:
-					if (getRootUI() == &sessionView) sessionView.flashPlayRoutine();
+					if (getRootUI() == &sessionView) {
+						sessionView.flashPlayRoutine();
+					}
 					break;
 
 				case TIMER_DISPLAY:
@@ -191,7 +199,9 @@ void UITimerManager::workOutNextEventTime() {
 	for (int i = 0; i < NUM_TIMERS; i++) {
 		if (timers[i].active) {
 			int32_t timeTil = timers[i].triggerTime - AudioEngine::audioSampleTimer;
-			if (timeTil < timeTilNextEvent) timeTilNextEvent = timeTil;
+			if (timeTil < timeTilNextEvent) {
+				timeTilNextEvent = timeTil;
+			}
 		}
 	}
 

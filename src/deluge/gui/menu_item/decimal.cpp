@@ -64,13 +64,17 @@ void Decimal::selectEncoderAction(int offset) {
 	// If turned down
 	if (offset < 0) {
 		int minValue = getMinValue();
-		if (soundEditor.currentValue < minValue) soundEditor.currentValue = minValue;
+		if (soundEditor.currentValue < minValue) {
+			soundEditor.currentValue = minValue;
+		}
 	}
 
 	// If turned up
 	else {
 		int maxValue = getMaxValue();
-		if (soundEditor.currentValue > maxValue) soundEditor.currentValue = maxValue;
+		if (soundEditor.currentValue > maxValue) {
+			soundEditor.currentValue = maxValue;
+		}
 	}
 
 	scrollToGoodPos();
@@ -118,12 +122,16 @@ void Decimal::scrollToGoodPos() {
 		soundEditor.numberScrollAmount = getMax(numDigits - 4, soundEditor.numberEditPos - 3);
 	}
 
-	if (soundEditor.numberScrollAmount < 0) soundEditor.numberScrollAmount = 0;
+	if (soundEditor.numberScrollAmount < 0) {
+		soundEditor.numberScrollAmount = 0;
+	}
 
-	if (soundEditor.numberEditPos > soundEditor.numberScrollAmount + 3)
+	if (soundEditor.numberEditPos > soundEditor.numberScrollAmount + 3) {
 		soundEditor.numberScrollAmount = soundEditor.numberEditPos - 3;
-	else if (soundEditor.numberEditPos < soundEditor.numberScrollAmount)
+	}
+	else if (soundEditor.numberEditPos < soundEditor.numberScrollAmount) {
 		soundEditor.numberScrollAmount = soundEditor.numberEditPos;
+	}
 }
 
 #if HAVE_OLED
@@ -134,7 +142,9 @@ void Decimal::drawPixelsForOled() {
 	int length = strlen(buffer);
 
 	int editingChar = length - soundEditor.numberEditPos;
-	if (soundEditor.numberEditPos >= numDecimalPlaces) editingChar--;
+	if (soundEditor.numberEditPos >= numDecimalPlaces) {
+		editingChar--;
+	}
 
 	if (numDecimalPlaces) {
 		int numCharsBeforeDecimalPoint = length - numDecimalPlaces;
@@ -169,8 +179,10 @@ void Decimal::drawActualValue(bool justDidHorizontalScroll) {
 	}
 
 	int dotPos;
-	if (getNumDecimalPlaces()) dotPos = soundEditor.numberScrollAmount + 3 - getNumDecimalPlaces();
-	else dotPos = 255;
+	if (getNumDecimalPlaces())
+		dotPos = soundEditor.numberScrollAmount + 3 - getNumDecimalPlaces();
+	else
+		dotPos = 255;
 
 	IndicatorLEDs::blinkLed(backLedX, backLedY, 255, 0, !justDidHorizontalScroll);
 

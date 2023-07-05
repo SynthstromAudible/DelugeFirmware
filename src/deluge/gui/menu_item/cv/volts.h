@@ -38,16 +38,23 @@ public:
 			OLED::drawStringCentred("Hz/V", 20, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, TEXT_HUGE_SPACING_X,
 			                        TEXT_HUGE_SIZE_Y);
 		}
-		else Decimal::drawPixelsForOled();
+		else {
+			Decimal::drawPixelsForOled();
+		}
 	}
 #else
 	void drawValue() {
-		if (soundEditor.currentValue == 0) numericDriver.setText("HZPV", false, 255, true);
-		else Decimal::drawValue();
+		if (soundEditor.currentValue == 0)
+			numericDriver.setText("HZPV", false, 255, true);
+		else {
+			Decimal::drawValue();
+		}
 	}
 #endif
 	void horizontalEncoderAction(int offset) {
-		if (soundEditor.currentValue != 0) Decimal::horizontalEncoderAction(offset);
+		if (soundEditor.currentValue != 0) {
+			Decimal::horizontalEncoderAction(offset);
+		}
 	}
 };
 } // namespace menu_item::cv

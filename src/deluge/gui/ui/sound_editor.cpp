@@ -148,7 +148,9 @@ bool SoundEditor::editingCVOrMIDIClip() {
 }
 
 bool SoundEditor::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
-	if (getRootUI() == &keyboardScreen) return false;
+	if (getRootUI() == &keyboardScreen) {
+		return false;
+	}
 	else if (getRootUI() == &instrumentClipView) {
 		*cols = 0xFFFFFFFE;
 	}
@@ -161,8 +163,9 @@ bool SoundEditor::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
 bool SoundEditor::opened() {
 	bool success =
 	    beginScreen(); // Could fail for instance if going into WaveformView but sample not found on card, or going into SampleBrowser but card not present
-	if (!success)
+	if (!success) {
 		return true; // Must return true, which means everything is dealt with - because this UI would already have been exited if there was a problem
+	}
 
 	setLedStates();
 
@@ -177,7 +180,9 @@ void SoundEditor::focusRegained() {
 		shouldGoUpOneLevelOnBegin = false;
 
 		// If that already exited this UI, then get out now before setting any LEDs
-		if (getCurrentUI() != this) return;
+		if (getCurrentUI() != this) {
+			return;
+		}
 
 		PadLEDs::skipGreyoutFade();
 	}
@@ -212,7 +217,9 @@ int SoundEditor::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 	if (x == selectEncButtonX && y == selectEncButtonY) {
 		if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_AUDITIONING) {
 			if (on) {
-				if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				if (inCardRoutine) {
+					return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				}
 				MenuItem* newItem = getCurrentMenuItem()->selectButtonPress();
 				if (newItem) {
 					if (newItem != (MenuItem*)0xFFFFFFFF) {
@@ -235,7 +242,9 @@ int SoundEditor::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 						}
 					}
 				}
-				else goUpOneLevel();
+				else {
+					goUpOneLevel();
+				}
 			}
 		}
 	}
@@ -244,7 +253,9 @@ int SoundEditor::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 	else if (x == backButtonX && y == backButtonY) {
 		if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_AUDITIONING) {
 			if (on) {
-				if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				if (inCardRoutine) {
+					return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				}
 
 				// Special case if we're editing a range
 				if (getCurrentMenuItem() == &menu_item::multiRangeMenu
@@ -260,7 +271,9 @@ int SoundEditor::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 	else if (x == saveButtonX && y == saveButtonY) {
 		if (on && currentUIMode == UI_MODE_NONE && !inSettingsMenu() && !editingCVOrMIDIClip()
 		    && currentSong->currentClip->type != CLIP_TYPE_AUDIO) {
-			if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			if (inCardRoutine) {
+				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
 
 			if (Buttons::isShiftButtonPressed()) {
 				if (getCurrentMenuItem() == &menu_item::multiRangeMenu) {
@@ -275,7 +288,9 @@ int SoundEditor::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 
 	// MIDI learn button
 	else if (x == learnButtonX && y == learnButtonY) {
-		if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		if (inCardRoutine) {
+			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		}
 		if (on) {
 			if (!currentUIMode) {
 				if (!getCurrentMenuItem()->allowsLearnMode()) {
@@ -300,7 +315,9 @@ int SoundEditor::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 				IndicatorLEDs::setLedState(learnLedX, learnLedY, false);
 			}
 
-			if (currentUIMode == UI_MODE_MIDI_LEARN) currentUIMode = UI_MODE_NONE;
+			if (currentUIMode == UI_MODE_MIDI_LEARN) {
+				currentUIMode = UI_MODE_NONE;
+			}
 		}
 	}
 
@@ -313,7 +330,9 @@ int SoundEditor::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 	// Affect-entire button
 	else if (x == affectEntireButtonX && y == affectEntireButtonY && getRootUI() == &instrumentClipView) {
 		if (getCurrentMenuItem()->usesAffectEntire() && editingKit()) {
-			if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			if (inCardRoutine) {
+				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
 			if (on) {
 				if (currentUIMode == UI_MODE_NONE) {
 					IndicatorLEDs::blinkLed(affectEntireLedX, affectEntireLedY, 255, 1);
@@ -335,7 +354,9 @@ int SoundEditor::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 	// Keyboard button
 	else if (x == keyboardButtonX && y == keyboardButtonY) {
 		if (on && currentUIMode == UI_MODE_NONE && !editingKit()) {
-			if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			if (inCardRoutine) {
+				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
 
 			if (getRootUI() == &keyboardScreen) {
 				swapOutRootUILowLevel(&instrumentClipView);
@@ -353,7 +374,9 @@ int SoundEditor::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 	}
 #endif
 
-	else return ACTION_RESULT_NOT_DEALT_WITH;
+	else {
+		return ACTION_RESULT_NOT_DEALT_WITH;
+	}
 
 	return ACTION_RESULT_DEALT_WITH;
 }
@@ -370,7 +393,9 @@ void SoundEditor::goUpOneLevel() {
 	numericDriver.setNextTransitionDirection(-1);
 
 	MenuItem* oldItem = menuItemNavigationRecord[navigationDepth + 1];
-	if (oldItem == &menu_item::multiRangeMenu) oldItem = menu_item::multiRangeMenu.menuItemHeadingTo;
+	if (oldItem == &menu_item::multiRangeMenu) {
+		oldItem = menu_item::multiRangeMenu.menuItemHeadingTo;
+	}
 
 	beginScreen(oldItem);
 }
@@ -403,8 +428,9 @@ bool SoundEditor::beginScreen(MenuItem* oldMenuItem) {
 
 	// If that didn't succeed (file browser)
 	if (getCurrentUI() != &soundEditor && getCurrentUI() != &sampleBrowser && getCurrentUI() != &audioRecorder
-	    && getCurrentUI() != &sampleMarkerEditor && getCurrentUI() != &renameDrumUI)
+	    && getCurrentUI() != &sampleMarkerEditor && getCurrentUI() != &renameDrumUI) {
 		return false;
+	}
 
 #if HAVE_OLED
 	renderUIsForOled();
@@ -458,16 +484,22 @@ doSetupBlinkingForAudioClip:
 		// Or the "normal" case, for Sounds
 		else {
 
-			if (currentItem == &menu_item::multiRangeMenu) currentItem = menu_item::multiRangeMenu.menuItemHeadingTo;
+			if (currentItem == &menu_item::multiRangeMenu) {
+				currentItem = menu_item::multiRangeMenu.menuItemHeadingTo;
+			}
 
 			// First, see if there's a shortcut for the actual MenuItem we're currently on
 			for (int x = 0; x < 15; x++) {
 				for (int y = 0; y < displayHeight; y++) {
 					if (paramShortcutsForSounds[x][y] == currentItem) {
 
-						if (x == 10 && y < 6 && editingReverbCompressor()) goto stopThat;
+						if (x == 10 && y < 6 && editingReverbCompressor()) {
+							goto stopThat;
+						}
 
-						if (currentParamShorcutX != 255 && (x & 1) && currentSourceIndex == 0) goto stopThat;
+						if (currentParamShorcutX != 255 && (x & 1) && currentSourceIndex == 0) {
+							goto stopThat;
+						}
 						setupShortcutBlink(x, y, 0);
 					}
 				}
@@ -484,7 +516,9 @@ doSetupBlinkingForAudioClip:
 							    && ((MenuItem*)paramShortcutsForSounds[x][y])->getPatchedParamIndex()
 							           == paramLookingFor) {
 
-								if (currentParamShorcutX != 255 && (x & 1) && currentSourceIndex == 0) goto stopThat;
+								if (currentParamShorcutX != 255 && (x & 1) && currentSourceIndex == 0) {
+									goto stopThat;
+								}
 
 								setupShortcutBlink(x, y, 3);
 							}
@@ -499,9 +533,10 @@ stopThat : {}
 				for (int x = 0; x < 2; x++) {
 					for (int y = 0; y < displayHeight; y++) {
 						uint8_t source = modSourceShortcuts[x][y];
-						if (source < NUM_PATCH_SOURCES)
+						if (source < NUM_PATCH_SOURCES) {
 							sourceShortcutBlinkFrequencies[x][y] = currentItem->shouldBlinkPatchingSourceShortcut(
 							    source, &sourceShortcutBlinkColours[x][y]);
+						}
 					}
 				}
 			}
@@ -608,8 +643,9 @@ int SoundEditor::horizontalEncoderAction(int offset) {
 void SoundEditor::selectEncoderAction(int8_t offset) {
 
 	if (currentUIMode != UI_MODE_NONE && currentUIMode != UI_MODE_AUDITIONING
-	    && currentUIMode != UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR)
+	    && currentUIMode != UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR) {
 		return;
+	}
 
 	bool hadNoteTails;
 
@@ -626,8 +662,9 @@ void SoundEditor::selectEncoderAction(int8_t offset) {
 	getCurrentMenuItem()->selectEncoderAction(offset);
 
 	if (currentSound) {
-		if (getCurrentMenuItem()->selectEncoderActionEditsInstrument())
+		if (getCurrentMenuItem()->selectEncoderActionEditsInstrument()) {
 			markInstrumentAsEdited(); // TODO: make reverb and reverb-compressor stuff exempt from this
+		}
 
 		// If envelope param preset values were changed, there's a chance that there could have been a change to whether notes have tails
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -656,12 +693,15 @@ int SoundEditor::potentialShortcutPadAction(int x, int y, bool on) {
 
 	if (!on || DELUGE_MODEL == DELUGE_MODEL_40_PAD || x >= displayWidth
 	    || (!Buttons::isShiftButtonPressed()
-	        && !(currentUIMode == UI_MODE_AUDITIONING && getRootUI() == &instrumentClipView)))
+	        && !(currentUIMode == UI_MODE_AUDITIONING && getRootUI() == &instrumentClipView))) {
 		return ACTION_RESULT_NOT_DEALT_WITH;
+	}
 
 	if (on && isUIModeWithinRange(shortcutPadUIModes)) {
 
-		if (sdRoutineLock) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		if (sdRoutineLock) {
+			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		}
 
 		const MenuItem* item = NULL;
 
@@ -680,11 +720,17 @@ int SoundEditor::potentialShortcutPadAction(int x, int y, bool on) {
 			if (x < 14 || (x == 14 && y < 5)) {
 
 				if (editingCVOrMIDIClip()) {
-					if (x == 11) item = midiOrCVParamShortcuts[y];
-					else if (x == 4) {
-						if (y == 7) item = &sequenceDirectionMenu;
+					if (x == 11) {
+						item = midiOrCVParamShortcuts[y];
 					}
-					else item = NULL;
+					else if (x == 4) {
+						if (y == 7) {
+							item = &sequenceDirectionMenu;
+						}
+					}
+					else {
+						item = NULL;
+					}
 				}
 				else {
 					item = paramShortcutsForSounds[x][y];
@@ -745,14 +791,20 @@ doSetup:
 			else if (getCurrentUI() == &soundEditor) {
 
 				uint8_t source = modSourceShortcuts[x - 14][y];
-				if (source == 254) numericDriver.displayPopup("SOON");
+				if (source == 254) {
+					numericDriver.displayPopup("SOON");
+				}
 
-				if (source >= NUM_PATCH_SOURCES) return ACTION_RESULT_DEALT_WITH;
+				if (source >= NUM_PATCH_SOURCES) {
+					return ACTION_RESULT_DEALT_WITH;
+				}
 
 				bool previousPressStillActive = false;
 				for (int h = 0; h < 2; h++) {
 					for (int i = 0; i < displayHeight; i++) {
-						if (h == 0 && i < 5) continue;
+						if (h == 0 && i < 5) {
+							continue;
+						}
 
 						if ((h + 14 != x || i != y) && matrixDriver.isPadPressed(14 + h, i)) {
 							previousPressStillActive = true;
@@ -791,7 +843,9 @@ getOut:
 						                                                  &currentMultiRange)) {
 							navigationDepth = newNavigationDepth + 1;
 							menuItemNavigationRecord[navigationDepth] = newMenuItem;
-							if (!wentBack) numericDriver.setNextTransitionDirection(1);
+							if (!wentBack) {
+								numericDriver.setNextTransitionDirection(1);
+							}
 							beginScreen();
 						}
 
@@ -808,11 +862,15 @@ getOut:
 extern uint16_t batteryMV;
 
 int SoundEditor::padAction(int x, int y, int on) {
-	if (sdRoutineLock) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+	if (sdRoutineLock) {
+		return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+	}
 
 	if (!inSettingsMenu()) {
 		int result = potentialShortcutPadAction(x, y, on);
-		if (result != ACTION_RESULT_NOT_DEALT_WITH) return result;
+		if (result != ACTION_RESULT_NOT_DEALT_WITH) {
+			return result;
+		}
 	}
 
 	if (getRootUI() == &keyboardScreen) {
@@ -856,8 +914,9 @@ int SoundEditor::padAction(int x, int y, int on) {
 }
 
 int SoundEditor::verticalEncoderAction(int offset, bool inCardRoutine) {
-	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(xEncButtonX, xEncButtonY))
+	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(xEncButtonX, xEncButtonY)) {
 		return ACTION_RESULT_DEALT_WITH;
+	}
 	return getRootUI()->verticalEncoderAction(offset, inCardRoutine);
 }
 
@@ -908,7 +967,9 @@ void SoundEditor::modEncoderAction(int whichModEncoder, int offset) {
 	}
 
 	// Otherwise, send the action to the Editor as usual
-	else UI::modEncoderAction(whichModEncoder, offset);
+	else {
+		UI::modEncoderAction(whichModEncoder, offset);
+	}
 }
 
 bool SoundEditor::setup(Clip* clip, const MenuItem* item, int sourceIndex) {
@@ -930,7 +991,9 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int sourceIndex) {
 				if (selectedDrum) {
 					if (selectedDrum->type == DRUM_TYPE_SOUND) {
 						NoteRow* noteRow = ((InstrumentClip*)clip)->getNoteRowForDrum(selectedDrum);
-						if (noteRow == NULL) return false;
+						if (noteRow == NULL) {
+							return false;
+						}
 						newSound = (SoundDrum*)selectedDrum;
 						newModControllable = newSound;
 						newParamManager = &noteRow->paramManager;
@@ -982,7 +1045,9 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int sourceIndex) {
 
 	MenuItem* newItem;
 
-	if (item) newItem = (MenuItem*)item;
+	if (item) {
+		newItem = (MenuItem*)item;
+	}
 	else {
 		if (clip) {
 
@@ -1018,8 +1083,10 @@ doMIDIOrCV:
 
 	::MultiRange* newRange = currentMultiRange;
 
-	if ((getCurrentUI() != &soundEditor && getCurrentUI() != &sampleMarkerEditor) || sourceIndex != currentSourceIndex)
+	if ((getCurrentUI() != &soundEditor && getCurrentUI() != &sampleMarkerEditor)
+	    || sourceIndex != currentSourceIndex) {
 		newRange = NULL;
+	}
 
 	// This isn't a very nice solution, but we have to set currentParamManager before calling checkPermissionToBeginSession(),
 	// because in a minority of cases, like "patch cable strength" / "modulation depth", it needs this.
@@ -1111,8 +1178,9 @@ int SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam(Sound* sound
 		return MENU_PERMISSION_YES;
 	}
 
-	if (getCurrentUI() == &soundEditor && *previouslySelectedRange && currentSourceIndex == whichThing)
+	if (getCurrentUI() == &soundEditor && *previouslySelectedRange && currentSourceIndex == whichThing) {
 		return MENU_PERMISSION_YES;
+	}
 
 	return MENU_PERMISSION_MUST_SELECT_RANGE;
 }
@@ -1132,7 +1200,9 @@ AudioFileHolder* SoundEditor::getCurrentAudioFileHolder() {
 		return &((AudioClip*)currentSong->currentClip)->sampleHolder;
 	}
 
-	else return currentMultiRange->getAudioFileHolder();
+	else {
+		return currentMultiRange->getAudioFileHolder();
+	}
 }
 
 ModelStackWithThreeMainThings* SoundEditor::getCurrentModelStack(void* memory) {
@@ -1166,7 +1236,9 @@ void SoundEditor::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 	// Sorry - extremely ugly hack here.
 	MenuItem* currentMenuItem = getCurrentMenuItem();
 	if (currentMenuItem == static_cast<void*>(&drumNameMenu)) {
-		if (!navigationDepth) return;
+		if (!navigationDepth) {
+			return;
+		}
 		currentMenuItem = menuItemNavigationRecord[navigationDepth - 1];
 	}
 

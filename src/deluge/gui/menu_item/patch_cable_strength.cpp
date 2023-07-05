@@ -109,7 +109,9 @@ void PatchCableStrength::renderOLED() {
 void PatchCableStrength::readCurrentValue() {
 	PatchCableSet* patchCableSet = soundEditor.currentParamManager->getPatchCableSet();
 	unsigned int c = patchCableSet->getPatchCableIndex(getS(), getDestinationDescriptor());
-	if (c == 255) soundEditor.currentValue = 0;
+	if (c == 255) {
+		soundEditor.currentValue = 0;
+	}
 	else {
 		int32_t paramValue = patchCableSet->patchCables[c].param.getCurrentValue();
 		// the internal values are stored in the range -(2^30) to 2^30.
@@ -133,7 +135,9 @@ ModelStackWithAutoParam* PatchCableStrength::getModelStack(void* memory, bool al
 void PatchCableStrength::writeCurrentValue() {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithAutoParam* modelStackWithParam = getModelStack(modelStackMemory, true);
-	if (!modelStackWithParam->autoParam) return;
+	if (!modelStackWithParam->autoParam) {
+		return;
+	}
 
 	// rescale from 5000 to 2**30. The magic constant is ((2^30)/5000), shifted 32 bits for precision ((1<<(30+32))/5000)
 	int32_t finalValue = ((int64_t)922337203685477 * soundEditor.currentValue) >> 32;
@@ -173,9 +177,12 @@ int PatchCableStrength::checkPermissionToBeginSession(Sound* sound, int whichThi
 
 uint8_t PatchCableStrength::getIndexOfPatchedParamToBlink() {
 	if (soundEditor.patchingParamSelected == PARAM_GLOBAL_VOLUME_POST_REVERB_SEND
-	    || soundEditor.patchingParamSelected == PARAM_LOCAL_VOLUME)
+	    || soundEditor.patchingParamSelected == PARAM_LOCAL_VOLUME) {
 		return PARAM_GLOBAL_VOLUME_POST_FX;
-	else return soundEditor.patchingParamSelected;
+	}
+	else {
+		return soundEditor.patchingParamSelected;
+	}
 }
 
 MenuItem* PatchCableStrength::selectButtonPress() {
@@ -193,6 +200,8 @@ MenuItem* PatchCableStrength::selectButtonPress() {
 		numericDriver.displayPopup(HAVE_OLED ? "Automation deleted" : "DELETED");
 		return (MenuItem*)0xFFFFFFFF; // No navigation
 	}
-	else return NULL; // Navigate back
+	else {
+		return NULL; // Navigate back
+	}
 }
 } // namespace menu_item

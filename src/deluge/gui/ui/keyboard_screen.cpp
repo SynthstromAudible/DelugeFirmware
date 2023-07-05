@@ -59,10 +59,13 @@ static const uint32_t padActionUIModes[] = {UI_MODE_AUDITIONING, UI_MODE_RECORD_
 
 int KeyboardScreen::padAction(int x, int y, int velocity) {
 
-	if (x >= displayWidth) return ACTION_RESULT_DEALT_WITH;
+	if (x >= displayWidth) {
+		return ACTION_RESULT_DEALT_WITH;
+	}
 
-	if (sdRoutineLock && !allowSomeUserActionsEvenWhenInCardRoutine)
+	if (sdRoutineLock && !allowSomeUserActionsEvenWhenInCardRoutine) {
 		return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow some of the time when in card routine.
+	}
 
 	int soundEditorResult = soundEditor.potentialShortcutPadAction(x, y, velocity);
 
@@ -71,7 +74,9 @@ int KeyboardScreen::padAction(int x, int y, int velocity) {
 	}
 
 	if (currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED) {
-		if (sdRoutineLock) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		if (sdRoutineLock) {
+			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		}
 		if (velocity
 		    && currentSong->currentClip->output->type
 		           != INSTRUMENT_TYPE_KIT) { // We probably couldn't have got this far if it was a Kit, but let's just check
@@ -82,7 +87,9 @@ int KeyboardScreen::padAction(int x, int y, int velocity) {
 				uiNeedsRendering(this, 0xFFFFFFFF, 0);
 				displayCurrentScaleName();
 			}
-			else enterScaleMode(noteCode);
+			else {
+				enterScaleMode(noteCode);
+			}
 		}
 	}
 	else if (!velocity || isUIModeWithinRange(padActionUIModes)) {
@@ -93,8 +100,9 @@ int KeyboardScreen::padAction(int x, int y, int velocity) {
 		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
 		bool clipIsActiveOnInstrument = makeCurrentClipActiveOnInstrumentIfPossible(modelStack);
-		if (!clipIsActiveOnInstrument && velocity)
+		if (!clipIsActiveOnInstrument && velocity) {
 			IndicatorLEDs::indicateAlertOnLed(sessionViewButtonX, sessionViewButtonY);
+		}
 
 		Instrument* instrument = (Instrument*)currentSong->currentClip->output;
 
@@ -116,7 +124,9 @@ int KeyboardScreen::padAction(int x, int y, int velocity) {
 			}
 
 			// If no spare presses, return
-			if (emptyPressIndex == MAX_NUM_KEYBOARD_PAD_PRESSES) return ACTION_RESULT_DEALT_WITH;
+			if (emptyPressIndex == MAX_NUM_KEYBOARD_PAD_PRESSES) {
+				return ACTION_RESULT_DEALT_WITH;
+			}
 
 			noteCode = getNoteCodeFromCoords(x, y);
 
@@ -124,7 +134,9 @@ int KeyboardScreen::padAction(int x, int y, int velocity) {
 			if (instrument->type == INSTRUMENT_TYPE_KIT) { //
 				yDisplay = (int)(x / 4) + (int)(y / 4) * 4;
 			}
-			if (yDisplayActive[yDisplay]) return ACTION_RESULT_DEALT_WITH;
+			if (yDisplayActive[yDisplay]) {
+				return ACTION_RESULT_DEALT_WITH;
+			}
 
 			// Change editing range if necessary
 			if (instrument->type == INSTRUMENT_TYPE_SYNTH) {
@@ -140,7 +152,9 @@ int KeyboardScreen::padAction(int x, int y, int velocity) {
 			// Ensure the note the user is trying to sound isn't already sounding
 			NoteRow* noteRow = ((InstrumentClip*)instrument->activeClip)->getNoteRowForYNote(noteCode);
 			if (noteRow) {
-				if (noteRow->soundingStatus == STATUS_SEQUENCED_NOTE) return ACTION_RESULT_DEALT_WITH;
+				if (noteRow->soundingStatus == STATUS_SEQUENCED_NOTE) {
+					return ACTION_RESULT_DEALT_WITH;
+				}
 			}
 
 			// Only now that we know we're not going to return prematurely can we mark the pad as pressed
@@ -177,11 +191,15 @@ int KeyboardScreen::padAction(int x, int y, int velocity) {
 
 			int p;
 			for (p = 0; p < MAX_NUM_KEYBOARD_PAD_PRESSES; p++) {
-				if (padPresses[p].x == x && padPresses[p].y == y) goto foundIt;
+				if (padPresses[p].x == x && padPresses[p].y == y) {
+					goto foundIt;
+				}
 			}
 
 			// There were no presses. Just check we're not still stuck in "auditioning" mode, as users have still been reporting problems with this. (That comment from around 2021?)
-			if (isUIModeActive(UI_MODE_AUDITIONING)) exitUIMode(UI_MODE_AUDITIONING);
+			if (isUIModeActive(UI_MODE_AUDITIONING)) {
+				exitUIMode(UI_MODE_AUDITIONING);
+			}
 			return ACTION_RESULT_DEALT_WITH;
 
 foundIt:
@@ -193,7 +211,9 @@ foundIt:
 			}
 
 			// We need to check that we had actually switched the note on here - it might have already been sounding, from the sequence
-			if (!yDisplayActive[yDisplay]) return ACTION_RESULT_DEALT_WITH;
+			if (!yDisplayActive[yDisplay]) {
+				return ACTION_RESULT_DEALT_WITH;
+			}
 
 			// If any other of the same note is being held down, then don't switch it off. Also, see if we're still "auditioning" any notes at all
 			exitUIMode(UI_MODE_AUDITIONING);
@@ -205,8 +225,9 @@ foundIt:
 					// ...then we're still auditioning
 
 					// If the same note is still being held down (on a different pad), then we don't want to switch it off either
-					if (getNoteCodeFromCoords(padPresses[p].x, padPresses[p].y) == noteCode)
+					if (getNoteCodeFromCoords(padPresses[p].x, padPresses[p].y) == noteCode) {
 						return ACTION_RESULT_DEALT_WITH;
+					}
 				}
 			}
 
@@ -228,7 +249,9 @@ foundIt:
 
 			// If anything at all still auditioning...
 			int highestNoteCode = getHighestAuditionedNote();
-			if (highestNoteCode != -2147483648) drawNoteCode(highestNoteCode);
+			if (highestNoteCode != -2147483648) {
+				drawNoteCode(highestNoteCode);
+			}
 			else {
 #if HAVE_OLED
 				OLED::removePopup();
@@ -298,10 +321,13 @@ int KeyboardScreen::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 
 	// Scale mode button
 	if (x == scaleModeButtonX && y == scaleModeButtonY) {
-		if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_KIT)
+		if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_KIT) {
 			return ACTION_RESULT_DEALT_WITH; // Kits can't do scales!
+		}
 
-		if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		if (inCardRoutine) {
+			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		}
 
 		actionLogger.deleteAllLogs(); // Can't undo past this!
 
@@ -336,9 +362,13 @@ int KeyboardScreen::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 			if (currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED) {
 				currentUIMode = UI_MODE_NONE;
 				if (getCurrentClip()->inScaleMode) {
-					if (exitScaleModeOnButtonRelease) exitScaleMode();
+					if (exitScaleModeOnButtonRelease) {
+						exitScaleMode();
+					}
 				}
-				else enterScaleMode();
+				else {
+					enterScaleMode();
+				}
 			}
 		}
 	}
@@ -351,7 +381,9 @@ int KeyboardScreen::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 	else if (x == keyboardButtonX && y == keyboardButtonY) {
 #endif
 		if (on && currentUIMode == UI_MODE_NONE) {
-			if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			if (inCardRoutine) {
+				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
 			changeRootUI(&instrumentClipView);
 		}
 	}
@@ -359,11 +391,15 @@ int KeyboardScreen::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 	// Song view button
 	else if (x == sessionViewButtonX && y == sessionViewButtonY) {
 		if (on && currentUIMode == UI_MODE_NONE) {
-			if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			if (inCardRoutine) {
+				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
 
 			if (currentSong->lastClipInstanceEnteredStartPos != -1 || currentSong->currentClip->section == 255) {
 				bool success = arrangerView.transitionToArrangementEditor();
-				if (!success) goto doOther;
+				if (!success) {
+					goto doOther;
+				}
 			}
 
 			else {
@@ -389,14 +425,18 @@ doOther:
 	// Kit button
 	else if (x == kitButtonX && y == kitButtonY && currentUIMode == UI_MODE_NONE) {
 #if DELUGE_MODEL != DELUGE_MODEL_40_PAD
-		if (on) IndicatorLEDs::indicateAlertOnLed(keyboardLedX, keyboardLedX);
+		if (on) {
+			IndicatorLEDs::indicateAlertOnLed(keyboardLedX, keyboardLedX);
+		}
 #endif
 	}
 
 	else {
 		uiNeedsRendering(this, 0xFFFFFFFF, 0); //
 		int result = InstrumentClipMinder::buttonAction(x, y, on, inCardRoutine);
-		if (result != ACTION_RESULT_NOT_DEALT_WITH) return result;
+		if (result != ACTION_RESULT_NOT_DEALT_WITH) {
+			return result;
+		}
 
 		return view.buttonAction(x, y, on, inCardRoutine);
 	}
@@ -443,7 +483,9 @@ void KeyboardScreen::stopAllAuditioning(ModelStack* modelStack, bool switchOffOn
 		if (padPresses[p].x != 255) {
 			int noteCode = getNoteCodeFromCoords(padPresses[p].x, padPresses[p].y);
 			((MelodicInstrument*)currentSong->currentClip->output)->endAuditioningForNote(modelStack, noteCode);
-			if (switchOffOnThisEndToo) padPresses[p].x = 255;
+			if (switchOffOnThisEndToo) {
+				padPresses[p].x = 255;
+			}
 		}
 	}
 }
@@ -476,7 +518,9 @@ void KeyboardScreen::recalculateColours() {
 
 bool KeyboardScreen::renderMainPads(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
                                     uint8_t occupancyMask[][displayWidth + sideBarWidth], bool drawUndefinedArea) {
-	if (!image) return true;
+	if (!image) {
+		return true;
+	}
 
 	// First, piece together a picture of all notes-within-an-octave which are active
 	bool notesWithinOctaveActive[12];
@@ -514,7 +558,9 @@ bool KeyboardScreen::renderMainPads(uint32_t whichRows, uint8_t image[][displayW
 
 					yDisplay++;
 					noteWithinOctave++;
-					if (noteWithinOctave == 12) noteWithinOctave = 0;
+					if (noteWithinOctave == 12) {
+						noteWithinOctave = 0;
+					}
 				}
 			}
 		}
@@ -536,9 +582,11 @@ doFullColour:
 					occupancyMask[y][x] = 64;
 				}
 				// Show root note within each octave as full colour
-				else if (!noteWithinOctave) goto doFullColour;
+				else if (!noteWithinOctave) {
+					goto doFullColour;
 
-				// Or, if this note is just within the current scale, show it dim
+					// Or, if this note is just within the current scale, show it dim
+				}
 				else {
 					if (getCurrentClip()->inScaleMode && currentSong->modeContainsYNote(noteCode)) {
 						getTailColour(image[y][x], noteColours[yDisplay]);
@@ -584,7 +632,9 @@ doFullColour:
 				noteCode++;
 				yDisplay++;
 				noteWithinOctave++;
-				if (noteWithinOctave == 12) noteWithinOctave = 0;
+				if (noteWithinOctave == 12) {
+					noteWithinOctave = 0;
+				}
 			}
 		}
 	}
@@ -593,7 +643,9 @@ doFullColour:
 
 bool KeyboardScreen::renderSidebar(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
                                    uint8_t occupancyMask[][displayWidth + sideBarWidth]) {
-	if (!image) return true;
+	if (!image) {
+		return true;
+	}
 
 	for (int y = 0; y < displayHeight; y++) {
 		memset(image[y][displayWidth], 0, sideBarWidth * 3);
@@ -605,8 +657,9 @@ bool KeyboardScreen::renderSidebar(uint32_t whichRows, uint8_t image[][displayWi
 int KeyboardScreen::verticalEncoderAction(int offset, bool inCardRoutine) {
 	if (Buttons::isShiftButtonPressed()) {
 		if (currentUIMode == UI_MODE_NONE) {
-			if (inCardRoutine && !allowSomeUserActionsEvenWhenInCardRoutine)
+			if (inCardRoutine && !allowSomeUserActionsEvenWhenInCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
+			}
 
 			getCurrentClip()->colourOffset += offset;
 			recalculateColours();
@@ -614,8 +667,9 @@ int KeyboardScreen::verticalEncoderAction(int offset, bool inCardRoutine) {
 		}
 	}
 	else {
-		if (inCardRoutine && !allowSomeUserActionsEvenWhenInCardRoutine)
+		if (inCardRoutine && !allowSomeUserActionsEvenWhenInCardRoutine) {
 			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
+		}
 
 		//
 		Instrument* instrument = (Instrument*)currentSong->currentClip->output;
@@ -674,8 +728,12 @@ void KeyboardScreen::doScroll(int offset, bool force) {
 			newYNote = getCurrentClip()->yScrollKeyboardScreen
 			           + (displayHeight - 1) * getCurrentClip()->keyboardRowInterval + displayWidth - 1;
 		}
-		else newYNote = getCurrentClip()->yScrollKeyboardScreen;
-		if (!force && !getCurrentClip()->isScrollWithinRange(offset, newYNote + offset)) return;
+		else {
+			newYNote = getCurrentClip()->yScrollKeyboardScreen;
+		}
+		if (!force && !getCurrentClip()->isScrollWithinRange(offset, newYNote + offset)) {
+			return;
+		}
 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
@@ -708,7 +766,9 @@ void KeyboardScreen::doScroll(int offset, bool force) {
 				// Ensure the note the user is trying to sound isn't already sounding
 				NoteRow* noteRow = getCurrentClip()->getNoteRowForYNote(noteCode);
 				if (noteRow) {
-					if (noteRow->soundingStatus == STATUS_SEQUENCED_NOTE) continue;
+					if (noteRow->soundingStatus == STATUS_SEQUENCED_NOTE) {
+						continue;
+					}
 				}
 
 				((MelodicInstrument*)currentSong->currentClip->output)
@@ -727,14 +787,18 @@ void KeyboardScreen::flashDefaultRootNote() {
 }
 
 bool KeyboardScreen::oneNoteAuditioning() {
-	if (currentUIMode != UI_MODE_AUDITIONING) return false;
+	if (currentUIMode != UI_MODE_AUDITIONING) {
+		return false;
+	}
 
 	int numFound = 0;
 
 	for (int p = 0; p < MAX_NUM_KEYBOARD_PAD_PRESSES; p++) {
 		if (padPresses[p].x == 255) {
 			numFound++;
-			if (numFound > 1) return false;
+			if (numFound > 1) {
+				return false;
+			}
 		}
 	}
 	return (numFound == 1);
@@ -746,7 +810,9 @@ int KeyboardScreen::getLowestAuditionedNote() {
 	for (int p = 0; p < MAX_NUM_KEYBOARD_PAD_PRESSES; p++) {
 		if (padPresses[p].x != 255) {
 			int noteCode = getNoteCodeFromCoords(padPresses[p].x, padPresses[p].y);
-			if (noteCode < lowestNote) lowestNote = noteCode;
+			if (noteCode < lowestNote) {
+				lowestNote = noteCode;
+			}
 		}
 	}
 
@@ -759,7 +825,9 @@ int KeyboardScreen::getHighestAuditionedNote() {
 	for (int p = 0; p < MAX_NUM_KEYBOARD_PAD_PRESSES; p++) {
 		if (padPresses[p].x != 255) {
 			int noteCode = getNoteCodeFromCoords(padPresses[p].x, padPresses[p].y);
-			if (noteCode > highestNote) highestNote = noteCode;
+			if (noteCode > highestNote) {
+				highestNote = noteCode;
+			}
 		}
 	}
 
@@ -797,9 +865,13 @@ void KeyboardScreen::setLedStates() {
 
 void KeyboardScreen::drawNoteCode(int noteCode) {
 	// Might not want to actually do this...
-	if (!getCurrentUI()->toClipMinder()) return;
+	if (!getCurrentUI()->toClipMinder()) {
+		return;
+	}
 
-	if (currentSong->currentClip->output->type != INSTRUMENT_TYPE_KIT) drawActualNoteCode(noteCode);
+	if (currentSong->currentClip->output->type != INSTRUMENT_TYPE_KIT) {
+		drawActualNoteCode(noteCode);
+	}
 }
 
 bool KeyboardScreen::getAffectEntire() {
@@ -830,7 +902,9 @@ void KeyboardScreen::graphicsRoutine() {
 		newTickSquare = (uint64_t)(currentSong->currentClip->lastProcessedPos
 		                           + playbackHandler.getNumSwungTicksInSinceLastActionedSwungTick())
 		                * displayWidth / currentSong->currentClip->loopLength;
-		if (newTickSquare < 0 || newTickSquare >= displayWidth) newTickSquare = 255;
+		if (newTickSquare < 0 || newTickSquare >= displayWidth) {
+			newTickSquare = 255;
+		}
 
 		if (currentSong->currentClip->getCurrentlyRecordingLinearly()) {
 			colours = keyboardTickColoursLinearRecording;

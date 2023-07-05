@@ -132,7 +132,9 @@ lookAtArpNote:
 			// If there's actual arpeggiation happening right now...
 			if (settings && settings->mode) {
 				// If it's not this noteCode's turn, then do nothing with it
-				if (arpeggiator.whichNoteCurrentlyOnPostArp != n) continue;
+				if (arpeggiator.whichNoteCurrentlyOnPostArp != n) {
+					continue;
+				}
 
 				// Otherwise, just take note of which octave is currently outputting
 				noteCodeAfterArpeggiation += arpeggiator.currentOctave;
@@ -150,7 +152,9 @@ lookAtArpNote:
 
 // Returns num ticks til next arp event
 int32_t NonAudioInstrument::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
-	if (!activeClip) return 2147483647;
+	if (!activeClip) {
+		return 2147483647;
+	}
 
 	ArpReturnInstruction instruction;
 
@@ -189,7 +193,9 @@ bool NonAudioInstrument::readTagFromFile(char const* tagName) {
 		channel = storageManager.readTagOrAttributeValueInt();
 	}
 
-	else return MelodicInstrument::readTagFromFile(tagName);
+	else {
+		return MelodicInstrument::readTagFromFile(tagName);
+	}
 
 	storageManager.exitTag();
 	return true;

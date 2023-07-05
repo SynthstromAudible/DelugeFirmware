@@ -31,7 +31,9 @@ public:
 		return options;
 	}
 	bool isRelevant(Sound* sound, int whichThing) {
-		if (!sound) return true;
+		if (!sound) {
+			return true;
+		}
 		Source* source = &sound->sources[whichThing];
 		return (sound->getSynthMode() == SYNTH_MODE_SUBTRACTIVE
 		        && ((source->oscType == OSC_TYPE_SAMPLE && source->hasAtLeastOneAudioFileLoaded())

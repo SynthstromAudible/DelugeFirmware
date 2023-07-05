@@ -45,11 +45,17 @@ void Settings::selectEncoderAction(int offset) {
 	int numOptions = RuntimeFeatureSettingType::MaxElement;
 
 #if HAVE_OLED
-	if (soundEditor.currentValue > numOptions - 1) soundEditor.currentValue = numOptions - 1;
-	else if (soundEditor.currentValue < 0) soundEditor.currentValue = 0;
+	if (soundEditor.currentValue > numOptions - 1) {
+		soundEditor.currentValue = numOptions - 1;
+	}
+	else if (soundEditor.currentValue < 0) {
+		soundEditor.currentValue = 0;
+	}
 #else
-	if (soundEditor.currentValue >= numOptions) soundEditor.currentValue -= numOptions;
-	else if (soundEditor.currentValue < 0) soundEditor.currentValue += numOptions;
+	if (soundEditor.currentValue >= numOptions)
+		soundEditor.currentValue -= numOptions;
+	else if (soundEditor.currentValue < 0)
+		soundEditor.currentValue += numOptions;
 #endif
 
 	lastActiveValue = soundEditor.currentValue;

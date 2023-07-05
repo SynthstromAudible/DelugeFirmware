@@ -27,7 +27,9 @@ public:
 		if (soundEditor.currentValue == 0) {
 			numericDriver.setText("OFF");
 		}
-		else UnpatchedParam::drawValue();
+		else {
+			UnpatchedParam::drawValue();
+		}
 	}
 #endif
 };

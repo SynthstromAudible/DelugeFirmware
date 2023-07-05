@@ -60,7 +60,8 @@ static inline void timerClearCompareMatchTGRA(int timerNo)
     while (true)
     {
         uint16_t dummy_read = *TSR[timerNo];
-        if (!(dummy_read & 0x01)) break;
+        if (!(dummy_read & 0x01))
+            break;
         *TSR[timerNo] = dummy_read & 0xFE;
     }
 }
@@ -85,12 +86,16 @@ static inline void timerControlSetup(int timerNo, int clearedByTGRA, int prescal
             TPSC = 3;
             break;
         case 256:
-            if (timerNo == 1) TPSC = 0b110;
-            else if (timerNo >= 3) TPSC = 0b100;
+            if (timerNo == 1)
+                TPSC = 0b110;
+            else if (timerNo >= 3)
+                TPSC = 0b100;
             break;
         case 1024:
-            if (timerNo == 2) TPSC = 0b111;
-            else if (timerNo >= 3) TPSC = 0b101;
+            if (timerNo == 2)
+                TPSC = 0b111;
+            else if (timerNo >= 3)
+                TPSC = 0b101;
             break;
     }
 

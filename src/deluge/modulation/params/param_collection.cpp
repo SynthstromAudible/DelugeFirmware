@@ -37,9 +37,10 @@ void ParamCollection::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const
                                                    bool automationChanged, bool automatedBefore, bool automatedNow) {
 
 	bool currentValueChanged = (oldValue != modelStack->autoParam->getCurrentValue());
-	if (currentValueChanged || automationChanged)
+	if (currentValueChanged || automationChanged) {
 		modelStack->paramManager->notifyParamModifiedInSomeWay(modelStack, currentValueChanged, automationChanged,
 		                                                       automatedNow);
+	}
 
 	if (automationChanged && automatedNow) {
 		ticksTilNextEvent = 0;
@@ -51,13 +52,17 @@ bool ParamCollection::mayParamInterpolate(int paramId) {
 }
 
 int ParamCollection::paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack) {
-	if (paramValue >= (int32_t)(0x80000000 - (1 << 24))) return 64;
+	if (paramValue >= (int32_t)(0x80000000 - (1 << 24))) {
+		return 64;
+	}
 	return (paramValue + (1 << 24)) >> 25;
 }
 
 int32_t ParamCollection::knobPosToParamValue(int knobPos, ModelStackWithAutoParam* modelStack) {
 	int paramValue = 2147483647;
-	if (knobPos < 64) paramValue = knobPos << 25;
+	if (knobPos < 64) {
+		paramValue = knobPos << 25;
+	}
 	return paramValue;
 }
 

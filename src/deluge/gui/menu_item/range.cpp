@@ -39,7 +39,9 @@ void Range::beginSession(MenuItem* navigatedBackwardFrom) {
 
 void Range::horizontalEncoderAction(int offset) {
 
-	if (Buttons::isShiftButtonPressed()) return;
+	if (Buttons::isShiftButtonPressed()) {
+		return;
+	}
 
 	// Turn left
 	if (offset < 0) {
@@ -137,15 +139,19 @@ void Range::drawValueForEditingRange(bool blinkImmediately) {
 	uint8_t blinkMask[NUMERIC_DISPLAY_LENGTH];
 	if (soundEditor.editingRangeEdge == RangeEdit::LEFT) {
 		for (int i = 0; i < NUMERIC_DISPLAY_LENGTH; i++) {
-			if (i < leftLength + NUMERIC_DISPLAY_LENGTH - getMin(4, textLength)) blinkMask[i] = 0;
-			else blinkMask[i] = 255;
+			if (i < leftLength + NUMERIC_DISPLAY_LENGTH - getMin(4, textLength))
+				blinkMask[i] = 0;
+			else
+				blinkMask[i] = 255;
 		}
 	}
 
 	else {
 		for (int i = 0; i < NUMERIC_DISPLAY_LENGTH; i++) {
-			if (NUMERIC_DISPLAY_LENGTH - 1 - i < rightLength) blinkMask[i] = 0;
-			else blinkMask[i] = 255;
+			if (NUMERIC_DISPLAY_LENGTH - 1 - i < rightLength)
+				blinkMask[i] = 0;
+			else
+				blinkMask[i] = 255;
 		}
 	}
 

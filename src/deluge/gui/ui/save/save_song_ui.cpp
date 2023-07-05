@@ -82,7 +82,9 @@ gotError:
 	currentDir.set(&currentSong->dirPath);
 
 	error = arrivedInNewFolder(0, searchFilename.get(), "SONGS");
-	if (error) goto gotError;
+	if (error) {
+		goto gotError;
+	}
 
 	// TODO: create folder if doesn't exist.
 
@@ -166,13 +168,19 @@ gotError:
 
 	String filenameWithoutExtension;
 	error = getCurrentFilenameWithoutExtension(&filenameWithoutExtension);
-	if (error) goto gotError;
+	if (error) {
+		goto gotError;
+	}
 
 	error =
 	    audioFileManager.setupAlternateAudioFileDir(&newSongAlternatePath, currentDir.get(), &filenameWithoutExtension);
-	if (error) goto gotError;
+	if (error) {
+		goto gotError;
+	}
 	error = newSongAlternatePath.concatenate("/");
-	if (error) goto gotError;
+	if (error) {
+		goto gotError;
+	}
 	int dirPathLengthNew = newSongAlternatePath.getLength();
 
 	bool anyErrorMovingTempFiles = false;
@@ -214,7 +222,9 @@ gotError:
 				// If saving as *same* song name/slot, collecting samples, and it already came from alt location, no need to do it again
 				if (collectingSamples && !audioFile->loadedFromAlternatePath.isEmpty()) {
 					if (currentDir.equalsCaseIrrespective(&currentSong->dirPath)) {
-						if (enteredText.equalsCaseIrrespective(&currentSong->name)) continue;
+						if (enteredText.equalsCaseIrrespective(&currentSong->name)) {
+							continue;
+						}
 					}
 				}
 
@@ -281,8 +291,12 @@ gotError:
 
 							for (int i = 1; i < 6; i++) {
 								int rand = random(35);
-								if (rand < 10) buffer[i] = '0' + rand;
-								else buffer[i] = 'A' + (rand - 10);
+								if (rand < 10) {
+									buffer[i] = '0' + rand;
+								}
+								else {
+									buffer[i] = 'A' + (rand - 10);
+								}
 							}
 
 							// Append that random string
@@ -312,7 +326,9 @@ failAfterOpeningSourceFile:
 					else {
 						char const* fileName = getFileNameFromEndOfPath(audioFile->filePath.get());
 						error = newSongAlternatePath.concatenateAtPos(fileName, dirPathLengthNew);
-						if (error) goto failAfterOpeningSourceFile;
+						if (error) {
+							goto failAfterOpeningSourceFile;
+						}
 					}
 
 					if (needToPretendLoadedAlternate) {
@@ -329,9 +345,11 @@ failAfterOpeningSourceFile:
 				error = storageManager.createFile(&recorderFileSystemStuff.currentFile, destFilePath, false);
 				if (error == ERROR_FILE_ALREADY_EXISTS) {
 				} // No problem - the audio file was already there from before, so we don't need to copy it again now.
-				else if (error) goto failAfterOpeningSourceFile;
+				else if (error) {
+					goto failAfterOpeningSourceFile;
 
-				// Or if everything's fine and we're ready to write / copy...
+					// Or if everything's fine and we're ready to write / copy...
+				}
 				else {
 
 					// Copy
@@ -346,7 +364,9 @@ fail3:
 							error = ERROR_UNSPECIFIED;
 							goto failAfterOpeningSourceFile;
 						}
-						if (!bytesRead) break; // Stop, on rare case where file ended right at end of last cluster
+						if (!bytesRead) {
+							break; // Stop, on rare case where file ended right at end of last cluster
+						}
 
 						UINT bytesWritten;
 						result = f_write(&recorderFileSystemStuff.currentFile, storageManager.fileClusterBuffer,
@@ -357,8 +377,9 @@ fail3:
 							goto fail3;
 						}
 
-						if (bytesRead < audioFileManager.clusterSize)
+						if (bytesRead < audioFileManager.clusterSize) {
 							break; // Stop - file clearly ended part-way through cluster
+						}
 					}
 
 					f_close(&recorderFileSystemStuff.currentFile); // Close destination file
@@ -368,7 +389,9 @@ fail3:
 
 				// Write has succeeded. We can mark it as existing in its normal main location (e.g. in the SAMPLES folder).
 				// Unless we were collection media, in which case it won't be there - it'll be in the new alternate location we put it in.
-				if (!collectingSamples) audioFile->loadedFromAlternatePath.clear();
+				if (!collectingSamples) {
+					audioFile->loadedFromAlternatePath.clear();
+				}
 			}
 		}
 	}
@@ -382,13 +405,21 @@ fail3:
 
 		while (true) {
 			error = filePathDuringWrite.set("SONGS/TEMP");
-			if (error) goto gotError;
+			if (error) {
+				goto gotError;
+			}
 			error = filePathDuringWrite.concatenateInt(tempFileNumber, 4);
-			if (error) goto gotError;
+			if (error) {
+				goto gotError;
+			}
 			error = filePathDuringWrite.concatenate(".XML");
-			if (error) goto gotError;
+			if (error) {
+				goto gotError;
+			}
 
-			if (!storageManager.fileExists(filePathDuringWrite.get())) break;
+			if (!storageManager.fileExists(filePathDuringWrite.get())) {
+				break;
+			}
 
 			tempFileNumber++;
 		}
@@ -402,7 +433,9 @@ fail3:
 
 	// Write the actual song file
 	error = storageManager.createXMLFile(filePathDuringWrite.get(), false);
-	if (error) goto gotError;
+	if (error) {
+		goto gotError;
+	}
 
 	// (Sept 2019) - it seems a crash sometimes occurs sometime after this point. A 0-byte file gets created. Could be for either overwriting or not.
 
@@ -410,7 +443,9 @@ fail3:
 
 	error = storageManager.closeFileAfterWriting(filePathDuringWrite.get(),
 	                                             "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<song\n", "\n</song>\n");
-	if (error) goto gotError;
+	if (error) {
+		goto gotError;
+	}
 
 	// If "overwriting an existing file"...
 	if (fileAlreadyExisted) {
@@ -425,7 +460,9 @@ cardError:
 
 		// Rename the new file
 		result = f_rename(filePathDuringWrite.get(), filePath.get());
-		if (result != FR_OK) goto cardError;
+		if (result != FR_OK) {
+			goto cardError;
+		}
 	}
 
 #if HAVE_OLED
@@ -450,7 +487,8 @@ cardError:
 
 #if DELUGE_MODEL == DELUGE_MODEL_40_PAD
 int SaveSongUI::padAction(int x, int y, int on) {
-	if (sdRoutineLock) ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+	if (sdRoutineLock)
+		ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	close();
 	return ACTION_RESULT_DEALT_WITH;
 }

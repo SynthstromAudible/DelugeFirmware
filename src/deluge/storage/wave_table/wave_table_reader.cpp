@@ -27,7 +27,9 @@ int WaveTableReader::readBytesPassedErrorChecking(char* outputBuffer, int num) {
 
 	while (num--) {
 		int error = advanceClustersIfNecessary();
-		if (error) return error;
+		if (error) {
+			return error;
+		}
 
 		*outputBuffer = storageManager.fileClusterBuffer[byteIndexWithinCluster];
 		outputBuffer++;
@@ -42,6 +44,10 @@ int WaveTableReader::readNewCluster() {
 	UINT bytesRead;
 	FRESULT result = f_read(&fileSystemStuff.currentFile, storageManager.fileClusterBuffer,
 	                        audioFileManager.clusterSize, &bytesRead);
-	if (result) return ERROR_SD_CARD; // Failed to load cluster from card
-	else return NO_ERROR;
+	if (result) {
+		return ERROR_SD_CARD; // Failed to load cluster from card
+	}
+	else {
+		return NO_ERROR;
+	}
 }

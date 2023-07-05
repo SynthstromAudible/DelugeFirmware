@@ -67,7 +67,9 @@ void MatrixDriver::noPressesHappening(bool inCardRoutine) {
 int MatrixDriver::padAction(int x, int y, int velocity) {
 	padStates[x][y] = velocity;
 	int result = getCurrentUI()->padAction(x, y, velocity);
-	if (result == ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+	if (result == ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE) {
+		return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+	}
 
 	return ACTION_RESULT_DEALT_WITH;
 }

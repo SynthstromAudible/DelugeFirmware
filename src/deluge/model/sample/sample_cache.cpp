@@ -48,8 +48,12 @@ SampleCache::~SampleCache() {
 void SampleCache::clusterStolen(int clusterIndex) {
 
 #if ALPHA_OR_BETA_VERSION
-	if (clusterIndex < 0) numericDriver.freezeWithError("E296");
-	else if (clusterIndex >= numClusters) numericDriver.freezeWithError("E297");
+	if (clusterIndex < 0) {
+		numericDriver.freezeWithError("E296");
+	}
+	else if (clusterIndex >= numClusters) {
+		numericDriver.freezeWithError("E297");
+	}
 #endif
 
 	Uart::println("cache Cluster stolen");
@@ -66,8 +70,12 @@ void SampleCache::clusterStolen(int clusterIndex) {
 	               * bytesPerSample;
 
 #if ALPHA_OR_BETA_VERSION
-	if (writeBytePos < 0) numericDriver.freezeWithError("E298");
-	else if (writeBytePos >= waveformLengthBytes) numericDriver.freezeWithError("E299");
+	if (writeBytePos < 0) {
+		numericDriver.freezeWithError("E298");
+	}
+	else if (writeBytePos >= waveformLengthBytes) {
+		numericDriver.freezeWithError("E299");
+	}
 
 	int numExistentClusters = getNumExistentClusters(writeBytePos);
 
@@ -83,11 +91,15 @@ void SampleCache::unlinkClusters(int startAtIndex, bool beingDestructed) {
 	// And there's now no point in having any further Clusters
 	int numExistentClusters = getNumExistentClusters(writeBytePos);
 	for (int i = startAtIndex; i < numExistentClusters; i++) {
-		if (ALPHA_OR_BETA_VERSION && !clusters[i]) numericDriver.freezeWithError("E167");
+		if (ALPHA_OR_BETA_VERSION && !clusters[i]) {
+			numericDriver.freezeWithError("E167");
+		}
 
 		audioFileManager.deallocateCluster(clusters[i]);
 
-		if (ALPHA_OR_BETA_VERSION && !beingDestructed) clusters[i] = NULL;
+		if (ALPHA_OR_BETA_VERSION && !beingDestructed) {
+			clusters[i] = NULL;
+		}
 	}
 }
 
@@ -95,12 +107,17 @@ void SampleCache::unlinkClusters(int startAtIndex, bool beingDestructed) {
 void SampleCache::setWriteBytePos(int newWriteBytePos) {
 
 #if ALPHA_OR_BETA_VERSION
-	if (newWriteBytePos < 0) numericDriver.freezeWithError("E300");
-	if (newWriteBytePos > waveformLengthBytes) numericDriver.freezeWithError("E301");
+	if (newWriteBytePos < 0) {
+		numericDriver.freezeWithError("E300");
+	}
+	if (newWriteBytePos > waveformLengthBytes) {
+		numericDriver.freezeWithError("E301");
+	}
 
 	uint32_t bytesPerSample = sample->numChannels * CACHE_BYTE_DEPTH;
-	if (newWriteBytePos != (uint32_t)newWriteBytePos / bytesPerSample * bytesPerSample)
+	if (newWriteBytePos != (uint32_t)newWriteBytePos / bytesPerSample * bytesPerSample) {
 		numericDriver.freezeWithError("E302");
+	}
 #endif
 
 	// When setting it earlier, we may have to discard some Clusters.
@@ -111,8 +128,9 @@ void SampleCache::setWriteBytePos(int newWriteBytePos) {
 
 	writeBytePos = newWriteBytePos;
 
-	if (ALPHA_OR_BETA_VERSION && getNumExistentClusters(writeBytePos) != newNumExistentClusters)
+	if (ALPHA_OR_BETA_VERSION && getNumExistentClusters(writeBytePos) != newNumExistentClusters) {
 		numericDriver.freezeWithError("E294");
+	}
 }
 
 // Does not move the new Cluster to the appropriate "availability queue", because it's expected that the caller is just about to call getCluster(), to get it,
@@ -121,8 +139,12 @@ bool SampleCache::setupNewCluster(int clusterIndex) {
 	//Uart::println("writing cache to new Cluster");
 
 #if ALPHA_OR_BETA_VERSION
-	if (clusterIndex >= numClusters) numericDriver.freezeWithError("E126");
-	if (clusterIndex > getNumExistentClusters(writeBytePos)) numericDriver.freezeWithError("E293");
+	if (clusterIndex >= numClusters) {
+		numericDriver.freezeWithError("E126");
+	}
+	if (clusterIndex > getNumExistentClusters(writeBytePos)) {
+		numericDriver.freezeWithError("E293");
+	}
 #endif
 
 	clusters[clusterIndex] = audioFileManager.allocateCluster(
@@ -140,8 +162,9 @@ bool SampleCache::setupNewCluster(int clusterIndex) {
 
 void SampleCache::prioritizeNotStealingCluster(int clusterIndex) {
 
-	if (generalMemoryAllocator.getRegion(clusters[clusterIndex]) != MEMORY_REGION_SDRAM)
+	if (generalMemoryAllocator.getRegion(clusters[clusterIndex]) != MEMORY_REGION_SDRAM) {
 		return; // Sorta just have to do this
+	}
 
 	// This ensures, one Cluster at a time, that this Cache's Clusters are right at the far end of their queue (so won't be stolen for a while),
 	// but in reverse order so that the later-in-sample of those cache Clusters will be stolen first
@@ -168,8 +191,9 @@ void SampleCache::prioritizeNotStealingCluster(int clusterIndex) {
 	// Later Clusters
 	else {
 
-		if (generalMemoryAllocator.getRegion(clusters[clusterIndex - 1]) != MEMORY_REGION_SDRAM)
+		if (generalMemoryAllocator.getRegion(clusters[clusterIndex - 1]) != MEMORY_REGION_SDRAM) {
 			return; // Sorta just have to do this
+		}
 
 		// In most cases, we'll want to do this thing to alter the ordering - including if the Cluster in question hasn't actually been added to a queue at all yet,
 		// because this functions serves the additional purpose of being what puts Clusters in their queue in the first place.
@@ -198,8 +222,12 @@ int SampleCache::getNumExistentClusters(int32_t thisWriteBytePos) {
 	    (thisWriteBytePos + audioFileManager.clusterSize - bytesPerSample) >> audioFileManager.clusterSizeMagnitude;
 
 #if ALPHA_OR_BETA_VERSION
-	if (numExistentClusters < 0) numericDriver.freezeWithError("E303");
-	if (numExistentClusters > numClusters) numericDriver.freezeWithError("E304");
+	if (numExistentClusters < 0) {
+		numericDriver.freezeWithError("E303");
+	}
+	if (numExistentClusters > numClusters) {
+		numericDriver.freezeWithError("E304");
+	}
 #endif
 
 	return numExistentClusters;

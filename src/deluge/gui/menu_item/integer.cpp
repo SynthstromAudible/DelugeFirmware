@@ -33,10 +33,14 @@ namespace menu_item {
 void Integer::selectEncoderAction(int offset) {
 	soundEditor.currentValue += offset;
 	int maxValue = getMaxValue();
-	if (soundEditor.currentValue > maxValue) soundEditor.currentValue = maxValue;
+	if (soundEditor.currentValue > maxValue) {
+		soundEditor.currentValue = maxValue;
+	}
 	else {
 		int minValue = getMinValue();
-		if (soundEditor.currentValue < minValue) soundEditor.currentValue = minValue;
+		if (soundEditor.currentValue < minValue) {
+			soundEditor.currentValue = minValue;
+		}
 	}
 
 	Number::selectEncoderAction(offset);
@@ -48,8 +52,12 @@ void Integer::drawValue() {
 }
 
 void IntegerWithOff::drawValue() {
-	if (soundEditor.currentValue == 0) numericDriver.setText("OFF");
-	else Integer::drawValue();
+	if (soundEditor.currentValue == 0) {
+		numericDriver.setText("OFF");
+	}
+	else {
+		Integer::drawValue();
+	}
 }
 #endif
 
@@ -66,7 +74,9 @@ void Integer::drawPixelsForOled() {
 }
 
 void IntegerContinuous::drawBar(int yTop, int marginL, int marginR) {
-	if (marginR == -1) marginR = marginL;
+	if (marginR == -1) {
+		marginR = marginL;
+	}
 	int height = 7;
 
 	int leftMost = marginL;
