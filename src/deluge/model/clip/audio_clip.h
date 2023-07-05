@@ -77,6 +77,8 @@ public:
 	void sampleZoneChanged(ModelStackWithTimelineCounter const* modelStack);
 	int64_t getNumSamplesTilLoop(ModelStackWithTimelineCounter* modelStack);
 	void setPos(ModelStackWithTimelineCounter* modelStack, int32_t newPos, bool useActualPosForParamManagers);
+	/// Return true if successfully shifted, as clip cannot be shifted past beginning
+	bool shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int amount);
 
 	int readFromFile(Song* song);
 	void writeDataToFile(Song* song);

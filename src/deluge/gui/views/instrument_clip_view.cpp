@@ -55,7 +55,6 @@
 #include "gui/ui/rename/rename_drum_ui.h"
 #include "model/song/song.h"
 #include "model/clip/clip.h"
-#include "model/consequence/consequence_instrument_clip_horizontal_shift.h"
 #include "model/consequence/consequence_note_array_change.h"
 #include "gui/menu_item/colour.h"
 #include "hid/led/pad_leds.h"
@@ -4181,60 +4180,6 @@ wantToEditNoteRowLength:
 		shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress =
 		    true; // So don't accidentally shorten row after
 		editedAnyPerNoteRowStuffSinceAuditioningBegan = true;
-		return ACTION_RESULT_DEALT_WITH;
-	}
-
-	// Or, maybe shift everything horizontally
-	else if ((isNoUIModeActive() && Buttons::isButtonPressed(yEncButtonX, yEncButtonY))
-	         || (isUIModeActiveExclusively(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)
-	             && Buttons::isButtonPressed(clipViewButtonX, clipViewButtonY))) {
-		if (sdRoutineLock) {
-			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE; // Just be safe - maybe not necessary
-		}
-		int squareSize = getPosFromSquare(1) - getPosFromSquare(0);
-		int shiftAmount = offset * squareSize;
-		InstrumentClip* clip = getCurrentClip();
-
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-
-		clip->shiftHorizontally(modelStack, shiftAmount);
-		uiNeedsRendering(this, 0xFFFFFFFF, 0);
-
-		// If possible, just modify a previous Action to add this new shift amount to it.
-		Action* action = actionLogger.firstAction[BEFORE];
-		if (action && action->type == ACTION_INSTRUMENT_CLIP_HORIZONTAL_SHIFT && action->openForAdditions
-		    && action->currentClip == clip) {
-
-			// If there's no Consequence in the Action, that's probably because we deleted it a previous time with the code just below.
-			// Or possibly because the Action was created but there wasn't enough RAM to create the Consequence. Anyway, just go add a consequence now.
-			if (!action->firstConsequence) {
-				goto addConsequenceToAction;
-			}
-
-			ConsequenceInstrumentClipHorizontalShift* consequence =
-			    (ConsequenceInstrumentClipHorizontalShift*)action->firstConsequence;
-			consequence->amount += shiftAmount;
-
-			// It might look tempting that if we've completed one whole loop, we could delete the Consequence because everything would be back the same -
-			// but no! Remember different NoteRows might have different lengths.
-		}
-
-		// Or if no previous Action, go create a new one now.
-		else {
-
-			action = actionLogger.getNewAction(ACTION_INSTRUMENT_CLIP_HORIZONTAL_SHIFT, ACTION_ADDITION_NOT_ALLOWED);
-			if (action) {
-addConsequenceToAction:
-				void* consMemory = generalMemoryAllocator.alloc(sizeof(ConsequenceInstrumentClipHorizontalShift));
-
-				if (consMemory) {
-					ConsequenceInstrumentClipHorizontalShift* newConsequence =
-					    new (consMemory) ConsequenceInstrumentClipHorizontalShift(shiftAmount);
-					action->addConsequence(newConsequence);
-				}
-			}
-		}
 		return ACTION_RESULT_DEALT_WITH;
 	}
 
