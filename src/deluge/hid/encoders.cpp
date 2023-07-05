@@ -25,6 +25,8 @@
 #include <new>
 #include "hid/buttons.h"
 #include "util/functions.h"
+#include "gui/views/instrument_clip_view.h"
+#include "model/settings/runtime_feature_settings.h"
 
 namespace Encoders {
 
@@ -144,9 +146,19 @@ checkResult:
 				break;
 
 			case ENCODER_TEMPO:
-				playbackHandler.tempoEncoderAction(limitedDetentPos,
-				                                   Buttons::isButtonPressed(tempoEncButtonX, tempoEncButtonY),
-				                                   Buttons::isShiftButtonPressed());
+				if (getCurrentUI() == &instrumentClipView
+				    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::Quantize)
+				           == RuntimeFeatureStateToggle::On) {
+					instrumentClipView.tempoEncoderAction(limitedDetentPos,
+					                                      Buttons::isButtonPressed(tempoEncButtonX, tempoEncButtonY),
+					                                      Buttons::isShiftButtonPressed());
+				}
+				else {
+					playbackHandler.tempoEncoderAction(limitedDetentPos,
+					                                   Buttons::isButtonPressed(tempoEncButtonX, tempoEncButtonY),
+					                                   Buttons::isShiftButtonPressed());
+				}
+
 				break;
 
 			case ENCODER_SELECT:

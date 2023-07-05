@@ -77,6 +77,7 @@
 #include "storage/multi_range/multi_range.h"
 #include "storage/audio/audio_file_holder.h"
 #include "model/settings/runtime_feature_settings.h"
+#include "playback/playback_handler.h"
 
 #if HAVE_OLED
 #include "hid/display/oled.h"
@@ -589,11 +590,15 @@ doOther:
 		}
 	}
 
+	else if (x == tempoEncButtonX && y == tempoEncButtonY && isUIModeActiveExclusively(UI_MODE_NOTES_PRESSED)
+	         && runtimeFeatureSettings.get(RuntimeFeatureSettingType::Quantize) == RuntimeFeatureStateToggle::On) {
+		//prevent Tempo pop-up , when note is pressed
+	}
 	// Horizontal encoder button
 	else if (x == xEncButtonX && y == xEncButtonY) {
 
 		// If user wants to "multiple" Clip contents
-		if (on && Buttons::isShiftButtonPressed()) {
+		if (on && Buttons::isShiftButtonPressed() && !isUIModeActiveExclusively(UI_MODE_NOTES_PRESSED)) {
 			if (isNoUIModeActive()) {
 				if (inCardRoutine) {
 					return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -1881,6 +1886,7 @@ void InstrumentClipView::checkIfAllEditPadPressesEnded(bool mayRenderSidebar) {
 		view.setModRegion();
 		exitUIMode(UI_MODE_NOTES_PRESSED);
 		actionLogger.closeAction(ACTION_NOTE_EDIT);
+		quantizeAmount = 0;
 	}
 }
 
@@ -4234,6 +4240,209 @@ addConsequenceToAction:
 	else {
 		return ClipView::horizontalEncoderAction(offset);
 	}
+}
+
+void InstrumentClipView::tempoEncoderAction(int8_t offset, bool encoderButtonPressed, bool shiftButtonPressed) {
+
+	if (isUIModeActive(UI_MODE_NOTES_PRESSED)
+	    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::Quantize)
+	           == RuntimeFeatureStateToggle::On) { //quantize
+		if (encoderButtonPressed) {
+			quantizeNotes(offset, NUDGEMODE_QUANTIZE_ALL);
+		}
+		else {
+			quantizeNotes(offset, NUDGEMODE_QUANTIZE);
+		}
+	}
+	else {
+		playbackHandler.tempoEncoderAction(offset, encoderButtonPressed, shiftButtonPressed);
+	}
+}
+
+void InstrumentClipView::quantizeNotes(int offset, int nudgeMode) {
+
+	shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress = true;
+
+	//just popping up
+	if (!offset) {
+		quantizeAmount = 0;
+		if (nudgeMode == NUDGEMODE_QUANTIZE) {
+			numericDriver.displayPopup(HAVE_OLED ? "QUANTIZE" : "QTZ");
+		}
+		else if (nudgeMode == NUDGEMODE_QUANTIZE_ALL) {
+			numericDriver.displayPopup(HAVE_OLED ? "QUANTIZE ALL ROW" : "QTZA");
+		}
+		return;
+	}
+
+	int squareSize = getPosFromSquare(1) - getPosFromSquare(0);
+	int halfsquareSize = (int)(squareSize / 2);
+	int quatersquareSize = (int)(squareSize / 4);
+
+	if (quantizeAmount >= 10 && offset > 0) return;
+	if (quantizeAmount <= -10 && offset < 0) return;
+	quantizeAmount += offset;
+	if (quantizeAmount >= 10) quantizeAmount = 10;
+	if (quantizeAmount <= -10) quantizeAmount = -10;
+
+#if HAVE_OLED
+	char buffer[24];
+	if (nudgeMode == NUDGEMODE_QUANTIZE) {
+		strcpy(buffer, (quantizeAmount >= 0) ? "Quantize " : "Humanize ");
+	}
+	else {
+		strcpy(buffer, (quantizeAmount >= 0) ? "Quantize All " : "Humanize All ");
+	}
+	intToString(abs(quantizeAmount * 10), buffer + strlen(buffer));
+	strcpy(buffer + strlen(buffer), "%");
+	OLED::popupText(buffer);
+#else
+	char buffer[5];
+	strcpy(buffer, "");
+	intToString(quantizeAmount * 10, buffer + strlen(buffer)); //Negative means humanize
+	numericDriver.displayPopup(buffer, 0, true);
+#endif
+
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
+	ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
+	    modelStack->addTimelineCounter(modelStack->song->currentClip);
+	InstrumentClip* currentClip = getCurrentClip();
+
+	if (nudgeMode == NUDGEMODE_QUANTIZE) { // Only the row(s) being pressed
+
+		//reset
+		Action* lastAction = actionLogger.firstAction[BEFORE];
+		if (lastAction && lastAction->type == ACTION_NOTE_NUDGE && lastAction->openForAdditions)
+			actionLogger.undoJustOneConsequencePerNoteRow(modelStack);
+
+		Action* action = NULL;
+		if (offset) {
+			action = actionLogger.getNewAction(ACTION_NOTE_NUDGE, ACTION_ADDITION_ALLOWED);
+			if (action) action->offset = quantizeAmount;
+		}
+
+		NoteRow* thisNoteRow;
+		int noteRowId;
+		for (int i = 0; i < editPadPressBufferSize; i++) {
+			if (editPadPresses[i].isActive) {
+
+				int noteRowIndex;
+				thisNoteRow = currentClip->getNoteRowOnScreen(editPadPresses[i].yDisplay, currentSong, &noteRowIndex);
+				noteRowId = currentClip->getNoteRowId(thisNoteRow, noteRowIndex);
+
+				ModelStackWithNoteRow* modelStackWithNoteRow =
+				    modelStackWithTimelineCounter->addNoteRow(noteRowId, thisNoteRow);
+
+				int32_t noteRowEffectiveLength = modelStackWithNoteRow->getLoopLength();
+
+				if (offset) { //store
+					action->recordNoteArrayChangeDefinitely(
+					    (InstrumentClip*)modelStackWithNoteRow->getTimelineCounter(), modelStackWithNoteRow->noteRowId,
+					    &(thisNoteRow->notes), false);
+				}
+
+				NoteVector tmpNotes;
+				tmpNotes.cloneFrom(&thisNoteRow->notes); //backup
+				for (int j = 0; j < tmpNotes.getNumElements(); j++) {
+
+					Note* note = tmpNotes.getElement(j);
+
+					int32_t destination = (trunc((note->pos - 1 + halfsquareSize) / squareSize)) * squareSize;
+					if (quantizeAmount < 0) { //Humanize
+						int32_t hmAmout = trunc(random(quatersquareSize) - (quatersquareSize / 2.5));
+						destination = note->pos + hmAmout;
+					}
+					int32_t distance = destination - note->pos;
+					distance = trunc((distance * abs(quantizeAmount)) / 10);
+
+					if (distance != 0) {
+						for (int k = 0; k < abs(distance); k++) {
+							int32_t nowPos = (note->pos + ((distance > 0) ? k : -k) + noteRowEffectiveLength)
+							                 % noteRowEffectiveLength;
+							int error = thisNoteRow->nudgeNotesAcrossAllScreens(
+							    nowPos, modelStackWithNoteRow, NULL, MAX_SEQUENCE_LENGTH, ((distance > 0) ? 1 : -1));
+							if (error) {
+								numericDriver.displayError(error);
+								return;
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	else if (nudgeMode == NUDGEMODE_QUANTIZE_ALL) { //All Row
+
+		//reset
+		Action* lastAction = actionLogger.firstAction[BEFORE];
+		if (lastAction && lastAction->type == ACTION_NOTE_NUDGE && lastAction->openForAdditions)
+			actionLogger.undoJustOneConsequencePerNoteRow(modelStack);
+
+		Action* action = NULL;
+		if (offset) {
+			action = actionLogger.getNewAction(ACTION_NOTE_NUDGE, ACTION_ADDITION_ALLOWED);
+			if (action) action->offset = offset;
+		}
+
+		for (int i = 0; i < getCurrentClip()->noteRows.getNumElements(); i++) {
+			NoteRow* thisNoteRow = getCurrentClip()->noteRows.getElement(i);
+
+			int noteRowId;
+			int noteRowIndex;
+			noteRowId = getCurrentClip()->getNoteRowId(thisNoteRow, i);
+
+			ModelStackWithNoteRow* modelStackWithNoteRow =
+			    modelStackWithTimelineCounter->addNoteRow(noteRowId, thisNoteRow);
+			int32_t noteRowEffectiveLength = modelStackWithNoteRow->getLoopLength();
+
+			// If this NoteRow has any notes...
+			if (!thisNoteRow->hasNoNotes()) {
+
+				if (offset) { //store
+					action->recordNoteArrayChangeDefinitely(
+					    (InstrumentClip*)modelStackWithNoteRow->getTimelineCounter(), modelStackWithNoteRow->noteRowId,
+					    &(thisNoteRow->notes), false);
+				}
+
+				NoteVector tmpNotes;
+				tmpNotes.cloneFrom(&thisNoteRow->notes); //backup
+				for (int j = 0; j < tmpNotes.getNumElements(); j++) {
+					Note* note = tmpNotes.getElement(j);
+
+					int32_t destination = (trunc((note->pos - 1 + halfsquareSize) / squareSize)) * squareSize;
+					if (quantizeAmount < 0) { //Humanize
+						int32_t hmAmout = trunc(random(quatersquareSize) - (quatersquareSize / 2.5));
+						destination = note->pos + hmAmout;
+					}
+					int32_t distance = destination - note->pos;
+					distance = trunc((distance * abs(quantizeAmount)) / 10);
+
+					if (distance != 0) {
+						for (int k = 0; k < abs(distance); k++) {
+							int32_t nowPos = (note->pos + ((distance > 0) ? k : -k) + noteRowEffectiveLength)
+							                 % noteRowEffectiveLength;
+							int error = thisNoteRow->nudgeNotesAcrossAllScreens(
+							    nowPos, modelStackWithNoteRow, NULL, MAX_SEQUENCE_LENGTH, ((distance > 0) ? 1 : -1));
+							if (error) {
+								numericDriver.displayError(error);
+								return;
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	uiNeedsRendering(this, 0xFFFFFFFF, 0);
+	{
+		if (playbackHandler.isEitherClockActive() && modelStackWithTimelineCounter->song->isClipActive(currentClip)) {
+			currentClip->expectEvent();
+			currentClip->reGetParameterAutomation(modelStackWithTimelineCounter);
+		}
+	}
+	return;
 }
 
 // Supply offset as 0 to just popup number, not change anything
