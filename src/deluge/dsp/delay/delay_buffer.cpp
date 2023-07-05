@@ -52,9 +52,13 @@ uint8_t DelayBuffer::init(uint32_t newRate, uint32_t failIfThisSize, bool includ
 		mustMakeRatePrecise = true;
 	}
 
-	if (size == failIfThisSize) return ERROR_UNSPECIFIED;
+	if (size == failIfThisSize) {
+		return ERROR_UNSPECIFIED;
+	}
 
-	if (mustMakeRatePrecise) makeNativeRatePrecise();
+	if (mustMakeRatePrecise) {
+		makeNativeRatePrecise();
+	}
 
 	sizeIncludingExtra = size + (includeExtraSpace ? delaySpaceBetweenReadAndWrite : 0);
 	AudioEngine::logAction("DelayBuffer::init before");
@@ -62,7 +66,9 @@ uint8_t DelayBuffer::init(uint32_t newRate, uint32_t failIfThisSize, bool includ
 	bufferStart =
 	    (StereoSample*)generalMemoryAllocator.alloc(sizeIncludingExtra * sizeof(StereoSample), NULL, false, true);
 	AudioEngine::logAction("DelayBuffer::init after");
-	if (bufferStart == 0) return ERROR_INSUFFICIENT_RAM;
+	if (bufferStart == 0) {
+		return ERROR_INSUFFICIENT_RAM;
+	}
 
 	bufferEnd = bufferStart + sizeIncludingExtra;
 	empty();
@@ -92,7 +98,9 @@ void DelayBuffer::makeNativeRatePreciseRelativeToOtherBuffer(DelayBuffer* otherB
 void DelayBuffer::discard(bool beingDestructed) {
 	if (bufferStart) {
 		generalMemoryAllocator.dealloc(bufferStart);
-		if (!beingDestructed) bufferStart = NULL; // If destructing, writing anything would be a waste of time
+		if (!beingDestructed) {
+			bufferStart = NULL; // If destructing, writing anything would be a waste of time
+		}
 	}
 }
 
@@ -107,12 +115,14 @@ void DelayBuffer::setupForRender(int32_t userDelayRate, DelayBufferSetup* setup)
 			// with the upcoming triangles. Assuming that the delay rate has only changed slightly at this stage, this is as simple as removing a quarter of the last written value,
 			// and putting that removed quarter where the "next" write-pos is. That's because the triangles are 4 samples wide total (2 samples either side)
 			StereoSample* writePos = bufferCurrentPos - delaySpaceBetweenReadAndWrite;
-			while (writePos < bufferStart)
+			while (writePos < bufferStart) {
 				writePos += sizeIncludingExtra;
+			}
 
 			StereoSample* writePosPlusOne = writePos + 1;
-			while (writePosPlusOne >= bufferEnd)
+			while (writePosPlusOne >= bufferEnd) {
 				writePosPlusOne -= sizeIncludingExtra;
+			}
 
 			writePosPlusOne->l = writePos->l >> 2;
 			writePosPlusOne->r = writePos->r >> 2;

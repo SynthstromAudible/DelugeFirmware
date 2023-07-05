@@ -45,6 +45,9 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
 
 ### Kit Keyboard View
  - ([#112]) All-new use for the "keyboard" button in kit clips, uses the main pad grid for MPC-style 16 level playing. Horizonatal encoder scrolls by one pad at a time, allowing positioning drums left to right, and vertical encoder jumps vertically by rows.
+ 
+### Audio Clip View
+ - ([#141]) Holding the vertical encoder down while turning the horizontal encoder will shift the clip along the underlying audio file, similar to the same interface for instrument clips.
 
 
 <h1 id="runtime-features">Runtime settings aka Community Features Menu</h1>
@@ -74,3 +77,4 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#103]: https://github.com/SynthstromAudible/DelugeFirmware/pull/103
 [#112]: https://github.com/SynthstromAudible/DelugeFirmware/pull/112
 [#122]: https://github.com/SynthstromAudible/DelugeFirmware/pull/122
+[#141]: https://github.com/SynthstromAudible/DelugeFirmware/pull/141

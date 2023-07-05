@@ -34,7 +34,9 @@ bool WaveTableBandData::mayBeStolen(void* thingNotToStealFrom) {
 
 void WaveTableBandData::steal(char const* errorCode) {
 #if ALPHA_OR_BETA_VERSION
-	if (!waveTable || waveTable->numReasonsToBeLoaded) numericDriver.freezeWithError("E387");
+	if (!waveTable || waveTable->numReasonsToBeLoaded) {
+		numericDriver.freezeWithError("E387");
+	}
 #endif
 
 	// Tell the WaveTable that we're the BandData being stolen, so it won't deallocate us - our caller will do that.

@@ -74,7 +74,9 @@ int MIDIDrum::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos
 			storageManager.exitTag("note");
 		}
 		else if (NonAudioDrum::readDrumTagFromFile(tagName)) {}
-		else storageManager.exitTag(tagName);
+		else {
+			storageManager.exitTag(tagName);
+		}
 	}
 
 	return NO_ERROR;
@@ -84,8 +86,12 @@ void MIDIDrum::getName(char* buffer) {
 
 	int channelToDisplay = channel + 1;
 
-	if (channelToDisplay < 10 && note < 100) strcpy(buffer, " ");
-	else buffer[0] = 0;
+	if (channelToDisplay < 10 && note < 100) {
+		strcpy(buffer, " ");
+	}
+	else {
+		buffer[0] = 0;
+	}
 
 	// If can't fit everything on display, show channel as hexadecimal
 	if (channelToDisplay >= 10 && note >= 100) {
@@ -98,7 +104,9 @@ void MIDIDrum::getName(char* buffer) {
 
 	strcat(buffer, ".");
 
-	if (note < 10 && channelToDisplay < 100) strcat(buffer, " ");
+	if (note < 10 && channelToDisplay < 100) {
+		strcat(buffer, " ");
+	}
 
 	intToString(note, &buffer[strlen(buffer)]);
 }

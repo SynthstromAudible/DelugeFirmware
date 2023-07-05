@@ -99,7 +99,8 @@ void doMomentaryButtonPress(int x, int y) {
 void possiblyDoSomething() {
 	uint32_t timeNow = AudioEngine::audioSampleTimer;
 	uint32_t timeSinceLast = timeNow - timeLastCall;
-	if (!timeSinceLast) return;
+	if (!timeSinceLast)
+		return;
 
 	TestAction* const* actions = currentState->getActions();
 	while (*actions) {

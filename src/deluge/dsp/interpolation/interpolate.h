@@ -44,8 +44,10 @@ int32x4_t multiplied;
 
 for (int i = 0; i < (INTERPOLATION_MAX_NUM_SAMPLES >> 3); i++) {
 
-	if (i == 0) multiplied = vmull_s16(vget_low_s16(kernelVector[i]), interpolationBuffer[0][i << 1]);
-	else multiplied = vmlal_s16(multiplied, vget_low_s16(kernelVector[i]), interpolationBuffer[0][i << 1]);
+	if (i == 0)
+		multiplied = vmull_s16(vget_low_s16(kernelVector[i]), interpolationBuffer[0][i << 1]);
+	else
+		multiplied = vmlal_s16(multiplied, vget_low_s16(kernelVector[i]), interpolationBuffer[0][i << 1]);
 
 	multiplied = vmlal_s16(multiplied, vget_high_s16(kernelVector[i]), interpolationBuffer[0][(i << 1) + 1]);
 }
@@ -60,8 +62,10 @@ if (numChannelsNow == 2) {
 
 	for (int i = 0; i < (INTERPOLATION_MAX_NUM_SAMPLES >> 3); i++) {
 
-		if (i == 0) multiplied = vmull_s16(vget_low_s16(kernelVector[i]), interpolationBuffer[1][i << 1]);
-		else multiplied = vmlal_s16(multiplied, vget_low_s16(kernelVector[i]), interpolationBuffer[1][i << 1]);
+		if (i == 0)
+			multiplied = vmull_s16(vget_low_s16(kernelVector[i]), interpolationBuffer[1][i << 1]);
+		else
+			multiplied = vmlal_s16(multiplied, vget_low_s16(kernelVector[i]), interpolationBuffer[1][i << 1]);
 
 		multiplied = vmlal_s16(multiplied, vget_high_s16(kernelVector[i]), interpolationBuffer[1][(i << 1) + 1]);
 	}

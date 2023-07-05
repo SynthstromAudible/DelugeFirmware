@@ -962,7 +962,8 @@ void usb_hstd_hcd_task(usb_vp_int_t stacd)
             uartPrintln("going into usb_hstd_interrupt_handler() from the routine task - that's kinda bad I "
                         "think!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
             int result = usb_hstd_interrupt_handler(ptr);
-            if (result) break; // By Rohan
+            if (result)
+                break; // By Rohan
             /* USB INT */
             usb_hstd_interrupt(ptr);
             ptr->msginfo = USB_MSG_HCD_INT;
@@ -1376,8 +1377,10 @@ void usb_send_start_rohan(usb_utr_t* ptr, uint16_t pipe, uint8_t const* data, in
         /* FIFO access error */
 gotFifoError:
         USB_PRINTF0("### FIFO access error \n");
-        if (ptr) usb_hstd_forced_termination(ptr, pipe, (uint16_t)USB_DATA_ERR);
-        else usb_pstd_forced_termination(pipe, (uint16_t)USB_DATA_ERR);
+        if (ptr)
+            usb_hstd_forced_termination(ptr, pipe, (uint16_t)USB_DATA_ERR);
+        else
+            usb_pstd_forced_termination(pipe, (uint16_t)USB_DATA_ERR);
     }
 
     //usb_cstd_set_buf(ptr, pipe);            /* Set BUF */

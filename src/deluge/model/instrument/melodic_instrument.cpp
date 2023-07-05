@@ -70,7 +70,9 @@ void MelodicInstrument::writeMelodicInstrumentTagsToFile(Clip* clipForSavingOutp
 		// Annoyingly, I used one-off tag names here, rather than it conforming to what the LearnedMIDI class now uses.
 		if (midiInput.containsSomething()) {
 			// Device gets written here as a tag. Channel got written above, as an attribute.
-			if (midiInput.device) midiInput.device->writeReferenceToFile("inputMidiDevice");
+			if (midiInput.device) {
+				midiInput.device->writeReferenceToFile("inputMidiDevice");
+			}
 		}
 	}
 }
@@ -91,7 +93,9 @@ bool MelodicInstrument::readTagFromFile(char const* tagName) {
 		storageManager.exitTag();
 	}
 	else if (Instrument::readTagFromFile(tagName)) {}
-	else return false;
+	else {
+		return false;
+	}
 
 	return true;
 }
@@ -100,7 +104,9 @@ void MelodicInstrument::offerReceivedNote(ModelStackWithTimelineCounter* modelSt
                                           int midiChannel, int note, int velocity, bool shouldRecordNotes,
                                           bool* doingMidiThru) {
 
-	if (MIDIDeviceManager::differentiatingInputsByDevice && midiInput.device && fromDevice != midiInput.device) return;
+	if (MIDIDeviceManager::differentiatingInputsByDevice && midiInput.device && fromDevice != midiInput.device) {
+		return;
+	}
 
 	int16_t const* mpeValues = zeroMPEValues;
 	int16_t const* mpeValuesOrNull = NULL;
@@ -135,10 +141,11 @@ yupItsForUs:
 						// Special case - if recording session to arrangement, then yes we do want to record to the Clip always
 						// (even if not designated as "active")
 						if (playbackHandler.recording == RECORDING_ARRANGEMENT
-						    && instrumentClip->isArrangementOnlyClip())
+						    && instrumentClip->isArrangementOnlyClip()) {
 							goto doRecord;
 
-						// If count-in is on, we only got here if it's very nearly finished
+							// If count-in is on, we only got here if it's very nearly finished
+						}
 						else if (currentUIMode == UI_MODE_RECORD_COUNT_IN) {
 recordingEarly:
 							earlyNotes.insertElementIfNonePresent(
@@ -186,7 +193,9 @@ doRecord:
 								// midichannel is not used by instrument clip
 								instrumentClip->recordNoteOn(modelStackWithNoteRow, velocity, forcePos0,
 								                             mpeValuesOrNull, midiChannel);
-								if (getRootUI()) getRootUI()->noteRowChanged(instrumentClip, noteRow);
+								if (getRootUI()) {
+									getRootUI()->noteRowChanged(instrumentClip, noteRow);
+								}
 							}
 
 							// If this caused the scale to change, update scroll
@@ -234,7 +243,9 @@ justAuditionNote:
 						    && !instrumentClip->isArrangementOnlyClip()) {}
 						else {
 							instrumentClip->recordNoteOff(modelStackWithNoteRow, velocity);
-							if (getRootUI()) getRootUI()->noteRowChanged(instrumentClip, noteRow);
+							if (getRootUI()) {
+								getRootUI()->noteRowChanged(instrumentClip, noteRow);
+							}
 						}
 					}
 
@@ -296,7 +307,9 @@ forMasterChannel:
 
 		else if (midiInput.channelOrZone == MIDI_CHANNEL_MPE_LOWER_ZONE) {
 			if (channel <= fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeLowerZoneLastMemberChannel) {
-				if (channel == 0) goto forMasterChannel;
+				if (channel == 0) {
+					goto forMasterChannel;
+				}
 mpeX:
 				int16_t value16 = (((uint32_t)data1 | ((uint32_t)data2 << 7)) - 8192) << 2;
 				int32_t value32 =
@@ -308,7 +321,9 @@ mpeX:
 		}
 		else if (midiInput.channelOrZone == MIDI_CHANNEL_MPE_UPPER_ZONE) {
 			if (channel >= fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeUpperZoneLastMemberChannel) {
-				if (channel == 15) goto forMasterChannel;
+				if (channel == 15) {
+					goto forMasterChannel;
+				}
 				goto mpeX;
 			}
 		}
@@ -354,7 +369,9 @@ mpeY:
 		}
 		else if (midiInput.channelOrZone == MIDI_CHANNEL_MPE_UPPER_ZONE) {
 			if (channel >= fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeUpperZoneLastMemberChannel) {
-				if (channel == 15) goto mpeMasterChannel;
+				if (channel == 15) {
+					goto mpeMasterChannel;
+				}
 				goto mpeY;
 			}
 		}
@@ -404,7 +421,9 @@ forMasterChannel:
 			if (noteCode == -1) {
 				if (midiInput.channelOrZone == MIDI_CHANNEL_MPE_LOWER_ZONE) {
 					if (channel <= fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeLowerZoneLastMemberChannel) {
-						if (channel == 0) goto forMasterChannel;
+						if (channel == 0) {
+							goto forMasterChannel;
+						}
 processPolyphonicZ:
 						polyphonicExpressionEventPossiblyToRecord(modelStackWithTimelineCounter, valueBig, 2, channel,
 						                                          MIDI_CHARACTERISTIC_CHANNEL);
@@ -412,7 +431,9 @@ processPolyphonicZ:
 				}
 				else if (midiInput.channelOrZone == MIDI_CHANNEL_MPE_UPPER_ZONE) {
 					if (channel >= fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeUpperZoneLastMemberChannel) {
-						if (channel == 15) goto forMasterChannel;
+						if (channel == 15) {
+							goto forMasterChannel;
+						}
 						goto processPolyphonicZ;
 					}
 				}
@@ -433,10 +454,14 @@ void MelodicInstrument::offerBendRangeUpdate(ModelStack* modelStack, MIDIDevice*
 				// If existing automation, don't do it.
 				if (activeClip) {
 					if (whichBendRange == BEND_RANGE_MAIN) {
-						if (expressionParams->params[0].isAutomated()) return;
+						if (expressionParams->params[0].isAutomated()) {
+							return;
+						}
 					}
 					else { // BEND_RANGE_FINGER_LEVEL
-						if (((InstrumentClip*)activeClip)->hasAnyPitchExpressionAutomationOnNoteRows()) return;
+						if (((InstrumentClip*)activeClip)->hasAnyPitchExpressionAutomationOnNoteRows()) {
+							return;
+						}
 					}
 				}
 				expressionParams->bendRanges[whichBendRange] = bendSemitones;
@@ -470,7 +495,9 @@ void MelodicInstrument::stopAnyAuditioning(ModelStack* modelStack) {
 	notesAuditioned.empty();
 	earlyNotes
 	    .empty(); // This is fine, though in a perfect world we'd prefer to just mark the notes as no longer active
-	if (activeClip) activeClip->expectEvent(); // Because the absence of auditioning here means sequenced notes may play
+	if (activeClip) {
+		activeClip->expectEvent(); // Because the absence of auditioning here means sequenced notes may play
+	}
 }
 
 bool MelodicInstrument::isNoteAuditioning(int noteCode) {
@@ -496,7 +523,9 @@ void MelodicInstrument::beginAuditioningForNote(ModelStack* modelStack, int note
 void MelodicInstrument::endAuditioningForNote(ModelStack* modelStack, int note, int velocity) {
 	notesAuditioned.deleteAtKey(note);
 	earlyNotes.noteNoLongerActive(note);
-	if (activeClip) activeClip->expectEvent(); // Because the absence of auditioning here means sequenced notes may play
+	if (activeClip) {
+		activeClip->expectEvent(); // Because the absence of auditioning here means sequenced notes may play
+	}
 
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 	    modelStack->addTimelineCounter(activeClip)
@@ -577,9 +606,15 @@ void MelodicInstrument::processParamFromInputMIDIChannel(int cc, int32_t newValu
 }
 
 ArpeggiatorSettings* MelodicInstrument::getArpSettings(InstrumentClip* clip) {
-	if (clip) return &clip->arpSettings;
-	else if (activeClip) return &((InstrumentClip*)activeClip)->arpSettings;
-	else return NULL;
+	if (clip) {
+		return &clip->arpSettings;
+	}
+	else if (activeClip) {
+		return &((InstrumentClip*)activeClip)->arpSettings;
+	}
+	else {
+		return NULL;
+	}
 }
 
 bool expressionValueChangesMustBeDoneSmoothly = false; // Wee bit of a workaround
@@ -612,7 +647,9 @@ void MelodicInstrument::polyphonicExpressionEventPossiblyToRecord(ModelStackWith
 				if (noteRow) {
 					bool success = noteRow->recordPolyphonicExpressionEvent(modelStackWithNoteRow, newValue,
 					                                                        whichExpressionDimension, false);
-					if (success) continue;
+					if (success) {
+						continue;
+					}
 				}
 
 				// If still here, that didn't work, so just send it without recording.
