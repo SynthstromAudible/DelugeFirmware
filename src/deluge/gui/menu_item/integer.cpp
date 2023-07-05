@@ -74,7 +74,7 @@ void Integer::drawPixelsForOled() {
 }
 
 void IntegerContinuous::drawBar(int yTop, int marginL, int marginR) {
-	if (marginR == -1){
+	if (marginR == -1) {
 		marginR = marginL;
 	}
 	int height = 7;

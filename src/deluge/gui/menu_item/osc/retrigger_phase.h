@@ -63,7 +63,9 @@ public:
 			OLED::drawStringCentred("OFF", 20, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, TEXT_HUGE_SPACING_X,
 			                        TEXT_HUGE_SIZE_Y);
 		}
-		else Decimal::drawPixelsForOled();
+		else {
+			Decimal::drawPixelsForOled();
+		}
 	}
 #endif
 	void horizontalEncoderAction(int offset) {

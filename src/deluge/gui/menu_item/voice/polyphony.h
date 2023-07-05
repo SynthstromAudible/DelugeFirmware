@@ -57,8 +57,10 @@ public:
 	}
 
 	int getNumOptions() { // Hack-ish way of hiding the "choke" option when not editing a Kit
-		if (soundEditor.editingKit()) return NUM_POLYPHONY_TYPES;
-		else return NUM_POLYPHONY_TYPES - 1;
+		if (soundEditor.editingKit()) {
+			return NUM_POLYPHONY_TYPES;
+		}
+		return NUM_POLYPHONY_TYPES - 1;
 	}
 
 	bool usesAffectEntire() { return true; }

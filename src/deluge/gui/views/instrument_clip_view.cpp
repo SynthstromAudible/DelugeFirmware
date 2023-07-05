@@ -4281,11 +4281,19 @@ void InstrumentClipView::quantizeNotes(int offset, int nudgeMode) {
 	int halfsquareSize = (int)(squareSize / 2);
 	int quatersquareSize = (int)(squareSize / 4);
 
-	if (quantizeAmount >= 10 && offset > 0) return;
-	if (quantizeAmount <= -10 && offset < 0) return;
+	if (quantizeAmount >= 10 && offset > 0) {
+		return;
+	}
+	if (quantizeAmount <= -10 && offset < 0) {
+		return;
+	}
 	quantizeAmount += offset;
-	if (quantizeAmount >= 10) quantizeAmount = 10;
-	if (quantizeAmount <= -10) quantizeAmount = -10;
+	if (quantizeAmount >= 10) {
+		quantizeAmount = 10;
+	}
+	if (quantizeAmount <= -10) {
+		quantizeAmount = -10;
+	}
 
 #if HAVE_OLED
 	char buffer[24];
@@ -4321,7 +4329,8 @@ void InstrumentClipView::quantizeNotes(int offset, int nudgeMode) {
 		Action* action = NULL;
 		if (offset) {
 			action = actionLogger.getNewAction(ACTION_NOTE_NUDGE, ACTION_ADDITION_ALLOWED);
-			if (action) action->offset = quantizeAmount;
+			if (action)
+				action->offset = quantizeAmount;
 		}
 
 		NoteRow* thisNoteRow;
@@ -4384,7 +4393,8 @@ void InstrumentClipView::quantizeNotes(int offset, int nudgeMode) {
 		Action* action = NULL;
 		if (offset) {
 			action = actionLogger.getNewAction(ACTION_NOTE_NUDGE, ACTION_ADDITION_ALLOWED);
-			if (action) action->offset = offset;
+			if (action)
+				action->offset = offset;
 		}
 
 		for (int i = 0; i < getCurrentClip()->noteRows.getNumElements(); i++) {

@@ -34,8 +34,12 @@ public:
 	int getMinValue() const { return -1; }
 #if !HAVE_OLED
 	void drawValue() {
-		if (soundEditor.currentValue < 0) numericDriver.setText("AUTO");
-		else Integer::drawValue();
+		if (soundEditor.currentValue < 0) {
+			numericDriver.setText("AUTO");
+		}
+		else {
+			Integer::drawValue();
+		}
 	}
 #endif
 };
