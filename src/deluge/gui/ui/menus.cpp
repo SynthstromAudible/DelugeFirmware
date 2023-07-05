@@ -94,6 +94,7 @@
 #include "gui/menu_item/patch_cable_strength/range.h"
 #include "gui/menu_item/patch_cable_strength/regular.h"
 #include "gui/menu_item/patch_cable_strength.h"
+#include "gui/menu_item/patch_cables.h"
 #include "gui/menu_item/ppqn.h"
 #include "gui/menu_item/range.h"
 #include "gui/menu_item/record/count_in.h"
@@ -672,6 +673,8 @@ bend_range::PerFinger drumBendRangeMenu{"Bend range"}; // The single option avai
 patched_param::Integer volumeMenu{HAVE_OLED ? "Level" : "VOLUME", PARAM_GLOBAL_VOLUME_POST_FX};
 patched_param::Pan panMenu{"PAN", PARAM_LOCAL_PAN};
 
+PatchCables patchCablesMenu{HAVE_OLED ? "mod matrix" : "MODS"};
+
 MenuItem* soundEditorRootMenuItems[] = {&source0Menu,
                                         &source1Menu,
                                         &modulator0Menu,
@@ -694,6 +697,7 @@ MenuItem* soundEditorRootMenuItems[] = {&source0Menu,
                                         &drumBendRangeMenu,
                                         &volumeMenu,
                                         &panMenu,
+										&patchCablesMenu,
                                         &sequenceDirectionMenu,
                                         NULL};
 

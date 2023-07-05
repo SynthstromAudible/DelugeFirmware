@@ -256,6 +256,7 @@ char const* getPatchedParamDisplayNameForOled(int p);
 
 char const* sourceToString(uint8_t source);
 uint8_t stringToSource(char const* string);
+char const* sourceToStringShort(uint8_t source);
 bool paramNeedsLPF(int p, bool fromAutomation);
 int32_t shiftVolumeByDB(int32_t oldValue, float offset);
 int32_t quickLog(uint32_t input);
