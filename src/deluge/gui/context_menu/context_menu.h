@@ -37,7 +37,7 @@ public:
 	int padAction(int x, int y, int velocity);
 	bool setupAndCheckAvailability();
 
-	virtual hid::Button getAcceptButton() { return hid::button::selectEnc; }
+	virtual hid::Button getAcceptButton() { return hid::button::SELECT_ENC; }
 
 	int currentOption; // Don't make static. We'll have multiple nested ContextMenus open at the same time
 
@@ -54,14 +54,14 @@ class ContextMenuForSaving : public ContextMenu {
 public:
 	ContextMenuForSaving() {}
 	void focusRegained() final;
-	virtual hid::Button getAcceptButton() final { return hid::button::save; }
+	virtual hid::Button getAcceptButton() final { return hid::button::SAVE; }
 };
 
 class ContextMenuForLoading : public ContextMenu {
 public:
 	ContextMenuForLoading() {}
 	void focusRegained();
-	virtual hid::Button getAcceptButton() final { return hid::button::load; }
+	virtual hid::Button getAcceptButton() final { return hid::button::LOAD; }
 };
 
 #endif /* CONTEXTMENU_H_ */

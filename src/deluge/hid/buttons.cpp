@@ -40,7 +40,7 @@ int buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	buttonStates[xy.x][xy.y] = on;
 
 #if ALLOW_SPAM_MODE
-	if (b == hid::button::xEnc) {
+	if (b == hid::button::X_ENC) {
 		spamMode();
 		return;
 	}
@@ -76,7 +76,7 @@ int buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	}
 
 	// Play button
-	if (b == hid::button::play) {
+	if (b == hid::button::PLAY) {
 		if (on) {
 
 			if (audioRecorder.recordingSource && isButtonPressed(recordButtonX, recordButtonY)) {
@@ -103,7 +103,7 @@ int buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	}
 
 	// Record button
-	else if (b == hid::button::record) {
+	else if (b == hid::button::RECORD) {
 		// Press on
 		if (on) {
 			timeRecordButtonPressed = AudioEngine::audioSampleTimer;
@@ -134,7 +134,7 @@ int buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	}
 
 	// Tempo encoder button
-	else if (b == hid::button::tempoEnc) {
+	else if (b == hid::button::TEMPO_ENC) {
 		if (on) {
 			if (isShiftButtonPressed()) {
 				playbackHandler.displaySwingAmount();
@@ -148,7 +148,7 @@ int buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	}
 
 #if ALLOW_SPAM_MODE
-	else if (b == hid::button::selectEnc)
+	else if (b == hid::button::SELECT_ENC)
 		     && isButtonPressed(shiftButtonX, shiftButtonY)) {
 			     spamMode();
 		     }
@@ -156,10 +156,10 @@ int buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 
 #if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 	// Mod encoder buttons
-	else if (b == hid::button::modEncoder0) {
+	else if (b == hid::button::MOD_ENCODER_0) {
 		getCurrentUI()->modEncoderButtonAction(0, on);
 	}
-	else if (b == hid::button::modEncoder1) {
+	else if (b == hid::button::MOD_ENCODER_1) {
 		getCurrentUI()->modEncoderButtonAction(1, on);
 	}
 #endif

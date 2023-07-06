@@ -107,12 +107,12 @@ int SaveUI::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	FileItem* currentFileItem = getCurrentFileItem();
 
 	// Save button
-	if (b == hid::button::save && !Buttons::isShiftButtonPressed()) {
+	if (b == hid::button::SAVE && !Buttons::isShiftButtonPressed()) {
 		return mainButtonAction(on);
 	}
 
 	// Select encoder button - we want to override default behaviour here and potentially do nothing, so user doesn't save over something by accident.
-	else if (b == hid::button::selectEnc && currentFileItem && !currentFileItem->isFolder) {}
+	else if (b == hid::button::SELECT_ENC && currentFileItem && !currentFileItem->isFolder) {}
 
 	else {
 		return SlotBrowser::buttonAction(b, on, inCardRoutine);

@@ -214,7 +214,7 @@ void SoundEditor::setLedStates() {
 int SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 
 	// Encoder button
-	if (b == hid::button::selectEnc) {
+	if (b == hid::button::SELECT_ENC) {
 		if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_AUDITIONING) {
 			if (on) {
 				if (inCardRoutine) {
@@ -250,7 +250,7 @@ int SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	}
 
 	// Back button
-	else if (b == hid::button::back) {
+	else if (b == hid::button::BACK) {
 		if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_AUDITIONING) {
 			if (on) {
 				if (inCardRoutine) {
@@ -268,7 +268,7 @@ int SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	}
 
 	// Save button
-	else if (b == hid::button::save) {
+	else if (b == hid::button::SAVE) {
 		if (on && currentUIMode == UI_MODE_NONE && !inSettingsMenu() && !editingCVOrMIDIClip()
 		    && currentSong->currentClip->type != CLIP_TYPE_AUDIO) {
 			if (inCardRoutine) {
@@ -287,7 +287,7 @@ int SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	}
 
 	// MIDI learn button
-	else if (b == hid::button::learn) {
+	else if (b == hid::button::LEARN) {
 		if (inCardRoutine) {
 			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
@@ -322,13 +322,13 @@ int SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	}
 
 #if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-	else if (b == hid::button::clipView && getRootUI() == &instrumentClipView) {
+	else if (b == hid::button::CLIP_VIEW && getRootUI() == &instrumentClipView) {
 		return instrumentClipView.buttonAction(b, on, inCardRoutine);
 	}
 #else
 
 	// Affect-entire button
-	else if (b == hid::button::affectEntire && getRootUI() == &instrumentClipView) {
+	else if (b == hid::button::AFFECT_ENTIRE && getRootUI() == &instrumentClipView) {
 		if (getCurrentMenuItem()->usesAffectEntire() && editingKit()) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -352,7 +352,7 @@ int SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	}
 
 	// Keyboard button
-	else if (b == hid::button::keyboard) {
+	else if (b == hid::button::KEYBOARD) {
 		if (on && currentUIMode == UI_MODE_NONE && !editingKit()) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -914,7 +914,7 @@ int SoundEditor::padAction(int x, int y, int on) {
 }
 
 int SoundEditor::verticalEncoderAction(int offset, bool inCardRoutine) {
-	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(hid::button::xEnc)) {
+	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(hid::button::X_ENC)) {
 		return ACTION_RESULT_DEALT_WITH;
 	}
 	return getRootUI()->verticalEncoderAction(offset, inCardRoutine);

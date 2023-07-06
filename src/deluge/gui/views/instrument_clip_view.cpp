@@ -163,7 +163,7 @@ void InstrumentClipView::setLedStates() {
 
 int InstrumentClipView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	// Scale mode button
-	if (b == hid::button::scaleMode) {
+	if (b == hid::button::SCALE_MODE) {
 		if (inCardRoutine) {
 			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
@@ -223,7 +223,7 @@ int InstrumentClipView::buttonAction(hid::Button b, bool on, bool inCardRoutine)
 	}
 
 	// Song view button
-	else if (b == hid::button::sessionView) {
+	else if (b == hid::button::SESSION_VIEW) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -245,7 +245,7 @@ doOther:
 
 #if DELUGE_MODEL == DELUGE_MODEL_40_PAD
 	// Clip view button
-	else if (b == hid::button::clipView) {
+	else if (b == hid::button::CLIP_VIEW) {
 		if (on && Buttons::isShiftButtonPressed() && currentUIMode == UI_MODE_NONE) {
 			if (inCardRoutine)
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -264,7 +264,7 @@ doOther:
 #else
 
 	// Keyboard button
-	else if (b == hid::button::keyboard) {
+	else if (b == hid::button::KEYBOARD) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -276,7 +276,7 @@ doOther:
 #endif
 
 	// Wrap edit button
-	else if (b == hid::button::crossScreenEdit) {
+	else if (b == hid::button::CROSS_SCREEN_EDIT) {
 		if (on) {
 			if (currentUIMode == UI_MODE_NONE) {
 				if (inCardRoutine) {
@@ -301,7 +301,7 @@ doOther:
 
 #if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 	// Record button if holding audition pad
-	else if (b == hid::button::record
+	else if (b == hid::button::RECORD
 	         && (currentUIMode == UI_MODE_ADDING_DRUM_NOTEROW || currentUIMode == UI_MODE_AUDITIONING)) {
 		if (on && currentSong->currentClip->output->type == INSTRUMENT_TYPE_KIT && !audioRecorder.recordingSource
 		    && (!playbackHandler.isEitherClockActive() || !playbackHandler.ticksLeftInCountIn)) {
@@ -349,7 +349,7 @@ doOther:
 #endif
 
 	// Back button if adding Drum
-	else if (b == hid::button::back && currentUIMode == UI_MODE_ADDING_DRUM_NOTEROW) {
+	else if (b == hid::button::BACK && currentUIMode == UI_MODE_ADDING_DRUM_NOTEROW) {
 		if (on) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -364,7 +364,7 @@ doOther:
 	}
 
 	// Load / Kit button if creating new NoteRow for Drum
-	else if (currentUIMode == UI_MODE_ADDING_DRUM_NOTEROW && ((b == hid::button::load) || (b == hid::button::kit))) {
+	else if (currentUIMode == UI_MODE_ADDING_DRUM_NOTEROW && ((b == hid::button::LOAD) || (b == hid::button::KIT))) {
 		if (on) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -392,7 +392,7 @@ doOther:
 	}
 
 	// Load / kit button if auditioning
-	else if (currentUIMode == UI_MODE_AUDITIONING && ((b == hid::button::load) || (b == hid::button::kit))
+	else if (currentUIMode == UI_MODE_AUDITIONING && ((b == hid::button::LOAD) || (b == hid::button::KIT))
 	         && (!playbackHandler.isEitherClockActive() || !playbackHandler.ticksLeftInCountIn)) {
 
 		if (on) {
@@ -432,7 +432,7 @@ doOther:
 	}
 
 	// Kit button. Unlike the other instrument-type buttons, whose code is in InstrumentClipMinder, this one is only allowed in the InstrumentClipView
-	else if (b == hid::button::kit && currentUIMode == UI_MODE_NONE) {
+	else if (b == hid::button::KIT && currentUIMode == UI_MODE_NONE) {
 		if (on) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -447,7 +447,7 @@ doOther:
 		}
 	}
 
-	else if (b == hid::button::synth && currentUIMode != UI_MODE_HOLDING_SAVE_BUTTON
+	else if (b == hid::button::SYNTH && currentUIMode != UI_MODE_HOLDING_SAVE_BUTTON
 	         && currentUIMode != UI_MODE_HOLDING_LOAD_BUTTON) {
 		if (on) {
 			if (inCardRoutine) {
@@ -468,7 +468,7 @@ doOther:
 		}
 	}
 
-	else if (b == hid::button::midi) {
+	else if (b == hid::button::MIDI) {
 		if (on) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -483,7 +483,7 @@ doOther:
 		}
 	}
 
-	else if (b == hid::button::cv) {
+	else if (b == hid::button::CV) {
 		if (on) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -499,7 +499,7 @@ doOther:
 	}
 
 	// Save / delete button if NoteRow held down
-	else if (b == hid::button::save && currentUIMode == UI_MODE_NOTES_PRESSED) {
+	else if (b == hid::button::SAVE && currentUIMode == UI_MODE_NOTES_PRESSED) {
 		InstrumentClip* clip = getCurrentClip();
 
 		if (on && numEditPadPresses == 1 && currentSong->currentClip->output->type == INSTRUMENT_TYPE_KIT
@@ -574,7 +574,7 @@ doOther:
 	}
 
 	// Horizontal encoder button if learn button pressed. Make sure you let the "off" action slide past to the Editor
-	else if (b == hid::button::xEnc && on && Buttons::isButtonPressed(hid::button::learn)) {
+	else if (b == hid::button::X_ENC && on && Buttons::isButtonPressed(hid::button::LEARN)) {
 		if (inCardRoutine) {
 			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
@@ -587,12 +587,12 @@ doOther:
 		}
 	}
 
-	else if (b == hid::button::tempoEnc && isUIModeActiveExclusively(UI_MODE_NOTES_PRESSED)
+	else if (b == hid::button::TEMPO_ENC && isUIModeActiveExclusively(UI_MODE_NOTES_PRESSED)
 	         && runtimeFeatureSettings.get(RuntimeFeatureSettingType::Quantize) == RuntimeFeatureStateToggle::On) {
 		//prevent Tempo pop-up , when note is pressed
 	}
 	// Horizontal encoder button
-	else if (b == hid::button::xEnc) {
+	else if (b == hid::button::X_ENC) {
 
 		// If user wants to "multiple" Clip contents
 		if (on && Buttons::isShiftButtonPressed() && !isUIModeActiveExclusively(UI_MODE_NOTES_PRESSED)) {
@@ -636,7 +636,7 @@ doCancelPopup:
 	}
 
 	// Vertical encoder button
-	else if (b == hid::button::yEnc) {
+	else if (b == hid::button::Y_ENC) {
 
 		// If holding notes down...
 		if (isUIModeActiveExclusively(UI_MODE_NOTES_PRESSED)) {
@@ -813,7 +813,7 @@ discardDrum:
 void InstrumentClipView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 
 	// If they want to copy or paste automation...
-	if (Buttons::isButtonPressed(hid::button::learn)) {
+	if (Buttons::isButtonPressed(hid::button::LEARN)) {
 		if (on && currentSong->currentClip->output->type != INSTRUMENT_TYPE_CV) {
 			if (Buttons::isShiftButtonPressed()) {
 				pasteAutomation(whichModEncoder);
@@ -1178,7 +1178,7 @@ void InstrumentClipView::selectEncoderAction(int8_t offset) {
 
 	// User may be trying to edit noteCode...
 	if (currentUIMode == UI_MODE_AUDITIONING) {
-		if (Buttons::isButtonPressed(hid::button::selectEnc)) {
+		if (Buttons::isButtonPressed(hid::button::SELECT_ENC)) {
 
 			if (playbackHandler.isEitherClockActive() && playbackHandler.ticksLeftInCountIn) {
 				return;
@@ -1191,7 +1191,7 @@ void InstrumentClipView::selectEncoderAction(int8_t offset) {
 
 	// Or set / create a new Drum
 	else if (currentUIMode == UI_MODE_ADDING_DRUM_NOTEROW) {
-		if (Buttons::isButtonPressed(hid::button::selectEnc)) {
+		if (Buttons::isButtonPressed(hid::button::SELECT_ENC)) {
 			drumForNewNoteRow = flipThroughAvailableDrums(offset, drumForNewNoteRow, true);
 			//setSelectedDrum(drumForNewNoteRow); // Can't - it doesn't have a NoteRow, and so we don't really know where its ParamManager is!
 			drawDrumName(drumForNewNoteRow);
@@ -3205,7 +3205,7 @@ maybeRenderRow:
 			}
 
 			// If won't be actually sounding Instrument...
-			if (shiftButtonDown || Buttons::isButtonPressed(hid::button::yEnc)) {
+			if (shiftButtonDown || Buttons::isButtonPressed(hid::button::Y_ENC)) {
 
 				fileBrowserShouldNotPreview = true;
 doSilentAudition:
@@ -3235,7 +3235,7 @@ doSilentAudition:
 			lastAuditionedYDisplay = yDisplay;
 
 			// Begin resampling / output-recording
-			if (Buttons::isButtonPressed(hid::button::record) && !audioRecorder.recordingSource) {
+			if (Buttons::isButtonPressed(hid::button::RECORD) && !audioRecorder.recordingSource) {
 				audioRecorder.beginOutputRecording();
 				Buttons::recordButtonPressUsedUp = true;
 			}
@@ -3963,7 +3963,7 @@ int InstrumentClipView::verticalEncoderAction(int offset, bool inCardRoutine) {
 	}
 
 	// If encoder button pressed
-	if (Buttons::isButtonPressed(hid::button::yEnc)) {
+	if (Buttons::isButtonPressed(hid::button::Y_ENC)) {
 		// User may be trying to move a noteCode...
 		if (isUIModeActiveExclusively(UI_MODE_AUDITIONING)) {
 			/*
