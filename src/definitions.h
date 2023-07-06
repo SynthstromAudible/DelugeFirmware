@@ -836,8 +836,6 @@ typedef enum SyncLevel_ {
 #define AUDIO_RECORDING_FOLDER_RESAMPLE 2
 #define NUM_AUDIO_RECORDING_FOLDERS 3
 
-#define MIDI_CC_FOR_COMMANDS_ENABLED 0 // Was partially developed I think.
-
 #define KEYBOARD_LAYOUT_QWERTY 0
 #define KEYBOARD_LAYOUT_AZERTY 1
 #define KEYBOARD_LAYOUT_QWERTZ 2
@@ -908,8 +906,9 @@ typedef enum SyncLevel_ {
 
 #define MIDI_CHANNEL_MPE_LOWER_ZONE 16
 #define MIDI_CHANNEL_MPE_UPPER_ZONE 17
+#define NUM_CHANNELS 18
 #define MIDI_CHANNEL_NONE 255
-
+#define IS_A_CC NUM_CHANNELS
 // To be used instead of MIDI_CHANNEL_MPE_LOWER_ZONE etc for functions that require a "midi output filter". Although in
 // fact, any number <16 or >=18 would work, the way I've defined it.
 #define MIDI_OUTPUT_FILTER_NO_MPE 0

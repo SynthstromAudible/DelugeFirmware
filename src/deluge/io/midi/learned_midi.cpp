@@ -92,7 +92,6 @@ void LearnedMIDI::readFromFile(int midiMessageType) {
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "channel")) {
 			channelOrZone = storageManager.readTagOrAttributeValueInt();
-			channelOrZone = getMin((int)channelOrZone, 15);
 		}
 		else if (!strcmp(tagName, "mpeZone")) {
 			readMPEZone();
@@ -126,9 +125,6 @@ bool LearnedMIDI::equalsChannelAllowMPE(MIDIDevice* newDevice, int newChannel) {
 	if (!equalsDevice(newDevice)) {
 		return false;
 	}
-	if (channelOrZone < 16) {
-		return (channelOrZone == newChannel);
-	}
 	if (!device) {
 		return false; // Could we actually be set to MPE but have no device? Maybe if loaded from weird song file?
 	}
@@ -138,7 +134,7 @@ bool LearnedMIDI::equalsChannelAllowMPE(MIDIDevice* newDevice, int newChannel) {
 	if (channelOrZone == MIDI_CHANNEL_MPE_UPPER_ZONE) {
 		return (newChannel >= device->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeUpperZoneLastMemberChannel);
 	}
-	return false; // Theoretically I don't think we'd ever get here...
+	return (channelOrZone == newChannel);
 }
 
 bool LearnedMIDI::equalsChannelAllowMPEMasterChannels(MIDIDevice* newDevice, int newChannel) {
@@ -149,6 +145,9 @@ bool LearnedMIDI::equalsChannelAllowMPEMasterChannels(MIDIDevice* newDevice, int
 		return false;
 	}
 	if (channelOrZone < 16) {
+		return (channelOrZone == newChannel);
+	}
+	if (channelOrZone > IS_A_CC) {
 		return (channelOrZone == newChannel);
 	}
 	return (newChannel == getMasterChannel());
