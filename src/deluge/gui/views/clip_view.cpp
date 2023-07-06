@@ -225,7 +225,8 @@ doReRender:
 	else if ((isNoUIModeActive() && Buttons::isButtonPressed(yEncButtonX, yEncButtonY))
 	         || (isUIModeActiveExclusively(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)
 	             && Buttons::isButtonPressed(clipViewButtonX, clipViewButtonY))) {
-		if (sdRoutineLock) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE; // Just be safe - maybe not necessary
+		if (sdRoutineLock)
+			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE; // Just be safe - maybe not necessary
 		int squareSize = getPosFromSquare(1) - getPosFromSquare(0);
 		int shiftAmount = offset * squareSize;
 		Clip* clip = getCurrentClip();
@@ -248,7 +249,8 @@ doReRender:
 
 			// If there's no Consequence in the Action, that's probably because we deleted it a previous time with the code just below.
 			// Or possibly because the Action was created but there wasn't enough RAM to create the Consequence. Anyway, just go add a consequence now.
-			if (!action->firstConsequence) goto addConsequenceToAction;
+			if (!action->firstConsequence)
+				goto addConsequenceToAction;
 
 			ConsequenceClipHorizontalShift* consequence = (ConsequenceClipHorizontalShift*)action->firstConsequence;
 			consequence->amount += shiftAmount;
