@@ -9,6 +9,7 @@ public:
 	int x, y;
 
 	Button(uint8_t value);
+	Button(int x, int y);
 	uint8_t toChar();
 	bool isButton();
 	static bool isButton(uint8_t value);

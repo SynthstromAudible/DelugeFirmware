@@ -52,10 +52,10 @@ void ClipView::focusRegained() {
 	ClipNavigationTimelineView::focusRegained();
 }
 
-int ClipView::buttonAction(int x, int y, bool on, bool inCardRoutine) {
+int ClipView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 
 	// Horizontal encoder button press-down - don't let it do its zoom level thing if zooming etc not currently accessible
-	if (x == xEncButtonX && y == xEncButtonY && on && !getCurrentClip()->currentlyScrollableAndZoomable()) {}
+	if (b.x == xEncButtonX && b.y == xEncButtonY && on && !getCurrentClip()->currentlyScrollableAndZoomable()) {}
 
 #ifdef BUTTON_SEQUENCE_DIRECTION_X
 	else if (x == BUTTON_SEQUENCE_DIRECTION_X && y == BUTTON_SEQUENCE_DIRECTION_Y) {
@@ -69,7 +69,7 @@ int ClipView::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 	}
 #endif
 	else {
-		return ClipNavigationTimelineView::buttonAction(x, y, on, inCardRoutine);
+		return ClipNavigationTimelineView::buttonAction(b, on, inCardRoutine);
 	}
 
 	return ACTION_RESULT_DEALT_WITH;

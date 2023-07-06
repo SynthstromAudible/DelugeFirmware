@@ -308,12 +308,12 @@ bool readButtonsAndPads() {
 
 			Uart::println("");
 			Uart::println("undoing");
-			Buttons::buttonAction(backButtonX, backButtonY, true, sdRoutineLock);
+			Buttons::buttonAction(hid::Button(backButtonX, backButtonY), true, sdRoutineLock);
 		}
 		else {
 			Uart::println("");
 			Uart::println("beginning playback");
-			Buttons::buttonAction(playButtonX, playButtonY, true, sdRoutineLock);
+			Buttons::buttonAction(hid::Button(playButtonX, playButtonY), true, sdRoutineLock);
 		}
 
 		int random = getRandom255();
@@ -345,7 +345,7 @@ bool readButtonsAndPads() {
 			}
 			else {
 				auto b = hid::Button(value);
-				result = Buttons::buttonAction(b.x, b.y, thisPadPressIsOn, sdRoutineLock);
+				result = Buttons::buttonAction(b, thisPadPressIsOn, sdRoutineLock);
 			}
 
 			if (result == ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE) {
@@ -378,8 +378,8 @@ bool readButtonsAndPads() {
 
 	if (playbackHandler.currentlyPlaying) {
 		if (getCurrentUI()->isViewScreen()) {
-			Buttons::buttonAction(loadButtonX, loadButtonY, true);
-			Buttons::buttonAction(loadButtonX, loadButtonY, false);
+			Buttons::buttonAction(hid::Button(loadButtonX, loadButtonY), true);
+			Buttons::buttonAction(hid::Button(loadButtonX, loadButtonY), false);
 			alreadyDoneScroll = false;
 		}
 		else if (getCurrentUI() == &loadSongUI && currentUIMode == noSubMode) {
@@ -388,8 +388,8 @@ bool readButtonsAndPads() {
 				alreadyDoneScroll = true;
 			}
 			else {
-				Buttons::buttonAction(loadButtonX, loadButtonY, true);
-				Buttons::buttonAction(loadButtonX, loadButtonY, false);
+				Buttons::buttonAction(hid::Button(loadButtonX, loadButtonY), true);
+				Buttons::buttonAction(hid::Button(loadButtonX, loadButtonY), false);
 			}
 		}
 	}
@@ -402,7 +402,7 @@ bool readButtonsAndPads() {
 		preLoadedSong = NULL;
 
 		if (random0 < 64 && getCurrentUI() == &instrumentClipView) {
-			Buttons::buttonAction(songViewButtonX, songViewButtonY, true);
+			Buttons::buttonAction(hid::Button(songViewButtonX, songViewButtonY), true);
 		}
 
 		else if (random0 < 120)

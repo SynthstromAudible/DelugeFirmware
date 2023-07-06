@@ -156,12 +156,12 @@ void ArrangerView::goToSongView() {
 	changeRootUI(&sessionView);
 }
 
-int ArrangerView::buttonAction(int x, int y, bool on, bool inCardRoutine) {
+int ArrangerView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 
 	int newInstrumentType;
 
 	// Song button
-	if (x == sessionViewButtonX && y == sessionViewButtonY) {
+	if (b.x == sessionViewButtonX && b.y == sessionViewButtonY) {
 		if (on) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -177,7 +177,7 @@ int ArrangerView::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 
 #if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 	// Affect-entire button
-	else if (x == affectEntireButtonX && y == affectEntireButtonY) {
+	else if (b.x == affectEntireButtonX && b.y == affectEntireButtonY) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -190,7 +190,7 @@ int ArrangerView::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 #endif
 
 	// Cross-screen button
-	else if (x == crossScreenEditButtonX && y == crossScreenEditButtonY) {
+	else if (b.x == crossScreenEditButtonX && b.y == crossScreenEditButtonY) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 			currentSong->arrangerAutoScrollModeActive = !currentSong->arrangerAutoScrollModeActive;
 			IndicatorLEDs::setLedState(crossScreenEditLedX, crossScreenEditLedY,
@@ -206,7 +206,7 @@ int ArrangerView::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 	}
 
 	// Record button - adds to what MatrixDriver does with it
-	else if (x == recordButtonX && y == recordButtonY) {
+	else if (b.x == recordButtonX && b.y == recordButtonY) {
 		if (on) {
 			uiTimerManager.setTimer(TIMER_UI_SPECIFIC, 500);
 			blinkOn = true;
@@ -222,7 +222,7 @@ int ArrangerView::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 	}
 
 	// Save/delete button with row held
-	else if (x == saveButtonX && y == saveButtonY
+	else if (b.x == saveButtonX && b.y == saveButtonY
 	         && (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION
 	             || currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW)) {
 		if (inCardRoutine) {
@@ -234,7 +234,7 @@ int ArrangerView::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 	}
 
 	// Select encoder button
-	else if (x == selectEncButtonX && y == selectEncButtonY && !Buttons::isShiftButtonPressed()) {
+	else if (b.x == selectEncButtonX && b.y == selectEncButtonY && !Buttons::isShiftButtonPressed()) {
 		if (on && currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -244,7 +244,7 @@ int ArrangerView::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 	}
 
 	// Which-instrument-type buttons
-	else if (x == synthButtonX && y == synthButtonY) {
+	else if (b.x == synthButtonX && b.y == synthButtonY) {
 		newInstrumentType = INSTRUMENT_TYPE_SYNTH;
 
 doChangeInstrumentType:
@@ -296,23 +296,23 @@ doActualSimpleChange:
 		}
 	}
 
-	else if (x == kitButtonX && y == kitButtonY) {
+	else if (b.x == kitButtonX && b.y == kitButtonY) {
 		newInstrumentType = INSTRUMENT_TYPE_KIT;
 		goto doChangeInstrumentType;
 	}
 
-	else if (x == midiButtonX && y == midiButtonY) {
+	else if (b.x == midiButtonX && b.y == midiButtonY) {
 		newInstrumentType = INSTRUMENT_TYPE_MIDI_OUT;
 		goto doChangeInstrumentType;
 	}
 
-	else if (x == cvButtonX && y == cvButtonY) {
+	else if (b.x == cvButtonX && b.y == cvButtonY) {
 		newInstrumentType = INSTRUMENT_TYPE_CV;
 		goto doChangeInstrumentType;
 	}
 
 	// Back button with <> button held
-	else if (x == backButtonX && y == backButtonY && currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
+	else if (b.x == backButtonX && b.y == backButtonY && currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
 		if (on) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -322,7 +322,7 @@ doActualSimpleChange:
 	}
 
 	else {
-		return TimelineView::buttonAction(x, y, on, inCardRoutine);
+		return TimelineView::buttonAction(b, on, inCardRoutine);
 	}
 
 	return ACTION_RESULT_DEALT_WITH;

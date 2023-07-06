@@ -211,10 +211,10 @@ void SoundEditor::setLedStates() {
 	playbackHandler.setLedStates();
 }
 
-int SoundEditor::buttonAction(int x, int y, bool on, bool inCardRoutine) {
+int SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 
 	// Encoder button
-	if (x == selectEncButtonX && y == selectEncButtonY) {
+	if (b.x == selectEncButtonX && b.y == selectEncButtonY) {
 		if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_AUDITIONING) {
 			if (on) {
 				if (inCardRoutine) {
@@ -250,7 +250,7 @@ int SoundEditor::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 	}
 
 	// Back button
-	else if (x == backButtonX && y == backButtonY) {
+	else if (b.x == backButtonX && b.y == backButtonY) {
 		if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_AUDITIONING) {
 			if (on) {
 				if (inCardRoutine) {
@@ -268,7 +268,7 @@ int SoundEditor::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 	}
 
 	// Save button
-	else if (x == saveButtonX && y == saveButtonY) {
+	else if (b.x == saveButtonX && b.y == saveButtonY) {
 		if (on && currentUIMode == UI_MODE_NONE && !inSettingsMenu() && !editingCVOrMIDIClip()
 		    && currentSong->currentClip->type != CLIP_TYPE_AUDIO) {
 			if (inCardRoutine) {
@@ -287,7 +287,7 @@ int SoundEditor::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 	}
 
 	// MIDI learn button
-	else if (x == learnButtonX && y == learnButtonY) {
+	else if (b.x == learnButtonX && b.y == learnButtonY) {
 		if (inCardRoutine) {
 			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
@@ -322,13 +322,13 @@ int SoundEditor::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 	}
 
 #if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-	else if (x == clipViewButtonX && y == clipViewButtonY && getRootUI() == &instrumentClipView) {
-		return instrumentClipView.buttonAction(x, y, on, inCardRoutine);
+	else if (b.x == clipViewButtonX && b.y == clipViewButtonY && getRootUI() == &instrumentClipView) {
+		return instrumentClipView.buttonAction(b, on, inCardRoutine);
 	}
 #else
 
 	// Affect-entire button
-	else if (x == affectEntireButtonX && y == affectEntireButtonY && getRootUI() == &instrumentClipView) {
+	else if (b.x == affectEntireButtonX && b.y == affectEntireButtonY && getRootUI() == &instrumentClipView) {
 		if (getCurrentMenuItem()->usesAffectEntire() && editingKit()) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -347,12 +347,12 @@ int SoundEditor::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 			}
 		}
 		else {
-			return instrumentClipView.InstrumentClipMinder::buttonAction(x, y, on, inCardRoutine);
+			return instrumentClipView.InstrumentClipMinder::buttonAction(b, on, inCardRoutine);
 		}
 	}
 
 	// Keyboard button
-	else if (x == keyboardButtonX && y == keyboardButtonY) {
+	else if (b.x == keyboardButtonX && b.y == keyboardButtonY) {
 		if (on && currentUIMode == UI_MODE_NONE && !editingKit()) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;

@@ -116,13 +116,13 @@ void View::setTripletsLedState() {
 
 extern int pendingGlobalMIDICommandNumClustersWritten;
 
-int View::buttonAction(int x, int y, bool on, bool inCardRoutine) {
+int View::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 
 	int newGlobalMidiCommand;
 
 	// Tap tempo button. Shouldn't move this to MatrixDriver, because this code can put us in tapTempo mode, and other UIs aren't built to
 	// handle this
-	if (x == tapTempoButtonX && y == tapTempoButtonY) {
+	if (b.x == tapTempoButtonX && b.y == tapTempoButtonY) {
 
 		if (currentUIMode == UI_MODE_MIDI_LEARN) {
 			if (inCardRoutine) {
@@ -158,7 +158,7 @@ doEndMidiLearnPressSession:
 	}
 
 	// MIDI learn button
-	else if (x == learnButtonX && y == learnButtonY) {
+	else if (b.x == learnButtonX && b.y == learnButtonY) {
 		if (inCardRoutine) {
 			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
@@ -180,7 +180,7 @@ doEndMidiLearnPressSession:
 	}
 
 	// Play button for MIDI learn
-	else if (x == playButtonX && y == playButtonY && currentUIMode == UI_MODE_MIDI_LEARN) {
+	else if (b.x == playButtonX && b.y == playButtonY && currentUIMode == UI_MODE_MIDI_LEARN) {
 		if (inCardRoutine) {
 			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
@@ -196,7 +196,7 @@ doEndMidiLearnPressSession:
 	}
 
 	// Record button for MIDI learn
-	else if (x == recordButtonX && y == recordButtonY && currentUIMode == UI_MODE_MIDI_LEARN) {
+	else if (b.x == recordButtonX && b.y == recordButtonY && currentUIMode == UI_MODE_MIDI_LEARN) {
 		if (inCardRoutine) {
 			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
@@ -212,7 +212,7 @@ doEndMidiLearnPressSession:
 	}
 
 	// Save button
-	else if (x == saveButtonX && y == saveButtonY) {
+	else if (b.x == saveButtonX && b.y == saveButtonY) {
 
 		if (!Buttons::isButtonPressed(synthButtonX, synthButtonY) && !Buttons::isButtonPressed(kitButtonX, kitButtonY)
 		    && !Buttons::isButtonPressed(midiButtonX, midiButtonY) && !Buttons::isButtonPressed(cvButtonX, cvButtonY)) {
@@ -251,7 +251,7 @@ doEndMidiLearnPressSession:
 	}
 
 	// Load button
-	else if (x == loadButtonX && y == loadButtonY) {
+	else if (b.x == loadButtonX && b.y == loadButtonY) {
 
 		if (!Buttons::isButtonPressed(synthButtonX, synthButtonY) && !Buttons::isButtonPressed(kitButtonX, kitButtonY)
 		    && !Buttons::isButtonPressed(midiButtonX, midiButtonY) && !Buttons::isButtonPressed(cvButtonX, cvButtonY)) {
@@ -303,7 +303,7 @@ doEndMidiLearnPressSession:
 	}
 
 	// Sync-scaling button
-	else if (x == syncScalingButtonX && y == syncScalingButtonY) {
+	else if (b.x == syncScalingButtonX && b.y == syncScalingButtonY) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 
 			if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
@@ -349,7 +349,7 @@ cant:
 	}
 
 	// Back button
-	else if (x == backButtonX && y == backButtonY) {
+	else if (b.x == backButtonX && b.y == backButtonY) {
 
 		if (on) {
 #ifndef undoButtonX
@@ -375,7 +375,7 @@ cant:
 
 #ifdef undoButtonX
 	// Undo button
-	else if (x == undoButtonX && y == undoButtonY) {
+	else if (b.x == undoButtonX && b.y == undoButtonY) {
 		newGlobalMidiCommand = GLOBAL_MIDI_COMMAND_UNDO;
 possiblyRevert:
 		if (on) {
@@ -391,14 +391,14 @@ possiblyRevert:
 	}
 
 	// Redo button
-	else if (x == redoButtonX && y == redoButtonY) {
+	else if (b.x == redoButtonX && b.y == redoButtonY) {
 		newGlobalMidiCommand = GLOBAL_MIDI_COMMAND_REDO;
 		goto possiblyRevert;
 	}
 #endif
 
 	// Select button with shift - go to settings menu
-	else if (x == selectEncButtonX && y == selectEncButtonY && Buttons::isShiftButtonPressed()) {
+	else if (b.x == selectEncButtonX && b.y == selectEncButtonY && Buttons::isShiftButtonPressed()) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 
 			if (playbackHandler.recording == RECORDING_ARRANGEMENT) {

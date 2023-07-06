@@ -19,6 +19,7 @@
 #define CONTEXTMENU_H_
 
 #include "gui/ui/ui.h"
+#include "hid/button.h"
 #include "RZA1/system/r_typedefs.h"
 
 class ContextMenu : public UI {
@@ -26,7 +27,7 @@ public:
 	ContextMenu();
 	void focusRegained();
 	void selectEncoderAction(int8_t offset);
-	int buttonAction(int x, int y, bool on, bool inCardRoutine) final;
+	int buttonAction(hid::Button b, bool on, bool inCardRoutine) final;
 	void drawCurrentOption();
 	virtual int getNumOptions() { return basicNumOptions; }
 	virtual bool isCurrentOptionAvailable() { return true; }

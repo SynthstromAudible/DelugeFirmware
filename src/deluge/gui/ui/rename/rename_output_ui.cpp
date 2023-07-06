@@ -59,10 +59,10 @@ bool RenameOutputUI::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
 	return true;
 }
 
-int RenameOutputUI::buttonAction(int x, int y, bool on, bool inCardRoutine) {
+int RenameOutputUI::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 
 	// Back button
-	if (x == backButtonX && y == backButtonY) {
+	if (b.x == backButtonX && b.y == backButtonY) {
 		if (on && !currentUIMode) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -72,7 +72,7 @@ int RenameOutputUI::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 	}
 
 	// Select encoder button
-	else if (x == selectEncButtonX && y == selectEncButtonY) {
+	else if (b.x == selectEncButtonX && b.y == selectEncButtonY) {
 		if (on && !currentUIMode) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
