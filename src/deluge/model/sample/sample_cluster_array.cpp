@@ -26,7 +26,9 @@ SampleClusterArray::SampleClusterArray() : ResizeableArray(sizeof(SampleCluster)
 int SampleClusterArray::insertSampleClustersAtEnd(int numToInsert) {
 	int oldNum = getNumElements();
 	int error = insertAtIndex(oldNum, numToInsert);
-	if (error) return error;
+	if (error) {
+		return error;
+	}
 
 	for (int i = oldNum; i < oldNum + numToInsert; i++) {
 		void* address = getElementAddress(i);

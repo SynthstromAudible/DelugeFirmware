@@ -56,7 +56,9 @@ void Action::prepareForDestruction(int whichQueueActionIn, Song* song) {
 
 	deleteAllConsequences(whichQueueActionIn, song, true);
 
-	if (clipStates) generalMemoryAllocator.dealloc(clipStates);
+	if (clipStates) {
+		generalMemoryAllocator.dealloc(clipStates);
+	}
 }
 
 void Action::deleteAllConsequences(int whichQueueActionIn, Song* song, bool destructing) {
@@ -69,7 +71,9 @@ void Action::deleteAllConsequences(int whichQueueActionIn, Song* song, bool dest
 		toDelete->~Consequence();
 		generalMemoryAllocator.dealloc(toDelete);
 	}
-	if (!destructing) firstConsequence = NULL;
+	if (!destructing) {
+		firstConsequence = NULL;
+	}
 }
 
 void Action::addConsequence(Consequence* consequence) {
@@ -143,8 +147,9 @@ bool Action::containsConsequenceParamChange(ParamCollection* paramCollection, in
 		if (thisCons->type == CONSEQUENCE_PARAM_CHANGE) {
 			ConsequenceParamChange* thisConsParamChange = (ConsequenceParamChange*)thisCons;
 			if (thisConsParamChange->modelStack.paramCollection == paramCollection
-			    && thisConsParamChange->modelStack.paramId == paramId)
+			    && thisConsParamChange->modelStack.paramId == paramId) {
 				return true;
+			}
 		}
 	}
 	return false;
@@ -198,7 +203,9 @@ bool Action::containsConsequenceNoteArrayChange(InstrumentClip* clip, int noteRo
 
 int Action::recordNoteArrayChangeIfNotAlreadySnapshotted(InstrumentClip* clip, int noteRowId, NoteVector* noteVector,
                                                          bool stealData, bool moveToFrontIfAlreadySnapshotted) {
-	if (containsConsequenceNoteArrayChange(clip, noteRowId, moveToFrontIfAlreadySnapshotted)) return NO_ERROR;
+	if (containsConsequenceNoteArrayChange(clip, noteRowId, moveToFrontIfAlreadySnapshotted)) {
+		return NO_ERROR;
+	}
 
 	// If we're still here, we need to snapshot.
 	return recordNoteArrayChangeDefinitely(clip, noteRowId, noteVector, stealData);
@@ -208,7 +215,9 @@ int Action::recordNoteArrayChangeDefinitely(InstrumentClip* clip, int noteRowId,
                                             bool stealData) {
 	void* consMemory = generalMemoryAllocator.alloc(sizeof(ConsequenceNoteArrayChange));
 
-	if (!consMemory) return ERROR_INSUFFICIENT_RAM;
+	if (!consMemory) {
+		return ERROR_INSUFFICIENT_RAM;
+	}
 
 	ConsequenceNoteArrayChange* newCons =
 	    new (consMemory) ConsequenceNoteArrayChange(clip, noteRowId, noteVector, stealData);
@@ -219,7 +228,9 @@ int Action::recordNoteArrayChangeDefinitely(InstrumentClip* clip, int noteRowId,
 
 void Action::recordNoteExistenceChange(InstrumentClip* clip, int noteRowId, Note* note, int type) {
 
-	if (containsConsequenceNoteArrayChange(clip, noteRowId)) return;
+	if (containsConsequenceNoteArrayChange(clip, noteRowId)) {
+		return;
+	}
 
 	void* consMemory = generalMemoryAllocator.alloc(sizeof(ConsequenceNoteExistence));
 
@@ -247,7 +258,9 @@ void Action::recordClipLengthChange(Clip* clip, int32_t oldLength) {
 	for (Consequence* cons = firstConsequence; cons; cons = cons->next) {
 		if (cons->type == CONSEQUENCE_CLIP_LENGTH) {
 			ConsequenceClipLength* consequenceClipLength = (ConsequenceClipLength*)cons;
-			if (consequenceClipLength->clip == clip) return;
+			if (consequenceClipLength->clip == clip) {
+				return;
+			}
 		}
 	}
 
@@ -261,7 +274,9 @@ void Action::recordClipLengthChange(Clip* clip, int32_t oldLength) {
 
 bool Action::recordClipExistenceChange(Song* song, ClipArray* clipArray, Clip* clip, int type) {
 	void* consMemory = generalMemoryAllocator.alloc(sizeof(ConsequenceClipExistence));
-	if (!consMemory) return false;
+	if (!consMemory) {
+		return false;
+	}
 
 	ConsequenceClipExistence* consequence = new (consMemory) ConsequenceClipExistence(clip, clipArray, type);
 	if (type == DELETE) {
@@ -289,7 +304,9 @@ void Action::recordAudioClipSampleChange(AudioClip* clip) {
 }
 
 void Action::updateYScrollClipViewAfter(InstrumentClip* clip) {
-	if (!numClipStates) return;
+	if (!numClipStates) {
+		return;
+	}
 
 	if (numClipStates
 	    != currentSong->sessionClips.getNumElements() + currentSong->arrangementOnlyClips.getNumElements()) {

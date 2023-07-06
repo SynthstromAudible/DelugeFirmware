@@ -26,7 +26,9 @@ AudioFileVector::AudioFileVector() : NamedThingVector(__builtin_offsetof(AudioFi
 int AudioFileVector::searchForExactObject(AudioFile* audioFile) {
 	bool foundExactName;
 	int i = search(audioFile->filePath.get(), GREATER_OR_EQUAL, &foundExactName);
-	if (!foundExactName) return -1;
+	if (!foundExactName) {
+		return -1;
+	}
 
 	AudioFile* foundAudioFile = (AudioFile*)getElement(i);
 
@@ -35,14 +37,20 @@ int AudioFileVector::searchForExactObject(AudioFile* audioFile) {
 		if (i > 0) {
 			i--;
 			foundAudioFile = (AudioFile*)getElement(i);
-			if (foundAudioFile == audioFile) goto gotIt;
+			if (foundAudioFile == audioFile) {
+				goto gotIt;
+			}
 			i++; // Put it back.
 		}
 		i++; // Increment it (again). It's gotta be there... Except, some bugs?
 
-		if (i >= getNumElements()) return -1;
+		if (i >= getNumElements()) {
+			return -1;
+		}
 		foundAudioFile = (AudioFile*)getElement(i);
-		if (foundAudioFile != audioFile) return -1;
+		if (foundAudioFile != audioFile) {
+			return -1;
+		}
 	}
 
 gotIt:
