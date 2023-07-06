@@ -7,20 +7,10 @@ def generate(env, **kw):
     # env.AddMethod(GetDevices)
     env.SetDefault(DBT_DEBUG_DIR=os.path.join(env["DBT_SCRIPT_DIR"], "debug"))
 
-    # env.Append(
-    #     OPENOCD_OPTS=[
-    #     ]
-    # )
-
-    # Final command is "init", always explicitly added
-    env.Append(
-        OPENOCD_OPTS=["-c", "init", "-c", "arm semihosting enable"],
-    )
-
     env.SetDefault(
-        OPENOCD_GDB_PIPE=[
-            "|openocd -c 'gdb_port pipe; log_output ${DBT_DEBUG_DIR}/openocd.log' ${[SINGLEQUOTEFUNC(OPENOCD_OPTS)]}"
-        ],
+        # OPENOCD_GDB_PIPE=[
+        #     "|openocd -c 'gdb_port pipe; log_output ${DBT_DEBUG_DIR}/openocd.log' ${[SINGLEQUOTEFUNC(OPENOCD_OPTS)]}"
+        # ],
         GDBOPTS_BASE=[
             "-ex",
             "source ${DBT_DEBUG_DIR}/gdbinit",
