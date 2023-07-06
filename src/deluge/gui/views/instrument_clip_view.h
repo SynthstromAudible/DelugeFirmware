@@ -19,6 +19,7 @@
 #define EditModeUI_h
 
 #include "gui/views/clip_view.h"
+#include "hid/button.h"
 #include "definitions.h"
 #include "modulation/automation/copied_param_automation.h"
 #include "model/clip/instrument_clip_minder.h"
@@ -67,7 +68,7 @@ public:
 	InstrumentClipView();
 	bool opened();
 	void focusRegained();
-	int buttonAction(int x, int y, bool on, bool inCardRoutine);
+	int buttonAction(hid::Button b, bool on, bool inCardRoutine);
 	int padAction(int x, int y, int velocity);
 	uint8_t getEditPadPressXDisplayOnScreen(uint8_t yDisplay);
 	void editPadAction(bool state, uint8_t yDisplay, uint8_t xDisplay, unsigned int xZoom);

@@ -52,10 +52,11 @@ void ClipView::focusRegained() {
 	ClipNavigationTimelineView::focusRegained();
 }
 
-int ClipView::buttonAction(int x, int y, bool on, bool inCardRoutine) {
+int ClipView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+	using namespace hid::button;
 
 	// Horizontal encoder button press-down - don't let it do its zoom level thing if zooming etc not currently accessible
-	if (x == xEncButtonX && y == xEncButtonY && on && !getCurrentClip()->currentlyScrollableAndZoomable()) {}
+	if (b == X_ENC && on && !getCurrentClip()->currentlyScrollableAndZoomable()) {}
 
 #ifdef BUTTON_SEQUENCE_DIRECTION_X
 	else if (x == BUTTON_SEQUENCE_DIRECTION_X && y == BUTTON_SEQUENCE_DIRECTION_Y) {
@@ -69,7 +70,7 @@ int ClipView::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 	}
 #endif
 	else {
-		return ClipNavigationTimelineView::buttonAction(x, y, on, inCardRoutine);
+		return ClipNavigationTimelineView::buttonAction(b, on, inCardRoutine);
 	}
 
 	return ACTION_RESULT_DEALT_WITH;
@@ -140,8 +141,8 @@ Action* ClipView::shortenClip(int32_t newLength) {
 int ClipView::horizontalEncoderAction(int offset) {
 
 	// Shift button pressed - edit length
-	if (isNoUIModeActive() && !Buttons::isButtonPressed(yEncButtonX, yEncButtonY)
-	    && (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(clipViewButtonX, clipViewButtonY))) {
+	if (isNoUIModeActive() && !Buttons::isButtonPressed(hid::button::Y_ENC)
+	    && (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(hid::button::CLIP_VIEW))) {
 
 		// If tempoless recording, don't allow
 		if (!getCurrentClip()->currentlyScrollableAndZoomable()) {
@@ -222,10 +223,11 @@ doReRender:
 	}
 
 	// Or, maybe shift everything horizontally
-	else if ((isNoUIModeActive() && Buttons::isButtonPressed(yEncButtonX, yEncButtonY))
+	else if ((isNoUIModeActive() && Buttons::isButtonPressed(hid::button::Y_ENC))
 	         || (isUIModeActiveExclusively(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)
-	             && Buttons::isButtonPressed(clipViewButtonX, clipViewButtonY))) {
-		if (sdRoutineLock) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE; // Just be safe - maybe not necessary
+	             && Buttons::isButtonPressed(hid::button::CLIP_VIEW))) {
+		if (sdRoutineLock)
+			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE; // Just be safe - maybe not necessary
 		int squareSize = getPosFromSquare(1) - getPosFromSquare(0);
 		int shiftAmount = offset * squareSize;
 		Clip* clip = getCurrentClip();
@@ -248,7 +250,8 @@ doReRender:
 
 			// If there's no Consequence in the Action, that's probably because we deleted it a previous time with the code just below.
 			// Or possibly because the Action was created but there wasn't enough RAM to create the Consequence. Anyway, just go add a consequence now.
-			if (!action->firstConsequence) goto addConsequenceToAction;
+			if (!action->firstConsequence)
+				goto addConsequenceToAction;
 
 			ConsequenceClipHorizontalShift* consequence = (ConsequenceClipHorizontalShift*)action->firstConsequence;
 			consequence->amount += shiftAmount;

@@ -5,6 +5,9 @@ on:
   pull_request:
     branches:
       - 'community'
+  merge_group:
+  workflow_dispatch:
+
 jobs:
   formatting-check:
     name: Formatting Check

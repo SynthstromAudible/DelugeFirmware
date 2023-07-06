@@ -88,7 +88,7 @@ void InstrumentClipMinder::selectEncoderAction(int offset) {
 
 			int newCC;
 
-			if (!Buttons::isButtonPressed(selectEncButtonX, selectEncButtonY)) {
+			if (!Buttons::isButtonPressed(hid::button::SELECT_ENC)) {
 				newCC = instrument->changeControlNumberForModKnob(offset, editingMIDICCForWhichModKnob,
 				                                                  instrument->modKnobMode);
 				view.setKnobIndicatorLevels();
@@ -317,7 +317,8 @@ void InstrumentClipMinder::focusRegained() {
 #endif
 }
 
-int InstrumentClipMinder::buttonAction(int x, int y, bool on, bool inCardRoutine) {
+int InstrumentClipMinder::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+	using namespace hid::button;
 
 	// If holding save button...
 	if (currentUIMode == UI_MODE_HOLDING_SAVE_BUTTON && on) {
@@ -327,14 +328,14 @@ int InstrumentClipMinder::buttonAction(int x, int y, bool on, bool inCardRoutine
 		currentUIMode = UI_MODE_NONE;
 		IndicatorLEDs::setLedState(saveLedX, saveLedY, false);
 
-		if (x == synthButtonX && y == synthButtonY) {
+		if (b == SYNTH) {
 			if (getCurrentClip()->output->type == INSTRUMENT_TYPE_SYNTH) {
 yesSaveInstrument:
 				openUI(&saveInstrumentPresetUI);
 			}
 		}
 
-		else if (x == kitButtonX && y == kitButtonY) {
+		else if (b == KIT) {
 			if (getCurrentClip()->output->type == INSTRUMENT_TYPE_KIT) {
 				goto yesSaveInstrument;
 			}
@@ -349,7 +350,7 @@ yesSaveInstrument:
 		currentUIMode = UI_MODE_NONE;
 		IndicatorLEDs::setLedState(loadLedX, loadLedY, false);
 
-		if (x == synthButtonX && y == synthButtonY) {
+		if (b == SYNTH) {
 			Browser::instrumentTypeToLoad = INSTRUMENT_TYPE_SYNTH;
 
 yesLoadInstrument:
@@ -358,7 +359,7 @@ yesLoadInstrument:
 			openUI(&loadInstrumentPresetUI);
 		}
 
-		else if (x == kitButtonX && y == kitButtonY) {
+		else if (b == KIT) {
 			if (getCurrentClip()->onKeyboardScreen) {
 #if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 				IndicatorLEDs::indicateAlertOnLed(keyboardLedX, keyboardLedX);
@@ -372,7 +373,7 @@ yesLoadInstrument:
 	}
 
 	// Select button, without shift
-	else if (x == selectEncButtonX && y == selectEncButtonY && !Buttons::isShiftButtonPressed()) {
+	else if (b == SELECT_ENC && !Buttons::isShiftButtonPressed()) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -386,7 +387,7 @@ yesLoadInstrument:
 
 #if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 	// Affect-entire
-	else if (x == affectEntireButtonX && y == affectEntireButtonY) {
+	else if (b == AFFECT_ENTIRE) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 			if (getCurrentClip()->output->type == INSTRUMENT_TYPE_KIT) {
 				if (inCardRoutine) {
@@ -401,7 +402,7 @@ yesLoadInstrument:
 #endif
 
 	// Back button to clear Clip
-	else if (x == backButtonX && y == backButtonY && currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
+	else if (b == BACK && currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
 		if (on) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -423,7 +424,7 @@ yesLoadInstrument:
 	}
 
 	// Which-instrument-type buttons
-	else if (x == synthButtonX && y == synthButtonY) {
+	else if (b == SYNTH) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -438,7 +439,7 @@ yesLoadInstrument:
 		}
 	}
 
-	else if (x == midiButtonX && y == midiButtonY) {
+	else if (b == MIDI) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -447,7 +448,7 @@ yesLoadInstrument:
 		}
 	}
 
-	else if (x == cvButtonX && y == cvButtonY) {
+	else if (b == CV) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -457,7 +458,7 @@ yesLoadInstrument:
 	}
 
 	else {
-		return ClipMinder::buttonAction(x, y, on);
+		return ClipMinder::buttonAction(b, on);
 	}
 
 	return ACTION_RESULT_DEALT_WITH;

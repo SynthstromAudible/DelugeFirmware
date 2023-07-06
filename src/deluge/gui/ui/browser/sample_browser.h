@@ -19,6 +19,7 @@
 #define FILEBROWSER_H
 
 #include "gui/ui/browser/browser.h"
+#include "hid/button.h"
 
 extern "C" {
 
@@ -40,7 +41,7 @@ public:
 	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows);
 	bool opened();
 	void focusRegained();
-	int buttonAction(int x, int y, bool on, bool inCardRoutine);
+	int buttonAction(hid::Button b, bool on, bool inCardRoutine);
 	int verticalEncoderAction(int offset, bool inCardRoutine);
 	int horizontalEncoderAction(int offset);
 	int padAction(int x, int y, int velocity);

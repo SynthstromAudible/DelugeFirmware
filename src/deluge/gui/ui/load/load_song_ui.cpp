@@ -183,12 +183,13 @@ void LoadSongUI::displayLoopsRemainingPopup() {
 }
 #endif
 
-int LoadSongUI::buttonAction(int x, int y, bool on, bool inCardRoutine) {
+int LoadSongUI::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+	using namespace hid::button;
 
 	// Load button or select encoder press. Unlike most (all?) other children of Browser, we override this and don't just call mainButtonAction(),
 	// because unlike all the others, we need to action the load immediately on down-press rather than waiting for press-release, because of that special
 	// action where you hold the button down until you want to "launch" the new song.
-	if ((x == loadButtonX && y == loadButtonY) || (x == selectEncButtonX && y == selectEncButtonY)) {
+	if ((b == LOAD) || (b == SELECT_ENC)) {
 		if (on) {
 			if (!currentUIMode) {
 				if (inCardRoutine) {
@@ -220,7 +221,7 @@ int LoadSongUI::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 	}
 
 	else {
-		return LoadUI::buttonAction(x, y, on, inCardRoutine);
+		return LoadUI::buttonAction(b, on, inCardRoutine);
 	}
 
 	return ACTION_RESULT_DEALT_WITH;
@@ -275,7 +276,7 @@ void LoadSongUI::performLoad() {
 		AudioEngine::logAction("a");
 		AudioEngine::songSwapAboutToHappen();
 		AudioEngine::logAction("b");
-		playbackHandler.songSwapShouldPreserveTempo = Buttons::isButtonPressed(tempoEncButtonX, tempoEncButtonY);
+		playbackHandler.songSwapShouldPreserveTempo = Buttons::isButtonPressed(hid::button::TEMPO_ENC);
 	}
 
 	void* songMemory = generalMemoryAllocator.alloc(sizeof(Song), NULL, false, true);
@@ -377,7 +378,7 @@ gotErrorAfterCreatingSong:
 	if (playbackHandler.isEitherClockActive()) {
 
 		// If load button was already released while that loading was happening, arm for song-swap now
-		if (!Buttons::isButtonPressed(loadButtonX, loadButtonY)) {
+		if (!Buttons::isButtonPressed(hid::button::LOAD)) {
 			bool result = session.armForSongSwap();
 
 			// If arming couldn't really be done, e.g. because current song had no Clips currently playing, swap has already occurred
@@ -697,7 +698,7 @@ goAgain:
 }
 
 int LoadSongUI::verticalEncoderAction(int offset, bool inCardRoutine) {
-	if (!currentUIMode && !Buttons::isButtonPressed(yEncButtonX, yEncButtonY) && !Buttons::isShiftButtonPressed()
+	if (!currentUIMode && !Buttons::isButtonPressed(hid::button::Y_ENC) && !Buttons::isShiftButtonPressed()
 	    && offset < 0) {
 		if (inCardRoutine) {
 			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
