@@ -25,6 +25,7 @@ namespace Buttons {
 
 int buttonAction(hid::Button b, bool on, bool inCardRoutine);
 bool isButtonPressed(int x, int y);
+bool isButtonPressed(hid::Button b);
 bool isShiftButtonPressed();
 bool isNewOrShiftButtonPressed();
 void noPressesHappening(bool inCardRoutine);

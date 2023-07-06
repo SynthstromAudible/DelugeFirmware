@@ -136,7 +136,7 @@ checkResult:
 				break;
 
 			case ENCODER_SCROLL_Y:
-				if (Buttons::isShiftButtonPressed() && Buttons::isButtonPressed(learnButtonX, learnButtonY)) {
+				if (Buttons::isShiftButtonPressed() && Buttons::isButtonPressed(hid::button::learn)) {
 					changeDimmerInterval(limitedDetentPos);
 				}
 				else {
@@ -150,19 +150,19 @@ checkResult:
 				    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::Quantize)
 				           == RuntimeFeatureStateToggle::On) {
 					instrumentClipView.tempoEncoderAction(limitedDetentPos,
-					                                      Buttons::isButtonPressed(tempoEncButtonX, tempoEncButtonY),
+					                                      Buttons::isButtonPressed(hid::button::tempoEnc),
 					                                      Buttons::isShiftButtonPressed());
 				}
 				else {
 					playbackHandler.tempoEncoderAction(limitedDetentPos,
-					                                   Buttons::isButtonPressed(tempoEncButtonX, tempoEncButtonY),
+					                                   Buttons::isButtonPressed(hid::button::tempoEnc),
 					                                   Buttons::isShiftButtonPressed());
 				}
 
 				break;
 
 			case ENCODER_SELECT:
-				if (Buttons::isButtonPressed(clipViewButtonX, clipViewButtonY)) {
+				if (Buttons::isButtonPressed(hid::button::clipView)) {
 					changeRefreshTime(limitedDetentPos);
 				}
 				else {

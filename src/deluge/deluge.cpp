@@ -308,12 +308,12 @@ bool readButtonsAndPads() {
 
 			Uart::println("");
 			Uart::println("undoing");
-			Buttons::buttonAction(hid::Button(backButtonX, backButtonY), true, sdRoutineLock);
+			Buttons::buttonAction(hid::button::back, true, sdRoutineLock);
 		}
 		else {
 			Uart::println("");
 			Uart::println("beginning playback");
-			Buttons::buttonAction(hid::Button(playButtonX, playButtonY), true, sdRoutineLock);
+			Buttons::buttonAction(hid::button::play, true, sdRoutineLock);
 		}
 
 		int random = getRandom255();
@@ -378,8 +378,8 @@ bool readButtonsAndPads() {
 
 	if (playbackHandler.currentlyPlaying) {
 		if (getCurrentUI()->isViewScreen()) {
-			Buttons::buttonAction(hid::Button(loadButtonX, loadButtonY), true);
-			Buttons::buttonAction(hid::Button(loadButtonX, loadButtonY), false);
+			Buttons::buttonAction(hid::button::load, true);
+			Buttons::buttonAction(hid::button::load, false);
 			alreadyDoneScroll = false;
 		}
 		else if (getCurrentUI() == &loadSongUI && currentUIMode == noSubMode) {
@@ -388,8 +388,8 @@ bool readButtonsAndPads() {
 				alreadyDoneScroll = true;
 			}
 			else {
-				Buttons::buttonAction(hid::Button(loadButtonX, loadButtonY), true);
-				Buttons::buttonAction(hid::Button(loadButtonX, loadButtonY), false);
+				Buttons::buttonAction(hid::button::load, true);
+				Buttons::buttonAction(hid::button::load, false);
 			}
 		}
 	}
@@ -402,7 +402,7 @@ bool readButtonsAndPads() {
 		preLoadedSong = NULL;
 
 		if (random0 < 64 && getCurrentUI() == &instrumentClipView) {
-			Buttons::buttonAction(hid::Button(songViewButtonX, songViewButtonY), true);
+			Buttons::buttonAction(hid::button::song, true);
 		}
 
 		else if (random0 < 120)

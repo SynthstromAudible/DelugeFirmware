@@ -39,4 +39,9 @@ bool Button::isButton(uint8_t value) {
 	return value >= displayHeight * 2 * 9;
 #endif
 }
+
+bool Button::operator==(Button const& other) {
+	return x == other.x and y == other.y;
+}
+
 } // namespace hid

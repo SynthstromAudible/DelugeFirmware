@@ -165,7 +165,7 @@ void ContextMenu::selectEncoderAction(int8_t offset) {
 
 int ContextMenu::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 
-	if (b.x == backButtonX && b.y == backButtonY) {
+	if (b == hid::button::back) {
 		if (on && !currentUIMode) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -176,7 +176,7 @@ getOut:
 		}
 	}
 
-	else if (b.x == selectEncButtonX && b.y == selectEncButtonY) {
+	else if (b == hid::button::selectEnc) {
 probablyAcceptCurrentOption:
 		if (on && !currentUIMode) {
 			if (inCardRoutine) {

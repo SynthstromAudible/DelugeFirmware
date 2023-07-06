@@ -42,4 +42,3 @@ bool Pad::isPad(uint8_t value) {
 	return value < (displayHeight * 2 * 9);
 #endif
 }
-

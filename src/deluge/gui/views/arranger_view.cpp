@@ -161,7 +161,7 @@ int ArrangerView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	int newInstrumentType;
 
 	// Song button
-	if (b.x == sessionViewButtonX && b.y == sessionViewButtonY) {
+	if (b == hid::button::sessionView) {
 		if (on) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -177,7 +177,7 @@ int ArrangerView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 
 #if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 	// Affect-entire button
-	else if (b.x == affectEntireButtonX && b.y == affectEntireButtonY) {
+	else if (b == hid::button::affectEntire) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -190,7 +190,7 @@ int ArrangerView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 #endif
 
 	// Cross-screen button
-	else if (b.x == crossScreenEditButtonX && b.y == crossScreenEditButtonY) {
+	else if (b == hid::button::crossScreenEdit) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 			currentSong->arrangerAutoScrollModeActive = !currentSong->arrangerAutoScrollModeActive;
 			IndicatorLEDs::setLedState(crossScreenEditLedX, crossScreenEditLedY,
@@ -206,7 +206,7 @@ int ArrangerView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	}
 
 	// Record button - adds to what MatrixDriver does with it
-	else if (b.x == recordButtonX && b.y == recordButtonY) {
+	else if (b == hid::button::record) {
 		if (on) {
 			uiTimerManager.setTimer(TIMER_UI_SPECIFIC, 500);
 			blinkOn = true;
@@ -222,7 +222,7 @@ int ArrangerView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	}
 
 	// Save/delete button with row held
-	else if (b.x == saveButtonX && b.y == saveButtonY
+	else if (b == hid::button::save
 	         && (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION
 	             || currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW)) {
 		if (inCardRoutine) {
@@ -234,7 +234,7 @@ int ArrangerView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	}
 
 	// Select encoder button
-	else if (b.x == selectEncButtonX && b.y == selectEncButtonY && !Buttons::isShiftButtonPressed()) {
+	else if (b == hid::button::selectEnc && !Buttons::isShiftButtonPressed()) {
 		if (on && currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -244,7 +244,7 @@ int ArrangerView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	}
 
 	// Which-instrument-type buttons
-	else if (b.x == synthButtonX && b.y == synthButtonY) {
+	else if (b == hid::button::synth) {
 		newInstrumentType = INSTRUMENT_TYPE_SYNTH;
 
 doChangeInstrumentType:
@@ -265,7 +265,7 @@ doChangeInstrumentType:
 			else {
 
 				// If load button held, go into LoadInstrumentPresetUI
-				if (Buttons::isButtonPressed(loadButtonX, loadButtonY)) {
+				if (Buttons::isButtonPressed(hid::button::load)) {
 
 					// Can't do that for MIDI or CV tracks though
 					if (newInstrumentType == INSTRUMENT_TYPE_MIDI_OUT || newInstrumentType == INSTRUMENT_TYPE_CV) {
@@ -296,23 +296,23 @@ doActualSimpleChange:
 		}
 	}
 
-	else if (b.x == kitButtonX && b.y == kitButtonY) {
+	else if (b == hid::button::kit) {
 		newInstrumentType = INSTRUMENT_TYPE_KIT;
 		goto doChangeInstrumentType;
 	}
 
-	else if (b.x == midiButtonX && b.y == midiButtonY) {
+	else if (b == hid::button::midi) {
 		newInstrumentType = INSTRUMENT_TYPE_MIDI_OUT;
 		goto doChangeInstrumentType;
 	}
 
-	else if (b.x == cvButtonX && b.y == cvButtonY) {
+	else if (b == hid::button::cv) {
 		newInstrumentType = INSTRUMENT_TYPE_CV;
 		goto doChangeInstrumentType;
 	}
 
 	// Back button with <> button held
-	else if (b.x == backButtonX && b.y == backButtonY && currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
+	else if (b == hid::button::back && currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
 		if (on) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -1017,7 +1017,7 @@ doUnsolo:
 
 			case UI_MODE_NONE:
 				// If the user was just quick and is actually holding the record button but the submode just hasn't changed yet...
-				if (velocity && Buttons::isButtonPressed(recordButtonX, recordButtonY)) {
+				if (velocity && Buttons::isButtonPressed(hid::button::record)) {
 					output->armedForRecording = !output->armedForRecording;
 					timerCallback();                 // Get into UI_MODE_VIEWING_RECORD_ARMING
 					return ACTION_RESULT_DEALT_WITH; // No need to draw anything
@@ -2242,7 +2242,7 @@ int ArrangerView::timerCallback() {
 		break;
 
 	case UI_MODE_NONE:
-		if (Buttons::isButtonPressed(recordButtonX, recordButtonY)) {
+		if (Buttons::isButtonPressed(hid::button::record)) {
 			currentUIMode = UI_MODE_VIEWING_RECORD_ARMING;
 			PadLEDs::reassessGreyout(false);
 		case UI_MODE_VIEWING_RECORD_ARMING:
@@ -2945,7 +2945,7 @@ static const uint32_t verticalEncoderUIModes[] = {UI_MODE_HOLDING_ARRANGEMENT_RO
 
 int ArrangerView::verticalEncoderAction(int offset, bool inCardRoutine) {
 
-	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(yEncButtonX, yEncButtonY)) {
+	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(hid::button::yEnc)) {
 		return ACTION_RESULT_DEALT_WITH;
 	}
 
