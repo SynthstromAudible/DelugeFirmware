@@ -1,0 +1,3 @@
+[submodule "scripts/debug/PyCortexMDebug"]
+	path = scripts/debug/PyCortexMDebug
+	url = https://github.com/litui/PyCortexMDebug
