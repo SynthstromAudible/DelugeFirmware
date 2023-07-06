@@ -570,9 +570,10 @@ doRender:
 }
 
 int SampleMarkerEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+	using namespace hid::button;
 
 	// Back button
-	if (b == hid::button::BACK) {
+	if (b == BACK) {
 		if (on && !currentUIMode) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -582,7 +583,7 @@ int SampleMarkerEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine)
 	}
 
 	// Horizontal encoder button
-	else if (b == hid::button::X_ENC) {
+	else if (b == X_ENC) {
 		if (on) {
 			if (isNoUIModeActive() || isUIModeActiveExclusively(UI_MODE_AUDITIONING)) {
 				currentUIMode |= UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON;

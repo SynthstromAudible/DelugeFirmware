@@ -53,9 +53,10 @@ void ClipView::focusRegained() {
 }
 
 int ClipView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+	using namespace hid::button;
 
 	// Horizontal encoder button press-down - don't let it do its zoom level thing if zooming etc not currently accessible
-	if (b == hid::button::X_ENC && on && !getCurrentClip()->currentlyScrollableAndZoomable()) {}
+	if (b == X_ENC && on && !getCurrentClip()->currentlyScrollableAndZoomable()) {}
 
 #ifdef BUTTON_SEQUENCE_DIRECTION_X
 	else if (x == BUTTON_SEQUENCE_DIRECTION_X && y == BUTTON_SEQUENCE_DIRECTION_Y) {

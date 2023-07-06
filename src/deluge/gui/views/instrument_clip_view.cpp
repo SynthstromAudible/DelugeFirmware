@@ -162,8 +162,10 @@ void InstrumentClipView::setLedStates() {
 }
 
 int InstrumentClipView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+	using namespace hid::button;
+
 	// Scale mode button
-	if (b == hid::button::SCALE_MODE) {
+	if (b == SCALE_MODE) {
 		if (inCardRoutine) {
 			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
@@ -223,7 +225,7 @@ int InstrumentClipView::buttonAction(hid::Button b, bool on, bool inCardRoutine)
 	}
 
 	// Song view button
-	else if (b == hid::button::SESSION_VIEW) {
+	else if (b == SESSION_VIEW) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -245,7 +247,7 @@ doOther:
 
 #if DELUGE_MODEL == DELUGE_MODEL_40_PAD
 	// Clip view button
-	else if (b == hid::button::CLIP_VIEW) {
+	else if (b == CLIP_VIEW) {
 		if (on && Buttons::isShiftButtonPressed() && currentUIMode == UI_MODE_NONE) {
 			if (inCardRoutine)
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -264,7 +266,7 @@ doOther:
 #else
 
 	// Keyboard button
-	else if (b == hid::button::KEYBOARD) {
+	else if (b == KEYBOARD) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -276,7 +278,7 @@ doOther:
 #endif
 
 	// Wrap edit button
-	else if (b == hid::button::CROSS_SCREEN_EDIT) {
+	else if (b == CROSS_SCREEN_EDIT) {
 		if (on) {
 			if (currentUIMode == UI_MODE_NONE) {
 				if (inCardRoutine) {
@@ -301,8 +303,7 @@ doOther:
 
 #if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 	// Record button if holding audition pad
-	else if (b == hid::button::RECORD
-	         && (currentUIMode == UI_MODE_ADDING_DRUM_NOTEROW || currentUIMode == UI_MODE_AUDITIONING)) {
+	else if (b == RECORD && (currentUIMode == UI_MODE_ADDING_DRUM_NOTEROW || currentUIMode == UI_MODE_AUDITIONING)) {
 		if (on && currentSong->currentClip->output->type == INSTRUMENT_TYPE_KIT && !audioRecorder.recordingSource
 		    && (!playbackHandler.isEitherClockActive() || !playbackHandler.ticksLeftInCountIn)) {
 
@@ -349,7 +350,7 @@ doOther:
 #endif
 
 	// Back button if adding Drum
-	else if (b == hid::button::BACK && currentUIMode == UI_MODE_ADDING_DRUM_NOTEROW) {
+	else if (b == BACK && currentUIMode == UI_MODE_ADDING_DRUM_NOTEROW) {
 		if (on) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -364,7 +365,7 @@ doOther:
 	}
 
 	// Load / Kit button if creating new NoteRow for Drum
-	else if (currentUIMode == UI_MODE_ADDING_DRUM_NOTEROW && ((b == hid::button::LOAD) || (b == hid::button::KIT))) {
+	else if (currentUIMode == UI_MODE_ADDING_DRUM_NOTEROW && ((b == LOAD) || (b == KIT))) {
 		if (on) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -392,7 +393,7 @@ doOther:
 	}
 
 	// Load / kit button if auditioning
-	else if (currentUIMode == UI_MODE_AUDITIONING && ((b == hid::button::LOAD) || (b == hid::button::KIT))
+	else if (currentUIMode == UI_MODE_AUDITIONING && ((b == LOAD) || (b == KIT))
 	         && (!playbackHandler.isEitherClockActive() || !playbackHandler.ticksLeftInCountIn)) {
 
 		if (on) {
@@ -432,7 +433,7 @@ doOther:
 	}
 
 	// Kit button. Unlike the other instrument-type buttons, whose code is in InstrumentClipMinder, this one is only allowed in the InstrumentClipView
-	else if (b == hid::button::KIT && currentUIMode == UI_MODE_NONE) {
+	else if (b == KIT && currentUIMode == UI_MODE_NONE) {
 		if (on) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -447,7 +448,7 @@ doOther:
 		}
 	}
 
-	else if (b == hid::button::SYNTH && currentUIMode != UI_MODE_HOLDING_SAVE_BUTTON
+	else if (b == SYNTH && currentUIMode != UI_MODE_HOLDING_SAVE_BUTTON
 	         && currentUIMode != UI_MODE_HOLDING_LOAD_BUTTON) {
 		if (on) {
 			if (inCardRoutine) {
@@ -468,7 +469,7 @@ doOther:
 		}
 	}
 
-	else if (b == hid::button::MIDI) {
+	else if (b == MIDI) {
 		if (on) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -483,7 +484,7 @@ doOther:
 		}
 	}
 
-	else if (b == hid::button::CV) {
+	else if (b == CV) {
 		if (on) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -499,7 +500,7 @@ doOther:
 	}
 
 	// Save / delete button if NoteRow held down
-	else if (b == hid::button::SAVE && currentUIMode == UI_MODE_NOTES_PRESSED) {
+	else if (b == SAVE && currentUIMode == UI_MODE_NOTES_PRESSED) {
 		InstrumentClip* clip = getCurrentClip();
 
 		if (on && numEditPadPresses == 1 && currentSong->currentClip->output->type == INSTRUMENT_TYPE_KIT
@@ -574,7 +575,7 @@ doOther:
 	}
 
 	// Horizontal encoder button if learn button pressed. Make sure you let the "off" action slide past to the Editor
-	else if (b == hid::button::X_ENC && on && Buttons::isButtonPressed(hid::button::LEARN)) {
+	else if (b == X_ENC && on && Buttons::isButtonPressed(hid::button::LEARN)) {
 		if (inCardRoutine) {
 			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
@@ -587,12 +588,12 @@ doOther:
 		}
 	}
 
-	else if (b == hid::button::TEMPO_ENC && isUIModeActiveExclusively(UI_MODE_NOTES_PRESSED)
+	else if (b == TEMPO_ENC && isUIModeActiveExclusively(UI_MODE_NOTES_PRESSED)
 	         && runtimeFeatureSettings.get(RuntimeFeatureSettingType::Quantize) == RuntimeFeatureStateToggle::On) {
 		//prevent Tempo pop-up , when note is pressed
 	}
 	// Horizontal encoder button
-	else if (b == hid::button::X_ENC) {
+	else if (b == X_ENC) {
 
 		// If user wants to "multiple" Clip contents
 		if (on && Buttons::isShiftButtonPressed() && !isUIModeActiveExclusively(UI_MODE_NOTES_PRESSED)) {
@@ -636,7 +637,7 @@ doCancelPopup:
 	}
 
 	// Vertical encoder button
-	else if (b == hid::button::Y_ENC) {
+	else if (b == Y_ENC) {
 
 		// If holding notes down...
 		if (isUIModeActiveExclusively(UI_MODE_NOTES_PRESSED)) {

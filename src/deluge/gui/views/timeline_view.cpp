@@ -63,9 +63,10 @@ bool TimelineView::calculateZoomPinSquares(uint32_t oldScroll, uint32_t newScrol
 }
 
 int TimelineView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+	using namespace hid::button;
 
 	// Horizontal encoder button
-	if (b == hid::button::X_ENC) {
+	if (b == X_ENC) {
 		if (on) {
 			// Show current zoom level
 			if (isNoUIModeActive()) {
@@ -85,7 +86,7 @@ int TimelineView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	}
 
 	// Triplets button
-	else if (b == hid::button::TRIPLETS) {
+	else if (b == TRIPLETS) {
 		if (on) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -96,7 +97,7 @@ int TimelineView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 
 #ifdef soloButtonX
 	// Solo button
-	else if (b == hid::button::solo) {
+	else if (b == solo) {
 		if (on) {
 			if (isNoUIModeActive()) {
 				enterUIMode(UI_MODE_SOLO_BUTTON_HELD);

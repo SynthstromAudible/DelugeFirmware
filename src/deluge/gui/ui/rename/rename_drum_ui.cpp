@@ -66,9 +66,10 @@ SoundDrum* RenameDrumUI::getDrum() {
 }
 
 int RenameDrumUI::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+	using namespace hid::button;
 
 	// Back button
-	if (b == hid::button::BACK) {
+	if (b == BACK) {
 		if (on && !currentUIMode) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -78,7 +79,7 @@ int RenameDrumUI::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	}
 
 	// Select encoder button
-	else if (b == hid::button::SELECT_ENC) {
+	else if (b == SELECT_ENC) {
 		if (on && !currentUIMode) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;

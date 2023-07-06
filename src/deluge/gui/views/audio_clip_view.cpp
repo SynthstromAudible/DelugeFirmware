@@ -291,11 +291,12 @@ void AudioClipView::transitionToSessionView() {
 }
 
 int AudioClipView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+	using namespace hid::button;
 
 	int result;
 
 	// Song view button
-	if (b == hid::button::SESSION_VIEW) {
+	if (b == SESSION_VIEW) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -317,25 +318,25 @@ doOther:
 		}
 	}
 
-	else if (b == hid::button::PLAY) {
+	else if (b == PLAY) {
 dontDeactivateMarker:
 		return ClipView::buttonAction(b, on, inCardRoutine);
 	}
 
-	else if (b == hid::button::RECORD) {
+	else if (b == RECORD) {
 		goto dontDeactivateMarker;
 	}
 
-	else if (b == hid::button::SHIFT) {
+	else if (b == SHIFT) {
 		goto dontDeactivateMarker;
 	}
 
-	else if (b == hid::button::X_ENC) {
+	else if (b == X_ENC) {
 		goto dontDeactivateMarker;
 	}
 
 	// Select button, without shift
-	else if (b == hid::button::SELECT_ENC && !Buttons::isShiftButtonPressed()) {
+	else if (b == SELECT_ENC && !Buttons::isShiftButtonPressed()) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -352,7 +353,7 @@ dontDeactivateMarker:
 	}
 
 	// Back button to clear Clip
-	else if (b == hid::button::BACK && currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
+	else if (b == BACK && currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
 		if (on) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;

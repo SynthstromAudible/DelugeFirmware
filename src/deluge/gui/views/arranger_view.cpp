@@ -157,11 +157,12 @@ void ArrangerView::goToSongView() {
 }
 
 int ArrangerView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+	using namespace hid::button;
 
 	int newInstrumentType;
 
 	// Song button
-	if (b == hid::button::SESSION_VIEW) {
+	if (b == SESSION_VIEW) {
 		if (on) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -177,7 +178,7 @@ int ArrangerView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 
 #if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 	// Affect-entire button
-	else if (b == hid::button::AFFECT_ENTIRE) {
+	else if (b == AFFECT_ENTIRE) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -190,7 +191,7 @@ int ArrangerView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 #endif
 
 	// Cross-screen button
-	else if (b == hid::button::CROSS_SCREEN_EDIT) {
+	else if (b == CROSS_SCREEN_EDIT) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 			currentSong->arrangerAutoScrollModeActive = !currentSong->arrangerAutoScrollModeActive;
 			IndicatorLEDs::setLedState(crossScreenEditLedX, crossScreenEditLedY,
@@ -206,7 +207,7 @@ int ArrangerView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	}
 
 	// Record button - adds to what MatrixDriver does with it
-	else if (b == hid::button::RECORD) {
+	else if (b == RECORD) {
 		if (on) {
 			uiTimerManager.setTimer(TIMER_UI_SPECIFIC, 500);
 			blinkOn = true;
@@ -222,7 +223,7 @@ int ArrangerView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	}
 
 	// Save/delete button with row held
-	else if (b == hid::button::SAVE
+	else if (b == SAVE
 	         && (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION
 	             || currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW)) {
 		if (inCardRoutine) {
@@ -234,7 +235,7 @@ int ArrangerView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	}
 
 	// Select encoder button
-	else if (b == hid::button::SELECT_ENC && !Buttons::isShiftButtonPressed()) {
+	else if (b == SELECT_ENC && !Buttons::isShiftButtonPressed()) {
 		if (on && currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -244,7 +245,7 @@ int ArrangerView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	}
 
 	// Which-instrument-type buttons
-	else if (b == hid::button::SYNTH) {
+	else if (b == SYNTH) {
 		newInstrumentType = INSTRUMENT_TYPE_SYNTH;
 
 doChangeInstrumentType:
@@ -296,23 +297,23 @@ doActualSimpleChange:
 		}
 	}
 
-	else if (b == hid::button::KIT) {
+	else if (b == KIT) {
 		newInstrumentType = INSTRUMENT_TYPE_KIT;
 		goto doChangeInstrumentType;
 	}
 
-	else if (b == hid::button::MIDI) {
+	else if (b == MIDI) {
 		newInstrumentType = INSTRUMENT_TYPE_MIDI_OUT;
 		goto doChangeInstrumentType;
 	}
 
-	else if (b == hid::button::CV) {
+	else if (b == CV) {
 		newInstrumentType = INSTRUMENT_TYPE_CV;
 		goto doChangeInstrumentType;
 	}
 
 	// Back button with <> button held
-	else if (b == hid::button::BACK && currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
+	else if (b == BACK && currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
 		if (on) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;

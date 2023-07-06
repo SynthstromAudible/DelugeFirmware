@@ -184,11 +184,12 @@ void LoadSongUI::displayLoopsRemainingPopup() {
 #endif
 
 int LoadSongUI::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+	using namespace hid::button;
 
 	// Load button or select encoder press. Unlike most (all?) other children of Browser, we override this and don't just call mainButtonAction(),
 	// because unlike all the others, we need to action the load immediately on down-press rather than waiting for press-release, because of that special
 	// action where you hold the button down until you want to "launch" the new song.
-	if ((b == hid::button::LOAD) || (b == hid::button::SELECT_ENC)) {
+	if ((b == LOAD) || (b == SELECT_ENC)) {
 		if (on) {
 			if (!currentUIMode) {
 				if (inCardRoutine) {

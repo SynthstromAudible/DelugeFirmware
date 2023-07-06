@@ -136,11 +136,12 @@ void SessionView::focusRegained() {
 }
 
 int SessionView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+	using namespace hid::button;
 
 	int newInstrumentType;
 
 	// Clip-view button
-	if (b == hid::button::CLIP_VIEW) {
+	if (b == CLIP_VIEW) {
 		if (on && currentUIMode == UI_MODE_NONE && playbackHandler.recording != RECORDING_ARRANGEMENT) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -153,9 +154,9 @@ int SessionView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 
 	// Arranger view button, or if there isn't one then song view button
 #ifdef arrangerViewButtonX
-	else if (b == hid::button::arrangerView) {
+	else if (b == arrangerView) {
 #else
-	else if (b == hid::button::SESSION_VIEW && !Buttons::isShiftButtonPressed()) {
+	else if (b == SESSION_VIEW && !Buttons::isShiftButtonPressed()) {
 #endif
 		if (on) {
 			if (inCardRoutine) {
@@ -290,7 +291,7 @@ moveAfterClipInstance:
 
 #if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 	// Affect-entire button
-	else if (b == hid::button::AFFECT_ENTIRE) {
+	else if (b == AFFECT_ENTIRE) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 			currentSong->affectEntire = !currentSong->affectEntire;
 			view.setActiveModControllableTimelineCounter(currentSong);
@@ -299,7 +300,7 @@ moveAfterClipInstance:
 #endif
 
 	// Record button - adds to what MatrixDriver does with it
-	else if (b == hid::button::RECORD) {
+	else if (b == RECORD) {
 		if (on) {
 			if (isNoUIModeActive()) {
 				uiTimerManager.setTimer(TIMER_UI_SPECIFIC, 500);
@@ -323,7 +324,7 @@ moveAfterClipInstance:
 	}
 
 	// If save / delete button pressed, delete the Clip!
-	else if (b == hid::button::SAVE && currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
+	else if (b == SAVE && currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
 		if (on) {
 
 			if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
@@ -344,7 +345,7 @@ moveAfterClipInstance:
 	}
 
 	// Select encoder button
-	else if (b == hid::button::SELECT_ENC && !Buttons::isShiftButtonPressed()) {
+	else if (b == SELECT_ENC && !Buttons::isShiftButtonPressed()) {
 		if (on) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -383,7 +384,7 @@ moveAfterClipInstance:
 	}
 
 	// Which-instrument-type buttons
-	else if (b == hid::button::SYNTH) {
+	else if (b == SYNTH) {
 		newInstrumentType = INSTRUMENT_TYPE_SYNTH;
 
 changeInstrumentType:
@@ -447,15 +448,15 @@ doActualSimpleChange:
 			uiNeedsRendering(this, 1 << selectedClipYDisplay, 0);
 		}
 	}
-	else if (b == hid::button::KIT) {
+	else if (b == KIT) {
 		newInstrumentType = INSTRUMENT_TYPE_KIT;
 		goto changeInstrumentType;
 	}
-	else if (b == hid::button::MIDI) {
+	else if (b == MIDI) {
 		newInstrumentType = INSTRUMENT_TYPE_MIDI_OUT;
 		goto changeInstrumentType;
 	}
-	else if (b == hid::button::CV) {
+	else if (b == CV) {
 		newInstrumentType = INSTRUMENT_TYPE_CV;
 		goto changeInstrumentType;
 	}
