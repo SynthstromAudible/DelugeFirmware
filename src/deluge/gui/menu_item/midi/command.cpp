@@ -65,7 +65,8 @@ void Command::drawPixelsForOled() {
 		else {
 			channelText = "Channel";
 			char buffer[12];
-			intToString(command->channelOrZone + 1, buffer, 1);
+			int channelmod = (command->channelOrZone >= IS_A_CC) * IS_A_CC;
+			intToString(command->channelOrZone + 1 - channelmod, buffer, 1);
 			OLED::drawString(buffer, TEXT_SPACING_X * 8, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
 			                 TEXT_SPACING_X, TEXT_SIZE_Y_UPDATED);
 		}
@@ -73,9 +74,15 @@ void Command::drawPixelsForOled() {
 		                 TEXT_SIZE_Y_UPDATED);
 
 		yPixel += TEXT_SPACING_Y;
+		if (command->channelOrZone < IS_A_CC) {
+			OLED::drawString("Note", 0, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, TEXT_SPACING_X,
+			                 TEXT_SIZE_Y_UPDATED);
+		}
+		else {
+			OLED::drawString("CC", 0, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, TEXT_SPACING_X,
+			                 TEXT_SIZE_Y_UPDATED);
+		}
 
-		OLED::drawString("Note", 0, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, TEXT_SPACING_X,
-		                 TEXT_SIZE_Y_UPDATED);
 		char buffer[12];
 		intToString(command->noteOrCC, buffer, 1);
 		OLED::drawString(buffer, TEXT_SPACING_X * 5, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
@@ -134,8 +141,7 @@ bool Command::learnNoteOn(MIDIDevice* device, int channel, int noteCode) {
 }
 
 void Command::learnCC(MIDIDevice* device, int channel, int ccNumber, int value) {
-	if (MIDI_CC_FOR_COMMANDS_ENABLED && value) {
-		learnNoteOn(device, channel + 16, ccNumber);
-	}
+	if (value)
+		learnNoteOn(device, channel + IS_A_CC, ccNumber);
 }
 } // namespace menu_item::midi
