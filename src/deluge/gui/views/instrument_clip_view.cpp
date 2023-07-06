@@ -433,7 +433,6 @@ doOther:
 		}
 	}
 
-	// Kit button. Unlike the other instrument-type buttons, whose code is in InstrumentClipMinder, this one is only allowed in the InstrumentClipView
 	else if (x == kitButtonX && y == kitButtonY && currentUIMode == UI_MODE_NONE) {
 		if (on) {
 			if (inCardRoutine) {

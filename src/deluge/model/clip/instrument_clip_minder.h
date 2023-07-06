@@ -31,7 +31,7 @@ class InstrumentClipMinder : public ClipMinder {
 public:
 	InstrumentClipMinder();
 	static void redrawNumericDisplay();
-	void createNewInstrument(int newInstrumentType);
+	virtual void createNewInstrument(int newInstrumentType);
 	void setLedStates();
 	void focusRegained();
 	int buttonAction(int x, int y, bool on, bool inCardRoutine);
@@ -43,7 +43,7 @@ public:
 	void selectEncoderAction(int offset);
 	static void drawMIDIControlNumber(int controlNumber, bool automationExists);
 	bool makeCurrentClipActiveOnInstrumentIfPossible(ModelStack* modelStack);
-	void changeInstrumentType(int newInstrumentType);
+	virtual void changeInstrumentType(int newInstrumentType);
 	void opened();
 
 #if HAVE_OLED

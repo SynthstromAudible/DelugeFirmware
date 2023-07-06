@@ -55,6 +55,10 @@ public:
 	void exitAuditionMode();
 	void openedInBackground();
 	void stopAllAuditioning(ModelStack* modelStack, bool switchOffOnThisEndToo = true);
+	void changeInstrumentType(int newInstrumentType);
+	void createNewInstrument(int newInstrumentType);
+
+	void midiLearnFlash();
 
 #if HAVE_OLED
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
