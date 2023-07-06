@@ -64,6 +64,8 @@
 #include "storage/file_item.h"
 #include "hid/display/oled.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
+#include "dsp/master_compressor/master_compressor.h"
+#include "model/settings/runtime_feature_settings.h"
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
@@ -127,6 +129,14 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	reverbCompressorVolume = getParamFromUserValue(PARAM_STATIC_COMPRESSOR_VOLUME, -1);
 	reverbCompressorShape = -601295438;
 	reverbCompressorSync = SYNC_LEVEL_8TH;
+
+	AudioEngine::mastercompressor.compressor.setAttack(10.0);
+	AudioEngine::mastercompressor.compressor.setRelease(100.0);
+	AudioEngine::mastercompressor.compressor.setThresh(0.0);
+	AudioEngine::mastercompressor.compressor.setRatio(1.0 / 4.0);
+	AudioEngine::mastercompressor.setMakeup(0.0);
+	AudioEngine::mastercompressor.gr = 0.0;
+	AudioEngine::mastercompressor.wet = 1.0;
 
 	dirPath.set("SONGS");
 }
@@ -1098,6 +1108,23 @@ weAreInArrangementEditorOrInClipInstance:
 
 	storageManager.writeClosingTag("reverb");
 
+	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx) == RuntimeFeatureStateToggle::On) {
+		storageManager.writeOpeningTagBeginning("masterCompressor");
+		int32_t attack = AudioEngine::mastercompressor.compressor.getAttack() * 100;
+		int32_t release = AudioEngine::mastercompressor.compressor.getRelease() * 100;
+		int32_t thresh = AudioEngine::mastercompressor.compressor.getThresh() * 100.0;
+		int32_t ratio = 1.0 / AudioEngine::mastercompressor.compressor.getRatio() * 100;
+		int32_t makeup = AudioEngine::mastercompressor.getMakeup() * 100;
+		int32_t wet = AudioEngine::mastercompressor.wet * 100;
+		storageManager.writeAttribute("attack", attack);
+		storageManager.writeAttribute("release", release);
+		storageManager.writeAttribute("thresh", thresh);
+		storageManager.writeAttribute("ratio", ratio);
+		storageManager.writeAttribute("makeup", makeup);
+		storageManager.writeAttribute("wet", wet);
+		storageManager.closeTag();
+	}
+
 	globalEffectable.writeTagsToFile(NULL, false);
 
 	int32_t* valuesForOverride = paramsInAutomationMode ? unautomatedParamValues : NULL;
@@ -1423,6 +1450,47 @@ unknownTag:
 			else if (!strcmp(tagName, "affectEntire")) {
 				affectEntire = storageManager.readTagOrAttributeValueInt();
 				storageManager.exitTag("affectEntire");
+			}
+
+			else if (!strcmp(tagName, "masterCompressor")
+			         && runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx)
+			                == RuntimeFeatureStateToggle::On) {
+				AudioEngine::mastercompressor.gr = 0.0;
+				while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+					if (!strcmp(tagName, "attack")) { //ms
+						AudioEngine::mastercompressor.compressor.setAttack(
+						    (double)storageManager.readTagOrAttributeValueInt() / 100.0);
+						storageManager.exitTag("attack");
+					}
+					else if (!strcmp(tagName, "release")) { //ms
+						AudioEngine::mastercompressor.compressor.setRelease(
+						    (double)storageManager.readTagOrAttributeValueInt() / 100.0);
+						storageManager.exitTag("release");
+					}
+					else if (!strcmp(tagName, "thresh")) { //db
+						AudioEngine::mastercompressor.compressor.setThresh(
+						    (double)storageManager.readTagOrAttributeValueInt() / 100.0);
+						storageManager.exitTag("thresh");
+					}
+					else if (!strcmp(tagName, "ratio")) { //r:1
+						AudioEngine::mastercompressor.compressor.setRatio(
+						    1.0 / ((double)storageManager.readTagOrAttributeValueInt() / 100.0));
+						storageManager.exitTag("ratio");
+					}
+					else if (!strcmp(tagName, "makeup")) { //db
+						AudioEngine::mastercompressor.setMakeup((double)storageManager.readTagOrAttributeValueInt()
+						                                        / 100.0);
+						storageManager.exitTag("makeup");
+					}
+					else if (!strcmp(tagName, "wet")) { //0.0-1.0
+						AudioEngine::mastercompressor.wet = (double)storageManager.readTagOrAttributeValueInt() / 100.0;
+						storageManager.exitTag("wet");
+					}
+					else {
+						storageManager.exitTag(tagName);
+					}
+				}
+				storageManager.exitTag("masterCompressor");
 			}
 
 			else if (!strcmp(tagName, "modeNotes")) {

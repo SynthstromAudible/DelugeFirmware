@@ -58,6 +58,8 @@
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui_timer_manager.h"
 #include "storage/file_item.h"
+#include "dsp/master_compressor/master_compressor.h"
+#include "model/settings/runtime_feature_settings.h"
 
 #if HAVE_OLED
 #include "hid/display/oled.h"
@@ -136,6 +138,30 @@ void SessionView::focusRegained() {
 }
 
 int SessionView::buttonAction(int x, int y, bool on, bool inCardRoutine) {
+
+	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx)
+	    == RuntimeFeatureStateToggle::On) { //master compressor
+		int modKnobMode = -1;
+		if (view.activeModControllableModelStack.modControllable) {
+			uint8_t* modKnobModePointer = view.activeModControllableModelStack.modControllable->getModKnobMode();
+			if (modKnobModePointer)
+				modKnobMode = *modKnobModePointer;
+		}
+		const char* paramLabels[] = {"THRE", "MAKE", "ATTK", "REL", "RATI", "MIX"};
+
+		if (modKnobMode == 4 && x == modEncoder1ButtonX && y == modEncoder1ButtonY && on) {
+			masterCompEditMode++;
+			masterCompEditMode = masterCompEditMode % 6; //toggle master compressor setting
+
+			if (HAVE_OLED) {
+				modEncoderAction(1, 0);
+			}
+			else {
+				numericDriver.displayPopup(paramLabels[masterCompEditMode]);
+			}
+			return ACTION_RESULT_DEALT_WITH;
+		}
+	}
 
 	int newInstrumentType;
 
@@ -481,6 +507,46 @@ void SessionView::beginEditingSectionRepeatsNum() {
 }
 
 int SessionView::padAction(int xDisplay, int yDisplay, int on) {
+
+	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx)
+	    == RuntimeFeatureStateToggle::On) { //master compressor
+		int modKnobMode = -1;
+		if (view.activeModControllableModelStack.modControllable) {
+			uint8_t* modKnobModePointer = view.activeModControllableModelStack.modControllable->getModKnobMode();
+			if (modKnobModePointer)
+				modKnobMode = *modKnobModePointer;
+		}
+		const char* paramLabels[] = {"THRE", "MAKE", "ATTK", "REL", "RATI", "MIX"};
+
+		if (modKnobMode == 4 && Buttons::isShiftButtonPressed() && xDisplay == 10 && yDisplay < 6 && on) {
+			if (yDisplay == 0) {        //[RELEASE]
+				masterCompEditMode = 3; //REL
+			}
+			else if (yDisplay == 1) {   //[SYNC]
+				masterCompEditMode = 1; //MAKE
+			}
+			else if (yDisplay == 2) {   //[VOL DUCK]
+				masterCompEditMode = 0; //THRE
+			}
+			else if (yDisplay == 3) {   //[ATTAK]
+				masterCompEditMode = 2; //ATTK
+			}
+			else if (yDisplay == 4) {   //[SHAPE]
+				masterCompEditMode = 4; //RATI
+			}
+			else if (yDisplay == 5) {   //[SEND]
+				masterCompEditMode = 5; //MIX
+			}
+
+			if (HAVE_OLED) {
+				modEncoderAction(1, 0);
+			}
+			else {
+				numericDriver.displayPopup(paramLabels[masterCompEditMode]);
+			}
+			return ACTION_RESULT_DEALT_WITH;
+		}
+	}
 
 	Clip* clip = getClipOnScreen(yDisplay);
 	int clipIndex = yDisplay + currentSong->songViewYScroll;
@@ -1699,6 +1765,25 @@ void SessionView::graphicsRoutine() {
 	bool anyLinearRecordingOnThisScreen = false;
 	bool anyLinearRecordingOnNextScreen = false;
 
+	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx) == RuntimeFeatureStateToggle::On) {
+		int modKnobMode = -1;
+		if (view.activeModControllableModelStack.modControllable) {
+			uint8_t* modKnobModePointer = view.activeModControllableModelStack.modControllable->getModKnobMode();
+			if (modKnobModePointer)
+				modKnobMode = *modKnobModePointer;
+		}
+		if (modKnobMode == 4 && abs(AudioEngine::mastercompressor.compressor.getThresh()) > 0.001
+		    && currentUIMode != UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) { //upper
+			double gr = AudioEngine::mastercompressor.gr;
+			if (gr >= 0)
+				gr = 0;
+			if (gr <= -12)
+				gr = -12.0;
+			gr = abs(gr);
+			IndicatorLEDs::setKnobIndicatorLevel(1, int(gr / 12.0 * 128)); //Gain Reduction LED
+		}
+	}
+
 	for (int yDisplay = 0; yDisplay < displayHeight; yDisplay++) {
 		int newTickSquare;
 
@@ -2254,6 +2339,176 @@ void SessionView::midiLearnFlash() {
 
 void SessionView::modEncoderAction(int whichModEncoder, int offset) {
 	performActionOnPadRelease = false;
+
+	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx) == RuntimeFeatureStateToggle::On) {
+		int modKnobMode = -1;
+		if (view.activeModControllableModelStack.modControllable) {
+			uint8_t* modKnobModePointer = view.activeModControllableModelStack.modControllable->getModKnobMode();
+			if (modKnobModePointer)
+				modKnobMode = *modKnobModePointer;
+		}
+		if (modKnobMode == 4 && whichModEncoder == 1) { //upper encoder
+
+			if (masterCompEditMode == 0) { //Thresh DB
+				double thresh = AudioEngine::mastercompressor.compressor.getThresh();
+				thresh = thresh - (offset * .2);
+				if (thresh >= 0)
+					thresh = 0;
+				if (thresh < -69)
+					thresh = -69;
+				AudioEngine::mastercompressor.compressor.setThresh(thresh);
+#if !HAVE_OLED
+				char buffer[6];
+				strcpy(buffer, "");
+				floatToString(thresh, buffer + strlen(buffer), 1, 1);
+				if (abs(thresh) < 0.01)
+					strcpy(buffer, "OFF");
+				numericDriver.displayPopup(buffer);
+#endif
+			}
+			else if (masterCompEditMode == 1) { //Makeup DB
+				double makeup = AudioEngine::mastercompressor.getMakeup();
+				makeup = makeup + (offset * 0.1);
+				if (makeup < 0)
+					makeup = 0;
+				if (makeup > 20)
+					makeup = 20;
+				AudioEngine::mastercompressor.setMakeup(makeup);
+#if !HAVE_OLED
+				char buffer[6];
+				strcpy(buffer, "");
+				floatToString(makeup, buffer + strlen(buffer), 1, 1);
+				numericDriver.displayPopup(buffer);
+#endif
+			}
+			else if (masterCompEditMode == 2) { //Attack ms
+				double atk = AudioEngine::mastercompressor.compressor.getAttack();
+				atk = atk + offset * 0.1;
+				if (atk <= 0.1)
+					atk = 0.1;
+				if (atk >= 30.0)
+					atk = 30.0;
+				AudioEngine::mastercompressor.compressor.setAttack(atk);
+#if !HAVE_OLED
+				char buffer[5];
+				strcpy(buffer, "");
+				floatToString(atk, buffer + strlen(buffer), 1, 1);
+				numericDriver.displayPopup(buffer);
+#endif
+			}
+			else if (masterCompEditMode == 3) { //Release ms
+				double rel = AudioEngine::mastercompressor.compressor.getRelease();
+				rel = rel + offset * 100.0;
+				if (rel <= 100)
+					rel = 100.0;
+				if (rel >= 1200.0)
+					rel = 1200.0;
+				AudioEngine::mastercompressor.compressor.setRelease(rel);
+#if !HAVE_OLED
+				char buffer[6];
+				strcpy(buffer, "");
+				intToString(int(rel), buffer + strlen(buffer));
+				numericDriver.displayPopup(buffer);
+#endif
+			}
+			else if (masterCompEditMode == 4) { //Ratio R:1
+				double ratio = 1.0 / AudioEngine::mastercompressor.compressor.getRatio();
+				ratio = ratio + offset * 0.1;
+				if (ratio <= 2.0)
+					ratio = 2.0;
+				if (ratio >= 10.0)
+					ratio = 10.0;
+				AudioEngine::mastercompressor.compressor.setRatio(1.0 / ratio);
+#if !HAVE_OLED
+				char buffer[5];
+				strcpy(buffer, "");
+				floatToString(ratio, buffer + strlen(buffer), 1, 1);
+				numericDriver.displayPopup(buffer);
+#endif
+			}
+			else if (masterCompEditMode == 5) { //Wet 0.0 - 1.0
+				double wet = AudioEngine::mastercompressor.wet;
+				wet += offset * 0.01;
+				if (wet <= 0.0)
+					wet = 0.0;
+				if (wet >= 1.0)
+					wet = 1.0;
+				AudioEngine::mastercompressor.wet = wet;
+#if !HAVE_OLED
+				char buffer[6];
+				strcpy(buffer, "");
+				intToString(int(wet * 100), buffer + strlen(buffer));
+				numericDriver.displayPopup(buffer);
+#endif
+			}
+
+#if HAVE_OLED
+			{ //Master Compressor OLED UI
+				double thresh = AudioEngine::mastercompressor.compressor.getThresh();
+				double makeup = AudioEngine::mastercompressor.getMakeup();
+				double atk = AudioEngine::mastercompressor.compressor.getAttack();
+				double rel = AudioEngine::mastercompressor.compressor.getRelease();
+				double ratio = 1.0 / AudioEngine::mastercompressor.compressor.getRatio();
+				double wet = AudioEngine::mastercompressor.wet;
+				int paddingLeft = 4 + 3;
+				int paddingTop = OLED_MAIN_TOPMOST_PIXEL + 2;
+
+				OLED::setupPopup(OLED_MAIN_WIDTH_PIXELS - 2, OLED_MAIN_VISIBLE_HEIGHT - 2);
+				char buffer[18];
+				strcpy(buffer, "MASTER COMP");
+				OLED::drawStringCentred(buffer, paddingTop + TEXT_SPACING_Y * 0 - 1, OLED::oledMainPopupImage[0],
+				                        OLED_MAIN_WIDTH_PIXELS - 2, TEXT_SPACING_X + 1, TEXT_SPACING_Y);
+				OLED::drawStringCentred(buffer, paddingTop + TEXT_SPACING_Y * 0 - 1, OLED::oledMainPopupImage[0],
+				                        OLED_MAIN_WIDTH_PIXELS - 2, TEXT_SPACING_X + 1, TEXT_SPACING_Y,
+				                        (OLED_MAIN_WIDTH_PIXELS >> 1) + 1);
+				strcpy(buffer, "THR       GAI");
+				OLED::drawString(buffer, paddingLeft, paddingTop + TEXT_SPACING_Y * 1, OLED::oledMainPopupImage[0],
+				                 OLED_MAIN_WIDTH_PIXELS - 2, TEXT_SPACING_X, TEXT_SPACING_Y);
+				strcpy(buffer, "ATK       REL");
+				OLED::drawString(buffer, paddingLeft, paddingTop + TEXT_SPACING_Y * 2, OLED::oledMainPopupImage[0],
+				                 OLED_MAIN_WIDTH_PIXELS - 2, TEXT_SPACING_X, TEXT_SPACING_Y);
+				strcpy(buffer, "RAT       MIX");
+				OLED::drawString(buffer, paddingLeft, paddingTop + TEXT_SPACING_Y * 3, OLED::oledMainPopupImage[0],
+				                 OLED_MAIN_WIDTH_PIXELS - 2, TEXT_SPACING_X, TEXT_SPACING_Y);
+
+				floatToString(thresh, buffer, 1, 1);
+				if (abs(thresh) < 0.01)
+					strcpy(buffer, "OFF");
+				OLED::drawStringAlignRight(buffer, paddingTop + TEXT_SPACING_Y * 1, OLED::oledMainPopupImage[0],
+				                           OLED_MAIN_WIDTH_PIXELS - 2, TEXT_SPACING_X, TEXT_SPACING_Y,
+				                           paddingLeft + TEXT_SPACING_X * 9);
+				floatToString(makeup, buffer, 1, 1);
+				OLED::drawStringAlignRight(buffer, paddingTop + TEXT_SPACING_Y * 1, OLED::oledMainPopupImage[0],
+				                           OLED_MAIN_WIDTH_PIXELS - 2, TEXT_SPACING_X, TEXT_SPACING_Y,
+				                           paddingLeft + TEXT_SPACING_X * 19);
+				floatToString(atk, buffer, 1, 1);
+				OLED::drawStringAlignRight(buffer, paddingTop + TEXT_SPACING_Y * 2, OLED::oledMainPopupImage[0],
+				                           OLED_MAIN_WIDTH_PIXELS - 2, TEXT_SPACING_X, TEXT_SPACING_Y,
+				                           paddingLeft + TEXT_SPACING_X * 9);
+				intToString(int(rel), buffer);
+				OLED::drawStringAlignRight(buffer, paddingTop + TEXT_SPACING_Y * 2, OLED::oledMainPopupImage[0],
+				                           OLED_MAIN_WIDTH_PIXELS - 2, TEXT_SPACING_X, TEXT_SPACING_Y,
+				                           paddingLeft + TEXT_SPACING_X * 19);
+				floatToString(ratio, buffer, 1, 1);
+				OLED::drawStringAlignRight(buffer, paddingTop + TEXT_SPACING_Y * 3, OLED::oledMainPopupImage[0],
+				                           OLED_MAIN_WIDTH_PIXELS - 2, TEXT_SPACING_X, TEXT_SPACING_Y,
+				                           paddingLeft + TEXT_SPACING_X * 9);
+				intToString(int(wet * 100), buffer);
+				strcpy(buffer + strlen(buffer), "%");
+				OLED::drawStringAlignRight(buffer, paddingTop + TEXT_SPACING_Y * 3, OLED::oledMainPopupImage[0],
+				                           OLED_MAIN_WIDTH_PIXELS - 2, TEXT_SPACING_X, TEXT_SPACING_Y,
+				                           paddingLeft + TEXT_SPACING_X * 19);
+
+				OLED::invertArea((TEXT_SPACING_X * 10) * (masterCompEditMode % 2) + paddingLeft, TEXT_SPACING_X * 9,
+				                 TEXT_SPACING_Y * (int)(masterCompEditMode / 2 + 1) + paddingTop,
+				                 TEXT_SPACING_Y * (int)(masterCompEditMode / 2 + 2) + paddingTop,
+				                 OLED::oledMainPopupImage);
+				OLED::sendMainImage();
+				uiTimerManager.setTimer(TIMER_DISPLAY, 1500);
+			}
+#endif
+		}
+	}
 
 	ClipNavigationTimelineView::modEncoderAction(whichModEncoder, offset);
 }

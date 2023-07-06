@@ -47,6 +47,7 @@
 #include "model/voice/voice.h"
 #include "dsp/reverb/freeverb/revmodel.hpp"
 #include "processing/metronome/metronome.h"
+#include "dsp/master_compressor/master_compressor.h"
 #include "model/voice/voice_vector.h"
 #include "definitions.h"
 #include "io/uart/uart.h"
@@ -107,6 +108,7 @@ uint32_t timeLastSideChainHit = 2147483648;
 int32_t sizeLastSideChainHit;
 
 Metronome metronome{};
+MasterCompressor mastercompressor{};
 
 SoundDrum* sampleForPreview;
 ParamManagerForTimeline* paramManagerForSamplePreview;
@@ -722,6 +724,7 @@ startAgain:
 	masterVolumeAdjustmentL <<= 2;
 	masterVolumeAdjustmentR <<= 2;
 
+	mastercompressor.render(renderingBuffer, numSamples);
 	metronome.render(renderingBuffer, numSamples);
 
 #if DELUGE_MODEL != DELUGE_MODEL_40_PAD
