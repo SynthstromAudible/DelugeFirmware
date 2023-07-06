@@ -189,7 +189,7 @@ probablyAcceptCurrentOption:
 		}
 	}
 
-	else if (b.x == getAcceptButtonX() && b.y == getAcceptButtonY()) {
+	else if (b == getAcceptButton()) {
 		goto probablyAcceptCurrentOption;
 	}
 
