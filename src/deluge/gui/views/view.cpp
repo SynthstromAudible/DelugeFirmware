@@ -303,8 +303,23 @@ doEndMidiLearnPressSession:
 		}
 	}
 
-	// Sync-scaling button
 	else if (b == SYNC_SCALING) {
+
+		// <shift><Sync-scaling> -> change song time-stretching CBC
+		if (on && Buttons::isShiftButtonPressed()) {
+			if (on) {
+				currentSong->timeStretchEnabled = !currentSong->timeStretchEnabled;
+				// show the user the new value with a PopUp message
+				if (currentSong->timeStretchEnabled) {
+					numericDriver.displayPopup(HAVE_OLED ? "Time-stretch: On" : "TSON", 2);
+				}
+				else {
+					numericDriver.displayPopup(HAVE_OLED ? "Time-stretch: Off" : "TSOF", 2);
+				}
+			}
+		}
+
+		// legacy sync-scaling behaviour
 		if (on && currentUIMode == UI_MODE_NONE) {
 
 			if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
@@ -403,7 +418,7 @@ possiblyRevert:
 		if (on && currentUIMode == UI_MODE_NONE) {
 
 			if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
-				numericDriver.displayPopup(HAVE_OLED ? "Recording to arrangement" : "CANT");
+				numericDriver.displayPopup(HAVE_OLED ? "Recording to arrangement" : "CANT"); //CBC Why show CANT for 7SEG??
 				return ACTION_RESULT_DEALT_WITH;
 			}
 

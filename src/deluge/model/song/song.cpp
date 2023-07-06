@@ -91,6 +91,7 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	tripletsOn = false;
 
 	affectEntire = false;
+	timeStretchEnabled = true;
 
 	modeNotes[0] = 0;
 	modeNotes[1] = 2;
@@ -1071,6 +1072,7 @@ weAreInArrangementEditorOrInClipInstance:
 
 	storageManager.writeAttribute("affectEntire", affectEntire);
 	storageManager.writeAttribute("activeModFunction", globalEffectable.modKnobMode);
+	storageManager.writeAttribute("timeStretchEnabled", timeStretchEnabled);
 
 	globalEffectable.writeAttributesToFile(false);
 
@@ -1512,6 +1514,11 @@ unknownTag:
 					}
 				}
 				storageManager.exitTag("modeNotes");
+			}
+
+			else if (!strcmp(tagName, "timeStretchEnabled")) {
+				timeStretchEnabled = storageManager.readTagOrAttributeValueInt();
+				storageManager.exitTag("timeStretchEnabled");
 			}
 
 			else if (!strcmp(tagName, "sections")) {

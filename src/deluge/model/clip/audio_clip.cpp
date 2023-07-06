@@ -533,6 +533,15 @@ void AudioClip::render(ModelStackWithTimelineCounter* modelStack, int32_t* outpu
 
 	uint64_t requiredSpeedAdjustment = ((uint64_t)sampleLengthInSamples << 24) / clipLengthInSamples;
 
+	// Control this using shift+syncScaleButton. Not saved to song XML.
+	if (!modelStack->song->timeStretchEnabled) {
+		goto justDontTimeStretch;
+	}
+	// Per-clip timestretch is set using the <shift>+<sample1-mode> shortcut menu
+	if (!sampleControls.timeStretchEnabled) {
+		goto justDontTimeStretch;
+	}
+
 	// If we're squishing time...
 	if (sampleControls.pitchAndSpeedAreIndependent) {
 		timeStretchRatio = requiredSpeedAdjustment;
@@ -984,6 +993,8 @@ void AudioClip::writeDataToFile(Song* song) {
 	storageManager.writeAttribute("startSamplePos", sampleHolder.startPos);
 	storageManager.writeAttribute("endSamplePos", sampleHolder.endPos);
 	storageManager.writeAttribute("pitchSpeedIndependent", sampleControls.pitchAndSpeedAreIndependent);
+	storageManager.writeAttribute("timeStretchEnabled", sampleControls.timeStretchEnabled);
+
 	if (sampleControls.interpolationMode == INTERPOLATION_MODE_LINEAR) {
 		storageManager.writeAttribute("linearInterpolation", 1);
 	}
@@ -1052,6 +1063,10 @@ someError:
 
 		else if (!strcmp(tagName, "pitchSpeedIndependent")) {
 			sampleControls.pitchAndSpeedAreIndependent = storageManager.readTagOrAttributeValueInt();
+		}
+
+		else if (!strcmp(tagName, "timeStretchEnabled")) {
+			sampleControls.timeStretchEnabled = storageManager.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "linearInterpolation")) {
