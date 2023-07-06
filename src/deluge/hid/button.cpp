@@ -3,6 +3,24 @@
 
 namespace hid {
 
+namespace button {
+
+struct xy toXY(Button b) {
+#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
+	int x = (unsigned int)b % 10;
+	int y = ((unsigned int)b % 70) / 10;
+	y -= displayHeight;
+#else
+	int y = (unsigned int)b / 9;
+	int x = b - y * 9;
+	y -= displayHeight * 2;
+#endif
+	return {x, y};
+}
+
+}
+
+	/*
 Button::Button(uint8_t value) {
 #if DELUGE_MODEL == DELUGE_MODEL_40_PAD
 	x = (unsigned int)value % 10;
@@ -12,19 +30,6 @@ Button::Button(uint8_t value) {
 	y = (unsigned int)value / 9;
 	x = value - y * 9;
 	y -= displayHeight * 2;
-#endif
-}
-
-Button::Button(int x_, int y_) {
-	x = x_;
-	y = y_;
-}
-
-uint8_t Button::toChar() {
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-	return 10 * (y + displayHeight) + x;
-#else
-	return 9 * (y + displayHeight * 2) + x;
 #endif
 }
 
@@ -43,5 +48,6 @@ bool Button::isButton(uint8_t value) {
 bool Button::operator==(Button const& other) {
 	return x == other.x and y == other.y;
 }
+*/
 
 } // namespace hid

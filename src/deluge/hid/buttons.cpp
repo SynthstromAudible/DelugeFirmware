@@ -35,8 +35,9 @@ bool buttonStates[NUM_BUTTON_COLS + 1][NUM_BUTTON_ROWS]; // The extra col is for
 
 int buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 
-	buttonStates[b.x][b.y] =
-	    on; // Must happen up here before it's actioned, because if its action accesses SD card, we might multiple-enter this function, and don't want to then be setting this after that later action, erasing what it set
+	// Must happen up here before it's actioned, because if its action accesses SD card, we might multiple-enter this function, and don't want to then be setting this after that later action, erasing what it set
+	auto xy = hid::button::toXY(b);
+	buttonStates[xy.x][xy.y] = on;
 
 #if ALLOW_SPAM_MODE
 	if (b == hid::button::xEnc) {
@@ -50,7 +51,7 @@ int buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	// See if it was one of the mod buttons
 	for (int i = 0; i < NUM_MOD_BUTTONS; i++) {
 
-		if (b.x == modButtonX[i] && b.y == modButtonY[i]) {
+		if (xy.x == modButtonX[i] && xy.y == modButtonY[i]) {
 
 #if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 			if (i < 3) {
@@ -173,7 +174,8 @@ bool isButtonPressed(int x, int y) {
 }
 
 bool isButtonPressed(hid::Button b) {
-	return buttonStates[b.x][b.y];
+	auto xy = hid::button::toXY(b);
+	return buttonStates[xy.x][xy.y];
 }
 
 bool isShiftButtonPressed() {
@@ -193,7 +195,7 @@ void noPressesHappening(bool inCardRoutine) {
 	for (int x = 0; x < NUM_BUTTON_COLS; x++) {
 		for (int y = 0; y < NUM_BUTTON_ROWS; y++) {
 			if (buttonStates[x][y]) {
-				buttonAction(hid::Button(x, y), false, inCardRoutine);
+				buttonAction(hid::button::fromXY(x, y), false, inCardRoutine);
 			}
 		}
 	}
