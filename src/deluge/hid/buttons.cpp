@@ -39,7 +39,7 @@ int buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	    on; // Must happen up here before it's actioned, because if its action accesses SD card, we might multiple-enter this function, and don't want to then be setting this after that later action, erasing what it set
 
 #if ALLOW_SPAM_MODE
-	if (b.x == xEncButtonX && b.y == xEncButtonY) {
+	if (b == hid::button::xEnc) {
 		spamMode();
 		return;
 	}
@@ -75,7 +75,7 @@ int buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	}
 
 	// Play button
-	if (b.x == playButtonX && b.y == playButtonY) {
+	if (b == hid::button::play) {
 		if (on) {
 
 			if (audioRecorder.recordingSource && isButtonPressed(recordButtonX, recordButtonY)) {
@@ -102,7 +102,7 @@ int buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	}
 
 	// Record button
-	else if (b.x == recordButtonX && b.y == recordButtonY) {
+	else if (b == hid::button::record) {
 		// Press on
 		if (on) {
 			timeRecordButtonPressed = AudioEngine::audioSampleTimer;
@@ -133,7 +133,7 @@ int buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	}
 
 	// Tempo encoder button
-	else if (b.x == tempoEncButtonX && b.y == tempoEncButtonY) {
+	else if (b == hid::button::tempoEnc) {
 		if (on) {
 			if (isShiftButtonPressed()) {
 				playbackHandler.displaySwingAmount();
@@ -147,18 +147,18 @@ int buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	}
 
 #if ALLOW_SPAM_MODE
-	else if (b.x == selectEncButtonX && b.y == selectEncButtonY && isButtonPressed(clipViewButtonX, clipViewButtonY)
-	         && isButtonPressed(shiftButtonX, shiftButtonY)) {
-		spamMode();
-	}
+	else if (b == hid::button::selectEnc)
+		     && isButtonPressed(shiftButtonX, shiftButtonY)) {
+			     spamMode();
+		     }
 #endif
 
 #if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 	// Mod encoder buttons
-	else if (b.x == modEncoder0ButtonX && b.y == modEncoder0ButtonY) {
+	else if (b == hid::button::modEncoder0) {
 		getCurrentUI()->modEncoderButtonAction(0, on);
 	}
-	else if (b.x == modEncoder1ButtonX && b.y == modEncoder1ButtonY) {
+	else if (b == hid::button::modEncoder1) {
 		getCurrentUI()->modEncoderButtonAction(1, on);
 	}
 #endif
@@ -170,6 +170,10 @@ dealtWith:
 
 bool isButtonPressed(int x, int y) {
 	return buttonStates[x][y];
+}
+
+bool isButtonPressed(hid::Button b) {
+	return buttonStates[b.x][b.y];
 }
 
 bool isShiftButtonPressed() {

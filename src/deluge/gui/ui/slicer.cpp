@@ -116,14 +116,14 @@ int Slicer::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 		return ACTION_RESULT_NOT_DEALT_WITH;
 	}
 
-	if (b.x == selectEncButtonX && b.y == selectEncButtonY) {
+	if (b == hid::button::selectEnc) {
 		if (inCardRoutine) {
 			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 		doSlice();
 	}
 
-	else if (b.x == backButtonX && b.y == backButtonY) {
+	else if (b == hid::button::back) {
 		if (inCardRoutine) {
 			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}

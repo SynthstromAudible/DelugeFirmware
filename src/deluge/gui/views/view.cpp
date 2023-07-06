@@ -122,7 +122,7 @@ int View::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 
 	// Tap tempo button. Shouldn't move this to MatrixDriver, because this code can put us in tapTempo mode, and other UIs aren't built to
 	// handle this
-	if (b.x == tapTempoButtonX && b.y == tapTempoButtonY) {
+	if (b == hid::button::tapTempo) {
 
 		if (currentUIMode == UI_MODE_MIDI_LEARN) {
 			if (inCardRoutine) {
@@ -158,7 +158,7 @@ doEndMidiLearnPressSession:
 	}
 
 	// MIDI learn button
-	else if (b.x == learnButtonX && b.y == learnButtonY) {
+	else if (b == hid::button::learn) {
 		if (inCardRoutine) {
 			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
@@ -180,7 +180,7 @@ doEndMidiLearnPressSession:
 	}
 
 	// Play button for MIDI learn
-	else if (b.x == playButtonX && b.y == playButtonY && currentUIMode == UI_MODE_MIDI_LEARN) {
+	else if (b == hid::button::play && currentUIMode == UI_MODE_MIDI_LEARN) {
 		if (inCardRoutine) {
 			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
@@ -196,7 +196,7 @@ doEndMidiLearnPressSession:
 	}
 
 	// Record button for MIDI learn
-	else if (b.x == recordButtonX && b.y == recordButtonY && currentUIMode == UI_MODE_MIDI_LEARN) {
+	else if (b == hid::button::record && currentUIMode == UI_MODE_MIDI_LEARN) {
 		if (inCardRoutine) {
 			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
@@ -212,10 +212,10 @@ doEndMidiLearnPressSession:
 	}
 
 	// Save button
-	else if (b.x == saveButtonX && b.y == saveButtonY) {
+	else if (b == hid::button::save) {
 
-		if (!Buttons::isButtonPressed(synthButtonX, synthButtonY) && !Buttons::isButtonPressed(kitButtonX, kitButtonY)
-		    && !Buttons::isButtonPressed(midiButtonX, midiButtonY) && !Buttons::isButtonPressed(cvButtonX, cvButtonY)) {
+		if (!Buttons::isButtonPressed(hid::button::synth) && !Buttons::isButtonPressed(hid::button::kit)
+		    && !Buttons::isButtonPressed(hid::button::midi) && !Buttons::isButtonPressed(hid::button::cv)) {
 			// Press down
 			if (on) {
 				if (currentUIMode == UI_MODE_NONE && !Buttons::isShiftButtonPressed()) {
@@ -251,10 +251,10 @@ doEndMidiLearnPressSession:
 	}
 
 	// Load button
-	else if (b.x == loadButtonX && b.y == loadButtonY) {
+	else if (b == hid::button::load) {
 
-		if (!Buttons::isButtonPressed(synthButtonX, synthButtonY) && !Buttons::isButtonPressed(kitButtonX, kitButtonY)
-		    && !Buttons::isButtonPressed(midiButtonX, midiButtonY) && !Buttons::isButtonPressed(cvButtonX, cvButtonY)) {
+		if (!Buttons::isButtonPressed(hid::button::synth) && !Buttons::isButtonPressed(hid::button::kit)
+		    && !Buttons::isButtonPressed(hid::button::midi) && !Buttons::isButtonPressed(hid::button::cv)) {
 			// Press down
 			if (on) {
 				if (currentUIMode == UI_MODE_NONE) {
@@ -303,7 +303,7 @@ doEndMidiLearnPressSession:
 	}
 
 	// Sync-scaling button
-	else if (b.x == syncScalingButtonX && b.y == syncScalingButtonY) {
+	else if (b == hid::button::syncScaling) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 
 			if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
@@ -349,7 +349,7 @@ cant:
 	}
 
 	// Back button
-	else if (b.x == backButtonX && b.y == backButtonY) {
+	else if (b == hid::button::back) {
 
 		if (on) {
 #ifndef undoButtonX
@@ -375,7 +375,7 @@ cant:
 
 #ifdef undoButtonX
 	// Undo button
-	else if (b.x == undoButtonX && b.y == undoButtonY) {
+	else if (b == hid::button::undo) {
 		newGlobalMidiCommand = GLOBAL_MIDI_COMMAND_UNDO;
 possiblyRevert:
 		if (on) {
@@ -391,14 +391,14 @@ possiblyRevert:
 	}
 
 	// Redo button
-	else if (b.x == redoButtonX && b.y == redoButtonY) {
+	else if (b == hid::button::redo) {
 		newGlobalMidiCommand = GLOBAL_MIDI_COMMAND_REDO;
 		goto possiblyRevert;
 	}
 #endif
 
 	// Select button with shift - go to settings menu
-	else if (b.x == selectEncButtonX && b.y == selectEncButtonY && Buttons::isShiftButtonPressed()) {
+	else if (b == hid::button::selectEnc && Buttons::isShiftButtonPressed()) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 
 			if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
@@ -906,7 +906,7 @@ void View::instrumentBeenEdited() {
 void View::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 
 	// If the learn button is pressed, user is trying to copy or paste, and the fact that we've ended up here means they can't
-	if (Buttons::isButtonPressed(learnButtonX, learnButtonY)) {
+	if (Buttons::isButtonPressed(hid::button::learn)) {
 #if !HAVE_OLED
 		if (on) {
 			numericDriver.displayPopup("CANT");
@@ -1931,7 +1931,7 @@ int View::clipStatusPadAction(Clip* clip, bool on, int yDisplayIfInSessionView) 
 
 	case UI_MODE_NONE:
 		// If the user was just quick and is actually holding the record button but the submode just hasn't changed yet...
-		if (on && Buttons::isButtonPressed(recordButtonX, recordButtonY)) {
+		if (on && Buttons::isButtonPressed(hid::button::record)) {
 			clip->armedForRecording = !clip->armedForRecording;
 			sessionView
 			    .timerCallback(); // Get into UI_MODE_VIEWING_RECORD_ARMING. TODO: this needs doing properly - what if we're in a Clip view?
