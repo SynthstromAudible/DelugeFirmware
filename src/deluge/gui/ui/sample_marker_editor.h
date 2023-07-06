@@ -20,6 +20,7 @@
 
 #include "gui/ui/ui.h"
 #include "RZA1/system/r_typedefs.h"
+#include "hid/button.h"
 
 class Sample;
 class MultisampleRange;
@@ -36,7 +37,7 @@ public:
 	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows);
 	void selectEncoderAction(int8_t offset);
 	int padAction(int x, int y, int velocity);
-	int buttonAction(int x, int y, bool on, bool inCardRoutine);
+	int buttonAction(hid::Button b, bool on, bool inCardRoutine);
 	int verticalEncoderAction(int offset, bool inCardRoutine);
 	int horizontalEncoderAction(int offset);
 	void graphicsRoutine();

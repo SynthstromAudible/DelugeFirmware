@@ -18,11 +18,12 @@
 #ifndef CLIPMINDER_H_
 #define CLIPMINDER_H_
 
+#include "hid/button.h"
 #include "definitions.h"
 
 class ClipMinder {
 public:
-	int buttonAction(int x, int y, bool on);
+	int buttonAction(hid::Button b, bool on);
 };
 
 #endif /* CLIPMINDER_H_ */

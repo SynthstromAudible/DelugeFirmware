@@ -19,6 +19,7 @@
 #define CLIPVIEW_H_
 
 #include "gui/views/clip_navigation_timeline_view.h"
+#include "hid/button.h"
 
 class Action;
 
@@ -32,7 +33,7 @@ public:
 	int32_t getLengthChopAmount(int32_t square);
 	int32_t getLengthExtendAmount(int32_t square);
 	void focusRegained();
-	int buttonAction(int x, int y, bool on, bool inCardRoutine);
+	int buttonAction(hid::Button b, bool on, bool inCardRoutine);
 
 protected:
 	int getTickSquare();
