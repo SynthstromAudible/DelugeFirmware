@@ -120,8 +120,10 @@ public:
 			* good for linear & log values
 			*/
 
-		if (in > state) attackEnvelope_.run(in, state); // attack
-		else releaseEnvelope_.run(in, state);           // release
+		if (in > state)
+			attackEnvelope_.run(in, state); // attack
+		else
+			releaseEnvelope_.run(in, state); // release
 	}
 
 private:
@@ -172,7 +174,8 @@ public:
 
 		// threshold
 		double overdB = keydB - threshdB_; // delta over threshold
-		if (overdB < 0.0) overdB = 0.0;
+		if (overdB < 0.0)
+			overdB = 0.0;
 
 		// attack/release
 
@@ -217,9 +220,12 @@ public:
 	double wet;
 	inline void setMakeup(double dB) {
 		makeup = pow(10.0, (dB / 20.0));
-		if (fabs(1.0 - makeup) < 0.0001) makeup = 1.0;
-		if (makeup > 20.0) makeup = 20.0;
-		if (makeup < 0.0001) makeup = 0.0;
+		if (fabs(1.0 - makeup) < 0.0001)
+			makeup = 1.0;
+		if (makeup > 20.0)
+			makeup = 20.0;
+		if (makeup < 0.0001)
+			makeup = 0.0;
 	}
 	inline double getMakeup() { return 20.0 * log10(makeup); }
 

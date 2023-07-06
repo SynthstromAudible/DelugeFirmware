@@ -1108,7 +1108,7 @@ weAreInArrangementEditorOrInClipInstance:
 
 	storageManager.writeClosingTag("reverb");
 
-	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressor) == RuntimeFeatureStateToggle::On) {
+	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx) == RuntimeFeatureStateToggle::On) {
 		storageManager.writeOpeningTagBeginning("masterCompressor");
 		int32_t attack = AudioEngine::mastercompressor.compressor.getAttack() * 100;
 		int32_t release = AudioEngine::mastercompressor.compressor.getRelease() * 100;
@@ -1453,7 +1453,7 @@ unknownTag:
 			}
 
 			else if (!strcmp(tagName, "masterCompressor")
-			         && runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressor)
+			         && runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx)
 			                == RuntimeFeatureStateToggle::On) {
 				AudioEngine::mastercompressor.gr = 0.0;
 				while (*(tagName = storageManager.readNextTagOrAttributeName())) {
