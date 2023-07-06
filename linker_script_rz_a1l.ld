@@ -135,7 +135,8 @@ SECTIONS
 		 _ebss = .;
 	} >RAM012L
 	
-  .reset :
+	/* ALIGN(0x20) is only necessary for v0 bootloaders */
+  .reset : ALIGN(0x20) /* 0x10 isn't enough. Not sure why any of this is necessary though. */
 	{
 		execute = .;
 		*start.o (.text)
