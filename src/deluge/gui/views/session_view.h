@@ -96,6 +96,7 @@ public:
 	bool
 	    performActionOnSectionPadRelease; // Keep this separate from the above one because we don't want a mod encoder action to set this to false
 	uint8_t sectionPressed;
+	uint8_t masterCompEditMode;
 
 private:
 	void sectionPadAction(uint8_t y, bool on);

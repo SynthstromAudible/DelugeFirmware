@@ -1199,9 +1199,11 @@ void AudioClip::setPos(ModelStackWithTimelineCounter* modelStack, int32_t newPos
 
 bool AudioClip::shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int amount) {
 	// No horizontal shift when recording
-	if (recorder) return false;
+	if (recorder)
+		return false;
 	// No horizontal shift when no sample is loaded
-	if (!sampleHolder.audioFile) return false;
+	if (!sampleHolder.audioFile)
+		return false;
 
 	int64_t newStartPos = int64_t(sampleHolder.startPos) - getSamplesFromTicks(amount);
 	uint64_t sampleLength = ((Sample*)sampleHolder.audioFile)->lengthInSamples;
