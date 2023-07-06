@@ -150,7 +150,7 @@ int SessionView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 		}
 		const char* paramLabels[] = {"THRE", "MAKE", "ATTK", "REL", "RATI", "MIX"};
 
-		if (modKnobMode == 4 && x == modEncoder1ButtonX && y == modEncoder1ButtonY && on) {
+		if (modKnobMode == 4 && b == MOD_ENCODER_1 && on) {
 			masterCompEditMode++;
 			masterCompEditMode = masterCompEditMode % 6; //toggle master compressor setting
 

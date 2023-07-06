@@ -398,6 +398,7 @@ int autoPilotY;
 uint32_t timeNextAutoPilotAction = 0;
 
 void autoPilotStuff() {
+	using namespace hid::button;
 
 	if (!playbackHandler.recording)
 		return;
@@ -434,24 +435,24 @@ void autoPilotStuff() {
 
 				// Or change sample mode
 				else if (randThing < 220) {
-					Buttons::buttonAction(hid::Button(shiftButtonX, shiftButtonY), true, false);
+					Buttons::buttonAction(SHIFT, true, false);
 					matrixDriver.padAction(0, getRandom255() % 4, true);
-					Buttons::buttonAction(hid::Button(shiftButtonX, shiftButtonY), false, false);
+					Buttons::buttonAction(SHIFT, false, false);
 
 					autoPilotMode = AUTOPILOT_IN_MENU;
 				}
 
 				// Or toggle playback
 				else if (randThing < 230) {
-					Buttons::buttonAction(hid::Button(playButtonX, playButtonY), true, false);
+					Buttons::buttonAction(PLAY, true, false);
 				}
 
 				// Or save song
 				/*
 				else {
 					autoPilotMode = AUTOPILOT_IN_SONG_SAVER;
-					Buttons::buttonAction(hid::Button(saveButtonX, saveButtonY), true, false);
-					Buttons::buttonAction(hid::Button(saveButtonX, saveButtonY), false, false);
+					Buttons::buttonAction(SAVE, true, false);
+					Buttons::buttonAction(SAVE, false, false);
 
 					QwertyUI::enteredText.set("T001");
 
@@ -485,7 +486,7 @@ void autoPilotStuff() {
 		// Or maybe load a sample
 		else {
 			autoPilotMode = AUTOPILOT_IN_MENU;
-			Buttons::buttonAction(hid::Button(kitButtonX, kitButtonY), true, false);
+			Buttons::buttonAction(KIT, true, false);
 		}
 
 		break;
@@ -509,12 +510,12 @@ void autoPilotStuff() {
 
 		// Maybe press back
 		else if (randThing < 220) {
-			Buttons::buttonAction(hid::Button(backButtonX, backButtonY), true, false);
+			Buttons::buttonAction(BACK, true, false);
 		}
 
 		// Maybe press encoder button
 		else {
-			Buttons::buttonAction(hid::Button(selectEncButtonX, selectEncButtonY), true, false);
+			Buttons::buttonAction(SELECT_ENC, true, false);
 		}
 
 		break;
@@ -527,8 +528,8 @@ void autoPilotStuff() {
 			break;
 		}
 
-		Buttons::buttonAction(hid::Button(saveButtonX, saveButtonY), true, false);
-		Buttons::buttonAction(hid::Button(saveButtonX, saveButtonY), false, false);
+		Buttons::buttonAction(SAVE, true, false);
+		Buttons::buttonAction(SAVE, false, false);
 
 		break;
 
@@ -554,13 +555,13 @@ void autoPilotStuff() {
 
 		// Maybe press back
 		else if (randThing < 220) {
-			Buttons::buttonAction(hid::Button(backButtonX, backButtonY), true, false);
+			Buttons::buttonAction(BACK, true, false);
 		}
 
 		// Maybe press load button
 		else {
-			//matrixDriver.buttonAction(hid::Button(loadButtonX, loadButtonY), true, false);
-			//matrixDriver.buttonAction(hid::Button(loadButtonX, loadButtonY), false, false);
+			//matrixDriver.buttonAction(LOAD, true, false);
+			//matrixDriver.buttonAction(LOAD, false, false);
 
 			loadSongUI.performLoad();
 		}
