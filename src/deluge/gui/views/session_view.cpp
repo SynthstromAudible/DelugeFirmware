@@ -139,12 +139,13 @@ void SessionView::focusRegained() {
 
 int SessionView::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 
-	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressor)
+	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx)
 	    == RuntimeFeatureStateToggle::On) { //master compressor
 		int modKnobMode = -1;
 		if (view.activeModControllableModelStack.modControllable) {
 			uint8_t* modKnobModePointer = view.activeModControllableModelStack.modControllable->getModKnobMode();
-			if (modKnobModePointer) modKnobMode = *modKnobModePointer;
+			if (modKnobModePointer)
+				modKnobMode = *modKnobModePointer;
 		}
 		const char* paramLabels[] = {"THRE", "MAKE", "ATTK", "REL", "RATI", "MIX"};
 
@@ -507,12 +508,13 @@ void SessionView::beginEditingSectionRepeatsNum() {
 
 int SessionView::padAction(int xDisplay, int yDisplay, int on) {
 
-	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressor)
+	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx)
 	    == RuntimeFeatureStateToggle::On) { //master compressor
 		int modKnobMode = -1;
 		if (view.activeModControllableModelStack.modControllable) {
 			uint8_t* modKnobModePointer = view.activeModControllableModelStack.modControllable->getModKnobMode();
-			if (modKnobModePointer) modKnobMode = *modKnobModePointer;
+			if (modKnobModePointer)
+				modKnobMode = *modKnobModePointer;
 		}
 		const char* paramLabels[] = {"THRE", "MAKE", "ATTK", "REL", "RATI", "MIX"};
 
@@ -1763,17 +1765,20 @@ void SessionView::graphicsRoutine() {
 	bool anyLinearRecordingOnThisScreen = false;
 	bool anyLinearRecordingOnNextScreen = false;
 
-	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressor) == RuntimeFeatureStateToggle::On) {
+	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx) == RuntimeFeatureStateToggle::On) {
 		int modKnobMode = -1;
 		if (view.activeModControllableModelStack.modControllable) {
 			uint8_t* modKnobModePointer = view.activeModControllableModelStack.modControllable->getModKnobMode();
-			if (modKnobModePointer) modKnobMode = *modKnobModePointer;
+			if (modKnobModePointer)
+				modKnobMode = *modKnobModePointer;
 		}
 		if (modKnobMode == 4 && abs(AudioEngine::mastercompressor.compressor.getThresh()) > 0.001
 		    && currentUIMode != UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) { //upper
 			double gr = AudioEngine::mastercompressor.gr;
-			if (gr >= 0) gr = 0;
-			if (gr <= -12) gr = -12.0;
+			if (gr >= 0)
+				gr = 0;
+			if (gr <= -12)
+				gr = -12.0;
 			gr = abs(gr);
 			IndicatorLEDs::setKnobIndicatorLevel(1, int(gr / 12.0 * 128)); //Gain Reduction LED
 		}
@@ -2335,33 +2340,39 @@ void SessionView::midiLearnFlash() {
 void SessionView::modEncoderAction(int whichModEncoder, int offset) {
 	performActionOnPadRelease = false;
 
-	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressor) == RuntimeFeatureStateToggle::On) {
+	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx) == RuntimeFeatureStateToggle::On) {
 		int modKnobMode = -1;
 		if (view.activeModControllableModelStack.modControllable) {
 			uint8_t* modKnobModePointer = view.activeModControllableModelStack.modControllable->getModKnobMode();
-			if (modKnobModePointer) modKnobMode = *modKnobModePointer;
+			if (modKnobModePointer)
+				modKnobMode = *modKnobModePointer;
 		}
 		if (modKnobMode == 4 && whichModEncoder == 1) { //upper encoder
 
 			if (masterCompEditMode == 0) { //Thresh DB
 				double thresh = AudioEngine::mastercompressor.compressor.getThresh();
 				thresh = thresh - (offset * .2);
-				if (thresh >= 0) thresh = 0;
-				if (thresh < -69) thresh = -69;
+				if (thresh >= 0)
+					thresh = 0;
+				if (thresh < -69)
+					thresh = -69;
 				AudioEngine::mastercompressor.compressor.setThresh(thresh);
 #if !HAVE_OLED
 				char buffer[6];
 				strcpy(buffer, "");
 				floatToString(thresh, buffer + strlen(buffer), 1, 1);
-				if (abs(thresh) < 0.01) strcpy(buffer, "OFF");
+				if (abs(thresh) < 0.01)
+					strcpy(buffer, "OFF");
 				numericDriver.displayPopup(buffer);
 #endif
 			}
 			else if (masterCompEditMode == 1) { //Makeup DB
 				double makeup = AudioEngine::mastercompressor.getMakeup();
 				makeup = makeup + (offset * 0.1);
-				if (makeup < 0) makeup = 0;
-				if (makeup > 20) makeup = 20;
+				if (makeup < 0)
+					makeup = 0;
+				if (makeup > 20)
+					makeup = 20;
 				AudioEngine::mastercompressor.setMakeup(makeup);
 #if !HAVE_OLED
 				char buffer[6];
@@ -2373,8 +2384,10 @@ void SessionView::modEncoderAction(int whichModEncoder, int offset) {
 			else if (masterCompEditMode == 2) { //Attack ms
 				double atk = AudioEngine::mastercompressor.compressor.getAttack();
 				atk = atk + offset * 0.1;
-				if (atk <= 0.1) atk = 0.1;
-				if (atk >= 30.0) atk = 30.0;
+				if (atk <= 0.1)
+					atk = 0.1;
+				if (atk >= 30.0)
+					atk = 30.0;
 				AudioEngine::mastercompressor.compressor.setAttack(atk);
 #if !HAVE_OLED
 				char buffer[5];
@@ -2386,8 +2399,10 @@ void SessionView::modEncoderAction(int whichModEncoder, int offset) {
 			else if (masterCompEditMode == 3) { //Release ms
 				double rel = AudioEngine::mastercompressor.compressor.getRelease();
 				rel = rel + offset * 100.0;
-				if (rel <= 100) rel = 100.0;
-				if (rel >= 1200.0) rel = 1200.0;
+				if (rel <= 100)
+					rel = 100.0;
+				if (rel >= 1200.0)
+					rel = 1200.0;
 				AudioEngine::mastercompressor.compressor.setRelease(rel);
 #if !HAVE_OLED
 				char buffer[6];
@@ -2399,8 +2414,10 @@ void SessionView::modEncoderAction(int whichModEncoder, int offset) {
 			else if (masterCompEditMode == 4) { //Ratio R:1
 				double ratio = 1.0 / AudioEngine::mastercompressor.compressor.getRatio();
 				ratio = ratio + offset * 0.1;
-				if (ratio <= 2.0) ratio = 2.0;
-				if (ratio >= 10.0) ratio = 10.0;
+				if (ratio <= 2.0)
+					ratio = 2.0;
+				if (ratio >= 10.0)
+					ratio = 10.0;
 				AudioEngine::mastercompressor.compressor.setRatio(1.0 / ratio);
 #if !HAVE_OLED
 				char buffer[5];
@@ -2412,8 +2429,10 @@ void SessionView::modEncoderAction(int whichModEncoder, int offset) {
 			else if (masterCompEditMode == 5) { //Wet 0.0 - 1.0
 				double wet = AudioEngine::mastercompressor.wet;
 				wet += offset * 0.01;
-				if (wet <= 0.0) wet = 0.0;
-				if (wet >= 1.0) wet = 1.0;
+				if (wet <= 0.0)
+					wet = 0.0;
+				if (wet >= 1.0)
+					wet = 1.0;
 				AudioEngine::mastercompressor.wet = wet;
 #if !HAVE_OLED
 				char buffer[6];
@@ -2453,7 +2472,8 @@ void SessionView::modEncoderAction(int whichModEncoder, int offset) {
 				                 OLED_MAIN_WIDTH_PIXELS - 2, TEXT_SPACING_X, TEXT_SPACING_Y);
 
 				floatToString(thresh, buffer, 1, 1);
-				if (abs(thresh) < 0.01) strcpy(buffer, "OFF");
+				if (abs(thresh) < 0.01)
+					strcpy(buffer, "OFF");
 				OLED::drawStringAlignRight(buffer, paddingTop + TEXT_SPACING_Y * 1, OLED::oledMainPopupImage[0],
 				                           OLED_MAIN_WIDTH_PIXELS - 2, TEXT_SPACING_X, TEXT_SPACING_Y,
 				                           paddingLeft + TEXT_SPACING_X * 9);
