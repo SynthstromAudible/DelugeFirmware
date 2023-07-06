@@ -36,7 +36,9 @@ LiveInputBuffer::~LiveInputBuffer() {
 
 void LiveInputBuffer::giveInput(int numSamples, uint32_t currentTime, int inputType) {
 
-	if (upToTime == (uint32_t)(currentTime + numSamples)) return; // It's already been done
+	if (upToTime == (uint32_t)(currentTime + numSamples)) {
+		return; // It's already been done
+	}
 
 	// Or if we need to reset everything cos we missed some
 	if (upToTime != currentTime) {
@@ -70,7 +72,9 @@ void LiveInputBuffer::giveInput(int numSamples, uint32_t currentTime, int inputT
 
 		int32_t angle = thisSampleRead - lastSampleRead;
 		lastSampleRead = thisSampleRead;
-		if (angle < 0) angle = -angle;
+		if (angle < 0) {
+			angle = -angle;
+		}
 
 		for (int p = 0; p < DIFFERENCE_LPF_POLES; p++) {
 			int32_t distanceToGo = angle - angleLPFMem[p];
@@ -82,7 +86,9 @@ void LiveInputBuffer::giveInput(int numSamples, uint32_t currentTime, int inputT
 		if ((numRawSamplesProcessed & (PERC_BUFFER_REDUCTION_SIZE - 1)) == 0) {
 
 			int32_t difference = angle - lastAngle;
-			if (difference < 0) difference = -difference;
+			if (difference < 0) {
+				difference = -difference;
+			}
 
 			int percussiveness = ((uint64_t)difference * 262144 / angle) >> 1;
 
@@ -94,7 +100,9 @@ void LiveInputBuffer::giveInput(int numSamples, uint32_t currentTime, int inputT
 		lastAngle = angle;
 
 		inputReadPos += NUM_MONO_INPUT_CHANNELS;
-		if (inputReadPos >= getRxBufferEnd()) inputReadPos -= SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS;
+		if (inputReadPos >= getRxBufferEnd()) {
+			inputReadPos -= SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS;
+		}
 
 		numRawSamplesProcessed++;
 	} while (numRawSamplesProcessed != endNumRawSamplesProcessed);

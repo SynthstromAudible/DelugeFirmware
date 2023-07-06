@@ -481,7 +481,8 @@ void usb_cstd_chg_curpipe(usb_utr_t* ptr, uint16_t pipe, uint16_t fifosel, uint1
     {
         case USB_CUSE: /* CFIFO use */
 
-            if ((fifoSels[USB_CUSE] & (uint16_t)(USB_ISEL | USB_CURPIPE)) == (uint16_t)(isel | pipe)) break;
+            if ((fifoSels[USB_CUSE] & (uint16_t)(USB_ISEL | USB_CURPIPE)) == (uint16_t)(isel | pipe))
+                break;
 
             /* ISEL=1, CURPIPE=0 */
             hw_usb_rmw_fifosel(ptr, USB_CUSE, ((USB_RCNT | isel) | pipe), ((USB_RCNT | USB_ISEL) | USB_CURPIPE));

@@ -210,15 +210,19 @@ void MIDIDevice::writeToFile(char const* tagName) {
 }
 
 int MIDIPort::channelToZone(int inputChannel) {
-	if (mpeLowerZoneLastMemberChannel && mpeLowerZoneLastMemberChannel >= inputChannel)
+	if (mpeLowerZoneLastMemberChannel && mpeLowerZoneLastMemberChannel >= inputChannel) {
 		return MIDI_CHANNEL_MPE_LOWER_ZONE;
-	if (mpeUpperZoneLastMemberChannel < 15 && mpeUpperZoneLastMemberChannel <= inputChannel)
+	}
+	if (mpeUpperZoneLastMemberChannel < 15 && mpeUpperZoneLastMemberChannel <= inputChannel) {
 		return MIDI_CHANNEL_MPE_UPPER_ZONE;
+	}
 	return inputChannel;
 }
 
 void MIDIPort::moveUpperZoneOutOfWayOfLowerZone() {
-	if (mpeLowerZoneLastMemberChannel >= 14) mpeUpperZoneLastMemberChannel = 15;
+	if (mpeLowerZoneLastMemberChannel >= 14) {
+		mpeUpperZoneLastMemberChannel = 15;
+	}
 	else if (mpeLowerZoneLastMemberChannel >= 1) {
 		if (mpeUpperZoneLastMemberChannel <= mpeLowerZoneLastMemberChannel) {
 			mpeUpperZoneLastMemberChannel = mpeLowerZoneLastMemberChannel + 1;
@@ -227,7 +231,9 @@ void MIDIPort::moveUpperZoneOutOfWayOfLowerZone() {
 }
 
 void MIDIPort::moveLowerZoneOutOfWayOfUpperZone() {
-	if (mpeUpperZoneLastMemberChannel <= 1) mpeLowerZoneLastMemberChannel = 0;
+	if (mpeUpperZoneLastMemberChannel <= 1) {
+		mpeLowerZoneLastMemberChannel = 0;
+	}
 	else if (mpeUpperZoneLastMemberChannel <= 14) {
 		if (mpeLowerZoneLastMemberChannel >= mpeUpperZoneLastMemberChannel) {
 			mpeLowerZoneLastMemberChannel = mpeUpperZoneLastMemberChannel - 1;
@@ -271,7 +277,9 @@ void MIDIPort::readFromFile(MIDIDevice* deviceToSendMCMsOn) {
 						if (newMPELowerZoneLastMemberChannel >= 0 && newMPELowerZoneLastMemberChannel < 16) {
 							mpeLowerZoneLastMemberChannel = newMPELowerZoneLastMemberChannel;
 							moveLowerZoneOutOfWayOfUpperZone(); // Move self out of way of other - just in case user or MCM has set other and that's the important one they want now.
-							if (deviceToSendMCMsOn) deviceToSendMCMsOn->sendRPN(0, 0, 6, mpeLowerZoneLastMemberChannel);
+							if (deviceToSendMCMsOn) {
+								deviceToSendMCMsOn->sendRPN(0, 0, 6, mpeLowerZoneLastMemberChannel);
+							}
 						}
 					}
 				}
@@ -291,8 +299,9 @@ void MIDIPort::readFromFile(MIDIDevice* deviceToSendMCMsOn) {
 						if (numUpperMemberChannels >= 0 && numUpperMemberChannels < 16) {
 							mpeUpperZoneLastMemberChannel = 15 - numUpperMemberChannels;
 							moveUpperZoneOutOfWayOfLowerZone(); // Move self out of way of other - just in case user or MCM has set other and that's the important one they want now.
-							if (deviceToSendMCMsOn)
+							if (deviceToSendMCMsOn) {
 								deviceToSendMCMsOn->sendRPN(15, 0, 6, 15 - mpeUpperZoneLastMemberChannel);
+							}
 						}
 					}
 				}
@@ -324,7 +333,9 @@ void MIDIDeviceUSB::sendMCMsNowIfNeeded() {
 }
 
 void MIDIDeviceUSB::sendMessage(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2) {
-	if (!connectionFlags) return;
+	if (!connectionFlags) {
+		return;
+	}
 
 	int ip = 0;
 

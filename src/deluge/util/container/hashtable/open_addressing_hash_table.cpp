@@ -44,8 +44,12 @@ OpenAddressingHashTable::~OpenAddressingHashTable() {
 }
 
 void OpenAddressingHashTable::empty(bool destructing) {
-	if (memory) generalMemoryAllocator.dealloc(memory);
-	if (secondaryMemory) generalMemoryAllocator.dealloc(secondaryMemory);
+	if (memory) {
+		generalMemoryAllocator.dealloc(memory);
+	}
+	if (secondaryMemory) {
+		generalMemoryAllocator.dealloc(secondaryMemory);
+	}
 
 	if (!destructing) {
 		memory = NULL;
@@ -83,14 +87,18 @@ void* OpenAddressingHashTable::secondaryMemoryGetBucketAddress(int b) {
 void* OpenAddressingHashTable::insert(uint32_t key, bool* onlyIfNotAlreadyPresent) {
 
 #if ALPHA_OR_BETA_VERSION
-	if (doesKeyIndicateEmptyBucket(key)) numericDriver.freezeWithError("E330");
+	if (doesKeyIndicateEmptyBucket(key)) {
+		numericDriver.freezeWithError("E330");
+	}
 #endif
 
 	// If no memory, get some
 	if (!memory) {
 		int newNumBuckets = initialNumBuckets;
 		memory = generalMemoryAllocator.alloc(newNumBuckets * elementSize, NULL, false, true);
-		if (!memory) return NULL;
+		if (!memory) {
+			return NULL;
+		}
 
 		numBuckets = newNumBuckets;
 		numElements = 0; // Should already be...
@@ -135,7 +143,9 @@ void* OpenAddressingHashTable::insert(uint32_t key, bool* onlyIfNotAlreadyPresen
 					while (true) {
 						destBucketAddress = getBucketAddress(destBucketIndex);
 						uint32_t destKey = getKeyFromAddress(destBucketAddress);
-						if (doesKeyIndicateEmptyBucket(destKey)) break;
+						if (doesKeyIndicateEmptyBucket(destKey)) {
+							break;
+						}
 						destBucketIndex = (destBucketIndex + 1) & (numBuckets - 1);
 					}
 
@@ -155,7 +165,9 @@ void* OpenAddressingHashTable::insert(uint32_t key, bool* onlyIfNotAlreadyPresen
 	}
 
 	// If still can't get new memory and table completely full...
-	if (numElements == numBuckets) return NULL;
+	if (numElements == numBuckets) {
+		return NULL;
+	}
 
 	int b = getBucketIndex(key);
 	void* bucketAddress;
@@ -166,7 +178,9 @@ void* OpenAddressingHashTable::insert(uint32_t key, bool* onlyIfNotAlreadyPresen
 			*onlyIfNotAlreadyPresent = true;
 			goto justReturnAddress;
 		}
-		if (doesKeyIndicateEmptyBucket(destKey)) break;
+		if (doesKeyIndicateEmptyBucket(destKey)) {
+			break;
+		}
 		b = (b + 1) & (numBuckets - 1);
 	}
 
@@ -182,10 +196,14 @@ justReturnAddress:
 void* OpenAddressingHashTable::lookup(uint32_t key) {
 
 #if ALPHA_OR_BETA_VERSION
-	if (doesKeyIndicateEmptyBucket(key)) numericDriver.freezeWithError("E331");
+	if (doesKeyIndicateEmptyBucket(key)) {
+		numericDriver.freezeWithError("E331");
+	}
 #endif
 
-	if (!memory) return NULL;
+	if (!memory) {
+		return NULL;
+	}
 
 	int bInitial = getBucketIndex(key);
 	int b = bInitial;
@@ -195,15 +213,21 @@ void* OpenAddressingHashTable::lookup(uint32_t key) {
 		uint32_t keyHere = getKeyFromAddress(bucketAddress);
 
 		// If reached an empty bucket, there's nothing there
-		if (doesKeyIndicateEmptyBucket(keyHere)) break;
+		if (doesKeyIndicateEmptyBucket(keyHere)) {
+			break;
+		}
 
 		// Bucket's not empty. Does it hold our key?
-		if (keyHere == key) return bucketAddress;
+		if (keyHere == key) {
+			return bucketAddress;
+		}
 
 		b = (b + 1) & (numBuckets - 1);
 
 		// If we've wrapped all the way around (which could only happen if table 100% full)
-		if (b == bInitial) break;
+		if (b == bInitial) {
+			break;
+		}
 	}
 
 	return NULL;
@@ -213,10 +237,14 @@ void* OpenAddressingHashTable::lookup(uint32_t key) {
 bool OpenAddressingHashTable::remove(uint32_t key) {
 
 #if ALPHA_OR_BETA_VERSION
-	if (doesKeyIndicateEmptyBucket(key)) numericDriver.freezeWithError("E332");
+	if (doesKeyIndicateEmptyBucket(key)) {
+		numericDriver.freezeWithError("E332");
+	}
 #endif
 
-	if (!memory) return false;
+	if (!memory) {
+		return false;
+	}
 
 	int bInitial = getBucketIndex(key);
 	int b = bInitial;
@@ -227,15 +255,21 @@ bool OpenAddressingHashTable::remove(uint32_t key) {
 		uint32_t keyHere = getKeyFromAddress(bucketAddress);
 
 		// If reached an empty bucket, can't find our element
-		if (doesKeyIndicateEmptyBucket(keyHere)) return false;
+		if (doesKeyIndicateEmptyBucket(keyHere)) {
+			return false;
+		}
 
 		// Bucket's not empty. Does it hold our key?
-		if (keyHere == key) break;
+		if (keyHere == key) {
+			break;
+		}
 
 		b = (b + 1) & (numBuckets - 1);
 
 		// If we've wrapped all the way around (which could only happen if table 100% full)
-		if (b == bInitial) return false;
+		if (b == bInitial) {
+			return false;
+		}
 	}
 
 	// We found the bucket with our element.
@@ -256,14 +290,18 @@ bool OpenAddressingHashTable::remove(uint32_t key) {
 			b = (b + 1) & (numBuckets - 1);
 
 			// If we've wrapped all the way around (which could only happen if table 100% full)
-			if (b == bInitial) break;
+			if (b == bInitial) {
+				break;
+			}
 
 			void* newBucketAddress = getBucketAddress(b);
 
 			uint32_t keyHere = getKeyFromAddress(newBucketAddress);
 
 			// If reached an empty bucket, we're done
-			if (doesKeyIndicateEmptyBucket(keyHere)) break;
+			if (doesKeyIndicateEmptyBucket(keyHere)) {
+				break;
+			}
 
 			// Bucket contains an element. What bucket did this element ideally want to be in?
 			int idealBucket = getBucketIndex(keyHere);
@@ -349,7 +387,9 @@ void OpenAddressingHashTable::test() {
 
 	while (true) {
 		count++;
-		if (!(count & ((1 << 13) - 1))) Uart::println("still going");
+		if (!(count & ((1 << 13) - 1))) {
+			Uart::println("still going");
+		}
 
 		int numElementsAdded = 0;
 
@@ -366,23 +406,26 @@ void OpenAddressingHashTable::test() {
 
 			if (!result) {
 				Uart::println("couldn't add element");
-				while (1)
+				while (1) {
 					;
+				}
 			}
 		}
 
 		if (numElements != NUM_ELEMENTS_TO_ADD) {
 			Uart::println("wrong numElements");
-			while (1)
+			while (1) {
 				;
+			}
 		}
 
 		// See if it'll let us remove an element that doesn't exist
 		bool result = remove(0);
 		if (result) {
 			Uart::println("reported successful removal of nonexistent element");
-			while (1)
+			while (1) {
 				;
+			}
 		}
 
 		for (int i = 0; i < NUM_ELEMENTS_TO_ADD; i++) {
@@ -396,23 +439,26 @@ void OpenAddressingHashTable::test() {
 				Uart::println(numElements);
 				Uart::print("key == ");
 				Uart::println(elementsAdded[i]);
-				while (1)
+				while (1) {
 					;
+				}
 			}
 		}
 
 		if (numElements != 0) {
 			Uart::println("numElements didn't return to 0");
-			while (1)
+			while (1) {
 				;
+			}
 		}
 
 		// See if it'll let us remove an element that doesn't exist
 		result = remove(0);
 		if (result) {
 			Uart::println("reported successful removal of element when there are no elements at all");
-			while (1)
+			while (1) {
 				;
+			}
 		}
 	}
 }

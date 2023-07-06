@@ -101,8 +101,12 @@ void LivePitchShifterPlayHead::render(int32_t* __restrict__ outputBuffer, int nu
 			amplitude += amplitudeIncrement;
 
 			int32_t sampleRead[2];
-			if (interpolationBufferSize > 2) interpolate(sampleRead, numChannels, whichKernel);
-			else interpolateLinear(sampleRead, numChannels, whichKernel);
+			if (interpolationBufferSize > 2) {
+				interpolate(sampleRead, numChannels, whichKernel);
+			}
+			else {
+				interpolateLinear(sampleRead, numChannels, whichKernel);
+			}
 
 			*outputBuffer += multiply_32x32_rshift32_rounded(sampleRead[0], amplitude) << 5;
 			outputBuffer++;
@@ -151,8 +155,12 @@ int LivePitchShifterPlayHead::getEstimatedPlaytimeRemaining(uint32_t repitchedBu
 	}
 
 	uint64_t estimate = ((uint64_t)howFarBack << 24) / (uint32_t)(phaseIncrement - 16777216);
-	if (estimate >= 2147483647) return 2147483647;
-	else return estimate;
+	if (estimate >= 2147483647) {
+		return 2147483647;
+	}
+	else {
+		return estimate;
+	}
 }
 
 int LivePitchShifterPlayHead::getNumRawSamplesBehindInput(LiveInputBuffer* liveInputBuffer,

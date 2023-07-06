@@ -77,7 +77,8 @@ public:
 
 	inline void convertOneData(int32_t* value) {
 		// Floating point
-		if (rawDataFormat == RAW_DATA_FLOAT) convertFloatToIntAtMemoryLocation((uint32_t*)value);
+		if (rawDataFormat == RAW_DATA_FLOAT)
+			convertFloatToIntAtMemoryLocation((uint32_t*)value);
 
 		// Or endianness swap
 		else if (rawDataFormat == RAW_DATA_ENDIANNESS_WRONG_32) {

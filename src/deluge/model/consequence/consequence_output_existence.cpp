@@ -37,7 +37,9 @@ int ConsequenceOutputExistence::revert(int time, ModelStack* modelStack) {
 	else { // Re-delete
 
 		outputIndex = modelStack->song->removeOutputFromMainList(output);
-		if (ALPHA_OR_BETA_VERSION && outputIndex == -1) numericDriver.freezeWithError("E263");
+		if (ALPHA_OR_BETA_VERSION && outputIndex == -1) {
+			numericDriver.freezeWithError("E263");
+		}
 
 		output->prepareForHibernationOrDeletion();
 	}

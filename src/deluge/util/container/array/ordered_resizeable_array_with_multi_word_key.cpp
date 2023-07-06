@@ -25,7 +25,9 @@ OrderedResizeableArrayWithMultiWordKey::OrderedResizeableArrayWithMultiWordKey(i
 int OrderedResizeableArrayWithMultiWordKey::searchMultiWord(uint32_t* __restrict__ keyWords, int comparison,
                                                             int rangeBegin, int rangeEnd) {
 
-	if (rangeEnd == -1) rangeEnd = numElements;
+	if (rangeEnd == -1) {
+		rangeEnd = numElements;
+	}
 
 	const uint32_t* const finalKeyWord = keyWords + (numWordsInKey - 1);
 
@@ -37,9 +39,15 @@ int OrderedResizeableArrayWithMultiWordKey::searchMultiWord(uint32_t* __restrict
 
 		while (true) {
 			int difference = *wordsHere - *keyWord;
-			if (difference > 0) break;
-			if (difference < 0) goto searchFurtherRight;
-			if (keyWord == finalKeyWord) break;
+			if (difference > 0) {
+				break;
+			}
+			if (difference < 0) {
+				goto searchFurtherRight;
+			}
+			if (keyWord == finalKeyWord) {
+				break;
+			}
 			keyWord++;
 			wordsHere++;
 		}
@@ -62,14 +70,18 @@ int OrderedResizeableArrayWithMultiWordKey::searchMultiWordExact(uint32_t* __res
 	if (i < numElements) {
 		uint32_t* __restrict__ wordsHere = (uint32_t*)getElementAddress(i);
 		for (int w = 0; w < numWordsInKey; w++) {
-			if (wordsHere[w] != keyWords[w]) goto notFound;
+			if (wordsHere[w] != keyWords[w]) {
+				goto notFound;
+			}
 		}
 
 		return i;
 	}
 
 notFound:
-	if (getIndexToInsertAt) *getIndexToInsertAt = i;
+	if (getIndexToInsertAt) {
+		*getIndexToInsertAt = i;
+	}
 	return -1;
 }
 
@@ -79,7 +91,9 @@ int OrderedResizeableArrayWithMultiWordKey::insertAtKeyMultiWord(uint32_t* __res
 	int i = searchMultiWord(keyWords, GREATER_OR_EQUAL, 0, rangeEnd);
 
 	int error = insertAtIndex(i);
-	if (error) return -1;
+	if (error) {
+		return -1;
+	}
 
 	uint32_t* __restrict__ wordsHere = (uint32_t*)getElementAddress(i);
 

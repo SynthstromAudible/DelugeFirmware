@@ -225,7 +225,9 @@ int32_t getFinalParameterValueExpWithDumbEnvelopeHack(int32_t paramNeutralValue,
 	if (p >= PARAM_LOCAL_ENV_0_DECAY && p <= PARAM_LOCAL_ENV_1_RELEASE) {
 		return multiply_32x32_rshift32(paramNeutralValue, lookupReleaseRate(patchedValue));
 	}
-	if (p == PARAM_LOCAL_ENV_0_ATTACK || p == PARAM_LOCAL_ENV_1_ATTACK) patchedValue = -patchedValue;
+	if (p == PARAM_LOCAL_ENV_0_ATTACK || p == PARAM_LOCAL_ENV_1_ATTACK) {
+		patchedValue = -patchedValue;
+	}
 
 	return getFinalParameterValueExp(paramNeutralValue, patchedValue);
 }
@@ -263,7 +265,9 @@ void setRefreshTime(int newTime) {
 
 void changeRefreshTime(int offset) {
 	int newTime = refreshTime + offset;
-	if (newTime > 255 || newTime < 1) return;
+	if (newTime > 255 || newTime < 1) {
+		return;
+	}
 	setRefreshTime(newTime);
 	char buffer[12];
 	intToString(refreshTime, buffer);
@@ -273,7 +277,9 @@ void changeRefreshTime(int offset) {
 void changeDimmerInterval(int offset) {
 	int newInterval = dimmerInterval - offset;
 	if (newInterval > 25 || newInterval < 0) {}
-	else setDimmerInterval(newInterval);
+	else {
+		setDimmerInterval(newInterval);
+	}
 
 #if HAVE_OLED
 	char text[20];
@@ -530,7 +536,9 @@ char const* getPatchedParamDisplayNameForOled(int p) {
 
 uint8_t stringToSource(char const* string) {
 	for (int s = 0; s < NUM_PATCH_SOURCES; s++) {
-		if (!strcmp(string, sourceToString(s))) return s;
+		if (!strcmp(string, sourceToString(s))) {
+			return s;
+		}
 	}
 	return PATCH_SOURCE_NONE;
 }
@@ -570,13 +578,21 @@ bool paramNeedsLPF(int p, bool fromAutomation) {
 }
 
 char halfByteToHexChar(uint8_t thisHalfByte) {
-	if (thisHalfByte < 10) return 48 + thisHalfByte;
-	else return 55 + thisHalfByte;
+	if (thisHalfByte < 10) {
+		return 48 + thisHalfByte;
+	}
+	else {
+		return 55 + thisHalfByte;
+	}
 }
 
 char hexCharToHalfByte(unsigned char hexChar) {
-	if (hexChar >= 65) return hexChar - 55;
-	else return hexChar - 48;
+	if (hexChar >= 65) {
+		return hexChar - 55;
+	}
+	else {
+		return hexChar - 48;
+	}
 }
 
 void intToHex(uint32_t number, char* output, int numChars) {
@@ -659,7 +675,9 @@ doInterval:
 
 		return newValuePositive - 2147483648u;
 	}
-	else return oldValue;
+	else {
+		return oldValue;
+	}
 }
 
 int32_t interpolateTable(uint32_t input, int numBitsInInput, const uint16_t* table, int numBitsInTableSize) {
@@ -669,8 +687,12 @@ int32_t interpolateTable(uint32_t input, int numBitsInInput, const uint16_t* tab
 
 	int rshiftAmount = numBitsInInput - 15 - numBitsInTableSize;
 	uint32_t rshifted;
-	if (rshiftAmount >= 0) rshifted = input >> rshiftAmount;
-	else rshifted = input << (-rshiftAmount);
+	if (rshiftAmount >= 0) {
+		rshifted = input >> rshiftAmount;
+	}
+	else {
+		rshifted = input << (-rshiftAmount);
+	}
 
 	int strength2 = rshifted & 32767;
 	int strength1 = 32768 - strength2;
@@ -685,8 +707,12 @@ uint32_t interpolateTableInverse(int32_t tableValueBig, int numBitsInLookupOutpu
 	int tableDirection = (table[0] < table[tableSize]) ? 1 : -1;
 
 	// Check we're not off either end of the table
-	if ((tableValue - table[0]) * tableDirection <= 0) return 0;
-	if ((tableValue - table[tableSize]) * tableDirection >= 0) return (1 << numBitsInLookupOutput) - 1;
+	if ((tableValue - table[0]) * tableDirection <= 0) {
+		return 0;
+	}
+	if ((tableValue - table[tableSize]) * tableDirection >= 0) {
+		return (1 << numBitsInLookupOutput) - 1;
+	}
 
 	int rangeStart = 0;
 	int rangeEnd = tableSize;
@@ -739,7 +765,9 @@ int32_t quickLog(uint32_t input) {
 
 bool memIsNumericChars(char const* mem, int size) {
 	for (int i = 0; i < size; i++) {
-		if (*mem < 48 || *mem >= 58) return false;
+		if (*mem < 48 || *mem >= 58) {
+			return false;
+		}
 		mem++;
 	}
 	return true;
@@ -750,9 +778,15 @@ bool stringIsNumericChars(char const* str) {
 }
 
 char const* getThingName(uint8_t instrumentType) {
-	if (instrumentType == INSTRUMENT_TYPE_SYNTH) return "SYNT";
-	else if (instrumentType == INSTRUMENT_TYPE_KIT) return "KIT";
-	else return "SONG";
+	if (instrumentType == INSTRUMENT_TYPE_SYNTH) {
+		return "SYNT";
+	}
+	else if (instrumentType == INSTRUMENT_TYPE_KIT) {
+		return "KIT";
+	}
+	else {
+		return "SONG";
+	}
 }
 
 void byteToHex(uint8_t number, char* buffer) {
@@ -764,14 +798,22 @@ void byteToHex(uint8_t number, char* buffer) {
 uint8_t hexToByte(char const* firstChar) {
 	uint8_t value = 0;
 
-	if (*firstChar >= 48 && *firstChar < 58) value += *firstChar - 48;
-	else value += *firstChar - 55;
+	if (*firstChar >= 48 && *firstChar < 58) {
+		value += *firstChar - 48;
+	}
+	else {
+		value += *firstChar - 55;
+	}
 
 	*firstChar++;
 	value <<= 4;
 
-	if (*firstChar >= 48 && *firstChar < 58) value += *firstChar - 48;
-	else value += *firstChar - 55;
+	if (*firstChar >= 48 && *firstChar < 58) {
+		value += *firstChar - 48;
+	}
+	else {
+		value += *firstChar - 55;
+	}
 
 	return value;
 }
@@ -780,7 +822,9 @@ uint8_t hexToByte(char const* firstChar) {
 int32_t stringToInt(char const* __restrict__ string) {
 	uint32_t number = 0;
 	bool isNegative = (*string == '-');
-	if (isNegative) string++;
+	if (isNegative) {
+		string++;
+	}
 
 	while (*string >= '0' && *string <= '9') {
 		number *= 10;
@@ -789,16 +833,24 @@ int32_t stringToInt(char const* __restrict__ string) {
 	}
 
 	if (isNegative) {
-		if (number >= 2147483648) return -2147483648;
-		else return -(int32_t)number;
+		if (number >= 2147483648) {
+			return -2147483648;
+		}
+		else {
+			return -(int32_t)number;
+		}
 	}
-	else return number;
+	else {
+		return number;
+	}
 }
 
 int32_t stringToUIntOrError(char const* __restrict__ mem) {
 	uint32_t number = 0;
 	while (*mem) {
-		if (*mem < '0' || *mem > '9') return -1;
+		if (*mem < '0' || *mem > '9') {
+			return -1;
+		}
 		number *= 10;
 		number += (*mem - '0');
 		mem++;
@@ -810,7 +862,9 @@ int32_t stringToUIntOrError(char const* __restrict__ mem) {
 int32_t memToUIntOrError(char const* __restrict__ mem, char const* const memEnd) {
 	uint32_t number = 0;
 	while (mem != memEnd) {
-		if (*mem < '0' || *mem > '9') return -1;
+		if (*mem < '0' || *mem > '9') {
+			return -1;
+		}
 		number *= 10;
 		number += (*mem - '0');
 		mem++;
@@ -873,17 +927,39 @@ char const* oscTypeToString(unsigned int oscType) {
 
 int stringToOscType(char const* string) {
 
-	if (!strcmp(string, "square")) return OSC_TYPE_SQUARE;
-	else if (!strcmp(string, "analogSquare")) return OSC_TYPE_ANALOG_SQUARE;
-	else if (!strcmp(string, "analogSaw")) return OSC_TYPE_ANALOG_SAW_2;
-	else if (!strcmp(string, "saw")) return OSC_TYPE_SAW;
-	else if (!strcmp(string, "sine")) return OSC_TYPE_SINE;
-	else if (!strcmp(string, "sample")) return OSC_TYPE_SAMPLE;
-	else if (!strcmp(string, "wavetable")) return OSC_TYPE_WAVETABLE;
-	else if (!strcmp(string, "inLeft")) return OSC_TYPE_INPUT_L;
-	else if (!strcmp(string, "inRight")) return OSC_TYPE_INPUT_R;
-	else if (!strcmp(string, "inStereo")) return OSC_TYPE_INPUT_STEREO;
-	else return OSC_TYPE_TRIANGLE;
+	if (!strcmp(string, "square")) {
+		return OSC_TYPE_SQUARE;
+	}
+	else if (!strcmp(string, "analogSquare")) {
+		return OSC_TYPE_ANALOG_SQUARE;
+	}
+	else if (!strcmp(string, "analogSaw")) {
+		return OSC_TYPE_ANALOG_SAW_2;
+	}
+	else if (!strcmp(string, "saw")) {
+		return OSC_TYPE_SAW;
+	}
+	else if (!strcmp(string, "sine")) {
+		return OSC_TYPE_SINE;
+	}
+	else if (!strcmp(string, "sample")) {
+		return OSC_TYPE_SAMPLE;
+	}
+	else if (!strcmp(string, "wavetable")) {
+		return OSC_TYPE_WAVETABLE;
+	}
+	else if (!strcmp(string, "inLeft")) {
+		return OSC_TYPE_INPUT_L;
+	}
+	else if (!strcmp(string, "inRight")) {
+		return OSC_TYPE_INPUT_R;
+	}
+	else if (!strcmp(string, "inStereo")) {
+		return OSC_TYPE_INPUT_STEREO;
+	}
+	else {
+		return OSC_TYPE_TRIANGLE;
+	}
 }
 
 char const* lfoTypeToString(int oscType) {
@@ -909,12 +985,24 @@ char const* lfoTypeToString(int oscType) {
 }
 
 int stringToLFOType(char const* string) {
-	if (!strcmp(string, "square")) return LFO_TYPE_SQUARE;
-	else if (!strcmp(string, "saw")) return LFO_TYPE_SAW;
-	else if (!strcmp(string, "sine")) return LFO_TYPE_SINE;
-	else if (!strcmp(string, "sah")) return LFO_TYPE_SAH;
-	else if (!strcmp(string, "rwalk")) return LFO_TYPE_RWALK;
-	else return LFO_TYPE_TRIANGLE;
+	if (!strcmp(string, "square")) {
+		return LFO_TYPE_SQUARE;
+	}
+	else if (!strcmp(string, "saw")) {
+		return LFO_TYPE_SAW;
+	}
+	else if (!strcmp(string, "sine")) {
+		return LFO_TYPE_SINE;
+	}
+	else if (!strcmp(string, "sah")) {
+		return LFO_TYPE_SAH;
+	}
+	else if (!strcmp(string, "rwalk")) {
+		return LFO_TYPE_RWALK;
+	}
+	else {
+		return LFO_TYPE_TRIANGLE;
+	}
 }
 
 char const* synthModeToString(int synthMode) {
@@ -931,9 +1019,15 @@ char const* synthModeToString(int synthMode) {
 }
 
 int stringToSynthMode(char const* string) {
-	if (!strcmp(string, "fm")) return SYNTH_MODE_FM;
-	else if (!strcmp(string, "ringmod")) return SYNTH_MODE_RINGMOD;
-	else return SYNTH_MODE_SUBTRACTIVE;
+	if (!strcmp(string, "fm")) {
+		return SYNTH_MODE_FM;
+	}
+	else if (!strcmp(string, "ringmod")) {
+		return SYNTH_MODE_RINGMOD;
+	}
+	else {
+		return SYNTH_MODE_SUBTRACTIVE;
+	}
 }
 
 char const* polyphonyModeToString(int synthMode) {
@@ -956,13 +1050,27 @@ char const* polyphonyModeToString(int synthMode) {
 }
 
 int stringToPolyphonyMode(char const* string) {
-	if (!strcmp(string, "mono")) return POLYPHONY_MONO;
-	else if (!strcmp(string, "auto")) return POLYPHONY_AUTO;
-	else if (!strcmp(string, "0")) return POLYPHONY_AUTO; // Old firmware, pre June 2017
-	else if (!strcmp(string, "legato")) return POLYPHONY_LEGATO;
-	else if (!strcmp(string, "choke")) return POLYPHONY_CHOKE;
-	else if (!strcmp(string, "2")) return POLYPHONY_CHOKE; // Old firmware, pre June 2017
-	else return POLYPHONY_POLY;
+	if (!strcmp(string, "mono")) {
+		return POLYPHONY_MONO;
+	}
+	else if (!strcmp(string, "auto")) {
+		return POLYPHONY_AUTO;
+	}
+	else if (!strcmp(string, "0")) {
+		return POLYPHONY_AUTO; // Old firmware, pre June 2017
+	}
+	else if (!strcmp(string, "legato")) {
+		return POLYPHONY_LEGATO;
+	}
+	else if (!strcmp(string, "choke")) {
+		return POLYPHONY_CHOKE;
+	}
+	else if (!strcmp(string, "2")) {
+		return POLYPHONY_CHOKE; // Old firmware, pre June 2017
+	}
+	else {
+		return POLYPHONY_POLY;
+	}
 }
 
 char const* fxTypeToString(int fxType) {
@@ -985,11 +1093,21 @@ char const* fxTypeToString(int fxType) {
 }
 
 int stringToFXType(char const* string) {
-	if (!strcmp(string, "flanger")) return MOD_FX_TYPE_FLANGER;
-	else if (!strcmp(string, "chorus")) return MOD_FX_TYPE_CHORUS;
-	else if (!strcmp(string, "StereoChorus")) return MOD_FX_TYPE_CHORUS_STEREO;
-	else if (!strcmp(string, "phaser")) return MOD_FX_TYPE_PHASER;
-	else return MOD_FX_TYPE_NONE;
+	if (!strcmp(string, "flanger")) {
+		return MOD_FX_TYPE_FLANGER;
+	}
+	else if (!strcmp(string, "chorus")) {
+		return MOD_FX_TYPE_CHORUS;
+	}
+	else if (!strcmp(string, "StereoChorus")) {
+		return MOD_FX_TYPE_CHORUS_STEREO;
+	}
+	else if (!strcmp(string, "phaser")) {
+		return MOD_FX_TYPE_PHASER;
+	}
+	else {
+		return MOD_FX_TYPE_NONE;
+	}
 }
 
 char const* modFXParamToString(int fxType) {
@@ -1006,9 +1124,15 @@ char const* modFXParamToString(int fxType) {
 }
 
 int stringToModFXParam(char const* string) {
-	if (!strcmp(string, "depth")) return MOD_FX_PARAM_DEPTH;
-	else if (!strcmp(string, "feedback")) return MOD_FX_PARAM_FEEDBACK;
-	else return MOD_FX_PARAM_OFFSET;
+	if (!strcmp(string, "depth")) {
+		return MOD_FX_PARAM_DEPTH;
+	}
+	else if (!strcmp(string, "feedback")) {
+		return MOD_FX_PARAM_FEEDBACK;
+	}
+	else {
+		return MOD_FX_PARAM_OFFSET;
+	}
 }
 
 char const* filterTypeToString(int fxType) {
@@ -1025,9 +1149,15 @@ char const* filterTypeToString(int fxType) {
 }
 
 int stringToFilterType(char const* string) {
-	if (!strcmp(string, "hpf")) return FILTER_TYPE_HPF;
-	else if (!strcmp(string, "eq")) return FILTER_TYPE_EQ;
-	else return FILTER_TYPE_LPF;
+	if (!strcmp(string, "hpf")) {
+		return FILTER_TYPE_HPF;
+	}
+	else if (!strcmp(string, "eq")) {
+		return FILTER_TYPE_EQ;
+	}
+	else {
+		return FILTER_TYPE_LPF;
+	}
 }
 
 char const* arpModeToString(int mode) {
@@ -1050,11 +1180,21 @@ char const* arpModeToString(int mode) {
 }
 
 int stringToArpMode(char const* string) {
-	if (!strcmp(string, "up")) return ARP_MODE_UP;
-	else if (!strcmp(string, "down")) return ARP_MODE_DOWN;
-	else if (!strcmp(string, "both")) return ARP_MODE_BOTH;
-	else if (!strcmp(string, "random")) return ARP_MODE_RANDOM;
-	else return ARP_MODE_OFF;
+	if (!strcmp(string, "up")) {
+		return ARP_MODE_UP;
+	}
+	else if (!strcmp(string, "down")) {
+		return ARP_MODE_DOWN;
+	}
+	else if (!strcmp(string, "both")) {
+		return ARP_MODE_BOTH;
+	}
+	else if (!strcmp(string, "random")) {
+		return ARP_MODE_RANDOM;
+	}
+	else {
+		return ARP_MODE_OFF;
+	}
 }
 
 char const* lpfTypeToString(int lpfType) {
@@ -1074,10 +1214,18 @@ char const* lpfTypeToString(int lpfType) {
 }
 
 int stringToLPFType(char const* string) {
-	if (!strcmp(string, "24dB")) return LPF_MODE_TRANSISTOR_24DB;
-	else if (!strcmp(string, "24dBDrive")) return LPF_MODE_TRANSISTOR_24DB_DRIVE;
-	else if (!strcmp(string, "SVF")) return LPF_MODE_SVF;
-	else return LPF_MODE_12DB;
+	if (!strcmp(string, "24dB")) {
+		return LPF_MODE_TRANSISTOR_24DB;
+	}
+	else if (!strcmp(string, "24dBDrive")) {
+		return LPF_MODE_TRANSISTOR_24DB_DRIVE;
+	}
+	else if (!strcmp(string, "SVF")) {
+		return LPF_MODE_SVF;
+	}
+	else {
+		return LPF_MODE_12DB;
+	}
 }
 
 char const* inputChannelToString(int inputChannel) {
@@ -1106,13 +1254,27 @@ char const* inputChannelToString(int inputChannel) {
 }
 
 int stringToInputChannel(char const* string) {
-	if (!strcmp(string, "left")) return AUDIO_INPUT_CHANNEL_LEFT;
-	else if (!strcmp(string, "right")) return AUDIO_INPUT_CHANNEL_RIGHT;
-	else if (!strcmp(string, "stereo")) return AUDIO_INPUT_CHANNEL_STEREO;
-	else if (!strcmp(string, "balanced")) return AUDIO_INPUT_CHANNEL_BALANCED;
-	else if (!strcmp(string, "mix")) return AUDIO_INPUT_CHANNEL_MIX;
-	else if (!strcmp(string, "output")) return AUDIO_INPUT_CHANNEL_OUTPUT;
-	else return AUDIO_INPUT_CHANNEL_NONE;
+	if (!strcmp(string, "left")) {
+		return AUDIO_INPUT_CHANNEL_LEFT;
+	}
+	else if (!strcmp(string, "right")) {
+		return AUDIO_INPUT_CHANNEL_RIGHT;
+	}
+	else if (!strcmp(string, "stereo")) {
+		return AUDIO_INPUT_CHANNEL_STEREO;
+	}
+	else if (!strcmp(string, "balanced")) {
+		return AUDIO_INPUT_CHANNEL_BALANCED;
+	}
+	else if (!strcmp(string, "mix")) {
+		return AUDIO_INPUT_CHANNEL_MIX;
+	}
+	else if (!strcmp(string, "output")) {
+		return AUDIO_INPUT_CHANNEL_OUTPUT;
+	}
+	else {
+		return AUDIO_INPUT_CHANNEL_NONE;
+	}
 }
 
 char const* sequenceDirectionModeToString(int sequenceDirectionMode) {
@@ -1136,16 +1298,30 @@ char const* sequenceDirectionModeToString(int sequenceDirectionMode) {
 }
 
 int stringToSequenceDirectionMode(char const* string) {
-	if (!strcmp(string, "reverse")) return SEQUENCE_DIRECTION_REVERSE;
-	else if (!strcmp(string, "pingpong")) return SEQUENCE_DIRECTION_PINGPONG;
-	else if (!strcmp(string, "obeyParent")) return SEQUENCE_DIRECTION_OBEY_PARENT;
-	else return SEQUENCE_DIRECTION_FORWARD;
+	if (!strcmp(string, "reverse")) {
+		return SEQUENCE_DIRECTION_REVERSE;
+	}
+	else if (!strcmp(string, "pingpong")) {
+		return SEQUENCE_DIRECTION_PINGPONG;
+	}
+	else if (!strcmp(string, "obeyParent")) {
+		return SEQUENCE_DIRECTION_OBEY_PARENT;
+	}
+	else {
+		return SEQUENCE_DIRECTION_FORWARD;
+	}
 }
 
 char const* getInstrumentFolder(uint8_t instrumentType) {
-	if (instrumentType == INSTRUMENT_TYPE_SYNTH) return "SYNTHS";
-	else if (instrumentType == INSTRUMENT_TYPE_KIT) return "KITS";
-	else return "SONGS";
+	if (instrumentType == INSTRUMENT_TYPE_SYNTH) {
+		return "SYNTHS";
+	}
+	else if (instrumentType == INSTRUMENT_TYPE_KIT) {
+		return "KITS";
+	}
+	else {
+		return "SONGS";
+	}
 }
 
 void getThingFilename(char const* thingName, int16_t currentSlot, int8_t currentSubSlot, char* buffer) {
@@ -1175,8 +1351,12 @@ int32_t lookupReleaseRate(int32_t input) {
 	int32_t whichValue = input >> magnitude;                           // 25
 	int32_t howMuchFurther = (input << (31 - magnitude)) & 2147483647; // 6
 	whichValue += 32;                                                  // Put it in the range 0 to 64
-	if (whichValue < 0) return releaseRateTable64[0];
-	else if (whichValue >= 64) return releaseRateTable64[64];
+	if (whichValue < 0) {
+		return releaseRateTable64[0];
+	}
+	else if (whichValue >= 64) {
+		return releaseRateTable64[64];
+	}
 	int32_t value1 = releaseRateTable64[whichValue];
 	int32_t value2 = releaseRateTable64[whichValue + 1];
 	return (multiply_32x32_rshift32(value2, howMuchFurther)
@@ -1205,8 +1385,12 @@ int32_t getParamFromUserValue(uint8_t p, int8_t userValue) {
 
 	case PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_BASS:
 	case PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_TREBLE:
-		if (userValue == -50) return -2147483648;
-		if (userValue == 0) return 0;
+		if (userValue == -50) {
+			return -2147483648;
+		}
+		if (userValue == 0) {
+			return 0;
+		}
 		return userValue * 42949672;
 
 	default:
@@ -1220,7 +1404,9 @@ int getLookupIndexFromValue(int32_t value, const int32_t* table, int maxIndex) {
 	int closestIndex;
 	for (i = 0; i <= maxIndex; i++) { // No need to actually test the max value itself
 		int64_t thisDistance = (int64_t)value - (int64_t)table[i];
-		if (thisDistance < 0) thisDistance = -thisDistance;
+		if (thisDistance < 0) {
+			thisDistance = -thisDistance;
+		}
 		if (thisDistance < bestDistance) {
 			bestDistance = thisDistance;
 			closestIndex = i;
@@ -1262,7 +1448,9 @@ int random(int upperLimit) {
 }
 
 bool shouldDoPanning(int32_t panAmount, int32_t* amplitudeL, int32_t* amplitudeR) {
-	if (panAmount == 0) return false;
+	if (panAmount == 0) {
+		return false;
+	}
 
 	int32_t panOffset = getMax((int32_t)-1073741824, (int32_t)(getMin((int32_t)1073741824, (int32_t)panAmount)));
 	*amplitudeR = (panAmount >= 0) ? 1073741823 : (1073741824 + panOffset);
@@ -1276,14 +1464,23 @@ void hueToRGB(int32_t hue, unsigned char* rgb) {
 	for (int c = 0; c < 3; c++) {
 		int channelDarkness;
 		if (c == 0) {
-			if (hue < 64) channelDarkness = hue;
-			else channelDarkness = getMin(64, std::abs(192 - hue));
+			if (hue < 64) {
+				channelDarkness = hue;
+			}
+			else {
+				channelDarkness = getMin(64, std::abs(192 - hue));
+			}
 		}
-		else channelDarkness = getMin(64, std::abs(c * 64 - hue));
+		else {
+			channelDarkness = getMin(64, std::abs(c * 64 - hue));
+		}
 
-		if (channelDarkness < 64)
+		if (channelDarkness < 64) {
 			rgb[c] = ((uint32_t)getSine(((channelDarkness << 3) + 256) & 1023, 10) + 2147483648u) >> 24;
-		else rgb[c] = 0;
+		}
+		else {
+			rgb[c] = 0;
+		}
 	}
 }
 
@@ -1295,10 +1492,16 @@ void hueToRGBPastel(int32_t hue, unsigned char* rgb) {
 	for (int c = 0; c < 3; c++) {
 		int channelDarkness;
 		if (c == 0) {
-			if (hue < 64) channelDarkness = hue;
-			else channelDarkness = getMin(64, std::abs(192 - hue));
+			if (hue < 64) {
+				channelDarkness = hue;
+			}
+			else {
+				channelDarkness = getMin(64, std::abs(192 - hue));
+			}
 		}
-		else channelDarkness = getMin(64, std::abs(c * 64 - hue));
+		else {
+			channelDarkness = getMin(64, std::abs(c * 64 - hue));
+		}
 
 		if (channelDarkness < 64) {
 			uint32_t basicValue = (uint32_t)getSine(((channelDarkness << 3) + 256) & 1023, 10)
@@ -1307,7 +1510,9 @@ void hueToRGBPastel(int32_t hue, unsigned char* rgb) {
 			uint32_t flippedScaled = (flipped >> 8) * PASTEL_RANGE;
 			rgb[c] = (4294967295 - flippedScaled) >> 24;
 		}
-		else rgb[c] = 256 - PASTEL_RANGE;
+		else {
+			rgb[c] = 256 - PASTEL_RANGE;
+		}
 	}
 }
 
@@ -1379,8 +1584,12 @@ const int32_t pythagTable[257] = {
 int32_t fastPythag(int32_t x, int32_t y) {
 
 	// Make both numbers positive
-	if (x < 0) x = -x;
-	if (y < 0) y = -y;
+	if (x < 0) {
+		x = -x;
+	}
+	if (y < 0) {
+		y = -y;
+	}
 
 	// Make sure x is bigger
 	if (y > x) {
@@ -1390,7 +1599,9 @@ int32_t fastPythag(int32_t x, int32_t y) {
 	}
 
 	int32_t divisor = x >> 8;
-	if (divisor == 0) return 0;
+	if (divisor == 0) {
+		return 0;
+	}
 
 	int32_t ratio = y / divisor;
 
@@ -1485,7 +1696,9 @@ ComparativeNoteNumber getComparativeNoteNumberFromChars(char const* string, char
 
 	if (!octaveStartsFromA) {
 		toReturn.noteNumber -= 2;
-		if (toReturn.noteNumber < 0) toReturn.noteNumber += 7;
+		if (toReturn.noteNumber < 0) {
+			toReturn.noteNumber += 7;
+		}
 	}
 
 	toReturn.noteNumber *= 3; // To make room for flats and sharps, below.
@@ -1525,7 +1738,9 @@ ComparativeNoteNumber getComparativeNoteNumberFromChars(char const* string, char
 			string++;
 		}
 		else {
-			if (numberIsNegative) number = -number;
+			if (numberIsNegative) {
+				number = -number;
+			}
 			toReturn.noteNumber += number * 36;
 			toReturn.stringLength = string - stringStart;
 			return toReturn;
@@ -1549,7 +1764,9 @@ int strcmpspecial(char const* first, char const* second) {
 		bool firstIsFinished = (*first == 0);
 		bool secondIsFinished = (*second == 0);
 
-		if (firstIsFinished && secondIsFinished) return resultIfGetToEndOfBothStrings; // If both are finished
+		if (firstIsFinished && secondIsFinished) {
+			return resultIfGetToEndOfBothStrings; // If both are finished
+		}
 
 		if (firstIsFinished || secondIsFinished) { // If just one is finished
 			return (int)*first - (int)*second;
@@ -1605,7 +1822,9 @@ int strcmpspecial(char const* first, char const* second) {
 			}
 
 			int difference = firstNumber - secondNumber;
-			if (difference) return difference;
+			if (difference) {
+				return difference;
+			}
 		}
 
 		// Otherwise, if not both numbers...
@@ -1615,8 +1834,12 @@ int strcmpspecial(char const* first, char const* second) {
 			char secondChar = *second;
 
 			// Make lowercase
-			if (firstChar >= 'A' && firstChar <= 'Z') firstChar += 32;
-			if (secondChar >= 'A' && secondChar <= 'Z') secondChar += 32;
+			if (firstChar >= 'A' && firstChar <= 'Z') {
+				firstChar += 32;
+			}
+			if (secondChar >= 'A' && secondChar <= 'Z') {
+				secondChar += 32;
+			}
 
 			// If we're doing note ordering...
 			if (shouldInterpretNoteNames) {
@@ -1635,7 +1858,9 @@ int strcmpspecial(char const* first, char const* second) {
 				}
 
 				if (firstResult.noteNumber == secondResult.noteNumber) {
-					if (!firstResult.stringLength && !secondResult.stringLength) goto doNormal;
+					if (!firstResult.stringLength && !secondResult.stringLength) {
+						goto doNormal;
+					}
 					first += firstResult.stringLength;
 					second += secondResult.stringLength;
 				}
@@ -1655,11 +1880,19 @@ doNormal:
 				// Otherwise...
 				else {
 					// Dot then underscore comes first
-					if (firstChar == '.') return -1;
-					else if (secondChar == '.') return 1; // We know they're not both the same - see above.
+					if (firstChar == '.') {
+						return -1;
+					}
+					else if (secondChar == '.') {
+						return 1; // We know they're not both the same - see above.
+					}
 
-					if (firstChar == '_') return -1;
-					else if (secondChar == '_') return 1;
+					if (firstChar == '_') {
+						return -1;
+					}
+					else if (secondChar == '_') {
+						return 1;
+					}
 
 					return (int)firstChar - (int)secondChar;
 				}
@@ -1670,8 +1903,12 @@ doNormal:
 
 bool charCaseEqual(char firstChar, char secondChar) {
 	// Make lowercase
-	if (firstChar >= 'A' && firstChar <= 'Z') firstChar += 32;
-	if (secondChar >= 'A' && secondChar <= 'Z') secondChar += 32;
+	if (firstChar >= 'A' && firstChar <= 'Z') {
+		firstChar += 32;
+	}
+	if (secondChar >= 'A' && secondChar <= 'Z') {
+		secondChar += 32;
+	}
 
 	return (firstChar == secondChar);
 }
@@ -1684,8 +1921,12 @@ int memcasecmp(char const* first, char const* second, int size) {
 		if (firstChar != secondChar) {
 
 			// Make lowercase
-			if (firstChar >= 'A' && firstChar <= 'Z') firstChar += 32;
-			if (secondChar >= 'A' && secondChar <= 'Z') secondChar += 32;
+			if (firstChar >= 'A' && firstChar <= 'Z') {
+				firstChar += 32;
+			}
+			if (secondChar >= 'A' && secondChar <= 'Z') {
+				secondChar += 32;
+			}
 
 			// If they're the same, carry on
 			if (firstChar != secondChar) {
@@ -1914,7 +2155,9 @@ int stringToFirmwareVersion(char const* firmwareVersionString) {
 		return FIRMWARE_4P1P4;
 	}
 
-	else return FIRMWARE_TOO_NEW;
+	else {
+		return FIRMWARE_TOO_NEW;
+	}
 }
 
 int howMuchMoreMagnitude(unsigned int to, unsigned int from) {
@@ -1936,7 +2179,9 @@ void noteCodeToString(int noteCode, char* buffer, int* getLengthWithoutDot) {
 
 	if (getLengthWithoutDot) {
 		*getLengthWithoutDot = strlen(buffer);
-		if (noteCodeIsSharp[noteCodeWithinOctave]) (*getLengthWithoutDot)--;
+		if (noteCodeIsSharp[noteCodeWithinOctave]) {
+			(*getLengthWithoutDot)--;
+		}
 	}
 }
 
@@ -1971,8 +2216,12 @@ double ConvertFromIeeeExtended(unsigned char* bytes /* LCN */) {
 		}
 	}
 
-	if (bytes[0] & 0x80) return -f;
-	else return f;
+	if (bytes[0] & 0x80) {
+		return -f;
+	}
+	else {
+		return f;
+	}
 }
 
 // Divisor must be positive. Rounds towards negative infinity
@@ -1986,13 +2235,17 @@ int32_t divide_round_negative(int32_t dividend, int32_t divisor) {
 }
 
 int getWhichKernel(int32_t phaseIncrement) {
-	if (phaseIncrement < 17268826) return 0; // That allows us to go half a semitone up
+	if (phaseIncrement < 17268826) {
+		return 0; // That allows us to go half a semitone up
+	}
 	else {
 		int whichKernel = 1;
 		while (phaseIncrement >= 32599202) { // 11.5 semitones up
 			phaseIncrement >>= 1;
 			whichKernel += 2;
-			if (whichKernel == 5) break;
+			if (whichKernel == 5) {
+				break;
+			}
 		}
 
 		if (phaseIncrement >= 23051117) { // 5.5 semitones up
@@ -2033,14 +2286,22 @@ int getHowManyCharsAreTheSame(char const* a, char const* b) {
 	int count = 0;
 	while (true) {
 		char charA = *a;
-		if (!charA) break;
+		if (!charA) {
+			break;
+		}
 		char charB = *b;
 
 		// Make uppercase
-		if (charA >= 'a' && charA <= 'z') charA -= 32;
-		if (charB >= 'a' && charB <= 'z') charB -= 32;
+		if (charA >= 'a' && charA <= 'z') {
+			charA -= 32;
+		}
+		if (charB >= 'a' && charB <= 'z') {
+			charB -= 32;
+		}
 
-		if (charA != charB) break;
+		if (charA != charB) {
+			break;
+		}
 
 		count++;
 		a++;
@@ -2060,7 +2321,9 @@ void greyColourOut(const uint8_t* input, uint8_t* output, int32_t greyProportion
 		colourValue = rshift_round((uint32_t)colourValue * (uint32_t)(8421504 - greyProportion)
 		                               + ((int32_t)totalColour * (greyProportion >> 5)),
 		                           23);
-		if (colourValue >= 256) colourValue = 255;
+		if (colourValue >= 256) {
+			colourValue = 255;
+		}
 
 		output[colour] = colourValue;
 	}
@@ -2068,8 +2331,12 @@ void greyColourOut(const uint8_t* input, uint8_t* output, int32_t greyProportion
 
 void dimColour(uint8_t colour[3]) {
 	for (int c = 0; c < 3; c++) {
-		if (colour[c] >= 64) colour[c] = 50;
-		else colour[c] = 5;
+		if (colour[c] >= 64) {
+			colour[c] = 50;
+		}
+		else {
+			colour[c] = 5;
+		}
 	}
 }
 
@@ -2093,21 +2360,35 @@ void getNoteLengthNameFromMagnitude(char* text, int32_t magnitude, bool clarifyP
 		uint32_t numBars = (uint32_t)1 << magnitude;
 		intToString(numBars, text);
 		if (clarifyPerColumn) {
-			if (numBars == 1) strcat(text, " bar (per column)");
-			else strcat(text, " bars (per column)");
+			if (numBars == 1) {
+				strcat(text, " bar (per column)");
+			}
+			else {
+				strcat(text, " bars (per column)");
+			}
 		}
-		else strcat(text, "-bar");
+		else {
+			strcat(text, "-bar");
+		}
 	}
 #else
 	if (magnitude < 0) {
 		uint32_t division = (uint32_t)1 << (0 - magnitude);
 		if (division <= 9999) {
 			intToString(division, text);
-			if (division == 2 || division == 32) strcat(text, "ND");
-			else if (division <= 99) strcat(text, "TH");
-			else if (division <= 999) strcat(text, "T");
+			if (division == 2 || division == 32) {
+				strcat(text, "ND");
+			}
+			else if (division <= 99) {
+				strcat(text, "TH");
+			}
+			else if (division <= 999) {
+				strcat(text, "T");
+			}
 		}
-		else strcpy(text, "TINY");
+		else {
+			strcpy(text, "TINY");
+		}
 	}
 	else {
 		uint32_t numBars = (uint32_t)1 << magnitude;
@@ -2121,7 +2402,9 @@ void getNoteLengthNameFromMagnitude(char* text, int32_t magnitude, bool clarifyP
 				strcat(text, "B");
 			}
 		}
-		else strcpy(text, "BIG");
+		else {
+			strcpy(text, "BIG");
+		}
 	}
 #endif
 }
@@ -2133,15 +2416,23 @@ char const* getFileNameFromEndOfPath(char const* filePathChars) {
 
 bool doesFilenameFitPrefixFormat(char const* fileName, char const* filePrefix, int prefixLength) {
 
-	if (memcasecmp(fileName, filePrefix, prefixLength)) return false;
+	if (memcasecmp(fileName, filePrefix, prefixLength)) {
+		return false;
+	}
 
 	char* dotAddress = strrchr(fileName, '.');
-	if (!dotAddress) return false;
+	if (!dotAddress) {
+		return false;
+	}
 
 	int dotPos = (uint32_t)dotAddress - (uint32_t)fileName;
-	if (dotPos < prefixLength + 3) return false;
+	if (dotPos < prefixLength + 3) {
+		return false;
+	}
 
-	if (!memIsNumericChars(&fileName[prefixLength], 3)) return false;
+	if (!memIsNumericChars(&fileName[prefixLength], 3)) {
+		return false;
+	}
 
 	return true;
 }

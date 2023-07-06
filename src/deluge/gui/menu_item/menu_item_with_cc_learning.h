@@ -15,19 +15,17 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MENUITEMWITHCCLEARNING_H_
-#define MENUITEMWITHCCLEARNING_H_
+#pragma once
 
 #include "modulation/params/param_descriptor.h"
+#include "io/midi/midi_device.h"
 
 class MenuItemWithCCLearning {
 public:
-	MenuItemWithCCLearning();
+	MenuItemWithCCLearning() {}
 
 	virtual ParamDescriptor getLearningThing() = 0;
 	void unlearnAction();
 	bool allowsLearnMode() { return true; }
 	void learnKnob(MIDIDevice* fromDevice, int whichKnob, int modKnobMode, int midiChannel);
 };
-
-#endif /* MENUITEMWITHCCLEARNING_H_ */

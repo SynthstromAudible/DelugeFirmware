@@ -39,7 +39,9 @@ Cluster::Cluster() {
 
 void Cluster::convertDataIfNecessary() {
 
-	if (!sample->audioDataStartPosBytes) return; // Or maybe we haven't yet figured out where the audio data starts
+	if (!sample->audioDataStartPosBytes) {
+		return; // Or maybe we haven't yet figured out where the audio data starts
+	}
 
 	if (sample->rawDataFormat) {
 
@@ -63,7 +65,9 @@ void Cluster::convertDataIfNecessary() {
 				uint32_t bytesBeforeStartOfCluster =
 				    clusterIndex * audioFileManager.clusterSize - sample->audioDataStartPosBytes;
 				int bytesThatWillBeEatingIntoAnother3Byte = bytesBeforeStartOfCluster % 3;
-				if (bytesThatWillBeEatingIntoAnother3Byte == 0) bytesThatWillBeEatingIntoAnother3Byte = 3;
+				if (bytesThatWillBeEatingIntoAnother3Byte == 0) {
+					bytesThatWillBeEatingIntoAnother3Byte = 3;
+				}
 				pos = &data[3 - bytesThatWillBeEatingIntoAnother3Byte];
 			}
 
@@ -79,7 +83,9 @@ void Cluster::convertDataIfNecessary() {
 
 			while (true) {
 				char const* endPosNow = pos + 1024; // Every this many bytes, we'll pause and do an audio routine
-				if (endPosNow > endPos) endPosNow = endPos;
+				if (endPosNow > endPos) {
+					endPosNow = endPos;
+				}
 
 				while (pos < endPosNow) {
 					uint8_t temp = pos[0];
@@ -88,7 +94,9 @@ void Cluster::convertDataIfNecessary() {
 					pos += 3;
 				}
 
-				if (pos >= endPos) break;
+				if (pos >= endPos) {
+					break;
+				}
 
 				AudioEngine::logAction("from convert-data");
 				AudioEngine::routine(); // ----------------------------------------------------
@@ -160,7 +168,9 @@ int Cluster::getAppropriateQueue() {
 		q = sample->numReasonsToBeLoaded ? STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA
 		                                 : STEALABLE_QUEUE_NO_SONG_SAMPLE_DATA;
 
-		if (sample->rawDataFormat) q++;
+		if (sample->rawDataFormat) {
+			q++;
+		}
 	}
 
 	return q;
@@ -172,12 +182,16 @@ void Cluster::steal(char const* errorCode) {
 	switch (type) {
 
 	case CLUSTER_SAMPLE:
-		if (ALPHA_OR_BETA_VERSION && !sample) numericDriver.freezeWithError("E181");
+		if (ALPHA_OR_BETA_VERSION && !sample) {
+			numericDriver.freezeWithError("E181");
+		}
 		sample->clusters.getElement(clusterIndex)->cluster = NULL;
 		break;
 
 	case CLUSTER_SAMPLE_CACHE:
-		if (ALPHA_OR_BETA_VERSION && !sampleCache) numericDriver.freezeWithError("E183");
+		if (ALPHA_OR_BETA_VERSION && !sampleCache) {
+			numericDriver.freezeWithError("E183");
+		}
 		sampleCache->clusterStolen(clusterIndex);
 
 		// If first Cluster, delete whole cache. Wait, no, something might still be pointing to the cache...
@@ -190,7 +204,9 @@ void Cluster::steal(char const* errorCode) {
 
 	case CLUSTER_PERC_CACHE_FORWARDS:
 	case CLUSTER_PERC_CACHE_REVERSED:
-		if (ALPHA_OR_BETA_VERSION && !sample) numericDriver.freezeWithError("E184");
+		if (ALPHA_OR_BETA_VERSION && !sample) {
+			numericDriver.freezeWithError("E184");
+		}
 		sample->percCacheClusterStolen(this);
 		break;
 
@@ -200,9 +216,13 @@ void Cluster::steal(char const* errorCode) {
 }
 
 bool Cluster::mayBeStolen(void* thingNotToStealFrom) {
-	if (numReasonsToBeLoaded) return false;
+	if (numReasonsToBeLoaded) {
+		return false;
+	}
 
-	if (!thingNotToStealFrom) return true;
+	if (!thingNotToStealFrom) {
+		return true;
+	}
 
 	switch (type) {
 	case CLUSTER_SAMPLE_CACHE:

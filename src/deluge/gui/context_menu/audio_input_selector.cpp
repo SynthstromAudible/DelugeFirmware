@@ -103,7 +103,9 @@ bool AudioInputSelector::setupAndCheckAvailability() {
 		currentOption = VALUE_OFF;
 	}
 
-	if (audioOutput->echoing) currentOption++;
+	if (audioOutput->echoing) {
+		currentOption++;
+	}
 #if HAVE_OLED
 	scrollPos = currentOption;
 #endif
@@ -116,7 +118,9 @@ bool AudioInputSelector::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
 }
 
 void AudioInputSelector::selectEncoderAction(int8_t offset) {
-	if (currentUIMode) return;
+	if (currentUIMode) {
+		return;
+	}
 
 	ContextMenu::selectEncoderAction(offset);
 
