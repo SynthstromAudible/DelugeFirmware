@@ -17,6 +17,7 @@ PROJECT_SOURCE_DIR = os.path.abspath(REL_SOURCE_DIR)
 # Commandline arguments are defined in here
 cmd_vars = SConscript("site_scons/commandline.scons")
 cmd_env = Environment(
+    ENV_TYPE="command",
     toolpath=["#/scripts/dbt_tools"],
     tools=[
         ("dbt_help", {"vars": cmd_vars}),
@@ -45,6 +46,8 @@ from dbt.util import (
 # Start up a basic environment
 env = Environment(
     ENV=os.environ.copy(),
+    variables=cmd_vars,
+    ENV_TYPE="generic",
     toolpath=[os.path.join(GetLaunchDir(), "scripts", "dbt_tools")],
     tools=[
         (
@@ -101,127 +104,15 @@ if GetOption("save_options"):
 # from another directory
 SConscriptChdir(False)
 
-# UTIL OPERATIONS
-
-util_env = env.Clone(tools=["python3", "openocd", "shell", "debug_opts"])
-if "shell" in BUILD_TARGETS:
-    util_env.PhonyTarget(
-        "shell", Action(util_env.CallShell, "Running shell in DBT environment.")
-    )
-    Return()
-
-elif "openocd" in BUILD_TARGETS:
-    # Just start OpenOCD
-    util_env.PhonyTarget("openocd", "${OPENOCDCOM}")
-    Return()
-
-elif "debug-oled" in BUILD_TARGETS:
-    cmd_env.Replace(DEBUG=1, OLED=1)
-    elf_target = compose_valid_targets(cmd_env)[0]
-    # Load mode standalone to get us the elf file name
-    # some redundancy here, ah well
-    util_env.Tool(
-        "mode_standalone",
-        BUILD_LABEL=elf_target,
-        BUILD_DIR=os.path.abspath(elf_target),
-        SOURCE_DIR=os.path.relpath(REL_SOURCE_DIR),
-    )
-    debug_out = util_env.PhonyTarget(
-        "debug-oled",
-        "${GDBCOM}",
-        source=os.path.join(
-            util_env.get("BUILD_DIR"),
-            "{}.elf".format(util_env.get("FIRMWARE_FILENAME")),
-        ),
-        GDBOPTS="${GDBOPTS_BASE}",
-        GDBREMOTE=cmd_env["GDB_REMOTE"],
-    )
-    Return()
-
-elif "debug-7seg" in BUILD_TARGETS:
-    cmd_env.Replace(DEBUG=1, OLED=0)
-    elf_target = compose_valid_targets(cmd_env)[0]
-    # Load mode standalone to get us the elf file name
-    # some redundancy here, ah well
-    util_env.Tool(
-        "mode_standalone",
-        BUILD_LABEL=elf_target,
-        BUILD_DIR=os.path.abspath(elf_target),
-        SOURCE_DIR=os.path.relpath(REL_SOURCE_DIR),
-    )
-    debug_out = util_env.PhonyTarget(
-        "debug-7seg",
-        "${GDBCOM}",
-        source=os.path.join(
-            util_env.get("BUILD_DIR"),
-            "{}.elf".format(util_env.get("FIRMWARE_FILENAME")),
-        ),
-        GDBOPTS="${GDBOPTS_BASE}",
-        GDBREMOTE=cmd_env["GDB_REMOTE"],
-    )
-    Return()
-    # No Return as we want this to build
-    # We will revisit after the build
-
 # BUILD OPERATIONS
 
-# Prepare for multiple target environments
-build_multienv = {}
+env.Tool("target_handler", cmd_env=cmd_env)
+env_katamari = env.PrepareTargetEnvs()
+env_standalone_builds = [b for b in env_katamari if b.get("BUILD_MODE") == "standalone"]
 
-# Target List Building
-# Here we parse out shorthand targets and leave only our directory targets
+for build_env in env_standalone_builds:
+    target = build_env["ENV_LABEL"]
 
-FOCUS_TARGETS = []
-
-special_target = None
-for b_target in BUILD_TARGETS:
-    if b_target in ["all", "build", "clean"]:
-        special_target = b_target
-        break
-
-if special_target is not None:
-    if BUILD_TARGETS:
-        FOCUS_TARGETS = compose_valid_targets(cmd_env)
-    # Formally map these aliases to the appropriate targets
-    if special_target == "all":
-        env.Alias("all", FOCUS_TARGETS)
-    if special_target == "build":
-        env.Alias("build", FOCUS_TARGETS)
-    if special_target == "clean":
-        env.Alias("clean", FOCUS_TARGETS)
-        SetOption("clean", True)
-
-# If one of our utility targets is in the list, ignore
-# normal targets or treat them specially.
-
-if "openocd" in BUILD_TARGETS:
-    FOCUS_TARGETS = []
-if "shell" in BUILD_TARGETS:
-    FOCUS_TARGETS = []
-if "debug-oled" in BUILD_TARGETS:
-    FOCUS_TARGETS = []
-if "debug-7seg" in BUILD_TARGETS:
-    FOCUS_TARGETS = []
-
-for target in FOCUS_TARGETS:
-    build_env = env.Clone(BUILD_MODE="standalone")
-    build_multienv[target] = build_env
-    build_env.Tool(
-        "mode_standalone",
-        BUILD_LABEL=target,
-        BUILD_DIR=os.path.abspath(target),
-        SOURCE_DIR=os.path.relpath(REL_SOURCE_DIR),
-    )
-
-    if not build_env["BUILD_TARGET_IS_VALID"]:
-        Return()
-
-    SConscript(
-        os.path.join("site_scons", "build_opts.scons"), exports={"env": build_env}
-    )
-
-# Iterate through multiple build environments
-for target, build_env in build_multienv.items():
     # Suppress warnings if silent
     if vcheck() < 2:
         build_env.Append(CCFLAGS=" -w")
