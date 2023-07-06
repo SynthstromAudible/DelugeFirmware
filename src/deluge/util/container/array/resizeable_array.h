@@ -48,7 +48,8 @@ public:
 
 	inline void* getElementAddress(int index) {
 		int absoluteIndex = index + memoryStart;
-		if (absoluteIndex >= memorySize) absoluteIndex -= memorySize;
+		if (absoluteIndex >= memorySize)
+			absoluteIndex -= memorySize;
 		return (char* __restrict__)memory + (absoluteIndex * elementSize);
 	}
 

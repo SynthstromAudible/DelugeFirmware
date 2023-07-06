@@ -62,7 +62,9 @@ bool Drum::readDrumTagFromFile(char const* tagName) {
 		storageManager.exitTag();
 	}
 
-	else return false;
+	else {
+		return false;
+	}
 
 	return true;
 }
@@ -106,11 +108,15 @@ void Drum::expressionEventPossiblyToRecord(ModelStackWithTimelineCounter* modelS
 		ModelStackWithNoteRow* modelStackWithNoteRow =
 		    ((InstrumentClip*)modelStack->getTimelineCounter())->getNoteRowForDrum(modelStack, this);
 		NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
-		if (!noteRow) goto justSend;
+		if (!noteRow) {
+			goto justSend;
+		}
 
 		bool success = noteRow->recordPolyphonicExpressionEvent(modelStackWithNoteRow, combinedValue,
 		                                                        whichExpressionimension, true);
-		if (!success) goto justSend;
+		if (!success) {
+			goto justSend;
+		}
 	}
 
 	// Or if not recording, just sound the change ourselves here (as opposed to the AutoParam doing it).

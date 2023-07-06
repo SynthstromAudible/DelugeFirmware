@@ -25,7 +25,9 @@ NoteVector::NoteVector() : OrderedResizeableArrayWith32bitKey(sizeof(Note)) {
 }
 
 Note* NoteVector::getElement(int index) {
-	if (index < 0 || index >= getNumElements()) return NULL;
+	if (index < 0 || index >= getNumElements()) {
+		return NULL;
+	}
 	return (Note*)getElementAddress(index);
 }
 

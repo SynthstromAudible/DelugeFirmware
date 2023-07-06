@@ -34,6 +34,9 @@ public:
 	void sendCC(int channel, int cc, int value, int filter);
 	bool checkIncomingSerialMidi();
 	void checkIncomingUsbMidi();
+
+	void checkIncomingUsbSysex(uint8_t const* message, int ip, int d, int cable);
+
 	void sendMidi(uint8_t statusType, uint8_t channel, uint8_t data1 = 0, uint8_t data2 = 0,
 	              int filter = MIDI_OUTPUT_FILTER_NO_MPE, bool sendUSB = true);
 	void sendClock(bool sendUSB = true, int howMany = 1);
@@ -43,6 +46,10 @@ public:
 	void sendContinue();
 	void flushMIDI();
 	void sendUsbMidi(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2, int filter);
+
+	// data should be a complete message with data[0] = 0xf0, data[len-1] = 0xf7
+	void sendSysex(int ip, int d, int cable, uint8_t* data, int len);
+
 	void sendSerialMidi(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2);
 	void sendPGMChange(int channel, int pgm, int filter);
 	void sendAllNotesOff(int channel, int filter);
@@ -65,11 +72,14 @@ private:
 	uint8_t numSerialMidiInput;
 	uint8_t lastStatusByteSent;
 
-	bool currentlyReceivingSysEx;
+	bool currentlyReceivingSysExSerial;
 
 	int getMidiMessageLength(uint8_t statusuint8_t);
 	void midiMessageReceived(MIDIDevice* fromDevice, uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2,
 	                         uint32_t* timer = NULL);
+
+	// or midi device?? whatever makes sense for a consumer as a reply address.
+	void midiSysexReceived(int ip, int d, int cable, uint8_t* data, int len);
 	int getPotentialNumConnectedUSBMIDIDevices(int ip);
 };
 

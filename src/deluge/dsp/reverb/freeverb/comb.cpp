@@ -34,8 +34,9 @@ void comb::setbuffer(int32_t* buf, int size) {
 }
 
 void comb::mute() {
-	for (int i = 0; i < bufsize; i++)
+	for (int i = 0; i < bufsize; i++) {
 		buffer[i] = 0;
+	}
 }
 
 void comb::setdamp(float val) {

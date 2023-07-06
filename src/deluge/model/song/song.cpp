@@ -165,11 +165,11 @@ Song::~Song() {
 	deleteHibernatingMIDIInstrument();
 }
 
-#include "gui/menu_item/menu_item_integer_range.h"
-#include "gui/menu_item/menu_item_key_range.h"
-extern MenuItemIntegerRange defaultTempoMenu;
-extern MenuItemIntegerRange defaultSwingMenu;
-extern MenuItemKeyRange defaultKeyMenu;
+#include "gui/menu_item/integer_range.h"
+#include "gui/menu_item/key_range.h"
+extern menu_item::IntegerRange defaultTempoMenu;
+extern menu_item::IntegerRange defaultSwingMenu;
+extern menu_item::KeyRange defaultKeyMenu;
 
 void Song::setupDefault() {
 	inClipMinderViewOnLoad = true;
@@ -212,7 +212,9 @@ void Song::deleteAllBackedUpParamManagers(bool shouldAlsoEmptyVector) {
 
 		backedUp->~BackedUpParamManager();
 	}
-	if (shouldAlsoEmptyVector) backedUpParamManagers.empty();
+	if (shouldAlsoEmptyVector) {
+		backedUpParamManagers.empty();
+	}
 }
 
 void Song::deleteAllBackedUpParamManagersWithClips() {
@@ -223,7 +225,9 @@ void Song::deleteAllBackedUpParamManagersWithClips() {
 		BackedUpParamManager* firstBackedUp = (BackedUpParamManager*)backedUpParamManagers.getElementAddress(i);
 
 		// If no Clip, just go onto the next
-		if (!firstBackedUp->clip) continue;
+		if (!firstBackedUp->clip) {
+			continue;
+		}
 
 		ModControllableAudio* modControllable = firstBackedUp->modControllable;
 		int searchedUpToAndIncluding = i;
@@ -282,10 +286,14 @@ bool Song::ensureAtLeastOneSessionClip() {
 
 		ReturnOfConfirmPresetOrNextUnlaunchedOne result;
 		result.error = storageManager.initSD(); // Still want this here?
-		if (result.error) goto couldntLoad;
+		if (result.error) {
+			goto couldntLoad;
+		}
 
 		result.error = Browser::currentDir.set("SYNTHS");
-		if (result.error) goto couldntLoad;
+		if (result.error) {
+			goto couldntLoad;
+		}
 
 		result = loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(NULL, INSTRUMENT_TYPE_SYNTH,
 		                                                                                AVAILABILITY_ANY);
@@ -300,7 +308,9 @@ bool Song::ensureAtLeastOneSessionClip() {
 			                                                     &newPresetName, &Browser::currentDir);
 
 			Browser::emptyFileItems();
-			if (result.error) goto couldntLoad;
+			if (result.error) {
+				goto couldntLoad;
+			}
 		}
 		else {
 couldntLoad:
@@ -323,7 +333,9 @@ gotError2:
 			}
 
 			error2 = newInstrument->name.set("0");
-			if (error2) goto gotError2;
+			if (error2) {
+				goto gotError2;
+			}
 
 			((SoundInstrument*)newInstrument)->setupAsDefaultSynth(&newParamManager);
 			numericDriver.displayError(result.error); // E.g. show the CARD error.
@@ -361,7 +373,9 @@ void Song::transposeAllScaleModeClips(int offset) {
 traverseClips:
 	for (int c = 0; c < clipArray->getNumElements(); c++) {
 		Clip* clip = clipArray->getClipAtIndex(c);
-		if (clip->type != CLIP_TYPE_INSTRUMENT) continue;
+		if (clip->type != CLIP_TYPE_INSTRUMENT) {
+			continue;
+		}
 		InstrumentClip* instrumentClip = (InstrumentClip*)clip;
 
 		if (instrumentClip->isScaleModeClip()) {
@@ -384,10 +398,14 @@ bool Song::anyScaleModeClips() {
 traverseClips:
 	for (int c = 0; c < clipArray->getNumElements(); c++) {
 		Clip* clip = clipArray->getClipAtIndex(c);
-		if (clip->type != CLIP_TYPE_INSTRUMENT) continue;
+		if (clip->type != CLIP_TYPE_INSTRUMENT) {
+			continue;
+		}
 		InstrumentClip* instrumentClip = (InstrumentClip*)clip;
 
-		if (instrumentClip->isScaleModeClip()) return true;
+		if (instrumentClip->isScaleModeClip()) {
+			return true;
+		}
 	}
 	if (clipArray != &arrangementOnlyClips) {
 		clipArray = &arrangementOnlyClips;
@@ -403,19 +421,23 @@ void Song::setRootNote(int newRootNote, InstrumentClip* clipToAvoidAdjustingScro
 	rootNote = newRootNote;
 	int oldNumModeNotes = numModeNotes;
 	bool notesWithinOctavePresent[12];
-	for (int i = 0; i < 12; i++)
+	for (int i = 0; i < 12; i++) {
 		notesWithinOctavePresent[i] = false;
+	}
 
 	// All InstrumentClips in session and arranger
 	ClipArray* clipArray = &sessionClips;
 traverseClips:
 	for (int c = 0; c < clipArray->getNumElements(); c++) {
 		Clip* clip = clipArray->getClipAtIndex(c);
-		if (clip->type != CLIP_TYPE_INSTRUMENT) continue;
+		if (clip->type != CLIP_TYPE_INSTRUMENT) {
+			continue;
+		}
 		InstrumentClip* instrumentClip = (InstrumentClip*)clip;
 
-		if (instrumentClip->isScaleModeClip())
+		if (instrumentClip->isScaleModeClip()) {
 			instrumentClip->seeWhatNotesWithinOctaveArePresent(notesWithinOctavePresent, rootNote, this);
+		}
 	}
 	if (clipArray != &arrangementOnlyClips) {
 		clipArray = &arrangementOnlyClips;
@@ -426,14 +448,24 @@ traverseClips:
 	int majorness = 0;
 
 	// The 3rd is the main indicator of majorness, to my ear
-	if (notesWithinOctavePresent[4]) majorness++;
-	if (notesWithinOctavePresent[3]) majorness--;
+	if (notesWithinOctavePresent[4]) {
+		majorness++;
+	}
+	if (notesWithinOctavePresent[3]) {
+		majorness--;
+	}
 
 	// If it's still a tie, try the 2nd, 6th, and 7th to help us decide
 	if (majorness == 0) {
-		if (notesWithinOctavePresent[1]) majorness--;
-		if (notesWithinOctavePresent[8]) majorness--;
-		if (notesWithinOctavePresent[9]) majorness++;
+		if (notesWithinOctavePresent[1]) {
+			majorness--;
+		}
+		if (notesWithinOctavePresent[8]) {
+			majorness--;
+		}
+		if (notesWithinOctavePresent[9]) {
+			majorness++;
+		}
 	}
 
 	bool moreMajor = (majorness >= 0);
@@ -452,9 +484,13 @@ traverseClips:
 		addModeNote(5);
 		if (notesWithinOctavePresent[6]) {
 			addModeNote(6);
-			if (notesWithinOctavePresent[7]) addModeNote(7);
+			if (notesWithinOctavePresent[7]) {
+				addModeNote(7);
+			}
 		}
-		else addModeNote(7);
+		else {
+			addModeNote(7);
+		}
 	}
 	else {
 		if (notesWithinOctavePresent[6]) {
@@ -492,7 +528,9 @@ traverseClips:
 traverseClips2:
 	for (int c = 0; c < clipArray->getNumElements(); c++) {
 		Clip* clip = clipArray->getClipAtIndex(c);
-		if (clip->type != CLIP_TYPE_INSTRUMENT) continue;
+		if (clip->type != CLIP_TYPE_INSTRUMENT) {
+			continue;
+		}
 		InstrumentClip* instrumentClip = (InstrumentClip*)clip;
 
 		if (instrumentClip != clipToAvoidAdjustingScrollFor && instrumentClip->isScaleModeClip()) {
@@ -525,14 +563,20 @@ void Song::addMajorDependentModeNotes(uint8_t i, bool preferHigher, bool notesWi
 			addModeNote(i + 1);
 		}
 		// Or if just the lower one
-		else addModeNote(i);
+		else {
+			addModeNote(i);
+		}
 	}
 	// Or, if lower one absent...
 	else {
 		// We probably want the higher one
-		if (notesWithinOctavePresent[i + 1] || preferHigher) addModeNote(i + 1);
-		// Or if neither present and we prefer the lower one, do that
-		else addModeNote(i);
+		if (notesWithinOctavePresent[i + 1] || preferHigher) {
+			addModeNote(i + 1);
+			// Or if neither present and we prefer the lower one, do that
+		}
+		else {
+			addModeNote(i);
+		}
 	}
 }
 
@@ -554,7 +598,9 @@ bool Song::modeContainsYNote(int yNote) {
 
 bool Song::modeContainsYNoteWithinOctave(uint8_t yNoteWithinOctave) {
 	for (int i = 0; i < numModeNotes; i++) {
-		if (modeNotes[i] == yNoteWithinOctave) return true;
+		if (modeNotes[i] == yNoteWithinOctave) {
+			return true;
+		}
 	}
 	return false;
 }
@@ -570,7 +616,9 @@ void Song::changeMusicalMode(uint8_t yVisualWithinOctave, int8_t change) {
 traverseClips:
 	for (int c = 0; c < clipArray->getNumElements(); c++) {
 		Clip* clip = clipArray->getClipAtIndex(c);
-		if (clip->type != CLIP_TYPE_INSTRUMENT) continue;
+		if (clip->type != CLIP_TYPE_INSTRUMENT) {
+			continue;
+		}
 		InstrumentClip* instrumentClip = (InstrumentClip*)clip;
 
 		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(instrumentClip);
@@ -591,32 +639,43 @@ traverseClips:
 	}
 
 	// Or if just shifting a non-root note, just shift its scale-note
-	else modeNotes[yVisualWithinOctave] += change;
+	else {
+		modeNotes[yVisualWithinOctave] += change;
+	}
 }
 
 bool Song::isYNoteAllowed(int yNote, bool inKeyMode) {
-	if (!inKeyMode) return true;
+	if (!inKeyMode) {
+		return true;
+	}
 	return modeContainsYNoteWithinOctave(getYNoteWithinOctaveFromYNote(yNote));
 }
 
 int Song::getYVisualFromYNote(int yNote, bool inKeyMode) {
-	if (!inKeyMode) return yNote;
+	if (!inKeyMode) {
+		return yNote;
+	}
 	int yNoteRelativeToRoot = yNote - rootNote;
 	int yNoteWithinOctave = (uint16_t)(yNoteRelativeToRoot + 120) % 12;
 
 	int octave = (uint16_t)(yNoteRelativeToRoot + 120 - yNoteWithinOctave) / 12 - 10;
 
 	int yVisualWithinOctave = 0;
-	for (int i = 0; i < numModeNotes && modeNotes[i] <= yNoteWithinOctave; i++)
+	for (int i = 0; i < numModeNotes && modeNotes[i] <= yNoteWithinOctave; i++) {
 		yVisualWithinOctave = i;
+	}
 	return yVisualWithinOctave + octave * numModeNotes + rootNote;
 }
 
 int Song::getYNoteFromYVisual(int yVisual, bool inKeyMode) {
-	if (!inKeyMode) return yVisual;
+	if (!inKeyMode) {
+		return yVisual;
+	}
 	int yVisualRelativeToRoot = yVisual - rootNote;
 	int yVisualWithinOctave = yVisualRelativeToRoot % numModeNotes;
-	if (yVisualWithinOctave < 0) yVisualWithinOctave += numModeNotes;
+	if (yVisualWithinOctave < 0) {
+		yVisualWithinOctave += numModeNotes;
+	}
 
 	int octave = (yVisualRelativeToRoot - yVisualWithinOctave) / numModeNotes;
 
@@ -631,7 +690,7 @@ bool Song::mayMoveModeNote(int16_t yVisualWithinOctave, int8_t newOffset) {
 		        < 11); // May ony move down if the top note in scale isn't directly below (at semitone 11)
 	}
 
-	else
+	else {
 		return ((newOffset == 1 &&                      // We're moving up and
 		         modeNotes[yVisualWithinOctave] < 11 && // We're not already at the top of the scale and
 		         (yVisualWithinOctave == numModeNotes - 1
@@ -645,6 +704,7 @@ bool Song::mayMoveModeNote(int16_t yVisualWithinOctave, int8_t newOffset) {
 		            modeNotes[yVisualWithinOctave - 1]
 		                < modeNotes[yVisualWithinOctave] - 1 // The next note down has left us space to move down
 		            ));
+	}
 }
 
 void Song::removeYNoteFromMode(int yNoteWithinOctave) {
@@ -675,7 +735,9 @@ void Song::removeYNoteFromMode(int yNoteWithinOctave) {
 traverseClips:
 	for (int c = 0; c < clipArray->getNumElements(); c++) {
 		Clip* clip = clipArray->getClipAtIndex(c);
-		if (clip->type != CLIP_TYPE_INSTRUMENT) continue;
+		if (clip->type != CLIP_TYPE_INSTRUMENT) {
+			continue;
+		}
 		InstrumentClip* instrumentClip = (InstrumentClip*)clip;
 
 		instrumentClip->noteRemovedFromMode(yNoteWithinOctave, this);
@@ -687,21 +749,28 @@ traverseClips:
 }
 
 bool Song::areAllClipsInSectionPlaying(int section) {
-	if (getAnyClipsSoloing()) return false;
+	if (getAnyClipsSoloing()) {
+		return false;
+	}
 
 	for (int l = 0; l < sessionClips.getNumElements(); l++) {
 		Clip* clip = sessionClips.getClipAtIndex(l);
-		if (clip->section == section && !isClipActive(clip)) return false;
+		if (clip->section == section && !isClipActive(clip)) {
+			return false;
+		}
 	}
 
 	return true;
 }
 
 uint32_t Song::getInputTickScale() {
-	if (!syncScalingClip) return 3;
+	if (!syncScalingClip) {
+		return 3;
+	}
 	uint32_t inputTickScale = syncScalingClip->loopLength;
-	while (!(inputTickScale & 1))
+	while (!(inputTickScale & 1)) {
 		inputTickScale >>= 1;
+	}
 	return inputTickScale;
 }
 
@@ -727,12 +796,13 @@ void Song::inputTickScalePotentiallyJustChanged(uint32_t oldScale) {
 		} while ((float)newScale * 1.41 < oldScale);
 	}
 
-	else
+	else {
 		while ((float)oldScale * 1.41 < newScale) {
 			oldScale *= 2;
 			insideWorldTickMagnitude--;
 			//insideWorldTickMagnitudeOffsetFromBPM++;
 		}
+	}
 
 	// We then do a very similar process again, to calculate insideWorldTickMagnitudeOffsetFromBPM in such a way that, say, 8th-notes will always appear about the same
 	// length to the user
@@ -749,12 +819,13 @@ void Song::inputTickScalePotentiallyJustChanged(uint32_t oldScale) {
 		} while ((float)newScale * 1.41 < oldScale);
 	}
 
-	else
+	else {
 		while ((float)oldScale * 1.41 < newScale) {
 			oldScale *= 2;
 			//insideWorldTickMagnitude--;
 			insideWorldTickMagnitudeOffsetFromBPM++;
 		}
+	}
 }
 
 // This is a little bit of an ugly hack - normally this is true, but we'll briefly set it to false while doing that "revert" that we do when (re)lengthening a Clip
@@ -770,10 +841,13 @@ void Song::setClipLength(Clip* clip, uint32_t newLength, Action* action, bool ma
 		clip->loopLength = newLength;
 		inputTickScalePotentiallyJustChanged(oldScale);
 	}
-	else clip->loopLength = newLength;
+	else {
+		clip->loopLength = newLength;
+	}
 
-	if (action)
+	if (action) {
 		action->recordClipLengthChange(clip, oldLength); // Records just the simple fact that clip->length has changed
+	}
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack =
@@ -814,7 +888,9 @@ void Song::doubleClipLength(InstrumentClip* clip, Action* action) {
 	clip->increaseLengthWithRepeats(modelStack, oldLength << 1, INDEPENDENT_NOTEROW_LENGTH_INCREASE_DOUBLE, false,
 	                                action);
 
-	if (clip == syncScalingClip) inputTickScalePotentiallyJustChanged(oldScale);
+	if (clip == syncScalingClip) {
+		inputTickScalePotentiallyJustChanged(oldScale);
+	}
 
 	clip->output->clipLengthChanged(clip, oldLength);
 
@@ -833,18 +909,28 @@ traverseClips:
 		Clip* clip;
 		if (!doingArrangementClips) {
 			clip = sessionClips.getClipAtIndex(c);
-			if (clip->output != output) continue;
+			if (clip->output != output) {
+				continue;
+			}
 		}
 		else {
 			ClipInstance* clipInstance = output->clipInstances.getElement(c);
-			if (!clipInstance->clip) continue;
-			if (!clipInstance->clip->isArrangementOnlyClip()) continue;
+			if (!clipInstance->clip) {
+				continue;
+			}
+			if (!clipInstance->clip->isArrangementOnlyClip()) {
+				continue;
+			}
 			clip = clipInstance->clip;
 		}
 
-		if (clip == excludeClip) continue;
+		if (clip == excludeClip) {
+			continue;
+		}
 
-		if (mustBeActive && !isClipActive(clip)) continue;
+		if (mustBeActive && !isClipActive(clip)) {
+			continue;
+		}
 		return clip;
 	}
 	if (!doingArrangementClips) {
@@ -864,11 +950,19 @@ Clip* Song::getSessionClipWithOutput(Output* output, int requireSection, Clip* e
 		Clip* clip = sessionClips.getClipAtIndex(c);
 
 		if (clip->output == output) {
-			if (clip == excludeClip) continue;
-			if (requireSection != -1 && clip->section != requireSection) continue;
-			if (excludePendingOverdubs && clip->isPendingOverdub) continue;
+			if (clip == excludeClip) {
+				continue;
+			}
+			if (requireSection != -1 && clip->section != requireSection) {
+				continue;
+			}
+			if (excludePendingOverdubs && clip->isPendingOverdub) {
+				continue;
+			}
 
-			if (clipIndex) *clipIndex = c;
+			if (clipIndex) {
+				*clipIndex = c;
+			}
 			return clip;
 		}
 	}
@@ -884,16 +978,22 @@ Clip* Song::getNextSessionClipWithOutput(int offset, Output* output, Clip* prevC
 	}
 
 	if (oldIndex == -1) {
-		if (offset < 0) oldIndex = sessionClips.getNumElements();
+		if (offset < 0) {
+			oldIndex = sessionClips.getNumElements();
+		}
 	}
 
 	int newIndex = oldIndex;
 	while (true) {
 		newIndex += offset;
-		if (newIndex == -1 || newIndex == sessionClips.getNumElements()) return NULL;
+		if (newIndex == -1 || newIndex == sessionClips.getNumElements()) {
+			return NULL;
+		}
 
 		Clip* clip = sessionClips.getClipAtIndex(newIndex);
-		if (clip->output == output) return clip;
+		if (clip->output == output) {
+			return clip;
+		}
 	}
 }
 
@@ -956,7 +1056,9 @@ weAreInArrangementEditorOrInClipInstance:
 	storageManager.writeAttribute("swingAmount", swingAmount);
 	storageManager.writeAbsoluteSyncLevelToFile(this, "swingInterval", (SyncLevel)swingInterval);
 
-	if (tripletsOn) storageManager.writeAttribute("tripletsLevel", tripletsLevel);
+	if (tripletsOn) {
+		storageManager.writeAttribute("tripletsLevel", tripletsLevel);
+	}
 
 	storageManager.writeAttribute("affectEntire", affectEntire);
 	storageManager.writeAttribute("activeModFunction", globalEffectable.modKnobMode);
@@ -1019,8 +1121,9 @@ weAreInArrangementEditorOrInClipInstance:
 		if (true || sections[s].launchMIDICommand.containsSomething() || sections[s].numRepetitions) {
 			storageManager.writeOpeningTagBeginning("section");
 			storageManager.writeAttribute("id", s, false);
-			if (true || sections[s].numRepetitions)
+			if (true || sections[s].numRepetitions) {
 				storageManager.writeAttribute("numRepeats", sections[s].numRepetitions, false);
+			}
 			if (sections[s].launchMIDICommand.containsSomething()) {
 				// Annoyingly, I used one-off tag names here, rather than it conforming to what the LearnedMIDI class now uses.
 				storageManager.writeAttribute("midiCommandChannel", sections[s].launchMIDICommand.channelOrZone, false);
@@ -1049,8 +1152,9 @@ weAreInArrangementEditorOrInClipInstance:
 		storageManager.writeOpeningTag("arrangementOnlyTracks");
 		for (int c = 0; c < arrangementOnlyClips.getNumElements(); c++) {
 			Clip* clip = arrangementOnlyClips.getClipAtIndex(c);
-			if (!clip->output->clipHasInstance(clip))
+			if (!clip->output->clipHasInstance(clip)) {
 				continue; // Get rid of any redundant Clips. There shouldn't be any, but occasionally they somehow get left over.
+			}
 			clip->writeToFile(this);
 		}
 		storageManager.writeClosingTag("arrangementOnlyTracks");
@@ -1080,7 +1184,9 @@ int Song::readFromFile() {
 
 		// "reverb"
 		case 0x65766572:
-			if (*(((uint32_t*)tagName) + 1) & 0x00FFFFFFFF != 0x00007262) goto unknownTag;
+			if (*(((uint32_t*)tagName) + 1) & 0x00FFFFFFFF != 0x00007262) {
+				goto unknownTag;
+			}
 			while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 				if (!strcmp(tagName, "roomSize")) {
 					reverbRoomSize = (float)storageManager.readTagOrAttributeValueInt() / 2147483648u;
@@ -1092,9 +1198,10 @@ int Song::readFromFile() {
 				}
 				else if (!strcmp(tagName, "width")) {
 					int widthInt = storageManager.readTagOrAttributeValueInt();
-					if (widthInt == -2147483648)
+					if (widthInt == -2147483648) {
 						widthInt =
 						    2147483647; // Was being saved incorrectly in V2.1.0-beta1 and alphas, so we fix it on read here!
+					}
 					reverbWidth = (float)widthInt / 2147483648u;
 					storageManager.exitTag("width");
 				}
@@ -1155,7 +1262,9 @@ int Song::readFromFile() {
 					xScrollForReturnToSongView = getMax((int32_t)0, xScrollForReturnToSongView);
 					break;
 				}
-				else goto unknownTag;
+				else {
+					goto unknownTag;
+				}
 
 			// "xScrollArrangementView"
 			case 0x416c6c6f:
@@ -1165,7 +1274,9 @@ int Song::readFromFile() {
 					xScroll[NAVIGATION_ARRANGEMENT] = storageManager.readTagOrAttributeValueInt();
 					break;
 				}
-				else goto unknownTag;
+				else {
+					goto unknownTag;
+				}
 
 			default:
 				goto unknownTag;
@@ -1184,7 +1295,9 @@ int Song::readFromFile() {
 					xZoomForReturnToSongView = storageManager.readTagOrAttributeValueInt();
 					xZoomForReturnToSongView = getMax((int32_t)1, xZoomForReturnToSongView);
 				}
-				else goto unknownTag;
+				else {
+					goto unknownTag;
+				}
 			}
 
 			// "xZoom"
@@ -1192,7 +1305,9 @@ int Song::readFromFile() {
 				xZoom[NAVIGATION_CLIP] = storageManager.readTagOrAttributeValueInt();
 				xZoom[NAVIGATION_CLIP] = getMax((uint32_t)1, xZoom[NAVIGATION_CLIP]);
 			}
-			else goto unknownTag;
+			else {
+				goto unknownTag;
+			}
 
 			storageManager.exitTag();
 			break;
@@ -1209,7 +1324,9 @@ int Song::readFromFile() {
 					songViewYScroll = getMax(1 - displayHeight, songViewYScroll);
 					break;
 				}
-				else goto unknownTag;
+				else {
+					goto unknownTag;
+				}
 
 			// "yScrollArrangementView"
 			case 0x416c6c6f:
@@ -1220,7 +1337,9 @@ int Song::readFromFile() {
 					arrangementYScroll = getMax(1 - displayHeight, arrangementYScroll);
 					break;
 				}
-				else goto unknownTag;
+				else {
+					goto unknownTag;
+				}
 
 			default:
 				goto unknownTag;
@@ -1322,7 +1441,9 @@ unknownTag:
 						numModeNotes++;
 						storageManager.exitTag("modeNote");
 					}
-					else storageManager.exitTag(tagName);
+					else {
+						storageManager.exitTag(tagName);
+					}
 				}
 				storageManager.exitTag("modeNotes");
 			}
@@ -1350,7 +1471,9 @@ unknownTag:
 
 							else if (!strcmp(tagName, "numRepeats")) {
 								numRepeats = storageManager.readTagOrAttributeValueInt();
-								if (numRepeats < -1 || numRepeats > 9999) numRepeats = 0;
+								if (numRepeats < -1 || numRepeats > 9999) {
+									numRepeats = 0;
+								}
 							}
 
 							// Annoyingly, I used one-off tag names here, rather than it conforming to what the LearnedMIDI class now uses.
@@ -1379,7 +1502,9 @@ unknownTag:
 						}
 						storageManager.exitTag("section");
 					}
-					else storageManager.exitTag(tagName);
+					else {
+						storageManager.exitTag(tagName);
+					}
 				}
 				storageManager.exitTag("sections");
 			}
@@ -1396,14 +1521,18 @@ unknownTag:
 
 					if (!strcmp(tagName, "audioTrack")) {
 						memory = generalMemoryAllocator.alloc(sizeof(AudioOutput), NULL, false, true);
-						if (!memory) return ERROR_INSUFFICIENT_RAM;
+						if (!memory) {
+							return ERROR_INSUFFICIENT_RAM;
+						}
 						newOutput = new (memory) AudioOutput();
 						goto loadOutput;
 					}
 
 					else if (!strcmp(tagName, "sound")) {
 						memory = generalMemoryAllocator.alloc(sizeof(SoundInstrument), NULL, false, true);
-						if (!memory) return ERROR_INSUFFICIENT_RAM;
+						if (!memory) {
+							return ERROR_INSUFFICIENT_RAM;
+						}
 						newOutput = new (memory) SoundInstrument();
 						defaultDirPath = "SYNTHS";
 
@@ -1420,7 +1549,9 @@ loadOutput:
 						error = newOutput->readFromFile(
 						    this, NULL,
 						    0); // If it finds any default params, it'll make a ParamManager and "back it up"
-						if (error) goto gotError;
+						if (error) {
+							goto gotError;
+						}
 
 						*lastPointer = newOutput;
 						lastPointer = &newOutput->next;
@@ -1428,7 +1559,9 @@ loadOutput:
 
 					else if (!strcmp(tagName, "kit")) {
 						memory = generalMemoryAllocator.alloc(sizeof(Kit), NULL, false, true);
-						if (!memory) return ERROR_INSUFFICIENT_RAM;
+						if (!memory) {
+							return ERROR_INSUFFICIENT_RAM;
+						}
 						newOutput = new (memory) Kit();
 						defaultDirPath = "KITS";
 						goto setDirPathFirst;
@@ -1436,14 +1569,18 @@ loadOutput:
 
 					else if (!strcmp(tagName, "midiChannel") || !strcmp(tagName, "mpeZone")) {
 						memory = generalMemoryAllocator.alloc(sizeof(MIDIInstrument), NULL, false, true);
-						if (!memory) return ERROR_INSUFFICIENT_RAM;
+						if (!memory) {
+							return ERROR_INSUFFICIENT_RAM;
+						}
 						newOutput = new (memory) MIDIInstrument();
 						goto loadOutput;
 					}
 
 					else if (!strcmp(tagName, "cvChannel")) {
 						memory = generalMemoryAllocator.alloc(sizeof(CVInstrument), NULL, false, true);
-						if (!memory) return ERROR_INSUFFICIENT_RAM;
+						if (!memory) {
+							return ERROR_INSUFFICIENT_RAM;
+						}
 						newOutput = new (memory) CVInstrument();
 						goto loadOutput;
 					}
@@ -1460,23 +1597,31 @@ loadOutput:
 
 			else if (!strcmp(tagName, "tracks") || !strcmp(tagName, "sessionClips")) {
 				int error = readClipsFromFile(&sessionClips);
-				if (error) return error;
+				if (error) {
+					return error;
+				}
 				storageManager.exitTag();
 			}
 
 			else if (!strcmp(tagName, "arrangementOnlyTracks") || !strcmp(tagName, "arrangementOnlyClips")) {
 				int error = readClipsFromFile(&arrangementOnlyClips);
-				if (error) return error;
+				if (error) {
+					return error;
+				}
 				storageManager.exitTag();
 			}
 
 			else {
 				int result = globalEffectable.readTagFromFile(tagName, &paramManager, 2147483647, this);
 				if (result == NO_ERROR) {}
-				else if (result != RESULT_TAG_UNUSED) return result;
+				else if (result != RESULT_TAG_UNUSED) {
+					return result;
+				}
 				else {
 					int result = storageManager.tryReadingFirmwareTagFromFile(tagName);
-					if (result && result != RESULT_TAG_UNUSED) return result;
+					if (result && result != RESULT_TAG_UNUSED) {
+						return result;
+					}
 					if (ALPHA_OR_BETA_VERSION) {
 						Uart::print("unknown tag: ");
 						Uart::println(tagName);
@@ -1523,7 +1668,9 @@ traverseClips:
 		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(thisClip);
 
 		int error = thisClip->claimOutput(modelStackWithTimelineCounter);
-		if (error) return error;
+		if (error) {
+			return error;
+		}
 
 		// Correct different non-synced rates of old song files
 		// In a perfect world, we'd do this for Kits, MIDI and CV too
@@ -1551,7 +1698,9 @@ traverseClips:
 
 	// Match all ClipInstances up with their Clip. And while we're at it, check if any Outputs are soloing in arranger
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
-		if (thisOutput->soloingInArrangementMode) anyOutputsSoloingInArrangement = true;
+		if (thisOutput->soloingInArrangementMode) {
+			anyOutputsSoloingInArrangement = true;
+		}
 
 		for (int i = 0; i < thisOutput->clipInstances.getNumElements(); i++) {
 			ClipInstance* thisInstance = thisOutput->clipInstances.getElement(i);
@@ -1632,8 +1781,12 @@ skipInstance:
 #if ALPHA_OR_BETA_VERSION
 			numericDriver.displayPopup("E043");
 #endif
-			if (currentClip == clip) currentClip = NULL;
-			if (syncScalingClip == clip) syncScalingClip = NULL;
+			if (currentClip == clip) {
+				currentClip = NULL;
+			}
+			if (syncScalingClip == clip) {
+				syncScalingClip = NULL;
+			}
 
 			arrangementOnlyClips.deleteAtIndex(c);
 			deleteClipObject(clip, false, INSTRUMENT_REMOVAL_NONE);
@@ -1692,10 +1845,14 @@ int Song::readClipsFromFile(ClipArray* clipArray) {
 			clipType = CLIP_TYPE_INSTRUMENT;
 
 readClip:
-			if (!clipArray->ensureEnoughSpaceAllocated(1)) return ERROR_INSUFFICIENT_RAM;
+			if (!clipArray->ensureEnoughSpaceAllocated(1)) {
+				return ERROR_INSUFFICIENT_RAM;
+			}
 
 			void* memory = generalMemoryAllocator.alloc(allocationSize, NULL, false, true);
-			if (!memory) return ERROR_INSUFFICIENT_RAM;
+			if (!memory) {
+				return ERROR_INSUFFICIENT_RAM;
+			}
 
 			Clip* newClip;
 			if (clipType == CLIP_TYPE_INSTRUMENT) {
@@ -1722,7 +1879,9 @@ readClip:
 
 			goto readClip;
 		}
-		else storageManager.exitTag(tagName);
+		else {
+			storageManager.exitTag(tagName);
+		}
 	}
 
 	return NO_ERROR;
@@ -1848,7 +2007,9 @@ void Song::renderAudio(StereoSample* outputBuffer, int numSamples, int32_t* reve
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
 
 	for (Output* output = firstOutput; output; output = output->next) {
-		if (!output->inValidState) continue;
+		if (!output->inValidState) {
+			continue;
+		}
 
 		bool isClipActiveNow = (output->activeClip && isClipActive(output->activeClip->getClipBeingRecordedFrom()));
 
@@ -1862,7 +2023,9 @@ void Song::renderAudio(StereoSample* outputBuffer, int numSamples, int32_t* reve
 	// Go through each SampleRecorder, feeding them audio
 	for (SampleRecorder* recorder = AudioEngine::firstRecorder; recorder; recorder = recorder->next) {
 
-		if (recorder->status >= RECORDER_STATUS_FINISHED_CAPTURING_BUT_STILL_WRITING) continue;
+		if (recorder->status >= RECORDER_STATUS_FINISHED_CAPTURING_BUT_STILL_WRITING) {
+			continue;
+		}
 
 		if (recorder->mode == AUDIO_INPUT_CHANNEL_MIX) {
 			recorder->feedAudio((int32_t*)outputBuffer, numSamples, true);
@@ -1932,8 +2095,12 @@ void Song::setTimePerTimerTick(uint64_t newTimeBig, bool shouldLogAction) {
 	// Reschedule upcoming swung, MIDI and trigger clock out ticks
 	if (currentSong == this && (playbackHandler.playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE)) {
 		playbackHandler.scheduleSwungTickFromInternalClock();
-		if (cvEngine.isTriggerClockOutputEnabled()) playbackHandler.scheduleTriggerClockOutTick();
-		if (playbackHandler.currentlySendingMIDIOutputClocks()) playbackHandler.scheduleMIDIClockOutTick();
+		if (cvEngine.isTriggerClockOutputEnabled()) {
+			playbackHandler.scheduleTriggerClockOutTick();
+		}
+		if (playbackHandler.currentlySendingMIDIOutputClocks()) {
+			playbackHandler.scheduleMIDIClockOutTick();
+		}
 	}
 }
 
@@ -1944,7 +2111,9 @@ bool Song::hasAnySwing() {
 void Song::resyncLFOsAndArpeggiators() {
 
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
-		if (thisOutput->activeClip) thisOutput->resyncLFOs();
+		if (thisOutput->activeClip) {
+			thisOutput->resyncLFOs();
+		}
 		// Yes, do it even for Clips that aren't actually "playing" / active in the Song
 	}
 }
@@ -1963,19 +2132,29 @@ traverseClips:
 		InstrumentClip* instrumentClip;
 		if (!doingClipsProvidedByOutput) {
 			Clip* clip = clipArray->getClipAtIndex(c);
-			if (clip == stopTraversalAtClip) return NULL;
-			if (clip->output != kit) continue;
+			if (clip == stopTraversalAtClip) {
+				return NULL;
+			}
+			if (clip->output != kit) {
+				continue;
+			}
 			instrumentClip = (InstrumentClip*)clip;
 		}
 		else {
 			ClipInstance* clipInstance = kit->clipInstances.getElement(c);
-			if (!clipInstance->clip) continue;
-			if (!clipInstance->clip->isArrangementOnlyClip()) continue;
+			if (!clipInstance->clip) {
+				continue;
+			}
+			if (!clipInstance->clip->isArrangementOnlyClip()) {
+				continue;
+			}
 			instrumentClip = (InstrumentClip*)clipInstance->clip;
 		}
 
 		NoteRow* noteRow = instrumentClip->getNoteRowForDrum(drum);
-		if (noteRow) return noteRow;
+		if (noteRow) {
+			return noteRow;
+		}
 	}
 	if (!doingClipsProvidedByOutput && clipArray == &sessionClips) {
 		if (outputClipInstanceListIsCurrentlyInvalid) {
@@ -1994,7 +2173,9 @@ traverseClips:
 
 ParamManagerForTimeline* Song::findParamManagerForDrum(Kit* kit, Drum* drum, Clip* stopTraversalAtClip) {
 	NoteRow* noteRow = findNoteRowForDrum(kit, drum, stopTraversalAtClip);
-	if (!noteRow) return NULL;
+	if (!noteRow) {
+		return NULL;
+	}
 	return &noteRow->paramManager;
 }
 
@@ -2020,18 +2201,26 @@ traverseClips:
 			Clip* clip = clipArray->getClipAtIndex(c);
 
 			if (output) {
-				if (clip->output != output) continue;
+				if (clip->output != output) {
+					continue;
+				}
 			}
 			else {
-				if (clip->output->type != INSTRUMENT_TYPE_KIT) continue;
+				if (clip->output->type != INSTRUMENT_TYPE_KIT) {
+					continue;
+				}
 			}
 
 			instrumentClip = (InstrumentClip*)clip;
 		}
 		else {
 			ClipInstance* clipInstance = output->clipInstances.getElement(c);
-			if (!clipInstance->clip) continue;
-			if (!clipInstance->clip->isArrangementOnlyClip()) continue;
+			if (!clipInstance->clip) {
+				continue;
+			}
+			if (!clipInstance->clip->isArrangementOnlyClip()) {
+				continue;
+			}
 			instrumentClip = (InstrumentClip*)clipInstance->clip;
 		}
 
@@ -2042,9 +2231,10 @@ traverseClips:
 
 		NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
 		if (noteRow) {
-			if (!output)
+			if (!output) {
 				output =
 				    instrumentClip->output; // The "if" check at the start should be unnecessary... but just in case.
+			}
 
 			if (noteRow->paramManager.containsAnyMainParamCollections()) {
 
@@ -2092,12 +2282,18 @@ traverseClips:
 		Clip* clip;
 		if (!doingArrangementClips) {
 			clip = sessionClips.getClipAtIndex(c);
-			if (clip->output != sound) continue;
+			if (clip->output != sound) {
+				continue;
+			}
 		}
 		else {
 			ClipInstance* clipInstance = sound->clipInstances.getElement(c);
-			if (!clipInstance->clip) continue;
-			if (!clipInstance->clip->isArrangementOnlyClip()) continue;
+			if (!clipInstance->clip) {
+				continue;
+			}
+			if (!clipInstance->clip->isArrangementOnlyClip()) {
+				continue;
+			}
 			clip = clipInstance->clip;
 		}
 
@@ -2118,7 +2314,9 @@ traverseClips:
 void Song::grabVelocityToLevelFromMIDIDeviceAndSetupPatchingForAllParamManagersForInstrument(
     MIDIDevice* device, SoundInstrument* instrument) {
 
-	if (!device->hasDefaultVelocityToLevelSet()) return;
+	if (!device->hasDefaultVelocityToLevelSet()) {
+		return;
+	}
 
 	// TODO: backed up ParamManagers?
 
@@ -2137,12 +2335,18 @@ traverseClips:
 		Clip* clip;
 		if (!doingArrangementClips) {
 			clip = sessionClips.getClipAtIndex(c);
-			if (clip->output != instrument) continue;
+			if (clip->output != instrument) {
+				continue;
+			}
 		}
 		else {
 			ClipInstance* clipInstance = instrument->clipInstances.getElement(c);
-			if (!clipInstance->clip) continue;
-			if (!clipInstance->clip->isArrangementOnlyClip()) continue;
+			if (!clipInstance->clip) {
+				continue;
+			}
+			if (!clipInstance->clip->isArrangementOnlyClip()) {
+				continue;
+			}
 			clip = clipInstance->clip;
 		}
 
@@ -2167,7 +2371,9 @@ traverseClips:
 void Song::grabVelocityToLevelFromMIDIDeviceAndSetupPatchingForAllParamManagersForDrum(MIDIDevice* device,
                                                                                        SoundDrum* drum, Kit* kit) {
 
-	if (!device->hasDefaultVelocityToLevelSet()) return;
+	if (!device->hasDefaultVelocityToLevelSet()) {
+		return;
+	}
 
 	// TODO: backed up ParamManagers?
 
@@ -2184,12 +2390,18 @@ traverseClips:
 		Clip* clip;
 		if (!doingArrangementClips) {
 			clip = sessionClips.getClipAtIndex(c);
-			if (clip->output != kit) continue;
+			if (clip->output != kit) {
+				continue;
+			}
 		}
 		else {
 			ClipInstance* clipInstance = kit->clipInstances.getElement(c);
-			if (!clipInstance->clip) continue;
-			if (!clipInstance->clip->isArrangementOnlyClip()) continue;
+			if (!clipInstance->clip) {
+				continue;
+			}
+			if (!clipInstance->clip->isArrangementOnlyClip()) {
+				continue;
+			}
 			clip = clipInstance->clip;
 		}
 
@@ -2198,7 +2410,9 @@ traverseClips:
 		ModelStackWithNoteRow* modelStackWithNoteRow =
 		    ((InstrumentClip*)clip)->getNoteRowForDrum(modelStackWithTimelineCounter, drum);
 		NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
-		if (!noteRow) continue;
+		if (!noteRow) {
+			continue;
+		}
 
 		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 		    modelStackWithNoteRow->addModControllable((SoundDrum*)drum)->addParamManager(&noteRow->paramManager);
@@ -2265,7 +2479,9 @@ traverseClips:
 					ModelStackWithNoteRow* modelStackWithNoteRow =
 					    ((InstrumentClip*)clip)->getNoteRowForDrum(modelStackWithTimelineCounter, drum);
 					NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
-					if (!noteRow) continue;
+					if (!noteRow) {
+						continue;
+					}
 
 					ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 					    modelStackWithNoteRow->addModControllable((SoundDrum*)drum)
@@ -2290,12 +2506,16 @@ traverseClips:
 
 int Song::cycleThroughScales() {
 	// Can only do it if there are 7 notes in current scale
-	if (numModeNotes != 7) return 255;
+	if (numModeNotes != 7) {
+		return 255;
+	}
 
 	int currentScale = getCurrentPresetScale();
 
 	int newScale = currentScale + 1;
-	if (newScale >= NUM_PRESET_SCALES) newScale = 0;
+	if (newScale >= NUM_PRESET_SCALES) {
+		newScale = 0;
+	}
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
@@ -2306,7 +2526,9 @@ int Song::cycleThroughScales() {
 traverseClips:
 	for (int c = 0; c < clipArray->getNumElements(); c++) {
 		Clip* clip = clipArray->getClipAtIndex(c);
-		if (clip->type != CLIP_TYPE_INSTRUMENT) continue;
+		if (clip->type != CLIP_TYPE_INSTRUMENT) {
+			continue;
+		}
 		InstrumentClip* instrumentClip = (InstrumentClip*)clip;
 
 		if (instrumentClip->isScaleModeClip()) {
@@ -2335,7 +2557,9 @@ traverseClips:
 traverseClips2:
 	for (int c = 0; c < clipArray->getNumElements(); c++) {
 		Clip* clip = clipArray->getClipAtIndex(c);
-		if (clip->type != CLIP_TYPE_INSTRUMENT) continue;
+		if (clip->type != CLIP_TYPE_INSTRUMENT) {
+			continue;
+		}
 		InstrumentClip* instrumentClip = (InstrumentClip*)clip;
 
 		if (instrumentClip->isScaleModeClip()) {
@@ -2363,11 +2587,15 @@ traverseClips2:
 
 // Returns 255 if none
 int Song::getCurrentPresetScale() {
-	if (numModeNotes != 7) return 255;
+	if (numModeNotes != 7) {
+		return 255;
+	}
 
 	for (int p = 0; p < NUM_PRESET_SCALES; p++) {
 		for (int n = 1; n < 7; n++) {
-			if (modeNotes[n] != presetScaleNotes[p][n]) goto notThisOne;
+			if (modeNotes[n] != presetScaleNotes[p][n]) {
+				goto notThisOne;
+			}
 		}
 
 		// If we're here, must be this one!
@@ -2390,7 +2618,9 @@ void Song::ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(Sound* sound) 
 traverseClips:
 	for (int c = 0; c < clipArray->getNumElements(); c++) {
 		Clip* clip = clipArray->getClipAtIndex(c);
-		if (clip->type != CLIP_TYPE_INSTRUMENT) continue;
+		if (clip->type != CLIP_TYPE_INSTRUMENT) {
+			continue;
+		}
 
 		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
@@ -2421,17 +2651,25 @@ void Song::setTempoFromNumSamples(double newTempoSamples, bool shouldLogAction) 
 }
 
 void Song::setBPM(float tempoBPM, bool shouldLogAction) {
-	if (insideWorldTickMagnitude > 0) tempoBPM *= ((uint32_t)1 << (insideWorldTickMagnitude));
+	if (insideWorldTickMagnitude > 0) {
+		tempoBPM *= ((uint32_t)1 << (insideWorldTickMagnitude));
+	}
 	double timePerTimerTick = (double)110250 / tempoBPM;
-	if (insideWorldTickMagnitude < 0) timePerTimerTick *= ((uint32_t)1 << (-insideWorldTickMagnitude));
+	if (insideWorldTickMagnitude < 0) {
+		timePerTimerTick *= ((uint32_t)1 << (-insideWorldTickMagnitude));
+	}
 	setTempoFromNumSamples(timePerTimerTick, shouldLogAction);
 }
 
 void Song::setTempoFromParams(int32_t magnitude, int8_t whichValue, bool shouldLogAction) {
 	float newBPM = metronomeValuesBPM[whichValue];
 	magnitude += insideWorldTickMagnitude + insideWorldTickMagnitudeOffsetFromBPM;
-	if (magnitude > 0) newBPM /= ((uint32_t)1 << magnitude);
-	else if (magnitude < 0) newBPM *= ((uint32_t)1 << (0 - magnitude));
+	if (magnitude > 0) {
+		newBPM /= ((uint32_t)1 << magnitude);
+	}
+	else if (magnitude < 0) {
+		newBPM *= ((uint32_t)1 << (0 - magnitude));
+	}
 
 	setBPM(newBPM, shouldLogAction);
 }
@@ -2448,7 +2686,9 @@ void Song::deleteClipObject(Clip* clip, bool songBeingDestroyedToo, int instrume
 
 #if ALPHA_OR_BETA_VERSION
 	if (clip->type == CLIP_TYPE_AUDIO) {
-		if (((AudioClip*)clip)->recorder) numericDriver.freezeWithError("i001"); // Trying to diversify Qui's E278
+		if (((AudioClip*)clip)->recorder) {
+			numericDriver.freezeWithError("i001"); // Trying to diversify Qui's E278
+		}
 	}
 #endif
 
@@ -2458,7 +2698,9 @@ void Song::deleteClipObject(Clip* clip, bool songBeingDestroyedToo, int instrume
 }
 
 int Song::getMaxMIDIChannelSuffix(int channel) {
-	if (channel >= 16) return -1; // MPE zones - just don't do freakin suffixes?
+	if (channel >= 16) {
+		return -1; // MPE zones - just don't do freakin suffixes?
+	}
 
 	bool* inUse = (bool*)shortStringBuffer; // Only actually needs to be 27 long
 	memset(inUse, 0, 27);
@@ -2470,9 +2712,13 @@ int Song::getMaxMIDIChannelSuffix(int channel) {
 			MIDIInstrument* instrument = (MIDIInstrument*)output;
 			if (instrument->channel == channel) {
 				int suffix = instrument->channelSuffix;
-				if (suffix < -1 || suffix >= 26) continue; // Just for safety
+				if (suffix < -1 || suffix >= 26) {
+					continue; // Just for safety
+				}
 				inUse[suffix + 1] = true;
-				if (suffix > maxSuffix) maxSuffix = suffix;
+				if (suffix > maxSuffix) {
+					maxSuffix = suffix;
+				}
 			}
 		}
 	}
@@ -2480,8 +2726,12 @@ int Song::getMaxMIDIChannelSuffix(int channel) {
 	// Find first empty suffix
 	for (int s = -1; s < 26; s++) {
 		if (!inUse[s + 1]) {
-			if (s < maxSuffix) return maxSuffix;
-			else return s;
+			if (s < maxSuffix) {
+				return maxSuffix;
+			}
+			else {
+				return s;
+			}
 		}
 	}
 
@@ -2554,16 +2804,21 @@ void Song::addOutput(Output* output, bool atStart) {
 	}
 	else {
 		Output** prevPointer = &firstOutput;
-		while (*prevPointer)
+		while (*prevPointer) {
 			prevPointer = &(*prevPointer)->next;
+		}
 		*prevPointer = output;
 		output->next = NULL;
 	}
 
-	if (output->soloingInArrangementMode) anyOutputsSoloingInArrangement = true;
+	if (output->soloingInArrangementMode) {
+		anyOutputsSoloingInArrangement = true;
+	}
 
 	// Must resync LFOs - these (if synced) will roll even when no activeClip
-	if (playbackHandler.isEitherClockActive() && this == currentSong) output->resyncLFOs();
+	if (playbackHandler.isEitherClockActive() && this == currentSong) {
+		output->resyncLFOs();
+	}
 }
 
 // Make sure you first free all the Instrument's voices before calling this!
@@ -2599,9 +2854,13 @@ int Song::removeOutputFromMainList(
 	Output** prevPointer;
 	int outputIndex = 0;
 	for (prevPointer = &firstOutput; *prevPointer != output; prevPointer = &(*prevPointer)->next) {
-		if (*prevPointer == NULL) return -1; // Shouldn't be necessary, but better to safeguard
+		if (*prevPointer == NULL) {
+			return -1; // Shouldn't be necessary, but better to safeguard
+		}
 
-		if ((*prevPointer)->soloingInArrangementMode) seenAnyOtherSoloing = true;
+		if ((*prevPointer)->soloingInArrangementMode) {
+			seenAnyOtherSoloing = true;
+		}
 		outputIndex++;
 	}
 
@@ -2617,7 +2876,9 @@ int Song::removeOutputFromMainList(
 
 	int yDisplay = outputIndex - arrangementYScroll;
 
-	if (yDisplay - bottomYDisplay < topYDisplay - yDisplay) arrangementYScroll--;
+	if (yDisplay - bottomYDisplay < topYDisplay - yDisplay) {
+		arrangementYScroll--;
+	}
 
 	// If the removed Output was soloing, and we haven't yet seen any other soloing Outputs, we'd better check out the rest
 	if (wasSoloing && !seenAnyOtherSoloing) {
@@ -2673,12 +2934,18 @@ traverseClips:
 		Clip* clip;
 		if (!doingArrangementClips) {
 			clip = sessionClips.getClipAtIndex(c);
-			if (clip->output != oldOutput) continue;
+			if (clip->output != oldOutput) {
+				continue;
+			}
 		}
 		else {
 			ClipInstance* clipInstance = oldOutput->clipInstances.getElement(c);
-			if (!clipInstance->clip) continue;
-			if (!clipInstance->clip->isArrangementOnlyClip()) continue;
+			if (!clipInstance->clip) {
+				continue;
+			}
+			if (!clipInstance->clip->isArrangementOnlyClip()) {
+				continue;
+			}
 			clip = clipInstance->clip;
 		}
 
@@ -2693,7 +2960,9 @@ traverseClips:
 			                                             keepNoteRowsWithMIDIInput, true); // Will call audio routine
 			// TODO: deal with errors!
 
-			if (newOutput->type == INSTRUMENT_TYPE_KIT) instrumentClip->onKeyboardScreen = false;
+			if (newOutput->type == INSTRUMENT_TYPE_KIT) {
+				instrumentClip->onKeyboardScreen = false;
+			}
 		}
 
 		// If this is the first Clip we dealt with, tell all the rest of the Clips to just clone it from this one (if there isn't already a ParamManager backed up in memory for them)
@@ -2753,7 +3022,9 @@ void Song::deleteOrHibernateOutput(Output* output) {
 	// If edited (which won't include any CV Instruments), just hibernate it. Only allowed for audio Instruments
 	if (output->type != INSTRUMENT_TYPE_CV && output->type != OUTPUT_TYPE_AUDIO) {
 		Instrument* instrument = (Instrument*)output;
-		if (!instrument->editedByUser) goto deleteIt;
+		if (!instrument->editedByUser) {
+			goto deleteIt;
+		}
 
 		moveInstrumentToHibernationList(instrument);
 	}
@@ -2798,7 +3069,9 @@ void Song::removeInstrumentFromHibernationList(Instrument* instrument) {
 	Instrument** prevPointer;
 	for (prevPointer = &firstHibernatingInstrument; *prevPointer != instrument;
 	     prevPointer = (Instrument**)&(*prevPointer)->next) {
-		if (*prevPointer == NULL) return; // Shouldn't be necessary, but better to safeguard
+		if (*prevPointer == NULL) {
+			return; // Shouldn't be necessary, but better to safeguard
+		}
 	}
 
 	*prevPointer = (Instrument*)instrument->next;
@@ -2824,7 +3097,9 @@ void Song::deleteHibernatingInstrumentWithSlot(int instrumentType, char const* n
 	while (true) {
 		Instrument* instrument = *prevPointer;
 
-		if (instrument == NULL) return; // Shouldn't be necessary, but better to safeguard
+		if (instrument == NULL) {
+			return; // Shouldn't be necessary, but better to safeguard
+		}
 
 		if (instrument->type == instrumentType) {
 
@@ -2843,7 +3118,9 @@ void Song::deleteHibernatingInstrumentWithSlot(int instrumentType, char const* n
 
 void Song::markAllInstrumentsAsEdited() {
 	for (Output* output = firstOutput; output; output = output->next) {
-		if (output->type == OUTPUT_TYPE_AUDIO) continue;
+		if (output->type == OUTPUT_TYPE_AUDIO) {
+			continue;
+		}
 
 		Instrument* instrument = (Instrument*)output;
 		bool shouldMoveToEmptySlot = false; // Deprecated. See newer branch.
@@ -2883,7 +3160,9 @@ Instrument* Song::getInstrumentFromPresetSlot(int instrumentType, int channel, i
 					             || ((MIDIInstrument*)thisOutput)->channelSuffix == channelSuffix));
 				}
 
-				if (match) return (Instrument*)thisOutput;
+				if (match) {
+					return (Instrument*)thisOutput;
+				}
 			}
 		}
 	}
@@ -2904,7 +3183,9 @@ Instrument* Song::getInstrumentFromPresetSlot(int instrumentType, int channel, i
 					         && ((MIDIInstrument*)thisOutput)->channelSuffix == channelSuffix);
 				}
 
-				if (match) return (Instrument*)thisOutput;
+				if (match) {
+					return (Instrument*)thisOutput;
+				}
 			}
 		}
 	}
@@ -2915,7 +3196,9 @@ Instrument* Song::getInstrumentFromPresetSlot(int instrumentType, int channel, i
 int Song::getOutputIndex(Output* output) {
 	int count = 0;
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
-		if (thisOutput == output) return count;
+		if (thisOutput == output) {
+			return count;
+		}
 		count++;
 	}
 
@@ -2924,7 +3207,9 @@ int Song::getOutputIndex(Output* output) {
 
 Output* Song::getOutputFromIndex(int index) {
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
-		if (!index) return thisOutput;
+		if (!index) {
+			return thisOutput;
+		}
 		index--;
 	}
 
@@ -2963,7 +3248,9 @@ void Song::setupPatchingForAllParamManagers() {
 traverseClips:
 	for (int c = 0; c < clipArray->getNumElements(); c++) {
 		Clip* clip = clipArray->getClipAtIndex(c);
-		if (clip->type != CLIP_TYPE_INSTRUMENT) continue;
+		if (clip->type != CLIP_TYPE_INSTRUMENT) {
+			continue;
+		}
 
 		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
@@ -2992,7 +3279,9 @@ ParamManager* Song::getBackedUpParamManagerForExactClip(ModControllableAudio* mo
 
 	int iCorrectClip = backedUpParamManagers.searchMultiWordExact(keyWords);
 
-	if (iCorrectClip == -1) return NULL;
+	if (iCorrectClip == -1) {
+		return NULL;
+	}
 
 	BackedUpParamManager* elementCorrectClip =
 	    (BackedUpParamManager*)backedUpParamManagers.getElementAddress(iCorrectClip);
@@ -3017,10 +3306,13 @@ ParamManager* Song::getBackedUpParamManagerPreferablyWithClip(ModControllableAud
 
 	int iAnyClip =
 	    backedUpParamManagers.search((uint32_t)modControllable, GREATER_OR_EQUAL); // Search just by first word
-	if (iAnyClip >= backedUpParamManagers.getNumElements()) return NULL;
+	if (iAnyClip >= backedUpParamManagers.getNumElements()) {
+		return NULL;
+	}
 	BackedUpParamManager* elementAnyClip = (BackedUpParamManager*)backedUpParamManagers.getElementAddress(iAnyClip);
-	if (elementAnyClip->modControllable != modControllable)
+	if (elementAnyClip->modControllable != modControllable) {
 		return NULL; // If nothing with even the correct modControllable at all, get out
+	}
 
 	int iCorrectClip;
 	BackedUpParamManager* elementCorrectClip;
@@ -3035,7 +3327,9 @@ returnFirstForModControllableEvenIfNotRightClip:
 		keyWords[0] = (uint32_t)modControllable;
 		keyWords[1] = (uint32_t)clip;
 		iCorrectClip = backedUpParamManagers.searchMultiWordExact(keyWords, NULL, iAnyClip + 1);
-		if (iCorrectClip == -1) goto returnFirstForModControllableEvenIfNotRightClip;
+		if (iCorrectClip == -1) {
+			goto returnFirstForModControllableEvenIfNotRightClip;
+		}
 		elementCorrectClip = (BackedUpParamManager*)backedUpParamManagers.getElementAddress(iCorrectClip);
 	}
 
@@ -3056,7 +3350,9 @@ returnFirstForModControllableEvenIfNotRightClip:
 void Song::backUpParamManager(ModControllableAudio* modControllable, Clip* clip, ParamManagerForTimeline* paramManager,
                               bool shouldStealExpressionParamsToo) {
 
-	if (!paramManager->containsAnyMainParamCollections()) return;
+	if (!paramManager->containsAnyMainParamCollections()) {
+		return;
+	}
 
 	uint32_t keyWords[2];
 	keyWords[0] = (uint32_t)modControllable;
@@ -3218,9 +3514,13 @@ void Song::deleteBackedUpParamManagersForModControllable(ModControllableAudio* m
 	    backedUpParamManagers.search((uint32_t)modControllable, GREATER_OR_EQUAL); // Search by first word only
 
 	while (true) {
-		if (iAnyClip >= backedUpParamManagers.getNumElements()) return;
+		if (iAnyClip >= backedUpParamManagers.getNumElements()) {
+			return;
+		}
 		BackedUpParamManager* elementAnyClip = (BackedUpParamManager*)backedUpParamManagers.getElementAddress(iAnyClip);
-		if (elementAnyClip->modControllable != modControllable) return;
+		if (elementAnyClip->modControllable != modControllable) {
+			return;
+		}
 
 		// Destruct paramManager
 		elementAnyClip->~BackedUpParamManager();
@@ -3237,7 +3537,9 @@ bool Song::doesOutputHaveActiveClipInSession(Output* output) {
 	for (int c = 0; c < sessionClips.getNumElements(); c++) {
 		Clip* clip = sessionClips.getClipAtIndex(c);
 
-		if (isClipActive(clip) && clip->output == output) return true;
+		if (isClipActive(clip) && clip->output == output) {
+			return true;
+		}
 	}
 
 	return false;
@@ -3268,13 +3570,17 @@ bool Song::doesOutputHaveAnyClips(Output* output) {
 	// Check arranger ones first via clipInstances
 	for (int i = 0; i < output->clipInstances.getNumElements(); i++) {
 		ClipInstance* thisInstance = output->clipInstances.getElement(i);
-		if (thisInstance->clip) return true;
+		if (thisInstance->clip) {
+			return true;
+		}
 	}
 
 	// Then session ones
 	for (int c = 0; c < sessionClips.getNumElements(); c++) {
 		Clip* clip = sessionClips.getClipAtIndex(c);
-		if (clip->output == output) return true;
+		if (clip->output == output) {
+			return true;
+		}
 	}
 
 	return false;
@@ -3308,7 +3614,9 @@ int Song::getLowestSectionWithNoSessionClipForOutput(Output* output) {
 	}
 
 	for (int s = 0; s < MAX_NUM_SECTIONS; s++) {
-		if (!sectionRepresented[s]) return s;
+		if (!sectionRepresented[s]) {
+			return s;
+		}
 	}
 
 	return 0;
@@ -3331,12 +3639,18 @@ traverseClips:
 		Clip* clip;
 		if (!doingArrangementClips) {
 			clip = sessionClips.getClipAtIndex(c);
-			if (clip->output != output) continue;
+			if (clip->output != output) {
+				continue;
+			}
 		}
 		else {
 			ClipInstance* clipInstance = output->clipInstances.getElement(c);
-			if (!clipInstance->clip) continue;
-			if (!clipInstance->clip->isArrangementOnlyClip()) continue;
+			if (!clipInstance->clip) {
+				continue;
+			}
+			if (!clipInstance->clip->isArrangementOnlyClip()) {
+				continue;
+			}
 			clip = clipInstance->clip;
 		}
 
@@ -3353,7 +3667,9 @@ traverseClips:
 				clip->soloingInSessionMode = false;
 				anyClipStoppedSoloing = true;
 			}
-			else clip->activeIfNoSolo = false;
+			else {
+				clip->activeIfNoSolo = false;
+			}
 		}
 	}
 	if (!doingArrangementClips) {
@@ -3362,7 +3678,9 @@ traverseClips:
 		goto traverseClips;
 	}
 
-	if (anyClipStoppedSoloing) reassessWhetherAnyClipsSoloing();
+	if (anyClipStoppedSoloing) {
+		reassessWhetherAnyClipsSoloing();
+	}
 	output->setActiveClip(modelStack);
 }
 
@@ -3414,8 +3732,12 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack, 
 
 				// If the Instrument already had a Clip, we gotta be inactive...
 				if (clip->output->activeClip) {
-					if (getAnyClipsSoloing()) clip->soloingInSessionMode = false;
-					else clip->activeIfNoSolo = false;
+					if (getAnyClipsSoloing()) {
+						clip->soloingInSessionMode = false;
+					}
+					else {
+						clip->activeIfNoSolo = false;
+					}
 				}
 
 				// Otherwise, it's ours
@@ -3451,7 +3773,9 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack, 
 		if (playbackWillStartInArrangerAtPos != -1) {
 			clip->wasActiveBefore = clip->activeIfNoSolo;
 			clip->soloingInSessionMode = false;
-			if (!clip->output->activeClip) clip->activeIfNoSolo = false;
+			if (!clip->output->activeClip) {
+				clip->activeIfNoSolo = false;
+			}
 		}
 
 		if (!clip->output->activeClip) {
@@ -3539,7 +3863,9 @@ traverseClips:
 		Clip* clip = clipArray->getClipAtIndex(c);
 
 		if (includeInactive || isClipActive(clip)) {
-			if (!longestClip || clip->loopLength > longestClip->loopLength) longestClip = clip;
+			if (!longestClip || clip->loopLength > longestClip->loopLength) {
+				longestClip = clip;
+			}
 		}
 	}
 	if (clipArray != &arrangementOnlyClips) {
@@ -3576,7 +3902,9 @@ traverseClips:
 				}
 			}
 			else {
-				if (revertToAnyActiveClipIfNone && !foundClipIsFitting) foundClip = clip;
+				if (revertToAnyActiveClipIfNone && !foundClipIsFitting) {
+					foundClip = clip;
+				}
 			}
 		}
 	}
@@ -3631,7 +3959,9 @@ void Song::stopAllMIDIAndGateNotesPlaying() {
 traverseClips:
 	for (int c = 0; c < clipArray->getNumElements(); c++) {
 		Clip* clip = clipArray->getClipAtIndex(c);
-		if (clip->type != CLIP_TYPE_INSTRUMENT) continue;
+		if (clip->type != CLIP_TYPE_INSTRUMENT) {
+			continue;
+		}
 		InstrumentClip* instrumentClip = (InstrumentClip*)clip;
 
 		if (isClipActive(instrumentClip) && instrumentClip->output->type != INSTRUMENT_TYPE_SYNTH) {
@@ -3663,7 +3993,9 @@ void Song::ensureAllInstrumentsHaveAClipOrBackedUpParamManager(char const* error
 
 	// Non-hibernating Instruments
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
-		if (thisOutput->type != INSTRUMENT_TYPE_SYNTH && thisOutput->type != INSTRUMENT_TYPE_KIT) continue;
+		if (thisOutput->type != INSTRUMENT_TYPE_SYNTH && thisOutput->type != INSTRUMENT_TYPE_KIT) {
+			continue;
+		}
 
 		AudioEngine::routineWithClusterLoading(); // -----------------------------------
 
@@ -3681,7 +4013,9 @@ void Song::ensureAllInstrumentsHaveAClipOrBackedUpParamManager(char const* error
 	// And hibernating Instruments
 	for (Instrument* thisInstrument = firstHibernatingInstrument; thisInstrument;
 	     thisInstrument = (Instrument*)thisInstrument->next) {
-		if (thisInstrument->type != INSTRUMENT_TYPE_SYNTH && thisInstrument->type != INSTRUMENT_TYPE_KIT) continue;
+		if (thisInstrument->type != INSTRUMENT_TYPE_SYNTH && thisInstrument->type != INSTRUMENT_TYPE_KIT) {
+			continue;
+		}
 
 		AudioEngine::routineWithClusterLoading(); // -----------------------------------
 
@@ -3710,7 +4044,9 @@ int Song::placeFirstInstancesOfActiveClips(int32_t pos) {
 		if (isClipActive(clip)) {
 			int clipInstanceI = clip->output->clipInstances.getNumElements();
 			int error = clip->output->clipInstances.insertAtIndex(clipInstanceI);
-			if (error) return error;
+			if (error) {
+				return error;
+			}
 
 			ClipInstance* clipInstance = clip->output->clipInstances.getElement(clipInstanceI);
 			clipInstance->clip = clip;
@@ -3733,7 +4069,9 @@ void Song::endInstancesOfActiveClips(int32_t pos, bool detachClipsToo) {
 
 			Clip* clipNow = clip->getClipToRecordTo();
 
-			if (detachClipsToo) clipNow->beingRecordedFromClip = NULL;
+			if (detachClipsToo) {
+				clipNow->beingRecordedFromClip = NULL;
+			}
 
 			int clipInstanceI = clip->output->clipInstances.search(pos + 1, LESS);
 			if (clipInstanceI >= 0) {
@@ -3790,7 +4128,9 @@ void Song::clearArrangementBeyondPos(int32_t pos, Action* action) {
 		// or else it'll look at those to pick the new activeClip, which might not exist anymore.
 		for (int j = thisOutput->clipInstances.getNumElements() - 1; j >= i; j--) {
 			ClipInstance* clipInstance = thisOutput->clipInstances.getElement(j);
-			if (action) action->recordClipInstanceExistenceChange(thisOutput, clipInstance, DELETE);
+			if (action) {
+				action->recordClipInstanceExistenceChange(thisOutput, clipInstance, DELETE);
+			}
 			Clip* clip = clipInstance->clip;
 			thisOutput->clipInstances.deleteAtIndex(j);
 
@@ -3832,7 +4172,9 @@ void Song::deletingClipInstanceForClip(Output* output, Clip* clip, Action* actio
 			// Delete the actual Clip.
 			// Will not remove Instrument from Song. Will call audio routine! That's why we deleted the ClipInstance first
 			int index = arrangementOnlyClips.getIndexForClip(clip);
-			if (index != -1) arrangementOnlyClips.deleteAtIndex(index); // Shouldn't actually ever not be found
+			if (index != -1) {
+				arrangementOnlyClips.deleteAtIndex(index); // Shouldn't actually ever not be found
+			}
 			deleteClipObject(clip, false, INSTRUMENT_REMOVAL_NONE);
 			if (shouldPickNewActiveClip) {
 				char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -3846,14 +4188,18 @@ void Song::deletingClipInstanceForClip(Output* output, Clip* clip, Action* actio
 
 bool Song::arrangementHasAnyClipInstances() {
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
-		if (thisOutput->clipInstances.getNumElements()) return true;
+		if (thisOutput->clipInstances.getNumElements()) {
+			return true;
+		}
 	}
 	return false;
 }
 
 void Song::setParamsInAutomationMode(bool newState) {
 
-	if (paramsInAutomationMode == newState) return;
+	if (paramsInAutomationMode == newState) {
+		return;
+	}
 
 	paramsInAutomationMode = newState;
 
@@ -3885,7 +4231,9 @@ void Song::setParamsInAutomationMode(bool newState) {
 bool Song::canOldOutputBeReplaced(Clip* clip, int* availabilityRequirement) {
 	// If Clip has an "instance" within its Output in arranger, then we can only change the entire Output to a different Output
 	if (clip->output->clipHasInstance(clip)) {
-		if (availabilityRequirement) *availabilityRequirement = AVAILABILITY_INSTRUMENT_UNUSED;
+		if (availabilityRequirement) {
+			*availabilityRequirement = AVAILABILITY_INSTRUMENT_UNUSED;
+		}
 		return true;
 	}
 
@@ -3997,7 +4345,9 @@ Instrument* Song::changeInstrumentType(Instrument* oldInstrument, int newInstrum
 
 		if (newInstrumentType == INSTRUMENT_TYPE_MIDI_OUT) {
 			newInstrument = grabHibernatingMIDIInstrument(newSlot, newSubSlot);
-			if (newInstrument) goto gotAnInstrument;
+			if (newInstrument) {
+				goto gotAnInstrument;
+			}
 		}
 		newInstrument = storageManager.createNewNonAudioInstrument(newInstrumentType, newSlot, newSubSlot);
 		if (!newInstrument) {
@@ -4020,7 +4370,9 @@ displayError:
 
 		result = loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(this, newInstrumentType,
 		                                                                                AVAILABILITY_INSTRUMENT_UNUSED);
-		if (result.error) goto displayError;
+		if (result.error) {
+			goto displayError;
+		}
 
 		newInstrument = result.fileItem->instrument;
 		bool isHibernating = newInstrument && !result.fileItem->instrumentAlreadyInSong;
@@ -4035,9 +4387,13 @@ displayError:
 
 		Browser::emptyFileItems();
 
-		if (result.error) goto displayError;
+		if (result.error) {
+			goto displayError;
+		}
 
-		if (isHibernating) removeInstrumentFromHibernationList(newInstrument);
+		if (isHibernating) {
+			removeInstrumentFromHibernationList(newInstrument);
+		}
 
 #if HAVE_OLED
 		OLED::displayWorkingAnimation("Loading");
@@ -4098,31 +4454,47 @@ AudioOutput* Song::createNewAudioOutput(Output* replaceOutput) {
 	for (Output* output = firstOutput; output; output = output->next) {
 		if (output->type == OUTPUT_TYPE_AUDIO) {
 			char const* nameChars = output->name.get();
-			if (memcasecmp(nameChars, "AUDIO", 5)) continue;
+			if (memcasecmp(nameChars, "AUDIO", 5)) {
+				continue;
+			}
 
 			int nameLength = strlen(nameChars);
-			if (nameLength < 1) continue;
+			if (nameLength < 1) {
+				continue;
+			}
 
-			if (!memIsNumericChars(&nameChars[5], nameLength - 5)) continue;
+			if (!memIsNumericChars(&nameChars[5], nameLength - 5)) {
+				continue;
+			}
 
 			int number = stringToInt(&nameChars[5]);
-			if (number > highestNumber) highestNumber = number;
+			if (number > highestNumber) {
+				highestNumber = number;
+			}
 		}
 	}
 
 	String newName;
 	int error = newName.set("AUDIO");
-	if (error) return NULL;
+	if (error) {
+		return NULL;
+	}
 
 	error = newName.concatenateInt(highestNumber + 1);
-	if (error) return NULL;
+	if (error) {
+		return NULL;
+	}
 
 	ParamManagerForTimeline newParamManager;
 	error = newParamManager.setupUnpatched();
-	if (error) return NULL;
+	if (error) {
+		return NULL;
+	}
 
 	void* outputMemory = generalMemoryAllocator.alloc(sizeof(AudioOutput), NULL, false, true);
-	if (!outputMemory) return NULL;
+	if (!outputMemory) {
+		return NULL;
+	}
 
 	AudioOutput* newOutput = new (outputMemory) AudioOutput();
 	newOutput->name.set(&newName);
@@ -4163,12 +4535,19 @@ Output* Song::getNextAudioOutput(int offset, Output* oldOutput, int availability
 	if (offset < 0) { // Reverses direction
 		while (true) {
 			newOutput = newOutput->next;
-			if (!newOutput) newOutput = firstOutput;
-			if (newOutput == oldOutput) break;
+			if (!newOutput) {
+				newOutput = firstOutput;
+			}
+			if (newOutput == oldOutput) {
+				break;
+			}
 			if (availabilityRequirement >= AVAILABILITY_INSTRUMENT_AVAILABLE_IN_SESSION
-			    && doesOutputHaveActiveClipInSession(newOutput))
+			    && doesOutputHaveActiveClipInSession(newOutput)) {
 				continue;
-			if (newOutput->type == OUTPUT_TYPE_AUDIO) break;
+			}
+			if (newOutput->type == OUTPUT_TYPE_AUDIO) {
+				break;
+			}
 		}
 	}
 
@@ -4177,12 +4556,19 @@ Output* Song::getNextAudioOutput(int offset, Output* oldOutput, int availability
 		Output* investigatingOutput = oldOutput;
 		while (true) {
 			investigatingOutput = investigatingOutput->next;
-			if (!investigatingOutput) investigatingOutput = firstOutput;
-			if (investigatingOutput == oldOutput) break;
+			if (!investigatingOutput) {
+				investigatingOutput = firstOutput;
+			}
+			if (investigatingOutput == oldOutput) {
+				break;
+			}
 			if (availabilityRequirement >= AVAILABILITY_INSTRUMENT_AVAILABLE_IN_SESSION
-			    && doesOutputHaveActiveClipInSession(investigatingOutput))
+			    && doesOutputHaveActiveClipInSession(investigatingOutput)) {
 				continue;
-			if (investigatingOutput->type == OUTPUT_TYPE_AUDIO) newOutput = investigatingOutput;
+			}
+			if (investigatingOutput->type == OUTPUT_TYPE_AUDIO) {
+				newOutput = investigatingOutput;
+			}
 		}
 	}
 
@@ -4248,10 +4634,14 @@ Instrument* Song::getNonAudioInstrumentToSwitchTo(int newInstrumentType, int ava
 			break;
 		}
 		else if (availabilityRequirement == AVAILABILITY_INSTRUMENT_AVAILABLE_IN_SESSION) {
-			if (!newInstrument || !getClipWithOutput(newInstrument, true)) break;
+			if (!newInstrument || !getClipWithOutput(newInstrument, true)) {
+				break;
+			}
 		}
 		else if (availabilityRequirement == AVAILABILITY_INSTRUMENT_UNUSED) {
-			if (!newInstrument) break;
+			if (!newInstrument) {
+				break;
+			}
 		}
 
 		newSlot = (newSlot + 1) & (numChannels - 1);
@@ -4271,7 +4661,9 @@ Instrument* Song::getNonAudioInstrumentToSwitchTo(int newInstrumentType, int ava
 
 		if (newInstrumentType == INSTRUMENT_TYPE_MIDI_OUT) {
 			newInstrument = grabHibernatingMIDIInstrument(newSlot, newSubSlot);
-			if (newInstrument) goto gotAnInstrument;
+			if (newInstrument) {
+				goto gotAnInstrument;
+			}
 		}
 		newInstrument = storageManager.createNewNonAudioInstrument(newInstrumentType, newSlot, newSubSlot);
 		if (!newInstrument) {
@@ -4287,7 +4679,9 @@ gotAnInstrument:
 void Song::removeSessionClip(Clip* clip, int clipIndex, bool forceClipsAboveToMoveVertically) {
 
 	// If this is the current Clip for the ClipView...
-	if (currentClip == clip) currentClip = NULL;
+	if (currentClip == clip) {
+		currentClip = NULL;
+	}
 
 	// Must unsolo the Clip before we delete it, in case its play-pos needs to be grabbed for another Clip
 	if (clip->soloingInSessionMode) {
@@ -4326,8 +4720,9 @@ lookAtNextOne:
 				}
 			}
 
-			if (deletedAnyElements)
+			if (deletedAnyElements) {
 				clipInstance = output->clipInstances.getElement(i); // Gotta re-get, since storage has changed
+			}
 
 			// If we'd already found one, we'll have to create a clone for this one - and possibly extend it
 			if (foundAtLeastOneInstanceInArranger) {
@@ -4369,7 +4764,9 @@ lookAtNextOne:
 		deleteClipObject(clip, false, INSTRUMENT_REMOVAL_DELETE_OR_HIBERNATE_IF_UNUSED);
 	}
 
-	if (forceClipsAboveToMoveVertically || amountOfStuffAbove > amountOfStuffBelow) songViewYScroll--;
+	if (forceClipsAboveToMoveVertically || amountOfStuffAbove > amountOfStuffBelow) {
+		songViewYScroll--;
+	}
 
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender =
 	    true; // Necessary? Maybe the Instrument would get deleted from the master list?
@@ -4394,7 +4791,9 @@ bool Song::deletePendingOverdubs(Output* onlyWithOutput, int* originalClipIndex,
 	// cos this will get called as playback ends, but after playbackState is set to 0
 
 	// But, we're still allowed to do this check
-	if (playbackHandler.isEitherClockActive() && currentPlaybackMode != &session) return false;
+	if (playbackHandler.isEitherClockActive() && currentPlaybackMode != &session) {
+		return false;
+	}
 
 	bool anyDeleted = false;
 
@@ -4423,7 +4822,9 @@ int Song::getYScrollSongViewWithoutPendingOverdubs() {
 
 	for (int i = 0; i < numToSearch; i++) {
 		Clip* clip = sessionClips.getClipAtIndex(i);
-		if (clip->isPendingOverdub) outputValue--;
+		if (clip->isPendingOverdub) {
+			outputValue--;
+		}
 	}
 
 	return outputValue;
@@ -4435,7 +4836,9 @@ Clip* Song::getPendingOverdubWithOutput(Output* output) {
 	for (int c = 0; c < sessionClips.getNumElements(); c++) {
 		Clip* clip = sessionClips.getClipAtIndex(c);
 
-		if (clip->isPendingOverdub && clip->output == output) return clip;
+		if (clip->isPendingOverdub && clip->output == output) {
+			return clip;
+		}
 	}
 
 	return NULL;
@@ -4459,7 +4862,9 @@ Clip* Song::getClipWithOutputAboutToBeginLinearRecording(Output* output) {
 Clip* Song::createPendingNextOverdubBelowClip(Clip* clip, int clipIndex, int newOverdubNature) {
 
 	// No automatic overdubs are allowed during soloing, cos that's just too complicated
-	if (anyClipsSoloing) return NULL;
+	if (anyClipsSoloing) {
+		return NULL;
+	}
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
@@ -4487,7 +4892,9 @@ bool Song::hasAnyPendingNextOverdubs() {
 	for (int c = 0; c < sessionClips.getNumElements(); c++) {
 		Clip* clip = sessionClips.getClipAtIndex(c);
 
-		if (clip->isPendingOverdub) return true;
+		if (clip->isPendingOverdub) {
+			return true;
+		}
 	}
 
 	return false;
@@ -4665,16 +5072,23 @@ void Song::expectEvent() {
 
 uint32_t Song::getLivePos() {
 
-	if (playbackHandler.recording == RECORDING_ARRANGEMENT) return playbackHandler.getActualArrangementRecordPos();
-	else return arrangement.getLivePos();
+	if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
+		return playbackHandler.getActualArrangementRecordPos();
+	}
+	else {
+		return arrangement.getLivePos();
+	}
 }
 
 // I think I created this function to be called during the actioning of a swung tick, when we know that no further swung ticks have passed since the last actioned one
 int32_t Song::getLastProcessedPos() {
 
-	if (playbackHandler.recording == RECORDING_ARRANGEMENT)
+	if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
 		return playbackHandler.getArrangementRecordPosAtLastActionedSwungTick();
-	else return arrangement.lastProcessedPos;
+	}
+	else {
+		return arrangement.lastProcessedPos;
+	}
 }
 
 int32_t Song::getLoopLength() {
@@ -4701,19 +5115,29 @@ int Song::convertSyncLevelFromFileValueToInternalValue(int fileValue) {
 
 	// The file value is relative to insideWorldTickMagnitude etc, though if insideWorldTickMagnitude is 1 (which used to be the default), it comes out as the same value anyway (kind of a side point)
 
-	if (fileValue == 0) return 0; // 0 means "off"
+	if (fileValue == 0) {
+		return 0; // 0 means "off"
+	}
 	int internalValue = fileValue + 1 - (insideWorldTickMagnitude + insideWorldTickMagnitudeOffsetFromBPM);
-	if (internalValue < 1) internalValue = 1;
-	else if (internalValue > 9) internalValue = 9;
+	if (internalValue < 1) {
+		internalValue = 1;
+	}
+	else if (internalValue > 9) {
+		internalValue = 9;
+	}
 
 	return internalValue;
 }
 
 int Song::convertSyncLevelFromInternalValueToFileValue(int internalValue) {
 
-	if (internalValue == 0) return 0; // 0 means "off"
+	if (internalValue == 0) {
+		return 0; // 0 means "off"
+	}
 	int fileValue = internalValue - 1 + (insideWorldTickMagnitude + insideWorldTickMagnitudeOffsetFromBPM);
-	if (fileValue < 1) fileValue = 1;
+	if (fileValue < 1) {
+		fileValue = 1;
+	}
 
 	return fileValue;
 }
@@ -4743,12 +5167,16 @@ doHibernatingInstruments:
 	// First, check all other Instruments in memory, in case the next one in line isn't saved
 	for (; thisOutput; thisOutput = thisOutput->next) {
 
-		if (thisOutput->type != instrumentType) continue;
+		if (thisOutput->type != instrumentType) {
+			continue;
+		}
 
 		Instrument* thisInstrument = (Instrument*)thisOutput;
 
 		// If different path, it's not relevant.
-		if (!thisInstrument->dirPath.equals(&Browser::currentDir)) continue;
+		if (!thisInstrument->dirPath.equals(&Browser::currentDir)) {
+			continue;
+		}
 
 		FileItem* thisItem = loadInstrumentPresetUI.getNewFileItem();
 		if (!thisItem) {
@@ -4756,10 +5184,14 @@ doHibernatingInstruments:
 		}
 
 		int error = thisItem->setupWithInstrument(thisInstrument, doingHibernatingOnes);
-		if (error) return error;
+		if (error) {
+			return error;
+		}
 	}
 
-	if (!doingHibernatingOnes) goto doHibernatingInstruments;
+	if (!doingHibernatingOnes) {
+		goto doHibernatingInstruments;
+	}
 
 	return NO_ERROR;
 }

@@ -64,8 +64,9 @@ void ramTestUart() {
 
 				uint32_t errorAtBlockNow = ((uint32_t)address) & (0xFFF00000);
 				if (errorAtBlockNow != lastErrorAt) {
-					while (uartGetTxBufferFullnessByItem(UART_ITEM_MIDI) > 100)
+					while (uartGetTxBufferFullnessByItem(UART_ITEM_MIDI) > 100) {
 						;
+					}
 					Uart::print("error at ");
 					Uart::print((uint32_t)address);
 					Uart::print(". got ");
@@ -110,8 +111,12 @@ void sendColoursForHardwareTest(bool testButtonStates[9][16]) {
 		for (int y = 0; y < 16; y++) {
 			for (int c = 0; c < 3; c++) {
 				int value;
-				if (testButtonStates[x][y]) value = 255;
-				else value = (c == hardwareTestWhichColour) ? 64 : 0;
+				if (testButtonStates[x][y]) {
+					value = 255;
+				}
+				else {
+					value = (c == hardwareTestWhichColour) ? 64 : 0;
+				}
 				bufferPICPadsUart(value);
 			}
 		}
@@ -168,7 +173,9 @@ void readInputsForHardwareTest(bool testButtonStates[9][16]) {
 				anythingProbablyPressed = false;
 			}
 			else {
-				if (!HARDWARE_TEST_MODE) setupSquareWave();
+				if (!HARDWARE_TEST_MODE) {
+					setupSquareWave();
+				}
 
 				anythingProbablyPressed = true;
 			}
@@ -176,8 +183,12 @@ void readInputsForHardwareTest(bool testButtonStates[9][16]) {
 #if HAVE_OLED
 		else if (value == oledWaitingForMessage) {
 			//delayUS(2500); // TODO: fix
-			if (value == 248) oledSelectingComplete();
-			else oledDeselectionComplete();
+			if (value == 248) {
+				oledSelectingComplete();
+			}
+			else {
+				oledDeselectionComplete();
+			}
 		}
 #endif
 	}
@@ -204,8 +215,12 @@ void readInputsForHardwareTest(bool testButtonStates[9][16]) {
 	}
 
 	if (anything) {
-		if (encoderTestPos > 128) encoderTestPos = 128;
-		else if (encoderTestPos < 0) encoderTestPos = 0;
+		if (encoderTestPos > 128) {
+			encoderTestPos = 128;
+		}
+		else if (encoderTestPos < 0) {
+			encoderTestPos = 0;
+		}
 
 		IndicatorLEDs::setKnobIndicatorLevel(1, encoderTestPos);
 	}
@@ -234,7 +249,9 @@ void ramTestLED(bool stuffAlreadySetUp) {
 
 	midiEngine.midiThru = true;
 
-	if (!HARDWARE_TEST_MODE) setupSquareWave();
+	if (!HARDWARE_TEST_MODE) {
+		setupSquareWave();
+	}
 
 	bufferPICPadsUart(23); // Set flash length
 	bufferPICPadsUart(100);
@@ -252,7 +269,9 @@ void ramTestLED(bool stuffAlreadySetUp) {
 
 	// Switch on all round-button LEDs
 	for (int x = 1; x < 9; x++) {
-		if (x == 4) continue; // Skip icecube LEDs
+		if (x == 4) {
+			continue; // Skip icecube LEDs
+		}
 		for (int y = 0; y < 4; y++) {
 			bufferPICIndicatorsUart(152 + x + y * 9 + 36);
 		}
@@ -380,10 +399,12 @@ uint32_t timeNextAutoPilotAction = 0;
 
 void autoPilotStuff() {
 
-	if (!playbackHandler.recording) return;
+	if (!playbackHandler.recording)
+		return;
 
 	int timeTilNextAction = timeNextAutoPilotAction - AudioEngine::audioSampleTimer;
-	if (timeTilNextAction > 0) return;
+	if (timeTilNextAction > 0)
+		return;
 
 	int randThing;
 
@@ -513,7 +534,8 @@ void autoPilotStuff() {
 
 	case AUTOPILOT_IN_SONG_LOADER:
 
-		if (currentUIMode) break;
+		if (currentUIMode)
+			break;
 
 		// Maybe we already actually exited
 		if (getCurrentUI() == getRootUI()) {

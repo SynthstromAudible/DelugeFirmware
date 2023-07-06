@@ -72,7 +72,7 @@ Browser::Browser() {
 	scrollingText = NULL;
 	shouldWrapFolderContents = true;
 #endif
-	allowBrandNewNames = false;
+	mayDefaultToBrandNewNameOnEntry = false;
 	qwertyAlwaysVisible = true;
 	qwertyVisible = true; // Because for most Browsers, it'll just always be true.
 	filePrefix = NULL;
@@ -150,8 +150,12 @@ doCull:
 	int newIndex = fileItems.getNumElements();
 	int error = fileItems.insertAtIndex(newIndex);
 	if (error) {
-		if (alreadyCulled) return NULL;
-		else goto doCull;
+		if (alreadyCulled) {
+			return NULL;
+		}
+		else {
+			goto doCull;
+		}
 	}
 
 	void* newMemory = fileItems.getElementAddress(newIndex);
@@ -166,7 +170,9 @@ void Browser::cullSomeFileItems() {
 	int startAt, stopAt;
 
 	int numFileItemsDeletingNow = fileItems.getNumElements() - (maxNumFileItemsNow >> 1); // May get modified below.
-	if (numFileItemsDeletingNow <= 0) return;
+	if (numFileItemsDeletingNow <= 0) {
+		return;
+	}
 
 	// If we already know what side we want to be deleting on...
 	if (catalogSearchDirection == CATALOG_SEARCH_LEFT) {
@@ -194,8 +200,12 @@ deleteFromRightSide:
 		// If search-item is in second half, delete from start.
 		if ((foundIndex << 1) >= fileItems.getNumElements()) {
 			int newNumFilesDeleting = foundIndex >> 1; // Delete half the existing items to the left of the search-item.
-			if (newNumFilesDeleting <= 0) return;
-			if (numFileItemsDeletingNow > newNumFilesDeleting) numFileItemsDeletingNow = newNumFilesDeleting;
+			if (newNumFilesDeleting <= 0) {
+				return;
+			}
+			if (numFileItemsDeletingNow > newNumFilesDeleting) {
+				numFileItemsDeletingNow = newNumFilesDeleting;
+			}
 			goto deleteFromLeftSide;
 		}
 
@@ -203,13 +213,19 @@ deleteFromRightSide:
 		else {
 			int newNumFilesDeleting = (fileItems.getNumElements() - foundIndex)
 			                          >> 1; // Delete half the existing items to the right of the search-item.
-			if (newNumFilesDeleting <= 0) return;
-			if (numFileItemsDeletingNow > newNumFilesDeleting) numFileItemsDeletingNow = newNumFilesDeleting;
+			if (newNumFilesDeleting <= 0) {
+				return;
+			}
+			if (numFileItemsDeletingNow > newNumFilesDeleting) {
+				numFileItemsDeletingNow = newNumFilesDeleting;
+			}
 			goto deleteFromRightSide;
 		}
 	}
 
-	if (startAt != stopAt) deleteSomeFileItems(startAt, stopAt); // Check might not be necessary?
+	if (startAt != stopAt) {
+		deleteSomeFileItems(startAt, stopAt); // Check might not be necessary?
+	}
 }
 
 int Browser::readFileItemsForFolder(char const* filePrefixHere, bool allowFolders,
@@ -221,7 +237,9 @@ int Browser::readFileItemsForFolder(char const* filePrefixHere, bool allowFolder
 	emptyFileItems();
 
 	int error = storageManager.initSD();
-	if (error) return error;
+	if (error) {
+		return error;
+	}
 
 	FRESULT result = f_opendir(&staticDIR, currentDir.get());
 	if (result) {
@@ -246,7 +264,9 @@ int Browser::readFileItemsForFolder(char const* filePrefixHere, bool allowFolder
 
 #if !HAVE_OLED
 	int filePrefixLength;
-	if (filePrefixHere) filePrefixLength = strlen(filePrefixHere);
+	if (filePrefixHere) {
+		filePrefixLength = strlen(filePrefixHere);
+	}
 #endif
 
 	while (true) {
@@ -257,11 +277,17 @@ int Browser::readFileItemsForFolder(char const* filePrefixHere, bool allowFolder
 
 		result = f_readdir_get_filepointer(&staticDIR, &staticFNO, &thisFilePointer); /* Read a directory item */
 
-		if (result != FR_OK || staticFNO.fname[0] == 0) break; /* Break on error or end of dir */
-		if (staticFNO.fname[0] == '.') continue;               /* Ignore dot entry */
+		if (result != FR_OK || staticFNO.fname[0] == 0) {
+			break; /* Break on error or end of dir */
+		}
+		if (staticFNO.fname[0] == '.') {
+			continue; /* Ignore dot entry */
+		}
 		bool isFolder = staticFNO.fattrib & AM_DIR;
 		if (isFolder) {
-			if (!allowFolders) continue;
+			if (!allowFolders) {
+				continue;
+			}
 		}
 		else {
 			char const* dotPos = strrchr(staticFNO.fname, '.');
@@ -273,7 +299,9 @@ extensionNotSupported:
 			char const** thisExtension = allowedFileExtensionsHere;
 			while (strcasecmp(fileExtension, *thisExtension)) {
 				thisExtension++;
-				if (!*thisExtension) goto extensionNotSupported; // If reached end of list
+				if (!*thisExtension) {
+					goto extensionNotSupported; // If reached end of list
+				}
 			}
 		}
 
@@ -283,30 +311,42 @@ extensionNotSupported:
 			break;
 		}
 		error = thisItem->filename.set(staticFNO.fname);
-		if (error) break;
+		if (error) {
+			break;
+		}
 		thisItem->isFolder = isFolder;
 		thisItem->filePointer = thisFilePointer;
 
 		char const* storedFilenameChars = thisItem->filename.get();
 #if !HAVE_OLED
 		if (filePrefixHere) {
-			if (memcasecmp(storedFilenameChars, filePrefixHere, filePrefixLength)) goto nonNumericFile;
+			if (memcasecmp(storedFilenameChars, filePrefixHere, filePrefixLength)) {
+				goto nonNumericFile;
+			}
 
 			char* dotAddress = strrchr(storedFilenameChars, '.');
-			if (!dotAddress) goto nonNumericFile; // Shouldn't happen?
+			if (!dotAddress) {
+				goto nonNumericFile; // Shouldn't happen?
+			}
 
 			int dotPos = (uint32_t)dotAddress - (uint32_t)storedFilenameChars;
-			if (dotPos < filePrefixLength + 3) goto nonNumericFile;
+			if (dotPos < filePrefixLength + 3) {
+				goto nonNumericFile;
+			}
 
 			char const* numbersStartAddress = &storedFilenameChars[filePrefixLength];
 
-			if (!memIsNumericChars(numbersStartAddress, 3)) goto nonNumericFile;
+			if (!memIsNumericChars(numbersStartAddress, 3)) {
+				goto nonNumericFile;
+			}
 
 			thisItem->displayName = numbersStartAddress;
 
 			if (*thisItem->displayName == '0') {
 				thisItem->displayName++;
-				if (*thisItem->displayName == '0') thisItem->displayName++;
+				if (*thisItem->displayName == '0') {
+					thisItem->displayName++;
+				}
 			}
 		}
 		else
@@ -371,7 +411,9 @@ deleteThisItem:
 						continue;
 					}
 					else if (instrumentAvailabilityRequirement == AVAILABILITY_INSTRUMENT_AVAILABLE_IN_SESSION) {
-						if (currentSong->doesOutputHaveActiveClipInSession(readItem->instrument)) goto deleteThisItem;
+						if (currentSong->doesOutputHaveActiveClipInSession(readItem->instrument)) {
+							goto deleteThisItem;
+						}
 					}
 				}
 			}
@@ -384,7 +426,9 @@ deleteThisItem:
 			}
 		}
 		else {
-			if (readItem->instrument) goto checkAvailabilityRequirement;
+			if (readItem->instrument) {
+				goto checkAvailabilityRequirement;
+			}
 		}
 
 		void* writeAddress = fileItems.getElementAddress(writeI);
@@ -429,7 +473,9 @@ tryReadingItems:
 				if (!currentDir.equalsCaseIrrespective(defaultDirToAlsoTry)) {
 					filenameToStartAt = NULL;
 					int error = currentDir.set(defaultDirToAlsoTry);
-					if (error) return error;
+					if (error) {
+						return error;
+					}
 					goto tryReadingItems;
 				}
 
@@ -444,7 +490,9 @@ tryReadingItems:
 						triedCreatingFolder = true;
 						goto tryReadingItems;
 					}
-					else return fresultToDelugeErrorCode(result);
+					else {
+						return fresultToDelugeErrorCode(result);
+					}
 				}
 			}
 		}
@@ -454,7 +502,9 @@ tryReadingItems:
 
 	if (song && instrumentType != 255) {
 		error = song->addInstrumentsToFileItems(instrumentType);
-		if (error) return error;
+		if (error) {
+			return error;
+		}
 	}
 
 	if (fileItems.getNumElements()) {
@@ -477,7 +527,9 @@ tryReadingItems:
 int Browser::arrivedInNewFolder(int direction, char const* filenameToStartAt, char const* defaultDirToAlsoTry) {
 	arrivedAtFileByTyping = false;
 
-	if (!qwertyAlwaysVisible) qwertyVisible = false;
+	if (!qwertyAlwaysVisible) {
+		qwertyVisible = false;
+	}
 
 	shouldInterpretNoteNames = shouldInterpretNoteNamesForThisBrowser;
 	octaveStartsFromA = false;
@@ -506,7 +558,7 @@ gotErrorAfterAllocating:
 noExactFileFound:
 			// We did not find exact file.
 			// Normally, we'll need to just use one of the ones we found. (That's just always the first one, I think...)
-			if (!allowBrandNewNames || direction) {
+			if (!mayDefaultToBrandNewNameOnEntry || direction) {
 
 				// But since we're going to just use the first file, if we've deleted items at the start (meaning we had a search string), we need to go back and get them.
 				if (numFileItemsDeletedAtStart) {
@@ -515,14 +567,18 @@ noExactFileFound:
 				}
 setEnteredTextAndUseFoundFile:
 				error = setEnteredTextFromCurrentFilename();
-				if (error) goto gotErrorAfterAllocating;
+				if (error) {
+					goto gotErrorAfterAllocating;
+				}
 useFoundFile:
 				scrollPosVertical = fileIndexSelected;
 #if BROWSER_AND_MENU_NUM_LINES > 1
 				int lastAllowed = fileItems.getNumElements() - BROWSER_AND_MENU_NUM_LINES;
 				if (scrollPosVertical > lastAllowed) {
 					scrollPosVertical = lastAllowed;
-					if (scrollPosVertical < 0) scrollPosVertical = 0;
+					if (scrollPosVertical < 0) {
+						scrollPosVertical = 0;
+					}
 				}
 #endif
 				goto everythingFinalized;
@@ -537,24 +593,34 @@ useFoundFile:
 		}
 
 		int i = fileItems.search(filenameToStartAt, &foundExact);
-		if (!foundExact) goto noExactFileFound;
+		if (!foundExact) {
+			goto noExactFileFound;
+		}
 
 		fileIndexSelected = i;
 
 		// Usually we'll just use that file.
-		if (!allowBrandNewNames || direction) goto setEnteredTextAndUseFoundFile;
+		if (!mayDefaultToBrandNewNameOnEntry || direction) {
+			goto setEnteredTextAndUseFoundFile;
+		}
 
 		// We found an exact file. But if we've just entered the Browser and are allowed, then we need to find a new subslot variation.
 		// Come up with a new name variation.
 		error = setEnteredTextFromCurrentFilename();
-		if (error) goto gotErrorAfterAllocating;
+		if (error) {
+			goto gotErrorAfterAllocating;
+		}
 #if 1 || !HAVE_OLED
 		char const* enteredTextChars = enteredText.get();
 		if (!memcasecmp(enteredTextChars, "SONG", 4)) {
 			Slot thisSlot = getSlot(&enteredTextChars[4]);
-			if (thisSlot.slot < 0) goto doNormal;
+			if (thisSlot.slot < 0) {
+				goto doNormal;
+			}
 
-			if (thisSlot.subSlot >= 25) goto useFoundFile;
+			if (thisSlot.subSlot >= 25) {
+				goto useFoundFile;
+			}
 
 			char nameBuffer[20];
 			char* nameBufferPos = nameBuffer;
@@ -587,7 +653,9 @@ useFoundFile:
 			}
 			*(subSlotPos + 1) = 0; // Removes ".XML"
 			error = enteredText.set(nameBuffer);
-			if (error) goto gotErrorAfterAllocating;
+			if (error) {
+				goto gotErrorAfterAllocating;
+			}
 		}
 #else
 		int length = enteredText.getLength();
@@ -604,7 +672,8 @@ useFoundFile:
 				char newSuffix = enteredTextChars[length - 1] + 1;
 				enteredText.concatenateAtPos(&newSuffix, length - 1, 1);
 			}
-			else goto doNormal;
+			else
+				goto doNormal;
 		}
 #endif
 		else {
@@ -624,12 +693,15 @@ tryAgain:
 
 				// Ok, it what comes after the underscore a positive integer?
 				int number = stringToUIntOrError(delimeterAddress + 1);
-				if (number < 0) goto noNumberYet;
+				if (number < 0) {
+					goto noNumberYet;
+				}
 
 				numberStartPos = underscorePos + 1;
 				error = endSearchString.concatenateAtPos(":", numberStartPos);
-				if (error)
+				if (error) {
 					goto gotErrorAfterAllocating; // Colon is the next character after the ascii digits, so searching for this will get us past the final number present.
+				}
 			}
 			else {
 noNumberYet:
@@ -639,7 +711,9 @@ noNumberYet:
 				}
 				numberStartPos = endSearchString.getLength() + 1;
 				error = endSearchString.concatenate(HAVE_OLED ? " :" : "_:");
-				if (error) goto gotErrorAfterAllocating; // See above comment.
+				if (error) {
+					goto gotErrorAfterAllocating; // See above comment.
+				}
 			}
 
 			int searchResult = fileItems.search(endSearchString.get());
@@ -653,21 +727,31 @@ noNumberYet:
 			FileItem* prevFile = (FileItem*)fileItems.getElementAddress(searchResult - 1);
 			String prevFilename;
 			error = prevFile->getFilenameWithoutExtension(&prevFilename);
-			if (error) goto gotErrorAfterAllocating;
+			if (error) {
+				goto gotErrorAfterAllocating;
+			}
 			char const* prevFilenameChars = prevFilename.get();
 			int number;
 			if (prevFilename.getLength() > numberStartPos) {
 				number = stringToUIntOrError(&prevFilenameChars[numberStartPos]);
-				if (number < 0) number = 1;
+				if (number < 0) {
+					number = 1;
+				}
 			}
-			else number = 1;
+			else {
+				number = 1;
+			}
 
 			number++;
 			enteredText.set(&endSearchString);
 			error = enteredText.shorten(numberStartPos);
-			if (error) goto gotErrorAfterAllocating;
+			if (error) {
+				goto gotErrorAfterAllocating;
+			}
 			error = enteredText.concatenateInt(number);
-			if (error) goto gotErrorAfterAllocating;
+			if (error) {
+				goto gotErrorAfterAllocating;
+			}
 
 			enteredTextEditPos = enteredText.getLength();
 		}
@@ -676,16 +760,20 @@ noNumberYet:
 	// Or if no files found at all...
 	else {
 		// Can we just pick a brand new name?
-		if (allowBrandNewNames && !direction) {
+		if (mayDefaultToBrandNewNameOnEntry && !direction) {
 pickBrandNewNameIfNoneNominated:
 			if (enteredText.isEmpty()) {
 				error = getUnusedSlot(255, &enteredText, "SONG");
-				if (error) goto gotErrorAfterAllocating;
+				if (error) {
+					goto gotErrorAfterAllocating;
+				}
 
 				// Because that will have cleared out all the FileItems, we need to get them again. Actually there would kinda be a way around doing this...
 				error = readFileItemsFromFolderAndMemory(currentSong, 255, "SONG", enteredText.get(), NULL, false, 0,
 				                                         CATALOG_SEARCH_BOTH);
-				if (error) goto gotErrorAfterAllocating;
+				if (error) {
+					goto gotErrorAfterAllocating;
+				}
 			}
 		}
 		else {
@@ -734,7 +822,9 @@ doReturn:
 		FileItem* fileItem = (FileItem*)fileItems.getElementAddress(fileItems.getNumElements() - 1);
 		String displayName;
 		error = fileItem->getDisplayNameWithoutExtension(&displayName);
-		if (error) goto emptyFileItemsAndReturn;
+		if (error) {
+			goto emptyFileItemsAndReturn;
+		}
 		char const* readingChar = &displayName.get()[strlen(thingName)];
 		freeSlotNumber = 0;
 		minNumDigits = 0;
@@ -748,7 +838,9 @@ doReturn:
 	}
 
 	error = newName->set(thingName);
-	if (error) goto emptyFileItemsAndReturn;
+	if (error) {
+		goto emptyFileItemsAndReturn;
+	}
 	error = newName->concatenateInt(freeSlotNumber, minNumDigits);
 
 #else
@@ -771,12 +863,18 @@ noMoreToLookAt:
 		FileItem* fileItem = (FileItem*)fileItems.getElementAddress(i);
 		String displayName;
 		error = fileItem->getDisplayNameWithoutExtension(&displayName);
-		if (error) goto emptyFileItemsAndReturn;
+		if (error) {
+			goto emptyFileItemsAndReturn;
+		}
 		char const* displayNameChars = displayName.get();
-		if (displayNameChars[0] < '0') goto noMoreToLookAt;
+		if (displayNameChars[0] < '0') {
+			goto noMoreToLookAt;
+		}
 
 		Slot slotHere = getSlot(displayNameChars);
-		if (slotHere.slot < 0) goto goBackOne;
+		if (slotHere.slot < 0) {
+			goto goBackOne;
+		}
 
 		freeSlotNumber = slotHere.slot + 1; // Well, hopefully it's free...
 		if (freeSlotNumber >= nextHigherSlotFound) {
@@ -797,8 +895,9 @@ emptyFileItemsAndReturn:
 void Browser::selectEncoderAction(int8_t offset) {
 	arrivedAtFileByTyping = false;
 
-	if (currentUIMode != UI_MODE_NONE && currentUIMode != UI_MODE_HORIZONTAL_SCROLL)
+	if (currentUIMode != UI_MODE_NONE && currentUIMode != UI_MODE_HORIZONTAL_SCROLL) {
 		return; // This was from SampleBrowser. Is it still necessary?
+	}
 
 	shouldInterpretNoteNames = shouldInterpretNoteNamesForThisBrowser;
 	octaveStartsFromA = false;
@@ -806,21 +905,29 @@ void Browser::selectEncoderAction(int8_t offset) {
 	int newFileIndex;
 
 	if (fileIndexSelected < 0) { // If no file selected and we were typing a new name?
-		if (!fileItems.getNumElements()) return;
+		if (!fileItems.getNumElements()) {
+			return;
+		}
 
 		newFileIndex = fileItems.search(enteredText.get());
-		if (offset < 0) newFileIndex--;
+		if (offset < 0) {
+			newFileIndex--;
+		}
 	}
 	else {
 		// If user is holding shift, skip past any subslots. And on numeric Deluge, user may have chosen one digit to "edit".
 #if !HAVE_OLED
 		// TODO: deal with deleted FileItems here...
 		int numberEditPosNow = numberEditPos;
-		if (Buttons::isShiftButtonPressed() && numberEditPosNow == -1) numberEditPosNow = 0;
+		if (Buttons::isShiftButtonPressed() && numberEditPosNow == -1) {
+			numberEditPosNow = 0;
+		}
 
 		if (numberEditPosNow != -1) {
 			Slot thisSlot = getSlot(enteredText.get());
-			if (thisSlot.slot < 0) goto nonNumeric;
+			if (thisSlot.slot < 0) {
+				goto nonNumeric;
+			}
 
 			thisSlot.subSlot = -1;
 			switch (numberEditPosNow) {
@@ -847,9 +954,13 @@ void Browser::selectEncoderAction(int8_t offset) {
 		if (filePrefix && Buttons::isShiftButtonPressed()) {
 			int filePrefixLength = strlen(filePrefix);
 			char const* enteredTextChars = enteredText.get();
-			if (memcasecmp(filePrefix, enteredTextChars, filePrefixLength)) goto nonNumeric;
+			if (memcasecmp(filePrefix, enteredTextChars, filePrefixLength)) {
+				goto nonNumeric;
+			}
 			Slot thisSlot = getSlot(&enteredTextChars[filePrefixLength]);
-			if (thisSlot.slot < 0) goto nonNumeric;
+			if (thisSlot.slot < 0) {
+				goto nonNumeric;
+			}
 			thisSlot.slot += offset;
 
 			char searchString[9];
@@ -865,7 +976,9 @@ void Browser::selectEncoderAction(int8_t offset) {
 				*pos = 0;
 			}
 			newFileIndex = fileItems.search(searchString);
-			if (offset < 0) newFileIndex--;
+			if (offset < 0) {
+				newFileIndex--;
+			}
 		}
 		else {
 nonNumeric:
@@ -895,7 +1008,9 @@ gotErrorAfterAllocating:
 		}
 
 #if !HAVE_OLED
-		else if (!shouldWrapFolderContents) return;
+		else if (!shouldWrapFolderContents) {
+			return;
+		}
 #endif
 
 		else { // Wrap to end
@@ -907,7 +1022,9 @@ searchFromOneEnd:
 				uartPrintln("reloading and wrap");
 				error = readFileItemsFromFolderAndMemory(currentSong, instrumentTypeToLoad, filePrefix, NULL, NULL,
 				                                         true, 0, newCatalogSearchDirection); // Load from start
-				if (error) goto gotErrorAfterAllocating;
+				if (error) {
+					goto gotErrorAfterAllocating;
+				}
 
 				newFileIndex =
 				    (newCatalogSearchDirection == CATALOG_SEARCH_LEFT) ? (fileItems.getNumElements() - 1) : 0;
@@ -925,7 +1042,9 @@ searchFromOneEnd:
 		}
 
 #if !HAVE_OLED
-		else if (!shouldWrapFolderContents) return;
+		else if (!shouldWrapFolderContents) {
+			return;
+		}
 #endif
 
 		else {
@@ -941,11 +1060,15 @@ searchFromOneEnd:
 		}
 	}
 
-	if (!qwertyAlwaysVisible) qwertyVisible = false;
+	if (!qwertyAlwaysVisible) {
+		qwertyVisible = false;
+	}
 
 	fileIndexSelected = newFileIndex;
 
-	if (scrollPosVertical > fileIndexSelected) scrollPosVertical = fileIndexSelected;
+	if (scrollPosVertical > fileIndexSelected) {
+		scrollPosVertical = fileIndexSelected;
+	}
 	else if (scrollPosVertical < fileIndexSelected - NUM_FILES_ON_SCREEN + 1) {
 		scrollPosVertical = fileIndexSelected - NUM_FILES_ON_SCREEN + 1;
 	}
@@ -960,10 +1083,16 @@ searchFromOneEnd:
 		char oldChar = *oldCharAddress;
 		char newChar = *newCharAddress;
 
-		if (oldChar >= 'A' && oldChar <= 'Z') oldChar += 32;
-		if (newChar >= 'A' && newChar <= 'Z') newChar += 32;
+		if (oldChar >= 'A' && oldChar <= 'Z') {
+			oldChar += 32;
+		}
+		if (newChar >= 'A' && newChar <= 'Z') {
+			newChar += 32;
+		}
 
-		if (oldChar != newChar) break;
+		if (oldChar != newChar) {
+			break;
+		}
 		oldCharAddress++;
 		newCharAddress++;
 		enteredTextEditPos++;
@@ -1006,7 +1135,9 @@ gotError:
 
 addTildeAndSearch:
 	error = searchString.concatenate("~");
-	if (error) goto gotError;
+	if (error) {
+		goto gotError;
+	}
 
 	// Ok, search whatever FileItems we currently have in memory.
 doSearch:
@@ -1033,7 +1164,8 @@ gotErrorAfterAllocating:
 
 		// Otherwise if we already tried that, then our whole search is fruitless.
 notFound:
-		if (!allowBrandNewNames) {
+		if (false
+		    && !mayDefaultToBrandNewNameOnEntry) { // Disabled - now you're again always allowed to type characters even if no such file exists.
 			if (fileIndexSelected >= 0) {
 				setEnteredTextFromCurrentFilename(); // Set it back
 			}
@@ -1045,8 +1177,12 @@ notFound:
 	}
 
 	if (i == 0) {
-		if (!doneNewRead) goto doNewRead;
-		else goto notFound;
+		if (!doneNewRead) {
+			goto doNewRead;
+		}
+		else {
+			goto notFound;
+		}
 	}
 
 	i--;
@@ -1056,12 +1192,16 @@ notFound:
 	if (memcasecmp(fileItem->displayName, enteredText.get(), enteredTextEditPos)) {
 		if (numExtraZeroesAdded < 4) {
 			error = searchString.concatenateAtPos("0", searchString.getLength() - 1, 1);
-			if (error) goto gotError; // Gets rid of previously appended "~"
+			if (error) {
+				goto gotError; // Gets rid of previously appended "~"
+			}
 			numExtraZeroesAdded++;
 			doneNewRead = false;
 			goto addTildeAndSearch;
 		}
-		else goto notFound;
+		else {
+			goto notFound;
+		}
 	}
 
 	fileIndexSelected = i;
@@ -1072,7 +1212,9 @@ notFound:
 	}
 
 	error = setEnteredTextFromCurrentFilename();
-	if (error) goto gotError;
+	if (error) {
+		goto gotError;
+	}
 
 	displayText();
 
@@ -1086,7 +1228,9 @@ notFound:
 
 void Browser::currentFileDeleted() {
 	FileItem* currentFileItem = getCurrentFileItem();
-	if (!currentFileItem) return; // Shouldn't happen...
+	if (!currentFileItem) {
+		return; // Shouldn't happen...
+	}
 
 	currentFileItem->~FileItem();
 
@@ -1130,7 +1274,9 @@ void Browser::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 			{
 				int i = o + scrollPosVertical;
 
-				if (i >= fileItems.getNumElements()) break;
+				if (i >= fileItems.getNumElements()) {
+					break;
+				}
 
 				FileItem* thisFile = (FileItem*)fileItems.getElementAddress(i);
 				isFolder = thisFile->isFolder;
@@ -1215,7 +1361,9 @@ doReturn:
 		toReturn.subSlot = subSlotChar - 'A';
 		charPos++;
 		char nextChar = *charPos;
-		if (nextChar) goto nonNumeric; // Ensure no more characters
+		if (nextChar) {
+			goto nonNumeric; // Ensure no more characters
+		}
 		break;
 	}
 
@@ -1251,7 +1399,9 @@ doQWERTYDisplay:
 			if (filePrefix) {
 
 				Slot thisSlot = getSlot(enteredText.get());
-				if (thisSlot.slot < 0) goto nonNumeric;
+				if (thisSlot.slot < 0) {
+					goto nonNumeric;
+				}
 
 				numericDriver.setTextAsSlot(thisSlot.slot, thisSlot.subSlot, (fileIndexSelected != -1), true,
 				                            numberEditPos, blinkImmediately);
@@ -1261,8 +1411,12 @@ doQWERTYDisplay:
 nonNumeric:
 				goto doQWERTYDisplay; // Abandon the below for now.
 				numberEditPos = -1;
-				if (qwertyVisible) goto doQWERTYDisplay;
-				else scrollingText = numericDriver.setScrollingText(enteredText.get(), numCharsInPrefix);
+				if (qwertyVisible) {
+					goto doQWERTYDisplay;
+				}
+				else {
+					scrollingText = numericDriver.setScrollingText(enteredText.get(), numCharsInPrefix);
+				}
 			}
 		}
 	}
@@ -1270,8 +1424,12 @@ nonNumeric:
 }
 
 FileItem* Browser::getCurrentFileItem() {
-	if (fileIndexSelected == -1) return NULL;
-	else return (FileItem*)fileItems.getElementAddress(fileIndexSelected);
+	if (fileIndexSelected == -1) {
+		return NULL;
+	}
+	else {
+		return (FileItem*)fileItems.getElementAddress(fileIndexSelected);
+	}
 }
 
 // This and its individual contents are frequently overridden by child classes.
@@ -1291,7 +1449,9 @@ int Browser::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 					numericDriver.displayPopup(HAVE_OLED ? "Folders cannot be deleted on the Deluge" : "CANT");
 					return ACTION_RESULT_DEALT_WITH;
 				}
-				if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				if (inCardRoutine) {
+					return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				}
 
 				goIntoDeleteFileContextMenu();
 			}
@@ -1304,7 +1464,9 @@ int Browser::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 			return backButtonAction();
 		}
 	}
-	else return ACTION_RESULT_NOT_DEALT_WITH;
+	else {
+		return ACTION_RESULT_NOT_DEALT_WITH;
+	}
 
 	return ACTION_RESULT_DEALT_WITH;
 }
@@ -1313,7 +1475,9 @@ int Browser::mainButtonAction(bool on) {
 	// Press down
 	if (on) {
 		if (currentUIMode == UI_MODE_NONE) {
-			if (sdRoutineLock) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			if (sdRoutineLock) {
+				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
 			uiTimerManager.setTimer(TIMER_UI_SPECIFIC, 500);
 			currentUIMode = UI_MODE_HOLDING_BUTTON_POTENTIAL_LONG_PRESS;
 		}
@@ -1322,7 +1486,9 @@ int Browser::mainButtonAction(bool on) {
 	// Release press
 	else {
 		if (currentUIMode == UI_MODE_HOLDING_BUTTON_POTENTIAL_LONG_PRESS) {
-			if (sdRoutineLock) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			if (sdRoutineLock) {
+				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
 			currentUIMode = UI_MODE_NONE;
 			uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
 			enterKeyPress();
@@ -1334,9 +1500,13 @@ int Browser::mainButtonAction(bool on) {
 
 // Virtual function - may be overridden, by child classes that need to do more stuff, e.g. SampleBrowser needs to mute any previewing Sample.
 int Browser::backButtonAction() {
-	if (sdRoutineLock) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+	if (sdRoutineLock) {
+		return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+	}
 	int error = goUpOneDirectoryLevel();
-	if (error) exitAction();
+	if (error) {
+		exitAction();
+	}
 
 	return ACTION_RESULT_DEALT_WITH;
 }
@@ -1359,7 +1529,9 @@ int Browser::setEnteredTextFromCurrentFilename() {
 	FileItem* currentFileItem = getCurrentFileItem();
 
 	int error = enteredText.set(currentFileItem->displayName);
-	if (error) return error;
+	if (error) {
+		return error;
+	}
 
 	// Cut off the file extension
 	if (!currentFileItem->isFolder) {
@@ -1368,7 +1540,9 @@ int Browser::setEnteredTextFromCurrentFilename() {
 		if (dotAddress) {
 			int dotPos = (uint32_t)dotAddress - (uint32_t)enteredTextChars;
 			error = enteredText.shorten(dotPos);
-			if (error) return error;
+			if (error) {
+				return error;
+			}
 		}
 	}
 
@@ -1380,11 +1554,15 @@ int Browser::goIntoFolder(char const* folderName) {
 
 	if (!currentDir.isEmpty()) {
 		error = currentDir.concatenate("/");
-		if (error) return error;
+		if (error) {
+			return error;
+		}
 	}
 
 	error = currentDir.concatenate(folderName);
-	if (error) return error;
+	if (error) {
+		return error;
+	}
 
 	enteredText.clear();
 	enteredTextEditPos = 0;
@@ -1392,7 +1570,9 @@ int Browser::goIntoFolder(char const* folderName) {
 	numericDriver.setNextTransitionDirection(1);
 	error = arrivedInNewFolder(1);
 #if HAVE_OLED
-	if (!error) renderUIsForOled();
+	if (!error) {
+		renderUIsForOled();
+	}
 #endif
 	return error;
 }
@@ -1401,19 +1581,27 @@ int Browser::goUpOneDirectoryLevel() {
 
 	char const* currentDirChars = currentDir.get();
 	char const* slashAddress = strrchr(currentDirChars, '/');
-	if (!slashAddress || slashAddress == currentDirChars) return ERROR_NO_FURTHER_DIRECTORY_LEVELS_TO_GO_UP;
+	if (!slashAddress || slashAddress == currentDirChars) {
+		return ERROR_NO_FURTHER_DIRECTORY_LEVELS_TO_GO_UP;
+	}
 
 	int slashPos = (uint32_t)slashAddress - (uint32_t)currentDirChars;
 	int error = enteredText.set(slashAddress + 1);
-	if (error) return error;
+	if (error) {
+		return error;
+	}
 	currentDir.shorten(slashPos);
-	if (error) return error;
+	if (error) {
+		return error;
+	}
 	enteredTextEditPos = 0;
 
 	numericDriver.setNextTransitionDirection(-1);
 	error = arrivedInNewFolder(-1, enteredText.get());
 #if HAVE_OLED
-	if (!error) renderUIsForOled();
+	if (!error) {
+		renderUIsForOled();
+	}
 #endif
 	return error;
 }
@@ -1427,14 +1615,20 @@ int Browser::createFolder() {
 	newDirPath.set(&currentDir);
 	if (!newDirPath.isEmpty()) {
 		error = newDirPath.concatenate("/");
-		if (error) return error;
+		if (error) {
+			return error;
+		}
 	}
 
 	error = newDirPath.concatenate(&enteredText);
-	if (error) return error;
+	if (error) {
+		return error;
+	}
 
 	FRESULT result = f_mkdir(newDirPath.get());
-	if (result) return ERROR_SD_CARD;
+	if (result) {
+		return ERROR_SD_CARD;
+	}
 
 	error = goIntoFolder(enteredText.get());
 

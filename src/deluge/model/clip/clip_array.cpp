@@ -33,7 +33,9 @@ int ClipArray::getIndexForClip(Clip* clip) {
 	// For each Clip
 	for (int c = 0; c < numElements; c++) {
 		Clip* thisClip = getClipAtIndex(c);
-		if (thisClip == clip) return c;
+		if (thisClip == clip) {
+			return c;
+		}
 	}
 
 	return -1;

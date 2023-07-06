@@ -34,14 +34,19 @@ int SamplePlaybackGuide::getFinalClusterIndex(Sample* sample, bool obeyMarkers, 
 
 	int32_t endPlaybackAtByteNow;
 	// If cache, go right to the end of the waveform
-	if (!obeyMarkers)
+	if (!obeyMarkers) {
 		endPlaybackAtByteNow = (playDirection == 1)
 		                           ? (sample->audioDataStartPosBytes + sample->audioDataLengthBytes)
 		                           : (sample->audioDataStartPosBytes - sample->byteDepth * sample->numChannels);
-	// Otherwise, use end or loop-end point
-	else endPlaybackAtByteNow = getBytePosToEndOrLoopPlayback();
+		// Otherwise, use end or loop-end point
+	}
+	else {
+		endPlaybackAtByteNow = getBytePosToEndOrLoopPlayback();
+	}
 
-	if (getEndPlaybackAtByte) *getEndPlaybackAtByte = endPlaybackAtByteNow;
+	if (getEndPlaybackAtByte) {
+		*getEndPlaybackAtByte = endPlaybackAtByteNow;
+	}
 
 	int finalBytePos;
 
@@ -92,10 +97,11 @@ uint64_t SamplePlaybackGuide::getSyncedNumSamplesIn() {
 
 	uint32_t timePerInternalTick = playbackHandler.getTimePerInternalTick();
 
-	if (timeSinceLastInternalTick >= timePerInternalTick)
+	if (timeSinceLastInternalTick >= timePerInternalTick) {
 		timeSinceLastInternalTick = timePerInternalTick - 1; // Ensure it doesn't get bigger.
-		                                                     // If following external clock, that could happen
-		                                                     // TODO: is that still necessary?
+	}
+	// If following external clock, that could happen
+	// TODO: is that still necessary?
 	return (uint64_t)(lengthInSamples * currentTickWithinSample
 	                  + (uint64_t)timeSinceLastInternalTick * lengthInSamples / timePerInternalTick
 	                  + (sequenceSyncLengthTicks >> 1)) // Rounding
@@ -121,13 +127,18 @@ int32_t SamplePlaybackGuide::getNumSamplesLaggingBehindSync(VoiceSample* voiceSa
 int32_t SamplePlaybackGuide::adjustPitchToCorrectDriftFromSync(VoiceSample* voiceSample, int32_t phaseIncrement) {
 
 	// Not if not following external clock source, or clusters not set up yet (in the case of a very-late-start), there's no need
-	if (!(playbackHandler.playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE) || !voiceSample->clusters[0])
+	if (!(playbackHandler.playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE) || !voiceSample->clusters[0]) {
 		return phaseIncrement;
+	}
 
 	int32_t numSamplesLaggingBehindSync = getNumSamplesLaggingBehindSync(voiceSample);
 
 	int64_t newPhaseIncrement = phaseIncrement + ((int64_t)numSamplesLaggingBehindSync << 9);
-	if (newPhaseIncrement < 1) newPhaseIncrement = 1;
-	else if (newPhaseIncrement > 2147483647) newPhaseIncrement = 2147483647;
+	if (newPhaseIncrement < 1) {
+		newPhaseIncrement = 1;
+	}
+	else if (newPhaseIncrement > 2147483647) {
+		newPhaseIncrement = 2147483647;
+	}
 	return newPhaseIncrement;
 }

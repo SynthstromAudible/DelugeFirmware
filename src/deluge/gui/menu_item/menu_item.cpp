@@ -15,23 +15,12 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "gui/menu_item/menu_item.h"
+#include "menu_item.h"
 #include "hid/display/numeric_driver.h"
 
 #if HAVE_OLED
 #include "hid/display/oled.h"
 #endif
-
-MenuItem::MenuItem(char const* newName) {
-	name = newName;
-#if HAVE_OLED
-	basicTitle = newName;
-#endif
-}
-
-char const* MenuItem::getName() {
-	return name;
-}
 
 int MenuItem::checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) {
 	bool toReturn = isRelevant(sound, whichThing);
@@ -63,7 +52,9 @@ void MenuItem::drawItemsForOled(char const** options, int selectedOption) {
 	baseY += OLED_MAIN_TOPMOST_PIXEL;
 
 	for (int o = 0; o < OLED_HEIGHT_CHARS - 1; o++) {
-		if (!options[o]) break;
+		if (!options[o]) {
+			break;
+		}
 
 		int yPixel = o * TEXT_SPACING_Y + baseY;
 

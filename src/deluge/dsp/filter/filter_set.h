@@ -115,13 +115,15 @@ public:
 		if (filterSetConfig->doHPF) {
 			renderHPFLong(outputSample, endSample, filterSetConfig, numSamples, sampleIncrememt);
 		}
-		else hpfOnLastTime = false;
+		else
+			hpfOnLastTime = false;
 
 		// Do LPF, if it's on
 		if (filterSetConfig->doLPF) {
 			renderLPFLong(outputSample, endSample, filterSetConfig, lpfMode, sampleIncrememt, 1, 1);
 		}
-		else lpfOnLastTime = false;
+		else
+			lpfOnLastTime = false;
 	}
 
 private:

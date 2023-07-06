@@ -41,14 +41,18 @@ bool NumericLayerScrollTransition::callBack() {
 	if (transitionDirection == 1) {
 		for (writingTo = 0; writingTo < NUMERIC_DISPLAY_LENGTH - 1; writingTo++) {
 			segments[writingTo] = segments[writingTo + 1];
-			if (segments[writingTo] != 0) allBlank = false;
+			if (segments[writingTo] != 0) {
+				allBlank = false;
+			}
 		}
 	}
 
 	else {
 		for (writingTo = NUMERIC_DISPLAY_LENGTH - 1; writingTo > 0; writingTo--) {
 			segments[writingTo] = segments[writingTo - 1];
-			if (segments[writingTo] != 0) allBlank = false;
+			if (segments[writingTo] != 0) {
+				allBlank = false;
+			}
 		}
 	}
 
@@ -97,7 +101,9 @@ bool NumericLayerScrollTransition::callBack() {
 		return false;
 	}
 
-	else return true;
+	else {
+		return true;
+	}
 }
 
 void NumericLayerScrollTransition::render(uint8_t* returnSegments) {

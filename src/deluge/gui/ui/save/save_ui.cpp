@@ -30,7 +30,7 @@
 bool SaveUI::currentFolderIsEmpty;
 
 SaveUI::SaveUI() {
-	allowBrandNewNames = true;
+	mayDefaultToBrandNewNameOnEntry = true;
 }
 
 bool SaveUI::opened() {
@@ -95,7 +95,9 @@ void SaveUI::enterKeyPress() {
 		bool dealtWith = performSave(false);
 
 #if !HAVE_OLED
-		if (!dealtWith) displayText(false);
+		if (!dealtWith) {
+			displayText(false);
+		}
 #endif
 	}
 }
@@ -112,7 +114,9 @@ int SaveUI::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 	// Select encoder button - we want to override default behaviour here and potentially do nothing, so user doesn't save over something by accident.
 	else if (x == selectEncButtonX && y == selectEncButtonY && currentFileItem && !currentFileItem->isFolder) {}
 
-	else return SlotBrowser::buttonAction(x, y, on, inCardRoutine);
+	else {
+		return SlotBrowser::buttonAction(x, y, on, inCardRoutine);
+	}
 
 	return ACTION_RESULT_DEALT_WITH;
 }

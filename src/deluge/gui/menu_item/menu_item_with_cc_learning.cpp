@@ -16,15 +16,11 @@
  */
 
 #include "processing/sound/sound.h"
-#include "gui/menu_item/menu_item_with_cc_learning.h"
+#include "menu_item_with_cc_learning.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/numeric_driver.h"
 #include "gui/views/view.h"
 #include "model/song/song.h"
-
-MenuItemWithCCLearning::MenuItemWithCCLearning() {
-	// TODO Auto-generated constructor stub
-}
 
 void MenuItemWithCCLearning::unlearnAction() {
 
