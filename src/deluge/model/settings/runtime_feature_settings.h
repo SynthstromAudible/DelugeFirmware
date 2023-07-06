@@ -31,7 +31,6 @@ enum RuntimeFeatureStateToggle : uint32_t { Off = 0, On = 1 };
 
 /// Every setting needs to be delcared in here
 enum RuntimeFeatureSettingType : uint32_t {
-	// FileFolderSorting // @TODO: Replace with actual identifier on first use
 	DrumRandomizer,
 	MasterCompressorFx,
 	Quantize,
@@ -60,53 +59,12 @@ public:
 	// Traded type safety for option values for code simplicity and size, use enum from above to compare
 	inline uint32_t get(RuntimeFeatureSettingType type) { return settings[type].value; };
 
-public:
+	void init();
 	void readSettingsFromFile();
 	void writeSettingsToFile();
 
 protected:
-	RuntimeFeatureSetting settings[RuntimeFeatureSettingType::MaxElement] = {
-
-	    //// @TODO: Remove example on first use
-	    // [RuntimeFeatureSettingType::FileFolderSorting] =  {
-	    //     .displayName = "File/Folder sorting",
-	    //     .xmlName = "fileFolderSorting",
-	    //     .value = RuntimeFeatureStateToggle::Off, // Default value
-	    //     .options = {
-	    //         { .displayName = "Off", .value = RuntimeFeatureStateToggle::Off },
-	    //         { .displayName = "On", .value = RuntimeFeatureStateToggle::On },
-	    //         { .displayName = NULL, .value = 0 }
-	    //     }
-	    // },
-
-	    // Please extend RuntimeFeatureSettingType and here for additional settings
-	    // Usage example -> (runtimeFeatureSettings.get(RuntimeFeatureSettingType::FileFolderSorting) == RuntimeFeatureStateToggle::On)
-
-	    [RuntimeFeatureSettingType::DrumRandomizer] =
-	        {.displayName = "Drum Randomizer",
-	         .xmlName = "drumRandomizer",
-	         .value = RuntimeFeatureStateToggle::On, // Default value
-	         .options = {{.displayName = "Off", .value = RuntimeFeatureStateToggle::Off},
-	                     {.displayName = "On", .value = RuntimeFeatureStateToggle::On},
-	                     {.displayName = NULL, .value = 0}}},
-
-	    [RuntimeFeatureSettingType::MasterCompressorFx] =
-	        {.displayName = "Master Compressor",
-	         .xmlName = "masterCompressor",
-	         .value = RuntimeFeatureStateToggle::On, // Default value
-	         .options = {{.displayName = "Off", .value = RuntimeFeatureStateToggle::Off},
-	                     {.displayName = "On", .value = RuntimeFeatureStateToggle::On},
-	                     {.displayName = NULL, .value = 0}}},
-
-	    [RuntimeFeatureSettingType::Quantize] =
-	        {.displayName = "Quantize",
-	         .xmlName = "quantize",
-	         .value = RuntimeFeatureStateToggle::On, // Default value
-	         .options = {{.displayName = "Off", .value = RuntimeFeatureStateToggle::Off},
-	                     {.displayName = "On", .value = RuntimeFeatureStateToggle::On},
-	                     {.displayName = NULL, .value = 0}}},
-
-	};
+	RuntimeFeatureSetting settings[RuntimeFeatureSettingType::MaxElement] = {};
 
 private:
 	ResizeableArray unknownSettings;

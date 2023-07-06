@@ -757,6 +757,7 @@ resetSettings:
 		FlashStorage::writeSettings();
 	}
 
+	runtimeFeatureSettings.init();
 	runtimeFeatureSettings.readSettingsFromFile();
 
 	usbLock = 1;
