@@ -1,0 +1,46 @@
+on:
+  push:
+    branches:
+      - 'community-integrate'
+  pull_request:
+    branches:
+      - 'community-integrate'
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build ${{ matrix.profile }}-${{ matrix.hardware }}
+    strategy:
+      matrix:
+        profile: [ 'debug', 'release' ]
+        hardware: [ 'oled', '7seg' ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: check out repo
+        uses: actions/checkout@v3
+      - name: Fetch container image
+        run: |
+          docker pull ghcr.io/bobtwinkles/deluge-ci-images:v$(cat toolchain/REQUIRED_VERSION)
+      - name: Run build
+        run: |
+          docker run --rm \
+            --user=$(id --user):$(id --group) \
+            -v $(pwd):/src \
+            ghcr.io/bobtwinkles/deluge-ci-images:v$(cat toolchain/REQUIRED_VERSION) \
+            --e2_target=dbt-build-${{ matrix.profile }}-${{ matrix.hardware }}
+      - name: Publish built firmware (bin)
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.profile }}-${{ matrix.hardware }}.bin
+          path: dbt-build-${{ matrix.profile }}-${{ matrix.hardware }}/Deluge-${{ matrix.profile }}-${{ matrix.hardware }}.bin
+          if-no-files-found: error
+          retention-days: 5
+      - name: Publish built firmware (elf)
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.profile }}-${{ matrix.hardware }}.elf
+          path: dbt-build-${{ matrix.profile }}-${{ matrix.hardware }}/Deluge-${{ matrix.profile }}-${{ matrix.hardware }}.elf
+          if-no-files-found: error
+          retention-days: 5
