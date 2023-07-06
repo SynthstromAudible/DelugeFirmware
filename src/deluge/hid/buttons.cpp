@@ -34,13 +34,14 @@ uint32_t timeRecordButtonPressed;
 bool buttonStates[NUM_BUTTON_COLS + 1][NUM_BUTTON_ROWS]; // The extra col is for "fake" buttons
 
 int buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+	using namespace hid::button;
 
 	// Must happen up here before it's actioned, because if its action accesses SD card, we might multiple-enter this function, and don't want to then be setting this after that later action, erasing what it set
 	auto xy = hid::button::toXY(b);
 	buttonStates[xy.x][xy.y] = on;
 
 #if ALLOW_SPAM_MODE
-	if (b == hid::button::X_ENC) {
+	if (b == X_ENC) {
 		spamMode();
 		return;
 	}
@@ -76,7 +77,7 @@ int buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	}
 
 	// Play button
-	if (b == hid::button::PLAY) {
+	if (b == PLAY) {
 		if (on) {
 
 			if (audioRecorder.recordingSource && isButtonPressed(recordButtonX, recordButtonY)) {
@@ -103,7 +104,7 @@ int buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	}
 
 	// Record button
-	else if (b == hid::button::RECORD) {
+	else if (b == RECORD) {
 		// Press on
 		if (on) {
 			timeRecordButtonPressed = AudioEngine::audioSampleTimer;
@@ -134,7 +135,7 @@ int buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	}
 
 	// Tempo encoder button
-	else if (b == hid::button::TEMPO_ENC) {
+	else if (b == TEMPO_ENC) {
 		if (on) {
 			if (isShiftButtonPressed()) {
 				playbackHandler.displaySwingAmount();
@@ -148,7 +149,7 @@ int buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	}
 
 #if ALLOW_SPAM_MODE
-	else if (b == hid::button::SELECT_ENC)
+	else if (b == SELECT_ENC)
 		     && isButtonPressed(shiftButtonX, shiftButtonY)) {
 			     spamMode();
 		     }
@@ -156,10 +157,10 @@ int buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 
 #if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 	// Mod encoder buttons
-	else if (b == hid::button::MOD_ENCODER_0) {
+	else if (b == MOD_ENCODER_0) {
 		getCurrentUI()->modEncoderButtonAction(0, on);
 	}
-	else if (b == hid::button::MOD_ENCODER_1) {
+	else if (b == MOD_ENCODER_1) {
 		getCurrentUI()->modEncoderButtonAction(1, on);
 	}
 #endif

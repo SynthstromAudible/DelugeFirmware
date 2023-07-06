@@ -318,9 +318,10 @@ foundIt:
 }
 
 int KeyboardScreen::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+	using namespace hid::button;
 
 	// Scale mode button
-	if (b == hid::button::SCALE_MODE) {
+	if (b == SCALE_MODE) {
 		if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_KIT) {
 			return ACTION_RESULT_DEALT_WITH; // Kits can't do scales!
 		}
@@ -375,10 +376,10 @@ int KeyboardScreen::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 
 #if DELUGE_MODEL == DELUGE_MODEL_40_PAD
 	// Clip view button - exit mode
-	else if (b == hid::button::CLIP_VIEW) {
+	else if (b == CLIP_VIEW) {
 #else
 	// Keyboard button - exit mode
-	else if (b == hid::button::KEYBOARD) {
+	else if (b == KEYBOARD) {
 #endif
 		if (on && currentUIMode == UI_MODE_NONE) {
 			if (inCardRoutine) {
@@ -389,7 +390,7 @@ int KeyboardScreen::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	}
 
 	// Song view button
-	else if (b == hid::button::SESSION_VIEW) {
+	else if (b == SESSION_VIEW) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -423,7 +424,7 @@ doOther:
 	}
 
 	// Kit button
-	else if (b == hid::button::KIT && currentUIMode == UI_MODE_NONE) {
+	else if (b == KIT && currentUIMode == UI_MODE_NONE) {
 #if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 		if (on) {
 			IndicatorLEDs::indicateAlertOnLed(keyboardLedX, keyboardLedX);

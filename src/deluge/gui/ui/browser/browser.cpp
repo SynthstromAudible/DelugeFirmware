@@ -1434,14 +1434,15 @@ FileItem* Browser::getCurrentFileItem() {
 
 // This and its individual contents are frequently overridden by child classes.
 int Browser::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+	using namespace hid::button;
 
 	// Select encoder
-	if (b == hid::button::SELECT_ENC) {
+	if (b == SELECT_ENC) {
 		return mainButtonAction(on);
 	}
 
 	// Save button, to delete file
-	else if (b == hid::button::SAVE && Buttons::isShiftButtonPressed()) {
+	else if (b == SAVE && Buttons::isShiftButtonPressed()) {
 		if (!currentUIMode && on) {
 			FileItem* currentFileItem = getCurrentFileItem();
 			if (currentFileItem) {
@@ -1459,7 +1460,7 @@ int Browser::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	}
 
 	// Back button
-	else if (b == hid::button::BACK) {
+	else if (b == BACK) {
 		if (on && !currentUIMode) {
 			return backButtonAction();
 		}

@@ -212,9 +212,10 @@ void SoundEditor::setLedStates() {
 }
 
 int SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+	using namespace hid::button;
 
 	// Encoder button
-	if (b == hid::button::SELECT_ENC) {
+	if (b == SELECT_ENC) {
 		if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_AUDITIONING) {
 			if (on) {
 				if (inCardRoutine) {
@@ -250,7 +251,7 @@ int SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	}
 
 	// Back button
-	else if (b == hid::button::BACK) {
+	else if (b == BACK) {
 		if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_AUDITIONING) {
 			if (on) {
 				if (inCardRoutine) {
@@ -268,7 +269,7 @@ int SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	}
 
 	// Save button
-	else if (b == hid::button::SAVE) {
+	else if (b == SAVE) {
 		if (on && currentUIMode == UI_MODE_NONE && !inSettingsMenu() && !editingCVOrMIDIClip()
 		    && currentSong->currentClip->type != CLIP_TYPE_AUDIO) {
 			if (inCardRoutine) {
@@ -287,7 +288,7 @@ int SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	}
 
 	// MIDI learn button
-	else if (b == hid::button::LEARN) {
+	else if (b == LEARN) {
 		if (inCardRoutine) {
 			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
@@ -322,13 +323,13 @@ int SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	}
 
 #if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-	else if (b == hid::button::CLIP_VIEW && getRootUI() == &instrumentClipView) {
+	else if (b == CLIP_VIEW && getRootUI() == &instrumentClipView) {
 		return instrumentClipView.buttonAction(b, on, inCardRoutine);
 	}
 #else
 
 	// Affect-entire button
-	else if (b == hid::button::AFFECT_ENTIRE && getRootUI() == &instrumentClipView) {
+	else if (b == AFFECT_ENTIRE && getRootUI() == &instrumentClipView) {
 		if (getCurrentMenuItem()->usesAffectEntire() && editingKit()) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -352,7 +353,7 @@ int SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	}
 
 	// Keyboard button
-	else if (b == hid::button::KEYBOARD) {
+	else if (b == KEYBOARD) {
 		if (on && currentUIMode == UI_MODE_NONE && !editingKit()) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;

@@ -18,9 +18,9 @@ struct xy toXY(Button b) {
 	return {x, y};
 }
 
-}
+} // namespace button
 
-	/*
+/*
 Button::Button(uint8_t value) {
 #if DELUGE_MODEL == DELUGE_MODEL_40_PAD
 	x = (unsigned int)value % 10;

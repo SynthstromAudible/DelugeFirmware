@@ -269,16 +269,17 @@ void LoadInstrumentPresetUI::enterKeyPress() {
 }
 
 int LoadInstrumentPresetUI::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+	using namespace hid::button;
 
 	int newInstrumentType;
 
 	// Load button
-	if (b == hid::button::LOAD) {
+	if (b == LOAD) {
 		return mainButtonAction(on);
 	}
 
 	// Synth button
-	else if (b == hid::button::SYNTH) {
+	else if (b == SYNTH) {
 		newInstrumentType = INSTRUMENT_TYPE_SYNTH;
 doChangeInstrumentType:
 		if (on && currentUIMode == UI_MODE_NONE) {
@@ -291,7 +292,7 @@ doChangeInstrumentType:
 	}
 
 	// Kit button
-	else if (b == hid::button::KIT) {
+	else if (b == KIT) {
 		if (instrumentClipToLoadFor && instrumentClipToLoadFor->onKeyboardScreen) {
 #if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 			IndicatorLEDs::indicateAlertOnLed(keyboardLedX, keyboardLedX);
@@ -304,13 +305,13 @@ doChangeInstrumentType:
 	}
 
 	// MIDI button
-	else if (b == hid::button::MIDI) {
+	else if (b == MIDI) {
 		newInstrumentType = INSTRUMENT_TYPE_MIDI_OUT;
 		goto doChangeInstrumentType;
 	}
 
 	// CV button
-	else if (b == hid::button::CV) {
+	else if (b == CV) {
 		newInstrumentType = INSTRUMENT_TYPE_CV;
 		goto doChangeInstrumentType;
 	}

@@ -117,12 +117,13 @@ void View::setTripletsLedState() {
 extern int pendingGlobalMIDICommandNumClustersWritten;
 
 int View::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+	using namespace hid::button;
 
 	int newGlobalMidiCommand;
 
 	// Tap tempo button. Shouldn't move this to MatrixDriver, because this code can put us in tapTempo mode, and other UIs aren't built to
 	// handle this
-	if (b == hid::button::TAP_TEMPO) {
+	if (b == TAP_TEMPO) {
 
 		if (currentUIMode == UI_MODE_MIDI_LEARN) {
 			if (inCardRoutine) {
@@ -158,7 +159,7 @@ doEndMidiLearnPressSession:
 	}
 
 	// MIDI learn button
-	else if (b == hid::button::LEARN) {
+	else if (b == LEARN) {
 		if (inCardRoutine) {
 			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
@@ -180,7 +181,7 @@ doEndMidiLearnPressSession:
 	}
 
 	// Play button for MIDI learn
-	else if (b == hid::button::PLAY && currentUIMode == UI_MODE_MIDI_LEARN) {
+	else if (b == PLAY && currentUIMode == UI_MODE_MIDI_LEARN) {
 		if (inCardRoutine) {
 			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
@@ -196,7 +197,7 @@ doEndMidiLearnPressSession:
 	}
 
 	// Record button for MIDI learn
-	else if (b == hid::button::RECORD && currentUIMode == UI_MODE_MIDI_LEARN) {
+	else if (b == RECORD && currentUIMode == UI_MODE_MIDI_LEARN) {
 		if (inCardRoutine) {
 			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
@@ -212,7 +213,7 @@ doEndMidiLearnPressSession:
 	}
 
 	// Save button
-	else if (b == hid::button::SAVE) {
+	else if (b == SAVE) {
 
 		if (!Buttons::isButtonPressed(hid::button::SYNTH) && !Buttons::isButtonPressed(hid::button::KIT)
 		    && !Buttons::isButtonPressed(hid::button::MIDI) && !Buttons::isButtonPressed(hid::button::CV)) {
@@ -251,7 +252,7 @@ doEndMidiLearnPressSession:
 	}
 
 	// Load button
-	else if (b == hid::button::LOAD) {
+	else if (b == LOAD) {
 
 		if (!Buttons::isButtonPressed(hid::button::SYNTH) && !Buttons::isButtonPressed(hid::button::KIT)
 		    && !Buttons::isButtonPressed(hid::button::MIDI) && !Buttons::isButtonPressed(hid::button::CV)) {
@@ -303,7 +304,7 @@ doEndMidiLearnPressSession:
 	}
 
 	// Sync-scaling button
-	else if (b == hid::button::SYNC_SCALING) {
+	else if (b == SYNC_SCALING) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 
 			if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
@@ -349,7 +350,7 @@ cant:
 	}
 
 	// Back button
-	else if (b == hid::button::BACK) {
+	else if (b == BACK) {
 
 		if (on) {
 #ifndef undoButtonX
@@ -375,7 +376,7 @@ cant:
 
 #ifdef undoButtonX
 	// Undo button
-	else if (b == hid::button::undo) {
+	else if (b == undo) {
 		newGlobalMidiCommand = GLOBAL_MIDI_COMMAND_UNDO;
 possiblyRevert:
 		if (on) {
@@ -391,14 +392,14 @@ possiblyRevert:
 	}
 
 	// Redo button
-	else if (b == hid::button::redo) {
+	else if (b == redo) {
 		newGlobalMidiCommand = GLOBAL_MIDI_COMMAND_REDO;
 		goto possiblyRevert;
 	}
 #endif
 
 	// Select button with shift - go to settings menu
-	else if (b == hid::button::SELECT_ENC && Buttons::isShiftButtonPressed()) {
+	else if (b == SELECT_ENC && Buttons::isShiftButtonPressed()) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 
 			if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
