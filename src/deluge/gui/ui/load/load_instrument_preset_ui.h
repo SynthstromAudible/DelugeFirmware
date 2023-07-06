@@ -19,6 +19,7 @@
 #define LOADINSTRUMENTPRESETUI_H_
 
 #include "gui/ui/load/load_ui.h"
+#include "hid/button.h"
 
 class Instrument;
 class InstrumentClip;
@@ -29,7 +30,7 @@ public:
 	LoadInstrumentPresetUI();
 	bool opened();
 	//void selectEncoderAction(int8_t offset);
-	int buttonAction(int x, int y, bool on, bool inCardRoutine);
+	int buttonAction(hid::Button b, bool on, bool inCardRoutine);
 	int padAction(int x, int y, int velocity);
 	int verticalEncoderAction(int offset, bool inCardRoutine);
 	void instrumentEdited(Instrument* instrument);

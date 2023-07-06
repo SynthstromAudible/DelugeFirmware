@@ -19,6 +19,7 @@
 #define OverviewModeUI_h
 
 #include "gui/views/clip_navigation_timeline_view.h"
+#include "hid/button.h"
 
 class Editor;
 class InstrumentClip;
@@ -38,7 +39,7 @@ public:
 	bool opened();
 	void focusRegained();
 
-	int buttonAction(int x, int y, bool on, bool inCardRoutine);
+	int buttonAction(hid::Button b, bool on, bool inCardRoutine);
 	int padAction(int x, int y, int velocity);
 	int horizontalEncoderAction(int offset);
 	int verticalEncoderAction(int offset, bool inCardRoutine);

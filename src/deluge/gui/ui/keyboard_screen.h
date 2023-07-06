@@ -20,6 +20,7 @@
 
 #include "gui/ui/root_ui.h"
 #include "gui/ui/ui.h"
+#include "hid/button.h"
 #include "model/clip/instrument_clip_minder.h"
 
 struct KeyboardPadPress {
@@ -37,7 +38,7 @@ public:
 	bool opened();
 	void focusRegained();
 	int padAction(int x, int y, int velocity);
-	int buttonAction(int x, int y, bool on, bool inCardRoutine);
+	int buttonAction(hid::Button b, bool on, bool inCardRoutine);
 	bool renderMainPads(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
 	                    uint8_t occupancyMask[][displayWidth + sideBarWidth], bool drawUndefinedArea = false);
 	bool renderSidebar(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],

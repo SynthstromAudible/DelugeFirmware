@@ -290,12 +290,13 @@ void AudioClipView::transitionToSessionView() {
 	}
 }
 
-int AudioClipView::buttonAction(int x, int y, bool on, bool inCardRoutine) {
+int AudioClipView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+	using namespace hid::button;
 
 	int result;
 
 	// Song view button
-	if (x == sessionViewButtonX && y == sessionViewButtonY) {
+	if (b == SESSION_VIEW) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -317,25 +318,25 @@ doOther:
 		}
 	}
 
-	else if (x == playButtonX && y == playButtonY) {
+	else if (b == PLAY) {
 dontDeactivateMarker:
-		return ClipView::buttonAction(x, y, on, inCardRoutine);
+		return ClipView::buttonAction(b, on, inCardRoutine);
 	}
 
-	else if (x == recordButtonX && y == recordButtonY) {
+	else if (b == RECORD) {
 		goto dontDeactivateMarker;
 	}
 
-	else if (x == shiftButtonX && y == shiftButtonY) {
+	else if (b == SHIFT) {
 		goto dontDeactivateMarker;
 	}
 
-	else if (x == xEncButtonX && y == xEncButtonY) {
+	else if (b == X_ENC) {
 		goto dontDeactivateMarker;
 	}
 
 	// Select button, without shift
-	else if (x == selectEncButtonX && y == selectEncButtonY && !Buttons::isShiftButtonPressed()) {
+	else if (b == SELECT_ENC && !Buttons::isShiftButtonPressed()) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -352,7 +353,7 @@ dontDeactivateMarker:
 	}
 
 	// Back button to clear Clip
-	else if (x == backButtonX && y == backButtonY && currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
+	else if (b == BACK && currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
 		if (on) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -374,9 +375,9 @@ dontDeactivateMarker:
 	}
 	else {
 
-		result = ClipMinder::buttonAction(x, y, on);
+		result = ClipMinder::buttonAction(b, on);
 		if (result == ACTION_RESULT_NOT_DEALT_WITH) {
-			result = ClipView::buttonAction(x, y, on, inCardRoutine);
+			result = ClipView::buttonAction(b, on, inCardRoutine);
 		}
 
 		if (result != ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE) {
@@ -401,7 +402,7 @@ int AudioClipView::padAction(int x, int y, int on) {
 	// Edit pad action...
 	if (x < displayWidth) {
 
-		if (Buttons::isButtonPressed(tempoEncButtonX, tempoEncButtonY)) {
+		if (Buttons::isButtonPressed(hid::button::TEMPO_ENC)) {
 			if (on) {
 				playbackHandler.grabTempoFromClip(getClip());
 			}
@@ -614,7 +615,7 @@ void AudioClipView::selectEncoderAction(int8_t offset) {
 }
 
 int AudioClipView::verticalEncoderAction(int offset, bool inCardRoutine) {
-	if (!currentUIMode && Buttons::isShiftButtonPressed() && !Buttons::isButtonPressed(yEncButtonX, yEncButtonY)) {
+	if (!currentUIMode && Buttons::isShiftButtonPressed() && !Buttons::isButtonPressed(hid::button::Y_ENC)) {
 		if (inCardRoutine && !allowSomeUserActionsEvenWhenInCardRoutine) {
 			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
 		}
