@@ -290,12 +290,12 @@ void AudioClipView::transitionToSessionView() {
 	}
 }
 
-int AudioClipView::buttonAction(int x, int y, bool on, bool inCardRoutine) {
+int AudioClipView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 
 	int result;
 
 	// Song view button
-	if (x == sessionViewButtonX && y == sessionViewButtonY) {
+	if (b.x == sessionViewButtonX && b.y == sessionViewButtonY) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -317,25 +317,25 @@ doOther:
 		}
 	}
 
-	else if (x == playButtonX && y == playButtonY) {
+	else if (b.x == playButtonX && b.y == playButtonY) {
 dontDeactivateMarker:
-		return ClipView::buttonAction(x, y, on, inCardRoutine);
+		return ClipView::buttonAction(b, on, inCardRoutine);
 	}
 
-	else if (x == recordButtonX && y == recordButtonY) {
+	else if (b.x == recordButtonX && b.y == recordButtonY) {
 		goto dontDeactivateMarker;
 	}
 
-	else if (x == shiftButtonX && y == shiftButtonY) {
+	else if (b.x == shiftButtonX && b.y == shiftButtonY) {
 		goto dontDeactivateMarker;
 	}
 
-	else if (x == xEncButtonX && y == xEncButtonY) {
+	else if (b.x == xEncButtonX && b.y == xEncButtonY) {
 		goto dontDeactivateMarker;
 	}
 
 	// Select button, without shift
-	else if (x == selectEncButtonX && y == selectEncButtonY && !Buttons::isShiftButtonPressed()) {
+	else if (b.x == selectEncButtonX && b.y == selectEncButtonY && !Buttons::isShiftButtonPressed()) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -352,7 +352,7 @@ dontDeactivateMarker:
 	}
 
 	// Back button to clear Clip
-	else if (x == backButtonX && y == backButtonY && currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
+	else if (b.x == backButtonX && b.y == backButtonY && currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
 		if (on) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -374,9 +374,9 @@ dontDeactivateMarker:
 	}
 	else {
 
-		result = ClipMinder::buttonAction(x, y, on);
+		result = ClipMinder::buttonAction(b, on);
 		if (result == ACTION_RESULT_NOT_DEALT_WITH) {
-			result = ClipView::buttonAction(x, y, on, inCardRoutine);
+			result = ClipView::buttonAction(b, on, inCardRoutine);
 		}
 
 		if (result != ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE) {

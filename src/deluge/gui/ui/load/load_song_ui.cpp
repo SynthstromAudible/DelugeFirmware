@@ -183,12 +183,12 @@ void LoadSongUI::displayLoopsRemainingPopup() {
 }
 #endif
 
-int LoadSongUI::buttonAction(int x, int y, bool on, bool inCardRoutine) {
+int LoadSongUI::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 
 	// Load button or select encoder press. Unlike most (all?) other children of Browser, we override this and don't just call mainButtonAction(),
 	// because unlike all the others, we need to action the load immediately on down-press rather than waiting for press-release, because of that special
 	// action where you hold the button down until you want to "launch" the new song.
-	if ((x == loadButtonX && y == loadButtonY) || (x == selectEncButtonX && y == selectEncButtonY)) {
+	if ((b.x == loadButtonX && b.y == loadButtonY) || (b.x == selectEncButtonX && b.y == selectEncButtonY)) {
 		if (on) {
 			if (!currentUIMode) {
 				if (inCardRoutine) {
@@ -220,7 +220,7 @@ int LoadSongUI::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 	}
 
 	else {
-		return LoadUI::buttonAction(x, y, on, inCardRoutine);
+		return LoadUI::buttonAction(b, on, inCardRoutine);
 	}
 
 	return ACTION_RESULT_DEALT_WITH;

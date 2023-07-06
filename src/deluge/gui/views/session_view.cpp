@@ -135,12 +135,12 @@ void SessionView::focusRegained() {
 	currentSong->lastClipInstanceEnteredStartPos = -1;
 }
 
-int SessionView::buttonAction(int x, int y, bool on, bool inCardRoutine) {
+int SessionView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 
 	int newInstrumentType;
 
 	// Clip-view button
-	if (x == clipViewButtonX && y == clipViewButtonY) {
+	if (b.x == clipViewButtonX && b.y == clipViewButtonY) {
 		if (on && currentUIMode == UI_MODE_NONE && playbackHandler.recording != RECORDING_ARRANGEMENT) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -153,9 +153,9 @@ int SessionView::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 
 	// Arranger view button, or if there isn't one then song view button
 #ifdef arrangerViewButtonX
-	else if (x == arrangerViewButtonX && y == arrangerViewButtonY) {
+	else if (b.x == arrangerViewButtonX && b.y == arrangerViewButtonY) {
 #else
-	else if (x == sessionViewButtonX && y == sessionViewButtonY && !Buttons::isShiftButtonPressed()) {
+	else if (b.x == sessionViewButtonX && b.y == sessionViewButtonY && !Buttons::isShiftButtonPressed()) {
 #endif
 		if (on) {
 			if (inCardRoutine) {
@@ -290,7 +290,7 @@ moveAfterClipInstance:
 
 #if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 	// Affect-entire button
-	else if (x == affectEntireButtonX && y == affectEntireButtonY) {
+	else if (b.x == affectEntireButtonX && b.y == affectEntireButtonY) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 			currentSong->affectEntire = !currentSong->affectEntire;
 			view.setActiveModControllableTimelineCounter(currentSong);
@@ -299,7 +299,7 @@ moveAfterClipInstance:
 #endif
 
 	// Record button - adds to what MatrixDriver does with it
-	else if (x == recordButtonX && y == recordButtonY) {
+	else if (b.x == recordButtonX && b.y == recordButtonY) {
 		if (on) {
 			if (isNoUIModeActive()) {
 				uiTimerManager.setTimer(TIMER_UI_SPECIFIC, 500);
@@ -323,7 +323,7 @@ moveAfterClipInstance:
 	}
 
 	// If save / delete button pressed, delete the Clip!
-	else if (x == saveButtonX && y == saveButtonY && currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
+	else if (b.x == saveButtonX && b.y == saveButtonY && currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
 		if (on) {
 
 			if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
@@ -344,7 +344,7 @@ moveAfterClipInstance:
 	}
 
 	// Select encoder button
-	else if (x == selectEncButtonX && y == selectEncButtonY && !Buttons::isShiftButtonPressed()) {
+	else if (b.x == selectEncButtonX && b.y == selectEncButtonY && !Buttons::isShiftButtonPressed()) {
 		if (on) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -383,7 +383,7 @@ moveAfterClipInstance:
 	}
 
 	// Which-instrument-type buttons
-	else if (x == synthButtonX && y == synthButtonY) {
+	else if (b.x == synthButtonX && b.y == synthButtonY) {
 		newInstrumentType = INSTRUMENT_TYPE_SYNTH;
 
 changeInstrumentType:
@@ -447,22 +447,22 @@ doActualSimpleChange:
 			uiNeedsRendering(this, 1 << selectedClipYDisplay, 0);
 		}
 	}
-	else if (x == kitButtonX && y == kitButtonY) {
+	else if (b.x == kitButtonX && b.y == kitButtonY) {
 		newInstrumentType = INSTRUMENT_TYPE_KIT;
 		goto changeInstrumentType;
 	}
-	else if (x == midiButtonX && y == midiButtonY) {
+	else if (b.x == midiButtonX && b.y == midiButtonY) {
 		newInstrumentType = INSTRUMENT_TYPE_MIDI_OUT;
 		goto changeInstrumentType;
 	}
-	else if (x == cvButtonX && y == cvButtonY) {
+	else if (b.x == cvButtonX && b.y == cvButtonY) {
 		newInstrumentType = INSTRUMENT_TYPE_CV;
 		goto changeInstrumentType;
 	}
 
 	else {
 notDealtWith:
-		return TimelineView::buttonAction(x, y, on, inCardRoutine);
+		return TimelineView::buttonAction(b, on, inCardRoutine);
 	}
 
 	return ACTION_RESULT_DEALT_WITH;

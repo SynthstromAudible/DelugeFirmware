@@ -403,10 +403,10 @@ int SampleBrowser::backButtonAction() {
 	return Browser::backButtonAction();
 }
 
-int SampleBrowser::buttonAction(int x, int y, bool on, bool inCardRoutine) {
+int SampleBrowser::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 
 	// Save button, to delete audio file
-	if (x == saveButtonX && y == saveButtonY && Buttons::isShiftButtonPressed()) {
+	if (b.x == saveButtonX && b.y == saveButtonY && Buttons::isShiftButtonPressed()) {
 		if (!currentUIMode && on) {
 			FileItem* currentFileItem = getCurrentFileItem();
 			if (currentFileItem) {
@@ -446,7 +446,7 @@ int SampleBrowser::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 	}
 
 	// Horizontal encoder button
-	else if (x == xEncButtonX && y == xEncButtonY) {
+	else if (b.x == xEncButtonX && b.y == xEncButtonY) {
 		if (on) {
 			if (isNoUIModeActive()) {
 				enterUIMode(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON);
@@ -462,7 +462,7 @@ int SampleBrowser::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 
 #if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 	// Record button
-	else if (x == recordButtonX && y == recordButtonY && !audioRecorder.recordingSource
+	else if (b.x == recordButtonX && b.y == recordButtonY && !audioRecorder.recordingSource
 	         && currentSong->currentClip->type != CLIP_TYPE_AUDIO) {
 		if (!on || currentUIMode != UI_MODE_NONE) {
 			return ACTION_RESULT_DEALT_WITH;
@@ -482,7 +482,7 @@ int SampleBrowser::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 #endif
 
 	else {
-		return Browser::buttonAction(x, y, on, inCardRoutine);
+		return Browser::buttonAction(b, on, inCardRoutine);
 	}
 
 	return ACTION_RESULT_DEALT_WITH;

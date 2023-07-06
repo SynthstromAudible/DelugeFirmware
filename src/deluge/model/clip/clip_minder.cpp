@@ -20,6 +20,6 @@
 #include "gui/views/view.h"
 #include "model/clip/clip.h"
 
-int ClipMinder::buttonAction(int x, int y, bool on) {
+int ClipMinder::buttonAction(hid::Button b, bool on) {
 	return ACTION_RESULT_NOT_DEALT_WITH;
 }

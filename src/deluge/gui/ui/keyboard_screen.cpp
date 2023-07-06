@@ -317,10 +317,10 @@ foundIt:
 	return ACTION_RESULT_DEALT_WITH;
 }
 
-int KeyboardScreen::buttonAction(int x, int y, bool on, bool inCardRoutine) {
+int KeyboardScreen::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 
 	// Scale mode button
-	if (x == scaleModeButtonX && y == scaleModeButtonY) {
+	if (b.x == scaleModeButtonX && b.y == scaleModeButtonY) {
 		if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_KIT) {
 			return ACTION_RESULT_DEALT_WITH; // Kits can't do scales!
 		}
@@ -375,10 +375,10 @@ int KeyboardScreen::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 
 #if DELUGE_MODEL == DELUGE_MODEL_40_PAD
 	// Clip view button - exit mode
-	else if (x == clipViewButtonX && y == clipViewButtonY) {
+	else if (b.x == clipViewButtonX && b.y == clipViewButtonY) {
 #else
 	// Keyboard button - exit mode
-	else if (x == keyboardButtonX && y == keyboardButtonY) {
+	else if (b.x == keyboardButtonX && b.y == keyboardButtonY) {
 #endif
 		if (on && currentUIMode == UI_MODE_NONE) {
 			if (inCardRoutine) {
@@ -389,7 +389,7 @@ int KeyboardScreen::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 	}
 
 	// Song view button
-	else if (x == sessionViewButtonX && y == sessionViewButtonY) {
+	else if (b.x == sessionViewButtonX && b.y == sessionViewButtonY) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -423,7 +423,7 @@ doOther:
 	}
 
 	// Kit button
-	else if (x == kitButtonX && y == kitButtonY && currentUIMode == UI_MODE_NONE) {
+	else if (b.x == kitButtonX && b.y == kitButtonY && currentUIMode == UI_MODE_NONE) {
 #if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 		if (on) {
 			IndicatorLEDs::indicateAlertOnLed(keyboardLedX, keyboardLedX);
@@ -433,12 +433,12 @@ doOther:
 
 	else {
 		uiNeedsRendering(this, 0xFFFFFFFF, 0); //
-		int result = InstrumentClipMinder::buttonAction(x, y, on, inCardRoutine);
+		int result = InstrumentClipMinder::buttonAction(b, on, inCardRoutine);
 		if (result != ACTION_RESULT_NOT_DEALT_WITH) {
 			return result;
 		}
 
-		return view.buttonAction(x, y, on, inCardRoutine);
+		return view.buttonAction(b, on, inCardRoutine);
 	}
 
 	return ACTION_RESULT_DEALT_WITH;

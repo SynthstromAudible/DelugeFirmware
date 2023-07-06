@@ -569,10 +569,10 @@ doRender:
 	return ACTION_RESULT_DEALT_WITH;
 }
 
-int SampleMarkerEditor::buttonAction(int x, int y, bool on, bool inCardRoutine) {
+int SampleMarkerEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 
 	// Back button
-	if (x == backButtonX && y == backButtonY) {
+	if (b.x == backButtonX && b.y == backButtonY) {
 		if (on && !currentUIMode) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -582,7 +582,7 @@ int SampleMarkerEditor::buttonAction(int x, int y, bool on, bool inCardRoutine) 
 	}
 
 	// Horizontal encoder button
-	else if (x == xEncButtonX && y == xEncButtonY) {
+	else if (b.x == xEncButtonX && b.y == xEncButtonY) {
 		if (on) {
 			if (isNoUIModeActive() || isUIModeActiveExclusively(UI_MODE_AUDITIONING)) {
 				currentUIMode |= UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON;

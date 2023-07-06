@@ -1433,15 +1433,15 @@ FileItem* Browser::getCurrentFileItem() {
 }
 
 // This and its individual contents are frequently overridden by child classes.
-int Browser::buttonAction(int x, int y, bool on, bool inCardRoutine) {
+int Browser::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 
 	// Select encoder
-	if (x == selectEncButtonX && y == selectEncButtonY) {
+	if (b.x == selectEncButtonX && b.y == selectEncButtonY) {
 		return mainButtonAction(on);
 	}
 
 	// Save button, to delete file
-	else if (x == saveButtonX && y == saveButtonY && Buttons::isShiftButtonPressed()) {
+	else if (b.x == saveButtonX && b.y == saveButtonY && Buttons::isShiftButtonPressed()) {
 		if (!currentUIMode && on) {
 			FileItem* currentFileItem = getCurrentFileItem();
 			if (currentFileItem) {
@@ -1459,7 +1459,7 @@ int Browser::buttonAction(int x, int y, bool on, bool inCardRoutine) {
 	}
 
 	// Back button
-	else if (x == backButtonX && y == backButtonY) {
+	else if (b.x == backButtonX && b.y == backButtonY) {
 		if (on && !currentUIMode) {
 			return backButtonAction();
 		}

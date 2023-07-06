@@ -21,6 +21,7 @@
 #include "util/container/array/c_string_array.h"
 #include "storage/file_item.h"
 #include "gui/ui/qwerty_ui.h"
+#include "hid/button.h"
 
 extern "C" {
 #include "fatfs/ff.h"
@@ -68,7 +69,7 @@ public:
 
 	void close();
 	virtual int getCurrentFilePath(String* path) = 0;
-	int buttonAction(int x, int y, bool on, bool inCardRoutine);
+	int buttonAction(hid::Button b, bool on, bool inCardRoutine);
 	void currentFileDeleted();
 	int goIntoFolder(char const* folderName);
 	int createFolder();
