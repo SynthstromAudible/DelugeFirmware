@@ -71,6 +71,12 @@ vars.AddVariables(
         "DEBUG",
         "When set to 0 or 1, enables only debug or release targets, respectively.",
     ),
+    (
+        "DEBUG_HARDWARE",
+        'Defaults to "delugeprobe" (CMSIS-DAP). "esp-prog" (FTDI) is also supported.',
+        "delugeprobe",
+    ),
+    ("DEBUG_PROTOCOL", 'Defaults to "swd". "jtag" is also supported.', "swd"),
     ("GDB_REMOTE", "The host:port or com port of the GDB server.", "localhost:3333"),
     (
         "OLED",
