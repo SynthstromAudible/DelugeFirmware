@@ -273,12 +273,12 @@ int LoadInstrumentPresetUI::buttonAction(hid::Button b, bool on, bool inCardRout
 	int newInstrumentType;
 
 	// Load button
-	if (b == hid::button::load) {
+	if (b == hid::button::LOAD) {
 		return mainButtonAction(on);
 	}
 
 	// Synth button
-	else if (b == hid::button::synth) {
+	else if (b == hid::button::SYNTH) {
 		newInstrumentType = INSTRUMENT_TYPE_SYNTH;
 doChangeInstrumentType:
 		if (on && currentUIMode == UI_MODE_NONE) {
@@ -291,7 +291,7 @@ doChangeInstrumentType:
 	}
 
 	// Kit button
-	else if (b == hid::button::kit) {
+	else if (b == hid::button::KIT) {
 		if (instrumentClipToLoadFor && instrumentClipToLoadFor->onKeyboardScreen) {
 #if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 			IndicatorLEDs::indicateAlertOnLed(keyboardLedX, keyboardLedX);
@@ -304,13 +304,13 @@ doChangeInstrumentType:
 	}
 
 	// MIDI button
-	else if (b == hid::button::midi) {
+	else if (b == hid::button::MIDI) {
 		newInstrumentType = INSTRUMENT_TYPE_MIDI_OUT;
 		goto doChangeInstrumentType;
 	}
 
 	// CV button
-	else if (b == hid::button::cv) {
+	else if (b == hid::button::CV) {
 		newInstrumentType = INSTRUMENT_TYPE_CV;
 		goto doChangeInstrumentType;
 	}
@@ -996,7 +996,7 @@ potentiallyExit:
 
 int LoadInstrumentPresetUI::verticalEncoderAction(int offset, bool inCardRoutine) {
 	if (showingAuditionPads()) {
-		if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(hid::button::xEnc)) {
+		if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(hid::button::X_ENC)) {
 			return ACTION_RESULT_DEALT_WITH;
 		}
 

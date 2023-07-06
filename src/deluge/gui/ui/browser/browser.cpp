@@ -1436,12 +1436,12 @@ FileItem* Browser::getCurrentFileItem() {
 int Browser::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 
 	// Select encoder
-	if (b == hid::button::selectEnc) {
+	if (b == hid::button::SELECT_ENC) {
 		return mainButtonAction(on);
 	}
 
 	// Save button, to delete file
-	else if (b == hid::button::save && Buttons::isShiftButtonPressed()) {
+	else if (b == hid::button::SAVE && Buttons::isShiftButtonPressed()) {
 		if (!currentUIMode && on) {
 			FileItem* currentFileItem = getCurrentFileItem();
 			if (currentFileItem) {
@@ -1459,7 +1459,7 @@ int Browser::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	}
 
 	// Back button
-	else if (b == hid::button::back) {
+	else if (b == hid::button::BACK) {
 		if (on && !currentUIMode) {
 			return backButtonAction();
 		}

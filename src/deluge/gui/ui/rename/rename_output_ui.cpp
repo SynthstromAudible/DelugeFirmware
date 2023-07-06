@@ -62,7 +62,7 @@ bool RenameOutputUI::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
 int RenameOutputUI::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 
 	// Back button
-	if (b == hid::button::back) {
+	if (b == hid::button::BACK) {
 		if (on && !currentUIMode) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -72,7 +72,7 @@ int RenameOutputUI::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	}
 
 	// Select encoder button
-	else if (b == hid::button::selectEnc) {
+	else if (b == hid::button::SELECT_ENC) {
 		if (on && !currentUIMode) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -132,7 +132,7 @@ int RenameOutputUI::padAction(int x, int y, int on) {
 }
 
 int RenameOutputUI::verticalEncoderAction(int offset, bool inCardRoutine) {
-	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(hid::button::xEnc)) {
+	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(hid::button::X_ENC)) {
 		return ACTION_RESULT_DEALT_WITH;
 	}
 	return arrangerView.verticalEncoderAction(offset, inCardRoutine);
