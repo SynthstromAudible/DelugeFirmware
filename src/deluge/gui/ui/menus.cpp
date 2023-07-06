@@ -772,8 +772,8 @@ MenuItem* paramShortcutsForSounds[][8] = {
     {&delayRateMenu, &delaySyncMenu, &delayAnalogMenu, &delayFeedbackMenu, &delayPingPongMenu, NULL, NULL, NULL}};
 
 MenuItem* paramShortcutsForAudioClips[][8] = {
-    {&audioClipTimeStretchMenu, &audioClipReverseMenu, NULL, &samplePitchSpeedMenu, NULL, &fileSelectorMenu, &interpolationMenu,
-     &audioClipSampleMarkerEditorMenuEnd},
+    {&audioClipTimeStretchMenu, &audioClipReverseMenu, NULL, &samplePitchSpeedMenu, NULL, &fileSelectorMenu,
+     &interpolationMenu, &audioClipSampleMarkerEditorMenuEnd},
     {NULL, &audioClipReverseMenu, NULL, &samplePitchSpeedMenu, NULL, &fileSelectorMenu, &interpolationMenu,
      &audioClipSampleMarkerEditorMenuEnd},
     {&audioClipLevelMenu, &audioClipTransposeMenu, NULL, NULL, NULL, NULL, NULL, NULL},

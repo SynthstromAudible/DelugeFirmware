@@ -418,7 +418,8 @@ possiblyRevert:
 		if (on && currentUIMode == UI_MODE_NONE) {
 
 			if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
-				numericDriver.displayPopup(HAVE_OLED ? "Recording to arrangement" : "CANT"); //CBC Why show CANT for 7SEG??
+				numericDriver.displayPopup(HAVE_OLED ? "Recording to arrangement"
+				                                     : "CANT"); //CBC Why show CANT for 7SEG??
 				return ACTION_RESULT_DEALT_WITH;
 			}
 
