@@ -5,8 +5,8 @@ import util
 
 TARGET_DEVICE = "R7S721020"
 OPENOCD_PREFIX = "toolchain/win32-x64/openocd/openocd/scripts/"
-OPENOCD_TARGET_DEVICE_SWD = "contrib/renesas-rz-a1lu.cfg"
-OPENOCD_TARGET_DEVICE_JTAG = "contrib/renesas-rz-a1lu-jtag.cfg"
+OPENOCD_TARGET_DEVICE_SWD = "scripts/debug/openocd/deluge-swj-swd.cfg"
+OPENOCD_TARGET_DEVICE_JTAG = "scripts/debug/openocd/deluge-swj-jtag.cfg"
 
 
 def find_cmd_with_fallback(cmd, fallback):
@@ -21,13 +21,25 @@ def absolute_path_str(path: str):
     return str(Path(path).absolute())
 
 
-def jlink_gdb(cmd, device: str, endian: str, protocol: str, gdb_port:int):
+def jlink_gdb(cmd, device: str, endian: str, protocol: str, gdb_port: int):
     if not cmd:
         cmd = find_cmd_with_fallback(
             "JLinkGDBServerCL", "C:\Program Files\SEGGER\JLink\JLinkGDBServerCL"
         )
 
-    return [cmd, "-if", protocol, "-device", device, "-endian", endian, "-nogui",'-ir', '-port', str(gdb_port)]
+    return [
+        cmd,
+        "-if",
+        protocol,
+        "-device",
+        device,
+        "-endian",
+        endian,
+        "-nogui",
+        "-ir",
+        "-port",
+        str(gdb_port),
+    ]
 
 
 def openocd_gdb(cmd, interface: str, target: str, protocol: str, gdb_port: int):
@@ -67,14 +79,18 @@ def argparser():
         type=str,
     )
     parser.add_argument(
-        "-d", "--target-device", help="The target device", default=TARGET_DEVICE, type=str
+        "-d",
+        "--target-device",
+        help="The target device",
+        default=TARGET_DEVICE,
+        type=str,
     )
     parser.add_argument(
         "-g", "--gdb-port", help="The port for gdb to listen on", default=2345, type=int
     )
     parser.add_argument(
-        "-v", "--verbose", help="Print the called command", action='store_true'
-    )    
+        "-v", "--verbose", help="Print the called command", action="store_true"
+    )
     parser.add_argument(
         "-p",
         "--protocol",
@@ -90,6 +106,7 @@ def argparser():
         type=str,
     )
     return parser
+
 
 def get_openocd_target(target: str, protocol: str) -> str:
     if target == TARGET_DEVICE:
@@ -108,13 +125,17 @@ def get_openocd_target(target: str, protocol: str) -> str:
 def main():
     args = argparser().parse_args()
     if args.jlink:
-        cmd = jlink_gdb(args.command, args.target_device, "little", args.protocol, args.gdb_port)
+        cmd = jlink_gdb(
+            args.command, args.target_device, "little", args.protocol, args.gdb_port
+        )
     else:
         target = get_openocd_target(args.target_device, args.protocol)
-        cmd = openocd_gdb(args.command, args.interface, target, args.protocol, args.gdb_port)
+        cmd = openocd_gdb(
+            args.command, args.interface, target, args.protocol, args.gdb_port
+        )
 
     if args.verbose:
-        print(' '.join(cmd))
+        print(" ".join(cmd))
     util.run(cmd, False)
 
 

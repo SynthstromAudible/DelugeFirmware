@@ -1,7 +1,8 @@
 {
 	"recommendations": [
 		"ms-vscode.cpptools",
-        "EditorConfig.EditorConfig",
-        "xaver.clang-format"
+		"EditorConfig.EditorConfig",
+		"xaver.clang-format",
+		"ms-python.black-formatter"
 	]
 }

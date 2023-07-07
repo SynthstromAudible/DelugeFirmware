@@ -555,7 +555,12 @@ sample::browser_preview::Mode sampleBrowserPreviewModeMenu{HAVE_OLED ? "Sample p
 
 flash::Status flashStatusMenu{HAVE_OLED ? "Play-cursor" : "CURS"};
 
-char const* firmwareString = "4.1.4-alpha3";
+#ifdef DBT_FW_VERSION_STRING
+char const* firmwareString = DBT_FW_VERSION_STRING;
+#else
+char const* firmwareString = "4.1.4-alpha3-c";
+#endif // ifdef DBT_FW_VERSION_STRING
+
 firmware::Version firmwareVersionMenu{"Firmware version"};
 
 runtime_feature::Setting runtimeFeatureSettingMenuItem;
