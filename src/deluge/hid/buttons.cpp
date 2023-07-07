@@ -80,7 +80,7 @@ int buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	if (b == PLAY) {
 		if (on) {
 
-			if (audioRecorder.recordingSource && isButtonPressed(recordButtonX, recordButtonY)) {
+			if (audioRecorder.recordingSource && isButtonPressed(RECORD)) {
 				// Stop output-recording at end of loop
 				if (!recordButtonPressUsedUp && playbackHandler.isEitherClockActive()) {
 					currentPlaybackMode->stopOutputRecordingAtLoopEnd();
@@ -93,8 +93,7 @@ int buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 				playbackHandler.playButtonPressed(INTERNAL_BUTTON_PRESS_LATENCY);
 
 				// Begin output-recording simultaneously with playback
-				if (isButtonPressed(recordButtonX, recordButtonY) && playbackHandler.playbackState
-				    && !recordButtonPressUsedUp) {
+				if (isButtonPressed(RECORD) && playbackHandler.playbackState && !recordButtonPressUsedUp) {
 					audioRecorder.beginOutputRecording();
 				}
 			}
@@ -168,10 +167,6 @@ int buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 dealtWith:
 
 	return ACTION_RESULT_DEALT_WITH;
-}
-
-bool isButtonPressed(int x, int y) {
-	return buttonStates[x][y];
 }
 
 bool isButtonPressed(hid::Button b) {

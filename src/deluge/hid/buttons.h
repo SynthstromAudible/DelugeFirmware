@@ -18,13 +18,13 @@
 #ifndef BUTTONS_H_
 #define BUTTONS_H_
 
-#include "RZA1/system/r_typedefs.h"
+#include <stddef.h>
+
 #include "button.h"
 
 namespace Buttons {
 
 int buttonAction(hid::Button b, bool on, bool inCardRoutine);
-bool isButtonPressed(int x, int y);
 bool isButtonPressed(hid::Button b);
 bool isShiftButtonPressed();
 bool isNewOrShiftButtonPressed();

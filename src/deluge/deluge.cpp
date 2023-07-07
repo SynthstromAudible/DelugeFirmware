@@ -418,9 +418,9 @@ bool readButtonsAndPads() {
 
 #if LAUNCH_CLIP_TEST_ENABLED
 	if (playbackHandler.playbackState && (int32_t)(audioDriver.audioSampleTimer - timeNextSDTestAction) >= 0) {
-		matrixDriver.buttonStates[shiftButtonX][shiftButtonY] = true;
+		Buttons::buttonAction(SHIFT, true, false);
 		matrixDriver.padAction(displayWidth, getRandom255() & 7, true, inSDRoutine);
-		matrixDriver.buttonStates[shiftButtonX][shiftButtonY] = false;
+		Buttons::buttonAction(SHIFT, false, false);
 		int random = getRandom255();
 		timeNextSDTestAction = audioDriver.audioSampleTimer + ((random) << 4); // * 44 / 13;
 		anything = true;
