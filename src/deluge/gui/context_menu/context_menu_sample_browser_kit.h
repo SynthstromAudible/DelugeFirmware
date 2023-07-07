@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CONTEXTMENUSAMPLEBROWSERKIT_H_
-#define CONTEXTMENUSAMPLEBROWSERKIT_H_
+#pragma once
 
 #include "gui/context_menu/context_menu.h"
 
@@ -34,5 +33,3 @@ public:
 };
 
 extern ContextMenuSampleBrowserKit contextMenuFileBrowserKit;
-
-#endif /* CONTEXTMENUSAMPLEBROWSERKIT_H_ */

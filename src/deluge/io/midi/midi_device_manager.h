@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MIDIDEVICEMANAGER_H_
-#define MIDIDEVICEMANAGER_H_
+#pragma once
 #include "definitions.h"
 
 #ifdef __cplusplus
@@ -104,5 +103,3 @@ extern bool anyChangesToSave;
 #endif
 
 extern struct ConnectedUSBMIDIDevice connectedUSBMIDIDevices[][MAX_NUM_USB_MIDI_DEVICES];
-
-#endif /* MIDIDEVICEMANAGER_H_ */

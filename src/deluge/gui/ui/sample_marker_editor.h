@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef SAMPLEMARKEREDITOR_H_
-#define SAMPLEMARKEREDITOR_H_
+#pragma once
 
 #include "gui/ui/ui.h"
 #include "RZA1/system/r_typedefs.h"
@@ -77,5 +76,3 @@ private:
 };
 
 extern SampleMarkerEditor sampleMarkerEditor;
-
-#endif /* SAMPLEMARKEREDITOR_H_ */

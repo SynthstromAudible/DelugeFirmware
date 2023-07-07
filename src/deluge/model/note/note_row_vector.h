@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef NOTEROWVECTOR_H_
-#define NOTEROWVECTOR_H_
+#pragma once
 
 #include "util/container/array/ordered_resizeable_array.h"
 
@@ -32,5 +31,3 @@ public:
 	NoteRow* insertNoteRowAtY(int y, int* getIndex = NULL);
 	void deleteNoteRowAtIndex(int index, int numToDelete = 1);
 };
-
-#endif /* NOTEROWVECTOR_H_ */

@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef OUTPUT_H_
-#define OUTPUT_H_
+#pragma once
 
 #include "model/clip/clip_instance_vector.h"
 #include "RZA1/system/r_typedefs.h"
@@ -148,5 +147,3 @@ public:
 protected:
 	virtual Clip* createNewClipForArrangementRecording(ModelStack* modelStack) = 0;
 };
-
-#endif /* OUTPUT_H_ */

@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef VOICESAMPLE_H_
-#define VOICESAMPLE_H_
+#pragma once
 
 #include "model/sample/sample_low_level_reader.h"
 
@@ -92,5 +91,3 @@ private:
 	void switchToReadingCacheFromWriting();
 	bool stopReadingFromCache();
 };
-
-#endif /* VOICESAMPLE_H_ */

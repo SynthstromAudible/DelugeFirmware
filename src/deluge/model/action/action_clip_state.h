@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef ACTIONCLIPSTATE_H_
-#define ACTIONCLIPSTATE_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 
@@ -35,5 +34,3 @@ public:
 	uint32_t wrapEditLevel;
 	int selectedDrumIndex; // -1 means none
 };
-
-#endif /* ACTIONCLIPSTATE_H_ */

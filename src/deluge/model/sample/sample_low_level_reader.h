@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef SAMPLEREADER_H_
-#define SAMPLEREADER_H_
+#pragma once
 
 #include "definitions.h"
 #include "hid/display/numeric_driver.h"
@@ -105,5 +104,3 @@ private:
 	bool fillInterpolationBufferForward(SamplePlaybackGuide* guide, Sample* sample, int interpolationBufferSize,
 	                                    bool loopingAtLowLevel, int numSpacesToFill, int priorityRating);
 };
-
-#endif /* SAMPLEREADER_H_ */

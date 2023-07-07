@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef SAMPLEMANAGER_H_
-#define SAMPLEMANAGER_H_
+#pragma once
 #include "storage/audio/audio_file_vector.h"
 #include "storage/cluster/cluster_priority_queue.h"
 #include "RZA1/system/r_typedefs.h"
@@ -136,5 +135,3 @@ private:
 };
 
 extern AudioFileManager audioFileManager;
-
-#endif /* SAMPLEMANAGER_H_ */

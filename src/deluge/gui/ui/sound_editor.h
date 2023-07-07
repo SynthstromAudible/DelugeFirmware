@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef SOUNDEDITOR_H
-#define SOUNDEDITOR_H
+#pragma once
 
 #include "gui/ui/ui.h"
 #include "gui/menu_item/menu_item.h"
@@ -144,5 +143,3 @@ private:
 };
 
 extern SoundEditor soundEditor;
-
-#endif // SOUNDEDITOR_H

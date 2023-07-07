@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef GLOBALEFFECTABLEFORCLIP_H_
-#define GLOBALEFFECTABLEFORCLIP_H_
+#pragma once
 
 #include "definitions.h"
 #include "model/global_effectable/global_effectable.h"
@@ -69,5 +68,3 @@ protected:
 
 	virtual bool willRenderAsOneChannelOnlyWhichWillNeedCopying() { return false; }
 };
-
-#endif /* GLOBALEFFECTABLEFORCLIP_H_ */

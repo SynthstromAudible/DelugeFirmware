@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef PADLEDS_H_
-#define PADLEDS_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 #include "definitions.h"
@@ -106,5 +105,3 @@ void copyBetweenImageStores(uint8_t* dest, uint8_t* source, int destWidth, int s
 void moveBetweenImageStores(uint8_t* dest, uint8_t* source, int destWidth, int sourceWidth, int copyWidth);
 
 } // namespace PadLEDs
-
-#endif /* PADLEDS_H_ */

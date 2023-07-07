@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef PARAMCOLLECTIONSUMMARY_H_
-#define PARAMCOLLECTIONSUMMARY_H_
+#pragma once
 
 #include "definitions.h"
 
@@ -60,5 +59,3 @@ public:
 
 	// The list of these ParamCollectionSummarys, in ParamManager, must be terminated by one whose values are *all* zero. This helps because if we know this, we can check for stuff faster.
 };
-
-#endif /* PARAMCOLLECTIONSUMMARY_H_ */

@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef AUDIOCLIPVIEW_H_
-#define AUDIOCLIPVIEW_H_
+#pragma once
 
 #include "gui/views/clip_view.h"
 #include "hid/button.h"
@@ -66,5 +65,3 @@ private:
 };
 
 extern AudioClipView audioClipView;
-
-#endif /* AUDIOCLIPVIEW_H_ */

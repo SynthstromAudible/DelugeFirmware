@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef ORDEREDRESIZEABLEARRAYWITHMULTIWORDKEY_H_
-#define ORDEREDRESIZEABLEARRAYWITHMULTIWORDKEY_H_
+#pragma once
 
 #include "util/container/array/ordered_resizeable_array.h"
 
@@ -32,5 +31,3 @@ public:
 
 	int numWordsInKey;
 };
-
-#endif /* ORDEREDRESIZEABLEARRAYWITHMULTIWORDKEY_H_ */

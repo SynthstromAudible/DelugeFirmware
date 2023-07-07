@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef LOADUI_H_
-#define LOADUI_H_
+#pragma once
 
 #include "gui/ui/browser/slot_browser.h"
 
@@ -29,5 +28,3 @@ public:
 protected:
 	virtual void searchMemoryForBetterFile(int offset, char* bestFilenameFound) {}
 };
-
-#endif /* LOADUI_H_ */

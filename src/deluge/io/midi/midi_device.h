@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MIDIDEVICE_H_
-#define MIDIDEVICE_H_
+#pragma once
 
 #include "util/d_string.h"
 #include "definitions.h"
@@ -173,5 +172,3 @@ public:
 	char const* getDisplayName();
 	void sendMessage(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2);
 };
-
-#endif /* MIDIDEVICE_H_ */

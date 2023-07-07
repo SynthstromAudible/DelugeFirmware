@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef WAVEFORMRENDERER_H_
-#define WAVEFORMRENDERER_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 #include "definitions.h"
@@ -72,5 +71,3 @@ private:
 };
 
 extern WaveformRenderer waveformRenderer;
-
-#endif /* WAVEFORMRENDERER_H_ */

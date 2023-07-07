@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef QWERTYUI_H_
-#define QWERTYUI_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 #include "gui/ui/ui.h"
@@ -58,5 +57,3 @@ protected:
 
 private:
 };
-
-#endif /* QWERTYUI_H_ */

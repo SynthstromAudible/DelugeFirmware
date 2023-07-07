@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef SAMPLEPLAYBACKGUIDE_H_
-#define SAMPLEPLAYBACKGUIDE_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 
@@ -56,5 +55,3 @@ public:
 	int32_t sequenceSyncStartedAtTick;
 	uint32_t sequenceSyncLengthTicks; // When 0, means no syncing happening
 };
-
-#endif /* SAMPLEPLAYBACKGUIDE_H_ */

@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef NUMERICLAYERLOADINGANIMATION_H_
-#define NUMERICLAYERLOADINGANIMATION_H_
+#pragma once
 
 #include "hid/display/numeric_layer/numeric_layer.h"
 
@@ -31,5 +30,3 @@ public:
 	int8_t loadingAnimationPos;
 	bool animationIsTransparent;
 };
-
-#endif /* NUMERICLAYERLOADINGANIMATION_H_ */

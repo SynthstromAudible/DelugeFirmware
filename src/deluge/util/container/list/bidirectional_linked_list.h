@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef BIDIRECTIONALLINKEDLIST_H_
-#define BIDIRECTIONALLINKEDLIST_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 
@@ -48,5 +47,3 @@ public:
 	BidirectionalLinkedListNode endNode;
 	BidirectionalLinkedListNode* first;
 };
-
-#endif /* BIDIRECTIONALLINKEDLIST_H_ */

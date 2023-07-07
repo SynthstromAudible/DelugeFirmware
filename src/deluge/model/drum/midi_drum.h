@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MIDIDRUM_H_
-#define MIDIDRUM_H_
+#pragma once
 
 #include "model/drum/non_audio_drum.h"
 
@@ -44,5 +43,3 @@ public:
 	uint8_t note;
 	int8_t noteEncoderCurrentOffset;
 };
-
-#endif /* MIDIDRUM_H_ */

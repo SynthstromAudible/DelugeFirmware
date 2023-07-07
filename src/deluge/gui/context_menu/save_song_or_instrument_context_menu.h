@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef SAVESONGORINSTRUMENTCONTEXTMENU_H_
-#define SAVESONGORINSTRUMENTCONTEXTMENU_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 #include "gui/context_menu/context_menu.h"
@@ -34,5 +33,3 @@ public:
 };
 
 extern SaveSongOrInstrumentContextMenu saveSongOrInstrumentContextMenu;
-
-#endif /* SAVESONGORINSTRUMENTCONTEXTMENU_H_ */

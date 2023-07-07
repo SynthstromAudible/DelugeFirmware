@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef SAMPLEREADER_H_
-#define SAMPLEREADER_H_
+#pragma once
 
 #include "storage/audio/audio_file_reader.h"
 
@@ -30,5 +29,3 @@ public:
 
 	Cluster* currentCluster;
 };
-
-#endif /* SAMPLEREADER_H_ */

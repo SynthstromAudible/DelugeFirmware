@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef AUDIOOUTPUT_H_
-#define AUDIOOUTPUT_H_
+#pragma once
 
 #include "model/global_effectable/global_effectable_for_clip.h"
 #include "model/output.h"
@@ -86,5 +85,3 @@ protected:
 	bool wantsToBeginArrangementRecording();
 	bool willRenderAsOneChannelOnlyWhichWillNeedCopying();
 };
-
-#endif /* AUDIOOUTPUT_H_ */

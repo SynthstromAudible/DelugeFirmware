@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CONSEQUENCECLIPLENGTH_H_
-#define CONSEQUENCECLIPLENGTH_H_
+#pragma once
 
 #include "model/consequence/consequence.h"
 #include "RZA1/system/r_typedefs.h"
@@ -34,5 +33,3 @@ public:
 	uint64_t* pointerToMarkerValue;
 	uint64_t markerValueToRevertTo;
 };
-
-#endif /* CONSEQUENCECLIPLENGTH_H_ */

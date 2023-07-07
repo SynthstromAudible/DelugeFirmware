@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CONTEXTMENUOVERWRITEBOOTLOADER_H_
-#define CONTEXTMENUOVERWRITEBOOTLOADER_H_
+#pragma once
 
 #include "gui/context_menu/context_menu.h"
 
@@ -29,5 +28,3 @@ public:
 };
 
 extern ContextMenuOverwriteBootloader contextMenuOverwriteBootloader;
-
-#endif /* CONTEXTMENUOVERWRITEBOOTLOADER_H_ */

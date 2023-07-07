@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef ARRANGERVIEW_H_
-#define ARRANGERVIEW_H_
+#pragma once
 
 #include "gui/views/timeline_view.h"
 #include "hid/button.h"
@@ -143,5 +142,3 @@ private:
 };
 
 extern ArrangerView arrangerView;
-
-#endif /* ARRANGERVIEW_H_ */

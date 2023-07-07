@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef MELODICINSTRUMENT_H_
-#define MELODICINSTRUMENT_H_
+#pragma once
 
 #include "util/container/array/early_note_array.h"
 #include "io/midi/learned_midi.h"
@@ -84,5 +83,3 @@ public:
 
 	LearnedMIDI midiInput;
 };
-
-#endif /* MELODICINSTRUMENT_H_ */

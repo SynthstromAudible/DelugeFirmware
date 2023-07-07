@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MODCONTROLLABLEAUDIO_H_
-#define MODCONTROLLABLEAUDIO_H_
+#pragma once
 
 #include "model/mod_controllable/mod_controllable.h"
 #include "dsp/stereo_sample.h"
@@ -142,5 +141,3 @@ private:
 	void doEQ(bool doBass, bool doTreble, int32_t* inputL, int32_t* inputR, int32_t bassAmount, int32_t trebleAmount);
 	ModelStackWithThreeMainThings* addNoteRowIndexAndStuff(ModelStackWithTimelineCounter* modelStack, int noteRowIndex);
 };
-
-#endif /* MODCONTROLLABLEAUDIO_H_ */

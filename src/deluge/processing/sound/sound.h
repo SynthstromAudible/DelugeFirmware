@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef SOUND_H
-#define SOUND_H
+#pragma once
 
 #include "modulation/patch/patcher.h"
 #include "definitions.h"
@@ -293,5 +292,3 @@ private:
 	                                                      ModelStackWithThreeMainThings* modelStack,
 	                                                      bool allowCreation = true);
 };
-
-#endif // SOUND_H
