@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CLIPARRAY_H_
-#define CLIPARRAY_H_
+#pragma once
 
 #include "util/container/array/resizeable_pointer_array.h"
 
@@ -29,5 +28,3 @@ public:
 	Clip* getClipAtIndex(int index);
 	int getIndexForClip(Clip* clip);
 };
-
-#endif /* CLIPARRAY_H_ */

@@ -17,8 +17,7 @@
 
 // Ok, creating a class for this is absolutely stupid, but I was a noob at the time! It doesn't add any performance overhead though.
 
-#ifndef AUDIOSAMPLE_H
-#define AUDIOSAMPLE_H
+#pragma once
 
 #include "util/functions.h"
 
@@ -48,5 +47,3 @@ public:
 	int32_t l;
 	int32_t r;
 };
-
-#endif // AUDIOSAMPLE_H

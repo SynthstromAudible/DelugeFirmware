@@ -21,8 +21,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef _comb_
-#define _comb_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 #include "util/functions.h"
@@ -65,7 +64,5 @@ inline int32_t comb::process(int32_t input) {
 
 	return output;
 }
-
-#endif //_comb_
 
 //ends

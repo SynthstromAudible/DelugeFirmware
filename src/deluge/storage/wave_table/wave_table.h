@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef WAVETABLE_H_
-#define WAVETABLE_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 #include "util/container/array/ordered_resizeable_array.h"
@@ -76,5 +75,3 @@ private:
 	                                WaveTableBand* __restrict__ bandHere, uint32_t phase, uint32_t phaseIncrement,
 	                                const int16_t* __restrict__ kernel);
 };
-
-#endif /* WAVETABLE_H_ */

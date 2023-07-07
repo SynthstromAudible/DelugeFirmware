@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CONSEQUENCENOTEEXISTENCE_H_
-#define CONSEQUENCENOTEEXISTENCE_H_
+#pragma once
 
 #include "model/consequence/consequence.h"
 #include "RZA1/system/r_typedefs.h"
@@ -38,5 +37,3 @@ public:
 
 	uint8_t type;
 };
-
-#endif /* CONSEQUENCENOTEEXISTENCE_H_ */

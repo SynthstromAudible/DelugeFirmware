@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef UART_H_
-#define UART_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 
@@ -30,5 +29,3 @@ void printfloat(float number);
 void print(int32_t number);
 unsigned int getTxBufferFullness(uint8_t scifID);
 } // namespace Uart
-
-#endif /* UART_H_ */

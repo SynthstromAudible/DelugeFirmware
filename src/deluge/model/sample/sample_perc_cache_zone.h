@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef SAMPLEPERCCACHEZONE_H_
-#define SAMPLEPERCCACHEZONE_H_
+#pragma once
 
 #include "definitions.h"
 
@@ -36,5 +35,3 @@ public:
 	int32_t lastSampleRead;
 	int32_t angleLPFMem[DIFFERENCE_LPF_POLES];
 };
-
-#endif /* SAMPLEPERCCACHEZONE_H_ */

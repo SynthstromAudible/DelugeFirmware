@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CONSEQUENCENOTEROWLENGTH_H_
-#define CONSEQUENCENOTEROWLENGTH_H_
+#pragma once
 
 #include "model/consequence/consequence.h"
 
@@ -32,5 +31,3 @@ public:
 	int32_t backedUpLength;
 	int noteRowId;
 };
-
-#endif /* CONSEQUENCENOTEROWLENGTH_H_ */

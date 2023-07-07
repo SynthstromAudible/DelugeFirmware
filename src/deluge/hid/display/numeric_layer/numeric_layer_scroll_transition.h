@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef NUMERICLAYERSCROLLTRANSITION_H_
-#define NUMERICLAYERSCROLLTRANSITION_H_
+#pragma once
 
 #include "hid/display/numeric_layer/numeric_layer.h"
 
@@ -33,5 +32,3 @@ public:
 	int8_t transitionDirection;
 	int8_t transitionProgress;
 };
-
-#endif /* NUMERICLAYERSCROLLTRANSITION_H_ */

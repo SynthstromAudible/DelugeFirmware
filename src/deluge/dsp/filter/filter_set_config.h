@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef FILTERSETCONFIG_H_
-#define FILTERSETCONFIG_H_
+#pragma once
 
 #include "definitions.h"
 
@@ -60,5 +59,3 @@ public:
 
 	bool doOversampling;
 };
-
-#endif /* FILTERSETCONFIG_H_ */

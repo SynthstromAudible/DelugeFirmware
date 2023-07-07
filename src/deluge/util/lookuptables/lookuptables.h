@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef LOOKUPTABLES_H
-#define LOOKUPTABLES_H
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 
@@ -143,5 +142,3 @@ extern const uint8_t defaultClipGroupColours[];
 
 extern const uint8_t noteCodeToNoteLetter[];
 extern const bool noteCodeIsSharp[];
-
-#endif // LOOKUPTABLES_H

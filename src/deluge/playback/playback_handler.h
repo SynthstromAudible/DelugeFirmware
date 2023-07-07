@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef PLAYBACKHANDLER_H
-#define PLAYBACKHANDLER_H
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 #include "definitions.h"
@@ -247,4 +246,3 @@ private:
 };
 
 extern PlaybackHandler playbackHandler;
-#endif // PLAYBACKHANDLER_H

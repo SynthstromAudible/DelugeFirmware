@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef SAVEUI_H_
-#define SAVEUI_H_
+#pragma once
 
 #include "gui/ui/browser/slot_browser.h"
 #include "hid/button.h"
@@ -48,5 +47,3 @@ protected:
 	void enterKeyPress() final;
 	static bool currentFolderIsEmpty;
 };
-
-#endif /* SAVEUI_H_ */

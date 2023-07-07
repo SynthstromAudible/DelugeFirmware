@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef SAMPLEHOLDERFORCLIP_H_
-#define SAMPLEHOLDERFORCLIP_H_
+#pragma once
 
 #include "model/sample/sample_holder.h"
 
@@ -36,5 +35,3 @@ public:
 protected:
 	void sampleBeenSet(bool reversed, bool manuallySelected);
 };
-
-#endif /* SAMPLEHOLDERFORCLIP_H_ */

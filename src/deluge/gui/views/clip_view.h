@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CLIPVIEW_H_
-#define CLIPVIEW_H_
+#pragma once
 
 #include "gui/views/clip_navigation_timeline_view.h"
 #include "hid/button.h"
@@ -42,5 +41,3 @@ private:
 	Action* lengthenClip(int32_t newLength);
 	Action* shortenClip(int32_t newLength);
 };
-
-#endif /* CLIPVIEW_H_ */

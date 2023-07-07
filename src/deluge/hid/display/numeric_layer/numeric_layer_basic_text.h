@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef NUMERICLAYERBASICTEXT_H_
-#define NUMERICLAYERBASICTEXT_H_
+#pragma once
 
 #include "hid/display/numeric_layer/numeric_layer.h"
 
@@ -39,5 +38,3 @@ public:
 
 	int8_t blinkSpeed;
 };
-
-#endif /* NUMERICLAYERBASICTEXT_H_ */

@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MULTIWAVETABLERANGE_H_
-#define MULTIWAVETABLERANGE_H_
+#pragma once
 
 #include "storage/multi_range/multi_range.h"
 #include "storage/wave_table/wave_table_holder.h"
@@ -28,5 +27,3 @@ public:
 	WaveTableHolder
 	    waveTableHolder; // Has to be first variable, cos I do a sneaky optimization between both of MultiRange's children.
 };
-
-#endif /* MULTIWAVETABLERANGE_H_ */

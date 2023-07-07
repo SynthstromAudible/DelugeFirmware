@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef DELAYBUFFER_H_
-#define DELAYBUFFER_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 #include <math.h>
@@ -302,5 +301,3 @@ public:
 	uint32_t sizeIncludingExtra;
 	bool isResampling;
 };
-
-#endif /* DELAYBUFFER_H_ */

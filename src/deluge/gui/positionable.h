@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef POSITIONABLE_H_
-#define POSITIONABLE_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 
@@ -26,5 +25,3 @@ public:
 
 	int32_t pos;
 };
-
-#endif /* POSITIONABLE_H_ */

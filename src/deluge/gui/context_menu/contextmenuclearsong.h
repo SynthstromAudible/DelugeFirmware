@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CLEARSONGUI_H
-#define CLEARSONGUI_H
+#pragma once
 
 #include "gui/context_menu/context_menu.h"
 
@@ -31,5 +30,3 @@ public:
 };
 
 extern ContextMenuClearSong contextMenuClearSong;
-
-#endif // CLEARSONGUI_H

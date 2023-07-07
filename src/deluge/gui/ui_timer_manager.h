@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef UITIMERMANAGER_H
-#define UITIMERMANAGER_H
+#pragma once
 
 #include "definitions.h"
 
@@ -71,5 +70,3 @@ private:
 };
 
 extern UITimerManager uiTimerManager;
-
-#endif // UITIMERMANAGER_H

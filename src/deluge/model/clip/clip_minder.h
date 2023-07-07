@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CLIPMINDER_H_
-#define CLIPMINDER_H_
+#pragma once
 
 #include "hid/button.h"
 #include "definitions.h"
@@ -25,5 +24,3 @@ class ClipMinder {
 public:
 	int buttonAction(hid::Button b, bool on);
 };
-
-#endif /* CLIPMINDER_H_ */
