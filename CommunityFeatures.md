@@ -36,8 +36,11 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
  - ([#103]) adds a new filter in the low-pass slot, a state-variable filter. This filter has significantly less distortion than the ladder filters, think sequential vs. moog. Cutoff and resonance ranges are subject to change with further testing.
 
 ## New behaviors
-### Song View Row Colors
- - ([#163]) Pressing a clip row + shift & scorll vertically changes the selected row color. This is the same shortcut like before when setting the color in the clip view.   
+### Song View
+ - ([#163]) Pressing a clip row + shift & scroll vertically changes the selected row color. This is the same shortcut like before when setting the color in the clip view.   
+
+### Instrument Keyboard View
+ - ([#46]) Note offset between rows is now configurable by holding shift and using the horizontal encoder. This allows e.g. an isomorphic keyboard layout by setting the row offset to 12. The setting is saved per clip in the song file.
 
 ### Kit Clip View
  - ([#122]) Pressing "AUDITION + RANDOM" on a drum kit row will load a random sample from the same folder as the currently enabled sample and load it as the sound for that row. Currently limited to 25 files for performance reasons. This feature can be toggled in the [runtime features menu](#runtime-features).
@@ -77,3 +80,4 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#112]: https://github.com/SynthstromAudible/DelugeFirmware/pull/112
 [#122]: https://github.com/SynthstromAudible/DelugeFirmware/pull/122
 [#141]: https://github.com/SynthstromAudible/DelugeFirmware/pull/141
+[#163]: https://github.com/SynthstromAudible/DelugeFirmware/pull/163
