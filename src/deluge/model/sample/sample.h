@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef SAMPLE_H_
-#define SAMPLE_H_
+#pragma once
 
 #include "model/sample/sample_cluster.h"
 #include "util/functions.h"
@@ -152,5 +151,3 @@ private:
 	                                uint64_t* sumTable, float* floatIndexTable, float* getFreq, int numDoublings,
 	                                bool doPrimeTest);
 };
-
-#endif /* SAMPLE_H_ */

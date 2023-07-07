@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef KEYBOARDSCREEN_H_
-#define KEYBOARDSCREEN_H_
+#pragma once
 
 #include "gui/ui/root_ui.h"
 #include "gui/ui/ui.h"
@@ -78,4 +77,3 @@ private:
 };
 
 extern KeyboardScreen keyboardScreen;
-#endif /* KEYBOARDSCREEN_H_ */

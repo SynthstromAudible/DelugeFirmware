@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MIDIPARAMCOLLECTION_H_
-#define MIDIPARAMCOLLECTION_H_
+#pragma once
 
 #include "modulation/params/param_collection.h"
 #include "modulation/midi/midi_param_vector.h"
@@ -67,5 +66,3 @@ public:
 private:
 	void deleteAllParams(Action* action = NULL, bool deleteStorateToo = true);
 };
-
-#endif /* MIDIPARAMCOLLECTION_H_ */

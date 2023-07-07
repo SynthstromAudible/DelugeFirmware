@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef AUDIOFILEREADER_H_
-#define AUDIOFILEREADER_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 
@@ -39,5 +38,3 @@ public:
 	uint32_t fileSize;
 	AudioFile* audioFile;
 };
-
-#endif /* AUDIOFILEREADER_H_ */

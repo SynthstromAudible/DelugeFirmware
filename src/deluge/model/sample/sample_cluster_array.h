@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef SAMPLECLUSTERARRAY_H_
-#define SAMPLECLUSTERARRAY_H_
+#pragma once
 
 #include "util/container/array/resizeable_array.h"
 
@@ -28,5 +27,3 @@ public:
 	int insertSampleClustersAtEnd(int numToInsert);
 	SampleCluster* getElement(int i);
 };
-
-#endif /* SAMPLECLUSTERARRAY_H_ */

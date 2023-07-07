@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef AUDIOINPUTSELECTOR_H_
-#define AUDIOINPUTSELECTOR_H_
+#pragma once
 
 #include "gui/context_menu/context_menu.h"
 
@@ -34,5 +33,3 @@ public:
 };
 
 extern AudioInputSelector audioInputSelector;
-
-#endif /* AUDIOINPUTSELECTOR_H_ */

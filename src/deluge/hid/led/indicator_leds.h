@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef INDICATORLEDS_H_
-#define INDICATORLEDS_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 #include "definitions.h"
@@ -51,5 +50,3 @@ bool updateBlinkingLedStates(uint8_t blinkingType);
 bool isKnobIndicatorBlinking(int whichKnob);
 
 } // namespace IndicatorLEDs
-
-#endif /* INDICATORLEDS_H_ */

@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef AUDIODRIVER_H
-#define AUDIODRIVER_H
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 
@@ -197,5 +196,3 @@ extern MasterCompressor mastercompressor;
 extern uint32_t timeLastSideChainHit;
 extern int32_t sizeLastSideChainHit;
 } // namespace AudioEngine
-
-#endif // AUDIODRIVER_H

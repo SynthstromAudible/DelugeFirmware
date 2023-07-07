@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef NUMERICDRIVER_H
-#define NUMERICDRIVER_H
+#pragma once
 
 #include "definitions.h"
 
@@ -80,5 +79,3 @@ void displayPopupIfAllBootedUp(char const* text);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // NUMERICDRIVER_H

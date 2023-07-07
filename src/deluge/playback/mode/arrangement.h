@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef ARRANGEMENT_H_
-#define ARRANGEMENT_H_
+#pragma once
 
 #include "playback/mode/playback_mode.h"
 
@@ -58,5 +57,3 @@ public:
 };
 
 extern Arrangement arrangement;
-
-#endif /* ARRANGEMENT_H_ */

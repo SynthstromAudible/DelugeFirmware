@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef SLOTBROWSER_H_
-#define SLOTBROWSER_H_
+#pragma once
 
 #include "gui/ui/browser/browser.h"
 
@@ -51,5 +50,3 @@ protected:
 	                       // We do need this, separate from the current FileItem, because if user moves onto a folder,
 	                       // the currentInstrument needs to remain the same.
 };
-
-#endif /* SLOTBROWSER_H_ */

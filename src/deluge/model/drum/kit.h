@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef KIT_H
-#define KIT_H
+#pragma once
 
 #include "model/global_effectable/global_effectable_for_clip.h"
 #include "model/instrument/instrument.h"
@@ -119,5 +118,3 @@ private:
 	void removeDrumFromLinkedList(Drum* drum);
 	void drumRemoved(Drum* drum);
 };
-
-#endif // KIT_H

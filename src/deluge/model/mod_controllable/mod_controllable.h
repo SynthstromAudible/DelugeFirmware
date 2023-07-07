@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MODCONTROLLABLE_H_
-#define MODCONTROLLABLE_H_
+#pragma once
 #include "definitions.h"
 
 class ParamManagerForTimeline;
@@ -60,5 +59,3 @@ public:
 	                                                      int channelOrNoteNumber, int whichCharacteristic) {}
 	virtual void monophonicExpressionEvent(int newValue, int whichExpressionDimension) {}
 };
-
-#endif /* MODCONTROLLABLE_H_ */

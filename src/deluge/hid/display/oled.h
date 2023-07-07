@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef DRIVERS_RZA2_OLED_OLED_H_
-#define DRIVERS_RZA2_OLED_OLED_H_
+#pragma once
 
 #include "definitions.h"
 
@@ -102,5 +101,3 @@ void consoleTextIfAllBootedUp(char const* text);
 #endif
 
 #endif /* HAVE_OLED */
-
-#endif /* DRIVERS_RZA2_OLED_OLED_H_ */

@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef SLICER_H_
-#define SLICER_H_
+#pragma once
 
 #include "gui/ui/ui.h"
 #include "hid/button.h"
@@ -43,5 +42,3 @@ private:
 };
 
 extern Slicer slicer;
-
-#endif /* SLICER_H_ */

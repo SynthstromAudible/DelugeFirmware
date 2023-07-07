@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CONTEXTMENU_H_
-#define CONTEXTMENU_H_
+#pragma once
 
 #include "gui/ui/ui.h"
 #include "hid/button.h"
@@ -63,5 +62,3 @@ public:
 	void focusRegained();
 	virtual hid::Button getAcceptButton() final { return hid::button::LOAD; }
 };
-
-#endif /* CONTEXTMENU_H_ */

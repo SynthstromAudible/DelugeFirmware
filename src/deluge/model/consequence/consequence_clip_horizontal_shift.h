@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CONSEQUENCECLIPHORIZONTALSHIFT_H_
-#define CONSEQUENCECLIPHORIZONTALSHIFT_H_
+#pragma once
 
 #include "model/consequence/consequence.h"
 #include "RZA1/system/r_typedefs.h"
@@ -28,5 +27,3 @@ public:
 
 	int32_t amount;
 };
-
-#endif /* CONSEQUENCECLIPHORIZONTALSHIFT_H_ */

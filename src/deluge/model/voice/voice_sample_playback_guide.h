@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef VOICE_SOURCE_H
-#define VOICE_SOURCE_H
+#pragma once
 
 #include "definitions.h"
 #include "model/sample/sample_playback_guide.h"
@@ -44,5 +43,3 @@ public:
 
 	bool noteOffReceived;
 };
-
-#endif

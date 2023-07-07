@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef LOADSONGUI_H
-#define LOADSONGUI_H
+#pragma once
 
 #include "gui/ui/load/load_ui.h"
 #include "hid/button.h"
@@ -59,5 +58,3 @@ private:
 	void exitActionWithError();
 };
 extern LoadSongUI loadSongUI;
-
-#endif // LOADSONGUI_H

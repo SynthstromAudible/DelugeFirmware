@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CONSEQUENCEARRANGERPARAMSTIMEINSERTED_H_
-#define CONSEQUENCEARRANGERPARAMSTIMEINSERTED_H_
+#pragma once
 
 #include "model/consequence/consequence.h"
 #include "RZA1/system/r_typedefs.h"
@@ -28,5 +27,3 @@ public:
 	int32_t pos;
 	int32_t length;
 };
-
-#endif /* CONSEQUENCEARRANGERPARAMSTIMEINSERTED_H_ */

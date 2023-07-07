@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef STORAGEMANAGER_H
-#define STORAGEMANAGER_H
+#pragma once
 
 #include "definitions.h"
 #include "RZA1/system/r_typedefs.h"
@@ -156,5 +155,3 @@ private:
 extern StorageManager storageManager;
 extern FILINFO staticFNO;
 extern DIR staticDIR;
-
-#endif // STORAGEMANAGER_H

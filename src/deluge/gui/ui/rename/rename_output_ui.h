@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef RENAMEOUTPUTUI_H_
-#define RENAMEOUTPUTUI_H_
+#pragma once
 
 #include "gui/ui/rename/rename_ui.h"
 #include "hid/button.h"
@@ -42,5 +41,3 @@ private:
 };
 
 extern RenameOutputUI renameOutputUI;
-
-#endif /* RENAMEOUTPUTUI_H_ */

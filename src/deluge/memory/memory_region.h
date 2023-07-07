@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef MEMORYREGION_H_
-#define MEMORYREGION_H_
+#pragma once
 
 #include "util/container/array/ordered_resizeable_array_with_multi_word_key.h"
 #include "util/container/list/bidirectional_linked_list.h"
@@ -76,5 +75,3 @@ private:
 	void writeTempHeadersBeforeASteal(uint32_t newStartAddress, uint32_t newSize);
 	void sanityCheck();
 };
-
-#endif /* MEMORYREGION_H_ */

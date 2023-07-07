@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef PARAMMANAGER_H_
-#define PARAMMANAGER_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 #include "definitions.h"
@@ -202,5 +201,3 @@ public:
 	int32_t ticksTilNextEvent;
 	int32_t ticksSkipped;
 };
-
-#endif /* PARAMMANAGER_H_ */

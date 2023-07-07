@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef SOURCE_H
-#define SOURCE_H
+#pragma once
 
 #include "storage/multi_range/multi_range_array.h"
 #include "util/phase_increment_fine_tuner.h"
@@ -67,5 +66,3 @@ public:
 private:
 	void destructAllMultiRanges();
 };
-
-#endif

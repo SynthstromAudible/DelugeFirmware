@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef WAVEFORMRENDERDATA_H_
-#define WAVEFORMRENDERDATA_H_
+#pragma once
 
 #include "definitions.h"
 #include "RZA1/system/r_typedefs.h"
@@ -31,5 +30,3 @@ struct WaveformRenderData {
 	int32_t minPerCol[displayWidth];
 	uint8_t colStatus[displayWidth];
 };
-
-#endif // WAVEFORMRENDERDATA_H_

@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef BUTTONS_H_
-#define BUTTONS_H_
+#pragma once
 
 #include <stddef.h>
 
@@ -32,5 +31,3 @@ void noPressesHappening(bool inCardRoutine);
 
 extern bool recordButtonPressUsedUp;
 } // namespace Buttons
-
-#endif /* BUTTONS_H_ */
