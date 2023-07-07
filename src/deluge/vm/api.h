@@ -1,8 +1,9 @@
 #pragma once
 
-#include "wrenimpl.h"
 #include <map>
 #include <string>
+#include "hid/buttons.h"
+#include "wrenimpl.h"
 
 namespace Wren {
 	namespace API {
@@ -44,9 +45,9 @@ namespace Wren {
 		typedef std::map<std::string, ClassMap> ModuleMap;
 
 		ModuleMap modules();
-		ButtonIndex findButton(uint8_t x, uint8_t y);
+		ButtonIndex findButton(hid::Button x);
 		extern const char* mainModuleSource;
 		extern const char* buttonsSource;
-		extern const button_s buttonValues[];
+		extern const hid::Button buttonValues[];
 	}
 }

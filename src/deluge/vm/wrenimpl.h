@@ -1,5 +1,6 @@
 #pragma once
 #include "wren.hpp"
+#include "hid/button.h"
 
 #define SCRIPT_BUFFER_SIZE 1024
 
@@ -21,7 +22,7 @@ public:
 	void tick();
 	void setup();
 	void init();
-	void buttonAction(int x, int y, bool on);
+	void buttonAction(hid::Button b, bool on);
 	inline WrenInterpretResult interpret(const char*, const char*);
 
 	static void print(const char* text);

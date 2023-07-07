@@ -84,11 +84,11 @@ void VM::errorFn(WrenVM* vm, WrenErrorType errorType, const char* mod, const int
 	//f_close(&fil);
 }
 
-void VM::buttonAction(int x, int y, bool on) {
-	API::ButtonIndex index = Wren::API::findButton(x, y);
+void VM::buttonAction(hid::Button b, bool on) {
+	//API::ButtonIndex index = Wren::API::findButton(x, y);
 	wrenEnsureSlots(vm, 3);
 	wrenSetSlotHandle(vm, 0, handles.Deluge);
-	wrenSetSlotDouble(vm, 1, index);
+	wrenSetSlotDouble(vm, 1, b);
 	wrenSetSlotBool(vm, 2, on);
 	(void)wrenCall(vm, handles.buttonAction);
 }
@@ -157,7 +157,7 @@ WrenForeignClassMethods VM::bindForeignClassFn(WrenVM* vm, const char* moduleNam
 		if (cls == "Button") {
 			return {
 			    .allocate = [](WrenVM* vm) -> void {
-					API::button_s* data = (API::button_s*)wrenSetSlotNewForeign(vm, 0, 0, sizeof(API::button_s));
+					auto data = (hid::Button*)wrenSetSlotNewForeign(vm, 0, 0, sizeof(hid::Button));
 				    int index = (int)wrenGetSlotDouble(vm, 1);
 				    *data = API::buttonValues[index];
 			    },

@@ -5,30 +5,31 @@
 	"__buttons[" #index "]"                                                                                            \
 	" }"
 
+using namespace hid::button;
 // clang-format off
 
-const button_s buttonValues[] = {
-	[ButtonIndex::none]         = { 127, 127 },
-	[ButtonIndex::affectEntire] = { affectEntireButtonX, affectEntireButtonY },
-	[ButtonIndex::song]         = { sessionViewButtonX, sessionViewButtonY },
-	[ButtonIndex::clip]         = { clipViewButtonX, clipViewButtonY },
-	[ButtonIndex::synth]        = { synthButtonX, synthButtonY },
-	[ButtonIndex::kit]          = { kitButtonX, kitButtonY },
-	[ButtonIndex::midi]         = { midiButtonX, midiButtonY },
-	[ButtonIndex::cv]           = { cvButtonX, cvButtonY },
-	[ButtonIndex::keyboard]     = { keyboardButtonX, keyboardButtonY },
-	[ButtonIndex::scale]        = { scaleModeButtonX, scaleModeButtonY },
-	[ButtonIndex::crossScreen]  = { crossScreenEditButtonX, crossScreenEditButtonY },
-	[ButtonIndex::back]         = { backButtonX, backButtonY },
-	[ButtonIndex::load]         = { loadButtonX, loadButtonY },
-	[ButtonIndex::save]         = { saveButtonX, saveButtonY },
-	[ButtonIndex::learn]        = { learnButtonX, learnButtonY },
-	[ButtonIndex::tapTempo]     = { tapTempoButtonX, tapTempoButtonY },
-	[ButtonIndex::syncScaling]  = { syncScalingButtonX, syncScalingButtonY },
-	[ButtonIndex::triplets]     = { tripletsButtonX, tripletsButtonY },
-	[ButtonIndex::play]         = { playButtonX, playButtonY },
-	[ButtonIndex::record]       = { recordButtonX, recordButtonY },
-	[ButtonIndex::shift]        = { shiftButtonX, shiftButtonY },
+const hid::Button buttonValues[] = {
+	[ButtonIndex::none]         = 252,
+	[ButtonIndex::affectEntire] = AFFECT_ENTIRE,
+	[ButtonIndex::song]         = SESSION_VIEW,
+	[ButtonIndex::clip]         = CLIP_VIEW,
+	[ButtonIndex::synth]        = SYNTH,
+	[ButtonIndex::kit]          = KIT,
+	[ButtonIndex::midi]         = MIDI,
+	[ButtonIndex::cv]           = CV,
+	[ButtonIndex::keyboard]     = KEYBOARD,
+	[ButtonIndex::scale]        = SCALE_MODE,
+	[ButtonIndex::crossScreen]  = CROSS_SCREEN_EDIT,
+	[ButtonIndex::back]         = BACK,
+	[ButtonIndex::load]         = LOAD,
+	[ButtonIndex::save]         = SAVE,
+	[ButtonIndex::learn]        = LEARN,
+	[ButtonIndex::tapTempo]     = TAP_TEMPO,
+	[ButtonIndex::syncScaling]  = SYNC_SCALING,
+	[ButtonIndex::triplets]     = TRIPLETS,
+	[ButtonIndex::play]         = PLAY,
+	[ButtonIndex::record]       = RECORD,
+	[ButtonIndex::shift]        = SHIFT,
 };
 
 const char* buttonsSource =
