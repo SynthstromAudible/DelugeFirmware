@@ -59,8 +59,12 @@ inline AudioClip* getClip() {
 }
 
 inline Sample* getSample() {
-	if (getClip()->getCurrentlyRecordingLinearly()) return getClip()->recorder->sample;
-	else return (Sample*)getClip()->sampleHolder.audioFile;
+	if (getClip()->getCurrentlyRecordingLinearly()) {
+		return getClip()->recorder->sample;
+	}
+	else {
+		return (Sample*)getClip()->sampleHolder.audioFile;
+	}
 }
 
 bool AudioClipView::opened() {
@@ -94,9 +98,13 @@ void AudioClipView::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 
 bool AudioClipView::renderMainPads(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
                                    uint8_t occupancyMask[][displayWidth + sideBarWidth], bool drawUndefinedArea) {
-	if (!image) return true;
+	if (!image) {
+		return true;
+	}
 
-	if (isUIModeActive(UI_MODE_INSTRUMENT_CLIP_COLLAPSING)) return true;
+	if (isUIModeActive(UI_MODE_INSTRUMENT_CLIP_COLLAPSING)) {
+		return true;
+	}
 
 	int endSquareDisplay = divide_round_negative(
 	    getClip()->loopLength - currentSong->xScroll[NAVIGATION_CLIP] - 1,
@@ -125,7 +133,9 @@ bool AudioClipView::renderMainPads(uint32_t whichRows, uint8_t image[][displayWi
 		getClip()->getColour(rgb);
 
 		int visibleWaveformXEnd = endSquareDisplay + 1;
-		if (endMarkerVisible && blinkOn) visibleWaveformXEnd--;
+		if (endMarkerVisible && blinkOn) {
+			visibleWaveformXEnd--;
+		}
 		int xEnd = getMin(displayWidth, visibleWaveformXEnd);
 
 		bool success =
@@ -155,8 +165,12 @@ bool AudioClipView::renderMainPads(uint32_t whichRows, uint8_t image[][displayWi
 
 				int xDisplay = endSquareDisplay + 1;
 
-				if (xDisplay >= displayWidth) continue;
-				else if (xDisplay < 0) xDisplay = 0;
+				if (xDisplay >= displayWidth) {
+					continue;
+				}
+				else if (xDisplay < 0) {
+					xDisplay = 0;
+				}
 
 				memset(image[y][xDisplay], 7, (displayWidth - xDisplay) * 3);
 			}
@@ -177,9 +191,13 @@ int AudioClipView::timerCallback() {
 
 bool AudioClipView::renderSidebar(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
                                   uint8_t occupancyMask[][displayWidth + sideBarWidth]) {
-	if (!image) return true;
+	if (!image) {
+		return true;
+	}
 
-	if (isUIModeActive(UI_MODE_INSTRUMENT_CLIP_COLLAPSING)) return true;
+	if (isUIModeActive(UI_MODE_INSTRUMENT_CLIP_COLLAPSING)) {
+		return true;
+	}
 
 	for (int y = 0; y < displayHeight; y++) {
 		memset(image[y][displayWidth], 0, sideBarWidth * 3);
@@ -193,7 +211,9 @@ const uint8_t twos[] = {2, 2, 2, 2, 2, 2, 2, 2};
 
 void AudioClipView::graphicsRoutine() {
 
-	if (isUIModeActive(UI_MODE_AUDIO_CLIP_COLLAPSING)) return;
+	if (isUIModeActive(UI_MODE_AUDIO_CLIP_COLLAPSING)) {
+		return;
+	}
 
 	int newTickSquare;
 
@@ -222,7 +242,9 @@ void AudioClipView::graphicsRoutine() {
 			needsRenderingDependingOnSubMode();
 		}
 
-		if (newTickSquare < 0 || newTickSquare >= displayWidth) newTickSquare = 255;
+		if (newTickSquare < 0 || newTickSquare >= displayWidth) {
+			newTickSquare = 255;
+		}
 	}
 
 	if (PadLEDs::flashCursor != FLASH_CURSOR_OFF && (newTickSquare != lastTickSquare || mustRedrawTickSquares)) {
@@ -268,21 +290,26 @@ void AudioClipView::transitionToSessionView() {
 	}
 }
 
-int AudioClipView::buttonAction(int x, int y, bool on, bool inCardRoutine) {
+int AudioClipView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+	using namespace hid::button;
 
 	int result;
 
 	// Song view button
-	if (x == sessionViewButtonX && y == sessionViewButtonY) {
+	if (b == SESSION_VIEW) {
 		if (on && currentUIMode == UI_MODE_NONE) {
-			if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			if (inCardRoutine) {
+				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
 
 			uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
 
 			if (currentSong->lastClipInstanceEnteredStartPos != -1
 			    || currentSong->currentClip->isArrangementOnlyClip()) {
 				bool success = arrangerView.transitionToArrangementEditor();
-				if (!success) goto doOther;
+				if (!success) {
+					goto doOther;
+				}
 			}
 			else {
 doOther:
@@ -291,29 +318,33 @@ doOther:
 		}
 	}
 
-	else if (x == playButtonX && y == playButtonY) {
+	else if (b == PLAY) {
 dontDeactivateMarker:
-		return ClipView::buttonAction(x, y, on, inCardRoutine);
+		return ClipView::buttonAction(b, on, inCardRoutine);
 	}
 
-	else if (x == recordButtonX && y == recordButtonY) {
+	else if (b == RECORD) {
 		goto dontDeactivateMarker;
 	}
 
-	else if (x == shiftButtonX && y == shiftButtonY) {
+	else if (b == SHIFT) {
 		goto dontDeactivateMarker;
 	}
 
-	else if (x == xEncButtonX && y == xEncButtonY) {
+	else if (b == X_ENC) {
 		goto dontDeactivateMarker;
 	}
 
 	// Select button, without shift
-	else if (x == selectEncButtonX && y == selectEncButtonY && !Buttons::isShiftButtonPressed()) {
+	else if (b == SELECT_ENC && !Buttons::isShiftButtonPressed()) {
 		if (on && currentUIMode == UI_MODE_NONE) {
-			if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			if (inCardRoutine) {
+				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
 
-			if (!soundEditor.setup(currentSong->currentClip)) return ACTION_RESULT_DEALT_WITH;
+			if (!soundEditor.setup(currentSong->currentClip)) {
+				return ACTION_RESULT_DEALT_WITH;
+			}
 			openUI(&soundEditor);
 
 			result = ACTION_RESULT_DEALT_WITH;
@@ -322,9 +353,11 @@ dontDeactivateMarker:
 	}
 
 	// Back button to clear Clip
-	else if (x == backButtonX && y == backButtonY && currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
+	else if (b == BACK && currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
 		if (on) {
-			if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			if (inCardRoutine) {
+				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
 
 			// Clear Clip
 			Action* action = actionLogger.getNewAction(ACTION_CLIP_CLEAR, false);
@@ -342,16 +375,18 @@ dontDeactivateMarker:
 	}
 	else {
 
-		result = ClipMinder::buttonAction(x, y, on);
+		result = ClipMinder::buttonAction(b, on);
 		if (result == ACTION_RESULT_NOT_DEALT_WITH) {
-			result = ClipView::buttonAction(x, y, on, inCardRoutine);
+			result = ClipView::buttonAction(b, on, inCardRoutine);
 		}
 
 		if (result != ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE) {
 deactivateMarkerIfNecessary:
 			if (endMarkerVisible) {
 				endMarkerVisible = false;
-				if (getCurrentUI() == this) uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
+				if (getCurrentUI() == this) {
+					uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
+				}
 				uiNeedsRendering(this, 0xFFFFFFFF, 0);
 			}
 		}
@@ -367,13 +402,17 @@ int AudioClipView::padAction(int x, int y, int on) {
 	// Edit pad action...
 	if (x < displayWidth) {
 
-		if (Buttons::isButtonPressed(tempoEncButtonX, tempoEncButtonY)) {
-			if (on) playbackHandler.grabTempoFromClip(getClip());
+		if (Buttons::isButtonPressed(hid::button::TEMPO_ENC)) {
+			if (on) {
+				playbackHandler.grabTempoFromClip(getClip());
+			}
 		}
 
 		else {
 
-			if (sdRoutineLock) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			if (sdRoutineLock) {
+				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
 
 			// Maybe go to SoundEditor
 			int soundEditorResult = soundEditor.potentialShortcutPadAction(x, y, on);
@@ -401,7 +440,9 @@ int AudioClipView::padAction(int x, int y, int on) {
 
 					// If tapped on the marker itself again, make it invisible
 					if (x == endSquareDisplay) {
-						if (blinkOn) uiNeedsRendering(this, 0xFFFFFFFF, 0);
+						if (blinkOn) {
+							uiNeedsRendering(this, 0xFFFFFFFF, 0);
+						}
 						uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
 						endMarkerVisible = false;
 					}
@@ -435,8 +476,9 @@ int AudioClipView::padAction(int x, int y, int on) {
 								if (sample->fileLoopStartSamples) {
 									int64_t distanceFromFileEndMarker =
 									    newEndPosSamples - (uint64_t)sample->fileLoopStartSamples;
-									if (distanceFromFileEndMarker < 0)
+									if (distanceFromFileEndMarker < 0) {
 										distanceFromFileEndMarker = -distanceFromFileEndMarker; // abs
+									}
 									if (distanceFromFileEndMarker < 10) {
 										newEndPosSamples = sample->fileLoopStartSamples;
 										goto setTheStartPos;
@@ -446,13 +488,18 @@ int AudioClipView::padAction(int x, int y, int on) {
 								// Or if very close to actual wave start...
 								{
 									int64_t distanceFromFileEndMarker = newEndPosSamples;
-									if (distanceFromFileEndMarker < 0)
+									if (distanceFromFileEndMarker < 0) {
 										distanceFromFileEndMarker = -distanceFromFileEndMarker; // abs
-									if (distanceFromFileEndMarker < 10) newEndPosSamples = 0;
+									}
+									if (distanceFromFileEndMarker < 10) {
+										newEndPosSamples = 0;
+									}
 								}
 
 								// If end pos less than 0, not allowed
-								if (newEndPosSamples < 0) return ACTION_RESULT_DEALT_WITH;
+								if (newEndPosSamples < 0) {
+									return ACTION_RESULT_DEALT_WITH;
+								}
 setTheStartPos:
 								valueToChange = &clip->sampleHolder.startPos;
 							}
@@ -465,8 +512,9 @@ setTheStartPos:
 								if (sample->fileLoopEndSamples) {
 									int64_t distanceFromFileEndMarker =
 									    newEndPosSamples - (uint64_t)sample->fileLoopEndSamples;
-									if (distanceFromFileEndMarker < 0)
+									if (distanceFromFileEndMarker < 0) {
 										distanceFromFileEndMarker = -distanceFromFileEndMarker; // abs
+									}
 									if (distanceFromFileEndMarker < 10) {
 										newEndPosSamples = sample->fileLoopEndSamples;
 										goto setTheEndPos;
@@ -477,9 +525,12 @@ setTheStartPos:
 								{
 									int64_t distanceFromWaveformEnd =
 									    newEndPosSamples - (uint64_t)sample->lengthInSamples;
-									if (distanceFromWaveformEnd < 0)
+									if (distanceFromWaveformEnd < 0) {
 										distanceFromWaveformEnd = -distanceFromWaveformEnd; // abs
-									if (distanceFromWaveformEnd < 10) newEndPosSamples = sample->lengthInSamples;
+									}
+									if (distanceFromWaveformEnd < 10) {
+										newEndPosSamples = sample->lengthInSamples;
+									}
 								}
 setTheEndPos:
 								valueToChange = &clip->sampleHolder.endPos;
@@ -556,15 +607,18 @@ void AudioClipView::sampleNeedsReRendering(Sample* sample) {
 }
 
 void AudioClipView::selectEncoderAction(int8_t offset) {
-	if (currentUIMode) return;
+	if (currentUIMode) {
+		return;
+	}
 
 	view.navigateThroughAudioOutputsForAudioClip(offset, getClip());
 }
 
 int AudioClipView::verticalEncoderAction(int offset, bool inCardRoutine) {
-	if (!currentUIMode && Buttons::isShiftButtonPressed() && !Buttons::isButtonPressed(yEncButtonX, yEncButtonY)) {
-		if (inCardRoutine && !allowSomeUserActionsEvenWhenInCardRoutine)
+	if (!currentUIMode && Buttons::isShiftButtonPressed() && !Buttons::isButtonPressed(hid::button::Y_ENC)) {
+		if (inCardRoutine && !allowSomeUserActionsEvenWhenInCardRoutine) {
 			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
+		}
 
 		// Shift colour spectrum
 		getClip()->colourOffset += offset;
@@ -575,7 +629,9 @@ int AudioClipView::verticalEncoderAction(int offset, bool inCardRoutine) {
 
 bool AudioClipView::setupScroll(uint32_t oldScroll) {
 
-	if (!getClip()->currentlyScrollableAndZoomable()) return false;
+	if (!getClip()->currentlyScrollableAndZoomable()) {
+		return false;
+	}
 
 	return ClipView::setupScroll(oldScroll);
 }
@@ -585,12 +641,18 @@ void AudioClipView::tellMatrixDriverWhichRowsContainSomethingZoomable() {
 }
 
 uint32_t AudioClipView::getMaxLength() {
-	if (endMarkerVisible) return currentSong->currentClip->loopLength + 1;
-	else return currentSong->currentClip->loopLength;
+	if (endMarkerVisible) {
+		return currentSong->currentClip->loopLength + 1;
+	}
+	else {
+		return currentSong->currentClip->loopLength;
+	}
 }
 
 unsigned int AudioClipView::getMaxZoom() {
 	int maxZoom = currentSong->currentClip->getMaxZoom();
-	if (endMarkerVisible && maxZoom < 1073741824) maxZoom <<= 1;
+	if (endMarkerVisible && maxZoom < 1073741824) {
+		maxZoom <<= 1;
+	}
 	return maxZoom;
 }

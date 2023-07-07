@@ -67,8 +67,12 @@ void GlobalEffectableForClip::renderOutput(ModelStackWithTimelineCounter* modelS
 	// Make it a bit bigger so that default filter resonance doesn't reduce volume overall.
 	// Unfortunately when I first implemented this for Kits, I just fudged a number which didn't give the 100% accuracy that I need for AudioOutputs,
 	// and I now have to maintain both for backwards compatibility
-	if (outputType == OUTPUT_TYPE_AUDIO) volumePostFX += multiply_32x32_rshift32_rounded(volumeAdjustment, 471633397);
-	else volumePostFX += (volumeAdjustment >> 2);
+	if (outputType == OUTPUT_TYPE_AUDIO) {
+		volumePostFX += multiply_32x32_rshift32_rounded(volumeAdjustment, 471633397);
+	}
+	else {
+		volumePostFX += (volumeAdjustment >> 2);
+	}
 
 	int32_t reverbAmountAdjustForDrums = multiply_32x32_rshift32_rounded(reverbAmountAdjust, volumeAdjustment) << 5;
 
@@ -91,7 +95,9 @@ void GlobalEffectableForClip::renderOutput(ModelStackWithTimelineCounter* modelS
 	int32_t sidechainVolumeParam = unpatchedParams->getValue(PARAM_UNPATCHED_GLOBALEFFECTABLE_SIDECHAIN_VOLUME);
 	int32_t postReverbVolume = paramNeutralValues[PARAM_GLOBAL_VOLUME_POST_REVERB_SEND];
 	if (sidechainVolumeParam != -2147483648) {
-		if (sideChainHitPending != 0) compressor.registerHit(sideChainHitPending);
+		if (sideChainHitPending != 0) {
+			compressor.registerHit(sideChainHitPending);
+		}
 		int32_t compressorOutput =
 		    compressor.render(numSamples, unpatchedParams->getValue(PARAM_UNPATCHED_COMPRESSOR_SHAPE));
 
@@ -116,11 +122,14 @@ void GlobalEffectableForClip::renderOutput(ModelStackWithTimelineCounter* modelS
 	if (canRenderDirectlyIntoSongBuffer) {
 
 		int32_t postFXAndReverbVolumeStart = (multiply_32x32_rshift32(postReverbVolumeLastTime, volumePostFX) << 5);
-		if (postFXAndReverbVolumeStart > 134217728)
+		if (postFXAndReverbVolumeStart > 134217728) {
 			goto doNormal; // If it's too loud, this optimized routine can't handle it. This is a design flaw...
+		}
 
 		int32_t postFXAndReverbVolumeEnd = (multiply_32x32_rshift32(postReverbVolume, volumePostFX) << 5);
-		if (postFXAndReverbVolumeEnd > 134217728) goto doNormal;
+		if (postFXAndReverbVolumeEnd > 134217728) {
+			goto doNormal;
+		}
 
 		// If it's a mono sample, that's going to have to get rendered into a mono buffer first before it can be copied out to the stereo song-level buffer
 		if (willRenderAsOneChannelOnlyWhichWillNeedCopying()) {
@@ -222,10 +231,18 @@ bool GlobalEffectableForClip::modEncoderButtonAction(uint8_t whichModEncoder, bo
 	if (on && !Buttons::isShiftButtonPressed()) {
 		if (*getModKnobMode() == 4) {
 			if (whichModEncoder == 1) { // Sidechain
-				if (compressor.syncLevel == SYNC_LEVEL_32ND) compressor.syncLevel = SYNC_LEVEL_128TH;
-				else compressor.syncLevel = SYNC_LEVEL_32ND;
-				if (compressor.syncLevel == SYNC_LEVEL_32ND) numericDriver.displayPopup("SLOW");
-				else numericDriver.displayPopup("FAST");
+				if (compressor.syncLevel == SYNC_LEVEL_32ND) {
+					compressor.syncLevel = SYNC_LEVEL_128TH;
+				}
+				else {
+					compressor.syncLevel = SYNC_LEVEL_32ND;
+				}
+				if (compressor.syncLevel == SYNC_LEVEL_32ND) {
+					numericDriver.displayPopup("SLOW");
+				}
+				else {
+					numericDriver.displayPopup("FAST");
+				}
 				return true;
 			}
 		}

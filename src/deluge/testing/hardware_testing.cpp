@@ -64,8 +64,9 @@ void ramTestUart() {
 
 				uint32_t errorAtBlockNow = ((uint32_t)address) & (0xFFF00000);
 				if (errorAtBlockNow != lastErrorAt) {
-					while (uartGetTxBufferFullnessByItem(UART_ITEM_MIDI) > 100)
+					while (uartGetTxBufferFullnessByItem(UART_ITEM_MIDI) > 100) {
 						;
+					}
 					Uart::print("error at ");
 					Uart::print((uint32_t)address);
 					Uart::print(". got ");
@@ -110,8 +111,12 @@ void sendColoursForHardwareTest(bool testButtonStates[9][16]) {
 		for (int y = 0; y < 16; y++) {
 			for (int c = 0; c < 3; c++) {
 				int value;
-				if (testButtonStates[x][y]) value = 255;
-				else value = (c == hardwareTestWhichColour) ? 64 : 0;
+				if (testButtonStates[x][y]) {
+					value = 255;
+				}
+				else {
+					value = (c == hardwareTestWhichColour) ? 64 : 0;
+				}
 				bufferPICPadsUart(value);
 			}
 		}
@@ -168,7 +173,9 @@ void readInputsForHardwareTest(bool testButtonStates[9][16]) {
 				anythingProbablyPressed = false;
 			}
 			else {
-				if (!HARDWARE_TEST_MODE) setupSquareWave();
+				if (!HARDWARE_TEST_MODE) {
+					setupSquareWave();
+				}
 
 				anythingProbablyPressed = true;
 			}
@@ -176,8 +183,12 @@ void readInputsForHardwareTest(bool testButtonStates[9][16]) {
 #if HAVE_OLED
 		else if (value == oledWaitingForMessage) {
 			//delayUS(2500); // TODO: fix
-			if (value == 248) oledSelectingComplete();
-			else oledDeselectionComplete();
+			if (value == 248) {
+				oledSelectingComplete();
+			}
+			else {
+				oledDeselectionComplete();
+			}
 		}
 #endif
 	}
@@ -204,8 +215,12 @@ void readInputsForHardwareTest(bool testButtonStates[9][16]) {
 	}
 
 	if (anything) {
-		if (encoderTestPos > 128) encoderTestPos = 128;
-		else if (encoderTestPos < 0) encoderTestPos = 0;
+		if (encoderTestPos > 128) {
+			encoderTestPos = 128;
+		}
+		else if (encoderTestPos < 0) {
+			encoderTestPos = 0;
+		}
 
 		IndicatorLEDs::setKnobIndicatorLevel(1, encoderTestPos);
 	}
@@ -234,7 +249,9 @@ void ramTestLED(bool stuffAlreadySetUp) {
 
 	midiEngine.midiThru = true;
 
-	if (!HARDWARE_TEST_MODE) setupSquareWave();
+	if (!HARDWARE_TEST_MODE) {
+		setupSquareWave();
+	}
 
 	bufferPICPadsUart(23); // Set flash length
 	bufferPICPadsUart(100);
@@ -252,7 +269,9 @@ void ramTestLED(bool stuffAlreadySetUp) {
 
 	// Switch on all round-button LEDs
 	for (int x = 1; x < 9; x++) {
-		if (x == 4) continue; // Skip icecube LEDs
+		if (x == 4) {
+			continue; // Skip icecube LEDs
+		}
 		for (int y = 0; y < 4; y++) {
 			bufferPICIndicatorsUart(152 + x + y * 9 + 36);
 		}
@@ -379,11 +398,14 @@ int autoPilotY;
 uint32_t timeNextAutoPilotAction = 0;
 
 void autoPilotStuff() {
+	using namespace hid::button;
 
-	if (!playbackHandler.recording) return;
+	if (!playbackHandler.recording)
+		return;
 
 	int timeTilNextAction = timeNextAutoPilotAction - AudioEngine::audioSampleTimer;
-	if (timeTilNextAction > 0) return;
+	if (timeTilNextAction > 0)
+		return;
 
 	int randThing;
 
@@ -413,24 +435,24 @@ void autoPilotStuff() {
 
 				// Or change sample mode
 				else if (randThing < 220) {
-					Buttons::buttonAction(shiftButtonX, shiftButtonY, true, false);
+					Buttons::buttonAction(SHIFT, true, false);
 					matrixDriver.padAction(0, getRandom255() % 4, true);
-					Buttons::buttonAction(shiftButtonX, shiftButtonY, false, false);
+					Buttons::buttonAction(SHIFT, false, false);
 
 					autoPilotMode = AUTOPILOT_IN_MENU;
 				}
 
 				// Or toggle playback
 				else if (randThing < 230) {
-					Buttons::buttonAction(playButtonX, playButtonY, true, false);
+					Buttons::buttonAction(PLAY, true, false);
 				}
 
 				// Or save song
 				/*
 				else {
 					autoPilotMode = AUTOPILOT_IN_SONG_SAVER;
-					Buttons::buttonAction(saveButtonX, saveButtonY, true, false);
-					Buttons::buttonAction(saveButtonX, saveButtonY, false, false);
+					Buttons::buttonAction(SAVE, true, false);
+					Buttons::buttonAction(SAVE, false, false);
 
 					QwertyUI::enteredText.set("T001");
 
@@ -464,7 +486,7 @@ void autoPilotStuff() {
 		// Or maybe load a sample
 		else {
 			autoPilotMode = AUTOPILOT_IN_MENU;
-			Buttons::buttonAction(kitButtonX, kitButtonY, true, false);
+			Buttons::buttonAction(KIT, true, false);
 		}
 
 		break;
@@ -488,12 +510,12 @@ void autoPilotStuff() {
 
 		// Maybe press back
 		else if (randThing < 220) {
-			Buttons::buttonAction(backButtonX, backButtonY, true, false);
+			Buttons::buttonAction(BACK, true, false);
 		}
 
 		// Maybe press encoder button
 		else {
-			Buttons::buttonAction(selectEncButtonX, selectEncButtonY, true, false);
+			Buttons::buttonAction(SELECT_ENC, true, false);
 		}
 
 		break;
@@ -506,14 +528,15 @@ void autoPilotStuff() {
 			break;
 		}
 
-		Buttons::buttonAction(saveButtonX, saveButtonY, true, false);
-		Buttons::buttonAction(saveButtonX, saveButtonY, false, false);
+		Buttons::buttonAction(SAVE, true, false);
+		Buttons::buttonAction(SAVE, false, false);
 
 		break;
 
 	case AUTOPILOT_IN_SONG_LOADER:
 
-		if (currentUIMode) break;
+		if (currentUIMode)
+			break;
 
 		// Maybe we already actually exited
 		if (getCurrentUI() == getRootUI()) {
@@ -532,13 +555,13 @@ void autoPilotStuff() {
 
 		// Maybe press back
 		else if (randThing < 220) {
-			Buttons::buttonAction(backButtonX, backButtonY, true, false);
+			Buttons::buttonAction(BACK, true, false);
 		}
 
 		// Maybe press load button
 		else {
-			//matrixDriver.buttonAction(loadButtonX, loadButtonY, true, false);
-			//matrixDriver.buttonAction(loadButtonX, loadButtonY, false, false);
+			//matrixDriver.buttonAction(LOAD, true, false);
+			//matrixDriver.buttonAction(LOAD, false, false);
 
 			loadSongUI.performLoad();
 		}

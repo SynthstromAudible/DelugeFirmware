@@ -98,8 +98,12 @@ void Slicer::redraw() {
 
 void Slicer::selectEncoderAction(int8_t offset) {
 	numClips += offset;
-	if (numClips == 257) numClips = 2;
-	else if (numClips == 1) numClips = 256;
+	if (numClips == 257) {
+		numClips = 2;
+	}
+	else if (numClips == 1) {
+		numClips = 256;
+	}
 #if HAVE_OLED
 	renderUIsForOled();
 #else
@@ -107,20 +111,30 @@ void Slicer::selectEncoderAction(int8_t offset) {
 #endif
 }
 
-int Slicer::buttonAction(int x, int y, bool on, bool inCardRoutine) {
-	if (currentUIMode != UI_MODE_NONE || !on) return ACTION_RESULT_NOT_DEALT_WITH;
+int Slicer::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+	using namespace hid::button;
 
-	if (x == selectEncButtonX && y == selectEncButtonY) {
-		if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+	if (currentUIMode != UI_MODE_NONE || !on) {
+		return ACTION_RESULT_NOT_DEALT_WITH;
+	}
+
+	if (b == SELECT_ENC) {
+		if (inCardRoutine) {
+			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		}
 		doSlice();
 	}
 
-	else if (x == backButtonX && y == backButtonY) {
-		if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+	else if (b == BACK) {
+		if (inCardRoutine) {
+			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		}
 		numericDriver.setNextTransitionDirection(-1);
 		close();
 	}
-	else return ACTION_RESULT_NOT_DEALT_WITH;
+	else {
+		return ACTION_RESULT_NOT_DEALT_WITH;
+	}
 
 	return ACTION_RESULT_DEALT_WITH;
 }
@@ -192,8 +206,9 @@ getOut:
 		firstDrum->sources[0].sampleControls.reversed = false;
 
 #if 1 || ALPHA_OR_BETA_VERSION
-		if (!firstRange->sampleHolder.audioFile)
+		if (!firstRange->sampleHolder.audioFile) {
 			numericDriver.freezeWithError("i032"); // Trying to narrow down E368 that Kevin F got
+		}
 #endif
 
 		firstRange->sampleHolder.claimClusterReasons(firstDrum->sources[0].sampleControls.reversed, CLUSTER_ENQUEUE);
@@ -213,7 +228,9 @@ getOut:
 			// Make the Drum and its ParamManager
 			ParamManagerForTimeline paramManager;
 			error = paramManager.setupWithPatching();
-			if (error) goto getOut;
+			if (error) {
+				goto getOut;
+			}
 
 			void* drumMemory = generalMemoryAllocator.alloc(sizeof(SoundDrum), NULL, false, true);
 			if (!drumMemory) {
@@ -235,7 +252,9 @@ ramError2:
 			char newName[5];
 			intToString(i + 1, newName);
 			error = newDrum->name.set(newName);
-			if (error) goto ramError2;
+			if (error) {
+				goto ramError2;
+			}
 
 			Sound::initParams(&paramManager);
 

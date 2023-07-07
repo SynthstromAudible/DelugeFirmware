@@ -19,6 +19,7 @@
 #define EditModeUI_h
 
 #include "gui/views/clip_view.h"
+#include "hid/button.h"
 #include "definitions.h"
 #include "modulation/automation/copied_param_automation.h"
 #include "model/clip/instrument_clip_minder.h"
@@ -59,12 +60,15 @@ struct EditPadPress {
 #define MPE_RECORD_LENGTH_FOR_NOTE_EDITING 3
 #define MPE_RECORD_INTERVAL_TIME (44100 >> 2) // 250ms
 
+#define NUDGEMODE_QUANTIZE 1
+#define NUDGEMODE_QUANTIZE_ALL 2
+
 class InstrumentClipView final : public ClipView, public InstrumentClipMinder {
 public:
 	InstrumentClipView();
 	bool opened();
 	void focusRegained();
-	int buttonAction(int x, int y, bool on, bool inCardRoutine);
+	int buttonAction(hid::Button b, bool on, bool inCardRoutine);
 	int padAction(int x, int y, int velocity);
 	uint8_t getEditPadPressXDisplayOnScreen(uint8_t yDisplay);
 	void editPadAction(bool state, uint8_t yDisplay, uint8_t xDisplay, unsigned int xZoom);
@@ -130,6 +134,8 @@ public:
 	void reportNoteOffForMPEEditing(ModelStackWithNoteRow* modelStack);
 	void dontDeleteNotesOnDepress();
 
+	void tempoEncoderAction(int8_t offset, bool encoderButtonPressed, bool shiftButtonPressed);
+
 	inline void getRowColour(int y, uint8_t color[3]) {
 		color[0] = rowColour[y][0];
 		color[1] = rowColour[y][1];
@@ -185,6 +191,8 @@ private:
 	Drum* drumForNewNoteRow;
 	uint8_t yDisplayOfNewNoteRow;
 
+	int32_t quantizeAmount;
+
 	uint32_t getSquareWidth(int32_t square, int32_t effectiveLength);
 	void drawNoteCode(uint8_t yDisplay);
 	void sendAuditionNote(bool on, uint8_t yDisplay, uint8_t velocity, uint32_t sampleSyncLength);
@@ -220,6 +228,8 @@ private:
 	void editNoteRowLength(ModelStackWithNoteRow* modelStack, int offset, int yDisplay);
 	ModelStackWithNoteRow* createNoteRowForYDisplay(ModelStackWithTimelineCounter* modelStack, int yDisplay);
 	ModelStackWithNoteRow* getOrCreateNoteRowForYDisplay(ModelStackWithTimelineCounter* modelStack, int yDisplay);
+
+	void quantizeNotes(int offset, int nudgeMode);
 };
 
 extern InstrumentClipView instrumentClipView;

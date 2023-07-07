@@ -52,7 +52,8 @@ inline int32_t allpass::process(int32_t input) {
 	buffer[bufidx] = input + (bufout >> 1); // Shortcut - because feedback was always one half by default anyway
 	//buffer[bufidx] = input + (multiply_32x32_rshift32_rounded(bufout, feedback) << 1);
 
-	if (++bufidx >= bufsize) bufidx = 0;
+	if (++bufidx >= bufsize)
+		bufidx = 0;
 
 	return output;
 }

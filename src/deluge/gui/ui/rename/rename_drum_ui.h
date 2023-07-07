@@ -19,6 +19,7 @@
 #define RENAMEDRUMUI_H_
 
 #include "gui/ui/rename/rename_ui.h"
+#include "hid/button.h"
 
 class SoundDrum;
 
@@ -26,7 +27,7 @@ class RenameDrumUI final : public RenameUI {
 public:
 	RenameDrumUI();
 	bool opened();
-	int buttonAction(int x, int y, bool on, bool inCardRoutine);
+	int buttonAction(hid::Button b, bool on, bool inCardRoutine);
 	int padAction(int x, int y, int velocity);
 	int verticalEncoderAction(int offset, bool inCardRoutine);
 	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows);

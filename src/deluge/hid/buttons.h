@@ -20,12 +20,14 @@
 
 #include "vm/wrenimpl.h"
 #include "RZA1/system/r_typedefs.h"
+#include "button.h"
 
 namespace Buttons {
 
-int buttonAction(int x, int y, bool on, bool inCardRoutine);
-int buttonActionNoRe(int x, int y, bool on, bool inCardRoutine);
+int buttonAction(hid::Button b, bool on, bool inCardRoutine);
+int buttonActionNoRe(hid::Button b, bool on, bool inCardRoutine);
 bool isButtonPressed(int x, int y);
+bool isButtonPressed(hid::Button b);
 bool isShiftButtonPressed();
 bool isNewOrShiftButtonPressed();
 void noPressesHappening(bool inCardRoutine);

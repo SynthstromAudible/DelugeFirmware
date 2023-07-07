@@ -57,7 +57,9 @@ bool WaveformBasicNavigator::zoom(int offset, bool shouldAllowExtraScrollRight, 
 
 	// In
 	if (offset >= 0) {
-		if (xZoom < 2) return false;
+		if (xZoom < 2) {
+			return false;
+		}
 
 		bool isSquareNumber = false;
 		uint32_t nextSquareNumber;
@@ -74,8 +76,12 @@ bool WaveformBasicNavigator::zoom(int offset, bool shouldAllowExtraScrollRight, 
 		}
 
 		if (!isSquareNumber) {
-			if (xZoom >= nextSquareNumber * 0.707) newXZoom = nextSquareNumber >> 1;
-			else newXZoom = nextSquareNumber >> 2;
+			if (xZoom >= nextSquareNumber * 0.707) {
+				newXZoom = nextSquareNumber >> 1;
+			}
+			else {
+				newXZoom = nextSquareNumber >> 2;
+			}
 		}
 
 		else {
@@ -86,9 +92,13 @@ bool WaveformBasicNavigator::zoom(int offset, bool shouldAllowExtraScrollRight, 
 	// Out
 	else {
 		int limit = getMaxZoom();
-		if (xZoom >= limit) return false;
+		if (xZoom >= limit) {
+			return false;
+		}
 		newXZoom = xZoom << 1;
-		if (newXZoom >= limit || (newXZoom * 2) * 0.707 >= limit) newXZoom = limit;
+		if (newXZoom >= limit || (newXZoom * 2) * 0.707 >= limit) {
+			newXZoom = limit;
+		}
 	}
 
 	int pinMarkerCol = -1;
@@ -107,23 +117,31 @@ bool WaveformBasicNavigator::zoom(int offset, bool shouldAllowExtraScrollRight, 
 				if (m == markerType) {
 bestYet:
 					pinMarkerCol = col;
-					if (m >= MARKER_LOOP_END) pinMarkerCol++; // Pin to right-hand edge of end-marker's col
+					if (m >= MARKER_LOOP_END) {
+						pinMarkerCol++; // Pin to right-hand edge of end-marker's col
+					}
 					pinMarkerPos = cols[m].pos;
 					pinnedToMarkerType = m;
 				}
 				else {
 					int pinMarkerDistanceFromCentre = pinMarkerCol - (displayWidth >> 1);
-					if (pinMarkerDistanceFromCentre < 0) pinMarkerDistanceFromCentre = -pinMarkerDistanceFromCentre;
+					if (pinMarkerDistanceFromCentre < 0) {
+						pinMarkerDistanceFromCentre = -pinMarkerDistanceFromCentre;
+					}
 
 					int thisMarkerDistanceFromCentre = col - (displayWidth >> 1);
-					if (thisMarkerDistanceFromCentre < 0) thisMarkerDistanceFromCentre = -thisMarkerDistanceFromCentre;
+					if (thisMarkerDistanceFromCentre < 0) {
+						thisMarkerDistanceFromCentre = -thisMarkerDistanceFromCentre;
+					}
 
 					if (thisMarkerDistanceFromCentre < pinMarkerDistanceFromCentre) {
 						goto bestYet;
 					}
 				}
 
-				if (m == markerType) break;
+				if (m == markerType) {
+					break;
+				}
 			}
 		}
 
@@ -142,18 +160,25 @@ bestYet:
 	xZoom = newXZoom;
 
 	// Make sure scroll is multiple of zoom
-	if (pinnedToMarkerType >= MARKER_LOOP_END) xScroll = ((xScroll - 1) / xZoom + 1) * xZoom;
-	else xScroll = xScroll / xZoom * xZoom;
+	if (pinnedToMarkerType >= MARKER_LOOP_END) {
+		xScroll = ((xScroll - 1) / xZoom + 1) * xZoom;
+	}
+	else {
+		xScroll = xScroll / xZoom * xZoom;
+	}
 
 	// Make sure not scrolled too far left
-	if (xScroll < 0) xScroll = 0;
-
+	if (xScroll < 0) {
+		xScroll = 0;
+	}
 	else {
 		if (!shouldAllowExtraScrollRight) {
 			// Make sure not scrolled too far right
 			uint32_t lengthInSamples = sample->lengthInSamples;
 			int scrollLimit = ((lengthInSamples - 1) / xZoom + 1 - displayWidth) * xZoom;
-			if (xScroll > scrollLimit) xScroll = scrollLimit;
+			if (xScroll > scrollLimit) {
+				xScroll = scrollLimit;
+			}
 		}
 	}
 
@@ -191,21 +216,28 @@ bool WaveformBasicNavigator::scroll(int offset, bool shouldAllowExtraScrollRight
 
 		if (shouldAllowExtraScrollRight) {
 			int32_t newScroll = xScroll + xZoom;
-			if ((int32_t)(xScroll + xZoom * displayWidth) < xScroll) return false;
+			if ((int32_t)(xScroll + xZoom * displayWidth) < xScroll) {
+				return false;
+			}
 			xScroll = newScroll;
 		}
 		else {
 			if (xScroll + xZoom * displayWidth >= sample->lengthInSamples
-			    && (!cols || cols[MARKER_END].colOnScreen < displayWidth))
+			    && (!cols || cols[MARKER_END].colOnScreen < displayWidth)) {
 				return false;
+			}
 			xScroll += xZoom;
 		}
 	}
 
 	// Left
 	else {
-		if (xScroll <= 0) return false;
-		else if (xScroll < xZoom) xScroll = 0;
+		if (xScroll <= 0) {
+			return false;
+		}
+		else if (xScroll < xZoom) {
+			xScroll = 0;
+		}
 		xScroll -= xZoom;
 	}
 

@@ -19,6 +19,7 @@
 #define AUDIOCLIPVIEW_H_
 
 #include "gui/views/clip_view.h"
+#include "hid/button.h"
 #include "RZA1/system/r_typedefs.h"
 #include "model/clip/clip_minder.h"
 
@@ -38,7 +39,7 @@ public:
 	bool supportsTriplets() { return false; }
 	ClipMinder* toClipMinder() { return this; }
 
-	int buttonAction(int x, int y, bool on, bool inCardRoutine);
+	int buttonAction(hid::Button b, bool on, bool inCardRoutine);
 	int padAction(int x, int y, int velocity);
 
 	void graphicsRoutine();

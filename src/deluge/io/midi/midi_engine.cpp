@@ -85,14 +85,19 @@ void usbSendComplete(int ip) {
 	if (inHostMode) {
 
 		// If that was the last device we were going to send to, that send's been done, so we can just get out.
-		if (midiDeviceNum == stopSendingAfterDeviceNum[ip]) goto finishedAllSending;
+		if (midiDeviceNum == stopSendingAfterDeviceNum[ip]) {
+			goto finishedAllSending;
+		}
 
 		while (true) {
 			midiDeviceNum++;
-			if (midiDeviceNum >= MAX_NUM_USB_MIDI_DEVICES) midiDeviceNum -= MAX_NUM_USB_MIDI_DEVICES;
+			if (midiDeviceNum >= MAX_NUM_USB_MIDI_DEVICES) {
+				midiDeviceNum -= MAX_NUM_USB_MIDI_DEVICES;
+			}
 			connectedDevice = &connectedUSBMIDIDevices[ip][midiDeviceNum];
-			if (connectedDevice->device && connectedDevice->numBytesSendingNow)
+			if (connectedDevice->device && connectedDevice->numBytesSendingNow) {
 				break; // If got connected device, flush to it
+			}
 			if (midiDeviceNum
 			    == stopSendingAfterDeviceNum
 			        [ip]) { // If reached end of devices and last one got disconnected in the interim (very rare)
@@ -149,7 +154,9 @@ void usbReceiveCompletePeripheralOrA1(usb_utr_t* p_mess, uint16_t data1, uint16_
 	int ip = p_mess->ip;
 #endif
 
-	if (p_mess->status == USB_DATA_ERR) return; // Can happen if user disconnects device - totally normal
+	if (p_mess->status == USB_DATA_ERR) {
+		return; // Can happen if user disconnects device - totally normal
+	}
 
 	int deviceNum = p_mess - &g_usb_midi_recv_utr[ip][0];
 
@@ -176,7 +183,7 @@ bool anythingInUSBOutputBuffer = false;
 MidiEngine::MidiEngine() {
 	numSerialMidiInput = 0;
 	lastStatusByteSent = 0;
-	currentlyReceivingSysEx = false;
+	currentlyReceivingSysExSerial = false;
 	midiThru = false;
 
 	g_usb_peri_connected = 0; // Needs initializing with A2 driver
@@ -239,14 +246,18 @@ int MidiEngine::getPotentialNumConnectedUSBMIDIDevices(int ip) {
 // Warning - this will sometimes (not always) be called in an ISR
 void MidiEngine::flushUSBMIDIOutput() {
 
-	if (usbLock) return;
+	if (usbLock) {
+		return;
+	}
 
 	anythingInUSBOutputBuffer = false;
 
 	usbLock = 1;
 
 	for (int ip = 0; ip < USB_NUM_USBIP; ip++) {
-		if (anyUSBSendingStillHappening[ip]) continue;
+		if (anyUSBSendingStillHappening[ip]) {
+			continue;
+		}
 
 		bool potentiallyAHost = (g_usb_usbmode == USB_HOST);
 		bool aPeripheral = g_usb_peri_connected;
@@ -254,7 +265,9 @@ void MidiEngine::flushUSBMIDIOutput() {
 		if (aPeripheral) {
 			ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][0];
 
-			if (!connectedDevice->numMessagesQueued) continue;
+			if (!connectedDevice->numMessagesQueued) {
+				continue;
+			}
 
 			// Copy the data into the actual output buffer
 			// Note - does this mean it's fine to have multiple devices sharing one physical device?
@@ -279,31 +292,42 @@ void MidiEngine::flushUSBMIDIOutput() {
 			// This next bit was written with multiple devices on hubs in mind, but seems to work for a single MIDI device too
 
 			int midiDeviceNumToSendTo = currentDeviceNumWithSendPipe[ip][0]; // This will do
-			if (midiDeviceNumToSendTo >= MAX_NUM_USB_MIDI_DEVICES)
+			if (midiDeviceNumToSendTo >= MAX_NUM_USB_MIDI_DEVICES) {
 				midiDeviceNumToSendTo = 0; // In case it was set to "none", I think
+			}
 
 			int newStopSendingAfter = midiDeviceNumToSendTo - 1;
-			if (newStopSendingAfter < 0) newStopSendingAfter += MAX_NUM_USB_MIDI_DEVICES;
+			if (newStopSendingAfter < 0) {
+				newStopSendingAfter += MAX_NUM_USB_MIDI_DEVICES;
+			}
 
 			// Make sure that's on a connected device - it probably would be...
 			while (true) {
 				ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][midiDeviceNumToSendTo];
-				if (connectedDevice->device && connectedDevice->numMessagesQueued) break; // We found a connected one
-				if (midiDeviceNumToSendTo == newStopSendingAfter)
+				if (connectedDevice->device && connectedDevice->numMessagesQueued) {
+					break; // We found a connected one
+				}
+				if (midiDeviceNumToSendTo == newStopSendingAfter) {
 					goto getOut; // If back where we started, none are connected. Could this really happen? Probably.
+				}
 				midiDeviceNumToSendTo++;
-				if (midiDeviceNumToSendTo >= MAX_NUM_USB_MIDI_DEVICES)
+				if (midiDeviceNumToSendTo >= MAX_NUM_USB_MIDI_DEVICES) {
 					midiDeviceNumToSendTo = 0; // Wrap back to start of list
+				}
 			}
 
 			// Stop after a device which we know is connected
 			while (true) {
 				ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][newStopSendingAfter];
 
-				if (connectedDevice->device && connectedDevice->numMessagesQueued) break; // We found a connected one
+				if (connectedDevice->device && connectedDevice->numMessagesQueued) {
+					break; // We found a connected one
+				}
 
 				newStopSendingAfter--;
-				if (newStopSendingAfter < 0) newStopSendingAfter += MAX_NUM_USB_MIDI_DEVICES;
+				if (newStopSendingAfter < 0) {
+					newStopSendingAfter += MAX_NUM_USB_MIDI_DEVICES;
+				}
 			}
 
 			// Copy the buffers for all devices
@@ -318,9 +342,13 @@ void MidiEngine::flushUSBMIDIOutput() {
 					memcpy(connectedDevice->dataSendingNow, connectedDevice->preSendData,
 					       connectedDevice->numBytesSendingNow);
 				}
-				if (d == newStopSendingAfter) break;
+				if (d == newStopSendingAfter) {
+					break;
+				}
 				d++;
-				if (d >= MAX_NUM_USB_MIDI_DEVICES) d = 0;
+				if (d >= MAX_NUM_USB_MIDI_DEVICES) {
+					d = 0;
+				}
 			}
 
 			stopSendingAfterDeviceNum[ip] = newStopSendingAfter;
@@ -339,7 +367,9 @@ bool MidiEngine::anythingInOutputBuffer() {
 }
 
 void MidiEngine::sendNote(bool on, int note, uint8_t velocity, uint8_t channel, int filter) {
-	if (note < 0 || note >= 128) return;
+	if (note < 0 || note >= 128) {
+		return;
+	}
 
 	// This is the only place where velocity is limited like this. In the internal engine, it's allowed to go right between 0 and 128
 	velocity = getMax((uint8_t)1, velocity);
@@ -353,7 +383,9 @@ void MidiEngine::sendAllNotesOff(int channel, int filter) {
 }
 
 void MidiEngine::sendCC(int channel, int cc, int value, int filter) {
-	if (value > 127) value = 127;
+	if (value > 127) {
+		value = 127;
+	}
 	sendMidi(0x0B, channel, cc, value, filter);
 }
 
@@ -409,7 +441,9 @@ void MidiEngine::sendPolyphonicAftertouch(int channel, uint8_t value, uint8_t no
 
 void MidiEngine::sendMidi(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2, int filter, bool sendUSB) {
 	// Send USB MIDI
-	if (sendUSB) sendUsbMidi(statusType, channel, data1, data2, filter);
+	if (sendUSB) {
+		sendUsbMidi(statusType, channel, data1, data2, filter);
+	}
 
 	// Send serial MIDI
 	if (statusType == 0x0F || MIDIDeviceManager::dinMIDIPorts.wantsToOutputMIDIOnChannel(channel, filter)) {
@@ -500,6 +534,7 @@ bool MidiEngine::checkIncomingSerialMidi() {
 	uint32_t* timer = uartGetCharWithTiming(TIMING_CAPTURE_ITEM_MIDI, (char*)&thisSerialByte);
 	if (timer) {
 		//Uart::println((unsigned int)thisSerialByte);
+		MIDIDevice* dev = &MIDIDeviceManager::dinMIDIPorts;
 
 		// If this is a status byte, then we have to store it as the first byte.
 		if (thisSerialByte & 0x80) {
@@ -514,35 +549,50 @@ bool MidiEngine::checkIncomingSerialMidi() {
 
 			// Or if it's a SysEx start...
 			case 0xF0:
-				currentlyReceivingSysEx = true;
+				currentlyReceivingSysExSerial = true;
 				Uart::println("Sysex start");
+				dev->incomingSysexBuffer[0] = thisSerialByte;
+				dev->incomingSysexPos = 1;
 				//numSerialMidiInput = 0; // This would throw away any running status stuff...
 				return true;
 			}
 
 			// If we didn't return for any of those, then it's just a regular old status message (or Sysex stop message). All these will end any ongoing SysEx
-			currentlyReceivingSysEx = false;
 
 			// If it was a Sysex stop, that's all we need to do
 			if (thisSerialByte == 0xF7) {
 				Uart::println("Sysex end");
+				if (currentlyReceivingSysExSerial) {
+					currentlyReceivingSysExSerial = false;
+					if (dev->incomingSysexPos < sizeof dev->incomingSysexBuffer) {
+						dev->incomingSysexBuffer[dev->incomingSysexPos++] = thisSerialByte;
+						midiSysexReceived(-1, -1, 0, dev->incomingSysexBuffer, dev->incomingSysexPos);
+					}
+				}
 				return true;
 			}
 
+			currentlyReceivingSysExSerial = false;
 			numSerialMidiInput = 0;
 		}
 
 		// If not a status byte...
 		else {
-			// If we're currently receiving a SysEx, throw it away
-			if (currentlyReceivingSysEx) {
+			// If we're currently receiving a SysEx, don't throw it away
+			if (currentlyReceivingSysExSerial) {
+				// TODO: allocate a GMA buffer to some bigger size
+				if (dev->incomingSysexPos < sizeof dev->incomingSysexBuffer) {
+					dev->incomingSysexBuffer[dev->incomingSysexPos++] = thisSerialByte;
+				}
 				Uart::print("Sysex: ");
 				Uart::println(thisSerialByte);
 				return true;
 			}
 
 			// Ensure that we're not writing to the first byte of the buffer
-			if (numSerialMidiInput == 0) return true;
+			if (numSerialMidiInput == 0) {
+				return true;
+			}
 		}
 
 		serialMidiInput[numSerialMidiInput] = thisSerialByte;
@@ -556,8 +606,12 @@ bool MidiEngine::checkIncomingSerialMidi() {
 			                    serialMidiInput[2], timer);
 
 			// If message was more than 1 byte long, and was a voice or mode message, then allow for running status
-			if (numSerialMidiInput > 1 && ((serialMidiInput[0] & 0xF0) != 0xF0)) numSerialMidiInput = 1;
-			else numSerialMidiInput = 0;
+			if (numSerialMidiInput > 1 && ((serialMidiInput[0] & 0xF0) != 0xF0)) {
+				numSerialMidiInput = 1;
+			}
+			else {
+				numSerialMidiInput = 0;
+			}
 		}
 		return true;
 	}
@@ -590,9 +644,129 @@ void MidiEngine::setupUSBHostReceiveTransfer(int ip, int midiDeviceNum) {
 
 uint8_t usbCurrentlyInitialized = false;
 
+void MidiEngine::checkIncomingUsbSysex(uint8_t const* msg, int ip, int d, int cable) {
+	ConnectedUSBMIDIDevice* connected = &connectedUSBMIDIDevices[ip][d];
+	if (cable > connectedUSBMIDIDevices[ip][d].maxPortConnected) {
+		//fallback to cable 0 since we don't support more than one port on hosted devices yet
+		cable = 0;
+	}
+	MIDIDevice* dev = connectedUSBMIDIDevices[ip][d].device[cable];
+
+	uint8_t statusType = msg[0] & 15;
+	int to_read = 0;
+	bool will_end = false;
+	if (statusType == 0x4) {
+		// sysex start or continue
+		if (msg[1] == 0xf0) {
+			dev->incomingSysexPos = 0;
+		}
+		to_read = 3;
+	}
+	else if (statusType >= 0x5 && statusType <= 0x7) {
+		to_read = statusType - 0x4; // read between 1-3 bytes
+		will_end = true;
+	}
+
+	for (int i = 0; i < to_read; i++) {
+		if (dev->incomingSysexPos >= sizeof(dev->incomingSysexBuffer)) {
+			// TODO: allocate a GMA buffer to some bigger size
+			dev->incomingSysexPos = 0;
+			return; // bail out
+		}
+		dev->incomingSysexBuffer[dev->incomingSysexPos++] = msg[i + 1];
+	}
+
+	if (will_end) {
+		if (dev->incomingSysexBuffer[0] == 0xf0) {
+			midiSysexReceived(ip, d, cable, dev->incomingSysexBuffer, dev->incomingSysexPos);
+		}
+		dev->incomingSysexPos = 0;
+	}
+}
+
+void MidiEngine::midiSysexReceived(int ip, int d, int cable, uint8_t* data, int len) {
+	if (len < 4) {
+		return;
+	}
+
+	// placeholder until we get a real manufacturer id.
+	if (data[1] == 0x7D) {
+		switch (data[2]) {
+		case 0: // PING test message, reply
+		{
+			uint8_t pong[] = {0xf0, data[1], 0x7f, 0x00, 0xf7};
+			if (len >= 5) {
+				pong[3] = data[3];
+			}
+			sendSysex(ip, d, cable, pong, sizeof pong);
+		} break;
+
+		case 1:
+			numericDriver.displayPopup(HAVE_OLED ? "hello sysex" : "SYSX");
+			break;
+
+		case 0x7f: // PONG, reserved
+		default:
+			break;
+		}
+	}
+}
+
+void MidiEngine::sendSysex(int ip, int d, int cable, uint8_t* data, int len) {
+	if (len < 4 || data[0] != 0xf0 || data[len - 1] != 0xf7) {
+		return;
+	}
+
+	if (ip < 0) {
+		// NB: beware of MIDI_TX_BUFFER_SIZE
+		for (int i = 0; i < len; i++) {
+			bufferMIDIUart(data[i]);
+		}
+	}
+	else {
+		int potentialNumDevices = getPotentialNumConnectedUSBMIDIDevices(ip);
+
+		if (d >= potentialNumDevices) {
+			return;
+		}
+		ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][d];
+		int maxPort = connectedDevice->maxPortConnected;
+		if (cable > maxPort) {
+			return;
+		}
+
+		int pos = 0;
+		while (pos < len) {
+			int status, byte0 = 0, byte1 = 0, byte2 = 0;
+			byte0 = data[pos];
+			if (pos == 0 || len - pos > 3) {
+				status = 0x4; // sysex start or continue
+				byte1 = data[pos + 1];
+				byte2 = data[pos + 2];
+				pos += 3;
+			}
+			else {
+				status = 0x4 + (len - pos); // sysex end with N bytes
+				if ((len - pos) > 1) {
+					byte1 = data[pos + 1];
+				}
+				if ((len - pos) > 2) {
+					byte2 = data[pos + 2];
+				}
+				pos = len;
+			}
+			status |= (cable << 4);
+			uint32_t packed = ((uint32_t)byte2 << 24) | ((uint32_t)byte1 << 16) | ((uint32_t)byte0 << 8) | status;
+			connectedDevice->bufferMessage(packed);
+		}
+	}
+}
+
 void MidiEngine::checkIncomingUsbMidi() {
 
-	if (!usbCurrentlyInitialized) return;
+	if (!usbCurrentlyInitialized) {
+		return;
+	}
 
 	bool usbLockNow = usbLock;
 
@@ -606,7 +780,9 @@ void MidiEngine::checkIncomingUsbMidi() {
 	for (int ip = 0; ip < USB_NUM_USBIP; ip++) {
 
 		bool aPeripheral = (g_usb_usbmode != USB_HOST);
-		if (aPeripheral && !g_usb_peri_connected) continue;
+		if (aPeripheral && !g_usb_peri_connected) {
+			continue;
+		}
 		//assumes only single device in peripheral mode
 		int numDevicesNow = aPeripheral ? 1 : MAX_NUM_USB_MIDI_DEVICES;
 
@@ -635,6 +811,7 @@ void MidiEngine::checkIncomingUsbMidi() {
 								statusType = 0x0F;
 							}
 							else { // Invalid, or sysex, or something
+								checkIncomingUsbSysex(readPos, ip, d, cable);
 								continue;
 							}
 						}
@@ -648,7 +825,9 @@ void MidiEngine::checkIncomingUsbMidi() {
 					}
 				}
 
-				if (usbLockNow) continue;
+				if (usbLockNow) {
+					continue;
+				}
 
 				// And maybe setup transfer to receive more data
 
@@ -683,11 +862,11 @@ void MidiEngine::checkIncomingUsbMidi() {
 }
 
 int MidiEngine::getMidiMessageLength(uint8_t statusByte) {
-	if (statusByte == 0xF0    // System exclusive - TODO!
+	if (statusByte == 0xF0    // System exclusive - dynamic length
 	    || statusByte == 0xF4 // Undefined
 	    || statusByte == 0xF5 // Undefined
 	    || statusByte == 0xF6 // Tune request
-	    || statusByte == 0xF7 // End of exclusive - TODO
+	    || statusByte == 0xF7 // End of exclusive
 	    || statusByte == 0xF8 // Timing clock
 	    || statusByte == 0xF9 // Undefined
 	    || statusByte == 0xFA // Start
@@ -696,17 +875,19 @@ int MidiEngine::getMidiMessageLength(uint8_t statusByte) {
 	    || statusByte == 0xFD // Undefined
 	    || statusByte == 0xFE // Active sensing
 	    || statusByte == 0xFF // Reset
-	)
+	) {
 		return 1;
-
+	}
 	else if (statusByte == 0xF1         // Timecode
 	         || statusByte == 0xF3      // Song select
 	         || statusByte >> 4 == 0x0C // Program change
 	         || statusByte >> 4 == 0x0D // Channel aftertouch
-	)
+	) {
 		return 2;
-
-	else return 3;
+	}
+	else {
+		return 3;
+	}
 }
 
 #define MISSING_MESSAGE_CHECK 0
@@ -726,14 +907,24 @@ void MidiEngine::midiMessageReceived(MIDIDevice* fromDevice, uint8_t statusType,
 
 	if (statusType == 0x0F) {
 		if (channel == 0x02) {
-			if (currentSong) playbackHandler.positionPointerReceived(data1, data2);
+			if (currentSong) {
+				playbackHandler.positionPointerReceived(data1, data2);
+			}
 		}
-		else if (channel == 0x0A) playbackHandler.startMessageReceived();
-		else if (channel == 0x0B) playbackHandler.continueMessageReceived();
-		else if (channel == 0x0C) playbackHandler.stopMessageReceived();
+		else if (channel == 0x0A) {
+			playbackHandler.startMessageReceived();
+		}
+		else if (channel == 0x0B) {
+			playbackHandler.continueMessageReceived();
+		}
+		else if (channel == 0x0C) {
+			playbackHandler.stopMessageReceived();
+		}
 		else if (channel == 0x08) {
 			uint32_t time = 0;
-			if (timer) time = *timer;
+			if (timer) {
+				time = *timer;
+			}
 			playbackHandler.clockMessageReceived(time);
 		}
 	}
@@ -796,9 +987,10 @@ void MidiEngine::midiMessageReceived(MIDIDevice* fromDevice, uint8_t statusType,
 
 					// All notes off
 					if (data1 == 123) {
-						if (data2 == 0)
+						if (data2 == 0) {
 							playbackHandler.noteMessageReceived(fromDevice, false, channel, -32768, DEFAULT_LIFT_VALUE,
 							                                    NULL);
+						}
 					}
 				}
 				break;

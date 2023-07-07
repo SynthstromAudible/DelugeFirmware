@@ -81,7 +81,8 @@ void usb_hstd_usb_handler(
 	uartPrintNumber(timePassedNS);
 	*/
 
-    if (result) return; // By Rohan
+    if (result)
+        return; // By Rohan
 
     ptr->msghead = (usb_mh_t)USB_NULL;
 

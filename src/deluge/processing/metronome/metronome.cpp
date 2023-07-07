@@ -30,7 +30,9 @@ void Metronome::trigger(uint32_t newPhaseIncrement) {
 }
 
 void Metronome::render(StereoSample* buffer, uint16_t numSamples) {
-	if (!sounding) return;
+	if (!sounding) {
+		return;
+	}
 
 	StereoSample* thisSample = buffer;
 	StereoSample* bufferEnd = buffer + numSamples;
@@ -52,5 +54,7 @@ void Metronome::render(StereoSample* buffer, uint16_t numSamples) {
 	} while (++thisSample != bufferEnd);
 
 	timeSinceTrigger += numSamples;
-	if (timeSinceTrigger > 1000) sounding = false;
+	if (timeSinceTrigger > 1000) {
+		sounding = false;
+	}
 }
