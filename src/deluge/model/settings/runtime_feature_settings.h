@@ -18,11 +18,15 @@
 #pragma once
 
 #include <cstdint>
-#include "gui/menu_item/runtime_feature/setting.h"
 #include "util/d_string.h"
 #include "util/container/array/resizeable_array.h"
 
 #define RUNTIME_FEATURE_SETTING_MAX_OPTIONS 8
+
+namespace menu_item::runtime_feature {
+class Setting;
+class Settings;
+} // namespace menu_item::runtime_feature
 
 // State declarations
 enum RuntimeFeatureStateToggle : uint32_t { Off = 0, On = 1 };
