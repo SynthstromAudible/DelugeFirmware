@@ -35,8 +35,6 @@ ModuleMap modules() {
 					[](WrenVM* vm) -> void {
 						wrenEnsureSlots(vm, 3);
 						auto button = (hid::Button*) wrenGetSlotForeign(vm, 1);
-						//int index = (int) wrenGetSlotDouble(vm, 1);
-						//const struct button_s* button = &WrenAPI::buttonValues[index];
 						bool down = (bool)wrenGetSlotBool(vm, 2);
 						Buttons::buttonActionNoRe(*button, down, false);
 					}

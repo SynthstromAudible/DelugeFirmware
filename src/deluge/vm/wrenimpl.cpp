@@ -22,7 +22,8 @@ void VM::print(const char* text) {
 			empty = false;
 		}
 	}
-	if (empty) return;
+	if (empty)
+		return;
 
 #if HAVE_OLED
 	numericDriver.displayPopup(text);
@@ -120,7 +121,7 @@ void VM::loadModuleComplete(WrenVM* vm, const char* mod, WrenLoadModuleResult re
 }
 
 WrenForeignMethodFn VM::bindForeignMethodFn(WrenVM* vm, const char* moduleName, const char* className, bool isStatic,
-                                              const char* signature) {
+                                            const char* signature) {
 	std::string mod(moduleName), cls(className), sig(signature);
 
 	if (Wren::API::modules().count(mod) > 0) {
@@ -157,7 +158,7 @@ WrenForeignClassMethods VM::bindForeignClassFn(WrenVM* vm, const char* moduleNam
 		if (cls == "Button") {
 			return {
 			    .allocate = [](WrenVM* vm) -> void {
-					auto data = (hid::Button*)wrenSetSlotNewForeign(vm, 0, 0, sizeof(hid::Button));
+				    auto data = (hid::Button*)wrenSetSlotNewForeign(vm, 0, 0, sizeof(hid::Button));
 				    int index = (int)wrenGetSlotDouble(vm, 1);
 				    *data = API::buttonValues[index];
 			    },
@@ -238,4 +239,4 @@ void VM::releaseHandles() {
 	wrenReleaseHandle(vm, handles.init);
 }
 
-}
+} // namespace Wren
