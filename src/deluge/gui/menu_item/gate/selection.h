@@ -17,6 +17,7 @@
 #pragma once
 #include "gui/menu_item/gate/mode.h"
 #include "gui/menu_item/selection.h"
+#include "hid/display.h"
 #include "off_time.h"
 #include "gui/ui/sound_editor.h"
 #include "mode.h"
@@ -28,8 +29,8 @@ namespace menu_item::gate {
 class Selection final : public menu_item::Selection {
 public:
 	Selection(char const* newName = NULL) : menu_item::Selection(newName) {
-#if HAVE_OLED
 		basicTitle = "Gate outputs";
+#if HAVE_OLED
 		static char const* options[] = {"Gate output 1", "Gate output 2",    "Gate output 3",
 		                                "Gate output 4", "Minimum off-time", NULL};
 #else
@@ -53,9 +54,9 @@ public:
 		}
 		else {
 			soundEditor.currentSourceIndex = soundEditor.currentValue;
-#if HAVE_OLED
-			gate::mode_title[8] = '1' + soundEditor.currentValue;
-#endif
+			if (display.type == DisplayType::OLED) {
+				gate::mode_title[8] = '1' + soundEditor.currentValue;
+			}
 
 			// TODO: this needs to be a "UpdateOptions" method on gate::Mode
 			switch (soundEditor.currentValue) {

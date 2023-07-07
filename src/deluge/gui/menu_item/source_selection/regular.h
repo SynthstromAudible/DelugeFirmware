@@ -20,7 +20,7 @@
 namespace menu_item::source_selection {
 class Regular final : public SourceSelection {
 public:
-	Regular();
+	Regular() { basicTitle = "Modulate with"; }
 	void beginSession(MenuItem* navigatedBackwardFrom = NULL);
 	ParamDescriptor getDestinationDescriptor();
 	MenuItem* selectButtonPress();

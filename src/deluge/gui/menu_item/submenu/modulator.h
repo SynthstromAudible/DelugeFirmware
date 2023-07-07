@@ -24,12 +24,13 @@ namespace menu_item::submenu {
 class Modulator final : public SubmenuReferringToOneThing {
 public:
 	using SubmenuReferringToOneThing::SubmenuReferringToOneThing;
-#if HAVE_OLED
+
+	// OLED Only
 	void beginSession(MenuItem* navigatedBackwardFrom) {
 		setModulatorNumberForTitles(thingIndex);
 		SubmenuReferringToOneThing::beginSession(navigatedBackwardFrom);
 	}
-#endif
+
 	bool isRelevant(Sound* sound, int whichThing) {
 		return (sound->synthMode == SYNTH_MODE_FM);
 	}

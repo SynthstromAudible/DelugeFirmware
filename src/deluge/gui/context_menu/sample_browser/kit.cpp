@@ -31,12 +31,14 @@ char const* Kit::getTitle() {
 }
 
 Sized<char const**> Kit::getOptions() {
-#if HAVE_OLED
-	static char const* options[] = {"Load all", "Slice"};
-#else
-	static char const* options[] = {"ALL", "Slice"};
-#endif
-	return {options, 2};
+	if (display.type == DisplayType::OLED) {
+		static char const* options[] = {"Load all", "Slice"};
+		return {options, 2};
+	}
+	else {
+		static char const* options[] = {"ALL", "Slice"};
+		return {options, 2};
+	}
 }
 
 bool Kit::isCurrentOptionAvailable() {

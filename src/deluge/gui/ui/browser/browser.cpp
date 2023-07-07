@@ -263,12 +263,12 @@ int Browser::readFileItemsForFolder(char const* filePrefixHere, bool allowFolder
 	maxNumFileItemsNow = newMaxNumFileItems;
 	filenameToStartSearchAt = filenameToStartAt;
 
-#if !HAVE_OLED
+if (display.type != DisplayType::OLED) {
 	int filePrefixLength;
 	if (filePrefixHere) {
 		filePrefixLength = strlen(filePrefixHere);
 	}
-#endif
+}
 
 	while (true) {
 		AudioEngine::logAction("while loop");
@@ -789,9 +789,9 @@ useNonExistentFileName:     // Normally this will get skipped over - if we found
 everythingFinalized:
 	folderContentsReady(direction);
 
-#if !HAVE_OLED
+if (display.type != DisplayType::OLED) {
 	displayText();
-#endif
+}
 	return NO_ERROR;
 }
 

@@ -35,11 +35,7 @@
 #include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_reg_access.h"
 #include "definitions.h"
 
-#if HAVE_OLED
-#include "deluge/hid/display/oled.h"
-#else
-#include "deluge/hid/display/numeric_driver.h"
-#endif
+#include "deluge/hid/display.h"
 
 #if ((USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST)
 /***********************************************************************************************************************
@@ -287,11 +283,7 @@ static uint16_t usb_hstd_enumeration(usb_utr_t* ptr)
                             if (1 != flg)
                             {
                                 // By Rohan. Means couldn't find an available "driver" for this device. It could be a 2nd hub.
-#if HAVE_OLED
-                                consoleTextIfAllBootedUp("USB device not recognized");
-#else
-                                displayPopupIfAllBootedUp("UNKN");
-#endif
+                                consoleTextIfAllBootedUp(HAVE_OLED ? "USB device not recognized" : "UNKN");
                                 ctrl.address = g_usb_hstd_device_addr[ptr->ip]; /* USB Device address */
                                 ctrl.module  = ptr->ip;                         /* Module number setting */
                                 usb_set_event(USB_STS_NOT_SUPPORT, &ctrl);      /* Set Event()  */
@@ -687,7 +679,7 @@ static uint16_t usb_hstd_chk_device_class(usb_utr_t* ptr, usb_hcdreg_t* driver, 
                     return result;
                 }
 
-                /*          USB_PRINTF2("*** Interface class is 0x%02x (not 0x%02x)\n", 
+                /*          USB_PRINTF2("*** Interface class is 0x%02x (not 0x%02x)\n",
                  descriptor_table[total_length1 + 5], driver->ifclass);*/
 
                 break;
@@ -731,8 +723,8 @@ void usb_hstd_ovcr_notifiation(usb_utr_t* ptr, uint16_t port)
 
 /***********************************************************************************************************************
  Function Name   : usb_hstd_status_result
- Description     : This is a callback as a result of calling 
-                 : usb_hstd_change_device_state. This notifies the MGR (manager) 
+ Description     : This is a callback as a result of calling
+                 : usb_hstd_change_device_state. This notifies the MGR (manager)
                  : task that the change of USB Device status completed.
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
                  : uint16_t     port         : Port number.

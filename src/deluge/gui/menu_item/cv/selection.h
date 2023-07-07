@@ -34,9 +34,7 @@ static char const* cvOutputChannel[] = {"Out1", "Out2", NULL};
 class Selection final : public menu_item::Selection {
 public:
 	Selection(char const* newName = NULL) : menu_item::Selection(newName) {
-#if HAVE_OLED
 		basicTitle = "CV outputs";
-#endif
 		basicOptions = cvOutputChannel;
 	}
 	void beginSession(MenuItem* navigatedBackwardFrom) {
@@ -51,10 +49,8 @@ public:
 
 	MenuItem* selectButtonPress() {
 		soundEditor.currentSourceIndex = soundEditor.currentValue;
-#if HAVE_OLED
 		cvSubmenu.basicTitle = cvOutputChannel[soundEditor.currentValue];
 		setCvNumberForTitle(soundEditor.currentValue);
-#endif
 		return &cvSubmenu;
 	}
 };

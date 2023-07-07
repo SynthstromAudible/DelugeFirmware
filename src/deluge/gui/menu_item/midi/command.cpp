@@ -29,12 +29,11 @@ extern "C" {
 namespace menu_item::midi {
 
 void Command::beginSession(MenuItem* navigatedBackwardFrom) {
-#if !HAVE_OLED
-	drawValue();
-#endif
+	if (display.type != DisplayType::OLED) {
+		drawValue();
+	}
 }
 
-#if HAVE_OLED
 void Command::drawPixelsForOled() {
 	LearnedMIDI* command = &midiEngine.globalMIDICommands[commandNumber];
 	int yPixel = 20;
@@ -88,7 +87,7 @@ void Command::drawPixelsForOled() {
 		                 TEXT_SPACING_X, TEXT_SIZE_Y_UPDATED);
 	}
 }
-#else
+
 void Command::drawValue() {
 	char const* output;
 	if (!midiEngine.globalMIDICommands[commandNumber].containsSomething()) {
@@ -99,25 +98,26 @@ void Command::drawValue() {
 	}
 	display.setText(output);
 }
-#endif
 
 void Command::selectEncoderAction(int offset) {
 	midiEngine.globalMIDICommands[commandNumber].clear();
-#if HAVE_OLED
-	renderUIsForOled();
-#else
-	drawValue();
-#endif
+	if (display.type == DisplayType::OLED) {
+		renderUIsForOled();
+	}
+	else {
+		drawValue();
+	}
 }
 
 void Command::unlearnAction() {
 	midiEngine.globalMIDICommands[commandNumber].clear();
 	if (soundEditor.getCurrentMenuItem() == this) {
-#if HAVE_OLED
-		renderUIsForOled();
-#else
-		drawValue();
-#endif
+		if (display.type == DisplayType::OLED) {
+			renderUIsForOled();
+		}
+		else {
+			drawValue();
+		}
 	}
 	else {
 		display.displayPopup("UNLEARNED");
@@ -129,11 +129,12 @@ bool Command::learnNoteOn(MIDIDevice* device, int channel, int noteCode) {
 	midiEngine.globalMIDICommands[commandNumber].channelOrZone = channel;
 	midiEngine.globalMIDICommands[commandNumber].noteOrCC = noteCode;
 	if (soundEditor.getCurrentMenuItem() == this) {
-#if HAVE_OLED
-		renderUIsForOled();
-#else
-		drawValue();
-#endif
+		if (display.type == DisplayType::OLED) {
+			renderUIsForOled();
+		}
+		else {
+			drawValue();
+		}
 	}
 	else {
 		display.displayPopup("LEARNED");

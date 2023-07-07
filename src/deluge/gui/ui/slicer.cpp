@@ -44,24 +44,17 @@ extern "C" {
 
 Slicer slicer{};
 
-Slicer::Slicer() {
-#if HAVE_OLED
-	oledShowsUIUnderneath = true;
-#endif
-}
-
 void Slicer::focusRegained() {
 
 	actionLogger.deleteAllLogs();
 
 	numClips = 16;
 
-#if !HAVE_OLED
+if (display.type != DisplayType::OLED) {
 	redraw();
-#endif
+}
 }
 
-#if HAVE_OLED
 void Slicer::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 
 	int windowWidth = 100;
@@ -88,12 +81,9 @@ void Slicer::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 	                        (OLED_MAIN_WIDTH_PIXELS >> 1) + horizontalShift);
 }
 
-#else
-
 void Slicer::redraw() {
 	display.setTextAsNumber(numClips, 255, true);
 }
-#endif
 
 void Slicer::selectEncoderAction(int8_t offset) {
 	numClips += offset;
@@ -103,11 +93,13 @@ void Slicer::selectEncoderAction(int8_t offset) {
 	else if (numClips == 1) {
 		numClips = 256;
 	}
-#if HAVE_OLED
-	renderUIsForOled();
-#else
-	redraw();
-#endif
+
+	if (display.type == DisplayType::OLED) {
+		renderUIsForOled();
+	}
+	else {
+		redraw();
+	}
 }
 
 int Slicer::buttonAction(hid::Button b, bool on, bool inCardRoutine) {

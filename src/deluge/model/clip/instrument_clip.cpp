@@ -3525,9 +3525,7 @@ displayError:
 	outputChanged(modelStack, newInstrument);
 	modelStack->song->ensureAllInstrumentsHaveAClipOrBackedUpParamManager("E062", "H062");
 
-#if HAVE_OLED
-	OLED::removeWorkingAnimation();
-#endif
+display.removeWorkingAnimation();
 
 	return newInstrument;
 }

@@ -288,7 +288,7 @@ void changeDimmerInterval(int offset) {
 	pos = strchr(text, 0);
 	*(pos++) = '%';
 	*pos = 0;
-	OLED::popupText(text);
+	display.popupTextTemporary(text);
 #endif
 }
 

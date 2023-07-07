@@ -353,9 +353,9 @@ doOther:
 			}
 
 			currentUIMode = UI_MODE_NONE;
-#if !HAVE_OLED
+if (display.type != DisplayType::OLED) {
 			InstrumentClipMinder::redrawNumericDisplay();
-#endif
+}
 			uiNeedsRendering(this, 0, 1 << yDisplayOfNewNoteRow);
 		}
 	}
@@ -1998,7 +1998,7 @@ void InstrumentClipView::adjustVelocity(int velocityChange) {
 			((Instrument*)currentSong->currentClip->output)->defaultVelocity = velocityValue;
 		}
 #if HAVE_OLED
-		OLED::popupText(displayString);
+		display.popupTextTemporary(displayString);
 #else
 		display.displayPopup(displayString, 0, true);
 #endif
@@ -2244,7 +2244,7 @@ multiplePresses:
 		}
 
 #if HAVE_OLED
-		OLED::popupText(displayString);
+		display.popupTextTemporary(displayString);
 #else
 		display.displayPopup(displayString, 0, true, prevBase ? 3 : 255);
 #endif
@@ -3475,7 +3475,7 @@ void InstrumentClipView::drawDrumName(Drum* drum, bool justPopUp) {
 		}
 	}
 
-	OLED::popupText(newText, true);
+	display.popupText(newText, true);
 #else
 
 	char buffer[7];
@@ -4469,7 +4469,7 @@ void InstrumentClipView::editNoteRepeat(int offset) {
 	char buffer[20];
 	strcpy(buffer, "Note repeats: ");
 	intToString(newNumNotes, buffer + strlen(buffer));
-	OLED::popupText(buffer);
+	display.popupTextTemporary(buffer);
 #else
 	char buffer[12];
 	intToString(newNumNotes, buffer);
@@ -4764,7 +4764,7 @@ doCompareNote:
 	}
 
 #if HAVE_OLED
-	OLED::popupText(message);
+	display.popupTextTemporary(message);
 #else
 	display.displayPopup(message, 0, alignRight);
 #endif
@@ -5284,7 +5284,7 @@ displayNewNumNotes:
 	strcpy(pos, " of ");
 	pos = strchr(buffer, 0);
 	intToString(numStepsAvailable, pos);
-	OLED::popupText(buffer);
+	display.popupTextTemporary(buffer);
 #else
 	char buffer[12];
 	intToString(newNumNotes, buffer);
@@ -5357,7 +5357,7 @@ addConsequenceToAction:
 displayMessage:
 #if HAVE_OLED
 	char const* message = (offset == 1) ? "Rotated right" : "Rotated left";
-	OLED::popupText(message);
+	display.popupTextTemporary(message);
 #else
 	char const* message = (offset == 1) ? "RIGHT" : "LEFT";
 	display.displayPopup(message, 0);
@@ -5491,7 +5491,7 @@ tryScrollingLeft:
 	char buffer[19];
 	strcpy(buffer, "Steps: ");
 	intToString(newNumSteps, buffer + strlen(buffer));
-	OLED::popupText(buffer);
+	display.popupTextTemporary(buffer);
 #else
 	char buffer[12];
 	intToString(newNumSteps, buffer);

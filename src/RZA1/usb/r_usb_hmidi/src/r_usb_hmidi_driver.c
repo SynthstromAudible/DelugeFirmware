@@ -39,12 +39,7 @@
 #include "definitions.h"
 
 #include "deluge/drivers/uart/uart.h"
-
-#if HAVE_OLED
-#include "deluge/hid/display/oled.h"
-#else
-#include "deluge/hid/display/numeric_driver.h"
-#endif
+#include "hid/display.h"
 
 /******************************************************************************
  Exported global variables
@@ -597,11 +592,7 @@ uint16_t usb_hmidi_pipe_info(usb_utr_t* ptr, uint8_t* table, uint16_t speed, uin
 
                     // If still here, we didn't find a pipe
                     uartPrintln("no free pipe");
-#if HAVE_OLED
-                    consoleTextIfAllBootedUp("Maximum number of USB devices already hosted");
-#else
-                    displayPopupIfAllBootedUp("FULL");
-#endif
+                    consoleTextIfAllBootedUp(HAVE_OLED ? "Maximum number of USB devices already hosted" : "FULL");
                     goto moveOnToNextDescriptor;
 
 pickedReceivePipe:

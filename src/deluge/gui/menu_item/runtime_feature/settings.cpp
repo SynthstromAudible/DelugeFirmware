@@ -33,65 +33,63 @@ void Settings::beginSession(MenuItem* navigatedBackwardFrom) {
 
 	soundEditor.currentValue = lastActiveValue; // Restore
 
-#if HAVE_OLED
-	soundEditor.menuCurrentScroll = soundEditor.currentValue;
-#else
-	drawValue();
-#endif
+	if (display.type == DisplayType::OLED) {
+		soundEditor.menuCurrentScroll = soundEditor.currentValue;
+	}
+	else {
+		drawValue();
+	}
 }
 
 void Settings::selectEncoderAction(int offset) {
 	soundEditor.currentValue += offset;
 	int numOptions = RuntimeFeatureSettingType::MaxElement;
 
-#if HAVE_OLED
-	if (soundEditor.currentValue > numOptions - 1) {
-		soundEditor.currentValue = numOptions - 1;
+	if (display.type == DisplayType::OLED) {
+		if (soundEditor.currentValue > numOptions - 1) {
+			soundEditor.currentValue = numOptions - 1;
+		}
+		else if (soundEditor.currentValue < 0) {
+			soundEditor.currentValue = 0;
+		}
 	}
-	else if (soundEditor.currentValue < 0) {
-		soundEditor.currentValue = 0;
+	else {
+		if (soundEditor.currentValue >= numOptions)
+			soundEditor.currentValue -= numOptions;
+		else if (soundEditor.currentValue < 0)
+			soundEditor.currentValue += numOptions;
 	}
-#else
-	if (soundEditor.currentValue >= numOptions)
-		soundEditor.currentValue -= numOptions;
-	else if (soundEditor.currentValue < 0)
-		soundEditor.currentValue += numOptions;
-#endif
 
 	lastActiveValue = soundEditor.currentValue;
 
-#if HAVE_OLED
-	if (soundEditor.currentValue < soundEditor.menuCurrentScroll) {
-		soundEditor.menuCurrentScroll = soundEditor.currentValue;
+	if (display.type == DisplayType::OLED) {
+		if (soundEditor.currentValue < soundEditor.menuCurrentScroll) {
+			soundEditor.menuCurrentScroll = soundEditor.currentValue;
+		}
+
+		if (soundEditor.currentValue > (soundEditor.menuCurrentScroll + (OLED_MENU_NUM_OPTIONS_VISIBLE - 1))) {
+			soundEditor.menuCurrentScroll = soundEditor.currentValue - (OLED_MENU_NUM_OPTIONS_VISIBLE - 1);
+		}
 	}
-
-	if (soundEditor.currentValue > (soundEditor.menuCurrentScroll + (OLED_MENU_NUM_OPTIONS_VISIBLE - 1))) {
-		soundEditor.menuCurrentScroll = soundEditor.currentValue - (OLED_MENU_NUM_OPTIONS_VISIBLE - 1);
-	}
-
-#endif
-
 	drawValue();
 }
 
 void Settings::drawValue() {
-#if HAVE_OLED
-	renderUIsForOled();
-#else
-	display.setScrollingText(runtimeFeatureSettings.settings[soundEditor.currentValue].displayName);
-#endif
+	if (display.type == DisplayType::OLED) {
+		renderUIsForOled();
+	}
+	else {
+		display.setScrollingText(runtimeFeatureSettings.settings[soundEditor.currentValue].displayName);
+	}
 }
 
 MenuItem* Settings::selectButtonPress() {
-#if HAVE_OLED
-	runtimeFeatureSettingMenuItem.basicTitle = runtimeFeatureSettings.settings[soundEditor.currentValue]
-	                                               .displayName; // A bit ugly, but saves us extending a class.
-#endif
+	// A bit ugly, but saves us extending a class.
+	runtimeFeatureSettingMenuItem.basicTitle = runtimeFeatureSettings.settings[soundEditor.currentValue].displayName;
 	runtimeFeatureSettingMenuItem.currentSettingIndex = soundEditor.currentValue;
 	return &runtimeFeatureSettingMenuItem;
 }
 
-#if HAVE_OLED
 
 void Settings::drawPixelsForOled() {
 	char const* itemNames[OLED_MENU_NUM_OPTIONS_VISIBLE];
@@ -115,6 +113,5 @@ void Settings::drawPixelsForOled() {
 
 	drawItemsForOled(itemNames, selectedRow);
 }
-#endif
 
 } // namespace menu_item::runtime_feature

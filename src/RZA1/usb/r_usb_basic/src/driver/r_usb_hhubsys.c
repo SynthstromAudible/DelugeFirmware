@@ -37,11 +37,7 @@
 #include "deluge/drivers/uart/uart.h"
 
 #include "deluge/deluge.h"
-#if HAVE_OLED
-#include "deluge/hid/display/oled.h"
-#else
-#include "deluge/hid/display/numeric_driver.h"
-#endif
+#include "hid/display.h"
 
 #if ((USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST)
 /***********************************************************************************************************************
@@ -939,12 +935,7 @@ static void usb_hhub_init_down_port(usb_utr_t* ptr, uint16_t hubaddr, usb_clsinf
                 g_usb_shhub_init_seq[ptr->ip]  = USB_SEQ_1; /* Next Sequence */
                 g_usb_shhub_init_port[ptr->ip] = USB_HUB_P1;
                 usb_hhub_specified_path(mess); /* Next Process Selector */
-
-#if HAVE_OLED
-                consoleTextIfAllBootedUp("USB hub attached");
-#else
-                displayPopupIfAllBootedUp("HUB");                    // By Rohan
-#endif
+                consoleTextIfAllBootedUp(HAVE_OLED ? "USB hub attached" : "HUB");                    // By Rohan
                 setTimeUSBInitializationEnds(44100 << 1); // No more popups for 2 seconds
 
                 break;
@@ -1490,11 +1481,7 @@ noPortConnection:
                             {
                                 usb_hhub_port_detach(ptr, hubaddr, g_usb_shhub_event_port[ptr->ip]);
                                 USB_PRINTF1(" Hubport disconnect address%d\n", devaddr);
-#if HAVE_OLED
-                                consoleTextIfAllBootedUp("USB device detached");
-#else
-                                displayPopupIfAllBootedUp("DETACH"); // By Rohan
-#endif
+                                consoleTextIfAllBootedUp(HAVE_OLED ? "USB device detached" : "DETACH"); // By Rohan
                                 g_usb_shhub_info_data[ptr->ip][devaddr].up_addr     = 0; /* Up-address clear */
                                 g_usb_shhub_info_data[ptr->ip][devaddr].up_port_num = 0; /* Up-port num clear */
                                 g_usb_shhub_info_data[ptr->ip][devaddr].port_num    = 0; /* Port number clear */
@@ -2846,11 +2833,7 @@ static void usb_hhub_new_connect(usb_utr_t* ptr, uint16_t hubaddr, uint16_t port
     else
     {
         USB_PRINTF0("### device count over !\n");
-#if HAVE_OLED
-        consoleTextIfAllBootedUp("Maximum number of USB devices already hosted");
-#else
-        displayPopupIfAllBootedUp("FULL");
-#endif
+        consoleTextIfAllBootedUp(HAVE_OLED ? "Maximum number of USB devices already hosted" : "FULL");
     }
 } /* End of function usb_hhub_new_connect() */
 

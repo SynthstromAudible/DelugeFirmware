@@ -31,9 +31,9 @@ void Range::beginSession(MenuItem* navigatedBackwardFrom) {
 
 	soundEditor.editingRangeEdge = RangeEdit::OFF;
 
-#if !HAVE_OLED
-	drawValue(0, false);
-#endif
+	if (display.type != DisplayType::OLED) {
+		drawValue(0, false);
+	}
 }
 
 void Range::horizontalEncoderAction(int offset) {

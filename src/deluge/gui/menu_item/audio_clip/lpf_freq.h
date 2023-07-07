@@ -22,7 +22,8 @@ namespace menu_item::audio_clip {
 class LPFFreq final : public UnpatchedParam {
 public:
 	using UnpatchedParam::UnpatchedParam;
-#if !HAVE_OLED
+
+	// 7Seg ONLY
 	void drawValue() {
 		if (soundEditor.currentValue == 50) {
 			display.setText("OFF");
@@ -31,6 +32,5 @@ public:
 			UnpatchedParam::drawValue();
 		}
 	}
-#endif
 };
 } // namespace menu_item::audio_clip

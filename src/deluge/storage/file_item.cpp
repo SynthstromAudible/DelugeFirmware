@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #include "storage/file_item.h"
+#include "hid/display.h"
 #include "model/instrument/instrument.h"
 #include <string.h>
 
@@ -66,7 +67,11 @@ int FileItem::getFilenameWithoutExtension(String* filenameWithoutExtension) {
 }
 
 int FileItem::getDisplayNameWithoutExtension(String* displayNameWithoutExtension) {
-#if !HAVE_OLED
+	if (display.type == DisplayType::OLED) {
+		return getFilenameWithoutExtension(displayNameWithoutExtension);
+	}
+
+	// 7SEG...
 	if (displayName != filename.get()) {
 		int error = displayNameWithoutExtension->set(displayName);
 		if (error) {
@@ -84,10 +89,5 @@ int FileItem::getDisplayNameWithoutExtension(String* displayNameWithoutExtension
 			}
 		}
 		return NO_ERROR;
-	}
-	else
-#endif
-	{
-		return getFilenameWithoutExtension(displayNameWithoutExtension);
 	}
 }

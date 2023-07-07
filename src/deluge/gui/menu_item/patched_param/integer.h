@@ -21,11 +21,11 @@ namespace menu_item::patched_param {
 class Integer : public PatchedParam, public menu_item::IntegerContinuous {
 public:
 	Integer(char const* newName = NULL, int newP = 0) : PatchedParam(newP), IntegerContinuous(newName) {}
-#if !HAVE_OLED
+	// 7SEG Only
 	void drawValue() {
 		PatchedParam::drawValue();
 	}
-#endif
+
 	ParamDescriptor getLearningThing() final {
 		return PatchedParam::getLearningThing();
 	}

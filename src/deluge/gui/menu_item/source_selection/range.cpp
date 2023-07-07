@@ -23,12 +23,6 @@
 namespace menu_item::source_selection {
 Range rangeMenu{};
 
-Range::Range() {
-#if HAVE_OLED
-	basicTitle = "Modulate depth";
-#endif
-}
-
 ParamDescriptor Range::getDestinationDescriptor() {
 	ParamDescriptor descriptor;
 	descriptor.setToHaveParamAndSource(soundEditor.patchingParamSelected, regularMenu.s);

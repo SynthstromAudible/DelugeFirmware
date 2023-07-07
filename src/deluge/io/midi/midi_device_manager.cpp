@@ -219,16 +219,17 @@ extern "C" void hostedDeviceConfigured(int ip, int midiDeviceNum) {
 	device->connectedNow(midiDeviceNum);
 	recountSmallestMPEZones(); // Must be called after setting device->connectionFlags
 
-#if HAVE_OLED
-	String text;
-	text.set(&device->name);
-	int error = text.concatenate(" attached");
-	if (!error) {
-		consoleTextIfAllBootedUp(text.get());
+	if (display.type == DisplayType::OLED) {
+		String text;
+		text.set(&device->name);
+		int error = text.concatenate(" attached");
+		if (!error) {
+			consoleTextIfAllBootedUp(text.get());
+		}
 	}
-#else
-	displayPopupIfAllBootedUp("MIDI");
-#endif
+	else {
+		consoleTextIfAllBootedUp("MIDI");
+	}
 }
 
 extern "C" void hostedDeviceDetached(int ip, int midiDeviceNum) {

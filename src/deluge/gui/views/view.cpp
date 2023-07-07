@@ -907,11 +907,11 @@ void View::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 
 	// If the learn button is pressed, user is trying to copy or paste, and the fact that we've ended up here means they can't
 	if (Buttons::isButtonPressed(hid::button::LEARN)) {
-#if !HAVE_OLED
+		if (display.type != DisplayType::OLED) {
 		if (on) {
 			display.displayPopup("CANT");
 		}
-#endif
+		}
 		return;
 	}
 
@@ -1680,9 +1680,7 @@ gotAnInstrument:
 		    loadInstrumentPresetUI.doPresetNavigation(offset, oldInstrument, availabilityRequirement, false);
 		if (results.error == NO_ERROR_BUT_GET_OUT) {
 getOut:
-#if HAVE_OLED
-			OLED::removeWorkingAnimation();
-#endif
+			display.removeWorkingAnimation();
 			return;
 		}
 		else if (results.error) {
@@ -1761,11 +1759,7 @@ getOut:
 			uiNeedsRendering(&instrumentClipView);
 		}
 
-#if HAVE_OLED
-		OLED::removeWorkingAnimation();
-#else
-		display.removeTopLayer();
-#endif
+		display.removeLoadingAnimation();
 	}
 
 	instrumentChanged(modelStack, newInstrument);

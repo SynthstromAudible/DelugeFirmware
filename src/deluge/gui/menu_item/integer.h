@@ -27,20 +27,20 @@ public:
 	void selectEncoderAction(int offset) override;
 
 protected:
-#if HAVE_OLED
+	// OLED Only
 	void drawPixelsForOled();
 	virtual void drawInteger(int textWidth, int textHeight, int yPixel);
-#else
+
+	// 7Seg Only
 	void drawValue() override;
-#endif
 };
 
 class IntegerWithOff : public Integer {
 public:
 	using Integer::Integer;
-#if !HAVE_OLED
+
+	// 7Seg Only
 	void drawValue() override;
-#endif
 };
 
 class IntegerContinuous : public Integer {
@@ -48,10 +48,9 @@ public:
 	using Integer::Integer;
 
 protected:
-#if HAVE_OLED
+	// OLED Only
 	void drawPixelsForOled();
 	void drawBar(int yTop, int marginL, int marginR = -1);
-#endif
 };
 
 } // namespace menu_item

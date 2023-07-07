@@ -101,9 +101,9 @@ bool SampleMarkerEditor::opened() {
 
 	uiNeedsRendering(this, 0xFFFFFFFF, 0);
 
-#if !HAVE_OLED
-	displayText();
-#endif
+	if (display.type != DisplayType::OLED) {
+		displayText();
+	}
 
 	if (getRootUI() != &instrumentClipView) {
 		renderingNeededRegardlessOfUI(0, 0xFFFFFFFF);

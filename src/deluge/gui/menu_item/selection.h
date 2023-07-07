@@ -34,8 +34,6 @@ protected:
 	virtual int getNumOptions();
 	virtual void drawValue();
 
-#if HAVE_OLED
 	void drawPixelsForOled();
-#endif
 };
 } // namespace menu_item

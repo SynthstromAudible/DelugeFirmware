@@ -16,6 +16,7 @@
 */
 
 #include "key_range.h"
+#include "hid/display.h"
 #include "util/functions.h"
 #include "gui/menu_item/range.h"
 #include "gui/ui/sound_editor.h"
@@ -107,9 +108,9 @@ void KeyRange::getText(char* buffer, int* getLeftLength, int* getRightLength, bo
 
 	if (noteCodeIsSharp[lower]) {
 		*(buffer++) = HAVE_OLED ? '#' : '.';
-#if HAVE_OLED
-		leftLength++;
-#endif
+		if (display.type == DisplayType::OLED) {
+			leftLength++;
+		}
 	}
 
 	if (getLeftLength) {
@@ -130,9 +131,9 @@ void KeyRange::getText(char* buffer, int* getLeftLength, int* getRightLength, bo
 	int rightLength = 1;
 	if (noteCodeIsSharp[upper]) {
 		*(buffer++) = HAVE_OLED ? '#' : '.';
-#if HAVE_OLED
-		rightLength++;
-#endif
+		if (display.type == DisplayType::OLED) {
+			rightLength++;
+		}
 	}
 
 	*buffer = 0;

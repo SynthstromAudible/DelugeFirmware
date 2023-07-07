@@ -27,8 +27,6 @@ void MenuItem::learnCC(MIDIDevice* fromDevice, int channel, int ccNumber, int va
 	learnKnob(fromDevice, ccNumber, 0, channel);
 }
 
-#if HAVE_OLED
-
 // This is virtual. Some classes with override it and generate some name on the fly.
 // Supplied buffer size must be MENU_ITEM_TITLE_BUFFER_SIZE. Actual max num chars for OLED display is 14.
 // May return pointer to that buffer, or to some other constant char string.
@@ -65,10 +63,6 @@ void MenuItem::drawItemsForOled(char const** options, int selectedOption) {
 	}
 }
 
-#else
-
 void MenuItem::drawName() {
 	display.setText(getName(), false, shouldDrawDotOnName());
 }
-
-#endif

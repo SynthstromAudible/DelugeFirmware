@@ -245,7 +245,7 @@ void TimelineView::displayNumberOfBarsAndBeats(uint32_t number, uint32_t quantiz
 	pos = strchr(pos, 0);
 	*(pos++) = ':';
 	intToString(whichSubBeat, pos);
-	OLED::popupText(text);
+	display.popupTextTemporary(text);
 #else
 	char text[5];
 

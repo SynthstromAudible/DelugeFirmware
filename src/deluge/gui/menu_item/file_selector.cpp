@@ -22,7 +22,6 @@
 #include "gui/ui_timer_manager.h"
 #include "gui/ui/sound_editor.h"
 #include "util/functions.h"
-#include "hid/display.h"
 #include "gui/views/view.h"
 #include "gui/ui/keyboard_screen.h"
 #include "model/song/song.h"

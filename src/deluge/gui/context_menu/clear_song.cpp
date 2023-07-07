@@ -15,11 +15,11 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "hid/display.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
 #include "gui/context_menu/clear_song.h"
 #include "modulation/params/param_manager.h"
-#include "hid/display.h"
 #include "memory/general_memory_allocator.h"
 #include "gui/views/view.h"
 #include "playback/mode/session.h"
@@ -42,12 +42,14 @@ char const* ClearSong::getTitle() {
 }
 
 Sized<char const**> ClearSong::getOptions() {
-#if HAVE_OLED
-	static char const* options[] = {"Ok"};
-#else
-	static char const* options[] = {"New"};
-#endif
-	return {options, 1};
+	if (display.type == DisplayType::OLED) {
+		static char const* options[] = {"Ok"};
+		return {options, 1};
+	}
+	else {
+		static char const* options[] = {"New"};
+		return {options, 1};
+	}
 }
 
 void ClearSong::focusRegained() {
@@ -110,9 +112,7 @@ bool ClearSong::acceptCurrentOption() {
 	setUIForLoadedSong(currentSong);
 	currentUIMode = UI_MODE_NONE;
 
-#if HAVE_OLED
-	OLED::removeWorkingAnimation();
-#endif
+	display.removeWorkingAnimation();
 
 	return true;
 }

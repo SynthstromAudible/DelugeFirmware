@@ -23,7 +23,6 @@
 #include <string.h>
 #include "io/midi/midi_engine.h"
 #include "hid/encoders.h"
-#include "hid/display.h"
 #include "processing/engines/audio_engine.h"
 #include "gui/ui/root_ui.h"
 #include "util/functions.h"

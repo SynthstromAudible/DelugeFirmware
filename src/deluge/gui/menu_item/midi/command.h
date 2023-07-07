@@ -36,9 +36,9 @@ public:
 	void unlearnAction();
 	bool learnNoteOn(MIDIDevice* device, int channel, int noteCode);
 	void learnCC(MIDIDevice* device, int channel, int ccNumber, int value);
-#if HAVE_OLED
+
+	// OLED ONLY
 	void drawPixelsForOled();
-#endif
 
 	uint8_t commandNumber;
 };

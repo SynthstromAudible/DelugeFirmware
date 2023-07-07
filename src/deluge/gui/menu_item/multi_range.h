@@ -23,7 +23,7 @@ namespace menu_item {
 
 class MultiRange final : public Range {
 public:
-	MultiRange();
+	MultiRange() { basicTitle = "Note range"; }
 
 	void beginSession(MenuItem* navigatedBackwardFrom);
 	void selectEncoderAction(int offset);

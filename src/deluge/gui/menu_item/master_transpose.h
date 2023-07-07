@@ -44,11 +44,10 @@ public:
 	MenuItem* patchingSourceShortcutPress(int s, bool previousPressStillActive = false) {
 		return PatchedParam::patchingSourceShortcutPress(s, previousPressStillActive);
 	}
-#if !HAVE_OLED
+
 	void drawValue() {
 		PatchedParam::drawValue();
 	}
-#endif
 
 	void unlearnAction() {
 		MenuItemWithCCLearning::unlearnAction();
