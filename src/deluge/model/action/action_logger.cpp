@@ -745,10 +745,8 @@ void ActionLogger::undo() {
 displayUndoMessage:
 #ifdef undoLedX
 		IndicatorLEDs::indicateAlertOnLed(undoLedX, undoLedY);
-#elif HAVE_OLED
-		OLED::consoleText("Undo");
 #else
-		display.displayPopup("UNDO");
+		display.consoleText("Undo");
 #endif
 	}
 }
@@ -758,10 +756,8 @@ void ActionLogger::redo() {
 	if (revert(AFTER)) {
 #ifdef redoLedX
 		IndicatorLEDs::indicateAlertOnLed(redoLedX, redoLedY);
-#elif HAVE_OLED
-		OLED::consoleText("Redo");
 #else
-		display.displayPopup("REDO");
+		display.consoleText("Redo");
 #endif
 	}
 }

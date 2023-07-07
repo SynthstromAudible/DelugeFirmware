@@ -46,11 +46,12 @@ public:
 	bool renderSidebar(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3] = NULL,
 	                   uint8_t occupancyMask[][displayWidth + sideBarWidth] = NULL);
 
-#if HAVE_OLED
+	// OLED
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
-#else
+
+	// 7SEG
 	void displayText();
-#endif
+
 	int8_t markerType;
 
 	bool blinkInvisible;

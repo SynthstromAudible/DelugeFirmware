@@ -68,10 +68,10 @@ tryDefaultDir:
 		currentDir.set(defaultDir);
 	}
 
-#if HAVE_OLED
-	fileIcon = (instrumentTypeToLoad == INSTRUMENT_TYPE_SYNTH) ? OLED::synthIcon : OLED::kitIcon;
-	title = (instrumentTypeToLoad == INSTRUMENT_TYPE_SYNTH) ? "Save synth" : "Save kit";
-#endif
+	if (display.type == DisplayType::OLED) {
+		fileIcon = (instrumentTypeToLoad == INSTRUMENT_TYPE_SYNTH) ? OLED::synthIcon : OLED::kitIcon;
+		title = (instrumentTypeToLoad == INSTRUMENT_TYPE_SYNTH) ? "Save synth" : "Save kit";
+	}
 
 	filePrefix = (instrumentTypeToLoad == INSTRUMENT_TYPE_SYNTH) ? "SYNT" : "KIT";
 
@@ -101,11 +101,9 @@ gotError:
 }
 
 bool SaveInstrumentPresetUI::performSave(bool mayOverwrite) {
-
-#if !HAVE_OLED
-	display.displayLoadingAnimation();
-#endif
-
+	if (display.type != DisplayType::OLED) {
+		display.displayLoadingAnimation();
+	}
 	Instrument* instrumentToSave = (Instrument*)currentSong->currentClip->output;
 
 	bool isDifferentSlot = !enteredText.equalsCaseIrrespective(&instrumentToSave->name);
@@ -155,9 +153,9 @@ fail:
 		goto fail;
 	}
 
-#if HAVE_OLED
-	OLED::displayWorkingAnimation("Saving");
-#endif
+	if (display.type == DisplayType::OLED) {
+		OLED::displayWorkingAnimation("Saving");
+	}
 
 	instrumentToSave->writeToFile(currentSong->currentClip, currentSong);
 
@@ -165,7 +163,7 @@ fail:
 
 	error =
 	    storageManager.closeFileAfterWriting(filePath.get(), "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n", endString);
-display.removeWorkingAnimation();
+	display.removeWorkingAnimation();
 	if (error) {
 		goto fail;
 	}

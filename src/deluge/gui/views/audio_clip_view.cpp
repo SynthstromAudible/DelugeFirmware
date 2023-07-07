@@ -82,19 +82,17 @@ void AudioClipView::focusRegained() {
 	view.focusRegained();
 	view.setActiveModControllableTimelineCounter(currentSong->currentClip);
 
-if (display.type != DisplayType::OLED) {
-	view.displayOutputName(currentSong->currentClip->output, false);
-}
+	if (display.type != DisplayType::OLED) {
+		view.displayOutputName(currentSong->currentClip->output, false);
+	}
 #ifdef currentClipStatusButtonX
 	view.drawCurrentClipPad(currentSong->currentClip);
 #endif
 }
 
-#if HAVE_OLED
 void AudioClipView::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 	view.displayOutputName(currentSong->currentClip->output, false);
 }
-#endif
 
 bool AudioClipView::renderMainPads(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
                                    uint8_t occupancyMask[][displayWidth + sideBarWidth], bool drawUndefinedArea) {

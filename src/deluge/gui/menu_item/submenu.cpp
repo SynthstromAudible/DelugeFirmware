@@ -26,9 +26,7 @@
 #include "model/instrument/instrument.h"
 
 extern "C" {
-#if HAVE_OLED
 #include "RZA1/oled/oled_low_level.h"
-#endif
 }
 
 namespace menu_item {
@@ -52,20 +50,20 @@ void Submenu::beginSession(MenuItem* navigatedBackwardFrom) {
 			soundEditor.currentSubmenuItem = items;
 		}
 	}
-if (display.type != DisplayType::OLED) {
-	updateDisplay();
-}
+	if (display.type != DisplayType::OLED) {
+		updateDisplay();
+	}
 }
 
 void Submenu::updateDisplay() {
-#if HAVE_OLED
-	renderUIsForOled();
-#else
-	(*soundEditor.currentSubmenuItem)->drawName();
-#endif
+	if (display.type == DisplayType::OLED) {
+		renderUIsForOled();
+	}
+	else {
+		(*soundEditor.currentSubmenuItem)->drawName();
+	}
 }
 
-#if HAVE_OLED
 void Submenu::drawPixelsForOled() {
 	char const* itemNames[OLED_MENU_NUM_OPTIONS_VISIBLE];
 	for (int i = 0; i < OLED_MENU_NUM_OPTIONS_VISIBLE; i++) {
@@ -103,7 +101,6 @@ searchBack:
 doneSearching:
 	drawItemsForOled(itemNames, selectedRow);
 }
-#endif
 
 void Submenu::selectEncoderAction(int offset) {
 
@@ -113,22 +110,22 @@ void Submenu::selectEncoderAction(int offset) {
 		if (offset >= 0) {
 			thisSubmenuItem++;
 			if (!*thisSubmenuItem) {
-#if HAVE_OLED
-				return;
-#else
-				thisSubmenuItem = items;
-#endif
+				if (display.type == DisplayType::OLED) {
+					return;
+				}
+				else {
+					thisSubmenuItem = items;
+				}
 			}
 		}
 		else {
 			if (thisSubmenuItem == items) {
-#if HAVE_OLED
-				return;
-#else
+				if (display.type == DisplayType::OLED) {
+					return;
+				}
 				while (*(thisSubmenuItem + 1)) {
 					thisSubmenuItem++;
 				}
-#endif
 			}
 			else {
 				thisSubmenuItem--;
@@ -138,15 +135,15 @@ void Submenu::selectEncoderAction(int offset) {
 
 	soundEditor.currentSubmenuItem = thisSubmenuItem;
 
-#if HAVE_OLED
-	soundEditor.menuCurrentScroll += offset;
-	if (soundEditor.menuCurrentScroll < 0) {
-		soundEditor.menuCurrentScroll = 0;
+	if (display.type == DisplayType::OLED) {
+		soundEditor.menuCurrentScroll += offset;
+		if (soundEditor.menuCurrentScroll < 0) {
+			soundEditor.menuCurrentScroll = 0;
+		}
+		else if (soundEditor.menuCurrentScroll > OLED_MENU_NUM_OPTIONS_VISIBLE - 1) {
+			soundEditor.menuCurrentScroll = OLED_MENU_NUM_OPTIONS_VISIBLE - 1;
+		}
 	}
-	else if (soundEditor.menuCurrentScroll > OLED_MENU_NUM_OPTIONS_VISIBLE - 1) {
-		soundEditor.menuCurrentScroll = OLED_MENU_NUM_OPTIONS_VISIBLE - 1;
-	}
-#endif
 
 	updateDisplay();
 }

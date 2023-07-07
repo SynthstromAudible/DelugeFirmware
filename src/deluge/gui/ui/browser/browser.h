@@ -86,9 +86,8 @@ public:
 	bool opened();
 	void cullSomeFileItems();
 
-#if HAVE_OLED
+	// OLED Only
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
-#endif
 
 	static String currentDir;
 	static CStringArray fileItems;
@@ -109,10 +108,8 @@ protected:
 	int mainButtonAction(bool on);
 	virtual void exitAction();
 	virtual int backButtonAction();
-	virtual void folderContentsReady(int entryDirection) {
-	}
-	virtual void currentFileChanged(int movementDirection) {
-	}
+	virtual void folderContentsReady(int entryDirection) {}
+	virtual void currentFileChanged(int movementDirection) {}
 	void displayText(bool blinkImmediately = false);
 	static Slot getSlot(char const* displayName);
 	int readFileItemsFromFolderAndMemory(Song* song, int instrumentType, char const* filePrefixHere,
@@ -129,13 +126,14 @@ protected:
 	static bool allowFoldersSharingNameWithFile;
 	static char const** allowedFileExtensions;
 
-#if HAVE_OLED
+	// OLED Only
 	const uint8_t* fileIcon;
-#else
+
+	// 7Seg Only
 	static int8_t numberEditPos; // -1 is default
 	static NumericLayerScrollingText* scrollingText;
 	bool shouldWrapFolderContents; // As in, wrap around at the end.
-#endif
+
 	bool mayDefaultToBrandNewNameOnEntry;
 	bool qwertyAlwaysVisible;
 	char const* filePrefix;

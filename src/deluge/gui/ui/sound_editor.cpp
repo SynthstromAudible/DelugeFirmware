@@ -115,9 +115,9 @@ SoundEditor::SoundEditor() {
 	timeLastAttemptedAutomatedParamEdit = 0;
 	shouldGoUpOneLevelOnBegin = false;
 
-#if HAVE_OLED
-	init_menu_titles();
-#endif
+	if (display.type == DisplayType::OLED) {
+		init_menu_titles();
+	}
 }
 
 bool SoundEditor::editingKit() {
@@ -386,11 +386,9 @@ void SoundEditor::goUpOneLevel() {
 void SoundEditor::exitCompletely() {
 	if (inSettingsMenu()) {
 		// First, save settings
-#if HAVE_OLED
-		OLED::displayWorkingAnimation("Saving settings");
-#else
-		display.displayLoadingAnimation();
-#endif
+
+		display.displayLoadingAnimationText("Saving settings");
+
 		FlashStorage::writeSettings();
 		MIDIDeviceManager::writeDevicesToFile();
 		runtimeFeatureSettings.writeSettingsToFile();
@@ -413,9 +411,9 @@ bool SoundEditor::beginScreen(MenuItem* oldMenuItem) {
 		return false;
 	}
 
-#if HAVE_OLED
-	renderUIsForOled();
-#endif
+	if (display.type == DisplayType::OLED) {
+		renderUIsForOled();
+	}
 
 #if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 
@@ -725,21 +723,21 @@ doSetup:
 						return ACTION_RESULT_DEALT_WITH;
 					}
 
-#if HAVE_OLED
-					switch (x) {
-					case 0 ... 3:
-						setOscillatorNumberForTitles(x & 1);
-						break;
+					if (display.type == DisplayType::OLED) {
+						switch (x) {
+						case 0 ... 3:
+							setOscillatorNumberForTitles(x & 1);
+							break;
 
-					case 4 ... 5:
-						setModulatorNumberForTitles(x & 1);
-						break;
+						case 4 ... 5:
+							setModulatorNumberForTitles(x & 1);
+							break;
 
-					case 8 ... 9:
-						setEnvelopeNumberForTitles(x & 1);
-						break;
+						case 8 ... 9:
+							setEnvelopeNumberForTitles(x & 1);
+							break;
+						}
 					}
-#endif
 					int thingIndex = x & 1;
 
 					bool setupSuccess = setup((currentSong->currentClip), item, thingIndex);
@@ -1036,16 +1034,12 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int sourceIndex) {
 
 			if (clip->type == CLIP_TYPE_INSTRUMENT) {
 				if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_MIDI_OUT) {
-#if HAVE_OLED
 					soundEditorRootMenuMIDIOrCV.basicTitle = "MIDI inst.";
-#endif
 doMIDIOrCV:
 					newItem = &soundEditorRootMenuMIDIOrCV;
 				}
 				else if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_CV) {
-#if HAVE_OLED
 					soundEditorRootMenuMIDIOrCV.basicTitle = "CV instrument";
-#endif
 					goto doMIDIOrCV;
 				}
 				else {
@@ -1211,7 +1205,6 @@ void SoundEditor::mpeZonesPotentiallyUpdated() {
 	}
 }
 
-#if HAVE_OLED
 void SoundEditor::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 
 	// Sorry - extremely ugly hack here.
@@ -1225,7 +1218,6 @@ void SoundEditor::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 
 	currentMenuItem->renderOLED();
 }
-#endif
 
 /*
 char modelStackMemory[MODEL_STACK_MAX_SIZE];

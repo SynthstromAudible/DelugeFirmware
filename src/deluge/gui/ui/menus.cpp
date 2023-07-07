@@ -159,7 +159,6 @@
 
 using namespace menu_item;
 
-#if HAVE_OLED
 char oscTypeTitle[] = "OscX type";
 char oscLevelTitle[] = "OscX level";
 char waveIndexTitle[] = "OscX wave-ind.";
@@ -219,7 +218,6 @@ void setCvNumberForTitle(int m) {
 	cvVoltsTitle[2] = '1' + m;
 	cvTransposeTitle[2] = '1' + m;
 }
-#endif
 
 // Dev vars
 dev_var::AMenu devVarAMenu;
@@ -792,7 +790,6 @@ MenuItem* paramShortcutsForAudioClips[][8] = {
     {&audioClipDelayRateMenu, &delaySyncMenu, &delayAnalogMenu, &audioClipDelayFeedbackMenu, &delayPingPongMenu, NULL,
      NULL, NULL}};
 
-#if HAVE_OLED
 void init_menu_titles() {
 	triggerClockInMenu.basicTitle = "T. clock input";
 	triggerClockOutMenu.basicTitle = "T. clock out";
@@ -917,4 +914,3 @@ void init_menu_titles() {
 	cvVoltsMenu.basicTitle = cvVoltsTitle;
 	cvTransposeMenu.basicTitle = cvTransposeTitle;
 }
-#endif

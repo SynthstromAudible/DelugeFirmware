@@ -90,7 +90,6 @@ MenuItem* Settings::selectButtonPress() {
 	return &runtimeFeatureSettingMenuItem;
 }
 
-
 void Settings::drawPixelsForOled() {
 	char const* itemNames[OLED_MENU_NUM_OPTIONS_VISIBLE];
 

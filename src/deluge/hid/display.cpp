@@ -2,10 +2,8 @@
 
 DisplayActual display;
 
-#if HAVE_OLED
-
 bool Display<DisplayType::OLED>::isLayerCurrentlyOnTop(NumericLayer* layer) {
-	return (!popupActive && layer == topLayer);
+	return (!hasPopup() && layer == topLayer);
 }
 
 void Display<DisplayType::OLED>::displayError(int error) {
@@ -86,8 +84,6 @@ void Display<DisplayType::OLED>::displayError(int error) {
 	displayPopup(message);
 }
 
-#endif
-
 extern "C" void freezeWithError(char const* error) {
 	if (ALPHA_OR_BETA_VERSION) {
 		display.freezeWithError(error);
@@ -101,7 +97,7 @@ extern "C" void displayPopup(char const* text) {
 extern uint8_t usbInitializationPeriodComplete;
 
 extern "C" void consoleTextIfAllBootedUp(char const* text) {
-	if (usbInitializationPeriodComplete) {
+	if (usbInitializationPeriodComplete != 0u) {
 		display.consoleText(text);
 	}
 }

@@ -35,7 +35,6 @@
 namespace menu_item {
 extern bool movingCursor;
 
-#if HAVE_OLED
 void PatchCableStrength::renderOLED() {
 
 	int extraY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 0 : 1;
@@ -103,7 +102,6 @@ void PatchCableStrength::renderOLED() {
 	OLED::drawVerticalLine(OLED_MAIN_WIDTH_PIXELS - 2 * digitWidth - 1, textPixelY + digitHeight + 1,
 	                       textPixelY + digitHeight + 3, OLED::oledMainImage);
 }
-#endif
 
 void PatchCableStrength::readCurrentValue() {
 	PatchCableSet* patchCableSet = soundEditor.currentParamManager->getPatchCableSet();

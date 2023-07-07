@@ -278,11 +278,12 @@ void SampleMarkerEditor::selectEncoderAction(int8_t offset) {
 	blinkInvisible = false;
 
 	uiNeedsRendering(this, 0xFFFFFFFF, 0);
-#if HAVE_OLED
-	renderUIsForOled();
-#else
-	displayText();
-#endif
+	if (display.type == DisplayType::OLED) {
+		renderUIsForOled();
+	}
+	else {
+		displayText();
+	}
 }
 
 int SampleMarkerEditor::padAction(int x, int y, int on) {
@@ -548,11 +549,12 @@ doWriteValue:
 
 doRender:
 			uiNeedsRendering(this, 0xFFFFFFFF, 0);
-#if HAVE_OLED
-			renderUIsForOled();
-#else
-			displayText();
-#endif
+			if (display.type == DisplayType::OLED) {
+				renderUIsForOled();
+			}
+			else {
+				displayText();
+			}
 		}
 
 		// Release press
@@ -952,7 +954,6 @@ void SampleMarkerEditor::renderMarkersForOneCol(int xDisplay,
 	}
 }
 
-#if HAVE_OLED
 void SampleMarkerEditor::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 	MarkerColumn cols[NUM_MARKER_TYPES];
 	getColsOnScreen(cols);
@@ -1077,8 +1078,6 @@ printSeconds:
 	xPixel += smallTextSpacingX * 6;
 }
 
-#else
-
 void SampleMarkerEditor::displayText() {
 
 	MarkerColumn cols[NUM_MARKER_TYPES];
@@ -1104,7 +1103,6 @@ void SampleMarkerEditor::displayText() {
 
 	display.setText(buffer, true, drawDot);
 }
-#endif
 
 bool SampleMarkerEditor::renderMainPads(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
                                         uint8_t occupancyMask[][displayWidth + sideBarWidth], bool drawUndefinedArea) {

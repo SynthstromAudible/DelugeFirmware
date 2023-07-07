@@ -30,12 +30,12 @@ class Selection final : public menu_item::Selection {
 public:
 	Selection(char const* newName = NULL) : menu_item::Selection(newName) {
 		basicTitle = "Gate outputs";
-#if HAVE_OLED
-		static char const* options[] = {"Gate output 1", "Gate output 2",    "Gate output 3",
-		                                "Gate output 4", "Minimum off-time", NULL};
-#else
-		static char const* options[] = {"Out1", "Out2", "Out3", "Out4", "OFFT", NULL};
-#endif
+		static char const* options[] = {HAVE_OLED ? "Gate output 1" : "Out1",    // 1
+		                                HAVE_OLED ? "Gate output 2" : "Out2",    // 2
+		                                HAVE_OLED ? "Gate output 3" : "Out3",    // 3
+		                                HAVE_OLED ? "Gate output 4" : "Out4",    // 4
+		                                HAVE_OLED ? "Minimum off-time" : "OFFT", // Minimum time off
+		                                NULL};
 		basicOptions = options;
 	}
 	void beginSession(MenuItem* navigatedBackwardFrom) {

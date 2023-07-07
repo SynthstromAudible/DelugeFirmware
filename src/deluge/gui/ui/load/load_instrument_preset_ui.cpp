@@ -128,10 +128,10 @@ int LoadInstrumentPresetUI::setupForInstrumentType() {
 		IndicatorLEDs::blinkLed(kitLedX, kitLedY);
 	}
 
-#if HAVE_OLED
-	fileIcon = (instrumentTypeToLoad == INSTRUMENT_TYPE_SYNTH) ? OLED::synthIcon : OLED::kitIcon;
-	title = (instrumentTypeToLoad == INSTRUMENT_TYPE_SYNTH) ? "Load synth" : "Load kit";
-#endif
+	if (display.type == DisplayType::OLED) {
+		fileIcon = (instrumentTypeToLoad == INSTRUMENT_TYPE_SYNTH) ? OLED::synthIcon : OLED::kitIcon;
+		title = (instrumentTypeToLoad == INSTRUMENT_TYPE_SYNTH) ? "Load synth" : "Load kit";
+	}
 
 	filePrefix = (instrumentTypeToLoad == INSTRUMENT_TYPE_SYNTH) ? "SYNT" : "KIT";
 
@@ -205,9 +205,9 @@ useDefaultFolder:
 		renderingNeededRegardlessOfUI(0, 0xFFFFFFFF);
 	}
 
-#if !HAVE_OLED
-	displayText(false);
-#endif
+	if (display.type != DisplayType::OLED) {
+		displayText(false);
+	}
 	return NO_ERROR;
 }
 
@@ -401,13 +401,10 @@ void LoadInstrumentPresetUI::changeInstrumentType(int newInstrumentType) {
 
 			// If going back to a view where the new selection won't immediately be displayed, gotta give some confirmation
 			if (!getRootUI()->toClipMinder()) {
-#if HAVE_OLED
-				char const* message = (newInstrumentType == INSTRUMENT_TYPE_MIDI_OUT)
-				                          ? "Instrument switched to MIDI channel"
-				                          : "Instrument switched to CV channel";
-#else
-				char const* message = "DONE";
-#endif
+				char const* message =
+				    HAVE_OLED ? ((newInstrumentType == INSTRUMENT_TYPE_MIDI_OUT) ? "Instrument switched to MIDI channel"
+				                                                                 : "Instrument switched to CV channel")
+				              : "DONE";
 				display.displayPopup(message);
 			}
 
@@ -426,9 +423,9 @@ void LoadInstrumentPresetUI::changeInstrumentType(int newInstrumentType) {
 			return;
 		}
 
-#if HAVE_OLED
-		renderUIsForOled();
-#endif
+		if (display.type == DisplayType::OLED) {
+			renderUIsForOled();
+		}
 		performLoad();
 	}
 }
@@ -936,7 +933,7 @@ giveUsedError:
 	}
 
 	instrumentToReplace = newInstrument;
-display.removeWorkingAnimation();
+	display.removeWorkingAnimation();
 
 	return NO_ERROR;
 }
@@ -1410,9 +1407,9 @@ doneMoving:
 		view.drawOutputNameFromDetails(instrumentType, 0, 0, newName.get(), false, doBlink);
 	}
 
-#if HAVE_OLED
-	OLED::sendMainImage(); // Sorta cheating - bypassing the UI layered renderer.
-#endif
+	if (display.type == DisplayType::OLED) {
+		OLED::sendMainImage(); // Sorta cheating - bypassing the UI layered renderer.
+	}
 
 	if (Encoders::encoders[ENCODER_SELECT].detentPos) {
 		Uart::println("go again 1 --------------------------");
@@ -1447,11 +1444,7 @@ doPendingPresetNavigation:
 
 	//view.displayOutputName(toReturn.fileItem->instrument);
 
-#if HAVE_OLED
-	OLED::displayWorkingAnimation("Loading");
-#else
-	display.displayLoadingAnimation(false, true);
-#endif
+	display.displayLoadingAnimationText("Loading", false, true);
 	int oldUIMode = currentUIMode;
 	currentUIMode = UI_MODE_LOADING_BUT_ABORT_IF_SELECT_ENCODER_TURNED;
 	toReturn.fileItem->instrument->loadAllAudioFiles(true);

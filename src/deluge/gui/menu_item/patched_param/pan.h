@@ -24,12 +24,8 @@ public:
 	void drawValue();
 
 protected:
-	int getMaxValue() {
-		return 32;
-	}
-	int getMinValue() {
-		return -32;
-	}
+	int getMaxValue() { return 32; }
+	int getMinValue() { return -32; }
 	int32_t getFinalValue();
 	void readCurrentValue();
 };

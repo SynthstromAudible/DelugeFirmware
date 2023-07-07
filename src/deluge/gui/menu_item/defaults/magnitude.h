@@ -36,9 +36,6 @@ public:
 		                        18, 20);
 	}
 
-	void drawValue() {
-		display.setTextAsNumber(96 << soundEditor.currentValue);
-	}
-
+	void drawValue() { display.setTextAsNumber(96 << soundEditor.currentValue); }
 };
 } // namespace menu_item::defaults

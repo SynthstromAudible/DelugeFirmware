@@ -53,11 +53,12 @@ void CVEngine::init() {
 	SPI::send(1, 0);
 	IO::setOutputState(6, 13, 1);
 */
-#if HAVE_OLED
-	enqueueCVMessage(SPI_CHANNEL_CV, 0b00000101000000100000000000000000); // LIN = 1
-#else
-	R_RSPI_SendBasic32(SPI_CHANNEL_CV, 0b00000101000000100000000000000000); // LIN = 1
-#endif
+	if (display.type == DisplayType::OLED) {
+		enqueueCVMessage(SPI_CHANNEL_CV, 0b00000101000000100000000000000000); // LIN = 1
+	}
+	else {
+		R_RSPI_SendBasic32(SPI_CHANNEL_CV, 0b00000101000000100000000000000000); // LIN = 1
+	}
 	delayMS(10);
 
 	/*
@@ -67,11 +68,12 @@ void CVEngine::init() {
 	SPI::send(1, 0);
 	IO::setOutputState(6, 13, 1);
 	*/
-#if HAVE_OLED
-	enqueueCVMessage(SPI_CHANNEL_CV, 0b00000101000000000000000000000000); // LIN = 0
-#else
-	R_RSPI_SendBasic32(SPI_CHANNEL_CV, 0b00000101000000000000000000000000); // LIN = 0
-#endif
+	if (display.type == DisplayType::OLED) {
+		enqueueCVMessage(SPI_CHANNEL_CV, 0b00000101000000000000000000000000); // LIN = 0
+	}
+	else {
+		R_RSPI_SendBasic32(SPI_CHANNEL_CV, 0b00000101000000000000000000000000); // LIN = 0
+	}
 
 	for (int i = 0; i < NUM_GATE_CHANNELS; i++) {
 

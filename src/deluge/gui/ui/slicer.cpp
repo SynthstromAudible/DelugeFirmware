@@ -50,9 +50,9 @@ void Slicer::focusRegained() {
 
 	numClips = 16;
 
-if (display.type != DisplayType::OLED) {
-	redraw();
-}
+	if (display.type != DisplayType::OLED) {
+		redraw();
+	}
 }
 
 void Slicer::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {

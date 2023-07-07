@@ -92,12 +92,4 @@ extern const uint8_t downArrowIcon[];
 extern const uint8_t rightArrowIcon[];
 
 } // namespace OLED
-
-extern "C" {
-#endif
-
-void consoleTextIfAllBootedUp(char const* text);
-
-#ifdef __cplusplus
-}
 #endif

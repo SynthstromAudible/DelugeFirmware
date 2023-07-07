@@ -78,9 +78,9 @@ public:
 	void setLedStates();
 	int verticalScrollOneSquare(int direction);
 	int horizontalScrollOneSquare(int direction);
-#if HAVE_OLED
+
+	// OLED ONLY
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
-#endif
 
 	Output* outputsOnScreen[displayHeight];
 	int8_t yPressedEffective;

@@ -28,18 +28,14 @@ extern char oscTypeTitle[];
 namespace menu_item::osc {
 class Type final : public Selection {
 public:
-	Type(char const* newName = NULL) : Selection(newName) {
-		basicTitle = oscTypeTitle;
-	}
+	Type(char const* newName = NULL) : Selection(newName) { basicTitle = oscTypeTitle; }
 
 	void beginSession(MenuItem* navigatedBackwardFrom) {
 		oscTypeTitle[3] = '1' + soundEditor.currentSourceIndex;
 		Selection::beginSession(navigatedBackwardFrom);
 	}
 
-	void readCurrentValue() {
-		soundEditor.currentValue = soundEditor.currentSource->oscType;
-	}
+	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentSource->oscType; }
 	void writeCurrentValue() {
 
 		int oldValue = soundEditor.currentSource->oscType;

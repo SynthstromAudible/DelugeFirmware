@@ -512,9 +512,9 @@ void StorageManager::xmlReadDone() {
 
 		uiTimerManager.routine();
 
-#if HAVE_OLED
-		oledRoutine();
-#endif
+		if (display.type == DisplayType::OLED) {
+			oledRoutine();
+		}
 		uartFlushIfNotSending(UART_ITEM_PIC);
 	}
 }
@@ -1102,9 +1102,9 @@ void StorageManager::write(char const* output) {
 
 			uiTimerManager.routine();
 
-#if HAVE_OLED
-			oledRoutine();
-#endif
+			if (display.type == DisplayType::OLED) {
+				oledRoutine();
+			}
 			uartFlushIfNotSending(UART_ITEM_PIC);
 		}
 	}

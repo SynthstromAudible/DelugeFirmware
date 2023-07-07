@@ -132,9 +132,8 @@ public:
 	AudioFileHolder* getCurrentAudioFileHolder();
 	void mpeZonesPotentiallyUpdated();
 
-#if HAVE_OLED
+	// OLED ONLY
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
-#endif
 
 private:
 	bool beginScreen(MenuItem* oldMenuItem = NULL);

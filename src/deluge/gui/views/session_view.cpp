@@ -123,11 +123,13 @@ void SessionView::focusRegained() {
 	view.setActiveModControllableTimelineCounter(currentSong);
 
 	selectedClipYDisplay = 255;
-#if HAVE_OLED
-	setCentralLEDStates();
-#else
-	redrawNumericDisplay();
-#endif
+	if (display.type == DisplayType::OLED) {
+		setCentralLEDStates();
+	}
+	else {
+		redrawNumericDisplay();
+	}
+
 	IndicatorLEDs::setLedState(backLedX, backLedY, false);
 
 	setLedStates();
@@ -395,11 +397,12 @@ moveAfterClipInstance:
 						session.cancelAllArming();
 						session.cancelAllLaunchScheduling();
 						session.lastSectionArmed = 255;
-#if HAVE_OLED
-						renderUIsForOled();
-#else
-						redrawNumericDisplay();
-#endif
+						if (display.type == DisplayType::OLED) {
+							renderUIsForOled();
+						}
+						else {
+							redrawNumericDisplay();
+						}
 						uiNeedsRendering(this, 0, 0xFFFFFFFF);
 					}
 				}
@@ -666,9 +669,9 @@ startHoldingDown:
 							selectedClipTimePressed = AudioEngine::audioSampleTimer;
 							view.setActiveModControllableTimelineCounter(clip);
 							view.displayOutputName(clip->output, true, clip);
-#if HAVE_OLED
-							OLED::sendMainImage();
-#endif
+							if (display.type == DisplayType::OLED) {
+								OLED::sendMainImage();
+							}
 						}
 					}
 
@@ -886,12 +889,13 @@ justEndClipPress:
 void SessionView::clipPressEnded() {
 	currentUIMode = UI_MODE_NONE;
 	view.setActiveModControllableTimelineCounter(currentSong);
-#if HAVE_OLED
-	renderUIsForOled();
-	setCentralLEDStates();
-#else
-	redrawNumericDisplay();
-#endif
+	if (display.type == DisplayType::OLED) {
+		renderUIsForOled();
+		setCentralLEDStates();
+	}
+	else {
+		redrawNumericDisplay();
+	}
 	selectedClipYDisplay = 255;
 }
 
@@ -966,11 +970,12 @@ void SessionView::sectionPadAction(uint8_t y, bool on) {
 				session.armSection(sectionPressed, INTERNAL_BUTTON_PRESS_LATENCY);
 			}
 			exitUIMode(UI_MODE_HOLDING_SECTION_PAD);
-#if HAVE_OLED
-			OLED::removePopup();
-#else
-			redrawNumericDisplay();
-#endif
+			if (display.type == DisplayType::OLED) {
+				OLED::removePopup();
+			}
+			else {
+				redrawNumericDisplay();
+			}
 			uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
 		}
 
@@ -1098,11 +1103,12 @@ void SessionView::editNumRepeatsTilLaunch(int offset) {
 		session.numRepeatsTilLaunch = 9999;
 	}
 	else {
-#if HAVE_OLED
-		renderUIsForOled();
-#else
-		redrawNumericDisplay();
-#endif
+		if (display.type == DisplayType::OLED) {
+			renderUIsForOled();
+		}
+		else {
+			redrawNumericDisplay();
+		}
 	}
 }
 
@@ -1289,11 +1295,13 @@ int setPresetOrNextUnlaunchedOne(InstrumentClip* clip, int instrumentType, bool*
 		currentSong->removeInstrumentFromHibernationList(newInstrument);
 	}
 
-#if HAVE_OLED
-	OLED::displayWorkingAnimation("Loading");
-#else
-	display.displayLoadingAnimation();
-#endif
+	if (display.type == DisplayType::OLED) {
+		OLED::displayWorkingAnimation("Loading");
+	}
+	else {
+		display.displayLoadingAnimation();
+	}
+
 	newInstrument->loadAllAudioFiles(true);
 
 	display.removeWorkingAnimation();
@@ -1475,9 +1483,9 @@ gotErrorDontDisplay:
 	view.setActiveModControllableTimelineCounter(newClip);
 	view.displayOutputName(newClip->output, true, newClip);
 
-#if HAVE_OLED
-	OLED::sendMainImage();
-#endif
+	if (display.type == DisplayType::OLED) {
+		OLED::sendMainImage();
+	}
 }
 
 void SessionView::replaceInstrumentClipWithAudioClip() {
@@ -1506,9 +1514,9 @@ void SessionView::replaceInstrumentClipWithAudioClip() {
 	view.setActiveModControllableTimelineCounter(newClip);
 	view.displayOutputName(newClip->output, true, newClip);
 
-#if HAVE_OLED
-	OLED::sendMainImage();
-#endif
+	if (display.type == DisplayType::OLED) {
+		OLED::sendMainImage();
+	}
 	uiNeedsRendering(this, 1 << selectedClipYDisplay,
 	                 1 << selectedClipYDisplay); // If Clip was in keyboard view, need to redraw that
 }
@@ -1581,8 +1589,6 @@ void SessionView::setLedStates() {
 #endif
 }
 
-#if HAVE_OLED
-
 extern char loopsRemainingText[];
 
 void SessionView::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
@@ -1604,8 +1610,6 @@ yesDoIt:
 		}
 	}
 }
-
-#else
 
 void SessionView::redrawNumericDisplay() {
 
@@ -1681,7 +1685,6 @@ nothingToDisplay:
 
 	setCentralLEDStates();
 }
-#endif
 
 // This gets called by redrawNumericDisplay() - or, if HAVE_OLED, it gets called instead, because this still needs to happen.
 void SessionView::setCentralLEDStates() {

@@ -280,16 +280,16 @@ void changeDimmerInterval(int offset) {
 		setDimmerInterval(newInterval);
 	}
 
-#if HAVE_OLED
-	char text[20];
-	strcpy(text, "Brightness: ");
-	char* pos = strchr(text, 0);
-	intToString((25 - dimmerInterval) << 2, pos);
-	pos = strchr(text, 0);
-	*(pos++) = '%';
-	*pos = 0;
-	display.popupTextTemporary(text);
-#endif
+	if (display.type == DisplayType::OLED) {
+		char text[20];
+		strcpy(text, "Brightness: ");
+		char* pos = strchr(text, 0);
+		intToString((25 - dimmerInterval) << 2, pos);
+		pos = strchr(text, 0);
+		*(pos++) = '%';
+		*pos = 0;
+		display.popupTextTemporary(text);
+	}
 }
 
 void setDimmerInterval(int newInterval) {
@@ -353,7 +353,6 @@ char const* sourceToString(uint8_t source) {
 	}
 }
 
-#if HAVE_OLED
 char const* getSourceDisplayNameForOLED(int s) {
 	switch (s) {
 	case PATCH_SOURCE_LFO_GLOBAL:
@@ -531,7 +530,6 @@ char const* getPatchedParamDisplayNameForOled(int p) {
 		return NULL;
 	}
 }
-#endif
 
 uint8_t stringToSource(char const* string) {
 	for (int s = 0; s < NUM_PATCH_SOURCES; s++) {
@@ -2346,66 +2344,67 @@ bool shouldAbortLoading() {
 
 // Must supply a char[5] buffer. Or char[30] for OLED.
 void getNoteLengthNameFromMagnitude(char* text, int32_t magnitude, bool clarifyPerColumn) {
-#if HAVE_OLED
-	if (magnitude < 0) {
-		uint32_t division = (uint32_t)1 << (0 - magnitude);
-		intToString(division, text);
-		char* writePos = strchr(text, 0);
-		char const* suffix = (*(writePos - 1) == '2') ? "nd" : "th";
-		strcpy(writePos, suffix);
-		strcpy(writePos + 2, "-notes");
-	}
-	else {
-		uint32_t numBars = (uint32_t)1 << magnitude;
-		intToString(numBars, text);
-		if (clarifyPerColumn) {
-			if (numBars == 1) {
-				strcat(text, " bar (per column)");
+	if (display.type == DisplayType::OLED) {
+		if (magnitude < 0) {
+			uint32_t division = (uint32_t)1 << (0 - magnitude);
+			intToString(division, text);
+			char* writePos = strchr(text, 0);
+			char const* suffix = (*(writePos - 1) == '2') ? "nd" : "th";
+			strcpy(writePos, suffix);
+			strcpy(writePos + 2, "-notes");
+		}
+		else {
+			uint32_t numBars = (uint32_t)1 << magnitude;
+			intToString(numBars, text);
+			if (clarifyPerColumn) {
+				if (numBars == 1) {
+					strcat(text, " bar (per column)");
+				}
+				else {
+					strcat(text, " bars (per column)");
+				}
 			}
 			else {
-				strcat(text, " bars (per column)");
+				strcat(text, "-bar");
 			}
-		}
-		else {
-			strcat(text, "-bar");
-		}
-	}
-#else
-	if (magnitude < 0) {
-		uint32_t division = (uint32_t)1 << (0 - magnitude);
-		if (division <= 9999) {
-			intToString(division, text);
-			if (division == 2 || division == 32) {
-				strcat(text, "ND");
-			}
-			else if (division <= 99) {
-				strcat(text, "TH");
-			}
-			else if (division <= 999) {
-				strcat(text, "T");
-			}
-		}
-		else {
-			strcpy(text, "TINY");
 		}
 	}
 	else {
-		uint32_t numBars = (uint32_t)1 << magnitude;
-		if (numBars <= 9999) {
-			intToString(numBars, text);
-			uint8_t length = strlen(text);
-			if (length == 1) {
-				strcat(text, "BAR");
+		if (magnitude < 0) {
+			uint32_t division = (uint32_t)1 << (0 - magnitude);
+			if (division <= 9999) {
+				intToString(division, text);
+				if (division == 2 || division == 32) {
+					strcat(text, "ND");
+				}
+				else if (division <= 99) {
+					strcat(text, "TH");
+				}
+				else if (division <= 999) {
+					strcat(text, "T");
+				}
 			}
-			else if (length <= 3) {
-				strcat(text, "B");
+			else {
+				strcpy(text, "TINY");
 			}
 		}
 		else {
-			strcpy(text, "BIG");
+			uint32_t numBars = (uint32_t)1 << magnitude;
+			if (numBars <= 9999) {
+				intToString(numBars, text);
+				uint8_t length = strlen(text);
+				if (length == 1) {
+					strcat(text, "BAR");
+				}
+				else if (length <= 3) {
+					strcat(text, "B");
+				}
+			}
+			else {
+				strcpy(text, "BIG");
+			}
 		}
 	}
-#endif
 }
 
 char const* getFileNameFromEndOfPath(char const* filePathChars) {

@@ -45,25 +45,15 @@ public:
 		return PatchedParam::patchingSourceShortcutPress(s, previousPressStillActive);
 	}
 
-	void drawValue() {
-		PatchedParam::drawValue();
-	}
+	void drawValue() { PatchedParam::drawValue(); }
 
-	void unlearnAction() {
-		MenuItemWithCCLearning::unlearnAction();
-	}
-	bool allowsLearnMode() {
-		return MenuItemWithCCLearning::allowsLearnMode();
-	}
+	void unlearnAction() { MenuItemWithCCLearning::unlearnAction(); }
+	bool allowsLearnMode() { return MenuItemWithCCLearning::allowsLearnMode(); }
 	void learnKnob(MIDIDevice* fromDevice, int whichKnob, int modKnobMode, int midiChannel) {
 		MenuItemWithCCLearning::learnKnob(fromDevice, whichKnob, modKnobMode, midiChannel);
 	};
 
-	int getMinValue() const {
-		return -96;
-	}
-	int getMaxValue() const {
-		return 96;
-	}
+	int getMinValue() const { return -96; }
+	int getMaxValue() const { return 96; }
 };
 } // namespace menu_item

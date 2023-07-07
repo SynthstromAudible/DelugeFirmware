@@ -33,19 +33,32 @@ public:
 	void freezeWithError(char const* text) { OLED::freezeWithError(text); }
 	bool isLayerCurrentlyOnTop(NumericLayer* layer);
 	void displayError(int error);
-	void setScrollingText(char const* text, int startAtPos = 0, int initialDelay = 600) { this->setText(text); }
 
 	void removeWorkingAnimation() { OLED::removeWorkingAnimation(); }
 
 	// Loading animations
-	void displayLoadingAnimation(){}
+	void displayLoadingAnimation() {}
 	void displayLoadingAnimationText(char const* text, bool delayed = false, bool transparent = false) {
 		OLED::displayWorkingAnimation(text);
 	}
 	void removeLoadingAnimation() { OLED::removeWorkingAnimation(); }
 
-	// instance variables
-	bool popupActive = false;
+	bool hasPopup() { return OLED::isPopupPresent(); }
+
+	void consoleText(char const* text) { OLED::consoleText(text); }
+
+	void timerRoutine() { OLED::timerRoutine(); }
+
+	// DUMMIES
+	// These should only ever get called by code that works with the 7SEG
+	void setTextAsNumber(int16_t number, uint8_t drawDot = 255, bool doBlink = false) {}
+	int getEncodedPosFromLeft(int textPos, char const* text, bool* andAHalf) { return 0; }
+	void setTextAsSlot(int16_t currentSlot, int8_t currentSubSlot, bool currentSlotExists, bool doBlink = false,
+	                   int blinkPos = -1, bool blinkImmediately = false) {}
+	NumericLayerScrollingText* setScrollingText(char const* newText, int startAtPos = 0, int initialDelay = 600) {
+		return nullptr;
+	}
+
 	NumericLayer* topLayer = nullptr;
 };
 
@@ -64,6 +77,8 @@ public:
 		NumericDriver::displayLoadingAnimation(delayed, transparent);
 	}
 	void removeLoadingAnimation() { NumericDriver::removeTopLayer(); }
+
+	bool hasPopup() { return this->popupActive; }
 };
 
 #if HAVE_OLED

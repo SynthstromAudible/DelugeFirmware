@@ -236,57 +236,58 @@ void TimelineView::displayNumberOfBarsAndBeats(uint32_t number, uint32_t quantiz
 		whichSubBeat++;
 	}
 
-#if HAVE_OLED
-	char text[15];
-	intToString(whichBar, text);
-	char* pos = strchr(text, 0);
-	*(pos++) = ':';
-	intToString(whichBeat, pos);
-	pos = strchr(pos, 0);
-	*(pos++) = ':';
-	intToString(whichSubBeat, pos);
-	display.popupTextTemporary(text);
-#else
-	char text[5];
-
-	uint8_t dotMask = 0b10000000;
-
-	if (whichBar >= 10000) {
-		strcpy(text, tooLongText);
+	if (display.type == DisplayType::OLED) {
+		char text[15];
+		intToString(whichBar, text);
+		char* pos = strchr(text, 0);
+		*(pos++) = ':';
+		intToString(whichBeat, pos);
+		pos = strchr(pos, 0);
+		*(pos++) = ':';
+		intToString(whichSubBeat, pos);
+		display.popupTextTemporary(text);
 	}
 	else {
-		strcpy(text, "    ");
+		char text[5];
 
-		if (whichBar < 10) {
-			intToString(whichBar, &text[1]);
+		uint8_t dotMask = 0b10000000;
+
+		if (whichBar >= 10000) {
+			strcpy(text, tooLongText);
 		}
 		else {
-			intToString(whichBar, &text[0]);
-		}
+			strcpy(text, "    ");
 
-		if (whichBar < 100) {
-			dotMask |= 1 << 2;
-
-			if (quantization >= (oneBar >> 2)) {
-				text[2] = ' ';
-				goto putBeatCountOnFarRight;
+			if (whichBar < 10) {
+				intToString(whichBar, &text[1]);
+			}
+			else {
+				intToString(whichBar, &text[0]);
 			}
 
-			intToString(whichBeat, &text[2]);
-			dotMask |= 1 << 1;
+			if (whichBar < 100) {
+				dotMask |= 1 << 2;
 
-			intToString(whichSubBeat, &text[3]);
-		}
-		else if (whichBar < 1000) {
-			dotMask |= 1 << 1;
+				if (quantization >= (oneBar >> 2)) {
+					text[2] = ' ';
+					goto putBeatCountOnFarRight;
+				}
+
+				intToString(whichBeat, &text[2]);
+				dotMask |= 1 << 1;
+
+				intToString(whichSubBeat, &text[3]);
+			}
+			else if (whichBar < 1000) {
+				dotMask |= 1 << 1;
 
 putBeatCountOnFarRight:
-			intToString(whichBeat, &text[3]);
+				intToString(whichBeat, &text[3]);
+			}
 		}
-	}
 
-	display.displayPopup(text, 3, false, dotMask);
-#endif
+		display.displayPopup(text, 3, false, dotMask);
+	}
 }
 
 // Changes the actual xScroll.

@@ -53,17 +53,17 @@ void SyncLevel::getNoteLengthName(char* buffer) {
 			strcat(buffer, type);
 		}
 		else {
-#if HAVE_OLED
-			char* suffix = strstr(buffer, "-notes"); // OLED replace `-notes` with type,
-			strcpy(suffix, type);                    //      eg. `2nd-notes` -> `2nd-trplts`
-#else
-			strcat(buffer, type); // 7SEG just append the type
-#endif
+			if (display.type == DisplayType::OLED) {
+				char* suffix = strstr(buffer, "-notes"); // OLED replace `-notes` with type,
+				strcpy(suffix, type);                    //      eg. `2nd-notes` -> `2nd-trplts`
+			}
+			else {
+				strcat(buffer, type); // 7SEG just append the type
+			}
 		}
 	}
 }
 
-#if HAVE_OLED
 void SyncLevel::drawPixelsForOled() {
 	char const* text = "Off";
 	char buffer[30];
@@ -74,7 +74,6 @@ void SyncLevel::drawPixelsForOled() {
 	OLED::drawStringCentred(text, 20 + OLED_MAIN_TOPMOST_PIXEL, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
 	                        TEXT_BIG_SPACING_X, TEXT_BIG_SIZE_Y);
 }
-#endif
 
 SyncType SyncLevel::menuOptionToSyncType(int option) {
 	if (option < SYNC_TYPE_TRIPLET) {
