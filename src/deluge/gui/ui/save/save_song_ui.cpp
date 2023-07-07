@@ -18,7 +18,7 @@
 #include "gui/ui/save/save_song_ui.h"
 #include "util/functions.h"
 #include "util/lookuptables/lookuptables.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include <string.h>
 #include "gui/context_menu/save_song_or_instrument.h"
 #include "model/sample/sample.h"
@@ -32,10 +32,6 @@
 #include "hid/led/indicator_leds.h"
 #include "hid/buttons.h"
 #include "extern.h"
-
-#if HAVE_OLED
-#include "hid/display/oled.h"
-#endif
 
 extern "C" {
 #include "ff.h"
@@ -76,7 +72,7 @@ doReturnFalse:
 		error = searchFilename.concatenate(".XML");
 		if (error) {
 gotError:
-			numericDriver.displayError(error);
+			display.displayError(error);
 			goto doReturnFalse;
 		}
 	}
@@ -115,18 +111,18 @@ void SaveSongUI::focusRegained() {
 bool SaveSongUI::performSave(bool mayOverwrite) {
 
 	if (ALPHA_OR_BETA_VERSION && currentlyAccessingCard) {
-		numericDriver.freezeWithError("E316");
+		display.freezeWithError("E316");
 	}
 
 	if (currentSong->hasAnyPendingNextOverdubs()) {
-		numericDriver.displayPopup(HAVE_OLED ? "Can't save while overdubs pending" : "CANT");
+		display.displayPopup(HAVE_OLED ? "Can't save while overdubs pending" : "CANT");
 		return false;
 	}
 
 #if HAVE_OLED
 	OLED::displayWorkingAnimation("Saving");
 #else
-	numericDriver.displayLoadingAnimation();
+	display.displayLoadingAnimation();
 #endif
 
 	String filePath;
@@ -136,9 +132,9 @@ gotError:
 #if HAVE_OLED
 		OLED::removeWorkingAnimation();
 #else
-		numericDriver.removeTopLayer(); // Removes loading animation if it's still there
+		display.removeTopLayer(); // Removes loading animation if it's still there
 #endif
-		numericDriver.displayError(error);
+		display.displayError(error);
 		return false;
 	}
 
@@ -153,7 +149,7 @@ gotError:
 #if HAVE_OLED
 			OLED::removeWorkingAnimation();
 #endif
-			numericDriver.setNextTransitionDirection(1);
+			display.setNextTransitionDirection(1);
 			openUI(&context_menu::overwriteFile);
 			return true;
 		}
@@ -474,7 +470,7 @@ cardError:
 	OLED::consoleText(message);
 #else
 	char const* message = anyErrorMovingTempFiles ? "TEMP" : "DONE";
-	numericDriver.displayPopup(message);
+	display.displayPopup(message);
 #endif
 
 	// Update all of these

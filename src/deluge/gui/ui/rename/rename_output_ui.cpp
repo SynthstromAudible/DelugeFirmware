@@ -19,7 +19,7 @@
 #include "gui/ui/rename/rename_output_ui.h"
 #include "model/output.h"
 #include "hid/matrix/matrix_driver.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "model/song/song.h"
 #include "hid/led/pad_leds.h"
 #include "hid/buttons.h"
@@ -98,7 +98,7 @@ void RenameOutputUI::enterKeyPress() {
 	// If actually changing it...
 	if (!output->name.equalsCaseIrrespective(&enteredText)) {
 		if (currentSong->getAudioOutputFromName(&enteredText)) {
-			numericDriver.displayPopup(HAVE_OLED ? "Duplicate names" : "DUPLICATE");
+			display.displayPopup(HAVE_OLED ? "Duplicate names" : "DUPLICATE");
 			return;
 		}
 	}
@@ -108,7 +108,7 @@ void RenameOutputUI::enterKeyPress() {
 }
 
 void RenameOutputUI::exitUI() {
-	numericDriver.setNextTransitionDirection(-1);
+	display.setNextTransitionDirection(-1);
 	close();
 }
 

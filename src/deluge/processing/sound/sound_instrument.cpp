@@ -24,7 +24,7 @@
 #include "playback/playback_handler.h"
 #include "gui/views/view.h"
 #include "storage/storage_manager.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/voice/voice_vector.h"
@@ -254,7 +254,7 @@ void SoundInstrument::setupWithoutActiveClip(ModelStack* modelStack) {
 	ParamManager* paramManager =
 	    modelStackWithTimelineCounter->song->getBackedUpParamManagerPreferablyWithClip(this, NULL);
 	if (!paramManager) {
-		numericDriver.freezeWithError("E173");
+		display.freezeWithError("E173");
 	}
 	patcher.performInitialPatching(this, paramManager);
 
@@ -352,8 +352,8 @@ void SoundInstrument::sendNote(ModelStackWithThreeMainThings* modelStack, bool i
 
 #if ALPHA_OR_BETA_VERSION
 			if (!modelStack->paramManager) {
-				numericDriver.freezeWithError(
-				    "E402"); // Previously we were allowed to receive a NULL paramManager, then would just crudely do an unassignAllVoices(). But I'm pretty sure this doesn't exist anymore?
+				// Previously we were allowed to receive a NULL paramManager, then would just crudely do an unassignAllVoices(). But I'm pretty sure this doesn't exist anymore?
+				display.freezeWithError("E402");
 			}
 #endif
 			ModelStackWithSoundFlags* modelStackWithSoundFlags = modelStack->addSoundFlags();

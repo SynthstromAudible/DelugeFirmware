@@ -40,7 +40,7 @@
 #include "hid/led/indicator_leds.h"
 #include "hid/buttons.h"
 #include "definitions.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "model/model_stack.h"
 #include "extern.h"
 #include "model/clip/clip_minder.h"
@@ -367,7 +367,7 @@ dontDeactivateMarker:
 			    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, currentSong->currentClip);
 
 			getClip()->clear(action, modelStack);
-			numericDriver.displayPopup(HAVE_OLED ? "Audio clip cleared" : "CLEAR");
+			display.displayPopup(HAVE_OLED ? "Audio clip cleared" : "CLEAR");
 			endMarkerVisible = false;
 			uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
 			uiNeedsRendering(this, 0xFFFFFFFF, 0);

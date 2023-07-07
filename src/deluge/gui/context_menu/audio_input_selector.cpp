@@ -19,7 +19,7 @@
 #include "gui/ui/root_ui.h"
 #include "processing/audio_output.h"
 #include "hid/matrix/matrix_driver.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "hid/led/indicator_leds.h"
 #include "extern.h"
 #include <cstddef>

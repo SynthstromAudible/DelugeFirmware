@@ -37,7 +37,7 @@ public:
 	}
 #else
 	void drawValue() {
-		numericDriver.setTextAsNumber(96 << soundEditor.currentValue);
+		display.setTextAsNumber(96 << soundEditor.currentValue);
 	}
 #endif
 };

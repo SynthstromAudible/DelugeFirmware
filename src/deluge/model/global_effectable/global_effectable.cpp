@@ -26,7 +26,7 @@
 #include "memory/general_memory_allocator.h"
 #include <new>
 #include "hid/buttons.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "model/model_stack.h"
 #include "modulation/params/param_set.h"
 #include "modulation/params/param_collection.h"
@@ -141,7 +141,7 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 					displayText = "STEREO CHORUS";
 					break;
 				}
-				numericDriver.displayPopup(displayText);
+				display.displayPopup(displayText);
 				ensureModFXParamIsValid();
 				return true;
 			}
@@ -171,7 +171,7 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 					displayText = "OFFSET";
 					break;
 				}
-				numericDriver.displayPopup(displayText);
+				display.displayPopup(displayText);
 			}
 
 			return false;
@@ -201,7 +201,7 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 					displayText = "EQ";
 					break;
 				}
-				numericDriver.displayPopup(displayText);
+				display.displayPopup(displayText);
 			}
 
 			return false;

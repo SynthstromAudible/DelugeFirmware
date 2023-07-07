@@ -19,7 +19,7 @@
 #include "model/song/song.h"
 #include "model/clip/instrument_clip.h"
 #include "model/note/note_row.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "playback/playback_handler.h"
 #include "model/model_stack.h"
 
@@ -42,7 +42,7 @@ int ConsequenceNoteRowHorizontalShift::revert(int time, ModelStack* modelStack) 
 
 	if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
 #if ALPHA_OR_BETA_VERSION
-		numericDriver.freezeWithError("E377");
+		display.freezeWithError("E377");
 #endif
 		return ERROR_BUG;
 	}

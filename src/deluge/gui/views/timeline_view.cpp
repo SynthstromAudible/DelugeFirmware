@@ -23,11 +23,10 @@
 #include "model/song/song.h"
 #include "gui/views/view.h"
 #include "hid/led/pad_leds.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/buttons.h"
 #include "extern.h"
-#include "hid/display/oled.h"
 
 extern "C" {
 #include "util/cfunctions.h"
@@ -79,7 +78,7 @@ int TimelineView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 		else {
 
 			if (isUIModeActive(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)) {
-				numericDriver.cancelPopup();
+				display.cancelPopup();
 				exitUIMode(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON);
 			}
 		}
@@ -124,7 +123,7 @@ void TimelineView::displayZoomLevel(bool justPopup) {
 	char text[30];
 	currentSong->getNoteLengthName(text, currentSong->xZoom[getNavSysId()], true);
 
-	numericDriver.displayPopup(text, justPopup ? 3 : 0, true);
+	display.displayPopup(text, justPopup ? 3 : 0, true);
 }
 
 bool horizontalEncoderActionLock = false;
@@ -286,7 +285,7 @@ putBeatCountOnFarRight:
 		}
 	}
 
-	numericDriver.displayPopup(text, 3, false, dotMask);
+	display.displayPopup(text, 3, false, dotMask);
 #endif
 }
 

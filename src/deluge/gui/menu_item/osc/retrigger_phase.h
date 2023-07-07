@@ -51,7 +51,7 @@ public:
 	}
 	void drawValue() {
 		if (soundEditor.currentValue < 0) {
-			numericDriver.setText("OFF", false, 255, true);
+			display.setText("OFF", false, 255, true);
 		}
 		else {
 			Decimal::drawValue();

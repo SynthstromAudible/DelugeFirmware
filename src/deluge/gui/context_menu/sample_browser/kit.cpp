@@ -18,7 +18,7 @@
 #include "gui/context_menu/sample_browser/kit.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "util/functions.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "gui/ui/slicer.h"
 #include "storage/file_item.h"
 
@@ -53,7 +53,7 @@ bool Kit::acceptCurrentOption() {
 	case 0: // Import whole folder
 		return sampleBrowser.importFolderAsKit();
 	default: // Slicer
-		numericDriver.setNextTransitionDirection(1);
+		display.setNextTransitionDirection(1);
 		openUI(&slicer);
 		return true;
 	}

@@ -17,7 +17,7 @@
 
 #include "gui/context_menu/sample_browser/synth.h"
 #include "gui/ui/browser/sample_browser.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "util/functions.h"
 #include "gui/ui/sound_editor.h"
 #include "processing/source.h"

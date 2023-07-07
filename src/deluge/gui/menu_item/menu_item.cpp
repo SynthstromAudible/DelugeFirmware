@@ -16,11 +16,7 @@
 */
 
 #include "menu_item.h"
-#include "hid/display/numeric_driver.h"
-
-#if HAVE_OLED
-#include "hid/display/oled.h"
-#endif
+#include "hid/display.h"
 
 int MenuItem::checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) {
 	bool toReturn = isRelevant(sound, whichThing);
@@ -72,7 +68,7 @@ void MenuItem::drawItemsForOled(char const** options, int selectedOption) {
 #else
 
 void MenuItem::drawName() {
-	numericDriver.setText(getName(), false, shouldDrawDotOnName());
+	display.setText(getName(), false, shouldDrawDotOnName());
 }
 
 #endif

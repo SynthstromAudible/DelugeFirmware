@@ -17,7 +17,7 @@
 
 #include "gui/context_menu/load_instrument_preset.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 
 namespace deluge::gui::context_menu {
 LoadInstrumentPreset loadInstrumentPreset{};
@@ -43,7 +43,7 @@ bool LoadInstrumentPreset::acceptCurrentOption() {
 	default: // Clone
 		error = loadInstrumentPresetUI.performLoad(true);
 		if (error) {
-			numericDriver.displayError(error);
+			display.displayError(error);
 			return true;
 		}
 		loadInstrumentPresetUI.close();

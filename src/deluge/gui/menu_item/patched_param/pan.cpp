@@ -43,7 +43,7 @@ void Pan::drawValue() {
 	else if (soundEditor.currentValue > 0) {
 		strcat(buffer, "R");
 	}
-	numericDriver.setText(buffer, true, drawDot);
+	display.setText(buffer, true, drawDot);
 }
 #endif
 

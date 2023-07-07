@@ -522,7 +522,7 @@ int32_t ExpressionParamSet::knobPosToParamValue(int knobPos, ModelStackWithAutoP
 		}
 	}
 	intToString(valueForDisplay, buffer);
-	numericDriver.displayPopup(buffer, 3, true);
+	display.displayPopup(buffer, 3, true);
 
 	// Everything but aftertouch gets handled by parent from here
 	if (modelStack->paramId != 2) {

@@ -25,7 +25,7 @@ public:
 #if !HAVE_OLED
 	void drawValue() {
 		if (soundEditor.currentValue == 0) {
-			numericDriver.setText("OFF");
+			display.setText("OFF");
 		}
 		else {
 			UnpatchedParam::drawValue();

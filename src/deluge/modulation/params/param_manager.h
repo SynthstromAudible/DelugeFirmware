@@ -19,7 +19,7 @@
 
 #include "RZA1/system/r_typedefs.h"
 #include "definitions.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "modulation/params/param_collection_summary.h"
 
 class Song;
@@ -79,64 +79,72 @@ public:
 
 	inline MIDIParamCollection* getMIDIParamCollection() {
 #if ALPHA_OR_BETA_VERSION
-		if (!summaries[0].paramCollection)
-			numericDriver.freezeWithError("E409");
+		if (!summaries[0].paramCollection) {
+			display.freezeWithError("E409");
+		}
 #endif
 		return (MIDIParamCollection*)summaries[0].paramCollection;
 	}
 
 	inline ParamCollectionSummary* getMIDIParamCollectionSummary() {
 #if ALPHA_OR_BETA_VERSION
-		if (!summaries[0].paramCollection)
-			numericDriver.freezeWithError("E409");
+		if (!summaries[0].paramCollection) {
+			display.freezeWithError("E409");
+		}
 #endif
 		return &summaries[0];
 	}
 
 	inline UnpatchedParamSet* getUnpatchedParamSet() {
 #if ALPHA_OR_BETA_VERSION
-		if (!summaries[0].paramCollection)
-			numericDriver.freezeWithError("E410");
+		if (!summaries[0].paramCollection) {
+			display.freezeWithError("E410");
+		}
 #endif
 		return (UnpatchedParamSet*)summaries[0].paramCollection;
 	}
 
 	inline ParamCollectionSummary* getUnpatchedParamSetSummary() {
 #if ALPHA_OR_BETA_VERSION
-		if (!summaries[0].paramCollection)
-			numericDriver.freezeWithError("E410");
+		if (!summaries[0].paramCollection) {
+			display.freezeWithError("E410");
+		}
 #endif
 		return &summaries[0];
 	}
 
 	inline PatchedParamSet* getPatchedParamSet() {
 #if ALPHA_OR_BETA_VERSION
-		if (!summaries[1].paramCollection)
-			numericDriver.freezeWithError("E411");
+		if (!summaries[1].paramCollection) {
+			display.freezeWithError("E411");
+		}
 #endif
 		return (PatchedParamSet*)summaries[1].paramCollection;
 	}
 
 	inline ParamCollectionSummary* getPatchedParamSetSummary() {
 #if ALPHA_OR_BETA_VERSION
-		if (!summaries[1].paramCollection)
-			numericDriver.freezeWithError("E411");
+		if (!summaries[1].paramCollection) {
+			display.freezeWithError("E411");
+		}
 #endif
 		return &summaries[1];
 	}
 
 	inline ParamCollectionSummary* getPatchCableSetSummary() {
 #if ALPHA_OR_BETA_VERSION
-		if (!summaries[2].paramCollection)
-			numericDriver.freezeWithError("E412");
+		if (!summaries[2].paramCollection) {
+			display.freezeWithError("E412");
+		}
 #endif
 		return &summaries[2];
 	}
 
 	inline PatchCableSet* getPatchCableSet() {
 #if ALPHA_OR_BETA_VERSION
-		if (!summaries[2].paramCollection)
-			numericDriver.freezeWithError("E412");
+		if (!summaries[2].paramCollection) {
+			display.freezeWithError("E412");
+		}
 #endif
 		return (PatchCableSet*)summaries[2].paramCollection;
 	}

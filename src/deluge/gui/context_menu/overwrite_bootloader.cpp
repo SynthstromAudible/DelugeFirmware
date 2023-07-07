@@ -17,10 +17,9 @@
 
 #include "gui/context_menu/overwrite_bootloader.h"
 #include "storage/storage_manager.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "util/functions.h"
 #include "memory/general_memory_allocator.h"
-#include "hid/display/oled.h"
 
 extern "C" {
 #include "RZA1/spibsc/spibsc.h"
@@ -49,13 +48,13 @@ constexpr size_t FLASH_WRITE_SIZE = 256; // Bigger doesn't seem to work...
 bool OverwriteBootloader::acceptCurrentOption() {
 
 #if !HAVE_OLED
-	numericDriver.displayLoadingAnimation();
+	display.displayLoadingAnimation();
 #endif
 
 	int error = storageManager.initSD();
 	if (error) {
 gotError:
-		numericDriver.displayError(error);
+		display.displayError(error);
 		return false;
 	}
 
@@ -70,7 +69,7 @@ gotFresultError:
 
 	if (false) {
 longError:
-		numericDriver.displayPopup(errorMessage);
+		display.displayPopup(errorMessage);
 		return false;
 	}
 
@@ -156,7 +155,7 @@ gotFlashError:
 				OLED::removeWorkingAnimation();
 				workingMessage = "Flash error. Trying again. Don't switch off";
 #else
-				numericDriver.displayPopup("RETR");
+				display.displayPopup("RETR");
 #endif
 			}
 
@@ -206,7 +205,7 @@ gotFlashError:
 			OLED::removeWorkingAnimation();
 			OLED::consoleText("Bootloader updated");
 #else
-			numericDriver.displayPopup("DONE");
+			display.displayPopup("DONE");
 #endif
 
 			return false; // We do want to exit this context menu.

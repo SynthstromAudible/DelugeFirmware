@@ -29,7 +29,7 @@ public:
 		if (soundEditor.currentValue == 0
 		    && !soundEditor.currentParamManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(
 		        PARAM_LOCAL_HPF_FREQ)) {
-			numericDriver.setText("OFF");
+			display.setText("OFF");
 		}
 		else {
 			patched_param::IntegerNonFM::drawValue();

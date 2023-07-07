@@ -18,7 +18,7 @@
 #include "gui/views/clip_navigation_timeline_view.h"
 #include "hid/matrix/matrix_driver.h"
 #include "model/song/song.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "hid/led/pad_leds.h"
 
 int32_t ClipNavigationTimelineView::xScrollBeforeFollowingAutoExtendingLinearRecording; // -1 means none
@@ -47,7 +47,7 @@ void ClipNavigationTimelineView::horizontalScrollForLinearRecording(int32_t newX
 			currentSong->xScroll[NAVIGATION_CLIP] = newXScroll;
 			uiNeedsRendering(this, 0xFFFFFFFF, 0);
 		}
-		if (!numericDriver.popupActive) {
+		if (!display.popupActive) {
 			displayScrollPos();
 		}
 	}

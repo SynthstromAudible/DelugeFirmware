@@ -44,7 +44,7 @@
 #include "model/clip/audio_clip.h"
 #include "util/container/hashtable/open_addressing_hash_table.h"
 #include "hid/buttons.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "model/model_stack.h"
 #include "gui/ui/load/load_song_ui.h"
 
@@ -1644,7 +1644,7 @@ int Session::getCurrentSection() {
 		}
 		else {
 			if (ALPHA_OR_BETA_VERSION && clip->section > MAX_NUM_SECTIONS) {
-				numericDriver.freezeWithError("E243");
+				display.freezeWithError("E243");
 			}
 			anyUnlaunchedLoopablesInSection[clip->section] = true;
 		}

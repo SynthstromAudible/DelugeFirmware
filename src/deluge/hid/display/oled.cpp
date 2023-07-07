@@ -19,7 +19,7 @@
 
 #if HAVE_OLED
 
-#include "hid/display/oled.h"
+#include "hid/display.h"
 #include <string.h>
 #include "gui/ui_timer_manager.h"
 #include "processing/engines/audio_engine.h"

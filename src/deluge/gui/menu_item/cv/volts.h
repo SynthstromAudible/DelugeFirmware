@@ -45,7 +45,7 @@ public:
 #else
 	void drawValue() {
 		if (soundEditor.currentValue == 0)
-			numericDriver.setText("HZPV", false, 255, true);
+			display.setText("HZPV", false, 255, true);
 		else {
 			Decimal::drawValue();
 		}

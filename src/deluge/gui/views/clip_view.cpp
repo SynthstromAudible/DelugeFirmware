@@ -22,7 +22,7 @@
 #include "hid/matrix/matrix_driver.h"
 #include "playback/mode/playback_mode.h"
 #include "playback/mode/session.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "playback/playback_handler.h"
 #include "hid/buttons.h"
 #include "extern.h"
@@ -146,7 +146,7 @@ int ClipView::horizontalEncoderAction(int offset) {
 
 		// If tempoless recording, don't allow
 		if (!getCurrentClip()->currentlyScrollableAndZoomable()) {
-			numericDriver.displayPopup(HAVE_OLED ? "Can't edit length" : "CANT");
+			display.displayPopup(HAVE_OLED ? "Can't edit length" : "CANT");
 			return ACTION_RESULT_DEALT_WITH;
 		}
 

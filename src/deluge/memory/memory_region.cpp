@@ -22,7 +22,7 @@
 #include "memory/general_memory_allocator.h"
 #include "drivers/mtu/mtu.h"
 #include "util/functions.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 
 MemoryRegion::MemoryRegion() : emptySpaces(sizeof(EmptySpaceRecord)) {
 	numAllocations = 0;
@@ -58,7 +58,7 @@ void MemoryRegion::sanityCheck() {
 
 	if (count > 1) {
 		Uart::println("multiple 0xc0080bc!!!!");
-		numericDriver.freezeWithError("BBBB");
+		display.freezeWithError("BBBB");
 	}
 	else if (count == 1) {
 		if (!seenYet) {
@@ -73,17 +73,17 @@ void MemoryRegion::verifyMemoryNotFree(void* address, uint32_t spaceSize) {
 		EmptySpaceRecord* emptySpaceRecord = (EmptySpaceRecord*)emptySpaces.getElementAddress(i);
 		if (emptySpaceRecord->address == (uint32_t)address) {
 			Uart::println("Exact address free!");
-			numericDriver.freezeWithError("dddffffd");
+			display.freezeWithError("dddffffd");
 		}
 		else if (emptySpaceRecord->address <= (uint32_t)address
 		         && (emptySpaceRecord->address + emptySpaceRecord->length > (uint32_t)address)) {
 			Uart::println("free mem overlap on left!");
-			numericDriver.freezeWithError("dddd");
+			display.freezeWithError("dddd");
 		}
 		else if ((uint32_t)address <= (uint32_t)emptySpaceRecord->address
 		         && ((uint32_t)address + spaceSize > emptySpaceRecord->address)) {
 			Uart::println("free mem overlap on right!");
-			numericDriver.freezeWithError("eeee");
+			display.freezeWithError("eeee");
 		}
 	}
 }

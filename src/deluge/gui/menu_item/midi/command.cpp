@@ -19,8 +19,7 @@
 #include "definitions.h"
 #include "io/midi/midi_engine.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/display/numeric_driver.h"
-#include "hid/display/oled.h"
+#include "hid/display.h"
 #include "io/midi/midi_device.h"
 
 extern "C" {
@@ -92,11 +91,13 @@ void Command::drawPixelsForOled() {
 #else
 void Command::drawValue() {
 	char const* output;
-	if (!midiEngine.globalMIDICommands[commandNumber].containsSomething())
+	if (!midiEngine.globalMIDICommands[commandNumber].containsSomething()) {
 		output = "NONE";
-	else
+	}
+	else {
 		output = "SET";
-	numericDriver.setText(output);
+	}
+	display.setText(output);
 }
 #endif
 
@@ -119,7 +120,7 @@ void Command::unlearnAction() {
 #endif
 	}
 	else {
-		numericDriver.displayPopup("UNLEARNED");
+		display.displayPopup("UNLEARNED");
 	}
 }
 
@@ -135,7 +136,7 @@ bool Command::learnNoteOn(MIDIDevice* device, int channel, int noteCode) {
 #endif
 	}
 	else {
-		numericDriver.displayPopup("LEARNED");
+		display.displayPopup("LEARNED");
 	}
 	return true;
 }

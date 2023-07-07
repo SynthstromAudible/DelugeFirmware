@@ -20,7 +20,7 @@
 #include "unpatched_param.h"
 #include "gui/ui/sound_editor.h"
 #include "model/song/song.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "model/model_stack.h"
 #include "modulation/params/param_set.h"
 

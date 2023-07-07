@@ -19,7 +19,7 @@
 #include "setting.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include <cstdio>
 
 extern menu_item::runtime_feature::Setting runtimeFeatureSettingMenuItem;
@@ -78,7 +78,7 @@ void Settings::drawValue() {
 #if HAVE_OLED
 	renderUIsForOled();
 #else
-	numericDriver.setScrollingText(runtimeFeatureSettings.settings[soundEditor.currentValue].displayName);
+	display.setScrollingText(runtimeFeatureSettings.settings[soundEditor.currentValue].displayName);
 #endif
 }
 

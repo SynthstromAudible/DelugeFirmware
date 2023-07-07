@@ -62,7 +62,7 @@ void PatchedParam::drawValue() {
 	    soundEditor.currentParamManager->getPatchCableSet()->isAnySourcePatchedToParamVolumeInspecific(paramDescriptor)
 	        ? 3
 	        : 255;
-	numericDriver.setTextAsNumber(soundEditor.currentValue, drawDot);
+	display.setTextAsNumber(soundEditor.currentValue, drawDot);
 }
 #endif
 

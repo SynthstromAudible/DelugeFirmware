@@ -24,7 +24,7 @@
 #include "util/functions.h"
 #include <string.h>
 #include "model/action/action_logger.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "memory/stealable.h"
 #include "drivers/mtu/mtu.h"
 #include "definitions.h"
@@ -67,7 +67,7 @@ void GeneralMemoryAllocator::checkStack(char const* caller) {
 
 		if (distance < 200) {
 			Uart::println("COLLISION");
-			numericDriver.freezeWithError("E338");
+			display.freezeWithError("E338");
 		}
 	}
 #endif

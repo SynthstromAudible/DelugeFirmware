@@ -17,7 +17,7 @@
 
 #include "model/consequence/consequence_output_existence.h"
 #include "model/song/song.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "model/output.h"
 #include "model/model_stack.h"
 
@@ -38,7 +38,7 @@ int ConsequenceOutputExistence::revert(int time, ModelStack* modelStack) {
 
 		outputIndex = modelStack->song->removeOutputFromMainList(output);
 		if (ALPHA_OR_BETA_VERSION && outputIndex == -1) {
-			numericDriver.freezeWithError("E263");
+			display.freezeWithError("E263");
 		}
 
 		output->prepareForHibernationOrDeletion();

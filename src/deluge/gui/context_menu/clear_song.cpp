@@ -19,7 +19,7 @@
 #include "storage/audio/audio_file_manager.h"
 #include "gui/context_menu/clear_song.h"
 #include "modulation/params/param_manager.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "memory/general_memory_allocator.h"
 #include "gui/views/view.h"
 #include "playback/mode/session.h"
@@ -30,7 +30,6 @@
 #include "hid/led/indicator_leds.h"
 #include "extern.h"
 #include "playback/playback_handler.h"
-#include "hid/display/oled.h"
 
 extern void setUIForLoadedSong(Song* song);
 extern void deleteOldSongBeforeLoadingNew();

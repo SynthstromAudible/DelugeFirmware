@@ -20,13 +20,13 @@
 #include "io/midi/midi_device.h"
 #include "memory/general_memory_allocator.h"
 #include <new>
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include <string.h>
 #include "storage/storage_manager.h"
 #include "io/midi/midi_engine.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/menu_item/mpe/zone_num_member_channels.h"
-#include "hid/display/oled.h"
+#include "hid/display.h"
 #include "util/functions.h"
 
 extern "C" {
@@ -149,7 +149,7 @@ MIDIDeviceUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(String* name, uint16
 	int error = hostedMIDIDevices.insertElement(device, i); // We made sure, above, that there's space
 #if ALPHA_OR_BETA_VERSION
 	if (error) {
-		numericDriver.freezeWithError("E405");
+		display.freezeWithError("E405");
 	}
 #endif
 
@@ -235,7 +235,7 @@ extern "C" void hostedDeviceDetached(int ip, int midiDeviceNum) {
 
 #if ALPHA_OR_BETA_VERSION
 	if (midiDeviceNum == MAX_NUM_USB_MIDI_DEVICES) {
-		numericDriver.freezeWithError("E367");
+		display.freezeWithError("E367");
 	}
 #endif
 

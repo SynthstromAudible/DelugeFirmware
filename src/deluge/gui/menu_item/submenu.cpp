@@ -20,7 +20,7 @@
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 #include "submenu.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "gui/ui/sound_editor.h"
 #include "model/song/song.h"
 #include "model/instrument/instrument.h"

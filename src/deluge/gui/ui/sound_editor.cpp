@@ -48,10 +48,6 @@
 #include <new>
 #include <string.h>
 
-#if HAVE_OLED
-#include "hid/display/oled.h"
-#endif
-
 extern "C" {
 #include "RZA1/uart/sio_char.h"
 #include "util/cfunctions.h"
@@ -224,7 +220,7 @@ int SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 
 							navigationDepth++;
 							menuItemNavigationRecord[navigationDepth] = newItem;
-							numericDriver.setNextTransitionDirection(1);
+							display.setNextTransitionDirection(1);
 							beginScreen();
 						}
 					}
@@ -281,7 +277,7 @@ int SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 		if (on) {
 			if (!currentUIMode) {
 				if (!getCurrentMenuItem()->allowsLearnMode()) {
-					numericDriver.displayPopup(HAVE_OLED ? "Can't learn" : "CANT");
+					display.displayPopup(HAVE_OLED ? "Can't learn" : "CANT");
 				}
 				else {
 					if (Buttons::isShiftButtonPressed()) {
@@ -377,7 +373,7 @@ void SoundEditor::goUpOneLevel() {
 		navigationDepth--;
 	} while (
 	    !getCurrentMenuItem()->checkPermissionToBeginSession(currentSound, currentSourceIndex, &currentMultiRange));
-	numericDriver.setNextTransitionDirection(-1);
+	display.setNextTransitionDirection(-1);
 
 	MenuItem* oldItem = menuItemNavigationRecord[navigationDepth + 1];
 	if (oldItem == &menu_item::multiRangeMenu) {
@@ -393,7 +389,7 @@ void SoundEditor::exitCompletely() {
 #if HAVE_OLED
 		OLED::displayWorkingAnimation("Saving settings");
 #else
-		numericDriver.displayLoadingAnimation();
+		display.displayLoadingAnimation();
 #endif
 		FlashStorage::writeSettings();
 		MIDIDeviceManager::writeDevicesToFile();
@@ -402,7 +398,7 @@ void SoundEditor::exitCompletely() {
 		OLED::removeWorkingAnimation();
 #endif
 	}
-	numericDriver.setNextTransitionDirection(-1);
+	display.setNextTransitionDirection(-1);
 	close();
 	possibleChangeToCurrentRangeDisplay();
 }
@@ -727,7 +723,7 @@ doSetup:
 				if (item) {
 
 					if (item == comingSoonMenu) {
-						numericDriver.displayPopup(HAVE_OLED ? "Feature not (yet?) implemented" : "SOON");
+						display.displayPopup(HAVE_OLED ? "Feature not (yet?) implemented" : "SOON");
 						return ACTION_RESULT_DEALT_WITH;
 					}
 
@@ -757,7 +753,7 @@ doSetup:
 					// If not in SoundEditor yet
 					if (getCurrentUI() != &soundEditor) {
 						if (getCurrentUI() == &sampleMarkerEditor) {
-							numericDriver.setNextTransitionDirection(0);
+							display.setNextTransitionDirection(0);
 							changeUIAtLevel(&soundEditor, 1);
 							renderingNeededRegardlessOfUI(); // Not sure if this is 100% needed... some of it is.
 						}
@@ -768,7 +764,7 @@ doSetup:
 
 					// Or if already in SoundEditor
 					else {
-						numericDriver.setNextTransitionDirection(0);
+						display.setNextTransitionDirection(0);
 						beginScreen();
 					}
 				}
@@ -779,7 +775,7 @@ doSetup:
 
 				uint8_t source = modSourceShortcuts[x - 14][y];
 				if (source == 254) {
-					numericDriver.displayPopup("SOON");
+					display.displayPopup("SOON");
 				}
 
 				if (source >= NUM_PATCH_SOURCES) {
@@ -831,7 +827,7 @@ getOut:
 							navigationDepth = newNavigationDepth + 1;
 							menuItemNavigationRecord[navigationDepth] = newMenuItem;
 							if (!wentBack) {
-								numericDriver.setNextTransitionDirection(1);
+								display.setNextTransitionDirection(1);
 							}
 							beginScreen();
 						}
@@ -1002,7 +998,7 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int sourceIndex) {
 				// Otherwise, do nothing
 				else {
 					if (item == &sequenceDirectionMenu) {
-						numericDriver.displayPopup(HAVE_OLED ? "Select a row or affect-entire" : "CANT");
+						display.displayPopup(HAVE_OLED ? "Select a row or affect-entire" : "CANT");
 					}
 					return false;
 				}
@@ -1082,7 +1078,7 @@ doMIDIOrCV:
 	int result = newItem->checkPermissionToBeginSession(newSound, sourceIndex, &newRange);
 
 	if (result == MENU_PERMISSION_NO) {
-		numericDriver.displayPopup(HAVE_OLED ? "Parameter not applicable" : "CANT");
+		display.displayPopup(HAVE_OLED ? "Parameter not applicable" : "CANT");
 		return false;
 	}
 	else if (result == MENU_PERMISSION_MUST_SELECT_RANGE) {
@@ -1125,7 +1121,7 @@ doMIDIOrCV:
 	shouldGoUpOneLevelOnBegin = false;
 	menuItemNavigationRecord[navigationDepth] = newItem;
 
-	numericDriver.setNextTransitionDirection(1);
+	display.setNextTransitionDirection(1);
 	return true;
 }
 
@@ -1156,7 +1152,7 @@ int SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam(Sound* sound
 
 	::MultiRange* firstRange = source->getOrCreateFirstRange();
 	if (!firstRange) {
-		numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
+		display.displayError(ERROR_INSUFFICIENT_RAM);
 		return MENU_PERMISSION_NO;
 	}
 

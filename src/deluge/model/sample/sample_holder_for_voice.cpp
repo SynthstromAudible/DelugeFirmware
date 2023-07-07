@@ -20,7 +20,7 @@
 #include "model/sample/sample.h"
 #include "storage/storage_manager.h"
 #include "processing/source.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 
 SampleHolderForVoice::SampleHolderForVoice() {
 	loopStartPos = 0;
@@ -67,7 +67,7 @@ void SampleHolderForVoice::claimClusterReasons(bool reversed, int clusterLoadIns
 
 #if ALPHA_OR_BETA_VERSION
 	if (!audioFile) {
-		numericDriver.freezeWithError("i030"); // Trying to narrow down E368 that Kevin F got
+		display.freezeWithError("i030"); // Trying to narrow down E368 that Kevin F got
 	}
 #endif
 

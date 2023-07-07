@@ -31,7 +31,7 @@ extern void loadAnyEnqueuedClustersRoutine(void);
 
 extern void logAudioAction(char const* string);
 
-// This is defined in numericdriver.cpp
+// This is defined in display.cpp
 extern void freezeWithError(char const* errmsg);
 
 extern void routineForSD(void);
