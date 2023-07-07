@@ -26,7 +26,7 @@
 #include "hid/matrix/matrix_driver.h"
 #include "model/song/song.h"
 #include "util/lookuptables/lookuptables.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "model/drum/kit.h"
 #include "gui/ui/keyboard_screen.h"
 #include <string.h>
@@ -34,7 +34,6 @@
 #include "gui/context_menu/overwrite_file.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/buttons.h"
-#include "hid/display/oled.h"
 
 using namespace deluge;
 
@@ -79,7 +78,7 @@ tryDefaultDir:
 	int error = arrivedInNewFolder(0, enteredText.get(), defaultDir);
 	if (error) {
 gotError:
-		numericDriver.displayError(error);
+		display.displayError(error);
 		goto doReturnFalse;
 	}
 
@@ -104,7 +103,7 @@ gotError:
 bool SaveInstrumentPresetUI::performSave(bool mayOverwrite) {
 
 #if !HAVE_OLED
-	numericDriver.displayLoadingAnimation();
+	display.displayLoadingAnimation();
 #endif
 
 	Instrument* instrumentToSave = (Instrument*)currentSong->currentClip->output;
@@ -117,8 +116,7 @@ bool SaveInstrumentPresetUI::performSave(bool mayOverwrite) {
 		// We can't save into this slot if another Instrument in this Song already uses it
 		if (currentSong->getInstrumentFromPresetSlot(instrumentTypeToLoad, 0, 0, enteredText.get(), currentDir.get(),
 		                                             false)) {
-			numericDriver.displayPopup(HAVE_OLED ? "Another instrument in the song has the same name / number"
-			                                     : "CANT");
+			display.displayPopup(HAVE_OLED ? "Another instrument in the song has the same name / number" : "CANT");
 #if HAVE_OLED
 			OLED::removeWorkingAnimation();
 #endif
@@ -133,7 +131,7 @@ bool SaveInstrumentPresetUI::performSave(bool mayOverwrite) {
 	int error = getCurrentFilePath(&filePath);
 	if (error) {
 fail:
-		numericDriver.displayError(error);
+		display.displayError(error);
 		return false;
 	}
 
@@ -145,7 +143,7 @@ fail:
 		bool available = gui::context_menu::overwriteFile.setupAndCheckAvailability();
 
 		if (available) { // Will always be true.
-			numericDriver.setNextTransitionDirection(1);
+			display.setNextTransitionDirection(1);
 			openUI(&gui::context_menu::overwriteFile);
 			return true;
 		}
@@ -186,7 +184,7 @@ fail:
 #if HAVE_OLED
 	OLED::consoleText("Preset saved");
 #else
-	numericDriver.displayPopup("DONE");
+	display.displayPopup("DONE");
 #endif
 	close();
 	return true;
@@ -208,7 +206,7 @@ void SaveInstrumentPresetUI::selectEncoderAction(int8_t offset) {
 				&currentSlot, &currentSubSlot, &enteredText, &currentFileIsFolder,
 				previouslySavedSlot, &currentFileExists, numInstrumentSlots, getThingName(instrumentType), currentDir.get(), instrumentType, (Instrument*)currentSong->currentClip->output);
 		if (error) {
-			numericDriver.displayError(error);
+			display.displayError(error);
 			if (error != ERROR_FOLDER_DOESNT_EXIST) {
 				close();
 			}

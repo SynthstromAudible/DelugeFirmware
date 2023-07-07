@@ -18,7 +18,7 @@
 #include "gui/ui/rename/rename_ui.h"
 
 #if HAVE_OLED
-#include "hid/display/oled.h"
+#include "hid/display.h"
 #endif
 
 RenameUI::RenameUI() {

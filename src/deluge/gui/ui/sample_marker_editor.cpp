@@ -25,7 +25,7 @@
 #include "gui/ui_timer_manager.h"
 #include "gui/ui/sound_editor.h"
 #include "storage/multi_range/multisample_range.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "model/sample/sample.h"
 #include "processing/source.h"
 #include "model/instrument/instrument.h"
@@ -40,7 +40,6 @@
 #include "extern.h"
 #include "model/model_stack.h"
 #include "playback/playback_handler.h"
-#include "hid/display/oled.h"
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
@@ -92,7 +91,7 @@ bool SampleMarkerEditor::opened() {
 	waveformBasicNavigator.sample = (Sample*)getCurrentSampleHolder()->audioFile;
 
 	if (!waveformBasicNavigator.sample) {
-		numericDriver.displayPopup(HAVE_OLED ? "No sample" : "CANT");
+		display.displayPopup(HAVE_OLED ? "No sample" : "CANT");
 		return false;
 	}
 
@@ -603,7 +602,7 @@ int SampleMarkerEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine)
 }
 
 void SampleMarkerEditor::exitUI() {
-	numericDriver.setNextTransitionDirection(-1);
+	display.setNextTransitionDirection(-1);
 	close();
 }
 
@@ -1103,7 +1102,7 @@ void SampleMarkerEditor::displayText() {
 	char buffer[5];
 	intToString(number, buffer, numDecimals + 1);
 
-	numericDriver.setText(buffer, true, drawDot);
+	display.setText(buffer, true, drawDot);
 }
 #endif
 

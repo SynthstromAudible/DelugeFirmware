@@ -37,7 +37,6 @@ public:
 	void cancelPopup();
 	void displayError(int error);
 
-#if !HAVE_OLED
 	void setTextAsNumber(int16_t number, uint8_t drawDot = 255, bool doBlink = false);
 	void setTextAsSlot(int16_t currentSlot, int8_t currentSubSlot, bool currentSlotExists, bool doBlink = false,
 	                   int blinkPos = -1, bool blinkImmediately = false);
@@ -49,7 +48,6 @@ public:
 	void displayLoadingAnimation(bool delayed = false, bool transparent = false);
 	bool isLayerCurrentlyOnTop(NumericLayer* layer);
 	uint8_t lastDisplay[NUMERIC_DISPLAY_LENGTH];
-#endif
 
 	bool popupActive;
 
@@ -60,17 +58,13 @@ private:
 
 	void deleteAllLayers();
 
-#if !HAVE_OLED
 	int encodeText(char const* newText, uint8_t* destination, bool alignRight, uint8_t drawDot = 255,
 	               bool limitToDisplayLength = true, int scrollPos = 0);
 	void replaceBottomLayer(NumericLayer* newLayer);
 	void setTopLayer(NumericLayer* newTopLayer);
 	void transitionToNewLayer(NumericLayer* newLayer);
 	void setTextVeryBasicA1(char const* text);
-#endif
 };
-
-extern NumericDriver numericDriver;
 
 extern "C" {
 #endif

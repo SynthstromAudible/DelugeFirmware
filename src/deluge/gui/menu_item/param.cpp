@@ -20,7 +20,7 @@
 #include "definitions.h"
 #include "modulation/params/param_set.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "hid/matrix/matrix_driver.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
@@ -41,7 +41,7 @@ MenuItem* Param::selectButtonPress() {
 
 		modelStack->autoParam->deleteAutomation(action, modelStack);
 
-		numericDriver.displayPopup(HAVE_OLED ? "Automation deleted" : "DELETED");
+		display.displayPopup(HAVE_OLED ? "Automation deleted" : "DELETED");
 		return (MenuItem*)0xFFFFFFFF; // Don't navigate away
 	}
 	else {

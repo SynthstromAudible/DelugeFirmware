@@ -30,7 +30,7 @@
 #include "gui/views/arranger_view.h"
 #include "gui/ui/keyboard_screen.h"
 #include "gui/views/audio_clip_view.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "model/sample/sample.h"
 #include "gui/views/view.h"
 #include "model/clip/instrument_clip.h"
@@ -433,7 +433,7 @@ void setupAudioClipCollapseOrExplodeAnimation(AudioClip* clip) {
 	Sample* sample = (Sample*)clip->sampleHolder.audioFile;
 
 	if (ALPHA_OR_BETA_VERSION && !sample) {
-		numericDriver.freezeWithError("E311");
+		display.freezeWithError("E311");
 	}
 
 	sampleMaxPeakFromZero = sample->getMaxPeakFromZero();

@@ -23,7 +23,7 @@
 #include "gui/views/instrument_clip_view.h"
 #include "playback/playback_handler.h"
 #include "util/functions.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "model/song/song.h"
 #include "io/midi/midi_engine.h"
 #include <math.h>
@@ -59,7 +59,6 @@
 #include "io/midi/midi_device.h"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui_timer_manager.h"
-#include "hid/display/oled.h"
 #include "model/settings/runtime_feature_settings.h"
 
 extern "C" {
@@ -152,7 +151,7 @@ void PlaybackHandler::slowRoutine() {
 			if (ALPHA_OR_BETA_VERSION && pendingGlobalMIDICommandNumClustersWritten) {
 				char buffer[12];
 				intToString(pendingGlobalMIDICommandNumClustersWritten, buffer);
-				numericDriver.displayPopup(buffer);
+				display.displayPopup(buffer);
 			}
 		}
 
@@ -182,7 +181,7 @@ void PlaybackHandler::playButtonPressed(int buttonPressLatency) {
 #else
 				sessionView.redrawNumericDisplay();
 #endif
-				numericDriver.cancelPopup();
+				display.cancelPopup();
 			}
 
 			// Otherwise, if internal clock, restart playback
@@ -193,7 +192,7 @@ void PlaybackHandler::playButtonPressed(int buttonPressLatency) {
 					forceResetPlayPos(currentSong);
 				}
 				else {
-					numericDriver.displayPopup(HAVE_OLED ? "Following external clock" : "CANT");
+					display.displayPopup(HAVE_OLED ? "Following external clock" : "CANT");
 				}
 			}
 		}
@@ -482,7 +481,7 @@ void PlaybackHandler::endPlayback() {
 
 	if (currentVisualCountForCountIn) {
 		currentVisualCountForCountIn = 0;
-		numericDriver.cancelPopup(); // In case the count-in was showing
+		display.cancelPopup(); // In case the count-in was showing
 	}
 
 	setLedStates();
@@ -733,7 +732,7 @@ void PlaybackHandler::actionSwungTick() {
 				}
 			}
 
-			numericDriver.cancelPopup();
+			display.cancelPopup();
 			currentVisualCountForCountIn = 0;
 			currentUIMode &= UI_MODE_AUDITIONING;
 
@@ -749,7 +748,7 @@ void PlaybackHandler::actionSwungTick() {
 				currentVisualCountForCountIn = newVisualCount;
 				char buffer[12];
 				intToString(newVisualCount, buffer);
-				numericDriver.displayPopup(buffer, 0, true, 255, 2);
+				display.displayPopup(buffer, 0, true, 255, 2);
 			}
 			swungTicksTilNextEvent = 2147483647;
 			goto doMetronome;
@@ -1043,8 +1042,8 @@ int64_t PlaybackHandler::getCurrentInternalTickCount(uint32_t* timeRemainder) {
 
 #if ALPHA_OR_BETA_VERSION
 	if (internalTickCount < 0) {
-		numericDriver.freezeWithError(
-		    "E429"); // Trying to narrow down "nofg" error, which Ron got most recently (Nov 2021). Wait no, he didn't have playback on!
+		// Trying to narrow down "nofg" error, which Ron got most recently (Nov 2021). Wait no, he didn't have playback on!
+		display.freezeWithError("E429");
 	}
 #endif
 
@@ -1092,7 +1091,7 @@ goAgain:
 
 		// Should now be impossible for them to be at the same time, since we should be looking at one in the future and one not
 		if (ALPHA_OR_BETA_VERSION && timeBetweenInputTicks <= 0) {
-			numericDriver.freezeWithError("E337");
+			display.freezeWithError("E337");
 		}
 
 		currentInputTick =
@@ -1246,7 +1245,7 @@ void PlaybackHandler::doSongSwap(bool preservePlayPosition) {
 #if HAVE_OLED
 	OLED::displayWorkingAnimation("Loading");
 #else
-	numericDriver.displayLoadingAnimation(); // More loading might need to happen now, or still be happening
+	display.displayLoadingAnimation(); // More loading might need to happen now, or still be happening
 #endif
 	currentUIMode = UI_MODE_LOADING_SONG_NEW_SONG_PLAYING;
 	AudioEngine::logAction("PlaybackHandler::doSongSwap end");
@@ -1785,7 +1784,7 @@ void PlaybackHandler::displaySwingAmount() {
 		intToString(currentSong->swingAmount + 50, buffer);
 		toDisplay = buffer;
 	}
-	numericDriver.displayPopup(toDisplay);
+	display.displayPopup(toDisplay);
 #endif
 }
 
@@ -1811,7 +1810,7 @@ void PlaybackHandler::tempoEncoderAction(int8_t offset, bool encoderButtonPresse
 					numOutputClocksWaitingToBeSent--; // Send one less clock
 				}
 displayNudge:
-				numericDriver.displayPopup(HAVE_OLED ? "Sync nudged" : "NUDGE");
+				display.displayPopup(HAVE_OLED ? "Sync nudged" : "NUDGE");
 			}
 		}
 
@@ -2100,7 +2099,7 @@ void PlaybackHandler::displayTempoBPM(float tempoBPM) {
 	OLED::popupText(buffer);
 #else
 	if (tempoBPM >= 9999.5) {
-		numericDriver.displayPopup("FAST");
+		display.displayPopup("FAST");
 		return;
 	}
 
@@ -2152,12 +2151,12 @@ void PlaybackHandler::displayTempoBPM(float tempoBPM) {
 	if (isPerfect && roundedBigger == roundedTempoBPM * divisor) {
 		char buffer[12];
 		intToString(roundedTempoBPM, buffer);
-		numericDriver.displayPopup(buffer);
+		display.displayPopup(buffer);
 	}
 	else {
 		char buffer[12];
 		intToString(roundedBigger, buffer, 4);
-		numericDriver.displayPopup(buffer, 3, false, dotMask);
+		display.displayPopup(buffer, 3, false, dotMask);
 	}
 #endif
 }
@@ -2224,7 +2223,7 @@ void PlaybackHandler::grabTempoFromClip(Clip* clip) {
 
 	if (clip->type != CLIP_TYPE_AUDIO || clip->getCurrentlyRecordingLinearly()
 	    || !((AudioClip*)clip)->sampleHolder.audioFile) {
-		numericDriver.displayPopup(HAVE_OLED ? "Can't grab tempo from clip" : "CANT");
+		display.displayPopup(HAVE_OLED ? "Can't grab tempo from clip" : "CANT");
 		return;
 	}
 
@@ -2936,11 +2935,11 @@ doCreateNextOverdub:
 					}
 				}
 				else {
-					numericDriver.displayPopup(HAVE_OLED ? "Audio track has no input channel" : "CANT");
+					display.displayPopup(HAVE_OLED ? "Audio track has no input channel" : "CANT");
 				}
 			}
 			else {
-				numericDriver.displayPopup(HAVE_OLED ? "Create overdub from which clip?" : "WHICH");
+				display.displayPopup(HAVE_OLED ? "Create overdub from which clip?" : "WHICH");
 			}
 		}
 	}

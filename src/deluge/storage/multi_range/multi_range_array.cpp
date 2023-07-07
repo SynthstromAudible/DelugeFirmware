@@ -19,7 +19,7 @@
 #include "storage/multi_range/multisample_range.h"
 #include "storage/multi_range/multi_wave_table_range.h"
 #include <new>
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 
 MultiRangeArray::MultiRangeArray()
     : OrderedResizeableArray(sizeof(MultisampleRange), 16, __builtin_offsetof(MultiRange, topNote), 0, 0) {

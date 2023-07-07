@@ -20,7 +20,7 @@
 #include <string.h>
 #include "util/functions.h"
 #include "definitions.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "io/debug/print.h"
 
 #define SECONDARY_MEMORY_FUNCTION_NONE 0
@@ -88,7 +88,7 @@ void* OpenAddressingHashTable::insert(uint32_t key, bool* onlyIfNotAlreadyPresen
 
 #if ALPHA_OR_BETA_VERSION
 	if (doesKeyIndicateEmptyBucket(key)) {
-		numericDriver.freezeWithError("E330");
+		display.freezeWithError("E330");
 	}
 #endif
 
@@ -197,7 +197,7 @@ void* OpenAddressingHashTable::lookup(uint32_t key) {
 
 #if ALPHA_OR_BETA_VERSION
 	if (doesKeyIndicateEmptyBucket(key)) {
-		numericDriver.freezeWithError("E331");
+		display.freezeWithError("E331");
 	}
 #endif
 
@@ -238,7 +238,7 @@ bool OpenAddressingHashTable::remove(uint32_t key) {
 
 #if ALPHA_OR_BETA_VERSION
 	if (doesKeyIndicateEmptyBucket(key)) {
-		numericDriver.freezeWithError("E332");
+		display.freezeWithError("E332");
 	}
 #endif
 

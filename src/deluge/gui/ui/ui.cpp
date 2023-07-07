@@ -23,7 +23,7 @@
 #include "gui/ui/root_ui.h"
 #include "io/debug/print.h"
 #include "hid/led/pad_leds.h"
-#include "hid/display/oled.h"
+#include "hid/display.h"
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"

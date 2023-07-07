@@ -25,7 +25,7 @@
 #include "dsp/fft/fft_config_manager.h"
 #include "NE10.h"
 #include "arm_neon.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include <new>
 #include "RZA1/mtu/mtu.h"
 #include "processing/render_wave.h"
@@ -670,7 +670,7 @@ transformBandToTimeDomain:
 			if (!fftCFGThisBand) {
 #if ALPHA_OR_BETA_VERSION
 				if (!b) {
-					numericDriver.freezeWithError("E390");
+					display.freezeWithError("E390");
 				}
 #endif
 				band->~WaveTableBand();
@@ -1080,7 +1080,7 @@ startRenderingACycle:
 			    numIncrementsWeCanDoNow
 			    + 1; // +1 because we can only have to increment *between* the samples we're rendering. If can only do 1 increment, we can still render 2 samples.
 			if (ALPHA_OR_BETA_VERSION && numSamplesThisCycle > numSamplesLeftToDo) {
-				numericDriver.freezeWithError("E386");
+				display.freezeWithError("E386");
 			}
 		}
 
@@ -1163,7 +1163,7 @@ void WaveTable::numReasonsDecreasedToZero(char const* errorCode) {
 		if (band->data) {
 #if ALPHA_OR_BETA_VERSION
 			if (band->data->list) {
-				numericDriver.freezeWithError("E388");
+				display.freezeWithError("E388");
 			}
 #endif
 			generalMemoryAllocator.putStealableInQueue(band->data, STEALABLE_QUEUE_NO_SONG_WAVETABLE_BAND_DATA);

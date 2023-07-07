@@ -26,7 +26,7 @@
 #include "processing/sound/sound_instrument.h"
 #include "definitions.h"
 #include "gui/ui_timer_manager.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "gui/ui/keyboard_screen.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/view.h"
@@ -54,10 +54,6 @@
 #include "model/clip/clip_minder.h"
 #include "model/clip/instrument_clip.h"
 #include "modulation/midi/midi_param_collection.h"
-
-#if HAVE_OLED
-#include "hid/display/oled.h"
-#endif
 
 extern "C" {
 #include "util/cfunctions.h"
@@ -97,7 +93,7 @@ void InstrumentClipMinder::selectEncoderAction(int offset) {
 				newCC = instrument->moveAutomationToDifferentCC(offset, editingMIDICCForWhichModKnob,
 				                                                instrument->modKnobMode, modelStackWithThreeMainThings);
 				if (newCC == -1) {
-					numericDriver.displayPopup(HAVE_OLED ? "No further unused MIDI params" : "FULL");
+					display.displayPopup(HAVE_OLED ? "No further unused MIDI params" : "FULL");
 					return;
 				}
 			}
@@ -155,7 +151,7 @@ void InstrumentClipMinder::drawMIDIControlNumber(int controlNumber, bool automat
 		char* numberStartPos = (controlNumber < 100) ? (buffer + 2) : (buffer + 1);
 		intToString(controlNumber, numberStartPos);
 	}
-	numericDriver.setText(buffer, true, automationExists ? 3 : 255, true);
+	display.setText(buffer, true, automationExists ? 3 : 255, true);
 #endif
 }
 
@@ -171,7 +167,7 @@ void InstrumentClipMinder::createNewInstrument(int newInstrumentType) {
 	error = Browser::currentDir.set(getInstrumentFolder(newInstrumentType));
 	if (error) {
 gotError:
-		numericDriver.displayError(error);
+		display.displayError(error);
 		return;
 	}
 
@@ -181,7 +177,7 @@ gotError:
 	}
 
 	if (newName.isEmpty()) {
-		numericDriver.displayPopup(HAVE_OLED ? "No further unused instrument numbers" : "FULL");
+		display.displayPopup(HAVE_OLED ? "No further unused instrument numbers" : "FULL");
 		return;
 	}
 
@@ -212,7 +208,7 @@ gotError:
 	OLED::consoleText(message);
 #else
 	char const* message = "NEW";
-	numericDriver.displayPopup(message);
+	display.displayPopup(message);
 #endif
 
 	if (newInstrumentType == INSTRUMENT_TYPE_SYNTH) {
@@ -396,7 +392,7 @@ yesLoadInstrument:
 			    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, currentSong->currentClip);
 
 			getCurrentClip()->clear(action, modelStack);
-			numericDriver.displayPopup(HAVE_OLED ? "Clip cleared" : "CLEAR");
+			display.displayPopup(HAVE_OLED ? "Clip cleared" : "CLEAR");
 			if (getCurrentUI() == &instrumentClipView) {
 				uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
 			}
@@ -487,14 +483,14 @@ void InstrumentClipMinder::drawActualNoteCode(int16_t noteCode) {
 	OLED::popupText(noteName, true);
 #else
 	uint8_t drawDot = noteCodeIsSharp[noteCodeWithinOctave] ? 0 : 255;
-	numericDriver.setText(noteName, false, drawDot, true);
+	display.setText(noteName, false, drawDot, true);
 #endif
 }
 
 void InstrumentClipMinder::cycleThroughScales() {
 	int newScale = currentSong->cycleThroughScales();
 	if (newScale >= NUM_PRESET_SCALES) {
-		numericDriver.displayPopup(HAVE_OLED ? "Custom scale with more than 7 notes in use" : "CANT");
+		display.displayPopup(HAVE_OLED ? "Custom scale with more than 7 notes in use" : "CANT");
 	}
 	else {
 		displayScaleName(newScale);
@@ -503,10 +499,10 @@ void InstrumentClipMinder::cycleThroughScales() {
 
 void InstrumentClipMinder::displayScaleName(int scale) {
 	if (scale >= NUM_PRESET_SCALES) {
-		numericDriver.displayPopup(HAVE_OLED ? "Other scale" : "OTHER");
+		display.displayPopup(HAVE_OLED ? "Other scale" : "OTHER");
 	}
 	else {
-		numericDriver.displayPopup(presetScaleNames[scale]);
+		display.displayPopup(presetScaleNames[scale]);
 	}
 }
 

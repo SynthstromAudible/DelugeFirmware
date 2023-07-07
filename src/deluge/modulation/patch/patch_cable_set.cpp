@@ -298,7 +298,7 @@ goAgainWithoutIncrement:
 					// If getting crashes here, well I previously fixed a bug where sometimes the range-adjust*ed* cable was not "allowed", so
 					// was not present here, but the adjust*ing* cable still was here, which this code can't handle. So check that again?
 					if (thatDestination >= (&destinations[globality][numDestinations[globality]])) {
-						numericDriver.freezeWithError("E434");
+						display.freezeWithError("E434");
 					}
 #endif
 				}

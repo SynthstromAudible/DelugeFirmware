@@ -25,7 +25,7 @@
 #include "processing/sound/sound_drum.h"
 #include "gui/ui/slicer.h"
 #include "util/functions.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "model/sample/sample.h"
 #include "model/song/song.h"
 #include "gui/ui/sound_editor.h"
@@ -108,7 +108,7 @@ void Slicer::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 #else
 
 void Slicer::redraw() {
-	numericDriver.setTextAsNumber(slicerMode == SLICER_MODE_REGION ? numClips : numManualSlice, 255, true);
+	display.setTextAsNumber(slicerMode == SLICER_MODE_REGION ? numClips : numManualSlice, 255, true);
 }
 #endif
 
@@ -260,7 +260,7 @@ int Slicer::horizontalEncoderAction(int offset) {
 		char buffer[12];
 		strcpy(buffer, "");
 		intToString(manualSlicePoints[currentSlice].startPos / 1000, buffer + strlen(buffer));
-		numericDriver.displayPopup(buffer, 0, true);
+		display.displayPopup(buffer, 0, true);
 #endif
 		uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 	}
@@ -284,7 +284,7 @@ int Slicer::verticalEncoderAction(int offset, bool inCardRoutine) {
 		char buffer[12];
 		strcpy(buffer, "");
 		intToString(manualSlicePoints[currentSlice].transpose, buffer + strlen(buffer));
-		numericDriver.displayPopup(buffer, 0, true);
+		display.displayPopup(buffer, 0, true);
 #endif
 	}
 	return ACTION_RESULT_DEALT_WITH;
@@ -355,7 +355,7 @@ int Slicer::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 		char buffer[12];
 		strcpy(buffer, "");
 		intToString(manualSlicePoints[currentSlice].transpose, buffer + strlen(buffer));
-		numericDriver.displayPopup(buffer, 0, true);
+		display.displayPopup(buffer, 0, true);
 #endif
 		return ACTION_RESULT_DEALT_WITH;
 	}
@@ -438,7 +438,7 @@ int Slicer::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 			range->sampleHolder.transpose = 0;
 		}
 
-		numericDriver.setNextTransitionDirection(-1);
+		display.setNextTransitionDirection(-1);
 		close();
 	}
 	else {
@@ -518,7 +518,7 @@ int Slicer::padAction(int x, int y, int on) {
 				OLED::removePopup();
 #else
 			if (closePopup)
-				numericDriver.cancelPopup();
+				display.cancelPopup();
 #endif
 		}
 		else { // do slice
@@ -566,7 +566,7 @@ int Slicer::padAction(int x, int y, int on) {
 #if HAVE_OLED
 					OLED::removePopup();
 #else
-					numericDriver.cancelPopup();
+					display.cancelPopup();
 #endif
 
 					SliceItem tmp;
@@ -608,7 +608,7 @@ void Slicer::doSlice() {
 	int error = sampleBrowser.claimAudioFileForInstrument();
 	if (error) {
 getOut:
-		numericDriver.displayError(error);
+		display.displayError(error);
 		return;
 	}
 
@@ -665,7 +665,7 @@ getOut:
 
 #if 1 || ALPHA_OR_BETA_VERSION
 		if (!firstRange->sampleHolder.audioFile) {
-			numericDriver.freezeWithError("i032"); // Trying to narrow down E368 that Kevin F got
+			display.freezeWithError("i032"); // Trying to narrow down E368 that Kevin F got
 		}
 #endif
 
@@ -753,7 +753,7 @@ ramError2:
 	// New NoteRows have probably been created, whose colours haven't been grabbed yet.
 	instrumentClipView.recalculateColours();
 
-	numericDriver.setNextTransitionDirection(-1);
+	display.setNextTransitionDirection(-1);
 	sampleBrowser.exitAndNeverDeleteDrum();
 	uiNeedsRendering(&instrumentClipView);
 }

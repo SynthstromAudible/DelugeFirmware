@@ -20,7 +20,7 @@
 #include "storage/multi_range/multisample_range.h"
 #include "RZA1/system/r_typedefs.h"
 #include "model/sample/sample.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "processing/source.h"
 #include <string.h>
 #include <math.h>

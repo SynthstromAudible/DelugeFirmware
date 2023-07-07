@@ -18,7 +18,7 @@
 #include "gui/ui/qwerty_ui.h"
 #include <string.h>
 #include "hid/matrix/matrix_driver.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "util/functions.h"
 #include "gui/ui_timer_manager.h"
 #include "io/debug/print.h"
@@ -27,10 +27,6 @@
 #include "hid/led/indicator_leds.h"
 #include "storage/flash_storage.h"
 #include "extern.h"
-
-#if HAVE_OLED
-#include "hid/display/oled.h"
-#endif
 
 bool QwertyUI::predictionInterrupted;
 String QwertyUI::enteredText{};
@@ -146,11 +142,10 @@ void QwertyUI::displayText(bool blinkImmediately) {
 	int totalTextLength = enteredText.getLength();
 
 	bool encodedEditPosAndAHalf;
-	int encodedEditPos =
-	    numericDriver.getEncodedPosFromLeft(enteredTextEditPos, enteredText.get(), &encodedEditPosAndAHalf);
+	int encodedEditPos = display.getEncodedPosFromLeft(enteredTextEditPos, enteredText.get(), &encodedEditPosAndAHalf);
 
 	bool encodedEndPosAndAHalf;
-	int encodedEndPos = numericDriver.getEncodedPosFromLeft(totalTextLength, enteredText.get(), &encodedEndPosAndAHalf);
+	int encodedEndPos = display.getEncodedPosFromLeft(totalTextLength, enteredText.get(), &encodedEndPosAndAHalf);
 
 	int scrollPos = encodedEditPos - (NUMERIC_DISPLAY_LENGTH >> 1) + encodedEditPosAndAHalf;
 	int maxScrollPos = encodedEndPos - NUMERIC_DISPLAY_LENGTH;
@@ -167,7 +162,7 @@ void QwertyUI::displayText(bool blinkImmediately) {
 	memset(encodedAddition, 0, NUMERIC_DISPLAY_LENGTH);
 	if (totalTextLength == enteredTextEditPos || enteredText.get()[enteredTextEditPos] == ' ') {
 		if (ALPHA_OR_BETA_VERSION && (editPosOnscreen < 0 || editPosOnscreen >= NUMERIC_DISPLAY_LENGTH)) {
-			numericDriver.freezeWithError("E292");
+			display.freezeWithError("E292");
 		}
 		encodedAddition[editPosOnscreen] = 0x08;
 		encodedEditPosAndAHalf =
@@ -190,8 +185,7 @@ void QwertyUI::displayText(bool blinkImmediately) {
 	indicator_leds::ledBlinkTimeout(0, true, !blinkImmediately);
 
 	// Set the text, replacing the bottom layer - cos in some cases, we want this to slip under an existing loading animation layer
-	numericDriver.setText(enteredText.get(), false, 255, true, blinkMask, false, false, scrollPos, encodedAddition,
-	                      false);
+	display.setText(enteredText.get(), false, 255, true, blinkMask, false, false, scrollPos, encodedAddition, false);
 }
 #endif
 
@@ -366,7 +360,7 @@ int QwertyUI::padAction(int x, int y, int on) {
 						int error = enteredText.concatenateAtPos(stringToConcat, enteredTextEditPos);
 
 						if (error) {
-							numericDriver.displayError(error);
+							display.displayError(error);
 							return ACTION_RESULT_DEALT_WITH;
 						}
 

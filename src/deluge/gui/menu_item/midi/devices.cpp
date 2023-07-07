@@ -18,7 +18,7 @@
 #include "devices.h"
 #include "gui/ui/sound_editor.h"
 #include "io/midi/midi_device_manager.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "io/midi/midi_device.h"
 #include "gui/menu_item/submenu.h"
 
@@ -122,7 +122,7 @@ void Devices::drawValue() {
 	renderUIsForOled();
 #else
 	char const* displayName = soundEditor.currentMIDIDevice->getDisplayName();
-	numericDriver.setScrollingText(displayName);
+	display.setScrollingText(displayName);
 #endif
 }
 

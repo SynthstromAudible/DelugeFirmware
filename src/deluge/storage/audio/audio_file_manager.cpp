@@ -25,7 +25,7 @@
 #include "io/debug/print.h"
 #include <new>
 #include "util/functions.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "model/action/action_logger.h"
 #include "memory/general_memory_allocator.h"
 #include "model/sample/sample_cache.h"
@@ -124,7 +124,7 @@ void AudioFileManager::cardReinserted() {
 
 		Debug::println("cluster size increased and we're in trouble");
 		cardDisabled = true;
-		numericDriver.displayPopup(HAVE_OLED ? "Reboot to use this SD card" : "DIFF");
+		display.displayPopup(HAVE_OLED ? "Reboot to use this SD card" : "DIFF");
 	}
 
 	// If cluster size decreased, we have to stop all current samples from ever sounding again. Pretty big trouble really...
@@ -226,7 +226,7 @@ void AudioFileManager::deleteAnyTempRecordedSamplesFromMemory() {
 			// If it's a temp-recorded one
 			if (!((Sample*)audioFile)->tempFilePathForRecording.isEmpty()) {
 
-				//if (ALPHA_OR_BETA_VERSION && audioFile->numReasons) numericDriver.freezeWithError("E281"); // It definitely shouldn't still have any reasons
+				//if (ALPHA_OR_BETA_VERSION && audioFile->numReasons) display.freezeWithError("E281"); // It definitely shouldn't still have any reasons
 				// No - it could still have a reason - the reason of its SampleRecorder. Scenario where this happened was: recording AudioClip (instance)
 				// into Arranger when loading a new song, first causes Arranger playback to switch to Session playback, which causes
 				// finishLinearRecording() on AudioClip, so when song-swap does happen, the AudioClip no longer has a recorder, so the recorder doesn't clear stuff,
@@ -363,7 +363,7 @@ void AudioFileManager::deleteUnusedAudioFileFromMemoryIndexUnknown(AudioFile* au
 	int i = audioFiles.searchForExactObject(audioFile);
 	if (i < 0) {
 #if ALPHA_OR_BETA_VERSION
-		numericDriver.freezeWithError("E401"); // Leo got. And me! But now I've solved.
+		display.freezeWithError("E401"); // Leo got. And me! But now I've solved.
 #endif
 	}
 	else {
@@ -922,17 +922,17 @@ bool AudioFileManager::loadCluster(Cluster* cluster, int minNumReasonsAfter) {
 	Sample* sample = cluster->sample;
 
 	if (cluster->type != CLUSTER_SAMPLE) {
-		numericDriver.freezeWithError("E205"); // Chris F got this, so gonna leave checking in release build
+		display.freezeWithError("E205"); // Chris F got this, so gonna leave checking in release build
 	}
 
 #if ALPHA_OR_BETA_VERSION
 	if (cluster->numReasonsToBeLoaded <= 0) {
-		numericDriver.freezeWithError(
-		    "E204"); // Ok, I think we know there's at least 1 reason at the point this function's called, because
+		// Ok, I think we know there's at least 1 reason at the point this function's called, because
+		display.freezeWithError("E204");
 	}
 	// it'd only be in the loading queue if it had a "reason".
 	if (!sample) {
-		numericDriver.freezeWithError("E206");
+		display.freezeWithError("E206");
 	}
 #endif
 
@@ -980,11 +980,11 @@ getOutEarly:
 
 #if ALPHA_OR_BETA_VERSION
 	if (cluster->type != CLUSTER_SAMPLE) {
-		numericDriver.freezeWithError("i023"); // Happened to me while thrash testing with reduced RAM
+		display.freezeWithError("i023"); // Happened to me while thrash testing with reduced RAM
 	}
 
 	if (cluster->numReasonsToBeLoaded < minNumReasonsAfter + 1) {
-		numericDriver.freezeWithError("i039"); // It's +1 because we haven't removed this function's "reason" yet.
+		display.freezeWithError("i039"); // It's +1 because we haven't removed this function's "reason" yet.
 	}
 #endif
 
@@ -1002,14 +1002,14 @@ getOutEarly:
 
 #if ALPHA_OR_BETA_VERSION
 	if (cluster->type != CLUSTER_SAMPLE) {
-		numericDriver.freezeWithError("E207");
+		display.freezeWithError("E207");
 	}
 	if (!cluster->sample) {
-		numericDriver.freezeWithError("E208");
+		display.freezeWithError("E208");
 	}
 
 	if (cluster->numReasonsToBeLoaded < minNumReasonsAfter + 1) {
-		numericDriver.freezeWithError("i038"); // It's +1 because we haven't removed this function's "reason" yet.
+		display.freezeWithError("i038"); // It's +1 because we haven't removed this function's "reason" yet.
 	}
 #endif
 
@@ -1022,7 +1022,7 @@ getOutEarly:
 
 #if ALPHA_OR_BETA_VERSION
 	if (cluster->numReasonsToBeLoaded < minNumReasonsAfter + 1) {
-		numericDriver.freezeWithError("i040"); // It's +1 because we haven't removed this function's "reason" yet.
+		display.freezeWithError("i040"); // It's +1 because we haven't removed this function's "reason" yet.
 	}
 #endif
 
@@ -1204,10 +1204,10 @@ copy7ToMe:
 
 #if ALPHA_OR_BETA_VERSION
 	if (cluster->numReasonsToBeLoaded < minNumReasonsAfter) {
-		numericDriver.freezeWithError("i037");
+		display.freezeWithError("i037");
 	}
 	if (cluster->sample->clusters.getElement(cluster->clusterIndex)->cluster != cluster) {
-		numericDriver.freezeWithError("E438");
+		display.freezeWithError("E438");
 	}
 #endif
 
@@ -1339,7 +1339,7 @@ performActionsAndGetOut:
 
 		// Do the actual loading
 		if (cluster->type != CLUSTER_SAMPLE) {
-			numericDriver.freezeWithError("E235"); // Cos Chris F got an E205
+			display.freezeWithError("E235"); // Cos Chris F got an E205
 		}
 
 		allowSomeUserActionsEvenWhenInCardRoutine = true; // Sorry!!
@@ -1358,7 +1358,7 @@ performActionsAndGetOut:
 			else {
 
 				if (cluster->type != CLUSTER_SAMPLE) {
-					numericDriver.freezeWithError("E237"); // Cos Chris F got an E205
+					display.freezeWithError("E237"); // Cos Chris F got an E205
 				}
 
 				enqueueCluster(cluster); // TODO: If that fails, it'll just get awkwardly forgotten about
@@ -1398,7 +1398,7 @@ void AudioFileManager::removeReasonFromCluster(Cluster* cluster, char const* err
 	cluster->numReasonsToBeLoaded--;
 
 	if (cluster == clusterBeingLoaded && cluster->numReasonsToBeLoaded < minNumReasonsForClusterBeingLoaded) {
-		numericDriver.freezeWithError("E041"); // Sven got this!
+		display.freezeWithError("E041"); // Sven got this!
 	}
 
 	// If it's now zero, it's become available
@@ -1406,7 +1406,7 @@ void AudioFileManager::removeReasonFromCluster(Cluster* cluster, char const* err
 
 		// Bug hunting
 		if (ALPHA_OR_BETA_VERSION && cluster->numReasonsHeldBySampleRecorder) {
-			numericDriver.freezeWithError("E364");
+			display.freezeWithError("E364");
 		}
 
 		// If it's still in the load queue, remove it from there. (We know that it isn't in the process of being loaded right now
@@ -1433,10 +1433,10 @@ void AudioFileManager::removeReasonFromCluster(Cluster* cluster, char const* err
 			Debug::print("reason remains on cluster of sample: ");
 			Debug::println(cluster->sample->filePath.get());
 		}
-		numericDriver.freezeWithError(errorCode);
+		display.freezeWithError(errorCode);
 #else
-		numericDriver.displayPopup(errorCode); // For non testers, just display the error code without freezing
-		cluster->numReasonsToBeLoaded = 0;     // Save it from crashing or anything
+		display.displayPopup(errorCode);   // For non testers, just display the error code without freezing
+		cluster->numReasonsToBeLoaded = 0; // Save it from crashing or anything
 #endif
 	}
 }

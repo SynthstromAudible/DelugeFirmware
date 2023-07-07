@@ -1,6 +1,6 @@
 #include "display.h"
 
-DisplayActual numericDriver;
+DisplayActual display;
 
 #if HAVE_OLED
 
@@ -86,24 +86,22 @@ void Display<DisplayType::OLED>::displayError(int error) {
 	displayPopup(message);
 }
 
-#else
-
-
 #endif
 
-
 extern "C" void freezeWithError(char const* error) {
-	if (ALPHA_OR_BETA_VERSION) numericDriver.freezeWithError(error);
+	if (ALPHA_OR_BETA_VERSION) {
+		display.freezeWithError(error);
+	}
 }
 
 extern "C" void displayPopup(char const* text) {
-	numericDriver.displayPopup(text);
+	display.displayPopup(text);
 }
 
 extern uint8_t usbInitializationPeriodComplete;
 
 extern "C" void displayPopupIfAllBootedUp(char const* text) {
 	if (usbInitializationPeriodComplete) {
-		numericDriver.displayPopup(text);
+		display.displayPopup(text);
 	}
 }

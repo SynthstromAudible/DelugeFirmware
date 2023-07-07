@@ -18,7 +18,7 @@
 #include "util/functions.h"
 #include "processing/sound/sound.h"
 #include "definitions.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "fatfs/ff.h"
 #include "gui/views/view.h"
 #include "gui/ui/sound_editor.h"
@@ -27,7 +27,6 @@
 #include "io/debug/print.h"
 #include "hid/encoders.h"
 #include "gui/ui/qwerty_ui.h"
-#include "hid/display/oled.h"
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"

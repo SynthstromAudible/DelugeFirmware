@@ -1,16 +1,17 @@
 #pragma once
 #include "definitions.h"
-#include "oled.h"
-#include "numericdriver.h"
-#include "oled.h"
+#include "display/oled.h"
+#include "display/numeric_driver.h"
 
 #ifdef __cplusplus
 enum class DisplayType { OLED, SevenSegment };
 
-template <DisplayType display_type> class Display {};
+template <DisplayType display_type>
+class Display {};
 
 #if HAVE_OLED
-template <> class Display<DisplayType::OLED> {
+template <>
+class Display<DisplayType::OLED> {
 public:
 	void setText(char const* newText, bool alignRight = false, uint8_t drawDot = 255, bool doBlink = false,
 	             uint8_t* newBlinkMask = NULL, bool blinkImmediately = false, bool shouldBlinkFast = false,
@@ -34,12 +35,13 @@ public:
 using DisplayActual = Display<DisplayType::OLED>;
 
 #else
-template <> class Display<DisplayType::SevenSegment> : public NumericDriver {};
+template <>
+class Display<DisplayType::SevenSegment> : public NumericDriver {};
 
 using DisplayActual = Display<DisplayType::SevenSegment>;
 #endif // HAVE_OLED
 
-extern DisplayActual numericDriver;
+extern DisplayActual display;
 #endif // __cplusplus
 
 #ifdef __cplusplus

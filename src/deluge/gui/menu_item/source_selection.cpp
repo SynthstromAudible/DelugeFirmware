@@ -19,7 +19,7 @@
 #include "modulation/params/param_manager.h"
 #include "processing/sound/sound.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "patch_cable_strength.h"
 #include "modulation/patch/patch_cable_set.h"
 
@@ -133,7 +133,7 @@ void SourceSelection::drawValue() {
 
 	uint8_t drawDot = shouldDrawDotOnValue();
 
-	numericDriver.setText(text, false, drawDot);
+	display.setText(text, false, drawDot);
 }
 
 #endif

@@ -20,7 +20,7 @@
 #include "processing/sound/sound.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "storage/storage_manager.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "storage/storage_manager.h"
 #include <string.h>
 #include "gui/views/session_view.h"
@@ -1327,7 +1327,7 @@ ModelStackWithThreeMainThings* ModControllableAudio::addNoteRowIndexAndStuff(Mod
 		InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
 #if ALPHA_OR_BETA_VERSION
 		if (noteRowIndex >= clip->noteRows.getNumElements()) {
-			numericDriver.freezeWithError("E406");
+			display.freezeWithError("E406");
 		}
 #endif
 		noteRow = clip->noteRows.getElement(noteRowIndex);
@@ -1652,7 +1652,7 @@ void ModControllableAudio::switchDelayPingPong() {
 		displayText = "Ping-pong delay";
 		break;
 	}
-	numericDriver.displayPopup(displayText);
+	display.displayPopup(displayText);
 }
 
 void ModControllableAudio::switchDelayAnalog() {
@@ -1668,7 +1668,7 @@ void ModControllableAudio::switchDelayAnalog() {
 		displayText = HAVE_OLED ? "Analog delay" : "ANA";
 		break;
 	}
-	numericDriver.displayPopup(displayText);
+	display.displayPopup(displayText);
 }
 
 void ModControllableAudio::switchLPFMode() {
@@ -1695,7 +1695,7 @@ void ModControllableAudio::switchLPFMode() {
 		displayText = "SVF";
 		break;
 	}
-	numericDriver.displayPopup(displayText);
+	display.displayPopup(displayText);
 }
 
 // This can get called either for hibernation, or because drum now has no active noteRow

@@ -20,7 +20,7 @@
 #include "multi_range.h"
 #include "processing/sound/sound.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "storage/multi_range/multisample_range.h"
 #include "processing/source.h"
 #include <string.h>
@@ -31,7 +31,6 @@
 #include "gui/ui/keyboard_screen.h"
 #include "hid/buttons.h"
 #include "storage/multi_range/multi_wave_table_range.h"
-#include "hid/display/oled.h"
 
 namespace menu_item {
 
@@ -75,7 +74,7 @@ void MultiRange::beginSession(MenuItem* navigatedBackwardFrom) {
 
 void MultiRange::selectEncoderAction(int offset) {
 
-	if (numericDriver.popupActive) {
+	if (display.popupActive) {
 		return;
 	}
 
@@ -199,7 +198,7 @@ void MultiRange::selectEncoderAction(int offset) {
 			}
 
 			if (currentRangeTop == currentRangeBottom) {
-				numericDriver.displayPopup(HAVE_OLED ? "Range contains only 1 note" : "CANT");
+				display.displayPopup(HAVE_OLED ? "Range contains only 1 note" : "CANT");
 				return;
 			}
 
@@ -216,7 +215,7 @@ void MultiRange::selectEncoderAction(int offset) {
 			::MultiRange* newRange = soundEditor.currentSource->ranges.insertMultiRange(newI);
 			AudioEngine::audioRoutineLocked = false;
 			if (!newRange) {
-				numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
+				display.displayError(ERROR_INSUFFICIENT_RAM);
 				return;
 			}
 
@@ -246,7 +245,7 @@ void MultiRange::selectEncoderAction(int offset) {
 				soundEditor.menuCurrentScroll = soundEditor.currentValue - OLED_MENU_NUM_OPTIONS_VISIBLE + 1;
 			}
 #else
-			numericDriver.displayPopup("INSERT");
+			display.displayPopup("INSERT");
 #endif
 		}
 
@@ -286,7 +285,7 @@ void MultiRange::deletePress() {
 	if (soundEditor.editingRangeEdge != RangeEdit::OFF) {
 		return;
 	}
-	if (numericDriver.popupActive) {
+	if (display.popupActive) {
 		return;
 	}
 
@@ -294,7 +293,7 @@ void MultiRange::deletePress() {
 
 	// Want to delete the current range
 	if (oldNum <= 1) {
-		numericDriver.displayPopup(HAVE_OLED ? "Only 1 range - can't delete" : "CANT");
+		display.displayPopup(HAVE_OLED ? "Only 1 range - can't delete" : "CANT");
 		return;
 	}
 
@@ -330,7 +329,7 @@ void MultiRange::deletePress() {
 		}
 	}
 
-	numericDriver.displayPopup(HAVE_OLED ? "Range deleted" : "DELETE");
+	display.displayPopup(HAVE_OLED ? "Range deleted" : "DELETE");
 	soundEditor.possibleChangeToCurrentRangeDisplay();
 #if HAVE_OLED
 	renderUIsForOled();

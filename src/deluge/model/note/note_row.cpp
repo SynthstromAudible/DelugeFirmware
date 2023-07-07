@@ -28,7 +28,7 @@
 #include "storage/storage_manager.h"
 #include "model/song/song.h"
 #include "model/drum/kit.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "model/drum/drum_name.h"
 #include "model/note/note_vector.h"
 #include "model/action/action.h"
@@ -1091,7 +1091,7 @@ int NoteRow::editNoteRepeatAcrossAllScreens(int32_t editPos, int32_t squareWidth
 	}
 #if ALPHA_OR_BETA_VERSION
 	else if (numToDelete < 0) { // If we overshot somehow
-		numericDriver.freezeWithError("E329");
+		display.freezeWithError("E329");
 	}
 #endif
 
@@ -2056,7 +2056,7 @@ void NoteRow::attemptLateStartOfNextNoteToPlay(ModelStackWithNoteRow* modelStack
 
 	if (timeAgo < 0) { // Gregory J got this. And Vinz
 #if ALPHA_OR_BETA_VERSION
-		numericDriver.displayPopup("E336"); // Popup only
+		display.displayPopup("E336"); // Popup only
 #endif
 		timeAgo = 0; // Just don't crash
 	}
@@ -3188,7 +3188,7 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 
 						// If there also was no RAM...
 						if (!paramManager.containsAnyMainParamCollections()) {
-							numericDriver.freezeWithError("E101");
+							display.freezeWithError("E101");
 						}
 					}
 
@@ -3196,13 +3196,13 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 					else {
 						int error = paramManager.setupWithPatching();
 						if (error) {
-							numericDriver.freezeWithError("E010"); // If there also was no RAM, we're really in trouble.
+							display.freezeWithError("E010"); // If there also was no RAM, we're really in trouble.
 						}
 						Sound::initParams(&paramManager);
 
 						// This is at least not ideal, so we'd better tell the user
 						if (ALPHA_OR_BETA_VERSION) {
-							numericDriver.displayPopup("E073");
+							display.displayPopup("E073");
 						}
 					}
 				}

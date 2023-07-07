@@ -28,17 +28,13 @@
 #include "modulation/midi/midi_param.h"
 #include "gui/views/view.h"
 #include "model/action/action_logger.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "hid/matrix/matrix_driver.h"
 #include "gui/ui/ui.h"
 #include "hid/buttons.h"
 #include "model/model_stack.h"
 #include "modulation/midi/midi_param_collection.h"
 #include "modulation/params/param_set.h"
-
-#if HAVE_OLED
-#include "hid/display/oled.h"
-#endif
 
 extern "C" {
 #include "util/cfunctions.h"
@@ -436,10 +432,10 @@ int MIDIInstrument::moveAutomationToDifferentCC(int oldCC, int newCC, ModelStack
 	else {
 #if ALPHA_OR_BETA_VERSION
 		if (modelStackWithAutoParam->paramCollection != modelStack->paramManager->getExpressionParamSet()) {
-			numericDriver.freezeWithError("E415");
+			display.freezeWithError("E415");
 		}
 		if (modelStackWithAutoParam->paramId >= NUM_EXPRESSION_DIMENSIONS) {
-			numericDriver.freezeWithError("E416");
+			display.freezeWithError("E416");
 		}
 #endif
 		((ExpressionParamSet*)modelStackWithAutoParam->paramCollection)

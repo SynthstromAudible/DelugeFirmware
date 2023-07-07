@@ -48,10 +48,10 @@ public:
 #else
 	void drawValue() {
 		if (soundEditor.currentValue == 128) {
-			numericDriver.setText("NONE");
+			display.setText("NONE");
 		}
 		else {
-			numericDriver.setTextAsNumber(soundEditor.currentValue + 1);
+			display.setTextAsNumber(soundEditor.currentValue + 1);
 		}
 	}
 #endif

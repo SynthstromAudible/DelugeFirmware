@@ -19,14 +19,13 @@
 #include "gui/ui/browser/browser.h"
 #include "hid/matrix/matrix_driver.h"
 #include "gui/context_menu/delete_file.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "hid/buttons.h"
 #include <string.h>
 #include "gui/ui_timer_manager.h"
 #include "extern.h"
 #include "util/functions.h"
 #include "storage/storage_manager.h"
-#include "hid/display/oled.h"
 #include <new>
 #include "storage/file_item.h"
 #include "model/song/song.h"
@@ -717,7 +716,7 @@ noNumberYet:
 			int searchResult = fileItems.search(endSearchString.get());
 #if ALPHA_OR_BETA_VERSION
 			if (searchResult <= 0) {
-				numericDriver.freezeWithError("E448");
+				display.freezeWithError("E448");
 				error = ERROR_BUG;
 				goto gotErrorAfterAllocating;
 			}
@@ -1099,7 +1098,7 @@ searchFromOneEnd:
 
 	error = setEnteredTextFromCurrentFilename();
 	if (error) {
-		numericDriver.displayError(error);
+		display.displayError(error);
 		return;
 	}
 
@@ -1125,7 +1124,7 @@ bool Browser::predictExtendedText() {
 	error = searchString.shorten(enteredTextEditPos);
 	if (error) {
 gotError:
-		numericDriver.displayError(error);
+		display.displayError(error);
 		return false;
 	}
 
@@ -1390,7 +1389,7 @@ doQWERTYDisplay:
 	}
 	else {
 		if (enteredText.isEmpty() && fileIndexSelected == -1) {
-			numericDriver.setText("----");
+			display.setText("----");
 		}
 		else {
 
@@ -1401,8 +1400,8 @@ doQWERTYDisplay:
 					goto nonNumeric;
 				}
 
-				numericDriver.setTextAsSlot(thisSlot.slot, thisSlot.subSlot, (fileIndexSelected != -1), true,
-				                            numberEditPos, blinkImmediately);
+				display.setTextAsSlot(thisSlot.slot, thisSlot.subSlot, (fileIndexSelected != -1), true, numberEditPos,
+				                      blinkImmediately);
 			}
 
 			else {
@@ -1413,7 +1412,7 @@ nonNumeric:
 					goto doQWERTYDisplay;
 				}
 				else {
-					scrollingText = numericDriver.setScrollingText(enteredText.get(), numCharsInPrefix);
+					scrollingText = display.setScrollingText(enteredText.get(), numCharsInPrefix);
 				}
 			}
 		}
@@ -1445,7 +1444,7 @@ int Browser::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 			FileItem* currentFileItem = getCurrentFileItem();
 			if (currentFileItem) {
 				if (currentFileItem->isFolder) {
-					numericDriver.displayPopup(HAVE_OLED ? "Folders cannot be deleted on the Deluge" : "CANT");
+					display.displayPopup(HAVE_OLED ? "Folders cannot be deleted on the Deluge" : "CANT");
 					return ACTION_RESULT_DEALT_WITH;
 				}
 				if (inCardRoutine) {
@@ -1520,7 +1519,7 @@ void Browser::goIntoDeleteFileContextMenu() {
 	bool available = context_menu::deleteFile.setupAndCheckAvailability();
 
 	if (available) {
-		numericDriver.setNextTransitionDirection(1);
+		display.setNextTransitionDirection(1);
 		openUI(&context_menu::deleteFile);
 	}
 }
@@ -1567,7 +1566,7 @@ int Browser::goIntoFolder(char const* folderName) {
 	enteredText.clear();
 	enteredTextEditPos = 0;
 
-	numericDriver.setNextTransitionDirection(1);
+	display.setNextTransitionDirection(1);
 	error = arrivedInNewFolder(1);
 #if HAVE_OLED
 	if (!error) {
@@ -1596,7 +1595,7 @@ int Browser::goUpOneDirectoryLevel() {
 	}
 	enteredTextEditPos = 0;
 
-	numericDriver.setNextTransitionDirection(-1);
+	display.setNextTransitionDirection(-1);
 	error = arrivedInNewFolder(-1, enteredText.get());
 #if HAVE_OLED
 	if (!error) {

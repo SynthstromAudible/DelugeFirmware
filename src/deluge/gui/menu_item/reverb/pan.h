@@ -39,7 +39,7 @@ public:
 		else if (soundEditor.currentValue > 0) {
 			strcat(buffer, "R");
 		}
-		numericDriver.setText(buffer, true);
+		display.setText(buffer, true);
 	}
 
 	void writeCurrentValue() { AudioEngine::reverbPan = ((int32_t)soundEditor.currentValue * 33554432); }

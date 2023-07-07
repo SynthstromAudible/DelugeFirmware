@@ -38,7 +38,7 @@ public:
 	}
 
 	void drawValue() {
-		numericDriver.setScrollingText(firmwareString);
+		display.setScrollingText(firmwareString);
 	}
 #endif
 };

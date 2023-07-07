@@ -33,7 +33,7 @@
 #include "model/song/song.h"
 #include "hid/matrix/matrix_driver.h"
 #include "memory/general_memory_allocator.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "model/instrument/instrument.h"
 #include "model/action/action_logger.h"
 #include "io/debug/print.h"
@@ -71,7 +71,6 @@
 #include "extern.h"
 #include "modulation/params/param_set.h"
 #include "storage/file_item.h"
-#include "hid/display/oled.h"
 
 extern "C" {
 extern uint8_t currentlyAccessingCard;
@@ -104,7 +103,7 @@ void ArrangerView::moveClipToSession() {
 
 	// Empty ClipInstance - can't do
 	if (!clip) {
-		numericDriver.displayPopup(HAVE_OLED ? "Empty clip instances can't be moved to the session" : "EMPTY");
+		display.displayPopup(HAVE_OLED ? "Empty clip instances can't be moved to the session" : "EMPTY");
 	}
 
 	else {
@@ -131,7 +130,7 @@ void ArrangerView::moveClipToSession() {
 			clip->section = currentSong->getLowestSectionWithNoSessionClipForOutput(output);
 			int error = currentSong->sessionClips.insertClipAtIndex(clip, intendedIndex);
 			if (error) {
-				numericDriver.displayError(error);
+				display.displayError(error);
 				return;
 			}
 			actionLogger.deleteAllLogs();
@@ -341,7 +340,7 @@ void ArrangerView::deleteOutput() {
 	if (currentSong->getNumOutputs() <= 1) {
 		errorMessage = "Can't delete final Clip";
 cant:
-		numericDriver.displayPopup(HAVE_OLED ? errorMessage : "CANT");
+		display.displayPopup(HAVE_OLED ? errorMessage : "CANT");
 		return;
 	}
 
@@ -368,7 +367,7 @@ cant:
 
 void ArrangerView::clearArrangement() {
 
-	numericDriver.displayPopup(HAVE_OLED ? "Arrangement cleared" : "CLEAR");
+	display.displayPopup(HAVE_OLED ? "Arrangement cleared" : "CLEAR");
 
 	if (arrangement.hasPlaybackActive()) {
 		playbackHandler.endPlayback();
@@ -649,7 +648,7 @@ void ArrangerView::beginAudition(Output* output) {
 			if (noteRow) {
 				drum = noteRow->drum;
 				if (drum && drum->type == DRUM_TYPE_SOUND && !noteRow->paramManager.containsAnyMainParamCollections()) {
-					numericDriver.freezeWithError("E324"); // Vinz got this! I may have since fixed.
+					display.freezeWithError("E324"); // Vinz got this! I may have since fixed.
 				}
 			}
 			else {
@@ -717,7 +716,7 @@ void ArrangerView::changeOutputToInstrument(int newInstrumentType) {
 	}
 
 	if (currentSong->getClipWithOutput(oldOutput)) {
-		numericDriver.displayPopup(HAVE_OLED ? "Audio tracks with clips can't be turned into an instrument" : "CANT");
+		display.displayPopup(HAVE_OLED ? "Audio tracks with clips can't be turned into an instrument" : "CANT");
 		return;
 	}
 
@@ -751,7 +750,7 @@ Instrument* ArrangerView::createNewInstrument(int newInstrumentType, bool* instr
 	result.error = Browser::currentDir.set(getInstrumentFolder(newInstrumentType));
 	if (result.error) {
 displayError:
-		numericDriver.displayError(result.error);
+		display.displayError(result.error);
 		return NULL;
 	}
 
@@ -911,8 +910,7 @@ int ArrangerView::padAction(int x, int y, int velocity) {
 				}
 				else if (output->type == INSTRUMENT_TYPE_KIT) {
 					if (velocity) {
-						numericDriver.displayPopup(HAVE_OLED ? "MIDI must be learned to kit items individually"
-						                                     : "CANT");
+						display.displayPopup(HAVE_OLED ? "MIDI must be learned to kit items individually" : "CANT");
 					}
 				}
 				else {
@@ -1156,7 +1154,7 @@ void ArrangerView::editPadAction(int x, int y, bool on) {
 
 					int error = arrangement.doUniqueCloneOnClipInstance(clipInstance, clipInstance->length, true);
 					if (error) {
-						numericDriver.displayError(error);
+						display.displayError(error);
 					}
 					else {
 						uiNeedsRendering(this, 1 << y, 0);
@@ -1175,7 +1173,7 @@ void ArrangerView::editPadAction(int x, int y, bool on) {
 			int32_t squareEnd = getPosFromSquare(x + 1, xScroll);
 
 			if (squareStart >= squareEnd) {
-				numericDriver.freezeWithError("E210");
+				display.freezeWithError("E210");
 			}
 
 			// No previous press
@@ -1241,7 +1239,7 @@ makeNewInstance:
 						int j = output->clipInstances.search(squareStart, GREATER_OR_EQUAL);
 						ClipInstance* nextClipInstance = output->clipInstances.getElement(j);
 						if (nextClipInstance && nextClipInstance->pos == squareStart) {
-							numericDriver.freezeWithError("E233"); // Yes, this happened to someone. Including me!!
+							display.freezeWithError("E233"); // Yes, this happened to someone. Including me!!
 						}
 					}
 
@@ -1295,14 +1293,14 @@ getItFromSection:
 						ClipInstance* nextInstance = output->clipInstances.getElement(pressedClipInstanceIndex + 1);
 						if (nextInstance) {
 							if (nextInstance->pos == squareStart) {
-								numericDriver.freezeWithError("E232");
+								display.freezeWithError("E232");
 							}
 						}
 					}
 
 					clipInstance = output->clipInstances.getElement(pressedClipInstanceIndex);
 					if (!clipInstance) {
-						numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
+						display.displayError(ERROR_INSUFFICIENT_RAM);
 						return;
 					}
 
@@ -1316,21 +1314,21 @@ getItFromSection:
 					}
 
 					if (clipInstance->length < 1) {
-						numericDriver.freezeWithError("E049");
+						display.freezeWithError("E049");
 					}
 
 					ClipInstance* nextInstance = output->clipInstances.getElement(pressedClipInstanceIndex + 1);
 					if (nextInstance) {
 
 						if (nextInstance->pos == squareStart) {
-							numericDriver.freezeWithError("E209");
+							display.freezeWithError("E209");
 						}
 
 						int32_t maxLength = nextInstance->pos - squareStart;
 						if (clipInstance->length > maxLength) {
 							clipInstance->length = maxLength;
 							if (clipInstance->length < 1) {
-								numericDriver.freezeWithError("E048");
+								display.freezeWithError("E048");
 							}
 						}
 					}
@@ -1338,7 +1336,7 @@ getItFromSection:
 					if (clipInstance->length > MAX_SEQUENCE_LENGTH - clipInstance->pos) {
 						clipInstance->length = MAX_SEQUENCE_LENGTH - clipInstance->pos;
 						if (clipInstance->length < 1) {
-							numericDriver.freezeWithError("E045");
+							display.freezeWithError("E045");
 						}
 					}
 
@@ -1507,7 +1505,7 @@ justGetOut:
 
 								void* memory = generalMemoryAllocator.alloc(size, NULL, false, true);
 								if (!memory) {
-									numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
+									display.displayError(ERROR_INSUFFICIENT_RAM);
 									goto justGetOut;
 								}
 
@@ -1538,7 +1536,7 @@ justGetOut:
 								}
 
 								if (error) {
-									numericDriver.displayError(error);
+									display.displayError(error);
 									newClip->~Clip();
 									generalMemoryAllocator.dealloc(memory);
 									goto justGetOut;
@@ -2382,7 +2380,7 @@ void ArrangerView::navigateThroughPresets(int offset) {
 
 				if (newChannel == oldChannel) {
 cantDoIt:
-					numericDriver.displayPopup(HAVE_OLED ? "No free channel slots available in song" : "CANT");
+					display.displayPopup(HAVE_OLED ? "No free channel slots available in song" : "CANT");
 					return;
 				}
 
@@ -2454,7 +2452,7 @@ removeWorkingAnimationAndGetOut:
 			return;
 		}
 		else if (results.error) {
-			numericDriver.displayError(results.error);
+			display.displayError(results.error);
 			goto removeWorkingAnimationAndGetOut;
 		}
 
@@ -2470,7 +2468,7 @@ removeWorkingAnimationAndGetOut:
 #if HAVE_OLED
 		OLED::removeWorkingAnimation();
 #else
-		numericDriver.removeTopLayer();
+		display.removeTopLayer();
 #endif
 	}
 
@@ -2527,7 +2525,7 @@ void ArrangerView::changeOutputToAudio() {
 
 	if (oldOutput->clipInstances.getNumElements()) {
 cant:
-		numericDriver.displayPopup(HAVE_OLED ? "Instruments with clips can't be turned into audio tracks" : "CANT");
+		display.displayPopup(HAVE_OLED ? "Instruments with clips can't be turned into audio tracks" : "CANT");
 		return;
 	}
 
@@ -2556,12 +2554,12 @@ cant:
 	if (instrumentClip) {
 		int clipIndex = currentSong->sessionClips.getIndexForClip(instrumentClip);
 		if (ALPHA_OR_BETA_VERSION && clipIndex == -1) {
-			numericDriver.freezeWithError("E266");
+			display.freezeWithError("E266");
 		}
 		newClip = currentSong->replaceInstrumentClipWithAudioClip(instrumentClip, clipIndex);
 
 		if (!newClip) {
-			numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
+			display.displayError(ERROR_INSUFFICIENT_RAM);
 			return;
 		}
 
@@ -2575,7 +2573,7 @@ cant:
 		// Suss output
 		newOutput = currentSong->createNewAudioOutput(oldOutput);
 		if (!newOutput) {
-			numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
+			display.displayError(ERROR_INSUFFICIENT_RAM);
 			return;
 		}
 

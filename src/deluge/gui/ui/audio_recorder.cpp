@@ -28,7 +28,7 @@
 #include "io/debug/print.h"
 #include "dsp/stereo_sample.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "processing/source.h"
 #include "hid/matrix/matrix_driver.h"
 #include "model/drum/kit.h"
@@ -44,7 +44,6 @@
 #include "definitions.h"
 #include "hid/led/pad_leds.h"
 #include "extern.h"
-#include "hid/display/oled.h"
 #include "playback/playback_handler.h"
 
 AudioRecorder audioRecorder{};
@@ -96,7 +95,7 @@ bool AudioRecorder::opened() {
 		int error = newName.set("REC");
 		if (error) {
 gotError:
-			numericDriver.displayError(error);
+			display.displayError(error);
 			return false;
 		}
 
@@ -126,8 +125,8 @@ gotError:
 		indicator_leds::blinkLed(IndicatorLED::BACK);
 		indicator_leds::blinkLed(IndicatorLED::RECORD, 255, 1);
 #if !HAVE_OLED
-		numericDriver.setNextTransitionDirection(0);
-		numericDriver.setText("REC", false, 255, true);
+		display.setNextTransitionDirection(0);
+		display.setText("REC", false, 255, true);
 #endif
 	}
 
@@ -147,12 +146,12 @@ void AudioRecorder::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 bool AudioRecorder::setupRecordingToFile(int newMode, int newNumChannels, int folderID) {
 
 	if (ALPHA_OR_BETA_VERSION && recordingSource) {
-		numericDriver.freezeWithError("E242");
+		display.freezeWithError("E242");
 	}
 
 	recorder = AudioEngine::getNewRecorder(newNumChannels, folderID, newMode, INTERNAL_BUTTON_PRESS_LATENCY);
 	if (!recorder) {
-		numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
+		display.displayError(ERROR_INSUFFICIENT_RAM);
 		return false;
 	}
 
@@ -186,7 +185,7 @@ void AudioRecorder::endRecordingSoon(int buttonLatency) {
 #if HAVE_OLED
 		OLED::displayWorkingAnimation("Working");
 #else
-		numericDriver.displayLoadingAnimation();
+		display.displayLoadingAnimation();
 #endif
 		recorder->endSyncedRecording(buttonLatency);
 	}
@@ -242,8 +241,8 @@ void AudioRecorder::process() {
 			if (recorder->recordingClippedRecently) {
 				recorder->recordingClippedRecently = false;
 
-				if (!numericDriver.popupActive) {
-					numericDriver.displayPopup(HAVE_OLED ? "Clipping occurred" : "CLIP");
+				if (!display.popupActive) {
+					display.displayPopup(HAVE_OLED ? "Clipping occurred" : "CLIP");
 				}
 			}
 		}
@@ -261,7 +260,7 @@ void AudioRecorder::finishRecording() {
 #if HAVE_OLED
 	OLED::removeWorkingAnimation();
 #else
-	numericDriver.removeTopLayer();
+	display.removeTopLayer();
 #endif
 }
 

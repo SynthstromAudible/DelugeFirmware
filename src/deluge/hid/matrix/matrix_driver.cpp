@@ -23,7 +23,7 @@
 #include "gui/ui/browser/sample_browser.h"
 #include "hid/matrix/matrix_driver.h"
 #include "util/functions.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "io/debug/print.h"
 #include "gui/ui/audio_recorder.h"
 #include <cstring>

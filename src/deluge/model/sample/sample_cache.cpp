@@ -18,8 +18,8 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
 #include "model/sample/sample_cache.h"
+#include "hid/display.h"
 #include "io/debug/print.h"
-#include "hid/display/numeric_driver.h"
 #include "model/sample/sample.h"
 #include "memory/general_memory_allocator.h"
 
@@ -49,10 +49,10 @@ void SampleCache::clusterStolen(int clusterIndex) {
 
 #if ALPHA_OR_BETA_VERSION
 	if (clusterIndex < 0) {
-		numericDriver.freezeWithError("E296");
+		display.freezeWithError("E296");
 	}
 	else if (clusterIndex >= numClusters) {
-		numericDriver.freezeWithError("E297");
+		display.freezeWithError("E297");
 	}
 #endif
 
@@ -71,16 +71,16 @@ void SampleCache::clusterStolen(int clusterIndex) {
 
 #if ALPHA_OR_BETA_VERSION
 	if (writeBytePos < 0) {
-		numericDriver.freezeWithError("E298");
+		display.freezeWithError("E298");
 	}
 	else if (writeBytePos >= waveformLengthBytes) {
-		numericDriver.freezeWithError("E299");
+		display.freezeWithError("E299");
 	}
 
 	int numExistentClusters = getNumExistentClusters(writeBytePos);
 
 	if (numExistentClusters != clusterIndex) {
-		numericDriver.freezeWithError("E295");
+		display.freezeWithError("E295");
 	}
 	clusters[clusterIndex] =
 	    NULL; // No need to remove this first Cluster from a queue or anything - that's already all done by the thing that's stealing it
@@ -92,7 +92,7 @@ void SampleCache::unlinkClusters(int startAtIndex, bool beingDestructed) {
 	int numExistentClusters = getNumExistentClusters(writeBytePos);
 	for (int i = startAtIndex; i < numExistentClusters; i++) {
 		if (ALPHA_OR_BETA_VERSION && !clusters[i]) {
-			numericDriver.freezeWithError("E167");
+			display.freezeWithError("E167");
 		}
 
 		audioFileManager.deallocateCluster(clusters[i]);
@@ -108,15 +108,15 @@ void SampleCache::setWriteBytePos(int newWriteBytePos) {
 
 #if ALPHA_OR_BETA_VERSION
 	if (newWriteBytePos < 0) {
-		numericDriver.freezeWithError("E300");
+		display.freezeWithError("E300");
 	}
 	if (newWriteBytePos > waveformLengthBytes) {
-		numericDriver.freezeWithError("E301");
+		display.freezeWithError("E301");
 	}
 
 	uint32_t bytesPerSample = sample->numChannels * CACHE_BYTE_DEPTH;
 	if (newWriteBytePos != (uint32_t)newWriteBytePos / bytesPerSample * bytesPerSample) {
-		numericDriver.freezeWithError("E302");
+		display.freezeWithError("E302");
 	}
 #endif
 
@@ -129,7 +129,7 @@ void SampleCache::setWriteBytePos(int newWriteBytePos) {
 	writeBytePos = newWriteBytePos;
 
 	if (ALPHA_OR_BETA_VERSION && getNumExistentClusters(writeBytePos) != newNumExistentClusters) {
-		numericDriver.freezeWithError("E294");
+		display.freezeWithError("E294");
 	}
 }
 
@@ -140,10 +140,10 @@ bool SampleCache::setupNewCluster(int clusterIndex) {
 
 #if ALPHA_OR_BETA_VERSION
 	if (clusterIndex >= numClusters) {
-		numericDriver.freezeWithError("E126");
+		display.freezeWithError("E126");
 	}
 	if (clusterIndex > getNumExistentClusters(writeBytePos)) {
-		numericDriver.freezeWithError("E293");
+		display.freezeWithError("E293");
 	}
 #endif
 
@@ -223,10 +223,10 @@ int SampleCache::getNumExistentClusters(int32_t thisWriteBytePos) {
 
 #if ALPHA_OR_BETA_VERSION
 	if (numExistentClusters < 0) {
-		numericDriver.freezeWithError("E303");
+		display.freezeWithError("E303");
 	}
 	if (numExistentClusters > numClusters) {
-		numericDriver.freezeWithError("E304");
+		display.freezeWithError("E304");
 	}
 #endif
 

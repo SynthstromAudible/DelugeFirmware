@@ -19,9 +19,7 @@
 #include "settings.h"
 
 #include "gui/ui/sound_editor.h"
-#include "hid/display/numeric_driver.h"
-#include "model/settings/runtime_feature_settings.h"
-
+#include "hid/display.h"
 #include <algorithm>
 #include <cstdio>
 #include <iterator>

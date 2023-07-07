@@ -41,7 +41,7 @@ public:
 			char buffer[5];
 			strcpy(buffer, "CAR");
 			intToString(thingIndex + 1, buffer + 3);
-			numericDriver.setText(buffer);
+			display.setText(buffer);
 		}
 		else {
 			SubmenuReferringToOneThing::drawName();

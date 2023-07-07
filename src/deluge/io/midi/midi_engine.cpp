@@ -23,7 +23,7 @@
 #include <string.h>
 #include "playback/mode/playback_mode.h"
 #include "model/song/song.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "RZA1/mtu/mtu.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
@@ -782,7 +782,7 @@ void MidiEngine::midiSysexReceived(MIDIDevice* device, uint8_t* data, int len) {
 		} break;
 
 		case 1:
-			numericDriver.displayPopup(HAVE_OLED ? "hello sysex" : "SYSX");
+			display.displayPopup(HAVE_OLED ? "hello sysex" : "SYSX");
 			break;
 
 		case 2:
@@ -988,7 +988,7 @@ void MidiEngine::midiMessageReceived(MIDIDevice* fromDevice, uint8_t statusType,
 				                                    &shouldDoMidiThruNow);
 #if MISSING_MESSAGE_CHECK
 				if (lastWasNoteOn == (bool)(statusType & 1))
-					numericDriver.freezeWithError("MISSED!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+					display.freezeWithError("MISSED!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
 				lastWasNoteOn = statusType & 1;
 #endif
 				break;

@@ -26,7 +26,7 @@
 #include "storage/storage_manager.h"
 #include "util/functions.h"
 #include "model/song/song.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "io/debug/print.h"
 #include "processing/engines/cv_engine.h"
 #include "model/instrument/instrument.h"
@@ -366,7 +366,7 @@ char const* StorageManager::readNextTagOrAttributeName() {
 
 	default:
 #if ALPHA_OR_BETA_VERSION
-		numericDriver.freezeWithError(
+		display.freezeWithError(
 		    "E365"); // Can happen with invalid files, though I'm implementing error checks whenever a user alerts me to a scenario. Fraser got this, Nov 2021.
 #else
 		__builtin_unreachable();
@@ -741,7 +741,7 @@ char const* StorageManager::readTagOrAttributeValue() {
 		return "";
 
 	default:
-		numericDriver.freezeWithError("BBBB");
+		display.freezeWithError("BBBB");
 		__builtin_unreachable();
 	}
 }
@@ -762,7 +762,7 @@ int32_t StorageManager::readTagOrAttributeValueInt() {
 		return 0;
 
 	default:
-		numericDriver.freezeWithError("BBBB");
+		display.freezeWithError("BBBB");
 		__builtin_unreachable();
 	}
 }
@@ -798,7 +798,7 @@ int StorageManager::readTagOrAttributeValueString(String* string) {
 
 	default:
 		if (ALPHA_OR_BETA_VERSION) {
-			numericDriver.freezeWithError("BBBB");
+			display.freezeWithError("BBBB");
 		}
 		__builtin_unreachable();
 	}
@@ -829,7 +829,7 @@ bool StorageManager::prepareToReadTagOrAttributeValueOneCharAtATime() {
 
 	default:
 		if (ALPHA_OR_BETA_VERSION) {
-			numericDriver.freezeWithError("CCCC");
+			display.freezeWithError("CCCC");
 		}
 		__builtin_unreachable();
 	}
@@ -906,7 +906,7 @@ void StorageManager::exitTag(char const* exitTagName) {
 
 		default:
 			if (ALPHA_OR_BETA_VERSION) {
-				numericDriver.freezeWithError("AAAA"); // Really shouldn't be possible anymore, I feel fairly certain...
+				display.freezeWithError("AAAA"); // Really shouldn't be possible anymore, I feel fairly certain...
 			}
 			__builtin_unreachable();
 		}

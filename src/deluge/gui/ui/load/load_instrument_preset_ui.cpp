@@ -24,7 +24,7 @@
 #include "util/functions.h"
 #include "model/song/song.h"
 #include "model/instrument/instrument.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "hid/matrix/matrix_driver.h"
 #include "io/debug/print.h"
 #include "gui/views/view.h"
@@ -40,7 +40,6 @@
 #include "extern.h"
 #include "gui/ui_timer_manager.h"
 #include "storage/file_item.h"
-#include "hid/display/oled.h"
 #include "processing/engines/audio_engine.h"
 
 using namespace deluge;
@@ -91,7 +90,7 @@ bool LoadInstrumentPresetUI::opened() {
 	int error = beginSlotSession(); // Requires currentDir to be set. (Not anymore?)
 	if (error) {
 gotError:
-		numericDriver.displayError(error);
+		display.displayError(error);
 		return false;
 	}
 
@@ -230,7 +229,7 @@ void LoadInstrumentPresetUI::enterKeyPress() {
 		int error = goIntoFolder(currentFileItem->filename.get());
 
 		if (error) {
-			numericDriver.displayError(error);
+			display.displayError(error);
 			close(); // Don't use goBackToSoundEditor() because that would do a left-scroll
 			return;
 		}
@@ -241,7 +240,7 @@ void LoadInstrumentPresetUI::enterKeyPress() {
 		if (currentInstrumentLoadError) {
 			currentInstrumentLoadError = performLoad();
 			if (currentInstrumentLoadError) {
-				numericDriver.displayError(currentInstrumentLoadError);
+				display.displayError(currentInstrumentLoadError);
 				return;
 			}
 		}
@@ -339,14 +338,14 @@ int LoadInstrumentPresetUI::timerCallback() {
 
 		bool fileExists = storageManager.fileExists(filePath.get(), &currentFileItem->filePointer);
 		if (!fileExists) {
-			numericDriver.displayError(ERROR_FILE_NOT_FOUND);
+			display.displayError(ERROR_FILE_NOT_FOUND);
 			return ACTION_RESULT_DEALT_WITH;
 		}
 
 		bool available = gui::context_menu::loadInstrumentPreset.setupAndCheckAvailability();
 
 		if (available) {
-			numericDriver.setNextTransitionDirection(1);
+			display.setNextTransitionDirection(1);
 			convertToPrefixFormatIfPossible();
 			openUI(&gui::context_menu::loadInstrumentPreset);
 		}
@@ -397,7 +396,7 @@ void LoadInstrumentPresetUI::changeInstrumentType(int newInstrumentType) {
 #else
 				char const* message = "DONE";
 #endif
-				numericDriver.displayPopup(message);
+				display.displayPopup(message);
 			}
 
 			close();
@@ -848,14 +847,14 @@ giveUsedError:
 #if HAVE_OLED
 	OLED::displayWorkingAnimation("Loading");
 #else
-	numericDriver.displayLoadingAnimation(false, true);
+	display.displayLoadingAnimation(false, true);
 #endif
 	int error = newInstrument->loadAllAudioFiles(true);
 
 #if HAVE_OLED
 	OLED::removeWorkingAnimation();
 #else
-	numericDriver.removeTopLayer();
+	display.removeTopLayer();
 #endif
 
 	// If error, most likely because user interrupted sample loading process...
@@ -955,7 +954,7 @@ int LoadInstrumentPresetUI::padAction(int x, int y, int on) {
 		}
 		if (currentInstrumentLoadError) {
 			if (on) {
-				numericDriver.displayError(currentInstrumentLoadError);
+				display.displayError(currentInstrumentLoadError);
 			}
 		}
 		else {
@@ -1445,7 +1444,7 @@ doPendingPresetNavigation:
 #if HAVE_OLED
 	OLED::displayWorkingAnimation("Loading");
 #else
-	numericDriver.displayLoadingAnimation(false, true);
+	display.displayLoadingAnimation(false, true);
 #endif
 	int oldUIMode = currentUIMode;
 	currentUIMode = UI_MODE_LOADING_BUT_ABORT_IF_SELECT_ENCODER_TURNED;

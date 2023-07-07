@@ -22,13 +22,13 @@
 #include "memory/general_memory_allocator.h"
 #include "util/functions.h"
 #include <string.h>
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "io/debug/print.h"
 
 #if RESIZEABLE_ARRAY_DO_LOCKS
 #define LOCK_ENTRY                                                                                                     \
 	if (lock) {                                                                                                        \
-		numericDriver.freezeWithError("i008");                                                                         \
+		display.freezeWithError("i008");                                                                               \
 	}                                                                                                                  \
 	lock =                                                                                                             \
 	    true; // Bay_Mud got this error around V4.0.1 (must have been a beta), and thinks a FlashAir card might have been a catalyst. It still "shouldn't" be able to happen though.
@@ -882,7 +882,7 @@ void ResizeableArray::setStaticMemory(void* newMemory, int newMemorySize) {
 int ResizeableArray::insertAtIndex(int i, int numToInsert, void* thingNotToStealFrom) {
 
 	if (ALPHA_OR_BETA_VERSION && (i < 0 || i > numElements || numToInsert < 1)) {
-		numericDriver.freezeWithError("E280");
+		display.freezeWithError("E280");
 	}
 
 	LOCK_ENTRY
@@ -910,7 +910,7 @@ int ResizeableArray::insertAtIndex(int i, int numToInsert, void* thingNotToSteal
 		}
 
 		if (ALPHA_OR_BETA_VERSION && allocatedMemorySize < newMemorySize * elementSize) {
-			numericDriver.freezeWithError("FFFF");
+			display.freezeWithError("FFFF");
 		}
 
 		setMemory(newMemory, allocatedMemorySize);

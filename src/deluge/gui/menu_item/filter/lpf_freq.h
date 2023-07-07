@@ -28,7 +28,7 @@ public:
 		if (soundEditor.currentValue == 50
 		    && !soundEditor.currentParamManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(
 		        PARAM_LOCAL_LPF_FREQ)) {
-			numericDriver.setText("Off");
+			display.setText("Off");
 		}
 		else {
 			patched_param::IntegerNonFM::drawValue();

@@ -28,16 +28,11 @@
 #include <new>
 #include "util/functions.h"
 #include "hid/led/indicator_leds.h"
-#if HAVE_OLED
-#include "hid/display/oled.h"
-#endif
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
 #include "util/cfunctions.h"
 }
-
-NumericDriver numericDriver{};
 
 uint8_t numberSegments[10] = {0x7E, 0x30, 0x6D, 0x79, 0x33, 0x5B, 0x5F, 0x70, 0x7F, 0x7B};
 
@@ -63,7 +58,6 @@ NumericDriver::NumericDriver() {
 	nextTransitionDirection = 0;
 }
 
-#if !HAVE_OLED
 void NumericDriver::setTopLayer(NumericLayer* newTopLayer) {
 	newTopLayer->next = topLayer;
 	topLayer = newTopLayer;
@@ -101,12 +95,10 @@ void NumericDriver::removeTopLayer() {
 		render();
 	}
 }
-#endif
 
 void NumericDriver::setText(char const* newText, bool alignRight, uint8_t drawDot, bool doBlink, uint8_t* newBlinkMask,
                             bool blinkImmediately, bool shouldBlinkFast, int scrollPos, uint8_t* encodedAddition,
                             bool justReplaceBottomLayer) {
-#if !HAVE_OLED
 	void* layerSpace = generalMemoryAllocator.alloc(sizeof(NumericLayerBasicText));
 	if (!layerSpace) {
 		return;
@@ -151,10 +143,8 @@ void NumericDriver::setText(char const* newText, bool alignRight, uint8_t drawDo
 	else {
 		transitionToNewLayer(newLayer);
 	}
-#endif
 }
 
-#if !HAVE_OLED
 NumericLayerScrollingText* NumericDriver::setScrollingText(char const* newText, int startAtTextPos, int initialDelay) {
 	void* layerSpace = generalMemoryAllocator.alloc(sizeof(NumericLayerScrollingText));
 	if (!layerSpace) {
@@ -472,7 +462,6 @@ void NumericDriver::setTextAsSlot(int16_t currentSlot, int8_t currentSubSlot, bo
 
 	setText(text, (blinkPos == -1), currentSlotExists ? 3 : 255, doBlink, blinkMask, blinkImmediately);
 }
-#endif
 
 void NumericDriver::setNextTransitionDirection(int8_t thisDirection) {
 	nextTransitionDirection = thisDirection;
@@ -480,10 +469,6 @@ void NumericDriver::setNextTransitionDirection(int8_t thisDirection) {
 
 void NumericDriver::displayPopup(char const* newText, int8_t numFlashes, bool alignRight, uint8_t drawDot,
                                  int blinkSpeed) {
-
-#if HAVE_OLED
-	OLED::popupText(newText, !numFlashes);
-#else
 	encodeText(newText, popup.segments, alignRight, drawDot);
 	memset(&popup.blinkedSegments, 0, NUMERIC_DISPLAY_LENGTH);
 	if (numFlashes == 0) {
@@ -499,23 +484,17 @@ void NumericDriver::displayPopup(char const* newText, int8_t numFlashes, bool al
 	indicator_leds::ledBlinkTimeout(0, true);
 	popup.isNowOnTop();
 	render();
-#endif
 }
 
 void NumericDriver::cancelPopup() {
-#if HAVE_OLED
-	OLED::removePopup();
-#else
 	if (popupActive) {
 		uiTimerManager.unsetTimer(TIMER_DISPLAY);
 		popupActive = false;
 		topLayer->isNowOnTop();
 		render();
 	}
-#endif
 }
 
-#if !HAVE_OLED
 void NumericDriver::timerRoutine() {
 	NumericLayer* layer;
 	if (popupActive) {
@@ -582,16 +561,11 @@ void NumericDriver::setTextVeryBasicA1(char const* text) {
 		bufferPICUart(segments[whichChar]);
 	}
 }
-#endif
 
 // Highest error code used, main branch: E451
 // Highest error code used, fix branch: i041
 
 void NumericDriver::freezeWithError(char const* text) {
-
-#if HAVE_OLED
-	OLED::freezeWithError(text);
-#else
 	setTextVeryBasicA1(text);
 
 	while (1) {
@@ -606,32 +580,11 @@ void NumericDriver::freezeWithError(char const* text) {
 	}
 
 	setTextVeryBasicA1("OK");
-#endif
 }
 
-extern "C" void freezeWithError(char const* error) {
-	if (ALPHA_OR_BETA_VERSION) {
-		numericDriver.freezeWithError(error);
-	}
-}
-
-extern "C" void displayPopup(char const* text) {
-	numericDriver.displayPopup(text);
-}
-
-extern uint8_t usbInitializationPeriodComplete;
-
-extern "C" void displayPopupIfAllBootedUp(char const* text) {
-	if (usbInitializationPeriodComplete) {
-		numericDriver.displayPopup(text);
-	}
-}
-
-#if !HAVE_OLED
 bool NumericDriver::isLayerCurrentlyOnTop(NumericLayer* layer) {
 	return (!popupActive && layer == topLayer);
 }
-#endif
 
 void NumericDriver::displayError(int error) {
 
@@ -642,72 +595,6 @@ void NumericDriver::displayError(int error) {
 	case ERROR_ABORTED_BY_USER:
 		return;
 
-#if HAVE_OLED
-	case ERROR_INSUFFICIENT_RAM:
-		message = "Insufficient RAM";
-		break;
-	case ERROR_INSUFFICIENT_RAM_FOR_FOLDER_CONTENTS_SIZE:
-		message = "Too many files in folder";
-		break;
-	case ERROR_SD_CARD:
-		message = "SD card error";
-		break;
-	case ERROR_SD_CARD_NOT_PRESENT:
-		message = "No SD card present";
-		break;
-	case ERROR_SD_CARD_NO_FILESYSTEM:
-		message = "Please use FAT32-formatted card";
-		break;
-	case ERROR_FILE_CORRUPTED:
-		message = "File corrupted";
-		break;
-	case ERROR_FILE_NOT_FOUND:
-		message = "File not found";
-		break;
-	case ERROR_FILE_UNREADABLE:
-		message = "File unreadable";
-		break;
-	case ERROR_FILE_UNSUPPORTED:
-		message = "File unsupported";
-		break;
-	case ERROR_FILE_FIRMWARE_VERSION_TOO_NEW:
-		message = "Your firmware version is too old to open this file";
-		break;
-	case ERROR_FOLDER_DOESNT_EXIST:
-		message = "Folder not found";
-		break;
-	case ERROR_BUG:
-		message = "Bug encountered";
-		break;
-	case ERROR_WRITE_FAIL:
-		message = "SD card write error";
-		break;
-	case ERROR_FILE_TOO_BIG:
-		message = "File too large";
-		break;
-	case ERROR_PRESET_IN_USE:
-		message = "This preset is in-use elsewhere in your song";
-		break;
-	case ERROR_NO_FURTHER_PRESETS:
-	case ERROR_NO_FURTHER_FILES_THIS_DIRECTION:
-		message = "No more presets found";
-		break;
-	case ERROR_MAX_FILE_SIZE_REACHED:
-		message = "Maximum file size reached";
-		break;
-	case ERROR_SD_CARD_FULL:
-		message = "SD card full";
-		break;
-	case ERROR_FILE_NOT_LOADABLE_AS_WAVETABLE:
-		message = "File does not contain wavetable data";
-		break;
-	case ERROR_FILE_NOT_LOADABLE_AS_WAVETABLE_BECAUSE_STEREO:
-		message = "Stereo files cannot be used as wavetables";
-		break;
-	case ERROR_WRITE_PROTECTED:
-		message = "Card is write-protected";
-		break;
-#else
 	case ERROR_INSUFFICIENT_RAM_FOR_FOLDER_CONTENTS_SIZE:
 	case ERROR_INSUFFICIENT_RAM:
 		message = "RAM";
@@ -764,7 +651,6 @@ void NumericDriver::displayError(int error) {
 	case ERROR_WRITE_PROTECTED:
 		message = "WRITE-PROTECTED";
 		break;
-#endif
 	default:
 		message = "ERROR";
 	}

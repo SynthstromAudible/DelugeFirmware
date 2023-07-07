@@ -16,7 +16,7 @@
  */
 
 #include "gui/context_menu/save_song_or_instrument.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "gui/ui/save/save_song_ui.h"
 #include "gui/context_menu/delete_file.h"
 #include "storage/file_item.h"
@@ -45,7 +45,7 @@ bool SaveSongOrInstrument::acceptCurrentOption() {
 		int error = browser->createFolder();
 
 		if (error) {
-			numericDriver.displayError(error);
+			display.displayError(error);
 			return false;
 		}
 		close();
@@ -55,7 +55,7 @@ bool SaveSongOrInstrument::acceptCurrentOption() {
 		bool available = context_menu::deleteFile.setupAndCheckAvailability();
 
 		if (available) { // It always will be - but we gotta check.
-			numericDriver.setNextTransitionDirection(1);
+			display.setNextTransitionDirection(1);
 			openUI(&context_menu::deleteFile); // Might fail
 		}
 		return available;

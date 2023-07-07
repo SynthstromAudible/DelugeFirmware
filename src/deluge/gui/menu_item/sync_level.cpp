@@ -17,24 +17,23 @@
 
 #include "sync_level.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "model/song/song.h"
-#include "hid/display/oled.h"
 
 namespace menu_item {
 
 void SyncLevel::drawValue() {
 	if (soundEditor.currentValue == 0) {
-		numericDriver.setText("OFF");
+		display.setText("OFF");
 	}
 	else {
 		char* buffer = shortStringBuffer;
 		getNoteLengthName(buffer);
 
 #if HAVE_OLED
-		numericDriver.setText(buffer);
+		display.setText(buffer);
 #else
-		numericDriver.setScrollingText(buffer, 0);
+		display.setScrollingText(buffer, 0);
 #endif
 	}
 }

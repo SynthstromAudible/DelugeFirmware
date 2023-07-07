@@ -23,7 +23,7 @@
 #include "util/functions.h"
 #include <string.h>
 #include "model/sample/sample_cache.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 
 Cluster::Cluster() {
 	sample = NULL;
@@ -183,14 +183,14 @@ void Cluster::steal(char const* errorCode) {
 
 	case CLUSTER_SAMPLE:
 		if (ALPHA_OR_BETA_VERSION && !sample) {
-			numericDriver.freezeWithError("E181");
+			display.freezeWithError("E181");
 		}
 		sample->clusters.getElement(clusterIndex)->cluster = NULL;
 		break;
 
 	case CLUSTER_SAMPLE_CACHE:
 		if (ALPHA_OR_BETA_VERSION && !sampleCache) {
-			numericDriver.freezeWithError("E183");
+			display.freezeWithError("E183");
 		}
 		sampleCache->clusterStolen(clusterIndex);
 
@@ -205,7 +205,7 @@ void Cluster::steal(char const* errorCode) {
 	case CLUSTER_PERC_CACHE_FORWARDS:
 	case CLUSTER_PERC_CACHE_REVERSED:
 		if (ALPHA_OR_BETA_VERSION && !sample) {
-			numericDriver.freezeWithError("E184");
+			display.freezeWithError("E184");
 		}
 		sample->percCacheClusterStolen(this);
 		break;

@@ -1953,7 +1953,7 @@ void Voice::renderBasicSource(Sound* sound, ParamManagerForTimeline* paramManage
 instantUnassign:
 
 #ifdef TEST_SAMPLE_LOOP_POINTS
-			numericDriver.freezeWithError("YEP");
+			display.freezeWithError("YEP");
 #endif
 
 			*unisonPartBecameInactive = true;

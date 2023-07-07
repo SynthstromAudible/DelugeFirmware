@@ -29,7 +29,7 @@ public:
 	void readCurrentValue() override { soundEditor.currentValue = soundEditor.currentModControllable->modFXType; }
 	void writeCurrentValue() override {
 		if (!soundEditor.currentModControllable->setModFXType(soundEditor.currentValue)) {
-			numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
+			display.displayError(ERROR_INSUFFICIENT_RAM);
 		}
 	}
 

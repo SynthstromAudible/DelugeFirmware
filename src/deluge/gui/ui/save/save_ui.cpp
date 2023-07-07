@@ -18,7 +18,7 @@
 #include "gui/context_menu/save_song_or_instrument.h"
 #include "gui/ui/save/save_ui.h"
 #include "hid/matrix/matrix_driver.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "storage/storage_manager.h"
 #include "hid/led/pad_leds.h"
 #include "hid/led/indicator_leds.h"
@@ -38,7 +38,7 @@ SaveUI::SaveUI() {
 bool SaveUI::opened() {
 	int error = beginSlotSession(true, true);
 	if (error) {
-		numericDriver.displayError(error);
+		display.displayError(error);
 		return false;
 	}
 
@@ -57,8 +57,8 @@ void SaveUI::focusRegained() {
 void SaveUI::displayText(bool blinkImmediately) {
 
 	if (enteredText.isEmpty() && !currentFolderIsEmpty) {
+		display.setTextAsSlot(currentSlot, currentSubSlot, currentFileExists, true, numberEditPos);
 		indicator_leds::ledBlinkTimeout(0, true, !blinkImmediately);
-		numericDriver.setTextAsSlot(currentSlot, currentSubSlot, currentFileExists, true, numberEditPos);
 	}
 
 	else {
@@ -77,7 +77,7 @@ void SaveUI::enterKeyPress() {
 		int error = goIntoFolder(currentFileItem->filename.get());
 
 		if (error) {
-			numericDriver.displayError(error);
+			display.displayError(error);
 			close(); // Don't use goBackToSoundEditor() because that would do a left-scroll
 			return;
 		}
@@ -125,7 +125,7 @@ int SaveUI::timerCallback() {
 
 		if (available) {
 			currentUIMode = UI_MODE_NONE;
-			numericDriver.setNextTransitionDirection(1);
+			display.setNextTransitionDirection(1);
 			openUI(&gui::context_menu::saveSongOrInstrument);
 		}
 		else {

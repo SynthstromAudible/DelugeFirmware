@@ -18,7 +18,7 @@
 #include "processing/sound/sound.h"
 #include "menu_item_with_cc_learning.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "gui/views/view.h"
 #include "model/song/song.h"
 
@@ -31,7 +31,7 @@ void MenuItemWithCCLearning::unlearnAction() {
 		bool success = soundEditor.currentModControllable->unlearnKnobs(paramDescriptor, currentSong);
 
 		if (success) {
-			numericDriver.displayPopup("UNLEARNED");
+			display.displayPopup("UNLEARNED");
 			view.setKnobIndicatorLevels();
 			soundEditor.markInstrumentAsEdited();
 		}
@@ -45,7 +45,7 @@ void MenuItemWithCCLearning::learnKnob(MIDIDevice* fromDevice, int whichKnob, in
 	                                                             midiChannel, currentSong);
 
 	if (success) {
-		numericDriver.displayPopup("LEARNED");
+		display.displayPopup("LEARNED");
 		view.setKnobIndicatorLevels();
 		soundEditor.markInstrumentAsEdited();
 	}

@@ -17,7 +17,7 @@
 
 #include "gui/context_menu/delete_file.h"
 #include "gui/ui/browser/browser.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "io/debug/print.h"
 #include "hid/matrix/matrix_driver.h"
 #include "gui/context_menu/save_song_or_instrument.h"
@@ -70,7 +70,7 @@ bool DeleteFile::acceptCurrentOption() {
 	String filePath;
 	int error = browser->getCurrentFilePath(&filePath);
 	if (error) {
-		numericDriver.displayError(error);
+		display.displayError(error);
 		return false;
 	}
 
@@ -78,11 +78,11 @@ bool DeleteFile::acceptCurrentOption() {
 
 	// If didn't work
 	if (result != FR_OK) {
-		numericDriver.displayPopup(HAVE_OLED ? "Error deleting file" : "ERROR");
+		display.displayPopup(HAVE_OLED ? "Error deleting file" : "ERROR");
 		// But we'll still go back to the Browser
 	}
 	else {
-		numericDriver.displayPopup(HAVE_OLED ? "File deleted" : "DONE");
+		display.displayPopup(HAVE_OLED ? "File deleted" : "DONE");
 		browser->currentFileDeleted();
 	}
 

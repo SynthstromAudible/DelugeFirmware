@@ -30,7 +30,7 @@
 #include "gui/views/view.h"
 #include "definitions.h"
 #include "hid/matrix/matrix_driver.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/keyboard_screen.h"
 #include "model/instrument/instrument.h"
@@ -70,10 +70,6 @@
 #include "storage/file_item.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/ui/load/load_song_ui.h"
-
-#if HAVE_OLED
-#include "hid/display/oled.h"
-#endif
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
@@ -241,7 +237,7 @@ doEndMidiLearnPressSession:
 
 					if ((int32_t)(AudioEngine::audioSampleTimer - timeSaveButtonPressed) < (44100 >> 1)) {
 						if (currentSong->hasAnyPendingNextOverdubs()) {
-							numericDriver.displayPopup(HAVE_OLED ? "Can't save while overdubs pending" : "CANT");
+							display.displayPopup(HAVE_OLED ? "Can't save while overdubs pending" : "CANT");
 						}
 						else {
 							openUI(&saveSongUI);
@@ -313,7 +309,7 @@ doEndMidiLearnPressSession:
 
 			if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
 cant:
-				numericDriver.displayPopup(HAVE_OLED ? "Recording to arrangement" : "CANT");
+				display.displayPopup(HAVE_OLED ? "Recording to arrangement" : "CANT");
 				return ACTION_RESULT_DEALT_WITH;
 			}
 
@@ -407,7 +403,7 @@ possiblyRevert:
 		if (on && currentUIMode == UI_MODE_NONE) {
 
 			if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
-				numericDriver.displayPopup(HAVE_OLED ? "Recording to arrangement" : "CANT");
+				display.displayPopup(HAVE_OLED ? "Recording to arrangement" : "CANT");
 				return ACTION_RESULT_DEALT_WITH;
 			}
 
@@ -415,7 +411,7 @@ possiblyRevert:
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
-			numericDriver.setNextTransitionDirection(1);
+			display.setNextTransitionDirection(1);
 			soundEditor.setup();
 			openUI(&soundEditor);
 		}
@@ -913,7 +909,7 @@ void View::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 	if (Buttons::isButtonPressed(hid::button::LEARN)) {
 #if !HAVE_OLED
 		if (on) {
-			numericDriver.displayPopup("CANT");
+			display.displayPopup("CANT");
 		}
 #endif
 		return;
@@ -930,7 +926,7 @@ void View::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 			if (modelStackWithParam && modelStackWithParam->autoParam) {
 				Action* action = actionLogger.getNewAction(ACTION_AUTOMATION_DELETE, false);
 				modelStackWithParam->autoParam->deleteAutomation(action, modelStackWithParam);
-				numericDriver.displayPopup(HAVE_OLED ? "Automation deleted" : "DELETED");
+				display.displayPopup(HAVE_OLED ? "Automation deleted" : "DELETED");
 			}
 
 			return;
@@ -1196,7 +1192,7 @@ void View::cycleThroughReverbPresets() {
 	AudioEngine::reverb.setroomsize((float)presetReverbRoomSize[newPreset] / 50);
 	AudioEngine::reverb.setdamp((float)presetReverbDampening[newPreset] / 50);
 
-	numericDriver.displayPopup(presetReverbNames[newPreset]);
+	display.displayPopup(presetReverbNames[newPreset]);
 }
 
 // If HAVE_OLED, must make sure OLED::sendMainImage() gets called after this.
@@ -1332,8 +1328,8 @@ oledDrawString:
 
 #else
 		bool andAHalf;
-		if (numericDriver.getEncodedPosFromLeft(99999, name, &andAHalf) > NUMERIC_DISPLAY_LENGTH) { // doBlink &&
-			numericDriver.setScrollingText(name, 0, initialFlashTime + flashTime);
+		if (display.getEncodedPosFromLeft(99999, name, &andAHalf) > NUMERIC_DISPLAY_LENGTH) { // doBlink &&
+			display.setScrollingText(name, 0, initialFlashTime + flashTime);
 		}
 		else {
 			// If numeric-looking, we might want to align right.
@@ -1366,7 +1362,7 @@ yesAlignRight:
 				}
 			}
 
-			numericDriver.setText(name, alignRight, dotPos, doBlink);
+			display.setText(name, alignRight, dotPos, doBlink);
 		}
 #endif
 	}
@@ -1382,11 +1378,11 @@ yesAlignRight:
 		}
 #else
 		if (channel < 16) {
-			numericDriver.setTextAsSlot(channel + 1, channelSuffix, false, doBlink);
+			display.setTextAsSlot(channel + 1, channelSuffix, false, doBlink);
 		}
 		else {
 			char const* text = (channel == MIDI_CHANNEL_MPE_LOWER_ZONE) ? "Lower" : "Upper";
-			numericDriver.setText(text, false, 255, doBlink);
+			display.setText(text, false, 255, doBlink);
 		}
 #endif
 	}
@@ -1397,7 +1393,7 @@ oledOutputBuffer:
 		nameToDraw = buffer;
 		goto oledDrawString;
 #else
-		numericDriver.setTextAsNumber(channel + 1, 255, doBlink);
+		display.setTextAsNumber(channel + 1, 255, doBlink);
 #endif
 	}
 }
@@ -1417,7 +1413,7 @@ void View::navigateThroughAudioOutputsForAudioClip(int offset, AudioClip* clip, 
 	currentSong->canOldOutputBeReplaced(clip, &availabilityRequirement);
 
 	if (availabilityRequirement == AVAILABILITY_INSTRUMENT_UNUSED) {
-		numericDriver.displayPopup(HAVE_OLED ? "Clip has instances in arranger" : "CANT");
+		display.displayPopup(HAVE_OLED ? "Clip has instances in arranger" : "CANT");
 		return;
 	}
 
@@ -1489,7 +1485,7 @@ void View::navigateThroughPresetsForInstrumentClip(int offset, ModelStackWithTim
 				newChannel = (newChannel + offset) & (NUM_CV_CHANNELS - 1);
 
 				if (newChannel == oldNonAudioInstrument->channel) {
-					numericDriver.displayPopup(HAVE_OLED ? "No unused channels" : "CANT");
+					display.displayPopup(HAVE_OLED ? "No unused channels" : "CANT");
 					return;
 				}
 
@@ -1549,7 +1545,7 @@ void View::navigateThroughPresetsForInstrumentClip(int offset, ModelStackWithTim
 				if (newChannel == oldChannel
 				    && newChannelSuffix == ((MIDIInstrument*)oldNonAudioInstrument)->channelSuffix) {
 					oldNonAudioInstrument->channel = oldChannel; // Put it back
-					numericDriver.displayPopup(HAVE_OLED ? "No unused channels" : "CANT");
+					display.displayPopup(HAVE_OLED ? "No unused channels" : "CANT");
 					return;
 				}
 
@@ -1614,7 +1610,7 @@ void View::navigateThroughPresetsForInstrumentClip(int offset, ModelStackWithTim
 				newInstrument =
 				    storageManager.createNewNonAudioInstrument(instrumentType, newChannel, newChannelSuffix);
 				if (!newInstrument) {
-					numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
+					display.displayError(ERROR_INSUFFICIENT_RAM);
 					return;
 				}
 
@@ -1662,7 +1658,7 @@ getOut:
 			return;
 		}
 		else if (results.error) {
-			numericDriver.displayError(results.error);
+			display.displayError(results.error);
 			goto getOut;
 		}
 
@@ -1683,14 +1679,14 @@ getOut:
 						        kit, soundDrum)) { // If no ParamManager with a NoteRow somewhere...
 
 							if (results.loadedFromFile) {
-								numericDriver.freezeWithError("E103");
+								display.freezeWithError("E103");
 							}
 							else if (instrumentAlreadyInSong) {
-								numericDriver.freezeWithError("E104");
+								display.freezeWithError("E104");
 							}
 							else {
-								numericDriver.freezeWithError(
-								    "E105"); // Sven got - very rare! This means Kit was hibernating, I guess.
+								// Sven got - very rare! This means Kit was hibernating, I guess.
+								display.freezeWithError("E105");
 							}
 						}
 					}
@@ -1740,7 +1736,7 @@ getOut:
 #if HAVE_OLED
 		OLED::removeWorkingAnimation();
 #else
-		numericDriver.removeTopLayer();
+		display.removeTopLayer();
 #endif
 	}
 

@@ -21,7 +21,7 @@
 #include <string.h>
 #include "gui/ui/browser/slot_browser.h"
 #include "util/functions.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "hid/led/pad_leds.h"
 #include "io/debug/print.h"
 #include "storage/file_item.h"

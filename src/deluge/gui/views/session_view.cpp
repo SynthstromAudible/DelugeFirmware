@@ -26,7 +26,7 @@
 #include "modulation/params/param_manager.h"
 #include "gui/views/session_view.h"
 #include "util/functions.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "io/debug/print.h"
 #include "gui/views/view.h"
 #include "model/note/note_row.h"
@@ -60,10 +60,6 @@
 #include "storage/file_item.h"
 #include "dsp/master_compressor/master_compressor.h"
 #include "model/settings/runtime_feature_settings.h"
-
-#if HAVE_OLED
-#include "hid/display/oled.h"
-#endif
 
 extern "C" {
 #include "util/cfunctions.h"
@@ -160,7 +156,7 @@ int SessionView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 				modEncoderAction(1, 0);
 			}
 			else {
-				numericDriver.displayPopup(paramLabels[masterCompEditMode]);
+				display.displayPopup(paramLabels[masterCompEditMode]);
 			}
 			return ACTION_RESULT_DEALT_WITH;
 		}
@@ -211,7 +207,7 @@ int SessionView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 					int error = currentSong->placeFirstInstancesOfActiveClips(arrangerView.xScrollWhenPlaybackStarted);
 
 					if (error) {
-						numericDriver.displayError(error);
+						display.displayError(error);
 						return ACTION_RESULT_DEALT_WITH;
 					}
 					playbackHandler.recording = RECORDING_ARRANGEMENT;
@@ -240,7 +236,7 @@ int SessionView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 
 			else if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
 				if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
-					numericDriver.displayPopup(HAVE_OLED ? "Recording to arrangement" : "CANT");
+					display.displayPopup(HAVE_OLED ? "Recording to arrangement" : "CANT");
 					return ACTION_RESULT_DEALT_WITH;
 				}
 
@@ -277,14 +273,14 @@ moveAfterClipInstance:
 
 				// Make sure it won't be extending beyond numerical limit
 				if (proposedStartPos > MAX_SEQUENCE_LENGTH - clip->loopLength) {
-					numericDriver.displayPopup(HAVE_OLED ? "Clip would breach max arrangement length" : "CANT");
+					display.displayPopup(HAVE_OLED ? "Clip would breach max arrangement length" : "CANT");
 					return ACTION_RESULT_DEALT_WITH;
 				}
 
 				// If we're here, we're ok!
 				int error = output->clipInstances.insertAtIndex(i);
 				if (error) {
-					numericDriver.displayError(error);
+					display.displayError(error);
 					return ACTION_RESULT_DEALT_WITH;
 				}
 
@@ -354,7 +350,7 @@ moveAfterClipInstance:
 		if (on) {
 
 			if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
-				numericDriver.displayPopup(HAVE_OLED ? "Recording to arrangement" : "CANT");
+				display.displayPopup(HAVE_OLED ? "Recording to arrangement" : "CANT");
 				performActionOnPadRelease = false;
 				return ACTION_RESULT_DEALT_WITH;
 			}
@@ -419,7 +415,7 @@ changeInstrumentType:
 			performActionOnPadRelease = false;
 
 			if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
-				numericDriver.displayPopup(HAVE_OLED ? "Recording to arrangement" : "CANT");
+				display.displayPopup(HAVE_OLED ? "Recording to arrangement" : "CANT");
 				return ACTION_RESULT_DEALT_WITH;
 			}
 
@@ -543,7 +539,7 @@ int SessionView::padAction(int xDisplay, int yDisplay, int on) {
 				modEncoderAction(1, 0);
 			}
 			else {
-				numericDriver.displayPopup(paramLabels[masterCompEditMode]);
+				display.displayPopup(paramLabels[masterCompEditMode]);
 			}
 			return ACTION_RESULT_DEALT_WITH;
 		}
@@ -589,7 +585,7 @@ holdingRecord:
 							}
 
 							if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
-								numericDriver.displayPopup(HAVE_OLED ? "Recording to arrangement" : "CANT");
+								display.displayPopup(HAVE_OLED ? "Recording to arrangement" : "CANT");
 								return ACTION_RESULT_DEALT_WITH;
 							}
 
@@ -633,8 +629,7 @@ holdingRecord:
 								}
 							}
 							else if (currentSong->anyClipsSoloing) {
-								numericDriver.displayPopup(HAVE_OLED ? "Can't create overdub while clips soloing"
-								                                     : "SOLO");
+								display.displayPopup(HAVE_OLED ? "Can't create overdub while clips soloing" : "SOLO");
 							}
 						}
 					}
@@ -711,7 +706,7 @@ startHoldingDown:
 					if (selectedClipYDisplay != yDisplay && performActionOnPadRelease) {
 
 						if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
-							numericDriver.displayPopup(HAVE_OLED ? "Recording to arrangement" : "CANT");
+							display.displayPopup(HAVE_OLED ? "Recording to arrangement" : "CANT");
 							return ACTION_RESULT_DEALT_WITH;
 						}
 
@@ -774,7 +769,7 @@ midiLearnMelodicInstrumentAction:
 
 					// Not allowed if recording arrangement
 					if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
-						numericDriver.displayPopup(HAVE_OLED ? "Recording to arrangement" : "CANT");
+						display.displayPopup(HAVE_OLED ? "Recording to arrangement" : "CANT");
 						goto justEndClipPress;
 					}
 
@@ -914,7 +909,7 @@ void SessionView::sectionPadAction(uint8_t y, bool on) {
 
 				// Not allowed if recording arrangement
 				if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
-					numericDriver.displayPopup(HAVE_OLED ? "Recording to arrangement" : "CANT");
+					display.displayPopup(HAVE_OLED ? "Recording to arrangement" : "CANT");
 					return;
 				}
 
@@ -1036,7 +1031,7 @@ void SessionView::drawSectionRepeatNumber() {
 		intToString(number, buffer);
 		outputText = buffer;
 	}
-	numericDriver.setText(outputText, true, 255, true);
+	display.setText(outputText, true, 255, true);
 #endif
 }
 
@@ -1061,7 +1056,7 @@ void SessionView::selectEncoderAction(int8_t offset) {
 		performActionOnPadRelease = false;
 
 		if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
-			numericDriver.displayPopup(HAVE_OLED ? "Recording to arrangement" : "CANT");
+			display.displayPopup(HAVE_OLED ? "Recording to arrangement" : "CANT");
 			return;
 		}
 
@@ -1170,7 +1165,7 @@ int SessionView::verticalScrollOneSquare(int direction) {
 
 		// Not allowed if recording arrangement
 		if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
-			numericDriver.displayPopup(HAVE_OLED ? "Recording to arrangement" : "CANT");
+			display.displayPopup(HAVE_OLED ? "Recording to arrangement" : "CANT");
 			return ACTION_RESULT_DEALT_WITH;
 		}
 
@@ -1306,7 +1301,7 @@ int setPresetOrNextUnlaunchedOne(InstrumentClip* clip, int instrumentType, bool*
 #if HAVE_OLED
 	OLED::displayWorkingAnimation("Loading");
 #else
-	numericDriver.displayLoadingAnimation();
+	display.displayLoadingAnimation();
 #endif
 	newInstrument->loadAllAudioFiles(true);
 
@@ -1339,7 +1334,7 @@ Clip* SessionView::createNewInstrumentClip(int yDisplay) {
 
 	void* memory = generalMemoryAllocator.alloc(sizeof(InstrumentClip), NULL, false, true);
 	if (!memory) {
-		numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
+		display.displayError(ERROR_INSUFFICIENT_RAM);
 		return NULL;
 	}
 
@@ -1374,7 +1369,7 @@ doGetInstrument:
 		}
 		newClip->~InstrumentClip();
 		generalMemoryAllocator.dealloc(memory);
-		numericDriver.displayError(error);
+		display.displayError(error);
 		return NULL;
 	}
 
@@ -1422,7 +1417,7 @@ void SessionView::replaceAudioClipWithInstrumentClip(int instrumentType) {
 
 	AudioClip* audioClip = (AudioClip*)oldClip;
 	if (audioClip->sampleHolder.audioFile || audioClip->getCurrentlyRecordingLinearly()) {
-		numericDriver.displayPopup(HAVE_OLED ? "Clip not empty" : "CANT");
+		display.displayPopup(HAVE_OLED ? "Clip not empty" : "CANT");
 		return;
 	}
 
@@ -1430,7 +1425,7 @@ void SessionView::replaceAudioClipWithInstrumentClip(int instrumentType) {
 	void* clipMemory = generalMemoryAllocator.alloc(sizeof(InstrumentClip), NULL, false, true);
 	if (!clipMemory) {
 ramError:
-		numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
+		display.displayError(ERROR_INSUFFICIENT_RAM);
 		return;
 	}
 
@@ -1449,7 +1444,7 @@ ramError:
 		error = setPresetOrNextUnlaunchedOne(newClip, instrumentType, &instrumentAlreadyInSong);
 		if (error) {
 gotError:
-			numericDriver.displayError(error);
+			display.displayError(error);
 gotErrorDontDisplay:
 			newClip->~InstrumentClip();
 			generalMemoryAllocator.dealloc(clipMemory);
@@ -1505,7 +1500,7 @@ void SessionView::replaceInstrumentClipWithAudioClip() {
 
 	InstrumentClip* instrumentClip = (InstrumentClip*)oldClip;
 	if (instrumentClip->containsAnyNotes() || instrumentClip->output->clipHasInstance(oldClip)) {
-		numericDriver.displayPopup(HAVE_OLED ? "Clip not empty" : "CANT");
+		display.displayPopup(HAVE_OLED ? "Clip not empty" : "CANT");
 		return;
 	}
 
@@ -1513,7 +1508,7 @@ void SessionView::replaceInstrumentClipWithAudioClip() {
 	    currentSong->replaceInstrumentClipWithAudioClip(oldClip, selectedClipYDisplay + currentSong->songViewYScroll);
 
 	if (!newClip) {
-		numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
+		display.displayError(ERROR_INSUFFICIENT_RAM);
 		return;
 	}
 
@@ -1543,7 +1538,7 @@ void SessionView::removeClip(uint8_t yDisplay) {
 
 	// If last session Clip left, just don't allow. Easiest
 	if (currentSong->sessionClips.getNumElements() == 1) {
-		numericDriver.displayPopup(HAVE_OLED ? "Can't remove final clip" : "LAST");
+		display.displayPopup(HAVE_OLED ? "Can't remove final clip" : "LAST");
 		return;
 	}
 
@@ -1641,7 +1636,7 @@ void SessionView::redrawNumericDisplay() {
 yesDoIt:
 					char buffer[5];
 					intToString(session.numRepeatsTilLaunch, buffer);
-					numericDriver.setText(buffer, true, 255, true, NULL, false, true);
+					display.setText(buffer, true, 255, true, NULL, false, true);
 				}
 			}
 
@@ -1669,7 +1664,7 @@ yesDoIt:
 
 				if (currentUIMode != UI_MODE_HOLDING_SECTION_PAD && currentUIMode != UI_MODE_HOLDING_ARRANGEMENT_ROW) {
 					if (playbackHandler.stopOutputRecordingAtLoopEnd) {
-						numericDriver.setText("1", true, 255, true, NULL, false, true);
+						display.setText("1", true, 255, true, NULL, false, true);
 					}
 					else {
 						goto setBlank;
@@ -1678,7 +1673,7 @@ yesDoIt:
 			}
 			else if (getCurrentUI() == this) {
 setBlank:
-				numericDriver.setText("");
+				display.setText("");
 			}
 		}
 	}
@@ -1688,7 +1683,7 @@ setBlank:
 nothingToDisplay:
 		if (getCurrentUI() == this || getCurrentUI() == &arrangerView) {
 			if (currentUIMode != UI_MODE_HOLDING_SECTION_PAD) {
-				numericDriver.setText("");
+				display.setText("");
 			}
 		}
 	}
@@ -1723,14 +1718,14 @@ void SessionView::cloneClip(uint8_t yDisplayFrom, uint8_t yDisplayTo) {
 
 	// Just don't allow cloning of Clips which are linearly recording
 	if (clipToClone->getCurrentlyRecordingLinearly()) {
-		numericDriver.displayPopup(HAVE_OLED ? "Recording in progress" : "CANT");
+		display.displayPopup(HAVE_OLED ? "Recording in progress" : "CANT");
 		return;
 	}
 
 	bool enoughSpace = currentSong->sessionClips.ensureEnoughSpaceAllocated(1);
 	if (!enoughSpace) {
 ramError:
-		numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
+		display.displayError(ERROR_INSUFFICIENT_RAM);
 		return;
 	}
 
@@ -2373,7 +2368,7 @@ void SessionView::modEncoderAction(int whichModEncoder, int offset) {
 				floatToString(thresh, buffer + strlen(buffer), 1, 1);
 				if (abs(thresh) < 0.01)
 					strcpy(buffer, "OFF");
-				numericDriver.displayPopup(buffer);
+				display.displayPopup(buffer);
 #endif
 			}
 			else if (masterCompEditMode == 1) { //Makeup DB
@@ -2388,7 +2383,7 @@ void SessionView::modEncoderAction(int whichModEncoder, int offset) {
 				char buffer[6];
 				strcpy(buffer, "");
 				floatToString(makeup, buffer + strlen(buffer), 1, 1);
-				numericDriver.displayPopup(buffer);
+				display.displayPopup(buffer);
 #endif
 			}
 			else if (masterCompEditMode == 2) { //Attack ms
@@ -2403,7 +2398,7 @@ void SessionView::modEncoderAction(int whichModEncoder, int offset) {
 				char buffer[5];
 				strcpy(buffer, "");
 				floatToString(atk, buffer + strlen(buffer), 1, 1);
-				numericDriver.displayPopup(buffer);
+				display.displayPopup(buffer);
 #endif
 			}
 			else if (masterCompEditMode == 3) { //Release ms
@@ -2418,7 +2413,7 @@ void SessionView::modEncoderAction(int whichModEncoder, int offset) {
 				char buffer[6];
 				strcpy(buffer, "");
 				intToString(int(rel), buffer + strlen(buffer));
-				numericDriver.displayPopup(buffer);
+				display.displayPopup(buffer);
 #endif
 			}
 			else if (masterCompEditMode == 4) { //Ratio R:1
@@ -2433,7 +2428,7 @@ void SessionView::modEncoderAction(int whichModEncoder, int offset) {
 				char buffer[5];
 				strcpy(buffer, "");
 				floatToString(ratio, buffer + strlen(buffer), 1, 1);
-				numericDriver.displayPopup(buffer);
+				display.displayPopup(buffer);
 #endif
 			}
 			else if (masterCompEditMode == 5) { //Wet 0.0 - 1.0
@@ -2448,7 +2443,7 @@ void SessionView::modEncoderAction(int whichModEncoder, int offset) {
 				char buffer[6];
 				strcpy(buffer, "");
 				intToString(int(wet * 100), buffer + strlen(buffer));
-				numericDriver.displayPopup(buffer);
+				display.displayPopup(buffer);
 #endif
 			}
 

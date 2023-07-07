@@ -17,17 +17,12 @@
 
 #include "gui/context_menu/context_menu.h"
 
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "util/functions.h"
 #include "hid/led/indicator_leds.h"
 #include "extern.h"
 
-#if HAVE_OLED
-#include "hid/display/oled.h"
-#endif
-
 namespace deluge::gui {
-
 ContextMenu::ContextMenu() {
 #if HAVE_OLED
 	oledShowsUIUnderneath = true;
@@ -169,7 +164,7 @@ int ContextMenu::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 getOut:
-			numericDriver.setNextTransitionDirection(-1);
+			display.setNextTransitionDirection(-1);
 			close();
 		}
 	}
@@ -205,7 +200,7 @@ void ContextMenu::drawCurrentOption() {
 
 #else
 	indicator_leds::ledBlinkTimeout(0, true);
-	numericDriver.setText(options[currentOption], false, 255, true);
+	display.setText(options[currentOption], false, 255, true);
 #endif
 }
 
@@ -214,7 +209,7 @@ int ContextMenu::padAction(int x, int y, int on) {
 		if (sdRoutineLock) {
 			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
-		numericDriver.setNextTransitionDirection(-1);
+		display.setNextTransitionDirection(-1);
 		close();
 	}
 

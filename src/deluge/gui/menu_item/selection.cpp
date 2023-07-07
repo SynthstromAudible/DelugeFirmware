@@ -17,7 +17,7 @@
 
 #include "selection.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 
 extern "C" {
 #if HAVE_OLED
@@ -80,7 +80,7 @@ void Selection::drawValue() {
 #if HAVE_OLED
 	renderUIsForOled();
 #else
-	numericDriver.setText(getOptions()[soundEditor.currentValue]);
+	display.setText(getOptions()[soundEditor.currentValue]);
 #endif
 }
 

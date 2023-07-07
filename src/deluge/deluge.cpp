@@ -37,7 +37,7 @@
 #include "dsp/stereo_sample.h"
 #include "gui/ui/save/save_instrument_preset_ui.h"
 #include "processing/engines/cv_engine.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "gui/ui/keyboard_screen.h"
 #include "gui/views/view.h"
 #include "gui/ui/audio_recorder.h"
@@ -80,7 +80,6 @@
 #include "storage/file_item.h"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/save/save_song_ui.h"
-#include "hid/display/oled.h"
 #include "gui/context_menu/overwrite_bootloader.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "deluge.h"
@@ -701,7 +700,7 @@ resetSettings:
 #if HAVE_OLED
 		OLED::consoleText("Factory reset");
 #else
-		numericDriver.displayPopup("RESET");
+		display.displayPopup("RESET");
 #endif
 		FlashStorage::resetSettings();
 		FlashStorage::writeSettings();
@@ -767,7 +766,7 @@ resetSettings:
 
 	while (true) {
 
-		numericDriver.setTextAsNumber(count);
+		display.setTextAsNumber(count);
 
 		int fileNumber = (uint32_t)getNoise() % 10000;
 		int fileSize = (uint32_t)getNoise() % 1000000;
@@ -778,7 +777,7 @@ resetSettings:
 
 		result = f_open(&fil, fileName, FA_CREATE_ALWAYS | FA_WRITE);
 		if (result) {
-			numericDriver.setText("AAAA");
+			display.setText("AAAA");
 			while (1) {}
 		}
 
@@ -789,7 +788,7 @@ resetSettings:
 			result = f_write(&fil, &miscStringBuffer, 256, &bytesWritten);
 
 			if (bytesWritten != 256) {
-				numericDriver.setText("BBBB");
+				display.setText("BBBB");
 				while (1) {}
 			}
 
@@ -903,11 +902,11 @@ extern "C" void loadAnyEnqueuedClustersRoutine() {
 
 #if !HAVE_OLED
 extern "C" void setNumeric(char* text) {
-	numericDriver.setText(text);
+	display.setText(text);
 }
 
 extern "C" void setNumericNumber(int number) {
-	numericDriver.setTextAsNumber(number);
+	display.setTextAsNumber(number);
 }
 #endif
 
@@ -990,7 +989,7 @@ void redrawSpamDisplay() {
 		break;
 	}
 
-	numericDriver.setText(thingName, false, spamStates[currentSpamThing] ? 3 : 255);
+	display.setText(thingName, false, spamStates[currentSpamThing] ? 3 : 255);
 }
 
 void spamMode() {

@@ -20,17 +20,13 @@
 #include "processing/sound/sound_drum.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/matrix/matrix_driver.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "model/drum/kit.h"
 #include "model/song/song.h"
 #include "hid/led/pad_leds.h"
 #include "hid/buttons.h"
 #include "extern.h"
 #include "model/clip/clip.h"
-
-#if HAVE_OLED
-#include "hid/display/oled.h"
-#endif
 
 RenameDrumUI renameDrumUI{};
 
@@ -104,7 +100,7 @@ void RenameDrumUI::enterKeyPress() {
 	// If actually changing it...
 	if (!getDrum()->name.equalsCaseIrrespective(&enteredText)) {
 		if (((Kit*)currentSong->currentClip->output)->getDrumFromName(enteredText.get())) {
-			numericDriver.displayPopup(HAVE_OLED ? "Duplicate names" : "DUPLICATE");
+			display.displayPopup(HAVE_OLED ? "Duplicate names" : "DUPLICATE");
 			return;
 		}
 	}
@@ -114,7 +110,7 @@ void RenameDrumUI::enterKeyPress() {
 }
 
 void RenameDrumUI::exitUI() {
-	numericDriver.setNextTransitionDirection(-1);
+	display.setNextTransitionDirection(-1);
 	close();
 }
 

@@ -20,7 +20,7 @@
 #include "modulation/params/param_manager.h"
 #include "dsp/filter/filter_set_config.h"
 #include "storage/storage_manager.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "gui/views/view.h"
 #include "hid/matrix/matrix_driver.h"
 #include "model/action/action_logger.h"
@@ -235,10 +235,10 @@ bool GlobalEffectableForClip::modEncoderButtonAction(uint8_t whichModEncoder, bo
 					compressor.syncLevel = SYNC_LEVEL_32ND;
 				}
 				if (compressor.syncLevel == SYNC_LEVEL_32ND) {
-					numericDriver.displayPopup("SLOW");
+					display.displayPopup("SLOW");
 				}
 				else {
-					numericDriver.displayPopup("FAST");
+					display.displayPopup("FAST");
 				}
 				return true;
 			}

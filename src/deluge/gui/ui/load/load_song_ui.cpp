@@ -21,7 +21,7 @@
 #include "modulation/params/param_manager.h"
 #include "gui/ui/load/load_song_ui.h"
 #include "util/functions.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "io/debug/print.h"
 #include <string.h>
 #include "gui/views/session_view.h"
@@ -42,7 +42,6 @@
 #include "hid/buttons.h"
 #include "extern.h"
 #include "storage/file_item.h"
-#include "hid/display/oled.h"
 
 LoadSongUI loadSongUI{};
 
@@ -70,7 +69,7 @@ bool LoadSongUI::opened() {
 	int error = beginSlotSession(false, true);
 	if (error) {
 gotError:
-		numericDriver.displayError(error);
+		display.displayError(error);
 		// Oh no, we're unable to read a file representing the first song. Get out quick!
 		currentUIMode = UI_MODE_NONE;
 		uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
@@ -127,7 +126,7 @@ gotError:
 	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, false);
 
 	if (ALPHA_OR_BETA_VERSION && currentUIMode == UI_MODE_WAITING_FOR_NEXT_FILE_TO_LOAD) {
-		numericDriver.freezeWithError("E188");
+		display.freezeWithError("E188");
 	}
 
 	return true;
@@ -151,7 +150,7 @@ void LoadSongUI::enterKeyPress() {
 		int error = goIntoFolder(currentFileItem->filename.get());
 
 		if (error) {
-			numericDriver.displayError(error);
+			display.displayError(error);
 			close(); // Don't use goBackToSoundEditor() because that would do a left-scroll
 			return;
 		}
@@ -230,7 +229,7 @@ void LoadSongUI::performLoad() {
 	FileItem* currentFileItem = getCurrentFileItem();
 
 	if (!currentFileItem) {
-		numericDriver.displayError(
+		display.displayError(
 		    HAVE_OLED
 		        ? ERROR_FILE_NOT_FOUND
 		        : ERROR_NO_FURTHER_FILES_THIS_DIRECTION); // Make it say "NONE" on numeric Deluge, for consistency with old times.
@@ -245,7 +244,7 @@ void LoadSongUI::performLoad() {
 
 	int error = storageManager.openXMLFile(&currentFileItem->filePointer, "song");
 	if (error) {
-		numericDriver.displayError(error);
+		display.displayError(error);
 		return;
 	}
 
@@ -255,7 +254,7 @@ void LoadSongUI::performLoad() {
 #if HAVE_OLED
 	OLED::displayWorkingAnimation("Loading");
 #else
-	numericDriver.displayLoadingAnimation();
+	display.displayLoadingAnimation();
 #endif
 
 	nullifyUIs();
@@ -282,7 +281,7 @@ ramError:
 		error = ERROR_INSUFFICIENT_RAM;
 
 someError:
-		numericDriver.displayError(error);
+		display.displayError(error);
 		storageManager.closeFile();
 fail:
 		// If we already deleted the old song, make a new blank one. This will take us back to InstrumentClipView.
@@ -329,7 +328,7 @@ gotErrorAfterCreatingSong:
 	bool success = storageManager.closeFile();
 
 	if (!success) {
-		numericDriver.displayPopup(HAVE_OLED ? "Error loading song" : "ERROR");
+		display.displayPopup(HAVE_OLED ? "Error loading song" : "ERROR");
 		goto fail;
 	}
 
@@ -397,7 +396,7 @@ gotErrorAfterCreatingSong:
 			OLED::removeWorkingAnimation();
 			OLED::popupText("Loading complete", true);
 #else
-			numericDriver.setText("DONE", false, 255, true, NULL, false, true);
+			display.setText("DONE", false, 255, true, NULL, false, true);
 #endif
 			currentUIMode = UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_UNARMED;
 		}
@@ -504,7 +503,7 @@ void LoadSongUI::scrollFinished() {
 }
 
 void LoadSongUI::exitActionWithError() {
-	numericDriver.displayPopup(HAVE_OLED ? "SD card error" : "CARD");
+	display.displayPopup(HAVE_OLED ? "SD card error" : "CARD");
 	exitAction();
 }
 
@@ -680,7 +679,7 @@ void LoadSongUI::exitAction() {
 
 	// If parts of the old song have been deleted, sorry, there's no way we can exit without loading a new song
 	if (deletedPartsOfOldSong) {
-		numericDriver.displayPopup(HAVE_OLED ? "Can't return to current song, as parts have been unloaded" : "CANT");
+		display.displayPopup(HAVE_OLED ? "Can't return to current song, as parts have been unloaded" : "CANT");
 		return;
 	}
 
@@ -713,7 +712,7 @@ void LoadSongUI::drawSongPreview(bool toStore) {
 	int error = storageManager.openXMLFile(&currentFileItem->filePointer, "song", "", true);
 	if (error) {
 		if (error) {
-			numericDriver.displayError(error);
+			display.displayError(error);
 			return;
 		}
 	}

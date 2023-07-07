@@ -19,12 +19,11 @@
 
 #include "gui/menu_item/range.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "util/functions.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/matrix/matrix_driver.h"
 #include "hid/buttons.h"
-#include "hid/display/oled.h"
 
 namespace menu_item {
 
@@ -117,10 +116,10 @@ void Range::drawValue(int startPos, bool renderSidebarToo) {
 	getText(buffer);
 
 	if (strlen(buffer) <= NUMERIC_DISPLAY_LENGTH) {
-		numericDriver.setText(buffer, true);
+		display.setText(buffer, true);
 	}
 	else {
-		numericDriver.setScrollingText(buffer, startPos);
+		display.setScrollingText(buffer, startPos);
 	}
 #endif
 }
@@ -160,7 +159,7 @@ void Range::drawValueForEditingRange(bool blinkImmediately) {
 	// Sorta hackish, to reset timing of blinking LED and always show text "on" initially on edit value
 	indicator_leds::blinkLed(IndicatorLED::BACK, 255, 0, !blinkImmediately);
 
-	numericDriver.setText(buffer, alignRight, 255, true, blinkMask);
+	display.setText(buffer, alignRight, 255, true, blinkMask);
 
 	soundEditor.possibleChangeToCurrentRangeDisplay();
 #endif

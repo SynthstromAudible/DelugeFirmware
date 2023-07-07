@@ -23,7 +23,7 @@
 #include "storage/audio/audio_file_reader.h"
 #include "model/sample/sample.h"
 #include "storage/wave_table/wave_table.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "memory/general_memory_allocator.h"
 
 AudioFile::AudioFile(int newType) : type(newType) {
@@ -520,7 +520,7 @@ void AudioFile::removeReason(char const* errorCode) {
 
 	else if (numReasonsToBeLoaded < 0) {
 #if ALPHA_OR_BETA_VERSION
-		numericDriver.freezeWithError("E004"); // Luc got this! And Paolo. (Must have been years ago :D)
+		display.freezeWithError("E004"); // Luc got this! And Paolo. (Must have been years ago :D)
 #endif
 		numReasonsToBeLoaded = 0; // Save it from crashing
 	}
@@ -544,7 +544,7 @@ void AudioFile::steal(char const* errorCode) {
 	int i = audioFileManager.audioFiles.searchForExactObject(this);
 	if (i < 0) {
 #if ALPHA_OR_BETA_VERSION
-		numericDriver.displayPopup(errorCode); // Jensg still getting.
+		display.displayPopup(errorCode); // Jensg still getting.
 #endif
 	}
 	else {
