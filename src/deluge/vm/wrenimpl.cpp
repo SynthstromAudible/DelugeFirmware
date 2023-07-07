@@ -85,10 +85,10 @@ void VM::errorFn(WrenVM* vm, WrenErrorType errorType, const char* mod, const int
 }
 
 void VM::buttonAction(hid::Button b, bool on) {
-	//API::ButtonIndex index = Wren::API::findButton(x, y);
+	API::ButtonIndex index = Wren::API::findButton(b);
 	wrenEnsureSlots(vm, 3);
 	wrenSetSlotHandle(vm, 0, handles.Deluge);
-	wrenSetSlotDouble(vm, 1, b);
+	wrenSetSlotDouble(vm, 1, index);
 	wrenSetSlotBool(vm, 2, on);
 	(void)wrenCall(vm, handles.buttonAction);
 }
