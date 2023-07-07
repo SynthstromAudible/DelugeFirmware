@@ -35,6 +35,7 @@
 #include "model/clip/instrument_clip.h"
 #include "model/note/note_row.h"
 #include "modulation/params/param_set.h"
+#include "model/settings/runtime_feature_settings.h"
 
 extern "C" {}
 
@@ -1412,15 +1413,73 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 					}
 				}
 				else {
-					newKnobPos = 64;
-					if (value < 127) {
-						newKnobPos = (int)value - 64;
+					if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MidiPickupMode) == RuntimeFeatureStateToggle::Off) { //Midi Pickup Mode Off
+						newKnobPos = 64;
+						if (value < 127) {
+							newKnobPos = (int)value - 64;
+						}
+					}
+					else { //Midi Pickup Mode On
+						/*
+						//MIDI PICKUP MODE - Ignore Midi CC's if Controller Knob Position is Out of Sync with Deluge Knob Position
+
+						The objective of this section of code is for a Midi Controller with Non Endless Encoders / Faders to only start working when
+						the position of the Knob or Fader on the Midi Controller matches the Knob Position for the current Parameter Value on the Deluge
+
+						This ensures that if you, for example, changed the parameter value on the Deluge, which would render the Midi Controller Knob/Fader position
+						out of sync, that if you were to then turn the fader or knob that the Deluge parameter value wouldn't "jump" to match the Controller
+
+						We want the controller to match the Deluge before we start making changes to Deluge parameter values, this prevents jumpyness.
+
+						Step #1: Convert Midi Controller's CC Value to Deluge Knob Position Value
+
+						- Midi CC Values for non endless encoders typically go from 0 to 127
+						- Deluge Knob Position Value goes from -64 to 64
+
+						To convert Midi CC Value to Deluge Knob Position Value, subtract 64 from the Midi CC Value
+
+						So a Midi CC Value of 0 is equal to a Deluge Knob Position Value of -64 (0 less 64).
+
+						Similarly a Midi CC Value of 127 is equal to a Deluge Knob Position Value of +64 (127 less 64)
+
+						*/
+
+						int midiKnobPos = value - 64;
+
+						//Here we obtain the current Parameter Value on the Deluge
+						int32_t previousValue =
+							modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
+
+						//Here we convert the current Parameter Value on the Deluge to a Knob Position Value
+						int knobPos =
+							modelStackWithParam->paramCollection->paramValueToKnobPos(previousValue, modelStackWithParam);
+
+						//Here is where we check if the Knob/Fader on the Midi Controller is out of sync with the Deluge Knob Position
+
+						//First we check if the Midi Knob/Fader is sending a Value that is less the current Deluge Knob Position
+						//If less, check by how much its less. If the difference is greater than 1, ignore the CC value change
+						if (midiKnobPos == (knobPos - 1)) {
+							newKnobPos = knobPos - 1;
+						}
+
+						//Next we check if the Midi Knob/Fader is sending a Value that is greater than the current Deluge Knob Position
+						//If greater, check by how much its greater. If the difference is greater than 1, ignore the CC value change
+						else if (midiKnobPos == (knobPos + 1)) {
+							newKnobPos = knobPos + 1;
+						}
+
+						//if the first two conditions fail, then the Deluge Knob Position (and therefore the Parameter Value with it) remains unchanged
+						else {
+							newKnobPos = knobPos;
+						}
 					}
 				}
 
+				//Convert the New Knob Position to a Parameter Value
 				int32_t newValue =
 				    modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
 
+				//Set the new Parameter Value for the MIDI Learned Parameter
 				modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, modPos,
 				                                                          modLength);
 			}
