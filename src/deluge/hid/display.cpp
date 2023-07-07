@@ -100,8 +100,8 @@ extern "C" void displayPopup(char const* text) {
 
 extern uint8_t usbInitializationPeriodComplete;
 
-extern "C" void displayPopupIfAllBootedUp(char const* text) {
+extern "C" void consoleTextIfAllBootedUp(char const* text) {
 	if (usbInitializationPeriodComplete) {
-		display.displayPopup(text);
+		display.consoleText(text);
 	}
 }

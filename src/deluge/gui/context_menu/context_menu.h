@@ -29,6 +29,8 @@ namespace deluge::gui {
 class ContextMenu : public UI {
 public:
 	ContextMenu();
+	virtual ~ContextMenu() = default;
+
 	void focusRegained() override;
 	void selectEncoderAction(int8_t offset) override;
 	int buttonAction(hid::Button b, bool on, bool inCardRoutine) final;
@@ -46,16 +48,17 @@ public:
 
 	int currentOption; // Don't make static. We'll have multiple nested ContextMenus open at the same time
 
-#if HAVE_OLED
+	// OLED Only
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
 	int scrollPos; // Don't make static. We'll have multiple nested ContextMenus open at the same time
-#endif
 	virtual char const* getTitle() = 0;
 };
 
 class ContextMenuForSaving : public ContextMenu {
 public:
 	ContextMenuForSaving() = default;
+	 ~ContextMenuForSaving() override = default;
+
 	void focusRegained() final;
 	hid::Button getAcceptButton() final { return hid::button::SAVE; }
 };
@@ -63,6 +66,8 @@ public:
 class ContextMenuForLoading : public ContextMenu {
 public:
 	ContextMenuForLoading() = default;
+	 ~ContextMenuForLoading() override = default;
+
 	void focusRegained() override;
 	hid::Button getAcceptButton() final { return hid::button::LOAD; }
 };

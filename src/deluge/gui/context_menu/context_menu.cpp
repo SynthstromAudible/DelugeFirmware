@@ -24,9 +24,7 @@
 
 namespace deluge::gui {
 ContextMenu::ContextMenu() {
-#if HAVE_OLED
 	oledShowsUIUnderneath = true;
-#endif
 }
 
 bool ContextMenu::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
@@ -38,9 +36,7 @@ bool ContextMenu::setupAndCheckAvailability() {
 	const auto [_options, numOptions] = getOptions();
 	for (currentOption = 0; currentOption < numOptions; currentOption++) {
 		if (isCurrentOptionAvailable()) {
-#if HAVE_OLED
 			scrollPos = currentOption;
-#endif
 			return true;
 		}
 	}
@@ -56,12 +52,11 @@ bool ContextMenu::opened() {
 */
 
 void ContextMenu::focusRegained() {
-#if !HAVE_OLED
-	drawCurrentOption();
-#endif
+	if (display.type != DisplayType::OLED) {
+		drawCurrentOption();
+	}
 }
 
-#if HAVE_OLED
 void ContextMenu::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 	const auto [options, numOptions] = getOptions();
 
@@ -111,48 +106,47 @@ void ContextMenu::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 
 	currentOption = actualCurrentOption;
 }
-#endif
 
 void ContextMenu::selectEncoderAction(int8_t offset) {
 	const auto [_options, numOptions] = getOptions();
 
-#if HAVE_OLED
-	bool wasOnScrollPos = (currentOption == scrollPos);
-	int oldCurrentOption = currentOption;
-	do {
-		currentOption += offset;
-		if (currentOption >= numOptions || currentOption < 0) {
-			currentOption = oldCurrentOption;
-			return;
-		}
-	} while (!isCurrentOptionAvailable());
-
-	if (currentOption < scrollPos) {
-		scrollPos = currentOption;
-	}
-	else if (offset >= 0 && !wasOnScrollPos) {
-		scrollPos = oldCurrentOption;
-	}
-	renderUIsForOled();
-#else
-
-	do {
-		if (offset >= 0) {
-			currentOption++;
-			if (currentOption >= numOptions) {
-				currentOption -= numOptions;
+	if (display.type == DisplayType::OLED) {
+		bool wasOnScrollPos = (currentOption == scrollPos);
+		int oldCurrentOption = currentOption;
+		do {
+			currentOption += offset;
+			if (currentOption >= numOptions || currentOption < 0) {
+				currentOption = oldCurrentOption;
+				return;
 			}
-		}
-		else {
-			currentOption--;
-			if (currentOption < 0) {
-				currentOption += numOptions;
-			}
-		}
+		} while (!isCurrentOptionAvailable());
 
-	} while (!isCurrentOptionAvailable());
-	drawCurrentOption();
-#endif
+		if (currentOption < scrollPos) {
+			scrollPos = currentOption;
+		}
+		else if (offset >= 0 && !wasOnScrollPos) {
+			scrollPos = oldCurrentOption;
+		}
+		renderUIsForOled();
+	}
+	else {
+		do {
+			if (offset >= 0) {
+				currentOption++;
+				if (currentOption >= numOptions) {
+					currentOption -= numOptions;
+				}
+			}
+			else {
+				currentOption--;
+				if (currentOption < 0) {
+					currentOption += numOptions;
+				}
+			}
+
+		} while (!isCurrentOptionAvailable());
+		drawCurrentOption();
+	}
 }
 
 int ContextMenu::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
@@ -195,13 +189,10 @@ probablyAcceptCurrentOption:
 
 void ContextMenu::drawCurrentOption() {
 	const auto [options, _size] = getOptions();
-
-#if HAVE_OLED
-
-#else
+	if (display.type != DisplayType::OLED) {
 	indicator_leds::ledBlinkTimeout(0, true);
-	display.setText(options[currentOption], false, 255, true);
-#endif
+		display.setText(options[currentOption], false, 255, true);
+	}
 }
 
 int ContextMenu::padAction(int x, int y, int on) {

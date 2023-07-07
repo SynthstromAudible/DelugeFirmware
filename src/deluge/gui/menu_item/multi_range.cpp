@@ -36,12 +36,6 @@ namespace menu_item {
 
 MultiRange multiRangeMenu{};
 
-MultiRange::MultiRange() {
-#if HAVE_OLED
-	basicTitle = "Note range";
-#endif
-}
-
 void MultiRange::beginSession(MenuItem* navigatedBackwardFrom) {
 
 	// If there's already a range (e.g. because we just came back out of a menu)...
@@ -59,15 +53,15 @@ void MultiRange::beginSession(MenuItem* navigatedBackwardFrom) {
 	soundEditor.currentSource->getOrCreateFirstRange(); // TODO: deal with error
 	soundEditor.setCurrentMultiRange(soundEditor.currentValue);
 
-#if HAVE_OLED
-	soundEditor.menuCurrentScroll = soundEditor.currentValue - 1;
-	if (soundEditor.menuCurrentScroll > soundEditor.currentValue - OLED_MENU_NUM_OPTIONS_VISIBLE + 1) {
-		soundEditor.menuCurrentScroll = soundEditor.currentValue - OLED_MENU_NUM_OPTIONS_VISIBLE + 1;
+	if (display.type == DisplayType::OLED) {
+		soundEditor.menuCurrentScroll = soundEditor.currentValue - 1;
+		if (soundEditor.menuCurrentScroll > soundEditor.currentValue - OLED_MENU_NUM_OPTIONS_VISIBLE + 1) {
+			soundEditor.menuCurrentScroll = soundEditor.currentValue - OLED_MENU_NUM_OPTIONS_VISIBLE + 1;
+		}
+		if (soundEditor.menuCurrentScroll < 0) {
+			soundEditor.menuCurrentScroll = 0;
+		}
 	}
-	if (soundEditor.menuCurrentScroll < 0) {
-		soundEditor.menuCurrentScroll = 0;
-	}
-#endif
 
 	Range::beginSession(navigatedBackwardFrom);
 }
@@ -160,11 +154,12 @@ void MultiRange::selectEncoderAction(int offset) {
 			}
 		}
 
-#if HAVE_OLED
-		renderUIsForOled();
-#else
-		drawValueForEditingRange(false);
-#endif
+		if (display.type == DisplayType::OLED) {
+			renderUIsForOled();
+		}
+		else {
+			drawValueForEditingRange(false);
+		}
 	}
 
 	// Or, normal mode
@@ -230,9 +225,9 @@ void MultiRange::selectEncoderAction(int offset) {
 			else {
 				newRange->topNote = midPoint;
 				// And can leave old range alone
-#if HAVE_OLED
-				soundEditor.menuCurrentScroll++; // Won't go past end of list, cos list just grew.
-#endif
+				if (display.type == DisplayType::OLED) {
+					soundEditor.menuCurrentScroll++; // Won't go past end of list, cos list just grew.
+				}
 			}
 
 			soundEditor.currentValue = newI;

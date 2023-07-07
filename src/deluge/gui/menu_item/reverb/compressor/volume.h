@@ -32,7 +32,7 @@ public:
 	}
 	int getMaxValue() const { return 50; }
 	int getMinValue() const { return -1; }
-#if !HAVE_OLED
+
 	void drawValue() {
 		if (soundEditor.currentValue < 0) {
 			display.setText("AUTO");
@@ -41,7 +41,6 @@ public:
 			Integer::drawValue();
 		}
 	}
-#endif
 };
 
 } // namespace menu_item::reverb::compressor

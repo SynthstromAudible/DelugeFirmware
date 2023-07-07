@@ -22,12 +22,6 @@
 namespace menu_item::source_selection {
 Regular regularMenu{};
 
-Regular::Regular() {
-#if HAVE_OLED
-	basicTitle = "Modulate with";
-#endif
-}
-
 ParamDescriptor Regular::getDestinationDescriptor() {
 	ParamDescriptor descriptor;
 	descriptor.setToHaveParamOnly(soundEditor.patchingParamSelected);

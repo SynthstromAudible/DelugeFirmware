@@ -124,10 +124,10 @@ gotError:
 		indicator_leds::setLedState(IndicatorLED::SCALE_MODE, false);
 		indicator_leds::blinkLed(IndicatorLED::BACK);
 		indicator_leds::blinkLed(IndicatorLED::RECORD, 255, 1);
-#if !HAVE_OLED
-		display.setNextTransitionDirection(0);
-		display.setText("REC", false, 255, true);
-#endif
+		if (display.type != DisplayType::OLED) {
+			display.setNextTransitionDirection(0);
+			display.setText("REC", false, 255, true);
+		}
 	}
 
 	if (currentUIMode == UI_MODE_AUDITIONING) {
@@ -137,11 +137,9 @@ gotError:
 	return success;
 }
 
-#if HAVE_OLED
 void AudioRecorder::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 	OLED::drawStringCentred("Recording", 15, image[0], OLED_MAIN_WIDTH_PIXELS, TEXT_BIG_SPACING_X, TEXT_BIG_SIZE_Y);
 }
-#endif
 
 bool AudioRecorder::setupRecordingToFile(int newMode, int newNumChannels, int folderID) {
 
@@ -257,11 +255,7 @@ void AudioRecorder::finishRecording() {
 
 	recorder = NULL;
 	recordingSource = 0;
-#if HAVE_OLED
-	OLED::removeWorkingAnimation();
-#else
-	display.removeTopLayer();
-#endif
+	display.removeLoadingAnimation();
 }
 
 int AudioRecorder::buttonAction(hid::Button b, bool on, bool inCardRoutine) {

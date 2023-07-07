@@ -573,6 +573,7 @@ extern "C" int deluge_main(void) {
 #elif SPI_CHANNEL_CV == 0
 	setPinMux(6, 0, 3); // CLK
 	setPinMux(6, 2, 3); // MOSI
+	if (display.type != DisplayType::OLED) {
 #if !HAVE_OLED
 	setPinMux(6, 1, 3); // SSL
 #else
@@ -900,7 +901,6 @@ extern "C" void loadAnyEnqueuedClustersRoutine() {
 	audioFileManager.loadAnyEnqueuedClusters();
 }
 
-#if !HAVE_OLED
 extern "C" void setNumeric(char* text) {
 	display.setText(text);
 }
@@ -908,7 +908,6 @@ extern "C" void setNumeric(char* text) {
 extern "C" void setNumericNumber(int number) {
 	display.setTextAsNumber(number);
 }
-#endif
 
 extern "C" void routineWithClusterLoading() {
 	AudioEngine::routineWithClusterLoading(false);

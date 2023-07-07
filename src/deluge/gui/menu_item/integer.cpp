@@ -42,7 +42,6 @@ void Integer::selectEncoderAction(int offset) {
 	Number::selectEncoderAction(offset);
 }
 
-#if !HAVE_OLED
 void Integer::drawValue() {
 	display.setTextAsNumber(soundEditor.currentValue);
 }
@@ -55,9 +54,7 @@ void IntegerWithOff::drawValue() {
 		Integer::drawValue();
 	}
 }
-#endif
 
-#if HAVE_OLED
 void Integer::drawInteger(int textWidth, int textHeight, int yPixel) {
 	char buffer[12];
 	intToString(soundEditor.currentValue, buffer, 1);
@@ -79,5 +76,4 @@ void IntegerContinuous::drawPixelsForOled() {
 
 	drawBar(35, 10);
 }
-#endif
 } // namespace menu_item

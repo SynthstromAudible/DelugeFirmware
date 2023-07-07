@@ -29,12 +29,7 @@ void SyncLevel::drawValue() {
 	else {
 		char* buffer = shortStringBuffer;
 		getNoteLengthName(buffer);
-
-#if HAVE_OLED
-		display.setText(buffer);
-#else
 		display.setScrollingText(buffer, 0);
-#endif
 	}
 }
 

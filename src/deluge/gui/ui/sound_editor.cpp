@@ -387,9 +387,7 @@ void SoundEditor::exitCompletely() {
 		FlashStorage::writeSettings();
 		MIDIDeviceManager::writeDevicesToFile();
 		runtimeFeatureSettings.writeSettingsToFile();
-#if HAVE_OLED
-		OLED::removeWorkingAnimation();
-#endif
+		display.removeWorkingAnimation();
 	}
 	display.setNextTransitionDirection(-1);
 	close();

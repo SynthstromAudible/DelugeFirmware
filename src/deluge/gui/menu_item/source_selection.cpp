@@ -179,9 +179,9 @@ void SourceSelection::beginSession(MenuItem* navigatedBackwardFrom) {
 		}
 	}
 
-#if !HAVE_OLED
+if (display.type != DisplayType::OLED) {
 	drawValue();
-#endif
+}
 }
 
 void SourceSelection::readValueAgain() {

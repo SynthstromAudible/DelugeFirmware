@@ -24,7 +24,8 @@ namespace menu_item::filter {
 class HPFFreq final : public patched_param::IntegerNonFM {
 public:
 	HPFFreq(char const* newName = 0, int newP = 0) : patched_param::IntegerNonFM(newName, newP) {}
-#if !HAVE_OLED
+
+	// 7Seg ONLY
 	void drawValue() {
 		if (soundEditor.currentValue == 0
 		    && !soundEditor.currentParamManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(
@@ -35,6 +36,5 @@ public:
 			patched_param::IntegerNonFM::drawValue();
 		}
 	}
-#endif
 };
 } // namespace menu_item::filter

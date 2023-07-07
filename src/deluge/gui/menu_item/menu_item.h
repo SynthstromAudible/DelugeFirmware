@@ -34,9 +34,7 @@ class MenuItem {
 public:
 	MenuItem(char const* newName = NULL) {
 		name = newName;
-#if HAVE_OLED
 		basicTitle = newName;
-#endif
 	}
 
 	char const* name; // As viewed in a menu list. For OLED, up to 20 chars.
@@ -97,7 +95,7 @@ public:
 		return false;
 	}
 
-#if HAVE_OLED
+	// OLED ONLY
 	char const* basicTitle; // Can get overridden by getTitle(). Actual max num chars for OLED display is 14.
 	virtual void renderOLED();
 	virtual void drawPixelsForOled() {
@@ -107,8 +105,6 @@ public:
 	/// Get the title to be used when rendering on OLED. If not overriden, defaults to returning `basicTitle`.
 	virtual char const* getTitle();
 
-#else
+	// 7SEG ONLY
 	virtual void drawName();
-
-#endif
 };

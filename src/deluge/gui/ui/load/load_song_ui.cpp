@@ -162,22 +162,20 @@ void LoadSongUI::enterKeyPress() {
 	}
 }
 
-#if HAVE_OLED
 void LoadSongUI::displayArmedPopup() {
-	OLED::removeWorkingAnimation();
-	OLED::popupText("Song will begin...", true);
+	display.removeWorkingAnimation();
+	display.popupText("Song will begin...");
 }
 
 char loopsRemainingText[] = "Loops remaining: xxxxxxxxxxx";
 
 void LoadSongUI::displayLoopsRemainingPopup() {
 	if (currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED) {
-		OLED::removeWorkingAnimation();
+		display.removeWorkingAnimation();
 		intToString(session.numRepeatsTilLaunch, &loopsRemainingText[17]);
-		OLED::popupText(loopsRemainingText, true);
+		display.popupText(loopsRemainingText);
 	}
 }
-#endif
 
 int LoadSongUI::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	using namespace hid::button;
@@ -296,9 +294,7 @@ fail:
 			displayText(false);
 		}
 		currentUIMode = UI_MODE_NONE;
-#if HAVE_OLED
-		OLED::removeWorkingAnimation();
-#endif
+		display.removeWorkingAnimation();
 		return;
 	}
 
@@ -392,12 +388,13 @@ gotErrorAfterCreatingSong:
 
 		// Otherwise, set up so that the song-swap will be armed as soon as the user releases the load button
 		else {
-#if HAVE_OLED
-			OLED::removeWorkingAnimation();
-			OLED::popupText("Loading complete", true);
-#else
-			display.setText("DONE", false, 255, true, NULL, false, true);
-#endif
+			display.removeWorkingAnimation();
+			if (display.type == DisplayType::OLED) {
+				display.popupText("Loading complete");
+			}
+			else {
+				display.setText("DONE", false, 255, true, NULL, false, true);
+			}
 			currentUIMode = UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_UNARMED;
 		}
 
@@ -446,9 +443,7 @@ swapDone:
 	setUIForLoadedSong(currentSong);
 	currentUIMode = UI_MODE_NONE;
 
-#if HAVE_OLED
-	OLED::removeWorkingAnimation();
-#endif
+display.removeWorkingAnimation();
 }
 
 int LoadSongUI::timerCallback() {

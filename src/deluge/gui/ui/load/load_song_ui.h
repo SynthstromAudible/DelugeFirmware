@@ -45,9 +45,7 @@ protected:
 
 private:
 	void drawSongPreview(bool toStore = true);
-#if HAVE_OLED
 	void displayArmedPopup();
-#endif
 
 	bool scrollingIntoSlot;
 	//int findNextFile(int offset);

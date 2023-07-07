@@ -18,7 +18,7 @@
  ***********************************************************************************************************************/
 /***********************************************************************************************************************
  * File Name    : r_usb_hreg_abs.c
- * Description  : Call USB Host register access function 
+ * Description  : Call USB Host register access function
  ***********************************************************************************************************************/
 /**********************************************************************************************************************
  * History : DD.MM.YYYY Version Description
@@ -36,6 +36,7 @@
 #include "RZA1/system/iodefine.h"
 
 #include "deluge/hid/display/numeric_driver.h"
+#include "hid/display.h"
 
 #if ((USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST)
 /***********************************************************************************************************************
@@ -287,7 +288,7 @@ uint16_t usb_hstd_chk_attach(usb_utr_t* ptr, uint16_t port)
         }
         else if ((buf[0] & USB_LNST) == USB_SE0)
         {
-            displayPopupIfAllBootedUp("DETACH"); // By Rohan
+            consoleTextIfAllBootedUp("DETACH"); // By Rohan
             USB_PRINTF0(" Detach device\n");
         }
         else
@@ -632,7 +633,7 @@ uint16_t usb_hstd_support_speed_check(usb_utr_t* ptr, uint16_t port)
 
 /***********************************************************************************************************************
  Function Name   : usb_hstd_write_fifo
- Description     : Write specified amount of data to specified USB FIFO. 
+ Description     : Write specified amount of data to specified USB FIFO.
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
                  : uint16_t     count        : Write size.
                  : uint16_t     pipemode     : The mode of CPU/DMA(D0)/DMA(D1).
@@ -814,10 +815,10 @@ void usb_hstd_forced_termination(usb_utr_t* ptr, uint16_t pipe, uint16_t status)
 
 /***********************************************************************************************************************
  Function Name   : usb_hstd_get_usb_ip_adr
- Description     : Get base address of the selected USB channel's peripheral 
+ Description     : Get base address of the selected USB channel's peripheral
                  : registers.
  Argument        : uint16_t     ipnum        : USB_USBIP_0 (0), or USB_USBIP_1 (1).
- Return          : usb_regadr_t              : A pointer to the USB_597IP register 
+ Return          : usb_regadr_t              : A pointer to the USB_597IP register
                                              : structure USB_REGISTER containing all USB
                                              : channel's registers.
  ***********************************************************************************************************************/

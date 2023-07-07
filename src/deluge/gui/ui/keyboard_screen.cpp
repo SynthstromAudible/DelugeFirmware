@@ -466,9 +466,9 @@ void KeyboardScreen::exitAuditionMode() {
 
 	memset(yDisplayActive, 0, sizeof(yDisplayActive));
 	exitUIMode(UI_MODE_AUDITIONING);
-#if !HAVE_OLED
+	if (display.type != DisplayType::OLED) {
 	redrawNumericDisplay();
-#endif
+	}
 }
 
 void KeyboardScreen::stopAllAuditioning(ModelStack* modelStack, bool switchOffOnThisEndToo) {

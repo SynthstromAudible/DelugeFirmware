@@ -15,13 +15,13 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "hid/display.h"
 #include "storage/audio/audio_file_manager.h"
 #include "hid/matrix/matrix_driver.h"
 #include "storage/storage_manager.h"
 #include <string.h>
 #include "gui/ui/browser/slot_browser.h"
 #include "util/functions.h"
-#include "hid/display.h"
 #include "hid/led/pad_leds.h"
 #include "io/debug/print.h"
 #include "storage/file_item.h"
@@ -63,7 +63,6 @@ int SlotBrowser::beginSlotSession(bool shouldDrawKeys, bool allowIfNoFolder) {
 	return NO_ERROR;
 }
 
-#if !HAVE_OLED
 void SlotBrowser::focusRegained() {
 	displayText(false);
 }
@@ -73,30 +72,28 @@ int SlotBrowser::horizontalEncoderAction(int offset) {
 	if (!isNoUIModeActive()) {
 		return ACTION_RESULT_DEALT_WITH;
 	}
-#if !HAVE_OLED
-	FileItem* currentFileItem = getCurrentFileItem();
-	if (currentFileItem) {
-		// See if it's numeric. Here, filename has already had prefix removed if it's numeric.
+	if (display.type != DisplayType::OLED) {
+		FileItem* currentFileItem = getCurrentFileItem();
+		if (currentFileItem) {
+			// See if it's numeric. Here, filename has already had prefix removed if it's numeric.
 
-		Slot thisSlot = getSlot(enteredText.get());
-		if (thisSlot.slot < 0) {
-			goto nonNumeric;
-		}
+			Slot thisSlot = getSlot(enteredText.get());
+			if (thisSlot.slot < 0) {
+				goto nonNumeric;
+			}
 
-		numberEditPos -= offset;
-		if (numberEditPos > 2) {
-			numberEditPos = 2;
-		}
-		else if (numberEditPos < -1) {
-			numberEditPos = -1;
-		}
+			numberEditPos -= offset;
+			if (numberEditPos > 2) {
+				numberEditPos = 2;
+			}
+			else if (numberEditPos < -1) {
+				numberEditPos = -1;
+			}
 
-		displayText(numberEditPos >= 0);
-		return ACTION_RESULT_DEALT_WITH;
+			displayText(numberEditPos >= 0);
+			return ACTION_RESULT_DEALT_WITH;
+		}
 	}
-
-	else
-#endif
 	{
 nonNumeric:
 #if HAVE_OLED // Maintain consistency with before - don't do this on numeric.
@@ -105,7 +102,6 @@ nonNumeric:
 		return Browser::horizontalEncoderAction(offset);
 	}
 }
-#endif
 
 void SlotBrowser::processBackspace() {
 	Browser::processBackspace();

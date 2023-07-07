@@ -25,7 +25,7 @@ class MIDIPort;
 namespace menu_item::mpe {
 class ZoneNumMemberChannels final : public IntegerWithOff {
 public:
-	ZoneNumMemberChannels();
+	ZoneNumMemberChannels() { basicTitle = "Num member ch."; }
 	/*
 #if HAVE_OLED
 	void beginSession(MenuItem* navigatedBackwardFrom);

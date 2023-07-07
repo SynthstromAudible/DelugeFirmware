@@ -16,6 +16,7 @@
 */
 
 #include "integer_range.h"
+#include "hid/display.h"
 #include "util/functions.h"
 #include "gui/menu_item/range.h"
 #include "gui/ui/sound_editor.h"
@@ -33,11 +34,11 @@ IntegerRange::IntegerRange(char const* newName, int newMin, int newMax) : Range(
 
 void IntegerRange::beginSession(MenuItem* navigatedBackwardFrom) {
 	Range::beginSession(navigatedBackwardFrom);
-#if HAVE_OLED
-	if (lower != upper) {
-		soundEditor.editingRangeEdge = RangeEdit::LEFT;
+	if (display.type == DisplayType::OLED) {
+		if (lower != upper) {
+			soundEditor.editingRangeEdge = RangeEdit::LEFT;
+		}
 	}
-#endif
 }
 
 void IntegerRange::selectEncoderAction(int offset) {

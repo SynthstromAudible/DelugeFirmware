@@ -42,20 +42,19 @@ char const* DeleteFile::getTitle() {
 }
 
 Sized<char const**> DeleteFile::getOptions() {
-#if HAVE_OLED
-	static char const* options[] = {"OK"};
-	return {options, 1};
-#else
-	static char const* options[] = {"DELETE"};
-	static char const* optionsSure[] = {"SURE"};
-
-	if (getUIUpOneLevel() == &context_menu::saveSongOrInstrument) {
-		return {optionsSure, 1};
-	}
-	else {
+	if (display.type == DisplayType::OLED) {
+		static char const* options[] = {"OK"};
 		return {options, 1};
 	}
-#endif
+	else {
+		static char const* options[] = {"DELETE"};
+		static char const* optionsSure[] = {"SURE"};
+
+		if (getUIUpOneLevel() == &context_menu::saveSongOrInstrument) {
+			return {optionsSure, 1};
+		}
+		return {options, 1};
+	}
 }
 
 bool DeleteFile::acceptCurrentOption() {

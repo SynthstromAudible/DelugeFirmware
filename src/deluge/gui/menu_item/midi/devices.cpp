@@ -43,11 +43,12 @@ void Devices::beginSession(MenuItem* navigatedBackwardFrom) {
 
 decidedDevice:
 	soundEditor.currentMIDIDevice = getDevice(soundEditor.currentValue);
-#if HAVE_OLED
-	soundEditor.menuCurrentScroll = soundEditor.currentValue;
-#else
-	drawValue();
-#endif
+	if (display.type == DisplayType::OLED) {
+		soundEditor.menuCurrentScroll = soundEditor.currentValue;
+	}
+	else {
+		drawValue();
+	}
 }
 
 void Devices::selectEncoderAction(int offset) {
@@ -74,30 +75,30 @@ void Devices::selectEncoderAction(int offset) {
 	} while (!soundEditor.currentMIDIDevice->connectionFlags);
 	// Don't show devices which aren't connected. Sometimes we won't even have a name to display for them.
 
-#if HAVE_OLED
-	if (soundEditor.currentValue < soundEditor.menuCurrentScroll) {
-		soundEditor.menuCurrentScroll = soundEditor.currentValue;
-	}
+	if (display.type == DisplayType::OLED) {
+		if (soundEditor.currentValue < soundEditor.menuCurrentScroll) {
+			soundEditor.menuCurrentScroll = soundEditor.currentValue;
+		}
 
-	if (offset >= 0) {
-		int d = soundEditor.currentValue;
-		int numSeen = 1;
-		while (true) {
-			d--;
-			if (d == soundEditor.menuCurrentScroll) {
-				break;
-			}
-			if (!getDevice(d)->connectionFlags) {
-				continue;
-			}
-			numSeen++;
-			if (numSeen >= OLED_MENU_NUM_OPTIONS_VISIBLE) {
-				soundEditor.menuCurrentScroll = d;
-				break;
+		if (offset >= 0) {
+			int d = soundEditor.currentValue;
+			int numSeen = 1;
+			while (true) {
+				d--;
+				if (d == soundEditor.menuCurrentScroll) {
+					break;
+				}
+				if (!getDevice(d)->connectionFlags) {
+					continue;
+				}
+				numSeen++;
+				if (numSeen >= OLED_MENU_NUM_OPTIONS_VISIBLE) {
+					soundEditor.menuCurrentScroll = d;
+					break;
+				}
 			}
 		}
 	}
-#endif
 
 	drawValue();
 }
@@ -118,23 +119,22 @@ MIDIDevice* Devices::getDevice(int deviceIndex) {
 }
 
 void Devices::drawValue() {
-#if HAVE_OLED
-	renderUIsForOled();
-#else
-	char const* displayName = soundEditor.currentMIDIDevice->getDisplayName();
-	display.setScrollingText(displayName);
-#endif
+	if (display.type == DisplayType::OLED) {
+		renderUIsForOled();
+	}
+	else {
+		char const* displayName = soundEditor.currentMIDIDevice->getDisplayName();
+		display.setScrollingText(displayName);
+	}
 }
 
 MenuItem* Devices::selectButtonPress() {
-#if HAVE_OLED
-	midiDeviceMenu.basicTitle =
-	    soundEditor.currentMIDIDevice->getDisplayName(); // A bit ugly, but saves us extending a class.
-#endif
+	if (display.type == DisplayType::OLED) {
+		// A bit ugly, but saves us extending a class.
+		midiDeviceMenu.basicTitle = soundEditor.currentMIDIDevice->getDisplayName();
+	}
 	return &midiDeviceMenu;
 }
-
-#if HAVE_OLED
 
 void Devices::drawPixelsForOled() {
 	char const* itemNames[OLED_MENU_NUM_OPTIONS_VISIBLE];
@@ -163,5 +163,4 @@ void Devices::drawPixelsForOled() {
 	drawItemsForOled(itemNames, selectedRow);
 }
 
-#endif
 } // namespace menu_item::midi

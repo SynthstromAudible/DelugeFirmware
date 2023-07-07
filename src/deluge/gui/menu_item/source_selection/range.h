@@ -20,7 +20,7 @@
 namespace menu_item::source_selection {
 class Range final : public SourceSelection {
 public:
-	Range();
+	Range() {basicTitle = "Modulate depth";}
 	ParamDescriptor getDestinationDescriptor();
 	MenuItem* selectButtonPress();
 	MenuItem* patchingSourceShortcutPress(int newS, bool previousPressStillActive);

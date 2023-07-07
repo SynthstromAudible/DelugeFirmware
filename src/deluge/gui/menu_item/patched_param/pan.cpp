@@ -27,7 +27,7 @@ extern "C" {
 }
 
 namespace menu_item::patched_param {
-#if !HAVE_OLED
+// 7SEG only
 void Pan::drawValue() {
 	ParamDescriptor paramDescriptor;
 	paramDescriptor.setToHaveParamOnly(getP());
@@ -45,7 +45,6 @@ void Pan::drawValue() {
 	}
 	display.setText(buffer, true, drawDot);
 }
-#endif
 
 int32_t Pan::getFinalValue() {
 	if (soundEditor.currentValue == 32) {

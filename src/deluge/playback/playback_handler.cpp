@@ -1772,7 +1772,7 @@ void PlaybackHandler::displaySwingAmount() {
 	else {
 		intToString(currentSong->swingAmount + 50, &buffer[7]);
 	}
-	OLED::popupText(buffer);
+	display.popupTextTemporary(buffer);
 
 #else
 	char buffer[12];
@@ -2087,78 +2087,77 @@ float PlaybackHandler::calculateBPM(float timePerInternalTick) {
 }
 
 void PlaybackHandler::displayTempoBPM(float tempoBPM) {
-#if HAVE_OLED
-	char buffer[27];
-	strcpy(buffer, "Tempo: ");
-	if (currentSong->timePerTimerTickBig <= ((uint64_t)minTimePerTimerTick << 32)) {
-		strcpy(&buffer[7], "FAST");
-	}
-	else {
-		floatToString(tempoBPM, &buffer[7], 0, 3);
-	}
-	OLED::popupText(buffer);
-#else
-	if (tempoBPM >= 9999.5) {
-		display.displayPopup("FAST");
-		return;
-	}
-
-	int divisor = 1;
-	int dotMask = (1 << 7);
-
-	if (tempoBPM >= 999.95) {}
-	else if (tempoBPM >= 99.995) {
-		divisor = 10;
-		dotMask |= (1 << 1);
-	}
-	else if (tempoBPM >= 9.9995) {
-		divisor = 100;
-		dotMask |= (1 << 2);
-	}
-	else {
-		divisor = 1000;
-		dotMask |= (1 << 3);
-	}
-
-	int roundedBigger = tempoBPM * divisor + 0.5; // This will now be a 4 digit number
-	double roundedSmallerAgain = (double)roundedBigger / divisor;
-
-	bool isPerfect = false;
-
-	if (roundedBigger != 0
-	    && !(
-	        playbackState
-	        & PLAYBACK_CLOCK_EXTERNAL_ACTIVE)) { // It might get supplied here as a 0, even if it's actually very slightly above that, but we don't want do display that as an integer
-
-		// Compare to current tempo to see if 100% accurate
-		double roundedSmallerHere = roundedSmallerAgain;
-		if (currentSong->insideWorldTickMagnitude > 0) {
-			roundedSmallerHere *= ((uint32_t)1 << (currentSong->insideWorldTickMagnitude));
+	if (display.type != DisplayType::SevenSegment) {
+		char buffer[27];
+		strcpy(buffer, "Tempo: ");
+		if (currentSong->timePerTimerTickBig <= ((uint64_t)minTimePerTimerTick << 32)) {
+			strcpy(&buffer[7], "FAST");
 		}
-		double newTempoSamples = (double)110250 / roundedSmallerHere;
-		if (currentSong->insideWorldTickMagnitude < 0) {
-			newTempoSamples *= ((uint32_t)1 << (-currentSong->insideWorldTickMagnitude));
+		else {
+			floatToString(tempoBPM, &buffer[7], 0, 3);
+		}
+		display.popupText(buffer);
+	}
+	else {
+		if (tempoBPM >= 9999.5) {
+			display.displayPopup("FAST");
+			return;
 		}
 
-		uint64_t newTimePerTimerTickBig = newTempoSamples * 4294967296 + 0.5;
+		int divisor = 1;
+		int dotMask = (1 << 7);
 
-		isPerfect = (currentSong->timePerTimerTickBig == newTimePerTimerTickBig);
-	}
+		if (tempoBPM >= 999.95) {}
+		else if (tempoBPM >= 99.995) {
+			divisor = 10;
+			dotMask |= (1 << 1);
+		}
+		else if (tempoBPM >= 9.9995) {
+			divisor = 100;
+			dotMask |= (1 << 2);
+		}
+		else {
+			divisor = 1000;
+			dotMask |= (1 << 3);
+		}
 
-	int roundedTempoBPM = roundedSmallerAgain + 0.5;
+		int roundedBigger = tempoBPM * divisor + 0.5; // This will now be a 4 digit number
+		double roundedSmallerAgain = (double)roundedBigger / divisor;
 
-	// If perfect and integer...
-	if (isPerfect && roundedBigger == roundedTempoBPM * divisor) {
-		char buffer[12];
-		intToString(roundedTempoBPM, buffer);
-		display.displayPopup(buffer);
+		bool isPerfect = false;
+
+		// It might get supplied here as a 0, even if it's actually very slightly above that, but we don't want do display that as an integer
+		if (roundedBigger != 0 && !(playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE)) {
+
+			// Compare to current tempo to see if 100% accurate
+			double roundedSmallerHere = roundedSmallerAgain;
+			if (currentSong->insideWorldTickMagnitude > 0) {
+				roundedSmallerHere *= ((uint32_t)1 << (currentSong->insideWorldTickMagnitude));
+			}
+			double newTempoSamples = (double)110250 / roundedSmallerHere;
+			if (currentSong->insideWorldTickMagnitude < 0) {
+				newTempoSamples *= ((uint32_t)1 << (-currentSong->insideWorldTickMagnitude));
+			}
+
+			uint64_t newTimePerTimerTickBig = newTempoSamples * 4294967296 + 0.5;
+
+			isPerfect = (currentSong->timePerTimerTickBig == newTimePerTimerTickBig);
+		}
+
+		int roundedTempoBPM = roundedSmallerAgain + 0.5;
+
+		// If perfect and integer...
+		if (isPerfect && roundedBigger == roundedTempoBPM * divisor) {
+			char buffer[12];
+			intToString(roundedTempoBPM, buffer);
+			display.displayPopup(buffer);
+		}
+		else {
+			char buffer[12];
+			intToString(roundedBigger, buffer, 4);
+			display.displayPopup(buffer, 3, false, dotMask);
+		}
 	}
-	else {
-		char buffer[12];
-		intToString(roundedBigger, buffer, 4);
-		display.displayPopup(buffer, 3, false, dotMask);
-	}
-#endif
 }
 
 void PlaybackHandler::setLedStates() {

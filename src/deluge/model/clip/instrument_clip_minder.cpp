@@ -145,7 +145,7 @@ void InstrumentClipMinder::drawMIDIControlNumber(int controlNumber, bool automat
 	if (automationExists) {
 		strcat(buffer, "\n(automated)");
 	}
-	OLED::popupText(buffer, true);
+	display.popupText(buffer, true);
 
 #else
 		char* numberStartPos = (controlNumber < 100) ? (buffer + 2) : (buffer + 1);
@@ -471,20 +471,21 @@ void InstrumentClipMinder::drawActualNoteCode(int16_t noteCode) {
 	char noteName[5];
 	noteName[0] = noteCodeToNoteLetter[noteCodeWithinOctave];
 	char* writePos = &noteName[1];
-#if HAVE_OLED
-	if (noteCodeIsSharp[noteCodeWithinOctave]) {
-		*writePos = '#';
-		writePos++;
+	if (display.type == DisplayType::OLED) {
+		if (noteCodeIsSharp[noteCodeWithinOctave]) {
+			*writePos = '#';
+			writePos++;
+		}
 	}
-#endif
 	intToString(octave, writePos, 1);
 
-#if HAVE_OLED
-	OLED::popupText(noteName, true);
-#else
-	uint8_t drawDot = noteCodeIsSharp[noteCodeWithinOctave] ? 0 : 255;
-	display.setText(noteName, false, drawDot, true);
-#endif
+	if (display.type == DisplayType::OLED) {
+		display.popupTextTemporary(noteName);
+	}
+	else {
+		uint8_t drawDot = noteCodeIsSharp[noteCodeWithinOctave] ? 0 : 255;
+		display.setText(noteName, false, drawDot, true);
+	}
 }
 
 void InstrumentClipMinder::cycleThroughScales() {

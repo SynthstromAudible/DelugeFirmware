@@ -52,9 +52,9 @@ void Submenu::beginSession(MenuItem* navigatedBackwardFrom) {
 			soundEditor.currentSubmenuItem = items;
 		}
 	}
-#if !HAVE_OLED
+if (display.type != DisplayType::OLED) {
 	updateDisplay();
-#endif
+}
 }
 
 void Submenu::updateDisplay() {

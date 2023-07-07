@@ -17,6 +17,7 @@
 
 #include "gui/context_menu/overwrite_file.h"
 #include "gui/ui/save/save_ui.h"
+#include "hid/display.h"
 
 namespace deluge::gui::context_menu {
 OverwriteFile overwriteFile{};
@@ -27,12 +28,14 @@ char const* OverwriteFile::getTitle() {
 }
 
 Sized<char const**> OverwriteFile::getOptions() {
-#if HAVE_OLED
-	static char const* options[] = {"Ok"};
-#else
-	static char const* options[] = {"OVERWRITE"};
-#endif
-	return {options, 1};
+	if (display.type == DisplayType::OLED) {
+		static char const* options[] = {"Ok"};
+		return {options, 1};
+	}
+	else {
+		static char const* options[] = {"OVERWRITE"};
+		return {options, 1};
+	}
 }
 
 bool OverwriteFile::acceptCurrentOption() {

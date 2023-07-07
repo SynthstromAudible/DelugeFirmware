@@ -1003,36 +1003,37 @@ int SessionView::timerCallback() {
 void SessionView::drawSectionRepeatNumber() {
 	int number = currentSong->sections[sectionPressed].numRepetitions;
 	char const* outputText;
-#if HAVE_OLED
-	char buffer[21];
-	if (number == -1) {
-		outputText = "Launch non-\nexclusively"; // Need line break cos line splitter doesn't deal with hyphens.
-	}
-	else {
-		outputText = buffer;
-		strcpy(buffer, "Repeats: ");
-		if (number == 0) {
-			strcpy(&buffer[9], "infinite");
+	if (display.type == DisplayType::OLED) {
+		char buffer[21];
+		if (number == -1) {
+			outputText = "Launch non-\nexclusively"; // Need line break cos line splitter doesn't deal with hyphens.
 		}
 		else {
-			intToString(number, &buffer[9]);
+			outputText = buffer;
+			strcpy(buffer, "Repeats: ");
+			if (number == 0) {
+				strcpy(&buffer[9], "infinite");
+			}
+			else {
+				intToString(number, &buffer[9]);
+			}
 		}
-	}
-	OLED::popupText(outputText, true);
-#else
-	char buffer[5];
-	if (number == -1) {
-		outputText = "SHAR";
-	}
-	else if (number == 0) {
-		outputText = "INFI";
+		display.popupTextTemporary(outputText);
 	}
 	else {
-		intToString(number, buffer);
-		outputText = buffer;
+		char buffer[5];
+		if (number == -1) {
+			outputText = "SHAR";
+		}
+		else if (number == 0) {
+			outputText = "INFI";
+		}
+		else {
+			intToString(number, buffer);
+			outputText = buffer;
+		}
+		display.setText(outputText, true, 255, true);
 	}
-	display.setText(outputText, true, 255, true);
-#endif
 }
 
 void SessionView::selectEncoderAction(int8_t offset) {
@@ -1305,9 +1306,7 @@ int setPresetOrNextUnlaunchedOne(InstrumentClip* clip, int instrumentType, bool*
 #endif
 	newInstrument->loadAllAudioFiles(true);
 
-#if HAVE_OLED
-	OLED::removeWorkingAnimation();
-#endif
+	display.removeWorkingAnimation();
 
 	result.error = clip->setAudioInstrument(newInstrument, currentSong, true, NULL); // Does a setupPatching()
 	if (result.error) {
@@ -2362,14 +2361,14 @@ void SessionView::modEncoderAction(int whichModEncoder, int offset) {
 				if (thresh < -69)
 					thresh = -69;
 				AudioEngine::mastercompressor.compressor.setThresh(thresh);
-#if !HAVE_OLED
-				char buffer[6];
-				strcpy(buffer, "");
-				floatToString(thresh, buffer + strlen(buffer), 1, 1);
-				if (abs(thresh) < 0.01)
-					strcpy(buffer, "OFF");
-				display.displayPopup(buffer);
-#endif
+				if (display.type != DisplayType::OLED) {
+					char buffer[6];
+					strcpy(buffer, "");
+					floatToString(thresh, buffer + strlen(buffer), 1, 1);
+					if (abs(thresh) < 0.01)
+						strcpy(buffer, "OFF");
+					display.displayPopup(buffer);
+				}
 			}
 			else if (masterCompEditMode == 1) { //Makeup DB
 				double makeup = AudioEngine::mastercompressor.getMakeup();
@@ -2379,12 +2378,12 @@ void SessionView::modEncoderAction(int whichModEncoder, int offset) {
 				if (makeup > 20)
 					makeup = 20;
 				AudioEngine::mastercompressor.setMakeup(makeup);
-#if !HAVE_OLED
-				char buffer[6];
-				strcpy(buffer, "");
-				floatToString(makeup, buffer + strlen(buffer), 1, 1);
-				display.displayPopup(buffer);
-#endif
+				if (display.type != DisplayType::OLED) {
+					char buffer[6];
+					strcpy(buffer, "");
+					floatToString(makeup, buffer + strlen(buffer), 1, 1);
+					display.displayPopup(buffer);
+				}
 			}
 			else if (masterCompEditMode == 2) { //Attack ms
 				double atk = AudioEngine::mastercompressor.compressor.getAttack();
@@ -2394,12 +2393,12 @@ void SessionView::modEncoderAction(int whichModEncoder, int offset) {
 				if (atk >= 30.0)
 					atk = 30.0;
 				AudioEngine::mastercompressor.compressor.setAttack(atk);
-#if !HAVE_OLED
-				char buffer[5];
-				strcpy(buffer, "");
-				floatToString(atk, buffer + strlen(buffer), 1, 1);
-				display.displayPopup(buffer);
-#endif
+				if (display.type != DisplayType::OLED) {
+					char buffer[5];
+					strcpy(buffer, "");
+					floatToString(atk, buffer + strlen(buffer), 1, 1);
+					display.displayPopup(buffer);
+				}
 			}
 			else if (masterCompEditMode == 3) { //Release ms
 				double rel = AudioEngine::mastercompressor.compressor.getRelease();
@@ -2409,12 +2408,12 @@ void SessionView::modEncoderAction(int whichModEncoder, int offset) {
 				if (rel >= 1200.0)
 					rel = 1200.0;
 				AudioEngine::mastercompressor.compressor.setRelease(rel);
-#if !HAVE_OLED
-				char buffer[6];
-				strcpy(buffer, "");
-				intToString(int(rel), buffer + strlen(buffer));
-				display.displayPopup(buffer);
-#endif
+				if (display.type != DisplayType::OLED) {
+					char buffer[6];
+					strcpy(buffer, "");
+					intToString(int(rel), buffer + strlen(buffer));
+					display.displayPopup(buffer);
+				}
 			}
 			else if (masterCompEditMode == 4) { //Ratio R:1
 				double ratio = 1.0 / AudioEngine::mastercompressor.compressor.getRatio();
@@ -2424,12 +2423,12 @@ void SessionView::modEncoderAction(int whichModEncoder, int offset) {
 				if (ratio >= 10.0)
 					ratio = 10.0;
 				AudioEngine::mastercompressor.compressor.setRatio(1.0 / ratio);
-#if !HAVE_OLED
-				char buffer[5];
-				strcpy(buffer, "");
-				floatToString(ratio, buffer + strlen(buffer), 1, 1);
-				display.displayPopup(buffer);
-#endif
+				if (display.type != DisplayType::OLED) {
+					char buffer[5];
+					strcpy(buffer, "");
+					floatToString(ratio, buffer + strlen(buffer), 1, 1);
+					display.displayPopup(buffer);
+				}
 			}
 			else if (masterCompEditMode == 5) { //Wet 0.0 - 1.0
 				double wet = AudioEngine::mastercompressor.wet;
@@ -2439,16 +2438,15 @@ void SessionView::modEncoderAction(int whichModEncoder, int offset) {
 				if (wet >= 1.0)
 					wet = 1.0;
 				AudioEngine::mastercompressor.wet = wet;
-#if !HAVE_OLED
-				char buffer[6];
-				strcpy(buffer, "");
-				intToString(int(wet * 100), buffer + strlen(buffer));
-				display.displayPopup(buffer);
-#endif
+				if (display.type != DisplayType::OLED) {
+					char buffer[6];
+					strcpy(buffer, "");
+					intToString(int(wet * 100), buffer + strlen(buffer));
+					display.displayPopup(buffer);
+				}
 			}
 
-#if HAVE_OLED
-			{ //Master Compressor OLED UI
+			if (display.type == DisplayType::OLED) { //Master Compressor OLED UI
 				double thresh = AudioEngine::mastercompressor.compressor.getThresh();
 				double makeup = AudioEngine::mastercompressor.getMakeup();
 				double atk = AudioEngine::mastercompressor.compressor.getAttack();
@@ -2511,7 +2509,6 @@ void SessionView::modEncoderAction(int whichModEncoder, int offset) {
 				OLED::sendMainImage();
 				uiTimerManager.setTimer(TIMER_DISPLAY, 1500);
 			}
-#endif
 		}
 	}
 

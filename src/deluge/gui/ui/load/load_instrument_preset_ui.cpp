@@ -844,18 +844,10 @@ giveUsedError:
 			newInstrument->editedByUser = true;
 		}
 	}
-#if HAVE_OLED
-	OLED::displayWorkingAnimation("Loading");
-#else
-	display.displayLoadingAnimation(false, true);
-#endif
+	display.displayLoadingAnimationText("Loading", false, true);
 	int error = newInstrument->loadAllAudioFiles(true);
 
-#if HAVE_OLED
-	OLED::removeWorkingAnimation();
-#else
-	display.removeTopLayer();
-#endif
+	display.removeLoadingAnimation();
 
 	// If error, most likely because user interrupted sample loading process...
 	if (error) {
@@ -932,9 +924,7 @@ giveUsedError:
 	}
 
 	instrumentToReplace = newInstrument;
-#if HAVE_OLED
-	OLED::removeWorkingAnimation();
-#endif
+display.removeWorkingAnimation();
 
 	return NO_ERROR;
 }

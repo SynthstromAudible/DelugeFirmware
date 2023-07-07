@@ -32,12 +32,7 @@ void ZoneSelector::beginSession(MenuItem* navigatedBackwardFrom) {
 }
 
 char const** ZoneSelector::getOptions() {
-	static char const* options[] =
-#if HAVE_OLED
-	    {"Lower zone", "Upper zone", NULL};
-#else
-	    {"Lowe", "Uppe", NULL};
-#endif
+	static char const* options[] = {"Lower zone", "Upper zone", NULL};
 	return options;
 }
 

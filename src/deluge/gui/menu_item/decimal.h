@@ -33,11 +33,12 @@ protected:
 	void drawValue();
 	virtual int getNumDecimalPlaces() const = 0;
 	virtual int getDefaultEditPos() const { return 2; }
-#if HAVE_OLED
+
+	// OLED only
 	void drawPixelsForOled();
-#else
+
+	// 7Seg Only
 	virtual void drawActualValue(bool justDidHorizontalScroll = false);
-#endif
 
 private:
 	void scrollToGoodPos();

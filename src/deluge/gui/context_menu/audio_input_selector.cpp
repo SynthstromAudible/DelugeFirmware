@@ -113,9 +113,7 @@ bool AudioInputSelector::setupAndCheckAvailability() {
 	if (audioOutput->echoing) {
 		currentOption += 1;
 	}
-#if HAVE_OLED
 	scrollPos = currentOption;
-#endif
 	return true;
 }
 

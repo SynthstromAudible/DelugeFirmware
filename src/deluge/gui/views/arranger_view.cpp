@@ -429,9 +429,9 @@ void ArrangerView::focusRegained() {
 
 	repopulateOutputsOnScreen(false);
 
-#if !HAVE_OLED
+if (display.type != DisplayType::OLED) {
 	sessionView.redrawNumericDisplay();
-#endif
+}
 	if (currentUIMode != UI_MODE_HOLDING_ARRANGEMENT_ROW) {
 		view.setActiveModControllableTimelineCounter(currentSong);
 	}
@@ -2446,9 +2446,7 @@ cantDoIt:
 		    loadInstrumentPresetUI.doPresetNavigation(offset, oldInstrument, AVAILABILITY_INSTRUMENT_UNUSED, true);
 		if (results.error == NO_ERROR_BUT_GET_OUT) {
 removeWorkingAnimationAndGetOut:
-#if HAVE_OLED
-			OLED::removeWorkingAnimation();
-#endif
+display.removeWorkingAnimation();
 			return;
 		}
 		else if (results.error) {
@@ -2465,11 +2463,7 @@ removeWorkingAnimationAndGetOut:
 
 		oldInstrument = newInstrument;
 		outputsOnScreen[yPressedEffective] = newInstrument;
-#if HAVE_OLED
-		OLED::removeWorkingAnimation();
-#else
-		display.removeTopLayer();
-#endif
+		display.removeLoadingAnimation();
 	}
 
 	currentSong->instrumentSwapped(oldInstrument);

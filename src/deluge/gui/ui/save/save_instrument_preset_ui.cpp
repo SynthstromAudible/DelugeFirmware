@@ -117,9 +117,7 @@ bool SaveInstrumentPresetUI::performSave(bool mayOverwrite) {
 		if (currentSong->getInstrumentFromPresetSlot(instrumentTypeToLoad, 0, 0, enteredText.get(), currentDir.get(),
 		                                             false)) {
 			display.displayPopup(HAVE_OLED ? "Another instrument in the song has the same name / number" : "CANT");
-#if HAVE_OLED
-			OLED::removeWorkingAnimation();
-#endif
+			display.removeWorkingAnimation();
 			return false;
 		}
 
@@ -167,9 +165,7 @@ fail:
 
 	error =
 	    storageManager.closeFileAfterWriting(filePath.get(), "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n", endString);
-#if HAVE_OLED
-	OLED::removeWorkingAnimation();
-#endif
+display.removeWorkingAnimation();
 	if (error) {
 		goto fail;
 	}
@@ -181,11 +177,7 @@ fail:
 
 	// There's now no chance that we saved over a preset that's already in use in the song, because we didn't allow the user to select such a slot
 
-#if HAVE_OLED
-	OLED::consoleText("Preset saved");
-#else
-	display.displayPopup("DONE");
-#endif
+	display.consoleText(HAVE_OLED ? "Preset saved" : "DONE");
 	close();
 	return true;
 }

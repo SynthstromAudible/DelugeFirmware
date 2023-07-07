@@ -65,12 +65,4 @@ private:
 	void transitionToNewLayer(NumericLayer* newLayer);
 	void setTextVeryBasicA1(char const* text);
 };
-
-extern "C" {
-#endif
-
-void displayPopupIfAllBootedUp(char const* text);
-
-#ifdef __cplusplus
-}
 #endif

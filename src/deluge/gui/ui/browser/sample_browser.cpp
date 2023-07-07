@@ -784,11 +784,7 @@ bool SampleBrowser::claimCurrentFile(int mayDoPitchDetection, int mayDoSingleCyc
 		}
 	}
 
-#if HAVE_OLED
-	OLED::displayWorkingAnimation("Working");
-#else
-	display.displayLoadingAnimation();
-#endif
+	display.displayLoadingAnimationText("Working");
 
 	int error;
 
@@ -798,11 +794,7 @@ bool SampleBrowser::claimCurrentFile(int mayDoPitchDetection, int mayDoSingleCyc
 		error = claimAudioFileForAudioClip();
 		if (error) {
 removeLoadingAnimationAndGetOut:
-#if HAVE_OLED
-			OLED::removeWorkingAnimation();
-#else
-			display.removeTopLayer();
-#endif
+			display.removeLoadingAnimation();
 			display.displayError(error);
 			return false;
 		}
@@ -1071,9 +1063,7 @@ doLoadAsSample:
 
 	exitAndNeverDeleteDrum();
 	uiNeedsRendering(&audioClipView);
-#if HAVE_OLED
-	OLED::removeWorkingAnimation();
-#endif
+	display.removeWorkingAnimation();
 	return true;
 }
 
@@ -1636,9 +1626,7 @@ bool SampleBrowser::importFolderAsMultisamples() {
 	bool success = loadAllSamplesInFolder(true, &numSamples, &sortArea, &doingSingleCycle);
 	if (!success) {
 doReturnFalse:
-#if HAVE_OLED
-		OLED::removeWorkingAnimation();
-#endif
+		display.removeWorkingAnimation();
 		return false;
 	}
 
@@ -1855,9 +1843,7 @@ skipOctaveCorrection:
 	exitAndNeverDeleteDrum();
 	((Instrument*)currentSong->currentClip->output)->beenEdited();
 
-#if HAVE_OLED
-	OLED::removeWorkingAnimation();
-#endif
+display.removeWorkingAnimation();
 	return true;
 }
 
@@ -1879,9 +1865,7 @@ bool SampleBrowser::importFolderAsKit() {
 
 	if (!success) {
 doReturnFalse:
-#if HAVE_OLED
-		OLED::removeWorkingAnimation();
-#endif
+	display.removeWorkingAnimation();
 		return false;
 	}
 
@@ -2021,9 +2005,7 @@ skipNameStuff:
 
 	exitAndNeverDeleteDrum();
 	uiNeedsRendering(&instrumentClipView);
-#if HAVE_OLED
-	OLED::removeWorkingAnimation();
-#endif
+display.removeWorkingAnimation();
 	return true;
 }
 

@@ -19,6 +19,7 @@
 
 #include "gui/ui/ui.h"
 #include "hid/button.h"
+#include "hid/display.h"
 
 #define SLICER_MODE_REGION 0
 #define SLICER_MODE_MANUAL 1
@@ -31,7 +32,7 @@ struct SliceItem {
 
 class Slicer final : public UI {
 public:
-	Slicer();
+	Slicer() { oledShowsUIUnderneath = display.type == DisplayType::OLED; }
 
 	void focusRegained();
 	bool canSeeViewUnderneath() { return false; }
@@ -53,15 +54,15 @@ public:
 	int slicerMode;
 	SliceItem manualSlicePoints[MAX_MANUAL_SLICES];
 
-#if HAVE_OLED
+	// OLED only
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
-#endif
+
 	int16_t numClips;
 
 private:
-#if !HAVE_OLED
+	// 7SEG Only
 	void redraw();
-#endif
+
 	void doSlice();
 };
 

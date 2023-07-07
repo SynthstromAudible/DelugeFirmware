@@ -18,7 +18,7 @@
 #include "processing/engines/cv_engine.h"
 #include "gui/menu_item/decimal.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/display/oled.h"
+#include "hid/display.h"
 
 namespace menu_item::cv {
 class Volts final : public Decimal {
@@ -32,7 +32,6 @@ public:
 		soundEditor.currentValue = cvEngine.cvChannels[soundEditor.currentSourceIndex].voltsPerOctave;
 	}
 	void writeCurrentValue() { cvEngine.setCVVoltsPerOctave(soundEditor.currentSourceIndex, soundEditor.currentValue); }
-#if HAVE_OLED
 	void drawPixelsForOled() {
 		if (soundEditor.currentValue == 0) {
 			OLED::drawStringCentred("Hz/V", 20, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, TEXT_HUGE_SPACING_X,
@@ -42,7 +41,7 @@ public:
 			Decimal::drawPixelsForOled();
 		}
 	}
-#else
+
 	void drawValue() {
 		if (soundEditor.currentValue == 0)
 			display.setText("HZPV", false, 255, true);
@@ -50,7 +49,7 @@ public:
 			Decimal::drawValue();
 		}
 	}
-#endif
+
 	void horizontalEncoderAction(int offset) {
 		if (soundEditor.currentValue != 0) {
 			Decimal::horizontalEncoderAction(offset);

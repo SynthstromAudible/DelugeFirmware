@@ -4459,9 +4459,7 @@ displayError:
 
 		newInstrument->loadAllAudioFiles(true);
 
-#if HAVE_OLED
-		OLED::removeWorkingAnimation();
-#endif
+		display.removeWorkingAnimation();
 	}
 
 #if ALPHA_OR_BETA_VERSION

@@ -119,21 +119,13 @@ bool SaveSongUI::performSave(bool mayOverwrite) {
 		return false;
 	}
 
-#if HAVE_OLED
-	OLED::displayWorkingAnimation("Saving");
-#else
-	display.displayLoadingAnimation();
-#endif
+	display.displayLoadingAnimationText("Saving");
 
 	String filePath;
 	int error = getCurrentFilePath(&filePath);
 	if (error) {
 gotError:
-#if HAVE_OLED
-		OLED::removeWorkingAnimation();
-#else
-		display.removeTopLayer(); // Removes loading animation if it's still there
-#endif
+		display.removeLoadingAnimation();
 		display.displayError(error);
 		return false;
 	}
@@ -146,9 +138,7 @@ gotError:
 		bool available = context_menu::overwriteFile.setupAndCheckAvailability();
 
 		if (available) { // Always true.
-#if HAVE_OLED
-			OLED::removeWorkingAnimation();
-#endif
+display.removeWorkingAnimation();
 			display.setNextTransitionDirection(1);
 			openUI(&context_menu::overwriteFile);
 			return true;
@@ -464,14 +454,13 @@ cardError:
 		}
 	}
 
+	display.removeWorkingAnimation();
 #if HAVE_OLED
-	OLED::removeWorkingAnimation();
 	char const* message = anyErrorMovingTempFiles ? "Song saved, but error moving temp files" : "Song saved";
-	OLED::consoleText(message);
 #else
 	char const* message = anyErrorMovingTempFiles ? "TEMP" : "DONE";
-	display.displayPopup(message);
 #endif
+	display.consoleText(message);
 
 	// Update all of these
 	currentSong->name.set(&enteredText);

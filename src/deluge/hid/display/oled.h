@@ -19,7 +19,6 @@
 
 #include "definitions.h"
 
-#if HAVE_OLED
 #ifdef __cplusplus
 
 namespace OLED {
@@ -102,5 +101,3 @@ void consoleTextIfAllBootedUp(char const* text);
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* HAVE_OLED */

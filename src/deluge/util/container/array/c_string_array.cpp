@@ -20,7 +20,6 @@
 #include <string.h>
 #include "util/d_string.h"
 #include "util/functions.h"
-#include "hid/display.h"
 #include "processing/engines/audio_engine.h"
 
 int workCount;

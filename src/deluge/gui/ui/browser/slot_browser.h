@@ -25,10 +25,10 @@ class SlotBrowser : public Browser {
 public:
 	SlotBrowser();
 
-#if !HAVE_OLED
+	// 7SEG ONLY
 	void focusRegained();
 	int horizontalEncoderAction(int offset);
-#endif
+
 	int getCurrentFilePath(String* path);
 
 protected:

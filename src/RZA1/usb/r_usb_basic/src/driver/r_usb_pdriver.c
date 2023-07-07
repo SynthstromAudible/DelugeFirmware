@@ -774,7 +774,7 @@ void usb_pstd_set_pipe_register(uint16_t pipe_number, uint16_t* tbl)
 
 /***********************************************************************************************************************
  Function Name   : usb_pstd_chk_pipe_info
- Description     : Analyze descriptor information of the connected USB Device, 
+ Description     : Analyze descriptor information of the connected USB Device,
                  : and reflect it in the pipe information table.
  Argument        : uint16_t     speed        : Device speed
                  : uint16_t     *ep_tbl      : DEF_EP table pointer
@@ -1215,11 +1215,11 @@ void usb_pstd_dummy_trn(usb_setup_t* preq, uint16_t ctsq)
 /***********************************************************************************************************************
  Function Name   : usb_pstd_device_information
  Description     : Get USB Device information such as USB Device status and con-
-                 : figuration No. etc. 
+                 : figuration No. etc.
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
-                 : uint16_t      *tbl        : Device information storage pointer TBL. 
-                 :                           : This pointer is used to provide the caller with 
-                 :                           : the device's status, speed, configuration and 
+                 : uint16_t      *tbl        : Device information storage pointer TBL.
+                 :                           : This pointer is used to provide the caller with
+                 :                           : the device's status, speed, configuration and
                  :                           : interface number, and the value of the remote wakeup flag.
  Return value    : none
 ***********************************************************************************************************************/
@@ -1390,7 +1390,7 @@ void usb_peri_configured(usb_utr_t* ptr, uint16_t data1, uint16_t data2)
 #endif /* defined(USB_CFG_PCDC_USE) | defined(USB_CFG_PHID_USE) */
 
     g_usb_peri_connected = USB_TRUE;
-    //displayPopupIfAllBootedUp("USB"); // Added by Rohan
+    //consoleTextIfAllBootedUp("USB"); // Added by Rohan
 
     configuredAsPeripheral(USB_CFG_USE_USBIP);
 
@@ -1439,7 +1439,7 @@ void usb_peri_suspended(usb_utr_t* ptr, uint16_t data1, uint16_t data2)
 {
     usb_ctrl_t ctrl;
 
-    //displayPopupIfAllBootedUp("DETACHED");	// Added by Rohan. Putting this in the "detach" func didn't have the desired effect, maybe because Deluge's VBUS stays on as the MCU sees it?
+    //consoleTextIfAllBootedUp("DETACHED");	// Added by Rohan. Putting this in the "detach" func didn't have the desired effect, maybe because Deluge's VBUS stays on as the MCU sees it?
     // But, deactivated cos this doesn't trigger the first time you disconnect!
     ctrl.module = USB_CFG_USE_USBIP;
     usb_set_event(USB_STS_SUSPEND, &ctrl);

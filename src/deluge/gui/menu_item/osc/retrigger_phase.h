@@ -18,7 +18,7 @@
 #include "gui/menu_item/decimal.h"
 #include "processing/sound/sound.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/display/oled.h"
+#include "hid/display.h"
 
 namespace menu_item::osc {
 class RetriggerPhase final : public Decimal {
@@ -57,7 +57,7 @@ public:
 			Decimal::drawValue();
 		}
 	}
-#if HAVE_OLED
+
 	void drawPixelsForOled() {
 		if (soundEditor.currentValue < 0) {
 			OLED::drawStringCentred("OFF", 20, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, TEXT_HUGE_SPACING_X,
@@ -67,7 +67,7 @@ public:
 			Decimal::drawPixelsForOled();
 		}
 	}
-#endif
+
 	void horizontalEncoderAction(int offset) {
 		if (soundEditor.currentValue >= 0) {
 			Decimal::horizontalEncoderAction(offset);

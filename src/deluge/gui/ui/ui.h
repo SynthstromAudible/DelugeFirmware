@@ -125,10 +125,9 @@ public:
 
 	void close();
 
-#if HAVE_OLED
+	// OLED ONLY
 	virtual void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) = 0;
 	bool oledShowsUIUnderneath;
-#endif
 };
 
 // UIs
@@ -157,9 +156,8 @@ void clearPendingUIRendering();
 
 void doAnyPendingUIRendering();
 
-#if HAVE_OLED
+// OLED Only
 void renderUIsForOled();
-#endif
 
 // UI modes
 bool isUIModeActive(uint32_t uiMode);

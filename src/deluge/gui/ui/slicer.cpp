@@ -53,12 +53,6 @@ extern "C" {
 
 Slicer slicer{};
 
-Slicer::Slicer() {
-#if HAVE_OLED
-	oledShowsUIUnderneath = true;
-#endif
-}
-
 void Slicer::focusRegained() {
 
 	actionLogger.deleteAllLogs();
@@ -73,12 +67,11 @@ void Slicer::focusRegained() {
 		manualSlicePoints[i].transpose = 0;
 	}
 
-#if !HAVE_OLED
+if (display.type != DisplayType::OLED) {
 	redraw();
-#endif
+}
 }
 
-#if HAVE_OLED
 void Slicer::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 
 	int windowWidth = 100;
@@ -105,12 +98,9 @@ void Slicer::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 	                        (OLED_MAIN_WIDTH_PIXELS >> 1) + horizontalShift);
 }
 
-#else
-
 void Slicer::redraw() {
 	display.setTextAsNumber(slicerMode == SLICER_MODE_REGION ? numClips : numManualSlice, 255, true);
 }
-#endif
 
 bool Slicer::renderMainPads(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
                             uint8_t occupancyMask[][displayWidth + sideBarWidth], bool drawUndefinedArea) {
@@ -314,11 +304,13 @@ void Slicer::selectEncoderAction(int8_t offset) {
 		}
 		uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 	}
-#if HAVE_OLED
-	renderUIsForOled();
-#else
-	redraw();
-#endif
+
+	if (display.type == DisplayType::OLED) {
+		renderUIsForOled();
+	}
+	else {
+		redraw();
+	}
 }
 int Slicer::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	using namespace hid::button;

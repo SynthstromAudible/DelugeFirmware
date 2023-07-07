@@ -22,7 +22,7 @@
 #include "gui/ui/sound_editor.h"
 #include "hid/display/numeric_driver.h"
 #include "model/song/song.h"
-#include "hid/display/oled.h"
+#include "hid/display.h"
 
 namespace menu_item::midi {
 class Preset : public Integer {
@@ -31,7 +31,6 @@ public:
 
 	int getMaxValue() const { return 128; } // Probably not needed cos we override below...
 
-#if HAVE_OLED
 	void drawInteger(int textWidth, int textHeight, int yPixel) {
 		char buffer[12];
 		char const* text;
@@ -45,7 +44,7 @@ public:
 		OLED::drawStringCentred(text, yPixel + OLED_MAIN_TOPMOST_PIXEL, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
 		                        textWidth, textHeight);
 	}
-#else
+
 	void drawValue() {
 		if (soundEditor.currentValue == 128) {
 			display.setText("NONE");
@@ -54,7 +53,7 @@ public:
 			display.setTextAsNumber(soundEditor.currentValue + 1);
 		}
 	}
-#endif
+
 	bool isRelevant(Sound* sound, int whichThing) {
 		return currentSong->currentClip->output->type == INSTRUMENT_TYPE_MIDI_OUT;
 	}

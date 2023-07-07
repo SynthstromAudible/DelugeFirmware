@@ -35,21 +35,23 @@ char const* OverwriteBootloader::getTitle() {
 }
 
 Sized<char const**> OverwriteBootloader::getOptions() {
-#if HAVE_OLED
-	static char const* options[] = {"Accept risk"};
-#else
-	static char const* options[] = {"Sure"};
-#endif
-	return {options, 1};
+	if (display.type == DisplayType::OLED) {
+		static char const* options[] = {"Accept risk"};
+		return {options, 1};
+	}
+	else {
+		static char const* options[] = {"Sure"};
+		return {options, 1};
+	}
 }
 
 constexpr size_t FLASH_WRITE_SIZE = 256; // Bigger doesn't seem to work...
 
 bool OverwriteBootloader::acceptCurrentOption() {
 
-#if !HAVE_OLED
-	display.displayLoadingAnimation();
-#endif
+	if (display.type != DisplayType::OLED) {
+		display.displayLoadingAnimation();
+	}
 
 	int error = storageManager.initSD();
 	if (error) {
@@ -151,17 +153,18 @@ gotFresultErrorAfterAllocating:
 
 			if (false) {
 gotFlashError:
-#if HAVE_OLED
-				OLED::removeWorkingAnimation();
-				workingMessage = "Flash error. Trying again. Don't switch off";
-#else
-				display.displayPopup("RETR");
-#endif
+				display.removeWorkingAnimation();
+				if (display.type == DisplayType::OLED) {
+					workingMessage = "Flash error. Trying again. Don't switch off";
+				}
+				else {
+					display.displayPopup("RETR");
+				}
 			}
 
-#if HAVE_OLED
-			OLED::displayWorkingAnimation(workingMessage);
-#endif
+			if (display.type == DisplayType::OLED) {
+				OLED::displayWorkingAnimation(workingMessage);
+			}
 
 			uint32_t eraseAddress = startFlashAddress;
 			while (numFlashSectors-- && eraseAddress < 0x01000000) {
@@ -201,12 +204,9 @@ gotFlashError:
 
 			generalMemoryAllocator.dealloc(buffer);
 
-#if HAVE_OLED
-			OLED::removeWorkingAnimation();
-			OLED::consoleText("Bootloader updated");
-#else
+			display.removeWorkingAnimation();
+			display.consoleText(HAVE_OLED ? "Bootloader updated" : "DONE");
 			display.displayPopup("DONE");
-#endif
 
 			return false; // We do want to exit this context menu.
 		}

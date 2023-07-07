@@ -29,16 +29,14 @@ namespace menu_item::osc {
 class Type final : public Selection {
 public:
 	Type(char const* newName = NULL) : Selection(newName) {
-#if HAVE_OLED
 		basicTitle = oscTypeTitle;
-#endif
 	}
-#if HAVE_OLED
+
 	void beginSession(MenuItem* navigatedBackwardFrom) {
 		oscTypeTitle[3] = '1' + soundEditor.currentSourceIndex;
 		Selection::beginSession(navigatedBackwardFrom);
 	}
-#endif
+
 	void readCurrentValue() {
 		soundEditor.currentValue = soundEditor.currentSource->oscType;
 	}
