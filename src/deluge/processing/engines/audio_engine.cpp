@@ -1348,7 +1348,7 @@ void doRecorderCardRoutines() {
 		}
 	}
 
-	if (ALPHA_OR_BETA_VERSION && ENABLE_CLIP_CUTTING_DIAGNOSTICS && count >= 10 && !display.popupActive) {
+	if (ALPHA_OR_BETA_VERSION && ENABLE_CLIP_CUTTING_DIAGNOSTICS && count >= 10 && !display.hasPopup()) {
 		display.displayPopup("MORE");
 	}
 }

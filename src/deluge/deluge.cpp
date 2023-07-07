@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "definitions.h"
 #include "gui/views/arranger_view.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
@@ -354,11 +355,9 @@ bool readButtonsAndPads() {
 				Buttons::noPressesHappening(sdRoutineLock);
 			}
 		}
-#if HAVE_OLED
-		else if (value == oledWaitingForMessage) {
+		else if (value == oledWaitingForMessage && display.type == DisplayType::OLED) {
 			uiTimerManager.setTimer(TIMER_OLED_LOW_LEVEL, 3);
 		}
-#endif
 	}
 
 #if SD_TEST_MODE_ENABLED_LOAD_SONGS
@@ -450,9 +449,9 @@ void setUIForLoadedSong(Song* song) {
 	setRootUILowLevel(newUI);
 
 	getCurrentUI()->opened();
-#if HAVE_OLED
-	renderUIsForOled();
-#endif
+	if (display.type == DisplayType::OLED) {
+		renderUIsForOled();
+	}
 }
 
 void setupBlankSong() {
@@ -486,9 +485,9 @@ extern "C" int deluge_main(void) {
 
 	// Give the PIC some startup instructions
 
-#if HAVE_OLED
-	bufferPICUart(247); // Enable OLED
-#endif
+	if (display.type == DisplayType::OLED) {
+		bufferPICUart(247); // Enable OLED
+	}
 
 	bufferPICUart(18); // Set debounce time (mS) to...
 	bufferPICUart(20);
@@ -559,11 +558,9 @@ extern "C" int deluge_main(void) {
 	// SPI for CV
 	R_RSPI_Create(
 	    SPI_CHANNEL_CV,
-#if HAVE_OLED
-	    10000000, // Higher than this would probably work... but let's stick to the OLED datasheet's spec of 100ns (10MHz).
-#else
-	    30000000,
-#endif
+	    display.type == DisplayType::OLED
+	        ? 10000000 // Higher than this would probably work... but let's stick to the OLED datasheet's spec of 100ns (10MHz).
+	        : 30000000,
 	    0, 32);
 	R_RSPI_Start(SPI_CHANNEL_CV);
 #if SPI_CHANNEL_CV == 1
@@ -574,17 +571,16 @@ extern "C" int deluge_main(void) {
 	setPinMux(6, 0, 3); // CLK
 	setPinMux(6, 2, 3); // MOSI
 	if (display.type != DisplayType::OLED) {
-#if !HAVE_OLED
-	setPinMux(6, 1, 3); // SSL
-#else
-	// If OLED sharing SPI channel, have to manually control SSL pin.
-	setOutputState(6, 1, true);
-	setPinAsOutput(6, 1);
+		setPinMux(6, 1, 3); // SSL
+	}
+	else {
+		// If OLED sharing SPI channel, have to manually control SSL pin.
+		setOutputState(6, 1, true);
+		setPinAsOutput(6, 1);
 
-	setupSPIInterrupts();
-	oledDMAInit();
-
-#endif
+		setupSPIInterrupts();
+		oledDMAInit();
+	}
 #endif
 
 	// Setup audio output on SSI0
@@ -618,29 +614,28 @@ extern "C" int deluge_main(void) {
 	audioFileManager.init();
 
 	// Set up OLED now
-#if HAVE_OLED
+	if (display.type != DisplayType::SevenSegment) {
+		//delayMS(10);
 
-	//delayMS(10);
+		// Set up 8-bit
+		RSPI0.SPDCR = 0x20u;               // 8-bit
+		RSPI0.SPCMD0 = 0b0000011100000010; // 8-bit
+		RSPI0.SPBFCR.BYTE = 0b01100000;    //0b00100000;
 
-	// Set up 8-bit
-	RSPI0.SPDCR = 0x20u;               // 8-bit
-	RSPI0.SPCMD0 = 0b0000011100000010; // 8-bit
-	RSPI0.SPBFCR.BYTE = 0b01100000;    //0b00100000;
+		bufferPICUart(250); // D/C low
+		bufferPICUart(247); // Enable OLED
+		bufferPICUart(248); // Select OLED
+		uartFlushIfNotSending(UART_ITEM_PIC);
 
-	bufferPICUart(250); // D/C low
-	bufferPICUart(247); // Enable OLED
-	bufferPICUart(248); // Select OLED
-	uartFlushIfNotSending(UART_ITEM_PIC);
+		delayMS(5);
 
-	delayMS(5);
+		oledMainInit();
 
-	oledMainInit();
+		//delayMS(5);
 
-	//delayMS(5);
-
-	bufferPICUart(249); // Unselect OLED
-	uartFlushIfNotSending(UART_ITEM_PIC);
-#endif
+		bufferPICUart(249); // Unselect OLED
+		uartFlushIfNotSending(UART_ITEM_PIC);
+	}
 
 	// Setup SPIBSC. Crucial that this only be done now once everything else is running, because I've injected graphics and audio routines into the SPIBSC wait routines, so that
 	// has to be running
@@ -698,11 +693,7 @@ extern "C" int deluge_main(void) {
 
 	if (false) {
 resetSettings:
-#if HAVE_OLED
-		OLED::consoleText("Factory reset");
-#else
-		display.displayPopup("RESET");
-#endif
+		display.consoleText(HAVE_OLED ? "Factory reset" : "RESET");
 		FlashStorage::resetSettings();
 		FlashStorage::writeSettings();
 	}
@@ -814,9 +805,9 @@ resetSettings:
 		uiTimerManager.routine();
 
 		// Flush stuff - we just have to do this, regularly
-#if HAVE_OLED
-		oledRoutine();
-#endif
+		if (display.type == DisplayType::OLED) {
+			oledRoutine();
+		}
 		uartFlushIfNotSending(UART_ITEM_PIC);
 
 		AudioEngine::routineWithClusterLoading(true); // -----------------------------------
@@ -877,9 +868,9 @@ extern "C" void routineForSD(void) {
 
 	uiTimerManager.routine();
 
-#if HAVE_OLED
-	oledRoutine();
-#endif
+	if (display.type == DisplayType::OLED) {
+		oledRoutine();
+	}
 	uartFlushIfNotSending(UART_ITEM_PIC);
 
 	Encoders::readEncoders();

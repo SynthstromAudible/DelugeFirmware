@@ -20,9 +20,7 @@
 #include "hid/display.h"
 
 extern "C" {
-#if HAVE_OLED
 #include "RZA1/oled/oled_low_level.h"
-#endif
 }
 
 namespace menu_item {
@@ -35,11 +33,12 @@ Selection::Selection(char const* newName) : Value(newName) {
 
 void Selection::beginSession(MenuItem* navigatedBackwardFrom) {
 	Value::beginSession(navigatedBackwardFrom);
-#if HAVE_OLED
-	soundEditor.menuCurrentScroll = 0;
-#else
-	drawValue();
-#endif
+	if (display.type == DisplayType::OLED) {
+		soundEditor.menuCurrentScroll = 0;
+	}
+	else {
+		drawValue();
+	}
 }
 
 // Virtual - may be overriden.
@@ -59,32 +58,35 @@ void Selection::selectEncoderAction(int offset) {
 	soundEditor.currentValue += offset;
 	int numOptions = getNumOptions();
 
-#if HAVE_OLED
-	if (soundEditor.currentValue > numOptions - 1) {
-		soundEditor.currentValue = numOptions - 1;
+	if (display.type == DisplayType::OLED) {
+		if (soundEditor.currentValue > numOptions - 1) {
+			soundEditor.currentValue = numOptions - 1;
+		}
+		else if (soundEditor.currentValue < 0) {
+			soundEditor.currentValue = 0;
+		}
 	}
-	else if (soundEditor.currentValue < 0) {
-		soundEditor.currentValue = 0;
+	else {
+		if (soundEditor.currentValue >= numOptions) {
+			soundEditor.currentValue -= numOptions;
+		}
+		else if (soundEditor.currentValue < 0) {
+			soundEditor.currentValue += numOptions;
+		}
 	}
-#else
-	if (soundEditor.currentValue >= numOptions)
-		soundEditor.currentValue -= numOptions;
-	else if (soundEditor.currentValue < 0)
-		soundEditor.currentValue += numOptions;
-#endif
 
 	Value::selectEncoderAction(offset);
 }
 
 void Selection::drawValue() {
-#if HAVE_OLED
-	renderUIsForOled();
-#else
-	display.setText(getOptions()[soundEditor.currentValue]);
-#endif
+	if (display.type == DisplayType::OLED) {
+		renderUIsForOled();
+	}
+	else {
+		display.setText(getOptions()[soundEditor.currentValue]);
+	}
 }
 
-#if HAVE_OLED
 void Selection::drawPixelsForOled() {
 	// Move scroll
 	if (soundEditor.menuCurrentScroll > soundEditor.currentValue) {
@@ -99,5 +101,4 @@ void Selection::drawPixelsForOled() {
 
 	drawItemsForOled(options, selectedOption);
 }
-#endif
 } // namespace menu_item

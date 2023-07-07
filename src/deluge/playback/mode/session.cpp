@@ -607,16 +607,17 @@ void Session::cancelAllLaunchScheduling() {
 void Session::launchSchedulingMightNeedCancelling() {
 	if (!preLoadedSong && !areAnyClipsArmed()) {
 		cancelAllLaunchScheduling();
-#if HAVE_OLED
-		if (getCurrentUI() == &loadSongUI) {
-			loadSongUI.displayLoopsRemainingPopup(); // Wait, could this happen?
+		if (display.type == DisplayType::OLED) {
+			if (getCurrentUI() == &loadSongUI) {
+				loadSongUI.displayLoopsRemainingPopup(); // Wait, could this happen?
+			}
+			else if (getRootUI() == &sessionView && !isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)) {
+				renderUIsForOled();
+			}
 		}
-		else if (getRootUI() == &sessionView && !isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)) {
-			renderUIsForOled();
+		else {
+			sessionView.redrawNumericDisplay();
 		}
-#else
-		sessionView.redrawNumericDisplay();
-#endif
 	}
 }
 
@@ -1070,14 +1071,15 @@ void Session::armingChanged() {
 	if (getRootUI() == &sessionView) {
 		uiNeedsRendering(&sessionView, 0, 0xFFFFFFFF); // Only need the mute pads
 		if (getCurrentUI()->canSeeViewUnderneath()) {
-#if HAVE_OLED
-			if (!isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)
-			    && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
-				renderUIsForOled();
+			if (display.type == DisplayType::OLED) {
+				if (!isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)
+				    && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
+					renderUIsForOled();
+				}
 			}
-#else
-			sessionView.redrawNumericDisplay();
-#endif
+			else {
+				sessionView.redrawNumericDisplay();
+			}
 probablyDoFlashPlayEnable:
 			if (hasPlaybackActive()) {
 				view.flashPlayEnable();
@@ -1951,16 +1953,17 @@ traverseClips:
 		// Or if repeats do remain, just go onto the next one
 		else {
 			launchEventAtSwungTickCount = playbackHandler.lastSwungTickActioned + currentArmedLaunchLengthForOneRepeat;
-#if HAVE_OLED
-			if (getCurrentUI() == &loadSongUI) {
-				loadSongUI.displayLoopsRemainingPopup();
+			if (display.type == DisplayType::OLED) {
+				if (getCurrentUI() == &loadSongUI) {
+					loadSongUI.displayLoopsRemainingPopup();
+				}
+				else if (getRootUI() == &sessionView && !isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)) {
+					renderUIsForOled();
+				}
 			}
-			else if (getRootUI() == &sessionView && !isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)) {
-				renderUIsForOled();
+			else {
+				sessionView.redrawNumericDisplay();
 			}
-#else
-			sessionView.redrawNumericDisplay();
-#endif
 		}
 	}
 

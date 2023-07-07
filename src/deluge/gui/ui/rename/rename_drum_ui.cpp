@@ -31,9 +31,7 @@
 RenameDrumUI renameDrumUI{};
 
 RenameDrumUI::RenameDrumUI() {
-#if HAVE_OLED
 	title = "Rename item";
-#endif
 }
 
 bool RenameDrumUI::opened() {

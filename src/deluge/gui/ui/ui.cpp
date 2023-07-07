@@ -30,9 +30,7 @@ extern "C" {
 }
 
 UI::UI() {
-#if HAVE_OLED
 	oledShowsUIUnderneath = false;
-#endif
 }
 
 void UI::modEncoderAction(int whichModEncoder, int offset) {
@@ -107,9 +105,9 @@ void changeRootUI(UI* newUI) {
 	PadLEDs::reassessGreyout();
 	newUI->opened(); // These all can't fail, I guess.
 
-#if HAVE_OLED
-	renderUIsForOled();
-#endif
+	if (display.type == DisplayType::OLED) {
+		renderUIsForOled();
+	}
 }
 
 // Only called when setting up blank song, so don't worry about this
@@ -121,9 +119,9 @@ void setRootUILowLevel(UI* newUI) {
 
 bool changeUISideways(UI* newUI) {
 	bool success = changeUIAtLevel(newUI, numUIsOpen - 1);
-#if HAVE_OLED
-	renderUIsForOled();
-#endif
+	if (display.type == DisplayType::OLED) {
+		renderUIsForOled();
+	}
 	return success;
 }
 
@@ -189,9 +187,9 @@ void closeUI(UI* uiToClose) {
 	uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
 	PadLEDs::reassessGreyout();
 	newUI->focusRegained();
-#if HAVE_OLED
-	renderUIsForOled();
-#endif
+	if (display.type == DisplayType::OLED) {
+		renderUIsForOled();
+	}
 
 	bool redrawMainPadsOrig = redrawMainPads;
 	bool redrawSidebarOrig = redrawSidebar;
@@ -233,9 +231,9 @@ bool openUI(UI* newUI) {
 		oldUI
 		    ->focusRegained(); // Or maybe we should instead let the caller deal with this failure, and call this if they wish?
 	}
-#if HAVE_OLED
-	renderUIsForOled();
-#endif
+	if (display.type == DisplayType::OLED) {
+		renderUIsForOled();
+	}
 	return success;
 }
 
@@ -253,7 +251,6 @@ void nullifyUIs() {
 	numUIsOpen = 0;
 }
 
-#if HAVE_OLED
 void renderUIsForOled() {
 	int u = numUIsOpen - 1;
 	while (u && uiNavigationHierarchy[u]->oledShowsUIUnderneath) {
@@ -269,7 +266,6 @@ void renderUIsForOled() {
 
 	OLED::sendMainImage();
 }
-#endif
 
 uint32_t whichMainRowsNeedRendering = 0;
 uint32_t whichSideRowsNeedRendering = 0;

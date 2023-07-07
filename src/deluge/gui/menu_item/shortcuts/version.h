@@ -25,20 +25,9 @@ public:
 	void readCurrentValue() { soundEditor.currentValue = soundEditor.shortcutsVersion; }
 	void writeCurrentValue() { soundEditor.setShortcutsVersion(soundEditor.currentValue); }
 	char const** getOptions() {
-		static char const* options[] = {
-#if HAVE_OLED
-			"1.0",
-			"3.0",
-			NULL
-#else
-			"  1.0",
-			"  3.0"
-#endif
-		};
+		static char const* options[] = {HAVE_OLED ? "1.0" : " 1.0", HAVE_OLED ? "3.0" : " 3.0", NULL};
 		return options;
 	}
-	int getNumOptions() {
-		return NUM_SHORTCUTS_VERSIONS;
-	}
+	int getNumOptions() { return NUM_SHORTCUTS_VERSIONS; }
 };
 } // namespace menu_item::shortcuts

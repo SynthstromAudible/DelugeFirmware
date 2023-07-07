@@ -176,11 +176,12 @@ void PlaybackHandler::playButtonPressed(int buttonPressLatency) {
 			if (currentPlaybackMode == &session && getCurrentUI() == &arrangerView) {
 				arrangementPosToStartAtOnSwitch = currentSong->xScroll[NAVIGATION_ARRANGEMENT];
 				session.armForSwitchToArrangement();
-#if HAVE_OLED
-				renderUIsForOled();
-#else
-				sessionView.redrawNumericDisplay();
-#endif
+				if (display.type == DisplayType::OLED) {
+					renderUIsForOled();
+				}
+				else {
+					sessionView.redrawNumericDisplay();
+				}
 				display.cancelPopup();
 			}
 
@@ -1242,11 +1243,7 @@ void PlaybackHandler::doSongSwap(bool preservePlayPosition) {
 
 	AudioEngine::bypassCulling = true;
 
-#if HAVE_OLED
-	OLED::displayWorkingAnimation("Loading");
-#else
-	display.displayLoadingAnimation(); // More loading might need to happen now, or still be happening
-#endif
+	display.displayLoadingAnimationText("Loading"); // More loading might need to happen now, or still be happening
 	currentUIMode = UI_MODE_LOADING_SONG_NEW_SONG_PLAYING;
 	AudioEngine::logAction("PlaybackHandler::doSongSwap end");
 }
@@ -1763,29 +1760,29 @@ void PlaybackHandler::resyncMIDIClockOutTicksToInternalTicks() {
 }
 
 void PlaybackHandler::displaySwingAmount() {
-#if HAVE_OLED
-	char buffer[19];
-	strcpy(buffer, "Swing: ");
-	if (currentSong->swingAmount == 0) {
-		strcpy(&buffer[7], "off");
+	if (display.type == DisplayType::OLED) {
+		char buffer[19];
+		strcpy(buffer, "Swing: ");
+		if (currentSong->swingAmount == 0) {
+			strcpy(&buffer[7], "off");
+		}
+		else {
+			intToString(currentSong->swingAmount + 50, &buffer[7]);
+		}
+		display.popupTextTemporary(buffer);
 	}
 	else {
-		intToString(currentSong->swingAmount + 50, &buffer[7]);
+		char buffer[12];
+		char const* toDisplay;
+		if (currentSong->swingAmount == 0) {
+			toDisplay = "OFF";
+		}
+		else {
+			intToString(currentSong->swingAmount + 50, buffer);
+			toDisplay = buffer;
+		}
+		display.displayPopup(toDisplay);
 	}
-	display.popupTextTemporary(buffer);
-
-#else
-	char buffer[12];
-	char const* toDisplay;
-	if (currentSong->swingAmount == 0) {
-		toDisplay = "OFF";
-	}
-	else {
-		intToString(currentSong->swingAmount + 50, buffer);
-		toDisplay = buffer;
-	}
-	display.displayPopup(toDisplay);
-#endif
 }
 
 void PlaybackHandler::tempoEncoderAction(int8_t offset, bool encoderButtonPressed, bool shiftButtonPressed) {
@@ -2636,14 +2633,15 @@ void PlaybackHandler::switchToArrangement() {
 	arrangement.setupPlayback();
 	arrangement.resetPlayPos(arrangementPosToStartAtOnSwitch);
 	arrangerView.reassessWhetherDoingAutoScroll();
-#if HAVE_OLED
-	if (!isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)
-	    && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
-		renderUIsForOled();
+	if (display.type == DisplayType::OLED) {
+		if (!isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)
+		    && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
+			renderUIsForOled();
+		}
 	}
-#else
-	sessionView.redrawNumericDisplay();
-#endif
+	else {
+		sessionView.redrawNumericDisplay();
+	}
 
 	if (getCurrentUI() == &sessionView) {
 		PadLEDs::reassessGreyout();

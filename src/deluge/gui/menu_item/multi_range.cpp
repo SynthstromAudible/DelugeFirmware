@@ -68,7 +68,7 @@ void MultiRange::beginSession(MenuItem* navigatedBackwardFrom) {
 
 void MultiRange::selectEncoderAction(int offset) {
 
-	if (display.popupActive) {
+	if (display.hasPopup()) {
 		return;
 	}
 
@@ -231,17 +231,19 @@ void MultiRange::selectEncoderAction(int offset) {
 			}
 
 			soundEditor.currentValue = newI;
-#if HAVE_OLED
-			OLED::consoleText("Range inserted");
-			if (soundEditor.menuCurrentScroll > soundEditor.currentValue) {
-				soundEditor.menuCurrentScroll = soundEditor.currentValue;
+			if (display.type == DisplayType::OLED) {
+				OLED::consoleText("Range inserted");
+				if (soundEditor.menuCurrentScroll > soundEditor.currentValue) {
+					soundEditor.menuCurrentScroll = soundEditor.currentValue;
+				}
+				else if (soundEditor.menuCurrentScroll < soundEditor.currentValue - OLED_MENU_NUM_OPTIONS_VISIBLE + 1) {
+					soundEditor.menuCurrentScroll = soundEditor.currentValue - OLED_MENU_NUM_OPTIONS_VISIBLE + 1;
+				}
 			}
-			else if (soundEditor.menuCurrentScroll < soundEditor.currentValue - OLED_MENU_NUM_OPTIONS_VISIBLE + 1) {
-				soundEditor.menuCurrentScroll = soundEditor.currentValue - OLED_MENU_NUM_OPTIONS_VISIBLE + 1;
+			else {
+
+				display.displayPopup("INSERT");
 			}
-#else
-			display.displayPopup("INSERT");
-#endif
 		}
 
 		// Or the normal thing of just flicking through existing ranges
@@ -255,23 +257,24 @@ void MultiRange::selectEncoderAction(int offset) {
 			soundEditor.currentValue = newValue;
 			soundEditor.currentSource->defaultRangeI = soundEditor.currentValue;
 
-#if HAVE_OLED
-			if (soundEditor.menuCurrentScroll > soundEditor.currentValue) {
-				soundEditor.menuCurrentScroll = soundEditor.currentValue;
+			if (display.type == DisplayType::OLED) {
+				if (soundEditor.menuCurrentScroll > soundEditor.currentValue) {
+					soundEditor.menuCurrentScroll = soundEditor.currentValue;
+				}
+				else if (soundEditor.menuCurrentScroll < soundEditor.currentValue - OLED_MENU_NUM_OPTIONS_VISIBLE + 1) {
+					soundEditor.menuCurrentScroll = soundEditor.currentValue - OLED_MENU_NUM_OPTIONS_VISIBLE + 1;
+				}
 			}
-			else if (soundEditor.menuCurrentScroll < soundEditor.currentValue - OLED_MENU_NUM_OPTIONS_VISIBLE + 1) {
-				soundEditor.menuCurrentScroll = soundEditor.currentValue - OLED_MENU_NUM_OPTIONS_VISIBLE + 1;
-			}
-#endif
 		}
 
 		soundEditor.setCurrentMultiRange(soundEditor.currentValue);
 		soundEditor.possibleChangeToCurrentRangeDisplay();
-#if HAVE_OLED
-		renderUIsForOled();
-#else
-		drawValue();
-#endif
+		if (display.type == DisplayType::OLED) {
+			renderUIsForOled();
+		}
+		else {
+			drawValue();
+		}
 	}
 }
 
@@ -280,7 +283,7 @@ void MultiRange::deletePress() {
 	if (soundEditor.editingRangeEdge != RangeEdit::OFF) {
 		return;
 	}
-	if (display.popupActive) {
+	if (display.hasPopup()) {
 		return;
 	}
 
@@ -308,11 +311,11 @@ void MultiRange::deletePress() {
 
 		soundEditor.currentValue--;
 		soundEditor.setCurrentMultiRange(soundEditor.currentValue);
-#if HAVE_OLED
-		if (soundEditor.menuCurrentScroll > soundEditor.currentValue) {
-			soundEditor.menuCurrentScroll = soundEditor.currentValue;
+		if (display.type == DisplayType::OLED) {
+			if (soundEditor.menuCurrentScroll > soundEditor.currentValue) {
+				soundEditor.menuCurrentScroll = soundEditor.currentValue;
+			}
 		}
-#endif
 		// If top one...
 		if (soundEditor.currentValue == oldNum - 2) {
 			soundEditor.currentMultiRange->topNote = 32767;
@@ -326,11 +329,12 @@ void MultiRange::deletePress() {
 
 	display.displayPopup(HAVE_OLED ? "Range deleted" : "DELETE");
 	soundEditor.possibleChangeToCurrentRangeDisplay();
-#if HAVE_OLED
-	renderUIsForOled();
-#else
-	drawValue();
-#endif
+	if (display.type == DisplayType::OLED) {
+		renderUIsForOled();
+	}
+	else {
+		drawValue();
+	}
 }
 
 void MultiRange::getText(char* buffer, int* getLeftLength, int* getRightLength, bool mayShowJustOne) {
@@ -349,19 +353,19 @@ void MultiRange::getText(char* buffer, int* getLeftLength, int* getRightLength, 
 
 	char* bufferPos = buffer + strlen(buffer);
 
-#if HAVE_OLED
-	while (bufferPos < &buffer[7]) {
-		*bufferPos = ' ';
-		bufferPos++;
+	if (display.type == DisplayType::OLED) {
+		while (bufferPos < &buffer[7]) {
+			*bufferPos = ' ';
+			bufferPos++;
+		}
 	}
-#endif
 
 	// Upper end
 	if (soundEditor.currentValue == soundEditor.currentSource->ranges.getNumElements() - 1) {
 		*(bufferPos++) = '-';
-#if HAVE_OLED
-		*(bufferPos++) = ' ';
-#endif
+		if (display.type == DisplayType::OLED) {
+			*(bufferPos++) = ' ';
+		}
 		*(bufferPos++) = 't';
 		*(bufferPos++) = 'o';
 		*(bufferPos++) = 'p';
@@ -395,18 +399,19 @@ void MultiRange::noteOnToChangeRange(int noteCode) {
 			soundEditor.currentValue = newI;
 			soundEditor.setCurrentMultiRange(soundEditor.currentValue);
 			soundEditor.possibleChangeToCurrentRangeDisplay();
-#if HAVE_OLED
-			if (soundEditor.menuCurrentScroll > soundEditor.currentValue) {
-				soundEditor.menuCurrentScroll = soundEditor.currentValue;
-			}
-			else if (soundEditor.menuCurrentScroll < soundEditor.currentValue - OLED_MENU_NUM_OPTIONS_VISIBLE + 1) {
-				soundEditor.menuCurrentScroll = soundEditor.currentValue - OLED_MENU_NUM_OPTIONS_VISIBLE + 1;
-			}
+			if (display.type == DisplayType::OLED) {
+				if (soundEditor.menuCurrentScroll > soundEditor.currentValue) {
+					soundEditor.menuCurrentScroll = soundEditor.currentValue;
+				}
+				else if (soundEditor.menuCurrentScroll < soundEditor.currentValue - OLED_MENU_NUM_OPTIONS_VISIBLE + 1) {
+					soundEditor.menuCurrentScroll = soundEditor.currentValue - OLED_MENU_NUM_OPTIONS_VISIBLE + 1;
+				}
 
-			renderUIsForOled();
-#else
-			drawValue();
-#endif
+				renderUIsForOled();
+			}
+			else {
+				drawValue();
+			}
 		}
 	}
 }
@@ -418,7 +423,6 @@ bool MultiRange::mayEditRangeEdge(RangeEdit whichEdge) {
 	return (soundEditor.currentValue != soundEditor.currentSource->ranges.getNumElements() - 1);
 }
 
-#if HAVE_OLED
 void MultiRange::drawPixelsForOled() {
 
 	char const* itemNames[OLED_MENU_NUM_OPTIONS_VISIBLE];
@@ -471,5 +475,4 @@ doHilightJustOneEdge:
 		goto doHilightJustOneEdge;
 	}
 }
-#endif
 } // namespace menu_item

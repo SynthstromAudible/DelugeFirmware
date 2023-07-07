@@ -31,9 +31,7 @@ public:
 		SubmenuReferringToOneThing::beginSession(navigatedBackwardFrom);
 	}
 
-	bool isRelevant(Sound* sound, int whichThing) {
-		return (sound->synthMode == SYNTH_MODE_FM);
-	}
+	bool isRelevant(Sound* sound, int whichThing) { return (sound->synthMode == SYNTH_MODE_FM); }
 };
 
 } // namespace menu_item::submenu

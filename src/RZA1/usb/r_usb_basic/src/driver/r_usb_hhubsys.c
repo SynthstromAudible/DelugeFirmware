@@ -934,9 +934,9 @@ static void usb_hhub_init_down_port(usb_utr_t* ptr, uint16_t hubaddr, usb_clsinf
                 USB_PRINTF0("HHHHHHHHHHHHHHHHHHHHHHHHH\n\n");
                 g_usb_shhub_init_seq[ptr->ip]  = USB_SEQ_1; /* Next Sequence */
                 g_usb_shhub_init_port[ptr->ip] = USB_HUB_P1;
-                usb_hhub_specified_path(mess); /* Next Process Selector */
-                consoleTextIfAllBootedUp(HAVE_OLED ? "USB hub attached" : "HUB");                    // By Rohan
-                setTimeUSBInitializationEnds(44100 << 1); // No more popups for 2 seconds
+                usb_hhub_specified_path(mess);                                    /* Next Process Selector */
+                consoleTextIfAllBootedUp(HAVE_OLED ? "USB hub attached" : "HUB"); // By Rohan
+                setTimeUSBInitializationEnds(44100 << 1);                         // No more popups for 2 seconds
 
                 break;
 

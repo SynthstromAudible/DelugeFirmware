@@ -46,9 +46,7 @@ public:
 	void changeInstrumentType(int newInstrumentType);
 	void opened();
 
-#if HAVE_OLED
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
-#endif
 
 	static int16_t
 	    defaultRootNote; // Stores the calculated "default" root note between the user pressing the scale-mode button and releasing it

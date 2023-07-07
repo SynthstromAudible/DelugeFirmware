@@ -33,9 +33,8 @@ protected:
 	int getNumOptions() { return 28; }
 	void drawValue() final;
 	virtual void getNoteLengthName(char* buffer);
-#if HAVE_OLED
+
 	void drawPixelsForOled();
-#endif
 };
 
 } // namespace menu_item

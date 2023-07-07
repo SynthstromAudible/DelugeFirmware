@@ -253,11 +253,12 @@ foundIt:
 				drawNoteCode(highestNoteCode);
 			}
 			else {
-#if HAVE_OLED
-				OLED::removePopup();
-#else
-				redrawNumericDisplay();
-#endif
+				if (display.type == DisplayType::OLED) {
+					OLED::removePopup();
+				}
+				else {
+					redrawNumericDisplay();
+				}
 			}
 		}
 
@@ -467,7 +468,7 @@ void KeyboardScreen::exitAuditionMode() {
 	memset(yDisplayActive, 0, sizeof(yDisplayActive));
 	exitUIMode(UI_MODE_AUDITIONING);
 	if (display.type != DisplayType::OLED) {
-	redrawNumericDisplay();
+		redrawNumericDisplay();
 	}
 }
 

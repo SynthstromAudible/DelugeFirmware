@@ -57,7 +57,7 @@ public:
 class ContextMenuForSaving : public ContextMenu {
 public:
 	ContextMenuForSaving() = default;
-	 ~ContextMenuForSaving() override = default;
+	~ContextMenuForSaving() override = default;
 
 	void focusRegained() final;
 	hid::Button getAcceptButton() final { return hid::button::SAVE; }
@@ -66,7 +66,7 @@ public:
 class ContextMenuForLoading : public ContextMenu {
 public:
 	ContextMenuForLoading() = default;
-	 ~ContextMenuForLoading() override = default;
+	~ContextMenuForLoading() override = default;
 
 	void focusRegained() override;
 	hid::Button getAcceptButton() final { return hid::button::LOAD; }

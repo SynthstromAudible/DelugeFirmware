@@ -32,13 +32,8 @@ public:
 		                                         20);
 	}
 
-	void beginSession(MenuItem* navigatedBackwardFrom) {
-		drawValue();
-	}
+	void beginSession(MenuItem* navigatedBackwardFrom) { drawValue(); }
 
-	void drawValue() {
-		display.setScrollingText(firmwareString);
-	}
-
+	void drawValue() { display.setScrollingText(firmwareString); }
 };
 } // namespace menu_item::firmware

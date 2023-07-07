@@ -94,7 +94,6 @@ void QwertyUI::drawKeys() {
 	}
 }
 
-#if HAVE_OLED
 void QwertyUI::drawTextForOLEDEditing(int xPixel, int xPixelMax, int yPixel, int maxNumChars,
                                       uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 
@@ -136,7 +135,6 @@ void QwertyUI::drawTextForOLEDEditing(int xPixel, int xPixelMax, int yPixel, int
 	}
 }
 
-#else
 void QwertyUI::displayText(bool blinkImmediately) {
 
 	int totalTextLength = enteredText.getLength();
@@ -187,7 +185,6 @@ void QwertyUI::displayText(bool blinkImmediately) {
 	// Set the text, replacing the bottom layer - cos in some cases, we want this to slip under an existing loading animation layer
 	display.setText(enteredText.get(), false, 255, true, blinkMask, false, false, scrollPos, encodedAddition, false);
 }
-#endif
 
 const char keyboardChars[][5][11] = {{
                                          {'1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-'},

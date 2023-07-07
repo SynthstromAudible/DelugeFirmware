@@ -29,6 +29,7 @@
 #include "hid/matrix/matrix_driver.h"
 #include "hid/buttons.h"
 #include "gui/ui/load/load_song_ui.h"
+#include "hid/display.h"
 
 extern "C" {
 #include "util/cfunctions.h"
@@ -178,8 +179,7 @@ void readInputsForHardwareTest(bool testButtonStates[9][16]) {
 				anythingProbablyPressed = true;
 			}
 		}
-#if HAVE_OLED
-		else if (value == oledWaitingForMessage) {
+		else if (value == oledWaitingForMessage && display.type == DisplayType::OLED) {
 			//delayUS(2500); // TODO: fix
 			if (value == 248) {
 				oledSelectingComplete();
@@ -188,7 +188,6 @@ void readInputsForHardwareTest(bool testButtonStates[9][16]) {
 				oledDeselectionComplete();
 			}
 		}
-#endif
 	}
 
 	midiEngine.checkIncomingSerialMidi();
@@ -223,9 +222,9 @@ void readInputsForHardwareTest(bool testButtonStates[9][16]) {
 		indicator_leds::setKnobIndicatorLevel(1, encoderTestPos);
 	}
 
-#if HAVE_OLED
-	oledRoutine();
-#endif
+	if (display.type == DisplayType::OLED) {
+		oledRoutine();
+	}
 	uartFlushIfNotSending(UART_ITEM_PIC);
 	uartFlushIfNotSending(UART_ITEM_MIDI);
 }
@@ -238,12 +237,12 @@ void ramTestLED(bool stuffAlreadySetUp) {
 	cvEngine.sendVoltageOut(0, 65520);
 	cvEngine.sendVoltageOut(1, 65520);
 
-#if HAVE_OLED
-	OLED::clearMainImage();
-	OLED::invertArea(0, OLED_MAIN_WIDTH_PIXELS, OLED_MAIN_TOPMOST_PIXEL, OLED_MAIN_HEIGHT_PIXELS - 1,
-	                 OLED::oledMainImage);
-	OLED::sendMainImage();
-#endif
+	if (display.type == DisplayType::OLED) {
+		OLED::clearMainImage();
+		OLED::invertArea(0, OLED_MAIN_WIDTH_PIXELS, OLED_MAIN_TOPMOST_PIXEL, OLED_MAIN_HEIGHT_PIXELS - 1,
+		                 OLED::oledMainImage);
+		OLED::sendMainImage();
+	}
 
 	midiEngine.midiThru = true;
 

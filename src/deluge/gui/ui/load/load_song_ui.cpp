@@ -56,9 +56,7 @@ extern void setupBlankSong();
 LoadSongUI::LoadSongUI() {
 	qwertyAlwaysVisible = false;
 	filePrefix = "SONG";
-#if HAVE_OLED
 	title = "Load song";
-#endif
 }
 
 bool LoadSongUI::opened() {
@@ -204,11 +202,12 @@ int LoadSongUI::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 				}
 				else {
 					currentUIMode = UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED;
-#if HAVE_OLED
-					displayArmedPopup();
-#else
-					sessionView.redrawNumericDisplay();
-#endif
+					if (display.type == DisplayType::OLED) {
+						displayArmedPopup();
+					}
+					else {
+						sessionView.redrawNumericDisplay();
+					}
 				}
 			}
 		}
@@ -249,12 +248,8 @@ void LoadSongUI::performLoad() {
 	currentUIMode = UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
 	indicator_leds::setLedState(IndicatorLED::LOAD, false);
 	indicator_leds::setLedState(IndicatorLED::BACK, false);
-#if HAVE_OLED
-	OLED::displayWorkingAnimation("Loading");
-#else
-	display.displayLoadingAnimation();
-#endif
 
+	display.displayLoadingAnimationText("Loading");
 	nullifyUIs();
 
 	deletedPartsOfOldSong = true;
@@ -379,11 +374,12 @@ gotErrorAfterCreatingSong:
 			}
 
 			currentUIMode = UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED;
-#if HAVE_OLED
-			displayArmedPopup();
-#else
-			sessionView.redrawNumericDisplay();
-#endif
+			if (display.type == DisplayType::OLED) {
+				displayArmedPopup();
+			}
+			else {
+				sessionView.redrawNumericDisplay();
+			}
 		}
 
 		// Otherwise, set up so that the song-swap will be armed as soon as the user releases the load button
@@ -416,9 +412,9 @@ gotErrorAfterCreatingSong:
 	}
 
 swapDone:
-#if HAVE_OLED
-	OLED::displayWorkingAnimation("Loading"); // To override our popup if we did one. (Still necessary?)
-#endif
+	if (display.type == DisplayType::OLED) {
+		OLED::displayWorkingAnimation("Loading"); // To override our popup if we did one. (Still necessary?)
+	}
 	// Ok, the swap's been done, the first tick of the new song has been done, and there are potentially loads of samples wanting some data loaded. So do that immediately
 	audioFileManager.loadAnyEnqueuedClusters(99999);
 
@@ -443,7 +439,7 @@ swapDone:
 	setUIForLoadedSong(currentSong);
 	currentUIMode = UI_MODE_NONE;
 
-display.removeWorkingAnimation();
+	display.removeWorkingAnimation();
 }
 
 int LoadSongUI::timerCallback() {
@@ -606,12 +602,13 @@ void LoadSongUI::selectEncoderAction(int8_t offset) {
 		else if (session.numRepeatsTilLaunch > 9999) {
 			session.numRepeatsTilLaunch = 9999;
 		}
-#if HAVE_OLED
-		//renderUIsForOled();
-		displayLoopsRemainingPopup();
-#else
-		sessionView.redrawNumericDisplay();
-#endif
+		if (display.type == DisplayType::OLED) {
+			//renderUIsForOled();
+			displayLoopsRemainingPopup();
+		}
+		else {
+			sessionView.redrawNumericDisplay();
+		}
 	}
 
 	else {

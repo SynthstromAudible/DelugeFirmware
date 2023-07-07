@@ -35,8 +35,7 @@ protected:
 	int beginSlotSession(bool shouldDrawKeys = true, bool allowIfNoFolder = false);
 	void processBackspace();
 	//bool predictExtendedText();
-	virtual void predictExtendedTextFromMemory() {
-	}
+	virtual void predictExtendedTextFromMemory() {}
 	void convertToPrefixFormatIfPossible();
 	void enterKeyPress();
 	int getCurrentFilenameWithoutExtension(String* filename);

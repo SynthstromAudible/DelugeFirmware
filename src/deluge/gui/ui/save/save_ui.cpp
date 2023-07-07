@@ -89,11 +89,11 @@ void SaveUI::enterKeyPress() {
 		SlotBrowser::enterKeyPress();
 		bool dealtWith = performSave(false);
 
-#if !HAVE_OLED
-		if (!dealtWith) {
-			displayText(false);
+		if (display.type != DisplayType::OLED) {
+			if (!dealtWith) {
+				displayText(false);
+			}
 		}
-#endif
 	}
 }
 

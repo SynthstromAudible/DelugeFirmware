@@ -42,8 +42,7 @@ protected:
 	void drawValue(int startPos = 0, bool renderSidebarToo = true);
 	void drawValueForEditingRange(bool blinkImmediately);
 
-#if HAVE_OLED
+	//OLED ONLY
 	void drawPixelsForOled();
-#endif
 };
 } // namespace menu_item

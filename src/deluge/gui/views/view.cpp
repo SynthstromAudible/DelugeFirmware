@@ -908,9 +908,9 @@ void View::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 	// If the learn button is pressed, user is trying to copy or paste, and the fact that we've ended up here means they can't
 	if (Buttons::isButtonPressed(hid::button::LEARN)) {
 		if (display.type != DisplayType::OLED) {
-		if (on) {
-			display.displayPopup("CANT");
-		}
+			if (on) {
+				display.displayPopup("CANT");
+			}
 		}
 		return;
 	}
@@ -1266,135 +1266,138 @@ void View::drawOutputNameFromDetails(int outputType, int channel, int channelSuf
 		setLedState(LED::CROSS_SCREEN_EDIT, (clip && clip->wrapEditing));
 	}
 
-#if HAVE_OLED
-	OLED::clearMainImage();
-	char const* outputTypeText;
-	switch (outputType) {
-	case INSTRUMENT_TYPE_SYNTH:
-		outputTypeText = "Synth";
-		break;
-	case INSTRUMENT_TYPE_KIT:
-		outputTypeText = "Kit";
-		break;
-	case INSTRUMENT_TYPE_MIDI_OUT:
-		outputTypeText = (channel < 16) ? "MIDI channel" : "MPE zone";
-		break;
-	case INSTRUMENT_TYPE_CV:
-		outputTypeText = "CV / gate channel";
-		break;
-	case OUTPUT_TYPE_AUDIO:
-		outputTypeText = "Audio track";
-		break;
-	default:
-		__builtin_unreachable();
-	}
+	if (display.type == DisplayType::OLED) {
+		OLED::clearMainImage();
+		char const* outputTypeText;
+		switch (outputType) {
+		case INSTRUMENT_TYPE_SYNTH:
+			outputTypeText = "Synth";
+			break;
+		case INSTRUMENT_TYPE_KIT:
+			outputTypeText = "Kit";
+			break;
+		case INSTRUMENT_TYPE_MIDI_OUT:
+			outputTypeText = (channel < 16) ? "MIDI channel" : "MPE zone";
+			break;
+		case INSTRUMENT_TYPE_CV:
+			outputTypeText = "CV / gate channel";
+			break;
+		case OUTPUT_TYPE_AUDIO:
+			outputTypeText = "Audio track";
+			break;
+		default:
+			__builtin_unreachable();
+		}
 
 #if OLED_MAIN_HEIGHT_PIXELS == 64
-	int yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
+		int yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
 #else
-	int yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
+		int yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
 #endif
-	OLED::drawStringCentred(outputTypeText, yPos, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, TEXT_SPACING_X,
-	                        TEXT_SPACING_Y);
+		OLED::drawStringCentred(outputTypeText, yPos, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, TEXT_SPACING_X,
+		                        TEXT_SPACING_Y);
+	}
+
 	char buffer[12];
-	char const* nameToDraw;
-#endif
+	char const* nameToDraw = nullptr;
 
 	if (name && name[0]) {
-#if HAVE_OLED
-		nameToDraw = name;
+		if (display.type == DisplayType::OLED) {
+			nameToDraw = name;
 oledDrawString:
 #if OLED_MAIN_HEIGHT_PIXELS == 64
-		int yPos = OLED_MAIN_TOPMOST_PIXEL + 32;
+			int yPos = OLED_MAIN_TOPMOST_PIXEL + 32;
 #else
-		int yPos = OLED_MAIN_TOPMOST_PIXEL + 21;
+			int yPos = OLED_MAIN_TOPMOST_PIXEL + 21;
 #endif
 
-		int textSpacingX = TEXT_TITLE_SPACING_X;
-		int textSpacingY = TEXT_TITLE_SIZE_Y;
+			int textSpacingX = TEXT_TITLE_SPACING_X;
+			int textSpacingY = TEXT_TITLE_SIZE_Y;
 
-		int textLength = strlen(name);
-		int stringLengthPixels = textLength * textSpacingX;
-		if (stringLengthPixels <= OLED_MAIN_WIDTH_PIXELS) {
-			OLED::drawStringCentred(nameToDraw, yPos, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, textSpacingX,
-			                        textSpacingY);
-		}
-		else {
-			OLED::drawString(nameToDraw, 0, yPos, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, textSpacingX,
-			                 textSpacingY);
-			OLED::setupSideScroller(0, name, 0, OLED_MAIN_WIDTH_PIXELS, yPos, yPos + textSpacingY, textSpacingX,
-			                        textSpacingY, false);
-		}
-
-#else
-		bool andAHalf;
-		if (display.getEncodedPosFromLeft(99999, name, &andAHalf) > NUMERIC_DISPLAY_LENGTH) { // doBlink &&
-			display.setScrollingText(name, 0, initialFlashTime + flashTime);
-		}
-		else {
-			// If numeric-looking, we might want to align right.
-			bool alignRight = false;
-			uint8_t dotPos = 255;
-
-			char const* charPos = name;
-			if (*charPos == '0') { // If first digit is 0, then no more digits allowed.
-				charPos++;
+			int textLength = strlen(name);
+			int stringLengthPixels = textLength * textSpacingX;
+			if (stringLengthPixels <= OLED_MAIN_WIDTH_PIXELS) {
+				OLED::drawStringCentred(nameToDraw, yPos, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, textSpacingX,
+				                        textSpacingY);
 			}
-			else { // Otherwise, up to 3 digits allowed.
-				while (*charPos >= '0' && *charPos <= '9' && charPos < (name + 3)) {
+			else {
+				OLED::drawString(nameToDraw, 0, yPos, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, textSpacingX,
+				                 textSpacingY);
+				OLED::setupSideScroller(0, name, 0, OLED_MAIN_WIDTH_PIXELS, yPos, yPos + textSpacingY, textSpacingX,
+				                        textSpacingY, false);
+			}
+		}
+		else {
+			bool andAHalf;
+			if (display.getEncodedPosFromLeft(99999, name, &andAHalf) > NUMERIC_DISPLAY_LENGTH) { // doBlink &&
+				display.setScrollingText(name, 0, initialFlashTime + flashTime);
+			}
+			else {
+				// If numeric-looking, we might want to align right.
+				bool alignRight = false;
+				uint8_t dotPos = 255;
+
+				char const* charPos = name;
+				if (*charPos == '0') { // If first digit is 0, then no more digits allowed.
 					charPos++;
 				}
-			}
-
-			if (charPos != name) { // We are required to have found at least 1 digit.
-				if (*charPos == 0) {
-yesAlignRight:
-					alignRight = true;
-					if (!editedByUser) {
-						dotPos = 3;
+				else { // Otherwise, up to 3 digits allowed.
+					while (*charPos >= '0' && *charPos <= '9' && charPos < (name + 3)) {
+						charPos++;
 					}
 				}
-				else if ((*charPos >= 'a' && *charPos <= 'z') || (*charPos >= 'A' && *charPos <= 'Z')) {
-					charPos++;
+
+				if (charPos != name) { // We are required to have found at least 1 digit.
 					if (*charPos == 0) {
-						goto yesAlignRight;
+yesAlignRight:
+						alignRight = true;
+						if (!editedByUser) {
+							dotPos = 3;
+						}
+					}
+					else if ((*charPos >= 'a' && *charPos <= 'z') || (*charPos >= 'A' && *charPos <= 'Z')) {
+						charPos++;
+						if (*charPos == 0) {
+							goto yesAlignRight;
+						}
 					}
 				}
-			}
 
-			display.setText(name, alignRight, dotPos, doBlink);
+				display.setText(name, alignRight, dotPos, doBlink);
+			}
 		}
-#endif
 	}
 	else if (outputType == INSTRUMENT_TYPE_MIDI_OUT) {
-#if HAVE_OLED
-		if (channel < 16) {
-			slotToString(channel + 1, channelSuffix, buffer, 1);
-			goto oledOutputBuffer;
+		if (display.type == DisplayType::OLED) {
+			if (channel < 16) {
+				slotToString(channel + 1, channelSuffix, buffer, 1);
+				goto oledOutputBuffer;
+			}
+			else {
+				nameToDraw = (channel == MIDI_CHANNEL_MPE_LOWER_ZONE) ? "Lower" : "Upper";
+				goto oledDrawString;
+			}
 		}
 		else {
-			nameToDraw = (channel == MIDI_CHANNEL_MPE_LOWER_ZONE) ? "Lower" : "Upper";
-			goto oledDrawString;
+			if (channel < 16) {
+				display.setTextAsSlot(channel + 1, channelSuffix, false, doBlink);
+			}
+			else {
+				char const* text = (channel == MIDI_CHANNEL_MPE_LOWER_ZONE) ? "Lower" : "Upper";
+				display.setText(text, false, 255, doBlink);
+			}
 		}
-#else
-		if (channel < 16) {
-			display.setTextAsSlot(channel + 1, channelSuffix, false, doBlink);
-		}
-		else {
-			char const* text = (channel == MIDI_CHANNEL_MPE_LOWER_ZONE) ? "Lower" : "Upper";
-			display.setText(text, false, 255, doBlink);
-		}
-#endif
 	}
 	else if (outputType == INSTRUMENT_TYPE_CV) {
-#if HAVE_OLED
-		intToString(channel + 1, buffer);
+		if (display.type == DisplayType::OLED) {
+			intToString(channel + 1, buffer);
 oledOutputBuffer:
-		nameToDraw = buffer;
-		goto oledDrawString;
-#else
-		display.setTextAsNumber(channel + 1, 255, doBlink);
-#endif
+			nameToDraw = buffer;
+			goto oledDrawString;
+		}
+		else {
+			display.setTextAsNumber(channel + 1, 255, doBlink);
+		}
 	}
 }
 
@@ -1432,9 +1435,9 @@ void View::navigateThroughAudioOutputsForAudioClip(int offset, AudioClip* clip, 
 	}
 
 	displayOutputName(newOutput, doBlink);
-#if HAVE_OLED
-	OLED::sendMainImage();
-#endif
+	if (display.type == DisplayType::OLED) {
+		OLED::sendMainImage();
+	}
 
 	setActiveModControllableTimelineCounter(clip); // Necessary? Does ParamManager get moved over too?
 }
@@ -1640,9 +1643,9 @@ gotAnInstrument:
 		}
 
 		displayOutputName(newInstrument, doBlink);
-#if HAVE_OLED
-		OLED::sendMainImage();
-#endif
+		if (display.type == DisplayType::OLED) {
+			OLED::sendMainImage();
+		}
 	}
 
 	// Or if we're on a Kit or Synth...
@@ -1758,9 +1761,9 @@ bool View::changeInstrumentType(int newInstrumentType, ModelStackWithTimelineCou
 
 	setActiveModControllableTimelineCounter(clip); // Do a redraw. Obviously the Clip is the same
 	displayOutputName(newInstrument, doBlink);
-#if HAVE_OLED
-	OLED::sendMainImage();
-#endif
+	if (display.type == DisplayType::OLED) {
+		OLED::sendMainImage();
+	}
 
 	return true;
 }

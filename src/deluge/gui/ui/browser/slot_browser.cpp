@@ -96,23 +96,24 @@ int SlotBrowser::horizontalEncoderAction(int offset) {
 	}
 	{
 nonNumeric:
-#if HAVE_OLED // Maintain consistency with before - don't do this on numeric.
-		qwertyVisible = true;
-#endif
+		if (display.type == DisplayType::OLED) { // Maintain consistency with before - don't do this on numeric
+			qwertyVisible = true;
+		}
 		return Browser::horizontalEncoderAction(offset);
 	}
 }
 
 void SlotBrowser::processBackspace() {
 	Browser::processBackspace();
-#if HAVE_OLED
-	if (fileIndexSelected == -1) {
-		predictExtendedText();
+	if (display.type == DisplayType::OLED) {
+		if (fileIndexSelected == -1) {
+			predictExtendedText();
+		}
 	}
-#else
-	//currentFileExists = false;
-	currentFileHasSuffixFormatNameImplied = false;
-#endif
+	else {
+		//currentFileExists = false;
+		currentFileHasSuffixFormatNameImplied = false;
+	}
 }
 
 void SlotBrowser::enterKeyPress() {

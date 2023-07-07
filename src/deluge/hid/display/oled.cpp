@@ -17,8 +17,6 @@
 
 #include "definitions.h"
 
-#if HAVE_OLED
-
 #include "hid/display.h"
 #include <string.h>
 #include "gui/ui_timer_manager.h"
@@ -884,14 +882,6 @@ void removeWorkingAnimation() {
 	}
 }
 
-extern "C" {
-void consoleTextIfAllBootedUp(char const* text) {
-	if (usbInitializationPeriodComplete) {
-		consoleText(text);
-	}
-}
-}
-
 #define CONSOLE_ANIMATION_FRAME_TIME_SAMPLES (6 * 44) // 6
 
 void consoleText(char const* text) {
@@ -1291,5 +1281,3 @@ void freezeWithError(char const* text) {
 }
 
 } // namespace OLED
-
-#endif

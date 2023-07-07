@@ -84,12 +84,12 @@ char const* allowedFileExtensionsAudio[] = {"WAV", "AIFF", "AIF", NULL};
 
 SampleBrowser::SampleBrowser() {
 
-#if HAVE_OLED
 	fileIcon = OLED::waveIcon;
 	title = "Audio files";
-#else
-	shouldWrapFolderContents = false;
-#endif
+
+	if (display.type != DisplayType::OLED) {
+		shouldWrapFolderContents = false;
+	}
 	qwertyAlwaysVisible = false;
 	shouldInterpretNoteNamesForThisBrowser = true;
 }
@@ -111,9 +111,9 @@ bool SampleBrowser::opened() {
 
 	currentlyShowingSamplePreview = false;
 
-#if HAVE_OLED
-	fileIndexSelected = 0;
-#endif
+	if (display.type == DisplayType::OLED) {
+		fileIndexSelected = 0;
+	}
 
 	if (currentUIMode == UI_MODE_AUDITIONING) {
 		instrumentClipView.cancelAllAuditioning();
@@ -288,9 +288,9 @@ int SampleBrowser::timerCallback() {
 
 			// AudioClip
 			if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) {
-#if HAVE_OLED
-				errorMessage = "Can't import whole folder into audio clip";
-#endif
+				if (display.type == DisplayType::OLED) {
+					errorMessage = "Can't import whole folder into audio clip";
+				}
 				goto cant;
 			}
 
@@ -302,9 +302,9 @@ int SampleBrowser::timerCallback() {
 					goto considerContextMenu;
 				}
 				else {
-#if HAVE_OLED
-					errorMessage = "Can only import whole folder into brand-new kit";
-#endif
+					if (display.type == DisplayType::OLED) {
+						errorMessage = "Can only import whole folder into brand-new kit";
+					}
 cant:
 					display.displayPopup(HAVE_OLED ? errorMessage : "CANT");
 				}
@@ -428,13 +428,7 @@ int SampleBrowser::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 					bool allFine = audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(filePath.get());
 
 					if (!allFine) {
-						display.displayPopup(
-#if HAVE_OLED
-						    "Audio file is used in current song"
-#else
-						    "USED"
-#endif
-						);
+						display.displayPopup(HAVE_OLED ? "Audio file is used in current song" : "USED");
 					}
 					else {
 						goIntoDeleteFileContextMenu();
@@ -1613,11 +1607,7 @@ bool SampleBrowser::importFolderAsMultisamples() {
 
 	AudioEngine::stopAnyPreviewing();
 
-#if HAVE_OLED
-	OLED::displayWorkingAnimation("Working");
-#else
-	display.displayLoadingAnimation();
-#endif
+	display.displayLoadingAnimationText("Working");
 
 	int numSamples;
 	bool doingSingleCycle;
@@ -1843,7 +1833,7 @@ skipOctaveCorrection:
 	exitAndNeverDeleteDrum();
 	((Instrument*)currentSong->currentClip->output)->beenEdited();
 
-display.removeWorkingAnimation();
+	display.removeWorkingAnimation();
 	return true;
 }
 
@@ -1851,11 +1841,7 @@ bool SampleBrowser::importFolderAsKit() {
 
 	AudioEngine::stopAnyPreviewing();
 
-#if HAVE_OLED
-	OLED::displayWorkingAnimation("Working");
-#else
-	display.displayLoadingAnimation();
-#endif
+	display.displayLoadingAnimationText("Working");
 
 	int numSamples;
 	Sample** sortArea;
@@ -1865,7 +1851,7 @@ bool SampleBrowser::importFolderAsKit() {
 
 	if (!success) {
 doReturnFalse:
-	display.removeWorkingAnimation();
+		display.removeWorkingAnimation();
 		return false;
 	}
 
@@ -2005,7 +1991,7 @@ skipNameStuff:
 
 	exitAndNeverDeleteDrum();
 	uiNeedsRendering(&instrumentClipView);
-display.removeWorkingAnimation();
+	display.removeWorkingAnimation();
 	return true;
 }
 

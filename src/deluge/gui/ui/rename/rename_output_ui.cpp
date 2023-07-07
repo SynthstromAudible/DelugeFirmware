@@ -31,14 +31,14 @@ RenameOutputUI::RenameOutputUI() {
 }
 
 bool RenameOutputUI::opened() {
-#if HAVE_OLED
-	if (output->type == OUTPUT_TYPE_AUDIO) {
-		title = "Rename track";
+	if (display.type == DisplayType::OLED) {
+		if (output->type == OUTPUT_TYPE_AUDIO) {
+			title = "Rename track";
+		}
+		else {
+			title = "Rename instrument";
+		}
 	}
-	else {
-		title = "Rename instrument";
-	}
-#endif
 	bool success = QwertyUI::opened();
 	if (!success) {
 		return false;

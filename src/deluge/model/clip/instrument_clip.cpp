@@ -3488,11 +3488,7 @@ displayError:
 			modelStack->song->removeInstrumentFromHibernationList(newInstrument);
 		}
 
-#if HAVE_OLED
-		OLED::displayWorkingAnimation("Loading");
-#else
-		display.displayLoadingAnimation();
-#endif
+		display.displayLoadingAnimationText("Loading");
 		newInstrument->loadAllAudioFiles(true);
 	}
 
@@ -3525,7 +3521,7 @@ displayError:
 	outputChanged(modelStack, newInstrument);
 	modelStack->song->ensureAllInstrumentsHaveAClipOrBackedUpParamManager("E062", "H062");
 
-display.removeWorkingAnimation();
+	display.removeWorkingAnimation();
 
 	return newInstrument;
 }

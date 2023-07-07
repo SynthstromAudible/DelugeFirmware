@@ -17,18 +17,12 @@
 
 #include "gui/ui/rename/rename_ui.h"
 
-#if HAVE_OLED
 #include "hid/display.h"
-#endif
 
 RenameUI::RenameUI() {
 	scrollPosHorizontal = 0;
-#if HAVE_OLED
 	oledShowsUIUnderneath = true;
-#endif
 }
-
-#if HAVE_OLED
 
 void RenameUI::displayText(bool blinkImmediately) {
 	renderUIsForOled();
@@ -60,5 +54,3 @@ void RenameUI::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 
 	drawTextForOLEDEditing(charsStartPixel, OLED_MAIN_WIDTH_PIXELS - charsStartPixel + 1, 27, maxNumChars, &image[0]);
 }
-
-#endif

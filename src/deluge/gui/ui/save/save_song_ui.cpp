@@ -46,9 +46,7 @@ SaveSongUI saveSongUI{};
 
 SaveSongUI::SaveSongUI() {
 	filePrefix = "SONG";
-#if HAVE_OLED
 	title = "Save song";
-#endif
 }
 
 bool SaveSongUI::opened() {
@@ -138,7 +136,7 @@ gotError:
 		bool available = context_menu::overwriteFile.setupAndCheckAvailability();
 
 		if (available) { // Always true.
-display.removeWorkingAnimation();
+			display.removeWorkingAnimation();
 			display.setNextTransitionDirection(1);
 			openUI(&context_menu::overwriteFile);
 			return true;
@@ -455,13 +453,8 @@ cardError:
 	}
 
 	display.removeWorkingAnimation();
-#if HAVE_OLED
-	char const* message = anyErrorMovingTempFiles ? "Song saved, but error moving temp files" : "Song saved";
-#else
-	char const* message = anyErrorMovingTempFiles ? "TEMP" : "DONE";
-#endif
-	display.consoleText(message);
-
+	char const* message = anyErrorMovingTempFiles ? (HAVE_OLED ? "Song saved, but error moving temp files" : "TEMP")
+	                                              : (HAVE_OLED ? "Song saved" : "DONE");
 	// Update all of these
 	currentSong->name.set(&enteredText);
 	currentSong->dirPath.set(&currentDir);

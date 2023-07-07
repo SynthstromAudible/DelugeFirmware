@@ -328,9 +328,9 @@ doOther:
 			}
 
 			currentUIMode = UI_MODE_NONE;
-if (display.type != DisplayType::OLED) {
-			InstrumentClipMinder::redrawNumericDisplay();
-}
+			if (display.type != DisplayType::OLED) {
+				InstrumentClipMinder::redrawNumericDisplay();
+			}
 			uiNeedsRendering(this, 0, 1 << yDisplayOfNewNoteRow);
 		}
 	}
@@ -1108,9 +1108,9 @@ void InstrumentClipView::doubleClipLengthAction() {
 
 	displayZoomLevel();
 
-#if HAVE_OLED
-	OLED::consoleText("Clip multiplied");
-#endif
+	if (display.type == DisplayType::OLED) {
+		display.consoleText("Clip multiplied");
+	}
 }
 
 void InstrumentClipView::createNewInstrument(uint8_t newInstrumentType) {
@@ -1862,7 +1862,7 @@ void InstrumentClipView::adjustVelocity(int velocityChange) {
 	int velocityValue = 0;
 
 	Action* action;
-	if (HAVE_OLED || display.popupActive) {
+	if (HAVE_OLED || display.hasPopup()) {
 		action = actionLogger.getNewAction(ACTION_NOTE_EDIT, true);
 		if (!action) {
 			return; // Necessary why?
@@ -1892,12 +1892,7 @@ void InstrumentClipView::adjustVelocity(int velocityChange) {
 				int noteI = noteRow->notes.search(editPadPresses[i].intendedPos, GREATER_OR_EQUAL);
 				Note* note = noteRow->notes.getElement(noteI);
 				while (note && note->pos - editPadPresses[i].intendedPos < editPadPresses[i].intendedLength) {
-
-#if HAVE_OLED
-					if (OLED::isPopupPresent()) {
-#else
-					if (display.popupActive) {
-#endif
+					if (display.hasPopup()) {
 						noteRow->changeNotesAcrossAllScreens(note->pos, modelStackWithNoteRow, action,
 						                                     CORRESPONDING_NOTES_ADJUST_VELOCITY, velocityChange);
 					}
@@ -1924,11 +1919,7 @@ void InstrumentClipView::adjustVelocity(int velocityChange) {
 
 			// Only one note in square
 			else {
-#if HAVE_OLED
-				if (OLED::isPopupPresent()) {
-#else
-				if (display.popupActive) {
-#endif
+				if (display.hasPopup()) {
 					editPadPresses[i].intendedVelocity =
 					    getMax(1, getMin(127, (int)editPadPresses[i].intendedVelocity + velocityChange));
 					noteRow->changeNotesAcrossAllScreens(editPadPresses[i].intendedPos, modelStackWithNoteRow, action,
@@ -1961,20 +1952,24 @@ void InstrumentClipView::adjustVelocity(int velocityChange) {
 			// Don't bother trying to think of some smart way to update lastVelocityInteractedWith. It'll get updated when user releases last press.
 		}
 		else {
-#if HAVE_OLED
-			strcpy(buffer, "Velocity: ");
-			intToString(velocityValue, buffer + strlen(buffer));
-#else
-			intToString(velocityValue, buffer);
-#endif
+			if (display.type == DisplayType::OLED) {
+				strcpy(buffer, "Velocity: ");
+				intToString(velocityValue, buffer + strlen(buffer));
+			}
+			else {
+
+				intToString(velocityValue, buffer);
+			}
+
 			displayString = buffer;
 			((Instrument*)currentSong->currentClip->output)->defaultVelocity = velocityValue;
 		}
-#if HAVE_OLED
-		display.popupTextTemporary(displayString);
-#else
-		display.displayPopup(displayString, 0, true);
-#endif
+		if (display.type == DisplayType::OLED) {
+			display.popupTextTemporary(displayString);
+		}
+		else {
+			display.displayPopup(displayString, 0, true);
+		}
 	}
 
 	reassessAllAuditionStatus();
@@ -2006,11 +2001,7 @@ void InstrumentClipView::adjustProbability(int offset) {
 				prevBase = (probability & 128);
 
 				// If editing, continue edit
-#if HAVE_OLED
-				if (OLED::isPopupPresent()) {
-#else
-				if (display.popupActive) {
-#endif
+				if (display.hasPopup()) {
 					Action* action = actionLogger.getNewAction(ACTION_NOTE_EDIT, true);
 					if (!action) {
 						return;
@@ -2177,16 +2168,17 @@ multiplePresses:
 #endif
 		char* displayString;
 		if (probabilityValue <= NUM_PROBABILITY_VALUES) {
-#if HAVE_OLED
-			strcpy(buffer, "Probability: ");
-			intToString(probabilityValue * 5, buffer + strlen(buffer));
-			strcat(buffer, "%");
-			if (prevBase) {
-				strcat(buffer, " latching");
+			if (display.type == DisplayType::OLED) {
+				strcpy(buffer, "Probability: ");
+				intToString(probabilityValue * 5, buffer + strlen(buffer));
+				strcat(buffer, "%");
+				if (prevBase) {
+					strcat(buffer, " latching");
+				}
 			}
-#else
-			intToString(probabilityValue * 5, buffer);
-#endif
+			else {
+				intToString(probabilityValue * 5, buffer);
+			}
 			displayString = buffer;
 		}
 
@@ -2198,29 +2190,30 @@ multiplePresses:
 
 			int charPos = 0;
 
-#if HAVE_OLED
-			strcpy(buffer, "Iteration dependence: ");
-			charPos = strlen(buffer);
-#endif
+			if (display.type == DisplayType::OLED) {
+				strcpy(buffer, "Iteration dependence: ");
+				charPos = strlen(buffer);
+			}
 
 			buffer[charPos++] = '1' + iterationWithinDivisor;
-#if HAVE_OLED
-			buffer[charPos++] = ' ';
-#endif
+			if (display.type == DisplayType::OLED) {
+				buffer[charPos++] = ' ';
+			}
 			buffer[charPos++] = 'o';
 			buffer[charPos++] = 'f';
-#if HAVE_OLED
-			buffer[charPos++] = ' ';
-#endif
+			if (display.type == DisplayType::OLED) {
+				buffer[charPos++] = ' ';
+			}
 			buffer[charPos++] = '0' + divisor;
 			buffer[charPos++] = 0;
 		}
 
-#if HAVE_OLED
-		display.popupTextTemporary(displayString);
-#else
-		display.displayPopup(displayString, 0, true, prevBase ? 3 : 255);
-#endif
+		if (display.type == DisplayType::OLED) {
+			display.popupTextTemporary(displayString);
+		}
+		else {
+			display.displayPopup(displayString, 0, true, prevBase ? 3 : 255);
+		}
 	}
 }
 
@@ -3052,11 +3045,12 @@ void InstrumentClipView::auditionPadAction(int velocity, int yDisplay, bool shif
 							AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 						}
 					}
-#if HAVE_OLED
-					OLED::removePopup();
-#else
-					redrawNumericDisplay();
-#endif
+					if (display.type == DisplayType::OLED) {
+						OLED::removePopup();
+					}
+					else {
+						redrawNumericDisplay();
+					}
 justReRender:
 					uiNeedsRendering(this, 0, 1 << yDisplayOfNewNoteRow);
 				}
@@ -3393,11 +3387,12 @@ void InstrumentClipView::someAuditioningHasEnded(bool recalculateLastAuditionedN
 		exitUIMode(UI_MODE_AUDITIONING);
 		auditioningSilently = false;
 
-#if HAVE_OLED
-		OLED::removePopup();
-#else
-		redrawNumericDisplay();
-#endif
+		if (display.type == DisplayType::OLED) {
+			OLED::removePopup();
+		}
+		else {
+			redrawNumericDisplay();
+		}
 	}
 }
 
@@ -3419,78 +3414,79 @@ void InstrumentClipView::drawDrumName(Drum* drum, bool justPopUp) {
 
 	char const* newText;
 
-#if HAVE_OLED
-	char buffer[30];
+	if (display.type == DisplayType::OLED) {
+		char buffer[30];
 
-	if (!drum) {
-		newText = "No sound";
-	}
-	else if (drum->type == DRUM_TYPE_SOUND) {
-		newText = ((SoundDrum*)drum)->name.get();
-	}
-	else {
-		newText = buffer;
-
-		if (drum->type == DRUM_TYPE_GATE) {
-
-			strcpy(buffer, "Gate channel ");
-			intToString(((GateDrum*)drum)->channel + 1, &buffer[13]);
-			indicator_leds::blinkLed(IndicatorLED::CV, 1, 1);
+		if (!drum) {
+			newText = "No sound";
 		}
-		else { // MIDI
-			strcpy(buffer, "MIDI channel ");
-			intToString(((MIDIDrum*)drum)->channel + 1, &buffer[13]);
-			strcat(buffer, ", note ");
-			char* pos = strchr(buffer, 0);
-			intToString(((MIDIDrum*)drum)->note, pos);
-
-			indicator_leds::blinkLed(IndicatorLED::MIDI, 1, 1);
-		}
-	}
-
-	display.popupText(newText, true);
-#else
-
-	char buffer[7];
-
-	if (!drum) {
-		newText = "NONE";
-
-basicDisplay:
-		if (justPopUp && currentUIMode != UI_MODE_AUDITIONING) {
-			display.displayPopup(newText);
+		else if (drum->type == DRUM_TYPE_SOUND) {
+			newText = ((SoundDrum*)drum)->name.get();
 		}
 		else {
-			display.setText(newText, false, 255, true);
-		}
-	}
-	else {
-		if (drum->type != DRUM_TYPE_SOUND) {
-			drum->getName(buffer);
 			newText = buffer;
 
-			if (drum->type == DRUM_TYPE_MIDI) {
-				indicator_leds::blinkLed(IndicatorLED::MIDI, 1, 1);
-			}
-			else if (drum->type == DRUM_TYPE_GATE) {
+			if (drum->type == DRUM_TYPE_GATE) {
+
+				strcpy(buffer, "Gate channel ");
+				intToString(((GateDrum*)drum)->channel + 1, &buffer[13]);
 				indicator_leds::blinkLed(IndicatorLED::CV, 1, 1);
 			}
+			else { // MIDI
+				strcpy(buffer, "MIDI channel ");
+				intToString(((MIDIDrum*)drum)->channel + 1, &buffer[13]);
+				strcat(buffer, ", note ");
+				char* pos = strchr(buffer, 0);
+				intToString(((MIDIDrum*)drum)->note, pos);
 
-			goto basicDisplay;
+				indicator_leds::blinkLed(IndicatorLED::MIDI, 1, 1);
+			}
 		}
 
-		// If we're here, it's a SoundDrum
-		SoundDrum* soundDrum = (SoundDrum*)drum;
-
-		newText = soundDrum->name.get();
-		bool andAHalf;
-
-		if (display.getEncodedPosFromLeft(99999, newText, &andAHalf) <= NUMERIC_DISPLAY_LENGTH) {
-			goto basicDisplay;
-		}
-		display.setScrollingText(newText, 0, initialFlashTime + flashTime);
+		display.popupText(newText);
 	}
-#endif
+	else {
+
+		char buffer[7];
+
+		if (!drum) {
+			newText = "NONE";
+
+basicDisplay:
+			if (justPopUp && currentUIMode != UI_MODE_AUDITIONING) {
+				display.displayPopup(newText);
+			}
+			else {
+				display.setText(newText, false, 255, true);
+			}
+		}
+		else {
+			if (drum->type != DRUM_TYPE_SOUND) {
+				drum->getName(buffer);
+				newText = buffer;
+
+				if (drum->type == DRUM_TYPE_MIDI) {
+					indicator_leds::blinkLed(IndicatorLED::MIDI, 1, 1);
+				}
+				else if (drum->type == DRUM_TYPE_GATE) {
+					indicator_leds::blinkLed(IndicatorLED::CV, 1, 1);
+				}
+
+				goto basicDisplay;
+			}
+
+			// If we're here, it's a SoundDrum
+			SoundDrum* soundDrum = (SoundDrum*)drum;
+
+			newText = soundDrum->name.get();
+			bool andAHalf;
+
+			if (display.getEncodedPosFromLeft(99999, newText, &andAHalf) <= NUMERIC_DISPLAY_LENGTH) {
+				goto basicDisplay;
+			}
+			display.setScrollingText(newText, 0, initialFlashTime + flashTime);
+		}
+	}
 }
 
 int InstrumentClipView::setupForEnteringScaleMode(int newRootNote, int yDisplay) {
@@ -4208,23 +4204,24 @@ void InstrumentClipView::quantizeNotes(int offset, int nudgeMode) {
 		quantizeAmount = -10;
 	}
 
-#if HAVE_OLED
-	char buffer[24];
-	if (nudgeMode == NUDGEMODE_QUANTIZE) {
-		strcpy(buffer, (quantizeAmount >= 0) ? "Quantize " : "Humanize ");
+	if (display.type == DisplayType::OLED) {
+		char buffer[24];
+		if (nudgeMode == NUDGEMODE_QUANTIZE) {
+			strcpy(buffer, (quantizeAmount >= 0) ? "Quantize " : "Humanize ");
+		}
+		else {
+			strcpy(buffer, (quantizeAmount >= 0) ? "Quantize All " : "Humanize All ");
+		}
+		intToString(abs(quantizeAmount * 10), buffer + strlen(buffer));
+		strcpy(buffer + strlen(buffer), "%");
+		OLED::popupText(buffer);
 	}
 	else {
-		strcpy(buffer, (quantizeAmount >= 0) ? "Quantize All " : "Humanize All ");
+		char buffer[5];
+		strcpy(buffer, "");
+		intToString(quantizeAmount * 10, buffer + strlen(buffer)); //Negative means humanize
+		display.displayPopup(buffer, 0, true);
 	}
-	intToString(abs(quantizeAmount * 10), buffer + strlen(buffer));
-	strcpy(buffer + strlen(buffer), "%");
-	OLED::popupText(buffer);
-#else
-	char buffer[5];
-	strcpy(buffer, "");
-	intToString(quantizeAmount * 10, buffer + strlen(buffer)); //Negative means humanize
-	display.displayPopup(buffer, 0, true);
-#endif
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
@@ -4438,16 +4435,17 @@ void InstrumentClipView::editNoteRepeat(int offset) {
 		currentClip->expectEvent();
 	}
 
-#if HAVE_OLED
-	char buffer[20];
-	strcpy(buffer, "Note repeats: ");
-	intToString(newNumNotes, buffer + strlen(buffer));
-	display.popupTextTemporary(buffer);
-#else
-	char buffer[12];
-	intToString(newNumNotes, buffer);
-	display.displayPopup(buffer, 0, true);
-#endif
+	if (display.type == DisplayType::OLED) {
+		char buffer[20];
+		strcpy(buffer, "Note repeats: ");
+		intToString(newNumNotes, buffer + strlen(buffer));
+		display.popupTextTemporary(buffer);
+	}
+	else {
+		char buffer[12];
+		intToString(newNumNotes, buffer);
+		display.displayPopup(buffer, 0, true);
+	}
 }
 
 // Supply offset as 0 to just popup number, not change anything
@@ -4682,11 +4680,12 @@ doCompareNote:
 		if (!didAnySuccessfulNudging) {
 			return; // Don't want to see these "multiple pads moved" messages if in fact none were moved
 		}
-#if HAVE_OLED
-		message = (offset >= 0) ? "Nudged notes right" : "Nudged notes left";
-#else
-		message = (offset >= 0) ? "RIGHT" : "LEFT";
-#endif
+		if (display.type == DisplayType::OLED) {
+			message = (offset >= 0) ? "Nudged notes right" : "Nudged notes left";
+		}
+		else {
+			message = (offset >= 0) ? "RIGHT" : "LEFT";
+		}
 	}
 
 	else {
@@ -4717,30 +4716,32 @@ doCompareNote:
 			}
 		}
 
-#if HAVE_OLED
-		strcpy(buffer, "Note nudge: ");
-		intToString(resultingTotalOffset, buffer + strlen(buffer));
-		message = buffer;
-#else
-		if (resultingTotalOffset > 9999) {
-			message = "RIGHT";
-		}
-		else if (resultingTotalOffset < -999) {
-			message = "LEFT";
+		if (display.type == DisplayType::OLED) {
+			strcpy(buffer, "Note nudge: ");
+			intToString(resultingTotalOffset, buffer + strlen(buffer));
+			message = buffer;
 		}
 		else {
-			message = buffer;
-			alignRight = true;
-			intToString(resultingTotalOffset, buffer);
+			if (resultingTotalOffset > 9999) {
+				message = "RIGHT";
+			}
+			else if (resultingTotalOffset < -999) {
+				message = "LEFT";
+			}
+			else {
+				message = buffer;
+				alignRight = true;
+				intToString(resultingTotalOffset, buffer);
+			}
 		}
-#endif
 	}
 
-#if HAVE_OLED
-	display.popupTextTemporary(message);
-#else
-	display.displayPopup(message, 0, alignRight);
-#endif
+	if (display.type == DisplayType::OLED) {
+		display.popupTextTemporary(message);
+	}
+	else {
+		display.displayPopup(message, 0, alignRight);
+	}
 
 	doneAnyNudgingSinceFirstEditPadPress =
 	    true; // Even if we didn't actually nudge, we want to record this for the purpose of the offsetting of the number display - see above
@@ -5248,21 +5249,22 @@ noteRowChanged:
 	}
 displayNewNumNotes:
 	// Tell the user about it in text
-#if HAVE_OLED
-	char buffer[34];
-	strcpy(buffer, "Events: ");
-	char* pos = strchr(buffer, 0);
-	intToString(newNumNotes, pos);
-	pos = strchr(buffer, 0);
-	strcpy(pos, " of ");
-	pos = strchr(buffer, 0);
-	intToString(numStepsAvailable, pos);
-	display.popupTextTemporary(buffer);
-#else
-	char buffer[12];
-	intToString(newNumNotes, buffer);
-	display.displayPopup(buffer, 0, true);
-#endif
+	if (display.type == DisplayType::OLED) {
+		char buffer[34];
+		strcpy(buffer, "Events: ");
+		char* pos = strchr(buffer, 0);
+		intToString(newNumNotes, pos);
+		pos = strchr(buffer, 0);
+		strcpy(pos, " of ");
+		pos = strchr(buffer, 0);
+		intToString(numStepsAvailable, pos);
+		display.popupTextTemporary(buffer);
+	}
+	else {
+		char buffer[12];
+		intToString(newNumNotes, buffer);
+		display.displayPopup(buffer, 0, true);
+	}
 }
 
 // Check UI mode is appropriate before calling this
@@ -5328,13 +5330,14 @@ addConsequenceToAction:
 	}
 
 displayMessage:
-#if HAVE_OLED
-	char const* message = (offset == 1) ? "Rotated right" : "Rotated left";
-	display.popupTextTemporary(message);
-#else
-	char const* message = (offset == 1) ? "RIGHT" : "LEFT";
-	display.displayPopup(message, 0);
-#endif
+	if (display.type == DisplayType::OLED) {
+		char const* message = (offset == 1) ? "Rotated right" : "Rotated left";
+		display.popupTextTemporary(message);
+	}
+	else {
+		char const* message = (offset == 1) ? "RIGHT" : "LEFT";
+		display.displayPopup(message, 0);
+	}
 }
 
 extern bool shouldResumePlaybackOnNoteRowLengthSet;
@@ -5460,16 +5463,17 @@ tryScrollingLeft:
 		didScroll = scrollLeftIfTooFarRight(newLength);
 	}
 
-#if HAVE_OLED
-	char buffer[19];
-	strcpy(buffer, "Steps: ");
-	intToString(newNumSteps, buffer + strlen(buffer));
-	display.popupTextTemporary(buffer);
-#else
-	char buffer[12];
-	intToString(newNumSteps, buffer);
-	display.displayPopup(buffer, 0, true);
-#endif
+	if (display.type == DisplayType::OLED) {
+		char buffer[19];
+		strcpy(buffer, "Steps: ");
+		intToString(newNumSteps, buffer + strlen(buffer));
+		display.popupTextTemporary(buffer);
+	}
+	else {
+		char buffer[12];
+		intToString(newNumSteps, buffer);
+		display.displayPopup(buffer, 0, true);
+	}
 
 	// Play it
 	clip->expectEvent();

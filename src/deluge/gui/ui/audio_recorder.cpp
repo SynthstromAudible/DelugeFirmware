@@ -180,11 +180,7 @@ void AudioRecorder::endRecordingSoon(int buttonLatency) {
 	if (recorder
 	    && recorder->status
 	           == RECORDER_STATUS_CAPTURING_DATA) { // Make sure we don't call the same thing multiple times - I think there's a few scenarios where this could happen
-#if HAVE_OLED
-		OLED::displayWorkingAnimation("Working");
-#else
-		display.displayLoadingAnimation();
-#endif
+		display.displayLoadingAnimationText("Working");
 		recorder->endSyncedRecording(buttonLatency);
 	}
 }
@@ -205,9 +201,9 @@ void AudioRecorder::process() {
 
 		uiTimerManager.routine();
 
-#if HAVE_OLED
-		oledRoutine();
-#endif
+		if (display.type == DisplayType::OLED) {
+			oledRoutine();
+		}
 		uartFlushIfNotSending(UART_ITEM_PIC);
 
 		readButtonsAndPads();
@@ -239,7 +235,7 @@ void AudioRecorder::process() {
 			if (recorder->recordingClippedRecently) {
 				recorder->recordingClippedRecently = false;
 
-				if (!display.popupActive) {
+				if (!display.hasPopup()) {
 					display.displayPopup(HAVE_OLED ? "Clipping occurred" : "CLIP");
 				}
 			}

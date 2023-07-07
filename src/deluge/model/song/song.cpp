@@ -4451,11 +4451,7 @@ displayError:
 			removeInstrumentFromHibernationList(newInstrument);
 		}
 
-#if HAVE_OLED
-		OLED::displayWorkingAnimation("Loading");
-#else
-		display.displayLoadingAnimation();
-#endif
+		display.displayLoadingAnimationText("Loading");
 
 		newInstrument->loadAllAudioFiles(true);
 

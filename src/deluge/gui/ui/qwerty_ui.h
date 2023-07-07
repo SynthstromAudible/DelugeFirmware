@@ -44,14 +44,15 @@ protected:
 
 	// This may be called in card routine so long as either !currentFileExists (which is always the case in a processBackspace()),
 	// or we are not LoadSongUI
-#if HAVE_OLED
+
+	// OLED ONLY
 	char const* title;
-	virtual void displayText(bool blinkImmediately = false) = 0;
 	void drawTextForOLEDEditing(int textStartX, int xPixelMax, int yPixel, int maxChars,
 	                            uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
-#else
+
+	// 7SEG only
 	virtual void displayText(bool blinkImmediately = false);
-#endif
+
 	static int16_t enteredTextEditPos;
 	static int scrollPosHorizontal;
 

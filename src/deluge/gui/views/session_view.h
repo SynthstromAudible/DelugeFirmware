@@ -82,11 +82,11 @@ public:
 	void modEncoderAction(int whichModEncoder, int offset);
 	int verticalScrollOneSquare(int direction);
 
-#if HAVE_OLED
+	// OLED only
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
-#else
+
+	// 7SEG only
 	void redrawNumericDisplay();
-#endif
 
 	uint32_t selectedClipTimePressed;
 	uint8_t selectedClipYDisplay;      // Where the clip is on screen

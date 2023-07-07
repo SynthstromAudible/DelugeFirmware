@@ -90,11 +90,9 @@ ArrangerView::ArrangerView() {
 	lastInteractedSection = 0;
 }
 
-#if HAVE_OLED
 void ArrangerView::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 	sessionView.renderOLED(image);
 }
-#endif
 
 void ArrangerView::moveClipToSession() {
 	Output* output = outputsOnScreen[yPressedEffective];
@@ -429,9 +427,9 @@ void ArrangerView::focusRegained() {
 
 	repopulateOutputsOnScreen(false);
 
-if (display.type != DisplayType::OLED) {
-	sessionView.redrawNumericDisplay();
-}
+	if (display.type != DisplayType::OLED) {
+		sessionView.redrawNumericDisplay();
+	}
 	if (currentUIMode != UI_MODE_HOLDING_ARRANGEMENT_ROW) {
 		view.setActiveModControllableTimelineCounter(currentSong);
 	}
@@ -734,9 +732,9 @@ void ArrangerView::changeOutputToInstrument(int newInstrumentType) {
 	outputsOnScreen[yPressedEffective] = newInstrument;
 
 	view.displayOutputName(newInstrument);
-#if HAVE_OLED
-	OLED::sendMainImage();
-#endif
+	if (display.type == DisplayType::OLED) {
+		OLED::sendMainImage();
+	}
 
 	view.setActiveModControllableTimelineCounter(NULL);
 
@@ -848,9 +846,9 @@ doNewPress:
 			currentUIMode = UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION;
 
 			view.displayOutputName(output);
-#if HAVE_OLED
-			OLED::sendMainImage();
-#endif
+			if (display.type == DisplayType::OLED) {
+				OLED::sendMainImage();
+			}
 
 			beginAudition(output);
 
@@ -878,11 +876,12 @@ void ArrangerView::auditionEnded() {
 	setNoSubMode();
 	setLedStates();
 
-#if HAVE_OLED
-	renderUIsForOled();
-#else
-	sessionView.redrawNumericDisplay();
-#endif
+	if (display.type == DisplayType::OLED) {
+		renderUIsForOled();
+	}
+	else {
+		sessionView.redrawNumericDisplay();
+	}
 
 	view.setActiveModControllableTimelineCounter(currentSong);
 }
@@ -2333,11 +2332,12 @@ void ArrangerView::selectEncoderAction(int8_t offset) {
 			else { // Arrangement playback
 				if (offset == -1 && playbackHandler.stopOutputRecordingAtLoopEnd) {
 					playbackHandler.stopOutputRecordingAtLoopEnd = false;
-#if HAVE_OLED
-					renderUIsForOled();
-#else
-					sessionView.redrawNumericDisplay();
-#endif
+					if (display.type == DisplayType::OLED) {
+						renderUIsForOled();
+					}
+					else {
+						sessionView.redrawNumericDisplay();
+					}
 				}
 			}
 		}
@@ -2434,9 +2434,9 @@ cantDoIt:
 		}
 
 		view.displayOutputName(oldNonAudioInstrument);
-#if HAVE_OLED
-		OLED::sendMainImage();
-#endif
+		if (display.type == DisplayType::OLED) {
+			OLED::sendMainImage();
+		}
 	}
 
 	// Or if we're on a Kit or Synth...
@@ -2446,7 +2446,7 @@ cantDoIt:
 		    loadInstrumentPresetUI.doPresetNavigation(offset, oldInstrument, AVAILABILITY_INSTRUMENT_UNUSED, true);
 		if (results.error == NO_ERROR_BUT_GET_OUT) {
 removeWorkingAnimationAndGetOut:
-display.removeWorkingAnimation();
+			display.removeWorkingAnimation();
 			return;
 		}
 		else if (results.error) {
@@ -2502,9 +2502,9 @@ void ArrangerView::changeInstrumentType(int newInstrumentType) {
 	indicator_leds::setLedState(IndicatorLED::MIDI, false);
 	indicator_leds::setLedState(IndicatorLED::CV, false);
 	view.displayOutputName(newInstrument);
-#if HAVE_OLED
-	OLED::sendMainImage();
-#endif
+	if (display.type == DisplayType::OLED) {
+		OLED::sendMainImage();
+	}
 	view.setActiveModControllableTimelineCounter(newInstrument->activeClip);
 
 	beginAudition(newInstrument);
@@ -2584,9 +2584,9 @@ cant:
 	indicator_leds::setLedState(IndicatorLED::MIDI, false);
 	indicator_leds::setLedState(IndicatorLED::CV, false);
 	view.displayOutputName(newOutput);
-#if HAVE_OLED
-	OLED::sendMainImage();
-#endif
+	if (display.type == DisplayType::OLED) {
+		OLED::sendMainImage();
+	}
 	view.setActiveModControllableTimelineCounter(newClip);
 }
 
@@ -3207,11 +3207,12 @@ void ArrangerView::playbackEnded() {
 	}
 
 	if (getCurrentUI() == &arrangerView) { // Why do we need to check this?
-#if HAVE_OLED
-		renderUIsForOled();
-#else
-		sessionView.redrawNumericDisplay();
-#endif
+		if (display.type == DisplayType::OLED) {
+			renderUIsForOled();
+		}
+		else {
+			sessionView.redrawNumericDisplay();
+		}
 	}
 }
 

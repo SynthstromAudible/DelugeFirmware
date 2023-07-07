@@ -109,19 +109,16 @@ void InstrumentClipMinder::selectEncoderAction(int offset) {
 }
 
 void InstrumentClipMinder::redrawNumericDisplay() {
-#if HAVE_OLED
-#else
-	if (getCurrentUI()->toClipMinder()) { // Seems a redundant check now? Maybe? Or not?
-		view.displayOutputName(getCurrentClip()->output, false);
+	if (display.type != DisplayType::OLED) {
+		if (getCurrentUI()->toClipMinder()) { // Seems a redundant check now? Maybe? Or not?
+			view.displayOutputName(getCurrentClip()->output, false);
+		}
 	}
-#endif
 }
 
-#if HAVE_OLED
 void InstrumentClipMinder::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 	view.displayOutputName(getCurrentClip()->output, false);
 }
-#endif
 
 void InstrumentClipMinder::drawMIDIControlNumber(int controlNumber, bool automationExists) {
 
@@ -145,7 +142,7 @@ void InstrumentClipMinder::drawMIDIControlNumber(int controlNumber, bool automat
 	if (automationExists) {
 		strcat(buffer, "\n(automated)");
 	}
-	display.popupText(buffer, true);
+	display.popupText(buffer);
 
 #else
 		char* numberStartPos = (controlNumber < 100) ? (buffer + 2) : (buffer + 1);
@@ -203,13 +200,9 @@ gotError:
 
 	getCurrentClip()->backupPresetSlot();
 
-#if HAVE_OLED
-	char const* message = (newInstrumentType == INSTRUMENT_TYPE_KIT) ? "New kit created" : "New synth created";
-	OLED::consoleText(message);
-#else
-	char const* message = "NEW";
-	display.displayPopup(message);
-#endif
+	char const* message =
+	    HAVE_OLED ? ((newInstrumentType == INSTRUMENT_TYPE_KIT) ? "New kit created" : "New synth created") : "NEW";
+	display.consoleText(message);
 
 	if (newInstrumentType == INSTRUMENT_TYPE_SYNTH) {
 		((SoundInstrument*)newInstrument)->setupAsBlankSynth(&newParamManager);
@@ -261,11 +254,12 @@ gotError:
 
 	newInstrument->name.set(&newName);
 
-#if HAVE_OLED
-	renderUIsForOled();
-#else
-	redrawNumericDisplay();
-#endif
+	if (display.type == DisplayType::OLED) {
+		renderUIsForOled();
+	}
+	else {
+		redrawNumericDisplay();
+	}
 }
 
 void InstrumentClipMinder::setLedStates() {
@@ -292,9 +286,9 @@ void InstrumentClipMinder::opened() {
 void InstrumentClipMinder::focusRegained() {
 	view.focusRegained();
 	view.setActiveModControllableTimelineCounter(getCurrentClip());
-#if !HAVE_OLED
-	redrawNumericDisplay();
-#endif
+	if (display.type != DisplayType::OLED) {
+		redrawNumericDisplay();
+	}
 }
 
 int InstrumentClipMinder::buttonAction(hid::Button b, bool on, bool inCardRoutine) {

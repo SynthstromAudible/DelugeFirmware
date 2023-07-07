@@ -48,12 +48,13 @@ void Range::horizontalEncoderAction(int offset) {
 		if (soundEditor.editingRangeEdge == RangeEdit::LEFT) {
 switchOff:
 			soundEditor.editingRangeEdge = RangeEdit::OFF;
-#if HAVE_OLED
-			goto justDrawValueForEditingRange;
-#else
-			int startPos = (soundEditor.editingRangeEdge == RangeEdit::RIGHT) ? 999 : 0;
-			drawValue(startPos);
-#endif
+			if (display.type == DisplayType::OLED) {
+				goto justDrawValueForEditingRange;
+			}
+			else {
+				int startPos = (soundEditor.editingRangeEdge == RangeEdit::RIGHT) ? 999 : 0;
+				drawValue(startPos);
+			}
 		}
 
 		else {
@@ -61,11 +62,12 @@ switchOff:
 			if (mayEditRangeEdge(RangeEdit::LEFT)) {
 				soundEditor.editingRangeEdge = RangeEdit::LEFT;
 justDrawValueForEditingRange:
-#if HAVE_OLED
-				renderUIsForOled();
-#else
-				drawValueForEditingRange(true);
-#endif
+				if (display.type == DisplayType::OLED) {
+					renderUIsForOled();
+				}
+				else {
+					drawValueForEditingRange(true);
+				}
 			}
 			else {
 				if (soundEditor.editingRangeEdge == RangeEdit::RIGHT) {
@@ -109,63 +111,65 @@ bool Range::cancelEditingIfItsOn() {
 }
 
 void Range::drawValue(int startPos, bool renderSidebarToo) {
-#if HAVE_OLED
-	renderUIsForOled();
-#else
-	char* buffer = shortStringBuffer;
-	getText(buffer);
+	if (display.type == DisplayType::OLED) {
 
-	if (strlen(buffer) <= NUMERIC_DISPLAY_LENGTH) {
-		display.setText(buffer, true);
+		renderUIsForOled();
 	}
 	else {
-		display.setScrollingText(buffer, startPos);
+		char* buffer = shortStringBuffer;
+		getText(buffer);
+
+		if (strlen(buffer) <= NUMERIC_DISPLAY_LENGTH) {
+			display.setText(buffer, true);
+		}
+		else {
+			display.setScrollingText(buffer, startPos);
+		}
 	}
-#endif
 }
 
 void Range::drawValueForEditingRange(bool blinkImmediately) {
-#if HAVE_OLED
-	renderUIsForOled();
-#else
-	int leftLength, rightLength;
-	char* buffer = shortStringBuffer;
-
-	getText(buffer, &leftLength, &rightLength, false);
-
-	int textLength = leftLength + rightLength + 1;
-
-	uint8_t blinkMask[NUMERIC_DISPLAY_LENGTH];
-	if (soundEditor.editingRangeEdge == RangeEdit::LEFT) {
-		for (int i = 0; i < NUMERIC_DISPLAY_LENGTH; i++) {
-			if (i < leftLength + NUMERIC_DISPLAY_LENGTH - getMin(4, textLength))
-				blinkMask[i] = 0;
-			else
-				blinkMask[i] = 255;
-		}
+	if (display.type == DisplayType::OLED) {
+		renderUIsForOled();
 	}
-
 	else {
-		for (int i = 0; i < NUMERIC_DISPLAY_LENGTH; i++) {
-			if (NUMERIC_DISPLAY_LENGTH - 1 - i < rightLength)
-				blinkMask[i] = 0;
-			else
-				blinkMask[i] = 255;
-		}
-	}
+		int leftLength, rightLength;
+		char* buffer = shortStringBuffer;
 
-	bool alignRight = (soundEditor.editingRangeEdge == RangeEdit::RIGHT) || (textLength < NUMERIC_DISPLAY_LENGTH);
+		getText(buffer, &leftLength, &rightLength, false);
+
+		int textLength = leftLength + rightLength + 1;
+
+		uint8_t blinkMask[NUMERIC_DISPLAY_LENGTH];
+		if (soundEditor.editingRangeEdge == RangeEdit::LEFT) {
+			for (int i = 0; i < NUMERIC_DISPLAY_LENGTH; i++) {
+				if (i < leftLength + NUMERIC_DISPLAY_LENGTH - getMin(4, textLength))
+					blinkMask[i] = 0;
+				else
+					blinkMask[i] = 255;
+			}
+		}
+
+		else {
+			for (int i = 0; i < NUMERIC_DISPLAY_LENGTH; i++) {
+				if (NUMERIC_DISPLAY_LENGTH - 1 - i < rightLength)
+					blinkMask[i] = 0;
+				else
+					blinkMask[i] = 255;
+			}
+		}
+
+		bool alignRight = (soundEditor.editingRangeEdge == RangeEdit::RIGHT) || (textLength < NUMERIC_DISPLAY_LENGTH);
 
 	// Sorta hackish, to reset timing of blinking LED and always show text "on" initially on edit value
 	indicator_leds::blinkLed(IndicatorLED::BACK, 255, 0, !blinkImmediately);
 
 	display.setText(buffer, alignRight, 255, true, blinkMask);
 
-	soundEditor.possibleChangeToCurrentRangeDisplay();
-#endif
+		soundEditor.possibleChangeToCurrentRangeDisplay();
+	}
 }
 
-#if HAVE_OLED
 void Range::drawPixelsForOled() {
 	int leftLength, rightLength;
 	char* buffer = shortStringBuffer;
@@ -199,5 +203,4 @@ doHilightJustOneEdge:
 		goto doHilightJustOneEdge;
 	}
 }
-#endif
 } // namespace menu_item

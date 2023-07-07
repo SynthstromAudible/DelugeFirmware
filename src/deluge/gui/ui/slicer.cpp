@@ -67,9 +67,9 @@ void Slicer::focusRegained() {
 		manualSlicePoints[i].transpose = 0;
 	}
 
-if (display.type != DisplayType::OLED) {
-	redraw();
-}
+	if (display.type != DisplayType::OLED) {
+		redraw();
+	}
 }
 
 void Slicer::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {

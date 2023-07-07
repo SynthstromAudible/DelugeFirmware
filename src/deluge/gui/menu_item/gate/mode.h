@@ -20,13 +20,11 @@
 #include "processing/engines/cv_engine.h"
 
 namespace menu_item::gate {
-#if HAVE_OLED
 // Why'd I put two NULLs? (Rohan)
 // Gets updated in gate::Selection lol (Kate)
-static char const* mode_options[] = {"V-trig", "S-trig", NULL, NULL};
-#else
-static char const* mode_options[] = {"VTRI", "STRI", NULL, NULL};
-#endif
+static char const* mode_options[] = {HAVE_OLED ? "V-trig" : "VTRI", // V-trigger
+                                     HAVE_OLED ? "S-trig" : "STRI", // S-trigger
+                                     NULL, NULL};
 
 #if HAVE_OLED
 static char mode_title[] = "Gate outX mode";

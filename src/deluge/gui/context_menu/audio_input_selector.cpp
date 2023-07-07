@@ -51,21 +51,19 @@ constexpr size_t kNumValues = 11;
 
 AudioInputSelector audioInputSelector{};
 
-#if HAVE_OLED
-char const* options[] = {"Off",
-                         "Left input",
-                         "Left input (monitoring)",
-                         "Right input",
-                         "Right input (monitoring)",
-                         "Stereo input",
-                         "Stereo input (monitoring)",
-                         "Bal. input",
-                         "Bal. input (monitoring)",
-                         "Deluge mix (pre fx)",
-                         "Deluge output (post fx)"};
-#else
-char const* options[] = {"OFF", "LEFT", "LEFT.", "RIGH", "RIGH.", "STER", "STER.", "BALA", "BALA.", "MIX", "OUTP"};
-#endif
+char const* options[] = {
+    HAVE_OLED ? "Off" : "OFF",
+    HAVE_OLED ? "Left input" : "LEFT",
+    HAVE_OLED ? "Left input (monitoring)" : "LEFT.",
+    HAVE_OLED ? "Right input" : "RIGH",
+    HAVE_OLED ? "Right input (monitoring)" : "RIGH.",
+    HAVE_OLED ? "Stereo input" : "STER",
+    HAVE_OLED ? "Stereo input (monitoring)" : "STER.",
+    HAVE_OLED ? "Bal. input" : "BALA",
+    HAVE_OLED ? "Bal. input (monitoring)" : "BALA.",
+    HAVE_OLED ? "Deluge mix (pre fx)" : "MIX",
+    HAVE_OLED ? "Deluge output (post fx)" : "OUTP",
+};
 
 char const* AudioInputSelector::getTitle() {
 	static char const* title = "Audio source";

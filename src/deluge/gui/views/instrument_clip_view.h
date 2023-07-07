@@ -143,11 +143,7 @@ public:
 		color[2] = rowColour[y][2];
 	} //
 
-#if HAVE_OLED
-	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
-		InstrumentClipMinder::renderOLED(image);
-	}
-#endif
+	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) { InstrumentClipMinder::renderOLED(image); }
 
 	CopiedNoteRow* firstCopiedNoteRow;
 	int32_t copiedScreenWidth;
