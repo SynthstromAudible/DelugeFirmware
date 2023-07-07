@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef DELUGE_H_
-#define DELUGE_H_
+#pragma once
 
 #ifdef __cplusplus
 extern "C" {
@@ -44,5 +43,3 @@ extern void setTimeUSBInitializationEnds(int timeFromNow);
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* DELUGE_H_ */

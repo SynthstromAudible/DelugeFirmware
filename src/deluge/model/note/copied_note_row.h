@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef COPIEDNOTEROW_H_
-#define COPIEDNOTEROW_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 class Note;
@@ -32,5 +31,3 @@ public:
 	CopiedNoteRow* next;
 	int16_t yNote;
 };
-
-#endif /* COPIEDNOTEROW_H_ */

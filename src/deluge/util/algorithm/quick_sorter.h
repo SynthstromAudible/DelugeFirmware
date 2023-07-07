@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef QUICKSORTER_H_
-#define QUICKSORTER_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 
@@ -36,5 +35,3 @@ private:
 	const uint32_t keyMask;
 	void* const memory;
 };
-
-#endif /* QUICKSORTER_H_ */

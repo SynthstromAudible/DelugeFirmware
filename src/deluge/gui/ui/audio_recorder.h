@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef AUDIORECORDER_H_
-#define AUDIORECORDER_H_
+#pragma once
 
 #include "gui/ui/ui.h"
 #include "hid/button.h"
@@ -62,5 +61,3 @@ private:
 };
 
 extern AudioRecorder audioRecorder;
-
-#endif /* AUDIORECORDER_H_ */

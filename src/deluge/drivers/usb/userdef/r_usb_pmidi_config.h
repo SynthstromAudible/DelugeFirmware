@@ -15,11 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef R_USB_MIDI_CONFIG_H
-#define R_USB_MIDI_CONFIG_H
+#pragma once
 
 // Let's just keep these two pipes as not the same as the send-pipe for USB MIDI hosting (PIPE1)
 #define USB_CFG_PMIDI_BULK_IN (USB_PIPE2)
 #define USB_CFG_PMIDI_BULK_OUT (USB_PIPE3)
-
-#endif /* R_USB_MIDI_CONFIG_H */

@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef IMPULSERESPONSEPROCESSOR_H_
-#define IMPULSERESPONSEPROCESSOR_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 #include "dsp/stereo_sample.h"
@@ -46,5 +45,3 @@ public:
 		buffer[IR_BUFFER_SIZE - 1].r = multiply_32x32_rshift32_rounded(inputR, ir[IR_BUFFER_SIZE]);
 	}
 };
-
-#endif /* IMPULSERESPONSEPROCESSOR_H_ */

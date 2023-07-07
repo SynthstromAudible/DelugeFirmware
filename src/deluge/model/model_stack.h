@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MODELSTACK_H_
-#define MODELSTACK_H_
+#pragma once
 
 #include "modulation/params/param_manager.h"
 #include "hid/display/numeric_driver.h"
@@ -501,5 +500,3 @@ ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurr
 
 
  */
-
-#endif /* MODELSTACK_H_ */

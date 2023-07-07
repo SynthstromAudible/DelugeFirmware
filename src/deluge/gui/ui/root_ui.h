@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef ROOTUI_H_
-#define ROOTUI_H_
+#pragma once
 
 #include "gui/ui/ui.h"
 class Output;
@@ -40,5 +39,3 @@ public:
 	virtual void sampleNeedsReRendering(Sample* sample) {}
 	virtual void midiLearnFlash() {}
 };
-
-#endif /* ROOTUI_H_ */

@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef MASTERCOMPRESSOR_H_
-#define MASTERCOMPRESSOR_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 
@@ -231,5 +230,3 @@ public:
 
 	chunkware_simple::SimpleComp compressor;
 };
-
-#endif /* MASTERCOMPRESSOR_H_ */

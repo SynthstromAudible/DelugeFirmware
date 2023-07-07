@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CONTEXTMENUOVERWRITEFILE_H_
-#define CONTEXTMENUOVERWRITEFILE_H_
+#pragma once
 
 #include "gui/context_menu/context_menu.h"
 
@@ -33,5 +32,3 @@ public:
 };
 
 extern ContextMenuOverwriteFile contextMenuOverwriteFile;
-
-#endif /* CONTEXTMENUOVERWRITEFILE_H_ */

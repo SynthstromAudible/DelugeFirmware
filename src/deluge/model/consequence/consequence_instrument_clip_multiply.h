@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CONSEQUENCEINSTRUMENTCLIPMULTIPLY_H_
-#define CONSEQUENCEINSTRUMENTCLIPMULTIPLY_H_
+#pragma once
 
 #include "model/consequence/consequence.h"
 #include "RZA1/system/r_typedefs.h"
@@ -27,5 +26,3 @@ public:
 
 	int revert(int time, ModelStack* modelStack);
 };
-
-#endif /* CONSEQUENCEINSTRUMENTCLIPMULTIPLY_H_ */

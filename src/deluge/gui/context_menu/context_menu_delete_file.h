@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CONTEXTMENUDELETEFILE_H_
-#define CONTEXTMENUDELETEFILE_H_
+#pragma once
 
 #include "gui/context_menu/context_menu.h"
 
@@ -29,5 +28,3 @@ public:
 };
 
 extern ContextMenuDeleteFile contextMenuDeleteFile;
-
-#endif /* CONTEXTMENUDELETEFILE_H_ */

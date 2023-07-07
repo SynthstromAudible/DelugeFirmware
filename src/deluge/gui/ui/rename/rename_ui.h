@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef RENAMEUI_H_
-#define RENAMEUI_H_
+#pragma once
 
 #include "gui/ui/qwerty_ui.h"
 
@@ -29,5 +28,3 @@ public:
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
 #endif
 };
-
-#endif /* RENAMEUI_H_ */

@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MIDIPARAM_H_
-#define MIDIPARAM_H_
+#pragma once
 
 #include "modulation/automation/auto_param.h"
 
@@ -27,5 +26,3 @@ public:
 	uint8_t cc;
 	AutoParam param;
 };
-
-#endif /* MIDIPARAM_H_ */

@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef RUNTIMEFEATURESETTINGS_H_
-#define RUNTIMEFEATURESETTINGS_H_
+#pragma once
 
 #include <cstdint>
 #include "gui/menu_item/runtime_feature/setting.h"
@@ -119,5 +118,3 @@ public:
 
 /// Static instance for external access
 extern RuntimeFeatureSettings runtimeFeatureSettings;
-
-#endif /* RUNTIMEFEATURESETTINGS_H_ */

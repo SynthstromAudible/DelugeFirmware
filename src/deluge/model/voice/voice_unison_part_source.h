@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef VOICE_UNISON_PART_SOURCE_H
-#define VOICE_UNISON_PART_SOURCE_H
+#pragma once
 
 #include "definitions.h"
 #include "model/sample/sample.h"
@@ -47,5 +46,3 @@ public:
 	VoiceSample* voiceSample;
 	LivePitchShifter* livePitchShifter;
 };
-
-#endif

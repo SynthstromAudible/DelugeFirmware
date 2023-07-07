@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef SOUNDINSTRUMENT_H
-#define SOUNDINSTRUMENT_H
+#pragma once
 
 #include "processing/sound/sound.h"
 #include "model/instrument/melodic_instrument.h"
@@ -84,5 +83,3 @@ public:
 
 	ArpeggiatorSettings defaultArpSettings;
 };
-
-#endif

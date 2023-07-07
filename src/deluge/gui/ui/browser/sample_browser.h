@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef FILEBROWSER_H
-#define FILEBROWSER_H
+#pragma once
 
 #include "gui/ui/browser/browser.h"
 #include "hid/button.h"
@@ -85,5 +84,3 @@ private:
 };
 
 extern SampleBrowser sampleBrowser;
-
-#endif // FILEBROWSER_H

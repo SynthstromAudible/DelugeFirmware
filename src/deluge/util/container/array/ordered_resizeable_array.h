@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef ORDEREDRESIZEABLEARRAY_H_
-#define ORDEREDRESIZEABLEARRAY_H_
+#pragma once
 
 #include "util/container/array/resizeable_array.h"
 
@@ -81,5 +80,3 @@ protected:
 	// Shadows - doesn't override
 	inline void setKeyAtMemoryLocation(int32_t key, void* address) { *(int32_t*)address = key; }
 };
-
-#endif /* ORDEREDRESIZEABLEARRAY_H_ */

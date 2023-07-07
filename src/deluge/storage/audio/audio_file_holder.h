@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef AUDIOFILEHOLDER_H_
-#define AUDIOFILEHOLDER_H_
+#pragma once
 
 #include "definitions.h"
 #include "util/d_string.h"
@@ -43,5 +42,3 @@ public:
 	AudioFile* audioFile;
 	uint8_t audioFileType;
 };
-
-#endif /* AUDIOFILEHOLDER_H_ */

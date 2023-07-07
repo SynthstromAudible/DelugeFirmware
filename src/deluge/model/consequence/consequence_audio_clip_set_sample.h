@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CONSEQUENCEAUDIOCLIPSETSAMPLE_H_
-#define CONSEQUENCEAUDIOCLIPSETSAMPLE_H_
+#pragma once
 
 #include "model/consequence/consequence.h"
 #include "util/d_string.h"
@@ -32,5 +31,3 @@ public:
 	String filePathToRevertTo;
 	uint64_t endPosToRevertTo;
 };
-
-#endif /* CONSEQUENCEAUDIOCLIPSETSAMPLE_H_ */

@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef DRUMNAME_H_
-#define DRUMNAME_H_
+#pragma once
 
 #include "util/d_string.h"
 
@@ -28,5 +27,3 @@ public:
 	String name;
 	DrumName* next;
 };
-
-#endif /* DRUMNAME_H_ */

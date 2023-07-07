@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef AUDIOCLIP_H_
-#define AUDIOCLIP_H_
+#pragma once
 
 #include "model/clip/clip.h"
 #include "model/sample/sample_holder_for_clip.h"
@@ -114,5 +113,3 @@ private:
 	void detachAudioClipFromOutput(Song* song, bool shouldRetainLinksToOutput, bool shouldTakeParamManagerWith = false);
 	int getLoopingType(ModelStackWithTimelineCounter const* modelStack);
 };
-
-#endif /* AUDIOCLIP_H_ */

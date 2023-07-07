@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef LIVEPITCHSHIFTERPLAYHEAD_H_
-#define LIVEPITCHSHIFTERPLAYHEAD_H_
+#pragma once
 
 #include "definitions.h"
 
@@ -58,5 +57,3 @@ private:
 	void interpolate(int32_t* sampleRead, int numChannelsNow, int whichKernel);
 	void interpolateLinear(int32_t* sampleRead, int numChannelsNow, int whichKernel);
 };
-
-#endif /* LIVEPITCHSHIFTERPLAYHEAD_H_ */

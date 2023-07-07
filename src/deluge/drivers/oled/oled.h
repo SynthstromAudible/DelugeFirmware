@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef DRIVERS_ALL_CPUS_OLED_LOW_LEVEL_ALL_CPUS_OLED_LOW_LEVEL_ALL_CPUS_H_
-#define DRIVERS_ALL_CPUS_OLED_LOW_LEVEL_ALL_CPUS_OLED_LOW_LEVEL_ALL_CPUS_H_
+#pragma once
 
 #define SPI_TRANSFER_QUEUE_SIZE 32
 
@@ -35,5 +34,3 @@ struct SpiTransferQueueItem {
 };
 
 extern struct SpiTransferQueueItem spiTransferQueue[SPI_TRANSFER_QUEUE_SIZE];
-
-#endif /* DRIVERS_ALL_CPUS_OLED_LOW_LEVEL_ALL_CPUS_OLED_LOW_LEVEL_ALL_CPUS_H_ */

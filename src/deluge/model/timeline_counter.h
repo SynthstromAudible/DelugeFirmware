@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef TIMELINECOUNTER_H_
-#define TIMELINECOUNTER_H_
+#pragma once
 
 #include "modulation/params/param_manager.h"
 #include "RZA1/system/r_typedefs.h"
@@ -48,5 +47,3 @@ public:
 
 	ParamManagerForTimeline paramManager;
 };
-
-#endif /* TIMELINECOUNTER_H_ */

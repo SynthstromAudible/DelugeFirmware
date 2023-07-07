@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef SRC_TIMESTRETCHER_H_
-#define SRC_TIMESTRETCHER_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 #include "definitions.h"
@@ -126,5 +125,3 @@ inline int32_t getTotalChange(int32_t* totals1, int32_t* totals2) {
 	}
 	return totalChange;
 }
-
-#endif /* SRC_TIMESTRETCHER_H_ */

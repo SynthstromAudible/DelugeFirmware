@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef FUNCTIONS_H
-#define FUNCTIONS_H
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 #include "util/lookuptables/lookuptables.h"
@@ -573,5 +572,3 @@ inline void writeInt32(char** address, uint32_t number) {
 
 extern char miscStringBuffer[];
 extern char shortStringBuffer[];
-
-#endif // FUNCTIONS_H

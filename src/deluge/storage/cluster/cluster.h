@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CLUSTER_H_
-#define CLUSTER_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 #include "definitions.h"
@@ -51,5 +50,3 @@ public:
 
 	char data[CACHE_LINE_SIZE];
 };
-
-#endif /* CLUSTER_H_ */

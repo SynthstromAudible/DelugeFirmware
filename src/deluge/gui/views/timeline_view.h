@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef EDITORSCREEN_H
-#define EDITORSCREEN_H
+#pragma once
 
 #include "gui/ui/root_ui.h"
 #include "hid/button.h"
@@ -69,5 +68,3 @@ public:
 
 	bool inTripletsView();
 };
-
-#endif // EDITORSCREEN_H

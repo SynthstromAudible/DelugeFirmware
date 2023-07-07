@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef PLAYBACKMODE_H_
-#define PLAYBACKMODE_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 
@@ -61,5 +60,3 @@ public:
 };
 
 extern PlaybackMode* currentPlaybackMode;
-
-#endif /* PLAYBACKMODE_H_ */

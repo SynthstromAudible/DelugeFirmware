@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef AUTOMATEDTESTER_H_
-#define AUTOMATEDTESTER_H_
+#pragma once
 
 namespace AutomatedTester {
 void init();
@@ -25,5 +24,3 @@ void doMomentaryButtonPress(int x, int y);
 void possiblyDoSomething();
 
 } // namespace AutomatedTester
-
-#endif /* AUTOMATEDTESTER_H_ */

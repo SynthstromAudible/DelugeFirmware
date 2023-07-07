@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CFUNCTIONS_H_
-#define CFUNCTIONS_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 
@@ -36,5 +35,3 @@ uint32_t superfastTimerCountToNS(uint32_t timerCount);
 
 void delayMS(uint32_t ms);
 void delayUS(uint32_t us);
-
-#endif /* CFUNCTIONS_H_ */

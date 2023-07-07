@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef LOADINSTRUMENTPRESETUI_H_
-#define LOADINSTRUMENTPRESETUI_H_
+#pragma once
 
 #include "gui/ui/load/load_ui.h"
 #include "hid/button.h"
@@ -82,5 +81,3 @@ private:
 };
 
 extern LoadInstrumentPresetUI loadInstrumentPresetUI;
-
-#endif /* LOADINSTRUMENTPRESETUI_H_ */

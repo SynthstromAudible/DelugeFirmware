@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef NUMERICLAYER_H_
-#define NUMERICLAYER_H_
+#pragma once
 
 #include "definitions.h"
 #include "RZA1/system/r_typedefs.h"
@@ -32,5 +31,3 @@ public:
 
 	NumericLayer* next;
 };
-
-#endif /* NUMERICLAYER_H_ */
