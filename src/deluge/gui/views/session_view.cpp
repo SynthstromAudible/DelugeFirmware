@@ -154,7 +154,7 @@ int SessionView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 			masterCompEditMode++;
 			masterCompEditMode = masterCompEditMode % 6; //toggle master compressor setting
 
-			if (HAVE_OLED) {
+			if (display.type == DisplayType::OLED) {
 				modEncoderAction(1, 0);
 			}
 			else {
@@ -538,7 +538,7 @@ int SessionView::padAction(int xDisplay, int yDisplay, int on) {
 				masterCompEditMode = 5; //MIX
 			}
 
-			if (HAVE_OLED) {
+			if (display.type == DisplayType::OLED) {
 				modEncoderAction(1, 0);
 			}
 			else {

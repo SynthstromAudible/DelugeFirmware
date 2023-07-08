@@ -178,31 +178,33 @@ void SlotBrowser::convertToPrefixFormatIfPossible() {
 
 int SlotBrowser::getCurrentFilenameWithoutExtension(String* filenameWithoutExtension) {
 	int error;
-#if !HAVE_OLED
-	// If numeric...
-	Slot slot = getSlot(enteredText.get());
-	if (slot.slot != -1) {
-		error = filenameWithoutExtension->set(filePrefix);
-		if (error) {
-			return error;
-		}
-		error = filenameWithoutExtension->concatenateInt(slot.slot, 3);
-		if (error) {
-			return error;
-		}
-		if (slot.subSlot != -1) {
-			char buffer[2];
-			buffer[0] = 'A' + slot.subSlot;
-			buffer[1] = 0;
-			error = filenameWithoutExtension->concatenate(buffer);
+	if (display.type != DisplayType::OLED) {
+		// If numeric...
+		Slot slot = getSlot(enteredText.get());
+		if (slot.slot != -1) {
+			error = filenameWithoutExtension->set(filePrefix);
 			if (error) {
 				return error;
 			}
+			error = filenameWithoutExtension->concatenateInt(slot.slot, 3);
+			if (error) {
+				return error;
+			}
+			if (slot.subSlot != -1) {
+				char buffer[2];
+				buffer[0] = 'A' + slot.subSlot;
+				buffer[1] = 0;
+				error = filenameWithoutExtension->concatenate(buffer);
+				if (error) {
+					return error;
+				}
+			}
+		}
+		else {
+			filenameWithoutExtension->set(&enteredText);
 		}
 	}
-	else
-#endif
-	{
+	else {
 		filenameWithoutExtension->set(&enteredText);
 	}
 

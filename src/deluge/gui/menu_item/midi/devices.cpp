@@ -56,13 +56,13 @@ void Devices::selectEncoderAction(int offset) {
 		int newValue = soundEditor.currentValue + offset;
 
 		if (newValue >= MIDIDeviceManager::hostedMIDIDevices.getNumElements()) {
-			if (HAVE_OLED) {
+			if (display.type == DisplayType::OLED) {
 				return;
 			}
 			newValue = lowestDeviceNum;
 		}
 		else if (newValue < lowestDeviceNum) {
-			if (HAVE_OLED) {
+			if (display.type == DisplayType::OLED) {
 				return;
 			}
 			newValue = MIDIDeviceManager::hostedMIDIDevices.getNumElements() - 1;

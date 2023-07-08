@@ -58,18 +58,27 @@ public:
 
 	//char const** getOptions() { static char const* options[] = {"SINE", "TRIANGLE", "SQUARE", "SAW", "MMS1", "SUB1", "SAMPLE", "INL", "INR", "INLR", "SQ50", "SQ02", "SQ01", "SUB2", "SQ20", "SA50", "S101", "S303", "MMS2", "MMS3", "TABLE"}; return options; }
 	char const** getOptions() {
-#if HAVE_OLED
 		static char inLText[] = "Input (left)";
-		static char const* options[] = {"SINE",  "TRIANGLE",      "SQUARE",         "Analog square",
-		                                "Saw",   "Analog saw",    "Wavetable",      "SAMPLE",
-		                                inLText, "Input (right)", "Input (stereo)", NULL};
-		inLText[5] = ((AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn)) ? ' ' : 0;
-#else
-		static char inLText[4] = "INL";
-		static char const* options[] = {"SINE",      "TRIANGLE", "SQUARE", "ASQUARE", "SAW", "ASAW",
-		                                "Wavetable", "SAMPLE",   inLText,  "INR",     "INLR"};
-		inLText[2] = ((AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn)) ? 'L' : 0;
-#endif
+
+		static char const* options[] = {"Sine",
+		                                "Triangle",                              //<
+		                                "Square",                                //<
+		                                HAVE_OLED ? "Analog square" : "ASquare", //<
+		                                "Saw",                                   //<
+		                                HAVE_OLED ? "Analog saw" : "ASaw",       //<
+		                                "Wavetable",                             //<
+		                                "Sample",                                //<
+		                                inLText,                                 //<
+		                                HAVE_OLED ? "Input (right)" : "INR",     //<
+		                                HAVE_OLED ? "Input (stereo)" : "INLR",   //<
+		                                NULL};                                   //<
+		size_t idx = (display.type == DisplayType::OLED) ? 5 : 2;
+		if (AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn) {
+			inLText[idx] = (display.type == DisplayType::OLED) ? 'L' : ' ';
+		}
+		else {
+			inLText[idx] = '\0';
+		}
 		return options;
 	}
 
@@ -84,9 +93,7 @@ public:
 			return NUM_OSC_TYPES - 2;
 		}
 	}
-	bool isRelevant(Sound* sound, int whichThing) {
-		return (sound->getSynthMode() != SYNTH_MODE_FM);
-	}
+	bool isRelevant(Sound* sound, int whichThing) { return (sound->getSynthMode() != SYNTH_MODE_FM); }
 };
 
 } // namespace menu_item::osc

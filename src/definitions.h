@@ -20,6 +20,7 @@
 
 #include "RZA1/system/r_typedefs.h"
 #include "RZA1/cpu_specific.h"
+#include "stddef.h"
 
 #define FIRMWARE_OLD 0
 #define FIRMWARE_1P2P0 1
@@ -899,10 +900,8 @@ typedef enum SyncLevel_ {
 
 #define MAX_NUM_UINTS_TO_REP_ALL_PARAMS 2
 
-#if HAVE_OLED
-#define BROWSER_AND_MENU_NUM_LINES 3
-#else
-#define BROWSER_AND_MENU_NUM_LINES 1
+#ifdef __cplusplus
+constexpr size_t BROWSER_AND_MENU_NUM_LINES = HAVE_OLED ? 3 : 1;
 #endif
 
 #endif

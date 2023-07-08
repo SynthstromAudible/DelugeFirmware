@@ -4462,8 +4462,10 @@ displayError:
 	display.setText("A002");
 #endif
 	replaceInstrument(oldInstrument, newInstrument);
-#if ALPHA_OR_BETA_VERSION && !HAVE_OLED
-	view.displayOutputName(newInstrument);
+#if ALPHA_OR_BETA_VERSION
+	if (display.type != DisplayType::OLED) {
+		view.displayOutputName(newInstrument);
+	}
 #endif
 
 	instrumentSwapped(newInstrument);

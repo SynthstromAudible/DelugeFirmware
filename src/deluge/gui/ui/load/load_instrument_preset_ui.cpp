@@ -594,60 +594,32 @@ bool LoadInstrumentPresetUI::findUnusedSlotVariation(String* oldName, String* ne
 	char const* oldNameChars = oldName->get();
 	int oldNameLength = strlen(oldNameChars);
 
-#if !HAVE_OLED
-	int subSlot = -1;
-	// For numbered slots
-	if (oldNameLength == 3) {
+	if (display.type != DisplayType::OLED) {
+		int subSlot = -1;
+		// For numbered slots
+		if (oldNameLength == 3) {
 doSlotNumber:
-		char buffer[5];
-		buffer[0] = oldNameChars[0];
-		buffer[1] = oldNameChars[1];
-		buffer[2] = oldNameChars[2];
-		buffer[3] = 0;
-		buffer[4] = 0;
-		int slotNumber = stringToUIntOrError(buffer);
-		if (slotNumber < 0) {
-			goto nonNumeric;
-		}
-
-		while (true) {
-			// Try next subSlot up
-			subSlot++;
-
-			// If reached end of alphabet/subslots, try next number up.
-			if (subSlot >= 26) {
-				goto tryWholeNewSlotNumbers;
+			char buffer[5];
+			buffer[0] = oldNameChars[0];
+			buffer[1] = oldNameChars[1];
+			buffer[2] = oldNameChars[2];
+			buffer[3] = 0;
+			buffer[4] = 0;
+			int slotNumber = stringToUIntOrError(buffer);
+			if (slotNumber < 0) {
+				goto nonNumeric;
 			}
 
-			buffer[3] = 'A' + subSlot;
-
-			int i = fileItems.search(buffer);
-			if (i >= fileItems.getNumElements()) {
-				break;
-			}
-
-			FileItem* fileItem = (FileItem*)fileItems.getElementAddress(i);
-			char const* fileItemNameChars = fileItem->filename.get();
-			if (!memcasecmp(buffer, fileItemNameChars, 4)) {
-				if (fileItemNameChars[4] == 0) {
-					continue;
-				}
-				if (fileItemNameChars[4] == '.' && fileItem->filenameIncludesExtension) {
-					continue;
-				}
-			}
-			break;
-		}
-
-		if (false) {
-tryWholeNewSlotNumbers:
 			while (true) {
-				slotNumber++;
-				if (slotNumber >= numSongSlots) {
-					newName->set(oldName);
-					return false;
+				// Try next subSlot up
+				subSlot++;
+
+				// If reached end of alphabet/subslots, try next number up.
+				if (subSlot >= 26) {
+					goto tryWholeNewSlotNumbers;
 				}
-				intToString(slotNumber, buffer, 3);
+
+				buffer[3] = 'A' + subSlot;
 
 				int i = fileItems.search(buffer);
 				if (i >= fileItems.getNumElements()) {
@@ -666,28 +638,59 @@ tryWholeNewSlotNumbers:
 				}
 				break;
 			}
+
+			if (false) {
+tryWholeNewSlotNumbers:
+				while (true) {
+					slotNumber++;
+					if (slotNumber >= numSongSlots) {
+						newName->set(oldName);
+						return false;
+					}
+					intToString(slotNumber, buffer, 3);
+
+					int i = fileItems.search(buffer);
+					if (i >= fileItems.getNumElements()) {
+						break;
+					}
+
+					FileItem* fileItem = (FileItem*)fileItems.getElementAddress(i);
+					char const* fileItemNameChars = fileItem->filename.get();
+					if (!memcasecmp(buffer, fileItemNameChars, 4)) {
+						if (fileItemNameChars[4] == 0) {
+							continue;
+						}
+						if (fileItemNameChars[4] == '.' && fileItem->filenameIncludesExtension) {
+							continue;
+						}
+					}
+					break;
+				}
+			}
+
+			newName->set(buffer);
+		}
+		else if (oldNameLength == 4) {
+			char subSlotChar = oldNameChars[3];
+			if (subSlotChar >= 'a' && subSlotChar <= 'z') {
+				subSlot = subSlotChar - 'a';
+			}
+			else if (subSlotChar >= 'A' && subSlotChar <= 'Z') {
+				subSlot = subSlotChar - 'A';
+			}
+			else {
+				goto nonNumeric;
+			}
+
+			goto doSlotNumber;
 		}
 
-		newName->set(buffer);
-	}
-	else if (oldNameLength == 4) {
-		char subSlotChar = oldNameChars[3];
-		if (subSlotChar >= 'a' && subSlotChar <= 'z') {
-			subSlot = subSlotChar - 'a';
-		}
-		else if (subSlotChar >= 'A' && subSlotChar <= 'Z') {
-			subSlot = subSlotChar - 'A';
-		}
+		// Or, for named slots
 		else {
 			goto nonNumeric;
 		}
-
-		goto doSlotNumber;
 	}
 
-	// Or, for named slots
-	else
-#endif
 	{
 nonNumeric:
 		int oldNumber = 1;
