@@ -1889,7 +1889,7 @@ void InstrumentClipView::adjustVelocity(int velocityChange) {
 	int velocityValue = 0;
 
 	Action* action;
-	if (HAVE_OLED || display.hasPopup()) {
+	if (display.type == DisplayType::OLED || display.hasPopup()) {
 		action = actionLogger.getNewAction(ACTION_NOTE_EDIT, true);
 		if (!action) {
 			return; // Necessary why?
@@ -2188,11 +2188,7 @@ multiplePresses:
 	}
 
 	if (probabilityValue != -1) {
-#if HAVE_OLED
-		char buffer[29];
-#else
-		char buffer[5];
-#endif
+		char buffer[HAVE_OLED ? 29 : 5];
 		char* displayString;
 		if (probabilityValue <= NUM_PROBABILITY_VALUES) {
 			if (display.type == DisplayType::OLED) {
@@ -4691,11 +4687,7 @@ doCompareNote:
 	}
 
 	// Now, decide what message to display ---------------------------------------------------
-#if HAVE_OLED
-	char buffer[24];
-#else
-	char buffer[5];
-#endif
+	char buffer[HAVE_OLED ? 24 : 5];
 	char const* message;
 	bool alignRight = false;
 

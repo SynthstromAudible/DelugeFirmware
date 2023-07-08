@@ -26,15 +26,11 @@ static char const* mode_options[] = {HAVE_OLED ? "V-trig" : "VTRI", // V-trigger
                                      HAVE_OLED ? "S-trig" : "STRI", // S-trigger
                                      NULL, NULL};
 
-#if HAVE_OLED
 static char mode_title[] = "Gate outX mode";
-#else
-static char* mode_title = nullptr;
-#endif
 
 class Mode final : public Selection {
 public:
-	Mode() : Selection(mode_title) { basicOptions = mode_options; }
+	Mode() : Selection(HAVE_OLED ? mode_title : "") { basicOptions = mode_options; }
 	void readCurrentValue() { soundEditor.currentValue = cvEngine.gateChannels[soundEditor.currentSourceIndex].mode; }
 	void writeCurrentValue() { cvEngine.setGateType(soundEditor.currentSourceIndex, soundEditor.currentValue); }
 };

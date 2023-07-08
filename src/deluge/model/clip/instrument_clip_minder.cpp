@@ -123,6 +123,7 @@ void InstrumentClipMinder::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 void InstrumentClipMinder::drawMIDIControlNumber(int controlNumber, bool automationExists) {
 
 	char buffer[HAVE_OLED ? 30 : 5];
+	bool finish = false;
 	if (controlNumber == CC_NUMBER_NONE) {
 		strcpy(buffer, HAVE_OLED ? "No param" : "NONE");
 	}
@@ -135,21 +136,25 @@ void InstrumentClipMinder::drawMIDIControlNumber(int controlNumber, bool automat
 	else {
 		buffer[0] = 'C';
 		buffer[1] = 'C';
-#if HAVE_OLED
-		buffer[2] = ' ';
-		intToString(controlNumber, &buffer[3]);
+		if (display.type == DisplayType::OLED) {
+			buffer[2] = ' ';
+			intToString(controlNumber, &buffer[3]);
+		}
+		else {
+			char* numberStartPos = (controlNumber < 100) ? (buffer + 2) : (buffer + 1);
+			intToString(controlNumber, numberStartPos);
+		}
 	}
-	if (automationExists) {
-		strcat(buffer, "\n(automated)");
-	}
-	display.popupText(buffer);
 
-#else
-		char* numberStartPos = (controlNumber < 100) ? (buffer + 2) : (buffer + 1);
-		intToString(controlNumber, numberStartPos);
+	if (display.type == DisplayType::OLED) {
+		if (automationExists) {
+			strcat(buffer, "\n(automated)");
+		}
+		display.popupText(buffer);
 	}
-	display.setText(buffer, true, automationExists ? 3 : 255, true);
-#endif
+	else {
+		display.setText(buffer, true, automationExists ? 3 : 255, true);
+	}
 }
 
 void InstrumentClipMinder::createNewInstrument(int newInstrumentType) {
