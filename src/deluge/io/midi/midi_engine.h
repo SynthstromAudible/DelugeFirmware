@@ -46,9 +46,6 @@ public:
 	void flushMIDI();
 	void sendUsbMidi(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2, int filter);
 
-	// data should be a complete message with data[0] = 0xf0, data[len-1] = 0xf7
-	void sendSysex(int ip, int d, int cable, uint8_t* data, int len);
-
 	void sendSerialMidi(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2);
 	void sendPGMChange(int channel, int pgm, int filter);
 	void sendAllNotesOff(int channel, int filter);
@@ -78,7 +75,7 @@ private:
 	                         uint32_t* timer = NULL);
 
 	// or midi device?? whatever makes sense for a consumer as a reply address.
-	void midiSysexReceived(int ip, int d, int cable, uint8_t* data, int len);
+	void midiSysexReceived(MIDIDevice* device, uint8_t* data, int len);
 	int getPotentialNumConnectedUSBMIDIDevices(int ip);
 };
 

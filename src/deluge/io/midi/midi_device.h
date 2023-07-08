@@ -96,6 +96,9 @@ public:
 
 	inline void sendCC(int channel, int cc, int value) { sendMessage(0x0B, channel, cc, value); }
 
+	// data should be a complete message with data[0] = 0xf0, data[len-1] = 0xf7
+	virtual void sendSysex(uint8_t* data, int len) = 0;
+
 	void sendRPN(int channel, int rpnMSB, int rpnLSB, int valueMSB);
 
 	inline bool hasDefaultVelocityToLevelSet() { return defaultVelocityToLevel; }
@@ -133,11 +136,16 @@ protected:
 
 class MIDIDeviceUSB : public MIDIDevice {
 public:
-	MIDIDeviceUSB() { needsToSendMCMs = 0; }
+	MIDIDeviceUSB(uint8_t portNum = 0) {
+		portNumber = portNum;
+		needsToSendMCMs = 0;
+	}
 	void sendMessage(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2);
+	void sendSysex(uint8_t* data, int len) override;
 	void connectedNow(int midiDeviceNum);
 	void sendMCMsNowIfNeeded();
 	uint8_t needsToSendMCMs;
+	uint8_t portNumber;
 };
 
 class MIDIDeviceUSBHosted final : public MIDIDeviceUSB {
@@ -155,11 +163,10 @@ public:
 
 class MIDIDeviceUSBUpstream final : public MIDIDeviceUSB {
 public:
-	MIDIDeviceUSBUpstream(uint8_t portNum = 0) { portNumber = portNum; }
+	MIDIDeviceUSBUpstream(uint8_t portNum = 0) : MIDIDeviceUSB(portNum) {}
 	void writeReferenceAttributesToFile();
 	void writeToFlash(uint8_t* memory);
 	char const* getDisplayName();
-	uint8_t portNumber;
 };
 
 class MIDIDeviceDINPorts final : public MIDIDevice {
@@ -171,4 +178,5 @@ public:
 	void writeToFlash(uint8_t* memory);
 	char const* getDisplayName();
 	void sendMessage(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2);
+	void sendSysex(uint8_t* data, int len) override;
 };

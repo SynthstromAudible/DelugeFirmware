@@ -606,7 +606,8 @@ bool MidiEngine::checkIncomingSerialMidi() {
 					currentlyReceivingSysExSerial = false;
 					if (dev->incomingSysexPos < sizeof dev->incomingSysexBuffer) {
 						dev->incomingSysexBuffer[dev->incomingSysexPos++] = thisSerialByte;
-						midiSysexReceived(-1, -1, 0, dev->incomingSysexBuffer, dev->incomingSysexPos);
+						midiSysexReceived(&MIDIDeviceManager::dinMIDIPorts, dev->incomingSysexBuffer,
+						                  dev->incomingSysexPos);
 					}
 				}
 				return true;
@@ -718,13 +719,13 @@ void MidiEngine::checkIncomingUsbSysex(uint8_t const* msg, int ip, int d, int ca
 
 	if (will_end) {
 		if (dev->incomingSysexBuffer[0] == 0xf0) {
-			midiSysexReceived(ip, d, cable, dev->incomingSysexBuffer, dev->incomingSysexPos);
+			midiSysexReceived(dev, dev->incomingSysexBuffer, dev->incomingSysexPos);
 		}
 		dev->incomingSysexPos = 0;
 	}
 }
 
-void MidiEngine::midiSysexReceived(int ip, int d, int cable, uint8_t* data, int len) {
+void MidiEngine::midiSysexReceived(MIDIDevice* device, uint8_t* data, int len) {
 	if (len < 4) {
 		return;
 	}
@@ -738,7 +739,7 @@ void MidiEngine::midiSysexReceived(int ip, int d, int cable, uint8_t* data, int 
 			if (len >= 5) {
 				pong[3] = data[3];
 			}
-			sendSysex(ip, d, cable, pong, sizeof pong);
+			device->sendSysex(pong, sizeof pong);
 		} break;
 
 		case 1:
@@ -746,62 +747,12 @@ void MidiEngine::midiSysexReceived(int ip, int d, int cable, uint8_t* data, int 
 			break;
 
 		case 2:
-			HIDSysex::sysexReceived(ip, d, cable, data, len);
+			HIDSysex::sysexReceived(device, data, len);
 			break;
 
 		case 0x7f: // PONG, reserved
 		default:
 			break;
-		}
-	}
-}
-
-void MidiEngine::sendSysex(int ip, int d, int cable, uint8_t* data, int len) {
-	if (len < 4 || data[0] != 0xf0 || data[len - 1] != 0xf7) {
-		return;
-	}
-
-	if (ip < 0) {
-		// NB: beware of MIDI_TX_BUFFER_SIZE
-		for (int i = 0; i < len; i++) {
-			bufferMIDIUart(data[i]);
-		}
-	}
-	else {
-		int potentialNumDevices = getPotentialNumConnectedUSBMIDIDevices(ip);
-
-		if (d >= potentialNumDevices) {
-			return;
-		}
-		ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][d];
-		int maxPort = connectedDevice->maxPortConnected;
-		if (cable > maxPort) {
-			return;
-		}
-
-		int pos = 0;
-		while (pos < len) {
-			int status, byte0 = 0, byte1 = 0, byte2 = 0;
-			byte0 = data[pos];
-			if (pos == 0 || len - pos > 3) {
-				status = 0x4; // sysex start or continue
-				byte1 = data[pos + 1];
-				byte2 = data[pos + 2];
-				pos += 3;
-			}
-			else {
-				status = 0x4 + (len - pos); // sysex end with N bytes
-				if ((len - pos) > 1) {
-					byte1 = data[pos + 1];
-				}
-				if ((len - pos) > 2) {
-					byte2 = data[pos + 2];
-				}
-				pos = len;
-			}
-			status |= (cable << 4);
-			uint32_t packed = ((uint32_t)byte2 << 24) | ((uint32_t)byte1 << 16) | ((uint32_t)byte0 << 8) | status;
-			connectedDevice->bufferMessage(packed);
 		}
 	}
 }
