@@ -4,7 +4,6 @@
 #include "wrenimpl.h"
 #include "api.h"
 #include "memory/wren_heap.h"
-#include <string>
 #include "string.h"
 
 extern "C" {
@@ -120,10 +119,7 @@ void VM::loadModuleComplete(WrenVM* vm, const char* mod, WrenLoadModuleResult re
 	// TODO
 }
 
-WrenForeignMethodFn VM::bindForeignMethodFn(WrenVM* vm, const char* moduleName, const char* className, bool isStatic,
-                                            const char* signature) {
-	std::string mod(moduleName), cls(className), sig(signature);
-
+WrenForeignMethodFn VM::findModuleFunc(WrenVM* vm, std::string mod, std::string cls, bool isStatic, std::string sig) {
 	if (Wren::API::modules().count(mod) > 0) {
 		auto m = Wren::API::modules()[mod];
 		if (m.count(cls) > 0) {
@@ -138,37 +134,30 @@ WrenForeignMethodFn VM::bindForeignMethodFn(WrenVM* vm, const char* moduleName, 
 				}
 			}
 			else {
-				VM::print(signature);
+				VM::print(sig.c_str());
 			}
 		}
 		else {
-			VM::print(className);
+			VM::print(cls.c_str());
 		}
 	}
 	else {
-		VM::print(moduleName);
+		VM::print(mod.c_str());
 	}
 	return [](WrenVM* vm) -> void {};
 }
 
+WrenForeignMethodFn VM::bindForeignMethodFn(WrenVM* vm, const char* moduleName, const char* className, bool isStatic,
+                                            const char* signature) {
+	std::string mod(moduleName), cls(className), sig(signature);
+	return VM::findModuleFunc(vm, mod, cls, isStatic, sig);
+}
+
 WrenForeignClassMethods VM::bindForeignClassFn(WrenVM* vm, const char* moduleName, const char* className) {
-	WrenForeignClassMethods methods;
 	std::string mod(moduleName), cls(className);
-	if (mod == "main") {
-		if (cls == "Button") {
-			return {
-			    .allocate = [](WrenVM* vm) -> void {
-				    auto data = (hid::Button*)wrenSetSlotNewForeign(vm, 0, 0, sizeof(hid::Button));
-				    int index = (int)wrenGetSlotDouble(vm, 1);
-				    *data = API::buttonValues[index];
-			    },
-			    .finalize = [](void* data) -> void { data = NULL; },
-			};
-		}
-	}
 	return {
-	    .allocate = [](WrenVM* vm) -> void {},
-	    .finalize = [](void* data) -> void {},
+	    .allocate = findModuleFunc(vm, mod, cls, false, "<allocate>"),
+	    .finalize = (WrenFinalizerFn)findModuleFunc(vm, mod, cls, false, "<finalize>"),
 	};
 }
 

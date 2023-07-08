@@ -1,5 +1,6 @@
 #pragma once
 #include "wren.hpp"
+#include <string>
 #include "hid/button.h"
 
 #define SCRIPT_BUFFER_SIZE 1024
@@ -33,6 +34,9 @@ protected:
 	static WrenLoadModuleResult loadModuleFn(WrenVM* vm, const char* name);
 	static void loadModuleComplete(WrenVM* vm, const char* mod, WrenLoadModuleResult result);
 	static char* getSourceForModule(const char*);
+
+	static WrenForeignMethodFn findModuleFunc(WrenVM* vm, std::string mod, std::string cls, bool isStatic,
+	                                          std::string sig);
 	static WrenForeignMethodFn bindForeignMethodFn(WrenVM* vm, const char* module, const char* className, bool isStatic,
 	                                               const char* signature);
 	static WrenForeignClassMethods bindForeignClassFn(WrenVM* vm, const char* mod, const char* cls);
