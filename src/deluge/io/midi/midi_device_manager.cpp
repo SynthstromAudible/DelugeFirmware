@@ -568,7 +568,14 @@ bool ConnectedUSBMIDIDevice::consumeBytes() {
 	}
 
 	int i = 0;
-	int to_send = getMin(queued, MIDI_SEND_BUFFER_LEN_INNER);
+	int max_size = MIDI_SEND_BUFFER_LEN_INNER;
+	if (g_usb_usbmode == USB_HOST) {
+		// many devices do not accept more than 64 bytes of data at a time
+		// likely this can be inferred from the device metadata somehow?
+		max_size = MIDI_SEND_BUFFER_LEN_INNER_HOST;
+	}
+
+	int to_send = getMin(queued, max_size);
 	for (i = 0; i < to_send; i++) {
 		memcpy(dataSendingNow + (i * 4), &sendDataRingBuf[ringBufReadIdx & MIDI_SEND_RING_MASK], 4);
 		ringBufReadIdx++;

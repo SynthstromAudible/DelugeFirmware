@@ -44,7 +44,6 @@ void usb_cstd_usb_task();
 #include "RZA1/usb/r_usb_hmidi/src/inc/r_usb_hmidi.h"
 
 extern uint16_t g_usb_peri_connected;
-extern uint16_t g_usb_usbmode;
 
 uint8_t stopSendingAfterDeviceNum[USB_NUM_USBIP];
 uint8_t usbDeviceNumBeingSentToNow[USB_NUM_USBIP];
@@ -92,7 +91,12 @@ void usbSendComplete(int ip) {
 			// TODO: do some cooperative scheduling here. so if there is a flood of data
 			// on connected device 1 and we just want to send a few notes on device 2,
 			// make sure device 2 ges a fair shot now and then
-			flushUSBMIDIToHostedDevice(ip, midiDeviceNum);
+
+			g_usb_midi_send_utr[USB_CFG_USE_USBIP].tranlen = connectedDevice->numBytesSendingNow;
+			g_usb_midi_send_utr[USB_CFG_USE_USBIP].p_tranadr = connectedDevice->dataSendingNow;
+			int pipeNumber = g_usb_hmidi_tmp_ep_tbl[USB_CFG_USE_USBIP][midiDeviceNum][0];
+			usb_send_start_rohan(&g_usb_midi_send_utr[USB_CFG_USE_USBIP], pipeNumber, connectedDevice->dataSendingNow,
+			                     connectedDevice->numBytesSendingNow);
 			return;
 		}
 

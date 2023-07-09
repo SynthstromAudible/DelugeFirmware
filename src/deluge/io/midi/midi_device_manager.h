@@ -33,6 +33,7 @@ struct MIDIDeviceUSB;
 // NOTE: increasing this even more doesn't work.
 // Looks like a hardware limitation (maybe we more in FS mode)?
 #define MIDI_SEND_BUFFER_LEN_INNER 32
+#define MIDI_SEND_BUFFER_LEN_INNER_HOST 16
 
 // MUST be an exact power of two
 #define MIDI_SEND_BUFFER_LEN_RING 1024

@@ -86,6 +86,8 @@ extern bool anythingInUSBOutputBuffer;
 
 extern "C" {
 #endif
+extern uint16_t g_usb_usbmode;
+
 // used in host mode
 void usbSendComplete(int ip);
 // used in peripheral mode
