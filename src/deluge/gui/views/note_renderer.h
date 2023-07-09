@@ -24,15 +24,16 @@ public:
     // this function was previously in noterow but now has a noterow as parameter
     void renderNoteRow(NoteRow* noteRow, TimelineView* editorScreen, uint8_t* image, uint8_t occupancyMask[], bool overwriteExisting,
                         uint32_t effectiveRowLength, bool allowNoteTails, int renderWidth, int32_t xScroll,
-                        uint32_t xZoom, int xStartNow, int xEnd, bool drawRepeats);
+                        uint32_t xZoom, int xStartNow, int xEnd, bool drawRepeats, int clipColourOffset);
 
 private:
 	// based on IntrumentClip::getMainColorFromY , but left out noterow color offset
 	// because it also doesnt seem used in instrument clip view.
-	void getNoteColourFromY(int yNote, uint8_t rgb[]);
+	void getNoteColourFromY(int yNote, int clipColourOffset, uint8_t rgb[]);
 
 	// applies color changes based on note properties such as accidentalTranspose.
-	void getNoteSpecificColours(int yNote,	             
+	void getNoteSpecificColours(int yNote,
+	                       int clipColourOffset,	             
 		                   Note* note, 
 	                       uint8_t rowDefaultColour[],
 	                       uint8_t rowDefaultBlurColour[],

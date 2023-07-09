@@ -27,7 +27,7 @@ void NoteRenderer::recalculateColour(uint8_t yDisplay) {
 // the color parameters have been removed.
 void NoteRenderer::renderNoteRow(NoteRow* noteRow, TimelineView* editorScreen, uint8_t* image, uint8_t occupancyMask[], bool overwriteExisting,
                     uint32_t effectiveRowLength, bool allowNoteTails, int renderWidth, int32_t xScroll,
-                    uint32_t xZoom, int xStartNow, int xEnd, bool drawRepeats) {
+                    uint32_t xZoom, int xStartNow, int xEnd, bool drawRepeats, int clipColourOffset) {
 
 	if (overwriteExisting) {
 		memset(image, 0, renderWidth * 3);
@@ -87,9 +87,9 @@ void NoteRenderer::renderNoteRow(NoteRow* noteRow, TimelineView* editorScreen, u
 		uint8_t noteColour[3];
 		uint8_t noteBlurColour[3];
 		uint8_t noteTailColour[3];
-        getNoteColourFromY(noteRow->y, rowDefaultColour);
-        getBlurColour(rowDefaultColour, rowDefaultBlurColour);
-        getTailColour(rowDefaultTailColour, rowDefaultTailColour);
+        getNoteColourFromY(noteRow->y, clipColourOffset, rowDefaultColour);
+        getBlurColour(rowDefaultBlurColour, rowDefaultColour);
+        getTailColour(rowDefaultTailColour, rowDefaultColour);
 
 		for (int xDisplay = xStartNow; xDisplay < xEndNow; xDisplay++) {
 			if (xDisplay != xStartNow) squareStartPos = squareEndPos[xDisplay - xStartNow - 1];
@@ -100,14 +100,14 @@ void NoteRenderer::renderNoteRow(NoteRow* noteRow, TimelineView* editorScreen, u
 			uint8_t* pixel = image + xDisplay * 3;
 
 			if (note) {
-				getNoteSpecificColours(noteRow->y, note, rowDefaultColour, rowDefaultBlurColour, rowDefaultTailColour, noteColour, noteBlurColour, noteTailColour);
+				getNoteSpecificColours(noteRow->y, clipColourOffset,  note, rowDefaultColour, rowDefaultBlurColour, rowDefaultTailColour, noteColour, noteBlurColour, noteTailColour);
 			}
 
 			// If Note starts somewhere within square, draw the blur colour
 			if (note && note->pos > squareStartPos) {
-				pixel[0] = rowDefaultColour[0];
-				pixel[1] = rowDefaultColour[1];
-				pixel[2] = rowDefaultColour[2];
+				pixel[0] = noteBlurColour[0];
+				pixel[1] = noteBlurColour[1];
+				pixel[2] = noteBlurColour[2];
 				if (occupancyMask) occupancyMask[xDisplay] = 64;
 			}
 
@@ -148,11 +148,15 @@ void NoteRenderer::renderNoteRow(NoteRow* noteRow, TimelineView* editorScreen, u
 // each clip had a color offset and each noterow had a colour offset as well.
 // but it didn't seem that they were used in all render functions so i left them out
 // for now. if nothing breaks, this comment can be removed.
-void NoteRenderer::getNoteColourFromY(int yNote, uint8_t rgb[]) {
-	hueToRGBWithColorScheme(yNote * -8 / 3, rgb,runtimeFeatureSettings.get(RuntimeFeatureSettingType::ColorScheme));
+void NoteRenderer::getNoteColourFromY(int yNote,int clipColourOffset, uint8_t rgb[]) {
+	//rgb[0] = 0; // very dark R
+	//rgb[1] = 255; // very dark G
+	//rgb[2] = 0; // blue!
+	hueToRGBWithColorScheme((yNote + clipColourOffset) * -8 / 3, rgb,runtimeFeatureSettings.get(RuntimeFeatureSettingType::ColorScheme));
 }
 
 void NoteRenderer::getNoteSpecificColours(int y,
+	                                     int clipColourOffset,
 	                                     Note* note, 
 	                                     uint8_t rowDefaultColour[],
 	                                     uint8_t rowDefaultBlurColour[],
@@ -162,15 +166,17 @@ void NoteRenderer::getNoteSpecificColours(int y,
                                          uint8_t  noteTailColour[]) {
 	// copy either the defaults or tranpose
 	if (note->getAccidentalTranspose() == 0) {
-		memcpy(rowDefaultColour, noteColour, 3 * sizeof(uint8_t));
-		memcpy(rowDefaultBlurColour, noteBlurColour, 3 * sizeof(uint8_t));
-		memcpy(rowDefaultTailColour, noteTailColour, 3 * sizeof(uint8_t));
+		for(int i=0; i<3 ; i++) {
+			noteColour[i] = rowDefaultColour[i]; 
+			noteBlurColour[i] = rowDefaultBlurColour[i];
+            noteTailColour[i] = rowDefaultTailColour[i];
+		}
 	}
 	else {
 		// for now we treat it like adding. which is what we want for some colorschemes.
 		// but not for all color schemes.
-		getNoteColourFromY(y + note->getAccidentalTranspose(), noteColour);
-	    getBlurColour(noteColour,noteBlurColour);
-	    getTailColour(noteColour,noteTailColour);  	
+		getNoteColourFromY(y + note->getAccidentalTranspose(), clipColourOffset, noteColour);
+	    getBlurColour(noteBlurColour, noteColour);
+	    getTailColour(noteTailColour, noteColour);  	
 	}
 }

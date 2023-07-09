@@ -4628,7 +4628,7 @@ void InstrumentClipView::performActualRender(uint32_t whichRows, uint8_t* image,
 				noteRenderer.renderNoteRow(noteRow,this, image,
 				                   occupancyMaskOfRow, true, modelStackWithNoteRow->getLoopLength(),
 				                   clip->allowNoteTails(modelStackWithNoteRow), renderWidth, xScroll, xZoom, 0,
-				                   renderWidth, false);
+				                   renderWidth, false,clip->colourOffset);
 			}
 
 			if (drawUndefinedArea) {
