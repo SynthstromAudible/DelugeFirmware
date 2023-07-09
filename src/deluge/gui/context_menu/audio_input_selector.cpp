@@ -27,6 +27,8 @@ extern int8_t defaultAudioOutputInputChannel;
 
 namespace deluge::gui::context_menu {
 
+#define VALUE_OFF 0
+
 #define VALUE_LEFT 1
 #define VALUE_LEFT_ECHO 2
 
@@ -44,8 +46,6 @@ namespace deluge::gui::context_menu {
 #define VALUE_OUTPUT 10
 
 #define NUM_VALUES 11
-
-extern int8_t defaultAudioOutputInputChannel;
 
 AudioInputSelector audioInputSelector{};
 

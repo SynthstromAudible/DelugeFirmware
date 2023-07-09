@@ -46,8 +46,8 @@
 #include "hid/encoders.h"
 #include "gui/ui/keyboard_screen.h"
 #include <new>
-#include "gui/context_menu/sample_browser_kit.h"
-#include "gui/context_menu/sample_browser_synth.h"
+#include "gui/context_menu/sample_browser/kit.h"
+#include "gui/context_menu/sample_browser/synth.h"
 #include "util/d_string.h"
 #include "gui/context_menu/delete_file.h"
 #include "gui/waveform/waveform_basic_navigator.h"
