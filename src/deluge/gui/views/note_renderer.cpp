@@ -143,16 +143,70 @@ void NoteRenderer::renderNoteRow(NoteRow* noteRow, TimelineView* editorScreen, u
 
 }
 
-// this function gets the color for a certain pitch.
-// in previous versions (InstrumentClip::getMainColorFromY)
-// each clip had a color offset and each noterow had a colour offset as well.
-// but it didn't seem that they were used in all render functions so i left them out
-// for now. if nothing breaks, this comment can be removed.
+
+/**
+* gets the note color for pitch y.
+* 
+* applies the colorschemes.
+* 
+* Classic: applies sine waves to the r,g,b, components for nice gradients.
+* 
+* OctavePiano: renders 'black key' notes different from 'white key' notes,
+* and gives each octave a different color. within octaves colors are constant.
+* red and green are not used to full extend so that they can be used to display
+* accidental transposes.
+* 
+* Blue: renders a blue gradient. This is for super visible accidentals in red and green.
+* 
+*
+*
+*
+*
+*/
 void NoteRenderer::getNoteColourFromY(int yNote,int clipColourOffset, uint8_t rgb[]) {
-	//rgb[0] = 0; // very dark R
-	//rgb[1] = 255; // very dark G
-	//rgb[2] = 0; // blue!
-	hueToRGBWithColorScheme((yNote + clipColourOffset) * -8 / 3, rgb,runtimeFeatureSettings.get(RuntimeFeatureSettingType::ColorScheme));
+	int colorScheme = runtimeFeatureSettings.get(RuntimeFeatureSettingType::ColorScheme);
+	if (colorScheme == RuntimeFeatureStateColorScheme::Classic) {
+		// TODO: replace with the old function since the new color schemes are resolved
+		// in this function
+		hueToRGBWithColorScheme((yNote + clipColourOffset) * -8 / 3, rgb,colorScheme);
+	}
+	else if (colorScheme == RuntimeFeatureStateColorScheme::OctavePiano) {
+    	int octaveOffset = ((yNote/12) + clipColourOffset) % 12;
+    	int offsetWithinOctave = yNote % 12;
+		int octaveRGB[][3] = {
+	  		{ 16,  0, 32 },
+	  		{  0, 16, 32 },
+	  		{ 16, 16, 0  },
+	  		{  0,  0, 32 },
+	  		{ 32,  0, 48 },
+	  		{  0, 32, 48 },
+            { 32, 32, 0  },
+            {  0,  0, 48 },
+            { 48,  0, 64 },
+            {  0, 48, 64 },
+            { 48, 48, 0  },
+            {  0,  0, 64 }
+	  	};	      
+
+	 	int blackKeys[] = {0,1,0,1,0,0,1,0,1,0,1,0};
+
+		rgb[0] = octaveRGB[octaveOffset][0] >> blackKeys[offsetWithinOctave];
+		rgb[1] = octaveRGB[octaveOffset][1] >> blackKeys[offsetWithinOctave];
+		rgb[2] = octaveRGB[octaveOffset][2] >> blackKeys[offsetWithinOctave];      
+	}
+	else {
+		// colorSchem == RuntimeFeatureStateColorScheme::BluePiano
+		// like a piano we use dark keys and light keys.
+		// all tints are blue.
+		// octaves are a gradient	
+		int octaveOffset = (yNote/12) + clipColourOffset;
+		int offsetWithinOctave = yNote % 12;
+		int blackKeys[] = {0,1,0,1,0,0,1,0,1,0,1,0};
+		rgb[0] = blackKeys[offsetWithinOctave] * 8;
+		rgb[1] = blackKeys[offsetWithinOctave] * 8;
+		rgb[2] = (16 + ((octaveOffset * 3 )% 16) + offsetWithinOctave * 2 ) >> blackKeys[offsetWithinOctave];      
+	}
+
 }
 
 void NoteRenderer::getNoteSpecificColours(int y,
@@ -165,7 +219,9 @@ void NoteRenderer::getNoteSpecificColours(int y,
                                          uint8_t  noteBlurColour[],
                                          uint8_t  noteTailColour[]) {
 	// copy either the defaults or tranpose
-	if (note->getAccidentalTranspose() == 0) {
+	int transpose = note->getAccidentalTranspose();
+	int colorScheme = runtimeFeatureSettings.get(RuntimeFeatureSettingType::ColorScheme);
+	if ( transpose == 0) {
 		for(int i=0; i<3 ; i++) {
 			noteColour[i] = rowDefaultColour[i]; 
 			noteBlurColour[i] = rowDefaultBlurColour[i];
@@ -173,9 +229,20 @@ void NoteRenderer::getNoteSpecificColours(int y,
 		}
 	}
 	else {
-		// for now we treat it like adding. which is what we want for some colorschemes.
-		// but not for all color schemes.
-		getNoteColourFromY(y + note->getAccidentalTranspose(), clipColourOffset, noteColour);
+		getNoteColourFromY(y + transpose, clipColourOffset, noteColour);
+	    if (colorScheme != RuntimeFeatureStateColorScheme::Classic) {
+	    	if (transpose > 0) {
+	    		noteColour[0] = 0;
+	    		noteColour[1] = 64; // set green color for raised notes.
+	    		noteColour[2] = 0;
+	    	}
+	    	else { // set red color for lowered notes.
+	    		noteColour[0] = 64;
+	    		noteColour[1] = 0;
+	    		noteColour[2] = 0;
+	    	}
+	    }
+
 	    getBlurColour(noteBlurColour, noteColour);
 	    getTailColour(noteTailColour, noteColour);  	
 	}

@@ -27,7 +27,7 @@
 
 // State declarations
 enum RuntimeFeatureStateToggle : uint32_t { Off = 0, On = 1 };
-enum RuntimeFeatureStateColorScheme : uint32_t { Classic = 0, SmallRange = 1, Blue = 2};
+enum RuntimeFeatureStateColorScheme : uint32_t { Classic = 0, OctavePiano = 1, Blue = 2};
 
 // Declare additional enums for specific multi state settings (e.g. like RuntimeFeatureStateTrackLaunchStyle)
 
@@ -95,7 +95,7 @@ protected:
 	         .xmlName = "notecolorScheme",
 	         .value = RuntimeFeatureStateColorScheme::Classic, // Default value
 	         .options = {{.displayName = "Classic", .value = RuntimeFeatureStateColorScheme::Classic},
-	                     {.displayName = "Smallrange", .value = RuntimeFeatureStateColorScheme::SmallRange},
+	                     {.displayName = "OctavePiano", .value = RuntimeFeatureStateColorScheme::OctavePiano},
 	                     {.displayName = "Blue", .value = RuntimeFeatureStateColorScheme::Blue},
 	                     {.displayName = NULL, .value = 0}}},
 	};

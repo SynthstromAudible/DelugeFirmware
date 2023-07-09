@@ -1269,6 +1269,7 @@ bool shouldDoPanning(int32_t panAmount, int32_t* amplitudeL, int32_t* amplitudeR
 
 void hueToRGBWithColorScheme(int32_t hue, unsigned char* rgb, int32_t colorScheme) {
 	hue = (uint16_t)(hue + 1920) % 192;
+	
     
 	for (int c = 0; c < 3; c++) {
 		// determine channelDarkness 0...64
@@ -1279,35 +1280,6 @@ void hueToRGBWithColorScheme(int32_t hue, unsigned char* rgb, int32_t colorSchem
 		}
 		else channelDarkness = getMin(64, std::abs(c * 64 - hue));
 		
-		
-		if (c < 2) {
-			// apply colorScheme for red and green
-			switch (colorScheme) {
-				case RuntimeFeatureStateColorScheme::SmallRange:
-					channelDarkness = (channelDarkness >> 2) | 48; // set first 2 bits to 1. this will keep the color somewhat but make it very dark. 
-					break;
-				case RuntimeFeatureStateColorScheme::Blue:
-					channelDarkness = 64;  // set it to fully dark.
-					break;
-			}
-
-		}
-		// apply colorScheme for blue.
-		else {
-			switch (colorScheme) {
-				// for both the smallRange and the blue scheme we use average blue (not to extreme light, not to extreme dark)
-				// so that we allways will have a non white non black color.
-				// in case of smallrange it cannot overlap with the red and the green component, because those start at 48 while this gets max 48.
-				case RuntimeFeatureStateColorScheme::SmallRange:
-				    channelDarkness = 16 + (hue % 32); 
-				    break;
-				case RuntimeFeatureStateColorScheme::Blue:
-					channelDarkness = 16 + (hue % 32); 
-					break;
-			}
-
-		}
-
         // convert channelDarkness to RGB.
 		if (channelDarkness < 64)
 			rgb[c] = ((uint32_t)getSine(((channelDarkness << 3) + 256) & 1023, 10) + 2147483648u) >> 24;
