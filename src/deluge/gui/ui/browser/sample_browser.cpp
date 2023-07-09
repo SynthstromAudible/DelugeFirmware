@@ -46,10 +46,10 @@
 #include "hid/encoders.h"
 #include "gui/ui/keyboard_screen.h"
 #include <new>
-#include "gui/context_menu/context_menu_sample_browser_kit.h"
-#include "gui/context_menu/context_menu_sample_browser_synth.h"
+#include "gui/context_menu/sample_browser_kit.h"
+#include "gui/context_menu/sample_browser_synth.h"
 #include "util/d_string.h"
-#include "gui/context_menu/context_menu_delete_file.h"
+#include "gui/context_menu/delete_file.h"
 #include "gui/waveform/waveform_basic_navigator.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/instrument_clip_view.h"

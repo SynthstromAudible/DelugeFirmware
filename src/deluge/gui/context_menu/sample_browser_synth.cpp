@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "gui/context_menu/context_menu_sample_browser_synth.h"
+#include "gui/context_menu/sample_browser_synth.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "hid/display/numeric_driver.h"
 #include "util/functions.h"

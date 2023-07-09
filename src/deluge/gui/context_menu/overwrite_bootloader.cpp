@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "gui/context_menu/context_menu_overwrite_bootloader.h"
+#include "gui/context_menu/overwrite_bootloader.h"
 #include "storage/storage_manager.h"
 #include "hid/display/numeric_driver.h"
 #include "util/functions.h"

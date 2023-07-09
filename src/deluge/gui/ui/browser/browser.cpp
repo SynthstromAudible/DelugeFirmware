@@ -18,7 +18,7 @@
 #include "storage/audio/audio_file_manager.h"
 #include "gui/ui/browser/browser.h"
 #include "hid/matrix/matrix_driver.h"
-#include "gui/context_menu/context_menu_delete_file.h"
+#include "gui/context_menu/delete_file.h"
 #include "hid/display/numeric_driver.h"
 #include "hid/buttons.h"
 #include <string.h>

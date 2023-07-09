@@ -2,7 +2,7 @@
 #include "definitions.h"
 #include "dsp/reverb/freeverb/revmodel.hpp"
 #include "extern.h"
-#include "gui/context_menu/context_menu_overwrite_bootloader.h"
+#include "gui/context_menu/overwrite_bootloader.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/sample_browser.h"

@@ -23,6 +23,8 @@
 #include "hid/led/indicator_leds.h"
 #include "extern.h"
 
+extern int8_t defaultAudioOutputInputChannel;
+
 namespace deluge::gui::context_menu {
 
 #define VALUE_LEFT 1

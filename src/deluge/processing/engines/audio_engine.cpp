@@ -17,8 +17,8 @@
 
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
-#include "gui/context_menu/context_menu_sample_browser_kit.h"
-#include "gui/context_menu/context_menu_sample_browser_synth.h"
+#include "gui/context_menu/sample_browser_kit.h"
+#include "gui/context_menu/sample_browser_synth.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"

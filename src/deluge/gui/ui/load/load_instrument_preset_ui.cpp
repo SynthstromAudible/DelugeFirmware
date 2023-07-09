@@ -32,7 +32,7 @@
 #include "gui/ui/keyboard_screen.h"
 #include "model/action/action_logger.h"
 #include "model/instrument/midi_instrument.h"
-#include "gui/context_menu/context_menu_load_instrument_preset.h"
+#include "gui/context_menu/load_instrument_preset.h"
 #include "hid/led/pad_leds.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/encoders.h"

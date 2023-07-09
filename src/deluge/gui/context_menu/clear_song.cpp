@@ -17,7 +17,7 @@
 
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
-#include "gui/context_menu/contextmenuclearsong.h"
+#include "gui/context_menu/clear_song.h"
 #include "modulation/params/param_manager.h"
 #include "hid/display/numeric_driver.h"
 #include "memory/general_memory_allocator.h"

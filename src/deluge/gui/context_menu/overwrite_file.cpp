@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "gui/context_menu/context_menu_overwrite_file.h"
+#include "gui/context_menu/overwrite_file.h"
 #include "gui/ui/save/save_ui.h"
 
 namespace deluge::gui::context_menu {

@@ -17,7 +17,7 @@
 
 #include "gui/views/arranger_view.h"
 #include "processing/engines/audio_engine.h"
-#include "gui/context_menu/contextmenuclearsong.h"
+#include "gui/context_menu/clear_song.h"
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"

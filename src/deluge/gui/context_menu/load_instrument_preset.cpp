@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "gui/context_menu/context_menu_load_instrument_preset.h"
+#include "gui/context_menu/load_instrument_preset.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "hid/display/numeric_driver.h"
 
