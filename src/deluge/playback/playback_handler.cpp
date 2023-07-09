@@ -1887,16 +1887,6 @@ displayNudge:
 		if (!(playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE)) {
 
 			if (Buttons::isButtonPressed(hid::button::TEMPO_ENC)) {
-				// Fine tempo adjustment
-				uint32_t tempoBPM = calculateBPM(currentSong->getTimePerTimerTickFloat()) + 0.5;
-				tempoBPM += offset;
-				if (tempoBPM > 0) {
-					currentSong->setBPM(tempoBPM, true);
-					displayTempoBPM(tempoBPM);
-				}
-			}
-
-			else {
 				// Coarse tempo adjustment
 
 				// Get current tempo
@@ -1919,6 +1909,16 @@ displayNudge:
 
 				displayTempoFromParams(magnitude, whichValue);
 			}
+
+			else {
+				// Fine tempo adjustment
+				uint32_t tempoBPM = calculateBPM(currentSong->getTimePerTimerTickFloat()) + 0.5;
+				tempoBPM += offset;
+				if (tempoBPM > 0) {
+					currentSong->setBPM(tempoBPM, true);
+					displayTempoBPM(tempoBPM);
+				}
+			}				
 		}
 	}
 }
