@@ -26,6 +26,8 @@
 #include "hid/display/oled.h"
 #endif
 
+namespace deluge::gui {
+
 ContextMenu::ContextMenu() {
 	basicNumOptions = 1;
 #if HAVE_OLED
@@ -234,4 +236,5 @@ void ContextMenuForLoading::focusRegained() {
 	IndicatorLEDs::setLedState(saveLedX, saveLedY, false);
 	IndicatorLEDs::blinkLed(loadLedX, loadLedY);
 	return ContextMenu::focusRegained();
+}
 }

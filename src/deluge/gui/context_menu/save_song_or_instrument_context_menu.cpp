@@ -21,7 +21,8 @@
 #include "gui/context_menu/context_menu_delete_file.h"
 #include "storage/file_item.h"
 
-SaveSongOrInstrumentContextMenu saveSongOrInstrumentContextMenu{};
+namespace deluge::gui::context_menu {
+SaveSongOrInstrumentContextMenu saveSongOrInstrument{};
 
 SaveSongOrInstrumentContextMenu::SaveSongOrInstrumentContextMenu() {
 #if HAVE_OLED
@@ -52,11 +53,11 @@ bool SaveSongOrInstrumentContextMenu::acceptCurrentOption() {
 		return true;
 	}
 	case 2: { // Delete file
-		bool available = contextMenuDeleteFile.setupAndCheckAvailability();
+		bool available = context_menu::deleteFile.setupAndCheckAvailability();
 
 		if (available) { // It always will be - but we gotta check.
 			numericDriver.setNextTransitionDirection(1);
-			openUI(&contextMenuDeleteFile); // Might fail
+			openUI(&context_menu::deleteFile); // Might fail
 		}
 		return available;
 	}
@@ -88,4 +89,5 @@ bool SaveSongOrInstrumentContextMenu::isCurrentOptionAvailable() {
 
 int SaveSongOrInstrumentContextMenu::padAction(int x, int y, int on) {
 	return getUIUpOneLevel()->padAction(x, y, on);
+}
 }

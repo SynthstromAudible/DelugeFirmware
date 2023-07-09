@@ -27,7 +27,8 @@ extern "C" {
 #include "RZA1/spibsc/r_spibsc_flash_api.h"
 }
 
-ContextMenuOverwriteBootloader contextMenuOverwriteBootloader{};
+namespace deluge::gui::context_menu {
+ContextMenuOverwriteBootloader overwriteBootloader{};
 
 ContextMenuOverwriteBootloader::ContextMenuOverwriteBootloader() {
 #if HAVE_OLED
@@ -215,4 +216,5 @@ gotFlashError:
 
 	errorMessage = HAVE_OLED ? "No boot*.bin file found" : "FILE";
 	goto longError;
+}
 }

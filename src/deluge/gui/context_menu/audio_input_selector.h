@@ -21,6 +21,8 @@
 
 class AudioOutput;
 
+namespace deluge::gui::context_menu {
+
 class AudioInputSelector final : public ContextMenu {
 public:
 	AudioInputSelector();
@@ -33,3 +35,4 @@ public:
 };
 
 extern AudioInputSelector audioInputSelector;
+}

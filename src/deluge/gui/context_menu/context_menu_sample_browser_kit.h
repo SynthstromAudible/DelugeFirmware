@@ -19,6 +19,7 @@
 
 #include "gui/context_menu/context_menu.h"
 
+namespace deluge::gui::context_menu {
 class ContextMenuSampleBrowserKit final : public ContextMenu {
 public:
 	ContextMenuSampleBrowserKit();
@@ -32,4 +33,5 @@ public:
 	bool acceptCurrentOption();
 };
 
-extern ContextMenuSampleBrowserKit contextMenuFileBrowserKit;
+extern ContextMenuSampleBrowserKit fileBrowserKit;
+}

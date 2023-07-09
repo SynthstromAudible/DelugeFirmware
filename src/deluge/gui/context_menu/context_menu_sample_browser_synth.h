@@ -19,6 +19,7 @@
 
 #include "gui/context_menu/context_menu.h"
 
+namespace deluge::gui::context_menu {
 class ContextMenuSampleBrowserSynth final : public ContextMenu {
 public:
 	ContextMenuSampleBrowserSynth();
@@ -32,4 +33,5 @@ public:
 	int padAction(int x, int y, int velocity);
 };
 
-extern ContextMenuSampleBrowserSynth contextMenuFileBrowserSynth;
+extern ContextMenuSampleBrowserSynth fileBrowserSynth;
+}

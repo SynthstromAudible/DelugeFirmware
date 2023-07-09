@@ -47,6 +47,8 @@ extern "C" {
 #include "drivers/uart/uart.h"
 }
 
+using namespace deluge;
+
 LoadInstrumentPresetUI loadInstrumentPresetUI{};
 
 LoadInstrumentPresetUI::LoadInstrumentPresetUI() {
@@ -353,12 +355,12 @@ int LoadInstrumentPresetUI::timerCallback() {
 			return ACTION_RESULT_DEALT_WITH;
 		}
 
-		bool available = contextMenuLoadInstrumentPreset.setupAndCheckAvailability();
+		bool available = gui::context_menu::loadInstrumentPreset.setupAndCheckAvailability();
 
 		if (available) {
 			numericDriver.setNextTransitionDirection(1);
 			convertToPrefixFormatIfPossible();
-			openUI(&contextMenuLoadInstrumentPreset);
+			openUI(&gui::context_menu::loadInstrumentPreset);
 		}
 		else {
 			exitUIMode(UI_MODE_HOLDING_BUTTON_POTENTIAL_LONG_PRESS);

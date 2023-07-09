@@ -78,6 +78,9 @@ extern uint8_t currentlyAccessingCard;
 #include "RZA1/uart/sio_char.h"
 }
 
+using namespace deluge;
+using namespace gui;
+
 ArrangerView arrangerView{};
 
 ArrangerView::ArrangerView() {
@@ -906,9 +909,9 @@ int ArrangerView::padAction(int x, int y, int velocity) {
 				if (output->type == OUTPUT_TYPE_AUDIO) {
 					if (velocity) {
 						view.endMIDILearn();
-						audioInputSelector.audioOutput = (AudioOutput*)output;
-						audioInputSelector.setupAndCheckAvailability();
-						openUI(&audioInputSelector);
+						context_menu::audioInputSelector.audioOutput = (AudioOutput*)output;
+						context_menu::audioInputSelector.setupAndCheckAvailability();
+						openUI(&context_menu::audioInputSelector);
 					}
 				}
 				else if (output->type == INSTRUMENT_TYPE_KIT) {

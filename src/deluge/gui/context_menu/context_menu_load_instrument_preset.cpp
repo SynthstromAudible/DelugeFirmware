@@ -19,7 +19,8 @@
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "hid/display/numeric_driver.h"
 
-ContextMenuLoadInstrumentPreset contextMenuLoadInstrumentPreset{};
+namespace deluge::gui::context_menu {
+ContextMenuLoadInstrumentPreset loadInstrumentPreset{};
 
 ContextMenuLoadInstrumentPreset::ContextMenuLoadInstrumentPreset() {
 #if HAVE_OLED
@@ -49,4 +50,5 @@ bool ContextMenuLoadInstrumentPreset::acceptCurrentOption() {
 		loadInstrumentPresetUI.close();
 		return true;
 	}
+}
 }

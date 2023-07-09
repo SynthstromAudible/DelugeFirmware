@@ -22,7 +22,8 @@
 #include "gui/ui/slicer.h"
 #include "storage/file_item.h"
 
-ContextMenuSampleBrowserKit contextMenuFileBrowserKit{};
+namespace deluge::gui::context_menu {
+ContextMenuSampleBrowserKit fileBrowserKit{};
 
 ContextMenuSampleBrowserKit::ContextMenuSampleBrowserKit() {
 #if HAVE_OLED
@@ -69,4 +70,5 @@ int ContextMenuSampleBrowserKit::padAction(int x, int y, int on) {
 
 bool ContextMenuSampleBrowserKit::canSeeViewUnderneath() {
 	return sampleBrowser.canSeeViewUnderneath();
+}
 }

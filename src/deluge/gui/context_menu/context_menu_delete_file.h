@@ -19,6 +19,7 @@
 
 #include "gui/context_menu/context_menu.h"
 
+namespace deluge::gui::context_menu {
 class ContextMenuDeleteFile final : public ContextMenuForSaving {
 public:
 	ContextMenuDeleteFile();
@@ -27,4 +28,5 @@ public:
 	bool acceptCurrentOption();
 };
 
-extern ContextMenuDeleteFile contextMenuDeleteFile;
+extern ContextMenuDeleteFile deleteFile;
+}

@@ -40,6 +40,8 @@ extern "C" {
 #include "drivers/uart/uart.h"
 }
 
+using namespace deluge;
+
 String Browser::currentDir{};
 bool Browser::qwertyVisible;
 
@@ -1518,11 +1520,12 @@ void Browser::exitAction() {
 }
 
 void Browser::goIntoDeleteFileContextMenu() {
-	bool available = contextMenuDeleteFile.setupAndCheckAvailability();
+	using namespace gui;
+	bool available = context_menu::deleteFile.setupAndCheckAvailability();
 
 	if (available) {
 		numericDriver.setNextTransitionDirection(1);
-		openUI(&contextMenuDeleteFile);
+		openUI(&context_menu::deleteFile);
 	}
 }
 

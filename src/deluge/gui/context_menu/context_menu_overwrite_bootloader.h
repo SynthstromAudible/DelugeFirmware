@@ -19,6 +19,8 @@
 
 #include "gui/context_menu/context_menu.h"
 
+
+namespace deluge::gui::context_menu {
 class ContextMenuOverwriteBootloader final : public ContextMenu {
 public:
 	ContextMenuOverwriteBootloader();
@@ -27,4 +29,5 @@ public:
 	bool acceptCurrentOption();
 };
 
-extern ContextMenuOverwriteBootloader contextMenuOverwriteBootloader;
+extern ContextMenuOverwriteBootloader overwriteBootloader;
+}

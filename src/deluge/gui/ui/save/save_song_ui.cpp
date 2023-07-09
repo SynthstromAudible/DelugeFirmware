@@ -41,6 +41,9 @@ extern "C" {
 #include "ff.h"
 }
 
+using namespace deluge;
+using namespace gui;
+
 extern uint8_t currentlyAccessingCard;
 
 SaveSongUI saveSongUI{};
@@ -142,16 +145,16 @@ gotError:
 	bool fileAlreadyExisted = storageManager.fileExists(filePath.get());
 
 	if (!mayOverwrite && fileAlreadyExisted) {
-		contextMenuOverwriteFile.currentSaveUI = this;
+		context_menu::overwriteFile.currentSaveUI = this;
 
-		bool available = contextMenuOverwriteFile.setupAndCheckAvailability();
+		bool available = context_menu::overwriteFile.setupAndCheckAvailability();
 
 		if (available) { // Always true.
 #if HAVE_OLED
 			OLED::removeWorkingAnimation();
 #endif
 			numericDriver.setNextTransitionDirection(1);
-			openUI(&contextMenuOverwriteFile);
+			openUI(&context_menu::overwriteFile);
 			return true;
 		}
 		else {

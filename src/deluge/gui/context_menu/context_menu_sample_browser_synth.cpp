@@ -24,7 +24,8 @@
 #include "processing/sound/sound.h"
 #include "storage/file_item.h"
 
-ContextMenuSampleBrowserSynth contextMenuFileBrowserSynth{};
+namespace deluge::gui::context_menu {
+ContextMenuSampleBrowserSynth fileBrowserSynth{};
 
 ContextMenuSampleBrowserSynth::ContextMenuSampleBrowserSynth() {
 #if HAVE_OLED
@@ -98,4 +99,5 @@ int ContextMenuSampleBrowserSynth::padAction(int x, int y, int on) {
 
 bool ContextMenuSampleBrowserSynth::canSeeViewUnderneath() {
 	return sampleBrowser.canSeeViewUnderneath();
+}
 }

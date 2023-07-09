@@ -70,6 +70,8 @@ extern "C" {
 #include "RZA1/uart/sio_char.h"
 }
 
+using namespace deluge;
+
 SessionView sessionView{};
 
 extern int8_t defaultAudioClipOverdubOutputCloning;
@@ -734,9 +736,9 @@ startHoldingDown:
 								return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 							}
 							view.endMIDILearn();
-							audioInputSelector.audioOutput = (AudioOutput*)clip->output;
-							audioInputSelector.setupAndCheckAvailability();
-							openUI(&audioInputSelector);
+							gui::context_menu::audioInputSelector.audioOutput = (AudioOutput*)clip->output;
+							gui::context_menu::audioInputSelector.setupAndCheckAvailability();
+							openUI(&gui::context_menu::audioInputSelector);
 						}
 
 						// InstrumentClip

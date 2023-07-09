@@ -26,14 +26,16 @@ extern "C" {
 #include "fatfs/ff.h"
 }
 
-ContextMenuDeleteFile contextMenuDeleteFile{};
+namespace deluge::gui::context_menu {
+
+ContextMenuDeleteFile deleteFile{};
 
 ContextMenuDeleteFile::ContextMenuDeleteFile() {
 }
 
 char const** ContextMenuDeleteFile::getOptions() {
 #if HAVE_OLED
-	if (getUIUpOneLevel() == &saveSongOrInstrumentContextMenu) {
+	if (getUIUpOneLevel() == &context_menu::saveSongOrInstrument) {
 		title = "Are you sure?";
 	}
 	else {
@@ -46,7 +48,7 @@ char const** ContextMenuDeleteFile::getOptions() {
 	static char const* options[] = {"DELETE"};
 	static char const* optionsSure[] = {"SURE"};
 
-	if (getUIUpOneLevel() == &saveSongOrInstrumentContextMenu) {
+	if (getUIUpOneLevel() == &context_menu::saveSongOrInstrument) {
 		return optionsSure;
 	}
 	else {
@@ -58,7 +60,7 @@ char const** ContextMenuDeleteFile::getOptions() {
 bool ContextMenuDeleteFile::acceptCurrentOption() {
 
 	UI* ui = getUIUpOneLevel();
-	if (ui == &saveSongOrInstrumentContextMenu) {
+	if (ui == &context_menu::saveSongOrInstrument) {
 		ui = getUIUpOneLevel(2);
 	}
 
@@ -84,9 +86,10 @@ bool ContextMenuDeleteFile::acceptCurrentOption() {
 	}
 
 	close();
-	if (getCurrentUI() == &saveSongOrInstrumentContextMenu) {
-		saveSongOrInstrumentContextMenu.close();
+	if (getCurrentUI() == &context_menu::saveSongOrInstrument) {
+		context_menu::saveSongOrInstrument.close();
 	}
 
 	return true;
+}
 }

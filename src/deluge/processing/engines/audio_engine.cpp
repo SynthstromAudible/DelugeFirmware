@@ -68,6 +68,8 @@ extern "C" {
 //void *__dso_handle = NULL; // This fixes an insane error.
 }
 
+using namespace deluge;
+
 extern bool inSpamMode;
 extern bool anythingProbablyPressed;
 extern int32_t spareRenderingBuffer[][SSI_TX_BUFFER_NUM_SAMPLES];
@@ -677,8 +679,8 @@ startAgain:
 	}
 
 	// Previewing sample
-	if (getCurrentUI() == &sampleBrowser || getCurrentUI() == &contextMenuFileBrowserKit
-	    || getCurrentUI() == &contextMenuFileBrowserSynth || getCurrentUI() == &slicer) {
+	if (getCurrentUI() == &sampleBrowser || getCurrentUI() == &gui::context_menu::fileBrowserKit
+	    || getCurrentUI() == &gui::context_menu::fileBrowserSynth || getCurrentUI() == &slicer) {
 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithThreeMainThings* modelStack = setupModelStackWithThreeMainThingsButNoNoteRow(

@@ -20,6 +20,7 @@
 #include "RZA1/system/r_typedefs.h"
 #include "gui/context_menu/context_menu.h"
 
+namespace deluge::gui::context_menu {
 class SaveSongOrInstrumentContextMenu final : public ContextMenuForSaving {
 public:
 	SaveSongOrInstrumentContextMenu();
@@ -32,4 +33,5 @@ public:
 	int padAction(int x, int y, int velocity);
 };
 
-extern SaveSongOrInstrumentContextMenu saveSongOrInstrumentContextMenu;
+extern SaveSongOrInstrumentContextMenu saveSongOrInstrument;
+}

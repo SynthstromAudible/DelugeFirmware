@@ -19,6 +19,7 @@
 
 #include "gui/context_menu/context_menu.h"
 
+namespace deluge::gui::context_menu {
 class ContextMenuClearSong final : public ContextMenuForLoading {
 public:
 	ContextMenuClearSong();
@@ -29,4 +30,5 @@ public:
 	bool acceptCurrentOption();
 };
 
-extern ContextMenuClearSong contextMenuClearSong;
+extern ContextMenuClearSong clearSong;
+}

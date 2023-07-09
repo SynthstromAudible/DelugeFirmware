@@ -78,6 +78,9 @@ extern "C" {
 #include "RZA1/uart/sio_char.h"
 }
 
+using namespace deluge;
+using namespace gui;
+
 SampleBrowser sampleBrowser{};
 
 char const* allowedFileExtensionsAudio[] = {"WAV", "AIFF", "AIF", NULL};
@@ -286,7 +289,7 @@ int SampleBrowser::timerCallback() {
 		if (fileIndexSelected >= 0) {
 
 			char const* errorMessage;
-			ContextMenu* contextMenu;
+			gui::ContextMenu* contextMenu;
 
 			// AudioClip
 			if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) {
@@ -300,7 +303,7 @@ int SampleBrowser::timerCallback() {
 			else if (soundEditor.editingKit()) {
 
 				if (canImportWholeKit()) {
-					contextMenu = &contextMenuFileBrowserKit;
+					contextMenu = &gui::context_menu::fileBrowserKit;
 					goto considerContextMenu;
 				}
 				else {
@@ -314,7 +317,7 @@ cant:
 
 			// Synth
 			else {
-				contextMenu = &contextMenuFileBrowserSynth;
+				contextMenu = &context_menu::fileBrowserSynth;
 
 considerContextMenu:
 				bool available = contextMenu->setupAndCheckAvailability();

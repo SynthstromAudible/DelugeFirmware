@@ -32,10 +32,11 @@
 #include "playback/playback_handler.h"
 #include "hid/display/oled.h"
 
-ContextMenuClearSong contextMenuClearSong{};
 
 extern void setUIForLoadedSong(Song* song);
 extern void deleteOldSongBeforeLoadingNew();
+namespace deluge::gui::context_menu {
+ContextMenuClearSong clearSong{};
 
 ContextMenuClearSong::ContextMenuClearSong() {
 #if HAVE_OLED
@@ -117,4 +118,5 @@ bool ContextMenuClearSong::acceptCurrentOption() {
 #endif
 
 	return true;
+}
 }

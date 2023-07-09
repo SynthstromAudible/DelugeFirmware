@@ -23,7 +23,7 @@
 #include "hid/led/indicator_leds.h"
 #include "extern.h"
 
-#define VALUE_OFF 0
+namespace deluge::gui::context_menu {
 
 #define VALUE_LEFT 1
 #define VALUE_LEFT_ECHO 2
@@ -164,4 +164,6 @@ void AudioInputSelector::selectEncoderAction(int8_t offset) {
 	}
 
 	defaultAudioOutputInputChannel = audioOutput->inputChannel;
+}
+
 }

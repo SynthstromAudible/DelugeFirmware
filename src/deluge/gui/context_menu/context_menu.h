@@ -21,6 +21,8 @@
 #include "hid/button.h"
 #include "RZA1/system/r_typedefs.h"
 
+namespace deluge::gui {
+
 class ContextMenu : public UI {
 public:
 	ContextMenu();
@@ -62,3 +64,4 @@ public:
 	void focusRegained();
 	virtual hid::Button getAcceptButton() final { return hid::button::LOAD; }
 };
+}

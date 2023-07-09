@@ -36,6 +36,8 @@
 #include "hid/buttons.h"
 #include "hid/display/oled.h"
 
+using namespace deluge;
+
 SaveInstrumentPresetUI saveInstrumentPresetUI{};
 
 SaveInstrumentPresetUI::SaveInstrumentPresetUI() {
@@ -138,13 +140,13 @@ fail:
 	error = storageManager.createXMLFile(filePath.get(), mayOverwrite);
 
 	if (error == ERROR_FILE_ALREADY_EXISTS) {
-		contextMenuOverwriteFile.currentSaveUI = this;
+		gui::context_menu::overwriteFile.currentSaveUI = this;
 
-		bool available = contextMenuOverwriteFile.setupAndCheckAvailability();
+		bool available = gui::context_menu::overwriteFile.setupAndCheckAvailability();
 
 		if (available) { // Will always be true.
 			numericDriver.setNextTransitionDirection(1);
-			openUI(&contextMenuOverwriteFile);
+			openUI(&gui::context_menu::overwriteFile);
 			return true;
 		}
 		else {

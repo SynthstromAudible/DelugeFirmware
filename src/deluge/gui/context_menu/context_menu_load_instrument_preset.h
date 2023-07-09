@@ -19,6 +19,7 @@
 
 #include "gui/context_menu/context_menu.h"
 
+namespace deluge::gui::context_menu {
 class ContextMenuLoadInstrumentPreset final : public ContextMenuForLoading {
 public:
 	ContextMenuLoadInstrumentPreset();
@@ -26,4 +27,5 @@ public:
 	bool acceptCurrentOption();
 };
 
-extern ContextMenuLoadInstrumentPreset contextMenuLoadInstrumentPreset;
+extern ContextMenuLoadInstrumentPreset loadInstrumentPreset;
+}
