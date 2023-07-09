@@ -15,10 +15,10 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef ARRANGERVIEW_H_
-#define ARRANGERVIEW_H_
+#pragma once
 
 #include "gui/views/timeline_view.h"
+#include "hid/button.h"
 
 class ArrangementRow;
 class ClipInstance;
@@ -40,7 +40,7 @@ public:
 	bool opened();
 	void focusRegained();
 	int padAction(int x, int y, int velocity);
-	int buttonAction(int x, int y, bool on, bool inCardRoutine);
+	int buttonAction(hid::Button b, bool on, bool inCardRoutine);
 	int verticalEncoderAction(int offset, bool inCardRoutine);
 	void selectEncoderAction(int8_t offset);
 
@@ -142,5 +142,3 @@ private:
 };
 
 extern ArrangerView arrangerView;
-
-#endif /* ARRANGERVIEW_H_ */

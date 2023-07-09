@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef SAMPLEHOLDER_H_
-#define SAMPLEHOLDER_H_
+#pragma once
 
 #include "definitions.h"
 #include "util/d_string.h"
@@ -58,5 +57,3 @@ protected:
 	                                  int clusterLoadInstruction);
 	virtual void sampleBeenSet(bool reversed, bool manuallySelected) {}
 };
-
-#endif /* SAMPLEHOLDER_H_ */

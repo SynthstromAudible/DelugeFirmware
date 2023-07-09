@@ -15,11 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef HARDWARETESTING_H_
-#define HARDWARETESTING_H_
+#pragma once
 
 void ramTestUart();
 void ramTestLED(bool stuffAlreadySetUp = false);
 void autoPilotStuff();
-
-#endif /* HARDWARETESTING_H_ */

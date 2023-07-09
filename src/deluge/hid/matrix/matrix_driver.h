@@ -15,12 +15,12 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef DISPLAYMANAGER_H
-#define DISPLAYMANAGER_H
+#pragma once
 
 #include "definitions.h"
 #include "RZA1/system/r_typedefs.h"
 #include "gui/waveform/waveform_render_data.h"
+#include "pad.h"
 
 class AudioClip;
 
@@ -40,4 +40,3 @@ public:
 extern char* matrixDriverDisplayWritePos;
 
 extern MatrixDriver matrixDriver;
-#endif // DISPLAYMANAGER_H

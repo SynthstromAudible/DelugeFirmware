@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef SESSION_H_
-#define SESSION_H_
+#pragma once
 #include "playback/mode/playback_mode.h"
 #include "definitions.h"
 
@@ -104,5 +103,3 @@ private:
 };
 
 extern Session session;
-
-#endif /* SESSION_H_ */

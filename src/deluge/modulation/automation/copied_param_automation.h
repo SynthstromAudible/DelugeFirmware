@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef COPIEDPARAMAUTOMATION_H_
-#define COPIEDPARAMAUTOMATION_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 
@@ -31,5 +30,3 @@ public:
 	ParamNode* nodes;
 	int numNodes;
 };
-
-#endif /* COPIEDPARAMAUTOMATION_H_ */

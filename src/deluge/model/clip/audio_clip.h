@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef AUDIOCLIP_H_
-#define AUDIOCLIP_H_
+#pragma once
 
 #include "model/clip/clip.h"
 #include "model/sample/sample_holder_for_clip.h"
@@ -77,6 +76,8 @@ public:
 	void sampleZoneChanged(ModelStackWithTimelineCounter const* modelStack);
 	int64_t getNumSamplesTilLoop(ModelStackWithTimelineCounter* modelStack);
 	void setPos(ModelStackWithTimelineCounter* modelStack, int32_t newPos, bool useActualPosForParamManagers);
+	/// Return true if successfully shifted, as clip cannot be shifted past beginning
+	bool shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int amount);
 
 	int readFromFile(Song* song);
 	void writeDataToFile(Song* song);
@@ -112,5 +113,3 @@ private:
 	void detachAudioClipFromOutput(Song* song, bool shouldRetainLinksToOutput, bool shouldTakeParamManagerWith = false);
 	int getLoopingType(ModelStackWithTimelineCounter const* modelStack);
 };
-
-#endif /* AUDIOCLIP_H_ */

@@ -15,10 +15,10 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef FILEBROWSER_H
-#define FILEBROWSER_H
+#pragma once
 
 #include "gui/ui/browser/browser.h"
+#include "hid/button.h"
 
 extern "C" {
 
@@ -40,7 +40,7 @@ public:
 	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows);
 	bool opened();
 	void focusRegained();
-	int buttonAction(int x, int y, bool on, bool inCardRoutine);
+	int buttonAction(hid::Button b, bool on, bool inCardRoutine);
 	int verticalEncoderAction(int offset, bool inCardRoutine);
 	int horizontalEncoderAction(int offset);
 	int padAction(int x, int y, int velocity);
@@ -84,5 +84,3 @@ private:
 };
 
 extern SampleBrowser sampleBrowser;
-
-#endif // FILEBROWSER_H

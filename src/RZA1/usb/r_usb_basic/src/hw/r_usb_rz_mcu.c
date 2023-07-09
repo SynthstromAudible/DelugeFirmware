@@ -297,7 +297,8 @@ void usb_cpu_delay_1us(uint16_t time) // Modified by Rohan
     uint16_t stopTime  = startTime + usToFastTimerCount(time);
     do
     {
-        if (time >= 40) routineForSD();
+        if (time >= 40)
+            routineForSD();
     } while ((int16_t)(*TCNT[TIMER_SYSTEM_FAST] - stopTime) < 0);
 } /* End of function usb_cpu_delay_1us() */
 

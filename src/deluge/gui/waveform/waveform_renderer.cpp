@@ -55,7 +55,9 @@ bool WaveformRenderer::renderFullScreen(Sample* sample, uint64_t xScroll, uint64
                                         SampleRecorder* recorder, uint8_t rgb[], bool reversed, int xEnd) {
 
 	bool completeSuccess = findPeaksPerCol(sample, xScroll, xZoom, data, recorder);
-	if (!completeSuccess) return false;
+	if (!completeSuccess) {
+		return false;
+	}
 
 	// Clear display
 	for (int y = 0; y < displayHeight; y++) {
@@ -82,14 +84,18 @@ bool WaveformRenderer::renderAsSingleRow(Sample* sample, int64_t xScroll, uint64
 	}
 
 	bool completeSuccess = findPeaksPerCol(sample, xScroll, xZoom, data, recorder, xStartSource, xEndSource);
-	if (!completeSuccess) return false;
+	if (!completeSuccess) {
+		return false;
+	}
 
 	int32_t maxPeakFromZero = sample->getMaxPeakFromZero();
 
 	for (int xDisplayOutput = xStart; xDisplayOutput < xEnd; xDisplayOutput++) {
 
 		int xDisplaySource = xDisplayOutput;
-		if (reversed) xDisplaySource = displayWidth - 1 - xDisplaySource;
+		if (reversed) {
+			xDisplaySource = displayWidth - 1 - xDisplaySource;
+		}
 
 		// If no data here (e.g. if Sample not recorded this far yet...)
 		if (data->colStatus[xDisplaySource] != COL_STATUS_INVESTIGATED) {
@@ -107,7 +113,9 @@ bool WaveformRenderer::renderAsSingleRow(Sample* sample, int64_t xScroll, uint64
 			    (valueHere + 6)
 			    & ~15; // Limit the heck out of the bit depth, to avoid problem with PIC firmware where too many different colour shades cause big problems.
 			           // The 6 is quite arbitrary, but I think it looks good
-			if (valueHere > 255) valueHere = 255;
+			if (valueHere > 255) {
+				valueHere = 255;
+			}
 			thisImage[xDisplayOutput * 3 + c] = valueHere;
 		}
 	}
@@ -144,9 +152,13 @@ void WaveformRenderer::renderOneColForCollapseAnimation(int xDisplayWaveform, in
                                                         int32_t valueCentrePoint, int32_t valueSpan) {
 
 	int xDisplayData = xDisplayWaveform;
-	if (reversed) xDisplayData = displayWidth - 1 - xDisplayData;
+	if (reversed) {
+		xDisplayData = displayWidth - 1 - xDisplayData;
+	}
 
-	if (data->colStatus[xDisplayData] != COL_STATUS_INVESTIGATED) return;
+	if (data->colStatus[xDisplayData] != COL_STATUS_INVESTIGATED) {
+		return;
+	}
 
 	int32_t min24, max24;
 	getColBarPositions(xDisplayData, data, &min24, &max24, valueCentrePoint, valueSpan);
@@ -179,17 +191,25 @@ void WaveformRenderer::renderOneColForCollapseAnimationZoomedOut(int xDisplayWav
 	int singleSquareBrightnessTotal = 0;
 
 	for (int xDisplayDataNow = xDisplayDataLeftEdge; xDisplayDataNow <= xDisplayDataRightEdge; xDisplayDataNow++) {
-		if (data->colStatus[xDisplayDataNow] != COL_STATUS_INVESTIGATED) return;
+		if (data->colStatus[xDisplayDataNow] != COL_STATUS_INVESTIGATED) {
+			return;
+		}
 
 		int32_t min24, max24;
 		getColBarPositions(xDisplayDataNow, data, &min24, &max24, valueCentrePoint, valueSpan);
 
-		if (min24 < min24Total) min24Total = min24;
-		if (max24 > max24Total) max24Total = max24;
+		if (min24 < min24Total) {
+			min24Total = min24;
+		}
+		if (max24 > max24Total) {
+			max24Total = max24;
+		}
 
 		int singleSquareBrightness = getColBrightnessForSingleRow(xDisplayDataNow, maxPeakFromZero, data);
 
-		if (singleSquareBrightness > singleSquareBrightnessTotal) singleSquareBrightnessTotal = singleSquareBrightness;
+		if (singleSquareBrightness > singleSquareBrightnessTotal) {
+			singleSquareBrightnessTotal = singleSquareBrightness;
+		}
 	}
 
 	renderOneColForCollapseAnimationInterpolation(xDisplayOutput, min24Total, max24Total, singleSquareBrightnessTotal,
@@ -244,7 +264,9 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 
 	for (int col = xStart; col < xEnd; col++) {
 
-		if (data->colStatus[col] == COL_STATUS_INVESTIGATED) continue;
+		if (data->colStatus[col] == COL_STATUS_INVESTIGATED) {
+			continue;
+		}
 
 		data->colStatus[col] = COL_STATUS_INVESTIGATED; // Default, which we may override below
 
@@ -311,8 +333,12 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 
 			int unusedBytesAtEndOfPrevCluster = (audioFileManager.clusterSize - startByteWithinFirstCluster)
 			                                    % (sample->numChannels * sample->byteDepth);
-			if (unusedBytesAtEndOfPrevCluster == 0) startByteWithinCluster = 0;
-			else startByteWithinCluster = (sample->numChannels * sample->byteDepth) - unusedBytesAtEndOfPrevCluster;
+			if (unusedBytesAtEndOfPrevCluster == 0) {
+				startByteWithinCluster = 0;
+			}
+			else {
+				startByteWithinCluster = (sample->numChannels * sample->byteDepth) - unusedBytesAtEndOfPrevCluster;
+			}
 
 			endByteWithinCluster = audioFileManager.clusterSize;
 			investigatingAWholeCluster = true;
@@ -339,8 +365,12 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 
 				int unusedBytesAtEndOfPrevCluster = (audioFileManager.clusterSize - startByteWithinFirstCluster)
 				                                    % (sample->numChannels * sample->byteDepth);
-				if (unusedBytesAtEndOfPrevCluster == 0) startByteWithinCluster = 0;
-				else startByteWithinCluster = (sample->numChannels * sample->byteDepth) - unusedBytesAtEndOfPrevCluster;
+				if (unusedBytesAtEndOfPrevCluster == 0) {
+					startByteWithinCluster = 0;
+				}
+				else {
+					startByteWithinCluster = (sample->numChannels * sample->byteDepth) - unusedBytesAtEndOfPrevCluster;
+				}
 
 				endByteWithinCluster = bytesInSecondCluster;
 			}
@@ -362,8 +392,9 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 
 		SampleCluster* sampleCluster = sample->clusters.getElement(clusterIndexToDo);
 
-		if (sampleCluster->cluster && sampleCluster->cluster->numReasonsToBeLoaded < 0)
+		if (sampleCluster->cluster && sampleCluster->cluster->numReasonsToBeLoaded < 0) {
 			numericDriver.freezeWithError("E449"); // Trying to catch errer before i028, which users have gotten.
+		}
 
 		// If we're wanting to investigate the whole length of one Cluster, and that's already actually been done previously, we can just reuse those findings!
 		if (investigatingAWholeCluster && sampleCluster->investigatedWholeLength) {
@@ -375,8 +406,12 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 		else {
 			char const* errorCode;
 			if (sampleCluster->cluster) {
-				if (sampleCluster->cluster->loaded) errorCode = "E343";
-				else errorCode = "E344";
+				if (sampleCluster->cluster->loaded) {
+					errorCode = "E343";
+				}
+				else {
+					errorCode = "E344";
+				}
 			}
 			else {
 				errorCode =
@@ -392,9 +427,10 @@ cantReadData:
 				continue;
 			}
 
-			if (cluster->numReasonsToBeLoaded <= 0)
+			if (cluster->numReasonsToBeLoaded <= 0) {
 				numericDriver.freezeWithError(
 				    errorCode); // Branko V got this. Trying to catch E340 below, which Ron R got while recording
+			}
 
 			uint32_t numBytesToRead = endByteWithinCluster - startByteWithinCluster;
 
@@ -407,14 +443,16 @@ cantReadData:
 			if (endByteWithinCluster <= startByteWithinCluster && clusterIndexToDo < endClusters - 1) {
 				endByteWithinCluster += overshoot;
 				SampleCluster* nextSampleCluster = sample->clusters.getElement(clusterIndexToDo + 1);
-				if (nextSampleCluster->cluster && nextSampleCluster->cluster->numReasonsToBeLoaded < 0)
+				if (nextSampleCluster->cluster && nextSampleCluster->cluster->numReasonsToBeLoaded < 0) {
 					numericDriver.freezeWithError(
 					    "E450"); // Trying to catch errer before i028, which users have gotten.
+				}
 				nextCluster = nextSampleCluster->getCluster(sample, clusterIndexToDo, CLUSTER_LOAD_IMMEDIATELY);
 
-				if (cluster->numReasonsToBeLoaded <= 0)
+				if (cluster->numReasonsToBeLoaded <= 0) {
 					numericDriver.freezeWithError(
 					    "E342"); // Trying to catch E340 below, which Ron R got while recording
+				}
 
 				if (!nextCluster) {
 					audioFileManager.removeReasonFromCluster(cluster, "po8w");
@@ -435,7 +473,9 @@ cantReadData:
 
 				// If stereo sample, force an odd number here so we alternate between reading both channels
 				if (sample->numChannels == 2) {
-					if (!(timesTooManySamples & 1)) timesTooManySamples++;
+					if (!(timesTooManySamples & 1)) {
+						timesTooManySamples++;
+					}
 				}
 
 				byteIncrement *= timesTooManySamples;
@@ -456,8 +496,12 @@ cantReadData:
 				int32_t individualSampleValue =
 				    *(int32_t*)&cluster->data[bytePos]; // & sample->bitMask; // bitMask hardly matters here
 
-				if (individualSampleValue > maxThisCol) maxThisCol = individualSampleValue;
-				if (individualSampleValue < minThisCol) minThisCol = individualSampleValue;
+				if (individualSampleValue > maxThisCol) {
+					maxThisCol = individualSampleValue;
+				}
+				if (individualSampleValue < minThisCol) {
+					minThisCol = individualSampleValue;
+				}
 
 				bytePos += byteIncrement;
 			}
@@ -469,16 +513,24 @@ cantReadData:
 				int32_t prevMin = (int32_t)sampleCluster->minValue << 24;
 				int32_t prevMax = (int32_t)sampleCluster->maxValue << 24;
 
-				if (prevMin < minThisCol) minThisCol = prevMin;
-				if (prevMax > maxThisCol) maxThisCol = prevMax;
+				if (prevMin < minThisCol) {
+					minThisCol = prevMin;
+				}
+				if (prevMax > maxThisCol) {
+					maxThisCol = prevMax;
+				}
 
 				// And mark the SampleCluster as fully investigated
 				sampleCluster->minValue = minThisCol >> 24;
 				sampleCluster->maxValue = maxThisCol >> 24;
 
 				// Make rounding be towards 0
-				if (sampleCluster->minValue < 0) sampleCluster->minValue++;
-				if (sampleCluster->maxValue < 0) sampleCluster->maxValue++;
+				if (sampleCluster->minValue < 0) {
+					sampleCluster->minValue++;
+				}
+				if (sampleCluster->maxValue < 0) {
+					sampleCluster->maxValue++;
+				}
 
 				sampleCluster->investigatedWholeLength = true;
 			}
@@ -491,18 +543,28 @@ cantReadData:
 				int8_t smallMax = maxThisCol >> 24;
 
 				// Make rounding be towards 0
-				if (smallMin < 0) smallMin++;
-				if (smallMax < 0) smallMax++;
+				if (smallMin < 0) {
+					smallMin++;
+				}
+				if (smallMax < 0) {
+					smallMax++;
+				}
 
-				if (smallMin < sampleCluster->minValue) sampleCluster->minValue = smallMin;
-				if (smallMax > sampleCluster->maxValue) sampleCluster->maxValue = smallMax;
+				if (smallMin < sampleCluster->minValue) {
+					sampleCluster->minValue = smallMin;
+				}
+				if (smallMax > sampleCluster->maxValue) {
+					sampleCluster->maxValue = smallMax;
+				}
 			}
 
 			data->maxPerCol[col] = maxThisCol;
 			data->minPerCol[col] = minThisCol;
 
 			audioFileManager.removeReasonFromCluster(cluster, "E340"); // Ron R got this, when error was "iiuh"
-			if (nextCluster) audioFileManager.removeReasonFromCluster(nextCluster, "9700");
+			if (nextCluster) {
+				audioFileManager.removeReasonFromCluster(nextCluster, "9700");
+			}
 
 			AudioEngine::routineWithClusterLoading(); // -----------------------------------
 		}
@@ -517,8 +579,12 @@ cantReadData:
 	else {
 		for (int col = xStart; col < xEnd; col++) {
 			if (data->colStatus[col] == COL_STATUS_INVESTIGATED) {
-				if (data->maxPerCol[col] > sample->maxValueFound) sample->maxValueFound = data->maxPerCol[col];
-				if (data->minPerCol[col] < sample->minValueFound) sample->minValueFound = data->minPerCol[col];
+				if (data->maxPerCol[col] > sample->maxValueFound) {
+					sample->maxValueFound = data->maxPerCol[col];
+				}
+				if (data->minPerCol[col] < sample->minValueFound) {
+					sample->minValueFound = data->minPerCol[col];
+				}
 			}
 		}
 	}
@@ -565,7 +631,9 @@ void WaveformRenderer::drawColBar(int xDisplay, int32_t min24, int32_t max24,
 		for (int c = 0; c < 3; c++) {
 			int valueHere = (colourAmount * colourAmount) >> 8;
 
-			if (rgb) valueHere = (valueHere * rgb[c]) >> 8;
+			if (rgb) {
+				valueHere = (valueHere * rgb[c]) >> 8;
+			}
 
 			thisImage[y + (displayHeight >> 1)][xDisplay][c] = valueHere;
 		}

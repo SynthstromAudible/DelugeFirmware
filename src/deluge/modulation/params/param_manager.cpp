@@ -58,7 +58,9 @@ ParamManagerForTimeline* ParamManagerForTimeline::toForTimeline() {
 
 int ParamManager::setupMIDI() {
 	void* memory = generalMemoryAllocator.alloc(sizeof(MIDIParamCollection), NULL, false, true);
-	if (!memory) return ERROR_INSUFFICIENT_RAM;
+	if (!memory) {
+		return ERROR_INSUFFICIENT_RAM;
+	}
 
 	summaries[1] = summaries[0]; // Potentially shuffle the expression params over.
 	summaries[0].paramCollection = new (memory) MIDIParamCollection(&summaries[0]);
@@ -69,7 +71,9 @@ int ParamManager::setupMIDI() {
 
 int ParamManager::setupUnpatched() {
 	void* memoryUnpatched = generalMemoryAllocator.alloc(sizeof(UnpatchedParamSet), NULL, false, true);
-	if (!memoryUnpatched) return ERROR_INSUFFICIENT_RAM;
+	if (!memoryUnpatched) {
+		return ERROR_INSUFFICIENT_RAM;
+	}
 
 	summaries[0].paramCollection = new (memoryUnpatched) UnpatchedParamSet(&summaries[0]);
 	summaries[1] = {0};
@@ -79,7 +83,9 @@ int ParamManager::setupUnpatched() {
 
 int ParamManager::setupWithPatching() {
 	void* memoryUnpatched = generalMemoryAllocator.alloc(sizeof(UnpatchedParamSet), NULL, false, true);
-	if (!memoryUnpatched) return ERROR_INSUFFICIENT_RAM;
+	if (!memoryUnpatched) {
+		return ERROR_INSUFFICIENT_RAM;
+	}
 
 	void* memoryPatched = generalMemoryAllocator.alloc(sizeof(PatchedParamSet), NULL, false, true);
 	if (!memoryPatched) {
@@ -105,7 +111,9 @@ ramError2:
 // Make sure other isn't NULL before you call this, you muppet.
 void ParamManager::stealParamCollectionsFrom(ParamManager* other, bool stealExpressionParams) {
 #if ALPHA_OR_BETA_VERSION
-	if (!other) numericDriver.freezeWithError("E413");
+	if (!other) {
+		numericDriver.freezeWithError("E413");
+	}
 #endif
 
 	int mpeParamsOffsetOther = other->getExpressionParamSetOffset();
@@ -136,9 +144,10 @@ void ParamManager::stealParamCollectionsFrom(ParamManager* other, bool stealExpr
 	}
 
 	summaries[stopAtOther] = hereMpeParamsOrNull; // Could the expression params, or NULL
-	if (hereMpeParamsOrNull.paramCollection)
+	if (hereMpeParamsOrNull.paramCollection) {
 		summaries[stopAtOther + 1] = {0}; // If that was expression params, write the actual terminating NULL here
-		                                  // - but not otherwise, cos we could have overflowed past the array's size!
+	}
+	// - but not otherwise, cos we could have overflowed past the array's size!
 	expressionParamSetOffset = mpeParamsOffsetOther;
 
 	other->summaries[0] = other->summaries[stopAtOther];
@@ -155,8 +164,9 @@ int ParamManager::cloneParamCollectionsFrom(ParamManager* other, bool copyAutoma
                                             int32_t reverseDirectionWithLength) {
 
 	ParamCollectionSummary mpeParamsOrNullHere = *getExpressionParamSetSummary();
-	if (mpeParamsOrNullHere.paramCollection)
+	if (mpeParamsOrNullHere.paramCollection) {
 		cloneExpressionParams = false; // If we already have expression params, then just don't clone from "other".
+	}
 
 	// First, allocate the memories
 	ParamCollectionSummary newSummaries
@@ -167,7 +177,9 @@ int ParamManager::cloneParamCollectionsFrom(ParamManager* other, bool copyAutoma
 	    other->summaries; // Not __restrict__, because other might be the same as this!
 	ParamCollectionSummary const* otherStopAt = &other->summaries[other->expressionParamSetOffset];
 
-	if (cloneExpressionParams && otherStopAt->paramCollection) otherStopAt++;
+	if (cloneExpressionParams && otherStopAt->paramCollection) {
+		otherStopAt++;
+	}
 
 	while (otherSummary != otherStopAt) {
 
@@ -219,7 +231,9 @@ int ParamManager::cloneParamCollectionsFrom(ParamManager* other, bool copyAutoma
 	ParamCollectionSummary* destSummaries = summaries;
 	while (true) {
 		*destSummaries = *newSummary;
-		if (!newSummary->paramCollection) break;
+		if (!newSummary->paramCollection) {
+			break;
+		}
 		destSummaries++;
 		newSummary++;
 	}
@@ -265,7 +279,9 @@ bool ParamManager::ensureExpressionParamSetExists(bool forDrum) {
 	if (!summaries[offset].paramCollection) {
 
 		void* memory = generalMemoryAllocator.alloc(sizeof(ExpressionParamSet), NULL, false, true);
-		if (!memory) return false;
+		if (!memory) {
+			return false;
+		}
 
 		summaries[offset].paramCollection = new (memory) ExpressionParamSet(&summaries[offset], forDrum);
 		summaries[offset + 1] = {0};
@@ -274,14 +290,18 @@ bool ParamManager::ensureExpressionParamSetExists(bool forDrum) {
 }
 
 ExpressionParamSet* ParamManager::getOrCreateExpressionParamSet(bool forDrum) {
-	if (!ensureExpressionParamSetExists(forDrum)) return NULL;
+	if (!ensureExpressionParamSetExists(forDrum)) {
+		return NULL;
+	}
 
 	return getExpressionParamSet();
 }
 
 ModelStackWithParamCollection* ParamManager::getPatchCableSet(ModelStackWithThreeMainThings const* modelStack) {
 #if ALPHA_OR_BETA_VERSION
-	if (!summaries[2].paramCollection) numericDriver.freezeWithError("E412");
+	if (!summaries[2].paramCollection) {
+		numericDriver.freezeWithError("E412");
+	}
 #endif
 	return modelStack->addParamCollection(summaries[2].paramCollection, &summaries[2]);
 }
@@ -294,7 +314,9 @@ ParamManagerForTimeline::ParamManagerForTimeline() {
 // Even if it's just expression params.
 void ParamManagerForTimeline::ensureSomeParamCollections() {
 #if ALPHA_OR_BETA_VERSION
-	if (!summaries[0].paramCollection) numericDriver.freezeWithError("E408");
+	if (!summaries[0].paramCollection) {
+		numericDriver.freezeWithError("E408");
+	}
 #endif
 }
 
@@ -357,7 +379,9 @@ void ParamManagerForTimeline::expectEvent(ModelStackWithThreeMainThings const* m
 	TimelineCounter* timelineCounter = modelStack->getTimelineCounterAllowNull();
 	if (playbackHandler.isEitherClockActive() && (!timelineCounter || timelineCounter->isPlayingAutomationNow())) {
 		ticksTilNextEvent = 0;
-		if (timelineCounter) timelineCounter->expectEvent();
+		if (timelineCounter) {
+			timelineCounter->expectEvent();
+		}
 	}
 }
 

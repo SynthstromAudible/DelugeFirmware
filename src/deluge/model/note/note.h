@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef Note_h
-#define Note_h
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 
@@ -52,5 +51,3 @@ public:
 	// Understanding the probability field: the first bit says whether it's based on a previous one.
 	// So take the rightmost 7 bits. If that's greater than NUM_PROBABILITY_VALUES (20),
 };
-
-#endif

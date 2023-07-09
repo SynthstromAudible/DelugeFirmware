@@ -52,7 +52,9 @@ int ConsequenceAudioClipSetSample::revert(int time, ModelStack* modelStack) {
 	}
 	else {
 		int error = clip->sampleHolder.loadFile(false, false, true);
-		if (error) numericDriver.displayError(error); // Rare, shouldn't cause later problems.
+		if (error) {
+			numericDriver.displayError(error); // Rare, shouldn't cause later problems.
+		}
 
 		if (playbackHandler.isEitherClockActive() && modelStack->song->isClipActive(clip)) {
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);

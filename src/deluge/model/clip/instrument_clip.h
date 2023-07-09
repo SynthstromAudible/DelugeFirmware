@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef INSTRUMENTCLIP_H
-#define INSTRUMENTCLIP_H
+#pragma once
 
 #include "model/clip/clip.h"
 #include "model/timeline_counter.h"
@@ -92,7 +91,8 @@ public:
 	void restoreBackedUpParamManagerMIDI(ModelStackWithModControllable* modelStack);
 	int getNoteRowId(NoteRow* noteRow, int noteRowIndex);
 	NoteRow* getNoteRowFromId(int id);
-	void shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int amount);
+	/// Return true if successfully shifted. Instrument clips always succeed
+	bool shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int amount);
 	bool containsAnyNotes();
 	ModelStackWithNoteRow* getNoteRowOnScreen(int yDisplay, ModelStackWithTimelineCounter* modelStack);
 	NoteRow* getNoteRowOnScreen(int yDisplay, Song* song, int* getIndex = NULL);
@@ -255,5 +255,3 @@ private:
 	int32_t lastProbabiltyPos[NUM_PROBABILITY_VALUES];
 	bool currentlyRecordingLinearly;
 };
-
-#endif

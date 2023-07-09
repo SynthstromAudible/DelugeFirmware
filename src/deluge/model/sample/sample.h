@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef SAMPLE_H_
-#define SAMPLE_H_
+#pragma once
 
 #include "model/sample/sample_cluster.h"
 #include "util/functions.h"
@@ -77,7 +76,8 @@ public:
 
 	inline void convertOneData(int32_t* value) {
 		// Floating point
-		if (rawDataFormat == RAW_DATA_FLOAT) convertFloatToIntAtMemoryLocation((uint32_t*)value);
+		if (rawDataFormat == RAW_DATA_FLOAT)
+			convertFloatToIntAtMemoryLocation((uint32_t*)value);
 
 		// Or endianness swap
 		else if (rawDataFormat == RAW_DATA_ENDIANNESS_WRONG_32) {
@@ -151,5 +151,3 @@ private:
 	                                uint64_t* sumTable, float* floatIndexTable, float* getFreq, int numDoublings,
 	                                bool doPrimeTest);
 };
-
-#endif /* SAMPLE_H_ */

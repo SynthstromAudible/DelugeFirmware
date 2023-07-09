@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef AUDIODRIVER_H
-#define AUDIODRIVER_H
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 
@@ -39,6 +38,7 @@ class Compressor;
 class VoiceVector;
 class revmodel;
 class Metronome;
+class MasterCompressor;
 class ModelStackWithSoundFlags;
 class SoundDrum;
 
@@ -192,8 +192,7 @@ extern int32_t reverbCompressorShape;
 extern int32_t reverbPan;
 extern SampleRecorder* firstRecorder;
 extern Metronome metronome;
+extern MasterCompressor mastercompressor;
 extern uint32_t timeLastSideChainHit;
 extern int32_t sizeLastSideChainHit;
 } // namespace AudioEngine
-
-#endif // AUDIODRIVER_H

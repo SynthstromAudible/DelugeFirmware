@@ -26,7 +26,7 @@
 #include "hid/display/numeric_driver.h"
 #include "io/uart/uart.h"
 #include "gui/ui/audio_recorder.h"
-#include <string.h>
+#include <cstring>
 #include "gui/views/session_view.h"
 #include "util/lookuptables/lookuptables.h"
 #include "playback/mode/session.h"
@@ -37,7 +37,7 @@
 #include "gui/views/audio_clip_view.h"
 #include "model/clip/audio_clip.h"
 #include "gui/waveform/waveform_renderer.h"
-#include "gui/menu_item/menu_item_colour.h"
+#include "gui/menu_item/colour.h"
 #include "hid/led/pad_leds.h"
 #include "extern.h"
 
@@ -67,7 +67,9 @@ void MatrixDriver::noPressesHappening(bool inCardRoutine) {
 int MatrixDriver::padAction(int x, int y, int velocity) {
 	padStates[x][y] = velocity;
 	int result = getCurrentUI()->padAction(x, y, velocity);
-	if (result == ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+	if (result == ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE) {
+		return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+	}
 
 	return ACTION_RESULT_DEALT_WITH;
 }

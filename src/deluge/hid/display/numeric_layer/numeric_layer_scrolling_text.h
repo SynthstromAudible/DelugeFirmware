@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef NUMERICLAYERSCROLLINGTEXT_H_
-#define NUMERICLAYERSCROLLINGTEXT_H_
+#pragma once
 
 #include "hid/display/numeric_layer/numeric_layer.h"
 
@@ -34,5 +33,3 @@ public:
 	int8_t currentPos;
 	int16_t initialDelay;
 };
-
-#endif /* NUMERICLAYERSCROLLINGTEXT_H_ */

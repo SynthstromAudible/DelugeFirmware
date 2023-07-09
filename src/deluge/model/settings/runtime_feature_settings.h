@@ -15,11 +15,10 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef RUNTIMEFEATURESETTINGS_H_
-#define RUNTIMEFEATURESETTINGS_H_
+#pragma once
 
-#include <stdint.h>
-#include "gui/menu_item/menu_item_runtime_feature_setting.h"
+#include <cstdint>
+#include "gui/menu_item/runtime_feature/setting.h"
 #include "util/d_string.h"
 #include "util/container/array/resizeable_array.h"
 
@@ -34,6 +33,8 @@ enum RuntimeFeatureStateToggle : uint32_t { Off = 0, On = 1 };
 enum RuntimeFeatureSettingType : uint32_t {
 	// FileFolderSorting // @TODO: Replace with actual identifier on first use
 	DrumRandomizer,
+	MasterCompressorFx,
+	Quantize,
 	MaxElement // Keep as boundary
 };
 
@@ -88,17 +89,32 @@ protected:
 	         .options = {{.displayName = "Off", .value = RuntimeFeatureStateToggle::Off},
 	                     {.displayName = "On", .value = RuntimeFeatureStateToggle::On},
 	                     {.displayName = NULL, .value = 0}}},
+
+	    [RuntimeFeatureSettingType::MasterCompressorFx] =
+	        {.displayName = "Master Compressor",
+	         .xmlName = "masterCompressor",
+	         .value = RuntimeFeatureStateToggle::On, // Default value
+	         .options = {{.displayName = "Off", .value = RuntimeFeatureStateToggle::Off},
+	                     {.displayName = "On", .value = RuntimeFeatureStateToggle::On},
+	                     {.displayName = NULL, .value = 0}}},
+
+	    [RuntimeFeatureSettingType::Quantize] =
+	        {.displayName = "Quantize",
+	         .xmlName = "quantize",
+	         .value = RuntimeFeatureStateToggle::On, // Default value
+	         .options = {{.displayName = "Off", .value = RuntimeFeatureStateToggle::Off},
+	                     {.displayName = "On", .value = RuntimeFeatureStateToggle::On},
+	                     {.displayName = NULL, .value = 0}}},
+
 	};
 
 private:
 	ResizeableArray unknownSettings;
 
 public:
-	friend class MenuItemRuntimeFeatureSetting;
-	friend class MenuItemRuntimeFeatureSettings;
+	friend class menu_item::runtime_feature::Setting;
+	friend class menu_item::runtime_feature::Settings;
 };
 
 /// Static instance for external access
 extern RuntimeFeatureSettings runtimeFeatureSettings;
-
-#endif /* RUNTIMEFEATURESETTINGS_H_ */

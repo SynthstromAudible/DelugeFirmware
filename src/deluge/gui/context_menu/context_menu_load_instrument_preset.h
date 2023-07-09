@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CONTEXTMENULOADINSTRUMENTPRESET_H_
-#define CONTEXTMENULOADINSTRUMENTPRESET_H_
+#pragma once
 
 #include "gui/context_menu/context_menu.h"
 
@@ -28,5 +27,3 @@ public:
 };
 
 extern ContextMenuLoadInstrumentPreset contextMenuLoadInstrumentPreset;
-
-#endif /* CONTEXTMENULOADINSTRUMENTPRESET_H_ */

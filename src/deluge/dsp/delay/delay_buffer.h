@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef DELAYBUFFER_H_
-#define DELAYBUFFER_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 #include <math.h>
@@ -59,13 +58,15 @@ public:
 
 	inline bool moveOn() {
 		bool wrapped = (++bufferCurrentPos == bufferEnd);
-		if (wrapped) bufferCurrentPos = bufferStart;
+		if (wrapped)
+			bufferCurrentPos = bufferStart;
 		return wrapped;
 	}
 
 	inline void writeNative(int32_t toDelayL, int32_t toDelayR) {
 		StereoSample* writePos = bufferCurrentPos - delaySpaceBetweenReadAndWrite;
-		if (writePos < bufferStart) writePos += sizeIncludingExtra;
+		if (writePos < bufferStart)
+			writePos += sizeIncludingExtra;
 		writePos->l = toDelayL;
 		writePos->r = toDelayR;
 	}
@@ -75,7 +76,8 @@ public:
 		(*writePos)->r = toDelayR;
 
 		(*writePos)++;
-		if (*writePos == bufferEnd) *writePos = bufferStart;
+		if (*writePos == bufferEnd)
+			*writePos = bufferStart;
 	}
 
 	inline void writeResampled(int32_t toDelayL, int32_t toDelayR, int32_t strength1, int32_t strength2,
@@ -112,7 +114,8 @@ public:
 				writePos->l += multiply_32x32_rshift32(toDelayL, strengthThisWrite) << 3;
 				writePos->r += multiply_32x32_rshift32(toDelayR, strengthThisWrite) << 3;
 
-				if (--writePos == bufferStart - 1) writePos = bufferEnd - 1;
+				if (--writePos == bufferStart - 1)
+					writePos = bufferEnd - 1;
 				//writePos = (writePos == bufferStart) ? bufferEnd - 1 : writePos - 1;
 				distanceFromMainWrite -= 65536;
 			}
@@ -127,7 +130,8 @@ public:
 				writePos->l += multiply_32x32_rshift32(toDelayL, strengthThisWrite) << 3;
 				writePos->r += multiply_32x32_rshift32(toDelayR, strengthThisWrite) << 3;
 
-				if (--writePos == bufferStart - 1) writePos = bufferEnd - 1;
+				if (--writePos == bufferStart - 1)
+					writePos = bufferEnd - 1;
 				distanceFromMainWrite += 65536;
 			}
 		}
@@ -168,8 +172,10 @@ public:
 					writePos->r += multiply_32x32_rshift32(toDelayR, (strength[i] >> 2) * setup->writeSizeAdjustment)
 					               << 2;
 				}
-				if (--i < 0) break;
-				if (--writePos == bufferStart - 1) writePos = bufferEnd - 1;
+				if (--i < 0)
+					break;
+				if (--writePos == bufferStart - 1)
+					writePos = bufferEnd - 1;
 			}
 		}
 	}
@@ -181,7 +187,8 @@ public:
 		// If no speed adjustment
 		if (!isResampling) {
 			StereoSample* writePos = bufferCurrentPos - delaySpaceBetweenReadAndWrite;
-			if (writePos < bufferStart) writePos += sizeIncludingExtra;
+			if (writePos < bufferStart)
+				writePos += sizeIncludingExtra;
 			writePos->l = toDelayL;
 			writePos->r = toDelayR;
 		}
@@ -218,7 +225,8 @@ public:
 				writePos->l += multiply_32x32_rshift32(toDelayL, strengthThisWrite) << 3;
 				writePos->r += multiply_32x32_rshift32(toDelayR, strengthThisWrite) << 3;
 
-				if (--writePos == bufferStart - 1) writePos = bufferEnd - 1;
+				if (--writePos == bufferStart - 1)
+					writePos = bufferEnd - 1;
 				//writePos = (writePos == bufferStart) ? bufferEnd - 1 : writePos - 1;
 				distanceFromMainWrite -= 65536;
 			}
@@ -233,7 +241,8 @@ public:
 				writePos->l += multiply_32x32_rshift32(toDelayL, strengthThisWrite) << 3;
 				writePos->r += multiply_32x32_rshift32(toDelayR, strengthThisWrite) << 3;
 
-				if (--writePos == bufferStart - 1) writePos = bufferEnd - 1;
+				if (--writePos == bufferStart - 1)
+					writePos = bufferEnd - 1;
 				distanceFromMainWrite += 65536;
 			}
 		}
@@ -274,8 +283,10 @@ public:
 					writePos->r += multiply_32x32_rshift32(toDelayR, (strength[i] >> 2) * setup->writeSizeAdjustment)
 					               << 2;
 				}
-				if (--i < 0) break;
-				if (--writePos == bufferStart - 1) writePos = bufferEnd - 1;
+				if (--i < 0)
+					break;
+				if (--writePos == bufferStart - 1)
+					writePos = bufferEnd - 1;
 			}
 		}
 	}
@@ -290,5 +301,3 @@ public:
 	uint32_t sizeIncludingExtra;
 	bool isResampling;
 };
-
-#endif /* DELAYBUFFER_H_ */

@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef DRUM_H
-#define DRUM_H
+#pragma once
 
 #include "definitions.h"
 #include "RZA1/system/r_typedefs.h"
@@ -92,5 +91,3 @@ public:
 
 	virtual ModControllable* toModControllable() { return NULL; }
 };
-
-#endif // DRUM_H

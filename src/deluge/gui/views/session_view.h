@@ -15,10 +15,10 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef OverviewModeUI_h
-#define OverviewModeUI_h
+#pragma once
 
 #include "gui/views/clip_navigation_timeline_view.h"
+#include "hid/button.h"
 
 class Editor;
 class InstrumentClip;
@@ -38,7 +38,7 @@ public:
 	bool opened();
 	void focusRegained();
 
-	int buttonAction(int x, int y, bool on, bool inCardRoutine);
+	int buttonAction(hid::Button b, bool on, bool inCardRoutine);
 	int padAction(int x, int y, int velocity);
 	int horizontalEncoderAction(int offset);
 	int verticalEncoderAction(int offset, bool inCardRoutine);
@@ -96,6 +96,7 @@ public:
 	bool
 	    performActionOnSectionPadRelease; // Keep this separate from the above one because we don't want a mod encoder action to set this to false
 	uint8_t sectionPressed;
+	uint8_t masterCompEditMode;
 
 private:
 	void sectionPadAction(uint8_t y, bool on);
@@ -111,5 +112,3 @@ private:
 };
 
 extern SessionView sessionView;
-
-#endif

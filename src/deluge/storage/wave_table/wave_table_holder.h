@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef WAVETABLEHOLDER_H_
-#define WAVETABLEHOLDER_H_
+#pragma once
 
 #include "storage/audio/audio_file_holder.h"
 
@@ -26,5 +25,3 @@ class WaveTableHolder final : public AudioFileHolder {
 public:
 	WaveTableHolder();
 };
-
-#endif /* WAVETABLEHOLDER_H_ */

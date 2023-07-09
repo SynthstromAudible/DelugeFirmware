@@ -225,7 +225,9 @@ makeBattLEDSolid:
 			}
 		}
 		else {
-			if (batteryMV < 3200) goto makeBattLEDSolid;
+			if (batteryMV < 3200) {
+				goto makeBattLEDSolid;
+			}
 		}
 	}
 
@@ -281,7 +283,9 @@ bool readButtonsAndPads() {
 	*/
 
 	if (waitingForSDRoutineToEnd) {
-		if (sdRoutineLock) return false;
+		if (sdRoutineLock) {
+			return false;
+		}
 		else {
 			Uart::println("got to end of sd routine");
 			waitingForSDRoutineToEnd = false;
@@ -304,12 +308,12 @@ bool readButtonsAndPads() {
 
 			Uart::println("");
 			Uart::println("undoing");
-			Buttons::buttonAction(backButtonX, backButtonY, true, sdRoutineLock);
+			Buttons::buttonAction(hid::button::BACK, true, sdRoutineLock);
 		}
 		else {
 			Uart::println("");
 			Uart::println("beginning playback");
-			Buttons::buttonAction(playButtonX, playButtonY, true, sdRoutineLock);
+			Buttons::buttonAction(hid::button::PLAY, true, sdRoutineLock);
 		}
 
 		int random = getRandom255();
@@ -324,42 +328,25 @@ bool readButtonsAndPads() {
 
 		if (value < PAD_AND_BUTTON_MESSAGES_END) {
 
-			int result;
-
 #if DELUGE_MODEL == DELUGE_MODEL_40_PAD
 			bool thisPadPressIsOn = (value >= 70);
-			int x = (unsigned int)value % 10;
-			int y = ((unsigned int)value % 70) / 10;
-
-			if (y < displayHeight) result = matrixDriver.padAction(x, y, thisPadPressIsOn, inSDRoutine);
-			else result = Buttons::buttonAction(x, y - displayHeight, thisPadPressIsOn, sdRoutineLock);
-
 #else
 			int thisPadPressIsOn = nextPadPressIsOn;
 			nextPadPressIsOn = USE_DEFAULT_VELOCITY;
+#endif
 
-			int y = (unsigned int)value / 9;
-			int x = value - y * 9;
-
-			// If pad...
-			if (y < displayHeight * 2) {
-				x <<= 1;
-				if (y >= displayHeight) {
-					y -= displayHeight;
-					x++;
-				}
+			int result;
+			if (Pad::isPad(value)) {
+				auto p = Pad(value);
+				result = matrixDriver.padAction(p.x, p.y, thisPadPressIsOn);
 				/* while this function takes an int for velocity, 255 indicates to the downstream audition pad
 				 * function that it should use the default velocity for the instrument
 				 */
-
-				result = matrixDriver.padAction(x, y, thisPadPressIsOn);
 			}
-
-			// Or if button...
 			else {
-				result = Buttons::buttonAction(x, y - displayHeight * 2, thisPadPressIsOn, sdRoutineLock);
+				auto b = hid::Button(value);
+				result = Buttons::buttonAction(b, thisPadPressIsOn, sdRoutineLock);
 			}
-#endif
 
 			if (result == ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE) {
 				nextPadPressIsOn = thisPadPressIsOn;
@@ -391,8 +378,8 @@ bool readButtonsAndPads() {
 
 	if (playbackHandler.currentlyPlaying) {
 		if (getCurrentUI()->isViewScreen()) {
-			Buttons::buttonAction(loadButtonX, loadButtonY, true);
-			Buttons::buttonAction(loadButtonX, loadButtonY, false);
+			Buttons::buttonAction(hid::button::LOAD, true);
+			Buttons::buttonAction(hid::button::LOAD, false);
 			alreadyDoneScroll = false;
 		}
 		else if (getCurrentUI() == &loadSongUI && currentUIMode == noSubMode) {
@@ -401,8 +388,8 @@ bool readButtonsAndPads() {
 				alreadyDoneScroll = true;
 			}
 			else {
-				Buttons::buttonAction(loadButtonX, loadButtonY, true);
-				Buttons::buttonAction(loadButtonX, loadButtonY, false);
+				Buttons::buttonAction(hid::button::LOAD, true);
+				Buttons::buttonAction(hid::button::LOAD, false);
 			}
 		}
 	}
@@ -415,11 +402,13 @@ bool readButtonsAndPads() {
 		preLoadedSong = NULL;
 
 		if (random0 < 64 && getCurrentUI() == &instrumentClipView) {
-			Buttons::buttonAction(songViewButtonX, songViewButtonY, true);
+			Buttons::buttonAction(hid::button::song, true);
 		}
 
-		else if (random0 < 120) actionLogger.revert(BEFORE);
-		else actionLogger.revert(AFTER);
+		else if (random0 < 120)
+			actionLogger.revert(BEFORE);
+		else
+			actionLogger.revert(AFTER);
 
 		int random = getRandom255();
 		timeNextSDTestAction = AudioEngine::audioSampleTimer + ((random) << 4); // * 44 / 13;
@@ -429,9 +418,9 @@ bool readButtonsAndPads() {
 
 #if LAUNCH_CLIP_TEST_ENABLED
 	if (playbackHandler.playbackState && (int32_t)(audioDriver.audioSampleTimer - timeNextSDTestAction) >= 0) {
-		matrixDriver.buttonStates[shiftButtonX][shiftButtonY] = true;
+		Buttons::buttonAction(SHIFT, true, false);
 		matrixDriver.padAction(displayWidth, getRandom255() & 7, true, inSDRoutine);
-		matrixDriver.buttonStates[shiftButtonX][shiftButtonY] = false;
+		Buttons::buttonAction(SHIFT, false, false);
 		int random = getRandom255();
 		timeNextSDTestAction = audioDriver.audioSampleTimer + ((random) << 4); // * 44 / 13;
 		anything = true;
@@ -719,7 +708,9 @@ extern "C" int deluge_main(void) {
 	while ((uint16_t)(*TCNT[TIMER_SYSTEM_FAST] - timeWaitBegan)
 	       < 32768) { // Safety timer, in case we don't receive anything
 		uint8_t value;
-		if (!uartGetChar(UART_ITEM_PIC, (char*)&value)) continue;
+		if (!uartGetChar(UART_ITEM_PIC, (char*)&value)) {
+			continue;
+		}
 
 		if (readingFirmwareVersion) {
 			readingFirmwareVersion = false;
@@ -729,8 +720,12 @@ extern "C" int deluge_main(void) {
 			Uart::println(value);
 		}
 		else {
-			if (value == 245) readingFirmwareVersion = true; // Message means "here comes the firmware version next".
-			else if (value == 253) break;
+			if (value == 245) {
+				readingFirmwareVersion = true; // Message means "here comes the firmware version next".
+			}
+			else if (value == 253) {
+				break;
+			}
 			else if (value ==
 #if DELUGE_MODEL == DELUGE_MODEL_40_PAD
 			         (110 + selectEncButtonY * 10 + selectEncButtonX)
@@ -738,7 +733,9 @@ extern "C" int deluge_main(void) {
 			         175
 #endif
 			) {
-				if (looksOk) goto resetSettings;
+				if (looksOk) {
+					goto resetSettings;
+				}
 			}
 			else if (value >= 246 && value <= 251) {} // OLED D/C low ack
 			else { // If any hint of another button being held, don't do anything. (Unless we already did in which case, well it's probably ok.)
@@ -875,7 +872,9 @@ resetSettings:
 
 		int count = 0;
 		while (readButtonsAndPads() && count < 16) {
-			if (!(count & 3)) AudioEngine::routineWithClusterLoading(true); // -----------------------------------
+			if (!(count & 3)) {
+				AudioEngine::routineWithClusterLoading(true); // -----------------------------------
+			}
 			count++;
 		}
 
@@ -911,10 +910,14 @@ extern "C" void logAudioAction(char const* string) {
 
 extern "C" void routineForSD(void) {
 
-	if (inInterrupt) return;
+	if (inInterrupt) {
+		return;
+	}
 
 	// We lock this to prevent multiple entry. Otherwise we could get SD -> routineForSD() -> AudioEngine::routine() -> USB -> routineForSD()
-	if (sdRoutineLock) return;
+	if (sdRoutineLock) {
+		return;
+	}
 
 	sdRoutineLock = true;
 
@@ -1075,8 +1078,10 @@ void spamMode() {
 
 		if (spamStates[SPAM_RAM]) {
 			*ramWriteAddress = ~(uint32_t)ramWriteAddress - (*ramReadAddress >> 16);
-			if (++ramReadAddress == (uint32_t*)0x10000000) ramReadAddress = (uint32_t*)0x0C000000;
-			if (++ramWriteAddress == (uint32_t*)0x10000000) ramWriteAddress = (uint32_t*)0x0C000000;
+			if (++ramReadAddress == (uint32_t*)0x10000000)
+				ramReadAddress = (uint32_t*)0x0C000000;
+			if (++ramWriteAddress == (uint32_t*)0x10000000)
+				ramWriteAddress = (uint32_t*)0x0C000000;
 		}
 
 		if (spamStates[SPAM_USB]) {
@@ -1125,7 +1130,8 @@ void spamMode() {
 						//Uart::println("couldn't create");
 					}
 					else {
-						if (spamStates[SPAM_MIDI]) Uart::println("writing");
+						if (spamStates[SPAM_MIDI])
+							Uart::println("writing");
 						sdFileCurrentlyOpen = true;
 					}
 				}
@@ -1160,7 +1166,8 @@ void spamMode() {
 					}
 
 					else {
-						if (spamStates[SPAM_MIDI]) Uart::println("reading");
+						if (spamStates[SPAM_MIDI])
+							Uart::println("reading");
 						sdFileCurrentlyOpen = true;
 					}
 				}
@@ -1195,7 +1202,8 @@ void spamMode() {
 					for (int colour = 0; colour < 3; colour++) {
 						if (colour == whichColour && (getRandom255() % 3) == 0)
 							Uart::putChar(UART_CHANNEL_PIC, getRandom255());
-						else Uart::putChar(UART_CHANNEL_PIC, 0);
+						else
+							Uart::putChar(UART_CHANNEL_PIC, 0);
 					}
 				}
 
@@ -1212,8 +1220,10 @@ void spamMode() {
 
 		if (limitedDetentPos != 0) {
 			currentSpamThing += limitedDetentPos;
-			if (currentSpamThing == NUM_SPAM_THINGS) currentSpamThing = 0;
-			else if (currentSpamThing == -1) currentSpamThing = NUM_SPAM_THINGS - 1;
+			if (currentSpamThing == NUM_SPAM_THINGS)
+				currentSpamThing = 0;
+			else if (currentSpamThing == -1)
+				currentSpamThing = NUM_SPAM_THINGS - 1;
 
 			redrawSpamDisplay();
 		}

@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef SOUNDDRUM_H
-#define SOUNDDRUM_H
+#pragma once
 
 #include "processing/sound/sound.h"
 #include "definitions.h"
@@ -63,5 +62,3 @@ public:
 	ArpeggiatorBase* getArp();
 	ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = NULL) { return &arpSettings; }
 };
-
-#endif // SOUNDDRUM_H

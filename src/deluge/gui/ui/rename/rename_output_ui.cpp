@@ -32,11 +32,17 @@ RenameOutputUI::RenameOutputUI() {
 
 bool RenameOutputUI::opened() {
 #if HAVE_OLED
-	if (output->type == OUTPUT_TYPE_AUDIO) title = "Rename track";
-	else title = "Rename instrument";
+	if (output->type == OUTPUT_TYPE_AUDIO) {
+		title = "Rename track";
+	}
+	else {
+		title = "Rename instrument";
+	}
 #endif
 	bool success = QwertyUI::opened();
-	if (!success) return false;
+	if (!success) {
+		return false;
+	}
 
 	enteredText.set(&output->name);
 
@@ -53,32 +59,41 @@ bool RenameOutputUI::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
 	return true;
 }
 
-int RenameOutputUI::buttonAction(int x, int y, bool on, bool inCardRoutine) {
+int RenameOutputUI::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+	using namespace hid::button;
 
 	// Back button
-	if (x == backButtonX && y == backButtonY) {
+	if (b == BACK) {
 		if (on && !currentUIMode) {
-			if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			if (inCardRoutine) {
+				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
 			exitUI();
 		}
 	}
 
 	// Select encoder button
-	else if (x == selectEncButtonX && y == selectEncButtonY) {
+	else if (b == SELECT_ENC) {
 		if (on && !currentUIMode) {
-			if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			if (inCardRoutine) {
+				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
 			enterKeyPress();
 		}
 	}
 
-	else return ACTION_RESULT_NOT_DEALT_WITH;
+	else {
+		return ACTION_RESULT_NOT_DEALT_WITH;
+	}
 
 	return ACTION_RESULT_DEALT_WITH;
 }
 
 void RenameOutputUI::enterKeyPress() {
 
-	if (enteredText.isEmpty()) return;
+	if (enteredText.isEmpty()) {
+		return;
+	}
 
 	// If actually changing it...
 	if (!output->name.equalsCaseIrrespective(&enteredText)) {
@@ -107,7 +122,9 @@ int RenameOutputUI::padAction(int x, int y, int on) {
 	// Otherwise, exit
 	else {
 		if (on && !currentUIMode) {
-			if (sdRoutineLock) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			if (sdRoutineLock) {
+				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
 			exitUI();
 		}
 	}
@@ -116,7 +133,8 @@ int RenameOutputUI::padAction(int x, int y, int on) {
 }
 
 int RenameOutputUI::verticalEncoderAction(int offset, bool inCardRoutine) {
-	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(xEncButtonX, xEncButtonY))
+	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(hid::button::X_ENC)) {
 		return ACTION_RESULT_DEALT_WITH;
+	}
 	return arrangerView.verticalEncoderAction(offset, inCardRoutine);
 }

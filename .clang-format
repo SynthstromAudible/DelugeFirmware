@@ -9,12 +9,13 @@ ColumnLimit: 120
 ReflowComments: False
 AllowShortBlocksOnASingleLine: Empty
 AllowShortFunctionsOnASingleLine: InlineOnly
-AllowShortIfStatementsOnASingleLine: AllIfsAndElse
+AllowShortIfStatementsOnASingleLine: Never
 IndentGotoLabels: False
 PointerAlignment: Left
 BreakBeforeBinaryOperators: NonAssignment
 BreakBeforeTernaryOperators: True
 AccessModifierOffset: -4
+AlwaysBreakTemplateDeclarations: Yes
 
 # Not sure about this one, it's a lot of changed lines but I also like
 # alphabetic ordering

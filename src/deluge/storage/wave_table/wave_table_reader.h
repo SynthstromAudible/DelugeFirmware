@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef WAVETABLEREADER_H_
-#define WAVETABLEREADER_H_
+#pragma once
 
 #include "storage/audio/audio_file_reader.h"
 
@@ -26,5 +25,3 @@ public:
 	int readBytesPassedErrorChecking(char* outputBuffer, int num);
 	int readNewCluster();
 };
-
-#endif /* WAVETABLEREADER_H_ */

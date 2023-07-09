@@ -15,11 +15,11 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef SOUNDEDITOR_H
-#define SOUNDEDITOR_H
+#pragma once
 
 #include "gui/ui/ui.h"
 #include "gui/menu_item/menu_item.h"
+#include "hid/button.h"
 #include "modulation/arpeggiator.h"
 
 #define SHORTCUTS_VERSION_1 0
@@ -44,6 +44,9 @@ class ModControllableAudio;
 class ModelStackWithThreeMainThings;
 class AudioFileHolder;
 class MIDIDevice;
+namespace menu_item {
+enum class RangeEdit : uint8_t;
+}
 
 class SoundEditor final : public UI {
 public:
@@ -63,9 +66,9 @@ public:
 	uint8_t* currentPriority;
 	int16_t currentMultiRangeIndex;
 	MIDIDevice* currentMIDIDevice;
-	uint8_t editingRangeEdge;
+	menu_item::RangeEdit editingRangeEdge;
 
-	int buttonAction(int x, int y, bool on, bool inCardRoutine);
+	int buttonAction(hid::Button b, bool on, bool inCardRoutine);
 	int padAction(int x, int y, int velocity);
 	int verticalEncoderAction(int offset, bool inCardRoutine);
 	void modEncoderAction(int whichModEncoder, int offset);
@@ -140,5 +143,3 @@ private:
 };
 
 extern SoundEditor soundEditor;
-
-#endif // SOUNDEDITOR_H

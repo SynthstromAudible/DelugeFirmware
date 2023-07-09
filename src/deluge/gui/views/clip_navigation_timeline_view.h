@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CLIPNAVIGATIONTIMELINEVIEW_H_
-#define CLIPNAVIGATIONTIMELINEVIEW_H_
+#pragma once
 
 #include "gui/views/timeline_view.h"
 #include "RZA1/system/r_typedefs.h"
@@ -32,5 +31,3 @@ protected:
 
 	static int32_t xScrollBeforeFollowingAutoExtendingLinearRecording; // -1 means none
 };
-
-#endif /* CLIPNAVIGATIONTIMELINEVIEW_H_ */

@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MIDIKNOBVECTOR_H_
-#define MIDIKNOBVECTOR_H_
+#pragma once
 
 #include "util/container/array/resizeable_array.h"
 
@@ -29,5 +28,3 @@ public:
 	MIDIKnob* getElement(int i);
 	MIDIKnob* insertKnobAtEnd();
 };
-
-#endif /* MIDIKNOBVECTOR_H_ */

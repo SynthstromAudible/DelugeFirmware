@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef SRC_TIMESTRETCHER_H_
-#define SRC_TIMESTRETCHER_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 #include "definitions.h"
@@ -108,7 +107,8 @@ inline int32_t getTotalDifferenceAbs(int32_t* totals1, int32_t* totals2) {
 	int32_t totalDifferenceAbs = 0;
 	for (int i = 0; i < TIME_STRETCH_CROSSFADE_NUM_MOVING_AVERAGES; i++) {
 		int32_t differenceAbsHere = totals2[i] - totals1[i];
-		if (differenceAbsHere < 0) differenceAbsHere = -differenceAbsHere;
+		if (differenceAbsHere < 0)
+			differenceAbsHere = -differenceAbsHere;
 		totalDifferenceAbs += differenceAbsHere;
 	}
 	return totalDifferenceAbs;
@@ -125,5 +125,3 @@ inline int32_t getTotalChange(int32_t* totals1, int32_t* totals2) {
 	}
 	return totalChange;
 }
-
-#endif /* SRC_TIMESTRETCHER_H_ */

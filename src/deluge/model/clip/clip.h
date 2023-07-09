@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CLIP_H_
-#define CLIP_H_
+#pragma once
 
 #include "model/timeline_counter.h"
 #include "RZA1/system/r_typedefs.h"
@@ -138,6 +137,8 @@ public:
 	void setSequenceDirectionMode(ModelStackWithTimelineCounter* modelStack, int newSequenceDirection);
 	bool possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* modelStack);
 	virtual void incrementPos(ModelStackWithTimelineCounter* modelStack, int32_t numTicks);
+	/// Return true if successfully shifted
+	virtual bool shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int amount) = 0;
 
 	// ----- PlayPositionCounter implementation -------
 	int32_t getLoopLength();
@@ -199,5 +200,3 @@ protected:
 	virtual void pingpongOccurred(ModelStackWithTimelineCounter* modelStack) {
 	}
 };
-
-#endif /* CLIP_H_ */

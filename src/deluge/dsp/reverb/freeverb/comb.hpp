@@ -21,8 +21,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef _comb_
-#define _comb_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 #include "util/functions.h"
@@ -60,11 +59,10 @@ inline int32_t comb::process(int32_t input) {
 
 	buffer[bufidx] = input + (multiply_32x32_rshift32_rounded(filterstore, feedback) << 1);
 
-	if (++bufidx >= bufsize) bufidx = 0;
+	if (++bufidx >= bufsize)
+		bufidx = 0;
 
 	return output;
 }
-
-#endif //_comb_
 
 //ends

@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CONSEQUENCECLIPINSTANCECHANGE_H_
-#define CONSEQUENCECLIPINSTANCECHANGE_H_
+#pragma once
 #include "model/consequence/consequence.h"
 #include "RZA1/system/r_typedefs.h"
 
@@ -35,5 +34,3 @@ public:
 	int32_t length[2];
 	Clip* clip[2];
 };
-
-#endif /* CONSEQUENCECLIPINSTANCECHANGE_H_ */

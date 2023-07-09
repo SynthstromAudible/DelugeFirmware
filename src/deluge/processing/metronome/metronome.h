@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef METRONOME_H_
-#define METRONOME_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 
@@ -33,5 +32,3 @@ public:
 	uint32_t timeSinceTrigger;
 	bool sounding;
 };
-
-#endif /* METRONOME_H_ */

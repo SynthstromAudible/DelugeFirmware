@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef SAMPLEHOLDERFORVOICE_H_
-#define SAMPLEHOLDERFORVOICE_H_
+#pragma once
 
 #include "model/sample/sample_holder.h"
 #include "util/phase_increment_fine_tuner.h"
@@ -52,5 +51,3 @@ public:
 protected:
 	void sampleBeenSet(bool reversed, bool manuallySelected);
 };
-
-#endif /* SAMPLEHOLDERFORVOICE_H_ */

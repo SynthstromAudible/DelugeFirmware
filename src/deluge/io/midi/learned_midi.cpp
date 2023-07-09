@@ -69,7 +69,9 @@ void LearnedMIDI::writeAttributesToFile(int midiMessageType) {
 }
 
 void LearnedMIDI::writeToFile(char const* commandName, int midiMessageType) {
-	if (!containsSomething()) return;
+	if (!containsSomething()) {
+		return;
+	}
 
 	storageManager.writeOpeningTagBeginning(commandName);
 	writeAttributesToFile(midiMessageType);
@@ -90,7 +92,6 @@ void LearnedMIDI::readFromFile(int midiMessageType) {
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "channel")) {
 			channelOrZone = storageManager.readTagOrAttributeValueInt();
-			channelOrZone = getMin((int)channelOrZone, 15);
 		}
 		else if (!strcmp(tagName, "mpeZone")) {
 			readMPEZone();
@@ -109,28 +110,45 @@ void LearnedMIDI::readFromFile(int midiMessageType) {
 
 void LearnedMIDI::readMPEZone() {
 	char const* text = storageManager.readTagOrAttributeValue();
-	if (!strcmp(text, "lower")) channelOrZone = MIDI_CHANNEL_MPE_LOWER_ZONE;
-	else if (!strcmp(text, "upper")) channelOrZone = MIDI_CHANNEL_MPE_UPPER_ZONE;
+	if (!strcmp(text, "lower")) {
+		channelOrZone = MIDI_CHANNEL_MPE_LOWER_ZONE;
+	}
+	else if (!strcmp(text, "upper")) {
+		channelOrZone = MIDI_CHANNEL_MPE_UPPER_ZONE;
+	}
 }
 
 bool LearnedMIDI::equalsChannelAllowMPE(MIDIDevice* newDevice, int newChannel) {
-	if (channelOrZone == MIDI_CHANNEL_NONE)
+	if (channelOrZone == MIDI_CHANNEL_NONE) {
 		return false; // 99% of the time, we'll get out here, because input isn't activated/learned.
-	if (!equalsDevice(newDevice)) return false;
-	if (channelOrZone < 16) return (channelOrZone == newChannel);
-	if (!device)
+	}
+	if (!equalsDevice(newDevice)) {
+		return false;
+	}
+	if (!device) {
 		return false; // Could we actually be set to MPE but have no device? Maybe if loaded from weird song file?
-	if (channelOrZone == MIDI_CHANNEL_MPE_LOWER_ZONE)
+	}
+	if (channelOrZone == MIDI_CHANNEL_MPE_LOWER_ZONE) {
 		return (newChannel <= device->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeLowerZoneLastMemberChannel);
-	if (channelOrZone == MIDI_CHANNEL_MPE_UPPER_ZONE)
+	}
+	if (channelOrZone == MIDI_CHANNEL_MPE_UPPER_ZONE) {
 		return (newChannel >= device->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeUpperZoneLastMemberChannel);
-	return false; // Theoretically I don't think we'd ever get here...
+	}
+	return (channelOrZone == newChannel);
 }
 
 bool LearnedMIDI::equalsChannelAllowMPEMasterChannels(MIDIDevice* newDevice, int newChannel) {
-	if (channelOrZone == MIDI_CHANNEL_NONE)
+	if (channelOrZone == MIDI_CHANNEL_NONE) {
 		return false; // 99% of the time, we'll get out here, because input isn't activated/learned.
-	if (!equalsDevice(newDevice)) return false;
-	if (channelOrZone < 16) return (channelOrZone == newChannel);
+	}
+	if (!equalsDevice(newDevice)) {
+		return false;
+	}
+	if (channelOrZone < 16) {
+		return (channelOrZone == newChannel);
+	}
+	if (channelOrZone > IS_A_CC) {
+		return (channelOrZone == newChannel);
+	}
 	return (newChannel == getMasterChannel());
 }

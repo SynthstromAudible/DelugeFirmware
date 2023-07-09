@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CONSEQUENCECLIPEXISTENCE_H_
-#define CONSEQUENCECLIPEXISTENCE_H_
+#pragma once
 
 #include "model/consequence/consequence.h"
 #include "RZA1/system/r_typedefs.h"
@@ -36,5 +35,3 @@ public:
 	uint8_t type;
 	bool shouldBeActiveWhileExistent;
 };
-
-#endif /* CONSEQUENCECLIPEXISTENCE_H_ */

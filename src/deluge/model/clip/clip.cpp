@@ -101,7 +101,9 @@ void Clip::setupForRecordingAsAutoOverdub(Clip* existingClip, Song* song, int ne
 		uint32_t currentScreenLength = currentSong->xZoom[NAVIGATION_CLIP] << displayWidthMagnitude;
 
 		// If new length is a multiple of screen length, just use screen length
-		if ((newLength % currentScreenLength) == 0) newLength = currentScreenLength;
+		if ((newLength % currentScreenLength) == 0) {
+			newLength = currentScreenLength;
+		}
 	}
 
 	loopLength = originalLength = newLength;
@@ -118,7 +120,9 @@ bool Clip::cancelAnyArming() {
 	if (armState) {
 		armState = ARM_STATE_OFF;
 	}
-	else return false;
+	else {
+		return false;
+	}
 
 	return true;
 }
@@ -126,8 +130,9 @@ bool Clip::cancelAnyArming() {
 int Clip::getMaxZoom() {
 	int32_t maxLength = getMaxLength();
 	unsigned int thisLength = displayWidth * 3;
-	while (thisLength < maxLength)
+	while (thisLength < maxLength) {
 		thisLength <<= 1;
+	}
 	return thisLength >> displayWidthMagnitude;
 }
 
@@ -141,7 +146,9 @@ uint32_t Clip::getLivePos() {
 	}
 
 	int32_t livePos = currentPosHere + numSwungTicksInSinceLastActioned;
-	if (livePos < 0) livePos += loopLength; // Could happen if reversing and currentPosHere is 0.
+	if (livePos < 0) {
+		livePos += loopLength; // Could happen if reversing and currentPosHere is 0.
+	}
 
 	return livePos;
 }
@@ -177,8 +184,12 @@ int32_t Clip::getLastProcessedPos() {
 }
 
 Clip* Clip::getClipBeingRecordedFrom() {
-	if (beingRecordedFromClip) return beingRecordedFromClip;
-	else return this;
+	if (beingRecordedFromClip) {
+		return beingRecordedFromClip;
+	}
+	else {
+		return this;
+	}
 }
 
 bool Clip::isArrangementOnlyClip() {
@@ -220,7 +231,9 @@ void Clip::processCurrentPos(ModelStackWithTimelineCounter* modelStack, uint32_t
 	if (lastProcessedPos == endPos && repeatCount >= 0) {
 		posReachedEnd(
 		    modelStack); // This may alter length, changing what happens in the below if statements, which is why we can't combine this.
-		if (modelStack->getTimelineCounter() != this) return; // Why exactly?
+		if (modelStack->getTimelineCounter() != this) {
+			return; // Why exactly?
+		}
 	}
 
 	int32_t ticksTilEnd;
@@ -241,7 +254,9 @@ void Clip::processCurrentPos(ModelStackWithTimelineCounter* modelStack, uint32_t
 		}
 
 		ticksTilEnd = lastProcessedPos;
-		if (!ticksTilEnd) ticksTilEnd = loopLength;
+		if (!ticksTilEnd) {
+			ticksTilEnd = loopLength;
+		}
 	}
 
 	else {
@@ -258,7 +273,9 @@ playingForwardNow:
 			if (sequenceDirectionMode == SEQUENCE_DIRECTION_PINGPONG) {
 				// Normally we'll have hit the exact loop point, meaning lastProcessedPos will have wrapped to 0, above. But
 				// just in case we went further, and need to wrap back to somewhere nearish the right-hand edge of the Clip...
-				if (lastProcessedPos > 0) lastProcessedPos = loopLength - lastProcessedPos;
+				if (lastProcessedPos > 0) {
+					lastProcessedPos = loopLength - lastProcessedPos;
+				}
 				currentlyPlayingReversed = !currentlyPlayingReversed;
 				pingpongOccurred(modelStack);
 				didPingpong = true;
@@ -278,12 +295,15 @@ playingForwardNow:
 		bool mayInterpolate = (output->type != INSTRUMENT_TYPE_MIDI_OUT && output->type != INSTRUMENT_TYPE_CV);
 		paramManager.processCurrentPos(modelStackWithThreeMainThings, ticksSinceLast, currentlyPlayingReversed,
 		                               didPingpong, mayInterpolate);
-		if (paramManager.ticksTilNextEvent < playbackHandler.swungTicksTilNextEvent)
+		if (paramManager.ticksTilNextEvent < playbackHandler.swungTicksTilNextEvent) {
 			playbackHandler.swungTicksTilNextEvent = paramManager.ticksTilNextEvent;
+		}
 	}
 
 	// At least make sure we come back at the end of this Clip
-	if (ticksTilEnd < playbackHandler.swungTicksTilNextEvent) playbackHandler.swungTicksTilNextEvent = ticksTilEnd;
+	if (ticksTilEnd < playbackHandler.swungTicksTilNextEvent) {
+		playbackHandler.swungTicksTilNextEvent = ticksTilEnd;
+	}
 }
 
 int Clip::appendClip(ModelStackWithTimelineCounter* thisModelStack, ModelStackWithTimelineCounter* otherModelStack) {
@@ -335,9 +355,12 @@ void Clip::setPos(ModelStackWithTimelineCounter* modelStack, int32_t newPos, boo
 	         && (repeatCount & 1))); // recording a clone of this Clip from session to arranger.
 
 	if (currentlyPlayingReversed) {
-		if (newPos) newPos = loopLength - newPos;
-		else
+		if (newPos) {
+			newPos = loopLength - newPos;
+		}
+		else {
 			repeatCount--; // Cos it's going to get incremented as a side effect of reversed clips starting at pos 0 after which they'll immediately wrap
+		}
 	}
 
 	lastProcessedPos = newPos;
@@ -414,14 +437,18 @@ Clip* Clip::getClipToRecordTo() {
 	if (output->activeClip && output->activeClip->beingRecordedFromClip == this) {
 		return output->activeClip;
 	}
-	else return this;
+	else {
+		return this;
+	}
 }
 
 // Grabs automated values from current play-pos. To be called after a possible big change made to automation data, e.g. after an undo.
 // This is only to be called if playbackHandler.isEitherClockActive().
 void Clip::reGetParameterAutomation(ModelStackWithTimelineCounter* modelStack) {
 
-	if (!isActiveOnOutput()) return; // Definitely don't do this if we're not an active Clip!
+	if (!isActiveOnOutput()) {
+		return; // Definitely don't do this if we're not an active Clip!
+	}
 
 	if (paramManager.containsAnyParamCollectionsIncludingExpression()) {
 		uint32_t actualPos = getLivePos();
@@ -481,7 +508,9 @@ void Clip::beginInstance(Song* song, int32_t arrangementRecordPos) {
 			goto setupClipInstance;
 		}
 		else {
-			if (clipInstance->length > maxLength) clipInstance->length = maxLength;
+			if (clipInstance->length > maxLength) {
+				clipInstance->length = maxLength;
+			}
 		}
 	}
 
@@ -520,7 +549,9 @@ int Clip::undoDetachmentFromOutput(ModelStackWithTimelineCounter* modelStack) {
 	                                                                           this, &paramManager);
 
 	if (!success) {
-		if (ALPHA_OR_BETA_VERSION) numericDriver.freezeWithError("E245");
+		if (ALPHA_OR_BETA_VERSION) {
+			numericDriver.freezeWithError("E245");
+		}
 		return ERROR_BUG;
 	}
 
@@ -536,10 +567,14 @@ int Clip::undoDetachmentFromOutput(ModelStackWithTimelineCounter* modelStack) {
 
 int32_t Clip::getLoopLength() {
 	// If being recorded, it's auto extending, so won't loop
-	if (false && beingRecordedFromClip) return 2147483647;
+	if (false && beingRecordedFromClip) {
+		return 2147483647;
 
-	// Or, normal case
-	else return loopLength;
+		// Or, normal case
+	}
+	else {
+		return loopLength;
+	}
 }
 
 bool Clip::isPlayingAutomationNow() {
@@ -579,7 +614,9 @@ bool Clip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, Timeline
                              bool drawRepeats) {
 
 	memset(&image[xStart * 3], 0, (xEnd - xStart) * 3);
-	if (occupancyMask) memset(&occupancyMask[xStart], 0, (xEnd - xStart));
+	if (occupancyMask) {
+		memset(&occupancyMask[xStart], 0, (xEnd - xStart));
+	}
 
 	return true;
 }
@@ -601,10 +638,13 @@ void Clip::writeDataToFile(Song* song) {
 	storageManager.writeAttribute("isSoloing", soloingInSessionMode);
 	storageManager.writeAttribute("isArmedForRecording", armedForRecording);
 	storageManager.writeAttribute("length", loopLength);
-	if (sequenceDirectionMode != SEQUENCE_DIRECTION_FORWARD)
+	if (sequenceDirectionMode != SEQUENCE_DIRECTION_FORWARD) {
 		storageManager.writeAttribute("sequenceDirection", sequenceDirectionModeToString(sequenceDirectionMode));
+	}
 	storageManager.writeAttribute("colourOffset", colourOffset);
-	if (section != 255) storageManager.writeAttribute("section", section);
+	if (section != 255) {
+		storageManager.writeAttribute("section", section);
+	}
 
 	//storageManager.writeTag("activeModFunction", modKnobMode);
 
@@ -616,7 +656,9 @@ void Clip::writeDataToFile(Song* song) {
 			storageManager.writeAttribute("selected", "1");
 		}
 	}
-	if (song->getSyncScalingClip() == this) storageManager.writeAttribute("isSyncScaleClip", "1");
+	if (song->getSyncScalingClip() == this) {
+		storageManager.writeAttribute("isSyncScaleClip", "1");
+	}
 
 	storageManager.writeOpeningTagEnd();
 
@@ -677,7 +719,9 @@ void Clip::readTagFromFile(char const* tagName, Song* song, int32_t* readAutomat
 
 		// This is naughty - inputTickScaleClip shouldn't be accessed directly. But for simplicity, I'm using it to hold this Clip for now, and then
 		// in song.cpp this gets made right in a moment...
-		if (is) song->syncScalingClip = this;
+		if (is) {
+			song->syncScalingClip = this;
+		}
 	}
 
 	else if (!strcmp(tagName, "muteMidiCommand")) {
@@ -705,10 +749,11 @@ void Clip::prepareForDestruction(ModelStackWithTimelineCounter* modelStack, int 
 
 	if (output) {
 
-		if (isActiveOnOutput() && playbackHandler.isEitherClockActive())
+		if (isActiveOnOutput() && playbackHandler.isEitherClockActive()) {
 			expectNoFurtherTicks(
 			    modelStack
 			        ->song); // Still necessary? Actually maybe... I can see that this would at least cause an AudioClip to abortRecording()...
+		}
 
 		detachFromOutput(modelStack, false);
 	}
@@ -786,12 +831,15 @@ void Clip::drawUndefinedArea(int32_t xScroll, uint32_t xZoom, int32_t lengthToDi
 	// If the visible pane extends beyond the end of the Clip, draw it as grey
 	int32_t greyStart = timelineView->getSquareFromPos(lengthToDisplay - 1, NULL, xScroll, xZoom) + 1;
 
-	if (greyStart < 0)
+	if (greyStart < 0) {
 		greyStart = 0; // This actually happened in a song of Marek's, due to another bug, but best to check for this
+	}
 
 	if (greyStart < imageWidth) {
 		memset(rowImage + greyStart * 3, UNDEFINED_GREY_SHADE, (imageWidth - greyStart) * 3);
-		if (occupancyMask) memset(occupancyMask + greyStart, 64, imageWidth - greyStart);
+		if (occupancyMask) {
+			memset(occupancyMask + greyStart, 64, imageWidth - greyStart);
+		}
 	}
 
 	if (tripletsOnHere && timelineView->supportsTriplets()) {
@@ -802,7 +850,9 @@ void Clip::drawUndefinedArea(int32_t xScroll, uint32_t xZoom, int32_t lengthToDi
 				pixel[1] = UNDEFINED_GREY_SHADE;
 				pixel[2] = UNDEFINED_GREY_SHADE;
 
-				if (occupancyMask) occupancyMask[xDisplay] = 64;
+				if (occupancyMask) {
+					occupancyMask[xDisplay] = 64;
+				}
 			}
 		}
 	}
@@ -818,7 +868,9 @@ yesMakeItActive:
 
 	else {
 		// In any case, we want the newInstrument to have an activeClip, and if it doesn't yet have one, the supplied Clip makes a perfect candidate
-		if (!newOutput->activeClip) goto yesMakeItActive;
+		if (!newOutput->activeClip) {
+			goto yesMakeItActive;
+		}
 	}
 }
 
@@ -826,9 +878,13 @@ yesMakeItActive:
 int Clip::solicitParamManager(Song* song, ParamManager* newParamManager, Clip* favourClipForCloningParamManager) {
 
 	// Occasionally, like for AudioClips changing their Output, they will actually have a paramManager already, so everything's fine and we can return
-	if (paramManager.containsAnyMainParamCollections()) return NO_ERROR;
+	if (paramManager.containsAnyMainParamCollections()) {
+		return NO_ERROR;
+	}
 
-	if (newParamManager) paramManager.stealParamCollectionsFrom(newParamManager, true);
+	if (newParamManager) {
+		paramManager.stealParamCollectionsFrom(newParamManager, true);
+	}
 
 	if (!paramManager.containsAnyMainParamCollections()) {
 
@@ -861,7 +917,9 @@ trimFoundParamManager:
 			bool success = song->getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)modControllable, this,
 			                                                               &paramManager);
 
-			if (success) goto trimFoundParamManager;
+			if (success) {
+				goto trimFoundParamManager;
+			}
 
 			// Still no ParamManager, so copy it from another Clip
 			Clip* otherClip = song->getClipWithOutput(output, false, this); // Exclude self
@@ -935,13 +993,17 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 
 		else {
 
-			if (!modelStack->song->arrangementOnlyClips.ensureEnoughSpaceAllocated(1)) return false;
+			if (!modelStack->song->arrangementOnlyClips.ensureEnoughSpaceAllocated(1)) {
+				return false;
+			}
 
 			// Find the ClipInstance which we expect to have already been created
 			int clipInstanceI = output->clipInstances.search(playbackHandler.getActualArrangementRecordPos() + 1, LESS);
 
 			// If it can't be found (should be impossible), we'll just get out and leave everything the same, so at least nothing will crash
-			if (clipInstanceI < 0) return false;
+			if (clipInstanceI < 0) {
+				return false;
+			}
 
 			ClipInstance* clipInstance = output->clipInstances.getElement(clipInstanceI);
 
@@ -960,7 +1022,9 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 					clipInstanceI++;
 
 					int error = output->clipInstances.insertAtIndex(clipInstanceI);
-					if (error) return false;
+					if (error) {
+						return false;
+					}
 
 					clipInstance = output->clipInstances.getElement(clipInstanceI);
 
@@ -969,7 +1033,9 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 			}
 
 			int error = clone(modelStack, true); // Puts the cloned Clip into the modelStack. Flattens reversing.
-			if (error) return false;
+			if (error) {
+				return false;
+			}
 
 			Clip* newClip = (Clip*)modelStack->getTimelineCounter();
 
@@ -998,9 +1064,13 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 			int32_t newPlayPos = lastProcessedPos;
 			if (currentlyPlayingReversed) {
 				newPlayPos = -newPlayPos;
-				if (newPlayPos < 0) newPlayPos += loopLength;
+				if (newPlayPos < 0) {
+					newPlayPos += loopLength;
+				}
 			}
-			if (type == CLIP_TYPE_INSTRUMENT) newPlayPos += repeatCount * loopLength;
+			if (type == CLIP_TYPE_INSTRUMENT) {
+				newPlayPos += repeatCount * loopLength;
+			}
 			newClip->setPos(modelStack, newPlayPos, true);
 			newClip->resumePlayback(modelStack, false); // Don't sound
 
@@ -1021,6 +1091,8 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 }
 
 void Clip::incrementPos(ModelStackWithTimelineCounter* modelStack, int32_t numTicks) {
-	if (currentlyPlayingReversed) numTicks = -numTicks;
+	if (currentlyPlayingReversed) {
+		numTicks = -numTicks;
+	}
 	lastProcessedPos += numTicks;
 }

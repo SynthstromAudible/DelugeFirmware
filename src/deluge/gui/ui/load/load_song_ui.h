@@ -15,15 +15,15 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef LOADSONGUI_H
-#define LOADSONGUI_H
+#pragma once
 
 #include "gui/ui/load/load_ui.h"
+#include "hid/button.h"
 
 class LoadSongUI final : public LoadUI {
 public:
 	LoadSongUI();
-	int buttonAction(int x, int y, bool on, bool inCardRoutine);
+	int buttonAction(hid::Button b, bool on, bool inCardRoutine);
 	int timerCallback();
 	int verticalEncoderAction(int offset, bool inCardRoutine);
 	void graphicsRoutine() {}
@@ -58,5 +58,3 @@ private:
 	void exitActionWithError();
 };
 extern LoadSongUI loadSongUI;
-
-#endif // LOADSONGUI_H

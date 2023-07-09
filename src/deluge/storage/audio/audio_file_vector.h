@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef AUDIOFILEVECTOR_H_
-#define AUDIOFILEVECTOR_H_
+#pragma once
 
 #include "util/container/vector/named_thing_vector.h"
 
@@ -27,5 +26,3 @@ public:
 	AudioFileVector();
 	int searchForExactObject(AudioFile* audioFile);
 };
-
-#endif /* AUDIOFILEVECTOR_H_ */

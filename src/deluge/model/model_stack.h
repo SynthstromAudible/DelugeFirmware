@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MODELSTACK_H_
-#define MODELSTACK_H_
+#pragma once
 
 #include "modulation/params/param_manager.h"
 #include "hid/display/numeric_driver.h"
@@ -146,7 +145,8 @@ public:
 
 	inline TimelineCounter* getTimelineCounter() const {
 #if ALPHA_OR_BETA_VERSION
-		if (!timelineCounter) numericDriver.freezeWithError("E369");
+		if (!timelineCounter)
+			numericDriver.freezeWithError("E369");
 #endif
 		return timelineCounter;
 	}
@@ -197,7 +197,8 @@ public:
 
 	inline NoteRow* getNoteRow() const {
 #if ALPHA_OR_BETA_VERSION
-		if (!noteRow) numericDriver.freezeWithError("E379");
+		if (!noteRow)
+			numericDriver.freezeWithError("E379");
 #endif
 		return noteRow;
 	}
@@ -499,5 +500,3 @@ ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurr
 
 
  */
-
-#endif /* MODELSTACK_H_ */

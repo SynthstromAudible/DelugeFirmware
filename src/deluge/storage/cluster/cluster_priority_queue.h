@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CLUSTERPRIORITYQUEUE_H_
-#define CLUSTERPRIORITYQUEUE_H_
+#pragma once
 
 #include "util/container/array/ordered_resizeable_array.h"
 
@@ -36,5 +35,3 @@ public:
 	bool removeIfPresent(Cluster* cluster);
 	bool checkPresent(Cluster* cluster);
 };
-
-#endif /* CLUSTERPRIORITYQUEUE_H_ */

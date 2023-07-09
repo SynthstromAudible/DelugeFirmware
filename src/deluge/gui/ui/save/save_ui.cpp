@@ -95,24 +95,29 @@ void SaveUI::enterKeyPress() {
 		bool dealtWith = performSave(false);
 
 #if !HAVE_OLED
-		if (!dealtWith) displayText(false);
+		if (!dealtWith) {
+			displayText(false);
+		}
 #endif
 	}
 }
 
-int SaveUI::buttonAction(int x, int y, bool on, bool inCardRoutine) {
+int SaveUI::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+	using namespace hid::button;
 
 	FileItem* currentFileItem = getCurrentFileItem();
 
 	// Save button
-	if (x == saveButtonX && y == saveButtonY && !Buttons::isShiftButtonPressed()) {
+	if (b == SAVE && !Buttons::isShiftButtonPressed()) {
 		return mainButtonAction(on);
 	}
 
 	// Select encoder button - we want to override default behaviour here and potentially do nothing, so user doesn't save over something by accident.
-	else if (x == selectEncButtonX && y == selectEncButtonY && currentFileItem && !currentFileItem->isFolder) {}
+	else if (b == SELECT_ENC && currentFileItem && !currentFileItem->isFolder) {}
 
-	else return SlotBrowser::buttonAction(x, y, on, inCardRoutine);
+	else {
+		return SlotBrowser::buttonAction(b, on, inCardRoutine);
+	}
 
 	return ACTION_RESULT_DEALT_WITH;
 }

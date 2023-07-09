@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CONSEQUENCENOTEARRAYCHANGE_H_
-#define CONSEQUENCENOTEARRAYCHANGE_H_
+#pragma once
 
 #include "model/consequence/consequence.h"
 #include "RZA1/system/r_typedefs.h"
@@ -34,5 +33,3 @@ public:
 
 	NoteVector backedUpNoteVector;
 };
-
-#endif /* CONSEQUENCENOTEARRAYCHANGE_H_ */

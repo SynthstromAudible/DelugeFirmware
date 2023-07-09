@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef ACTION_H_
-#define ACTION_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 #include "definitions.h"
@@ -61,7 +60,7 @@ class ModelStack;
 #define ACTION_ARRANGEMENT_TIME_CONTRACT 17
 #define ACTION_ARRANGEMENT_CLEAR 18
 #define ACTION_ARRANGEMENT_RECORD 19
-#define ACTION_INSTRUMENT_CLIP_HORIZONTAL_SHIFT 20
+#define ACTION_CLIP_HORIZONTAL_SHIFT 20
 #define ACTION_NOTE_NUDGE 21
 #define ACTION_NOTE_REPEAT_EDIT 22
 #define ACTION_EUCLIDEAN_NUM_EVENTS_EDIT 23
@@ -139,5 +138,3 @@ public:
 
 private:
 };
-
-#endif /* ACTION_H_ */
