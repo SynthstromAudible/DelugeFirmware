@@ -1354,7 +1354,7 @@ void Session::armClipsToStartOrSoloWithQuantization(uint32_t pos, uint32_t quant
 
 	// If we were doing this just for one Clip (so a late-start might be allowed too)...
 	if (clip && clip->launchStyle != LAUNCH_STYLE_FILL) {
-		uint32_t pos2;
+
 		if (!doLateStart
 		    && allowLateStart) { // Reminder - late start is never allowed for sections - just cos it's not that useful, and tricky to implement
 
@@ -1362,8 +1362,8 @@ void Session::armClipsToStartOrSoloWithQuantization(uint32_t pos, uint32_t quant
 			uint32_t timeAgo = pos * playbackHandler.getTimePerInternalTick(); // Accurate enough
 			doLateStart = (timeAgo < noteOnLatenessAllowed);
 		}
-		pos2 = pos;
-		armClipToStartOrSoloUsingQuantization(clip, doLateStart, pos2, armState);
+
+		armClipToStartOrSoloUsingQuantization(clip, doLateStart, pos, armState);
 	}
 
 	// Or, if we were doing it for a whole section - which means that we know armState == ARM_STATE_ON_NORMAL, and no late-start
@@ -1376,10 +1376,8 @@ void Session::armClipsToStartOrSoloWithQuantization(uint32_t pos, uint32_t quant
 			Clip* thisClip = currentSong->sessionClips.getClipAtIndex(c);
 
 			// If thisClip is in the section we're wanting to arm...
-			if (thisClip->section == section) {
-
+			if (thisClip->section == section && thisClip->launchStyle == LAUNCH_STYLE_DEFAULT) {
 				// Because we're arming a section, we know there's no soloing Clips, so that's easy.
-
 				Output* output = thisClip->output;
 
 				bool alreadyPickedAClip = false;
@@ -1497,7 +1495,7 @@ void Session::scheduleFillClips(uint32_t pos, uint32_t quantization, Clip *clip)
 
 		uint32_t pos2;
 		bool doLateStart = false;
-
+		pos2 = pos;
 		/* Figure out pos for immediate launch */
 		if (clip->launchStyle == LAUNCH_STYLE_FILL) {
 			if (quantization < pos) {
