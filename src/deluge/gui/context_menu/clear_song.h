@@ -20,15 +20,17 @@
 #include "gui/context_menu/context_menu.h"
 
 namespace deluge::gui::context_menu {
-class ContextMenuClearSong final : public ContextMenuForLoading {
+class ClearSong final : public ContextMenuForLoading {
 public:
-	ContextMenuClearSong();
-	void focusRegained();
-	bool canSeeViewUnderneath() { return true; }
+	ClearSong() = default;
+	void focusRegained() override;
+	bool canSeeViewUnderneath() override { return true; }
 
-	char const** getOptions();
-	bool acceptCurrentOption();
+	char const* getTitle() override;
+
+	char const** getOptions() override;
+	bool acceptCurrentOption() override;
 };
 
-extern ContextMenuClearSong clearSong;
-}
+extern ClearSong clearSong;
+} // namespace deluge::gui::context_menu

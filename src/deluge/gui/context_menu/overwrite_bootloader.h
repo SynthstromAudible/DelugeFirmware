@@ -19,15 +19,15 @@
 
 #include "gui/context_menu/context_menu.h"
 
-
 namespace deluge::gui::context_menu {
-class ContextMenuOverwriteBootloader final : public ContextMenu {
+class OverwriteBootloader final : public ContextMenu {
 public:
-	ContextMenuOverwriteBootloader();
+	OverwriteBootloader() = default;
 
-	char const** getOptions();
-	bool acceptCurrentOption();
+	char const* getTitle() override;
+	char const** getOptions() override;
+	bool acceptCurrentOption() override;
 };
 
-extern ContextMenuOverwriteBootloader overwriteBootloader;
-}
+extern OverwriteBootloader overwriteBootloader;
+} // namespace deluge::gui::context_menu

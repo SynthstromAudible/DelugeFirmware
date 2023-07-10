@@ -29,14 +29,9 @@
 namespace deluge::gui {
 
 ContextMenu::ContextMenu() {
-	basicNumOptions = 1;
 #if HAVE_OLED
 	oledShowsUIUnderneath = true;
 #endif
-}
-
-char const** ContextMenu::getOptions() {
-	return basicOptions;
 }
 
 bool ContextMenu::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
@@ -89,7 +84,8 @@ void ContextMenu::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 
 	OLED::drawRectangle(windowMinX, windowMinY, windowMaxX, windowMaxY, image);
 	OLED::drawHorizontalLine(windowMinY + 15, 22, OLED_MAIN_WIDTH_PIXELS - 30, &image[0]);
-	OLED::drawString(title, 22, windowMinY + 6, image[0], OLED_MAIN_WIDTH_PIXELS, TEXT_SPACING_X, TEXT_SPACING_Y);
+	OLED::drawString(this->getTitle(), 22, windowMinY + 6, image[0], OLED_MAIN_WIDTH_PIXELS, TEXT_SPACING_X,
+	                 TEXT_SPACING_Y);
 
 	int textPixelY = windowMinY + 18;
 	int actualCurrentOption = currentOption;
@@ -237,4 +233,4 @@ void ContextMenuForLoading::focusRegained() {
 	IndicatorLEDs::blinkLed(loadLedX, loadLedY);
 	return ContextMenu::focusRegained();
 }
-}
+} // namespace deluge::gui

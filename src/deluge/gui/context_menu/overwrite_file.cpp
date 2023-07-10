@@ -19,15 +19,14 @@
 #include "gui/ui/save/save_ui.h"
 
 namespace deluge::gui::context_menu {
-ContextMenuOverwriteFile overwriteFile{};
+OverwriteFile overwriteFile{};
 
-ContextMenuOverwriteFile::ContextMenuOverwriteFile() {
-#if HAVE_OLED
-	title = "Overwrite?";
-#endif
+char const* OverwriteFile::getTitle() {
+	static char const* title = "Overwrite?";
+	return title;
 }
 
-char const** ContextMenuOverwriteFile::getOptions() {
+char const** OverwriteFile::getOptions() {
 #if HAVE_OLED
 	static char const* options[] = {"Ok"};
 #else
@@ -36,9 +35,9 @@ char const** ContextMenuOverwriteFile::getOptions() {
 	return options;
 }
 
-bool ContextMenuOverwriteFile::acceptCurrentOption() {
+bool OverwriteFile::acceptCurrentOption() {
 	bool dealtWith = currentSaveUI->performSave(true);
 
 	return dealtWith;
 }
-}
+} // namespace deluge::gui::context_menu

@@ -20,13 +20,15 @@
 #include "gui/context_menu/context_menu.h"
 
 namespace deluge::gui::context_menu {
-class ContextMenuDeleteFile final : public ContextMenuForSaving {
+class DeleteFile final : public ContextMenuForSaving {
 public:
-	ContextMenuDeleteFile();
+	DeleteFile() = default;
 
-	char const** getOptions();
-	bool acceptCurrentOption();
+	char const** getOptions() override;
+	bool acceptCurrentOption() override;
+
+	char const* getTitle() override;
 };
 
-extern ContextMenuDeleteFile deleteFile;
-}
+extern DeleteFile deleteFile;
+} // namespace deluge::gui::context_menu

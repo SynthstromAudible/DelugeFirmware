@@ -19,19 +19,21 @@
 
 #include "gui/context_menu/context_menu.h"
 
-namespace deluge::gui::context_menu {
-class ContextMenuSampleBrowserSynth final : public ContextMenu {
+namespace deluge::gui::context_menu::sample_browser {
+class Synth final : public ContextMenu {
 public:
-	ContextMenuSampleBrowserSynth();
+	Synth() = default;
 
-	char const** getOptions();
-	int getNumOptions();
-	bool isCurrentOptionAvailable();
-	bool canSeeViewUnderneath();
+	char const** getOptions() override;
+	size_t getNumOptions() override;
+	bool isCurrentOptionAvailable() override;
+	bool canSeeViewUnderneath() override;
 
-	bool acceptCurrentOption();
-	int padAction(int x, int y, int velocity);
+	bool acceptCurrentOption() override;
+	int padAction(int x, int y, int velocity) override;
+
+	char const* getTitle() override;
 };
 
-extern ContextMenuSampleBrowserSynth fileBrowserSynth;
-}
+extern Synth synth;
+} // namespace deluge::gui::context_menu::sample_browser

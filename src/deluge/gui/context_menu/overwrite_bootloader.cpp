@@ -28,15 +28,14 @@ extern "C" {
 }
 
 namespace deluge::gui::context_menu {
-ContextMenuOverwriteBootloader overwriteBootloader{};
+OverwriteBootloader overwriteBootloader{};
 
-ContextMenuOverwriteBootloader::ContextMenuOverwriteBootloader() {
-#if HAVE_OLED
-	title = "Overwrite bootloader at own risk";
-#endif
+char const* OverwriteBootloader::getTitle() {
+	static char const* title = "Overwrite bootloader at own risk";
+	return title;
 }
 
-char const** ContextMenuOverwriteBootloader::getOptions() {
+char const** OverwriteBootloader::getOptions() {
 #if HAVE_OLED
 	static char const* options[] = {"Accept risk"};
 #else
@@ -45,9 +44,9 @@ char const** ContextMenuOverwriteBootloader::getOptions() {
 	return options;
 }
 
-#define FLASH_WRITE_SIZE 256 // Bigger doesn't seem to work...
+constexpr size_t FLASH_WRITE_SIZE = 256; // Bigger doesn't seem to work...
 
-bool ContextMenuOverwriteBootloader::acceptCurrentOption() {
+bool OverwriteBootloader::acceptCurrentOption() {
 
 #if !HAVE_OLED
 	numericDriver.displayLoadingAnimation();
@@ -217,4 +216,4 @@ gotFlashError:
 	errorMessage = HAVE_OLED ? "No boot*.bin file found" : "FILE";
 	goto longError;
 }
-}
+} // namespace deluge::gui::context_menu

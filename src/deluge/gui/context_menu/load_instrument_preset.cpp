@@ -20,20 +20,19 @@
 #include "hid/display/numeric_driver.h"
 
 namespace deluge::gui::context_menu {
-ContextMenuLoadInstrumentPreset loadInstrumentPreset{};
+LoadInstrumentPreset loadInstrumentPreset{};
 
-ContextMenuLoadInstrumentPreset::ContextMenuLoadInstrumentPreset() {
-#if HAVE_OLED
-	title = "Load preset";
-#endif
+char const* LoadInstrumentPreset::getTitle() {
+	static char const* title = "Load preset";
+	return title;
 }
 
-char const** ContextMenuLoadInstrumentPreset::getOptions() {
+char const** LoadInstrumentPreset::getOptions() {
 	static char const* options[] = {"Clone"}; // "REFRESH",
 	return options;
 }
 
-bool ContextMenuLoadInstrumentPreset::acceptCurrentOption() {
+bool LoadInstrumentPreset::acceptCurrentOption() {
 	int error;
 
 	switch (currentOption) {
@@ -51,4 +50,4 @@ bool ContextMenuLoadInstrumentPreset::acceptCurrentOption() {
 		return true;
 	}
 }
-}
+} // namespace deluge::gui::context_menu

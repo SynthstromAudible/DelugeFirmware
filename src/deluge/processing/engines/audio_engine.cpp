@@ -679,8 +679,8 @@ startAgain:
 	}
 
 	// Previewing sample
-	if (getCurrentUI() == &sampleBrowser || getCurrentUI() == &gui::context_menu::fileBrowserKit
-	    || getCurrentUI() == &gui::context_menu::fileBrowserSynth || getCurrentUI() == &slicer) {
+	if (getCurrentUI() == &sampleBrowser || getCurrentUI() == &gui::context_menu::sample_browser::kit
+	    || getCurrentUI() == &gui::context_menu::sample_browser::synth || getCurrentUI() == &slicer) {
 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithThreeMainThings* modelStack = setupModelStackWithThreeMainThingsButNoNoteRow(

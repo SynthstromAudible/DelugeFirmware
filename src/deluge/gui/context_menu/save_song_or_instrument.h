@@ -21,17 +21,19 @@
 #include "gui/context_menu/context_menu.h"
 
 namespace deluge::gui::context_menu {
-class SaveSongOrInstrumentContextMenu final : public ContextMenuForSaving {
+class SaveSongOrInstrument final : public ContextMenuForSaving {
 public:
-	SaveSongOrInstrumentContextMenu();
+	SaveSongOrInstrument() = default;
 
-	bool acceptCurrentOption();
-	char const** getOptions();
-	int getNumOptions() { return 3; }
-	bool isCurrentOptionAvailable();
+	bool acceptCurrentOption() override;
+	char const** getOptions() override;
+	size_t getNumOptions() override { return 3; }
+	bool isCurrentOptionAvailable() override;
 
-	int padAction(int x, int y, int velocity);
+	int padAction(int x, int y, int velocity) override;
+
+	char const* getTitle() override;
 };
 
-extern SaveSongOrInstrumentContextMenu saveSongOrInstrument;
-}
+extern SaveSongOrInstrument saveSongOrInstrument;
+} // namespace deluge::gui::context_menu

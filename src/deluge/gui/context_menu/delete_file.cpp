@@ -28,20 +28,21 @@ extern "C" {
 
 namespace deluge::gui::context_menu {
 
-ContextMenuDeleteFile deleteFile{};
+DeleteFile deleteFile{};
 
-ContextMenuDeleteFile::ContextMenuDeleteFile() {
-}
-
-char const** ContextMenuDeleteFile::getOptions() {
-#if HAVE_OLED
+char const* DeleteFile::getTitle() {
+	static char* title;
 	if (getUIUpOneLevel() == &context_menu::saveSongOrInstrument) {
 		title = "Are you sure?";
 	}
 	else {
 		title = "Delete?";
 	}
+	return title;
+}
 
+char const** DeleteFile::getOptions() {
+#if HAVE_OLED
 	static char const* options[] = {"OK"};
 	return options;
 #else
@@ -57,7 +58,7 @@ char const** ContextMenuDeleteFile::getOptions() {
 #endif
 }
 
-bool ContextMenuDeleteFile::acceptCurrentOption() {
+bool DeleteFile::acceptCurrentOption() {
 
 	UI* ui = getUIUpOneLevel();
 	if (ui == &context_menu::saveSongOrInstrument) {
@@ -92,4 +93,4 @@ bool ContextMenuDeleteFile::acceptCurrentOption() {
 
 	return true;
 }
-}
+} // namespace deluge::gui::context_menu

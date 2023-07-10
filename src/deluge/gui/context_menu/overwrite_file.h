@@ -22,15 +22,16 @@
 class SaveUI;
 
 namespace deluge::gui::context_menu {
-class ContextMenuOverwriteFile final : public ContextMenuForSaving {
+class OverwriteFile final : public ContextMenuForSaving {
 public:
-	ContextMenuOverwriteFile();
+	OverwriteFile() = default;
 
-	char const** getOptions();
-	bool acceptCurrentOption();
+	char const* getTitle() override;
+	char const** getOptions() override;
+	bool acceptCurrentOption() override;
 
-	SaveUI* currentSaveUI;
+	SaveUI* currentSaveUI = nullptr;
 };
 
-extern ContextMenuOverwriteFile overwriteFile;
-}
+extern OverwriteFile overwriteFile;
+} // namespace deluge::gui::context_menu

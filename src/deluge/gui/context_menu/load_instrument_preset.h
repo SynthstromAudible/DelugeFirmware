@@ -20,12 +20,13 @@
 #include "gui/context_menu/context_menu.h"
 
 namespace deluge::gui::context_menu {
-class ContextMenuLoadInstrumentPreset final : public ContextMenuForLoading {
+class LoadInstrumentPreset final : public ContextMenuForLoading {
 public:
-	ContextMenuLoadInstrumentPreset();
-	char const** getOptions();
-	bool acceptCurrentOption();
+	LoadInstrumentPreset() = default;
+	char const** getOptions() override;
+	bool acceptCurrentOption() override;
+	char const* getTitle() override;
 };
 
-extern ContextMenuLoadInstrumentPreset loadInstrumentPreset;
-}
+extern LoadInstrumentPreset loadInstrumentPreset;
+} // namespace deluge::gui::context_menu

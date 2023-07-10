@@ -22,16 +22,15 @@
 #include "gui/ui/slicer.h"
 #include "storage/file_item.h"
 
-namespace deluge::gui::context_menu {
-ContextMenuSampleBrowserKit fileBrowserKit{};
+namespace deluge::gui::context_menu::sample_browser {
+Kit kit{};
 
-ContextMenuSampleBrowserKit::ContextMenuSampleBrowserKit() {
-#if HAVE_OLED
-	title = "Sample(s)";
-#endif
+char const* Kit::getTitle() {
+	static char const* title = "Sample(s)";
+	return title;
 }
 
-char const** ContextMenuSampleBrowserKit::getOptions() {
+char const** Kit::getOptions() {
 #if HAVE_OLED
 	static char const* options[] = {"Load all", "Slice"};
 #else
@@ -40,11 +39,11 @@ char const** ContextMenuSampleBrowserKit::getOptions() {
 	return options;
 }
 
-int ContextMenuSampleBrowserKit::getNumOptions() {
+size_t Kit::getNumOptions() {
 	return 2;
 }
 
-bool ContextMenuSampleBrowserKit::isCurrentOptionAvailable() {
+bool Kit::isCurrentOptionAvailable() {
 	switch (currentOption) {
 	case 0: // "ALL" option - to import whole folder. Works whether they're currently on a file or a folder.
 		return true;
@@ -53,7 +52,7 @@ bool ContextMenuSampleBrowserKit::isCurrentOptionAvailable() {
 	}
 }
 
-bool ContextMenuSampleBrowserKit::acceptCurrentOption() {
+bool Kit::acceptCurrentOption() {
 	switch (currentOption) {
 	case 0: // Import whole folder
 		return sampleBrowser.importFolderAsKit();
@@ -64,11 +63,11 @@ bool ContextMenuSampleBrowserKit::acceptCurrentOption() {
 	}
 }
 
-int ContextMenuSampleBrowserKit::padAction(int x, int y, int on) {
+int Kit::padAction(int x, int y, int on) {
 	return sampleBrowser.padAction(x, y, on);
 }
 
-bool ContextMenuSampleBrowserKit::canSeeViewUnderneath() {
+bool Kit::canSeeViewUnderneath() {
 	return sampleBrowser.canSeeViewUnderneath();
 }
-}
+} // namespace deluge::gui::context_menu::sample_browser

@@ -22,20 +22,19 @@
 #include "storage/file_item.h"
 
 namespace deluge::gui::context_menu {
-SaveSongOrInstrumentContextMenu saveSongOrInstrument{};
+SaveSongOrInstrument saveSongOrInstrument{};
 
-SaveSongOrInstrumentContextMenu::SaveSongOrInstrumentContextMenu() {
-#if HAVE_OLED
-	title = "Options";
-#endif
+char const* SaveSongOrInstrument::getTitle() {
+	static char const* title = "Options";
+	return title;
 }
 
-char const** SaveSongOrInstrumentContextMenu::getOptions() {
+char const** SaveSongOrInstrument::getOptions() {
 	static char const* options[] = {"Collect media", "Create folder", "Delete"};
 	return options;
 }
 
-bool SaveSongOrInstrumentContextMenu::acceptCurrentOption() {
+bool SaveSongOrInstrument::acceptCurrentOption() {
 	switch (currentOption) {
 	case 0: // Collect media
 		saveSongUI.collectingSamples = true;
@@ -67,7 +66,7 @@ bool SaveSongOrInstrumentContextMenu::acceptCurrentOption() {
 	}
 }
 
-bool SaveSongOrInstrumentContextMenu::isCurrentOptionAvailable() {
+bool SaveSongOrInstrument::isCurrentOptionAvailable() {
 
 	FileItem* currentFileItem = Browser::getCurrentFileItem();
 
@@ -87,7 +86,7 @@ bool SaveSongOrInstrumentContextMenu::isCurrentOptionAvailable() {
 	}
 }
 
-int SaveSongOrInstrumentContextMenu::padAction(int x, int y, int on) {
+int SaveSongOrInstrument::padAction(int x, int y, int on) {
 	return getUIUpOneLevel()->padAction(x, y, on);
 }
-}
+} // namespace deluge::gui::context_menu

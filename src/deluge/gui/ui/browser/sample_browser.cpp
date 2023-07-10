@@ -303,7 +303,7 @@ int SampleBrowser::timerCallback() {
 			else if (soundEditor.editingKit()) {
 
 				if (canImportWholeKit()) {
-					contextMenu = &gui::context_menu::fileBrowserKit;
+					contextMenu = &gui::context_menu::sample_browser::kit;
 					goto considerContextMenu;
 				}
 				else {
@@ -317,7 +317,7 @@ cant:
 
 			// Synth
 			else {
-				contextMenu = &context_menu::fileBrowserSynth;
+				contextMenu = &context_menu::sample_browser::synth;
 
 considerContextMenu:
 				bool available = contextMenu->setupAndCheckAvailability();
