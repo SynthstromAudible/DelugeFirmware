@@ -16,6 +16,8 @@
 */
 
 #include "gui/context_menu/overwrite_file.h"
+#include "gui/l10n.h"
+#include "gui/l10n/strings.h"
 #include "gui/ui/save/save_ui.h"
 #include "hid/display.h"
 
@@ -23,17 +25,18 @@ namespace deluge::gui::context_menu {
 OverwriteFile overwriteFile{};
 
 char const* OverwriteFile::getTitle() {
-	static char const* title = "Overwrite?";
-	return title;
+	using enum l10n::Strings;
+	return l10n::get(STRING_FOR_OVERWRITE_QMARK);
 }
 
 Sized<char const**> OverwriteFile::getOptions() {
+	using enum l10n::Strings;
 	if (display.type == DisplayType::OLED) {
-		static char const* options[] = {"Ok"};
+		static char const* options[] = {l10n::get(STRING_FOR_OK)};
 		return {options, 1};
 	}
 	else {
-		static char const* options[] = {"OVERWRITE"};
+		static char const* options[] = {l10n::get(STRING_FOR_OVERWRITE)};
 		return {options, 1};
 	}
 }

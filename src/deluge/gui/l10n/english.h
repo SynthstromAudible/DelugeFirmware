@@ -1,4 +1,5 @@
 #pragma once
+#include "gui/l10n/strings.h"
 #include "strings.h"
 
 namespace deluge::l10n::language_map {
@@ -215,13 +216,22 @@ constexpr std::array english = build_l10n_map( //
         // General
         {STRING_FOR_OFF, "Off"},
         {STRING_FOR_OK, "OK"},
+        {STRING_FOR_NEW, "New"},
         {STRING_FOR_DELETE, "Delete"},
         {STRING_FOR_SURE, "Sure"},
+        {STRING_FOR_OVERWRITE, "Overwrite"},
+        {STRING_FOR_OPTIONS, "Options"},
 
         // Menu Titles
-        {STRING_FOR_AUDIO_INPUT_TITLE, "Audio source"},
+        {STRING_FOR_AUDIO_SOURCE, "Audio source"},
         {STRING_FOR_ARE_YOU_SURE_QMARK, "Are you sure?"},
         {STRING_FOR_DELETE_QMARK, "Delete?"},
+        {STRING_FOR_SAMPLES, "Sample(s)"},
+        {STRING_FOR_LOAD_FILES, "Load file(s)"},
+        {STRING_FOR_CLEAR_SONG_QMARK, "Clear song?"},
+        {STRING_FOR_LOAD_PRESET, "Load preset"},
+        {STRING_FOR_OVERWRITE_BOOTLOADER_TITLE, "Overwrite bootloader at own risk"},
+        {STRING_FOR_OVERWRITE_QMARK, "Overwrite?"},
 
         // gui/context_menu/audio_input_selector.cpp
         {STRING_FOR_LEFT_INPUT, "Left input"},
@@ -234,6 +244,26 @@ constexpr std::array english = build_l10n_map( //
         {STRING_FOR_BALANCED_INPUT_MONITORING, "Bal. input (monitoring)"},
         {STRING_FOR_MIX_PRE_FX, "Deluge mix (pre fx)"},
         {STRING_FOR_MIX_POST_FX, "Deluge output (post fx)"},
+
+        // gui/context_menu/sample_browser/kit.cpp
+        {STRING_FOR_LOAD_ALL, "Load all"},
+        {STRING_FOR_SLICE, "Slice"},
+
+        // gui/context_menu/sample_browser/synth.cpp
+        {STRING_FOR_MULTISAMPLES, "Multisamples"},
+        {STRING_FOR_BASIC, "Basic"},
+        {STRING_FOR_SINGLE_CYCLE, "Single-cycle"},
+        {STRING_FOR_WAVETABLE, "Wavetable"},
+
+        // gui/context_menu/load_instrument_preset.cpp
+        {STRING_FOR_CLONE, "Clone"},
+
+        // gui/context_menu/overwrite_bootloader.cpp
+        {STRING_FOR_ACCEPT_RISK, "Accept risk"},
+
+        // gui/context_menu/save_song_or_instrument.cpp
+        {STRING_FOR_COLLECT_MEDIA, "Collect media"},
+        {STRING_FOR_CREATE_FOLDER, "Create folder"},
 
     });
 } // namespace deluge::l10n::language_map

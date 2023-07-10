@@ -28,7 +28,7 @@ namespace deluge::gui {
 
 class ContextMenu : public UI {
 public:
-	ContextMenu();
+	ContextMenu() { oledShowsUIUnderneath = true; };
 	virtual ~ContextMenu() = default;
 
 	void focusRegained() override;
@@ -46,11 +46,11 @@ public:
 
 	virtual hid::Button getAcceptButton() { return hid::button::SELECT_ENC; }
 
-	int currentOption; // Don't make static. We'll have multiple nested ContextMenus open at the same time
+	int currentOption = 0; // Don't make static. We'll have multiple nested ContextMenus open at the same time
 
 	// OLED Only
-	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
-	int scrollPos; // Don't make static. We'll have multiple nested ContextMenus open at the same time
+	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) override;
+	int scrollPos = 0; // Don't make static. We'll have multiple nested ContextMenus open at the same time
 	virtual char const* getTitle() = 0;
 };
 

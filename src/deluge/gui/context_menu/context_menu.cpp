@@ -23,9 +23,6 @@
 #include "extern.h"
 
 namespace deluge::gui {
-ContextMenu::ContextMenu() {
-	oledShowsUIUnderneath = true;
-}
 
 bool ContextMenu::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
 	*cols = 0xFFFFFFFF;

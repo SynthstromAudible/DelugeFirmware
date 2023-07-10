@@ -24,4 +24,8 @@ constexpr const char* get(Language language, l10n::Strings string) {
 		return language_map::english[s_idx];
 	}
 }
+
+inline const char* get(l10n::Strings string) {
+	return get(chosenLanguage, string);
+}
 } // namespace deluge::l10n

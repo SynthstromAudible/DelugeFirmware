@@ -16,6 +16,7 @@
 */
 
 #include "gui/context_menu/load_instrument_preset.h"
+#include "gui/l10n.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "hid/display.h"
 
@@ -23,12 +24,13 @@ namespace deluge::gui::context_menu {
 LoadInstrumentPreset loadInstrumentPreset{};
 
 char const* LoadInstrumentPreset::getTitle() {
-	static char const* title = "Load preset";
-	return title;
+	using enum l10n::Strings;
+	return l10n::get(STRING_FOR_LOAD_PRESET);
 }
 
 Sized<char const**> LoadInstrumentPreset::getOptions() {
-	static char const* options[] = {"Clone"}; // "REFRESH",
+	using enum l10n::Strings;
+	static char const* options[] = {l10n::get(STRING_FOR_CLONE)};
 	return {options, 1};
 }
 
