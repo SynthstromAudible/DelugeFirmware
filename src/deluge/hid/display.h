@@ -79,6 +79,7 @@ public:
 	void removeLoadingAnimation() { NumericDriver::removeTopLayer(); }
 
 	bool hasPopup() { return this->popupActive; }
+	void displayError(int error);
 };
 
 #if HAVE_OLED
