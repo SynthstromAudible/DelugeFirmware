@@ -1539,7 +1539,7 @@ goAgain:
                                 g_p_usb_pipe[pipe] = (usb_utr_t*)
                                     USB_NULL; // Moved by Rohan - set this to NULL before the callback so the callback can do another transfer, which sets this to something else
                                 //(temp->complete)(temp, 0, 0); // This does our callback on our outgoing transfers. Rohan
-                                usbSendComplete(USB_CFG_USE_USBIP);
+                                usbSendCompleteAsHost(USB_CFG_USE_USBIP);
                             }
                         }
                     }

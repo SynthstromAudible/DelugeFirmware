@@ -3,12 +3,40 @@
 # Copyright 2023 Kate Whitlock
 import argparse
 import os
+import io
+import fnmatch
 from pathlib import Path
 import util
 from functools import partial
 
 EXEC_EXT = ".exe" if os.name == "nt" else ""
 
+def excludes_from_file(ignore_file):
+    excludes = []
+    try:
+        with io.open(ignore_file, 'r', encoding='utf-8') as f:
+            for line in f:
+                if line.startswith('#'):
+                    # ignore comments
+                    continue
+                pattern = line.rstrip()
+                if not pattern:
+                    # allow empty lines
+                    continue
+                excludes.append(pattern)
+    except EnvironmentError as e:
+        if e.errno != errno.ENOENT:
+            raise
+    return excludes
+
+def exclude(files, excludes):
+    out = []
+    fpaths = [f for f in files]
+    for pattern in excludes:
+        fpaths = [
+            x for x in fpaths if not fnmatch.fnmatch(x, pattern)
+        ]
+    return fpaths
 
 def get_clang_format():
     git_path = util.get_git_root()
@@ -61,6 +89,8 @@ def argparser():
 def main():
     args = argparser().parse_args()
     files = get_header_and_source_files(Path(args.directory), not args.no_recursive)
+    excludes = excludes_from_file(".clang-format-ignore")
+    files = exclude(files, excludes)
     clang_format = get_clang_format()
     if files:
         if args.quiet:
