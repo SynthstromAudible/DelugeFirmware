@@ -1898,7 +1898,7 @@ displayNudge:
 						== RuntimeFeatureStateToggle::On)) {//feature on
 					tempoKnobMode = 2;}
 				else {
-					tempoKnobMode = 1;//feature off
+					tempoKnobMode = 1;
 				}
 
 				if (Buttons::isButtonPressed(hid::button::TEMPO_ENC)) {
