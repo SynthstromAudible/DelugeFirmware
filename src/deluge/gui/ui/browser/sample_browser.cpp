@@ -46,10 +46,10 @@
 #include "hid/encoders.h"
 #include "gui/ui/keyboard_screen.h"
 #include <new>
-#include "gui/context_menu/context_menu_sample_browser_kit.h"
-#include "gui/context_menu/context_menu_sample_browser_synth.h"
+#include "gui/context_menu/sample_browser/kit.h"
+#include "gui/context_menu/sample_browser/synth.h"
 #include "util/d_string.h"
-#include "gui/context_menu/context_menu_delete_file.h"
+#include "gui/context_menu/delete_file.h"
 #include "gui/waveform/waveform_basic_navigator.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/instrument_clip_view.h"
@@ -77,6 +77,9 @@
 extern "C" {
 #include "RZA1/uart/sio_char.h"
 }
+
+using namespace deluge;
+using namespace gui;
 
 SampleBrowser sampleBrowser{};
 
@@ -286,7 +289,7 @@ int SampleBrowser::timerCallback() {
 		if (fileIndexSelected >= 0) {
 
 			char const* errorMessage;
-			ContextMenu* contextMenu;
+			gui::ContextMenu* contextMenu;
 
 			// AudioClip
 			if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) {
@@ -300,7 +303,7 @@ int SampleBrowser::timerCallback() {
 			else if (soundEditor.editingKit()) {
 
 				if (canImportWholeKit()) {
-					contextMenu = &contextMenuFileBrowserKit;
+					contextMenu = &gui::context_menu::sample_browser::kit;
 					goto considerContextMenu;
 				}
 				else {
@@ -314,7 +317,7 @@ cant:
 
 			// Synth
 			else {
-				contextMenu = &contextMenuFileBrowserSynth;
+				contextMenu = &context_menu::sample_browser::synth;
 
 considerContextMenu:
 				bool available = contextMenu->setupAndCheckAvailability();

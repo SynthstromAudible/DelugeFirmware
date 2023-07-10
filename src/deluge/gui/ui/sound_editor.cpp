@@ -2,7 +2,7 @@
 #include "definitions.h"
 #include "dsp/reverb/freeverb/revmodel.hpp"
 #include "extern.h"
-#include "gui/context_menu/context_menu_overwrite_bootloader.h"
+#include "gui/context_menu/overwrite_bootloader.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/sample_browser.h"
@@ -58,6 +58,8 @@ extern "C" {
 }
 
 #include "menus.h"
+
+using namespace deluge;
 using namespace menu_item;
 
 #define comingSoonMenu (MenuItem*)0xFFFFFFFF
@@ -882,9 +884,9 @@ int SoundEditor::padAction(int x, int y, int on) {
 		    && ((x == 0 && y == 7) || (x == 1 && y == 6) || (x == 2 && y == 5))) {
 
 			if (matrixDriver.isUserDoingBootloaderOverwriteAction()) {
-				bool available = contextMenuOverwriteBootloader.setupAndCheckAvailability();
+				bool available = gui::context_menu::overwriteBootloader.setupAndCheckAvailability();
 				if (available) {
-					openUI(&contextMenuOverwriteBootloader);
+					openUI(&gui::context_menu::overwriteBootloader);
 				}
 			}
 		}
