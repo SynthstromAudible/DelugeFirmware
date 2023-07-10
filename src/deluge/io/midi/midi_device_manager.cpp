@@ -27,6 +27,7 @@
 #include "gui/ui/sound_editor.h"
 #include "gui/menu_item/mpe/zone_num_member_channels.h"
 #include "hid/display/oled.h"
+#include "util/functions.h"
 
 extern "C" {
 #include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_basic_define.h"
@@ -53,6 +54,7 @@ struct {
 //the virtual cable is an implementation detail
 MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port1{};
 MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port2{1};
+MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port3{2};
 MIDIDeviceDINPorts dinMIDIPorts{};
 
 uint8_t lowestLastMemberChannelOfLowerZoneOnConnectedOutput = 15;
@@ -64,6 +66,7 @@ bool anyChangesToSave = false;
 void slowRoutine() {
 	upstreamUSBMIDIDevice_port1.sendMCMsNowIfNeeded();
 	upstreamUSBMIDIDevice_port2.sendMCMsNowIfNeeded();
+	// port3 is not used for channel data
 
 	for (int d = 0; d < hostedMIDIDevices.getNumElements(); d++) {
 		MIDIDeviceUSBHosted* device = (MIDIDeviceUSBHosted*)hostedMIDIDevices.getElement(d);
@@ -259,13 +262,15 @@ extern "C" void configuredAsPeripheral(int ip) {
 	connectedDevice->setup();
 	connectedDevice->device[0] = &upstreamUSBMIDIDevice_port1;
 	connectedDevice->device[1] = &upstreamUSBMIDIDevice_port2;
-	connectedDevice->maxPortConnected = 1;
+	connectedDevice->device[2] = &upstreamUSBMIDIDevice_port3;
+	connectedDevice->maxPortConnected = 2;
 	connectedDevice->canHaveMIDISent = 1;
 
 	anyUSBSendingStillHappening[ip] = 0; // Initialize this. There's obviously nothing sending yet right now.
 
 	upstreamUSBMIDIDevice_port1.connectedNow(0);
 	upstreamUSBMIDIDevice_port2.connectedNow(0);
+	upstreamUSBMIDIDevice_port3.connectedNow(0);
 	recountSmallestMPEZones();
 }
 
@@ -277,6 +282,7 @@ extern "C" void detachedAsPeripheral(int ip) {
 	}
 	upstreamUSBMIDIDevice_port1.connectionFlags = 0;
 	upstreamUSBMIDIDevice_port2.connectionFlags = 0;
+	upstreamUSBMIDIDevice_port3.connectionFlags = 0;
 	anyUSBSendingStillHappening[ip] =
 	    0; // Reset this again. Been meaning to do this, and can no longer quite remember reason or whether technically essential, but adds to safety at least.
 
@@ -309,6 +315,9 @@ MIDIDevice* readDeviceReferenceFromFile() {
 			}
 			else if (!strcmp(port, "upstreamUSB2")) {
 				device = &upstreamUSBMIDIDevice_port2;
+			}
+			else if (!strcmp(port, "upstreamUSB3")) {
+				device = &upstreamUSBMIDIDevice_port3;
 			}
 			else if (!strcmp(port, "din")) {
 				device = &dinMIDIPorts;
@@ -344,6 +353,9 @@ void readDeviceReferenceFromFlash(int whichCommand, uint8_t const* memory) {
 	}
 	else if (vendorId == VENDOR_ID_UPSTREAM_USB2) {
 		device = &upstreamUSBMIDIDevice_port2;
+	}
+	else if (vendorId == VENDOR_ID_UPSTREAM_USB3) {
+		device = &upstreamUSBMIDIDevice_port3;
 	}
 	else if (vendorId == VENDOR_ID_DIN) {
 		device = &dinMIDIPorts;
@@ -452,6 +464,9 @@ void readDevicesFromFile() {
 		else if (!strcmp(tagName, "upstreamUSBDevice2")) {
 			upstreamUSBMIDIDevice_port2.readFromFile();
 		}
+		else if (!strcmp(tagName, "upstreamUSBDevice3")) {
+			upstreamUSBMIDIDevice_port3.readFromFile();
+		}
 		else if (!strcmp(tagName, "hostedUSBDevice")) {
 			readAHostedDeviceFromFile();
 		}
@@ -529,16 +544,55 @@ checkDevice:
 } // namespace MIDIDeviceManager
 
 void ConnectedUSBMIDIDevice::bufferMessage(uint32_t fullMessage) {
-	// If buffer already full, flush it
-	if (numMessagesQueued >= MIDI_SEND_BUFFER_LEN) {
-		midiEngine
-		    .flushUSBMIDIOutput(); // TODO: this is actually far from perfect - what if already sending - and if we want to wait/check for that, we should be calling the routine.
-		                           // And ideally, we'd be able to flush for just one device.
-		numMessagesQueued = 0;
+	uint32_t queued = ringBufWriteIdx - ringBufReadIdx;
+	if (queued > 16) {
+		if (!anyUSBSendingStillHappening[0]) {
+			midiEngine.flushUSBMIDIOutput();
+		}
+		queued = ringBufWriteIdx - ringBufReadIdx;
+	}
+	if (queued > MIDI_SEND_BUFFER_LEN_RING) {
+		// TODO: show some error message
+		return;
 	}
 
-	preSendData[numMessagesQueued++] = fullMessage;
+	sendDataRingBuf[ringBufWriteIdx & MIDI_SEND_RING_MASK] = fullMessage;
+	ringBufWriteIdx++;
+
 	anythingInUSBOutputBuffer = true;
+}
+
+bool ConnectedUSBMIDIDevice::hasBufferedSendData() {
+	// must me the same unsigned type as ringBufWriteIdx/ringBufReadIdx
+	uint32_t queued = ringBufWriteIdx - ringBufReadIdx;
+	return queued > 0;
+}
+
+// This tries to read data from the ring buffer, and
+// moves data into the smaller "dataSendingNow" buffer where
+// it is ready to be used by the hardware driver.
+bool ConnectedUSBMIDIDevice::consumeSendData() {
+	uint32_t queued = ringBufWriteIdx - ringBufReadIdx;
+	if (queued == 0) {
+		return false;
+	}
+
+	int i = 0;
+	int max_size = MIDI_SEND_BUFFER_LEN_INNER;
+	if (g_usb_usbmode == USB_HOST) {
+		// many devices do not accept more than 64 bytes of data at a time
+		// likely this can be inferred from the device metadata somehow?
+		max_size = MIDI_SEND_BUFFER_LEN_INNER_HOST;
+	}
+
+	int to_send = getMin(queued, max_size);
+	for (i = 0; i < to_send; i++) {
+		memcpy(dataSendingNow + (i * 4), &sendDataRingBuf[ringBufReadIdx & MIDI_SEND_RING_MASK], 4);
+		ringBufReadIdx++;
+	}
+
+	numBytesSendingNow = to_send * 4;
+	return true;
 }
 
 void ConnectedUSBMIDIDevice::setup() {
