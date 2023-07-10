@@ -1893,7 +1893,7 @@ displayNudge:
 
 
 
-				//FimeTempoKnob logic... couldn't replace runtime line with variable successfully
+				//FimeTempoKnob logic
 				if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::FineTempoKnob)
 						== RuntimeFeatureStateToggle::On)) {//feature on
 					tempoKnobMode = 2;}
