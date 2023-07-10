@@ -110,7 +110,7 @@ protected:
 		[RuntimeFeatureSettingType::FineTempoKnob] =
 			{.displayName = "Fine Tempo Knob",
 			 .xmlName = "fineTempoknob",
-			 .value = RuntimeFeatureStateToggle::On, // Default value
+			 .value = RuntimeFeatureStateToggle::Off, // Default value
 			 .options = {{.displayName = "Off", .value = RuntimeFeatureStateToggle::Off},
 						 {.displayName = "On", .value = RuntimeFeatureStateToggle::On},
 						 {.displayName = NULL, .value = 0}}},
