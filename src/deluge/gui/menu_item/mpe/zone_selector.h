@@ -31,9 +31,8 @@ public:
 	MenuItem* selectButtonPress();
 	uint8_t whichZone;
 
-#if HAVE_OLED
+	// OLED Only
 	char const* getTitle(char* buffer);
-#endif
 };
 
 extern ZoneSelector zoneSelectorMenu;

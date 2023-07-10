@@ -16,11 +16,7 @@
 */
 
 #include "menu_item.h"
-#include "hid/display/numeric_driver.h"
-
-#if HAVE_OLED
-#include "hid/display/oled.h"
-#endif
+#include "hid/display.h"
 
 int MenuItem::checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) {
 	bool toReturn = isRelevant(sound, whichThing);
@@ -30,8 +26,6 @@ int MenuItem::checkPermissionToBeginSession(Sound* sound, int whichThing, MultiR
 void MenuItem::learnCC(MIDIDevice* fromDevice, int channel, int ccNumber, int value) {
 	learnKnob(fromDevice, ccNumber, 0, channel);
 }
-
-#if HAVE_OLED
 
 // This is virtual. Some classes with override it and generate some name on the fly.
 // Supplied buffer size must be MENU_ITEM_TITLE_BUFFER_SIZE. Actual max num chars for OLED display is 14.
@@ -69,10 +63,6 @@ void MenuItem::drawItemsForOled(char const** options, int selectedOption) {
 	}
 }
 
-#else
-
 void MenuItem::drawName() {
-	numericDriver.setText(getName(), false, shouldDrawDotOnName());
+	display.setText(getName(), false, shouldDrawDotOnName());
 }
-
-#endif

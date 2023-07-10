@@ -52,9 +52,8 @@ public:
 	uint32_t getMaxLength();
 	unsigned int getMaxZoom();
 
-#if HAVE_OLED
+	// OLED ONLY
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
-#endif
 
 private:
 	void needsRenderingDependingOnSubMode();

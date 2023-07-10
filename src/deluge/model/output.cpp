@@ -26,7 +26,7 @@
 #include "model/consequence/consequence_clip_existence.h"
 #include "memory/general_memory_allocator.h"
 #include <new>
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "model/model_stack.h"
 
 Output::Output(int newType) : type(newType) {
@@ -169,7 +169,7 @@ ParamManager* Output::getParamManager(Song* song) {
 		ParamManager* paramManager =
 		    song->getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)toModControllable(), NULL);
 		if (!paramManager) {
-			numericDriver.freezeWithError("E170");
+			display.freezeWithError("E170");
 		}
 		return paramManager;
 	}
@@ -419,11 +419,11 @@ void Output::endAnyArrangementRecording(Song* song, int32_t actualEndPosInternal
 		int i = clipInstances.search(actualEndPosInternalTicks, LESS);
 		ClipInstance* clipInstance = clipInstances.getElement(i);
 		if (ALPHA_OR_BETA_VERSION && !clipInstance) {
-			numericDriver.freezeWithError("E261");
+			display.freezeWithError("E261");
 		}
 		if (ALPHA_OR_BETA_VERSION && clipInstance->clip != activeClip) {
-			numericDriver.freezeWithError(
-			    "E262"); // Michael B got, in 3.2.0-alpha10. Possibly a general memory corruption thing?
+			// Michael B got, in 3.2.0-alpha10. Possibly a general memory corruption thing?
+			display.freezeWithError("E262");
 		}
 
 		int32_t lengthSoFarInternalTicks = actualEndPosInternalTicks - clipInstance->pos;

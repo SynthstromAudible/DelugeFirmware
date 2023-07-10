@@ -41,7 +41,7 @@
 #include "model/clip/clip_minder.h"
 #include "gui/views/session_view.h"
 #include "gui/ui_timer_manager.h"
-#include "hid/display/oled.h"
+#include "hid/display.h"
 
 KeyboardScreen keyboardScreen{};
 
@@ -253,11 +253,12 @@ foundIt:
 				drawNoteCode(highestNoteCode);
 			}
 			else {
-#if HAVE_OLED
-				OLED::removePopup();
-#else
-				redrawNumericDisplay();
-#endif
+				if (display.type == DisplayType::OLED) {
+					OLED::removePopup();
+				}
+				else {
+					redrawNumericDisplay();
+				}
 			}
 		}
 
@@ -473,9 +474,9 @@ void KeyboardScreen::exitAuditionMode() {
 
 	memset(yDisplayActive, 0, sizeof(yDisplayActive));
 	exitUIMode(UI_MODE_AUDITIONING);
-#if !HAVE_OLED
-	redrawNumericDisplay();
-#endif
+	if (display.type != DisplayType::OLED) {
+		redrawNumericDisplay();
+	}
 }
 
 void KeyboardScreen::stopAllAuditioning(ModelStack* modelStack, bool switchOffOnThisEndToo) {
@@ -702,7 +703,7 @@ int KeyboardScreen::horizontalEncoderAction(int offset) {
 
 				char buffer[13] = "row step:   ";
 				intToString(clip->keyboardRowInterval, buffer + (HAVE_OLED ? 10 : 0), 1);
-				numericDriver.displayPopup(buffer);
+				display.displayPopup(buffer);
 
 				doScroll(0, true);
 			}

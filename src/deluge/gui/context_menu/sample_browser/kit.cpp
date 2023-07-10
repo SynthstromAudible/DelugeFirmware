@@ -16,9 +16,10 @@
 */
 
 #include "gui/context_menu/sample_browser/kit.h"
+#include "gui/l10n.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "util/functions.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "gui/ui/slicer.h"
 #include "storage/file_item.h"
 
@@ -26,16 +27,16 @@ namespace deluge::gui::context_menu::sample_browser {
 Kit kit{};
 
 char const* Kit::getTitle() {
-	static char const* title = "Sample(s)";
-	return title;
+	using enum l10n::Strings;
+	return l10n::get(STRING_FOR_SAMPLES);
 }
 
 Sized<char const**> Kit::getOptions() {
-#if HAVE_OLED
-	static char const* options[] = {"Load all", "Slice"};
-#else
-	static char const* options[] = {"ALL", "Slice"};
-#endif
+	using enum l10n::Strings;
+	static char const* options[] = {
+	    l10n::get(STRING_FOR_LOAD_ALL), //<
+	    l10n::get(STRING_FOR_SLICE)     //<
+	};
 	return {options, 2};
 }
 
@@ -53,7 +54,7 @@ bool Kit::acceptCurrentOption() {
 	case 0: // Import whole folder
 		return sampleBrowser.importFolderAsKit();
 	default: // Slicer
-		numericDriver.setNextTransitionDirection(1);
+		display.setNextTransitionDirection(1);
 		openUI(&slicer);
 		return true;
 	}

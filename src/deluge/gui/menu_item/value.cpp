@@ -17,34 +17,38 @@
 
 #include "value.h"
 #include "gui/ui/ui.h"
+#include "hid/display.h"
 
 namespace menu_item {
 
 void Value::beginSession(MenuItem* navigatedBackwardFrom) {
-#if HAVE_OLED
-	readCurrentValue();
-#else
-	readValueAgain();
-#endif
+	if (display.type == DisplayType::OLED) {
+		readCurrentValue();
+	}
+	else {
+		readValueAgain();
+	}
 }
 
 void Value::selectEncoderAction(int offset) {
 	writeCurrentValue();
 
 	// For MenuItems referring to an AutoParam (so UnpatchedParam and PatchedParam), ideally we wouldn't want to render the display here, because that'll happen soon anyway due to a setting of TIMER_DISPLAY_AUTOMATION.
-#if HAVE_OLED
-	renderUIsForOled();
-#else
-	drawValue(); // Probably not necessary either...
-#endif
+	if (display.type == DisplayType::OLED) {
+		renderUIsForOled();
+	}
+	else {
+		drawValue(); // Probably not necessary either...
+	}
 }
 
 void Value::readValueAgain() {
 	readCurrentValue();
-#if HAVE_OLED
-	renderUIsForOled();
-#else
-	drawValue();
-#endif
+	if (display.type == DisplayType::OLED) {
+		renderUIsForOled();
+	}
+	else {
+		drawValue();
+	}
 }
 } // namespace menu_item

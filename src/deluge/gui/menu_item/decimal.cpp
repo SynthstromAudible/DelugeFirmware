@@ -21,8 +21,7 @@
 #include "decimal.h"
 #include "source_selection.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/display/numeric_driver.h"
-#include "hid/display/oled.h"
+#include "hid/display.h"
 #include "hid/matrix/matrix_driver.h"
 #include "util/functions.h"
 #include "hid/led/indicator_leds.h"
@@ -44,17 +43,16 @@ void Decimal::beginSession(MenuItem* navigatedBackwardFrom) {
 
 	readCurrentValue();
 	scrollToGoodPos();
-#if 1 || HAVE_OLED
 	drawValue();
-#endif
 }
 
 void Decimal::drawValue() {
-#if HAVE_OLED
-	renderUIsForOled();
-#else
-	drawActualValue();
-#endif
+	if (display.type == DisplayType::OLED) {
+		renderUIsForOled();
+	}
+	else {
+		drawActualValue();
+	}
 }
 
 void Decimal::selectEncoderAction(int offset) {
@@ -99,14 +97,15 @@ void Decimal::horizontalEncoderAction(int offset) {
 		}
 	}
 
-#if HAVE_OLED
-	movingCursor = true;
-	renderUIsForOled();
-	movingCursor = false;
-#else
-	scrollToGoodPos();
-	drawActualValue(true);
-#endif
+	if (display.type == DisplayType::OLED) {
+		movingCursor = true;
+		renderUIsForOled();
+		movingCursor = false;
+	}
+	else {
+		scrollToGoodPos();
+		drawActualValue(true);
+	}
 }
 
 void Decimal::scrollToGoodPos() {
@@ -134,7 +133,6 @@ void Decimal::scrollToGoodPos() {
 	}
 }
 
-#if HAVE_OLED
 void Decimal::drawPixelsForOled() {
 	int numDecimalPlaces = getNumDecimalPlaces();
 	char buffer[13];
@@ -164,7 +162,6 @@ void Decimal::drawPixelsForOled() {
 	OLED::setupBlink(ourDigitStartX, digitWidth, 40, 44, movingCursor);
 }
 
-#else
 void Decimal::drawActualValue(bool justDidHorizontalScroll) {
 	char buffer[12];
 	int minNumDigits = getNumDecimalPlaces() + 1;
@@ -190,13 +187,12 @@ void Decimal::drawActualValue(bool justDidHorizontalScroll) {
 	memset(&blinkMask, 255, NUMERIC_DISPLAY_LENGTH);
 	blinkMask[3 + soundEditor.numberScrollAmount - soundEditor.numberEditPos] = 0b10000000;
 
-	numericDriver.setText(outputText,
-	                      true,   // alignRight
-	                      dotPos, // drawDot
-	                      true,   // doBlink
-	                      blinkMask,
-	                      false); // blinkImmediately
+	display.setText(outputText,
+	                true,   // alignRight
+	                dotPos, // drawDot
+	                true,   // doBlink
+	                blinkMask,
+	                false); // blinkImmediately
 }
-#endif
 
 } // namespace menu_item

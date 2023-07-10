@@ -56,11 +56,7 @@ public:
 	void openedInBackground();
 	void stopAllAuditioning(ModelStack* modelStack, bool switchOffOnThisEndToo = true);
 
-#if HAVE_OLED
-	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
-		InstrumentClipMinder::renderOLED(image);
-	}
-#endif
+	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) { InstrumentClipMinder::renderOLED(image); }
 
 private:
 	int getNoteCodeFromCoords(int x, int y);

@@ -25,7 +25,7 @@
 #include "util/functions.h"
 #include "storage/storage_manager.h"
 #include "model/sample/sample.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include <string.h>
 #include "storage/wave_table/wave_table.h"
 #include "storage/multi_range/multisample_range.h"

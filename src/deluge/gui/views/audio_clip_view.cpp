@@ -40,7 +40,7 @@
 #include "hid/led/indicator_leds.h"
 #include "hid/buttons.h"
 #include "definitions.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "model/model_stack.h"
 #include "extern.h"
 #include "model/clip/clip_minder.h"
@@ -82,19 +82,17 @@ void AudioClipView::focusRegained() {
 	view.focusRegained();
 	view.setActiveModControllableTimelineCounter(currentSong->currentClip);
 
-#if !HAVE_OLED
-	view.displayOutputName(currentSong->currentClip->output, false);
-#endif
+	if (display.type != DisplayType::OLED) {
+		view.displayOutputName(currentSong->currentClip->output, false);
+	}
 #ifdef currentClipStatusButtonX
 	view.drawCurrentClipPad(currentSong->currentClip);
 #endif
 }
 
-#if HAVE_OLED
 void AudioClipView::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 	view.displayOutputName(currentSong->currentClip->output, false);
 }
-#endif
 
 bool AudioClipView::renderMainPads(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
                                    uint8_t occupancyMask[][displayWidth + sideBarWidth], bool drawUndefinedArea) {
@@ -367,7 +365,7 @@ dontDeactivateMarker:
 			    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, currentSong->currentClip);
 
 			getClip()->clear(action, modelStack);
-			numericDriver.displayPopup(HAVE_OLED ? "Audio clip cleared" : "CLEAR");
+			display.displayPopup(HAVE_OLED ? "Audio clip cleared" : "CLEAR");
 			endMarkerVisible = false;
 			uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
 			uiNeedsRendering(this, 0xFFFFFFFF, 0);

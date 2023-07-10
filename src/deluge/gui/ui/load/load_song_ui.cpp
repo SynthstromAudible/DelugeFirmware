@@ -21,7 +21,7 @@
 #include "modulation/params/param_manager.h"
 #include "gui/ui/load/load_song_ui.h"
 #include "util/functions.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "io/uart/uart.h"
 #include <string.h>
 #include "gui/views/session_view.h"
@@ -42,7 +42,6 @@
 #include "hid/buttons.h"
 #include "extern.h"
 #include "storage/file_item.h"
-#include "hid/display/oled.h"
 
 LoadSongUI loadSongUI{};
 
@@ -57,9 +56,7 @@ extern void setupBlankSong();
 LoadSongUI::LoadSongUI() {
 	qwertyAlwaysVisible = false;
 	filePrefix = "SONG";
-#if HAVE_OLED
 	title = "Load song";
-#endif
 }
 
 bool LoadSongUI::opened() {
@@ -70,7 +67,7 @@ bool LoadSongUI::opened() {
 	int error = beginSlotSession(false, true);
 	if (error) {
 gotError:
-		numericDriver.displayError(error);
+		display.displayError(error);
 		// Oh no, we're unable to read a file representing the first song. Get out quick!
 		currentUIMode = UI_MODE_NONE;
 		uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
@@ -130,7 +127,7 @@ gotError:
 	IndicatorLEDs::setLedState(scaleModeLedX, scaleModeLedY, false);
 
 	if (ALPHA_OR_BETA_VERSION && currentUIMode == UI_MODE_WAITING_FOR_NEXT_FILE_TO_LOAD) {
-		numericDriver.freezeWithError("E188");
+		display.freezeWithError("E188");
 	}
 
 	return true;
@@ -154,7 +151,7 @@ void LoadSongUI::enterKeyPress() {
 		int error = goIntoFolder(currentFileItem->filename.get());
 
 		if (error) {
-			numericDriver.displayError(error);
+			display.displayError(error);
 			close(); // Don't use goBackToSoundEditor() because that would do a left-scroll
 			return;
 		}
@@ -166,22 +163,20 @@ void LoadSongUI::enterKeyPress() {
 	}
 }
 
-#if HAVE_OLED
 void LoadSongUI::displayArmedPopup() {
-	OLED::removeWorkingAnimation();
-	OLED::popupText("Song will begin...", true);
+	display.removeWorkingAnimation();
+	display.popupText("Song will begin...");
 }
 
 char loopsRemainingText[] = "Loops remaining: xxxxxxxxxxx";
 
 void LoadSongUI::displayLoopsRemainingPopup() {
 	if (currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED) {
-		OLED::removeWorkingAnimation();
+		display.removeWorkingAnimation();
 		intToString(session.numRepeatsTilLaunch, &loopsRemainingText[17]);
-		OLED::popupText(loopsRemainingText, true);
+		display.popupText(loopsRemainingText);
 	}
 }
-#endif
 
 int LoadSongUI::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	using namespace hid::button;
@@ -210,11 +205,12 @@ int LoadSongUI::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 				}
 				else {
 					currentUIMode = UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED;
-#if HAVE_OLED
-					displayArmedPopup();
-#else
-					sessionView.redrawNumericDisplay();
-#endif
+					if (display.type == DisplayType::OLED) {
+						displayArmedPopup();
+					}
+					else {
+						sessionView.redrawNumericDisplay();
+					}
 				}
 			}
 		}
@@ -233,7 +229,7 @@ void LoadSongUI::performLoad() {
 	FileItem* currentFileItem = getCurrentFileItem();
 
 	if (!currentFileItem) {
-		numericDriver.displayError(
+		display.displayError(
 		    HAVE_OLED
 		        ? ERROR_FILE_NOT_FOUND
 		        : ERROR_NO_FURTHER_FILES_THIS_DIRECTION); // Make it say "NONE" on numeric Deluge, for consistency with old times.
@@ -248,19 +244,15 @@ void LoadSongUI::performLoad() {
 
 	int error = storageManager.openXMLFile(&currentFileItem->filePointer, "song");
 	if (error) {
-		numericDriver.displayError(error);
+		display.displayError(error);
 		return;
 	}
 
 	currentUIMode = UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
 	IndicatorLEDs::setLedState(loadLedX, loadLedY, false);
 	IndicatorLEDs::setLedState(backLedX, backLedY, false);
-#if HAVE_OLED
-	OLED::displayWorkingAnimation("Loading");
-#else
-	numericDriver.displayLoadingAnimation();
-#endif
 
+	display.displayLoadingAnimationText("Loading");
 	nullifyUIs();
 
 	deletedPartsOfOldSong = true;
@@ -285,7 +277,7 @@ ramError:
 		error = ERROR_INSUFFICIENT_RAM;
 
 someError:
-		numericDriver.displayError(error);
+		display.displayError(error);
 		storageManager.closeFile();
 fail:
 		// If we already deleted the old song, make a new blank one. This will take us back to InstrumentClipView.
@@ -300,9 +292,7 @@ fail:
 			displayText(false);
 		}
 		currentUIMode = UI_MODE_NONE;
-#if HAVE_OLED
-		OLED::removeWorkingAnimation();
-#endif
+		display.removeWorkingAnimation();
 		return;
 	}
 
@@ -332,7 +322,7 @@ gotErrorAfterCreatingSong:
 	bool success = storageManager.closeFile();
 
 	if (!success) {
-		numericDriver.displayPopup(HAVE_OLED ? "Error loading song" : "ERROR");
+		display.displayPopup(HAVE_OLED ? "Error loading song" : "ERROR");
 		goto fail;
 	}
 
@@ -387,21 +377,23 @@ gotErrorAfterCreatingSong:
 			}
 
 			currentUIMode = UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED;
-#if HAVE_OLED
-			displayArmedPopup();
-#else
-			sessionView.redrawNumericDisplay();
-#endif
+			if (display.type == DisplayType::OLED) {
+				displayArmedPopup();
+			}
+			else {
+				sessionView.redrawNumericDisplay();
+			}
 		}
 
 		// Otherwise, set up so that the song-swap will be armed as soon as the user releases the load button
 		else {
-#if HAVE_OLED
-			OLED::removeWorkingAnimation();
-			OLED::popupText("Loading complete", true);
-#else
-			numericDriver.setText("DONE", false, 255, true, NULL, false, true);
-#endif
+			display.removeWorkingAnimation();
+			if (display.type == DisplayType::OLED) {
+				display.popupText("Loading complete");
+			}
+			else {
+				display.setText("DONE", false, 255, true, NULL, false, true);
+			}
 			currentUIMode = UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_UNARMED;
 		}
 
@@ -423,9 +415,9 @@ gotErrorAfterCreatingSong:
 	}
 
 swapDone:
-#if HAVE_OLED
-	OLED::displayWorkingAnimation("Loading"); // To override our popup if we did one. (Still necessary?)
-#endif
+	if (display.type == DisplayType::OLED) {
+		OLED::displayWorkingAnimation("Loading"); // To override our popup if we did one. (Still necessary?)
+	}
 	// Ok, the swap's been done, the first tick of the new song has been done, and there are potentially loads of samples wanting some data loaded. So do that immediately
 	audioFileManager.loadAnyEnqueuedClusters(99999);
 
@@ -450,9 +442,7 @@ swapDone:
 	setUIForLoadedSong(currentSong);
 	currentUIMode = UI_MODE_NONE;
 
-#if HAVE_OLED
-	OLED::removeWorkingAnimation();
-#endif
+	display.removeWorkingAnimation();
 }
 
 int LoadSongUI::timerCallback() {
@@ -539,7 +529,7 @@ void LoadSongUI::scrollFinished() {
 }
 
 void LoadSongUI::exitActionWithError() {
-	numericDriver.displayPopup(HAVE_OLED ? "SD card error" : "CARD");
+	display.displayPopup(HAVE_OLED ? "SD card error" : "CARD");
 	exitAction();
 }
 
@@ -645,12 +635,13 @@ void LoadSongUI::selectEncoderAction(int8_t offset) {
 		else if (session.numRepeatsTilLaunch > 9999) {
 			session.numRepeatsTilLaunch = 9999;
 		}
-#if HAVE_OLED
-		//renderUIsForOled();
-		displayLoopsRemainingPopup();
-#else
-		sessionView.redrawNumericDisplay();
-#endif
+		if (display.type == DisplayType::OLED) {
+			//renderUIsForOled();
+			displayLoopsRemainingPopup();
+		}
+		else {
+			sessionView.redrawNumericDisplay();
+		}
 	}
 
 	else {
@@ -713,7 +704,7 @@ void LoadSongUI::exitAction() {
 
 	// If parts of the old song have been deleted, sorry, there's no way we can exit without loading a new song
 	if (deletedPartsOfOldSong) {
-		numericDriver.displayPopup(HAVE_OLED ? "Can't return to current song, as parts have been unloaded" : "CANT");
+		display.displayPopup(HAVE_OLED ? "Can't return to current song, as parts have been unloaded" : "CANT");
 		return;
 	}
 
@@ -748,7 +739,7 @@ void LoadSongUI::drawSongPreview(bool toStore) {
 	int error = storageManager.openXMLFile(&currentFileItem->filePointer, "song", "", true);
 	if (error) {
 		if (error) {
-			numericDriver.displayError(error);
+			display.displayError(error);
 			return;
 		}
 	}

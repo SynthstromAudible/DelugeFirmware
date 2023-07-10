@@ -25,7 +25,7 @@
 #include "processing/sound/sound_drum.h"
 #include "gui/ui/slicer.h"
 #include "util/functions.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "model/sample/sample.h"
 #include "model/song/song.h"
 #include "gui/ui/sound_editor.h"
@@ -37,7 +37,6 @@
 #include "storage/multi_range/multisample_range.h"
 #include "model/model_stack.h"
 #include "modulation/params/param_set.h"
-#include "hid/display/oled.h"
 
 extern "C" {
 #include "util/cfunctions.h"
@@ -45,24 +44,17 @@ extern "C" {
 
 Slicer slicer{};
 
-Slicer::Slicer() {
-#if HAVE_OLED
-	oledShowsUIUnderneath = true;
-#endif
-}
-
 void Slicer::focusRegained() {
 
 	actionLogger.deleteAllLogs();
 
 	numClips = 16;
 
-#if !HAVE_OLED
-	redraw();
-#endif
+	if (display.type != DisplayType::OLED) {
+		redraw();
+	}
 }
 
-#if HAVE_OLED
 void Slicer::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 
 	int windowWidth = 100;
@@ -89,12 +81,9 @@ void Slicer::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 	                        (OLED_MAIN_WIDTH_PIXELS >> 1) + horizontalShift);
 }
 
-#else
-
 void Slicer::redraw() {
-	numericDriver.setTextAsNumber(numClips, 255, true);
+	display.setTextAsNumber(numClips, 255, true);
 }
-#endif
 
 void Slicer::selectEncoderAction(int8_t offset) {
 	numClips += offset;
@@ -104,11 +93,13 @@ void Slicer::selectEncoderAction(int8_t offset) {
 	else if (numClips == 1) {
 		numClips = 256;
 	}
-#if HAVE_OLED
-	renderUIsForOled();
-#else
-	redraw();
-#endif
+
+	if (display.type == DisplayType::OLED) {
+		renderUIsForOled();
+	}
+	else {
+		redraw();
+	}
 }
 
 int Slicer::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
@@ -129,7 +120,7 @@ int Slicer::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 		if (inCardRoutine) {
 			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
-		numericDriver.setNextTransitionDirection(-1);
+		display.setNextTransitionDirection(-1);
 		close();
 	}
 	else {
@@ -150,7 +141,7 @@ void Slicer::doSlice() {
 	int error = sampleBrowser.claimAudioFileForInstrument();
 	if (error) {
 getOut:
-		numericDriver.displayError(error);
+		display.displayError(error);
 		return;
 	}
 
@@ -207,7 +198,7 @@ getOut:
 
 #if 1 || ALPHA_OR_BETA_VERSION
 		if (!firstRange->sampleHolder.audioFile) {
-			numericDriver.freezeWithError("i032"); // Trying to narrow down E368 that Kevin F got
+			display.freezeWithError("i032"); // Trying to narrow down E368 that Kevin F got
 		}
 #endif
 
@@ -295,7 +286,7 @@ ramError2:
 	// New NoteRows have probably been created, whose colours haven't been grabbed yet.
 	instrumentClipView.recalculateColours();
 
-	numericDriver.setNextTransitionDirection(-1);
+	display.setNextTransitionDirection(-1);
 	sampleBrowser.exitAndNeverDeleteDrum();
 	uiNeedsRendering(&instrumentClipView);
 }

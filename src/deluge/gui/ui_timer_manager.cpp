@@ -20,7 +20,7 @@
 #include "gui/views/instrument_clip_view.h"
 #include "gui/ui_timer_manager.h"
 #include "util/functions.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "gui/ui/keyboard_screen.h"
 #include "gui/views/view.h"
 #include "gui/ui/sound_editor.h"
@@ -29,10 +29,6 @@
 #include "model/clip/clip_minder.h"
 #include "gui/views/session_view.h"
 #include "playback/playback_handler.h"
-
-#if HAVE_OLED
-#include "hid/display/oled.h"
-#endif
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
@@ -92,11 +88,13 @@ void UITimerManager::routine() {
 					break;
 
 				case TIMER_DISPLAY:
-#if HAVE_OLED
-					OLED::timerRoutine();
-#else
-					numericDriver.timerRoutine();
-#endif
+					if (display.type == DisplayType::OLED) {
+						OLED::timerRoutine();
+					}
+					else {
+						display.timerRoutine();
+					}
+
 					break;
 
 				case TIMER_LED_BLINK:
@@ -143,19 +141,23 @@ void UITimerManager::routine() {
 					setTimer(TIMER_GRAPHICS_ROUTINE, 15);
 					break;
 
-#if HAVE_OLED
 				case TIMER_OLED_LOW_LEVEL:
-					oledLowLevelTimerCallback();
+					if (display.type == DisplayType::OLED) {
+						oledLowLevelTimerCallback();
+					}
 					break;
 
 				case TIMER_OLED_CONSOLE:
-					OLED::consoleTimerEvent();
+					if (display.type == DisplayType::OLED) {
+						OLED::consoleTimerEvent();
+					}
 					break;
 
 				case TIMER_OLED_SCROLLING_AND_BLINKING:
-					OLED::scrollingAndBlinkingTimerEvent();
+					if (display.type == DisplayType::OLED) {
+						OLED::scrollingAndBlinkingTimerEvent();
+					}
 					break;
-#endif
 				}
 			}
 		}

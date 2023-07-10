@@ -30,7 +30,7 @@
 #include "gui/views/view.h"
 #include "model/clip/clip_instance.h"
 #include "playback/mode/playback_mode.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "storage/storage_manager.h"
 #include "playback/mode/session.h"
 #include "gui/views/timeline_view.h"
@@ -406,7 +406,7 @@ bool Clip::opportunityToBeginSessionLinearRecording(ModelStackWithTimelineCounte
 
 		int error = beginLinearRecording(modelStack, buttonPressLatency);
 		if (error) {
-			numericDriver.displayError(error);
+			display.displayError(error);
 			return false;
 		}
 
@@ -546,7 +546,7 @@ int Clip::undoDetachmentFromOutput(ModelStackWithTimelineCounter* modelStack) {
 
 	if (!success) {
 		if (ALPHA_OR_BETA_VERSION) {
-			numericDriver.freezeWithError("E245");
+			display.freezeWithError("E245");
 		}
 		return ERROR_BUG;
 	}
@@ -924,13 +924,13 @@ trimFoundParamManager:
 				int error = paramManager.cloneParamCollectionsFrom(&otherClip->paramManager, false, true);
 
 				if (error) {
-					numericDriver.freezeWithError("E050");
+					display.freezeWithError("E050");
 					return error;
 				}
 			}
 			// Unless I've done something wrong, there *has* to be another Clip if the Output didn't have a backed-up ParamManager. But, just in case
 			else {
-				numericDriver.freezeWithError("E051");
+				display.freezeWithError("E051");
 				return ERROR_UNSPECIFIED;
 			}
 		}

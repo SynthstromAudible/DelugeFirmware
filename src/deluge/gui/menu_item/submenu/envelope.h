@@ -23,11 +23,11 @@ namespace menu_item::submenu {
 class Envelope final : public SubmenuReferringToOneThing {
 public:
 	using SubmenuReferringToOneThing::SubmenuReferringToOneThing;
-#if HAVE_OLED
+
+	// OLED Only
 	void beginSession(MenuItem* navigatedBackwardFrom = NULL) {
 		SubmenuReferringToOneThing::beginSession(navigatedBackwardFrom);
 		setEnvelopeNumberForTitles(thingIndex);
 	}
-#endif
 };
 } // namespace menu_item::submenu

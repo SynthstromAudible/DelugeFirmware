@@ -27,7 +27,7 @@
 #include "processing/sound/sound_instrument.h"
 #include "gui/ui/sound_editor.h"
 #include "util/functions.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "io/uart/uart.h"
 #include "processing/engines/cv_engine.h"
 #include "gui/ui/keyboard_screen.h"
@@ -77,10 +77,6 @@
 #include "storage/audio/audio_file_holder.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "playback/playback_handler.h"
-
-#if HAVE_OLED
-#include "hid/display/oled.h"
-#endif
 
 extern "C" {
 #include "util/cfunctions.h"
@@ -357,9 +353,9 @@ doOther:
 			}
 
 			currentUIMode = UI_MODE_NONE;
-#if !HAVE_OLED
-			InstrumentClipMinder::redrawNumericDisplay();
-#endif
+			if (display.type != DisplayType::OLED) {
+				InstrumentClipMinder::redrawNumericDisplay();
+			}
 			uiNeedsRendering(this, 0, 1 << yDisplayOfNewNoteRow);
 		}
 	}
@@ -380,7 +376,7 @@ doOther:
 			int noteRowIndex;
 			NoteRow* newNoteRow = createNewNoteRowForKit(modelStack, yDisplayOfNewNoteRow, &noteRowIndex);
 			if (!newNoteRow) {
-				numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
+				display.displayError(ERROR_INSUFFICIENT_RAM);
 				return ACTION_RESULT_DEALT_WITH;
 			}
 
@@ -524,7 +520,7 @@ doOther:
 
 					if (ALPHA_OR_BETA_VERSION
 					    && (noteRowIndex < 0 || noteRowIndex >= clip->noteRows.getNumElements())) {
-						numericDriver.freezeWithError("E323");
+						display.freezeWithError("E323");
 					}
 
 					if (clip->isActiveOnOutput()) {
@@ -623,7 +619,7 @@ doOther:
 				}
 				else {
 doCancelPopup:
-					numericDriver.cancelPopup();
+					display.cancelPopup();
 				}
 			}
 			else if (isUIModeActive(UI_MODE_AUDITIONING)) {
@@ -731,7 +727,7 @@ void InstrumentClipView::createDrumForAuditionedNoteRow(int drumType) {
 ramError:
 			error = ERROR_INSUFFICIENT_RAM;
 someError:
-			numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
+			display.displayError(ERROR_INSUFFICIENT_RAM);
 			return;
 		}
 
@@ -859,12 +855,12 @@ void InstrumentClipView::copyAutomation(int whichModEncoder) {
 		modelStack->autoParam->copy(startPos, endPos, &copiedParamAutomation, isPatchCable, modelStack);
 
 		if (copiedParamAutomation.nodes) {
-			numericDriver.displayPopup(HAVE_OLED ? "Automation copied" : "COPY");
+			display.displayPopup(HAVE_OLED ? "Automation copied" : "COPY");
 			return;
 		}
 	}
 
-	numericDriver.displayPopup(HAVE_OLED ? "No automation to copy" : "NONE");
+	display.displayPopup(HAVE_OLED ? "No automation to copy" : "NONE");
 }
 
 void InstrumentClipView::copyNotes() {
@@ -904,7 +900,7 @@ void InstrumentClipView::copyNotes() {
 				if (!copiedNoteRowMemory) {
 ramError:
 					deleteCopiedNoteRows();
-					numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
+					display.displayError(ERROR_INSUFFICIENT_RAM);
 					return;
 				}
 
@@ -951,7 +947,7 @@ ramError:
 		}
 	}
 
-	numericDriver.displayPopup(HAVE_OLED ? "Notes copied" : "COPY");
+	display.displayPopup(HAVE_OLED ? "Notes copied" : "COPY");
 }
 
 void InstrumentClipView::deleteCopiedNoteRows() {
@@ -965,7 +961,7 @@ void InstrumentClipView::deleteCopiedNoteRows() {
 
 void InstrumentClipView::pasteAutomation(int whichModEncoder) {
 	if (!copiedParamAutomation.nodes) {
-		numericDriver.displayPopup(HAVE_OLED ? "No automation to paste" : "NONE");
+		display.displayPopup(HAVE_OLED ? "No automation to paste" : "NONE");
 		return;
 	}
 
@@ -987,7 +983,7 @@ void InstrumentClipView::pasteAutomation(int whichModEncoder) {
 	    view.activeModControllableModelStack.modControllable->getParamFromModEncoder(
 	        whichModEncoder, &view.activeModControllableModelStack, true);
 	if (!modelStackWithAutoParam || !modelStackWithAutoParam->autoParam) {
-		numericDriver.displayPopup(HAVE_OLED ? "Can't paste automation" : "CANT");
+		display.displayPopup(HAVE_OLED ? "Can't paste automation" : "CANT");
 		return;
 	}
 
@@ -1006,7 +1002,7 @@ void InstrumentClipView::pasteAutomation(int whichModEncoder) {
 	modelStackWithAutoParam->autoParam->paste(startPos, endPos, scaleFactor, modelStackWithAutoParam,
 	                                          &copiedParamAutomation, isPatchCable);
 
-	numericDriver.displayPopup(HAVE_OLED ? "Automation pasted" : "PASTE");
+	display.displayPopup(HAVE_OLED ? "Automation pasted" : "PASTE");
 	if (playbackHandler.isEitherClockActive()) {
 		currentPlaybackMode->reversionDone(); // Re-gets automation and stuff
 	}
@@ -1020,7 +1016,7 @@ void InstrumentClipView::pasteNotes() {
 
 	if (false) {
 ramError:
-		numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
+		display.displayError(ERROR_INSUFFICIENT_RAM);
 		return;
 	}
 
@@ -1103,14 +1099,14 @@ ramError:
 getOut:
 	recalculateColours();
 	uiNeedsRendering(this);
-	numericDriver.displayPopup(HAVE_OLED ? "Notes pasted" : "PASTE");
+	display.displayPopup(HAVE_OLED ? "Notes pasted" : "PASTE");
 }
 
 void InstrumentClipView::doubleClipLengthAction() {
 
 	// If too big...
 	if (currentSong->currentClip->loopLength > (MAX_SEQUENCE_LENGTH >> 1)) {
-		numericDriver.displayPopup(HAVE_OLED ? "Maximum length reached" : "CANT");
+		display.displayPopup(HAVE_OLED ? "Maximum length reached" : "CANT");
 		return;
 	}
 
@@ -1139,9 +1135,9 @@ void InstrumentClipView::doubleClipLengthAction() {
 
 	displayZoomLevel();
 
-#if HAVE_OLED
-	OLED::consoleText("Clip multiplied");
-#endif
+	if (display.type == DisplayType::OLED) {
+		display.consoleText("Clip multiplied");
+	}
 }
 
 void InstrumentClipView::createNewInstrument(uint8_t newInstrumentType) {
@@ -1254,7 +1250,7 @@ int InstrumentClipView::padAction(int x, int y, int velocity) {
 					int numSamples = 0;
 
 					if (result != FR_OK) {
-						numericDriver.displayError(ERROR_SD_CARD);
+						display.displayError(ERROR_SD_CARD);
 						return false;
 					}
 					while (true) {
@@ -1298,7 +1294,7 @@ int InstrumentClipView::padAction(int x, int y, int velocity) {
 			}
 		}
 		if (numRandomized > 0) {
-			numericDriver.displayPopup(HAVE_OLED ? "Randomized" : "RND");
+			display.displayPopup(HAVE_OLED ? "Randomized" : "RND");
 			return ACTION_RESULT_DEALT_WITH;
 		}
 	}
@@ -1697,7 +1693,7 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 
 				// If error (no ram left), get out
 				if (!squareType) {
-					numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
+					display.displayError(ERROR_INSUFFICIENT_RAM);
 					return;
 				}
 
@@ -1751,7 +1747,7 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 							    modelStackWithNoteRow, clip->allowNoteTails(modelStackWithNoteRow), action);
 
 							if (error) {
-								numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
+								display.displayError(ERROR_INSUFFICIENT_RAM);
 							}
 						}
 					}
@@ -1804,7 +1800,7 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 		// If we found it...
 		if (i < editPadPressBufferSize) {
 
-			numericDriver.cancelPopup(); // Crude way of getting rid of the probability-editing permanent popup
+			display.cancelPopup(); // Crude way of getting rid of the probability-editing permanent popup
 
 			uint8_t velocity = editPadPresses[i].intendedVelocity;
 
@@ -1893,7 +1889,7 @@ void InstrumentClipView::adjustVelocity(int velocityChange) {
 	int velocityValue = 0;
 
 	Action* action;
-	if (HAVE_OLED || numericDriver.popupActive) {
+	if (display.type == DisplayType::OLED || display.hasPopup()) {
 		action = actionLogger.getNewAction(ACTION_NOTE_EDIT, true);
 		if (!action) {
 			return; // Necessary why?
@@ -1923,12 +1919,7 @@ void InstrumentClipView::adjustVelocity(int velocityChange) {
 				int noteI = noteRow->notes.search(editPadPresses[i].intendedPos, GREATER_OR_EQUAL);
 				Note* note = noteRow->notes.getElement(noteI);
 				while (note && note->pos - editPadPresses[i].intendedPos < editPadPresses[i].intendedLength) {
-
-#if HAVE_OLED
-					if (OLED::isPopupPresent()) {
-#else
-					if (numericDriver.popupActive) {
-#endif
+					if (display.hasPopup()) {
 						noteRow->changeNotesAcrossAllScreens(note->pos, modelStackWithNoteRow, action,
 						                                     CORRESPONDING_NOTES_ADJUST_VELOCITY, velocityChange);
 					}
@@ -1955,11 +1946,7 @@ void InstrumentClipView::adjustVelocity(int velocityChange) {
 
 			// Only one note in square
 			else {
-#if HAVE_OLED
-				if (OLED::isPopupPresent()) {
-#else
-				if (numericDriver.popupActive) {
-#endif
+				if (display.hasPopup()) {
 					editPadPresses[i].intendedVelocity =
 					    getMax(1, getMin(127, (int)editPadPresses[i].intendedVelocity + velocityChange));
 					noteRow->changeNotesAcrossAllScreens(editPadPresses[i].intendedPos, modelStackWithNoteRow, action,
@@ -1992,20 +1979,24 @@ void InstrumentClipView::adjustVelocity(int velocityChange) {
 			// Don't bother trying to think of some smart way to update lastVelocityInteractedWith. It'll get updated when user releases last press.
 		}
 		else {
-#if HAVE_OLED
-			strcpy(buffer, "Velocity: ");
-			intToString(velocityValue, buffer + strlen(buffer));
-#else
-			intToString(velocityValue, buffer);
-#endif
+			if (display.type == DisplayType::OLED) {
+				strcpy(buffer, "Velocity: ");
+				intToString(velocityValue, buffer + strlen(buffer));
+			}
+			else {
+
+				intToString(velocityValue, buffer);
+			}
+
 			displayString = buffer;
 			((Instrument*)currentSong->currentClip->output)->defaultVelocity = velocityValue;
 		}
-#if HAVE_OLED
-		OLED::popupText(displayString);
-#else
-		numericDriver.displayPopup(displayString, 0, true);
-#endif
+		if (display.type == DisplayType::OLED) {
+			display.popupTextTemporary(displayString);
+		}
+		else {
+			display.displayPopup(displayString, 0, true);
+		}
 	}
 
 	reassessAllAuditionStatus();
@@ -2037,11 +2028,7 @@ void InstrumentClipView::adjustProbability(int offset) {
 				prevBase = (probability & 128);
 
 				// If editing, continue edit
-#if HAVE_OLED
-				if (OLED::isPopupPresent()) {
-#else
-				if (numericDriver.popupActive) {
-#endif
+				if (display.hasPopup()) {
 					Action* action = actionLogger.getNewAction(ACTION_NOTE_EDIT, true);
 					if (!action) {
 						return;
@@ -2201,23 +2188,20 @@ multiplePresses:
 	}
 
 	if (probabilityValue != -1) {
-#if HAVE_OLED
-		char buffer[29];
-#else
-		char buffer[5];
-#endif
+		char buffer[HAVE_OLED ? 29 : 5];
 		char* displayString;
 		if (probabilityValue <= NUM_PROBABILITY_VALUES) {
-#if HAVE_OLED
-			strcpy(buffer, "Probability: ");
-			intToString(probabilityValue * 5, buffer + strlen(buffer));
-			strcat(buffer, "%");
-			if (prevBase) {
-				strcat(buffer, " latching");
+			if (display.type == DisplayType::OLED) {
+				strcpy(buffer, "Probability: ");
+				intToString(probabilityValue * 5, buffer + strlen(buffer));
+				strcat(buffer, "%");
+				if (prevBase) {
+					strcat(buffer, " latching");
+				}
 			}
-#else
-			intToString(probabilityValue * 5, buffer);
-#endif
+			else {
+				intToString(probabilityValue * 5, buffer);
+			}
 			displayString = buffer;
 		}
 
@@ -2229,29 +2213,30 @@ multiplePresses:
 
 			int charPos = 0;
 
-#if HAVE_OLED
-			strcpy(buffer, "Iteration dependence: ");
-			charPos = strlen(buffer);
-#endif
+			if (display.type == DisplayType::OLED) {
+				strcpy(buffer, "Iteration dependence: ");
+				charPos = strlen(buffer);
+			}
 
 			buffer[charPos++] = '1' + iterationWithinDivisor;
-#if HAVE_OLED
-			buffer[charPos++] = ' ';
-#endif
+			if (display.type == DisplayType::OLED) {
+				buffer[charPos++] = ' ';
+			}
 			buffer[charPos++] = 'o';
 			buffer[charPos++] = 'f';
-#if HAVE_OLED
-			buffer[charPos++] = ' ';
-#endif
+			if (display.type == DisplayType::OLED) {
+				buffer[charPos++] = ' ';
+			}
 			buffer[charPos++] = '0' + divisor;
 			buffer[charPos++] = 0;
 		}
 
-#if HAVE_OLED
-		OLED::popupText(displayString);
-#else
-		numericDriver.displayPopup(displayString, 0, true, prevBase ? 3 : 255);
-#endif
+		if (display.type == DisplayType::OLED) {
+			display.popupTextTemporary(displayString);
+		}
+		else {
+			display.displayPopup(displayString, 0, true, prevBase ? 3 : 255);
+		}
 	}
 }
 
@@ -2341,7 +2326,7 @@ ModelStackWithNoteRow* InstrumentClipView::createNoteRowForYDisplay(ModelStackWi
 
 		if (!noteRow) { // If memory full
 doDisplayError:
-			numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
+			display.displayError(ERROR_INSUFFICIENT_RAM);
 		}
 		else {
 			noteRowId = noteRow->y;
@@ -2646,7 +2631,7 @@ int InstrumentClipView::scrollVertical(int scrollAmount, bool inCardRoutine, boo
 					modelStackWithNoteRow = createNoteRowForYDisplay(modelStack, editPadPresses[i].yDisplay);
 
 					if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
-						numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
+						display.displayError(ERROR_INSUFFICIENT_RAM);
 cancelPress:
 						endEditPadPress(i);
 						continue;
@@ -2767,7 +2752,7 @@ void InstrumentClipView::sendAuditionNote(bool on, uint8_t yDisplay, uint8_t vel
 				if (on) {
 					if (drum->type == DRUM_TYPE_SOUND
 					    && !modelStackWithNoteRow->getNoteRow()->paramManager.containsAnyMainParamCollections()) {
-						numericDriver.freezeWithError("E325"); // Trying to catch an E313 that Vinz got
+						display.freezeWithError("E325"); // Trying to catch an E313 that Vinz got
 					}
 					((Kit*)instrument)->beginAuditioningforDrum(modelStackWithNoteRow, drum, velocity, zeroMPEValues);
 				}
@@ -3083,11 +3068,12 @@ void InstrumentClipView::auditionPadAction(int velocity, int yDisplay, bool shif
 							AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 						}
 					}
-#if HAVE_OLED
-					OLED::removePopup();
-#else
-					redrawNumericDisplay();
-#endif
+					if (display.type == DisplayType::OLED) {
+						OLED::removePopup();
+					}
+					else {
+						redrawNumericDisplay();
+					}
 justReRender:
 					uiNeedsRendering(this, 0, 1 << yDisplayOfNewNoteRow);
 				}
@@ -3258,7 +3244,7 @@ doSilentAudition:
 					sendAuditionNote(false, yDisplay, 64, 0);
 				}
 			}
-			numericDriver.cancelPopup();   // In case euclidean stuff was being edited etc
+			display.cancelPopup();         // In case euclidean stuff was being edited etc
 			someAuditioningHasEnded(true); //lastAuditionedYDisplay == yDisplay);
 			actionLogger.closeAction(ACTION_EUCLIDEAN_NUM_EVENTS_EDIT);
 			actionLogger.closeAction(ACTION_NOTEROW_ROTATE);
@@ -3305,7 +3291,7 @@ void InstrumentClipView::enterDrumCreator(ModelStackWithNoteRow* modelStack, boo
 	int error = kit->makeDrumNameUnique(&soundName, 1);
 	if (error) {
 doDisplayError:
-		numericDriver.displayError(error);
+		display.displayError(error);
 		return;
 	}
 
@@ -3424,11 +3410,12 @@ void InstrumentClipView::someAuditioningHasEnded(bool recalculateLastAuditionedN
 		exitUIMode(UI_MODE_AUDITIONING);
 		auditioningSilently = false;
 
-#if HAVE_OLED
-		OLED::removePopup();
-#else
-		redrawNumericDisplay();
-#endif
+		if (display.type == DisplayType::OLED) {
+			OLED::removePopup();
+		}
+		else {
+			redrawNumericDisplay();
+		}
 	}
 }
 
@@ -3450,78 +3437,79 @@ void InstrumentClipView::drawDrumName(Drum* drum, bool justPopUp) {
 
 	char const* newText;
 
-#if HAVE_OLED
-	char buffer[30];
+	if (display.type == DisplayType::OLED) {
+		char buffer[30];
 
-	if (!drum) {
-		newText = "No sound";
-	}
-	else if (drum->type == DRUM_TYPE_SOUND) {
-		newText = ((SoundDrum*)drum)->name.get();
-	}
-	else {
-		newText = buffer;
-
-		if (drum->type == DRUM_TYPE_GATE) {
-
-			strcpy(buffer, "Gate channel ");
-			intToString(((GateDrum*)drum)->channel + 1, &buffer[13]);
-			IndicatorLEDs::blinkLed(cvLedX, cvLedY, 1, 1);
+		if (!drum) {
+			newText = "No sound";
 		}
-		else { // MIDI
-			strcpy(buffer, "MIDI channel ");
-			intToString(((MIDIDrum*)drum)->channel + 1, &buffer[13]);
-			strcat(buffer, ", note ");
-			char* pos = strchr(buffer, 0);
-			intToString(((MIDIDrum*)drum)->note, pos);
-
-			IndicatorLEDs::blinkLed(midiLedX, midiLedY, 1, 1);
-		}
-	}
-
-	OLED::popupText(newText, true);
-#else
-
-	char buffer[7];
-
-	if (!drum) {
-		newText = "NONE";
-
-basicDisplay:
-		if (justPopUp && currentUIMode != UI_MODE_AUDITIONING) {
-			numericDriver.displayPopup(newText);
+		else if (drum->type == DRUM_TYPE_SOUND) {
+			newText = ((SoundDrum*)drum)->name.get();
 		}
 		else {
-			numericDriver.setText(newText, false, 255, true);
-		}
-	}
-	else {
-		if (drum->type != DRUM_TYPE_SOUND) {
-			drum->getName(buffer);
 			newText = buffer;
 
-			if (drum->type == DRUM_TYPE_MIDI) {
-				IndicatorLEDs::blinkLed(midiLedX, midiLedY, 1, 1);
-			}
-			else if (drum->type == DRUM_TYPE_GATE) {
+			if (drum->type == DRUM_TYPE_GATE) {
+
+				strcpy(buffer, "Gate channel ");
+				intToString(((GateDrum*)drum)->channel + 1, &buffer[13]);
 				IndicatorLEDs::blinkLed(cvLedX, cvLedY, 1, 1);
 			}
+			else { // MIDI
+				strcpy(buffer, "MIDI channel ");
+				intToString(((MIDIDrum*)drum)->channel + 1, &buffer[13]);
+				strcat(buffer, ", note ");
+				char* pos = strchr(buffer, 0);
+				intToString(((MIDIDrum*)drum)->note, pos);
 
-			goto basicDisplay;
+				IndicatorLEDs::blinkLed(midiLedX, midiLedY, 1, 1);
+			}
 		}
 
-		// If we're here, it's a SoundDrum
-		SoundDrum* soundDrum = (SoundDrum*)drum;
-
-		newText = soundDrum->name.get();
-		bool andAHalf;
-
-		if (numericDriver.getEncodedPosFromLeft(99999, newText, &andAHalf) <= NUMERIC_DISPLAY_LENGTH) {
-			goto basicDisplay;
-		}
-		numericDriver.setScrollingText(newText, 0, initialFlashTime + flashTime);
+		display.popupText(newText);
 	}
-#endif
+	else {
+
+		char buffer[7];
+
+		if (!drum) {
+			newText = "NONE";
+
+basicDisplay:
+			if (justPopUp && currentUIMode != UI_MODE_AUDITIONING) {
+				display.displayPopup(newText);
+			}
+			else {
+				display.setText(newText, false, 255, true);
+			}
+		}
+		else {
+			if (drum->type != DRUM_TYPE_SOUND) {
+				drum->getName(buffer);
+				newText = buffer;
+
+				if (drum->type == DRUM_TYPE_MIDI) {
+					IndicatorLEDs::blinkLed(midiLedX, midiLedY, 1, 1);
+				}
+				else if (drum->type == DRUM_TYPE_GATE) {
+					IndicatorLEDs::blinkLed(cvLedX, cvLedY, 1, 1);
+				}
+
+				goto basicDisplay;
+			}
+
+			// If we're here, it's a SoundDrum
+			SoundDrum* soundDrum = (SoundDrum*)drum;
+
+			newText = soundDrum->name.get();
+			bool andAHalf;
+
+			if (display.getEncodedPosFromLeft(99999, newText, &andAHalf) <= NUMERIC_DISPLAY_LENGTH) {
+				goto basicDisplay;
+			}
+			display.setScrollingText(newText, 0, initialFlashTime + flashTime);
+		}
+	}
 }
 
 int InstrumentClipView::setupForEnteringScaleMode(int newRootNote, int yDisplay) {
@@ -4020,7 +4008,7 @@ int InstrumentClipView::verticalEncoderAction(int offset, bool inCardRoutine) {
 				if (getCurrentClip()->isScaleModeClip()) {
 					getCurrentClip()->yScroll += offset * (currentSong->numModeNotes - 12);
 				}
-				//numericDriver.displayPopup("OCTAVE");
+				//display.displayPopup("OCTAVE");
 			}
 
 			// Otherwise, transpose single semitone
@@ -4039,7 +4027,7 @@ int InstrumentClipView::verticalEncoderAction(int offset, bool inCardRoutine) {
 				else {
 					currentSong->transposeAllScaleModeClips(offset);
 				}
-				//numericDriver.displayPopup("SEMITONE");
+				//display.displayPopup("SEMITONE");
 			}
 		}
 	}
@@ -4213,10 +4201,10 @@ void InstrumentClipView::quantizeNotes(int offset, int nudgeMode) {
 	if (!offset) {
 		quantizeAmount = 0;
 		if (nudgeMode == NUDGEMODE_QUANTIZE) {
-			numericDriver.displayPopup(HAVE_OLED ? "QUANTIZE" : "QTZ");
+			display.displayPopup(HAVE_OLED ? "QUANTIZE" : "QTZ");
 		}
 		else if (nudgeMode == NUDGEMODE_QUANTIZE_ALL) {
-			numericDriver.displayPopup(HAVE_OLED ? "QUANTIZE ALL ROW" : "QTZA");
+			display.displayPopup(HAVE_OLED ? "QUANTIZE ALL ROW" : "QTZA");
 		}
 		return;
 	}
@@ -4239,23 +4227,24 @@ void InstrumentClipView::quantizeNotes(int offset, int nudgeMode) {
 		quantizeAmount = -10;
 	}
 
-#if HAVE_OLED
-	char buffer[24];
-	if (nudgeMode == NUDGEMODE_QUANTIZE) {
-		strcpy(buffer, (quantizeAmount >= 0) ? "Quantize " : "Humanize ");
+	if (display.type == DisplayType::OLED) {
+		char buffer[24];
+		if (nudgeMode == NUDGEMODE_QUANTIZE) {
+			strcpy(buffer, (quantizeAmount >= 0) ? "Quantize " : "Humanize ");
+		}
+		else {
+			strcpy(buffer, (quantizeAmount >= 0) ? "Quantize All " : "Humanize All ");
+		}
+		intToString(abs(quantizeAmount * 10), buffer + strlen(buffer));
+		strcpy(buffer + strlen(buffer), "%");
+		OLED::popupText(buffer);
 	}
 	else {
-		strcpy(buffer, (quantizeAmount >= 0) ? "Quantize All " : "Humanize All ");
+		char buffer[5];
+		strcpy(buffer, "");
+		intToString(quantizeAmount * 10, buffer + strlen(buffer)); //Negative means humanize
+		display.displayPopup(buffer, 0, true);
 	}
-	intToString(abs(quantizeAmount * 10), buffer + strlen(buffer));
-	strcpy(buffer + strlen(buffer), "%");
-	OLED::popupText(buffer);
-#else
-	char buffer[5];
-	strcpy(buffer, "");
-	intToString(quantizeAmount * 10, buffer + strlen(buffer)); //Negative means humanize
-	numericDriver.displayPopup(buffer, 0, true);
-#endif
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
@@ -4318,7 +4307,7 @@ void InstrumentClipView::quantizeNotes(int offset, int nudgeMode) {
 							int error = thisNoteRow->nudgeNotesAcrossAllScreens(
 							    nowPos, modelStackWithNoteRow, NULL, MAX_SEQUENCE_LENGTH, ((distance > 0) ? 1 : -1));
 							if (error) {
-								numericDriver.displayError(error);
+								display.displayError(error);
 								return;
 							}
 						}
@@ -4381,7 +4370,7 @@ void InstrumentClipView::quantizeNotes(int offset, int nudgeMode) {
 							int error = thisNoteRow->nudgeNotesAcrossAllScreens(
 							    nowPos, modelStackWithNoteRow, NULL, MAX_SEQUENCE_LENGTH, ((distance > 0) ? 1 : -1));
 							if (error) {
-								numericDriver.displayError(error);
+								display.displayError(error);
 								return;
 							}
 						}
@@ -4469,16 +4458,17 @@ void InstrumentClipView::editNoteRepeat(int offset) {
 		currentClip->expectEvent();
 	}
 
-#if HAVE_OLED
-	char buffer[20];
-	strcpy(buffer, "Note repeats: ");
-	intToString(newNumNotes, buffer + strlen(buffer));
-	OLED::popupText(buffer);
-#else
-	char buffer[12];
-	intToString(newNumNotes, buffer);
-	numericDriver.displayPopup(buffer, 0, true);
-#endif
+	if (display.type == DisplayType::OLED) {
+		char buffer[20];
+		strcpy(buffer, "Note repeats: ");
+		intToString(newNumNotes, buffer + strlen(buffer));
+		display.popupTextTemporary(buffer);
+	}
+	else {
+		char buffer[12];
+		intToString(newNumNotes, buffer);
+		display.displayPopup(buffer, 0, true);
+	}
 }
 
 // Supply offset as 0 to just popup number, not change anything
@@ -4658,7 +4648,7 @@ doCompareNote:
 					    noteRow->nudgeNotesAcrossAllScreens(editPadPresses[i].intendedPos, modelStackWithNoteRow,
 					                                        action, currentClip->getWrapEditLevel(), offset);
 					if (error) {
-						numericDriver.displayError(error);
+						display.displayError(error);
 						return;
 					}
 
@@ -4697,11 +4687,7 @@ doCompareNote:
 	}
 
 	// Now, decide what message to display ---------------------------------------------------
-#if HAVE_OLED
-	char buffer[24];
-#else
-	char buffer[5];
-#endif
+	char buffer[HAVE_OLED ? 24 : 5];
 	char const* message;
 	bool alignRight = false;
 
@@ -4713,11 +4699,12 @@ doCompareNote:
 		if (!didAnySuccessfulNudging) {
 			return; // Don't want to see these "multiple pads moved" messages if in fact none were moved
 		}
-#if HAVE_OLED
-		message = (offset >= 0) ? "Nudged notes right" : "Nudged notes left";
-#else
-		message = (offset >= 0) ? "RIGHT" : "LEFT";
-#endif
+		if (display.type == DisplayType::OLED) {
+			message = (offset >= 0) ? "Nudged notes right" : "Nudged notes left";
+		}
+		else {
+			message = (offset >= 0) ? "RIGHT" : "LEFT";
+		}
 	}
 
 	else {
@@ -4748,30 +4735,32 @@ doCompareNote:
 			}
 		}
 
-#if HAVE_OLED
-		strcpy(buffer, "Note nudge: ");
-		intToString(resultingTotalOffset, buffer + strlen(buffer));
-		message = buffer;
-#else
-		if (resultingTotalOffset > 9999) {
-			message = "RIGHT";
-		}
-		else if (resultingTotalOffset < -999) {
-			message = "LEFT";
+		if (display.type == DisplayType::OLED) {
+			strcpy(buffer, "Note nudge: ");
+			intToString(resultingTotalOffset, buffer + strlen(buffer));
+			message = buffer;
 		}
 		else {
-			message = buffer;
-			alignRight = true;
-			intToString(resultingTotalOffset, buffer);
+			if (resultingTotalOffset > 9999) {
+				message = "RIGHT";
+			}
+			else if (resultingTotalOffset < -999) {
+				message = "LEFT";
+			}
+			else {
+				message = buffer;
+				alignRight = true;
+				intToString(resultingTotalOffset, buffer);
+			}
 		}
-#endif
 	}
 
-#if HAVE_OLED
-	OLED::popupText(message);
-#else
-	numericDriver.displayPopup(message, 0, alignRight);
-#endif
+	if (display.type == DisplayType::OLED) {
+		display.popupTextTemporary(message);
+	}
+	else {
+		display.displayPopup(message, 0, alignRight);
+	}
 
 	doneAnyNudgingSinceFirstEditPadPress =
 	    true; // Even if we didn't actually nudge, we want to record this for the purpose of the offsetting of the number display - see above
@@ -5116,7 +5105,7 @@ void InstrumentClipView::modEncoderAction(int whichModEncoder, int offset) {
 		if (kit->selectedDrum && kit->selectedDrum->type != DRUM_TYPE_SOUND) {
 
 			if (ALPHA_OR_BETA_VERSION && !kit->activeClip) {
-				numericDriver.freezeWithError("E381");
+				display.freezeWithError("E381");
 			}
 
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
@@ -5210,7 +5199,7 @@ justDisplayOldNumNotes:
 					if (newNumNotes) {
 						int error = newNotes.insertAtIndex(0, newNumNotes); // Pre-allocate, so no errors later
 						if (error) {
-							numericDriver.displayError(error);
+							display.displayError(error);
 							return;
 						}
 					}
@@ -5279,21 +5268,22 @@ noteRowChanged:
 	}
 displayNewNumNotes:
 	// Tell the user about it in text
-#if HAVE_OLED
-	char buffer[34];
-	strcpy(buffer, "Events: ");
-	char* pos = strchr(buffer, 0);
-	intToString(newNumNotes, pos);
-	pos = strchr(buffer, 0);
-	strcpy(pos, " of ");
-	pos = strchr(buffer, 0);
-	intToString(numStepsAvailable, pos);
-	OLED::popupText(buffer);
-#else
-	char buffer[12];
-	intToString(newNumNotes, buffer);
-	numericDriver.displayPopup(buffer, 0, true);
-#endif
+	if (display.type == DisplayType::OLED) {
+		char buffer[34];
+		strcpy(buffer, "Events: ");
+		char* pos = strchr(buffer, 0);
+		intToString(newNumNotes, pos);
+		pos = strchr(buffer, 0);
+		strcpy(pos, " of ");
+		pos = strchr(buffer, 0);
+		intToString(numStepsAvailable, pos);
+		display.popupTextTemporary(buffer);
+	}
+	else {
+		char buffer[12];
+		intToString(newNumNotes, buffer);
+		display.displayPopup(buffer, 0, true);
+	}
 }
 
 // Check UI mode is appropriate before calling this
@@ -5359,13 +5349,14 @@ addConsequenceToAction:
 	}
 
 displayMessage:
-#if HAVE_OLED
-	char const* message = (offset == 1) ? "Rotated right" : "Rotated left";
-	OLED::popupText(message);
-#else
-	char const* message = (offset == 1) ? "RIGHT" : "LEFT";
-	numericDriver.displayPopup(message, 0);
-#endif
+	if (display.type == DisplayType::OLED) {
+		char const* message = (offset == 1) ? "Rotated right" : "Rotated left";
+		display.popupTextTemporary(message);
+	}
+	else {
+		char const* message = (offset == 1) ? "RIGHT" : "LEFT";
+		display.displayPopup(message, 0);
+	}
 }
 
 extern bool shouldResumePlaybackOnNoteRowLengthSet;
@@ -5452,7 +5443,7 @@ editLengthWithNewAction:
 		Action* action = actionLogger.getNewAction(ACTION_NOTEROW_LENGTH_EDIT, false);
 		if (!action) {
 ramError:
-			numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
+			display.displayError(ERROR_INSUFFICIENT_RAM);
 			if (didSecretUndo) {
 				// Need to do the resumePlayback that we blocked happening during the revert()
 				if (playbackHandler.isEitherClockActive() && modelStack->song->isClipActive(clip)) {
@@ -5491,16 +5482,17 @@ tryScrollingLeft:
 		didScroll = scrollLeftIfTooFarRight(newLength);
 	}
 
-#if HAVE_OLED
-	char buffer[19];
-	strcpy(buffer, "Steps: ");
-	intToString(newNumSteps, buffer + strlen(buffer));
-	OLED::popupText(buffer);
-#else
-	char buffer[12];
-	intToString(newNumSteps, buffer);
-	numericDriver.displayPopup(buffer, 0, true);
-#endif
+	if (display.type == DisplayType::OLED) {
+		char buffer[19];
+		strcpy(buffer, "Steps: ");
+		intToString(newNumSteps, buffer + strlen(buffer));
+		display.popupTextTemporary(buffer);
+	}
+	else {
+		char buffer[12];
+		intToString(newNumSteps, buffer);
+		display.displayPopup(buffer, 0, true);
+	}
 
 	// Play it
 	clip->expectEvent();

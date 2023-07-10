@@ -19,7 +19,7 @@
 #include "definitions.h"
 #include "util/functions.h"
 #include "RZA1/uart/sio_char.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "memory/general_memory_allocator.h"
 #include "drivers/mtu/mtu.h"
 #include "io/uart/uart.h"
@@ -272,7 +272,7 @@ void OrderedResizeableArray::testSequentiality(char const* errorCode) {
 	for (int i = 0; i < getNumElements(); i++) {
 		int32_t key = getKeyAtIndex(i);
 		if (key <= lastKey) {
-			numericDriver.freezeWithError(errorCode);
+			display.freezeWithError(errorCode);
 		}
 
 		lastKey = key;
@@ -314,7 +314,7 @@ void OrderedResizeableArrayWith32bitKey::testSearchMultiple() {
 		for (int t = 0; t < TEST_SEARCH_MULTIPLE_NUM_SEARCH_TERMS; t++) {
 			while (getKeyAtIndex(i) < searchPos[t]) {
 				if (i >= resultingIndexes[t]) {
-					//numericDriver.freezeWithError("FAIL");
+					//display.freezeWithError("FAIL");
 					Uart::println("fail");
 					goto thatsDone;
 				}

@@ -25,7 +25,7 @@
 #include "model/action/action.h"
 #include "gui/ui/keyboard_screen.h"
 #include "util/functions.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "gui/views/view.h"
 #include "model/consequence/consequence_swing_change.h"
 #include "model/consequence/consequence_tempo_change.h"
@@ -46,7 +46,6 @@
 #include "gui/views/session_view.h"
 #include "model/clip/instrument_clip.h"
 #include "playback/playback_handler.h"
-#include "hid/display/oled.h"
 
 ActionLogger actionLogger{};
 
@@ -675,7 +674,7 @@ currentClipSwitchedOver:
 
 	// If there was an actual error in the reversion itself...
 	if (error) {
-		numericDriver.displayError(error);
+		display.displayError(error);
 
 		deleteAllLogs();
 	}
@@ -746,10 +745,8 @@ void ActionLogger::undo() {
 displayUndoMessage:
 #ifdef undoLedX
 		IndicatorLEDs::indicateAlertOnLed(undoLedX, undoLedY);
-#elif HAVE_OLED
-		OLED::consoleText("Undo");
 #else
-		numericDriver.displayPopup("UNDO");
+		display.consoleText("Undo");
 #endif
 	}
 }
@@ -759,10 +756,8 @@ void ActionLogger::redo() {
 	if (revert(AFTER)) {
 #ifdef redoLedX
 		IndicatorLEDs::indicateAlertOnLed(redoLedX, redoLedY);
-#elif HAVE_OLED
-		OLED::consoleText("Redo");
 #else
-		numericDriver.displayPopup("REDO");
+		display.consoleText("Redo");
 #endif
 	}
 }

@@ -22,7 +22,7 @@
 #include "hid/matrix/matrix_driver.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/storage_manager.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "io/uart/uart.h"
 #include <string.h>
 #include "processing/source.h"
@@ -70,10 +70,6 @@
 #include "storage/file_item.h"
 #include "playback/playback_handler.h"
 
-#if HAVE_OLED
-#include "hid/display/oled.h"
-#endif
-
 extern "C" {
 #include "RZA1/uart/sio_char.h"
 }
@@ -87,12 +83,12 @@ char const* allowedFileExtensionsAudio[] = {"WAV", "AIFF", "AIF", NULL};
 
 SampleBrowser::SampleBrowser() {
 
-#if HAVE_OLED
 	fileIcon = OLED::waveIcon;
 	title = "Audio files";
-#else
-	shouldWrapFolderContents = false;
-#endif
+
+	if (display.type != DisplayType::OLED) {
+		shouldWrapFolderContents = false;
+	}
 	qwertyAlwaysVisible = false;
 	shouldInterpretNoteNamesForThisBrowser = true;
 }
@@ -114,9 +110,9 @@ bool SampleBrowser::opened() {
 
 	currentlyShowingSamplePreview = false;
 
-#if HAVE_OLED
-	fileIndexSelected = 0;
-#endif
+	if (display.type == DisplayType::OLED) {
+		fileIndexSelected = 0;
+	}
 
 	if (currentUIMode == UI_MODE_AUDITIONING) {
 		instrumentClipView.cancelAllAuditioning();
@@ -125,8 +121,8 @@ bool SampleBrowser::opened() {
 	int error = storageManager.initSD();
 	if (error) {
 sdError:
-		numericDriver.displayError(error);
-		numericDriver.setNextTransitionDirection(0); // Cancel the transition that we'll now not be doing
+		display.displayError(error);
+		display.setNextTransitionDirection(0); // Cancel the transition that we'll now not be doing
 		return false;
 	}
 
@@ -255,7 +251,7 @@ void SampleBrowser::currentFileChanged(int movementDirection) {
 }
 
 void SampleBrowser::exitAndNeverDeleteDrum() {
-	numericDriver.setNextTransitionDirection(-1);
+	display.setNextTransitionDirection(-1);
 	close();
 }
 
@@ -263,7 +259,7 @@ void SampleBrowser::exitAndNeverDeleteDrum() {
 void SampleBrowser::exitAction() {
 	UI* redrawUI = NULL;
 
-	numericDriver.setNextTransitionDirection(-1);
+	display.setNextTransitionDirection(-1);
 	if (!isUIOpen(&soundEditor)) {
 		// If no file was selected, the user wanted to get out of creating this Drum.
 		if (soundEditor.editingKit()
@@ -293,9 +289,9 @@ int SampleBrowser::timerCallback() {
 
 			// AudioClip
 			if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) {
-#if HAVE_OLED
-				errorMessage = "Can't import whole folder into audio clip";
-#endif
+				if (display.type == DisplayType::OLED) {
+					errorMessage = "Can't import whole folder into audio clip";
+				}
 				goto cant;
 			}
 
@@ -307,11 +303,11 @@ int SampleBrowser::timerCallback() {
 					goto considerContextMenu;
 				}
 				else {
-#if HAVE_OLED
-					errorMessage = "Can only import whole folder into brand-new kit";
-#endif
+					if (display.type == DisplayType::OLED) {
+						errorMessage = "Can only import whole folder into brand-new kit";
+					}
 cant:
-					numericDriver.displayPopup(HAVE_OLED ? errorMessage : "CANT");
+					display.displayPopup(HAVE_OLED ? errorMessage : "CANT");
 				}
 			}
 
@@ -323,7 +319,7 @@ considerContextMenu:
 				bool available = contextMenu->setupAndCheckAvailability();
 
 				if (available) { // Not sure if this can currently fail.
-					numericDriver.setNextTransitionDirection(1);
+					display.setNextTransitionDirection(1);
 					openUI(contextMenu);
 				}
 				else {
@@ -343,7 +339,7 @@ void SampleBrowser::enterKeyPress() {
 	FileItem* currentFileItem = getCurrentFileItem();
 
 	if (!currentFileItem) {
-		numericDriver.displayError(
+		display.displayError(
 		    HAVE_OLED
 		        ? ERROR_FILE_NOT_FOUND
 		        : ERROR_NO_FURTHER_FILES_THIS_DIRECTION); // Make it say "NONE" on numeric Deluge, for consistency with old times.
@@ -358,7 +354,7 @@ void SampleBrowser::enterKeyPress() {
 		// Don't allow user to go into TEMP clips folder
 		if (currentFileItem->filename.equalsCaseIrrespective("TEMP")
 		    && currentDir.equalsCaseIrrespective("SAMPLES/CLIPS")) {
-			numericDriver.displayPopup(HAVE_OLED ? "TEMP folder can't be browsed" : "CANT");
+			display.displayPopup(HAVE_OLED ? "TEMP folder can't be browsed" : "CANT");
 			return;
 		}
 
@@ -369,7 +365,7 @@ void SampleBrowser::enterKeyPress() {
 		int error = goIntoFolder(filenameChars);
 
 		if (error) {
-			numericDriver.displayError(error);
+			display.displayError(error);
 			close(); // Don't use goBackToSoundEditor() because that would do a left-scroll
 			return;
 		}
@@ -385,11 +381,11 @@ void SampleBrowser::enterKeyPress() {
 
 			// Can only do this for Kit Clips, and for source 0, not 1, AND there has to be only one drum present, which is assigned to the first NoteRow
 			if (currentSong->currentClip->type == CLIP_TYPE_INSTRUMENT && canImportWholeKit()) {
-				numericDriver.displayPopup("SLICER");
+				display.displayPopup("SLICER");
 				openUI(&slicer);
 			}
 			else {
-				numericDriver.displayPopup(HAVE_OLED ? "Can only user slicer for brand-new kit" : "CANT");
+				display.displayPopup(HAVE_OLED ? "Can only user slicer for brand-new kit" : "CANT");
 			}
 		}
 
@@ -426,20 +422,14 @@ int SampleBrowser::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 					String filePath;
 					int error = getCurrentFilePath(&filePath);
 					if (error) {
-						numericDriver.displayError(error);
+						display.displayError(error);
 						return ACTION_RESULT_DEALT_WITH;
 					}
 
 					bool allFine = audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(filePath.get());
 
 					if (!allFine) {
-						numericDriver.displayPopup(
-#if HAVE_OLED
-						    "Audio file is used in current song"
-#else
-						    "USED"
-#endif
-						);
+						display.displayPopup(HAVE_OLED ? "Audio file is used in current song" : "USED");
 					}
 					else {
 						goIntoDeleteFileContextMenu();
@@ -554,7 +544,7 @@ void SampleBrowser::previewIfPossible(int movementDirection) {
 		String filePath;
 		int error = getCurrentFilePath(&filePath);
 		if (error) {
-			numericDriver.displayError(error);
+			display.displayError(error);
 			return;
 		}
 
@@ -665,7 +655,7 @@ void SampleBrowser::scrollFinished() {
 
 void SampleBrowser::displayCurrentFilename() {
 	if (fileIndexSelected == -1) {
-		numericDriver.setText("----");
+		display.setText("----");
 	}
 
 	else {}
@@ -790,16 +780,12 @@ bool SampleBrowser::claimCurrentFile(int mayDoPitchDetection, int mayDoSingleCyc
 
 	if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) {
 		if (currentSong->currentClip->getCurrentlyRecordingLinearly()) {
-			numericDriver.displayPopup(HAVE_OLED ? "Clip is recording" : "CANT");
+			display.displayPopup(HAVE_OLED ? "Clip is recording" : "CANT");
 			return false;
 		}
 	}
 
-#if HAVE_OLED
-	OLED::displayWorkingAnimation("Working");
-#else
-	numericDriver.displayLoadingAnimation();
-#endif
+	display.displayLoadingAnimationText("Working");
 
 	int error;
 
@@ -809,12 +795,8 @@ bool SampleBrowser::claimCurrentFile(int mayDoPitchDetection, int mayDoSingleCyc
 		error = claimAudioFileForAudioClip();
 		if (error) {
 removeLoadingAnimationAndGetOut:
-#if HAVE_OLED
-			OLED::removeWorkingAnimation();
-#else
-			numericDriver.removeTopLayer();
-#endif
-			numericDriver.displayError(error);
+			display.removeLoadingAnimation();
+			display.displayError(error);
 			return false;
 		}
 
@@ -863,7 +845,7 @@ doLoadAsWaveTable:
 			if (soundEditor.currentSource->ranges.getNumElements() > 1
 					&& soundEditor.currentSource->oscType == OSC_TYPE_SAMPLE) {
 #if ALPHA_OR_BETA_VERSION
-				if (mayDoWaveTable == 2) numericDriver.freezeWithError("E425");
+				if (mayDoWaveTable == 2) display.freezeWithError("E425");
 #endif
 				goto doLoadAsSample;
 			}
@@ -925,7 +907,7 @@ doLoadAsSample:
 			if (soundEditor.currentSource->ranges.getNumElements() > 1
 					&& soundEditor.currentSource->oscType == OSC_TYPE_WAVETABLE) {
 #if ALPHA_OR_BETA_VERSION
-				if (!mayDoWaveTable) numericDriver.freezeWithError("E426");
+				if (!mayDoWaveTable) display.freezeWithError("E426");
 #endif
 				goto doLoadAsWaveTable;
 			}
@@ -1082,9 +1064,7 @@ doLoadAsSample:
 
 	exitAndNeverDeleteDrum();
 	uiNeedsRendering(&audioClipView);
-#if HAVE_OLED
-	OLED::removeWorkingAnimation();
-#endif
+	display.removeWorkingAnimation();
 	return true;
 }
 
@@ -1205,7 +1185,7 @@ bool SampleBrowser::loadAllSamplesInFolder(bool detectPitch, int* getNumSamples,
 	if (currentFileItem->isFolder) {
 		error = getCurrentFilePath(&dirToLoad);
 		if (error) {
-			numericDriver.displayError(error);
+			display.displayError(error);
 			return false;
 		}
 	}
@@ -1216,7 +1196,7 @@ bool SampleBrowser::loadAllSamplesInFolder(bool detectPitch, int* getNumSamples,
 
 	FRESULT result = f_opendir(&staticDIR, dirToLoad.get());
 	if (result != FR_OK) {
-		numericDriver.displayError(ERROR_SD_CARD);
+		display.displayError(ERROR_SD_CARD);
 		return false;
 	}
 
@@ -1240,7 +1220,7 @@ removeReasonsFromSamplesAndGetOut:
 					thisSample->partOfFolderBeingLoaded = false;
 #if ALPHA_OR_BETA_VERSION
 					if (thisSample->numReasonsToBeLoaded <= 0) {
-						numericDriver.freezeWithError("E213"); // I put this here to try and catch an E004 Luc got
+						display.freezeWithError("E213"); // I put this here to try and catch an E004 Luc got
 					}
 #endif
 					thisSample->removeReason("E392"); // Remove that temporary reason we added
@@ -1248,7 +1228,7 @@ removeReasonsFromSamplesAndGetOut:
 			}
 		}
 
-		numericDriver.displayError(error);
+		display.displayError(error);
 		return false;
 	}
 
@@ -1634,11 +1614,7 @@ bool SampleBrowser::importFolderAsMultisamples() {
 
 	AudioEngine::stopAnyPreviewing();
 
-#if HAVE_OLED
-	OLED::displayWorkingAnimation("Working");
-#else
-	numericDriver.displayLoadingAnimation();
-#endif
+	display.displayLoadingAnimationText("Working");
 
 	int numSamples;
 	bool doingSingleCycle;
@@ -1647,9 +1623,7 @@ bool SampleBrowser::importFolderAsMultisamples() {
 	bool success = loadAllSamplesInFolder(true, &numSamples, &sortArea, &doingSingleCycle);
 	if (!success) {
 doReturnFalse:
-#if HAVE_OLED
-		OLED::removeWorkingAnimation();
-#endif
+		display.removeWorkingAnimation();
 		return false;
 	}
 
@@ -1676,12 +1650,12 @@ doReturnFalse:
 				Sample* thisSample = sortArea[s];
 #if ALPHA_OR_BETA_VERSION
 				if (thisSample->numReasonsToBeLoaded <= 0) {
-					numericDriver.freezeWithError("E215"); // I put this here to try and catch an E004 Luc got
+					display.freezeWithError("E215"); // I put this here to try and catch an E004 Luc got
 				}
 #endif
 				thisSample->removeReason("E393"); // Remove that temporary reason we added above
 			}
-			numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
+			display.displayError(ERROR_INSUFFICIENT_RAM);
 			goto doReturnFalse;
 		}
 	}
@@ -1792,7 +1766,7 @@ skipOctaveCorrection:
 		else {
 #if ALPHA_OR_BETA_VERSION
 			if (soundEditor.currentSource->ranges.elementSize != sizeof(MultisampleRange)) {
-				numericDriver.freezeWithError("E431");
+				display.freezeWithError("E431");
 			}
 #endif
 			range = (MultisampleRange*)soundEditor.currentSource->ranges.insertMultiRange(
@@ -1819,7 +1793,7 @@ skipOctaveCorrection:
 		}
 
 		if (ALPHA_OR_BETA_VERSION && thisSample->numReasonsToBeLoaded <= 0) {
-			numericDriver.freezeWithError("E216"); // I put this here to try and catch an E004 Luc got
+			display.freezeWithError("E216"); // I put this here to try and catch an E004 Luc got
 		}
 		thisSample->removeReason("E394"); // Remove that temporary reason we added above
 
@@ -1830,7 +1804,7 @@ skipOctaveCorrection:
 	numSamples = rangeIndex;
 
 	if (!numSamples) {
-		numericDriver.displayPopup(HAVE_OLED ? "Error creating multisampled instrument" : "FAIL");
+		display.displayPopup(HAVE_OLED ? "Error creating multisampled instrument" : "FAIL");
 		goto doReturnFalse;
 	}
 
@@ -1866,9 +1840,7 @@ skipOctaveCorrection:
 	exitAndNeverDeleteDrum();
 	((Instrument*)currentSong->currentClip->output)->beenEdited();
 
-#if HAVE_OLED
-	OLED::removeWorkingAnimation();
-#endif
+	display.removeWorkingAnimation();
 	return true;
 }
 
@@ -1876,11 +1848,7 @@ bool SampleBrowser::importFolderAsKit() {
 
 	AudioEngine::stopAnyPreviewing();
 
-#if HAVE_OLED
-	OLED::displayWorkingAnimation("Working");
-#else
-	numericDriver.displayLoadingAnimation();
-#endif
+	display.displayLoadingAnimationText("Working");
 
 	int numSamples;
 	Sample** sortArea;
@@ -1890,9 +1858,7 @@ bool SampleBrowser::importFolderAsKit() {
 
 	if (!success) {
 doReturnFalse:
-#if HAVE_OLED
-		OLED::removeWorkingAnimation();
-#endif
+		display.removeWorkingAnimation();
 		return false;
 	}
 
@@ -1920,7 +1886,7 @@ doReturnFalse:
 				if (!range) {
 getOut:
 					f_closedir(&staticDIR);
-					numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
+					display.displayError(ERROR_INSUFFICIENT_RAM);
 					goto doReturnFalse;
 				}
 
@@ -2013,7 +1979,7 @@ skipNameStuff:
 
 #if ALPHA_OR_BETA_VERSION
 			if (thisSample->numReasonsToBeLoaded <= 0) {
-				numericDriver.freezeWithError("E217"); // I put this here to try and catch an E004 Luc got
+				display.freezeWithError("E217"); // I put this here to try and catch an E004 Luc got
 			}
 #endif
 			thisSample->removeReason("E395");
@@ -2032,9 +1998,7 @@ skipNameStuff:
 
 	exitAndNeverDeleteDrum();
 	uiNeedsRendering(&instrumentClipView);
-#if HAVE_OLED
-	OLED::removeWorkingAnimation();
-#endif
+	display.removeWorkingAnimation();
 	return true;
 }
 
@@ -2080,7 +2044,7 @@ doNormal:
 		// TODO: I don't think we want this anymore...
 		/*
 		else {
-			if (scrollingText && numericDriver.isLayerCurrentlyOnTop(scrollingText)) {
+			if (scrollingText && display.isLayerCurrentlyOnTop(scrollingText)) {
 				uiTimerManager.unsetTimer(TIMER_DISPLAY);
 				scrollingText->currentPos += offset;
 
@@ -2089,7 +2053,7 @@ doNormal:
 				if (scrollingText->currentPos < 0) scrollingText->currentPos = 0;
 				if (scrollingText->currentPos > maxScroll) scrollingText->currentPos = maxScroll;
 
-				numericDriver.render();
+				display.render();
 			}
 		}
 		*/

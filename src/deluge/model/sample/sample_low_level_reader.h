@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "RZA1/system/r_typedefs.h"
 
 #define REASSESSMENT_ACTION_STOP_OR_LOOP 0

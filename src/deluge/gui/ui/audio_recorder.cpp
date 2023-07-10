@@ -28,7 +28,7 @@
 #include "io/uart/uart.h"
 #include "dsp/stereo_sample.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "processing/source.h"
 #include "hid/matrix/matrix_driver.h"
 #include "model/drum/kit.h"
@@ -44,7 +44,6 @@
 #include "definitions.h"
 #include "hid/led/pad_leds.h"
 #include "extern.h"
-#include "hid/display/oled.h"
 #include "playback/playback_handler.h"
 
 AudioRecorder audioRecorder{};
@@ -96,7 +95,7 @@ bool AudioRecorder::opened() {
 		int error = newName.set("REC");
 		if (error) {
 gotError:
-			numericDriver.displayError(error);
+			display.displayError(error);
 			return false;
 		}
 
@@ -125,10 +124,10 @@ gotError:
 		IndicatorLEDs::setLedState(scaleModeLedX, scaleModeLedY, false);
 		IndicatorLEDs::blinkLed(backLedX, backLedY);
 		IndicatorLEDs::blinkLed(recordLedX, recordLedY, 255, 1);
-#if !HAVE_OLED
-		numericDriver.setNextTransitionDirection(0);
-		numericDriver.setText("REC", false, 255, true);
-#endif
+		if (display.type != DisplayType::OLED) {
+			display.setNextTransitionDirection(0);
+			display.setText("REC", false, 255, true);
+		}
 	}
 
 	if (currentUIMode == UI_MODE_AUDITIONING) {
@@ -138,21 +137,19 @@ gotError:
 	return success;
 }
 
-#if HAVE_OLED
 void AudioRecorder::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 	OLED::drawStringCentred("Recording", 15, image[0], OLED_MAIN_WIDTH_PIXELS, TEXT_BIG_SPACING_X, TEXT_BIG_SIZE_Y);
 }
-#endif
 
 bool AudioRecorder::setupRecordingToFile(int newMode, int newNumChannels, int folderID) {
 
 	if (ALPHA_OR_BETA_VERSION && recordingSource) {
-		numericDriver.freezeWithError("E242");
+		display.freezeWithError("E242");
 	}
 
 	recorder = AudioEngine::getNewRecorder(newNumChannels, folderID, newMode, INTERNAL_BUTTON_PRESS_LATENCY);
 	if (!recorder) {
-		numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
+		display.displayError(ERROR_INSUFFICIENT_RAM);
 		return false;
 	}
 
@@ -183,11 +180,7 @@ void AudioRecorder::endRecordingSoon(int buttonLatency) {
 	if (recorder
 	    && recorder->status
 	           == RECORDER_STATUS_CAPTURING_DATA) { // Make sure we don't call the same thing multiple times - I think there's a few scenarios where this could happen
-#if HAVE_OLED
-		OLED::displayWorkingAnimation("Working");
-#else
-		numericDriver.displayLoadingAnimation();
-#endif
+		display.displayLoadingAnimationText("Working");
 		recorder->endSyncedRecording(buttonLatency);
 	}
 }
@@ -208,9 +201,9 @@ void AudioRecorder::process() {
 
 		uiTimerManager.routine();
 
-#if HAVE_OLED
-		oledRoutine();
-#endif
+		if (display.type == DisplayType::OLED) {
+			oledRoutine();
+		}
 		uartFlushIfNotSending(UART_ITEM_PIC);
 
 		readButtonsAndPads();
@@ -242,8 +235,8 @@ void AudioRecorder::process() {
 			if (recorder->recordingClippedRecently) {
 				recorder->recordingClippedRecently = false;
 
-				if (!numericDriver.popupActive) {
-					numericDriver.displayPopup(HAVE_OLED ? "Clipping occurred" : "CLIP");
+				if (!display.hasPopup()) {
+					display.displayPopup(HAVE_OLED ? "Clipping occurred" : "CLIP");
 				}
 			}
 		}
@@ -258,11 +251,7 @@ void AudioRecorder::finishRecording() {
 
 	recorder = NULL;
 	recordingSource = 0;
-#if HAVE_OLED
-	OLED::removeWorkingAnimation();
-#else
-	numericDriver.removeTopLayer();
-#endif
+	display.removeLoadingAnimation();
 }
 
 int AudioRecorder::buttonAction(hid::Button b, bool on, bool inCardRoutine) {

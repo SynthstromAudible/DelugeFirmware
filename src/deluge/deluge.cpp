@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "definitions.h"
 #include "gui/views/arranger_view.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
@@ -36,7 +37,7 @@
 #include "dsp/stereo_sample.h"
 #include "gui/ui/save/save_instrument_preset_ui.h"
 #include "processing/engines/cv_engine.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "gui/ui/keyboard_screen.h"
 #include "gui/views/view.h"
 #include "gui/ui/audio_recorder.h"
@@ -79,7 +80,6 @@
 #include "storage/file_item.h"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/save/save_song_ui.h"
-#include "hid/display/oled.h"
 #include "gui/context_menu/overwrite_bootloader.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "deluge.h"
@@ -367,11 +367,9 @@ bool readButtonsAndPads() {
 				Buttons::noPressesHappening(sdRoutineLock);
 			}
 		}
-#if HAVE_OLED
-		else if (value == oledWaitingForMessage) {
+		else if (value == oledWaitingForMessage && display.type == DisplayType::OLED) {
 			uiTimerManager.setTimer(TIMER_OLED_LOW_LEVEL, 3);
 		}
-#endif
 	}
 
 #if SD_TEST_MODE_ENABLED_LOAD_SONGS
@@ -463,9 +461,9 @@ void setUIForLoadedSong(Song* song) {
 	setRootUILowLevel(newUI);
 
 	getCurrentUI()->opened();
-#if HAVE_OLED
-	renderUIsForOled();
-#endif
+	if (display.type == DisplayType::OLED) {
+		renderUIsForOled();
+	}
 }
 
 void setupBlankSong() {
@@ -499,9 +497,9 @@ extern "C" int deluge_main(void) {
 
 	// Give the PIC some startup instructions
 
-#if HAVE_OLED
-	bufferPICUart(247); // Enable OLED
-#endif
+	if (display.type == DisplayType::OLED) {
+		bufferPICUart(247); // Enable OLED
+	}
 
 	bufferPICUart(18); // Set debounce time (mS) to...
 	bufferPICUart(20);
@@ -601,11 +599,9 @@ extern "C" int deluge_main(void) {
 	// SPI for CV
 	R_RSPI_Create(
 	    SPI_CHANNEL_CV,
-#if HAVE_OLED
-	    10000000, // Higher than this would probably work... but let's stick to the OLED datasheet's spec of 100ns (10MHz).
-#else
-	    30000000,
-#endif
+	    display.type == DisplayType::OLED
+	        ? 10000000 // Higher than this would probably work... but let's stick to the OLED datasheet's spec of 100ns (10MHz).
+	        : 30000000,
 	    0, 32);
 	R_RSPI_Start(SPI_CHANNEL_CV);
 #if SPI_CHANNEL_CV == 1
@@ -615,17 +611,17 @@ extern "C" int deluge_main(void) {
 #elif SPI_CHANNEL_CV == 0
 	setPinMux(6, 0, 3); // CLK
 	setPinMux(6, 2, 3); // MOSI
-#if !HAVE_OLED
-	setPinMux(6, 1, 3); // SSL
-#else
-	// If OLED sharing SPI channel, have to manually control SSL pin.
-	setOutputState(6, 1, true);
-	setPinAsOutput(6, 1);
+	if (display.type != DisplayType::OLED) {
+		setPinMux(6, 1, 3); // SSL
+	}
+	else {
+		// If OLED sharing SPI channel, have to manually control SSL pin.
+		setOutputState(6, 1, true);
+		setPinAsOutput(6, 1);
 
-	setupSPIInterrupts();
-	oledDMAInit();
-
-#endif
+		setupSPIInterrupts();
+		oledDMAInit();
+	}
 #endif
 
 	// Setup audio output on SSI0
@@ -662,29 +658,28 @@ extern "C" int deluge_main(void) {
 	audioFileManager.init();
 
 	// Set up OLED now
-#if HAVE_OLED
+	if (display.type != DisplayType::SevenSegment) {
+		//delayMS(10);
 
-	//delayMS(10);
+		// Set up 8-bit
+		RSPI0.SPDCR = 0x20u;               // 8-bit
+		RSPI0.SPCMD0 = 0b0000011100000010; // 8-bit
+		RSPI0.SPBFCR.BYTE = 0b01100000;    //0b00100000;
 
-	// Set up 8-bit
-	RSPI0.SPDCR = 0x20u;               // 8-bit
-	RSPI0.SPCMD0 = 0b0000011100000010; // 8-bit
-	RSPI0.SPBFCR.BYTE = 0b01100000;    //0b00100000;
+		bufferPICUart(250); // D/C low
+		bufferPICUart(247); // Enable OLED
+		bufferPICUart(248); // Select OLED
+		uartFlushIfNotSending(UART_ITEM_PIC);
 
-	bufferPICUart(250); // D/C low
-	bufferPICUart(247); // Enable OLED
-	bufferPICUart(248); // Select OLED
-	uartFlushIfNotSending(UART_ITEM_PIC);
+		delayMS(5);
 
-	delayMS(5);
+		oledMainInit();
 
-	oledMainInit();
+		//delayMS(5);
 
-	//delayMS(5);
-
-	bufferPICUart(249); // Unselect OLED
-	uartFlushIfNotSending(UART_ITEM_PIC);
-#endif
+		bufferPICUart(249); // Unselect OLED
+		uartFlushIfNotSending(UART_ITEM_PIC);
+	}
 
 	// Setup SPIBSC. Crucial that this only be done now once everything else is running, because I've injected graphics and audio routines into the SPIBSC wait routines, so that
 	// has to be running
@@ -748,11 +743,7 @@ extern "C" int deluge_main(void) {
 
 	if (false) {
 resetSettings:
-#if HAVE_OLED
-		OLED::consoleText("Factory reset");
-#else
-		numericDriver.displayPopup("RESET");
-#endif
+		display.consoleText(HAVE_OLED ? "Factory reset" : "RESET");
 		FlashStorage::resetSettings();
 		FlashStorage::writeSettings();
 	}
@@ -816,7 +807,7 @@ resetSettings:
 
 	while (true) {
 
-		numericDriver.setTextAsNumber(count);
+		display.setTextAsNumber(count);
 
 		int fileNumber = (uint32_t)getNoise() % 10000;
 		int fileSize = (uint32_t)getNoise() % 1000000;
@@ -827,7 +818,7 @@ resetSettings:
 
 		result = f_open(&fil, fileName, FA_CREATE_ALWAYS | FA_WRITE);
 		if (result) {
-			numericDriver.setText("AAAA");
+			display.setText("AAAA");
 			while (1) {}
 		}
 
@@ -838,7 +829,7 @@ resetSettings:
 			result = f_write(&fil, &miscStringBuffer, 256, &bytesWritten);
 
 			if (bytesWritten != 256) {
-				numericDriver.setText("BBBB");
+				display.setText("BBBB");
 				while (1) {}
 			}
 
@@ -863,9 +854,9 @@ resetSettings:
 		uiTimerManager.routine();
 
 		// Flush stuff - we just have to do this, regularly
-#if HAVE_OLED
-		oledRoutine();
-#endif
+		if (display.type == DisplayType::OLED) {
+			oledRoutine();
+		}
 		uartFlushIfNotSending(UART_ITEM_PIC);
 
 		AudioEngine::routineWithClusterLoading(true); // -----------------------------------
@@ -926,9 +917,9 @@ extern "C" void routineForSD(void) {
 
 	uiTimerManager.routine();
 
-#if HAVE_OLED
-	oledRoutine();
-#endif
+	if (display.type == DisplayType::OLED) {
+		oledRoutine();
+	}
 	uartFlushIfNotSending(UART_ITEM_PIC);
 
 	Encoders::readEncoders();
@@ -950,15 +941,13 @@ extern "C" void loadAnyEnqueuedClustersRoutine() {
 	audioFileManager.loadAnyEnqueuedClusters();
 }
 
-#if !HAVE_OLED
 extern "C" void setNumeric(char* text) {
-	numericDriver.setText(text);
+	display.setText(text);
 }
 
 extern "C" void setNumericNumber(int number) {
-	numericDriver.setTextAsNumber(number);
+	display.setTextAsNumber(number);
 }
-#endif
 
 extern "C" void routineWithClusterLoading() {
 	AudioEngine::routineWithClusterLoading(false);
@@ -1039,7 +1028,7 @@ void redrawSpamDisplay() {
 		break;
 	}
 
-	numericDriver.setText(thingName, false, spamStates[currentSpamThing] ? 3 : 255);
+	display.setText(thingName, false, spamStates[currentSpamThing] ? 3 : 255);
 }
 
 void spamMode() {

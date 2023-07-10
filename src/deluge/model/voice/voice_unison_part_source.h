@@ -19,7 +19,7 @@
 
 #include "definitions.h"
 #include "model/sample/sample.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 
 class TimeStretcher;
 class VoiceSamplePlaybackGuide;

@@ -26,20 +26,12 @@ public:
 	void readCurrentValue() { soundEditor.currentValue = FlashStorage::keyboardLayout; }
 	void writeCurrentValue() { FlashStorage::keyboardLayout = soundEditor.currentValue; }
 	char const** getOptions() {
-		static char const* options[] = {
-			"QWERTY",
-			"AZERTY",
-#if HAVE_OLED
-			"QWERTZ",
-			NULL
-#else
-			"QRTZ"
-#endif
-		};
+		static char const* options[] = {"QWERTY",                      // QWERTY
+		                                "AZERTY",                      // AZERTY
+		                                HAVE_OLED ? "QWERTZ" : "QRTZ", // QWERTZ
+		                                nullptr};                      // Null-term
 		return options;
 	}
-	int getNumOptions() {
-		return NUM_KEYBOARD_LAYOUTS;
-	}
+	int getNumOptions() { return NUM_KEYBOARD_LAYOUTS; }
 };
 } // namespace menu_item::keyboard

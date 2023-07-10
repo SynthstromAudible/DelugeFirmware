@@ -25,7 +25,7 @@
 #include "gui/ui_timer_manager.h"
 #include "gui/ui/sound_editor.h"
 #include "storage/multi_range/multisample_range.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "model/sample/sample.h"
 #include "processing/source.h"
 #include "model/instrument/instrument.h"
@@ -40,7 +40,6 @@
 #include "extern.h"
 #include "model/model_stack.h"
 #include "playback/playback_handler.h"
-#include "hid/display/oled.h"
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
@@ -92,7 +91,7 @@ bool SampleMarkerEditor::opened() {
 	waveformBasicNavigator.sample = (Sample*)getCurrentSampleHolder()->audioFile;
 
 	if (!waveformBasicNavigator.sample) {
-		numericDriver.displayPopup(HAVE_OLED ? "No sample" : "CANT");
+		display.displayPopup(HAVE_OLED ? "No sample" : "CANT");
 		return false;
 	}
 
@@ -102,9 +101,9 @@ bool SampleMarkerEditor::opened() {
 
 	uiNeedsRendering(this, 0xFFFFFFFF, 0);
 
-#if !HAVE_OLED
-	displayText();
-#endif
+	if (display.type != DisplayType::OLED) {
+		displayText();
+	}
 
 	if (getRootUI() != &instrumentClipView) {
 		renderingNeededRegardlessOfUI(0, 0xFFFFFFFF);
@@ -279,11 +278,12 @@ void SampleMarkerEditor::selectEncoderAction(int8_t offset) {
 	blinkInvisible = false;
 
 	uiNeedsRendering(this, 0xFFFFFFFF, 0);
-#if HAVE_OLED
-	renderUIsForOled();
-#else
-	displayText();
-#endif
+	if (display.type == DisplayType::OLED) {
+		renderUIsForOled();
+	}
+	else {
+		displayText();
+	}
 }
 
 int SampleMarkerEditor::padAction(int x, int y, int on) {
@@ -549,11 +549,12 @@ doWriteValue:
 
 doRender:
 			uiNeedsRendering(this, 0xFFFFFFFF, 0);
-#if HAVE_OLED
-			renderUIsForOled();
-#else
-			displayText();
-#endif
+			if (display.type == DisplayType::OLED) {
+				renderUIsForOled();
+			}
+			else {
+				displayText();
+			}
 		}
 
 		// Release press
@@ -603,7 +604,7 @@ int SampleMarkerEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine)
 }
 
 void SampleMarkerEditor::exitUI() {
-	numericDriver.setNextTransitionDirection(-1);
+	display.setNextTransitionDirection(-1);
 	close();
 }
 
@@ -953,7 +954,6 @@ void SampleMarkerEditor::renderMarkersForOneCol(int xDisplay,
 	}
 }
 
-#if HAVE_OLED
 void SampleMarkerEditor::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 	MarkerColumn cols[NUM_MARKER_TYPES];
 	getColsOnScreen(cols);
@@ -1078,8 +1078,6 @@ printSeconds:
 	xPixel += smallTextSpacingX * 6;
 }
 
-#else
-
 void SampleMarkerEditor::displayText() {
 
 	MarkerColumn cols[NUM_MARKER_TYPES];
@@ -1103,9 +1101,8 @@ void SampleMarkerEditor::displayText() {
 	char buffer[5];
 	intToString(number, buffer, numDecimals + 1);
 
-	numericDriver.setText(buffer, true, drawDot);
+	display.setText(buffer, true, drawDot);
 }
-#endif
 
 bool SampleMarkerEditor::renderMainPads(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
                                         uint8_t occupancyMask[][displayWidth + sideBarWidth], bool drawUndefinedArea) {

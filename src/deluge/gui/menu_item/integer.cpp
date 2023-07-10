@@ -16,13 +16,9 @@
 */
 
 #include "integer.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "gui/ui/sound_editor.h"
 #include <cstring>
-
-#if HAVE_OLED
-#include "hid/display/oled.h"
-#endif
 
 extern "C" {
 #include "util/cfunctions.h"
@@ -46,22 +42,19 @@ void Integer::selectEncoderAction(int offset) {
 	Number::selectEncoderAction(offset);
 }
 
-#if !HAVE_OLED
 void Integer::drawValue() {
-	numericDriver.setTextAsNumber(soundEditor.currentValue);
+	display.setTextAsNumber(soundEditor.currentValue);
 }
 
 void IntegerWithOff::drawValue() {
 	if (soundEditor.currentValue == 0) {
-		numericDriver.setText("OFF");
+		display.setText("OFF");
 	}
 	else {
 		Integer::drawValue();
 	}
 }
-#endif
 
-#if HAVE_OLED
 void Integer::drawInteger(int textWidth, int textHeight, int yPixel) {
 	char buffer[12];
 	intToString(soundEditor.currentValue, buffer, 1);
@@ -122,5 +115,4 @@ void IntegerContinuous::drawPixelsForOled() {
 
 	drawBar(35, 10);
 }
-#endif
 } // namespace menu_item

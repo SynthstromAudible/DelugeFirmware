@@ -19,8 +19,7 @@
 #include "definitions.h"
 #include "io/midi/midi_engine.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/display/numeric_driver.h"
-#include "hid/display/oled.h"
+#include "hid/display.h"
 #include "io/midi/midi_device.h"
 
 extern "C" {
@@ -30,12 +29,11 @@ extern "C" {
 namespace menu_item::midi {
 
 void Command::beginSession(MenuItem* navigatedBackwardFrom) {
-#if !HAVE_OLED
-	drawValue();
-#endif
+	if (display.type != DisplayType::OLED) {
+		drawValue();
+	}
 }
 
-#if HAVE_OLED
 void Command::drawPixelsForOled() {
 	LearnedMIDI* command = &midiEngine.globalMIDICommands[commandNumber];
 	int yPixel = 20;
@@ -89,37 +87,40 @@ void Command::drawPixelsForOled() {
 		                 TEXT_SPACING_X, TEXT_SIZE_Y_UPDATED);
 	}
 }
-#else
+
 void Command::drawValue() {
 	char const* output;
-	if (!midiEngine.globalMIDICommands[commandNumber].containsSomething())
+	if (!midiEngine.globalMIDICommands[commandNumber].containsSomething()) {
 		output = "NONE";
-	else
+	}
+	else {
 		output = "SET";
-	numericDriver.setText(output);
+	}
+	display.setText(output);
 }
-#endif
 
 void Command::selectEncoderAction(int offset) {
 	midiEngine.globalMIDICommands[commandNumber].clear();
-#if HAVE_OLED
-	renderUIsForOled();
-#else
-	drawValue();
-#endif
+	if (display.type == DisplayType::OLED) {
+		renderUIsForOled();
+	}
+	else {
+		drawValue();
+	}
 }
 
 void Command::unlearnAction() {
 	midiEngine.globalMIDICommands[commandNumber].clear();
 	if (soundEditor.getCurrentMenuItem() == this) {
-#if HAVE_OLED
-		renderUIsForOled();
-#else
-		drawValue();
-#endif
+		if (display.type == DisplayType::OLED) {
+			renderUIsForOled();
+		}
+		else {
+			drawValue();
+		}
 	}
 	else {
-		numericDriver.displayPopup("UNLEARNED");
+		display.displayPopup("UNLEARNED");
 	}
 }
 
@@ -128,14 +129,15 @@ bool Command::learnNoteOn(MIDIDevice* device, int channel, int noteCode) {
 	midiEngine.globalMIDICommands[commandNumber].channelOrZone = channel;
 	midiEngine.globalMIDICommands[commandNumber].noteOrCC = noteCode;
 	if (soundEditor.getCurrentMenuItem() == this) {
-#if HAVE_OLED
-		renderUIsForOled();
-#else
-		drawValue();
-#endif
+		if (display.type == DisplayType::OLED) {
+			renderUIsForOled();
+		}
+		else {
+			drawValue();
+		}
 	}
 	else {
-		numericDriver.displayPopup("LEARNED");
+		display.displayPopup("LEARNED");
 	}
 	return true;
 }

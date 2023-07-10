@@ -19,7 +19,7 @@
 #include "model/clip/instrument_clip.h"
 #include "definitions.h"
 #include "model/song/song.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "memory/general_memory_allocator.h"
 #include "model/instrument/instrument.h"
 #include "model/clip/clip_array.h"
@@ -44,7 +44,7 @@ void ConsequenceClipExistence::prepareForDestruction(int whichQueueActionIn, Son
 #if ALPHA_OR_BETA_VERSION
 		if (clip->type == CLIP_TYPE_AUDIO) {
 			if (((AudioClip*)clip)->recorder) {
-				numericDriver.freezeWithError("i002"); // Trying to diversify Qui's E278
+				display.freezeWithError("i002"); // Trying to diversify Qui's E278
 			}
 		}
 #endif
@@ -66,14 +66,14 @@ int ConsequenceClipExistence::revert(int time, ModelStack* modelStack) {
 		int error = clip->undoDetachmentFromOutput(modelStackWithTimelineCounter);
 		if (error) { // This shouldn't actually happen, but if it does...
 #if ALPHA_OR_BETA_VERSION
-			numericDriver.freezeWithError("E046");
+			display.freezeWithError("E046");
 #endif
 			return error; // Run away. This and the Clip(?) will get destructed, and everything should be ok!
 		}
 
 #if ALPHA_OR_BETA_VERSION
 		if (clip->type == CLIP_TYPE_AUDIO && !clip->paramManager.summaries[0].paramCollection) {
-			numericDriver.freezeWithError("E419"); // Trying to diversify Leo's E410
+			display.freezeWithError("E419"); // Trying to diversify Leo's E410
 		}
 #endif
 
@@ -114,7 +114,7 @@ int ConsequenceClipExistence::revert(int time, ModelStack* modelStack) {
 
 		clipIndex = clipArray->getIndexForClip(clip);
 		if (clipIndex == -1) {
-			numericDriver.freezeWithError("E244");
+			display.freezeWithError("E244");
 		}
 
 		if (clipArray == &modelStackWithTimelineCounter->song->sessionClips) {
@@ -141,14 +141,14 @@ int ConsequenceClipExistence::revert(int time, ModelStack* modelStack) {
 #if ALPHA_OR_BETA_VERSION
 		if (clip->type == CLIP_TYPE_AUDIO) {
 			if (((AudioClip*)clip)->recorder) {
-				numericDriver.freezeWithError("i003"); // Trying to diversify Qui's E278
+				display.freezeWithError("i003"); // Trying to diversify Qui's E278
 			}
 		}
 #endif
 
 #if ALPHA_OR_BETA_VERSION
 		if (clip->type == CLIP_TYPE_AUDIO && !clip->paramManager.summaries[0].paramCollection) {
-			numericDriver.freezeWithError("E420"); // Trying to diversify Leo's E410
+			display.freezeWithError("E420"); // Trying to diversify Leo's E410
 		}
 #endif
 

@@ -19,7 +19,7 @@
 #include "modulation/params/param_manager.h"
 #include "processing/sound/sound.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "patch_cable_strength.h"
 #include "modulation/patch/patch_cable_set.h"
 
@@ -39,8 +39,6 @@ uint8_t SourceSelection::shouldDrawDotOnValue() {
 	           ? 3
 	           : 255;
 }
-
-#if HAVE_OLED
 
 int SourceSelection::selectedRowOnScreen;
 
@@ -80,8 +78,6 @@ void SourceSelection::drawPixelsForOled() {
 
 	drawItemsForOled(itemNames, selectedRowOnScreen);
 }
-
-#else
 
 void SourceSelection::drawValue() {
 	char const* text;
@@ -133,10 +129,8 @@ void SourceSelection::drawValue() {
 
 	uint8_t drawDot = shouldDrawDotOnValue();
 
-	numericDriver.setText(text, false, drawDot);
+	display.setText(text, false, drawDot);
 }
-
-#endif
 
 void SourceSelection::beginSession(MenuItem* navigatedBackwardFrom) {
 	soundEditor.currentValue = 0;
@@ -164,32 +158,33 @@ void SourceSelection::beginSession(MenuItem* navigatedBackwardFrom) {
 			}
 
 			soundEditor.currentValue++;
-#if HAVE_OLED
-			scrollPos = soundEditor.currentValue;
-#endif
+			if (display.type == DisplayType::OLED) {
+				scrollPos = soundEditor.currentValue;
+			}
 
 			if (soundEditor.currentValue >= NUM_PATCH_SOURCES) {
 				soundEditor.currentValue = firstAllowedIndex;
-#if HAVE_OLED
-				scrollPos = soundEditor.currentValue;
-#endif
+				if (display.type == DisplayType::OLED) {
+					scrollPos = soundEditor.currentValue;
+				}
 				s = sourceMenuContents[soundEditor.currentValue];
 				break;
 			}
 		}
 	}
 
-#if !HAVE_OLED
-	drawValue();
-#endif
+	if (display.type != DisplayType::OLED) {
+		drawValue();
+	}
 }
 
 void SourceSelection::readValueAgain() {
-#if HAVE_OLED
-	renderUIsForOled();
-#else
-	drawValue();
-#endif
+	if (display.type == DisplayType::OLED) {
+		renderUIsForOled();
+	}
+	else {
+		drawValue();
+	}
 }
 
 void SourceSelection::selectEncoderAction(int offset) {
@@ -198,34 +193,37 @@ void SourceSelection::selectEncoderAction(int offset) {
 	do {
 		newValue += offset;
 
-#if HAVE_OLED
-		if (newValue >= NUM_PATCH_SOURCES || newValue < 0) {
-			return;
+		if (display.type == DisplayType::OLED) {
+			if (newValue >= NUM_PATCH_SOURCES || newValue < 0) {
+				return;
+			}
 		}
-#else
-		if (newValue >= NUM_PATCH_SOURCES)
-			newValue -= NUM_PATCH_SOURCES;
-		else if (newValue < 0)
-			newValue += NUM_PATCH_SOURCES;
-#endif
+		else {
+			if (newValue >= NUM_PATCH_SOURCES)
+				newValue -= NUM_PATCH_SOURCES;
+			else if (newValue < 0)
+				newValue += NUM_PATCH_SOURCES;
+		}
+
 		s = sourceMenuContents[newValue];
 
 	} while (!sourceIsAllowed(s));
 
 	soundEditor.currentValue = newValue;
 
-#if HAVE_OLED
-	if (soundEditor.currentValue < scrollPos) {
-		scrollPos = soundEditor.currentValue;
-	}
-	else if (offset >= 0 && selectedRowOnScreen == OLED_MENU_NUM_OPTIONS_VISIBLE - 1) {
-		scrollPos++;
-	}
+	if (display.type == DisplayType::OLED) {
+		if (soundEditor.currentValue < scrollPos) {
+			scrollPos = soundEditor.currentValue;
+		}
+		else if (offset >= 0 && selectedRowOnScreen == OLED_MENU_NUM_OPTIONS_VISIBLE - 1) {
+			scrollPos++;
+		}
 
-	renderUIsForOled();
-#else
-	drawValue();
-#endif
+		renderUIsForOled();
+	}
+	else {
+		drawValue();
+	}
 }
 
 bool SourceSelection::sourceIsAllowed(int source) {

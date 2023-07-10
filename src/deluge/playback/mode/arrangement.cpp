@@ -34,7 +34,7 @@
 #include "io/midi/midi_engine.h"
 #include "util/functions.h"
 #include "hid/led/pad_leds.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "model/model_stack.h"
 
 extern "C" {}
@@ -357,7 +357,7 @@ void Arrangement::resetPlayPos(int32_t newPos, bool doingComplete, int buttonPre
 
 				int error = output->possiblyBeginArrangementRecording(currentSong, newPos);
 				if (error) {
-					numericDriver.displayError(error);
+					display.displayError(error);
 				}
 			}
 		}
@@ -529,11 +529,12 @@ int32_t Arrangement::getLivePos(uint32_t* timeRemainder) {
 
 void Arrangement::stopOutputRecordingAtLoopEnd() {
 	playbackHandler.stopOutputRecordingAtLoopEnd = true;
-#if HAVE_OLED
-	renderUIsForOled();
-#else
-	sessionView.redrawNumericDisplay();
-#endif
+	if (display.type == DisplayType::OLED) {
+		renderUIsForOled();
+	}
+	else {
+		sessionView.redrawNumericDisplay();
+	}
 }
 
 int32_t Arrangement::getPosAtWhichClipWillCut(ModelStackWithTimelineCounter const* modelStack) {

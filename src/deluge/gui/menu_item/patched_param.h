@@ -30,9 +30,10 @@ public:
 	PatchedParam() {}
 	PatchedParam(int newP) : Param(newP) {}
 	MenuItem* selectButtonPress();
-#if !HAVE_OLED
+
+	// 7SEG Only
 	void drawValue();
-#endif
+
 	ParamDescriptor getLearningThing();
 	uint8_t getPatchedParamIndex();
 	uint8_t shouldDrawDotOnName();

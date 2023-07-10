@@ -28,15 +28,7 @@ public:
 	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentModControllable->delay.analog; }
 	void writeCurrentValue() { soundEditor.currentModControllable->delay.analog = soundEditor.currentValue; }
 	char const** getOptions() {
-		static char const* options[] = {
-			"Digital",
-#if HAVE_OLED
-			"Analog",
-			NULL
-#else
-			"ANA"
-#endif
-		};
+		static char const* options[] = {"Digital", "Analog", NULL};
 		return options;
 	}
 };

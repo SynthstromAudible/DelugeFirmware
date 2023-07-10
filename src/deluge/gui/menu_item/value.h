@@ -33,9 +33,9 @@ public:
 protected:
 	virtual void readCurrentValue() {}
 	virtual void writeCurrentValue() {}
-#if !HAVE_OLED
+
+	// 7SEG ONLY
 	virtual void drawValue() = 0;
-#endif
 };
 
 } // namespace menu_item

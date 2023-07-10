@@ -23,17 +23,17 @@ namespace menu_item::filter {
 class LPFFreq final : public patched_param::IntegerNonFM {
 public:
 	LPFFreq(char const* newName = 0, int newP = 0) : patched_param::IntegerNonFM(newName, newP) {}
-#if !HAVE_OLED
+
+	// 7Seg ONLY
 	void drawValue() {
 		if (soundEditor.currentValue == 50
 		    && !soundEditor.currentParamManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(
 		        PARAM_LOCAL_LPF_FREQ)) {
-			numericDriver.setText("Off");
+			display.setText("Off");
 		}
 		else {
 			patched_param::IntegerNonFM::drawValue();
 		}
 	}
-#endif
 };
 } // namespace menu_item::filter

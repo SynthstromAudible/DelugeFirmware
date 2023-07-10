@@ -22,7 +22,7 @@
 
 #include "definitions.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "hid/matrix/matrix_driver.h"
 #include "model/song/song.h"
 #include "model/action/action.h"
@@ -30,13 +30,11 @@
 #include "hid/buttons.h"
 #include "model/model_stack.h"
 #include "modulation/patch/patch_cable_set.h"
-#include "hid/display/oled.h"
 #include "util/functions.h"
 
 namespace menu_item {
 extern bool movingCursor;
 
-#if HAVE_OLED
 void PatchCableStrength::renderOLED() {
 
 	int extraY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 0 : 1;
@@ -104,7 +102,6 @@ void PatchCableStrength::renderOLED() {
 	OLED::drawVerticalLine(OLED_MAIN_WIDTH_PIXELS - 2 * digitWidth - 1, textPixelY + digitHeight + 1,
 	                       textPixelY + digitHeight + 3, OLED::oledMainImage);
 }
-#endif
 
 void PatchCableStrength::readCurrentValue() {
 	PatchCableSet* patchCableSet = soundEditor.currentParamManager->getPatchCableSet();
@@ -197,7 +194,7 @@ MenuItem* PatchCableStrength::selectButtonPress() {
 			modelStack->autoParam->deleteAutomation(action, modelStack);
 		}
 
-		numericDriver.displayPopup(HAVE_OLED ? "Automation deleted" : "DELETED");
+		display.displayPopup(HAVE_OLED ? "Automation deleted" : "DELETED");
 		return (MenuItem*)0xFFFFFFFF; // No navigation
 	}
 	else {

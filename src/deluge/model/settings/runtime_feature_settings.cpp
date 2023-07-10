@@ -18,7 +18,7 @@
 #include "runtime_feature_settings.h"
 #include <new>
 #include <cstring>
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "storage/storage_manager.h"
 
 #define RUNTIME_FEATURE_SETTINGS_FILE "CommunityFeatures.XML"
@@ -58,7 +58,7 @@ void RuntimeFeatureSettings::readSettingsFromFile() {
 			// Read name
 			currentTag = storageManager.readNextTagOrAttributeName();
 			if (strcmp(currentTag, TAG_RUNTIME_FEATURE_SETTING_ATTR_NAME) != 0) {
-				numericDriver.displayPopup("Community file err");
+				display.displayPopup("Community file err");
 				goto readEnd;
 			}
 			storageManager.readTagOrAttributeValueString(&currentName);
@@ -67,7 +67,7 @@ void RuntimeFeatureSettings::readSettingsFromFile() {
 			// Read value
 			currentTag = storageManager.readNextTagOrAttributeName();
 			if (strcmp(currentTag, TAG_RUNTIME_FEATURE_SETTING_ATTR_VALUE) != 0) {
-				numericDriver.displayPopup("Community file err");
+				display.displayPopup("Community file err");
 				goto readEnd;
 			}
 			currentValue = storageManager.readTagOrAttributeValueInt();

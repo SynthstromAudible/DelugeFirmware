@@ -22,15 +22,15 @@ namespace menu_item::audio_clip {
 class HPFFreq final : public UnpatchedParam {
 public:
 	using UnpatchedParam::UnpatchedParam;
-#if !HAVE_OLED
+
+	// 7SEG ONLY
 	void drawValue() {
 		if (soundEditor.currentValue == 0) {
-			numericDriver.setText("OFF");
+			display.setText("OFF");
 		}
 		else {
 			UnpatchedParam::drawValue();
 		}
 	}
-#endif
 };
 } // namespace menu_item::audio_clip

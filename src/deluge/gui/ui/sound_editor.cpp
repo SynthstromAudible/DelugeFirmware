@@ -48,10 +48,6 @@
 #include <new>
 #include <string.h>
 
-#if HAVE_OLED
-#include "hid/display/oled.h"
-#endif
-
 extern "C" {
 #include "RZA1/uart/sio_char.h"
 #include "util/cfunctions.h"
@@ -119,9 +115,9 @@ SoundEditor::SoundEditor() {
 	timeLastAttemptedAutomatedParamEdit = 0;
 	shouldGoUpOneLevelOnBegin = false;
 
-#if HAVE_OLED
-	init_menu_titles();
-#endif
+	if (display.type == DisplayType::OLED) {
+		init_menu_titles();
+	}
 }
 
 bool SoundEditor::editingKit() {
@@ -224,7 +220,7 @@ int SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 
 							navigationDepth++;
 							menuItemNavigationRecord[navigationDepth] = newItem;
-							numericDriver.setNextTransitionDirection(1);
+							display.setNextTransitionDirection(1);
 							beginScreen();
 						}
 					}
@@ -281,7 +277,7 @@ int SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 		if (on) {
 			if (!currentUIMode) {
 				if (!getCurrentMenuItem()->allowsLearnMode()) {
-					numericDriver.displayPopup(HAVE_OLED ? "Can't learn" : "CANT");
+					display.displayPopup(HAVE_OLED ? "Can't learn" : "CANT");
 				}
 				else {
 					if (Buttons::isShiftButtonPressed()) {
@@ -377,7 +373,7 @@ void SoundEditor::goUpOneLevel() {
 		navigationDepth--;
 	} while (
 	    !getCurrentMenuItem()->checkPermissionToBeginSession(currentSound, currentSourceIndex, &currentMultiRange));
-	numericDriver.setNextTransitionDirection(-1);
+	display.setNextTransitionDirection(-1);
 
 	MenuItem* oldItem = menuItemNavigationRecord[navigationDepth + 1];
 	if (oldItem == &menu_item::multiRangeMenu) {
@@ -390,19 +386,15 @@ void SoundEditor::goUpOneLevel() {
 void SoundEditor::exitCompletely() {
 	if (inSettingsMenu()) {
 		// First, save settings
-#if HAVE_OLED
-		OLED::displayWorkingAnimation("Saving settings");
-#else
-		numericDriver.displayLoadingAnimation();
-#endif
+
+		display.displayLoadingAnimationText("Saving settings");
+
 		FlashStorage::writeSettings();
 		MIDIDeviceManager::writeDevicesToFile();
 		runtimeFeatureSettings.writeSettingsToFile();
-#if HAVE_OLED
-		OLED::removeWorkingAnimation();
-#endif
+		display.removeWorkingAnimation();
 	}
-	numericDriver.setNextTransitionDirection(-1);
+	display.setNextTransitionDirection(-1);
 	close();
 	possibleChangeToCurrentRangeDisplay();
 }
@@ -419,9 +411,9 @@ bool SoundEditor::beginScreen(MenuItem* oldMenuItem) {
 		return false;
 	}
 
-#if HAVE_OLED
-	renderUIsForOled();
-#endif
+	if (display.type == DisplayType::OLED) {
+		renderUIsForOled();
+	}
 
 #if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 
@@ -727,25 +719,25 @@ doSetup:
 				if (item) {
 
 					if (item == comingSoonMenu) {
-						numericDriver.displayPopup(HAVE_OLED ? "Feature not (yet?) implemented" : "SOON");
+						display.displayPopup(HAVE_OLED ? "Feature not (yet?) implemented" : "SOON");
 						return ACTION_RESULT_DEALT_WITH;
 					}
 
-#if HAVE_OLED
-					switch (x) {
-					case 0 ... 3:
-						setOscillatorNumberForTitles(x & 1);
-						break;
+					if (display.type == DisplayType::OLED) {
+						switch (x) {
+						case 0 ... 3:
+							setOscillatorNumberForTitles(x & 1);
+							break;
 
-					case 4 ... 5:
-						setModulatorNumberForTitles(x & 1);
-						break;
+						case 4 ... 5:
+							setModulatorNumberForTitles(x & 1);
+							break;
 
-					case 8 ... 9:
-						setEnvelopeNumberForTitles(x & 1);
-						break;
+						case 8 ... 9:
+							setEnvelopeNumberForTitles(x & 1);
+							break;
+						}
 					}
-#endif
 					int thingIndex = x & 1;
 
 					bool setupSuccess = setup((currentSong->currentClip), item, thingIndex);
@@ -757,7 +749,7 @@ doSetup:
 					// If not in SoundEditor yet
 					if (getCurrentUI() != &soundEditor) {
 						if (getCurrentUI() == &sampleMarkerEditor) {
-							numericDriver.setNextTransitionDirection(0);
+							display.setNextTransitionDirection(0);
 							changeUIAtLevel(&soundEditor, 1);
 							renderingNeededRegardlessOfUI(); // Not sure if this is 100% needed... some of it is.
 						}
@@ -768,7 +760,7 @@ doSetup:
 
 					// Or if already in SoundEditor
 					else {
-						numericDriver.setNextTransitionDirection(0);
+						display.setNextTransitionDirection(0);
 						beginScreen();
 					}
 				}
@@ -779,7 +771,7 @@ doSetup:
 
 				uint8_t source = modSourceShortcuts[x - 14][y];
 				if (source == 254) {
-					numericDriver.displayPopup("SOON");
+					display.displayPopup("SOON");
 				}
 
 				if (source >= NUM_PATCH_SOURCES) {
@@ -831,7 +823,7 @@ getOut:
 							navigationDepth = newNavigationDepth + 1;
 							menuItemNavigationRecord[navigationDepth] = newMenuItem;
 							if (!wentBack) {
-								numericDriver.setNextTransitionDirection(1);
+								display.setNextTransitionDirection(1);
 							}
 							beginScreen();
 						}
@@ -1002,7 +994,7 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int sourceIndex) {
 				// Otherwise, do nothing
 				else {
 					if (item == &sequenceDirectionMenu) {
-						numericDriver.displayPopup(HAVE_OLED ? "Select a row or affect-entire" : "CANT");
+						display.displayPopup(HAVE_OLED ? "Select a row or affect-entire" : "CANT");
 					}
 					return false;
 				}
@@ -1042,16 +1034,12 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int sourceIndex) {
 
 			if (clip->type == CLIP_TYPE_INSTRUMENT) {
 				if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_MIDI_OUT) {
-#if HAVE_OLED
 					soundEditorRootMenuMIDIOrCV.basicTitle = "MIDI inst.";
-#endif
 doMIDIOrCV:
 					newItem = &soundEditorRootMenuMIDIOrCV;
 				}
 				else if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_CV) {
-#if HAVE_OLED
 					soundEditorRootMenuMIDIOrCV.basicTitle = "CV instrument";
-#endif
 					goto doMIDIOrCV;
 				}
 				else {
@@ -1082,7 +1070,7 @@ doMIDIOrCV:
 	int result = newItem->checkPermissionToBeginSession(newSound, sourceIndex, &newRange);
 
 	if (result == MENU_PERMISSION_NO) {
-		numericDriver.displayPopup(HAVE_OLED ? "Parameter not applicable" : "CANT");
+		display.displayPopup(HAVE_OLED ? "Parameter not applicable" : "CANT");
 		return false;
 	}
 	else if (result == MENU_PERMISSION_MUST_SELECT_RANGE) {
@@ -1125,7 +1113,7 @@ doMIDIOrCV:
 	shouldGoUpOneLevelOnBegin = false;
 	menuItemNavigationRecord[navigationDepth] = newItem;
 
-	numericDriver.setNextTransitionDirection(1);
+	display.setNextTransitionDirection(1);
 	return true;
 }
 
@@ -1156,7 +1144,7 @@ int SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam(Sound* sound
 
 	::MultiRange* firstRange = source->getOrCreateFirstRange();
 	if (!firstRange) {
-		numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
+		display.displayError(ERROR_INSUFFICIENT_RAM);
 		return MENU_PERMISSION_NO;
 	}
 
@@ -1217,7 +1205,6 @@ void SoundEditor::mpeZonesPotentiallyUpdated() {
 	}
 }
 
-#if HAVE_OLED
 void SoundEditor::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 
 	// Sorry - extremely ugly hack here.
@@ -1231,7 +1218,6 @@ void SoundEditor::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 
 	currentMenuItem->renderOLED();
 }
-#endif
 
 /*
 char modelStackMemory[MODEL_STACK_MAX_SIZE];

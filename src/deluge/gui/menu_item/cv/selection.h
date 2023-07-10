@@ -25,18 +25,14 @@ extern void setCvNumberForTitle(int m);
 extern menu_item::Submenu cvSubmenu;
 
 namespace menu_item::cv {
-#if HAVE_OLED
-static char const* cvOutputChannel[] = {"CV output 1", "CV output 2", NULL};
-#else
-static char const* cvOutputChannel[] = {"Out1", "Out2", NULL};
-#endif
+static char const* cvOutputChannel[] = {HAVE_OLED ? "CV output 1" : "Out1", // CV 1
+                                        HAVE_OLED ? "CV output 2" : "Out2", // CV 2
+                                        NULL};                              // Null-term
 
 class Selection final : public menu_item::Selection {
 public:
 	Selection(char const* newName = NULL) : menu_item::Selection(newName) {
-#if HAVE_OLED
 		basicTitle = "CV outputs";
-#endif
 		basicOptions = cvOutputChannel;
 	}
 	void beginSession(MenuItem* navigatedBackwardFrom) {
@@ -51,10 +47,8 @@ public:
 
 	MenuItem* selectButtonPress() {
 		soundEditor.currentSourceIndex = soundEditor.currentValue;
-#if HAVE_OLED
 		cvSubmenu.basicTitle = cvOutputChannel[soundEditor.currentValue];
 		setCvNumberForTitle(soundEditor.currentValue);
-#endif
 		return &cvSubmenu;
 	}
 };

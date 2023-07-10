@@ -26,7 +26,7 @@
 #include "model/instrument/instrument.h"
 #include "util/functions.h"
 #include "model/model_stack.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/song/song.h"
 #include "storage/storage_manager.h"
@@ -286,7 +286,7 @@ int32_t MIDIParamCollection::knobPosToParamValue(int knobPos, ModelStackWithAuto
 		valueForDisplay = 127;
 	}
 	intToString(valueForDisplay, buffer);
-	numericDriver.displayPopup(buffer, 3, true);
+	display.displayPopup(buffer, 3, true);
 
 	return ParamCollection::knobPosToParamValue(knobPos, modelStack);
 }

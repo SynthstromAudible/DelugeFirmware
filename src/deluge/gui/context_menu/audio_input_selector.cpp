@@ -16,13 +16,14 @@
 */
 
 #include "gui/context_menu/audio_input_selector.h"
+#include "gui/l10n.h"
+#include "gui/l10n/strings.h"
 #include "gui/ui/root_ui.h"
 #include "processing/audio_output.h"
 #include "hid/matrix/matrix_driver.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 #include "hid/led/indicator_leds.h"
 #include "extern.h"
-#include <cstddef>
 
 extern int8_t defaultAudioOutputInputChannel;
 
@@ -51,28 +52,26 @@ constexpr size_t kNumValues = 11;
 
 AudioInputSelector audioInputSelector{};
 
-#if HAVE_OLED
-char const* options[] = {"Off",
-                         "Left input",
-                         "Left input (monitoring)",
-                         "Right input",
-                         "Right input (monitoring)",
-                         "Stereo input",
-                         "Stereo input (monitoring)",
-                         "Bal. input",
-                         "Bal. input (monitoring)",
-                         "Deluge mix (pre fx)",
-                         "Deluge output (post fx)"};
-#else
-char const* options[] = {"OFF", "LEFT", "LEFT.", "RIGH", "RIGH.", "STER", "STER.", "BALA", "BALA.", "MIX", "OUTP"};
-#endif
-
 char const* AudioInputSelector::getTitle() {
-	static char const* title = "Audio source";
-	return title;
+	using enum l10n::Strings;
+	return l10n::get(STRING_FOR_AUDIO_SOURCE);
 }
 
-Sized<char const**> AudioInputSelector::getOptions() {
+Sized<const char**> AudioInputSelector::getOptions() {
+	using enum l10n::Strings;
+	static const char* options[] = {
+	    l10n::get(STRING_FOR_OFF),
+	    l10n::get(STRING_FOR_LEFT_INPUT),
+	    l10n::get(STRING_FOR_LEFT_INPUT_MONITORING),
+	    l10n::get(STRING_FOR_RIGHT_INPUT),
+	    l10n::get(STRING_FOR_RIGHT_INPUT_MONITORING),
+	    l10n::get(STRING_FOR_STEREO_INPUT),
+	    l10n::get(STRING_FOR_STEREO_INPUT_MONITORING),
+	    l10n::get(STRING_FOR_BALANCED_INPUT),
+	    l10n::get(STRING_FOR_BALANCED_INPUT_MONITORING),
+	    l10n::get(STRING_FOR_MIX_PRE_FX),
+	    l10n::get(STRING_FOR_MIX_POST_FX),
+	};
 	return {options, kNumValues};
 }
 
@@ -113,9 +112,7 @@ bool AudioInputSelector::setupAndCheckAvailability() {
 	if (audioOutput->echoing) {
 		currentOption += 1;
 	}
-#if HAVE_OLED
 	scrollPos = currentOption;
-#endif
 	return true;
 }
 

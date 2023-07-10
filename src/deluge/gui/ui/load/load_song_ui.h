@@ -45,9 +45,7 @@ protected:
 
 private:
 	void drawSongPreview(bool toStore = true);
-#if HAVE_OLED
 	void displayArmedPopup();
-#endif
 
 	uint8_t squaresScrolled;
 	int8_t scrollDirection;

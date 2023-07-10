@@ -54,7 +54,6 @@ MenuItem* PatchedParam::selectButtonPress() {
 	}
 }
 
-#if !HAVE_OLED
 void PatchedParam::drawValue() {
 	ParamDescriptor paramDescriptor;
 	paramDescriptor.setToHaveParamOnly(this->getP());
@@ -62,9 +61,8 @@ void PatchedParam::drawValue() {
 	    soundEditor.currentParamManager->getPatchCableSet()->isAnySourcePatchedToParamVolumeInspecific(paramDescriptor)
 	        ? 3
 	        : 255;
-	numericDriver.setTextAsNumber(soundEditor.currentValue, drawDot);
+	display.setTextAsNumber(soundEditor.currentValue, drawDot);
 }
-#endif
 
 uint8_t PatchedParam::shouldDrawDotOnName() {
 	ParamDescriptor paramDescriptor;

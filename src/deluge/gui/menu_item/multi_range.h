@@ -23,7 +23,7 @@ namespace menu_item {
 
 class MultiRange final : public Range {
 public:
-	MultiRange();
+	MultiRange() { basicTitle = "Note range"; }
 
 	void beginSession(MenuItem* navigatedBackwardFrom);
 	void selectEncoderAction(int offset);
@@ -37,9 +37,8 @@ protected:
 	void getText(char* buffer, int* getLeftLength = NULL, int* getRightLength = NULL, bool mayShowJustOne = true);
 	bool mayEditRangeEdge(RangeEdit whichEdge);
 
-#if HAVE_OLED
+	// OLED ONLY
 	void drawPixelsForOled();
-#endif
 };
 
 extern MultiRange multiRangeMenu;

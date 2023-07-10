@@ -51,9 +51,7 @@ public:
 
 	void endRecordingSoon(int buttonLatency = 0);
 
-#if HAVE_OLED
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
-#endif
 
 private:
 	void finishRecording();

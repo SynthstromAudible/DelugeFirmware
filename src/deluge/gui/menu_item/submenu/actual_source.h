@@ -30,24 +30,25 @@ class ActualSource final : public SubmenuReferringToOneThing {
 public:
 	ActualSource(char const* newName = 0, MenuItem** newItems = 0, int newSourceIndex = 0)
 	    : SubmenuReferringToOneThing(newName, newItems, newSourceIndex) {}
-#if HAVE_OLED
+
+	//OLED Only
 	void beginSession(MenuItem* navigatedBackwardFrom) {
 		setOscillatorNumberForTitles(thingIndex);
 		SubmenuReferringToOneThing::beginSession(navigatedBackwardFrom);
 	}
-#else
+
+	// 7seg Only
 	void drawName() {
 		if (soundEditor.currentSound->getSynthMode() == SYNTH_MODE_FM) {
 			char buffer[5];
 			strcpy(buffer, "CAR");
 			intToString(thingIndex + 1, buffer + 3);
-			numericDriver.setText(buffer);
+			display.setText(buffer);
 		}
 		else {
 			SubmenuReferringToOneThing::drawName();
 		}
 	}
-#endif
 };
 
 } // namespace menu_item::submenu

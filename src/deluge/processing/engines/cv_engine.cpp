@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "hid/display.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
 #include "io/uart/uart.h"
@@ -52,11 +53,12 @@ void CVEngine::init() {
 	SPI::send(1, 0);
 	IO::setOutputState(6, 13, 1);
 */
-#if HAVE_OLED
-	enqueueCVMessage(SPI_CHANNEL_CV, 0b00000101000000100000000000000000); // LIN = 1
-#else
-	R_RSPI_SendBasic32(SPI_CHANNEL_CV, 0b00000101000000100000000000000000); // LIN = 1
-#endif
+	if (display.type == DisplayType::OLED) {
+		enqueueCVMessage(SPI_CHANNEL_CV, 0b00000101000000100000000000000000); // LIN = 1
+	}
+	else {
+		R_RSPI_SendBasic32(SPI_CHANNEL_CV, 0b00000101000000100000000000000000); // LIN = 1
+	}
 	delayMS(10);
 
 	/*
@@ -66,11 +68,12 @@ void CVEngine::init() {
 	SPI::send(1, 0);
 	IO::setOutputState(6, 13, 1);
 	*/
-#if HAVE_OLED
-	enqueueCVMessage(SPI_CHANNEL_CV, 0b00000101000000000000000000000000); // LIN = 0
-#else
-	R_RSPI_SendBasic32(SPI_CHANNEL_CV, 0b00000101000000000000000000000000); // LIN = 0
-#endif
+	if (display.type == DisplayType::OLED) {
+		enqueueCVMessage(SPI_CHANNEL_CV, 0b00000101000000000000000000000000); // LIN = 0
+	}
+	else {
+		R_RSPI_SendBasic32(SPI_CHANNEL_CV, 0b00000101000000000000000000000000); // LIN = 0
+	}
 
 	for (int i = 0; i < NUM_GATE_CHANNELS; i++) {
 
@@ -176,11 +179,12 @@ void CVEngine::sendNote(bool on, uint8_t channel, int16_t note) {
 void CVEngine::sendVoltageOut(uint8_t channel, uint16_t voltage) {
 	uint32_t output = (uint32_t)(0b00110000 | (1 << channel)) << 24;
 	output |= (uint32_t)voltage << 8;
-#if !HAVE_OLED
-	R_RSPI_SendBasic32(SPI_CHANNEL_CV, output);
-#else
-	enqueueCVMessage(channel, output);
-#endif
+	if (display.type == DisplayType::OLED) {
+		enqueueCVMessage(channel, output);
+	}
+	else {
+		R_RSPI_SendBasic32(SPI_CHANNEL_CV, output);
+	}
 }
 
 void CVEngine::physicallySwitchGate(int channel) {
