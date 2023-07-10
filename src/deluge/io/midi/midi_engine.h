@@ -88,10 +88,8 @@ extern "C" {
 #endif
 extern uint16_t g_usb_usbmode;
 
-// used in host mode
-void usbSendComplete(int ip);
-// used in peripheral mode
-void usbSendCompleteAsPeripheral(int ip);
+void usbSendCompleteAsHost(int ip);       // used when deluge is in host mode
+void usbSendCompleteAsPeripheral(int ip); // used in peripheral mode
 #ifdef __cplusplus
 }
 #endif

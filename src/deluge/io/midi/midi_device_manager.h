@@ -62,8 +62,8 @@ public:
 	void setup();
 
 	// move data from ring buffer to dataSendingNow, assuming it is free
-	bool consumeBytes();
-	bool hasRingBuffered();
+	bool consumeSendData();
+	bool hasBufferedSendData();
 #else
 //warning - accessed as a C struct from usb driver
 struct ConnectedUSBMIDIDevice {
@@ -75,10 +75,15 @@ struct ConnectedUSBMIDIDevice {
 	uint16_t numBytesReceived;
 	uint8_t receiveData[64];
 
+	// This buffer is passed directly to the USB driver, and is limited to what the hardware allows
 	uint8_t dataSendingNow[MIDI_SEND_BUFFER_LEN_INNER * 4];
 	// This will show a value after the general flush function is called, throughout other Devices being sent to before this one, and until we've completed our send
 	uint8_t numBytesSendingNow;
 
+	// This is a ring buffer for data waiting to be sent which doesn't fit the smaller buffer above.
+	// Any code which wants to send midi data would use the writing side and append more messages.
+	// When we are ready to send data on this device, we consume data on the reading side and move it into the
+	// smaller dataSendingNow buffer above.
 	uint32_t sendDataRingBuf[MIDI_SEND_BUFFER_LEN_RING];
 	uint32_t ringBufWriteIdx;
 	uint32_t ringBufReadIdx;

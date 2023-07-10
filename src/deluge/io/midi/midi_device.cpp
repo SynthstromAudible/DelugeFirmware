@@ -361,6 +361,8 @@ void MIDIDeviceUSB::sendSysex(uint8_t* data, int len) {
 	int ip = 0;
 	ConnectedUSBMIDIDevice* connectedDevice = NULL;
 
+	// find the connected device for this specific device. Note that virtual
+	// port number is specified as part of the message, implemented below.
 	for (int d = 0; d < MAX_NUM_USB_MIDI_DEVICES; d++) {
 		if (connectionFlags & (1 << d)) {
 			connectedDevice = &connectedUSBMIDIDevices[ip][d];

@@ -530,22 +530,15 @@ checkDevice:
 } // namespace MIDIDeviceManager
 
 void ConnectedUSBMIDIDevice::bufferMessage(uint32_t fullMessage) {
-	// If buffer already full, flush it
-	// if (numMessagesQueued >= MIDI_SEND_BUFFER_LEN) {
-	// 	midiEngine
-	// 	    .flushUSBMIDIOutput(); // TODO: this is actually far from perfect - what if already sending - and if we want to wait/check for that, we should be calling the routine.
-	// 	                           // And ideally, we'd be able to flush for just one device.
-	// 	numMessagesQueued = 0;
-	// }
-	//
-	int queued = ringBufWriteIdx - ringBufReadIdx;
-	// if (queued > some_smaller_number) {
-	//   if (notAlreadySending) {
-	//     startTheSend();
-	//   }
-	// }
+	uint32_t queued = ringBufWriteIdx - ringBufReadIdx;
+	if (queued > 16) {
+		if (!anyUSBSendingStillHappening[0]) {
+			midiEngine.flushUSBMIDIOutput();
+		}
+		queued = ringBufWriteIdx - ringBufReadIdx;
+	}
 	if (queued > MIDI_SEND_BUFFER_LEN_RING) {
-		// TODO: le panik
+		// TODO: show some error message
 		return;
 	}
 
@@ -555,13 +548,16 @@ void ConnectedUSBMIDIDevice::bufferMessage(uint32_t fullMessage) {
 	anythingInUSBOutputBuffer = true;
 }
 
-bool ConnectedUSBMIDIDevice::hasRingBuffered() {
+bool ConnectedUSBMIDIDevice::hasBufferedSendData() {
 	// must me the same unsigned type as ringBufWriteIdx/ringBufReadIdx
 	uint32_t queued = ringBufWriteIdx - ringBufReadIdx;
 	return queued > 0;
 }
 
-bool ConnectedUSBMIDIDevice::consumeBytes() {
+// This tries to read data from the ring buffer, and
+// moves data into the smaller "dataSendingNow" buffer where
+// it is ready to be used by the hardware driver.
+bool ConnectedUSBMIDIDevice::consumeSendData() {
 	uint32_t queued = ringBufWriteIdx - ringBufReadIdx;
 	if (queued == 0) {
 		return false;
