@@ -255,11 +255,19 @@ constexpr std::array english = build_l10n_map( //
         {STRING_FOR_SINGLE_CYCLE, "Single-cycle"},
         {STRING_FOR_WAVETABLE, "Wavetable"},
 
+        // gui/context_menu/delete_file.cpp
+        {STRING_FOR_ERROR_DELETING_FILE, "Error deleting file"},
+        {STRING_FOR_FILE_DELETED, "File deleted"},
+
         // gui/context_menu/load_instrument_preset.cpp
         {STRING_FOR_CLONE, "Clone"},
 
         // gui/context_menu/overwrite_bootloader.cpp
         {STRING_FOR_ACCEPT_RISK, "Accept risk"},
+        {STRING_FOR_ERROR_BOOTLOADER_TOO_BIG, "Bootloader file too large"},
+        {STRING_FOR_ERROR_BOOTLOADER_TOO_SMALL, "Bootloader file too small"},
+        {STRING_FOR_BOOTLOADER_UPDATED, "Bootloader updated"},
+        {STRING_FOR_ERROR_BOOTLOADER_FILE_NOT_FOUND, "No boot*.bin file found"},
 
         // gui/context_menu/save_song_or_instrument.cpp
         {STRING_FOR_COLLECT_MEDIA, "Collect media"},

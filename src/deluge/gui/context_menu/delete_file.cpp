@@ -16,6 +16,7 @@
 */
 
 #include "gui/context_menu/delete_file.h"
+#include "gui/l10n/strings.h"
 #include "gui/ui/browser/browser.h"
 #include "hid/display.h"
 #include "io/debug/print.h"
@@ -58,6 +59,7 @@ Sized<char const**> DeleteFile::getOptions() {
 }
 
 bool DeleteFile::acceptCurrentOption() {
+	using enum l10n::Strings;
 
 	UI* ui = getUIUpOneLevel();
 	if (ui == &context_menu::saveSongOrInstrument) {
@@ -77,11 +79,11 @@ bool DeleteFile::acceptCurrentOption() {
 
 	// If didn't work
 	if (result != FR_OK) {
-		display.displayPopup(HAVE_OLED ? "Error deleting file" : "ERROR");
+		display.displayPopup(l10n::get(STRING_FOR_ERROR_DELETING_FILE));
 		// But we'll still go back to the Browser
 	}
 	else {
-		display.displayPopup(HAVE_OLED ? "File deleted" : "DONE");
+		display.displayPopup(l10n::get(STRING_FOR_FILE_DELETED));
 		browser->currentFileDeleted();
 	}
 

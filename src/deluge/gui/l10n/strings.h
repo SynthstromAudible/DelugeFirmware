@@ -130,11 +130,19 @@ enum class Strings : size_t {
 	STRING_FOR_SINGLE_CYCLE,
 	STRING_FOR_WAVETABLE,
 
+	// gui/context_menu/delete_file.cpp
+	STRING_FOR_ERROR_DELETING_FILE,
+	STRING_FOR_FILE_DELETED,
+
 	// gui/context_menu/load_instrument_preset.cpp
 	STRING_FOR_CLONE,
 
 	// gui/context_menu/overwrite_bootloader.cpp
 	STRING_FOR_ACCEPT_RISK,
+	STRING_FOR_ERROR_BOOTLOADER_TOO_BIG,
+	STRING_FOR_ERROR_BOOTLOADER_TOO_SMALL,
+	STRING_FOR_BOOTLOADER_UPDATED,
+	STRING_FOR_ERROR_BOOTLOADER_FILE_NOT_FOUND,
 
 	// gui/context_menu/save_song_or_instrument.cpp
 	STRING_FOR_COLLECT_MEDIA,
