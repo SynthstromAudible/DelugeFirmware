@@ -40,7 +40,6 @@ public:
 
 	/// Options
 	Sized<const char**> getOptions() override;
-	Value currentOption;
 };
 
 extern AudioInputSelector audioInputSelector;

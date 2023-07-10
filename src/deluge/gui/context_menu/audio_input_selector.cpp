@@ -77,40 +77,44 @@ Sized<char const**> AudioInputSelector::getOptions() {
 }
 
 bool AudioInputSelector::setupAndCheckAvailability() {
+	Value valueOption = Value::OFF;
+
 	switch (audioOutput->inputChannel) {
 	case AUDIO_INPUT_CHANNEL_LEFT:
-		currentOption = Value::LEFT;
+		valueOption = Value::LEFT;
 		break;
 
 	case AUDIO_INPUT_CHANNEL_RIGHT:
-		currentOption = Value::RIGHT;
+		valueOption = Value::RIGHT;
 		break;
 
 	case AUDIO_INPUT_CHANNEL_STEREO:
-		currentOption = Value::STEREO;
+		valueOption = Value::STEREO;
 		break;
 
 	case AUDIO_INPUT_CHANNEL_BALANCED:
-		currentOption = Value::BALANCED;
+		valueOption = Value::BALANCED;
 		break;
 
 	case AUDIO_INPUT_CHANNEL_MIX:
-		currentOption = Value::MASTER;
+		valueOption = Value::MASTER;
 		break;
 
 	case AUDIO_INPUT_CHANNEL_OUTPUT:
-		currentOption = Value::OUTPUT;
+		valueOption = Value::OUTPUT;
 		break;
 
 	default:
-		currentOption = Value::OFF;
+		valueOption = Value::OFF;
 	}
 
+	currentOption = static_cast<int>(valueOption);
+
 	if (audioOutput->echoing) {
-		currentOption = static_cast<Value>(static_cast<size_t>(currentOption) + 1);
+		currentOption += 1;
 	}
 #if HAVE_OLED
-	scrollPos = static_cast<size_t>(currentOption);
+	scrollPos = currentOption;
 #endif
 	return true;
 }
@@ -129,7 +133,9 @@ void AudioInputSelector::selectEncoderAction(int8_t offset) {
 
 	audioOutput->echoing = false;
 
-	switch (currentOption) {
+	auto valueOption = static_cast<Value>(currentOption);
+
+	switch (valueOption) {
 	case Value::LEFT_ECHO:
 		audioOutput->echoing = true;
 	case Value::LEFT:
