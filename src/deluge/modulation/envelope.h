@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef ENVELOPE_H
-#define ENVELOPE_H
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 #include "definitions.h"
@@ -47,5 +46,3 @@ public:
 private:
 	void setState(uint8_t newState);
 };
-
-#endif // ENVELOPE_H

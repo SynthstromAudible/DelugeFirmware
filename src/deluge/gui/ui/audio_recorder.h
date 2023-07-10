@@ -15,10 +15,10 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef AUDIORECORDER_H_
-#define AUDIORECORDER_H_
+#pragma once
 
 #include "gui/ui/ui.h"
+#include "hid/button.h"
 #include "model/sample/sample.h"
 
 extern "C" {
@@ -39,7 +39,7 @@ public:
 	bool opened();
 	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows);
 
-	int buttonAction(int x, int y, bool on, bool inCardRoutine);
+	int buttonAction(hid::Button b, bool on, bool inCardRoutine);
 	bool beginOutputRecording();
 	void process();
 	void slowRoutine();
@@ -61,5 +61,3 @@ private:
 };
 
 extern AudioRecorder audioRecorder;
-
-#endif /* AUDIORECORDER_H_ */

@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef DRIVERS_ALL_CPUS_MTU_ALL_CPUS_H_
-#define DRIVERS_ALL_CPUS_MTU_ALL_CPUS_H_
+#pragma once
 
 #include "RZA1/mtu/mtu.h"
 
@@ -27,5 +26,3 @@ static inline void timerEnableInterruptsTGRA(int timerNo) {
 static inline void timerDisableInterruptsTGRA(int timerNo) {
 	*TIER[timerNo] = 0;
 }
-
-#endif /* DRIVERS_ALL_CPUS_MTU_ALL_CPUS_H_ */

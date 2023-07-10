@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CVENGINE_H_
-#define CVENGINE_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 #include "model/drum/gate_drum.h"
@@ -112,5 +111,3 @@ private:
 };
 
 extern CVEngine cvEngine;
-
-#endif /* CVENGINE_H_ */

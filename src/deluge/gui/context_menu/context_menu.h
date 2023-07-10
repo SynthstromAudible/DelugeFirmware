@@ -15,10 +15,10 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CONTEXTMENU_H_
-#define CONTEXTMENU_H_
+#pragma once
 
 #include "gui/ui/ui.h"
+#include "hid/button.h"
 #include "RZA1/system/r_typedefs.h"
 
 class ContextMenu : public UI {
@@ -26,7 +26,7 @@ public:
 	ContextMenu();
 	void focusRegained();
 	void selectEncoderAction(int8_t offset);
-	int buttonAction(int x, int y, bool on, bool inCardRoutine) final;
+	int buttonAction(hid::Button b, bool on, bool inCardRoutine) final;
 	void drawCurrentOption();
 	virtual int getNumOptions() { return basicNumOptions; }
 	virtual bool isCurrentOptionAvailable() { return true; }
@@ -36,8 +36,7 @@ public:
 	int padAction(int x, int y, int velocity);
 	bool setupAndCheckAvailability();
 
-	virtual int getAcceptButtonX() { return selectEncButtonX; }
-	virtual int getAcceptButtonY() { return selectEncButtonY; }
+	virtual hid::Button getAcceptButton() { return hid::button::SELECT_ENC; }
 
 	int currentOption; // Don't make static. We'll have multiple nested ContextMenus open at the same time
 
@@ -54,16 +53,12 @@ class ContextMenuForSaving : public ContextMenu {
 public:
 	ContextMenuForSaving() {}
 	void focusRegained() final;
-	virtual int getAcceptButtonX() final { return saveButtonX; }
-	virtual int getAcceptButtonY() final { return saveButtonY; }
+	virtual hid::Button getAcceptButton() final { return hid::button::SAVE; }
 };
 
 class ContextMenuForLoading : public ContextMenu {
 public:
 	ContextMenuForLoading() {}
 	void focusRegained();
-	virtual int getAcceptButtonX() final { return loadButtonX; }
-	virtual int getAcceptButtonY() final { return loadButtonY; }
+	virtual hid::Button getAcceptButton() final { return hid::button::LOAD; }
 };
-
-#endif /* CONTEXTMENU_H_ */

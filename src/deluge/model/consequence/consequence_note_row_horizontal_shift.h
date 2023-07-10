@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CONSEQUENCENOTEROWHORIZONTALSHIFT_H_
-#define CONSEQUENCENOTEROWHORIZONTALSHIFT_H_
+#pragma once
 
 #include "model/consequence/consequence.h"
 #include "RZA1/system/r_typedefs.h"
@@ -29,5 +28,3 @@ public:
 	int noteRowId;
 	int32_t amount;
 };
-
-#endif /* CONSEQUENCENOTEROWHORIZONTALSHIFT_H_ */

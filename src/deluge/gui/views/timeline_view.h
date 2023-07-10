@@ -15,10 +15,10 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef EDITORSCREEN_H
-#define EDITORSCREEN_H
+#pragma once
 
 #include "gui/ui/root_ui.h"
+#include "hid/button.h"
 #include "definitions.h"
 
 class InstrumentClip;
@@ -41,7 +41,7 @@ public:
 	} // SessionView doesn't have this because it does this a different way. Sorry, confusing I know
 	bool isTimelineView() { return true; }
 
-	int buttonAction(int x, int y, bool on, bool inCardRoutine);
+	int buttonAction(hid::Button b, bool on, bool inCardRoutine);
 	void displayZoomLevel(bool justPopup = false);
 	int horizontalEncoderAction(int offset);
 	void displayScrollPos();
@@ -68,5 +68,3 @@ public:
 
 	bool inTripletsView();
 };
-
-#endif // EDITORSCREEN_H

@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef COMPRESSOR_H
-#define COMPRESSOR_H
+#pragma once
 
 #include "definitions.h"
 #include "RZA1/system/r_typedefs.h"
@@ -50,5 +49,3 @@ private:
 	int32_t getActualAttackRate();
 	int32_t getActualReleaseRate();
 };
-
-#endif // COMPRESSOR_H

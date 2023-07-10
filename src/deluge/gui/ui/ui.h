@@ -15,9 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef UI_h
-#define UI_h
+#pragma once
 
+#include "hid/button.h"
 #include "definitions.h"
 
 class RootUI;
@@ -83,7 +83,7 @@ public:
 	UI();
 
 	virtual int padAction(int x, int y, int velocity) { return ACTION_RESULT_DEALT_WITH; }
-	virtual int buttonAction(int x, int y, bool on, bool inCardRoutine) { return ACTION_RESULT_NOT_DEALT_WITH; }
+	virtual int buttonAction(hid::Button b, bool on, bool inCardRoutine) { return ACTION_RESULT_NOT_DEALT_WITH; }
 	virtual int horizontalEncoderAction(int offset) { return ACTION_RESULT_DEALT_WITH; }
 	virtual int verticalEncoderAction(int offset, bool inCardRoutine) { return ACTION_RESULT_DEALT_WITH; }
 	virtual void selectEncoderAction(int8_t offset) {}
@@ -168,5 +168,3 @@ bool isUIModeWithinRange(const uint32_t* modes);
 bool isNoUIModeActive();
 void exitUIMode(uint32_t uiMode);
 void enterUIMode(uint32_t uiMode);
-
-#endif

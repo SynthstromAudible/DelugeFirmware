@@ -308,12 +308,12 @@ bool readButtonsAndPads() {
 
 			Uart::println("");
 			Uart::println("undoing");
-			Buttons::buttonAction(backButtonX, backButtonY, true, sdRoutineLock);
+			Buttons::buttonAction(hid::button::BACK, true, sdRoutineLock);
 		}
 		else {
 			Uart::println("");
 			Uart::println("beginning playback");
-			Buttons::buttonAction(playButtonX, playButtonY, true, sdRoutineLock);
+			Buttons::buttonAction(hid::button::PLAY, true, sdRoutineLock);
 		}
 
 		int random = getRandom255();
@@ -328,45 +328,25 @@ bool readButtonsAndPads() {
 
 		if (value < PAD_AND_BUTTON_MESSAGES_END) {
 
-			int result;
-
 #if DELUGE_MODEL == DELUGE_MODEL_40_PAD
 			bool thisPadPressIsOn = (value >= 70);
-			int x = (unsigned int)value % 10;
-			int y = ((unsigned int)value % 70) / 10;
-
-			if (y < displayHeight) {
-				result = matrixDriver.padAction(x, y, thisPadPressIsOn, inSDRoutine);
-			}
-			else {
-				result = Buttons::buttonAction(x, y - displayHeight, thisPadPressIsOn, sdRoutineLock);
-			}
 #else
 			int thisPadPressIsOn = nextPadPressIsOn;
 			nextPadPressIsOn = USE_DEFAULT_VELOCITY;
+#endif
 
-			int y = (unsigned int)value / 9;
-			int x = value - y * 9;
-
-			// If pad...
-			if (y < displayHeight * 2) {
-				x <<= 1;
-				if (y >= displayHeight) {
-					y -= displayHeight;
-					x++;
-				}
+			int result;
+			if (Pad::isPad(value)) {
+				auto p = Pad(value);
+				result = matrixDriver.padAction(p.x, p.y, thisPadPressIsOn);
 				/* while this function takes an int for velocity, 255 indicates to the downstream audition pad
 				 * function that it should use the default velocity for the instrument
 				 */
-
-				result = matrixDriver.padAction(x, y, thisPadPressIsOn);
 			}
-
-			// Or if button...
 			else {
-				result = Buttons::buttonAction(x, y - displayHeight * 2, thisPadPressIsOn, sdRoutineLock);
+				auto b = hid::Button(value);
+				result = Buttons::buttonAction(b, thisPadPressIsOn, sdRoutineLock);
 			}
-#endif
 
 			if (result == ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE) {
 				nextPadPressIsOn = thisPadPressIsOn;
@@ -398,8 +378,8 @@ bool readButtonsAndPads() {
 
 	if (playbackHandler.currentlyPlaying) {
 		if (getCurrentUI()->isViewScreen()) {
-			Buttons::buttonAction(loadButtonX, loadButtonY, true);
-			Buttons::buttonAction(loadButtonX, loadButtonY, false);
+			Buttons::buttonAction(hid::button::LOAD, true);
+			Buttons::buttonAction(hid::button::LOAD, false);
 			alreadyDoneScroll = false;
 		}
 		else if (getCurrentUI() == &loadSongUI && currentUIMode == noSubMode) {
@@ -408,8 +388,8 @@ bool readButtonsAndPads() {
 				alreadyDoneScroll = true;
 			}
 			else {
-				Buttons::buttonAction(loadButtonX, loadButtonY, true);
-				Buttons::buttonAction(loadButtonX, loadButtonY, false);
+				Buttons::buttonAction(hid::button::LOAD, true);
+				Buttons::buttonAction(hid::button::LOAD, false);
 			}
 		}
 	}
@@ -422,7 +402,7 @@ bool readButtonsAndPads() {
 		preLoadedSong = NULL;
 
 		if (random0 < 64 && getCurrentUI() == &instrumentClipView) {
-			Buttons::buttonAction(songViewButtonX, songViewButtonY, true);
+			Buttons::buttonAction(hid::button::song, true);
 		}
 
 		else if (random0 < 120)
@@ -438,9 +418,9 @@ bool readButtonsAndPads() {
 
 #if LAUNCH_CLIP_TEST_ENABLED
 	if (playbackHandler.playbackState && (int32_t)(audioDriver.audioSampleTimer - timeNextSDTestAction) >= 0) {
-		matrixDriver.buttonStates[shiftButtonX][shiftButtonY] = true;
+		Buttons::buttonAction(SHIFT, true, false);
 		matrixDriver.padAction(displayWidth, getRandom255() & 7, true, inSDRoutine);
-		matrixDriver.buttonStates[shiftButtonX][shiftButtonY] = false;
+		Buttons::buttonAction(SHIFT, false, false);
 		int random = getRandom255();
 		timeNextSDTestAction = audioDriver.audioSampleTimer + ((random) << 4); // * 44 / 13;
 		anything = true;

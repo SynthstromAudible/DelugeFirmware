@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef GLOBALEFFECTABLE_H_
-#define GLOBALEFFECTABLE_H_
+#pragma once
 
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "dsp/filter/filter_set.h"
@@ -66,5 +65,3 @@ protected:
 private:
 	void ensureModFXParamIsValid();
 };
-
-#endif /* GLOBALEFFECTABLE_H_ */

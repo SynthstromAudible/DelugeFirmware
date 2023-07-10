@@ -15,10 +15,10 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef SLICER_H_
-#define SLICER_H_
+#pragma once
 
 #include "gui/ui/ui.h"
+#include "hid/button.h"
 
 class Slicer final : public UI {
 public:
@@ -27,7 +27,7 @@ public:
 	void focusRegained();
 	bool canSeeViewUnderneath() { return true; }
 	void selectEncoderAction(int8_t offset);
-	int buttonAction(int x, int y, bool on, bool inCardRoutine);
+	int buttonAction(hid::Button b, bool on, bool inCardRoutine);
 	int padAction(int x, int y, int velocity);
 #if HAVE_OLED
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
@@ -42,5 +42,3 @@ private:
 };
 
 extern Slicer slicer;
-
-#endif /* SLICER_H_ */

@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef INSTRUMENT_H
-#define INSTRUMENT_H
+#pragma once
 
 #include "model/clip/clip_instance_vector.h"
 #include "definitions.h"
@@ -77,5 +76,3 @@ protected:
 	Clip* createNewClipForArrangementRecording(ModelStack* modelStack) final;
 	int setupDefaultAudioFileDir();
 };
-
-#endif // INSTRUMENT_H

@@ -21,8 +21,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef _revmodel_
-#define _revmodel_
+#pragma once
 
 #include "dsp/reverb/freeverb/comb.hpp"
 #include "dsp/reverb/freeverb/allpass.hpp"
@@ -122,7 +121,5 @@ private:
 	int32_t bufallpassL4[allpasstuningL4];
 	int32_t bufallpassR4[allpasstuningR4];
 };
-
-#endif //_revmodel_
 
 //ends

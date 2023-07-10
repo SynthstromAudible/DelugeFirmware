@@ -15,11 +15,11 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef SOUNDEDITOR_H
-#define SOUNDEDITOR_H
+#pragma once
 
 #include "gui/ui/ui.h"
 #include "gui/menu_item/menu_item.h"
+#include "hid/button.h"
 #include "modulation/arpeggiator.h"
 
 #define SHORTCUTS_VERSION_1 0
@@ -68,7 +68,7 @@ public:
 	MIDIDevice* currentMIDIDevice;
 	menu_item::RangeEdit editingRangeEdge;
 
-	int buttonAction(int x, int y, bool on, bool inCardRoutine);
+	int buttonAction(hid::Button b, bool on, bool inCardRoutine);
 	int padAction(int x, int y, int velocity);
 	int verticalEncoderAction(int offset, bool inCardRoutine);
 	void modEncoderAction(int whichModEncoder, int offset);
@@ -143,5 +143,3 @@ private:
 };
 
 extern SoundEditor soundEditor;
-
-#endif // SOUNDEDITOR_H

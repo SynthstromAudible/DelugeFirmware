@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CLIPINSTANCE_H_
-#define CLIPINSTANCE_H_
+#pragma once
 
 #include "gui/positionable.h"
 #include "RZA1/system/r_typedefs.h"
@@ -35,5 +34,3 @@ public:
 	int32_t length;
 	Clip* clip;
 };
-
-#endif /* CLIPINSTANCE_H_ */

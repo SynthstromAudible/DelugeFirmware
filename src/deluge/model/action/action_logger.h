@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef ACTIONLOGGER_H_
-#define ACTIONLOGGER_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 #include "model/action/action.h"
@@ -58,5 +57,3 @@ private:
 };
 
 extern ActionLogger actionLogger;
-
-#endif /* ACTIONLOGGER_H_ */

@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MIDIENGINE_H
-#define MIDIENGINE_H
+#pragma once
 
 #ifdef __cplusplus
 
@@ -94,5 +93,3 @@ void usbSendComplete(int ip);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // MIDIENGINE_H

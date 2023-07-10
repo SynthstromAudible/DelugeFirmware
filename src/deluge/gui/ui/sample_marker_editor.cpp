@@ -569,10 +569,11 @@ doRender:
 	return ACTION_RESULT_DEALT_WITH;
 }
 
-int SampleMarkerEditor::buttonAction(int x, int y, bool on, bool inCardRoutine) {
+int SampleMarkerEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+	using namespace hid::button;
 
 	// Back button
-	if (x == backButtonX && y == backButtonY) {
+	if (b == BACK) {
 		if (on && !currentUIMode) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -582,7 +583,7 @@ int SampleMarkerEditor::buttonAction(int x, int y, bool on, bool inCardRoutine) 
 	}
 
 	// Horizontal encoder button
-	else if (x == xEncButtonX && y == xEncButtonY) {
+	else if (b == X_ENC) {
 		if (on) {
 			if (isNoUIModeActive() || isUIModeActiveExclusively(UI_MODE_AUDITIONING)) {
 				currentUIMode |= UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON;
@@ -679,7 +680,7 @@ int SampleMarkerEditor::timerCallback() {
 }
 
 int SampleMarkerEditor::verticalEncoderAction(int offset, bool inCardRoutine) {
-	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(xEncButtonX, xEncButtonY)
+	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(hid::button::X_ENC)
 	    || currentSong->currentClip->type == CLIP_TYPE_AUDIO) {
 		return ACTION_RESULT_DEALT_WITH;
 	}

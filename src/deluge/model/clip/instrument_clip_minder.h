@@ -15,10 +15,10 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef INSTRUMENTCLIPMINDER_H_
-#define INSTRUMENTCLIPMINDER_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
+#include "hid/button.h"
 #include "model/clip/clip_minder.h"
 
 class InstrumentClip;
@@ -34,7 +34,7 @@ public:
 	void createNewInstrument(int newInstrumentType);
 	void setLedStates();
 	void focusRegained();
-	int buttonAction(int x, int y, bool on, bool inCardRoutine);
+	int buttonAction(hid::Button b, bool on, bool inCardRoutine);
 	void calculateDefaultRootNote();
 	void drawActualNoteCode(int16_t noteCode);
 	void cycleThroughScales();
@@ -57,5 +57,3 @@ public:
 
 	static uint8_t editingMIDICCForWhichModKnob;
 };
-
-#endif /* INSTRUMENTCLIPMINDER_H_ */

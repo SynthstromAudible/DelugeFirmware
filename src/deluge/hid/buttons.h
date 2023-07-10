@@ -15,20 +15,19 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef BUTTONS_H_
-#define BUTTONS_H_
+#pragma once
 
-#include "RZA1/system/r_typedefs.h"
+#include <stddef.h>
+
+#include "button.h"
 
 namespace Buttons {
 
-int buttonAction(int x, int y, bool on, bool inCardRoutine);
-bool isButtonPressed(int x, int y);
+int buttonAction(hid::Button b, bool on, bool inCardRoutine);
+bool isButtonPressed(hid::Button b);
 bool isShiftButtonPressed();
 bool isNewOrShiftButtonPressed();
 void noPressesHappening(bool inCardRoutine);
 
 extern bool recordButtonPressUsedUp;
 } // namespace Buttons
-
-#endif /* BUTTONS_H_ */

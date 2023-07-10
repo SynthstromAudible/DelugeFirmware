@@ -15,10 +15,10 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef SAVEUI_H_
-#define SAVEUI_H_
+#pragma once
 
 #include "gui/ui/browser/slot_browser.h"
+#include "hid/button.h"
 #include "definitions.h"
 
 class SaveUI : public SlotBrowser {
@@ -36,7 +36,7 @@ public:
 	}
 	bool canSeeViewUnderneath() final { return (DELUGE_MODEL == DELUGE_MODEL_40_PAD); }
 	int timerCallback();
-	int buttonAction(int x, int y, bool on, bool inCardRoutine);
+	int buttonAction(hid::Button b, bool on, bool inCardRoutine);
 
 #if DELUGE_MODEL == DELUGE_MODEL_40_PAD
 	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows);
@@ -47,5 +47,3 @@ protected:
 	void enterKeyPress() final;
 	static bool currentFolderIsEmpty;
 };
-
-#endif /* SAVEUI_H_ */

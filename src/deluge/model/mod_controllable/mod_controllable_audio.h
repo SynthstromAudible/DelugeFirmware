@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MODCONTROLLABLEAUDIO_H_
-#define MODCONTROLLABLEAUDIO_H_
+#pragma once
 
 #include "model/mod_controllable/mod_controllable.h"
 #include "dsp/stereo_sample.h"
@@ -25,6 +24,7 @@
 #include "dsp/compressor/compressor.h"
 #include "modulation/midi/midi_knob_array.h"
 #include "modulation/params/param_descriptor.h"
+#include "hid/button.h"
 
 #define STUTTERER_STATUS_OFF 0
 #define STUTTERER_STATUS_RECORDING 1
@@ -83,7 +83,7 @@ public:
 	bool hasBassAdjusted(ParamManager* paramManager);
 	bool hasTrebleAdjusted(ParamManager* paramManager);
 	ModelStackWithAutoParam* getParamFromMIDIKnob(MIDIKnob* knob, ModelStackWithThreeMainThings* modelStack);
-	int buttonAction(int x, int y, bool on, ModelStackWithThreeMainThings* modelStack);
+	int buttonAction(hid::Button b, bool on, ModelStackWithThreeMainThings* modelStack);
 	ModelStackWithAutoParam* getParamFromModEncoder(int whichModEncoder, ModelStackWithThreeMainThings* modelStack,
 	                                                bool allowCreation);
 
@@ -141,5 +141,3 @@ private:
 	void doEQ(bool doBass, bool doTreble, int32_t* inputL, int32_t* inputR, int32_t bassAmount, int32_t trebleAmount);
 	ModelStackWithThreeMainThings* addNoteRowIndexAndStuff(ModelStackWithTimelineCounter* modelStack, int noteRowIndex);
 };
-
-#endif /* MODCONTROLLABLEAUDIO_H_ */

@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CLIP_H_
-#define CLIP_H_
+#pragma once
 
 #include "model/timeline_counter.h"
 #include "RZA1/system/r_typedefs.h"
@@ -189,5 +188,3 @@ protected:
 	virtual void pingpongOccurred(ModelStackWithTimelineCounter* modelStack) {
 	}
 };
-
-#endif /* CLIP_H_ */

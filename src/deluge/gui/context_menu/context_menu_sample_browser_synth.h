@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CONTEXTMENUSAMPLEBROWSERSYNTH_H_
-#define CONTEXTMENUSAMPLEBROWSERSYNTH_H_
+#pragma once
 
 #include "gui/context_menu/context_menu.h"
 
@@ -34,5 +33,3 @@ public:
 };
 
 extern ContextMenuSampleBrowserSynth contextMenuFileBrowserSynth;
-
-#endif /* CONTEXTMENUSAMPLEBROWSERSYNTH_H_ */

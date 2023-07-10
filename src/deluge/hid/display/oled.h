@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef DRIVERS_RZA2_OLED_OLED_H_
-#define DRIVERS_RZA2_OLED_OLED_H_
+#pragma once
 
 #include "definitions.h"
 
@@ -56,7 +55,7 @@ void invertArea(int xMin, int width, int startY, int endY, uint8_t image[][OLED_
 
 void sendMainImage();
 
-void setupPopup(int width, int height, uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
+void setupPopup(int width, int height);
 void removePopup();
 void popupText(char const* text, bool persistent = false);
 bool isPopupPresent();
@@ -102,5 +101,3 @@ void consoleTextIfAllBootedUp(char const* text);
 #endif
 
 #endif /* HAVE_OLED */
-
-#endif /* DRIVERS_RZA2_OLED_OLED_H_ */

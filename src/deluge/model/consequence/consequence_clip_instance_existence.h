@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CONSEQUENCECLIPINSTANCEEXISTENCE_H_
-#define CONSEQUENCECLIPINSTANCEEXISTENCE_H_
+#pragma once
 #include "model/consequence/consequence.h"
 #include "RZA1/system/r_typedefs.h"
 
@@ -37,5 +36,3 @@ public:
 
 	uint8_t type;
 };
-
-#endif /* CONSEQUENCECLIPINSTANCEEXISTENCE_H_ */

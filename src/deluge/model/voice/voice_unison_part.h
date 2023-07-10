@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef VOICE_UNISON_PART_H
-#define VOICE_UNISON_PART_H
+#pragma once
 
 #include "definitions.h"
 #include "model/voice/voice_unison_part_source.h"
@@ -31,5 +30,3 @@ public:
 
 	VoiceUnisonPartSource sources[NUM_SOURCES];
 };
-
-#endif // VOICE_H

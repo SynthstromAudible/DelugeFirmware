@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef PARAMDESCRIPTOR_H_
-#define PARAMDESCRIPTOR_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 
@@ -97,5 +96,3 @@ inline bool operator==(const ParamDescriptor& lhs, const ParamDescriptor& rhs) {
 inline bool operator!=(const ParamDescriptor& lhs, const ParamDescriptor& rhs) {
 	return !(lhs == rhs);
 }
-
-#endif /* PARAMDESCRIPTOR_H_ */

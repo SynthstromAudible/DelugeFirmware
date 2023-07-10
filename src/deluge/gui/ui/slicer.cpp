@@ -111,19 +111,21 @@ void Slicer::selectEncoderAction(int8_t offset) {
 #endif
 }
 
-int Slicer::buttonAction(int x, int y, bool on, bool inCardRoutine) {
+int Slicer::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+	using namespace hid::button;
+
 	if (currentUIMode != UI_MODE_NONE || !on) {
 		return ACTION_RESULT_NOT_DEALT_WITH;
 	}
 
-	if (x == selectEncButtonX && y == selectEncButtonY) {
+	if (b == SELECT_ENC) {
 		if (inCardRoutine) {
 			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 		doSlice();
 	}
 
-	else if (x == backButtonX && y == backButtonY) {
+	else if (b == BACK) {
 		if (inCardRoutine) {
 			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}

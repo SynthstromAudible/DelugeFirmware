@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef DELAY_H_
-#define DELAY_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 #include "dsp/stereo_sample.h"
@@ -66,5 +65,3 @@ private:
 	void prepareToBeginWriting();
 	int getAmountToWriteBeforeReadingBegins();
 };
-
-#endif /* DELAY_H_ */

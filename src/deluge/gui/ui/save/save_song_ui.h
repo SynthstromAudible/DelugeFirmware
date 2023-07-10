@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef SaveSongUI_h
-#define SaveSongUI_h
+#pragma once
 
 #include "gui/ui/save/save_ui.h"
 
@@ -41,5 +40,3 @@ protected:
 };
 
 extern SaveSongUI saveSongUI;
-
-#endif

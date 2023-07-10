@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef VOICEVECTOR_H_
-#define VOICEVECTOR_H_
+#pragma once
 
 #include "util/container/array/ordered_resizeable_array_with_multi_word_key.h"
 
@@ -37,5 +36,3 @@ public:
 
 	inline Voice* getVoice(int index) { return ((VoiceVectorElement*)getElementAddress(index))->voice; }
 };
-
-#endif /* VOICEVECTOR_H_ */

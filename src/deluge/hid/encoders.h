@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef ENCODERS_H_
-#define ENCODERS_H_
+#pragma once
 
 #include "hid/encoder.h"
 
@@ -29,5 +28,3 @@ void init();
 void readEncoders();
 bool interpretEncoders(bool inCardRoutine = false);
 } // namespace Encoders
-
-#endif /* ENCODERS_H_ */

@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MIDIINSTRUMENT_H_
-#define MIDIINSTRUMENT_H_
+#pragma once
 
 #include "model/instrument/non_audio_instrument.h"
 
@@ -87,5 +86,3 @@ protected:
 private:
 	void outputAllMPEValuesOnMemberChannel(int16_t const* mpeValuesToUse, int outputMemberChannel);
 };
-
-#endif /* MIDIINSTRUMENT_H_ */

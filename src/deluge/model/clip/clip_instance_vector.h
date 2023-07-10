@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CLIPINSTANCEVECTOR_H_
-#define CLIPINSTANCEVECTOR_H_
+#pragma once
 
 #include "util/container/array/ordered_resizeable_array.h"
 
@@ -28,5 +27,3 @@ public:
 
 	ClipInstance* getElement(int index); // Plz deprecate.
 };
-
-#endif /* CLIPINSTANCEVECTOR_H_ */

@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef INPUTPERCBUFFER_H_
-#define INPUTPERCBUFFER_H_
+#pragma once
 
 #include "definitions.h"
 #include "RZA1/system/r_typedefs.h"
@@ -41,5 +40,3 @@ public:
 	int32_t rawBuffer
 	    [INPUT_RAW_BUFFER_SIZE]; // Must be last!!! Cos we're gonna allocate and access it double-length for stereo
 };
-
-#endif /* INPUTPERCBUFFER_H_ */

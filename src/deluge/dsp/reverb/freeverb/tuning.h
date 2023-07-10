@@ -21,8 +21,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef _tuning_
-#define _tuning_
+#pragma once
 
 const int numcombs = 8;
 const int numallpasses = 4;
@@ -70,7 +69,5 @@ const int allpasstuningL3 = 341;
 const int allpasstuningR3 = 341 + stereospread;
 const int allpasstuningL4 = 225;
 const int allpasstuningR4 = 225 + stereospread;
-
-#endif //_tuning_
 
 //ends
