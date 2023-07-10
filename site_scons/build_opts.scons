@@ -24,6 +24,7 @@ env.AppendUnique(
         "-mlittle-endian",
         "-flto",
         "-fdiagnostics-parseable-fixits",
+        "-std=gnu++20"
     ],
     ASMPATH=[
         "src/NE10/common",

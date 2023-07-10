@@ -91,13 +91,22 @@ enum class Strings : size_t {
 	// General
 	STRING_FOR_OFF,
 	STRING_FOR_OK,
+	STRING_FOR_NEW,
 	STRING_FOR_DELETE,
 	STRING_FOR_SURE,
+	STRING_FOR_OVERWRITE,
+	STRING_FOR_OPTIONS,
 
 	// Menu Titles
-	STRING_FOR_AUDIO_INPUT_TITLE,
+	STRING_FOR_AUDIO_SOURCE,
 	STRING_FOR_ARE_YOU_SURE_QMARK,
 	STRING_FOR_DELETE_QMARK,
+	STRING_FOR_SAMPLES,
+	STRING_FOR_LOAD_FILES,
+	STRING_FOR_CLEAR_SONG_QMARK,
+	STRING_FOR_LOAD_PRESET,
+	STRING_FOR_OVERWRITE_BOOTLOADER_TITLE,
+	STRING_FOR_OVERWRITE_QMARK,
 
 	// gui/context_menu/audio_input_selector.cpp
 	STRING_FOR_LEFT_INPUT,
@@ -111,6 +120,26 @@ enum class Strings : size_t {
 	STRING_FOR_MIX_PRE_FX,
 	STRING_FOR_MIX_POST_FX,
 
+	// gui/context_menu/sample_browser/kit.cpp
+	STRING_FOR_LOAD_ALL,
+	STRING_FOR_SLICE,
+
+	// gui/context_menu/sample_browser/synth.cpp
+	STRING_FOR_MULTISAMPLES,
+	STRING_FOR_BASIC,
+	STRING_FOR_SINGLE_CYCLE,
+	STRING_FOR_WAVETABLE,
+
+	// gui/context_menu/load_instrument_preset.cpp
+	STRING_FOR_CLONE,
+
+	// gui/context_menu/overwrite_bootloader.cpp
+	STRING_FOR_ACCEPT_RISK,
+
+	// gui/context_menu/save_song_or_instrument.cpp
+	STRING_FOR_COLLECT_MEDIA,
+	STRING_FOR_CREATE_FOLDER,
+
 	STRINGS_LAST
 };
 
@@ -122,7 +151,7 @@ constexpr size_t kNumStrings = static_cast<size_t>(Strings::STRINGS_LAST);
  * @todo: When c++20 support can be finalized (e2 calls dbt for building),
  *        this should be switched to `consteval` so that it _never_ runs on the Deluge
  */
-constexpr std::array<const char*, kNumStrings>
+consteval std::array<const char*, kNumStrings>
 build_l10n_map(std::initializer_list<std::pair<l10n::Strings, const char*>> stringmaps) {
 	std::array<const char*, kNumStrings> output = {};
 

@@ -17,6 +17,7 @@
 
 #include "gui/context_menu/sample_browser/synth.h"
 #include "gui/ui/browser/sample_browser.h"
+#include "gui/l10n.h"
 #include "hid/display.h"
 #include "util/functions.h"
 #include "gui/ui/sound_editor.h"
@@ -28,12 +29,18 @@ namespace deluge::gui::context_menu::sample_browser {
 Synth synth{};
 
 char const* Synth::getTitle() {
-	static char const* title = "Load file(s)";
-	return title;
+	using enum l10n::Strings;
+	return l10n::get(STRING_FOR_LOAD_FILES);
 }
 
 Sized<char const**> Synth::getOptions() {
-	static char const* options[] = {"Multisamples", "Basic", "Single-cycle", "Wavetable"};
+	using enum l10n::Strings;
+	static char const* options[] = {
+	    l10n::get(STRING_FOR_MULTISAMPLES), //<
+	    l10n::get(STRING_FOR_BASIC),        //<
+	    l10n::get(STRING_FOR_SINGLE_CYCLE), //<
+	    l10n::get(STRING_FOR_WAVETABLE),    //<
+	};
 	return {options, 4};
 }
 

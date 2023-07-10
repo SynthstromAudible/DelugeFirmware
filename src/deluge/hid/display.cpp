@@ -83,7 +83,7 @@ char const* getErrorMessage(l10n::Language lang, int error) {
 
 void Display<DisplayType::OLED>::displayError(int error) {
 	auto lang = l10n::Language::English;
-	char const* message  = nullptr;
+	char const* message = nullptr;
 	switch (error) {
 	case NO_ERROR:
 	case ERROR_ABORTED_BY_USER:
@@ -97,7 +97,7 @@ void Display<DisplayType::OLED>::displayError(int error) {
 
 void Display<DisplayType::SevenSegment>::displayError(int error) {
 	auto lang = l10n::Language::SevenSegment;
-	char const* message  = nullptr;
+	char const* message = nullptr;
 	switch (error) {
 	case NO_ERROR:
 	case ERROR_ABORTED_BY_USER:

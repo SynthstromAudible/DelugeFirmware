@@ -16,13 +16,14 @@
 */
 
 #include "gui/context_menu/audio_input_selector.h"
+#include "gui/l10n.h"
+#include "gui/l10n/strings.h"
 #include "gui/ui/root_ui.h"
 #include "processing/audio_output.h"
 #include "hid/matrix/matrix_driver.h"
 #include "hid/display.h"
 #include "hid/led/indicator_leds.h"
 #include "extern.h"
-#include <cstddef>
 
 extern int8_t defaultAudioOutputInputChannel;
 
@@ -51,26 +52,26 @@ constexpr size_t kNumValues = 11;
 
 AudioInputSelector audioInputSelector{};
 
-char const* options[] = {
-    HAVE_OLED ? "Off" : "OFF",
-    HAVE_OLED ? "Left input" : "LEFT",
-    HAVE_OLED ? "Left input (monitoring)" : "LEFT.",
-    HAVE_OLED ? "Right input" : "RIGH",
-    HAVE_OLED ? "Right input (monitoring)" : "RIGH.",
-    HAVE_OLED ? "Stereo input" : "STER",
-    HAVE_OLED ? "Stereo input (monitoring)" : "STER.",
-    HAVE_OLED ? "Bal. input" : "BALA",
-    HAVE_OLED ? "Bal. input (monitoring)" : "BALA.",
-    HAVE_OLED ? "Deluge mix (pre fx)" : "MIX",
-    HAVE_OLED ? "Deluge output (post fx)" : "OUTP",
-};
-
 char const* AudioInputSelector::getTitle() {
-	static char const* title = "Audio source";
-	return title;
+	using enum l10n::Strings;
+	return l10n::get(STRING_FOR_AUDIO_SOURCE);
 }
 
-Sized<char const**> AudioInputSelector::getOptions() {
+Sized<const char**> AudioInputSelector::getOptions() {
+	using enum l10n::Strings;
+	static const char* options[] = {
+	    l10n::get(STRING_FOR_OFF),
+	    l10n::get(STRING_FOR_LEFT_INPUT),
+	    l10n::get(STRING_FOR_LEFT_INPUT_MONITORING),
+	    l10n::get(STRING_FOR_RIGHT_INPUT),
+	    l10n::get(STRING_FOR_RIGHT_INPUT_MONITORING),
+	    l10n::get(STRING_FOR_STEREO_INPUT),
+	    l10n::get(STRING_FOR_STEREO_INPUT_MONITORING),
+	    l10n::get(STRING_FOR_BALANCED_INPUT),
+	    l10n::get(STRING_FOR_BALANCED_INPUT_MONITORING),
+	    l10n::get(STRING_FOR_MIX_PRE_FX),
+	    l10n::get(STRING_FOR_MIX_POST_FX),
+	};
 	return {options, kNumValues};
 }
 

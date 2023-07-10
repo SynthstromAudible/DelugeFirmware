@@ -21,6 +21,7 @@
 #include "io/debug/print.h"
 #include "hid/matrix/matrix_driver.h"
 #include "gui/context_menu/save_song_or_instrument.h"
+#include "gui/l10n.h"
 
 extern "C" {
 #include "fatfs/ff.h"
@@ -31,28 +32,27 @@ namespace deluge::gui::context_menu {
 DeleteFile deleteFile{};
 
 char const* DeleteFile::getTitle() {
-	static char* title;
+	using enum l10n::Strings;
 	if (getUIUpOneLevel() == &context_menu::saveSongOrInstrument) {
-		title = "Are you sure?";
+		return l10n::get(STRING_FOR_ARE_YOU_SURE_QMARK);
 	}
-	else {
-		title = "Delete?";
-	}
-	return title;
+	return l10n::get(STRING_FOR_DELETE_QMARK);
 }
 
 Sized<char const**> DeleteFile::getOptions() {
+	using enum l10n::Strings;
+
 	if (display.type == DisplayType::OLED) {
-		static char const* options[] = {"OK"};
+		static char const* options[] = {l10n::get(STRING_FOR_OK)};
 		return {options, 1};
 	}
 	else {
-		static char const* options[] = {"DELETE"};
-		static char const* optionsSure[] = {"SURE"};
-
 		if (getUIUpOneLevel() == &context_menu::saveSongOrInstrument) {
-			return {optionsSure, 1};
+			static char const* options[] = {l10n::get(STRING_FOR_SURE)};
+			return {options, 1};
 		}
+
+		static char const* options[] = {l10n::get(STRING_FOR_DELETE)};
 		return {options, 1};
 	}
 }
@@ -64,7 +64,7 @@ bool DeleteFile::acceptCurrentOption() {
 		ui = getUIUpOneLevel(2);
 	}
 
-	Browser* browser = (Browser*)ui;
+	Browser* browser = dynamic_cast<Browser*>(ui);
 
 	String filePath;
 	int error = browser->getCurrentFilePath(&filePath);

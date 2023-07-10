@@ -297,46 +297,35 @@ char const* getSourceDisplayNameForOLED(int s) {
 	case PATCH_SOURCE_LFO_GLOBAL:
 		return l10n::get(lang, STRING_FOR_PATCH_SOURCE_LFO_GLOBAL);
 
-
 	case PATCH_SOURCE_LFO_LOCAL:
 		return l10n::get(lang, STRING_FOR_PATCH_SOURCE_LFO_LOCAL);
-
 
 	case PATCH_SOURCE_ENVELOPE_0:
 		return l10n::get(lang, STRING_FOR_PATCH_SOURCE_ENVELOPE_0);
 
-
 	case PATCH_SOURCE_ENVELOPE_1:
 		return l10n::get(lang, STRING_FOR_PATCH_SOURCE_ENVELOPE_1);
-
 
 	case PATCH_SOURCE_VELOCITY:
 		return l10n::get(lang, STRING_FOR_PATCH_SOURCE_VELOCITY);
 
-
 	case PATCH_SOURCE_NOTE:
 		return l10n::get(lang, STRING_FOR_PATCH_SOURCE_NOTE);
-
 
 	case PATCH_SOURCE_COMPRESSOR:
 		return l10n::get(lang, STRING_FOR_PATCH_SOURCE_COMPRESSOR);
 
-
 	case PATCH_SOURCE_RANDOM:
 		return l10n::get(lang, STRING_FOR_PATCH_SOURCE_RANDOM);
-
 
 	case PATCH_SOURCE_AFTERTOUCH:
 		return l10n::get(lang, STRING_FOR_PATCH_SOURCE_AFTERTOUCH);
 
-
 	case PATCH_SOURCE_X:
 		return l10n::get(lang, STRING_FOR_PATCH_SOURCE_X);
 
-
 	case PATCH_SOURCE_Y:
 		return l10n::get(lang, STRING_FOR_PATCH_SOURCE_Y);
-
 
 	default:
 		__builtin_unreachable();

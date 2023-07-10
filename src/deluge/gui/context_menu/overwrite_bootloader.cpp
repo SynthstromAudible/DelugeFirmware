@@ -16,6 +16,8 @@
 */
 
 #include "gui/context_menu/overwrite_bootloader.h"
+#include "gui/l10n.h"
+#include "gui/l10n/strings.h"
 #include "storage/storage_manager.h"
 #include "hid/display.h"
 #include "util/functions.h"
@@ -30,19 +32,14 @@ namespace deluge::gui::context_menu {
 OverwriteBootloader overwriteBootloader{};
 
 char const* OverwriteBootloader::getTitle() {
-	static char const* title = "Overwrite bootloader at own risk";
-	return title;
+	using enum l10n::Strings;
+	return l10n::get(STRING_FOR_OVERWRITE_BOOTLOADER_TITLE);
 }
 
 Sized<char const**> OverwriteBootloader::getOptions() {
-	if (display.type == DisplayType::OLED) {
-		static char const* options[] = {"Accept risk"};
-		return {options, 1};
-	}
-	else {
-		static char const* options[] = {"Sure"};
-		return {options, 1};
-	}
+	using enum l10n::Strings;
+	static char const* options[] = {l10n::get(STRING_FOR_ACCEPT_RISK)};
+	return {options, 1};
 }
 
 constexpr size_t FLASH_WRITE_SIZE = 256; // Bigger doesn't seem to work...

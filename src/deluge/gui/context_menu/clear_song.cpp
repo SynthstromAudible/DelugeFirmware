@@ -15,6 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "gui/l10n.h"
+#include "gui/l10n/strings.h"
 #include "hid/display.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
@@ -37,17 +39,18 @@ namespace deluge::gui::context_menu {
 ClearSong clearSong{};
 
 char const* ClearSong::getTitle() {
-	static char const* title = "Clear song?";
-	return title;
+	using enum l10n::Strings;
+	return l10n::get(STRING_FOR_CLEAR_SONG_QMARK);
 }
 
 Sized<char const**> ClearSong::getOptions() {
+	using enum l10n::Strings;
 	if (display.type == DisplayType::OLED) {
-		static char const* options[] = {"Ok"};
+		static char const* options[] = {l10n::get(STRING_FOR_OK)};
 		return {options, 1};
 	}
 	else {
-		static char const* options[] = {"New"};
+		static char const* options[] = {l10n::get(STRING_FOR_NEW)};
 		return {options, 1};
 	}
 }
