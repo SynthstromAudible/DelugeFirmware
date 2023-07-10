@@ -1066,7 +1066,7 @@ int SessionView::verticalEncoderAction(int offset, bool inCardRoutine) {
 		}
 
 		// Change row color by pressing row & shift - same shortcut as in clip view.
-		if(currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW && Buttons::isShiftButtonPressed()){
+		if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW && Buttons::isShiftButtonPressed()) {
 			Clip* clip = getClipOnScreen(selectedClipYDisplay);
 			if (!clip)
 				return ACTION_RESULT_NOT_DEALT_WITH;
