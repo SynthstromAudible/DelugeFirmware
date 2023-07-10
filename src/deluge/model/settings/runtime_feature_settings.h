@@ -35,6 +35,7 @@ enum RuntimeFeatureSettingType : uint32_t {
 	DrumRandomizer,
 	MasterCompressorFx,
 	Quantize,
+	FineTempoKnob,
 	MaxElement // Keep as boundary
 };
 
@@ -105,6 +106,14 @@ protected:
 	         .options = {{.displayName = "Off", .value = RuntimeFeatureStateToggle::Off},
 	                     {.displayName = "On", .value = RuntimeFeatureStateToggle::On},
 	                     {.displayName = NULL, .value = 0}}},
+
+		[RuntimeFeatureSettingType::FineTempoKnob] =
+			{.displayName = "Fine Tempo Knob",
+			 .xmlName = "fineTempoknob",
+			 .value = RuntimeFeatureStateToggle::On, // Default value
+			 .options = {{.displayName = "Off", .value = RuntimeFeatureStateToggle::Off},
+						 {.displayName = "On", .value = RuntimeFeatureStateToggle::On},
+						 {.displayName = NULL, .value = 0}}},
 
 	};
 
