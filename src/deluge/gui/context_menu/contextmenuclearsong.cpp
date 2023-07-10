@@ -57,17 +57,17 @@ void ContextMenuClearSong::focusRegained() {
 
 	// TODO: Switch a bunch of LEDs off (?)
 
-	IndicatorLEDs::setLedState(saveLedX, saveLedY, false);
-	IndicatorLEDs::setLedState(synthLedX, synthLedY, false);
-	IndicatorLEDs::setLedState(kitLedX, kitLedY, false);
+	IndicatorLEDs::setLedState(IndicatorLEDs::SAVE, false);
+	IndicatorLEDs::setLedState(IndicatorLEDs::SYNTH, false);
+	IndicatorLEDs::setLedState(IndicatorLEDs::KIT, false);
 
-	IndicatorLEDs::setLedState(crossScreenEditLedX, crossScreenEditLedY, false);
-	IndicatorLEDs::setLedState(clipViewLedX, clipViewLedY, false);
-	IndicatorLEDs::setLedState(sessionViewLedX, sessionViewLedY, false);
-	IndicatorLEDs::setLedState(scaleModeLedX, scaleModeLedY, false);
+	IndicatorLEDs::setLedState(IndicatorLEDs::CROSS_SCREEN_EDIT, false);
+	IndicatorLEDs::setLedState(IndicatorLEDs::CLIP_VIEW, false);
+	IndicatorLEDs::setLedState(IndicatorLEDs::SESSION_VIEW, false);
+	IndicatorLEDs::setLedState(IndicatorLEDs::SCALE_MODE, false);
 
-	IndicatorLEDs::blinkLed(loadLedX, loadLedY);
-	IndicatorLEDs::blinkLed(backLedX, backLedY);
+	IndicatorLEDs::blinkLed(IndicatorLEDs::LOAD);
+	IndicatorLEDs::blinkLed(IndicatorLEDs::BACK);
 }
 
 bool ContextMenuClearSong::acceptCurrentOption() {

@@ -115,16 +115,16 @@ gotError:
 
 // If HAVE_OLED, then you should make sure renderUIsForOLED() gets called after this.
 int LoadInstrumentPresetUI::setupForInstrumentType() {
-	IndicatorLEDs::setLedState(synthLedX, synthLedY, false);
-	IndicatorLEDs::setLedState(kitLedX, kitLedY, false);
-	IndicatorLEDs::setLedState(midiLedX, midiLedY, false);
-	IndicatorLEDs::setLedState(cvLedX, cvLedY, false);
+	IndicatorLEDs::setLedState(IndicatorLEDs::SYNTH, false);
+	IndicatorLEDs::setLedState(IndicatorLEDs::KIT, false);
+	IndicatorLEDs::setLedState(IndicatorLEDs::MIDI, false);
+	IndicatorLEDs::setLedState(IndicatorLEDs::CV, false);
 
 	if (instrumentTypeToLoad == INSTRUMENT_TYPE_SYNTH) {
-		IndicatorLEDs::blinkLed(synthLedX, synthLedY);
+		IndicatorLEDs::blinkLed(IndicatorLEDs::SYNTH);
 	}
 	else {
-		IndicatorLEDs::blinkLed(kitLedX, kitLedY);
+		IndicatorLEDs::blinkLed(IndicatorLEDs::KIT);
 	}
 
 #if HAVE_OLED
@@ -295,7 +295,7 @@ doChangeInstrumentType:
 	else if (b == KIT) {
 		if (instrumentClipToLoadFor && instrumentClipToLoadFor->onKeyboardScreen) {
 #if DELUGE_MODEL != DELUGE_MODEL_40_PAD
-			IndicatorLEDs::indicateAlertOnLed(keyboardLedX, keyboardLedX);
+			IndicatorLEDs::indicateAlertOnLed(IndicatorLEDs::KEYBOARD);
 #endif
 		}
 		else {

@@ -22,30 +22,91 @@
 
 #define numLedBlinkers 4
 
+namespace IndicatorLEDs {
+
+constexpr uint8_t uartBase =
+#if DELUGE_MODEL >= DELUGE_MODEL_144_PAD
+	152;
+#else
+	120;
+#endif
+
+constexpr uint8_t fromXY(int x, int y) {
+#if DELUGE_MODEL >= DELUGE_MODEL_144_PAD
+	return uartBase + x + y * 9;
+#else
+	return uartBase + x + y * 10;
+#endif
+}
+
+typedef uint8_t IndicatorLED;
+
+enum KnownIndicatorLEDs : IndicatorLED {
+	AFFECT_ENTIRE     = fromXY(affectEntireLedX, affectEntireLedY),
+	SESSION_VIEW      = fromXY(sessionViewLedX, sessionViewLedY),
+	CLIP_VIEW         = fromXY(clipViewLedX, clipViewLedY),
+	SYNTH             = fromXY(synthLedX, synthLedY),
+	KIT               = fromXY(kitLedX, kitLedY),
+	MIDI              = fromXY(midiLedX, midiLedY),
+	CV                = fromXY(cvLedX, cvLedY),
+	KEYBOARD          = fromXY(keyboardLedX, keyboardLedY),
+	SCALE_MODE        = fromXY(scaleModeLedX, scaleModeLedY),
+	CROSS_SCREEN_EDIT = fromXY(crossScreenEditLedX, crossScreenEditLedY),
+	BACK              = fromXY(backLedX, backLedY),
+	LOAD              = fromXY(loadLedX, loadLedY),
+	SAVE              = fromXY(saveLedX, saveLedY),
+	LEARN             = fromXY(learnLedX, learnLedY),
+	TAP_TEMPO         = fromXY(tapTempoLedX, tapTempoLedY),
+	SYNC_SCALING      = fromXY(syncScalingLedX, syncScalingLedY),
+	TRIPLETS          = fromXY(tripletsLedX, tripletsLedY),
+	PLAY              = fromXY(playLedX, playLedY),
+	RECORD            = fromXY(recordLedX, recordLedY),
+	SHIFT             = fromXY(shiftLedX, shiftLedY),
+};
+
+#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
+const IndicatorLED modLed[6] = {
+	fromXY(0,2),
+	fromXY(0,3),
+	fromXY(1,3),
+	fromXY(1,2),
+	fromXY(2,2),
+	fromXY(3,2),
+};
+#else
+const IndicatorLED modLed[8] = {
+	fromXY(1,0),
+	fromXY(1,1),
+	fromXY(1,2),
+	fromXY(1,3),
+	fromXY(2,0),
+	fromXY(2,1),
+	fromXY(2,2),
+	fromXY(2,3),
+};
+#endif
+
 struct LedBlinker {
-	uint8_t x;
-	uint8_t y;
+	IndicatorLED led;
 	bool active;
 	uint8_t blinksLeft;
 	bool returnToState;
 	uint8_t blinkingType;
 };
 
-namespace IndicatorLEDs {
-
 extern bool ledBlinkState[];
 
-void setLedState(uint8_t x, uint8_t y, bool newState, bool allowContinuedBlinking = false);
-void blinkLed(uint8_t x, uint8_t y, uint8_t numBlinks = 255, uint8_t blinkingType = 0, bool initialState = true);
+void setLedState(IndicatorLED led, bool newState, bool allowContinuedBlinking = false);
+void blinkLed(IndicatorLED led, uint8_t numBlinks = 255, uint8_t blinkingType = 0, bool initialState = true);
 void ledBlinkTimeout(uint8_t blinkingType, bool forceRestart = false, bool resetToState = true);
-void indicateAlertOnLed(uint8_t x, uint8_t y);
+void indicateAlertOnLed(IndicatorLED led);
 void setKnobIndicatorLevel(uint8_t whichKnob, uint8_t level);
 void clearKnobIndicatorLevels();
 void blinkKnobIndicator(int whichKnob);
 void stopBlinkingKnobIndicator(int whichKnob);
 void blinkKnobIndicatorLevelTimeout();
-uint8_t getLedBlinkerIndex(uint8_t x, uint8_t y);
-void stopLedBlinking(uint8_t x, uint8_t y, bool resetState = false);
+uint8_t getLedBlinkerIndex(IndicatorLED led);
+void stopLedBlinking(IndicatorLED led, bool resetState = false);
 bool updateBlinkingLedStates(uint8_t blinkingType);
 bool isKnobIndicatorBlinking(int whichKnob);
 

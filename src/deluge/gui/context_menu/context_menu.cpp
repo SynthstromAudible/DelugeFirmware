@@ -225,13 +225,13 @@ int ContextMenu::padAction(int x, int y, int on) {
 }
 
 void ContextMenuForSaving::focusRegained() {
-	IndicatorLEDs::setLedState(loadLedX, loadLedY, false);
-	IndicatorLEDs::blinkLed(saveLedX, saveLedY);
+	IndicatorLEDs::setLedState(IndicatorLEDs::LOAD, false);
+	IndicatorLEDs::blinkLed(IndicatorLEDs::SAVE);
 	return ContextMenu::focusRegained();
 }
 
 void ContextMenuForLoading::focusRegained() {
-	IndicatorLEDs::setLedState(saveLedX, saveLedY, false);
-	IndicatorLEDs::blinkLed(loadLedX, loadLedY);
+	IndicatorLEDs::setLedState(IndicatorLEDs::SAVE, false);
+	IndicatorLEDs::blinkLed(IndicatorLEDs::LOAD);
 	return ContextMenu::focusRegained();
 }

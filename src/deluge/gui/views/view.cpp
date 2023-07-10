@@ -101,8 +101,8 @@ void View::focusRegained() {
 	uiTimerManager.unsetTimer(TIMER_SHORTCUT_BLINK);
 	setTripletsLedState();
 
-	IndicatorLEDs::setLedState(loadLedX, loadLedY, false);
-	IndicatorLEDs::setLedState(saveLedX, saveLedY, false);
+	IndicatorLEDs::setLedState(IndicatorLEDs::LOAD, false);
+	IndicatorLEDs::setLedState(IndicatorLEDs::SAVE, false);
 
 	IndicatorLEDs::setLedState(learnButtonX, learnButtonY, false);
 }
@@ -110,7 +110,7 @@ void View::focusRegained() {
 void View::setTripletsLedState() {
 	RootUI* rootUI = getRootUI();
 
-	IndicatorLEDs::setLedState(tripletsLedX, tripletsLedY,
+	IndicatorLEDs::setLedState(IndicatorLEDs::TRIPLETS,
 	                           rootUI->isTimelineView() && ((TimelineView*)rootUI)->inTripletsView());
 }
 
@@ -170,7 +170,7 @@ doEndMidiLearnPressSession:
 				shouldSaveSettingsAfterMidiLearn = false;
 				currentUIMode = UI_MODE_MIDI_LEARN;
 				midiLearnFlash();
-				IndicatorLEDs::blinkLed(learnLedX, learnLedY, 255, 1);
+				IndicatorLEDs::blinkLed(IndicatorLEDs::LEARN, 255, 1);
 			}
 		}
 		else {
@@ -222,7 +222,7 @@ doEndMidiLearnPressSession:
 				if (currentUIMode == UI_MODE_NONE && !Buttons::isShiftButtonPressed()) {
 					currentUIMode = UI_MODE_HOLDING_SAVE_BUTTON;
 					timeSaveButtonPressed = AudioEngine::audioSampleTimer;
-					IndicatorLEDs::setLedState(saveLedX, saveLedY, true);
+					IndicatorLEDs::setLedState(IndicatorLEDs::SAVE, true);
 				}
 			}
 
@@ -244,7 +244,7 @@ doEndMidiLearnPressSession:
 						}
 					}
 					else {
-						IndicatorLEDs::setLedState(saveLedX, saveLedY, false);
+						IndicatorLEDs::setLedState(IndicatorLEDs::SAVE, false);
 					}
 				}
 			}
@@ -273,7 +273,7 @@ doEndMidiLearnPressSession:
 					else {
 						currentUIMode = UI_MODE_HOLDING_LOAD_BUTTON;
 						timeSaveButtonPressed = AudioEngine::audioSampleTimer;
-						IndicatorLEDs::setLedState(loadLedX, loadLedY, true);
+						IndicatorLEDs::setLedState(IndicatorLEDs::LOAD, true);
 					}
 				}
 			}
@@ -296,7 +296,7 @@ doEndMidiLearnPressSession:
 						}
 					}
 					else {
-						IndicatorLEDs::setLedState(loadLedX, loadLedY, false);
+						IndicatorLEDs::setLedState(IndicatorLEDs::LOAD, false);
 					}
 				}
 			}
@@ -320,7 +320,7 @@ cant:
 			// If no scaling currently, start it, if we're on a Clip-minder screen
 			if (!currentSong->getSyncScalingClip()) {
 				if (!getCurrentUI()->toClipMinder()) {
-					IndicatorLEDs::indicateAlertOnLed(clipViewLedX, clipViewLedY);
+					IndicatorLEDs::indicateAlertOnLed(IndicatorLEDs::CLIP_VIEW);
 					return ACTION_RESULT_DEALT_WITH;
 				}
 
@@ -436,18 +436,18 @@ void View::endMIDILearn() {
 	}
 	currentUIMode = UI_MODE_NONE;
 	playbackHandler.setLedStates();
-	IndicatorLEDs::setLedState(learnLedX, learnLedY, false);
+	IndicatorLEDs::setLedState(IndicatorLEDs::LEARN, false);
 }
 
 void View::setTimeBaseScaleLedState() {
 	// If this Clip is the inputTickScaleClip, flash the LED
 	if (getCurrentUI()->toClipMinder() && currentSong->currentClip == currentSong->getSyncScalingClip()) {
-		IndicatorLEDs::blinkLed(syncScalingLedX, syncScalingLedY);
+		IndicatorLEDs::blinkLed(IndicatorLEDs::SYNC_SCALING);
 	}
 
 	// Otherwise, just light it solidly on or off
 	else {
-		IndicatorLEDs::setLedState(syncScalingLedX, syncScalingLedY, currentSong->getSyncScalingClip() != NULL);
+		IndicatorLEDs::setLedState(IndicatorLEDs::SYNC_SCALING, currentSong->getSyncScalingClip() != NULL);
 	}
 }
 
@@ -769,15 +769,15 @@ void View::midiLearnFlash() {
 
 	if (midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_PLAY].containsSomething()
 	    || thingPressedForMidiLearn == MIDI_LEARN_PLAY_BUTTON) {
-		IndicatorLEDs::setLedState(playLedX, playLedY, midiLearnFlashOn);
+		IndicatorLEDs::setLedState(IndicatorLEDs::PLAY, midiLearnFlashOn);
 	}
 	if (midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_RECORD].containsSomething()
 	    || thingPressedForMidiLearn == MIDI_LEARN_RECORD_BUTTON) {
-		IndicatorLEDs::setLedState(recordLedX, recordLedY, midiLearnFlashOn);
+		IndicatorLEDs::setLedState(IndicatorLEDs::RECORD, midiLearnFlashOn);
 	}
 	if (midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_TAP].containsSomething()
 	    || thingPressedForMidiLearn == MIDI_LEARN_TAP_TEMPO_BUTTON) {
-		IndicatorLEDs::setLedState(tapTempoLedX, tapTempoLedY, midiLearnFlashOn);
+		IndicatorLEDs::setLedState(IndicatorLEDs::TAP_TEMPO, midiLearnFlashOn);
 	}
 }
 
@@ -1049,9 +1049,9 @@ void View::setModLedStates() {
 			affectEntire = ((InstrumentClip*)currentSong->currentClip)->affectEntire;
 		}
 	}
-	IndicatorLEDs::setLedState(affectEntireLedX, affectEntireLedY, affectEntire);
+	IndicatorLEDs::setLedState(IndicatorLEDs::AFFECT_ENTIRE, affectEntire);
 
-	IndicatorLEDs::setLedState(clipViewLedX, clipViewLedY, !itsTheSong);
+	IndicatorLEDs::setLedState(IndicatorLEDs::CLIP_VIEW, !itsTheSong);
 #else
 	if (!itsTheSong) {
 		bool shouldBlink = false;
@@ -1062,29 +1062,29 @@ void View::setModLedStates() {
 
 		if (!shouldBlink)
 			goto noBlinking;
-		IndicatorLEDs::blinkLed(clipViewLedX, clipViewLedY);
+		IndicatorLEDs::blinkLed(IndicatorLEDs::CLIP_VIEW);
 	}
 
 	else {
 noBlinking:
-		IndicatorLEDs::setLedState(clipViewLedX, clipViewLedY, !itsTheSong);
+		IndicatorLEDs::setLedState(IndicatorLEDs::CLIP_VIEW, !itsTheSong);
 	}
 #endif
 
 	// Sort out the session/arranger view LEDs
 	if (itsTheSong) {
 		if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
-			IndicatorLEDs::blinkLed(sessionViewLedX, sessionViewLedY, 255, 1);
+			IndicatorLEDs::blinkLed(IndicatorLEDs::SESSION_VIEW, 255, 1);
 		}
 		else if (getRootUI() == &arrangerView) {
-			IndicatorLEDs::blinkLed(sessionViewLedX, sessionViewLedY);
+			IndicatorLEDs::blinkLed(IndicatorLEDs::SESSION_VIEW);
 		}
 		else {
-			IndicatorLEDs::setLedState(sessionViewLedX, sessionViewLedY, true);
+			IndicatorLEDs::setLedState(IndicatorLEDs::SESSION_VIEW, true);
 		}
 	}
 	else {
-		IndicatorLEDs::setLedState(sessionViewLedX, sessionViewLedY, false);
+		IndicatorLEDs::setLedState(IndicatorLEDs::SESSION_VIEW, false);
 	}
 
 	// Sort out actual "mod" LEDs
@@ -1098,7 +1098,7 @@ noBlinking:
 
 	for (int i = 0; i < NUM_MOD_BUTTONS; i++) {
 		bool on = (i == modKnobMode);
-		IndicatorLEDs::setLedState(modLedX[i], modLedY[i], on);
+		IndicatorLEDs::setLedState(IndicatorLEDs::modLed[i], on);
 	}
 }
 
@@ -1243,42 +1243,39 @@ void View::displayOutputName(Output* output, bool doBlink, Clip* clip) {
 void View::drawOutputNameFromDetails(int outputType, int channel, int channelSuffix, char const* name,
                                      bool editedByUser, bool doBlink, Clip* clip) {
 	if (doBlink) {
-		int blinkLedX, blinkLedY;
+		using namespace IndicatorLEDs;
+		IndicatorLED led;
 
 		if (outputType == INSTRUMENT_TYPE_SYNTH) {
-			blinkLedX = synthLedX;
-			blinkLedY = synthLedY;
+			led = SYNTH;
 		}
 		else {
-			IndicatorLEDs::setLedState(synthLedX, synthLedY, false);
+			setLedState(SYNTH, false);
 		}
 
 		if (outputType == INSTRUMENT_TYPE_KIT) {
-			blinkLedX = kitLedX;
-			blinkLedY = kitLedY;
+			led = KIT;
 		}
 		else {
-			IndicatorLEDs::setLedState(kitLedX, kitLedY, false);
+			setLedState(KIT, false);
 		}
 
 		if (outputType == INSTRUMENT_TYPE_MIDI_OUT) {
-			blinkLedX = midiLedX;
-			blinkLedY = midiLedY;
+			led = MIDI;
 		}
 		else {
-			IndicatorLEDs::setLedState(midiLedX, midiLedY, false);
+			setLedState(MIDI, false);
 		}
 
 		if (outputType == INSTRUMENT_TYPE_CV) {
-			blinkLedX = cvLedX;
-			blinkLedY = cvLedY;
+			led = CV;
 		}
 		else {
-			IndicatorLEDs::setLedState(cvLedX, cvLedY, false);
+			setLedState(CV, false);
 		}
 
 		if (outputType != OUTPUT_TYPE_AUDIO) {
-			IndicatorLEDs::blinkLed(blinkLedX, blinkLedY);
+			blinkLed(led);
 		}
 
 		InstrumentClip* clip = NULL;
@@ -1287,11 +1284,10 @@ void View::drawOutputNameFromDetails(int outputType, int channel, int channelSuf
 		}
 
 #if DELUGE_MODEL != DELUGE_MODEL_40_PAD
-		IndicatorLEDs::setLedState(keyboardLedX, keyboardLedY, (clip && clip->onKeyboardScreen));
+		setLedState(KEYBOARD, (clip && clip->onKeyboardScreen));
 #endif
-		IndicatorLEDs::setLedState(scaleModeLedX, scaleModeLedY,
-		                           (clip && clip->inScaleMode && clip->output->type != INSTRUMENT_TYPE_KIT));
-		IndicatorLEDs::setLedState(crossScreenEditLedX, crossScreenEditLedY, (clip && clip->wrapEditing));
+		setLedState(SCALE_MODE, (clip && clip->inScaleMode && clip->output->type != INSTRUMENT_TYPE_KIT));
+		setLedState(CROSS_SCREEN_EDIT, (clip && clip->wrapEditing));
 	}
 
 #if HAVE_OLED

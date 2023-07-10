@@ -61,7 +61,7 @@ int SlotBrowser::beginSlotSession(bool shouldDrawKeys, bool allowIfNoFolder) {
 		PadLEDs::sendOutMainPadColours();
 	}
 #else
-	IndicatorLEDs::blinkLed(backLedX, backLedY);
+	IndicatorLEDs::blinkLed(IndicatorLEDs::BACK);
 #endif
 
 	return NO_ERROR;

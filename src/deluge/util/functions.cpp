@@ -37,13 +37,13 @@ extern "C" {
 #if DELUGE_MODEL == DELUGE_MODEL_40_PAD
 const uint8_t modButtonX[6] = {0, 0, 1, 1, 2, 3};
 const uint8_t modButtonY[6] = {1, 0, 0, 1, 1, 1};
-const uint8_t modLedX[6] = {0, 0, 1, 1, 2, 3};
-const uint8_t modLedY[6] = {2, 3, 3, 2, 2, 2};
+const uint8_t modLedX[6]    = {0, 0, 1, 1, 2, 3};
+const uint8_t modLedY[6]    = {2, 3, 3, 2, 2, 2};
 #else
 const uint8_t modButtonX[8] = {1, 1, 1, 1, 2, 2, 2, 2};
 const uint8_t modButtonY[8] = {0, 1, 2, 3, 0, 1, 2, 3};
-const uint8_t modLedX[8] = {1, 1, 1, 1, 2, 2, 2, 2};
-const uint8_t modLedY[8] = {0, 1, 2, 3, 0, 1, 2, 3};
+const uint8_t modLedX[8]    = {1, 1, 1, 1, 2, 2, 2, 2};
+const uint8_t modLedY[8]    = {0, 1, 2, 3, 0, 1, 2, 3};
 #endif
 
 int32_t paramRanges[NUM_PARAMS];
