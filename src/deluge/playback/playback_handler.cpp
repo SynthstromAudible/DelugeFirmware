@@ -78,6 +78,9 @@ int8_t pendingGlobalMIDICommand = -1; // -1 means none
 int pendingGlobalMIDICommandNumClustersWritten;
 extern uint8_t currentlyAccessingCard;
 
+//FineTempoKnob variable
+int tempoKnobMode = 1;
+
 bool currentlyActioningSwungTickOrResettingPlayPos = false;
 
 PlaybackHandler::PlaybackHandler() {
@@ -1884,62 +1887,33 @@ displayNudge:
 	}
 
 	// Otherwise, change tempo
-		else {
+	else {
 
-			if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::FineTempoKnob)
-		    		== RuntimeFeatureStateToggle::On) {
+			if (!(playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE)) {
 
-				if (!(playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE)) {
 
-					if (Buttons::isButtonPressed(hid::button::TEMPO_ENC)) {
-						// Coarse tempo adjustment
 
-						// Get current tempo
-						int32_t magnitude;
-						int8_t whichValue;
-						getCurrentTempoParams(&magnitude, &whichValue);
+				//FimeTempoKnob logic... couldn't replace runtime line with variable successfully
+				if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::FineTempoKnob)
+						== RuntimeFeatureStateToggle::On)) {//feature on
+					tempoKnobMode = 2;}
+				else {
+					tempoKnobMode = 1;//feature off
+				}
 
-						whichValue += offset;
-
-						if (whichValue >= 16) {
-							whichValue -= 16;
-							magnitude--;
-						}
-
-						else if (whichValue < 0) {
-							whichValue += 16;
-							magnitude++;
-						}
-
-						currentSong->setTempoFromParams(magnitude, whichValue, true);
-
-						displayTempoFromParams(magnitude, whichValue);
-					}
+				if (Buttons::isButtonPressed(hid::button::TEMPO_ENC)) {
+					if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::FineTempoKnob)
+							== RuntimeFeatureStateToggle::On)) { //feature is on, tempo button push-turned
+						tempoKnobMode = 1;}
 
 					else {
-						// Fine tempo adjustment
-						uint32_t tempoBPM = calculateBPM(currentSong->getTimePerTimerTickFloat()) + 0.5;
-						tempoBPM += offset;
-						if (tempoBPM > 0) {
-							currentSong->setBPM(tempoBPM, true);
-							displayTempoBPM(tempoBPM);
-							}
-					}
-				}
-			}
-
-			else {
-				if (Buttons::isButtonPressed(hid::button::TEMPO_ENC)) {
-					// Fine tempo adjustment
-					uint32_t tempoBPM = calculateBPM(currentSong->getTimePerTimerTickFloat()) + 0.5;
-					tempoBPM += offset;
-					if (tempoBPM > 0) {
-						currentSong->setBPM(tempoBPM, true);
-						displayTempoBPM(tempoBPM);
-					}
+						tempoKnobMode = 2;}
 				}
 
-				else {
+
+
+				switch (tempoKnobMode) {
+					case 1:
 					// Coarse tempo adjustment
 
 					// Get current tempo
@@ -1961,11 +1935,23 @@ displayNudge:
 					currentSong->setTempoFromParams(magnitude, whichValue, true);
 
 					displayTempoFromParams(magnitude, whichValue);
+					break;
 
+					case 2:
+					// Fine tempo adjustment
+
+					uint32_t tempoBPM = calculateBPM(currentSong->getTimePerTimerTickFloat()) + 0.5;
+					tempoBPM += offset;
+					if (tempoBPM > 0) {
+						currentSong->setBPM(tempoBPM, true);
+						displayTempoBPM(tempoBPM);
+					}
+
+					break;
 				}
+			}
 		}
 	}
-}
 
 
 void PlaybackHandler::sendOutPositionViaMIDI(int32_t pos, bool sendContinueMessageToo) {
