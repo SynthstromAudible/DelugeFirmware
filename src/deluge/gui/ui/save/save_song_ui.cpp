@@ -20,13 +20,13 @@
 #include "util/lookuptables/lookuptables.h"
 #include "hid/display/numeric_driver.h"
 #include <string.h>
-#include "gui/context_menu/save_song_or_instrument_context_menu.h"
+#include "gui/context_menu/save_song_or_instrument.h"
 #include "model/sample/sample.h"
 #include "io/uart/uart.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/views/view.h"
 #include "storage/storage_manager.h"
-#include "gui/context_menu/context_menu_overwrite_file.h"
+#include "gui/context_menu/overwrite_file.h"
 #include "model/song/song.h"
 #include "hid/led/pad_leds.h"
 #include "hid/led/indicator_leds.h"
@@ -40,6 +40,9 @@
 extern "C" {
 #include "ff.h"
 }
+
+using namespace deluge;
+using namespace gui;
 
 extern uint8_t currentlyAccessingCard;
 
@@ -142,16 +145,16 @@ gotError:
 	bool fileAlreadyExisted = storageManager.fileExists(filePath.get());
 
 	if (!mayOverwrite && fileAlreadyExisted) {
-		contextMenuOverwriteFile.currentSaveUI = this;
+		context_menu::overwriteFile.currentSaveUI = this;
 
-		bool available = contextMenuOverwriteFile.setupAndCheckAvailability();
+		bool available = context_menu::overwriteFile.setupAndCheckAvailability();
 
 		if (available) { // Always true.
 #if HAVE_OLED
 			OLED::removeWorkingAnimation();
 #endif
 			numericDriver.setNextTransitionDirection(1);
-			openUI(&contextMenuOverwriteFile);
+			openUI(&context_menu::overwriteFile);
 			return true;
 		}
 		else {

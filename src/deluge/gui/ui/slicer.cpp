@@ -16,7 +16,7 @@
  */
 
 #include "processing/engines/audio_engine.h"
-#include "gui/context_menu/context_menu_sample_browser_kit.h"
+#include "gui/context_menu/sample_browser/kit.h"
 #include "model/clip/instrument_clip.h"
 #include "gui/views/instrument_clip_view.h"
 #include "modulation/params/param_manager.h"
