@@ -54,6 +54,7 @@ struct {
 //the virtual cable is an implementation detail
 MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port1{};
 MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port2{1};
+MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port3{2};
 MIDIDeviceDINPorts dinMIDIPorts{};
 
 uint8_t lowestLastMemberChannelOfLowerZoneOnConnectedOutput = 15;
@@ -65,6 +66,7 @@ bool anyChangesToSave = false;
 void slowRoutine() {
 	upstreamUSBMIDIDevice_port1.sendMCMsNowIfNeeded();
 	upstreamUSBMIDIDevice_port2.sendMCMsNowIfNeeded();
+	// port3 is not used for channel data
 
 	for (int d = 0; d < hostedMIDIDevices.getNumElements(); d++) {
 		MIDIDeviceUSBHosted* device = (MIDIDeviceUSBHosted*)hostedMIDIDevices.getElement(d);
@@ -260,13 +262,15 @@ extern "C" void configuredAsPeripheral(int ip) {
 	connectedDevice->setup();
 	connectedDevice->device[0] = &upstreamUSBMIDIDevice_port1;
 	connectedDevice->device[1] = &upstreamUSBMIDIDevice_port2;
-	connectedDevice->maxPortConnected = 1;
+	connectedDevice->device[2] = &upstreamUSBMIDIDevice_port3;
+	connectedDevice->maxPortConnected = 2;
 	connectedDevice->canHaveMIDISent = 1;
 
 	anyUSBSendingStillHappening[ip] = 0; // Initialize this. There's obviously nothing sending yet right now.
 
 	upstreamUSBMIDIDevice_port1.connectedNow(0);
 	upstreamUSBMIDIDevice_port2.connectedNow(0);
+	upstreamUSBMIDIDevice_port3.connectedNow(0);
 	recountSmallestMPEZones();
 }
 
@@ -278,6 +282,7 @@ extern "C" void detachedAsPeripheral(int ip) {
 	}
 	upstreamUSBMIDIDevice_port1.connectionFlags = 0;
 	upstreamUSBMIDIDevice_port2.connectionFlags = 0;
+	upstreamUSBMIDIDevice_port3.connectionFlags = 0;
 	anyUSBSendingStillHappening[ip] =
 	    0; // Reset this again. Been meaning to do this, and can no longer quite remember reason or whether technically essential, but adds to safety at least.
 
@@ -310,6 +315,9 @@ MIDIDevice* readDeviceReferenceFromFile() {
 			}
 			else if (!strcmp(port, "upstreamUSB2")) {
 				device = &upstreamUSBMIDIDevice_port2;
+			}
+			else if (!strcmp(port, "upstreamUSB3")) {
+				device = &upstreamUSBMIDIDevice_port3;
 			}
 			else if (!strcmp(port, "din")) {
 				device = &dinMIDIPorts;
@@ -345,6 +353,9 @@ void readDeviceReferenceFromFlash(int whichCommand, uint8_t const* memory) {
 	}
 	else if (vendorId == VENDOR_ID_UPSTREAM_USB2) {
 		device = &upstreamUSBMIDIDevice_port2;
+	}
+	else if (vendorId == VENDOR_ID_UPSTREAM_USB3) {
+		device = &upstreamUSBMIDIDevice_port3;
 	}
 	else if (vendorId == VENDOR_ID_DIN) {
 		device = &dinMIDIPorts;
@@ -452,6 +463,9 @@ void readDevicesFromFile() {
 		}
 		else if (!strcmp(tagName, "upstreamUSBDevice2")) {
 			upstreamUSBMIDIDevice_port2.readFromFile();
+		}
+		else if (!strcmp(tagName, "upstreamUSBDevice3")) {
+			upstreamUSBMIDIDevice_port3.readFromFile();
 		}
 		else if (!strcmp(tagName, "hostedUSBDevice")) {
 			readAHostedDeviceFromFile();

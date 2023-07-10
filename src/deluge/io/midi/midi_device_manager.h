@@ -105,6 +105,7 @@ void readDevicesFromFile();
 
 extern MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port1;
 extern MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port2;
+extern MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port3;
 extern MIDIDeviceDINPorts dinMIDIPorts;
 
 extern bool differentiatingInputsByDevice;

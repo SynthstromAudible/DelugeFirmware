@@ -513,10 +513,13 @@ void MidiEngine::sendUsbMidi(uint8_t statusType, uint8_t channel, uint8_t data1,
 
 		for (int d = 0; d < potentialNumDevices; d++) {
 			ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][d];
+			if (!connectedDevice->canHaveMIDISent) {
+				continue;
+			}
 			int maxPort = connectedDevice->maxPortConnected;
 			for (int p = 0; p <= maxPort; p++) {
-
-				if (connectedDevice->device[p] && connectedDevice->canHaveMIDISent
+				if (connectedDevice->device[p]
+				    && connectedDevice->device[p] != &MIDIDeviceManager::upstreamUSBMIDIDevice_port3
 				    && (statusType == 0x0F
 				        || connectedDevice->device[p]->wantsToOutputMIDIOnChannel(channel, filter))) {
 

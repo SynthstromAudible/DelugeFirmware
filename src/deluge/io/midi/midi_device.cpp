@@ -426,11 +426,16 @@ void MIDIDeviceUSBUpstream::writeToFlash(uint8_t* memory) {
 }
 
 char const* MIDIDeviceUSBUpstream::getDisplayName() {
-#if HAVE_OLED
-	return portNumber ? "upstream USB port 2" : "upstream USB port 1";
-#else
-	return portNumber ? "Computer 2" : "Computer 1";
-#endif
+	switch (portNumber) {
+	case 0:
+		return HAVE_OLED ? "upstream USB port 1" : "Computer 1";
+	case 1:
+		return HAVE_OLED ? "upstream USB port 2" : "Computer 2";
+	case 2:
+		return HAVE_OLED ? "upstream USB port 3 (sysex)" : "Computer 3";
+	default:
+		return "";
+	}
 }
 
 void MIDIDeviceDINPorts::writeReferenceAttributesToFile() {
