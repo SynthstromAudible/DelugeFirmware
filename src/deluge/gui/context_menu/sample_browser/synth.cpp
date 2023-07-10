@@ -32,13 +32,9 @@ char const* Synth::getTitle() {
 	return title;
 }
 
-char const** Synth::getOptions() {
+Sized<char const**> Synth::getOptions() {
 	static char const* options[] = {"Multisamples", "Basic", "Single-cycle", "Wavetable"};
-	return options;
-}
-
-size_t Synth::getNumOptions() {
-	return 4;
+	return {options, 4};
 }
 
 bool Synth::isCurrentOptionAvailable() {

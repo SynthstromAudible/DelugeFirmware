@@ -72,12 +72,8 @@ char const* AudioInputSelector::getTitle() {
 	return title;
 }
 
-size_t AudioInputSelector::getNumOptions() {
-	return kNumValues;
-}
-
-char const** AudioInputSelector::getOptions() {
-	return options;
+Sized<char const**> AudioInputSelector::getOptions() {
+	return {options, kNumValues};
 }
 
 bool AudioInputSelector::setupAndCheckAvailability() {

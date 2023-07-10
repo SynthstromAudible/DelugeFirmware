@@ -26,13 +26,13 @@ char const* OverwriteFile::getTitle() {
 	return title;
 }
 
-char const** OverwriteFile::getOptions() {
+Sized<char const**> OverwriteFile::getOptions() {
 #if HAVE_OLED
 	static char const* options[] = {"Ok"};
 #else
 	static char const* options[] = {"OVERWRITE"};
 #endif
-	return options;
+	return {options, 1};
 }
 
 bool OverwriteFile::acceptCurrentOption() {

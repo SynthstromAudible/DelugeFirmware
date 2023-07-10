@@ -24,8 +24,7 @@ class Synth final : public ContextMenu {
 public:
 	Synth() = default;
 
-	char const** getOptions() override;
-	size_t getNumOptions() override;
+	Sized<char const**> getOptions() override;
 	bool isCurrentOptionAvailable() override;
 	bool canSeeViewUnderneath() override;
 

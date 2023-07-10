@@ -29,9 +29,9 @@ char const* SaveSongOrInstrument::getTitle() {
 	return title;
 }
 
-char const** SaveSongOrInstrument::getOptions() {
+Sized<char const**> SaveSongOrInstrument::getOptions() {
 	static char const* options[] = {"Collect media", "Create folder", "Delete"};
-	return options;
+	return {options, 3};
 }
 
 bool SaveSongOrInstrument::acceptCurrentOption() {

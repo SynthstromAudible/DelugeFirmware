@@ -42,13 +42,13 @@ char const* ClearSong::getTitle() {
 	return title;
 }
 
-char const** ClearSong::getOptions() {
+Sized<char const**> ClearSong::getOptions() {
 #if HAVE_OLED
 	static char const* options[] = {"Ok"};
 #else
 	static char const* options[] = {"New"};
 #endif
-	return options;
+	return {options, 1};
 }
 
 void ClearSong::focusRegained() {

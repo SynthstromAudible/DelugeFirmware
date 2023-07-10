@@ -41,19 +41,19 @@ char const* DeleteFile::getTitle() {
 	return title;
 }
 
-char const** DeleteFile::getOptions() {
+Sized<char const**> DeleteFile::getOptions() {
 #if HAVE_OLED
 	static char const* options[] = {"OK"};
-	return options;
+	return {options, 1};
 #else
 	static char const* options[] = {"DELETE"};
 	static char const* optionsSure[] = {"SURE"};
 
 	if (getUIUpOneLevel() == &context_menu::saveSongOrInstrument) {
-		return optionsSure;
+		return {optionsSure, 1};
 	}
 	else {
-		return options;
+		return {options, 1};
 	}
 #endif
 }

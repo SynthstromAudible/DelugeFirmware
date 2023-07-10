@@ -22,6 +22,7 @@
 #include "gui/ui/ui.h"
 #include "hid/button.h"
 #include "RZA1/system/r_typedefs.h"
+#include "util/sized.h"
 
 namespace deluge::gui {
 
@@ -35,8 +36,7 @@ public:
 	virtual bool isCurrentOptionAvailable() { return true; }
 	virtual bool acceptCurrentOption() { return false; } // If returns false, will cause UI to exit
 
-	virtual size_t getNumOptions() { return 1; }
-	virtual char const** getOptions() = 0;
+	virtual Sized<char const**> getOptions() = 0;
 
 	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) override;
 	int padAction(int x, int y, int velocity) override;

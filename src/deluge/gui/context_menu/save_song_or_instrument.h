@@ -26,8 +26,7 @@ public:
 	SaveSongOrInstrument() = default;
 
 	bool acceptCurrentOption() override;
-	char const** getOptions() override;
-	size_t getNumOptions() override { return 3; }
+	Sized<char const**> getOptions() override;
 	bool isCurrentOptionAvailable() override;
 
 	int padAction(int x, int y, int velocity) override;

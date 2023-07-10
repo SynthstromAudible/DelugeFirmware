@@ -35,13 +35,13 @@ char const* OverwriteBootloader::getTitle() {
 	return title;
 }
 
-char const** OverwriteBootloader::getOptions() {
+Sized<char const**> OverwriteBootloader::getOptions() {
 #if HAVE_OLED
 	static char const* options[] = {"Accept risk"};
 #else
 	static char const* options[] = {"Sure"};
 #endif
-	return options;
+	return {options, 1};
 }
 
 constexpr size_t FLASH_WRITE_SIZE = 256; // Bigger doesn't seem to work...

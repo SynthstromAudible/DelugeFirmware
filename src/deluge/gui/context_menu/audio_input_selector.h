@@ -35,12 +35,11 @@ public:
 
 	AudioOutput* audioOutput;
 
-	// Title
+	/// Title
 	char const* getTitle() override;
 
-	// Options
-	size_t getNumOptions() override;
-	const char** getOptions() override;
+	/// Options
+	Sized<const char**> getOptions() override;
 	Value currentOption;
 };
 

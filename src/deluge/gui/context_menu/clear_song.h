@@ -28,7 +28,7 @@ public:
 
 	char const* getTitle() override;
 
-	char const** getOptions() override;
+	Sized<char const**> getOptions() override;
 	bool acceptCurrentOption() override;
 };
 

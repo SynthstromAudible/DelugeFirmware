@@ -24,8 +24,7 @@ class Kit final : public ContextMenu {
 public:
 	Kit() = default;
 
-	char const** getOptions() override;
-	size_t getNumOptions() override;
+	Sized<char const**> getOptions() override;
 	bool isCurrentOptionAvailable() override;
 	bool canSeeViewUnderneath() override;
 

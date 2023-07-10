@@ -27,9 +27,9 @@ char const* LoadInstrumentPreset::getTitle() {
 	return title;
 }
 
-char const** LoadInstrumentPreset::getOptions() {
+Sized<char const**> LoadInstrumentPreset::getOptions() {
 	static char const* options[] = {"Clone"}; // "REFRESH",
-	return options;
+	return {options, 1};
 }
 
 bool LoadInstrumentPreset::acceptCurrentOption() {

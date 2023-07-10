@@ -24,7 +24,7 @@ class DeleteFile final : public ContextMenuForSaving {
 public:
 	DeleteFile() = default;
 
-	char const** getOptions() override;
+	Sized<char const**> getOptions() override;
 	bool acceptCurrentOption() override;
 
 	char const* getTitle() override;
