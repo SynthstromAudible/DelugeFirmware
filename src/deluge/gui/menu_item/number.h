@@ -25,10 +25,15 @@ namespace menu_item {
 class Number : public Value {
 public:
 	using Value::Value;
+#if HAVE_OLED
+	void drawBar(int yTop, int marginL, int marginR = -1);
+#endif
 
 protected:
 	virtual int getMaxValue() const = 0;
-	virtual int getMinValue() const { return 0; }
+	virtual int getMinValue() const {
+		return 0;
+	}
 };
 
 } // namespace menu_item

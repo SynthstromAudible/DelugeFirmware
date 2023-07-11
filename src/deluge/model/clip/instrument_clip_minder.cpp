@@ -273,14 +273,14 @@ gotError:
 }
 
 void InstrumentClipMinder::setLedStates() {
-	IndicatorLEDs::setLedState(synthLedX, synthLedY, getCurrentClip()->output->type == INSTRUMENT_TYPE_SYNTH);
-	IndicatorLEDs::setLedState(kitLedX, kitLedY, getCurrentClip()->output->type == INSTRUMENT_TYPE_KIT);
-	IndicatorLEDs::setLedState(midiLedX, midiLedY, getCurrentClip()->output->type == INSTRUMENT_TYPE_MIDI_OUT);
-	IndicatorLEDs::setLedState(cvLedX, cvLedY, getCurrentClip()->output->type == INSTRUMENT_TYPE_CV);
+	indicator_leds::setLedState(IndicatorLED::SYNTH, getCurrentClip()->output->type == INSTRUMENT_TYPE_SYNTH);
+	indicator_leds::setLedState(IndicatorLED::KIT, getCurrentClip()->output->type == INSTRUMENT_TYPE_KIT);
+	indicator_leds::setLedState(IndicatorLED::MIDI, getCurrentClip()->output->type == INSTRUMENT_TYPE_MIDI_OUT);
+	indicator_leds::setLedState(IndicatorLED::CV, getCurrentClip()->output->type == INSTRUMENT_TYPE_CV);
 
-	IndicatorLEDs::setLedState(crossScreenEditLedX, crossScreenEditLedY, getCurrentClip()->wrapEditing);
-	IndicatorLEDs::setLedState(scaleModeLedX, scaleModeLedY, getCurrentClip()->isScaleModeClip());
-	IndicatorLEDs::setLedState(backLedX, backLedY, false);
+	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, getCurrentClip()->wrapEditing);
+	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, getCurrentClip()->isScaleModeClip());
+	indicator_leds::setLedState(IndicatorLED::BACK, false);
 
 #ifdef currentClipStatusButtonX
 	view.drawCurrentClipPad(getCurrentClip());
@@ -310,7 +310,7 @@ int InstrumentClipMinder::buttonAction(hid::Button b, bool on, bool inCardRoutin
 			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 		currentUIMode = UI_MODE_NONE;
-		IndicatorLEDs::setLedState(saveLedX, saveLedY, false);
+		indicator_leds::setLedState(IndicatorLED::SAVE, false);
 
 		if (b == SYNTH) {
 			if (getCurrentClip()->output->type == INSTRUMENT_TYPE_SYNTH) {
@@ -332,7 +332,7 @@ yesSaveInstrument:
 			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 		currentUIMode = UI_MODE_NONE;
-		IndicatorLEDs::setLedState(loadLedX, loadLedY, false);
+		indicator_leds::setLedState(IndicatorLED::LOAD, false);
 
 		if (b == SYNTH) {
 			Browser::instrumentTypeToLoad = INSTRUMENT_TYPE_SYNTH;

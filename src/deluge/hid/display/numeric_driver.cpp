@@ -496,7 +496,7 @@ void NumericDriver::displayPopup(char const* newText, int8_t numFlashes, bool al
 	popupActive = true;
 	popup.blinkSpeed = blinkSpeed;
 
-	IndicatorLEDs::ledBlinkTimeout(0, true);
+	indicator_leds::ledBlinkTimeout(0, true);
 	popup.isNowOnTop();
 	render();
 #endif

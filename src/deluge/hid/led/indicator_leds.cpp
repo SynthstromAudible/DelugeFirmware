@@ -23,9 +23,9 @@ extern "C" {
 #include "RZA1/gpio/gpio.h"
 }
 
-namespace IndicatorLEDs {
+namespace indicator_leds {
 
-bool ledStates[NUM_LED_COLS][NUM_LED_ROWS];
+bool ledStates[NUM_LED_COLS * NUM_LED_ROWS];
 
 LedBlinker ledBlinkers[numLedBlinkers];
 bool ledBlinkState[NUM_LEVEL_INDICATORS];
@@ -36,20 +36,21 @@ uint8_t whichLevelIndicatorBlinking;
 bool levelIndicatorBlinkOn;
 uint8_t levelIndicatorBlinksLeft;
 
-void setLedState(uint8_t x, uint8_t y, bool newState, bool allowContinuedBlinking) {
+void setLedState(LED led, bool newState, bool allowContinuedBlinking) {
 
 	if (!allowContinuedBlinking) {
-		stopLedBlinking(x, y);
+		stopLedBlinking(led);
 	}
 
-	ledStates[x][y] = newState;
+	uint8_t l = static_cast<int>(led);
+	ledStates[l] = newState;
 
 	bufferPICIndicatorsUart(152 + x + y * 9 + (newState ? 36 : 0));
 }
 
-void blinkLed(uint8_t x, uint8_t y, uint8_t numBlinks, uint8_t blinkingType, bool initialState) {
+void blinkLed(LED led, uint8_t numBlinks, uint8_t blinkingType, bool initialState) {
 
-	stopLedBlinking(x, y, true);
+	stopLedBlinking(led, true);
 
 	// Find unallocated blinker
 	int i;
@@ -59,8 +60,7 @@ void blinkLed(uint8_t x, uint8_t y, uint8_t numBlinks, uint8_t blinkingType, boo
 		}
 	}
 
-	ledBlinkers[i].x = x;
-	ledBlinkers[i].y = y;
+	ledBlinkers[i].led = led;
 	ledBlinkers[i].active = true;
 	ledBlinkers[i].blinkingType = blinkingType;
 
@@ -68,7 +68,7 @@ void blinkLed(uint8_t x, uint8_t y, uint8_t numBlinks, uint8_t blinkingType, boo
 		ledBlinkers[i].blinksLeft = 255;
 	}
 	else {
-		ledBlinkers[i].returnToState = ledStates[x][y];
+		ledBlinkers[i].returnToState = ledStates[static_cast<int>(led)];
 		ledBlinkers[i].blinksLeft = numBlinks * 2;
 	}
 
@@ -120,40 +120,40 @@ bool updateBlinkingLedStates(uint8_t blinkingType) {
 				// If no more blinks...
 				if (ledBlinkers[i].blinksLeft == 0) {
 					ledBlinkers[i].active = false;
-					setLedState(ledBlinkers[i].x, ledBlinkers[i].y, ledBlinkers[i].returnToState, true);
+					setLedState(ledBlinkers[i].led, ledBlinkers[i].returnToState, true);
 					continue;
 				}
 			}
 
 			// We only get here if we haven't run out of blinks..
 			anyActive = true;
-			setLedState(ledBlinkers[i].x, ledBlinkers[i].y, ledBlinkState[blinkingType], true);
+			setLedState(ledBlinkers[i].led, ledBlinkState[blinkingType], true);
 		}
 	}
 	return anyActive;
 }
 
-void stopLedBlinking(uint8_t x, uint8_t y, bool resetState) {
-	uint8_t i = getLedBlinkerIndex(x, y);
+void stopLedBlinking(LED led, bool resetState) {
+	uint8_t i = getLedBlinkerIndex(led);
 	if (i != 255) {
 		ledBlinkers[i].active = false;
 		if (resetState) {
-			setLedState(x, y, ledBlinkers[i].returnToState, true);
+			setLedState(led, ledBlinkers[i].returnToState, true);
 		}
 	}
 }
 
-uint8_t getLedBlinkerIndex(uint8_t x, uint8_t y) {
+uint8_t getLedBlinkerIndex(LED led) {
 	for (uint8_t i = 0; i < numLedBlinkers; i++) {
-		if (ledBlinkers[i].x == x && ledBlinkers[i].y == y && ledBlinkers[i].active) {
+		if (ledBlinkers[i].led == led && ledBlinkers[i].active) {
 			return i;
 		}
 	}
 	return 255;
 }
 
-void indicateAlertOnLed(uint8_t x, uint8_t y) {
-	blinkLed(x, y, 3, 1);
+void indicateAlertOnLed(LED led) {
+	blinkLed(led, 3, 1);
 }
 
 // Level is out of 128
@@ -230,4 +230,4 @@ void clearKnobIndicatorLevels() {
 	}
 }
 
-} // namespace IndicatorLEDs
+} // namespace indicator_leds

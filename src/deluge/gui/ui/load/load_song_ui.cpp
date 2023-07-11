@@ -120,14 +120,14 @@ gotError:
 		timerCallback();
 	}
 
-	IndicatorLEDs::setLedState(synthLedX, synthLedY, false);
-	IndicatorLEDs::setLedState(kitLedX, kitLedY, false);
-	IndicatorLEDs::setLedState(midiLedX, midiLedY, false);
+	indicator_leds::setLedState(IndicatorLED::SYNTH, false);
+	indicator_leds::setLedState(IndicatorLED::KIT, false);
+	indicator_leds::setLedState(IndicatorLED::MIDI, false);
 
-	IndicatorLEDs::setLedState(crossScreenEditLedX, crossScreenEditLedY, false);
-	IndicatorLEDs::setLedState(clipViewLedX, clipViewLedY, false);
-	IndicatorLEDs::setLedState(sessionViewLedX, sessionViewLedY, false);
-	IndicatorLEDs::setLedState(scaleModeLedX, scaleModeLedY, false);
+	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
+	indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, false);
+	indicator_leds::setLedState(IndicatorLED::SESSION_VIEW, false);
+	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, false);
 
 	if (ALPHA_OR_BETA_VERSION && currentUIMode == UI_MODE_WAITING_FOR_NEXT_FILE_TO_LOAD) {
 		numericDriver.freezeWithError("E188");
@@ -253,8 +253,8 @@ void LoadSongUI::performLoad() {
 	}
 
 	currentUIMode = UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
-	IndicatorLEDs::setLedState(loadLedX, loadLedY, false);
-	IndicatorLEDs::setLedState(backLedX, backLedY, false);
+	indicator_leds::setLedState(IndicatorLED::LOAD, false);
+	indicator_leds::setLedState(IndicatorLED::BACK, false);
 #if HAVE_OLED
 	OLED::displayWorkingAnimation("Loading");
 #else

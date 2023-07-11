@@ -101,7 +101,7 @@ int KeyboardScreen::padAction(int x, int y, int velocity) {
 
 		bool clipIsActiveOnInstrument = makeCurrentClipActiveOnInstrumentIfPossible(modelStack);
 		if (!clipIsActiveOnInstrument && velocity) {
-			IndicatorLEDs::indicateAlertOnLed(sessionViewButtonX, sessionViewButtonY);
+			indicator_leds::indicateAlertOnLed(IndicatorLED::SESSION_VIEW);
 		}
 
 		Instrument* instrument = (Instrument*)currentSong->currentClip->output;
@@ -421,7 +421,7 @@ doOther:
 	// Kit button
 	else if (b == KIT && currentUIMode == UI_MODE_NONE) {
 		if (on) {
-			IndicatorLEDs::indicateAlertOnLed(keyboardLedX, keyboardLedX);
+			indicator_leds::indicateAlertOnLed(IndicatorLED::KEYBOARD);
 		}
 	}
 
@@ -850,7 +850,6 @@ void KeyboardScreen::exitScaleMode() {
 }
 
 void KeyboardScreen::setLedStates() {
-
 	IndicatorLEDs::setLedState(keyboardLedX, keyboardLedY, true);
 	InstrumentClipMinder::setLedStates();
 }

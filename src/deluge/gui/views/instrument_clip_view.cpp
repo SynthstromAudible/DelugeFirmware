@@ -171,7 +171,7 @@ int InstrumentClipView::buttonAction(hid::Button b, bool on, bool inCardRoutine)
 		// Kits can't do scales!
 		if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_KIT) {
 			if (on) {
-				IndicatorLEDs::indicateAlertOnLed(kitLedX, kitLedY);
+				indicator_leds::indicateAlertOnLed(IndicatorLED::KIT);
 			}
 			return ACTION_RESULT_DEALT_WITH;
 		}
@@ -2822,7 +2822,7 @@ void InstrumentClipView::offsetNoteCodeAction(int newOffset) {
 
 		// If not allowed to move, blink the scale mode button to remind the user that that's why
 		if (!currentSong->mayMoveModeNote(yVisualWithinOctave, newOffset)) {
-			IndicatorLEDs::indicateAlertOnLed(scaleModeLedX, scaleModeLedY);
+			indicator_leds::indicateAlertOnLed(IndicatorLED::SCALE_MODE);
 			int noteCode = getCurrentClip()->getYNoteFromYDisplay(lastAuditionedYDisplay, currentSong);
 			drawActualNoteCode(noteCode); // Draw it again so that blinking stops temporarily
 			return;
@@ -2866,7 +2866,7 @@ doRenderRow:
 
 		// Otherwise, can't do anything - give error
 		else {
-			IndicatorLEDs::indicateAlertOnLed(scaleModeLedX, scaleModeLedY);
+			indicator_leds::indicateAlertOnLed(IndicatorLED::SCALE_MODE);
 		}
 	}
 
@@ -3244,7 +3244,7 @@ getOut:
 
 	// This has to happen after setSelectedDrum is called, cos that resets LEDs
 	if (!clipIsActiveOnInstrument && velocity) {
-		IndicatorLEDs::indicateAlertOnLed(sessionViewLedX, sessionViewLedY);
+		indicator_leds::indicateAlertOnLed(IndicatorLED::SESSION_VIEW);
 	}
 }
 
@@ -3439,7 +3439,7 @@ void InstrumentClipView::drawDrumName(Drum* drum, bool justPopUp) {
 
 			strcpy(buffer, "Gate channel ");
 			intToString(((GateDrum*)drum)->channel + 1, &buffer[13]);
-			IndicatorLEDs::blinkLed(cvLedX, cvLedY, 1, 1);
+			indicator_leds::blinkLed(IndicatorLED::CV, 1, 1);
 		}
 		else { // MIDI
 			strcpy(buffer, "MIDI channel ");
@@ -3448,7 +3448,7 @@ void InstrumentClipView::drawDrumName(Drum* drum, bool justPopUp) {
 			char* pos = strchr(buffer, 0);
 			intToString(((MIDIDrum*)drum)->note, pos);
 
-			IndicatorLEDs::blinkLed(midiLedX, midiLedY, 1, 1);
+			indicator_leds::blinkLed(IndicatorLED::MIDI, 1, 1);
 		}
 	}
 
@@ -3474,10 +3474,10 @@ basicDisplay:
 			newText = buffer;
 
 			if (drum->type == DRUM_TYPE_MIDI) {
-				IndicatorLEDs::blinkLed(midiLedX, midiLedY, 1, 1);
+				indicator_leds::blinkLed(IndicatorLED::MIDI, 1, 1);
 			}
 			else if (drum->type == DRUM_TYPE_GATE) {
-				IndicatorLEDs::blinkLed(cvLedX, cvLedY, 1, 1);
+				indicator_leds::blinkLed(IndicatorLED::CV, 1, 1);
 			}
 
 			goto basicDisplay;
@@ -3953,8 +3953,8 @@ int InstrumentClipView::verticalEncoderAction(int offset, bool inCardRoutine) {
 
                 // Otherwise, remind the user why they can't
                 else {
-                    if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_SYNTH) IndicatorLEDs::indicateAlertOnLed(synthLedX, synthLedY);
-                    else IndicatorLEDs::indicateAlertOnLed(midiLedX, midiLedY); // MIDI
+                    if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_SYNTH) indicator_leds::indicateAlertOnLed(IndicatorLED::SYNTH);
+                    else indicator_leds::indicateAlertOnLed(IndicatorLED::MIDI); // MIDI
                 }
             }
             */

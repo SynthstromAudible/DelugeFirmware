@@ -35,6 +35,7 @@ enum RuntimeFeatureSettingType : uint32_t {
 	DrumRandomizer,
 	MasterCompressorFx,
 	Quantize,
+	PatchCableResolution,
 	MaxElement // Keep as boundary
 };
 
@@ -106,6 +107,13 @@ protected:
 	                     {.displayName = "On", .value = RuntimeFeatureStateToggle::On},
 	                     {.displayName = NULL, .value = 0}}},
 
+	    [RuntimeFeatureSettingType::PatchCableResolution] =
+	        {.displayName = "Mod. depth decimals",
+	         .xmlName = "patchcableresolution",
+	         .value = RuntimeFeatureStateToggle::On, // Default value
+	         .options = {{.displayName = "Off", .value = RuntimeFeatureStateToggle::Off},
+	                     {.displayName = "On", .value = RuntimeFeatureStateToggle::On},
+	                     {.displayName = NULL, .value = 0}}},
 	};
 
 private:

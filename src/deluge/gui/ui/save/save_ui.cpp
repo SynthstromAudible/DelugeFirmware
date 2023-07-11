@@ -47,7 +47,7 @@ bool SaveUI::opened() {
 }
 
 void SaveUI::focusRegained() {
-	IndicatorLEDs::blinkLed(saveLedX, saveLedY);
+	indicator_leds::blinkLed(IndicatorLED::SAVE);
 	return SlotBrowser::focusRegained();
 }
 
@@ -57,7 +57,7 @@ void SaveUI::focusRegained() {
 void SaveUI::displayText(bool blinkImmediately) {
 
 	if (enteredText.isEmpty() && !currentFolderIsEmpty) {
-		IndicatorLEDs::ledBlinkTimeout(0, true, !blinkImmediately);
+		indicator_leds::ledBlinkTimeout(0, true, !blinkImmediately);
 		numericDriver.setTextAsSlot(currentSlot, currentSubSlot, currentFileExists, true, numberEditPos);
 	}
 

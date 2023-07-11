@@ -101,11 +101,11 @@ void UITimerManager::routine() {
 
 				case TIMER_LED_BLINK:
 				case TIMER_LED_BLINK_TYPE_1:
-					IndicatorLEDs::ledBlinkTimeout(i - TIMER_LED_BLINK);
+					indicator_leds::ledBlinkTimeout(i - TIMER_LED_BLINK);
 					break;
 
 				case TIMER_LEVEL_INDICATOR_BLINK:
-					IndicatorLEDs::blinkKnobIndicatorLevelTimeout();
+					indicator_leds::blinkKnobIndicatorLevelTimeout();
 					break;
 
 				case TIMER_SHORTCUT_BLINK:

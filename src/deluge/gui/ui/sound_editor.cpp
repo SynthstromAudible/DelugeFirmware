@@ -180,19 +180,19 @@ void SoundEditor::focusRegained() {
 }
 
 void SoundEditor::setLedStates() {
-	IndicatorLEDs::setLedState(saveLedX, saveLedY, false); // In case we came from the save-Instrument UI
+	indicator_leds::setLedState(IndicatorLED::SAVE, false); // In case we came from the save-Instrument UI
 
-	IndicatorLEDs::setLedState(synthLedX, synthLedY, !inSettingsMenu() && !editingKit() && currentSound);
-	IndicatorLEDs::setLedState(kitLedX, kitLedY, !inSettingsMenu() && editingKit() && currentSound);
-	IndicatorLEDs::setLedState(midiLedX, midiLedY,
-	                           !inSettingsMenu() && currentSong->currentClip->output->type == INSTRUMENT_TYPE_MIDI_OUT);
-	IndicatorLEDs::setLedState(cvLedX, cvLedY,
-	                           !inSettingsMenu() && currentSong->currentClip->output->type == INSTRUMENT_TYPE_CV);
+	indicator_leds::setLedState(IndicatorLED::SYNTH, !inSettingsMenu() && !editingKit() && currentSound);
+	indicator_leds::setLedState(IndicatorLED::KIT, !inSettingsMenu() && editingKit() && currentSound);
+	indicator_leds::setLedState(
+	    IndicatorLED::MIDI, !inSettingsMenu() && currentSong->currentClip->output->type == INSTRUMENT_TYPE_MIDI_OUT);
+	indicator_leds::setLedState(IndicatorLED::CV,
+	                            !inSettingsMenu() && currentSong->currentClip->output->type == INSTRUMENT_TYPE_CV);
 
-	IndicatorLEDs::setLedState(crossScreenEditLedX, crossScreenEditLedY, false);
-	IndicatorLEDs::setLedState(scaleModeLedX, scaleModeLedY, false);
+	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
+	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, false);
 
-	IndicatorLEDs::blinkLed(backLedX, backLedY);
+	indicator_leds::blinkLed(IndicatorLED::BACK);
 
 	playbackHandler.setLedStates();
 }
@@ -288,7 +288,7 @@ int SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 						getCurrentMenuItem()->unlearnAction();
 					}
 					else {
-						IndicatorLEDs::blinkLed(learnLedX, learnLedY, 255, 1);
+						indicator_leds::blinkLed(IndicatorLED::LEARN, 255, 1);
 						currentUIMode = UI_MODE_MIDI_LEARN;
 					}
 				}
@@ -296,10 +296,10 @@ int SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 		}
 		else {
 			if (getCurrentMenuItem()->shouldBlinkLearnLed()) {
-				IndicatorLEDs::blinkLed(learnLedX, learnLedY);
+				indicator_leds::blinkLed(IndicatorLED::LEARN);
 			}
 			else {
-				IndicatorLEDs::setLedState(learnLedX, learnLedY, false);
+				indicator_leds::setLedState(IndicatorLED::LEARN, false);
 			}
 
 			if (currentUIMode == UI_MODE_MIDI_LEARN) {
@@ -316,7 +316,7 @@ int SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 			}
 			if (on) {
 				if (currentUIMode == UI_MODE_NONE) {
-					IndicatorLEDs::blinkLed(affectEntireLedX, affectEntireLedY, 255, 1);
+					indicator_leds::blinkLed(IndicatorLED::AFFECT_ENTIRE, 255, 1);
 					currentUIMode = UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR;
 				}
 			}
@@ -350,7 +350,7 @@ int SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 
 			PadLEDs::reassessGreyout(true);
 
-			IndicatorLEDs::setLedState(keyboardLedX, keyboardLedY, getRootUI() == &keyboardScreen);
+			indicator_leds::setLedState(IndicatorLED::KEYBOARD, getRootUI() == &keyboardScreen);
 		}
 	}
 
@@ -534,10 +534,10 @@ stopThat : {}
 shortcutsPicked:
 
 	if (currentItem->shouldBlinkLearnLed()) {
-		IndicatorLEDs::blinkLed(learnLedX, learnLedY);
+		indicator_leds::blinkLed(IndicatorLED::LEARN);
 	}
 	else {
-		IndicatorLEDs::setLedState(learnLedX, learnLedY, false);
+		indicator_leds::setLedState(IndicatorLED::LEARN, false);
 	}
 
 	possibleChangeToCurrentRangeDisplay();
@@ -967,10 +967,10 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int sourceIndex) {
 					else {
 						if (item != &sequenceDirectionMenu) {
 							if (selectedDrum->type == DRUM_TYPE_MIDI) {
-								IndicatorLEDs::indicateAlertOnLed(midiLedX, midiLedY);
+								indicator_leds::indicateAlertOnLed(IndicatorLED::MIDI);
 							}
 							else { // GATE
-								IndicatorLEDs::indicateAlertOnLed(cvLedX, cvLedY);
+								indicator_leds::indicateAlertOnLed(IndicatorLED::CV);
 							}
 							return false;
 						}
