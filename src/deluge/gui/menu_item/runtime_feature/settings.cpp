@@ -35,11 +35,13 @@ namespace menu_item::runtime_feature {
 Setting menuDrumRandomizer(RuntimeFeatureSettingType::DrumRandomizer);
 Setting menuMasterCompressorFx(RuntimeFeatureSettingType::MasterCompressorFx);
 Setting menuQuantize(RuntimeFeatureSettingType::Quantize);
+Setting menuPatchCableResolution(RuntimeFeatureSettingType::PatchCableResolution);
 
 std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement + 1> subMenuEntries{
     &menuDrumRandomizer,
     &menuMasterCompressorFx,
     &menuQuantize,
+    &menuPatchCableResolution,
 
     nullptr,
 };

@@ -73,6 +73,9 @@ void RuntimeFeatureSettings::init() {
 	// Quantize
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::Quantize], "Quantize", "quantize",
 	                  RuntimeFeatureStateToggle::On);
+	// PatchCableResolution
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::PatchCableResolution], "Mod. depth decimals",
+	                  "ModDepthDecimals", RuntimeFeatureStateToggle::On);
 }
 void RuntimeFeatureSettings::readSettingsFromFile() {
 	FilePointer fp;

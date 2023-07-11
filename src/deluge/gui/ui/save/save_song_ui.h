@@ -29,10 +29,6 @@ public:
 	//void selectEncoderAction(int8_t offset);
 	bool performSave(bool mayOverwrite = false);
 
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-	int padAction(int x, int y, int velocity);
-#endif
-
 	bool collectingSamples;
 
 protected:
