@@ -15,106 +15,40 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "settings.h"
 #include "setting.h"
-#include "model/settings/runtime_feature_settings.h"
+#include "settings.h"
+
 #include "gui/ui/sound_editor.h"
 #include "hid/display/numeric_driver.h"
+#include "model/settings/runtime_feature_settings.h"
+
+#include <algorithm>
 #include <cstdio>
+#include <iterator>
+#include <array>
 
 extern menu_item::runtime_feature::Setting runtimeFeatureSettingMenuItem;
 
 namespace menu_item::runtime_feature {
 
-void Settings::beginSession(MenuItem* navigatedBackwardFrom) {
-	if (!navigatedBackwardFrom) {
-		lastActiveValue = 0; // Reset last active value
-	}
+// Generic menu item instances
+Setting menuDrumRandomizer(RuntimeFeatureSettingType::DrumRandomizer);
+Setting menuMasterCompressorFx(RuntimeFeatureSettingType::MasterCompressorFx);
+Setting menuFineTempo(RuntimeFeatureSettingType::FineTempoKnob);
+Setting menuQuantize(RuntimeFeatureSettingType::Quantize);
+Setting menuPatchCableResolution(RuntimeFeatureSettingType::PatchCableResolution);
 
-	soundEditor.currentValue = lastActiveValue; // Restore
+std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement + 1> subMenuEntries{
+    &menuDrumRandomizer,
+    &menuMasterCompressorFx,
+	&menuFineTempo,
+    &menuQuantize,
+    &menuPatchCableResolution,
 
-#if HAVE_OLED
-	soundEditor.menuCurrentScroll = soundEditor.currentValue;
-#else
-	drawValue();
-#endif
+    nullptr,
+};
+
+Settings::Settings(char const* name) : menu_item::Submenu(name, &subMenuEntries[0]) {
 }
-
-void Settings::selectEncoderAction(int offset) {
-	soundEditor.currentValue += offset;
-	int numOptions = RuntimeFeatureSettingType::MaxElement;
-
-#if HAVE_OLED
-	if (soundEditor.currentValue > numOptions - 1) {
-		soundEditor.currentValue = numOptions - 1;
-	}
-	else if (soundEditor.currentValue < 0) {
-		soundEditor.currentValue = 0;
-	}
-#else
-	if (soundEditor.currentValue >= numOptions)
-		soundEditor.currentValue -= numOptions;
-	else if (soundEditor.currentValue < 0)
-		soundEditor.currentValue += numOptions;
-#endif
-
-	lastActiveValue = soundEditor.currentValue;
-
-#if HAVE_OLED
-	if (soundEditor.currentValue < soundEditor.menuCurrentScroll) {
-		soundEditor.menuCurrentScroll = soundEditor.currentValue;
-	}
-
-	if (soundEditor.currentValue > (soundEditor.menuCurrentScroll + (OLED_MENU_NUM_OPTIONS_VISIBLE - 1))) {
-		soundEditor.menuCurrentScroll = soundEditor.currentValue - (OLED_MENU_NUM_OPTIONS_VISIBLE - 1);
-	}
-
-#endif
-
-	drawValue();
-}
-
-void Settings::drawValue() {
-#if HAVE_OLED
-	renderUIsForOled();
-#else
-	numericDriver.setScrollingText(runtimeFeatureSettings.settings[soundEditor.currentValue].displayName);
-#endif
-}
-
-MenuItem* Settings::selectButtonPress() {
-#if HAVE_OLED
-	runtimeFeatureSettingMenuItem.basicTitle = runtimeFeatureSettings.settings[soundEditor.currentValue]
-	                                               .displayName; // A bit ugly, but saves us extending a class.
-#endif
-	runtimeFeatureSettingMenuItem.currentSettingIndex = soundEditor.currentValue;
-	return &runtimeFeatureSettingMenuItem;
-}
-
-#if HAVE_OLED
-
-void Settings::drawPixelsForOled() {
-	char const* itemNames[OLED_MENU_NUM_OPTIONS_VISIBLE];
-
-	int selectedRow = -1;
-
-	int displayRow = soundEditor.menuCurrentScroll;
-	int row = 0;
-	while (row < OLED_MENU_NUM_OPTIONS_VISIBLE && displayRow < RuntimeFeatureSettingType::MaxElement) {
-		itemNames[row] = runtimeFeatureSettings.settings[displayRow].displayName;
-		if (displayRow == soundEditor.currentValue) {
-			selectedRow = row;
-		}
-		row++;
-		displayRow++;
-	}
-
-	while (row < OLED_MENU_NUM_OPTIONS_VISIBLE) {
-		itemNames[row++] = NULL;
-	}
-
-	drawItemsForOled(itemNames, selectedRow);
-}
-#endif
 
 } // namespace menu_item::runtime_feature

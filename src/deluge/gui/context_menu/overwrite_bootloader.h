@@ -1,5 +1,5 @@
 /*
- * Copyright © 2019-2023 Synthstrom Audible Limited
+ * Copyright © 2022-2023 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -19,16 +19,15 @@
 
 #include "gui/context_menu/context_menu.h"
 
-class SaveUI;
-
-class ContextMenuOverwriteFile final : public ContextMenuForSaving {
+namespace deluge::gui::context_menu {
+class OverwriteBootloader final : public ContextMenu {
 public:
-	ContextMenuOverwriteFile();
+	OverwriteBootloader() = default;
 
-	char const** getOptions();
-	bool acceptCurrentOption();
-
-	SaveUI* currentSaveUI;
+	char const* getTitle() override;
+	Sized<char const**> getOptions() override;
+	bool acceptCurrentOption() override;
 };
 
-extern ContextMenuOverwriteFile contextMenuOverwriteFile;
+extern OverwriteBootloader overwriteBootloader;
+} // namespace deluge::gui::context_menu

@@ -15,26 +15,26 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "gui/context_menu/save_song_or_instrument_context_menu.h"
+#include "gui/context_menu/save_song_or_instrument.h"
 #include "hid/display/numeric_driver.h"
 #include "gui/ui/save/save_song_ui.h"
-#include "gui/context_menu/context_menu_delete_file.h"
+#include "gui/context_menu/delete_file.h"
 #include "storage/file_item.h"
 
-SaveSongOrInstrumentContextMenu saveSongOrInstrumentContextMenu{};
+namespace deluge::gui::context_menu {
+SaveSongOrInstrument saveSongOrInstrument{};
 
-SaveSongOrInstrumentContextMenu::SaveSongOrInstrumentContextMenu() {
-#if HAVE_OLED
-	title = "Options";
-#endif
+char const* SaveSongOrInstrument::getTitle() {
+	static char const* title = "Options";
+	return title;
 }
 
-char const** SaveSongOrInstrumentContextMenu::getOptions() {
+Sized<char const**> SaveSongOrInstrument::getOptions() {
 	static char const* options[] = {"Collect media", "Create folder", "Delete"};
-	return options;
+	return {options, 3};
 }
 
-bool SaveSongOrInstrumentContextMenu::acceptCurrentOption() {
+bool SaveSongOrInstrument::acceptCurrentOption() {
 	switch (currentOption) {
 	case 0: // Collect media
 		saveSongUI.collectingSamples = true;
@@ -52,11 +52,11 @@ bool SaveSongOrInstrumentContextMenu::acceptCurrentOption() {
 		return true;
 	}
 	case 2: { // Delete file
-		bool available = contextMenuDeleteFile.setupAndCheckAvailability();
+		bool available = context_menu::deleteFile.setupAndCheckAvailability();
 
 		if (available) { // It always will be - but we gotta check.
 			numericDriver.setNextTransitionDirection(1);
-			openUI(&contextMenuDeleteFile); // Might fail
+			openUI(&context_menu::deleteFile); // Might fail
 		}
 		return available;
 	}
@@ -66,7 +66,7 @@ bool SaveSongOrInstrumentContextMenu::acceptCurrentOption() {
 	}
 }
 
-bool SaveSongOrInstrumentContextMenu::isCurrentOptionAvailable() {
+bool SaveSongOrInstrument::isCurrentOptionAvailable() {
 
 	FileItem* currentFileItem = Browser::getCurrentFileItem();
 
@@ -86,6 +86,7 @@ bool SaveSongOrInstrumentContextMenu::isCurrentOptionAvailable() {
 	}
 }
 
-int SaveSongOrInstrumentContextMenu::padAction(int x, int y, int on) {
+int SaveSongOrInstrument::padAction(int x, int y, int on) {
 	return getUIUpOneLevel()->padAction(x, y, on);
 }
+} // namespace deluge::gui::context_menu

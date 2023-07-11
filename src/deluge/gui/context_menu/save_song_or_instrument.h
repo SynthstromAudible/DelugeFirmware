@@ -1,5 +1,5 @@
 /*
- * Copyright © 2019-2023 Synthstrom Audible Limited
+ * Copyright © 2018-2023 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -13,18 +13,26 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
+#include "RZA1/system/r_typedefs.h"
 #include "gui/context_menu/context_menu.h"
 
-class ContextMenuDeleteFile final : public ContextMenuForSaving {
+namespace deluge::gui::context_menu {
+class SaveSongOrInstrument final : public ContextMenuForSaving {
 public:
-	ContextMenuDeleteFile();
+	SaveSongOrInstrument() = default;
 
-	char const** getOptions();
-	bool acceptCurrentOption();
+	bool acceptCurrentOption() override;
+	Sized<char const**> getOptions() override;
+	bool isCurrentOptionAvailable() override;
+
+	int padAction(int x, int y, int velocity) override;
+
+	char const* getTitle() override;
 };
 
-extern ContextMenuDeleteFile contextMenuDeleteFile;
+extern SaveSongOrInstrument saveSongOrInstrument;
+} // namespace deluge::gui::context_menu

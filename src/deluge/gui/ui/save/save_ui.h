@@ -34,13 +34,9 @@ public:
 	                   uint8_t occupancyMask[][displayWidth + sideBarWidth] = NULL) {
 		return true;
 	}
-	bool canSeeViewUnderneath() final { return (DELUGE_MODEL == DELUGE_MODEL_40_PAD); }
+	bool canSeeViewUnderneath() final { return false; }
 	int timerCallback();
 	int buttonAction(hid::Button b, bool on, bool inCardRoutine);
-
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows);
-#endif
 
 protected:
 	//void displayText(bool blinkImmediately) final;

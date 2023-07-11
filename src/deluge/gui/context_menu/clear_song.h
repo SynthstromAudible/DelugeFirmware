@@ -19,17 +19,18 @@
 
 #include "gui/context_menu/context_menu.h"
 
-class ContextMenuSampleBrowserKit final : public ContextMenu {
+namespace deluge::gui::context_menu {
+class ClearSong final : public ContextMenuForLoading {
 public:
-	ContextMenuSampleBrowserKit();
+	ClearSong() = default;
+	void focusRegained() override;
+	bool canSeeViewUnderneath() override { return true; }
 
-	char const** getOptions();
-	int getNumOptions();
-	bool isCurrentOptionAvailable();
-	bool canSeeViewUnderneath();
+	char const* getTitle() override;
 
-	int padAction(int x, int y, int velocity);
-	bool acceptCurrentOption();
+	Sized<char const**> getOptions() override;
+	bool acceptCurrentOption() override;
 };
 
-extern ContextMenuSampleBrowserKit contextMenuFileBrowserKit;
+extern ClearSong clearSong;
+} // namespace deluge::gui::context_menu

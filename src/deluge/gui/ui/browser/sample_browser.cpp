@@ -46,10 +46,10 @@
 #include "hid/encoders.h"
 #include "gui/ui/keyboard_screen.h"
 #include <new>
-#include "gui/context_menu/context_menu_sample_browser_kit.h"
-#include "gui/context_menu/context_menu_sample_browser_synth.h"
+#include "gui/context_menu/sample_browser/kit.h"
+#include "gui/context_menu/sample_browser/synth.h"
 #include "util/d_string.h"
-#include "gui/context_menu/context_menu_delete_file.h"
+#include "gui/context_menu/delete_file.h"
 #include "gui/waveform/waveform_basic_navigator.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/instrument_clip_view.h"
@@ -77,6 +77,9 @@
 extern "C" {
 #include "RZA1/uart/sio_char.h"
 }
+
+using namespace deluge;
+using namespace gui;
 
 SampleBrowser sampleBrowser{};
 
@@ -168,12 +171,12 @@ dissectionDone:
 		goto sdError;
 	}
 
-	IndicatorLEDs::setLedState(synthLedX, synthLedY, !soundEditor.editingKit());
-	IndicatorLEDs::setLedState(kitLedX, kitLedY, soundEditor.editingKit());
+	indicator_leds::setLedState(IndicatorLED::SYNTH, !soundEditor.editingKit());
+	indicator_leds::setLedState(IndicatorLED::KIT, soundEditor.editingKit());
 
-	IndicatorLEDs::setLedState(crossScreenEditLedX, crossScreenEditLedY, false);
-	IndicatorLEDs::setLedState(sessionViewLedX, sessionViewLedY, false);
-	IndicatorLEDs::setLedState(scaleModeLedX, scaleModeLedY, false);
+	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
+	indicator_leds::setLedState(IndicatorLED::SESSION_VIEW, false);
+	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, false);
 
 	//soundEditor.setupShortcutBlink(soundEditor.currentSourceIndex, 5, 0);
 
@@ -188,7 +191,6 @@ dissectionDone:
 
 void SampleBrowser::possiblySetUpBlinking() {
 
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 	if (!qwertyVisible && !currentlyShowingSamplePreview) {
 		int x = 0;
 		if (currentSong->currentClip->type == CLIP_TYPE_INSTRUMENT) {
@@ -196,12 +198,11 @@ void SampleBrowser::possiblySetUpBlinking() {
 		}
 		soundEditor.setupExclusiveShortcutBlink(x, 5);
 	}
-#endif
 }
 
 void SampleBrowser::focusRegained() {
 	//displayCurrentFilename();
-	IndicatorLEDs::setLedState(saveLedX, saveLedY, false); // In case returning from delete-file context menu
+	indicator_leds::setLedState(IndicatorLED::SAVE, false); // In case returning from delete-file context menu
 }
 
 void SampleBrowser::folderContentsReady(int entryDirection) {
@@ -286,7 +287,7 @@ int SampleBrowser::timerCallback() {
 		if (fileIndexSelected >= 0) {
 
 			char const* errorMessage;
-			ContextMenu* contextMenu;
+			gui::ContextMenu* contextMenu;
 
 			// AudioClip
 			if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) {
@@ -300,7 +301,7 @@ int SampleBrowser::timerCallback() {
 			else if (soundEditor.editingKit()) {
 
 				if (canImportWholeKit()) {
-					contextMenu = &contextMenuFileBrowserKit;
+					contextMenu = &gui::context_menu::sample_browser::kit;
 					goto considerContextMenu;
 				}
 				else {
@@ -314,7 +315,7 @@ cant:
 
 			// Synth
 			else {
-				contextMenu = &contextMenuFileBrowserSynth;
+				contextMenu = &context_menu::sample_browser::synth;
 
 considerContextMenu:
 				bool available = contextMenu->setupAndCheckAvailability();
@@ -461,7 +462,6 @@ int SampleBrowser::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 		}
 	}
 
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 	// Record button
 	else if (b == RECORD && !audioRecorder.recordingSource && currentSong->currentClip->type != CLIP_TYPE_AUDIO) {
 		if (!on || currentUIMode != UI_MODE_NONE) {
@@ -479,7 +479,6 @@ int SampleBrowser::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 			audioRecorder.process();
 		}
 	}
-#endif
 
 	else {
 		return Browser::buttonAction(b, on, inCardRoutine);
@@ -690,9 +689,6 @@ possiblyExit:
 	}
 
 	else {
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-		goto possiblyExit;
-#else
 		// If qwerty not visible yet, make it visible
 		if (!qwertyVisible) {
 			if (on && !currentUIMode) {
@@ -728,7 +724,6 @@ possiblyExit:
 		else {
 			return ACTION_RESULT_DEALT_WITH;
 		}
-#endif
 	}
 
 	return ACTION_RESULT_DEALT_WITH;

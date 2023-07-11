@@ -17,7 +17,7 @@
 
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
-#include "gui/context_menu/contextmenuclearsong.h"
+#include "gui/context_menu/clear_song.h"
 #include "modulation/params/param_manager.h"
 #include "hid/display/numeric_driver.h"
 #include "memory/general_memory_allocator.h"
@@ -32,45 +32,44 @@
 #include "playback/playback_handler.h"
 #include "hid/display/oled.h"
 
-ContextMenuClearSong contextMenuClearSong{};
-
 extern void setUIForLoadedSong(Song* song);
 extern void deleteOldSongBeforeLoadingNew();
+namespace deluge::gui::context_menu {
+ClearSong clearSong{};
 
-ContextMenuClearSong::ContextMenuClearSong() {
-#if HAVE_OLED
-	title = "Clear song?";
-#endif
+char const* ClearSong::getTitle() {
+	static char const* title = "Clear song?";
+	return title;
 }
 
-char const** ContextMenuClearSong::getOptions() {
+Sized<char const**> ClearSong::getOptions() {
 #if HAVE_OLED
 	static char const* options[] = {"Ok"};
 #else
 	static char const* options[] = {"New"};
 #endif
-	return options;
+	return {options, 1};
 }
 
-void ContextMenuClearSong::focusRegained() {
+void ClearSong::focusRegained() {
 	ContextMenu::focusRegained();
 
 	// TODO: Switch a bunch of LEDs off (?)
 
-	IndicatorLEDs::setLedState(saveLedX, saveLedY, false);
-	IndicatorLEDs::setLedState(synthLedX, synthLedY, false);
-	IndicatorLEDs::setLedState(kitLedX, kitLedY, false);
+	indicator_leds::setLedState(IndicatorLED::SAVE, false);
+	indicator_leds::setLedState(IndicatorLED::SYNTH, false);
+	indicator_leds::setLedState(IndicatorLED::KIT, false);
 
-	IndicatorLEDs::setLedState(crossScreenEditLedX, crossScreenEditLedY, false);
-	IndicatorLEDs::setLedState(clipViewLedX, clipViewLedY, false);
-	IndicatorLEDs::setLedState(sessionViewLedX, sessionViewLedY, false);
-	IndicatorLEDs::setLedState(scaleModeLedX, scaleModeLedY, false);
+	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
+	indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, false);
+	indicator_leds::setLedState(IndicatorLED::SESSION_VIEW, false);
+	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, false);
 
-	IndicatorLEDs::blinkLed(loadLedX, loadLedY);
-	IndicatorLEDs::blinkLed(backLedX, backLedY);
+	indicator_leds::blinkLed(IndicatorLED::LOAD);
+	indicator_leds::blinkLed(IndicatorLED::BACK);
 }
 
-bool ContextMenuClearSong::acceptCurrentOption() {
+bool ClearSong::acceptCurrentOption() {
 	if (playbackHandler.playbackState
 	    && ((playbackHandler.playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE) || currentPlaybackMode == &arrangement)) {
 
@@ -118,3 +117,4 @@ bool ContextMenuClearSong::acceptCurrentOption() {
 
 	return true;
 }
+} // namespace deluge::gui::context_menu

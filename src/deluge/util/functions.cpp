@@ -34,17 +34,10 @@ extern "C" {
 #include "drivers/mtu/mtu.h"
 }
 
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-const uint8_t modButtonX[6] = {0, 0, 1, 1, 2, 3};
-const uint8_t modButtonY[6] = {1, 0, 0, 1, 1, 1};
-const uint8_t modLedX[6] = {0, 0, 1, 1, 2, 3};
-const uint8_t modLedY[6] = {2, 3, 3, 2, 2, 2};
-#else
 const uint8_t modButtonX[8] = {1, 1, 1, 1, 2, 2, 2, 2};
 const uint8_t modButtonY[8] = {0, 1, 2, 3, 0, 1, 2, 3};
 const uint8_t modLedX[8] = {1, 1, 1, 1, 2, 2, 2, 2};
 const uint8_t modLedY[8] = {0, 1, 2, 3, 0, 1, 2, 3};
-#endif
 
 int32_t paramRanges[NUM_PARAMS];
 int32_t paramNeutralValues[NUM_PARAMS];
@@ -2463,6 +2456,59 @@ int fresultToDelugeErrorCode(FRESULT result) {
 	default:
 		return ERROR_SD_CARD;
 	}
+}
+
+// This is the same packing format as used by Sequential synthesizers
+// See the "Packed Data Format" section of any DSI or sequential manual.
+
+int pack_8bit_to_7bit(uint8_t* dst, int dst_size, uint8_t* src, int src_len) {
+	int packets = (src_len + 6) / 7;
+	int missing = (7 * packets - src_len); // allow incomplete packets
+	int out_len = 8 * packets - missing;
+	if (out_len > dst_size)
+		return 0;
+
+	for (int i = 0; i < packets; i++) {
+		int ipos = 7 * i;
+		int opos = 8 * i;
+		memset(dst + opos, 0, 8);
+		for (int j = 0; j < 7; j++) {
+			// incomplete packet
+			if (!(ipos + j < src_len))
+				break;
+			dst[opos + 1 + j] = src[ipos + j] & 0x7f;
+			if (src[ipos + j] & 0x80) {
+				dst[opos] |= (1 << j);
+			}
+		}
+	}
+	return out_len;
+}
+
+int unpack_7bit_to_8bit(uint8_t* dst, int dst_size, uint8_t* src, int src_len) {
+	int packets = (src_len + 7) / 8;
+	int missing = (8 * packets - src_len);
+	if (missing == 7) { // this would be weird
+		packets--;
+		missing = 0;
+	}
+	int out_len = 7 * packets - missing;
+	if (out_len > dst_size)
+		return 0;
+	for (int i = 0; i < packets; i++) {
+		int ipos = 8 * i;
+		int opos = 7 * i;
+		memset(dst + opos, 0, 7);
+		for (int j = 0; j < 7; j++) {
+			if (!(j + 1 + ipos < src_len))
+				break;
+			dst[opos + j] = src[ipos + 1 + j] & 0x7f;
+			if (src[ipos] & (1 << j)) {
+				dst[opos + j] |= 0x80;
+			}
+		}
+	}
+	return 8 * packets;
 }
 
 char miscStringBuffer[FILENAME_BUFFER_SIZE] __attribute__((aligned(CACHE_LINE_SIZE)));

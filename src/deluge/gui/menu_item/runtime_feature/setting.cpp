@@ -20,6 +20,9 @@
 #include "gui/ui/sound_editor.h"
 namespace menu_item::runtime_feature {
 
+Setting::Setting(RuntimeFeatureSettingType ty) : currentSettingIndex(static_cast<uint32_t>(ty)) {
+}
+
 void Setting::readCurrentValue() {
 	for (uint32_t idx = 0; idx < RUNTIME_FEATURE_SETTING_MAX_OPTIONS; ++idx) {
 		if (runtimeFeatureSettings.settings[currentSettingIndex].options[idx].value
@@ -61,4 +64,13 @@ int Setting::getNumOptions() {
 
 	return 0;
 }
+
+char const* Setting::getName() {
+	return runtimeFeatureSettings.settings[currentSettingIndex].displayName;
+}
+
+char const* Setting::getTitle() {
+	return runtimeFeatureSettings.settings[currentSettingIndex].displayName;
+}
+
 } // namespace menu_item::runtime_feature
