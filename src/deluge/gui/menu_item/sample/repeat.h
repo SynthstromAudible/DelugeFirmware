@@ -15,6 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "definitions.h"
+#include "gui/menu_item/selection.h"
 #include "model/clip/clip.h"
 #include "gui/views/instrument_clip_view.h"
 #include "model/drum/drum.h"
@@ -24,23 +26,23 @@
 #include "processing/sound/sound_drum.h"
 #include "gui/ui/sound_editor.h"
 
-namespace menu_item::sample {
+namespace deluge::gui::menu_item::sample {
 
 class Repeat final : public Selection {
 public:
-	Repeat(char const* newName = NULL) : Selection(newName) {}
-	bool usesAffectEntire() { return true; }
-	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentSource->repeatMode; }
-	void writeCurrentValue() {
+	using Selection::Selection;
+	bool usesAffectEntire()  override { return true; }
+	void readCurrentValue()  override { soundEditor.currentValue = soundEditor.currentSource->repeatMode; }
+	void writeCurrentValue() override  {
 
 		// If affect-entire button held, do whole kit
 		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKit()) {
 
-			Kit* kit = (Kit*)currentSong->currentClip->output;
+			Kit* kit = dynamic_cast<Kit*>(currentSong->currentClip->output);
 
-			for (Drum* thisDrum = kit->firstDrum; thisDrum; thisDrum = thisDrum->next) {
+			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DRUM_TYPE_SOUND) {
-					SoundDrum* soundDrum = (SoundDrum*)thisDrum;
+					auto* soundDrum = dynamic_cast<SoundDrum*>(thisDrum);
 					Source* source = &soundDrum->sources[soundEditor.currentSourceIndex];
 
 					// Automatically switch pitch/speed independence on / off if stretch-to-note-length mode is selected
@@ -76,11 +78,10 @@ public:
 		// We need to re-render all rows, because this will have changed whether Note tails are displayed. Probably just one row, but we don't know which
 		uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
 	}
-	char const** getOptions() {
-		static char const* options[] = {"CUT", "ONCE", "LOOP", "STRETCH", NULL};
-		return options;
+	Sized<char const**> getOptions() override {
+		static char const* options[] = {"CUT", "ONCE", "LOOP", "STRETCH"};
+		return {options, NUM_REPEAT_MODES};
 	}
-	int getNumOptions() { return NUM_REPEAT_MODES; }
 };
 
-} // namespace menu_item::sample
+} // namespace deluge::gui::menu_item::sample

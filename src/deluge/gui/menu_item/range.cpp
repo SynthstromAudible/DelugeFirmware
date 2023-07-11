@@ -26,7 +26,7 @@
 #include "hid/buttons.h"
 #include "hid/display/oled.h"
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 
 void Range::beginSession(MenuItem* navigatedBackwardFrom) {
 
@@ -201,4 +201,4 @@ doHilightJustOneEdge:
 	}
 }
 #endif
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

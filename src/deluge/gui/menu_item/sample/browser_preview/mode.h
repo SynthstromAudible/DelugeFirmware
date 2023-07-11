@@ -19,16 +19,15 @@
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 
-namespace menu_item::sample::browser_preview {
+namespace deluge::gui::menu_item::sample::browser_preview {
 class Mode final : public Selection {
 public:
 	using Selection::Selection;
-	void readCurrentValue() { soundEditor.currentValue = FlashStorage::sampleBrowserPreviewMode; }
-	void writeCurrentValue() { FlashStorage::sampleBrowserPreviewMode = soundEditor.currentValue; }
-	char const** getOptions() {
-		static char const* options[] = {"Off", "Conditional", "On", NULL};
-		return options;
+	void readCurrentValue() override  { soundEditor.currentValue = FlashStorage::sampleBrowserPreviewMode; }
+	void writeCurrentValue()  override { FlashStorage::sampleBrowserPreviewMode = soundEditor.currentValue; }
+	Sized<char const**> getOptions() override  {
+		static char const* options[] = {"Off", "Conditional", "On"};
+		return {options, 3};
 	}
-	int getNumOptions() { return 3; }
 };
-} // namespace menu_item::sample::browser_preview
+} // namespace deluge::gui::menu_item::sample::browser_preview

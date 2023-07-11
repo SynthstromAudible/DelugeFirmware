@@ -17,7 +17,7 @@
 #pragma once
 #include "gui/menu_item/patched_param.h"
 
-namespace menu_item::patched_param {
+namespace deluge::gui::menu_item::patched_param {
 class Integer : public PatchedParam, public menu_item::IntegerContinuous {
 public:
 	Integer(char const* newName = NULL, int newP = 0) : PatchedParam(newP), IntegerContinuous(newName) {}
@@ -68,4 +68,4 @@ protected:
 	void writeCurrentValue() final;
 	virtual int32_t getFinalValue();
 };
-} // namespace menu_item::patched_param
+} // namespace deluge::gui::menu_item::patched_param

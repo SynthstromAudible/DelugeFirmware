@@ -19,18 +19,18 @@
 #include "model/song/song.h"
 #include "gui/ui/sound_editor.h"
 
-namespace menu_item::swing {
+namespace deluge::gui::menu_item::swing {
 
 class Interval final : public SyncLevel {
 public:
 	using SyncLevel::SyncLevel;
 
-	void readCurrentValue() { soundEditor.currentValue = currentSong->swingInterval; }
-	void writeCurrentValue() { currentSong->changeSwingInterval(soundEditor.currentValue); }
+	void readCurrentValue() override { soundEditor.currentValue = currentSong->swingInterval; }
+	void writeCurrentValue() override { currentSong->changeSwingInterval(soundEditor.currentValue); }
 
-	void selectEncoderAction(int offset) { // So that there's no "off" option
+	void selectEncoderAction(int offset) override { // So that there's no "off" option
 		soundEditor.currentValue += offset;
-		int numOptions = getNumOptions();
+		int numOptions = this->size();
 
 		// Wrap value
 		if (soundEditor.currentValue >= numOptions) {
@@ -44,4 +44,4 @@ public:
 	}
 };
 
-} // namespace menu_item::swing
+} // namespace deluge::gui::menu_item::swing

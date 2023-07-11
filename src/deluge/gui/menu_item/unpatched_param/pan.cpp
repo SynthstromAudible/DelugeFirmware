@@ -27,7 +27,7 @@ extern "C" {
 #include "util/cfunctions.h"
 }
 
-namespace menu_item::unpatched_param {
+namespace deluge::gui::menu_item::unpatched_param {
 
 void Pan::drawValue() {    // TODO: should really combine this with the "patched" version
 	uint8_t drawDot = 255; //soundEditor.doesParamHaveAnyCables(getP()) ? 3 : 255;
@@ -59,4 +59,4 @@ void Pan::readCurrentValue() {
 	    ((int64_t)soundEditor.currentParamManager->getUnpatchedParamSet()->getValue(getP()) * 64 + 2147483648) >> 32;
 }
 
-} // namespace menu_item::unpatched_param
+} // namespace deluge::gui::menu_item::unpatched_param

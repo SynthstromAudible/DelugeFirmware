@@ -19,7 +19,7 @@
 #include "gui/menu_item/patched_param/integer_non_fm.h"
 #include "gui/ui/sound_editor.h"
 
-namespace menu_item::filter {
+namespace deluge::gui::menu_item::filter {
 class LPFFreq final : public patched_param::IntegerNonFM {
 public:
 	LPFFreq(char const* newName = 0, int newP = 0) : patched_param::IntegerNonFM(newName, newP) {}
@@ -36,4 +36,4 @@ public:
 	}
 #endif
 };
-} // namespace menu_item::filter
+} // namespace deluge::gui::menu_item::filter

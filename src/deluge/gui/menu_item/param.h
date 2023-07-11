@@ -22,7 +22,7 @@
 class ParamSet;
 class ModelStackWithAutoParam;
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 
 // Note that this does *not* inherit from MenuItem actually!
 class Param {
@@ -39,4 +39,4 @@ public:
 protected:
 	virtual ParamSet* getParamSet() = 0;
 };
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

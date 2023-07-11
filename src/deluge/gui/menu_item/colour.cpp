@@ -19,7 +19,7 @@
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 
 Colour activeColourMenu{"ACTIVE"};
 Colour stoppedColourMenu{"STOPPED"};
@@ -34,13 +34,9 @@ void Colour::writeCurrentValue() {
 	renderingNeededRegardlessOfUI();
 }
 
-char const** Colour::getOptions() {
-	static char const* options[] = {"RED", "GREEN", "BLUE", "YELLOW", "CYAN", "PURPLE", "AMBER", "WHITE", "PINK", NULL};
-	return options;
-}
-
-int Colour::getNumOptions() {
-	return 9;
+Sized<char const**> Colour::getOptions() {
+	static char const* options[] = {"RED", "GREEN", "BLUE", "YELLOW", "CYAN", "PURPLE", "AMBER", "WHITE", "PINK"};
+	return {options, 9};
 }
 
 void Colour::getRGB(uint8_t rgb[3]) {
@@ -100,4 +96,4 @@ void Colour::getRGB(uint8_t rgb[3]) {
 		break;
 	}
 }
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

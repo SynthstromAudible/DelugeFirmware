@@ -18,7 +18,7 @@
 #include "gui/menu_item/selection.h"
 #include "processing/sound/sound.h"
 
-namespace menu_item::sample {
+namespace deluge::gui::menu_item::sample {
 class Selection : public menu_item::Selection {
 public:
 	Selection(char const* newName = NULL) : menu_item::Selection(newName) {}
@@ -32,4 +32,4 @@ public:
 		        && source->hasAtLeastOneAudioFileLoaded());
 	}
 };
-} // namespace menu_item::sample
+} // namespace deluge::gui::menu_item::sample

@@ -27,9 +27,9 @@
 #include <iterator>
 #include <array>
 
-extern menu_item::runtime_feature::Setting runtimeFeatureSettingMenuItem;
+extern deluge::gui::menu_item::runtime_feature::Setting runtimeFeatureSettingMenuItem;
 
-namespace menu_item::runtime_feature {
+namespace deluge::gui::menu_item::runtime_feature {
 
 // Generic menu item instances
 Setting menuDrumRandomizer(RuntimeFeatureSettingType::DrumRandomizer);
@@ -49,4 +49,4 @@ std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement + 1> subMenuEntries{
 Settings::Settings(char const* name) : menu_item::Submenu(name, &subMenuEntries[0]) {
 }
 
-} // namespace menu_item::runtime_feature
+} // namespace deluge::gui::menu_item::runtime_feature

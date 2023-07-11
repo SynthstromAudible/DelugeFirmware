@@ -20,7 +20,7 @@
 #include "gui/ui/sound_editor.h"
 #include "processing/sound/sound.h"
 
-namespace menu_item::unison {
+namespace deluge::gui::menu_item::unison {
 class Count final : public Integer {
 public:
 	Count(char const* newName = NULL) : Integer(newName) {}
@@ -33,4 +33,4 @@ public:
 	int getMinValue() const { return 1; }
 	int getMaxValue() const { return maxNumUnison; }
 };
-} // namespace menu_item::unison
+} // namespace deluge::gui::menu_item::unison

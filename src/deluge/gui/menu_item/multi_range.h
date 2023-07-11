@@ -19,7 +19,7 @@
 #include "menu_item.h"
 #include "range.h"
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 
 class MultiRange final : public Range {
 public:
@@ -43,4 +43,4 @@ protected:
 };
 
 extern MultiRange multiRangeMenu;
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

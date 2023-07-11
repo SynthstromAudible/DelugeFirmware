@@ -15,14 +15,15 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "gui/menu_item/toggle.h"
 #include "storage/flash_storage.h"
 #include "gui/menu_item/sync_level/relative_to_song.h"
 
-namespace menu_item::record {
-class Margins final : public Selection {
+namespace deluge::gui::menu_item::record {
+class Margins final : public Toggle {
 public:
-	using Selection::Selection;
-	void readCurrentValue() { soundEditor.currentValue = FlashStorage::audioClipRecordMargins; }
-	void writeCurrentValue() { FlashStorage::audioClipRecordMargins = soundEditor.currentValue; }
+	using Toggle::Toggle;
+	void readCurrentValue() override { soundEditor.currentValue = FlashStorage::audioClipRecordMargins; }
+	void writeCurrentValue() override { FlashStorage::audioClipRecordMargins = soundEditor.currentValue; }
 };
-} // namespace menu_item::record
+} // namespace deluge::gui::menu_item::record

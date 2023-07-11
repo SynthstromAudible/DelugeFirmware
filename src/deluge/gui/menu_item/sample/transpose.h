@@ -19,7 +19,7 @@
 #include "gui/menu_item/source/transpose.h"
 #include "processing/sound/sound.h"
 
-namespace menu_item::sample {
+namespace deluge::gui::menu_item::sample {
 class Transpose final : public source::Transpose {
 public:
 	Transpose(char const* newName = NULL, int newP = 0) : source::Transpose(newName, newP) {}
@@ -75,4 +75,4 @@ public:
 	}
 	bool isRangeDependent() { return true; }
 };
-} // namespace menu_item::sample
+} // namespace deluge::gui::menu_item::sample

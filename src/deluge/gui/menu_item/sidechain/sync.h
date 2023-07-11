@@ -20,12 +20,12 @@
 #include "processing/sound/sound.h"
 #include "processing/engines/audio_engine.h"
 
-namespace menu_item::sidechain {
+namespace deluge::gui::menu_item::sidechain {
 class Sync final : public SyncLevel {
 public:
 	using SyncLevel::SyncLevel;
 
-	int getNumOptions() override { return 10; };
+	size_t size() override { return 10; };
 	void readCurrentValue() override {
 		soundEditor.currentValue = syncTypeAndLevelToMenuOption(soundEditor.currentCompressor->syncType,
 		                                                        soundEditor.currentCompressor->syncLevel);
@@ -39,4 +39,4 @@ public:
 		return !(soundEditor.editingReverbCompressor() && AudioEngine::reverbCompressorVolume < 0);
 	}
 };
-} // namespace menu_item::sidechain
+} // namespace deluge::gui::menu_item::sidechain

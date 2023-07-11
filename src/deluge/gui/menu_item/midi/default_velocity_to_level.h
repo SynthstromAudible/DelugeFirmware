@@ -20,7 +20,7 @@
 #include "model/song/song.h"
 #include "gui/ui/sound_editor.h"
 
-namespace menu_item::midi {
+namespace deluge::gui::menu_item::midi {
 class DefaultVelocityToLevel final : public IntegerWithOff {
 public:
 	DefaultVelocityToLevel(char const* newName = NULL) : IntegerWithOff(newName) {}
@@ -35,4 +35,4 @@ public:
 		MIDIDeviceManager::anyChangesToSave = true;
 	}
 };
-} // namespace menu_item::midi
+} // namespace deluge::gui::menu_item::midi

@@ -20,7 +20,7 @@
 #include "gui/ui/sound_editor.h"
 #include "gui/menu_item/integer.h"
 
-namespace menu_item::defaults {
+namespace deluge::gui::menu_item::defaults {
 class Velocity final : public Integer {
 public:
 	using Integer::Integer;
@@ -32,4 +32,4 @@ public:
 		currentSong->setDefaultVelocityForAllInstruments(FlashStorage::defaultVelocity);
 	}
 };
-} // namespace menu_item::defaults
+} // namespace deluge::gui::menu_item::defaults

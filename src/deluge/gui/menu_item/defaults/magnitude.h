@@ -15,19 +15,20 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "gui/menu_item/enumeration.h"
 #include "storage/flash_storage.h"
-#include "gui/menu_item/selection.h"
+#include "gui/menu_item/toggle.h"
 #include "hid/display/numeric_driver.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/oled.h"
 
-namespace menu_item::defaults {
-class Magnitude final : public Selection {
+namespace deluge::gui::menu_item::defaults {
+class Magnitude final : public Enumeration {
 public:
-	using Selection::Selection;
-	int getNumOptions() { return 7; }
-	void readCurrentValue() { soundEditor.currentValue = FlashStorage::defaultMagnitude; }
-	void writeCurrentValue() { FlashStorage::defaultMagnitude = soundEditor.currentValue; }
+	using Enumeration::Enumeration;
+	size_t size() override { return 7; }
+	void readCurrentValue() override { soundEditor.currentValue = FlashStorage::defaultMagnitude; }
+	void writeCurrentValue() override { FlashStorage::defaultMagnitude = soundEditor.currentValue; }
 #if HAVE_OLED
 	void drawPixelsForOled() {
 		char buffer[12];
@@ -41,4 +42,4 @@ public:
 	}
 #endif
 };
-} // namespace menu_item::defaults
+} // namespace deluge::gui::menu_item::defaults

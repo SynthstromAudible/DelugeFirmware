@@ -23,7 +23,7 @@
 #include "processing/sound/sound.h"
 #include "model/model_stack.h"
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 class MasterTranspose final : public Integer, public PatchedParam {
 public:
 	using Integer::Integer;
@@ -67,4 +67,4 @@ public:
 		return 96;
 	}
 };
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

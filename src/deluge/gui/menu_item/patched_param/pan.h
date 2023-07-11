@@ -17,7 +17,7 @@
 #pragma once
 #include "integer.h"
 
-namespace menu_item::patched_param {
+namespace deluge::gui::menu_item::patched_param {
 class Pan : public Integer {
 public:
 	Pan(char const* newName = 0, int newP = 0) : Integer(newName, newP) {}
@@ -34,4 +34,4 @@ protected:
 	int32_t getFinalValue();
 	void readCurrentValue();
 };
-} // namespace menu_item::patched_param
+} // namespace deluge::gui::menu_item::patched_param

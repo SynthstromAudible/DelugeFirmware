@@ -20,7 +20,7 @@
 #include "gui/menu_item/sync_level.h"
 #include "gui/ui/sound_editor.h"
 
-namespace menu_item::delay {
+namespace deluge::gui::menu_item::delay {
 class Sync final : public SyncLevel {
 public:
 	using SyncLevel::SyncLevel;
@@ -34,4 +34,4 @@ public:
 		soundEditor.currentModControllable->delay.syncLevel = menuOptionToSyncLevel(soundEditor.currentValue);
 	}
 };
-} // namespace menu_item::delay
+} // namespace deluge::gui::menu_item::delay

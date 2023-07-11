@@ -19,7 +19,7 @@
 #include "gui/menu_item/integer.h"
 #include "gui/ui/sound_editor.h"
 
-namespace menu_item::fx {
+namespace deluge::gui::menu_item::fx {
 
 class Clipping final : public IntegerWithOff {
 public:
@@ -30,4 +30,4 @@ public:
 	int getMaxValue() const { return 15; }
 };
 
-} // namespace menu_item::fx
+} // namespace deluge::gui::menu_item::fx

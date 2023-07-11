@@ -19,7 +19,7 @@
 
 #include "gui/menu_item/submenu.h"
 
-namespace menu_item::runtime_feature {
+namespace deluge::gui::menu_item::runtime_feature {
 
 class Settings final : public Submenu {
 public:
@@ -30,4 +30,4 @@ private:
 
 extern Settings runtimeFeatureSettingsMenu;
 
-} // namespace menu_item::runtime_feature
+} // namespace deluge::gui::menu_item::runtime_feature

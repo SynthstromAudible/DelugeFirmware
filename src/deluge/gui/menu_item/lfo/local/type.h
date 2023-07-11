@@ -19,7 +19,7 @@
 #include "gui/ui/sound_editor.h"
 #include "processing/sound/sound.h"
 
-namespace menu_item::lfo::local {
+namespace deluge::gui::menu_item::lfo::local {
 
 class Type final : public Shape {
 public:
@@ -28,4 +28,4 @@ public:
 	void writeCurrentValue() { soundEditor.currentSound->lfoLocalWaveType = soundEditor.currentValue; }
 };
 
-} // namespace menu_item::lfo::local
+} // namespace deluge::gui::menu_item::lfo::local

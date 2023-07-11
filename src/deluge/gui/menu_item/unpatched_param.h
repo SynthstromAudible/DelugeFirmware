@@ -22,7 +22,7 @@
 
 class ModelStackWithAutoParam;
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 
 class UnpatchedParam : public Param, public IntegerContinuous, public MenuItemWithCCLearning {
 public:
@@ -49,4 +49,4 @@ protected:
 	virtual int32_t getFinalValue();
 };
 
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

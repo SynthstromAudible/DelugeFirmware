@@ -20,25 +20,17 @@
 #include "gui/menu_item/sync_level.h"
 #include "gui/ui/sound_editor.h"
 
-namespace menu_item::delay {
+namespace deluge::gui::menu_item::delay {
 
 class Analog final : public Selection {
 public:
 	using Selection::Selection;
-	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentModControllable->delay.analog; }
-	void writeCurrentValue() { soundEditor.currentModControllable->delay.analog = soundEditor.currentValue; }
-	char const** getOptions() {
-		static char const* options[] = {
-			"Digital",
-#if HAVE_OLED
-			"Analog",
-			NULL
-#else
-			"ANA"
-#endif
-		};
-		return options;
+	void readCurrentValue() override { soundEditor.currentValue = soundEditor.currentModControllable->delay.analog; }
+	void writeCurrentValue() override { soundEditor.currentModControllable->delay.analog = soundEditor.currentValue; }
+	Sized<char const**> getOptions() override {
+		static char const* options[] = {"Digital", HAVE_OLED ? "Analog" : "ANA"};
+		return {options, 2};
 	}
 };
 
-} // namespace menu_item::delay
+} // namespace deluge::gui::menu_item::delay

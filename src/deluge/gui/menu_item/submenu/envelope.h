@@ -19,7 +19,7 @@
 
 extern void setEnvelopeNumberForTitles(int);
 
-namespace menu_item::submenu {
+namespace deluge::gui::menu_item::submenu {
 class Envelope final : public SubmenuReferringToOneThing {
 public:
 	using SubmenuReferringToOneThing::SubmenuReferringToOneThing;
@@ -30,4 +30,4 @@ public:
 	}
 #endif
 };
-} // namespace menu_item::submenu
+} // namespace deluge::gui::menu_item::submenu

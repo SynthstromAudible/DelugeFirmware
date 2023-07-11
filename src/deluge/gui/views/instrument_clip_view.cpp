@@ -87,6 +87,8 @@ extern "C" {
 #include "RZA1/uart/sio_char.h"
 }
 
+using namespace deluge::gui;
+
 InstrumentClipView instrumentClipView{};
 
 InstrumentClipView::InstrumentClipView() {

@@ -26,7 +26,7 @@
 
 #include "processing/engines/audio_engine.h"
 
-namespace menu_item::reverb {
+namespace deluge::gui::menu_item::reverb {
 class Pan final : public Integer {
 public:
 	using Integer::Integer;
@@ -48,4 +48,4 @@ public:
 	int getMaxValue() const { return 32; }
 	int getMinValue() const { return -32; }
 };
-} // namespace menu_item::reverb
+} // namespace deluge::gui::menu_item::reverb

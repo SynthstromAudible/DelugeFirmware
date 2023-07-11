@@ -20,7 +20,7 @@
 #include "number.h"
 #include "patched_param.h"
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 
 class Decimal : public Number {
 public:
@@ -43,4 +43,4 @@ private:
 	void scrollToGoodPos();
 };
 
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

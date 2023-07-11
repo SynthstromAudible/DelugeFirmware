@@ -18,7 +18,7 @@
 #include "value.h"
 #include "gui/ui/ui.h"
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 
 void Value::beginSession(MenuItem* navigatedBackwardFrom) {
 #if HAVE_OLED
@@ -47,4 +47,4 @@ void Value::readValueAgain() {
 	drawValue();
 #endif
 }
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

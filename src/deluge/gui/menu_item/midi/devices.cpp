@@ -22,9 +22,9 @@
 #include "io/midi/midi_device.h"
 #include "gui/menu_item/submenu.h"
 
-extern menu_item::Submenu midiDeviceMenu;
+extern deluge::gui::menu_item::Submenu midiDeviceMenu;
 
-namespace menu_item::midi {
+namespace deluge::gui::menu_item::midi {
 
 Devices devicesMenu{"Devices"};
 
@@ -166,4 +166,4 @@ void Devices::drawPixelsForOled() {
 }
 
 #endif
-} // namespace menu_item::midi
+} // namespace deluge::gui::menu_item::midi

@@ -20,17 +20,21 @@
 #include "gui/ui/sound_editor.h"
 #include "processing/sound/sound.h"
 
-namespace menu_item::sample {
+namespace deluge::gui::menu_item::sample {
 class Interpolation final : public Selection {
 public:
-	Interpolation(char const* newName = NULL) : Selection(newName) {}
-	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentSampleControls->interpolationMode; }
-	void writeCurrentValue() { soundEditor.currentSampleControls->interpolationMode = soundEditor.currentValue; }
-	char const** getOptions() {
-		static char const* options[] = {"Linear", "Sinc", NULL};
-		return options;
+	using Selection::Selection;
+	void readCurrentValue() override {
+		soundEditor.currentValue = soundEditor.currentSampleControls->interpolationMode;
 	}
-	bool isRelevant(Sound* sound, int whichThing) {
+	void writeCurrentValue() override {
+		soundEditor.currentSampleControls->interpolationMode = soundEditor.currentValue;
+	}
+	Sized<char const**> getOptions() override {
+		static char const* options[] = {"Linear", "Sinc"};
+		return {options, 2};
+	}
+	bool isRelevant(Sound* sound, int whichThing) override {
 		if (!sound) {
 			return true;
 		}
@@ -41,4 +45,4 @@ public:
 		            || source->oscType == OSC_TYPE_INPUT_STEREO));
 	}
 };
-} // namespace menu_item::sample
+} // namespace deluge::gui::menu_item::sample

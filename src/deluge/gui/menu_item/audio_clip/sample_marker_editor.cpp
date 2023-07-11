@@ -25,7 +25,7 @@
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
 
-namespace menu_item::audio_clip {
+namespace deluge::gui::menu_item::audio_clip {
 
 int SampleMarkerEditor::checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) {
 
@@ -51,4 +51,4 @@ void SampleMarkerEditor::beginSession(MenuItem* navigatedBackwardFrom) {
 	}
 }
 
-} // namespace menu_item::audio_clip
+} // namespace deluge::gui::menu_item::audio_clip

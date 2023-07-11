@@ -23,7 +23,7 @@
 #include "model/drum/kit.h"
 #include "model/song/song.h"
 
-namespace menu_item::sample {
+namespace deluge::gui::menu_item::sample {
 class TimeStretch final : public Integer {
 public:
 	TimeStretch(char const* newName = NULL) : Integer(newName) {}
@@ -58,4 +58,4 @@ public:
 		return (sound->getSynthMode() == SYNTH_MODE_SUBTRACTIVE && source->oscType == OSC_TYPE_SAMPLE);
 	}
 };
-} // namespace menu_item::sample
+} // namespace deluge::gui::menu_item::sample

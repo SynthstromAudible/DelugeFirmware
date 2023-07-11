@@ -31,7 +31,7 @@ extern "C" {
 #endif
 }
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 
 void Submenu::beginSession(MenuItem* navigatedBackwardFrom) {
 	soundEditor.currentSubmenuItem = items;
@@ -180,4 +180,4 @@ bool Submenu::learnNoteOn(MIDIDevice* fromDevice, int channel, int noteCode) {
 	}
 	return false;
 }
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

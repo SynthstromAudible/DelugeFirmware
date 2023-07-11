@@ -34,7 +34,7 @@
 #include "util/functions.h"
 #include "deluge/model/settings/runtime_feature_settings.h"
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 extern bool movingCursor;
 
 void PatchCableStrength::beginSession(MenuItem* navigatedBackwardFrom) {
@@ -228,4 +228,4 @@ MenuItem* PatchCableStrength::selectButtonPress() {
 		return NULL; // Navigate back
 	}
 }
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

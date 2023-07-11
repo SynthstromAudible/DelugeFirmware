@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "definitions.h"
 #include "model/clip/clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
@@ -23,10 +24,10 @@
 #include "gui/ui/sound_editor.h"
 #include "processing/sound/sound.h"
 
-namespace menu_item::arpeggiator {
+namespace deluge::gui::menu_item::arpeggiator {
 class Mode final : public Selection {
 public:
-	Mode(char const* newName = NULL) : Selection(newName) {}
+	using Selection::Selection;
 	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentArpSettings->mode; }
 	void writeCurrentValue() {
 
@@ -56,10 +57,9 @@ public:
 			bool arpNow = (soundEditor.currentValue != ARP_MODE_OFF); // Uh.... this does nothing...
 		}
 	}
-	char const** getOptions() {
-		static char const* options[] = {"OFF", "UP", "DOWN", "BOTH", "Random", NULL};
-		return options;
+	Sized<char const**> getOptions() override {
+		static char const* options[] = {"OFF", "UP", "DOWN", "BOTH", "Random"};
+		return {options, NUM_ARP_MODES};
 	}
-	int getNumOptions() { return NUM_ARP_MODES; }
 };
-} // namespace menu_item::arpeggiator
+} // namespace deluge::gui::menu_item::arpeggiator

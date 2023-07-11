@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "selection.h"
+#include "enumeration.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/numeric_driver.h"
 
@@ -27,29 +27,41 @@ extern "C" {
 
 namespace deluge::gui::menu_item {
 
-void Selection::drawValue() {
+void Enumeration::beginSession(MenuItem* navigatedBackwardFrom) {
+	Value::beginSession(navigatedBackwardFrom);
+#if HAVE_OLED
+	soundEditor.menuCurrentScroll = 0;
+#else
+	drawValue();
+#endif
+}
+
+void Enumeration::selectEncoderAction(int offset) {
+	soundEditor.currentValue += offset;
+	int numOptions = size();
+
+#if HAVE_OLED
+	if (soundEditor.currentValue > numOptions - 1) {
+		soundEditor.currentValue = numOptions - 1;
+	}
+	else if (soundEditor.currentValue < 0) {
+		soundEditor.currentValue = 0;
+	}
+#else
+	if (soundEditor.currentValue >= numOptions)
+		soundEditor.currentValue -= numOptions;
+	else if (soundEditor.currentValue < 0)
+		soundEditor.currentValue += numOptions;
+#endif
+
+	Value::selectEncoderAction(offset);
+}
+
+void Enumeration::drawValue() {
 #if HAVE_OLED
 	renderUIsForOled();
 #else
-	const auto [options, _size] = getOptions();
-	numericDriver.setText(options[soundEditor.currentValue]);
+	numericDriver.setTextAsNumber(soundEditor.currentValue);
 #endif
 }
-
-#if HAVE_OLED
-void Selection::drawPixelsForOled() {
-	// Move scroll
-	if (soundEditor.menuCurrentScroll > soundEditor.currentValue) {
-		soundEditor.menuCurrentScroll = soundEditor.currentValue;
-	}
-	else if (soundEditor.menuCurrentScroll < soundEditor.currentValue - OLED_MENU_NUM_OPTIONS_VISIBLE + 1) {
-		soundEditor.menuCurrentScroll = soundEditor.currentValue - OLED_MENU_NUM_OPTIONS_VISIBLE + 1;
-	}
-
-	char const** options = &getOptions().value[soundEditor.menuCurrentScroll];
-	int selectedOption = soundEditor.currentValue - soundEditor.menuCurrentScroll;
-
-	drawItemsForOled(options, selectedOption);
-}
-#endif
 } // namespace deluge::gui::menu_item

@@ -21,7 +21,7 @@
 
 class MIDIDevice;
 
-namespace menu_item::midi {
+namespace deluge::gui::menu_item::midi {
 
 class Devices final : public MenuItem {
 public:
@@ -35,4 +35,4 @@ public:
 };
 
 extern Devices devicesMenu;
-} // namespace menu_item::midi
+} // namespace deluge::gui::menu_item::midi

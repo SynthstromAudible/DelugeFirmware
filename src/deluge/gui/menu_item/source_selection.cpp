@@ -23,7 +23,7 @@
 #include "patch_cable_strength.h"
 #include "modulation/patch/patch_cable_set.h"
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 const uint8_t sourceMenuContents[] = {
     PATCH_SOURCE_ENVELOPE_0, PATCH_SOURCE_ENVELOPE_1, PATCH_SOURCE_LFO_GLOBAL, PATCH_SOURCE_LFO_LOCAL,
     PATCH_SOURCE_VELOCITY,   PATCH_SOURCE_NOTE,       PATCH_SOURCE_COMPRESSOR, PATCH_SOURCE_RANDOM,
@@ -277,4 +277,4 @@ uint8_t SourceSelection::shouldBlinkPatchingSourceShortcut(int s, uint8_t* colou
 	           : 255;
 }
 
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

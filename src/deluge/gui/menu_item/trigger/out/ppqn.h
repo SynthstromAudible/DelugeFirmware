@@ -21,7 +21,7 @@
 #include "gui/ui/sound_editor.h"
 
 // Trigger clock out menu
-namespace menu_item::trigger::out {
+namespace deluge::gui::menu_item::trigger::out {
 class PPQN : public menu_item::PPQN {
 public:
 	using menu_item::PPQN::PPQN;
@@ -31,4 +31,4 @@ public:
 		playbackHandler.resyncAnalogOutTicksToInternalTicks();
 	}
 };
-} // namespace menu_item::trigger::out
+} // namespace deluge::gui::menu_item::trigger::out

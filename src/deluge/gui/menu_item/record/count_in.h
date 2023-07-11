@@ -15,15 +15,15 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "gui/menu_item/selection.h"
+#include "gui/menu_item/toggle.h"
 #include "playback/playback_handler.h"
 #include "gui/ui/sound_editor.h"
 
-namespace menu_item::record {
-class CountIn final : public Selection {
+namespace deluge::gui::menu_item::record {
+class CountIn final : public Toggle {
 public:
-	using Selection::Selection;
-	void readCurrentValue() { soundEditor.currentValue = playbackHandler.countInEnabled; }
-	void writeCurrentValue() { playbackHandler.countInEnabled = soundEditor.currentValue; }
+	using Toggle::Toggle;
+	void readCurrentValue() override { soundEditor.currentValue = playbackHandler.countInEnabled; }
+	void writeCurrentValue() override { playbackHandler.countInEnabled = soundEditor.currentValue; }
 };
-} // namespace menu_item::record
+} // namespace deluge::gui::menu_item::record

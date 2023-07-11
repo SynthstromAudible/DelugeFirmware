@@ -37,7 +37,7 @@ extern "C" {
 #include "util/cfunctions.h"
 }
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 MenuItem* PatchedParam::selectButtonPress() {
 
 	// If shift held down, user wants to delete automation
@@ -112,4 +112,4 @@ ModelStackWithAutoParam* PatchedParam::getModelStack(void* memory) {
 	                            &((ParamSet*)summary->paramCollection)->params[p]);
 }
 
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

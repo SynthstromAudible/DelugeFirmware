@@ -17,27 +17,27 @@
 #pragma once
 #include "model/clip/clip.h"
 #include "model/drum/kit.h"
-#include "selection.h"
+#include "gui/menu_item/toggle.h"
 #include "model/song/song.h"
 #include "processing/sound/sound_drum.h"
 #include "gui/ui/sound_editor.h"
 
-namespace menu_item::sample {
-class Reverse final : public Selection {
+namespace deluge::gui::menu_item::sample {
+class Reverse final : public Toggle {
 public:
-	Reverse(char const* newName = NULL) : Selection(newName) {}
-	bool usesAffectEntire() { return true; }
-	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentSource->sampleControls.reversed; }
-	void writeCurrentValue() {
+	using Toggle::Toggle;
+	bool usesAffectEntire()  override { return true; }
+	void readCurrentValue()  override { soundEditor.currentValue = soundEditor.currentSource->sampleControls.reversed; }
+	void writeCurrentValue() override  {
 
 		// If affect-entire button held, do whole kit
 		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKit()) {
 
-			Kit* kit = (Kit*)currentSong->currentClip->output;
+			Kit* kit = dynamic_cast<Kit*>(currentSong->currentClip->output);
 
-			for (Drum* thisDrum = kit->firstDrum; thisDrum; thisDrum = thisDrum->next) {
+			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DRUM_TYPE_SOUND) {
-					SoundDrum* soundDrum = (SoundDrum*)thisDrum;
+					auto* soundDrum = dynamic_cast<SoundDrum*>(thisDrum);
 					Source* source = &soundDrum->sources[soundEditor.currentSourceIndex];
 
 					soundDrum->unassignAllVoices();
@@ -53,4 +53,4 @@ public:
 		}
 	}
 };
-} // namespace menu_item::sample
+} // namespace deluge::gui::menu_item::sample

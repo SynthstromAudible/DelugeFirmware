@@ -20,7 +20,7 @@
 #include "RZA1/system/r_typedefs.h"
 #include "value.h"
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 
 class Number : public Value {
 public:
@@ -36,4 +36,4 @@ protected:
 	}
 };
 
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

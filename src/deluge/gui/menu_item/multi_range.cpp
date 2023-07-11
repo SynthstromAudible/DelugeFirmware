@@ -33,7 +33,7 @@
 #include "storage/multi_range/multi_wave_table_range.h"
 #include "hid/display/oled.h"
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 
 MultiRange multiRangeMenu{};
 
@@ -478,4 +478,4 @@ doHilightJustOneEdge:
 	}
 }
 #endif
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

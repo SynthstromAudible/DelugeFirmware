@@ -39,6 +39,8 @@ extern "C" {
 #include "RZA1/uart/sio_char.h"
 }
 
+using namespace deluge;
+
 namespace PadLEDs {
 uint8_t image[displayHeight][displayWidth + sideBarWidth][3];               // 255 = full brightness
 uint8_t occupancyMask[displayHeight][displayWidth + sideBarWidth];          // 64 = full occupancy
@@ -167,7 +169,7 @@ void setTickSquares(const uint8_t* squares, const uint8_t* colours) {
 				if (colours[y] == 1) { // "Muted" colour
 					colourMessage = 10;
 					uint8_t mutedColour[3];
-					menu_item::mutedColourMenu.getRGB(mutedColour);
+					gui::menu_item::mutedColourMenu.getRGB(mutedColour);
 					for (int c = 0; c < 3; c++) {
 						if (mutedColour[c] >= 64) {
 							colourMessage += (1 << c);
@@ -251,7 +253,7 @@ void sendRGBForOnePadFast(int x, int y, const uint8_t* colourSource) {
 
 	if (flashCursor == FLASH_CURSOR_SLOW && slowFlashSquares[y] == x && currentUIMode != UI_MODE_HORIZONTAL_SCROLL) {
 		if (slowFlashColours[y] == 1) { // If it's to be the "muted" colour, get that
-			menu_item::mutedColourMenu.getRGB(temp);
+			gui::menu_item::mutedColourMenu.getRGB(temp);
 			colourSource = temp;
 		}
 		else { // Otherwise, pull from a referenced table line

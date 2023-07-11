@@ -19,7 +19,7 @@
 #include "decimal.h"
 #include "menu_item_with_cc_learning.h"
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 
 class PatchCableStrength : public Decimal, public MenuItemWithCCLearning {
 public:
@@ -55,4 +55,4 @@ protected:
 	ModelStackWithAutoParam* getModelStack(void* memory, bool allowCreation = false);
 };
 
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

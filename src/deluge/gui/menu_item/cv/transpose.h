@@ -19,7 +19,7 @@
 #include "gui/menu_item/decimal.h"
 #include "gui/ui/sound_editor.h"
 
-namespace menu_item::cv {
+namespace deluge::gui::menu_item::cv {
 class Transpose final : public Decimal {
 public:
 	using Decimal::Decimal;
@@ -39,4 +39,4 @@ public:
 	}
 };
 
-} // namespace menu_item::cv
+} // namespace deluge::gui::menu_item::cv

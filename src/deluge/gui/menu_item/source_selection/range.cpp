@@ -20,7 +20,7 @@
 #include "modulation/params/param_descriptor.h"
 #include "gui/menu_item/patch_cable_strength/range.h"
 
-namespace menu_item::source_selection {
+namespace deluge::gui::menu_item::source_selection {
 Range rangeMenu{};
 
 Range::Range() {
@@ -43,4 +43,4 @@ MenuItem* Range::patchingSourceShortcutPress(int newS, bool previousPressStillAc
 	return (MenuItem*)0xFFFFFFFF;
 }
 
-} // namespace menu_item::source_selection
+} // namespace deluge::gui::menu_item::source_selection

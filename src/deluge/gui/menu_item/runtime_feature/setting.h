@@ -20,16 +20,16 @@
 #include "gui/menu_item/selection.h"
 #include "model/settings/runtime_feature_settings.h"
 
-namespace menu_item::runtime_feature {
+namespace deluge::gui::menu_item::runtime_feature {
 class Settings;
 class Setting final : public Selection {
 public:
 	explicit Setting(RuntimeFeatureSettingType ty);
 
-	void readCurrentValue();
-	void writeCurrentValue();
-	char const** getOptions();
-	int getNumOptions();
+	void readCurrentValue() override;
+	void writeCurrentValue() override;
+	Sized<char const**> getOptions() override;
+	size_t getNumOptions();
 	char const* getName();
 	char const* getTitle();
 
@@ -37,4 +37,4 @@ private:
 	friend class Settings;
 	uint32_t currentSettingIndex;
 };
-} // namespace menu_item::runtime_feature
+} // namespace deluge::gui::menu_item::runtime_feature

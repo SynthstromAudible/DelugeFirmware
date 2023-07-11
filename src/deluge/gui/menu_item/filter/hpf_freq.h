@@ -19,7 +19,7 @@
 #include "gui/menu_item/patched_param/integer_non_fm.h"
 #include "gui/ui/sound_editor.h"
 
-namespace menu_item::filter {
+namespace deluge::gui::menu_item::filter {
 
 class HPFFreq final : public patched_param::IntegerNonFM {
 public:
@@ -37,4 +37,4 @@ public:
 	}
 #endif
 };
-} // namespace menu_item::filter
+} // namespace deluge::gui::menu_item::filter

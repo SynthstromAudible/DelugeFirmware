@@ -19,7 +19,7 @@
 #include "gui/ui/sound_editor.h"
 #include "storage/storage_manager.h"
 
-namespace menu_item::dev_var {
+namespace deluge::gui::menu_item::dev_var {
 
 class AMenu final : public Integer {
 public:
@@ -77,4 +77,4 @@ public:
 	int getMaxValue() const override { return 1024; }
 	int getMinValue() const override { return -1024; }
 };
-} // namespace menu_item::dev_var
+} // namespace deluge::gui::menu_item::dev_var

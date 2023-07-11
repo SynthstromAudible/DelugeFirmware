@@ -157,7 +157,8 @@
 #include "gui/menu_item/dev_var/dev_var.h"
 #include "processing/sound/sound.h"
 
-using namespace menu_item;
+using namespace deluge::gui;
+using namespace deluge::gui::menu_item;
 
 #if HAVE_OLED
 char oscTypeTitle[] = "OscX type";

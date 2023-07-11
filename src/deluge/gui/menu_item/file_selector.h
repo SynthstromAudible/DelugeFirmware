@@ -19,7 +19,7 @@
 
 #include "gui/menu_item/menu_item.h"
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 class MultiRange;
 
 class FileSelector final : public MenuItem {
@@ -31,4 +31,4 @@ public:
 };
 
 extern FileSelector fileSelectorMenu;
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

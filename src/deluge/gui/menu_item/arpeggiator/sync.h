@@ -18,7 +18,7 @@
 #include "gui/menu_item/sync_level.h"
 #include "gui/ui/sound_editor.h"
 
-namespace menu_item::arpeggiator {
+namespace deluge::gui::menu_item::arpeggiator {
 class Sync final : public SyncLevel {
 public:
 	Sync(char const* newName = NULL) : SyncLevel(newName) {}
@@ -32,4 +32,4 @@ public:
 	}
 };
 
-} // namespace menu_item::arpeggiator
+} // namespace deluge::gui::menu_item::arpeggiator

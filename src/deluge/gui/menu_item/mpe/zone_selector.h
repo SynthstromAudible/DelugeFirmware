@@ -19,16 +19,16 @@
 
 #include "gui/menu_item/selection.h"
 
-namespace menu_item::mpe {
+namespace deluge::gui::menu_item::mpe {
 
 class ZoneSelector final : public Selection {
 public:
-	ZoneSelector(char const* newName = NULL) : Selection(newName) {}
-	void beginSession(MenuItem* navigatedBackwardFrom = NULL);
-	char const** getOptions();
-	void readCurrentValue();
-	void writeCurrentValue();
-	MenuItem* selectButtonPress();
+	using Selection::Selection;
+	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
+	Sized<char const**> getOptions() override;
+	void readCurrentValue() override;
+	void writeCurrentValue() override;
+	MenuItem* selectButtonPress() override;
 	uint8_t whichZone;
 
 #if HAVE_OLED
@@ -37,4 +37,4 @@ public:
 };
 
 extern ZoneSelector zoneSelectorMenu;
-} // namespace menu_item::mpe
+} // namespace deluge::gui::menu_item::mpe

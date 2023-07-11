@@ -19,7 +19,7 @@
 
 #include "gui/menu_item/menu_item.h"
 
-namespace menu_item::sample {
+namespace deluge::gui::menu_item::sample {
 
 class LoopPoint : public MenuItem {
 public:
@@ -36,4 +36,4 @@ public:
 	uint8_t markerType;
 };
 
-} // namespace menu_item::sample
+} // namespace deluge::gui::menu_item::sample

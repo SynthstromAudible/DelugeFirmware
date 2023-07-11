@@ -60,7 +60,8 @@ extern "C" {
 #include "menus.h"
 
 using namespace deluge;
-using namespace menu_item;
+using namespace deluge::gui;
+using namespace deluge::gui::menu_item;
 
 #define comingSoonMenu (MenuItem*)0xFFFFFFFF
 

@@ -17,7 +17,7 @@
 #pragma once
 #include "gui/menu_item/source_selection.h"
 
-namespace menu_item::source_selection {
+namespace deluge::gui::menu_item::source_selection {
 class Range final : public SourceSelection {
 public:
 	Range();
@@ -26,4 +26,4 @@ public:
 	MenuItem* patchingSourceShortcutPress(int newS, bool previousPressStillActive);
 };
 extern Range rangeMenu;
-} // namespace menu_item::source_selection
+} // namespace deluge::gui::menu_item::source_selection

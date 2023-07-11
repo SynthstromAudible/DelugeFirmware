@@ -23,7 +23,7 @@
 #include "storage/multi_range/multi_range.h"
 #include "gui/ui/sound_editor.h"
 
-namespace menu_item::patch_cable_strength {
+namespace deluge::gui::menu_item::patch_cable_strength {
 int Fixed::checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) {
 	soundEditor.patchingParamSelected = p;
 	source_selection::regularMenu.s = s;
@@ -48,4 +48,4 @@ MenuItem* Fixed::patchingSourceShortcutPress(int s, bool previousPressStillActiv
 	return &patch_cable_strength::rangeMenu;
 }
 
-} // namespace menu_item::patch_cable_strength
+} // namespace deluge::gui::menu_item::patch_cable_strength

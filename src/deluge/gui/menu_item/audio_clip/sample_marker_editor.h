@@ -18,7 +18,7 @@
 #pragma once
 #include "gui/menu_item/menu_item.h"
 
-namespace menu_item::audio_clip {
+namespace deluge::gui::menu_item::audio_clip {
 
 class SampleMarkerEditor final : public MenuItem {
 public:
@@ -32,4 +32,4 @@ public:
 	int whichMarker;
 };
 
-} // namespace menu_item::audio_clip
+} // namespace deluge::gui::menu_item::audio_clip

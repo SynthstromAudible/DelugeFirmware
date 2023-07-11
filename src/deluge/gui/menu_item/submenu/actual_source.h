@@ -24,7 +24,7 @@
 
 extern void setOscillatorNumberForTitles(int);
 
-namespace menu_item::submenu {
+namespace deluge::gui::menu_item::submenu {
 
 class ActualSource final : public SubmenuReferringToOneThing {
 public:
@@ -50,4 +50,4 @@ public:
 #endif
 };
 
-} // namespace menu_item::submenu
+} // namespace deluge::gui::menu_item::submenu

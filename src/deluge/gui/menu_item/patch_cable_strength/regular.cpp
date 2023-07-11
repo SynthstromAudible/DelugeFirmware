@@ -23,7 +23,7 @@
 #include "gui/ui/sound_editor.h"
 #include "gui/menu_item/source_selection/range.h"
 
-namespace menu_item::patch_cable_strength {
+namespace deluge::gui::menu_item::patch_cable_strength {
 Regular regularMenu{};
 
 MenuItem* Regular::selectButtonPress() {
@@ -95,4 +95,4 @@ MenuItem* Regular::patchingSourceShortcutPress(int s, bool previousPressStillAct
 	return (MenuItem*)0xFFFFFFFF;
 }
 
-} // namespace menu_item::patch_cable_strength
+} // namespace deluge::gui::menu_item::patch_cable_strength

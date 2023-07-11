@@ -19,7 +19,7 @@
 #include "gui/menu_item/source_selection/regular.h"
 #include "gui/ui/sound_editor.h"
 
-namespace menu_item::patch_cable_strength {
+namespace deluge::gui::menu_item::patch_cable_strength {
 Range rangeMenu{};
 
 ParamDescriptor Range::getLearningThing() {
@@ -61,4 +61,4 @@ MenuItem* Range::patchingSourceShortcutPress(int newS, bool previousPressStillAc
 
 // FixedPatchCableStrength ----------------------------------------------------------------------------
 
-} // namespace menu_item::patch_cable_strength
+} // namespace deluge::gui::menu_item::patch_cable_strength

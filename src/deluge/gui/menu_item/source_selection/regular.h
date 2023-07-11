@@ -17,7 +17,7 @@
 #pragma once
 #include "gui/menu_item/source_selection.h"
 
-namespace menu_item::source_selection {
+namespace deluge::gui::menu_item::source_selection {
 class Regular final : public SourceSelection {
 public:
 	Regular();
@@ -28,4 +28,4 @@ public:
 };
 
 extern Regular regularMenu;
-} // namespace menu_item::source_selection
+} // namespace deluge::gui::menu_item::source_selection

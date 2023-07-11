@@ -18,7 +18,7 @@
 #include "decimal.h"
 #include "patched_param.h"
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 
 class Transpose : public Decimal, public PatchedParam {
 public:
@@ -43,4 +43,4 @@ public:
 	};
 };
 
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

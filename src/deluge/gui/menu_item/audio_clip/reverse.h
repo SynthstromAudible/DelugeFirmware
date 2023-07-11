@@ -19,15 +19,15 @@
 #include "gui/views/audio_clip_view.h"
 #include "model/model_stack.h"
 #include "model/sample/sample.h"
-#include "gui/menu_item/selection.h"
+#include "gui/menu_item/toggle.h"
 #include "playback/playback_handler.h"
 #include "model/song/song.h"
 #include "gui/ui/sound_editor.h"
 
-namespace menu_item::audio_clip {
-class Reverse final : public Selection {
+namespace deluge::gui::menu_item::audio_clip {
+class Reverse final : public Toggle {
 public:
-	using Selection::Selection;
+	using Toggle::Toggle;
 
 	void readCurrentValue() {
 		soundEditor.currentValue = ((AudioClip*)currentSong->currentClip)->sampleControls.reversed;
@@ -62,4 +62,4 @@ public:
 		}
 	}
 };
-} // namespace menu_item::audio_clip
+} // namespace deluge::gui::menu_item::audio_clip

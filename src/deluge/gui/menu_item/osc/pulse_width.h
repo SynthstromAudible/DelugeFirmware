@@ -19,7 +19,7 @@
 #include "gui/menu_item/source/patched_param.h"
 #include "processing/sound/sound.h"
 
-namespace menu_item::osc {
+namespace deluge::gui::menu_item::osc {
 class PulseWidth final : public menu_item::source::PatchedParam {
 public:
 	using menu_item::source::PatchedParam::PatchedParam;
@@ -41,4 +41,4 @@ public:
 	}
 };
 
-} // namespace menu_item::osc
+} // namespace deluge::gui::menu_item::osc

@@ -13,24 +13,24 @@
 #include "gui/menu_item/osc/sync.h"
 #include "gui/menu_item/osc/source/wave_index.h"
 
-extern menu_item::dev_var::AMenu devVarAMenu;
+extern deluge::gui::menu_item::dev_var::AMenu devVarAMenu;
 
-extern menu_item::patched_param::IntegerNonFM noiseMenu;
-extern menu_item::osc::Sync oscSyncMenu;
-extern menu_item::osc::source::WaveIndex sourceWaveIndexMenu;
+extern deluge::gui::menu_item::patched_param::IntegerNonFM noiseMenu;
+extern deluge::gui::menu_item::osc::Sync oscSyncMenu;
+extern deluge::gui::menu_item::osc::source::WaveIndex sourceWaveIndexMenu;
 
-extern menu_item::sample::Start sampleStartMenu;
-extern menu_item::sample::End sampleEndMenu;
-extern menu_item::audio_clip::SampleMarkerEditor audioClipSampleMarkerEditorMenuStart;
-extern menu_item::audio_clip::SampleMarkerEditor audioClipSampleMarkerEditorMenuEnd;
+extern deluge::gui::menu_item::sample::Start sampleStartMenu;
+extern deluge::gui::menu_item::sample::End sampleEndMenu;
+extern deluge::gui::menu_item::audio_clip::SampleMarkerEditor audioClipSampleMarkerEditorMenuStart;
+extern deluge::gui::menu_item::audio_clip::SampleMarkerEditor audioClipSampleMarkerEditorMenuEnd;
 extern DrumName drumNameMenu;
 
-extern menu_item::firmware::Version firmwareVersionMenu;
-extern menu_item::sequence::Direction sequenceDirectionMenu;
-extern menu_item::Submenu soundEditorRootMenuMIDIOrCV;
-extern menu_item::Submenu soundEditorRootMenuAudioClip;
-extern menu_item::Submenu soundEditorRootMenu;
-extern menu_item::Submenu settingsRootMenu;
+extern deluge::gui::menu_item::firmware::Version firmwareVersionMenu;
+extern deluge::gui::menu_item::sequence::Direction sequenceDirectionMenu;
+extern deluge::gui::menu_item::Submenu soundEditorRootMenuMIDIOrCV;
+extern deluge::gui::menu_item::Submenu soundEditorRootMenuAudioClip;
+extern deluge::gui::menu_item::Submenu soundEditorRootMenu;
+extern deluge::gui::menu_item::Submenu settingsRootMenu;
 
 extern MenuItem* midiOrCVParamShortcuts[8];
 extern MenuItem* paramShortcutsForSounds[15][8];

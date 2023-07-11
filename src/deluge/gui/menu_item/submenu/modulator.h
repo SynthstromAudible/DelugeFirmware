@@ -20,7 +20,7 @@
 
 extern void setModulatorNumberForTitles(int);
 
-namespace menu_item::submenu {
+namespace deluge::gui::menu_item::submenu {
 class Modulator final : public SubmenuReferringToOneThing {
 public:
 	using SubmenuReferringToOneThing::SubmenuReferringToOneThing;
@@ -35,4 +35,4 @@ public:
 	}
 };
 
-} // namespace menu_item::submenu
+} // namespace deluge::gui::menu_item::submenu

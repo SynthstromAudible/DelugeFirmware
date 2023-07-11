@@ -19,7 +19,7 @@
 
 #include "number.h"
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 
 class Integer : public Number {
 public:
@@ -53,4 +53,4 @@ protected:
 #endif
 };
 
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

@@ -20,7 +20,7 @@
 #include "gui/ui/sound_editor.h"
 #include "hid/display/oled.h"
 
-namespace menu_item::osc {
+namespace deluge::gui::menu_item::osc {
 class RetriggerPhase final : public Decimal {
 public:
 	RetriggerPhase(char const* newName = NULL, bool newForModulator = false) : Decimal(newName) {
@@ -93,4 +93,4 @@ private:
 		}
 	}
 };
-} // namespace menu_item::osc
+} // namespace deluge::gui::menu_item::osc

@@ -24,7 +24,7 @@
 #include "model/song/song.h"
 #include "hid/display/oled.h"
 
-namespace menu_item::midi {
+namespace deluge::gui::menu_item::midi {
 class Preset : public Integer {
 public:
 	using Integer::Integer;
@@ -70,4 +70,4 @@ public:
 		Number::selectEncoderAction(offset);
 	}
 };
-} // namespace menu_item::midi
+} // namespace deluge::gui::menu_item::midi

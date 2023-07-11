@@ -20,7 +20,7 @@
 #include "processing/sound/sound.h"
 #include "processing/engines/audio_engine.h"
 
-namespace menu_item::reverb::compressor {
+namespace deluge::gui::menu_item::reverb::compressor {
 
 class Shape final : public Integer {
 public:
@@ -35,4 +35,4 @@ public:
 	int getMaxValue() const { return 50; }
 	bool isRelevant(Sound* sound, int whichThing) { return (AudioEngine::reverbCompressorVolume >= 0); }
 };
-} // namespace menu_item::reverb::compressor
+} // namespace deluge::gui::menu_item::reverb::compressor

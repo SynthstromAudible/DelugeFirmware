@@ -18,7 +18,7 @@
 #include "gui/menu_item/source/transpose.h"
 #include "processing/sound/sound.h"
 
-namespace menu_item::modulator {
+namespace deluge::gui::menu_item::modulator {
 
 class Transpose final : public source::Transpose {
 public:
@@ -46,4 +46,4 @@ public:
 	bool isRelevant(Sound* sound, int whichThing) { return (sound->getSynthMode() == SYNTH_MODE_FM); }
 };
 
-} // namespace menu_item::modulator
+} // namespace deluge::gui::menu_item::modulator

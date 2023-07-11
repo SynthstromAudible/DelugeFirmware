@@ -20,7 +20,7 @@
 #include "processing/sound/sound.h"
 #include "processing/engines/audio_engine.h"
 
-namespace menu_item::compressor {
+namespace deluge::gui::menu_item::compressor {
 class Attack final : public Integer {
 public:
 	using Integer::Integer;
@@ -37,4 +37,4 @@ public:
 		return !(soundEditor.editingReverbCompressor() && AudioEngine::reverbCompressorVolume < 0);
 	}
 };
-} // namespace menu_item::compressor
+} // namespace deluge::gui::menu_item::compressor

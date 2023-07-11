@@ -17,7 +17,7 @@
 #pragma once
 #include "gui/menu_item/patch_cable_strength.h"
 
-namespace menu_item::patch_cable_strength {
+namespace deluge::gui::menu_item::patch_cable_strength {
 
 class Regular : public PatchCableStrength {
 public:
@@ -33,4 +33,4 @@ public:
 };
 
 extern Regular regularMenu;
-} // namespace menu_item::patch_cable_strength
+} // namespace deluge::gui::menu_item::patch_cable_strength

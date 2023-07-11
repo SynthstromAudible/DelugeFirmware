@@ -20,13 +20,13 @@
 #include "menu_item.h"
 #include "definitions.h"
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 
 class Value : public MenuItem {
 public:
-	Value(char const* newName = NULL) : MenuItem(newName) {}
-	void beginSession(MenuItem* navigatedBackwardFrom);
-	void selectEncoderAction(int offset);
+	using MenuItem::MenuItem;
+	void beginSession(MenuItem* navigatedBackwardFrom) override;
+	void selectEncoderAction(int offset) override;
 	void readValueAgain() final;
 	bool selectEncoderActionEditsInstrument() final { return true; }
 
@@ -38,4 +38,4 @@ protected:
 #endif
 };
 
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

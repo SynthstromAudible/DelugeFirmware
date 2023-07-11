@@ -16,17 +16,17 @@
 */
 #pragma once
 #include "model/mod_controllable/mod_controllable_audio.h"
-#include "gui/menu_item/selection.h"
+#include "gui/menu_item/toggle.h"
 #include "gui/menu_item/sync_level.h"
 #include "gui/ui/sound_editor.h"
 
-namespace menu_item::delay {
+namespace deluge::gui::menu_item::delay {
 
-class PingPong final : public Selection {
+class PingPong final : public Toggle {
 public:
-	using Selection::Selection;
-	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentModControllable->delay.pingPong; }
-	void writeCurrentValue() { soundEditor.currentModControllable->delay.pingPong = soundEditor.currentValue; }
+	using Toggle::Toggle;
+	void readCurrentValue() override { soundEditor.currentValue = soundEditor.currentModControllable->delay.pingPong; }
+	void writeCurrentValue() override { soundEditor.currentModControllable->delay.pingPong = soundEditor.currentValue; }
 };
 
-} // namespace menu_item::delay
+} // namespace deluge::gui::menu_item::delay

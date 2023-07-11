@@ -17,20 +17,21 @@
 
 #pragma once
 
+#include "gui/menu_item/enumeration.h"
 #include "selection.h"
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 
 // This one is "absolute" - if song's insideWorldTickMagnitude changes, such a param's text value will display as a different one, but the music will sound the same
-class SyncLevel : public Selection {
+class SyncLevel : public Enumeration {
 public:
-	using Selection::Selection;
+	using Enumeration::Enumeration;
 	SyncType menuOptionToSyncType(int option);
 	::SyncLevel menuOptionToSyncLevel(int option);
 	int syncTypeAndLevelToMenuOption(SyncType type, ::SyncLevel level);
 
 protected:
-	int getNumOptions() { return 28; }
+	size_t size() override { return 28; }
 	void drawValue() final;
 	virtual void getNoteLengthName(char* buffer);
 #if HAVE_OLED
@@ -38,4 +39,4 @@ protected:
 #endif
 };
 
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

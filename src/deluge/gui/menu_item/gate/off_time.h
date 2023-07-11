@@ -19,7 +19,7 @@
 #include "gui/ui/sound_editor.h"
 #include "processing/engines/cv_engine.h"
 
-namespace menu_item::gate {
+namespace deluge::gui::menu_item::gate {
 class OffTime final : public Decimal {
 public:
 	using Decimal::Decimal;
@@ -30,4 +30,4 @@ public:
 	void readCurrentValue() { soundEditor.currentValue = cvEngine.minGateOffTime; }
 	void writeCurrentValue() { cvEngine.minGateOffTime = soundEditor.currentValue; }
 };
-} // namespace menu_item::gate
+} // namespace deluge::gui::menu_item::gate

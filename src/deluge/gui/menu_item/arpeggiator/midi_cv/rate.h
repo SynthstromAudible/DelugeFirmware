@@ -20,7 +20,7 @@
 #include "model/song/song.h"
 #include "gui/ui/sound_editor.h"
 
-namespace menu_item::arpeggiator::midi_cv {
+namespace deluge::gui::menu_item::arpeggiator::midi_cv {
 class Rate final : public Integer {
 public:
 	Rate(char const* newName = NULL) : Integer(newName) {}
@@ -41,4 +41,4 @@ public:
 	int getMaxValue() const { return 50; }
 	bool isRelevant(Sound* sound, int whichThing) { return soundEditor.editingCVOrMIDIClip(); }
 };
-} // namespace menu_item::arpeggiator::midi_cv
+} // namespace deluge::gui::menu_item::arpeggiator::midi_cv

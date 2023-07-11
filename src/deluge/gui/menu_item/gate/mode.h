@@ -19,14 +19,7 @@
 #include "gui/ui/sound_editor.h"
 #include "processing/engines/cv_engine.h"
 
-namespace menu_item::gate {
-#if HAVE_OLED
-// Why'd I put two NULLs? (Rohan)
-// Gets updated in gate::Selection lol (Kate)
-static char const* mode_options[] = {"V-trig", "S-trig", NULL, NULL};
-#else
-static char const* mode_options[] = {"VTRI", "STRI", NULL, NULL};
-#endif
+namespace deluge::gui::menu_item::gate {
 
 #if HAVE_OLED
 static char mode_title[] = "Gate outX mode";
@@ -35,10 +28,41 @@ static char* mode_title = nullptr;
 #endif
 
 class Mode final : public Selection {
+#if HAVE_OLED
+	char const* options_[3] = {"V-trig", "S-trig", nullptr};
+#else
+	char const* options_[3] = {"VTRI", "STRI", nullptr};
+#endif
+	size_t options_size_ = 2;
+
 public:
-	Mode() : Selection(mode_title) { basicOptions = mode_options; }
-	void readCurrentValue() { soundEditor.currentValue = cvEngine.gateChannels[soundEditor.currentSourceIndex].mode; }
-	void writeCurrentValue() { cvEngine.setGateType(soundEditor.currentSourceIndex, soundEditor.currentValue); }
+	Mode() : Selection(mode_title) {}
+	void readCurrentValue() override {
+		soundEditor.currentValue = cvEngine.gateChannels[soundEditor.currentSourceIndex].mode;
+	}
+	void writeCurrentValue() override {
+		cvEngine.setGateType(soundEditor.currentSourceIndex, soundEditor.currentValue);
+	}
+	Sized<char const**> getOptions() override { return {options_, options_size_}; }
+
+	void updateOptions(int value) {
+		switch (value) {
+		case WHICH_GATE_OUTPUT_IS_CLOCK:
+			options_[2] = "Clock";
+			options_size_ = 3;
+			break;
+
+		case WHICH_GATE_OUTPUT_IS_RUN:
+			options_[2] = HAVE_OLED ? "\"Run\" signal" : "Run";
+			options_size_ = 3;
+			break;
+
+		default:
+			options_[2] = nullptr;
+			options_size_ = 2;
+			break;
+		}
+	}
 };
 
-} // namespace menu_item::gate
+} // namespace deluge::gui::menu_item::gate

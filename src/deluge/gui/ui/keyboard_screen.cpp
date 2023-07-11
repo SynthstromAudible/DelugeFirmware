@@ -43,6 +43,8 @@
 #include "gui/ui_timer_manager.h"
 #include "hid/display/oled.h"
 
+using namespace deluge::gui;
+
 KeyboardScreen keyboardScreen{};
 
 inline InstrumentClip* getCurrentClip() {

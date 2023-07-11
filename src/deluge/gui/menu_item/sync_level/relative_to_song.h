@@ -19,7 +19,7 @@
 #include "gui/ui/sound_editor.h"
 #include "model/song/song.h"
 
-namespace menu_item::sync_level {
+namespace deluge::gui::menu_item::sync_level {
 
 // This one is "relative to the song". In that it'll show its text value to the user, e.g. "16ths", regardless of any song variables, and
 // then when its value gets used for anything, it'll be transposed into the song's magnitude by adding / subtracting the song's insideWorldTickMagnitude
@@ -32,4 +32,4 @@ protected:
 		getNoteLengthNameFromMagnitude(buffer, -6 + 9 - soundEditor.currentValue);
 	}
 };
-} // namespace menu_item::sync_level
+} // namespace deluge::gui::menu_item::sync_level

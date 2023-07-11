@@ -17,7 +17,7 @@
 #pragma once
 #include "regular.h"
 
-namespace menu_item::patch_cable_strength {
+namespace deluge::gui::menu_item::patch_cable_strength {
 
 class Fixed : public Regular {
 public:
@@ -34,4 +34,4 @@ protected:
 	uint8_t p;
 	uint8_t s;
 };
-} // namespace menu_item::patch_cable_strength
+} // namespace deluge::gui::menu_item::patch_cable_strength

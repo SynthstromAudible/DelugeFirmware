@@ -18,7 +18,7 @@
 #include "gui/menu_item/source/patched_param.h"
 #include "processing/sound/sound.h"
 
-namespace menu_item::osc::source {
+namespace deluge::gui::menu_item::osc::source {
 class WaveIndex final : public menu_item::source::PatchedParam {
 public:
 	using PatchedParam::PatchedParam;
@@ -27,4 +27,4 @@ public:
 		return (sound->getSynthMode() != SYNTH_MODE_FM && source->oscType == OSC_TYPE_WAVETABLE);
 	}
 };
-} // namespace menu_item::osc::source
+} // namespace deluge::gui::menu_item::osc::source

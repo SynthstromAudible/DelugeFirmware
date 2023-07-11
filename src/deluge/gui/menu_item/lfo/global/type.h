@@ -19,7 +19,7 @@
 #include "gui/ui/sound_editor.h"
 #include "processing/sound/sound.h"
 
-namespace menu_item::lfo::global {
+namespace deluge::gui::menu_item::lfo::global {
 
 class Type final : public Shape {
 public:
@@ -29,4 +29,4 @@ public:
 	void writeCurrentValue() { soundEditor.currentSound->setLFOGlobalWave(soundEditor.currentValue); }
 };
 
-} // namespace menu_item::lfo::global
+} // namespace deluge::gui::menu_item::lfo::global

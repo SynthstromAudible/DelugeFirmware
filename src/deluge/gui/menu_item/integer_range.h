@@ -19,7 +19,7 @@
 
 #include "range.h"
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 
 class IntegerRange final : public Range {
 public:
@@ -33,4 +33,4 @@ public:
 
 	int minValue, maxValue;
 };
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

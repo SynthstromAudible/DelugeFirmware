@@ -27,7 +27,7 @@ extern "C" {
 #include "util/cfunctions.h"
 }
 
-namespace menu_item::midi {
+namespace deluge::gui::menu_item::midi {
 
 void Command::beginSession(MenuItem* navigatedBackwardFrom) {
 #if !HAVE_OLED
@@ -144,4 +144,4 @@ void Command::learnCC(MIDIDevice* device, int channel, int ccNumber, int value) 
 	if (value)
 		learnNoteOn(device, channel + IS_A_CC, ccNumber);
 }
-} // namespace menu_item::midi
+} // namespace deluge::gui::menu_item::midi

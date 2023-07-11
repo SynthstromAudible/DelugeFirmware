@@ -17,7 +17,7 @@
 #pragma once
 #include "gui/menu_item/patch_cable_strength.h"
 
-namespace menu_item::patch_cable_strength {
+namespace deluge::gui::menu_item::patch_cable_strength {
 class Range final : public PatchCableStrength {
 public:
 	Range(char const* newName = NULL) : PatchCableStrength(newName) {}
@@ -28,4 +28,4 @@ public:
 	MenuItem* patchingSourceShortcutPress(int s, bool previousPressStillActive);
 };
 extern Range rangeMenu;
-} // namespace menu_item::patch_cable_strength
+} // namespace deluge::gui::menu_item::patch_cable_strength

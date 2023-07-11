@@ -19,7 +19,7 @@
 #include "gui/ui/sound_editor.h"
 #include "processing/sound/sound.h"
 
-namespace menu_item::sidechain {
+namespace deluge::gui::menu_item::sidechain {
 class Send final : public Integer {
 public:
 	using Integer::Integer;
@@ -37,4 +37,4 @@ public:
 	int getMaxValue() const { return 50; }
 	bool isRelevant(Sound* sound, int whichThing) { return (soundEditor.editingKit()); }
 };
-} // namespace menu_item::sidechain
+} // namespace deluge::gui::menu_item::sidechain

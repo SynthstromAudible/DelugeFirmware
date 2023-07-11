@@ -21,7 +21,7 @@
 #include "storage/flash_storage.h"
 #include "modulation/params/param_manager.h"
 
-namespace menu_item::bend_range {
+namespace deluge::gui::menu_item::bend_range {
 class Main final : public BendRange {
 public:
 	using BendRange::BendRange;
@@ -39,4 +39,4 @@ public:
 		}
 	}
 };
-} // namespace menu_item::bend_range
+} // namespace deluge::gui::menu_item::bend_range

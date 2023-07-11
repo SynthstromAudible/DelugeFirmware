@@ -23,7 +23,7 @@
 #include "hid/display/oled.h"
 #endif
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 
 #if HAVE_OLED
 void Number::drawBar(int yTop, int marginL, int marginR) {

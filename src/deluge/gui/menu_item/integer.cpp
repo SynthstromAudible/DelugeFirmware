@@ -28,7 +28,7 @@ extern "C" {
 #include "util/cfunctions.h"
 }
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 
 void Integer::selectEncoderAction(int offset) {
 	soundEditor.currentValue += offset;
@@ -84,4 +84,4 @@ void IntegerContinuous::drawPixelsForOled() {
 	drawBar(35, 10);
 }
 #endif
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

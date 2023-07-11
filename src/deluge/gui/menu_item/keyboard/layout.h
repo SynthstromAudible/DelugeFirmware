@@ -15,31 +15,24 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "definitions.h"
 #include "storage/flash_storage.h"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 
-namespace menu_item::keyboard {
+namespace deluge::gui::menu_item::keyboard {
 class Layout final : public Selection {
 public:
 	using Selection::Selection;
-	void readCurrentValue() { soundEditor.currentValue = FlashStorage::keyboardLayout; }
-	void writeCurrentValue() { FlashStorage::keyboardLayout = soundEditor.currentValue; }
-	char const** getOptions() {
+	void readCurrentValue() override { soundEditor.currentValue = FlashStorage::keyboardLayout; }
+	void writeCurrentValue() override { FlashStorage::keyboardLayout = soundEditor.currentValue; }
+	Sized<char const**> getOptions()  override {
 		static char const* options[] = {
 			"QWERTY",
 			"AZERTY",
-#if HAVE_OLED
-			"QWERTZ",
-			NULL
-#else
-			"QRTZ"
-#endif
+			HAVE_OLED ? "QWERTZ" : "QRTZ"
 		};
-		return options;
-	}
-	int getNumOptions() {
-		return NUM_KEYBOARD_LAYOUTS;
+		return {options, NUM_KEYBOARD_LAYOUTS};
 	}
 };
-} // namespace menu_item::keyboard
+} // namespace deluge::gui::menu_item::keyboard

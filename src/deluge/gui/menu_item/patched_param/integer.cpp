@@ -19,7 +19,7 @@
 #include "modulation/params/param_set.h"
 #include "gui/ui/sound_editor.h"
 
-namespace menu_item::patched_param {
+namespace deluge::gui::menu_item::patched_param {
 void Integer::readCurrentValue() {
 	soundEditor.currentValue =
 	    (((int64_t)soundEditor.currentParamManager->getPatchedParamSet()->getValue(getP()) + 2147483648) * 50
@@ -42,4 +42,4 @@ int32_t Integer::getFinalValue() {
 	return (uint32_t)soundEditor.currentValue * 85899345 - 2147483648;
 }
 
-} // namespace menu_item::patched_param
+} // namespace deluge::gui::menu_item::patched_param

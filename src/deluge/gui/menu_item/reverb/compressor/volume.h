@@ -20,7 +20,7 @@
 #include "processing/sound/sound.h"
 #include "processing/engines/audio_engine.h"
 
-namespace menu_item::reverb::compressor {
+namespace deluge::gui::menu_item::reverb::compressor {
 
 class Volume final : public Integer {
 public:
@@ -44,4 +44,4 @@ public:
 #endif
 };
 
-} // namespace menu_item::reverb::compressor
+} // namespace deluge::gui::menu_item::reverb::compressor

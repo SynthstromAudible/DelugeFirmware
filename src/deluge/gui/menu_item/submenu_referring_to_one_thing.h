@@ -17,7 +17,7 @@
 #pragma once
 #include "submenu.h"
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 
 class SubmenuReferringToOneThing : public Submenu {
 public:
@@ -30,4 +30,4 @@ public:
 
 	uint8_t thingIndex;
 };
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

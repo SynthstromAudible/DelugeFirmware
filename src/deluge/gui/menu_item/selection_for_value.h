@@ -19,15 +19,15 @@
 #include "gui/ui/sound_editor.h"
 #include <array>
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 template <typename T>
 class SelectionForValue : public Selection {
 	T& ref_;
 
 public:
-	SelectionForValue(T& value, char const* name = NULL) : ref_(value), Selection(name) {}
-	void readCurrentValue() { soundEditor.currentValue = ref_; }
-	void writeCurrentValue() { ref_ = soundEditor.currentValue; };
+	SelectionForValue(T& value, char const* name = nullptr) : ref_(value), Selection(name) {}
+	void readCurrentValue() override { soundEditor.currentValue = ref_; }
+	void writeCurrentValue() override { ref_ = soundEditor.currentValue; };
 };
 
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

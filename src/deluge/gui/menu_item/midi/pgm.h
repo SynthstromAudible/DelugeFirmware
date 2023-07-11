@@ -17,7 +17,7 @@
 #pragma once
 #include "gui/menu_item/midi/preset.h"
 
-namespace menu_item::midi {
+namespace deluge::gui::menu_item::midi {
 class PGM final : public Preset {
 public:
 	using Preset::Preset;
@@ -29,4 +29,4 @@ public:
 		}
 	}
 };
-} // namespace menu_item::midi
+} // namespace deluge::gui::menu_item::midi

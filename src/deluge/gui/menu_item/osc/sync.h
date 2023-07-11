@@ -15,20 +15,20 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "gui/menu_item/selection.h"
+#include "gui/menu_item/toggle.h"
 #include "gui/ui/sound_editor.h"
 #include "processing/sound/sound.h"
 
-namespace menu_item::osc {
-class Sync final : public Selection {
+namespace deluge::gui::menu_item::osc {
+class Sync final : public Toggle {
 public:
-	Sync(char const* newName = NULL) : Selection(newName) {}
-	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentSound->oscillatorSync; }
-	void writeCurrentValue() { soundEditor.currentSound->oscillatorSync = soundEditor.currentValue; }
-	bool isRelevant(Sound* sound, int whichThing) {
+	using Toggle::Toggle;
+	void readCurrentValue() override { soundEditor.currentValue = soundEditor.currentSound->oscillatorSync; }
+	void writeCurrentValue() override { soundEditor.currentSound->oscillatorSync = soundEditor.currentValue; }
+	bool isRelevant(Sound* sound, int whichThing) override {
 		return (whichThing == 1 && sound->synthMode != SYNTH_MODE_FM && sound->sources[0].oscType != OSC_TYPE_SAMPLE
 		        && sound->sources[1].oscType != OSC_TYPE_SAMPLE);
 	}
 };
 
-} // namespace menu_item::osc
+} // namespace deluge::gui::menu_item::osc

@@ -21,7 +21,7 @@
 
 class ParamDescriptor;
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 class SourceSelection : public MenuItem {
 public:
 	SourceSelection();
@@ -46,4 +46,4 @@ protected:
 	bool sourceIsAllowed(int source);
 	uint8_t shouldDrawDotOnValue();
 };
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

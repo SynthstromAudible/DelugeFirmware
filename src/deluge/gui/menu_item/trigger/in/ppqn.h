@@ -21,7 +21,7 @@
 #include "gui/ui/sound_editor.h"
 
 // Trigger clock in menu
-namespace menu_item::trigger::in {
+namespace deluge::gui::menu_item::trigger::in {
 class PPQN : public menu_item::PPQN {
 public:
 	using menu_item::PPQN::PPQN;
@@ -32,4 +32,4 @@ public:
 			playbackHandler.resyncInternalTicksToInputTicks(currentSong);
 	}
 };
-} // namespace menu_item::trigger::in
+} // namespace deluge::gui::menu_item::trigger::in

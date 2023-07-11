@@ -23,7 +23,7 @@
 
 class ModelStackWithAutoParam;
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 
 class PatchedParam : public Param, public MenuItemWithCCLearning {
 public:
@@ -45,4 +45,4 @@ protected:
 	ParamSet* getParamSet();
 };
 
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

@@ -20,21 +20,20 @@
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 
-namespace menu_item::flash {
+namespace deluge::gui::menu_item::flash {
 class Status final : public Selection {
 public:
 	using Selection::Selection;
-	void readCurrentValue() { soundEditor.currentValue = PadLEDs::flashCursor; }
-	void writeCurrentValue() {
+	void readCurrentValue() override { soundEditor.currentValue = PadLEDs::flashCursor; }
+	void writeCurrentValue() override {
 		if (PadLEDs::flashCursor == FLASH_CURSOR_SLOW) {
 			PadLEDs::clearTickSquares();
 		}
 		PadLEDs::flashCursor = soundEditor.currentValue;
 	}
-	char const** getOptions() {
-		static char const* options[] = {"Fast", "Off", "Slow", NULL};
-		return options;
+	Sized<char const**> getOptions() override {
+		static char const* options[] = {"Fast", "Off", "Slow"};
+		return {options, 3};
 	}
-	int getNumOptions() { return 3; }
 };
-} // namespace menu_item::flash
+} // namespace deluge::gui::menu_item::flash

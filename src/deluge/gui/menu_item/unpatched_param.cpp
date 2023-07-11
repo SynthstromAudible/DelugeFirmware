@@ -28,7 +28,7 @@ extern "C" {
 #include "util/cfunctions.h"
 }
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 
 UnpatchedParam::UnpatchedParam() {
 	// TODO Auto-generated constructor stub
@@ -78,4 +78,4 @@ ParamSet* UnpatchedParam::getParamSet() {
 
 // ---------------------------------------
 
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

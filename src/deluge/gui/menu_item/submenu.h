@@ -19,7 +19,7 @@
 
 #include "menu_item.h"
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 
 class Submenu : public MenuItem {
 public:
@@ -38,4 +38,4 @@ public:
 	MenuItem** items;
 };
 
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

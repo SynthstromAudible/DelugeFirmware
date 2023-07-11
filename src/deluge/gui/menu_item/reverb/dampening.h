@@ -21,7 +21,7 @@
 #include "processing/engines/audio_engine.h"
 #include <cmath>
 
-namespace menu_item::reverb {
+namespace deluge::gui::menu_item::reverb {
 class Dampening final : public Integer {
 public:
 	using Integer::Integer;
@@ -29,4 +29,4 @@ public:
 	void writeCurrentValue() { AudioEngine::reverb.setdamp((float)soundEditor.currentValue / 50); }
 	int getMaxValue() const { return 50; }
 };
-} // namespace menu_item::reverb
+} // namespace deluge::gui::menu_item::reverb

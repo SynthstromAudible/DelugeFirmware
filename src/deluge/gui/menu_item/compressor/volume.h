@@ -18,7 +18,7 @@
 #include "processing/engines/audio_engine.h"
 #include "gui/menu_item/patch_cable_strength/fixed.h"
 
-namespace menu_item::compressor {
+namespace deluge::gui::menu_item::compressor {
 
 class VolumeShortcut final : public patch_cable_strength::Fixed {
 public:
@@ -29,4 +29,4 @@ public:
 	}
 };
 
-} // namespace menu_item::compressor
+} // namespace deluge::gui::menu_item::compressor

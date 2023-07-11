@@ -19,17 +19,19 @@
 #include "processing/sound/sound.h"
 #include "gui/ui/sound_editor.h"
 
-namespace menu_item::modulator {
+namespace deluge::gui::menu_item::modulator {
 class Destination final : public Selection {
 public:
-	Destination(char const* newName = NULL) : Selection(newName) {}
-	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentSound->modulator1ToModulator0; }
-	void writeCurrentValue() { soundEditor.currentSound->modulator1ToModulator0 = soundEditor.currentValue; }
-	char const** getOptions() {
-		static char const* options[] = {"Carriers", HAVE_OLED ? "Modulator 1" : "MOD1", NULL};
-		return options;
+	using Selection::Selection;
+	void readCurrentValue() override { soundEditor.currentValue = soundEditor.currentSound->modulator1ToModulator0; }
+	void writeCurrentValue() override { soundEditor.currentSound->modulator1ToModulator0 = soundEditor.currentValue; }
+	Sized<char const**> getOptions() override {
+		static char const* options[] = {"Carriers", HAVE_OLED ? "Modulator 1" : "MOD1"};
+		return {options, 2};
 	}
-	bool isRelevant(Sound* sound, int whichThing) { return (whichThing == 1 && sound->synthMode == SYNTH_MODE_FM); }
+	bool isRelevant(Sound* sound, int whichThing) override {
+		return (whichThing == 1 && sound->synthMode == SYNTH_MODE_FM);
+	}
 };
 
-} // namespace menu_item::modulator
+} // namespace deluge::gui::menu_item::modulator

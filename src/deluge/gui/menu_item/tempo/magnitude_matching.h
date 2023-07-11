@@ -15,15 +15,15 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "gui/menu_item/selection.h"
+#include "gui/menu_item/toggle.h"
 #include "playback/playback_handler.h"
 #include "gui/ui/sound_editor.h"
 
-namespace menu_item::tempo {
-class MagnitudeMatching final : public Selection {
+namespace deluge::gui::menu_item::tempo {
+class MagnitudeMatching final : public Toggle {
 public:
-	using Selection::Selection;
-	void readCurrentValue() { soundEditor.currentValue = playbackHandler.tempoMagnitudeMatchingEnabled; }
-	void writeCurrentValue() { playbackHandler.tempoMagnitudeMatchingEnabled = soundEditor.currentValue; }
+	using Toggle::Toggle;
+	void readCurrentValue() override { soundEditor.currentValue = playbackHandler.tempoMagnitudeMatchingEnabled; }
+	void writeCurrentValue() override { playbackHandler.tempoMagnitudeMatchingEnabled = soundEditor.currentValue; }
 };
-} // namespace menu_item::tempo
+} // namespace deluge::gui::menu_item::tempo

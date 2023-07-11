@@ -20,7 +20,7 @@
 #include "gui/ui/sound_editor.h"
 #include "hid/display/oled.h"
 
-namespace menu_item::cv {
+namespace deluge::gui::menu_item::cv {
 class Volts final : public Decimal {
 public:
 	using Decimal::Decimal;
@@ -57,4 +57,4 @@ public:
 		}
 	}
 };
-} // namespace menu_item::cv
+} // namespace deluge::gui::menu_item::cv

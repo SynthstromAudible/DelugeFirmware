@@ -26,7 +26,7 @@ extern "C" {
 #include "util/cfunctions.h"
 }
 
-namespace menu_item::patched_param {
+namespace deluge::gui::menu_item::patched_param {
 #if !HAVE_OLED
 void Pan::drawValue() {
 	ParamDescriptor paramDescriptor;
@@ -61,4 +61,4 @@ void Pan::readCurrentValue() {
 	soundEditor.currentValue =
 	    ((int64_t)soundEditor.currentParamManager->getPatchedParamSet()->getValue(getP()) * 64 + 2147483648) >> 32;
 }
-} // namespace menu_item::patched_param
+} // namespace deluge::gui::menu_item::patched_param

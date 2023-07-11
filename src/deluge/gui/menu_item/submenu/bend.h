@@ -20,7 +20,7 @@
 #include "model/song/song.h"
 #include "model/output.h"
 
-namespace menu_item::submenu {
+namespace deluge::gui::menu_item::submenu {
 class Bend final : public Submenu {
 public:
 	Bend(char const* newName = nullptr, MenuItem** newItems = nullptr) : Submenu(newName, newItems) {}
@@ -30,4 +30,4 @@ public:
 		return (type == INSTRUMENT_TYPE_SYNTH || type == INSTRUMENT_TYPE_CV);
 	}
 };
-} // namespace menu_item::submenu
+} // namespace deluge::gui::menu_item::submenu

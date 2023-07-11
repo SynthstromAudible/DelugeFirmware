@@ -20,7 +20,7 @@
 #include "gui/ui/sound_editor.h"
 #include "processing/sound/sound.h"
 
-namespace menu_item::unison {
+namespace deluge::gui::menu_item::unison {
 class Detune final : public Integer {
 public:
 	using Integer::Integer;
@@ -33,4 +33,4 @@ public:
 	}
 	int getMaxValue() const { return MAX_UNISON_DETUNE; }
 };
-} // namespace menu_item::unison
+} // namespace deluge::gui::menu_item::unison

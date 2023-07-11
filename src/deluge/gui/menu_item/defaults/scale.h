@@ -20,13 +20,12 @@
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 
-namespace menu_item::defaults {
+namespace deluge::gui::menu_item::defaults {
 class Scale final : public Selection {
 public:
 	using Selection::Selection;
-	void readCurrentValue() { soundEditor.currentValue = FlashStorage::defaultScale; }
-	void writeCurrentValue() { FlashStorage::defaultScale = soundEditor.currentValue; }
-	int getNumOptions() { return NUM_PRESET_SCALES + 2; }
-	char const** getOptions() { return presetScaleNames; }
+	void readCurrentValue() override { soundEditor.currentValue = FlashStorage::defaultScale; }
+	void writeCurrentValue() override { FlashStorage::defaultScale = soundEditor.currentValue; }
+	Sized<char const**> getOptions() override { return {presetScaleNames, NUM_PRESET_SCALES + 2}; }
 };
-} // namespace menu_item::defaults
+} // namespace deluge::gui::menu_item::defaults

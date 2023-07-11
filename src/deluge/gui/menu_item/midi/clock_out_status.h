@@ -15,15 +15,15 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "gui/menu_item/selection.h"
+#include "gui/menu_item/toggle.h"
 #include "playback/playback_handler.h"
 #include "gui/ui/sound_editor.h"
 
-namespace menu_item::midi {
-class ClockOutStatus final : public Selection {
+namespace deluge::gui::menu_item::midi {
+class ClockOutStatus final : public Toggle {
 public:
-	using Selection::Selection;
-	void readCurrentValue() { soundEditor.currentValue = playbackHandler.midiOutClockEnabled; }
-	void writeCurrentValue() { playbackHandler.setMidiOutClockMode(soundEditor.currentValue); }
+	using Toggle::Toggle;
+	void readCurrentValue() override { soundEditor.currentValue = playbackHandler.midiOutClockEnabled; }
+	void writeCurrentValue() override { playbackHandler.setMidiOutClockMode(soundEditor.currentValue); }
 };
-} // namespace menu_item::midi
+} // namespace deluge::gui::menu_item::midi

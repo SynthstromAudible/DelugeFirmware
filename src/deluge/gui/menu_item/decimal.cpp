@@ -31,7 +31,7 @@ extern "C" {
 #include "util/cfunctions.h"
 }
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 
 void Decimal::beginSession(MenuItem* navigatedBackwardFrom) {
 	soundEditor.numberScrollAmount = 0;
@@ -199,4 +199,4 @@ void Decimal::drawActualValue(bool justDidHorizontalScroll) {
 }
 #endif
 
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

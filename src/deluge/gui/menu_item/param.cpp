@@ -27,7 +27,7 @@
 #include "hid/buttons.h"
 #include "model/model_stack.h"
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 
 MenuItem* Param::selectButtonPress() {
 
@@ -48,4 +48,4 @@ MenuItem* Param::selectButtonPress() {
 		return NULL; // Navigate backwards
 	}
 }
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

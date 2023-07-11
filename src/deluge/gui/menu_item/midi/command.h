@@ -21,7 +21,7 @@
 
 class MIDIDevice;
 
-namespace menu_item::midi {
+namespace deluge::gui::menu_item::midi {
 
 class Command final : public MenuItem {
 public:
@@ -42,4 +42,4 @@ public:
 
 	uint8_t commandNumber;
 };
-} // namespace menu_item::midi
+} // namespace deluge::gui::menu_item::midi

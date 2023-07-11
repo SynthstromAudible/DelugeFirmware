@@ -23,75 +23,73 @@
 #include "model/song/song.h"
 #include "gui/ui/sound_editor.h"
 
-namespace menu_item::sequence {
+namespace deluge::gui::menu_item::sequence {
 class Direction final : public Selection {
 public:
 	using Selection::Selection;
 
 	ModelStackWithNoteRow* getIndividualNoteRow(ModelStackWithTimelineCounter* modelStack) {
-		InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
+		auto* clip = dynamic_cast<InstrumentClip*>(modelStack->getTimelineCounter());
 		if (!clip->affectEntire && clip->output->type == INSTRUMENT_TYPE_KIT) {
-			Kit* kit = (Kit*)currentSong->currentClip->output;
-			if (kit->selectedDrum) {
+			Kit* kit = dynamic_cast<Kit*>(currentSong->currentClip->output);
+			if (kit->selectedDrum != nullptr) {
 				return clip->getNoteRowForDrum(modelStack, kit->selectedDrum); // Still might be NULL;
 			}
 		}
-		return modelStack->addNoteRow(0, NULL);
+		return modelStack->addNoteRow(0, nullptr);
 	}
 
-	void readCurrentValue() {
+	void readCurrentValue() override {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 		ModelStackWithNoteRow* modelStackWithNoteRow = getIndividualNoteRow(modelStack);
 
-		if (modelStackWithNoteRow->getNoteRowAllowNull()) {
+		if (modelStackWithNoteRow->getNoteRowAllowNull() != nullptr) {
 			soundEditor.currentValue = modelStackWithNoteRow->getNoteRow()->sequenceDirectionMode;
 		}
 		else {
-			soundEditor.currentValue = ((InstrumentClip*)currentSong->currentClip)->sequenceDirectionMode;
+			soundEditor.currentValue = (dynamic_cast<InstrumentClip*>(currentSong->currentClip))->sequenceDirectionMode;
 		}
 	}
 
-	void writeCurrentValue() {
+	void writeCurrentValue() override {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 		ModelStackWithNoteRow* modelStackWithNoteRow = getIndividualNoteRow(modelStack);
-		if (modelStackWithNoteRow->getNoteRowAllowNull()) {
+		if (modelStackWithNoteRow->getNoteRowAllowNull() != nullptr) {
 			modelStackWithNoteRow->getNoteRow()->setSequenceDirectionMode(modelStackWithNoteRow,
 			                                                              soundEditor.currentValue);
 		}
 		else {
-			((InstrumentClip*)currentSong->currentClip)
+			(dynamic_cast<InstrumentClip*>(currentSong->currentClip))
 			    ->setSequenceDirectionMode(modelStackWithNoteRow->toWithTimelineCounter(), soundEditor.currentValue);
 		}
 	}
 
-	int getNumOptions() {
+	size_t getNumOptions() {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 		ModelStackWithNoteRow* modelStackWithNoteRow = getIndividualNoteRow(modelStack);
-		return modelStackWithNoteRow->getNoteRowAllowNull() ? 4 : 3;
+		return modelStackWithNoteRow->getNoteRowAllowNull() != nullptr ? 4 : 3;
 	}
 
-	char const** getOptions() {
-		static char const* sequenceDirectionOptions[] = {"FORWARD", "REVERSED", "PING-PONG", NULL, NULL};
+	Sized<char const**> getOptions() override {
+		static char const* sequenceDirectionOptions[] = {"FORWARD", "REVERSED", "PING-PONG", nullptr};
 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 		ModelStackWithNoteRow* modelStackWithNoteRow = getIndividualNoteRow(modelStack);
-		sequenceDirectionOptions[3] = modelStackWithNoteRow->getNoteRowAllowNull() ? "NONE" : NULL;
-		return sequenceDirectionOptions;
+		sequenceDirectionOptions[3] = modelStackWithNoteRow->getNoteRowAllowNull() != nullptr ? "NONE" : nullptr;
+		return {sequenceDirectionOptions, getNumOptions()};
 	}
 
-	int checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) {
-		if (!((InstrumentClip*)currentSong->currentClip)->affectEntire
+	int checkPermissionToBeginSession(Sound* sound, int whichThing, ::MultiRange** currentRange) override {
+		if (!(dynamic_cast<InstrumentClip*>(currentSong->currentClip))->affectEntire
 		    && currentSong->currentClip->output->type == INSTRUMENT_TYPE_KIT
-		    && !((Kit*)currentSong->currentClip->output)->selectedDrum) {
+		    && ((dynamic_cast<Kit*>(currentSong->currentClip->output))->selectedDrum == nullptr)) {
 			return MENU_PERMISSION_NO;
 		}
-		else {
-			return MENU_PERMISSION_YES;
-		}
+		return MENU_PERMISSION_YES;
 	}
 };
-} // namespace menu_item::sequence
+} // namespace deluge::gui::menu_item::sequence

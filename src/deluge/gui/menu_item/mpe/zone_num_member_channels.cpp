@@ -23,7 +23,7 @@
 #include "io/midi/midi_engine.h"
 #include "string.h"
 
-namespace menu_item::mpe {
+namespace deluge::gui::menu_item::mpe {
 
 ZoneNumMemberChannels zoneNumMemberChannelsMenu{};
 
@@ -89,4 +89,4 @@ void ZoneNumMemberChannels::writeCurrentValue() {
 		soundEditor.currentMIDIDevice->sendRPN(masterChannel, 0, 6, soundEditor.currentValue);
 	}
 }
-} // namespace menu_item::mpe
+} // namespace deluge::gui::menu_item::mpe

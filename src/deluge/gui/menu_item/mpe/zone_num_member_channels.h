@@ -22,7 +22,7 @@
 
 class MIDIPort;
 
-namespace menu_item::mpe {
+namespace deluge::gui::menu_item::mpe {
 class ZoneNumMemberChannels final : public IntegerWithOff {
 public:
 	ZoneNumMemberChannels();
@@ -41,4 +41,4 @@ private:
 };
 
 extern ZoneNumMemberChannels zoneNumMemberChannelsMenu;
-} // namespace menu_item::mpe
+} // namespace deluge::gui::menu_item::mpe

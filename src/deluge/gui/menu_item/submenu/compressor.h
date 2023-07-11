@@ -17,7 +17,7 @@
 #pragma once
 #include "gui/menu_item/submenu.h"
 
-namespace menu_item::submenu {
+namespace deluge::gui::menu_item::submenu {
 
 class Compressor final : public Submenu {
 public:
@@ -29,4 +29,4 @@ public:
 
 	bool forReverbCompressor;
 };
-} // namespace menu_item::submenu
+} // namespace deluge::gui::menu_item::submenu

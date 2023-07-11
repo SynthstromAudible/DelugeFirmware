@@ -21,7 +21,7 @@
 #include "storage/flash_storage.h"
 #include "modulation/params/param_manager.h"
 
-namespace menu_item::bend_range {
+namespace deluge::gui::menu_item::bend_range {
 class PerFinger final : public BendRange {
 public:
 	using BendRange::BendRange;
@@ -42,4 +42,4 @@ public:
 		return soundEditor.navigationDepth == 1 || soundEditor.editingKit();
 	}
 };
-} // namespace menu_item::bend_range
+} // namespace deluge::gui::menu_item::bend_range

@@ -23,7 +23,7 @@
 
 #define RUNTIME_FEATURE_SETTING_MAX_OPTIONS 8
 
-namespace menu_item::runtime_feature {
+namespace deluge::gui::menu_item::runtime_feature {
 class Setting;
 class Settings;
 } // namespace menu_item::runtime_feature
@@ -75,8 +75,8 @@ private:
 	ResizeableArray unknownSettings;
 
 public:
-	friend class menu_item::runtime_feature::Setting;
-	friend class menu_item::runtime_feature::Settings;
+	friend class deluge::gui::menu_item::runtime_feature::Setting;
+	friend class deluge::gui::menu_item::runtime_feature::Settings;
 };
 
 /// Static instance for external access

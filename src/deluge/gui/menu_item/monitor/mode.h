@@ -15,21 +15,21 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "definitions.h"
 #include "gui/menu_item/selection.h"
 #include "processing/engines/audio_engine.h"
 #include "gui/ui/sound_editor.h"
 
-namespace menu_item::monitor {
+namespace deluge::gui::menu_item::monitor {
 class Mode final : public Selection {
 public:
 	using Selection::Selection;
 
-	void readCurrentValue() { soundEditor.currentValue = AudioEngine::inputMonitoringMode; }
-	void writeCurrentValue() { AudioEngine::inputMonitoringMode = soundEditor.currentValue; }
-	char const** getOptions() {
-		static char const* options[] = {"Conditional", "On", "Off", NULL};
-		return options;
+	void readCurrentValue() override { soundEditor.currentValue = AudioEngine::inputMonitoringMode; }
+	void writeCurrentValue() override { AudioEngine::inputMonitoringMode = soundEditor.currentValue; }
+	Sized<char const**> getOptions() override {
+		static char const* options[] = {"Conditional", "On", "Off"};
+		return {options, NUM_INPUT_MONITORING_MODES};
 	}
-	int getNumOptions() { return NUM_INPUT_MONITORING_MODES; }
 };
-} // namespace menu_item::monitor
+} // namespace deluge::gui::menu_item::monitor

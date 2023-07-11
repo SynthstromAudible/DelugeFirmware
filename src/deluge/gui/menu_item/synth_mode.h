@@ -21,23 +21,23 @@
 #include "model/song/song.h"
 #include "gui/views/view.h"
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 class SynthMode final : public Selection {
 public:
 	using Selection::Selection;
-	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentSound->synthMode; }
-	void writeCurrentValue() {
+	void readCurrentValue() override { soundEditor.currentValue = soundEditor.currentSound->synthMode; }
+	void writeCurrentValue() override {
 		soundEditor.currentSound->setSynthMode(soundEditor.currentValue, currentSong);
 		view.setKnobIndicatorLevels();
 	}
-	char const** getOptions() {
-		static char const* options[] = {"Subtractive", "FM", "Ringmod", NULL};
-		return options;
+	Sized<char const**> getOptions() override {
+		static char const* options[] = {"Subtractive", "FM", "Ringmod"};
+		return {options, 3};
 	}
-	int getNumOptions() { return 3; }
-	bool isRelevant(Sound* sound, int whichThing) {
+
+	bool isRelevant(Sound* sound, int whichThing) override {
 		return (sound->sources[0].oscType < NUM_OSC_TYPES_RINGMODDABLE
 		        && sound->sources[1].oscType < NUM_OSC_TYPES_RINGMODDABLE);
 	}
 };
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

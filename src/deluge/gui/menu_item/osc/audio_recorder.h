@@ -22,7 +22,7 @@
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
 
-namespace menu_item::osc {
+namespace deluge::gui::menu_item::osc {
 class AudioRecorder final : public MenuItem {
 public:
 	AudioRecorder(char const* newName = 0) : MenuItem(newName) {}
@@ -55,4 +55,4 @@ public:
 		return soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(sound, whichThing, false, currentRange);
 	}
 };
-} // namespace menu_item::osc
+} // namespace deluge::gui::menu_item::osc

@@ -19,7 +19,7 @@
 
 #include "menu_item.h"
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 
 enum class RangeEdit : uint8_t {
 	OFF = 0,
@@ -46,4 +46,4 @@ protected:
 	void drawPixelsForOled();
 #endif
 };
-} // namespace menu_item
+} // namespace deluge::gui::menu_item
