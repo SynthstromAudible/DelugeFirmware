@@ -101,7 +101,7 @@ int KeyboardScreen::padAction(int x, int y, int velocity) {
 
 		bool clipIsActiveOnInstrument = makeCurrentClipActiveOnInstrumentIfPossible(modelStack);
 		if (!clipIsActiveOnInstrument && velocity) {
-			IndicatorLEDs::indicateAlertOnLed(sessionViewButtonX, sessionViewButtonY);
+			indicator_leds::indicateAlertOnLed(IndicatorLED::SESSION_VIEW);
 		}
 
 		Instrument* instrument = (Instrument*)currentSong->currentClip->output;
@@ -374,13 +374,8 @@ int KeyboardScreen::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 		}
 	}
 
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-	// Clip view button - exit mode
-	else if (b == CLIP_VIEW) {
-#else
 	// Keyboard button - exit mode
 	else if (b == KEYBOARD) {
-#endif
 		if (on && currentUIMode == UI_MODE_NONE) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -425,11 +420,9 @@ doOther:
 
 	// Kit button
 	else if (b == KIT && currentUIMode == UI_MODE_NONE) {
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 		if (on) {
-			IndicatorLEDs::indicateAlertOnLed(keyboardLedX, keyboardLedX);
+			indicator_leds::indicateAlertOnLed(IndicatorLED::KEYBOARD);
 		}
-#endif
 	}
 
 	else {
@@ -857,10 +850,7 @@ void KeyboardScreen::exitScaleMode() {
 }
 
 void KeyboardScreen::setLedStates() {
-
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 	IndicatorLEDs::setLedState(keyboardLedX, keyboardLedY, true);
-#endif
 	InstrumentClipMinder::setLedStates();
 }
 
@@ -879,15 +869,9 @@ bool KeyboardScreen::getAffectEntire() {
 	return getCurrentClip()->affectEntire;
 }
 
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-uint8_t keyboardTickSquares[displayHeight] = {255, 255, 255, 255};
-const uint8_t keyboardTickColoursBasicRecording[displayHeight] = {0, 0, 0, 0};
-const uint8_t keyboardTickColoursLinearRecording[displayHeight] = {0, 0, 0, 2};
-#else
 uint8_t keyboardTickSquares[displayHeight] = {255, 255, 255, 255, 255, 255, 255, 255};
 const uint8_t keyboardTickColoursBasicRecording[displayHeight] = {0, 0, 0, 0, 0, 0, 0, 0};
 const uint8_t keyboardTickColoursLinearRecording[displayHeight] = {0, 0, 0, 0, 0, 0, 0, 2};
-#endif
 
 void KeyboardScreen::graphicsRoutine() {
 	int newTickSquare;

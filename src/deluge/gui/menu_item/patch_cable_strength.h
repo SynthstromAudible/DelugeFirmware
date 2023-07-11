@@ -24,6 +24,7 @@ namespace menu_item {
 class PatchCableStrength : public Decimal, public MenuItemWithCCLearning {
 public:
 	using Decimal::Decimal;
+	void beginSession(MenuItem* navigatedBackwardFrom) final;
 	void readCurrentValue() final;
 	void writeCurrentValue();
 	int getMinValue() const final { return -5000; }
@@ -50,6 +51,7 @@ public:
 	};
 
 protected:
+	bool preferBarDrawing = false;
 	ModelStackWithAutoParam* getModelStack(void* memory, bool allowCreation = false);
 };
 
