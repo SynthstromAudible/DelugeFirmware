@@ -184,10 +184,10 @@ void SoundEditor::setLedStates() {
 
 	indicator_leds::setLedState(indicator_leds::SYNTH, !inSettingsMenu() && !editingKit() && currentSound);
 	indicator_leds::setLedState(indicator_leds::KIT, !inSettingsMenu() && editingKit() && currentSound);
-	indicator_leds::setLedState(indicator_leds::MIDI,
-	                           !inSettingsMenu() && currentSong->currentClip->output->type == INSTRUMENT_TYPE_MIDI_OUT);
+	indicator_leds::setLedState(
+	    indicator_leds::MIDI, !inSettingsMenu() && currentSong->currentClip->output->type == INSTRUMENT_TYPE_MIDI_OUT);
 	indicator_leds::setLedState(indicator_leds::CV,
-	                           !inSettingsMenu() && currentSong->currentClip->output->type == INSTRUMENT_TYPE_CV);
+	                            !inSettingsMenu() && currentSong->currentClip->output->type == INSTRUMENT_TYPE_CV);
 
 	indicator_leds::setLedState(indicator_leds::CROSS_SCREEN_EDIT, false);
 	indicator_leds::setLedState(indicator_leds::SCALE_MODE, false);

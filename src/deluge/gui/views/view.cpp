@@ -115,7 +115,7 @@ void View::setTripletsLedState() {
 	RootUI* rootUI = getRootUI();
 
 	indicator_leds::setLedState(indicator_leds::TRIPLETS,
-	                           rootUI->isTimelineView() && ((TimelineView*)rootUI)->inTripletsView());
+	                            rootUI->isTimelineView() && ((TimelineView*)rootUI)->inTripletsView());
 }
 
 extern int pendingGlobalMIDICommandNumClustersWritten;

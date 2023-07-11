@@ -197,8 +197,7 @@ int ArrangerView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	else if (b == CROSS_SCREEN_EDIT) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 			currentSong->arrangerAutoScrollModeActive = !currentSong->arrangerAutoScrollModeActive;
-			indicator_leds::setLedState(indicator_leds::CROSS_SCREEN_EDIT,
-			                           currentSong->arrangerAutoScrollModeActive);
+			indicator_leds::setLedState(indicator_leds::CROSS_SCREEN_EDIT, currentSong->arrangerAutoScrollModeActive);
 
 			if (currentSong->arrangerAutoScrollModeActive) {
 				reassessWhetherDoingAutoScroll();

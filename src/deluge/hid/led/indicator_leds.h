@@ -26,19 +26,13 @@ namespace indicator_leds {
 
 constexpr uint8_t uartBase =
 #if DELUGE_MODEL >= DELUGE_MODEL_144_PAD
-	152;
+    152;
 #else
-	120;
+    120;
 #endif
 
 constexpr uint8_t fromXY(int x, int y) {
-	return x + y *
-#if DELUGE_MODEL >= DELUGE_MODEL_144_PAD
-		9
-#else
-		10
-#endif
-	;
+	return x + y * NUM_LED_COLS;
 }
 
 // clang-format off
@@ -84,9 +78,9 @@ enum IndicatorLED : uint8_t {
 // clang-format on
 
 #if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-const IndicatorLED modLed[6] = { MOD_0, MOD_1, MOD_2, MOD_3, MOD_4, MOD_5 };
+const IndicatorLED modLed[6] = {MOD_0, MOD_1, MOD_2, MOD_3, MOD_4, MOD_5};
 #else
-const IndicatorLED modLed[8] = { MOD_0, MOD_1, MOD_2, MOD_3, MOD_4, MOD_5, MOD_6, MOD_7 };
+const IndicatorLED modLed[8] = {MOD_0, MOD_1, MOD_2, MOD_3, MOD_4, MOD_5, MOD_6, MOD_7};
 #endif
 
 struct LedBlinker {
