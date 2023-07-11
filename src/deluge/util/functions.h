@@ -241,11 +241,6 @@ int32_t getFinalParameterValueExpWithDumbEnvelopeHack(int32_t paramNeutralValue,
 
 void addAudio(StereoSample* inputBuffer, StereoSample* outputBuffer, int numSamples);
 
-void setRefreshTime(int newTime);
-void changeRefreshTime(int offset);
-void changeDimmerInterval(int offset);
-void setDimmerInterval(int newInterval);
-
 #if HAVE_OLED
 char const* getSourceDisplayNameForOLED(int s);
 char const* getPatchedParamDisplayNameForOled(int p);

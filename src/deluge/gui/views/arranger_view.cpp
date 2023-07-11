@@ -1723,7 +1723,7 @@ void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 	PadLEDs::explodeAnimationXWidthBig = ((uint32_t)(end - start) / currentSong->xZoom[NAVIGATION_ARRANGEMENT]) << 16;
 
 	PadLEDs::recordTransitionBegin(clipCollapseSpeed);
-	PadLEDs::animationDirection = 1;
+	PadLEDs::explodeAnimationDirection = 1;
 	if (clip->type == CLIP_TYPE_AUDIO) {
 		PadLEDs::renderAudioClipExplodeAnimation(0);
 	}
@@ -1823,7 +1823,7 @@ bool ArrangerView::transitionToArrangementEditor() {
 	PadLEDs::explodeAnimationXWidthBig = ((end - start) / currentSong->xZoom[NAVIGATION_ARRANGEMENT]) << 16;
 
 	PadLEDs::recordTransitionBegin(clipCollapseSpeed);
-	PadLEDs::animationDirection = -1;
+	PadLEDs::explodeAnimationDirection = -1;
 
 	if (getCurrentUI() == &instrumentClipView) {
 		PadLEDs::clearSideBar();

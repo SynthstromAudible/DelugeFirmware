@@ -247,65 +247,6 @@ int32_t cableToExpParamShortcut(int32_t sourceValue) {
 	return sourceValue >> 2;
 }
 
-int refreshTime;
-int dimmerInterval = 0;
-
-void setRefreshTime(int newTime) {
-	refreshTime = newTime;
-	bufferPICPadsUart(PIC_MESSAGE_REFRESH_TIME); // Set refresh rate inverse
-	bufferPICPadsUart(refreshTime);
-}
-
-void changeRefreshTime(int offset) {
-	int newTime = refreshTime + offset;
-	if (newTime > 255 || newTime < 1) {
-		return;
-	}
-	setRefreshTime(newTime);
-	char buffer[12];
-	intToString(refreshTime, buffer);
-	numericDriver.displayPopup(buffer);
-}
-
-void changeDimmerInterval(int offset) {
-	int newInterval = dimmerInterval - offset;
-	if (newInterval > 25 || newInterval < 0) {}
-	else {
-		setDimmerInterval(newInterval);
-	}
-
-#if HAVE_OLED
-	char text[20];
-	strcpy(text, "Brightness: ");
-	char* pos = strchr(text, 0);
-	intToString((25 - dimmerInterval) << 2, pos);
-	pos = strchr(text, 0);
-	*(pos++) = '%';
-	*pos = 0;
-	OLED::popupText(text);
-#endif
-}
-
-void setDimmerInterval(int newInterval) {
-	//Uart::print("dimmerInterval: ");
-	//Uart::println(newInterval);
-	dimmerInterval = newInterval;
-
-	int newRefreshTime = 23 - newInterval;
-	while (newRefreshTime < 6) {
-		newRefreshTime++;
-		newInterval *= 1.2;
-	}
-
-	//Uart::print("newInterval: ");
-	//Uart::println(newInterval);
-
-	setRefreshTime(newRefreshTime);
-
-	bufferPICPadsUart(243); // Set dimmer interval
-	bufferPICPadsUart(newInterval);
-}
-
 char const* sourceToString(uint8_t source) {
 
 	switch (source) {
