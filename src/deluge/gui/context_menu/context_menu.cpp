@@ -207,7 +207,7 @@ void ContextMenu::drawCurrentOption() {
 #if HAVE_OLED
 
 #else
-	IndicatorLEDs::ledBlinkTimeout(0, true);
+	indicator_leds::ledBlinkTimeout(0, true);
 	numericDriver.setText(options[currentOption], false, 255, true);
 #endif
 }
@@ -225,13 +225,13 @@ int ContextMenu::padAction(int x, int y, int on) {
 }
 
 void ContextMenuForSaving::focusRegained() {
-	IndicatorLEDs::setLedState(IndicatorLEDs::LOAD, false);
-	IndicatorLEDs::blinkLed(IndicatorLEDs::SAVE);
+	indicator_leds::setLedState(indicator_leds::LOAD, false);
+	indicator_leds::blinkLed(indicator_leds::SAVE);
 	return ContextMenu::focusRegained();
 }
 
 void ContextMenuForLoading::focusRegained() {
-	IndicatorLEDs::setLedState(IndicatorLEDs::SAVE, false);
-	IndicatorLEDs::blinkLed(IndicatorLEDs::LOAD);
+	indicator_leds::setLedState(indicator_leds::SAVE, false);
+	indicator_leds::blinkLed(indicator_leds::LOAD);
 	return ContextMenu::focusRegained();
 }

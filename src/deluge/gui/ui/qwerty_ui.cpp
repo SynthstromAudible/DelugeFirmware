@@ -42,7 +42,7 @@ QwertyUI::QwertyUI() {
 
 bool QwertyUI::opened() {
 
-	IndicatorLEDs::blinkLed(IndicatorLEDs::BACK);
+	indicator_leds::blinkLed(indicator_leds::BACK);
 
 	enteredTextEditPos = 0;
 	enteredText.clear();
@@ -187,7 +187,7 @@ void QwertyUI::displayText(bool blinkImmediately) {
 		}
 	}
 
-	IndicatorLEDs::ledBlinkTimeout(0, true, !blinkImmediately);
+	indicator_leds::ledBlinkTimeout(0, true, !blinkImmediately);
 
 	// Set the text, replacing the bottom layer - cos in some cases, we want this to slip under an existing loading animation layer
 	numericDriver.setText(enteredText.get(), false, 255, true, blinkMask, false, false, scrollPos, encodedAddition,

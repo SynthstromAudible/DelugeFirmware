@@ -22,7 +22,7 @@
 
 #define numLedBlinkers 4
 
-namespace IndicatorLEDs {
+namespace indicator_leds {
 
 constexpr uint8_t uartBase =
 #if DELUGE_MODEL >= DELUGE_MODEL_144_PAD
@@ -32,16 +32,17 @@ constexpr uint8_t uartBase =
 #endif
 
 constexpr uint8_t fromXY(int x, int y) {
+	return x + y *
 #if DELUGE_MODEL >= DELUGE_MODEL_144_PAD
-	return uartBase + x + y * 9;
+		9
 #else
-	return uartBase + x + y * 10;
+		10
 #endif
+	;
 }
 
-typedef uint8_t IndicatorLED;
-
-enum KnownIndicatorLEDs : IndicatorLED {
+// clang-format off
+enum IndicatorLED : uint8_t {
 	AFFECT_ENTIRE     = fromXY(affectEntireLedX, affectEntireLedY),
 	SESSION_VIEW      = fromXY(sessionViewLedX, sessionViewLedY),
 	CLIP_VIEW         = fromXY(clipViewLedX, clipViewLedY),
@@ -62,28 +63,30 @@ enum KnownIndicatorLEDs : IndicatorLED {
 	PLAY              = fromXY(playLedX, playLedY),
 	RECORD            = fromXY(recordLedX, recordLedY),
 	SHIFT             = fromXY(shiftLedX, shiftLedY),
+#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
+	MOD_0 = fromXY(0,2),
+	MOD_1 = fromXY(0,3),
+	MOD_2 = fromXY(1,3),
+	MOD_3 = fromXY(1,2),
+	MOD_4 = fromXY(2,2),
+	MOD_5 = fromXY(3,2),
+#else
+	MOD_0 = fromXY(1,0),
+	MOD_1 = fromXY(1,1),
+	MOD_2 = fromXY(1,2),
+	MOD_3 = fromXY(1,3),
+	MOD_4 = fromXY(2,0),
+	MOD_5 = fromXY(2,1),
+	MOD_6 = fromXY(2,2),
+	MOD_7 = fromXY(2,3),
+#endif
 };
+// clang-format on
 
 #if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-const IndicatorLED modLed[6] = {
-	fromXY(0,2),
-	fromXY(0,3),
-	fromXY(1,3),
-	fromXY(1,2),
-	fromXY(2,2),
-	fromXY(3,2),
-};
+const IndicatorLED modLed[6] = { MOD_0, MOD_1, MOD_2, MOD_3, MOD_4, MOD_5 };
 #else
-const IndicatorLED modLed[8] = {
-	fromXY(1,0),
-	fromXY(1,1),
-	fromXY(1,2),
-	fromXY(1,3),
-	fromXY(2,0),
-	fromXY(2,1),
-	fromXY(2,2),
-	fromXY(2,3),
-};
+const IndicatorLED modLed[8] = { MOD_0, MOD_1, MOD_2, MOD_3, MOD_4, MOD_5, MOD_6, MOD_7 };
 #endif
 
 struct LedBlinker {
@@ -110,4 +113,4 @@ void stopLedBlinking(IndicatorLED led, bool resetState = false);
 bool updateBlinkingLedStates(uint8_t blinkingType);
 bool isKnobIndicatorBlinking(int whichKnob);
 
-} // namespace IndicatorLEDs
+} // namespace indicator_leds

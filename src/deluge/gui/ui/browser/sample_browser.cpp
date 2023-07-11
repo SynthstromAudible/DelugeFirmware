@@ -168,12 +168,12 @@ dissectionDone:
 		goto sdError;
 	}
 
-	IndicatorLEDs::setLedState(IndicatorLEDs::SYNTH, !soundEditor.editingKit());
-	IndicatorLEDs::setLedState(IndicatorLEDs::KIT, soundEditor.editingKit());
+	indicator_leds::setLedState(indicator_leds::SYNTH, !soundEditor.editingKit());
+	indicator_leds::setLedState(indicator_leds::KIT, soundEditor.editingKit());
 
-	IndicatorLEDs::setLedState(IndicatorLEDs::CROSS_SCREEN_EDIT, false);
-	IndicatorLEDs::setLedState(IndicatorLEDs::SESSION_VIEW, false);
-	IndicatorLEDs::setLedState(IndicatorLEDs::SCALE_MODE, false);
+	indicator_leds::setLedState(indicator_leds::CROSS_SCREEN_EDIT, false);
+	indicator_leds::setLedState(indicator_leds::SESSION_VIEW, false);
+	indicator_leds::setLedState(indicator_leds::SCALE_MODE, false);
 
 	//soundEditor.setupShortcutBlink(soundEditor.currentSourceIndex, 5, 0);
 
@@ -201,7 +201,7 @@ void SampleBrowser::possiblySetUpBlinking() {
 
 void SampleBrowser::focusRegained() {
 	//displayCurrentFilename();
-	IndicatorLEDs::setLedState(IndicatorLEDs::SAVE, false); // In case returning from delete-file context menu
+	indicator_leds::setLedState(indicator_leds::SAVE, false); // In case returning from delete-file context menu
 }
 
 void SampleBrowser::folderContentsReady(int entryDirection) {

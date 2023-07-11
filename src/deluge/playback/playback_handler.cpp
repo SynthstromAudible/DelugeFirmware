@@ -2135,25 +2135,25 @@ void PlaybackHandler::displayTempoBPM(float tempoBPM) {
 
 void PlaybackHandler::setLedStates() {
 
-	IndicatorLEDs::setLedState(IndicatorLEDs::PLAY, playbackState);
+	indicator_leds::setLedState(indicator_leds::PLAY, playbackState);
 
 	if (audioRecorder.recordingSource < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION
 	    && recording != RECORDING_ARRANGEMENT) {
-		IndicatorLEDs::setLedState(IndicatorLEDs::RECORD, recording == RECORDING_NORMAL);
+		indicator_leds::setLedState(indicator_leds::RECORD, recording == RECORDING_NORMAL);
 	}
 
 	bool syncedLEDOn = playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE;
 #if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-	IndicatorLEDs::setLedState(IndicatorLEDs::SYNCED, syncedLEDOn);
+	indicator_leds::setLedState(indicator_leds::SYNCED, syncedLEDOn);
 #else
 	setOutputState(SYNCED_LED_PORT, SYNCED_LED_PIN, syncedLEDOn);
 #endif
 
 	if (currentUIMode == UI_MODE_TAP_TEMPO) {
-		IndicatorLEDs::blinkLed(IndicatorLEDs::TAP_TEMPO, 255, 1);
+		indicator_leds::blinkLed(indicator_leds::TAP_TEMPO, 255, 1);
 	}
 	else {
-		IndicatorLEDs::setLedState(IndicatorLEDs::TAP_TEMPO, metronomeOn);
+		indicator_leds::setLedState(indicator_leds::TAP_TEMPO, metronomeOn);
 	}
 }
 
@@ -2413,7 +2413,7 @@ void PlaybackHandler::tapTempoButtonPress() {
 	}
 	tapTempoNumPresses++;
 
-	IndicatorLEDs::blinkLed(IndicatorLEDs::TAP_TEMPO, 255, 1);
+	indicator_leds::blinkLed(indicator_leds::TAP_TEMPO, 255, 1);
 
 	uiTimerManager.setTimer(TIMER_TAP_TEMPO_SWITCH_OFF, 1100);
 }

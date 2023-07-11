@@ -101,16 +101,16 @@ void View::focusRegained() {
 	uiTimerManager.unsetTimer(TIMER_SHORTCUT_BLINK);
 	setTripletsLedState();
 
-	IndicatorLEDs::setLedState(IndicatorLEDs::LOAD, false);
-	IndicatorLEDs::setLedState(IndicatorLEDs::SAVE, false);
+	indicator_leds::setLedState(indicator_leds::LOAD, false);
+	indicator_leds::setLedState(indicator_leds::SAVE, false);
 
-	IndicatorLEDs::setLedState(learnButtonX, learnButtonY, false);
+	indicator_leds::setLedState(indicator_leds::LEARN, false);
 }
 
 void View::setTripletsLedState() {
 	RootUI* rootUI = getRootUI();
 
-	IndicatorLEDs::setLedState(IndicatorLEDs::TRIPLETS,
+	indicator_leds::setLedState(indicator_leds::TRIPLETS,
 	                           rootUI->isTimelineView() && ((TimelineView*)rootUI)->inTripletsView());
 }
 
@@ -170,7 +170,7 @@ doEndMidiLearnPressSession:
 				shouldSaveSettingsAfterMidiLearn = false;
 				currentUIMode = UI_MODE_MIDI_LEARN;
 				midiLearnFlash();
-				IndicatorLEDs::blinkLed(IndicatorLEDs::LEARN, 255, 1);
+				indicator_leds::blinkLed(indicator_leds::LEARN, 255, 1);
 			}
 		}
 		else {
@@ -222,7 +222,7 @@ doEndMidiLearnPressSession:
 				if (currentUIMode == UI_MODE_NONE && !Buttons::isShiftButtonPressed()) {
 					currentUIMode = UI_MODE_HOLDING_SAVE_BUTTON;
 					timeSaveButtonPressed = AudioEngine::audioSampleTimer;
-					IndicatorLEDs::setLedState(IndicatorLEDs::SAVE, true);
+					indicator_leds::setLedState(indicator_leds::SAVE, true);
 				}
 			}
 
@@ -244,7 +244,7 @@ doEndMidiLearnPressSession:
 						}
 					}
 					else {
-						IndicatorLEDs::setLedState(IndicatorLEDs::SAVE, false);
+						indicator_leds::setLedState(indicator_leds::SAVE, false);
 					}
 				}
 			}
@@ -273,7 +273,7 @@ doEndMidiLearnPressSession:
 					else {
 						currentUIMode = UI_MODE_HOLDING_LOAD_BUTTON;
 						timeSaveButtonPressed = AudioEngine::audioSampleTimer;
-						IndicatorLEDs::setLedState(IndicatorLEDs::LOAD, true);
+						indicator_leds::setLedState(indicator_leds::LOAD, true);
 					}
 				}
 			}
@@ -296,7 +296,7 @@ doEndMidiLearnPressSession:
 						}
 					}
 					else {
-						IndicatorLEDs::setLedState(IndicatorLEDs::LOAD, false);
+						indicator_leds::setLedState(indicator_leds::LOAD, false);
 					}
 				}
 			}
@@ -320,7 +320,7 @@ cant:
 			// If no scaling currently, start it, if we're on a Clip-minder screen
 			if (!currentSong->getSyncScalingClip()) {
 				if (!getCurrentUI()->toClipMinder()) {
-					IndicatorLEDs::indicateAlertOnLed(IndicatorLEDs::CLIP_VIEW);
+					indicator_leds::indicateAlertOnLed(indicator_leds::CLIP_VIEW);
 					return ACTION_RESULT_DEALT_WITH;
 				}
 
@@ -436,18 +436,18 @@ void View::endMIDILearn() {
 	}
 	currentUIMode = UI_MODE_NONE;
 	playbackHandler.setLedStates();
-	IndicatorLEDs::setLedState(IndicatorLEDs::LEARN, false);
+	indicator_leds::setLedState(indicator_leds::LEARN, false);
 }
 
 void View::setTimeBaseScaleLedState() {
 	// If this Clip is the inputTickScaleClip, flash the LED
 	if (getCurrentUI()->toClipMinder() && currentSong->currentClip == currentSong->getSyncScalingClip()) {
-		IndicatorLEDs::blinkLed(IndicatorLEDs::SYNC_SCALING);
+		indicator_leds::blinkLed(indicator_leds::SYNC_SCALING);
 	}
 
 	// Otherwise, just light it solidly on or off
 	else {
-		IndicatorLEDs::setLedState(IndicatorLEDs::SYNC_SCALING, currentSong->getSyncScalingClip() != NULL);
+		indicator_leds::setLedState(indicator_leds::SYNC_SCALING, currentSong->getSyncScalingClip() != NULL);
 	}
 }
 
@@ -769,15 +769,15 @@ void View::midiLearnFlash() {
 
 	if (midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_PLAY].containsSomething()
 	    || thingPressedForMidiLearn == MIDI_LEARN_PLAY_BUTTON) {
-		IndicatorLEDs::setLedState(IndicatorLEDs::PLAY, midiLearnFlashOn);
+		indicator_leds::setLedState(indicator_leds::PLAY, midiLearnFlashOn);
 	}
 	if (midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_RECORD].containsSomething()
 	    || thingPressedForMidiLearn == MIDI_LEARN_RECORD_BUTTON) {
-		IndicatorLEDs::setLedState(IndicatorLEDs::RECORD, midiLearnFlashOn);
+		indicator_leds::setLedState(indicator_leds::RECORD, midiLearnFlashOn);
 	}
 	if (midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_TAP].containsSomething()
 	    || thingPressedForMidiLearn == MIDI_LEARN_TAP_TEMPO_BUTTON) {
-		IndicatorLEDs::setLedState(IndicatorLEDs::TAP_TEMPO, midiLearnFlashOn);
+		indicator_leds::setLedState(indicator_leds::TAP_TEMPO, midiLearnFlashOn);
 	}
 }
 
@@ -882,13 +882,13 @@ void View::modEncoderAction(int whichModEncoder, int offset) {
 
 				if (!newKnobPos
 				    && modelStackWithParam->paramCollection->shouldParamIndicateMiddleValue(modelStackWithParam)) {
-					IndicatorLEDs::blinkKnobIndicator(whichModEncoder);
+					indicator_leds::blinkKnobIndicator(whichModEncoder);
 
 					// Make it harder to turn that knob away from its centred position
 					Encoders::timeModEncoderLastTurned[whichModEncoder] = AudioEngine::audioSampleTimer - 44100;
 				}
 				else {
-					IndicatorLEDs::stopBlinkingKnobIndicator(whichModEncoder);
+					indicator_leds::stopBlinkingKnobIndicator(whichModEncoder);
 				}
 			}
 		}
@@ -955,14 +955,14 @@ void View::setKnobIndicatorLevels() {
 
 	if (activeModControllableModelStack.modControllable) {
 		for (int whichModEncoder = 0; whichModEncoder < NUM_LEVEL_INDICATORS; whichModEncoder++) {
-			if (!IndicatorLEDs::isKnobIndicatorBlinking(whichModEncoder)) {
+			if (!indicator_leds::isKnobIndicatorBlinking(whichModEncoder)) {
 				setKnobIndicatorLevel(whichModEncoder);
 			}
 		}
 	}
 
 	else {
-		IndicatorLEDs::clearKnobIndicatorLevels();
+		indicator_leds::clearKnobIndicatorLevels();
 	}
 }
 
@@ -991,7 +991,7 @@ void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
 		    modelStackWithParam->modControllable->getKnobPosForNonExistentParam(whichModEncoder, modelStackWithParam);
 	}
 
-	IndicatorLEDs::setKnobIndicatorLevel(whichModEncoder, knobPos + 64);
+	indicator_leds::setKnobIndicatorLevel(whichModEncoder, knobPos + 64);
 }
 
 static const uint32_t modButtonUIModes[] = {UI_MODE_AUDITIONING,
@@ -1049,9 +1049,9 @@ void View::setModLedStates() {
 			affectEntire = ((InstrumentClip*)currentSong->currentClip)->affectEntire;
 		}
 	}
-	IndicatorLEDs::setLedState(IndicatorLEDs::AFFECT_ENTIRE, affectEntire);
+	indicator_leds::setLedState(indicator_leds::AFFECT_ENTIRE, affectEntire);
 
-	IndicatorLEDs::setLedState(IndicatorLEDs::CLIP_VIEW, !itsTheSong);
+	indicator_leds::setLedState(indicator_leds::CLIP_VIEW, !itsTheSong);
 #else
 	if (!itsTheSong) {
 		bool shouldBlink = false;
@@ -1062,29 +1062,29 @@ void View::setModLedStates() {
 
 		if (!shouldBlink)
 			goto noBlinking;
-		IndicatorLEDs::blinkLed(IndicatorLEDs::CLIP_VIEW);
+		indicator_leds::blinkLed(indicator_leds::CLIP_VIEW);
 	}
 
 	else {
 noBlinking:
-		IndicatorLEDs::setLedState(IndicatorLEDs::CLIP_VIEW, !itsTheSong);
+		indicator_leds::setLedState(indicator_leds::CLIP_VIEW, !itsTheSong);
 	}
 #endif
 
 	// Sort out the session/arranger view LEDs
 	if (itsTheSong) {
 		if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
-			IndicatorLEDs::blinkLed(IndicatorLEDs::SESSION_VIEW, 255, 1);
+			indicator_leds::blinkLed(indicator_leds::SESSION_VIEW, 255, 1);
 		}
 		else if (getRootUI() == &arrangerView) {
-			IndicatorLEDs::blinkLed(IndicatorLEDs::SESSION_VIEW);
+			indicator_leds::blinkLed(indicator_leds::SESSION_VIEW);
 		}
 		else {
-			IndicatorLEDs::setLedState(IndicatorLEDs::SESSION_VIEW, true);
+			indicator_leds::setLedState(indicator_leds::SESSION_VIEW, true);
 		}
 	}
 	else {
-		IndicatorLEDs::setLedState(IndicatorLEDs::SESSION_VIEW, false);
+		indicator_leds::setLedState(indicator_leds::SESSION_VIEW, false);
 	}
 
 	// Sort out actual "mod" LEDs
@@ -1098,7 +1098,7 @@ noBlinking:
 
 	for (int i = 0; i < NUM_MOD_BUTTONS; i++) {
 		bool on = (i == modKnobMode);
-		IndicatorLEDs::setLedState(IndicatorLEDs::modLed[i], on);
+		indicator_leds::setLedState(indicator_leds::modLed[i], on);
 	}
 }
 
@@ -1243,7 +1243,7 @@ void View::displayOutputName(Output* output, bool doBlink, Clip* clip) {
 void View::drawOutputNameFromDetails(int outputType, int channel, int channelSuffix, char const* name,
                                      bool editedByUser, bool doBlink, Clip* clip) {
 	if (doBlink) {
-		using namespace IndicatorLEDs;
+		using namespace indicator_leds;
 		IndicatorLED led;
 
 		if (outputType == INSTRUMENT_TYPE_SYNTH) {

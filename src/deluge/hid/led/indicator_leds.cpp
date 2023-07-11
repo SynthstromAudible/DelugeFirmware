@@ -23,7 +23,7 @@ extern "C" {
 #include "RZA1/gpio/gpio.h"
 }
 
-namespace IndicatorLEDs {
+namespace indicator_leds {
 
 bool ledStates[NUM_LED_COLS * NUM_LED_ROWS];
 
@@ -240,4 +240,4 @@ void clearKnobIndicatorLevels() {
 	}
 }
 
-} // namespace IndicatorLEDs
+} // namespace indicator_leds

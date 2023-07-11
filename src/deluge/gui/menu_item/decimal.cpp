@@ -184,7 +184,7 @@ void Decimal::drawActualValue(bool justDidHorizontalScroll) {
 	else
 		dotPos = 255;
 
-	IndicatorLEDs::blinkLed(IndicatorLEDs::BACK, 255, 0, !justDidHorizontalScroll);
+	indicator_leds::blinkLed(indicator_leds::BACK, 255, 0, !justDidHorizontalScroll);
 
 	uint8_t blinkMask[NUMERIC_DISPLAY_LENGTH];
 	memset(&blinkMask, 255, NUMERIC_DISPLAY_LENGTH);

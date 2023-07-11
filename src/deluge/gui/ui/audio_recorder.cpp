@@ -118,13 +118,13 @@ gotError:
 		soundEditor.setupShortcutBlink(soundEditor.currentSourceIndex, 4, 0);
 		soundEditor.blinkShortcut();
 
-		IndicatorLEDs::setLedState(IndicatorLEDs::SYNTH, !soundEditor.editingKit());
-		IndicatorLEDs::setLedState(IndicatorLEDs::KIT, soundEditor.editingKit());
-		IndicatorLEDs::setLedState(IndicatorLEDs::CROSS_SCREEN_EDIT, false);
-		IndicatorLEDs::setLedState(IndicatorLEDs::SESSION_VIEW, false);
-		IndicatorLEDs::setLedState(IndicatorLEDs::SCALE_MODE, false);
-		IndicatorLEDs::blinkLed(IndicatorLEDs::BACK);
-		IndicatorLEDs::blinkLed(IndicatorLEDs::RECORD, 255, 1);
+		indicator_leds::setLedState(indicator_leds::SYNTH, !soundEditor.editingKit());
+		indicator_leds::setLedState(indicator_leds::KIT, soundEditor.editingKit());
+		indicator_leds::setLedState(indicator_leds::CROSS_SCREEN_EDIT, false);
+		indicator_leds::setLedState(indicator_leds::SESSION_VIEW, false);
+		indicator_leds::setLedState(indicator_leds::SCALE_MODE, false);
+		indicator_leds::blinkLed(indicator_leds::BACK);
+		indicator_leds::blinkLed(indicator_leds::RECORD, 255, 1);
 #if !HAVE_OLED
 		numericDriver.setNextTransitionDirection(0);
 		numericDriver.setText("REC", false, 255, true);
@@ -167,7 +167,7 @@ bool AudioRecorder::beginOutputRecording() {
 	bool success = setupRecordingToFile(AUDIO_INPUT_CHANNEL_OUTPUT, 2, AUDIO_RECORDING_FOLDER_RESAMPLE);
 
 	if (success) {
-		IndicatorLEDs::blinkLed(IndicatorLEDs::RECORD, 255, 1);
+		indicator_leds::blinkLed(indicator_leds::RECORD, 255, 1);
 	}
 
 	AudioEngine::bypassCulling =
@@ -195,7 +195,7 @@ void AudioRecorder::endRecordingSoon(int buttonLatency) {
 void AudioRecorder::slowRoutine() {
 	if (recordingSource == AUDIO_INPUT_CHANNEL_OUTPUT) {
 		if (recorder->status >= RECORDER_STATUS_COMPLETE) {
-			IndicatorLEDs::setLedState(IndicatorLEDs::RECORD, (playbackHandler.recording == RECORDING_NORMAL));
+			indicator_leds::setLedState(indicator_leds::RECORD, (playbackHandler.recording == RECORDING_NORMAL));
 			finishRecording();
 		}
 	}

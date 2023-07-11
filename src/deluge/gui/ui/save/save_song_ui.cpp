@@ -90,15 +90,15 @@ gotError:
 
 	enteredTextEditPos = 0; //enteredText.getLength();
 
-	IndicatorLEDs::setLedState(IndicatorLEDs::SYNTH, false);
-	IndicatorLEDs::setLedState(IndicatorLEDs::KIT, false);
-	IndicatorLEDs::setLedState(IndicatorLEDs::MIDI, false);
+	indicator_leds::setLedState(indicator_leds::SYNTH, false);
+	indicator_leds::setLedState(indicator_leds::KIT, false);
+	indicator_leds::setLedState(indicator_leds::MIDI, false);
 
-	IndicatorLEDs::setLedState(IndicatorLEDs::CROSS_SCREEN_EDIT, false);
-	IndicatorLEDs::setLedState(IndicatorLEDs::CLIP_VIEW, false);
-	IndicatorLEDs::setLedState(IndicatorLEDs::SCALE_MODE, false);
+	indicator_leds::setLedState(indicator_leds::CROSS_SCREEN_EDIT, false);
+	indicator_leds::setLedState(indicator_leds::CLIP_VIEW, false);
+	indicator_leds::setLedState(indicator_leds::SCALE_MODE, false);
 
-	IndicatorLEDs::blinkLed(IndicatorLEDs::SESSION_VIEW);
+	indicator_leds::blinkLed(indicator_leds::SESSION_VIEW);
 
 	focusRegained();
 	return true;
