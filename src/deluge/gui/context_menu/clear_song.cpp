@@ -17,7 +17,7 @@
 
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
-#include "gui/context_menu/contextmenuclearsong.h"
+#include "gui/context_menu/clear_song.h"
 #include "modulation/params/param_manager.h"
 #include "hid/display/numeric_driver.h"
 #include "memory/general_memory_allocator.h"
@@ -32,27 +32,26 @@
 #include "playback/playback_handler.h"
 #include "hid/display/oled.h"
 
-ContextMenuClearSong contextMenuClearSong{};
-
 extern void setUIForLoadedSong(Song* song);
 extern void deleteOldSongBeforeLoadingNew();
+namespace deluge::gui::context_menu {
+ClearSong clearSong{};
 
-ContextMenuClearSong::ContextMenuClearSong() {
-#if HAVE_OLED
-	title = "Clear song?";
-#endif
+char const* ClearSong::getTitle() {
+	static char const* title = "Clear song?";
+	return title;
 }
 
-char const** ContextMenuClearSong::getOptions() {
+Sized<char const**> ClearSong::getOptions() {
 #if HAVE_OLED
 	static char const* options[] = {"Ok"};
 #else
 	static char const* options[] = {"New"};
 #endif
-	return options;
+	return {options, 1};
 }
 
-void ContextMenuClearSong::focusRegained() {
+void ClearSong::focusRegained() {
 	ContextMenu::focusRegained();
 
 	// TODO: Switch a bunch of LEDs off (?)
@@ -70,7 +69,7 @@ void ContextMenuClearSong::focusRegained() {
 	indicator_leds::blinkLed(indicator_leds::BACK);
 }
 
-bool ContextMenuClearSong::acceptCurrentOption() {
+bool ClearSong::acceptCurrentOption() {
 	if (playbackHandler.playbackState
 	    && ((playbackHandler.playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE) || currentPlaybackMode == &arrangement)) {
 
@@ -118,3 +117,4 @@ bool ContextMenuClearSong::acceptCurrentOption() {
 
 	return true;
 }
+} // namespace deluge::gui::context_menu

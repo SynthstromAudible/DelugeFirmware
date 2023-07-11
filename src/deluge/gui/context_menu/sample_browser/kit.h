@@ -19,14 +19,20 @@
 
 #include "gui/context_menu/context_menu.h"
 
-class ContextMenuClearSong final : public ContextMenuForLoading {
+namespace deluge::gui::context_menu::sample_browser {
+class Kit final : public ContextMenu {
 public:
-	ContextMenuClearSong();
-	void focusRegained();
-	bool canSeeViewUnderneath() { return true; }
+	Kit() = default;
 
-	char const** getOptions();
-	bool acceptCurrentOption();
+	Sized<char const**> getOptions() override;
+	bool isCurrentOptionAvailable() override;
+	bool canSeeViewUnderneath() override;
+
+	int padAction(int x, int y, int velocity) override;
+	bool acceptCurrentOption() override;
+
+	char const* getTitle() override;
 };
 
-extern ContextMenuClearSong contextMenuClearSong;
+extern Kit kit;
+} // namespace deluge::gui::context_menu::sample_browser

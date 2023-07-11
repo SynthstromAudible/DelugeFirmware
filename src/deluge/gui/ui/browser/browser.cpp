@@ -18,7 +18,7 @@
 #include "storage/audio/audio_file_manager.h"
 #include "gui/ui/browser/browser.h"
 #include "hid/matrix/matrix_driver.h"
-#include "gui/context_menu/context_menu_delete_file.h"
+#include "gui/context_menu/delete_file.h"
 #include "hid/display/numeric_driver.h"
 #include "hid/buttons.h"
 #include <string.h>
@@ -39,6 +39,8 @@
 extern "C" {
 #include "drivers/uart/uart.h"
 }
+
+using namespace deluge;
 
 String Browser::currentDir{};
 bool Browser::qwertyVisible;
@@ -1518,11 +1520,12 @@ void Browser::exitAction() {
 }
 
 void Browser::goIntoDeleteFileContextMenu() {
-	bool available = contextMenuDeleteFile.setupAndCheckAvailability();
+	using namespace gui;
+	bool available = context_menu::deleteFile.setupAndCheckAvailability();
 
 	if (available) {
 		numericDriver.setNextTransitionDirection(1);
-		openUI(&contextMenuDeleteFile);
+		openUI(&context_menu::deleteFile);
 	}
 }
 

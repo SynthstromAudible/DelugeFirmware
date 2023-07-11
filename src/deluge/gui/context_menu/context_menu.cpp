@@ -26,15 +26,12 @@
 #include "hid/display/oled.h"
 #endif
 
+namespace deluge::gui {
+
 ContextMenu::ContextMenu() {
-	basicNumOptions = 1;
 #if HAVE_OLED
 	oledShowsUIUnderneath = true;
 #endif
-}
-
-char const** ContextMenu::getOptions() {
-	return basicOptions;
 }
 
 bool ContextMenu::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
@@ -43,7 +40,7 @@ bool ContextMenu::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
 }
 
 bool ContextMenu::setupAndCheckAvailability() {
-	int numOptions = getNumOptions();
+	const auto [_options, numOptions] = getOptions();
 	for (currentOption = 0; currentOption < numOptions; currentOption++) {
 		if (isCurrentOptionAvailable()) {
 #if HAVE_OLED
@@ -71,8 +68,7 @@ void ContextMenu::focusRegained() {
 
 #if HAVE_OLED
 void ContextMenu::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
-	char const** options = getOptions();
-	int numOptions = getNumOptions();
+	const auto [options, numOptions] = getOptions();
 
 	int windowWidth = 100;
 	int windowHeight = 40;
@@ -87,7 +83,8 @@ void ContextMenu::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 
 	OLED::drawRectangle(windowMinX, windowMinY, windowMaxX, windowMaxY, image);
 	OLED::drawHorizontalLine(windowMinY + 15, 22, OLED_MAIN_WIDTH_PIXELS - 30, &image[0]);
-	OLED::drawString(title, 22, windowMinY + 6, image[0], OLED_MAIN_WIDTH_PIXELS, TEXT_SPACING_X, TEXT_SPACING_Y);
+	OLED::drawString(this->getTitle(), 22, windowMinY + 6, image[0], OLED_MAIN_WIDTH_PIXELS, TEXT_SPACING_X,
+	                 TEXT_SPACING_Y);
 
 	int textPixelY = windowMinY + 18;
 	int actualCurrentOption = currentOption;
@@ -122,7 +119,7 @@ void ContextMenu::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 #endif
 
 void ContextMenu::selectEncoderAction(int8_t offset) {
-	int numOptions = getNumOptions();
+	const auto [_options, numOptions] = getOptions();
 
 #if HAVE_OLED
 	bool wasOnScrollPos = (currentOption == scrollPos);
@@ -202,7 +199,7 @@ probablyAcceptCurrentOption:
 }
 
 void ContextMenu::drawCurrentOption() {
-	char const** options = getOptions();
+	const auto [options, _size] = getOptions();
 
 #if HAVE_OLED
 
@@ -235,3 +232,4 @@ void ContextMenuForLoading::focusRegained() {
 	indicator_leds::blinkLed(indicator_leds::LOAD);
 	return ContextMenu::focusRegained();
 }
+} // namespace deluge::gui

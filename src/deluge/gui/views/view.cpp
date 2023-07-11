@@ -17,7 +17,7 @@
 
 #include "gui/views/arranger_view.h"
 #include "processing/engines/audio_engine.h"
-#include "gui/context_menu/contextmenuclearsong.h"
+#include "gui/context_menu/clear_song.h"
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
@@ -78,6 +78,10 @@
 extern "C" {
 #include "RZA1/uart/sio_char.h"
 }
+
+using namespace deluge;
+using namespace gui;
+
 View view{};
 
 extern int8_t pendingGlobalMIDICommand;
@@ -264,9 +268,9 @@ doEndMidiLearnPressSession:
 						if (inCardRoutine) {
 							return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 						}
-						bool available = contextMenuClearSong.setupAndCheckAvailability();
+						bool available = context_menu::clearSong.setupAndCheckAvailability();
 						if (available) {
-							openUI(&contextMenuClearSong);
+							openUI(&context_menu::clearSong);
 						}
 					}
 

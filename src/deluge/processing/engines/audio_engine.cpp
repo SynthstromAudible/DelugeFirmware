@@ -17,8 +17,8 @@
 
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
-#include "gui/context_menu/context_menu_sample_browser_kit.h"
-#include "gui/context_menu/context_menu_sample_browser_synth.h"
+#include "gui/context_menu/sample_browser/kit.h"
+#include "gui/context_menu/sample_browser/synth.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
@@ -67,6 +67,8 @@ extern "C" {
 #include "RZA1/intc/devdrv_intc.h"
 //void *__dso_handle = NULL; // This fixes an insane error.
 }
+
+using namespace deluge;
 
 extern bool inSpamMode;
 extern bool anythingProbablyPressed;
@@ -677,8 +679,8 @@ startAgain:
 	}
 
 	// Previewing sample
-	if (getCurrentUI() == &sampleBrowser || getCurrentUI() == &contextMenuFileBrowserKit
-	    || getCurrentUI() == &contextMenuFileBrowserSynth || getCurrentUI() == &slicer) {
+	if (getCurrentUI() == &sampleBrowser || getCurrentUI() == &gui::context_menu::sample_browser::kit
+	    || getCurrentUI() == &gui::context_menu::sample_browser::synth || getCurrentUI() == &slicer) {
 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithThreeMainThings* modelStack = setupModelStackWithThreeMainThingsButNoNoteRow(

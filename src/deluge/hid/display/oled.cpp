@@ -45,6 +45,8 @@ uint8_t oledMainImage[OLED_MAIN_HEIGHT_PIXELS >> 3][OLED_MAIN_WIDTH_PIXELS];
 uint8_t oledMainConsoleImage[CONSOLE_IMAGE_NUM_ROWS][OLED_MAIN_WIDTH_PIXELS];
 uint8_t oledMainPopupImage[OLED_MAIN_HEIGHT_PIXELS >> 3][OLED_MAIN_WIDTH_PIXELS];
 
+uint8_t (*oledCurrentImage)[OLED_MAIN_WIDTH_PIXELS] = oledMainImage;
+
 int workingAnimationCount;
 char const* workingAnimationText; // NULL means animation not active
 
@@ -683,17 +685,18 @@ void copyBackgroundAroundForeground(uint8_t backgroundImage[][OLED_MAIN_WIDTH_PI
 
 void sendMainImage() {
 
-	uint8_t(*backgroundImage)[OLED_MAIN_WIDTH_PIXELS] = oledMainImage;
+	oledCurrentImage = oledMainImage;
 
 	if (numConsoleItems) {
 		copyBackgroundAroundForeground(oledMainImage, oledMainConsoleImage, consoleMinX,
 		                               consoleItems[numConsoleItems - 1].minY - 1, consoleMaxX,
 		                               OLED_MAIN_HEIGHT_PIXELS - 1);
-		backgroundImage = oledMainConsoleImage;
+		oledCurrentImage = oledMainConsoleImage;
 	}
 	if (oledPopupWidth) {
-		copyBackgroundAroundForeground(backgroundImage, oledMainPopupImage, popupMinX, popupMinY, popupMaxX, popupMaxY);
-		backgroundImage = oledMainPopupImage;
+		copyBackgroundAroundForeground(oledCurrentImage, oledMainPopupImage, popupMinX, popupMinY, popupMaxX,
+		                               popupMaxY);
+		oledCurrentImage = oledMainPopupImage;
 	}
 
 #if 0 && ENABLE_TEXT_OUTPUT
@@ -702,7 +705,7 @@ void sendMainImage() {
 	uartPrintNumber((uint16_t)(renderStopTime - renderStartTime));
 #endif
 
-	enqueueSPITransfer(0, backgroundImage[0]);
+	enqueueSPITransfer(0, oledCurrentImage[0]);
 }
 
 #define TEXT_MAX_NUM_LINES 8
