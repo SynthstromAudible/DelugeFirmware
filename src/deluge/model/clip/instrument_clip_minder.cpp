@@ -273,14 +273,14 @@ gotError:
 }
 
 void InstrumentClipMinder::setLedStates() {
-	indicator_leds::setLedState(indicator_leds::SYNTH, getCurrentClip()->output->type == INSTRUMENT_TYPE_SYNTH);
-	indicator_leds::setLedState(indicator_leds::KIT, getCurrentClip()->output->type == INSTRUMENT_TYPE_KIT);
-	indicator_leds::setLedState(indicator_leds::MIDI, getCurrentClip()->output->type == INSTRUMENT_TYPE_MIDI_OUT);
-	indicator_leds::setLedState(indicator_leds::CV, getCurrentClip()->output->type == INSTRUMENT_TYPE_CV);
+	indicator_leds::setLedState(IndicatorLED::SYNTH, getCurrentClip()->output->type == INSTRUMENT_TYPE_SYNTH);
+	indicator_leds::setLedState(IndicatorLED::KIT, getCurrentClip()->output->type == INSTRUMENT_TYPE_KIT);
+	indicator_leds::setLedState(IndicatorLED::MIDI, getCurrentClip()->output->type == INSTRUMENT_TYPE_MIDI_OUT);
+	indicator_leds::setLedState(IndicatorLED::CV, getCurrentClip()->output->type == INSTRUMENT_TYPE_CV);
 
-	indicator_leds::setLedState(indicator_leds::CROSS_SCREEN_EDIT, getCurrentClip()->wrapEditing);
-	indicator_leds::setLedState(indicator_leds::SCALE_MODE, getCurrentClip()->isScaleModeClip());
-	indicator_leds::setLedState(indicator_leds::BACK, false);
+	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, getCurrentClip()->wrapEditing);
+	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, getCurrentClip()->isScaleModeClip());
+	indicator_leds::setLedState(IndicatorLED::BACK, false);
 
 #ifdef currentClipStatusButtonX
 	view.drawCurrentClipPad(getCurrentClip());
@@ -292,16 +292,16 @@ void InstrumentClipMinder::setLedStates() {
 #if DELUGE_MODEL == DELUGE_MODEL_40_PAD
 	if (getCurrentClip()->output->type == INSTRUMENT_TYPE_KIT) {
 		if (getCurrentClip()->affectEntire)
-			indicator_leds::blinkLed(indicator_leds::CLIP_VIEW);
+			indicator_leds::blinkLed(IndicatorLED::CLIP_VIEW);
 		else
-			indicator_leds::setLedState(indicator_leds::CLIP_VIEW, true);
+			indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, true);
 	}
 
 	else {
 		if (getCurrentUI() == &keyboardScreen)
-			indicator_leds::blinkLed(indicator_leds::CLIP_VIEW);
+			indicator_leds::blinkLed(IndicatorLED::CLIP_VIEW);
 		else
-			indicator_leds::setLedState(indicator_leds::CLIP_VIEW, true);
+			indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, true);
 	}
 #endif
 }
@@ -326,7 +326,7 @@ int InstrumentClipMinder::buttonAction(hid::Button b, bool on, bool inCardRoutin
 			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 		currentUIMode = UI_MODE_NONE;
-		indicator_leds::setLedState(indicator_leds::SAVE, false);
+		indicator_leds::setLedState(IndicatorLED::SAVE, false);
 
 		if (b == SYNTH) {
 			if (getCurrentClip()->output->type == INSTRUMENT_TYPE_SYNTH) {
@@ -348,7 +348,7 @@ yesSaveInstrument:
 			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 		currentUIMode = UI_MODE_NONE;
-		indicator_leds::setLedState(indicator_leds::LOAD, false);
+		indicator_leds::setLedState(IndicatorLED::LOAD, false);
 
 		if (b == SYNTH) {
 			Browser::instrumentTypeToLoad = INSTRUMENT_TYPE_SYNTH;
@@ -362,7 +362,7 @@ yesLoadInstrument:
 		else if (b == KIT) {
 			if (getCurrentClip()->onKeyboardScreen) {
 #if DELUGE_MODEL != DELUGE_MODEL_40_PAD
-				indicator_leds::indicateAlertOnLed(indicator_leds::KEYBOARD);
+				indicator_leds::indicateAlertOnLed(IndicatorLED::KEYBOARD);
 #endif
 			}
 			else {

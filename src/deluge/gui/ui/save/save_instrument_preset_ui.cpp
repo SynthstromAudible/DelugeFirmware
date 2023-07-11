@@ -84,10 +84,10 @@ gotError:
 	}
 
 	if (instrumentTypeToLoad == INSTRUMENT_TYPE_SYNTH) {
-		indicator_leds::blinkLed(indicator_leds::SYNTH);
+		indicator_leds::blinkLed(IndicatorLED::SYNTH);
 	}
 	else {
-		indicator_leds::blinkLed(indicator_leds::KIT);
+		indicator_leds::blinkLed(IndicatorLED::KIT);
 	}
 
 	/*

@@ -36,7 +36,7 @@ constexpr uint8_t fromXY(int x, int y) {
 }
 
 // clang-format off
-enum IndicatorLED : uint8_t {
+enum class LED : uint8_t {
 	AFFECT_ENTIRE     = fromXY(affectEntireLedX, affectEntireLedY),
 	SESSION_VIEW      = fromXY(sessionViewLedX, sessionViewLedY),
 	CLIP_VIEW         = fromXY(clipViewLedX, clipViewLedY),
@@ -78,13 +78,13 @@ enum IndicatorLED : uint8_t {
 // clang-format on
 
 #if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-const IndicatorLED modLed[6] = {MOD_0, MOD_1, MOD_2, MOD_3, MOD_4, MOD_5};
+const LED modLed[6] = {LED::MOD_0, LED::MOD_1, LED::MOD_2, LED::MOD_3, LED::MOD_4, LED::MOD_5};
 #else
-const IndicatorLED modLed[8] = {MOD_0, MOD_1, MOD_2, MOD_3, MOD_4, MOD_5, MOD_6, MOD_7};
+const LED modLed[8] = {LED::MOD_0, LED::MOD_1, LED::MOD_2, LED::MOD_3, LED::MOD_4, LED::MOD_5, LED::MOD_6, LED::MOD_7};
 #endif
 
 struct LedBlinker {
-	IndicatorLED led;
+	LED led;
 	bool active;
 	uint8_t blinksLeft;
 	bool returnToState;
@@ -93,18 +93,20 @@ struct LedBlinker {
 
 extern bool ledBlinkState[];
 
-void setLedState(IndicatorLED led, bool newState, bool allowContinuedBlinking = false);
-void blinkLed(IndicatorLED led, uint8_t numBlinks = 255, uint8_t blinkingType = 0, bool initialState = true);
+void setLedState(LED led, bool newState, bool allowContinuedBlinking = false);
+void blinkLed(LED led, uint8_t numBlinks = 255, uint8_t blinkingType = 0, bool initialState = true);
 void ledBlinkTimeout(uint8_t blinkingType, bool forceRestart = false, bool resetToState = true);
-void indicateAlertOnLed(IndicatorLED led);
+void indicateAlertOnLed(LED led);
 void setKnobIndicatorLevel(uint8_t whichKnob, uint8_t level);
 void clearKnobIndicatorLevels();
 void blinkKnobIndicator(int whichKnob);
 void stopBlinkingKnobIndicator(int whichKnob);
 void blinkKnobIndicatorLevelTimeout();
-uint8_t getLedBlinkerIndex(IndicatorLED led);
-void stopLedBlinking(IndicatorLED led, bool resetState = false);
+uint8_t getLedBlinkerIndex(LED led);
+void stopLedBlinking(LED led, bool resetState = false);
 bool updateBlinkingLedStates(uint8_t blinkingType);
 bool isKnobIndicatorBlinking(int whichKnob);
 
 } // namespace indicator_leds
+
+typedef indicator_leds::LED IndicatorLED;

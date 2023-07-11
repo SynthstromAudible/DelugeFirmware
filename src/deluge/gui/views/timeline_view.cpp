@@ -101,12 +101,12 @@ int TimelineView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 		if (on) {
 			if (isNoUIModeActive()) {
 				enterUIMode(UI_MODE_SOLO_BUTTON_HELD);
-				indicator_leds::blinkLed(indicator_leds::SOLO, 255, 1);
+				indicator_leds::blinkLed(IndicatorLED::SOLO, 255, 1);
 			}
 		}
 		else {
 			exitUIMode(UI_MODE_SOLO_BUTTON_HELD);
-			indicator_leds::setLedState(indicator_leds::SOLO, false);
+			indicator_leds::setLedState(IndicatorLED::SOLO, false);
 		}
 	}
 

@@ -107,8 +107,8 @@ bool SessionView::opened() {
 		PadLEDs::skipGreyoutFade();
 	}
 
-	indicator_leds::setLedState(indicator_leds::CROSS_SCREEN_EDIT, false);
-	indicator_leds::setLedState(indicator_leds::SCALE_MODE, false);
+	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
+	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, false);
 
 	focusRegained();
 
@@ -132,7 +132,7 @@ void SessionView::focusRegained() {
 #else
 	redrawNumericDisplay();
 #endif
-	indicator_leds::setLedState(indicator_leds::BACK, false);
+	indicator_leds::setLedState(IndicatorLED::BACK, false);
 
 	setLedStates();
 
@@ -220,8 +220,8 @@ int SessionView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 					arrangement.playbackStartedAtPos =
 					    arrangerView.xScrollWhenPlaybackStarted; // Have to do this after setting up playback
 
-					indicator_leds::blinkLed(indicator_leds::RECORD, 255, 1);
-					indicator_leds::blinkLed(indicator_leds::SESSION_VIEW, 255, 1);
+					indicator_leds::blinkLed(IndicatorLED::RECORD, 255, 1);
+					indicator_leds::blinkLed(IndicatorLED::SESSION_VIEW, 255, 1);
 				}
 			}
 			else if (currentUIMode == UI_MODE_NONE) {
@@ -1117,7 +1117,7 @@ int SessionView::horizontalEncoderAction(int offset) {
 		// Or, if the shift key is pressed
 		if (Buttons::isShiftButtonPressed()) {
 			// Tell the user why they can't resize
-			indicator_leds::indicateAlertOnLed(indicator_leds::CLIP_VIEW);
+			indicator_leds::indicateAlertOnLed(IndicatorLED::CLIP_VIEW);
 			return ACTION_RESULT_DEALT_WITH;
 		}
 	}
@@ -1540,7 +1540,7 @@ void SessionView::removeClip(uint8_t yDisplay) {
 	// If this Clip is the inputTickScaleClip
 	if (clip == currentSong->getSyncScalingClip()) {
 		// Don't let the user do it
-		indicator_leds::indicateAlertOnLed(indicator_leds::SYNC_SCALING);
+		indicator_leds::indicateAlertOnLed(IndicatorLED::SYNC_SCALING);
 		return;
 	}
 
@@ -1577,7 +1577,7 @@ void SessionView::redrawClipsOnScreen(bool doRender) {
 void SessionView::setLedStates() {
 
 #if DELUGE_MODEL != DELUGE_MODEL_40_PAD
-	indicator_leds::setLedState(indicator_leds::KEYBOARD, false);
+	indicator_leds::setLedState(IndicatorLED::KEYBOARD, false);
 #endif
 
 	view.setLedStates();
@@ -1691,17 +1691,17 @@ nothingToDisplay:
 
 // This gets called by redrawNumericDisplay() - or, if HAVE_OLED, it gets called instead, because this still needs to happen.
 void SessionView::setCentralLEDStates() {
-	indicator_leds::setLedState(indicator_leds::SYNTH, false);
-	indicator_leds::setLedState(indicator_leds::KIT, false);
-	indicator_leds::setLedState(indicator_leds::MIDI, false);
-	indicator_leds::setLedState(indicator_leds::CV, false);
-	indicator_leds::setLedState(indicator_leds::SCALE_MODE, false);
+	indicator_leds::setLedState(IndicatorLED::SYNTH, false);
+	indicator_leds::setLedState(IndicatorLED::KIT, false);
+	indicator_leds::setLedState(IndicatorLED::MIDI, false);
+	indicator_leds::setLedState(IndicatorLED::CV, false);
+	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, false);
 #if DELUGE_MODEL != DELUGE_MODEL_40_PAD
-	indicator_leds::setLedState(indicator_leds::KEYBOARD, false);
+	indicator_leds::setLedState(IndicatorLED::KEYBOARD, false);
 #endif
 
 	if (getCurrentUI() == this) {
-		indicator_leds::setLedState(indicator_leds::CROSS_SCREEN_EDIT, false);
+		indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
 	}
 }
 

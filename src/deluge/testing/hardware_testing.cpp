@@ -138,7 +138,7 @@ void readInputsForHardwareTest(bool testButtonStates[9][16]) {
 	bool inputStateNow = (outputPluggedInL == outputPluggedInR == headphoneNow == micNow == lineInNow == gateInNow);
 
 	if (inputStateNow != inputStateLastTime) {
-		indicator_leds::setLedState(indicator_leds::TAP_TEMPO, !inputStateNow);
+		indicator_leds::setLedState(IndicatorLED::TAP_TEMPO, !inputStateNow);
 		inputStateLastTime = inputStateNow;
 	}
 

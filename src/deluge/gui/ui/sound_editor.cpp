@@ -180,19 +180,19 @@ void SoundEditor::focusRegained() {
 }
 
 void SoundEditor::setLedStates() {
-	indicator_leds::setLedState(indicator_leds::SAVE, false); // In case we came from the save-Instrument UI
+	indicator_leds::setLedState(IndicatorLED::SAVE, false); // In case we came from the save-Instrument UI
 
-	indicator_leds::setLedState(indicator_leds::SYNTH, !inSettingsMenu() && !editingKit() && currentSound);
-	indicator_leds::setLedState(indicator_leds::KIT, !inSettingsMenu() && editingKit() && currentSound);
+	indicator_leds::setLedState(IndicatorLED::SYNTH, !inSettingsMenu() && !editingKit() && currentSound);
+	indicator_leds::setLedState(IndicatorLED::KIT, !inSettingsMenu() && editingKit() && currentSound);
 	indicator_leds::setLedState(
-	    indicator_leds::MIDI, !inSettingsMenu() && currentSong->currentClip->output->type == INSTRUMENT_TYPE_MIDI_OUT);
-	indicator_leds::setLedState(indicator_leds::CV,
+	    IndicatorLED::MIDI, !inSettingsMenu() && currentSong->currentClip->output->type == INSTRUMENT_TYPE_MIDI_OUT);
+	indicator_leds::setLedState(IndicatorLED::CV,
 	                            !inSettingsMenu() && currentSong->currentClip->output->type == INSTRUMENT_TYPE_CV);
 
-	indicator_leds::setLedState(indicator_leds::CROSS_SCREEN_EDIT, false);
-	indicator_leds::setLedState(indicator_leds::SCALE_MODE, false);
+	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
+	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, false);
 
-	indicator_leds::blinkLed(indicator_leds::BACK);
+	indicator_leds::blinkLed(IndicatorLED::BACK);
 
 	playbackHandler.setLedStates();
 }
@@ -288,7 +288,7 @@ int SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 						getCurrentMenuItem()->unlearnAction();
 					}
 					else {
-						indicator_leds::blinkLed(indicator_leds::LEARN, 255, 1);
+						indicator_leds::blinkLed(IndicatorLED::LEARN, 255, 1);
 						currentUIMode = UI_MODE_MIDI_LEARN;
 					}
 				}
@@ -296,10 +296,10 @@ int SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 		}
 		else {
 			if (getCurrentMenuItem()->shouldBlinkLearnLed()) {
-				indicator_leds::blinkLed(indicator_leds::LEARN);
+				indicator_leds::blinkLed(IndicatorLED::LEARN);
 			}
 			else {
-				indicator_leds::setLedState(indicator_leds::LEARN, false);
+				indicator_leds::setLedState(IndicatorLED::LEARN, false);
 			}
 
 			if (currentUIMode == UI_MODE_MIDI_LEARN) {
@@ -322,7 +322,7 @@ int SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 			}
 			if (on) {
 				if (currentUIMode == UI_MODE_NONE) {
-					indicator_leds::blinkLed(indicator_leds::AFFECT_ENTIRE, 255, 1);
+					indicator_leds::blinkLed(IndicatorLED::AFFECT_ENTIRE, 255, 1);
 					currentUIMode = UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR;
 				}
 			}
@@ -356,7 +356,7 @@ int SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 
 			PadLEDs::reassessGreyout(true);
 
-			indicator_leds::setLedState(indicator_leds::KEYBOARD, getRootUI() == &keyboardScreen);
+			indicator_leds::setLedState(IndicatorLED::KEYBOARD, getRootUI() == &keyboardScreen);
 		}
 	}
 #endif
@@ -544,10 +544,10 @@ stopThat : {}
 shortcutsPicked:
 
 	if (currentItem->shouldBlinkLearnLed()) {
-		indicator_leds::blinkLed(indicator_leds::LEARN);
+		indicator_leds::blinkLed(IndicatorLED::LEARN);
 	}
 	else {
-		indicator_leds::setLedState(indicator_leds::LEARN, false);
+		indicator_leds::setLedState(IndicatorLED::LEARN, false);
 	}
 
 	possibleChangeToCurrentRangeDisplay();
@@ -941,9 +941,9 @@ void SoundEditor::modEncoderAction(int whichModEncoder, int offset) {
 		if (editingKit() && ((InstrumentClip*)currentSong->currentClip)->affectEntire) {
 #if DELUGE_MODEL == DELUGE_MODEL_40_PAD
 			// Really should indicate it on "Clip View", but that's already blinking
-			indicator_leds::indicateAlertOnLed(indicator_leds::SONG_VIEW);
+			indicator_leds::indicateAlertOnLed(IndicatorLED::SONG_VIEW);
 #else
-			//indicator_leds::indicateErrorOnLed(indicator_leds::AFFECT_ENTIRE);
+			//indicator_leds::indicateErrorOnLed(IndicatorLED::AFFECT_ENTIRE);
 #endif
 		}
 
@@ -989,10 +989,10 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int sourceIndex) {
 					else {
 						if (item != &sequenceDirectionMenu) {
 							if (selectedDrum->type == DRUM_TYPE_MIDI) {
-								indicator_leds::indicateAlertOnLed(indicator_leds::MIDI);
+								indicator_leds::indicateAlertOnLed(IndicatorLED::MIDI);
 							}
 							else { // GATE
-								indicator_leds::indicateAlertOnLed(indicator_leds::CV);
+								indicator_leds::indicateAlertOnLed(IndicatorLED::CV);
 							}
 							return false;
 						}

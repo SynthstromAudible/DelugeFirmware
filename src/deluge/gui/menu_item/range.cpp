@@ -158,7 +158,7 @@ void Range::drawValueForEditingRange(bool blinkImmediately) {
 	bool alignRight = (soundEditor.editingRangeEdge == RangeEdit::RIGHT) || (textLength < NUMERIC_DISPLAY_LENGTH);
 
 	// Sorta hackish, to reset timing of blinking LED and always show text "on" initially on edit value
-	indicator_leds::blinkLed(indicator_leds::BACK, 255, 0, !blinkImmediately);
+	indicator_leds::blinkLed(IndicatorLED::BACK, 255, 0, !blinkImmediately);
 
 	numericDriver.setText(buffer, alignRight, 255, true, blinkMask);
 

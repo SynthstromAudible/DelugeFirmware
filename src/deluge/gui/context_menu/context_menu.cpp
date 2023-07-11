@@ -222,14 +222,14 @@ int ContextMenu::padAction(int x, int y, int on) {
 }
 
 void ContextMenuForSaving::focusRegained() {
-	indicator_leds::setLedState(indicator_leds::LOAD, false);
-	indicator_leds::blinkLed(indicator_leds::SAVE);
+	indicator_leds::setLedState(IndicatorLED::LOAD, false);
+	indicator_leds::blinkLed(IndicatorLED::SAVE);
 	return ContextMenu::focusRegained();
 }
 
 void ContextMenuForLoading::focusRegained() {
-	indicator_leds::setLedState(indicator_leds::SAVE, false);
-	indicator_leds::blinkLed(indicator_leds::LOAD);
+	indicator_leds::setLedState(IndicatorLED::SAVE, false);
+	indicator_leds::blinkLed(IndicatorLED::LOAD);
 	return ContextMenu::focusRegained();
 }
 } // namespace deluge::gui

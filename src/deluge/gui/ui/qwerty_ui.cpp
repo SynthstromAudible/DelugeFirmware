@@ -42,7 +42,7 @@ QwertyUI::QwertyUI() {
 
 bool QwertyUI::opened() {
 
-	indicator_leds::blinkLed(indicator_leds::BACK);
+	indicator_leds::blinkLed(IndicatorLED::BACK);
 
 	enteredTextEditPos = 0;
 	enteredText.clear();

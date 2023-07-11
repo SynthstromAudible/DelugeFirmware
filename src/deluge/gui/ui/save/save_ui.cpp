@@ -47,7 +47,7 @@ bool SaveUI::opened() {
 }
 
 void SaveUI::focusRegained() {
-	indicator_leds::blinkLed(indicator_leds::SAVE);
+	indicator_leds::blinkLed(IndicatorLED::SAVE);
 	return SlotBrowser::focusRegained();
 }
 

@@ -36,22 +36,23 @@ uint8_t whichLevelIndicatorBlinking;
 bool levelIndicatorBlinkOn;
 uint8_t levelIndicatorBlinksLeft;
 
-void setLedState(IndicatorLED led, bool newState, bool allowContinuedBlinking) {
+void setLedState(LED led, bool newState, bool allowContinuedBlinking) {
 
 	if (!allowContinuedBlinking) {
 		stopLedBlinking(led);
 	}
 
-	ledStates[led] = newState;
+	uint8_t l = static_cast<int>(led);
+	ledStates[l] = newState;
 
 #if DELUGE_MODEL >= DELUGE_MODEL_144_PAD
-	bufferPICIndicatorsUart(uartBase + led + (newState ? 36 : 0));
+	bufferPICIndicatorsUart(uartBase + l + (newState ? 36 : 0));
 #else
-	bufferPICIndicatorsUart(uartBase + led + (newState ? 40 : 0));
+	bufferPICIndicatorsUart(uartBase + l + (newState ? 40 : 0));
 #endif
 }
 
-void blinkLed(IndicatorLED led, uint8_t numBlinks, uint8_t blinkingType, bool initialState) {
+void blinkLed(LED led, uint8_t numBlinks, uint8_t blinkingType, bool initialState) {
 
 	stopLedBlinking(led, true);
 
@@ -71,7 +72,7 @@ void blinkLed(IndicatorLED led, uint8_t numBlinks, uint8_t blinkingType, bool in
 		ledBlinkers[i].blinksLeft = 255;
 	}
 	else {
-		ledBlinkers[i].returnToState = ledStates[led];
+		ledBlinkers[i].returnToState = ledStates[static_cast<int>(led)];
 		ledBlinkers[i].blinksLeft = numBlinks * 2;
 	}
 
@@ -136,7 +137,7 @@ bool updateBlinkingLedStates(uint8_t blinkingType) {
 	return anyActive;
 }
 
-void stopLedBlinking(IndicatorLED led, bool resetState) {
+void stopLedBlinking(LED led, bool resetState) {
 	uint8_t i = getLedBlinkerIndex(led);
 	if (i != 255) {
 		ledBlinkers[i].active = false;
@@ -146,7 +147,7 @@ void stopLedBlinking(IndicatorLED led, bool resetState) {
 	}
 }
 
-uint8_t getLedBlinkerIndex(IndicatorLED led) {
+uint8_t getLedBlinkerIndex(LED led) {
 	for (uint8_t i = 0; i < numLedBlinkers; i++) {
 		if (ledBlinkers[i].led == led && ledBlinkers[i].active) {
 			return i;
@@ -155,7 +156,7 @@ uint8_t getLedBlinkerIndex(IndicatorLED led) {
 	return 255;
 }
 
-void indicateAlertOnLed(IndicatorLED led) {
+void indicateAlertOnLed(LED led) {
 	blinkLed(led, 3, 1);
 }
 

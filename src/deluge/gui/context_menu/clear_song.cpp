@@ -56,17 +56,17 @@ void ClearSong::focusRegained() {
 
 	// TODO: Switch a bunch of LEDs off (?)
 
-	indicator_leds::setLedState(indicator_leds::SAVE, false);
-	indicator_leds::setLedState(indicator_leds::SYNTH, false);
-	indicator_leds::setLedState(indicator_leds::KIT, false);
+	indicator_leds::setLedState(IndicatorLED::SAVE, false);
+	indicator_leds::setLedState(IndicatorLED::SYNTH, false);
+	indicator_leds::setLedState(IndicatorLED::KIT, false);
 
-	indicator_leds::setLedState(indicator_leds::CROSS_SCREEN_EDIT, false);
-	indicator_leds::setLedState(indicator_leds::CLIP_VIEW, false);
-	indicator_leds::setLedState(indicator_leds::SESSION_VIEW, false);
-	indicator_leds::setLedState(indicator_leds::SCALE_MODE, false);
+	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
+	indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, false);
+	indicator_leds::setLedState(IndicatorLED::SESSION_VIEW, false);
+	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, false);
 
-	indicator_leds::blinkLed(indicator_leds::LOAD);
-	indicator_leds::blinkLed(indicator_leds::BACK);
+	indicator_leds::blinkLed(IndicatorLED::LOAD);
+	indicator_leds::blinkLed(IndicatorLED::BACK);
 }
 
 bool ClearSong::acceptCurrentOption() {
