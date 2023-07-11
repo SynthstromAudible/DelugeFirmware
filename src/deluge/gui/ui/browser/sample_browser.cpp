@@ -171,12 +171,12 @@ dissectionDone:
 		goto sdError;
 	}
 
-	IndicatorLEDs::setLedState(synthLedX, synthLedY, !soundEditor.editingKit());
-	IndicatorLEDs::setLedState(kitLedX, kitLedY, soundEditor.editingKit());
+	indicator_leds::setLedState(IndicatorLED::SYNTH, !soundEditor.editingKit());
+	indicator_leds::setLedState(IndicatorLED::KIT, soundEditor.editingKit());
 
-	IndicatorLEDs::setLedState(crossScreenEditLedX, crossScreenEditLedY, false);
-	IndicatorLEDs::setLedState(sessionViewLedX, sessionViewLedY, false);
-	IndicatorLEDs::setLedState(scaleModeLedX, scaleModeLedY, false);
+	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
+	indicator_leds::setLedState(IndicatorLED::SESSION_VIEW, false);
+	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, false);
 
 	//soundEditor.setupShortcutBlink(soundEditor.currentSourceIndex, 5, 0);
 
@@ -204,7 +204,7 @@ void SampleBrowser::possiblySetUpBlinking() {
 
 void SampleBrowser::focusRegained() {
 	//displayCurrentFilename();
-	IndicatorLEDs::setLedState(saveLedX, saveLedY, false); // In case returning from delete-file context menu
+	indicator_leds::setLedState(IndicatorLED::SAVE, false); // In case returning from delete-file context menu
 }
 
 void SampleBrowser::folderContentsReady(int entryDirection) {

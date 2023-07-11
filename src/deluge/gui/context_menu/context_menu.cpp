@@ -204,7 +204,7 @@ void ContextMenu::drawCurrentOption() {
 #if HAVE_OLED
 
 #else
-	IndicatorLEDs::ledBlinkTimeout(0, true);
+	indicator_leds::ledBlinkTimeout(0, true);
 	numericDriver.setText(options[currentOption], false, 255, true);
 #endif
 }
@@ -222,14 +222,14 @@ int ContextMenu::padAction(int x, int y, int on) {
 }
 
 void ContextMenuForSaving::focusRegained() {
-	IndicatorLEDs::setLedState(loadLedX, loadLedY, false);
-	IndicatorLEDs::blinkLed(saveLedX, saveLedY);
+	indicator_leds::setLedState(IndicatorLED::LOAD, false);
+	indicator_leds::blinkLed(IndicatorLED::SAVE);
 	return ContextMenu::focusRegained();
 }
 
 void ContextMenuForLoading::focusRegained() {
-	IndicatorLEDs::setLedState(saveLedX, saveLedY, false);
-	IndicatorLEDs::blinkLed(loadLedX, loadLedY);
+	indicator_leds::setLedState(IndicatorLED::SAVE, false);
+	indicator_leds::blinkLed(IndicatorLED::LOAD);
 	return ContextMenu::focusRegained();
 }
 } // namespace deluge::gui

@@ -33,8 +33,6 @@ extern UI* getCurrentUI();
 
 extern const uint8_t modButtonX[];
 extern const uint8_t modButtonY[];
-extern const uint8_t modLedX[];
-extern const uint8_t modLedY[];
 
 extern uint8_t subModeToReturnTo;
 
