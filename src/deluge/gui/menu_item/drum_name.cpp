@@ -24,7 +24,7 @@
 namespace menu_item {
 
 bool DrumName::isRelevant(Sound* sound, int whichThing) {
-	return (DELUGE_MODEL != DELUGE_MODEL_40_PAD && soundEditor.editingKit());
+	return soundEditor.editingKit();
 }
 
 void DrumName::beginSession(MenuItem* navigatedBackwardFrom) {

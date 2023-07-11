@@ -113,14 +113,9 @@ void clearTickSquares(bool shouldSend) {
 	if (flashCursor == FLASH_CURSOR_SLOW && !shouldNotRenderDuringTimerRoutine()) {
 		for (int y = 0; y < displayHeight; y++) {
 
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-			if (slowFlashSquares[y] != 255)
-				colsToSend |= (1 << slowFlashSquares[y]);
-#else
 			if (slowFlashSquares[y] != 255) {
 				colsToSend |= (1 << (slowFlashSquares[y] >> 1));
 			}
-#endif
 		}
 	}
 
@@ -134,11 +129,7 @@ void clearTickSquares(bool shouldSend) {
 						break;
 					}
 
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-					sortLedsForCol(x);
-#else
 					sortLedsForCol(x << 1);
-#endif
 				}
 			}
 			uartFlushIfNotSending(UART_ITEM_PIC_PADS);
@@ -155,15 +146,6 @@ void setTickSquares(const uint8_t* squares, const uint8_t* colours) {
 			for (int y = 0; y < displayHeight; y++) {
 				if (squares[y] != slowFlashSquares[y] || colours[y] != slowFlashColours[y]) {
 
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-					// Remember to update the new column
-					if (squares[y] != 255)
-						colsToSend |= (1 << squares[y]);
-
-					// And the old column
-					if (slowFlashSquares[y] != 255)
-						colsToSend |= (1 << slowFlashSquares[y]);
-#else
 					// Remember to update the new column
 					if (squares[y] != 255) {
 						colsToSend |= (1 << (squares[y] >> 1));
@@ -173,7 +155,6 @@ void setTickSquares(const uint8_t* squares, const uint8_t* colours) {
 					if (slowFlashSquares[y] != 255) {
 						colsToSend |= (1 << (slowFlashSquares[y] >> 1));
 					}
-#endif
 				}
 			}
 		}
@@ -200,11 +181,7 @@ sendColourMessage:
 					goto sendColourMessage;
 				}
 
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-				bufferPICPadsUart(78 + squares[y] + y * displayWidth);
-#else
 				bufferPICPadsUart(24 + y + (squares[y] * displayHeight));
-#endif
 			}
 		}
 	}
@@ -220,11 +197,7 @@ sendColourMessage:
 					if (uartGetTxBufferSpace(UART_ITEM_PIC_PADS) <= NUM_BYTES_IN_COL_UPDATE_MESSAGE) {
 						break;
 					}
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-					sortLedsForCol(x);
-#else
 					sortLedsForCol(x << 1);
-#endif
 				}
 			}
 			uartFlushIfNotSending(UART_ITEM_PIC_PADS);
@@ -254,15 +227,10 @@ void clearSideBar() {
 void sortLedsForCol(int x) {
 	AudioEngine::logAction("MatrixDriver::sortLedsForCol");
 
-#if DELUGE_MODEL >= DELUGE_MODEL_144_PAD
 	x &= 0b11111110;
 	bufferPICPadsUart((x >> 1) + 1);
 	sendRGBForOneCol(x);
 	sendRGBForOneCol(x + 1);
-#else
-	bufferPICPadsUart(x);
-	sendRGBForOneCol(x);
-#endif
 }
 
 inline void sendRGBForOneCol(int x) {
@@ -861,13 +829,9 @@ void sendOutMainPadColours() {
 	}
 
 	for (int col = 0; col < displayWidth; col++) {
-#if DELUGE_MODEL >= DELUGE_MODEL_144_PAD
 		if (col & 1) {
 			sortLedsForCol(col - 1);
 		}
-#else
-		sortLedsForCol(col);
-#endif
 	}
 
 	uartFlushIfNotSending(UART_ITEM_PIC_PADS);
@@ -889,13 +853,7 @@ void sendOutSidebarColours() {
 		return;
 	}
 
-#if DELUGE_MODEL >= DELUGE_MODEL_144_PAD
 	sortLedsForCol(displayWidth);
-#else
-	for (int col = 0; col < sideBarWidth; col++) {
-		sortLedsForCol(col + displayWidth);
-	}
-#endif
 
 	uartFlushIfNotSending(UART_ITEM_PIC_PADS);
 
@@ -1154,9 +1112,7 @@ void renderZoomWithProgress(int inImageTimesBiggerThanNative, uint32_t inImageFa
 		innerImage += innerImageTotalWidth * 3;
 		outerImage += outerImageTotalWidth * 3;
 	}
-	if (DELUGE_MODEL != DELUGE_MODEL_40_PAD) {
-		AudioEngine::routineWithClusterLoading(); // -----------------------------------
-	}
+	AudioEngine::routineWithClusterLoading(); // -----------------------------------
 }
 
 void renderZoomedSquare(int32_t outputSquareStartOnSourceImage, int32_t outputSquareEndOnSourceImage,
@@ -1214,22 +1170,13 @@ void renderScroll() {
 				}
 			}
 
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 			bufferPICPadsUart(228 + row);
 			sendRGBForOnePadFast(endSquare, row, image[row][endSquare]);
-#endif
 		}
 	}
 
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-	sendOutMainPadColours();
-	if (areaToScroll > displayWidth) {
-		sendOutSidebarColours();
-	}
-#else
 	bufferPICPadsUart(240);
 	uartFlushIfNotSending(UART_ITEM_PIC_PADS);
-#endif
 	if (squaresScrolled >= areaToScroll) {
 		getCurrentUI()->scrollFinished();
 	}
@@ -1244,7 +1191,6 @@ void setupScroll(int8_t thisScrollDirection, uint8_t thisAreaToScroll, bool scro
 	squaresScrolled = thisAreaToScroll - numSquaresToScroll;
 	scrollingIntoNothing = scrollIntoNothing;
 
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 	uint8_t flags = 0;
 	if (thisScrollDirection >= 0) {
 		flags |= 1;
@@ -1253,7 +1199,6 @@ void setupScroll(int8_t thisScrollDirection, uint8_t thisAreaToScroll, bool scro
 		flags |= 2;
 	}
 	bufferPICPadsUart(236 + flags);
-#endif
 
 	renderScroll();
 }
