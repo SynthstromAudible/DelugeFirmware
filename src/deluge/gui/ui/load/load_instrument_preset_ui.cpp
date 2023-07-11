@@ -32,7 +32,7 @@
 #include "gui/ui/keyboard_screen.h"
 #include "model/action/action_logger.h"
 #include "model/instrument/midi_instrument.h"
-#include "gui/context_menu/context_menu_load_instrument_preset.h"
+#include "gui/context_menu/load_instrument_preset.h"
 #include "hid/led/pad_leds.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/encoders.h"
@@ -46,6 +46,8 @@
 extern "C" {
 #include "drivers/uart/uart.h"
 }
+
+using namespace deluge;
 
 LoadInstrumentPresetUI loadInstrumentPresetUI{};
 
@@ -353,12 +355,12 @@ int LoadInstrumentPresetUI::timerCallback() {
 			return ACTION_RESULT_DEALT_WITH;
 		}
 
-		bool available = contextMenuLoadInstrumentPreset.setupAndCheckAvailability();
+		bool available = gui::context_menu::loadInstrumentPreset.setupAndCheckAvailability();
 
 		if (available) {
 			numericDriver.setNextTransitionDirection(1);
 			convertToPrefixFormatIfPossible();
-			openUI(&contextMenuLoadInstrumentPreset);
+			openUI(&gui::context_menu::loadInstrumentPreset);
 		}
 		else {
 			exitUIMode(UI_MODE_HOLDING_BUTTON_POTENTIAL_LONG_PRESS);

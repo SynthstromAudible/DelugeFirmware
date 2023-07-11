@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "gui/context_menu/save_song_or_instrument_context_menu.h"
+#include "gui/context_menu/save_song_or_instrument.h"
 #include "gui/ui/save/save_ui.h"
 #include "hid/matrix/matrix_driver.h"
 #include "hid/display/numeric_driver.h"
@@ -26,6 +26,8 @@
 #include "hid/buttons.h"
 #include "gui/ui_timer_manager.h"
 #include "storage/file_item.h"
+
+using namespace deluge;
 
 bool SaveUI::currentFolderIsEmpty;
 
@@ -126,12 +128,12 @@ int SaveUI::timerCallback() {
 	if (currentUIMode == UI_MODE_HOLDING_BUTTON_POTENTIAL_LONG_PRESS) {
 		convertToPrefixFormatIfPossible();
 
-		bool available = saveSongOrInstrumentContextMenu.setupAndCheckAvailability();
+		bool available = gui::context_menu::saveSongOrInstrument.setupAndCheckAvailability();
 
 		if (available) {
 			currentUIMode = UI_MODE_NONE;
 			numericDriver.setNextTransitionDirection(1);
-			openUI(&saveSongOrInstrumentContextMenu);
+			openUI(&gui::context_menu::saveSongOrInstrument);
 		}
 		else {
 			exitUIMode(UI_MODE_HOLDING_BUTTON_POTENTIAL_LONG_PRESS);

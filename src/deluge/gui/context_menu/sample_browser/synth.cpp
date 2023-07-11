@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "gui/context_menu/context_menu_sample_browser_synth.h"
+#include "gui/context_menu/sample_browser/synth.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "hid/display/numeric_driver.h"
 #include "util/functions.h"
@@ -24,24 +24,20 @@
 #include "processing/sound/sound.h"
 #include "storage/file_item.h"
 
-ContextMenuSampleBrowserSynth contextMenuFileBrowserSynth{};
+namespace deluge::gui::context_menu::sample_browser {
+Synth synth{};
 
-ContextMenuSampleBrowserSynth::ContextMenuSampleBrowserSynth() {
-#if HAVE_OLED
-	title = "Load file(s)";
-#endif
+char const* Synth::getTitle() {
+	static char const* title = "Load file(s)";
+	return title;
 }
 
-char const** ContextMenuSampleBrowserSynth::getOptions() {
+Sized<char const**> Synth::getOptions() {
 	static char const* options[] = {"Multisamples", "Basic", "Single-cycle", "Wavetable"};
-	return options;
+	return {options, 4};
 }
 
-int ContextMenuSampleBrowserSynth::getNumOptions() {
-	return 4;
-}
-
-bool ContextMenuSampleBrowserSynth::isCurrentOptionAvailable() {
+bool Synth::isCurrentOptionAvailable() {
 
 	// Multisamples (load entire folder and auto-detect ranges). Will delete all previous Ranges.
 	if (currentOption == 0) {
@@ -75,7 +71,7 @@ bool ContextMenuSampleBrowserSynth::isCurrentOptionAvailable() {
 	}
 }
 
-bool ContextMenuSampleBrowserSynth::acceptCurrentOption() {
+bool Synth::acceptCurrentOption() {
 
 	switch (currentOption) {
 	case 0: // Multisamples
@@ -92,10 +88,11 @@ bool ContextMenuSampleBrowserSynth::acceptCurrentOption() {
 	}
 }
 
-int ContextMenuSampleBrowserSynth::padAction(int x, int y, int on) {
+int Synth::padAction(int x, int y, int on) {
 	return sampleBrowser.padAction(x, y, on);
 }
 
-bool ContextMenuSampleBrowserSynth::canSeeViewUnderneath() {
+bool Synth::canSeeViewUnderneath() {
 	return sampleBrowser.canSeeViewUnderneath();
 }
+} // namespace deluge::gui::context_menu::sample_browser

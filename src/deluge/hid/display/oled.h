@@ -81,6 +81,9 @@ extern uint8_t oledMainImage[OLED_MAIN_HEIGHT_PIXELS >> 3][OLED_MAIN_WIDTH_PIXEL
 extern uint8_t oledMainPopupImage[OLED_MAIN_HEIGHT_PIXELS >> 3][OLED_MAIN_WIDTH_PIXELS];
 extern uint8_t oledMainConsoleImage[CONSOLE_IMAGE_NUM_ROWS][OLED_MAIN_WIDTH_PIXELS];
 
+// pointer to one of the three above (the one currently displayed)
+extern uint8_t (*oledCurrentImage)[OLED_MAIN_WIDTH_PIXELS];
+
 extern const uint8_t folderIcon[];
 extern const uint8_t waveIcon[];
 extern const uint8_t songIcon[];
