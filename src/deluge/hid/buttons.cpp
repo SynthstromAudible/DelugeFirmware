@@ -29,16 +29,16 @@
 
 namespace Buttons {
 
+using namespace hid::button;
+
 bool recordButtonPressUsedUp;
 uint32_t timeRecordButtonPressed;
-bool buttonStates[NUM_BUTTON_COLS + 1][NUM_BUTTON_ROWS]; // The extra col is for "fake" buttons
+bool buttonStates[(NUM_BUTTON_COLS + 1) * NUM_BUTTON_ROWS]; // The extra col is for "fake" buttons
 
 int buttonAction(hid::Button b, bool on, bool inCardRoutine) {
-	using namespace hid::button;
 
 	// Must happen up here before it's actioned, because if its action accesses SD card, we might multiple-enter this function, and don't want to then be setting this after that later action, erasing what it set
-	auto xy = hid::button::toXY(b);
-	buttonStates[xy.x][xy.y] = on;
+	buttonStates[static_cast<int>(b)] = on;
 
 #if ALLOW_SPAM_MODE
 	if (b == Button::X_ENC) {
@@ -52,12 +52,12 @@ int buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	// See if it was one of the mod buttons
 	for (int i = 0; i < NUM_MOD_BUTTONS; i++) {
 
-		if (xy.x == modButtonX[i] && xy.y == modButtonY[i]) {
+		if (b == modButton[i]) {
 
 #if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 			if (i < 3) {
-				if (buttonStates[modButtonX[0]][modButtonY[0]] && buttonStates[modButtonX[1]][modButtonY[1]]
-				    && buttonStates[modButtonX[2]][modButtonY[2]]) {
+				if (buttonStates[static_cast<int>(modButton[0])] && buttonStates[static_cast<int>(modButton[1])]
+				    && buttonStates[static_cast<int>(modButton[2])]) {
 					ramTestLED(true);
 				}
 			}
@@ -170,29 +170,26 @@ dealtWith:
 }
 
 bool isButtonPressed(hid::Button b) {
-	auto xy = hid::button::toXY(b);
-	return buttonStates[xy.x][xy.y];
+	return buttonStates[static_cast<int>(b)];
 }
 
 bool isShiftButtonPressed() {
-	return buttonStates[shiftButtonX][shiftButtonY];
+	return buttonStates[static_cast<int>(Button::SHIFT)];
 }
 
 bool isNewOrShiftButtonPressed() {
 #ifdef BUTTON_NEW_X
-	return buttonStates[BUTTON_NEW_X][BUTTON_NEW_Y];
+	return buttonStates[static_cast<int>(Button::NEW)];
 #else
-	return buttonStates[shiftButtonX][shiftButtonY];
+	return buttonStates[static_cast<int>(Button::SHIFT)];
 #endif
 }
 
 // Correct any misunderstandings
 void noPressesHappening(bool inCardRoutine) {
-	for (int x = 0; x < NUM_BUTTON_COLS; x++) {
-		for (int y = 0; y < NUM_BUTTON_ROWS; y++) {
-			if (buttonStates[x][y]) {
-				buttonAction(static_cast<hid::button::Button>(hid::button::fromXY(x, y)), false, inCardRoutine);
-			}
+	for (int i = 0; i < NUM_BUTTON_COLS * NUM_BUTTON_ROWS; i++) {
+		if (buttonStates[i]) {
+			buttonAction(static_cast<Button>(i), false, inCardRoutine);
 		}
 	}
 }
