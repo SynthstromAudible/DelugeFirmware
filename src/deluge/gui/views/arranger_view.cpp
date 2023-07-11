@@ -179,7 +179,6 @@ int ArrangerView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 		}
 	}
 
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 	// Affect-entire button
 	else if (b == AFFECT_ENTIRE) {
 		if (on && currentUIMode == UI_MODE_NONE) {
@@ -191,7 +190,6 @@ int ArrangerView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 			view.setActiveModControllableTimelineCounter(currentSong);
 		}
 	}
-#endif
 
 	// Cross-screen button
 	else if (b == CROSS_SCREEN_EDIT) {
@@ -445,9 +443,7 @@ void ArrangerView::focusRegained() {
 	IndicatorLEDs::setLedState(scaleModeLedX, scaleModeLedY, false);
 	setLedStates();
 
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 	IndicatorLEDs::setLedState(keyboardLedX, keyboardLedX, false);
-#endif
 
 	currentSong->lastClipInstanceEnteredStartPos = 0;
 
@@ -1061,7 +1057,6 @@ regularMutePadPress:
 	// Edit pad
 	else {
 		if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION) {
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 			if (velocity) {
 
 				// NAME shortcut
@@ -1076,7 +1071,6 @@ regularMutePadPress:
 					}
 				}
 			}
-#endif
 		}
 		else {
 			if (output) {

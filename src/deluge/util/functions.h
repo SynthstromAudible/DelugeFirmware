@@ -482,12 +482,7 @@ inline void getTailColour(uint8_t rgb[], uint8_t fromRgb[]) {
 	unsigned int averageBrightness = ((unsigned int)fromRgb[0] + fromRgb[1] + fromRgb[2]);
 	rgb[0] = (((int)fromRgb[0] * 21 + averageBrightness) * 157) >> 14;
 	rgb[1] = (((int)fromRgb[1] * 21 + averageBrightness) * 157) >> 14;
-
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-	rgb[2] = (((int)averageBrightness) * 157) >> 14;
-#else
 	rgb[2] = (((int)fromRgb[2] * 21 + averageBrightness) * 157) >> 14;
-#endif
 }
 
 inline void getBlurColour(uint8_t rgb[], uint8_t fromRgb[]) {

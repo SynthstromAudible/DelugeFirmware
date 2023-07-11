@@ -308,12 +308,6 @@ int SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 		}
 	}
 
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-	else if (b == CLIP_VIEW && getRootUI() == &instrumentClipView) {
-		return instrumentClipView.buttonAction(b, on, inCardRoutine);
-	}
-#else
-
 	// Affect-entire button
 	else if (b == AFFECT_ENTIRE && getRootUI() == &instrumentClipView) {
 		if (getCurrentMenuItem()->usesAffectEntire() && editingKit()) {
@@ -359,7 +353,6 @@ int SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 			IndicatorLEDs::setLedState(keyboardLedX, keyboardLedY, getRootUI() == &keyboardScreen);
 		}
 	}
-#endif
 
 	else {
 		return ACTION_RESULT_NOT_DEALT_WITH;
@@ -422,8 +415,6 @@ bool SoundEditor::beginScreen(MenuItem* oldMenuItem) {
 #if HAVE_OLED
 	renderUIsForOled();
 #endif
-
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 
 	if (!inSettingsMenu() && currentItem != &sampleStartMenu && currentItem != &sampleEndMenu
 	    && currentItem != &audioClipSampleMarkerEditorMenuStart && currentItem != &audioClipSampleMarkerEditorMenuEnd
@@ -539,7 +530,6 @@ stopThat : {}
 			blinkShortcut();
 		}
 	}
-#endif
 
 shortcutsPicked:
 
@@ -561,13 +551,11 @@ void SoundEditor::possibleChangeToCurrentRangeDisplay() {
 }
 
 void SoundEditor::setupShortcutBlink(int x, int y, int frequency) {
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 	currentParamShorcutX = x;
 	currentParamShorcutY = y;
 
 	shortcutBlinkCounter = 0;
 	paramShortcutBlinkFrequency = frequency;
-#endif
 }
 
 void SoundEditor::setupExclusiveShortcutBlink(int x, int y) {
@@ -577,11 +565,6 @@ void SoundEditor::setupExclusiveShortcutBlink(int x, int y) {
 }
 
 void SoundEditor::blinkShortcut() {
-
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-	return;
-#endif
-
 	// We have to blink params and shortcuts at slightly different times, because blinking two pads on the same row at same time doesn't work
 
 	uint32_t counterForNow = shortcutBlinkCounter >> 1;
@@ -678,7 +661,7 @@ static const uint32_t shortcutPadUIModes[] = {UI_MODE_AUDITIONING, 0};
 
 int SoundEditor::potentialShortcutPadAction(int x, int y, bool on) {
 
-	if (!on || DELUGE_MODEL == DELUGE_MODEL_40_PAD || x >= displayWidth
+	if (!on || x >= displayWidth
 	    || (!Buttons::isShiftButtonPressed()
 	        && !(currentUIMode == UI_MODE_AUDITIONING && getRootUI() == &instrumentClipView))) {
 		return ACTION_RESULT_NOT_DEALT_WITH;
@@ -939,12 +922,7 @@ void SoundEditor::modEncoderAction(int whichModEncoder, int offset) {
 
 		// But, can't do it if it's a Kit and affect-entire is on!
 		if (editingKit() && ((InstrumentClip*)currentSong->currentClip)->affectEntire) {
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-			IndicatorLEDs::indicateAlertOnLed(
-			    songViewLedX, songViewLedY); // Really should indicate it on "Clip View", but that's already blinking
-#else
 			//IndicatorLEDs::indicateErrorOnLed(affectEntireLedX, affectEntireLedY);
-#endif
 		}
 
 		// Otherwise, everything's fine

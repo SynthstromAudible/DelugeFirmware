@@ -317,7 +317,6 @@ moveAfterClipInstance:
 		}
 	}
 
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 	// Affect-entire button
 	else if (b == AFFECT_ENTIRE) {
 		if (on && currentUIMode == UI_MODE_NONE) {
@@ -325,7 +324,6 @@ moveAfterClipInstance:
 			view.setActiveModControllableTimelineCounter(currentSong);
 		}
 	}
-#endif
 
 	// Record button - adds to what MatrixDriver does with it
 	else if (b == RECORD) {
@@ -1576,9 +1574,7 @@ void SessionView::redrawClipsOnScreen(bool doRender) {
 
 void SessionView::setLedStates() {
 
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 	IndicatorLEDs::setLedState(keyboardLedX, keyboardLedY, false);
-#endif
 
 	view.setLedStates();
 
@@ -1696,9 +1692,7 @@ void SessionView::setCentralLEDStates() {
 	IndicatorLEDs::setLedState(midiLedX, midiLedY, false);
 	IndicatorLEDs::setLedState(cvLedX, cvLedY, false);
 	IndicatorLEDs::setLedState(scaleModeLedX, scaleModeLedY, false);
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 	IndicatorLEDs::setLedState(keyboardLedX, keyboardLedY, false);
-#endif
 
 	if (getCurrentUI() == this) {
 		IndicatorLEDs::setLedState(crossScreenEditLedX, crossScreenEditLedY, false);

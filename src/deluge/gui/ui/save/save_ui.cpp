@@ -51,13 +51,6 @@ void SaveUI::focusRegained() {
 	return SlotBrowser::focusRegained();
 }
 
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-bool SaveUI::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
-	*cols = 0xFFFFFFFF;
-	return true;
-}
-#endif
-
 /*
 // TODO: in the future, there may be a case to be made for moving this to LoadOrSaveUI.
 // Check the very similar variations in LoadSongUI and LoadInstrumentPresetUI

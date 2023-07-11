@@ -44,11 +44,7 @@ void setLedState(uint8_t x, uint8_t y, bool newState, bool allowContinuedBlinkin
 
 	ledStates[x][y] = newState;
 
-#if DELUGE_MODEL >= DELUGE_MODEL_144_PAD
 	bufferPICIndicatorsUart(152 + x + y * 9 + (newState ? 36 : 0));
-#else
-	bufferPICIndicatorsUart(120 + x + y * 10 + (newState ? 40 : 0));
-#endif
 }
 
 void blinkLed(uint8_t x, uint8_t y, uint8_t numBlinks, uint8_t blinkingType, bool initialState) {
@@ -172,14 +168,7 @@ void setKnobIndicatorLevel(uint8_t whichKnob, uint8_t level) {
 		}
 	}
 
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-	// Without this here, pads turn on glitchily. Problem can also be solved by turning the baud rate down, but it's a bit late for that!
-	// It's very weird that this is the only command which causes this problem.
-	//if (Uart::getTxBufferFullness(UART_CHANNEL_PIC) >= 12) return;
-	bufferPICIndicatorsUart(70 + whichKnob);
-#else
 	bufferPICIndicatorsUart(20 + whichKnob);
-#endif
 
 	int numIndicatorLedsFullyOn = level >> 5;
 

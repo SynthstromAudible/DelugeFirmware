@@ -61,14 +61,10 @@ void ssiInit(uint8_t ssiChannel, uint8_t dmaChannel)
     ssiInit2(SSI_CHANNEL);
 
     initDMAWithLinkDescriptor(SSI_TX_DMA_CHANNEL, ssiDmaTxLinkDescriptor, DMARS_FOR_SSI0_TX + SSI_CHANNEL * 4);
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
     initDMAWithLinkDescriptor(SSI_RX_DMA_CHANNEL, ssiDmaRxLinkDescriptor, DMARS_FOR_SSI0_RX + SSI_CHANNEL * 4);
-#endif
 
     dmaChannelStart(SSI_TX_DMA_CHANNEL);
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
     dmaChannelStart(SSI_RX_DMA_CHANNEL);
-#endif
 
     ssiStart(SSI_CHANNEL);
 }
@@ -112,11 +108,6 @@ void ssiStart(const uint32_t ssi_channel)
     /* ---- SSI Rx Full Int enable ---- */
     *ssif[ssi_channel].ssifcr |= (uint32_t)(1 << 2); // RIE
 
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-    /* ---- SSI Tx enable ---- */
-    *ssif[ssi_channel].ssicr |= (uint32_t)(1 << 1); // TEN
-#else
     /* ---- SSI Tx and Rx enable ---- */
     *ssif[ssi_channel].ssicr |= (uint32_t)0b11; // TEN and REN
-#endif
 }
