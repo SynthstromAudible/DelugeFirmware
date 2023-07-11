@@ -18,6 +18,7 @@
 #include "model/sample/sample_holder_for_clip.h"
 #include "util/lookuptables/lookuptables.h"
 #include "model/sample/sample.h"
+#include "model/tuning.h"
 
 SampleHolderForClip::SampleHolderForClip() {
 	transpose = 0;
@@ -42,7 +43,7 @@ void SampleHolderForClip::recalculateNeutralPhaseIncrement() {
 		int noteWithinOctave = (uint16_t)(transpose + 240) % 12;
 		int octave = ((uint16_t)(transpose + 120) / 12) - 10;
 
-		neutralPhaseIncrement = noteIntervalTable[noteWithinOctave] >> (6 - octave);
+		neutralPhaseIncrement = tuningSystem.noteInterval(noteWithinOctave) >> (6 - octave);
 
 		if (((Sample*)audioFile)->sampleRate != 44100) {
 			neutralPhaseIncrement = (uint64_t)neutralPhaseIncrement * ((Sample*)audioFile)->sampleRate / 44100;

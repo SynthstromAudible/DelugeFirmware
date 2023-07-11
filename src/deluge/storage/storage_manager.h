@@ -66,6 +66,7 @@ public:
 
 	int createFile(FIL* file, char const* filePath, bool mayOverwrite);
 	int createXMLFile(char const* pathName, bool mayOverwrite = false);
+	int loadScalaFile(FilePointer* filePointer);
 	int openXMLFile(FilePointer* filePointer, char const* firstTagName, char const* altTagName = "",
 	                bool ignoreIncorrectFirmware = false);
 	bool prepareToReadTagOrAttributeValueOneCharAtATime();

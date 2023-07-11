@@ -49,6 +49,7 @@
 #include "model/sample/sample_recorder.h"
 #include "model/instrument/melodic_instrument.h"
 #include "gui/menu_item/colour.h"
+#include "gui/menu_item/submenu.h"
 #include "hid/led/pad_leds.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/buttons.h"
@@ -60,6 +61,7 @@
 #include "storage/file_item.h"
 #include "dsp/master_compressor/master_compressor.h"
 #include "model/settings/runtime_feature_settings.h"
+#include "gui/ui/sound_editor.h"
 
 #if HAVE_OLED
 #include "hid/display/oled.h"
@@ -73,11 +75,14 @@ extern "C" {
 using namespace deluge;
 
 SessionView sessionView{};
+extern menu_item::Submenu songRootMenu;
 
 extern int8_t defaultAudioClipOverdubOutputCloning;
 
 SessionView::SessionView() {
 	xScrollBeforeFollowingAutoExtendingLinearRecording = -1;
+
+	//new (&songEditor) SongEditor();
 }
 
 bool SessionView::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
@@ -408,6 +413,15 @@ moveAfterClipInstance:
 					}
 				}
 			}
+		}
+	}
+
+	else if (b == SCALE_MODE) {
+		if (on) {
+			if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+
+			soundEditor.setup(NULL, &songRootMenu);
+			openUI(&soundEditor);
 		}
 	}
 

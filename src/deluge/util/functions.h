@@ -178,6 +178,7 @@ static constexpr uint16_t charsToIntegerConstant(char a, char b) {
 }
 
 int32_t stringToInt(char const* string);
+double stringToDouble(char const* string);
 int32_t stringToUIntOrError(char const* mem);
 int32_t memToUIntOrError(char const* mem, char const* const memEnd);
 void getInstrumentPresetFilename(char const* filePrefix, int16_t presetNumber, int8_t presetSubslotNumber,

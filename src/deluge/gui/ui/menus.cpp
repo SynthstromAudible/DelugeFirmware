@@ -146,6 +146,7 @@
 #include "gui/menu_item/trigger/in/auto_start.h"
 #include "gui/menu_item/trigger/in/ppqn.h"
 #include "gui/menu_item/trigger/out/ppqn.h"
+#include "gui/menu_item/tuning.h"
 #include "gui/menu_item/unison/count.h"
 #include "gui/menu_item/unison/detune.h"
 #include "gui/menu_item/unpatched_param/pan.h"
@@ -724,8 +725,24 @@ MenuItem* soundEditorRootMenuItemsAudioClip[] = {&audioClipSampleMenu,
                                                  NULL};
 menu_item::Submenu soundEditorRootMenuAudioClip{"Audio clip", soundEditorRootMenuItemsAudioClip};
 
+// Tuning menu
+menu_item::TuningNotes tuningNotesMenu {"NOTES"};
+
+menu_item::TuningReference tuningReferenceMenu{"REFERENCE"};
+menu_item::TuningBank tuningBankMenu{"BANK"};
+MenuItem* tuningMenuItems[] = {
+    &tuningReferenceMenu,
+    &tuningBankMenu,
+    &tuningNotesMenu,
+    NULL,
+};
+menu_item::Submenu tuningMenu{"TUNING", tuningMenuItems};
+MenuItem* songRootMenuItems[] = {&tuningMenu, NULL};
+menu_item::Submenu songRootMenu{"SONG", songRootMenuItems};
+
 // Root Menu
-MenuItem* rootSettingsMenuItems[] = {&cvSelectionMenu,
+MenuItem* rootSettingsMenuItems[] = {&tuningMenu,
+                                     &cvSelectionMenu,
                                      &gateSelectionMenu,
                                      &triggerClockMenu,
                                      &midiMenu,
