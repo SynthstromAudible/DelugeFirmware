@@ -47,16 +47,9 @@ bool SaveUI::opened() {
 }
 
 void SaveUI::focusRegained() {
-	IndicatorLEDs::blinkLed(saveLedX, saveLedY);
+	indicator_leds::blinkLed(IndicatorLED::SAVE);
 	return SlotBrowser::focusRegained();
 }
-
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-bool SaveUI::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
-	*cols = 0xFFFFFFFF;
-	return true;
-}
-#endif
 
 /*
 // TODO: in the future, there may be a case to be made for moving this to LoadOrSaveUI.
@@ -64,7 +57,7 @@ bool SaveUI::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
 void SaveUI::displayText(bool blinkImmediately) {
 
 	if (enteredText.isEmpty() && !currentFolderIsEmpty) {
-		IndicatorLEDs::ledBlinkTimeout(0, true, !blinkImmediately);
+		indicator_leds::ledBlinkTimeout(0, true, !blinkImmediately);
 		numericDriver.setTextAsSlot(currentSlot, currentSubSlot, currentFileExists, true, numberEditPos);
 	}
 

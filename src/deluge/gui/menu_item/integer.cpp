@@ -73,45 +73,6 @@ void Integer::drawPixelsForOled() {
 	drawInteger(TEXT_HUGE_SPACING_X, TEXT_HUGE_SIZE_Y, 18);
 }
 
-void IntegerContinuous::drawBar(int yTop, int marginL, int marginR) {
-	if (marginR == -1) {
-		marginR = marginL;
-	}
-	int height = 7;
-
-	int leftMost = marginL;
-	int rightMost = OLED_MAIN_WIDTH_PIXELS - marginR - 1;
-
-	int y = OLED_MAIN_TOPMOST_PIXEL + OLED_MAIN_VISIBLE_HEIGHT * 0.78;
-
-	int endLineHalfHeight = 8;
-
-	/*
-	OLED::drawHorizontalLine(y, leftMost, rightMost, OLED::oledMainImage);
-	OLED::drawVerticalLine(leftMost, y, y + endLineHalfHeight, OLED::oledMainImage);
-	OLED::drawVerticalLine(rightMost, y, y + endLineHalfHeight, OLED::oledMainImage);
-*/
-	int minValue = getMinValue();
-	int maxValue = getMaxValue();
-	unsigned int range = maxValue - minValue;
-	float posFractional = (float)(soundEditor.currentValue - minValue) / range;
-	float zeroPosFractional = (float)(-minValue) / range;
-
-	int width = rightMost - leftMost;
-	int posHorizontal = (int)(posFractional * width + 0.5);
-	int zeroPosHorizontal = (int)(zeroPosFractional * width);
-
-	if (posHorizontal <= zeroPosHorizontal) {
-		int xMin = leftMost + posHorizontal;
-		OLED::invertArea(xMin, zeroPosHorizontal - posHorizontal + 1, yTop, yTop + height, OLED::oledMainImage);
-	}
-	else {
-		int xMin = leftMost + zeroPosHorizontal;
-		OLED::invertArea(xMin, posHorizontal - zeroPosHorizontal, yTop, yTop + height, OLED::oledMainImage);
-	}
-	OLED::drawRectangle(leftMost, yTop, rightMost, yTop + height, OLED::oledMainImage);
-}
-
 void IntegerContinuous::drawPixelsForOled() {
 
 #if OLED_MAIN_HEIGHT_PIXELS == 64

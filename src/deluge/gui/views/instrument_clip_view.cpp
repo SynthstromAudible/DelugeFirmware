@@ -155,9 +155,7 @@ void InstrumentClipView::openedInBackground() {
 }
 
 void InstrumentClipView::setLedStates() {
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 	IndicatorLEDs::setLedState(keyboardLedX, keyboardLedY, false);
-#endif
 	InstrumentClipMinder::setLedStates();
 }
 
@@ -173,7 +171,7 @@ int InstrumentClipView::buttonAction(hid::Button b, bool on, bool inCardRoutine)
 		// Kits can't do scales!
 		if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_KIT) {
 			if (on) {
-				IndicatorLEDs::indicateAlertOnLed(kitLedX, kitLedY);
+				indicator_leds::indicateAlertOnLed(IndicatorLED::KIT);
 			}
 			return ACTION_RESULT_DEALT_WITH;
 		}
@@ -245,26 +243,6 @@ doOther:
 		}
 	}
 
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-	// Clip view button
-	else if (b == Button::CLIP_VIEW) {
-		if (on && Buttons::isShiftButtonPressed() && currentUIMode == UI_MODE_NONE) {
-			if (inCardRoutine)
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
-
-			InstrumentClip* currentClip = getCurrentClip();
-
-			if (currentClip->output->type == INSTRUMENT_TYPE_KIT) {
-				currentClip->affectEntire = !currentClip->affectEntire;
-				view.setActiveModControllableTimelineCounter(currentClip); // Refreshes LEDs and everything
-			}
-			else {
-				changeRootUI(&keyboardScreen); // Go to keyboard screen
-			}
-		}
-	}
-#else
-
 	// Keyboard button
 	else if (b == Button::KEYBOARD) {
 		if (on && currentUIMode == UI_MODE_NONE) {
@@ -275,7 +253,6 @@ doOther:
 			changeRootUI(&keyboardScreen);
 		}
 	}
-#endif
 
 	// Wrap edit button
 	else if (b == Button::CROSS_SCREEN_EDIT) {
@@ -301,7 +278,6 @@ doOther:
 		}
 	}
 
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 	// Record button if holding audition pad
 	else if (b == Button::RECORD
 	         && (currentUIMode == UI_MODE_ADDING_DRUM_NOTEROW || currentUIMode == UI_MODE_AUDITIONING)) {
@@ -348,7 +324,6 @@ doOther:
 			}
 		}
 	}
-#endif
 
 	// Back button if adding Drum
 	else if (b == Button::BACK && currentUIMode == UI_MODE_ADDING_DRUM_NOTEROW) {
@@ -791,9 +766,7 @@ discardDrum:
 		Sound::initParams(&paramManager);
 		((SoundDrum*)newDrum)->setupAsBlankSynth(&paramManager);
 
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 		((SoundDrum*)newDrum)->modKnobs[6][0].paramDescriptor.setToHaveParamOnly(PARAM_LOCAL_PITCH_ADJUST);
-#endif
 	}
 
 	kit->addDrum(newDrum);
@@ -2850,7 +2823,7 @@ void InstrumentClipView::offsetNoteCodeAction(int newOffset) {
 
 		// If not allowed to move, blink the scale mode button to remind the user that that's why
 		if (!currentSong->mayMoveModeNote(yVisualWithinOctave, newOffset)) {
-			IndicatorLEDs::indicateAlertOnLed(scaleModeLedX, scaleModeLedY);
+			indicator_leds::indicateAlertOnLed(IndicatorLED::SCALE_MODE);
 			int noteCode = getCurrentClip()->getYNoteFromYDisplay(lastAuditionedYDisplay, currentSong);
 			drawActualNoteCode(noteCode); // Draw it again so that blinking stops temporarily
 			return;
@@ -2894,7 +2867,7 @@ doRenderRow:
 
 		// Otherwise, can't do anything - give error
 		else {
-			IndicatorLEDs::indicateAlertOnLed(scaleModeLedX, scaleModeLedY);
+			indicator_leds::indicateAlertOnLed(IndicatorLED::SCALE_MODE);
 		}
 	}
 
@@ -3272,7 +3245,7 @@ getOut:
 
 	// This has to happen after setSelectedDrum is called, cos that resets LEDs
 	if (!clipIsActiveOnInstrument && velocity) {
-		IndicatorLEDs::indicateAlertOnLed(sessionViewLedX, sessionViewLedY);
+		indicator_leds::indicateAlertOnLed(IndicatorLED::SESSION_VIEW);
 	}
 }
 
@@ -3467,7 +3440,7 @@ void InstrumentClipView::drawDrumName(Drum* drum, bool justPopUp) {
 
 			strcpy(buffer, "Gate channel ");
 			intToString(((GateDrum*)drum)->channel + 1, &buffer[13]);
-			IndicatorLEDs::blinkLed(cvLedX, cvLedY, 1, 1);
+			indicator_leds::blinkLed(IndicatorLED::CV, 1, 1);
 		}
 		else { // MIDI
 			strcpy(buffer, "MIDI channel ");
@@ -3476,7 +3449,7 @@ void InstrumentClipView::drawDrumName(Drum* drum, bool justPopUp) {
 			char* pos = strchr(buffer, 0);
 			intToString(((MIDIDrum*)drum)->note, pos);
 
-			IndicatorLEDs::blinkLed(midiLedX, midiLedY, 1, 1);
+			indicator_leds::blinkLed(IndicatorLED::MIDI, 1, 1);
 		}
 	}
 
@@ -3502,10 +3475,10 @@ basicDisplay:
 			newText = buffer;
 
 			if (drum->type == DRUM_TYPE_MIDI) {
-				IndicatorLEDs::blinkLed(midiLedX, midiLedY, 1, 1);
+				indicator_leds::blinkLed(IndicatorLED::MIDI, 1, 1);
 			}
 			else if (drum->type == DRUM_TYPE_GATE) {
-				IndicatorLEDs::blinkLed(cvLedX, cvLedY, 1, 1);
+				indicator_leds::blinkLed(IndicatorLED::CV, 1, 1);
 			}
 
 			goto basicDisplay;
@@ -3981,8 +3954,8 @@ int InstrumentClipView::verticalEncoderAction(int offset, bool inCardRoutine) {
 
                 // Otherwise, remind the user why they can't
                 else {
-                    if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_SYNTH) IndicatorLEDs::indicateAlertOnLed(synthLedX, synthLedY);
-                    else IndicatorLEDs::indicateAlertOnLed(midiLedX, midiLedY); // MIDI
+                    if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_SYNTH) indicator_leds::indicateAlertOnLed(IndicatorLED::SYNTH);
+                    else indicator_leds::indicateAlertOnLed(IndicatorLED::MIDI); // MIDI
                 }
             }
             */

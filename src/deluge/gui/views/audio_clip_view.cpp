@@ -78,7 +78,7 @@ bool AudioClipView::opened() {
 void AudioClipView::focusRegained() {
 	ClipView::focusRegained();
 	endMarkerVisible = false;
-	IndicatorLEDs::setLedState(backLedX, backLedY, false);
+	indicator_leds::setLedState(IndicatorLED::BACK, false);
 	view.focusRegained();
 	view.setActiveModControllableTimelineCounter(currentSong->currentClip);
 

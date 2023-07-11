@@ -107,8 +107,8 @@ bool SessionView::opened() {
 		PadLEDs::skipGreyoutFade();
 	}
 
-	IndicatorLEDs::setLedState(crossScreenEditLedX, crossScreenEditLedY, false);
-	IndicatorLEDs::setLedState(scaleModeLedX, scaleModeLedY, false);
+	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
+	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, false);
 
 	focusRegained();
 
@@ -132,7 +132,7 @@ void SessionView::focusRegained() {
 #else
 	redrawNumericDisplay();
 #endif
-	IndicatorLEDs::setLedState(backLedX, backLedY, false);
+	indicator_leds::setLedState(IndicatorLED::BACK, false);
 
 	setLedStates();
 
@@ -220,8 +220,8 @@ int SessionView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 					arrangement.playbackStartedAtPos =
 					    arrangerView.xScrollWhenPlaybackStarted; // Have to do this after setting up playback
 
-					IndicatorLEDs::blinkLed(recordLedX, recordLedY, 255, 1);
-					IndicatorLEDs::blinkLed(sessionViewLedX, sessionViewLedY, 255, 1);
+					indicator_leds::blinkLed(IndicatorLED::RECORD, 255, 1);
+					indicator_leds::blinkLed(IndicatorLED::SESSION_VIEW, 255, 1);
 				}
 			}
 			else if (currentUIMode == UI_MODE_NONE) {
@@ -317,7 +317,6 @@ moveAfterClipInstance:
 		}
 	}
 
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 	// Affect-entire button
 	else if (b == Button::AFFECT_ENTIRE) {
 		if (on && currentUIMode == UI_MODE_NONE) {
@@ -325,7 +324,6 @@ moveAfterClipInstance:
 			view.setActiveModControllableTimelineCounter(currentSong);
 		}
 	}
-#endif
 
 	// Record button - adds to what MatrixDriver does with it
 	else if (b == Button::RECORD) {
@@ -1117,7 +1115,7 @@ int SessionView::horizontalEncoderAction(int offset) {
 		// Or, if the shift key is pressed
 		if (Buttons::isShiftButtonPressed()) {
 			// Tell the user why they can't resize
-			IndicatorLEDs::indicateAlertOnLed(clipViewLedX, clipViewLedY);
+			indicator_leds::indicateAlertOnLed(IndicatorLED::CLIP_VIEW);
 			return ACTION_RESULT_DEALT_WITH;
 		}
 	}
@@ -1540,7 +1538,7 @@ void SessionView::removeClip(uint8_t yDisplay) {
 	// If this Clip is the inputTickScaleClip
 	if (clip == currentSong->getSyncScalingClip()) {
 		// Don't let the user do it
-		IndicatorLEDs::indicateAlertOnLed(syncScalingLedX, syncScalingLedY);
+		indicator_leds::indicateAlertOnLed(IndicatorLED::SYNC_SCALING);
 		return;
 	}
 
@@ -1576,9 +1574,7 @@ void SessionView::redrawClipsOnScreen(bool doRender) {
 
 void SessionView::setLedStates() {
 
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 	IndicatorLEDs::setLedState(keyboardLedX, keyboardLedY, false);
-#endif
 
 	view.setLedStates();
 
@@ -1691,17 +1687,16 @@ nothingToDisplay:
 
 // This gets called by redrawNumericDisplay() - or, if HAVE_OLED, it gets called instead, because this still needs to happen.
 void SessionView::setCentralLEDStates() {
+
 	IndicatorLEDs::setLedState(synthLedX, synthLedY, false);
 	IndicatorLEDs::setLedState(kitLedX, kitLedY, false);
 	IndicatorLEDs::setLedState(midiLedX, midiLedY, false);
 	IndicatorLEDs::setLedState(cvLedX, cvLedY, false);
 	IndicatorLEDs::setLedState(scaleModeLedX, scaleModeLedY, false);
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 	IndicatorLEDs::setLedState(keyboardLedX, keyboardLedY, false);
-#endif
 
 	if (getCurrentUI() == this) {
-		IndicatorLEDs::setLedState(crossScreenEditLedX, crossScreenEditLedY, false);
+		indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
 	}
 }
 
@@ -1783,7 +1778,7 @@ void SessionView::graphicsRoutine() {
 			if (gr <= -12)
 				gr = -12.0;
 			gr = abs(gr);
-			IndicatorLEDs::setKnobIndicatorLevel(1, int(gr / 12.0 * 128)); //Gain Reduction LED
+			indicator_leds::setKnobIndicatorLevel(1, int(gr / 12.0 * 128)); //Gain Reduction LED
 		}
 	}
 
