@@ -41,7 +41,7 @@ Setting menuPatchCableResolution(RuntimeFeatureSettingType::PatchCableResolution
 std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement + 1> subMenuEntries{
     &menuDrumRandomizer,
     &menuMasterCompressorFx,
-	&menuFineTempo,
+    &menuFineTempo,
     &menuQuantize,
     &menuPatchCableResolution,
 

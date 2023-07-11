@@ -1889,70 +1889,68 @@ displayNudge:
 	// Otherwise, change tempo
 	else {
 
-			if (!(playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE)) {
+		if (!(playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE)) {
 
+			//FimeTempoKnob logic
+			if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::FineTempoKnob)
+			     == RuntimeFeatureStateToggle::On)) { //feature on
+				tempoKnobMode = 2;
+			}
+			else {
+				tempoKnobMode = 1;
+			}
 
-
-				//FimeTempoKnob logic
+			if (Buttons::isButtonPressed(hid::button::TEMPO_ENC)) {
 				if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::FineTempoKnob)
-						== RuntimeFeatureStateToggle::On)) {//feature on
-					tempoKnobMode = 2;}
-				else {
+				     == RuntimeFeatureStateToggle::On)) { //feature is on, tempo button push-turned
 					tempoKnobMode = 1;
 				}
 
-				if (Buttons::isButtonPressed(hid::button::TEMPO_ENC)) {
-					if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::FineTempoKnob)
-							== RuntimeFeatureStateToggle::On)) { //feature is on, tempo button push-turned
-						tempoKnobMode = 1;}
+				else {
+					tempoKnobMode = 2;
+				}
+			}
 
-					else {
-						tempoKnobMode = 2;}
+			switch (tempoKnobMode) {
+			case 1:
+				// Coarse tempo adjustment
+
+				// Get current tempo
+				int32_t magnitude;
+				int8_t whichValue;
+				getCurrentTempoParams(&magnitude, &whichValue);
+
+				whichValue += offset;
+
+				if (whichValue >= 16) {
+					whichValue -= 16;
+					magnitude--;
+				}
+				else if (whichValue < 0) {
+					whichValue += 16;
+					magnitude++;
 				}
 
+				currentSong->setTempoFromParams(magnitude, whichValue, true);
 
+				displayTempoFromParams(magnitude, whichValue);
+				break;
 
-				switch (tempoKnobMode) {
-					case 1:
-					// Coarse tempo adjustment
+			case 2:
+				// Fine tempo adjustment
 
-					// Get current tempo
-					int32_t magnitude;
-					int8_t whichValue;
-					getCurrentTempoParams(&magnitude, &whichValue);
-
-					whichValue += offset;
-
-					if (whichValue >= 16) {
-						whichValue -= 16;
-						magnitude--;
-					}
-					else if (whichValue < 0) {
-						whichValue += 16;
-						magnitude++;
-					}
-
-					currentSong->setTempoFromParams(magnitude, whichValue, true);
-
-					displayTempoFromParams(magnitude, whichValue);
-					break;
-
-					case 2:
-					// Fine tempo adjustment
-
-					uint32_t tempoBPM = calculateBPM(currentSong->getTimePerTimerTickFloat()) + 0.5;
-					tempoBPM += offset;
-					if (tempoBPM > 0) {
-						currentSong->setBPM(tempoBPM, true);
-						displayTempoBPM(tempoBPM);
-					}
-
-					break;
+				uint32_t tempoBPM = calculateBPM(currentSong->getTimePerTimerTickFloat()) + 0.5;
+				tempoBPM += offset;
+				if (tempoBPM > 0) {
+					currentSong->setBPM(tempoBPM, true);
+					displayTempoBPM(tempoBPM);
 				}
+
+				break;
 			}
 		}
 	}
-
+}
 
 void PlaybackHandler::sendOutPositionViaMIDI(int32_t pos, bool sendContinueMessageToo) {
 	uint32_t newOutputTicksDone = timerTicksToOutputTicks(pos);
