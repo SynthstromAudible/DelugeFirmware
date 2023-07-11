@@ -787,7 +787,7 @@ void View::midiLearnFlash() {
 
 void View::modEncoderAction(int whichModEncoder, int offset) {
 
-	if (Buttons::isShiftButtonPressed()) {
+	if (DELUGE_MODEL != DELUGE_MODEL_40_PAD && Buttons::isShiftButtonPressed()) {
 		return;
 	}
 
@@ -1027,6 +1027,9 @@ void View::modButtonAction(uint8_t whichButton, bool on) {
 		else {
 			activeModControllableModelStack.modControllable->modButtonAction(
 			    whichButton, false, (ParamManagerForTimeline*)activeModControllableModelStack.paramManager);
+#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
+			setKnobIndicatorLevels();
+#endif
 		}
 	}
 }
@@ -1040,6 +1043,7 @@ void View::setModLedStates() {
 	bool itsAClip = activeModControllableModelStack.timelineCounterIsSet()
 	                && activeModControllableModelStack.getTimelineCounter() != currentSong;
 
+#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 	bool affectEntire = getRootUI() && getRootUI()->getAffectEntire();
 	if (!itsTheSong) {
 		if (getRootUI() != &instrumentClipView && getRootUI() != &keyboardScreen) {
@@ -1051,7 +1055,25 @@ void View::setModLedStates() {
 	}
 	indicator_leds::setLedState(IndicatorLED::AFFECT_ENTIRE, affectEntire);
 
-	IndicatorLEDs::setLedState(clipViewLedX, clipViewLedY, !itsTheSong);
+	indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, !itsTheSong);
+#else
+	if (!itsTheSong) {
+		bool shouldBlink = false;
+		if (getRootUI() == &instrumentClipView) {
+			InstrumentClip* clip = (InstrumentClip*)activeModControllableTimelineCounter;
+			shouldBlink = (clip->output->type == INSTRUMENT_TYPE_KIT) ? clip->affectEntire : clip->onKeyboardScreen;
+		}
+
+		if (!shouldBlink)
+			goto noBlinking;
+		indicator_leds::blinkLed(IndicatorLED::CLIP_VIEW);
+	}
+
+	else {
+noBlinking:
+		indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, !itsTheSong);
+	}
+#endif
 
 	// Sort out the session/arranger view LEDs
 	if (itsTheSong) {
@@ -1265,10 +1287,11 @@ void View::drawOutputNameFromDetails(int outputType, int channel, int channelSuf
 			clip = (InstrumentClip*)clip;
 		}
 
-		IndicatorLEDs::setLedState(keyboardLedX, keyboardLedY, (clip && clip->onKeyboardScreen));
-		IndicatorLEDs::setLedState(scaleModeLedX, scaleModeLedY,
-		                           (clip && clip->inScaleMode && clip->output->type != INSTRUMENT_TYPE_KIT));
-		IndicatorLEDs::setLedState(crossScreenEditLedX, crossScreenEditLedY, (clip && clip->wrapEditing));
+#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
+		setLedState(LED::KEYBOARD, (clip && clip->onKeyboardScreen));
+#endif
+		setLedState(LED::SCALE_MODE, (clip && clip->inScaleMode && clip->output->type != INSTRUMENT_TYPE_KIT));
+		setLedState(LED::CROSS_SCREEN_EDIT, (clip && clip->wrapEditing));
 	}
 
 #if HAVE_OLED

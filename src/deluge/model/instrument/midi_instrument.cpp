@@ -109,7 +109,16 @@ bool MIDIInstrument::doesAutomationExistOnMIDIParam(ModelStackWithThreeMainThing
 }
 
 void MIDIInstrument::modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager) {
-	// If we're leaving this mod function or anything else is happening, we want to be sure that stutter has stopped
+	// Editing CC
+	if (DELUGE_MODEL == DELUGE_MODEL_40_PAD && whichModButton == modKnobMode) {
+		if (on) {
+			currentUIMode = UI_MODE_SELECTING_MIDI_CC;
+			InstrumentClipMinder::editingMIDICCForWhichModKnob = 255;
+			return;
+		}
+	}
+
+	// Otherwise, if we're leaving this mod function or anything else is happening, we want to be sure that stutter has stopped
 	if (currentUIMode == UI_MODE_SELECTING_MIDI_CC) {
 		currentUIMode = UI_MODE_NONE;
 #if HAVE_OLED

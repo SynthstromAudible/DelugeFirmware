@@ -479,12 +479,14 @@ int LoadSongUI::timerCallback() {
 			memcpy(PadLEDs::image[endSquare], PadLEDs::imageStore[copyRow], (displayWidth + sideBarWidth) * 3);
 		}
 
-		bufferPICPadsUart((scrollDirection > 0) ? 241 : 242);
+		if (DELUGE_MODEL != DELUGE_MODEL_40_PAD) {
+			bufferPICPadsUart((scrollDirection > 0) ? 241 : 242);
 
-		for (int x = 0; x < displayWidth + sideBarWidth; x++) {
-			PadLEDs::sendRGBForOnePadFast(x, endSquare, PadLEDs::image[endSquare][x]);
+			for (int x = 0; x < displayWidth + sideBarWidth; x++) {
+				PadLEDs::sendRGBForOnePadFast(x, endSquare, PadLEDs::image[endSquare][x]);
+			}
+			uartFlushIfNotSending(UART_ITEM_PIC_PADS);
 		}
-		uartFlushIfNotSending(UART_ITEM_PIC_PADS);
 
 		// If we've finished scrolling...
 		if (squaresScrolled >= displayHeight) {
@@ -512,6 +514,10 @@ int LoadSongUI::timerCallback() {
 			                        UI_MS_PER_REFRESH_SCROLLING * 4); // *2 caused glitches occasionally
 		}
 getOut : {}
+#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
+		PadLEDs::sendOutMainPadColours();
+		PadLEDs::sendOutSidebarColours();
+#endif
 		return ACTION_RESULT_DEALT_WITH;
 	}
 
@@ -760,6 +766,14 @@ void LoadSongUI::drawSongPreview(bool toStore) {
 			int startX, startY, endX, endY;
 			int skipNumCharsAfterRow = 0;
 
+#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
+			startX = startY = 0;
+			endX = displayWidth + sideBarWidth;
+			endY = displayHeight;
+			if (previewNumPads != 40) {
+				skipNumCharsAfterRow = 48;
+			}
+#else
 			if (previewNumPads == 40) {
 				startX = 4;
 				endX = 14;
@@ -772,6 +786,8 @@ void LoadSongUI::drawSongPreview(bool toStore) {
 				endX = displayWidth + sideBarWidth;
 				endY = displayHeight;
 			}
+
+#endif
 
 			int width = endX - startX;
 			int numCharsToRead = width * 3 * 2;
@@ -793,6 +809,12 @@ void LoadSongUI::drawSongPreview(bool toStore) {
 					}
 					greyColourOut(imageStore[y][x], imageStore[y][x], 6500000);
 				}
+
+#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
+				for (int i = 0; i < skipNumCharsAfterRow; i++) {
+					storageManager.readNextCharOfTagOrAttributeValue();
+				}
+#endif
 			}
 			goto stopLoadingPreview;
 		}
@@ -825,6 +847,14 @@ void LoadSongUI::displayText(bool blinkImmediately) {
 }
 
 int LoadSongUI::padAction(int x, int y, int on) {
+#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
+	if (currentUIMode != UI_MODE_NONE || !on)
+		return ACTION_RESULT_DEALT_WITH;
+	if (inCardRoutine)
+		return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+	performLoad(true);
+#else
+
 	// If QWERTY not visible yet, make it visible now
 	if (!qwertyVisible) {
 		if (on && !currentUIMode) {
@@ -844,5 +874,6 @@ int LoadSongUI::padAction(int x, int y, int on) {
 		return ACTION_RESULT_DEALT_WITH;
 	}
 
+#endif
 	return ACTION_RESULT_DEALT_WITH;
 }

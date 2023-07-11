@@ -2143,7 +2143,11 @@ void PlaybackHandler::setLedStates() {
 	}
 
 	bool syncedLEDOn = playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE;
+#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
+	indicator_leds::setLedState(IndicatorLED::SYNCED, syncedLEDOn);
+#else
 	setOutputState(SYNCED_LED_PORT, SYNCED_LED_PIN, syncedLEDOn);
+#endif
 
 	if (currentUIMode == UI_MODE_TAP_TEMPO) {
 		indicator_leds::blinkLed(IndicatorLED::TAP_TEMPO, 255, 1);

@@ -553,7 +553,11 @@ void NumericDriver::render() {
 	uint8_t segments[NUMERIC_DISPLAY_LENGTH];
 	layer->render(segments);
 
+#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
+	bufferPICUart(116);
+#else
 	bufferPICUart(224);
+#endif
 	for (int whichChar = 0; whichChar < NUMERIC_DISPLAY_LENGTH; whichChar++) {
 		bufferPICUart(segments[whichChar]);
 	}
@@ -576,7 +580,11 @@ void NumericDriver::setTextVeryBasicA1(char const* text) {
 
 	uint8_t segments[NUMERIC_DISPLAY_LENGTH];
 	encodeText(text, segments, false, 255, true, 0);
+#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
+	bufferPICUart(116);
+#else
 	bufferPICUart(224);
+#endif
 	for (int whichChar = 0; whichChar < NUMERIC_DISPLAY_LENGTH; whichChar++) {
 		bufferPICUart(segments[whichChar]);
 	}
