@@ -27,12 +27,9 @@ extern deluge::gui::menu_item::Submenu cvSubmenu;
 namespace deluge::gui::menu_item::cv {
 class Selection final : public menu_item::Selection {
 public:
-	Selection(char const* newName = NULL) : menu_item::Selection(newName) {
-#if HAVE_OLED
-		basicTitle = "CV outputs";
-#endif
-	}
-	void beginSession(MenuItem* navigatedBackwardFrom) {
+	using menu_item::Selection::Selection;
+
+	void beginSession(MenuItem* navigatedBackwardFrom) override {
 		if (!navigatedBackwardFrom) {
 			soundEditor.currentValue = 0;
 		}
@@ -42,10 +39,10 @@ public:
 		menu_item::Selection::beginSession(navigatedBackwardFrom);
 	}
 
-	MenuItem* selectButtonPress() {
+	MenuItem* selectButtonPress() override {
 		soundEditor.currentSourceIndex = soundEditor.currentValue;
 #if HAVE_OLED
-		cvSubmenu.basicTitle = getOptions().value[soundEditor.currentValue];
+		cvSubmenu.title = getOptions().value[soundEditor.currentValue];
 		setCvNumberForTitle(soundEditor.currentValue);
 #endif
 		return &cvSubmenu;

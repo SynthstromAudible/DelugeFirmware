@@ -23,14 +23,14 @@ namespace deluge::gui::menu_item::cv {
 class Transpose final : public Decimal {
 public:
 	using Decimal::Decimal;
-	int getMinValue() const { return -9600; }
-	int getMaxValue() const { return 9600; }
-	int getNumDecimalPlaces() const { return 2; }
-	void readCurrentValue() {
+	[[nodiscard]] int getMinValue() const override { return -9600; }
+	[[nodiscard]] int getMaxValue() const override { return 9600; }
+	[[nodiscard]] int getNumDecimalPlaces() const override { return 2; }
+	void readCurrentValue() override {
 		soundEditor.currentValue = (int32_t)cvEngine.cvChannels[soundEditor.currentSourceIndex].transpose * 100
 		                           + cvEngine.cvChannels[soundEditor.currentSourceIndex].cents;
 	}
-	void writeCurrentValue() {
+	void writeCurrentValue() override {
 		int currentValue = soundEditor.currentValue + 25600;
 
 		int semitones = (currentValue + 50) / 100;
@@ -38,5 +38,4 @@ public:
 		cvEngine.setCVTranspose(soundEditor.currentSourceIndex, semitones - 256, cents);
 	}
 };
-
 } // namespace deluge::gui::menu_item::cv

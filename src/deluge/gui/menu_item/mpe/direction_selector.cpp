@@ -45,9 +45,6 @@ void DirectionSelector::writeCurrentValue() {
 }
 
 MenuItem* DirectionSelector::selectButtonPress() {
-#if HAVE_OLED
-	zoneSelectorMenu.basicTitle = whichDirection ? "MPE output" : "MPE input";
-#endif
 	return &zoneSelectorMenu;
 }
 } // namespace deluge::gui::menu_item::mpe

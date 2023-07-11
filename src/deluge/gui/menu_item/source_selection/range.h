@@ -20,10 +20,13 @@
 namespace deluge::gui::menu_item::source_selection {
 class Range final : public SourceSelection {
 public:
-	Range();
-	ParamDescriptor getDestinationDescriptor();
-	MenuItem* selectButtonPress();
-	MenuItem* patchingSourceShortcutPress(int newS, bool previousPressStillActive);
+	using SourceSelection::SourceSelection;
+	ParamDescriptor getDestinationDescriptor() override;
+	MenuItem* selectButtonPress() override;
+	MenuItem* patchingSourceShortcutPress(int newS, bool previousPressStillActive) override;
+#if HAVE_OLED
+		char const* getTitle() override { return "Modulate depth"; };
+#endif		
 };
 extern Range rangeMenu;
 } // namespace deluge::gui::menu_item::source_selection

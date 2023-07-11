@@ -21,10 +21,10 @@
 namespace deluge::gui::menu_item::arpeggiator {
 class Octaves final : public Integer {
 public:
-	Octaves(char const* newName = NULL) : Integer(newName) {}
-	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentArpSettings->numOctaves; }
-	void writeCurrentValue() { soundEditor.currentArpSettings->numOctaves = soundEditor.currentValue; }
-	int getMinValue() const { return 1; }
-	int getMaxValue() const { return 8; }
+	using Integer::Integer;
+	void readCurrentValue() override { soundEditor.currentValue = soundEditor.currentArpSettings->numOctaves; }
+	void writeCurrentValue() override { soundEditor.currentArpSettings->numOctaves = soundEditor.currentValue; }
+	[[nodiscard]] int getMinValue() const override { return 1; }
+	[[nodiscard]] int getMaxValue() const override { return 8; }
 };
 } // namespace deluge::gui::menu_item::arpeggiator

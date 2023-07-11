@@ -23,9 +23,9 @@ namespace deluge::gui::menu_item::filter {
 
 class HPFFreq final : public patched_param::IntegerNonFM {
 public:
-	HPFFreq(char const* newName = 0, int newP = 0) : patched_param::IntegerNonFM(newName, newP) {}
+	using patched_param::IntegerNonFM::IntegerNonFM;
 #if !HAVE_OLED
-	void drawValue() {
+	void drawValue() override {
 		if (soundEditor.currentValue == 0
 		    && !soundEditor.currentParamManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(
 		        PARAM_LOCAL_HPF_FREQ)) {

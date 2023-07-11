@@ -23,8 +23,11 @@ namespace deluge::gui::menu_item {
 
 class Submenu : public MenuItem {
 public:
-	Submenu(char const* newName = NULL, MenuItem** newItems = NULL) : MenuItem(newName) { items = newItems; }
-	void beginSession(MenuItem* navigatedBackwardFrom = NULL);
+	Submenu(char const* newName = nullptr, MenuItem** newItems = nullptr) : MenuItem(newName), items(newItems) {}
+	Submenu(char const* newName = nullptr, char const* title = nullptr, MenuItem** newItems = nullptr)
+	    : MenuItem(newName, title), items(newItems) {}
+	
+	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
 	void updateDisplay();
 	void selectEncoderAction(int offset) final;
 	MenuItem* selectButtonPress() final;

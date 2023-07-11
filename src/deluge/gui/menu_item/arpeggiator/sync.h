@@ -21,7 +21,7 @@
 namespace deluge::gui::menu_item::arpeggiator {
 class Sync final : public SyncLevel {
 public:
-	Sync(char const* newName = NULL) : SyncLevel(newName) {}
+	using SyncLevel::SyncLevel;
 	void readCurrentValue() {
 		soundEditor.currentValue = syncTypeAndLevelToMenuOption(soundEditor.currentArpSettings->syncType,
 		                                                        soundEditor.currentArpSettings->syncLevel);

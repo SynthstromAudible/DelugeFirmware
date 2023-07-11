@@ -46,7 +46,7 @@ std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement + 1> subMenuEntries{
     nullptr,
 };
 
-Settings::Settings(char const* name) : menu_item::Submenu(name, &subMenuEntries[0]) {
+Settings::Settings(char const* name, char const* title) : menu_item::Submenu(name, title, subMenuEntries.data()) {
 }
 
 } // namespace deluge::gui::menu_item::runtime_feature

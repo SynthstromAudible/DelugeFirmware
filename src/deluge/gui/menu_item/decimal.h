@@ -24,15 +24,15 @@ namespace deluge::gui::menu_item {
 
 class Decimal : public Number {
 public:
-	Decimal(char const* newName = NULL) : Number(newName) {}
-	void beginSession(MenuItem* navigatedBackwardFrom = NULL);
+	using Number::Number;
+	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
 	void selectEncoderAction(int offset) final;
-	void horizontalEncoderAction(int offset);
+	void horizontalEncoderAction(int offset) override;
 
 protected:
-	void drawValue();
-	virtual int getNumDecimalPlaces() const = 0;
-	virtual int getDefaultEditPos() const { return 2; }
+	virtual void drawValue();
+	[[nodiscard]] virtual int getNumDecimalPlaces() const = 0;
+	[[nodiscard]] virtual int getDefaultEditPos() const { return 2; }
 #if HAVE_OLED
 	void drawPixelsForOled();
 #else

@@ -21,8 +21,8 @@ namespace deluge::gui::menu_item::submenu {
 
 class Compressor final : public Submenu {
 public:
-	Compressor() {}
-	Compressor(char const* newName, MenuItem** newItems, bool newForReverbCompressor) : Submenu(newName, newItems) {
+	Compressor(char const* newName, char const* title, MenuItem** newItems, bool newForReverbCompressor)
+	    : Submenu(newName, title, newItems) {
 		forReverbCompressor = newForReverbCompressor;
 	}
 	void beginSession(MenuItem* navigatedBackwardFrom = NULL);

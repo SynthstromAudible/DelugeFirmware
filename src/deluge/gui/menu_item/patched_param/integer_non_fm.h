@@ -22,6 +22,6 @@ namespace deluge::gui::menu_item::patched_param {
 class IntegerNonFM : public Integer {
 public:
 	using Integer::Integer;
-	bool isRelevant(Sound* sound, int whichThing) { return (sound->synthMode != SYNTH_MODE_FM); }
+	bool isRelevant(Sound* sound, int whichThing) override { return (sound->synthMode != SYNTH_MODE_FM); }
 };
 } // namespace deluge::gui::menu_item::patched_param

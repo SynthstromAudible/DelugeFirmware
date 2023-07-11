@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "menu_item.h"
+#include "gui/menu_item/menu_item.h"
 
 namespace deluge::gui::menu_item {
 
@@ -29,7 +29,7 @@ enum class RangeEdit : uint8_t {
 
 class Range : public MenuItem {
 public:
-	Range(char const* newName = NULL) : MenuItem(newName){};
+	using MenuItem::MenuItem;
 
 	void beginSession(MenuItem* navigatedBackwardFrom);
 	void horizontalEncoderAction(int offset) final;

@@ -21,7 +21,7 @@
 namespace deluge::gui::menu_item::arpeggiator {
 class Gate final : public UnpatchedParam {
 public:
-	Gate(char const* newName = NULL, int newP = 0) : UnpatchedParam(newName, newP) {}
+	using UnpatchedParam::UnpatchedParam;
 	bool isRelevant(Sound* sound, int whichThing) { return !soundEditor.editingCVOrMIDIClip(); }
 };
 

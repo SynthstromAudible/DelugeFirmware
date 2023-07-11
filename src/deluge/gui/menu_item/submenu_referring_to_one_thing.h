@@ -21,12 +21,11 @@ namespace deluge::gui::menu_item {
 
 class SubmenuReferringToOneThing : public Submenu {
 public:
-	SubmenuReferringToOneThing() {}
 	SubmenuReferringToOneThing(char const* newName, MenuItem** newItems, int newThingIndex)
-	    : Submenu(newName, newItems) {
-		thingIndex = newThingIndex;
+	    : Submenu(newName, newItems), thingIndex(newThingIndex) {
+		
 	}
-	void beginSession(MenuItem* navigatedBackwardFrom = NULL);
+	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
 
 	uint8_t thingIndex;
 };

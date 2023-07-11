@@ -27,11 +27,7 @@ namespace deluge::gui::menu_item::gate {
 
 class Selection final : public menu_item::Selection {
 public:
-	Selection(char const* newName = NULL) : menu_item::Selection(newName) {
-#if HAVE_OLED
-		basicTitle = "Gate outputs";
-#endif
-	}
+	using menu_item::Selection::Selection;
 
 	void beginSession(MenuItem* navigatedBackwardFrom) override {
 		if (!navigatedBackwardFrom) {

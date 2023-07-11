@@ -30,10 +30,6 @@ extern "C" {
 
 namespace deluge::gui::menu_item {
 
-UnpatchedParam::UnpatchedParam() {
-	// TODO Auto-generated constructor stub
-}
-
 void UnpatchedParam::readCurrentValue() {
 	soundEditor.currentValue =
 	    (((int64_t)soundEditor.currentParamManager->getUnpatchedParamSet()->getValue(getP()) + 2147483648) * 50

@@ -39,4 +39,3 @@ extern MenuItem* paramShortcutsForAudioClips[15][8];
 void setOscillatorNumberForTitles(int);
 void setModulatorNumberForTitles(int);
 void setEnvelopeNumberForTitles(int);
-void init_menu_titles();

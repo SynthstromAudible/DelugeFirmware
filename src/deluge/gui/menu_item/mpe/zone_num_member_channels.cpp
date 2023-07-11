@@ -27,12 +27,6 @@ namespace deluge::gui::menu_item::mpe {
 
 ZoneNumMemberChannels zoneNumMemberChannelsMenu{};
 
-ZoneNumMemberChannels::ZoneNumMemberChannels() {
-#if HAVE_OLED
-	basicTitle = "Num member ch.";
-#endif
-}
-
 MIDIPort* ZoneNumMemberChannels::getPort() const {
 	return &soundEditor.currentMIDIDevice->ports[directionSelectorMenu.whichDirection];
 }

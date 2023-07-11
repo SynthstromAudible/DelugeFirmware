@@ -22,10 +22,10 @@
 namespace deluge::gui::menu_item::source {
 class Transpose : public menu_item::Transpose {
 public:
-	Transpose(char const* newName = NULL, int newP = 0) : menu_item::Transpose(newName, newP) {}
+	using menu_item::Transpose::Transpose;
 
 	ParamDescriptor getLearningThing() final {
-		ParamDescriptor paramDescriptor;
+		ParamDescriptor paramDescriptor{};
 		paramDescriptor.setToHaveParamOnly(getP());
 		return paramDescriptor;
 	}

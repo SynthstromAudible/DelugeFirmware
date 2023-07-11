@@ -23,7 +23,7 @@ namespace deluge::gui::menu_item::runtime_feature {
 
 class Settings final : public Submenu {
 public:
-	Settings(char const* name);
+	Settings(char const* name, char const* title);
 
 private:
 };

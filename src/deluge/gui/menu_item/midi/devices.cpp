@@ -26,7 +26,7 @@ extern deluge::gui::menu_item::Submenu midiDeviceMenu;
 
 namespace deluge::gui::menu_item::midi {
 
-Devices devicesMenu{"Devices"};
+Devices devicesMenu{"Devices", "MIDI devices"};
 
 static const int lowestDeviceNum = -3;
 
@@ -130,7 +130,7 @@ void Devices::drawValue() {
 
 MenuItem* Devices::selectButtonPress() {
 #if HAVE_OLED
-	midiDeviceMenu.basicTitle =
+	midiDeviceMenu.title =
 	    soundEditor.currentMIDIDevice->getDisplayName(); // A bit ugly, but saves us extending a class.
 #endif
 	return &midiDeviceMenu;

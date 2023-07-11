@@ -37,12 +37,6 @@ namespace deluge::gui::menu_item {
 
 MultiRange multiRangeMenu{};
 
-MultiRange::MultiRange() {
-#if HAVE_OLED
-	basicTitle = "Note range";
-#endif
-}
-
 void MultiRange::beginSession(MenuItem* navigatedBackwardFrom) {
 
 	// If there's already a range (e.g. because we just came back out of a menu)...

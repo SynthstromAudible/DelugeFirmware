@@ -22,14 +22,8 @@
 namespace deluge::gui::menu_item::source_selection {
 Regular regularMenu{};
 
-Regular::Regular() {
-#if HAVE_OLED
-	basicTitle = "Modulate with";
-#endif
-}
-
 ParamDescriptor Regular::getDestinationDescriptor() {
-	ParamDescriptor descriptor;
+	ParamDescriptor descriptor{};
 	descriptor.setToHaveParamOnly(soundEditor.patchingParamSelected);
 	return descriptor;
 }
@@ -40,7 +34,7 @@ MenuItem* Regular::selectButtonPress() {
 
 void Regular::beginSession(MenuItem* navigatedBackwardFrom) {
 
-	if (navigatedBackwardFrom) {
+	if (navigatedBackwardFrom != nullptr) {
 		if (soundEditor.patchingParamSelected == PARAM_GLOBAL_VOLUME_POST_REVERB_SEND
 		    || soundEditor.patchingParamSelected == PARAM_LOCAL_VOLUME) {
 			soundEditor.patchingParamSelected = PARAM_GLOBAL_VOLUME_POST_FX;

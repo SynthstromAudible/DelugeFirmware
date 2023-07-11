@@ -20,11 +20,14 @@
 namespace deluge::gui::menu_item::source_selection {
 class Regular final : public SourceSelection {
 public:
-	Regular();
+	using SourceSelection::SourceSelection;
 	void beginSession(MenuItem* navigatedBackwardFrom = NULL);
 	ParamDescriptor getDestinationDescriptor();
 	MenuItem* selectButtonPress();
 	MenuItem* patchingSourceShortcutPress(int newS, bool previousPressStillActive);
+#if HAVE_OLED
+		char const* getTitle() override { return "Modulate with"; };
+#endif			
 };
 
 extern Regular regularMenu;

@@ -21,9 +21,9 @@
 namespace deluge::gui::menu_item::sample {
 class Selection : public menu_item::Selection {
 public:
-	Selection(char const* newName = NULL) : menu_item::Selection(newName) {}
-	bool isRelevant(Sound* sound, int whichThing) {
-		if (!sound) {
+	using menu_item::Selection::Selection;
+	bool isRelevant(Sound* sound, int whichThing) override {
+		if (sound == nullptr) {
 			return true; // For AudioClips
 		}
 

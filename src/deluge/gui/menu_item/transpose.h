@@ -22,11 +22,11 @@ namespace deluge::gui::menu_item {
 
 class Transpose : public Decimal, public PatchedParam {
 public:
-	Transpose(char const* newName = NULL, int newP = 0) : PatchedParam(newP), Decimal(newName) {}
+	Transpose(char const* newName = nullptr, char const* title = nullptr, int newP = 0) : PatchedParam(newP), Decimal(newName, title) {}
 	MenuItem* selectButtonPress() final { return PatchedParam::selectButtonPress(); }
-	virtual int getMinValue() const final { return -9600; }
-	virtual int getMaxValue() const final { return 9600; }
-	virtual int getNumDecimalPlaces() const final { return 2; }
+	[[nodiscard]] int getMinValue() const final { return -9600; }
+	[[nodiscard]] int getMaxValue() const final { return 9600; }
+	[[nodiscard]] int getNumDecimalPlaces() const final { return 2; }
 	uint8_t getPatchedParamIndex() final { return PatchedParam::getPatchedParamIndex(); }
 	uint8_t shouldDrawDotOnName() final { return PatchedParam::shouldDrawDotOnName(); }
 	uint8_t shouldBlinkPatchingSourceShortcut(int s, uint8_t* colour) final {

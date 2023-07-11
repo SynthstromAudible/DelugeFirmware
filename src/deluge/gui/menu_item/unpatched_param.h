@@ -26,14 +26,17 @@ namespace deluge::gui::menu_item {
 
 class UnpatchedParam : public Param, public IntegerContinuous, public MenuItemWithCCLearning {
 public:
-	UnpatchedParam();
-	UnpatchedParam(char const* newName, int newP) : Param(newP), IntegerContinuous(newName) {}
-
-	void readCurrentValue();
-	void writeCurrentValue();
+	UnpatchedParam(char const* newName, char const* title, int newP)
+	    : Param(newP), IntegerContinuous(newName, title) {}
+	
+	UnpatchedParam(char const* newName, int newP)
+	    : Param(newP), IntegerContinuous(newName) {}
+		
+	void readCurrentValue() override;
+	void writeCurrentValue() override;
 	ParamDescriptor getLearningThing() final;
-	int getMaxValue() const { return Param::getMaxValue(); }
-	int getMinValue() const { return Param::getMinValue(); }
+	[[nodiscard]] int getMaxValue() const  override{ return Param::getMaxValue(); }
+	[[nodiscard]] int getMinValue() const  override{ return Param::getMinValue(); }
 	MenuItem* selectButtonPress() final { return Param::selectButtonPress(); }
 
 	void unlearnAction() final { MenuItemWithCCLearning::unlearnAction(); }

@@ -24,17 +24,17 @@ namespace deluge::gui::menu_item::compressor {
 class Release final : public Integer {
 public:
 	using Integer::Integer;
-	void readCurrentValue() {
+	void readCurrentValue() override {
 		soundEditor.currentValue =
 		    getLookupIndexFromValue(soundEditor.currentCompressor->release >> 3, releaseRateTable, 50);
 	}
-	void writeCurrentValue() {
+	void writeCurrentValue() override {
 		soundEditor.currentCompressor->release = releaseRateTable[soundEditor.currentValue] << 3;
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	}
-	int getMaxValue() const { return 50; }
-	bool isRelevant(Sound* sound, int whichThing) {
-		return !(soundEditor.editingReverbCompressor() && AudioEngine::reverbCompressorVolume < 0);
+	[[nodiscard]] int getMaxValue() const override { return 50; }
+	bool isRelevant(Sound* sound, int whichThing) override {
+		return !soundEditor.editingReverbCompressor() || AudioEngine::reverbCompressorVolume >= 0;
 	}
 };
 } // namespace deluge::gui::menu_item::compressor

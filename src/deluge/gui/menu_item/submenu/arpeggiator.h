@@ -21,8 +21,7 @@ namespace deluge::gui::menu_item::submenu {
 
 class Arpeggiator final : public Submenu {
 public:
-	Arpeggiator() {}
-	Arpeggiator(char const* newName, MenuItem** newItems) : Submenu(newName, newItems) {}
-	void beginSession(MenuItem* navigatedBackwardFrom = NULL);
+	using Submenu::Submenu;
+	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
 };
 } // namespace deluge::gui::menu_item::submenu

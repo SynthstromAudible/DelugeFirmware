@@ -30,10 +30,6 @@ public:
 	void writeCurrentValue() override;
 	MenuItem* selectButtonPress() override;
 	uint8_t whichZone;
-
-#if HAVE_OLED
-	char const* getTitle(char* buffer);
-#endif
 };
 
 extern ZoneSelector zoneSelectorMenu;

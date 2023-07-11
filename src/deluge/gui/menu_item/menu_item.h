@@ -32,11 +32,10 @@ class MIDIDevice;
 
 class MenuItem {
 public:
-	MenuItem(char const* newName = NULL) {
-		name = newName;
-#if HAVE_OLED
-		basicTitle = newName;
-#endif
+	MenuItem(char const* newName = nullptr, char const* newTitle = nullptr) : name(newName) {
+		if (newTitle == nullptr) {
+			title = newTitle;
+		}
 	}
 
 	char const* name; // As viewed in a menu list. For OLED, up to 20 chars.
@@ -53,7 +52,7 @@ public:
 		return true;
 	}
 	virtual MenuItem* selectButtonPress() {
-		return NULL;
+		return nullptr;
 	}
 	virtual int checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange);
 	virtual void readValueAgain() {
@@ -97,14 +96,14 @@ public:
 		return false;
 	}
 
+	char const* title; // Can get overridden by getTitle(). Actual max num chars for OLED display is 14.
 #if HAVE_OLED
-	char const* basicTitle; // Can get overridden by getTitle(). Actual max num chars for OLED display is 14.
 	virtual void renderOLED();
 	virtual void drawPixelsForOled() {
 	}
 	void drawItemsForOled(char const** options, int selectedOption);
 
-	/// Get the title to be used when rendering on OLED. If not overriden, defaults to returning `basicTitle`.
+	/// Get the title to be used when rendering on OLED. If not overriden, defaults to returning `title`.
 	virtual char const* getTitle();
 
 #else

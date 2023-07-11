@@ -23,7 +23,7 @@ namespace deluge::gui::menu_item {
 
 class MultiRange final : public Range {
 public:
-	MultiRange();
+	using Range::Range;
 
 	void beginSession(MenuItem* navigatedBackwardFrom);
 	void selectEncoderAction(int offset);
@@ -38,6 +38,7 @@ protected:
 	bool mayEditRangeEdge(RangeEdit whichEdge);
 
 #if HAVE_OLED
+	char const* getTitle() override { return "Note range"; };
 	void drawPixelsForOled();
 #endif
 };

@@ -23,14 +23,13 @@
 namespace deluge::gui::menu_item::osc {
 class RetriggerPhase final : public Decimal {
 public:
-	RetriggerPhase(char const* newName = NULL, bool newForModulator = false) : Decimal(newName) {
-		forModulator = newForModulator;
-	}
-	int getMinValue() const { return -soundEditor.numberEditSize; }
-	int getMaxValue() const { return 360; }
-	int getNumDecimalPlaces() const { return 0; }
-	int getDefaultEditPos() const { return 1; }
-	void readCurrentValue() {
+	RetriggerPhase(char const* newName = nullptr, char const* title = nullptr, bool newForModulator = false)
+	    : Decimal(newName, title), forModulator(newForModulator) {}
+	[[nodiscard]] int getMinValue() const override { return -soundEditor.numberEditSize; }
+	[[nodiscard]] int getMaxValue() const override { return 360; }
+	[[nodiscard]] int getNumDecimalPlaces() const override { return 0; }
+	[[nodiscard]] int getDefaultEditPos() const override { return 1; }
+	void readCurrentValue() override {
 		uint32_t value = *getValueAddress();
 		if (value == 0xFFFFFFFF) {
 			soundEditor.currentValue = -soundEditor.numberEditSize;
@@ -39,7 +38,7 @@ public:
 			soundEditor.currentValue = value / 11930464;
 		}
 	}
-	void writeCurrentValue() {
+	void writeCurrentValue() override {
 		uint32_t value;
 		if (soundEditor.currentValue < 0) {
 			value = 0xFFFFFFFF;
@@ -49,7 +48,7 @@ public:
 		}
 		*getValueAddress() = value;
 	}
-	void drawValue() {
+	void drawValue() override {
 		if (soundEditor.currentValue < 0) {
 			numericDriver.setText("OFF", false, 255, true);
 		}
@@ -58,7 +57,7 @@ public:
 		}
 	}
 #if HAVE_OLED
-	void drawPixelsForOled() {
+	void drawPixelsForOled() override {
 		if (soundEditor.currentValue < 0) {
 			OLED::drawStringCentred("OFF", 20, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, TEXT_HUGE_SPACING_X,
 			                        TEXT_HUGE_SIZE_Y);
@@ -68,13 +67,13 @@ public:
 		}
 	}
 #endif
-	void horizontalEncoderAction(int offset) {
+	void horizontalEncoderAction(int offset) override {
 		if (soundEditor.currentValue >= 0) {
 			Decimal::horizontalEncoderAction(offset);
 		}
 	}
 
-	bool isRelevant(Sound* sound, int whichThing) {
+	bool isRelevant(Sound* sound, int whichThing) override {
 		Source* source = &sound->sources[whichThing];
 		if (forModulator && sound->getSynthMode() != SYNTH_MODE_FM) {
 			return false;
@@ -84,13 +83,11 @@ public:
 
 private:
 	bool forModulator;
-	uint32_t* getValueAddress() {
+	[[nodiscard]] uint32_t* getValueAddress() const {
 		if (forModulator) {
 			return &soundEditor.currentSound->modulatorRetriggerPhase[soundEditor.currentSourceIndex];
 		}
-		else {
-			return &soundEditor.currentSound->oscRetriggerPhase[soundEditor.currentSourceIndex];
-		}
+		return &soundEditor.currentSound->oscRetriggerPhase[soundEditor.currentSourceIndex];
 	}
 };
 } // namespace deluge::gui::menu_item::osc

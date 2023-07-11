@@ -28,11 +28,7 @@ extern char oscTypeTitle[];
 namespace deluge::gui::menu_item::osc {
 class Type final : public Selection {
 public:
-	Type(char const* newName = NULL) : Selection(newName) {
-#if HAVE_OLED
-		basicTitle = oscTypeTitle;
-#endif
-	}
+	using Selection::Selection;
 #if HAVE_OLED
 	void beginSession(MenuItem* navigatedBackwardFrom) {
 		oscTypeTitle[3] = '1' + soundEditor.currentSourceIndex;
@@ -90,7 +86,7 @@ public:
 		}
 	}
 
-	bool isRelevant(Sound* sound, int whichThing) { return (sound->getSynthMode() != SYNTH_MODE_FM); }
+	bool isRelevant(Sound* sound, int whichThing) override { return (sound->getSynthMode() != SYNTH_MODE_FM); }
 };
 
 } // namespace deluge::gui::menu_item::osc

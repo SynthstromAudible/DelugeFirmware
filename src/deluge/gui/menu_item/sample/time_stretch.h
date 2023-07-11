@@ -26,19 +26,19 @@
 namespace deluge::gui::menu_item::sample {
 class TimeStretch final : public Integer {
 public:
-	TimeStretch(char const* newName = NULL) : Integer(newName) {}
-	bool usesAffectEntire() { return true; }
-	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentSource->timeStretchAmount; }
-	void writeCurrentValue() {
+	using Integer::Integer;
+	bool usesAffectEntire() override { return true; }
+	void readCurrentValue() override { soundEditor.currentValue = soundEditor.currentSource->timeStretchAmount; }
+	void writeCurrentValue() override {
 
 		// If affect-entire button held, do whole kit
 		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKit()) {
 
-			Kit* kit = (Kit*)currentSong->currentClip->output;
+			Kit* kit = dynamic_cast<Kit*>(currentSong->currentClip->output);
 
-			for (Drum* thisDrum = kit->firstDrum; thisDrum; thisDrum = thisDrum->next) {
+			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DRUM_TYPE_SOUND) {
-					SoundDrum* soundDrum = (SoundDrum*)thisDrum;
+					auto* soundDrum = dynamic_cast<SoundDrum*>(thisDrum);
 					Source* source = &soundDrum->sources[soundEditor.currentSourceIndex];
 
 					source->timeStretchAmount = soundEditor.currentValue;
@@ -51,9 +51,9 @@ public:
 			soundEditor.currentSource->timeStretchAmount = soundEditor.currentValue;
 		}
 	}
-	int getMinValue() const { return -48; }
-	int getMaxValue() const { return 48; }
-	bool isRelevant(Sound* sound, int whichThing) {
+	[[nodiscard]] int getMinValue() const override { return -48; }
+	[[nodiscard]] int getMaxValue() const override { return 48; }
+	bool isRelevant(Sound* sound, int whichThing) override {
 		Source* source = &sound->sources[whichThing];
 		return (sound->getSynthMode() == SYNTH_MODE_SUBTRACTIVE && source->oscType == OSC_TYPE_SAMPLE);
 	}

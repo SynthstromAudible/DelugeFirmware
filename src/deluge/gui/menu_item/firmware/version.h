@@ -33,7 +33,7 @@ public:
 		                                         20);
 	}
 #else
-	void beginSession(MenuItem* navigatedBackwardFrom) {
+	void beginSession(MenuItem* navigatedBackwardFrom) override {
 		drawValue();
 	}
 

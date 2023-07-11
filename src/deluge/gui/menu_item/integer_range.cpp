@@ -26,11 +26,6 @@ extern "C" {
 
 namespace deluge::gui::menu_item {
 
-IntegerRange::IntegerRange(char const* newName, int newMin, int newMax) : Range(newName) {
-	minValue = newMin;
-	maxValue = newMax;
-}
-
 void IntegerRange::beginSession(MenuItem* navigatedBackwardFrom) {
 	Range::beginSession(navigatedBackwardFrom);
 #if HAVE_OLED

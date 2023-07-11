@@ -28,8 +28,8 @@ namespace deluge::gui::menu_item::arpeggiator {
 class Mode final : public Selection {
 public:
 	using Selection::Selection;
-	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentArpSettings->mode; }
-	void writeCurrentValue() {
+	void readCurrentValue() override { soundEditor.currentValue = soundEditor.currentArpSettings->mode; }
+	void writeCurrentValue() override {
 
 		// If was off, or is now becoming off...
 		if (soundEditor.currentArpSettings->mode == ARP_MODE_OFF || soundEditor.currentValue == ARP_MODE_OFF) {

@@ -22,9 +22,9 @@ namespace deluge::gui::menu_item {
 
 class KeyRange final : public Range {
 public:
-	KeyRange(char const* newName = NULL) : Range(newName) {}
-	void getText(char* buffer, int* getLeftLength, int* getRightLength, bool mayShowJustOne);
-	void selectEncoderAction(int offset);
+	using Range::Range;
+	void getText(char* buffer, int* getLeftLength, int* getRightLength, bool mayShowJustOne) override;
+	void selectEncoderAction(int offset) override;
 	int getRandomValueInRange();
 
 	int lower, upper;
