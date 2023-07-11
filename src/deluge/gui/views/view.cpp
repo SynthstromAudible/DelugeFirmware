@@ -127,7 +127,7 @@ int View::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 
 	// Tap tempo button. Shouldn't move this to MatrixDriver, because this code can put us in tapTempo mode, and other UIs aren't built to
 	// handle this
-	if (b == TAP_TEMPO) {
+	if (b == Button::TAP_TEMPO) {
 
 		if (currentUIMode == UI_MODE_MIDI_LEARN) {
 			if (inCardRoutine) {
@@ -163,7 +163,7 @@ doEndMidiLearnPressSession:
 	}
 
 	// MIDI learn button
-	else if (b == LEARN) {
+	else if (b == Button::LEARN) {
 		if (inCardRoutine) {
 			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
@@ -185,7 +185,7 @@ doEndMidiLearnPressSession:
 	}
 
 	// Play button for MIDI learn
-	else if (b == PLAY && currentUIMode == UI_MODE_MIDI_LEARN) {
+	else if (b == Button::PLAY && currentUIMode == UI_MODE_MIDI_LEARN) {
 		if (inCardRoutine) {
 			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
@@ -201,7 +201,7 @@ doEndMidiLearnPressSession:
 	}
 
 	// Record button for MIDI learn
-	else if (b == RECORD && currentUIMode == UI_MODE_MIDI_LEARN) {
+	else if (b == Button::RECORD && currentUIMode == UI_MODE_MIDI_LEARN) {
 		if (inCardRoutine) {
 			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
@@ -217,10 +217,10 @@ doEndMidiLearnPressSession:
 	}
 
 	// Save button
-	else if (b == SAVE) {
+	else if (b == Button::SAVE) {
 
-		if (!Buttons::isButtonPressed(hid::button::SYNTH) && !Buttons::isButtonPressed(hid::button::KIT)
-		    && !Buttons::isButtonPressed(hid::button::MIDI) && !Buttons::isButtonPressed(hid::button::CV)) {
+		if (!Buttons::isButtonPressed(hid::Button::SYNTH) && !Buttons::isButtonPressed(hid::Button::KIT)
+		    && !Buttons::isButtonPressed(hid::Button::MIDI) && !Buttons::isButtonPressed(hid::Button::CV)) {
 			// Press down
 			if (on) {
 				if (currentUIMode == UI_MODE_NONE && !Buttons::isShiftButtonPressed()) {
@@ -256,10 +256,10 @@ doEndMidiLearnPressSession:
 	}
 
 	// Load button
-	else if (b == LOAD) {
+	else if (b == Button::LOAD) {
 
-		if (!Buttons::isButtonPressed(hid::button::SYNTH) && !Buttons::isButtonPressed(hid::button::KIT)
-		    && !Buttons::isButtonPressed(hid::button::MIDI) && !Buttons::isButtonPressed(hid::button::CV)) {
+		if (!Buttons::isButtonPressed(hid::Button::SYNTH) && !Buttons::isButtonPressed(hid::Button::KIT)
+		    && !Buttons::isButtonPressed(hid::Button::MIDI) && !Buttons::isButtonPressed(hid::Button::CV)) {
 			// Press down
 			if (on) {
 				if (currentUIMode == UI_MODE_NONE) {
@@ -308,7 +308,7 @@ doEndMidiLearnPressSession:
 	}
 
 	// Sync-scaling button
-	else if (b == SYNC_SCALING) {
+	else if (b == Button::SYNC_SCALING) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 
 			if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
@@ -354,7 +354,7 @@ cant:
 	}
 
 	// Back button
-	else if (b == BACK) {
+	else if (b == Button::BACK) {
 
 		if (on) {
 #ifndef undoButtonX
@@ -403,7 +403,7 @@ possiblyRevert:
 #endif
 
 	// Select button with shift - go to settings menu
-	else if (b == SELECT_ENC && Buttons::isShiftButtonPressed()) {
+	else if (b == Button::SELECT_ENC && Buttons::isShiftButtonPressed()) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 
 			if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
@@ -910,7 +910,7 @@ void View::instrumentBeenEdited() {
 void View::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 
 	// If the learn button is pressed, user is trying to copy or paste, and the fact that we've ended up here means they can't
-	if (Buttons::isButtonPressed(hid::button::LEARN)) {
+	if (Buttons::isButtonPressed(hid::Button::LEARN)) {
 #if !HAVE_OLED
 		if (on) {
 			numericDriver.displayPopup("CANT");
@@ -1935,7 +1935,7 @@ int View::clipStatusPadAction(Clip* clip, bool on, int yDisplayIfInSessionView) 
 
 	case UI_MODE_NONE:
 		// If the user was just quick and is actually holding the record button but the submode just hasn't changed yet...
-		if (on && Buttons::isButtonPressed(hid::button::RECORD)) {
+		if (on && Buttons::isButtonPressed(hid::Button::RECORD)) {
 			clip->armedForRecording = !clip->armedForRecording;
 			sessionView
 			    .timerCallback(); // Get into UI_MODE_VIEWING_RECORD_ARMING. TODO: this needs doing properly - what if we're in a Clip view?

@@ -180,7 +180,7 @@ int KeyboardScreen::padAction(int x, int y, int velocity) {
 			enterUIMode(UI_MODE_AUDITIONING);
 
 			// Begin resampling - yup this is even allowed if we're in the card routine!
-			if (Buttons::isButtonPressed(hid::button::RECORD) && !audioRecorder.recordingSource) {
+			if (Buttons::isButtonPressed(hid::Button::RECORD) && !audioRecorder.recordingSource) {
 				audioRecorder.beginOutputRecording();
 				Buttons::recordButtonPressUsedUp = true;
 			}
@@ -321,7 +321,7 @@ int KeyboardScreen::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	using namespace hid::button;
 
 	// Scale mode button
-	if (b == SCALE_MODE) {
+	if (b == Button::SCALE_MODE) {
 		if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_KIT) {
 			return ACTION_RESULT_DEALT_WITH; // Kits can't do scales!
 		}
@@ -376,10 +376,10 @@ int KeyboardScreen::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 
 #if DELUGE_MODEL == DELUGE_MODEL_40_PAD
 	// Clip view button - exit mode
-	else if (b == CLIP_VIEW) {
+	else if (b == Button::CLIP_VIEW) {
 #else
 	// Keyboard button - exit mode
-	else if (b == KEYBOARD) {
+	else if (b == Button::KEYBOARD) {
 #endif
 		if (on && currentUIMode == UI_MODE_NONE) {
 			if (inCardRoutine) {
@@ -390,7 +390,7 @@ int KeyboardScreen::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	}
 
 	// Song view button
-	else if (b == SESSION_VIEW) {
+	else if (b == Button::SESSION_VIEW) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -424,7 +424,7 @@ doOther:
 	}
 
 	// Kit button
-	else if (b == KIT && currentUIMode == UI_MODE_NONE) {
+	else if (b == Button::KIT && currentUIMode == UI_MODE_NONE) {
 #if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 		if (on) {
 			IndicatorLEDs::indicateAlertOnLed(keyboardLedX, keyboardLedX);

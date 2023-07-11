@@ -308,12 +308,12 @@ bool readButtonsAndPads() {
 
 			Uart::println("");
 			Uart::println("undoing");
-			Buttons::buttonAction(hid::button::BACK, true, sdRoutineLock);
+			Buttons::buttonAction(hid::Button::BACK, true, sdRoutineLock);
 		}
 		else {
 			Uart::println("");
 			Uart::println("beginning playback");
-			Buttons::buttonAction(hid::button::PLAY, true, sdRoutineLock);
+			Buttons::buttonAction(hid::Button::PLAY, true, sdRoutineLock);
 		}
 
 		int random = getRandom255();
@@ -378,8 +378,8 @@ bool readButtonsAndPads() {
 
 	if (playbackHandler.currentlyPlaying) {
 		if (getCurrentUI()->isViewScreen()) {
-			Buttons::buttonAction(hid::button::LOAD, true);
-			Buttons::buttonAction(hid::button::LOAD, false);
+			Buttons::buttonAction(hid::Button::LOAD, true);
+			Buttons::buttonAction(hid::Button::LOAD, false);
 			alreadyDoneScroll = false;
 		}
 		else if (getCurrentUI() == &loadSongUI && currentUIMode == noSubMode) {
@@ -388,8 +388,8 @@ bool readButtonsAndPads() {
 				alreadyDoneScroll = true;
 			}
 			else {
-				Buttons::buttonAction(hid::button::LOAD, true);
-				Buttons::buttonAction(hid::button::LOAD, false);
+				Buttons::buttonAction(hid::Button::LOAD, true);
+				Buttons::buttonAction(hid::Button::LOAD, false);
 			}
 		}
 	}

@@ -41,7 +41,7 @@ int buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	buttonStates[xy.x][xy.y] = on;
 
 #if ALLOW_SPAM_MODE
-	if (b == X_ENC) {
+	if (b == Button::X_ENC) {
 		spamMode();
 		return;
 	}
@@ -77,10 +77,10 @@ int buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	}
 
 	// Play button
-	if (b == PLAY) {
+	if (b == Button::PLAY) {
 		if (on) {
 
-			if (audioRecorder.recordingSource && isButtonPressed(RECORD)) {
+			if (audioRecorder.recordingSource && isButtonPressed(Button::RECORD)) {
 				// Stop output-recording at end of loop
 				if (!recordButtonPressUsedUp && playbackHandler.isEitherClockActive()) {
 					currentPlaybackMode->stopOutputRecordingAtLoopEnd();
@@ -93,7 +93,7 @@ int buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 				playbackHandler.playButtonPressed(INTERNAL_BUTTON_PRESS_LATENCY);
 
 				// Begin output-recording simultaneously with playback
-				if (isButtonPressed(RECORD) && playbackHandler.playbackState && !recordButtonPressUsedUp) {
+				if (isButtonPressed(Button::RECORD) && playbackHandler.playbackState && !recordButtonPressUsedUp) {
 					audioRecorder.beginOutputRecording();
 				}
 			}
@@ -103,7 +103,7 @@ int buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	}
 
 	// Record button
-	else if (b == RECORD) {
+	else if (b == Button::RECORD) {
 		// Press on
 		if (on) {
 			timeRecordButtonPressed = AudioEngine::audioSampleTimer;
@@ -134,7 +134,7 @@ int buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	}
 
 	// Tempo encoder button
-	else if (b == TEMPO_ENC) {
+	else if (b == Button::TEMPO_ENC) {
 		if (on) {
 			if (isShiftButtonPressed()) {
 				playbackHandler.displaySwingAmount();
@@ -148,7 +148,7 @@ int buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	}
 
 #if ALLOW_SPAM_MODE
-	else if (b == SELECT_ENC)
+	else if (b == Button::SELECT_ENC)
 		     && isButtonPressed(shiftButtonX, shiftButtonY)) {
 			     spamMode();
 		     }
@@ -156,10 +156,10 @@ int buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 
 #if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 	// Mod encoder buttons
-	else if (b == MOD_ENCODER_0) {
+	else if (b == Button::MOD_ENCODER_0) {
 		getCurrentUI()->modEncoderButtonAction(0, on);
 	}
-	else if (b == MOD_ENCODER_1) {
+	else if (b == Button::MOD_ENCODER_1) {
 		getCurrentUI()->modEncoderButtonAction(1, on);
 	}
 #endif
@@ -191,7 +191,7 @@ void noPressesHappening(bool inCardRoutine) {
 	for (int x = 0; x < NUM_BUTTON_COLS; x++) {
 		for (int y = 0; y < NUM_BUTTON_ROWS; y++) {
 			if (buttonStates[x][y]) {
-				buttonAction(hid::button::fromXY(x, y), false, inCardRoutine);
+				buttonAction(static_cast<hid::button::Button>(hid::button::fromXY(x, y)), false, inCardRoutine);
 			}
 		}
 	}

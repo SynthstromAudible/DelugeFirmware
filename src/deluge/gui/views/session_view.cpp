@@ -152,7 +152,7 @@ int SessionView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 		}
 		const char* paramLabels[] = {"THRE", "MAKE", "ATTK", "REL", "RATI", "MIX"};
 
-		if (modKnobMode == 4 && b == MOD_ENCODER_1 && on) {
+		if (modKnobMode == 4 && b == Button::MOD_ENCODER_1 && on) {
 			masterCompEditMode++;
 			masterCompEditMode = masterCompEditMode % 6; //toggle master compressor setting
 
@@ -169,7 +169,7 @@ int SessionView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	int newInstrumentType;
 
 	// Clip-view button
-	if (b == CLIP_VIEW) {
+	if (b == Button::CLIP_VIEW) {
 		if (on && currentUIMode == UI_MODE_NONE && playbackHandler.recording != RECORDING_ARRANGEMENT) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -184,7 +184,7 @@ int SessionView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 #ifdef arrangerViewButtonX
 	else if (b == arrangerView) {
 #else
-	else if (b == SESSION_VIEW && !Buttons::isShiftButtonPressed()) {
+	else if (b == Button::SESSION_VIEW && !Buttons::isShiftButtonPressed()) {
 #endif
 		if (on) {
 			if (inCardRoutine) {
@@ -192,7 +192,7 @@ int SessionView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 			}
 
 			// If holding record button...
-			if (Buttons::isButtonPressed(hid::button::RECORD)) {
+			if (Buttons::isButtonPressed(hid::Button::RECORD)) {
 				Buttons::recordButtonPressUsedUp = true;
 
 				// Make sure we weren't already playing...
@@ -319,7 +319,7 @@ moveAfterClipInstance:
 
 #if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 	// Affect-entire button
-	else if (b == AFFECT_ENTIRE) {
+	else if (b == Button::AFFECT_ENTIRE) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 			currentSong->affectEntire = !currentSong->affectEntire;
 			view.setActiveModControllableTimelineCounter(currentSong);
@@ -328,7 +328,7 @@ moveAfterClipInstance:
 #endif
 
 	// Record button - adds to what MatrixDriver does with it
-	else if (b == RECORD) {
+	else if (b == Button::RECORD) {
 		if (on) {
 			if (isNoUIModeActive()) {
 				uiTimerManager.setTimer(TIMER_UI_SPECIFIC, 500);
@@ -352,7 +352,7 @@ moveAfterClipInstance:
 	}
 
 	// If save / delete button pressed, delete the Clip!
-	else if (b == SAVE && currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
+	else if (b == Button::SAVE && currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
 		if (on) {
 
 			if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
@@ -373,7 +373,7 @@ moveAfterClipInstance:
 	}
 
 	// Select encoder button
-	else if (b == SELECT_ENC && !Buttons::isShiftButtonPressed()) {
+	else if (b == Button::SELECT_ENC && !Buttons::isShiftButtonPressed()) {
 		if (on) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -412,7 +412,7 @@ moveAfterClipInstance:
 	}
 
 	// Which-instrument-type buttons
-	else if (b == SYNTH) {
+	else if (b == Button::SYNTH) {
 		newInstrumentType = INSTRUMENT_TYPE_SYNTH;
 
 changeInstrumentType:
@@ -442,7 +442,7 @@ changeInstrumentType:
 
 				InstrumentClip* instrumentClip = (InstrumentClip*)clip;
 				// If load button held, go into LoadInstrumentPresetUI
-				if (Buttons::isButtonPressed(hid::button::LOAD)) {
+				if (Buttons::isButtonPressed(hid::Button::LOAD)) {
 
 					// Can't do that for MIDI or CV Clips though
 					if (newInstrumentType == INSTRUMENT_TYPE_MIDI_OUT || newInstrumentType == INSTRUMENT_TYPE_CV) {
@@ -476,15 +476,15 @@ doActualSimpleChange:
 			uiNeedsRendering(this, 1 << selectedClipYDisplay, 0);
 		}
 	}
-	else if (b == KIT) {
+	else if (b == Button::KIT) {
 		newInstrumentType = INSTRUMENT_TYPE_KIT;
 		goto changeInstrumentType;
 	}
-	else if (b == MIDI) {
+	else if (b == Button::MIDI) {
 		newInstrumentType = INSTRUMENT_TYPE_MIDI_OUT;
 		goto changeInstrumentType;
 	}
-	else if (b == CV) {
+	else if (b == Button::CV) {
 		newInstrumentType = INSTRUMENT_TYPE_CV;
 		goto changeInstrumentType;
 	}
@@ -572,7 +572,7 @@ int SessionView::padAction(int xDisplay, int yDisplay, int on) {
 				if (currentUIMode == UI_MODE_NONE) {
 
 					// If they're holding down the record button...
-					if (Buttons::isButtonPressed(hid::button::RECORD)) {
+					if (Buttons::isButtonPressed(hid::Button::RECORD)) {
 
 holdingRecord:
 						// If doing recording stuff, create a "pending overdub".
@@ -645,7 +645,7 @@ holdingRecord:
 					else if (clip) {
 
 						// If holding down tempo knob...
-						if (Buttons::isButtonPressed(hid::button::TEMPO_ENC)) {
+						if (Buttons::isButtonPressed(hid::Button::TEMPO_ENC)) {
 							playbackHandler.grabTempoFromClip(clip);
 						}
 
@@ -680,7 +680,7 @@ startHoldingDown:
 					// Otherwise, try and create one
 					else {
 
-						if (Buttons::isButtonPressed(hid::button::RECORD)) {
+						if (Buttons::isButtonPressed(hid::Button::RECORD)) {
 							return ACTION_RESULT_DEALT_WITH;
 						}
 						if (sdRoutineLock) {
@@ -854,7 +854,7 @@ justEndClipPress:
 			// Section pad
 			else if (xDisplay == displayWidth + 1) {
 
-				if (on && Buttons::isButtonPressed(hid::button::RECORD)
+				if (on && Buttons::isButtonPressed(hid::Button::RECORD)
 				    && (!currentUIMode || currentUIMode == UI_MODE_VIEWING_RECORD_ARMING)) {
 					Buttons::recordButtonPressUsedUp = true;
 					goto holdingRecord;
@@ -993,7 +993,7 @@ int SessionView::timerCallback() {
 		break;
 
 	case UI_MODE_NONE:
-		if (Buttons::isButtonPressed(hid::button::RECORD)) {
+		if (Buttons::isButtonPressed(hid::Button::RECORD)) {
 			enterUIMode(UI_MODE_VIEWING_RECORD_ARMING);
 			PadLEDs::reassessGreyout(false);
 		case UI_MODE_VIEWING_RECORD_ARMING:

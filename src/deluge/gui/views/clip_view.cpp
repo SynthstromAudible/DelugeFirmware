@@ -56,7 +56,7 @@ int ClipView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	using namespace hid::button;
 
 	// Horizontal encoder button press-down - don't let it do its zoom level thing if zooming etc not currently accessible
-	if (b == X_ENC && on && !getCurrentClip()->currentlyScrollableAndZoomable()) {}
+	if (b == Button::X_ENC && on && !getCurrentClip()->currentlyScrollableAndZoomable()) {}
 
 #ifdef BUTTON_SEQUENCE_DIRECTION_X
 	else if (x == BUTTON_SEQUENCE_DIRECTION_X && y == BUTTON_SEQUENCE_DIRECTION_Y) {
@@ -141,8 +141,8 @@ Action* ClipView::shortenClip(int32_t newLength) {
 int ClipView::horizontalEncoderAction(int offset) {
 
 	// Shift button pressed - edit length
-	if (isNoUIModeActive() && !Buttons::isButtonPressed(hid::button::Y_ENC)
-	    && (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(hid::button::CLIP_VIEW))) {
+	if (isNoUIModeActive() && !Buttons::isButtonPressed(hid::Button::Y_ENC)
+	    && (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(hid::Button::CLIP_VIEW))) {
 
 		// If tempoless recording, don't allow
 		if (!getCurrentClip()->currentlyScrollableAndZoomable()) {
@@ -223,9 +223,9 @@ doReRender:
 	}
 
 	// Or, maybe shift everything horizontally
-	else if ((isNoUIModeActive() && Buttons::isButtonPressed(hid::button::Y_ENC))
+	else if ((isNoUIModeActive() && Buttons::isButtonPressed(hid::Button::Y_ENC))
 	         || (isUIModeActiveExclusively(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)
-	             && Buttons::isButtonPressed(hid::button::CLIP_VIEW))) {
+	             && Buttons::isButtonPressed(hid::Button::CLIP_VIEW))) {
 		if (sdRoutineLock)
 			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE; // Just be safe - maybe not necessary
 		int squareSize = getPosFromSquare(1) - getPosFromSquare(0);

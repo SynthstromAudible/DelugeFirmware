@@ -14,10 +14,8 @@ constexpr uint8_t fromXY(int x, int y) {
 #endif
 }
 
-typedef uint8_t Button;
-
 // clang-format off
-enum KnownButtons : Button {
+enum class Button : uint8_t {
 	AFFECT_ENTIRE     = fromXY(affectEntireButtonX, affectEntireButtonY),
 	SESSION_VIEW      = fromXY(sessionViewButtonX, sessionViewButtonY),
 	CLIP_VIEW         = fromXY(clipViewButtonX, clipViewButtonY),
@@ -45,8 +43,33 @@ enum KnownButtons : Button {
 	MOD_ENCODER_1     = fromXY(modEncoder1ButtonX, modEncoder1ButtonY),
 	SELECT_ENC        = fromXY(selectEncButtonX, selectEncButtonY),
 	TEMPO_ENC         = fromXY(tempoEncButtonX, tempoEncButtonY),
+
+#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
+	MOD_0 = fromXY(0,1),
+	MOD_1 = fromXY(0,0),
+	MOD_2 = fromXY(1,0),
+	MOD_3 = fromXY(1,1),
+	MOD_4 = fromXY(2,1),
+	MOD_5 = fromXY(3,1),
+#else
+	MOD_0 = fromXY(1,0),
+	MOD_1 = fromXY(1,1),
+	MOD_2 = fromXY(1,2),
+	MOD_3 = fromXY(1,3),
+	MOD_4 = fromXY(2,0),
+	MOD_5 = fromXY(2,1),
+	MOD_6 = fromXY(2,2),
+	MOD_7 = fromXY(2,3),
+#endif
 };
 // clang-format on
+
+#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
+const Button modButton[6] = {Button::MOD_0, Button::MOD_1, Button::MOD_2, Button::MOD_3, Button::MOD_4, Button::MOD_5};
+#else
+const Button modButton[8] = {Button::MOD_0, Button::MOD_1, Button::MOD_2, Button::MOD_3,
+                             Button::MOD_4, Button::MOD_5, Button::MOD_6, Button::MOD_7};
+#endif
 
 constexpr uint8_t fromChar(uint8_t c) {
 	return static_cast<uint8_t>(c);

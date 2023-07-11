@@ -42,7 +42,7 @@ public:
 	int padAction(int x, int y, int velocity) override;
 	bool setupAndCheckAvailability();
 
-	virtual hid::Button getAcceptButton() { return hid::button::SELECT_ENC; }
+	virtual hid::Button getAcceptButton() { return hid::Button::SELECT_ENC; }
 
 	int currentOption; // Don't make static. We'll have multiple nested ContextMenus open at the same time
 
@@ -57,13 +57,13 @@ class ContextMenuForSaving : public ContextMenu {
 public:
 	ContextMenuForSaving() = default;
 	void focusRegained() final;
-	hid::Button getAcceptButton() final { return hid::button::SAVE; }
+	hid::Button getAcceptButton() final { return hid::Button::SAVE; }
 };
 
 class ContextMenuForLoading : public ContextMenu {
 public:
 	ContextMenuForLoading() = default;
 	void focusRegained() override;
-	hid::Button getAcceptButton() final { return hid::button::LOAD; }
+	hid::Button getAcceptButton() final { return hid::Button::LOAD; }
 };
 } // namespace deluge::gui

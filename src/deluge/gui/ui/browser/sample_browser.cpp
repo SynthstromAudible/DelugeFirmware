@@ -410,7 +410,7 @@ int SampleBrowser::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	using namespace hid::button;
 
 	// Save button, to delete audio file
-	if (b == SAVE && Buttons::isShiftButtonPressed()) {
+	if (b == Button::SAVE && Buttons::isShiftButtonPressed()) {
 		if (!currentUIMode && on) {
 			FileItem* currentFileItem = getCurrentFileItem();
 			if (currentFileItem) {
@@ -450,7 +450,7 @@ int SampleBrowser::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	}
 
 	// Horizontal encoder button
-	else if (b == X_ENC) {
+	else if (b == Button::X_ENC) {
 		if (on) {
 			if (isNoUIModeActive()) {
 				enterUIMode(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON);
@@ -466,7 +466,8 @@ int SampleBrowser::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 
 #if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 	// Record button
-	else if (b == RECORD && !audioRecorder.recordingSource && currentSong->currentClip->type != CLIP_TYPE_AUDIO) {
+	else if (b == Button::RECORD && !audioRecorder.recordingSource
+	         && currentSong->currentClip->type != CLIP_TYPE_AUDIO) {
 		if (!on || currentUIMode != UI_MODE_NONE) {
 			return ACTION_RESULT_DEALT_WITH;
 		}
@@ -2104,7 +2105,7 @@ doNormal:
 
 int SampleBrowser::verticalEncoderAction(int offset, bool inCardRoutine) {
 	if (getRootUI() == &instrumentClipView) {
-		if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(hid::button::X_ENC)) {
+		if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(hid::Button::X_ENC)) {
 			return ACTION_RESULT_DEALT_WITH;
 		}
 		return instrumentClipView.verticalEncoderAction(offset, inCardRoutine);
