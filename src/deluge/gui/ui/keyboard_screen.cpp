@@ -850,6 +850,7 @@ void KeyboardScreen::exitScaleMode() {
 }
 
 void KeyboardScreen::setLedStates() {
+	IndicatorLEDs::setLedState(keyboardLedX, keyboardLedY, true);
 	InstrumentClipMinder::setLedStates();
 }
 
