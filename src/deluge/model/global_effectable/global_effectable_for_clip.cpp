@@ -210,6 +210,8 @@ int32_t GlobalEffectableForClip::getSidechainVolumeAmountAsPatchCableDepth(Param
 
 int GlobalEffectableForClip::getParameterFromKnob(int whichModEncoder) {
 
+#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
+
 	int modKnobMode = *getModKnobMode();
 
 	if (modKnobMode == 4 && whichModEncoder) {
@@ -218,6 +220,7 @@ int GlobalEffectableForClip::getParameterFromKnob(int whichModEncoder) {
 	else if (modKnobMode == 6 && !whichModEncoder) {
 		return PARAM_UNPATCHED_GLOBALEFFECTABLE_PITCH_ADJUST;
 	}
+#endif
 
 	return GlobalEffectable::getParameterFromKnob(whichModEncoder);
 }

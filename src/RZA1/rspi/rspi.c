@@ -135,7 +135,11 @@ void R_RSPI_Create(uint8_t channel, uint32_t bitRate, uint8_t phase, uint8_t dat
     dummy_word = RSPI(channel).SPCMD0;
 
     /* Enable master mode */
+#if DELUGE_MODEL <= DELUGE_MODEL_40_PAD
+    RSPI(channel).SPCR |= 0b10101000; // "Interrupts" on. This is required for DMA
+#else
     RSPI(channel).SPCR |= 0b00101000; // Just TX interrupt (for DMA). We'll manually enable the RX one when we need it.
+#endif
     dummy_byte = RSPI(channel).SPCR;
 }
 

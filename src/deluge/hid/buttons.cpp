@@ -54,12 +54,14 @@ int buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 
 		if (xy.x == modButtonX[i] && xy.y == modButtonY[i]) {
 
+#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 			if (i < 3) {
 				if (buttonStates[modButtonX[0]][modButtonY[0]] && buttonStates[modButtonX[1]][modButtonY[1]]
 				    && buttonStates[modButtonX[2]][modButtonY[2]]) {
 					ramTestLED(true);
 				}
 			}
+#endif
 			getCurrentUI()->modButtonAction(i, on);
 			goto dealtWith;
 		}
@@ -152,6 +154,7 @@ int buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 		     }
 #endif
 
+#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 	// Mod encoder buttons
 	else if (b == MOD_ENCODER_0) {
 		getCurrentUI()->modEncoderButtonAction(0, on);
@@ -159,6 +162,7 @@ int buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	else if (b == MOD_ENCODER_1) {
 		getCurrentUI()->modEncoderButtonAction(1, on);
 	}
+#endif
 
 dealtWith:
 

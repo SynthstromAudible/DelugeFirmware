@@ -487,3 +487,12 @@ cardError:
 	close();
 	return true;
 }
+
+#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
+int SaveSongUI::padAction(int x, int y, int on) {
+	if (sdRoutineLock)
+		ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+	close();
+	return ACTION_RESULT_DEALT_WITH;
+}
+#endif

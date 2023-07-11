@@ -41,7 +41,7 @@ public:
 	}
 	bool isRelevant(Sound* sound, int whichThing) {
 		Source* source = &sound->sources[whichThing];
-		return (sound->getSynthMode() == SYNTH_MODE_SUBTRACTIVE);
+		return (DELUGE_MODEL != DELUGE_MODEL_40_PAD && sound->getSynthMode() == SYNTH_MODE_SUBTRACTIVE);
 	}
 
 	int checkPermissionToBeginSession(Sound* sound, int whichThing, ::MultiRange** currentRange) {

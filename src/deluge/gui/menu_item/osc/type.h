@@ -69,12 +69,16 @@ public:
 		static char const* options[] = {"SINE",  "TRIANGLE",      "SQUARE",         "Analog square",
 		                                "Saw",   "Analog saw",    "Wavetable",      "SAMPLE",
 		                                inLText, "Input (right)", "Input (stereo)", NULL};
-		inLText[5] = ((AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn)) ? ' ' : 0;
+		inLText[5] =
+		    ((AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn || DELUGE_MODEL == DELUGE_MODEL_40_PAD)) ? ' '
+		                                                                                                         : 0;
 #else
 		static char inLText[4] = "INL";
 		static char const* options[] = {"SINE",      "TRIANGLE", "SQUARE", "ASQUARE", "SAW", "ASAW",
 		                                "Wavetable", "SAMPLE",   inLText,  "INR",     "INLR"};
-		inLText[2] = ((AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn)) ? 'L' : 0;
+		inLText[2] =
+		    ((AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn || DELUGE_MODEL == DELUGE_MODEL_40_PAD)) ? 'L'
+		                                                                                                         : 0;
 #endif
 		return options;
 	}
@@ -83,7 +87,7 @@ public:
 		if (soundEditor.currentSound->getSynthMode() == SYNTH_MODE_RINGMOD) {
 			return NUM_OSC_TYPES_RINGMODDABLE;
 		}
-		else if (AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn) {
+		else if (AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn || DELUGE_MODEL == DELUGE_MODEL_40_PAD) {
 			return NUM_OSC_TYPES;
 		}
 		else {

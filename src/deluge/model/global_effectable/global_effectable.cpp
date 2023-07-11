@@ -86,7 +86,15 @@ void GlobalEffectable::initParamsForAudioClip(ParamManagerForTimeline* paramMana
 
 void GlobalEffectable::modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager) {
 
-	// If we're leaving this mod function or anything else is happening, we want to be sure that stutter has stopped
+	// Stutter
+	if (DELUGE_MODEL == DELUGE_MODEL_40_PAD && whichModButton == 5 && *getModKnobMode() == 5) {
+		if (on) {
+			beginStutter(paramManager);
+			return;
+		}
+	}
+
+	// Otherwise, if we're leaving this mod function or anything else is happening, we want to be sure that stutter has stopped
 	endStutter(paramManager);
 }
 
@@ -298,6 +306,7 @@ int GlobalEffectable::getParameterFromKnob(int whichModEncoder) {
 			return PARAM_UNPATCHED_GLOBALEFFECTABLE_REVERB_SEND_AMOUNT;
 		}
 	}
+#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 	else if (modKnobMode == 5) {
 		if (whichModEncoder != 0) {
 			return PARAM_UNPATCHED_GLOBALEFFECTABLE_MOD_FX_RATE;
@@ -327,6 +336,14 @@ int GlobalEffectable::getParameterFromKnob(int whichModEncoder) {
 			return PARAM_UNPATCHED_BITCRUSHING;
 		}
 	}
+#else
+	else if (modKnobMode == 5) {
+		if (whichModEncoder != 0)
+			return PARAM_UNPATCHED_STUTTER_RATE;
+		else
+			return PARAM_UNPATCHED_SAMPLE_RATE_REDUCTION;
+	}
+#endif
 	return 255;
 }
 

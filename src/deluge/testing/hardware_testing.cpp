@@ -82,6 +82,7 @@ void ramTestUart() {
 	}
 }
 
+#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 bool inputStateLastTime = false;
 
 bool nextIsDepress = false;
@@ -380,6 +381,7 @@ void ramTestLED(bool stuffAlreadySetUp) {
 		}
 	}
 }
+#endif
 
 #if AUTOPILOT_TEST_ENABLED
 #define AUTOPILOT_NONE 0
