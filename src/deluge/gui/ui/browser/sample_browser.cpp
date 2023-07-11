@@ -191,7 +191,6 @@ dissectionDone:
 
 void SampleBrowser::possiblySetUpBlinking() {
 
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 	if (!qwertyVisible && !currentlyShowingSamplePreview) {
 		int x = 0;
 		if (currentSong->currentClip->type == CLIP_TYPE_INSTRUMENT) {
@@ -199,7 +198,6 @@ void SampleBrowser::possiblySetUpBlinking() {
 		}
 		soundEditor.setupExclusiveShortcutBlink(x, 5);
 	}
-#endif
 }
 
 void SampleBrowser::focusRegained() {
@@ -464,7 +462,6 @@ int SampleBrowser::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 		}
 	}
 
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 	// Record button
 	else if (b == RECORD && !audioRecorder.recordingSource && currentSong->currentClip->type != CLIP_TYPE_AUDIO) {
 		if (!on || currentUIMode != UI_MODE_NONE) {
@@ -482,7 +479,6 @@ int SampleBrowser::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 			audioRecorder.process();
 		}
 	}
-#endif
 
 	else {
 		return Browser::buttonAction(b, on, inCardRoutine);
@@ -693,9 +689,6 @@ possiblyExit:
 	}
 
 	else {
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-		goto possiblyExit;
-#else
 		// If qwerty not visible yet, make it visible
 		if (!qwertyVisible) {
 			if (on && !currentUIMode) {
@@ -731,7 +724,6 @@ possiblyExit:
 		else {
 			return ACTION_RESULT_DEALT_WITH;
 		}
-#endif
 	}
 
 	return ACTION_RESULT_DEALT_WITH;

@@ -288,22 +288,6 @@ void InstrumentClipMinder::setLedStates() {
 
 	view.setLedStates();
 	playbackHandler.setLedStates();
-
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-	if (getCurrentClip()->output->type == INSTRUMENT_TYPE_KIT) {
-		if (getCurrentClip()->affectEntire)
-			indicator_leds::blinkLed(IndicatorLED::CLIP_VIEW);
-		else
-			indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, true);
-	}
-
-	else {
-		if (getCurrentUI() == &keyboardScreen)
-			indicator_leds::blinkLed(IndicatorLED::CLIP_VIEW);
-		else
-			indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, true);
-	}
-#endif
 }
 
 void InstrumentClipMinder::opened() {
@@ -361,9 +345,7 @@ yesLoadInstrument:
 
 		else if (b == KIT) {
 			if (getCurrentClip()->onKeyboardScreen) {
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
-				indicator_leds::indicateAlertOnLed(IndicatorLED::KEYBOARD);
-#endif
+				IndicatorLEDs::indicateAlertOnLed(keyboardLedX, keyboardLedX);
 			}
 			else {
 				Browser::instrumentTypeToLoad = INSTRUMENT_TYPE_KIT;
@@ -385,7 +367,6 @@ yesLoadInstrument:
 		}
 	}
 
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 	// Affect-entire
 	else if (b == AFFECT_ENTIRE) {
 		if (on && currentUIMode == UI_MODE_NONE) {
@@ -399,7 +380,6 @@ yesLoadInstrument:
 			}
 		}
 	}
-#endif
 
 	// Back button to clear Clip
 	else if (b == BACK && currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
