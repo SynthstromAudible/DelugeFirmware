@@ -345,7 +345,7 @@ yesLoadInstrument:
 
 		else if (b == KIT) {
 			if (getCurrentClip()->onKeyboardScreen) {
-				IndicatorLEDs::indicateAlertOnLed(keyboardLedX, keyboardLedX);
+				indicator_leds::indicateAlertOnLed(IndicatorLED::KEYBOARD);
 			}
 			else {
 				Browser::instrumentTypeToLoad = INSTRUMENT_TYPE_KIT;

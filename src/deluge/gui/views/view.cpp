@@ -1051,7 +1051,7 @@ void View::setModLedStates() {
 	}
 	indicator_leds::setLedState(IndicatorLED::AFFECT_ENTIRE, affectEntire);
 
-	IndicatorLEDs::setLedState(clipViewLedX, clipViewLedY, !itsTheSong);
+	indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, !itsTheSong);
 
 	// Sort out the session/arranger view LEDs
 	if (itsTheSong) {
@@ -1265,10 +1265,9 @@ void View::drawOutputNameFromDetails(int outputType, int channel, int channelSuf
 			clip = (InstrumentClip*)clip;
 		}
 
-		IndicatorLEDs::setLedState(keyboardLedX, keyboardLedY, (clip && clip->onKeyboardScreen));
-		IndicatorLEDs::setLedState(scaleModeLedX, scaleModeLedY,
-		                           (clip && clip->inScaleMode && clip->output->type != INSTRUMENT_TYPE_KIT));
-		IndicatorLEDs::setLedState(crossScreenEditLedX, crossScreenEditLedY, (clip && clip->wrapEditing));
+		setLedState(LED::KEYBOARD, (clip && clip->onKeyboardScreen));
+		setLedState(LED::SCALE_MODE, (clip && clip->inScaleMode && clip->output->type != INSTRUMENT_TYPE_KIT));
+		setLedState(LED::CROSS_SCREEN_EDIT, (clip && clip->wrapEditing));
 	}
 
 #if HAVE_OLED

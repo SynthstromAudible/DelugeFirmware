@@ -442,7 +442,7 @@ void ArrangerView::focusRegained() {
 	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, false);
 	setLedStates();
 
-	IndicatorLEDs::setLedState(keyboardLedX, keyboardLedX, false);
+	indicator_leds::setLedState(IndicatorLED::KEYBOARD, false);
 
 	currentSong->lastClipInstanceEnteredStartPos = 0;
 

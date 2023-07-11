@@ -1574,7 +1574,7 @@ void SessionView::redrawClipsOnScreen(bool doRender) {
 
 void SessionView::setLedStates() {
 
-	IndicatorLEDs::setLedState(keyboardLedX, keyboardLedY, false);
+	indicator_leds::setLedState(IndicatorLED::KEYBOARD, false);
 
 	view.setLedStates();
 
@@ -1687,13 +1687,12 @@ nothingToDisplay:
 
 // This gets called by redrawNumericDisplay() - or, if HAVE_OLED, it gets called instead, because this still needs to happen.
 void SessionView::setCentralLEDStates() {
-
-	IndicatorLEDs::setLedState(synthLedX, synthLedY, false);
-	IndicatorLEDs::setLedState(kitLedX, kitLedY, false);
-	IndicatorLEDs::setLedState(midiLedX, midiLedY, false);
-	IndicatorLEDs::setLedState(cvLedX, cvLedY, false);
-	IndicatorLEDs::setLedState(scaleModeLedX, scaleModeLedY, false);
-	IndicatorLEDs::setLedState(keyboardLedX, keyboardLedY, false);
+	indicator_leds::setLedState(IndicatorLED::SYNTH, false);
+	indicator_leds::setLedState(IndicatorLED::KIT, false);
+	indicator_leds::setLedState(IndicatorLED::MIDI, false);
+	indicator_leds::setLedState(IndicatorLED::CV, false);
+	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, false);
+	indicator_leds::setLedState(IndicatorLED::KEYBOARD, false);
 
 	if (getCurrentUI() == this) {
 		indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);

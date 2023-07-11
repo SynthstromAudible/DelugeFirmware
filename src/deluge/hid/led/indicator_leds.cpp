@@ -45,7 +45,7 @@ void setLedState(LED led, bool newState, bool allowContinuedBlinking) {
 	uint8_t l = static_cast<int>(led);
 	ledStates[l] = newState;
 
-	bufferPICIndicatorsUart(152 + x + y * 9 + (newState ? 36 : 0));
+	bufferPICIndicatorsUart(uartBase + l + (newState ? 36 : 0));
 }
 
 void blinkLed(LED led, uint8_t numBlinks, uint8_t blinkingType, bool initialState) {

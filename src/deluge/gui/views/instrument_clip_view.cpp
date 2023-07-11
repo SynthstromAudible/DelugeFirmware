@@ -155,7 +155,7 @@ void InstrumentClipView::openedInBackground() {
 }
 
 void InstrumentClipView::setLedStates() {
-	IndicatorLEDs::setLedState(keyboardLedX, keyboardLedY, false);
+	indicator_leds::setLedState(IndicatorLED::KEYBOARD, false);
 	InstrumentClipMinder::setLedStates();
 }
 
