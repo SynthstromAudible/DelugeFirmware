@@ -7,11 +7,7 @@ namespace hid {
 
 namespace button {
 constexpr uint8_t fromXY(int x, int y) {
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-	return 10 * (y + displayHeight) + x;
-#else
 	return 9 * (y + displayHeight * 2) + x;
-#endif
 }
 
 typedef uint8_t Button;

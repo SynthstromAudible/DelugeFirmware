@@ -57,16 +57,6 @@
 
 #define UART_FULL_SPEED_PIC_PADS_HZ 200000 // 400000 glitches sometimes, especially if you zoom lots
 
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-#define NUM_BUTTON_ROWS             3
-#define NUM_BUTTON_COLS             10
-#define NUM_LED_COLS                10
-#define SPI_CHANNEL_CV              1
-#define UART_CHANNEL_MIDI           1
-#define UART_CHANNEL_PIC            2
-#define UI_MS_PER_REFRESH           33
-#define UI_MS_PER_REFRESH_SCROLLING 12
-#else
 #define NUM_BUTTON_ROWS                4
 #define NUM_BUTTON_COLS                9
 #define NUM_LED_COLS                   9
@@ -78,7 +68,6 @@
 #define UI_MS_PER_REFRESH              50
 #define UI_MS_PER_REFRESH_SCROLLING                                                                                    \
     7 // Any faster than this is faster than the UART bus can do, so there's a lag, and if we're sending out multiple scrolls fast, the buffer can build up quite a lag
-#endif
 
 #define NUM_LED_ROWS 4
 
@@ -139,83 +128,6 @@ DMA channels:
 #define NUM_LEVEL_INDICATORS 2
 
 // Buttons / LEDs ---------------------------------------------------------------
-
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-
-#define shiftButtonX 9
-#define shiftButtonY 0
-
-#define playButtonX 9
-#define playButtonY 2
-#define playLedX    9
-#define playLedY    1
-
-#define recordButtonX 9
-#define recordButtonY 1
-#define recordLedX    9
-#define recordLedY    2
-
-#define clipViewButtonX 3
-#define clipViewButtonY 0
-#define clipViewLedX    3
-#define clipViewLedY    3
-
-#define sessionViewButtonX 2
-#define sessionViewButtonY 0
-#define sessionViewLedX    2
-#define sessionViewLedY    3
-
-#define synthButtonX 5
-#define synthButtonY 1
-#define synthLedX    5
-#define synthLedY    2
-
-#define kitButtonX 5
-#define kitButtonY 2
-#define kitLedX    5
-#define kitLedY    1
-
-#define midiButtonX 6
-#define midiButtonY 2
-#define midiLedX    6
-#define midiLedY    1
-
-#define cvButtonX 6
-#define cvButtonY 1
-#define cvLedX    6
-#define cvLedY    2
-
-#define learnButtonX 6
-#define learnButtonY 0
-#define learnLedX    6
-#define learnLedY    3
-
-#define tapTempoButtonX 8
-#define tapTempoButtonY 2
-#define tapTempoLedX    8
-#define tapTempoLedY    1
-
-#define saveButtonX 7
-#define saveButtonY 0
-#define saveLedX    7
-#define saveLedY    3
-
-#define loadButtonX 7
-#define loadButtonY 1
-#define loadLedX    7
-#define loadLedY    2
-
-#define scaleModeButtonX 4
-#define scaleModeButtonY 0
-#define scaleModeLedX    4
-#define scaleModeLedY    3
-
-#define tripletsButtonX 8
-#define tripletsButtonY 0
-#define tripletsLedX    8
-#define tripletsLedY    3
-
-#else
 
 #define shiftButtonX 8
 #define shiftButtonY 0
@@ -328,8 +240,8 @@ DMA channels:
 #define ENCODER_MOD_0         5
 #define ENCODER_MOD_1         4
 
-#define SYNCED_LED_PORT         6
-#define SYNCED_LED_PIN          7
+#define SYNCED_LED_PORT 6
+#define SYNCED_LED_PIN  7
 
 // OLED
 // --- 64 pixels high
@@ -343,7 +255,5 @@ DMA channels:
 #define OLED_HEIGHT_CHARS       4
 
 #define OLED_MAIN_VISIBLE_HEIGHT (OLED_MAIN_HEIGHT_PIXELS - OLED_MAIN_TOPMOST_PIXEL)
-
-#endif
 
 #endif /* SYSTEM_CPU_SPECIFIC_H_ */

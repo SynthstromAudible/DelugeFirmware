@@ -155,9 +155,7 @@ void InstrumentClipView::openedInBackground() {
 }
 
 void InstrumentClipView::setLedStates() {
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
-	indicator_leds::setLedState(IndicatorLED::KEYBOARD, false);
-#endif
+	IndicatorLEDs::setLedState(keyboardLedX, keyboardLedY, false);
 	InstrumentClipMinder::setLedStates();
 }
 
@@ -245,26 +243,6 @@ doOther:
 		}
 	}
 
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-	// Clip view button
-	else if (b == CLIP_VIEW) {
-		if (on && Buttons::isShiftButtonPressed() && currentUIMode == UI_MODE_NONE) {
-			if (inCardRoutine)
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
-
-			InstrumentClip* currentClip = getCurrentClip();
-
-			if (currentClip->output->type == INSTRUMENT_TYPE_KIT) {
-				currentClip->affectEntire = !currentClip->affectEntire;
-				view.setActiveModControllableTimelineCounter(currentClip); // Refreshes LEDs and everything
-			}
-			else {
-				changeRootUI(&keyboardScreen); // Go to keyboard screen
-			}
-		}
-	}
-#else
-
 	// Keyboard button
 	else if (b == KEYBOARD) {
 		if (on && currentUIMode == UI_MODE_NONE) {
@@ -275,7 +253,6 @@ doOther:
 			changeRootUI(&keyboardScreen);
 		}
 	}
-#endif
 
 	// Wrap edit button
 	else if (b == CROSS_SCREEN_EDIT) {
@@ -301,7 +278,6 @@ doOther:
 		}
 	}
 
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 	// Record button if holding audition pad
 	else if (b == RECORD && (currentUIMode == UI_MODE_ADDING_DRUM_NOTEROW || currentUIMode == UI_MODE_AUDITIONING)) {
 		if (on && currentSong->currentClip->output->type == INSTRUMENT_TYPE_KIT && !audioRecorder.recordingSource
@@ -347,7 +323,6 @@ doOther:
 			}
 		}
 	}
-#endif
 
 	// Back button if adding Drum
 	else if (b == BACK && currentUIMode == UI_MODE_ADDING_DRUM_NOTEROW) {
@@ -790,9 +765,7 @@ discardDrum:
 		Sound::initParams(&paramManager);
 		((SoundDrum*)newDrum)->setupAsBlankSynth(&paramManager);
 
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 		((SoundDrum*)newDrum)->modKnobs[6][0].paramDescriptor.setToHaveParamOnly(PARAM_LOCAL_PITCH_ADJUST);
-#endif
 	}
 
 	kit->addDrum(newDrum);

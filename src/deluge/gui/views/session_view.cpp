@@ -317,7 +317,6 @@ moveAfterClipInstance:
 		}
 	}
 
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 	// Affect-entire button
 	else if (b == AFFECT_ENTIRE) {
 		if (on && currentUIMode == UI_MODE_NONE) {
@@ -325,7 +324,6 @@ moveAfterClipInstance:
 			view.setActiveModControllableTimelineCounter(currentSong);
 		}
 	}
-#endif
 
 	// Record button - adds to what MatrixDriver does with it
 	else if (b == RECORD) {
@@ -1576,9 +1574,7 @@ void SessionView::redrawClipsOnScreen(bool doRender) {
 
 void SessionView::setLedStates() {
 
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
-	indicator_leds::setLedState(IndicatorLED::KEYBOARD, false);
-#endif
+	IndicatorLEDs::setLedState(keyboardLedX, keyboardLedY, false);
 
 	view.setLedStates();
 
@@ -1691,14 +1687,13 @@ nothingToDisplay:
 
 // This gets called by redrawNumericDisplay() - or, if HAVE_OLED, it gets called instead, because this still needs to happen.
 void SessionView::setCentralLEDStates() {
-	indicator_leds::setLedState(IndicatorLED::SYNTH, false);
-	indicator_leds::setLedState(IndicatorLED::KIT, false);
-	indicator_leds::setLedState(IndicatorLED::MIDI, false);
-	indicator_leds::setLedState(IndicatorLED::CV, false);
-	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, false);
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
-	indicator_leds::setLedState(IndicatorLED::KEYBOARD, false);
-#endif
+
+	IndicatorLEDs::setLedState(synthLedX, synthLedY, false);
+	IndicatorLEDs::setLedState(kitLedX, kitLedY, false);
+	IndicatorLEDs::setLedState(midiLedX, midiLedY, false);
+	IndicatorLEDs::setLedState(cvLedX, cvLedY, false);
+	IndicatorLEDs::setLedState(scaleModeLedX, scaleModeLedY, false);
+	IndicatorLEDs::setLedState(keyboardLedX, keyboardLedY, false);
 
 	if (getCurrentUI() == this) {
 		indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
