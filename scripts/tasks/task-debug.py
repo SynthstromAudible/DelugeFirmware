@@ -86,7 +86,7 @@ def argparser():
         type=str,
     )
     parser.add_argument(
-        "-g", "--gdb-port", help="The port for gdb to listen on", default=2345, type=int
+        "-g", "--gdb-port", help="The port for gdb to listen on", default=3333, type=int
     )
     parser.add_argument(
         "-v", "--verbose", help="Print the called command", action="store_true"
