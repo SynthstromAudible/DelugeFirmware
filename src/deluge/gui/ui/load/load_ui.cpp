@@ -22,8 +22,8 @@ LoadUI::LoadUI() {
 }
 
 void LoadUI::focusRegained() {
-	IndicatorLEDs::blinkLed(loadLedX, loadLedY);
-	IndicatorLEDs::setLedState(saveLedX, saveLedY,
-	                           false); // In case returning from delete-file context menu, I think...
+	indicator_leds::blinkLed(IndicatorLED::LOAD);
+	indicator_leds::setLedState(IndicatorLED::SAVE,
+	                            false); // In case returning from delete-file context menu, I think...
 	SlotBrowser::focusRegained();
 }
