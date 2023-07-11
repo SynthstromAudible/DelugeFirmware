@@ -2,7 +2,7 @@
 #include "definitions.h"
 #include "dsp/reverb/freeverb/revmodel.hpp"
 #include "extern.h"
-#include "gui/context_menu/context_menu_overwrite_bootloader.h"
+#include "gui/context_menu/overwrite_bootloader.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/sample_browser.h"
@@ -58,6 +58,8 @@ extern "C" {
 }
 
 #include "menus.h"
+
+using namespace deluge;
 using namespace menu_item;
 
 #define comingSoonMenu (MenuItem*)0xFFFFFFFF
@@ -178,19 +180,19 @@ void SoundEditor::focusRegained() {
 }
 
 void SoundEditor::setLedStates() {
-	IndicatorLEDs::setLedState(saveLedX, saveLedY, false); // In case we came from the save-Instrument UI
+	indicator_leds::setLedState(IndicatorLED::SAVE, false); // In case we came from the save-Instrument UI
 
-	IndicatorLEDs::setLedState(synthLedX, synthLedY, !inSettingsMenu() && !editingKit() && currentSound);
-	IndicatorLEDs::setLedState(kitLedX, kitLedY, !inSettingsMenu() && editingKit() && currentSound);
-	IndicatorLEDs::setLedState(midiLedX, midiLedY,
-	                           !inSettingsMenu() && currentSong->currentClip->output->type == INSTRUMENT_TYPE_MIDI_OUT);
-	IndicatorLEDs::setLedState(cvLedX, cvLedY,
-	                           !inSettingsMenu() && currentSong->currentClip->output->type == INSTRUMENT_TYPE_CV);
+	indicator_leds::setLedState(IndicatorLED::SYNTH, !inSettingsMenu() && !editingKit() && currentSound);
+	indicator_leds::setLedState(IndicatorLED::KIT, !inSettingsMenu() && editingKit() && currentSound);
+	indicator_leds::setLedState(
+	    IndicatorLED::MIDI, !inSettingsMenu() && currentSong->currentClip->output->type == INSTRUMENT_TYPE_MIDI_OUT);
+	indicator_leds::setLedState(IndicatorLED::CV,
+	                            !inSettingsMenu() && currentSong->currentClip->output->type == INSTRUMENT_TYPE_CV);
 
-	IndicatorLEDs::setLedState(crossScreenEditLedX, crossScreenEditLedY, false);
-	IndicatorLEDs::setLedState(scaleModeLedX, scaleModeLedY, false);
+	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
+	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, false);
 
-	IndicatorLEDs::blinkLed(backLedX, backLedY);
+	indicator_leds::blinkLed(IndicatorLED::BACK);
 
 	playbackHandler.setLedStates();
 }
@@ -286,7 +288,7 @@ int SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 						getCurrentMenuItem()->unlearnAction();
 					}
 					else {
-						IndicatorLEDs::blinkLed(learnLedX, learnLedY, 255, 1);
+						indicator_leds::blinkLed(IndicatorLED::LEARN, 255, 1);
 						currentUIMode = UI_MODE_MIDI_LEARN;
 					}
 				}
@@ -294,10 +296,10 @@ int SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 		}
 		else {
 			if (getCurrentMenuItem()->shouldBlinkLearnLed()) {
-				IndicatorLEDs::blinkLed(learnLedX, learnLedY);
+				indicator_leds::blinkLed(IndicatorLED::LEARN);
 			}
 			else {
-				IndicatorLEDs::setLedState(learnLedX, learnLedY, false);
+				indicator_leds::setLedState(IndicatorLED::LEARN, false);
 			}
 
 			if (currentUIMode == UI_MODE_MIDI_LEARN) {
@@ -305,12 +307,6 @@ int SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 			}
 		}
 	}
-
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-	else if (b == CLIP_VIEW && getRootUI() == &instrumentClipView) {
-		return instrumentClipView.buttonAction(b, on, inCardRoutine);
-	}
-#else
 
 	// Affect-entire button
 	else if (b == AFFECT_ENTIRE && getRootUI() == &instrumentClipView) {
@@ -320,7 +316,7 @@ int SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 			}
 			if (on) {
 				if (currentUIMode == UI_MODE_NONE) {
-					IndicatorLEDs::blinkLed(affectEntireLedX, affectEntireLedY, 255, 1);
+					indicator_leds::blinkLed(IndicatorLED::AFFECT_ENTIRE, 255, 1);
 					currentUIMode = UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR;
 				}
 			}
@@ -354,10 +350,9 @@ int SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 
 			PadLEDs::reassessGreyout(true);
 
-			IndicatorLEDs::setLedState(keyboardLedX, keyboardLedY, getRootUI() == &keyboardScreen);
+			indicator_leds::setLedState(IndicatorLED::KEYBOARD, getRootUI() == &keyboardScreen);
 		}
 	}
-#endif
 
 	else {
 		return ACTION_RESULT_NOT_DEALT_WITH;
@@ -420,8 +415,6 @@ bool SoundEditor::beginScreen(MenuItem* oldMenuItem) {
 #if HAVE_OLED
 	renderUIsForOled();
 #endif
-
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 
 	if (!inSettingsMenu() && currentItem != &sampleStartMenu && currentItem != &sampleEndMenu
 	    && currentItem != &audioClipSampleMarkerEditorMenuStart && currentItem != &audioClipSampleMarkerEditorMenuEnd
@@ -537,15 +530,14 @@ stopThat : {}
 			blinkShortcut();
 		}
 	}
-#endif
 
 shortcutsPicked:
 
 	if (currentItem->shouldBlinkLearnLed()) {
-		IndicatorLEDs::blinkLed(learnLedX, learnLedY);
+		indicator_leds::blinkLed(IndicatorLED::LEARN);
 	}
 	else {
-		IndicatorLEDs::setLedState(learnLedX, learnLedY, false);
+		indicator_leds::setLedState(IndicatorLED::LEARN, false);
 	}
 
 	possibleChangeToCurrentRangeDisplay();
@@ -559,13 +551,11 @@ void SoundEditor::possibleChangeToCurrentRangeDisplay() {
 }
 
 void SoundEditor::setupShortcutBlink(int x, int y, int frequency) {
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 	currentParamShorcutX = x;
 	currentParamShorcutY = y;
 
 	shortcutBlinkCounter = 0;
 	paramShortcutBlinkFrequency = frequency;
-#endif
 }
 
 void SoundEditor::setupExclusiveShortcutBlink(int x, int y) {
@@ -575,11 +565,6 @@ void SoundEditor::setupExclusiveShortcutBlink(int x, int y) {
 }
 
 void SoundEditor::blinkShortcut() {
-
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-	return;
-#endif
-
 	// We have to blink params and shortcuts at slightly different times, because blinking two pads on the same row at same time doesn't work
 
 	uint32_t counterForNow = shortcutBlinkCounter >> 1;
@@ -676,7 +661,7 @@ static const uint32_t shortcutPadUIModes[] = {UI_MODE_AUDITIONING, 0};
 
 int SoundEditor::potentialShortcutPadAction(int x, int y, bool on) {
 
-	if (!on || DELUGE_MODEL == DELUGE_MODEL_40_PAD || x >= displayWidth
+	if (!on || x >= displayWidth
 	    || (!Buttons::isShiftButtonPressed()
 	        && !(currentUIMode == UI_MODE_AUDITIONING && getRootUI() == &instrumentClipView))) {
 		return ACTION_RESULT_NOT_DEALT_WITH;
@@ -882,9 +867,9 @@ int SoundEditor::padAction(int x, int y, int on) {
 		    && ((x == 0 && y == 7) || (x == 1 && y == 6) || (x == 2 && y == 5))) {
 
 			if (matrixDriver.isUserDoingBootloaderOverwriteAction()) {
-				bool available = contextMenuOverwriteBootloader.setupAndCheckAvailability();
+				bool available = gui::context_menu::overwriteBootloader.setupAndCheckAvailability();
 				if (available) {
-					openUI(&contextMenuOverwriteBootloader);
+					openUI(&gui::context_menu::overwriteBootloader);
 				}
 			}
 		}
@@ -937,12 +922,7 @@ void SoundEditor::modEncoderAction(int whichModEncoder, int offset) {
 
 		// But, can't do it if it's a Kit and affect-entire is on!
 		if (editingKit() && ((InstrumentClip*)currentSong->currentClip)->affectEntire) {
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-			IndicatorLEDs::indicateAlertOnLed(
-			    songViewLedX, songViewLedY); // Really should indicate it on "Clip View", but that's already blinking
-#else
 			//IndicatorLEDs::indicateErrorOnLed(affectEntireLedX, affectEntireLedY);
-#endif
 		}
 
 		// Otherwise, everything's fine
@@ -987,10 +967,10 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int sourceIndex) {
 					else {
 						if (item != &sequenceDirectionMenu) {
 							if (selectedDrum->type == DRUM_TYPE_MIDI) {
-								IndicatorLEDs::indicateAlertOnLed(midiLedX, midiLedY);
+								indicator_leds::indicateAlertOnLed(IndicatorLED::MIDI);
 							}
 							else { // GATE
-								IndicatorLEDs::indicateAlertOnLed(cvLedX, cvLedY);
+								indicator_leds::indicateAlertOnLed(IndicatorLED::CV);
 							}
 							return false;
 						}

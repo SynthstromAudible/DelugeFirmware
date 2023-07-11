@@ -15,32 +15,39 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#pragma once
-
-#include "gui/context_menu/context_menu.h"
-
-class AudioOutput;
+#include "gui/context_menu/load_instrument_preset.h"
+#include "gui/ui/load/load_instrument_preset_ui.h"
+#include "hid/display/numeric_driver.h"
 
 namespace deluge::gui::context_menu {
+LoadInstrumentPreset loadInstrumentPreset{};
 
-class AudioInputSelector final : public ContextMenu {
-	enum class Value;
+char const* LoadInstrumentPreset::getTitle() {
+	static char const* title = "Load preset";
+	return title;
+}
 
-public:
-	AudioInputSelector() = default;
-	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) override;
-	void selectEncoderAction(int8_t offset) override;
-	bool setupAndCheckAvailability();
-	bool canSeeViewUnderneath() override { return true; }
+Sized<char const**> LoadInstrumentPreset::getOptions() {
+	static char const* options[] = {"Clone"}; // "REFRESH",
+	return {options, 1};
+}
 
-	AudioOutput* audioOutput;
+bool LoadInstrumentPreset::acceptCurrentOption() {
+	int error;
 
-	/// Title
-	char const* getTitle() override;
-
-	/// Options
-	Sized<const char**> getOptions() override;
-};
-
-extern AudioInputSelector audioInputSelector;
+	switch (currentOption) {
+	/*
+	case 0: // Refresh
+		return true;
+		*/
+	default: // Clone
+		error = loadInstrumentPresetUI.performLoad(true);
+		if (error) {
+			numericDriver.displayError(error);
+			return true;
+		}
+		loadInstrumentPresetUI.close();
+		return true;
+	}
+}
 } // namespace deluge::gui::context_menu

@@ -82,7 +82,6 @@ void ramTestUart() {
 	}
 }
 
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 bool inputStateLastTime = false;
 
 bool nextIsDepress = false;
@@ -138,7 +137,7 @@ void readInputsForHardwareTest(bool testButtonStates[9][16]) {
 	bool inputStateNow = (outputPluggedInL == outputPluggedInR == headphoneNow == micNow == lineInNow == gateInNow);
 
 	if (inputStateNow != inputStateLastTime) {
-		IndicatorLEDs::setLedState(tapTempoLedX, tapTempoLedY, !inputStateNow);
+		indicator_leds::setLedState(IndicatorLED::TAP_TEMPO, !inputStateNow);
 		inputStateLastTime = inputStateNow;
 	}
 
@@ -222,7 +221,7 @@ void readInputsForHardwareTest(bool testButtonStates[9][16]) {
 			encoderTestPos = 0;
 		}
 
-		IndicatorLEDs::setKnobIndicatorLevel(1, encoderTestPos);
+		indicator_leds::setKnobIndicatorLevel(1, encoderTestPos);
 	}
 
 #if HAVE_OLED
@@ -264,8 +263,8 @@ void ramTestLED(bool stuffAlreadySetUp) {
 	bufferPICUart(0xFF);
 
 	// Switch on level indicator LEDs
-	IndicatorLEDs::setKnobIndicatorLevel(0, 128);
-	IndicatorLEDs::setKnobIndicatorLevel(1, 128);
+	indicator_leds::setKnobIndicatorLevel(0, 128);
+	indicator_leds::setKnobIndicatorLevel(1, 128);
 
 	// Switch on all round-button LEDs
 	for (int x = 1; x < 9; x++) {
@@ -381,7 +380,6 @@ void ramTestLED(bool stuffAlreadySetUp) {
 		}
 	}
 }
-#endif
 
 #if AUTOPILOT_TEST_ENABLED
 #define AUTOPILOT_NONE 0

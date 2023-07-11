@@ -1889,70 +1889,68 @@ displayNudge:
 	// Otherwise, change tempo
 	else {
 
-			if (!(playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE)) {
+		if (!(playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE)) {
 
+			//FimeTempoKnob logic
+			if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::FineTempoKnob)
+			     == RuntimeFeatureStateToggle::On)) { //feature on
+				tempoKnobMode = 2;
+			}
+			else {
+				tempoKnobMode = 1;
+			}
 
-
-				//FimeTempoKnob logic
+			if (Buttons::isButtonPressed(hid::button::TEMPO_ENC)) {
 				if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::FineTempoKnob)
-						== RuntimeFeatureStateToggle::On)) {//feature on
-					tempoKnobMode = 2;}
-				else {
+				     == RuntimeFeatureStateToggle::On)) { //feature is on, tempo button push-turned
 					tempoKnobMode = 1;
 				}
 
-				if (Buttons::isButtonPressed(hid::button::TEMPO_ENC)) {
-					if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::FineTempoKnob)
-							== RuntimeFeatureStateToggle::On)) { //feature is on, tempo button push-turned
-						tempoKnobMode = 1;}
+				else {
+					tempoKnobMode = 2;
+				}
+			}
 
-					else {
-						tempoKnobMode = 2;}
+			switch (tempoKnobMode) {
+			case 1:
+				// Coarse tempo adjustment
+
+				// Get current tempo
+				int32_t magnitude;
+				int8_t whichValue;
+				getCurrentTempoParams(&magnitude, &whichValue);
+
+				whichValue += offset;
+
+				if (whichValue >= 16) {
+					whichValue -= 16;
+					magnitude--;
+				}
+				else if (whichValue < 0) {
+					whichValue += 16;
+					magnitude++;
 				}
 
+				currentSong->setTempoFromParams(magnitude, whichValue, true);
 
+				displayTempoFromParams(magnitude, whichValue);
+				break;
 
-				switch (tempoKnobMode) {
-					case 1:
-					// Coarse tempo adjustment
+			case 2:
+				// Fine tempo adjustment
 
-					// Get current tempo
-					int32_t magnitude;
-					int8_t whichValue;
-					getCurrentTempoParams(&magnitude, &whichValue);
-
-					whichValue += offset;
-
-					if (whichValue >= 16) {
-						whichValue -= 16;
-						magnitude--;
-					}
-					else if (whichValue < 0) {
-						whichValue += 16;
-						magnitude++;
-					}
-
-					currentSong->setTempoFromParams(magnitude, whichValue, true);
-
-					displayTempoFromParams(magnitude, whichValue);
-					break;
-
-					case 2:
-					// Fine tempo adjustment
-
-					uint32_t tempoBPM = calculateBPM(currentSong->getTimePerTimerTickFloat()) + 0.5;
-					tempoBPM += offset;
-					if (tempoBPM > 0) {
-						currentSong->setBPM(tempoBPM, true);
-						displayTempoBPM(tempoBPM);
-					}
-
-					break;
+				uint32_t tempoBPM = calculateBPM(currentSong->getTimePerTimerTickFloat()) + 0.5;
+				tempoBPM += offset;
+				if (tempoBPM > 0) {
+					currentSong->setBPM(tempoBPM, true);
+					displayTempoBPM(tempoBPM);
 				}
+
+				break;
 			}
 		}
 	}
-
+}
 
 void PlaybackHandler::sendOutPositionViaMIDI(int32_t pos, bool sendContinueMessageToo) {
 	uint32_t newOutputTicksDone = timerTicksToOutputTicks(pos);
@@ -2166,25 +2164,21 @@ void PlaybackHandler::displayTempoBPM(float tempoBPM) {
 
 void PlaybackHandler::setLedStates() {
 
-	IndicatorLEDs::setLedState(playLedX, playLedY, playbackState);
+	indicator_leds::setLedState(IndicatorLED::PLAY, playbackState);
 
 	if (audioRecorder.recordingSource < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION
 	    && recording != RECORDING_ARRANGEMENT) {
-		IndicatorLEDs::setLedState(recordLedX, recordLedY, recording == RECORDING_NORMAL);
+		indicator_leds::setLedState(IndicatorLED::RECORD, recording == RECORDING_NORMAL);
 	}
 
 	bool syncedLEDOn = playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE;
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-	IndicatorLEDs::setLedState(syncedLedX, syncedLedY, syncedLEDOn);
-#else
 	setOutputState(SYNCED_LED_PORT, SYNCED_LED_PIN, syncedLEDOn);
-#endif
 
 	if (currentUIMode == UI_MODE_TAP_TEMPO) {
-		IndicatorLEDs::blinkLed(tapTempoLedX, tapTempoLedY, 255, 1);
+		indicator_leds::blinkLed(IndicatorLED::TAP_TEMPO, 255, 1);
 	}
 	else {
-		IndicatorLEDs::setLedState(tapTempoLedX, tapTempoLedY, metronomeOn);
+		indicator_leds::setLedState(IndicatorLED::TAP_TEMPO, metronomeOn);
 	}
 }
 
@@ -2444,7 +2438,7 @@ void PlaybackHandler::tapTempoButtonPress() {
 	}
 	tapTempoNumPresses++;
 
-	IndicatorLEDs::blinkLed(tapTempoLedX, tapTempoLedY, 255, 1);
+	indicator_leds::blinkLed(IndicatorLED::TAP_TEMPO, 255, 1);
 
 	uiTimerManager.setTimer(TIMER_TAP_TEMPO_SWITCH_OFF, 1100);
 }

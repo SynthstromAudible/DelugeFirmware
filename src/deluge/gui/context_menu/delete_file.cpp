@@ -15,50 +15,53 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "gui/context_menu/context_menu_delete_file.h"
+#include "gui/context_menu/delete_file.h"
 #include "gui/ui/browser/browser.h"
 #include "hid/display/numeric_driver.h"
 #include "io/uart/uart.h"
 #include "hid/matrix/matrix_driver.h"
-#include "gui/context_menu/save_song_or_instrument_context_menu.h"
+#include "gui/context_menu/save_song_or_instrument.h"
 
 extern "C" {
 #include "fatfs/ff.h"
 }
 
-ContextMenuDeleteFile contextMenuDeleteFile{};
+namespace deluge::gui::context_menu {
 
-ContextMenuDeleteFile::ContextMenuDeleteFile() {
-}
+DeleteFile deleteFile{};
 
-char const** ContextMenuDeleteFile::getOptions() {
-#if HAVE_OLED
-	if (getUIUpOneLevel() == &saveSongOrInstrumentContextMenu) {
+char const* DeleteFile::getTitle() {
+	static char* title;
+	if (getUIUpOneLevel() == &context_menu::saveSongOrInstrument) {
 		title = "Are you sure?";
 	}
 	else {
 		title = "Delete?";
 	}
+	return title;
+}
 
+Sized<char const**> DeleteFile::getOptions() {
+#if HAVE_OLED
 	static char const* options[] = {"OK"};
-	return options;
+	return {options, 1};
 #else
 	static char const* options[] = {"DELETE"};
 	static char const* optionsSure[] = {"SURE"};
 
-	if (getUIUpOneLevel() == &saveSongOrInstrumentContextMenu) {
-		return optionsSure;
+	if (getUIUpOneLevel() == &context_menu::saveSongOrInstrument) {
+		return {optionsSure, 1};
 	}
 	else {
-		return options;
+		return {options, 1};
 	}
 #endif
 }
 
-bool ContextMenuDeleteFile::acceptCurrentOption() {
+bool DeleteFile::acceptCurrentOption() {
 
 	UI* ui = getUIUpOneLevel();
-	if (ui == &saveSongOrInstrumentContextMenu) {
+	if (ui == &context_menu::saveSongOrInstrument) {
 		ui = getUIUpOneLevel(2);
 	}
 
@@ -84,9 +87,10 @@ bool ContextMenuDeleteFile::acceptCurrentOption() {
 	}
 
 	close();
-	if (getCurrentUI() == &saveSongOrInstrumentContextMenu) {
-		saveSongOrInstrumentContextMenu.close();
+	if (getCurrentUI() == &context_menu::saveSongOrInstrument) {
+		context_menu::saveSongOrInstrument.close();
 	}
 
 	return true;
 }
+} // namespace deluge::gui::context_menu
