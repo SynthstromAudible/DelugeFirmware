@@ -32,9 +32,17 @@
 #include "modulation/patch/patch_cable_set.h"
 #include "hid/display/oled.h"
 #include "util/functions.h"
+#include "deluge/model/settings/runtime_feature_settings.h"
 
 namespace menu_item {
 extern bool movingCursor;
+
+void PatchCableStrength::beginSession(MenuItem* navigatedBackwardFrom) {
+	Decimal::beginSession(navigatedBackwardFrom);
+
+	preferBarDrawing =
+	    (runtimeFeatureSettings.get(RuntimeFeatureSettingType::PatchCableResolution) == RuntimeFeatureStateToggle::Off);
+}
 
 #if HAVE_OLED
 void PatchCableStrength::renderOLED() {
@@ -89,20 +97,36 @@ void PatchCableStrength::renderOLED() {
 	OLED::drawString(getPatchedParamDisplayNameForOled(p), 0, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
 	                 TEXT_SPACING_X, TEXT_SIZE_Y_UPDATED);
 
-	char buffer[12];
-	const int digitWidth = TEXT_BIG_SPACING_X;
-	const int digitHeight = TEXT_BIG_SIZE_Y;
-	intToString(soundEditor.currentValue, buffer, 3);
-	int textPixelY = extraY + OLED_MAIN_TOPMOST_PIXEL + 10 + destinationDescriptor.isJustAParam();
-	OLED::drawStringAlignRight(buffer, textPixelY, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, digitWidth,
-	                           digitHeight);
+	if (soundEditor.numberEditPos != getDefaultEditPos()) {
+		preferBarDrawing = false;
+	}
 
-	int ourDigitStartX = OLED_MAIN_WIDTH_PIXELS - (soundEditor.numberEditPos + 1) * digitWidth;
-	OLED::setupBlink(ourDigitStartX, digitWidth, 40, 44, movingCursor);
-	OLED::drawVerticalLine(OLED_MAIN_WIDTH_PIXELS - 2 * digitWidth, textPixelY + digitHeight + 1,
-	                       textPixelY + digitHeight + 3, OLED::oledMainImage);
-	OLED::drawVerticalLine(OLED_MAIN_WIDTH_PIXELS - 2 * digitWidth - 1, textPixelY + digitHeight + 1,
-	                       textPixelY + digitHeight + 3, OLED::oledMainImage);
+	char buffer[12];
+	if (preferBarDrawing) {
+		int rounded = (soundEditor.currentValue + 50 * (soundEditor.currentValue > 0 ? 1 : -1)) / 100;
+		intToString(rounded, buffer, 1);
+		OLED::drawStringAlignRight(buffer, extraY + OLED_MAIN_TOPMOST_PIXEL + 4 + destinationDescriptor.isJustAParam(),
+		                           OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, 18, 20);
+
+		int marginL = destinationDescriptor.isJustAParam() ? 0 : 80;
+		int yBar = destinationDescriptor.isJustAParam() ? 36 : 37;
+		drawBar(yBar, marginL, 0);
+	}
+	else {
+		const int digitWidth = TEXT_BIG_SPACING_X;
+		const int digitHeight = TEXT_BIG_SIZE_Y;
+		intToString(soundEditor.currentValue, buffer, 3);
+		int textPixelY = extraY + OLED_MAIN_TOPMOST_PIXEL + 10 + destinationDescriptor.isJustAParam();
+		OLED::drawStringAlignRight(buffer, textPixelY, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, digitWidth,
+		                           digitHeight);
+
+		int ourDigitStartX = OLED_MAIN_WIDTH_PIXELS - (soundEditor.numberEditPos + 1) * digitWidth;
+		OLED::setupBlink(ourDigitStartX, digitWidth, 40, 44, movingCursor);
+		OLED::drawVerticalLine(OLED_MAIN_WIDTH_PIXELS - 2 * digitWidth, textPixelY + digitHeight + 1,
+		                       textPixelY + digitHeight + 3, OLED::oledMainImage);
+		OLED::drawVerticalLine(OLED_MAIN_WIDTH_PIXELS - 2 * digitWidth - 1, textPixelY + digitHeight + 1,
+		                       textPixelY + digitHeight + 3, OLED::oledMainImage);
+	}
 }
 #endif
 
