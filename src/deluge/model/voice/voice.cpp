@@ -2174,7 +2174,6 @@ dontUseCache : {}
 			}
 		}
 
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 		// Or echoing input
 		else if (sound->sources[s].oscType == OSC_TYPE_INPUT_L || sound->sources[s].oscType == OSC_TYPE_INPUT_R
 		         || sound->sources[s].oscType == OSC_TYPE_INPUT_STEREO) {
@@ -2301,7 +2300,6 @@ dontUseCache : {}
 				}
 			}
 		}
-#endif
 
 		// Or regular wave
 		else {

@@ -54,15 +54,11 @@ int SlotBrowser::beginSlotSession(bool shouldDrawKeys, bool allowIfNoFolder) {
 		return ERROR_UNSPECIFIED;
 	}
 
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 	if (shouldDrawKeys) {
 		PadLEDs::clearAllPadsWithoutSending();
 		drawKeys();
 		PadLEDs::sendOutMainPadColours();
 	}
-#else
-	IndicatorLEDs::blinkLed(backLedX, backLedY);
-#endif
 
 	return NO_ERROR;
 }

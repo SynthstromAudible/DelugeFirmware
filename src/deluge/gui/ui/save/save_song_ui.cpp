@@ -93,15 +93,15 @@ gotError:
 
 	enteredTextEditPos = 0; //enteredText.getLength();
 
-	IndicatorLEDs::setLedState(synthLedX, synthLedY, false);
-	IndicatorLEDs::setLedState(kitLedX, kitLedY, false);
-	IndicatorLEDs::setLedState(midiLedX, midiLedY, false);
+	indicator_leds::setLedState(IndicatorLED::SYNTH, false);
+	indicator_leds::setLedState(IndicatorLED::KIT, false);
+	indicator_leds::setLedState(IndicatorLED::MIDI, false);
 
-	IndicatorLEDs::setLedState(crossScreenEditLedX, crossScreenEditLedY, false);
-	IndicatorLEDs::setLedState(clipViewLedX, clipViewLedY, false);
-	IndicatorLEDs::setLedState(scaleModeLedX, scaleModeLedY, false);
+	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
+	indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, false);
+	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, false);
 
-	IndicatorLEDs::blinkLed(sessionViewLedX, sessionViewLedY);
+	indicator_leds::blinkLed(IndicatorLED::SESSION_VIEW);
 
 	focusRegained();
 	return true;
@@ -487,12 +487,3 @@ cardError:
 	close();
 	return true;
 }
-
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-int SaveSongUI::padAction(int x, int y, int on) {
-	if (sdRoutineLock)
-		ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
-	close();
-	return ACTION_RESULT_DEALT_WITH;
-}
-#endif
