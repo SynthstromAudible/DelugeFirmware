@@ -38,6 +38,7 @@ enum RuntimeFeatureSettingType : uint32_t {
 	DrumRandomizer,
 	MasterCompressorFx,
 	Quantize,
+	FineTempoKnob,
 	PatchCableResolution,
 	MaxElement // Keep as boundary
 };
