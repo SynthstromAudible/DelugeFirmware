@@ -290,7 +290,7 @@ doChangeInstrumentType:
 	// Kit button
 	else if (b == Button::KIT) {
 		if (instrumentClipToLoadFor && instrumentClipToLoadFor->onKeyboardScreen) {
-			IndicatorLEDs::indicateAlertOnLed(keyboardLedX, keyboardLedX);
+			indicator_leds::indicateAlertOnLed(IndicatorLED::KEYBOARD);
 		}
 		else {
 			newInstrumentType = INSTRUMENT_TYPE_KIT;
