@@ -36,7 +36,6 @@ enum RuntimeFeatureSettingType : uint32_t {
 	DrumRandomizer,
 	MasterCompressorFx,
 	Quantize,
-	MidiPickupMode,
 	MaxElement // Keep as boundary
 };
 
@@ -106,16 +105,7 @@ protected:
 	         .value = RuntimeFeatureStateToggle::On, // Default value
 	         .options = {{.displayName = "Off", .value = RuntimeFeatureStateToggle::Off},
 	                     {.displayName = "On", .value = RuntimeFeatureStateToggle::On},
-	                     {.displayName = NULL, .value = 0}}},
-
-		[RuntimeFeatureSettingType::MidiPickupMode] =
-			{.displayName = "Midi Pickup Mode",
-			.xmlName = "midiPickupMode",
-			.value = RuntimeFeatureStateToggle::On, // Default value
-			.options = {{.displayName = "Off", .value = RuntimeFeatureStateToggle::Off},
-						{.displayName = "On", .value = RuntimeFeatureStateToggle::On},
-						{.displayName = NULL, .value = 0}}},
-
+	                     {.displayName = NULL, .value = 0}}}
 	};
 
 private:

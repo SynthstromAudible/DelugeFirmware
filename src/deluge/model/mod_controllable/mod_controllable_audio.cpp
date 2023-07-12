@@ -32,6 +32,7 @@
 #include "model/song/song.h"
 #include "model/model_stack.h"
 #include "io/midi/midi_device.h"
+#include "io/midi/midi_engine.h"
 #include "model/clip/instrument_clip.h"
 #include "model/note/note_row.h"
 #include "modulation/params/param_set.h"
@@ -1413,23 +1414,36 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 					}
 				}
 				else {
-					if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MidiPickupMode) == RuntimeFeatureStateToggle::Off) { //Midi Pickup Mode Off
+					if (midiEngine.midiTakeover == MIDI_TAKEOVER_JUMP) {//Midi Takeover Mode = Jump
 						newKnobPos = 64;
 						if (value < 127) {
 							newKnobPos = (int)value - 64;
 						}
+						knob->previousPositionSaved = false;
 					}
-					else { //Midi Pickup Mode On
+					else { //Midi Takeover Mode = Pickup or Value Scaling
 						/*
-						//MIDI PICKUP MODE - Ignore Midi CC's if Controller Knob Position is Out of Sync with Deluge Knob Position
+						MIDI TAKEOVER MODES:
 
-						The objective of this section of code is for a Midi Controller with Non Endless Encoders / Faders to only start working when
-						the position of the Knob or Fader on the Midi Controller matches the Knob Position for the current Parameter Value on the Deluge
+						 1) Pickup: Ignore Midi CC's if Controller Knob Position is Out of Sync with Deluge Knob Position
 
-						This ensures that if you, for example, changed the parameter value on the Deluge, which would render the Midi Controller Knob/Fader position
-						out of sync, that if you were to then turn the fader or knob that the Deluge parameter value wouldn't "jump" to match the Controller
+							The objective of this section of code is for a Midi Controller with Non Endless Encoders / Faders to only start working when
+							the position of the Knob or Fader on the Midi Controller matches / passes through the Knob Position for the current Parameter Value on the Deluge
 
-						We want the controller to match the Deluge before we start making changes to Deluge parameter values, this prevents jumpyness.
+							This ensures that if you, for example, changed the parameter value on the Deluge, which would render the Midi Controller Knob/Fader position
+							out of sync, that if you were to then turn the fader or knob that the Deluge parameter value wouldn't "jump" to match the Controller
+
+							We want the controller to match the Deluge before we start making changes to Deluge parameter values, this prevents jumpyness.
+
+						 2) Scale: This option ensures smooth value transitions. It compares the physical control’s value
+						 	 	 	 	  to the destination parameter’s value and calculates a smooth convergence of the two as
+						 	 	 	 	  the control is moved. As soon as they are equal, the destination value tracks the control’s value 1:1.
+
+							Scale Mode works by increasing/decreasing the Deluge Knob Position / Parameter Value relative to the amount of "runway" remaining for the Midi
+							Controller's Knob/Fader to reach its Maximum or Minimum position. The Deluge Value will always increase/decrease in the same direction as the
+							midi controller.
+
+						----
 
 						Step #1: Convert Midi Controller's CC Value to Deluge Knob Position Value
 
@@ -1446,6 +1460,27 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 
 						int midiKnobPos = value - 64;
 
+						//Save previous knob position for first time
+						//The first time a midi knob is turned in a session, no previous midi knob position information exists, so to start, it will be equal to the current midiKnobPos
+						//This code is also executed when takeover mode is changed to Jump and back to Pickup/Scale because in Jump mode no previousPosition information gets saved
+
+						if (!knob->previousPositionSaved) {
+							knob->previousPosition = midiKnobPos;
+
+							knob->previousPositionSaved = true;
+						}
+
+						//adjust previous knob position saved
+
+						//Here we check to see if the midi knob position previously saved is greater or less than the current midi knob position +/- 1
+						//If it's by more than 1, the previous position is adjusted.
+						//This could happen for example if you changed banks and the previous position is no longer valid.
+						//By resetting the previous position we ensure that the there isn't unwanted jumpyness in the calculation of the midi knob position change amount
+						if (knob->previousPosition > (midiKnobPos + 1) || knob->previousPosition < (midiKnobPos - 1)) {
+
+							knob->previousPosition = midiKnobPos;
+						}
+
 						//Here we obtain the current Parameter Value on the Deluge
 						int32_t previousValue =
 							modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
@@ -1457,21 +1492,70 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 						//Here is where we check if the Knob/Fader on the Midi Controller is out of sync with the Deluge Knob Position
 
 						//First we check if the Midi Knob/Fader is sending a Value that is less the current Deluge Knob Position
-						//If less, check by how much its less. If the difference is greater than 1, ignore the CC value change
+						//If less, check by how much its less. If the difference is greater than 1, ignore the CC value change (or scale it if value scaling is on)
 						if (midiKnobPos == (knobPos - 1)) {
 							newKnobPos = knobPos - 1;
 						}
 
 						//Next we check if the Midi Knob/Fader is sending a Value that is greater than the current Deluge Knob Position
-						//If greater, check by how much its greater. If the difference is greater than 1, ignore the CC value change
+						//If greater, check by how much its greater. If the difference is greater than 1, ignore the CC value change (or scale it if value scaling is on)
 						else if (midiKnobPos == (knobPos + 1)) {
 							newKnobPos = knobPos + 1;
 						}
 
-						//if the first two conditions fail, then the Deluge Knob Position (and therefore the Parameter Value with it) remains unchanged
 						else {
-							newKnobPos = knobPos;
+
+							//if the first two conditions fail and pickup mode is enabled, then the Deluge Knob Position (and therefore the Parameter Value with it) remains unchanged
+							if (midiEngine.midiTakeover == MIDI_TAKEOVER_PICKUP) {//(runtimeFeatureSettings.get(RuntimeFeatureSettingType::MidiTakeoverMode) == RuntimeFeatureStateToggle::PU) { //Midi Pickup Mode On
+								newKnobPos = knobPos;
+							}
+							//if the first two conditions fail and value scaling mode is enabled, then the Deluge Knob Position is scaled upwards or downwards based on relative
+							//positions of Midi Controller Knob and Deluge Knob to min/max of knob range.
+							else { //Midi Value Scaling Mode On
+								//Set the max and min of the deluge midi knob position range
+								int knobMaxPos = 64;
+								int knobMinPos = -64;
+
+								//calculate amount of deluge "knob runway" is remaining from current knob position to max and min of knob position range
+								int delugeKnobMaxPosDelta = knobMaxPos - knobPos; //calculate how far delugeKnobPos is from Max - Positive Runway
+								int delugeKnobMinPosDelta = knobPos - knobMinPos; //calculate how far delugeKnobPos is from Min - Negative Runway
+
+								//calculate amount of midi "knob runway" is remaining from current knob position to max and min of knob position range
+								int midiKnobMaxPosDelta = knobMaxPos - midiKnobPos; //calculate how far midiKnobPos is from Max - Positive Runway
+								int midiKnobMinPosDelta = midiKnobPos - knobMinPos; //calculate how far midiKnobPos is from Min - Negative Runway
+
+								//calculate by how much the current midiKnobPos has changed from the previous midiKnobPos recorded
+								int midiKnobPosChange = midiKnobPos - knob->previousPosition;
+
+								//Set fixed point variable which will be used calculate the percentage in midi knob position
+								int midiKnobPosChangePercentage;
+
+								//if midi knob position change is greater than 0, then the midi knob position has increased (e.g. turned knob right)
+								if (midiKnobPosChange > 0) {
+									//fixed point math calculation of new deluge knob position when midi knob position has increased
+
+									midiKnobPosChangePercentage = (midiKnobPosChange * 1000000) / midiKnobMaxPosDelta;
+
+									newKnobPos = knobPos + ((delugeKnobMaxPosDelta * midiKnobPosChangePercentage) / 1000000);
+								}
+								//if midi knob position change is less than 0, then the midi knob position has decreased (e.g. turned knob left)
+								else if (midiKnobPosChange < 0) {
+									//fixed point math calculation of new deluge knob position when midi knob position has decreased
+
+									midiKnobPosChangePercentage = (midiKnobPosChange * 1000000) / midiKnobMinPosDelta;
+
+									newKnobPos = knobPos + ((delugeKnobMinPosDelta * midiKnobPosChangePercentage) / 1000000);
+								}
+								//if midi knob position change is 0, then the midi knob position has not changed and thus no change in deluge knob position / parameter value is required
+								else {
+									newKnobPos = knobPos;
+								}
+
+							}
 						}
+
+						//save the current midi knob position as the previous midi knob position so that it can be used next time the takeover code is executed
+						knob->previousPosition = midiKnobPos;
 					}
 				}
 
