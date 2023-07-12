@@ -25,21 +25,24 @@ class MultiRange final : public Range {
 public:
 	using Range::Range;
 
-	void beginSession(MenuItem* navigatedBackwardFrom);
-	void selectEncoderAction(int offset);
-	MenuItem* selectButtonPress();
+	void beginSession(MenuItem* navigatedBackwardFrom) override;
+	void selectEncoderAction(int offset) override;
+	MenuItem* selectButtonPress() override;
 	void noteOnToChangeRange(int noteCode);
-	bool isRangeDependent() { return true; }
+	bool isRangeDependent() override { return true; }
 	void deletePress();
 	MenuItem* menuItemHeadingTo;
 
 protected:
-	void getText(char* buffer, int* getLeftLength = NULL, int* getRightLength = NULL, bool mayShowJustOne = true);
-	bool mayEditRangeEdge(RangeEdit whichEdge);
+	void getText(char* buffer, int* getLeftLength = nullptr, int* getRightLength = nullptr,
+	             bool mayShowJustOne = true) override;
+	bool mayEditRangeEdge(RangeEdit whichEdge) override;
 
 #if HAVE_OLED
-	char const* getTitle() override { return "Note range"; };
-	void drawPixelsForOled();
+	char const* getTitle() override {
+		return "Note range";
+	};
+	void drawPixelsForOled() override;
 #endif
 };
 

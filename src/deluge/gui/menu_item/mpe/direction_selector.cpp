@@ -37,11 +37,11 @@ Sized<char const**> DirectionSelector::getOptions() {
 }
 
 void DirectionSelector::readCurrentValue() {
-	soundEditor.currentValue = whichDirection;
+	this->value_ = whichDirection;
 }
 
 void DirectionSelector::writeCurrentValue() {
-	whichDirection = soundEditor.currentValue;
+	whichDirection = this->value_;
 }
 
 MenuItem* DirectionSelector::selectButtonPress() {

@@ -36,14 +36,17 @@ class Mode final : public Selection {
 	size_t options_size_ = 2;
 
 public:
-	Mode() : Selection(mode_title) {}
+	Mode() : Selection(mode_title) {
+	}
 	void readCurrentValue() override {
-		soundEditor.currentValue = cvEngine.gateChannels[soundEditor.currentSourceIndex].mode;
+		this->value_ = cvEngine.gateChannels[soundEditor.currentSourceIndex].mode;
 	}
 	void writeCurrentValue() override {
-		cvEngine.setGateType(soundEditor.currentSourceIndex, soundEditor.currentValue);
+		cvEngine.setGateType(soundEditor.currentSourceIndex, this->value_);
 	}
-	Sized<char const**> getOptions() override { return {options_, options_size_}; }
+	Sized<char const**> getOptions() override {
+		return {options_, options_size_};
+	}
 
 	void updateOptions(int value) {
 		switch (value) {

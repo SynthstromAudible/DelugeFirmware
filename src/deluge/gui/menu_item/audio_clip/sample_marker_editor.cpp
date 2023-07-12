@@ -34,7 +34,7 @@ int SampleMarkerEditor::checkPermissionToBeginSession(Sound* sound, int whichThi
 	}
 
 	// Before going ahead, make sure a Sample is loaded
-	if (!((AudioClip*)currentSong->currentClip)->sampleHolder.audioFile) {
+	if ((dynamic_cast<AudioClip*>(currentSong->currentClip))->sampleHolder.audioFile == nullptr) {
 		return MENU_PERMISSION_NO;
 	}
 

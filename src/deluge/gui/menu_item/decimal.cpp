@@ -59,21 +59,21 @@ void Decimal::drawValue() {
 
 void Decimal::selectEncoderAction(int offset) {
 
-	soundEditor.currentValue += offset * soundEditor.numberEditSize;
+	this->value_ += offset * soundEditor.numberEditSize;
 
 	// If turned down
 	if (offset < 0) {
 		int minValue = getMinValue();
-		if (soundEditor.currentValue < minValue) {
-			soundEditor.currentValue = minValue;
+		if (this->value_ < minValue) {
+			this->value_ = minValue;
 		}
 	}
 
 	// If turned up
 	else {
 		int maxValue = getMaxValue();
-		if (soundEditor.currentValue > maxValue) {
-			soundEditor.currentValue = maxValue;
+		if (this->value_ > maxValue) {
+			this->value_ = maxValue;
 		}
 	}
 
@@ -110,10 +110,10 @@ void Decimal::horizontalEncoderAction(int offset) {
 }
 
 void Decimal::scrollToGoodPos() {
-	int numDigits = getNumDecimalDigits(std::abs(soundEditor.currentValue));
+	int numDigits = getNumDecimalDigits(std::abs(this->value_));
 
 	// Negative numbers
-	if (soundEditor.currentValue < 0) {
+	if (this->value_ < 0) {
 		soundEditor.numberScrollAmount = getMax(numDigits - 3, soundEditor.numberEditPos - 2);
 	}
 
@@ -138,7 +138,7 @@ void Decimal::scrollToGoodPos() {
 void Decimal::drawPixelsForOled() {
 	int numDecimalPlaces = getNumDecimalPlaces();
 	char buffer[13];
-	intToString(soundEditor.currentValue, buffer, numDecimalPlaces + 1);
+	intToString(this->value_, buffer, numDecimalPlaces + 1);
 	int length = strlen(buffer);
 
 	int editingChar = length - soundEditor.numberEditPos;
@@ -169,7 +169,7 @@ void Decimal::drawActualValue(bool justDidHorizontalScroll) {
 	char buffer[12];
 	int minNumDigits = getNumDecimalPlaces() + 1;
 	minNumDigits = getMax(minNumDigits, soundEditor.numberEditPos + 1);
-	intToString(soundEditor.currentValue, buffer, minNumDigits);
+	intToString(this->value_, buffer, minNumDigits);
 	int stringLength = strlen(buffer);
 
 	char* outputText = buffer + getMax(stringLength - 4 - soundEditor.numberScrollAmount, 0);

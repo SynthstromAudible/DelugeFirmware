@@ -23,7 +23,7 @@ namespace deluge::gui::menu_item::defaults {
 class BendRange final : public menu_item::BendRange {
 public:
 	using menu_item::BendRange::BendRange;
-	void readCurrentValue() override { soundEditor.currentValue = FlashStorage::defaultBendRange[BEND_RANGE_MAIN]; }
-	void writeCurrentValue() override { FlashStorage::defaultBendRange[BEND_RANGE_MAIN] = soundEditor.currentValue; }
+	void readCurrentValue() override { this->value_ = FlashStorage::defaultBendRange[BEND_RANGE_MAIN]; }
+	void writeCurrentValue() override { FlashStorage::defaultBendRange[BEND_RANGE_MAIN] = this->value_; }
 };
 } // namespace deluge::gui::menu_item::defaults

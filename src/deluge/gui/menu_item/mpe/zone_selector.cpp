@@ -42,11 +42,11 @@ Sized<char const**> ZoneSelector::getOptions() {
 }
 
 void ZoneSelector::readCurrentValue() {
-	soundEditor.currentValue = whichZone;
+	this->value_ = whichZone;
 }
 
 void ZoneSelector::writeCurrentValue() {
-	whichZone = soundEditor.currentValue;
+	whichZone = this->value_;
 }
 
 MenuItem* ZoneSelector::selectButtonPress() {

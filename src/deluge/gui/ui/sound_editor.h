@@ -77,7 +77,6 @@ public:
 
 	void setupShortcutBlink(int x, int y, int frequency);
 
-	int32_t currentValue;
 	int menuCurrentScroll;
 
 	uint8_t navigationDepth;

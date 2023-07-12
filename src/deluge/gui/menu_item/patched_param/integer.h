@@ -24,25 +24,43 @@ public:
 	Integer(char const* newName = nullptr, char const* title = nullptr, int newP = 0)
 	    : PatchedParam(newP), IntegerContinuous(newName, title) {}
 #if !HAVE_OLED
-	void drawValue() override { PatchedParam::drawValue(); }
+	void drawValue() override {
+		numericDriver.setTextAsNumber(this->value_, shouldDrawDotOnName());
+	}
 #endif
-	ParamDescriptor getLearningThing() final { return PatchedParam::getLearningThing(); }
-	[[nodiscard]] int getMaxValue() const override { return PatchedParam::getMaxValue(); }
-	[[nodiscard]] int getMinValue() const override { return PatchedParam::getMinValue(); }
+	ParamDescriptor getLearningThing() final {
+		return PatchedParam::getLearningThing();
+	}
+	[[nodiscard]] int getMaxValue() const override {
+		return PatchedParam::getMaxValue();
+	}
+	[[nodiscard]] int getMinValue() const override {
+		return PatchedParam::getMinValue();
+	}
 	uint8_t shouldBlinkPatchingSourceShortcut(int s, uint8_t* colour) final {
 		return PatchedParam::shouldBlinkPatchingSourceShortcut(s, colour);
 	}
 
-	uint8_t shouldDrawDotOnName() final { return PatchedParam::shouldDrawDotOnName(); }
-	MenuItem* selectButtonPress() final { return PatchedParam::selectButtonPress(); }
+	uint8_t shouldDrawDotOnName() final {
+		return PatchedParam::shouldDrawDotOnName();
+	}
+	MenuItem* selectButtonPress() final {
+		return PatchedParam::selectButtonPress();
+	}
 
-	uint8_t getPatchedParamIndex() final { return PatchedParam::getPatchedParamIndex(); }
+	uint8_t getPatchedParamIndex() final {
+		return PatchedParam::getPatchedParamIndex();
+	}
 	MenuItem* patchingSourceShortcutPress(int s, bool previousPressStillActive = false) final {
 		return PatchedParam::patchingSourceShortcutPress(s, previousPressStillActive);
 	}
 
-	void unlearnAction() final { MenuItemWithCCLearning::unlearnAction(); }
-	bool allowsLearnMode() final { return MenuItemWithCCLearning::allowsLearnMode(); }
+	void unlearnAction() final {
+		MenuItemWithCCLearning::unlearnAction();
+	}
+	bool allowsLearnMode() final {
+		return MenuItemWithCCLearning::allowsLearnMode();
+	}
 	void learnKnob(MIDIDevice* fromDevice, int whichKnob, int modKnobMode, int midiChannel) final {
 		MenuItemWithCCLearning::learnKnob(fromDevice, whichKnob, modKnobMode, midiChannel);
 	};

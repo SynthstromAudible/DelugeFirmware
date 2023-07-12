@@ -797,4 +797,3 @@ MenuItem* paramShortcutsForAudioClips[][8] = {
      &reverbRoomSizeMenu},
     {&audioClipDelayRateMenu, &delaySyncMenu, &delayAnalogMenu, &audioClipDelayFeedbackMenu, &delayPingPongMenu, NULL,
      NULL, NULL}};
-

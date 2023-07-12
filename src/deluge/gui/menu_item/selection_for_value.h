@@ -26,8 +26,8 @@ class SelectionForValue : public Selection {
 
 public:
 	SelectionForValue(T& value, char const* name = nullptr) : ref_(value), Selection(name) {}
-	void readCurrentValue() override { soundEditor.currentValue = ref_; }
-	void writeCurrentValue() override { ref_ = soundEditor.currentValue; };
+	void readCurrentValue() override { this->value_ = ref_; }
+	void writeCurrentValue() override { ref_ = this->value_; };
 };
 
 } // namespace deluge::gui::menu_item

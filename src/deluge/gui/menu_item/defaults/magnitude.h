@@ -27,18 +27,18 @@ class Magnitude final : public Enumeration {
 public:
 	using Enumeration::Enumeration;
 	size_t size() override { return 7; }
-	void readCurrentValue() override { soundEditor.currentValue = FlashStorage::defaultMagnitude; }
-	void writeCurrentValue() override { FlashStorage::defaultMagnitude = soundEditor.currentValue; }
+	void readCurrentValue() override { this->value_ = FlashStorage::defaultMagnitude; }
+	void writeCurrentValue() override { FlashStorage::defaultMagnitude = this->value_; }
 #if HAVE_OLED
-	void drawPixelsForOled() {
+	void drawPixelsForOled() override {
 		char buffer[12];
-		intToString(96 << soundEditor.currentValue, buffer);
+		intToString(96 << this->value_, buffer);
 		OLED::drawStringCentred(buffer, 20 + OLED_MAIN_TOPMOST_PIXEL, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
 		                        18, 20);
 	}
 #else
-	void drawValue() {
-		numericDriver.setTextAsNumber(96 << soundEditor.currentValue);
+	void drawValue() override {
+		numericDriver.setTextAsNumber(96 << this->value_);
 	}
 #endif
 };

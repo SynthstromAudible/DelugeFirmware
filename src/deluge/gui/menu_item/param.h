@@ -27,9 +27,9 @@ namespace deluge::gui::menu_item {
 // Note that this does *not* inherit from MenuItem actually!
 class Param {
 public:
-	Param(int newP = 0) { p = newP; }
-	int getMaxValue() const { return 50; }
-	int getMinValue() const { return 0; }
+	Param(int newP = 0) : p(newP) {}
+	[[nodiscard]] int getMaxValue() const { return 50; }
+	[[nodiscard]] int getMinValue() const { return 0; }
 	virtual uint8_t getP() { return p; };
 	MenuItem* selectButtonPress();
 	virtual ModelStackWithAutoParam* getModelStack(void* memory) = 0;

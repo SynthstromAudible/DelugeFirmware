@@ -23,7 +23,7 @@ namespace deluge::gui::menu_item::midi {
 class ClockOutStatus final : public Toggle {
 public:
 	using Toggle::Toggle;
-	void readCurrentValue() override { soundEditor.currentValue = playbackHandler.midiOutClockEnabled; }
-	void writeCurrentValue() override { playbackHandler.setMidiOutClockMode(soundEditor.currentValue); }
+	void readCurrentValue() override { this->value_ = playbackHandler.midiOutClockEnabled; }
+	void writeCurrentValue() override { playbackHandler.setMidiOutClockMode(this->value_); }
 };
 } // namespace deluge::gui::menu_item::midi

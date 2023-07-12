@@ -24,7 +24,7 @@ namespace deluge::gui::menu_item::sample {
 class LoopPoint : public MenuItem {
 public:
 	using MenuItem::MenuItem;
-	void beginSession(MenuItem* navigatedBackwardFrom = NULL) final;
+	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) final;
 	bool isRelevant(::Sound* sound, int whichThing) final;
 	bool isRangeDependent() final { return true; }
 	int checkPermissionToBeginSession(::Sound* sound, int whichThing, ::MultiRange** currentRange) final;

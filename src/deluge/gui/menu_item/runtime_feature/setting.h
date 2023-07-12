@@ -29,8 +29,8 @@ public:
 	void readCurrentValue() override;
 	void writeCurrentValue() override;
 	Sized<char const**> getOptions() override;
-	size_t getNumOptions();
-	char const* getName();
+	[[nodiscard]] size_t getNumOptions() const;
+	char const* getName() override;
 	char const* getTitle();
 
 private:

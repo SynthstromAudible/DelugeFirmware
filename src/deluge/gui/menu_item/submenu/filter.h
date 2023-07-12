@@ -21,7 +21,7 @@
 namespace deluge::gui::menu_item::submenu {
 class Filter final : public Submenu {
 public:
-	Filter(char const* newName = NULL, MenuItem** newFirstItem = NULL) : Submenu(newName, newFirstItem) {}
-	bool isRelevant(Sound* sound, int whichThing) { return (sound->synthMode != SYNTH_MODE_FM); }
+	using Submenu::Submenu;
+	bool isRelevant(Sound* sound, int whichThing) override { return (sound->synthMode != SYNTH_MODE_FM); }
 };
 } // namespace deluge::gui::menu_item::submenu

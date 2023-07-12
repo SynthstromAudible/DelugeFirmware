@@ -29,12 +29,12 @@ public:
 	[[nodiscard]] int getNumDecimalPlaces() const override { return 2; }
 	[[nodiscard]] int getDefaultEditPos() const override { return 1; }
 	void readCurrentValue() override {
-		soundEditor.currentValue = cvEngine.cvChannels[soundEditor.currentSourceIndex].voltsPerOctave;
+		this->value_ = cvEngine.cvChannels[soundEditor.currentSourceIndex].voltsPerOctave;
 	}
-	void writeCurrentValue() override { cvEngine.setCVVoltsPerOctave(soundEditor.currentSourceIndex, soundEditor.currentValue); }
+	void writeCurrentValue() override { cvEngine.setCVVoltsPerOctave(soundEditor.currentSourceIndex, this->value_); }
 #if HAVE_OLED
 	void drawPixelsForOled() override {
-		if (soundEditor.currentValue == 0) {
+		if (this->value_ == 0) {
 			OLED::drawStringCentred("Hz/V", 20, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, TEXT_HUGE_SPACING_X,
 			                        TEXT_HUGE_SIZE_Y);
 		}
@@ -44,15 +44,16 @@ public:
 	}
 #else
 	void drawValue() override {
-		if (soundEditor.currentValue == 0)
+		if (this->value_ == 0) {
 			numericDriver.setText("HZPV", false, 255, true);
+		}
 		else {
 			Decimal::drawValue();
 		}
 	}
 #endif
 	void horizontalEncoderAction(int offset) override {
-		if (soundEditor.currentValue != 0) {
+		if (this->value_ != 0) {
 			Decimal::horizontalEncoderAction(offset);
 		}
 	}

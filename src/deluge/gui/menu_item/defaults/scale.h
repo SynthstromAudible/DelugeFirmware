@@ -24,8 +24,8 @@ namespace deluge::gui::menu_item::defaults {
 class Scale final : public Selection {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { soundEditor.currentValue = FlashStorage::defaultScale; }
-	void writeCurrentValue() override { FlashStorage::defaultScale = soundEditor.currentValue; }
+	void readCurrentValue() override { this->value_ = FlashStorage::defaultScale; }
+	void writeCurrentValue() override { FlashStorage::defaultScale = this->value_; }
 	Sized<char const**> getOptions() override { return {presetScaleNames, NUM_PRESET_SCALES + 2}; }
 };
 } // namespace deluge::gui::menu_item::defaults

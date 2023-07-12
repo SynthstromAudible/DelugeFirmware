@@ -37,8 +37,10 @@ public:
 	//char nameChars[16];
 
 #if HAVE_OLED
-		char const* getTitle() override { return  "Num member ch."; }
-#endif	
+	char const* getTitle() override {
+		return "Num member ch.";
+	}
+#endif
 
 private:
 	MIDIPort* getPort() const;

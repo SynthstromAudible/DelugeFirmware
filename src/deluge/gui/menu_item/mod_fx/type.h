@@ -27,9 +27,9 @@ class Type : public Selection {
 public:
 	using Selection::Selection;
 
-	void readCurrentValue() override { soundEditor.currentValue = soundEditor.currentModControllable->modFXType; }
+	void readCurrentValue() override { this->value_ = soundEditor.currentModControllable->modFXType; }
 	void writeCurrentValue() override {
-		if (!soundEditor.currentModControllable->setModFXType(soundEditor.currentValue)) {
+		if (!soundEditor.currentModControllable->setModFXType(this->value_)) {
 			numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
 		}
 	}

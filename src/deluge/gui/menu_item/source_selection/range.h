@@ -25,8 +25,10 @@ public:
 	MenuItem* selectButtonPress() override;
 	MenuItem* patchingSourceShortcutPress(int newS, bool previousPressStillActive) override;
 #if HAVE_OLED
-		char const* getTitle() override { return "Modulate depth"; };
-#endif		
+	char const* getTitle() override {
+		return "Modulate depth";
+	};
+#endif
 };
 extern Range rangeMenu;
 } // namespace deluge::gui::menu_item::source_selection

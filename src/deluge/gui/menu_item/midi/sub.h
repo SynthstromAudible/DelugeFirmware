@@ -21,11 +21,12 @@ namespace deluge::gui::menu_item::midi {
 class Sub final : public Preset {
 public:
 	using Preset::Preset;
-	void readCurrentValue() { soundEditor.currentValue = ((InstrumentClip*)currentSong->currentClip)->midiSub; }
+	void readCurrentValue() { this->value_ = (dynamic_cast<InstrumentClip*>(currentSong->currentClip))->midiSub; }
 	void writeCurrentValue() {
-		((InstrumentClip*)currentSong->currentClip)->midiSub = soundEditor.currentValue;
-		if (((InstrumentClip*)currentSong->currentClip)->isActiveOnOutput()) {
-			((InstrumentClip*)currentSong->currentClip)->sendMIDIPGM();
+		auto& currentClip = *(dynamic_cast<InstrumentClip*>(currentSong->currentClip));
+		currentClip.midiSub = this->value_;
+		if (currentClip.isActiveOnOutput()) {
+			currentClip.sendMIDIPGM();
 		}
 	}
 };

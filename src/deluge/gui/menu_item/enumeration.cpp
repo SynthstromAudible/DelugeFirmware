@@ -37,21 +37,21 @@ void Enumeration::beginSession(MenuItem* navigatedBackwardFrom) {
 }
 
 void Enumeration::selectEncoderAction(int offset) {
-	soundEditor.currentValue += offset;
+	this->value_ += offset;
 	int numOptions = size();
 
 #if HAVE_OLED
-	if (soundEditor.currentValue > numOptions - 1) {
-		soundEditor.currentValue = numOptions - 1;
+	if (this->value_ > numOptions - 1) {
+		this->value_ = numOptions - 1;
 	}
-	else if (soundEditor.currentValue < 0) {
-		soundEditor.currentValue = 0;
+	else if (this->value_ < 0) {
+		this->value_ = 0;
 	}
 #else
-	if (soundEditor.currentValue >= numOptions)
-		soundEditor.currentValue -= numOptions;
-	else if (soundEditor.currentValue < 0)
-		soundEditor.currentValue += numOptions;
+	if (this->value_ >= numOptions)
+		this->value_ -= numOptions;
+	else if (this->value_ < 0)
+		this->value_ += numOptions;
 #endif
 
 	Value::selectEncoderAction(offset);
@@ -61,7 +61,7 @@ void Enumeration::drawValue() {
 #if HAVE_OLED
 	renderUIsForOled();
 #else
-	numericDriver.setTextAsNumber(soundEditor.currentValue);
+	numericDriver.setTextAsNumber(this->value_);
 #endif
 }
 } // namespace deluge::gui::menu_item

@@ -31,7 +31,9 @@ public:
 	MenuItem* selectButtonPress() override;
 	uint8_t whichDirection;
 #if HAVE_OLED
-	char const* getTitle() override { return whichDirection ? "MPE output" : "MPE input"; }
+	char const* getTitle() override {
+		return whichDirection ? "MPE output" : "MPE input";
+	}
 #endif
 };
 

@@ -30,9 +30,7 @@ public:
 
 	bool usesAffectEntire() override { return true; }
 
-	void readCurrentValue() override {
-		soundEditor.currentValue = soundEditor.currentSampleControls->pitchAndSpeedAreIndependent;
-	}
+	void readCurrentValue() override { this->value_ = soundEditor.currentSampleControls->pitchAndSpeedAreIndependent; }
 
 	void writeCurrentValue() override {
 		// If affect-entire button held, do whole kit
@@ -45,14 +43,14 @@ public:
 					auto* soundDrum = dynamic_cast<SoundDrum*>(thisDrum);
 					Source* source = &soundDrum->sources[soundEditor.currentSourceIndex];
 
-					source->sampleControls.pitchAndSpeedAreIndependent = soundEditor.currentValue;
+					source->sampleControls.pitchAndSpeedAreIndependent = this->value_;
 				}
 			}
 		}
 
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentSampleControls->pitchAndSpeedAreIndependent = soundEditor.currentValue;
+			soundEditor.currentSampleControls->pitchAndSpeedAreIndependent = this->value_;
 		}
 	}
 

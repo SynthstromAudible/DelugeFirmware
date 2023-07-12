@@ -22,8 +22,8 @@ namespace deluge::gui::menu_item::shortcuts {
 class Version final : public Selection {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { soundEditor.currentValue = soundEditor.shortcutsVersion; }
-	void writeCurrentValue() override { soundEditor.setShortcutsVersion(soundEditor.currentValue); }
+	void readCurrentValue() override { this->value_ = soundEditor.shortcutsVersion; }
+	void writeCurrentValue() override { soundEditor.setShortcutsVersion(this->value_); }
 	Sized<char const**> getOptions() override {
 		static char const* options[] = {
 		    HAVE_OLED ? "1.0" : "  1.0",

@@ -21,8 +21,7 @@
 #include "value.h"
 
 namespace deluge::gui::menu_item {
-
-class Number : public Value {
+class Number : public Value<int> {
 public:
 	using Value::Value;
 #if HAVE_OLED
@@ -30,8 +29,8 @@ public:
 #endif
 
 protected:
-	virtual int getMaxValue() const = 0;
-	virtual int getMinValue() const {
+	[[nodiscard]] virtual int getMaxValue() const = 0;
+	[[nodiscard]] virtual int getMinValue() const {
 		return 0;
 	}
 };

@@ -23,8 +23,8 @@ class LPFFreq final : public UnpatchedParam {
 public:
 	using UnpatchedParam::UnpatchedParam;
 #if !HAVE_OLED
-	void drawValue() {
-		if (soundEditor.currentValue == 50) {
+	void drawValue() override {
+		if (this->value_ == 50) {
 			numericDriver.setText("OFF");
 		}
 		else {

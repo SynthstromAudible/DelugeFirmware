@@ -36,7 +36,7 @@ public:
 		SubmenuReferringToOneThing::beginSession(navigatedBackwardFrom);
 	}
 #else
-	void drawName() {
+	void drawName() override {
 		if (soundEditor.currentSound->getSynthMode() == SYNTH_MODE_FM) {
 			char buffer[5];
 			strcpy(buffer, "CAR");

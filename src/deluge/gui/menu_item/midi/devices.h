@@ -17,20 +17,20 @@
 
 #pragma once
 
-#include "gui/menu_item/menu_item.h"
+#include "gui/menu_item/value.h"
 
 class MIDIDevice;
 
 namespace deluge::gui::menu_item::midi {
 
-class Devices final : public MenuItem {
+class Devices final : public Value<int> {
 public:
-	using MenuItem::MenuItem;
-	void beginSession(MenuItem* navigatedBackwardFrom = NULL);
-	void selectEncoderAction(int offset);
+	using Value::Value;
+	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
+	void selectEncoderAction(int offset) override;
 	MIDIDevice* getDevice(int deviceIndex);
-	void drawValue();
-	MenuItem* selectButtonPress();
+	virtual void drawValue();
+	MenuItem* selectButtonPress() override;
 	void drawPixelsForOled();
 };
 

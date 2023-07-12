@@ -28,8 +28,6 @@ public:
 	using SyncLevel::SyncLevel;
 
 protected:
-	void getNoteLengthName(char* buffer) final {
-		getNoteLengthNameFromMagnitude(buffer, -6 + 9 - soundEditor.currentValue);
-	}
+	void getNoteLengthName(char* buffer) final { getNoteLengthNameFromMagnitude(buffer, -6 + 9 - this->value_); }
 };
 } // namespace deluge::gui::menu_item::sync_level

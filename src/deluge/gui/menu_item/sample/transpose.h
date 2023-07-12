@@ -35,10 +35,10 @@ public:
 			transpose = soundEditor.currentSource->transpose;
 			cents = soundEditor.currentSource->cents;
 		}
-		soundEditor.currentValue = transpose * 100 + cents;
+		this->value_ = transpose * 100 + cents;
 	}
 	void writeCurrentValue() override {
-		int currentValue = soundEditor.currentValue + 25600;
+		int currentValue = this->value_ + 25600;
 
 		int semitones = (currentValue + 50) / 100;
 		int cents = currentValue - semitones * 100;

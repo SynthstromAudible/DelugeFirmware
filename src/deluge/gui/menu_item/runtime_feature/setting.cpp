@@ -28,23 +28,23 @@ void Setting::readCurrentValue() {
 	for (uint32_t idx = 0; idx < RUNTIME_FEATURE_SETTING_MAX_OPTIONS; ++idx) {
 		if (runtimeFeatureSettings.settings[currentSettingIndex].options[idx].value
 		    == runtimeFeatureSettings.settings[currentSettingIndex].value) {
-			soundEditor.currentValue = idx;
+			this->value_ = idx;
 			return;
 		}
 	}
 
-	soundEditor.currentValue = 0;
+	this->value_ = 0;
 }
 
 void Setting::writeCurrentValue() {
 	runtimeFeatureSettings.settings[currentSettingIndex].value =
-	    runtimeFeatureSettings.settings[currentSettingIndex].options[soundEditor.currentValue].value;
+	    runtimeFeatureSettings.settings[currentSettingIndex].options[this->value_].value;
 }
 
 Sized<char const**> Setting::getOptions() {
 	static char const* options[RUNTIME_FEATURE_SETTING_MAX_OPTIONS];
 	std::fill(options, &options[RUNTIME_FEATURE_SETTING_MAX_OPTIONS], nullptr);
-	
+
 	uint32_t optionCount = 0;
 	for (auto& option : runtimeFeatureSettings.settings[currentSettingIndex].options) {
 		if (option.displayName != nullptr) {
@@ -58,7 +58,7 @@ Sized<char const**> Setting::getOptions() {
 	return {options, getNumOptions()};
 }
 
-size_t Setting::getNumOptions() {
+size_t Setting::getNumOptions() const {
 	for (uint32_t idx = 0; idx < RUNTIME_FEATURE_SETTING_MAX_OPTIONS; ++idx) {
 		if (runtimeFeatureSettings.settings[currentSettingIndex].options[idx].displayName == nullptr) {
 			return idx;

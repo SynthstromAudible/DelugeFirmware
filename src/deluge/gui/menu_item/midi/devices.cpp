@@ -31,22 +31,21 @@ Devices devicesMenu{"Devices", "MIDI devices"};
 static const int lowestDeviceNum = -3;
 
 void Devices::beginSession(MenuItem* navigatedBackwardFrom) {
-	if (navigatedBackwardFrom) {
-		for (soundEditor.currentValue = lowestDeviceNum;
-		     soundEditor.currentValue < MIDIDeviceManager::hostedMIDIDevices.getNumElements();
-		     soundEditor.currentValue++) {
-			if (getDevice(soundEditor.currentValue) == soundEditor.currentMIDIDevice) {
+	if (navigatedBackwardFrom != nullptr) {
+		for (this->value_ = lowestDeviceNum; this->value_ < MIDIDeviceManager::hostedMIDIDevices.getNumElements();
+		     this->value_++) {
+			if (getDevice(this->value_) == soundEditor.currentMIDIDevice) {
 				goto decidedDevice;
 			}
 		}
 	}
 
-	soundEditor.currentValue = lowestDeviceNum; // Start on "DIN". That's the only one that'll always be there.
+	this->value_ = lowestDeviceNum; // Start on "DIN". That's the only one that'll always be there.
 
 decidedDevice:
-	soundEditor.currentMIDIDevice = getDevice(soundEditor.currentValue);
+	soundEditor.currentMIDIDevice = getDevice(this->value_);
 #if HAVE_OLED
-	soundEditor.menuCurrentScroll = soundEditor.currentValue;
+	soundEditor.menuCurrentScroll = this->value_;
 #else
 	drawValue();
 #endif
@@ -54,7 +53,7 @@ decidedDevice:
 
 void Devices::selectEncoderAction(int offset) {
 	do {
-		int newValue = soundEditor.currentValue + offset;
+		int newValue = this->value_ + offset;
 
 		if (newValue >= MIDIDeviceManager::hostedMIDIDevices.getNumElements()) {
 			if (HAVE_OLED) {
@@ -69,20 +68,20 @@ void Devices::selectEncoderAction(int offset) {
 			newValue = MIDIDeviceManager::hostedMIDIDevices.getNumElements() - 1;
 		}
 
-		soundEditor.currentValue = newValue;
+		this->value_ = newValue;
 
-		soundEditor.currentMIDIDevice = getDevice(soundEditor.currentValue);
+		soundEditor.currentMIDIDevice = getDevice(this->value_);
 
 	} while (!soundEditor.currentMIDIDevice->connectionFlags);
 	// Don't show devices which aren't connected. Sometimes we won't even have a name to display for them.
 
 #if HAVE_OLED
-	if (soundEditor.currentValue < soundEditor.menuCurrentScroll) {
-		soundEditor.menuCurrentScroll = soundEditor.currentValue;
+	if (this->value_ < soundEditor.menuCurrentScroll) {
+		soundEditor.menuCurrentScroll = this->value_;
 	}
 
 	if (offset >= 0) {
-		int d = soundEditor.currentValue;
+		int d = this->value_;
 		int numSeen = 1;
 		while (true) {
 			d--;
@@ -105,17 +104,19 @@ void Devices::selectEncoderAction(int offset) {
 }
 
 MIDIDevice* Devices::getDevice(int deviceIndex) {
-	if (deviceIndex == -3) {
+	switch (deviceIndex) {
+	case -3: {
 		return &MIDIDeviceManager::dinMIDIPorts;
 	}
-	else if (deviceIndex == -2) {
+	case -2: {
 		return &MIDIDeviceManager::upstreamUSBMIDIDevice_port1;
 	}
-	else if (deviceIndex == -1) {
+	case -1: {
 		return &MIDIDeviceManager::upstreamUSBMIDIDevice_port2;
 	}
-	else {
-		return (MIDIDevice*)MIDIDeviceManager::hostedMIDIDevices.getElement(deviceIndex);
+	default: {
+		return static_cast<MIDIDevice*>(MIDIDeviceManager::hostedMIDIDevices.getElement(deviceIndex));
+	}
 	}
 }
 
@@ -149,7 +150,7 @@ void Devices::drawPixelsForOled() {
 		MIDIDevice* device = getDevice(d);
 		if (device->connectionFlags) {
 			itemNames[r] = device->getDisplayName();
-			if (d == soundEditor.currentValue) {
+			if (d == this->value_) {
 				selectedRow = r;
 			}
 			r++;

@@ -24,12 +24,14 @@ namespace deluge::gui::menu_item::filter {
 class LPFMode final : public Selection {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { soundEditor.currentValue = soundEditor.currentModControllable->lpfMode; }
-	void writeCurrentValue() override { soundEditor.currentModControllable->lpfMode = soundEditor.currentValue; }
+	void readCurrentValue() override { this->value_ = soundEditor.currentModControllable->lpfMode; }
+	void writeCurrentValue() override { soundEditor.currentModControllable->lpfMode = this->value_; }
 	Sized<char const**> getOptions() override {
 		static char const* options[] = {"12dB", "24dB", "Drive", "SVF"};
 		return {options, 4};
 	}
-	bool isRelevant(Sound* sound, int whichThing) override { return (!sound || sound->synthMode != SYNTH_MODE_FM); }
+	bool isRelevant(Sound* sound, int whichThing) override {
+		return ((sound == nullptr) || sound->synthMode != SYNTH_MODE_FM);
+	}
 };
 } // namespace deluge::gui::menu_item::filter

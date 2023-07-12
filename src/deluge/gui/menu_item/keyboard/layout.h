@@ -24,14 +24,10 @@ namespace deluge::gui::menu_item::keyboard {
 class Layout final : public Selection {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { soundEditor.currentValue = FlashStorage::keyboardLayout; }
-	void writeCurrentValue() override { FlashStorage::keyboardLayout = soundEditor.currentValue; }
-	Sized<char const**> getOptions()  override {
-		static char const* options[] = {
-			"QWERTY",
-			"AZERTY",
-			HAVE_OLED ? "QWERTZ" : "QRTZ"
-		};
+	void readCurrentValue() override { this->value_ = FlashStorage::keyboardLayout; }
+	void writeCurrentValue() override { FlashStorage::keyboardLayout = this->value_; }
+	Sized<char const**> getOptions() override {
+		static char const* options[] = {"QWERTY", "AZERTY", HAVE_OLED ? "QWERTZ" : "QRTZ"};
 		return {options, NUM_KEYBOARD_LAYOUTS};
 	}
 };

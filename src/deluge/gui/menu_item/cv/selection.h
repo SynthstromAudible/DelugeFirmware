@@ -30,20 +30,20 @@ public:
 	using menu_item::Selection::Selection;
 
 	void beginSession(MenuItem* navigatedBackwardFrom) override {
-		if (!navigatedBackwardFrom) {
-			soundEditor.currentValue = 0;
+		if (navigatedBackwardFrom == nullptr) {
+			this->value_ = 0;
 		}
 		else {
-			soundEditor.currentValue = soundEditor.currentSourceIndex;
+			this->value_ = soundEditor.currentSourceIndex;
 		}
 		menu_item::Selection::beginSession(navigatedBackwardFrom);
 	}
 
 	MenuItem* selectButtonPress() override {
-		soundEditor.currentSourceIndex = soundEditor.currentValue;
+		soundEditor.currentSourceIndex = this->value_;
 #if HAVE_OLED
-		cvSubmenu.title = getOptions().value[soundEditor.currentValue];
-		setCvNumberForTitle(soundEditor.currentValue);
+		cvSubmenu.title = getOptions().value[this->value_];
+		setCvNumberForTitle(this->value_);
 #endif
 		return &cvSubmenu;
 	}

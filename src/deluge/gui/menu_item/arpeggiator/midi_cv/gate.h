@@ -24,16 +24,16 @@ namespace deluge::gui::menu_item::arpeggiator::midi_cv {
 class Gate final : public Integer {
 public:
 	using Integer::Integer;
-	void readCurrentValue() {
-		InstrumentClip* current_clip = static_cast<InstrumentClip*>(currentSong->currentClip);
+	void readCurrentValue() override {
+		auto* current_clip = dynamic_cast<InstrumentClip*>(currentSong->currentClip);
 		int64_t arp_gate = (int64_t)current_clip->arpeggiatorGate + 2147483648;
-		soundEditor.currentValue = (arp_gate * 50 + 2147483648) >> 32;
+		this->value_ = (arp_gate * 50 + 2147483648) >> 32;
 	}
-	void writeCurrentValue() {
-		((InstrumentClip*)currentSong->currentClip)->arpeggiatorGate =
-		    (uint32_t)soundEditor.currentValue * 85899345 - 2147483648;
+	void writeCurrentValue() override {
+		(dynamic_cast<InstrumentClip*>(currentSong->currentClip))->arpeggiatorGate =
+		    (uint32_t)this->value_ * 85899345 - 2147483648;
 	}
-	int getMaxValue() const { return 50; }
-	bool isRelevant(Sound* sound, int whichThing) { return soundEditor.editingCVOrMIDIClip(); }
+	[[nodiscard]] int getMaxValue() const override { return 50; }
+	bool isRelevant(Sound* sound, int whichThing) override { return soundEditor.editingCVOrMIDIClip(); }
 };
 } // namespace deluge::gui::menu_item::arpeggiator::midi_cv

@@ -27,11 +27,11 @@ public:
 	[[nodiscard]] int getMaxValue() const override { return 9600; }
 	[[nodiscard]] int getNumDecimalPlaces() const override { return 2; }
 	void readCurrentValue() override {
-		soundEditor.currentValue = (int32_t)cvEngine.cvChannels[soundEditor.currentSourceIndex].transpose * 100
-		                           + cvEngine.cvChannels[soundEditor.currentSourceIndex].cents;
+		this->value_ = (int32_t)cvEngine.cvChannels[soundEditor.currentSourceIndex].transpose * 100
+		               + cvEngine.cvChannels[soundEditor.currentSourceIndex].cents;
 	}
 	void writeCurrentValue() override {
-		int currentValue = soundEditor.currentValue + 25600;
+		int currentValue = this->value_ + 25600;
 
 		int semitones = (currentValue + 50) / 100;
 		int cents = currentValue - semitones * 100;

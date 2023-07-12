@@ -27,22 +27,22 @@ namespace deluge::gui::menu_item {
 
 class PatchedParam : public Param, public MenuItemWithCCLearning {
 public:
-	PatchedParam() {}
+	PatchedParam() = default;
 	PatchedParam(int newP) : Param(newP) {}
 	MenuItem* selectButtonPress();
 #if !HAVE_OLED
-	void drawValue();
+	virtual void drawValue() = 0;
 #endif
-	ParamDescriptor getLearningThing();
-	uint8_t getPatchedParamIndex();
-	uint8_t shouldDrawDotOnName();
+	ParamDescriptor getLearningThing() override;
+	virtual uint8_t getPatchedParamIndex();
+	virtual uint8_t shouldDrawDotOnName();
 
 	uint8_t shouldBlinkPatchingSourceShortcut(int s, uint8_t* colour);
 	MenuItem* patchingSourceShortcutPress(int s, bool previousPressStillActive = false);
-	ModelStackWithAutoParam* getModelStack(void* memory);
+	ModelStackWithAutoParam* getModelStack(void* memory) override;
 
 protected:
-	ParamSet* getParamSet();
+	ParamSet* getParamSet() override;
 };
 
 } // namespace deluge::gui::menu_item

@@ -26,9 +26,9 @@ namespace deluge::gui::menu_item::sample {
 class Reverse final : public Toggle {
 public:
 	using Toggle::Toggle;
-	bool usesAffectEntire()  override { return true; }
-	void readCurrentValue()  override { soundEditor.currentValue = soundEditor.currentSource->sampleControls.reversed; }
-	void writeCurrentValue() override  {
+	bool usesAffectEntire() override { return true; }
+	void readCurrentValue() override { this->value_ = soundEditor.currentSource->sampleControls.reversed; }
+	void writeCurrentValue() override {
 
 		// If affect-entire button held, do whole kit
 		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKit()) {
@@ -41,7 +41,7 @@ public:
 					Source* source = &soundDrum->sources[soundEditor.currentSourceIndex];
 
 					soundDrum->unassignAllVoices();
-					source->setReversed(soundEditor.currentValue);
+					source->setReversed(this->value_);
 				}
 			}
 		}
@@ -49,7 +49,7 @@ public:
 		// Or, the normal case of just one sound
 		else {
 			soundEditor.currentSound->unassignAllVoices();
-			soundEditor.currentSource->setReversed(soundEditor.currentValue);
+			soundEditor.currentSource->setReversed(this->value_);
 		}
 	}
 };

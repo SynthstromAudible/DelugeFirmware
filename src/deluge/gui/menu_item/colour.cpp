@@ -27,10 +27,10 @@ Colour mutedColourMenu{"MUTED"};
 Colour soloColourMenu{"SOLOED"};
 
 void Colour::readCurrentValue() {
-	soundEditor.currentValue = value;
+	this->value_ = value;
 }
 void Colour::writeCurrentValue() {
-	value = soundEditor.currentValue;
+	value = this->value_;
 	renderingNeededRegardlessOfUI();
 }
 

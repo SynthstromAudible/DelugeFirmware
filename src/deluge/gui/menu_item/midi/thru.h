@@ -23,7 +23,7 @@ namespace deluge::gui::menu_item::midi {
 class Thru final : public Toggle {
 public:
 	using Toggle::Toggle;
-	void readCurrentValue() override { soundEditor.currentValue = midiEngine.midiThru; }
-	void writeCurrentValue() override { midiEngine.midiThru = soundEditor.currentValue; }
+	void readCurrentValue() override { this->value_ = midiEngine.midiThru; }
+	void writeCurrentValue() override { midiEngine.midiThru = this->value_; }
 };
 } // namespace deluge::gui::menu_item::midi

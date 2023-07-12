@@ -23,9 +23,9 @@ namespace deluge::gui::menu_item::sample::browser_preview {
 class Mode final : public Selection {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override  { soundEditor.currentValue = FlashStorage::sampleBrowserPreviewMode; }
-	void writeCurrentValue()  override { FlashStorage::sampleBrowserPreviewMode = soundEditor.currentValue; }
-	Sized<char const**> getOptions() override  {
+	void readCurrentValue() override { this->value_ = FlashStorage::sampleBrowserPreviewMode; }
+	void writeCurrentValue() override { FlashStorage::sampleBrowserPreviewMode = this->value_; }
+	Sized<char const**> getOptions() override {
 		static char const* options[] = {"Off", "Conditional", "On"};
 		return {options, 3};
 	}

@@ -23,8 +23,8 @@ namespace deluge::gui::menu_item::modulator {
 class Destination final : public Selection {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { soundEditor.currentValue = soundEditor.currentSound->modulator1ToModulator0; }
-	void writeCurrentValue() override { soundEditor.currentSound->modulator1ToModulator0 = soundEditor.currentValue; }
+	void readCurrentValue() override { this->value_ = soundEditor.currentSound->modulator1ToModulator0; }
+	void writeCurrentValue() override { soundEditor.currentSound->modulator1ToModulator0 = this->value_; }
 	Sized<char const**> getOptions() override {
 		static char const* options[] = {"Carriers", HAVE_OLED ? "Modulator 1" : "MOD1"};
 		return {options, 2};

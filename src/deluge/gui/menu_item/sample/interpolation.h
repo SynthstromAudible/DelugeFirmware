@@ -24,18 +24,14 @@ namespace deluge::gui::menu_item::sample {
 class Interpolation final : public Selection {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override {
-		soundEditor.currentValue = soundEditor.currentSampleControls->interpolationMode;
-	}
-	void writeCurrentValue() override {
-		soundEditor.currentSampleControls->interpolationMode = soundEditor.currentValue;
-	}
+	void readCurrentValue() override { this->value_ = soundEditor.currentSampleControls->interpolationMode; }
+	void writeCurrentValue() override { soundEditor.currentSampleControls->interpolationMode = this->value_; }
 	Sized<char const**> getOptions() override {
 		static char const* options[] = {"Linear", "Sinc"};
 		return {options, 2};
 	}
 	bool isRelevant(Sound* sound, int whichThing) override {
-		if (!sound) {
+		if (sound == nullptr) {
 			return true;
 		}
 		Source* source = &sound->sources[whichThing];

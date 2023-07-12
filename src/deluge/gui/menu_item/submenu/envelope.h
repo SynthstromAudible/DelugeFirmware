@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "gui/menu_item/submenu.h"
+#include "gui/menu_item/submenu_referring_to_one_thing.h"
 
 extern void setEnvelopeNumberForTitles(int);
 

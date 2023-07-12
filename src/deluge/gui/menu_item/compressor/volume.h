@@ -23,7 +23,7 @@ namespace deluge::gui::menu_item::compressor {
 class VolumeShortcut final : public patch_cable_strength::Fixed {
 public:
 	using Fixed::Fixed;
-	void writeCurrentValue() {
+	void writeCurrentValue() override {
 		Fixed::writeCurrentValue();
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	}

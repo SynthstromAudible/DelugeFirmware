@@ -25,11 +25,11 @@ namespace deluge::gui::menu_item::reverb::compressor {
 class Shape final : public Integer {
 public:
 	using Integer::Integer;
-	void readCurrentValue()override  {
-		soundEditor.currentValue = (((int64_t)AudioEngine::reverbCompressorShape + 2147483648) * 50 + 2147483648) >> 32;
+	void readCurrentValue() override {
+		this->value_ = (((int64_t)AudioEngine::reverbCompressorShape + 2147483648) * 50 + 2147483648) >> 32;
 	}
 	void writeCurrentValue() override {
-		AudioEngine::reverbCompressorShape = (uint32_t)soundEditor.currentValue * 85899345 - 2147483648;
+		AudioEngine::reverbCompressorShape = (uint32_t)this->value_ * 85899345 - 2147483648;
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	}
 	[[nodiscard]] int getMaxValue() const override { return 50; }

@@ -22,7 +22,7 @@ namespace deluge::gui::menu_item::osc::source {
 class WaveIndex final : public menu_item::source::PatchedParam {
 public:
 	using PatchedParam::PatchedParam;
-	bool isRelevant(Sound* sound, int whichThing) {
+	bool isRelevant(Sound* sound, int whichThing) override {
 		Source* source = &sound->sources[whichThing];
 		return (sound->getSynthMode() != SYNTH_MODE_FM && source->oscType == OSC_TYPE_WAVETABLE);
 	}

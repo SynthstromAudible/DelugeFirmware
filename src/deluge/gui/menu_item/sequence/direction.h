@@ -45,10 +45,10 @@ public:
 		ModelStackWithNoteRow* modelStackWithNoteRow = getIndividualNoteRow(modelStack);
 
 		if (modelStackWithNoteRow->getNoteRowAllowNull() != nullptr) {
-			soundEditor.currentValue = modelStackWithNoteRow->getNoteRow()->sequenceDirectionMode;
+			this->value_ = modelStackWithNoteRow->getNoteRow()->sequenceDirectionMode;
 		}
 		else {
-			soundEditor.currentValue = (dynamic_cast<InstrumentClip*>(currentSong->currentClip))->sequenceDirectionMode;
+			this->value_ = (dynamic_cast<InstrumentClip*>(currentSong->currentClip))->sequenceDirectionMode;
 		}
 	}
 
@@ -57,12 +57,11 @@ public:
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 		ModelStackWithNoteRow* modelStackWithNoteRow = getIndividualNoteRow(modelStack);
 		if (modelStackWithNoteRow->getNoteRowAllowNull() != nullptr) {
-			modelStackWithNoteRow->getNoteRow()->setSequenceDirectionMode(modelStackWithNoteRow,
-			                                                              soundEditor.currentValue);
+			modelStackWithNoteRow->getNoteRow()->setSequenceDirectionMode(modelStackWithNoteRow, this->value_);
 		}
 		else {
 			(dynamic_cast<InstrumentClip*>(currentSong->currentClip))
-			    ->setSequenceDirectionMode(modelStackWithNoteRow->toWithTimelineCounter(), soundEditor.currentValue);
+			    ->setSequenceDirectionMode(modelStackWithNoteRow->toWithTimelineCounter(), this->value_);
 		}
 	}
 

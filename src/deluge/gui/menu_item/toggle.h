@@ -5,10 +5,13 @@
 
 namespace deluge::gui::menu_item {
 
-class Toggle : public Selection {
+class Toggle : public Value<bool> {
 public:
-	using Selection::Selection;
+	using Value::Value;
 
-	Sized<char const**> getOptions() override;
+	virtual void drawValue();
+#if HAVE_OLED
+	void drawPixelsForOled();
+#endif
 };
 } // namespace deluge::gui::menu_item

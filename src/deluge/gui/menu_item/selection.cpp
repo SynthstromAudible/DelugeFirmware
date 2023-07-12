@@ -32,22 +32,22 @@ void Selection::drawValue() {
 	renderUIsForOled();
 #else
 	const auto [options, _size] = getOptions();
-	numericDriver.setText(options[soundEditor.currentValue]);
+	numericDriver.setText(options[this->value_]);
 #endif
 }
 
 #if HAVE_OLED
 void Selection::drawPixelsForOled() {
 	// Move scroll
-	if (soundEditor.menuCurrentScroll > soundEditor.currentValue) {
-		soundEditor.menuCurrentScroll = soundEditor.currentValue;
+	if (soundEditor.menuCurrentScroll > this->value_) {
+		soundEditor.menuCurrentScroll = this->value_;
 	}
-	else if (soundEditor.menuCurrentScroll < soundEditor.currentValue - OLED_MENU_NUM_OPTIONS_VISIBLE + 1) {
-		soundEditor.menuCurrentScroll = soundEditor.currentValue - OLED_MENU_NUM_OPTIONS_VISIBLE + 1;
+	else if (soundEditor.menuCurrentScroll < this->value_ - OLED_MENU_NUM_OPTIONS_VISIBLE + 1) {
+		soundEditor.menuCurrentScroll = this->value_ - OLED_MENU_NUM_OPTIONS_VISIBLE + 1;
 	}
 
 	char const** options = &getOptions().value[soundEditor.menuCurrentScroll];
-	int selectedOption = soundEditor.currentValue - soundEditor.menuCurrentScroll;
+	int selectedOption = this->value_ - soundEditor.menuCurrentScroll;
 
 	drawItemsForOled(options, selectedOption);
 }

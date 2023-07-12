@@ -25,34 +25,34 @@ namespace deluge::gui::menu_item::audio_clip {
 class Transpose final : public Decimal, public MenuItemWithCCLearning {
 public:
 	using Decimal::Decimal;
-	void readCurrentValue() {
-		soundEditor.currentValue = ((AudioClip*)currentSong->currentClip)->sampleHolder.transpose * 100
-		                           + ((AudioClip*)currentSong->currentClip)->sampleHolder.cents;
+	void readCurrentValue() override {
+		this->value_ = (dynamic_cast<AudioClip*>(currentSong->currentClip))->sampleHolder.transpose * 100
+		               + (dynamic_cast<AudioClip*>(currentSong->currentClip))->sampleHolder.cents;
 	}
-	void writeCurrentValue() {
-		int currentValue = soundEditor.currentValue + 25600;
+	void writeCurrentValue() override {
+		int currentValue = this->value_ + 25600;
 
 		int semitones = (currentValue + 50) / 100;
 		int cents = currentValue - semitones * 100;
 		int transpose = semitones - 256;
 
-		((AudioClip*)currentSong->currentClip)->sampleHolder.transpose = transpose;
-		((AudioClip*)currentSong->currentClip)->sampleHolder.cents = cents;
-
-		((AudioClip*)currentSong->currentClip)->sampleHolder.recalculateNeutralPhaseIncrement();
+		auto& sampleHolder = (dynamic_cast<AudioClip*>(currentSong->currentClip))->sampleHolder;
+		sampleHolder.transpose = transpose;
+		sampleHolder.cents = cents;
+		sampleHolder.recalculateNeutralPhaseIncrement();
 	}
 
-	int getMinValue() const { return -9600; }
-	int getMaxValue() const { return 9600; }
-	int getNumDecimalPlaces() const { return 2; }
+	[[nodiscard]] int getMinValue() const override { return -9600; }
+	[[nodiscard]] int getMaxValue() const override { return 9600; }
+	[[nodiscard]] int getNumDecimalPlaces() const override { return 2; }
 
-	void unlearnAction() { MenuItemWithCCLearning::unlearnAction(); }
-	bool allowsLearnMode() { return MenuItemWithCCLearning::allowsLearnMode(); }
-	void learnKnob(MIDIDevice* fromDevice, int whichKnob, int modKnobMode, int midiChannel) {
+	void unlearnAction() override { MenuItemWithCCLearning::unlearnAction(); }
+	bool allowsLearnMode() override { return MenuItemWithCCLearning::allowsLearnMode(); }
+	void learnKnob(MIDIDevice* fromDevice, int whichKnob, int modKnobMode, int midiChannel) override {
 		MenuItemWithCCLearning::learnKnob(fromDevice, whichKnob, modKnobMode, midiChannel);
 	};
 
-	ParamDescriptor getLearningThing() {
+	ParamDescriptor getLearningThing() override {
 		ParamDescriptor paramDescriptor;
 		paramDescriptor.setToHaveParamOnly(PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_GLOBALEFFECTABLE_PITCH_ADJUST);
 		return paramDescriptor;

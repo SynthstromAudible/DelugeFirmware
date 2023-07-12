@@ -31,9 +31,9 @@ namespace deluge::gui::menu_item::sample {
 class Repeat final : public Selection {
 public:
 	using Selection::Selection;
-	bool usesAffectEntire()  override { return true; }
-	void readCurrentValue()  override { soundEditor.currentValue = soundEditor.currentSource->repeatMode; }
-	void writeCurrentValue() override  {
+	bool usesAffectEntire() override { return true; }
+	void readCurrentValue() override { this->value_ = soundEditor.currentSource->repeatMode; }
+	void writeCurrentValue() override {
 
 		// If affect-entire button held, do whole kit
 		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKit()) {
@@ -46,7 +46,7 @@ public:
 					Source* source = &soundDrum->sources[soundEditor.currentSourceIndex];
 
 					// Automatically switch pitch/speed independence on / off if stretch-to-note-length mode is selected
-					if (soundEditor.currentValue == SAMPLE_REPEAT_STRETCH) {
+					if (this->value_ == SAMPLE_REPEAT_STRETCH) {
 						soundDrum->unassignAllVoices();
 						source->sampleControls.pitchAndSpeedAreIndependent = true;
 					}
@@ -55,7 +55,7 @@ public:
 						soundEditor.currentSource->sampleControls.pitchAndSpeedAreIndependent = false;
 					}
 
-					source->repeatMode = soundEditor.currentValue;
+					source->repeatMode = this->value_;
 				}
 			}
 		}
@@ -63,7 +63,7 @@ public:
 		// Or, the normal case of just one sound
 		else {
 			// Automatically switch pitch/speed independence on / off if stretch-to-note-length mode is selected
-			if (soundEditor.currentValue == SAMPLE_REPEAT_STRETCH) {
+			if (this->value_ == SAMPLE_REPEAT_STRETCH) {
 				soundEditor.currentSound->unassignAllVoices();
 				soundEditor.currentSource->sampleControls.pitchAndSpeedAreIndependent = true;
 			}
@@ -72,7 +72,7 @@ public:
 				soundEditor.currentSource->sampleControls.pitchAndSpeedAreIndependent = false;
 			}
 
-			soundEditor.currentSource->repeatMode = soundEditor.currentValue;
+			soundEditor.currentSource->repeatMode = this->value_;
 		}
 
 		// We need to re-render all rows, because this will have changed whether Note tails are displayed. Probably just one row, but we don't know which

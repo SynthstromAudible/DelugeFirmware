@@ -29,7 +29,7 @@ namespace deluge::gui::menu_item::voice {
 class Polyphony final : public Selection {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { soundEditor.currentValue = soundEditor.currentSound->polyphonic; }
+	void readCurrentValue() override { this->value_ = soundEditor.currentSound->polyphonic; }
 	void writeCurrentValue() override {
 
 		// If affect-entire button held, do whole kit
@@ -40,14 +40,14 @@ public:
 			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DRUM_TYPE_SOUND) {
 					auto* soundDrum = dynamic_cast<SoundDrum*>(thisDrum);
-					soundDrum->polyphonic = soundEditor.currentValue;
+					soundDrum->polyphonic = this->value_;
 				}
 			}
 		}
 
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentSound->polyphonic = soundEditor.currentValue;
+			soundEditor.currentSound->polyphonic = this->value_;
 		}
 	}
 

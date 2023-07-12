@@ -90,12 +90,14 @@ void Command::drawPixelsForOled() {
 	}
 }
 #else
-void Command::drawValue() {
-	char const* output;
-	if (!midiEngine.globalMIDICommands[commandNumber].containsSomething())
+void Command::drawValue() const {
+	char const* output = nullptr;
+	if (!midiEngine.globalMIDICommands[commandNumber].containsSomething()) {
 		output = "NONE";
-	else
+	}
+	else {
 		output = "SET";
+	}
 	numericDriver.setText(output);
 }
 #endif
@@ -141,7 +143,8 @@ bool Command::learnNoteOn(MIDIDevice* device, int channel, int noteCode) {
 }
 
 void Command::learnCC(MIDIDevice* device, int channel, int ccNumber, int value) {
-	if (value)
+	if (value != 0) {
 		learnNoteOn(device, channel + IS_A_CC, ccNumber);
+	}
 }
 } // namespace deluge::gui::menu_item::midi

@@ -23,18 +23,18 @@ namespace deluge::gui::menu_item::sidechain {
 class Send final : public Integer {
 public:
 	using Integer::Integer;
-	void readCurrentValue() {
-		soundEditor.currentValue = ((uint64_t)soundEditor.currentSound->sideChainSendLevel * 50 + 1073741824) >> 31;
+	void readCurrentValue() override {
+		this->value_ = ((uint64_t)soundEditor.currentSound->sideChainSendLevel * 50 + 1073741824) >> 31;
 	}
-	void writeCurrentValue() {
-		if (soundEditor.currentValue == 50) {
+	void writeCurrentValue() override {
+		if (this->value_ == 50) {
 			soundEditor.currentSound->sideChainSendLevel = 2147483647;
 		}
 		else {
-			soundEditor.currentSound->sideChainSendLevel = soundEditor.currentValue * 42949673;
+			soundEditor.currentSound->sideChainSendLevel = this->value_ * 42949673;
 		}
 	}
-	int getMaxValue() const { return 50; }
-	bool isRelevant(Sound* sound, int whichThing) { return (soundEditor.editingKit()); }
+	[[nodiscard]] int getMaxValue() const override { return 50; }
+	bool isRelevant(Sound* sound, int whichThing) override { return (soundEditor.editingKit()); }
 };
 } // namespace deluge::gui::menu_item::sidechain

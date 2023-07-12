@@ -23,8 +23,8 @@ class HPFFreq final : public UnpatchedParam {
 public:
 	using UnpatchedParam::UnpatchedParam;
 #if !HAVE_OLED
-	void drawValue() {
-		if (soundEditor.currentValue == 0) {
+	void drawValue() override {
+		if (this->value_ == 0) {
 			numericDriver.setText("OFF");
 		}
 		else {

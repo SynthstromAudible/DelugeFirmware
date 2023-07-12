@@ -24,12 +24,12 @@ namespace deluge::gui::menu_item::flash {
 class Status final : public Selection {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { soundEditor.currentValue = PadLEDs::flashCursor; }
+	void readCurrentValue() override { this->value_ = PadLEDs::flashCursor; }
 	void writeCurrentValue() override {
 		if (PadLEDs::flashCursor == FLASH_CURSOR_SLOW) {
 			PadLEDs::clearTickSquares();
 		}
-		PadLEDs::flashCursor = soundEditor.currentValue;
+		PadLEDs::flashCursor = this->value_;
 	}
 	Sized<char const**> getOptions() override {
 		static char const* options[] = {"Fast", "Off", "Slow"};

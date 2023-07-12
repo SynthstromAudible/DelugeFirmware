@@ -23,7 +23,7 @@ class UpdatingReverbParams final : public UnpatchedParam {
 public:
 	using UnpatchedParam::UnpatchedParam;
 
-	void writeCurrentValue() {
+	void writeCurrentValue() override {
 		UnpatchedParam::writeCurrentValue();
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	}

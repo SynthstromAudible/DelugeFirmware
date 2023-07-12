@@ -23,10 +23,11 @@ namespace deluge::gui::menu_item {
 
 class IntegerRange final : public Range {
 public:
-	IntegerRange(char const* newName, char const* title, int newMin, int newMax) : Range(newName, title), minValue(newMin), maxValue(newMax) {}
-	void beginSession(MenuItem* navigatedBackwardFrom);
-	void getText(char* buffer, int* getLeftLength, int* getRightLength, bool mayShowJustOne);
-	void selectEncoderAction(int offset);
+	IntegerRange(char const* newName, char const* title, int newMin, int newMax)
+	    : Range(newName, title), minValue(newMin), maxValue(newMax) {}
+	void beginSession(MenuItem* navigatedBackwardFrom) override;
+	void getText(char* buffer, int* getLeftLength, int* getRightLength, bool mayShowJustOne) override;
+	void selectEncoderAction(int offset) override;
 	int getRandomValueInRange();
 
 	int lower, upper;

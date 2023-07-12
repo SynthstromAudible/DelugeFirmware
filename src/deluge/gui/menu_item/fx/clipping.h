@@ -25,9 +25,9 @@ class Clipping final : public IntegerWithOff {
 public:
 	using IntegerWithOff::IntegerWithOff;
 
-	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentModControllable->clippingAmount; }
-	void writeCurrentValue() { soundEditor.currentModControllable->clippingAmount = soundEditor.currentValue; }
-	int getMaxValue() const { return 15; }
+	void readCurrentValue() override { this->value_ = soundEditor.currentModControllable->clippingAmount; }
+	void writeCurrentValue() override { soundEditor.currentModControllable->clippingAmount = this->value_; }
+	[[nodiscard]] int getMaxValue() const override { return 15; }
 };
 
 } // namespace deluge::gui::menu_item::fx

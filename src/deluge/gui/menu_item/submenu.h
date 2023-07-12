@@ -26,7 +26,7 @@ public:
 	Submenu(char const* newName = nullptr, MenuItem** newItems = nullptr) : MenuItem(newName), items(newItems) {}
 	Submenu(char const* newName = nullptr, char const* title = nullptr, MenuItem** newItems = nullptr)
 	    : MenuItem(newName, title), items(newItems) {}
-	
+
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
 	void updateDisplay();
 	void selectEncoderAction(int offset) final;

@@ -22,12 +22,11 @@ namespace deluge::gui::menu_item::audio_clip {
 
 class SampleMarkerEditor final : public MenuItem {
 public:
-	SampleMarkerEditor(char const* newName = NULL, int newWhichMarker = 0) : MenuItem(newName) {
-		whichMarker = newWhichMarker;
-	}
+	SampleMarkerEditor(char const* newName = nullptr, int newWhichMarker = 0)
+	    : MenuItem(newName), whichMarker(newWhichMarker) {}
 
-	int checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange);
-	void beginSession(MenuItem* navigatedBackwardFrom);
+	virtual int checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange);
+	void beginSession(MenuItem* navigatedBackwardFrom) override;
 
 	int whichMarker;
 };

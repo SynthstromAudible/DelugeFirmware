@@ -22,6 +22,6 @@ namespace deluge::gui::menu_item::source::patched_param {
 class FM final : public source::PatchedParam {
 public:
 	using PatchedParam::PatchedParam;
-	bool isRelevant(Sound* sound, int whichThing) { return (sound->getSynthMode() == SYNTH_MODE_FM); }
+	bool isRelevant(Sound* sound, int whichThing) override { return (sound->getSynthMode() == SYNTH_MODE_FM); }
 };
 } // namespace deluge::gui::menu_item::source::patched_param

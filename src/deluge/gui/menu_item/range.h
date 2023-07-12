@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "gui/menu_item/menu_item.h"
+#include "gui/menu_item/value.h"
 
 namespace deluge::gui::menu_item {
 
@@ -27,19 +27,20 @@ enum class RangeEdit : uint8_t {
 	RIGHT = 2,
 };
 
-class Range : public MenuItem {
+class Range : public Value<int> {
 public:
-	using MenuItem::MenuItem;
+	using Value::Value;
 
-	void beginSession(MenuItem* navigatedBackwardFrom);
+	void beginSession(MenuItem* navigatedBackwardFrom) override;
 	void horizontalEncoderAction(int offset) final;
 	bool cancelEditingIfItsOn();
 
 protected:
-	virtual void getText(char* buffer, int* getLeftLength = NULL, int* getRightLength = NULL,
+	virtual void getText(char* buffer, int* getLeftLength = nullptr, int* getRightLength = nullptr,
 	                     bool mayShowJustOne = true) = 0;
 	virtual bool mayEditRangeEdge(RangeEdit whichEdge) { return true; }
-	void drawValue(int startPos = 0, bool renderSidebarToo = true);
+	virtual void drawValue() { this->drawValue(0); }
+	void drawValue(int startPos, bool renderSidebarToo = true);
 	void drawValueForEditingRange(bool blinkImmediately);
 
 #if HAVE_OLED

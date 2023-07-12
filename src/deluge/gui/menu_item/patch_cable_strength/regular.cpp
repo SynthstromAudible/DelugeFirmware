@@ -32,9 +32,7 @@ MenuItem* Regular::selectButtonPress() {
 	if (Buttons::isShiftButtonPressed()) {
 		return PatchCableStrength::selectButtonPress();
 	}
-	else {
-		return &source_selection::rangeMenu;
-	}
+	return &source_selection::rangeMenu;
 }
 
 ParamDescriptor Regular::getLearningThing() {

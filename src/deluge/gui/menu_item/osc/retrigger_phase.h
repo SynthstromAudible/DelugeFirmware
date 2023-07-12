@@ -32,24 +32,24 @@ public:
 	void readCurrentValue() override {
 		uint32_t value = *getValueAddress();
 		if (value == 0xFFFFFFFF) {
-			soundEditor.currentValue = -soundEditor.numberEditSize;
+			this->value_ = -soundEditor.numberEditSize;
 		}
 		else {
-			soundEditor.currentValue = value / 11930464;
+			this->value_ = value / 11930464;
 		}
 	}
 	void writeCurrentValue() override {
 		uint32_t value;
-		if (soundEditor.currentValue < 0) {
+		if (this->value_ < 0) {
 			value = 0xFFFFFFFF;
 		}
 		else {
-			value = soundEditor.currentValue * 11930464;
+			value = this->value_ * 11930464;
 		}
 		*getValueAddress() = value;
 	}
 	void drawValue() override {
-		if (soundEditor.currentValue < 0) {
+		if (this->value_ < 0) {
 			numericDriver.setText("OFF", false, 255, true);
 		}
 		else {
@@ -58,7 +58,7 @@ public:
 	}
 #if HAVE_OLED
 	void drawPixelsForOled() override {
-		if (soundEditor.currentValue < 0) {
+		if (this->value_ < 0) {
 			OLED::drawStringCentred("OFF", 20, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, TEXT_HUGE_SPACING_X,
 			                        TEXT_HUGE_SIZE_Y);
 		}
@@ -68,7 +68,7 @@ public:
 	}
 #endif
 	void horizontalEncoderAction(int offset) override {
-		if (soundEditor.currentValue >= 0) {
+		if (this->value_ >= 0) {
 			Decimal::horizontalEncoderAction(offset);
 		}
 	}

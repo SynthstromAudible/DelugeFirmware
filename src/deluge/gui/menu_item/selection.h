@@ -34,6 +34,8 @@ public:
 #if HAVE_OLED
 	void drawPixelsForOled() override;
 #endif
-	size_t size() override { return this->getOptions().size; }
+	size_t size() override {
+		return this->getOptions().size;
+	}
 };
 } // namespace deluge::gui::menu_item

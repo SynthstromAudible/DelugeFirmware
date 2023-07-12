@@ -22,13 +22,21 @@ namespace deluge::gui::menu_item {
 
 class Transpose : public Decimal, public PatchedParam {
 public:
-	Transpose(char const* newName = nullptr, char const* title = nullptr, int newP = 0) : PatchedParam(newP), Decimal(newName, title) {}
+	Transpose(char const* newName = nullptr, char const* title = nullptr, int newP = 0)
+	    : PatchedParam(newP), Decimal(newName, title) {}
 	MenuItem* selectButtonPress() final { return PatchedParam::selectButtonPress(); }
 	[[nodiscard]] int getMinValue() const final { return -9600; }
 	[[nodiscard]] int getMaxValue() const final { return 9600; }
 	[[nodiscard]] int getNumDecimalPlaces() const final { return 2; }
 	uint8_t getPatchedParamIndex() final { return PatchedParam::getPatchedParamIndex(); }
 	uint8_t shouldDrawDotOnName() final { return PatchedParam::shouldDrawDotOnName(); }
+
+#if !HAVE_OLED
+	void drawValue() override {
+		numericDriver.setTextAsNumber(this->value_, shouldDrawDotOnName());
+	}
+#endif
+
 	uint8_t shouldBlinkPatchingSourceShortcut(int s, uint8_t* colour) final {
 		return PatchedParam::shouldBlinkPatchingSourceShortcut(s, colour);
 	}
@@ -36,8 +44,12 @@ public:
 		return PatchedParam::patchingSourceShortcutPress(s, previousPressStillActive);
 	}
 
-	void unlearnAction() final { MenuItemWithCCLearning::unlearnAction(); }
-	bool allowsLearnMode() final { return MenuItemWithCCLearning::allowsLearnMode(); }
+	void unlearnAction() final {
+		MenuItemWithCCLearning::unlearnAction();
+	}
+	bool allowsLearnMode() final {
+		return MenuItemWithCCLearning::allowsLearnMode();
+	}
 	void learnKnob(::MIDIDevice* fromDevice, int whichKnob, int modKnobMode, int midiChannel) final {
 		MenuItemWithCCLearning::learnKnob(fromDevice, whichKnob, modKnobMode, midiChannel);
 	};

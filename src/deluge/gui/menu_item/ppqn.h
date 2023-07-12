@@ -21,7 +21,7 @@ namespace deluge::gui::menu_item {
 class PPQN : public Integer {
 public:
 	using Integer::Integer;
-	int getMinValue() const { return 1; }
-	int getMaxValue() const { return 192; }
+	[[nodiscard]] int getMinValue() const override { return 1; }
+	[[nodiscard]] int getMaxValue() const override { return 192; }
 };
 } // namespace deluge::gui::menu_item

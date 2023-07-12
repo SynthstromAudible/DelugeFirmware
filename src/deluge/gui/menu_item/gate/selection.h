@@ -30,29 +30,27 @@ public:
 	using menu_item::Selection::Selection;
 
 	void beginSession(MenuItem* navigatedBackwardFrom) override {
-		if (!navigatedBackwardFrom) {
-			soundEditor.currentValue = 0;
+		if (navigatedBackwardFrom == nullptr) {
+			this->value_ = 0;
 		}
 		else {
-			soundEditor.currentValue = soundEditor.currentSourceIndex;
+			this->value_ = soundEditor.currentSourceIndex;
 		}
 		menu_item::Selection::beginSession(navigatedBackwardFrom);
 	}
 
 	MenuItem* selectButtonPress() override {
-		if (soundEditor.currentValue == NUM_GATE_CHANNELS) {
+		if (this->value_ == NUM_GATE_CHANNELS) {
 			return &gateOffTimeMenu;
 		}
-		else {
-			soundEditor.currentSourceIndex = soundEditor.currentValue;
+		soundEditor.currentSourceIndex = this->value_;
 #if HAVE_OLED
-			gate::mode_title[8] = '1' + soundEditor.currentValue;
+		gate::mode_title[8] = '1' + this->value_;
 #endif
 
-			// TODO: this needs to be a "UpdateOptions" method on gate::Mode
-			gateModeMenu.updateOptions(soundEditor.currentValue);
-			return &gateModeMenu;
-		}
+		// TODO: this needs to be a "UpdateOptions" method on gate::Mode
+		gateModeMenu.updateOptions(this->value_);
+		return &gateModeMenu;
 	}
 
 	Sized<char const**> getOptions() override {

@@ -22,13 +22,13 @@ namespace deluge::gui::menu_item::unpatched_param {
 
 class Pan final : public UnpatchedParam {
 public:
-	Pan(char const* newName = 0, int newP = 0) : UnpatchedParam(newName, newP) {}
-	void drawValue();
+	using UnpatchedParam::UnpatchedParam;
+	virtual void drawValue();
 
 protected:
-	int getMaxValue() const { return 32; }
-	int getMinValue() const { return -32; }
-	int32_t getFinalValue();
-	void readCurrentValue();
+	[[nodiscard]] int getMaxValue() const override { return 32; }
+	[[nodiscard]] int getMinValue() const override { return -32; }
+	int32_t getFinalValue() override;
+	void readCurrentValue() override;
 };
 } // namespace deluge::gui::menu_item::unpatched_param

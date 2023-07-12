@@ -35,11 +35,13 @@ public:
 		Selection::beginSession(navigatedBackwardFrom);
 	}
 #endif
-	void readCurrentValue() override { soundEditor.currentValue = soundEditor.currentSource->oscType; }
+	void readCurrentValue() override {
+		this->value_ = soundEditor.currentSource->oscType;
+	}
 	void writeCurrentValue() override {
 
 		int oldValue = soundEditor.currentSource->oscType;
-		int newValue = soundEditor.currentValue;
+		int newValue = this->value_;
 
 		auto needs_unassignment = {OSC_TYPE_INPUT_L, OSC_TYPE_INPUT_R, OSC_TYPE_INPUT_STEREO, OSC_TYPE_SAMPLE,
 
@@ -78,15 +80,15 @@ public:
 		if (soundEditor.currentSound->getSynthMode() == SYNTH_MODE_RINGMOD) {
 			return NUM_OSC_TYPES_RINGMODDABLE;
 		}
-		else if (AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn) {
+		if (AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn) {
 			return NUM_OSC_TYPES;
 		}
-		else {
-			return NUM_OSC_TYPES - 2;
-		}
+		return NUM_OSC_TYPES - 2;
 	}
 
-	bool isRelevant(Sound* sound, int whichThing) override { return (sound->getSynthMode() != SYNTH_MODE_FM); }
+	bool isRelevant(Sound* sound, int whichThing) override {
+		return (sound->getSynthMode() != SYNTH_MODE_FM);
+	}
 };
 
 } // namespace deluge::gui::menu_item::osc

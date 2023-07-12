@@ -23,8 +23,8 @@ namespace deluge::gui::menu_item::voice {
 class Priority final : public Selection {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { soundEditor.currentValue = *soundEditor.currentPriority; }
-	void writeCurrentValue() override { *soundEditor.currentPriority = soundEditor.currentValue; }
+	void readCurrentValue() override { this->value_ = *soundEditor.currentPriority; }
+	void writeCurrentValue() override { *soundEditor.currentPriority = this->value_; }
 	Sized<char const**> getOptions() override {
 		static char const* options[] = {"LOW", "MEDIUM", "HIGH"};
 		return {options, NUM_PRIORITY_OPTIONS};

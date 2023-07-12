@@ -26,7 +26,7 @@
 namespace deluge::gui::menu_item::runtime_feature {
 class Setting;
 class Settings;
-} // namespace menu_item::runtime_feature
+} // namespace deluge::gui::menu_item::runtime_feature
 
 // State declarations
 enum RuntimeFeatureStateToggle : uint32_t { Off = 0, On = 1 };

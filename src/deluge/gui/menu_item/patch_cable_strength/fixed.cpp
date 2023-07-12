@@ -30,17 +30,14 @@ int Fixed::checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRang
 	return PatchCableStrength::checkPermissionToBeginSession(sound, whichThing, currentRange);
 }
 
-uint8_t Fixed::shouldBlinkPatchingSourceShortcut(int s, uint8_t* sourceShortcutBlinkColours) {
-
-	PatchCableSet* patchCableSet = soundEditor.currentParamManager->getPatchCableSet();
+uint8_t Fixed::shouldBlinkPatchingSourceShortcut(int s, uint8_t* colour) {
+	PatchCableSet& patchCableSet = *soundEditor.currentParamManager->getPatchCableSet();
 
 	// If it's the source controlling the range of the source we're editing for...
-	if (patchCableSet->getPatchCableIndex(s, getLearningThing()) != 255) {
+	if (patchCableSet.getPatchCableIndex(s, getLearningThing()) != 255) {
 		return 3;
 	}
-	else {
-		return 255;
-	}
+	return 255;
 }
 
 MenuItem* Fixed::patchingSourceShortcutPress(int s, bool previousPressStillActive) {

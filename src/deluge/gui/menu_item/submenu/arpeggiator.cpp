@@ -25,8 +25,8 @@ namespace deluge::gui::menu_item::submenu {
 void Arpeggiator::beginSession(MenuItem* navigatedBackwardFrom) {
 
 	soundEditor.currentArpSettings = soundEditor.editingKit()
-	                                     ? &((SoundDrum*)soundEditor.currentSound)->arpSettings
-	                                     : &((InstrumentClip*)currentSong->currentClip)->arpSettings;
+	                                     ? &(dynamic_cast<SoundDrum*>(soundEditor.currentSound))->arpSettings
+	                                     : &(dynamic_cast<InstrumentClip*>(currentSong->currentClip))->arpSettings;
 	Submenu::beginSession(navigatedBackwardFrom);
 }
 

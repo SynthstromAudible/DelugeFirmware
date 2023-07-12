@@ -25,13 +25,14 @@ class Attack final : public Integer {
 public:
 	using Integer::Integer;
 
-	void readCurrentValue() {
-		soundEditor.currentValue =
-		    (((int64_t)((AudioClip*)currentSong->currentClip)->attack + 2147483648) * 50 + 2147483648) >> 32;
+	void readCurrentValue() override {
+		this->value_ =
+		    (((int64_t)(dynamic_cast<AudioClip*>(currentSong->currentClip))->attack + 2147483648) * 50 + 2147483648)
+		    >> 32;
 	}
-	void writeCurrentValue() {
-		((AudioClip*)currentSong->currentClip)->attack = (uint32_t)soundEditor.currentValue * 85899345 - 2147483648;
+	void writeCurrentValue() override {
+		(dynamic_cast<AudioClip*>(currentSong->currentClip))->attack = (uint32_t)this->value_ * 85899345 - 2147483648;
 	}
-	int getMaxValue() const { return 50; }
+	[[nodiscard]] int getMaxValue() const override { return 50; }
 };
 } // namespace deluge::gui::menu_item::audio_clip

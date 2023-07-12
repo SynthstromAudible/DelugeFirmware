@@ -20,6 +20,6 @@
 namespace deluge::gui::menu_item::sample {
 class Start final : public LoopPoint {
 public:
-	Start(char const* newName = NULL) : LoopPoint(newName) { markerType = MARKER_START; }
+	Start(char const* newName = nullptr) : LoopPoint(newName) { markerType = MARKER_START; }
 };
 } // namespace deluge::gui::menu_item::sample

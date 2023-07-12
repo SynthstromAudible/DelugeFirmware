@@ -25,13 +25,12 @@ public:
 	using source::Transpose::Transpose;
 
 	void readCurrentValue() {
-		soundEditor.currentValue =
-		    (int32_t)soundEditor.currentSound->modulatorTranspose[soundEditor.currentSourceIndex] * 100
-		    + soundEditor.currentSound->modulatorCents[soundEditor.currentSourceIndex];
+		this->value_ = (int32_t)soundEditor.currentSound->modulatorTranspose[soundEditor.currentSourceIndex] * 100
+		               + soundEditor.currentSound->modulatorCents[soundEditor.currentSourceIndex];
 	}
 
 	void writeCurrentValue() {
-		int currentValue = soundEditor.currentValue + 25600;
+		int currentValue = this->value_ + 25600;
 
 		int semitones = (currentValue + 50) / 100;
 		int cents = currentValue - semitones * 100;

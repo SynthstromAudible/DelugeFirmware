@@ -47,7 +47,7 @@ void Number::drawBar(int yTop, int marginL, int marginR) {
 	int minValue = getMinValue();
 	int maxValue = getMaxValue();
 	unsigned int range = maxValue - minValue;
-	float posFractional = (float)(soundEditor.currentValue - minValue) / range;
+	float posFractional = (float)(this->value_ - minValue) / range;
 	float zeroPosFractional = (float)(-minValue) / range;
 
 	int width = rightMost - leftMost;
@@ -66,4 +66,4 @@ void Number::drawBar(int yTop, int marginL, int marginR) {
 }
 #endif
 
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

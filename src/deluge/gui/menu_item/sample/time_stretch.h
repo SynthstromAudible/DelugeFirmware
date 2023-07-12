@@ -28,7 +28,7 @@ class TimeStretch final : public Integer {
 public:
 	using Integer::Integer;
 	bool usesAffectEntire() override { return true; }
-	void readCurrentValue() override { soundEditor.currentValue = soundEditor.currentSource->timeStretchAmount; }
+	void readCurrentValue() override { this->value_ = soundEditor.currentSource->timeStretchAmount; }
 	void writeCurrentValue() override {
 
 		// If affect-entire button held, do whole kit
@@ -41,14 +41,14 @@ public:
 					auto* soundDrum = dynamic_cast<SoundDrum*>(thisDrum);
 					Source* source = &soundDrum->sources[soundEditor.currentSourceIndex];
 
-					source->timeStretchAmount = soundEditor.currentValue;
+					source->timeStretchAmount = this->value_;
 				}
 			}
 		}
 
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentSource->timeStretchAmount = soundEditor.currentValue;
+			soundEditor.currentSource->timeStretchAmount = this->value_;
 		}
 	}
 	[[nodiscard]] int getMinValue() const override { return -48; }

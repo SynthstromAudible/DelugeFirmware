@@ -24,7 +24,7 @@ namespace deluge::gui::menu_item {
 class DrumName final : public MenuItem {
 public:
 	using MenuItem::MenuItem;
-	void beginSession(MenuItem* navigatedBackwardFrom);
-	bool isRelevant(Sound* sound, int whichThing);
+	void beginSession(MenuItem* navigatedBackwardFrom) override;
+	bool isRelevant(Sound* sound, int whichThing) override;
 };
 } // namespace deluge::gui::menu_item

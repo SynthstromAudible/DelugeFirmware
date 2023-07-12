@@ -25,17 +25,17 @@ namespace deluge::gui::menu_item::bend_range {
 class Main final : public BendRange {
 public:
 	using BendRange::BendRange;
-	void readCurrentValue() {
+	void readCurrentValue() override {
 		ExpressionParamSet* expressionParams =
 		    soundEditor.currentParamManager->getOrCreateExpressionParamSet(soundEditor.editingKit());
-		soundEditor.currentValue = expressionParams ? expressionParams->bendRanges[BEND_RANGE_MAIN]
-		                                            : FlashStorage::defaultBendRange[BEND_RANGE_MAIN];
+		this->value_ = expressionParams != nullptr ? expressionParams->bendRanges[BEND_RANGE_MAIN]
+		                                           : FlashStorage::defaultBendRange[BEND_RANGE_MAIN];
 	}
-	void writeCurrentValue() {
+	void writeCurrentValue() override {
 		ExpressionParamSet* expressionParams =
 		    soundEditor.currentParamManager->getOrCreateExpressionParamSet(soundEditor.editingKit());
-		if (expressionParams) {
-			expressionParams->bendRanges[BEND_RANGE_MAIN] = soundEditor.currentValue;
+		if (expressionParams != nullptr) {
+			expressionParams->bendRanges[BEND_RANGE_MAIN] = this->value_;
 		}
 	}
 };

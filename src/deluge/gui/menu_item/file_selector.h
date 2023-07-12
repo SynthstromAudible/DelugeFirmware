@@ -25,9 +25,9 @@ class MultiRange;
 class FileSelector final : public MenuItem {
 public:
 	using MenuItem::MenuItem;
-	void beginSession(MenuItem* navigatedBackwardFrom);
-	bool isRelevant(Sound* sound, int whichThing);
-	int checkPermissionToBeginSession(Sound* sound, int whichThing, ::MultiRange** currentRange);
+	void beginSession(MenuItem* navigatedBackwardFrom) override;
+	bool isRelevant(Sound* sound, int whichThing) override;
+	int checkPermissionToBeginSession(Sound* sound, int whichThing, ::MultiRange** currentRange) override;
 };
 
 extern FileSelector fileSelectorMenu;
