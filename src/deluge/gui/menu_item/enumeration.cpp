@@ -37,22 +37,25 @@ void Enumeration::beginSession(MenuItem* navigatedBackwardFrom) {
 }
 
 void Enumeration::selectEncoderAction(int offset) {
-	this->value_ += offset;
+	int value = static_cast<int>(this->value_) + offset;
 	int numOptions = size();
 
 #if HAVE_OLED
-	if (this->value_ > numOptions - 1) {
-		this->value_ = numOptions - 1;
+	if (value > numOptions - 1) {
+		value = numOptions - 1;
 	}
-	else if (this->value_ < 0) {
-		this->value_ = 0;
+	else if (value < 0) {
+		value = 0;
 	}
 #else
-	if (this->value_ >= numOptions)
-		this->value_ -= numOptions;
-	else if (this->value_ < 0)
-		this->value_ += numOptions;
+	if (value >= numOptions) {
+		value -= numOptions;
+	}
+	else if (value < 0) {
+		value += numOptions;
+	}
 #endif
+	this->value_ = static_cast<size_t>(value);
 
 	Value::selectEncoderAction(offset);
 }

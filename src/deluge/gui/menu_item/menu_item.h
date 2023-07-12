@@ -33,8 +33,11 @@ class MIDIDevice;
 class MenuItem {
 public:
 	MenuItem(char const* newName = nullptr, char const* newTitle = nullptr) : name(newName) {
-		if (newTitle == nullptr) {
+		if (newTitle != nullptr) {
 			title = newTitle;
+		}
+		else {
+			title = newName;
 		}
 	}
 
