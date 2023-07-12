@@ -45,7 +45,7 @@ void setLedState(LED led, bool newState, bool allowContinuedBlinking) {
 	uint8_t l = static_cast<int>(led);
 	ledStates[l] = newState;
 
-	bufferPICIndicatorsUart(uartBase + l + (newState ? 36 : 0));
+	bufferPICUart(uartBase + l + (newState ? 36 : 0));
 }
 
 void blinkLed(LED led, uint8_t numBlinks, uint8_t blinkingType, bool initialState) {
@@ -168,7 +168,7 @@ void setKnobIndicatorLevel(uint8_t whichKnob, uint8_t level) {
 		}
 	}
 
-	bufferPICIndicatorsUart(20 + whichKnob);
+	bufferPICUart(20 + whichKnob);
 
 	int numIndicatorLedsFullyOn = level >> 5;
 
@@ -184,7 +184,7 @@ void setKnobIndicatorLevel(uint8_t whichKnob, uint8_t level) {
 		else if (i == numIndicatorLedsFullyOn) {
 			brightnessOutputValue = brightness;
 		}
-		bufferPICIndicatorsUart(brightnessOutputValue);
+		bufferPICUart(brightnessOutputValue);
 	}
 
 	knobIndicatorLevels[whichKnob] = level;
