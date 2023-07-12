@@ -18,8 +18,8 @@
 #ifndef Definitions_h
 #define Definitions_h
 
-#include "r_typedefs.h"
-#include "cpu_specific.h"
+#include "RZA1/system/r_typedefs.h"
+#include "RZA1/cpu_specific.h"
 
 #define FIRMWARE_OLD 0
 #define FIRMWARE_1P2P0 1
@@ -96,40 +96,6 @@
 
 #define CURRENT_FIRMWARE_VERSION FIRMWARE_4P1P4_ALPHA
 
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-
-#define syncScalingButtonX 8
-#define syncScalingButtonY 1
-#define syncScalingLedX 8
-#define syncScalingLedY 2
-
-#define crossScreenEditButtonX 5
-#define crossScreenEditButtonY 0
-#define crossScreenEditLedX 5
-#define crossScreenEditLedY 3
-
-#define xEncButtonX 1
-#define xEncButtonY 2
-
-#define selectEncButtonX 4
-#define selectEncButtonY 1
-
-#define yEncButtonX 0
-#define yEncButtonY 2
-
-#define tempoEncButtonX 7
-#define tempoEncButtonY 2
-
-#define backButtonX 4 // AKA back button
-#define backButtonY 2
-#define backLedX 4 // AKA back button
-#define backLedY 1
-
-#define syncedLedX 9
-#define syncedLedY 3
-
-#else
-
 #define syncScalingButtonX 7
 #define syncScalingButtonY 2
 #define syncScalingLedX 7
@@ -160,23 +126,8 @@
 #define modEncoder1ButtonX 0
 #define modEncoder1ButtonY 3
 
-#endif
-
 #define editPadPressBufferSize 8
 
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-#define NUM_MOD_BUTTONS 6
-#define displayHeight 4
-#define displayHeightMagnitude 2
-#define displayWidth 8
-#define displayWidthMagnitude 3
-#define NO_PRESSES_HAPPENING_MESSAGE 141
-#define RESEND_BUTTON_STATES_MESSAGE 72
-#define NUM_BYTES_IN_COL_UPDATE_MESSAGE 13
-#define NUM_BYTES_IN_LONGEST_MESSAGE 13
-#define NUM_BYTES_IN_SIDEBAR_REDRAW (NUM_BYTES_IN_COL_UPDATE_MESSAGE * 2)
-#define PAD_AND_BUTTON_MESSAGES_END 140
-#else
 #define NUM_MOD_BUTTONS 8
 #define displayHeight 8
 #define displayHeightMagnitude 3
@@ -188,20 +139,11 @@
 #define NUM_BYTES_IN_LONGEST_MESSAGE 55
 #define NUM_BYTES_IN_SIDEBAR_REDRAW (NUM_BYTES_IN_COL_UPDATE_MESSAGE)
 #define PAD_AND_BUTTON_MESSAGES_END 180
-#endif
 
 #define NUM_BYTES_IN_MAIN_PAD_REDRAW (NUM_BYTES_IN_COL_UPDATE_MESSAGE * 8)
 
 #define DEFAULT_ARRANGER_ZOOM (DEFAULT_CLIP_LENGTH >> 1)
 
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-#define LINE_OUT_DETECT_L_1 1
-#define LINE_OUT_DETECT_L_2 4
-#define LINE_OUT_DETECT_R_1 1
-#define LINE_OUT_DETECT_R_2 3
-#define ANALOG_CLOCK_IN_1 1
-#define ANALOG_CLOCK_IN_2 2
-#else
 #define LINE_OUT_DETECT_L_1 6
 #define LINE_OUT_DETECT_L_2 3
 #define LINE_OUT_DETECT_R_1 6
@@ -212,7 +154,6 @@
 #define SPEAKER_ENABLE_2 1
 #define HEADPHONE_DETECT_1 6
 #define HEADPHONE_DETECT_2 5
-#endif
 
 #define sideBarWidth 2
 #define MAX_NUM_ANIMATED_ROWS ((displayHeight * 3) >> 1)
@@ -275,6 +216,8 @@
 #define selectedDrumColourRed 30
 #define selectedDrumColourGreen 30
 #define selectedDrumColourBlue 10
+
+#define USE_DEFAULT_VELOCITY 255
 
 #define MAX_SEQUENCE_LENGTH 1610612736 // The biggest multiple of 3 which can fit in a signed 32-bit int
 #define noteOnLatenessAllowed 2205     // In audio samples. That's 50mS. Multiply mS by 44.1
@@ -357,6 +300,7 @@
 
 // Exp params have different sources added together, converted to an exponential scale, then multiplied by the neutral value
 
+// Local linear params begin
 #define PARAM_LOCAL_OSC_A_VOLUME 0
 #define PARAM_LOCAL_OSC_B_VOLUME 1
 #define PARAM_LOCAL_VOLUME 2
@@ -393,7 +337,7 @@
 #define PARAM_LOCAL_ENV_1_DECAY 30
 #define PARAM_LOCAL_ENV_0_RELEASE 31
 #define PARAM_LOCAL_ENV_1_RELEASE 32
-// Global params begin
+// Global (linear) params begin
 #define PARAM_GLOBAL_VOLUME_POST_FX 33
 #define PARAM_GLOBAL_VOLUME_POST_REVERB_SEND 34
 #define PARAM_GLOBAL_REVERB_AMOUNT 35
@@ -479,11 +423,7 @@
 
 #define NUM_OSC_TYPES_RINGMODDABLE OSC_TYPE_SAMPLE
 
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-#define NUM_OSC_TYPES 7
-#else
 #define NUM_OSC_TYPES 11
-#endif
 
 #define LFO_TYPE_SINE 0
 #define LFO_TYPE_TRIANGLE 1
@@ -524,7 +464,8 @@ typedef enum SyncLevel_ {
 #define MOD_FX_TYPE_FLANGER 1
 #define MOD_FX_TYPE_CHORUS 2
 #define MOD_FX_TYPE_PHASER 3
-#define NUM_MOD_FX_TYPES 4
+#define MOD_FX_TYPE_CHORUS_STEREO 4
+#define NUM_MOD_FX_TYPES 5
 
 #define SAMPLE_MAX_TRANSPOSE 24
 #define SAMPLE_MIN_TRANSPOSE (-96)
@@ -555,8 +496,8 @@ typedef enum SyncLevel_ {
 #define LPF_MODE_12DB 0
 #define LPF_MODE_TRANSISTOR_24DB 1
 #define LPF_MODE_TRANSISTOR_24DB_DRIVE 2
-#define LPF_MODE_DIODE 3
-#define NUM_LPF_MODES 3
+#define LPF_MODE_SVF 3
+#define NUM_LPF_MODES 4
 
 #define PHASER_NUM_ALLPASS_FILTERS 6
 
@@ -615,7 +556,7 @@ typedef enum SyncLevel_ {
 
 #define ALLOW_SPAM_MODE 0 // For debugging I think?
 
-#define KEYBOARD_ROW_INTERVAL 5
+#define KEYBOARD_ROW_INTERVAL_MAX 16
 
 // UART
 #define MIDI_TX_BUFFER_SIZE 1024
@@ -832,8 +773,6 @@ typedef enum SyncLevel_ {
 #define AUDIO_RECORDING_FOLDER_RESAMPLE 2
 #define NUM_AUDIO_RECORDING_FOLDERS 3
 
-#define MIDI_CC_FOR_COMMANDS_ENABLED 0 // Was partially developed I think.
-
 #define KEYBOARD_LAYOUT_QWERTY 0
 #define KEYBOARD_LAYOUT_AZERTY 1
 #define KEYBOARD_LAYOUT_QWERTZ 2
@@ -904,8 +843,9 @@ typedef enum SyncLevel_ {
 
 #define MIDI_CHANNEL_MPE_LOWER_ZONE 16
 #define MIDI_CHANNEL_MPE_UPPER_ZONE 17
+#define NUM_CHANNELS 18
 #define MIDI_CHANNEL_NONE 255
-
+#define IS_A_CC NUM_CHANNELS
 // To be used instead of MIDI_CHANNEL_MPE_LOWER_ZONE etc for functions that require a "midi output filter". Although in
 // fact, any number <16 or >=18 would work, the way I've defined it.
 #define MIDI_OUTPUT_FILTER_NO_MPE 0
