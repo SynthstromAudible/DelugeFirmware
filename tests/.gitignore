@@ -1,0 +1,4 @@
+runtests
+*.o
+*.gc{da,no,ov}
+coverage*
