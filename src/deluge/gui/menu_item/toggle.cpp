@@ -4,6 +4,23 @@
 
 namespace deluge::gui::menu_item {
 
+void Toggle::beginSession(MenuItem* navigatedBackwardFrom) {
+	Value::beginSession(navigatedBackwardFrom);
+#if HAVE_OLED
+	soundEditor.menuCurrentScroll = 0;
+#else
+	drawValue();
+#endif
+}
+
+void Toggle::selectEncoderAction(int offset) {
+	const bool flip = offset & 0b1;
+	if (flip) {
+		this->value_ = !value_;
+	}
+	Value::selectEncoderAction(offset);
+}
+
 void Toggle::drawValue() {
 #if HAVE_OLED
 	renderUIsForOled();
