@@ -112,7 +112,7 @@ void Submenu::selectEncoderAction(int offset) {
 	do {
 		if (offset >= 0) {
 			thisSubmenuItem++;
-			if (!*thisSubmenuItem) {
+			if (*thisSubmenuItem == nullptr) {
 #if HAVE_OLED
 				return;
 #else

@@ -1,6 +1,8 @@
 #include "toggle.h"
 #include "hid/display/numeric_driver.h"
 #include "gui/ui/sound_editor.h"
+#include "hid/display/oled.h"
+#include <algorithm>
 
 namespace deluge::gui::menu_item {
 
@@ -33,17 +35,26 @@ void Toggle::drawValue() {
 void Toggle::drawPixelsForOled() {
 	const int val = static_cast<int>(this->value_);
 	// Move scroll
-	if (soundEditor.menuCurrentScroll > val) {
-		soundEditor.menuCurrentScroll = val;
-	}
-	else if (soundEditor.menuCurrentScroll < val - OLED_MENU_NUM_OPTIONS_VISIBLE + 1) {
-		soundEditor.menuCurrentScroll = val - OLED_MENU_NUM_OPTIONS_VISIBLE + 1;
-	}
+	soundEditor.menuCurrentScroll = std::clamp<int>(soundEditor.menuCurrentScroll, 0, 1);
 
 	char const* options[] = {"Off", "On"};
 	int selectedOption = this->value_ - soundEditor.menuCurrentScroll;
 
-	drawItemsForOled(options, selectedOption);
+	int baseY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14;
+	baseY += OLED_MAIN_TOPMOST_PIXEL;
+
+	for (int o = 0; o < 2; o++) {
+		int yPixel = o * TEXT_SPACING_Y + baseY;
+
+		OLED::drawString(options[o], TEXT_SPACING_X, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
+		                 TEXT_SPACING_X, TEXT_SPACING_Y);
+
+		if (o == selectedOption) {
+			OLED::invertArea(0, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8, &OLED::oledMainImage[0]);
+			OLED::setupSideScroller(0, options[o], TEXT_SPACING_X, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8,
+			                        TEXT_SPACING_X, TEXT_SPACING_Y, true);
+		}
+	}
 }
 #endif
 } // namespace deluge::gui::menu_item
