@@ -17,12 +17,9 @@
 
 // Was I going to expand this file to have more stuff?
 
-#ifndef EXTERN_H_
-#define EXTERN_H_
+#pragma once
 
 extern bool sdRoutineLock;
 extern int16_t zeroMPEValues[];
 extern bool allowSomeUserActionsEvenWhenInCardRoutine;
 extern bool readButtonsAndPads();
-
-#endif /* EXTERN_H_ */

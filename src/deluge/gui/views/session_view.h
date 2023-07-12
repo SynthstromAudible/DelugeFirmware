@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef OverviewModeUI_h
-#define OverviewModeUI_h
+#pragma once
 
 #include "gui/views/clip_navigation_timeline_view.h"
 #include "hid/button.h"
@@ -113,5 +112,3 @@ private:
 };
 
 extern SessionView sessionView;
-
-#endif

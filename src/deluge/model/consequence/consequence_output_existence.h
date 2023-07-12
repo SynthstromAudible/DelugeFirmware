@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CONSEQUENCEOUTPUTEXISTENCE_H_
-#define CONSEQUENCEOUTPUTEXISTENCE_H_
+#pragma once
 
 #include "model/consequence/consequence.h"
 
@@ -31,5 +30,3 @@ public:
 	int outputIndex;
 	uint8_t type;
 };
-
-#endif /* CONSEQUENCEOUTPUTEXISTENCE_H_ */

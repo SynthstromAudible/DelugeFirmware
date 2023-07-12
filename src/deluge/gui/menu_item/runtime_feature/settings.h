@@ -17,22 +17,15 @@
 
 #pragma once
 
-#include "gui/menu_item/menu_item.h"
+#include "gui/menu_item/submenu.h"
 
 namespace menu_item::runtime_feature {
 
-class Settings final : public MenuItem {
+class Settings final : public Submenu {
 public:
-	using MenuItem::MenuItem;
-	void beginSession(MenuItem* navigatedBackwardFrom = NULL);
-	void selectEncoderAction(int offset);
-	void drawValue();
-	MenuItem* selectButtonPress();
-	void drawPixelsForOled();
+	Settings(char const* name);
 
 private:
-	uint32_t lastActiveValue = 0;
-	// getSetting?
 };
 
 extern Settings runtimeFeatureSettingsMenu;

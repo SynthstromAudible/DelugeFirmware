@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef SAMPLERECORDER_H_
-#define SAMPLERECORDER_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 #include "util/d_string.h"
@@ -129,5 +128,3 @@ private:
 	int truncateFileDownToSize(uint32_t newFileSize);
 	int writeOneCompletedCluster();
 };
-
-#endif /* SAMPLERECORDER_H_ */

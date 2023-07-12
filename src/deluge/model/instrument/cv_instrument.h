@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CVINSTRUMENT_H_
-#define CVINSTRUMENT_H_
+#pragma once
 
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/non_audio_instrument.h"
@@ -49,5 +48,3 @@ public:
 private:
 	void updatePitchBendOutput(bool outputToo = true);
 };
-
-#endif /* CVINSTRUMENT_H_ */

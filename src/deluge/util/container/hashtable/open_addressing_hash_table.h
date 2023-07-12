@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef OPENADDRESSINGHASHTABLE_H_
-#define OPENADDRESSINGHASHTABLE_H_
+#pragma once
 #include "RZA1/system/r_typedefs.h"
 
 class OpenAddressingHashTable {
@@ -72,5 +71,3 @@ public:
 	void setKeyAtAddress(uint32_t key, void* address);
 	bool doesKeyIndicateEmptyBucket(uint32_t key);
 };
-
-#endif /* OPENADDRESSINGHASHTABLE_H_ */

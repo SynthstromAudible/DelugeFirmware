@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef EditModeUI_h
-#define EditModeUI_h
+#pragma once
 
 #include "gui/views/clip_view.h"
 #include "hid/button.h"
@@ -233,5 +232,3 @@ private:
 };
 
 extern InstrumentClipView instrumentClipView;
-
-#endif

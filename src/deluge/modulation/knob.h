@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef KNOB_H_
-#define KNOB_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 #include "io/midi/learned_midi.h"
@@ -50,5 +49,3 @@ public:
 	bool is14Bit() { return false; }
 	bool topValueIs127() { return false; }
 };
-
-#endif /* KNOB_H_ */

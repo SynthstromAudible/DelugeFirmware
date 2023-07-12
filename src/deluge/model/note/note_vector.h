@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef NOTEVECTOR_H_
-#define NOTEVECTOR_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 
@@ -33,5 +32,3 @@ public:
 
 private:
 };
-
-#endif /* NOTEVECTOR_H_ */

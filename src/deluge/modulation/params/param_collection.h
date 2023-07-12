@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef PARAMCOLLECTION_H_
-#define PARAMCOLLECTION_H_
+#pragma once
 #include "RZA1/system/r_typedefs.h"
 
 class ParamManagerForTimeline;
@@ -78,5 +77,3 @@ public:
 	const int objectSize;
 	int32_t ticksTilNextEvent;
 };
-
-#endif /* PARAMCOLLECTION_H_ */

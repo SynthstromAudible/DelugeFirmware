@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef BROWSER_H_
-#define BROWSER_H_
+#pragma once
 
 #include "util/container/array/c_string_array.h"
 #include "storage/file_item.h"
@@ -142,5 +141,3 @@ protected:
 	char const* filePrefix;
 	bool shouldInterpretNoteNamesForThisBrowser;
 };
-
-#endif /* BROWSER_H_ */

@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CONSEQUENCESWINGCHANGE_H_
-#define CONSEQUENCESWINGCHANGE_H_
+#pragma once
 
 #include "model/consequence/consequence.h"
 #include "RZA1/system/r_typedefs.h"
@@ -28,5 +27,3 @@ public:
 
 	int8_t swing[2];
 };
-
-#endif /* CONSEQUENCESWINGCHANGE_H_ */

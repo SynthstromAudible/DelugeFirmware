@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MULTIRANGEARRAY_H_
-#define MULTIRANGEARRAY_H_
+#pragma once
 
 #include "util/container/array/ordered_resizeable_array.h"
 
@@ -31,5 +30,3 @@ public:
 	MultiRange* insertMultiRange(int i);
 	int changeType(int newSize);
 };
-
-#endif /* MULTIRANGEARRAY_H_ */

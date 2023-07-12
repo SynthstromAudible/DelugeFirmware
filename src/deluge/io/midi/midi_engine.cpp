@@ -27,6 +27,7 @@
 #include "RZA1/mtu/mtu.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
+#include "hid/hid_sysex.h"
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
@@ -43,7 +44,6 @@ void usb_cstd_usb_task();
 #include "RZA1/usb/r_usb_hmidi/src/inc/r_usb_hmidi.h"
 
 extern uint16_t g_usb_peri_connected;
-extern uint16_t g_usb_usbmode;
 
 uint8_t stopSendingAfterDeviceNum[USB_NUM_USBIP];
 uint8_t usbDeviceNumBeingSentToNow[USB_NUM_USBIP];
@@ -65,13 +65,13 @@ void usb_cstd_set_nak(usb_utr_t* ptr, uint16_t pipe);
 void hw_usb_clear_pid(usb_utr_t* ptr, uint16_t pipeno, uint16_t data);
 uint16_t hw_usb_read_pipectr(usb_utr_t* ptr, uint16_t pipeno);
 
-void flushUSBMIDIToHostedDevice(int ip, int d);
+void flushUSBMIDIToHostedDevice(int ip, int d, bool resume = false);
 
 uint8_t currentDeviceNumWithSendPipe[USB_NUM_USBIP][2] = {
     MAX_NUM_USB_MIDI_DEVICES, MAX_NUM_USB_MIDI_DEVICES}; // One without, and one with, interrupt endpoints
 
 // We now bypass calling this for successful as peripheral on A1 (see usb_pstd_bemp_pipe_process_rohan_midi())
-void usbSendComplete(int ip) {
+void usbSendCompleteAsHost(int ip) {
 
 	int midiDeviceNum = usbDeviceNumBeingSentToNow[ip];
 
@@ -79,39 +79,41 @@ void usbSendComplete(int ip) {
 
 	connectedDevice->numBytesSendingNow = 0; // We just do this instead from caller on A1 (see comment above)
 
-	bool inHostMode = (g_usb_usbmode == USB_HOST);
+	// check if there was more to send on the same device, then resume sending
+	bool has_more = connectedDevice->consumeSendData();
+	if (has_more) {
+		// TODO: do some cooperative scheduling here. so if there is a flood of data
+		// on connected device 1 and we just want to send a few notes on device 2,
+		// make sure device 2 ges a fair shot now and then
 
-	// If in host mode, see if we want to send to another device
-	if (inHostMode) {
-
-		// If that was the last device we were going to send to, that send's been done, so we can just get out.
-		if (midiDeviceNum == stopSendingAfterDeviceNum[ip]) {
-			goto finishedAllSending;
-		}
-
-		while (true) {
-			midiDeviceNum++;
-			if (midiDeviceNum >= MAX_NUM_USB_MIDI_DEVICES) {
-				midiDeviceNum -= MAX_NUM_USB_MIDI_DEVICES;
-			}
-			connectedDevice = &connectedUSBMIDIDevices[ip][midiDeviceNum];
-			if (connectedDevice->device && connectedDevice->numBytesSendingNow) {
-				break; // If got connected device, flush to it
-			}
-			if (midiDeviceNum
-			    == stopSendingAfterDeviceNum
-			        [ip]) { // If reached end of devices and last one got disconnected in the interim (very rare)
-				usbDeviceNumBeingSentToNow[ip] = stopSendingAfterDeviceNum[ip];
-				goto finishedAllSending;
-			}
-		}
-
-		// If here, we got a connected device, so flush
-		flushUSBMIDIToHostedDevice(ip, midiDeviceNum);
+		flushUSBMIDIToHostedDevice(ip, midiDeviceNum, true);
+		return;
 	}
-	else {
-finishedAllSending:
+
+	// If that was the last device we were going to send to, that send's been done, so we can just get out.
+	if (midiDeviceNum == stopSendingAfterDeviceNum[ip]) {
 		anyUSBSendingStillHappening[ip] = 0;
+		return;
+	}
+
+	while (true) {
+		midiDeviceNum++;
+		if (midiDeviceNum >= MAX_NUM_USB_MIDI_DEVICES) {
+			midiDeviceNum -= MAX_NUM_USB_MIDI_DEVICES;
+		}
+		connectedDevice = &connectedUSBMIDIDevices[ip][midiDeviceNum];
+		if (connectedDevice->device && connectedDevice->numBytesSendingNow) {
+			// If here, we got a connected device, so flush
+			flushUSBMIDIToHostedDevice(ip, midiDeviceNum);
+			return;
+		}
+		if (midiDeviceNum
+		    == stopSendingAfterDeviceNum
+		        [ip]) { // If reached end of devices and last one got disconnected in the interim (very rare)
+			usbDeviceNumBeingSentToNow[ip] = stopSendingAfterDeviceNum[ip];
+			anyUSBSendingStillHappening[ip] = 0;
+			return;
+		}
 	}
 }
 
@@ -132,7 +134,35 @@ void usbSendCompletePeripheralOrA1(usb_utr_t* p_mess, uint16_t data1, uint16_t d
 	int ip = p_mess->ip;
 #endif
 
-	usbSendComplete(ip);
+	usbSendCompleteAsHost(ip);
+}
+
+void usbSendCompleteAsPeripheral(int ip) {
+	ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][0];
+	connectedDevice->numBytesSendingNow = 0; // Even easier!
+	                                         //
+
+	// I think this could happen as part of a detach see detachedAsPeripheral()
+	if (anyUSBSendingStillHappening[ip] == 0) {
+		return;
+	}
+
+	bool has_more = connectedDevice->consumeSendData();
+	if (has_more) {
+		// this is already the case:
+		// anyUSBSendingStillHappening[ip] = 1;
+
+		g_usb_midi_send_utr[ip].tranlen = connectedDevice->numBytesSendingNow;
+		g_usb_midi_send_utr[ip].p_tranadr = connectedDevice->dataSendingNow;
+
+		usb_send_start_rohan(NULL, USB_CFG_PMIDI_BULK_OUT, connectedDevice->dataSendingNow,
+		                     connectedDevice->numBytesSendingNow);
+	}
+	else {
+		// this effectively serves as a lock, does the sending part of the device, including the read part of the
+		// ring buffer "belong" to ongoing/scheduled interrupts. Document this better.
+		anyUSBSendingStillHappening[0] = 0;
+	}
 }
 
 void usbReceiveComplete(int ip, int deviceNum, int tranlen) {
@@ -191,6 +221,10 @@ MidiEngine::MidiEngine() {
 
 	for (int ip = 0; ip < USB_NUM_USBIP; ip++) {
 
+		// This might not be used due to the change in r_usb_hlibusbip (deluge is host) to call usbSendCompleteAsHost() directly
+		// and the change in r_usb_plibusbip (deluge is pheriperal) to just set some variables
+		// or it might be used for some other interrups like error conditions???
+		// TODO: try to delet this and see if something breaks..
 		g_usb_midi_send_utr[ip].complete = (usb_cb_t)usbSendCompletePeripheralOrA1;
 
 		g_usb_midi_send_utr[ip].p_setup = 0; /* Setup message address set */
@@ -210,29 +244,32 @@ MidiEngine::MidiEngine() {
 	}
 }
 
-extern "C" void flushUSBMIDIToHostedDevice(int ip, int d) {
+void flushUSBMIDIToHostedDevice(int ip, int d, bool resume) {
 
 	ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][d];
 
 	int pipeNumber = g_usb_hmidi_tmp_ep_tbl[USB_CFG_USE_USBIP][d][0];
 
-	g_usb_midi_send_utr[USB_CFG_USE_USBIP].keyword = pipeNumber;
 	g_usb_midi_send_utr[USB_CFG_USE_USBIP].tranlen = connectedDevice->numBytesSendingNow;
 	g_usb_midi_send_utr[USB_CFG_USE_USBIP].p_tranadr = connectedDevice->dataSendingNow;
 
-	usbDeviceNumBeingSentToNow[USB_CFG_USE_USBIP] = d;
+	// if resuming an ongoing send to the same device, the pipe will already be set up
+	if (!resume) {
+		g_usb_midi_send_utr[USB_CFG_USE_USBIP].keyword = pipeNumber;
+		usbDeviceNumBeingSentToNow[USB_CFG_USE_USBIP] = d;
 
-	int isInterrupt = (pipeNumber == USB_CFG_HMIDI_INT_SEND);
+		int isInterrupt = (pipeNumber == USB_CFG_HMIDI_INT_SEND);
 
-	if (d != currentDeviceNumWithSendPipe[USB_CFG_USE_USBIP][isInterrupt]) {
-		currentDeviceNumWithSendPipe[USB_CFG_USE_USBIP][isInterrupt] = d;
-		change_destination_of_send_pipe(&g_usb_midi_send_utr[USB_CFG_USE_USBIP], pipeNumber,
-		                                g_usb_hmidi_tmp_ep_tbl[USB_CFG_USE_USBIP][d], connectedDevice->sq);
+		if (d != currentDeviceNumWithSendPipe[USB_CFG_USE_USBIP][isInterrupt]) {
+			currentDeviceNumWithSendPipe[USB_CFG_USE_USBIP][isInterrupt] = d;
+			change_destination_of_send_pipe(&g_usb_midi_send_utr[USB_CFG_USE_USBIP], pipeNumber,
+			                                g_usb_hmidi_tmp_ep_tbl[USB_CFG_USE_USBIP][d], connectedDevice->sq);
+		}
+
+		connectedDevice->sq = !connectedDevice->sq;
+
+		g_p_usb_pipe[pipeNumber] = &g_usb_midi_send_utr[USB_CFG_USE_USBIP];
 	}
-
-	connectedDevice->sq = !connectedDevice->sq;
-
-	g_p_usb_pipe[pipeNumber] = &g_usb_midi_send_utr[USB_CFG_USE_USBIP];
 
 	usb_send_start_rohan(&g_usb_midi_send_utr[USB_CFG_USE_USBIP], pipeNumber, connectedDevice->dataSendingNow,
 	                     connectedDevice->numBytesSendingNow);
@@ -253,10 +290,15 @@ void MidiEngine::flushUSBMIDIOutput() {
 
 	anythingInUSBOutputBuffer = false;
 
+	// is this still relevant? anyUSBSendingStillHappening[ip] acts as the lock between routine and interrupt
+	// on the sending side. all other uses of usbLock seems to be about _receiving_. Can there be a conflict
+	// between sending and receiving as well??
 	usbLock = 1;
 
 	for (int ip = 0; ip < USB_NUM_USBIP; ip++) {
 		if (anyUSBSendingStillHappening[ip]) {
+			// still sending, call me later maybe
+			anythingInUSBOutputBuffer = true;
 			continue;
 		}
 
@@ -266,16 +308,9 @@ void MidiEngine::flushUSBMIDIOutput() {
 		if (aPeripheral) {
 			ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][0];
 
-			if (!connectedDevice->numMessagesQueued) {
+			if (!connectedDevice->consumeSendData()) {
 				continue;
 			}
-
-			// Copy the data into the actual output buffer
-			// Note - does this mean it's fine to have multiple devices sharing one physical device?
-			// Or would that slow it down? Probably depends how fast this section is
-			connectedDevice->numBytesSendingNow = connectedDevice->numMessagesQueued << 2;
-			connectedDevice->numMessagesQueued = 0;
-			memcpy(connectedDevice->dataSendingNow, connectedDevice->preSendData, connectedDevice->numBytesSendingNow);
 
 			g_usb_midi_send_utr[ip].keyword = USB_CFG_PMIDI_BULK_OUT;
 			g_usb_midi_send_utr[ip].tranlen = connectedDevice->numBytesSendingNow;
@@ -287,6 +322,8 @@ void MidiEngine::flushUSBMIDIOutput() {
 			g_p_usb_pipe[USB_CFG_PMIDI_BULK_OUT] = &g_usb_midi_send_utr[ip];
 			usb_send_start_rohan(NULL, USB_CFG_PMIDI_BULK_OUT, connectedDevice->dataSendingNow,
 			                     connectedDevice->numBytesSendingNow);
+
+			// when done, usbSendCompleteAsPeripheral() will be called in an interrupt
 		}
 
 		else if (potentiallyAHost) {
@@ -305,7 +342,7 @@ void MidiEngine::flushUSBMIDIOutput() {
 			// Make sure that's on a connected device - it probably would be...
 			while (true) {
 				ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][midiDeviceNumToSendTo];
-				if (connectedDevice->device && connectedDevice->numMessagesQueued) {
+				if (connectedDevice->device && connectedDevice->hasBufferedSendData()) {
 					break; // We found a connected one
 				}
 				if (midiDeviceNumToSendTo == newStopSendingAfter) {
@@ -321,7 +358,7 @@ void MidiEngine::flushUSBMIDIOutput() {
 			while (true) {
 				ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][newStopSendingAfter];
 
-				if (connectedDevice->device && connectedDevice->numMessagesQueued) {
+				if (connectedDevice->device && connectedDevice->hasBufferedSendData()) {
 					break; // We found a connected one
 				}
 
@@ -336,12 +373,8 @@ void MidiEngine::flushUSBMIDIOutput() {
 			while (true) {
 				ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][d];
 
-				if (connectedDevice->device && connectedDevice->numMessagesQueued) {
-					// Copy the data into the actual output buffer
-					connectedDevice->numBytesSendingNow = connectedDevice->numMessagesQueued << 2;
-					connectedDevice->numMessagesQueued = 0;
-					memcpy(connectedDevice->dataSendingNow, connectedDevice->preSendData,
-					       connectedDevice->numBytesSendingNow);
+				if (connectedDevice->device) {
+					connectedDevice->consumeSendData();
 				}
 				if (d == newStopSendingAfter) {
 					break;
@@ -481,10 +514,13 @@ void MidiEngine::sendUsbMidi(uint8_t statusType, uint8_t channel, uint8_t data1,
 
 		for (int d = 0; d < potentialNumDevices; d++) {
 			ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][d];
+			if (!connectedDevice->canHaveMIDISent) {
+				continue;
+			}
 			int maxPort = connectedDevice->maxPortConnected;
 			for (int p = 0; p <= maxPort; p++) {
-
-				if (connectedDevice->device[p] && connectedDevice->canHaveMIDISent
+				if (connectedDevice->device[p]
+				    && connectedDevice->device[p] != &MIDIDeviceManager::upstreamUSBMIDIDevice_port3
 				    && (statusType == 0x0F
 				        || connectedDevice->device[p]->wantsToOutputMIDIOnChannel(channel, filter))) {
 
@@ -567,7 +603,8 @@ bool MidiEngine::checkIncomingSerialMidi() {
 					currentlyReceivingSysExSerial = false;
 					if (dev->incomingSysexPos < sizeof dev->incomingSysexBuffer) {
 						dev->incomingSysexBuffer[dev->incomingSysexPos++] = thisSerialByte;
-						midiSysexReceived(-1, -1, 0, dev->incomingSysexBuffer, dev->incomingSysexPos);
+						midiSysexReceived(&MIDIDeviceManager::dinMIDIPorts, dev->incomingSysexBuffer,
+						                  dev->incomingSysexPos);
 					}
 				}
 				return true;
@@ -679,13 +716,13 @@ void MidiEngine::checkIncomingUsbSysex(uint8_t const* msg, int ip, int d, int ca
 
 	if (will_end) {
 		if (dev->incomingSysexBuffer[0] == 0xf0) {
-			midiSysexReceived(ip, d, cable, dev->incomingSysexBuffer, dev->incomingSysexPos);
+			midiSysexReceived(dev, dev->incomingSysexBuffer, dev->incomingSysexPos);
 		}
 		dev->incomingSysexPos = 0;
 	}
 }
 
-void MidiEngine::midiSysexReceived(int ip, int d, int cable, uint8_t* data, int len) {
+void MidiEngine::midiSysexReceived(MIDIDevice* device, uint8_t* data, int len) {
 	if (len < 4) {
 		return;
 	}
@@ -699,66 +736,20 @@ void MidiEngine::midiSysexReceived(int ip, int d, int cable, uint8_t* data, int 
 			if (len >= 5) {
 				pong[3] = data[3];
 			}
-			sendSysex(ip, d, cable, pong, sizeof pong);
+			device->sendSysex(pong, sizeof pong);
 		} break;
 
 		case 1:
 			numericDriver.displayPopup(HAVE_OLED ? "hello sysex" : "SYSX");
 			break;
 
+		case 2:
+			HIDSysex::sysexReceived(device, data, len);
+			break;
+
 		case 0x7f: // PONG, reserved
 		default:
 			break;
-		}
-	}
-}
-
-void MidiEngine::sendSysex(int ip, int d, int cable, uint8_t* data, int len) {
-	if (len < 4 || data[0] != 0xf0 || data[len - 1] != 0xf7) {
-		return;
-	}
-
-	if (ip < 0) {
-		// NB: beware of MIDI_TX_BUFFER_SIZE
-		for (int i = 0; i < len; i++) {
-			bufferMIDIUart(data[i]);
-		}
-	}
-	else {
-		int potentialNumDevices = getPotentialNumConnectedUSBMIDIDevices(ip);
-
-		if (d >= potentialNumDevices) {
-			return;
-		}
-		ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][d];
-		int maxPort = connectedDevice->maxPortConnected;
-		if (cable > maxPort) {
-			return;
-		}
-
-		int pos = 0;
-		while (pos < len) {
-			int status, byte0 = 0, byte1 = 0, byte2 = 0;
-			byte0 = data[pos];
-			if (pos == 0 || len - pos > 3) {
-				status = 0x4; // sysex start or continue
-				byte1 = data[pos + 1];
-				byte2 = data[pos + 2];
-				pos += 3;
-			}
-			else {
-				status = 0x4 + (len - pos); // sysex end with N bytes
-				if ((len - pos) > 1) {
-					byte1 = data[pos + 1];
-				}
-				if ((len - pos) > 2) {
-					byte2 = data[pos + 2];
-				}
-				pos = len;
-			}
-			status |= (cable << 4);
-			uint32_t packed = ((uint32_t)byte2 << 24) | ((uint32_t)byte1 << 16) | ((uint32_t)byte0 << 8) | status;
-			connectedDevice->bufferMessage(packed);
 		}
 	}
 }

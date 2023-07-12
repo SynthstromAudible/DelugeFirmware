@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef STEALABLE_H_
-#define STEALABLE_H_
+#pragma once
 
 #include "util/container/list/bidirectional_linked_list.h"
 
@@ -31,5 +30,3 @@ public:
 
 	uint32_t lastTraversalNo;
 };
-
-#endif /* STEALABLE_H_ */

@@ -18,16 +18,20 @@
 #pragma once
 
 #include "gui/menu_item/selection.h"
+#include "model/settings/runtime_feature_settings.h"
 
 namespace menu_item::runtime_feature {
 class Settings;
 class Setting final : public Selection {
 public:
-	using Selection::Selection;
+	explicit Setting(RuntimeFeatureSettingType ty);
+
 	void readCurrentValue();
 	void writeCurrentValue();
 	char const** getOptions();
 	int getNumOptions();
+	char const* getName();
+	char const* getTitle();
 
 private:
 	friend class Settings;

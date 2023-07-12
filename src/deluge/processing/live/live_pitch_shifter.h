@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef LIVEPITCHSHIFTER_H_
-#define LIVEPITCHSHIFTER_H_
+#pragma once
 
 #include "definitions.h"
 #include "processing/live/live_pitch_shifter_play_head.h"
@@ -62,5 +61,3 @@ private:
 	void considerRepitchedBuffer(int32_t phaseIncrement);
 	bool olderPlayHeadIsCurrentlySounding();
 };
-
-#endif /* LIVEPITCHSHIFTER_H_ */

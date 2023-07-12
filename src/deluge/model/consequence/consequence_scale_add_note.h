@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CONSEQUENCESCALEADDNOTE_H_
-#define CONSEQUENCESCALEADDNOTE_H_
+#pragma once
 
 #include "model/consequence/consequence.h"
 #include "RZA1/system/r_typedefs.h"
@@ -28,5 +27,3 @@ public:
 
 	uint8_t noteWithinOctave;
 };
-
-#endif /* CONSEQUENCESCALEADDNOTE_H_ */

@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef INSTRUMENTCLIP_H
-#define INSTRUMENTCLIP_H
+#pragma once
 
 #include "model/clip/clip.h"
 #include "model/timeline_counter.h"
@@ -256,5 +255,3 @@ private:
 	int32_t lastProbabiltyPos[NUM_PROBABILITY_VALUES];
 	bool currentlyRecordingLinearly;
 };
-
-#endif

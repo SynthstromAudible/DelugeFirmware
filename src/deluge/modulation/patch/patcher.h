@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef PATCHABLE_H
-#define PATCHABLE_H
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 
@@ -69,5 +68,3 @@ private:
 
 	const PatchableInfo* const patchableInfo;
 };
-
-#endif // PATCHABLE_H

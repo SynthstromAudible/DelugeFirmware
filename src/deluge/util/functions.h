@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef FUNCTIONS_H
-#define FUNCTIONS_H
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 #include "util/lookuptables/lookuptables.h"
@@ -34,8 +33,6 @@ extern UI* getCurrentUI();
 
 extern const uint8_t modButtonX[];
 extern const uint8_t modButtonY[];
-extern const uint8_t modLedX[];
-extern const uint8_t modLedY[];
 
 extern uint8_t subModeToReturnTo;
 
@@ -243,11 +240,6 @@ int32_t getFinalParameterValueExp(int32_t paramNeutralValue, int32_t patchedValu
 int32_t getFinalParameterValueExpWithDumbEnvelopeHack(int32_t paramNeutralValue, int32_t patchedValue, int p);
 
 void addAudio(StereoSample* inputBuffer, StereoSample* outputBuffer, int numSamples);
-
-void setRefreshTime(int newTime);
-void changeRefreshTime(int offset);
-void changeDimmerInterval(int offset);
-void setDimmerInterval(int newInterval);
 
 #if HAVE_OLED
 char const* getSourceDisplayNameForOLED(int s);
@@ -483,12 +475,7 @@ inline void getTailColour(uint8_t rgb[], uint8_t fromRgb[]) {
 	unsigned int averageBrightness = ((unsigned int)fromRgb[0] + fromRgb[1] + fromRgb[2]);
 	rgb[0] = (((int)fromRgb[0] * 21 + averageBrightness) * 157) >> 14;
 	rgb[1] = (((int)fromRgb[1] * 21 + averageBrightness) * 157) >> 14;
-
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-	rgb[2] = (((int)averageBrightness) * 157) >> 14;
-#else
 	rgb[2] = (((int)fromRgb[2] * 21 + averageBrightness) * 157) >> 14;
-#endif
 }
 
 inline void getBlurColour(uint8_t rgb[], uint8_t fromRgb[]) {
@@ -571,7 +558,8 @@ inline void writeInt32(char** address, uint32_t number) {
 	*address += 4;
 }
 
+int pack_8bit_to_7bit(uint8_t* dst, int dst_size, uint8_t* src, int src_len);
+int unpack_7bit_to_8bit(uint8_t* dst, int dst_size, uint8_t* src, int src_len);
+
 extern char miscStringBuffer[];
 extern char shortStringBuffer[];
-
-#endif // FUNCTIONS_H

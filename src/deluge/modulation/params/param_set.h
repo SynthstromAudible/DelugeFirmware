@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef PARAMSET_H_
-#define PARAMSET_H_
+#pragma once
 
 #include "modulation/automation/auto_param.h"
 #include "definitions.h"
@@ -140,5 +139,3 @@ public:
 	// in which case they do move to the backedUpParamManager. This is exactly the persistence we want for bendRanges too.
 	uint8_t bendRanges[2];
 };
-
-#endif /* PARAMSET_H_ */

@@ -18,14 +18,15 @@
 #include "gui/views/arranger_view.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
-#include "gui/context_menu/contextmenuclearsong.h"
-#include "gui/context_menu/context_menu_sample_browser_kit.h"
-#include "gui/context_menu/context_menu_sample_browser_synth.h"
+#include "gui/context_menu/clear_song.h"
+#include "gui/context_menu/sample_browser/kit.h"
+#include "gui/context_menu/sample_browser/synth.h"
 #include "model/clip/instrument_clip_minder.h"
 #include "gui/views/instrument_clip_view.h"
 #include "modulation/params/param_manager.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "RZA1/system/iodefine.h"
+#include "hid/led/pad_leds.h"
 
 #include <stdlib.h>
 #include <new>
@@ -48,7 +49,7 @@
 #include "gui/ui/slicer.h"
 #include "hid/encoder.h"
 #include <string.h>
-#include "gui/context_menu/save_song_or_instrument_context_menu.h"
+#include "gui/context_menu/save_song_or_instrument.h"
 #include "gui/views/session_view.h"
 #include "gui/waveform/waveform_renderer.h"
 #include "playback/mode/arrangement.h"
@@ -56,10 +57,10 @@
 #include "storage/storage_manager.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/rename/rename_drum_ui.h"
-#include "gui/context_menu/context_menu_overwrite_file.h"
-#include "gui/context_menu/context_menu_delete_file.h"
+#include "gui/context_menu/overwrite_file.h"
+#include "gui/context_menu/delete_file.h"
 #include "gui/context_menu/audio_input_selector.h"
-#include "gui/context_menu/context_menu_load_instrument_preset.h"
+#include "gui/context_menu/load_instrument_preset.h"
 #include "gui/ui/sample_marker_editor.h"
 #include "gui/waveform/waveform_basic_navigator.h"
 #include "gui/views/audio_clip_view.h"
@@ -80,7 +81,7 @@
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/save/save_song_ui.h"
 #include "hid/display/oled.h"
-#include "gui/context_menu/context_menu_overwrite_bootloader.h"
+#include "gui/context_menu/overwrite_bootloader.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "deluge.h"
 
@@ -135,14 +136,12 @@ uint16_t batteryMV;
 bool batteryLEDState = false;
 
 void batteryLEDBlink() {
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 	setOutputState(BATTERY_LED_1, BATTERY_LED_2, batteryLEDState);
 	int blinkPeriod = ((int)batteryMV - 2630) * 3;
 	blinkPeriod = getMin(blinkPeriod, 500);
 	blinkPeriod = getMax(blinkPeriod, 60);
 	uiTimerManager.setTimer(TIMER_BATT_LED_BLINK, blinkPeriod);
 	batteryLEDState = !batteryLEDState;
-#endif
 }
 
 void inputRoutine() {
@@ -152,7 +151,6 @@ void inputRoutine() {
 	bool outputPluggedInL = readInput(LINE_OUT_DETECT_L_1, LINE_OUT_DETECT_L_2);
 	bool outputPluggedInR = readInput(LINE_OUT_DETECT_R_1, LINE_OUT_DETECT_R_2);
 
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 	bool headphoneNow = readInput(HEADPHONE_DETECT_1, HEADPHONE_DETECT_2);
 	if (headphoneNow != AudioEngine::headphonesPluggedIn) {
 		Uart::print("headphone ");
@@ -182,12 +180,7 @@ void inputRoutine() {
 		AudioEngine::lineInPluggedIn = lineInNow;
 	}
 
-#else
-	AudioEngine::renderInStereo = !(outputPluggedInL && !outputPluggedInR);
-#endif
-
 	// Battery voltage
-#if DELUGE_MODEL >= DELUGE_MODEL_144_PAD
 	// If analog read is ready...
 
 	if (ADC.ADCSR & (1 << 15)) {
@@ -233,7 +226,6 @@ makeBattLEDSolid:
 
 	// Set up for next analog read
 	ADC.ADCSR = (1 << 13) | (0b011 << 6) | SYS_VOLT_SENSE_PIN;
-#endif
 
 	MIDIDeviceManager::slowRoutine();
 
@@ -328,12 +320,8 @@ bool readButtonsAndPads() {
 
 		if (value < PAD_AND_BUTTON_MESSAGES_END) {
 
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-			bool thisPadPressIsOn = (value >= 70);
-#else
 			int thisPadPressIsOn = nextPadPressIsOn;
 			nextPadPressIsOn = USE_DEFAULT_VELOCITY;
-#endif
 
 			int result;
 			if (Pad::isPad(value)) {
@@ -506,29 +494,18 @@ extern "C" int deluge_main(void) {
 	bufferPICUart(18); // Set debounce time (mS) to...
 	bufferPICUart(20);
 
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-	setRefreshTime(12);
-	bufferPICUart(20); // Set flash length
-	bufferPICUart(6);
-#else
-	setRefreshTime(23);
+	PadLEDs::setRefreshTime(23);
 
-#if DELUGE_MODEL >= DELUGE_MODEL_144_PAD
 	bufferPICUart(244); // Set min interrupt interval
 	bufferPICUart(8);
-#endif
 
 	bufferPICUart(23); // Set flash length
 	bufferPICUart(6);
 
-#endif
-
-#if DELUGE_MODEL >= DELUGE_MODEL_144_PAD
 	int newSpeedNumber = 4000000.0f / UART_FULL_SPEED_PIC_PADS_HZ - 0.5f;
-	bufferPICPadsUart(225);            // Set UART speed
-	bufferPICPadsUart(newSpeedNumber); // Speed is 4MHz / (x + 1)
+	bufferPICUart(225);            // Set UART speed
+	bufferPICUart(newSpeedNumber); // Speed is 4MHz / (x + 1)
 	uartFlushIfNotSending(UART_ITEM_PIC_PADS);
-#endif
 
 	// Setup SDRAM. Have to do this before setting up AudioEngine
 	userdef_bsc_cs2_init(0); // 64MB, hardcoded
@@ -559,8 +536,6 @@ extern "C" int deluge_main(void) {
 	setOutputState(SYNCED_LED_PORT, SYNCED_LED_PIN, 0); // Switch it off
 	setPinAsOutput(SYNCED_LED_PORT, SYNCED_LED_PIN);    // Synced LED
 
-#if DELUGE_MODEL >= DELUGE_MODEL_144_PAD
-
 	// Codec control
 	setPinAsOutput(6, 12);
 	setOutputState(6, 12, 0); // Switch it off
@@ -574,22 +549,6 @@ extern "C" int deluge_main(void) {
 	setPinAsInput(7, 9);                                   // Mic detect
 
 	setPinMux(1, 8 + SYS_VOLT_SENSE_PIN, 1); // Analog input for voltage sense
-
-#else
-	// SD CD pin
-	setPinAsInput(6, 7);
-
-	// SPI 0 for SD
-	R_RSPI_Create(0, 400000, 1, 8); // 400000
-	R_RSPI_Start(0);
-	setPinMux(6, 0, 3);
-	setPinMux(6, 2, 3);
-	setPinMux(6, 3, 3);
-	// Non-automatic SSL pin for SD SPI
-	//setPinMux(6, 1, 3);
-	setPinAsOutput(6, 1);
-	setOutputState(6, 1, 1);
-#endif
 
 	// Trigger clock input
 	setPinMux(ANALOG_CLOCK_IN_1, ANALOG_CLOCK_IN_2, 2);
@@ -644,14 +603,11 @@ extern "C" int deluge_main(void) {
 	// Setup for gate output
 	cvEngine.init();
 
-#if DELUGE_MODEL == DELUGE_MODEL_144_PAD
-
 	// Wait for PIC Uart to flush out. Could this help Ron R with his Deluge sometimes not booting? (No probably wasn't that.) Otherwise didn't seem necessary.
 	while (!(DMACn(PIC_TX_DMA_CHANNEL).CHSTAT_n & (1 << 6))) {}
 
 	uartSetBaudRate(UART_CHANNEL_PIC, UART_FULL_SPEED_PIC_PADS_HZ);
 	setOutputState(6, 12, 1); // Enable codec
-#endif
 
 	AudioEngine::init();
 
@@ -696,8 +652,8 @@ extern "C" int deluge_main(void) {
 	setPinMux(4, 7, 2);
 	initSPIBSC(); // This will run the audio routine! Ideally, have external RAM set up by now.
 
-	bufferPICIndicatorsUart(245);                          // Request PIC firmware version
-	bufferPICIndicatorsUart(RESEND_BUTTON_STATES_MESSAGE); // Tell PIC to re-send button states
+	bufferPICUart(245);                          // Request PIC firmware version
+	bufferPICUart(RESEND_BUTTON_STATES_MESSAGE); // Tell PIC to re-send button states
 	uartFlushIfNotSending(UART_ITEM_PIC_INDICATORS);
 
 	// Check if the user is holding down the select knob to do a factory reset
@@ -726,13 +682,7 @@ extern "C" int deluge_main(void) {
 			else if (value == 253) {
 				break;
 			}
-			else if (value ==
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-			         (110 + selectEncButtonY * 10 + selectEncButtonX)
-#else
-			         175
-#endif
-			) {
+			else if (value == 175) {
 				if (looksOk) {
 					goto resetSettings;
 				}
@@ -757,6 +707,7 @@ resetSettings:
 		FlashStorage::writeSettings();
 	}
 
+	runtimeFeatureSettings.init();
 	runtimeFeatureSettings.readSettingsFromFile();
 
 	usbLock = 1;
@@ -1254,13 +1205,11 @@ void spamMode() {
 
 				// Enable
 				else {
-					setPinMux(7, 11, 6); // AUDIO_XOUT
-					setPinMux(6, 9, 3);  // SSI0 word select
-					setPinMux(6, 10, 3); // SSI0 tx
-					setPinMux(6, 8, 3);  // SSI0 serial clock
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
-					setPinMux(6, 11, 3); // SSI0 rx
-#endif
+					setPinMux(7, 11, 6);      // AUDIO_XOUT
+					setPinMux(6, 9, 3);       // SSI0 word select
+					setPinMux(6, 10, 3);      // SSI0 tx
+					setPinMux(6, 8, 3);       // SSI0 serial clock
+					setPinMux(6, 11, 3);      // SSI0 rx
 					setOutputState(6, 12, 1); // Switch codec on
 
 					setOutputState(SPEAKER_ENABLE_1, SPEAKER_ENABLE_2, 1); // Speaker on

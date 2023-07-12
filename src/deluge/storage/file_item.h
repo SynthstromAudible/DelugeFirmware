@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef FILEITEM_H_
-#define FILEITEM_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 #include "util/d_string.h"
@@ -41,5 +40,3 @@ public:
 	bool instrumentAlreadyInSong; // Only valid if instrument is set to something.
 	bool filenameIncludesExtension;
 };
-
-#endif /* FILEITEM_H_ */

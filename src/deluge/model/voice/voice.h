@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef VOICE_H
-#define VOICE_H
+#pragma once
 
 #include "modulation/patch/patcher.h"
 #include "model/voice/voice_sample_playback_guide.h"
@@ -127,5 +126,3 @@ private:
 	void setupPorta(Sound* sound);
 	int32_t combineExpressionValues(Sound* sound, int whichExpressionDimension);
 };
-
-#endif // VOICE_H

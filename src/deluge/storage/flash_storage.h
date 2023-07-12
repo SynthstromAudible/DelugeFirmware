@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef FLASHSTORAGE_H_
-#define FLASHSTORAGE_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 
@@ -42,5 +41,3 @@ void writeSettings();
 void resetSettings();
 
 } // namespace FlashStorage
-
-#endif /* FLASHSTORAGE_H_ */

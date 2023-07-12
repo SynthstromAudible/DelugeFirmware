@@ -94,10 +94,6 @@ extern char_t midiTxBuffer[];
         uartItems[UART_ITEM_MIDI].txBufferWritePos &= (PIC_TX_BUFFER_SIZE - 1);                                        \
     } while (0)
 
-// Aliases
-#define bufferPICIndicatorsUart(charToSend) bufferPICUart(charToSend)
-#define bufferPICPadsUart(charToSend)       bufferPICUart(charToSend)
-
 /* SIO_CHAR_H */
 #endif
 

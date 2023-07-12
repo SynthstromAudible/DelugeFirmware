@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef SaveSongUI_h
-#define SaveSongUI_h
+#pragma once
 
 #include "gui/ui/save/save_ui.h"
 
@@ -30,10 +29,6 @@ public:
 	//void selectEncoderAction(int8_t offset);
 	bool performSave(bool mayOverwrite = false);
 
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-	int padAction(int x, int y, int velocity);
-#endif
-
 	bool collectingSamples;
 
 protected:
@@ -41,5 +36,3 @@ protected:
 };
 
 extern SaveSongUI saveSongUI;
-
-#endif

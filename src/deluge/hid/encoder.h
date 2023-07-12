@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef Encoder_h
-#define Encoder_h
+#pragma once
 
 #define encMinBacktrackTime (20 * 44) // In milliseconds/44
 #include "RZA1/system/r_typedefs.h"
@@ -44,5 +43,3 @@ private:
 	bool doDetents;
 	bool valuesNow[2];
 };
-
-#endif
