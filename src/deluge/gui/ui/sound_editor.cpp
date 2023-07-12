@@ -201,7 +201,7 @@ int SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	using namespace hid::button;
 
 	// Encoder button
-	if (b == SELECT_ENC) {
+	if (b == Button::SELECT_ENC) {
 		if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_AUDITIONING) {
 			if (on) {
 				if (inCardRoutine) {
@@ -237,7 +237,7 @@ int SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	}
 
 	// Back button
-	else if (b == BACK) {
+	else if (b == Button::BACK) {
 		if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_AUDITIONING) {
 			if (on) {
 				if (inCardRoutine) {
@@ -255,7 +255,7 @@ int SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	}
 
 	// Save button
-	else if (b == SAVE) {
+	else if (b == Button::SAVE) {
 		if (on && currentUIMode == UI_MODE_NONE && !inSettingsMenu() && !editingCVOrMIDIClip()
 		    && currentSong->currentClip->type != CLIP_TYPE_AUDIO) {
 			if (inCardRoutine) {
@@ -274,7 +274,7 @@ int SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	}
 
 	// MIDI learn button
-	else if (b == LEARN) {
+	else if (b == Button::LEARN) {
 		if (inCardRoutine) {
 			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
@@ -309,7 +309,7 @@ int SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	}
 
 	// Affect-entire button
-	else if (b == AFFECT_ENTIRE && getRootUI() == &instrumentClipView) {
+	else if (b == Button::AFFECT_ENTIRE && getRootUI() == &instrumentClipView) {
 		if (getCurrentMenuItem()->usesAffectEntire() && editingKit()) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -333,7 +333,7 @@ int SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	}
 
 	// Keyboard button
-	else if (b == KEYBOARD) {
+	else if (b == Button::KEYBOARD) {
 		if (on && currentUIMode == UI_MODE_NONE && !editingKit()) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -884,7 +884,7 @@ int SoundEditor::padAction(int x, int y, int on) {
 }
 
 int SoundEditor::verticalEncoderAction(int offset, bool inCardRoutine) {
-	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(hid::button::X_ENC)) {
+	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(hid::Button::X_ENC)) {
 		return ACTION_RESULT_DEALT_WITH;
 	}
 	return getRootUI()->verticalEncoderAction(offset, inCardRoutine);

@@ -167,7 +167,7 @@ void PlaybackHandler::playButtonPressed(int buttonPressLatency) {
 	else {
 
 		// If holding <> encoder down...
-		if (Buttons::isButtonPressed(hid::button::X_ENC)) {
+		if (Buttons::isButtonPressed(hid::Button::X_ENC)) {
 
 			// If wanting to switch into arranger...
 			if (currentPlaybackMode == &session && getCurrentUI() == &arrangerView) {
@@ -266,7 +266,7 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int buttonPressLatency, bo
 
 	// Allow playback to start from current scroll if holding down <> knob
 	int32_t newPos = 0;
-	if (Buttons::isButtonPressed(hid::button::X_ENC)
+	if (Buttons::isButtonPressed(hid::Button::X_ENC)
 	    || (getRootUI() == &arrangerView && recording == RECORDING_NORMAL)) {
 
 		int navSys;
@@ -1794,7 +1794,7 @@ void PlaybackHandler::tempoEncoderAction(int8_t offset, bool encoderButtonPresse
 	offset = getMax((int8_t)-1, getMin((int8_t)1, offset));
 
 	// Nudging sync
-	if (Buttons::isButtonPressed(hid::button::X_ENC)) {
+	if (Buttons::isButtonPressed(hid::Button::X_ENC)) {
 
 		// If Deluge is using internal clock
 		if (playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE) {
@@ -1837,7 +1837,7 @@ displayNudge:
 	}
 
 	// If MIDI learn button down, change clock out scale
-	else if (Buttons::isButtonPressed(hid::button::LEARN)) {
+	else if (Buttons::isButtonPressed(hid::Button::LEARN)) {
 
 		// If playing synced, double or halve our own playing speed relative to the outside world
 		if (playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE) {
@@ -1886,7 +1886,7 @@ displayNudge:
 	else {
 		if (!(playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE)) {
 
-			if (Buttons::isButtonPressed(hid::button::TEMPO_ENC)) {
+			if (Buttons::isButtonPressed(hid::Button::TEMPO_ENC)) {
 				// Fine tempo adjustment
 				uint32_t tempoBPM = calculateBPM(currentSong->getTimePerTimerTickFloat()) + 0.5;
 				tempoBPM += offset;

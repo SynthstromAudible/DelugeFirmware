@@ -63,7 +63,7 @@ int RenameOutputUI::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	using namespace hid::button;
 
 	// Back button
-	if (b == BACK) {
+	if (b == Button::BACK) {
 		if (on && !currentUIMode) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -73,7 +73,7 @@ int RenameOutputUI::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	}
 
 	// Select encoder button
-	else if (b == SELECT_ENC) {
+	else if (b == Button::SELECT_ENC) {
 		if (on && !currentUIMode) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -133,7 +133,7 @@ int RenameOutputUI::padAction(int x, int y, int on) {
 }
 
 int RenameOutputUI::verticalEncoderAction(int offset, bool inCardRoutine) {
-	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(hid::button::X_ENC)) {
+	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(hid::Button::X_ENC)) {
 		return ACTION_RESULT_DEALT_WITH;
 	}
 	return arrangerView.verticalEncoderAction(offset, inCardRoutine);

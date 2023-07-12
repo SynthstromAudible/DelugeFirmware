@@ -31,9 +31,6 @@ class UI;
 
 extern UI* getCurrentUI();
 
-extern const uint8_t modButtonX[];
-extern const uint8_t modButtonY[];
-
 extern uint8_t subModeToReturnTo;
 
 extern int32_t paramRanges[];

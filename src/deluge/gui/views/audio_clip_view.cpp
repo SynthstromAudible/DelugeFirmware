@@ -296,7 +296,7 @@ int AudioClipView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	int result;
 
 	// Song view button
-	if (b == SESSION_VIEW) {
+	if (b == Button::SESSION_VIEW) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -318,25 +318,25 @@ doOther:
 		}
 	}
 
-	else if (b == PLAY) {
+	else if (b == Button::PLAY) {
 dontDeactivateMarker:
 		return ClipView::buttonAction(b, on, inCardRoutine);
 	}
 
-	else if (b == RECORD) {
+	else if (b == Button::RECORD) {
 		goto dontDeactivateMarker;
 	}
 
-	else if (b == SHIFT) {
+	else if (b == Button::SHIFT) {
 		goto dontDeactivateMarker;
 	}
 
-	else if (b == X_ENC) {
+	else if (b == Button::X_ENC) {
 		goto dontDeactivateMarker;
 	}
 
 	// Select button, without shift
-	else if (b == SELECT_ENC && !Buttons::isShiftButtonPressed()) {
+	else if (b == Button::SELECT_ENC && !Buttons::isShiftButtonPressed()) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -353,7 +353,7 @@ dontDeactivateMarker:
 	}
 
 	// Back button to clear Clip
-	else if (b == BACK && currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
+	else if (b == Button::BACK && currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
 		if (on) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -402,7 +402,7 @@ int AudioClipView::padAction(int x, int y, int on) {
 	// Edit pad action...
 	if (x < displayWidth) {
 
-		if (Buttons::isButtonPressed(hid::button::TEMPO_ENC)) {
+		if (Buttons::isButtonPressed(hid::Button::TEMPO_ENC)) {
 			if (on) {
 				playbackHandler.grabTempoFromClip(getClip());
 			}
@@ -615,7 +615,7 @@ void AudioClipView::selectEncoderAction(int8_t offset) {
 }
 
 int AudioClipView::verticalEncoderAction(int offset, bool inCardRoutine) {
-	if (!currentUIMode && Buttons::isShiftButtonPressed() && !Buttons::isButtonPressed(hid::button::Y_ENC)) {
+	if (!currentUIMode && Buttons::isShiftButtonPressed() && !Buttons::isButtonPressed(hid::Button::Y_ENC)) {
 		if (inCardRoutine && !allowSomeUserActionsEvenWhenInCardRoutine) {
 			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
 		}

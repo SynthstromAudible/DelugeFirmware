@@ -66,7 +66,7 @@ int TimelineView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	using namespace hid::button;
 
 	// Horizontal encoder button
-	if (b == X_ENC) {
+	if (b == Button::X_ENC) {
 		if (on) {
 			// Show current zoom level
 			if (isNoUIModeActive()) {
@@ -86,7 +86,7 @@ int TimelineView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	}
 
 	// Triplets button
-	else if (b == TRIPLETS) {
+	else if (b == Button::TRIPLETS) {
 		if (on) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
