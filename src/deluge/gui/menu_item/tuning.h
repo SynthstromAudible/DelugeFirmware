@@ -32,7 +32,9 @@ class TuningReference : public Decimal {
 public:
 	TuningReference(char const* newName = NULL) : Decimal(newName) {}
 	int getMinValue() const final { return 4000; }
-	int getMaxValue() const final { return 4598; } // wants to go higher, but currently exceeds signed 32-bit integer range
+	int getMaxValue() const final { return 4598; }
+	// any higher exceeds signed 32-bit integer range
+
 	int getNumDecimalPlaces() const final { return 1; }
 	void readCurrentValue() { soundEditor.currentValue = tuningSystem.getReference(); }
 	void writeCurrentValue() { tuningSystem.setReference(soundEditor.currentValue); }
@@ -76,8 +78,10 @@ public:
 		basicOptions = octaveNotes;
 	}
 	void beginSession(MenuItem* navigatedBackwardFrom) {
-		if (!navigatedBackwardFrom) soundEditor.currentValue = 0;
-		else soundEditor.currentValue = tuningSystem.currentNote;
+		if (!navigatedBackwardFrom)
+			soundEditor.currentValue = 0;
+		else
+			soundEditor.currentValue = tuningSystem.currentNote;
 		Selection::beginSession(navigatedBackwardFrom);
 	}
 

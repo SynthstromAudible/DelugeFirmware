@@ -416,7 +416,8 @@ moveAfterClipInstance:
 
 	else if (b == SCALE_MODE) {
 		if (on) {
-			if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			if (inCardRoutine)
+				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 
 			soundEditor.setup(NULL, &songRootMenu);
 			openUI(&soundEditor);

@@ -725,7 +725,7 @@ MenuItem* soundEditorRootMenuItemsAudioClip[] = {&audioClipSampleMenu,
 menu_item::Submenu soundEditorRootMenuAudioClip{"Audio clip", soundEditorRootMenuItemsAudioClip};
 
 // Tuning menu
-menu_item::TuningNotes tuningNotesMenu {"NOTES"};
+menu_item::TuningNotes tuningNotesMenu{"NOTES"};
 
 menu_item::TuningReference tuningReferenceMenu{"REFERENCE"};
 menu_item::TuningBank tuningBankMenu{"BANK"};

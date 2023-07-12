@@ -1216,7 +1216,8 @@ int StorageManager::loadScalaFile(FilePointer* filePointer) {
 	TCHAR* got = "";
 	while (!f_eof(&fileSystemStuff.currentFile)) {
 		got = f_gets((TCHAR*)fileClusterBuffer, audioFileManager.clusterSize, &fileSystemStuff.currentFile);
-		if (fileClusterBuffer[0] == '!') continue;
+		if (fileClusterBuffer[0] == '!')
+			continue;
 
 		start = fileClusterBuffer;
 		while (*start != '\0') {
@@ -1225,7 +1226,8 @@ int StorageManager::loadScalaFile(FilePointer* filePointer) {
 			}
 			start++;
 		}
-		if (start[0] == '\0') continue;
+		if (start[0] == '\0')
+			continue;
 
 		if (effectiveLine == 0) {
 			tuningSystem.setup(start);
