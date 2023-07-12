@@ -16,11 +16,13 @@
 */
 
 #include "devices.h"
+#include "definitions.h"
 #include "gui/ui/sound_editor.h"
 #include "io/midi/midi_device_manager.h"
 #include "hid/display/numeric_driver.h"
 #include "io/midi/midi_device.h"
 #include "gui/menu_item/submenu.h"
+#include <array>
 
 extern deluge::gui::menu_item::Submenu midiDeviceMenu;
 
@@ -137,33 +139,31 @@ MenuItem* Devices::selectButtonPress() {
 	return &midiDeviceMenu;
 }
 
+Sized<char const**> getOptions() {
+}
+
 #if HAVE_OLED
 
 void Devices::drawPixelsForOled() {
-	char const* itemNames[OLED_MENU_NUM_OPTIONS_VISIBLE];
+	std::array<char const*, OLED_MENU_NUM_OPTIONS_VISIBLE> itemNames = {};
 
 	int selectedRow = -1;
 
-	int d = soundEditor.menuCurrentScroll;
-	int r = 0;
-	while (r < OLED_MENU_NUM_OPTIONS_VISIBLE && d < MIDIDeviceManager::hostedMIDIDevices.getNumElements()) {
-		MIDIDevice* device = getDevice(d);
-		if (device->connectionFlags) {
-			itemNames[r] = device->getDisplayName();
-			if (d == this->value_) {
-				selectedRow = r;
+	int device_idx = soundEditor.menuCurrentScroll;
+	size_t row = 0;
+	while (row < OLED_MENU_NUM_OPTIONS_VISIBLE && device_idx < MIDIDeviceManager::hostedMIDIDevices.getNumElements()) {
+		MIDIDevice* device = getDevice(device_idx);
+		if (device->connectionFlags != 0u) {
+			itemNames[row] = device->getDisplayName();
+			if (device_idx == this->value_) {
+				selectedRow = static_cast<int>(row);
 			}
-			r++;
+			row++;
 		}
-		d++;
+		device_idx++;
 	}
 
-	while (r < OLED_MENU_NUM_OPTIONS_VISIBLE) {
-		itemNames[r] = NULL;
-		r++;
-	}
-
-	drawItemsForOled(itemNames, selectedRow);
+	drawItemsForOled({itemNames.data(), row}, selectedRow, soundEditor.menuCurrentScroll);
 }
 
 #endif

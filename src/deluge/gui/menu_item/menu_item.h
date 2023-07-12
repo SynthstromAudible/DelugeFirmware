@@ -19,6 +19,7 @@
 
 #include "RZA1/system/r_typedefs.h"
 #include "definitions.h"
+#include "util/sized.h"
 
 #define MENU_PERMISSION_NO 0
 #define MENU_PERMISSION_YES 1
@@ -75,7 +76,7 @@ public:
 	virtual void renderOLED();
 	virtual void drawPixelsForOled() {
 	}
-	void drawItemsForOled(char const** options, int selectedOption);
+	void drawItemsForOled(deluge::Sized<char const**> options, int selectedOption, int offset = 0);
 
 	/// Get the title to be used when rendering on OLED. If not overriden, defaults to returning `title`.
 	virtual char const* getTitle();

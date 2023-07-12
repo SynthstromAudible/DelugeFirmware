@@ -15,6 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "definitions.h"
+#include "gui/menu_item/range.h"
 #include "processing/engines/audio_engine.h"
 #include "gui/views/instrument_clip_view.h"
 #include "multi_range.h"
@@ -23,6 +25,7 @@
 #include "hid/display/numeric_driver.h"
 #include "storage/multi_range/multisample_range.h"
 #include "processing/source.h"
+#include <array>
 #include <string.h>
 #include "util/functions.h"
 #include "io/uart/uart.h"
@@ -415,55 +418,47 @@ bool MultiRange::mayEditRangeEdge(RangeEdit whichEdge) {
 
 #if HAVE_OLED
 void MultiRange::drawPixelsForOled() {
-
-	char const* itemNames[OLED_MENU_NUM_OPTIONS_VISIBLE];
+	std::array<char const*, OLED_MENU_NUM_OPTIONS_VISIBLE> itemNames{};
 	char nameBuffers[OLED_MENU_NUM_OPTIONS_VISIBLE][20];
 	int actualCurrentRange = this->value_;
 
 	this->value_ = soundEditor.menuCurrentScroll;
-	int i = 0;
-	while (i < OLED_MENU_NUM_OPTIONS_VISIBLE) {
+	size_t idx = 0;
+	for (idx = 0; idx < OLED_MENU_NUM_OPTIONS_VISIBLE; idx++) {
 		if (this->value_ >= soundEditor.currentSource->ranges.getNumElements()) {
 			break;
 		}
-		getText(nameBuffers[i], NULL, NULL, false);
-		itemNames[i] = nameBuffers[i];
+		getText(nameBuffers[idx], nullptr, nullptr, false);
+		itemNames[idx] = nameBuffers[idx];
 
-		i++;
 		this->value_++;
-	}
-
-	while (i < OLED_MENU_NUM_OPTIONS_VISIBLE) {
-		itemNames[i] = NULL;
-		i++;
 	}
 
 	this->value_ = actualCurrentRange;
 
-	int selectedOption;
-	if (soundEditor.editingRangeEdge != RangeEdit::OFF) {
-		selectedOption = -1;
-	}
-	else {
+	int selectedOption = -1;
+	if (soundEditor.editingRangeEdge == RangeEdit::OFF) {
 		selectedOption = this->value_ - soundEditor.menuCurrentScroll;
 	}
-	drawItemsForOled(itemNames, selectedOption);
+	drawItemsForOled({itemNames.data(), idx}, selectedOption);
 
-	int hilightStartX, hilightWidth;
+	if (soundEditor.editingRangeEdge != RangeEdit::OFF) {
+		int hilightStartX = 0;
+		int hilightWidth = 0;
 
-	if (soundEditor.editingRangeEdge == RangeEdit::LEFT) {
-		hilightStartX = TEXT_SPACING_X;
-		hilightWidth = TEXT_SPACING_X * 6;
-doHilightJustOneEdge:
+		if (soundEditor.editingRangeEdge == RangeEdit::LEFT) {
+			hilightStartX = TEXT_SPACING_X;
+			hilightWidth = TEXT_SPACING_X * 6;
+		}
+		else if (soundEditor.editingRangeEdge == RangeEdit::RIGHT) {
+			hilightStartX = TEXT_SPACING_X * 10;
+			hilightWidth = OLED_MAIN_WIDTH_PIXELS - hilightStartX;
+		}
+
 		int baseY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14;
 		baseY += OLED_MAIN_TOPMOST_PIXEL;
 		baseY += (this->value_ - soundEditor.menuCurrentScroll) * TEXT_SPACING_Y;
 		OLED::invertArea(hilightStartX, hilightWidth, baseY, baseY + TEXT_SPACING_Y, OLED::oledMainImage);
-	}
-	else if (soundEditor.editingRangeEdge == RangeEdit::RIGHT) {
-		hilightStartX = TEXT_SPACING_X * 10;
-		hilightWidth = OLED_MAIN_WIDTH_PIXELS - hilightStartX;
-		goto doHilightJustOneEdge;
 	}
 }
 #endif

@@ -38,34 +38,6 @@ void Selection::drawValue() {
 }
 
 #if HAVE_OLED
-void drawListItemsForOled(Sized<char const**> options_sized, const int value, const int scroll) {
-	auto [options, size] = options_sized;
-
-	const void *begin = &options[scroll]; // fast-forward to the first option visible
-	const void *end = &options[size];
-
-	const int selectedOption = value - scroll;
-
-	int baseY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14;
-	baseY += OLED_MAIN_TOPMOST_PIXEL;
-
-	for (int o = 0; o < OLED_HEIGHT_CHARS - 1; o++) {
-		if (&options[o] == end) {
-			break;
-		}
-
-		int yPixel = o * TEXT_SPACING_Y + baseY;
-
-		OLED::drawString(options[o], TEXT_SPACING_X, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
-		                 TEXT_SPACING_X, TEXT_SPACING_Y);
-
-		if (o == selectedOption) {
-			OLED::invertArea(0, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8, &OLED::oledMainImage[0]);
-			OLED::setupSideScroller(0, options[o], TEXT_SPACING_X, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8,
-			                        TEXT_SPACING_X, TEXT_SPACING_Y, true);
-		}
-	}
-}
 
 void Selection::drawPixelsForOled() {
 	// Move scroll
@@ -76,7 +48,9 @@ void Selection::drawPixelsForOled() {
 		soundEditor.menuCurrentScroll = this->value_ - OLED_MENU_NUM_OPTIONS_VISIBLE + 1;
 	}
 
-	drawListItemsForOled(getOptions(), this->value_, soundEditor.menuCurrentScroll);
+	const int selectedOption = this->value_ - soundEditor.menuCurrentScroll;
+
+	drawItemsForOled(getOptions(), selectedOption, soundEditor.menuCurrentScroll);
 }
 #endif
 } // namespace deluge::gui::menu_item

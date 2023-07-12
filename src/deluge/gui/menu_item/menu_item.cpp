@@ -22,6 +22,8 @@
 #include "hid/display/oled.h"
 #endif
 
+using namespace deluge;
+
 int MenuItem::checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) {
 	bool toReturn = isRelevant(sound, whichThing);
 	return toReturn ? MENU_PERMISSION_YES : MENU_PERMISSION_NO;
@@ -46,13 +48,17 @@ void MenuItem::renderOLED() {
 }
 
 // A couple of our child classes call this - that's all
-void MenuItem::drawItemsForOled(char const** options, int selectedOption) {
+void MenuItem::drawItemsForOled(Sized<char const**> options_sized, const int selectedOption, const int offset) {
+	auto [options, size] = options_sized;
+
+	const void* begin = &options[offset]; // fast-forward to the first option visible
+	const void* end = &options[size];
 
 	int baseY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14;
 	baseY += OLED_MAIN_TOPMOST_PIXEL;
 
 	for (int o = 0; o < OLED_HEIGHT_CHARS - 1; o++) {
-		if (!options[o]) {
+		if (&options[o] == end) {
 			break;
 		}
 

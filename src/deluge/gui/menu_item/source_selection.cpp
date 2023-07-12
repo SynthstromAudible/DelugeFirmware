@@ -22,6 +22,7 @@
 #include "hid/display/numeric_driver.h"
 #include "patch_cable_strength.h"
 #include "modulation/patch/patch_cable_set.h"
+#include <array>
 
 namespace deluge::gui::menu_item {
 const uint8_t sourceMenuContents[] = {
@@ -45,16 +46,12 @@ uint8_t SourceSelection::shouldDrawDotOnValue() {
 int SourceSelection::selectedRowOnScreen;
 
 void SourceSelection::drawPixelsForOled() {
-
-	char const* itemNames[OLED_MENU_NUM_OPTIONS_VISIBLE];
-	for (int i = 0; i < OLED_MENU_NUM_OPTIONS_VISIBLE; i++) {
-		itemNames[i] = NULL;
-	}
+	std::array<char const*, OLED_MENU_NUM_OPTIONS_VISIBLE> itemNames{};
 
 	selectedRowOnScreen = 0;
 
 	int thisOption = scrollPos;
-	int i = 0;
+	size_t i = 0;
 
 	while (i < OLED_MENU_NUM_OPTIONS_VISIBLE) {
 		if (thisOption >= NUM_PATCH_SOURCES) {
@@ -66,7 +63,7 @@ void SourceSelection::drawPixelsForOled() {
 		if (sourceIsAllowed(sHere)) {
 			itemNames[i] = getSourceDisplayNameForOLED(sHere);
 			if (thisOption == this->value_) {
-				selectedRowOnScreen = i;
+				selectedRowOnScreen = static_cast<int>(i);
 			}
 			i++;
 		}
@@ -78,7 +75,7 @@ void SourceSelection::drawPixelsForOled() {
 		thisOption++;
 	}
 
-	drawItemsForOled(itemNames, selectedRowOnScreen);
+	drawItemsForOled({itemNames.data(), i}, selectedRowOnScreen);
 }
 
 #else

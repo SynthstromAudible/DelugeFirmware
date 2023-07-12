@@ -24,6 +24,7 @@
 #include "gui/ui/sound_editor.h"
 #include "model/song/song.h"
 #include "model/instrument/instrument.h"
+#include <array>
 
 extern "C" {
 #if HAVE_OLED
@@ -67,41 +68,50 @@ void Submenu::updateDisplay() {
 
 #if HAVE_OLED
 void Submenu::drawPixelsForOled() {
-	char const* itemNames[OLED_MENU_NUM_OPTIONS_VISIBLE];
-	for (int i = 0; i < OLED_MENU_NUM_OPTIONS_VISIBLE; i++) {
-		itemNames[i] = NULL;
-	}
+	std::array<char const*, OLED_MENU_NUM_OPTIONS_VISIBLE> itemNames = {};
 
 	int selectedRow = soundEditor.menuCurrentScroll;
 	itemNames[selectedRow] = (*soundEditor.currentSubmenuItem)->getName();
 
 	MenuItem** thisSubmenuItem = soundEditor.currentSubmenuItem;
-	for (int i = selectedRow + 1; i < OLED_MENU_NUM_OPTIONS_VISIBLE; i++) {
-		do {
+	size_t idx;
+	for (idx = selectedRow + 1; idx < OLED_MENU_NUM_OPTIONS_VISIBLE; idx++) {
+
+		// This finds the next relevant submenu item
+		// TODO: this should be a forward_iterator
+		while (thisSubmenuItem != nullptr) {
 			thisSubmenuItem++;
-			if (!*thisSubmenuItem) {
+			if (*thisSubmenuItem == nullptr) {
 				goto searchBack;
 			}
-		} while (!(*thisSubmenuItem)->isRelevant(soundEditor.currentSound, soundEditor.currentSourceIndex));
 
-		itemNames[i] = (*thisSubmenuItem)->getName();
+			if ((*thisSubmenuItem)->isRelevant(soundEditor.currentSound, soundEditor.currentSourceIndex)) {
+				break;
+			}
+		}
+
+		itemNames[idx] = (*thisSubmenuItem)->getName();
 	}
 
 searchBack:
 	thisSubmenuItem = soundEditor.currentSubmenuItem;
 	for (int i = selectedRow - 1; i >= 0; i--) {
-		do {
-			if (thisSubmenuItem == items) {
-				goto doneSearching;
+		// This finds the prior relevant submenu item
+		// TODO: this should be a reverse_iterator
+		while (thisSubmenuItem != nullptr) {
+			if (thisSubmenuItem == this->items) { // Back at start, so render and return.
+				drawItemsForOled({itemNames.data(), idx}, selectedRow);
+				return;
 			}
 			thisSubmenuItem--;
-		} while (!(*thisSubmenuItem)->isRelevant(soundEditor.currentSound, soundEditor.currentSourceIndex));
+
+			if ((*thisSubmenuItem)->isRelevant(soundEditor.currentSound, soundEditor.currentSourceIndex)) {
+				break;
+			}
+		}
 
 		itemNames[i] = (*thisSubmenuItem)->getName();
 	}
-
-doneSearching:
-	drawItemsForOled(itemNames, selectedRow);
 }
 #endif
 
