@@ -49,9 +49,6 @@ private:
 	void displayArmedPopup();
 #endif
 
-	uint8_t squaresScrolled;
-	int8_t scrollDirection;
-	bool scrollingToNothing;
 	bool scrollingIntoSlot;
 	//int findNextFile(int offset);
 	void exitThisUI();
