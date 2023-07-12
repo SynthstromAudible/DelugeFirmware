@@ -7,7 +7,7 @@ namespace deluge::gui::menu_item {
 /**
  * @brief An enumeration has a fixed number of items, with values from 1 to size
  */
-class Enumeration : public Value<size_t> {
+class Enumeration : public Value<int> {
 public:
 	using Value::Value;
 	void beginSession(MenuItem* navigatedBackwardFrom) override;
