@@ -32,8 +32,14 @@ namespace Buttons {
 bool recordButtonPressUsedUp;
 uint32_t timeRecordButtonPressed;
 bool buttonStates[NUM_BUTTON_COLS + 1][NUM_BUTTON_ROWS]; // The extra col is for "fake" buttons
+Wren::VM* wren;
 
 int buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+	wren->buttonAction(b, on);
+	return buttonActionNoRe(b, on, inCardRoutine);
+}
+
+int buttonActionNoRe(hid::Button b, bool on, bool inCardRoutine) {
 	using namespace hid::button;
 
 	// Must happen up here before it's actioned, because if its action accesses SD card, we might multiple-enter this function, and don't want to then be setting this after that later action, erasing what it set

@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "vm/wrenimpl.h"
 #include <stddef.h>
 
 #include "button.h"
@@ -24,10 +25,12 @@
 namespace Buttons {
 
 int buttonAction(hid::Button b, bool on, bool inCardRoutine);
+int buttonActionNoRe(hid::Button b, bool on, bool inCardRoutine);
 bool isButtonPressed(hid::Button b);
 bool isShiftButtonPressed();
 bool isNewOrShiftButtonPressed();
 void noPressesHappening(bool inCardRoutine);
 
 extern bool recordButtonPressUsedUp;
+extern Wren::VM* wren;
 } // namespace Buttons
