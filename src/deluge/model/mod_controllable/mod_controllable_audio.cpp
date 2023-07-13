@@ -1423,27 +1423,6 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 					}
 					else { //Midi Takeover Mode = Pickup or Value Scaling
 						/*
-						MIDI TAKEOVER MODES:
-
-						 1) Pickup: Ignore Midi CC's if Controller Knob Position is Out of Sync with Deluge Knob Position
-
-							The objective of this section of code is for a Midi Controller with Non Endless Encoders / Faders to only start working when
-							the position of the Knob or Fader on the Midi Controller matches / passes through the Knob Position for the current Parameter Value on the Deluge
-
-							This ensures that if you, for example, changed the parameter value on the Deluge, which would render the Midi Controller Knob/Fader position
-							out of sync, that if you were to then turn the fader or knob that the Deluge parameter value wouldn't "jump" to match the Controller
-
-							We want the controller to match the Deluge before we start making changes to Deluge parameter values, this prevents jumpyness.
-
-						 2) Scale: This option ensures smooth value transitions. It compares the physical control’s value
-						 	 	 	 	  to the destination parameter’s value and calculates a smooth convergence of the two as
-						 	 	 	 	  the control is moved. As soon as they are equal, the destination value tracks the control’s value 1:1.
-
-							Scale Mode works by increasing/decreasing the Deluge Knob Position / Parameter Value relative to the amount of "runway" remaining for the Midi
-							Controller's Knob/Fader to reach its Maximum or Minimum position. The Deluge Value will always increase/decrease in the same direction as the
-							midi controller.
-
-						----
 
 						Step #1: Convert Midi Controller's CC Value to Deluge Knob Position Value
 
@@ -1454,7 +1433,7 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 
 						So a Midi CC Value of 0 is equal to a Deluge Knob Position Value of -64 (0 less 64).
 
-						Similarly a Midi CC Value of 127 is equal to a Deluge Knob Position Value of +64 (127 less 64)
+						Similarly a Midi CC Value of 127 is equal to a Deluge Knob Position Value of +63 (127 less 64)
 
 						*/
 
@@ -1534,17 +1513,17 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 								if (midiKnobPosChange > 0) {
 									//fixed point math calculation of new deluge knob position when midi knob position has increased
 
-									midiKnobPosChangePercentage = (midiKnobPosChange * 1000000) / midiKnobMaxPosDelta;
+									midiKnobPosChangePercentage = (midiKnobPosChange << 20) / midiKnobMaxPosDelta;
 
-									newKnobPos = knobPos + ((delugeKnobMaxPosDelta * midiKnobPosChangePercentage) / 1000000);
+									newKnobPos = knobPos + ((delugeKnobMaxPosDelta * midiKnobPosChangePercentage) >> 20);
 								}
 								//if midi knob position change is less than 0, then the midi knob position has decreased (e.g. turned knob left)
 								else if (midiKnobPosChange < 0) {
 									//fixed point math calculation of new deluge knob position when midi knob position has decreased
 
-									midiKnobPosChangePercentage = (midiKnobPosChange * 1000000) / midiKnobMinPosDelta;
+									midiKnobPosChangePercentage = (midiKnobPosChange << 20) / midiKnobMinPosDelta;
 
-									newKnobPos = knobPos + ((delugeKnobMinPosDelta * midiKnobPosChangePercentage) / 1000000);
+									newKnobPos = knobPos + ((delugeKnobMinPosDelta * midiKnobPosChangePercentage) >> 20);
 								}
 								//if midi knob position change is 0, then the midi knob position has not changed and thus no change in deluge knob position / parameter value is required
 								else {
