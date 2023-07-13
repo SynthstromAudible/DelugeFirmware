@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef SONG_H
-#define SONG_H
+#pragma once
 
 #include "model/clip/clip_array.h"
 #include "model/global_effectable/global_effectable_for_song.h"
@@ -331,5 +330,3 @@ private:
 
 extern Song* currentSong;
 extern Song* preLoadedSong;
-
-#endif // SONG_H

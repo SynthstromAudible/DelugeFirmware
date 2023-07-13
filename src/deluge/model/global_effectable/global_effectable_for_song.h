@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef GLOBALEFFECTABLEFORSONG_H_
-#define GLOBALEFFECTABLEFORSONG_H_
+#pragma once
 
 #include "model/global_effectable/global_effectable.h"
 
@@ -28,5 +27,3 @@ public:
 
 	uint8_t modKnobMode;
 };
-
-#endif /* GLOBALEFFECTABLEFORSONG_H_ */

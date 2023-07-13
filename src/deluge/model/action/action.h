@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef ACTION_H_
-#define ACTION_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 #include "definitions.h"
@@ -139,5 +138,3 @@ public:
 
 private:
 };
-
-#endif /* ACTION_H_ */

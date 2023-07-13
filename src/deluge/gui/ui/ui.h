@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef UI_h
-#define UI_h
+#pragma once
 
 #include "hid/button.h"
 #include "definitions.h"
@@ -169,5 +168,3 @@ bool isUIModeWithinRange(const uint32_t* modes);
 bool isNoUIModeActive();
 void exitUIMode(uint32_t uiMode);
 void enterUIMode(uint32_t uiMode);
-
-#endif

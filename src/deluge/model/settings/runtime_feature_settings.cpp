@@ -16,8 +16,11 @@
  */
 
 #include "runtime_feature_settings.h"
-#include <new>
 #include <cstring>
+#include <new>
+#include <stdio.h>
+#include <string.h>
+
 #include "hid/display/numeric_driver.h"
 #include "storage/storage_manager.h"
 
@@ -36,6 +39,46 @@ struct UnknownSetting {
 RuntimeFeatureSettings runtimeFeatureSettings{};
 
 RuntimeFeatureSettings::RuntimeFeatureSettings() : unknownSettings(sizeof(UnknownSetting)) {
+}
+
+static void SetupOnOffSetting(RuntimeFeatureSetting& setting, char const* const displayName, char const* const xmlName,
+                              RuntimeFeatureStateToggle def) {
+	setting.displayName = displayName;
+	setting.xmlName = xmlName;
+	setting.value = static_cast<uint32_t>(def);
+
+	setting.options[0] = {
+	    .displayName = "Off",
+	    .value = RuntimeFeatureStateToggle::Off,
+	};
+
+	setting.options[1] = {
+	    .displayName = "On",
+	    .value = RuntimeFeatureStateToggle::On,
+	};
+
+	setting.options[2] = {
+	    .displayName = NULL,
+	    .value = 0,
+	};
+}
+
+void RuntimeFeatureSettings::init() {
+	// Drum randomizer
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DrumRandomizer], "Drum Randomizer", "drumRandomizer",
+	                  RuntimeFeatureStateToggle::On);
+	// Master compressor
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::MasterCompressorFx], "Master Compressor", "masterCompressor",
+	                  RuntimeFeatureStateToggle::On);
+	// Quantize
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::Quantize], "Quantize", "quantize",
+	                  RuntimeFeatureStateToggle::On);
+	// FineTempoKnob
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::FineTempoKnob], "Fine Tempo Knob", "fineTempoknob",
+	                  RuntimeFeatureStateToggle::On);
+	// PatchCableResolution
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::PatchCableResolution], "Mod. depth decimals",
+	                  "ModDepthDecimals", RuntimeFeatureStateToggle::On);
 }
 
 void RuntimeFeatureSettings::readSettingsFromFile() {

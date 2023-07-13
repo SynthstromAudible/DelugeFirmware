@@ -1016,11 +1016,7 @@ void Song::writeToFile() {
 	storageManager.writeFirmwareVersion();
 	storageManager.writeEarliestCompatibleFirmwareVersion("4.1.0-alpha");
 
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-	storageManager.writeAttribute("previewNumPads", "40");
-#else
 	storageManager.writeAttribute("previewNumPads", "144");
-#endif
 
 	storageManager.write("\n");
 	storageManager.printIndents();
@@ -5124,7 +5120,7 @@ int32_t Song::getPosAtWhichPlaybackWillCut(ModelStackWithTimelineCounter const* 
 }
 
 void Song::getActiveModControllable(ModelStackWithTimelineCounter* modelStack) {
-	if (DELUGE_MODEL == DELUGE_MODEL_40_PAD || affectEntire) {
+	if (affectEntire) {
 		modelStack->setTimelineCounter(this);
 		modelStack->addOtherTwoThingsButNoNoteRow(&globalEffectable, &paramManager);
 	}

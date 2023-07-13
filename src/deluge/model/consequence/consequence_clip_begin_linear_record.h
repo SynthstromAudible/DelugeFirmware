@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CONSEQUENCECLIPBEGINLINEARRECORD_H_
-#define CONSEQUENCECLIPBEGINLINEARRECORD_H_
+#pragma once
 
 #include "model/consequence/consequence.h"
 
@@ -30,5 +29,3 @@ public:
 
 	Clip* clip;
 };
-
-#endif /* CONSEQUENCECLIPBEGINLINEARRECORD_H_ */

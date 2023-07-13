@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef SAMPLEPITCHADJUSTMENT_H_
-#define SAMPLEPITCHADJUSTMENT_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 #include "definitions.h"
@@ -52,5 +51,3 @@ private:
 	// This has to be last!!!
 	Cluster* clusters[1]; // These are not initialized, and are only "valid" as far as writeBytePos dictates
 };
-
-#endif /* SAMPLEPITCHADJUSTMENT_H_ */

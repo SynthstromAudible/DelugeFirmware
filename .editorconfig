@@ -1,16 +1,12 @@
 [*]
 end_of_line = lf
-insert_final_newline = false
+insert_final_newline = true
 charset = utf-8
 
 [*.{c,cpp,h,hpp}]
 indent_style = tab
 indent_size = 4
-insert_final_newline = true
 trim_trailing_whitespace = true
 
 [src/drivers/**.{c,h}]
 trim_trailing_whitespace = false
-
-[*.py]
-insert_final_newline = true

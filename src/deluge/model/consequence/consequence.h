@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CONSEQUENCE_H_
-#define CONSEQUENCE_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 
@@ -39,5 +38,3 @@ public:
 	Consequence* next;
 	uint8_t type;
 };
-
-#endif /* CONSEQUENCE_H_ */

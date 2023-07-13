@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef AUTOPARAM_H_
-#define AUTOPARAM_H_
+#pragma once
 #include "RZA1/system/r_typedefs.h"
 #include "modulation/params/param_node_vector.h"
 #include "model/action/action.h"
@@ -128,5 +127,3 @@ private:
 	                                 bool interpolateEnd);
 	void deleteNodesBeyondPos(int32_t pos);
 };
-
-#endif /* AUTOPARAM_H_ */

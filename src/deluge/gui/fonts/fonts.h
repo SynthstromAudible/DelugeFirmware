@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef DRIVERS_ALL_CPUS_OLED_LOW_LEVEL_ALL_CPUS_FONTS_H_
-#define DRIVERS_ALL_CPUS_OLED_LOW_LEVEL_ALL_CPUS_FONTS_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 
@@ -36,5 +35,3 @@ extern const lv_font_glyph_dsc_t font_apple_desc[];
 
 extern const uint8_t font_metric_bold_13px[];
 extern const lv_font_glyph_dsc_t font_metric_bold_13px_desc[];
-
-#endif /* DRIVERS_ALL_CPUS_OLED_LOW_LEVEL_ALL_CPUS_FONTS_H_ */

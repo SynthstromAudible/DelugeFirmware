@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef NoteRow_h
-#define NoteRow_h
+#pragma once
 
 #include "modulation/params/param_manager.h"
 #include "definitions.h"
@@ -186,5 +185,3 @@ private:
 	void drawTail(int32_t startTail, int32_t endTail, uint8_t squareColour[], bool overwriteExisting,
 	              uint8_t image[][3], uint8_t occupancyMask[]);
 };
-
-#endif

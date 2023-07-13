@@ -32,7 +32,7 @@
 #include "gui/ui/keyboard_screen.h"
 #include "model/action/action_logger.h"
 #include "model/instrument/midi_instrument.h"
-#include "gui/context_menu/context_menu_load_instrument_preset.h"
+#include "gui/context_menu/load_instrument_preset.h"
 #include "hid/led/pad_leds.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/encoders.h"
@@ -47,6 +47,8 @@ extern "C" {
 #include "drivers/uart/uart.h"
 }
 
+using namespace deluge;
+
 LoadInstrumentPresetUI loadInstrumentPresetUI{};
 
 LoadInstrumentPresetUI::LoadInstrumentPresetUI() {
@@ -54,11 +56,7 @@ LoadInstrumentPresetUI::LoadInstrumentPresetUI() {
 
 bool LoadInstrumentPresetUI::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
 	if (showingAuditionPads()) {
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-		*cols = 0xFFFFFFFE;
-#else
 		*cols = 0b10;
-#endif
 	}
 	else {
 		*cols = 0xFFFFFFFF;
@@ -115,16 +113,16 @@ gotError:
 
 // If HAVE_OLED, then you should make sure renderUIsForOLED() gets called after this.
 int LoadInstrumentPresetUI::setupForInstrumentType() {
-	IndicatorLEDs::setLedState(synthLedX, synthLedY, false);
-	IndicatorLEDs::setLedState(kitLedX, kitLedY, false);
-	IndicatorLEDs::setLedState(midiLedX, midiLedY, false);
-	IndicatorLEDs::setLedState(cvLedX, cvLedY, false);
+	indicator_leds::setLedState(IndicatorLED::SYNTH, false);
+	indicator_leds::setLedState(IndicatorLED::KIT, false);
+	indicator_leds::setLedState(IndicatorLED::MIDI, false);
+	indicator_leds::setLedState(IndicatorLED::CV, false);
 
 	if (instrumentTypeToLoad == INSTRUMENT_TYPE_SYNTH) {
-		IndicatorLEDs::blinkLed(synthLedX, synthLedY);
+		indicator_leds::blinkLed(IndicatorLED::SYNTH);
 	}
 	else {
-		IndicatorLEDs::blinkLed(kitLedX, kitLedY);
+		indicator_leds::blinkLed(IndicatorLED::KIT);
 	}
 
 #if HAVE_OLED
@@ -193,11 +191,9 @@ useDefaultFolder:
 	currentInstrumentLoadError = (fileIndexSelected >= 0) ? NO_ERROR : ERROR_UNSPECIFIED;
 
 	// The redrawing of the sidebar only actually has to happen if we just changed to a different type *or* if we came in from (musical) keyboard view, I think
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 	PadLEDs::clearAllPadsWithoutSending();
 	drawKeys();
 	PadLEDs::sendOutMainPadColours();
-#endif
 
 	if (showingAuditionPads()) {
 		instrumentClipView.recalculateColours();
@@ -294,9 +290,7 @@ doChangeInstrumentType:
 	// Kit button
 	else if (b == KIT) {
 		if (instrumentClipToLoadFor && instrumentClipToLoadFor->onKeyboardScreen) {
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
-			IndicatorLEDs::indicateAlertOnLed(keyboardLedX, keyboardLedX);
-#endif
+			indicator_leds::indicateAlertOnLed(IndicatorLED::KEYBOARD);
 		}
 		else {
 			newInstrumentType = INSTRUMENT_TYPE_KIT;
@@ -353,12 +347,12 @@ int LoadInstrumentPresetUI::timerCallback() {
 			return ACTION_RESULT_DEALT_WITH;
 		}
 
-		bool available = contextMenuLoadInstrumentPreset.setupAndCheckAvailability();
+		bool available = gui::context_menu::loadInstrumentPreset.setupAndCheckAvailability();
 
 		if (available) {
 			numericDriver.setNextTransitionDirection(1);
 			convertToPrefixFormatIfPossible();
-			openUI(&contextMenuLoadInstrumentPreset);
+			openUI(&gui::context_menu::loadInstrumentPreset);
 		}
 		else {
 			exitUIMode(UI_MODE_HOLDING_BUTTON_POTENTIAL_LONG_PRESS);
@@ -985,11 +979,7 @@ potentiallyExit:
 	}
 
 	else {
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-		goto potentiallyExit;
-#else
 		return LoadUI::padAction(x, y, on);
-#endif
 	}
 
 	return ACTION_RESULT_DEALT_WITH;

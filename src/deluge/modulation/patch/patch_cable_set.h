@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef PATCHCABLESET_H_
-#define PATCHCABLESET_H_
+#pragma once
 #include "modulation/params/param_collection.h"
 #include "definitions.h"
 #include "modulation/patch/patch_cable.h"
@@ -112,5 +111,3 @@ private:
 	void swapCables(int c1, int c2);
 	void freeDestinationMemory(bool destructing);
 };
-
-#endif /* PATCHCABLESET_H_ */

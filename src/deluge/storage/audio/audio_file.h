@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef AUDIOFILE_H_
-#define AUDIOFILE_H_
+#pragma once
 
 #include "memory/stealable.h"
 #include "util/d_string.h"
@@ -50,5 +49,3 @@ protected:
 	virtual void numReasonsIncreasedFromZero() {}
 	virtual void numReasonsDecreasedToZero(char const* errorCode) {}
 };
-
-#endif /* AUDIOFILE_H_ */

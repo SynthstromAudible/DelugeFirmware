@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CSTRINGARRAY_H_
-#define CSTRINGARRAY_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 #include "util/container/array/resizeable_array.h"
@@ -31,5 +30,3 @@ private:
 	int partitionForStrings(int low, int high);
 	void quickSortForStrings(int low, int high);
 };
-
-#endif /* CSTRINGARRAY_H_ */

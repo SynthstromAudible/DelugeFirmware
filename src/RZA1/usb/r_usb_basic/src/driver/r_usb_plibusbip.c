@@ -36,6 +36,7 @@
 
 // Added by Rohan
 #include "deluge/io/midi/midi_device_manager.h"
+#include "deluge/io/midi/midi_engine.h"
 #include "deluge/drivers/usb/userdef/r_usb_pmidi_config.h"
 
 #if ((USB_CFG_DTC == USB_CFG_ENABLE) || (USB_CFG_DMA == USB_CFG_ENABLE))
@@ -1220,8 +1221,10 @@ void usb_pstd_bemp_pipe_process_rohan_midi(uint16_t bitsts)
 
                 	    }
 #endif
-                        connectedUSBMIDIDevices[0][0].numBytesSendingNow = 0; // Even easier!
-                        anyUSBSendingStillHappening[0]                   = 0;
+                        // connectedUSBMIDIDevices[0][0].numBytesSendingNow = 0; // Even easier!
+                        // anyUSBSendingStillHappening[0]                   = 0;
+
+                        usbSendCompleteAsPeripheral(0); // NOT SO EASY
                     }
                 }
             }

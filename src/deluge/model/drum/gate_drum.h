@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef GATEDRUM_H_
-#define GATEDRUM_H_
+#pragma once
 
 #include "model/drum/non_audio_drum.h"
 #include "RZA1/system/r_typedefs.h"
@@ -38,5 +37,3 @@ public:
 	void getName(char* buffer);
 	int getNumChannels();
 };
-
-#endif /* GATEDRUM_H_ */

@@ -27,6 +27,7 @@
 #include "util/functions.h"
 #include "gui/views/instrument_clip_view.h"
 #include "model/settings/runtime_feature_settings.h"
+#include "hid/led/pad_leds.h"
 
 namespace Encoders {
 
@@ -40,21 +41,12 @@ int nextSDTestDirection = 1;
 uint32_t encodersWaitingForCardRoutineEnd;
 
 void init() {
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-	encoders[ENCODER_SCROLL_Y].setPins(7, 9, 7, 10);
-	encoders[ENCODER_SCROLL_X].setPins(1, 6, 1, 5);
-	encoders[ENCODER_TEMPO].setPins(7, 7, 7, 8);
-	encoders[ENCODER_MOD_0].setPins(7, 2, 7, 0);
-	encoders[ENCODER_MOD_1].setPins(7, 4, 7, 3);
-	encoders[ENCODER_SELECT].setPins(7, 5, 7, 6);
-#elif DELUGE_MODEL == DELUGE_MODEL_144_PAD
 	encoders[ENCODER_SCROLL_X].setPins(1, 11, 1, 12);
 	encoders[ENCODER_TEMPO].setPins(1, 7, 1, 6);
 	encoders[ENCODER_MOD_0].setPins(1, 0, 1, 15);
 	encoders[ENCODER_MOD_1].setPins(1, 5, 1, 4);
 	encoders[ENCODER_SCROLL_Y].setPins(1, 8, 1, 10);
 	encoders[ENCODER_SELECT].setPins(1, 2, 1, 3);
-#endif
 
 	encoders[ENCODER_MOD_0].setNonDetentMode();
 	encoders[ENCODER_MOD_1].setNonDetentMode();
@@ -137,7 +129,7 @@ checkResult:
 
 			case ENCODER_SCROLL_Y:
 				if (Buttons::isShiftButtonPressed() && Buttons::isButtonPressed(hid::button::LEARN)) {
-					changeDimmerInterval(limitedDetentPos);
+					PadLEDs::changeDimmerInterval(limitedDetentPos);
 				}
 				else {
 					result = getCurrentUI()->verticalEncoderAction(limitedDetentPos, inCardRoutine);
@@ -163,7 +155,7 @@ checkResult:
 
 			case ENCODER_SELECT:
 				if (Buttons::isButtonPressed(hid::button::CLIP_VIEW)) {
-					changeRefreshTime(limitedDetentPos);
+					PadLEDs::changeRefreshTime(limitedDetentPos);
 				}
 				else {
 					getCurrentUI()->selectEncoderAction(limitedDetentPos);

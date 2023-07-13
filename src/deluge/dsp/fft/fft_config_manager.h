@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef FFTCONFIGMANAGER_H_
-#define FFTCONFIGMANAGER_H_
+#pragma once
 
 #include "NE10.h"
 
@@ -25,5 +24,3 @@ namespace FFTConfigManager {
 ne10_fft_r2c_cfg_int32_t getConfig(int magnitude);
 
 }
-
-#endif /* FFTCONFIGMANAGER_H_ */

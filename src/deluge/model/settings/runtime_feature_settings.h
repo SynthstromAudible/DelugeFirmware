@@ -15,15 +15,18 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef RUNTIMEFEATURESETTINGS_H_
-#define RUNTIMEFEATURESETTINGS_H_
+#pragma once
 
 #include <cstdint>
-#include "gui/menu_item/runtime_feature/setting.h"
 #include "util/d_string.h"
 #include "util/container/array/resizeable_array.h"
 
 #define RUNTIME_FEATURE_SETTING_MAX_OPTIONS 8
+
+namespace menu_item::runtime_feature {
+class Setting;
+class Settings;
+} // namespace menu_item::runtime_feature
 
 // State declarations
 enum RuntimeFeatureStateToggle : uint32_t { Off = 0, On = 1 };
@@ -32,10 +35,11 @@ enum RuntimeFeatureStateToggle : uint32_t { Off = 0, On = 1 };
 
 /// Every setting needs to be delcared in here
 enum RuntimeFeatureSettingType : uint32_t {
-	// FileFolderSorting // @TODO: Replace with actual identifier on first use
 	DrumRandomizer,
 	MasterCompressorFx,
 	Quantize,
+	FineTempoKnob,
+	PatchCableResolution,
 	MaxElement // Keep as boundary
 };
 
@@ -61,53 +65,12 @@ public:
 	// Traded type safety for option values for code simplicity and size, use enum from above to compare
 	inline uint32_t get(RuntimeFeatureSettingType type) { return settings[type].value; };
 
-public:
+	void init();
 	void readSettingsFromFile();
 	void writeSettingsToFile();
 
 protected:
-	RuntimeFeatureSetting settings[RuntimeFeatureSettingType::MaxElement] = {
-
-	    //// @TODO: Remove example on first use
-	    // [RuntimeFeatureSettingType::FileFolderSorting] =  {
-	    //     .displayName = "File/Folder sorting",
-	    //     .xmlName = "fileFolderSorting",
-	    //     .value = RuntimeFeatureStateToggle::Off, // Default value
-	    //     .options = {
-	    //         { .displayName = "Off", .value = RuntimeFeatureStateToggle::Off },
-	    //         { .displayName = "On", .value = RuntimeFeatureStateToggle::On },
-	    //         { .displayName = NULL, .value = 0 }
-	    //     }
-	    // },
-
-	    // Please extend RuntimeFeatureSettingType and here for additional settings
-	    // Usage example -> (runtimeFeatureSettings.get(RuntimeFeatureSettingType::FileFolderSorting) == RuntimeFeatureStateToggle::On)
-
-	    [RuntimeFeatureSettingType::DrumRandomizer] =
-	        {.displayName = "Drum Randomizer",
-	         .xmlName = "drumRandomizer",
-	         .value = RuntimeFeatureStateToggle::On, // Default value
-	         .options = {{.displayName = "Off", .value = RuntimeFeatureStateToggle::Off},
-	                     {.displayName = "On", .value = RuntimeFeatureStateToggle::On},
-	                     {.displayName = NULL, .value = 0}}},
-
-	    [RuntimeFeatureSettingType::MasterCompressorFx] =
-	        {.displayName = "Master Compressor",
-	         .xmlName = "masterCompressor",
-	         .value = RuntimeFeatureStateToggle::On, // Default value
-	         .options = {{.displayName = "Off", .value = RuntimeFeatureStateToggle::Off},
-	                     {.displayName = "On", .value = RuntimeFeatureStateToggle::On},
-	                     {.displayName = NULL, .value = 0}}},
-
-	    [RuntimeFeatureSettingType::Quantize] =
-	        {.displayName = "Quantize",
-	         .xmlName = "quantize",
-	         .value = RuntimeFeatureStateToggle::On, // Default value
-	         .options = {{.displayName = "Off", .value = RuntimeFeatureStateToggle::Off},
-	                     {.displayName = "On", .value = RuntimeFeatureStateToggle::On},
-	                     {.displayName = NULL, .value = 0}}},
-
-	};
+	RuntimeFeatureSetting settings[RuntimeFeatureSettingType::MaxElement] = {};
 
 private:
 	ResizeableArray unknownSettings;
@@ -119,5 +82,3 @@ public:
 
 /// Static instance for external access
 extern RuntimeFeatureSettings runtimeFeatureSettings;
-
-#endif /* RUNTIMEFEATURESETTINGS_H_ */

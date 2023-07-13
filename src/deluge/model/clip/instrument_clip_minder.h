@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef INSTRUMENTCLIPMINDER_H_
-#define INSTRUMENTCLIPMINDER_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 #include "hid/button.h"
@@ -58,5 +57,3 @@ public:
 
 	static uint8_t editingMIDICCForWhichModKnob;
 };
-
-#endif /* INSTRUMENTCLIPMINDER_H_ */

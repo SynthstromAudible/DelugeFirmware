@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef SAVESYNTHPRESETUI_H
-#define SAVESYNTHPRESETUI_H
+#pragma once
 #include "gui/ui/save/save_ui.h"
 
 class Song;
@@ -42,5 +41,3 @@ protected:
 };
 
 extern SaveInstrumentPresetUI saveInstrumentPresetUI;
-
-#endif // SAVESYNTHPRESETUI_H

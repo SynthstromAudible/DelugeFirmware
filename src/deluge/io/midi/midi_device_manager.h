@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MIDIDEVICEMANAGER_H_
-#define MIDIDEVICEMANAGER_H_
+#pragma once
 #include "definitions.h"
 
 #ifdef __cplusplus
@@ -31,10 +30,14 @@ struct MIDIDeviceUSB;
 #endif
 
 // size in 32-bit messages
-// TODO: increasing this even more doesn't work. For now this gives
-// maximum SysEx send size of 96 bytes including start/end bytes
-// (3 payload bytes per USB-MIDI message)
-#define MIDI_SEND_BUFFER_LEN 32
+// NOTE: increasing this even more doesn't work.
+// Looks like a hardware limitation (maybe we more in FS mode)?
+#define MIDI_SEND_BUFFER_LEN_INNER 32
+#define MIDI_SEND_BUFFER_LEN_INNER_HOST 16
+
+// MUST be an exact power of two
+#define MIDI_SEND_BUFFER_LEN_RING 1024
+#define MIDI_SEND_RING_MASK (MIDI_SEND_BUFFER_LEN_RING - 1)
 
 #ifdef __cplusplus
 /*A ConnectedUSBMIDIDevice is used directly to interface with the USB driver
@@ -57,6 +60,10 @@ public:
 	MIDIDeviceUSB* device[4]; // If NULL, then no device is connected here
 	void bufferMessage(uint32_t fullMessage);
 	void setup();
+
+	// move data from ring buffer to dataSendingNow, assuming it is free
+	bool consumeSendData();
+	bool hasBufferedSendData();
 #else
 //warning - accessed as a C struct from usb driver
 struct ConnectedUSBMIDIDevice {
@@ -67,12 +74,20 @@ struct ConnectedUSBMIDIDevice {
 	uint8_t canHaveMIDISent;
 	uint16_t numBytesReceived;
 	uint8_t receiveData[64];
-	uint32_t preSendData[MIDI_SEND_BUFFER_LEN];
-	uint8_t dataSendingNow[MIDI_SEND_BUFFER_LEN * 4];
-	uint8_t numMessagesQueued;
 
+	// This buffer is passed directly to the USB driver, and is limited to what the hardware allows
+	uint8_t dataSendingNow[MIDI_SEND_BUFFER_LEN_INNER * 4];
 	// This will show a value after the general flush function is called, throughout other Devices being sent to before this one, and until we've completed our send
 	uint8_t numBytesSendingNow;
+
+	// This is a ring buffer for data waiting to be sent which doesn't fit the smaller buffer above.
+	// Any code which wants to send midi data would use the writing side and append more messages.
+	// When we are ready to send data on this device, we consume data on the reading side and move it into the
+	// smaller dataSendingNow buffer above.
+	uint32_t sendDataRingBuf[MIDI_SEND_BUFFER_LEN_RING];
+	uint32_t ringBufWriteIdx;
+	uint32_t ringBufReadIdx;
+
 	uint8_t maxPortConnected;
 };
 
@@ -90,6 +105,7 @@ void readDevicesFromFile();
 
 extern MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port1;
 extern MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port2;
+extern MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port3;
 extern MIDIDeviceDINPorts dinMIDIPorts;
 
 extern bool differentiatingInputsByDevice;
@@ -104,5 +120,3 @@ extern bool anyChangesToSave;
 #endif
 
 extern struct ConnectedUSBMIDIDevice connectedUSBMIDIDevices[][MAX_NUM_USB_MIDI_DEVICES];
-
-#endif /* MIDIDEVICEMANAGER_H_ */

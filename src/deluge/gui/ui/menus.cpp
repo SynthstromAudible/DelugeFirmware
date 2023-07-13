@@ -566,7 +566,6 @@ char const* firmwareString = "4.1.4-alpha3-c";
 
 firmware::Version firmwareVersionMenu{"Firmware version"};
 
-runtime_feature::Setting runtimeFeatureSettingMenuItem;
 runtime_feature::Settings runtimeFeatureSettingsMenu{HAVE_OLED ? "Community fts." : "FEAT"};
 
 // CV menu

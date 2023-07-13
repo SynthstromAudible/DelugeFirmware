@@ -1,5 +1,5 @@
 /*
- * Copyright © 2019-2023 Synthstrom Audible Limited
+ * Copyright © 2018-2023 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -15,28 +15,22 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "gui/context_menu/context_menu_overwrite_file.h"
-#include "gui/ui/save/save_ui.h"
+#pragma once
 
-ContextMenuOverwriteFile contextMenuOverwriteFile{};
+#include "gui/context_menu/context_menu.h"
 
-ContextMenuOverwriteFile::ContextMenuOverwriteFile() {
-#if HAVE_OLED
-	title = "Overwrite?";
-#endif
-}
+namespace deluge::gui::context_menu {
+class ClearSong final : public ContextMenuForLoading {
+public:
+	ClearSong() = default;
+	void focusRegained() override;
+	bool canSeeViewUnderneath() override { return true; }
 
-char const** ContextMenuOverwriteFile::getOptions() {
-#if HAVE_OLED
-	static char const* options[] = {"Ok"};
-#else
-	static char const* options[] = {"OVERWRITE"};
-#endif
-	return options;
-}
+	char const* getTitle() override;
 
-bool ContextMenuOverwriteFile::acceptCurrentOption() {
-	bool dealtWith = currentSaveUI->performSave(true);
+	Sized<char const**> getOptions() override;
+	bool acceptCurrentOption() override;
+};
 
-	return dealtWith;
-}
+extern ClearSong clearSong;
+} // namespace deluge::gui::context_menu

@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef VIEW_H_
-#define VIEW_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 #include "hid/button.h"
@@ -127,5 +126,3 @@ private:
 };
 
 extern View view;
-
-#endif /* VIEW_H_ */

@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef NONAUDIOINSTRUMENT_H_
-#define NONAUDIOINSTRUMENT_H_
+#pragma once
 
 #include "model/instrument/melodic_instrument.h"
 #include "modulation/arpeggiator.h"
@@ -59,5 +58,3 @@ protected:
 	virtual void polyphonicExpressionEventPostArpeggiator(int newValue, int noteCodeAfterArpeggiation,
 	                                                      int whichExpressionDimension, ArpNote* arpNote) = 0;
 };
-
-#endif /* NONAUDIOINSTRUMENT_H_ */

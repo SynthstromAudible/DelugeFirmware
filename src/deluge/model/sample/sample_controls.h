@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef SAMPLECONTROLS_H_
-#define SAMPLECONTROLS_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 
@@ -30,5 +29,3 @@ public:
 	bool reversed;
 	bool timeStretchEnabled;
 };
-
-#endif /* SAMPLECONTROLS_H_ */

@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MIDIPARAMVECTOR_H_
-#define MIDIPARAMVECTOR_H_
+#pragma once
 
 #include "util/container/array/ordered_resizeable_array.h"
 
@@ -30,5 +29,3 @@ public:
 	MIDIParam* insertParam(int i);
 	MIDIParam* getOrCreateParamFromCC(int cc, int32_t defaultValue = 0, bool allowCreation = true);
 };
-
-#endif /* MIDIPARAMVECTOR_H_ */

@@ -15,41 +15,98 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef INDICATORLEDS_H_
-#define INDICATORLEDS_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 #include "definitions.h"
 
 #define numLedBlinkers 4
 
+namespace indicator_leds {
+
+constexpr uint8_t uartBase =
+#if DELUGE_MODEL >= DELUGE_MODEL_144_PAD
+    152;
+#else
+    120;
+#endif
+
+constexpr uint8_t fromXY(int x, int y) {
+	return x + y * NUM_LED_COLS;
+}
+
+// clang-format off
+enum class LED : uint8_t {
+	AFFECT_ENTIRE     = fromXY(affectEntireLedX, affectEntireLedY),
+	SESSION_VIEW      = fromXY(sessionViewLedX, sessionViewLedY),
+	CLIP_VIEW         = fromXY(clipViewLedX, clipViewLedY),
+	SYNTH             = fromXY(synthLedX, synthLedY),
+	KIT               = fromXY(kitLedX, kitLedY),
+	MIDI              = fromXY(midiLedX, midiLedY),
+	CV                = fromXY(cvLedX, cvLedY),
+	KEYBOARD          = fromXY(keyboardLedX, keyboardLedY),
+	SCALE_MODE        = fromXY(scaleModeLedX, scaleModeLedY),
+	CROSS_SCREEN_EDIT = fromXY(crossScreenEditLedX, crossScreenEditLedY),
+	BACK              = fromXY(backLedX, backLedY),
+	LOAD              = fromXY(loadLedX, loadLedY),
+	SAVE              = fromXY(saveLedX, saveLedY),
+	LEARN             = fromXY(learnLedX, learnLedY),
+	TAP_TEMPO         = fromXY(tapTempoLedX, tapTempoLedY),
+	SYNC_SCALING      = fromXY(syncScalingLedX, syncScalingLedY),
+	TRIPLETS          = fromXY(tripletsLedX, tripletsLedY),
+	PLAY              = fromXY(playLedX, playLedY),
+	RECORD            = fromXY(recordLedX, recordLedY),
+	SHIFT             = fromXY(shiftLedX, shiftLedY),
+#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
+	MOD_0 = fromXY(0,2),
+	MOD_1 = fromXY(0,3),
+	MOD_2 = fromXY(1,3),
+	MOD_3 = fromXY(1,2),
+	MOD_4 = fromXY(2,2),
+	MOD_5 = fromXY(3,2),
+#else
+	MOD_0 = fromXY(1,0),
+	MOD_1 = fromXY(1,1),
+	MOD_2 = fromXY(1,2),
+	MOD_3 = fromXY(1,3),
+	MOD_4 = fromXY(2,0),
+	MOD_5 = fromXY(2,1),
+	MOD_6 = fromXY(2,2),
+	MOD_7 = fromXY(2,3),
+#endif
+};
+// clang-format on
+
+#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
+const LED modLed[6] = {LED::MOD_0, LED::MOD_1, LED::MOD_2, LED::MOD_3, LED::MOD_4, LED::MOD_5};
+#else
+const LED modLed[8] = {LED::MOD_0, LED::MOD_1, LED::MOD_2, LED::MOD_3, LED::MOD_4, LED::MOD_5, LED::MOD_6, LED::MOD_7};
+#endif
+
 struct LedBlinker {
-	uint8_t x;
-	uint8_t y;
+	LED led;
 	bool active;
 	uint8_t blinksLeft;
 	bool returnToState;
 	uint8_t blinkingType;
 };
 
-namespace IndicatorLEDs {
-
 extern bool ledBlinkState[];
 
-void setLedState(uint8_t x, uint8_t y, bool newState, bool allowContinuedBlinking = false);
-void blinkLed(uint8_t x, uint8_t y, uint8_t numBlinks = 255, uint8_t blinkingType = 0, bool initialState = true);
+void setLedState(LED led, bool newState, bool allowContinuedBlinking = false);
+void blinkLed(LED led, uint8_t numBlinks = 255, uint8_t blinkingType = 0, bool initialState = true);
 void ledBlinkTimeout(uint8_t blinkingType, bool forceRestart = false, bool resetToState = true);
-void indicateAlertOnLed(uint8_t x, uint8_t y);
+void indicateAlertOnLed(LED led);
 void setKnobIndicatorLevel(uint8_t whichKnob, uint8_t level);
 void clearKnobIndicatorLevels();
 void blinkKnobIndicator(int whichKnob);
 void stopBlinkingKnobIndicator(int whichKnob);
 void blinkKnobIndicatorLevelTimeout();
-uint8_t getLedBlinkerIndex(uint8_t x, uint8_t y);
-void stopLedBlinking(uint8_t x, uint8_t y, bool resetState = false);
+uint8_t getLedBlinkerIndex(LED led);
+void stopLedBlinking(LED led, bool resetState = false);
 bool updateBlinkingLedStates(uint8_t blinkingType);
 bool isKnobIndicatorBlinking(int whichKnob);
 
-} // namespace IndicatorLEDs
+} // namespace indicator_leds
 
-#endif /* INDICATORLEDS_H_ */
+typedef indicator_leds::LED IndicatorLED;

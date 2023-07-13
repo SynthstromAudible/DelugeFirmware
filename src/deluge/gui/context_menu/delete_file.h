@@ -1,5 +1,5 @@
 /*
- * Copyright © 2022-2023 Synthstrom Audible Limited
+ * Copyright © 2019-2023 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -15,19 +15,20 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CONTEXTMENUOVERWRITEBOOTLOADER_H_
-#define CONTEXTMENUOVERWRITEBOOTLOADER_H_
+#pragma once
 
 #include "gui/context_menu/context_menu.h"
 
-class ContextMenuOverwriteBootloader final : public ContextMenu {
+namespace deluge::gui::context_menu {
+class DeleteFile final : public ContextMenuForSaving {
 public:
-	ContextMenuOverwriteBootloader();
+	DeleteFile() = default;
 
-	char const** getOptions();
-	bool acceptCurrentOption();
+	Sized<char const**> getOptions() override;
+	bool acceptCurrentOption() override;
+
+	char const* getTitle() override;
 };
 
-extern ContextMenuOverwriteBootloader contextMenuOverwriteBootloader;
-
-#endif /* CONTEXTMENUOVERWRITEBOOTLOADER_H_ */
+extern DeleteFile deleteFile;
+} // namespace deluge::gui::context_menu

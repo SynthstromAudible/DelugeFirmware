@@ -28,9 +28,11 @@ namespace menu_item::midi {
 
 Devices devicesMenu{"Devices"};
 
+static const int lowestDeviceNum = -3;
+
 void Devices::beginSession(MenuItem* navigatedBackwardFrom) {
 	if (navigatedBackwardFrom) {
-		for (soundEditor.currentValue = -3;
+		for (soundEditor.currentValue = lowestDeviceNum;
 		     soundEditor.currentValue < MIDIDeviceManager::hostedMIDIDevices.getNumElements();
 		     soundEditor.currentValue++) {
 			if (getDevice(soundEditor.currentValue) == soundEditor.currentMIDIDevice) {
@@ -39,7 +41,7 @@ void Devices::beginSession(MenuItem* navigatedBackwardFrom) {
 		}
 	}
 
-	soundEditor.currentValue = -3; // Start on "DIN". That's the only one that'll always be there.
+	soundEditor.currentValue = lowestDeviceNum; // Start on "DIN". That's the only one that'll always be there.
 
 decidedDevice:
 	soundEditor.currentMIDIDevice = getDevice(soundEditor.currentValue);
@@ -58,9 +60,9 @@ void Devices::selectEncoderAction(int offset) {
 			if (HAVE_OLED) {
 				return;
 			}
-			newValue = -3;
+			newValue = lowestDeviceNum;
 		}
-		else if (newValue < -3) {
+		else if (newValue < lowestDeviceNum) {
 			if (HAVE_OLED) {
 				return;
 			}

@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef RENAMEDRUMUI_H_
-#define RENAMEDRUMUI_H_
+#pragma once
 
 #include "gui/ui/rename/rename_ui.h"
 #include "hid/button.h"
@@ -41,5 +40,3 @@ private:
 };
 
 extern RenameDrumUI renameDrumUI;
-
-#endif /* RENAMEDRUMUI_H_ */

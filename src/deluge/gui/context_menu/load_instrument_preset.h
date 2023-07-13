@@ -15,18 +15,18 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CONTEXTMENULOADINSTRUMENTPRESET_H_
-#define CONTEXTMENULOADINSTRUMENTPRESET_H_
+#pragma once
 
 #include "gui/context_menu/context_menu.h"
 
-class ContextMenuLoadInstrumentPreset final : public ContextMenuForLoading {
+namespace deluge::gui::context_menu {
+class LoadInstrumentPreset final : public ContextMenuForLoading {
 public:
-	ContextMenuLoadInstrumentPreset();
-	char const** getOptions();
-	bool acceptCurrentOption();
+	LoadInstrumentPreset() = default;
+	Sized<char const**> getOptions() override;
+	bool acceptCurrentOption() override;
+	char const* getTitle() override;
 };
 
-extern ContextMenuLoadInstrumentPreset contextMenuLoadInstrumentPreset;
-
-#endif /* CONTEXTMENULOADINSTRUMENTPRESET_H_ */
+extern LoadInstrumentPreset loadInstrumentPreset;
+} // namespace deluge::gui::context_menu

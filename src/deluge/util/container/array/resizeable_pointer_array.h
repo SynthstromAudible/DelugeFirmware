@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef RESIZEABLEPOINTERARRAY_H_
-#define RESIZEABLEPOINTERARRAY_H_
+#pragma once
 
 #include "util/container/array/resizeable_array.h"
 
@@ -27,5 +26,3 @@ public:
 	void* getPointerAtIndex(int index);
 	void setPointerAtIndex(void* pointer, int index);
 };
-
-#endif /* RESIZEABLEPOINTERARRAY_H_ */

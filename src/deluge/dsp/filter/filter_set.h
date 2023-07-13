@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef FILTERSET_H_
-#define FILTERSET_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 #include "util/functions.h"
@@ -132,5 +131,3 @@ private:
 	int32_t do24dBLPFOnSample(int32_t input, FilterSetConfig* filterSetConfig, int saturationLevel);
 	int32_t doDriveLPFOnSample(int32_t input, FilterSetConfig* filterSetConfig, int extraSaturation = 0);
 };
-
-#endif /* FILTERSET_H_ */

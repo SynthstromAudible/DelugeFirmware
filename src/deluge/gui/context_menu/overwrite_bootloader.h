@@ -1,5 +1,5 @@
 /*
- * Copyright © 2018-2023 Synthstrom Audible Limited
+ * Copyright © 2022-2023 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -15,21 +15,19 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CLEARSONGUI_H
-#define CLEARSONGUI_H
+#pragma once
 
 #include "gui/context_menu/context_menu.h"
 
-class ContextMenuClearSong final : public ContextMenuForLoading {
+namespace deluge::gui::context_menu {
+class OverwriteBootloader final : public ContextMenu {
 public:
-	ContextMenuClearSong();
-	void focusRegained();
-	bool canSeeViewUnderneath() { return true; }
+	OverwriteBootloader() = default;
 
-	char const** getOptions();
-	bool acceptCurrentOption();
+	char const* getTitle() override;
+	Sized<char const**> getOptions() override;
+	bool acceptCurrentOption() override;
 };
 
-extern ContextMenuClearSong contextMenuClearSong;
-
-#endif // CLEARSONGUI_H
+extern OverwriteBootloader overwriteBootloader;
+} // namespace deluge::gui::context_menu

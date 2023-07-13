@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CVENGINE_H_
-#define CVENGINE_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 #include "model/drum/gate_drum.h"
@@ -26,13 +25,8 @@
 #define WHICH_GATE_OUTPUT_IS_RUN 2
 #define WHICH_GATE_OUTPUT_IS_CLOCK 3
 
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
 const uint8_t gatePort[] = {2, 2, 2, 4};
 const uint8_t gatePin[] = {7, 8, 9, 0};
-#else
-const uint8_t gatePort[] = {2, 2, 2, 4};
-const uint8_t gatePin[] = {7, 8, 9, 0};
-#endif
 
 class CVChannel {
 public:
@@ -112,5 +106,3 @@ private:
 };
 
 extern CVEngine cvEngine;
-
-#endif /* CVENGINE_H_ */

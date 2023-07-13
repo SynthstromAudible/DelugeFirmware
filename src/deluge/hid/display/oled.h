@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef DRIVERS_RZA2_OLED_OLED_H_
-#define DRIVERS_RZA2_OLED_OLED_H_
+#pragma once
 
 #include "definitions.h"
 
@@ -82,6 +81,9 @@ extern uint8_t oledMainImage[OLED_MAIN_HEIGHT_PIXELS >> 3][OLED_MAIN_WIDTH_PIXEL
 extern uint8_t oledMainPopupImage[OLED_MAIN_HEIGHT_PIXELS >> 3][OLED_MAIN_WIDTH_PIXELS];
 extern uint8_t oledMainConsoleImage[CONSOLE_IMAGE_NUM_ROWS][OLED_MAIN_WIDTH_PIXELS];
 
+// pointer to one of the three above (the one currently displayed)
+extern uint8_t (*oledCurrentImage)[OLED_MAIN_WIDTH_PIXELS];
+
 extern const uint8_t folderIcon[];
 extern const uint8_t waveIcon[];
 extern const uint8_t songIcon[];
@@ -102,5 +104,3 @@ void consoleTextIfAllBootedUp(char const* text);
 #endif
 
 #endif /* HAVE_OLED */
-
-#endif /* DRIVERS_RZA2_OLED_OLED_H_ */

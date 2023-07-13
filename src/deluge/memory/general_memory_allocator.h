@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef GENERALMEMORYALLOCATOR_H_
-#define GENERALMEMORYALLOCATOR_H_
+#pragma once
 
 #include "memory/memory_region.h"
 
@@ -87,5 +86,3 @@ private:
 };
 
 extern GeneralMemoryAllocator generalMemoryAllocator;
-
-#endif /* GENERALMEMORYALLOCATOR_H_ */

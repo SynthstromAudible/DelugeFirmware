@@ -15,24 +15,24 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CONTEXTMENUSAMPLEBROWSERSYNTH_H_
-#define CONTEXTMENUSAMPLEBROWSERSYNTH_H_
+#pragma once
 
 #include "gui/context_menu/context_menu.h"
 
-class ContextMenuSampleBrowserSynth final : public ContextMenu {
+namespace deluge::gui::context_menu::sample_browser {
+class Kit final : public ContextMenu {
 public:
-	ContextMenuSampleBrowserSynth();
+	Kit() = default;
 
-	char const** getOptions();
-	int getNumOptions();
-	bool isCurrentOptionAvailable();
-	bool canSeeViewUnderneath();
+	Sized<char const**> getOptions() override;
+	bool isCurrentOptionAvailable() override;
+	bool canSeeViewUnderneath() override;
 
-	bool acceptCurrentOption();
-	int padAction(int x, int y, int velocity);
+	int padAction(int x, int y, int velocity) override;
+	bool acceptCurrentOption() override;
+
+	char const* getTitle() override;
 };
 
-extern ContextMenuSampleBrowserSynth contextMenuFileBrowserSynth;
-
-#endif /* CONTEXTMENUSAMPLEBROWSERSYNTH_H_ */
+extern Kit kit;
+} // namespace deluge::gui::context_menu::sample_browser

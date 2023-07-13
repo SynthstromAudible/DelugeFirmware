@@ -1,3 +1,5 @@
+name: Format Check
+
 on:
   push:
     branches:

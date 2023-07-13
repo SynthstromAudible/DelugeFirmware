@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef ARPEGGIATOR_H_
-#define ARPEGGIATOR_H_
+#pragma once
 
 #include "definitions.h"
 #include "util/container/array/ordered_resizeable_array.h"
@@ -125,5 +124,3 @@ public:
 protected:
 	void switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction);
 };
-
-#endif /* ARPEGGIATOR_H_ */

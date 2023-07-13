@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef EARLYNOTEARRAY_H_
-#define EARLYNOTEARRAY_H_
+#pragma once
 
 #include "util/container/array/ordered_resizeable_array.h"
 
@@ -33,5 +32,3 @@ public:
 	int insertElementIfNonePresent(int note, int velocity, bool newStillActive = true);
 	void noteNoLongerActive(int note);
 };
-
-#endif /* EARLYNOTEARRAY_H_ */

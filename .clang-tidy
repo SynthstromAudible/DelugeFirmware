@@ -27,6 +27,7 @@ Checks: >
   -cppcoreguidelines-avoid-non-const-global-variables,
   -cppcoreguidelines-avoid-magic-numbers,
   -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+  -readability-uppercase-literal-suffix,
 WarningsAsErrors: false # should be true once we get there
 #HeaderFileExtensions:         ['h','hh','hpp','hxx'] # enable iff clang-tidy v17+
 #ImplementationFileExtensions: ['c','cc','cpp','cxx'] # enable iff clang-tidy v17+ (stops from touching .S assembly files)

@@ -15,38 +15,29 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "gui/context_menu/context_menu_load_instrument_preset.h"
-#include "gui/ui/load/load_instrument_preset_ui.h"
-#include "hid/display/numeric_driver.h"
+#include "gui/context_menu/overwrite_file.h"
+#include "gui/ui/save/save_ui.h"
 
-ContextMenuLoadInstrumentPreset contextMenuLoadInstrumentPreset{};
+namespace deluge::gui::context_menu {
+OverwriteFile overwriteFile{};
 
-ContextMenuLoadInstrumentPreset::ContextMenuLoadInstrumentPreset() {
+char const* OverwriteFile::getTitle() {
+	static char const* title = "Overwrite?";
+	return title;
+}
+
+Sized<char const**> OverwriteFile::getOptions() {
 #if HAVE_OLED
-	title = "Load preset";
+	static char const* options[] = {"Ok"};
+#else
+	static char const* options[] = {"OVERWRITE"};
 #endif
+	return {options, 1};
 }
 
-char const** ContextMenuLoadInstrumentPreset::getOptions() {
-	static char const* options[] = {"Clone"}; // "REFRESH",
-	return options;
-}
+bool OverwriteFile::acceptCurrentOption() {
+	bool dealtWith = currentSaveUI->performSave(true);
 
-bool ContextMenuLoadInstrumentPreset::acceptCurrentOption() {
-	int error;
-
-	switch (currentOption) {
-	/*
-	case 0: // Refresh
-		return true;
-		*/
-	default: // Clone
-		error = loadInstrumentPresetUI.performLoad(true);
-		if (error) {
-			numericDriver.displayError(error);
-			return true;
-		}
-		loadInstrumentPresetUI.close();
-		return true;
-	}
+	return dealtWith;
 }
+} // namespace deluge::gui::context_menu

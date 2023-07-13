@@ -21,8 +21,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef _allpass_
-#define _allpass_
+#pragma once
 #include "RZA1/system/r_typedefs.h"
 #include "util/functions.h"
 
@@ -57,7 +56,5 @@ inline int32_t allpass::process(int32_t input) {
 
 	return output;
 }
-
-#endif //_allpass
 
 //ends

@@ -97,40 +97,6 @@
 
 #define CURRENT_FIRMWARE_VERSION FIRMWARE_4P1P4_MUPADUW_TS // FIRMWARE_4P1P4_ALPHA
 
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-
-#define syncScalingButtonX 8
-#define syncScalingButtonY 1
-#define syncScalingLedX 8
-#define syncScalingLedY 2
-
-#define crossScreenEditButtonX 5
-#define crossScreenEditButtonY 0
-#define crossScreenEditLedX 5
-#define crossScreenEditLedY 3
-
-#define xEncButtonX 1
-#define xEncButtonY 2
-
-#define selectEncButtonX 4
-#define selectEncButtonY 1
-
-#define yEncButtonX 0
-#define yEncButtonY 2
-
-#define tempoEncButtonX 7
-#define tempoEncButtonY 2
-
-#define backButtonX 4 // AKA back button
-#define backButtonY 2
-#define backLedX 4 // AKA back button
-#define backLedY 1
-
-#define syncedLedX 9
-#define syncedLedY 3
-
-#else
-
 #define syncScalingButtonX 7
 #define syncScalingButtonY 2
 #define syncScalingLedX 7
@@ -161,23 +127,8 @@
 #define modEncoder1ButtonX 0
 #define modEncoder1ButtonY 3
 
-#endif
-
 #define editPadPressBufferSize 8
 
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-#define NUM_MOD_BUTTONS 6
-#define displayHeight 4
-#define displayHeightMagnitude 2
-#define displayWidth 8
-#define displayWidthMagnitude 3
-#define NO_PRESSES_HAPPENING_MESSAGE 141
-#define RESEND_BUTTON_STATES_MESSAGE 72
-#define NUM_BYTES_IN_COL_UPDATE_MESSAGE 13
-#define NUM_BYTES_IN_LONGEST_MESSAGE 13
-#define NUM_BYTES_IN_SIDEBAR_REDRAW (NUM_BYTES_IN_COL_UPDATE_MESSAGE * 2)
-#define PAD_AND_BUTTON_MESSAGES_END 140
-#else
 #define NUM_MOD_BUTTONS 8
 #define displayHeight 8
 #define displayHeightMagnitude 3
@@ -189,20 +140,11 @@
 #define NUM_BYTES_IN_LONGEST_MESSAGE 55
 #define NUM_BYTES_IN_SIDEBAR_REDRAW (NUM_BYTES_IN_COL_UPDATE_MESSAGE)
 #define PAD_AND_BUTTON_MESSAGES_END 180
-#endif
 
 #define NUM_BYTES_IN_MAIN_PAD_REDRAW (NUM_BYTES_IN_COL_UPDATE_MESSAGE * 8)
 
 #define DEFAULT_ARRANGER_ZOOM (DEFAULT_CLIP_LENGTH >> 1)
 
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-#define LINE_OUT_DETECT_L_1 1
-#define LINE_OUT_DETECT_L_2 4
-#define LINE_OUT_DETECT_R_1 1
-#define LINE_OUT_DETECT_R_2 3
-#define ANALOG_CLOCK_IN_1 1
-#define ANALOG_CLOCK_IN_2 2
-#else
 #define LINE_OUT_DETECT_L_1 6
 #define LINE_OUT_DETECT_L_2 3
 #define LINE_OUT_DETECT_R_1 6
@@ -213,7 +155,6 @@
 #define SPEAKER_ENABLE_2 1
 #define HEADPHONE_DETECT_1 6
 #define HEADPHONE_DETECT_2 5
-#endif
 
 #define sideBarWidth 2
 #define MAX_NUM_ANIMATED_ROWS ((displayHeight * 3) >> 1)
@@ -483,11 +424,7 @@
 
 #define NUM_OSC_TYPES_RINGMODDABLE OSC_TYPE_SAMPLE
 
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-#define NUM_OSC_TYPES 7
-#else
 #define NUM_OSC_TYPES 11
-#endif
 
 #define LFO_TYPE_SINE 0
 #define LFO_TYPE_TRIANGLE 1
