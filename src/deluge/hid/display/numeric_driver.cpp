@@ -553,6 +553,7 @@ void NumericDriver::render() {
 	uint8_t segments[NUMERIC_DISPLAY_LENGTH];
 	layer->render(segments);
 
+	memcpy(lastDisplay, segments, NUMERIC_DISPLAY_LENGTH);
 	bufferPICUart(224);
 	for (int whichChar = 0; whichChar < NUMERIC_DISPLAY_LENGTH; whichChar++) {
 		bufferPICUart(segments[whichChar]);
