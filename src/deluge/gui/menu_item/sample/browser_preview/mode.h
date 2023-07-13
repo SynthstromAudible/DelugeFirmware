@@ -20,14 +20,11 @@
 #include "gui/ui/sound_editor.h"
 
 namespace deluge::gui::menu_item::sample::browser_preview {
-class Mode final : public Selection {
+class Mode final : public Selection<3> {
 public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->value_ = FlashStorage::sampleBrowserPreviewMode; }
 	void writeCurrentValue() override { FlashStorage::sampleBrowserPreviewMode = this->value_; }
-	Sized<char const**> getOptions() override {
-		static char const* options[] = {"Off", "Conditional", "On"};
-		return {options, 3};
-	}
+	static_vector<char const*, 3> getOptions() override { return {"Off", "Conditional", "On"}; }
 };
 } // namespace deluge::gui::menu_item::sample::browser_preview

@@ -21,14 +21,13 @@
 #include "gui/ui/sound_editor.h"
 
 namespace deluge::gui::menu_item::keyboard {
-class Layout final : public Selection {
+class Layout final : public Selection<3> {
 public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->value_ = FlashStorage::keyboardLayout; }
 	void writeCurrentValue() override { FlashStorage::keyboardLayout = this->value_; }
-	Sized<char const**> getOptions() override {
-		static char const* options[] = {"QWERTY", "AZERTY", HAVE_OLED ? "QWERTZ" : "QRTZ"};
-		return {options, NUM_KEYBOARD_LAYOUTS};
+	static_vector<char const*, capacity()> getOptions() override {
+		return {"QWERTY", "AZERTY", HAVE_OLED ? "QWERTZ" : "QRTZ"};
 	}
 };
 } // namespace deluge::gui::menu_item::keyboard

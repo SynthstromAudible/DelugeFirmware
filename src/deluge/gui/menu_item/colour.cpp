@@ -26,19 +26,6 @@ Colour stoppedColourMenu{"STOPPED"};
 Colour mutedColourMenu{"MUTED"};
 Colour soloColourMenu{"SOLOED"};
 
-void Colour::readCurrentValue() {
-	this->value_ = value;
-}
-void Colour::writeCurrentValue() {
-	value = this->value_;
-	renderingNeededRegardlessOfUI();
-}
-
-Sized<char const**> Colour::getOptions() {
-	static char const* options[] = {"RED", "GREEN", "BLUE", "YELLOW", "CYAN", "PURPLE", "AMBER", "WHITE", "PINK"};
-	return {options, 9};
-}
-
 void Colour::getRGB(uint8_t rgb[3]) {
 	switch (value) {
 	case 0: // Red

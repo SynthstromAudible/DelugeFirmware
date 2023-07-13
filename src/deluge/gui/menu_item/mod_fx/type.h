@@ -23,7 +23,7 @@
 
 namespace deluge::gui::menu_item::mod_fx {
 
-class Type : public Selection {
+class Type : public Selection<NUM_MOD_FX_TYPES> {
 public:
 	using Selection::Selection;
 
@@ -34,9 +34,8 @@ public:
 		}
 	}
 
-	Sized<char const**> getOptions() override {
-		static char const* options[] = {"OFF", "FLANGER", "CHORUS", "PHASER", "STEREO CHORUS"};
-		return {options, NUM_MOD_FX_TYPES};
+	static_vector<char const*, capacity()> getOptions() override {
+		return {"OFF", "FLANGER", "CHORUS", "PHASER", "STEREO CHORUS"};
 	}
 };
 } // namespace deluge::gui::menu_item::mod_fx

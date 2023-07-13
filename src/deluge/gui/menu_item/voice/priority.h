@@ -18,16 +18,14 @@
 #include "definitions.h"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
+#include "util/container/static_vector.hpp"
 
 namespace deluge::gui::menu_item::voice {
-class Priority final : public Selection {
+class Priority final : public Selection<NUM_PRIORITY_OPTIONS> {
 public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->value_ = *soundEditor.currentPriority; }
 	void writeCurrentValue() override { *soundEditor.currentPriority = this->value_; }
-	Sized<char const**> getOptions() override {
-		static char const* options[] = {"LOW", "MEDIUM", "HIGH"};
-		return {options, NUM_PRIORITY_OPTIONS};
-	}
+	static_vector<char const*, capacity()> getOptions() override { return {"LOW", "MEDIUM", "HIGH"}; }
 };
 } // namespace deluge::gui::menu_item::voice

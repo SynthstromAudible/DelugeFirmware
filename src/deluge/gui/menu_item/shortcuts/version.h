@@ -19,17 +19,16 @@
 #include "gui/ui/sound_editor.h"
 
 namespace deluge::gui::menu_item::shortcuts {
-class Version final : public Selection {
+class Version final : public Selection<NUM_SHORTCUTS_VERSIONS> {
 public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->value_ = soundEditor.shortcutsVersion; }
 	void writeCurrentValue() override { soundEditor.setShortcutsVersion(this->value_); }
-	Sized<char const**> getOptions() override {
-		static char const* options[] = {
-		    HAVE_OLED ? "1.0" : "  1.0",
-		    HAVE_OLED ? "3.0" : "  3.0",
+	static_vector<char const*, capacity()> getOptions() override {
+		return {
+		    HAVE_OLED ? "1.0" : "  1.0", //<
+		    HAVE_OLED ? "3.0" : "  3.0", //<
 		};
-		return {options, NUM_SHORTCUTS_VERSIONS};
 	}
 };
 } // namespace deluge::gui::menu_item::shortcuts

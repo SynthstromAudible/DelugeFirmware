@@ -23,7 +23,7 @@
 namespace deluge::gui::menu_item {
 
 // This one is "absolute" - if song's insideWorldTickMagnitude changes, such a param's text value will display as a different one, but the music will sound the same
-class SyncLevel : public Enumeration {
+class SyncLevel : public Enumeration<28> {
 public:
 	using Enumeration::Enumeration;
 	SyncType menuOptionToSyncType(int option);
@@ -31,11 +31,10 @@ public:
 	int syncTypeAndLevelToMenuOption(SyncType type, ::SyncLevel level);
 
 protected:
-	size_t size() override { return 28; }
 	void drawValue() final;
 	virtual void getNoteLengthName(char* buffer);
 #if HAVE_OLED
-	void drawPixelsForOled();
+	void drawPixelsForOled() override;
 #endif
 };
 

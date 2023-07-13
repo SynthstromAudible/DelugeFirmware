@@ -20,14 +20,13 @@
 #include "gui/ui/sound_editor.h"
 
 namespace deluge::gui::menu_item::modulator {
-class Destination final : public Selection {
+class Destination final : public Selection<2> {
 public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->value_ = soundEditor.currentSound->modulator1ToModulator0; }
 	void writeCurrentValue() override { soundEditor.currentSound->modulator1ToModulator0 = this->value_; }
-	Sized<char const**> getOptions() override {
-		static char const* options[] = {"Carriers", HAVE_OLED ? "Modulator 1" : "MOD1"};
-		return {options, 2};
+	static_vector<char const*, capacity()> getOptions() override {
+		return {"Carriers", HAVE_OLED ? "Modulator 1" : "MOD1"};
 	}
 	bool isRelevant(Sound* sound, int whichThing) override {
 		return (whichThing == 1 && sound->synthMode == SYNTH_MODE_FM);

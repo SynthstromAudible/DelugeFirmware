@@ -18,16 +18,17 @@
 #pragma once
 
 #include "gui/menu_item/selection.h"
+#include "zone_selector.h"
 
 namespace deluge::gui::menu_item::mpe {
 
-class DirectionSelector final : public Selection {
+class DirectionSelector final : public Selection<2> {
 public:
 	using Selection::Selection;
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
-	Sized<char const**> getOptions() override;
-	void readCurrentValue() override;
-	void writeCurrentValue() override;
+	static_vector<char const*, capacity()> getOptions() override { return {"In", "Out"}; }
+	void readCurrentValue() override { this->value_ = whichDirection; }
+	void writeCurrentValue() override { whichDirection = this->value_; }
 	MenuItem* selectButtonPress() override;
 	uint8_t whichDirection;
 #if HAVE_OLED

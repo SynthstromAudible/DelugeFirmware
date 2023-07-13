@@ -16,6 +16,7 @@
 */
 #pragma once
 
+#include "definitions.h"
 #include "model/clip/clip.h"
 #include "model/drum/drum.h"
 #include "model/drum/kit.h"
@@ -24,9 +25,10 @@
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 #include "gui/ui/sound_editor.h"
+#include "util/container/static_vector.hpp"
 
 namespace deluge::gui::menu_item::voice {
-class Polyphony final : public Selection {
+class Polyphony final : public Selection<NUM_POLYPHONY_TYPES> {
 public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->value_ = soundEditor.currentSound->polyphonic; }
@@ -51,12 +53,13 @@ public:
 		}
 	}
 
-	Sized<char const**> getOptions() override {
-		static char const* options[] = {"Auto", "Polyphonic", "Monophonic", "Legato", "Choke"};
+	static_vector<char const*, capacity()> getOptions() override {
+		static_vector<char const*, capacity()> options = {"Auto", "Polyphonic", "Monophonic", "Legato"};
+
 		if (soundEditor.editingKit()) {
-			return {options, NUM_POLYPHONY_TYPES};
+			options.push_back("Choke");
 		}
-		return {options, NUM_POLYPHONY_TYPES - 1};
+		return options;
 	}
 
 	bool usesAffectEntire() override { return true; }

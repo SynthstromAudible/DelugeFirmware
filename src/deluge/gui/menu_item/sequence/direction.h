@@ -24,7 +24,7 @@
 #include "gui/ui/sound_editor.h"
 
 namespace deluge::gui::menu_item::sequence {
-class Direction final : public Selection {
+class Direction final : public Selection<4> {
 public:
 	using Selection::Selection;
 
@@ -65,21 +65,17 @@ public:
 		}
 	}
 
-	size_t getNumOptions() {
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-		ModelStackWithNoteRow* modelStackWithNoteRow = getIndividualNoteRow(modelStack);
-		return modelStackWithNoteRow->getNoteRowAllowNull() != nullptr ? 4 : 3;
-	}
-
-	Sized<char const**> getOptions() override {
-		static char const* sequenceDirectionOptions[] = {"FORWARD", "REVERSED", "PING-PONG", nullptr};
+	static_vector<char const*, capacity()> getOptions() override {
+		static_vector<char const*, capacity()> sequenceDirectionOptions = {"FORWARD", "REVERSED", "PING-PONG"};
 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 		ModelStackWithNoteRow* modelStackWithNoteRow = getIndividualNoteRow(modelStack);
-		sequenceDirectionOptions[3] = modelStackWithNoteRow->getNoteRowAllowNull() != nullptr ? "NONE" : nullptr;
-		return {sequenceDirectionOptions, getNumOptions()};
+		if (modelStackWithNoteRow->getNoteRowAllowNull() != nullptr) {
+			sequenceDirectionOptions.push_back("NONE");
+		}
+
+		return sequenceDirectionOptions;
 	}
 
 	int checkPermissionToBeginSession(Sound* sound, int whichThing, ::MultiRange** currentRange) override {

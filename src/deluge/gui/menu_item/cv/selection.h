@@ -25,9 +25,9 @@ extern void setCvNumberForTitle(int m);
 extern deluge::gui::menu_item::Submenu cvSubmenu;
 
 namespace deluge::gui::menu_item::cv {
-class Selection final : public menu_item::Selection {
+class Selection final : public menu_item::Selection<2> {
 public:
-	using menu_item::Selection::Selection;
+	using menu_item::Selection<2>::Selection;
 
 	void beginSession(MenuItem* navigatedBackwardFrom) override {
 		if (navigatedBackwardFrom == nullptr) {
@@ -36,25 +36,24 @@ public:
 		else {
 			this->value_ = soundEditor.currentSourceIndex;
 		}
-		menu_item::Selection::beginSession(navigatedBackwardFrom);
+		menu_item::Selection<2>::beginSession(navigatedBackwardFrom);
 	}
 
 	MenuItem* selectButtonPress() override {
 		soundEditor.currentSourceIndex = this->value_;
 #if HAVE_OLED
-		cvSubmenu.title = getOptions().value[this->value_];
+		cvSubmenu.title = getOptions().at(this->value_);
 		setCvNumberForTitle(this->value_);
 #endif
 		return &cvSubmenu;
 	}
 
-	Sized<char const**> getOptions() override {
+	static_vector<char const*, capacity()> getOptions() override {
 #if HAVE_OLED
-		static char const* cvOutputChannel[] = {"CV output 1", "CV output 2"};
+		return {"CV output 1", "CV output 2"};
 #else
-		static char const* cvOutputChannel[] = {"Out1", "Out2"};
+		return {"Out1", "Out2"};
 #endif
-		return {cvOutputChannel, 2};
 	}
 };
 } // namespace deluge::gui::menu_item::cv

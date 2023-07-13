@@ -25,7 +25,7 @@
 #include "processing/sound/sound.h"
 
 namespace deluge::gui::menu_item::arpeggiator {
-class Mode final : public Selection {
+class Mode final : public Selection<NUM_ARP_MODES> {
 public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->value_ = soundEditor.currentArpSettings->mode; }
@@ -57,9 +57,6 @@ public:
 			bool arpNow = (this->value_ != ARP_MODE_OFF); // Uh.... this does nothing...
 		}
 	}
-	Sized<char const**> getOptions() override {
-		static char const* options[] = {"OFF", "UP", "DOWN", "BOTH", "Random"};
-		return {options, NUM_ARP_MODES};
-	}
+	static_vector<char const*, capacity()> getOptions() override { return {"OFF", "UP", "DOWN", "BOTH", "Random"}; }
 };
 } // namespace deluge::gui::menu_item::arpeggiator

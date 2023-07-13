@@ -25,7 +25,7 @@ public:
 	// We override this to set min value to 1. We don't inherit any getMinValue() function to override more easily
 	void selectEncoderAction(int offset) override {
 		this->value_ += offset;
-		int numOptions = getOptions().size;
+		int numOptions = getOptions().size();
 
 		if (this->value_ >= numOptions) {
 			this->value_ -= (numOptions - 1);

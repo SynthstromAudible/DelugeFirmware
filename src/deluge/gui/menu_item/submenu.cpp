@@ -68,7 +68,7 @@ void Submenu::updateDisplay() {
 
 #if HAVE_OLED
 void Submenu::drawPixelsForOled() {
-	std::array<char const*, OLED_MENU_NUM_OPTIONS_VISIBLE> itemNames = {};
+	static_vector<char const*, OLED_MENU_NUM_OPTIONS_VISIBLE> itemNames = {};
 
 	int selectedRow = soundEditor.menuCurrentScroll;
 	itemNames[selectedRow] = (*soundEditor.currentSubmenuItem)->getName();
@@ -100,7 +100,7 @@ searchBack:
 		// TODO: this should be a reverse_iterator
 		while (thisSubmenuItem != nullptr) {
 			if (thisSubmenuItem == this->items) { // Back at start, so render and return.
-				drawItemsForOled({itemNames.data(), idx}, selectedRow);
+				drawItemsForOled(itemNames, selectedRow);
 				return;
 			}
 			thisSubmenuItem--;
@@ -113,7 +113,7 @@ searchBack:
 		itemNames[i] = (*thisSubmenuItem)->getName();
 	}
 
-	drawItemsForOled({itemNames.data(), idx}, selectedRow);
+	drawItemsForOled(itemNames, selectedRow);
 }
 #endif
 

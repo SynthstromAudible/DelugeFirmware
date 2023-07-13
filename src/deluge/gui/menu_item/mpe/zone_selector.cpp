@@ -31,24 +31,6 @@ void ZoneSelector::beginSession(MenuItem* navigatedBackwardFrom) {
 	Selection::beginSession(navigatedBackwardFrom);
 }
 
-Sized<char const**> ZoneSelector::getOptions() {
-	static char const* options[] =
-#if HAVE_OLED
-	    {"Lower zone", "Upper zone"};
-#else
-	    {"Lowe", "Uppe"};
-#endif
-	return {options, 2};
-}
-
-void ZoneSelector::readCurrentValue() {
-	this->value_ = whichZone;
-}
-
-void ZoneSelector::writeCurrentValue() {
-	whichZone = this->value_;
-}
-
 MenuItem* ZoneSelector::selectButtonPress() {
 	return &zoneNumMemberChannelsMenu;
 }

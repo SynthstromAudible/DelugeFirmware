@@ -19,7 +19,12 @@
 
 #include "RZA1/system/r_typedefs.h"
 #include "definitions.h"
+#include "util/container/static_vector.hpp"
 #include "util/sized.h"
+
+#if HAVE_OLED
+#include "hid/display/oled.h"
+#endif
 
 #define MENU_PERMISSION_NO 0
 #define MENU_PERMISSION_YES 1
@@ -76,7 +81,9 @@ public:
 	virtual void renderOLED();
 	virtual void drawPixelsForOled() {
 	}
-	void drawItemsForOled(deluge::Sized<char const**> options, int selectedOption, int offset = 0);
+
+	template <size_t n>
+	static void drawItemsForOled(deluge::static_vector<char const*, n>& options, int selectedOption, int offset = 0);
 
 	/// Get the title to be used when rendering on OLED. If not overriden, defaults to returning `title`.
 	virtual char const* getTitle();
@@ -86,3 +93,27 @@ public:
 
 #endif
 };
+
+#if HAVE_OLED
+// A couple of our child classes call this - that's al
+template <size_t n>
+void MenuItem::drawItemsForOled(deluge::static_vector<char const*, n>& options, const int selectedOption,
+                                const int offset) {
+	int baseY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14;
+	baseY += OLED_MAIN_TOPMOST_PIXEL;
+
+	char const** it = std::next(options.begin(), offset); // fast-forward to the first option visible
+	for (int o = 0; o < OLED_HEIGHT_CHARS - 1 && o < options.size() - offset; o++) {
+		int yPixel = o * TEXT_SPACING_Y + baseY;
+
+		OLED::drawString(options[o + offset], TEXT_SPACING_X, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
+		                 TEXT_SPACING_X, TEXT_SPACING_Y);
+
+		if (o == selectedOption) {
+			OLED::invertArea(0, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8, &OLED::oledMainImage[0]);
+			OLED::setupSideScroller(0, options[o + offset], TEXT_SPACING_X, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8,
+			                        TEXT_SPACING_X, TEXT_SPACING_Y, true);
+		}
+	}
+}
+#endif

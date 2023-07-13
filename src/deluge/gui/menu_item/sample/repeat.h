@@ -28,7 +28,7 @@
 
 namespace deluge::gui::menu_item::sample {
 
-class Repeat final : public Selection {
+class Repeat final : public Selection<NUM_REPEAT_MODES> {
 public:
 	using Selection::Selection;
 	bool usesAffectEntire() override { return true; }
@@ -78,10 +78,7 @@ public:
 		// We need to re-render all rows, because this will have changed whether Note tails are displayed. Probably just one row, but we don't know which
 		uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
 	}
-	Sized<char const**> getOptions() override {
-		static char const* options[] = {"CUT", "ONCE", "LOOP", "STRETCH"};
-		return {options, NUM_REPEAT_MODES};
-	}
+	static_vector<char const*, capacity()> getOptions() override { return {"CUT", "ONCE", "LOOP", "STRETCH"}; }
 };
 
 } // namespace deluge::gui::menu_item::sample

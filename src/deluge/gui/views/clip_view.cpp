@@ -134,7 +134,7 @@ Action* ClipView::shortenClip(int32_t newLength) {
 	currentSong->setClipLength(
 	    getCurrentClip(), newLength,
 	    action); // Subsequently shortening by more squares won't cause additional Consequences to be added to the same
-	             // Action - it checks, and only stores the data (snapshots and original length) once
+	    // Action - it checks, and only stores the data (snapshots and original length) once
 	return action;
 }
 

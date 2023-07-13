@@ -21,7 +21,7 @@
 #include "gui/ui/sound_editor.h"
 
 namespace deluge::gui::menu_item::flash {
-class Status final : public Selection {
+class Status final : public Selection<3> {
 public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->value_ = PadLEDs::flashCursor; }
@@ -31,9 +31,6 @@ public:
 		}
 		PadLEDs::flashCursor = this->value_;
 	}
-	Sized<char const**> getOptions() override {
-		static char const* options[] = {"Fast", "Off", "Slow"};
-		return {options, 3};
-	}
+	static_vector<char const*, capacity()> getOptions() override { return {"Fast", "Off", "Slow"}; }
 };
 } // namespace deluge::gui::menu_item::flash

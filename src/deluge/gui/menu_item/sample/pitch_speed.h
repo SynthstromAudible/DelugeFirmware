@@ -24,7 +24,7 @@
 #include "gui/ui/sound_editor.h"
 
 namespace deluge::gui::menu_item::sample {
-class PitchSpeed final : public Selection {
+class PitchSpeed final : public Selection<2> {
 public:
 	using Selection::Selection;
 
@@ -54,9 +54,6 @@ public:
 		}
 	}
 
-	Sized<char const**> getOptions() override {
-		static char const* options[] = {"Linked", "Independent"};
-		return {options, 2};
-	}
+	static_vector<char const*, capacity()> getOptions() override { return {"Linked", "Independent"}; }
 };
 } // namespace deluge::gui::menu_item::sample

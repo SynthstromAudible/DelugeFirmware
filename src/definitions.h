@@ -900,4 +900,6 @@ typedef enum SyncLevel_ {
 #define BROWSER_AND_MENU_NUM_LINES 1
 #endif
 
+#define RUNTIME_FEATURE_SETTING_MAX_OPTIONS 8
+
 #endif

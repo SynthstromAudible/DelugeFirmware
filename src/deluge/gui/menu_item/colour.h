@@ -20,13 +20,17 @@
 
 namespace deluge::gui::menu_item {
 
-class Colour final : public Selection {
+class Colour final : public Selection<9> {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override;
-	void writeCurrentValue() override;
-	Sized<char const**> getOptions() override;
-	int getNumOptions();
+	void readCurrentValue() override { this->value_ = value; }
+	void writeCurrentValue() override {
+		value = this->value_;
+		renderingNeededRegardlessOfUI();
+	};
+	static_vector<char const*, capacity()> getOptions() override {
+		return {"RED", "GREEN", "BLUE", "YELLOW", "CYAN", "PURPLE", "AMBER", "WHITE", "PINK"};
+	}
 	void getRGB(uint8_t rgb[3]);
 	uint8_t value;
 };

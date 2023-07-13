@@ -16,16 +16,19 @@
 */
 #pragma once
 #include "storage/flash_storage.h"
+#include "util/container/static_vector.hpp"
 #include "util/lookuptables/lookuptables.h"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 
 namespace deluge::gui::menu_item::defaults {
-class Scale final : public Selection {
+class Scale final : public Selection<NUM_PRESET_SCALES + 2> {
 public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->value_ = FlashStorage::defaultScale; }
 	void writeCurrentValue() override { FlashStorage::defaultScale = this->value_; }
-	Sized<char const**> getOptions() override { return {presetScaleNames, NUM_PRESET_SCALES + 2}; }
+	static_vector<char const*, capacity()> getOptions() override {
+		return {presetScaleNames.begin(), presetScaleNames.begin() + capacity()};
+	}
 };
 } // namespace deluge::gui::menu_item::defaults

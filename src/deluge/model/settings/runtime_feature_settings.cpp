@@ -56,11 +56,6 @@ static void SetupOnOffSetting(RuntimeFeatureSetting& setting, char const* const 
 	    .displayName = "On",
 	    .value = RuntimeFeatureStateToggle::On,
 	};
-
-	setting.options[2] = {
-	    .displayName = NULL,
-	    .value = 0,
-	};
 }
 
 void RuntimeFeatureSettings::init() {

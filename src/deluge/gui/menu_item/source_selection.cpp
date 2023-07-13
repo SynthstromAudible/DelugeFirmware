@@ -46,7 +46,7 @@ uint8_t SourceSelection::shouldDrawDotOnValue() {
 int SourceSelection::selectedRowOnScreen;
 
 void SourceSelection::drawPixelsForOled() {
-	std::array<char const*, OLED_MENU_NUM_OPTIONS_VISIBLE> itemNames{};
+	static_vector<char const*, OLED_MENU_NUM_OPTIONS_VISIBLE> itemNames{};
 
 	selectedRowOnScreen = 0;
 
@@ -61,7 +61,7 @@ void SourceSelection::drawPixelsForOled() {
 		int sHere = sourceMenuContents[thisOption];
 
 		if (sourceIsAllowed(sHere)) {
-			itemNames[i] = getSourceDisplayNameForOLED(sHere);
+			itemNames.push_back(getSourceDisplayNameForOLED(sHere));
 			if (thisOption == this->value_) {
 				selectedRowOnScreen = static_cast<int>(i);
 			}
@@ -75,7 +75,7 @@ void SourceSelection::drawPixelsForOled() {
 		thisOption++;
 	}
 
-	drawItemsForOled({itemNames.data(), i}, selectedRowOnScreen);
+	drawItemsForOled(itemNames, selectedRowOnScreen);
 }
 
 #else

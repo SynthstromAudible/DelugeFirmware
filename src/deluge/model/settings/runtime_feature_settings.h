@@ -20,8 +20,7 @@
 #include <cstdint>
 #include "util/d_string.h"
 #include "util/container/array/resizeable_array.h"
-
-#define RUNTIME_FEATURE_SETTING_MAX_OPTIONS 8
+#include "util/container/static_vector.hpp"
 
 namespace deluge::gui::menu_item::runtime_feature {
 class Setting;
@@ -53,7 +52,8 @@ struct RuntimeFeatureSetting {
 	const char* displayName;
 	const char* xmlName;
 	uint32_t value;
-	RuntimeFeatureSettingOption options[RUNTIME_FEATURE_SETTING_MAX_OPTIONS]; // Limited to safe memory
+	deluge::static_vector<RuntimeFeatureSettingOption, RUNTIME_FEATURE_SETTING_MAX_OPTIONS>
+	    options; // Limited to safe memory
 };
 
 /// Encapsulating class

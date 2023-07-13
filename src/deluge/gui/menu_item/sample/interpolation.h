@@ -21,15 +21,12 @@
 #include "processing/sound/sound.h"
 
 namespace deluge::gui::menu_item::sample {
-class Interpolation final : public Selection {
+class Interpolation final : public Selection<2> {
 public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->value_ = soundEditor.currentSampleControls->interpolationMode; }
 	void writeCurrentValue() override { soundEditor.currentSampleControls->interpolationMode = this->value_; }
-	Sized<char const**> getOptions() override {
-		static char const* options[] = {"Linear", "Sinc"};
-		return {options, 2};
-	}
+	static_vector<char const*, capacity()> getOptions() override { return {"Linear", "Sinc"}; }
 	bool isRelevant(Sound* sound, int whichThing) override {
 		if (sound == nullptr) {
 			return true;

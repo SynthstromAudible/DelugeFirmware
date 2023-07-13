@@ -26,7 +26,7 @@
 
 extern char oscTypeTitle[];
 namespace deluge::gui::menu_item::osc {
-class Type final : public Selection {
+class Type final : public Selection<NUM_OSC_TYPES> {
 public:
 	using Selection::Selection;
 #if HAVE_OLED
@@ -59,31 +59,35 @@ public:
 	}
 
 	//char const** getOptions() { static char const* options[] = {"SINE", "TRIANGLE", "SQUARE", "SAW", "MMS1", "SUB1", "SAMPLE", "INL", "INR", "INLR", "SQ50", "SQ02", "SQ01", "SUB2", "SQ20", "SA50", "S101", "S303", "MMS2", "MMS3", "TABLE"}; return options; }
-	Sized<char const**> getOptions() override {
+	static_vector<char const*, capacity()> getOptions() override {
+		static_vector<char const*, capacity()> options = {"SINE",
+		                                                  "TRIANGLE",
+		                                                  "SQUARE",
+		                                                  HAVE_OLED ? "Analog square" : "ASQUARE",
+		                                                  "Saw",
+		                                                  HAVE_OLED ? "Analog saw" : "ASAW",
+		                                                  "Wavetable",
+		                                                  "SAMPLE",
+		                                                  HAVE_OLED ? "Input (left)" : "INL",
+		                                                  HAVE_OLED ? "Input (right)" : "INR",
+		                                                  HAVE_OLED ? "Input (stereo)" : "INLR"};
 #if HAVE_OLED
-		static char inLText[] = "Input (left)";
-		static char const* options[] = {"SINE",  "TRIANGLE",      "SQUARE",         "Analog square",
-		                                "Saw",   "Analog saw",    "Wavetable",      "SAMPLE",
-		                                inLText, "Input (right)", "Input (stereo)"};
-		inLText[5] = ((AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn)) ? ' ' : 0;
+		options[8] = ((AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn)) ? "Input (left)" : "Input";
 #else
-		static char inLText[4] = "INL";
-		static char const* options[] = {"SINE",      "TRIANGLE", "SQUARE", "ASQUARE", "SAW", "ASAW",
-		                                "Wavetable", "SAMPLE",   inLText,  "INR",     "INLR"};
-		inLText[2] = ((AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn)) ? 'L' : 0;
+
+		options[8] = ((AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn)) ? "INL" : "IN";
 #endif
 
-		return {options, getNumOptions()};
+		if (soundEditor.currentSound->getSynthMode() == SYNTH_MODE_RINGMOD) {
+			return {options.begin(), options.begin() + NUM_OSC_TYPES_RINGMODDABLE};
+		}
+		if (AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn) {
+			return {options.begin(), options.begin() + NUM_OSC_TYPES};
+		}
+		return {options.begin(), options.begin() + NUM_OSC_TYPES - 2};
 	}
 
 	size_t getNumOptions() {
-		if (soundEditor.currentSound->getSynthMode() == SYNTH_MODE_RINGMOD) {
-			return NUM_OSC_TYPES_RINGMODDABLE;
-		}
-		if (AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn) {
-			return NUM_OSC_TYPES;
-		}
-		return NUM_OSC_TYPES - 2;
 	}
 
 	bool isRelevant(Sound* sound, int whichThing) override {

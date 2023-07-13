@@ -22,7 +22,7 @@
 #include "gui/views/view.h"
 
 namespace deluge::gui::menu_item {
-class SynthMode final : public Selection {
+class SynthMode final : public Selection<3> {
 public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->value_ = soundEditor.currentSound->synthMode; }
@@ -30,10 +30,8 @@ public:
 		soundEditor.currentSound->setSynthMode(this->value_, currentSong);
 		view.setKnobIndicatorLevels();
 	}
-	Sized<char const**> getOptions() override {
-		static char const* options[] = {"Subtractive", "FM", "Ringmod"};
-		return {options, 3};
-	}
+
+	static_vector<char const*, capacity()> getOptions() override { return {"Subtractive", "FM", "Ringmod"}; }
 
 	bool isRelevant(Sound* sound, int whichThing) override {
 		return (sound->sources[0].oscType < NUM_OSC_TYPES_RINGMODDABLE

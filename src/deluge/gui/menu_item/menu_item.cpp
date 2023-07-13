@@ -18,10 +18,6 @@
 #include "menu_item.h"
 #include "hid/display/numeric_driver.h"
 
-#if HAVE_OLED
-#include "hid/display/oled.h"
-#endif
-
 using namespace deluge;
 
 int MenuItem::checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) {
@@ -45,34 +41,6 @@ char const* MenuItem::getTitle() { //char* buffer) {
 void MenuItem::renderOLED() {
 	OLED::drawScreenTitle(getTitle());
 	drawPixelsForOled();
-}
-
-// A couple of our child classes call this - that's all
-void MenuItem::drawItemsForOled(Sized<char const**> options_sized, const int selectedOption, const int offset) {
-	auto [options, size] = options_sized;
-
-	char const** begin = &options[offset]; // fast-forward to the first option visible
-	const void* end = &options[size];
-
-	int baseY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14;
-	baseY += OLED_MAIN_TOPMOST_PIXEL;
-
-	for (int o = 0; o < OLED_HEIGHT_CHARS - 1; o++) {
-		if (&begin[o] == end) {
-			break;
-		}
-
-		int yPixel = o * TEXT_SPACING_Y + baseY;
-
-		OLED::drawString(begin[o], TEXT_SPACING_X, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
-		                 TEXT_SPACING_X, TEXT_SPACING_Y);
-
-		if (o == selectedOption) {
-			OLED::invertArea(0, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8, &OLED::oledMainImage[0]);
-			OLED::setupSideScroller(0, begin[o], TEXT_SPACING_X, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8,
-			                        TEXT_SPACING_X, TEXT_SPACING_Y, true);
-		}
-	}
 }
 
 #else

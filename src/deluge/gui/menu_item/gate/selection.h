@@ -20,14 +20,15 @@
 #include "off_time.h"
 #include "gui/ui/sound_editor.h"
 #include "mode.h"
+#include "util/container/static_vector.hpp"
 
 extern deluge::gui::menu_item::gate::OffTime gateOffTimeMenu;
 extern deluge::gui::menu_item::gate::Mode gateModeMenu;
 namespace deluge::gui::menu_item::gate {
 
-class Selection final : public menu_item::Selection {
+class Selection final : public menu_item::Selection<5> {
 public:
-	using menu_item::Selection::Selection;
+	using menu_item::Selection<capacity()>::Selection;
 
 	void beginSession(MenuItem* navigatedBackwardFrom) override {
 		if (navigatedBackwardFrom == nullptr) {
@@ -36,7 +37,7 @@ public:
 		else {
 			this->value_ = soundEditor.currentSourceIndex;
 		}
-		menu_item::Selection::beginSession(navigatedBackwardFrom);
+		menu_item::Selection<capacity()>::beginSession(navigatedBackwardFrom);
 	}
 
 	MenuItem* selectButtonPress() override {
@@ -53,15 +54,13 @@ public:
 		return &gateModeMenu;
 	}
 
-	Sized<char const**> getOptions() override {
+	static_vector<char const*, capacity()> getOptions() override {
 #if HAVE_OLED
 
-		static char const* options[] = {"Gate output 1", "Gate output 2", "Gate output 3", "Gate output 4",
-		                                "Minimum off-time"};
+		return {"Gate output 1", "Gate output 2", "Gate output 3", "Gate output 4", "Minimum off-time"};
 #else
-		static char const* options[] = {"Out1", "Out2", "Out3", "Out4", "OFFT"};
+		return {"Out1", "Out2", "Out3", "Out4", "OFFT"};
 #endif
-		return {options, 5};
 	}
 };
 } // namespace deluge::gui::menu_item::gate

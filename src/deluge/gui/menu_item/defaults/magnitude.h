@@ -23,10 +23,9 @@
 #include "hid/display/oled.h"
 
 namespace deluge::gui::menu_item::defaults {
-class Magnitude final : public Enumeration {
+class Magnitude final : public Enumeration<7> {
 public:
 	using Enumeration::Enumeration;
-	size_t size() override { return 7; }
 	void readCurrentValue() override { this->value_ = FlashStorage::defaultMagnitude; }
 	void writeCurrentValue() override { FlashStorage::defaultMagnitude = this->value_; }
 #if HAVE_OLED

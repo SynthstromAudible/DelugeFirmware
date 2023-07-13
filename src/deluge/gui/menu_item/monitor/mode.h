@@ -21,15 +21,12 @@
 #include "gui/ui/sound_editor.h"
 
 namespace deluge::gui::menu_item::monitor {
-class Mode final : public Selection {
+class Mode final : public Selection<NUM_INPUT_MONITORING_MODES> {
 public:
 	using Selection::Selection;
 
 	void readCurrentValue() override { this->value_ = AudioEngine::inputMonitoringMode; }
 	void writeCurrentValue() override { AudioEngine::inputMonitoringMode = this->value_; }
-	Sized<char const**> getOptions() override {
-		static char const* options[] = {"Conditional", "On", "Off"};
-		return {options, NUM_INPUT_MONITORING_MODES};
-	}
+	static_vector<char const*, capacity()> getOptions() override { return {"Conditional", "On", "Off"}; }
 };
 } // namespace deluge::gui::menu_item::monitor

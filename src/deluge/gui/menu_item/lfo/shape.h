@@ -20,13 +20,12 @@
 
 namespace deluge::gui::menu_item::lfo {
 
-class Shape : public Selection {
+class Shape : public Selection<NUM_LFO_TYPES> {
 public:
 	using Selection::Selection;
 
-	Sized<char const**> getOptions() override {
-		static char const* options[] = {"Sine", "Triangle", "Square", "Saw", "S&H", "Random Walk"};
-		return {options, NUM_LFO_TYPES};
+	static_vector<char const*, capacity()> getOptions() override {
+		return {"Sine", "Triangle", "Square", "Saw", "S&H", "Random Walk"};
 	}
 };
 

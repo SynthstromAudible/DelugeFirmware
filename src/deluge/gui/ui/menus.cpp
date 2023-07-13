@@ -117,7 +117,6 @@
 #include "gui/menu_item/sample/time_stretch.h"
 #include "gui/menu_item/sample/transpose.h"
 #include "gui/menu_item/selection.h"
-#include "gui/menu_item/selection_for_value.h"
 #include "gui/menu_item/sequence/direction.h"
 #include "gui/menu_item/shortcuts/version.h"
 #include "gui/menu_item/sidechain/send.h"
@@ -497,8 +496,7 @@ unpatched_param::Pan audioClipPanMenu{"PAN", PARAM_UNPATCHED_GLOBALEFFECTABLE_PA
 #define comingSoonMenu (MenuItem*)0xFFFFFFFF
 
 const MenuItem* midiOrCVParamShortcuts[8] = {
-    &arpRateMenuMIDIOrCV, &arpSyncMenu, &arpGateMenuMIDIOrCV, &arpOctavesMenu, &arpModeMenu, nullptr, nullptr, nullptr
-};
+    &arpRateMenuMIDIOrCV, &arpSyncMenu, &arpGateMenuMIDIOrCV, &arpOctavesMenu, &arpModeMenu, nullptr, nullptr, nullptr};
 
 // Gate stuff
 gate::Mode gateModeMenu{};
@@ -712,54 +710,41 @@ MenuItem* rootSettingsMenuItems[] = {&cvSelectionMenu,
                                      &firmwareVersionMenu};
 Submenu settingsRootMenu{"Settings", rootSettingsMenuItems};
 
+// clang-format off
 MenuItem* paramShortcutsForSounds[][8] = {
-    // Post V3
-    {&sampleRepeatMenu, &sampleReverseMenu, &timeStretchMenu, &samplePitchSpeedMenu, &audioRecorderMenu,
-     &fileSelectorMenu, &interpolationMenu, &sampleStartMenu},
-    {&sampleRepeatMenu, &sampleReverseMenu, &timeStretchMenu, &samplePitchSpeedMenu, &audioRecorderMenu,
-     &fileSelectorMenu, &interpolationMenu, &sampleStartMenu},
-    {&sourceVolumeMenu, &sourceTransposeMenu, &oscTypeMenu, &pulseWidthMenu, &oscPhaseMenu, &sourceFeedbackMenu,
-     &sourceWaveIndexMenu, &noiseMenu},
-    {&sourceVolumeMenu, &sourceTransposeMenu, &oscTypeMenu, &pulseWidthMenu, &oscPhaseMenu, &sourceFeedbackMenu,
-     &sourceWaveIndexMenu, &oscSyncMenu},
-    {&modulatorVolume, &modulatorTransposeMenu, comingSoonMenu, comingSoonMenu, &modulatorPhaseMenu,
-     &modulatorFeedbackMenu, comingSoonMenu, &sequenceDirectionMenu},
-    {&modulatorVolume, &modulatorTransposeMenu, comingSoonMenu, comingSoonMenu, &modulatorPhaseMenu,
-     &modulatorFeedbackMenu, &modulatorDestMenu, NULL},
-    {&volumeMenu, &masterTransposeMenu, &vibratoMenu, &panMenu, &synthModeMenu, &srrMenu, &bitcrushMenu, &clippingMenu},
-    {&portaMenu, &polyphonyMenu, &priorityMenu, &unisonDetuneMenu, &numUnisonMenu, NULL, NULL, NULL},
-    {&envReleaseMenu, &envSustainMenu, &envDecayMenu, &envAttackMenu, NULL, &lpfModeMenu, &lpfResMenu, &lpfFreqMenu},
-    {&envReleaseMenu, &envSustainMenu, &envDecayMenu, &envAttackMenu, NULL, comingSoonMenu, &hpfResMenu, &hpfFreqMenu},
-    {&compressorReleaseMenu, &sidechainSyncMenu, &compressorVolumeShortcutMenu, &compressorAttackMenu,
-     &compressorShapeMenu, &sidechainSendMenu, &bassMenu, &bassFreqMenu},
-    {&arpRateMenu, &arpSyncMenu, &arpGateMenu, &arpOctavesMenu, &arpModeMenu, &drumNameMenu, &trebleMenu,
-     &trebleFreqMenu},
-    {&lfo1RateMenu, &lfo1SyncMenu, &lfo1TypeMenu, &modFXTypeMenu, &modFXOffsetMenu, &modFXFeedbackMenu, &modFXDepthMenu,
-     &modFXRateMenu},
-    {&lfo2RateMenu, comingSoonMenu, &lfo2TypeMenu, &reverbAmountMenu, &reverbPanMenu, &reverbWidthMenu,
-     &reverbDampeningMenu, &reverbRoomSizeMenu},
-    {&delayRateMenu, &delaySyncMenu, &delayAnalogMenu, &delayFeedbackMenu, &delayPingPongMenu, NULL, NULL, NULL}};
+  // Post V3
+    {&sampleRepeatMenu,      &sampleReverseMenu,      &timeStretchMenu,              &samplePitchSpeedMenu, &audioRecorderMenu,  &fileSelectorMenu,      &interpolationMenu,   &sampleStartMenu      },
+    {&sampleRepeatMenu,      &sampleReverseMenu,      &timeStretchMenu,              &samplePitchSpeedMenu, &audioRecorderMenu,  &fileSelectorMenu,      &interpolationMenu,   &sampleStartMenu      },
+    {&sourceVolumeMenu,      &sourceTransposeMenu,    &oscTypeMenu,                  &pulseWidthMenu,       &oscPhaseMenu,       &sourceFeedbackMenu,    &sourceWaveIndexMenu, &noiseMenu            },
+    {&sourceVolumeMenu,      &sourceTransposeMenu,    &oscTypeMenu,                  &pulseWidthMenu,       &oscPhaseMenu,       &sourceFeedbackMenu,    &sourceWaveIndexMenu, &oscSyncMenu          },
+    {&modulatorVolume,       &modulatorTransposeMenu, comingSoonMenu,                comingSoonMenu,        &modulatorPhaseMenu, &modulatorFeedbackMenu, comingSoonMenu,       &sequenceDirectionMenu},
+    {&modulatorVolume,       &modulatorTransposeMenu, comingSoonMenu,                comingSoonMenu,        &modulatorPhaseMenu, &modulatorFeedbackMenu, &modulatorDestMenu,   NULL                  },
+    {&volumeMenu,            &masterTransposeMenu,    &vibratoMenu,                  &panMenu,              &synthModeMenu,      &srrMenu,               &bitcrushMenu,        &clippingMenu         },
+    {&portaMenu,             &polyphonyMenu,          &priorityMenu,                 &unisonDetuneMenu,     &numUnisonMenu,      NULL,                   NULL,                 NULL                  },
+    {&envReleaseMenu,        &envSustainMenu,         &envDecayMenu,                 &envAttackMenu,        NULL,                &lpfModeMenu,           &lpfResMenu,          &lpfFreqMenu          },
+    {&envReleaseMenu,        &envSustainMenu,         &envDecayMenu,                 &envAttackMenu,        NULL,                comingSoonMenu,         &hpfResMenu,          &hpfFreqMenu          },
+    {&compressorReleaseMenu, &sidechainSyncMenu,      &compressorVolumeShortcutMenu, &compressorAttackMenu, &compressorShapeMenu,&sidechainSendMenu,     &bassMenu,            &bassFreqMenu         },
+    {&arpRateMenu,           &arpSyncMenu,            &arpGateMenu,                  &arpOctavesMenu,       &arpModeMenu,        &drumNameMenu,          &trebleMenu,          &trebleFreqMenu       },
+    {&lfo1RateMenu,          &lfo1SyncMenu,           &lfo1TypeMenu,                 &modFXTypeMenu,        &modFXOffsetMenu,    &modFXFeedbackMenu,     &modFXDepthMenu,      &modFXRateMenu        },
+    {&lfo2RateMenu,          comingSoonMenu,          &lfo2TypeMenu,                 &reverbAmountMenu,     &reverbPanMenu,      &reverbWidthMenu,       &reverbDampeningMenu, &reverbRoomSizeMenu   },
+    {&delayRateMenu,         &delaySyncMenu,          &delayAnalogMenu,              &delayFeedbackMenu,    &delayPingPongMenu,  NULL,                   NULL,                 NULL                  }
+};
 
 MenuItem* paramShortcutsForAudioClips[][8] = {
-    {NULL, &audioClipReverseMenu, NULL, &samplePitchSpeedMenu, NULL, &fileSelectorMenu, &interpolationMenu,
-     &audioClipSampleMarkerEditorMenuEnd},
-    {NULL, &audioClipReverseMenu, NULL, &samplePitchSpeedMenu, NULL, &fileSelectorMenu, &interpolationMenu,
-     &audioClipSampleMarkerEditorMenuEnd},
-    {&audioClipLevelMenu, &audioClipTransposeMenu, NULL, NULL, NULL, NULL, NULL, NULL},
-    {&audioClipLevelMenu, &audioClipTransposeMenu, NULL, NULL, NULL, NULL, NULL, NULL},
-    {NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL},
-    {NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL},
-    {&audioClipLevelMenu, &audioClipTransposeMenu, NULL, &audioClipPanMenu, NULL, &srrMenu, &bitcrushMenu,
-     &clippingMenu},
-    {NULL, NULL, &priorityMenu, NULL, NULL, NULL, NULL, NULL},
-    {NULL, NULL, NULL, &audioClipAttackMenu, NULL, &lpfModeMenu, &audioClipLPFResMenu, &audioClipLPFFreqMenu},
-    {NULL, NULL, NULL, &audioClipAttackMenu, NULL, comingSoonMenu, &audioClipHPFResMenu, &audioClipHPFFreqMenu},
-    {&compressorReleaseMenu, &sidechainSyncMenu, &audioClipCompressorVolumeMenu, &compressorAttackMenu,
-     &compressorShapeMenu, NULL, &bassMenu, &bassFreqMenu},
-    {NULL, NULL, NULL, NULL, NULL, NULL, &trebleMenu, &trebleFreqMenu},
-    {NULL, NULL, NULL, &audioClipModFXTypeMenu, &modFXOffsetMenu, &modFXFeedbackMenu, &audioClipModFXDepthMenu,
-     &audioClipModFXRateMenu},
-    {NULL, NULL, NULL, &audioClipReverbSendAmountMenu, &reverbPanMenu, &reverbWidthMenu, &reverbDampeningMenu,
-     &reverbRoomSizeMenu},
-    {&audioClipDelayRateMenu, &delaySyncMenu, &delayAnalogMenu, &audioClipDelayFeedbackMenu, &delayPingPongMenu, NULL,
-     NULL, NULL}};
+    {NULL,                    &audioClipReverseMenu,   NULL,                           &samplePitchSpeedMenu,          NULL,                 &fileSelectorMenu,  &interpolationMenu,       &audioClipSampleMarkerEditorMenuEnd},
+    {NULL,                    &audioClipReverseMenu,   NULL,                           &samplePitchSpeedMenu,          NULL,                 &fileSelectorMenu,  &interpolationMenu,       &audioClipSampleMarkerEditorMenuEnd},
+    {&audioClipLevelMenu,     &audioClipTransposeMenu, NULL,                           NULL,                           NULL,                 NULL,               NULL,                     NULL                               },
+    {&audioClipLevelMenu,     &audioClipTransposeMenu, NULL,                           NULL,                           NULL,                 NULL,               NULL,                     NULL                               },
+    {NULL,                    NULL,                    NULL,                           NULL,                           NULL,                 NULL,               NULL,                     NULL                               },
+    {NULL,                    NULL,                    NULL,                           NULL,                           NULL,                 NULL,               NULL,                     NULL                               },
+    {&audioClipLevelMenu,     &audioClipTransposeMenu, NULL,                           &audioClipPanMenu,              NULL,                 &srrMenu,           &bitcrushMenu,            &clippingMenu                      },
+    {NULL,                    NULL,                    &priorityMenu,                  NULL,                           NULL,                 NULL,               NULL,                     NULL                               },
+    {NULL,                    NULL,                    NULL,                           &audioClipAttackMenu,           NULL,                 &lpfModeMenu,       &audioClipLPFResMenu,     &audioClipLPFFreqMenu              },
+    {NULL,                    NULL,                    NULL,                           &audioClipAttackMenu,           NULL,                 comingSoonMenu,     &audioClipHPFResMenu,     &audioClipHPFFreqMenu              },
+    {&compressorReleaseMenu,  &sidechainSyncMenu,      &audioClipCompressorVolumeMenu, &compressorAttackMenu,          &compressorShapeMenu, NULL,               &bassMenu,                &bassFreqMenu                      },
+    {NULL,                    NULL,                    NULL,                           NULL,                           NULL,                 NULL,               &trebleMenu,              &trebleFreqMenu                    },
+    {NULL,                    NULL,                    NULL,                           &audioClipModFXTypeMenu,        &modFXOffsetMenu,     &modFXFeedbackMenu, &audioClipModFXDepthMenu, &audioClipModFXRateMenu            },
+    {NULL,                    NULL,                    NULL,                           &audioClipReverbSendAmountMenu, &reverbPanMenu,       &reverbWidthMenu,   &reverbDampeningMenu,     &reverbRoomSizeMenu                },
+    {&audioClipDelayRateMenu, &delaySyncMenu,          &delayAnalogMenu,               &audioClipDelayFeedbackMenu,    &delayPingPongMenu,   NULL,               NULL,                     NULL                               }
+};
+//clang-format on

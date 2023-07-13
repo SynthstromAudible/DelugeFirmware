@@ -418,7 +418,7 @@ bool MultiRange::mayEditRangeEdge(RangeEdit whichEdge) {
 
 #if HAVE_OLED
 void MultiRange::drawPixelsForOled() {
-	std::array<char const*, OLED_MENU_NUM_OPTIONS_VISIBLE> itemNames{};
+	static_vector<char const*, OLED_MENU_NUM_OPTIONS_VISIBLE> itemNames{};
 	char nameBuffers[OLED_MENU_NUM_OPTIONS_VISIBLE][20];
 	int actualCurrentRange = this->value_;
 
@@ -429,7 +429,7 @@ void MultiRange::drawPixelsForOled() {
 			break;
 		}
 		getText(nameBuffers[idx], nullptr, nullptr, false);
-		itemNames[idx] = nameBuffers[idx];
+		itemNames.push_back(nameBuffers[idx]);
 
 		this->value_++;
 	}
@@ -440,7 +440,7 @@ void MultiRange::drawPixelsForOled() {
 	if (soundEditor.editingRangeEdge == RangeEdit::OFF) {
 		selectedOption = this->value_ - soundEditor.menuCurrentScroll;
 	}
-	drawItemsForOled({itemNames.data(), idx}, selectedOption);
+	drawItemsForOled(itemNames, selectedOption);
 
 	if (soundEditor.editingRangeEdge != RangeEdit::OFF) {
 		int hilightStartX = 0;

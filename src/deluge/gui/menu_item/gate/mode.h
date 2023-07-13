@@ -27,13 +27,12 @@ static char mode_title[] = "Gate outX mode";
 static char* mode_title = nullptr;
 #endif
 
-class Mode final : public Selection {
+class Mode final : public Selection<3> {
 #if HAVE_OLED
-	char const* options_[3] = {"V-trig", "S-trig", nullptr};
+	static_vector<char const*, 3> options_ = {"V-trig", "S-trig"};
 #else
-	char const* options_[3] = {"VTRI", "STRI", nullptr};
+	static_vector<char const*, 3> options_ = {"VTRI", "STRI"};
 #endif
-	size_t options_size_ = 2;
 
 public:
 	Mode() : Selection(mode_title) {
@@ -44,25 +43,25 @@ public:
 	void writeCurrentValue() override {
 		cvEngine.setGateType(soundEditor.currentSourceIndex, this->value_);
 	}
-	Sized<char const**> getOptions() override {
-		return {options_, options_size_};
+	static_vector<char const*, capacity()> getOptions() override {
+		return options_;
 	}
 
 	void updateOptions(int value) {
 		switch (value) {
 		case WHICH_GATE_OUTPUT_IS_CLOCK:
 			options_[2] = "Clock";
-			options_size_ = 3;
 			break;
 
 		case WHICH_GATE_OUTPUT_IS_RUN:
 			options_[2] = HAVE_OLED ? "\"Run\" signal" : "Run";
-			options_size_ = 3;
 			break;
 
 		default:
-			options_[2] = nullptr;
-			options_size_ = 2;
+			// Remove the extra entry if it's present
+			if (options_.size() > 2) {
+				options_.pop_back();
+			}
 			break;
 		}
 	}

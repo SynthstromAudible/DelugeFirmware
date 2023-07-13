@@ -21,15 +21,12 @@
 #include "gui/ui/sound_editor.h"
 
 namespace deluge::gui::menu_item::filter {
-class LPFMode final : public Selection {
+class LPFMode final : public Selection<4> {
 public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->value_ = soundEditor.currentModControllable->lpfMode; }
 	void writeCurrentValue() override { soundEditor.currentModControllable->lpfMode = this->value_; }
-	Sized<char const**> getOptions() override {
-		static char const* options[] = {"12dB", "24dB", "Drive", "SVF"};
-		return {options, 4};
-	}
+	static_vector<char const*, capacity()> getOptions() override { return {"12dB", "24dB", "Drive", "SVF"}; }
 	bool isRelevant(Sound* sound, int whichThing) override {
 		return ((sound == nullptr) || sound->synthMode != SYNTH_MODE_FM);
 	}

@@ -21,13 +21,20 @@
 
 namespace deluge::gui::menu_item::mpe {
 
-class ZoneSelector final : public Selection {
+class ZoneSelector final : public Selection<2> {
 public:
 	using Selection::Selection;
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
-	Sized<char const**> getOptions() override;
-	void readCurrentValue() override;
-	void writeCurrentValue() override;
+	void readCurrentValue() override { this->value_ = whichZone; }
+	void writeCurrentValue() override { whichZone = this->value_; }
+
+	static_vector<char const*, capacity()> getOptions() override {
+		return {
+		    HAVE_OLED ? "Lower zone" : "LOWE", //<
+		    HAVE_OLED ? "Upper zone" : "UPPE"  //<
+		};
+	}
+
 	MenuItem* selectButtonPress() override;
 	uint8_t whichZone;
 };

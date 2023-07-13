@@ -19,9 +19,10 @@
 #include "processing/sound/sound.h"
 
 namespace deluge::gui::menu_item::sample {
-class Selection : public menu_item::Selection {
+template <size_t n>
+class Selection : public menu_item::Selection<n> {
 public:
-	using menu_item::Selection::Selection;
+	using menu_item::Selection<n>::Selection;
 	bool isRelevant(Sound* sound, int whichThing) override {
 		if (sound == nullptr) {
 			return true; // For AudioClips

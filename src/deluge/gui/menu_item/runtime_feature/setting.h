@@ -22,13 +22,13 @@
 
 namespace deluge::gui::menu_item::runtime_feature {
 class Settings;
-class Setting final : public Selection {
+class Setting final : public Selection<RUNTIME_FEATURE_SETTING_MAX_OPTIONS> {
 public:
 	explicit Setting(RuntimeFeatureSettingType ty);
 
 	void readCurrentValue() override;
 	void writeCurrentValue() override;
-	Sized<char const**> getOptions() override;
+	static_vector<char const*, RUNTIME_FEATURE_SETTING_MAX_OPTIONS> getOptions() override;
 	[[nodiscard]] size_t getNumOptions() const;
 	char const* getName() override;
 	char const* getTitle();
