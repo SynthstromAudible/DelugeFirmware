@@ -60,7 +60,8 @@ extern "C" {
 #include "menus.h"
 
 using namespace deluge;
-using namespace menu_item;
+using namespace deluge::gui;
+using namespace deluge::gui::menu_item;
 
 #define comingSoonMenu (MenuItem*)0xFFFFFFFF
 
@@ -118,10 +119,6 @@ SoundEditor::SoundEditor() {
 	memset(sourceShortcutBlinkFrequencies, 255, sizeof(sourceShortcutBlinkFrequencies));
 	timeLastAttemptedAutomatedParamEdit = 0;
 	shouldGoUpOneLevelOnBegin = false;
-
-#if HAVE_OLED
-	init_menu_titles();
-#endif
 }
 
 bool SoundEditor::editingKit() {
@@ -1018,14 +1015,14 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int sourceIndex) {
 			if (clip->type == CLIP_TYPE_INSTRUMENT) {
 				if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_MIDI_OUT) {
 #if HAVE_OLED
-					soundEditorRootMenuMIDIOrCV.basicTitle = "MIDI inst.";
+					soundEditorRootMenuMIDIOrCV.title = "MIDI inst.";
 #endif
 doMIDIOrCV:
 					newItem = &soundEditorRootMenuMIDIOrCV;
 				}
 				else if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_CV) {
 #if HAVE_OLED
-					soundEditorRootMenuMIDIOrCV.basicTitle = "CV instrument";
+					soundEditorRootMenuMIDIOrCV.title = "CV instrument";
 #endif
 					goto doMIDIOrCV;
 				}

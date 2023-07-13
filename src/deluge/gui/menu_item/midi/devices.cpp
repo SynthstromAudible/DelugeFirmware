@@ -16,37 +16,38 @@
 */
 
 #include "devices.h"
+#include "definitions.h"
 #include "gui/ui/sound_editor.h"
 #include "io/midi/midi_device_manager.h"
 #include "hid/display/numeric_driver.h"
 #include "io/midi/midi_device.h"
 #include "gui/menu_item/submenu.h"
+#include <array>
 
-extern menu_item::Submenu midiDeviceMenu;
+extern deluge::gui::menu_item::Submenu midiDeviceMenu;
 
-namespace menu_item::midi {
+namespace deluge::gui::menu_item::midi {
 
-Devices devicesMenu{"Devices"};
+Devices devicesMenu{"Devices", "MIDI devices"};
 
 static const int lowestDeviceNum = -3;
 
 void Devices::beginSession(MenuItem* navigatedBackwardFrom) {
-	if (navigatedBackwardFrom) {
-		for (soundEditor.currentValue = lowestDeviceNum;
-		     soundEditor.currentValue < MIDIDeviceManager::hostedMIDIDevices.getNumElements();
-		     soundEditor.currentValue++) {
-			if (getDevice(soundEditor.currentValue) == soundEditor.currentMIDIDevice) {
+	if (navigatedBackwardFrom != nullptr) {
+		for (this->value_ = lowestDeviceNum; this->value_ < MIDIDeviceManager::hostedMIDIDevices.getNumElements();
+		     this->value_++) {
+			if (getDevice(this->value_) == soundEditor.currentMIDIDevice) {
 				goto decidedDevice;
 			}
 		}
 	}
 
-	soundEditor.currentValue = lowestDeviceNum; // Start on "DIN". That's the only one that'll always be there.
+	this->value_ = lowestDeviceNum; // Start on "DIN". That's the only one that'll always be there.
 
 decidedDevice:
-	soundEditor.currentMIDIDevice = getDevice(soundEditor.currentValue);
+	soundEditor.currentMIDIDevice = getDevice(this->value_);
 #if HAVE_OLED
-	soundEditor.menuCurrentScroll = soundEditor.currentValue;
+	soundEditor.menuCurrentScroll = this->value_;
 #else
 	drawValue();
 #endif
@@ -54,7 +55,7 @@ decidedDevice:
 
 void Devices::selectEncoderAction(int offset) {
 	do {
-		int newValue = soundEditor.currentValue + offset;
+		int newValue = this->value_ + offset;
 
 		if (newValue >= MIDIDeviceManager::hostedMIDIDevices.getNumElements()) {
 			if (HAVE_OLED) {
@@ -69,20 +70,20 @@ void Devices::selectEncoderAction(int offset) {
 			newValue = MIDIDeviceManager::hostedMIDIDevices.getNumElements() - 1;
 		}
 
-		soundEditor.currentValue = newValue;
+		this->value_ = newValue;
 
-		soundEditor.currentMIDIDevice = getDevice(soundEditor.currentValue);
+		soundEditor.currentMIDIDevice = getDevice(this->value_);
 
 	} while (!soundEditor.currentMIDIDevice->connectionFlags);
 	// Don't show devices which aren't connected. Sometimes we won't even have a name to display for them.
 
 #if HAVE_OLED
-	if (soundEditor.currentValue < soundEditor.menuCurrentScroll) {
-		soundEditor.menuCurrentScroll = soundEditor.currentValue;
+	if (this->value_ < soundEditor.menuCurrentScroll) {
+		soundEditor.menuCurrentScroll = this->value_;
 	}
 
 	if (offset >= 0) {
-		int d = soundEditor.currentValue;
+		int d = this->value_;
 		int numSeen = 1;
 		while (true) {
 			d--;
@@ -105,17 +106,19 @@ void Devices::selectEncoderAction(int offset) {
 }
 
 MIDIDevice* Devices::getDevice(int deviceIndex) {
-	if (deviceIndex == -3) {
+	switch (deviceIndex) {
+	case -3: {
 		return &MIDIDeviceManager::dinMIDIPorts;
 	}
-	else if (deviceIndex == -2) {
+	case -2: {
 		return &MIDIDeviceManager::upstreamUSBMIDIDevice_port1;
 	}
-	else if (deviceIndex == -1) {
+	case -1: {
 		return &MIDIDeviceManager::upstreamUSBMIDIDevice_port2;
 	}
-	else {
-		return (MIDIDevice*)MIDIDeviceManager::hostedMIDIDevices.getElement(deviceIndex);
+	default: {
+		return static_cast<MIDIDevice*>(MIDIDeviceManager::hostedMIDIDevices.getElement(deviceIndex));
+	}
 	}
 }
 
@@ -130,40 +133,38 @@ void Devices::drawValue() {
 
 MenuItem* Devices::selectButtonPress() {
 #if HAVE_OLED
-	midiDeviceMenu.basicTitle =
+	midiDeviceMenu.title =
 	    soundEditor.currentMIDIDevice->getDisplayName(); // A bit ugly, but saves us extending a class.
 #endif
 	return &midiDeviceMenu;
 }
 
+Sized<char const**> getOptions() {
+}
+
 #if HAVE_OLED
 
 void Devices::drawPixelsForOled() {
-	char const* itemNames[OLED_MENU_NUM_OPTIONS_VISIBLE];
+	std::array<char const*, OLED_MENU_NUM_OPTIONS_VISIBLE> itemNames = {};
 
 	int selectedRow = -1;
 
-	int d = soundEditor.menuCurrentScroll;
-	int r = 0;
-	while (r < OLED_MENU_NUM_OPTIONS_VISIBLE && d < MIDIDeviceManager::hostedMIDIDevices.getNumElements()) {
-		MIDIDevice* device = getDevice(d);
-		if (device->connectionFlags) {
-			itemNames[r] = device->getDisplayName();
-			if (d == soundEditor.currentValue) {
-				selectedRow = r;
+	int device_idx = soundEditor.menuCurrentScroll;
+	size_t row = 0;
+	while (row < OLED_MENU_NUM_OPTIONS_VISIBLE && device_idx < MIDIDeviceManager::hostedMIDIDevices.getNumElements()) {
+		MIDIDevice* device = getDevice(device_idx);
+		if (device->connectionFlags != 0u) {
+			itemNames[row] = device->getDisplayName();
+			if (device_idx == this->value_) {
+				selectedRow = static_cast<int>(row);
 			}
-			r++;
+			row++;
 		}
-		d++;
+		device_idx++;
 	}
 
-	while (r < OLED_MENU_NUM_OPTIONS_VISIBLE) {
-		itemNames[r] = NULL;
-		r++;
-	}
-
-	drawItemsForOled(itemNames, selectedRow);
+	drawItemsForOled({itemNames.data(), row}, selectedRow, soundEditor.menuCurrentScroll);
 }
 
 #endif
-} // namespace menu_item::midi
+} // namespace deluge::gui::menu_item::midi

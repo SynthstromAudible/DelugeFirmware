@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "definitions.h"
 #include "model/clip/clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
@@ -23,21 +24,21 @@
 #include "gui/ui/sound_editor.h"
 #include "processing/sound/sound.h"
 
-namespace menu_item::arpeggiator {
+namespace deluge::gui::menu_item::arpeggiator {
 class Mode final : public Selection {
 public:
-	Mode(char const* newName = NULL) : Selection(newName) {}
-	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentArpSettings->mode; }
-	void writeCurrentValue() {
+	using Selection::Selection;
+	void readCurrentValue() override { this->value_ = soundEditor.currentArpSettings->mode; }
+	void writeCurrentValue() override {
 
 		// If was off, or is now becoming off...
-		if (soundEditor.currentArpSettings->mode == ARP_MODE_OFF || soundEditor.currentValue == ARP_MODE_OFF) {
+		if (soundEditor.currentArpSettings->mode == ARP_MODE_OFF || this->value_ == ARP_MODE_OFF) {
 			if (currentSong->currentClip->isActiveOnOutput()) {
 				char modelStackMemory[MODEL_STACK_MAX_SIZE];
 				ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
 
 				if (soundEditor.editingCVOrMIDIClip()) {
-					((InstrumentClip*)currentSong->currentClip)
+					(dynamic_cast<InstrumentClip*>(currentSong->currentClip))
 					    ->stopAllNotesForMIDIOrCV(modelStack->toWithTimelineCounter());
 				}
 				else {
@@ -49,17 +50,16 @@ public:
 				}
 			}
 		}
-		soundEditor.currentArpSettings->mode = soundEditor.currentValue;
+		soundEditor.currentArpSettings->mode = this->value_;
 
 		// Only update the Clip-level arp setting if they hadn't been playing with other synth parameters first (so it's clear that switching the arp on or off was their main intention)
 		if (!soundEditor.editingKit()) {
-			bool arpNow = (soundEditor.currentValue != ARP_MODE_OFF); // Uh.... this does nothing...
+			bool arpNow = (this->value_ != ARP_MODE_OFF); // Uh.... this does nothing...
 		}
 	}
-	char const** getOptions() {
-		static char const* options[] = {"OFF", "UP", "DOWN", "BOTH", "Random", NULL};
-		return options;
+	Sized<char const**> getOptions() override {
+		static char const* options[] = {"OFF", "UP", "DOWN", "BOTH", "Random"};
+		return {options, NUM_ARP_MODES};
 	}
-	int getNumOptions() { return NUM_ARP_MODES; }
 };
-} // namespace menu_item::arpeggiator
+} // namespace deluge::gui::menu_item::arpeggiator

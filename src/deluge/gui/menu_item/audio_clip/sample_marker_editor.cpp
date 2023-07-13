@@ -25,7 +25,7 @@
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
 
-namespace menu_item::audio_clip {
+namespace deluge::gui::menu_item::audio_clip {
 
 int SampleMarkerEditor::checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) {
 
@@ -34,7 +34,7 @@ int SampleMarkerEditor::checkPermissionToBeginSession(Sound* sound, int whichThi
 	}
 
 	// Before going ahead, make sure a Sample is loaded
-	if (!((AudioClip*)currentSong->currentClip)->sampleHolder.audioFile) {
+	if ((dynamic_cast<AudioClip*>(currentSong->currentClip))->sampleHolder.audioFile == nullptr) {
 		return MENU_PERMISSION_NO;
 	}
 
@@ -51,4 +51,4 @@ void SampleMarkerEditor::beginSession(MenuItem* navigatedBackwardFrom) {
 	}
 }
 
-} // namespace menu_item::audio_clip
+} // namespace deluge::gui::menu_item::audio_clip

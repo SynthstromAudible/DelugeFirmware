@@ -19,6 +19,7 @@
 
 #include "RZA1/system/r_typedefs.h"
 #include "definitions.h"
+#include "util/sized.h"
 
 #define MENU_PERMISSION_NO 0
 #define MENU_PERMISSION_YES 1
@@ -32,79 +33,52 @@ class MIDIDevice;
 
 class MenuItem {
 public:
-	MenuItem(char const* newName = NULL) {
-		name = newName;
-#if HAVE_OLED
-		basicTitle = newName;
-#endif
+	MenuItem(char const* newName = nullptr, char const* newTitle = nullptr) : name(newName) {
+		if (newTitle != nullptr) {
+			title = newTitle;
+		}
+		else {
+			title = newName;
+		}
 	}
 
 	char const* name; // As viewed in a menu list. For OLED, up to 20 chars.
-	virtual char const* getName() {
-		return name;
-	}
+	virtual char const* getName() { return name; }
 
-	virtual void horizontalEncoderAction(int offset) {
-	}
-	virtual void selectEncoderAction(int offset) {
-	}
+	virtual void horizontalEncoderAction(int offset) {}
+	virtual void selectEncoderAction(int offset) {}
 	virtual void beginSession(MenuItem* navigatedBackwardFrom = NULL){};
-	virtual bool isRelevant(Sound* sound, int whichThing) {
-		return true;
-	}
-	virtual MenuItem* selectButtonPress() {
-		return NULL;
-	}
+	virtual bool isRelevant(Sound* sound, int whichThing) { return true; }
+	virtual MenuItem* selectButtonPress() { return nullptr; }
 	virtual int checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange);
-	virtual void readValueAgain() {
-	}
-	virtual bool selectEncoderActionEditsInstrument() {
-		return false;
-	}
-	virtual uint8_t getPatchedParamIndex() {
-		return 255;
-	}
-	virtual uint8_t getIndexOfPatchedParamToBlink() {
-		return 255;
-	}
-	virtual uint8_t shouldDrawDotOnName() {
-		return 255;
-	}
-	virtual uint8_t shouldBlinkPatchingSourceShortcut(int s, uint8_t* colour) {
-		return 255;
-	}
+	virtual void readValueAgain() {}
+	virtual bool selectEncoderActionEditsInstrument() { return false; }
+	virtual uint8_t getPatchedParamIndex() { return 255; }
+	virtual uint8_t getIndexOfPatchedParamToBlink() { return 255; }
+	virtual uint8_t shouldDrawDotOnName() { return 255; }
+	virtual uint8_t shouldBlinkPatchingSourceShortcut(int s, uint8_t* colour) { return 255; }
 	virtual MenuItem* patchingSourceShortcutPress(int s, bool previousPressStillActive = false) {
 		return NULL;
 	} // NULL means do nothing. 0xFFFFFFFF means go up a level
-	virtual void unlearnAction() {
-	}
-	virtual bool allowsLearnMode() {
-		return false;
-	}
-	virtual void learnKnob(MIDIDevice* fromDevice, int whichKnob, int modKnobMode, int midiChannel) {
-	}
+	virtual void unlearnAction() {}
+	virtual bool allowsLearnMode() { return false; }
+	virtual void learnKnob(MIDIDevice* fromDevice, int whichKnob, int modKnobMode, int midiChannel) {}
 	virtual bool learnNoteOn(MIDIDevice* fromDevice, int channel, int noteCode) {
 		return false;
 	} // Returns whether it was used, I think?
 	virtual void learnCC(MIDIDevice* fromDevice, int channel, int ccNumber, int value);
-	virtual bool shouldBlinkLearnLed() {
-		return false;
-	}
-	virtual bool isRangeDependent() {
-		return false;
-	}
-	virtual bool usesAffectEntire() {
-		return false;
-	}
+	virtual bool shouldBlinkLearnLed() { return false; }
+	virtual bool isRangeDependent() { return false; }
+	virtual bool usesAffectEntire() { return false; }
 
+	char const* title; // Can get overridden by getTitle(). Actual max num chars for OLED display is 14.
 #if HAVE_OLED
-	char const* basicTitle; // Can get overridden by getTitle(). Actual max num chars for OLED display is 14.
 	virtual void renderOLED();
 	virtual void drawPixelsForOled() {
 	}
-	void drawItemsForOled(char const** options, int selectedOption);
+	void drawItemsForOled(deluge::Sized<char const**> options, int selectedOption, int offset = 0);
 
-	/// Get the title to be used when rendering on OLED. If not overriden, defaults to returning `basicTitle`.
+	/// Get the title to be used when rendering on OLED. If not overriden, defaults to returning `title`.
 	virtual char const* getTitle();
 
 #else

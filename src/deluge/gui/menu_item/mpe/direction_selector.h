@@ -19,19 +19,24 @@
 
 #include "gui/menu_item/selection.h"
 
-namespace menu_item::mpe {
+namespace deluge::gui::menu_item::mpe {
 
 class DirectionSelector final : public Selection {
 public:
-	DirectionSelector(char const* newName = NULL) : Selection(newName) {}
-	void beginSession(MenuItem* navigatedBackwardFrom = NULL);
-	char const** getOptions();
-	void readCurrentValue();
-	void writeCurrentValue();
-	MenuItem* selectButtonPress();
+	using Selection::Selection;
+	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
+	Sized<char const**> getOptions() override;
+	void readCurrentValue() override;
+	void writeCurrentValue() override;
+	MenuItem* selectButtonPress() override;
 	uint8_t whichDirection;
+#if HAVE_OLED
+	char const* getTitle() override {
+		return whichDirection ? "MPE output" : "MPE input";
+	}
+#endif
 };
 
 extern DirectionSelector directionSelectorMenu;
 
-} // namespace menu_item::mpe
+} // namespace deluge::gui::menu_item::mpe

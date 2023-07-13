@@ -20,17 +20,17 @@
 #include "gui/ui/sound_editor.h"
 #include "processing/sound/sound.h"
 
-namespace menu_item::unison {
+namespace deluge::gui::menu_item::unison {
 class Detune final : public Integer {
 public:
 	using Integer::Integer;
-	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentSound->unisonDetune; }
-	void writeCurrentValue() {
+	void readCurrentValue() override { this->value_ = soundEditor.currentSound->unisonDetune; }
+	void writeCurrentValue() override {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithSoundFlags* modelStack = soundEditor.getCurrentModelStack(modelStackMemory)->addSoundFlags();
 
-		soundEditor.currentSound->setUnisonDetune(soundEditor.currentValue, modelStack);
+		soundEditor.currentSound->setUnisonDetune(this->value_, modelStack);
 	}
-	int getMaxValue() const { return MAX_UNISON_DETUNE; }
+	[[nodiscard]] int getMaxValue() const override { return MAX_UNISON_DETUNE; }
 };
-} // namespace menu_item::unison
+} // namespace deluge::gui::menu_item::unison

@@ -19,14 +19,14 @@
 #include "gui/ui/sound_editor.h"
 #include "processing/sound/sound.h"
 
-namespace menu_item::lfo::global {
+namespace deluge::gui::menu_item::lfo::global {
 
 class Type final : public Shape {
 public:
 	using Shape::Shape;
 
-	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentSound->lfoGlobalWaveType; }
-	void writeCurrentValue() { soundEditor.currentSound->setLFOGlobalWave(soundEditor.currentValue); }
+	void readCurrentValue() override { this->value_ = soundEditor.currentSound->lfoGlobalWaveType; }
+	void writeCurrentValue() override { soundEditor.currentSound->setLFOGlobalWave(this->value_); }
 };
 
-} // namespace menu_item::lfo::global
+} // namespace deluge::gui::menu_item::lfo::global

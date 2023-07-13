@@ -28,14 +28,10 @@ extern "C" {
 #include "util/cfunctions.h"
 }
 
-namespace menu_item {
-
-UnpatchedParam::UnpatchedParam() {
-	// TODO Auto-generated constructor stub
-}
+namespace deluge::gui::menu_item {
 
 void UnpatchedParam::readCurrentValue() {
-	soundEditor.currentValue =
+	this->value_ =
 	    (((int64_t)soundEditor.currentParamManager->getUnpatchedParamSet()->getValue(getP()) + 2147483648) * 50
 	     + 2147483648)
 	    >> 32;
@@ -56,11 +52,11 @@ void UnpatchedParam::writeCurrentValue() {
 }
 
 int32_t UnpatchedParam::getFinalValue() {
-	if (soundEditor.currentValue == 25) {
+	if (this->value_ == 25) {
 		return 0;
 	}
 	else {
-		return (uint32_t)soundEditor.currentValue * 85899345 - 2147483648;
+		return (uint32_t)this->value_ * 85899345 - 2147483648;
 	}
 }
 
@@ -78,4 +74,4 @@ ParamSet* UnpatchedParam::getParamSet() {
 
 // ---------------------------------------
 
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

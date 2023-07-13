@@ -25,44 +25,40 @@
 #include "processing/sound/sound_drum.h"
 #include "gui/ui/sound_editor.h"
 
-namespace menu_item::voice {
+namespace deluge::gui::menu_item::voice {
 class Polyphony final : public Selection {
 public:
-	Polyphony(char const* newName = NULL) : Selection(newName) {}
-	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentSound->polyphonic; }
-	void writeCurrentValue() {
+	using Selection::Selection;
+	void readCurrentValue() override { this->value_ = soundEditor.currentSound->polyphonic; }
+	void writeCurrentValue() override {
 
 		// If affect-entire button held, do whole kit
 		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKit()) {
 
-			Kit* kit = (Kit*)currentSong->currentClip->output;
+			Kit* kit = dynamic_cast<Kit*>(currentSong->currentClip->output);
 
-			for (Drum* thisDrum = kit->firstDrum; thisDrum; thisDrum = thisDrum->next) {
+			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DRUM_TYPE_SOUND) {
-					SoundDrum* soundDrum = (SoundDrum*)thisDrum;
-					soundDrum->polyphonic = soundEditor.currentValue;
+					auto* soundDrum = dynamic_cast<SoundDrum*>(thisDrum);
+					soundDrum->polyphonic = this->value_;
 				}
 			}
 		}
 
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentSound->polyphonic = soundEditor.currentValue;
+			soundEditor.currentSound->polyphonic = this->value_;
 		}
 	}
 
-	char const** getOptions() {
-		static char const* options[] = {"Auto", "Polyphonic", "Monophonic", "Legato", "Choke", NULL};
-		return options;
-	}
-
-	int getNumOptions() { // Hack-ish way of hiding the "choke" option when not editing a Kit
+	Sized<char const**> getOptions() override {
+		static char const* options[] = {"Auto", "Polyphonic", "Monophonic", "Legato", "Choke"};
 		if (soundEditor.editingKit()) {
-			return NUM_POLYPHONY_TYPES;
+			return {options, NUM_POLYPHONY_TYPES};
 		}
-		return NUM_POLYPHONY_TYPES - 1;
+		return {options, NUM_POLYPHONY_TYPES - 1};
 	}
 
-	bool usesAffectEntire() { return true; }
+	bool usesAffectEntire() override { return true; }
 };
-} // namespace menu_item::voice
+} // namespace deluge::gui::menu_item::voice

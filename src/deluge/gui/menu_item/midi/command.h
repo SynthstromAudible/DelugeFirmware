@@ -21,25 +21,24 @@
 
 class MIDIDevice;
 
-namespace menu_item::midi {
+namespace deluge::gui::menu_item::midi {
 
 class Command final : public MenuItem {
 public:
-	Command(char const* newName = NULL, int newCommandNumber = 0) : MenuItem(newName) {
-		commandNumber = newCommandNumber;
-	}
-	void beginSession(MenuItem* navigatedBackwardFrom);
-	void drawValue();
-	void selectEncoderAction(int offset);
-	bool allowsLearnMode() { return true; }
-	bool shouldBlinkLearnLed() { return true; }
-	void unlearnAction();
-	bool learnNoteOn(MIDIDevice* device, int channel, int noteCode);
-	void learnCC(MIDIDevice* device, int channel, int ccNumber, int value);
+	Command(char const* newName = nullptr, int newCommandNumber = 0)
+	    : MenuItem(newName), commandNumber(newCommandNumber) {}
+	void beginSession(MenuItem* navigatedBackwardFrom) override;
+	void drawValue() const;
+	void selectEncoderAction(int offset) override;
+	bool allowsLearnMode() override { return true; }
+	bool shouldBlinkLearnLed() override { return true; }
+	void unlearnAction() override;
+	bool learnNoteOn(MIDIDevice* device, int channel, int noteCode) override;
+	void learnCC(MIDIDevice* device, int channel, int ccNumber, int value) override;
 #if HAVE_OLED
 	void drawPixelsForOled();
 #endif
 
 	uint8_t commandNumber;
 };
-} // namespace menu_item::midi
+} // namespace deluge::gui::menu_item::midi

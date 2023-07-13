@@ -13,38 +13,57 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
- */
+*/
 
-#include "value.h"
-#include "gui/ui/ui.h"
+#include "enumeration.h"
+#include "gui/ui/sound_editor.h"
+#include "hid/display/numeric_driver.h"
 
-namespace menu_item {
-
-void Value::beginSession(MenuItem* navigatedBackwardFrom) {
+extern "C" {
 #if HAVE_OLED
-	readCurrentValue();
-#else
-	readValueAgain();
+#include "RZA1/oled/oled_low_level.h"
 #endif
 }
 
-void Value::selectEncoderAction(int offset) {
-	writeCurrentValue();
+namespace deluge::gui::menu_item {
 
-	// For MenuItems referring to an AutoParam (so UnpatchedParam and PatchedParam), ideally we wouldn't want to render the display here, because that'll happen soon anyway due to a setting of TIMER_DISPLAY_AUTOMATION.
+void Enumeration::beginSession(MenuItem* navigatedBackwardFrom) {
+	Value::beginSession(navigatedBackwardFrom);
 #if HAVE_OLED
-	renderUIsForOled();
-#else
-	drawValue(); // Probably not necessary either...
-#endif
-}
-
-void Value::readValueAgain() {
-	readCurrentValue();
-#if HAVE_OLED
-	renderUIsForOled();
+	soundEditor.menuCurrentScroll = 0;
 #else
 	drawValue();
 #endif
 }
-} // namespace menu_item
+
+void Enumeration::selectEncoderAction(int offset) {
+	this->value_ += offset;
+	int numOptions = size();
+
+#if HAVE_OLED
+	if (this->value_ >= numOptions) {
+		this->value_ = numOptions;
+	}
+	else if (this->value_ < 0) {
+		this->value_ = 0;
+	}
+#else
+	if (this->value_ >= numOptions) {
+		this->value_ -= numOptions;
+	}
+	else if (this->value_ < 0) {
+		this->value_ += numOptions;
+	}
+#endif
+
+	Value::selectEncoderAction(offset);
+}
+
+void Enumeration::drawValue() {
+#if HAVE_OLED
+	renderUIsForOled();
+#else
+	numericDriver.setTextAsNumber(this->value_);
+#endif
+}
+} // namespace deluge::gui::menu_item

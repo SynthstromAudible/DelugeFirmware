@@ -19,7 +19,7 @@
 #include "processing/sound/sound.h"
 #include "util/comparison.h"
 
-namespace menu_item::mod_fx {
+namespace deluge::gui::menu_item::mod_fx {
 class Feedback final : public UnpatchedParam {
 public:
 	using UnpatchedParam::UnpatchedParam;
@@ -28,4 +28,4 @@ public:
 		return (!sound || util::one_of<uint8_t>(sound->modFXType, {MOD_FX_TYPE_FLANGER, MOD_FX_TYPE_PHASER}));
 	}
 };
-} // namespace menu_item::mod_fx
+} // namespace deluge::gui::menu_item::mod_fx

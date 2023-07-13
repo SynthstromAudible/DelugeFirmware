@@ -22,40 +22,39 @@
 #include "transpose.h"
 
 extern void setCvNumberForTitle(int m);
-extern menu_item::Submenu cvSubmenu;
+extern deluge::gui::menu_item::Submenu cvSubmenu;
 
-namespace menu_item::cv {
-#if HAVE_OLED
-static char const* cvOutputChannel[] = {"CV output 1", "CV output 2", NULL};
-#else
-static char const* cvOutputChannel[] = {"Out1", "Out2", NULL};
-#endif
-
+namespace deluge::gui::menu_item::cv {
 class Selection final : public menu_item::Selection {
 public:
-	Selection(char const* newName = NULL) : menu_item::Selection(newName) {
-#if HAVE_OLED
-		basicTitle = "CV outputs";
-#endif
-		basicOptions = cvOutputChannel;
-	}
-	void beginSession(MenuItem* navigatedBackwardFrom) {
-		if (!navigatedBackwardFrom) {
-			soundEditor.currentValue = 0;
+	using menu_item::Selection::Selection;
+
+	void beginSession(MenuItem* navigatedBackwardFrom) override {
+		if (navigatedBackwardFrom == nullptr) {
+			this->value_ = 0;
 		}
 		else {
-			soundEditor.currentValue = soundEditor.currentSourceIndex;
+			this->value_ = soundEditor.currentSourceIndex;
 		}
 		menu_item::Selection::beginSession(navigatedBackwardFrom);
 	}
 
-	MenuItem* selectButtonPress() {
-		soundEditor.currentSourceIndex = soundEditor.currentValue;
+	MenuItem* selectButtonPress() override {
+		soundEditor.currentSourceIndex = this->value_;
 #if HAVE_OLED
-		cvSubmenu.basicTitle = cvOutputChannel[soundEditor.currentValue];
-		setCvNumberForTitle(soundEditor.currentValue);
+		cvSubmenu.title = getOptions().value[this->value_];
+		setCvNumberForTitle(this->value_);
 #endif
 		return &cvSubmenu;
 	}
+
+	Sized<char const**> getOptions() override {
+#if HAVE_OLED
+		static char const* cvOutputChannel[] = {"CV output 1", "CV output 2"};
+#else
+		static char const* cvOutputChannel[] = {"Out1", "Out2"};
+#endif
+		return {cvOutputChannel, 2};
+	}
 };
-} // namespace menu_item::cv
+} // namespace deluge::gui::menu_item::cv

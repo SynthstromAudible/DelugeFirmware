@@ -17,15 +17,20 @@
 #pragma once
 #include "gui/menu_item/source_selection.h"
 
-namespace menu_item::source_selection {
+namespace deluge::gui::menu_item::source_selection {
 class Regular final : public SourceSelection {
 public:
-	Regular();
-	void beginSession(MenuItem* navigatedBackwardFrom = NULL);
-	ParamDescriptor getDestinationDescriptor();
-	MenuItem* selectButtonPress();
-	MenuItem* patchingSourceShortcutPress(int newS, bool previousPressStillActive);
+	using SourceSelection::SourceSelection;
+	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
+	ParamDescriptor getDestinationDescriptor() override;
+	MenuItem* selectButtonPress() override;
+	MenuItem* patchingSourceShortcutPress(int newS, bool previousPressStillActive) override;
+#if HAVE_OLED
+	char const* getTitle() override {
+		return "Modulate with";
+	};
+#endif
 };
 
 extern Regular regularMenu;
-} // namespace menu_item::source_selection
+} // namespace deluge::gui::menu_item::source_selection

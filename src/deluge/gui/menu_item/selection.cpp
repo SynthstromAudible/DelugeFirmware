@@ -18,6 +18,7 @@
 #include "selection.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/numeric_driver.h"
+#include "hid/display/oled.h"
 
 extern "C" {
 #if HAVE_OLED
@@ -25,79 +26,31 @@ extern "C" {
 #endif
 }
 
-namespace menu_item {
-
-char const* onOffOptions[] = {"Off", "On", NULL};
-
-Selection::Selection(char const* newName) : Value(newName) {
-	basicOptions = onOffOptions;
-}
-
-void Selection::beginSession(MenuItem* navigatedBackwardFrom) {
-	Value::beginSession(navigatedBackwardFrom);
-#if HAVE_OLED
-	soundEditor.menuCurrentScroll = 0;
-#else
-	drawValue();
-#endif
-}
-
-// Virtual - may be overriden.
-char const** Selection::getOptions() {
-	return basicOptions;
-}
-
-int Selection::getNumOptions() {
-	int i = 0;
-	while (basicOptions[i]) {
-		i++;
-	}
-	return i;
-}
-
-void Selection::selectEncoderAction(int offset) {
-	soundEditor.currentValue += offset;
-	int numOptions = getNumOptions();
-
-#if HAVE_OLED
-	if (soundEditor.currentValue > numOptions - 1) {
-		soundEditor.currentValue = numOptions - 1;
-	}
-	else if (soundEditor.currentValue < 0) {
-		soundEditor.currentValue = 0;
-	}
-#else
-	if (soundEditor.currentValue >= numOptions)
-		soundEditor.currentValue -= numOptions;
-	else if (soundEditor.currentValue < 0)
-		soundEditor.currentValue += numOptions;
-#endif
-
-	Value::selectEncoderAction(offset);
-}
+namespace deluge::gui::menu_item {
 
 void Selection::drawValue() {
 #if HAVE_OLED
 	renderUIsForOled();
 #else
-	numericDriver.setText(getOptions()[soundEditor.currentValue]);
+	const auto [options, _size] = getOptions();
+	numericDriver.setText(options[this->value_]);
 #endif
 }
 
 #if HAVE_OLED
+
 void Selection::drawPixelsForOled() {
 	// Move scroll
-	if (soundEditor.menuCurrentScroll > soundEditor.currentValue) {
-		soundEditor.menuCurrentScroll = soundEditor.currentValue;
+	if (soundEditor.menuCurrentScroll > this->value_) {
+		soundEditor.menuCurrentScroll = this->value_;
 	}
-	else if (soundEditor.menuCurrentScroll < soundEditor.currentValue - OLED_MENU_NUM_OPTIONS_VISIBLE + 1) {
-		soundEditor.menuCurrentScroll = soundEditor.currentValue - OLED_MENU_NUM_OPTIONS_VISIBLE + 1;
+	else if (soundEditor.menuCurrentScroll < this->value_ - OLED_MENU_NUM_OPTIONS_VISIBLE + 1) {
+		soundEditor.menuCurrentScroll = this->value_ - OLED_MENU_NUM_OPTIONS_VISIBLE + 1;
 	}
 
-	char const** options = &getOptions()[soundEditor.menuCurrentScroll];
-	int selectedOption = soundEditor.currentValue - soundEditor.menuCurrentScroll;
+	const int selectedOption = this->value_ - soundEditor.menuCurrentScroll;
 
-	drawItemsForOled(options, selectedOption);
+	drawItemsForOled(getOptions(), selectedOption, soundEditor.menuCurrentScroll);
 }
 #endif
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

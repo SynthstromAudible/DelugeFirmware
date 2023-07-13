@@ -20,7 +20,7 @@
 #include "gui/ui/sound_editor.h"
 #include "direction_selector.h"
 
-namespace menu_item::mpe {
+namespace deluge::gui::menu_item::mpe {
 
 ZoneSelector zoneSelectorMenu{};
 
@@ -31,25 +31,25 @@ void ZoneSelector::beginSession(MenuItem* navigatedBackwardFrom) {
 	Selection::beginSession(navigatedBackwardFrom);
 }
 
-char const** ZoneSelector::getOptions() {
+Sized<char const**> ZoneSelector::getOptions() {
 	static char const* options[] =
 #if HAVE_OLED
-	    {"Lower zone", "Upper zone", NULL};
+	    {"Lower zone", "Upper zone"};
 #else
-	    {"Lowe", "Uppe", NULL};
+	    {"Lowe", "Uppe"};
 #endif
-	return options;
+	return {options, 2};
 }
 
 void ZoneSelector::readCurrentValue() {
-	soundEditor.currentValue = whichZone;
+	this->value_ = whichZone;
 }
 
 void ZoneSelector::writeCurrentValue() {
-	whichZone = soundEditor.currentValue;
+	whichZone = this->value_;
 }
 
 MenuItem* ZoneSelector::selectButtonPress() {
 	return &zoneNumMemberChannelsMenu;
 }
-} // namespace menu_item::mpe
+} // namespace deluge::gui::menu_item::mpe

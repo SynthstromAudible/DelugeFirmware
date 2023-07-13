@@ -17,7 +17,7 @@
 #pragma once
 #include "gui/menu_item/patch_cable_strength.h"
 
-namespace menu_item::patch_cable_strength {
+namespace deluge::gui::menu_item::patch_cable_strength {
 
 class Regular : public PatchCableStrength {
 public:
@@ -26,11 +26,11 @@ public:
 	ParamDescriptor getDestinationDescriptor() final;
 	uint8_t getS() final;
 	ParamDescriptor getLearningThing() final;
-	int checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange);
-	uint8_t shouldBlinkPatchingSourceShortcut(int s, uint8_t* colour);
-	MenuItem* patchingSourceShortcutPress(int s, bool previousPressStillActive);
+	int checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) override;
+	uint8_t shouldBlinkPatchingSourceShortcut(int s, uint8_t* colour) override;
+	MenuItem* patchingSourceShortcutPress(int s, bool previousPressStillActive) override;
 	MenuItem* selectButtonPress() final;
 };
 
 extern Regular regularMenu;
-} // namespace menu_item::patch_cable_strength
+} // namespace deluge::gui::menu_item::patch_cable_strength

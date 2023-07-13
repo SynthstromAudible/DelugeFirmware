@@ -20,25 +20,26 @@
 #include "model/song/song.h"
 #include "gui/ui/sound_editor.h"
 
-namespace menu_item::arpeggiator::midi_cv {
+namespace deluge::gui::menu_item::arpeggiator::midi_cv {
 class Rate final : public Integer {
 public:
-	Rate(char const* newName = NULL) : Integer(newName) {}
-	void readCurrentValue() {
-		soundEditor.currentValue =
-		    (((int64_t)((InstrumentClip*)currentSong->currentClip)->arpeggiatorRate + 2147483648) * 50 + 2147483648)
+	using Integer::Integer;
+	void readCurrentValue() override {
+		this->value_ =
+		    (((int64_t)(dynamic_cast<InstrumentClip*>(currentSong->currentClip))->arpeggiatorRate + 2147483648) * 50
+		     + 2147483648)
 		    >> 32;
 	}
-	void writeCurrentValue() {
-		if (soundEditor.currentValue == 25) {
-			((InstrumentClip*)currentSong->currentClip)->arpeggiatorRate = 0;
+	void writeCurrentValue() override {
+		if (this->value_ == 25) {
+			(dynamic_cast<InstrumentClip*>(currentSong->currentClip))->arpeggiatorRate = 0;
 		}
 		else {
-			((InstrumentClip*)currentSong->currentClip)->arpeggiatorRate =
-			    (uint32_t)soundEditor.currentValue * 85899345 - 2147483648;
+			(dynamic_cast<InstrumentClip*>(currentSong->currentClip))->arpeggiatorRate =
+			    (uint32_t)this->value_ * 85899345 - 2147483648;
 		}
 	}
-	int getMaxValue() const { return 50; }
-	bool isRelevant(Sound* sound, int whichThing) { return soundEditor.editingCVOrMIDIClip(); }
+	[[nodiscard]] int getMaxValue() const override { return 50; }
+	bool isRelevant(Sound* sound, int whichThing) override { return soundEditor.editingCVOrMIDIClip(); }
 };
-} // namespace menu_item::arpeggiator::midi_cv
+} // namespace deluge::gui::menu_item::arpeggiator::midi_cv

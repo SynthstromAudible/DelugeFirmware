@@ -44,7 +44,7 @@ class ModControllableAudio;
 class ModelStackWithThreeMainThings;
 class AudioFileHolder;
 class MIDIDevice;
-namespace menu_item {
+namespace deluge::gui::menu_item {
 enum class RangeEdit : uint8_t;
 }
 
@@ -66,7 +66,7 @@ public:
 	uint8_t* currentPriority;
 	int16_t currentMultiRangeIndex;
 	MIDIDevice* currentMIDIDevice;
-	menu_item::RangeEdit editingRangeEdge;
+	deluge::gui::menu_item::RangeEdit editingRangeEdge;
 
 	int buttonAction(hid::Button b, bool on, bool inCardRoutine);
 	int padAction(int x, int y, int velocity);
@@ -77,7 +77,6 @@ public:
 
 	void setupShortcutBlink(int x, int y, int frequency);
 
-	int32_t currentValue;
 	int menuCurrentScroll;
 
 	uint8_t navigationDepth;

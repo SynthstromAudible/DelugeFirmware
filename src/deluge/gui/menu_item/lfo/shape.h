@@ -15,19 +15,19 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "definitions.h"
 #include "gui/menu_item/selection.h"
 
-namespace menu_item::lfo {
+namespace deluge::gui::menu_item::lfo {
 
 class Shape : public Selection {
 public:
 	using Selection::Selection;
 
-	char const** getOptions() {
-		static char const* options[] = {"Sine", "Triangle", "Square", "Saw", "S&H", "Random Walk", NULL};
-		return options;
+	Sized<char const**> getOptions() override {
+		static char const* options[] = {"Sine", "Triangle", "Square", "Saw", "S&H", "Random Walk"};
+		return {options, NUM_LFO_TYPES};
 	}
-	int getNumOptions() { return NUM_LFO_TYPES; }
 };
 
-} // namespace menu_item::lfo
+} // namespace deluge::gui::menu_item::lfo

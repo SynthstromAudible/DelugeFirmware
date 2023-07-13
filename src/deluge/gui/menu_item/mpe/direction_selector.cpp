@@ -20,7 +20,7 @@
 #include "zone_selector.h"
 #include "io/midi/midi_device.h"
 
-namespace menu_item::mpe {
+namespace deluge::gui::menu_item::mpe {
 
 DirectionSelector directionSelectorMenu{"MPE"};
 
@@ -31,23 +31,20 @@ void DirectionSelector::beginSession(MenuItem* navigatedBackwardFrom) {
 	Selection::beginSession(navigatedBackwardFrom);
 }
 
-char const** DirectionSelector::getOptions() {
-	static char const* options[] = {"In", "Out", NULL};
-	return options;
+Sized<char const**> DirectionSelector::getOptions() {
+	static char const* options[] = {"In", "Out"};
+	return {options, 2};
 }
 
 void DirectionSelector::readCurrentValue() {
-	soundEditor.currentValue = whichDirection;
+	this->value_ = whichDirection;
 }
 
 void DirectionSelector::writeCurrentValue() {
-	whichDirection = soundEditor.currentValue;
+	whichDirection = this->value_;
 }
 
 MenuItem* DirectionSelector::selectButtonPress() {
-#if HAVE_OLED
-	zoneSelectorMenu.basicTitle = whichDirection ? "MPE output" : "MPE input";
-#endif
 	return &zoneSelectorMenu;
 }
-} // namespace menu_item::mpe
+} // namespace deluge::gui::menu_item::mpe

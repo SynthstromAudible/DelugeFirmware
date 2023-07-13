@@ -20,7 +20,7 @@
 #include "gui/menu_item/range.h"
 #include "gui/ui/sound_editor.h"
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 
 void KeyRange::selectEncoderAction(int offset) {
 
@@ -169,4 +169,4 @@ bool KeyRange::isTotallyRandom() {
 
 	return (range == 11);
 }
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

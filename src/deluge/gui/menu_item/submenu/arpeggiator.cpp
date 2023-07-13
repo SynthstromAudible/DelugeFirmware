@@ -20,14 +20,14 @@
 #include "processing/sound/sound_drum.h"
 #include "model/clip/instrument_clip.h"
 
-namespace menu_item::submenu {
+namespace deluge::gui::menu_item::submenu {
 
 void Arpeggiator::beginSession(MenuItem* navigatedBackwardFrom) {
 
 	soundEditor.currentArpSettings = soundEditor.editingKit()
-	                                     ? &((SoundDrum*)soundEditor.currentSound)->arpSettings
-	                                     : &((InstrumentClip*)currentSong->currentClip)->arpSettings;
+	                                     ? &(dynamic_cast<SoundDrum*>(soundEditor.currentSound))->arpSettings
+	                                     : &(dynamic_cast<InstrumentClip*>(currentSong->currentClip))->arpSettings;
 	Submenu::beginSession(navigatedBackwardFrom);
 }
 
-} // namespace menu_item::submenu
+} // namespace deluge::gui::menu_item::submenu

@@ -16,16 +16,16 @@
 */
 
 #pragma once
-#include "menu_item.h"
+#include "value.h"
 #include "definitions.h"
 
 class ParamDescriptor;
 
-namespace menu_item {
-class SourceSelection : public MenuItem {
+namespace deluge::gui::menu_item {
+class SourceSelection : public Value<int> {
 public:
 	SourceSelection();
-	void beginSession(MenuItem* navigatedBackwardFrom = NULL);
+	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
 	void selectEncoderAction(int offset) final;
 	virtual ParamDescriptor getDestinationDescriptor() = 0;
 	uint8_t getIndexOfPatchedParamToBlink() final;
@@ -37,7 +37,7 @@ public:
 	static int selectedRowOnScreen;
 	int scrollPos; // Each instance needs to store this separately
 #else
-	void drawValue();
+	void drawValue() override;
 #endif
 
 	uint8_t s;
@@ -46,4 +46,4 @@ protected:
 	bool sourceIsAllowed(int source);
 	uint8_t shouldDrawDotOnValue();
 };
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

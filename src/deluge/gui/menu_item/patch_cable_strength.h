@@ -19,23 +19,23 @@
 #include "decimal.h"
 #include "menu_item_with_cc_learning.h"
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 
 class PatchCableStrength : public Decimal, public MenuItemWithCCLearning {
 public:
 	using Decimal::Decimal;
 	void beginSession(MenuItem* navigatedBackwardFrom) final;
 	void readCurrentValue() final;
-	void writeCurrentValue();
-	int getMinValue() const final { return -5000; }
-	int getMaxValue() const final { return 5000; }
-	int getNumDecimalPlaces() const final { return 2; }
+	void writeCurrentValue() override;
+	[[nodiscard]] int getMinValue() const final { return -5000; }
+	[[nodiscard]] int getMaxValue() const final { return 5000; }
+	[[nodiscard]] int getNumDecimalPlaces() const final { return 2; }
 	virtual int getDefaultEditPos() { return 2; }
-	virtual int checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange);
+	int checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) override;
 	virtual ParamDescriptor getDestinationDescriptor() = 0;
 	virtual uint8_t getS() = 0;
 	uint8_t getIndexOfPatchedParamToBlink() final;
-	MenuItem* selectButtonPress();
+	MenuItem* selectButtonPress() override;
 #if HAVE_OLED
 	void renderOLED();
 #endif
@@ -55,4 +55,4 @@ protected:
 	ModelStackWithAutoParam* getModelStack(void* memory, bool allowCreation = false);
 };
 
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

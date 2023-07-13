@@ -20,21 +20,21 @@
 #include "gui/ui/sound_editor.h"
 #include "hid/display/oled.h"
 
-namespace menu_item::cv {
+namespace deluge::gui::menu_item::cv {
 class Volts final : public Decimal {
 public:
 	using Decimal::Decimal;
-	int getMinValue() const { return 0; }
-	int getMaxValue() const { return 200; }
-	int getNumDecimalPlaces() const { return 2; }
-	int getDefaultEditPos() { return 1; }
-	void readCurrentValue() {
-		soundEditor.currentValue = cvEngine.cvChannels[soundEditor.currentSourceIndex].voltsPerOctave;
+	[[nodiscard]] int getMinValue() const override { return 0; }
+	[[nodiscard]] int getMaxValue() const override { return 200; }
+	[[nodiscard]] int getNumDecimalPlaces() const override { return 2; }
+	[[nodiscard]] int getDefaultEditPos() const override { return 1; }
+	void readCurrentValue() override {
+		this->value_ = cvEngine.cvChannels[soundEditor.currentSourceIndex].voltsPerOctave;
 	}
-	void writeCurrentValue() { cvEngine.setCVVoltsPerOctave(soundEditor.currentSourceIndex, soundEditor.currentValue); }
+	void writeCurrentValue() override { cvEngine.setCVVoltsPerOctave(soundEditor.currentSourceIndex, this->value_); }
 #if HAVE_OLED
-	void drawPixelsForOled() {
-		if (soundEditor.currentValue == 0) {
+	void drawPixelsForOled() override {
+		if (this->value_ == 0) {
 			OLED::drawStringCentred("Hz/V", 20, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, TEXT_HUGE_SPACING_X,
 			                        TEXT_HUGE_SIZE_Y);
 		}
@@ -43,18 +43,19 @@ public:
 		}
 	}
 #else
-	void drawValue() {
-		if (soundEditor.currentValue == 0)
+	void drawValue() override {
+		if (this->value_ == 0) {
 			numericDriver.setText("HZPV", false, 255, true);
+		}
 		else {
 			Decimal::drawValue();
 		}
 	}
 #endif
-	void horizontalEncoderAction(int offset) {
-		if (soundEditor.currentValue != 0) {
+	void horizontalEncoderAction(int offset) override {
+		if (this->value_ != 0) {
 			Decimal::horizontalEncoderAction(offset);
 		}
 	}
 };
-} // namespace menu_item::cv
+} // namespace deluge::gui::menu_item::cv

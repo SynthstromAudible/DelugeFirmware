@@ -25,27 +25,23 @@
 #include "util/comparison.h"
 
 extern char oscTypeTitle[];
-namespace menu_item::osc {
+namespace deluge::gui::menu_item::osc {
 class Type final : public Selection {
 public:
-	Type(char const* newName = NULL) : Selection(newName) {
-#if HAVE_OLED
-		basicTitle = oscTypeTitle;
-#endif
-	}
+	using Selection::Selection;
 #if HAVE_OLED
 	void beginSession(MenuItem* navigatedBackwardFrom) {
 		oscTypeTitle[3] = '1' + soundEditor.currentSourceIndex;
 		Selection::beginSession(navigatedBackwardFrom);
 	}
 #endif
-	void readCurrentValue() {
-		soundEditor.currentValue = soundEditor.currentSource->oscType;
+	void readCurrentValue() override {
+		this->value_ = soundEditor.currentSource->oscType;
 	}
-	void writeCurrentValue() {
+	void writeCurrentValue() override {
 
 		int oldValue = soundEditor.currentSource->oscType;
-		int newValue = soundEditor.currentValue;
+		int newValue = this->value_;
 
 		auto needs_unassignment = {OSC_TYPE_INPUT_L, OSC_TYPE_INPUT_R, OSC_TYPE_INPUT_STEREO, OSC_TYPE_SAMPLE,
 
@@ -63,7 +59,7 @@ public:
 	}
 
 	//char const** getOptions() { static char const* options[] = {"SINE", "TRIANGLE", "SQUARE", "SAW", "MMS1", "SUB1", "SAMPLE", "INL", "INR", "INLR", "SQ50", "SQ02", "SQ01", "SUB2", "SQ20", "SA50", "S101", "S303", "MMS2", "MMS3", "TABLE"}; return options; }
-	char const** getOptions() {
+	Sized<char const**> getOptions() override {
 #if HAVE_OLED
 		static char inLText[] = "Input (left)";
 		static char const* options[] = {"SINE",  "TRIANGLE",      "SQUARE",         "Analog square",
@@ -76,23 +72,23 @@ public:
 		                                "Wavetable", "SAMPLE",   inLText,  "INR",     "INLR"};
 		inLText[2] = ((AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn)) ? 'L' : 0;
 #endif
-		return options;
+
+		return {options, getNumOptions()};
 	}
 
-	int getNumOptions() {
+	size_t getNumOptions() {
 		if (soundEditor.currentSound->getSynthMode() == SYNTH_MODE_RINGMOD) {
 			return NUM_OSC_TYPES_RINGMODDABLE;
 		}
-		else if (AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn) {
+		if (AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn) {
 			return NUM_OSC_TYPES;
 		}
-		else {
-			return NUM_OSC_TYPES - 2;
-		}
+		return NUM_OSC_TYPES - 2;
 	}
-	bool isRelevant(Sound* sound, int whichThing) {
+
+	bool isRelevant(Sound* sound, int whichThing) override {
 		return (sound->getSynthMode() != SYNTH_MODE_FM);
 	}
 };
 
-} // namespace menu_item::osc
+} // namespace deluge::gui::menu_item::osc

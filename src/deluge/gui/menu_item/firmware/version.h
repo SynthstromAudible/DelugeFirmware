@@ -22,7 +22,7 @@
 
 extern char const* firmwareString;
 
-namespace menu_item::firmware {
+namespace deluge::gui::menu_item::firmware {
 class Version final : public MenuItem {
 public:
 	using MenuItem::MenuItem;
@@ -33,7 +33,7 @@ public:
 		                                         20);
 	}
 #else
-	void beginSession(MenuItem* navigatedBackwardFrom) {
+	void beginSession(MenuItem* navigatedBackwardFrom) override {
 		drawValue();
 	}
 
@@ -42,4 +42,4 @@ public:
 	}
 #endif
 };
-} // namespace menu_item::firmware
+} // namespace deluge::gui::menu_item::firmware

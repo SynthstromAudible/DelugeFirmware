@@ -21,7 +21,7 @@
 #include "util/functions.h"
 #include "hid/matrix/matrix_driver.h"
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 
 bool DrumName::isRelevant(Sound* sound, int whichThing) {
 	return soundEditor.editingKit();
@@ -32,4 +32,4 @@ void DrumName::beginSession(MenuItem* navigatedBackwardFrom) {
 	openUI(&renameDrumUI);
 }
 
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

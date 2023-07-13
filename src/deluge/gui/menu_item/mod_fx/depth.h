@@ -19,7 +19,7 @@
 #include "processing/sound/sound.h"
 #include "util/comparison.h"
 
-namespace menu_item::mod_fx {
+namespace deluge::gui::menu_item::mod_fx {
 class Depth final : public patched_param::Integer {
 public:
 	using patched_param::Integer::Integer;
@@ -29,4 +29,4 @@ public:
 		                             {MOD_FX_TYPE_CHORUS, MOD_FX_TYPE_CHORUS_STEREO, MOD_FX_TYPE_PHASER});
 	}
 };
-} // namespace menu_item::mod_fx
+} // namespace deluge::gui::menu_item::mod_fx
