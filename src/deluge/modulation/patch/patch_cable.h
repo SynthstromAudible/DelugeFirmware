@@ -19,6 +19,7 @@
 
 #include "RZA1/system/r_typedefs.h"
 #include "modulation/automation/auto_param.h"
+#include "modulation/params/param_descriptor.h"
 
 class Sound;
 class ParamManagerForTimeline;

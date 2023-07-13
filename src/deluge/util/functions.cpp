@@ -330,6 +330,47 @@ char const* getSourceDisplayNameForOLED(int s) {
 	}
 }
 
+// all should be four chars, to fit a fixed column layout
+char const* sourceToStringShort(uint8_t source) {
+	switch (source) {
+	case PATCH_SOURCE_LFO_GLOBAL:
+		return "lfo1";
+
+	case PATCH_SOURCE_LFO_LOCAL:
+		return "lfo2";
+
+	case PATCH_SOURCE_ENVELOPE_0:
+		return "env1";
+
+	case PATCH_SOURCE_ENVELOPE_1:
+		return "env2";
+
+	case PATCH_SOURCE_VELOCITY:
+		return "velo";
+
+	case PATCH_SOURCE_NOTE:
+		return "note";
+
+	case PATCH_SOURCE_COMPRESSOR:
+		return "comp";
+
+	case PATCH_SOURCE_RANDOM:
+		return "rand";
+
+	case PATCH_SOURCE_AFTERTOUCH:
+		return "pres";
+
+	case PATCH_SOURCE_X:
+		return "mpeX";
+
+	case PATCH_SOURCE_Y:
+		return "mpeY";
+
+	default:
+		return "----";
+	}
+}
+
 char const* getPatchedParamDisplayNameForOled(int p) {
 
 	// These can basically be 13 chars long, or 14 if the last one is a dot.
