@@ -42,7 +42,7 @@ void Enumeration::selectEncoderAction(int offset) {
 
 #if HAVE_OLED
 	if (this->value_ >= numOptions) {
-		this->value_ = numOptions;
+		this->value_ = numOptions - 1;
 	}
 	else if (this->value_ < 0) {
 		this->value_ = 0;

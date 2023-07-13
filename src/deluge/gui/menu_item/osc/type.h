@@ -64,7 +64,7 @@ public:
 		static char inLText[] = "Input (left)";
 		static char const* options[] = {"SINE",  "TRIANGLE",      "SQUARE",         "Analog square",
 		                                "Saw",   "Analog saw",    "Wavetable",      "SAMPLE",
-		                                inLText, "Input (right)", "Input (stereo)", NULL};
+		                                inLText, "Input (right)", "Input (stereo)"};
 		inLText[5] = ((AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn)) ? ' ' : 0;
 #else
 		static char inLText[4] = "INL";

@@ -51,25 +51,25 @@ void MenuItem::renderOLED() {
 void MenuItem::drawItemsForOled(Sized<char const**> options_sized, const int selectedOption, const int offset) {
 	auto [options, size] = options_sized;
 
-	const void* begin = &options[offset]; // fast-forward to the first option visible
+	char const** begin = &options[offset]; // fast-forward to the first option visible
 	const void* end = &options[size];
 
 	int baseY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14;
 	baseY += OLED_MAIN_TOPMOST_PIXEL;
 
 	for (int o = 0; o < OLED_HEIGHT_CHARS - 1; o++) {
-		if (&options[o] == end) {
+		if (&begin[o] == end) {
 			break;
 		}
 
 		int yPixel = o * TEXT_SPACING_Y + baseY;
 
-		OLED::drawString(options[o], TEXT_SPACING_X, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
+		OLED::drawString(begin[o], TEXT_SPACING_X, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
 		                 TEXT_SPACING_X, TEXT_SPACING_Y);
 
 		if (o == selectedOption) {
 			OLED::invertArea(0, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8, &OLED::oledMainImage[0]);
-			OLED::setupSideScroller(0, options[o], TEXT_SPACING_X, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8,
+			OLED::setupSideScroller(0, begin[o], TEXT_SPACING_X, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8,
 			                        TEXT_SPACING_X, TEXT_SPACING_Y, true);
 		}
 	}

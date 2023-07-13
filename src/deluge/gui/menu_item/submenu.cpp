@@ -37,8 +37,8 @@ namespace deluge::gui::menu_item {
 void Submenu::beginSession(MenuItem* navigatedBackwardFrom) {
 	soundEditor.currentSubmenuItem = items;
 	soundEditor.menuCurrentScroll = 0;
-	soundEditor.currentMultiRange = NULL;
-	if (navigatedBackwardFrom) {
+	soundEditor.currentMultiRange = nullptr;
+	if (navigatedBackwardFrom != nullptr) {
 		while (*soundEditor.currentSubmenuItem != navigatedBackwardFrom) {
 			if (!*soundEditor.currentSubmenuItem) { // If desired item not found
 				soundEditor.currentSubmenuItem = items;
@@ -49,7 +49,7 @@ void Submenu::beginSession(MenuItem* navigatedBackwardFrom) {
 	}
 	while (!(*soundEditor.currentSubmenuItem)->isRelevant(soundEditor.currentSound, soundEditor.currentSourceIndex)) {
 		soundEditor.currentSubmenuItem++;
-		if (!*soundEditor.currentSubmenuItem) { // Not sure we need this since we don't wrap submenu items?
+		if (*soundEditor.currentSubmenuItem == nullptr) { // Not sure we need this since we don't wrap submenu items?
 			soundEditor.currentSubmenuItem = items;
 		}
 	}
@@ -112,6 +112,8 @@ searchBack:
 
 		itemNames[i] = (*thisSubmenuItem)->getName();
 	}
+
+	drawItemsForOled({itemNames.data(), idx}, selectedRow);
 }
 #endif
 

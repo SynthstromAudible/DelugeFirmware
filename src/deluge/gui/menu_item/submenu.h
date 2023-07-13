@@ -36,7 +36,9 @@ public:
 	bool allowsLearnMode() final;
 	void learnKnob(MIDIDevice* fromDevice, int whichKnob, int modKnobMode, int midiChannel) final;
 	bool learnNoteOn(MIDIDevice* fromDevice, int channel, int noteCode) final;
-	void drawPixelsForOled();
+#if HAVE_OLED
+	void drawPixelsForOled() override;
+#endif
 
 	MenuItem** items;
 };
