@@ -21,6 +21,7 @@
 #include "definitions.h"
 #include "util/container/static_vector.hpp"
 #include "util/sized.h"
+#include "util/string.h"
 
 #if HAVE_OLED
 #include "hid/display/oled.h"
@@ -38,8 +39,8 @@ class MIDIDevice;
 
 class MenuItem {
 public:
-	MenuItem(char const* newName = nullptr, char const* newTitle = nullptr) : name(newName) {
-		if (newTitle != nullptr) {
+	MenuItem(char const* newName = nullptr, const deluge::string& newTitle = "") : name(newName) {
+		if (newTitle.empty()) {
 			title = newTitle;
 		}
 		else {
@@ -76,7 +77,7 @@ public:
 	virtual bool isRangeDependent() { return false; }
 	virtual bool usesAffectEntire() { return false; }
 
-	char const* title; // Can get overridden by getTitle(). Actual max num chars for OLED display is 14.
+	deluge::string title; // Can get overridden by getTitle(). Actual max num chars for OLED display is 14.
 #if HAVE_OLED
 	virtual void renderOLED();
 	virtual void drawPixelsForOled() {

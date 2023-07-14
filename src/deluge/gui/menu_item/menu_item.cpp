@@ -35,7 +35,7 @@ void MenuItem::learnCC(MIDIDevice* fromDevice, int channel, int ccNumber, int va
 // Supplied buffer size must be MENU_ITEM_TITLE_BUFFER_SIZE. Actual max num chars for OLED display is 14.
 // May return pointer to that buffer, or to some other constant char string.
 char const* MenuItem::getTitle() { //char* buffer) {
-	return title;
+	return title.c_str();
 }
 
 void MenuItem::renderOLED() {
