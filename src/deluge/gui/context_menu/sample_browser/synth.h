@@ -1,5 +1,5 @@
 /*
- * Copyright © 2019-2023 Synthstrom Audible Limited
+ * Copyright © 2018-2023 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -19,11 +19,20 @@
 
 #include "gui/context_menu/context_menu.h"
 
-class ContextMenuLoadInstrumentPreset final : public ContextMenuForLoading {
+namespace deluge::gui::context_menu::sample_browser {
+class Synth final : public ContextMenu {
 public:
-	ContextMenuLoadInstrumentPreset();
-	char const** getOptions();
-	bool acceptCurrentOption();
+	Synth() = default;
+
+	Sized<char const**> getOptions() override;
+	bool isCurrentOptionAvailable() override;
+	bool canSeeViewUnderneath() override;
+
+	bool acceptCurrentOption() override;
+	int padAction(int x, int y, int velocity) override;
+
+	char const* getTitle() override;
 };
 
-extern ContextMenuLoadInstrumentPreset contextMenuLoadInstrumentPreset;
+extern Synth synth;
+} // namespace deluge::gui::context_menu::sample_browser

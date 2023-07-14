@@ -17,8 +17,8 @@
 
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
-#include "gui/context_menu/context_menu_sample_browser_kit.h"
-#include "gui/context_menu/context_menu_sample_browser_synth.h"
+#include "gui/context_menu/sample_browser/kit.h"
+#include "gui/context_menu/sample_browser/synth.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
@@ -67,6 +67,8 @@ extern "C" {
 #include "RZA1/intc/devdrv_intc.h"
 //void *__dso_handle = NULL; // This fixes an insane error.
 }
+
+using namespace deluge;
 
 extern bool inSpamMode;
 extern bool anythingProbablyPressed;
@@ -204,11 +206,9 @@ void init() {
 
 	i2sTXBufferPos = (uint32_t)getTxBufferStart();
 
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 	i2sRXBufferPos = (uint32_t)getRxBufferStart()
 	                 + ((SSI_RX_BUFFER_NUM_SAMPLES - SSI_TX_BUFFER_NUM_SAMPLES - 16)
 	                    << (2 + NUM_MONO_INPUT_CHANNELS_MAGNITUDE)); // Subtracting 5 or more seems fine
-#endif
 }
 
 void unassignAllVoices(bool deletingSong) {
@@ -677,8 +677,8 @@ startAgain:
 	}
 
 	// Previewing sample
-	if (getCurrentUI() == &sampleBrowser || getCurrentUI() == &contextMenuFileBrowserKit
-	    || getCurrentUI() == &contextMenuFileBrowserSynth || getCurrentUI() == &slicer) {
+	if (getCurrentUI() == &sampleBrowser || getCurrentUI() == &gui::context_menu::sample_browser::kit
+	    || getCurrentUI() == &gui::context_menu::sample_browser::synth || getCurrentUI() == &slicer) {
 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithThreeMainThings* modelStack = setupModelStackWithThreeMainThingsButNoNoteRow(
@@ -727,8 +727,6 @@ startAgain:
 	mastercompressor.render(renderingBuffer, numSamples);
 	metronome.render(renderingBuffer, numSamples);
 
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
-
 	// Monitoring setup
 	doMonitoring = false;
 	if (audioRecorder.recordingSource == AUDIO_INPUT_CHANNEL_STEREO
@@ -762,8 +760,6 @@ startAgain:
 			monitoringAction = ACTION_REMOVE_RIGHT_CHANNEL;
 		}
 	}
-
-#endif
 
 	renderingBufferOutputPos = renderingBuffer;
 	renderingBufferOutputEnd = renderingBuffer + numSamples;
@@ -898,8 +894,6 @@ bool doSomeOutputting() {
 		int32_t lAdjusted = lAdjustedBig >> 32;
 		int32_t rAdjusted = rAdjustedBig >> 32;
 
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
-
 		if (doMonitoring) {
 
 			if (monitoringAction == ACTION_SUBTRACT_RIGHT_CHANNEL) {
@@ -925,8 +919,6 @@ bool doSomeOutputting() {
 				inputReadPos -= SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS;
 			}
 		}
-
-#endif
 
 #if HARDWARE_TEST_MODE
 		// Send a square wave if anything pressed
@@ -975,12 +967,10 @@ bool doSomeOutputting() {
 
 	if (numSamplesOutputted) {
 
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 		i2sRXBufferPos += (numSamplesOutputted << (NUM_MONO_INPUT_CHANNELS_MAGNITUDE + 2));
 		if (i2sRXBufferPos >= (uint32_t)getRxBufferEnd()) {
 			i2sRXBufferPos -= (SSI_RX_BUFFER_NUM_SAMPLES << (NUM_MONO_INPUT_CHANNELS_MAGNITUDE + 2));
 		}
-#endif
 
 		// Go through each SampleRecorder, feeding them audio
 		for (SampleRecorder* recorder = firstRecorder; recorder; recorder = recorder->next) {
@@ -994,7 +984,6 @@ bool doSomeOutputting() {
 				recorder->feedAudio((int32_t*)outputBufferForResampling, numSamplesOutputted);
 			}
 
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 			// Recording from an input source
 			else if (recorder->mode < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION) {
 
@@ -1021,7 +1010,6 @@ bool doSomeOutputting() {
 					recorder->sourcePos -= SSI_RX_BUFFER_NUM_SAMPLES << NUM_MONO_INPUT_CHANNELS_MAGNITUDE;
 				}
 			}
-#endif
 		}
 	}
 

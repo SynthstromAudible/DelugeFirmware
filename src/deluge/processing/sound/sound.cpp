@@ -135,14 +135,11 @@ Sound::Sound() : patcher(&patchableInfoForSound) {
 	                                                       PATCH_SOURCE_COMPRESSOR);
 	modKnobs[5][0].paramDescriptor.setToHaveParamAndSource(PARAM_LOCAL_PITCH_ADJUST, PATCH_SOURCE_LFO_GLOBAL);
 
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 	modKnobs[6][1].paramDescriptor.setToHaveParamOnly(PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_STUTTER_RATE);
 	modKnobs[6][0].paramDescriptor.setToHaveParamOnly(PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_SOUND_PORTA);
 
 	modKnobs[7][1].paramDescriptor.setToHaveParamOnly(PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_SAMPLE_RATE_REDUCTION);
 	modKnobs[7][0].paramDescriptor.setToHaveParamOnly(PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_BITCRUSHING);
-#endif
-
 	voicePriority = 1;
 	whichExpressionSourcesChangedAtSynthLevel = 0;
 
@@ -229,9 +226,7 @@ void Sound::setupAsSample(ParamManagerForTimeline* paramManager) {
 	patchedParams->params[PARAM_LOCAL_LPF_RESONANCE].setCurrentValueBasicForSetup(-2147483648);
 	patchedParams->params[PARAM_LOCAL_LPF_FREQ].setCurrentValueBasicForSetup(2147483647);
 
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 	modKnobs[6][0].paramDescriptor.setToHaveParamOnly(PARAM_LOCAL_PITCH_ADJUST);
-#endif
 
 	paramManager->getPatchCableSet()->numPatchCables = 1;
 	paramManager->getPatchCableSet()->patchCables[0].setup(PATCH_SOURCE_VELOCITY, PARAM_LOCAL_VOLUME,
@@ -846,13 +841,6 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 				if (w == NUM_PHYSICAL_MOD_KNOBS) {
 					w = 0;
 					k++;
-
-					// If this is a 40-pad Deluge reading a drum preset made for the 144-pad, make "custom 1" be pitch
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-					if (k == NUM_MOD_BUTTONS && isDrum()) {
-						modKnobs[5][1].paramDescriptor.setToHaveParamOnly(PARAM_LOCAL_PITCH_ADJUST);
-					}
-#endif
 				}
 			}
 			storageManager.exitTag();

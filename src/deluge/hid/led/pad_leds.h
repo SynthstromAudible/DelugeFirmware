@@ -24,6 +24,10 @@
 #define FLASH_CURSOR_OFF 1
 #define FLASH_CURSOR_SLOW 2
 
+extern "C" {
+#include "RZA1/uart/sio_char.h"
+}
+
 class AudioClip;
 
 namespace PadLEDs {
@@ -38,7 +42,7 @@ extern int explodeAnimationYOriginBig;
 extern int explodeAnimationXStartBig;
 extern int explodeAnimationXWidthBig;
 
-extern int8_t animationDirection;
+extern int8_t explodeAnimationDirection;
 extern bool renderingLock;
 extern uint8_t flashCursor;
 
@@ -68,14 +72,31 @@ void skipGreyoutFade();
 void reassessGreyout(bool doInstantly = false);
 void doGreyoutInstantly();
 
+void setRefreshTime(int newTime);
+void changeRefreshTime(int offset);
+void changeDimmerInterval(int offset);
+void setDimmerInterval(int newInterval);
+
 void renderZoom();
 void renderZoomWithProgress(int inImageTimesBiggerThanNative, uint32_t inImageFadeAmount, uint8_t* innerImage,
                             uint8_t* outerImage, int innerImageLeftEdge, int outerImageLeftEdge,
                             int innerImageRightEdge, int outerImageRightEdge, int innerImageTotalWidth,
                             int outerImageTotalWidth);
-void renderScroll();
+
+namespace horizontal {
 void setupScroll(int8_t thisScrollDirection, uint8_t thisAreaToScroll, bool scrollIntoNothing = false,
                  int numSquaresToScroll = displayWidth);
+void renderScroll();
+} // namespace horizontal
+
+namespace vertical {
+void setupScroll(int8_t thisScrollDirection, bool scrollIntoNothing = false);
+void renderScroll();
+
+extern uint8_t squaresScrolled;
+extern int8_t scrollDirection;
+extern bool scrollingToNothing;
+} // namespace vertical
 
 void sendRGBForOnePadFast(int x, int y, const uint8_t* colourSource);
 void clearTickSquares(bool shouldSend = true);
@@ -91,6 +112,14 @@ void setupInstrumentClipCollapseAnimation(bool collapsingOutOfClipMinder);
 void setupAudioClipCollapseOrExplodeAnimation(AudioClip* clip);
 
 void setGreyoutAmount(float newAmount);
+
+static inline void flashMainPad(int x, int y, int color = 0) {
+	if (color > 0) {
+		bufferPICUart(10 + color);
+	}
+
+	bufferPICUart(24 + y + (x * displayHeight));
+}
 
 inline void sendRGBForOneCol(int x);
 void setTimerForSoon();

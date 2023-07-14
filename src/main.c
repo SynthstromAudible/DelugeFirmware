@@ -69,9 +69,9 @@ static void int_irq6(uint32_t sense) {
 
 /******************************************************************************
 * Function Name: main
-* Description  : Displays the sample program information on the terminal 
-*              : connected with the CPU board by the UART, and executes initial 
-*              : setting for the PORT connected with the LEDs on the board. 
+* Description  : Displays the sample program information on the terminal
+*              : connected with the CPU board by the UART, and executes initial
+*              : setting for the PORT connected with the LEDs on the board.
 *              : Executes initial setting for the OSTM channel 0.
 * Arguments    : none
 * Return Value : 0
@@ -83,9 +83,7 @@ int_t main(void) {
 	setPinMux(6, 9, 3);  // SSI0 word select
 	setPinMux(6, 10, 3); // SSI0 tx
 	setPinMux(6, 8, 3);  // SSI0 serial clock
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 	setPinMux(6, 11, 3); // SSI0 rx
-#endif
 
 	mtuEnableAccess();
 
@@ -147,8 +145,6 @@ int_t main(void) {
 	initUartDMA();
 
 	// Pin mux for SD
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
-
 	setPinMux(7, 0, 3); // CD
 	setPinMux(7, 1, 3); // WP
 	setPinMux(7, 2, 3); // D1
@@ -157,10 +153,6 @@ int_t main(void) {
 	setPinMux(7, 5, 3); // CMD
 	setPinMux(7, 6, 3); // D3
 	setPinMux(7, 7, 3); // D2
-#else
-	// Setup DMA for SD card
-	setupMMCDMA();
-#endif
 
 	/* Configure IRQs detections on falling edge. Due to the presence of a transistor, we want to read falling edges on the trigger clock rather than rising. */
 	INTC.ICR1 = 0b0101010101010101;

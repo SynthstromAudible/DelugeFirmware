@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "gui/context_menu/context_menu_overwrite_bootloader.h"
+#include "gui/context_menu/overwrite_bootloader.h"
 #include "storage/storage_manager.h"
 #include "hid/display/numeric_driver.h"
 #include "util/functions.h"
@@ -27,26 +27,26 @@ extern "C" {
 #include "RZA1/spibsc/r_spibsc_flash_api.h"
 }
 
-ContextMenuOverwriteBootloader contextMenuOverwriteBootloader{};
+namespace deluge::gui::context_menu {
+OverwriteBootloader overwriteBootloader{};
 
-ContextMenuOverwriteBootloader::ContextMenuOverwriteBootloader() {
-#if HAVE_OLED
-	title = "Overwrite bootloader at own risk";
-#endif
+char const* OverwriteBootloader::getTitle() {
+	static char const* title = "Overwrite bootloader at own risk";
+	return title;
 }
 
-char const** ContextMenuOverwriteBootloader::getOptions() {
+Sized<char const**> OverwriteBootloader::getOptions() {
 #if HAVE_OLED
 	static char const* options[] = {"Accept risk"};
 #else
 	static char const* options[] = {"Sure"};
 #endif
-	return options;
+	return {options, 1};
 }
 
-#define FLASH_WRITE_SIZE 256 // Bigger doesn't seem to work...
+constexpr size_t FLASH_WRITE_SIZE = 256; // Bigger doesn't seem to work...
 
-bool ContextMenuOverwriteBootloader::acceptCurrentOption() {
+bool OverwriteBootloader::acceptCurrentOption() {
 
 #if !HAVE_OLED
 	numericDriver.displayLoadingAnimation();
@@ -216,3 +216,4 @@ gotFlashError:
 	errorMessage = HAVE_OLED ? "No boot*.bin file found" : "FILE";
 	goto longError;
 }
+} // namespace deluge::gui::context_menu
