@@ -1,0 +1,40 @@
+buildType:
+  default: debug_7seg
+  description: Type of build
+  choices:
+    debug_oled:
+      short: Debug OLED
+      long: Build with debugging information for the Deluge with OLED display
+      buildType: Debug
+      settings: 
+        DELUGE_SCREEN: OLED
+    release_oled:      
+      short: Release OLED
+      long: Build for the Deluge with OLED display
+      buildType: Release
+      settings: 
+        DELUGE_SCREEN: OLED
+    debug_7seg:
+      short: Debug 7SEG
+      long: Build with debugging information for the Deluge with seven-segment display
+      buildType: Debug
+      settings: 
+        DELUGE_SCREEN: 7SEG
+    release_7seg:
+      short: Release 7SEG
+      long: Build for the Deluge with seven-segment display
+      buildType: Release
+      settings: 
+        DELUGE_SCREEN: 7SEG
+    debug_both:
+      short: Debug Both
+      long: Build with debugging information for the Deluge with seven-segment display
+      buildType: Debug
+      settings: 
+        DELUGE_SCREEN: BOTH
+    release_both:      
+      short: Release Both
+      long: Build for the Deluge with seven-segment display
+      buildType: Release
+      settings: 
+        DELUGE_SCREEN: BOTH        
