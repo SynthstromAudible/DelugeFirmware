@@ -51,6 +51,22 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
 ### Audio Clip View
  - ([#141]) Holding the vertical encoder down while turning the horizontal encoder will shift the clip along the underlying audio file, similar to the same interface for instrument clips.
 
+### Takeover Mode
+
+ - ([#170]) The Takeover menu consists of three modes that can be selected from:
+ 
+ 			1) Jump: This is the default mode for the Deluge. As soon as a Midi Knob/Fader position is changed, 
+					 the Deluge's internal Knob position/Parameter value jumps to the position of the Midi Knob/Fader.
+
+			2) Pickup: The deluge will ignore changes to its internal Knob position/Parameter value until the 
+					   Midi Knob/Fader's position is equal to the Deluge Knob position. After which the Midi Knob/Fader 
+					   will move in sync with the Deluge.
+			
+			3) Scale: The deluge will increase/decrease its internal Knob position/Parameter value relative 
+					  to the change of the Midi Knob/Fader position and the amount of "runway" remaining on the Midi 
+					  controller. Once the Midi controller reaches its maximum or minimum position, the Midi Knob/Fader 
+					  will move in sync with the Deluge. The Deluge will value will always decrease/increase in the 
+					  same direction as the Midi controller.
 
 <h1 id="runtime-features">Runtime settings aka Community Features Menu</h1>
 
