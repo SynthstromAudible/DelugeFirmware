@@ -36,7 +36,6 @@
 #include "model/clip/instrument_clip.h"
 #include "model/note/note_row.h"
 #include "modulation/params/param_set.h"
-#include "model/settings/runtime_feature_settings.h"
 
 extern "C" {}
 
@@ -1414,7 +1413,7 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 					}
 				}
 				else {
-					if (midiEngine.midiTakeover == MIDI_TAKEOVER_JUMP) {//Midi Takeover Mode = Jump
+					if (midiEngine.midiTakeover == MIDI_TAKEOVER_JUMP) { //Midi Takeover Mode = Jump
 						newKnobPos = 64;
 						if (value < 127) {
 							newKnobPos = (int)value - 64;
@@ -1461,12 +1460,10 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 						}
 
 						//Here we obtain the current Parameter Value on the Deluge
-						int32_t previousValue =
-							modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
+						int32_t previousValue =	modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
 
 						//Here we convert the current Parameter Value on the Deluge to a Knob Position Value
-						int knobPos =
-							modelStackWithParam->paramCollection->paramValueToKnobPos(previousValue, modelStackWithParam);
+						int knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(previousValue, modelStackWithParam);
 
 						//Here is where we check if the Knob/Fader on the Midi Controller is out of sync with the Deluge Knob Position
 
@@ -1485,7 +1482,7 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 						else {
 
 							//if the first two conditions fail and pickup mode is enabled, then the Deluge Knob Position (and therefore the Parameter Value with it) remains unchanged
-							if (midiEngine.midiTakeover == MIDI_TAKEOVER_PICKUP) {//(runtimeFeatureSettings.get(RuntimeFeatureSettingType::MidiTakeoverMode) == RuntimeFeatureStateToggle::PU) { //Midi Pickup Mode On
+							if (midiEngine.midiTakeover == MIDI_TAKEOVER_PICKUP) { //Midi Pickup Mode On
 								newKnobPos = knobPos;
 							}
 							//if the first two conditions fail and value scaling mode is enabled, then the Deluge Knob Position is scaled upwards or downwards based on relative
@@ -1496,12 +1493,12 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 								int knobMinPos = -64;
 
 								//calculate amount of deluge "knob runway" is remaining from current knob position to max and min of knob position range
-								int delugeKnobMaxPosDelta = knobMaxPos - knobPos; //calculate how far delugeKnobPos is from Max - Positive Runway
-								int delugeKnobMinPosDelta = knobPos - knobMinPos; //calculate how far delugeKnobPos is from Min - Negative Runway
+								int delugeKnobMaxPosDelta = knobMaxPos - knobPos; //Positive Runway
+								int delugeKnobMinPosDelta = knobPos - knobMinPos; //Negative Runway
 
 								//calculate amount of midi "knob runway" is remaining from current knob position to max and min of knob position range
-								int midiKnobMaxPosDelta = knobMaxPos - midiKnobPos; //calculate how far midiKnobPos is from Max - Positive Runway
-								int midiKnobMinPosDelta = midiKnobPos - knobMinPos; //calculate how far midiKnobPos is from Min - Negative Runway
+								int midiKnobMaxPosDelta = knobMaxPos - midiKnobPos; //Positive Runway
+								int midiKnobMinPosDelta = midiKnobPos - knobMinPos; //Negative Runway
 
 								//calculate by how much the current midiKnobPos has changed from the previous midiKnobPos recorded
 								int midiKnobPosChange = midiKnobPos - knob->previousPosition;
@@ -1515,7 +1512,8 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 
 									midiKnobPosChangePercentage = (midiKnobPosChange << 20) / midiKnobMaxPosDelta;
 
-									newKnobPos = knobPos + ((delugeKnobMaxPosDelta * midiKnobPosChangePercentage) >> 20);
+									newKnobPos =
+										knobPos + ((delugeKnobMaxPosDelta * midiKnobPosChangePercentage) >> 20);
 								}
 								//if midi knob position change is less than 0, then the midi knob position has decreased (e.g. turned knob left)
 								else if (midiKnobPosChange < 0) {
@@ -1523,7 +1521,8 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 
 									midiKnobPosChangePercentage = (midiKnobPosChange << 20) / midiKnobMinPosDelta;
 
-									newKnobPos = knobPos + ((delugeKnobMinPosDelta * midiKnobPosChangePercentage) >> 20);
+									newKnobPos =
+										knobPos + ((delugeKnobMinPosDelta * midiKnobPosChangePercentage) >> 20);
 								}
 								//if midi knob position change is 0, then the midi knob position has not changed and thus no change in deluge knob position / parameter value is required
 								else {
