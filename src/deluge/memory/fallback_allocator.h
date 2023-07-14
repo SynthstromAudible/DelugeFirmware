@@ -21,7 +21,8 @@ public:
 		if (n == 0) {
 			return nullptr;
 		}
-		return static_cast<T*>(generalMemoryAllocator.alloc(n * sizeof(T), nullptr, false, true, false, nullptr, false));
+		return static_cast<T*>(
+		    generalMemoryAllocator.alloc(n * sizeof(T), nullptr, false, true, false, nullptr, false));
 	}
 
 	void deallocate(T* p, std::size_t n) { generalMemoryAllocator.dealloc(p); }
