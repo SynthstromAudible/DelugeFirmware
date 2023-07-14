@@ -1461,11 +1461,11 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 
 						//Here we obtain the current Parameter Value on the Deluge
 						int32_t previousValue =
-						modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
+						    modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
 
 						//Here we convert the current Parameter Value on the Deluge to a Knob Position Value
-						int knobPos =
-						modelStackWithParam->paramCollection->paramValueToKnobPos(previousValue, modelStackWithParam);
+						int knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(previousValue,
+						                                                                        modelStackWithParam);
 
 						//Here is where we check if the Knob/Fader on the Midi Controller is out of sync with the Deluge Knob Position
 
@@ -1515,7 +1515,7 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 									midiKnobPosChangePercentage = (midiKnobPosChange << 20) / midiKnobMaxPosDelta;
 
 									newKnobPos =
-									knobPos + ((delugeKnobMaxPosDelta * midiKnobPosChangePercentage) >> 20);
+									    knobPos + ((delugeKnobMaxPosDelta * midiKnobPosChangePercentage) >> 20);
 								}
 								//if midi knob position change is less than 0, then the midi knob position has decreased (e.g. turned knob left)
 								else if (midiKnobPosChange < 0) {
@@ -1524,13 +1524,12 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 									midiKnobPosChangePercentage = (midiKnobPosChange << 20) / midiKnobMinPosDelta;
 
 									newKnobPos =
-									knobPos + ((delugeKnobMinPosDelta * midiKnobPosChangePercentage) >> 20);
+									    knobPos + ((delugeKnobMinPosDelta * midiKnobPosChangePercentage) >> 20);
 								}
 								//if midi knob position change is 0, then the midi knob position has not changed and thus no change in deluge knob position / parameter value is required
 								else {
 									newKnobPos = knobPos;
 								}
-
 							}
 						}
 

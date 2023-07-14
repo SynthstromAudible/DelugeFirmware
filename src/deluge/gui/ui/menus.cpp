@@ -613,8 +613,8 @@ Submenu midiClockMenu{"CLOCK", midiClockMenuItems};
 
 //MIDI menu
 MenuItem* midiMenuItems[] = {
-	&midiClockMenu, &midiThruMenu, &midiTakeoverMenu, &midiCommandsMenu, &midiInputDifferentiationMenu,
-	&midi::devicesMenu, NULL};
+    &midiClockMenu,     &midiThruMenu, &midiTakeoverMenu, &midiCommandsMenu, &midiInputDifferentiationMenu,
+    &midi::devicesMenu, NULL};
 Submenu midiMenu{"MIDI", midiMenuItems};
 
 // Trigger clock in menu
