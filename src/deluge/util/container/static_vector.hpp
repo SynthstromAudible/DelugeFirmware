@@ -1064,6 +1064,28 @@ constexpr bool operator>=(static_vector<T, Capacity> const& a, static_vector<T, 
 	return sv_detail::cmp(a.begin(), a.end(), b.begin(), b.end(), std::greater_equal<>{});
 }
 
+namespace sv_detail {
+template <class T, std::size_t N, std::size_t... I>
+constexpr static_vector<std::remove_cv_t<T>, N> to_static_vector_impl(T (&a)[N], std::index_sequence<I...>) {
+	return {{a[I]...}};
+}
+
+template <class T, std::size_t N, std::size_t... I>
+constexpr static_vector<std::remove_cv_t<T>, N> to_static_vector_impl(T (&&a)[N], std::index_sequence<I...>) {
+	return {{std::move(a[I])...}};
+}
+} // namespace sv_detail
+
+template <class T, std::size_t N>
+constexpr static_vector<std::remove_cv_t<T>, N> to_static_vector(T (&a)[N]) {
+	return sv_detail::to_static_vector_impl(a, std::make_index_sequence<N>{});
+}
+
+template <class T, std::size_t N>
+constexpr static_vector<std::remove_cv_t<T>, N> to_static_vector(T (&&a)[N]) {
+	return sv_detail::to_static_vector_impl(std::move(a), std::make_index_sequence<N>{});
+}
+
 } // namespace deluge
 
 // undefine all the internal macros

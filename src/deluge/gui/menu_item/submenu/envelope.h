@@ -20,14 +20,20 @@
 extern void setEnvelopeNumberForTitles(int);
 
 namespace deluge::gui::menu_item::submenu {
-class Envelope final : public SubmenuReferringToOneThing {
+template <size_t n>
+class Envelope final : public SubmenuReferringToOneThing<n> {
 public:
-	using SubmenuReferringToOneThing::SubmenuReferringToOneThing;
+	using SubmenuReferringToOneThing<n>::SubmenuReferringToOneThing;
 #if HAVE_OLED
-	void beginSession(MenuItem* navigatedBackwardFrom = NULL) {
-		SubmenuReferringToOneThing::beginSession(navigatedBackwardFrom);
-		setEnvelopeNumberForTitles(thingIndex);
+	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) {
+		SubmenuReferringToOneThing<n>::beginSession(navigatedBackwardFrom);
+		setEnvelopeNumberForTitles(this->thingIndex);
 	}
 #endif
 };
+
+// Template deduction guide, will not be required with P2582@C++23
+template <size_t n>
+Envelope(char const*, MenuItem* const (&)[n], int) -> Envelope<n>;
+
 } // namespace deluge::gui::menu_item::submenu

@@ -60,17 +60,19 @@ public:
 
 	//char const** getOptions() { static char const* options[] = {"SINE", "TRIANGLE", "SQUARE", "SAW", "MMS1", "SUB1", "SAMPLE", "INL", "INR", "INLR", "SQ50", "SQ02", "SQ01", "SUB2", "SQ20", "SA50", "S101", "S303", "MMS2", "MMS3", "TABLE"}; return options; }
 	static_vector<char const*, capacity()> getOptions() override {
-		static_vector<char const*, capacity()> options = {"SINE",
-		                                                  "TRIANGLE",
-		                                                  "SQUARE",
-		                                                  HAVE_OLED ? "Analog square" : "ASQUARE",
-		                                                  "Saw",
-		                                                  HAVE_OLED ? "Analog saw" : "ASAW",
-		                                                  "Wavetable",
-		                                                  "SAMPLE",
-		                                                  HAVE_OLED ? "Input (left)" : "INL",
-		                                                  HAVE_OLED ? "Input (right)" : "INR",
-		                                                  HAVE_OLED ? "Input (stereo)" : "INLR"};
+		static_vector<char const*, capacity()> options = {
+		    "SINE",
+		    "TRIANGLE",
+		    "SQUARE",
+		    HAVE_OLED ? "Analog square" : "ASQUARE",
+		    "Saw",
+		    HAVE_OLED ? "Analog saw" : "ASAW",
+		    "Wavetable",
+		    "SAMPLE",
+		    HAVE_OLED ? "Input (left)" : "INL",
+		    HAVE_OLED ? "Input (right)" : "INR",
+		    HAVE_OLED ? "Input (stereo)" : "INLR",
+		};
 #if HAVE_OLED
 		options[8] = ((AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn)) ? "Input (left)" : "Input";
 #else

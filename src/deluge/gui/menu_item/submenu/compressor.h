@@ -16,15 +16,26 @@
 */
 #pragma once
 #include "gui/menu_item/submenu.h"
+#include "gui/ui/sound_editor.h"
+#include "processing/engines/audio_engine.h"
+#include "processing/sound/sound.h"
 
 namespace deluge::gui::menu_item::submenu {
-
-class Compressor final : public Submenu {
+template <size_t n>
+class Compressor final : public Submenu<n> {
 public:
-	Compressor(char const* newName, char const* title, MenuItem** newItems, bool newForReverbCompressor)
-	    : Submenu(newName, title, newItems), forReverbCompressor(newForReverbCompressor) {}
-	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
+	Compressor(char const* newName, char const* title, MenuItem* const (&newItems)[n], bool newForReverbCompressor)
+	    : Submenu<n>(newName, title, newItems), forReverbCompressor(newForReverbCompressor) {}
+	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override {
+		soundEditor.currentCompressor =
+		    forReverbCompressor ? &AudioEngine::reverbCompressor : &soundEditor.currentSound->compressor;
+		Submenu<n>::beginSession(navigatedBackwardFrom);
+	}
 
 	bool forReverbCompressor;
 };
+// Template deduction guide, will not be required with P2582@C++23
+template <size_t n>
+Compressor(char const*, MenuItem* const (&)[n]) -> Compressor<n>;
+
 } // namespace deluge::gui::menu_item::submenu

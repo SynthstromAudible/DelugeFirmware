@@ -273,8 +273,8 @@ goAgainWithoutIncrement:
 				    sizeof(Destination), 32,
 				    destinations
 				        [globality]); // Pretty sure 32 is right? Was previously 16, which I guess worked because we
-				    // currently only have "destinations" containing up to one source and one param
-				    // (i.e. the destination is another cable, whose range/depth we're controlling).
+				// currently only have "destinations" containing up to one source and one param
+				// (i.e. the destination is another cable, whose range/depth we're controlling).
 				quickSorter.sort(numDestinations[globality]);
 			}
 

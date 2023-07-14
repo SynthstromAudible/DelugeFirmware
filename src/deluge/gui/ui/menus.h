@@ -27,10 +27,10 @@ extern DrumName drumNameMenu;
 
 extern deluge::gui::menu_item::firmware::Version firmwareVersionMenu;
 extern deluge::gui::menu_item::sequence::Direction sequenceDirectionMenu;
-extern deluge::gui::menu_item::Submenu soundEditorRootMenuMIDIOrCV;
-extern deluge::gui::menu_item::Submenu soundEditorRootMenuAudioClip;
-extern deluge::gui::menu_item::Submenu soundEditorRootMenu;
-extern deluge::gui::menu_item::Submenu settingsRootMenu;
+extern deluge::gui::menu_item::Submenu<6> soundEditorRootMenuMIDIOrCV;
+extern deluge::gui::menu_item::Submenu<10> soundEditorRootMenuAudioClip;
+extern deluge::gui::menu_item::Submenu<23> soundEditorRootMenu;
+extern deluge::gui::menu_item::Submenu<12> settingsRootMenu;
 
 extern MenuItem* midiOrCVParamShortcuts[8];
 extern MenuItem* paramShortcutsForSounds[15][8];

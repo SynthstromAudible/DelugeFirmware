@@ -17,11 +17,13 @@
 
 #pragma once
 
+#include "definitions.h"
 #include "gui/menu_item/submenu.h"
+#include "model/settings/runtime_feature_settings.h"
 
 namespace deluge::gui::menu_item::runtime_feature {
 
-class Settings final : public Submenu {
+class Settings final : public Submenu<RuntimeFeatureSettingType::MaxElement> {
 public:
 	Settings(char const* name, char const* title);
 

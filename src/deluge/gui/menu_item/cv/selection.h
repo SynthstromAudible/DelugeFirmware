@@ -22,7 +22,7 @@
 #include "transpose.h"
 
 extern void setCvNumberForTitle(int m);
-extern deluge::gui::menu_item::Submenu cvSubmenu;
+extern deluge::gui::menu_item::Submenu<2> cvSubmenu;
 
 namespace deluge::gui::menu_item::cv {
 class Selection final : public menu_item::Selection<2> {

@@ -374,7 +374,7 @@ bool Clip::opportunityToBeginSessionLinearRecording(ModelStackWithTimelineCounte
 
 		Action* action = actionLogger.getNewAction(
 		    ACTION_RECORD, true); // Allow addition to existing Action - one might have already been created because
-		    // note recorded slightly early just before end of count-in
+		// note recorded slightly early just before end of count-in
 
 		if (isPendingOverdub) {
 			*newOutputCreated = cloneOutput(modelStack);

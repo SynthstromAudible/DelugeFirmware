@@ -20,7 +20,6 @@
 
 #include "gui/ui/sound_editor.h"
 #include "hid/display/numeric_driver.h"
-#include "model/settings/runtime_feature_settings.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -37,16 +36,15 @@ Setting menuMasterCompressorFx(RuntimeFeatureSettingType::MasterCompressorFx);
 Setting menuQuantize(RuntimeFeatureSettingType::Quantize);
 Setting menuPatchCableResolution(RuntimeFeatureSettingType::PatchCableResolution);
 
-std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement + 1> subMenuEntries{
+std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement> subMenuEntries{
     &menuDrumRandomizer,
     &menuMasterCompressorFx,
     &menuQuantize,
     &menuPatchCableResolution,
-
-    nullptr,
 };
 
-Settings::Settings(char const* name, char const* title) : menu_item::Submenu(name, title, subMenuEntries.data()) {
+Settings::Settings(char const* name, char const* title)
+    : menu_item::Submenu<RuntimeFeatureSettingType::MaxElement>(name, title, subMenuEntries) {
 }
 
 } // namespace deluge::gui::menu_item::runtime_feature

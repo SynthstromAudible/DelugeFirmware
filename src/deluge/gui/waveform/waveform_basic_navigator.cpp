@@ -196,7 +196,7 @@ bestYet:
 
 	PadLEDs::clearTickSquares(
 	    false); // We were mostly fine without this here, but putting it here fixed weird problem where tick squares would
-	    // appear when zooming into waveform in SampleBrowser
+	// appear when zooming into waveform in SampleBrowser
 
 	waveformRenderer.renderFullScreen(sample, xScroll, xZoom, &PadLEDs::imageStore[storeOffset], &renderData);
 

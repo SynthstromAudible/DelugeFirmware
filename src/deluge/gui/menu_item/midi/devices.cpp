@@ -24,7 +24,7 @@
 #include "gui/menu_item/submenu.h"
 #include <array>
 
-extern deluge::gui::menu_item::Submenu midiDeviceMenu;
+extern deluge::gui::menu_item::Submenu<2> midiDeviceMenu;
 
 namespace deluge::gui::menu_item::midi {
 

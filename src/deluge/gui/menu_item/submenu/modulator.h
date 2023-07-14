@@ -21,18 +21,23 @@
 extern void setModulatorNumberForTitles(int);
 
 namespace deluge::gui::menu_item::submenu {
-class Modulator final : public SubmenuReferringToOneThing {
+template <size_t n>
+class Modulator final : public SubmenuReferringToOneThing<n> {
 public:
-	using SubmenuReferringToOneThing::SubmenuReferringToOneThing;
+	using SubmenuReferringToOneThing<n>::SubmenuReferringToOneThing;
 #if HAVE_OLED
 	void beginSession(MenuItem* navigatedBackwardFrom) {
-		setModulatorNumberForTitles(thingIndex);
-		SubmenuReferringToOneThing::beginSession(navigatedBackwardFrom);
+		setModulatorNumberForTitles(this->thingIndex);
+		SubmenuReferringToOneThing<n>::beginSession(navigatedBackwardFrom);
 	}
 #endif
 	bool isRelevant(Sound* sound, int whichThing) {
 		return (sound->synthMode == SYNTH_MODE_FM);
 	}
 };
+
+// Template deduction guide, will not be required with P2582@C++23
+template <size_t n>
+Modulator(char const*, MenuItem* const (&)[n], int) -> Modulator<n>;
 
 } // namespace deluge::gui::menu_item::submenu
