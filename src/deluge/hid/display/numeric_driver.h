@@ -48,6 +48,7 @@ public:
 	void render();
 	void displayLoadingAnimation(bool delayed = false, bool transparent = false);
 	bool isLayerCurrentlyOnTop(NumericLayer* layer);
+	uint8_t lastDisplay[NUMERIC_DISPLAY_LENGTH];
 #endif
 
 	bool popupActive;

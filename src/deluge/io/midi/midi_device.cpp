@@ -24,6 +24,10 @@
 #include "io/midi/midi_engine.h"
 #include "gui/ui/sound_editor.h"
 
+extern "C" {
+#include "RZA1/uart/sio_char.h"
+}
+
 MIDIDevice::MIDIDevice() {
 	connectionFlags = 0;
 	defaultVelocityToLevel = 0; // Means none set.
@@ -349,6 +353,53 @@ void MIDIDeviceUSB::sendMessage(uint8_t statusType, uint8_t channel, uint8_t dat
 	}
 }
 
+void MIDIDeviceUSB::sendSysex(uint8_t* data, int len) {
+	if (len < 3 || data[0] != 0xf0 || data[len - 1] != 0xf7) {
+		return;
+	}
+
+	int ip = 0;
+	ConnectedUSBMIDIDevice* connectedDevice = NULL;
+
+	// find the connected device for this specific device. Note that virtual
+	// port number is specified as part of the message, implemented below.
+	for (int d = 0; d < MAX_NUM_USB_MIDI_DEVICES; d++) {
+		if (connectionFlags & (1 << d)) {
+			connectedDevice = &connectedUSBMIDIDevices[ip][d];
+			break;
+		}
+	}
+
+	if (!connectedDevice) {
+		return;
+	}
+
+	int pos = 0;
+	while (pos < len) {
+		int status, byte0 = 0, byte1 = 0, byte2 = 0;
+		byte0 = data[pos];
+		if (len - pos > 3) {
+			status = 0x4; // sysex start or continue
+			byte1 = data[pos + 1];
+			byte2 = data[pos + 2];
+			pos += 3;
+		}
+		else {
+			status = 0x4 + (len - pos); // sysex end with N bytes
+			if ((len - pos) > 1) {
+				byte1 = data[pos + 1];
+			}
+			if ((len - pos) > 2) {
+				byte2 = data[pos + 2];
+			}
+			pos = len;
+		}
+		status |= (portNumber << 4);
+		uint32_t packed = ((uint32_t)byte2 << 24) | ((uint32_t)byte1 << 16) | ((uint32_t)byte0 << 8) | status;
+		connectedDevice->bufferMessage(packed);
+	}
+}
+
 void MIDIDeviceUSBHosted::writeReferenceAttributesToFile() {
 	storageManager.writeAttribute("name", name.get());
 	storageManager.writeAttributeHex("vendorId", vendorId, 4);
@@ -375,11 +426,16 @@ void MIDIDeviceUSBUpstream::writeToFlash(uint8_t* memory) {
 }
 
 char const* MIDIDeviceUSBUpstream::getDisplayName() {
-#if HAVE_OLED
-	return portNumber ? "upstream USB port 2" : "upstream USB port 1";
-#else
-	return portNumber ? "Computer 2" : "Computer 1";
-#endif
+	switch (portNumber) {
+	case 0:
+		return HAVE_OLED ? "upstream USB port 1" : "Computer 1";
+	case 1:
+		return HAVE_OLED ? "upstream USB port 2" : "Computer 2";
+	case 2:
+		return HAVE_OLED ? "upstream USB port 3 (sysex)" : "Computer 3";
+	default:
+		return "";
+	}
 }
 
 void MIDIDeviceDINPorts::writeReferenceAttributesToFile() {
@@ -397,4 +453,15 @@ char const* MIDIDeviceDINPorts::getDisplayName() {
 
 void MIDIDeviceDINPorts::sendMessage(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2) {
 	midiEngine.sendSerialMidi(statusType, channel, data1, data2);
+}
+
+void MIDIDeviceDINPorts::sendSysex(uint8_t* data, int len) {
+	if (len < 3 || data[0] != 0xf0 || data[len - 1] != 0xf7) {
+		return;
+	}
+
+	// NB: beware of MIDI_TX_BUFFER_SIZE
+	for (int i = 0; i < len; i++) {
+		bufferMIDIUart(data[i]);
+	}
 }

@@ -78,6 +78,9 @@ extern uint8_t currentlyAccessingCard;
 #include "RZA1/uart/sio_char.h"
 }
 
+using namespace deluge;
+using namespace gui;
+
 ArrangerView arrangerView{};
 
 ArrangerView::ArrangerView() {
@@ -176,7 +179,6 @@ int ArrangerView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 		}
 	}
 
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 	// Affect-entire button
 	else if (b == AFFECT_ENTIRE) {
 		if (on && currentUIMode == UI_MODE_NONE) {
@@ -188,14 +190,12 @@ int ArrangerView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 			view.setActiveModControllableTimelineCounter(currentSong);
 		}
 	}
-#endif
 
 	// Cross-screen button
 	else if (b == CROSS_SCREEN_EDIT) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 			currentSong->arrangerAutoScrollModeActive = !currentSong->arrangerAutoScrollModeActive;
-			IndicatorLEDs::setLedState(crossScreenEditLedX, crossScreenEditLedY,
-			                           currentSong->arrangerAutoScrollModeActive);
+			indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, currentSong->arrangerAutoScrollModeActive);
 
 			if (currentSong->arrangerAutoScrollModeActive) {
 				reassessWhetherDoingAutoScroll();
@@ -412,12 +412,12 @@ bool ArrangerView::opened() {
 
 void ArrangerView::setLedStates() {
 
-	IndicatorLEDs::setLedState(synthLedX, synthLedY, false);
-	IndicatorLEDs::setLedState(kitLedX, kitLedY, false);
-	IndicatorLEDs::setLedState(midiLedX, midiLedY, false);
-	IndicatorLEDs::setLedState(cvLedX, cvLedY, false);
+	indicator_leds::setLedState(IndicatorLED::SYNTH, false);
+	indicator_leds::setLedState(IndicatorLED::KIT, false);
+	indicator_leds::setLedState(IndicatorLED::MIDI, false);
+	indicator_leds::setLedState(IndicatorLED::CV, false);
 
-	IndicatorLEDs::setLedState(crossScreenEditLedX, crossScreenEditLedY, currentSong->arrangerAutoScrollModeActive);
+	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, currentSong->arrangerAutoScrollModeActive);
 
 #ifdef currentClipStatusButtonX
 	view.switchOffCurrentClipPad();
@@ -437,14 +437,12 @@ void ArrangerView::focusRegained() {
 		view.setActiveModControllableTimelineCounter(currentSong);
 	}
 
-	IndicatorLEDs::setLedState(backLedX, backLedY, false);
+	indicator_leds::setLedState(IndicatorLED::BACK, false);
 
-	IndicatorLEDs::setLedState(scaleModeLedX, scaleModeLedY, false);
+	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, false);
 	setLedStates();
 
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
-	IndicatorLEDs::setLedState(keyboardLedX, keyboardLedX, false);
-#endif
+	indicator_leds::setLedState(IndicatorLED::KEYBOARD, false);
 
 	currentSong->lastClipInstanceEnteredStartPos = 0;
 
@@ -803,10 +801,10 @@ void ArrangerView::auditionPadAction(bool on, int y) {
 
 		if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION) {
 			endAudition(outputsOnScreen[yPressedEffective]);
-			IndicatorLEDs::setLedState(synthLedX, synthLedY, false);
-			IndicatorLEDs::setLedState(kitLedX, kitLedY, false);
-			IndicatorLEDs::setLedState(midiLedX, midiLedY, false);
-			IndicatorLEDs::setLedState(cvLedX, cvLedY, false);
+			indicator_leds::setLedState(IndicatorLED::SYNTH, false);
+			indicator_leds::setLedState(IndicatorLED::KIT, false);
+			indicator_leds::setLedState(IndicatorLED::MIDI, false);
+			indicator_leds::setLedState(IndicatorLED::CV, false);
 
 			currentUIMode = UI_MODE_NONE;
 
@@ -906,9 +904,9 @@ int ArrangerView::padAction(int x, int y, int velocity) {
 				if (output->type == OUTPUT_TYPE_AUDIO) {
 					if (velocity) {
 						view.endMIDILearn();
-						audioInputSelector.audioOutput = (AudioOutput*)output;
-						audioInputSelector.setupAndCheckAvailability();
-						openUI(&audioInputSelector);
+						context_menu::audioInputSelector.audioOutput = (AudioOutput*)output;
+						context_menu::audioInputSelector.setupAndCheckAvailability();
+						openUI(&context_menu::audioInputSelector);
 					}
 				}
 				else if (output->type == INSTRUMENT_TYPE_KIT) {
@@ -1058,7 +1056,6 @@ regularMutePadPress:
 	// Edit pad
 	else {
 		if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION) {
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 			if (velocity) {
 
 				// NAME shortcut
@@ -1073,7 +1070,6 @@ regularMutePadPress:
 					}
 				}
 			}
-#endif
 		}
 		else {
 			if (output) {
@@ -1727,7 +1723,7 @@ void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 	PadLEDs::explodeAnimationXWidthBig = ((uint32_t)(end - start) / currentSong->xZoom[NAVIGATION_ARRANGEMENT]) << 16;
 
 	PadLEDs::recordTransitionBegin(clipCollapseSpeed);
-	PadLEDs::animationDirection = 1;
+	PadLEDs::explodeAnimationDirection = 1;
 	if (clip->type == CLIP_TYPE_AUDIO) {
 		PadLEDs::renderAudioClipExplodeAnimation(0);
 	}
@@ -1827,7 +1823,7 @@ bool ArrangerView::transitionToArrangementEditor() {
 	PadLEDs::explodeAnimationXWidthBig = ((end - start) / currentSong->xZoom[NAVIGATION_ARRANGEMENT]) << 16;
 
 	PadLEDs::recordTransitionBegin(clipCollapseSpeed);
-	PadLEDs::animationDirection = -1;
+	PadLEDs::explodeAnimationDirection = -1;
 
 	if (getCurrentUI() == &instrumentClipView) {
 		PadLEDs::clearSideBar();
@@ -2509,10 +2505,10 @@ void ArrangerView::changeInstrumentType(int newInstrumentType) {
 
 	outputsOnScreen[yPressedEffective] = newInstrument;
 
-	IndicatorLEDs::setLedState(synthLedX, synthLedY, false);
-	IndicatorLEDs::setLedState(kitLedX, kitLedY, false);
-	IndicatorLEDs::setLedState(midiLedX, midiLedY, false);
-	IndicatorLEDs::setLedState(cvLedX, cvLedY, false);
+	indicator_leds::setLedState(IndicatorLED::SYNTH, false);
+	indicator_leds::setLedState(IndicatorLED::KIT, false);
+	indicator_leds::setLedState(IndicatorLED::MIDI, false);
+	indicator_leds::setLedState(IndicatorLED::CV, false);
 	view.displayOutputName(newInstrument);
 #if HAVE_OLED
 	OLED::sendMainImage();
@@ -2591,10 +2587,10 @@ cant:
 
 	outputsOnScreen[yPressedEffective] = newOutput;
 
-	IndicatorLEDs::setLedState(synthLedX, synthLedY, false);
-	IndicatorLEDs::setLedState(kitLedX, kitLedY, false);
-	IndicatorLEDs::setLedState(midiLedX, midiLedY, false);
-	IndicatorLEDs::setLedState(cvLedX, cvLedY, false);
+	indicator_leds::setLedState(IndicatorLED::SYNTH, false);
+	indicator_leds::setLedState(IndicatorLED::KIT, false);
+	indicator_leds::setLedState(IndicatorLED::MIDI, false);
+	indicator_leds::setLedState(IndicatorLED::CV, false);
 	view.displayOutputName(newOutput);
 #if HAVE_OLED
 	OLED::sendMainImage();
@@ -2665,7 +2661,7 @@ int ArrangerView::horizontalEncoderAction(int offset) {
 		if (isNoUIModeActive()) {
 
 			if (arrangement.hasPlaybackActive()) {
-				IndicatorLEDs::indicateAlertOnLed(playLedX, playLedY);
+				indicator_leds::indicateAlertOnLed(IndicatorLED::PLAY);
 			}
 			else {
 

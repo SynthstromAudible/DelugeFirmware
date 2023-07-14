@@ -103,9 +103,9 @@ public:
 	virtual void drawPixelsForOled() {
 	}
 	void drawItemsForOled(char const** options, int selectedOption);
-	char const*
-	getTitle(); //char* buffer);	// Supplied buffer size must be MENU_ITEM_TITLE_BUFFER_SIZE. Actual max num chars for OLED display is 14.
-	            // May return pointer to that buffer, or to some other constant char string.
+
+	/// Get the title to be used when rendering on OLED. If not overriden, defaults to returning `basicTitle`.
+	virtual char const* getTitle();
 
 #else
 	virtual void drawName();

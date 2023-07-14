@@ -15,28 +15,20 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "gui/context_menu/context_menu_overwrite_file.h"
-#include "gui/ui/save/save_ui.h"
+#pragma once
 
-ContextMenuOverwriteFile contextMenuOverwriteFile{};
+#include "gui/context_menu/context_menu.h"
 
-ContextMenuOverwriteFile::ContextMenuOverwriteFile() {
-#if HAVE_OLED
-	title = "Overwrite?";
-#endif
-}
+namespace deluge::gui::context_menu {
+class DeleteFile final : public ContextMenuForSaving {
+public:
+	DeleteFile() = default;
 
-char const** ContextMenuOverwriteFile::getOptions() {
-#if HAVE_OLED
-	static char const* options[] = {"Ok"};
-#else
-	static char const* options[] = {"OVERWRITE"};
-#endif
-	return options;
-}
+	Sized<char const**> getOptions() override;
+	bool acceptCurrentOption() override;
 
-bool ContextMenuOverwriteFile::acceptCurrentOption() {
-	bool dealtWith = currentSaveUI->performSave(true);
+	char const* getTitle() override;
+};
 
-	return dealtWith;
-}
+extern DeleteFile deleteFile;
+} // namespace deluge::gui::context_menu

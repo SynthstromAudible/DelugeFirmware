@@ -22,11 +22,7 @@
 
 int32_t ssiTxBuffer[SSI_TX_BUFFER_NUM_SAMPLES * NUM_MONO_OUTPUT_CHANNELS] __attribute__((aligned(CACHE_LINE_SIZE)));
 
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 int32_t ssiRxBuffer[SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS] __attribute__((aligned(CACHE_LINE_SIZE)));
-#else
-int32_t* ssiRxBuffer = 0;
-#endif
 
 const uint32_t ssiDmaTxLinkDescriptor[] __attribute__((aligned(CACHE_LINE_SIZE))) = {
     0b1101,                                                                          // Header
@@ -39,7 +35,6 @@ const uint32_t ssiDmaTxLinkDescriptor[] __attribute__((aligned(CACHE_LINE_SIZE))
     (uint32_t)ssiDmaTxLinkDescriptor // Next link address (this one again)
 };
 
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 const uint32_t ssiDmaRxLinkDescriptor[] __attribute__((aligned(CACHE_LINE_SIZE))) = {
     0b1101,                                                                          // Header
     (uint32_t)&SSIF(SSI_CHANNEL).SSIFRDR.LONG,                                       // Source address
@@ -50,7 +45,6 @@ const uint32_t ssiDmaRxLinkDescriptor[] __attribute__((aligned(CACHE_LINE_SIZE))
     0,                                                                               // Extension
     (uint32_t)ssiDmaRxLinkDescriptor // Next link address (this one again)
 };
-#endif
 
 void* getTxBufferCurrentPlace() {
 	return (void*)((DMACn(SSI_TX_DMA_CHANNEL).CRSA_n & ~((NUM_MONO_OUTPUT_CHANNELS * 4) - 1)) + UNCACHED_MIRROR_OFFSET);
