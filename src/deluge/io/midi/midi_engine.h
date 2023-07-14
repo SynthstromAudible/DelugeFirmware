@@ -62,6 +62,7 @@ public:
 	    [NUM_GLOBAL_MIDI_COMMANDS]; // If bit "16" (actually bit 4) is 1, this is a program change. (Wait, still?)
 
 	bool midiThru;
+	uint8_t midiTakeover;
 
 private:
 	uint8_t serialMidiInput[3];
