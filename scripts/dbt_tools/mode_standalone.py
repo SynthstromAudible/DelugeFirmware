@@ -45,6 +45,9 @@ def generate(env, **kwargs):
     env["BUILD_TYPE"] = target_parts[2]
     env["BUILD_HARDWARE"] = target_parts[3]
 
+    if "ENABLE_WREN" not in env:
+        env["ENABLE_WREN"] = 0
+
     # Build particulars
 
     env["FIRMWARE_FILENAME"] = "Deluge-{}-{}".format(

@@ -23,11 +23,9 @@ env.AppendUnique(
     ASMPATH=[
         "src/NE10/common",
     ],
-    CPPPATH=["src/deluge", "src/NE10/modules", "src/NE10/inc", "src", "src/fatfs", "src/wren/include"],
-    CPPDEFINES=["WREN_OPT_RANDOM=0","WREN_OPT_META=0"]
+    CPPPATH=["src/deluge", "src/NE10/modules", "src/NE10/inc", "src", "src/fatfs"],
 )
 env["ASPATH"] = " {}".format(" ".join(['-I"{}"'.format(inc) for inc in env["ASMPATH"]]))
-
 
 if env["BUILD_TYPE"] == "debug":
     env.AppendUnique(
@@ -53,6 +51,12 @@ if env["BUILD_HARDWARE"] == "7seg":
     env.AppendUnique(CPPDEFINES=["HAVE_OLED=0"])
 else:  # env["BUILD_HARDWARE"] == "oled"
     env.AppendUnique(CPPDEFINES=["HAVE_OLED=1"])
+
+if env["ENABLE_WREN"] == "1":
+    env.AppendUnique(
+        CPPDEFINES=["ENABLE_WREN=1","WREN_OPT_RANDOM=0","WREN_OPT_META=0"],
+        CPPPATH=["wren/src/vm", "wren/src/include"],
+    )
 
 env.AppendUnique(
     LINKFLAGS=[

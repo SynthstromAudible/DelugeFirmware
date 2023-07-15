@@ -1,4 +1,7 @@
 #pragma once
+
+#if ENABLE_WREN
+
 #include "wren.hpp"
 #include <string>
 #include "hid/button.h"
@@ -43,3 +46,5 @@ protected:
 };
 
 } // namespace Wren
+
+#endif

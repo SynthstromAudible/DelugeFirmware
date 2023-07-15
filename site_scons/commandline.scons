@@ -87,6 +87,7 @@ vars.AddVariables(
         "Alternate options to pass to OpenOCD",
         "",
     ),
+    ("ENABLE_WREN", 'Defaults to 0'),
 )
 
 Return("vars")

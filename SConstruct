@@ -134,6 +134,13 @@ for build_env in env_standalone_builds:
         duplicate=False,
     )
 
+    # Add wren to build directory
+    VariantDir(
+        os.path.relpath(os.path.join(build_env["BUILD_DIR"], "wren")),
+        "#wren",
+        duplicate=False,
+    )
+
     # If we're in "only prepare mode" don't queue up any of the actual compilation steps.
     # Just bail at this point. There's also no point putting compilation db creation
     # before this as it won't compile the DB without awareness of the build steps.
@@ -151,6 +158,10 @@ for build_env in env_standalone_builds:
     # This will serve us better later, buuuuut could also potentially break something.
     # ¯\_(ツ)_/¯
     sources = walk_all_sources(REL_SOURCE_DIR, build_env["BUILD_LABEL"])
+
+    # Compile Wren sources if enabled
+    if build_env["ENABLE_WREN"] == "1":
+        sources += walk_all_sources("wren/src", build_env["BUILD_LABEL"])
 
     # Wrangle those sources into objects!
     objects = build_env.Object(sources)

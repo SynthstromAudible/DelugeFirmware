@@ -32,10 +32,15 @@ namespace Buttons {
 bool recordButtonPressUsedUp;
 uint32_t timeRecordButtonPressed;
 bool buttonStates[NUM_BUTTON_COLS + 1][NUM_BUTTON_ROWS]; // The extra col is for "fake" buttons
+
+#if ENABLE_WREN
 Wren::VM* wren;
+#endif
 
 int buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+#if ENABLE_WREN
 	wren->buttonAction(b, on);
+#endif
 	return buttonActionNoRe(b, on, inCardRoutine);
 }
 
@@ -153,7 +158,7 @@ int buttonActionNoRe(hid::Button b, bool on, bool inCardRoutine) {
 
 #if ALLOW_SPAM_MODE
 	else if (b == SELECT_ENC)
-		     && isButtonPressed(shiftButtonX, shiftButtonY)) {
+		     && isButtonPressed(SHIFT) {
 			     spamMode();
 		     }
 #endif

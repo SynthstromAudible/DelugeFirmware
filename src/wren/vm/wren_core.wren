@@ -1,1 +1,0 @@
-../../../wren/src/vm/wren_core.wren

@@ -1,3 +1,5 @@
+#ifdef ENABLE_WREN
+
 #include "api.h"
 #include "hid/buttons.h"
 #include "definitions.h"
@@ -75,3 +77,5 @@ ModuleMap modules() {
 
 }}
 // clang-format on
+
+#endif

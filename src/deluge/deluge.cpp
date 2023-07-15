@@ -109,7 +109,9 @@ extern "C" {
 #include "RZA1/ssi/ssi.h"
 }
 
+#if ENABLE_WREN
 #include "vm/wrenimpl.h"
+#endif
 
 extern uint8_t currentlyAccessingCard;
 
@@ -811,8 +813,10 @@ resetSettings:
 	Uart::println("going into main loop");
 	sdRoutineLock = false; // Allow SD routine to start happening
 
+#if ENABLE_WREN
 	Wren::VM* wren = new Wren::VM();
 	Buttons::wren = wren;
+#endif
 
 	while (1) {
 
@@ -854,7 +858,9 @@ resetSettings:
 		autoPilotStuff();
 #endif
 
+#if ENABLE_WREN
 		wren->tick();
+#endif
 	}
 
 	return 0;

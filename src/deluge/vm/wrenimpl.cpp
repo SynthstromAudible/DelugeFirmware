@@ -1,3 +1,5 @@
+#if ENABLE_WREN
+
 #include "hid/display/numeric_driver.h"
 #include "storage/storage_manager.h"
 #include "memory/general_memory_allocator.h"
@@ -229,3 +231,5 @@ void VM::releaseHandles() {
 }
 
 } // namespace Wren
+
+#endif
