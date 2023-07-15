@@ -157,10 +157,9 @@ int buttonActionNoRe(hid::Button b, bool on, bool inCardRoutine) {
 	}
 
 #if ALLOW_SPAM_MODE
-	else if (b == SELECT_ENC)
-		     && isButtonPressed(SHIFT) {
-			     spamMode();
-		     }
+	else if (b == SELECT_ENC && isButtonPressed(SHIFT)) {
+		spamMode();
+	}
 #endif
 
 	// Mod encoder buttons
