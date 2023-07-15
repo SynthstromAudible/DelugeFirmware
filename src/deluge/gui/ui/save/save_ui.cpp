@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "gui/context_menu/save_song_or_instrument_context_menu.h"
+#include "gui/context_menu/save_song_or_instrument.h"
 #include "gui/ui/save/save_ui.h"
 #include "hid/matrix/matrix_driver.h"
 #include "hid/display/numeric_driver.h"
@@ -26,6 +26,8 @@
 #include "hid/buttons.h"
 #include "gui/ui_timer_manager.h"
 #include "storage/file_item.h"
+
+using namespace deluge;
 
 bool SaveUI::currentFolderIsEmpty;
 
@@ -45,16 +47,9 @@ bool SaveUI::opened() {
 }
 
 void SaveUI::focusRegained() {
-	IndicatorLEDs::blinkLed(saveLedX, saveLedY);
+	indicator_leds::blinkLed(IndicatorLED::SAVE);
 	return SlotBrowser::focusRegained();
 }
-
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-bool SaveUI::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
-	*cols = 0xFFFFFFFF;
-	return true;
-}
-#endif
 
 /*
 // TODO: in the future, there may be a case to be made for moving this to LoadOrSaveUI.
@@ -62,7 +57,7 @@ bool SaveUI::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
 void SaveUI::displayText(bool blinkImmediately) {
 
 	if (enteredText.isEmpty() && !currentFolderIsEmpty) {
-		IndicatorLEDs::ledBlinkTimeout(0, true, !blinkImmediately);
+		indicator_leds::ledBlinkTimeout(0, true, !blinkImmediately);
 		numericDriver.setTextAsSlot(currentSlot, currentSubSlot, currentFileExists, true, numberEditPos);
 	}
 
@@ -126,12 +121,12 @@ int SaveUI::timerCallback() {
 	if (currentUIMode == UI_MODE_HOLDING_BUTTON_POTENTIAL_LONG_PRESS) {
 		convertToPrefixFormatIfPossible();
 
-		bool available = saveSongOrInstrumentContextMenu.setupAndCheckAvailability();
+		bool available = gui::context_menu::saveSongOrInstrument.setupAndCheckAvailability();
 
 		if (available) {
 			currentUIMode = UI_MODE_NONE;
 			numericDriver.setNextTransitionDirection(1);
-			openUI(&saveSongOrInstrumentContextMenu);
+			openUI(&gui::context_menu::saveSongOrInstrument);
 		}
 		else {
 			exitUIMode(UI_MODE_HOLDING_BUTTON_POTENTIAL_LONG_PRESS);

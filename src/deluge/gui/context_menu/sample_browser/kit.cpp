@@ -15,35 +15,31 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "gui/context_menu/context_menu_sample_browser_kit.h"
+#include "gui/context_menu/sample_browser/kit.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "util/functions.h"
 #include "hid/display/numeric_driver.h"
 #include "gui/ui/slicer.h"
 #include "storage/file_item.h"
 
-ContextMenuSampleBrowserKit contextMenuFileBrowserKit{};
+namespace deluge::gui::context_menu::sample_browser {
+Kit kit{};
 
-ContextMenuSampleBrowserKit::ContextMenuSampleBrowserKit() {
-#if HAVE_OLED
-	title = "Sample(s)";
-#endif
+char const* Kit::getTitle() {
+	static char const* title = "Sample(s)";
+	return title;
 }
 
-char const** ContextMenuSampleBrowserKit::getOptions() {
+Sized<char const**> Kit::getOptions() {
 #if HAVE_OLED
 	static char const* options[] = {"Load all", "Slice"};
 #else
 	static char const* options[] = {"ALL", "Slice"};
 #endif
-	return options;
+	return {options, 2};
 }
 
-int ContextMenuSampleBrowserKit::getNumOptions() {
-	return 2;
-}
-
-bool ContextMenuSampleBrowserKit::isCurrentOptionAvailable() {
+bool Kit::isCurrentOptionAvailable() {
 	switch (currentOption) {
 	case 0: // "ALL" option - to import whole folder. Works whether they're currently on a file or a folder.
 		return true;
@@ -52,7 +48,7 @@ bool ContextMenuSampleBrowserKit::isCurrentOptionAvailable() {
 	}
 }
 
-bool ContextMenuSampleBrowserKit::acceptCurrentOption() {
+bool Kit::acceptCurrentOption() {
 	switch (currentOption) {
 	case 0: // Import whole folder
 		return sampleBrowser.importFolderAsKit();
@@ -63,10 +59,11 @@ bool ContextMenuSampleBrowserKit::acceptCurrentOption() {
 	}
 }
 
-int ContextMenuSampleBrowserKit::padAction(int x, int y, int on) {
+int Kit::padAction(int x, int y, int on) {
 	return sampleBrowser.padAction(x, y, on);
 }
 
-bool ContextMenuSampleBrowserKit::canSeeViewUnderneath() {
+bool Kit::canSeeViewUnderneath() {
 	return sampleBrowser.canSeeViewUnderneath();
 }
+} // namespace deluge::gui::context_menu::sample_browser

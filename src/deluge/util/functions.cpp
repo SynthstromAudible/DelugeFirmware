@@ -34,17 +34,10 @@ extern "C" {
 #include "drivers/mtu/mtu.h"
 }
 
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-const uint8_t modButtonX[6] = {0, 0, 1, 1, 2, 3};
-const uint8_t modButtonY[6] = {1, 0, 0, 1, 1, 1};
-const uint8_t modLedX[6] = {0, 0, 1, 1, 2, 3};
-const uint8_t modLedY[6] = {2, 3, 3, 2, 2, 2};
-#else
 const uint8_t modButtonX[8] = {1, 1, 1, 1, 2, 2, 2, 2};
 const uint8_t modButtonY[8] = {0, 1, 2, 3, 0, 1, 2, 3};
 const uint8_t modLedX[8] = {1, 1, 1, 1, 2, 2, 2, 2};
 const uint8_t modLedY[8] = {0, 1, 2, 3, 0, 1, 2, 3};
-#endif
 
 int32_t paramRanges[NUM_PARAMS];
 int32_t paramNeutralValues[NUM_PARAMS];
@@ -252,65 +245,6 @@ int32_t cableToLinearParamShortcut(int32_t sourceValue) {
 
 int32_t cableToExpParamShortcut(int32_t sourceValue) {
 	return sourceValue >> 2;
-}
-
-int refreshTime;
-int dimmerInterval = 0;
-
-void setRefreshTime(int newTime) {
-	refreshTime = newTime;
-	bufferPICPadsUart(PIC_MESSAGE_REFRESH_TIME); // Set refresh rate inverse
-	bufferPICPadsUart(refreshTime);
-}
-
-void changeRefreshTime(int offset) {
-	int newTime = refreshTime + offset;
-	if (newTime > 255 || newTime < 1) {
-		return;
-	}
-	setRefreshTime(newTime);
-	char buffer[12];
-	intToString(refreshTime, buffer);
-	numericDriver.displayPopup(buffer);
-}
-
-void changeDimmerInterval(int offset) {
-	int newInterval = dimmerInterval - offset;
-	if (newInterval > 25 || newInterval < 0) {}
-	else {
-		setDimmerInterval(newInterval);
-	}
-
-#if HAVE_OLED
-	char text[20];
-	strcpy(text, "Brightness: ");
-	char* pos = strchr(text, 0);
-	intToString((25 - dimmerInterval) << 2, pos);
-	pos = strchr(text, 0);
-	*(pos++) = '%';
-	*pos = 0;
-	OLED::popupText(text);
-#endif
-}
-
-void setDimmerInterval(int newInterval) {
-	//Uart::print("dimmerInterval: ");
-	//Uart::println(newInterval);
-	dimmerInterval = newInterval;
-
-	int newRefreshTime = 23 - newInterval;
-	while (newRefreshTime < 6) {
-		newRefreshTime++;
-		newInterval *= 1.2;
-	}
-
-	//Uart::print("newInterval: ");
-	//Uart::println(newInterval);
-
-	setRefreshTime(newRefreshTime);
-
-	bufferPICPadsUart(243); // Set dimmer interval
-	bufferPICPadsUart(newInterval);
 }
 
 char const* sourceToString(uint8_t source) {

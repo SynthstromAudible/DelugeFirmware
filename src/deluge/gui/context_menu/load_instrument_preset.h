@@ -19,12 +19,14 @@
 
 #include "gui/context_menu/context_menu.h"
 
-class ContextMenuDeleteFile final : public ContextMenuForSaving {
+namespace deluge::gui::context_menu {
+class LoadInstrumentPreset final : public ContextMenuForLoading {
 public:
-	ContextMenuDeleteFile();
-
-	char const** getOptions();
-	bool acceptCurrentOption();
+	LoadInstrumentPreset() = default;
+	Sized<char const**> getOptions() override;
+	bool acceptCurrentOption() override;
+	char const* getTitle() override;
 };
 
-extern ContextMenuDeleteFile contextMenuDeleteFile;
+extern LoadInstrumentPreset loadInstrumentPreset;
+} // namespace deluge::gui::context_menu

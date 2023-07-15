@@ -79,10 +79,8 @@ gotError:
 	}
 
 	currentUIMode = UI_MODE_VERTICAL_SCROLL;
-	scrollDirection = 1;
-	squaresScrolled = 0;
+	PadLEDs::vertical::setupScroll(1, true);
 	scrollingIntoSlot = false;
-	scrollingToNothing = true;
 	deletedPartsOfOldSong = false;
 	timerCallback(); // Start scrolling animation out of the View
 
@@ -110,9 +108,8 @@ gotError:
 
 	focusRegained();
 
-	squaresScrolled = 0;
+	PadLEDs::vertical::setupScroll(1, false);
 	scrollingIntoSlot = true;
-	scrollingToNothing = false;
 
 	if (currentUIMode != UI_MODE_VERTICAL_SCROLL) {
 		currentUIMode =
@@ -120,14 +117,14 @@ gotError:
 		timerCallback();
 	}
 
-	IndicatorLEDs::setLedState(synthLedX, synthLedY, false);
-	IndicatorLEDs::setLedState(kitLedX, kitLedY, false);
-	IndicatorLEDs::setLedState(midiLedX, midiLedY, false);
+	indicator_leds::setLedState(IndicatorLED::SYNTH, false);
+	indicator_leds::setLedState(IndicatorLED::KIT, false);
+	indicator_leds::setLedState(IndicatorLED::MIDI, false);
 
-	IndicatorLEDs::setLedState(crossScreenEditLedX, crossScreenEditLedY, false);
-	IndicatorLEDs::setLedState(clipViewLedX, clipViewLedY, false);
-	IndicatorLEDs::setLedState(sessionViewLedX, sessionViewLedY, false);
-	IndicatorLEDs::setLedState(scaleModeLedX, scaleModeLedY, false);
+	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
+	indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, false);
+	indicator_leds::setLedState(IndicatorLED::SESSION_VIEW, false);
+	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, false);
 
 	if (ALPHA_OR_BETA_VERSION && currentUIMode == UI_MODE_WAITING_FOR_NEXT_FILE_TO_LOAD) {
 		numericDriver.freezeWithError("E188");
@@ -253,8 +250,8 @@ void LoadSongUI::performLoad() {
 	}
 
 	currentUIMode = UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
-	IndicatorLEDs::setLedState(loadLedX, loadLedY, false);
-	IndicatorLEDs::setLedState(backLedX, backLedY, false);
+	indicator_leds::setLedState(IndicatorLED::LOAD, false);
+	indicator_leds::setLedState(IndicatorLED::BACK, false);
 #if HAVE_OLED
 	OLED::displayWorkingAnimation("Loading");
 #else
@@ -456,42 +453,14 @@ swapDone:
 }
 
 int LoadSongUI::timerCallback() {
-
 	// Progress vertical scrolling
 	if (currentUIMode == UI_MODE_VERTICAL_SCROLL) {
-
-		squaresScrolled++;
-		int copyRow = (scrollDirection > 0) ? squaresScrolled - 1 : displayHeight - squaresScrolled;
-		int startSquare = (scrollDirection > 0) ? 0 : 1;
-		int endSquare = (scrollDirection > 0) ? displayHeight - 1 : 0;
-
-		//matrixDriver.greyoutMinYDisplay = (scrollDirection > 0) ? displayHeight - squaresScrolled : squaresScrolled;
-
-		// Move the scrolling region
-		memmove(PadLEDs::image[startSquare], PadLEDs::image[1 - startSquare],
-		        (displayWidth + sideBarWidth) * (displayHeight - 1) * 3);
-
-		// And, bring in a row from the temp image (or from nowhere)
-		if (scrollingToNothing) {
-			memset(PadLEDs::image[endSquare], 0, (displayWidth + sideBarWidth) * 3);
-		}
-		else {
-			memcpy(PadLEDs::image[endSquare], PadLEDs::imageStore[copyRow], (displayWidth + sideBarWidth) * 3);
-		}
-
-		if (DELUGE_MODEL != DELUGE_MODEL_40_PAD) {
-			bufferPICPadsUart((scrollDirection > 0) ? 241 : 242);
-
-			for (int x = 0; x < displayWidth + sideBarWidth; x++) {
-				PadLEDs::sendRGBForOnePadFast(x, endSquare, PadLEDs::image[endSquare][x]);
-			}
-			uartFlushIfNotSending(UART_ITEM_PIC_PADS);
-		}
+		PadLEDs::vertical::renderScroll();
 
 		// If we've finished scrolling...
-		if (squaresScrolled >= displayHeight) {
+		if (PadLEDs::vertical::squaresScrolled >= displayHeight) {
 			// If exiting this UI...
-			if (scrollDirection == -1) {
+			if (PadLEDs::vertical::scrollDirection == -1) {
 				exitThisUI(); // Ideally I don't think this should be allowed to be happen while in the card routine, which we're in right now...
 			}
 
@@ -514,10 +483,6 @@ int LoadSongUI::timerCallback() {
 			                        UI_MS_PER_REFRESH_SCROLLING * 4); // *2 caused glitches occasionally
 		}
 getOut : {}
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-		PadLEDs::sendOutMainPadColours();
-		PadLEDs::sendOutSidebarColours();
-#endif
 		return ACTION_RESULT_DEALT_WITH;
 	}
 
@@ -613,13 +578,14 @@ void LoadSongUI::currentFileChanged(int movementDirection) {
 		qwertyVisible = false;
 
 		// Start horizontal scrolling
-		PadLEDs::setupScroll(movementDirection, displayWidth + sideBarWidth, true, displayWidth + sideBarWidth);
+		PadLEDs::horizontal::setupScroll(movementDirection, displayWidth + sideBarWidth, true,
+		                                 displayWidth + sideBarWidth);
 		for (int i = 0; i < displayHeight; i++) {
 			PadLEDs::transitionTakingPlaceOnRow[i] = true;
 		}
 		currentUIMode = UI_MODE_HORIZONTAL_SCROLL;
 		scrollingIntoSlot = false;
-		PadLEDs::renderScroll(); // The scrolling animation will begin while file is being found and loaded
+		PadLEDs::horizontal::renderScroll(); // The scrolling animation will begin while file is being found and loaded
 
 		drawSongPreview(); // Scrolling continues as the file is read by this function
 
@@ -627,11 +593,12 @@ void LoadSongUI::currentFileChanged(int movementDirection) {
 		scrollingIntoSlot = true;
 
 		// Set up another horizontal scroll
-		PadLEDs::setupScroll(movementDirection, displayWidth + sideBarWidth, false, displayWidth + sideBarWidth);
+		PadLEDs::horizontal::setupScroll(movementDirection, displayWidth + sideBarWidth, false,
+		                                 displayWidth + sideBarWidth);
 		for (int i = 0; i < displayHeight; i++) {
 			PadLEDs::transitionTakingPlaceOnRow[i] = true;
 		}
-		PadLEDs::renderScroll();
+		PadLEDs::horizontal::renderScroll();
 	}
 }
 
@@ -718,9 +685,7 @@ void LoadSongUI::exitAction() {
 	}
 
 	currentUIMode = UI_MODE_VERTICAL_SCROLL;
-	scrollDirection = -1;
-	scrollingToNothing = false;
-	squaresScrolled = 0;
+	PadLEDs::vertical::setupScroll(-1, false);
 	getRootUI()->renderMainPads(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore);
 	getRootUI()->renderSidebar(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore);
 	//((ViewScreen*)getRootUI())->renderToStore(0, true);
@@ -766,14 +731,6 @@ void LoadSongUI::drawSongPreview(bool toStore) {
 			int startX, startY, endX, endY;
 			int skipNumCharsAfterRow = 0;
 
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-			startX = startY = 0;
-			endX = displayWidth + sideBarWidth;
-			endY = displayHeight;
-			if (previewNumPads != 40) {
-				skipNumCharsAfterRow = 48;
-			}
-#else
 			if (previewNumPads == 40) {
 				startX = 4;
 				endX = 14;
@@ -786,8 +743,6 @@ void LoadSongUI::drawSongPreview(bool toStore) {
 				endX = displayWidth + sideBarWidth;
 				endY = displayHeight;
 			}
-
-#endif
 
 			int width = endX - startX;
 			int numCharsToRead = width * 3 * 2;
@@ -809,12 +764,6 @@ void LoadSongUI::drawSongPreview(bool toStore) {
 					}
 					greyColourOut(imageStore[y][x], imageStore[y][x], 6500000);
 				}
-
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-				for (int i = 0; i < skipNumCharsAfterRow; i++) {
-					storageManager.readNextCharOfTagOrAttributeValue();
-				}
-#endif
 			}
 			goto stopLoadingPreview;
 		}
@@ -847,14 +796,6 @@ void LoadSongUI::displayText(bool blinkImmediately) {
 }
 
 int LoadSongUI::padAction(int x, int y, int on) {
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-	if (currentUIMode != UI_MODE_NONE || !on)
-		return ACTION_RESULT_DEALT_WITH;
-	if (inCardRoutine)
-		return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
-	performLoad(true);
-#else
-
 	// If QWERTY not visible yet, make it visible now
 	if (!qwertyVisible) {
 		if (on && !currentUIMode) {
@@ -874,6 +815,5 @@ int LoadSongUI::padAction(int x, int y, int on) {
 		return ACTION_RESULT_DEALT_WITH;
 	}
 
-#endif
 	return ACTION_RESULT_DEALT_WITH;
 }

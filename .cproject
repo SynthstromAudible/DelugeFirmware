@@ -583,7 +583,9 @@
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/fatfs&quot;"/>
 								</option>
-								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="true" id="com.renesas.cdt.managedbuild.gcc.rz.option.compiler.cpp.otherOptimization.1843283088" name="Other optimization flags" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.compiler.cpp.otherOptimization" useByScannerDiscovery="true" valueType="stringList"/>
+								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.renesas.cdt.managedbuild.gcc.rz.option.compiler.cpp.otherOptimization.1843283088" name="Other optimization flags" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.compiler.cpp.otherOptimization" useByScannerDiscovery="true" valueType="stringList">
+									<listOptionValue builtIn="false" value="-std=gnu++1z"/>
+								</option>
 								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.compiler.noexceptions.425527962" name="Do not use exceptions (-fno-exceptions)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.compiler.noexceptions" useByScannerDiscovery="true" value="true" valueType="boolean"/>
 								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.compiler.nortti.1655856323" name="Do not use RTTI (-fno-rtti)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.compiler.nortti" useByScannerDiscovery="true" value="true" valueType="boolean"/>
 								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.compiler.nousecxaatexit.2037815225" name="Do not use _cxa_atexit() (-fno-use-cxa-atexit)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.compiler.nousecxaatexit" useByScannerDiscovery="true" value="true" valueType="boolean"/>
@@ -1595,7 +1597,9 @@
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/src/fatfs&quot;"/>
 								</option>
-								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="true" id="com.renesas.cdt.managedbuild.gcc.rz.option.compiler.cpp.otherOptimization.1407498787" name="Other optimization flags" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.compiler.cpp.otherOptimization" useByScannerDiscovery="true" valueType="stringList"/>
+								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.renesas.cdt.managedbuild.gcc.rz.option.compiler.cpp.otherOptimization.1407498787" name="Other optimization flags" superClass="com.renesas.cdt.managedbuild.gcc.rz.option.compiler.cpp.otherOptimization" useByScannerDiscovery="true" valueType="stringList">
+									<listOptionValue builtIn="false" value="-std=gnu++17"/>
+								</option>
 								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.compiler.nortti.17557799" name="Do not use RTTI (-fno-rtti)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.compiler.nortti" useByScannerDiscovery="true" value="true" valueType="boolean"/>
 								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.compiler.noexceptions.125699064" name="Do not use exceptions (-fno-exceptions)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.compiler.noexceptions" useByScannerDiscovery="true" value="true" valueType="boolean"/>
 								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.compiler.nothreadsafestatics.1177492115" name="Do not use thread-safe statics (-fno-threadsafe-statics)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.compiler.nothreadsafestatics" useByScannerDiscovery="true" value="true" valueType="boolean"/>
@@ -2025,6 +2029,8 @@
 	</storageModule>
 	<storageModule moduleId="org.eclipse.cdt.core.LanguageSettingsProviders"/>
 	<storageModule moduleId="refreshScope" versionNumber="2">
+		<configuration configurationName="e2-build-debug-oled"/>
+		<configuration configurationName="e2-build-release-7seg"/>
 		<configuration configurationName="Release_RZ_A1L">
 			<resource resourceType="PROJECT" workspacePath="/Deluge"/>
 		</configuration>
@@ -2041,9 +2047,11 @@
 		<configuration configurationName="build-release-7seg">
 			<resource resourceType="PROJECT" workspacePath="/Deluge"/>
 		</configuration>
+		<configuration configurationName="e2-build-release-oled"/>
 		<configuration configurationName="debug-oled">
 			<resource resourceType="PROJECT" workspacePath="/Deluge"/>
 		</configuration>
+		<configuration configurationName="e2-build-debug-7seg"/>
 	</storageModule>
 	<storageModule moduleId="org.eclipse.cdt.make.core.buildtargets"/>
 	<storageModule moduleId="scannerConfiguration">

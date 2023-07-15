@@ -65,6 +65,7 @@
 #include "gui/menu_item/midi/preset.h"
 #include "gui/menu_item/midi/sub.h"
 #include "gui/menu_item/midi/thru.h"
+#include "gui/menu_item/midi/takeover.h"
 #include "gui/menu_item/modulator/destination.h"
 #include "gui/menu_item/modulator/transpose.h"
 #include "gui/menu_item/mod_fx/depth.h"
@@ -563,7 +564,6 @@ char const* firmwareString = "4.1.4-alpha3-c";
 
 firmware::Version firmwareVersionMenu{"Firmware version"};
 
-runtime_feature::Setting runtimeFeatureSettingMenuItem;
 runtime_feature::Settings runtimeFeatureSettingsMenu{HAVE_OLED ? "Community fts." : "FEAT"};
 
 // CV menu
@@ -571,6 +571,9 @@ runtime_feature::Settings runtimeFeatureSettingsMenu{HAVE_OLED ? "Community fts.
 // MIDI
 // MIDI thru
 midi::Thru midiThruMenu{HAVE_OLED ? "MIDI-thru" : "THRU"};
+
+// MIDI Takeover
+midi::Takeover midiTakeoverMenu{HAVE_OLED ? "TAKEOVER" : "TOVR"};
 
 // MIDI commands submenu
 midi::Command playbackRestartMidiCommand{"Restart", GLOBAL_MIDI_COMMAND_PLAYBACK_RESTART};
@@ -606,11 +609,12 @@ midi::ClockOutStatus midiClockOutStatusMenu{HAVE_OLED ? "Output" : "OUT"};
 midi::ClockInStatus midiClockInStatusMenu{HAVE_OLED ? "Input" : "IN"};
 tempo::MagnitudeMatching tempoMagnitudeMatchingMenu{HAVE_OLED ? "Tempo magnitude matching" : "MAGN"};
 MenuItem* midiClockMenuItems[] = {&midiClockInStatusMenu, &midiClockOutStatusMenu, &tempoMagnitudeMatchingMenu, NULL};
+Submenu midiClockMenu{"CLOCK", midiClockMenuItems};
 
 //MIDI menu
-Submenu midiClockMenu{"CLOCK", midiClockMenuItems};
-MenuItem* midiMenuItems[] = {&midiClockMenu,     &midiThruMenu, &midiCommandsMenu, &midiInputDifferentiationMenu,
-                             &midi::devicesMenu, NULL};
+MenuItem* midiMenuItems[] = {
+    &midiClockMenu,     &midiThruMenu, &midiTakeoverMenu, &midiCommandsMenu, &midiInputDifferentiationMenu,
+    &midi::devicesMenu, NULL};
 Submenu midiMenu{"MIDI", midiMenuItems};
 
 // Trigger clock in menu

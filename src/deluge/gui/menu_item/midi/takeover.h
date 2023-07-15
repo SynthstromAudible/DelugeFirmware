@@ -1,5 +1,5 @@
 /*
- * Copyright © 2018-2023 Synthstrom Audible Limited
+ * Copyright (c) 2014-2023 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -14,19 +14,21 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
 */
-
 #pragma once
+#include "gui/menu_item/selection.h"
+#include "io/midi/midi_engine.h"
+#include "gui/ui/sound_editor.h"
 
-#include "gui/context_menu/context_menu.h"
-
-class ContextMenuClearSong final : public ContextMenuForLoading {
+namespace menu_item::midi {
+class Takeover final : public Selection {
 public:
-	ContextMenuClearSong();
-	void focusRegained();
-	bool canSeeViewUnderneath() { return true; }
-
-	char const** getOptions();
-	bool acceptCurrentOption();
+	using Selection::Selection;
+	void readCurrentValue() { soundEditor.currentValue = midiEngine.midiTakeover; }
+	void writeCurrentValue() { midiEngine.midiTakeover = soundEditor.currentValue; }
+	char const** getOptions() {
+		static char const* options[] = {"Jump", "Pickup", "Scale", NULL};
+		return options;
+	}
+	int getNumOptions() { return NUM_MIDI_TAKEOVER_MODES; }
 };
-
-extern ContextMenuClearSong contextMenuClearSong;
+} // namespace menu_item::midi

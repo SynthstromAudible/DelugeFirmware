@@ -1,5 +1,5 @@
 /*
- * Copyright © 2018-2023 Synthstrom Audible Limited
+ * Copyright © 2022-2023 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -19,17 +19,15 @@
 
 #include "gui/context_menu/context_menu.h"
 
-class ContextMenuSampleBrowserKit final : public ContextMenu {
+namespace deluge::gui::context_menu {
+class OverwriteBootloader final : public ContextMenu {
 public:
-	ContextMenuSampleBrowserKit();
+	OverwriteBootloader() = default;
 
-	char const** getOptions();
-	int getNumOptions();
-	bool isCurrentOptionAvailable();
-	bool canSeeViewUnderneath();
-
-	int padAction(int x, int y, int velocity);
-	bool acceptCurrentOption();
+	char const* getTitle() override;
+	Sized<char const**> getOptions() override;
+	bool acceptCurrentOption() override;
 };
 
-extern ContextMenuSampleBrowserKit contextMenuFileBrowserKit;
+extern OverwriteBootloader overwriteBootloader;
+} // namespace deluge::gui::context_menu

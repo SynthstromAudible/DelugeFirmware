@@ -50,7 +50,6 @@ public:
 protected:
 #if HAVE_OLED
 	void drawPixelsForOled();
-	void drawBar(int yTop, int marginL, int marginR = -1);
 #endif
 };
 

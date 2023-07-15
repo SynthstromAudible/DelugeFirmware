@@ -1,5 +1,5 @@
 /*
- * Copyright © 2019-2023 Synthstrom Audible Limited
+ * Copyright © 2018-2023 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -13,30 +13,26 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
-#include "gui/context_menu/context_menu_overwrite_file.h"
-#include "gui/ui/save/save_ui.h"
+#pragma once
 
-ContextMenuOverwriteFile contextMenuOverwriteFile{};
+#include "RZA1/system/r_typedefs.h"
+#include "gui/context_menu/context_menu.h"
 
-ContextMenuOverwriteFile::ContextMenuOverwriteFile() {
-#if HAVE_OLED
-	title = "Overwrite?";
-#endif
-}
+namespace deluge::gui::context_menu {
+class SaveSongOrInstrument final : public ContextMenuForSaving {
+public:
+	SaveSongOrInstrument() = default;
 
-char const** ContextMenuOverwriteFile::getOptions() {
-#if HAVE_OLED
-	static char const* options[] = {"Ok"};
-#else
-	static char const* options[] = {"OVERWRITE"};
-#endif
-	return options;
-}
+	bool acceptCurrentOption() override;
+	Sized<char const**> getOptions() override;
+	bool isCurrentOptionAvailable() override;
 
-bool ContextMenuOverwriteFile::acceptCurrentOption() {
-	bool dealtWith = currentSaveUI->performSave(true);
+	int padAction(int x, int y, int velocity) override;
 
-	return dealtWith;
-}
+	char const* getTitle() override;
+};
+
+extern SaveSongOrInstrument saveSongOrInstrument;
+} // namespace deluge::gui::context_menu
