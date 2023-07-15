@@ -32,7 +32,8 @@ def excludes_from_file(ignore_file):
 def exclude(files, excludes):
     out = []
     fpaths = [f for f in files]
-    for pattern in excludes:
+    excl = [os.path.relpath(x) for x in excludes]
+    for pattern in excl:
         fpaths = [
             x for x in fpaths if not fnmatch.fnmatch(x, pattern)
         ]
