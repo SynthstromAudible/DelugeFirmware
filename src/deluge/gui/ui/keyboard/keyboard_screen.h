@@ -22,14 +22,16 @@
 #include "hid/button.h"
 #include "model/clip/instrument_clip_minder.h"
 
+class ModelStack;
+
+namespace keyboard {
+
 struct KeyboardPadPress {
 	uint8_t x;
 	uint8_t y;
 };
 
 #define MAX_NUM_KEYBOARD_PAD_PRESSES 10
-
-class ModelStack;
 
 class KeyboardScreen final : public RootUI, public InstrumentClipMinder {
 public:
@@ -75,5 +77,6 @@ private:
 	uint8_t noteColours[displayHeight * KEYBOARD_ROW_INTERVAL_MAX + displayWidth][3];
 	bool yDisplayActive[displayHeight * KEYBOARD_ROW_INTERVAL_MAX + displayWidth];
 };
+}; // namespace keyboard
 
-extern KeyboardScreen keyboardScreen;
+extern keyboard::KeyboardScreen keyboardScreen;

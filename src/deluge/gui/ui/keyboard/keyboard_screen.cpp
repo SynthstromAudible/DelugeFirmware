@@ -43,7 +43,9 @@
 #include "gui/ui_timer_manager.h"
 #include "hid/display/oled.h"
 
-KeyboardScreen keyboardScreen{};
+keyboard::KeyboardScreen keyboardScreen{};
+
+namespace keyboard {
 
 inline InstrumentClip* getCurrentClip() {
 	return (InstrumentClip*)currentSong->currentClip;
@@ -320,14 +322,14 @@ foundIt:
 int KeyboardScreen::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	using namespace hid::button;
 
+	if (inCardRoutine) {
+		return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+	}
+
 	// Scale mode button
 	if (b == SCALE_MODE) {
 		if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_KIT) {
 			return ACTION_RESULT_DEALT_WITH; // Kits can't do scales!
-		}
-
-		if (inCardRoutine) {
-			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 
 		actionLogger.deleteAllLogs(); // Can't undo past this!
@@ -377,9 +379,6 @@ int KeyboardScreen::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	// Keyboard button - exit mode
 	else if (b == KEYBOARD) {
 		if (on && currentUIMode == UI_MODE_NONE) {
-			if (inCardRoutine) {
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
 			changeRootUI(&instrumentClipView);
 		}
 	}
@@ -387,10 +386,6 @@ int KeyboardScreen::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	// Song view button
 	else if (b == SESSION_VIEW) {
 		if (on && currentUIMode == UI_MODE_NONE) {
-			if (inCardRoutine) {
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
-
 			if (currentSong->lastClipInstanceEnteredStartPos != -1 || currentSong->currentClip->section == 255) {
 				bool success = arrangerView.transitionToArrangementEditor();
 				if (!success) {
@@ -432,7 +427,9 @@ doOther:
 			return result;
 		}
 
-		return view.buttonAction(b, on, inCardRoutine);
+		return view.buttonAction(
+		    b, on,
+		    inCardRoutine); // This might potentially do something while inCardRoutine but the condition above discards the call anyway
 	}
 
 	return ACTION_RESULT_DEALT_WITH;
@@ -900,3 +897,5 @@ void KeyboardScreen::graphicsRoutine() {
 
 	PadLEDs::setTickSquares(keyboardTickSquares, colours);
 }
+
+} // namespace keyboard

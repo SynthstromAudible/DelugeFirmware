@@ -304,11 +304,12 @@ void InstrumentClipMinder::focusRegained() {
 int InstrumentClipMinder::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	using namespace hid::button;
 
+	if (inCardRoutine) {
+		return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+	}
+
 	// If holding save button...
 	if (currentUIMode == UI_MODE_HOLDING_SAVE_BUTTON && on) {
-		if (inCardRoutine) {
-			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		}
 		currentUIMode = UI_MODE_NONE;
 		indicator_leds::setLedState(IndicatorLED::SAVE, false);
 
@@ -328,9 +329,6 @@ yesSaveInstrument:
 
 	// If holding load button...
 	else if (currentUIMode == UI_MODE_HOLDING_LOAD_BUTTON && on) {
-		if (inCardRoutine) {
-			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		}
 		currentUIMode = UI_MODE_NONE;
 		indicator_leds::setLedState(IndicatorLED::LOAD, false);
 
@@ -357,9 +355,6 @@ yesLoadInstrument:
 	// Select button, without shift
 	else if (b == SELECT_ENC && !Buttons::isShiftButtonPressed()) {
 		if (on && currentUIMode == UI_MODE_NONE) {
-			if (inCardRoutine) {
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
 			if (!soundEditor.setup(currentSong->currentClip)) {
 				return ACTION_RESULT_DEALT_WITH;
 			}
@@ -371,9 +366,6 @@ yesLoadInstrument:
 	else if (b == AFFECT_ENTIRE) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 			if (getCurrentClip()->output->type == INSTRUMENT_TYPE_KIT) {
-				if (inCardRoutine) {
-					return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
-				}
 
 				getCurrentClip()->affectEntire = !getCurrentClip()->affectEntire;
 				view.setActiveModControllableTimelineCounter(getCurrentClip());
@@ -384,10 +376,6 @@ yesLoadInstrument:
 	// Back button to clear Clip
 	else if (b == BACK && currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
 		if (on) {
-			if (inCardRoutine) {
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
-
 			// Clear Clip
 			Action* action = actionLogger.getNewAction(ACTION_CLIP_CLEAR, false);
 
@@ -406,10 +394,6 @@ yesLoadInstrument:
 	// Which-instrument-type buttons
 	else if (b == SYNTH) {
 		if (on && currentUIMode == UI_MODE_NONE) {
-			if (inCardRoutine) {
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
-
 			if (Buttons::isNewOrShiftButtonPressed()) {
 				createNewInstrument(INSTRUMENT_TYPE_SYNTH);
 			}
@@ -421,18 +405,12 @@ yesLoadInstrument:
 
 	else if (b == MIDI) {
 		if (on && currentUIMode == UI_MODE_NONE) {
-			if (inCardRoutine) {
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
 			changeInstrumentType(INSTRUMENT_TYPE_MIDI_OUT);
 		}
 	}
 
 	else if (b == CV) {
 		if (on && currentUIMode == UI_MODE_NONE) {
-			if (inCardRoutine) {
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
 			changeInstrumentType(INSTRUMENT_TYPE_CV);
 		}
 	}

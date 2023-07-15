@@ -14,3 +14,17 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
 */
+
+#pragma once
+
+namespace keyboard {
+
+class KeyboardLayout {
+public:
+	KeyboardLayout();
+
+	virtual void handlePad(int x, int y, int velocity) = 0;
+	virtual void handleButton(hid::Button b, bool on, bool inCardRoutine) = 0;
+};
+
+}; // namespace keyboard
