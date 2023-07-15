@@ -1827,7 +1827,6 @@ void View::getClipMuteSquareColour(Clip* clip, uint8_t thisColour[]) {
 					thisColour[2] = 0;
 				}
 			}
-
 			// Dull colour, cos can't actually begin linear recording despite being armed
 			else {
 				if (shouldGoPurple) {
@@ -1869,36 +1868,37 @@ void View::getClipMuteSquareColour(Clip* clip, uint8_t thisColour[]) {
 
 	// Or if not soloing...
 	else {
-	  if (clip->launchStyle == LAUNCH_STYLE_DEFAULT) {
-		// If it's stopped, red.
-		if (!clip->activeIfNoSolo) {
-		  menu_item::stoppedColourMenu.getRGB(thisColour);
+		if (clip->launchStyle == LAUNCH_STYLE_DEFAULT) {
+			// If it's stopped, red.
+			if (!clip->activeIfNoSolo) {
+				menu_item::stoppedColourMenu.getRGB(thisColour);
+			}
+
+			// Or, green.
+			else {
+				menu_item::activeColourMenu.getRGB(thisColour);
+			}
 		}
-	    
-		// Or, green.
 		else {
-		  menu_item::activeColourMenu.getRGB(thisColour);
+			// If it's stopped, orange.
+			if (!clip->activeIfNoSolo) {
+				thisColour[0] = 255;
+				thisColour[1] = 64;
+				thisColour[2] = 0;
+			}
+
+			// Or, cyan.
+			else {
+				thisColour[0] = 0;
+				thisColour[1] = 255;
+				thisColour[2] = 255;
+			}
 		}
-	  } else {
-		// If it's stopped, orange.
-		if (!clip->activeIfNoSolo) {
-		  thisColour[0] = 255;
-		  thisColour[1] = 64;
-		  thisColour[2] = 0;
-		}
-	    
-		// Or, cyan.
-		else {
-		  thisColour[0] = 0;
-		  thisColour[1] = 255;
-		  thisColour[2] = 255;
-		}
-	    
+
 		if (currentSong->getAnyClipsSoloing()) {
 			dimColour(thisColour);
 		}
 	}
-
 
 	// If user assigning MIDI controls and has this Clip selected, flash to half brightness
 	if (midiLearnFlashOn && learnedThing == &clip->muteMIDICommand) {
@@ -1963,7 +1963,8 @@ int View::clipStatusPadAction(Clip* clip, bool on, int yDisplayIfInSessionView) 
 			contextMenuLaunchStyle.clip = clip;
 			sessionView.performActionOnPadRelease = false; // Even though there's a chance we're not in session view
 			session.toggleClipStatus(clip, NULL, Buttons::isShiftButtonPressed(), INTERNAL_BUTTON_PRESS_LATENCY);
-		} else {
+		}
+		else {
 			exitUIMode(UI_MODE_HOLDING_STATUS_PAD);
 		}
 		break;
