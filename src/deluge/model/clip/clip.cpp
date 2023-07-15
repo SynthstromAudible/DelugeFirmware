@@ -659,10 +659,15 @@ void Clip::writeDataToFile(Song* song) {
 	if (song->getSyncScalingClip() == this) {
 		storageManager.writeAttribute("isSyncScaleClip", "1");
 	}
-
+	if (launchStyle != LAUNCH_STYLE_DEFAULT) {
+		storageManager.writeAttribute("launchStyle", launchStyleToString(launchStyle));
+	}
 	storageManager.writeOpeningTagEnd();
 
 	muteMIDICommand.writeNoteToFile("muteMidiCommand");
+
+
+
 }
 
 void Clip::readTagFromFile(char const* tagName, Song* song, int32_t* readAutomationUpToPos) {
@@ -730,6 +735,10 @@ void Clip::readTagFromFile(char const* tagName, Song* song, int32_t* readAutomat
 
 	else if (!strcmp(tagName, "sequenceDirection")) {
 		sequenceDirectionMode = stringToSequenceDirectionMode(storageManager.readTagOrAttributeValue());
+	}
+
+	else if (!strcmp(tagName, "launchStyle")) {
+		launchStyle = stringToLaunchStyle(storageManager.readTagOrAttributeValue());
 	}
 
 	/*

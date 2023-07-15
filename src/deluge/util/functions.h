@@ -203,6 +203,8 @@ char const* inputChannelToString(int inputChannel);
 int stringToInputChannel(char const* string);
 char const* sequenceDirectionModeToString(int sequenceDirectionMode);
 int stringToSequenceDirectionMode(char const* string);
+char const* launchStyleToString(int launchStyle);
+int stringToLaunchStyle(char const* string);
 
 char const* getInstrumentFolder(uint8_t instrumentType);
 void getThingFilename(char const* thingName, int16_t currentSlot, int8_t currentSubSlot, char* buffer);

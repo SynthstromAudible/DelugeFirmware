@@ -28,6 +28,7 @@
 #include "hid/encoders.h"
 #include "gui/ui/qwerty_ui.h"
 #include "hid/display/oled.h"
+#include "model/clip/clip.h"
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
@@ -1243,6 +1244,29 @@ int stringToSequenceDirectionMode(char const* string) {
 	}
 	else {
 		return SEQUENCE_DIRECTION_FORWARD;
+	}
+}
+
+char const* launchStyleToString(int launchStyle) {
+	switch (launchStyle) {
+	case LAUNCH_STYLE_DEFAULT:
+		return "default";
+
+	case LAUNCH_STYLE_FILL:
+		return "fill";
+
+	default:
+		__builtin_unreachable();
+		return "";
+	}
+}
+
+int stringToLaunchStyle(char const* string) {
+	if (!strcmp(string, "fill")) {
+		return LAUNCH_STYLE_FILL;
+	}
+	else {
+		return LAUNCH_STYLE_DEFAULT;
 	}
 }
 
