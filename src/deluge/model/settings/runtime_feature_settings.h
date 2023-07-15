@@ -53,8 +53,9 @@ struct RuntimeFeatureSetting {
 	const char* displayName;
 	const char* xmlName;
 	uint32_t value;
-	deluge::static_vector<RuntimeFeatureSettingOption, RUNTIME_FEATURE_SETTING_MAX_OPTIONS>
-	    options; // Limited to safe memory
+
+	// Limited to safe memory
+	deluge::static_vector<RuntimeFeatureSettingOption, RUNTIME_FEATURE_SETTING_MAX_OPTIONS> options;
 };
 
 /// Encapsulating class

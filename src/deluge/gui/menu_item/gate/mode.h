@@ -21,11 +21,7 @@
 
 namespace deluge::gui::menu_item::gate {
 
-#if HAVE_OLED
-static char mode_title[] = "Gate outX mode";
-#else
-static char* mode_title = nullptr;
-#endif
+static deluge::string mode_title = HAVE_OLED ? "Gate outX mode" : "";
 
 class Mode final : public Selection<3> {
 #if HAVE_OLED
@@ -35,17 +31,10 @@ class Mode final : public Selection<3> {
 #endif
 
 public:
-	Mode() : Selection(mode_title) {
-	}
-	void readCurrentValue() override {
-		this->value_ = cvEngine.gateChannels[soundEditor.currentSourceIndex].mode;
-	}
-	void writeCurrentValue() override {
-		cvEngine.setGateType(soundEditor.currentSourceIndex, this->value_);
-	}
-	static_vector<char const*, capacity()> getOptions() override {
-		return options_;
-	}
+	Mode() : Selection(mode_title) {}
+	void readCurrentValue() override { this->value_ = cvEngine.gateChannels[soundEditor.currentSourceIndex].mode; }
+	void writeCurrentValue() override { cvEngine.setGateType(soundEditor.currentSourceIndex, this->value_); }
+	static_vector<char const*, capacity()> getOptions() override { return options_; }
 
 	void updateOptions(int value) {
 		switch (value) {

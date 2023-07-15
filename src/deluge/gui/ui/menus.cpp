@@ -763,7 +763,7 @@ Submenu midiCommandsMenu{
 
 midi::DefaultVelocityToLevel defaultVelocityToLevelMenu{"VELOCITY"};
 Submenu midiDeviceMenu{
-    nullptr,
+    "",
     {
         &mpe::directionSelectorMenu,
         &defaultVelocityToLevelMenu,

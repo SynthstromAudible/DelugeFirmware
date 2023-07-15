@@ -98,8 +98,6 @@ public:
 
 	MenuItem* menuItemNavigationRecord[16];
 
-	MenuItem** currentSubmenuItem;
-
 	bool shouldGoUpOneLevelOnBegin;
 
 	bool midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value);

@@ -47,14 +47,15 @@ static void SetupOnOffSetting(RuntimeFeatureSetting& setting, char const* const 
 	setting.xmlName = xmlName;
 	setting.value = static_cast<uint32_t>(def);
 
-	setting.options[0] = {
-	    .displayName = "Off",
-	    .value = RuntimeFeatureStateToggle::Off,
-	};
-
-	setting.options[1] = {
-	    .displayName = "On",
-	    .value = RuntimeFeatureStateToggle::On,
+	setting.options = {
+	    {
+	        .displayName = "Off",
+	        .value = RuntimeFeatureStateToggle::Off,
+	    },
+	    {
+	        .displayName = "On",
+	        .value = RuntimeFeatureStateToggle::On,
+	    },
 	};
 }
 

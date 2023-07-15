@@ -39,17 +39,14 @@ class MIDIDevice;
 
 class MenuItem {
 public:
-	MenuItem(char const* newName = nullptr, const deluge::string& newTitle = "") : name(newName) {
+	MenuItem(const deluge::string& newName = "", const deluge::string& newTitle = "") : name(newName), title(newTitle) {
 		if (newTitle.empty()) {
-			title = newTitle;
-		}
-		else {
 			title = newName;
 		}
 	}
 
-	char const* name; // As viewed in a menu list. For OLED, up to 20 chars.
-	virtual char const* getName() { return name; }
+	deluge::string name; // As viewed in a menu list. For OLED, up to 20 chars.
+	virtual char const* getName() { return name.c_str(); }
 
 	virtual void horizontalEncoderAction(int offset) {}
 	virtual void selectEncoderAction(int offset) {}
@@ -80,8 +77,7 @@ public:
 	deluge::string title; // Can get overridden by getTitle(). Actual max num chars for OLED display is 14.
 #if HAVE_OLED
 	virtual void renderOLED();
-	virtual void drawPixelsForOled() {
-	}
+	virtual void drawPixelsForOled() {}
 
 	template <size_t n>
 	static void drawItemsForOled(deluge::static_vector<char const*, n>& options, int selectedOption, int offset = 0);

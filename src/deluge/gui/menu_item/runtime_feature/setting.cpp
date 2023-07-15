@@ -21,6 +21,7 @@
 #include "gui/ui/sound_editor.h"
 #include "util/container/static_vector.hpp"
 #include <algorithm>
+#include <iterator>
 #include <ranges>
 
 namespace deluge::gui::menu_item::runtime_feature {
@@ -46,11 +47,11 @@ void Setting::writeCurrentValue() {
 }
 
 static_vector<char const*, RUNTIME_FEATURE_SETTING_MAX_OPTIONS> Setting::getOptions() {
-	static static_vector<char const*, capacity()> options{};
+	static static_vector<char const*, capacity()> options;
 	if (options.empty()) {
-		auto& settings_options = runtimeFeatureSettings.settings[currentSettingIndex].options;
-		std::transform(settings_options.begin(), settings_options.end(), options.begin(),
-		               [](auto& option) { return option.displayName; });
+		for (auto& option : runtimeFeatureSettings.settings[currentSettingIndex].options) {
+			options.push_back(option.displayName);
+		}
 	}
 	return options;
 }

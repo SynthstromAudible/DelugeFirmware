@@ -262,7 +262,7 @@ void renderUIsForOled() {
 
 	OLED::clearMainImage();
 
-	for (; u < numUIsOpen; u++) {
+		for (; u < numUIsOpen; u++) {
 		OLED::stopScrollingAnimation();
 		uiNavigationHierarchy[u]->renderOLED(OLED::oledMainImage);
 	}
