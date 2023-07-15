@@ -33,12 +33,14 @@ namespace deluge::gui::menu_item::runtime_feature {
 // Generic menu item instances
 Setting menuDrumRandomizer(RuntimeFeatureSettingType::DrumRandomizer);
 Setting menuMasterCompressorFx(RuntimeFeatureSettingType::MasterCompressorFx);
+Setting menuFineTempo(RuntimeFeatureSettingType::FineTempoKnob);
 Setting menuQuantize(RuntimeFeatureSettingType::Quantize);
 Setting menuPatchCableResolution(RuntimeFeatureSettingType::PatchCableResolution);
 
 std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement> subMenuEntries{
     &menuDrumRandomizer,
     &menuMasterCompressorFx,
+    &menuFineTempo,
     &menuQuantize,
     &menuPatchCableResolution,
 };

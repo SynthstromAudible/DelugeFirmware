@@ -26,6 +26,7 @@
 #include "modulation/params/param_manager.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "RZA1/system/iodefine.h"
+#include "hid/led/pad_leds.h"
 
 #include <stdlib.h>
 #include <new>
@@ -493,7 +494,7 @@ extern "C" int deluge_main(void) {
 	bufferPICUart(18); // Set debounce time (mS) to...
 	bufferPICUart(20);
 
-	setRefreshTime(23);
+	PadLEDs::setRefreshTime(23);
 
 	bufferPICUart(244); // Set min interrupt interval
 	bufferPICUart(8);
@@ -502,8 +503,8 @@ extern "C" int deluge_main(void) {
 	bufferPICUart(6);
 
 	int newSpeedNumber = 4000000.0f / UART_FULL_SPEED_PIC_PADS_HZ - 0.5f;
-	bufferPICPadsUart(225);            // Set UART speed
-	bufferPICPadsUart(newSpeedNumber); // Speed is 4MHz / (x + 1)
+	bufferPICUart(225);            // Set UART speed
+	bufferPICUart(newSpeedNumber); // Speed is 4MHz / (x + 1)
 	uartFlushIfNotSending(UART_ITEM_PIC_PADS);
 
 	// Setup SDRAM. Have to do this before setting up AudioEngine
@@ -651,8 +652,8 @@ extern "C" int deluge_main(void) {
 	setPinMux(4, 7, 2);
 	initSPIBSC(); // This will run the audio routine! Ideally, have external RAM set up by now.
 
-	bufferPICIndicatorsUart(245);                          // Request PIC firmware version
-	bufferPICIndicatorsUart(RESEND_BUTTON_STATES_MESSAGE); // Tell PIC to re-send button states
+	bufferPICUart(245);                          // Request PIC firmware version
+	bufferPICUart(RESEND_BUTTON_STATES_MESSAGE); // Tell PIC to re-send button states
 	uartFlushIfNotSending(UART_ITEM_PIC_INDICATORS);
 
 	// Check if the user is holding down the select knob to do a factory reset

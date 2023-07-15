@@ -148,6 +148,7 @@ void resetSettings() {
 	PadLEDs::flashCursor = FLASH_CURSOR_SLOW;
 
 	midiEngine.midiThru = false;
+	midiEngine.midiTakeover = 0;
 
 	for (int i = 0; i < NUM_GLOBAL_MIDI_COMMANDS; i++) {
 		midiEngine.globalMIDICommands[i].clear();
@@ -366,6 +367,7 @@ void readSettings() {
 			defaultBendRange[BEND_RANGE_MAIN] = 12;
 		}
 	}
+	midiEngine.midiTakeover = buffer[113];
 }
 
 void writeSettings() {
@@ -457,6 +459,8 @@ void writeSettings() {
 	buffer[79] = MIDIDeviceManager::differentiatingInputsByDevice;
 
 	buffer[112] = defaultBendRange[BEND_RANGE_MAIN];
+
+	buffer[113] = midiEngine.midiTakeover;
 
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
 	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer, 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,

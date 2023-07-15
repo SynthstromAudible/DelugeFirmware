@@ -68,10 +68,14 @@ void RuntimeFeatureSettings::init() {
 	// Quantize
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::Quantize], "Quantize", "quantize",
 	                  RuntimeFeatureStateToggle::On);
+	// FineTempoKnob
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::FineTempoKnob], "Fine Tempo Knob", "fineTempoknob",
+	                  RuntimeFeatureStateToggle::On);
 	// PatchCableResolution
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::PatchCableResolution], "Mod. depth decimals",
 	                  "ModDepthDecimals", RuntimeFeatureStateToggle::On);
 }
+
 void RuntimeFeatureSettings::readSettingsFromFile() {
 	FilePointer fp;
 	bool success = storageManager.fileExists(RUNTIME_FEATURE_SETTINGS_FILE, &fp);

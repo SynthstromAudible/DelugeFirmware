@@ -106,7 +106,7 @@ int hardwareTestWhichColour = 0;
 
 void sendColoursForHardwareTest(bool testButtonStates[9][16]) {
 	for (int x = 0; x < 9; x++) {
-		bufferPICPadsUart(x + 1);
+		bufferPICUart(x + 1);
 		for (int y = 0; y < 16; y++) {
 			for (int c = 0; c < 3; c++) {
 				int value;
@@ -116,7 +116,7 @@ void sendColoursForHardwareTest(bool testButtonStates[9][16]) {
 				else {
 					value = (c == hardwareTestWhichColour) ? 64 : 0;
 				}
-				bufferPICPadsUart(value);
+				bufferPICUart(value);
 			}
 		}
 	}
@@ -252,8 +252,8 @@ void ramTestLED(bool stuffAlreadySetUp) {
 		setupSquareWave();
 	}
 
-	bufferPICPadsUart(23); // Set flash length
-	bufferPICPadsUart(100);
+	bufferPICUart(23); // Set flash length
+	bufferPICUart(100);
 
 	// Switch on numeric display
 	bufferPICUart(224);
@@ -272,7 +272,7 @@ void ramTestLED(bool stuffAlreadySetUp) {
 			continue; // Skip icecube LEDs
 		}
 		for (int y = 0; y < 4; y++) {
-			bufferPICIndicatorsUart(152 + x + y * 9 + 36);
+			bufferPICUart(152 + x + y * 9 + 36);
 		}
 	}
 

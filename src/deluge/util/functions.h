@@ -241,11 +241,6 @@ int32_t getFinalParameterValueExpWithDumbEnvelopeHack(int32_t paramNeutralValue,
 
 void addAudio(StereoSample* inputBuffer, StereoSample* outputBuffer, int numSamples);
 
-void setRefreshTime(int newTime);
-void changeRefreshTime(int offset);
-void changeDimmerInterval(int offset);
-void setDimmerInterval(int newInterval);
-
 #if HAVE_OLED
 char const* getSourceDisplayNameForOLED(int s);
 char const* getPatchedParamDisplayNameForOled(int p);
@@ -562,9 +557,6 @@ inline void writeInt32(char** address, uint32_t number) {
 	*(uint32_t*)*address = number;
 	*address += 4;
 }
-
-int pack_8bit_to_7bit(uint8_t* dst, int dst_size, uint8_t* src, int src_len);
-int unpack_7bit_to_8bit(uint8_t* dst, int dst_size, uint8_t* src, int src_len);
 
 extern char miscStringBuffer[];
 extern char shortStringBuffer[];

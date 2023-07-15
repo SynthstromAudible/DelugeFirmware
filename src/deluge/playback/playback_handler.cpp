@@ -60,6 +60,7 @@
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui_timer_manager.h"
 #include "hid/display/oled.h"
+#include "model/settings/runtime_feature_settings.h"
 
 extern "C" {
 #include "RZA1/gpio/gpio.h"
@@ -76,6 +77,9 @@ extern void songLoaded(Song* song);
 int8_t pendingGlobalMIDICommand = -1; // -1 means none
 int pendingGlobalMIDICommandNumClustersWritten;
 extern uint8_t currentlyAccessingCard;
+
+//FineTempoKnob variable
+int tempoKnobMode = 1;
 
 bool currentlyActioningSwungTickOrResettingPlayPos = false;
 
@@ -1884,19 +1888,31 @@ displayNudge:
 
 	// Otherwise, change tempo
 	else {
+
 		if (!(playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE)) {
 
+			//FimeTempoKnob logic
+			if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::FineTempoKnob)
+			     == RuntimeFeatureStateToggle::On)) { //feature on
+				tempoKnobMode = 2;
+			}
+			else {
+				tempoKnobMode = 1;
+			}
+
 			if (Buttons::isButtonPressed(hid::button::TEMPO_ENC)) {
-				// Fine tempo adjustment
-				uint32_t tempoBPM = calculateBPM(currentSong->getTimePerTimerTickFloat()) + 0.5;
-				tempoBPM += offset;
-				if (tempoBPM > 0) {
-					currentSong->setBPM(tempoBPM, true);
-					displayTempoBPM(tempoBPM);
+				if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::FineTempoKnob)
+				     == RuntimeFeatureStateToggle::On)) { //feature is on, tempo button push-turned
+					tempoKnobMode = 1;
+				}
+
+				else {
+					tempoKnobMode = 2;
 				}
 			}
 
-			else {
+			switch (tempoKnobMode) {
+			case 1:
 				// Coarse tempo adjustment
 
 				// Get current tempo
@@ -1918,6 +1934,19 @@ displayNudge:
 				currentSong->setTempoFromParams(magnitude, whichValue, true);
 
 				displayTempoFromParams(magnitude, whichValue);
+				break;
+
+			case 2:
+				// Fine tempo adjustment
+
+				uint32_t tempoBPM = calculateBPM(currentSong->getTimePerTimerTickFloat()) + 0.5;
+				tempoBPM += offset;
+				if (tempoBPM > 0) {
+					currentSong->setBPM(tempoBPM, true);
+					displayTempoBPM(tempoBPM);
+				}
+
+				break;
 			}
 		}
 	}

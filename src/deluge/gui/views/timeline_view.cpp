@@ -304,7 +304,7 @@ void TimelineView::initiateXScroll(uint32_t newXScroll, int numSquaresToScroll) 
 	if (anyAnimationToDo) {
 		currentUIMode |=
 		    UI_MODE_HORIZONTAL_SCROLL; // Must set this before calling PadLEDs::setupScroll(), which might then unset it
-		PadLEDs::setupScroll(scrollDirection, displayWidth, false, numSquaresToScroll);
+		PadLEDs::horizontal::setupScroll(scrollDirection, displayWidth, false, numSquaresToScroll);
 	}
 }
 

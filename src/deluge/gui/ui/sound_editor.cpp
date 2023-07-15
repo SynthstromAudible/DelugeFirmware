@@ -569,7 +569,7 @@ void SoundEditor::blinkShortcut() {
 	if (shortcutBlinkCounter & 1) {
 		// Blink param
 		if ((counterForNow & paramShortcutBlinkFrequency) == 0) {
-			bufferPICPadsUart(24 + currentParamShorcutY + (currentParamShorcutX * displayHeight));
+			PadLEDs::flashMainPad(currentParamShorcutX, currentParamShorcutY);
 		}
 		uiTimerManager.setTimer(TIMER_SHORTCUT_BLINK, 180);
 	}
@@ -580,10 +580,7 @@ void SoundEditor::blinkShortcut() {
 			for (int y = 0; y < displayHeight; y++) {
 				if (sourceShortcutBlinkFrequencies[x][y] != 255
 				    && (counterForNow & sourceShortcutBlinkFrequencies[x][y]) == 0) {
-					if (sourceShortcutBlinkColours[x][y]) {
-						bufferPICPadsUart(10 + sourceShortcutBlinkColours[x][y]);
-					}
-					bufferPICPadsUart(24 + y + ((x + 14) * displayHeight));
+					PadLEDs::flashMainPad(x + 14, y, sourceShortcutBlinkColours[x][y]);
 				}
 			}
 		}
