@@ -39,6 +39,8 @@ public:
 	bool topValueIs127() { return (midiInput.noteOrCC < 128 && !relative); }
 	LearnedMIDI midiInput;
 	bool relative;
+	bool previousPositionSaved;
+	int previousPosition;
 };
 
 class ModKnob : public Knob {
