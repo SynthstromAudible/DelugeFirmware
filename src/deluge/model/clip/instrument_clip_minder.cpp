@@ -27,7 +27,7 @@
 #include "definitions.h"
 #include "gui/ui_timer_manager.h"
 #include "hid/display/numeric_driver.h"
-#include "gui/ui/keyboard_screen.h"
+#include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/view.h"
 #include "processing/engines/cv_engine.h"

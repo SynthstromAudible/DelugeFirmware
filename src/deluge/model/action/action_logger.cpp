@@ -23,7 +23,7 @@
 #include "model/action/action_logger.h"
 #include "definitions.h"
 #include "model/action/action.h"
-#include "gui/ui/keyboard_screen.h"
+#include "gui/ui/keyboard/keyboard_screen.h"
 #include "util/functions.h"
 #include "hid/display/numeric_driver.h"
 #include "gui/views/view.h"

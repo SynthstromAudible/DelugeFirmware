@@ -28,7 +28,7 @@
 #include "io/uart/uart.h"
 #include "hid/matrix/matrix_driver.h"
 #include "gui/views/view.h"
-#include "gui/ui/keyboard_screen.h"
+#include "gui/ui/keyboard/keyboard_screen.h"
 #include "hid/buttons.h"
 #include "storage/multi_range/multi_wave_table_range.h"
 #include "hid/display/oled.h"

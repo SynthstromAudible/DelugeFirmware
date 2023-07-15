@@ -43,7 +43,7 @@
 #include "processing/audio_output.h"
 #include "gui/context_menu/audio_input_selector.h"
 #include "model/song/song.h"
-#include "gui/ui/keyboard_screen.h"
+#include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/views/audio_clip_view.h"
 #include "gui/waveform/waveform_renderer.h"
 #include "model/sample/sample_recorder.h"

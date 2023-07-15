@@ -28,7 +28,7 @@
 #include "gui/waveform/waveform_renderer.h"
 #include "gui/ui/ui.h"
 #include "gui/views/arranger_view.h"
-#include "gui/ui/keyboard_screen.h"
+#include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/views/audio_clip_view.h"
 #include "hid/display/numeric_driver.h"
 #include "model/sample/sample.h"

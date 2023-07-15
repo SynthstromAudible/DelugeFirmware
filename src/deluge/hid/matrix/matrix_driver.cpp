@@ -30,7 +30,7 @@
 #include "gui/views/session_view.h"
 #include "util/lookuptables/lookuptables.h"
 #include "playback/mode/session.h"
-#include "gui/ui/keyboard_screen.h"
+#include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/sample_marker_editor.h"
 #include "gui/ui_timer_manager.h"
 #include "model/song/song.h"

@@ -39,7 +39,7 @@
 #include "io/uart/uart.h"
 #include "gui/views/view.h"
 #include "playback/mode/arrangement.h"
-#include "gui/ui/keyboard_screen.h"
+#include "gui/ui/keyboard/keyboard_screen.h"
 #include "playback/mode/session.h"
 #include "model/instrument/melodic_instrument.h"
 #include "io/midi/midi_engine.h"

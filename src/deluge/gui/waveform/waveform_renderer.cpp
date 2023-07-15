@@ -31,7 +31,7 @@
 #include "gui/views/view.h"
 #include "model/instrument/instrument.h"
 #include "model/voice/voice_sample.h"
-#include "gui/ui/keyboard_screen.h"
+#include "gui/ui/keyboard/keyboard_screen.h"
 #include "model/sample/sample_recorder.h"
 #include "gui/waveform/waveform_render_data.h"
 

@@ -20,7 +20,7 @@
 #include "processing/sound/sound.h"
 #include "gui/ui/sample_marker_editor.h"
 #include "gui/waveform/waveform_renderer.h"
-#include "gui/ui/keyboard_screen.h"
+#include "gui/ui/keyboard/keyboard_screen.h"
 #include "hid/matrix/matrix_driver.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/ui/sound_editor.h"

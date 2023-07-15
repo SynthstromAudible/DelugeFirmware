@@ -30,7 +30,7 @@
 #include "hid/display/numeric_driver.h"
 #include "io/uart/uart.h"
 #include "processing/engines/cv_engine.h"
-#include "gui/ui/keyboard_screen.h"
+#include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/views/view.h"
 #include "model/drum/kit.h"
 #include "model/note/note.h"

@@ -38,7 +38,7 @@
 #include "gui/ui/save/save_instrument_preset_ui.h"
 #include "processing/engines/cv_engine.h"
 #include "hid/display/numeric_driver.h"
-#include "gui/ui/keyboard_screen.h"
+#include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/views/view.h"
 #include "gui/ui/audio_recorder.h"
 #include "io/midi/midi_engine.h"

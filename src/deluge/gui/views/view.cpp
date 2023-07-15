@@ -32,7 +32,7 @@
 #include "hid/matrix/matrix_driver.h"
 #include "hid/display/numeric_driver.h"
 #include "gui/ui/sound_editor.h"
-#include "gui/ui/keyboard_screen.h"
+#include "gui/ui/keyboard/keyboard_screen.h"
 #include "model/instrument/instrument.h"
 #include "io/midi/midi_engine.h"
 #include "model/action/action_logger.h"

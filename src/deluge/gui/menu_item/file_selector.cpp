@@ -24,7 +24,7 @@
 #include "util/functions.h"
 #include "hid/display/numeric_driver.h"
 #include "gui/views/view.h"
-#include "gui/ui/keyboard_screen.h"
+#include "gui/ui/keyboard/keyboard_screen.h"
 #include "model/song/song.h"
 #include "model/clip/clip.h"
 

@@ -44,7 +44,7 @@
 #include "gui/waveform/waveform_renderer.h"
 #include "gui/views/view.h"
 #include "hid/encoders.h"
-#include "gui/ui/keyboard_screen.h"
+#include "gui/ui/keyboard/keyboard_screen.h"
 #include <new>
 #include "gui/context_menu/sample_browser/kit.h"
 #include "gui/context_menu/sample_browser/synth.h"

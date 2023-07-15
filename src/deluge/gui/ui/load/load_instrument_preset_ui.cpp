@@ -29,7 +29,7 @@
 #include "io/uart/uart.h"
 #include "gui/views/view.h"
 #include "storage/storage_manager.h"
-#include "gui/ui/keyboard_screen.h"
+#include "gui/ui/keyboard/keyboard_screen.h"
 #include "model/action/action_logger.h"
 #include "model/instrument/midi_instrument.h"
 #include "gui/context_menu/load_instrument_preset.h"

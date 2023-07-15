@@ -28,7 +28,7 @@
 #include "util/lookuptables/lookuptables.h"
 #include "hid/display/numeric_driver.h"
 #include "model/drum/kit.h"
-#include "gui/ui/keyboard_screen.h"
+#include "gui/ui/keyboard/keyboard_screen.h"
 #include <string.h>
 #include "gui/views/view.h"
 #include "gui/context_menu/overwrite_file.h"
