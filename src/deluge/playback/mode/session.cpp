@@ -820,8 +820,6 @@ void Session::cancelArmingForClip(Clip* clip, int* clipIndex) {
 // clipIndex is optional.
 void Session::toggleClipStatus(Clip* clip, int* clipIndex, bool doInstant, int buttonPressLatency) {
 
-
-
 	// Not allowed if playing arrangement
 	if (playbackHandler.playbackState && currentPlaybackMode == &arrangement) {
 		return;
@@ -830,7 +828,7 @@ void Session::toggleClipStatus(Clip* clip, int* clipIndex, bool doInstant, int b
 	lastSectionArmed = 255;
 
 	// If Clip armed, cancel arming - but not if it's an "instant" toggle
-	if (clip->armState && !doInstant) {
+	if (clip->armState && !(doInstant || clip->launchStyle == LAUNCH_STYLE_FILL)) {
 		cancelArmingForClip(clip, clipIndex);
 	}
 
@@ -906,8 +904,7 @@ void Session::toggleClipStatus(Clip* clip, int* clipIndex, bool doInstant, int b
 				else if (currentPlaybackMode == this) {
 
 					// Instant-stop
-					if (doInstant) {
-
+					if (doInstant || clip->launchStyle == LAUNCH_STYLE_FILL) {
 						if (clip->armState) { // In case also already armed
 							clip->armState = ARM_STATE_OFF;
 							launchSchedulingMightNeedCancelling();
@@ -2070,6 +2067,7 @@ traverseClips:
 		// Or if repeats do remain, just go onto the next one
 		else {
 
+			/* Ensure any fill clips that are playing will end here */
 			for (int c = currentSong->sessionClips.getNumElements() - 1; c >= 0; c--) {
 				Clip* clip = currentSong->sessionClips.getClipAtIndex(c);
 				if (clip->armState && clip->launchStyle == LAUNCH_STYLE_FILL) {
