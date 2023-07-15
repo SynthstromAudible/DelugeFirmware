@@ -58,7 +58,7 @@
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui_timer_manager.h"
 #include "storage/file_item.h"
-#include "gui/context_menu/context_menu_launch_style.h"
+#include "gui/context_menu/launch_style.h"
 #include "dsp/master_compressor/master_compressor.h"
 #include "model/settings/runtime_feature_settings.h"
 
@@ -72,6 +72,7 @@ extern "C" {
 }
 
 using namespace deluge;
+using namespace gui;
 
 SessionView sessionView{};
 
@@ -390,8 +391,8 @@ moveAfterClipInstance:
 			else if (currentUIMode == UI_MODE_HOLDING_STATUS_PAD) {
 				//Clip* clip = getClipOnScreen(selectedClipYDisplay);
 				//contextMenuLaunchStyle.clip = clip;
-				contextMenuLaunchStyle.setupAndCheckAvailability();
-				openUI(&contextMenuLaunchStyle);
+				context_menu::launchStyle.setupAndCheckAvailability();
+				openUI(&context_menu::launchStyle);
 			}
 			else if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
 				actionLogger.deleteAllLogs();

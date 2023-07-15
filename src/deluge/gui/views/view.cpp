@@ -71,7 +71,7 @@
 #include "storage/file_item.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/ui/load/load_song_ui.h"
-#include "gui/context_menu/context_menu_launch_style.h"
+#include "gui/context_menu/launch_style.h"
 
 #if HAVE_OLED
 #include "hid/display/oled.h"
@@ -1936,7 +1936,7 @@ int View::clipStatusPadAction(Clip* clip, bool on, int yDisplayIfInSessionView) 
 	case UI_MODE_HOLDING_STATUS_PAD:
 		if (on) {
 			enterUIMode(UI_MODE_HOLDING_STATUS_PAD);
-			contextMenuLaunchStyle.clip = clip;
+			deluge::gui::context_menu::launchStyle.clip = clip;
 			sessionView.performActionOnPadRelease = false; // Even though there's a chance we're not in session view
 			session.toggleClipStatus(clip, NULL, Buttons::isShiftButtonPressed(), INTERNAL_BUTTON_PRESS_LATENCY);
 		}
