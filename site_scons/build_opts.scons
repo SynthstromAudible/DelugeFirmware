@@ -4,7 +4,7 @@ Import("env")
 
 env.AppendUnique(
     CXXFLAGS=[
-        "-includedisable_new.h",
+        "-includepreinclude_cxx.h",
     ]
 )
 env.AppendUnique(

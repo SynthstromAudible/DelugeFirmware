@@ -22,6 +22,7 @@
 #include "hid/display/numeric_driver.h"
 #include "model/settings/runtime_feature_settings.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <iterator>
 #include <array>
