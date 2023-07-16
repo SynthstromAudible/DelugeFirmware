@@ -43,9 +43,14 @@
 #include "gui/ui_timer_manager.h"
 #include "hid/display/oled.h"
 
-keyboard::KeyboardScreen keyboardScreen{};
+#include "gui/ui/keyboard/layout/isomorphic.h"
+
+keyboard::KeyboardScreen keyboardScreen {};
 
 namespace keyboard {
+
+layout::KeyboardLayoutIsomorphic keyboardLayoutIsomorphic {};
+KeyboardLayout* layoutList[] = { (KeyboardLayout*)&keyboardLayoutIsomorphic, nullptr };
 
 inline InstrumentClip* getCurrentClip() {
 	return (InstrumentClip*)currentSong->currentClip;
@@ -552,7 +557,6 @@ void KeyboardScreen::stopAllAuditioning(ModelStack* modelStack, bool switchOffOn
 }
 
 bool KeyboardScreen::opened() {
-
 	focusRegained();
 	openedInBackground();
 	InstrumentClipMinder::opened();
@@ -583,6 +587,11 @@ bool KeyboardScreen::renderMainPads(uint32_t whichRows, uint8_t image[][displayW
 		return true;
 	}
 
+	memset(image, 0, sizeof(uint8_t) * displayHeight * (displayWidth + sideBarWidth) * 3);
+	memset(occupancyMask, 64, sizeof(uint8_t) * displayHeight * (displayWidth + sideBarWidth)); // We assume the whole screen is occupied
+
+	layoutList[0]->renderPads(image);
+
 	// First, piece together a picture of all notes-within-an-octave which are active
 	bool notesWithinOctaveActive[12];
 	memset(notesWithinOctaveActive, 0, sizeof(notesWithinOctaveActive));
@@ -594,8 +603,7 @@ bool KeyboardScreen::renderMainPads(uint32_t whichRows, uint8_t image[][displayW
 		}
 	}
 
-	memset(image, 0, sizeof(uint8_t) * displayHeight * (displayWidth + sideBarWidth) * 3);
-	memset(occupancyMask, 64, sizeof(uint8_t) * displayHeight * (displayWidth + sideBarWidth)); // We assume the whole screen is occupied
+
 
 	uint8_t noteColour[] = {127, 127, 127};
 	Instrument* instrument = (Instrument*)currentSong->currentClip->output;
@@ -707,9 +715,7 @@ bool KeyboardScreen::renderSidebar(uint32_t whichRows, uint8_t image[][displayWi
 		return true;
 	}
 
-	for (int y = 0; y < displayHeight; y++) { //@TODO: Move to layout base class
-		memset(image[y][displayWidth], 0, sideBarWidth * 3);
-	}
+	layoutList[0]->renderSidebarPads(image);
 
 	return true;
 }

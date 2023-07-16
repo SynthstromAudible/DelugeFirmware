@@ -85,6 +85,7 @@ private:
 	uint8_t noteColours[displayHeight * KEYBOARD_ROW_INTERVAL_MAX + displayWidth][3];
 	bool yDisplayActive[displayHeight * KEYBOARD_ROW_INTERVAL_MAX + displayWidth];
 };
+
 }; // namespace keyboard
 
 extern keyboard::KeyboardScreen keyboardScreen;

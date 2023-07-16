@@ -23,7 +23,8 @@ namespace keyboard {
 
 class KeyboardLayout {
 public:
-	KeyboardLayout();
+	KeyboardLayout() {}
+	virtual ~KeyboardLayout() {}
 
 	// Handle inputs
 	virtual void handlePad(int x, int y, int velocity) = 0;
@@ -32,8 +33,15 @@ public:
 	virtual void handleHorizontalEncoder(int offset) = 0;
 
 	// Handle output
-	virtual void renderPads(uint8_t image[][displayWidth + sideBarWidth][3]) = 0;
-	virtual void renderSidebarPads(uint8_t image[][displayWidth + sideBarWidth][3]) = 0;
+	virtual void renderPads(uint8_t image[][displayWidth + sideBarWidth][3]) {
+
+	}
+	virtual void renderSidebarPads(uint8_t image[][displayWidth + sideBarWidth][3]) {
+		// Empty if not implemented
+		for (int y = 0; y < displayHeight; y++) {
+			memset(image[y][displayWidth], 0, sideBarWidth * 3);
+		}
+	};
 
 
 	// Properties

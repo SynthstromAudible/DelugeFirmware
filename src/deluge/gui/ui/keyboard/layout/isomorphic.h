@@ -21,11 +21,17 @@
 
 namespace keyboard::layout {
 
-class KeyboardLayoutIsomorphic : KeyboardLayout {
+class KeyboardLayoutIsomorphic : public KeyboardLayout {
 public:
 	KeyboardLayoutIsomorphic() : KeyboardLayout() {}
+	virtual ~KeyboardLayoutIsomorphic() {}
 
-	void handlePad(int x, int y, int velocity) {}
+	virtual void handlePad(int x, int y, int velocity) {}
+	virtual void handleSidebarPad(int x, int y, int velocity) {}
+	virtual void handleVerticalEncoder(int offset) {};
+	virtual void handleHorizontalEncoder(int offset) {};
+
+	//virtual void renderPads(uint8_t image[][displayWidth + sideBarWidth][3]);
 
 	virtual bool supportsInstrument() { return true; }
 	virtual bool supportsKit() { return false; }
