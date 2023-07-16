@@ -46,7 +46,7 @@ using unordered_map = std::unordered_map<Key, T, std::hash<Key>, std::equal_to<K
 template <typename T, typename Alloc = memory::fallback_allocator<T>>
 using stack = std::stack<T, deque<T, Alloc>>;
 
-// Stack
+// Queue
 template <typename T, typename Alloc = memory::fallback_allocator<T>>
 using queue = std::queue<T, deque<T, Alloc>>;
 } // namespace deluge
