@@ -132,7 +132,8 @@ int KeyboardScreen::padAction(int x, int y, int velocity) {
 
 			int yDisplay = noteCode - getCurrentClip()->yScrollKeyboardScreen;
 			if (instrument->type == INSTRUMENT_TYPE_KIT) { //
-				yDisplay = (int)(x / 4) + (int)(y / 4) * 4;
+				// yDisplay = (int)(x / 4) + (int)(y / 4) * 4;
+				yDisplay = y;
 			}
 			if (yDisplayActive[yDisplay]) {
 				return ACTION_RESULT_DEALT_WITH;
@@ -166,7 +167,8 @@ int KeyboardScreen::padAction(int x, int y, int velocity) {
 
 			{
 				if (instrument->type == INSTRUMENT_TYPE_KIT) {
-					int velocityToSound = ((x % 4) * 8) + ((y % 4) * 32) + 7;
+					// int velocityToSound = ((x % 4) * 8) + ((y % 4) * 32) + 7;
+					int velocityToSound = x * 8 + 7;
 					instrumentClipView.auditionPadAction(velocityToSound, yDisplay, false);
 				}
 				else {
@@ -207,7 +209,8 @@ foundIt:
 			noteCode = getNoteCodeFromCoords(x, y);
 			int yDisplay = noteCode - getCurrentClip()->yScrollKeyboardScreen;
 			if (instrument->type == INSTRUMENT_TYPE_KIT) { //
-				yDisplay = (int)(x / 4) + (int)(y / 4) * 4;
+				// yDisplay = (int)(x / 4) + (int)(y / 4) * 4;
+				yDisplay = y;
 			}
 
 			// We need to check that we had actually switched the note on here - it might have already been sounding, from the sequence
@@ -448,8 +451,8 @@ int KeyboardScreen::getNoteCodeFromCoords(int x, int y) {
 
 	Instrument* instrument = (Instrument*)currentSong->currentClip->output;
 	if (instrument->type == INSTRUMENT_TYPE_KIT) { //
-
-		return 60 + (int)(x / 4) + (int)(y / 4) * 4;
+		// return 60 + (int)(x / 4) + (int)(y / 4) * 4;
+		return 60 + y;
 	}
 	else {
 		InstrumentClip* clip = getCurrentClip();
@@ -589,8 +592,10 @@ doFullColour:
 				}
 
 				if (instrument->type == INSTRUMENT_TYPE_KIT) {
-					int myV = ((x % 4) * 16) + ((y % 4) * 64) + 8;
-					int myY = (int)(x / 4) + (int)(y / 4) * 4;
+					// int myV = ((x % 4) * 16) + ((y % 4) * 64) + 8;
+					// int myY = (int)(x / 4) + (int)(y / 4) * 4;
+					int myV = x * 16 + 8;
+					int myY = y;
 
 					ModelStackWithNoteRow* modelStackWithNoteRowOnCurrentClip =
 					    getCurrentClip()->getNoteRowOnScreen(myY, modelStackWithTimelineCounter);
@@ -668,7 +673,8 @@ int KeyboardScreen::verticalEncoderAction(int offset, bool inCardRoutine) {
 		//
 		Instrument* instrument = (Instrument*)currentSong->currentClip->output;
 		if (instrument->type == INSTRUMENT_TYPE_KIT) { //
-			instrumentClipView.verticalEncoderAction(offset * 4, inCardRoutine);
+			// instrumentClipView.verticalEncoderAction(offset * 4, inCardRoutine);
+			instrumentClipView.verticalEncoderAction(offset, inCardRoutine);
 			uiNeedsRendering(this, 0xFFFFFFFF, 0);
 		}
 		else {
