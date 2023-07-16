@@ -52,6 +52,8 @@ namespace keyboard {
 layout::KeyboardLayoutIsomorphic keyboardLayoutIsomorphic {};
 KeyboardLayout* layoutList[] = { (KeyboardLayout*)&keyboardLayoutIsomorphic, nullptr };
 
+//@TODO: Probably want to introduce a updateSoundEngine function that checks for changes in active notes from layout instead of implementaion in vertical/horizontal scroll and pad handling
+
 inline InstrumentClip* getCurrentClip() {
 	return (InstrumentClip*)currentSong->currentClip;
 }
@@ -65,15 +67,16 @@ static const uint32_t padActionUIModes[] = {UI_MODE_AUDITIONING, UI_MODE_RECORD_
                                             0}; // Careful - this is referenced in two places
 
 int KeyboardScreen::padAction(int x, int y, int velocity) {
-	//@TODO: Add handling sidebar pads
-
-	if (x >= displayWidth) {
-		return ACTION_RESULT_DEALT_WITH;
-	}
-
 	if (sdRoutineLock && !allowSomeUserActionsEvenWhenInCardRoutine) {
 		return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow some of the time when in card routine.
 	}
+
+	if (x >= displayWidth) {
+		layoutList[0]->handleSidebarPad(x, y, velocity);
+		return ACTION_RESULT_DEALT_WITH;
+	}
+
+	layoutList[0]->handlePad(x, y, velocity);
 
 	//@TODO: Factor out handling of layout specifics into layout
 
@@ -516,7 +519,7 @@ void KeyboardScreen::selectEncoderAction(int8_t offset) {
 	uiNeedsRendering(this, 0xFFFFFFFF, 0);
 }
 
-int KeyboardScreen::getNoteCodeFromCoords(int x, int y) {
+int KeyboardScreen::getNoteCodeFromCoords(int x, int y) { // @TODO: Move to isomorphic
 
 	Instrument* instrument = (Instrument*)currentSong->currentClip->output;
 	if (instrument->type == INSTRUMENT_TYPE_KIT) { //
@@ -545,7 +548,7 @@ void KeyboardScreen::exitAuditionMode() {
 
 void KeyboardScreen::stopAllAuditioning(ModelStack* modelStack, bool switchOffOnThisEndToo) {
 
-	for (int p = 0; p < MAX_NUM_KEYBOARD_PAD_PRESSES; p++) {
+	for (int p = 0; p < MAX_NUM_KEYBOARD_PAD_PRESSES; p++) { //@TODO: Rewrite to active notes
 		if (padPresses[p].x != 255) {
 			int noteCode = getNoteCodeFromCoords(padPresses[p].x, padPresses[p].y);
 			((MelodicInstrument*)currentSong->currentClip->output)->endAuditioningForNote(modelStack, noteCode);
@@ -576,7 +579,7 @@ void KeyboardScreen::openedInBackground() {
 
 void KeyboardScreen::recalculateColours() {
 	InstrumentClip* clip = getCurrentClip();
-	for (int i = 0; i < displayHeight * clip->keyboardRowInterval + displayWidth; i++) {
+	for (int i = 0; i < displayHeight * clip->keyboardRowInterval + displayWidth; i++) { // @TODO: find out how to do without dependency
 		clip->getMainColourFromY(clip->yScrollKeyboardScreen + i, 0, noteColours[i]);
 	}
 }
@@ -591,120 +594,6 @@ bool KeyboardScreen::renderMainPads(uint32_t whichRows, uint8_t image[][displayW
 	memset(occupancyMask, 64, sizeof(uint8_t) * displayHeight * (displayWidth + sideBarWidth)); // We assume the whole screen is occupied
 
 	layoutList[0]->renderPads(image);
-
-	// First, piece together a picture of all notes-within-an-octave which are active
-	bool notesWithinOctaveActive[12];
-	memset(notesWithinOctaveActive, 0, sizeof(notesWithinOctaveActive));
-	for (int p = 0; p < MAX_NUM_KEYBOARD_PAD_PRESSES; p++) {
-		if (padPresses[p].x != 255) {
-			int noteCode = getNoteCodeFromCoords(padPresses[p].x, padPresses[p].y);
-			int noteWithinOctave = (noteCode - currentSong->rootNote + 120) % 12;
-			notesWithinOctaveActive[noteWithinOctave] = true;
-		}
-	}
-
-
-
-	uint8_t noteColour[] = {127, 127, 127};
-	Instrument* instrument = (Instrument*)currentSong->currentClip->output;
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
-	ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
-	    modelStack->addTimelineCounter(currentSong->currentClip);
-
-	// Flashing default root note
-	if (uiTimerManager.isTimerSet(TIMER_DEFAULT_ROOT_NOTE)) {
-		if (flashDefaultRootNoteOn) {
-			for (int y = 0; y < displayHeight; y++) {
-				int noteCode = getNoteCodeFromCoords(0, y);
-				int yDisplay = noteCode - getCurrentClip()->yScrollKeyboardScreen;
-				int noteWithinOctave = (noteCode - defaultRootNote + 120) % 12;
-				for (int x = 0; x < displayWidth; x++) {
-
-					if (!noteWithinOctave) {
-						memcpy(image[y][x], noteColours[yDisplay], 3);
-					}
-
-					yDisplay++;
-					noteWithinOctave++;
-					if (noteWithinOctave == 12) {
-						noteWithinOctave = 0;
-					}
-				}
-			}
-		}
-	}
-
-	// Or normal
-	else {
-		for (int y = 0; y < displayHeight; y++) {
-			int noteCode = getNoteCodeFromCoords(0, y);
-			int yDisplay = noteCode - getCurrentClip()->yScrollKeyboardScreen;
-			int noteWithinOctave = (uint16_t)(noteCode - currentSong->rootNote + 120) % (uint8_t)12;
-
-			for (int x = 0; x < displayWidth; x++) {
-
-				// If auditioning note with finger - or same note in different octave...
-				if (notesWithinOctaveActive[noteWithinOctave]) {
-doFullColour:
-					memcpy(image[y][x], noteColours[yDisplay], 3);
-				}
-				// Show root note within each octave as full colour
-				else if (!noteWithinOctave) {
-					goto doFullColour;
-
-					// Or, if this note is just within the current scale, show it dim
-				}
-				else {
-					if (getCurrentClip()->inScaleMode && currentSong->modeContainsYNote(noteCode)) {
-						getTailColour(image[y][x], noteColours[yDisplay]);
-					}
-				}
-
-				if (instrument->type == INSTRUMENT_TYPE_KIT) {
-					int myV = ((x % 4) * 16) + ((y % 4) * 64) + 8;
-					int myY = (int)(x / 4) + (int)(y / 4) * 4;
-
-					ModelStackWithNoteRow* modelStackWithNoteRowOnCurrentClip =
-					    getCurrentClip()->getNoteRowOnScreen(myY, modelStackWithTimelineCounter);
-
-					if (modelStackWithNoteRowOnCurrentClip->getNoteRowAllowNull()) {
-
-						instrumentClipView.getRowColour(myY, noteColour);
-
-						noteColour[0] = (char)((noteColour[0] * myV / 255) / 3);
-						noteColour[1] = (char)((noteColour[1] * myV / 255) / 3);
-						noteColour[2] = (char)((noteColour[2] * myV / 255) / 3);
-					}
-					else {
-						noteColour[0] = 2;
-						noteColour[1] = 2;
-						noteColour[2] = 2;
-					}
-					memcpy(image[y][x], noteColour, 3);
-				}
-				// Otherwise, square will just get left black, from its having been wiped above
-
-				// If we're selecting ranges...
-				if (getCurrentUI() == &sampleBrowser || getCurrentUI() == &audioRecorder
-				    || (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem()->isRangeDependent())) {
-					if (soundEditor.isUntransposedNoteWithinRange(noteCode)) {
-						for (int colour = 0; colour < 3; colour++) {
-							int value = (int)image[y][x][colour] + 35;
-							image[y][x][colour] = getMin(value, 255);
-						}
-					}
-				}
-
-				noteCode++;
-				yDisplay++;
-				noteWithinOctave++;
-				if (noteWithinOctave == 12) {
-					noteWithinOctave = 0;
-				}
-			}
-		}
-	}
 
 	return true;
 }
@@ -725,7 +614,7 @@ void KeyboardScreen::doScroll(int offset, bool force) {
 
 	if (isUIModeWithinRange(padActionUIModes)) {
 
-		// Check we're not scrolling out of range
+		// Check we're not scrolling out of range // @TODO: Move this check into layout
 		int newYNote;
 		if (offset >= 0) {
 			newYNote = getCurrentClip()->yScrollKeyboardScreen
@@ -735,7 +624,7 @@ void KeyboardScreen::doScroll(int offset, bool force) {
 			newYNote = getCurrentClip()->yScrollKeyboardScreen;
 		}
 		if (!force && !getCurrentClip()->isScrollWithinRange(offset, newYNote + offset)) {
-			return;
+			return; // Nothing is updated if we are at ehe end of the displayable range
 		}
 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -743,10 +632,12 @@ void KeyboardScreen::doScroll(int offset, bool force) {
 
 		stopAllAuditioning(modelStack, false);
 
-		getCurrentClip()->yScrollKeyboardScreen += offset;
+		getCurrentClip()->yScrollKeyboardScreen += offset; //@TODO: Move yScrollKeyboardScreen into the layouts
 
 		recalculateColours();
 		uiNeedsRendering(this, 0xFFFFFFFF, 0);
+
+		// Update audio rendering after scrolling
 
 		int highestNoteCode = getHighestAuditionedNote();
 		if (highestNoteCode != -2147483648) {
@@ -762,7 +653,7 @@ void KeyboardScreen::doScroll(int offset, bool force) {
 		}
 
 		// All notes on
-		for (int p = 0; p < MAX_NUM_KEYBOARD_PAD_PRESSES; p++) {
+		for (int p = 0; p < MAX_NUM_KEYBOARD_PAD_PRESSES; p++) { //@TODO: Rewrite to pressed notes
 			if (padPresses[p].x != 255) {
 				int noteCode = getNoteCodeFromCoords(padPresses[p].x, padPresses[p].y);
 
@@ -794,6 +685,7 @@ bool KeyboardScreen::oneNoteAuditioning() {
 		return false;
 	}
 
+	//@TODO: Replace with active notes from layout
 	int numFound = 0;
 
 	for (int p = 0; p < MAX_NUM_KEYBOARD_PAD_PRESSES; p++) {
@@ -807,7 +699,7 @@ bool KeyboardScreen::oneNoteAuditioning() {
 	return (numFound == 1);
 }
 
-int KeyboardScreen::getLowestAuditionedNote() {
+int KeyboardScreen::getLowestAuditionedNote() { // @TODO: Move to isomorphic
 	int lowestNote = 2147483647;
 
 	for (int p = 0; p < MAX_NUM_KEYBOARD_PAD_PRESSES; p++) {
@@ -822,7 +714,7 @@ int KeyboardScreen::getLowestAuditionedNote() {
 	return lowestNote;
 }
 
-int KeyboardScreen::getHighestAuditionedNote() {
+int KeyboardScreen::getHighestAuditionedNote() { // @TODO: Move to isomorphic
 	int highestNote = -2147483648;
 
 	for (int p = 0; p < MAX_NUM_KEYBOARD_PAD_PRESSES; p++) {

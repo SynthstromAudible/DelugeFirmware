@@ -26,12 +26,12 @@ public:
 	KeyboardLayoutIsomorphic() : KeyboardLayout() {}
 	virtual ~KeyboardLayoutIsomorphic() {}
 
-	virtual void handlePad(int x, int y, int velocity) {}
+	virtual void handlePad(int x, int y, int velocity);
 	virtual void handleSidebarPad(int x, int y, int velocity) {}
-	virtual void handleVerticalEncoder(int offset) {};
-	virtual void handleHorizontalEncoder(int offset) {};
+	virtual bool handleVerticalEncoder(int offset) {}
+	virtual bool handleHorizontalEncoder(int offset) {}
 
-	//virtual void renderPads(uint8_t image[][displayWidth + sideBarWidth][3]);
+	virtual void renderPads(uint8_t image[][displayWidth + sideBarWidth][3]);
 
 	virtual bool supportsInstrument() { return true; }
 	virtual bool supportsKit() { return false; }

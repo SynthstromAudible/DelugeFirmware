@@ -17,13 +17,18 @@
 
 #pragma once
 
+#include "gui/ui/keyboard/layout/isomorphic.h"
 #include "definitions.h"
-#define MAX_NUM_KEYBOARD_PAD_PRESSES 10
-
 
 namespace keyboard::layout {
-/*
-virtual void renderPads(uint8_t image[][displayWidth + sideBarWidth][3]) {
+
+void KeyboardLayoutIsomorphic::handlePad(int x, int y, int velocity) {
+
+}
+
+
+void KeyboardLayoutIsomorphic::renderPads(uint8_t image[][displayWidth + sideBarWidth][3]) {
+	/*
 	// First, piece together a picture of all notes-within-an-octave which are active
 	bool notesWithinOctaveActive[12];
 	memset(notesWithinOctaveActive, 0, sizeof(notesWithinOctaveActive));
@@ -137,7 +142,7 @@ doFullColour:
 			}
 		}
 	}
+	*/
 }
-*/
 
 };

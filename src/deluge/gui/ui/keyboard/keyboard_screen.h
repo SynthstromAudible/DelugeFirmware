@@ -21,15 +21,13 @@
 #include "gui/ui/ui.h"
 #include "hid/button.h"
 #include "model/clip/instrument_clip_minder.h"
+#include "gui/ui/keyboard/layout.h"
 
 class ModelStack;
 
 namespace keyboard {
 
-struct KeyboardPadPress {
-	uint8_t x;
-	uint8_t y;
-};
+
 
 #define MAX_NUM_KEYBOARD_PAD_PRESSES 10
 

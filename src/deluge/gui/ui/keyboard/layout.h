@@ -18,8 +18,17 @@
 #pragma once
 
 #include "hid/button.h"
+#include <string.h>
+#include <array>
+
+#define MAX_NUM_KEYBOARD_PAD_PRESSES 10
 
 namespace keyboard {
+
+struct KeyboardPadPress {
+	uint8_t x;
+	uint8_t y;
+};
 
 class KeyboardLayout {
 public:
@@ -29,8 +38,8 @@ public:
 	// Handle inputs
 	virtual void handlePad(int x, int y, int velocity) = 0;
 	virtual void handleSidebarPad(int x, int y, int velocity) = 0;
-	virtual void handleVerticalEncoder(int offset) = 0;
-	virtual void handleHorizontalEncoder(int offset) = 0;
+	virtual bool handleVerticalEncoder(int offset) = 0; // returns weather the scroll had an effect
+	virtual bool handleHorizontalEncoder(int offset) = 0; // returns weather the scroll had an effect
 
 	// Handle output
 	virtual void renderPads(uint8_t image[][displayWidth + sideBarWidth][3]) {
@@ -43,10 +52,14 @@ public:
 		}
 	};
 
-
 	// Properties
 	virtual bool supportsInstrument() { return false; }
 	virtual bool supportsKit() { return false; }
+
+	//@TODO: This also needs velocity
+	//virtual std::array<int, MAX_NUM_KEYBOARD_PAD_PRESSES> getActiveNotes() = 0;
+
+	//@TODO: rootNote(), scale()
 };
 
 }; // namespace keyboard
