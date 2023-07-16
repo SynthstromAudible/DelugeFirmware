@@ -14,3 +14,20 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
 */
+
+#pragma once
+
+#include "gui/ui/keyboard/layout.h"
+
+namespace keyboard::layout {
+
+class KeyboardLayoutIsomorphic : KeyboardLayout {
+public:
+	KeyboardLayoutIsomorphic() : KeyboardLayout() {}
+
+	void handlePad(int x, int y, int velocity) {}
+	void handleButton(hid::Button b, bool on, bool inCardRoutine) {}
+};
+
+}; // namespace keyboard::layout
+

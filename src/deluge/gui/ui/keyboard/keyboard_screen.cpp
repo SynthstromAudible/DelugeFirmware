@@ -435,7 +435,74 @@ doOther:
 	return ACTION_RESULT_DEALT_WITH;
 }
 
+int KeyboardScreen::verticalEncoderAction(int offset, bool inCardRoutine) {
+	if (Buttons::isShiftButtonPressed()) {
+		if (currentUIMode == UI_MODE_NONE) {
+			if (inCardRoutine && !allowSomeUserActionsEvenWhenInCardRoutine) {
+				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
+			}
+
+			getCurrentClip()->colourOffset += offset;
+			recalculateColours();
+			uiNeedsRendering(this, 0xFFFFFFFF, 0);
+		}
+	}
+	else {
+		if (inCardRoutine && !allowSomeUserActionsEvenWhenInCardRoutine) {
+			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
+		}
+
+		//
+		Instrument* instrument = (Instrument*)currentSong->currentClip->output;
+		if (instrument->type == INSTRUMENT_TYPE_KIT) { //
+			instrumentClipView.verticalEncoderAction(offset * 4, inCardRoutine);
+			uiNeedsRendering(this, 0xFFFFFFFF, 0);
+		}
+		else {
+			doScroll(offset * getCurrentClip()->keyboardRowInterval);
+		}
+	}
+
+	return ACTION_RESULT_DEALT_WITH;
+}
+
+int KeyboardScreen::horizontalEncoderAction(int offset) {
+	Instrument* instrument = (Instrument*)currentSong->currentClip->output;
+	if (instrument->type != INSTRUMENT_TYPE_KIT) {
+		if (Buttons::isShiftButtonPressed()) {
+			if (isUIModeWithinRange(padActionUIModes)) {
+				InstrumentClip* clip = getCurrentClip();
+				clip->keyboardRowInterval += offset;
+				if (clip->keyboardRowInterval < 1) {
+					clip->keyboardRowInterval = 1;
+				}
+				else if (clip->keyboardRowInterval > KEYBOARD_ROW_INTERVAL_MAX) {
+					clip->keyboardRowInterval = KEYBOARD_ROW_INTERVAL_MAX;
+				}
+
+				char buffer[13] = "row step:   ";
+				intToString(clip->keyboardRowInterval, buffer + (HAVE_OLED ? 10 : 0), 1);
+				numericDriver.displayPopup(buffer);
+
+				doScroll(0, true);
+			}
+		}
+		else {
+			doScroll(offset);
+		}
+	}
+	else if (instrument->type == INSTRUMENT_TYPE_KIT) {
+		instrumentClipView.verticalEncoderAction(offset, false); //@TODO: horizontalEncoderAction is expected to be SD interrupt safe, this might not be safe
+		uiNeedsRendering(this, 0xFFFFFFFF, 0);
+	}
+
+	return ACTION_RESULT_DEALT_WITH;
+}
+
 void KeyboardScreen::selectEncoderAction(int8_t offset) {
+	//@TODO: Add code to cycle through layouts if keyboard button is pressed and make sure it is not evaluated as exit
+	//@TODO: Add code to cycle through scales if scale button is pressed and make sure it is not evaluated as scale mode set
+
 	InstrumentClipMinder::selectEncoderAction(offset);
 	instrumentClipView.recalculateColours();
 	uiNeedsRendering(this, 0xFFFFFFFF, 0);
@@ -645,69 +712,6 @@ bool KeyboardScreen::renderSidebar(uint32_t whichRows, uint8_t image[][displayWi
 	return true;
 }
 
-int KeyboardScreen::verticalEncoderAction(int offset, bool inCardRoutine) {
-	if (Buttons::isShiftButtonPressed()) {
-		if (currentUIMode == UI_MODE_NONE) {
-			if (inCardRoutine && !allowSomeUserActionsEvenWhenInCardRoutine) {
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
-			}
-
-			getCurrentClip()->colourOffset += offset;
-			recalculateColours();
-			uiNeedsRendering(this, 0xFFFFFFFF, 0);
-		}
-	}
-	else {
-		if (inCardRoutine && !allowSomeUserActionsEvenWhenInCardRoutine) {
-			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
-		}
-
-		//
-		Instrument* instrument = (Instrument*)currentSong->currentClip->output;
-		if (instrument->type == INSTRUMENT_TYPE_KIT) { //
-			instrumentClipView.verticalEncoderAction(offset * 4, inCardRoutine);
-			uiNeedsRendering(this, 0xFFFFFFFF, 0);
-		}
-		else {
-			doScroll(offset * getCurrentClip()->keyboardRowInterval);
-		}
-	}
-
-	return ACTION_RESULT_DEALT_WITH;
-}
-
-int KeyboardScreen::horizontalEncoderAction(int offset) {
-	Instrument* instrument = (Instrument*)currentSong->currentClip->output;
-	if (instrument->type != INSTRUMENT_TYPE_KIT) {
-		if (Buttons::isShiftButtonPressed()) {
-			if (isUIModeWithinRange(padActionUIModes)) {
-				InstrumentClip* clip = getCurrentClip();
-				clip->keyboardRowInterval += offset;
-				if (clip->keyboardRowInterval < 1) {
-					clip->keyboardRowInterval = 1;
-				}
-				else if (clip->keyboardRowInterval > KEYBOARD_ROW_INTERVAL_MAX) {
-					clip->keyboardRowInterval = KEYBOARD_ROW_INTERVAL_MAX;
-				}
-
-				char buffer[13] = "row step:   ";
-				intToString(clip->keyboardRowInterval, buffer + (HAVE_OLED ? 10 : 0), 1);
-				numericDriver.displayPopup(buffer);
-
-				doScroll(0, true);
-			}
-		}
-		else {
-			doScroll(offset);
-		}
-	}
-	else if (instrument->type == INSTRUMENT_TYPE_KIT) {
-		instrumentClipView.verticalEncoderAction(offset, false);
-		uiNeedsRendering(this, 0xFFFFFFFF, 0);
-	}
-
-	return ACTION_RESULT_DEALT_WITH;
-}
 
 void KeyboardScreen::doScroll(int offset, bool force) {
 

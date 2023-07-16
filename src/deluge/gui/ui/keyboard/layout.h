@@ -17,14 +17,19 @@
 
 #pragma once
 
+#include "hid/button.h"
+
 namespace keyboard {
 
 class KeyboardLayout {
 public:
 	KeyboardLayout();
 
+	// Handle inputs
 	virtual void handlePad(int x, int y, int velocity) = 0;
 	virtual void handleButton(hid::Button b, bool on, bool inCardRoutine) = 0;
+	virtual void handleVerticalEncoder(int offset) = 0;
+	virtual void handleHorizontalEncoder(int offset) = 0;
 };
 
 }; // namespace keyboard
