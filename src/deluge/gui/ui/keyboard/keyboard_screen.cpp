@@ -60,6 +60,7 @@ static const uint32_t padActionUIModes[] = {UI_MODE_AUDITIONING, UI_MODE_RECORD_
                                             0}; // Careful - this is referenced in two places
 
 int KeyboardScreen::padAction(int x, int y, int velocity) {
+	//@TODO: Add handling sidebar pads
 
 	if (x >= displayWidth) {
 		return ACTION_RESULT_DEALT_WITH;
@@ -68,6 +69,8 @@ int KeyboardScreen::padAction(int x, int y, int velocity) {
 	if (sdRoutineLock && !allowSomeUserActionsEvenWhenInCardRoutine) {
 		return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow some of the time when in card routine.
 	}
+
+	//@TODO: Factor out handling of layout specifics into layout
 
 	int soundEditorResult = soundEditor.potentialShortcutPadAction(x, y, velocity);
 
@@ -394,7 +397,7 @@ int KeyboardScreen::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 			}
 
 			else {
-doOther:
+doOther: //@TODO: Refactor this goto out
 				currentUIMode = UI_MODE_INSTRUMENT_CLIP_COLLAPSING;
 				int transitioningToRow = sessionView.getClipPlaceOnScreen(currentSong->currentClip);
 				memcpy(&PadLEDs::imageStore, PadLEDs::image, sizeof(PadLEDs::image));
@@ -414,7 +417,7 @@ doOther:
 	}
 
 	// Kit button
-	else if (b == KIT && currentUIMode == UI_MODE_NONE) {
+	else if (b == KIT && currentUIMode == UI_MODE_NONE) { //@TODO: Conditional check depending if current layout supports kits
 		if (on) {
 			indicator_leds::indicateAlertOnLed(IndicatorLED::KEYBOARD);
 		}
@@ -592,7 +595,7 @@ bool KeyboardScreen::renderMainPads(uint32_t whichRows, uint8_t image[][displayW
 	}
 
 	memset(image, 0, sizeof(uint8_t) * displayHeight * (displayWidth + sideBarWidth) * 3);
-	memset(occupancyMask, 0, sizeof(uint8_t) * displayHeight * (displayWidth + sideBarWidth));
+	memset(occupancyMask, 64, sizeof(uint8_t) * displayHeight * (displayWidth + sideBarWidth)); // We assume the whole screen is occupied
 
 	uint8_t noteColour[] = {127, 127, 127};
 	Instrument* instrument = (Instrument*)currentSong->currentClip->output;
@@ -637,7 +640,6 @@ bool KeyboardScreen::renderMainPads(uint32_t whichRows, uint8_t image[][displayW
 				if (notesWithinOctaveActive[noteWithinOctave]) {
 doFullColour:
 					memcpy(image[y][x], noteColours[yDisplay], 3);
-					occupancyMask[y][x] = 64;
 				}
 				// Show root note within each octave as full colour
 				else if (!noteWithinOctave) {
@@ -648,7 +650,6 @@ doFullColour:
 				else {
 					if (getCurrentClip()->inScaleMode && currentSong->modeContainsYNote(noteCode)) {
 						getTailColour(image[y][x], noteColours[yDisplay]);
-						occupancyMask[y][x] = 1;
 					}
 				}
 
@@ -696,6 +697,7 @@ doFullColour:
 			}
 		}
 	}
+
 	return true;
 }
 
@@ -705,7 +707,7 @@ bool KeyboardScreen::renderSidebar(uint32_t whichRows, uint8_t image[][displayWi
 		return true;
 	}
 
-	for (int y = 0; y < displayHeight; y++) {
+	for (int y = 0; y < displayHeight; y++) { //@TODO: Move to layout base class
 		memset(image[y][displayWidth], 0, sideBarWidth * 3);
 	}
 

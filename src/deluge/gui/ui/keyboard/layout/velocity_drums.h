@@ -21,15 +21,14 @@
 
 namespace keyboard::layout {
 
-class KeyboardLayoutIsomorphic : KeyboardLayout {
+class KeyboardLayoutVelocityDrums : KeyboardLayout {
 public:
-	KeyboardLayoutIsomorphic() : KeyboardLayout() {}
+	KeyboardLayoutVelocityDrums() : KeyboardLayout() {}
 
 	void handlePad(int x, int y, int velocity) {}
 
-	virtual bool supportsInstrument() { return true; }
-	virtual bool supportsKit() { return false; }
-
+	virtual bool supportsInstrument() { return false; }
+	virtual bool supportsKit() { return true; }
 };
 
 }; // namespace keyboard::layout

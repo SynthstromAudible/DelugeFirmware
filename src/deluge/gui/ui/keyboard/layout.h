@@ -27,9 +27,18 @@ public:
 
 	// Handle inputs
 	virtual void handlePad(int x, int y, int velocity) = 0;
-	virtual void handleButton(hid::Button b, bool on, bool inCardRoutine) = 0;
+	virtual void handleSidebarPad(int x, int y, int velocity) = 0;
 	virtual void handleVerticalEncoder(int offset) = 0;
 	virtual void handleHorizontalEncoder(int offset) = 0;
+
+	// Handle output
+	virtual void renderPads(uint8_t image[][displayWidth + sideBarWidth][3]) = 0;
+	virtual void renderSidebarPads(uint8_t image[][displayWidth + sideBarWidth][3]) = 0;
+
+
+	// Properties
+	virtual bool supportsInstrument() { return false; }
+	virtual bool supportsKit() { return false; }
 };
 
 }; // namespace keyboard
