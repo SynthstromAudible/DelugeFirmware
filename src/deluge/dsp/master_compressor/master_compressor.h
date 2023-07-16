@@ -20,7 +20,6 @@
 #include "RZA1/system/r_typedefs.h"
 
 #define INLINE inline
-#include <algorithm> // for min(), max()
 #include <cassert>   // for assert()
 #include <cmath>
 

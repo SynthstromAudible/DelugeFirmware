@@ -3,6 +3,11 @@ import os
 Import("env")
 
 env.AppendUnique(
+    CXXFLAGS=[
+        "-includedisable_new.h",
+    ]
+)
+env.AppendUnique(
     CCFLAGS=[
         "-fmessage-length=0",
         "-fsigned-char",
