@@ -20,15 +20,39 @@
 #include "gui/ui/ui.h"
 #include "hid/button.h"
 
+#define SLICER_MODE_REGION 0
+#define SLICER_MODE_MANUAL 1
+#define MAX_MANUAL_SLICES 64
+
+struct SliceItem {
+	int startPos;
+	int transpose;
+};
+
 class Slicer final : public UI {
 public:
 	Slicer();
 
 	void focusRegained();
-	bool canSeeViewUnderneath() { return true; }
+	bool canSeeViewUnderneath() { return false; }
 	void selectEncoderAction(int8_t offset);
 	int buttonAction(hid::Button b, bool on, bool inCardRoutine);
 	int padAction(int x, int y, int velocity);
+
+	bool renderMainPads(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
+	                    uint8_t occupancyMask[][displayWidth + sideBarWidth], bool drawUndefinedArea);
+	void graphicsRoutine();
+	int horizontalEncoderAction(int offset);
+	int verticalEncoderAction(int offset, bool inCardRoutine);
+
+	void stopAnyPreviewing();
+	void preview(int64_t startPoint, int64_t endPoint, int transpose, int on);
+
+	int numManualSlice;
+	int currentSlice;
+	int slicerMode;
+	SliceItem manualSlicePoints[MAX_MANUAL_SLICES];
+
 #if HAVE_OLED
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
 #endif
