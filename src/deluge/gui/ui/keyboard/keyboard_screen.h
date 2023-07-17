@@ -78,8 +78,6 @@ private:
 	void exitScaleMode();
 	void drawNoteCode(int noteCode);
 
-	bool yDisplayActive[displayHeight * KEYBOARD_ROW_INTERVAL_MAX + displayWidth];
-
 public:
 	uint8_t noteColours[displayHeight * KEYBOARD_ROW_INTERVAL_MAX + displayWidth][3];
 

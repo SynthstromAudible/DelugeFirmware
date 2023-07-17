@@ -23,7 +23,7 @@ namespace keyboard::layout {
 
 class KeyboardLayoutIsomorphic : public KeyboardLayout {
 public:
-	KeyboardLayoutIsomorphic() : KeyboardLayout() {}
+	KeyboardLayoutIsomorphic();
 	virtual ~KeyboardLayoutIsomorphic() {}
 
 	virtual void handlePad(int x, int y, int velocity);
@@ -35,6 +35,11 @@ public:
 
 	virtual bool supportsInstrument() { return true; }
 	virtual bool supportsKit() { return false; }
+
+	virtual void stopAllNotes();
+
+private:
+	int noteFromCoords(int x, int y);
 
 };
 

@@ -59,7 +59,6 @@ inline InstrumentClip* getCurrentClip() {
 }
 
 KeyboardScreen::KeyboardScreen() {
-	memset(yDisplayActive, 0, sizeof(yDisplayActive));
 }
 
 static const uint32_t padActionUIModes[] = {UI_MODE_AUDITIONING, UI_MODE_RECORD_COUNT_IN,
@@ -129,12 +128,81 @@ int KeyboardScreen::padAction(int x, int y, int velocity) {
 
 	// Note added
 	{
+		int newNote = 0; //@TODO:
 
+		//@TODO: Only do this for physical presses
+		// If note range menu is open and row is
+		if (instrument->type == INSTRUMENT_TYPE_SYNTH) {
+			if (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem() == &menu_item::multiRangeMenu) {
+				menu_item::multiRangeMenu.noteOnToChangeRange(newNote + ((SoundInstrument*)instrument)->transpose);
+			}
+		}
+
+		// Ensure the note the user is trying to sound isn't already sounding
+		NoteRow* noteRow = ((InstrumentClip*)instrument->activeClip)->getNoteRowForYNote(newNote);
+		if (noteRow) {
+			if (noteRow->soundingStatus == STATUS_SEQUENCED_NOTE) {
+				return; //@TODO: Rewrite so just the following in Note added scope does not happen
+			}
+		}
+
+		// Actually sounding the note
+		if (instrument->type == INSTRUMENT_TYPE_KIT) {
+			int velocityToSound = ((x % 4) * 8) + ((y % 4) * 32) + 7;
+			instrumentClipView.auditionPadAction(velocityToSound, yDisplay, false); //@TODO: Figure out how to factor out yDisplay
+		}
+		else {
+			int velocityToSound = instrument->defaultVelocity;
+			((MelodicInstrument*)instrument)
+				->beginAuditioningForNote(modelStack, newNote, velocityToSound, zeroMPEValues);
+		}
+
+		//@TODO: Only do this for physical presses
+		drawNoteCode(newNote);
+		enterUIMode(UI_MODE_AUDITIONING);
+
+		// Begin resampling - yup this is even allowed if we're in the card routine!
+		if (Buttons::isButtonPressed(hid::button::RECORD) && !audioRecorder.recordingSource) {
+			audioRecorder.beginOutputRecording();
+			Buttons::recordButtonPressUsedUp = true;
+		}
 	}
 
 	// Note removed
 	{
+		//@TODO: This code was run on pad up if the pad was not found in the pressed list, we need to replicate that
+		// There were no presses. Just check we're not still stuck in "auditioning" mode, as users have still been reporting problems with this. (That comment from around 2021?)
+		if (isUIModeActive(UI_MODE_AUDITIONING)) {
+			exitUIMode(UI_MODE_AUDITIONING);
+		}
 
+
+		if (instrument->type == INSTRUMENT_TYPE_KIT) { //
+			instrumentClipView.auditionPadAction(0, yDisplay, false); //@TODO: Figure out how to factor out yDisplay
+		}
+		else {
+
+			((MelodicInstrument*)instrument)->endAuditioningForNote(modelStack, noteCode);
+		}
+
+		//@TODO: If note list empty exit auditioning mode
+		exitUIMode(UI_MODE_AUDITIONING);
+	}
+
+	//@TODO: Check whole list
+	{
+				// If anything at all still auditioning...
+		int highestNoteCode = getHighestAuditionedNote();
+		if (highestNoteCode != -2147483648) {
+			drawNoteCode(highestNoteCode);
+		}
+		else {
+#if HAVE_OLED
+			OLED::removePopup();
+#else
+			redrawNumericDisplay();
+#endif
+		}
 	}
 
 	lastActiveNotes = activeNotes;
@@ -403,7 +471,8 @@ void KeyboardScreen::exitAuditionMode() {
 
 	stopAllAuditioning(modelStack);
 
-	memset(yDisplayActive, 0, sizeof(yDisplayActive));
+	layoutList[0]->stopAllNotes();
+
 	exitUIMode(UI_MODE_AUDITIONING);
 #if !HAVE_OLED
 	redrawNumericDisplay();

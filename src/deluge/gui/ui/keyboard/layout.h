@@ -51,6 +51,8 @@ public:
 		}
 	};
 
+	virtual void stopAllNotes() = 0;
+
 	// Properties
 	virtual bool supportsInstrument() { return false; }
 	virtual bool supportsKit() { return false; }
@@ -84,7 +86,7 @@ protected:
 	// }
 
 protected:
-	NoteList activeNotes;
+	NoteList activeNotes; //@TODO: Add velocity to active notes
 };
 
 }; // namespace keyboard
