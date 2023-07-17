@@ -17,22 +17,21 @@
 
 #pragma once
 
+#include "model/song/song.h"
 #include "hid/button.h"
 #include <string.h>
 #include <array>
 
+#define INVALID_NOTE -1
 #define MAX_NUM_KEYBOARD_PAD_PRESSES 10
+
+typedef std::array<int, MAX_NUM_KEYBOARD_PAD_PRESSES> NoteList;
 
 namespace keyboard {
 
-struct KeyboardPadPress {
-	uint8_t x;
-	uint8_t y;
-};
-
 class KeyboardLayout {
 public:
-	KeyboardLayout() {}
+	KeyboardLayout() { activeNotes.fill(INVALID_NOTE); }
 	virtual ~KeyboardLayout() {}
 
 	// Handle inputs
@@ -56,10 +55,36 @@ public:
 	virtual bool supportsInstrument() { return false; }
 	virtual bool supportsKit() { return false; }
 
+	inline const NoteList getActiveNotes() { return activeNotes; }
+
 	//@TODO: This also needs velocity
 	//virtual std::array<int, MAX_NUM_KEYBOARD_PAD_PRESSES> getActiveNotes() = 0;
 
-	//@TODO: rootNote(), scale()
+	//@TODO: rootNote(), scale(), saving, restoring
+
+protected:
+	inline int getRootNote() {
+		return currentSong->rootNote;
+	}
+
+	bool notesFull() {
+		return false; //@TODO: Check for max activeNotes
+	}
+
+	void enableNote(int note) {
+		//@TODO: Add to activeNotes
+	}
+
+	void disableNote(int note) {
+		//@TODO: Remove from activeNotes
+	}
+
+	// inline uint8_t[displayHeight * KEYBOARD_ROW_INTERVAL_MAX + displayWidth][3] colours() {
+	// 	return noteColours;
+	// }
+
+protected:
+	NoteList activeNotes;
 };
 
 }; // namespace keyboard

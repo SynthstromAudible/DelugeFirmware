@@ -71,7 +71,6 @@ private:
 #endif
 
 private:
-	int getNoteCodeFromCoords(int x, int y);
 	void doScroll(int offset, bool force = false);
 	int getLowestAuditionedNote();
 	int getHighestAuditionedNote();
@@ -79,9 +78,11 @@ private:
 	void exitScaleMode();
 	void drawNoteCode(int noteCode);
 
-	KeyboardPadPress padPresses[MAX_NUM_KEYBOARD_PAD_PRESSES];
-	uint8_t noteColours[displayHeight * KEYBOARD_ROW_INTERVAL_MAX + displayWidth][3];
 	bool yDisplayActive[displayHeight * KEYBOARD_ROW_INTERVAL_MAX + displayWidth];
+
+public:
+	uint8_t noteColours[displayHeight * KEYBOARD_ROW_INTERVAL_MAX + displayWidth][3];
+
 };
 
 }; // namespace keyboard

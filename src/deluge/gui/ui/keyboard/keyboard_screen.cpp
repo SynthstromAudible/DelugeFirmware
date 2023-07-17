@@ -59,274 +59,138 @@ inline InstrumentClip* getCurrentClip() {
 }
 
 KeyboardScreen::KeyboardScreen() {
-	memset(padPresses, 255, sizeof(padPresses));
 	memset(yDisplayActive, 0, sizeof(yDisplayActive));
 }
 
 static const uint32_t padActionUIModes[] = {UI_MODE_AUDITIONING, UI_MODE_RECORD_COUNT_IN,
                                             0}; // Careful - this is referenced in two places
 
+NoteList lastActiveNotes; //@TODO: Move into class
+
 int KeyboardScreen::padAction(int x, int y, int velocity) {
 	if (sdRoutineLock && !allowSomeUserActionsEvenWhenInCardRoutine) {
 		return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow some of the time when in card routine.
 	}
 
+	// Handle sidebar presses
 	if (x >= displayWidth) {
 		layoutList[0]->handleSidebarPad(x, y, velocity);
 		return ACTION_RESULT_DEALT_WITH;
 	}
 
-	layoutList[0]->handlePad(x, y, velocity);
-
-	//@TODO: Factor out handling of layout specifics into layout
-
+	// Handle overruling shortcut presses
 	int soundEditorResult = soundEditor.potentialShortcutPadAction(x, y, velocity);
-
 	if (soundEditorResult != ACTION_RESULT_NOT_DEALT_WITH) {
 		return soundEditorResult;
 	}
 
+	// Handle setting root note //@TODO: Refactor this block
 	if (currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED) {
 		if (sdRoutineLock) {
 			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
-		if (velocity
-		    && currentSong->currentClip->output->type
-		           != INSTRUMENT_TYPE_KIT) { // We probably couldn't have got this far if it was a Kit, but let's just check
-			int noteCode = getNoteCodeFromCoords(x, y);
+
+		// We probably couldn't have got this far if it was a Kit, but let's just check
+		if (velocity && currentSong->currentClip->output->type != INSTRUMENT_TYPE_KIT) {
+			//int noteCode = getNoteCodeFromCoords(x, y); // @TODO: Rewrite to use new note in activeNotes
 			exitScaleModeOnButtonRelease = false;
 			if (getCurrentClip()->inScaleMode) {
-				instrumentClipView.setupChangingOfRootNote(noteCode);
+				instrumentClipView.setupChangingOfRootNote(newNote);
 				uiNeedsRendering(this, 0xFFFFFFFF, 0);
 				displayCurrentScaleName();
 			}
 			else {
-				enterScaleMode(noteCode);
+				enterScaleMode(newNote);
 			}
 		}
 	}
-	else if (!velocity || isUIModeWithinRange(padActionUIModes)) {
 
-		int noteCode;
+	// Exit if pad is enabled but UI in wrong mode
+	if (!isUIModeWithinRange(padActionUIModes) && velocity) {
+		return ACTION_RESULT_DEALT_WITH;
+	}
 
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
+	// Flash Song button if another clip with the same instrument is currently playing
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
+	bool clipIsActiveOnInstrument = makeCurrentClipActiveOnInstrumentIfPossible(modelStack);
+	if (!clipIsActiveOnInstrument && velocity) {
+		indicator_leds::indicateAlertOnLed(IndicatorLED::SESSION_VIEW);
+	}
 
-		bool clipIsActiveOnInstrument = makeCurrentClipActiveOnInstrumentIfPossible(modelStack);
-		if (!clipIsActiveOnInstrument && velocity) {
-			indicator_leds::indicateAlertOnLed(IndicatorLED::SESSION_VIEW);
-		}
+	layoutList[0]->handlePad(x, y, velocity);
+	NoteList activeNotes = layoutList[0]->getActiveNotes();
 
-		Instrument* instrument = (Instrument*)currentSong->currentClip->output;
+	//@TODO: Handle note list changes
 
-		// NOTE: Most of this refers to the Instrument's activeClip - *not* the Clip we're viewing,
-		// which might not be the activeClip, even though we did call makeClipActiveOnInstrumentIfPossible() above
+	// NOTE: Most of this refers to the Instrument's activeClip - *not* the Clip we're viewing,
+	// which might not be the activeClip, even though we did call makeClipActiveOnInstrumentIfPossible() above
 
-		// Press-down
+
+	// Note added
+	{
+
+	}
+
+	// Note removed
+	{
+
+	}
+
+	lastActiveNotes = activeNotes;
+
+
+	// Recording - this only works *if* the Clip that we're viewing right now is the Instrument's activeClip
+	if (instrument->type != INSTRUMENT_TYPE_KIT && clipIsActiveOnInstrument //@TODO: Check if we can also enable this for kit instruments
+		&& playbackHandler.shouldRecordNotesNow() && currentSong->isClipActive(currentSong->currentClip)) {
+
+		ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
+			modelStack->addTimelineCounter(currentSong->currentClip);
+
+		// Note-on
 		if (velocity) {
 
-			int emptyPressIndex = MAX_NUM_KEYBOARD_PAD_PRESSES;
-
-			// Look for an empty pad press - or an existing press of the same physical pad - which could be left
-			// if we missed a press-off event somehow (think this was happening when switching presets sometimes)
-			for (int p = 0; p < MAX_NUM_KEYBOARD_PAD_PRESSES; p++) {
-				if ((padPresses[p].x == x && padPresses[p].y == y)
-				    || (emptyPressIndex == MAX_NUM_KEYBOARD_PAD_PRESSES && padPresses[p].x == 255)) {
-					emptyPressIndex = p;
-				}
+			// If count-in is on, we only got here if it's very nearly finished, so pre-empt that note.
+			// This is basic. For MIDI input, we do this in a couple more cases - see noteMessageReceived()
+			// in MelodicInstrument and Kit
+			if (isUIModeActive(UI_MODE_RECORD_COUNT_IN)) { // It definitely will be auditioning if we're here
+				ModelStackWithNoteRow* modelStackWithNoteRow = modelStackWithTimelineCounter->addNoteRow(0, NULL);
+				((MelodicInstrument*)instrument)
+					->earlyNotes.insertElementIfNonePresent(
+						newNote, instrument->defaultVelocity,
+						getCurrentClip()->allowNoteTails(modelStackWithNoteRow));
 			}
 
-			// If no spare presses, return
-			if (emptyPressIndex == MAX_NUM_KEYBOARD_PAD_PRESSES) {
-				return ACTION_RESULT_DEALT_WITH;
-			}
+			else {
+				Action* action = actionLogger.getNewAction(ACTION_RECORD, true);
 
-			noteCode = getNoteCodeFromCoords(x, y);
+				bool scaleAltered = false;
 
-			int yDisplay = noteCode - getCurrentClip()->yScrollKeyboardScreen;
-			if (instrument->type == INSTRUMENT_TYPE_KIT) { //
-				yDisplay = (int)(x / 4) + (int)(y / 4) * 4;
-			}
-			if (yDisplayActive[yDisplay]) {
-				return ACTION_RESULT_DEALT_WITH;
-			}
+				ModelStackWithNoteRow* modelStackWithNoteRow = getCurrentClip()->getOrCreateNoteRowForYNote(
+					newNote, modelStackWithTimelineCounter, action, &scaleAltered);
+				NoteRow* thisNoteRow = modelStackWithNoteRow->getNoteRowAllowNull();
+				if (thisNoteRow) {
+					getCurrentClip()->recordNoteOn(modelStackWithNoteRow, instrument->defaultVelocity);
 
-			// Change editing range if necessary
-			if (instrument->type == INSTRUMENT_TYPE_SYNTH) {
-				if (velocity) {
-					if (getCurrentUI() == &soundEditor
-					    && soundEditor.getCurrentMenuItem() == &menu_item::multiRangeMenu) {
-						menu_item::multiRangeMenu.noteOnToChangeRange(noteCode
-						                                              + ((SoundInstrument*)instrument)->transpose);
+					// If this caused the scale to change, update scroll
+					if (action && scaleAltered) {
+						action->updateYScrollClipViewAfter();
 					}
 				}
 			}
-
-			// Ensure the note the user is trying to sound isn't already sounding
-			NoteRow* noteRow = ((InstrumentClip*)instrument->activeClip)->getNoteRowForYNote(noteCode);
-			if (noteRow) {
-				if (noteRow->soundingStatus == STATUS_SEQUENCED_NOTE) {
-					return ACTION_RESULT_DEALT_WITH;
-				}
-			}
-
-			// Only now that we know we're not going to return prematurely can we mark the pad as pressed
-			{
-				padPresses[emptyPressIndex].x = x;
-				padPresses[emptyPressIndex].y = y;
-				yDisplayActive[yDisplay] = true;
-			}
-
-			{
-				if (instrument->type == INSTRUMENT_TYPE_KIT) {
-					int velocityToSound = ((x % 4) * 8) + ((y % 4) * 32) + 7;
-					instrumentClipView.auditionPadAction(velocityToSound, yDisplay, false);
-				}
-				else {
-					int velocityToSound = instrument->defaultVelocity;
-					((MelodicInstrument*)instrument)
-					    ->beginAuditioningForNote(modelStack, noteCode, velocityToSound, zeroMPEValues);
-				}
-			}
-
-			drawNoteCode(noteCode);
-			enterUIMode(UI_MODE_AUDITIONING);
-
-			// Begin resampling - yup this is even allowed if we're in the card routine!
-			if (Buttons::isButtonPressed(hid::button::RECORD) && !audioRecorder.recordingSource) {
-				audioRecorder.beginOutputRecording();
-				Buttons::recordButtonPressUsedUp = true;
-			}
 		}
 
-		// Press-up
+		// Note-off
 		else {
-
-			int p;
-			for (p = 0; p < MAX_NUM_KEYBOARD_PAD_PRESSES; p++) {
-				if (padPresses[p].x == x && padPresses[p].y == y) {
-					goto foundIt;
-				}
-			}
-
-			// There were no presses. Just check we're not still stuck in "auditioning" mode, as users have still been reporting problems with this. (That comment from around 2021?)
-			if (isUIModeActive(UI_MODE_AUDITIONING)) {
-				exitUIMode(UI_MODE_AUDITIONING);
-			}
-			return ACTION_RESULT_DEALT_WITH;
-
-foundIt:
-			padPresses[p].x = 255;
-			noteCode = getNoteCodeFromCoords(x, y);
-			int yDisplay = noteCode - getCurrentClip()->yScrollKeyboardScreen;
-			if (instrument->type == INSTRUMENT_TYPE_KIT) { //
-				yDisplay = (int)(x / 4) + (int)(y / 4) * 4;
-			}
-
-			// We need to check that we had actually switched the note on here - it might have already been sounding, from the sequence
-			if (!yDisplayActive[yDisplay]) {
-				return ACTION_RESULT_DEALT_WITH;
-			}
-
-			// If any other of the same note is being held down, then don't switch it off. Also, see if we're still "auditioning" any notes at all
-			exitUIMode(UI_MODE_AUDITIONING);
-
-			// If any pad press still happening...
-			for (p = 0; p < MAX_NUM_KEYBOARD_PAD_PRESSES; p++) {
-				if (padPresses[p].x != 255) {
-					enterUIMode(UI_MODE_AUDITIONING);
-					// ...then we're still auditioning
-
-					// If the same note is still being held down (on a different pad), then we don't want to switch it off either
-					if (getNoteCodeFromCoords(padPresses[p].x, padPresses[p].y) == noteCode) {
-						return ACTION_RESULT_DEALT_WITH;
-					}
-				}
-			}
-
-			// If we had indeed sounded the note via audition (as opposed to it being on in the sequence), switch it off.
-			// If that was not the case, well, we still did want to potentially exit audition mode above, cos users been reporting stuck note problems,
-			// even though I can't see quite how we'd get stuck there
-			if (yDisplayActive[yDisplay]) {
-
-				if (instrument->type == INSTRUMENT_TYPE_KIT) { //
-					instrumentClipView.auditionPadAction(0, yDisplay, false);
-				}
-				else {
-
-					((MelodicInstrument*)instrument)->endAuditioningForNote(modelStack, noteCode);
-				}
-
-				yDisplayActive[yDisplay] = false;
-			}
-
-			// If anything at all still auditioning...
-			int highestNoteCode = getHighestAuditionedNote();
-			if (highestNoteCode != -2147483648) {
-				drawNoteCode(highestNoteCode);
-			}
-			else {
-#if HAVE_OLED
-				OLED::removePopup();
-#else
-				redrawNumericDisplay();
-#endif
+			ModelStackWithNoteRow* modelStackWithNoteRow =
+				getCurrentClip()->getNoteRowForYNote(newNote, modelStackWithTimelineCounter);
+			if (modelStackWithNoteRow->getNoteRowAllowNull()) {
+				getCurrentClip()->recordNoteOff(modelStackWithNoteRow);
 			}
 		}
-
-		// Recording - this only works *if* the Clip that we're viewing right now is the Instrument's activeClip
-		if (instrument->type != INSTRUMENT_TYPE_KIT && clipIsActiveOnInstrument
-		    && playbackHandler.shouldRecordNotesNow() && currentSong->isClipActive(currentSong->currentClip)) {
-
-			ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
-			    modelStack->addTimelineCounter(currentSong->currentClip);
-
-			// Note-on
-			if (velocity) {
-
-				// If count-in is on, we only got here if it's very nearly finished, so pre-empt that note.
-				// This is basic. For MIDI input, we do this in a couple more cases - see noteMessageReceived()
-				// in MelodicInstrument and Kit
-				if (isUIModeActive(UI_MODE_RECORD_COUNT_IN)) { // It definitely will be auditioning if we're here
-					ModelStackWithNoteRow* modelStackWithNoteRow = modelStackWithTimelineCounter->addNoteRow(0, NULL);
-					((MelodicInstrument*)instrument)
-					    ->earlyNotes.insertElementIfNonePresent(
-					        noteCode, instrument->defaultVelocity,
-					        getCurrentClip()->allowNoteTails(modelStackWithNoteRow));
-				}
-
-				else {
-					Action* action = actionLogger.getNewAction(ACTION_RECORD, true);
-
-					bool scaleAltered = false;
-
-					ModelStackWithNoteRow* modelStackWithNoteRow = getCurrentClip()->getOrCreateNoteRowForYNote(
-					    noteCode, modelStackWithTimelineCounter, action, &scaleAltered);
-					NoteRow* thisNoteRow = modelStackWithNoteRow->getNoteRowAllowNull();
-					if (thisNoteRow) {
-						getCurrentClip()->recordNoteOn(modelStackWithNoteRow, instrument->defaultVelocity);
-
-						// If this caused the scale to change, update scroll
-						if (action && scaleAltered) {
-							action->updateYScrollClipViewAfter();
-						}
-					}
-				}
-			}
-
-			// Note-off
-			else {
-				ModelStackWithNoteRow* modelStackWithNoteRow =
-				    getCurrentClip()->getNoteRowForYNote(noteCode, modelStackWithTimelineCounter);
-				if (modelStackWithNoteRow->getNoteRowAllowNull()) {
-					getCurrentClip()->recordNoteOff(modelStackWithNoteRow);
-				}
-			}
-		}
-
-		uiNeedsRendering(this, 0xFFFFFFFF, 0);
 	}
 
+	uiNeedsRendering(this, 0xFFFFFFFF, 0);
 	return ACTION_RESULT_DEALT_WITH;
 }
 
@@ -699,7 +563,7 @@ bool KeyboardScreen::oneNoteAuditioning() {
 	return (numFound == 1);
 }
 
-int KeyboardScreen::getLowestAuditionedNote() { // @TODO: Move to isomorphic
+int KeyboardScreen::getLowestAuditionedNote() { // @TODO: Rewrite to use active notes
 	int lowestNote = 2147483647;
 
 	for (int p = 0; p < MAX_NUM_KEYBOARD_PAD_PRESSES; p++) {
@@ -714,7 +578,7 @@ int KeyboardScreen::getLowestAuditionedNote() { // @TODO: Move to isomorphic
 	return lowestNote;
 }
 
-int KeyboardScreen::getHighestAuditionedNote() { // @TODO: Move to isomorphic
+int KeyboardScreen::getHighestAuditionedNote() { // @TODO: Rewrite to use active notes
 	int highestNote = -2147483648;
 
 	for (int p = 0; p < MAX_NUM_KEYBOARD_PAD_PRESSES; p++) {
