@@ -500,6 +500,7 @@ int Slicer::padAction(int x, int y, int on) {
 		int slicePadIndex = (x % 4 + (x / 4) * 16) + ((y % 4) * 4); //
 
 		if (slicePadIndex < numManualSlice) { //play slice
+			bool closePopup=(currentSlice != slicePadIndex);
 			currentSlice = slicePadIndex;
 			if (slicePadIndex + 1 < numManualSlice) {
 				preview(manualSlicePoints[slicePadIndex].startPos, manualSlicePoints[slicePadIndex + 1].startPos,
@@ -509,14 +510,11 @@ int Slicer::padAction(int x, int y, int on) {
 				preview(manualSlicePoints[slicePadIndex].startPos, waveformBasicNavigator.sample->lengthInSamples,
 				        manualSlicePoints[slicePadIndex].transpose, on);
 			}
+
 #if HAVE_OLED
-			char buffer[24];
-			intToString(currentSlice + 1, buffer);
-			OLED::popupText(buffer);
+			if(closePopup)OLED::removePopup();
 #else
-			char buffer[12];
-			intToString(currentSlice + 1, buffer);
-			numericDriver.displayPopup(buffer, 0, true);
+			if(closePopup)numericDriver.cancelPopup();
 #endif
 		}
 		else { // do slice
@@ -562,13 +560,9 @@ int Slicer::padAction(int x, int y, int on) {
 
 					numManualSlice++;
 #if HAVE_OLED
-					char buffer[24];
-					intToString(numManualSlice, buffer);
-					OLED::popupText(buffer);
+			OLED::removePopup();
 #else
-					char buffer[12];
-					intToString(numManualSlice, buffer);
-					numericDriver.displayPopup(buffer, 0, true);
+			numericDriver.cancelPopup();
 #endif
 
 					SliceItem tmp;
