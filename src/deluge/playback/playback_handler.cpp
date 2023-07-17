@@ -2745,7 +2745,8 @@ void PlaybackHandler::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, ui
 		}
 
 		if (value) {
-			if (tryGlobalMIDICommands(fromDevice, channel + IS_A_CC, ccNumber)) {
+			int channelOrZone = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(channel);
+			if (tryGlobalMIDICommands(fromDevice, channelOrZone + IS_A_CC, ccNumber)) {
 				return;
 			}
 		}
