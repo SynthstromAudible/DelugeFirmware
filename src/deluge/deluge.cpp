@@ -814,8 +814,8 @@ resetSettings:
 	sdRoutineLock = false; // Allow SD routine to start happening
 
 #if ENABLE_WREN
-	Wren::VM* wren = new Wren::VM();
-	Buttons::wren = wren;
+	Wren::VM wren{};
+	Buttons::wren = &wren;
 #endif
 
 	while (1) {
@@ -859,7 +859,7 @@ resetSettings:
 #endif
 
 #if ENABLE_WREN
-		wren->tick();
+		wren.tick();
 #endif
 	}
 

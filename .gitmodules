@@ -1,6 +1,9 @@
 [submodule "wren"]
-	path = wren
+	path = lib/wren
 	url = https://github.com/wren-lang/wren
 [submodule "scripts/debug/PyCortexMDebug"]
 	path = scripts/debug/PyCortexMDebug
 	url = https://github.com/litui/PyCortexMDebug
+[submodule "umm_malloc"]
+	path = lib/umm_malloc
+	url = https://github.com/stellar-aria/umm_malloc/

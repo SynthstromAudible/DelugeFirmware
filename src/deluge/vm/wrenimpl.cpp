@@ -5,8 +5,8 @@
 #include "memory/general_memory_allocator.h"
 #include "wrenimpl.h"
 #include "api.h"
-#include "memory/wren_heap.h"
-#include "string.h"
+#include "heap.h"
+#include <cstring>
 
 extern "C" {
 #include "drivers/uart/uart.h"
@@ -23,8 +23,9 @@ void VM::print(const char* text) {
 			empty = false;
 		}
 	}
-	if (empty)
+	if (empty) {
 		return;
+	}
 
 #if HAVE_OLED
 	numericDriver.displayPopup(text);
@@ -121,7 +122,8 @@ void VM::loadModuleComplete(WrenVM* vm, const char* mod, WrenLoadModuleResult re
 	// TODO
 }
 
-WrenForeignMethodFn VM::findModuleFunc(WrenVM* vm, std::string mod, std::string cls, bool isStatic, std::string sig) {
+WrenForeignMethodFn VM::findModuleFunc(WrenVM* vm, const deluge::string& mod, const deluge::string& cls, bool isStatic,
+                                       const deluge::string& sig) {
 	if (Wren::API::modules().count(mod) > 0) {
 		auto m = Wren::API::modules()[mod];
 		if (m.count(cls) > 0) {
@@ -151,12 +153,12 @@ WrenForeignMethodFn VM::findModuleFunc(WrenVM* vm, std::string mod, std::string 
 
 WrenForeignMethodFn VM::bindForeignMethodFn(WrenVM* vm, const char* moduleName, const char* className, bool isStatic,
                                             const char* signature) {
-	std::string mod(moduleName), cls(className), sig(signature);
+	deluge::string mod(moduleName), cls(className), sig(signature);
 	return VM::findModuleFunc(vm, mod, cls, isStatic, sig);
 }
 
 WrenForeignClassMethods VM::bindForeignClassFn(WrenVM* vm, const char* moduleName, const char* className) {
-	std::string mod(moduleName), cls(className);
+	deluge::string mod(moduleName), cls(className);
 	return {
 	    .allocate = findModuleFunc(vm, mod, cls, false, "<allocate>"),
 	    .finalize = (WrenFinalizerFn)findModuleFunc(vm, mod, cls, false, "<finalize>"),
@@ -186,6 +188,7 @@ VM::VM() {
 VM::~VM() {
 	releaseHandles();
 	wrenFreeVM(vm);
+	wren_heap_deinit();
 }
 
 inline WrenInterpretResult VM::interpret(const char* mod, const char* source) {

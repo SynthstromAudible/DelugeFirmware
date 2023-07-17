@@ -15,7 +15,6 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "memory/wren_heap.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
@@ -41,9 +40,9 @@ GeneralMemoryAllocator generalMemoryAllocator{};
 GeneralMemoryAllocator::GeneralMemoryAllocator() {
 	lock = false;
 	regions[MEMORY_REGION_SDRAM].setup(emptySpacesMemory, sizeof(emptySpacesMemory), EXTERNAL_MEMORY_BEGIN,
-	                                   EXTERNAL_MEMORY_END - (kWrenHeapSize + 1));
+	                                   EXTERNAL_MEMORY_END);
 	regions[MEMORY_REGION_INTERNAL].setup(emptySpacesMemoryInternal, sizeof(emptySpacesMemoryInternal),
-	                                      (uint32_t)&__heap_start, INTERNAL_MEMORY_END - 8192);
+	                                      (uint32_t)&__heap_start, INTERNAL_MEMORY_END - PROGRAM_STACK_MAX_SIZE);
 
 #if ALPHA_OR_BETA_VERSION
 	regions[MEMORY_REGION_SDRAM].name = "external";

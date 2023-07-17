@@ -2,6 +2,16 @@ import os
 
 Import("env")
 
+ARCHFLAGS = [
+    "-mcpu=cortex-a9",
+    # "-march=armv7-a",
+    "-marm",
+    "-mfpu=neon",
+    "-mfloat-abi=hard",
+    "-mthumb-interwork",
+    "-mlittle-endian",
+]
+
 env.AppendUnique(
     CXXFLAGS=[
         "-includepreinclude_cxx.h",
@@ -9,21 +19,15 @@ env.AppendUnique(
 )
 env.AppendUnique(
     CCFLAGS=[
+        *ARCHFLAGS,
         "-fmessage-length=0",
         "-fsigned-char",
         "-ffunction-sections",
-        "-Wnull-dereference",
         "-fdata-sections",
-        # "-mcpu=cortex-a9",
-        "-march=armv7-a",
-        "-marm",
-        "-mfpu=neon",
         "-fsigned-char",
-        "-mfloat-abi=hard",
-        "-mthumb-interwork",
-        "-mlittle-endian",
         "-flto",
         "-fdiagnostics-parseable-fixits",
+        "-Wnull-dereference",
     ],
     ASMPATH=[
         "src/NE10/common",
@@ -59,12 +63,18 @@ else:  # env["BUILD_HARDWARE"] == "oled"
 
 if env["ENABLE_WREN"] == "1":
     env.AppendUnique(
-        CPPDEFINES=["ENABLE_WREN=1","WREN_OPT_RANDOM=0","WREN_OPT_META=0"],
-        CPPPATH=["wren/src/vm", "wren/src/include"],
+        CPPDEFINES=["ENABLE_WREN=1", "WREN_OPT_RANDOM=0", "WREN_OPT_META=0"],
+        CPPPATH=[
+            "lib/wren/src/include",
+            "lib/wren/src/vm",
+            "lib/umm_malloc/src",
+            "src/umm_malloc",
+        ],
     )
 
 env.AppendUnique(
     LINKFLAGS=[
+        *ARCHFLAGS,
         "-T$LINKER_SCRIPT_PATH",
         "-Wl,--start-group",
         "-Wl,--end-group",

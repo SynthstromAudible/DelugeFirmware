@@ -4,6 +4,7 @@ import multiprocessing
 from SCons.Action import Action
 from SCons.Platform import TempFileMunge
 from SCons.Subst import quote_spaces
+from SCons.Script import *
 
 from dbt.util import vprint
 from dbt.project import compose_valid_targets
@@ -108,7 +109,9 @@ SConscriptChdir(False)
 
 env.Tool("target_handler", cmd_env=cmd_env)
 env_katamari = env.PrepareTargetEnvs()
-env_standalone_builds = [b for b in env_katamari if b.get("BUILD_MODE") == "standalone"]
+env_standalone_builds: list[Environment] = [
+    b for b in env_katamari if b.get("BUILD_MODE") == "standalone"
+]
 
 for build_env in env_standalone_builds:
     target = build_env["ENV_LABEL"]
@@ -134,10 +137,10 @@ for build_env in env_standalone_builds:
         duplicate=False,
     )
 
-    # Add wren to build directory
+    # Add lib to build directory
     VariantDir(
-        os.path.relpath(os.path.join(build_env["BUILD_DIR"], "wren")),
-        "#wren",
+        os.path.relpath(os.path.join(build_env["BUILD_DIR"], "lib")),
+        "#lib",
         duplicate=False,
     )
 
@@ -159,9 +162,20 @@ for build_env in env_standalone_builds:
     # ¯\_(ツ)_/¯
     sources = walk_all_sources(REL_SOURCE_DIR, build_env["BUILD_LABEL"])
 
+    libs = []
+
     # Compile Wren sources if enabled
     if build_env["ENABLE_WREN"] == "1":
-        sources += walk_all_sources("wren/src", build_env["BUILD_LABEL"])
+        build_env.StaticLibrary(
+            os.path.join(build_env["BUILD_DIR"], "umm_malloc"),
+            ["lib/umm_malloc/src/umm_malloc.c"],
+        )
+        build_env.StaticLibrary(
+            os.path.join(build_env["BUILD_DIR"], "wren"),
+            walk_all_sources("lib/wren/src", build_env["BUILD_LABEL"])
+        )
+        libs += ["umm_malloc", "wren"]
+        # sources += walk_all_sources("wren/src", build_env["BUILD_LABEL"])
 
     # Wrangle those sources into objects!
     objects = build_env.Object(sources)
@@ -170,6 +184,8 @@ for build_env in env_standalone_builds:
     elf_file = build_env.Program(
         os.path.join(build_env["BUILD_DIR"], build_env["FIRMWARE_FILENAME"]),
         source=objects,
+        LIBS=libs,
+        LIBPATH=build_env["BUILD_DIR"],
     )
     # Touch it.
     map_file = build_env.MapFile(

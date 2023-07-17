@@ -3,6 +3,7 @@
 #if ENABLE_WREN
 
 #include "wren.hpp"
+#include "util/string.h"
 #include <string>
 #include "hid/button.h"
 
@@ -38,8 +39,8 @@ protected:
 	static void loadModuleComplete(WrenVM* vm, const char* mod, WrenLoadModuleResult result);
 	static char* getSourceForModule(const char*);
 
-	static WrenForeignMethodFn findModuleFunc(WrenVM* vm, std::string mod, std::string cls, bool isStatic,
-	                                          std::string sig);
+	static WrenForeignMethodFn findModuleFunc(WrenVM* vm, const deluge::string& mod, const deluge::string& cls,
+	                                          bool isStatic, const deluge::string& sig);
 	static WrenForeignMethodFn bindForeignMethodFn(WrenVM* vm, const char* module, const char* className, bool isStatic,
 	                                               const char* signature);
 	static WrenForeignClassMethods bindForeignClassFn(WrenVM* vm, const char* mod, const char* cls);

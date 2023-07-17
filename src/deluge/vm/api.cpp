@@ -5,8 +5,7 @@
 #include "definitions.h"
 #include "RZA1/cpu_specific.h"
 
-namespace Wren {
-namespace API {
+namespace Wren::API {
 
 const char* mainModuleSource =
 #include "main.wren.inc"
@@ -59,8 +58,9 @@ void finalize(WrenVM* data) {
 // clang-format off
 ModuleMap modules() {
 	using namespace main;
-	static const ModuleMap map_ = {
-		{"main", {
+	static ModuleMap map_{};
+	if (map_.empty()) {
+		map_["main"] = {
 			{"TDeluge", {
 				{"print(_)",         {false, TDeluge::print}},
 				{"pressButton(_,_)", {false, TDeluge::pressButton}},
@@ -70,12 +70,12 @@ ModuleMap modules() {
 				{"<allocate>", {false, Button::allocate}},
 				{"<finalize>", {false, Button::finalize}},
 			}},
-		}},
-	};
+		};
+	}
 	return map_;
 }
 
-}}
+}
 // clang-format on
 
 #endif

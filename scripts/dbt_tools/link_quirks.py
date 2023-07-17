@@ -10,11 +10,13 @@ def exists():
 def generate(env):
     """Force use of C++ instead of ld for linking.
 
-    This adapts what was in place in e2studio.
+    This adapts what was in place in e2studio.    
     """
     env.Replace(
         LINKER_SCRIPT_PATH="linker_script_rz_a1l.ld",
-        LINKCOM="$CXX $CCFLAGS -o $TARGET $SOURCES $LINKFLAGS",
+        
+        # Kate: SCons already uses g++ for linking, replacing LINKCOM just clobbers how SCons  handles library linking
+        #LINKCOM="$CXX $CCFLAGS -o $TARGET $SOURCES $LINKFLAGS",
     )
 
     env.Append(
