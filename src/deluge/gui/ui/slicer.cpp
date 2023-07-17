@@ -342,6 +342,22 @@ int Slicer::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 		return ACTION_RESULT_DEALT_WITH;
 	}
 
+	//pop up Transpose value
+	if (b == Y_ENC && on && slicerMode == SLICER_MODE_MANUAL && currentSlice < numManualSlice) {
+#if HAVE_OLED
+		char buffer[24];
+		strcpy(buffer, "Transpose: ");
+		intToString(manualSlicePoints[currentSlice].transpose, buffer + strlen(buffer));
+		OLED::popupText(buffer);
+#else
+		char buffer[12];
+		strcpy(buffer, "");
+		intToString(manualSlicePoints[currentSlice].transpose, buffer + strlen(buffer));
+		numericDriver.displayPopup(buffer, 0, true);
+#endif
+		return ACTION_RESULT_DEALT_WITH;
+	}
+
 	//delete slice
 	if (b == SAVE && on && slicerMode == SLICER_MODE_MANUAL) {
 		int xx = (currentSlice % 4) + (currentSlice / 16) * 4;
