@@ -500,7 +500,7 @@ int Slicer::padAction(int x, int y, int on) {
 		int slicePadIndex = (x % 4 + (x / 4) * 16) + ((y % 4) * 4); //
 
 		if (slicePadIndex < numManualSlice) { //play slice
-			bool closePopup=(currentSlice != slicePadIndex);
+			bool closePopup = (currentSlice != slicePadIndex);
 			currentSlice = slicePadIndex;
 			if (slicePadIndex + 1 < numManualSlice) {
 				preview(manualSlicePoints[slicePadIndex].startPos, manualSlicePoints[slicePadIndex + 1].startPos,
@@ -512,9 +512,11 @@ int Slicer::padAction(int x, int y, int on) {
 			}
 
 #if HAVE_OLED
-			if(closePopup)OLED::removePopup();
+			if (closePopup)
+				OLED::removePopup();
 #else
-			if(closePopup)numericDriver.cancelPopup();
+			if (closePopup)
+				numericDriver.cancelPopup();
 #endif
 		}
 		else { // do slice
@@ -560,9 +562,9 @@ int Slicer::padAction(int x, int y, int on) {
 
 					numManualSlice++;
 #if HAVE_OLED
-			OLED::removePopup();
+					OLED::removePopup();
 #else
-			numericDriver.cancelPopup();
+					numericDriver.cancelPopup();
 #endif
 
 					SliceItem tmp;
