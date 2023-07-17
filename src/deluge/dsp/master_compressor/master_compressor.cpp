@@ -61,8 +61,10 @@ void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples, int32_t
 				r = rawr * (1.0 - wet) + r * wet;
 			}
 
-			thisSample->l = l * adjustmentL * 2147483647;
-			thisSample->r = r * adjustmentR * 2147483647;
+			thisSample->l = l * 2147483647;
+			thisSample->r = r * 2147483647;
+			thisSample->l = multiply_32x32_rshift32(thisSample->l, masterVolumeAdjustmentL);
+			thisSample->r = multiply_32x32_rshift32(thisSample->r, masterVolumeAdjustmentR);
 
 		} while (++thisSample != bufferEnd);
 	}
