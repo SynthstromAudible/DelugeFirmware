@@ -493,6 +493,15 @@ int Slicer::padAction(int x, int y, int on) {
 				preview(manualSlicePoints[slicePadIndex].startPos, waveformBasicNavigator.sample->lengthInSamples,
 				        manualSlicePoints[slicePadIndex].transpose, on);
 			}
+#if HAVE_OLED
+			char buffer[24];
+			intToString(currentSlice + 1, buffer);
+			OLED::popupText(buffer);
+#else
+			char buffer[12];
+			intToString(currentSlice + 1, buffer);
+			numericDriver.displayPopup(buffer, 0, true);
+#endif
 		}
 		else { // do slice
 
@@ -536,6 +545,15 @@ int Slicer::padAction(int x, int y, int on) {
 					manualSlicePoints[numManualSlice].transpose = 0;
 
 					numManualSlice++;
+#if HAVE_OLED
+					char buffer[24];
+					intToString(numManualSlice, buffer);
+					OLED::popupText(buffer);
+#else
+					char buffer[12];
+					intToString(numManualSlice, buffer);
+					numericDriver.displayPopup(buffer, 0, true);
+#endif
 
 					SliceItem tmp;
 					for (int i = 0; i < (numManualSlice - 1); i++) {
