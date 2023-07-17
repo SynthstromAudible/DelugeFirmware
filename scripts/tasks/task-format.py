@@ -65,9 +65,10 @@ def format_file(clang_format: str, verbose: bool, path: Path):
 
 def argparser():
     parser = argparse.ArgumentParser(
-        prog="task format",
+        prog="format",
         description="Formats files using clang-format (Assumes .clang-format present in directory structure)",
     )
+    parser.group = "Miscellaneous"
     parser.add_argument(
         "-nr",
         "--no-recursive",
