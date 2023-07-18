@@ -18,42 +18,42 @@
 #pragma once
 
 #include "definitions.h"
+#include "util/fixedpoint.h"
 
 class FilterSetConfig {
 
 public:
 	FilterSetConfig();
-	int32_t init(int32_t lpfFrequency, int32_t lpfResonance, int32_t hpfFrequency, int32_t hpfResonance,
-	             uint8_t lpfMode, int32_t filterGain, bool adjustVolumeForHPFResonance = true,
-	             int32_t* overallOscAmplitude = NULL);
+	q31_t init(q31_t lpfFrequency, q31_t lpfResonance, q31_t hpfFrequency, q31_t hpfResonance, uint8_t lpfMode,
+	           q31_t filterGain, bool adjustVolumeForHPFResonance = true, q31_t* overallOscAmplitude = NULL);
 
-	int32_t processedResonance;                            // 1 represented as 1073741824
-	int32_t divideByTotalMoveabilityAndProcessedResonance; // 1 represented as 1073741824
+	q31_t processedResonance;                            // 1 represented as 1073741824
+	q31_t divideByTotalMoveabilityAndProcessedResonance; // 1 represented as 1073741824
 
 	//moveability is tan(f)/(1+tan(f))
-	int32_t moveability;                  // 1 represented by 2147483648
-	int32_t divideBy1PlusTannedFrequency; // 1 represented by 2147483648
+	q31_t moveability;                  // 1 represented by 2147483648
+	q31_t divideBy1PlusTannedFrequency; // 1 represented by 2147483648
 
 	// All feedbacks have 1 represented as 1073741824
-	int32_t lpf1Feedback;
-	int32_t lpf2Feedback;
-	int32_t lpf3Feedback;
+	q31_t lpf1Feedback;
+	q31_t lpf2Feedback;
+	q31_t lpf3Feedback;
 
-	int32_t hpfMoveability; // 1 represented by 2147483648
+	q31_t hpfMoveability; // 1 represented by 2147483648
 
 	// All feedbacks have 1 represented as 1073741824
-	int32_t hpfLPF1Feedback;
-	int32_t hpfHPF3Feedback;
+	q31_t hpfLPF1Feedback;
+	q31_t hpfHPF3Feedback;
 
-	int32_t hpfProcessedResonance; // 1 represented as 1073741824
+	q31_t hpfProcessedResonance; // 1 represented as 1073741824
 	bool hpfDoAntialiasing;
-	int32_t hpfDivideByProcessedResonance;
+	q31_t hpfDivideByProcessedResonance;
 
-	int32_t divideByTotalMoveability; // 1 represented as 268435456
+	q31_t divideByTotalMoveability; // 1 represented as 268435456
 
-	int32_t lpfRawResonance;
-	int32_t alteredHpfMomentumMultiplier;
-	int32_t thisHpfResonance;
+	q31_t lpfRawResonance;
+	q31_t alteredHpfMomentumMultiplier;
+	q31_t thisHpfResonance;
 	bool doLPF;
 	bool doHPF;
 

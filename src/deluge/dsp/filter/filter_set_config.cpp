@@ -80,8 +80,8 @@ int32_t FilterSetConfig::init(int32_t lpfFrequency, int32_t lpfResonance, int32_
 		// Hot transistor ladder - needs oversampling and stuff
 		if (lpfMode == LPF_MODE_TRANSISTOR_24DB_DRIVE) {
 
-			int32_t resonance = 2147483647 - (lpfResonance << 2); // Limits it
-			processedResonance = 2147483647 - resonance;          // Always between 0 and 2. 1 represented as 1073741824
+			int32_t resonance = ONE_Q31 - (lpfResonance << 2); // Limits it
+			processedResonance = ONE_Q31 - resonance;          // Always between 0 and 2. 1 represented as 1073741824
 
 			int32_t logFreq = quickLog(lpfFrequency);
 
@@ -126,19 +126,19 @@ int32_t FilterSetConfig::init(int32_t lpfFrequency, int32_t lpfResonance, int32_
 					howMuchTooLow = 6000000 - tannedFrequency;
 				}
 
-				int32_t howMuchToKeep = 2147483647 - howMuchTooLow * 33;
+				int32_t howMuchToKeep = ONE_Q31 - howMuchTooLow * 33;
 
 				int32_t resonanceUpperLimit = 510000000; // Prone to feeding back lots
 				tannedFrequency = getMax(
 				    tannedFrequency,
 				    (int32_t)540817); // We really want to keep the frequency from going lower than it has to - it causes problems
 
-				int32_t resonance = 2147483647 - (getMin(lpfResonance, resonanceUpperLimit) << 2); // Limits it
+				int32_t resonance = ONE_Q31 - (getMin(lpfResonance, resonanceUpperLimit) << 2); // Limits it
 				lpfRawResonance = resonance;
 				resonance = multiply_32x32_rshift32_rounded(resonance, resonance) << 1;
 				processedResonance =
-				    2147483647
-				    - resonance; //2147483647 - rawResonance2; // Always between 0 and 2. 1 represented as 1073741824
+				    ONE_Q31
+				    - resonance; //ONE_Q31 - rawResonance2; // Always between 0 and 2. 1 represented as 1073741824
 				processedResonance = multiply_32x32_rshift32_rounded(processedResonance, howMuchToKeep) << 1;
 			}
 
@@ -213,7 +213,7 @@ int32_t FilterSetConfig::init(int32_t lpfFrequency, int32_t lpfResonance, int32_
 	int32_t squared;
 
 	// Adjust volume for LPF resonance
-	rawResonance = getMin(lpfResonance, (int32_t)2147483647 >> 2) << 2;
+	rawResonance = getMin(lpfResonance, (int32_t)ONE_Q31 >> 2) << 2;
 	squared = multiply_32x32_rshift32(rawResonance, rawResonance) << 1;
 	squared = (multiply_32x32_rshift32(squared, squared) >> 4)
 	          * 19; // Make bigger to have more of a volume cut happen at high resonance
@@ -234,11 +234,11 @@ int32_t FilterSetConfig::init(int32_t lpfFrequency, int32_t lpfResonance, int32_
 		    / (134217728 + (tannedFrequency >> 1)); // Between ~0.1 and 1. 1 represented by 2147483648
 
 		int32_t resonanceUpperLimit = 536870911;
-		int32_t resonance = 2147483647 - (getMin(hpfResonance, resonanceUpperLimit) << 2); // Limits it
+		int32_t resonance = ONE_Q31 - (getMin(hpfResonance, resonanceUpperLimit) << 2); // Limits it
 
 		resonance = multiply_32x32_rshift32_rounded(resonance, resonance) << 1;
 		hpfProcessedResonance =
-		    2147483647 - resonance; //2147483647 - rawResonance2; // Always between 0 and 2. 1 represented as 1073741824
+		    ONE_Q31 - resonance; //ONE_Q31 - rawResonance2; // Always between 0 and 2. 1 represented as 1073741824
 
 		hpfProcessedResonance = getMax(hpfProcessedResonance, (int32_t)134217728); // Set minimum resonance amount
 
@@ -268,11 +268,11 @@ int32_t FilterSetConfig::init(int32_t lpfFrequency, int32_t lpfResonance, int32_
 
 	if (adjustVolumeForHPFResonance) {
 		// Adjust volume for HPF resonance
-		rawResonance = getMin(hpfResonance, (int32_t)2147483647 >> 2) << 2;
+		rawResonance = getMin(hpfResonance, (int32_t)ONE_Q31 >> 2) << 2;
 		squared = multiply_32x32_rshift32(rawResonance, rawResonance) << 1;
 		squared = (multiply_32x32_rshift32(squared, squared) >> 4)
 		          * 19; // Make bigger to have more of a volume cut happen at high resonance
-		filterGain = multiply_32x32_rshift32(filterGain, 2147483647 - squared) << 1;
+		filterGain = multiply_32x32_rshift32(filterGain, ONE_Q31 - squared) << 1;
 	}
 	return filterGain;
 }
