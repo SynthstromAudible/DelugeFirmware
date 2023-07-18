@@ -22,7 +22,7 @@
 #include <cstring>
 #include "ff.h"
 #include "definitions.h"
-#include "fixedpoint.h"
+#include "util/fixedpoint.h"
 extern "C" {
 #include "util/cfunctions.h"
 }

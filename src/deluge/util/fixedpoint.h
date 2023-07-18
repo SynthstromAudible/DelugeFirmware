@@ -20,7 +20,7 @@
 //signed 31 fractional bits (e.g. one would be 1<<31 but can't be represented)
 typedef int32_t q31_t;
 
-#define ONE_Q31 2147483647;
+#define ONE_Q31 2147483647
 
 // This multiplies two numbers in signed Q31 fixed point and truncates the result
 static inline q31_t multiply_32x32_rshift32(q31_t a, q31_t b) __attribute__((always_inline, unused));
