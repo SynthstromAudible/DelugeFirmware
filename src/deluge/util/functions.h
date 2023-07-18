@@ -22,7 +22,7 @@
 #include <cstring>
 #include "ff.h"
 #include "definitions.h"
-
+#include "fixedpoint.h"
 extern "C" {
 #include "util/cfunctions.h"
 }
@@ -56,40 +56,6 @@ uint32_t hexToIntFixedLength(char const* __restrict__ hexChars, int length);
 
 void byteToHex(uint8_t number, char* buffer);
 uint8_t hexToByte(char const* firstChar);
-
-// computes (((int64_t)a[31:0] * (int64_t)b[31:0]) >> 32)
-static inline int32_t multiply_32x32_rshift32(int32_t a, int32_t b) __attribute__((always_inline, unused));
-static inline int32_t multiply_32x32_rshift32(int32_t a, int32_t b) {
-	int32_t out;
-	asm("smmul %0, %1, %2" : "=r"(out) : "r"(a), "r"(b));
-	return out;
-}
-
-// computes (((int64_t)a[31:0] * (int64_t)b[31:0] + 0x8000000) >> 32)
-static inline int32_t multiply_32x32_rshift32_rounded(int32_t a, int32_t b) __attribute__((always_inline, unused));
-static inline int32_t multiply_32x32_rshift32_rounded(int32_t a, int32_t b) {
-	int32_t out;
-	asm("smmulr %0, %1, %2" : "=r"(out) : "r"(a), "r"(b));
-	return out;
-}
-
-// computes sum + (((int64_t)a[31:0] * (int64_t)b[31:0] + 0x8000000) >> 32)
-static inline int32_t multiply_accumulate_32x32_rshift32_rounded(int32_t sum, int32_t a, int32_t b)
-    __attribute__((always_inline, unused));
-static inline int32_t multiply_accumulate_32x32_rshift32_rounded(int32_t sum, int32_t a, int32_t b) {
-	int32_t out;
-	asm("smmlar %0, %2, %3, %1" : "=r"(out) : "r"(sum), "r"(a), "r"(b));
-	return out;
-}
-
-// computes sum - (((int64_t)a[31:0] * (int64_t)b[31:0] + 0x8000000) >> 32)
-static inline int32_t multiply_subtract_32x32_rshift32_rounded(int32_t sum, int32_t a, int32_t b)
-    __attribute__((always_inline, unused));
-static inline int32_t multiply_subtract_32x32_rshift32_rounded(int32_t sum, int32_t a, int32_t b) {
-	int32_t out;
-	asm("smmlsr %0, %2, %3, %1" : "=r"(out) : "r"(sum), "r"(a), "r"(b));
-	return out;
-}
 
 static inline int32_t add_saturation(int32_t a, int32_t b) __attribute__((always_inline, unused));
 static inline int32_t add_saturation(int32_t a, int32_t b) {
