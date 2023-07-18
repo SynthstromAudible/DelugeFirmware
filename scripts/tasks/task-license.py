@@ -41,9 +41,10 @@ def license_file(dry_run: bool, verbose: bool, path: Path):
 
 def argparser():
     parser = argparse.ArgumentParser(
-        prog="task license",
+        prog="license",
         description="Add Synthstrom Deluge license prelude to files (if not present)",
     )
+    parser.group = "Miscellaneous"
     parser.add_argument(
         "-r",
         "--recursive",
