@@ -23,7 +23,7 @@ env.AppendUnique(
     ASMPATH=[
         "src/NE10/common",
     ],
-    CPPPATH=["src/deluge", "src/NE10/modules", "src/NE10/inc", "src", "src/fatfs"],
+    CPPPATH=["src/deluge", "src/NE10/modules", "src/NE10/inc", "src", "src/fatfs", 'lib/fmt/include'],
 )
 env["ASPATH"] = " {}".format(" ".join(['-I"{}"'.format(inc) for inc in env["ASMPATH"]]))
 
