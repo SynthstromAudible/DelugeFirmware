@@ -339,26 +339,42 @@ void FilterSet::reset() {
 }
 
 SVF_outs SVFilter::doSVF(int32_t input, FilterSetConfig* filterSetConfig) {
-	q31_t high;
-	q31_t notch;
+	q31_t high = 0;
+	q31_t notch = 0;
+	q31_t lowi;
 	q31_t f = filterSetConfig->moveability;
-	//raw resonance is 0-2, e.g. 1 is 1073741824
-	q31_t q = filterSetConfig->lpfRawResonance;
-	f = add_saturation(f, (f >> 2)); //arbitrary to adjust range on gold knob
-	f = add_saturation(f, 26508640); //slightly under the cutoff for C0
-	//processed resonance is 2-rawresonance^2
-	//compensate for resonance by lowering input level
-	q31_t in = ONE_Q31 - filterSetConfig->processedResonance;
 
-	low = low + multiply_32x32_rshift32(f, band);
+	// raw resonance is 0 - 536870896 (2^28ish, don't know where it comes from)
+	// Multiply by 4 to bring it to the q31 0-1 range
+	q31_t q = (ONE_Q31 - 4*(filterSetConfig->lpfRawResonance));
 
-	high = add_saturation((multiply_32x32_rshift32(input, in) << 1), 0 - low);
-	high = add_saturation(high, 0 - (multiply_32x32_rshift32(q, band) << 3));
-	band = multiply_32x32_rshift32(f, high) + band;
+
+	low = low + 2 * multiply_32x32_rshift32(band, f);
+	high = input - low;
+	high = high - multiply_32x32_rshift32(band, q);
+	band = 2 * multiply_32x32_rshift32(high, f) + band;
+	//this should be first but that causes a click on switching
+	//low = low + multiply_32x32_rshift32(f, band);
+
+	notch = high + low;
+	//saturate band feedback
+	band = getTanHUnknown(band, 3);
+
+	lowi = low;
+	//double sample to increase the cutoff frequency
+	low = low + 2 * multiply_32x32_rshift32(band, f);
+
+	high = input - low;
+	high = high - multiply_32x32_rshift32(band, q);
+
+	band = 2 * multiply_32x32_rshift32(high, f) + band;
+
 
 	//saturate band feedback
 	band = getTanHUnknown(band, 3);
 	notch = high + low;
-	SVF_outs result = {low, band, high, notch};
+
+	SVF_outs result = {(lowi>>1) + (low>>1), band, high, notch};
+
 	return result;
 }

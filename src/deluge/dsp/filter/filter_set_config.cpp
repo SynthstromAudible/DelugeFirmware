@@ -134,7 +134,7 @@ int32_t FilterSetConfig::init(int32_t lpfFrequency, int32_t lpfResonance, int32_
 				    (int32_t)540817); // We really want to keep the frequency from going lower than it has to - it causes problems
 
 				int32_t resonance = ONE_Q31 - (getMin(lpfResonance, resonanceUpperLimit) << 2); // Limits it
-				lpfRawResonance = resonance;
+				lpfRawResonance = lpfResonance;
 				resonance = multiply_32x32_rshift32_rounded(resonance, resonance) << 1;
 				processedResonance =
 				    ONE_Q31
