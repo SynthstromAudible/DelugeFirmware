@@ -1,3 +1,5 @@
+#if ENABLE_WREN
+
 #include "heap.h"
 #include "memory/general_memory_allocator.h"
 #include <cstring>
@@ -28,3 +30,5 @@ extern "C" void* wren_heap_realloc(void* ptr, size_t newSize, void* userData [[m
 
 	return umm_multi_realloc(&wren_heap, ptr, newSize);
 }
+
+#endif
