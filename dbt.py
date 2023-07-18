@@ -86,9 +86,9 @@ def main():
     args = parser.parse_args()
     
     if args.subcommand not in tasks:
-      print("{PROG_NAME}: '{}' is not a valid subcommand.".format(args.subcommand))
+      print(f"{PROG_NAME}: '{args.subcommand}' is not a valid subcommand.")
       print("")
-      print("Valid tasks:")
+      print("Valid subcommands:")
       print_tasks_usage(tasks)
 
 
