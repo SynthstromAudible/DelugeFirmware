@@ -43,13 +43,8 @@ void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples, int32_t
 		if (adjustmentR < 0.000001)
 			adjustmentR = 0.000001;
 		do {
-<<<<<<< HEAD
-			double l = thisSample->l / 2147483648.0 / adjustmentL;
-			double r = thisSample->r / 2147483648.0 / adjustmentR;
-=======
-			double l = thisSample->l / (double) ONE_Q31;
-			double r = thisSample->r / (double) ONE_Q31;
->>>>>>> 003be83 (replace magic number with constant)
+			double l = thisSample->l / (double)ONE_Q31 / adjustmentL;
+			double r = thisSample->r / (double)ONE_Q31 / adjustmentR;
 			double rawl = l;
 			double rawr = r;
 			compressor.process(l, r);
