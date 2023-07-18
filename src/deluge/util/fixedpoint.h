@@ -22,7 +22,7 @@ typedef int32_t q31_t;
 
 #define ONE_Q31 2147483647;
 
-// computes (((int64_t)a[31:0] * (int64_t)b[31:0]) >> 32)
+// This multiplies two numbers in signed Q31 fixed point and truncates the result
 static inline q31_t multiply_32x32_rshift32(q31_t a, q31_t b) __attribute__((always_inline, unused));
 static inline q31_t multiply_32x32_rshift32(q31_t a, q31_t b) {
 	q31_t out;
@@ -30,7 +30,7 @@ static inline q31_t multiply_32x32_rshift32(q31_t a, q31_t b) {
 	return out;
 }
 
-// computes (((int64_t)a[31:0] * (int64_t)b[31:0] + 0x8000000) >> 32)
+// This multiplies two numbers in signed Q31 fixed point and rounds the result
 static inline q31_t multiply_32x32_rshift32_rounded(q31_t a, q31_t b) __attribute__((always_inline, unused));
 static inline q31_t multiply_32x32_rshift32_rounded(q31_t a, q31_t b) {
 	q31_t out;
@@ -38,20 +38,20 @@ static inline q31_t multiply_32x32_rshift32_rounded(q31_t a, q31_t b) {
 	return out;
 }
 
-// computes sum + (((int64_t)a[31:0] * (int64_t)b[31:0] + 0x8000000) >> 32)
+// Multiplies A and B, adds to sum, and returns output
 static inline q31_t multiply_accumulate_32x32_rshift32_rounded(q31_t sum, q31_t a, q31_t b)
     __attribute__((always_inline, unused));
 static inline q31_t multiply_accumulate_32x32_rshift32_rounded(q31_t sum, q31_t a, q31_t b) {
 	q31_t out;
-	asm("smmlar %0, %2, %3, %1" : "=r"(out) : "r"(sum), "r"(a), "r"(b));
+	asm("smmlar %0, %1, %2, %3" : "=r"(out) : "r"(a), "r"(b), "r"(sum));
 	return out;
 }
 
-// computes sum - (((int64_t)a[31:0] * (int64_t)b[31:0] + 0x8000000) >> 32)
+// Multiplies A and B, subtracts from sum, and returns output
 static inline q31_t multiply_subtract_32x32_rshift32_rounded(q31_t sum, q31_t a, q31_t b)
     __attribute__((always_inline, unused));
 static inline q31_t multiply_subtract_32x32_rshift32_rounded(q31_t sum, q31_t a, q31_t b) {
 	q31_t out;
-	asm("smmlsr %0, %2, %3, %1" : "=r"(out) : "r"(sum), "r"(a), "r"(b));
+	asm("smmlsr %0, %1, %2, %3" : "=r"(out) : "r"(a), "r"(b), "r"(sum));
 	return out;
 }
