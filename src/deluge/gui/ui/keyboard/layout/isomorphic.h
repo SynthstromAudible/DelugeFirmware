@@ -27,9 +27,9 @@ public:
 	virtual ~KeyboardLayoutIsomorphic() {}
 
 	virtual void handlePad(int x, int y, int velocity);
-	virtual void handleSidebarPad(int x, int y, int velocity) {}
-	virtual bool handleVerticalEncoder(int offset) {}
-	virtual bool handleHorizontalEncoder(int offset) {}
+	virtual void handleSidebarPad(int x, int y, int velocity);
+	virtual bool handleVerticalEncoder(int offset);
+	virtual bool handleHorizontalEncoder(int offset, bool shiftEnabled);
 
 	virtual void renderPads(uint8_t image[][displayWidth + sideBarWidth][3]);
 

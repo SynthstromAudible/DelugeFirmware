@@ -107,6 +107,77 @@ foundIt:
 	}
 }
 
+void KeyboardLayoutIsomorphic::handleSidebarPad(int x, int y, int velocity) {
+
+}
+
+bool KeyboardLayoutIsomorphic::handleVerticalEncoder(int offset) {
+		Instrument* instrument = (Instrument*)currentSong->currentClip->output;
+		if (instrument->type == INSTRUMENT_TYPE_KIT) { //
+			//@TODO: Implement new way of scrolling internally
+			// instrumentClipView.verticalEncoderAction(offset * 4, inCardRoutine); //@TODO: Refactor
+		}
+		else {
+			//@TODO: Refactor doScroll
+			offset = offset * getCurrentClip()->keyboardRowInterval;
+
+			//@TODO: Refactor
+			// Check we're not scrolling out of range // @TODO: Move this check into layout
+			int newYNote;
+			if (offset >= 0) {
+				newYNote = getCurrentClip()->yScrollKeyboardScreen + (displayHeight - 1) * getCurrentClip()->keyboardRowInterval + displayWidth - 1;
+			}
+			else {
+				newYNote = getCurrentClip()->yScrollKeyboardScreen;
+			}
+			if (!force && !getCurrentClip()->isScrollWithinRange(offset, newYNote + offset)) {
+				return; // Nothing is updated if we are at ehe end of the displayable range
+			}
+
+			getCurrentClip()->yScrollKeyboardScreen += offset; //@TODO: Move yScrollKeyboardScreen into the layouts
+		}
+}
+
+bool KeyboardLayoutIsomorphic::handleHorizontalEncoder(int offset, bool shiftEnabled) {
+	if(shiftEnabled) {
+		InstrumentClip* clip = getCurrentClip();
+		clip->keyboardRowInterval += offset;
+		if (clip->keyboardRowInterval < 1) {
+			clip->keyboardRowInterval = 1;
+		}
+		else if (clip->keyboardRowInterval > KEYBOARD_ROW_INTERVAL_MAX) {
+			clip->keyboardRowInterval = KEYBOARD_ROW_INTERVAL_MAX;
+		}
+
+		char buffer[13] = "row step:   ";
+		intToString(clip->keyboardRowInterval, buffer + (HAVE_OLED ? 10 : 0), 1);
+		numericDriver.displayPopup(buffer);
+		doScroll(0, true);
+		return;
+	}
+
+	if (instrument->type == INSTRUMENT_TYPE_KIT) {
+		handleVerticalEncoder(offset);
+	}
+	else {
+		//@TODO: Refactor
+		// Check we're not scrolling out of range // @TODO: Move this check into layout
+		int newYNote;
+		if (offset >= 0) {
+			newYNote = getCurrentClip()->yScrollKeyboardScreen + (displayHeight - 1) * getCurrentClip()->keyboardRowInterval + displayWidth - 1;
+		}
+		else {
+			newYNote = getCurrentClip()->yScrollKeyboardScreen;
+		}
+		if (!force && !getCurrentClip()->isScrollWithinRange(offset, newYNote + offset)) {
+			return; // Nothing is updated if we are at ehe end of the displayable range
+		}
+
+		getCurrentClip()->yScrollKeyboardScreen += offset; //@TODO: Move yScrollKeyboardScreen into the layouts
+	}
+}
+
+
 void KeyboardLayoutIsomorphic::renderPads(uint8_t image[][displayWidth + sideBarWidth][3]) { //@TODO: Refactor
 	// First, piece together a picture of all notes-within-an-octave which are active
 	bool notesWithinOctaveActive[12];

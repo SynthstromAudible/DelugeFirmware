@@ -37,8 +37,8 @@ public:
 	// Handle inputs
 	virtual void handlePad(int x, int y, int velocity) = 0;
 	virtual void handleSidebarPad(int x, int y, int velocity) = 0;
-	virtual bool handleVerticalEncoder(int offset) = 0; // returns weather the scroll had an effect
-	virtual bool handleHorizontalEncoder(int offset) = 0; // returns weather the scroll had an effect
+	virtual bool handleVerticalEncoder(int offset) = 0; // returns weather the scroll had an effect // Shift state not supplied since that function is already taken
+	virtual bool handleHorizontalEncoder(int offset, bool shiftEnabled) = 0; // returns weather the scroll had an effect
 
 	// Handle output
 	virtual void renderPads(uint8_t image[][displayWidth + sideBarWidth][3]) {

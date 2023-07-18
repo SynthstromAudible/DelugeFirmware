@@ -56,11 +56,12 @@ private:
 	bool opened();
 	void focusRegained();
 
+	void updateActiveNotes();
+
 	ClipMinder* toClipMinder() { return this; }
 	bool oneNoteAuditioning();
 	void setLedStates();
 	void graphicsRoutine();
-	void stopAllAuditioning(ModelStack* modelStack, bool switchOffOnThisEndToo = true);
 	bool getAffectEntire();
 
 
@@ -71,7 +72,6 @@ private:
 #endif
 
 private:
-	void doScroll(int offset, bool force = false);
 	int getLowestAuditionedNote();
 	int getHighestAuditionedNote();
 	void enterScaleMode(int selectedRootNote = 2147483647);

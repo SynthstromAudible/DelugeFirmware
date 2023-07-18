@@ -64,7 +64,6 @@ KeyboardScreen::KeyboardScreen() {
 static const uint32_t padActionUIModes[] = {UI_MODE_AUDITIONING, UI_MODE_RECORD_COUNT_IN,
                                             0}; // Careful - this is referenced in two places
 
-NoteList lastActiveNotes; //@TODO: Move into class
 
 int KeyboardScreen::padAction(int x, int y, int velocity) {
 	if (sdRoutineLock && !allowSomeUserActionsEvenWhenInCardRoutine) {
@@ -83,15 +82,22 @@ int KeyboardScreen::padAction(int x, int y, int velocity) {
 		return soundEditorResult;
 	}
 
-	// Handle setting root note //@TODO: Refactor this block
-	if (currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED) {
+	// Exit if pad is enabled but UI in wrong mode
+	if (!isUIModeWithinRange(padActionUIModes) && velocity) { //@TODO: Need to check if this can prevent changing root note
+		return ACTION_RESULT_DEALT_WITH;
+	}
+
+	layoutList[0]->handlePad(x, y, velocity);
+
+	// Handle setting root note
+	if (currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED) { //@TODO: Condition only one new note
 		if (sdRoutineLock) {
 			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 
 		// We probably couldn't have got this far if it was a Kit, but let's just check
 		if (velocity && currentSong->currentClip->output->type != INSTRUMENT_TYPE_KIT) {
-			//int noteCode = getNoteCodeFromCoords(x, y); // @TODO: Rewrite to use new note in activeNotes
+			//int noteCode = getNoteCodeFromCoords(x, y); // @TODO: Rewrite to use new note in activeNotes, needs to come after handlePad
 			exitScaleModeOnButtonRelease = false;
 			if (getCurrentClip()->inScaleMode) {
 				instrumentClipView.setupChangingOfRootNote(newNote);
@@ -103,34 +109,34 @@ int KeyboardScreen::padAction(int x, int y, int velocity) {
 			}
 		}
 	}
-
-	// Exit if pad is enabled but UI in wrong mode
-	if (!isUIModeWithinRange(padActionUIModes) && velocity) {
-		return ACTION_RESULT_DEALT_WITH;
+	else {
+		updateActiveNotes();
 	}
 
-	// Flash Song button if another clip with the same instrument is currently playing
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
-	bool clipIsActiveOnInstrument = makeCurrentClipActiveOnInstrumentIfPossible(modelStack);
-	if (!clipIsActiveOnInstrument && velocity) {
-		indicator_leds::indicateAlertOnLed(IndicatorLED::SESSION_VIEW);
-	}
+	uiNeedsRendering(this, 0xFFFFFFFF, 0);
+	return ACTION_RESULT_DEALT_WITH;
+}
 
-	layoutList[0]->handlePad(x, y, velocity);
+NoteList lastActiveNotes; //@TODO: Move into class
+
+void KeyboardScreen::updateActiveNotes() {
 	NoteList activeNotes = layoutList[0]->getActiveNotes();
 
 	//@TODO: Handle note list changes
-
-	// NOTE: Most of this refers to the Instrument's activeClip - *not* the Clip we're viewing,
-	// which might not be the activeClip, even though we did call makeClipActiveOnInstrumentIfPossible() above
-
 
 	// Note added
 	{
 		int newNote = 0; //@TODO:
 
-		//@TODO: Only do this for physical presses
+		// Flash Song button if another clip with the same instrument is currently playing
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
+		bool clipIsActiveOnInstrument = makeCurrentClipActiveOnInstrumentIfPossible(modelStack);
+		if (!clipIsActiveOnInstrument && newNote) { //@TODO: Fix
+			indicator_leds::indicateAlertOnLed(IndicatorLED::SESSION_VIEW);
+		}
+
+		//@TODO: Only do this for physical and single individual presses
 		// If note range menu is open and row is
 		if (instrument->type == INSTRUMENT_TYPE_SYNTH) {
 			if (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem() == &menu_item::multiRangeMenu) {
@@ -191,7 +197,7 @@ int KeyboardScreen::padAction(int x, int y, int velocity) {
 
 	//@TODO: Check whole list
 	{
-				// If anything at all still auditioning...
+		// If anything at all still auditioning...
 		int highestNoteCode = getHighestAuditionedNote();
 		if (highestNoteCode != -2147483648) {
 			drawNoteCode(highestNoteCode);
@@ -209,24 +215,18 @@ int KeyboardScreen::padAction(int x, int y, int velocity) {
 
 
 	// Recording - this only works *if* the Clip that we're viewing right now is the Instrument's activeClip
-	if (instrument->type != INSTRUMENT_TYPE_KIT && clipIsActiveOnInstrument //@TODO: Check if we can also enable this for kit instruments
-		&& playbackHandler.shouldRecordNotesNow() && currentSong->isClipActive(currentSong->currentClip)) {
-
-		ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
-			modelStack->addTimelineCounter(currentSong->currentClip);
+	//@TODO: Check if we can also enable this for kit instruments
+	if (instrument->type != INSTRUMENT_TYPE_KIT && clipIsActiveOnInstrument && playbackHandler.shouldRecordNotesNow() && currentSong->isClipActive(currentSong->currentClip)) {
+		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(currentSong->currentClip);
 
 		// Note-on
 		if (velocity) {
-
 			// If count-in is on, we only got here if it's very nearly finished, so pre-empt that note.
 			// This is basic. For MIDI input, we do this in a couple more cases - see noteMessageReceived()
 			// in MelodicInstrument and Kit
 			if (isUIModeActive(UI_MODE_RECORD_COUNT_IN)) { // It definitely will be auditioning if we're here
 				ModelStackWithNoteRow* modelStackWithNoteRow = modelStackWithTimelineCounter->addNoteRow(0, NULL);
-				((MelodicInstrument*)instrument)
-					->earlyNotes.insertElementIfNonePresent(
-						newNote, instrument->defaultVelocity,
-						getCurrentClip()->allowNoteTails(modelStackWithNoteRow));
+				((MelodicInstrument*)instrument)->earlyNotes.insertElementIfNonePresent(newNote, instrument->defaultVelocity, getCurrentClip()->allowNoteTails(modelStackWithNoteRow));
 			}
 
 			else {
@@ -234,8 +234,7 @@ int KeyboardScreen::padAction(int x, int y, int velocity) {
 
 				bool scaleAltered = false;
 
-				ModelStackWithNoteRow* modelStackWithNoteRow = getCurrentClip()->getOrCreateNoteRowForYNote(
-					newNote, modelStackWithTimelineCounter, action, &scaleAltered);
+				ModelStackWithNoteRow* modelStackWithNoteRow = getCurrentClip()->getOrCreateNoteRowForYNote(newNote, modelStackWithTimelineCounter, action, &scaleAltered);
 				NoteRow* thisNoteRow = modelStackWithNoteRow->getNoteRowAllowNull();
 				if (thisNoteRow) {
 					getCurrentClip()->recordNoteOn(modelStackWithNoteRow, instrument->defaultVelocity);
@@ -257,9 +256,6 @@ int KeyboardScreen::padAction(int x, int y, int velocity) {
 			}
 		}
 	}
-
-	uiNeedsRendering(this, 0xFFFFFFFF, 0);
-	return ACTION_RESULT_DEALT_WITH;
 }
 
 int KeyboardScreen::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
@@ -379,66 +375,35 @@ doOther: //@TODO: Refactor this goto out
 }
 
 int KeyboardScreen::verticalEncoderAction(int offset, bool inCardRoutine) {
-	if (Buttons::isShiftButtonPressed()) {
-		if (currentUIMode == UI_MODE_NONE) {
-			if (inCardRoutine && !allowSomeUserActionsEvenWhenInCardRoutine) {
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
-			}
+	if (inCardRoutine && !allowSomeUserActionsEvenWhenInCardRoutine) {
+		return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
+	}
 
-			getCurrentClip()->colourOffset += offset;
-			recalculateColours();
-			uiNeedsRendering(this, 0xFFFFFFFF, 0);
-		}
+	if (Buttons::isShiftButtonPressed() && currentUIMode == UI_MODE_NONE) {
+		getCurrentClip()->colourOffset += offset;
+		recalculateColours();
 	}
 	else {
-		if (inCardRoutine && !allowSomeUserActionsEvenWhenInCardRoutine) {
-			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
-		}
-
-		//
-		Instrument* instrument = (Instrument*)currentSong->currentClip->output;
-		if (instrument->type == INSTRUMENT_TYPE_KIT) { //
-			instrumentClipView.verticalEncoderAction(offset * 4, inCardRoutine);
-			uiNeedsRendering(this, 0xFFFFFFFF, 0);
-		}
-		else {
-			doScroll(offset * getCurrentClip()->keyboardRowInterval);
+		layoutList[0]->handleVerticalEncoder(offset);
+		if(isUIModeWithinRange(padActionUIModes)) {
+			updateActiveNotes();
 		}
 	}
 
+	recalculateColours();
+	uiNeedsRendering(this, 0xFFFFFFFF, 0);
 	return ACTION_RESULT_DEALT_WITH;
 }
 
 int KeyboardScreen::horizontalEncoderAction(int offset) {
-	Instrument* instrument = (Instrument*)currentSong->currentClip->output;
-	if (instrument->type != INSTRUMENT_TYPE_KIT) {
-		if (Buttons::isShiftButtonPressed()) {
-			if (isUIModeWithinRange(padActionUIModes)) {
-				InstrumentClip* clip = getCurrentClip();
-				clip->keyboardRowInterval += offset;
-				if (clip->keyboardRowInterval < 1) {
-					clip->keyboardRowInterval = 1;
-				}
-				else if (clip->keyboardRowInterval > KEYBOARD_ROW_INTERVAL_MAX) {
-					clip->keyboardRowInterval = KEYBOARD_ROW_INTERVAL_MAX;
-				}
 
-				char buffer[13] = "row step:   ";
-				intToString(clip->keyboardRowInterval, buffer + (HAVE_OLED ? 10 : 0), 1);
-				numericDriver.displayPopup(buffer);
-
-				doScroll(0, true);
-			}
-		}
-		else {
-			doScroll(offset);
-		}
-	}
-	else if (instrument->type == INSTRUMENT_TYPE_KIT) {
-		instrumentClipView.verticalEncoderAction(offset, false); //@TODO: horizontalEncoderAction is expected to be SD interrupt safe, this might not be safe
-		uiNeedsRendering(this, 0xFFFFFFFF, 0);
+	layoutList[0]->handleHorizontalEncoder(offset, (Buttons::isShiftButtonPressed() && isUIModeWithinRange(padActionUIModes)));
+	if(isUIModeWithinRange(padActionUIModes)) {
+		updateActiveNotes();
 	}
 
+	recalculateColours();
+	uiNeedsRendering(this, 0xFFFFFFFF, 0);
 	return ACTION_RESULT_DEALT_WITH;
 }
 
@@ -451,45 +416,16 @@ void KeyboardScreen::selectEncoderAction(int8_t offset) {
 	uiNeedsRendering(this, 0xFFFFFFFF, 0);
 }
 
-int KeyboardScreen::getNoteCodeFromCoords(int x, int y) { // @TODO: Move to isomorphic
 
-	Instrument* instrument = (Instrument*)currentSong->currentClip->output;
-	if (instrument->type == INSTRUMENT_TYPE_KIT) { //
-
-		return 60 + (int)(x / 4) + (int)(y / 4) * 4;
-	}
-	else {
-		InstrumentClip* clip = getCurrentClip();
-		return clip->yScrollKeyboardScreen + x + y * clip->keyboardRowInterval;
-	}
-}
 
 void KeyboardScreen::exitAuditionMode() {
-
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
-
-	stopAllAuditioning(modelStack);
-
 	layoutList[0]->stopAllNotes();
+	updateActiveNotes();
 
 	exitUIMode(UI_MODE_AUDITIONING);
 #if !HAVE_OLED
 	redrawNumericDisplay();
 #endif
-}
-
-void KeyboardScreen::stopAllAuditioning(ModelStack* modelStack, bool switchOffOnThisEndToo) {
-
-	for (int p = 0; p < MAX_NUM_KEYBOARD_PAD_PRESSES; p++) { //@TODO: Rewrite to active notes
-		if (padPresses[p].x != 255) {
-			int noteCode = getNoteCodeFromCoords(padPresses[p].x, padPresses[p].y);
-			((MelodicInstrument*)currentSong->currentClip->output)->endAuditioningForNote(modelStack, noteCode);
-			if (switchOffOnThisEndToo) {
-				padPresses[p].x = 255;
-			}
-		}
-	}
 }
 
 bool KeyboardScreen::opened() {
@@ -542,70 +478,6 @@ bool KeyboardScreen::renderSidebar(uint32_t whichRows, uint8_t image[][displayWi
 	return true;
 }
 
-
-void KeyboardScreen::doScroll(int offset, bool force) {
-
-	if (isUIModeWithinRange(padActionUIModes)) {
-
-		// Check we're not scrolling out of range // @TODO: Move this check into layout
-		int newYNote;
-		if (offset >= 0) {
-			newYNote = getCurrentClip()->yScrollKeyboardScreen
-			           + (displayHeight - 1) * getCurrentClip()->keyboardRowInterval + displayWidth - 1;
-		}
-		else {
-			newYNote = getCurrentClip()->yScrollKeyboardScreen;
-		}
-		if (!force && !getCurrentClip()->isScrollWithinRange(offset, newYNote + offset)) {
-			return; // Nothing is updated if we are at ehe end of the displayable range
-		}
-
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
-
-		stopAllAuditioning(modelStack, false);
-
-		getCurrentClip()->yScrollKeyboardScreen += offset; //@TODO: Move yScrollKeyboardScreen into the layouts
-
-		recalculateColours();
-		uiNeedsRendering(this, 0xFFFFFFFF, 0);
-
-		// Update audio rendering after scrolling
-
-		int highestNoteCode = getHighestAuditionedNote();
-		if (highestNoteCode != -2147483648) {
-			drawNoteCode(highestNoteCode);
-
-			// Change editing range if necessary
-			if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_SYNTH) {
-				if (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem() == &menu_item::multiRangeMenu) {
-					menu_item::multiRangeMenu.noteOnToChangeRange(
-					    highestNoteCode + ((SoundInstrument*)currentSong->currentClip->output)->transpose);
-				}
-			}
-		}
-
-		// All notes on
-		for (int p = 0; p < MAX_NUM_KEYBOARD_PAD_PRESSES; p++) { //@TODO: Rewrite to pressed notes
-			if (padPresses[p].x != 255) {
-				int noteCode = getNoteCodeFromCoords(padPresses[p].x, padPresses[p].y);
-
-				// Ensure the note the user is trying to sound isn't already sounding
-				NoteRow* noteRow = getCurrentClip()->getNoteRowForYNote(noteCode);
-				if (noteRow) {
-					if (noteRow->soundingStatus == STATUS_SEQUENCED_NOTE) {
-						continue;
-					}
-				}
-
-				((MelodicInstrument*)currentSong->currentClip->output)
-				    ->beginAuditioningForNote(modelStack, noteCode,
-				                              ((Instrument*)currentSong->currentClip->output)->defaultVelocity,
-				                              zeroMPEValues);
-			}
-		}
-	}
-}
 
 void KeyboardScreen::flashDefaultRootNote() {
 	uiTimerManager.setTimer(TIMER_DEFAULT_ROOT_NOTE, flashTime);
