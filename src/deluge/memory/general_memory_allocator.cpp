@@ -184,9 +184,8 @@ void GeneralMemoryAllocator::dealloc(void* address) {
 }
 
 void GeneralMemoryAllocator::putStealableInQueue(Stealable* stealable, int q) {
-	MemoryRegion* region = &regions[getRegion(stealable)];
-	region->stealableClusterQueues[q].addToEnd(stealable);
-	region->stealableClusterQueueLongestRuns[q] = 0xFFFFFFFF; // TODO: actually investigate neighbouring memory "run".
+	MemoryRegion &region = regions[getRegion(stealable)];
+	region.cache_manager().enqueue(q, stealable);
 }
 
 void GeneralMemoryAllocator::putStealableInAppropriateQueue(Stealable* stealable) {
