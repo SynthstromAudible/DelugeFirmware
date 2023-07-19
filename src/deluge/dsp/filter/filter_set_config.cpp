@@ -163,7 +163,7 @@ int32_t FilterSetConfig::init(int32_t lpfFrequency, int32_t lpfResonance, int32_
 			}
 
 			// Full ladder
-			else if ((lpfMode == LPF_MODE_TRANSISTOR_24DB) || (lpfMode == LPF_MODE_TRANSISTOR_24DB_DRIVE)){
+			else if ((lpfMode == LPF_MODE_TRANSISTOR_24DB) || (lpfMode == LPF_MODE_TRANSISTOR_24DB_DRIVE)) {
 				lpf3Feedback = multiply_32x32_rshift32_rounded(divideBy1PlusTannedFrequency, moveability);
 				lpf2Feedback = multiply_32x32_rshift32_rounded(lpf3Feedback, moveability) << 1;
 				lpf1Feedback = multiply_32x32_rshift32_rounded(lpf2Feedback, moveability) << 1;
@@ -196,7 +196,6 @@ int32_t FilterSetConfig::init(int32_t lpfFrequency, int32_t lpfResonance, int32_
 				filterGain = multiply_32x32_rshift32(filterGain, gainModifier) << 3;
 			}
 
-
 			// Drive filter - increase output amplitude
 			else if (lpfMode == LPF_MODE_TRANSISTOR_24DB_DRIVE) {
 				//overallOscAmplitude <<= 2;
@@ -206,12 +205,11 @@ int32_t FilterSetConfig::init(int32_t lpfFrequency, int32_t lpfResonance, int32_
 
 				// raw resonance is 0 - 536870896 (2^28ish, don't know where it comes from)
 				// Multiply by 4 to bring it to the q31 0-1 range
-				processedResonance = (ONE_Q31 - 4*(lpfRawResonance));
+				processedResonance = (ONE_Q31 - 4 * (lpfRawResonance));
 				SVFInputScale = (processedResonance >> 1) + (ONE_Q31 >> 1);
 				//squared q is a better match for the ladders
 
 				processedResonance = multiply_32x32_rshift32_rounded(processedResonance, processedResonance) << 1;
-
 			}
 		}
 	}

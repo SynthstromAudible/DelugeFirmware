@@ -364,7 +364,6 @@ SVF_outs SVFilter::doSVF(int32_t input, FilterSetConfig* filterSetConfig) {
 	high = high - 2 * multiply_32x32_rshift32(band, q);
 	band = 2 * multiply_32x32_rshift32(high, f) + band;
 
-
 	//saturate band feedback
 	band = getTanHUnknown(band, 3);
 	notch = high + low;
