@@ -27,6 +27,7 @@
 #include "util/functions.h"
 #include "gui/views/instrument_clip_view.h"
 #include "model/settings/runtime_feature_settings.h"
+#include "hid/led/pad_leds.h"
 
 namespace Encoders {
 
@@ -128,7 +129,7 @@ checkResult:
 
 			case ENCODER_SCROLL_Y:
 				if (Buttons::isShiftButtonPressed() && Buttons::isButtonPressed(hid::button::LEARN)) {
-					changeDimmerInterval(limitedDetentPos);
+					PadLEDs::changeDimmerInterval(limitedDetentPos);
 				}
 				else {
 					result = getCurrentUI()->verticalEncoderAction(limitedDetentPos, inCardRoutine);
@@ -154,7 +155,7 @@ checkResult:
 
 			case ENCODER_SELECT:
 				if (Buttons::isButtonPressed(hid::button::CLIP_VIEW)) {
-					changeRefreshTime(limitedDetentPos);
+					PadLEDs::changeRefreshTime(limitedDetentPos);
 				}
 				else {
 					getCurrentUI()->selectEncoderAction(limitedDetentPos);

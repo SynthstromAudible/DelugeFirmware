@@ -79,10 +79,8 @@ gotError:
 	}
 
 	currentUIMode = UI_MODE_VERTICAL_SCROLL;
-	scrollDirection = 1;
-	squaresScrolled = 0;
+	PadLEDs::vertical::setupScroll(1, true);
 	scrollingIntoSlot = false;
-	scrollingToNothing = true;
 	deletedPartsOfOldSong = false;
 	timerCallback(); // Start scrolling animation out of the View
 
@@ -110,9 +108,8 @@ gotError:
 
 	focusRegained();
 
-	squaresScrolled = 0;
+	PadLEDs::vertical::setupScroll(1, false);
 	scrollingIntoSlot = true;
-	scrollingToNothing = false;
 
 	if (currentUIMode != UI_MODE_VERTICAL_SCROLL) {
 		currentUIMode =
@@ -456,40 +453,14 @@ swapDone:
 }
 
 int LoadSongUI::timerCallback() {
-
 	// Progress vertical scrolling
 	if (currentUIMode == UI_MODE_VERTICAL_SCROLL) {
-
-		squaresScrolled++;
-		int copyRow = (scrollDirection > 0) ? squaresScrolled - 1 : displayHeight - squaresScrolled;
-		int startSquare = (scrollDirection > 0) ? 0 : 1;
-		int endSquare = (scrollDirection > 0) ? displayHeight - 1 : 0;
-
-		//matrixDriver.greyoutMinYDisplay = (scrollDirection > 0) ? displayHeight - squaresScrolled : squaresScrolled;
-
-		// Move the scrolling region
-		memmove(PadLEDs::image[startSquare], PadLEDs::image[1 - startSquare],
-		        (displayWidth + sideBarWidth) * (displayHeight - 1) * 3);
-
-		// And, bring in a row from the temp image (or from nowhere)
-		if (scrollingToNothing) {
-			memset(PadLEDs::image[endSquare], 0, (displayWidth + sideBarWidth) * 3);
-		}
-		else {
-			memcpy(PadLEDs::image[endSquare], PadLEDs::imageStore[copyRow], (displayWidth + sideBarWidth) * 3);
-		}
-
-		bufferPICPadsUart((scrollDirection > 0) ? 241 : 242);
-
-		for (int x = 0; x < displayWidth + sideBarWidth; x++) {
-			PadLEDs::sendRGBForOnePadFast(x, endSquare, PadLEDs::image[endSquare][x]);
-		}
-		uartFlushIfNotSending(UART_ITEM_PIC_PADS);
+		PadLEDs::vertical::renderScroll();
 
 		// If we've finished scrolling...
-		if (squaresScrolled >= displayHeight) {
+		if (PadLEDs::vertical::squaresScrolled >= displayHeight) {
 			// If exiting this UI...
-			if (scrollDirection == -1) {
+			if (PadLEDs::vertical::scrollDirection == -1) {
 				exitThisUI(); // Ideally I don't think this should be allowed to be happen while in the card routine, which we're in right now...
 			}
 
@@ -607,13 +578,14 @@ void LoadSongUI::currentFileChanged(int movementDirection) {
 		qwertyVisible = false;
 
 		// Start horizontal scrolling
-		PadLEDs::setupScroll(movementDirection, displayWidth + sideBarWidth, true, displayWidth + sideBarWidth);
+		PadLEDs::horizontal::setupScroll(movementDirection, displayWidth + sideBarWidth, true,
+		                                 displayWidth + sideBarWidth);
 		for (int i = 0; i < displayHeight; i++) {
 			PadLEDs::transitionTakingPlaceOnRow[i] = true;
 		}
 		currentUIMode = UI_MODE_HORIZONTAL_SCROLL;
 		scrollingIntoSlot = false;
-		PadLEDs::renderScroll(); // The scrolling animation will begin while file is being found and loaded
+		PadLEDs::horizontal::renderScroll(); // The scrolling animation will begin while file is being found and loaded
 
 		drawSongPreview(); // Scrolling continues as the file is read by this function
 
@@ -621,11 +593,12 @@ void LoadSongUI::currentFileChanged(int movementDirection) {
 		scrollingIntoSlot = true;
 
 		// Set up another horizontal scroll
-		PadLEDs::setupScroll(movementDirection, displayWidth + sideBarWidth, false, displayWidth + sideBarWidth);
+		PadLEDs::horizontal::setupScroll(movementDirection, displayWidth + sideBarWidth, false,
+		                                 displayWidth + sideBarWidth);
 		for (int i = 0; i < displayHeight; i++) {
 			PadLEDs::transitionTakingPlaceOnRow[i] = true;
 		}
-		PadLEDs::renderScroll();
+		PadLEDs::horizontal::renderScroll();
 	}
 }
 
@@ -712,9 +685,7 @@ void LoadSongUI::exitAction() {
 	}
 
 	currentUIMode = UI_MODE_VERTICAL_SCROLL;
-	scrollDirection = -1;
-	scrollingToNothing = false;
-	squaresScrolled = 0;
+	PadLEDs::vertical::setupScroll(-1, false);
 	getRootUI()->renderMainPads(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore);
 	getRootUI()->renderSidebar(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore);
 	//((ViewScreen*)getRootUI())->renderToStore(0, true);

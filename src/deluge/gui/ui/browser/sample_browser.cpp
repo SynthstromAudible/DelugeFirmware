@@ -15,7 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#define _GNU_SOURCE // Wait why?
+#define _GNU_SOURCE     // Wait why?
+#define __GNU_VISIBLE 1 // Makes strcasestr visible. Might already be the reason for the define above
 #include "gui/ui/browser/sample_browser.h"
 #include "util/functions.h"
 #include "gui/ui/sound_editor.h"
@@ -243,7 +244,7 @@ void SampleBrowser::currentFileChanged(int movementDirection) {
 		uiTimerManager.unsetTimer(TIMER_SHORTCUT_BLINK);
 
 		memset(PadLEDs::transitionTakingPlaceOnRow, 1, sizeof(PadLEDs::transitionTakingPlaceOnRow));
-		PadLEDs::setupScroll(movementDirection, displayWidth, true);
+		PadLEDs::horizontal::setupScroll(movementDirection, displayWidth, true);
 		currentUIMode = UI_MODE_HORIZONTAL_SCROLL;
 	}
 
@@ -603,7 +604,7 @@ void SampleBrowser::previewIfPossible(int movementDirection) {
 					                                  waveformBasicNavigator.xZoom, PadLEDs::imageStore,
 					                                  &waveformBasicNavigator.renderData);
 					memset(PadLEDs::transitionTakingPlaceOnRow, 1, sizeof(PadLEDs::transitionTakingPlaceOnRow));
-					PadLEDs::setupScroll(movementDirection, displayWidth);
+					PadLEDs::horizontal::setupScroll(movementDirection, displayWidth);
 
 					currentUIMode = UI_MODE_HORIZONTAL_SCROLL;
 				}
@@ -646,7 +647,7 @@ void SampleBrowser::previewIfPossible(int movementDirection) {
 					PadLEDs::reassessGreyout(true);
 				}
 				memset(PadLEDs::transitionTakingPlaceOnRow, 1, sizeof(PadLEDs::transitionTakingPlaceOnRow));
-				PadLEDs::setupScroll(movementDirection, displayWidth);
+				PadLEDs::horizontal::setupScroll(movementDirection, displayWidth);
 				currentUIMode = UI_MODE_HORIZONTAL_SCROLL;
 			}
 

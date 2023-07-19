@@ -1,5 +1,10 @@
 import os
 import multiprocessing
+import sys
+import pathlib
+
+# Remove current directory from search list (dbt package and dbt.py name collision)
+sys.path = [d for d in sys.path if str(pathlib.Path(d)) != os.getcwd()]
 
 from SCons.Action import Action
 from SCons.Platform import TempFileMunge

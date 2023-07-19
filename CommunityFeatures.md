@@ -36,6 +36,8 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
  - ([#103]) adds a new filter in the low-pass slot, a state-variable filter. This filter has significantly less distortion than the ladder filters, think sequential vs. moog. Cutoff and resonance ranges are subject to change with further testing.
 
 ## New behaviors
+### Song View
+ - ([#163]) Pressing a clip row + shift & scroll vertically changes the selected row color. This is the same shortcut like before when setting the color in the clip view.   
 
 ### Instrument Keyboard View
  - ([#46]) Note offset between rows is now configurable by holding shift and using the horizontal encoder. This allows e.g. an isomorphic keyboard layout by setting the row offset to 12. The setting is saved per clip in the song file.
@@ -49,6 +51,22 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
 ### Audio Clip View
  - ([#141]) Holding the vertical encoder down while turning the horizontal encoder will shift the clip along the underlying audio file, similar to the same interface for instrument clips.
 
+### Takeover Mode
+
+ - ([#170]) The Takeover menu consists of three modes that can be selected from:
+ 
+ 			1) Jump: This is the default mode for the Deluge. As soon as a Midi Knob/Fader position is changed, 
+					 the Deluge's internal Knob position/Parameter value jumps to the position of the Midi Knob/Fader.
+
+			2) Pickup: The deluge will ignore changes to its internal Knob position/Parameter value until the 
+					   Midi Knob/Fader's position is equal to the Deluge Knob position. After which the Midi Knob/Fader 
+					   will move in sync with the Deluge.
+			
+			3) Scale: The deluge will increase/decrease its internal Knob position/Parameter value relative 
+					  to the change of the Midi Knob/Fader position and the amount of "runway" remaining on the Midi 
+					  controller. Once the Midi controller reaches its maximum or minimum position, the Midi Knob/Fader 
+					  will move in sync with the Deluge. The Deluge will value will always decrease/increase in the 
+					  same direction as the Midi controller.
 
 <h1 id="runtime-features">Runtime settings aka Community Features Menu</h1>
 
@@ -78,3 +96,4 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#112]: https://github.com/SynthstromAudible/DelugeFirmware/pull/112
 [#122]: https://github.com/SynthstromAudible/DelugeFirmware/pull/122
 [#141]: https://github.com/SynthstromAudible/DelugeFirmware/pull/141
+[#163]: https://github.com/SynthstromAudible/DelugeFirmware/pull/163
