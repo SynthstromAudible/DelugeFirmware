@@ -612,8 +612,8 @@ MenuItem* midiClockMenuItems[] = {&midiClockInStatusMenu, &midiClockOutStatusMen
 Submenu midiClockMenu{"CLOCK", midiClockMenuItems};
 
 //Midi devices menu
-midi::Devices devicesMenu{"Devices"};
-mpe::DirectionSelector directionSelectorMenu{"MPE"};
+midi::Devices midi::devicesMenu{"Devices"};
+mpe::DirectionSelector mpe::directionSelectorMenu{"MPE"};
 
 //MIDI menu
 MenuItem* midiMenuItems[] = {

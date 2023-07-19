@@ -26,8 +26,6 @@ extern menu_item::Submenu midiDeviceMenu;
 
 namespace menu_item::midi {
 
-extern Devices devicesMenu{"Devices"};
-
 static const int lowestDeviceNum = -3;
 
 void Devices::beginSession(MenuItem* navigatedBackwardFrom) {
