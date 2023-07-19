@@ -64,6 +64,7 @@
 #include "gui/ui/browser/browser.h"
 #include "storage/file_item.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
+#include "hid/buttons.h"
 
 #if HAVE_OLED
 #include "hid/display/oled.h"
@@ -808,6 +809,12 @@ skipDoingSumTo100:
 			// If it's a 100%, which usually will be the case...
 			if (pendingNoteOnList.pendingNoteOns[i].probability == NUM_PROBABILITY_VALUES) {
 				conditionPassed = true;
+			}
+
+			// else if 95% it's a placeholder for a new FILL value
+			// so only play the note if SHIFT+TRIPLETS is pressed
+			else if (pendingNoteOnList.pendingNoteOns[i].probability == NUM_PROBABILITY_VALUES - 1) {
+					conditionPassed = Buttons::isShiftButtonPressed() && Buttons::isButtonPressed(hid::button::TRIPLETS);
 			}
 
 			// Otherwise...

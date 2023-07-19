@@ -86,7 +86,7 @@ int TimelineView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	}
 
 	// Triplets button
-	else if (b == TRIPLETS) {
+	else if (b == TRIPLETS && !Buttons::isShiftButtonPressed()) {
 		if (on) {
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
