@@ -71,7 +71,7 @@ public:
 	void writeSettingsToFile();
 
 protected:
-	RuntimeFeatureSetting settings[RuntimeFeatureSettingType::MaxElement] = {};
+	std::array<RuntimeFeatureSetting,RuntimeFeatureSettingType::MaxElement> settings = {};
 
 private:
 	ResizeableArray unknownSettings;

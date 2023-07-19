@@ -114,7 +114,7 @@ void RuntimeFeatureSettings::readSettingsFromFile() {
 			storageManager.exitTag();
 
 			bool found = false;
-			for (auto & setting : settings) {
+			for (auto& setting : settings) {
 				if (strcmp(setting.xmlName.c_str(), currentName.get()) == 0) {
 					found = true;
 					setting.value = currentValue;
@@ -154,7 +154,7 @@ void RuntimeFeatureSettings::writeSettingsToFile() {
 	storageManager.writeEarliestCompatibleFirmwareVersion("4.1.3");
 	storageManager.writeOpeningTagEnd();
 
-	for (auto & setting : settings) {
+	for (auto& setting : settings) {
 		storageManager.writeOpeningTagBeginning(TAG_RUNTIME_FEATURE_SETTING);
 		storageManager.writeAttribute(TAG_RUNTIME_FEATURE_SETTING_ATTR_NAME, setting.xmlName.c_str(), false);
 		storageManager.writeAttribute(TAG_RUNTIME_FEATURE_SETTING_ATTR_VALUE, setting.value, false);

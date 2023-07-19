@@ -47,11 +47,9 @@ void Setting::writeCurrentValue() {
 }
 
 static_vector<string, RUNTIME_FEATURE_SETTING_MAX_OPTIONS> Setting::getOptions() {
-	static static_vector<string, capacity()> options;
-	if (options.empty()) {
-		for (auto& option : runtimeFeatureSettings.settings[currentSettingIndex].options) {
-			options.push_back(option.displayName);
-		}
+	static_vector<string, capacity()> options;
+	for (const RuntimeFeatureSettingOption &option: runtimeFeatureSettings.settings[currentSettingIndex].options) {
+		options.push_back(option.displayName);
 	}
 	return options;
 }

@@ -64,11 +64,8 @@
 #include <type_traits> // for aligned_storage and all meta-functions
 #include <cstdio>      // for assertion diagnostics
 
-/// Unreachable code
-#define SV_UNREACHABLE __builtin_unreachable()
-
 /// Optimizer allowed to assume that EXPR evaluates to true
-#define SV_ASSUME(EXPR) static_cast<void>((EXPR) ? void(0) : __builtin_unreachable())
+#define SV_ASSUME(EXPR) static_cast<void>((EXPR) ? void(0) : std::unreachable())
 
 /// Assert pretty printer
 #define SV_ASSERT(...)                                                                                                 \
@@ -77,10 +74,6 @@
 	                      : ::deluge::sv_detail::assert_failure(static_cast<const char*>(__FILE__), __LINE__,          \
 	                                                            "assertion failed: " #__VA_ARGS__))
 
-/// Likely/unlikely branches
-#define SV_LIKELY(boolean_expr) __builtin_expect(!!(boolean_expr), 1)
-#define SV_UNLIKELY(boolean_expr) __builtin_expect(!!(boolean_expr), 0)
-
 /// Expect asserts the condition in debug builds and assumes the condition to be
 /// true in release builds.
 #ifdef NDEBUG
@@ -88,23 +81,6 @@
 #else
 #define SV_EXPECT(EXPR) SV_ASSERT(EXPR)
 #endif
-
-#define SV_CONCEPT_PP_CAT_(X, Y) X##Y
-#define SV_CONCEPT_PP_CAT(X, Y) SV_CONCEPT_PP_CAT_(X, Y)
-
-/// Requires-clause emulation with SFINAE (for templates)
-#define SV_REQUIRES_(...)                                                                                              \
-	int SV_CONCEPT_PP_CAT(_concept_requires_, __LINE__) = 42,                                                          \
-	                                          typename ::std::enable_if                                                \
-	                                                  < (SV_CONCEPT_PP_CAT(_concept_requires_, __LINE__) == 43)        \
-	                                              || (__VA_ARGS__),                                                    \
-	                                          int > ::type = 0 /**/
-
-/// Requires-clause emulation with SFINAE (for "non-templates")
-#define SV_REQUIRES(...)                                                                                               \
-	template <int SV_CONCEPT_PP_CAT(_concept_requires_, __LINE__) = 42,                                                \
-	          typename ::std::enable_if<(SV_CONCEPT_PP_CAT(_concept_requires_, __LINE__) == 43) || (__VA_ARGS__),      \
-	                                    int>::type = 0> /**/
 
 namespace deluge {
 // Private utilites (each std lib should already have this)
@@ -118,137 +94,24 @@ template <class = void>
 	abort();
 }
 
-template <bool v>
-using bool_ = std::integral_constant<bool, v>;
-
-/// \name Concepts (poor-man emulation using type traits)
-///@{
-template <typename T, typename... Args>
-static constexpr bool Constructible = std::is_constructible_v<T, Args...>;
-
-template <typename T>
-static constexpr bool CopyConstructible = std::is_copy_constructible_v<T>;
-
-template <typename T>
-static constexpr bool MoveConstructible = std::is_move_constructible_v<T>;
-
-template <typename T, typename U>
-static constexpr bool Assignable = std::is_assignable_v<T, U>;
-
-template <typename T>
-static constexpr bool Movable =
-    std::is_object_v<T>&& Assignable<T&, T>&& MoveConstructible<T>&& std::is_swappable_v<T&>;
-
-template <typename From, typename To>
-static constexpr bool Convertible = std::is_convertible_v<From, To>;
-
-template <typename T>
-static constexpr bool Trivial = std::is_trivial_v<T>;
-
-template <typename T>
-static constexpr bool Const = std::is_const_v<T>;
-
-template <typename T>
-static constexpr bool Pointer = std::is_pointer_v<T>;
-///@}  // Concepts
-
 template <typename Rng>
 using range_iterator_t = decltype(std::begin(std::declval<Rng>()));
 
 template <typename T>
 using iterator_reference_t = typename std::iterator_traits<T>::reference;
 
-template <typename T>
-using iterator_category_t = typename std::iterator_traits<T>::iterator_category;
-
-template <typename T, typename Cat, typename = void>
-struct Iterator_ : std::false_type {};
-
-template <typename T, typename Cat>
-struct Iterator_<T, Cat, std::void_t<iterator_category_t<T>>> : bool_<Convertible<iterator_category_t<T>, Cat>> {};
-
-/// \name Concepts (poor-man emulation using type traits)
-///@{
-template <typename T>
-static constexpr bool InputIterator = Iterator_<T, std::input_iterator_tag>{};
-
-template <typename T>
-static constexpr bool ForwardIterator = Iterator_<T, std::forward_iterator_tag>{};
-
-template <typename T>
-static constexpr bool OutputIterator = Iterator_<T, std::output_iterator_tag>{} || ForwardIterator<T>;
-
-template <typename T>
-static constexpr bool BidirectionalIterator = Iterator_<T, std::bidirectional_iterator_tag>{};
-
-template <typename T>
-static constexpr bool RandomAccessIterator = Iterator_<T, std::random_access_iterator_tag>{};
-
-template <typename T>
-static constexpr bool RandomAccessRange = RandomAccessIterator<range_iterator_t<T>>;
-///@}  // Concepts
-
 // clang-format off
 
-            /// Smallest fixed-width unsigned integer type that can represent
-            /// values in the range [0, N].
-            template <size_t N>
-            using smallest_size_t
-                = std::conditional_t<(N < std::numeric_limits<uint8_t>::max()),  uint8_t,
-                  std::conditional_t<(N < std::numeric_limits<uint16_t>::max()), uint16_t,
-                  std::conditional_t<(N < std::numeric_limits<uint32_t>::max()), uint32_t,
-                  std::conditional_t<(N < std::numeric_limits<uint64_t>::max()), uint64_t,
-                                 size_t>>>>;
+/// Smallest fixed-width unsigned integer type that can represent
+/// values in the range [0, N].
+template <size_t N>
+using smallest_size_t
+	= std::conditional_t<(N < std::numeric_limits<uint8_t>::max()),  uint8_t,
+		std::conditional_t<(N < std::numeric_limits<uint16_t>::max()), uint16_t,
+		std::conditional_t<(N < std::numeric_limits<uint32_t>::max()), uint32_t,
+		std::conditional_t<(N < std::numeric_limits<uint64_t>::max()), uint64_t,
+						size_t>>>>;
 // clang-format on
-
-/// Index a range doing bound checks in debug builds
-template <typename Rng, typename Index, SV_REQUIRES_(RandomAccessRange<Rng>)>
-constexpr decltype(auto) index(Rng&& rng, Index&& i) noexcept {
-	SV_EXPECT(static_cast<ptrdiff_t>(i) < (std::end(rng) - std::begin(rng)));
-	return std::begin(std::forward<Rng>(rng))[std::forward<Index>(i)];
-}
-
-/// \name Workarounds
-///@{
-
-// WORKAROUND: std::rotate is not constexpr
-template <typename ForwardIt, SV_REQUIRES_(ForwardIterator<ForwardIt>)>
-constexpr void slow_rotate(ForwardIt first, ForwardIt n_first, ForwardIt last) {
-	ForwardIt next = n_first;
-	while (first != next) {
-		std::swap(*(first++), *(next++));
-		if (next == last) {
-			next = n_first;
-		}
-		else if (first == n_first) {
-			n_first = next;
-		}
-	}
-}
-
-// WORKAROUND: std::move is not constexpr
-template <typename InputIt, typename OutputIt, SV_REQUIRES_(InputIterator<InputIt>&& OutputIterator<OutputIt>)>
-constexpr OutputIt move(InputIt b, InputIt e, OutputIt to) {
-	for (; b != e; ++b, (void)++to) {
-		*to = ::std::move(*b);
-	}
-	return to;
-}
-
-// WORKAROUND: std::equal is not constexpr
-template <class BinaryPredicate, class InputIterator1, class InputIterator2,
-          SV_REQUIRES_(InputIterator<InputIterator1>&& InputIterator<InputIterator2>)>
-constexpr bool cmp(InputIterator1 first1, InputIterator1 last1, InputIterator2 first2, InputIterator2 last2,
-                   BinaryPredicate pred) {
-	for (; first1 != last1 && first2 != last2; ++first1, (void)++first2) {
-		if (!pred(*first1, *first2)) {
-			return false;
-		}
-	}
-	return first1 == last1 && first2 == last2;
-}
-
-///@}  // Workarounds
 
 ///@} // Utilities
 
@@ -279,7 +142,8 @@ struct zero_sized {
 	///
 	/// Increases size of the storage by one.
 	/// Always fails for empty storage.
-	template <typename... Args, SV_REQUIRES_(Constructible<T, Args...>)>
+	template <typename... Args>
+	requires std::constructible_from<T, Args...>
 	static constexpr void emplace_back(Args&&...) noexcept {
 		SV_EXPECT(false && "tried to emplace_back on empty storage");
 	}
@@ -300,7 +164,7 @@ struct zero_sized {
 	/// end) without changings its size (unsafe).
 	///
 	/// Nothing to destroy since the storage is empty.
-	template <typename InputIt, SV_REQUIRES_(InputIterator<InputIt>)>
+	template <std::input_iterator InputIt>
 	static constexpr void unsafe_destroy(InputIt /* begin */, InputIt /* end */) noexcept {}
 
 	/// Destroys all elements of the storage without changing
@@ -318,7 +182,8 @@ struct zero_sized {
 
 	/// Constructs an empty storage from an initializer list of
 	/// zero elements.
-	template <typename U, SV_REQUIRES_(Convertible<U, T>)>
+	template <typename U>
+	requires std::convertible_to<U, T>
 	constexpr zero_sized(std::initializer_list<U> il) noexcept {
 		SV_EXPECT(il.size() == 0
 		          && "tried to construct storage::empty from a "
@@ -329,7 +194,7 @@ struct zero_sized {
 /// Storage for trivial types.
 template <typename T, size_t Capacity>
 struct trivial {
-	static_assert(Trivial<T>, "storage::trivial<T, C> requires Trivial<T>");
+	static_assert(std::is_trivial_v<T>, "storage::trivial<T, C> requires std::is_trivial_v<T>");
 	static_assert(Capacity != size_t{0}, "Capacity must be greater "
 	                                     "than zero (use "
 	                                     "storage::zero_sized instead)");
@@ -343,8 +208,8 @@ struct trivial {
 private:
 	// If the value_type is const, make a const array of
 	// non-const elements:
-	using data_t =
-	    std::conditional_t<!Const<T>, std::array<T, Capacity>, const std::array<std::remove_const_t<T>, Capacity>>;
+	using data_t = std::conditional_t<!std::is_const_v<T>, std::array<T, Capacity>,
+	                                  const std::array<std::remove_const_t<T>, Capacity>>;
 	alignas(alignof(T)) data_t data_{};
 
 	/// Number of elements allocated in the storage:
@@ -383,10 +248,11 @@ public:
 	///
 	/// Complexity: O(1) in time and space.
 	/// Contract: the storage is not full.
-	template <typename... Args, SV_REQUIRES_(Constructible<T, Args...>and Assignable<value_type&, T>)>
+	template <typename... Args>
+	requires std::constructible_from<T, Args...> && std::assignable_from<value_type&, T>
 	constexpr void emplace_back(Args&&... args) noexcept {
 		SV_EXPECT(!full() && "tried to emplace_back on full storage!");
-		index(data_, size()) = T(std::forward<Args>(args)...);
+		data_[size()] = T(std::forward<Args>(args)...);
 		unsafe_set_size(size() + 1);
 	}
 
@@ -411,7 +277,7 @@ public:
 	/// (unsafe) Destroy elements in the range [begin, end).
 	///
 	/// \warning: The size of the storage is not changed.
-	template <typename InputIt, SV_REQUIRES_(InputIterator<InputIt>)>
+	template <std::input_iterator InputIt>
 	constexpr void unsafe_destroy(InputIt, InputIt) noexcept {}
 
 	/// (unsafe) Destroys all elements of the storage.
@@ -427,7 +293,7 @@ public:
 	~trivial() = default;
 
 private:
-	template <typename U, SV_REQUIRES_(Convertible<U, T>)>
+	template <std::convertible_to<T> U>
 	static constexpr std::array<std::remove_const_t<T>, Capacity>
 	unsafe_recast_init_list(std::initializer_list<U>& il) noexcept {
 		SV_EXPECT(il.size() <= capacity()
@@ -436,7 +302,7 @@ private:
 		             "whose size exceeds the storage capacity");
 		std::array<std::remove_const_t<T>, Capacity> d_{};
 		for (size_t i = 0, e = il.size(); i < e; ++i) {
-			index(d_, i) = index(il, i);
+			d_[i] = std::begin(il)[i];
 		}
 		return d_;
 	}
@@ -445,7 +311,7 @@ public:
 	/// Constructor from initializer list.
 	///
 	/// Contract: `il.size() <= capacity()`.
-	template <typename U, SV_REQUIRES_(Convertible<U, T>)>
+	template <std::convertible_to<T> U>
 	constexpr trivial(std::initializer_list<U> il) noexcept : data_(unsafe_recast_init_list(il)) {
 		unsafe_set_size(static_cast<size_type>(il.size()));
 	}
@@ -454,7 +320,7 @@ public:
 /// Storage for non-trivial elements.
 template <typename T, size_t Capacity>
 struct non_trivial {
-	static_assert(!Trivial<T>, "use storage::trivial for Trivial<T> elements");
+	static_assert(!std::is_trivial_v<T>, "use storage::trivial for std::is_trivial_v<T> elements");
 	static_assert(Capacity != size_t{0}, "Capacity must be greater than zero!");
 
 	/// Smallest size_type that can represent Capacity:
@@ -468,24 +334,27 @@ private:
 	/// Number of elements allocated in the embedded storage:
 	size_type size_ = 0;
 
-	using aligned_storage_t = std::aligned_storage_t<sizeof(std::remove_const_t<T>), alignof(std::remove_const_t<T>)>;
-	using data_t = std::conditional_t<!Const<T>, aligned_storage_t, const aligned_storage_t>;
-	alignas(alignof(T)) data_t data_[Capacity]{};
+	//using aligned_storage_t = std::aligned_storage_t<sizeof(std::remove_const_t<T>), alignof(std::remove_const_t<T>)>;
+	//using data_t = std::conditional_t<!std::is_const_v<T>, aligned_storage_t, const aligned_storage_t>;
+	//alignas(alignof(T)) data_t data_[Capacity]{};
 	// FIXME: ^ this won't work for types with "broken" alignof
 	// like SIMD types (one would also need to provide an
 	// overload of operator new to make heap allocations of this
 	// type work for these types).
 
+	// Kate's solution to deal with badly aligned members
+	std::array<T, Capacity> data_{};
+
 public:
 	/// Direct access to the underlying storage.
 	///
 	/// Complexity: O(1) in time and space.
-	const_pointer data() const noexcept { return reinterpret_cast<const_pointer>(data_); }
+	const_pointer data() const noexcept { return data_.data(); }
 
 	/// Direct access to the underlying storage.
 	///
 	/// Complexity: O(1) in time and space.
-	pointer data() noexcept { return reinterpret_cast<pointer>(data_); }
+	pointer data() noexcept { return data_.data(); }
 
 	/// Pointer to one-past-the-end.
 	const_pointer end() const noexcept { return data() + size(); }
@@ -515,8 +384,9 @@ public:
 	///
 	/// Complexity: O(1) in time and space.
 	/// Contract: the storage is not full.
-	template <typename... Args, SV_REQUIRES_(Constructible<T, Args...>)>
-	void emplace_back(Args&&... args) noexcept(noexcept(new (end()) T(std::forward<Args>(args)...))) {
+	template <typename... Args>
+	requires std::constructible_from<T, Args...>
+	void emplace_back(Args&&... args) noexcept(noexcept(new(end()) T(std::forward<Args>(args)...))) {
 		SV_EXPECT(!full() && "tried to emplace_back on full storage");
 		new (end()) T(std::forward<Args>(args)...);
 		unsafe_set_size(size() + 1);
@@ -545,7 +415,7 @@ public:
 	/// (unsafe) Destroy elements in the range [begin, end).
 	///
 	/// \warning: The size of the storage is not changed.
-	template <typename InputIt, SV_REQUIRES_(InputIterator<InputIt>)>
+	template <std::input_iterator InputIt>
 	void unsafe_destroy(InputIt first, InputIt last) noexcept(std::is_nothrow_destructible_v<T>) {
 		SV_EXPECT(first >= data() && first <= end() && "first is out-of-bounds");
 		SV_EXPECT(last >= data() && last <= end() && "last is out-of-bounds");
@@ -569,22 +439,21 @@ public:
 	/// Constructor from initializer list.
 	///
 	/// Contract: `il.size() <= capacity()`.
-	template <typename U, SV_REQUIRES_(Convertible<U, T>)>
-	constexpr non_trivial(std::initializer_list<U> il) noexcept(noexcept(emplace_back(index(il, 0)))) {
+	template <std::convertible_to<T> U>
+	constexpr non_trivial(std::initializer_list<U> il) {
 		SV_EXPECT(il.size() <= capacity()
 		          && "trying to construct storage from an "
 		             "initializer_list "
 		             "whose size exceeds the storage capacity");
-		for (size_t i = 0; i < il.size(); ++i) {
-			emplace_back(index(il, i));
-		}
+		std::copy(il.begin(), il.end(), data_.begin());
+		unsafe_set_size(il.size());
 	}
 };
 
 /// Selects the vector storage.
 template <typename T, size_t Capacity>
 using _t = std::conditional_t<Capacity == 0, zero_sized<T>,
-                              std::conditional_t<Trivial<T>, trivial<T, Capacity>, non_trivial<T, Capacity>>>;
+                              std::conditional_t<std::is_trivial_v<T>, trivial<T, Capacity>, non_trivial<T, Capacity>>>;
 
 } // namespace storage
 
@@ -664,15 +533,15 @@ private:
 
 	template <typename It>
 	constexpr void assert_iterator_in_range(It it) noexcept {
-		static_assert(sv_detail::Pointer<It>);
+		static_assert(std::is_pointer_v<It>);
 		SV_EXPECT(begin() <= it && "iterator not in range");
 		SV_EXPECT(it <= end() && "iterator not in range");
 	}
 
 	template <typename It0, typename It1>
 	constexpr void assert_valid_iterator_pair(It0 first, It1 last) noexcept {
-		static_assert(sv_detail::Pointer<It0>);
-		static_assert(sv_detail::Pointer<It1>);
+		static_assert(std::is_pointer_v<It0>);
+		static_assert(std::is_pointer_v<It1>);
 		SV_EXPECT(first <= last && "invalid iterator pair");
 	}
 
@@ -691,31 +560,31 @@ public:
 
 	/// Unchecked access to element at index \p pos (UB if index not in
 	/// range)
-	constexpr reference operator[](size_type pos) noexcept { return sv_detail::index(*this, pos); }
+	constexpr reference operator[](size_type pos) noexcept { return std::begin(*this)[pos]; }
 
 	/// Unchecked access to element at index \p pos (UB if index not in
 	/// range)
-	constexpr const_reference operator[](size_type pos) const noexcept { return sv_detail::index(*this, pos); }
+	constexpr const_reference operator[](size_type pos) const noexcept { return std::begin(*this)[pos]; }
 
 	/// Checked access to element at index \p pos (throws `out_of_range`
 	/// if index not in range)
-	constexpr reference at(size_type pos) noexcept { return sv_detail::index(*this, pos); }
+	constexpr reference at(size_type pos) noexcept { return std::begin(*this)[pos]; }
 
 	/// Checked access to element at index \p pos (throws `out_of_range`
 	/// if index not in range)
-	constexpr const_reference at(size_type pos) const noexcept { return sv_detail::index(*this, pos); }
+	constexpr const_reference at(size_type pos) const noexcept { return std::begin(*this)[pos]; }
 
 	///
-	constexpr reference front() noexcept { return sv_detail::index(*this, 0); }
-	constexpr const_reference front() const noexcept { return sv_detail::index(*this, 0); }
+	constexpr reference front() noexcept { return std::begin(*this)[0]; }
+	constexpr const_reference front() const noexcept { return std::begin(*this)[0]; }
 
 	constexpr reference back() noexcept {
 		SV_EXPECT(!empty() && "calling back on an empty vector");
-		return sv_detail::index(*this, size() - 1);
+		return std::begin(*this)[size() - 1];
 	}
 	constexpr const_reference back() const noexcept {
 		SV_EXPECT(!empty() && "calling back on an empty vector");
-		return sv_detail::index(*this, size() - 1);
+		return std::begin(*this)[size() - 1];
 	}
 
 	///@} // Element access
@@ -733,20 +602,24 @@ public:
 	}
 
 	/// Appends \p value at the end of the vector.
-	template <typename U, SV_REQUIRES_(sv_detail::Constructible<T, U>&& sv_detail::Assignable<reference, U&&>)>
+	template <typename U>
+	requires std::constructible_from<T, U> && std::assignable_from<reference, U&&>
 	constexpr void push_back(U&& value) noexcept(noexcept(emplace_back(std::forward<U>(value)))) {
 		SV_EXPECT(!full() && "vector is full!");
 		emplace_back(std::forward<U>(value));
 	}
 
 	/// Appends a default constructed `T` at the end of the vector.
-	SV_REQUIRES(sv_detail::Constructible<T, T>&& sv_detail::Assignable<reference, T&&>)
-	void push_back() noexcept(noexcept(emplace_back(T{}))) {
+
+	void push_back() noexcept(noexcept(emplace_back(T{})))
+	requires std::constructible_from<T, T> && std::assignable_from<reference, T&&>
+	{
 		SV_EXPECT(!full() && "vector is full!");
 		emplace_back(T{});
 	}
 
-	template <typename... Args, SV_REQUIRES_(sv_detail::Constructible<T, Args...>)>
+	template <typename... Args>
+	requires std::constructible_from<T, Args...>
 	constexpr iterator emplace(const_iterator position,
 	                           Args&&... args) noexcept(noexcept(move_insert(position, std::declval<value_type*>(),
 	                                                                         std::declval<value_type*>()))) {
@@ -755,24 +628,29 @@ public:
 		value_type a(std::forward<Args>(args)...);
 		return move_insert(position, &a, &a + 1);
 	}
-	SV_REQUIRES(sv_detail::CopyConstructible<T>)
+
 	constexpr iterator insert(const_iterator position,
-	                          const_reference x) noexcept(noexcept(insert(position, size_type(1), x))) {
+	                          const_reference x) noexcept(noexcept(insert(position, size_type(1), x)))
+	requires std::copy_constructible<T>
+	{
 		SV_EXPECT(!full() && "tried insert on full static_vector!");
 		assert_iterator_in_range(position);
 		return insert(position, size_type(1), x);
 	}
 
-	SV_REQUIRES(sv_detail::MoveConstructible<T>)
 	constexpr iterator insert(const_iterator position,
-	                          value_type&& x) noexcept(noexcept(move_insert(position, &x, &x + 1))) {
+	                          value_type&& x) noexcept(noexcept(move_insert(position, &x, &x + 1)))
+	requires std::move_constructible<T>
+	{
 		SV_EXPECT(!full() && "tried insert on full static_vector!");
 		assert_iterator_in_range(position);
 		return move_insert(position, &x, &x + 1);
 	}
 
-	SV_REQUIRES(sv_detail::CopyConstructible<T>)
-	constexpr iterator insert(const_iterator position, size_type n, const T& x) noexcept(noexcept(push_back(x))) {
+	constexpr iterator insert(const_iterator position, size_type n, const T& x) noexcept(noexcept(push_back(x)))
+	requires std::copy_constructible<T>
+
+	{
 		assert_iterator_in_range(position);
 		const auto new_size = size() + n;
 		SV_EXPECT(new_size <= capacity() && "trying to insert beyond capacity!");
@@ -783,17 +661,18 @@ public:
 		}
 
 		auto writable_position = begin() + (position - begin());
-		sv_detail::slow_rotate(writable_position, b, end());
+		std::rotate(writable_position, b, end());
 		return writable_position;
 	}
 
-	template <class InputIt, SV_REQUIRES_(sv_detail::InputIterator<InputIt>and sv_detail::Constructible<
-	                                      value_type, sv_detail::iterator_reference_t<InputIt>>)>
+	template <class InputIt>
+	requires std::input_iterator<InputIt>
+	         && std::constructible_from<value_type, sv_detail::iterator_reference_t<InputIt>>
 	constexpr iterator insert(const_iterator position, InputIt first,
 	                          InputIt last) noexcept(noexcept(emplace_back(*first))) {
 		assert_iterator_in_range(position);
 		assert_valid_iterator_pair(first, last);
-		if constexpr (sv_detail::RandomAccessIterator<InputIt>) {
+		if constexpr (std::random_access_iterator<InputIt>) {
 			SV_EXPECT(size() + static_cast<size_type>(last - first) <= capacity()
 			          && "trying to insert beyond capacity!");
 		}
@@ -811,16 +690,16 @@ public:
 		// }
 
 		auto writable_position = begin() + (position - begin());
-		sv_detail::slow_rotate(writable_position, b, end());
+		std::rotate(writable_position, b, end());
 		return writable_position;
 	}
 
-	template <class InputIt, SV_REQUIRES_(sv_detail::InputIterator<InputIt>)>
+	template <std::input_iterator InputIt>
 	constexpr iterator move_insert(const_iterator position, InputIt first,
-	                               InputIt last) noexcept(noexcept(emplace_back(move(*first)))) {
+	                               InputIt last) noexcept(noexcept(emplace_back(std::move(*first)))) {
 		assert_iterator_in_range(position);
 		assert_valid_iterator_pair(first, last);
-		if constexpr (sv_detail::RandomAccessIterator<InputIt>) {
+		if constexpr (std::random_access_iterator<InputIt>) {
 			SV_EXPECT(size() + static_cast<size_type>(last - first) <= capacity()
 			          && "trying to insert beyond capacity!");
 		}
@@ -828,40 +707,44 @@ public:
 
 		// we insert at the end and then just rotate:
 		for (; first != last; ++first) {
-			emplace_back(move(*first));
+			emplace_back(std::move(*first));
 		}
 		auto writable_position = begin() + (position - begin());
-		sv_detail::slow_rotate<iterator>(writable_position, b, end());
+		std::rotate<iterator>(writable_position, b, end());
 		return writable_position;
 	}
 
-	SV_REQUIRES(sv_detail::CopyConstructible<T>)
 	constexpr iterator insert(const_iterator position,
-	                          std::initializer_list<T> il) noexcept(noexcept(insert(position, il.begin(), il.end()))) {
+	                          std::initializer_list<T> il) noexcept(noexcept(insert(position, il.begin(), il.end())))
+	requires std::copy_constructible<T>
+	{
 		assert_iterator_in_range(position);
 		return insert(position, il.begin(), il.end());
 	}
 
-	SV_REQUIRES(sv_detail::Movable<value_type>)
-	constexpr iterator erase(const_iterator position) noexcept {
+	constexpr iterator erase(const_iterator position) noexcept
+	requires std::movable<value_type>
+	{
 		assert_iterator_in_range(position);
 		return erase(position, position + 1);
 	}
 
-	SV_REQUIRES(sv_detail::Movable<value_type>)
-	constexpr iterator erase(const_iterator first, const_iterator last) noexcept {
+	constexpr iterator erase(const_iterator first, const_iterator last) noexcept
+	requires std::movable<value_type>
+	{
 		assert_iterator_pair_in_range(first, last);
 		iterator p = begin() + (first - begin());
 		if (first != last) {
-			unsafe_destroy(sv_detail::move(p + (last - first), end(), p), end());
+			unsafe_destroy(std::move(p + (last - first), end(), p), end());
 			unsafe_set_size(size() - static_cast<size_type>(last - first));
 		}
 
 		return p;
 	}
 
-	SV_REQUIRES(sv_detail::Assignable<T&, T&&>)
-	constexpr void swap(static_vector& other) noexcept(std::is_nothrow_swappable_v<T>) {
+	constexpr void swap(static_vector& other) noexcept(std::is_nothrow_swappable_v<T>)
+	requires std::assignable_from<T&, T&&>
+	{
 		static_vector tmp = move(other);
 		other = move(*this);
 		(*this) = move(tmp);
@@ -870,8 +753,9 @@ public:
 	/// Resizes the container to contain \p sz elements. If elements
 	/// need to be appended, these are copy-constructed from \p value.
 	///
-	SV_REQUIRES(sv_detail::CopyConstructible<T>)
-	constexpr void resize(size_type sz, T const& value) noexcept(std::is_nothrow_copy_constructible_v<T>) {
+	constexpr void resize(size_type sz, T const& value) noexcept(std::is_nothrow_copy_constructible_v<T>)
+	requires std::copy_constructible<T>
+	{
 		if (sz == size()) {
 			return;
 		}
@@ -887,10 +771,11 @@ public:
 	}
 
 private:
-	SV_REQUIRES(sv_detail::MoveConstructible<T> or sv_detail::CopyConstructible<T>)
 	constexpr void
-	emplace_n(size_type n) noexcept((sv_detail::MoveConstructible<T> && std::is_nothrow_move_constructible_v<T>)
-	                                || (sv_detail::CopyConstructible<T> && std::is_nothrow_copy_constructible_v<T>)) {
+	emplace_n(size_type n) noexcept((std::move_constructible<T> && std::is_nothrow_move_constructible_v<T>)
+	                                || (std::copy_constructible<T> && std::is_nothrow_copy_constructible_v<T>))
+	requires std::move_constructible<T> || std::copy_constructible<T>
+	{
 		SV_EXPECT(n <= capacity()
 		          && "static_vector cannot be "
 		             "resized to a size greater than "
@@ -903,11 +788,12 @@ private:
 public:
 	/// Resizes the container to contain \p sz elements. If elements
 	/// need to be appended, these are move-constructed from `T{}` (or
-	/// copy-constructed if `T` is not `sv_detail::MoveConstructible`).
-	SV_REQUIRES(sv_detail::Movable<value_type>)
+	/// copy-constructed if `T` is not `std::move_constructible`).
 	constexpr void
-	resize(size_type sz) noexcept((sv_detail::MoveConstructible<T> && std::is_nothrow_move_constructible_v<T>)
-	                              || (sv_detail::CopyConstructible<T> && std::is_nothrow_copy_constructible_v<T>)) {
+	resize(size_type sz) noexcept((std::move_constructible<T> && std::is_nothrow_move_constructible_v<T>)
+	                              || (std::copy_constructible<T> && std::is_nothrow_copy_constructible_v<T>))
+	requires std::movable<value_type>
+	{
 		if (sz == size()) {
 			return;
 		}
@@ -929,27 +815,28 @@ public:
 	constexpr static_vector() = default;
 
 	/// Copy constructor.
-	SV_REQUIRES(sv_detail::CopyConstructible<value_type>)
-	constexpr static_vector(static_vector const& other) noexcept(noexcept(insert(begin(), other.begin(),
-	                                                                             other.end()))) {
+	constexpr static_vector(static_vector const& other) noexcept(noexcept(insert(begin(), other.begin(), other.end())))
+	requires std::copy_constructible<value_type>
+	{
 		// nothin to assert: size of other cannot exceed capacity
 		// because both vectors have the same type
 		insert(begin(), other.begin(), other.end());
 	}
 
 	/// Move constructor.
-	SV_REQUIRES(sv_detail::MoveConstructible<value_type>)
-	constexpr static_vector(static_vector&& other) noexcept(noexcept(move_insert(begin(), other.begin(),
-	                                                                             other.end()))) {
+	constexpr static_vector(static_vector&& other) noexcept(noexcept(move_insert(begin(), other.begin(), other.end())))
+	requires std::move_constructible<value_type>
+	{
 		// nothin to assert: size of other cannot exceed capacity
 		// because both vectors have the same type
 		move_insert(begin(), other.begin(), other.end());
 	}
 
 	/// Copy assignment.
-	SV_REQUIRES(sv_detail::Assignable<reference, const_reference>)
 	constexpr static_vector& operator=(static_vector const& other) noexcept(
-	    noexcept(clear()) && noexcept(insert(begin(), other.begin(), other.end()))) {
+	    noexcept(clear()) && noexcept(insert(begin(), other.begin(), other.end())))
+	requires std::assignable_from<reference, const_reference>
+	{
 		// nothin to assert: size of other cannot exceed capacity
 		// because both vectors have the same type
 		clear();
@@ -958,9 +845,10 @@ public:
 	}
 
 	/// Move assignment.
-	SV_REQUIRES(sv_detail::MoveConstructible<value_type>)
 	constexpr static_vector& operator=(static_vector&& other) noexcept(
-	    noexcept(clear()) and noexcept(move_insert(begin(), other.begin(), other.end()))) {
+	    noexcept(clear()) and noexcept(move_insert(begin(), other.begin(), other.end())))
+	requires std::move_constructible<value_type>
+	{
 		// nothin to assert: size of other cannot exceed capacity
 		// because both vectors have the same type
 		clear();
@@ -969,30 +857,32 @@ public:
 	}
 
 	/// Initializes vector with \p n default-constructed elements.
-	SV_REQUIRES(sv_detail::CopyConstructible<T> or sv_detail::MoveConstructible<T>)
-	explicit constexpr static_vector(size_type n) noexcept(noexcept(emplace_n(n))) {
+	explicit constexpr static_vector(size_type n) noexcept(noexcept(emplace_n(n)))
+	requires std::copy_constructible<T> || std::move_constructible<T>
+	{
 		SV_EXPECT(n <= capacity() && "size exceeds capacity");
 		emplace_n(n);
 	}
 
 	/// Initializes vector with \p n with \p value.
-	SV_REQUIRES(sv_detail::CopyConstructible<T>)
-	constexpr static_vector(size_type n, T const& value) noexcept(noexcept(insert(begin(), n, value))) {
+	constexpr static_vector(size_type n, T const& value) noexcept(noexcept(insert(begin(), n, value)))
+	requires std::copy_constructible<T>
+	{
 		SV_EXPECT(n <= capacity() && "size exceeds capacity");
 		insert(begin(), n, value);
 	}
 
 	/// Initialize vector from range [first, last).
-	template <class InputIt, SV_REQUIRES_(sv_detail::InputIterator<InputIt>)>
+	template <std::input_iterator InputIt>
 	constexpr static_vector(InputIt first, InputIt last) {
-		if constexpr (sv_detail::RandomAccessIterator<InputIt>) {
+		if constexpr (std::random_access_iterator<InputIt>) {
 			SV_EXPECT(last - first >= 0);
 			SV_EXPECT(static_cast<size_type>(last - first) <= capacity() && "range size exceeds capacity");
 		}
 		insert(begin(), first, last);
 	}
 
-	template <typename U, SV_REQUIRES_(sv_detail::Convertible<U, value_type>)>
+	template <std::convertible_to<value_type> U>
 	constexpr static_vector(std::initializer_list<U> il) noexcept(noexcept(base_t(std::move(il))))
 	    : base_t(std::move(il)) { // assert happens in base_t constructor
 	}
@@ -1001,10 +891,10 @@ public:
 	    : base_t(std::move(il)) { // assert happens in base_t constructor
 	}
 
-	template <class InputIt, SV_REQUIRES_(sv_detail::InputIterator<InputIt>)>
+	template <std::input_iterator InputIt>
 	constexpr void assign(InputIt first,
 	                      InputIt last) noexcept(noexcept(clear()) and noexcept(insert(begin(), first, last))) {
-		if constexpr (sv_detail::RandomAccessIterator<InputIt>) {
+		if constexpr (std::random_access_iterator<InputIt>) {
 			SV_EXPECT(last - first >= 0);
 			SV_EXPECT(static_cast<size_type>(last - first) <= capacity() && "range size exceeds capacity");
 		}
@@ -1012,20 +902,25 @@ public:
 		insert(begin(), first, last);
 	}
 
-	SV_REQUIRES(sv_detail::CopyConstructible<T>)
-	constexpr void assign(size_type n, const T& u) {
+	constexpr void assign(size_type n, const T& u)
+	requires std::copy_constructible<T>
+	{
 		SV_EXPECT(n <= capacity() && "size exceeds capacity");
 		clear();
 		insert(begin(), n, u);
 	}
-	SV_REQUIRES(sv_detail::CopyConstructible<T>)
-	constexpr void assign(std::initializer_list<T> const& il) {
+
+	constexpr void assign(std::initializer_list<T> const& il)
+	requires std::copy_constructible<T>
+	{
 		SV_EXPECT(il.size() <= capacity() && "initializer_list size exceeds capacity");
 		clear();
 		insert(this->begin(), il.begin(), il.end());
 	}
-	SV_REQUIRES(sv_detail::CopyConstructible<T>)
-	constexpr void assign(std::initializer_list<T>&& il) {
+
+	constexpr void assign(std::initializer_list<T>&& il)
+	requires std::copy_constructible<T>
+	{
 		SV_EXPECT(il.size() <= capacity() && "initializer_list size exceeds capacity");
 		clear();
 		insert(this->begin(), il.begin(), il.end());
@@ -1036,12 +931,12 @@ public:
 
 template <typename T, size_t Capacity>
 constexpr bool operator==(static_vector<T, Capacity> const& a, static_vector<T, Capacity> const& b) noexcept {
-	return a.size() == b.size() and sv_detail::cmp(a.begin(), a.end(), b.begin(), b.end(), std::equal_to<>{});
+	return a.size() == b.size() and std::equal(a.begin(), a.end(), b.begin(), b.end(), std::equal_to<>{});
 }
 
 template <typename T, size_t Capacity>
 constexpr bool operator<(static_vector<T, Capacity> const& a, static_vector<T, Capacity> const& b) noexcept {
-	return sv_detail::cmp(a.begin(), a.end(), b.begin(), b.end(), std::less<>{});
+	return std::equal(a.begin(), a.end(), b.begin(), b.end(), std::less<>{});
 }
 
 template <typename T, size_t Capacity>
@@ -1051,17 +946,17 @@ constexpr bool operator!=(static_vector<T, Capacity> const& a, static_vector<T, 
 
 template <typename T, size_t Capacity>
 constexpr bool operator<=(static_vector<T, Capacity> const& a, static_vector<T, Capacity> const& b) noexcept {
-	return sv_detail::cmp(a.begin(), a.end(), b.begin(), b.end(), std::less_equal<>{});
+	return std::equal(a.begin(), a.end(), b.begin(), b.end(), std::less_equal<>{});
 }
 
 template <typename T, size_t Capacity>
 constexpr bool operator>(static_vector<T, Capacity> const& a, static_vector<T, Capacity> const& b) noexcept {
-	return sv_detail::cmp(a.begin(), a.end(), b.begin(), b.end(), std::greater<>{});
+	return std::equal(a.begin(), a.end(), b.begin(), b.end(), std::greater<>{});
 }
 
 template <typename T, size_t Capacity>
 constexpr bool operator>=(static_vector<T, Capacity> const& a, static_vector<T, Capacity> const& b) noexcept {
-	return sv_detail::cmp(a.begin(), a.end(), b.begin(), b.end(), std::greater_equal<>{});
+	return std::equal(a.begin(), a.end(), b.begin(), b.end(), std::greater_equal<>{});
 }
 
 namespace sv_detail {
@@ -1089,15 +984,8 @@ constexpr static_vector<std::remove_cv_t<T>, N> to_static_vector(T (&&a)[N]) {
 } // namespace deluge
 
 // undefine all the internal macros
-#undef SV_UNREACHABLE
 #undef SV_ASSUME
 #undef SV_ASSERT
-#undef SV_LIKELY
-#undef SV_UNLIKELY
 #undef SV_EXPECT
-#undef SV_CONCEPT_PP_CAT_
-#undef SV_CONCEPT_PP_CAT
-#undef SV_REQUIRES_
-#undef SV_REQUIRES
 
 #endif // STD_EXPERIMENTAL_FIXED_CAPACITY_VECTOR
