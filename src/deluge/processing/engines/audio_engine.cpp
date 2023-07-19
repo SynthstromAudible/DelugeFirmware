@@ -721,10 +721,10 @@ startAgain:
 		}
 	}
 
+	mastercompressor.render(renderingBuffer, numSamples, masterVolumeAdjustmentL, masterVolumeAdjustmentR);
 	masterVolumeAdjustmentL <<= 2;
 	masterVolumeAdjustmentR <<= 2;
 
-	mastercompressor.render(renderingBuffer, numSamples);
 	metronome.render(renderingBuffer, numSamples);
 
 	// Monitoring setup

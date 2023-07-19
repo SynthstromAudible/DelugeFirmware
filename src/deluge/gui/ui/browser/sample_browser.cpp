@@ -15,7 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#define _GNU_SOURCE // Wait why?
+#define _GNU_SOURCE     // Wait why?
+#define __GNU_VISIBLE 1 // Makes strcasestr visible. Might already be the reason for the define above
 #include "gui/ui/browser/sample_browser.h"
 #include "util/functions.h"
 #include "gui/ui/sound_editor.h"
