@@ -444,9 +444,9 @@ audio_clip::Reverse audioClipReverseMenu{"REVERSE"};
 audio_clip::SampleMarkerEditor audioClipSampleMarkerEditorMenuStart{"", MARKER_START};
 audio_clip::SampleMarkerEditor audioClipSampleMarkerEditorMenuEnd{"WAVEFORM", MARKER_END};
 
-MenuItem* audioClipSampleMenuItems[] = {&fileSelectorMenu,     &audioClipReverseMenu,
+MenuItem* audioClipSampleMenuItems[] = {&fileSelectorMenu, &audioClipTimeStretchMenu, &audioClipReverseMenu,
                                         &samplePitchSpeedMenu, &audioClipSampleMarkerEditorMenuEnd,
-                                        &interpolationMenu,    NULL};
+                                        &interpolationMenu, NULL};
 Submenu audioClipSampleMenu{"SAMPLE", audioClipSampleMenuItems};
 
 // LPF Menu

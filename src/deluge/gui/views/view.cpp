@@ -324,7 +324,7 @@ doEndMidiLearnPressSession:
 		}
 
 		// legacy sync-scaling behaviour
-		if (on && currentUIMode == UI_MODE_NONE) {
+		if (on && !Buttons::isShiftButtonPressed() && currentUIMode == UI_MODE_NONE) {
 
 			if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
 cant:
