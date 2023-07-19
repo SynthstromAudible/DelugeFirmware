@@ -22,7 +22,7 @@
 
 namespace menu_item::mpe {
 
-DirectionSelector directionSelectorMenu{"MPE"};
+extern DirectionSelector directionSelectorMenu{"MPE"};
 
 void DirectionSelector::beginSession(MenuItem* navigatedBackwardFrom) {
 	if (!navigatedBackwardFrom) {

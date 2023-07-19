@@ -611,6 +611,10 @@ tempo::MagnitudeMatching tempoMagnitudeMatchingMenu{HAVE_OLED ? "Tempo magnitude
 MenuItem* midiClockMenuItems[] = {&midiClockInStatusMenu, &midiClockOutStatusMenu, &tempoMagnitudeMatchingMenu, NULL};
 Submenu midiClockMenu{"CLOCK", midiClockMenuItems};
 
+//Midi devices menu
+midi::Devices devicesMenu{"Devices"};
+mpe::DirectionSelector directionSelectorMenu{"MPE"};
+
 //MIDI menu
 MenuItem* midiMenuItems[] = {
     &midiClockMenu,     &midiThruMenu, &midiTakeoverMenu, &midiCommandsMenu, &midiInputDifferentiationMenu,
