@@ -22,7 +22,7 @@
 #include <new>
 #include "io/uart/uart.h"
 #include "util/functions.h"
-#include <string.h>
+#include <cstring>
 #include "model/action/action_logger.h"
 #include "hid/display/numeric_driver.h"
 #include "memory/stealable.h"
@@ -185,7 +185,7 @@ void GeneralMemoryAllocator::dealloc(void* address) {
 
 void GeneralMemoryAllocator::putStealableInQueue(Stealable* stealable, int q) {
 	MemoryRegion &region = regions[getRegion(stealable)];
-	region.cache_manager().enqueue(q, stealable);
+	region.cache_manager().QueueForReclamation(q, stealable);
 }
 
 void GeneralMemoryAllocator::putStealableInAppropriateQueue(Stealable* stealable) {

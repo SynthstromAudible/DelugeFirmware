@@ -328,7 +328,7 @@ justUpdateRecord:
 	// Or if no empty space big enough, try stealing some memory
 	else {
 noEmptySpace:
-		allocatedAddress = cache_manager_.freeSomeStealableMemory(*this, requiredSize, thingNotToStealFrom, &allocatedSize);
+		allocatedAddress = cache_manager_.ReclaimMemory(*this, requiredSize, thingNotToStealFrom, &allocatedSize);
 		if (!allocatedAddress) {
 			//Uart::println("nothing to steal.........................");
 			return NULL;

@@ -10,24 +10,25 @@ class MemoryRegion;
 
 class CacheManager {
 public:
-	BidirectionalLinkedList& queue(size_t idx) { return stealableClusterQueues.at(idx); }
+	CacheManager() = default;
 
-	uint32_t& longest_runs(size_t idx) { return stealableClusterQueueLongestRuns.at(idx); }
+	BidirectionalLinkedList& queue(size_t idx) { return reclamation_queue_.at(idx); }
 
-	uint32_t freeSomeStealableMemory(MemoryRegion& region, int totalSizeNeeded, void* thingNotToStealFrom,
-	                                 int* __restrict__ foundSpaceSize);
+	uint32_t& longest_runs(size_t idx) { return longest_runs_.at(idx); }
 
-
-	void enqueue(size_t q, Stealable *stealable) {
-		stealableClusterQueues[q].addToEnd(stealable);
-		stealableClusterQueueLongestRuns[q] = 0xFFFFFFFF; // TODO: actually investigate neighbouring memory "run".
+	void QueueForReclamation(size_t q, Stealable *stealable) {
+		reclamation_queue_[q].addToEnd(stealable);
+		longest_runs_[q] = 0xFFFFFFFF; // TODO: actually investigate neighbouring memory "run".
 	}
 
+	uint32_t ReclaimMemory(MemoryRegion& region, int totalSizeNeeded, void* thingNotToStealFrom,
+	                                 int* __restrict__ foundSpaceSize);
+
 private:
-	std::array<BidirectionalLinkedList, NUM_STEALABLE_QUEUES> stealableClusterQueues;
+	std::array<BidirectionalLinkedList, NUM_STEALABLE_QUEUES> reclamation_queue_;
 
 	// Keeps track, semi-accurately, of biggest runs of memory that could be stolen. In a perfect world, we'd have a second
 	// index on stealableClusterQueues[q], for run length. Although even that wouldn't automatically reflect changes to run
 	// lengths as neighbouring memory is allocated.
-	std::array<uint32_t, NUM_STEALABLE_QUEUES> stealableClusterQueueLongestRuns;
+	std::array<uint32_t, NUM_STEALABLE_QUEUES> longest_runs_;
 };

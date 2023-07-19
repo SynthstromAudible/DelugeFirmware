@@ -178,7 +178,7 @@ void SampleCache::prioritizeNotStealingCluster(int clusterIndex) {
 		Cluster* cluster = clusters[clusterIndex];
 		if (cluster->list != &cache_manager.queue(q) || !cluster->isLast()) {
 			cluster->remove(); // Remove from old list, if it was already in one (might not have been).
-			cache_manager.enqueue(q, cluster);
+			cache_manager.QueueForReclamation(q, cluster);
 		}
 	}
 
