@@ -39,7 +39,7 @@ class Selection : public Enumeration<n> {
 public:
 	using Enumeration<n>::Enumeration;
 
-	virtual static_vector<char const*, n> getOptions() = 0;
+	virtual static_vector<string, n> getOptions() = 0;
 
 	void drawValue() override;
 
@@ -60,7 +60,7 @@ void Selection<n>::drawValue() {
 	renderUIsForOled();
 #else
 	const auto options = getOptions();
-	numericDriver.setText(options[this->value_]);
+	numericDriver.setText(options[this->value_].c_str());
 #endif
 }
 

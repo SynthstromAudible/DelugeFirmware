@@ -15,14 +15,19 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "gui/menu_item/formatted_title.h"
 #include "modulation/params/param_set.h"
 #include "gui/menu_item/source/patched_param.h"
 #include "processing/sound/sound.h"
 
 namespace deluge::gui::menu_item::osc {
-class PulseWidth final : public menu_item::source::PatchedParam {
+class PulseWidth final : public menu_item::source::PatchedParam, public FormattedTitle {
 public:
 	using menu_item::source::PatchedParam::PatchedParam;
+	PulseWidth(const string& name, const string& title_format_str, int newP)
+	    : source::PatchedParam(name, newP), FormattedTitle(title_format_str) {}
+
+	[[nodiscard]] const string& getTitle() const override { return FormattedTitle::title(); }
 
 	int32_t getFinalValue() override { return (uint32_t)this->value_ * (85899345 >> 1); }
 

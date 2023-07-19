@@ -46,11 +46,11 @@ public:
 	}
 
 	deluge::string name; // As viewed in a menu list. For OLED, up to 20 chars.
-	virtual char const* getName() { return name.c_str(); }
+	[[nodiscard]] virtual const deluge::string& getName() const { return name; }
 
 	virtual void horizontalEncoderAction(int offset) {}
 	virtual void selectEncoderAction(int offset) {}
-	virtual void beginSession(MenuItem* navigatedBackwardFrom = NULL){};
+	virtual void beginSession(MenuItem* navigatedBackwardFrom = nullptr){};
 	virtual bool isRelevant(Sound* sound, int whichThing) { return true; }
 	virtual MenuItem* selectButtonPress() { return nullptr; }
 	virtual int checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange);
@@ -60,9 +60,11 @@ public:
 	virtual uint8_t getIndexOfPatchedParamToBlink() { return 255; }
 	virtual uint8_t shouldDrawDotOnName() { return 255; }
 	virtual uint8_t shouldBlinkPatchingSourceShortcut(int s, uint8_t* colour) { return 255; }
+
 	virtual MenuItem* patchingSourceShortcutPress(int s, bool previousPressStillActive = false) {
-		return NULL;
-	} // NULL means do nothing. 0xFFFFFFFF means go up a level
+		return nullptr; // nullptr means do nothing. 0xFFFFFFFF means go up a level
+	}
+
 	virtual void unlearnAction() {}
 	virtual bool allowsLearnMode() { return false; }
 	virtual void learnKnob(MIDIDevice* fromDevice, int whichKnob, int modKnobMode, int midiChannel) {}
@@ -75,40 +77,40 @@ public:
 	virtual bool usesAffectEntire() { return false; }
 
 	deluge::string title; // Can get overridden by getTitle(). Actual max num chars for OLED display is 14.
+
+	/// Get the title to be used when rendering on OLED. If not overriden, defaults to returning `title`.
+	[[nodiscard]] virtual const deluge::string &getTitle() const { return title; }
+
 #if HAVE_OLED
 	virtual void renderOLED();
 	virtual void drawPixelsForOled() {}
 
 	template <size_t n>
-	static void drawItemsForOled(deluge::static_vector<char const*, n>& options, int selectedOption, int offset = 0);
-
-	/// Get the title to be used when rendering on OLED. If not overriden, defaults to returning `title`.
-	virtual char const* getTitle();
-
+	static void drawItemsForOled(deluge::static_vector<deluge::string, n>& options, int selectedOption, int offset = 0);
 #else
+	/// Get the title to be used when rendering on OLED. If not overriden, defaults to returning `title`.
 	virtual void drawName();
-
 #endif
 };
 
 #if HAVE_OLED
-// A couple of our child classes call this - that's al
+// A couple of our child classes call this - that's all
 template <size_t n>
-void MenuItem::drawItemsForOled(deluge::static_vector<char const*, n>& options, const int selectedOption,
+void MenuItem::drawItemsForOled(deluge::static_vector<deluge::string, n>& options, const int selectedOption,
                                 const int offset) {
 	int baseY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14;
 	baseY += OLED_MAIN_TOPMOST_PIXEL;
 
-	char const** it = std::next(options.begin(), offset); // fast-forward to the first option visible
+	auto* it = std::next(options.begin(), offset); // fast-forward to the first option visible
 	for (int o = 0; o < OLED_HEIGHT_CHARS - 1 && o < options.size() - offset; o++) {
 		int yPixel = o * TEXT_SPACING_Y + baseY;
 
-		OLED::drawString(options[o + offset], TEXT_SPACING_X, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
+		OLED::drawString(options[o + offset].c_str(), TEXT_SPACING_X, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
 		                 TEXT_SPACING_X, TEXT_SPACING_Y);
 
 		if (o == selectedOption) {
 			OLED::invertArea(0, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8, &OLED::oledMainImage[0]);
-			OLED::setupSideScroller(0, options[o + offset], TEXT_SPACING_X, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8,
+			OLED::setupSideScroller(0, options[o + offset].c_str(), TEXT_SPACING_X, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8,
 			                        TEXT_SPACING_X, TEXT_SPACING_Y, true);
 		}
 	}

@@ -107,18 +107,18 @@ void Submenu<n>::drawPixelsForOled() {
 	int selectedRow = soundEditor.menuCurrentScroll;
 
 	// This finds the next relevant submenu item
-	static_vector<char const*, OLED_MENU_NUM_OPTIONS_VISIBLE> nextItemNames = {};
+	static_vector<string, OLED_MENU_NUM_OPTIONS_VISIBLE> nextItemNames = {};
 	for (auto it = current_item_, idx = selectedRow; it != this->items.end() && idx < OLED_MENU_NUM_OPTIONS_VISIBLE; it++) {
 		if ((*it)->isRelevant(soundEditor.currentSound, soundEditor.currentSourceIndex)) {
-			nextItemNames.push_back((*it)->getName());
+			nextItemNames.push_back((*it)->getName().c_str());
 			idx++;
 		}
 	}
 
-	static_vector<char const*, OLED_MENU_NUM_OPTIONS_VISIBLE> prevItemNames = {};
+	static_vector<string, OLED_MENU_NUM_OPTIONS_VISIBLE> prevItemNames = {};
 	for (auto it = current_item_ - 1, idx = selectedRow - 1; it != this->items.begin() - 1 && idx >= 0; it--) {
 		if ((*it)->isRelevant(soundEditor.currentSound, soundEditor.currentSourceIndex)) {
-			prevItemNames.push_back((*it)->getName());
+			prevItemNames.push_back((*it)->getName().c_str());
 			idx--;
 		}
 	}

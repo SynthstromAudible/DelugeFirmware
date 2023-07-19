@@ -19,16 +19,21 @@
 #include "processing/sound/sound.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/oled.h"
+#include "gui/menu_item/formatted_title.h"
 
 namespace deluge::gui::menu_item::osc {
-class RetriggerPhase final : public Decimal {
+class RetriggerPhase final : public Decimal, public FormattedTitle {
 public:
-	RetriggerPhase(char const* newName = nullptr, char const* title = nullptr, bool newForModulator = false)
-	    : Decimal(newName, title), forModulator(newForModulator) {}
+	RetriggerPhase(const deluge::string& newName, const deluge::string& title, bool newForModulator = false)
+	    : Decimal(newName), FormattedTitle(title), forModulator(newForModulator) {}
+
+	[[nodiscard]] const string& getTitle() const override { return FormattedTitle::title(); }
+
 	[[nodiscard]] int getMinValue() const override { return -soundEditor.numberEditSize; }
 	[[nodiscard]] int getMaxValue() const override { return 360; }
 	[[nodiscard]] int getNumDecimalPlaces() const override { return 0; }
 	[[nodiscard]] int getDefaultEditPos() const override { return 1; }
+
 	void readCurrentValue() override {
 		uint32_t value = *getValueAddress();
 		if (value == 0xFFFFFFFF) {
@@ -38,6 +43,7 @@ public:
 			this->value_ = value / 11930464;
 		}
 	}
+
 	void writeCurrentValue() override {
 		uint32_t value;
 		if (this->value_ < 0) {
@@ -48,6 +54,7 @@ public:
 		}
 		*getValueAddress() = value;
 	}
+
 	void drawValue() override {
 		if (this->value_ < 0) {
 			numericDriver.setText("OFF", false, 255, true);
@@ -56,6 +63,7 @@ public:
 			Decimal::drawValue();
 		}
 	}
+
 #if HAVE_OLED
 	void drawPixelsForOled() override {
 		if (this->value_ < 0) {

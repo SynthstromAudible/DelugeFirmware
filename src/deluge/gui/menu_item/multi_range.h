@@ -39,9 +39,7 @@ protected:
 	bool mayEditRangeEdge(RangeEdit whichEdge) override;
 
 #if HAVE_OLED
-	char const* getTitle() override {
-		return "Note range";
-	};
+	const string& getTitle() const override { return "Note range"; };
 	void drawPixelsForOled() override;
 #endif
 };

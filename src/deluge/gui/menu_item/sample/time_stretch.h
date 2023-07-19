@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "gui/menu_item/formatted_title.h"
 #include "model/clip/clip.h"
 #include "model/drum/drum.h"
 #include "gui/menu_item/integer.h"
@@ -24,11 +25,16 @@
 #include "model/song/song.h"
 
 namespace deluge::gui::menu_item::sample {
-class TimeStretch final : public Integer {
+class TimeStretch final : public Integer, public FormattedTitle {
 public:
-	using Integer::Integer;
+	TimeStretch(const string& name, const string& title_format_str) : Integer(name), FormattedTitle(title_format_str) {}
+
+	[[nodiscard]] const string& getTitle() const override { return FormattedTitle::title(); }
+
 	bool usesAffectEntire() override { return true; }
+
 	void readCurrentValue() override { this->value_ = soundEditor.currentSource->timeStretchAmount; }
+
 	void writeCurrentValue() override {
 
 		// If affect-entire button held, do whole kit

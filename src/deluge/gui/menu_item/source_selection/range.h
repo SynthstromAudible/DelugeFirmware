@@ -25,7 +25,7 @@ public:
 	MenuItem* selectButtonPress() override;
 	MenuItem* patchingSourceShortcutPress(int newS, bool previousPressStillActive) override;
 #if HAVE_OLED
-	char const* getTitle() override {
+	const string& getTitle() const override {
 		return "Modulate depth";
 	};
 #endif

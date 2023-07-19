@@ -1,3 +1,4 @@
+#include "gui/menu_item/envelope/segment.h"
 #include "gui/menu_item/runtime_feature/setting.h"
 #include "gui/menu_item/runtime_feature/settings.h"
 #include "gui/menu_item/arpeggiator/gate.h"
@@ -160,69 +161,6 @@
 using namespace deluge;
 using namespace deluge::gui;
 using namespace deluge::gui::menu_item;
-char oscTypeTitle[] = "OscX type";
-char oscLevelTitle[] = "OscX level";
-char waveIndexTitle[] = "OscX wave-ind.";
-char oscTransposeTitle[] = "OscX transpose";
-char pulseWidthTitle[] = "OscX p. width";
-char retriggerPhaseTitle[] = "OscX r. phase";
-
-char carrierFeedback[] = "CarrierX feed.";
-
-char sampleReverseTitle[] = "SampX reverse";
-char sampleModeTitle[] = "SampX repeat";
-char sampleSpeedTitle[] = "SampX speed";
-char sampleInterpolationTitle[] = "SampX interp.";
-
-char attackTitle[] = "EnvX attack";
-char decayTitle[] = "EnvX decay";
-char sustainTitle[] = "EnvX sustain";
-char releaseTitle[] = "EnvX release";
-
-char modulatorTransposeTitle[] = "FM ModX tran.";
-char modulatorLevelTitle[] = "FM ModX level";
-char modulatorFeedbackTitle[] = "FM ModX f.back";
-char modulatorRetriggerPhaseTitle[] = "FM ModX retrig";
-
-char cvVoltsTitle[] = "CVx V/octave";
-char cvTransposeTitle[] = "CVx transpose";
-
-#if HAVE_OLED
-void setOscillatorNumberForTitles(int s) {
-	oscTypeTitle[3] = '1' + s;
-	oscLevelTitle[3] = '1' + s;
-	waveIndexTitle[3] = '1' + s;
-	oscTransposeTitle[3] = '1' + s;
-	pulseWidthTitle[3] = '1' + s;
-	retriggerPhaseTitle[3] = '1' + s;
-
-	carrierFeedback[7] = '1' + s;
-
-	sampleReverseTitle[4] = '1' + s;
-	sampleModeTitle[4] = '1' + s;
-	sampleSpeedTitle[4] = '1' + s;
-	sampleInterpolationTitle[4] = '1' + s;
-}
-
-void setEnvelopeNumberForTitles(int e) {
-	attackTitle[3] = '1' + e;
-	decayTitle[3] = '1' + e;
-	sustainTitle[3] = '1' + e;
-	releaseTitle[3] = '1' + e;
-}
-
-void setModulatorNumberForTitles(int m) {
-	modulatorTransposeTitle[6] = '1' + m;
-	modulatorLevelTitle[6] = '1' + m;
-	modulatorFeedbackTitle[6] = '1' + m;
-	modulatorRetriggerPhaseTitle[6] = '1' + m;
-}
-
-void setCvNumberForTitle(int m) {
-	cvVoltsTitle[2] = '1' + m;
-	cvTransposeTitle[2] = '1' + m;
-}
-#endif
 
 // Dev vars
 dev_var::AMenu devVarAMenu;
@@ -263,10 +201,10 @@ submenu::Filter hpfMenu{
 
 // Envelope menu ----------------------------------------------------------------------------------------------------
 
-source::PatchedParam envAttackMenu{"ATTACK", attackTitle, PARAM_LOCAL_ENV_0_ATTACK};
-source::PatchedParam envDecayMenu{"DECAY", decayTitle, PARAM_LOCAL_ENV_0_DECAY};
-source::PatchedParam envSustainMenu{"SUSTAIN", sustainTitle, PARAM_LOCAL_ENV_0_SUSTAIN};
-source::PatchedParam envReleaseMenu{"RELEASE", releaseTitle, PARAM_LOCAL_ENV_0_RELEASE};
+envelope::Segment envAttackMenu{"ATTACK", "Env{} attack", PARAM_LOCAL_ENV_0_ATTACK};
+envelope::Segment envDecayMenu{"DECAY", "Env{} decay", PARAM_LOCAL_ENV_0_DECAY};
+envelope::Segment envSustainMenu{"SUSTAIN", "Env{} sustain", PARAM_LOCAL_ENV_0_SUSTAIN};
+envelope::Segment envReleaseMenu{"RELEASE", "Env{} release", PARAM_LOCAL_ENV_0_RELEASE};
 
 MenuItem* envMenuItems[] = {
     &envAttackMenu,
@@ -279,22 +217,22 @@ submenu::Envelope env1Menu{HAVE_OLED ? "Envelope 2" : "ENV2", envMenuItems, 1};
 
 // Osc menu -------------------------------------------------------------------------------------------------------
 
-osc::Type oscTypeMenu{"TYPE", oscTypeTitle};
-osc::source::WaveIndex sourceWaveIndexMenu{"Wave-index", waveIndexTitle, PARAM_LOCAL_OSC_A_WAVE_INDEX};
-osc::source::Volume sourceVolumeMenu{HAVE_OLED ? "Level" : "VOLUME", oscLevelTitle, PARAM_LOCAL_OSC_A_VOLUME};
-osc::source::Feedback sourceFeedbackMenu{"FEEDBACK", carrierFeedback, PARAM_LOCAL_CARRIER_0_FEEDBACK};
+osc::Type oscTypeMenu{"TYPE", "Osc{} type"};
+osc::source::WaveIndex sourceWaveIndexMenu{"Wave-index", "Osc{} wave-ind.", PARAM_LOCAL_OSC_A_WAVE_INDEX};
+osc::source::Volume sourceVolumeMenu{HAVE_OLED ? "Level" : "VOLUME", "Osc{} level", PARAM_LOCAL_OSC_A_VOLUME};
+osc::source::Feedback sourceFeedbackMenu{"FEEDBACK", "Carrier{} feed.", PARAM_LOCAL_CARRIER_0_FEEDBACK};
 osc::AudioRecorder audioRecorderMenu{"Record audio"};
-sample::Reverse sampleReverseMenu{"REVERSE", sampleReverseTitle};
-sample::Repeat sampleRepeatMenu{HAVE_OLED ? "Repeat mode" : "MODE", sampleModeTitle};
+sample::Reverse sampleReverseMenu{"REVERSE", "Samp{} reverse"};
+sample::Repeat sampleRepeatMenu{HAVE_OLED ? "Repeat mode" : "MODE", "Samp{} repeat"};
 sample::Start sampleStartMenu{"Start-point"};
 sample::End sampleEndMenu{"End-point"};
-sample::Transpose sourceTransposeMenu{"TRANSPOSE", oscTransposeTitle, PARAM_LOCAL_OSC_A_PITCH_ADJUST};
+sample::Transpose sourceTransposeMenu{"TRANSPOSE", "Osc{} transpose", PARAM_LOCAL_OSC_A_PITCH_ADJUST};
 sample::PitchSpeed samplePitchSpeedMenu{HAVE_OLED ? "Pitch/speed" : "PISP"};
-sample::TimeStretch timeStretchMenu{"SPEED", sampleSpeedTitle};
-sample::Interpolation interpolationMenu{"INTERPOLATION", sampleInterpolationTitle};
-osc::PulseWidth pulseWidthMenu{"PULSE WIDTH", pulseWidthTitle, PARAM_LOCAL_OSC_A_PHASE_WIDTH};
+sample::TimeStretch timeStretchMenu{"SPEED", "Samp{} speed"};
+sample::Interpolation interpolationMenu{"INTERPOLATION", "Samp{} interp."};
+osc::PulseWidth pulseWidthMenu{"PULSE WIDTH", "Osc{} p. width", PARAM_LOCAL_OSC_A_PHASE_WIDTH};
 osc::Sync oscSyncMenu{HAVE_OLED ? "Oscillator sync" : "SYNC"};
-osc::RetriggerPhase oscPhaseMenu{"Retrigger phase", retriggerPhaseTitle, false};
+osc::RetriggerPhase oscPhaseMenu{"Retrigger phase", "Osc{} r. phase", false};
 
 MenuItem* oscMenuItems[] = {
     &oscTypeMenu,         &sourceVolumeMenu,     &sourceWaveIndexMenu, &sourceFeedbackMenu, &fileSelectorMenu,
@@ -351,12 +289,12 @@ Submenu voiceMenu{"VOICE", {&polyphonyMenu, &unisonMenu, &portaMenu, &arpMenu, &
 
 // Modulator menu -----------------------------------------------------------------------
 
-modulator::Transpose modulatorTransposeMenu{"Transpose", modulatorTransposeTitle, PARAM_LOCAL_MODULATOR_0_PITCH_ADJUST};
-source::patched_param::FM modulatorVolume{HAVE_OLED ? "Level" : "AMOUNT", modulatorLevelTitle,
+modulator::Transpose modulatorTransposeMenu{"Transpose", "FM Mod{} tran.", PARAM_LOCAL_MODULATOR_0_PITCH_ADJUST};
+source::patched_param::FM modulatorVolume{HAVE_OLED ? "Level" : "AMOUNT", "FM Mod{} level",
                                           PARAM_LOCAL_MODULATOR_0_VOLUME};
-source::patched_param::FM modulatorFeedbackMenu{"FEEDBACK", modulatorFeedbackTitle, PARAM_LOCAL_MODULATOR_0_FEEDBACK};
+source::patched_param::FM modulatorFeedbackMenu{"FEEDBACK", "FM Mod{} f.back", PARAM_LOCAL_MODULATOR_0_FEEDBACK};
 modulator::Destination modulatorDestMenu{"Destination", "FM Mod2 dest."};
-osc::RetriggerPhase modulatorPhaseMenu{"Retrigger phase", modulatorRetriggerPhaseTitle, true};
+osc::RetriggerPhase modulatorPhaseMenu{"Retrigger phase", "FM Mod{} retrig", true};
 
 // LFO1 menu ---------------------------------------------------------------------------------
 
@@ -655,14 +593,14 @@ const MenuItem* midiOrCVParamShortcuts[8] = {
 };
 
 // Gate stuff
-gate::Mode gateModeMenu{};
+gate::Mode gateModeMenu;
 gate::OffTime gateOffTimeMenu{HAVE_OLED ? "Min. off-time" : ""};
 
 // Root menu
 
 // CV Menu
-cv::Volts cvVoltsMenu{"Volts per octave"};
-cv::Transpose cvTransposeMenu{"TRANSPOSE"};
+cv::Volts cvVoltsMenu{"Volts per octave", "CV{} V/octave"};
+cv::Transpose cvTransposeMenu{"TRANSPOSE", "CV{} transpose"};
 
 Submenu<2> cvSubmenu{"", {&cvVoltsMenu, &cvTransposeMenu}};
 
@@ -793,7 +731,7 @@ Submenu midiMenu{
     {
         &midiClockMenu,
         &midiThruMenu,
-		&midiTakeoverMenu,
+        &midiTakeoverMenu,
         &midiCommandsMenu,
         &midiInputDifferentiationMenu,
         &midi::devicesMenu,
@@ -999,3 +937,44 @@ MenuItem* paramShortcutsForAudioClips[][8] = {
     {&audioClipDelayRateMenu, &delaySyncMenu,          &delayAnalogMenu,               &audioClipDelayFeedbackMenu,    &delayPingPongMenu,   nullptr,                nullptr,                  NULL                               },
 };
 //clang-format on
+
+#if HAVE_OLED
+void setOscillatorNumberForTitles(int num) {
+	num += 1;
+	oscTypeMenu.format(num);
+	sourceVolumeMenu.format(num);
+	sourceWaveIndexMenu.format(num);
+	sourceTransposeMenu.format(num);
+	pulseWidthMenu.format(num);
+	oscPhaseMenu.format(num);
+
+	sourceFeedbackMenu.format(num);
+
+	sampleReverseMenu.format(num);
+	sampleRepeatMenu.format(num);
+	timeStretchMenu.format(num);
+	interpolationMenu.format(num);
+}
+
+void setEnvelopeNumberForTitles(int num) {
+	num += 1;
+	envAttackMenu.format(num);
+	envDecayMenu.format(num);
+	envSustainMenu.format(num);
+	envReleaseMenu.format(num);
+}
+
+void setModulatorNumberForTitles(int num) {
+	num += 1;
+	modulatorTransposeMenu.format(num);
+	modulatorVolume.format(num);
+	modulatorFeedbackMenu.format(num);
+	modulatorPhaseMenu.format(num);
+}
+
+void setCvNumberForTitle(int num) {
+	num += 1;
+	cvVoltsMenu.format(num);
+	cvTransposeMenu.format(num);
+}
+#endif

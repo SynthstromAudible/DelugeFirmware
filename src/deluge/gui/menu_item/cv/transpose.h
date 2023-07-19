@@ -15,21 +15,27 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "gui/menu_item/formatted_title.h"
 #include "processing/engines/cv_engine.h"
 #include "gui/menu_item/decimal.h"
 #include "gui/ui/sound_editor.h"
 
 namespace deluge::gui::menu_item::cv {
-class Transpose final : public Decimal {
+class Transpose final : public Decimal, public FormattedTitle {
 public:
-	using Decimal::Decimal;
+	Transpose(const string &name, const string&title_format_str) : Decimal(name), FormattedTitle(title_format_str) {}
+
+	[[nodiscard]] const string& getTitle() const override { return FormattedTitle::title(); }
+
 	[[nodiscard]] int getMinValue() const override { return -9600; }
 	[[nodiscard]] int getMaxValue() const override { return 9600; }
 	[[nodiscard]] int getNumDecimalPlaces() const override { return 2; }
+
 	void readCurrentValue() override {
 		this->value_ = (int32_t)cvEngine.cvChannels[soundEditor.currentSourceIndex].transpose * 100
 		               + cvEngine.cvChannels[soundEditor.currentSourceIndex].cents;
 	}
+
 	void writeCurrentValue() override {
 		int currentValue = this->value_ + 25600;
 

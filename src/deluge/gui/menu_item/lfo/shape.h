@@ -24,7 +24,7 @@ class Shape : public Selection<NUM_LFO_TYPES> {
 public:
 	using Selection::Selection;
 
-	static_vector<char const*, capacity()> getOptions() override {
+	static_vector<string, capacity()> getOptions() override {
 		return {"Sine", "Triangle", "Square", "Saw", "S&H", "Random Walk"};
 	}
 };

@@ -15,20 +15,16 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "model/mod_controllable/mod_controllable_audio.h"
-#include "gui/menu_item/selection.h"
-#include "processing/sound/sound.h"
+#include "gui/menu_item/formatted_title.h"
+#include "gui/menu_item/source/patched_param.h"
 #include "gui/ui/sound_editor.h"
 
-namespace deluge::gui::menu_item::filter {
-class LPFMode final : public Selection<4> {
+namespace deluge::gui::menu_item::envelope {
+class Segment : public source::PatchedParam, public FormattedTitle {
 public:
-	using Selection::Selection;
-	void readCurrentValue() override { this->value_ = soundEditor.currentModControllable->lpfMode; }
-	void writeCurrentValue() override { soundEditor.currentModControllable->lpfMode = this->value_; }
-	static_vector<string, capacity()> getOptions() override { return {"12dB", "24dB", "Drive", "SVF"}; }
-	bool isRelevant(Sound* sound, int whichThing) override {
-		return ((sound == nullptr) || sound->synthMode != SYNTH_MODE_FM);
-	}
+	Segment(const string& name, const string& title_format_str, int newP)
+	    : PatchedParam(name, newP), FormattedTitle(title_format_str) {}
+
+	[[nodiscard]] const string& getTitle() const override { return FormattedTitle::title(); }
 };
-} // namespace deluge::gui::menu_item::filter
+} // namespace deluge::gui::menu_item::envelope

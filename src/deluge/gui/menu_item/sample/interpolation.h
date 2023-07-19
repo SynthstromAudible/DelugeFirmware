@@ -15,18 +15,26 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "gui/menu_item/formatted_title.h"
 #include "model/sample/sample_controls.h"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "processing/sound/sound.h"
 
 namespace deluge::gui::menu_item::sample {
-class Interpolation final : public Selection<2> {
+class Interpolation final : public Selection<2>, public FormattedTitle {
 public:
-	using Selection::Selection;
+	Interpolation(const string& name, const string& title_format_str)
+	    : Selection(name), FormattedTitle(title_format_str) {}
+
+	[[nodiscard]] const string& getTitle() const override { return FormattedTitle::title(); }
+
 	void readCurrentValue() override { this->value_ = soundEditor.currentSampleControls->interpolationMode; }
+
 	void writeCurrentValue() override { soundEditor.currentSampleControls->interpolationMode = this->value_; }
-	static_vector<char const*, capacity()> getOptions() override { return {"Linear", "Sinc"}; }
+
+	static_vector<string, capacity()> getOptions() override { return {"Linear", "Sinc"}; }
+
 	bool isRelevant(Sound* sound, int whichThing) override {
 		if (sound == nullptr) {
 			return true;

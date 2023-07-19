@@ -31,22 +31,15 @@ void MenuItem::learnCC(MIDIDevice* fromDevice, int channel, int ccNumber, int va
 
 #if HAVE_OLED
 
-// This is virtual. Some classes with override it and generate some name on the fly.
-// Supplied buffer size must be MENU_ITEM_TITLE_BUFFER_SIZE. Actual max num chars for OLED display is 14.
-// May return pointer to that buffer, or to some other constant char string.
-char const* MenuItem::getTitle() { //char* buffer) {
-	return title.c_str();
-}
-
 void MenuItem::renderOLED() {
-	OLED::drawScreenTitle(getTitle());
+	OLED::drawScreenTitle(getTitle().c_str());
 	drawPixelsForOled();
 }
 
 #else
 
 void MenuItem::drawName() {
-	numericDriver.setText(getName(), false, shouldDrawDotOnName());
+	numericDriver.setText(getName().c_str(), false, shouldDrawDotOnName());
 }
 
 #endif

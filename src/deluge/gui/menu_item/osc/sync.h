@@ -18,6 +18,7 @@
 #include "gui/menu_item/toggle.h"
 #include "gui/ui/sound_editor.h"
 #include "processing/sound/sound.h"
+#include "gui/menu_item/formatted_title.h"
 
 namespace deluge::gui::menu_item::osc {
 class Sync final : public Toggle {

@@ -16,12 +16,13 @@
 */
 #pragma once
 #include "gui/menu_item/patched_param.h"
+#include "util/string.h"
 
 namespace deluge::gui::menu_item::patched_param {
 class Integer : public PatchedParam, public menu_item::IntegerContinuous {
 public:
-	Integer(char const* newName = nullptr, int newP = 0) : PatchedParam(newP), IntegerContinuous(newName) {}
-	Integer(char const* newName = nullptr, char const* title = nullptr, int newP = 0)
+	Integer(const deluge::string &newName, int newP = 0) : PatchedParam(newP), IntegerContinuous(newName) {}
+	Integer(const deluge::string &newName, const deluge::string &title, int newP = 0)
 	    : PatchedParam(newP), IntegerContinuous(newName, title) {}
 #if !HAVE_OLED
 	void drawValue() override {

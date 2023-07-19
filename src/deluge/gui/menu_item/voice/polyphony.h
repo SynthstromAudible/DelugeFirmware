@@ -53,8 +53,8 @@ public:
 		}
 	}
 
-	static_vector<char const*, capacity()> getOptions() override {
-		static_vector<char const*, capacity()> options = {"Auto", "Polyphonic", "Monophonic", "Legato"};
+	static_vector<string, capacity()> getOptions() override {
+		static_vector<string, capacity()> options = {"Auto", "Polyphonic", "Monophonic", "Legato"};
 
 		if (soundEditor.editingKit()) {
 			options.push_back("Choke");

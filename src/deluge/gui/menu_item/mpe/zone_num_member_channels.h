@@ -31,19 +31,19 @@ public:
 	void beginSession(MenuItem* navigatedBackwardFrom);
 #endif
 */
-	int getMaxValue() const;
-	void readCurrentValue();
-	void writeCurrentValue();
+	[[nodiscard]] int getMaxValue() const override;
+	void readCurrentValue() override;
+	void writeCurrentValue() override;
 	//char nameChars[16];
 
 #if HAVE_OLED
-	char const* getTitle() override {
+	[[nodiscard]] const string &getTitle() const override {
 		return "Num member ch.";
 	}
 #endif
 
 private:
-	MIDIPort* getPort() const;
+	[[nodiscard]] MIDIPort* getPort() const;
 };
 
 extern ZoneNumMemberChannels zoneNumMemberChannelsMenu;

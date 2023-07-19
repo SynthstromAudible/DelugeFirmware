@@ -15,14 +15,19 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "gui/menu_item/formatted_title.h"
 #include "storage/multi_range/multisample_range.h"
 #include "gui/menu_item/source/transpose.h"
 #include "processing/sound/sound.h"
 
 namespace deluge::gui::menu_item::sample {
-class Transpose final : public source::Transpose {
+class Transpose final : public source::Transpose, public FormattedTitle {
 public:
-	using source::Transpose::Transpose;
+	Transpose(const string& name, const string& title_format_str, int newP)
+	    : source::Transpose(name, newP), FormattedTitle(title_format_str) {}
+
+	[[nodiscard]] const string& getTitle() const override { return FormattedTitle::title(); }
+
 	void readCurrentValue() override {
 		int transpose = 0;
 		int cents = 0;
@@ -37,6 +42,7 @@ public:
 		}
 		this->value_ = transpose * 100 + cents;
 	}
+
 	void writeCurrentValue() override {
 		int currentValue = this->value_ + 25600;
 
@@ -59,6 +65,7 @@ public:
 
 		soundEditor.currentSound->recalculateAllVoicePhaseIncrements(modelStack);
 	}
+
 	int checkPermissionToBeginSession(Sound* sound, int whichThing, ::MultiRange** currentRange) override {
 
 		if (!isRelevant(sound, whichThing)) {
@@ -74,6 +81,7 @@ public:
 
 		return soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(sound, whichThing, true, currentRange);
 	}
+
 	bool isRangeDependent() override { return true; }
 };
 } // namespace deluge::gui::menu_item::sample

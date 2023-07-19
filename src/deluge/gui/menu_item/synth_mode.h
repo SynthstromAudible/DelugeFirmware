@@ -31,7 +31,7 @@ public:
 		view.setKnobIndicatorLevels();
 	}
 
-	static_vector<char const*, capacity()> getOptions() override { return {"Subtractive", "FM", "Ringmod"}; }
+	static_vector<string, capacity()> getOptions() override { return {"Subtractive", "FM", "Ringmod"}; }
 
 	bool isRelevant(Sound* sound, int whichThing) override {
 		return (sound->sources[0].oscType < NUM_OSC_TYPES_RINGMODDABLE

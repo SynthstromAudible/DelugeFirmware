@@ -28,10 +28,10 @@ public:
 
 	void readCurrentValue() override;
 	void writeCurrentValue() override;
-	static_vector<char const*, RUNTIME_FEATURE_SETTING_MAX_OPTIONS> getOptions() override;
+	static_vector<string, RUNTIME_FEATURE_SETTING_MAX_OPTIONS> getOptions() override;
 	[[nodiscard]] size_t getNumOptions() const;
-	char const* getName() override;
-	char const* getTitle();
+	[[nodiscard]] const string &getName() const override;
+	[[nodiscard]] const string &getTitle() const override;
 
 private:
 	friend class Settings;

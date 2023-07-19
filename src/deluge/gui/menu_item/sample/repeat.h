@@ -16,6 +16,7 @@
 */
 #pragma once
 #include "definitions.h"
+#include "gui/menu_item/formatted_title.h"
 #include "gui/menu_item/selection.h"
 #include "model/clip/clip.h"
 #include "gui/views/instrument_clip_view.h"
@@ -28,9 +29,13 @@
 
 namespace deluge::gui::menu_item::sample {
 
-class Repeat final : public Selection<NUM_REPEAT_MODES> {
+class Repeat final : public Selection<NUM_REPEAT_MODES>, public FormattedTitle {
 public:
-	using Selection::Selection;
+	Repeat(const string& name, const string& title_format_str)
+	    : Selection<capacity()>(name), FormattedTitle(title_format_str) {}
+
+	[[nodiscard]] const string& getTitle() const override { return FormattedTitle::title(); }
+
 	bool usesAffectEntire() override { return true; }
 	void readCurrentValue() override { this->value_ = soundEditor.currentSource->repeatMode; }
 	void writeCurrentValue() override {
@@ -78,7 +83,7 @@ public:
 		// We need to re-render all rows, because this will have changed whether Note tails are displayed. Probably just one row, but we don't know which
 		uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
 	}
-	static_vector<char const*, capacity()> getOptions() override { return {"CUT", "ONCE", "LOOP", "STRETCH"}; }
+	static_vector<string, capacity()> getOptions() override { return {"CUT", "ONCE", "LOOP", "STRETCH"}; }
 };
 
 } // namespace deluge::gui::menu_item::sample

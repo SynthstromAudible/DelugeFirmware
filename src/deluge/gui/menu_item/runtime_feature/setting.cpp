@@ -46,8 +46,8 @@ void Setting::writeCurrentValue() {
 	    runtimeFeatureSettings.settings[currentSettingIndex].options[this->value_].value;
 }
 
-static_vector<char const*, RUNTIME_FEATURE_SETTING_MAX_OPTIONS> Setting::getOptions() {
-	static static_vector<char const*, capacity()> options;
+static_vector<string, RUNTIME_FEATURE_SETTING_MAX_OPTIONS> Setting::getOptions() {
+	static static_vector<string, capacity()> options;
 	if (options.empty()) {
 		for (auto& option : runtimeFeatureSettings.settings[currentSettingIndex].options) {
 			options.push_back(option.displayName);
@@ -56,11 +56,11 @@ static_vector<char const*, RUNTIME_FEATURE_SETTING_MAX_OPTIONS> Setting::getOpti
 	return options;
 }
 
-char const* Setting::getName() {
+const string& Setting::getName() const {
 	return runtimeFeatureSettings.settings[currentSettingIndex].displayName;
 }
 
-char const* Setting::getTitle() {
+const string& Setting::getTitle() const {
 	return runtimeFeatureSettings.settings[currentSettingIndex].displayName;
 }
 

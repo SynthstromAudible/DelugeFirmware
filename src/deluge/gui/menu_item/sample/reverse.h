@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "gui/menu_item/formatted_title.h"
 #include "model/clip/clip.h"
 #include "model/drum/kit.h"
 #include "gui/menu_item/toggle.h"
@@ -23,11 +24,16 @@
 #include "gui/ui/sound_editor.h"
 
 namespace deluge::gui::menu_item::sample {
-class Reverse final : public Toggle {
+class Reverse final : public Toggle, public FormattedTitle {
 public:
-	using Toggle::Toggle;
+	Reverse(const string& name, const string& title_format_str) : Toggle(name), FormattedTitle(title_format_str) {}
+
+	[[nodiscard]] const string& getTitle() const override { return FormattedTitle::title(); }
+
 	bool usesAffectEntire() override { return true; }
+
 	void readCurrentValue() override { this->value_ = soundEditor.currentSource->sampleControls.reversed; }
+
 	void writeCurrentValue() override {
 
 		// If affect-entire button held, do whole kit

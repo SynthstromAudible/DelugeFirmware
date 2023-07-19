@@ -560,10 +560,10 @@ public:
 	void unsafe_destroy_all() noexcept(std::is_nothrow_destructible_v<T>) { unsafe_destroy(data(), end()); }
 
 	constexpr non_trivial() = default;
-	constexpr non_trivial(non_trivial const&) = delete;
-	constexpr non_trivial& operator=(non_trivial const&) = delete;
-	constexpr non_trivial(non_trivial&&) = delete;
-	constexpr non_trivial& operator=(non_trivial&&) = delete;
+	constexpr non_trivial(non_trivial const&) = default;
+	constexpr non_trivial& operator=(non_trivial const&) = default;
+	constexpr non_trivial(non_trivial&&) = default;
+	constexpr non_trivial& operator=(non_trivial&&) = default;
 	~non_trivial() noexcept(std::is_nothrow_destructible_v<T>) { unsafe_destroy_all(); }
 
 	/// Constructor from initializer list.

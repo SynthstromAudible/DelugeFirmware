@@ -26,7 +26,7 @@ public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->value_ = FlashStorage::keyboardLayout; }
 	void writeCurrentValue() override { FlashStorage::keyboardLayout = this->value_; }
-	static_vector<char const*, capacity()> getOptions() override {
+	static_vector<string, capacity()> getOptions() override {
 		return {"QWERTY", "AZERTY", HAVE_OLED ? "QWERTZ" : "QRTZ"};
 	}
 };

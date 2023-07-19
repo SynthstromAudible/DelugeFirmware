@@ -25,16 +25,16 @@ static deluge::string mode_title = HAVE_OLED ? "Gate outX mode" : "";
 
 class Mode final : public Selection<3> {
 #if HAVE_OLED
-	static_vector<char const*, 3> options_ = {"V-trig", "S-trig"};
+	static_vector<string, 3> options_ = {"V-trig", "S-trig"};
 #else
-	static_vector<char const*, 3> options_ = {"VTRI", "STRI"};
+	static_vector<string, 3> options_ = {"VTRI", "STRI"};
 #endif
 
 public:
 	Mode() : Selection(mode_title) {}
 	void readCurrentValue() override { this->value_ = cvEngine.gateChannels[soundEditor.currentSourceIndex].mode; }
 	void writeCurrentValue() override { cvEngine.setGateType(soundEditor.currentSourceIndex, this->value_); }
-	static_vector<char const*, capacity()> getOptions() override { return options_; }
+	static_vector<string, capacity()> getOptions() override { return options_; }
 
 	void updateOptions(int value) {
 		switch (value) {

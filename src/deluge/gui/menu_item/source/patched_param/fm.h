@@ -15,13 +15,18 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "gui/menu_item/formatted_title.h"
 #include "gui/menu_item/source/patched_param.h"
 #include "processing/sound/sound.h"
 
 namespace deluge::gui::menu_item::source::patched_param {
-class FM final : public source::PatchedParam {
+class FM final : public source::PatchedParam, public FormattedTitle {
 public:
-	using PatchedParam::PatchedParam;
+	FM(const string& name, const string& title_format_str, int newP)
+	    : source::PatchedParam(name, newP), FormattedTitle(title_format_str) {}
+
+	[[nodiscard]] const string& getTitle() const override { return FormattedTitle::title(); }
+
 	bool isRelevant(Sound* sound, int whichThing) override { return (sound->getSynthMode() == SYNTH_MODE_FM); }
 };
 } // namespace deluge::gui::menu_item::source::patched_param

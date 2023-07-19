@@ -27,7 +27,7 @@ public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->value_ = FlashStorage::defaultScale; }
 	void writeCurrentValue() override { FlashStorage::defaultScale = this->value_; }
-	static_vector<char const*, capacity()> getOptions() override {
+	static_vector<string, capacity()> getOptions() override {
 		return {presetScaleNames.begin(), presetScaleNames.begin() + capacity()};
 	}
 };

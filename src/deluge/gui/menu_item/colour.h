@@ -28,7 +28,7 @@ public:
 		value = this->value_;
 		renderingNeededRegardlessOfUI();
 	};
-	static_vector<char const*, capacity()> getOptions() override {
+	static_vector<string, capacity()> getOptions() override {
 		return {"RED", "GREEN", "BLUE", "YELLOW", "CYAN", "PURPLE", "AMBER", "WHITE", "PINK"};
 	}
 	void getRGB(uint8_t rgb[3]);

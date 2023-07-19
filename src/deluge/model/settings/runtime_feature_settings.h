@@ -18,7 +18,7 @@
 #pragma once
 
 #include <cstdint>
-#include "util/d_string.h"
+#include "util/string.h"
 #include "util/container/array/resizeable_array.h"
 #include "util/container/static_vector.hpp"
 
@@ -44,14 +44,14 @@ enum RuntimeFeatureSettingType : uint32_t {
 
 /// Definition for selectable options
 struct RuntimeFeatureSettingOption {
-	const char* displayName;
+	deluge::string displayName;
 	uint32_t value; // Value to be defined as typed Enum above
 };
 
 /// Every setting keeps its metadata and value in here
 struct RuntimeFeatureSetting {
-	const char* displayName;
-	const char* xmlName;
+	deluge::string displayName;
+	deluge::string xmlName;
 	uint32_t value;
 
 	// Limited to safe memory

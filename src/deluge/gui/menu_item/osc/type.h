@@ -17,6 +17,7 @@
 #pragma once
 #include "definitions.h"
 #include "gui/menu_item/selection.h"
+#include "gui/menu_item/formatted_title.h"
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
 #include "gui/ui/sound_editor.h"
@@ -24,14 +25,12 @@
 #include "processing/source.h"
 #include "util/comparison.h"
 
-extern char oscTypeTitle[];
 namespace deluge::gui::menu_item::osc {
-class Type final : public Selection<NUM_OSC_TYPES> {
+class Type final : public Selection<NUM_OSC_TYPES>, public FormattedTitle {
 public:
-	using Selection::Selection;
+	Type(const string &name, const string &title_format_str) : Selection(name), FormattedTitle(title_format_str) {};
 #if HAVE_OLED
-	void beginSession(MenuItem* navigatedBackwardFrom) {
-		oscTypeTitle[3] = '1' + soundEditor.currentSourceIndex;
+	void beginSession(MenuItem* navigatedBackwardFrom) override {
 		Selection::beginSession(navigatedBackwardFrom);
 	}
 #endif
@@ -58,9 +57,13 @@ public:
 		}
 	}
 
+	[[nodiscard]] const string& getTitle() const override {
+		return FormattedTitle::title();
+	}
+
 	//char const** getOptions() { static char const* options[] = {"SINE", "TRIANGLE", "SQUARE", "SAW", "MMS1", "SUB1", "SAMPLE", "INL", "INR", "INLR", "SQ50", "SQ02", "SQ01", "SUB2", "SQ20", "SA50", "S101", "S303", "MMS2", "MMS3", "TABLE"}; return options; }
-	static_vector<char const*, capacity()> getOptions() override {
-		static_vector<char const*, capacity()> options = {
+	static_vector<string, capacity()> getOptions() override {
+		static_vector<string, capacity()> options = {
 		    "SINE",
 		    "TRIANGLE",
 		    "SQUARE",
@@ -87,9 +90,6 @@ public:
 			return {options.begin(), options.begin() + NUM_OSC_TYPES};
 		}
 		return {options.begin(), options.begin() + NUM_OSC_TYPES - 2};
-	}
-
-	size_t getNumOptions() {
 	}
 
 	bool isRelevant(Sound* sound, int whichThing) override {

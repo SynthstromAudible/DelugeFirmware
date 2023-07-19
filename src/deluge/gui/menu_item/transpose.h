@@ -16,14 +16,18 @@
 */
 #pragma once
 #include "decimal.h"
-#include "patched_param.h"
+#include "gui/menu_item/patched_param.h"
 
 namespace deluge::gui::menu_item {
 
 class Transpose : public Decimal, public PatchedParam {
 public:
-	Transpose(char const* newName = nullptr, char const* title = nullptr, int newP = 0)
-	    : PatchedParam(newP), Decimal(newName, title) {}
+	Transpose(const deluge::string &newName, int newP = 0)
+	    : Decimal(newName), PatchedParam(newP) {}
+
+	Transpose(const deluge::string &newName, const deluge::string &title, int newP = 0)
+	    : Decimal(newName, title), PatchedParam(newP) {}
+
 	MenuItem* selectButtonPress() final { return PatchedParam::selectButtonPress(); }
 	[[nodiscard]] int getMinValue() const final { return -9600; }
 	[[nodiscard]] int getMaxValue() const final { return 9600; }

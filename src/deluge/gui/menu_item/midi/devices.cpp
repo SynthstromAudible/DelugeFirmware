@@ -145,7 +145,7 @@ Sized<char const**> getOptions() {
 #if HAVE_OLED
 
 void Devices::drawPixelsForOled() {
-	static_vector<char const*, OLED_MENU_NUM_OPTIONS_VISIBLE> itemNames = {};
+	static_vector<string, OLED_MENU_NUM_OPTIONS_VISIBLE> itemNames = {};
 
 	int selectedRow = -1;
 

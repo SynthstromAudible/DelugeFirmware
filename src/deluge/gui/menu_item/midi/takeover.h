@@ -25,7 +25,7 @@ public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->value_ = midiEngine.midiTakeover; }
 	void writeCurrentValue() override { midiEngine.midiTakeover = this->value_; }
-	static_vector<char const*, capacity()> getOptions() override {
+	static_vector<string, capacity()> getOptions() override {
 		return {"Jump", "Pickup", "Scale"};
 	}
 };
