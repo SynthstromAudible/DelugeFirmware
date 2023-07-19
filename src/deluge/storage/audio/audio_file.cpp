@@ -26,10 +26,6 @@
 #include "hid/display/numeric_driver.h"
 #include "memory/general_memory_allocator.h"
 
-extern "C" {
-#include "drivers/uart/uart.h"
-}
-
 AudioFile::AudioFile(int newType) : type(newType) {
 	numReasonsToBeLoaded = 0;
 }
@@ -283,8 +279,8 @@ doSetupWaveTable:
 
 					if (number >= 1) {
 						waveTableCycleSize = number;
-						//uartPrint("clm tag num samples per cycle: ");
-						//uartPrintNumber(waveTableNumSamplesPerCycle);
+						//Uart::print("clm tag num samples per cycle: ");
+						//Uart::println(waveTableNumSamplesPerCycle);
 					}
 				}
 

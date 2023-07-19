@@ -37,10 +37,6 @@
 #include "modulation/params/param_collection.h"
 #include "gui/views/view.h"
 
-extern "C" {
-#include "drivers/uart/uart.h"
-}
-
 #define SAMPLES_TO_CLEAR_AFTER_RECORD 8820          // 200ms
 #define SAMPLES_TO_IGNORE_AFTER_BEGIN_OVERRIDE 9200 // 200ms + a bit
 #define TIME_TO_INTERPOLATE_WITHIN 6615             // 150ms

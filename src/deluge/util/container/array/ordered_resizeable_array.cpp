@@ -24,10 +24,6 @@
 #include "drivers/mtu/mtu.h"
 #include "io/uart/uart.h"
 
-extern "C" {
-#include "drivers/uart/uart.h"
-}
-
 OrderedResizeableArray::OrderedResizeableArray(int newElementSize, int keyNumBits, int newKeyOffset,
                                                int newMaxNumEmptySpacesToKeep, int newNumExtraSpacesToAllocate)
     : ResizeableArray(newElementSize, newMaxNumEmptySpacesToKeep, newNumExtraSpacesToAllocate),

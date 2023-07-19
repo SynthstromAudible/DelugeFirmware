@@ -52,7 +52,6 @@
 extern "C" {
 #include "drivers/ssi/ssi.h"
 #include "RZA1/mtu/mtu.h"
-#include "drivers/uart/uart.h"
 }
 
 int32_t spareRenderingBuffer[3][SSI_TX_BUFFER_NUM_SAMPLES] __attribute__((aligned(CACHE_LINE_SIZE)));

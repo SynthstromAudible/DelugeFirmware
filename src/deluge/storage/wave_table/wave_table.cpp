@@ -30,10 +30,7 @@
 #include "RZA1/mtu/mtu.h"
 #include "processing/render_wave.h"
 #include "processing/engines/audio_engine.h"
-
-extern "C" {
-#include "drivers/uart/uart.h"
-}
+#include "io/uart/uart.h"
 
 extern int32_t oscSyncRenderingBuffer[];
 
@@ -126,8 +123,8 @@ void dft_r2c(ne10_fft_cpx_int32_t* __restrict__ out, int32_t const* __restrict__
 	/*
 	uint16_t endTime = *TCNT[TIMER_SYSTEM_SLOW];
 	uint16_t duration = endTime - startTime;
-	uartPrint("dft duration: ");
-	uartPrintNumber(duration);
+	Uart::print("dft duration: ");
+	Uart::println(duration);
 	*/
 }
 
@@ -517,8 +514,8 @@ gotError5:
 		AudioEngine::logAction("analyzing cycle");
 
 		// Ok, we've finished reading one wave cycle (which potentially spanned multiple file clusters).
-		uartPrint("\nCycle: ");
-		uartPrintNumber(cycleIndex);
+		Uart::print("\nCycle: ");
+		Uart::println(cycleIndex);
 
 		// If it wasn't a power-of-two size, we have to do a DFT even just to get the first band's useable time-domain data.
 		if (!rawFileCycleSizeIsAPowerOfTwo) {
@@ -712,8 +709,8 @@ transformBandToTimeDomain:
 	AudioEngine::routineWithClusterLoading();
 	AudioEngine::logAction("finalizing wavetable");
 
-	uartPrint("initial num bands: ");
-	uartPrintNumber(bands.getNumElements());
+	Uart::print("initial num bands: ");
+	Uart::println(bands.getNumElements());
 
 	// Ok, we've now processed all Cycles.
 
@@ -736,20 +733,20 @@ transformBandToTimeDomain:
 	generalMemoryAllocator.dealloc(frequencyDomainData);
 
 	// Printout stats
-	uartPrint("initial band size if all populated: ");
-	uartPrintNumber(numCycles * (initialBand->cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE)
-	                * 2);
-	uartPrint("initial band size after trimming: ");
-	uartPrintNumber((initialBand->toCycleNumber - initialBand->fromCycleNumber)
-	                * (initialBand->cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE) * 2);
+	Uart::print("initial band size if all populated: ");
+	Uart::println(numCycles * (initialBand->cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE)
+	              * 2);
+	Uart::print("initial band size after trimming: ");
+	Uart::println((initialBand->toCycleNumber - initialBand->fromCycleNumber)
+	              * (initialBand->cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE) * 2);
 	int total = 0;
 	for (int b = 1; b < bands.getNumElements(); b++) {
 		WaveTableBand* band = (WaveTableBand*)bands.getElementAddress(b);
 		total += (band->toCycleNumber - band->fromCycleNumber)
 		         * (band->cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE) * 2;
 	}
-	uartPrint("other bands total size after trimming: ");
-	uartPrintNumber(total);
+	Uart::print("other bands total size after trimming: ");
+	Uart::println(total);
 
 	// Dispose of bands that didn't end up getting used, or such portions of their memory.
 	for (int b = bands.getNumElements() - 1; b >= 0; b--) { // Traverse backwards because we might delete elements.
@@ -759,8 +756,8 @@ transformBandToTimeDomain:
 		if (band->fromCycleNumber >= band->toCycleNumber) {
 			band->~WaveTableBand();
 			bands.deleteAtIndex(b);
-			uartPrint("deleted whole band - ");
-			uartPrintNumber(b);
+			Uart::print("deleted whole band - ");
+			Uart::println(b);
 		}
 
 		// Otherwise, can we shorten the memory?
@@ -769,10 +766,10 @@ transformBandToTimeDomain:
 			// Right-hand side
 			if (band->toCycleNumber < numCycles) {
 				if (!b) {
-					uartPrint("(band 0) ");
+					Uart::print("(band 0) ");
 				}
-				uartPrint("deleting num cycles from right-hand side: ");
-				uartPrintNumber(numCycles - band->toCycleNumber);
+				Uart::print("deleting num cycles from right-hand side: ");
+				Uart::println(numCycles - band->toCycleNumber);
 				int newSize = band->toCycleNumber
 				                  * (band->cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE)
 				                  * sizeof(int16_t)
@@ -1013,8 +1010,8 @@ const int16_t* getKernel(int32_t phaseIncrement, int32_t bandMaxPhaseIncrement) 
 	else if (phaseIncrement >= (band->maxPhaseIncrement * 0.354))
 		whichKernel = 1;
 	if (!getRandom255()) {
-		uartPrint("kernel: ");
-		uartPrintNumber(whichKernel);
+		Uart::print("kernel: ");
+		Uart::println(whichKernel);
 	}
 #else
 	uint32_t phaseIncrementHere = phaseIncrement;

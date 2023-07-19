@@ -36,10 +36,6 @@
 #include "io/uart/uart.h"
 #include "processing/engines/audio_engine.h"
 
-extern "C" {
-#include "drivers/uart/uart.h"
-}
-
 using namespace deluge;
 
 String Browser::currentDir{};
@@ -996,7 +992,7 @@ nonNumeric:
 			scrollPosVertical = 9999;
 
 tryReadingItems:
-			uartPrintln("reloading");
+			Uart::println("reloading");
 			error = readFileItemsFromFolderAndMemory(currentSong, instrumentTypeToLoad, filePrefix, enteredText.get(),
 			                                         NULL, true, 0, CATALOG_SEARCH_BOTH);
 			if (error) {
@@ -1021,7 +1017,7 @@ gotErrorAfterAllocating:
 			if (numFileItemsDeletedAtEnd) {
 				newCatalogSearchDirection = CATALOG_SEARCH_LEFT;
 searchFromOneEnd:
-				uartPrintln("reloading and wrap");
+				Uart::println("reloading and wrap");
 				error = readFileItemsFromFolderAndMemory(currentSong, instrumentTypeToLoad, filePrefix, NULL, NULL,
 				                                         true, 0, newCatalogSearchDirection); // Load from start
 				if (error) {

@@ -192,8 +192,8 @@ void inputRoutine() {
 		batteryMV =
 		    (voltageReadingLastTime)
 		    >> 15; // We only >> by 15 so that we intentionally double the value, because the incoming voltage is halved by a resistive divider already
-		//uartPrint("batt mV: ");
-		//uartPrintNumber(batteryMV);
+		//Uart::print("batt mV: ");
+		//Uart::println(batteryMV);
 
 		// See if we've reached threshold to change verdict on battery level
 

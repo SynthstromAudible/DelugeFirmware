@@ -43,10 +43,6 @@
 #include "hid/display/oled.h"
 #include "processing/engines/audio_engine.h"
 
-extern "C" {
-#include "drivers/uart/uart.h"
-}
-
 using namespace deluge;
 
 LoadInstrumentPresetUI loadInstrumentPresetUI{};
@@ -1364,7 +1360,7 @@ moveAgain:
 			if (numFileItemsDeletedAtEnd) {
 searchFromOneEnd:
 				oldNameString.clear();
-				uartPrintln("reloading and wrap");
+				Uart::println("reloading and wrap");
 				goto readAgain;
 			}
 			else {
