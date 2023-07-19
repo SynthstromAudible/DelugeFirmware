@@ -130,6 +130,7 @@ bool KeyboardLayoutIsomorphic::handleVerticalEncoder(int offset) {
 			else {
 				newYNote = getCurrentClip()->yScrollKeyboardScreen;
 			}
+
 			if (!force && !getCurrentClip()->isScrollWithinRange(offset, newYNote + offset)) {
 				return; // Nothing is updated if we are at ehe end of the displayable range
 			}
@@ -177,8 +178,16 @@ bool KeyboardLayoutIsomorphic::handleHorizontalEncoder(int offset, bool shiftEna
 	}
 }
 
+uint8_t noteColours[displayHeight * KEYBOARD_ROW_INTERVAL_MAX + displayWidth][3];
 
 void KeyboardLayoutIsomorphic::renderPads(uint8_t image[][displayWidth + sideBarWidth][3]) { //@TODO: Refactor
+	// Calculate colors
+	InstrumentClip* clip = getCurrentClip();
+	for (int i = 0; i < displayHeight * clip->keyboardRowInterval + displayWidth; i++) { // @TODO: find out how to do without dependency
+		clip->getMainColourFromY(clip->yScrollKeyboardScreen + i, 0, noteColours[i]);
+	}
+
+
 	// First, piece together a picture of all notes-within-an-octave which are active
 	bool notesWithinOctaveActive[12];
 	memset(notesWithinOctaveActive, 0, sizeof(notesWithinOctaveActive));

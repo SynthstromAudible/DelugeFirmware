@@ -69,6 +69,17 @@ protected:
 		return currentSong->rootNote;
 	}
 
+	int getLowestClipNote() {
+		//@TODO:
+		return 0;
+	}
+
+	int getHighestClipNote() {
+		return 127;// @TODO:
+	}
+
+
+// Helpers
 	bool notesFull() {
 		return false; //@TODO: Check for max activeNotes
 	}
@@ -80,6 +91,7 @@ protected:
 	void disableNote(int note) {
 		//@TODO: Remove from activeNotes
 	}
+
 
 	// inline uint8_t[displayHeight * KEYBOARD_ROW_INTERVAL_MAX + displayWidth][3] colours() {
 	// 	return noteColours;

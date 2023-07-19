@@ -22,6 +22,7 @@
 #include "hid/button.h"
 #include "model/clip/instrument_clip_minder.h"
 #include "gui/ui/keyboard/layout.h"
+#include <limits>
 
 class ModelStack;
 
@@ -48,7 +49,6 @@ public:
 	                   uint8_t occupancyMask[][displayWidth + sideBarWidth]);
 
 	void flashDefaultRootNote();
-	void recalculateColours();
 	void openedInBackground();
 	void exitAuditionMode();
 
@@ -59,7 +59,6 @@ private:
 	void updateActiveNotes();
 
 	ClipMinder* toClipMinder() { return this; }
-	bool oneNoteAuditioning();
 	void setLedStates();
 	void graphicsRoutine();
 	bool getAffectEntire();
@@ -72,15 +71,13 @@ private:
 #endif
 
 private:
-	int getLowestAuditionedNote();
-	int getHighestAuditionedNote();
-	void enterScaleMode(int selectedRootNote = 2147483647);
+	void enterScaleMode(int selectedRootNote = std::numeric_limits<int>::max());
 	void exitScaleMode();
 	void drawNoteCode(int noteCode);
 
-public:
-	uint8_t noteColours[displayHeight * KEYBOARD_ROW_INTERVAL_MAX + displayWidth][3];
-
+	inline void requestRendering() {
+		uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
+	}
 };
 
 }; // namespace keyboard
