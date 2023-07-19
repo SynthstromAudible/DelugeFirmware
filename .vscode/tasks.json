@@ -8,7 +8,7 @@
 			"windows": {
 				"command": "./dbt.cmd",
 			},
-			"args":["dbt-build-debug-7seg"],
+			"args":["build", "dbt-build-debug-7seg"],
 			"group": { 
 				"kind": "build",
 				"isDefault": true
@@ -21,7 +21,7 @@
 			"windows": {
 				"command": "./dbt.cmd",
 			},
-			"args":["dbt-build-debug-oled"],
+			"args":["build", "dbt-build-debug-oled"],
 			"group": { 
 				"kind": "build",
 				"isDefault": false
@@ -34,7 +34,7 @@
 			"windows": {
 				"command": "./dbt.cmd",
 			},
-			"args":["dbt-build-release-7seg"],
+			"args":["build", "dbt-build-release-7seg"],
 			"group": { 
 				"kind": "build",
 				"isDefault": false
@@ -47,7 +47,7 @@
 			"windows": {
 				"command": "./dbt.cmd",
 			},
-			"args":["dbt-build-release-oled"],
+			"args":["build", "dbt-build-release-oled"],
 			"group": { 
 				"kind": "build",
 				"isDefault": false
@@ -58,9 +58,12 @@
 			"type": "process",
 			"label": "Run JLink GDB Server",
 			"problemMatcher": [],
-			"command": "python",	
+			"command": "./dbt",	
+			"windows": {
+				"command": "./dbt.cmd",
+			},
 			"args": [
-				"scripts/tasks/task-debug.py",
+				"debug",
 				"-j",
 			]
 		},
@@ -68,9 +71,12 @@
 			"type": "process",
 			"label": "Run OpenOCD GDB Server",
 			"problemMatcher": [],
-			"command": "python",
+			"command": "./dbt",
+			"windows": {
+				"command": "./dbt.cmd",
+			},
 			"args": [
-				"scripts/tasks/task-debug.py",
+				"debug",
 			]
 		}
 	]
