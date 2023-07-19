@@ -343,30 +343,25 @@ SVF_outs SVFilter::doSVF(int32_t input, FilterSetConfig* filterSetConfig) {
 	q31_t notch = 0;
 	q31_t lowi;
 	q31_t f = filterSetConfig->moveability;
+	q31_t q = filterSetConfig->processedResonance;
+	q31_t in = filterSetConfig->SVFInputScale;
 
-	// raw resonance is 0 - 536870896 (2^28ish, don't know where it comes from)
-	// Multiply by 4 to bring it to the q31 0-1 range
-	q31_t q = (ONE_Q31 - 4*(filterSetConfig->lpfRawResonance));
-
+	input = multiply_32x32_rshift32(in, input);
 
 	low = low + 2 * multiply_32x32_rshift32(band, f);
 	high = input - low;
-	high = high - multiply_32x32_rshift32(band, q);
+	high = high - 2 * multiply_32x32_rshift32(band, q);
 	band = 2 * multiply_32x32_rshift32(high, f) + band;
-	//this should be first but that causes a click on switching
-	//low = low + multiply_32x32_rshift32(f, band);
-
 	notch = high + low;
+
 	//saturate band feedback
 	band = getTanHUnknown(band, 3);
 
 	lowi = low;
 	//double sample to increase the cutoff frequency
 	low = low + 2 * multiply_32x32_rshift32(band, f);
-
 	high = input - low;
-	high = high - multiply_32x32_rshift32(band, q);
-
+	high = high - 2 * multiply_32x32_rshift32(band, q);
 	band = 2 * multiply_32x32_rshift32(high, f) + band;
 
 
@@ -374,7 +369,7 @@ SVF_outs SVFilter::doSVF(int32_t input, FilterSetConfig* filterSetConfig) {
 	band = getTanHUnknown(band, 3);
 	notch = high + low;
 
-	SVF_outs result = {(lowi>>1) + (low>>1), band, high, notch};
+	SVF_outs result = {(lowi) + (low), band, high, notch};
 
 	return result;
 }
