@@ -809,12 +809,12 @@ enum ActionResult {
 
 #define AUDIO_CLIP_DEFAULT_ATTACK_IF_PRE_MARGIN (7 * 85899345 - 2147483648)
 
-enum AudioRecordingFolder {
-	AUDIO_RECORDING_FOLDER_CLIPS,
-	AUDIO_RECORDING_FOLDER_RECORD,
-	AUDIO_RECORDING_FOLDER_RESAMPLE,
-	NUM_AUDIO_RECORDING_FOLDERS,
+enum class AudioRecordingFolder {
+	CLIPS,
+	RECORD,
+	RESAMPLE,
 };
+constexpr auto NUM_AUDIO_RECORDING_FOLDERS = util::to_underlying(AudioRecordingFolder::RESAMPLE) + 1;
 
 enum class KeyboardLayout : uint8_t {
 	QWERTY,

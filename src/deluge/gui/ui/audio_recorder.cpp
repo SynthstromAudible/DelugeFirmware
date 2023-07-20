@@ -113,7 +113,7 @@ gotError:
 	bool inStereo = (AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn);
 	int newNumChannels = inStereo ? 2 : 1;
 	bool success = setupRecordingToFile(inStereo ? AudioInputChannel::STEREO : AudioInputChannel::LEFT, newNumChannels,
-	                                    AUDIO_RECORDING_FOLDER_RECORD);
+	                                    AudioRecordingFolder::RECORD);
 	if (success) {
 		soundEditor.setupShortcutBlink(soundEditor.currentSourceIndex, 4, 0);
 		soundEditor.blinkShortcut();
@@ -144,7 +144,7 @@ void AudioRecorder::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 }
 #endif
 
-bool AudioRecorder::setupRecordingToFile(AudioInputChannel newMode, int newNumChannels, int folderID) {
+bool AudioRecorder::setupRecordingToFile(AudioInputChannel newMode, int newNumChannels, AudioRecordingFolder folderID) {
 
 	if (ALPHA_OR_BETA_VERSION && recordingSource > AudioInputChannel::NONE) {
 		numericDriver.freezeWithError("E242");
@@ -164,7 +164,7 @@ bool AudioRecorder::setupRecordingToFile(AudioInputChannel newMode, int newNumCh
 }
 
 bool AudioRecorder::beginOutputRecording() {
-	bool success = setupRecordingToFile(AudioInputChannel::OUTPUT, 2, AUDIO_RECORDING_FOLDER_RESAMPLE);
+	bool success = setupRecordingToFile(AudioInputChannel::OUTPUT, 2, AudioRecordingFolder::RESAMPLE);
 
 	if (success) {
 		indicator_leds::blinkLed(IndicatorLED::RECORD, 255, 1);

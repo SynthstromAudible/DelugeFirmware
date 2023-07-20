@@ -150,7 +150,7 @@ int getNumSamplesLeftToOutputFromPreviousRender();
 
 void registerSideChainHit(int32_t strength);
 
-SampleRecorder* getNewRecorder(int numChannels, int folderID, AudioInputChannel mode, bool keepFirstReasons = false,
+SampleRecorder* getNewRecorder(int numChannels, AudioRecordingFolder folderID, AudioInputChannel mode, bool keepFirstReasons = false,
                                bool writeLoopPoints = false, int buttonPressLatency = 0);
 void discardRecorder(SampleRecorder* recorder);
 bool isAnyInternalRecordingHappening();

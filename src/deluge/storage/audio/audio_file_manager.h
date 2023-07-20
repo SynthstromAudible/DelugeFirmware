@@ -93,7 +93,7 @@ public:
 	int setupAlternateAudioFilePath(String* newPath, int dirPathLength, String* oldPath);
 	int setupAlternateAudioFileDir(String* newPath, char const* rootDir, String* songFilenameWithoutExtension);
 	bool loadingQueueHasAnyLowestPriorityElements();
-	int getUnusedAudioRecordingFilePath(String* filePath, String* tempFilePathForRecording, int folderID,
+	int getUnusedAudioRecordingFilePath(String* filePath, String* tempFilePathForRecording, AudioRecordingFolder folderID,
 	                                    uint32_t* getNumber);
 	void deleteAnyTempRecordedSamplesFromMemory();
 	void deleteUnusedAudioFileFromMemory(AudioFile* audioFile, int i);

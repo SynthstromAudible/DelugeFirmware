@@ -31,6 +31,7 @@
 #include "hid/display/numeric_driver.h"
 #include "io/uart/uart.h"
 #include "gui/ui_timer_manager.h"
+#include "util/misc.h"
 
 extern "C" {
 #include "fatfs/diskio.h"
@@ -118,7 +119,7 @@ void SampleRecorder::detachSample() {
 }
 
 int SampleRecorder::setup(int newNumChannels, AudioInputChannel newMode, bool newKeepingReasons, bool shouldRecordExtraMargins,
-                          int newFolderID, int buttonPressLatency) {
+                          AudioRecordingFolder newFolderID, int buttonPressLatency) {
 
 	if (!audioFileManager.ensureEnoughMemoryForOneMoreAudioFile()) {
 		return ERROR_INSUFFICIENT_RAM;
@@ -345,9 +346,9 @@ aborted:
 
 			// If this was the most recent recording in this category, tick the counter backwards - so long as
 			// either the delete was successful or it was for an AudioClip, which means the file is in the TEMP folder and can be overwritten anyway
-			if (result == FR_OK || folderID == AUDIO_RECORDING_FOLDER_CLIPS) {
-				if (audioFileManager.highestUsedAudioRecordingNumber[folderID] == audioFileNumber) {
-					audioFileManager.highestUsedAudioRecordingNumber[folderID]--;
+			if (result == FR_OK || folderID == AudioRecordingFolder::CLIPS) {
+				if (audioFileManager.highestUsedAudioRecordingNumber[util::to_underlying(folderID)] == audioFileNumber) {
+					audioFileManager.highestUsedAudioRecordingNumber[util::to_underlying(folderID)]--;
 					Uart::println("ticked file counter backwards");
 				}
 			}

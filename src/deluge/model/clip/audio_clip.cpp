@@ -158,7 +158,7 @@ int AudioClip::beginLinearRecording(ModelStackWithTimelineCounter* modelStack, i
 	bool shouldRecordMarginsNow =
 	    FlashStorage::audioClipRecordMargins && inputChannel < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION;
 
-	recorder = AudioEngine::getNewRecorder(numChannels, AUDIO_RECORDING_FOLDER_CLIPS, inputChannel, true,
+	recorder = AudioEngine::getNewRecorder(numChannels, AudioRecordingFolder::CLIPS, inputChannel, true,
 	                                       shouldRecordMarginsNow, buttonPressLatency);
 	if (!recorder) {
 		return ERROR_INSUFFICIENT_RAM;

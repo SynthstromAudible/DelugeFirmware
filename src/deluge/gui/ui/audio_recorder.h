@@ -58,7 +58,7 @@ public:
 
 private:
 	void finishRecording();
-	bool setupRecordingToFile(AudioInputChannel newMode, int newNumChannels, int folderID);
+	bool setupRecordingToFile(AudioInputChannel newMode, int newNumChannels, AudioRecordingFolder folderID);
 };
 
 extern AudioRecorder audioRecorder;

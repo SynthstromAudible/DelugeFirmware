@@ -45,7 +45,7 @@ class SampleRecorder {
 public:
 	SampleRecorder();
 	~SampleRecorder();
-	int setup(int newNumChannels, AudioInputChannel newMode, bool newKeepingReasons, bool shouldRecordExtraMargins, int newFolderID,
+	int setup(int newNumChannels, AudioInputChannel newMode, bool newKeepingReasons, bool shouldRecordExtraMargins, AudioRecordingFolder newFolderID,
 	          int buttonPressLatency);
 	void feedAudio(int32_t* inputAddress, int numSamples, bool applyGain = false);
 	int cardRoutine();
@@ -71,7 +71,7 @@ public:
 	Cluster* currentRecordCluster;
 
 	uint32_t audioFileNumber;
-	uint8_t folderID;
+	AudioRecordingFolder folderID;
 
 	char* writePos;
 	char* clusterEndPos;

@@ -36,6 +36,7 @@
 #include "storage/wave_table/wave_table_reader.h"
 #include "io/midi/midi_device_manager.h"
 #include "extern.h"
+#include "util/misc.h"
 
 extern "C" {
 #include "ff.h"
@@ -233,10 +234,11 @@ void AudioFileManager::deleteAnyTempRecordedSamplesFromMemory() {
 				// and it's still not quite yet finalized the file, so still holds the "reason" to the Sample.
 				// TODO: although the Sample doesn't store a pointer to the SampleRecorder, we could easily search for it - and delete it and its "reason"?
 
-				highestUsedAudioRecordingNumberNeedsReChecking[AUDIO_RECORDING_FOLDER_CLIPS] =
-				    true; // We know Sample belonged to an AudioClip originally because only those ones can be TEMP
-				highestUsedAudioRecordingNumber[AUDIO_RECORDING_FOLDER_CLIPS] =
-				    -1; // We may have deleted several, so do make sure we go and re-check from 0
+				// We know Sample belonged to an AudioClip originally because only those ones can be TEMP
+				highestUsedAudioRecordingNumberNeedsReChecking[util::to_underlying(AudioRecordingFolder::CLIPS)] = true;
+
+				// We may have deleted several, so do make sure we go and re-check from 0
+				highestUsedAudioRecordingNumber[util::to_underlying(AudioRecordingFolder::CLIPS)] = -1;
 
 				deleteUnusedAudioFileFromMemory(audioFile, e);
 				e--;
@@ -246,8 +248,9 @@ void AudioFileManager::deleteAnyTempRecordedSamplesFromMemory() {
 }
 
 // Oi, don't even think about modifying this to take a Sample* pointer - cos the whole Sample could get deleted during the card access.
-int AudioFileManager::getUnusedAudioRecordingFilePath(String* filePath, String* tempFilePathForRecording, int folderID,
-                                                      uint32_t* getNumber) {
+int AudioFileManager::getUnusedAudioRecordingFilePath(String* filePath, String* tempFilePathForRecording,
+                                                      AudioRecordingFolder folder, uint32_t* getNumber) {
+	const auto folderID = util::to_underlying(folder);
 
 	int error = storageManager.initSD();
 	if (error) {
@@ -299,7 +302,7 @@ int AudioFileManager::getUnusedAudioRecordingFilePath(String* filePath, String* 
 		return error;
 	}
 
-	bool doingTempFolder = (folderID == AUDIO_RECORDING_FOLDER_CLIPS);
+	bool doingTempFolder = (folder == AudioRecordingFolder::CLIPS);
 	if (doingTempFolder) {
 		error = tempFilePathForRecording->set(audioRecordingFolderNames[folderID]);
 		if (error) {

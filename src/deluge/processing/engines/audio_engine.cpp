@@ -1392,7 +1392,7 @@ void slowRoutine() {
 	doRecorderCardRoutines();
 }
 
-SampleRecorder* getNewRecorder(int numChannels, int folderID, AudioInputChannel mode, bool keepFirstReasons, bool writeLoopPoints,
+SampleRecorder* getNewRecorder(int numChannels, AudioRecordingFolder folderID, AudioInputChannel mode, bool keepFirstReasons, bool writeLoopPoints,
                                int buttonPressLatency) {
 	int error;
 
