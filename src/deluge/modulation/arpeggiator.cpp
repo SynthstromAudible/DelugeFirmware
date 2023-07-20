@@ -67,8 +67,8 @@ void ArpeggiatorForDrum::noteOn(ArpeggiatorSettings* settings, int noteCode, int
 
 	bool wasActiveBefore = arpNote.velocity;
 
-	arpNote.inputCharacteristics[MIDI_CHARACTERISTIC_NOTE] = noteCode;
-	arpNote.inputCharacteristics[MIDI_CHARACTERISTIC_CHANNEL] = fromMIDIChannel;
+	arpNote.inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] = noteCode;
+	arpNote.inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)] = fromMIDIChannel;
 	arpNote.velocity = velocity; // Means note is on.
 	// MIDIInstrument might set this later, but it needs to be MIDI_CHANNEL_NONE until then so it doesn't get included
 	// in the survey that will happen of existing output member channels.
@@ -134,7 +134,7 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int noteCode, int veloci
 	// If it already exists...
 	if (n < notes.getNumElements()) {
 		arpNote = (ArpNote*)notes.getElementAddress(n);
-		if (arpNote->inputCharacteristics[MIDI_CHARACTERISTIC_NOTE] == noteCode) {
+		if (arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] == noteCode) {
 			if ((settings != nullptr) && settings->mode != ArpMode::OFF) {
 				return; // If we're an arpeggiator, return
 			}
@@ -154,7 +154,7 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int noteCode, int veloci
 
 	arpNote = (ArpNote*)notes.getElementAddress(n);
 
-	arpNote->inputCharacteristics[MIDI_CHARACTERISTIC_NOTE] = noteCode;
+	arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] = noteCode;
 	arpNote->velocity = velocity;
 	arpNote->outputMemberChannel =
 	    MIDI_CHANNEL_NONE; // MIDIInstrument might set this, but it needs to be MIDI_CHANNEL_NONE until then so it doesn't get included in the survey that will happen of existing output member channels.
@@ -164,7 +164,7 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int noteCode, int veloci
 	}
 
 noteInserted:
-	arpNote->inputCharacteristics[MIDI_CHARACTERISTIC_CHANNEL] =
+	arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)] =
 	    fromMIDIChannel; // This is here so that "stealing" a note being edited can then replace its MPE data during editing. Kind of a hacky solution, but it works for now.
 
 	// If we're an arpeggiator...
@@ -201,7 +201,7 @@ void Arpeggiator::noteOff(ArpeggiatorSettings* settings, int noteCodePreArp, Arp
 	if (n < notes.getNumElements()) {
 
 		ArpNote* arpNote = (ArpNote*)notes.getElementAddress(n);
-		if (arpNote->inputCharacteristics[MIDI_CHARACTERISTIC_NOTE] == noteCodePreArp) {
+		if (arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] == noteCodePreArp) {
 
 			// If no arpeggiation...
 			if ((settings == nullptr) || settings->mode == ArpMode::OFF) {
@@ -415,7 +415,7 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 
 	ArpNote* arpNote = (ArpNote*)notes.getElementAddress(whichNoteCurrentlyOnPostArp);
 
-	noteCodeCurrentlyOnPostArp = arpNote->inputCharacteristics[MIDI_CHARACTERISTIC_NOTE] + (int)currentOctave * 12;
+	noteCodeCurrentlyOnPostArp = arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] + (int)currentOctave * 12;
 
 	instruction->noteCodeOnPostArp = noteCodeCurrentlyOnPostArp;
 	instruction->arpNoteOn = arpNote;

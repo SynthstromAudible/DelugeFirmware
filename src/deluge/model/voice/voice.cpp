@@ -111,8 +111,8 @@ bool Voice::noteOn(ModelStackWithVoice* modelStack, int newNoteCodeBeforeArpeggi
 
 	generalMemoryAllocator.checkStack("Voice::noteOn");
 
-	inputCharacteristics[MIDI_CHARACTERISTIC_NOTE] = newNoteCodeBeforeArpeggiation;
-	inputCharacteristics[MIDI_CHARACTERISTIC_CHANNEL] = newFromMIDIChannel;
+	inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] = newNoteCodeBeforeArpeggiation;
+	inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)] = newFromMIDIChannel;
 	noteCodeAfterArpeggiation = newNoteCodeAfterArpeggiation;
 	orderSounded = lastSoundOrder++;
 	overrideAmplitudeEnvelopeReleaseRate = 0;
@@ -340,8 +340,8 @@ void Voice::expressionEventSmooth(int32_t newValue, int s) {
 
 void Voice::changeNoteCode(ModelStackWithVoice* modelStack, int newNoteCodeBeforeArpeggiation,
                            int newNoteCodeAfterArpeggiation, int newInputMIDIChannel, const int16_t* newMPEValues) {
-	inputCharacteristics[MIDI_CHARACTERISTIC_NOTE] = newNoteCodeBeforeArpeggiation;
-	inputCharacteristics[MIDI_CHARACTERISTIC_CHANNEL] = newInputMIDIChannel;
+	inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] = newNoteCodeBeforeArpeggiation;
+	inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)] = newInputMIDIChannel;
 	noteCodeAfterArpeggiation = newNoteCodeAfterArpeggiation;
 
 	// We definitely want to go to these values smoothly. Probably wish it was even smoother... Actually nah this sounds / feels great!

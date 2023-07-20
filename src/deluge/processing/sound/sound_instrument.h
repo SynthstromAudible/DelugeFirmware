@@ -57,7 +57,7 @@ public:
 
 	void deleteBackedUpParamManagers(Song* song);
 	void polyphonicExpressionEventOnChannelOrNote(int newValue, int whichExpressionDimension, int channelOrNoteNumber,
-	                                              int whichCharacteristic);
+	                                              MIDICharacteristic whichCharacteristic);
 	void monophonicExpressionEvent(int newValue, int whichExpressionDimension);
 
 	void sendNote(ModelStackWithThreeMainThings* modelStack, bool isOn, int noteCode, int16_t const* mpeValues,

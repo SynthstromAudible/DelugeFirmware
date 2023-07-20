@@ -937,7 +937,7 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 
 			if (instruction.noteCodeOnPostArp != ARP_NOTE_NONE) {
 				soundDrum->noteOnPostArpeggiator(
-				    modelStackWithSoundFlags, instruction.arpNoteOn->inputCharacteristics[MIDI_CHARACTERISTIC_NOTE],
+				    modelStackWithSoundFlags, instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
 				    instruction.noteCodeOnPostArp, instruction.arpNoteOn->velocity, instruction.arpNoteOn->mpeValues,
 				    instruction.sampleSyncLengthOn, 0, 0);
 			}

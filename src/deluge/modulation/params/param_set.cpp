@@ -501,7 +501,7 @@ void ExpressionParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam co
 
 			if (noteRow) {
 				modelStack->modControllable->polyphonicExpressionEventOnChannelOrNote(
-				    currentValue, modelStack->paramId, modelStack->getNoteRow()->y, MIDI_CHARACTERISTIC_NOTE);
+				    currentValue, modelStack->paramId, modelStack->getNoteRow()->y, MIDICharacteristic::NOTE);
 			}
 			else {
 				modelStack->modControllable->monophonicExpressionEvent(currentValue, modelStack->paramId);

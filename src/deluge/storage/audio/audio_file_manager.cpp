@@ -880,7 +880,7 @@ void AudioFileManager::testQueue() {
 }
 
 // Caller must initialize() the Cluster after getting it from this function
-Cluster* AudioFileManager::allocateCluster(int type, bool shouldAddReasons, void* dontStealFromThing) {
+Cluster* AudioFileManager::allocateCluster(ClusterType type, bool shouldAddReasons, void* dontStealFromThing) {
 
 	void* clusterMemory = generalMemoryAllocator.alloc(clusterObjectSize, NULL, false, false, true, dontStealFromThing);
 	if (!clusterMemory) {
@@ -924,7 +924,7 @@ bool AudioFileManager::loadCluster(Cluster* cluster, int minNumReasonsAfter) {
 
 	Sample* sample = cluster->sample;
 
-	if (cluster->type != CLUSTER_SAMPLE) {
+	if (cluster->type != ClusterType::Sample) {
 		numericDriver.freezeWithError("E205"); // Chris F got this, so gonna leave checking in release build
 	}
 
@@ -982,7 +982,7 @@ getOutEarly:
 #endif
 
 #if ALPHA_OR_BETA_VERSION
-	if (cluster->type != CLUSTER_SAMPLE) {
+	if (cluster->type != ClusterType::Sample) {
 		numericDriver.freezeWithError("i023"); // Happened to me while thrash testing with reduced RAM
 	}
 
@@ -1004,7 +1004,7 @@ getOutEarly:
 #endif
 
 #if ALPHA_OR_BETA_VERSION
-	if (cluster->type != CLUSTER_SAMPLE) {
+	if (cluster->type != ClusterType::Sample) {
 		numericDriver.freezeWithError("E207");
 	}
 	if (!cluster->sample) {
@@ -1305,7 +1305,7 @@ performActionsAndGetOut:
 		// cluster has at least 1 "reason". If it didn't, it would have been removed from the load-queue
 
 		// Do the actual loading
-		if (cluster->type != CLUSTER_SAMPLE) {
+		if (cluster->type != ClusterType::Sample) {
 			numericDriver.freezeWithError("E235"); // Cos Chris F got an E205
 		}
 
@@ -1324,7 +1324,7 @@ performActionsAndGetOut:
 			// Presumably it won't actually get loaded for a while - only when the user re-inserts the card
 			else {
 
-				if (cluster->type != CLUSTER_SAMPLE) {
+				if (cluster->type != ClusterType::Sample) {
 					numericDriver.freezeWithError("E237"); // Cos Chris F got an E205
 				}
 

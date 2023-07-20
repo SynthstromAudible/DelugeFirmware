@@ -730,39 +730,41 @@ enum Marker {
 	NUM_MARKER_TYPES,
 };
 
-enum InterpolationMode {
-	INTERPOLATION_MODE_LINEAR,
-	INTERPOLATION_MODE_SMOOTH,
-	NUM_INTERPOLATION_MODES,
+enum class InterpolationMode {
+	LINEAR,
+	SMOOTH,
 };
+constexpr int NUM_INTERPOLATION_MODES = 2;
 
-#define CACHE_BYTE_DEPTH 3
+
+constexpr int CACHE_BYTE_DEPTH = 3;
 constexpr int CACHE_BYTE_DEPTH_MAGNITUDE = 2; // Invalid / unused for odd numbers of bytes like 3
 
 constexpr int MAX_UNISON_DETUNE = 50;
 
 constexpr int PARAM_STATIC_COMPRESSOR_ATTACK = 162;
 constexpr int PARAM_STATIC_COMPRESSOR_RELEASE = 163;
-constexpr int PARAM_STATIC_COMPRESSOR_VOLUME =
-    164; // Only used for the reverb compressor. Normally this is done with patching
+
+// Only used for the reverb compressor. Normally this is done with patching
+constexpr int PARAM_STATIC_COMPRESSOR_VOLUME = 164;
 constexpr int PARAM_STATIC_PATCH_CABLE = 190; // Special case
 
-constexpr int PERC_BUFFER_REDUCTION_MAGNITUDE =
-    7; // This is about right. Making it smaller didn't help. Tried it as 9, and I'm pretty sure some fast percussive details were lost in the output
+// This is about right. Making it smaller didn't help. Tried it as 9, and I'm pretty sure some fast percussive details were lost in the output
+constexpr int PERC_BUFFER_REDUCTION_MAGNITUDE = 7;
 constexpr int PERC_BUFFER_REDUCTION_SIZE = (1 << PERC_BUFFER_REDUCTION_MAGNITUDE);
 constexpr int DIFFERENCE_LPF_POLES = 2;
 
 constexpr int INTERPOLATION_MAX_NUM_SAMPLES = 16;
 constexpr int INTERPOLATION_MAX_NUM_SAMPLES_MAGNITUDE = 4;
 
-enum ClusterType {
-	CLUSTER_EMPTY,
-	CLUSTER_SAMPLE,
-	CLUSTER_GENERAL_MEMORY,
-	CLUSTER_SAMPLE_CACHE,
-	CLUSTER_PERC_CACHE_FORWARDS,
-	CLUSTER_PERC_CACHE_REVERSED,
-	CLUSTER_OTHER,
+enum class ClusterType {
+	EMPTY,
+	Sample,
+	GENERAL_MEMORY,
+	SAMPLE_CACHE,
+	PERC_CACHE_FORWARDS,
+	PERC_CACHE_REVERSED,
+	OTHER,
 };
 
 enum PlayHead {
@@ -935,11 +937,15 @@ constexpr int OLED_ALLOW_LOWER_CASE = 0;
 
 constexpr int NOTE_FOR_DRUM = 60;
 
-constexpr int BEND_RANGE_MAIN = 0;
-constexpr int BEND_RANGE_FINGER_LEVEL = 1;
+enum BendRange {
+	BEND_RANGE_MAIN,
+	BEND_RANGE_FINGER_LEVEL,
+};
 
-constexpr int MIDI_CHARACTERISTIC_NOTE = 0;
-constexpr int MIDI_CHARACTERISTIC_CHANNEL = 1;
+enum class MIDICharacteristic {
+	NOTE,
+	CHANNEL,
+};
 
 constexpr int PLAYBACK_STOP_SHOULD_CLEAR_MONO_EXPRESSION = 1;
 

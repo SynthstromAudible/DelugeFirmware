@@ -56,6 +56,6 @@ public:
 	}
 	virtual bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false) { return true; }
 	virtual void polyphonicExpressionEventOnChannelOrNote(int newValue, int whichExpressionDimension,
-	                                                      int channelOrNoteNumber, int whichCharacteristic) {}
+	                                                      int channelOrNoteNumber, MIDICharacteristic whichCharacteristic) {}
 	virtual void monophonicExpressionEvent(int newValue, int whichExpressionDimension) {}
 };

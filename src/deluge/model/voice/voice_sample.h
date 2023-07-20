@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "model/sample/sample_low_level_reader.h"
 
 #define LATE_START_ATTEMPT_SUCCESS 0
@@ -44,7 +45,7 @@ public:
 	void endTimeStretching();
 	bool render(SamplePlaybackGuide* guide, int32_t* oscBuffer, int numSamples, Sample* sample, int numChannels,
 	            int loopingType, int32_t phaseIncrement, int32_t timeStretchRatio, int32_t amplitude,
-	            int32_t amplitudeIncrement, int bufferSize, int desiredInterpolationMode, int priorityRating);
+	            int32_t amplitudeIncrement, int bufferSize, InterpolationMode desiredInterpolationMode, int priorityRating);
 	void beenUnassigned();
 	bool shouldObeyMarkers() {
 		return (!cache && !timeStretcher && !forAudioClip);

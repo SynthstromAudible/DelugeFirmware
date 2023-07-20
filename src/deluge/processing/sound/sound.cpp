@@ -1542,11 +1542,11 @@ void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int not
 				if (arpeggiator->hasAnyInputNotesActive()) {
 					ArpNote* arpNote =
 					    (ArpNote*)arpeggiator->notes.getElementAddress(arpeggiator->notes.getNumElements() - 1);
-					int newNoteCode = arpNote->inputCharacteristics[MIDI_CHARACTERISTIC_NOTE];
+					int newNoteCode = arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)];
 
 					if (polyphonic == PolyphonyMode::LEGATO) {
 						thisVoice->changeNoteCode(modelStackWithVoice, newNoteCode, newNoteCode,
-						                          arpNote->inputCharacteristics[MIDI_CHARACTERISTIC_CHANNEL],
+						                          arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)],
 						                          arpNote->mpeValues);
 						lastNoteCode = newNoteCode;
 						// I think we could just return here, too?
@@ -1558,7 +1558,7 @@ void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int not
 						        ->lastVelocity, // Interesting - I've made it keep the velocity of presumably the note we just switched off. I must have decided that sounded best? I think I vaguely remember.
 						    arpNote
 						        ->mpeValues, // ... We take the MPE values from the "keypress" associated with the new note we'll sound, though.
-						    0, 0, 0, arpNote->inputCharacteristics[MIDI_CHARACTERISTIC_CHANNEL]);
+						    0, 0, 0, arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]);
 						return;
 					}
 				}
@@ -2053,10 +2053,10 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 
 		if (instruction.noteCodeOnPostArp != ARP_NOTE_NONE) {
 			noteOnPostArpeggiator(modelStackWithSoundFlags,
-			                      instruction.arpNoteOn->inputCharacteristics[MIDI_CHARACTERISTIC_NOTE],
+			                      instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
 			                      instruction.noteCodeOnPostArp, instruction.arpNoteOn->velocity,
 			                      instruction.arpNoteOn->mpeValues, instruction.sampleSyncLengthOn, 0, 0,
-			                      instruction.arpNoteOn->inputCharacteristics[MIDI_CHARACTERISTIC_CHANNEL]);
+			                      instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]);
 		}
 	}
 
@@ -3013,7 +3013,7 @@ int Sound::readSourceFromFile(int s, ParamManagerForTimeline* paramManager, int3
 		}
 		else if (!strcmp(tagName, "linearInterpolation")) {
 			if (storageManager.readTagOrAttributeValueInt()) {
-				source->sampleControls.interpolationMode = INTERPOLATION_MODE_LINEAR;
+				source->sampleControls.interpolationMode = InterpolationMode::LINEAR;
 			}
 			storageManager.exitTag("linearInterpolation");
 		}
@@ -3218,7 +3218,7 @@ void Sound::writeSourceToFile(int s, char const* tagName) {
 		storageManager.writeAttribute("reversed", source->sampleControls.reversed);
 		storageManager.writeAttribute("timeStretchEnable", source->sampleControls.pitchAndSpeedAreIndependent);
 		storageManager.writeAttribute("timeStretchAmount", source->timeStretchAmount);
-		if (source->sampleControls.interpolationMode == INTERPOLATION_MODE_LINEAR) {
+		if (source->sampleControls.interpolationMode == InterpolationMode::LINEAR) {
 			storageManager.writeAttribute("linearInterpolation", 1);
 		}
 

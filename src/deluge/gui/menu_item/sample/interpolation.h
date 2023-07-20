@@ -15,17 +15,19 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "definitions_cxx.hpp"
 #include "model/sample/sample_controls.h"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "processing/sound/sound.h"
+#include "util/misc.h"
 
 namespace menu_item::sample {
 class Interpolation final : public Selection {
 public:
 	Interpolation(char const* newName = NULL) : Selection(newName) {}
-	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentSampleControls->interpolationMode; }
-	void writeCurrentValue() { soundEditor.currentSampleControls->interpolationMode = soundEditor.currentValue; }
+	void readCurrentValue() { soundEditor.currentValue = util::to_underlying(soundEditor.currentSampleControls->interpolationMode); }
+	void writeCurrentValue() { soundEditor.currentSampleControls->interpolationMode = static_cast<InterpolationMode>(soundEditor.currentValue); }
 	char const** getOptions() {
 		static char const* options[] = {"Linear", "Sinc", NULL};
 		return options;

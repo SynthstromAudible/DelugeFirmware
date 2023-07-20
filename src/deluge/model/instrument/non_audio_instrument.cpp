@@ -95,14 +95,14 @@ void NonAudioInstrument::sendNote(ModelStackWithThreeMainThings* modelStack, boo
 
 // Inherit / overrides from both MelodicInstrument and ModControllable
 void NonAudioInstrument::polyphonicExpressionEventOnChannelOrNote(int newValue, int whichExpressionDimension,
-                                                                  int channelOrNoteNumber, int whichCharacteristic) {
+                                                                  int channelOrNoteNumber, MIDICharacteristic whichCharacteristic) {
 	ArpeggiatorSettings* settings = getArpSettings();
 
 	int n;
 	int nEnd;
 
 	// If for note, we can search right to it.
-	if (whichCharacteristic == MIDI_CHARACTERISTIC_NOTE) {
+	if (whichCharacteristic == MIDICharacteristic::NOTE) {
 		n = arpeggiator.notes.search(channelOrNoteNumber, GREATER_OR_EQUAL);
 		if (n < arpeggiator.notes.getNumElements()) {
 			nEnd = 0;
@@ -116,14 +116,14 @@ void NonAudioInstrument::polyphonicExpressionEventOnChannelOrNote(int newValue, 
 	for (n = 0; n < nEnd; n++) {
 lookAtArpNote:
 		ArpNote* arpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
-		if (arpNote->inputCharacteristics[whichCharacteristic] == channelOrNoteNumber) {
+		if (arpNote->inputCharacteristics[util::to_underlying(whichCharacteristic)] == channelOrNoteNumber) {
 
 			// Update the MPE value in the ArpNote. If arpeggiating, it'll get read from there the next time there's a note-on-post-arp.
 			// I realise this is potentially frequent writing when it's only going to be read occasionally, but since we're already this far (the Instrument being notified),
 			// it's hardly any extra work.
 			arpNote->mpeValues[whichExpressionDimension] = newValue >> 16;
 
-			int noteCodeBeforeArpeggiation = arpNote->inputCharacteristics[MIDI_CHARACTERISTIC_NOTE];
+			int noteCodeBeforeArpeggiation = arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)];
 			int noteCodeAfterArpeggiation = noteCodeBeforeArpeggiation;
 
 			// If there's actual arpeggiation happening right now...

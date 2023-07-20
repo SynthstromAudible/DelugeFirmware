@@ -604,8 +604,8 @@ void MIDIInstrument::noteOnPostArp(int noteCodePostArp, ArpNote* arpNote) {
 					numNotesPreviouslyActiveOnMemberChannel[thisArpNote->outputMemberChannel]++;
 
 					// If this note is coming in live from the same member channel as the one we wish to switch on now, that's a good clue that we should group them together at the output. (Final decision to be made further below.)
-					if (thisArpNote->inputCharacteristics[MIDI_CHARACTERISTIC_CHANNEL]
-					    == arpNote->inputCharacteristics[MIDI_CHARACTERISTIC_CHANNEL]) {
+					if (thisArpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]
+					    == arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]) {
 						outputMemberChannelWithNoteSharingInputMemberChannel = thisArpNote->outputMemberChannel;
 					}
 				}

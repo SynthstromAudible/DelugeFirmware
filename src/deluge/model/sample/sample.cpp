@@ -534,7 +534,7 @@ doLoading:
 				// We tell it not to steal any other per cache Cluster from this Sample - not because those Clusters are definitely a high priority to keep, but
 				// because doing so would probably alter our percCacheZones, which we're currently working with, which could really muck things up. Scenario only discovered Jan 2021.
 				percCacheClusters[reversed][percClusterIndex] = audioFileManager.allocateCluster(
-				    reversed ? CLUSTER_PERC_CACHE_REVERSED : CLUSTER_PERC_CACHE_FORWARDS, false,
+				    reversed ? ClusterType::PERC_CACHE_REVERSED : ClusterType::PERC_CACHE_FORWARDS, false,
 				    this); // Doesn't add reason. Call to rememberPercCacheCluster() below will
 				if (!percCacheClusters[reversed][percClusterIndex]) {
 					error = ERROR_INSUFFICIENT_RAM;
@@ -884,12 +884,12 @@ void Sample::percCacheClusterStolen(Cluster* cluster) {
 	LOCK_ENTRY
 
 	Uart::println("percCacheClusterStolen -----------------------------------------------------------!!");
-	int reversed = (cluster->type == CLUSTER_PERC_CACHE_REVERSED);
+	int reversed = (cluster->type == ClusterType::PERC_CACHE_REVERSED);
 	int playDirection = reversed ? -1 : 1;
 	int comparison = reversed ? GREATER_OR_EQUAL : LESS;
 
 #if ALPHA_OR_BETA_VERSION
-	if (cluster->type != CLUSTER_PERC_CACHE_FORWARDS && cluster->type != CLUSTER_PERC_CACHE_REVERSED) {
+	if (cluster->type != ClusterType::PERC_CACHE_FORWARDS && cluster->type != ClusterType::PERC_CACHE_REVERSED) {
 		numericDriver.freezeWithError("E149");
 	}
 	if (!percCacheClusters[reversed]) {

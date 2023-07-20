@@ -21,13 +21,13 @@
 #include "util/functions.h"
 
 SampleControls::SampleControls() {
-	interpolationMode = INTERPOLATION_MODE_SMOOTH;
+	interpolationMode = InterpolationMode::SMOOTH;
 	pitchAndSpeedAreIndependent = false;
 	reversed = false;
 }
 
 int SampleControls::getInterpolationBufferSize(int32_t phaseIncrement) {
-	if (interpolationMode == INTERPOLATION_MODE_LINEAR) {
+	if (interpolationMode == InterpolationMode::LINEAR) {
 useLinearInterpolation:
 		return 2;
 	}

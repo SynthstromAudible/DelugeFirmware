@@ -18,13 +18,14 @@
 #pragma once
 
 #include "RZA1/system/r_typedefs.h"
+#include "definitions_cxx.hpp"
 
 class SampleControls {
 public:
 	SampleControls();
 	int getInterpolationBufferSize(int32_t phaseIncrement);
 
-	uint8_t interpolationMode;
+	InterpolationMode interpolationMode;
 	bool pitchAndSpeedAreIndependent;
 	bool reversed;
 };

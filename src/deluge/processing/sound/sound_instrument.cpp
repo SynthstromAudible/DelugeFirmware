@@ -311,7 +311,7 @@ void SoundInstrument::monophonicExpressionEvent(int newValue, int whichExpressio
 // (Despite my having made it now actually need to talk to the Arp too, as below...)
 // Note, this virtual function actually overrides/implements from two base classes - MelodicInstrument and ModControllable.
 void SoundInstrument::polyphonicExpressionEventOnChannelOrNote(int newValue, int whichExpressionDimension,
-                                                               int channelOrNoteNumber, int whichCharacteristic) {
+                                                               int channelOrNoteNumber, MIDICharacteristic whichCharacteristic) {
 	int s = whichExpressionDimension + util::to_underlying(PatchSource::X);
 
 	//sourcesChanged |= 1 << s; // We'd ideally not want to apply this to all voices though...
@@ -320,7 +320,7 @@ void SoundInstrument::polyphonicExpressionEventOnChannelOrNote(int newValue, int
 	AudioEngine::activeVoices.getRangeForSound(this, ends);
 	for (int v = ends[0]; v < ends[1]; v++) {
 		Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
-		if (thisVoice->inputCharacteristics[whichCharacteristic] == channelOrNoteNumber) {
+		if (thisVoice->inputCharacteristics[util::to_underlying(whichCharacteristic)] == channelOrNoteNumber) {
 			if (expressionValueChangesMustBeDoneSmoothly) {
 				thisVoice->expressionEventSmooth(newValue, s);
 			}
@@ -332,7 +332,7 @@ void SoundInstrument::polyphonicExpressionEventOnChannelOrNote(int newValue, int
 
 	// Must update MPE values in Arp too - useful either if it's on, or if we're in true monophonic mode - in either case, we could need to suddenly do a note-on for a different note that the Arp knows about, and need these MPE values.
 	int n, nEnd;
-	if (whichCharacteristic == MIDI_CHARACTERISTIC_NOTE) {
+	if (whichCharacteristic == MIDICharacteristic::NOTE) {
 		n = arpeggiator.notes.search(channelOrNoteNumber, GREATER_OR_EQUAL);
 		if (n < arpeggiator.notes.getNumElements()) {
 			nEnd = 0;
@@ -344,7 +344,7 @@ void SoundInstrument::polyphonicExpressionEventOnChannelOrNote(int newValue, int
 	for (n = 0; n < nEnd; n++) {
 lookAtArpNote:
 		ArpNote* arpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
-		if (arpNote->inputCharacteristics[whichCharacteristic] == channelOrNoteNumber) {
+		if (arpNote->inputCharacteristics[util::to_underlying(whichCharacteristic)] == channelOrNoteNumber) {
 			arpNote->mpeValues[whichExpressionDimension] = newValue >> 16;
 		}
 	}
@@ -433,10 +433,10 @@ int32_t SoundInstrument::doTickForwardForArp(ModelStack* modelStack, int32_t cur
 
 	if (instruction.noteCodeOnPostArp != ARP_NOTE_NONE) {
 		noteOnPostArpeggiator(modelStackWithSoundFlags,
-		                      instruction.arpNoteOn->inputCharacteristics[MIDI_CHARACTERISTIC_NOTE],
+		                      instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
 		                      instruction.noteCodeOnPostArp, instruction.arpNoteOn->velocity,
 		                      instruction.arpNoteOn->mpeValues, instruction.sampleSyncLengthOn, 0, 0,
-		                      instruction.arpNoteOn->inputCharacteristics[MIDI_CHARACTERISTIC_CHANNEL]);
+		                      instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]);
 	}
 
 	return ticksTilNextArpEvent;
@@ -468,7 +468,7 @@ bool SoundInstrument::noteIsOn(int noteCode) {
 				return false;
 			}
 			ArpNote* arpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
-			return (arpNote->inputCharacteristics[MIDI_CHARACTERISTIC_NOTE] == noteCode);
+			return (arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] == noteCode);
 		}
 	}
 

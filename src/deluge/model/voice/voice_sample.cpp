@@ -403,7 +403,7 @@ static_assert(TIME_STRETCH_DEFAULT_FIRST_HOP_LENGTH >= SSI_TX_BUFFER_NUM_SAMPLES
 bool VoiceSample::render(SamplePlaybackGuide* guide, int32_t* __restrict__ outputBuffer, int numSamples, Sample* sample,
                          int sampleSourceNumChannels, int loopingType, int32_t phaseIncrement, int32_t timeStretchRatio,
                          int32_t amplitude, int32_t amplitudeIncrement, int interpolationBufferSize,
-                         int desiredInterpolationMode, int priorityRating) {
+                         InterpolationMode desiredInterpolationMode, int priorityRating) {
 
 	int playDirection = guide->playDirection;
 
@@ -413,7 +413,7 @@ bool VoiceSample::render(SamplePlaybackGuide* guide, int32_t* __restrict__ outpu
 		// If relevant params have changed since before, we have to stop using the cache which those params previously described
 		if (phaseIncrement != cache->phaseIncrement || timeStretchRatio != cache->timeStretchRatio
 		    || (phaseIncrement != 16777216
-		        && (desiredInterpolationMode != INTERPOLATION_MODE_SMOOTH
+		        && (desiredInterpolationMode != InterpolationMode::SMOOTH
 		            || (interpolationBufferSize <= 2 && writingToCache)))) {
 
 			bool needToAvoidClick = (!writingToCache && cache->timeStretchRatio != 16777216);
@@ -1700,7 +1700,7 @@ bool VoiceSample::possiblySetUpCache(SampleControls* sampleControls, SamplePlayb
 	if (guide->sequenceSyncLengthTicks && (playbackHandler.playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE)) {
 		return true; // No syncing to external clock
 	}
-	if (sampleControls->interpolationMode != INTERPOLATION_MODE_SMOOTH) {
+	if (sampleControls->interpolationMode != InterpolationMode::SMOOTH) {
 		return true;
 	}
 

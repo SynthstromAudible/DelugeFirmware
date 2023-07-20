@@ -38,7 +38,7 @@ public:
 	ParamManager* getParamManager(Song* song) final;
 
 	void polyphonicExpressionEventOnChannelOrNote(int newValue, int whichExpressionDimension, int channelOrNote,
-	                                              int whichCharacteristic) final;
+	                                              MIDICharacteristic whichCharacteristic) final;
 
 	void beenEdited(bool shouldMoveToEmptySlot) {} // Probably don't need this anymore...
 

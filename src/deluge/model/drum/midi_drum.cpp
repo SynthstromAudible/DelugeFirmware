@@ -134,7 +134,7 @@ void MIDIDrum::expressionEvent(int newValue, int whichExpressionDimension) {
 }
 
 void MIDIDrum::polyphonicExpressionEventOnChannelOrNote(int newValue, int whichExpressionDimension,
-                                                        int channelOrNoteNumber, int whichCharacteristic) {
+                                                        int channelOrNoteNumber, MIDICharacteristic whichCharacteristic) {
 	// Because this is a Drum, we disregard the noteCode (which is what channelOrNoteNumber always is in our case - but yeah, that's all irrelevant.
 	expressionEvent(newValue, whichExpressionDimension);
 }

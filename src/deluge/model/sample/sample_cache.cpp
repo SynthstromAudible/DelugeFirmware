@@ -148,7 +148,7 @@ bool SampleCache::setupNewCluster(int clusterIndex) {
 #endif
 
 	clusters[clusterIndex] = audioFileManager.allocateCluster(
-	    CLUSTER_SAMPLE_CACHE, false, this); // Do not add reasons, and don't steal from this SampleCache
+	    ClusterType::SAMPLE_CACHE, false, this); // Do not add reasons, and don't steal from this SampleCache
 	if (!clusters[clusterIndex]) {          // If that allocation failed...
 		Uart::println("allocation fail");
 		return false;

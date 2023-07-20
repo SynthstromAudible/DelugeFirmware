@@ -314,7 +314,7 @@ mpeX:
 				    (int32_t)value16
 				    << 16; // Unlike for whole-Instrument pitch bend, this per-note kind is a modulation *source*, not the "preset" value for the parameter!
 				polyphonicExpressionEventPossiblyToRecord(modelStackWithTimelineCounter, value32, 0, channel,
-				                                          MIDI_CHARACTERISTIC_CHANNEL);
+				                                          MIDICharacteristic::CHANNEL);
 			}
 		}
 		else if (midiInput.channelOrZone == MIDI_CHANNEL_MPE_UPPER_ZONE) {
@@ -361,7 +361,7 @@ mpeY:
 				if (ccNumber == 74) { // All other CCs are not supposed to be used for Member Channels, for anything.
 					int32_t value32 = (value - 64) << 25;
 					polyphonicExpressionEventPossiblyToRecord(modelStackWithTimelineCounter, value32, 1, channel,
-					                                          MIDI_CHARACTERISTIC_CHANNEL);
+					                                          MIDICharacteristic::CHANNEL);
 				}
 			}
 		}
@@ -401,7 +401,7 @@ forMasterChannel:
 			// Polyphonic aftertouch gets processed along with MPE
 			if (noteCode != -1) {
 				polyphonicExpressionEventPossiblyToRecord(modelStackWithTimelineCounter, valueBig, 2, noteCode,
-				                                          MIDI_CHARACTERISTIC_NOTE);
+				                                          MIDICharacteristic::NOTE);
 				// We wouldn't be here if this was MPE input, so we know this incoming polyphonic aftertouch message is allowed
 			}
 
@@ -424,7 +424,7 @@ forMasterChannel:
 						}
 processPolyphonicZ:
 						polyphonicExpressionEventPossiblyToRecord(modelStackWithTimelineCounter, valueBig, 2, channel,
-						                                          MIDI_CHARACTERISTIC_CHANNEL);
+						                                          MIDICharacteristic::CHANNEL);
 					}
 				}
 				else if (midiInput.channelOrZone == MIDI_CHANNEL_MPE_UPPER_ZONE) {
@@ -622,7 +622,7 @@ bool expressionValueChangesMustBeDoneSmoothly = false; // Wee bit of a workaroun
 // - but we still want to cause a sound change in response to the message.
 void MelodicInstrument::polyphonicExpressionEventPossiblyToRecord(ModelStackWithTimelineCounter* modelStack,
                                                                   int32_t newValue, int whichExpressionDimension,
-                                                                  int channelOrNoteNumber, int whichCharacteristic) {
+                                                                  int channelOrNoteNumber, MIDICharacteristic whichCharacteristic) {
 	expressionValueChangesMustBeDoneSmoothly = true;
 
 	// If recording, we send the new value to the AutoParam, which will also sound that change right now.
@@ -632,14 +632,14 @@ void MelodicInstrument::polyphonicExpressionEventPossiblyToRecord(ModelStackWith
 
 		for (int n = 0; n < arpeggiator.notes.getNumElements(); n++) {
 			ArpNote* arpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
-			if (arpNote->inputCharacteristics[whichCharacteristic]
-			    == channelOrNoteNumber) { // If we're actually identifying by MIDI_CHARACTERISTIC_NOTE, we could do a much faster search,
+			if (arpNote->inputCharacteristics[util::to_underlying(whichCharacteristic)]
+			    == channelOrNoteNumber) { // If we're actually identifying by MIDICharacteristic::NOTE, we could do a much faster search,
 				// but let's not bother - that's only done when we're receiving MIDI polyphonic aftertouch
 				// messages, and there's hardly much to search through.
 				ModelStackWithNoteRow* modelStackWithNoteRow =
 				    ((InstrumentClip*)modelStack->getTimelineCounter())
 				        ->getNoteRowForYNote(
-				            arpNote->inputCharacteristics[MIDI_CHARACTERISTIC_NOTE],
+				            arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
 				            modelStack); // No need to create - it should already exist if they're recording a note here.
 				NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
 				if (noteRow) {
@@ -652,8 +652,8 @@ void MelodicInstrument::polyphonicExpressionEventPossiblyToRecord(ModelStackWith
 
 				// If still here, that didn't work, so just send it without recording.
 				polyphonicExpressionEventOnChannelOrNote(newValue, whichExpressionDimension,
-				                                         arpNote->inputCharacteristics[MIDI_CHARACTERISTIC_NOTE],
-				                                         MIDI_CHARACTERISTIC_NOTE);
+				                                         arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
+				                                         MIDICharacteristic::NOTE);
 			}
 		}
 	}

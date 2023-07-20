@@ -35,7 +35,7 @@ public:
 	void steal(char const* errorCode);
 	int getAppropriateQueue();
 
-	uint8_t type;
+	ClusterType type;
 	int8_t numReasonsHeldBySampleRecorder;
 	bool extraBytesAtStartConverted;
 	bool extraBytesAtEndConverted;

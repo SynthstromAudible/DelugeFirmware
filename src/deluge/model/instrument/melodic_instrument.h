@@ -67,11 +67,11 @@ public:
 
 	void polyphonicExpressionEventPossiblyToRecord(ModelStackWithTimelineCounter* modelStack, int32_t newValue,
 	                                               int whichExpressionDimension, int channelOrNoteNumber,
-	                                               int whichCharacteristic);
+	                                               MIDICharacteristic whichCharacteristic);
 	ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = NULL);
 
 	virtual void polyphonicExpressionEventOnChannelOrNote(int newValue, int whichExpressionDimension,
-	                                                      int channelOrNoteNumber, int whichCharacteristic) = 0;
+	                                                      int channelOrNoteNumber, MIDICharacteristic whichCharacteristic) = 0;
 
 	void offerBendRangeUpdate(ModelStack* modelStack, MIDIDevice* device, int channelOrZone, int whichBendRange,
 	                          int bendSemitones);

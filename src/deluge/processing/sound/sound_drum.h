@@ -57,7 +57,7 @@ public:
 
 	void expressionEvent(int newValue, int whichExpressionDimension);
 	void polyphonicExpressionEventOnChannelOrNote(int newValue, int whichExpressionDimension, int channelOrNoteNumber,
-	                                              int whichCharacteristic);
+	                                              MIDICharacteristic whichCharacteristic);
 
 	ArpeggiatorBase* getArp();
 	ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = NULL) { return &arpSettings; }

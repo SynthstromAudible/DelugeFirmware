@@ -38,7 +38,7 @@ public:
 	void expressionEvent(int newValue, int whichExpressionDimension);
 
 	void polyphonicExpressionEventOnChannelOrNote(int newValue, int whichExpressionDimension, int channelOrNoteNumber,
-	                                              int whichCharacteristic);
+	                                              MIDICharacteristic whichCharacteristic);
 
 	uint8_t note;
 	int8_t noteEncoderCurrentOffset;
