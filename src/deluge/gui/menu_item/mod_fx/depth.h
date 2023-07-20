@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "definitions_cxx.hpp"
 #include "gui/menu_item/patched_param/integer.h"
 #include "processing/sound/sound.h"
 #include "util/comparison.h"
@@ -25,8 +26,8 @@ public:
 	using patched_param::Integer::Integer;
 
 	bool isRelevant(Sound* sound, int whichThing) {
-		return util::one_of<uint8_t>(sound->modFXType,
-		                             {MOD_FX_TYPE_CHORUS, MOD_FX_TYPE_CHORUS_STEREO, MOD_FX_TYPE_PHASER});
+		return util::one_of(sound->modFXType,
+		                             {ModFXType::CHORUS, ModFXType::CHORUS_STEREO, ModFXType::PHASER});
 	}
 };
 } // namespace menu_item::mod_fx

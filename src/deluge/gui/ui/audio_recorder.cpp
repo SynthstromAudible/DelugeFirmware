@@ -83,7 +83,7 @@ bool AudioRecorder::opened() {
 	actionLogger.deleteAllLogs();
 
 	// If we're already recording (probably the output) then no!
-	if (recordingSource) {
+	if (recordingSource > AudioInputChannel::NONE) {
 		return false;
 	}
 
@@ -112,8 +112,8 @@ gotError:
 
 	bool inStereo = (AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn);
 	int newNumChannels = inStereo ? 2 : 1;
-	bool success = setupRecordingToFile(inStereo ? AudioInputChannel::STEREO : AudioInputChannel::LEFT,
-	                                    newNumChannels, AUDIO_RECORDING_FOLDER_RECORD);
+	bool success = setupRecordingToFile(inStereo ? AudioInputChannel::STEREO : AudioInputChannel::LEFT, newNumChannels,
+	                                    AUDIO_RECORDING_FOLDER_RECORD);
 	if (success) {
 		soundEditor.setupShortcutBlink(soundEditor.currentSourceIndex, 4, 0);
 		soundEditor.blinkShortcut();
@@ -144,9 +144,9 @@ void AudioRecorder::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 }
 #endif
 
-bool AudioRecorder::setupRecordingToFile(int newMode, int newNumChannels, int folderID) {
+bool AudioRecorder::setupRecordingToFile(AudioInputChannel newMode, int newNumChannels, int folderID) {
 
-	if (ALPHA_OR_BETA_VERSION && recordingSource) {
+	if (ALPHA_OR_BETA_VERSION && recordingSource > AudioInputChannel::NONE) {
 		numericDriver.freezeWithError("E242");
 	}
 
@@ -180,9 +180,8 @@ bool AudioRecorder::beginOutputRecording() {
 
 void AudioRecorder::endRecordingSoon(int buttonLatency) {
 
-	if (recorder
-	    && recorder->status
-	           == RECORDER_STATUS_CAPTURING_DATA) { // Make sure we don't call the same thing multiple times - I think there's a few scenarios where this could happen
+	// Make sure we don't call the same thing multiple times - I think there's a few scenarios where this could happen
+	if (recorder && recorder->status == RECORDER_STATUS_CAPTURING_DATA) {
 #if HAVE_OLED
 		OLED::displayWorkingAnimation("Working");
 #else
@@ -257,7 +256,7 @@ void AudioRecorder::finishRecording() {
 	AudioEngine::discardRecorder(recorder);
 
 	recorder = NULL;
-	recordingSource = 0;
+	recordingSource = AudioInputChannel::NONE;
 #if HAVE_OLED
 	OLED::removeWorkingAnimation();
 #else

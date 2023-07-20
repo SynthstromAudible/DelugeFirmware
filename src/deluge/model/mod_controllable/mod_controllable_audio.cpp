@@ -116,7 +116,7 @@ bool ModControllableAudio::hasTrebleAdjusted(ParamManager* paramManager) {
 	return (unpatchedParams->getValue(PARAM_UNPATCHED_TREBLE) != 0);
 }
 
-void ModControllableAudio::processFX(StereoSample* buffer, int numSamples, int modFXType, int32_t modFXRate,
+void ModControllableAudio::processFX(StereoSample* buffer, int numSamples, ModFXType modFXType, int32_t modFXRate,
                                      int32_t modFXDepth, DelayWorkingState* delayWorkingState, int32_t* postFXVolume,
                                      ParamManager* paramManager, int analogDelaySaturationAmount) {
 
@@ -125,14 +125,14 @@ void ModControllableAudio::processFX(StereoSample* buffer, int numSamples, int m
 	StereoSample* bufferEnd = buffer + numSamples;
 
 	// Mod FX -----------------------------------------------------------------------------------
-	if (modFXType != MOD_FX_TYPE_NONE) {
+	if (modFXType != ModFXType::NONE) {
 
 		LFOType modFXLFOWaveType;
 		int modFXDelayOffset;
 		int thisModFXDelayDepth;
 		int32_t feedback;
 
-		if (modFXType == MOD_FX_TYPE_FLANGER || modFXType == MOD_FX_TYPE_PHASER) {
+		if (modFXType == ModFXType::FLANGER || modFXType == ModFXType::PHASER) {
 
 			int32_t a = unpatchedParams->getValue(PARAM_UNPATCHED_MOD_FX_FEEDBACK) >> 1;
 			int32_t b = 2147483647 - ((a + 1073741824) >> 2) * 3;
@@ -149,12 +149,12 @@ void ModControllableAudio::processFX(StereoSample* buffer, int numSamples, int m
 			           * 23; // 22 // Make bigger to have more of a volume cut happen at high resonance
 			//*postFXVolume = (multiply_32x32_rshift32(*postFXVolume, 2147483647 - squared2) >> 1) * 3;
 			*postFXVolume = multiply_32x32_rshift32(*postFXVolume, 2147483647 - squared2);
-			if (modFXType == MOD_FX_TYPE_FLANGER) {
+			if (modFXType == ModFXType::FLANGER) {
 				*postFXVolume <<= 1;
 			}
 			// Though, this would be more ideally placed affecting volume before the flanger
 
-			if (modFXType == MOD_FX_TYPE_FLANGER) {
+			if (modFXType == ModFXType::FLANGER) {
 				modFXDelayOffset = flangerOffset;
 				thisModFXDelayDepth = flangerAmplitude;
 				modFXLFOWaveType = LFOType::TRIANGLE;
@@ -163,7 +163,7 @@ void ModControllableAudio::processFX(StereoSample* buffer, int numSamples, int m
 				modFXLFOWaveType = LFOType::SINE;
 			}
 		}
-		else if (modFXType == MOD_FX_TYPE_CHORUS || modFXType == MOD_FX_TYPE_CHORUS_STEREO) {
+		else if (modFXType == ModFXType::CHORUS || modFXType == ModFXType::CHORUS_STEREO) {
 			modFXDelayOffset = multiply_32x32_rshift32(
 			    modFXMaxDelay, (unpatchedParams->getValue(PARAM_UNPATCHED_MOD_FX_OFFSET) >> 1) + 1073741824);
 			thisModFXDelayDepth = multiply_32x32_rshift32(modFXDelayOffset, modFXDepth) << 2;
@@ -176,7 +176,7 @@ void ModControllableAudio::processFX(StereoSample* buffer, int numSamples, int m
 
 			int32_t lfoOutput = modFXLFO.render(1, modFXLFOWaveType, modFXRate);
 
-			if (modFXType == MOD_FX_TYPE_PHASER) {
+			if (modFXType == ModFXType::PHASER) {
 
 				// "1" is sorta represented by 1073741824 here
 				int32_t _a1 =
@@ -214,7 +214,7 @@ void ModControllableAudio::processFX(StereoSample* buffer, int numSamples, int m
 				    multiply_32x32_rshift32_rounded(modFXBuffer[(sample1Pos - 1) & modFXBufferIndexMask].l, strength2);
 				int32_t modFXOutputL = scaledValue1L + scaledValue2L;
 
-				if (modFXType == MOD_FX_TYPE_CHORUS_STEREO) {
+				if (modFXType == ModFXType::CHORUS_STEREO) {
 					delayTime = multiply_32x32_rshift32(lfoOutput, -thisModFXDelayDepth) + modFXDelayOffset;
 					strength2 = (delayTime & 65535) << 15;
 					strength1 = (65535 << 15) - strength2;
@@ -227,7 +227,7 @@ void ModControllableAudio::processFX(StereoSample* buffer, int numSamples, int m
 				    multiply_32x32_rshift32_rounded(modFXBuffer[(sample1Pos - 1) & modFXBufferIndexMask].r, strength2);
 				int32_t modFXOutputR = scaledValue1R + scaledValue2R;
 
-				if (modFXType == MOD_FX_TYPE_FLANGER) {
+				if (modFXType == ModFXType::FLANGER) {
 					modFXOutputL = multiply_32x32_rshift32_rounded(modFXOutputL, feedback) << 2;
 					modFXBuffer[modFXBufferWriteIndex].l = modFXOutputL + currentSample->l; // Feedback
 					modFXOutputR = multiply_32x32_rshift32_rounded(modFXOutputR, feedback) << 2;
@@ -1707,12 +1707,12 @@ void ModControllableAudio::wontBeRenderedForAWhile() {
 }
 
 void ModControllableAudio::clearModFXMemory() {
-	if (modFXType == MOD_FX_TYPE_FLANGER || modFXType == MOD_FX_TYPE_CHORUS || modFXType == MOD_FX_TYPE_CHORUS_STEREO) {
+	if (modFXType == ModFXType::FLANGER || modFXType == ModFXType::CHORUS || modFXType == ModFXType::CHORUS_STEREO) {
 		if (modFXBuffer) {
 			memset(modFXBuffer, 0, modFXBufferSize * sizeof(StereoSample));
 		}
 	}
-	else if (modFXType == MOD_FX_TYPE_PHASER) {
+	else if (modFXType == ModFXType::PHASER) {
 		memset(allpassMemory, 0, sizeof(allpassMemory));
 		memset(&phaserMemory, 0, sizeof(phaserMemory));
 	}

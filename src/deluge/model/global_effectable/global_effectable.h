@@ -61,7 +61,7 @@ public:
 
 protected:
 	virtual int getParameterFromKnob(int whichModEncoder);
-	int getActiveModFXType(ParamManager* paramManager);
+	ModFXType getActiveModFXType(ParamManager* paramManager);
 
 private:
 	void ensureModFXParamIsValid();

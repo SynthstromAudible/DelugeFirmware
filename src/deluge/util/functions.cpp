@@ -1010,16 +1010,16 @@ PolyphonyMode stringToPolyphonyMode(char const* string) {
 
 char const* fxTypeToString(ModFXType fxType) {
 	switch (fxType) {
-	case MOD_FX_TYPE_FLANGER:
+	case ModFXType::FLANGER:
 		return "flanger";
 
-	case MOD_FX_TYPE_CHORUS:
+	case ModFXType::CHORUS:
 		return "chorus";
 
-	case MOD_FX_TYPE_CHORUS_STEREO:
+	case ModFXType::CHORUS_STEREO:
 		return "StereoChorus";
 
-	case MOD_FX_TYPE_PHASER:
+	case ModFXType::PHASER:
 		return "phaser";
 
 	default:
@@ -1029,19 +1029,19 @@ char const* fxTypeToString(ModFXType fxType) {
 
 ModFXType stringToFXType(char const* string) {
 	if (!strcmp(string, "flanger")) {
-		return MOD_FX_TYPE_FLANGER;
+		return ModFXType::FLANGER;
 	}
 	else if (!strcmp(string, "chorus")) {
-		return MOD_FX_TYPE_CHORUS;
+		return ModFXType::CHORUS;
 	}
 	else if (!strcmp(string, "StereoChorus")) {
-		return MOD_FX_TYPE_CHORUS_STEREO;
+		return ModFXType::CHORUS_STEREO;
 	}
 	else if (!strcmp(string, "phaser")) {
-		return MOD_FX_TYPE_PHASER;
+		return ModFXType::PHASER;
 	}
 	else {
-		return MOD_FX_TYPE_NONE;
+		return ModFXType::NONE;
 	}
 }
 

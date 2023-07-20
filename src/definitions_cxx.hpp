@@ -461,14 +461,15 @@ enum class SynthMode {
 	RINGMOD,
 };
 
-enum ModFXType {
-	MOD_FX_TYPE_NONE,
-	MOD_FX_TYPE_FLANGER,
-	MOD_FX_TYPE_CHORUS,
-	MOD_FX_TYPE_PHASER,
-	MOD_FX_TYPE_CHORUS_STEREO,
-	NUM_MOD_FX_TYPES,
+enum class ModFXType {
+	NONE,
+	FLANGER,
+	CHORUS,
+	PHASER,
+	CHORUS_STEREO,
 };
+
+constexpr auto NUM_MOD_FX_TYPES = util::to_underlying(ModFXType::CHORUS_STEREO) + 1;
 
 #define SAMPLE_MAX_TRANSPOSE 24
 #define SAMPLE_MIN_TRANSPOSE (-96)
@@ -774,7 +775,8 @@ enum PlayHead {
 
 #define AUDIO_RECORD_LAG_COMPENTATION 294
 
-enum AudioInputChannel {
+enum class AudioInputChannel {
+	UNSET = -1,
 	NONE,
 	LEFT,
 	RIGHT,

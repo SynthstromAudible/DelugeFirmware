@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "definitions_cxx.hpp"
 #include "processing/engines/audio_engine.h"
 #include "processing/audio_output.h"
 #include "modulation/params/param_manager.h"
@@ -212,9 +213,9 @@ renderEnvelope:
 
 		int32_t const* __restrict__ inputReadPos = (int32_t const*)AudioEngine::i2sRXBufferPos;
 
-		int inputChannelNow = inputChannel;
+		AudioInputChannel inputChannelNow = inputChannel;
 		if (inputChannelNow == AudioInputChannel::STEREO && !AudioEngine::renderInStereo) {
-			inputChannelNow = 0; // 0 means combine channels
+			inputChannelNow = AudioInputChannel::NONE; // 0 means combine channels
 		}
 
 		int32_t amplitudeIncrement = (amplitudeAtEnd - amplitudeAtStart) / numSamples;
@@ -245,7 +246,7 @@ renderEnvelope:
 				break;
 			}
 
-			case 0: // Means combine channels
+			case AudioInputChannel::NONE: // Means combine channels
 			{
 				int32_t sum = (inputL >> 1) + (inputR >> 1);
 				outputPos->l += sum;
@@ -380,7 +381,7 @@ Clip* AudioOutput::createNewClipForArrangementRecording(ModelStack* modelStack) 
 }
 
 bool AudioOutput::wantsToBeginArrangementRecording() {
-	return (inputChannel && Output::wantsToBeginArrangementRecording());
+	return (inputChannel > AudioInputChannel::NONE && Output::wantsToBeginArrangementRecording());
 }
 
 bool AudioOutput::setActiveClip(ModelStackWithTimelineCounter* modelStack, int maySendMIDIPGMs) {

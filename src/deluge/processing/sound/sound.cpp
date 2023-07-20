@@ -95,7 +95,7 @@ Sound::Sound() : patcher(&patchableInfoForSound) {
 	modulatorCents[1] = 0;
 
 	transpose = 0;
-	modFXType = MOD_FX_TYPE_NONE;
+	modFXType = ModFXType::NONE;
 
 	oscillatorSync = false;
 
@@ -336,7 +336,7 @@ void Sound::setupAsBlankSynth(ParamManager* paramManager) {
 
 // Returns false if not enough ram
 bool Sound::setModFXType(ModFXType newType) {
-	if (newType == MOD_FX_TYPE_FLANGER || newType == MOD_FX_TYPE_CHORUS || newType == MOD_FX_TYPE_CHORUS_STEREO) {
+	if (newType == ModFXType::FLANGER || newType == ModFXType::CHORUS || newType == ModFXType::CHORUS_STEREO) {
 		if (!modFXBuffer) {
 			// TODO: should give an error here if no free ram
 			modFXBuffer =
@@ -1833,7 +1833,7 @@ void Sound::reassessRenderSkippingStatus(ModelStackWithSoundFlags* modelStack, b
 		if (skippingStatusNow) {
 
 			// We wanna start, skipping, but if MOD fx are on...
-			if (modFXType) {
+			if (modFXType != ModFXType::NONE) {
 
 				// If we didn't start the wait-time yet, start it now
 				if (!startSkippingRenderingAtTime) {
@@ -1846,7 +1846,7 @@ doCutModFXTail:
 					}
 
 					int waitSamples =
-					    (modFXType == MOD_FX_TYPE_CHORUS || modFXType == MOD_FX_TYPE_CHORUS_STEREO)
+					    (modFXType == ModFXType::CHORUS || modFXType == ModFXType::CHORUS_STEREO)
 					        ? (20 * 44)
 					        : (90
 					           * 441); // 20 and 900 mS respectively. Lots is required for feeding-back flanger or phaser

@@ -37,7 +37,7 @@ GlobalEffectable::GlobalEffectable() {
 	lpfMode = LPF_MODE_TRANSISTOR_24DB;
 	filterSets[0].reset();
 	filterSets[1].reset();
-	modFXType = MOD_FX_TYPE_FLANGER;
+	modFXType = ModFXType::FLANGER;
 	currentModFXParam = MOD_FX_PARAM_FEEDBACK;
 	currentFilterType = FILTER_TYPE_LPF;
 
@@ -113,25 +113,25 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 	else if (modKnobMode == 5) {
 		if (whichModEncoder == 1) {
 			if (on) {
-				modFXType = static_cast<ModFXType>(util::to_underlying(modFXType) + 1);
-				if (modFXType >= NUM_MOD_FX_TYPES) {
+				modFXType = static_cast<ModFXType>((util::to_underlying(modFXType) + 1) % NUM_MOD_FX_TYPES);
+				if (modFXType == ModFXType::NONE) {
 					modFXType = static_cast<ModFXType>(1);
 				}
 				char const* displayText;
 				switch (modFXType) {
-				case MOD_FX_TYPE_FLANGER:
+				case ModFXType::FLANGER:
 					displayText = "FLANGER";
 					break;
 
-				case MOD_FX_TYPE_PHASER:
+				case ModFXType::PHASER:
 					displayText = "PHASER";
 					break;
 
-				case MOD_FX_TYPE_CHORUS:
+				case ModFXType::CHORUS:
 					displayText = "CHORUS";
 					break;
 
-				case MOD_FX_TYPE_CHORUS_STEREO:
+				case ModFXType::CHORUS_STEREO:
 					displayText = "STEREO CHORUS";
 					break;
 				}
@@ -354,17 +354,17 @@ ModelStackWithAutoParam* GlobalEffectable::getParamFromModEncoder(int whichModEn
 void GlobalEffectable::ensureModFXParamIsValid() {
 	while (true) {
 		if (currentModFXParam == MOD_FX_PARAM_DEPTH) {
-			if (modFXType == MOD_FX_TYPE_FLANGER) {
+			if (modFXType == ModFXType::FLANGER) {
 				goto ohNo;
 			}
 		}
 		else if (currentModFXParam == MOD_FX_PARAM_OFFSET) {
-			if (modFXType != MOD_FX_TYPE_CHORUS && modFXType != MOD_FX_TYPE_CHORUS_STEREO) {
+			if (modFXType != ModFXType::CHORUS && modFXType != ModFXType::CHORUS_STEREO) {
 				goto ohNo;
 			}
 		}
 		else { // MOD_FX_PARAM_FEEDBACK
-			if (modFXType == MOD_FX_TYPE_CHORUS || modFXType == MOD_FX_TYPE_CHORUS_STEREO) {
+			if (modFXType == ModFXType::CHORUS || modFXType == ModFXType::CHORUS_STEREO) {
 				goto ohNo;
 			}
 		}
@@ -692,8 +692,8 @@ void GlobalEffectable::compensateVolumeForResonance(ParamManagerForTimeline* par
 	}
 }
 
-int GlobalEffectable::getActiveModFXType(ParamManager* paramManager) {
-	int modFXTypeNow = modFXType;
+ModFXType GlobalEffectable::getActiveModFXType(ParamManager* paramManager) {
+	ModFXType modFXTypeNow = modFXType;
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
@@ -703,7 +703,7 @@ int GlobalEffectable::getActiveModFXType(ParamManager* paramManager) {
 	        && unpatchedParams->getValue(PARAM_UNPATCHED_MOD_FX_FEEDBACK) == -2147483648)
 	    || (currentModFXParam == MOD_FX_PARAM_OFFSET
 	        && unpatchedParams->getValue(PARAM_UNPATCHED_MOD_FX_OFFSET) == -2147483648)) {
-		modFXTypeNow = MOD_FX_TYPE_NONE;
+		modFXTypeNow = ModFXType::NONE;
 	}
 	return modFXTypeNow;
 }
@@ -741,17 +741,17 @@ void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, i
 	    paramNeutralValues[PARAM_GLOBAL_MOD_FX_DEPTH],
 	    cableToLinearParamShortcut(unpatchedParams->getValue(PARAM_UNPATCHED_GLOBALEFFECTABLE_MOD_FX_DEPTH)));
 
-	int modFXTypeNow = getActiveModFXType(paramManager);
+	ModFXType modFXTypeNow = getActiveModFXType(paramManager);
 
 	// For GlobalEffectables, mod FX buffer memory is allocated here in the rendering routine - this might seem strange, but
 	// it's because unlike for Sounds, the effect can be switched on and off by changing a parameter like "depth".
-	if (modFXTypeNow == MOD_FX_TYPE_FLANGER || modFXTypeNow == MOD_FX_TYPE_CHORUS
-	    || modFXTypeNow == MOD_FX_TYPE_CHORUS_STEREO) {
+	if (modFXTypeNow == ModFXType::FLANGER || modFXTypeNow == ModFXType::CHORUS
+	    || modFXTypeNow == ModFXType::CHORUS_STEREO) {
 		if (!modFXBuffer) {
 			modFXBuffer =
 			    (StereoSample*)generalMemoryAllocator.alloc(modFXBufferSize * sizeof(StereoSample), NULL, false, true);
 			if (!modFXBuffer) {
-				modFXTypeNow = 0;
+				modFXTypeNow = ModFXType::NONE;
 			}
 			else {
 				memset(modFXBuffer, 0, modFXBufferSize * sizeof(StereoSample));

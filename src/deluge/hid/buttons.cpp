@@ -78,7 +78,7 @@ int buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	if (b == PLAY) {
 		if (on) {
 
-			if (audioRecorder.recordingSource && isButtonPressed(RECORD)) {
+			if (audioRecorder.recordingSource > AudioInputChannel::NONE && isButtonPressed(RECORD)) {
 				// Stop output-recording at end of loop
 				if (!recordButtonPressUsedUp && playbackHandler.isEitherClockActive()) {
 					currentPlaybackMode->stopOutputRecordingAtLoopEnd();
@@ -108,8 +108,7 @@ int buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 
 			recordButtonPressUsedUp = false;
 
-			if (!audioRecorder.recordingSource) {
-
+			if (audioRecorder.recordingSource == AudioInputChannel::NONE) {
 				if (isShiftButtonPressed()) {
 					audioRecorder.beginOutputRecording();
 					recordButtonPressUsedUp = true;

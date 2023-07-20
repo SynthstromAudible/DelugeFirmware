@@ -127,7 +127,7 @@ public:
 	MidiKnobArray midiKnobArray;
 
 protected:
-	void processFX(StereoSample* buffer, int numSamples, int modFXType, int32_t modFXRate, int32_t modFXDepth,
+	void processFX(StereoSample* buffer, int numSamples, ModFXType modFXType, int32_t modFXRate, int32_t modFXDepth,
 	               DelayWorkingState* delayWorkingState, int32_t* postFXVolume, ParamManager* paramManager,
 	               int analogDelaySaturationAmount);
 	int32_t getStutterRate(ParamManager* paramManager);

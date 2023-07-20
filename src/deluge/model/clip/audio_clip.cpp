@@ -16,6 +16,7 @@
 */
 
 #include "model/clip/audio_clip.h"
+#include "definitions_cxx.hpp"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
 #include "modulation/params/param_manager.h"
@@ -139,7 +140,7 @@ void AudioClip::abortRecording() {
 }
 
 bool AudioClip::wantsToBeginLinearRecording(Song* song) {
-	return (Clip::wantsToBeginLinearRecording(song) && !sampleHolder.audioFile && ((AudioOutput*)output)->inputChannel);
+	return (Clip::wantsToBeginLinearRecording(song) && !sampleHolder.audioFile && ((AudioOutput*)output)->inputChannel > AudioInputChannel::NONE);
 }
 
 bool AudioClip::isAbandonedOverdub() {
@@ -148,7 +149,7 @@ bool AudioClip::isAbandonedOverdub() {
 
 int AudioClip::beginLinearRecording(ModelStackWithTimelineCounter* modelStack, int buttonPressLatency) {
 
-	int inputChannel = ((AudioOutput*)output)->inputChannel;
+	AudioInputChannel inputChannel = ((AudioOutput*)output)->inputChannel;
 
 	int numChannels =
 	    (inputChannel >= AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION || inputChannel == AudioInputChannel::STEREO) ? 2

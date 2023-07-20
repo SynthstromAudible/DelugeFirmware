@@ -4503,7 +4503,7 @@ AudioOutput* Song::getFirstAudioOutput() {
 	return NULL;
 }
 
-AudioInputChannel defaultAudioOutputInputChannel = AudioInputChannel::NONE;
+AudioInputChannel defaultAudioOutputInputChannel = AudioInputChannel::UNSET;
 
 AudioOutput* Song::createNewAudioOutput(Output* replaceOutput) {
 	int highestNumber = 0;
@@ -4558,7 +4558,7 @@ AudioOutput* Song::createNewAudioOutput(Output* replaceOutput) {
 	newOutput->name.set(&newName);
 
 	// Set input channel to previously used one. If none selected, see what's in Song
-	if (defaultAudioOutputInputChannel == -1) {
+	if (defaultAudioOutputInputChannel == AudioInputChannel::UNSET) {
 
 		defaultAudioOutputInputChannel = AudioInputChannel::LEFT;
 		for (Output* output = firstOutput; output; output = output->next) {
