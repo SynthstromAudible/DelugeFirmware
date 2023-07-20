@@ -31,7 +31,7 @@ bool LoopPoint::isRelevant(Sound* sound, int whichThing) {
 
 	Source* source = &sound->sources[whichThing];
 
-	return (sound->getSynthMode() == SYNTH_MODE_SUBTRACTIVE && source->oscType == OscType::SAMPLE);
+	return (sound->getSynthMode() == SynthMode::SUBTRACTIVE && source->oscType == OscType::SAMPLE);
 }
 
 int LoopPoint::checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) {

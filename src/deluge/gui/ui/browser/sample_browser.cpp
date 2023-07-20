@@ -841,7 +841,7 @@ removeLoadingAnimationAndGetOut:
 		soundEditor.currentSound->unassignAllVoices(); // We used to only do this if osc type wasn't already SAMPLE...
 
 		bool makeWaveTableWorkAtAllCosts = (mayDoWaveTable == 2) || (mayDoSingleCycle == 2)
-		                                   || (soundEditor.currentSound->getSynthMode() == SYNTH_MODE_RINGMOD);
+		                                   || (soundEditor.currentSound->getSynthMode() == SynthMode::RINGMOD);
 
 		int numTypesTried = 0;
 
@@ -871,7 +871,7 @@ doLoadAsWaveTable:
 
 					// If that was what the user really specified they wanted, and we couldn't do it, then we have to tell them no.
 					if (mayDoWaveTable == 2 || numTypesTried > 1
-					    || (soundEditor.currentSound->getSynthMode() == SYNTH_MODE_RINGMOD)) {
+					    || (soundEditor.currentSound->getSynthMode() == SynthMode::RINGMOD)) {
 						goto removeLoadingAnimationAndGetOut;
 					}
 

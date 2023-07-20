@@ -215,7 +215,7 @@ bool Voice::noteOn(ModelStackWithVoice* modelStack, int newNoteCodeBeforeArpeggi
 			guides[s].noteOffReceived = false;
 			guides[s].sequenceSyncLengthTicks = 0; // That's the default - may get overwritten below
 
-			if (sound->getSynthMode() != SYNTH_MODE_FM
+			if (sound->getSynthMode() != SynthMode::FM
 			    && (sound->sources[s].oscType == OscType::SAMPLE || sound->sources[s].oscType == OscType::WAVETABLE)) {
 
 				// Set up MultiRange
@@ -247,7 +247,7 @@ bool Voice::noteOn(ModelStackWithVoice* modelStack, int newNoteCodeBeforeArpeggi
 		}
 		else {
 gotInactive:
-			if (sound->getSynthMode() == SYNTH_MODE_RINGMOD) {
+			if (sound->getSynthMode() == SynthMode::RINGMOD) {
 				return false;
 			}
 			sourceEverActive = false;
@@ -273,7 +273,7 @@ activenessDetermined:
 
 		// FM overrides osc type to always be sines
 		OscType oscType;
-		if (sound->getSynthMode() == SYNTH_MODE_FM) {
+		if (sound->getSynthMode() == SynthMode::FM) {
 			oscType = OscType::SINE;
 		}
 		else {
@@ -303,7 +303,7 @@ activenessDetermined:
 		}
 	}
 
-	if (sound->getSynthMode() == SYNTH_MODE_FM) {
+	if (sound->getSynthMode() == SynthMode::FM) {
 		uint32_t initialPhase = getOscInitialPhaseForZero(OscType::SINE);
 		for (int u = 0; u < sound->numUnison; u++) {
 			for (int m = 0; m < numModulators; m++) {
@@ -387,7 +387,7 @@ void Voice::randomizeOscPhases(Sound* sound) {
 			unisonParts[u].sources[s].oscPos = getNoise();
 			// TODO: we should do sample play pos, too
 		}
-		if (sound->getSynthMode() == SYNTH_MODE_FM) {
+		if (sound->getSynthMode() == SynthMode::FM) {
 			for (int m = 0; m < numModulators; m++) {
 				unisonParts[u].modulatorPhase[m] = getNoise();
 			}
@@ -429,7 +429,7 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 		uint32_t phaseIncrement;
 
 		// Sample-osc
-		if (sound->getSynthMode() != SYNTH_MODE_FM
+		if (sound->getSynthMode() != SynthMode::FM
 		    && (source->oscType == OscType::SAMPLE || source->oscType == OscType::INPUT_L
 		        || source->oscType == OscType::INPUT_R || source->oscType == OscType::INPUT_STEREO)) {
 
@@ -507,7 +507,7 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 	}
 
 	// FM modulators
-	if (sound->getSynthMode() == SYNTH_MODE_FM) {
+	if (sound->getSynthMode() == SynthMode::FM) {
 		for (int m = 0; m < numModulators; m++) {
 
 			if (sound->getSmoothedPatchedParamValue(PARAM_LOCAL_MODULATOR_0_VOLUME + m, paramManager) == -2147483648) {
@@ -583,7 +583,7 @@ void Voice::noteOff(ModelStackWithVoice* modelStack, bool allowReleaseStage) {
 		previouslyIgnoredNoteOff = true;
 	}
 
-	if (sound->synthMode != SYNTH_MODE_FM) {
+	if (sound->synthMode != SynthMode::FM) {
 		for (int s = 0; s < NUM_SOURCES; s++) {
 			if (sound->sources[s].oscType == OscType::SAMPLE && guides[s].loopEndPlaybackAtByte) {
 				for (int u = 0; u < sound->numUnison; u++) {
@@ -796,7 +796,7 @@ bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int nu
 	// we can only do it after because we need to know pitch
 
 	// If not already releasing and some release is set, and no noise-source...
-	if (sound->getSynthMode() != SYNTH_MODE_FM && envelopes[0].state < EnvelopeStage::RELEASE && hasReleaseStage()
+	if (sound->getSynthMode() != SynthMode::FM && envelopes[0].state < EnvelopeStage::RELEASE && hasReleaseStage()
 	    && !paramManager->getPatchedParamSet()->params[PARAM_LOCAL_NOISE_VOLUME].containsSomething(-2147483648)) {
 
 		unsigned int whichSourcesNeedAttention = 0;
@@ -926,7 +926,7 @@ skipAutoRelease : {}
 		    sound->volumeNeutralValueForUnison << 1); // Level adjustment for unison now happens *before* the filter!
 	}
 
-	int synthMode = sound->getSynthMode();
+	SynthMode synthMode = sound->getSynthMode();
 
 	int32_t sourceAmplitudes[NUM_SOURCES];
 	int32_t sourceAmplitudeIncrements[NUM_SOURCES];
@@ -937,7 +937,7 @@ skipAutoRelease : {}
 	int32_t overallOscillatorAmplitudeIncrement;
 
 	// If not ringmod, then sources need their volume calculated
-	if (synthMode != SYNTH_MODE_RINGMOD) {
+	if (synthMode != SynthMode::RINGMOD) {
 
 		// PARAM_LOCAL_OSC_x_VOLUME can normally only be up to a quarter of full range, but patching can make it up to full-range
 		// overallOscAmplitude (same range as) PARAM_LOCAL_VOLUME, is the same.
@@ -947,7 +947,7 @@ skipAutoRelease : {}
 		// We then have space to make each osc's amplitude 4x what it could have been otherwise
 
 		// If FM, we work the overall amplitude into each oscillator's, to avoid having to do an extra multiplication for every audio sample at the end
-		if (synthMode == SYNTH_MODE_FM) {
+		if (synthMode == SynthMode::FM) {
 
 			// Apply compensation for unison
 			overallOscAmplitude =
@@ -991,7 +991,7 @@ skipAutoRelease : {}
 		filterGainLastTime = filterGain;
 
 		// If FM, cache whether modulators are active
-		if (synthMode == SYNTH_MODE_FM) {
+		if (synthMode == SynthMode::FM) {
 			for (int m = 0; m < numModulators; m++) {
 				modulatorsActive[m] =
 				    (paramFinalValues[PARAM_LOCAL_MODULATOR_0_VOLUME + m] != 0 || modulatorAmplitudeLastTime[m] != 0);
@@ -1007,7 +1007,7 @@ skipAutoRelease : {}
 
 	int32_t sourceWaveIndexIncrements[NUM_SOURCES];
 
-	if (synthMode != SYNTH_MODE_FM) {
+	if (synthMode != SynthMode::FM) {
 		if (!doneFirstRender && paramFinalValues[PARAM_LOCAL_ENV_0_ATTACK] > 245632) {
 			overallOscAmplitudeLastTime = overallOscAmplitude;
 		}
@@ -1038,12 +1038,12 @@ skipAutoRelease : {}
 	// Lots of conditions rule out renderingDirectlyIntoSoundBuffer right away
 	if (sound->clippingAmount
 	    || sound->synthMode
-	           == SYNTH_MODE_RINGMOD // We could make this one work - but currently the ringmod rendering code doesn't really have
+	           == SynthMode::RINGMOD // We could make this one work - but currently the ringmod rendering code doesn't really have
 	    // proper amplitude control - e.g. no increments - built in, so we rely on the normal final
 	    // buffer-copying bit for that
 	    || filterSetConfig->doHPF || filterSetConfig->doLPF
 	    || (paramFinalValues[PARAM_LOCAL_NOISE_VOLUME] != 0
-	        && synthMode != SYNTH_MODE_FM) // Not essential, but makes life easier
+	        && synthMode != SynthMode::FM) // Not essential, but makes life easier
 	    || paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(PARAM_LOCAL_PAN)) {
 		renderingDirectlyIntoSoundBuffer = false;
 	}
@@ -1051,7 +1051,7 @@ skipAutoRelease : {}
 	// Otherwise, we need to think about whether we're rendering the same number of channels as the Sound
 	else {
 
-		if (synthMode == SYNTH_MODE_SUBTRACTIVE) {
+		if (synthMode == SynthMode::SUBTRACTIVE) {
 
 			for (int s = 0; s < NUM_SOURCES; s++) {
 				if (!sound->isSourceActiveCurrently(s, paramManager)) {
@@ -1094,7 +1094,7 @@ decidedWhichBufferRenderingInto:
 		oscBuffer = soundBuffer;
 
 		// Don't modify amplitudes if we're FM, because for that, overallOscAmplitude has already been factored into the oscillator (carrier) amplitudes
-		if (synthMode == SYNTH_MODE_SUBTRACTIVE) {
+		if (synthMode == SynthMode::SUBTRACTIVE) {
 			for (int s = 0; s < NUM_SOURCES; s++) {
 				sourceAmplitudeIncrements[s] =
 				    (multiply_32x32_rshift32(sourceAmplitudeIncrements[s], overallOscAmplitudeLastTime)
@@ -1114,7 +1114,7 @@ decidedWhichBufferRenderingInto:
 		int32_t const* const oscBufferEnd = oscBuffer + numSamples;
 
 		// If any noise, do that. By cutting a corner here, we do it just once for all "unison", rather than for each unison. Increasing number of unison cuts the volume of the oscillators
-		if (paramFinalValues[PARAM_LOCAL_NOISE_VOLUME] != 0 && synthMode != SYNTH_MODE_FM) {
+		if (paramFinalValues[PARAM_LOCAL_NOISE_VOLUME] != 0 && synthMode != SynthMode::FM) {
 
 			// This was >>2, but because I had a bug in V2.0.x which made noise too loud if filter on,
 			// I'm now making this louder to compensate and remain consistent by going just >>1.
@@ -1155,7 +1155,7 @@ decidedWhichBufferRenderingInto:
 	unsigned int sourcesToRenderInStereo = 0;
 
 	// Normal mode: subtractive / samples. We do each source first, for all unison
-	if (synthMode == SYNTH_MODE_SUBTRACTIVE) {
+	if (synthMode == SynthMode::SUBTRACTIVE) {
 
 		bool unisonPartBecameInactive = false;
 
@@ -1333,7 +1333,7 @@ decidedWhichBufferRenderingInto:
 			if (overallPitchAdjust != 16777216) {
 				for (int s = 0; s < NUM_SOURCES; s++) {
 					if (!adjustPitch(&phaseIncrements[s], overallPitchAdjust)) {
-						if (synthMode == SYNTH_MODE_RINGMOD) {
+						if (synthMode == SynthMode::RINGMOD) {
 							goto skipUnisonPart;
 						}
 						else {
@@ -1346,7 +1346,7 @@ decidedWhichBufferRenderingInto:
 			// If individual source pitch adjusted...
 			for (int s = 0; s < NUM_SOURCES; s++) {
 				if (!adjustPitch(&phaseIncrements[s], paramFinalValues[PARAM_LOCAL_OSC_A_PITCH_ADJUST + s])) {
-					if (synthMode == SYNTH_MODE_RINGMOD) {
+					if (synthMode == SynthMode::RINGMOD) {
 						goto skipUnisonPart;
 					}
 					else {
@@ -1356,7 +1356,7 @@ decidedWhichBufferRenderingInto:
 			}
 
 			// If ringmod
-			if (synthMode == SYNTH_MODE_RINGMOD) {
+			if (synthMode == SynthMode::RINGMOD) {
 
 				int32_t amplitudeForRingMod = 1 << 27;
 
@@ -1537,7 +1537,7 @@ skipUnisonPart : {}
 			do {
 				int32_t output = *oscBufferPos;
 
-				if (synthMode != SYNTH_MODE_FM) {
+				if (synthMode != SynthMode::FM) {
 					overallOscAmplitudeNow += overallOscillatorAmplitudeIncrement;
 					output = multiply_32x32_rshift32_rounded(output, overallOscAmplitudeNow) << 1;
 				}
@@ -1568,7 +1568,7 @@ skipUnisonPart : {}
 			do {
 				int32_t output = *oscBufferPos;
 
-				if (synthMode != SYNTH_MODE_FM) {
+				if (synthMode != SynthMode::FM) {
 					overallOscAmplitudeNow += overallOscillatorAmplitudeIncrement;
 					output = multiply_32x32_rshift32_rounded(output, overallOscAmplitudeNow) << 1;
 				}

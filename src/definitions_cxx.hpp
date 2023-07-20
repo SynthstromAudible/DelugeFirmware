@@ -455,10 +455,10 @@ enum SyncLevel {
 	SYNC_LEVEL_256TH = 9,
 };
 
-enum SynthMode {
-	SYNTH_MODE_SUBTRACTIVE,
-	SYNTH_MODE_FM,
-	SYNTH_MODE_RINGMOD,
+enum class SynthMode {
+	SUBTRACTIVE,
+	FM,
+	RINGMOD,
 };
 
 enum ModFXType {

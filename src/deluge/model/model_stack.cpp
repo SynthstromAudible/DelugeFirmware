@@ -202,7 +202,7 @@ bool ModelStackWithSoundFlags::checkSourceEverActive(int s) {
 		if (flagValue) { // Does an &&
 			Sound* sound = (Sound*)modControllable;
 			flagValue =
-			    sound->synthMode == SYNTH_MODE_FM
+			    sound->synthMode == SynthMode::FM
 			    || (sound->sources[s].oscType != OscType::SAMPLE && sound->sources[s].oscType != OscType::WAVETABLE)
 			    || sound->sources[s].hasAtLeastOneAudioFileLoaded();
 		}

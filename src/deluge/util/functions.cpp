@@ -942,10 +942,10 @@ LFOType stringToLFOType(char const* string) {
 
 char const* synthModeToString(SynthMode synthMode) {
 	switch (synthMode) {
-	case SYNTH_MODE_FM:
+	case SynthMode::FM:
 		return "fm";
 
-	case SYNTH_MODE_RINGMOD:
+	case SynthMode::RINGMOD:
 		return "ringmod";
 
 	default:
@@ -955,13 +955,13 @@ char const* synthModeToString(SynthMode synthMode) {
 
 SynthMode stringToSynthMode(char const* string) {
 	if (!strcmp(string, "fm")) {
-		return SYNTH_MODE_FM;
+		return SynthMode::FM;
 	}
 	else if (!strcmp(string, "ringmod")) {
-		return SYNTH_MODE_RINGMOD;
+		return SynthMode::RINGMOD;
 	}
 	else {
-		return SYNTH_MODE_SUBTRACTIVE;
+		return SynthMode::SUBTRACTIVE;
 	}
 }
 

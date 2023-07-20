@@ -76,10 +76,10 @@ public:
 
 	bool isRelevant(Sound* sound, int whichThing) {
 		Source* source = &sound->sources[whichThing];
-		if (forModulator && sound->getSynthMode() != SYNTH_MODE_FM) {
+		if (forModulator && sound->getSynthMode() != SynthMode::FM) {
 			return false;
 		}
-		return (source->oscType != OscType::SAMPLE || sound->getSynthMode() == SYNTH_MODE_FM);
+		return (source->oscType != OscType::SAMPLE || sound->getSynthMode() == SynthMode::FM);
 	}
 
 private:

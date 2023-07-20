@@ -33,9 +33,9 @@ VoiceUnisonPartSource::VoiceUnisonPartSource() {
 }
 
 bool VoiceUnisonPartSource::noteOn(Voice* voice, Source* source, VoiceSamplePlaybackGuide* guide, uint32_t samplesLate,
-                                   uint32_t oscRetriggerPhase, bool resetEverything, uint8_t synthMode) {
+                                   uint32_t oscRetriggerPhase, bool resetEverything, SynthMode synthMode) {
 
-	if (synthMode != SYNTH_MODE_FM && source->oscType == OscType::SAMPLE) {
+	if (synthMode != SynthMode::FM && source->oscType == OscType::SAMPLE) {
 
 		if (!guide->audioFileHolder || !guide->audioFileHolder->audioFile
 		    || ((Sample*)guide->audioFileHolder->audioFile)->unplayable) {
@@ -55,7 +55,7 @@ bool VoiceUnisonPartSource::noteOn(Voice* voice, Source* source, VoiceSamplePlay
 		return voiceSample->setupClusersForInitialPlay(guide, (Sample*)guide->audioFileHolder->audioFile, 0, false, 1);
 	}
 
-	if (synthMode != SYNTH_MODE_FM
+	if (synthMode != SynthMode::FM
 	    && (source->oscType == OscType::SAMPLE || source->oscType == OscType::INPUT_L
 	        || source->oscType == OscType::INPUT_R || source->oscType == OscType::INPUT_STEREO)) {
 		//oscPos = 0;

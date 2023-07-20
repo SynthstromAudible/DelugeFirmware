@@ -33,7 +33,7 @@ public:
 	}
 
 	bool isRelevant(Sound* sound, int whichThing) {
-		if (sound->getSynthMode() == SYNTH_MODE_FM) {
+		if (sound->getSynthMode() == SynthMode::FM) {
 			return false;
 		}
 		OscType oscType = sound->sources[whichThing].oscType;

@@ -26,7 +26,7 @@ public:
 	void readCurrentValue() {
 		int transpose;
 		int cents;
-		if (soundEditor.currentMultiRange && soundEditor.currentSound->getSynthMode() != SYNTH_MODE_FM
+		if (soundEditor.currentMultiRange && soundEditor.currentSound->getSynthMode() != SynthMode::FM
 		    && soundEditor.currentSource->oscType == OscType::SAMPLE) {
 			transpose = ((MultisampleRange*)soundEditor.currentMultiRange)->sampleHolder.transpose;
 			cents = ((MultisampleRange*)soundEditor.currentMultiRange)->sampleHolder.cents;
@@ -44,7 +44,7 @@ public:
 		int cents = currentValue - semitones * 100;
 
 		int transpose = semitones - 256;
-		if (soundEditor.currentMultiRange && soundEditor.currentSound->getSynthMode() != SYNTH_MODE_FM
+		if (soundEditor.currentMultiRange && soundEditor.currentSound->getSynthMode() != SynthMode::FM
 		    && soundEditor.currentSource->oscType == OscType::SAMPLE) {
 			((MultisampleRange*)soundEditor.currentMultiRange)->sampleHolder.transpose = transpose;
 			((MultisampleRange*)soundEditor.currentMultiRange)->sampleHolder.setCents(cents);
@@ -67,7 +67,7 @@ public:
 
 		Source* source = &sound->sources[whichThing];
 
-		if (sound->getSynthMode() == SYNTH_MODE_FM
+		if (sound->getSynthMode() == SynthMode::FM
 		    || (source->oscType != OscType::SAMPLE && source->oscType != OscType::WAVETABLE))
 			return MENU_PERMISSION_YES;
 

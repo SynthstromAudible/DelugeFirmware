@@ -102,7 +102,7 @@ Sound::Sound() : patcher(&patchableInfoForSound) {
 	numUnison = 1;
 	unisonDetune = 8;
 
-	synthMode = SYNTH_MODE_SUBTRACTIVE;
+	synthMode = SynthMode::SUBTRACTIVE;
 	modulator1ToModulator0 = false;
 
 	lpfMode = LPF_MODE_TRANSISTOR_24DB; // Good for samples, I think
@@ -303,7 +303,7 @@ void Sound::setupDefaultExpressionPatching(ParamManager* paramManager) {
 		return;
 	}
 
-	if (synthMode == SYNTH_MODE_FM) {
+	if (synthMode == SynthMode::FM) {
 		patchCableSet->patchCables[patchCableSet->numPatchCables++].setup(
 		    PatchSource::Y, PARAM_LOCAL_MODULATOR_0_VOLUME, getParamFromUserValue(PARAM_STATIC_PATCH_CABLE, 15));
 	}
@@ -443,7 +443,7 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 
 	else if (!strcmp(tagName, "mode")) {
 		char const* contents = storageManager.readTagOrAttributeValue();
-		if (synthMode != SYNTH_MODE_RINGMOD) { // Compatibility with old XML files
+		if (synthMode != SynthMode::RINGMOD) { // Compatibility with old XML files
 			synthMode = stringToSynthMode(contents);
 		}
 		//Uart::print("synth mode set to: ");
@@ -790,7 +790,7 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 	else if (!strcmp(tagName, "ringMod")) {
 		int32_t contents = storageManager.readTagOrAttributeValueInt();
 		if (contents == 1) {
-			synthMode = SYNTH_MODE_RINGMOD;
+			synthMode = SynthMode::RINGMOD;
 		}
 		storageManager.exitTag("ringMod");
 	}
@@ -1198,13 +1198,13 @@ uint8_t Sound::maySourcePatchToParam(PatchSource s, uint8_t p, ParamManager* par
 		           : PATCH_CABLE_ACCEPTANCE_DISALLOWED;
 
 	case PARAM_LOCAL_OSC_A_PHASE_WIDTH:
-		if (getSynthMode() == SYNTH_MODE_FM) {
+		if (getSynthMode() == SynthMode::FM) {
 			return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
 		}
-		//if (getSynthMode() == SYNTH_MODE_FM || (sources[0].oscType != OscType::SQUARE && sources[0].oscType != OscType::JUNO60_SUBOSC)) return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
+		//if (getSynthMode() == SynthMode::FM || (sources[0].oscType != OscType::SQUARE && sources[0].oscType != OscType::JUNO60_SUBOSC)) return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
 		break;
 	case PARAM_LOCAL_OSC_A_VOLUME:
-		if (getSynthMode() == SYNTH_MODE_RINGMOD) {
+		if (getSynthMode() == SynthMode::RINGMOD) {
 			return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
 		}
 	case PARAM_LOCAL_OSC_A_PITCH_ADJUST:
@@ -1212,7 +1212,7 @@ uint8_t Sound::maySourcePatchToParam(PatchSource s, uint8_t p, ParamManager* par
 		                                                                      : PATCH_CABLE_ACCEPTANCE_EDITABLE;
 
 	case PARAM_LOCAL_CARRIER_0_FEEDBACK:
-		if (synthMode != SYNTH_MODE_FM) {
+		if (synthMode != SynthMode::FM) {
 			return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
 		}
 		return (isSourceActiveEver(0, paramManager)
@@ -1221,13 +1221,13 @@ uint8_t Sound::maySourcePatchToParam(PatchSource s, uint8_t p, ParamManager* par
 		           : PATCH_CABLE_ACCEPTANCE_EDITABLE;
 
 	case PARAM_LOCAL_OSC_B_PHASE_WIDTH:
-		if (getSynthMode() == SYNTH_MODE_FM) {
+		if (getSynthMode() == SynthMode::FM) {
 			return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
 		}
-		//if (getSynthMode() == SYNTH_MODE_FM || (sources[1].oscType != OscType::SQUARE && sources[1].oscType != OscType::JUNO60_SUBOSC)) return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
+		//if (getSynthMode() == SynthMode::FM || (sources[1].oscType != OscType::SQUARE && sources[1].oscType != OscType::JUNO60_SUBOSC)) return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
 		break;
 	case PARAM_LOCAL_OSC_B_VOLUME:
-		if (getSynthMode() == SYNTH_MODE_RINGMOD) {
+		if (getSynthMode() == SynthMode::RINGMOD) {
 			return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
 		}
 	case PARAM_LOCAL_OSC_B_PITCH_ADJUST:
@@ -1235,7 +1235,7 @@ uint8_t Sound::maySourcePatchToParam(PatchSource s, uint8_t p, ParamManager* par
 		                                                                      : PATCH_CABLE_ACCEPTANCE_EDITABLE;
 
 	case PARAM_LOCAL_CARRIER_1_FEEDBACK:
-		if (synthMode != SYNTH_MODE_FM) {
+		if (synthMode != SynthMode::FM) {
 			return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
 		}
 		return (isSourceActiveEver(1, paramManager)
@@ -1244,7 +1244,7 @@ uint8_t Sound::maySourcePatchToParam(PatchSource s, uint8_t p, ParamManager* par
 		           : PATCH_CABLE_ACCEPTANCE_EDITABLE;
 
 	case PARAM_LOCAL_NOISE_VOLUME:
-		if (synthMode == SYNTH_MODE_FM) {
+		if (synthMode == SynthMode::FM) {
 			return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
 		}
 		return (patchedParams->params[PARAM_LOCAL_NOISE_VOLUME].containsSomething(-2147483648))
@@ -1256,21 +1256,21 @@ uint8_t Sound::maySourcePatchToParam(PatchSource s, uint8_t p, ParamManager* par
 
 	case PARAM_LOCAL_LPF_FREQ:
 	case PARAM_LOCAL_LPF_RESONANCE:
-		if (synthMode == SYNTH_MODE_FM) {
+		if (synthMode == SynthMode::FM) {
 			return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
 		}
 		break;
 
 	case PARAM_LOCAL_HPF_FREQ:
 	case PARAM_LOCAL_HPF_RESONANCE:
-		if (synthMode == SYNTH_MODE_FM) {
+		if (synthMode == SynthMode::FM) {
 			return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
 		}
 		break;
 
 	case PARAM_LOCAL_MODULATOR_0_VOLUME:
 	case PARAM_LOCAL_MODULATOR_0_PITCH_ADJUST:
-		if (synthMode != SYNTH_MODE_FM) {
+		if (synthMode != SynthMode::FM) {
 			return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
 		}
 		return (patchedParams->params[PARAM_LOCAL_MODULATOR_0_VOLUME].containsSomething(-2147483648))
@@ -1278,7 +1278,7 @@ uint8_t Sound::maySourcePatchToParam(PatchSource s, uint8_t p, ParamManager* par
 		           : PATCH_CABLE_ACCEPTANCE_EDITABLE;
 
 	case PARAM_LOCAL_MODULATOR_0_FEEDBACK:
-		if (synthMode != SYNTH_MODE_FM) {
+		if (synthMode != SynthMode::FM) {
 			return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
 		}
 		return (patchedParams->params[PARAM_LOCAL_MODULATOR_0_VOLUME].containsSomething(-2147483648)
@@ -1288,7 +1288,7 @@ uint8_t Sound::maySourcePatchToParam(PatchSource s, uint8_t p, ParamManager* par
 
 	case PARAM_LOCAL_MODULATOR_1_VOLUME:
 	case PARAM_LOCAL_MODULATOR_1_PITCH_ADJUST:
-		if (synthMode != SYNTH_MODE_FM) {
+		if (synthMode != SynthMode::FM) {
 			return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
 		}
 		return (patchedParams->params[PARAM_LOCAL_MODULATOR_1_VOLUME].containsSomething(-2147483648))
@@ -1296,7 +1296,7 @@ uint8_t Sound::maySourcePatchToParam(PatchSource s, uint8_t p, ParamManager* par
 		           : PATCH_CABLE_ACCEPTANCE_EDITABLE;
 
 	case PARAM_LOCAL_MODULATOR_1_FEEDBACK:
-		if (synthMode != SYNTH_MODE_FM) {
+		if (synthMode != SynthMode::FM) {
 			return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
 		}
 		return (patchedParams->params[PARAM_LOCAL_MODULATOR_1_VOLUME].containsSomething(-2147483648)
@@ -1338,7 +1338,7 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 
 	ModelStackWithSoundFlags* modelStackWithSoundFlags = modelStack->addSoundFlags();
 
-	if (synthMode == SYNTH_MODE_RINGMOD) {
+	if (synthMode == SynthMode::RINGMOD) {
 		goto allFine;
 	}
 	if (modelStackWithSoundFlags->checkSourceEverActive(0)) {
@@ -1397,7 +1397,7 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int note
 			        true)) { // allowNoteTails() is very nearly exactly what we want to be calling here, though not named after the thing we're looking for here
 
 				// If non-FM and all active sources are samples, do a fast-release (if not already fast-releasing). Otherwise, just unassign (cut instantly)
-				if (synthMode == SYNTH_MODE_FM) {
+				if (synthMode == SynthMode::FM) {
 justUnassign:
 					// Ideally, we want to save this voice to reuse. But we can only do that for the first such one
 					if (!voiceToReuse) {
@@ -1593,7 +1593,7 @@ bool Sound::allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardS
 	}
 
 	// After that if not subtractive (so no samples) or there's some noise, we definitely can have tails
-	if (synthMode != SYNTH_MODE_SUBTRACTIVE
+	if (synthMode != SynthMode::SUBTRACTIVE
 	    || modelStack->paramManager->getPatchedParamSet()->params[PARAM_LOCAL_NOISE_VOLUME].containsSomething(
 	        -2147483648)) {
 		return true;
@@ -1618,7 +1618,7 @@ bool Sound::allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardS
 
 int32_t Sound::hasAnyTimeStretchSyncing(ParamManagerForTimeline* paramManager, bool getSampleLength, int note) {
 
-	if (synthMode == SYNTH_MODE_FM) {
+	if (synthMode == SynthMode::FM) {
 		return 0;
 	}
 
@@ -1641,7 +1641,7 @@ int32_t Sound::hasAnyTimeStretchSyncing(ParamManagerForTimeline* paramManager, b
 // Returns sample length in samples
 int32_t Sound::hasCutOrLoopModeSamples(ParamManagerForTimeline* paramManager, int note, bool* anyLooping) {
 
-	if (synthMode == SYNTH_MODE_FM) {
+	if (synthMode == SynthMode::FM) {
 		return 0;
 	}
 
@@ -1681,7 +1681,7 @@ int32_t Sound::hasCutOrLoopModeSamples(ParamManagerForTimeline* paramManager, in
 
 bool Sound::hasCutModeSamples(ParamManagerForTimeline* paramManager) {
 
-	if (synthMode == SYNTH_MODE_FM) {
+	if (synthMode == SynthMode::FM) {
 		return false;
 	}
 
@@ -1712,7 +1712,7 @@ bool Sound::allowsVeryLateNoteStart(InstrumentClip* clip, ParamManagerForTimelin
 		return true;
 	}
 
-	if (synthMode == SYNTH_MODE_FM) {
+	if (synthMode == SynthMode::FM) {
 		return false;
 	}
 
@@ -1749,26 +1749,26 @@ bool Sound::allowsVeryLateNoteStart(InstrumentClip* clip, ParamManagerForTimelin
 }
 
 bool Sound::isSourceActiveCurrently(int s, ParamManagerForTimeline* paramManager) {
-	return (synthMode == SYNTH_MODE_RINGMOD
+	return (synthMode == SynthMode::RINGMOD
 	        || getSmoothedPatchedParamValue(PARAM_LOCAL_OSC_A_VOLUME + s, paramManager) != -2147483648)
-	       && (synthMode == SYNTH_MODE_FM || sources[s].oscType != OscType::SAMPLE
+	       && (synthMode == SynthMode::FM || sources[s].oscType != OscType::SAMPLE
 	           || sources[s].hasAtLeastOneAudioFileLoaded());
 }
 
 bool Sound::isSourceActiveEverDisregardingMissingSample(int s, ParamManager* paramManager) {
-	return (synthMode == SYNTH_MODE_RINGMOD
+	return (synthMode == SynthMode::RINGMOD
 	        || paramManager->getPatchedParamSet()->params[PARAM_LOCAL_OSC_A_VOLUME + s].containsSomething(-2147483648)
 	        || renderingOscillatorSyncEver(paramManager));
 }
 
 bool Sound::isSourceActiveEver(int s, ParamManager* paramManager) {
 	return isSourceActiveEverDisregardingMissingSample(s, paramManager)
-	       && (synthMode == SYNTH_MODE_FM || sources[s].oscType != OscType::SAMPLE
+	       && (synthMode == SynthMode::FM || sources[s].oscType != OscType::SAMPLE
 	           || sources[s].hasAtLeastOneAudioFileLoaded());
 }
 
 bool Sound::isNoiseActiveEver(ParamManagerForTimeline* paramManager) {
-	return (synthMode != SYNTH_MODE_FM
+	return (synthMode != SynthMode::FM
 	        && paramManager->getPatchedParamSet()->params[PARAM_LOCAL_NOISE_VOLUME].containsSomething(-2147483648));
 }
 
@@ -1776,22 +1776,22 @@ bool Sound::renderingOscillatorSyncCurrently(ParamManagerForTimeline* paramManag
 	if (!oscillatorSync) {
 		return false;
 	}
-	if (synthMode == SYNTH_MODE_FM) {
+	if (synthMode == SynthMode::FM) {
 		return false;
 	}
 	return (getSmoothedPatchedParamValue(PARAM_LOCAL_OSC_B_VOLUME, paramManager) != -2147483648
-	        || synthMode == SYNTH_MODE_RINGMOD);
+	        || synthMode == SynthMode::RINGMOD);
 }
 
 bool Sound::renderingOscillatorSyncEver(ParamManager* paramManager) {
 	if (!oscillatorSync) {
 		return false;
 	}
-	if (synthMode == SYNTH_MODE_FM) {
+	if (synthMode == SynthMode::FM) {
 		return false;
 	}
 	return (paramManager->getPatchedParamSet()->params[PARAM_LOCAL_OSC_B_VOLUME].containsSomething(-2147483648)
-	        || synthMode == SYNTH_MODE_RINGMOD);
+	        || synthMode == SynthMode::RINGMOD);
 }
 
 void Sound::sampleZoneChanged(int markerType, int s, ModelStackWithSoundFlags* modelStack) {
@@ -2688,7 +2688,7 @@ void Sound::setSynthMode(SynthMode value, Song* song) {
 	setupPatchingForAllParamManagers(song);
 
 	// Change mod knob functions over. Switching *to* FM...
-	if (synthMode == SYNTH_MODE_FM && oldSynthMode != SYNTH_MODE_FM) {
+	if (synthMode == SynthMode::FM && oldSynthMode != SynthMode::FM) {
 		for (int f = 0; f < NUM_MOD_BUTTONS; f++) {
 			if (modKnobs[f][0].paramDescriptor.isJustAParam() && modKnobs[f][1].paramDescriptor.isJustAParam()) {
 				int p0 = modKnobs[f][0].paramDescriptor.getJustTheParam();
@@ -2706,7 +2706,7 @@ void Sound::setSynthMode(SynthMode value, Song* song) {
 	}
 
 	// ... and switching *from* FM...
-	if (synthMode != SYNTH_MODE_FM && oldSynthMode == SYNTH_MODE_FM) {
+	if (synthMode != SynthMode::FM && oldSynthMode == SynthMode::FM) {
 		for (int f = 0; f < NUM_MOD_BUTTONS; f++) {
 			if (modKnobs[f][0].paramDescriptor.isSetToParamWithNoSource(PARAM_LOCAL_MODULATOR_1_VOLUME)
 			    && modKnobs[f][1].paramDescriptor.isSetToParamWithNoSource(PARAM_LOCAL_MODULATOR_0_VOLUME)) {
@@ -2764,13 +2764,13 @@ void Sound::setNumUnison(int newNum, ModelStackWithSoundFlags* modelStack) {
 		for (int v = ends[0]; v < ends[1]; v++) {
 			Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
 
-			if (synthMode == SYNTH_MODE_SUBTRACTIVE) {
+			if (synthMode == SynthMode::SUBTRACTIVE) {
 
 				for (int s = 0; s < NUM_SOURCES; s++) {
 
 					bool sourceEverActive = modelStack->checkSourceEverActive(s);
 
-					if (sourceEverActive && synthMode != SYNTH_MODE_FM && sources[s].oscType == OscType::SAMPLE
+					if (sourceEverActive && synthMode != SynthMode::FM && sources[s].oscType == OscType::SAMPLE
 					    && thisVoice->guides[s].audioFileHolder && thisVoice->guides[s].audioFileHolder->audioFile) {
 
 						// For samples, set the current play pos for the new unison part, if num unison went up
@@ -2839,7 +2839,7 @@ bool Sound::anyNoteIsOn() {
 }
 
 bool Sound::hasFilters() {
-	return (getSynthMode() != SYNTH_MODE_FM);
+	return (getSynthMode() != SynthMode::FM);
 }
 
 void Sound::readParamsFromFile(ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos) {
@@ -2918,7 +2918,7 @@ int Sound::createParamManagerForLoading(ParamManagerForTimeline* paramManager) {
 void Sound::compensateVolumeForResonance(ModelStackWithThreeMainThings* modelStack) {
 
 	// If it was an old-firmware file, we need to compensate for resonance
-	if (storageManager.firmwareVersionOfFileBeingRead < FIRMWARE_1P2P0 && synthMode != SYNTH_MODE_FM) {
+	if (storageManager.firmwareVersionOfFileBeingRead < FIRMWARE_1P2P0 && synthMode != SynthMode::FM) {
 		if (modelStack->paramManager->resonanceBackwardsCompatibilityProcessed) {
 			return;
 		}
@@ -3210,13 +3210,13 @@ void Sound::writeSourceToFile(int s, char const* tagName) {
 
 	storageManager.writeOpeningTagBeginning(tagName);
 
-	if (synthMode != SYNTH_MODE_FM) {
+	if (synthMode != SynthMode::FM) {
 		storageManager.writeAttribute("type", oscTypeToString(source->oscType));
 	}
 
 	// If (multi)sample...
 	if (source->oscType == OscType::SAMPLE
-	    && synthMode != SYNTH_MODE_FM) { // Don't combine this with the above "if" - there's an "else" below
+	    && synthMode != SynthMode::FM) { // Don't combine this with the above "if" - there's an "else" below
 		storageManager.writeAttribute("loopMode", source->repeatMode);
 		storageManager.writeAttribute("reversed", source->sampleControls.reversed);
 		storageManager.writeAttribute("timeStretchEnable", source->sampleControls.pitchAndSpeedAreIndependent);
@@ -3291,7 +3291,7 @@ void Sound::writeSourceToFile(int s, char const* tagName) {
 		storageManager.writeAttribute("retrigPhase", oscRetriggerPhase[s]);
 
 		// Sub-option for (multi)wavetable
-		if (source->oscType == OscType::WAVETABLE && synthMode != SYNTH_MODE_FM) {
+		if (source->oscType == OscType::WAVETABLE && synthMode != SynthMode::FM) {
 
 			int numRanges = source->ranges.getNumElements();
 
@@ -3653,7 +3653,7 @@ void Sound::writeToFile(bool savingSong, ParamManager* paramManager, Arpeggiator
 	storageManager.writeAttribute("type", lfoTypeToString(lfoLocalWaveType), false);
 	storageManager.closeTag();
 
-	if (synthMode == SYNTH_MODE_FM) {
+	if (synthMode == SynthMode::FM) {
 
 		storageManager.writeOpeningTagBeginning("modulator1");
 		storageManager.writeAttribute("transpose", modulatorTranspose[0]);
@@ -3718,12 +3718,12 @@ int16_t Sound::getMaxOscTranspose(InstrumentClip* clip) {
 
 	int maxRawOscTranspose = -32768;
 	for (int s = 0; s < NUM_SOURCES; s++) {
-		if (getSynthMode() == SYNTH_MODE_FM || sources[s].oscType != OscType::SAMPLE) {
+		if (getSynthMode() == SynthMode::FM || sources[s].oscType != OscType::SAMPLE) {
 			maxRawOscTranspose = getMax(maxRawOscTranspose, sources[s].transpose);
 		}
 	}
 
-	if (getSynthMode() == SYNTH_MODE_FM) {
+	if (getSynthMode() == SynthMode::FM) {
 		maxRawOscTranspose = getMax(maxRawOscTranspose, (int)modulatorTranspose[0]);
 		maxRawOscTranspose = getMax(maxRawOscTranspose, (int)modulatorTranspose[1]);
 	}
@@ -3745,12 +3745,12 @@ int16_t Sound::getMinOscTranspose() {
 
 	int minRawOscTranspose = 32767;
 	for (int s = 0; s < NUM_SOURCES; s++) {
-		if (getSynthMode() == SYNTH_MODE_FM || sources[s].oscType != OscType::SAMPLE) {
+		if (getSynthMode() == SynthMode::FM || sources[s].oscType != OscType::SAMPLE) {
 			minRawOscTranspose = getMin(minRawOscTranspose, sources[s].transpose);
 		}
 	}
 
-	if (getSynthMode() == SYNTH_MODE_FM) {
+	if (getSynthMode() == SynthMode::FM) {
 		minRawOscTranspose = getMin(minRawOscTranspose, (int)modulatorTranspose[0]);
 		minRawOscTranspose = getMin(minRawOscTranspose, (int)modulatorTranspose[1]);
 	}
@@ -3940,7 +3940,7 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 
 	// Switching between LPF, HPF and EQ
 	else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(PARAM_LOCAL_LPF_FREQ)) {
-		if (on && synthMode != SYNTH_MODE_FM) {
+		if (on && synthMode != SynthMode::FM) {
 			ourModKnob->paramDescriptor.setToHaveParamOnly(PARAM_LOCAL_HPF_FREQ);
 			// Switch resonance too
 			if (modKnobs[modKnobMode][1 - whichModEncoder].paramDescriptor.isSetToParamWithNoSource(
@@ -3954,7 +3954,7 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 	}
 
 	else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(PARAM_LOCAL_HPF_FREQ)) {
-		if (on && synthMode != SYNTH_MODE_FM) {
+		if (on && synthMode != SynthMode::FM) {
 			ourModKnob->paramDescriptor.setToHaveParamOnly(PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_TREBLE);
 			// Switch resonance too
 			if (modKnobs[modKnobMode][1 - whichModEncoder].paramDescriptor.isSetToParamWithNoSource(
@@ -3968,7 +3968,7 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 	}
 
 	else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_TREBLE)) {
-		if (on && synthMode != SYNTH_MODE_FM) {
+		if (on && synthMode != SynthMode::FM) {
 			ourModKnob->paramDescriptor.setToHaveParamOnly(PARAM_LOCAL_LPF_FREQ);
 			// Switch resonance too
 			if (modKnobs[modKnobMode][1 - whichModEncoder].paramDescriptor.isSetToParamWithNoSource(

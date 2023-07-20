@@ -79,7 +79,7 @@ public:
 	}
 
 	int getNumOptions() {
-		if (soundEditor.currentSound->getSynthMode() == SYNTH_MODE_RINGMOD) {
+		if (soundEditor.currentSound->getSynthMode() == SynthMode::RINGMOD) {
 			return kNumOscTypesRingModdable;
 		}
 		else if (AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn) {
@@ -89,7 +89,7 @@ public:
 			return kNumOscTypes - 2;
 		}
 	}
-	bool isRelevant(Sound* sound, int whichThing) { return (sound->getSynthMode() != SYNTH_MODE_FM); }
+	bool isRelevant(Sound* sound, int whichThing) { return (sound->getSynthMode() != SynthMode::FM); }
 };
 
 } // namespace menu_item::osc

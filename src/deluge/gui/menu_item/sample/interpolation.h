@@ -35,7 +35,7 @@ public:
 			return true;
 		}
 		Source* source = &sound->sources[whichThing];
-		return (sound->getSynthMode() == SYNTH_MODE_SUBTRACTIVE
+		return (sound->getSynthMode() == SynthMode::SUBTRACTIVE
 		        && ((source->oscType == OscType::SAMPLE && source->hasAtLeastOneAudioFileLoaded())
 		            || source->oscType == OscType::INPUT_L || source->oscType == OscType::INPUT_R
 		            || source->oscType == OscType::INPUT_STEREO));

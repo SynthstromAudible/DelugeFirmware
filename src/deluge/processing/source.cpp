@@ -192,16 +192,16 @@ bool Source::hasAtLeastOneAudioFileLoaded() {
 
 void Source::doneReadingFromFile(Sound* sound) {
 
-	int synthMode = sound->getSynthMode();
+	SynthMode synthMode = sound->getSynthMode();
 
-	if (synthMode == SYNTH_MODE_FM) {
+	if (synthMode == SynthMode::FM) {
 		oscType = OscType::SINE;
 	}
-	else if (synthMode == SYNTH_MODE_RINGMOD) {
+	else if (synthMode == SynthMode::RINGMOD) {
 		oscType = std::min<OscType>(oscType, static_cast<OscType>(LAST_RINGMODDABLE_OSC_TYPE));
 	}
 
-	bool isActualSampleOscillator = (synthMode != SYNTH_MODE_FM && oscType == OscType::SAMPLE);
+	bool isActualSampleOscillator = (synthMode != SynthMode::FM && oscType == OscType::SAMPLE);
 
 	if (oscType == OscType::SAMPLE) {
 		for (int e = 0; e < ranges.getNumElements(); e++) {
