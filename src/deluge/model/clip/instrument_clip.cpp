@@ -814,7 +814,7 @@ skipDoingSumTo100:
 			// else if 95% it's a placeholder for a new FILL value
 			// so only play the note if SHIFT+TRIPLETS is pressed
 			else if (pendingNoteOnList.pendingNoteOns[i].probability == NUM_PROBABILITY_VALUES - 1) {
-					conditionPassed = Buttons::isShiftButtonPressed() && Buttons::isButtonPressed(hid::button::TRIPLETS);
+					conditionPassed = Buttons::isButtonPressed(hid::button::SYNC_SCALING);
 			}
 
 			// Otherwise...
