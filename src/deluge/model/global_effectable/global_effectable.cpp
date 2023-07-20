@@ -38,7 +38,7 @@ GlobalEffectable::GlobalEffectable() {
 	filterSets[0].reset();
 	filterSets[1].reset();
 	modFXType = ModFXType::FLANGER;
-	currentModFXParam = MOD_FX_PARAM_FEEDBACK;
+	currentModFXParam = ModFXParam::FEEDBACK;
 	currentFilterType = FilterType::LPF;
 
 	memset(allpassMemory, 0, sizeof(allpassMemory));
@@ -145,23 +145,20 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 		}
 		else {
 			if (on) {
-				currentModFXParam = static_cast<ModFXParam>(util::to_underlying(currentModFXParam) + 1);
-				if (currentModFXParam >= NUM_MOD_FX_PARAMS) {
-					currentModFXParam = static_cast<ModFXParam>(0);
-				}
+				currentModFXParam = static_cast<ModFXParam>((util::to_underlying(currentModFXParam) + 1) % NUM_MOD_FX_PARAMS);
 				ensureModFXParamIsValid();
 
 				char const* displayText;
 				switch (currentModFXParam) {
-				case MOD_FX_PARAM_DEPTH:
+				case ModFXParam::DEPTH:
 					displayText = "DEPTH";
 					break;
 
-				case MOD_FX_PARAM_FEEDBACK:
+				case ModFXParam::FEEDBACK:
 					displayText = "FEEDBACK";
 					break;
 
-				case MOD_FX_PARAM_OFFSET:
+				case ModFXParam::OFFSET:
 					displayText = "OFFSET";
 					break;
 				}
@@ -302,10 +299,10 @@ int GlobalEffectable::getParameterFromKnob(int whichModEncoder) {
 			return PARAM_UNPATCHED_GLOBALEFFECTABLE_MOD_FX_RATE;
 		}
 		else {
-			if (currentModFXParam == MOD_FX_PARAM_DEPTH) {
+			if (currentModFXParam == ModFXParam::DEPTH) {
 				return PARAM_UNPATCHED_GLOBALEFFECTABLE_MOD_FX_DEPTH;
 			}
-			else if (currentModFXParam == MOD_FX_PARAM_OFFSET) {
+			else if (currentModFXParam == ModFXParam::OFFSET) {
 				return PARAM_UNPATCHED_MOD_FX_OFFSET;
 			}
 			else {
@@ -350,17 +347,17 @@ ModelStackWithAutoParam* GlobalEffectable::getParamFromModEncoder(int whichModEn
 
 void GlobalEffectable::ensureModFXParamIsValid() {
 	while (true) {
-		if (currentModFXParam == MOD_FX_PARAM_DEPTH) {
+		if (currentModFXParam == ModFXParam::DEPTH) {
 			if (modFXType == ModFXType::FLANGER) {
 				goto ohNo;
 			}
 		}
-		else if (currentModFXParam == MOD_FX_PARAM_OFFSET) {
+		else if (currentModFXParam == ModFXParam::OFFSET) {
 			if (modFXType != ModFXType::CHORUS && modFXType != ModFXType::CHORUS_STEREO) {
 				goto ohNo;
 			}
 		}
-		else { // MOD_FX_PARAM_FEEDBACK
+		else { // ModFXParam::FEEDBACK
 			if (modFXType == ModFXType::CHORUS || modFXType == ModFXType::CHORUS_STEREO) {
 				goto ohNo;
 			}
@@ -368,10 +365,7 @@ void GlobalEffectable::ensureModFXParamIsValid() {
 		return; // If we got here, we're fine
 
 ohNo:
-		currentModFXParam = static_cast<ModFXParam>(util::to_underlying(currentModFXParam) + 1);
-		if (currentModFXParam >= NUM_MOD_FX_PARAMS) {
-			currentModFXParam = static_cast<ModFXParam>(0);
-		}
+		currentModFXParam = static_cast<ModFXParam>((util::to_underlying(currentModFXParam) + 1) % NUM_MOD_FX_PARAMS);
 	}
 }
 
@@ -694,11 +688,11 @@ ModFXType GlobalEffectable::getActiveModFXType(ParamManager* paramManager) {
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
-	if ((currentModFXParam == MOD_FX_PARAM_DEPTH
+	if ((currentModFXParam == ModFXParam::DEPTH
 	     && unpatchedParams->getValue(PARAM_UNPATCHED_GLOBALEFFECTABLE_MOD_FX_DEPTH) == -2147483648)
-	    || (currentModFXParam == MOD_FX_PARAM_FEEDBACK
+	    || (currentModFXParam == ModFXParam::FEEDBACK
 	        && unpatchedParams->getValue(PARAM_UNPATCHED_MOD_FX_FEEDBACK) == -2147483648)
-	    || (currentModFXParam == MOD_FX_PARAM_OFFSET
+	    || (currentModFXParam == ModFXParam::OFFSET
 	        && unpatchedParams->getValue(PARAM_UNPATCHED_MOD_FX_OFFSET) == -2147483648)) {
 		modFXTypeNow = ModFXType::NONE;
 	}

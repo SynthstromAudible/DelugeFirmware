@@ -570,12 +570,12 @@ constexpr auto NUM_ARP_MODES = util::to_underlying(ArpMode::RANDOM) + 1;
 
 #define KEYBOARD_ROW_INTERVAL_MAX 16
 
-enum ModFXParam {
-	MOD_FX_PARAM_DEPTH,
-	MOD_FX_PARAM_FEEDBACK,
-	MOD_FX_PARAM_OFFSET,
-	NUM_MOD_FX_PARAMS,
+enum class ModFXParam {
+	DEPTH,
+	FEEDBACK,
+	OFFSET,
 };
+constexpr auto NUM_MOD_FX_PARAMS = util::to_underlying(ModFXParam::OFFSET) + 1;
 
 #define PATCH_CABLE_ACCEPTANCE_YET_T0_BE_DETERMINED 3
 #define PATCH_CABLE_ACCEPTANCE_ALLOWED 2

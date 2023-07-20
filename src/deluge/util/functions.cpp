@@ -1047,10 +1047,10 @@ ModFXType stringToFXType(char const* string) {
 
 char const* modFXParamToString(ModFXParam fxType) {
 	switch (fxType) {
-	case MOD_FX_PARAM_DEPTH:
+	case ModFXParam::DEPTH:
 		return "depth";
 
-	case MOD_FX_PARAM_FEEDBACK:
+	case ModFXParam::FEEDBACK:
 		return "feedback";
 
 	default:
@@ -1060,13 +1060,13 @@ char const* modFXParamToString(ModFXParam fxType) {
 
 ModFXParam stringToModFXParam(char const* string) {
 	if (!strcmp(string, "depth")) {
-		return MOD_FX_PARAM_DEPTH;
+		return ModFXParam::DEPTH;
 	}
 	else if (!strcmp(string, "feedback")) {
-		return MOD_FX_PARAM_FEEDBACK;
+		return ModFXParam::FEEDBACK;
 	}
 	else {
-		return MOD_FX_PARAM_OFFSET;
+		return ModFXParam::OFFSET;
 	}
 }
 
