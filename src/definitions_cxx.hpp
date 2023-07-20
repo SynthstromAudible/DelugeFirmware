@@ -501,7 +501,6 @@ enum class LPFMode {
 };
 constexpr auto NUM_LPF_MODES = util::to_underlying(LPFMode::SVF) + 1;
 
-
 #define PHASER_NUM_ALLPASS_FILTERS 6
 
 enum ErrorType {
@@ -544,7 +543,6 @@ enum class SampleRepeatMode {
 };
 constexpr auto NUM_REPEAT_MODES = util::to_underlying(SampleRepeatMode::STRETCH) + 1;
 
-
 enum class FilterType {
 	LPF,
 	HPF,
@@ -564,7 +562,6 @@ enum class ArpMode {
 	RANDOM,
 };
 constexpr auto NUM_ARP_MODES = util::to_underlying(ArpMode::RANDOM) + 1;
-
 
 #define ALLOW_SPAM_MODE 0 // For debugging I think?
 
@@ -614,12 +611,12 @@ constexpr auto NUM_MIDI_TAKEOVER_MODES = util::to_underlying(MIDITakeoverMode::S
 
 #define NUM_CLUSTERS_LOADED_AHEAD 2
 
-enum InputMonitoringMode {
-	INPUT_MONITORING_SMART,
-	INPUT_MONITORING_ON,
-	INPUT_MONITORING_OFF,
-	NUM_INPUT_MONITORING_MODES,
+enum class InputMonitoringMode : uint8_t {
+	SMART,
+	ON,
+	OFF,
 };
+constexpr auto NUM_INPUT_MONITORING_MODES = util::to_underlying(InputMonitoringMode::OFF) + 1;
 
 enum ClusterLoad {
 	CLUSTER_DONT_LOAD,
@@ -659,13 +656,17 @@ enum class ArmState {
 #define NAVIGATION_CLIP 0
 #define NAVIGATION_ARRANGEMENT 1
 
-#define PRESET_SEARCH_ALL 0
-#define PRESET_SEARCH_NOT_ACTIVE_IN_SESSION 1
-#define PRESET_SEARCH_NOT_ACTIVE_IN_ARRANGEMENT 2
+enum PresetSearch {
+	PRESET_SEARCH_ALL,
+	PRESET_SEARCH_NOT_ACTIVE_IN_SESSION,
+	PRESET_SEARCH_NOT_ACTIVE_IN_ARRANGEMENT,
+};
 
-#define AVAILABILITY_ANY 0
-#define AVAILABILITY_INSTRUMENT_AVAILABLE_IN_SESSION 1
-#define AVAILABILITY_INSTRUMENT_UNUSED 2
+enum Availability {
+	AVAILABILITY_ANY,
+	AVAILABILITY_INSTRUMENT_AVAILABLE_IN_SESSION,
+	AVAILABILITY_INSTRUMENT_UNUSED,
+};
 
 #define BEFORE 0
 #define AFTER 1
@@ -679,9 +680,11 @@ enum class ArmState {
 #define NUM_CC_NUMBERS_INCLUDING_FAKE 123
 #define NUM_REAL_CC_NUMBERS 120
 
-#define INSTRUMENT_REMOVAL_NONE 0
-#define INSTRUMENT_REMOVAL_DELETE_OR_HIBERNATE_IF_UNUSED 1
-#define INSTRUMENT_REMOVAL_DELETE 2
+enum InstrumentRemoval {
+	INSTRUMENT_REMOVAL_NONE,
+	INSTRUMENT_REMOVAL_DELETE_OR_HIBERNATE_IF_UNUSED,
+	INSTRUMENT_REMOVAL_DELETE,
+};
 
 #define HARDWARE_TEST_MODE 0
 
@@ -696,7 +699,7 @@ enum PgmChangeSend {
 	PGM_CHANGE_SEND_ONCE,
 };
 
-enum Marker : int8_t {
+enum Marker {
 	MARKER_NONE = -1,
 	MARKER_START,
 	MARKER_LOOP_START,

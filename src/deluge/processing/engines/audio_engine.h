@@ -179,7 +179,7 @@ extern bool bypassCulling;
 extern uint32_t i2sTXBufferPos;
 extern uint32_t i2sRXBufferPos;
 extern int cpuDireness;
-extern uint8_t inputMonitoringMode;
+extern InputMonitoringMode inputMonitoringMode;
 extern bool audioRoutineLocked;
 extern uint8_t numHopsEndedThisRoutineCall;
 extern Compressor reverbCompressor;

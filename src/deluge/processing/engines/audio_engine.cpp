@@ -137,7 +137,7 @@ uint32_t i2sRXBufferPos;
 bool headphonesPluggedIn;
 bool micPluggedIn;
 bool lineInPluggedIn;
-uint8_t inputMonitoringMode = INPUT_MONITORING_SMART;
+InputMonitoringMode inputMonitoringMode = InputMonitoringMode::SMART;
 bool routineBeenCalled;
 uint8_t numHopsEndedThisRoutineCall;
 
@@ -732,11 +732,11 @@ startAgain:
 	doMonitoring = false;
 	if (audioRecorder.recordingSource == AudioInputChannel::STEREO
 	    || audioRecorder.recordingSource == AudioInputChannel::LEFT) {
-		if (inputMonitoringMode == INPUT_MONITORING_SMART) {
+		if (inputMonitoringMode == InputMonitoringMode::SMART) {
 			doMonitoring = (lineInPluggedIn || headphonesPluggedIn);
 		}
 		else {
-			doMonitoring = (inputMonitoringMode == INPUT_MONITORING_ON);
+			doMonitoring = (inputMonitoringMode == InputMonitoringMode::ON);
 		}
 	}
 

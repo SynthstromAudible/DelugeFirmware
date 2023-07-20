@@ -153,7 +153,7 @@ void resetSettings() {
 		globalMIDICommand.clear();
 	}
 
-	AudioEngine::inputMonitoringMode = INPUT_MONITORING_SMART;
+	AudioEngine::inputMonitoringMode = InputMonitoringMode::SMART;
 	recordQuantizeLevel = 8;
 
 	defaultTempoMenu.lower = 120;
@@ -261,7 +261,7 @@ void readSettings() {
 		MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::REDO, &buffer[108]);
 	}
 
-	AudioEngine::inputMonitoringMode = buffer[50];
+	AudioEngine::inputMonitoringMode = static_cast<InputMonitoringMode>(buffer[50]);
 
 	recordQuantizeLevel = buffer[51] + 8;
 	if (recordQuantizeLevel == 10) {
@@ -425,7 +425,7 @@ void writeSettings() {
 	MIDIDeviceManager::writeDeviceReferenceToFlash(GlobalMIDICommand::UNDO, &buffer[104]);
 	MIDIDeviceManager::writeDeviceReferenceToFlash(GlobalMIDICommand::REDO, &buffer[108]);
 
-	buffer[50] = AudioEngine::inputMonitoringMode;
+	buffer[50] = util::to_underlying(AudioEngine::inputMonitoringMode);
 
 	buffer[51] = recordQuantizeLevel - 8;
 
