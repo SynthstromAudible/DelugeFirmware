@@ -897,21 +897,21 @@ OscType stringToOscType(char const* string) {
 	}
 }
 
-char const* lfoTypeToString(int oscType) {
+char const* lfoTypeToString(LFOType oscType) {
 	switch (oscType) {
-	case LFO_TYPE_SQUARE:
+	case LFOType::SQUARE:
 		return "square";
 
-	case LFO_TYPE_SAW:
+	case LFOType::SAW:
 		return "saw";
 
-	case LFO_TYPE_SINE:
+	case LFOType::SINE:
 		return "sine";
 
-	case LFO_TYPE_SAH:
+	case LFOType::SAMPLE_AND_HOLD:
 		return "sah";
 
-	case LFO_TYPE_RWALK:
+	case LFOType::RANDOM_WALK:
 		return "rwalk";
 
 	default:
@@ -919,24 +919,24 @@ char const* lfoTypeToString(int oscType) {
 	}
 }
 
-int stringToLFOType(char const* string) {
+LFOType stringToLFOType(char const* string) {
 	if (!strcmp(string, "square")) {
-		return LFO_TYPE_SQUARE;
+		return LFOType::SQUARE;
 	}
 	else if (!strcmp(string, "saw")) {
-		return LFO_TYPE_SAW;
+		return LFOType::SAW;
 	}
 	else if (!strcmp(string, "sine")) {
-		return LFO_TYPE_SINE;
+		return LFOType::SINE;
 	}
 	else if (!strcmp(string, "sah")) {
-		return LFO_TYPE_SAH;
+		return LFOType::SAMPLE_AND_HOLD;
 	}
 	else if (!strcmp(string, "rwalk")) {
-		return LFO_TYPE_RWALK;
+		return LFOType::RANDOM_WALK;
 	}
 	else {
-		return LFO_TYPE_TRIANGLE;
+		return LFOType::TRIANGLE;
 	}
 }
 
@@ -1451,12 +1451,12 @@ void hueToRGBPastel(int32_t hue, unsigned char* rgb) {
 	}
 }
 
-uint32_t getLFOInitialPhaseForNegativeExtreme(uint8_t waveType) {
+uint32_t getLFOInitialPhaseForNegativeExtreme(LFOType waveType) {
 	switch (waveType) {
-	case LFO_TYPE_SAW:
+	case LFOType::SAW:
 		return 2147483648u;
 
-	case LFO_TYPE_SINE:
+	case LFOType::SINE:
 		return 3221225472u;
 
 	default:
@@ -1464,9 +1464,9 @@ uint32_t getLFOInitialPhaseForNegativeExtreme(uint8_t waveType) {
 	}
 }
 
-uint32_t getLFOInitialPhaseForZero(uint8_t waveType) {
+uint32_t getLFOInitialPhaseForZero(LFOType waveType) {
 	switch (waveType) {
-	case LFO_TYPE_TRIANGLE:
+	case LFOType::TRIANGLE:
 		return 1073741824;
 
 	default:

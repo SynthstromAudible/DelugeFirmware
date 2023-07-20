@@ -18,6 +18,7 @@
 #pragma once
 #include "definitions.h"
 #include "definitions_cxx.hpp"
+#include "util/misc.h"
 
 enum FirmwareVersion {
 	FIRMWARE_OLD = 0,
@@ -427,15 +428,16 @@ enum OscType {
 
 constexpr OscType NUM_OSC_TYPES_RINGMODDABLE = OSC_TYPE_SAMPLE;
 
-enum LFOType {
-	LFO_TYPE_SINE,
-	LFO_TYPE_TRIANGLE,
-	LFO_TYPE_SQUARE,
-	LFO_TYPE_SAW,
-	LFO_TYPE_SAH,
-	LFO_TYPE_RWALK,
-	NUM_LFO_TYPES,
+enum class LFOType {
+	SINE,
+	TRIANGLE,
+	SQUARE,
+	SAW,
+	SAMPLE_AND_HOLD,
+	RANDOM_WALK,
 };
+
+constexpr auto kNumLFOTypes = util::to_underlying(LFOType::RANDOM_WALK);
 
 // SyncType values correspond to the index of the first option of the specific
 // type in the selection menu. There are 9 different levels for each type (see

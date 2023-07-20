@@ -126,7 +126,7 @@ void ModControllableAudio::processFX(StereoSample* buffer, int numSamples, int m
 	// Mod FX -----------------------------------------------------------------------------------
 	if (modFXType != MOD_FX_TYPE_NONE) {
 
-		int modFXLFOWaveType;
+		LFOType modFXLFOWaveType;
 		int modFXDelayOffset;
 		int thisModFXDelayDepth;
 		int32_t feedback;
@@ -156,17 +156,17 @@ void ModControllableAudio::processFX(StereoSample* buffer, int numSamples, int m
 			if (modFXType == MOD_FX_TYPE_FLANGER) {
 				modFXDelayOffset = flangerOffset;
 				thisModFXDelayDepth = flangerAmplitude;
-				modFXLFOWaveType = OSC_TYPE_TRIANGLE;
+				modFXLFOWaveType = LFOType::TRIANGLE;
 			}
 			else { // Phaser
-				modFXLFOWaveType = OSC_TYPE_SINE;
+				modFXLFOWaveType = LFOType::SINE;
 			}
 		}
 		else if (modFXType == MOD_FX_TYPE_CHORUS || modFXType == MOD_FX_TYPE_CHORUS_STEREO) {
 			modFXDelayOffset = multiply_32x32_rshift32(
 			    modFXMaxDelay, (unpatchedParams->getValue(PARAM_UNPATCHED_MOD_FX_OFFSET) >> 1) + 1073741824);
 			thisModFXDelayDepth = multiply_32x32_rshift32(modFXDelayOffset, modFXDepth) << 2;
-			modFXLFOWaveType = OSC_TYPE_SINE;
+			modFXLFOWaveType = LFOType::SINE;
 			*postFXVolume = multiply_32x32_rshift32(*postFXVolume, 1518500250) << 1; // Divide by sqrt(2)
 		}
 

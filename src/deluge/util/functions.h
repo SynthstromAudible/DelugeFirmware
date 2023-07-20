@@ -148,8 +148,9 @@ void getInstrumentPresetFilename(char const* filePrefix, int16_t presetNumber, i
                                  char* fileName);
 char const* oscTypeToString(unsigned int oscType);
 OscType stringToOscType(char const* string);
-char const* lfoTypeToString(int oscType);
-int stringToLFOType(char const* string);
+
+char const* lfoTypeToString(LFOType oscType);
+LFOType stringToLFOType(char const* string);
 
 char const* synthModeToString(int synthMode);
 int stringToSynthMode(char const* string);
@@ -394,8 +395,10 @@ int random(int upperLimit);
 bool shouldDoPanning(int32_t panAmount, int32_t* amplitudeL, int32_t* amplitudeR);
 void hueToRGB(int32_t hue, unsigned char* rgb);
 void hueToRGBPastel(int32_t hue, unsigned char* rgb);
-uint32_t getLFOInitialPhaseForNegativeExtreme(uint8_t waveType);
-uint32_t getLFOInitialPhaseForZero(uint8_t waveType);
+
+uint32_t getLFOInitialPhaseForNegativeExtreme(LFOType waveType);
+uint32_t getLFOInitialPhaseForZero(LFOType waveType);
+
 uint32_t getOscInitialPhaseForZero(uint8_t waveType);
 int32_t fastPythag(int32_t x, int32_t y);
 int strcmpspecial(char const* first, char const* second);

@@ -79,8 +79,8 @@ public:
 	uint32_t sourcesChanged; // Applies from first source up to FIRST_UNCHANGEABLE_SOURCE
 
 	LFO globalLFO;
-	uint8_t lfoGlobalWaveType;
-	uint8_t lfoLocalWaveType;
+	LFOType lfoGlobalWaveType;
+	LFOType lfoLocalWaveType;
 	SyncType lfoGlobalSyncType;
 	SyncLevel lfoGlobalSyncLevel;
 
@@ -158,7 +158,7 @@ public:
 	void setLFOGlobalSyncType(SyncType newType);
 	void setLFOGlobalSyncLevel(SyncLevel newLevel);
 	void resyncGlobalLFO();
-	void setLFOGlobalWave(uint8_t newWave);
+	void setLFOGlobalWave(LFOType newWave);
 
 	int8_t getKnobPos(uint8_t p, ParamManagerForTimeline* paramManager, uint32_t timePos, TimelineCounter* counter);
 	int32_t getKnobPosBig(int p, ParamManagerForTimeline* paramManager, uint32_t timePos, TimelineCounter* counter);

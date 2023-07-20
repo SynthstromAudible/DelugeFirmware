@@ -110,8 +110,8 @@ Sound::Sound() : patcher(&patchableInfoForSound) {
 	postReverbVolumeLastTime = -1; // Special state to make it grab the actual value the first time it's rendered
 
 	// LFO
-	lfoGlobalWaveType = LFO_TYPE_TRIANGLE;
-	lfoLocalWaveType = LFO_TYPE_TRIANGLE;
+	lfoGlobalWaveType = LFOType::TRIANGLE;
+	lfoLocalWaveType = LFOType::TRIANGLE;
 	lfoGlobalSyncType =
 	    SYNC_TYPE_EVEN; // This may be set without calling the setter function, because we're setting it to 0
 	lfoGlobalSyncLevel =
@@ -2424,7 +2424,7 @@ void Sound::setLFOGlobalSyncLevel(SyncLevel newLevel) {
 	}
 }
 
-void Sound::setLFOGlobalWave(uint8_t newWave) {
+void Sound::setLFOGlobalWave(LFOType newWave) {
 	lfoGlobalWaveType = newWave;
 	if (playbackHandler.isEitherClockActive()) {
 		resyncGlobalLFO();
@@ -2438,7 +2438,7 @@ void Sound::resyncGlobalLFO() {
 		timeStartedSkippingRenderingLFO = AudioEngine::
 		    audioSampleTimer; // Resets the thing where the number of samples skipped is later converted into LFO phase increment
 
-		if (lfoGlobalWaveType == OSC_TYPE_SINE || lfoGlobalWaveType == OSC_TYPE_TRIANGLE) {
+		if (lfoGlobalWaveType == LFOType::SINE || lfoGlobalWaveType == LFOType::TRIANGLE) {
 			globalLFO.phase = getLFOInitialPhaseForZero(lfoGlobalWaveType);
 		}
 		else {
