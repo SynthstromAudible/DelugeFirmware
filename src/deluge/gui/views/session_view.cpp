@@ -1278,7 +1278,7 @@ int setPresetOrNextUnlaunchedOne(InstrumentClip* clip, InstrumentType instrument
 	}
 
 	result = loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(currentSong, instrumentType,
-	                                                                                AVAILABILITY_INSTRUMENT_UNUSED);
+	                                                                                Availability::INSTRUMENT_UNUSED);
 	if (result.error) {
 		return result.error;
 	}
@@ -1461,7 +1461,7 @@ gotErrorDontDisplay:
 
 	else {
 		Instrument* newInstrument = currentSong->getNonAudioInstrumentToSwitchTo(
-		    instrumentType, AVAILABILITY_INSTRUMENT_UNUSED, 0, -1, &instrumentAlreadyInSong);
+		    instrumentType, Availability::INSTRUMENT_UNUSED, 0, -1, &instrumentAlreadyInSong);
 		if (!newInstrument) {
 			goto gotErrorDontDisplay;
 		}

@@ -3425,7 +3425,7 @@ Instrument* InstrumentClip::changeInstrumentType(ModelStackWithTimelineCounter* 
 
 	actionLogger.deleteAllLogs(); // Can't undo past this!
 
-	int availabilityRequirement;
+	Availability availabilityRequirement;
 	bool canReplaceWholeInstrument = modelStack->song->canOldOutputBeReplaced(this, &availabilityRequirement);
 
 	bool shouldReplaceWholeInstrument;

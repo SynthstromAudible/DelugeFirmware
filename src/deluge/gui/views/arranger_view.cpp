@@ -757,7 +757,7 @@ displayError:
 	}
 
 	result = loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(currentSong, newInstrumentType,
-	                                                                                AVAILABILITY_INSTRUMENT_UNUSED);
+	                                                                                Availability::INSTRUMENT_UNUSED);
 	if (result.error) {
 		goto displayError;
 	}
@@ -2446,7 +2446,7 @@ cantDoIt:
 	else {
 
 		PresetNavigationResult results =
-		    loadInstrumentPresetUI.doPresetNavigation(offset, oldInstrument, AVAILABILITY_INSTRUMENT_UNUSED, true);
+		    loadInstrumentPresetUI.doPresetNavigation(offset, oldInstrument, Availability::INSTRUMENT_UNUSED, true);
 		if (results.error == NO_ERROR_BUT_GET_OUT) {
 removeWorkingAnimationAndGetOut:
 #if HAVE_OLED

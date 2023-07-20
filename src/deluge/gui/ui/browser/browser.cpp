@@ -369,7 +369,7 @@ nonNumericFile:
 	return error;
 }
 
-void Browser::deleteFolderAndDuplicateItems(int instrumentAvailabilityRequirement) {
+void Browser::deleteFolderAndDuplicateItems(Availability instrumentAvailabilityRequirement) {
 	int writeI = 0;
 	FileItem* nextItem = (FileItem*)fileItems.getElementAddress(0);
 
@@ -408,12 +408,12 @@ void Browser::deleteFolderAndDuplicateItems(int instrumentAvailabilityRequiremen
 checkAvailabilityRequirement:
 				// Check Instrument's availabilityRequirement
 				if (readItem->instrumentAlreadyInSong) {
-					if (instrumentAvailabilityRequirement == AVAILABILITY_INSTRUMENT_UNUSED) {
+					if (instrumentAvailabilityRequirement == Availability::INSTRUMENT_UNUSED) {
 deleteThisItem:
 						readItem->~FileItem();
 						continue;
 					}
-					else if (instrumentAvailabilityRequirement == AVAILABILITY_INSTRUMENT_AVAILABLE_IN_SESSION) {
+					else if (instrumentAvailabilityRequirement == Availability::INSTRUMENT_AVAILABLE_IN_SESSION) {
 						if (currentSong->doesOutputHaveActiveClipInSession(readItem->instrument)) {
 							goto deleteThisItem;
 						}
@@ -459,7 +459,7 @@ deleteThisItem:
 // song may be supplied as NULL, in which case it won't be searched for Instruments; sometimes this will get called when the currentSong is not set up.
 int Browser::readFileItemsFromFolderAndMemory(Song* song, InstrumentType instrumentType, char const* filePrefixHere,
                                               char const* filenameToStartAt, char const* defaultDirToAlsoTry,
-                                              bool allowFolders, int availabilityRequirement,
+                                              bool allowFolders, Availability availabilityRequirement,
                                               int newCatalogSearchDirection) {
 	// filenameToStartAt should have .XML at the end of it.
 	bool triedCreatingFolder = false;
@@ -518,7 +518,7 @@ tryReadingItems:
 			// And, files sharing name of in-memory Instrument.
 			if (!allowFoldersSharingNameWithFile) {
 				deleteFolderAndDuplicateItems(
-				    AVAILABILITY_ANY); // I think this is right - was AVAILABILITY_INSTRUMENT_UNUSED until 2023-01
+				    Availability::ANY); // I think this is right - was Availability::INSTRUMENT_UNUSED until 2023-01
 			}
 		}
 	}
@@ -541,7 +541,7 @@ tryReadingItems:
 	bool doWeHaveASearchString = (filenameToStartAt && *filenameToStartAt);
 	int newCatalogSearchDirection = doWeHaveASearchString ? CATALOG_SEARCH_BOTH : CATALOG_SEARCH_RIGHT;
 	int error = readFileItemsFromFolderAndMemory(currentSong, instrumentTypeToLoad, filePrefix, filenameToStartAt,
-	                                             defaultDirToAlsoTry, true, 0, newCatalogSearchDirection);
+	                                             defaultDirToAlsoTry, true, Availability::ANY, newCatalogSearchDirection);
 	if (error) {
 gotErrorAfterAllocating:
 		emptyFileItems();
@@ -772,7 +772,7 @@ pickBrandNewNameIfNoneNominated:
 				}
 
 				// Because that will have cleared out all the FileItems, we need to get them again. Actually there would kinda be a way around doing this...
-				error = readFileItemsFromFolderAndMemory(currentSong, InstrumentType::NONE, "SONG", enteredText.get(), NULL, false, 0,
+				error = readFileItemsFromFolderAndMemory(currentSong, InstrumentType::NONE, "SONG", enteredText.get(), NULL, false, Availability::ANY,
 				                                         CATALOG_SEARCH_BOTH);
 				if (error) {
 					goto gotErrorAfterAllocating;
@@ -809,7 +809,7 @@ int Browser::getUnusedSlot(InstrumentType instrumentType, String* newName, char 
 #endif
 
 	int error = readFileItemsFromFolderAndMemory(currentSong, instrumentType, getThingName(instrumentType),
-	                                             filenameToStartAt, NULL, false, 0, CATALOG_SEARCH_LEFT);
+	                                             filenameToStartAt, NULL, false, Availability::ANY, CATALOG_SEARCH_LEFT);
 
 	if (error) {
 doReturn:
@@ -999,7 +999,7 @@ nonNumeric:
 tryReadingItems:
 			uartPrintln("reloading");
 			error = readFileItemsFromFolderAndMemory(currentSong, instrumentTypeToLoad, filePrefix, enteredText.get(),
-			                                         NULL, true, 0, CATALOG_SEARCH_BOTH);
+			                                         NULL, true, Availability::ANY, CATALOG_SEARCH_BOTH);
 			if (error) {
 gotErrorAfterAllocating:
 				emptyFileItems();
@@ -1024,7 +1024,7 @@ gotErrorAfterAllocating:
 searchFromOneEnd:
 				uartPrintln("reloading and wrap");
 				error = readFileItemsFromFolderAndMemory(currentSong, instrumentTypeToLoad, filePrefix, NULL, NULL,
-				                                         true, 0, newCatalogSearchDirection); // Load from start
+				                                         true, Availability::ANY, newCatalogSearchDirection); // Load from start
 				if (error) {
 					goto gotErrorAfterAllocating;
 				}
@@ -1154,7 +1154,7 @@ doSearch:
 doNewRead:
 			doneNewRead = true;
 			error = readFileItemsFromFolderAndMemory(
-			    currentSong, instrumentTypeToLoad, filePrefix, searchString.get(), NULL, true, 0,
+			    currentSong, instrumentTypeToLoad, filePrefix, searchString.get(), NULL, true, Availability::ANY,
 			    CATALOG_SEARCH_BOTH); // This could probably actually be made to work with searching left only...
 			if (error) {
 gotErrorAfterAllocating:

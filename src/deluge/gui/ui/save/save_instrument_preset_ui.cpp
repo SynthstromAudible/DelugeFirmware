@@ -244,7 +244,7 @@ void SaveInstrumentPresetUI::selectEncoderAction(int8_t offset) {
 		storageManager.findNextInstrumentPreset(-1, instrumentType,
 				&bestSlotFound, &bestSubSlotFound, NULL, NULL, // No folders allowed.
 				currentSlot + 1, -1, NULL, currentDir.get(),
-				&nothing, AVAILABILITY_ANY, &nothingInstrument, &nothing2);
+				&nothing, Availability::ANY, &nothingInstrument, &nothing2);
 
 		if (bestSlotFound == currentSlot) {
 			// If the preset was already saved in this slot, offer a brand new subslot

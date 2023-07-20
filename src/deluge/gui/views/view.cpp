@@ -1413,10 +1413,10 @@ void View::navigateThroughAudioOutputsForAudioClip(int offset, AudioClip* clip, 
 	actionLogger.deleteAllLogs(); // Can't undo past this!
 
 	// Work out availabilityRequirement. But we don't in this case need to think about whether the Output can be "replaced" - that's for InstrumentClips
-	int availabilityRequirement;
+	Availability availabilityRequirement;
 	currentSong->canOldOutputBeReplaced(clip, &availabilityRequirement);
 
-	if (availabilityRequirement == AVAILABILITY_INSTRUMENT_UNUSED) {
+	if (availabilityRequirement == Availability::INSTRUMENT_UNUSED) {
 		numericDriver.displayPopup(HAVE_OLED ? "Clip has instances in arranger" : "CANT");
 		return;
 	}
@@ -1463,7 +1463,7 @@ void View::navigateThroughPresetsForInstrumentClip(int offset, ModelStackWithTim
 	modelStack->song->ensureAllInstrumentsHaveAClipOrBackedUpParamManager("E057", "H057");
 
 	// Work out availabilityRequirement. This can't change as presets are navigated through... I don't think?
-	int availabilityRequirement;
+	Availability availabilityRequirement;
 	bool oldInstrumentCanBeReplaced = modelStack->song->canOldOutputBeReplaced(clip, &availabilityRequirement);
 
 	bool shouldReplaceWholeInstrument;
@@ -1493,15 +1493,15 @@ void View::navigateThroughPresetsForInstrumentClip(int offset, ModelStackWithTim
 					return;
 				}
 
-				if (availabilityRequirement == AVAILABILITY_ANY) {
+				if (availabilityRequirement == Availability::ANY) {
 					break;
 				}
-				else if (availabilityRequirement == AVAILABILITY_INSTRUMENT_AVAILABLE_IN_SESSION) {
+				else if (availabilityRequirement == Availability::INSTRUMENT_AVAILABLE_IN_SESSION) {
 					if (!modelStack->song->doesNonAudioSlotHaveActiveClipInSession(instrumentType, newChannel)) {
 						break;
 					}
 				}
-				else if (availabilityRequirement == AVAILABILITY_INSTRUMENT_UNUSED) {
+				else if (availabilityRequirement == Availability::INSTRUMENT_UNUSED) {
 					if (!modelStack->song->getInstrumentFromPresetSlot(instrumentType, newChannel, -1, NULL, NULL,
 					                                                   false)) {
 						break;
@@ -1553,16 +1553,16 @@ void View::navigateThroughPresetsForInstrumentClip(int offset, ModelStackWithTim
 					return;
 				}
 
-				if (availabilityRequirement == AVAILABILITY_ANY) {
+				if (availabilityRequirement == Availability::ANY) {
 					break;
 				}
-				else if (availabilityRequirement == AVAILABILITY_INSTRUMENT_AVAILABLE_IN_SESSION) {
+				else if (availabilityRequirement == Availability::INSTRUMENT_AVAILABLE_IN_SESSION) {
 					if (!modelStack->song->doesNonAudioSlotHaveActiveClipInSession(instrumentType, newChannel,
 					                                                               newChannelSuffix)) {
 						break;
 					}
 				}
-				else if (availabilityRequirement == AVAILABILITY_INSTRUMENT_UNUSED) {
+				else if (availabilityRequirement == Availability::INSTRUMENT_UNUSED) {
 					if (!modelStack->song->getInstrumentFromPresetSlot(instrumentType, newChannel, newChannelSuffix,
 					                                                   NULL, NULL, false)) {
 						break;

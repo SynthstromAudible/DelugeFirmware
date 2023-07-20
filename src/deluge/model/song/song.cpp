@@ -306,7 +306,7 @@ bool Song::ensureAtLeastOneSessionClip() {
 		}
 
 		result = loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(NULL, InstrumentType::SYNTH,
-		                                                                                AVAILABILITY_ANY);
+		                                                                                Availability::ANY);
 
 		Instrument* newInstrument;
 
@@ -4286,11 +4286,11 @@ void Song::setParamsInAutomationMode(bool newState) {
 	view.notifyParamAutomationOccurred(&paramManager, true);
 }
 
-bool Song::canOldOutputBeReplaced(Clip* clip, int* availabilityRequirement) {
+bool Song::canOldOutputBeReplaced(Clip* clip, Availability* availabilityRequirement) {
 	// If Clip has an "instance" within its Output in arranger, then we can only change the entire Output to a different Output
 	if (clip->output->clipHasInstance(clip)) {
 		if (availabilityRequirement) {
-			*availabilityRequirement = AVAILABILITY_INSTRUMENT_UNUSED;
+			*availabilityRequirement = Availability::INSTRUMENT_UNUSED;
 		}
 		return true;
 	}
@@ -4300,12 +4300,12 @@ bool Song::canOldOutputBeReplaced(Clip* clip, int* availabilityRequirement) {
 		if (availabilityRequirement) {
 			// If Clip is "active", just make sure we pick an Output that doesn't have a Clip "active" in session
 			if (isClipActive(clip)) {
-				*availabilityRequirement = AVAILABILITY_INSTRUMENT_AVAILABLE_IN_SESSION;
+				*availabilityRequirement = Availability::INSTRUMENT_AVAILABLE_IN_SESSION;
 			}
 
 			// Or if it's not "active", we can give it any Output we like
 			else {
-				*availabilityRequirement = AVAILABILITY_ANY;
+				*availabilityRequirement = Availability::ANY;
 			}
 		}
 
@@ -4427,7 +4427,7 @@ displayError:
 		}
 
 		result = loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(this, newInstrumentType,
-		                                                                                AVAILABILITY_INSTRUMENT_UNUSED);
+		                                                                                Availability::INSTRUMENT_UNUSED);
 		if (result.error) {
 			goto displayError;
 		}
@@ -4585,7 +4585,7 @@ AudioOutput* Song::createNewAudioOutput(Output* replaceOutput) {
 	return newOutput;
 }
 
-Output* Song::getNextAudioOutput(int offset, Output* oldOutput, int availabilityRequirement) {
+Output* Song::getNextAudioOutput(int offset, Output* oldOutput, Availability availabilityRequirement) {
 
 	Output* newOutput = oldOutput;
 
@@ -4599,7 +4599,7 @@ Output* Song::getNextAudioOutput(int offset, Output* oldOutput, int availability
 			if (newOutput == oldOutput) {
 				break;
 			}
-			if (availabilityRequirement >= AVAILABILITY_INSTRUMENT_AVAILABLE_IN_SESSION
+			if (availabilityRequirement >= Availability::INSTRUMENT_AVAILABLE_IN_SESSION
 			    && doesOutputHaveActiveClipInSession(newOutput)) {
 				continue;
 			}
@@ -4620,7 +4620,7 @@ Output* Song::getNextAudioOutput(int offset, Output* oldOutput, int availability
 			if (investigatingOutput == oldOutput) {
 				break;
 			}
-			if (availabilityRequirement >= AVAILABILITY_INSTRUMENT_AVAILABLE_IN_SESSION
+			if (availabilityRequirement >= Availability::INSTRUMENT_AVAILABLE_IN_SESSION
 			    && doesOutputHaveActiveClipInSession(investigatingOutput)) {
 				continue;
 			}
@@ -4677,7 +4677,7 @@ void Song::getNoteLengthName(char* text, uint32_t noteLength, bool clarifyPerCol
 	getNoteLengthNameFromMagnitude(text, magnitude);
 }
 
-Instrument* Song::getNonAudioInstrumentToSwitchTo(InstrumentType newInstrumentType, int availabilityRequirement, int16_t newSlot,
+Instrument* Song::getNonAudioInstrumentToSwitchTo(InstrumentType newInstrumentType, Availability availabilityRequirement, int16_t newSlot,
                                                   int8_t newSubSlot, bool* instrumentWasAlreadyInSong) {
 	int numChannels = (newInstrumentType == InstrumentType::MIDI_OUT) ? 16 : NUM_CV_CHANNELS;
 	Instrument* newInstrument;
@@ -4688,15 +4688,15 @@ Instrument* Song::getNonAudioInstrumentToSwitchTo(InstrumentType newInstrumentTy
 		newInstrument = getInstrumentFromPresetSlot(newInstrumentType, newSlot, newSubSlot, NULL, NULL,
 		                                            false); // This will always be false! Might rework this though
 
-		if (availabilityRequirement == AVAILABILITY_ANY) {
+		if (availabilityRequirement == Availability::ANY) {
 			break;
 		}
-		else if (availabilityRequirement == AVAILABILITY_INSTRUMENT_AVAILABLE_IN_SESSION) {
+		else if (availabilityRequirement == Availability::INSTRUMENT_AVAILABLE_IN_SESSION) {
 			if (!newInstrument || !getClipWithOutput(newInstrument, true)) {
 				break;
 			}
 		}
-		else if (availabilityRequirement == AVAILABILITY_INSTRUMENT_UNUSED) {
+		else if (availabilityRequirement == Availability::INSTRUMENT_UNUSED) {
 			if (!newInstrument) {
 				break;
 			}

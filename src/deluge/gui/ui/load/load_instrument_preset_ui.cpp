@@ -440,7 +440,7 @@ void LoadInstrumentPresetUI::revertToInitialPreset() {
 		return;
 	}
 
-	int availabilityRequirement;
+	Availability availabilityRequirement;
 	bool oldInstrumentCanBeReplaced;
 	if (instrumentClipToLoadFor) {
 		oldInstrumentCanBeReplaced =
@@ -449,7 +449,7 @@ void LoadInstrumentPresetUI::revertToInitialPreset() {
 
 	else {
 		oldInstrumentCanBeReplaced = true;
-		availabilityRequirement = AVAILABILITY_INSTRUMENT_UNUSED;
+		availabilityRequirement = Availability::INSTRUMENT_UNUSED;
 	}
 
 	// If we're looking to replace the whole Instrument, but we're not allowed, that's obviously a no-go
@@ -470,11 +470,11 @@ void LoadInstrumentPresetUI::revertToInitialPreset() {
 	if (initialInstrument) {
 
 		// ... check that our availabilityRequirement allows this
-		if (availabilityRequirement == AVAILABILITY_INSTRUMENT_UNUSED) {
+		if (availabilityRequirement == Availability::INSTRUMENT_UNUSED) {
 			return;
 		}
 
-		else if (availabilityRequirement == AVAILABILITY_INSTRUMENT_AVAILABLE_IN_SESSION) {
+		else if (availabilityRequirement == Availability::INSTRUMENT_AVAILABLE_IN_SESSION) {
 			if (currentSong->doesOutputHaveActiveClipInSession(initialInstrument)) {
 				return;
 			}
@@ -780,7 +780,7 @@ int LoadInstrumentPresetUI::performLoad(bool doClone) {
 	// then back onto that neighbouring Instrument - you'd incorrectly get a "USED" error without this line.
 
 	// Work out availabilityRequirement. This can't change as presets are navigated through... I don't think?
-	int availabilityRequirement;
+	Availability availabilityRequirement;
 	bool oldInstrumentCanBeReplaced;
 	if (instrumentClipToLoadFor) {
 		oldInstrumentCanBeReplaced =
@@ -789,7 +789,7 @@ int LoadInstrumentPresetUI::performLoad(bool doClone) {
 
 	else {
 		oldInstrumentCanBeReplaced = true;
-		availabilityRequirement = AVAILABILITY_INSTRUMENT_UNUSED;
+		availabilityRequirement = Availability::INSTRUMENT_UNUSED;
 	}
 
 	bool shouldReplaceWholeInstrument;
@@ -805,14 +805,14 @@ int LoadInstrumentPresetUI::performLoad(bool doClone) {
 
 		newInstrumentWasHibernating = isInstrumentInList(newInstrument, currentSong->firstHibernatingInstrument);
 
-		if (availabilityRequirement == AVAILABILITY_INSTRUMENT_UNUSED) {
+		if (availabilityRequirement == Availability::INSTRUMENT_UNUSED) {
 			if (!newInstrumentWasHibernating) {
 giveUsedError:
 				return ERROR_PRESET_IN_USE;
 			}
 		}
 
-		else if (availabilityRequirement == AVAILABILITY_INSTRUMENT_AVAILABLE_IN_SESSION) {
+		else if (availabilityRequirement == Availability::INSTRUMENT_AVAILABLE_IN_SESSION) {
 			if (!newInstrumentWasHibernating && currentSong->doesOutputHaveActiveClipInSession(newInstrument)) {
 				goto giveUsedError;
 			}
@@ -1035,7 +1035,7 @@ void LoadInstrumentPresetUI::instrumentEdited(Instrument* instrument) {
 // song may be supplied as NULL, in which case it won't be searched for Instruments; sometimes this will get called when the currentSong is not set up.
 ReturnOfConfirmPresetOrNextUnlaunchedOne
 LoadInstrumentPresetUI::findAnUnlaunchedPresetIncludingWithinSubfolders(Song* song, InstrumentType instrumentType,
-                                                                        int availabilityRequirement) {
+                                                                        Availability availabilityRequirement) {
 
 	AudioEngine::logAction("findAnUnlaunchedPresetIncludingWithinSubfolders");
 	allowedFileExtensions = allowedFileExtensionsXML;
@@ -1170,7 +1170,7 @@ doThisFolder:
 // And, set currentDir, before this is called.
 ReturnOfConfirmPresetOrNextUnlaunchedOne
 LoadInstrumentPresetUI::confirmPresetOrNextUnlaunchedOne(InstrumentType instrumentType, String* searchName,
-                                                         int availabilityRequirement) {
+                                                         Availability availabilityRequirement) {
 	ReturnOfConfirmPresetOrNextUnlaunchedOne toReturn;
 
 	String searchNameLocalCopy;
@@ -1262,7 +1262,7 @@ needToGrabLeftmostButHaveToReadFirst:
 // Caller must call emptyFileItems() at some point after calling this function - unless an error is returned.
 // Caller must remove OLED working animation after calling this too.
 PresetNavigationResult LoadInstrumentPresetUI::doPresetNavigation(int offset, Instrument* oldInstrument,
-                                                                  int availabilityRequirement, bool doBlink) {
+                                                                  Availability availabilityRequirement, bool doBlink) {
 
 	AudioEngine::logAction("doPresetNavigation");
 
@@ -1305,7 +1305,7 @@ emptyFileItemsAndReturn:
 	sortFileItems();
 	AudioEngine::logAction("doPresetNavigation4");
 
-	deleteFolderAndDuplicateItems(AVAILABILITY_INSTRUMENT_AVAILABLE_IN_SESSION);
+	deleteFolderAndDuplicateItems(Availability::INSTRUMENT_AVAILABLE_IN_SESSION);
 	AudioEngine::logAction("doPresetNavigation5");
 
 	// Now that we've deleted duplicates etc...

@@ -82,7 +82,7 @@ public:
 	FileItem* getNewFileItem();
 	static void emptyFileItems();
 	static void deleteSomeFileItems(int startAt, int stopAt);
-	static void deleteFolderAndDuplicateItems(int instrumentAvailabilityRequirement = AVAILABILITY_ANY);
+	static void deleteFolderAndDuplicateItems(Availability instrumentAvailabilityRequirement = Availability::ANY);
 	int getUnusedSlot(InstrumentType instrumentType, String* newName, char const* thingName);
 	bool opened();
 	void cullSomeFileItems();
@@ -118,7 +118,7 @@ protected:
 	static Slot getSlot(char const* displayName);
 	int readFileItemsFromFolderAndMemory(Song* song, InstrumentType instrumentType, char const* filePrefixHere,
 	                                     char const* filenameToStartAt, char const* defaultDirToAlsoTry,
-	                                     bool allowFoldersint, int availabilityRequirement = AVAILABILITY_ANY,
+	                                     bool allowFoldersint, Availability availabilityRequirement = Availability::ANY,
 	                                     int newCatalogSearchDirection = CATALOG_SEARCH_RIGHT);
 
 	static int

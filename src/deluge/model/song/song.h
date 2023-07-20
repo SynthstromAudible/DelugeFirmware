@@ -111,7 +111,7 @@ public:
 	void deleteOrHibernateOutput(Output* output);
 	uint32_t getLivePos();
 	int32_t getLoopLength();
-	Instrument* getNonAudioInstrumentToSwitchTo(InstrumentType newInstrumentType, int availabilityRequirement, int16_t newSlot,
+	Instrument* getNonAudioInstrumentToSwitchTo(InstrumentType newInstrumentType, Availability availabilityRequirement, int16_t newSlot,
 	                                            int8_t newSubSlot, bool* instrumentWasAlreadyInSong);
 	void removeSessionClipLowLevel(Clip* clip, int clipIndex);
 	void changeSwingInterval(int newValue);
@@ -275,7 +275,7 @@ public:
 	TimelineCounter* getTimelineCounterToRecordTo();
 	int32_t getLastProcessedPos();
 	void setParamsInAutomationMode(bool newState);
-	bool canOldOutputBeReplaced(Clip* clip, int* availabilityRequirement = NULL);
+	bool canOldOutputBeReplaced(Clip* clip, Availability* availabilityRequirement = NULL);
 	void instrumentSwapped(Instrument* newInstrument);
 	Instrument* changeInstrumentType(Instrument* oldInstrument, InstrumentType newInstrumentType);
 	AudioOutput* getFirstAudioOutput();
@@ -289,7 +289,7 @@ public:
 	Clip* getClipWithOutputAboutToBeginLinearRecording(Output* output);
 	Clip* createPendingNextOverdubBelowClip(Clip* clip, int clipIndex, int newOverdubNature);
 	bool hasAnyPendingNextOverdubs();
-	Output* getNextAudioOutput(int offset, Output* oldOutput, int availabilityRequirement);
+	Output* getNextAudioOutput(int offset, Output* oldOutput, Availability availabilityRequirement);
 	void deleteOutput(Output* output);
 	void cullAudioClipVoice();
 	int getYScrollSongViewWithoutPendingOverdubs();
