@@ -5,7 +5,7 @@ import sys
 import util
 import os
 
-def argparser():
+def argparser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="build",
         description="Run SCons in the current environment",
@@ -14,8 +14,10 @@ def argparser():
     return parser
 
 
-def main():
+def main() -> int:
     scons_args = sys.argv[1:]
+    if not scons_args:
+        scons_args = ['all']
     
     scons_args += ['--warn=target-not-built']
 
@@ -23,7 +25,8 @@ def main():
         scons_args += ['-Q']
 
     os.chdir(util.get_git_root())
-    subprocess.run(['scons'] + scons_args, env=os.environ)
+    result = subprocess.run(['scons'] + scons_args, env=os.environ)
+    return result.returncode
 
 if __name__ == "__main__":
     main()

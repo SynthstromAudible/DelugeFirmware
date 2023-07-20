@@ -9,7 +9,7 @@ import os
 # Based on dbt_tools/gdb.py by litui
 
 
-def argparser():
+def argparser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="gdb",
         description="Open a GDB remote for the proper target",
@@ -26,7 +26,7 @@ def argparser():
     return parser
 
 
-def main():
+def main() -> int:
     args = argparser().parse_args()
 
     scons_target = f"dbt-build-debug-{args.target}"
@@ -39,7 +39,7 @@ def main():
 
     gdbinit = Path(os.environ['DBT_DEBUG_DIR']) / "gdbinit"
 
-    subprocess.run(
+    result = subprocess.run(
         [
             "arm-none-eabi-gdb",
             "-ex",
@@ -49,6 +49,7 @@ def main():
             elf_path,
         ]
     )
+    return result.returncode
 
 
 if __name__ == "__main__":
