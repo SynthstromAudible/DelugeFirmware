@@ -624,6 +624,7 @@ typedef enum SyncLevel_ {
 #define ALPHA_OR_BETA_VERSION 1 // Whether to compile with additional error-checking
 
 #define NUM_PROBABILITY_VALUES 20
+#define NUM_ITERATION_VALUES 35 // 1of2 to 8of8
 #define DEFAULT_LIFT_VALUE 64
 
 #if ALPHA_OR_BETA_VERSION

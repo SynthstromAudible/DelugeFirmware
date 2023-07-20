@@ -2022,7 +2022,7 @@ void InstrumentClipView::adjustProbability(int offset) {
 
 					// Incrementing
 					if (offset == 1) {
-						if (probabilityValue < NUM_PROBABILITY_VALUES + 35) {
+						if (probabilityValue < NUM_PROBABILITY_VALUES + NUM_ITERATION_VALUES) {
 							if (prevBase) {
 								probabilityValue++;
 								prevBase = false;
@@ -2119,7 +2119,7 @@ multiplePresses:
 		probabilityValue = editPadPresses[leftMostIndex].intendedProbability & 127;
 		probabilityValue += offset;
 		probabilityValue = getMax(1, probabilityValue);
-		probabilityValue = getMin(NUM_PROBABILITY_VALUES + 35, probabilityValue);
+		probabilityValue = getMin(NUM_PROBABILITY_VALUES + NUM_ITERATION_VALUES, probabilityValue);
 
 		Action* action = actionLogger.getNewAction(ACTION_NOTE_EDIT, true);
 		if (!action) {
