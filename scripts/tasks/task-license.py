@@ -39,7 +39,7 @@ def license_file(dry_run: bool, verbose: bool, path: Path):
         util.prepend_file(LICENSE_TEMPLATE, Path(path))
 
 
-def argparser():
+def argparser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="license",
         description="Add Synthstrom Deluge license prelude to files (if not present)",
@@ -64,7 +64,7 @@ def argparser():
     return parser
 
 
-def main():
+def main() -> int:
     args = argparser().parse_args()
     files = util.get_header_and_source_files(Path(args.directory), args.recursive)
     if files:
@@ -79,8 +79,10 @@ def main():
                 partial(license_file, args.dry_run, False), files, "Formatting: "
             )
         print("Done!")
+        return 0
     else:
         print("No files found! Did you mean to add '-r'?")
+        return -1
 
 
 if __name__ == "__main__":

@@ -41,7 +41,7 @@
 #include "util/functions.h"
 #include "storage/flash_storage.h"
 #include "model/sample/sample.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "model/model_stack.h"
 #include "modulation/params/param_set.h"
 
@@ -575,8 +575,8 @@ justDontTimeStretch:
 						goto justDontTimeStretch;
 					}
 					else {
-						//Uart::print("sync: ");
-						//Uart::println(numSamplesDrift);
+						//Debug::print("sync: ");
+						//Debug::println(numSamplesDrift);
 					}
 				}
 			}
@@ -647,8 +647,8 @@ justDontTimeStretch:
 					}
 
 					if (numSamplesOfPreMarginAvailable > 2) {
-						//Uart::println("");
-						//Uart::println("might attempt fudge");
+						//Debug::println("");
+						//Debug::println("might attempt fudge");
 
 						int crossfadeLength = getMin(numSamplesOfPreMarginAvailable, ANTI_CLICK_CROSSFADE_LENGTH);
 
@@ -791,9 +791,9 @@ void AudioClip::posReachedEnd(ModelStackWithTimelineCounter* modelStack) {
 	// If recording from session to arranger...
 	if (playbackHandler.recording == RECORDING_ARRANGEMENT && isArrangementOnlyClip()) {
 
-		Uart::println("");
-		Uart::print("AudioClip::posReachedEnd, at pos: ");
-		Uart::println(playbackHandler.getActualArrangementRecordPos());
+		Debug::println("");
+		Debug::print("AudioClip::posReachedEnd, at pos: ");
+		Debug::println(playbackHandler.getActualArrangementRecordPos());
 
 		if (!modelStack->song->arrangementOnlyClips.ensureEnoughSpaceAllocated(1)) {
 			return;
@@ -942,7 +942,7 @@ bool AudioClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, Tim
                                   bool addUndefinedArea, int noteRowIndexStart, int noteRowIndexEnd, int xStart,
                                   int xEnd, bool allowBlur, bool drawRepeats) {
 
-	//Uart::println("AudioClip::renderAsSingleRow");
+	//Debug::println("AudioClip::renderAsSingleRow");
 
 	Sample* sample;
 	if (recorder) {
@@ -1039,7 +1039,7 @@ someError:
 	int32_t readAutomationUpToPos = MAX_SEQUENCE_LENGTH;
 
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
-		//Uart::println(tagName); delayMS(30);
+		//Debug::println(tagName); delayMS(30);
 
 		if (!strcmp(tagName, "trackName")) {
 			storageManager.readTagOrAttributeValueString(&outputNameWhileLoading);

@@ -18,7 +18,7 @@
 #include "processing/engines/audio_engine.h"
 #include "dsp/filter/filter_set_config.h"
 #include "util/functions.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "storage/storage_manager.h"
 
 FilterSetConfig::FilterSetConfig() {
@@ -126,7 +126,7 @@ int32_t FilterSetConfig::init(int32_t lpfFrequency, int32_t lpfResonance, int32_
 					howMuchTooLow = 6000000 - tannedFrequency;
 				}
 
-				int32_t howMuchToKeep = ONE_Q31 - howMuchTooLow * 33;
+				int32_t howMuchToKeep = ONE_Q31 - 1 * 33;
 
 				int32_t resonanceUpperLimit = 510000000; // Prone to feeding back lots
 				tannedFrequency = getMax(
@@ -134,7 +134,7 @@ int32_t FilterSetConfig::init(int32_t lpfFrequency, int32_t lpfResonance, int32_
 				    (int32_t)540817); // We really want to keep the frequency from going lower than it has to - it causes problems
 
 				int32_t resonance = ONE_Q31 - (getMin(lpfResonance, resonanceUpperLimit) << 2); // Limits it
-				lpfRawResonance = resonance;
+				lpfRawResonance = lpfResonance;
 				resonance = multiply_32x32_rshift32_rounded(resonance, resonance) << 1;
 				processedResonance =
 				    ONE_Q31
@@ -163,7 +163,7 @@ int32_t FilterSetConfig::init(int32_t lpfFrequency, int32_t lpfResonance, int32_
 			}
 
 			// Full ladder
-			else {
+			else if ((lpfMode == LPF_MODE_TRANSISTOR_24DB) || (lpfMode == LPF_MODE_TRANSISTOR_24DB_DRIVE)) {
 				lpf3Feedback = multiply_32x32_rshift32_rounded(divideBy1PlusTannedFrequency, moveability);
 				lpf2Feedback = multiply_32x32_rshift32_rounded(lpf3Feedback, moveability) << 1;
 				lpf1Feedback = multiply_32x32_rshift32_rounded(lpf2Feedback, moveability) << 1;
@@ -196,15 +196,20 @@ int32_t FilterSetConfig::init(int32_t lpfFrequency, int32_t lpfResonance, int32_
 				filterGain = multiply_32x32_rshift32(filterGain, gainModifier) << 3;
 			}
 
-			else if (lpfMode == LPF_MODE_SVF) {
-				//compensation not needed for SVF
-				filterGain = 0;
-			}
-
 			// Drive filter - increase output amplitude
-			else {
+			else if (lpfMode == LPF_MODE_TRANSISTOR_24DB_DRIVE) {
 				//overallOscAmplitude <<= 2;
 				filterGain *= 0.8;
+			}
+			if (lpfMode == LPF_MODE_SVF) {
+
+				// raw resonance is 0 - 536870896 (2^28ish, don't know where it comes from)
+				// Multiply by 4 to bring it to the q31 0-1 range
+				processedResonance = (ONE_Q31 - 4 * (lpfRawResonance));
+				SVFInputScale = (processedResonance >> 1) + (ONE_Q31 >> 1);
+				//squared q is a better match for the ladders
+
+				processedResonance = multiply_32x32_rshift32_rounded(processedResonance, processedResonance) << 1;
 			}
 		}
 	}
