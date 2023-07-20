@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include <math.h>
 #include "util/functions.h"
 #include "io/midi/midi_engine.h"
@@ -24,7 +24,7 @@ extern "C" {
 #include "RZA1/uart/sio_char.h"
 }
 
-namespace Uart {
+namespace Debug {
 
 MIDIDevice* midiDebugDevice = nullptr;
 
@@ -66,4 +66,4 @@ void print(int32_t number) {
 #endif
 }
 
-} // namespace Uart
+} // namespace Debug

@@ -20,7 +20,7 @@
 #include "processing/sound/sound.h"
 #include "model/voice/voice.h"
 #include "modulation/patch/patch_cable_set.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 
 extern "C" {
 #include "RZA1/mtu/mtu.h"
@@ -388,7 +388,7 @@ void Patcher::performInitialPatching(Sound* sound, ParamManager* paramManager) {
 
 	uint32_t timePassedUSA = timerCountToUS(duration);
 
-	Uart::print("duration, uSec: ");
-	Uart::println(timePassedUSA);
+	Debug::print("duration, uSec: ");
+	Debug::println(timePassedUSA);
 */
 }

@@ -21,7 +21,7 @@
 
 class MIDIDevice;
 
-namespace Uart {
+namespace Debug {
 void print(char const* output);
 void println(char const* output);
 void println(int32_t number);
@@ -30,4 +30,4 @@ void printfloat(float number);
 void print(int32_t number);
 
 extern MIDIDevice* midiDebugDevice;
-} // namespace Uart
+} // namespace Debug

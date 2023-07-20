@@ -33,7 +33,7 @@
 #include "model/instrument/instrument.h"
 #include "gui/views/view.h"
 #include "hid/encoders.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "processing/engines/audio_engine.h"
 
 using namespace deluge;
@@ -992,7 +992,7 @@ nonNumeric:
 			scrollPosVertical = 9999;
 
 tryReadingItems:
-			Uart::println("reloading");
+			Debug::println("reloading");
 			error = readFileItemsFromFolderAndMemory(currentSong, instrumentTypeToLoad, filePrefix, enteredText.get(),
 			                                         NULL, true, 0, CATALOG_SEARCH_BOTH);
 			if (error) {
@@ -1017,7 +1017,7 @@ gotErrorAfterAllocating:
 			if (numFileItemsDeletedAtEnd) {
 				newCatalogSearchDirection = CATALOG_SEARCH_LEFT;
 searchFromOneEnd:
-				Uart::println("reloading and wrap");
+				Debug::println("reloading and wrap");
 				error = readFileItemsFromFolderAndMemory(currentSong, instrumentTypeToLoad, filePrefix, NULL, NULL,
 				                                         true, 0, newCatalogSearchDirection); // Load from start
 				if (error) {

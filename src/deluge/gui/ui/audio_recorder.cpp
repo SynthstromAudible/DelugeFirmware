@@ -25,7 +25,7 @@
 #include "processing/sound/sound_drum.h"
 #include "gui/ui/audio_recorder.h"
 #include "storage/storage_manager.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "dsp/stereo_sample.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/numeric_driver.h"

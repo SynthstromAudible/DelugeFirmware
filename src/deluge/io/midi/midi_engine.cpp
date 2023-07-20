@@ -19,7 +19,7 @@
 #include "io/midi/midi_engine.h"
 #include "util/functions.h"
 #include "gui/ui/sound_editor.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include <string.h>
 #include "playback/mode/playback_mode.h"
 #include "model/song/song.h"
@@ -570,7 +570,7 @@ bool MidiEngine::checkIncomingSerialMidi() {
 	uint8_t thisSerialByte;
 	uint32_t* timer = uartGetCharWithTiming(TIMING_CAPTURE_ITEM_MIDI, (char*)&thisSerialByte);
 	if (timer) {
-		//Uart::println((unsigned int)thisSerialByte);
+		//Debug::println((unsigned int)thisSerialByte);
 		MIDIDevice* dev = &MIDIDeviceManager::dinMIDIPorts;
 
 		// If this is a status byte, then we have to store it as the first byte.
@@ -587,7 +587,7 @@ bool MidiEngine::checkIncomingSerialMidi() {
 			// Or if it's a SysEx start...
 			case 0xF0:
 				currentlyReceivingSysExSerial = true;
-				Uart::println("Sysex start");
+				Debug::println("Sysex start");
 				dev->incomingSysexBuffer[0] = thisSerialByte;
 				dev->incomingSysexPos = 1;
 				//numSerialMidiInput = 0; // This would throw away any running status stuff...
@@ -598,7 +598,7 @@ bool MidiEngine::checkIncomingSerialMidi() {
 
 			// If it was a Sysex stop, that's all we need to do
 			if (thisSerialByte == 0xF7) {
-				Uart::println("Sysex end");
+				Debug::println("Sysex end");
 				if (currentlyReceivingSysExSerial) {
 					currentlyReceivingSysExSerial = false;
 					if (dev->incomingSysexPos < sizeof dev->incomingSysexBuffer) {
@@ -622,8 +622,8 @@ bool MidiEngine::checkIncomingSerialMidi() {
 				if (dev->incomingSysexPos < sizeof dev->incomingSysexBuffer) {
 					dev->incomingSysexBuffer[dev->incomingSysexPos++] = thisSerialByte;
 				}
-				Uart::print("Sysex: ");
-				Uart::println(thisSerialByte);
+				Debug::print("Sysex: ");
+				Debug::println(thisSerialByte);
 				return true;
 			}
 
@@ -731,10 +731,10 @@ void MidiEngine::debugSysexReceived(MIDIDevice* device, uint8_t* data, int len) 
 	switch (data[3]) {
 	case 0:
 		if (data[4] == 1) {
-			Uart::midiDebugDevice = device;
+			Debug::midiDebugDevice = device;
 		}
 		else if (data[4] == 0) {
-			Uart::midiDebugDevice = nullptr;
+			Debug::midiDebugDevice = nullptr;
 		}
 		break;
 	}
