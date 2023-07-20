@@ -19,7 +19,7 @@
 #include "processing/sound/sound.h"
 #include "modulation/envelope.h"
 #include "model/voice/voice.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 
 Envelope::Envelope() {
 }

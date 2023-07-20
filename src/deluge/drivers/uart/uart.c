@@ -52,14 +52,6 @@ void uartPrintNumber(int number) {
 #endif
 }
 
-void uartPrintNumberSameLine(int number) {
-#if ENABLE_TEXT_OUTPUT
-	char buffer[12];
-	intToString(number, buffer, 1);
-	uartPrint(buffer);
-#endif
-}
-
 void uartPrint(char const* output) {
 #if ENABLE_TEXT_OUTPUT
 #if HAVE_RTT

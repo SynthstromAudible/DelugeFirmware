@@ -17,7 +17,7 @@
 
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include <string.h>
 #include <math.h>
 #include "util/functions.h"

@@ -18,7 +18,7 @@
 #include "storage/cluster/cluster.h"
 #include "util/container/list/bidirectional_linked_list.h"
 #include "hid/display/numeric_driver.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 
 BidirectionalLinkedList::BidirectionalLinkedList() {
 	first = &endNode;
@@ -103,8 +103,8 @@ void BidirectionalLinkedList::test() {
 		thisNode = thisNode->next;
 	}
 
-	Uart::print("list size: ");
-	Uart::println(count);
+	Debug::print("list size: ");
+	Debug::println(count);
 }
 
 BidirectionalLinkedListNode::BidirectionalLinkedListNode() {

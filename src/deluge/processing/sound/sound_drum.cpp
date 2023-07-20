@@ -22,7 +22,7 @@
 #include "storage/storage_manager.h"
 #include "model/song/song.h"
 #include "gui/views/view.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "processing/engines/audio_engine.h"
