@@ -576,14 +576,14 @@ midi::Thru midiThruMenu{HAVE_OLED ? "MIDI-thru" : "THRU"};
 midi::Takeover midiTakeoverMenu{HAVE_OLED ? "TAKEOVER" : "TOVR"};
 
 // MIDI commands submenu
-midi::Command playbackRestartMidiCommand{"Restart", GLOBAL_MIDI_COMMAND_PLAYBACK_RESTART};
-midi::Command playMidiCommand{"PLAY", GLOBAL_MIDI_COMMAND_PLAY};
-midi::Command recordMidiCommand{HAVE_OLED ? "Record" : "REC", GLOBAL_MIDI_COMMAND_RECORD};
-midi::Command tapMidiCommand{"Tap tempo", GLOBAL_MIDI_COMMAND_TAP};
-midi::Command undoMidiCommand{"UNDO", GLOBAL_MIDI_COMMAND_UNDO};
-midi::Command redoMidiCommand{"REDO", GLOBAL_MIDI_COMMAND_REDO};
-midi::Command loopMidiCommand{"LOOP", GLOBAL_MIDI_COMMAND_LOOP};
-midi::Command loopContinuousLayeringMidiCommand{"LAYERING loop", GLOBAL_MIDI_COMMAND_LOOP_CONTINUOUS_LAYERING};
+midi::Command playbackRestartMidiCommand{"Restart", GlobalMIDICommand::PLAYBACK_RESTART};
+midi::Command playMidiCommand{"PLAY", GlobalMIDICommand::PLAY};
+midi::Command recordMidiCommand{HAVE_OLED ? "Record" : "REC", GlobalMIDICommand::RECORD};
+midi::Command tapMidiCommand{"Tap tempo", GlobalMIDICommand::TAP};
+midi::Command undoMidiCommand{"UNDO", GlobalMIDICommand::UNDO};
+midi::Command redoMidiCommand{"REDO", GlobalMIDICommand::REDO};
+midi::Command loopMidiCommand{"LOOP", GlobalMIDICommand::LOOP};
+midi::Command loopContinuousLayeringMidiCommand{"LAYERING loop", GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING};
 MenuItem* midiCommandsMenuItems[] = {&playMidiCommand,
                                      &playbackRestartMidiCommand,
                                      &recordMidiCommand,

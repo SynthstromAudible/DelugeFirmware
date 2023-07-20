@@ -96,8 +96,8 @@ namespace MIDIDeviceManager {
 
 void slowRoutine();
 MIDIDevice* readDeviceReferenceFromFile();
-void readDeviceReferenceFromFlash(int whichCommand, uint8_t const* memory);
-void writeDeviceReferenceToFlash(int whichCommand, uint8_t* memory);
+void readDeviceReferenceFromFlash(GlobalMIDICommand whichCommand, uint8_t const* memory);
+void writeDeviceReferenceToFlash(GlobalMIDICommand whichCommand, uint8_t* memory);
 void recountSmallestMPEZones();
 void writeDevicesToFile();
 void readAHostedDeviceFromFile();

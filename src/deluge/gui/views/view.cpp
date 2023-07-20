@@ -85,7 +85,7 @@ using namespace gui;
 
 View view{};
 
-extern int8_t pendingGlobalMIDICommand;
+extern GlobalMIDICommand pendingGlobalMIDICommand;
 
 View::View() {
 	midiLearnFlashOn = false;
@@ -118,12 +118,12 @@ void View::setTripletsLedState() {
 	                            rootUI->isTimelineView() && ((TimelineView*)rootUI)->inTripletsView());
 }
 
-extern int pendingGlobalMIDICommandNumClustersWritten;
+extern GlobalMIDICommand pendingGlobalMIDICommandNumClustersWritten;
 
 int View::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	using namespace hid::button;
 
-	int newGlobalMidiCommand;
+	GlobalMIDICommand newGlobalMidiCommand;
 
 	// Tap tempo button. Shouldn't move this to MatrixDriver, because this code can put us in tapTempo mode, and other UIs aren't built to
 	// handle this
@@ -136,7 +136,7 @@ int View::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 			if (on) {
 				deleteMidiCommandOnRelease = true;
 				endMidiLearnPressSession(MidiLearn::TAP_TEMPO_BUTTON);
-				learnedThing = &midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_TAP];
+				learnedThing = &midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::TAP)];
 			}
 
 			else if (thingPressedForMidiLearn == MidiLearn::TAP_TEMPO_BUTTON) {
@@ -193,7 +193,7 @@ doEndMidiLearnPressSession:
 		if (on) {
 			deleteMidiCommandOnRelease = true;
 			endMidiLearnPressSession(MidiLearn::PLAY_BUTTON);
-			learnedThing = &midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_PLAY];
+			learnedThing = &midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::PLAY)];
 		}
 		else if (thingPressedForMidiLearn == MidiLearn::PLAY_BUTTON) {
 			goto doEndMidiLearnPressSession;
@@ -209,7 +209,7 @@ doEndMidiLearnPressSession:
 		if (on) {
 			deleteMidiCommandOnRelease = true;
 			endMidiLearnPressSession(MidiLearn::RECORD_BUTTON);
-			learnedThing = &midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_RECORD];
+			learnedThing = &midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::RECORD)];
 		}
 		else if (thingPressedForMidiLearn == MidiLearn::RECORD_BUTTON) {
 			goto doEndMidiLearnPressSession;
@@ -364,9 +364,9 @@ cant:
 				// Here we'll take advantage of the pending command system which has to exist for these commands for their MIDI-triggered case anyway.
 				// In the future, maybe a lot more commands should pend in the same way?
 				pendingGlobalMIDICommand =
-				    Buttons::isShiftButtonPressed() ? GLOBAL_MIDI_COMMAND_REDO : GLOBAL_MIDI_COMMAND_UNDO;
-				pendingGlobalMIDICommandNumClustersWritten = 0; // Bug hunting.
-				playbackHandler.slowRoutine();                  // Do it now if not reading card.
+				    Buttons::isShiftButtonPressed() ? GlobalMIDICommand::REDO : GlobalMIDICommand::UNDO;
+				pendingGlobalMIDICommandNumClustersWritten = GlobalMIDICommand::PLAYBACK_RESTART; // Bug hunting.
+				playbackHandler.slowRoutine(); // Do it now if not reading card.
 			}
 
 			else
@@ -381,7 +381,7 @@ cant:
 #ifdef undoButtonX
 	// Undo button
 	else if (b == undo) {
-		newGlobalMidiCommand = GLOBAL_MIDI_COMMAND_UNDO;
+		newGlobalMidiCommand = GlobalMIDICommand::UNDO;
 possiblyRevert:
 		if (on) {
 			if (actionLogger.allowedToDoReversion()) {
@@ -397,7 +397,7 @@ possiblyRevert:
 
 	// Redo button
 	else if (b == redo) {
-		newGlobalMidiCommand = GLOBAL_MIDI_COMMAND_REDO;
+		newGlobalMidiCommand = GlobalMIDICommand::REDO;
 		goto possiblyRevert;
 	}
 #endif
@@ -771,15 +771,15 @@ void View::midiLearnFlash() {
 		getRootUI()->midiLearnFlash();
 	}
 
-	if (midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_PLAY].containsSomething()
+	if (midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::PLAY)].containsSomething()
 	    || thingPressedForMidiLearn == MidiLearn::PLAY_BUTTON) {
 		indicator_leds::setLedState(IndicatorLED::PLAY, midiLearnFlashOn);
 	}
-	if (midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_RECORD].containsSomething()
+	if (midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::RECORD)].containsSomething()
 	    || thingPressedForMidiLearn == MidiLearn::RECORD_BUTTON) {
 		indicator_leds::setLedState(IndicatorLED::RECORD, midiLearnFlashOn);
 	}
-	if (midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_TAP].containsSomething()
+	if (midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::TAP)].containsSomething()
 	    || thingPressedForMidiLearn == MidiLearn::TAP_TEMPO_BUTTON) {
 		indicator_leds::setLedState(IndicatorLED::TAP_TEMPO, midiLearnFlashOn);
 	}
@@ -1752,7 +1752,8 @@ getOut:
 }
 
 // Returns whether success
-bool View::changeInstrumentType(InstrumentType	 newInstrumentType, ModelStackWithTimelineCounter* modelStack, bool doBlink) {
+bool View::changeInstrumentType(InstrumentType newInstrumentType, ModelStackWithTimelineCounter* modelStack,
+                                bool doBlink) {
 
 	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
 

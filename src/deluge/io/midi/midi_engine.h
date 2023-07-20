@@ -58,8 +58,8 @@ public:
 	void setupUSBHostReceiveTransfer(int ip, int midiDeviceNum);
 	void flushUSBMIDIOutput();
 
-	LearnedMIDI globalMIDICommands
-	    [NUM_GLOBAL_MIDI_COMMANDS]; // If bit "16" (actually bit 4) is 1, this is a program change. (Wait, still?)
+	// If bit "16" (actually bit 4) is 1, this is a program change. (Wait, still?)
+	LearnedMIDI globalMIDICommands[NUM_GLOBAL_MIDI_COMMANDS];
 
 	bool midiThru;
 	uint8_t midiTakeover;
