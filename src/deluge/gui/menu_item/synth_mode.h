@@ -36,8 +36,8 @@ public:
 	}
 	int getNumOptions() { return 3; }
 	bool isRelevant(Sound* sound, int whichThing) {
-		return (sound->sources[0].oscType < NUM_OSC_TYPES_RINGMODDABLE
-		        && sound->sources[1].oscType < NUM_OSC_TYPES_RINGMODDABLE);
+		return (sound->sources[0].oscType <= LAST_RINGMODDABLE_OSC_TYPE
+		        && sound->sources[1].oscType <= LAST_RINGMODDABLE_OSC_TYPE);
 	}
 };
 } // namespace menu_item

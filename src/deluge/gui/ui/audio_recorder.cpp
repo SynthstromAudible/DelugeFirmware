@@ -225,7 +225,7 @@ void AudioRecorder::process() {
 			else {
 				// We want to attach that Sample to a Source right away...
 				soundEditor.currentSound->unassignAllVoices();
-				soundEditor.currentSource->setOscType(OSC_TYPE_SAMPLE);
+				soundEditor.currentSource->setOscType(OscType::SAMPLE);
 				soundEditor.currentMultiRange->getAudioFileHolder()->filePath.set(&recorder->sample->filePath);
 				soundEditor.currentMultiRange->getAudioFileHolder()->setAudioFile(
 				    recorder->sample, soundEditor.currentSource->sampleControls.reversed, true);

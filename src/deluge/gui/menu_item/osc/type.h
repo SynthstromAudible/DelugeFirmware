@@ -23,6 +23,7 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/source.h"
 #include "util/comparison.h"
+#include "util/misc.h"
 
 extern char oscTypeTitle[];
 namespace menu_item::osc {
@@ -39,23 +40,23 @@ public:
 		Selection::beginSession(navigatedBackwardFrom);
 	}
 #endif
-	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentSource->oscType; }
+	void readCurrentValue() { soundEditor.currentValue = util::to_underlying(soundEditor.currentSource->oscType); }
 	void writeCurrentValue() {
 
 		OscType oldValue = soundEditor.currentSource->oscType;
 		auto newValue = static_cast<OscType>(soundEditor.currentValue);
 
-		auto needs_unassignment = {OSC_TYPE_INPUT_L, OSC_TYPE_INPUT_R, OSC_TYPE_INPUT_STEREO, OSC_TYPE_SAMPLE,
+		auto needs_unassignment = {OscType::INPUT_L, OscType::INPUT_R, OscType::INPUT_STEREO, OscType::SAMPLE,
 
 		                           // Haven't actually really determined if this needs to be here - maybe not?
-		                           OSC_TYPE_WAVETABLE};
+		                           OscType::WAVETABLE};
 
 		if (util::one_of(oldValue, needs_unassignment) || util::one_of(newValue, needs_unassignment)) {
 			soundEditor.currentSound->unassignAllVoices();
 		}
 
 		soundEditor.currentSource->setOscType(newValue);
-		if (oldValue == OSC_TYPE_SQUARE || newValue == OSC_TYPE_SQUARE) {
+		if (oldValue == OscType::SQUARE || newValue == OscType::SQUARE) {
 			soundEditor.currentSound->setupPatchingForAllParamManagers(currentSong);
 		}
 	}
@@ -79,13 +80,13 @@ public:
 
 	int getNumOptions() {
 		if (soundEditor.currentSound->getSynthMode() == SYNTH_MODE_RINGMOD) {
-			return NUM_OSC_TYPES_RINGMODDABLE;
+			return kNumOscTypesRingModdable;
 		}
 		else if (AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn) {
-			return NUM_OSC_TYPES;
+			return kNumOscTypes;
 		}
 		else {
-			return NUM_OSC_TYPES - 2;
+			return kNumOscTypes - 2;
 		}
 	}
 	bool isRelevant(Sound* sound, int whichThing) { return (sound->getSynthMode() != SYNTH_MODE_FM); }

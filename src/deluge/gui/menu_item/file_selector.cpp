@@ -49,11 +49,11 @@ bool FileSelector::isRelevant(Sound* sound, int whichThing) {
 	}
 	Source* source = &sound->sources[whichThing];
 
-	if (source->oscType == OSC_TYPE_WAVETABLE) {
+	if (source->oscType == OscType::WAVETABLE) {
 		return (sound->getSynthMode() != SYNTH_MODE_FM);
 	}
 
-	return (sound->getSynthMode() == SYNTH_MODE_SUBTRACTIVE && source->oscType == OSC_TYPE_SAMPLE);
+	return (sound->getSynthMode() == SYNTH_MODE_SUBTRACTIVE && source->oscType == OscType::SAMPLE);
 }
 int FileSelector::checkPermissionToBeginSession(Sound* sound, int whichThing, ::MultiRange** currentRange) {
 
@@ -63,7 +63,7 @@ int FileSelector::checkPermissionToBeginSession(Sound* sound, int whichThing, ::
 
 	bool can =
 	    (sound->getSynthMode() == SYNTH_MODE_SUBTRACTIVE
-	     || (sound->getSynthMode() == SYNTH_MODE_RINGMOD && sound->sources[whichThing].oscType == OSC_TYPE_WAVETABLE));
+	     || (sound->getSynthMode() == SYNTH_MODE_RINGMOD && sound->sources[whichThing].oscType == OscType::WAVETABLE));
 
 	if (!can) {
 		return MENU_PERMISSION_NO;

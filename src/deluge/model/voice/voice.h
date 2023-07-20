@@ -103,7 +103,7 @@ public:
 private:
 	//inline int32_t doFM(uint32_t *carrierPhase, uint32_t* lastShiftedPhase, uint32_t carrierPhaseIncrement, uint32_t phaseShift);
 
-	void renderOsc(int s, int type, int32_t amplitude, int32_t* thisSample, int32_t* bufferEnd, int numSamples,
+	void renderOsc(int s, OscType type, int32_t amplitude, int32_t* thisSample, int32_t* bufferEnd, int numSamples,
 	               uint32_t phaseIncrementNow, uint32_t phaseWidth, uint32_t* thisPhase, bool applyAmplitude,
 	               int32_t amplitudeIncrement, bool doOscSync, uint32_t resetterPhase, uint32_t resetterPhaseIncrement,
 	               uint32_t retriggerPhase, int32_t waveIndexIncrement);

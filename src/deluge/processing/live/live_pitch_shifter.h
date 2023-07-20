@@ -24,7 +24,7 @@ class LiveInputBuffer;
 
 class LivePitchShifter {
 public:
-	LivePitchShifter(int newInputType, int32_t phaseIncrement);
+	LivePitchShifter(OscType newInputType, int32_t phaseIncrement);
 	~LivePitchShifter();
 	void giveInput(int numSamples, int inputType, int32_t phaseIncrement);
 	void render(int32_t* outputBuffer, int numSamplesThisFunctionCall, int32_t phaseIncrement, int32_t amplitude,
@@ -43,7 +43,7 @@ public:
 #endif
 
 	int8_t numChannels;
-	uint8_t inputType;
+	OscType inputType;
 
 	uint32_t crossfadeProgress; // Out of 16777216
 	uint32_t crossfadeIncrement;

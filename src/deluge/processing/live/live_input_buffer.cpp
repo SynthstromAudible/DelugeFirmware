@@ -30,11 +30,7 @@ LiveInputBuffer::LiveInputBuffer() {
 	numRawSamplesProcessed = 0;
 }
 
-LiveInputBuffer::~LiveInputBuffer() {
-	// TODO Auto-generated destructor stub
-}
-
-void LiveInputBuffer::giveInput(int numSamples, uint32_t currentTime, int inputType) {
+void LiveInputBuffer::giveInput(int numSamples, uint32_t currentTime, OscType inputType) {
 
 	if (upToTime == (uint32_t)(currentTime + numSamples)) {
 		return; // It's already been done
@@ -56,11 +52,11 @@ void LiveInputBuffer::giveInput(int numSamples, uint32_t currentTime, int inputT
 
 		int32_t thisSampleRead;
 
-		if (inputType == OSC_TYPE_INPUT_L) {
+		if (inputType == OscType::INPUT_L) {
 			thisSampleRead = inputReadPos[0] >> 2;
 			rawBuffer[numRawSamplesProcessed & (INPUT_RAW_BUFFER_SIZE - 1)] = inputReadPos[0];
 		}
-		else if (inputType == OSC_TYPE_INPUT_R) {
+		else if (inputType == OscType::INPUT_R) {
 			thisSampleRead = inputReadPos[1] >> 2;
 			rawBuffer[numRawSamplesProcessed & (INPUT_RAW_BUFFER_SIZE - 1)] = inputReadPos[1];
 		}

@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "definitions_cxx.hpp"
 #include "processing/engines/audio_engine.h"
 #include "processing/live/live_pitch_shifter.h"
 #include "processing/live/live_input_buffer.h"
@@ -27,9 +28,9 @@
 
 //#define MEASURE_HOP_END_PERFORMANCE 1
 
-LivePitchShifter::LivePitchShifter(int newInputType, int32_t phaseIncrement) {
+LivePitchShifter::LivePitchShifter(OscType newInputType, int32_t phaseIncrement) {
 	inputType = newInputType;
-	numChannels = (newInputType == OSC_TYPE_INPUT_STEREO) ? 2 : 1;
+	numChannels = (newInputType == OscType::INPUT_STEREO) ? 2 : 1;
 
 	if (phaseIncrement < 16777216) {
 		nextCrossfadeLength = samplesTilHopEnd = INTERPOLATION_MAX_NUM_SAMPLES * 2;
@@ -99,7 +100,7 @@ void LivePitchShifter::render(int32_t* __restrict__ outputBuffer, int numSamples
 			// Feed this 1 input sample into interpolation buffer
 			StereoSample* inputSample = audioDriver.getInputSample(i);
 
-			interpolationBuffer[0][0] = (inputType == OSC_TYPE_INPUT_R) ? inputSample->r : inputSample->l;
+			interpolationBuffer[0][0] = (inputType == OscType::INPUT_R) ? inputSample->r : inputSample->l;
 
 			if (numChannels == 2) {
 				interpolationBuffer[1][0] = inputSample->r;

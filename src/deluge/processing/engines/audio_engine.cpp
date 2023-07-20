@@ -53,6 +53,7 @@
 #include "io/uart/uart.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "modulation/params/param_set.h"
+#include "util/misc.h"
 
 #if AUTOMATED_TESTER_ENABLED
 #include "testing/automated_tester.h"
@@ -1287,14 +1288,15 @@ void timeStretcherUnassigned(TimeStretcher* timeStretcher) {
 }
 
 // TODO: delete unused ones
-LiveInputBuffer* getOrCreateLiveInputBuffer(int inputType, bool mayCreate) {
-	if (!liveInputBuffers[inputType - OSC_TYPE_INPUT_L]) {
+LiveInputBuffer* getOrCreateLiveInputBuffer(OscType inputType, bool mayCreate) {
+	const auto idx = util::to_underlying(inputType) - util::to_underlying(OscType::INPUT_L);
+	if (!liveInputBuffers[idx]) {
 		if (!mayCreate) {
 			return NULL;
 		}
 
 		int size = sizeof(LiveInputBuffer);
-		if (inputType == OSC_TYPE_INPUT_STEREO) {
+		if (inputType == OscType::INPUT_STEREO) {
 			size += INPUT_RAW_BUFFER_SIZE * sizeof(int32_t);
 		}
 
@@ -1303,10 +1305,10 @@ LiveInputBuffer* getOrCreateLiveInputBuffer(int inputType, bool mayCreate) {
 			return NULL;
 		}
 
-		liveInputBuffers[inputType - OSC_TYPE_INPUT_L] = new (memory) LiveInputBuffer();
+		liveInputBuffers[idx] = new (memory) LiveInputBuffer();
 	}
 
-	return liveInputBuffers[inputType - OSC_TYPE_INPUT_L];
+	return liveInputBuffers[idx];
 }
 
 bool createdNewRecorder;

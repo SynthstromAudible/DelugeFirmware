@@ -146,7 +146,7 @@ int32_t stringToUIntOrError(char const* mem);
 int32_t memToUIntOrError(char const* mem, char const* const memEnd);
 void getInstrumentPresetFilename(char const* filePrefix, int16_t presetNumber, int8_t presetSubslotNumber,
                                  char* fileName);
-char const* oscTypeToString(unsigned int oscType);
+char const* oscTypeToString(OscType osctype);
 OscType stringToOscType(char const* string);
 
 char const* lfoTypeToString(LFOType oscType);
@@ -399,7 +399,7 @@ void hueToRGBPastel(int32_t hue, unsigned char* rgb);
 uint32_t getLFOInitialPhaseForNegativeExtreme(LFOType waveType);
 uint32_t getLFOInitialPhaseForZero(LFOType waveType);
 
-uint32_t getOscInitialPhaseForZero(uint8_t waveType);
+uint32_t getOscInitialPhaseForZero(OscType waveType);
 int32_t fastPythag(int32_t x, int32_t y);
 int strcmpspecial(char const* first, char const* second);
 int32_t doLanczos(int32_t* data, int32_t pos, uint32_t posWithinPos, int memoryNumElements);

@@ -210,8 +210,8 @@ void Sound::setupAsSample(ParamManagerForTimeline* paramManager) {
 	polyphonic = POLYPHONY_AUTO;
 	lpfMode = LPF_MODE_TRANSISTOR_24DB;
 
-	sources[0].oscType = OSC_TYPE_SAMPLE;
-	sources[1].oscType = OSC_TYPE_SAMPLE;
+	sources[0].oscType = OscType::SAMPLE;
+	sources[1].oscType = OscType::SAMPLE;
 
 	PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
 
@@ -266,7 +266,7 @@ void Sound::setupAsDefaultSynth(ParamManager* paramManager) {
 
 	lpfMode = LPF_MODE_TRANSISTOR_24DB; // Good for samples, I think
 
-	sources[0].oscType = OSC_TYPE_SAW;
+	sources[0].oscType = OscType::SAW;
 	sources[1].transpose = -12;
 
 	numUnison = 4;
@@ -719,7 +719,7 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 		}
 
 		range->getAudioFileHolder()->filePath.set(storageManager.readTagOrAttributeValue());
-		sources[0].oscType = OSC_TYPE_SAMPLE;
+		sources[0].oscType = OscType::SAMPLE;
 		paramManager->getPatchedParamSet()->params[PARAM_LOCAL_ENV_0_ATTACK].setCurrentValueBasicForSetup(
 		    getParamFromUserValue(PARAM_LOCAL_ENV_0_ATTACK, 0));
 		paramManager->getPatchedParamSet()->params[PARAM_LOCAL_ENV_0_DECAY].setCurrentValueBasicForSetup(
@@ -1201,7 +1201,7 @@ uint8_t Sound::maySourcePatchToParam(PatchSource s, uint8_t p, ParamManager* par
 		if (getSynthMode() == SYNTH_MODE_FM) {
 			return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
 		}
-		//if (getSynthMode() == SYNTH_MODE_FM || (sources[0].oscType != OSC_TYPE_SQUARE && sources[0].oscType != OSC_TYPE_JUNO60_SUBOSC)) return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
+		//if (getSynthMode() == SYNTH_MODE_FM || (sources[0].oscType != OscType::SQUARE && sources[0].oscType != OscType::JUNO60_SUBOSC)) return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
 		break;
 	case PARAM_LOCAL_OSC_A_VOLUME:
 		if (getSynthMode() == SYNTH_MODE_RINGMOD) {
@@ -1224,7 +1224,7 @@ uint8_t Sound::maySourcePatchToParam(PatchSource s, uint8_t p, ParamManager* par
 		if (getSynthMode() == SYNTH_MODE_FM) {
 			return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
 		}
-		//if (getSynthMode() == SYNTH_MODE_FM || (sources[1].oscType != OSC_TYPE_SQUARE && sources[1].oscType != OSC_TYPE_JUNO60_SUBOSC)) return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
+		//if (getSynthMode() == SYNTH_MODE_FM || (sources[1].oscType != OscType::SQUARE && sources[1].oscType != OscType::JUNO60_SUBOSC)) return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
 		break;
 	case PARAM_LOCAL_OSC_B_VOLUME:
 		if (getSynthMode() == SYNTH_MODE_RINGMOD) {
@@ -1417,7 +1417,7 @@ justUnassign:
 				}
 				else {
 					for (int s = 0; s < NUM_SOURCES; s++) {
-						if (isSourceActiveCurrently(s, paramManager) && sources[s].oscType != OSC_TYPE_SAMPLE) {
+						if (isSourceActiveCurrently(s, paramManager) && sources[s].oscType != OscType::SAMPLE) {
 							goto justUnassign;
 						}
 					}
@@ -1607,7 +1607,7 @@ bool Sound::allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardS
 		anyActiveSources = sourceEverActive || anyActiveSources;
 
 		if (sourceEverActive
-		    && (sources[s].oscType != OSC_TYPE_SAMPLE || sources[s].repeatMode != SAMPLE_REPEAT_ONCE
+		    && (sources[s].oscType != OscType::SAMPLE || sources[s].repeatMode != SAMPLE_REPEAT_ONCE
 		        || (!disregardSampleLoop && sources[s].hasAnyLoopEndPoint()))) {
 			return true;
 		}
@@ -1626,7 +1626,7 @@ int32_t Sound::hasAnyTimeStretchSyncing(ParamManagerForTimeline* paramManager, b
 
 		bool sourceEverActive = s ? isSourceActiveEver(1, paramManager) : isSourceActiveEver(0, paramManager);
 
-		if (sourceEverActive && sources[s].oscType == OSC_TYPE_SAMPLE
+		if (sourceEverActive && sources[s].oscType == OscType::SAMPLE
 		    && sources[s].repeatMode == SAMPLE_REPEAT_STRETCH) {
 			if (getSampleLength) {
 				return sources[s].getLengthInSamplesAtSystemSampleRate(note + transpose, true);
@@ -1660,7 +1660,7 @@ int32_t Sound::hasCutOrLoopModeSamples(ParamManagerForTimeline* paramManager, in
 			continue;
 		}
 
-		if (sources[s].oscType != OSC_TYPE_SAMPLE) {
+		if (sources[s].oscType != OscType::SAMPLE) {
 			return 0;
 		}
 		else if (sources[s].repeatMode == SAMPLE_REPEAT_CUT || sources[s].repeatMode == SAMPLE_REPEAT_LOOP) {
@@ -1695,7 +1695,7 @@ bool Sound::hasCutModeSamples(ParamManagerForTimeline* paramManager) {
 			continue;
 		}
 
-		if (sources[s].oscType != OSC_TYPE_SAMPLE || !sources[s].hasAtLeastOneAudioFileLoaded()
+		if (sources[s].oscType != OscType::SAMPLE || !sources[s].hasAtLeastOneAudioFileLoaded()
 		    || sources[s].repeatMode != SAMPLE_REPEAT_CUT) {
 			return false;
 		}
@@ -1727,16 +1727,16 @@ bool Sound::allowsVeryLateNoteStart(InstrumentClip* clip, ParamManagerForTimelin
 		switch (sources[s].oscType) {
 
 		// Sample - generally ok, but not if one-shot
-		case OSC_TYPE_SAMPLE:
+		case OscType::SAMPLE:
 			if (sources[s].repeatMode == SAMPLE_REPEAT_ONCE || !sources[s].hasAtLeastOneAudioFileLoaded()) {
 				return false; // Not quite sure why the must-be-loaded requirement - maybe something would break if it tried to do a late start otherwise?
 			}
 			break;
 
 		// Input - ok
-		case OSC_TYPE_INPUT_L:
-		case OSC_TYPE_INPUT_R:
-		case OSC_TYPE_INPUT_STEREO:
+		case OscType::INPUT_L:
+		case OscType::INPUT_R:
+		case OscType::INPUT_STEREO:
 			break;
 
 		// Wave-based - instant fail!
@@ -1751,7 +1751,7 @@ bool Sound::allowsVeryLateNoteStart(InstrumentClip* clip, ParamManagerForTimelin
 bool Sound::isSourceActiveCurrently(int s, ParamManagerForTimeline* paramManager) {
 	return (synthMode == SYNTH_MODE_RINGMOD
 	        || getSmoothedPatchedParamValue(PARAM_LOCAL_OSC_A_VOLUME + s, paramManager) != -2147483648)
-	       && (synthMode == SYNTH_MODE_FM || sources[s].oscType != OSC_TYPE_SAMPLE
+	       && (synthMode == SYNTH_MODE_FM || sources[s].oscType != OscType::SAMPLE
 	           || sources[s].hasAtLeastOneAudioFileLoaded());
 }
 
@@ -1763,7 +1763,7 @@ bool Sound::isSourceActiveEverDisregardingMissingSample(int s, ParamManager* par
 
 bool Sound::isSourceActiveEver(int s, ParamManager* paramManager) {
 	return isSourceActiveEverDisregardingMissingSample(s, paramManager)
-	       && (synthMode == SYNTH_MODE_FM || sources[s].oscType != OSC_TYPE_SAMPLE
+	       && (synthMode == SYNTH_MODE_FM || sources[s].oscType != OscType::SAMPLE
 	           || sources[s].hasAtLeastOneAudioFileLoaded());
 }
 
@@ -2770,7 +2770,7 @@ void Sound::setNumUnison(int newNum, ModelStackWithSoundFlags* modelStack) {
 
 					bool sourceEverActive = modelStack->checkSourceEverActive(s);
 
-					if (sourceEverActive && synthMode != SYNTH_MODE_FM && sources[s].oscType == OSC_TYPE_SAMPLE
+					if (sourceEverActive && synthMode != SYNTH_MODE_FM && sources[s].oscType == OscType::SAMPLE
 					    && thisVoice->guides[s].audioFileHolder && thisVoice->guides[s].audioFileHolder->audioFile) {
 
 						// For samples, set the current play pos for the new unison part, if num unison went up
@@ -3098,7 +3098,7 @@ int Sound::readSourceFromFile(int s, ParamManagerForTimeline* paramManager, int3
 					char tempMemory[source->ranges.elementSize];
 
 					MultiRange* tempRange;
-					if (source->oscType == OSC_TYPE_WAVETABLE) {
+					if (source->oscType == OscType::WAVETABLE) {
 						tempRange = new (tempMemory) MultiWaveTableRange();
 					}
 					else {
@@ -3117,7 +3117,7 @@ int Sound::readSourceFromFile(int s, ParamManagerForTimeline* paramManager, int3
 							tempRange->topNote = storageManager.readTagOrAttributeValueInt();
 							storageManager.exitTag("rangeTopNote");
 						}
-						else if (source->oscType != OSC_TYPE_WAVETABLE) {
+						else if (source->oscType != OscType::WAVETABLE) {
 							if (!strcmp(tagName, "zone")) {
 
 								while (*(tagName = storageManager.readNextTagOrAttributeName())) {
@@ -3215,7 +3215,7 @@ void Sound::writeSourceToFile(int s, char const* tagName) {
 	}
 
 	// If (multi)sample...
-	if (source->oscType == OSC_TYPE_SAMPLE
+	if (source->oscType == OscType::SAMPLE
 	    && synthMode != SYNTH_MODE_FM) { // Don't combine this with the above "if" - there's an "else" below
 		storageManager.writeAttribute("loopMode", source->repeatMode);
 		storageManager.writeAttribute("reversed", source->sampleControls.reversed);
@@ -3291,7 +3291,7 @@ void Sound::writeSourceToFile(int s, char const* tagName) {
 		storageManager.writeAttribute("retrigPhase", oscRetriggerPhase[s]);
 
 		// Sub-option for (multi)wavetable
-		if (source->oscType == OSC_TYPE_WAVETABLE && synthMode != SYNTH_MODE_FM) {
+		if (source->oscType == OscType::WAVETABLE && synthMode != SYNTH_MODE_FM) {
 
 			int numRanges = source->ranges.getNumElements();
 
@@ -3718,7 +3718,7 @@ int16_t Sound::getMaxOscTranspose(InstrumentClip* clip) {
 
 	int maxRawOscTranspose = -32768;
 	for (int s = 0; s < NUM_SOURCES; s++) {
-		if (getSynthMode() == SYNTH_MODE_FM || sources[s].oscType != OSC_TYPE_SAMPLE) {
+		if (getSynthMode() == SYNTH_MODE_FM || sources[s].oscType != OscType::SAMPLE) {
 			maxRawOscTranspose = getMax(maxRawOscTranspose, sources[s].transpose);
 		}
 	}
@@ -3745,7 +3745,7 @@ int16_t Sound::getMinOscTranspose() {
 
 	int minRawOscTranspose = 32767;
 	for (int s = 0; s < NUM_SOURCES; s++) {
-		if (getSynthMode() == SYNTH_MODE_FM || sources[s].oscType != OSC_TYPE_SAMPLE) {
+		if (getSynthMode() == SYNTH_MODE_FM || sources[s].oscType != OscType::SAMPLE) {
 			minRawOscTranspose = getMin(minRawOscTranspose, sources[s].transpose);
 		}
 	}
@@ -3766,7 +3766,7 @@ int16_t Sound::getMinOscTranspose() {
 int Sound::loadAllAudioFiles(bool mayActuallyReadFiles) {
 
 	for (int s = 0; s < NUM_SOURCES; s++) {
-		if (sources[s].oscType == OSC_TYPE_SAMPLE || sources[s].oscType == OSC_TYPE_WAVETABLE) {
+		if (sources[s].oscType == OscType::SAMPLE || sources[s].oscType == OscType::WAVETABLE) {
 			int error = sources[s].loadAllSamples(mayActuallyReadFiles);
 			if (error) {
 				return error;
@@ -4055,7 +4055,7 @@ bool Sound::renderingVoicesInStereo(ModelStackWithSoundFlags* modelStack) {
 	}
 
 	// Stereo live-input
-	if ((sources[0].oscType == OSC_TYPE_INPUT_STEREO || sources[1].oscType == OSC_TYPE_INPUT_STEREO)
+	if ((sources[0].oscType == OscType::INPUT_STEREO || sources[1].oscType == OscType::INPUT_STEREO)
 	    && (AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn)) {
 		return true;
 	}
@@ -4074,7 +4074,7 @@ bool Sound::renderingVoicesInStereo(ModelStackWithSoundFlags* modelStack) {
 			continue;
 		}
 
-		if (source->oscType == OSC_TYPE_SAMPLE) { // Just SAMPLE, because WAVETABLEs can't be stereo.
+		if (source->oscType == OscType::SAMPLE) { // Just SAMPLE, because WAVETABLEs can't be stereo.
 
 			int numRanges = source->ranges.getNumElements();
 

@@ -1818,7 +1818,7 @@ skipInstance:
 
 				for (int s = 0; s < NUM_SOURCES; s++) {
 					Source* source = &sound->sources[s];
-					if (source->oscType == OSC_TYPE_SAMPLE) {
+					if (source->oscType == OscType::SAMPLE) {
 						source->sampleControls.interpolationMode = INTERPOLATION_MODE_LINEAR;
 					}
 				}

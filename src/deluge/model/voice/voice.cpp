@@ -207,7 +207,7 @@ bool Voice::noteOn(ModelStackWithVoice* modelStack, int newNoteCodeBeforeArpeggi
 	// Make all VoiceUnisonPartSources "active" by default
 	for (int s = 0; s < NUM_SOURCES; s++) {
 
-		// Various stuff in this block is only relevant for OSC_TYPE_SAMPLE, but no real harm in it just happening in other cases.
+		// Various stuff in this block is only relevant for OscType::SAMPLE, but no real harm in it just happening in other cases.
 		guides[s].audioFileHolder = NULL;
 
 		bool sourceEverActive = modelStack->checkSourceEverActive(s);
@@ -216,7 +216,7 @@ bool Voice::noteOn(ModelStackWithVoice* modelStack, int newNoteCodeBeforeArpeggi
 			guides[s].sequenceSyncLengthTicks = 0; // That's the default - may get overwritten below
 
 			if (sound->getSynthMode() != SYNTH_MODE_FM
-			    && (sound->sources[s].oscType == OSC_TYPE_SAMPLE || sound->sources[s].oscType == OSC_TYPE_WAVETABLE)) {
+			    && (sound->sources[s].oscType == OscType::SAMPLE || sound->sources[s].oscType == OscType::WAVETABLE)) {
 
 				// Set up MultiRange
 				MultiRange* range = sound->sources[s].getRange(noteCodeAfterArpeggiation + sound->transpose);
@@ -232,7 +232,7 @@ bool Voice::noteOn(ModelStackWithVoice* modelStack, int newNoteCodeBeforeArpeggi
 
 				guides[s].audioFileHolder = holder;
 
-				if (sound->sources[s].oscType == OSC_TYPE_SAMPLE) {
+				if (sound->sources[s].oscType == OscType::SAMPLE) {
 
 					if (sound->sources[s].repeatMode == SAMPLE_REPEAT_STRETCH) {
 						guides[s].sequenceSyncLengthTicks = newSampleSyncLength;
@@ -272,9 +272,9 @@ activenessDetermined:
 		Source* source = &sound->sources[s];
 
 		// FM overrides osc type to always be sines
-		int oscType;
+		OscType oscType;
 		if (sound->getSynthMode() == SYNTH_MODE_FM) {
-			oscType = OSC_TYPE_SINE;
+			oscType = OscType::SINE;
 		}
 		else {
 			oscType = source->oscType;
@@ -282,7 +282,7 @@ activenessDetermined:
 
 		//int samplesLateHere = samplesLate; // Make our own copy of this - we're going to deactivate it if we're in STRETCH mode, cos that works differently
 
-		if (oscType == OSC_TYPE_SAMPLE && guides[s].audioFileHolder) {
+		if (oscType == OscType::SAMPLE && guides[s].audioFileHolder) {
 			guides[s].setupPlaybackBounds(source->sampleControls.reversed);
 
 			//if (source->repeatMode == SAMPLE_REPEAT_STRETCH) samplesLateHere = 0;
@@ -304,7 +304,7 @@ activenessDetermined:
 	}
 
 	if (sound->getSynthMode() == SYNTH_MODE_FM) {
-		uint32_t initialPhase = getOscInitialPhaseForZero(OSC_TYPE_SINE);
+		uint32_t initialPhase = getOscInitialPhaseForZero(OscType::SINE);
 		for (int u = 0; u < sound->numUnison; u++) {
 			for (int m = 0; m < numModulators; m++) {
 				if (sound->modulatorRetriggerPhase[m] != 0xFFFFFFFF) {
@@ -417,7 +417,7 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 		Source* source = &sound->sources[s];
 
 		int oscillatorTranspose;
-		if (source->oscType == OSC_TYPE_SAMPLE && guides[s].audioFileHolder) { // Do not do this for WaveTables
+		if (source->oscType == OscType::SAMPLE && guides[s].audioFileHolder) { // Do not do this for WaveTables
 			oscillatorTranspose = ((SampleHolderForVoice*)guides[s].audioFileHolder)->transpose;
 		}
 		else {
@@ -430,11 +430,11 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 
 		// Sample-osc
 		if (sound->getSynthMode() != SYNTH_MODE_FM
-		    && (source->oscType == OSC_TYPE_SAMPLE || source->oscType == OSC_TYPE_INPUT_L
-		        || source->oscType == OSC_TYPE_INPUT_R || source->oscType == OSC_TYPE_INPUT_STEREO)) {
+		    && (source->oscType == OscType::SAMPLE || source->oscType == OscType::INPUT_L
+		        || source->oscType == OscType::INPUT_R || source->oscType == OscType::INPUT_STEREO)) {
 
 			int32_t pitchAdjustNeutralValue;
-			if (source->oscType == OSC_TYPE_SAMPLE) {
+			if (source->oscType == OscType::SAMPLE) {
 				pitchAdjustNeutralValue = ((SampleHolder*)guides[s].audioFileHolder)->neutralPhaseIncrement;
 			}
 			else {
@@ -486,7 +486,7 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 		}
 
 		// Cents
-		if (source->oscType == OSC_TYPE_SAMPLE) { // guides[s].sampleHolder
+		if (source->oscType == OscType::SAMPLE) { // guides[s].sampleHolder
 			phaseIncrement = ((SampleHolderForVoice*)guides[s].audioFileHolder)->fineTuner.detune(phaseIncrement);
 		}
 		else {
@@ -585,7 +585,7 @@ void Voice::noteOff(ModelStackWithVoice* modelStack, bool allowReleaseStage) {
 
 	if (sound->synthMode != SYNTH_MODE_FM) {
 		for (int s = 0; s < NUM_SOURCES; s++) {
-			if (sound->sources[s].oscType == OSC_TYPE_SAMPLE && guides[s].loopEndPlaybackAtByte) {
+			if (sound->sources[s].oscType == OscType::SAMPLE && guides[s].loopEndPlaybackAtByte) {
 				for (int u = 0; u < sound->numUnison; u++) {
 					if (unisonParts[u].sources[s].active) {
 
@@ -812,7 +812,7 @@ bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int nu
 			}
 
 			// If it's not a sample, or it's not a play-once, or it has a loop-end point but we haven't received the note-off, then we don't want the auto-release feature for it
-			if (source->oscType != OSC_TYPE_SAMPLE
+			if (source->oscType != OscType::SAMPLE
 			    || source->repeatMode
 			           != SAMPLE_REPEAT_ONCE // Don't do it for anything else. STRETCH is too hard to calculate
 			    || !guides[s].audioFileHolder
@@ -1376,7 +1376,7 @@ cantBeDoingOscSyncForFirstOsc:
 					int32_t pulseWidth =
 					    (uint32_t)lshiftAndSaturate<1>(paramFinalValues[PARAM_LOCAL_OSC_A_PHASE_WIDTH + s]);
 
-					int oscType = sound->sources[s].oscType;
+					OscType oscType = sound->sources[s].oscType;
 
 					renderOsc(s, oscType, 0, spareRenderingBuffer[s + 1], spareRenderingBuffer[s + 1] + numSamples,
 					          numSamples, phaseIncrements[s], pulseWidth, &unisonParts[u].sources[s].oscPos, false, 0,
@@ -1384,10 +1384,10 @@ cantBeDoingOscSyncForFirstOsc:
 					          sound->oscRetriggerPhase[s], sourceWaveIndexIncrements[s]);
 
 					// Sine and triangle waves come out bigger in fixed-amplitude rendering (for arbitrary reasons), so we need to compensate
-					if (oscType == OSC_TYPE_SAW || oscType == OSC_TYPE_ANALOG_SAW_2) {
+					if (oscType == OscType::SAW || oscType == OscType::ANALOG_SAW_2) {
 						amplitudeForRingMod <<= 1;
 					}
-					else if (oscType == OSC_TYPE_WAVETABLE) {
+					else if (oscType == OscType::WAVETABLE) {
 						amplitudeForRingMod <<= 2;
 					}
 				}
@@ -1990,7 +1990,7 @@ pitchTooHigh:
 		}
 
 		// If sample...
-		if (sound->sources[s].oscType == OSC_TYPE_SAMPLE) {
+		if (sound->sources[s].oscType == OscType::SAMPLE) {
 
 			Sample* sample = (Sample*)guides[s].audioFileHolder->audioFile;
 			VoiceSample* voiceSample = voiceUnisonPartSource->voiceSample;
@@ -2174,8 +2174,8 @@ dontUseCache : {}
 		}
 
 		// Or echoing input
-		else if (sound->sources[s].oscType == OSC_TYPE_INPUT_L || sound->sources[s].oscType == OSC_TYPE_INPUT_R
-		         || sound->sources[s].oscType == OSC_TYPE_INPUT_STEREO) {
+		else if (sound->sources[s].oscType == OscType::INPUT_L || sound->sources[s].oscType == OscType::INPUT_R
+		         || sound->sources[s].oscType == OscType::INPUT_STEREO) {
 
 			VoiceUnisonPartSource* source = &unisonParts[u].sources[s];
 
@@ -2184,10 +2184,10 @@ dontUseCache : {}
 
 				if (!source->livePitchShifter) {
 
-					int inputTypeNow = sound->sources[s].oscType;
-					if (inputTypeNow == OSC_TYPE_INPUT_STEREO && !AudioEngine::lineInPluggedIn
+					OscType inputTypeNow = sound->sources[s].oscType;
+					if (inputTypeNow == OscType::INPUT_STEREO && !AudioEngine::lineInPluggedIn
 					    && !AudioEngine::micPluggedIn) {
-						inputTypeNow = OSC_TYPE_INPUT_L;
+						inputTypeNow = OscType::INPUT_L;
 					}
 
 					LiveInputBuffer* liveInputBuffer = AudioEngine::getOrCreateLiveInputBuffer(inputTypeNow, true);
@@ -2232,14 +2232,14 @@ dontUseCache : {}
 				int32_t amplitudeIncrementThisUnison = amplitudeIncrement;
 
 				// Just left, or just right, or if (stereo but there's only the internal, mono mic)
-				if (sound->sources[s].oscType != OSC_TYPE_INPUT_STEREO
+				if (sound->sources[s].oscType != OscType::INPUT_STEREO
 				    || (!AudioEngine::lineInPluggedIn && !AudioEngine::micPluggedIn)) {
 
 					int32_t const* const oscBufferEnd = oscBuffer + numSamples;
 
 					int channelOffset;
 					// If right, but not internal mic
-					if (sound->sources[s].oscType == OSC_TYPE_INPUT_R
+					if (sound->sources[s].oscType == OscType::INPUT_R
 					    && (AudioEngine::lineInPluggedIn || AudioEngine::micPluggedIn)) {
 						channelOffset = 1;
 
@@ -2615,7 +2615,7 @@ const int16_t* analogSawTables[] = {
     mysterySynthBSaw_9,    mysterySynthBSaw_7,    mysterySynthBSaw_5,   mysterySynthBSaw_3,   mysterySynthBSaw_1};
 
 __attribute__((optimize("unroll-loops"))) void
-Voice::renderOsc(int s, int type, int32_t amplitude, int32_t* bufferStart, int32_t* bufferEnd, int numSamples,
+Voice::renderOsc(int s, OscType type, int32_t amplitude, int32_t* bufferStart, int32_t* bufferEnd, int numSamples,
                  uint32_t phaseIncrement, uint32_t pulseWidth, uint32_t* startPhase, bool applyAmplitude,
                  int32_t amplitudeIncrement, bool doOscSync, uint32_t resetterPhase, uint32_t resetterPhaseIncrement,
                  uint32_t retriggerPhase, int32_t waveIndexIncrement) {
@@ -2634,15 +2634,15 @@ Voice::renderOsc(int s, int type, int32_t amplitude, int32_t* bufferStart, int32
 	int tableNumber; // These only apply for waves other than sine and triangle
 	int tableSizeMagnitude;
 
-	if (type == OSC_TYPE_SINE) {
+	if (type == OscType::SINE) {
 		retriggerPhase += 3221225472u;
 	}
 
-	else if (type != OSC_TYPE_TRIANGLE) { // Not sines and not triangles
+	else if (type != OscType::TRIANGLE) { // Not sines and not triangles
 		uint32_t phaseIncrementForCalculations = phaseIncrement;
 
 		// PW for the perfect mathematical/digital square - we'll do it by multiplying two squares
-		if (type == OSC_TYPE_SQUARE) {
+		if (type == OscType::SQUARE) {
 			doPulseWave = (pulseWidth != 0);
 			pulseWidth += 2147483648u;
 			if (doPulseWave) {
@@ -2655,20 +2655,20 @@ Voice::renderOsc(int s, int type, int32_t amplitude, int32_t* bufferStart, int32
 		getTableNumber(phaseIncrementForCalculations, &tableNumber, &tableSizeMagnitude);
 		// TODO: that should really take into account the phaseIncrement (pitch) after it's potentially been altered for non-square PW below.
 
-		if (type == OSC_TYPE_ANALOG_SAW_2) {
+		if (type == OscType::ANALOG_SAW_2) {
 			// Analog saw tables 8 and above are quite saw-shaped and sound relatively similar to the digital saw. So for these, if the CPU load is getting dire,
 			// we can do the crude, aliasing digital saw.
 			if (tableNumber >= 8 && tableNumber < AudioEngine::cpuDireness + 6) {
-				type = OSC_TYPE_SAW;
+				type = OscType::SAW;
 			}
 		}
 
-		else if (type == OSC_TYPE_SAW) {
+		else if (type == OscType::SAW) {
 			retriggerPhase += 2147483648u; // This is the normal case, when CPU usage is *not* dire.
 		}
 	}
 
-	if (type != OSC_TYPE_SQUARE) {
+	if (type != OscType::SQUARE) {
 		// PW for oscillators other than the perfect mathematical square
 		doPulseWave = (pulseWidth && !doOscSync);
 		if (doPulseWave) {
@@ -2680,7 +2680,7 @@ Voice::renderOsc(int s, int type, int32_t amplitude, int32_t* bufferStart, int32
 			resetterPhase = phase;
 			resetterPhaseIncrement = phaseIncrement;
 
-			if (type == OSC_TYPE_ANALOG_SQUARE) {
+			if (type == OscType::ANALOG_SQUARE) {
 
 				int64_t resetterPhaseToDivide = (uint64_t)resetterPhase << 30;
 
@@ -2693,10 +2693,10 @@ Voice::renderOsc(int s, int type, int32_t amplitude, int32_t* bufferStart, int32
 			}
 
 			else {
-				if (type == OSC_TYPE_SAW) {
+				if (type == OscType::SAW) {
 					resetterPhase += 2147483648u;
 				}
-				else if (type == OSC_TYPE_SINE) {
+				else if (type == OscType::SINE) {
 					resetterPhase -= 3221225472u;
 				}
 
@@ -2731,14 +2731,14 @@ doOscSyncSetup:
 	}
 
 skipPastOscSyncStuff:
-	if (type == OSC_TYPE_SINE) {
+	if (type == OscType::SINE) {
 doSine:
 		table = sineWaveSmall;
 		tableSizeMagnitude = 8;
 		goto callRenderWave;
 	}
 
-	else if (type == OSC_TYPE_WAVETABLE) {
+	else if (type == OscType::WAVETABLE) {
 
 		int32_t waveIndex = sourceWaveIndexesLastTime[s] + 1073741824;
 
@@ -2755,7 +2755,7 @@ doSine:
 		goto doNeedToApplyAmplitude;
 	}
 
-	else if (type == OSC_TYPE_TRIANGLE) {
+	else if (type == OscType::TRIANGLE) {
 
 		if (phaseIncrement < 69273666 || AudioEngine::cpuDireness >= 7) {
 			if (doOscSync) {
@@ -2850,7 +2850,7 @@ doSine:
 
 		uint32_t phaseToAdd;
 
-		if (type == OSC_TYPE_SAW) {
+		if (type == OscType::SAW) {
 doSaw:
 			// If frequency low enough, we just use a crude calculation for the wave without anti-aliasing
 			if (tableNumber < AudioEngine::cpuDireness + 6) {
@@ -2906,7 +2906,7 @@ doSaw:
 			}
 		}
 
-		else if (type == OSC_TYPE_SQUARE) {
+		else if (type == OscType::SQUARE) {
 			// If frequency low enough, we just use a crude calculation for the wave without anti-aliasing
 			if (tableNumber < AudioEngine::cpuDireness + 6) {
 
@@ -3022,11 +3022,11 @@ doSaw:
 			}
 		}
 
-		else if (type == OSC_TYPE_ANALOG_SAW_2) {
+		else if (type == OscType::ANALOG_SAW_2) {
 			table = analogSawTables[tableNumber];
 		}
 
-		else if (type == OSC_TYPE_ANALOG_SQUARE) {
+		else if (type == OscType::ANALOG_SQUARE) {
 doAnalogSquare:
 			// This sounds different enough to the digital square that we can never just swap back to that to save CPU
 			table = analogSquareTables[tableNumber];
@@ -3077,7 +3077,7 @@ doNeedToApplyAmplitude:
 	}
 
 storePhase:
-	if (!(doPulseWave && type != OSC_TYPE_SQUARE)) {
+	if (!(doPulseWave && type != OscType::SQUARE)) {
 		*startPhase = phase;
 	}
 }

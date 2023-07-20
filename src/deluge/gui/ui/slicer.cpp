@@ -617,9 +617,9 @@ getOut:
 	// Do the first Drum
 
 	// Ensure osc type is "sample"
-	if (soundEditor.currentSource->oscType != OSC_TYPE_SAMPLE) {
+	if (soundEditor.currentSource->oscType != OscType::SAMPLE) {
 		soundEditor.currentSound->unassignAllVoices();
-		soundEditor.currentSource->setOscType(OSC_TYPE_SAMPLE);
+		soundEditor.currentSource->setOscType(OscType::SAMPLE);
 	}
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];

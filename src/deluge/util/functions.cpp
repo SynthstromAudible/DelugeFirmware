@@ -820,42 +820,42 @@ void getInstrumentPresetFilename(char const* filePrefix, int16_t presetNumber, i
 	strcat(fileName, ".XML");
 }
 
-char const* oscTypeToString(unsigned int oscType) {
+char const* oscTypeToString(OscType oscType) {
 	switch (oscType) {
-	case OSC_TYPE_SQUARE:
+	case OscType::SQUARE:
 		return "square";
 
-	case OSC_TYPE_SAW:
+	case OscType::SAW:
 		return "saw";
 
-	case OSC_TYPE_ANALOG_SAW_2:
+	case OscType::ANALOG_SAW_2:
 		return "analogSaw";
 
-	case OSC_TYPE_ANALOG_SQUARE:
+	case OscType::ANALOG_SQUARE:
 		return "analogSquare";
 
-	case OSC_TYPE_SINE:
+	case OscType::SINE:
 		return "sine";
 
-	case OSC_TYPE_TRIANGLE:
+	case OscType::TRIANGLE:
 		return "triangle";
 
-	case OSC_TYPE_SAMPLE:
+	case OscType::SAMPLE:
 		return "sample";
 
-	case OSC_TYPE_WAVETABLE:
+	case OscType::WAVETABLE:
 		return "wavetable";
 
-	case OSC_TYPE_INPUT_L:
+	case OscType::INPUT_L:
 		return "inLeft";
 
-	case OSC_TYPE_INPUT_R:
+	case OscType::INPUT_R:
 		return "inRight";
 
-	case OSC_TYPE_INPUT_STEREO:
+	case OscType::INPUT_STEREO:
 		return "inStereo";
 
-	case NUM_OSC_TYPES ... 0xFFFFFFFF:
+	default:
 		__builtin_unreachable();
 	}
 }
@@ -863,37 +863,37 @@ char const* oscTypeToString(unsigned int oscType) {
 OscType stringToOscType(char const* string) {
 
 	if (!strcmp(string, "square")) {
-		return OSC_TYPE_SQUARE;
+		return OscType::SQUARE;
 	}
 	else if (!strcmp(string, "analogSquare")) {
-		return OSC_TYPE_ANALOG_SQUARE;
+		return OscType::ANALOG_SQUARE;
 	}
 	else if (!strcmp(string, "analogSaw")) {
-		return OSC_TYPE_ANALOG_SAW_2;
+		return OscType::ANALOG_SAW_2;
 	}
 	else if (!strcmp(string, "saw")) {
-		return OSC_TYPE_SAW;
+		return OscType::SAW;
 	}
 	else if (!strcmp(string, "sine")) {
-		return OSC_TYPE_SINE;
+		return OscType::SINE;
 	}
 	else if (!strcmp(string, "sample")) {
-		return OSC_TYPE_SAMPLE;
+		return OscType::SAMPLE;
 	}
 	else if (!strcmp(string, "wavetable")) {
-		return OSC_TYPE_WAVETABLE;
+		return OscType::WAVETABLE;
 	}
 	else if (!strcmp(string, "inLeft")) {
-		return OSC_TYPE_INPUT_L;
+		return OscType::INPUT_L;
 	}
 	else if (!strcmp(string, "inRight")) {
-		return OSC_TYPE_INPUT_R;
+		return OscType::INPUT_R;
 	}
 	else if (!strcmp(string, "inStereo")) {
-		return OSC_TYPE_INPUT_STEREO;
+		return OscType::INPUT_STEREO;
 	}
 	else {
-		return OSC_TYPE_TRIANGLE;
+		return OscType::TRIANGLE;
 	}
 }
 
@@ -1474,9 +1474,9 @@ uint32_t getLFOInitialPhaseForZero(LFOType waveType) {
 	}
 }
 
-uint32_t getOscInitialPhaseForZero(uint8_t waveType) {
+uint32_t getOscInitialPhaseForZero(OscType waveType) {
 	switch (waveType) {
-	case OSC_TYPE_TRIANGLE:
+	case OscType::TRIANGLE:
 		return 1073741824;
 
 	default:

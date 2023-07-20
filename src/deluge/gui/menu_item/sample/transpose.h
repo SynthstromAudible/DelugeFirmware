@@ -27,7 +27,7 @@ public:
 		int transpose;
 		int cents;
 		if (soundEditor.currentMultiRange && soundEditor.currentSound->getSynthMode() != SYNTH_MODE_FM
-		    && soundEditor.currentSource->oscType == OSC_TYPE_SAMPLE) {
+		    && soundEditor.currentSource->oscType == OscType::SAMPLE) {
 			transpose = ((MultisampleRange*)soundEditor.currentMultiRange)->sampleHolder.transpose;
 			cents = ((MultisampleRange*)soundEditor.currentMultiRange)->sampleHolder.cents;
 		}
@@ -45,7 +45,7 @@ public:
 
 		int transpose = semitones - 256;
 		if (soundEditor.currentMultiRange && soundEditor.currentSound->getSynthMode() != SYNTH_MODE_FM
-		    && soundEditor.currentSource->oscType == OSC_TYPE_SAMPLE) {
+		    && soundEditor.currentSource->oscType == OscType::SAMPLE) {
 			((MultisampleRange*)soundEditor.currentMultiRange)->sampleHolder.transpose = transpose;
 			((MultisampleRange*)soundEditor.currentMultiRange)->sampleHolder.setCents(cents);
 		}
@@ -68,7 +68,7 @@ public:
 		Source* source = &sound->sources[whichThing];
 
 		if (sound->getSynthMode() == SYNTH_MODE_FM
-		    || (source->oscType != OSC_TYPE_SAMPLE && source->oscType != OSC_TYPE_WAVETABLE))
+		    || (source->oscType != OscType::SAMPLE && source->oscType != OscType::WAVETABLE))
 			return MENU_PERMISSION_YES;
 
 		return soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(sound, whichThing, true, currentRange);

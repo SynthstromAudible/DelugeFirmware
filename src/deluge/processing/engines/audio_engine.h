@@ -18,6 +18,7 @@
 #pragma once
 
 #include "RZA1/system/r_typedefs.h"
+#include "definitions_cxx.hpp"
 
 extern "C" {
 #include "ff.h"
@@ -141,7 +142,7 @@ void voiceSampleUnassigned(VoiceSample* voiceSample);
 TimeStretcher* solicitTimeStretcher();
 void timeStretcherUnassigned(TimeStretcher* timeStretcher);
 
-LiveInputBuffer* getOrCreateLiveInputBuffer(int inputType, bool mayCreate);
+LiveInputBuffer* getOrCreateLiveInputBuffer(OscType inputType, bool mayCreate);
 void slowRoutine();
 void doRecorderCardRoutines();
 

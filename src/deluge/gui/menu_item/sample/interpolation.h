@@ -36,9 +36,9 @@ public:
 		}
 		Source* source = &sound->sources[whichThing];
 		return (sound->getSynthMode() == SYNTH_MODE_SUBTRACTIVE
-		        && ((source->oscType == OSC_TYPE_SAMPLE && source->hasAtLeastOneAudioFileLoaded())
-		            || source->oscType == OSC_TYPE_INPUT_L || source->oscType == OSC_TYPE_INPUT_R
-		            || source->oscType == OSC_TYPE_INPUT_STEREO));
+		        && ((source->oscType == OscType::SAMPLE && source->hasAtLeastOneAudioFileLoaded())
+		            || source->oscType == OscType::INPUT_L || source->oscType == OscType::INPUT_R
+		            || source->oscType == OscType::INPUT_STEREO));
 	}
 };
 } // namespace menu_item::sample

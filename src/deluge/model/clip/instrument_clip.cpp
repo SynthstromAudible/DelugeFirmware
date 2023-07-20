@@ -3702,7 +3702,7 @@ haveNoDrum:
 
 							for (int s = 0; s < NUM_SOURCES; s++) {
 								Source* source = &sound->sources[s];
-								if (source->oscType == OSC_TYPE_SAMPLE) {
+								if (source->oscType == OscType::SAMPLE) {
 									if (sound->transpose || source->transpose || source->cents
 									    || patchedParams->params[PARAM_LOCAL_PITCH_ADJUST].containsSomething(0)
 									    //|| thisNoteRow->paramManager->patchCableSet.doesParamHaveSomethingPatchedToIt(PARAM_LOCAL_PITCH_ADJUST) // No, can't call these cos patching isn't set up yet. Oh well
@@ -3775,7 +3775,7 @@ haveNoDrum:
 
 			for (int s = 0; s < NUM_SOURCES; s++) {
 				Source* source = &sound->sources[s];
-				if (source->oscType == OSC_TYPE_SAMPLE) {
+				if (source->oscType == OscType::SAMPLE) {
 					source->sampleControls.interpolationMode = INTERPOLATION_MODE_LINEAR;
 				}
 			}
@@ -3795,7 +3795,7 @@ haveNoDrum:
 				    modelStack->addOtherTwoThingsButNoNoteRow(sound, &paramManager);
 
 				for (int s = 0; s < NUM_SOURCES; s++) {
-					if (sound->sources[s].oscType != OSC_TYPE_SQUARE) {
+					if (sound->sources[s].oscType != OscType::SQUARE) {
 
 						ModelStackWithParamCollection* modelStackWithParamCollection =
 						    modelStackWithThreeMainThings->addParamCollection(patchedParams, patchedParamsSummary);

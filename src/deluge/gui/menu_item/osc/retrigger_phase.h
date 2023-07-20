@@ -79,7 +79,7 @@ public:
 		if (forModulator && sound->getSynthMode() != SYNTH_MODE_FM) {
 			return false;
 		}
-		return (source->oscType != OSC_TYPE_SAMPLE || sound->getSynthMode() == SYNTH_MODE_FM);
+		return (source->oscType != OscType::SAMPLE || sound->getSynthMode() == SYNTH_MODE_FM);
 	}
 
 private:

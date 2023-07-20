@@ -847,21 +847,21 @@ removeLoadingAnimationAndGetOut:
 
 		// If we already know we want to try doing WaveTable...
 		if (makeWaveTableWorkAtAllCosts
-		    || (mayDoWaveTable == 1 && soundEditor.currentSource->oscType == OSC_TYPE_WAVETABLE)) {
+		    || (mayDoWaveTable == 1 && soundEditor.currentSource->oscType == OscType::WAVETABLE)) {
 doLoadAsWaveTable:
 			numTypesTried++;
 
 			/*
 			// If multiple Ranges, then forbid the changing from Sample to WaveTable.
 			if (soundEditor.currentSource->ranges.getNumElements() > 1
-					&& soundEditor.currentSource->oscType == OSC_TYPE_SAMPLE) {
+					&& soundEditor.currentSource->oscType == OscType::SAMPLE) {
 #if ALPHA_OR_BETA_VERSION
 				if (mayDoWaveTable == 2) numericDriver.freezeWithError("E425");
 #endif
 				goto doLoadAsSample;
 			}
 			*/
-			soundEditor.currentSource->setOscType(OSC_TYPE_WAVETABLE);
+			soundEditor.currentSource->setOscType(OscType::WAVETABLE);
 
 			error = claimAudioFileForInstrument(makeWaveTableWorkAtAllCosts);
 			if (error) {
@@ -916,7 +916,7 @@ doLoadAsSample:
 			/*
 			// If multiple Ranges, then forbid the changing from WaveTable to Sample.
 			if (soundEditor.currentSource->ranges.getNumElements() > 1
-					&& soundEditor.currentSource->oscType == OSC_TYPE_WAVETABLE) {
+					&& soundEditor.currentSource->oscType == OscType::WAVETABLE) {
 #if ALPHA_OR_BETA_VERSION
 				if (!mayDoWaveTable) numericDriver.freezeWithError("E426");
 #endif
@@ -924,7 +924,7 @@ doLoadAsSample:
 			}
 			*/
 
-			soundEditor.currentSource->setOscType(OSC_TYPE_SAMPLE);
+			soundEditor.currentSource->setOscType(OscType::SAMPLE);
 
 			error = claimAudioFileForInstrument();
 			if (error) {
@@ -1740,9 +1740,9 @@ skipOctaveCorrection:
 	int numWithFileLoopPoints = 0;
 	int numWithResultingLoopEndPoints = 0;
 
-	if (soundEditor.currentSource->oscType != OSC_TYPE_SAMPLE) {
+	if (soundEditor.currentSource->oscType != OscType::SAMPLE) {
 		soundEditor.currentSound->unassignAllVoices();
-		soundEditor.currentSource->setOscType(OSC_TYPE_SAMPLE);
+		soundEditor.currentSource->setOscType(OscType::SAMPLE);
 	}
 
 	Uart::println("creating ranges");
@@ -1918,9 +1918,9 @@ getOut:
 				}
 
 				// Ensure osc type is "sample". For the later drums, calling setupAsSample() does this same thing
-				if (soundEditor.currentSource->oscType != OSC_TYPE_SAMPLE) {
+				if (soundEditor.currentSource->oscType != OscType::SAMPLE) {
 					soundEditor.currentSound->unassignAllVoices();
-					soundEditor.currentSource->setOscType(OSC_TYPE_SAMPLE);
+					soundEditor.currentSource->setOscType(OscType::SAMPLE);
 				}
 
 				ParamCollectionSummary* summary = modelStack->paramManager->getPatchedParamSetSummary();

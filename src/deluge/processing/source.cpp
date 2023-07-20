@@ -41,7 +41,7 @@ Source::Source() {
 	repeatMode = SAMPLE_REPEAT_CUT;
 
 	// Synth stuff
-	oscType = OSC_TYPE_SQUARE;
+	oscType = OscType::SQUARE;
 
 	timeStretchAmount = 0;
 
@@ -61,7 +61,7 @@ void Source::destructAllMultiRanges() {
 	}
 }
 
-// Only to be called if already determined that oscType == OSC_TYPE_SAMPLE
+// Only to be called if already determined that oscType == OscType::SAMPLE
 int32_t Source::getLengthInSamplesAtSystemSampleRate(int note, bool forTimeStretching) {
 	MultiRange* range = getRange(note);
 	if (range) {
@@ -87,9 +87,9 @@ bool Source::renderInStereo(SampleHolder* sampleHolder) {
 		return false;
 	}
 
-	return (oscType == OSC_TYPE_SAMPLE && sampleHolder && sampleHolder->audioFile
+	return (oscType == OscType::SAMPLE && sampleHolder && sampleHolder->audioFile
 	        && sampleHolder->audioFile->numChannels == 2)
-	       || (oscType == OSC_TYPE_INPUT_STEREO && (AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn));
+	       || (oscType == OscType::INPUT_STEREO && (AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn));
 }
 
 void Source::detachAllAudioFiles() {
@@ -119,7 +119,7 @@ int Source::loadAllSamples(bool mayActuallyReadFiles) {
 	return NO_ERROR;
 }
 
-// Only to be called if already determined that oscType == OSC_TYPE_SAMPLE
+// Only to be called if already determined that oscType == OscType::SAMPLE
 void Source::setReversed(bool newReversed) {
 	sampleControls.reversed = newReversed;
 	for (int e = 0; e < ranges.getNumElements(); e++) {
@@ -195,15 +195,15 @@ void Source::doneReadingFromFile(Sound* sound) {
 	int synthMode = sound->getSynthMode();
 
 	if (synthMode == SYNTH_MODE_FM) {
-		oscType = OSC_TYPE_SINE;
+		oscType = OscType::SINE;
 	}
 	else if (synthMode == SYNTH_MODE_RINGMOD) {
-		oscType = std::min<OscType>(oscType, static_cast<OscType>(NUM_OSC_TYPES_RINGMODDABLE - 1));
+		oscType = std::min<OscType>(oscType, static_cast<OscType>(LAST_RINGMODDABLE_OSC_TYPE));
 	}
 
-	bool isActualSampleOscillator = (synthMode != SYNTH_MODE_FM && oscType == OSC_TYPE_SAMPLE);
+	bool isActualSampleOscillator = (synthMode != SYNTH_MODE_FM && oscType == OscType::SAMPLE);
 
-	if (oscType == OSC_TYPE_SAMPLE) {
+	if (oscType == OscType::SAMPLE) {
 		for (int e = 0; e < ranges.getNumElements(); e++) {
 			MultisampleRange* range = (MultisampleRange*)ranges.getElement(e);
 			if (isActualSampleOscillator) {
@@ -226,7 +226,7 @@ void Source::doneReadingFromFile(Sound* sound) {
 	}
 }
 
-// Only to be called if already determined that oscType == OSC_TYPE_SAMPLE
+// Only to be called if already determined that oscType == OscType::SAMPLE
 bool Source::hasAnyLoopEndPoint() {
 	for (int e = 0; e < ranges.getNumElements(); e++) {
 		MultisampleRange* range = (MultisampleRange*)ranges.getElement(e);
@@ -241,7 +241,7 @@ bool Source::hasAnyLoopEndPoint() {
 void Source::setOscType(OscType newType) {
 
 	int multiRangeSize;
-	if (newType == OSC_TYPE_SAMPLE) {
+	if (newType == OscType::SAMPLE) {
 		multiRangeSize = sizeof(MultisampleRange);
 possiblyDeleteRanges:
 		if (ranges.elementSize != multiRangeSize) {
@@ -274,7 +274,7 @@ doChangeType:
 			}
 		}
 	}
-	else if (newType == OSC_TYPE_WAVETABLE) {
+	else if (newType == OscType::WAVETABLE) {
 		multiRangeSize = sizeof(MultiWaveTableRange);
 		goto possiblyDeleteRanges;
 	}
