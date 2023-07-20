@@ -55,7 +55,7 @@ public:
 	InstrumentClip(Song* song = NULL);
 	~InstrumentClip();
 	void increaseLengthWithRepeats(ModelStackWithTimelineCounter* modelStack, int32_t newLength,
-	                               int independentNoteRowInstruction,
+	                               IndependentNoteRowLengthIncrease independentNoteRowInstruction,
 	                               bool completelyRenderOutIterationDependence = false, Action* action = NULL);
 	void halveNoteRowsWithIndependentLength(ModelStackWithTimelineCounter* modelStack);
 	void repeatOrChopToExactLength(ModelStackWithTimelineCounter* modelStack, int32_t newLength);

@@ -262,7 +262,7 @@ enum class EnvelopeStage : uint8_t {
 	FAST_RELEASE,
 	OFF,
 };
-constexpr int NUM_ENVELOPE_STAGES = util::to_underlying(EnvelopeStage::OFF) +1;
+constexpr int NUM_ENVELOPE_STAGES = util::to_underlying(EnvelopeStage::OFF) + 1;
 
 constexpr int NUM_PRIORITY_OPTIONS = 3;
 
@@ -790,7 +790,6 @@ constexpr int TIME_STRETCH_CROSSFADE_MOVING_AVERAGE_LENGTH = 35;
 // beneficial, especially relative to its complexity and potential bugginess.
 #define TIME_STRETCH_ENABLE_BUFFER 0
 
-
 constexpr int TIME_STRETCH_BUFFER_SIZE = TIME_STRETCH_ENABLE_BUFFER ? 4096 : 256;
 
 // We don't want the window too short, or some sounds / harmonics can be missed during the attack
@@ -944,8 +943,10 @@ constexpr int MIDI_CHARACTERISTIC_CHANNEL = 1;
 
 constexpr int PLAYBACK_STOP_SHOULD_CLEAR_MONO_EXPRESSION = 1;
 
-constexpr int INDEPENDENT_NOTEROW_LENGTH_INCREASE_DOUBLE = 0;
-constexpr int INDEPENDENT_NOTEROW_LENGTH_INCREASE_ROUND_UP = 1;
+enum class IndependentNoteRowLengthIncrease {
+	DOUBLE,
+	ROUND_UP,
+};
 
 // From FatFS - we need access to this:
 constexpr int DIR_FileSize = 28 /* File size (DWORD) */;

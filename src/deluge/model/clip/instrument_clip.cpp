@@ -224,7 +224,7 @@ deleteClipAndGetOut:
 // newLength might not be any longer than we already were - but this function still gets called in case any shorter NoteRows need lengthening.
 // So, this function must allow for that case (Clip length staying the same).
 void InstrumentClip::increaseLengthWithRepeats(ModelStackWithTimelineCounter* modelStack, int32_t newLength,
-                                               int independentNoteRowInstruction,
+                                               IndependentNoteRowLengthIncrease independentNoteRowInstruction,
                                                bool completelyRenderOutIterationDependence, Action* action) {
 
 	int numRepeatsRounded =
@@ -243,11 +243,11 @@ void InstrumentClip::increaseLengthWithRepeats(ModelStackWithTimelineCounter* mo
 		if (thisNoteRow->loopLengthIfIndependent) {
 
 			switch (independentNoteRowInstruction) {
-			case INDEPENDENT_NOTEROW_LENGTH_INCREASE_DOUBLE:
+			case IndependentNoteRowLengthIncrease::DOUBLE:
 				newLengthHere = thisNoteRow->loopLengthIfIndependent << 1;
 				break;
 
-			case INDEPENDENT_NOTEROW_LENGTH_INCREASE_ROUND_UP:
+			case IndependentNoteRowLengthIncrease::ROUND_UP:
 				newLengthHere = ((uint32_t)(newLength - 1) / (uint32_t)thisNoteRow->loopLengthIfIndependent + 1)
 				                * thisNoteRow->loopLengthIfIndependent;
 				break;

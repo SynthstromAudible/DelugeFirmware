@@ -378,12 +378,14 @@ bool Clip::opportunityToBeginSessionLinearRecording(ModelStackWithTimelineCounte
 			*newOutputCreated = cloneOutput(modelStack);
 
 			if (action) {
-				action->recordClipExistenceChange(modelStack->song, &modelStack->song->sessionClips, this, ExistenceChangeType::CREATE);
+				action->recordClipExistenceChange(modelStack->song, &modelStack->song->sessionClips, this,
+				                                  ExistenceChangeType::CREATE);
 
 				if (*newOutputCreated) {
 					void* consMemory = generalMemoryAllocator.alloc(sizeof(ConsequenceOutputExistence));
 					if (consMemory) {
-						ConsequenceOutputExistence* cons = new (consMemory) ConsequenceOutputExistence(output, ExistenceChangeType::CREATE);
+						ConsequenceOutputExistence* cons =
+						    new (consMemory) ConsequenceOutputExistence(output, ExistenceChangeType::CREATE);
 						action->addConsequence(cons);
 					}
 				}
@@ -734,7 +736,8 @@ void Clip::readTagFromFile(char const* tagName, Song* song, int32_t* readAutomat
 	*/
 }
 
-void Clip::prepareForDestruction(ModelStackWithTimelineCounter* modelStack, InstrumentRemoval instrumentRemovalInstruction) {
+void Clip::prepareForDestruction(ModelStackWithTimelineCounter* modelStack,
+                                 InstrumentRemoval instrumentRemovalInstruction) {
 
 	Output* oldOutput =
 	    output; // There won't be an Instrument if the song is being deleted because it wasn't completely loaded
@@ -1039,9 +1042,10 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 
 			if (type == CLIP_TYPE_INSTRUMENT) {
 				newLength *= (repeatCount + 1);
-				newClip->increaseLengthWithRepeats(modelStack, newLength, INDEPENDENT_NOTEROW_LENGTH_INCREASE_ROUND_UP,
-				                                   true); // Yes, call this even if length is staying the same,
-			}                                             // because there might be shorter NoteRows.
+				// Yes, call this even if length is staying the same,  because there might be shorter NoteRows.
+				newClip->increaseLengthWithRepeats(modelStack, newLength, IndependentNoteRowLengthIncrease::ROUND_UP,
+				                                   true);
+			}
 
 			// Add to Song
 			modelStack->song->arrangementOnlyClips.insertClipAtIndex(newClip, 0); // Can't fail

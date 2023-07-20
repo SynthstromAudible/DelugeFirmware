@@ -895,7 +895,7 @@ void Song::doubleClipLength(InstrumentClip* clip, Action* action) {
 
 	uint32_t oldScale = getInputTickScale();
 
-	clip->increaseLengthWithRepeats(modelStack, oldLength << 1, INDEPENDENT_NOTEROW_LENGTH_INCREASE_DOUBLE, false,
+	clip->increaseLengthWithRepeats(modelStack, oldLength << 1, IndependentNoteRowLengthIncrease::DOUBLE, false,
 	                                action);
 
 	if (clip == syncScalingClip) {
