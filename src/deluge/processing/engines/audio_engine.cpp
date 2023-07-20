@@ -266,7 +266,7 @@ Voice* cullVoice(bool saveVoice, bool justDoFastRelease) {
 		    "E196"); // ronronsen got!! https://forums.synthstrom.com/discussion/4097/beta-4-0-0-beta-1-e196-by-loading-wavetable-osc#latest
 
 		if (justDoFastRelease) {
-			if (bestVoice->envelopes[0].state < ENVELOPE_STAGE_FAST_RELEASE) {
+			if (bestVoice->envelopes[0].state < EnvelopeStage::FAST_RELEASE) {
 				bool stillGoing = bestVoice->doFastRelease(65536);
 
 				if (!stillGoing) {

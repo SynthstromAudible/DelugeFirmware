@@ -93,7 +93,7 @@ renderEnvelope:
 			int32_t amplitudeLocal =
 			    (envelope.render(numSamples, attack, 8388608, 2147483647, 0, decayTableSmall4) >> 1) + 1073741824;
 
-			if (envelope.state >= ENVELOPE_STAGE_OFF) {
+			if (envelope.state >= EnvelopeStage::OFF) {
 				if (activeAudioClip->doingLateStart) {
 					resetEnvelope();
 					goto renderEnvelope;

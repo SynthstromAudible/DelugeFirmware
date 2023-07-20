@@ -564,7 +564,7 @@ void Voice::noteOff(ModelStackWithVoice* modelStack, bool allowReleaseStage) {
 
 		// If no release-stage, we'll stop as soon as we can
 		if (!allowReleaseStage || !hasReleaseStage()) {
-			envelopes[0].unconditionalRelease(ENVELOPE_STAGE_FAST_RELEASE);
+			envelopes[0].unconditionalRelease(EnvelopeStage::FAST_RELEASE);
 		}
 
 		// Or, do the release-stage
@@ -700,7 +700,7 @@ bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int nu
 
 	bool unassignVoiceAfter =
 	    (envelopes[0].state
-	     == ENVELOPE_STAGE_OFF); //(envelopes[0].state >= ENVELOPE_STAGE_DECAY && localSourceValues[PATCH_SOURCE_ENVELOPE_0 - FIRST_LOCAL_SOURCE] == -2147483648);
+	     == EnvelopeStage::OFF); //(envelopes[0].state >= EnvelopeStage::DECAY && localSourceValues[PATCH_SOURCE_ENVELOPE_0 - FIRST_LOCAL_SOURCE] == -2147483648);
 	// Local LFO
 	if (paramManager->getPatchCableSet()->sourcesPatchedToAnything[GLOBALITY_LOCAL] & (1 << PATCH_SOURCE_LFO_LOCAL)) {
 		int32_t old = sourceValues[PATCH_SOURCE_LFO_LOCAL];
@@ -795,7 +795,7 @@ bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int nu
 	// we can only do it after because we need to know pitch
 
 	// If not already releasing and some release is set, and no noise-source...
-	if (sound->getSynthMode() != SYNTH_MODE_FM && envelopes[0].state < ENVELOPE_STAGE_RELEASE && hasReleaseStage()
+	if (sound->getSynthMode() != SYNTH_MODE_FM && envelopes[0].state < EnvelopeStage::RELEASE && hasReleaseStage()
 	    && !paramManager->getPatchedParamSet()->params[PARAM_LOCAL_NOISE_VOLUME].containsSomething(-2147483648)) {
 
 		unsigned int whichSourcesNeedAttention = 0;
@@ -892,7 +892,7 @@ bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int nu
 			// If we're still here, then *all* sources which needed attention say yes do it now, so do it
 			// Just do this for the amplitude envelope
 			overrideAmplitudeEnvelopeReleaseRate = 8388608 / highestNumSamplesLeft;
-			if (envelopes[0].state == ENVELOPE_STAGE_ATTACK && envelopes[0].pos == 0) {
+			if (envelopes[0].state == EnvelopeStage::ATTACK && envelopes[0].pos == 0) {
 				envelopes[0].lastValue = 2147483647;
 			}
 			envelopes[0].unconditionalRelease();
@@ -1302,8 +1302,8 @@ decidedWhichBufferRenderingInto:
 
 			// Otherwise, must do a fast-release to avoid a click
 			else {
-				if (envelopes[0].state < ENVELOPE_STAGE_FAST_RELEASE) {
-					envelopes[0].unconditionalRelease(ENVELOPE_STAGE_FAST_RELEASE);
+				if (envelopes[0].state < EnvelopeStage::FAST_RELEASE) {
+					envelopes[0].unconditionalRelease(EnvelopeStage::FAST_RELEASE);
 				}
 			}
 		}
@@ -3084,7 +3084,7 @@ storePhase:
 // Returns whether voice should still be left active
 bool Voice::doFastRelease(uint32_t releaseIncrement) {
 	if (doneFirstRender) {
-		envelopes[0].unconditionalRelease(ENVELOPE_STAGE_FAST_RELEASE, releaseIncrement);
+		envelopes[0].unconditionalRelease(EnvelopeStage::FAST_RELEASE, releaseIncrement);
 		return true;
 	}
 

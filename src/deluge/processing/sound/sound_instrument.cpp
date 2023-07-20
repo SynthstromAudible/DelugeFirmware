@@ -459,7 +459,7 @@ bool SoundInstrument::noteIsOn(int noteCode) {
 	for (int v = ends[0]; v < ends[1]; v++) {
 		Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
 		if ((thisVoice->noteCodeAfterArpeggiation == noteCode)
-		    && thisVoice->envelopes[0].state < ENVELOPE_STAGE_RELEASE) { // Ignore releasing notes. Is this right?
+		    && thisVoice->envelopes[0].state < EnvelopeStage::RELEASE) { // Ignore releasing notes. Is this right?
 			return true;
 		}
 	}
