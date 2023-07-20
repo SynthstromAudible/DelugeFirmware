@@ -18,6 +18,7 @@
 #include "io/uart/uart.h"
 #include <math.h>
 #include "util/functions.h"
+#include "io/midi/midi_engine.h"
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
@@ -25,9 +26,16 @@ extern "C" {
 
 namespace Uart {
 
+MIDIDevice* midiDebugDevice = nullptr;
+
 void println(char const* output) {
 #if ENABLE_TEXT_OUTPUT
-	uartPrintln(output);
+	if (midiDebugDevice) {
+		midiDebugPrint(midiDebugDevice, output, true);
+	}
+	else {
+		uartPrintln(output);
+	}
 #endif
 }
 
@@ -35,13 +43,18 @@ void println(int32_t number) {
 #if ENABLE_TEXT_OUTPUT
 	char buffer[12];
 	intToString(number, buffer);
-	uartPrintln(buffer);
+	println(buffer);
 #endif
 }
 
 void print(char const* output) {
 #if ENABLE_TEXT_OUTPUT
-	uartPrint(output);
+	if (midiDebugDevice) {
+		midiDebugPrint(midiDebugDevice, output, false);
+	}
+	else {
+		uartPrint(output);
+	}
 #endif
 }
 
@@ -49,7 +62,7 @@ void print(int32_t number) {
 #if ENABLE_TEXT_OUTPUT
 	char buffer[12];
 	intToString(number, buffer);
-	uartPrint(buffer);
+	print(buffer);
 #endif
 }
 

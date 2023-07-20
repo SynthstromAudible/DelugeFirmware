@@ -19,6 +19,8 @@
 
 #include "RZA1/system/r_typedefs.h"
 
+class MIDIDevice;
+
 namespace Uart {
 void print(char const* output);
 void println(char const* output);
@@ -26,4 +28,6 @@ void println(int32_t number);
 void printlnfloat(float number);
 void printfloat(float number);
 void print(int32_t number);
+
+extern MIDIDevice* midiDebugDevice;
 } // namespace Uart

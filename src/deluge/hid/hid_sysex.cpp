@@ -1,6 +1,7 @@
 #include "hid/hid_sysex.h"
 #include "hid/display/oled.h"
 #include "io/midi/midi_device.h"
+#include "io/midi/midi_engine.h"
 #include "util/pack.h"
 #include <cstring>
 
@@ -29,8 +30,6 @@ void HIDSysex::requestOLEDDisplay(MIDIDevice* device, uint8_t* data, int len) {
 	}
 }
 
-static uint8_t big_buffer[1024];
-
 void HIDSysex::sendOLEDData(MIDIDevice* device, bool rle) {
 	// TODO: in the long run, this should not depend on having a physical OLED screen
 #if HAVE_OLED
@@ -38,7 +37,7 @@ void HIDSysex::sendOLEDData(MIDIDevice* device, bool rle) {
 	const int max_packed_size = 922;
 
 	uint8_t reply_hdr[5] = {0xf0, 0x7d, 0x02, 0x40, rle ? 0x01 : 0x00};
-	uint8_t* reply = big_buffer;
+	uint8_t* reply = midiEngine.sysex_fmt_buffer;
 	memcpy(reply, reply_hdr, 5);
 	reply[5] = 0; // nominally 32*data[5] is start pos for a delta
 
