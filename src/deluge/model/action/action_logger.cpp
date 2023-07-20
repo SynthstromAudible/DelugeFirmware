@@ -21,7 +21,7 @@
 #include "model/clip/instrument_clip_minder.h"
 #include "gui/views/instrument_clip_view.h"
 #include "model/action/action_logger.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "model/action/action.h"
 #include "gui/ui/keyboard_screen.h"
 #include "util/functions.h"

@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "util/container/array/ordered_resizeable_array.h"
 
 class PostArpTriggerable;

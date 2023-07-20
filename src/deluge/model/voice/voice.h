@@ -19,7 +19,7 @@
 
 #include "modulation/patch/patcher.h"
 #include "model/voice/voice_sample_playback_guide.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "modulation/envelope.h"
 #include "modulation/lfo.h"
 #include "model/voice/voice_unison_part.h"

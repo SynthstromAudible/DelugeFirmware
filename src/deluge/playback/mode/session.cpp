@@ -23,7 +23,7 @@
 #include "gui/views/instrument_clip_view.h"
 #include "processing/sound/sound_instrument.h"
 #include "playback/mode/session.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "model/song/song.h"
 #include "playback/playback_handler.h"
 #include "gui/views/view.h"

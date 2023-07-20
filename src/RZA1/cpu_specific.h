@@ -244,6 +244,8 @@ DMA channels:
 #define SYNCED_LED_PIN  7
 
 // OLED
+#define OLED_MAIN_WIDTH_PIXELS 128
+
 // --- 64 pixels high
 //#define OLED_MAIN_HEIGHT_PIXELS 64
 //#define OLED_MAIN_TOPMOST_PIXEL 2

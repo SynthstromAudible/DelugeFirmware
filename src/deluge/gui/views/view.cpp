@@ -28,7 +28,7 @@
 #include "gui/views/session_view.h"
 #include "model/timeline_counter.h"
 #include "gui/views/view.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "hid/matrix/matrix_driver.h"
 #include "hid/display/numeric_driver.h"
 #include "gui/ui/sound_editor.h"
@@ -70,6 +70,7 @@
 #include "storage/file_item.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/ui/load/load_song_ui.h"
+#include "gui/colour.h"
 
 #if HAVE_OLED
 #include "hid/display/oled.h"
@@ -1824,9 +1825,9 @@ void View::getClipMuteSquareColour(Clip* clip, uint8_t thisColour[]) {
 
 	// If user assigning MIDI controls and this Clip has a command assigned, flash pink
 	if (midiLearnFlashOn && clip->muteMIDICommand.containsSomething()) {
-		thisColour[0] = midiCommandColourRed;
-		thisColour[1] = midiCommandColourGreen;
-		thisColour[2] = midiCommandColourBlue;
+		thisColour[0] = midiCommandColour.r;
+		thisColour[1] = midiCommandColour.g;
+		thisColour[2] = midiCommandColour.b;
 		return;
 	}
 

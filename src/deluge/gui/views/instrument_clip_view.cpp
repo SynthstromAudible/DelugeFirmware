@@ -77,6 +77,7 @@
 #include "storage/audio/audio_file_holder.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "playback/playback_handler.h"
+#include "gui/colour.h"
 
 #if HAVE_OLED
 #include "hid/display/oled.h"
@@ -3749,9 +3750,9 @@ void InstrumentClipView::drawMuteSquare(NoteRow* thisNoteRow, uint8_t thisImage[
 	// If user assigning MIDI controls and this NoteRow has a command assigned, flash pink
 	if (view.midiLearnFlashOn && thisNoteRow && thisNoteRow->drum
 	    && thisNoteRow->drum->muteMIDICommand.containsSomething()) {
-		thisColour[0] = midiCommandColourRed;
-		thisColour[1] = midiCommandColourGreen;
-		thisColour[2] = midiCommandColourBlue;
+		thisColour[0] = midiCommandColour.r;
+		thisColour[1] = midiCommandColour.g;
+		thisColour[2] = midiCommandColour.b;
 		*thisOccupancy = 64;
 	}
 
@@ -3809,9 +3810,9 @@ void InstrumentClipView::drawAuditionSquare(uint8_t yDisplay, uint8_t thisImage[
 
 		// If MIDI command already assigned...
 		if (midiCommandAssigned) {
-			thisColour[0] = midiCommandColourRed;
-			thisColour[1] = midiCommandColourGreen;
-			thisColour[2] = midiCommandColourBlue;
+			thisColour[0] = midiCommandColour.r;
+			thisColour[1] = midiCommandColour.g;
+			thisColour[2] = midiCommandColour.b;
 		}
 
 		// Or if not assigned but we're holding it down...

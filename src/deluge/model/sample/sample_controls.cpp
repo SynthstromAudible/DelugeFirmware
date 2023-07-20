@@ -17,7 +17,7 @@
 
 #include "processing/engines/audio_engine.h"
 #include "model/sample/sample_controls.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "util/functions.h"
 
 SampleControls::SampleControls() {

@@ -16,7 +16,7 @@
  */
 
 #include "hid/display/numeric_layer/numeric_layer_scrolling_text.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "gui/ui_timer_manager.h"
 #include "string.h"
 

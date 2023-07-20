@@ -16,7 +16,7 @@
  */
 
 #include "util/container/array/ordered_resizeable_array.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "util/functions.h"
 #include "RZA1/uart/sio_char.h"
 #include "hid/display/numeric_driver.h"

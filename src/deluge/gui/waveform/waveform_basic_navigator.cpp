@@ -17,7 +17,7 @@
 
 #include "gui/waveform/waveform_basic_navigator.h"
 #include "gui/waveform/waveform_renderer.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "hid/matrix/matrix_driver.h"
 #include "model/sample/sample.h"
 #include "storage/multi_range/multisample_range.h"

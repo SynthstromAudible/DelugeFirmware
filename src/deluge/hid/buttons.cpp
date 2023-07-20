@@ -17,7 +17,7 @@
 
 #include "processing/engines/audio_engine.h"
 #include "hid/buttons.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "gui/ui/ui.h"
 #include "gui/ui/audio_recorder.h"
 #include "playback/playback_handler.h"

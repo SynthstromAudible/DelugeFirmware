@@ -27,7 +27,7 @@
 #include "hid/display/numeric_driver.h"
 #include "memory/stealable.h"
 #include "drivers/mtu/mtu.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 
 char emptySpacesMemory[sizeof(EmptySpaceRecord) * 512];
 char emptySpacesMemoryInternal[sizeof(EmptySpaceRecord) * 1024];

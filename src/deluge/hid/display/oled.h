@@ -17,10 +17,9 @@
 
 #pragma once
 
-#include "definitions.h"
-
 #if HAVE_OLED
 #ifdef __cplusplus
+#include "definitions_cxx.hpp"
 
 namespace OLED {
 

@@ -20,7 +20,7 @@
 #ifdef __cplusplus
 
 #include "playback/playback_handler.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "io/midi/learned_midi.h"
 
 class MIDIDevice;

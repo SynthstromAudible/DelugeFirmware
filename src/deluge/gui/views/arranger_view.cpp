@@ -66,12 +66,13 @@
 #include "hid/led/indicator_leds.h"
 #include "hid/encoders.h"
 #include "hid/buttons.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "model/model_stack.h"
 #include "extern.h"
 #include "modulation/params/param_set.h"
 #include "storage/file_item.h"
 #include "hid/display/oled.h"
+#include "gui/colour.h"
 
 extern "C" {
 extern uint8_t currentlyAccessingCard;
@@ -555,9 +556,9 @@ void ArrangerView::drawAuditionSquare(int yDisplay, uint8_t thisImage[][3]) {
 
 		// If MIDI command already assigned...
 		if (melodicInstrument->midiInput.containsSomething()) {
-			thisColour[0] = midiCommandColourRed;
-			thisColour[1] = midiCommandColourGreen;
-			thisColour[2] = midiCommandColourBlue;
+			thisColour[0] = midiCommandColour.r;
+			thisColour[1] = midiCommandColour.g;
+			thisColour[2] = midiCommandColour.b;
 		}
 
 		// Or if not assigned but we're holding it down...

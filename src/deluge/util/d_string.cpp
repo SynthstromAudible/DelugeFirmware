@@ -18,7 +18,7 @@
 #include "util/d_string.h"
 #include <string.h>
 #include "memory/general_memory_allocator.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "util/functions.h"
 
 extern "C" {

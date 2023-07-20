@@ -18,7 +18,7 @@
 #pragma once
 
 #include "modulation/params/param_manager.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "model/note/note_vector.h"
 #include "io/midi/learned_midi.h"
 

@@ -1,5 +1,5 @@
 #include "pad.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 
 Pad::Pad(int x_, int y_) : x(x_), y(y_) {
 }

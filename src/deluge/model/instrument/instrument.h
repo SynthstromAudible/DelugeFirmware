@@ -18,7 +18,7 @@
 #pragma once
 
 #include "model/clip/clip_instance_vector.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "util/d_string.h"
 #include "model/output.h"
 

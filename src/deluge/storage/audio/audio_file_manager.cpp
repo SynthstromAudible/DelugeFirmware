@@ -18,7 +18,7 @@
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "model/sample/sample.h"
 #include <string.h>
 #include "storage/storage_manager.h"

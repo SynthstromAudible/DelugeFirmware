@@ -18,7 +18,7 @@
 #pragma once
 
 #include "RZA1/system/r_typedefs.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 
 #define MENU_PERMISSION_NO 0
 #define MENU_PERMISSION_YES 1

@@ -21,7 +21,7 @@
 #include "processing/sound/sound_instrument.h"
 #include "gui/ui/save/save_instrument_preset_ui.h"
 #include "storage/storage_manager.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "util/functions.h"
 #include "hid/matrix/matrix_driver.h"
 #include "model/song/song.h"

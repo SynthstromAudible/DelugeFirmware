@@ -19,7 +19,7 @@
 
 #include "model/timeline_counter.h"
 #include "RZA1/system/r_typedefs.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "io/midi/learned_midi.h"
 
 #define CLIP_TYPE_INSTRUMENT 0

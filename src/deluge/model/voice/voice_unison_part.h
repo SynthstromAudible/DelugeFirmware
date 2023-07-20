@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "model/voice/voice_unison_part_source.h"
 
 class VoiceUnisonPart {

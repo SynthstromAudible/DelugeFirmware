@@ -20,7 +20,7 @@
 #include "storage/cluster/cluster_priority_queue.h"
 #include "RZA1/system/r_typedefs.h"
 #include "util/container/list/bidirectional_linked_list.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 
 extern "C" {
 #include "fatfs/ff.h"

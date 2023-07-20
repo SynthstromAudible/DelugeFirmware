@@ -39,7 +39,7 @@
 #include "hid/led/pad_leds.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/buttons.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "hid/display/numeric_driver.h"
 #include "model/model_stack.h"
 #include "extern.h"

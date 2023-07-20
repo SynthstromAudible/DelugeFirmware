@@ -17,7 +17,7 @@
 
 #include "processing/engines/audio_engine.h"
 #include "util/container/array/resizeable_array.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 //#include <algorithm>
 #include "memory/general_memory_allocator.h"
 #include "util/functions.h"

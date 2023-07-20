@@ -16,7 +16,7 @@
 */
 
 #include "testing/hardware_testing.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "io/uart/uart.h"
 #include "hid/led/indicator_leds.h"
 #include "processing/engines/cv_engine.h"

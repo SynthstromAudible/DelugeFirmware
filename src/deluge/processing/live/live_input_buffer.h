@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "RZA1/system/r_typedefs.h"
 
 class LiveInputBuffer {

@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "processing/live/live_pitch_shifter_play_head.h"
 
 class LiveInputBuffer;

@@ -20,7 +20,7 @@
 #include "patch_cable_strength.h"
 #include "source_selection.h"
 
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/numeric_driver.h"
 #include "hid/matrix/matrix_driver.h"

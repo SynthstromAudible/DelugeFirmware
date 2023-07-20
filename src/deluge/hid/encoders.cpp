@@ -17,7 +17,7 @@
 
 #include "processing/engines/audio_engine.h"
 #include "hid/encoders.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "gui/ui/ui.h"
 #include "hid/matrix/matrix_driver.h"
 #include "playback/playback_handler.h"

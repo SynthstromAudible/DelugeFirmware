@@ -18,7 +18,7 @@
 #pragma once
 
 #include "hid/button.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 
 class RootUI;
 class ClipMinder;

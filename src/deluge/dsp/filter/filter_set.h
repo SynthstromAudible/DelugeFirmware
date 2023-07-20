@@ -19,7 +19,7 @@
 
 #include "RZA1/system/r_typedefs.h"
 #include "util/functions.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "dsp/filter/filter_set_config.h"
 
 class Sound;

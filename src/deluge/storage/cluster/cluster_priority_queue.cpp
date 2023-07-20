@@ -16,7 +16,7 @@
 */
 
 #include "storage/cluster/cluster_priority_queue.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "io/uart/uart.h"
 
 class Cluster;

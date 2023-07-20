@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "model/global_effectable/global_effectable.h"
 
 class ParamManagerForTimeline;

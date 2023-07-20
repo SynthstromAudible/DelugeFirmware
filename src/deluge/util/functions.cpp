@@ -17,7 +17,7 @@
 
 #include "util/functions.h"
 #include "processing/sound/sound.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "hid/display/numeric_driver.h"
 #include "fatfs/ff.h"
 #include "gui/views/view.h"
@@ -859,7 +859,7 @@ char const* oscTypeToString(unsigned int oscType) {
 	}
 }
 
-int stringToOscType(char const* string) {
+OscType stringToOscType(char const* string) {
 
 	if (!strcmp(string, "square")) {
 		return OSC_TYPE_SQUARE;

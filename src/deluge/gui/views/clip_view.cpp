@@ -28,7 +28,7 @@
 #include "extern.h"
 #include "model/clip/clip_minder.h"
 #include "gui/views/view.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "model/consequence/consequence_clip_horizontal_shift.h"
 #include "memory/general_memory_allocator.h"
 #include <new>

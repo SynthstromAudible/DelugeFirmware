@@ -20,7 +20,7 @@
 #include "storage/cluster/cluster.h"
 #include "gui/views/instrument_clip_view.h"
 #include "processing/sound/sound.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "hid/matrix/matrix_driver.h"
 #include <string.h>
 #include "gui/waveform/waveform_renderer.h"

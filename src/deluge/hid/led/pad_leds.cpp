@@ -35,6 +35,7 @@
 #include "gui/views/view.h"
 #include "model/clip/instrument_clip.h"
 #include "hid/display/oled.h"
+#include "gui/colour.h"
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
@@ -247,7 +248,7 @@ inline void sendRGBForOneCol(int x) {
 
 const uint8_t flashColours[3][3] = {
     {130, 120, 130},
-    {mutedColourRed, mutedColourGreen, mutedColourBlue}, // Not used anymore
+    {mutedColour.r, mutedColour.g, mutedColour.b}, // Not used anymore
     {255, 0, 0},
 };
 
@@ -304,9 +305,9 @@ void renderInstrumentClipCollapseAnimation(int xStart, int xEndOverall, int prog
 
 	if (!(isUIModeActive(UI_MODE_INSTRUMENT_CLIP_COLLAPSING) || isUIModeActive(UI_MODE_INSTRUMENT_CLIP_EXPANDING))) {
 		for (int row = 0; row < displayHeight; row++) {
-			image[row][displayWidth][0] = enabledColourRed;
-			image[row][displayWidth][1] = enabledColourGreen;
-			image[row][displayWidth][2] = enabledColourBlue;
+			image[row][displayWidth][0] = enabledColour.r;
+			image[row][displayWidth][1] = enabledColour.g;
+			image[row][displayWidth][2] = enabledColour.b;
 			occupancyMask[row][displayWidth] = 64;
 		}
 	}

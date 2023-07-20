@@ -17,7 +17,7 @@
 
 #include "io/midi/midi_device.h"
 #include "storage/storage_manager.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include <string.h>
 #include "model/model_stack.h"
 #include "model/song/song.h"

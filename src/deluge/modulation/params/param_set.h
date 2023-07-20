@@ -18,7 +18,7 @@
 #pragma once
 
 #include "modulation/automation/auto_param.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "modulation/params/param_collection.h"
 
 class Sound;

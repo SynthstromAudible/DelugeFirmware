@@ -16,7 +16,7 @@
  */
 
 #pragma once
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 
 class ParamManagerForTimeline;
 class ParamManagerForTimeline;

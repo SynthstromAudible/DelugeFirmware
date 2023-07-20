@@ -60,6 +60,7 @@
 #include "storage/file_item.h"
 #include "dsp/master_compressor/master_compressor.h"
 #include "model/settings/runtime_feature_settings.h"
+#include "gui/colour.h"
 
 #if HAVE_OLED
 #include "hid/display/oled.h"
@@ -1248,9 +1249,9 @@ void SessionView::drawSectionSquare(uint8_t yDisplay, uint8_t thisImage[][3]) {
 	}
 	else {
 		if (view.midiLearnFlashOn && currentSong->sections[clip->section].launchMIDICommand.containsSomething()) {
-			thisColour[0] = midiCommandColourRed;
-			thisColour[1] = midiCommandColourGreen;
-			thisColour[2] = midiCommandColourBlue;
+			thisColour[0] = midiCommandColour.r;
+			thisColour[1] = midiCommandColour.g;
+			thisColour[2] = midiCommandColour.b;
 		}
 
 		else {
@@ -2111,9 +2112,9 @@ bool SessionView::renderRow(ModelStack* modelStack, uint8_t yDisplay, uint8_t th
 			for (int xDisplay = 0; xDisplay < displayWidth; xDisplay++) {
 				// We halve the intensity of the brightness in this case, because a lot of pads will be lit, it looks mental, and I think one user was having it
 				// cause his Deluge to freeze due to underpowering.
-				thisImage[xDisplay][0] = midiCommandColourRed >> 1;
-				thisImage[xDisplay][1] = midiCommandColourGreen >> 1;
-				thisImage[xDisplay][2] = midiCommandColourBlue >> 1;
+				thisImage[xDisplay][0] = midiCommandColour.r >> 1;
+				thisImage[xDisplay][1] = midiCommandColour.g >> 1;
+				thisImage[xDisplay][2] = midiCommandColour.b >> 1;
 			}
 		}
 

@@ -18,7 +18,7 @@
 #pragma once
 
 #include "processing/sound/sound.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "model/drum/drum.h"
 #include "util/d_string.h"
 

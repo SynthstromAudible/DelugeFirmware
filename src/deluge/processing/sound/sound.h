@@ -18,7 +18,7 @@
 #pragma once
 
 #include "modulation/patch/patcher.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "dsp/compressor/compressor.h"
 #include "modulation/lfo.h"
 #include "processing/source.h"

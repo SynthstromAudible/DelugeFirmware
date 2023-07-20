@@ -1,5 +1,5 @@
 
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "dsp/reverb/freeverb/revmodel.hpp"
 #include "extern.h"
 #include "gui/context_menu/overwrite_bootloader.h"

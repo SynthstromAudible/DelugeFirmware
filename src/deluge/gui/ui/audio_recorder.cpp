@@ -41,7 +41,7 @@
 #include <new>
 #include "model/sample/sample_recorder.h"
 #include "hid/led/indicator_leds.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "hid/led/pad_leds.h"
 #include "extern.h"
 #include "hid/display/oled.h"

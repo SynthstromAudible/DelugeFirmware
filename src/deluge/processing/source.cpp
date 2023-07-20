@@ -26,7 +26,8 @@
 #include "storage/storage_manager.h"
 #include "model/sample/sample.h"
 #include "hid/display/numeric_driver.h"
-#include <string.h>
+#include <cstring>
+#include <cmath>
 #include "storage/wave_table/wave_table.h"
 #include "storage/multi_range/multisample_range.h"
 #include "gui/views/view.h"
@@ -197,7 +198,7 @@ void Source::doneReadingFromFile(Sound* sound) {
 		oscType = OSC_TYPE_SINE;
 	}
 	else if (synthMode == SYNTH_MODE_RINGMOD) {
-		oscType = getMin((int)oscType, NUM_OSC_TYPES_RINGMODDABLE - 1);
+		oscType = std::min<OscType>(oscType, static_cast<OscType>(NUM_OSC_TYPES_RINGMODDABLE - 1));
 	}
 
 	bool isActualSampleOscillator = (synthMode != SYNTH_MODE_FM && oscType == OSC_TYPE_SAMPLE);
@@ -237,7 +238,7 @@ bool Source::hasAnyLoopEndPoint() {
 }
 
 // If setting to SAMPLE or WAVETABLE, you must call unassignAllVoices before this, because ranges is going to get emptied.
-void Source::setOscType(int newType) {
+void Source::setOscType(OscType newType) {
 
 	int multiRangeSize;
 	if (newType == OSC_TYPE_SAMPLE) {

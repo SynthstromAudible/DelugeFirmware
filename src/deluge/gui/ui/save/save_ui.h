@@ -19,7 +19,7 @@
 
 #include "gui/ui/browser/slot_browser.h"
 #include "hid/button.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 
 class SaveUI : public SlotBrowser {
 public:

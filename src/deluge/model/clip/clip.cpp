@@ -21,7 +21,7 @@
 #include "processing/sound/sound_instrument.h"
 #include "gui/views/session_view.h"
 #include "util/functions.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "playback/playback_handler.h"
 #include "model/output.h"
 #include "util/functions.h"

@@ -16,9 +16,8 @@
  */
 
 #pragma once
-#include "definitions.h"
-
 #ifdef __cplusplus
+#include "definitions_cxx.hpp"
 #include "util/container/vector/named_thing_vector.h"
 class MIDIDevice;
 class MIDIDeviceUSBUpstream;
@@ -26,6 +25,7 @@ class MIDIDeviceDINPorts;
 class MIDIDeviceUSB;
 
 #else
+#include "definitions.h"
 struct MIDIDeviceUSB;
 #endif
 

@@ -18,7 +18,7 @@
 // This experiment never really got fleshed out.
 
 #include "testing/automated_tester.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "hid/encoders.h"
 #include "util/functions.h"
 #include "processing/engines/audio_engine.h"

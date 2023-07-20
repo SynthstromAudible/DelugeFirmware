@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 
 #if HAVE_OLED
 

@@ -19,7 +19,7 @@
 
 #include "gui/views/clip_view.h"
 #include "hid/button.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "modulation/automation/copied_param_automation.h"
 #include "model/clip/instrument_clip_minder.h"
 #include "modulation/params/param_node.h"

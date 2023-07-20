@@ -18,7 +18,7 @@
 #include "gui/ui/browser/sample_browser.h"
 #include "processing/sound/sound.h"
 #include "file_selector.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "gui/ui_timer_manager.h"
 #include "gui/ui/sound_editor.h"
 #include "util/functions.h"

@@ -19,7 +19,7 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
 #include "dsp/timestretch/time_stretcher.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include <string.h>
 #include "model/sample/sample.h"
 #include "model/voice/voice_sample.h"

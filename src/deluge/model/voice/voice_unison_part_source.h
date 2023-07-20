@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "model/sample/sample.h"
 #include "hid/display/numeric_driver.h"
 

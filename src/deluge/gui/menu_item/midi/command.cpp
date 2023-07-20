@@ -16,7 +16,7 @@
 */
 
 #include "command.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "io/midi/midi_engine.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/numeric_driver.h"

@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "RZA1/system/r_typedefs.h"
 #include "gui/waveform/waveform_render_data.h"
 #include "pad.h"

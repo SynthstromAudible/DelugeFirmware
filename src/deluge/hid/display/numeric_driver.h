@@ -17,9 +17,8 @@
 
 #pragma once
 
-#include "definitions.h"
-
 #ifdef __cplusplus
+#include "definitions_cxx.hpp"
 #include "hid/display/numeric_layer/numeric_layer_basic_text.h"
 class NumericLayerScrollingText;
 

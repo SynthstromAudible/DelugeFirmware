@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "gui/menu_item/selection.h"
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
@@ -39,13 +39,11 @@ public:
 		Selection::beginSession(navigatedBackwardFrom);
 	}
 #endif
-	void readCurrentValue() {
-		soundEditor.currentValue = soundEditor.currentSource->oscType;
-	}
+	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentSource->oscType; }
 	void writeCurrentValue() {
 
-		int oldValue = soundEditor.currentSource->oscType;
-		int newValue = soundEditor.currentValue;
+		OscType oldValue = soundEditor.currentSource->oscType;
+		auto newValue = static_cast<OscType>(soundEditor.currentValue);
 
 		auto needs_unassignment = {OSC_TYPE_INPUT_L, OSC_TYPE_INPUT_R, OSC_TYPE_INPUT_STEREO, OSC_TYPE_SAMPLE,
 
@@ -90,9 +88,7 @@ public:
 			return NUM_OSC_TYPES - 2;
 		}
 	}
-	bool isRelevant(Sound* sound, int whichThing) {
-		return (sound->getSynthMode() != SYNTH_MODE_FM);
-	}
+	bool isRelevant(Sound* sound, int whichThing) { return (sound->getSynthMode() != SYNTH_MODE_FM); }
 };
 
 } // namespace menu_item::osc

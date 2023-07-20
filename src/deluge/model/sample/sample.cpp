@@ -20,7 +20,7 @@
 #include "storage/cluster/cluster.h"
 #include "model/sample/sample.h"
 #include "RZA1/system/r_typedefs.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include <string.h>
 #include "hid/display/numeric_driver.h"
 #include "memory/general_memory_allocator.h"

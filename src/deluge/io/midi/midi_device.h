@@ -18,7 +18,7 @@
 #pragma once
 
 #include "util/d_string.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "model/model_stack.h"
 
 // These numbers are what get stored just in the internal Deluge flash memory to represent things.

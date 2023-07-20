@@ -21,7 +21,7 @@
 #include "modulation/params/param_node_vector.h"
 #include "util/functions.h"
 #include <new>
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 
 ConsequenceParamChange::ConsequenceParamChange(ModelStackWithAutoParam const* modelStack, bool stealData) {
 	type = CONSEQUENCE_PARAM_CHANGE;

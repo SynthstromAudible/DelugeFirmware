@@ -17,7 +17,7 @@
 
 #include "model/consequence/consequence_clip_existence.h"
 #include "model/clip/instrument_clip.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "model/song/song.h"
 #include "hid/display/numeric_driver.h"
 #include "memory/general_memory_allocator.h"

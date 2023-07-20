@@ -33,7 +33,7 @@ public:
 
 	SampleControls sampleControls;
 
-	uint8_t oscType;
+	OscType oscType;
 
 	// These are not valid for Samples
 	int16_t transpose;
@@ -61,7 +61,7 @@ public:
 	bool hasAtLeastOneAudioFileLoaded();
 	void doneReadingFromFile(Sound* sound);
 	bool hasAnyLoopEndPoint();
-	void setOscType(int newType);
+	void setOscType(OscType newType);
 
 private:
 	void destructAllMultiRanges();

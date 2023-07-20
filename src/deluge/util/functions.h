@@ -21,7 +21,7 @@
 #include "util/lookuptables/lookuptables.h"
 #include <cstring>
 #include "ff.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "util/fixedpoint.h"
 extern "C" {
 #include "util/cfunctions.h"
@@ -147,7 +147,7 @@ int32_t memToUIntOrError(char const* mem, char const* const memEnd);
 void getInstrumentPresetFilename(char const* filePrefix, int16_t presetNumber, int8_t presetSubslotNumber,
                                  char* fileName);
 char const* oscTypeToString(unsigned int oscType);
-int stringToOscType(char const* string);
+OscType stringToOscType(char const* string);
 char const* lfoTypeToString(int oscType);
 int stringToLFOType(char const* string);
 

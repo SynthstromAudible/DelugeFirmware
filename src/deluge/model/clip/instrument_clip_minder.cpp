@@ -24,7 +24,7 @@
 #include "modulation/params/param_manager.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "gui/ui_timer_manager.h"
 #include "hid/display/numeric_driver.h"
 #include "gui/ui/keyboard_screen.h"

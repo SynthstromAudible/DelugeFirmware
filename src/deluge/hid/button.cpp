@@ -1,5 +1,5 @@
 #include "button.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 
 namespace hid {
 

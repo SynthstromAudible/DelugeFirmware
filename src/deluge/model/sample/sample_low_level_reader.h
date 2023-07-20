@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "hid/display/numeric_driver.h"
 #include "RZA1/system/r_typedefs.h"
 

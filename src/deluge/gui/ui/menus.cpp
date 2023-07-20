@@ -671,7 +671,7 @@ patch_cable_strength::Fixed vibratoMenu{"VIBRATO", PARAM_LOCAL_PITCH_ADJUST, PAT
 menu_item::DrumName drumNameMenu{"NAME"};
 
 // Synth only
-SynthMode synthModeMenu{HAVE_OLED ? "Synth mode" : "MODE"};
+menu_item::SynthMode synthModeMenu{HAVE_OLED ? "Synth mode" : "MODE"};
 
 Submenu lfo0Menu{"LFO1", lfo1MenuItems};
 Submenu lfo1Menu{"LFO2", lfo2MenuItems};

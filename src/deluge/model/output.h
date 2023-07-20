@@ -20,7 +20,7 @@
 #include "model/clip/clip_instance_vector.h"
 #include "RZA1/system/r_typedefs.h"
 #include "util/d_string.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 
 class InstrumentClip;
 class Song;
