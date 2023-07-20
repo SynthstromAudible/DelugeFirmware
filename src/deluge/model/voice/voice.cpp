@@ -3099,13 +3099,8 @@ bool Voice::hasReleaseStage() {
 	return (paramFinalValues[PARAM_LOCAL_ENV_0_RELEASE] <= 18359);
 }
 
-#if NUM_ENVELOPE_STAGES >= 8
-#error "Too many envelope stages"
-#endif
-
-#if NUM_PRIORITY_OPTIONS >= 4
-#error "Too many priority options"
-#endif
+static_assert(NUM_ENVELOPE_STAGES < 8, "Too many envelope stages");
+static_assert(NUM_PRIORITY_OPTIONS < 4, "Too many priority options");
 
 // Higher numbers are lower priority. 1 is top priority. Will never return 0, because nextVoiceState starts at 1
 uint32_t Voice::getPriorityRating() {

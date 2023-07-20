@@ -146,7 +146,7 @@ ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 
 #if ALLOW_SPAM_MODE
 	else if (b == SELECT_ENC)
-		     && isButtonPressed(shiftButtonX, shiftButtonY)) {
+		     && isButtonPressed(shiftButtonCoord.x, shiftButtonCoord.y)) {
 			     spamMode();
 		     }
 #endif
@@ -170,14 +170,14 @@ bool isButtonPressed(hid::Button b) {
 }
 
 bool isShiftButtonPressed() {
-	return buttonStates[shiftButtonX][shiftButtonY];
+	return buttonStates[shiftButtonCoord.x][shiftButtonCoord.y];
 }
 
 bool isNewOrShiftButtonPressed() {
 #ifdef BUTTON_NEW_X
 	return buttonStates[BUTTON_NEW_X][BUTTON_NEW_Y];
 #else
-	return buttonStates[shiftButtonX][shiftButtonY];
+	return buttonStates[shiftButtonCoord.x][shiftButtonCoord.y];
 #endif
 }
 

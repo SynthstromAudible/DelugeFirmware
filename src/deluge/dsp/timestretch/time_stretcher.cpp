@@ -1170,15 +1170,17 @@ void TimeStretcher::setupCrossfadeFromCache(SampleCache* cache, int cacheBytePos
 
 	int bytesTilThisWindowEnd = getMin(bytesTilCacheClusterEnd, bytesTilCacheEnd);
 
-#if CACHE_BYTE_DEPTH == 3
-	int samplesTilThisWindowEnd =
-	    (uint32_t)bytesTilThisWindowEnd
-	    / (uint8_t)(numChannels * CACHE_BYTE_DEPTH); // Will round up, cos we did that additional bit above
-#else
-	int samplesTilThisWindowEnd = bytesTilThisWindowEnd >> CACHE_BYTE_DEPTH_MAGNITUDE;
-	if (numChannels == 2)
-		samplesTilThisWindowEnd >>= 1;
-#endif
+	int samplesTilThisWindowEnd = 0;
+	if constexpr (CACHE_BYTE_DEPTH == 3) {
+		// Will round up, cos we did that additional bit above
+		samplesTilThisWindowEnd = (uint32_t)bytesTilThisWindowEnd / (uint8_t)(numChannels * CACHE_BYTE_DEPTH);
+	}
+	else {
+		samplesTilThisWindowEnd = bytesTilThisWindowEnd >> CACHE_BYTE_DEPTH_MAGNITUDE;
+		if (numChannels == 2) {
+			samplesTilThisWindowEnd >>= 1;
+		}
+	}
 
 	if (samplesTilThisWindowEnd < numSamplesThisCacheRead) {
 		numSamplesThisCacheRead = samplesTilThisWindowEnd; // Only do this after we're sure we're not cancelling caching

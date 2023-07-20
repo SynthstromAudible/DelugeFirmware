@@ -24,11 +24,12 @@ class ParamCollection;
 class ParamCollectionSummary {
 public:
 	inline bool containsAutomation() {
-		return (whichParamsAreAutomated[0] | whichParamsAreAutomated[1]
-#if MAX_NUM_UINTS_TO_REP_ALL_PARAMS > 2
-		        | whichParamsAreAutomated[2]
-#endif
-		);
+		if constexpr (MAX_NUM_UINTS_TO_REP_ALL_PARAMS > 2) {
+			return (whichParamsAreAutomated[0] | whichParamsAreAutomated[1] | whichParamsAreAutomated[2]);
+		}
+		else {
+			return (whichParamsAreAutomated[0] | whichParamsAreAutomated[1]);
+		}
 	}
 
 	inline void resetInterpolationRecord(int topUintToRepParams) {

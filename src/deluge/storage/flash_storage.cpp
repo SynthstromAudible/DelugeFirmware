@@ -373,7 +373,7 @@ void writeSettings() {
 	uint8_t* buffer = (uint8_t*)miscStringBuffer;
 	memset(buffer, 0, FILENAME_BUFFER_SIZE);
 
-	buffer[0] = CURRENT_FIRMWARE_VERSION;
+	buffer[0] = kCurrentFirmwareVersion;
 
 	buffer[2] = ramSize;
 

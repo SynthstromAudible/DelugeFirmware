@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "definitions_cxx.hpp"
 #include "processing/engines/audio_engine.h"
 #include "model/global_effectable/global_effectable_for_clip.h"
 #include "modulation/params/param_manager.h"
@@ -52,8 +53,8 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 void GlobalEffectableForClip::renderOutput(ModelStackWithTimelineCounter* modelStack, ParamManager* paramManagerForClip,
                                            StereoSample* outputBuffer, int numSamples, int32_t* reverbBuffer,
                                            int32_t reverbAmountAdjust, int32_t sideChainHitPending,
-                                           bool shouldLimitDelayFeedback, bool isClipActive, InstrumentType instrumentType,
-                                           int analogDelaySaturationAmount) {
+                                           bool shouldLimitDelayFeedback, bool isClipActive,
+                                           InstrumentType instrumentType, int analogDelaySaturationAmount) {
 
 	UnpatchedParamSet* unpatchedParams = paramManagerForClip->getUnpatchedParamSet();
 
@@ -189,12 +190,12 @@ doNormal:
 	postReverbVolumeLastTime = postReverbVolume;
 
 	if (playbackHandler.isEitherClockActive() && !playbackHandler.ticksLeftInCountIn && isClipActive) {
-		if (paramManagerForClip->getUnpatchedParamSetSummary()->whichParamsAreInterpolating[0]
-#if MAX_NUM_UNPATCHED_PARAMS > 32
-		    || paramManagerForClip->getUnpatchedParamSetSummary()->whichParamsAreInterpolating[1]
-#endif
-		) {
-
+		const bool result =
+		    MAX_NUM_UNPATCHED_PARAMS > 32
+		        ? paramManagerForClip->getUnpatchedParamSetSummary()->whichParamsAreInterpolating[0]
+		              || paramManagerForClip->getUnpatchedParamSetSummary()->whichParamsAreInterpolating[1]
+		        : paramManagerForClip->getUnpatchedParamSetSummary()->whichParamsAreInterpolating[0];
+		if (result) {
 			ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 			    modelStack->addOtherTwoThingsButNoNoteRow(this, paramManagerForClip);
 			paramManagerForClip->toForTimeline()->tickSamples(numSamples, modelStackWithThreeMainThings);

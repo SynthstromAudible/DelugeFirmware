@@ -540,8 +540,9 @@ int Browser::arrivedInNewFolder(int direction, char const* filenameToStartAt, ch
 tryReadingItems:
 	bool doWeHaveASearchString = (filenameToStartAt && *filenameToStartAt);
 	int newCatalogSearchDirection = doWeHaveASearchString ? CATALOG_SEARCH_BOTH : CATALOG_SEARCH_RIGHT;
-	int error = readFileItemsFromFolderAndMemory(currentSong, instrumentTypeToLoad, filePrefix, filenameToStartAt,
-	                                             defaultDirToAlsoTry, true, Availability::ANY, newCatalogSearchDirection);
+	int error =
+	    readFileItemsFromFolderAndMemory(currentSong, instrumentTypeToLoad, filePrefix, filenameToStartAt,
+	                                     defaultDirToAlsoTry, true, Availability::ANY, newCatalogSearchDirection);
 	if (error) {
 gotErrorAfterAllocating:
 		emptyFileItems();
@@ -575,15 +576,16 @@ setEnteredTextAndUseFoundFile:
 				}
 useFoundFile:
 				scrollPosVertical = fileIndexSelected;
-#if BROWSER_AND_MENU_NUM_LINES > 1
-				int lastAllowed = fileItems.getNumElements() - BROWSER_AND_MENU_NUM_LINES;
-				if (scrollPosVertical > lastAllowed) {
-					scrollPosVertical = lastAllowed;
-					if (scrollPosVertical < 0) {
-						scrollPosVertical = 0;
+				if constexpr (BROWSER_AND_MENU_NUM_LINES > 1) {
+					int lastAllowed = fileItems.getNumElements() - BROWSER_AND_MENU_NUM_LINES;
+					if (scrollPosVertical > lastAllowed) {
+						scrollPosVertical = lastAllowed;
+						if (scrollPosVertical < 0) {
+							scrollPosVertical = 0;
+						}
 					}
 				}
-#endif
+
 				goto everythingFinalized;
 			}
 
@@ -772,8 +774,8 @@ pickBrandNewNameIfNoneNominated:
 				}
 
 				// Because that will have cleared out all the FileItems, we need to get them again. Actually there would kinda be a way around doing this...
-				error = readFileItemsFromFolderAndMemory(currentSong, InstrumentType::NONE, "SONG", enteredText.get(), NULL, false, Availability::ANY,
-				                                         CATALOG_SEARCH_BOTH);
+				error = readFileItemsFromFolderAndMemory(currentSong, InstrumentType::NONE, "SONG", enteredText.get(),
+				                                         NULL, false, Availability::ANY, CATALOG_SEARCH_BOTH);
 				if (error) {
 					goto gotErrorAfterAllocating;
 				}
@@ -808,8 +810,9 @@ int Browser::getUnusedSlot(InstrumentType instrumentType, String* newName, char 
 	char const* filenameToStartAt = ":";    // Colon is the first character after the digits
 #endif
 
-	int error = readFileItemsFromFolderAndMemory(currentSong, instrumentType, getThingName(instrumentType),
-	                                             filenameToStartAt, NULL, false, Availability::ANY, CATALOG_SEARCH_LEFT);
+	int error =
+	    readFileItemsFromFolderAndMemory(currentSong, instrumentType, getThingName(instrumentType), filenameToStartAt,
+	                                     NULL, false, Availability::ANY, CATALOG_SEARCH_LEFT);
 
 	if (error) {
 doReturn:
@@ -1023,8 +1026,9 @@ gotErrorAfterAllocating:
 				newCatalogSearchDirection = CATALOG_SEARCH_LEFT;
 searchFromOneEnd:
 				uartPrintln("reloading and wrap");
-				error = readFileItemsFromFolderAndMemory(currentSong, instrumentTypeToLoad, filePrefix, NULL, NULL,
-				                                         true, Availability::ANY, newCatalogSearchDirection); // Load from start
+				error =
+				    readFileItemsFromFolderAndMemory(currentSong, instrumentTypeToLoad, filePrefix, NULL, NULL, true,
+				                                     Availability::ANY, newCatalogSearchDirection); // Load from start
 				if (error) {
 					goto gotErrorAfterAllocating;
 				}

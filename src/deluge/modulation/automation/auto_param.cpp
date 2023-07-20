@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "definitions_cxx.hpp"
 #include "processing/engines/audio_engine.h"
 #include "model/clip/instrument_clip.h"
 #include "modulation/automation/auto_param.h"
@@ -117,7 +118,8 @@ void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWi
 				if (isAutomated()) {
 					Action* action = actionLogger.getNewAction(ACTION_AUTOMATION_DELETE, false);
 					deleteAutomation(action, modelStack);
-					numericDriver.displayPopup(HAVE_OLED ? "Parameter automation deleted" : "ExistenceChangeType::DELETE");
+					numericDriver.displayPopup(HAVE_OLED ? "Parameter automation deleted"
+					                                     : "ExistenceChangeType::DELETE");
 				}
 				return;
 			}
@@ -1057,11 +1059,11 @@ int AutoParam::homogenizeRegion(ModelStackWithAutoParam const* modelStack, int32
 
 	// Or, playing reversed...
 	else {
-#if ALPHA_OR_BETA_VERSION || CURRENT_FIRMWARE_VERSION <= FIRMWARE_4P0P0
-		if (startPos < posAtWhichClipWillCut) {
-			numericDriver.freezeWithError("E445");
+		if constexpr (ALPHA_OR_BETA_VERSION || kCurrentFirmwareVersion <= FIRMWARE_4P0P0) {
+			if (startPos < posAtWhichClipWillCut) {
+				numericDriver.freezeWithError("E445");
+			}
 		}
-#endif
 		edgePositions[REGION_EDGE_RIGHT] = startPos;
 		edgePositions[REGION_EDGE_LEFT] = edgePositions[REGION_EDGE_RIGHT] - length;
 
@@ -1069,11 +1071,12 @@ int AutoParam::homogenizeRegion(ModelStackWithAutoParam const* modelStack, int32
 		if (edgePositions[REGION_EDGE_LEFT] < posAtWhichClipWillCut) {
 			edgePositions[REGION_EDGE_LEFT] = posAtWhichClipWillCut;
 			length = edgePositions[REGION_EDGE_RIGHT] - edgePositions[REGION_EDGE_LEFT];
-#if ALPHA_OR_BETA_VERSION
-			if (edgePositions[REGION_EDGE_LEFT] >= edgePositions[REGION_EDGE_RIGHT]) {
-				numericDriver.freezeWithError("HHHH");
+			if constexpr (ALPHA_OR_BETA_VERSION) {
+				if (edgePositions[REGION_EDGE_LEFT] >= edgePositions[REGION_EDGE_RIGHT]) {
+					numericDriver.freezeWithError("HHHH");
+				}
 			}
-#endif
+
 			interpolateLeftNode = false; // Maybe not really perfect
 			anyWrap = false;
 		}

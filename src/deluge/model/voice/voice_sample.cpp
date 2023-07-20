@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "definitions_cxx.hpp"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
@@ -395,9 +396,8 @@ bool VoiceSample::stopUsingCache(SamplePlaybackGuide* guide, Sample* sample, int
 	return true;
 }
 
-#if TIME_STRETCH_DEFAULT_FIRST_HOP_LENGTH < SSI_TX_BUFFER_NUM_SAMPLES
-#error "problems with crossfading out of cache into new timeStretcher"
-#endif
+static_assert(TIME_STRETCH_DEFAULT_FIRST_HOP_LENGTH >= SSI_TX_BUFFER_NUM_SAMPLES,
+              "problems with crossfading out of cache into new timeStretcher");
 
 // Returning false means instant unassign
 bool VoiceSample::render(SamplePlaybackGuide* guide, int32_t* __restrict__ outputBuffer, int numSamples, Sample* sample,
@@ -693,15 +693,18 @@ readCachedWindow:
 		bytesTilThisWindowEnd = getMin(bytesTilThisWindowEnd, bytesTilLoopEndPoint);
 		bytesTilThisWindowEnd = getMin(bytesTilThisWindowEnd, bytesTilWaveformEnd);
 
-#if CACHE_BYTE_DEPTH == 3
-		int samplesTilThisWindowEnd =
-		    (uint32_t)(bytesTilThisWindowEnd - 1) / (uint8_t)(sampleSourceNumChannels * CACHE_BYTE_DEPTH)
-		    + 1; // Round up
-#else
-		int samplesTilThisWindowEnd = bytesTilThisWindowEnd >> CACHE_BYTE_DEPTH_MAGNITUDE;
-		if (sampleSourceNumChannels == 2)
-			samplesTilThisWindowEnd >>= 1;
-#endif
+		int samplesTilThisWindowEnd;
+		if constexpr (CACHE_BYTE_DEPTH == 3) {
+			samplesTilThisWindowEnd =
+			    (uint32_t)(bytesTilThisWindowEnd - 1) / (uint8_t)(sampleSourceNumChannels * CACHE_BYTE_DEPTH)
+			    + 1; // Round up
+		}
+		else {
+			samplesTilThisWindowEnd = bytesTilThisWindowEnd >> CACHE_BYTE_DEPTH_MAGNITUDE;
+			if (sampleSourceNumChannels == 2) {
+				samplesTilThisWindowEnd >>= 1;
+			}
+		}
 
 		if (samplesTilThisWindowEnd < numSamplesThisCacheRead) {
 			numSamplesThisCacheRead =
@@ -759,11 +762,13 @@ readCachedWindow:
 
 		// Need to also keep track of the un-cached play-pos so we can switch back if needed
 
-#if CACHE_BYTE_DEPTH == 3
-		uint32_t cacheSamplePos = (uint32_t)cacheBytePos / CACHE_BYTE_DEPTH;
-#else
-		uint32_t cacheSamplePos = cacheBytePos >> CACHE_BYTE_DEPTH_MAGNITUDE;
-#endif
+		uint32_t cacheSamplePos = 0;
+		if constexpr (CACHE_BYTE_DEPTH == 3) {
+			cacheSamplePos = (uint32_t)cacheBytePos / CACHE_BYTE_DEPTH;
+		}
+		else {
+			cacheSamplePos = cacheBytePos >> CACHE_BYTE_DEPTH_MAGNITUDE;
+		}
 
 		if (sampleSourceNumChannels == 2) {
 			cacheSamplePos >>= 1;
@@ -867,11 +872,10 @@ uncachedPlayback:
 			int bytePosWithinCluster = cache->writeBytePos & (audioFileManager.clusterSize - 1);
 
 			// If just entering brand new Cluster, we need to allocate it first
-#if CACHE_BYTE_DEPTH == 3
-			if (bytePosWithinCluster < sampleSourceNumChannels * CACHE_BYTE_DEPTH) {
-#else
-			if (bytePosWithinCluster == 0) {
-#endif
+			const bool condition = CACHE_BYTE_DEPTH == 3
+			                           ? bytePosWithinCluster < sampleSourceNumChannels * CACHE_BYTE_DEPTH
+			                           : bytePosWithinCluster == 0;
+			if (condition) {
 
 				bool setupSuccess = cache->setupNewCluster(cacheClusterIndex);
 				if (!setupSuccess) {
@@ -896,15 +900,19 @@ uncachedPlayback:
 			int cachingBytesTilUncachedReadEnd = getMin(cachingBytesTilClusterEnd, cachingBytesTilLoopEnd);
 			cachingBytesTilUncachedReadEnd = getMin(cachingBytesTilUncachedReadEnd, cachingBytesTilWaveformEnd);
 
-#if CACHE_BYTE_DEPTH == 3
-			int cachingSamplesTilUncachedReadEnd =
-			    (uint32_t)(cachingBytesTilUncachedReadEnd - 1) / (uint8_t)(sampleSourceNumChannels * CACHE_BYTE_DEPTH)
-			    + 1; // Round up
-#else
-			int cachingSamplesTilUncachedReadEnd = cachingBytesTilUncachedReadEnd >> CACHE_BYTE_DEPTH_MAGNITUDE;
-			if (sampleSourceNumChannels == 2)
-				cachingSamplesTilUncachedReadEnd >>= 1;
-#endif
+			int cachingSamplesTilUncachedReadEnd = 0;
+
+			if constexpr (CACHE_BYTE_DEPTH == 3) {
+				cachingSamplesTilUncachedReadEnd = (uint32_t)(cachingBytesTilUncachedReadEnd - 1)
+				                                       / (uint8_t)(sampleSourceNumChannels * CACHE_BYTE_DEPTH)
+				                                   + 1; // Round up
+			}
+			else {
+				cachingSamplesTilUncachedReadEnd = cachingBytesTilUncachedReadEnd >> CACHE_BYTE_DEPTH_MAGNITUDE;
+				if (sampleSourceNumChannels == 2) {
+					cachingSamplesTilUncachedReadEnd >>= 1;
+				}
+			}
 
 			if (cachingSamplesTilUncachedReadEnd < numSamplesThisUncachedRead) {
 				numSamplesThisUncachedRead =

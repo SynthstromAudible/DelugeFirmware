@@ -15,6 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "definitions_cxx.hpp"
+#include "modulation/params/param_manager.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
 #include "model/clip/instrument_clip.h"
@@ -97,14 +99,19 @@ void SoundInstrument::renderOutput(ModelStack* modelStack, StereoSample* startPo
 
 	if (playbackHandler.isEitherClockActive() && !playbackHandler.ticksLeftInCountIn && isClipActive) {
 
-		ParamCollectionSummary* patchedParamsSummary =
-		    &modelStackWithThreeMainThings->paramManager
-		         ->summaries[1]; // No time to call the proper function and do error checking, sorry.
-		if (patchedParamsSummary->whichParamsAreInterpolating[0] || patchedParamsSummary->whichParamsAreInterpolating[1]
-#if NUM_PARAMS > 64
-		    || patchedParamsSummary->whichParamsAreInterpolating[2]
-#endif
-		) {
+		// No time to call the proper function and do error checking, sorry.
+		ParamCollectionSummary* patchedParamsSummary = &modelStackWithThreeMainThings->paramManager->summaries[1];
+		bool anyInterpolating = false;
+		if constexpr (NUM_PARAMS > 64) {
+			anyInterpolating = patchedParamsSummary->whichParamsAreInterpolating[0]
+			                   || patchedParamsSummary->whichParamsAreInterpolating[1]
+			                   || patchedParamsSummary->whichParamsAreInterpolating[2];
+		}
+		else {
+			anyInterpolating = patchedParamsSummary->whichParamsAreInterpolating[0]
+			                   || patchedParamsSummary->whichParamsAreInterpolating[1];
+		}
+		if (anyInterpolating) {
 yesTickParamManagerForClip:
 			modelStackWithThreeMainThings->paramManager->toForTimeline()->tickSamples(numSamples,
 			                                                                          modelStackWithThreeMainThings);
@@ -113,51 +120,64 @@ yesTickParamManagerForClip:
 
 			// Try other options too.
 
-			ParamCollectionSummary* unpatchedParamsSummary =
-			    &modelStackWithThreeMainThings->paramManager
-			         ->summaries[0]; // No time to call the proper function and do error checking, sorry.
-			if (unpatchedParamsSummary->whichParamsAreInterpolating[0]
-#if MAX_NUM_UNPATCHED_PARAM_FOR_SOUNDS > 32
-			    || unpatchedParamsSummary->whichParamsAreInterpolating[1]
-#endif
-			) {
-				goto yesTickParamManagerForClip;
+			// No time to call the proper function and do error checking, sorry.
+			ParamCollectionSummary* unpatchedParamsSummary = &modelStackWithThreeMainThings->paramManager->summaries[0];
+			if constexpr (MAX_NUM_UNPATCHED_PARAM_FOR_SOUNDS > 32) {
+				if (unpatchedParamsSummary->whichParamsAreInterpolating[0]
+				    || unpatchedParamsSummary->whichParamsAreInterpolating[1]) {
+					goto yesTickParamManagerForClip;
+				}
+			}
+			else {
+				if (unpatchedParamsSummary->whichParamsAreInterpolating[0]) {
+					goto yesTickParamManagerForClip;
+				}
 			}
 
-			ParamCollectionSummary* patchCablesSummary =
-			    &modelStackWithThreeMainThings->paramManager
-			         ->summaries[2]; // No time to call the proper function and do error checking, sorry.
-			if (patchCablesSummary->whichParamsAreInterpolating[0]
-#if MAX_NUM_PATCH_CABLES > 32
-			    || patchCablesSummary->whichParamsAreInterpolating[1]
-#endif
-			) {
-				goto yesTickParamManagerForClip;
+			// No time to call the proper function and do error checking, sorry.
+			ParamCollectionSummary* patchCablesSummary = &modelStackWithThreeMainThings->paramManager->summaries[2];
+			if constexpr (MAX_NUM_PATCH_CABLES > 32) {
+				if (patchCablesSummary->whichParamsAreInterpolating[0]
+				    || patchCablesSummary->whichParamsAreInterpolating[1]) {
+					goto yesTickParamManagerForClip;
+				}
+			}
+			else {
+				if (patchCablesSummary->whichParamsAreInterpolating[0]) {
+					goto yesTickParamManagerForClip;
+				}
 			}
 
+			// No time to call the proper function and do error checking, sorry.
 			ParamCollectionSummary* expressionParamsSummary =
-			    &modelStackWithThreeMainThings->paramManager
-			         ->summaries[3]; // No time to call the proper function and do error checking, sorry.
-			if (expressionParamsSummary->whichParamsAreInterpolating[0]
-#if NUM_EXPRESSION_DIMENSIONS > 32
-			    || expressionParamsSummary->whichParamsAreInterpolating[1]
-#endif
-			) {
-				goto yesTickParamManagerForClip;
+			    &modelStackWithThreeMainThings->paramManager->summaries[3];
+			if constexpr (NUM_EXPRESSION_DIMENSIONS > 32) {
+				if (expressionParamsSummary->whichParamsAreInterpolating[0]
+				    || expressionParamsSummary->whichParamsAreInterpolating[1]) {
+					goto yesTickParamManagerForClip;
+				}
+			}
+			else {
+				if (expressionParamsSummary->whichParamsAreInterpolating[0]) {
+					goto yesTickParamManagerForClip;
+				}
 			}
 		}
 
 		// Do the ParamManagers of each NoteRow, too
 		for (int i = 0; i < ((InstrumentClip*)activeClip)->noteRows.getNumElements(); i++) {
 			NoteRow* thisNoteRow = ((InstrumentClip*)activeClip)->noteRows.getElement(i);
-			ParamCollectionSummary* expressionParamsSummary =
-			    &thisNoteRow->paramManager
-			         .summaries[0]; // No time to call the proper function and do error checking, sorry.
-			if (expressionParamsSummary->whichParamsAreInterpolating[0]
-#if NUM_EXPRESSION_DIMENSIONS > 32
-			    || expressionParamsSummary->whichParamsAreInterpolating[1]
-#endif
-			) {
+			// No time to call the proper function and do error checking, sorry.
+			ParamCollectionSummary* expressionParamsSummary = &thisNoteRow->paramManager.summaries[0];
+			bool result = false;
+			if constexpr (NUM_EXPRESSION_DIMENSIONS > 32) {
+				result = expressionParamsSummary->whichParamsAreInterpolating[0]
+				         || expressionParamsSummary->whichParamsAreInterpolating[1];
+			}
+			else {
+				result = expressionParamsSummary->whichParamsAreInterpolating[0];
+			}
+			if (result) {
 				modelStackWithThreeMainThings->setNoteRow(thisNoteRow, thisNoteRow->y);
 				modelStackWithThreeMainThings->paramManager = &thisNoteRow->paramManager;
 				thisNoteRow->paramManager.tickSamples(numSamples, modelStackWithThreeMainThings);
@@ -440,7 +460,8 @@ bool SoundInstrument::noteIsOn(int noteCode) {
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 
 	if (arpSettings) {
-		if (arpSettings->mode != ArpMode::OFF || polyphonic == PolyphonyMode::LEGATO || polyphonic == PolyphonyMode::MONO) {
+		if (arpSettings->mode != ArpMode::OFF || polyphonic == PolyphonyMode::LEGATO
+		    || polyphonic == PolyphonyMode::MONO) {
 
 			int n = arpeggiator.notes.search(noteCode, GREATER_OR_EQUAL);
 			if (n >= arpeggiator.notes.getNumElements()) {

@@ -5,7 +5,7 @@ namespace hid {
 
 namespace button {
 
-struct xy toXY(Button b) {
+Cartesian toXY(Button b) {
 	int y = (unsigned int)b / 9;
 	int x = b - y * 9;
 	y -= displayHeight * 2;

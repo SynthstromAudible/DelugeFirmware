@@ -38,23 +38,25 @@ extern "C" {
 }
 
 void flagCable(uint32_t* flags, int c) {
-	flags[
-#if NUM_UINTS_TO_REP_PATCH_CABLES > 1
-	    c >> 5
-#else
-	    0
-#endif
-	] |= ((uint32_t)1 << (c & 31));
+	int idx;
+	if constexpr (NUM_UINTS_TO_REP_PATCH_CABLES > 1) {
+		idx = c >> 5;
+	}
+	else {
+		idx = 0;
+	}
+	flags[idx] |= ((uint32_t)1 << (c & 31));
 }
 
 void unflagCable(uint32_t* flags, int c) {
-	flags[
-#if NUM_UINTS_TO_REP_PATCH_CABLES > 1
-	    c >> 5
-#else
-	    0
-#endif
-	] &= ~((uint32_t)1 << (c & 31));
+	int idx;
+	if constexpr (NUM_UINTS_TO_REP_PATCH_CABLES > 1) {
+		idx = c >> 5;
+	}
+	else {
+		idx = 0;
+	}
+	flags[idx] &= ~((uint32_t)1 << (c & 31));
 }
 
 inline void PatchCableSet::freeDestinationMemory(bool destructing) {
@@ -313,7 +315,8 @@ goAgainWithoutIncrement:
 
 				// And, any time the cable whose range we're adjusting recomputes, we need to also recompute its range so that that value is handy.
 				// TODO: if we ever wanted to allow another level of range-adjustment, this would probably need expanding.
-				destination->sources |= 1 << util::to_underlying(destination->destinationParamDescriptor.getBottomLevelSource());
+				destination->sources |=
+				    1 << util::to_underlying(destination->destinationParamDescriptor.getBottomLevelSource());
 
 				i++;
 			}
@@ -786,7 +789,7 @@ done:
 void PatchCableSet::readPatchCablesFromFile(int32_t readAutomationUpToPos) {
 	numPatchCables = 0;
 
- 	// These are for loading in old-format presets, back when only one "range adjustable cable" was allowed.
+	// These are for loading in old-format presets, back when only one "range adjustable cable" was allowed.
 	PatchSource rangeAdjustableCableS = PatchSource::NOT_AVAILABLE;
 	int rangeAdjustableCableP = 255;
 

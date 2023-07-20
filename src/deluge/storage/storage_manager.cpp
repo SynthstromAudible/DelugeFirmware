@@ -1248,7 +1248,7 @@ int StorageManager::tryReadingFirmwareTagFromFile(char const* tagName, bool igno
 	                 "earliestCompatibleFirmware")) { // If this tag doesn't exist, it's from old firmware so is ok
 		char const* firmwareVersionString = readTagOrAttributeValue();
 		int earliestFirmware = stringToFirmwareVersion(firmwareVersionString);
-		if (earliestFirmware > CURRENT_FIRMWARE_VERSION && !ignoreIncorrectFirmware) {
+		if (earliestFirmware > kCurrentFirmwareVersion && !ignoreIncorrectFirmware) {
 			f_close(&fileSystemStuff.currentFile);
 			return ERROR_FILE_FIRMWARE_VERSION_TOO_NEW;
 		}

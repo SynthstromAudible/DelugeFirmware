@@ -1734,7 +1734,8 @@ traverseClips:
 		// In a perfect world, we'd do this for Kits, MIDI and CV too
 		if (storageManager.firmwareVersionOfFileBeingRead < FIRMWARE_1P5P0_PREBETA
 		    && thisClip->output->type == InstrumentType::SYNTH) {
-			if (((InstrumentClip*)thisClip)->arpSettings.mode != ArpMode::OFF && !((InstrumentClip*)thisClip)->arpSettings.syncLevel) {
+			if (((InstrumentClip*)thisClip)->arpSettings.mode != ArpMode::OFF
+			    && !((InstrumentClip*)thisClip)->arpSettings.syncLevel) {
 				ParamManagerForTimeline* thisParamManager = &thisClip->paramManager;
 				thisParamManager->getPatchedParamSet()->params[PARAM_GLOBAL_ARP_RATE].shiftValues((1 << 30)
 				                                                                                  + (1 << 28));
@@ -2107,13 +2108,11 @@ void Song::renderAudio(StereoSample* outputBuffer, int numSamples, int32_t* reve
 
 	if (playbackHandler.isEitherClockActive() && !playbackHandler.ticksLeftInCountIn
 	    && currentPlaybackMode == &arrangement) {
-
-		if (paramManager.getUnpatchedParamSetSummary()->whichParamsAreInterpolating[0]
-#if MAX_NUM_UNPATCHED_PARAMS > 32
-		    || paramManager.getUnpatchedParamSetSummary()->whichParamsAreInterpolating[1]
-#endif
-		) {
-
+		const bool result = MAX_NUM_UNPATCHED_PARAMS > 32
+		                        ? paramManager.getUnpatchedParamSetSummary()->whichParamsAreInterpolating[0]
+		                              || paramManager.getUnpatchedParamSetSummary()->whichParamsAreInterpolating[1]
+		                        : paramManager.getUnpatchedParamSetSummary()->whichParamsAreInterpolating[0];
+		if (result) {
 			ModelStackWithThreeMainThings* modelStackWithThreeMainThings = addToModelStack(modelStack);
 			paramManager.tickSamples(numSamples, modelStackWithThreeMainThings);
 		}
@@ -3198,8 +3197,9 @@ AudioOutput* Song::getAudioOutputFromName(String* name) {
 }
 
 // You can put name as NULL if it's MIDI or CV
-Instrument* Song::getInstrumentFromPresetSlot(InstrumentType instrumentType, int channel, int channelSuffix, char const* name,
-                                              char const* dirPath, bool searchHibernating, bool searchNonHibernating) {
+Instrument* Song::getInstrumentFromPresetSlot(InstrumentType instrumentType, int channel, int channelSuffix,
+                                              char const* name, char const* dirPath, bool searchHibernating,
+                                              bool searchNonHibernating) {
 
 	if (searchNonHibernating) {
 		for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
@@ -4221,7 +4221,8 @@ void Song::deletingClipInstanceForClip(Output* output, Clip* clip, Action* actio
 		bool deletionDone = false;
 
 		if (action) {
-			deletionDone = action->recordClipExistenceChange(this, &arrangementOnlyClips, clip, ExistenceChangeType::DELETE);
+			deletionDone =
+			    action->recordClipExistenceChange(this, &arrangementOnlyClips, clip, ExistenceChangeType::DELETE);
 			// That call will call pickAnActiveClipIfPossible() whether we like it or not...
 		}
 
@@ -4426,8 +4427,8 @@ displayError:
 			return NULL;
 		}
 
-		result = loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(this, newInstrumentType,
-		                                                                                Availability::INSTRUMENT_UNUSED);
+		result = loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(
+		    this, newInstrumentType, Availability::INSTRUMENT_UNUSED);
 		if (result.error) {
 			goto displayError;
 		}
@@ -4677,7 +4678,8 @@ void Song::getNoteLengthName(char* text, uint32_t noteLength, bool clarifyPerCol
 	getNoteLengthNameFromMagnitude(text, magnitude);
 }
 
-Instrument* Song::getNonAudioInstrumentToSwitchTo(InstrumentType newInstrumentType, Availability availabilityRequirement, int16_t newSlot,
+Instrument* Song::getNonAudioInstrumentToSwitchTo(InstrumentType newInstrumentType,
+                                                  Availability availabilityRequirement, int16_t newSlot,
                                                   int8_t newSubSlot, bool* instrumentWasAlreadyInSong) {
 	int numChannels = (newInstrumentType == InstrumentType::MIDI_OUT) ? 16 : NUM_CV_CHANNELS;
 	Instrument* newInstrument;
@@ -4908,7 +4910,7 @@ Clip* Song::getClipWithOutputAboutToBeginLinearRecording(Output* output) {
 	for (int c = 0; c < sessionClips.getNumElements(); c++) {
 		Clip* clip = sessionClips.getClipAtIndex(c);
 
-		if (clip->output == output && clip->armState  != ArmState::OFF && !isClipActive(clip)
+		if (clip->output == output && clip->armState != ArmState::OFF && !isClipActive(clip)
 		    && clip->wantsToBeginLinearRecording(this)) {
 			return clip;
 		}

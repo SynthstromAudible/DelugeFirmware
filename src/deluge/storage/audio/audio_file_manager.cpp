@@ -1238,47 +1238,11 @@ void AudioFileManager::slowRoutine() {
 		}
 	}
 
-#if ALPHA_OR_BETA_VERSION >= 2
-	// Randomly steal a Cluster for fun. Ok sorry, this code is out of date.
-	if (((uint32_t)getNoise() >> 18) < 1) { // 16
-
-		int q = getRandom255() % (NUM_LOADED_SAMPLE_CHUNK_ALLOCATION_QUEUES - 1);
-		q++;
-
-		int startQ = q;
-
-		int numToSkip = (getRandom255() >> 4) + 1;
-
-		BidirectionalLinkedListNode* node = NULL;
-		while (numToSkip) {
-
-			do {
-				if (!node) {
-					q++;
-					if (q == NUM_LOADED_SAMPLE_CHUNK_ALLOCATION_QUEUES)
-						q = 1;
-					if (q == startQ)
-						break;
-
-					node = availableClusterQueues[q].getFirst();
-				}
-
-				else
-					node = availableClusterQueues[q].getNext(node);
-			} while (!node);
-
-			numToSkip--;
-		}
-
-		if (node) {
-			Uart::print("stealing cluster for fun from queue: ");
-			Uart::println(q);
-			Cluster* cluster = (Cluster*)node;
-			cluster->steal();
-			deallocateCluster(cluster);
-		}
-	}
-#endif
+	// NOTE: (Kate) There was dead code here referencing things that no longer
+	// exist (NUM_LOADED_SAMPLE_CHUNK_ALLOCATION_QUEUES, availableClusterQueues)
+	// It has been removed.
+	// see https://github.com/SynthstromAudible/DelugeFirmware/blob/866a71d0394e259a5b3db9d4fde605511bd1c67d/src/deluge/storage/audio/audio_file_manager.cpp#L1238
+	// for a copy if ever needed
 }
 
 #define REPORT_AWAY_TIME 0

@@ -535,19 +535,24 @@ void Kit::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStac
 
 		for (int i = 0; i < noteRows->getNumElements(); i++) {
 			NoteRow* thisNoteRow = noteRows->getElement(i);
-			if (thisNoteRow->drum
-			    && thisNoteRow->drum->type
-			           == DrumType::SOUND) { // Just don't bother ticking other ones for now - their MPE doesn't need to interpolate.
 
-				ParamCollectionSummary* patchedParamsSummary =
-				    &thisNoteRow->paramManager
-				         .summaries[1]; // No time to call the proper function and do error checking, sorry.
-				if (patchedParamsSummary->whichParamsAreInterpolating[0]
-				    || patchedParamsSummary->whichParamsAreInterpolating[1]
-#if NUM_PARAMS > 64
-				    || patchedParamsSummary->whichParamsAreInterpolating[2]
-#endif
-				) {
+			// Just don't bother ticking other ones for now - their MPE doesn't need to interpolate.
+			if (thisNoteRow->drum && thisNoteRow->drum->type == DrumType::SOUND) {
+
+				// No time to call the proper function and do error checking, sorry.
+				ParamCollectionSummary* patchedParamsSummary = &thisNoteRow->paramManager.summaries[1];
+
+				bool anyInterpolating = false;
+				if constexpr (NUM_PARAMS > 64) {
+					anyInterpolating = patchedParamsSummary->whichParamsAreInterpolating[0]
+					            || patchedParamsSummary->whichParamsAreInterpolating[1]
+					            || patchedParamsSummary->whichParamsAreInterpolating[2];
+				}
+				else {
+					anyInterpolating = patchedParamsSummary->whichParamsAreInterpolating[0]
+					            || patchedParamsSummary->whichParamsAreInterpolating[1];
+				}
+				if (anyInterpolating) {
 yesTickParamManager:
 					ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 					    modelStack->addNoteRow(i, thisNoteRow)
@@ -558,37 +563,46 @@ yesTickParamManager:
 
 				// Try other options too.
 
-				ParamCollectionSummary* unpatchedParamsSummary =
-				    &thisNoteRow->paramManager
-				         .summaries[0]; // No time to call the proper function and do error checking, sorry.
-				if (unpatchedParamsSummary->whichParamsAreInterpolating[0]
-#if MAX_NUM_UNPATCHED_PARAM_FOR_SOUNDS > 32
-				    || unpatchedParamsSummary->whichParamsAreInterpolating[1]
-#endif
-				) {
-					goto yesTickParamManager;
+				// No time to call the proper function and do error checking, sorry.
+				ParamCollectionSummary* unpatchedParamsSummary = &thisNoteRow->paramManager.summaries[0];
+				if constexpr (MAX_NUM_UNPATCHED_PARAM_FOR_SOUNDS > 32) {
+					if (unpatchedParamsSummary->whichParamsAreInterpolating[0]
+					    || unpatchedParamsSummary->whichParamsAreInterpolating[1]) {
+						goto yesTickParamManager;
+					}
+				}
+				else {
+					if (unpatchedParamsSummary->whichParamsAreInterpolating[0]) {
+						goto yesTickParamManager;
+					}
 				}
 
-				ParamCollectionSummary* patchCablesSummary =
-				    &thisNoteRow->paramManager
-				         .summaries[2]; // No time to call the proper function and do error checking, sorry.
-				if (patchCablesSummary->whichParamsAreInterpolating[0]
-#if MAX_NUM_PATCH_CABLES > 32
-				    || patchCablesSummary->whichParamsAreInterpolating[1]
-#endif
-				) {
-					goto yesTickParamManager;
+				// No time to call the proper function and do error checking, sorry.
+				ParamCollectionSummary* patchCablesSummary = &thisNoteRow->paramManager.summaries[2];
+				if constexpr (MAX_NUM_PATCH_CABLES > 32) {
+					if (patchCablesSummary->whichParamsAreInterpolating[0]
+					    || patchCablesSummary->whichParamsAreInterpolating[1]) {
+						goto yesTickParamManager;
+					}
+				}
+				else {
+					if (patchCablesSummary->whichParamsAreInterpolating[0]) {
+						goto yesTickParamManager;
+					}
 				}
 
-				ParamCollectionSummary* expressionParamsSummary =
-				    &thisNoteRow->paramManager
-				         .summaries[3]; // No time to call the proper function and do error checking, sorry.
-				if (expressionParamsSummary->whichParamsAreInterpolating[0]
-#if NUM_EXPRESSION_DIMENSIONS > 32
-				    || expressionParamsSummary->whichParamsAreInterpolating[1]
-#endif
-				) {
-					goto yesTickParamManager;
+				// No time to call the proper function and do error checking, sorry.
+				ParamCollectionSummary* expressionParamsSummary = &thisNoteRow->paramManager.summaries[3];
+				if constexpr (NUM_EXPRESSION_DIMENSIONS > 32) {
+					if (expressionParamsSummary->whichParamsAreInterpolating[0]
+					    || expressionParamsSummary->whichParamsAreInterpolating[1]) {
+						goto yesTickParamManager;
+					}
+				}
+				else {
+					if (expressionParamsSummary->whichParamsAreInterpolating[0]) {
+						goto yesTickParamManager;
+					}
 				}
 				// Was that right? Until Jan 2022 I didn't have it checking for expression params automation here for some reason...
 			}
@@ -897,7 +911,8 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 		NoteRow* thisNoteRow = ((InstrumentClip*)activeClip)->noteRows.getElement(i);
 		if (thisNoteRow->drum
 		    && thisNoteRow->drum->type
-		           == DrumType::SOUND) { // For now, only SoundDrums have Arps, but that's actually a kinda pointless restriction...
+		           == DrumType::
+		               SOUND) { // For now, only SoundDrums have Arps, but that's actually a kinda pointless restriction...
 			SoundDrum* soundDrum = (SoundDrum*)thisNoteRow->drum;
 
 			ArpReturnInstruction instruction;
