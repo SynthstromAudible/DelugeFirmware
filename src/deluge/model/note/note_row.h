@@ -168,7 +168,7 @@ public:
 	void getMPEValues(ModelStackWithNoteRow* modelStack, int16_t* mpeValues);
 	void clearMPEUpUntilNextNote(ModelStackWithNoteRow* modelStack, int32_t pos, int32_t wrapEditLevel,
 	                             bool shouldJustDeleteNodes = false);
-	int getEffectiveSequenceDirectionMode(ModelStackWithNoteRow const* modelStack);
+	SequenceDirection getEffectiveSequenceDirectionMode(ModelStackWithNoteRow const* modelStack);
 	bool recordPolyphonicExpressionEvent(ModelStackWithNoteRow* modelStackWithNoteRow, int32_t newValueBig,
 	                                     int whichExpressionDimension, bool forDrum);
 	void setSequenceDirectionMode(ModelStackWithNoteRow* modelStack, SequenceDirection newMode);

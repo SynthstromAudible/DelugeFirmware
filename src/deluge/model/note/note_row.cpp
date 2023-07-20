@@ -63,7 +63,7 @@ NoteRow::NoteRow(int16_t newY) {
 	skipNextNote = false;
 
 	loopLengthIfIndependent = 0;
-	sequenceDirectionMode = SEQUENCE_DIRECTION_OBEY_PARENT;
+	sequenceDirectionMode = SequenceDirection::OBEY_PARENT;
 }
 
 NoteRow::~NoteRow() {
@@ -99,7 +99,7 @@ int NoteRow::beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenRev
 
 	int numNotes = notes.getNumElements();
 	bool flatteningReversingNow =
-	    (shouldFlattenReversing && getEffectiveSequenceDirectionMode(modelStack) == SEQUENCE_DIRECTION_REVERSE);
+	    (shouldFlattenReversing && getEffectiveSequenceDirectionMode(modelStack) == SequenceDirection::REVERSE);
 
 	int32_t reverseWithLength = flatteningReversingNow ? effectiveLength : 0;
 
@@ -191,8 +191,8 @@ int NoteRow::beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenRev
 		error = notes.beenCloned();
 	}
 
-	if (shouldFlattenReversing && sequenceDirectionMode != SEQUENCE_DIRECTION_PINGPONG) {
-		sequenceDirectionMode = SEQUENCE_DIRECTION_OBEY_PARENT;
+	if (shouldFlattenReversing && sequenceDirectionMode != SequenceDirection::PINGPONG) {
+		sequenceDirectionMode = SequenceDirection::OBEY_PARENT;
 	}
 	// Pingponging won't have been flattened by a single clone. And we may be about to flatten it with a generateRepeats(), so need to keep this designation for now.
 
@@ -826,7 +826,7 @@ void NoteRow::recordNoteOff(uint32_t noteOffPos, ModelStackWithNoteRow* modelSta
 	if (wrapping) {
 
 		// If pingponging, do something quite unique
-		if (getEffectiveSequenceDirectionMode(modelStack) == SEQUENCE_DIRECTION_PINGPONG) {
+		if (getEffectiveSequenceDirectionMode(modelStack) == SequenceDirection::PINGPONG) {
 			note = notes.getElement((notes.getNumElements() - 1) * reversed); // Will be 0 if playing forwards
 			newNoteLeftPos = note->pos * reversed;                            // Will be 0 if playing forwards
 			newLength = reversed ? (effectiveLength - note->pos) : (note->pos + note->length);
@@ -1635,8 +1635,8 @@ void NoteRow::renderRow(TimelineView* editorScreen, uint8_t rowColour[], uint8_t
 	    != xEnd); // This will only do another repeat if we'd modified xEndNow, which can only happen if drawRepeats
 }
 
-int NoteRow::getEffectiveSequenceDirectionMode(ModelStackWithNoteRow const* modelStack) {
-	if (sequenceDirectionMode == SEQUENCE_DIRECTION_OBEY_PARENT) {
+SequenceDirection NoteRow::getEffectiveSequenceDirectionMode(ModelStackWithNoteRow const* modelStack) {
+	if (sequenceDirectionMode == SequenceDirection::OBEY_PARENT) {
 		return ((Clip*)modelStack->getTimelineCounter())->sequenceDirectionMode;
 	}
 	else {
@@ -1697,7 +1697,7 @@ int32_t NoteRow::processCurrentPos(ModelStackWithNoteRow* modelStack, int32_t ti
 			// NoteRows and stuff to know the direction as they're processed and predict what notes we're going to hit next etc.
 			if (!lastProcessedPosIfIndependent) { // Possibly only just became the case
 				repeatCountIfIndependent++;
-				if (getEffectiveSequenceDirectionMode(modelStack) == SEQUENCE_DIRECTION_PINGPONG) {
+				if (getEffectiveSequenceDirectionMode(modelStack) == SequenceDirection::PINGPONG) {
 					lastProcessedPosIfIndependent = -lastProcessedPosIfIndependent; // In case it did get left of zero.
 					currentlyPlayingReversedIfIndependent = playingReversedNow = !playingReversedNow;
 					didPingpong = true;
@@ -1715,7 +1715,7 @@ int32_t NoteRow::processCurrentPos(ModelStackWithNoteRow* modelStack, int32_t ti
 				lastProcessedPosIfIndependent -= effectiveLength;
 				repeatCountIfIndependent++;
 
-				if (getEffectiveSequenceDirectionMode(modelStack) == SEQUENCE_DIRECTION_PINGPONG) {
+				if (getEffectiveSequenceDirectionMode(modelStack) == SequenceDirection::PINGPONG) {
 					// Normally we'll have hit the exact loop point, meaning lastProcessedPos will have wrapped to 0, above. But
 					// just in case we went further, and need to wrap back to somewhere nearish the right-hand edge of the Clip...
 					if (lastProcessedPosIfIndependent > 0) {
@@ -1800,7 +1800,7 @@ stopNote:
 				searchLessThan += (bool)playingReversedNow;
 				// Buuut, a special condition for pingponging to allow notes touching the right-end of this Clip / NoteRow to just keep sounding as the direction changes.
 				// Nah actually don't do that.
-				//&& (effectiveCurrentPos || getEffectiveSequenceDirectionMode(modelStack) != SEQUENCE_DIRECTION_PINGPONG));
+				//&& (effectiveCurrentPos || getEffectiveSequenceDirectionMode(modelStack) != SequenceDirection::PINGPONG));
 
 				int i = notes.search(searchLessThan, LESS);
 				bool wrapping = (i == -1);
@@ -2361,7 +2361,7 @@ basicTrim:
 bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoopLength, uint32_t newLoopLength,
                               int numRepeatsRounded, Action* action) {
 
-	bool pingponging = (getEffectiveSequenceDirectionMode(modelStack) == SEQUENCE_DIRECTION_PINGPONG);
+	bool pingponging = (getEffectiveSequenceDirectionMode(modelStack) == SequenceDirection::PINGPONG);
 
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 	    modelStack->addOtherTwoThingsAutomaticallyGivenNoteRow();
@@ -2370,11 +2370,11 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 
 	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
 
-	if (sequenceDirectionMode == SEQUENCE_DIRECTION_PINGPONG) {
+	if (sequenceDirectionMode == SequenceDirection::PINGPONG) {
 		// Pingponging is being flattened out, and although there are arguments either way, I think removing that setting now is best.
-		sequenceDirectionMode = (clip->sequenceDirectionMode == SEQUENCE_DIRECTION_REVERSE)
-		                            ? SEQUENCE_DIRECTION_FORWARD
-		                            : SEQUENCE_DIRECTION_OBEY_PARENT;
+		sequenceDirectionMode = (clip->sequenceDirectionMode == SequenceDirection::REVERSE)
+		                            ? SequenceDirection::FORWARD
+		                            : SequenceDirection::OBEY_PARENT;
 	}
 
 	int32_t numNotesBefore = notes.getNumElements();
@@ -3032,7 +3032,7 @@ void NoteRow::writeToFile(int drumIndex, InstrumentClip* clip) {
 	if (loopLengthIfIndependent) {
 		storageManager.writeAttribute("length", loopLengthIfIndependent);
 	}
-	if (sequenceDirectionMode != SEQUENCE_DIRECTION_OBEY_PARENT) {
+	if (sequenceDirectionMode != SequenceDirection::OBEY_PARENT) {
 		storageManager.writeAttribute("sequenceDirection", sequenceDirectionModeToString(sequenceDirectionMode));
 	}
 
@@ -3482,9 +3482,9 @@ int NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWith
 	NoteRow* otherNoteRow = otherModelStack->getNoteRow();
 	InstrumentClip* clip = (InstrumentClip*)thisModelStack->getTimelineCounter();
 
-	int effectiveSequenceDirectionMode = otherNoteRow->getEffectiveSequenceDirectionMode(otherModelStack);
-	bool pingpongingGenerally = effectiveSequenceDirectionMode == SEQUENCE_DIRECTION_PINGPONG;
-	bool reversingNow = (effectiveSequenceDirectionMode == SEQUENCE_DIRECTION_REVERSE
+	SequenceDirection effectiveSequenceDirectionMode = otherNoteRow->getEffectiveSequenceDirectionMode(otherModelStack);
+	bool pingpongingGenerally = effectiveSequenceDirectionMode == SequenceDirection::PINGPONG;
+	bool reversingNow = (effectiveSequenceDirectionMode == SequenceDirection::REVERSE
 	                     || (pingpongingGenerally && (whichRepeatThisIs & 1)));
 
 	if (paramManager.containsAnyParamCollectionsIncludingExpression()
@@ -3747,7 +3747,7 @@ uint32_t NoteRow::getLivePos(ModelStackWithNoteRow const* modelStack) {
 }
 
 bool NoteRow::hasIndependentPlayPos() {
-	return (loopLengthIfIndependent || sequenceDirectionMode != SEQUENCE_DIRECTION_OBEY_PARENT);
+	return (loopLengthIfIndependent || sequenceDirectionMode != SequenceDirection::OBEY_PARENT);
 }
 
 void NoteRow::getMPEValues(ModelStackWithNoteRow* modelStack, int16_t* mpeValues) {
@@ -3868,14 +3868,14 @@ void NoteRow::setSequenceDirectionMode(ModelStackWithNoteRow* modelStack, Sequen
 	lastProcessedPosIfIndependent = lastProcessedPosBefore; // We might change this, below.
 
 	// If now pingponging...
-	if (getEffectiveSequenceDirectionMode(modelStack) == SEQUENCE_DIRECTION_PINGPONG) {
+	if (getEffectiveSequenceDirectionMode(modelStack) == SequenceDirection::PINGPONG) {
 		currentlyPlayingReversedIfIndependent = reversedBefore;
 	}
 
 	// Or if now *not* pingponging...
 	else {
 		// Won't necessarily have an effect - if we're now set to obey-parent.
-		currentlyPlayingReversedIfIndependent = (newMode == SEQUENCE_DIRECTION_REVERSE);
+		currentlyPlayingReversedIfIndependent = (newMode == SequenceDirection::REVERSE);
 
 		// If we just changed direction...
 		if (reversedBefore != modelStack->isCurrentlyPlayingReversed()) {

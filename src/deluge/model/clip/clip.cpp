@@ -61,7 +61,7 @@ Clip::Clip(int newType) : type(newType) {
 	armedForRecording = true;
 
 #if HAVE_SEQUENCE_STEP_CONTROL
-	sequenceDirectionMode = SEQUENCE_DIRECTION_FORWARD;
+	sequenceDirectionMode = SequenceDirection::FORWARD;
 #endif
 }
 
@@ -214,7 +214,7 @@ void Clip::processCurrentPos(ModelStackWithTimelineCounter* modelStack, uint32_t
 			// But in some cases, we might have got here and still need to pingpong (if length changed or something?), so go check that.
 			// Actually wait, don't, because doing one normal pingpong from forward to reverse will put us in this position, and
 			// we don't want to do a second pingpong right after, or else there's effectively no proper pingpong!
-			// if (sequenceDirectionMode == SEQUENCE_DIRECTION_PINGPONG) goto doPingpongReversed;
+			// if (sequenceDirectionMode == SequenceDirection::PINGPONG) goto doPingpongReversed;
 
 			lastProcessedPos += loopLength;
 			//repeatCount++;
@@ -240,7 +240,7 @@ void Clip::processCurrentPos(ModelStackWithTimelineCounter* modelStack, uint32_t
 		// NoteRows and stuff to know the direction as they're processed and predict what notes we're going to hit next etc.
 		if (!lastProcessedPos) { // Possibly only just became the case, above.
 			repeatCount++;
-			if (sequenceDirectionMode == SEQUENCE_DIRECTION_PINGPONG) {
+			if (sequenceDirectionMode == SequenceDirection::PINGPONG) {
 				lastProcessedPos = -lastProcessedPos; // In case it did get left of zero.
 				currentlyPlayingReversed = !currentlyPlayingReversed;
 				pingpongOccurred(modelStack);
@@ -266,7 +266,7 @@ playingForwardNow:
 			lastProcessedPos -= loopLength;
 			repeatCount++;
 
-			if (sequenceDirectionMode == SEQUENCE_DIRECTION_PINGPONG) {
+			if (sequenceDirectionMode == SequenceDirection::PINGPONG) {
 				// Normally we'll have hit the exact loop point, meaning lastProcessedPos will have wrapped to 0, above. But
 				// just in case we went further, and need to wrap back to somewhere nearish the right-hand edge of the Clip...
 				if (lastProcessedPos > 0) {
@@ -307,11 +307,11 @@ int Clip::appendClip(ModelStackWithTimelineCounter* thisModelStack, ModelStackWi
 	if (paramManager.containsAnyParamCollectionsIncludingExpression()
 	    && otherClip->paramManager.containsAnyParamCollectionsIncludingExpression()) {
 
-		bool pingpongingGenerally = (otherClip->sequenceDirectionMode == SEQUENCE_DIRECTION_PINGPONG);
+		bool pingpongingGenerally = (otherClip->sequenceDirectionMode == SequenceDirection::PINGPONG);
 
 		bool shouldReverseThisRepeat =
 		    (pingpongingGenerally && (((uint32_t)loopLength / (uint32_t)otherClip->loopLength) & 1))
-		    || (otherClip->sequenceDirectionMode == SEQUENCE_DIRECTION_REVERSE);
+		    || (otherClip->sequenceDirectionMode == SequenceDirection::REVERSE);
 
 		int32_t reverseThisRepeatWithLength = shouldReverseThisRepeat ? otherClip->loopLength : 0;
 
@@ -346,8 +346,8 @@ void Clip::setPos(ModelStackWithTimelineCounter* modelStack, int32_t newPos, boo
 
 	currentlyPlayingReversed =
 	    (sequenceDirectionMode
-	         == SEQUENCE_DIRECTION_REVERSE // Syncing pingponging with repeatCount is particularly important for when resuming after
-	     || (sequenceDirectionMode == SEQUENCE_DIRECTION_PINGPONG
+	         == SequenceDirection::REVERSE // Syncing pingponging with repeatCount is particularly important for when resuming after
+	     || (sequenceDirectionMode == SequenceDirection::PINGPONG
 	         && (repeatCount & 1))); // recording a clone of this Clip from session to arranger.
 
 	if (currentlyPlayingReversed) {
@@ -634,7 +634,7 @@ void Clip::writeDataToFile(Song* song) {
 	storageManager.writeAttribute("isSoloing", soloingInSessionMode);
 	storageManager.writeAttribute("isArmedForRecording", armedForRecording);
 	storageManager.writeAttribute("length", loopLength);
-	if (sequenceDirectionMode != SEQUENCE_DIRECTION_FORWARD) {
+	if (sequenceDirectionMode != SequenceDirection::FORWARD) {
 		storageManager.writeAttribute("sequenceDirection", sequenceDirectionModeToString(sequenceDirectionMode));
 	}
 	storageManager.writeAttribute("colourOffset", colourOffset);
@@ -962,8 +962,8 @@ void Clip::setSequenceDirectionMode(ModelStackWithTimelineCounter* modelStack, S
 	bool reversedBefore = currentlyPlayingReversed;
 	sequenceDirectionMode = newMode;
 
-	if (newMode != SEQUENCE_DIRECTION_PINGPONG) {
-		currentlyPlayingReversed = (newMode == SEQUENCE_DIRECTION_REVERSE);
+	if (newMode != SequenceDirection::PINGPONG) {
+		currentlyPlayingReversed = (newMode == SequenceDirection::REVERSE);
 
 		if (reversedBefore != currentlyPlayingReversed) {
 			lastProcessedPos = loopLength - lastProcessedPos;

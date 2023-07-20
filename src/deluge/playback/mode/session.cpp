@@ -2230,7 +2230,7 @@ int32_t Session::getPosAtWhichClipWillCut(ModelStackWithTimelineCounter const* m
 	}
 
 	// If pingponging, that's actually going to get referred to as a cut.
-	if (clip->sequenceDirectionMode == SEQUENCE_DIRECTION_PINGPONG) {
+	if (clip->sequenceDirectionMode == SequenceDirection::PINGPONG) {
 		if (clip->currentlyPlayingReversed) {
 			if (cutPos < 0) {
 				cutPos =

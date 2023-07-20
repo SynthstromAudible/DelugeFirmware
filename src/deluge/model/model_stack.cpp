@@ -63,9 +63,9 @@ bool ModelStackWithNoteRow::isCurrentlyPlayingReversed() const {
 
 	// Under a few different conditions, we just use the parent Clip's reversing status.
 	if (!noteRow
-	    || (noteRow->sequenceDirectionMode == SEQUENCE_DIRECTION_OBEY_PARENT
+	    || (noteRow->sequenceDirectionMode == SequenceDirection::OBEY_PARENT
 	        && (!noteRow->loopLengthIfIndependent
-	            || ((Clip*)getTimelineCounter())->sequenceDirectionMode != SEQUENCE_DIRECTION_PINGPONG))) {
+	            || ((Clip*)getTimelineCounter())->sequenceDirectionMode != SequenceDirection::PINGPONG))) {
 		return ((Clip*)getTimelineCounter())->currentlyPlayingReversed;
 	}
 
@@ -134,7 +134,7 @@ int32_t ModelStackWithNoteRow::getPosAtWhichPlaybackWillCut() const {
 			}
 
 			// If pingponging, that's actually going to get referred to as a cut.
-			if (noteRow->getEffectiveSequenceDirectionMode(this) == SEQUENCE_DIRECTION_PINGPONG) {
+			if (noteRow->getEffectiveSequenceDirectionMode(this) == SequenceDirection::PINGPONG) {
 				if (reversed) {
 					if (cutPos < 0) {
 						cutPos =

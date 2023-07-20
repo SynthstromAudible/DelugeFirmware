@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "definitions_cxx.hpp"
 #include "gui/views/arranger_view.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
@@ -179,7 +180,7 @@ int InstrumentClip::clone(ModelStackWithTimelineCounter* modelStack, bool should
 	newClip->copyBasicsFrom(this);
 
 	int32_t reverseWithLength = 0;
-	if (shouldFlattenReversing && sequenceDirectionMode == SEQUENCE_DIRECTION_REVERSE) {
+	if (shouldFlattenReversing && sequenceDirectionMode == SequenceDirection::REVERSE) {
 		reverseWithLength = loopLength;
 	}
 
@@ -211,8 +212,8 @@ deleteClipAndGetOut:
 		// If that fails, we have to keep going, cos otherwise some NoteRows' NoteVector will be left pointing to stuff it shouldn't be
 	}
 
-	if (shouldFlattenReversing && newClip->sequenceDirectionMode == SEQUENCE_DIRECTION_REVERSE) {
-		newClip->sequenceDirectionMode = SEQUENCE_DIRECTION_FORWARD;
+	if (shouldFlattenReversing && newClip->sequenceDirectionMode == SequenceDirection::REVERSE) {
+		newClip->sequenceDirectionMode = SequenceDirection::FORWARD;
 	}
 	// Leave PINGPONG as it is, because we haven't actually flattened that - its effect wouldn't be seen until a repeat happened.
 	// And we may be about to flatten it with a increaseLengthWithRepeats(), so need to keep this designation for now.
@@ -274,7 +275,7 @@ void InstrumentClip::increaseLengthWithRepeats(ModelStackWithTimelineCounter* mo
 		}
 	}
 
-	bool pingponging = (sequenceDirectionMode == SEQUENCE_DIRECTION_PINGPONG);
+	bool pingponging = (sequenceDirectionMode == SequenceDirection::PINGPONG);
 
 	if (newLength > loopLength) {
 		ModelStackWithThreeMainThings* modelStackWithParamManager =
@@ -283,8 +284,8 @@ void InstrumentClip::increaseLengthWithRepeats(ModelStackWithTimelineCounter* mo
 	}
 
 	if (pingponging) {
-		sequenceDirectionMode =
-		    SEQUENCE_DIRECTION_FORWARD; // Pingponging has been flattened out, and although there are arguments either way, I think removing that setting now is best.
+		sequenceDirectionMode = SequenceDirection::
+		    FORWARD; // Pingponging has been flattened out, and although there are arguments either way, I think removing that setting now is best.
 	}
 
 	loopLength = newLength;
@@ -344,7 +345,7 @@ void InstrumentClip::repeatOrChopToExactLength(ModelStackWithTimelineCounter* mo
 	}
 
 	if (newLength > loopLength) {
-		bool pingponging = (sequenceDirectionMode == SEQUENCE_DIRECTION_PINGPONG);
+		bool pingponging = (sequenceDirectionMode == SequenceDirection::PINGPONG);
 
 		ModelStackWithThreeMainThings* modelStackWithParamManager =
 		    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager);
@@ -352,8 +353,8 @@ void InstrumentClip::repeatOrChopToExactLength(ModelStackWithTimelineCounter* mo
 		paramManager.generateRepeats(modelStackWithParamManager, loopLength, newLength, pingponging);
 
 		if (pingponging) {
-			sequenceDirectionMode =
-			    SEQUENCE_DIRECTION_FORWARD; // Pingponging has been flattened out, and although there are arguments either way, I think removing that setting now is best.
+			sequenceDirectionMode = SequenceDirection::
+			    FORWARD; // Pingponging has been flattened out, and although there are arguments either way, I think removing that setting now is best.
 		}
 	}
 
@@ -419,14 +420,15 @@ void InstrumentClip::setPos(ModelStackWithTimelineCounter* modelStack, int32_t n
 			// The below basically mirrors the code / logic in Clip::setPos()
 			thisNoteRow->repeatCountIfIndependent = (uint32_t)newPos / (uint32_t)effectiveLoopLength;
 
-			int effectiveSequenceDirectionMode = thisNoteRow->getEffectiveSequenceDirectionMode(modelStackWithNoteRow);
+			SequenceDirection effectiveSequenceDirectionMode =
+			    thisNoteRow->getEffectiveSequenceDirectionMode(modelStackWithNoteRow);
 
+			// Syncing pingponging with repeatCount is particularly important for when resuming after
+			// recording a clone of this Clip from session to arranger.
 			thisNoteRow->currentlyPlayingReversedIfIndependent =
-			    (effectiveSequenceDirectionMode
-			         == SEQUENCE_DIRECTION_REVERSE // Syncing pingponging with repeatCount is particularly important for when resuming after
-			     || (effectiveSequenceDirectionMode == SEQUENCE_DIRECTION_PINGPONG
-			         && (thisNoteRow->repeatCountIfIndependent
-			             & 1))); // recording a clone of this Clip from session to arranger.
+			    (effectiveSequenceDirectionMode == SequenceDirection::REVERSE
+			     || (effectiveSequenceDirectionMode == SequenceDirection::PINGPONG
+			         && (thisNoteRow->repeatCountIfIndependent & 1)));
 
 			thisNoteRow->lastProcessedPosIfIndependent =
 			    newPos - thisNoteRow->repeatCountIfIndependent * effectiveLoopLength;
@@ -3413,7 +3415,8 @@ int InstrumentClip::getYNoteFromYDisplay(int yDisplay, Song* song) {
 }
 
 // Called when the user presses one of the instrument-type buttons (synth/kit/MIDI/CV). This function takes care of deciding what Instrument / preset to switch to.
-Instrument* InstrumentClip::changeInstrumentType(ModelStackWithTimelineCounter* modelStack, InstrumentType newInstrumentType) {
+Instrument* InstrumentClip::changeInstrumentType(ModelStackWithTimelineCounter* modelStack,
+                                                 InstrumentType newInstrumentType) {
 	InstrumentType oldInstrumentType = output->type;
 
 	if (oldInstrumentType == newInstrumentType) {
@@ -3561,17 +3564,19 @@ int InstrumentClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 		const InstrumentType instrumentType = instrumentTypeWhileLoading;
 		const size_t instrumentTypeAsIdx = static_cast<size_t>(instrumentType);
 
-		char const* instrumentName = (instrumentTypeAsIdx < 2) ? backedUpInstrumentName[instrumentTypeAsIdx].get() : NULL;
+		char const* instrumentName =
+		    (instrumentTypeAsIdx < 2) ? backedUpInstrumentName[instrumentTypeAsIdx].get() : NULL;
 		char const* dirPath = (instrumentTypeAsIdx < 2) ? backedUpInstrumentDirPath[instrumentTypeAsIdx].get() : NULL;
 
-		output = modelStack->song->getInstrumentFromPresetSlot(instrumentType, backedUpInstrumentSlot[instrumentTypeAsIdx],
-		                                                       backedUpInstrumentSubSlot[instrumentTypeAsIdx],
-		                                                       instrumentName, dirPath, false);
+		output = modelStack->song->getInstrumentFromPresetSlot(
+		    instrumentType, backedUpInstrumentSlot[instrumentTypeAsIdx], backedUpInstrumentSubSlot[instrumentTypeAsIdx],
+		    instrumentName, dirPath, false);
 
 		if (!output) {
 			if (instrumentType == InstrumentType::MIDI_OUT || instrumentType == InstrumentType::CV) {
-				output = storageManager.createNewNonAudioInstrument(
-				    instrumentType, backedUpInstrumentSlot[instrumentTypeAsIdx], backedUpInstrumentSubSlot[instrumentTypeAsIdx]);
+				output = storageManager.createNewNonAudioInstrument(instrumentType,
+				                                                    backedUpInstrumentSlot[instrumentTypeAsIdx],
+				                                                    backedUpInstrumentSubSlot[instrumentTypeAsIdx]);
 
 				if (!output) {
 					return ERROR_INSUFFICIENT_RAM;
@@ -4169,7 +4174,7 @@ doNormal: // Wrap it back to the start.
 
 			// If we're quantized later to a pingpong-point, we have to consider the play-direction to have changed.
 			if (quantizedLater && !quantizedPos) {
-				if (noteRow->getEffectiveSequenceDirectionMode(modelStack) == SEQUENCE_DIRECTION_PINGPONG) {
+				if (noteRow->getEffectiveSequenceDirectionMode(modelStack) == SequenceDirection::PINGPONG) {
 					reversed = !reversed;
 				}
 			}

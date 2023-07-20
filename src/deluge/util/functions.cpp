@@ -1214,16 +1214,16 @@ AudioInputChannel stringToInputChannel(char const* string) {
 
 char const* sequenceDirectionModeToString(SequenceDirection sequenceDirectionMode) {
 	switch (sequenceDirectionMode) {
-	case SEQUENCE_DIRECTION_FORWARD:
+	case SequenceDirection::FORWARD:
 		return "forward";
 
-	case SEQUENCE_DIRECTION_REVERSE:
+	case SequenceDirection::REVERSE:
 		return "reverse";
 
-	case SEQUENCE_DIRECTION_PINGPONG:
+	case SequenceDirection::PINGPONG:
 		return "pingpong";
 
-	case SEQUENCE_DIRECTION_OBEY_PARENT:
+	case SequenceDirection::OBEY_PARENT:
 		return "none";
 
 	default:
@@ -1234,16 +1234,16 @@ char const* sequenceDirectionModeToString(SequenceDirection sequenceDirectionMod
 
 SequenceDirection stringToSequenceDirectionMode(char const* string) {
 	if (!strcmp(string, "reverse")) {
-		return SEQUENCE_DIRECTION_REVERSE;
+		return SequenceDirection::REVERSE;
 	}
 	else if (!strcmp(string, "pingpong")) {
-		return SEQUENCE_DIRECTION_PINGPONG;
+		return SequenceDirection::PINGPONG;
 	}
 	else if (!strcmp(string, "obeyParent")) {
-		return SEQUENCE_DIRECTION_OBEY_PARENT;
+		return SequenceDirection::OBEY_PARENT;
 	}
 	else {
-		return SEQUENCE_DIRECTION_FORWARD;
+		return SequenceDirection::FORWARD;
 	}
 }
 

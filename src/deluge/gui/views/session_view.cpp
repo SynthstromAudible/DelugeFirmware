@@ -1831,8 +1831,8 @@ void SessionView::graphicsRoutine() {
 				livePos -= whichRepeat * clip->loopLength;
 
 				// But if it's currently reversing, we have to re-apply that here.
-				if (clip->sequenceDirectionMode == SEQUENCE_DIRECTION_REVERSE
-				    || (clip->sequenceDirectionMode == SEQUENCE_DIRECTION_PINGPONG && (whichRepeat & 1))) {
+				if (clip->sequenceDirectionMode == SequenceDirection::REVERSE
+				    || (clip->sequenceDirectionMode == SequenceDirection::PINGPONG && (whichRepeat & 1))) {
 					livePos = -livePos;
 					if (livePos < 0) {
 						livePos += clip->loopLength;
