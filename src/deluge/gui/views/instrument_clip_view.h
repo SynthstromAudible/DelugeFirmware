@@ -198,7 +198,7 @@ private:
 	void drawNoteCode(uint8_t yDisplay);
 	void sendAuditionNote(bool on, uint8_t yDisplay, uint8_t velocity, uint32_t sampleSyncLength);
 	void someAuditioningHasEnded(bool recalculateLastAuditionedNoteOnScreen);
-	void changeInstrumentType(uint8_t newInstrumentType);
+	void changeInstrumentType(InstrumentType newInstrumentType);
 	void setLedStates();
 	void checkIfAllEditPadPressesEnded(bool mayRenderSidebar = true);
 	void endEditPadPress(uint8_t i);
@@ -207,7 +207,7 @@ private:
 	NoteRow* createNewNoteRowForKit(ModelStackWithTimelineCounter* modelStack, int yDisplay, int* getIndex = NULL);
 	void enterDrumCreator(ModelStackWithNoteRow* modelStack, bool doRecording = false);
 	bool getAffectEntire();
-	void createNewInstrument(uint8_t instrumentType);
+	void createNewInstrument(InstrumentType instrumentType);
 	Sound* getSoundForNoteRow(NoteRow* noteRow, ParamManagerForTimeline** getParamManager);
 	void adjustProbability(int offset);
 	void copyNotes();

@@ -163,7 +163,7 @@ void ArrangerView::goToSongView() {
 int ArrangerView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	using namespace hid::button;
 
-	int newInstrumentType;
+	InstrumentType newInstrumentType;
 
 	// Song button
 	if (b == SESSION_VIEW) {
@@ -247,7 +247,7 @@ int ArrangerView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 
 	// Which-instrument-type buttons
 	else if (b == SYNTH) {
-		newInstrumentType = INSTRUMENT_TYPE_SYNTH;
+		newInstrumentType = InstrumentType::SYNTH;
 
 doChangeInstrumentType:
 		if (on && currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION && !Buttons::isShiftButtonPressed()) {
@@ -259,7 +259,7 @@ doChangeInstrumentType:
 			Output* output = outputsOnScreen[yPressedEffective];
 
 			// AudioOutputs - need to replace with Instrument
-			if (output->type == OUTPUT_TYPE_AUDIO) {
+			if (output->type == InstrumentType::AUDIO) {
 				changeOutputToInstrument(newInstrumentType);
 			}
 
@@ -270,7 +270,7 @@ doChangeInstrumentType:
 				if (Buttons::isButtonPressed(hid::button::LOAD)) {
 
 					// Can't do that for MIDI or CV tracks though
-					if (newInstrumentType == INSTRUMENT_TYPE_MIDI_OUT || newInstrumentType == INSTRUMENT_TYPE_CV) {
+					if (newInstrumentType == InstrumentType::MIDI_OUT || newInstrumentType == InstrumentType::CV) {
 						goto doActualSimpleChange;
 					}
 
@@ -299,17 +299,17 @@ doActualSimpleChange:
 	}
 
 	else if (b == KIT) {
-		newInstrumentType = INSTRUMENT_TYPE_KIT;
+		newInstrumentType = InstrumentType::KIT;
 		goto doChangeInstrumentType;
 	}
 
 	else if (b == MIDI) {
-		newInstrumentType = INSTRUMENT_TYPE_MIDI_OUT;
+		newInstrumentType = InstrumentType::MIDI_OUT;
 		goto doChangeInstrumentType;
 	}
 
 	else if (b == CV) {
-		newInstrumentType = INSTRUMENT_TYPE_CV;
+		newInstrumentType = InstrumentType::CV;
 		goto doChangeInstrumentType;
 	}
 
@@ -548,7 +548,7 @@ void ArrangerView::drawAuditionSquare(int yDisplay, uint8_t thisImage[][3]) {
 	if (view.midiLearnFlashOn) {
 		Output* output = outputsOnScreen[yDisplay];
 
-		if (!output || output->type == OUTPUT_TYPE_AUDIO || output->type == INSTRUMENT_TYPE_KIT) {
+		if (!output || output->type == InstrumentType::AUDIO || output->type == InstrumentType::KIT) {
 			goto drawNormally;
 		}
 
@@ -628,7 +628,7 @@ Drum* ArrangerView::getDrumForAudition(Kit* kit) {
 
 void ArrangerView::beginAudition(Output* output) {
 
-	if (output->type == OUTPUT_TYPE_AUDIO) {
+	if (output->type == InstrumentType::AUDIO) {
 		return;
 	}
 
@@ -639,7 +639,7 @@ void ArrangerView::beginAudition(Output* output) {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
-		if (instrument->type == INSTRUMENT_TYPE_KIT) {
+		if (instrument->type == InstrumentType::KIT) {
 
 			Kit* kit = (Kit*)instrument;
 			ModelStackWithNoteRow* modelStackWithNoteRow = getNoteRowForAudition(modelStack, kit);
@@ -672,7 +672,7 @@ void ArrangerView::beginAudition(Output* output) {
 
 void ArrangerView::endAudition(Output* output, bool evenIfPlaying) {
 
-	if (output->type == OUTPUT_TYPE_AUDIO) {
+	if (output->type == InstrumentType::AUDIO) {
 		return;
 	}
 
@@ -683,7 +683,7 @@ void ArrangerView::endAudition(Output* output, bool evenIfPlaying) {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
-		if (instrument->type == INSTRUMENT_TYPE_KIT) {
+		if (instrument->type == InstrumentType::KIT) {
 
 			Kit* kit = (Kit*)instrument;
 			ModelStackWithNoteRow* modelStackWithNoteRow = getNoteRowForAudition(modelStack, kit);
@@ -710,10 +710,10 @@ void ArrangerView::endAudition(Output* output, bool evenIfPlaying) {
 	}
 }
 
-void ArrangerView::changeOutputToInstrument(int newInstrumentType) {
+void ArrangerView::changeOutputToInstrument(InstrumentType newInstrumentType) {
 
 	Output* oldOutput = outputsOnScreen[yPressedEffective];
-	if (oldOutput->type != OUTPUT_TYPE_AUDIO) {
+	if (oldOutput->type != InstrumentType::AUDIO) {
 		return;
 	}
 
@@ -746,7 +746,7 @@ void ArrangerView::changeOutputToInstrument(int newInstrumentType) {
 }
 
 // Loads from file, etc - doesn't truly "create"
-Instrument* ArrangerView::createNewInstrument(int newInstrumentType, bool* instrumentAlreadyInSong) {
+Instrument* ArrangerView::createNewInstrument(InstrumentType newInstrumentType, bool* instrumentAlreadyInSong) {
 	ReturnOfConfirmPresetOrNextUnlaunchedOne result;
 
 	result.error = Browser::currentDir.set(getInstrumentFolder(newInstrumentType));
@@ -833,7 +833,7 @@ doNewPress:
 
 				bool instrumentAlreadyInSong; // Will always end up false
 
-				output = createNewInstrument(INSTRUMENT_TYPE_SYNTH, &instrumentAlreadyInSong);
+				output = createNewInstrument(InstrumentType::SYNTH, &instrumentAlreadyInSong);
 				if (!output) {
 					return;
 				}
@@ -902,7 +902,7 @@ int ArrangerView::padAction(int x, int y, int velocity) {
 		switch (currentUIMode) {
 		case UI_MODE_MIDI_LEARN:
 			if (output) {
-				if (output->type == OUTPUT_TYPE_AUDIO) {
+				if (output->type == InstrumentType::AUDIO) {
 					if (velocity) {
 						view.endMIDILearn();
 						context_menu::audioInputSelector.audioOutput = (AudioOutput*)output;
@@ -910,7 +910,7 @@ int ArrangerView::padAction(int x, int y, int velocity) {
 						openUI(&context_menu::audioInputSelector);
 					}
 				}
-				else if (output->type == INSTRUMENT_TYPE_KIT) {
+				else if (output->type == InstrumentType::KIT) {
 					if (velocity) {
 						numericDriver.displayPopup(HAVE_OLED ? "MIDI must be learned to kit items individually"
 						                                     : "CANT");
@@ -1062,7 +1062,7 @@ regularMutePadPress:
 				// NAME shortcut
 				if (x == 11 && y == 5) {
 					Output* output = outputsOnScreen[yPressedEffective];
-					if (output && output->type != INSTRUMENT_TYPE_MIDI_OUT && output->type != INSTRUMENT_TYPE_CV) {
+					if (output && output->type != InstrumentType::MIDI_OUT && output->type != InstrumentType::CV) {
 						endAudition(output);
 						currentUIMode = UI_MODE_NONE;
 						renameOutputUI.output = output;
@@ -1504,7 +1504,7 @@ justGetOut:
 								}
 
 								int size =
-								    (output->type == OUTPUT_TYPE_AUDIO) ? sizeof(AudioClip) : sizeof(InstrumentClip);
+								    (output->type == InstrumentType::AUDIO) ? sizeof(AudioClip) : sizeof(InstrumentClip);
 
 								void* memory = generalMemoryAllocator.alloc(size, NULL, false, true);
 								if (!memory) {
@@ -1514,7 +1514,7 @@ justGetOut:
 
 								Clip* newClip;
 
-								if (output->type == OUTPUT_TYPE_AUDIO)
+								if (output->type == InstrumentType::AUDIO)
 									newClip = new (memory) AudioClip();
 								else
 									newClip = new (memory) InstrumentClip(currentSong);
@@ -1530,7 +1530,7 @@ justGetOut:
 
 								int error;
 
-								if (output->type == OUTPUT_TYPE_AUDIO) {
+								if (output->type == InstrumentType::AUDIO) {
 									error = ((AudioClip*)newClip)->setOutput(modelStack, output);
 								}
 								else {
@@ -1545,7 +1545,7 @@ justGetOut:
 									goto justGetOut;
 								}
 
-								if (output->type != OUTPUT_TYPE_AUDIO) {
+								if (output->type != InstrumentType::AUDIO) {
 									((Instrument*)output)->setupPatching(modelStack);
 									((InstrumentClip*)newClip)->setupAsNewKitClipIfNecessary(modelStack);
 								}
@@ -1860,8 +1860,8 @@ bool ArrangerView::putDraggedClipInstanceInNewPosition(Output* newOutputToDragIn
 	// Or if Output not the same
 	else {
 		if (clip) {
-			if (newOutputToDragInto->type != OUTPUT_TYPE_AUDIO
-			    || pressedClipInstanceOutput->type != OUTPUT_TYPE_AUDIO) {
+			if (newOutputToDragInto->type != InstrumentType::AUDIO
+			    || pressedClipInstanceOutput->type != InstrumentType::AUDIO) {
 itsInvalid:
 				pressedClipInstanceIsInValidPosition = false;
 				blinkOn = false;
@@ -2350,7 +2350,7 @@ void ArrangerView::selectEncoderAction(int8_t offset) {
 void ArrangerView::navigateThroughPresets(int offset) {
 
 	Output* output = outputsOnScreen[yPressedEffective]; // Essentially, we know there is one.
-	if (output->type == OUTPUT_TYPE_AUDIO) {
+	if (output->type == InstrumentType::AUDIO) {
 		return;
 	}
 
@@ -2358,12 +2358,12 @@ void ArrangerView::navigateThroughPresets(int offset) {
 
 	Instrument* oldInstrument = (Instrument*)output;
 
-	uint8_t instrumentType = oldInstrument->type;
+	InstrumentType instrumentType = oldInstrument->type;
 
 	currentSong->ensureAllInstrumentsHaveAClipOrBackedUpParamManager("E063", "H063");
 
 	// If we're in MIDI or CV mode, easy - just change the channel
-	if (instrumentType == INSTRUMENT_TYPE_MIDI_OUT || instrumentType == INSTRUMENT_TYPE_CV) {
+	if (instrumentType == InstrumentType::MIDI_OUT || instrumentType == InstrumentType::CV) {
 
 		NonAudioInstrument* oldNonAudioInstrument = (NonAudioInstrument*)oldInstrument;
 
@@ -2371,13 +2371,13 @@ void ArrangerView::navigateThroughPresets(int offset) {
 		int newChannel = oldNonAudioInstrument->channel;
 
 		int oldChannelSuffix, newChannelSuffix;
-		if (instrumentType == INSTRUMENT_TYPE_MIDI_OUT) {
+		if (instrumentType == InstrumentType::MIDI_OUT) {
 			oldChannelSuffix = ((MIDIInstrument*)oldNonAudioInstrument)->channelSuffix;
 			newChannelSuffix = ((MIDIInstrument*)oldNonAudioInstrument)->channelSuffix;
 		}
 
 		// CV
-		if (instrumentType == INSTRUMENT_TYPE_CV) {
+		if (instrumentType == InstrumentType::CV) {
 			do {
 				newChannel = (newChannel + offset) & (NUM_CV_CHANNELS - 1);
 
@@ -2432,7 +2432,7 @@ cantDoIt:
 
 		// Because these are just MIDI / CV instruments and we're changing them for all Clips, we can just change the existing Instrument object!
 		oldNonAudioInstrument->channel = newChannel;
-		if (instrumentType == INSTRUMENT_TYPE_MIDI_OUT) {
+		if (instrumentType == InstrumentType::MIDI_OUT) {
 			((MIDIInstrument*)oldNonAudioInstrument)->channelSuffix = newChannelSuffix;
 		}
 
@@ -2486,10 +2486,10 @@ removeWorkingAnimationAndGetOut:
 	beginAudition(oldInstrument);
 }
 
-void ArrangerView::changeInstrumentType(int newInstrumentType) {
+void ArrangerView::changeInstrumentType(InstrumentType newInstrumentType) {
 
 	Instrument* oldInstrument = (Instrument*)outputsOnScreen[yPressedEffective];
-	int oldInstrumentType = oldInstrument->type;
+	InstrumentType oldInstrumentType = oldInstrument->type;
 
 	if (oldInstrumentType == newInstrumentType) {
 		return;
@@ -2522,7 +2522,7 @@ void ArrangerView::changeInstrumentType(int newInstrumentType) {
 void ArrangerView::changeOutputToAudio() {
 
 	Output* oldOutput = outputsOnScreen[yPressedEffective];
-	if (oldOutput->type == OUTPUT_TYPE_AUDIO) {
+	if (oldOutput->type == InstrumentType::AUDIO) {
 		return;
 	}
 

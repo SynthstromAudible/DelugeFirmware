@@ -700,7 +700,7 @@ isMPEZone:
 			learnedThing->device = fromDevice;
 			melodicInstrumentPressedForMIDILearn->beenEdited(false); // Why again?
 
-			if (melodicInstrumentPressedForMIDILearn->type == INSTRUMENT_TYPE_SYNTH) {
+			if (melodicInstrumentPressedForMIDILearn->type == InstrumentType::SYNTH) {
 				currentSong->grabVelocityToLevelFromMIDIDeviceAndSetupPatchingForAllParamManagersForInstrument(
 				    fromDevice, (SoundInstrument*)melodicInstrumentPressedForMIDILearn);
 			}
@@ -741,7 +741,7 @@ void View::ccReceivedForMIDILearn(MIDIDevice* fromDevice, int channel, int cc, i
 		if (thingPressedForMidiLearn == MidiLearn::MELODIC_INSTRUMENT_INPUT) {
 
 			// Special case for MIDIInstruments - CCs can learn the input MIDI channel
-			if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_MIDI_OUT) {
+			if (currentSong->currentClip->output->type == InstrumentType::MIDI_OUT) {
 
 				// But only if user hasn't already started learning MPE stuff... Or regular note-ons...
 				if (highestMIDIChannelSeenWhileLearning < lowestMIDIChannelSeenWhileLearning) {
@@ -1204,15 +1204,15 @@ void View::displayOutputName(Output* output, bool doBlink, Clip* clip) {
 
 	int channel, channelSuffix;
 	bool editedByUser = true;
-	if (output->type != OUTPUT_TYPE_AUDIO) {
+	if (output->type != InstrumentType::AUDIO) {
 		Instrument* instrument = (Instrument*)output;
 		editedByUser = !instrument->existsOnCard;
 		switch (output->type) {
-		case INSTRUMENT_TYPE_MIDI_OUT:
+		case InstrumentType::MIDI_OUT:
 			channelSuffix = ((MIDIInstrument*)instrument)->channelSuffix;
 			// No break
 
-		case INSTRUMENT_TYPE_CV:
+		case InstrumentType::CV:
 			channel = ((NonAudioInstrument*)instrument)->channel;
 			break;
 		}
@@ -1222,41 +1222,41 @@ void View::displayOutputName(Output* output, bool doBlink, Clip* clip) {
 }
 
 // If HAVE_OLED, must make sure OLED::sendMainImage() gets called after this.
-void View::drawOutputNameFromDetails(int outputType, int channel, int channelSuffix, char const* name,
+void View::drawOutputNameFromDetails(InstrumentType instrumentType, int channel, int channelSuffix, char const* name,
                                      bool editedByUser, bool doBlink, Clip* clip) {
 	if (doBlink) {
 		using namespace indicator_leds;
 		LED led;
 
-		if (outputType == INSTRUMENT_TYPE_SYNTH) {
+		if (instrumentType == InstrumentType::SYNTH) {
 			led = LED::SYNTH;
 		}
 		else {
 			setLedState(LED::SYNTH, false);
 		}
 
-		if (outputType == INSTRUMENT_TYPE_KIT) {
+		if (instrumentType == InstrumentType::KIT) {
 			led = LED::KIT;
 		}
 		else {
 			setLedState(LED::KIT, false);
 		}
 
-		if (outputType == INSTRUMENT_TYPE_MIDI_OUT) {
+		if (instrumentType == InstrumentType::MIDI_OUT) {
 			led = LED::MIDI;
 		}
 		else {
 			setLedState(LED::MIDI, false);
 		}
 
-		if (outputType == INSTRUMENT_TYPE_CV) {
+		if (instrumentType == InstrumentType::CV) {
 			led = LED::CV;
 		}
 		else {
 			setLedState(LED::CV, false);
 		}
 
-		if (outputType != OUTPUT_TYPE_AUDIO) {
+		if (instrumentType != InstrumentType::AUDIO) {
 			blinkLed(led);
 		}
 
@@ -1266,7 +1266,7 @@ void View::drawOutputNameFromDetails(int outputType, int channel, int channelSuf
 		}
 
 		setLedState(LED::KEYBOARD, (clip && clip->onKeyboardScreen));
-		setLedState(LED::SCALE_MODE, (clip && clip->inScaleMode && clip->output->type != INSTRUMENT_TYPE_KIT));
+		setLedState(LED::SCALE_MODE, (clip && clip->inScaleMode && clip->output->type != InstrumentType::KIT));
 		setLedState(LED::CROSS_SCREEN_EDIT, (clip && clip->wrapEditing));
 	}
 
@@ -1274,19 +1274,19 @@ void View::drawOutputNameFromDetails(int outputType, int channel, int channelSuf
 	OLED::clearMainImage();
 	char const* outputTypeText;
 	switch (outputType) {
-	case INSTRUMENT_TYPE_SYNTH:
+	case InstrumentType::SYNTH:
 		outputTypeText = "Synth";
 		break;
-	case INSTRUMENT_TYPE_KIT:
+	case InstrumentType::KIT:
 		outputTypeText = "Kit";
 		break;
-	case INSTRUMENT_TYPE_MIDI_OUT:
+	case InstrumentType::MIDI_OUT:
 		outputTypeText = (channel < 16) ? "MIDI channel" : "MPE zone";
 		break;
-	case INSTRUMENT_TYPE_CV:
+	case InstrumentType::CV:
 		outputTypeText = "CV / gate channel";
 		break;
-	case OUTPUT_TYPE_AUDIO:
+	case InstrumentType::AUDIO:
 		outputTypeText = "Audio track";
 		break;
 	default:
@@ -1370,7 +1370,7 @@ yesAlignRight:
 		}
 #endif
 	}
-	else if (outputType == INSTRUMENT_TYPE_MIDI_OUT) {
+	else if (instrumentType == InstrumentType::MIDI_OUT) {
 #if HAVE_OLED
 		if (channel < 16) {
 			slotToString(channel + 1, channelSuffix, buffer, 1);
@@ -1390,7 +1390,7 @@ yesAlignRight:
 		}
 #endif
 	}
-	else if (outputType == INSTRUMENT_TYPE_CV) {
+	else if (instrumentType == InstrumentType::CV) {
 #if HAVE_OLED
 		intToString(channel + 1, buffer);
 oledOutputBuffer:
@@ -1458,7 +1458,7 @@ void View::navigateThroughPresetsForInstrumentClip(int offset, ModelStackWithTim
 
 	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
 
-	uint8_t instrumentType = clip->output->type;
+	InstrumentType instrumentType = clip->output->type;
 
 	modelStack->song->ensureAllInstrumentsHaveAClipOrBackedUpParamManager("E057", "H057");
 
@@ -1472,19 +1472,19 @@ void View::navigateThroughPresetsForInstrumentClip(int offset, ModelStackWithTim
 	Instrument* oldInstrument = (Instrument*)clip->output;
 
 	// If we're in MIDI or CV mode, easy - just change the channel
-	if (instrumentType == INSTRUMENT_TYPE_MIDI_OUT || instrumentType == INSTRUMENT_TYPE_CV) {
+	if (instrumentType == InstrumentType::MIDI_OUT || instrumentType == InstrumentType::CV) {
 
 		NonAudioInstrument* oldNonAudioInstrument = (NonAudioInstrument*)oldInstrument;
 		int newChannel = oldNonAudioInstrument->channel;
 		int newChannelSuffix;
-		if (instrumentType == INSTRUMENT_TYPE_MIDI_OUT) {
+		if (instrumentType == InstrumentType::MIDI_OUT) {
 			newChannelSuffix = ((MIDIInstrument*)oldNonAudioInstrument)->channelSuffix;
 		}
 
 		// TODO: the contents of these badly wants to be replaced with how I did it in changeInstrumentType()!
 
 		// CV
-		if (instrumentType == INSTRUMENT_TYPE_CV) {
+		if (instrumentType == InstrumentType::CV) {
 			while (true) {
 				newChannel = (newChannel + offset) & (NUM_CV_CHANNELS - 1);
 
@@ -1591,7 +1591,7 @@ void View::navigateThroughPresetsForInstrumentClip(int offset, ModelStackWithTim
 
 			// Because these are just MIDI / CV instruments and we're changing them for all Clips, we can just change the existing Instrument object!
 			oldNonAudioInstrument->channel = newChannel;
-			if (instrumentType == INSTRUMENT_TYPE_MIDI_OUT) {
+			if (instrumentType == InstrumentType::MIDI_OUT) {
 				((MIDIInstrument*)oldNonAudioInstrument)->channelSuffix = newChannelSuffix;
 			}
 
@@ -1605,7 +1605,7 @@ void View::navigateThroughPresetsForInstrumentClip(int offset, ModelStackWithTim
 
 			// If an Instrument doesn't yet exist for the new channel we're gonna use...
 			if (!newInstrument) {
-				if (instrumentType == INSTRUMENT_TYPE_MIDI_OUT) {
+				if (instrumentType == InstrumentType::MIDI_OUT) {
 					newInstrument = modelStack->song->grabHibernatingMIDIInstrument(newChannel, newChannelSuffix);
 					if (newInstrument) {
 						goto gotAnInstrument;
@@ -1619,7 +1619,7 @@ void View::navigateThroughPresetsForInstrumentClip(int offset, ModelStackWithTim
 				}
 
 				// We just allocated a brand new Instrument in RAM. If MIDI, copy knob assignments from old Instrument
-				if (instrumentType == INSTRUMENT_TYPE_MIDI_OUT) {
+				if (instrumentType == InstrumentType::MIDI_OUT) {
 					MIDIInstrument* newMIDIInstrument = (MIDIInstrument*)newInstrument;
 					MIDIInstrument* oldMIDIInstrument = (MIDIInstrument*)clip->output;
 					memcpy(newMIDIInstrument->modKnobCCAssignments, oldMIDIInstrument->modKnobCCAssignments,
@@ -1672,7 +1672,7 @@ getOut:
 
 		// For Kits, ensure that every SoundDrum has a ParamManager somewhere
 #if ALPHA_OR_BETA_VERSION
-		if (newInstrument->type == INSTRUMENT_TYPE_KIT) {
+		if (newInstrument->type == InstrumentType::KIT) {
 			Kit* kit = (Kit*)newInstrument;
 			for (Drum* thisDrum = kit->firstDrum; thisDrum; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DRUM_TYPE_SOUND) {
@@ -1726,7 +1726,7 @@ getOut:
 		}
 
 		// Kit-specific stuff
-		if (instrumentType == INSTRUMENT_TYPE_KIT) {
+		if (instrumentType == InstrumentType::KIT) {
 			clip->ensureScrollWithinKitBounds();
 			((Kit*)newInstrument)->selectedDrum = NULL;
 		}
@@ -1752,11 +1752,11 @@ getOut:
 }
 
 // Returns whether success
-bool View::changeInstrumentType(int newInstrumentType, ModelStackWithTimelineCounter* modelStack, bool doBlink) {
+bool View::changeInstrumentType(InstrumentType	 newInstrumentType, ModelStackWithTimelineCounter* modelStack, bool doBlink) {
 
 	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
 
-	int oldInstrumentType = clip->output->type;
+	InstrumentType oldInstrumentType = clip->output->type;
 	if (oldInstrumentType == newInstrumentType) {
 		return false;
 	}

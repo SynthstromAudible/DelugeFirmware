@@ -40,7 +40,7 @@ ModelStackWithThreeMainThings* ModelStackWithTimelineCounter::addNoteRowAndExtra
 
 	InstrumentClip* clip = (InstrumentClip*)getTimelineCounter();
 	Output* output = clip->output;
-	bool isKit = (output->type == INSTRUMENT_TYPE_KIT);
+	bool isKit = (output->type == InstrumentType::KIT);
 	toReturn->noteRowId = isKit ? noteRowIndex : newNoteRow->y;
 	toReturn->setNoteRow(newNoteRow);
 	toReturn->modControllable =
@@ -178,7 +178,7 @@ ModelStackWithThreeMainThings* ModelStackWithNoteRow::addOtherTwoThingsAutomatic
 	NoteRow* noteRowHere = getNoteRow();
 	InstrumentClip* clip = (InstrumentClip*)getTimelineCounter();
 	toReturn->modControllable =
-	    (clip->output->type == INSTRUMENT_TYPE_KIT && noteRowHere->drum) // What if there's no Drum?
+	    (clip->output->type == InstrumentType::KIT && noteRowHere->drum) // What if there's no Drum?
 	        ? noteRowHere->drum->toModControllable()
 	        : clip->output->toModControllable();
 	toReturn->paramManager = &noteRowHere->paramManager;

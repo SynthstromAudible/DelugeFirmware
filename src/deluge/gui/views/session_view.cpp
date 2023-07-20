@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "definitions_cxx.hpp"
 #include "gui/views/arranger_view.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
@@ -167,7 +168,7 @@ int SessionView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 		}
 	}
 
-	int newInstrumentType;
+	InstrumentType newInstrumentType;
 
 	// Clip-view button
 	if (b == CLIP_VIEW) {
@@ -412,7 +413,7 @@ moveAfterClipInstance:
 
 	// Which-instrument-type buttons
 	else if (b == SYNTH) {
-		newInstrumentType = INSTRUMENT_TYPE_SYNTH;
+		newInstrumentType = InstrumentType::SYNTH;
 
 changeInstrumentType:
 		if (on && currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW && !Buttons::isShiftButtonPressed()) {
@@ -444,7 +445,7 @@ changeInstrumentType:
 				if (Buttons::isButtonPressed(hid::button::LOAD)) {
 
 					// Can't do that for MIDI or CV Clips though
-					if (newInstrumentType == INSTRUMENT_TYPE_MIDI_OUT || newInstrumentType == INSTRUMENT_TYPE_CV) {
+					if (newInstrumentType == InstrumentType::MIDI_OUT || newInstrumentType == InstrumentType::CV) {
 						goto doActualSimpleChange;
 					}
 
@@ -476,15 +477,15 @@ doActualSimpleChange:
 		}
 	}
 	else if (b == KIT) {
-		newInstrumentType = INSTRUMENT_TYPE_KIT;
+		newInstrumentType = InstrumentType::KIT;
 		goto changeInstrumentType;
 	}
 	else if (b == MIDI) {
-		newInstrumentType = INSTRUMENT_TYPE_MIDI_OUT;
+		newInstrumentType = InstrumentType::MIDI_OUT;
 		goto changeInstrumentType;
 	}
 	else if (b == CV) {
-		newInstrumentType = INSTRUMENT_TYPE_CV;
+		newInstrumentType = InstrumentType::CV;
 		goto changeInstrumentType;
 	}
 
@@ -743,9 +744,9 @@ startHoldingDown:
 						// InstrumentClip
 						else {
 midiLearnMelodicInstrumentAction:
-							if (clip->output->type == INSTRUMENT_TYPE_SYNTH
-							    || clip->output->type == INSTRUMENT_TYPE_MIDI_OUT
-							    || clip->output->type == INSTRUMENT_TYPE_CV) {
+							if (clip->output->type == InstrumentType::SYNTH
+							    || clip->output->type == InstrumentType::MIDI_OUT
+							    || clip->output->type == InstrumentType::CV) {
 
 								if (sdRoutineLock) {
 									return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -1269,7 +1270,7 @@ void SessionView::drawSectionSquare(uint8_t yDisplay, uint8_t thisImage[][3]) {
 }
 
 // Will now look in subfolders too if need be.
-int setPresetOrNextUnlaunchedOne(InstrumentClip* clip, int instrumentType, bool* instrumentAlreadyInSong) {
+int setPresetOrNextUnlaunchedOne(InstrumentClip* clip, InstrumentType instrumentType, bool* instrumentAlreadyInSong) {
 	ReturnOfConfirmPresetOrNextUnlaunchedOne result;
 	result.error = Browser::currentDir.set(getInstrumentFolder(instrumentType));
 	if (result.error) {
@@ -1321,7 +1322,7 @@ int setPresetOrNextUnlaunchedOne(InstrumentClip* clip, int instrumentType, bool*
 		return result.error;
 	}
 
-	if (instrumentType == INSTRUMENT_TYPE_KIT) {
+	if (instrumentType == InstrumentType::KIT) {
 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack =
@@ -1363,14 +1364,14 @@ Clip* SessionView::createNewInstrumentClip(int yDisplay) {
 
 	bool instrumentAlreadyInSong;
 
-	int instrumentType = INSTRUMENT_TYPE_SYNTH;
+	InstrumentType instrumentType = InstrumentType::SYNTH;
 doGetInstrument:
 	int error = setPresetOrNextUnlaunchedOne(newClip, instrumentType, &instrumentAlreadyInSong);
 	if (error) {
 
 		// If that was for a synth and there were none, try a kit
-		if (error == ERROR_NO_FURTHER_PRESETS && instrumentType == INSTRUMENT_TYPE_SYNTH) {
-			instrumentType = INSTRUMENT_TYPE_KIT;
+		if (error == ERROR_NO_FURTHER_PRESETS && instrumentType == InstrumentType::SYNTH) {
+			instrumentType = InstrumentType::KIT;
 			goto doGetInstrument;
 		}
 		newClip->~InstrumentClip();
@@ -1413,7 +1414,7 @@ doGetInstrument:
 	return newClip;
 }
 
-void SessionView::replaceAudioClipWithInstrumentClip(int instrumentType) {
+void SessionView::replaceAudioClipWithInstrumentClip(InstrumentType instrumentType) {
 
 	Clip* oldClip = getClipOnScreen(selectedClipYDisplay);
 
@@ -1445,7 +1446,7 @@ ramError:
 	bool instrumentAlreadyInSong;
 	int error;
 
-	if (instrumentType == INSTRUMENT_TYPE_SYNTH || instrumentType == INSTRUMENT_TYPE_KIT) {
+	if (instrumentType == InstrumentType::SYNTH || instrumentType == InstrumentType::KIT) {
 
 		error = setPresetOrNextUnlaunchedOne(newClip, instrumentType, &instrumentAlreadyInSong);
 		if (error) {
@@ -2105,8 +2106,8 @@ bool SessionView::renderRow(ModelStack* modelStack, uint8_t yDisplay, uint8_t th
 
 		// If user assigning MIDI controls and this Clip has a command assigned, flash pink
 		if (view.midiLearnFlashOn
-		    && (clip->output->type == INSTRUMENT_TYPE_SYNTH || clip->output->type == INSTRUMENT_TYPE_MIDI_OUT
-		        || clip->output->type == INSTRUMENT_TYPE_CV)
+		    && (clip->output->type == InstrumentType::SYNTH || clip->output->type == InstrumentType::MIDI_OUT
+		        || clip->output->type == InstrumentType::CV)
 		    && ((MelodicInstrument*)clip->output)->midiInput.containsSomething()) {
 
 			for (int xDisplay = 0; xDisplay < displayWidth; xDisplay++) {
@@ -2329,8 +2330,8 @@ void SessionView::midiLearnFlash() {
 				sideRowsToRender |= (1 << yDisplay);
 			}
 
-			if (clip->output->type == INSTRUMENT_TYPE_SYNTH || clip->output->type == INSTRUMENT_TYPE_MIDI_OUT
-			    || clip->output->type == INSTRUMENT_TYPE_CV) {
+			if (clip->output->type == InstrumentType::SYNTH || clip->output->type == InstrumentType::MIDI_OUT
+			    || clip->output->type == InstrumentType::CV) {
 
 				if (((MelodicInstrument*)clip->output)->midiInput.containsSomething()
 				    || (view.thingPressedForMidiLearn == MidiLearn::MELODIC_INSTRUMENT_INPUT

@@ -226,7 +226,7 @@ void unassignAllVoices(bool deletingSong) {
 	// But if there's no currentSong, that's fine - it's already been deleted, and this has already been called for it before then.
 	if (currentSong) {
 		for (Output* output = currentSong->firstOutput; output; output = output->next) {
-			if (output->type == OUTPUT_TYPE_AUDIO) {
+			if (output->type == InstrumentType::AUDIO) {
 				((AudioOutput*)output)->cutAllSound();
 			}
 		}

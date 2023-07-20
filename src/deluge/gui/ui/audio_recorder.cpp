@@ -88,7 +88,7 @@ bool AudioRecorder::opened() {
 	}
 
 	// If recording for a Drum, set the name of the Drum
-	if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_KIT) {
+	if (currentSong->currentClip->output->type == InstrumentType::KIT) {
 		Kit* kit = (Kit*)currentSong->currentClip->output;
 		SoundDrum* drum = (SoundDrum*)soundEditor.currentSound;
 		String newName;

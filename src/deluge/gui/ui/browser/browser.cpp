@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "definitions_cxx.hpp"
 #include "storage/audio/audio_file_manager.h"
 #include "gui/ui/browser/browser.h"
 #include "hid/matrix/matrix_driver.h"
@@ -54,7 +55,7 @@ int Browser::numFileItemsDeletedAtStart;
 int Browser::numFileItemsDeletedAtEnd;
 char const* Browser::firstFileItemRemaining;
 char const* Browser::lastFileItemRemaining;
-int Browser::instrumentTypeToLoad;
+InstrumentType Browser::instrumentTypeToLoad;
 char const** Browser::allowedFileExtensions;
 bool Browser::allowFoldersSharingNameWithFile;
 char const* Browser::filenameToStartSearchAt;
@@ -456,7 +457,7 @@ deleteThisItem:
 }
 
 // song may be supplied as NULL, in which case it won't be searched for Instruments; sometimes this will get called when the currentSong is not set up.
-int Browser::readFileItemsFromFolderAndMemory(Song* song, int instrumentType, char const* filePrefixHere,
+int Browser::readFileItemsFromFolderAndMemory(Song* song, InstrumentType instrumentType, char const* filePrefixHere,
                                               char const* filenameToStartAt, char const* defaultDirToAlsoTry,
                                               bool allowFolders, int availabilityRequirement,
                                               int newCatalogSearchDirection) {
@@ -502,7 +503,7 @@ tryReadingItems:
 		return error;
 	}
 
-	if (song && instrumentType != 255) {
+	if (song && instrumentType != InstrumentType::NONE) {
 		error = song->addInstrumentsToFileItems(instrumentType);
 		if (error) {
 			return error;
@@ -765,13 +766,13 @@ noNumberYet:
 		if (mayDefaultToBrandNewNameOnEntry && !direction) {
 pickBrandNewNameIfNoneNominated:
 			if (enteredText.isEmpty()) {
-				error = getUnusedSlot(255, &enteredText, "SONG");
+				error = getUnusedSlot(InstrumentType::NONE, &enteredText, "SONG");
 				if (error) {
 					goto gotErrorAfterAllocating;
 				}
 
 				// Because that will have cleared out all the FileItems, we need to get them again. Actually there would kinda be a way around doing this...
-				error = readFileItemsFromFolderAndMemory(currentSong, 255, "SONG", enteredText.get(), NULL, false, 0,
+				error = readFileItemsFromFolderAndMemory(currentSong, InstrumentType::NONE, "SONG", enteredText.get(), NULL, false, 0,
 				                                         CATALOG_SEARCH_BOTH);
 				if (error) {
 					goto gotErrorAfterAllocating;
@@ -797,7 +798,7 @@ everythingFinalized:
 }
 
 // You must set currentDir before calling this.
-int Browser::getUnusedSlot(int instrumentType, String* newName, char const* thingName) {
+int Browser::getUnusedSlot(InstrumentType instrumentType, String* newName, char const* thingName) {
 
 #if HAVE_OLED
 	char filenameToStartAt[6]; // thingName is max 4 chars.

@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "definitions_cxx.hpp"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
@@ -1352,14 +1353,14 @@ void StorageManager::openFilePointer(FilePointer* fp) {
 	fileAccessFailedDuring = false;
 }
 
-int StorageManager::openInstrumentFile(int instrumentType, FilePointer* filePointer) {
+int StorageManager::openInstrumentFile(InstrumentType instrumentType, FilePointer* filePointer) {
 
 	AudioEngine::logAction("openInstrumentFile");
 
 	char const* firstTagName;
 	char const* altTagName = "";
 
-	if (instrumentType == INSTRUMENT_TYPE_SYNTH) {
+	if (instrumentType == InstrumentType::SYNTH) {
 		firstTagName = "sound";
 		altTagName = "synth"; // Compatibility with old xml files
 	}
@@ -1373,7 +1374,7 @@ int StorageManager::openInstrumentFile(int instrumentType, FilePointer* filePoin
 
 // Returns error status
 // clip may be NULL
-int StorageManager::loadInstrumentFromFile(Song* song, InstrumentClip* clip, int instrumentType,
+int StorageManager::loadInstrumentFromFile(Song* song, InstrumentClip* clip, InstrumentType instrumentType,
                                            bool mayReadSamplesFromFiles, Instrument** getInstrument,
                                            FilePointer* filePointer, String* name, String* dirPath) {
 
@@ -1418,7 +1419,7 @@ deleteInstrumentAndGetOut:
 
 		// Prior to V2.0 (or was it only in V1.0 on the 40-pad?) Kits didn't have anything that would have caused the paramManager to be created when we read the Kit just now.
 		// So, just make one.
-		if (firmwareVersionOfFileBeingRead < FIRMWARE_2P0P0_BETA && instrumentType == INSTRUMENT_TYPE_KIT) {
+		if (firmwareVersionOfFileBeingRead < FIRMWARE_2P0P0_BETA && instrumentType == InstrumentType::KIT) {
 			ParamManagerForTimeline paramManager;
 			error = paramManager.setupUnpatched();
 			if (error) {
@@ -1437,7 +1438,7 @@ paramManagersMissing:
 	}
 
 	// For Kits, ensure that every audio Drum has a ParamManager somewhere
-	if (newInstrument->type == INSTRUMENT_TYPE_KIT) {
+	if (newInstrument->type == InstrumentType::KIT) {
 		Kit* kit = (Kit*)newInstrument;
 		for (Drum* thisDrum = kit->firstDrum; thisDrum; thisDrum = thisDrum->next) {
 			if (thisDrum->type == DRUM_TYPE_SOUND) {
@@ -1460,11 +1461,11 @@ paramManagersMissing:
 }
 
 // After calling this, you must make sure you set dirPath of Instrument.
-Instrument* StorageManager::createNewInstrument(uint8_t newInstrumentType, ParamManager* paramManager) {
+Instrument* StorageManager::createNewInstrument(InstrumentType newInstrumentType, ParamManager* paramManager) {
 
 	uint32_t instrumentSize;
 
-	if (newInstrumentType == INSTRUMENT_TYPE_SYNTH) {
+	if (newInstrumentType == InstrumentType::SYNTH) {
 		instrumentSize = sizeof(SoundInstrument);
 	}
 
@@ -1483,7 +1484,7 @@ Instrument* StorageManager::createNewInstrument(uint8_t newInstrumentType, Param
 	int error;
 
 	// Synth
-	if (newInstrumentType == INSTRUMENT_TYPE_SYNTH) {
+	if (newInstrumentType == InstrumentType::SYNTH) {
 		if (paramManager) {
 			error = paramManager->setupWithPatching();
 			if (error) {
@@ -1512,8 +1513,8 @@ paramManagerSetupError:
 	return newInstrument;
 }
 
-Instrument* StorageManager::createNewNonAudioInstrument(int instrumentType, int slot, int subSlot) {
-	int size = (instrumentType == INSTRUMENT_TYPE_MIDI_OUT) ? sizeof(MIDIInstrument) : sizeof(CVInstrument);
+Instrument* StorageManager::createNewNonAudioInstrument(InstrumentType instrumentType, int slot, int subSlot) {
+	int size = (instrumentType == InstrumentType::MIDI_OUT) ? sizeof(MIDIInstrument) : sizeof(CVInstrument);
 	void* instrumentMemory = generalMemoryAllocator.alloc(size);
 	if (!instrumentMemory) { // RAM fail
 		return NULL;
@@ -1521,7 +1522,7 @@ Instrument* StorageManager::createNewNonAudioInstrument(int instrumentType, int 
 
 	NonAudioInstrument* newInstrument;
 
-	if (instrumentType == INSTRUMENT_TYPE_MIDI_OUT) {
+	if (instrumentType == InstrumentType::MIDI_OUT) {
 		newInstrument = new (instrumentMemory) MIDIInstrument();
 		((MIDIInstrument*)newInstrument)->channelSuffix = subSlot;
 	}

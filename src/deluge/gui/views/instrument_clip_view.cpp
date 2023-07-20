@@ -16,6 +16,7 @@
 */
 
 #include "gui/views/instrument_clip_view.h"
+#include "definitions_cxx.hpp"
 #include "gui/views/arranger_view.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
@@ -170,7 +171,7 @@ int InstrumentClipView::buttonAction(hid::Button b, bool on, bool inCardRoutine)
 		}
 
 		// Kits can't do scales!
-		if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_KIT) {
+		if (currentSong->currentClip->output->type == InstrumentType::KIT) {
 			if (on) {
 				indicator_leds::indicateAlertOnLed(IndicatorLED::KIT);
 			}
@@ -281,7 +282,7 @@ doOther:
 
 	// Record button if holding audition pad
 	else if (b == RECORD && (currentUIMode == UI_MODE_ADDING_DRUM_NOTEROW || currentUIMode == UI_MODE_AUDITIONING)) {
-		if (on && currentSong->currentClip->output->type == INSTRUMENT_TYPE_KIT && !audioRecorder.recordingSource
+		if (on && currentSong->currentClip->output->type == InstrumentType::KIT && !audioRecorder.recordingSource
 		    && (!playbackHandler.isEitherClockActive() || !playbackHandler.ticksLeftInCountIn)) {
 
 			if (inCardRoutine) {
@@ -378,7 +379,7 @@ doOther:
 			}
 
 			// Auditioning drum
-			if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_KIT) {
+			if (currentSong->currentClip->output->type == InstrumentType::KIT) {
 				cutAuditionedNotesToOne();
 				int noteRowIndex;
 				NoteRow* noteRow =
@@ -396,7 +397,7 @@ doOther:
 			}
 
 			// Auditioning synth
-			if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_SYNTH) {
+			if (currentSong->currentClip->output->type == InstrumentType::SYNTH) {
 				cancelAllAuditioning();
 
 				bool success = soundEditor.setup(getCurrentClip(), &menu_item::fileSelectorMenu,
@@ -416,10 +417,10 @@ doOther:
 			}
 
 			if (Buttons::isNewOrShiftButtonPressed()) {
-				createNewInstrument(INSTRUMENT_TYPE_KIT);
+				createNewInstrument(InstrumentType::KIT);
 			}
 			else {
-				changeInstrumentType(INSTRUMENT_TYPE_KIT);
+				changeInstrumentType(InstrumentType::KIT);
 			}
 		}
 	}
@@ -433,10 +434,10 @@ doOther:
 
 			if (currentUIMode == UI_MODE_NONE) {
 				if (Buttons::isNewOrShiftButtonPressed()) {
-					createNewInstrument(INSTRUMENT_TYPE_SYNTH);
+					createNewInstrument(InstrumentType::SYNTH);
 				}
 				else {
-					changeInstrumentType(INSTRUMENT_TYPE_SYNTH);
+					changeInstrumentType(InstrumentType::SYNTH);
 				}
 			}
 			else if (currentUIMode == UI_MODE_ADDING_DRUM_NOTEROW || currentUIMode == UI_MODE_AUDITIONING) {
@@ -452,7 +453,7 @@ doOther:
 			}
 
 			if (currentUIMode == UI_MODE_NONE) {
-				changeInstrumentType(INSTRUMENT_TYPE_MIDI_OUT);
+				changeInstrumentType(InstrumentType::MIDI_OUT);
 			}
 			else if (currentUIMode == UI_MODE_ADDING_DRUM_NOTEROW || currentUIMode == UI_MODE_AUDITIONING) {
 				createDrumForAuditionedNoteRow(DRUM_TYPE_MIDI);
@@ -467,7 +468,7 @@ doOther:
 			}
 
 			if (currentUIMode == UI_MODE_NONE) {
-				changeInstrumentType(INSTRUMENT_TYPE_CV);
+				changeInstrumentType(InstrumentType::CV);
 			}
 			else if (currentUIMode == UI_MODE_ADDING_DRUM_NOTEROW || currentUIMode == UI_MODE_AUDITIONING) {
 				createDrumForAuditionedNoteRow(DRUM_TYPE_GATE);
@@ -479,7 +480,7 @@ doOther:
 	else if (b == SAVE && currentUIMode == UI_MODE_NOTES_PRESSED) {
 		InstrumentClip* clip = getCurrentClip();
 
-		if (on && numEditPadPresses == 1 && currentSong->currentClip->output->type == INSTRUMENT_TYPE_KIT
+		if (on && numEditPadPresses == 1 && currentSong->currentClip->output->type == InstrumentType::KIT
 		    && clip->getNumNoteRows() >= 2) {
 
 			if (inCardRoutine) {
@@ -631,7 +632,7 @@ doCancelPopup:
 			if (on) {
 
 				// If in a Kit and multiple Drums auditioned, re-order them
-				if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_KIT) {
+				if (currentSong->currentClip->output->type == InstrumentType::KIT) {
 					for (int yDisplay = 0; yDisplay < displayHeight; yDisplay++) {
 						if (yDisplay != lastAuditionedYDisplay && auditionPadIsPressed[yDisplay]) {
 							if (inCardRoutine) {
@@ -681,7 +682,7 @@ passToOthers:
 }
 
 void InstrumentClipView::createDrumForAuditionedNoteRow(int drumType) {
-	if (currentSong->currentClip->output->type != INSTRUMENT_TYPE_KIT) {
+	if (currentSong->currentClip->output->type != InstrumentType::KIT) {
 		return;
 	}
 
@@ -789,7 +790,7 @@ void InstrumentClipView::modEncoderButtonAction(uint8_t whichModEncoder, bool on
 
 	// If they want to copy or paste automation...
 	if (Buttons::isButtonPressed(hid::button::LEARN)) {
-		if (on && currentSong->currentClip->output->type != INSTRUMENT_TYPE_CV) {
+		if (on && currentSong->currentClip->output->type != InstrumentType::CV) {
 			if (Buttons::isShiftButtonPressed()) {
 				pasteAutomation(whichModEncoder);
 			}
@@ -899,7 +900,7 @@ ramError:
 				// Fill in some details for the row
 				newCopiedNoteRow->numNotes = numNotes;
 				newCopiedNoteRow->yNote = thisNoteRow->y;
-				if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_KIT) { // yDisplay for Kits
+				if (currentSong->currentClip->output->type == InstrumentType::KIT) { // yDisplay for Kits
 					newCopiedNoteRow->yDisplay = i - getCurrentClip()->yScroll;
 				}
 				else { // Or for non-Kits
@@ -1018,7 +1019,7 @@ ramError:
 	getCurrentClip()->clearArea(modelStack, startPos, endPos, action);
 
 	// Kit
-	if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_KIT) {
+	if (currentSong->currentClip->output->type == InstrumentType::KIT) {
 
 		for (CopiedNoteRow* thisCopiedNoteRow = firstCopiedNoteRow; thisCopiedNoteRow;
 		     thisCopiedNoteRow = thisCopiedNoteRow->next) {
@@ -1118,14 +1119,14 @@ void InstrumentClipView::doubleClipLengthAction() {
 #endif
 }
 
-void InstrumentClipView::createNewInstrument(uint8_t newInstrumentType) {
+void InstrumentClipView::createNewInstrument(InstrumentType newInstrumentType) {
 
 	InstrumentClipMinder::createNewInstrument(newInstrumentType);
 
 	recalculateColours();
 	uiNeedsRendering(this);
 
-	if (newInstrumentType == INSTRUMENT_TYPE_KIT) {
+	if (newInstrumentType == InstrumentType::KIT) {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
@@ -1137,7 +1138,7 @@ void InstrumentClipView::createNewInstrument(uint8_t newInstrumentType) {
 	}
 }
 
-void InstrumentClipView::changeInstrumentType(uint8_t newInstrumentType) {
+void InstrumentClipView::changeInstrumentType(InstrumentType newInstrumentType) {
 
 	if (currentSong->currentClip->output->type == newInstrumentType) {
 		return;
@@ -1202,7 +1203,7 @@ int InstrumentClipView::padAction(int x, int y, int velocity) {
 		int numRandomized = 0;
 		for (int i = 0; i < 8; i++) {
 			if (getCurrentUI() == this && this->auditionPadIsPressed[i]) {
-				if (currentSong->currentClip->output->type != INSTRUMENT_TYPE_KIT) {
+				if (currentSong->currentClip->output->type != InstrumentType::KIT) {
 					continue;
 				}
 				AudioEngine::stopAnyPreviewing();
@@ -1314,7 +1315,7 @@ doRegularEditPadActionProbably:
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
-			if (currentSong->currentClip->output->type != INSTRUMENT_TYPE_KIT) {
+			if (currentSong->currentClip->output->type != InstrumentType::KIT) {
 				return ACTION_RESULT_DEALT_WITH;
 			}
 			NoteRow* noteRow = getCurrentClip()->getNoteRowOnScreen(y, currentSong);
@@ -1323,7 +1324,7 @@ doRegularEditPadActionProbably:
 			}
 			view.noteRowMuteMidiLearnPadPressed(velocity, noteRow);
 		}
-		else if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_KIT && lastAuditionedYDisplay == y
+		else if (currentSong->currentClip->output->type == InstrumentType::KIT && lastAuditionedYDisplay == y
 		         && isUIModeActive(UI_MODE_AUDITIONING) && getNumNoteRowsAuditioning() == 1) {
 			if (velocity) {
 				if (isUIModeActiveExclusively(UI_MODE_AUDITIONING)) {
@@ -1362,7 +1363,7 @@ possiblyAuditionPad:
 						return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 					}
 
-					if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_KIT) {
+					if (currentSong->currentClip->output->type == InstrumentType::KIT) {
 						NoteRow* thisNoteRow = getCurrentClip()->getNoteRowOnScreen(y, currentSong);
 						if (!thisNoteRow || !thisNoteRow->drum) {
 							return ACTION_RESULT_DEALT_WITH;
@@ -1385,7 +1386,7 @@ possiblyAuditionPad:
 
 				if (velocity
 				    && currentSong->currentClip->output->type
-				           != INSTRUMENT_TYPE_KIT) { // We probably couldn't have got this far if it was a Kit, but let's just check
+				           != InstrumentType::KIT) { // We probably couldn't have got this far if it was a Kit, but let's just check
 					if (getCurrentClip()->inScaleMode) {
 						currentUIMode = UI_MODE_NONE; // So that the upcoming render of the sidebar comes out correctly
 						changeRootNote(y);
@@ -1457,14 +1458,14 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 			// And create the new NoteRow
 			modelStackWithNoteRow = createNoteRowForYDisplay(modelStack, yDisplay);
 			if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
-				if (instrument->type == INSTRUMENT_TYPE_KIT) {
+				if (instrument->type == InstrumentType::KIT) {
 					setSelectedDrum(NULL);
 				}
 				return;
 			}
 
 			// If that just created a new NoteRow for a Kit, then we can't undo any further back than this
-			if (instrument->type == INSTRUMENT_TYPE_KIT) {
+			if (instrument->type == InstrumentType::KIT) {
 				actionLogger.deleteAllLogs();
 			}
 		}
@@ -1481,10 +1482,10 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 		NoteRow* noteRow = modelStackWithNoteRow->getNoteRow();
 
 		ParamManagerForTimeline* paramManager = NULL;
-		if (instrument->type == INSTRUMENT_TYPE_SYNTH) {
+		if (instrument->type == InstrumentType::SYNTH) {
 			paramManager = &clip->paramManager;
 		}
-		else if (instrument->type == INSTRUMENT_TYPE_KIT) {
+		else if (instrument->type == InstrumentType::KIT) {
 			paramManager = &noteRow->paramManager;
 		}
 
@@ -1566,7 +1567,7 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 				editPadPresses[i].deleteOnDepress = false;
 				uiNeedsRendering(this, 1 << yDisplay, 0);
 
-				if (instrument->type == INSTRUMENT_TYPE_KIT) {
+				if (instrument->type == InstrumentType::KIT) {
 					setSelectedDrum(noteRow->drum);
 				}
 			}
@@ -1597,7 +1598,7 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 
 					int yNote;
 
-					if (instrument->type == INSTRUMENT_TYPE_KIT) {
+					if (instrument->type == InstrumentType::KIT) {
 						yNote = 60;
 					}
 					else {
@@ -1637,7 +1638,7 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 					}
 
 					// Or if general cut-mode samples - but only for kit Clips, not synth
-					else if (instrument->type == INSTRUMENT_TYPE_KIT) {
+					else if (instrument->type == InstrumentType::KIT) {
 						bool anyLooping;
 						sampleLength = sound->hasCutOrLoopModeSamples(paramManager, yNote, &anyLooping);
 						if (sampleLength) {
@@ -1733,7 +1734,7 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 					// Edit mod knob values for this Note's region
 					int32_t distanceToNextNote = clip->getDistanceToNextNote(lastNote, modelStackWithNoteRow);
 
-					if (instrument->type == INSTRUMENT_TYPE_KIT) {
+					if (instrument->type == InstrumentType::KIT) {
 						setSelectedDrum(noteRow->drum);
 					}
 
@@ -1823,11 +1824,11 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 }
 
 Sound* InstrumentClipView::getSoundForNoteRow(NoteRow* noteRow, ParamManagerForTimeline** getParamManager) {
-	if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_SYNTH) {
+	if (currentSong->currentClip->output->type == InstrumentType::SYNTH) {
 		*getParamManager = &currentSong->currentClip->paramManager;
 		return (SoundInstrument*)currentSong->currentClip->output;
 	}
-	else if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_KIT && noteRow && noteRow->drum
+	else if (currentSong->currentClip->output->type == InstrumentType::KIT && noteRow && noteRow->drum
 	         && noteRow->drum->type == DRUM_TYPE_SOUND) {
 		if (!noteRow) {
 			return NULL;
@@ -2246,7 +2247,7 @@ void InstrumentClipView::mutePadPress(uint8_t yDisplay) {
 	if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
 
 		// For Kits, get out.
-		if (clip->output->type == INSTRUMENT_TYPE_KIT) {
+		if (clip->output->type == InstrumentType::KIT) {
 fail:
 			if (!wasStuttering) {
 				setSelectedDrum(NULL);
@@ -2265,7 +2266,7 @@ fail:
 
 	clip->toggleNoteRowMute(modelStackWithNoteRow);
 
-	if (!wasStuttering && clip->output->type == INSTRUMENT_TYPE_KIT) {
+	if (!wasStuttering && clip->output->type == InstrumentType::KIT) {
 		setSelectedDrum(noteRow->drum);
 	}
 
@@ -2309,7 +2310,7 @@ ModelStackWithNoteRow* InstrumentClipView::createNoteRowForYDisplay(ModelStackWi
 	int noteRowId;
 
 	// If *not* a kit
-	if (clip->output->type != INSTRUMENT_TYPE_KIT) {
+	if (clip->output->type != InstrumentType::KIT) {
 
 		noteRow = clip->createNewNoteRowForYVisual(getYVisualFromYDisplay(yDisplay), modelStack->song);
 
@@ -2371,7 +2372,7 @@ int InstrumentClipView::scrollVertical(int scrollAmount, bool inCardRoutine, boo
 	int noteRowToShiftI;
 	int noteRowToSwapWithI;
 
-	bool isKit = currentSong->currentClip->output->type == INSTRUMENT_TYPE_KIT;
+	bool isKit = currentSong->currentClip->output->type == InstrumentType::KIT;
 
 	// If a Kit...
 	if (isKit) {
@@ -2579,7 +2580,7 @@ int InstrumentClipView::scrollVertical(int scrollAmount, bool inCardRoutine, boo
 					changedActiveModControllable = !getAffectEntire();
 				}
 
-				if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_SYNTH) {
+				if (currentSong->currentClip->output->type == InstrumentType::SYNTH) {
 					if (getCurrentUI() == &soundEditor
 					    && soundEditor.getCurrentMenuItem() == &menu_item::multiRangeMenu) {
 						menu_item::multiRangeMenu.noteOnToChangeRange(
@@ -2714,7 +2715,7 @@ void InstrumentClipView::sendAuditionNote(bool on, uint8_t yDisplay, uint8_t vel
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
-	if (instrument->type == INSTRUMENT_TYPE_KIT) {
+	if (instrument->type == InstrumentType::KIT) {
 		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(getCurrentClip());
 		ModelStackWithNoteRow* modelStackWithNoteRow =
 		    getCurrentClip()->getNoteRowOnScreen(yDisplay, modelStackWithTimelineCounter); // On *current* clip!
@@ -2851,7 +2852,7 @@ void InstrumentClipView::offsetNoteCodeAction(int newOffset) {
 	auditionPadIsPressed[lastAuditionedYDisplay] = false;
 	reassessAuditionStatus(lastAuditionedYDisplay);
 
-	if (currentSong->currentClip->output->type != INSTRUMENT_TYPE_KIT) {
+	if (currentSong->currentClip->output->type != InstrumentType::KIT) {
 		// If in scale mode, edit the scale
 		if (getCurrentClip()->inScaleMode) {
 			currentSong->changeMusicalMode(yVisualWithinOctave, newOffset);
@@ -2989,7 +2990,7 @@ void InstrumentClipView::auditionPadAction(int velocity, int yDisplay, bool shif
 
 	Instrument* instrument = (Instrument*)currentSong->currentClip->output;
 
-	bool isKit = (instrument->type == INSTRUMENT_TYPE_KIT);
+	bool isKit = (instrument->type == InstrumentType::KIT);
 
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
 	    modelStack->addTimelineCounter(currentSong->currentClip);
@@ -3072,7 +3073,7 @@ justReRender:
 	}
 
 	// Or if synth
-	else if (instrument->type == INSTRUMENT_TYPE_SYNTH) {
+	else if (instrument->type == InstrumentType::SYNTH) {
 		if (velocity) {
 			if (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem() == &menu_item::multiRangeMenu) {
 				menu_item::multiRangeMenu.noteOnToChangeRange(
@@ -3150,7 +3151,7 @@ maybeRenderRow:
 
 		else {
 			// Kit
-			if (instrument->type == INSTRUMENT_TYPE_KIT) {
+			if (instrument->type == InstrumentType::KIT) {
 				noteRowOnActiveClip = ((InstrumentClip*)instrument->activeClip)->getNoteRowForDrum(drum);
 			}
 
@@ -3412,7 +3413,7 @@ void InstrumentClipView::drawNoteCode(uint8_t yDisplay) {
 		return;
 	}
 
-	if (currentSong->currentClip->output->type != INSTRUMENT_TYPE_KIT) {
+	if (currentSong->currentClip->output->type != InstrumentType::KIT) {
 		drawActualNoteCode(getCurrentClip()->getYNoteFromYDisplay(yDisplay, currentSong));
 	}
 	else {
@@ -3757,7 +3758,7 @@ void InstrumentClipView::drawMuteSquare(NoteRow* thisNoteRow, uint8_t thisImage[
 	}
 
 	else if (thisNoteRow == NULL || !thisNoteRow->muted) {
-		if (thisNoteRow == NULL && currentSong->currentClip->output->type == INSTRUMENT_TYPE_KIT) {
+		if (thisNoteRow == NULL && currentSong->currentClip->output->type == InstrumentType::KIT) {
 			memset(thisColour, 0, 3);
 		}
 		else {
@@ -3780,7 +3781,7 @@ void InstrumentClipView::drawMuteSquare(NoteRow* thisNoteRow, uint8_t thisImage[
 }
 
 bool InstrumentClipView::isRowAuditionedByInstrument(int yDisplay) {
-	if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_KIT) {
+	if (currentSong->currentClip->output->type == InstrumentType::KIT) {
 		NoteRow* noteRow = getCurrentClip()->getNoteRowOnScreen(yDisplay, currentSong);
 		if (!noteRow || !noteRow->drum) {
 			return false;
@@ -3800,7 +3801,7 @@ void InstrumentClipView::drawAuditionSquare(uint8_t yDisplay, uint8_t thisImage[
 		NoteRow* noteRow = getCurrentClip()->getNoteRowOnScreen(yDisplay, currentSong);
 
 		bool midiCommandAssigned;
-		if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_KIT) {
+		if (currentSong->currentClip->output->type == InstrumentType::KIT) {
 			midiCommandAssigned = (noteRow && noteRow->drum && noteRow->drum->midiInput.containsSomething());
 		}
 		else {
@@ -3848,7 +3849,7 @@ void InstrumentClipView::drawAuditionSquare(uint8_t yDisplay, uint8_t thisImage[
 drawNormally:
 
 		// Kit - draw "selected Drum"
-		if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_KIT) {
+		if (currentSong->currentClip->output->type == InstrumentType::KIT) {
 			NoteRow* noteRow = getCurrentClip()->getNoteRowOnScreen(yDisplay, currentSong);
 			if (noteRow != NULL && noteRow->drum != NULL
 			    && noteRow->drum == ((Kit*)currentSong->currentClip->output)->selectedDrum) {
@@ -3944,7 +3945,7 @@ int InstrumentClipView::verticalEncoderAction(int offset, bool inCardRoutine) {
 			/*
             if (!Buttons::isShiftButtonPressed()) { // Why'd I mandate that shift not be pressed?
                 // If in kit mode, then we can do it
-                if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_KIT) {
+                if (currentSong->currentClip->output->type == InstrumentType::KIT) {
 
                 	if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 
@@ -3954,7 +3955,7 @@ int InstrumentClipView::verticalEncoderAction(int offset, bool inCardRoutine) {
 
                 // Otherwise, remind the user why they can't
                 else {
-                    if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_SYNTH) indicator_leds::indicateAlertOnLed(IndicatorLED::SYNTH);
+                    if (currentSong->currentClip->output->type == InstrumentType::SYNTH) indicator_leds::indicateAlertOnLed(IndicatorLED::SYNTH);
                     else indicator_leds::indicateAlertOnLed(IndicatorLED::MIDI); // MIDI
                 }
             }
@@ -3976,7 +3977,7 @@ int InstrumentClipView::verticalEncoderAction(int offset, bool inCardRoutine) {
 		}
 
 		// If user not wanting to move a noteCode, they want to transpose the key
-		else if (!currentUIMode && currentSong->currentClip->output->type != INSTRUMENT_TYPE_KIT) {
+		else if (!currentUIMode && currentSong->currentClip->output->type != InstrumentType::KIT) {
 
 			if (inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -4026,7 +4027,7 @@ int InstrumentClipView::verticalEncoderAction(int offset, bool inCardRoutine) {
 		if (isUIModeActive(UI_MODE_AUDITIONING)) {
 			editedAnyPerNoteRowStuffSinceAuditioningBegan = true;
 			if (!shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress) {
-				if (getCurrentClip()->output->type != INSTRUMENT_TYPE_KIT) {
+				if (getCurrentClip()->output->type != InstrumentType::KIT) {
 					goto shiftAllColour;
 				}
 
@@ -4853,7 +4854,7 @@ void InstrumentClipView::fillOffScreenImageStores() {
 	// We're also going to fill up an extra, currently-offscreen imageStore row, with all notes currently offscreen
 
 	int noteRowIndexBottom, noteRowIndexTop;
-	if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_KIT) {
+	if (currentSong->currentClip->output->type == InstrumentType::KIT) {
 		noteRowIndexBottom = getCurrentClip()->yScroll;
 		noteRowIndexTop = getCurrentClip()->yScroll + displayHeight;
 	}
@@ -4914,7 +4915,7 @@ void InstrumentClipView::noteRowChanged(InstrumentClip* clip, NoteRow* noteRow) 
 
 bool InstrumentClipView::isDrumAuditioned(Drum* drum) {
 
-	if (currentSong->currentClip->output->type != INSTRUMENT_TYPE_KIT) {
+	if (currentSong->currentClip->output->type != InstrumentType::KIT) {
 		return false;
 	}
 
@@ -5083,7 +5084,7 @@ void InstrumentClipView::modEncoderAction(int whichModEncoder, int offset) {
 
 	Output* output = clip->output;
 
-	if (output->type == INSTRUMENT_TYPE_KIT && isUIModeActive(UI_MODE_AUDITIONING)) {
+	if (output->type == InstrumentType::KIT && isUIModeActive(UI_MODE_AUDITIONING)) {
 
 		Kit* kit = (Kit*)output;
 

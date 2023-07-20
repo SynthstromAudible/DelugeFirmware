@@ -52,7 +52,7 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 void GlobalEffectableForClip::renderOutput(ModelStackWithTimelineCounter* modelStack, ParamManager* paramManagerForClip,
                                            StereoSample* outputBuffer, int numSamples, int32_t* reverbBuffer,
                                            int32_t reverbAmountAdjust, int32_t sideChainHitPending,
-                                           bool shouldLimitDelayFeedback, bool isClipActive, int outputType,
+                                           bool shouldLimitDelayFeedback, bool isClipActive, InstrumentType instrumentType,
                                            int analogDelaySaturationAmount) {
 
 	UnpatchedParamSet* unpatchedParams = paramManagerForClip->getUnpatchedParamSet();
@@ -67,7 +67,7 @@ void GlobalEffectableForClip::renderOutput(ModelStackWithTimelineCounter* modelS
 	// Make it a bit bigger so that default filter resonance doesn't reduce volume overall.
 	// Unfortunately when I first implemented this for Kits, I just fudged a number which didn't give the 100% accuracy that I need for AudioOutputs,
 	// and I now have to maintain both for backwards compatibility
-	if (outputType == OUTPUT_TYPE_AUDIO) {
+	if (instrumentType == InstrumentType::AUDIO) {
 		volumePostFX += multiply_32x32_rshift32_rounded(volumeAdjustment, 471633397);
 	}
 	else {

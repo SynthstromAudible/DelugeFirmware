@@ -47,7 +47,7 @@ static inline void intToString(int32_t number, char* buffer) {
 
 bool memIsNumericChars(char const* mem, int size);
 bool stringIsNumericChars(char const* str);
-char const* getThingName(uint8_t instrumentType);
+char const* getThingName(InstrumentType instrumentType);
 
 char halfByteToHexChar(uint8_t thisHalfByte);
 void intToHex(uint32_t number, char* output, int numChars = 8);
@@ -170,7 +170,7 @@ int stringToInputChannel(char const* string);
 char const* sequenceDirectionModeToString(int sequenceDirectionMode);
 int stringToSequenceDirectionMode(char const* string);
 
-char const* getInstrumentFolder(uint8_t instrumentType);
+char const* getInstrumentFolder(InstrumentType instrumentType);
 void getThingFilename(char const* thingName, int16_t currentSlot, int8_t currentSubSlot, char* buffer);
 
 int32_t getExp(int32_t presetValue, int32_t adjustment);

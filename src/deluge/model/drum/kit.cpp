@@ -46,7 +46,7 @@
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
 
-Kit::Kit() : Instrument(INSTRUMENT_TYPE_KIT), drumsWithRenderingActive(sizeof(Drum*)) {
+Kit::Kit() : Instrument(InstrumentType::KIT), drumsWithRenderingActive(sizeof(Drum*)) {
 	firstDrum = NULL;
 	selectedDrum = NULL;
 }
@@ -606,7 +606,7 @@ void Kit::renderOutput(ModelStack* modelStack, StereoSample* outputBuffer, Stere
 
 	GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, outputBuffer, numSamples,
 	                                      reverbBuffer, reverbAmountAdjust, sideChainHitPending,
-	                                      shouldLimitDelayFeedback, isClipActive, INSTRUMENT_TYPE_KIT, 8);
+	                                      shouldLimitDelayFeedback, isClipActive, InstrumentType::KIT, 8);
 }
 
 void Kit::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,

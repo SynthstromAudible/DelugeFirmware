@@ -18,6 +18,7 @@
 #pragma once
 
 #include "RZA1/system/r_typedefs.h"
+#include "definitions_cxx.hpp"
 #include "hid/button.h"
 #include "model/model_stack.h"
 
@@ -79,8 +80,8 @@ public:
 	void navigateThroughPresetsForInstrumentClip(int offset, ModelStackWithTimelineCounter* modelStack,
 	                                             bool doBlink = false);
 	void navigateThroughAudioOutputsForAudioClip(int offset, AudioClip* clip, bool doBlink = false);
-	bool changeInstrumentType(int newInstrumentType, ModelStackWithTimelineCounter* modelStack, bool doBlink = false);
-	void drawOutputNameFromDetails(int instrumentType, int slot, int subSlot, char const* name, bool editedByUser,
+	bool changeInstrumentType(InstrumentType newInstrumentType, ModelStackWithTimelineCounter* modelStack, bool doBlink = false);
+	void drawOutputNameFromDetails(InstrumentType instrumentType, int slot, int subSlot, char const* name, bool editedByUser,
 	                               bool doBlink, Clip* clip = NULL);
 	void endMIDILearn();
 	void getClipMuteSquareColour(Clip* clip, uint8_t thisColour[]);

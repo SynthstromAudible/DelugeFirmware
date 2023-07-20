@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "gui/views/clip_navigation_timeline_view.h"
 #include "hid/button.h"
 
@@ -106,7 +107,7 @@ private:
 	Clip* createNewInstrumentClip(int yDisplay);
 	void goToArrangementEditor();
 	void replaceInstrumentClipWithAudioClip();
-	void replaceAudioClipWithInstrumentClip(int instrumentType);
+	void replaceAudioClipWithInstrumentClip(InstrumentType instrumentType);
 	void rowNeedsRenderingDependingOnSubMode(int yDisplay);
 	void setCentralLEDStates();
 };

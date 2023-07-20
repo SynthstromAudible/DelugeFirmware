@@ -99,7 +99,7 @@ public:
 	void addOutput(Output* output, bool atStart = true);
 	void deleteOutputThatIsInMainList(Output* output, bool stopAnyAuditioningFirst = true);
 	void markAllInstrumentsAsEdited();
-	Instrument* getInstrumentFromPresetSlot(int instrumentType, int presetNumber, int presetSubSlotNumber,
+	Instrument* getInstrumentFromPresetSlot(InstrumentType instrumentType, int presetNumber, int presetSubSlotNumber,
 	                                        char const* name, char const* dirPath, bool searchHibernatingToo = true,
 	                                        bool searchNonHibernating = true);
 	AudioOutput* getAudioOutputFromName(String* name);
@@ -110,7 +110,7 @@ public:
 	void deleteOrHibernateOutput(Output* output);
 	uint32_t getLivePos();
 	int32_t getLoopLength();
-	Instrument* getNonAudioInstrumentToSwitchTo(int newInstrumentType, int availabilityRequirement, int16_t newSlot,
+	Instrument* getNonAudioInstrumentToSwitchTo(InstrumentType newInstrumentType, int availabilityRequirement, int16_t newSlot,
 	                                            int8_t newSubSlot, bool* instrumentWasAlreadyInSong);
 	void removeSessionClipLowLevel(Clip* clip, int clipIndex);
 	void changeSwingInterval(int newValue);
@@ -228,11 +228,11 @@ public:
 	void deleteOrHibernateOutputIfNoClips(Output* output);
 	void removeInstrumentFromHibernationList(Instrument* instrument);
 	bool doesOutputHaveActiveClipInSession(Output* output);
-	bool doesNonAudioSlotHaveActiveClipInSession(int instrumentType, int slot, int subSlot = -1);
+	bool doesNonAudioSlotHaveActiveClipInSession(InstrumentType instrumentType, int slot, int subSlot = -1);
 	bool doesOutputHaveAnyClips(Output* output);
 	void deleteBackedUpParamManagersForClip(Clip* clip);
 	void deleteBackedUpParamManagersForModControllable(ModControllableAudio* modControllable);
-	void deleteHibernatingInstrumentWithSlot(int instrumentType, char const* name);
+	void deleteHibernatingInstrumentWithSlot(InstrumentType instrumentType, char const* name);
 	void loadCrucialSamplesOnly();
 	Clip* getSessionClipWithOutput(Output* output, int requireSection = -1, Clip* excludeClip = NULL,
 	                               int* clipIndex = NULL, bool excludePendingOverdubs = false);
@@ -276,7 +276,7 @@ public:
 	void setParamsInAutomationMode(bool newState);
 	bool canOldOutputBeReplaced(Clip* clip, int* availabilityRequirement = NULL);
 	void instrumentSwapped(Instrument* newInstrument);
-	Instrument* changeInstrumentType(Instrument* oldInstrument, int newInstrumentType);
+	Instrument* changeInstrumentType(Instrument* oldInstrument, InstrumentType newInstrumentType);
 	AudioOutput* getFirstAudioOutput();
 	AudioOutput* createNewAudioOutput(Output* replaceOutput = NULL);
 	void getNoteLengthName(char* text, uint32_t noteLength, bool clarifyPerColumn = false);
@@ -298,7 +298,7 @@ public:
 	void setDefaultVelocityForAllInstruments(uint8_t newDefaultVelocity);
 	void midiDeviceBendRangeUpdatedViaMessage(ModelStack* modelStack, MIDIDevice* device, int channelOrZone,
 	                                          int whichBendRange, int bendSemitones);
-	int addInstrumentsToFileItems(int instrumentType);
+	int addInstrumentsToFileItems(InstrumentType instrumentType);
 
 	uint32_t getQuarterNoteLength();
 	uint32_t getBarLength();

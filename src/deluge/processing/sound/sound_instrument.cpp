@@ -32,7 +32,7 @@
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
 
-SoundInstrument::SoundInstrument() : MelodicInstrument(INSTRUMENT_TYPE_SYNTH) {
+SoundInstrument::SoundInstrument() : MelodicInstrument(InstrumentType::SYNTH) {
 }
 
 bool SoundInstrument::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {

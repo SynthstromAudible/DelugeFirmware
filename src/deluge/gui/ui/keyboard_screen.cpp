@@ -79,7 +79,7 @@ int KeyboardScreen::padAction(int x, int y, int velocity) {
 		}
 		if (velocity
 		    && currentSong->currentClip->output->type
-		           != INSTRUMENT_TYPE_KIT) { // We probably couldn't have got this far if it was a Kit, but let's just check
+		           != InstrumentType::KIT) { // We probably couldn't have got this far if it was a Kit, but let's just check
 			int noteCode = getNoteCodeFromCoords(x, y);
 			exitScaleModeOnButtonRelease = false;
 			if (getCurrentClip()->inScaleMode) {
@@ -131,7 +131,7 @@ int KeyboardScreen::padAction(int x, int y, int velocity) {
 			noteCode = getNoteCodeFromCoords(x, y);
 
 			int yDisplay = noteCode - getCurrentClip()->yScrollKeyboardScreen;
-			if (instrument->type == INSTRUMENT_TYPE_KIT) { //
+			if (instrument->type == InstrumentType::KIT) { //
 				yDisplay = (int)(x / 4) + (int)(y / 4) * 4;
 			}
 			if (yDisplayActive[yDisplay]) {
@@ -139,7 +139,7 @@ int KeyboardScreen::padAction(int x, int y, int velocity) {
 			}
 
 			// Change editing range if necessary
-			if (instrument->type == INSTRUMENT_TYPE_SYNTH) {
+			if (instrument->type == InstrumentType::SYNTH) {
 				if (velocity) {
 					if (getCurrentUI() == &soundEditor
 					    && soundEditor.getCurrentMenuItem() == &menu_item::multiRangeMenu) {
@@ -165,7 +165,7 @@ int KeyboardScreen::padAction(int x, int y, int velocity) {
 			}
 
 			{
-				if (instrument->type == INSTRUMENT_TYPE_KIT) {
+				if (instrument->type == InstrumentType::KIT) {
 					int velocityToSound = ((x % 4) * 8) + ((y % 4) * 32) + 7;
 					instrumentClipView.auditionPadAction(velocityToSound, yDisplay, false);
 				}
@@ -206,7 +206,7 @@ foundIt:
 			padPresses[p].x = 255;
 			noteCode = getNoteCodeFromCoords(x, y);
 			int yDisplay = noteCode - getCurrentClip()->yScrollKeyboardScreen;
-			if (instrument->type == INSTRUMENT_TYPE_KIT) { //
+			if (instrument->type == InstrumentType::KIT) { //
 				yDisplay = (int)(x / 4) + (int)(y / 4) * 4;
 			}
 
@@ -236,7 +236,7 @@ foundIt:
 			// even though I can't see quite how we'd get stuck there
 			if (yDisplayActive[yDisplay]) {
 
-				if (instrument->type == INSTRUMENT_TYPE_KIT) { //
+				if (instrument->type == InstrumentType::KIT) { //
 					instrumentClipView.auditionPadAction(0, yDisplay, false);
 				}
 				else {
@@ -262,7 +262,7 @@ foundIt:
 		}
 
 		// Recording - this only works *if* the Clip that we're viewing right now is the Instrument's activeClip
-		if (instrument->type != INSTRUMENT_TYPE_KIT && clipIsActiveOnInstrument
+		if (instrument->type != InstrumentType::KIT && clipIsActiveOnInstrument
 		    && playbackHandler.shouldRecordNotesNow() && currentSong->isClipActive(currentSong->currentClip)) {
 
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
@@ -322,7 +322,7 @@ int KeyboardScreen::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 
 	// Scale mode button
 	if (b == SCALE_MODE) {
-		if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_KIT) {
+		if (currentSong->currentClip->output->type == InstrumentType::KIT) {
 			return ACTION_RESULT_DEALT_WITH; // Kits can't do scales!
 		}
 
@@ -447,7 +447,7 @@ void KeyboardScreen::selectEncoderAction(int8_t offset) {
 int KeyboardScreen::getNoteCodeFromCoords(int x, int y) {
 
 	Instrument* instrument = (Instrument*)currentSong->currentClip->output;
-	if (instrument->type == INSTRUMENT_TYPE_KIT) { //
+	if (instrument->type == InstrumentType::KIT) { //
 
 		return 60 + (int)(x / 4) + (int)(y / 4) * 4;
 	}
@@ -588,7 +588,7 @@ doFullColour:
 					}
 				}
 
-				if (instrument->type == INSTRUMENT_TYPE_KIT) {
+				if (instrument->type == InstrumentType::KIT) {
 					int myV = ((x % 4) * 16) + ((y % 4) * 64) + 8;
 					int myY = (int)(x / 4) + (int)(y / 4) * 4;
 
@@ -667,7 +667,7 @@ int KeyboardScreen::verticalEncoderAction(int offset, bool inCardRoutine) {
 
 		//
 		Instrument* instrument = (Instrument*)currentSong->currentClip->output;
-		if (instrument->type == INSTRUMENT_TYPE_KIT) { //
+		if (instrument->type == InstrumentType::KIT) { //
 			instrumentClipView.verticalEncoderAction(offset * 4, inCardRoutine);
 			uiNeedsRendering(this, 0xFFFFFFFF, 0);
 		}
@@ -681,7 +681,7 @@ int KeyboardScreen::verticalEncoderAction(int offset, bool inCardRoutine) {
 
 int KeyboardScreen::horizontalEncoderAction(int offset) {
 	Instrument* instrument = (Instrument*)currentSong->currentClip->output;
-	if (instrument->type != INSTRUMENT_TYPE_KIT) {
+	if (instrument->type != InstrumentType::KIT) {
 		if (Buttons::isShiftButtonPressed()) {
 			if (isUIModeWithinRange(padActionUIModes)) {
 				InstrumentClip* clip = getCurrentClip();
@@ -704,7 +704,7 @@ int KeyboardScreen::horizontalEncoderAction(int offset) {
 			doScroll(offset);
 		}
 	}
-	else if (instrument->type == INSTRUMENT_TYPE_KIT) {
+	else if (instrument->type == InstrumentType::KIT) {
 		instrumentClipView.verticalEncoderAction(offset, false);
 		uiNeedsRendering(this, 0xFFFFFFFF, 0);
 	}
@@ -744,7 +744,7 @@ void KeyboardScreen::doScroll(int offset, bool force) {
 			drawNoteCode(highestNoteCode);
 
 			// Change editing range if necessary
-			if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_SYNTH) {
+			if (currentSong->currentClip->output->type == InstrumentType::SYNTH) {
 				if (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem() == &menu_item::multiRangeMenu) {
 					menu_item::multiRangeMenu.noteOnToChangeRange(
 					    highestNoteCode + ((SoundInstrument*)currentSong->currentClip->output)->transpose);
@@ -860,7 +860,7 @@ void KeyboardScreen::drawNoteCode(int noteCode) {
 		return;
 	}
 
-	if (currentSong->currentClip->output->type != INSTRUMENT_TYPE_KIT) {
+	if (currentSong->currentClip->output->type != InstrumentType::KIT) {
 		drawActualNoteCode(noteCode);
 	}
 }

@@ -81,16 +81,16 @@ public:
 	bool lseek(uint32_t pos);
 	bool fileExists(char const* pathName);
 	bool fileExists(char const* pathName, FilePointer* fp);
-	int openInstrumentFile(int instrumentType, FilePointer* filePointer);
+	int openInstrumentFile(InstrumentType instrumentType, FilePointer* filePointer);
 	void writeFirmwareVersion();
 	bool checkSDPresent();
 	bool checkSDInitialized();
 	bool readXMLFileCluster();
 	int getNumCharsRemainingInValue();
-	Instrument* createNewInstrument(uint8_t newInstrumentType, ParamManager* getParamManager = NULL);
-	int loadInstrumentFromFile(Song* song, InstrumentClip* clip, int instrumentType, bool mayReadSamplesFromFiles,
+	Instrument* createNewInstrument(InstrumentType newInstrumentType, ParamManager* getParamManager = NULL);
+	int loadInstrumentFromFile(Song* song, InstrumentClip* clip, InstrumentType instrumentType, bool mayReadSamplesFromFiles,
 	                           Instrument** getInstrument, FilePointer* filePointer, String* name, String* dirPath);
-	Instrument* createNewNonAudioInstrument(int instrumentType, int slot, int subSlot);
+	Instrument* createNewNonAudioInstrument(InstrumentType instrumentType, int slot, int subSlot);
 	void writeEarliestCompatibleFirmwareVersion(char const* versionString);
 	int readMIDIParamFromFile(int32_t readAutomationUpToPos, MIDIParamCollection* midiParamCollection,
 	                          int8_t* getCC = NULL);

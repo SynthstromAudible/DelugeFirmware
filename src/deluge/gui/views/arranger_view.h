@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "gui/views/timeline_view.h"
 #include "hid/button.h"
 
@@ -113,7 +114,7 @@ public:
 	int32_t xScrollWhenPlaybackStarted;
 
 private:
-	void changeInstrumentType(int newInstrumentType);
+	void changeInstrumentType(InstrumentType newInstrumentType);
 	void moveClipToSession();
 	void auditionPadAction(bool on, int y);
 	void beginAudition(Output* output);
@@ -135,8 +136,8 @@ private:
 	void changeOutputToAudio();
 	bool renderRowForOutput(ModelStack* modelStack, Output* output, int32_t xScroll, uint32_t xZoom, uint8_t* image,
 	                        uint8_t occupancyMask[], int renderWidth, int ignoreI);
-	Instrument* createNewInstrument(int newInstrumentType, bool* instrumentAlreadyInSong);
-	void changeOutputToInstrument(int newInstrumentType);
+	Instrument* createNewInstrument(InstrumentType newInstrumentType, bool* instrumentAlreadyInSong);
+	void changeOutputToInstrument(InstrumentType newInstrumentType);
 	uint32_t doActualRender(int32_t xScroll, uint32_t xZoom, uint32_t whichRows, uint8_t* image,
 	                        uint8_t occupancyMask[][displayWidth + sideBarWidth], int renderWidth, int imageWidth);
 };

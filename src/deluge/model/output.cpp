@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "definitions_cxx.hpp"
 #include "processing/engines/audio_engine.h"
 #include "model/clip/clip.h"
 #include "model/clip/clip_instance.h"
@@ -29,7 +30,7 @@
 #include "hid/display/numeric_driver.h"
 #include "model/model_stack.h"
 
-Output::Output(int newType) : type(newType) {
+Output::Output(InstrumentType newType) : type(newType) {
 	mutedInArrangementMode = false;
 	soloingInArrangementMode = false;
 	activeClip = NULL;

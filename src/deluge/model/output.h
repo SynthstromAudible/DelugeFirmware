@@ -40,7 +40,7 @@ class ParamManager;
 
 class Output {
 public:
-	Output(int newType);
+	Output(InstrumentType newType);
 	virtual ~Output();
 
 	ClipInstanceVector clipInstances;
@@ -50,7 +50,7 @@ public:
 	             // On OLED Deluge I thiiink SYNT000 would be "SYNT000"?
 	             // Definitely does not contain the ".XML" on the end.
 	Output* next;
-	const uint8_t type;
+	const InstrumentType type;
 	bool mutedInArrangementMode;
 	bool soloingInArrangementMode;
 	bool inValidState;

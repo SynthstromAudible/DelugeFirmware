@@ -125,12 +125,12 @@ SoundEditor::SoundEditor() {
 }
 
 bool SoundEditor::editingKit() {
-	return currentSong->currentClip->output->type == INSTRUMENT_TYPE_KIT;
+	return currentSong->currentClip->output->type == InstrumentType::KIT;
 }
 
 bool SoundEditor::editingCVOrMIDIClip() {
-	return (currentSong->currentClip->output->type == INSTRUMENT_TYPE_MIDI_OUT
-	        || currentSong->currentClip->output->type == INSTRUMENT_TYPE_CV);
+	return (currentSong->currentClip->output->type == InstrumentType::MIDI_OUT
+	        || currentSong->currentClip->output->type == InstrumentType::CV);
 }
 
 bool SoundEditor::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
@@ -185,9 +185,9 @@ void SoundEditor::setLedStates() {
 	indicator_leds::setLedState(IndicatorLED::SYNTH, !inSettingsMenu() && !editingKit() && currentSound);
 	indicator_leds::setLedState(IndicatorLED::KIT, !inSettingsMenu() && editingKit() && currentSound);
 	indicator_leds::setLedState(
-	    IndicatorLED::MIDI, !inSettingsMenu() && currentSong->currentClip->output->type == INSTRUMENT_TYPE_MIDI_OUT);
+	    IndicatorLED::MIDI, !inSettingsMenu() && currentSong->currentClip->output->type == InstrumentType::MIDI_OUT);
 	indicator_leds::setLedState(IndicatorLED::CV,
-	                            !inSettingsMenu() && currentSong->currentClip->output->type == INSTRUMENT_TYPE_CV);
+	                            !inSettingsMenu() && currentSong->currentClip->output->type == InstrumentType::CV);
 
 	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
 	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, false);
@@ -946,7 +946,7 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int sourceIndex) {
 		// InstrumentClips
 		if (clip->type == CLIP_TYPE_INSTRUMENT) {
 			// Kit
-			if (clip->output->type == INSTRUMENT_TYPE_KIT) {
+			if (clip->output->type == InstrumentType::KIT) {
 
 				Drum* selectedDrum = ((Kit*)clip->output)->selectedDrum;
 				// If a SoundDrum is selected...
@@ -986,7 +986,7 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int sourceIndex) {
 			else {
 
 				// Synth
-				if (clip->output->type == INSTRUMENT_TYPE_SYNTH) {
+				if (clip->output->type == InstrumentType::SYNTH) {
 					newSound = (SoundInstrument*)clip->output;
 					newModControllable = newSound;
 				}
@@ -1016,14 +1016,14 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int sourceIndex) {
 			actionLogger.deleteAllLogs();
 
 			if (clip->type == CLIP_TYPE_INSTRUMENT) {
-				if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_MIDI_OUT) {
+				if (currentSong->currentClip->output->type == InstrumentType::MIDI_OUT) {
 #if HAVE_OLED
 					soundEditorRootMenuMIDIOrCV.basicTitle = "MIDI inst.";
 #endif
 doMIDIOrCV:
 					newItem = &soundEditorRootMenuMIDIOrCV;
 				}
-				else if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_CV) {
+				else if (currentSong->currentClip->output->type == InstrumentType::CV) {
 #if HAVE_OLED
 					soundEditorRootMenuMIDIOrCV.basicTitle = "CV instrument";
 #endif
@@ -1171,7 +1171,7 @@ ModelStackWithThreeMainThings* SoundEditor::getCurrentModelStack(void* memory) {
 	NoteRow* noteRow = NULL;
 	int noteRowIndex;
 
-	if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_KIT) {
+	if (currentSong->currentClip->output->type == InstrumentType::KIT) {
 		Drum* selectedDrum = ((Kit*)currentSong->currentClip->output)->selectedDrum;
 		if (selectedDrum) {
 			noteRow = ((InstrumentClip*)currentSong->currentClip)->getNoteRowForDrum(selectedDrum, &noteRowIndex);

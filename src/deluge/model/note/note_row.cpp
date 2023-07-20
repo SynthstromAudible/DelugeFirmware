@@ -1738,7 +1738,7 @@ int32_t NoteRow::processCurrentPos(ModelStackWithNoteRow* modelStack, int32_t ti
 			paramManager.notifyPingpongOccurred(modelStackWithThreeMainThings);
 		}
 
-		bool mayInterpolate = drum ? drum->type == DRUM_TYPE_SOUND : (clip->output->type == INSTRUMENT_TYPE_SYNTH);
+		bool mayInterpolate = drum ? drum->type == DRUM_TYPE_SOUND : (clip->output->type == InstrumentType::SYNTH);
 		// We'll not interpolate for CV, just for efficiency. Since our CV output steps are limited anyway, this is probably reasonably reasonable.
 
 		paramManager.processCurrentPos(modelStackWithThreeMainThings, ticksSinceLast, playingReversedNow, didPingpong,
@@ -1843,7 +1843,7 @@ stopNote:
 
 						// If it's a cut-mode sample, though, we want it to stop, so it can get retriggered again from the start.
 						// Same for time-stretching - although those can loop themselves, caching comes along and stuffs that up, so let's just stop em.
-						if (clip->output->type == INSTRUMENT_TYPE_SYNTH) { // For Sounds
+						if (clip->output->type == InstrumentType::SYNTH) { // For Sounds
 
 							if (((SoundInstrument*)clip->output)->hasCutModeSamples(&clip->paramManager)) {
 								goto stopNote;
@@ -1853,7 +1853,7 @@ stopNote:
 								goto stopNote;
 							}
 						}
-						else if (clip->output->type == INSTRUMENT_TYPE_KIT && drum
+						else if (clip->output->type == InstrumentType::KIT && drum
 						         && drum->type == DRUM_TYPE_SOUND) { // For Kits
 							if (((SoundDrum*)drum)->hasCutModeSamples(&paramManager)) {
 								goto stopNote;
@@ -1994,7 +1994,7 @@ bool NoteRow::isAuditioning(ModelStackWithNoteRow* modelStack) {
 	Clip* clip = (Clip*)modelStack->getTimelineCounter();
 	Output* output = clip->output;
 
-	if (output->type == INSTRUMENT_TYPE_KIT) {
+	if (output->type == InstrumentType::KIT) {
 		return drum && drum->auditioned;
 	}
 	else {
@@ -2075,7 +2075,7 @@ void NoteRow::attemptLateStartOfNextNoteToPlay(ModelStackWithNoteRow* modelStack
 		sound = (SoundDrum*)drum;
 		thisParamManager = &paramManager;
 	}
-	else if (((Clip*)modelStack->getTimelineCounter())->output->type == INSTRUMENT_TYPE_SYNTH) {
+	else if (((Clip*)modelStack->getTimelineCounter())->output->type == InstrumentType::SYNTH) {
 		sound = (SoundInstrument*)((Clip*)modelStack->getTimelineCounter())->output;
 		thisParamManager = &modelStack->getTimelineCounter()->paramManager;
 	}
@@ -2104,14 +2104,14 @@ void NoteRow::playNote(bool on, ModelStackWithNoteRow* modelStack, Note* thisNot
 	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
 	Output* output = clip->output;
 
-	if (output->type != INSTRUMENT_TYPE_KIT) {
+	if (output->type != InstrumentType::KIT) {
 		// If it's a note-on, we'll send it "soon", after all note-offs
 
 		if (on) {
 			if (noteMightBeConstant) {
 
 				// Special case for Sounds
-				if (output->type == INSTRUMENT_TYPE_SYNTH) {
+				if (output->type == InstrumentType::SYNTH) {
 					if (((SoundInstrument*)output)->noteIsOn(getNoteCode())
 					    && ((SoundInstrument*)output)
 					           ->allowNoteTails(
@@ -2397,7 +2397,7 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 			paramManagerNow = &paramManager;
 		}
 
-		else if (clip->output->type == INSTRUMENT_TYPE_SYNTH) {
+		else if (clip->output->type == InstrumentType::SYNTH) {
 			sound = (SoundInstrument*)clip->output;
 			paramManagerNow = &clip->paramManager;
 		}
@@ -3015,7 +3015,7 @@ getOut : {}
 void NoteRow::writeToFile(int drumIndex, InstrumentClip* clip) {
 	storageManager.writeOpeningTagBeginning("noteRow");
 
-	bool forKit = (clip->output->type == INSTRUMENT_TYPE_KIT);
+	bool forKit = (clip->output->type == InstrumentType::KIT);
 
 	if (!forKit) {
 		storageManager.writeAttribute("y", y);
@@ -3098,7 +3098,7 @@ void NoteRow::writeToFile(int drumIndex, InstrumentClip* clip) {
 }
 
 int8_t NoteRow::getColourOffset(InstrumentClip* clip) {
-	if (clip->output->type == INSTRUMENT_TYPE_KIT) {
+	if (clip->output->type == InstrumentType::KIT) {
 		return colourOffset;
 	}
 	else {
@@ -3511,7 +3511,7 @@ int NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWith
 		}
 
 		else {
-			if (clip->output->type == INSTRUMENT_TYPE_SYNTH) {
+			if (clip->output->type == InstrumentType::SYNTH) {
 				sound = (SoundInstrument*)clip->output;
 				paramManagerNow = &clip->paramManager;
 			}

@@ -204,11 +204,14 @@ enum class MidiLearn : uint8_t {
 #define maxNumInstrumentPresets 128
 #define FILENAME_BUFFER_SIZE 256 // Don't ever make this less! The zoom rendering code uses this buffer for its stuff
 
-#define INSTRUMENT_TYPE_SYNTH 0
-#define INSTRUMENT_TYPE_KIT 1
-#define INSTRUMENT_TYPE_MIDI_OUT 2
-#define INSTRUMENT_TYPE_CV 3
-#define OUTPUT_TYPE_AUDIO 4
+enum class InstrumentType : uint8_t {
+	SYNTH,
+	KIT,
+	MIDI_OUT,
+	CV,
+	AUDIO,
+	NONE = 255
+};
 
 enum ThingType {
 	THING_TYPE_SYNTH,

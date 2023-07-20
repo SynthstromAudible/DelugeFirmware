@@ -70,11 +70,11 @@ tryDefaultDir:
 	}
 
 #if HAVE_OLED
-	fileIcon = (instrumentTypeToLoad == INSTRUMENT_TYPE_SYNTH) ? OLED::synthIcon : OLED::kitIcon;
-	title = (instrumentTypeToLoad == INSTRUMENT_TYPE_SYNTH) ? "Save synth" : "Save kit";
+	fileIcon = (instrumentTypeToLoad == InstrumentType::SYNTH) ? OLED::synthIcon : OLED::kitIcon;
+	title = (instrumentTypeToLoad == InstrumentType::SYNTH) ? "Save synth" : "Save kit";
 #endif
 
-	filePrefix = (instrumentTypeToLoad == INSTRUMENT_TYPE_SYNTH) ? "SYNT" : "KIT";
+	filePrefix = (instrumentTypeToLoad == InstrumentType::SYNTH) ? "SYNT" : "KIT";
 
 	int error = arrivedInNewFolder(0, enteredText.get(), defaultDir);
 	if (error) {
@@ -83,7 +83,7 @@ gotError:
 		goto doReturnFalse;
 	}
 
-	if (instrumentTypeToLoad == INSTRUMENT_TYPE_SYNTH) {
+	if (instrumentTypeToLoad == InstrumentType::SYNTH) {
 		indicator_leds::blinkLed(IndicatorLED::SYNTH);
 	}
 	else {
@@ -165,7 +165,7 @@ fail:
 
 	instrumentToSave->writeToFile(currentSong->currentClip, currentSong);
 
-	char const* endString = (instrumentTypeToLoad == INSTRUMENT_TYPE_SYNTH) ? "\n</sound>\n" : "\n</kit>\n";
+	char const* endString = (instrumentTypeToLoad == InstrumentType::SYNTH) ? "\n</sound>\n" : "\n</kit>\n";
 
 	error =
 	    storageManager.closeFileAfterWriting(filePath.get(), "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n", endString);

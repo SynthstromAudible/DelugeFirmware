@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "gui/ui/load/load_ui.h"
 #include "hid/button.h"
 
@@ -44,8 +45,8 @@ public:
 	bool renderSidebar(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
 	                   uint8_t occupancyMask[][displayWidth + sideBarWidth]);
 	ReturnOfConfirmPresetOrNextUnlaunchedOne
-	findAnUnlaunchedPresetIncludingWithinSubfolders(Song* song, int instrumentType, int availabilityRequirement);
-	ReturnOfConfirmPresetOrNextUnlaunchedOne confirmPresetOrNextUnlaunchedOne(int instrumentType, String* searchName,
+	findAnUnlaunchedPresetIncludingWithinSubfolders(Song* song, InstrumentType instrumentType, int availabilityRequirement);
+	ReturnOfConfirmPresetOrNextUnlaunchedOne confirmPresetOrNextUnlaunchedOne(InstrumentType instrumentType, String* searchName,
 	                                                                          int availabilityRequirement);
 	PresetNavigationResult doPresetNavigation(int offset, Instrument* oldInstrument, int availabilityRequirement,
 	                                          bool doBlink);
@@ -61,7 +62,7 @@ protected:
 private:
 	bool showingAuditionPads();
 	int setupForInstrumentType();
-	void changeInstrumentType(int newInstrumentType);
+	void changeInstrumentType(InstrumentType newInstrumentType);
 	void revertToInitialPreset();
 	void exitAction();
 	bool isInstrumentInList(Instrument* searchInstrument, Output* list);
@@ -71,7 +72,7 @@ private:
 
 	int16_t initialChannel;
 	int8_t initialChannelSuffix;
-	uint8_t initialInstrumentType;
+	InstrumentType initialInstrumentType;
 
 	bool changedInstrumentForClip;
 	bool replacedWholeInstrument;

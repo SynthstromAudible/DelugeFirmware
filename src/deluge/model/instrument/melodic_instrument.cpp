@@ -41,9 +41,6 @@
 #include "modulation/params/param_set.h"
 #include "model/instrument/midi_instrument.h"
 
-MelodicInstrument::MelodicInstrument(int newType) : Instrument(newType) {
-}
-
 bool MelodicInstrument::writeMelodicInstrumentAttributesToFile(Clip* clipForSavingOutputOnly, Song* song) {
 	Instrument::writeDataToFile(clipForSavingOutputOnly, song);
 	if (!clipForSavingOutputOnly) {
@@ -292,7 +289,7 @@ void MelodicInstrument::offerReceivedPitchBend(ModelStackWithTimelineCounter* mo
 		if (midiInput.channelOrZone == channel) {
 forMasterChannel:
 			// If it's a MIDIInstrtument...
-			if (type == INSTRUMENT_TYPE_MIDI_OUT) {
+			if (type == InstrumentType::MIDI_OUT) {
 				// .. and it's outputting on the same channel as this MIDI message came in, don't do MIDI thru!
 				if (doingMidiThru && ((MIDIInstrument*)this)->channel == channel) {
 					*doingMidiThru = false;
@@ -339,7 +336,7 @@ void MelodicInstrument::offerReceivedCC(ModelStackWithTimelineCounter* modelStac
 		if (midiInput.channelOrZone == channel) {
 forMasterChannel:
 			// If it's a MIDI Clip...
-			if (type == INSTRUMENT_TYPE_MIDI_OUT) {
+			if (type == InstrumentType::MIDI_OUT) {
 				// .. and it's outputting on the same channel as this MIDI message came in, don't do MIDI thru!
 				if (doingMidiThru && ((MIDIInstrument*)this)->channel == channel) {
 					*doingMidiThru = false;
@@ -391,7 +388,7 @@ void MelodicInstrument::offerReceivedAftertouch(ModelStackWithTimelineCounter* m
 forMasterChannel:
 
 			// If it's a MIDI Clip...
-			if (type == INSTRUMENT_TYPE_MIDI_OUT) {
+			if (type == InstrumentType::MIDI_OUT) {
 				// .. and it's outputting on the same channel as this MIDI message came in, don't do MIDI thru!
 				if (doingMidiThru && ((MIDIInstrument*)this)->channel == channel) {
 					*doingMidiThru = false;

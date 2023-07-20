@@ -711,11 +711,11 @@ bool stringIsNumericChars(char const* str) {
 	return memIsNumericChars(str, strlen(str));
 }
 
-char const* getThingName(uint8_t instrumentType) {
-	if (instrumentType == INSTRUMENT_TYPE_SYNTH) {
+char const* getThingName(InstrumentType instrumentType) {
+	if (instrumentType == InstrumentType::SYNTH) {
 		return "SYNT";
 	}
-	else if (instrumentType == INSTRUMENT_TYPE_KIT) {
+	else if (instrumentType == InstrumentType::KIT) {
 		return "KIT";
 	}
 	else {
@@ -1246,11 +1246,11 @@ int stringToSequenceDirectionMode(char const* string) {
 	}
 }
 
-char const* getInstrumentFolder(uint8_t instrumentType) {
-	if (instrumentType == INSTRUMENT_TYPE_SYNTH) {
+char const* getInstrumentFolder(InstrumentType instrumentType) {
+	if (instrumentType == InstrumentType::SYNTH) {
 		return "SYNTHS";
 	}
-	else if (instrumentType == INSTRUMENT_TYPE_KIT) {
+	else if (instrumentType == InstrumentType::KIT) {
 		return "KITS";
 	}
 	else {

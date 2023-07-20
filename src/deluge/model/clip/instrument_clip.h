@@ -140,7 +140,7 @@ public:
 	uint8_t midiSub;  // 128 means none
 	uint8_t midiPGM;  // 128 means none
 
-	uint8_t instrumentTypeWhileLoading; // For use only while loading song
+	InstrumentType instrumentTypeWhileLoading; // For use only while loading song
 
 	void lengthChanged(ModelStackWithTimelineCounter* modelStack, int32_t oldLength, Action* action = NULL);
 	NoteRow* createNewNoteRowForKit(ModelStackWithTimelineCounter* modelStack, bool atStart, int* getIndex = NULL);
@@ -203,7 +203,7 @@ public:
 	bool isScrollWithinRange(int scrollAmount, int newYNote);
 	int appendClip(ModelStackWithTimelineCounter* thisModelStack, ModelStackWithTimelineCounter* otherModelStack);
 	void instrumentBeenEdited();
-	Instrument* changeInstrumentType(ModelStackWithTimelineCounter* modelStack, int newInstrumentType);
+	Instrument* changeInstrumentType(ModelStackWithTimelineCounter* modelStack, InstrumentType newInstrumentType);
 	int transferVoicesToOriginalClipFromThisClone(ModelStackWithTimelineCounter* modelStackOriginal,
 	                                              ModelStackWithTimelineCounter* modelStackClone);
 	void getSuggestedParamManager(Clip* newClip, ParamManagerForTimeline** suggestedParamManager, Sound* sound);

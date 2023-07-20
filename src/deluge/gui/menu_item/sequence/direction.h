@@ -30,7 +30,7 @@ public:
 
 	ModelStackWithNoteRow* getIndividualNoteRow(ModelStackWithTimelineCounter* modelStack) {
 		InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
-		if (!clip->affectEntire && clip->output->type == INSTRUMENT_TYPE_KIT) {
+		if (!clip->affectEntire && clip->output->type == InstrumentType::KIT) {
 			Kit* kit = (Kit*)currentSong->currentClip->output;
 			if (kit->selectedDrum) {
 				return clip->getNoteRowForDrum(modelStack, kit->selectedDrum); // Still might be NULL;
@@ -85,7 +85,7 @@ public:
 
 	int checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) {
 		if (!((InstrumentClip*)currentSong->currentClip)->affectEntire
-		    && currentSong->currentClip->output->type == INSTRUMENT_TYPE_KIT
+		    && currentSong->currentClip->output->type == InstrumentType::KIT
 		    && !((Kit*)currentSong->currentClip->output)->selectedDrum) {
 			return MENU_PERMISSION_NO;
 		}

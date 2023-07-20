@@ -25,10 +25,6 @@
 #include "storage/storage_manager.h"
 #include <string.h>
 
-NonAudioInstrument::NonAudioInstrument(int newType) : MelodicInstrument(newType) {
-	channel = 0;
-}
-
 void NonAudioInstrument::renderOutput(ModelStack* modelStack, StereoSample* startPos, StereoSample* endPos,
                                       int numSamples, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
                                       int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive) {
