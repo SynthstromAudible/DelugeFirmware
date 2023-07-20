@@ -28,7 +28,7 @@
 #include "gui/views/session_view.h"
 #include "util/functions.h"
 #include "hid/display/numeric_driver.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "gui/views/view.h"
 #include "model/note/note_row.h"
 #include "gui/ui/ui.h"

@@ -18,7 +18,7 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
 #include "model/sample/sample_cache.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "hid/display/numeric_driver.h"
 #include "model/sample/sample.h"
 #include "memory/general_memory_allocator.h"
@@ -56,7 +56,7 @@ void SampleCache::clusterStolen(int clusterIndex) {
 	}
 #endif
 
-	Uart::println("cache Cluster stolen");
+	Debug::println("cache Cluster stolen");
 
 	// There's now no point in having any further Clusters
 	unlinkClusters(clusterIndex + 1, false); // Must do this before changing writeBytePos
@@ -136,7 +136,7 @@ void SampleCache::setWriteBytePos(int newWriteBytePos) {
 // Does not move the new Cluster to the appropriate "availability queue", because it's expected that the caller is just about to call getCluster(), to get it,
 // which will call prioritizeNotStealingCluster(), and that'll do it
 bool SampleCache::setupNewCluster(int clusterIndex) {
-	//Uart::println("writing cache to new Cluster");
+	//Debug::println("writing cache to new Cluster");
 
 #if ALPHA_OR_BETA_VERSION
 	if (clusterIndex >= numClusters) {
@@ -150,7 +150,7 @@ bool SampleCache::setupNewCluster(int clusterIndex) {
 	clusters[clusterIndex] = audioFileManager.allocateCluster(
 	    ClusterType::SAMPLE_CACHE, false, this); // Do not add reasons, and don't steal from this SampleCache
 	if (!clusters[clusterIndex]) {          // If that allocation failed...
-		Uart::println("allocation fail");
+		Debug::println("allocation fail");
 		return false;
 	}
 

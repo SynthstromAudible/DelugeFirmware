@@ -57,7 +57,6 @@
 
 extern "C" {
 #include "RZA1/mtu/mtu.h"
-#include "drivers/uart/uart.h"
 }
 
 const PatchableInfo patchableInfoForSound = {

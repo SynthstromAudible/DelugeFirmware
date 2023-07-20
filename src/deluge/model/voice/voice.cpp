@@ -40,7 +40,7 @@
 #include <new>
 #include "arm_neon.h"
 #include "util/lookuptables/lookuptables.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "model/model_stack.h"
 #include "model/sample/sample_holder_for_voice.h"
 #include "processing/render_wave.h"
@@ -53,7 +53,6 @@
 extern "C" {
 #include "drivers/ssi/ssi.h"
 #include "RZA1/mtu/mtu.h"
-#include "drivers/uart/uart.h"
 }
 
 int32_t spareRenderingBuffer[3][SSI_TX_BUFFER_NUM_SAMPLES] __attribute__((aligned(CACHE_LINE_SIZE)));
@@ -632,7 +631,7 @@ bool Voice::sampleZoneChanged(ModelStackWithVoice* modelStack, int s, MarkerType
 			bool stillActive = voiceUnisonPartSource->voiceSample->sampleZoneChanged(&guides[s], sample, markerType,
 			                                                                         loopingType, getPriorityRating());
 			if (!stillActive) {
-				Uart::println("returned false ---------");
+				Debug::println("returned false ---------");
 				voiceUnisonPartSource->unassign();
 			}
 			else {
@@ -1999,7 +1998,7 @@ pitchTooHigh:
 
 #ifdef TEST_SAMPLE_LOOP_POINTS
 			if (!(getNoise() >> 19)) {
-				//Uart::println("random change");
+				//Debug::println("random change");
 
 				int r = getRandom255();
 
@@ -2022,7 +2021,7 @@ pitchTooHigh:
 					sound->recalculateAllVoicePhaseIncrements(paramManager);
 				}
 
-				//Uart::println("end random change");
+				//Debug::println("end random change");
 			}
 #endif
 
@@ -2198,7 +2197,7 @@ dontUseCache : {}
 
 						if (memory) {
 							source->livePitchShifter = new (memory) LivePitchShifter(inputTypeNow, phaseIncrement);
-							Uart::println("start pitch shifting");
+							Debug::println("start pitch shifting");
 						}
 					}
 				}
@@ -2207,7 +2206,7 @@ dontUseCache : {}
 			// If not pitch shifting and we were previously...
 			else {
 				if (source->livePitchShifter && source->livePitchShifter->mayBeRemovedWithoutClick()) {
-					Uart::println("stop pitch shifting");
+					Debug::println("stop pitch shifting");
 					source->livePitchShifter->~LivePitchShifter();
 					generalMemoryAllocator.dealloc(source->livePitchShifter);
 					source->livePitchShifter = NULL;

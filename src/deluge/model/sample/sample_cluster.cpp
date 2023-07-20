@@ -18,7 +18,7 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
 #include "model/sample/sample_cluster.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "util/functions.h"
 #include "model/sample/sample.h"
 #include "hid/display/numeric_driver.h"
@@ -43,8 +43,8 @@ SampleCluster::~SampleCluster() {
 		}
 
 		if (numReasonsToBeLoaded) {
-			Uart::print("uh oh, some reasons left... ");
-			Uart::println(numReasonsToBeLoaded);
+			Debug::print("uh oh, some reasons left... ");
+			Debug::println(numReasonsToBeLoaded);
 
 			numericDriver.freezeWithError(
 			    "E036"); // Bay_Mud got this, and thinks a FlashAir card might have been a catalyst. It still "shouldn't" be able to happen though.
@@ -57,9 +57,9 @@ SampleCluster::~SampleCluster() {
 void SampleCluster::ensureNoReason(Sample* sample) {
 	if (cluster) {
 		if (cluster->numReasonsToBeLoaded) {
-			Uart::print("Cluster has reason! ");
-			Uart::println(cluster->numReasonsToBeLoaded);
-			Uart::println(sample->filePath.get());
+			Debug::print("Cluster has reason! ");
+			Debug::println(cluster->numReasonsToBeLoaded);
+			Debug::println(sample->filePath.get());
 
 			if (cluster->numReasonsToBeLoaded >= 0) {
 				numericDriver.freezeWithError("E068");
@@ -86,18 +86,18 @@ Cluster* SampleCluster::getCluster(Sample* sample, uint32_t clusterIndex, int lo
 
 		// If the file can no longer be found on the card, we're in trouble
 		if (sample->unloadable) {
-			Uart::println("unloadable");
+			Debug::println("unloadable");
 			if (error) {
 				*error = ERROR_FILE_NOT_FOUND;
 			}
 			return NULL;
 		}
 
-		//Uart::println("loading");
+		//Debug::println("loading");
 		cluster = audioFileManager.allocateCluster(); // Adds 1 reason
 
 		if (!cluster) {
-			Uart::println("couldn't allocate");
+			Debug::println("couldn't allocate");
 			if (error) {
 				*error = ERROR_INSUFFICIENT_RAM;
 			}
@@ -190,8 +190,8 @@ justEnqueue:
 
 			// If it's still not loaded and it was a must-load-now...
 			if (loadInstruction == CLUSTER_LOAD_IMMEDIATELY && !cluster->loaded) {
-				Uart::print("hurrying loading along failed for index: ");
-				Uart::println(clusterIndex);
+				Debug::print("hurrying loading along failed for index: ");
+				Debug::println(clusterIndex);
 				if (error) {
 					*error = ERROR_UNSPECIFIED; // TODO: get actual error
 				}

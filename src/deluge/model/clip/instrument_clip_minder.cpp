@@ -37,7 +37,7 @@
 #include "model/action/action.h"
 #include <string.h>
 #include "playback/mode/session.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/instrument/cv_instrument.h"
 #include "memory/general_memory_allocator.h"

@@ -27,7 +27,7 @@
 #include "playback/playback_handler.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/view.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "model/sample/sample_recorder.h"
 #include "playback/mode/playback_mode.h"
 #include "playback/mode/session.h"

@@ -64,6 +64,10 @@ public:
 	bool midiThru;
 	MIDITakeoverMode midiTakeover;
 
+	// shared buffer for formatting sysex messages.
+	// Not safe for use in interrupts.
+	uint8_t sysex_fmt_buffer[1024];
+
 private:
 	uint8_t serialMidiInput[3];
 	uint8_t numSerialMidiInput;
@@ -75,11 +79,13 @@ private:
 	void midiMessageReceived(MIDIDevice* fromDevice, uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2,
 	                         uint32_t* timer = NULL);
 
-	// or midi device?? whatever makes sense for a consumer as a reply address.
 	void midiSysexReceived(MIDIDevice* device, uint8_t* data, int len);
 	int getPotentialNumConnectedUSBMIDIDevices(int ip);
+
+	void debugSysexReceived(MIDIDevice* device, uint8_t* data, int len);
 };
 
+void midiDebugPrint(MIDIDevice* device, const char* msg, bool nl);
 uint32_t setupUSBMessage(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2);
 
 extern MidiEngine midiEngine;

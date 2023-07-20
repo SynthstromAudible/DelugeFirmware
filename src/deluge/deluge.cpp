@@ -74,7 +74,7 @@
 #include "storage/flash_storage.h"
 #include "testing/hardware_testing.h"
 #include "hid/buttons.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "io/midi/midi_device_manager.h"
 #include "model/clip/instrument_clip.h"
 #include "storage/file_item.h"
@@ -153,15 +153,15 @@ void inputRoutine() {
 
 	bool headphoneNow = readInput(HEADPHONE_DETECT_1, HEADPHONE_DETECT_2);
 	if (headphoneNow != AudioEngine::headphonesPluggedIn) {
-		Uart::print("headphone ");
-		Uart::println(headphoneNow);
+		Debug::print("headphone ");
+		Debug::println(headphoneNow);
 		AudioEngine::headphonesPluggedIn = headphoneNow;
 	}
 
 	bool micNow = !readInput(7, 9);
 	if (micNow != AudioEngine::micPluggedIn) {
-		Uart::print("mic ");
-		Uart::println(micNow);
+		Debug::print("mic ");
+		Debug::println(micNow);
 		AudioEngine::micPluggedIn = micNow;
 	}
 
@@ -175,8 +175,8 @@ void inputRoutine() {
 
 	bool lineInNow = readInput(6, 6);
 	if (lineInNow != AudioEngine::lineInPluggedIn) {
-		Uart::print("line in ");
-		Uart::println(lineInNow);
+		Debug::print("line in ");
+		Debug::println(lineInNow);
 		AudioEngine::lineInPluggedIn = lineInNow;
 	}
 
@@ -192,8 +192,8 @@ void inputRoutine() {
 		batteryMV =
 		    (voltageReadingLastTime)
 		    >> 15; // We only >> by 15 so that we intentionally double the value, because the incoming voltage is halved by a resistive divider already
-		//uartPrint("batt mV: ");
-		//uartPrintNumber(batteryMV);
+		//Debug::print("batt mV: ");
+		//Debug::println(batteryMV);
 
 		// See if we've reached threshold to change verdict on battery level
 
@@ -266,9 +266,9 @@ bool readButtonsAndPads() {
 
 	/*
 	if (!inSDRoutine && !closedPeripheral && !anythingInitiallyAttachedAsUSBHost && AudioEngine::audioSampleTimer >= (44100 << 1)) {
-		Uart::println("closing peripheral");
+		Debug::println("closing peripheral");
 		closeUSBPeripheral();
-		Uart::println("switching back to host");
+		Debug::println("switching back to host");
 		openUSBHost();
 		closedPeripheral = true;
 	}
@@ -279,7 +279,7 @@ bool readButtonsAndPads() {
 			return false;
 		}
 		else {
-			Uart::println("got to end of sd routine");
+			Debug::println("got to end of sd routine");
 			waitingForSDRoutineToEnd = false;
 		}
 	}
@@ -298,13 +298,13 @@ bool readButtonsAndPads() {
 	if (!inSDRoutine && (int32_t)(AudioEngine::audioSampleTimer - timeNextSDTestAction) >= 0) {
 		if (playbackHandler.playbackState) {
 
-			Uart::println("");
-			Uart::println("undoing");
+			Debug::println("");
+			Debug::println("undoing");
 			Buttons::buttonAction(hid::button::BACK, true, sdRoutineLock);
 		}
 		else {
-			Uart::println("");
-			Uart::println("beginning playback");
+			Debug::println("");
+			Debug::println("beginning playback");
 			Buttons::buttonAction(hid::button::PLAY, true, sdRoutineLock);
 		}
 
@@ -338,7 +338,7 @@ bool readButtonsAndPads() {
 
 			if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
 				nextPadPressIsOn = thisPadPressIsOn;
-				Uart::println("putCharBack ---------");
+				Debug::println("putCharBack ---------");
 				uartPutCharBack(UART_ITEM_PIC);
 				waitingForSDRoutineToEnd = true;
 				return false;
@@ -672,8 +672,8 @@ extern "C" int deluge_main(void) {
 			readingFirmwareVersion = false;
 			picFirmwareVersion = value & 127;
 			picSaysOLEDPresent = value & 128;
-			Uart::print("PIC firmware version reported: ");
-			Uart::println(value);
+			Debug::print("PIC firmware version reported: ");
+			Debug::println(value);
 		}
 		else {
 			if (value == 245) {
@@ -715,7 +715,7 @@ resetSettings:
 
 	// If nothing was plugged in to us as host, we'll go peripheral
 	if (!anythingInitiallyAttachedAsUSBHost) {
-		Uart::println("switching from host to peripheral");
+		Debug::println("switching from host to peripheral");
 		closeUSBHost();
 		openUSBPeripheral();
 	}
@@ -806,7 +806,7 @@ resetSettings:
 
 	uiTimerManager.setTimer(TIMER_GRAPHICS_ROUTINE, 50);
 
-	Uart::println("going into main loop");
+	Debug::println("going into main loop");
 	sdRoutineLock = false; // Allow SD routine to start happening
 
 	while (1) {
@@ -1078,11 +1078,11 @@ void spamMode() {
 				if (!sdFileCurrentlyOpen) {
 					result = f_open(&fil, "written.txt", FA_CREATE_ALWAYS | FA_WRITE);
 					if (result) {
-						//Uart::println("couldn't create");
+						//Debug::println("couldn't create");
 					}
 					else {
 						if (spamStates[SPAM_MIDI])
-							Uart::println("writing");
+							Debug::println("writing");
 						sdFileCurrentlyOpen = true;
 					}
 				}
@@ -1092,13 +1092,13 @@ void spamMode() {
 					UINT bytesWritten = 0;
 					char thisByte = getRandom255();
 					result = f_write(&fil, &thisByte, 1, &bytesWritten);
-					//if (result) Uart::println("couldn't write");
+					//if (result) Debug::println("couldn't write");
 
 					sdTotalBytesWritten++;
 
 					if (sdTotalBytesWritten > 1000 * 5) {
 						f_close(&fil);
-						//Uart::println("finished writing");
+						//Debug::println("finished writing");
 						sdReading = true;
 						sdFileCurrentlyOpen = false;
 					}
@@ -1113,12 +1113,12 @@ void spamMode() {
 
 					result = f_open(&fil, "written.txt", FA_READ);
 					if (result) {
-						//Uart::println("file not found");
+						//Debug::println("file not found");
 					}
 
 					else {
 						if (spamStates[SPAM_MIDI])
-							Uart::println("reading");
+							Debug::println("reading");
 						sdFileCurrentlyOpen = true;
 					}
 				}
@@ -1132,7 +1132,7 @@ void spamMode() {
 
 					if (bytesRead <= 0) {
 						f_close(&fil);
-						//Uart::println("finished file");
+						//Debug::println("finished file");
 						sdReading = false;
 						sdFileCurrentlyOpen = false;
 						sdTotalBytesWritten = 0;
@@ -1147,14 +1147,14 @@ void spamMode() {
 			if (timeSince >= 5000) {
 				timeLastPIC = MTU2.TCNT_0;
 
-				Uart::putChar(UART_CHANNEL_PIC, lastCol + 1);
+				Debug::putChar(UART_CHANNEL_PIC, lastCol + 1);
 				for (int i = 0; i < 16; i++) {
 					int whichColour = getRandom255() % 3;
 					for (int colour = 0; colour < 3; colour++) {
 						if (colour == whichColour && (getRandom255() % 3) == 0)
-							Uart::putChar(UART_CHANNEL_PIC, getRandom255());
+							Debug::putChar(UART_CHANNEL_PIC, getRandom255());
 						else
-							Uart::putChar(UART_CHANNEL_PIC, 0);
+							Debug::putChar(UART_CHANNEL_PIC, 0);
 					}
 				}
 
@@ -1221,7 +1221,7 @@ void spamMode() {
 
 				// Disable
 				if (!spamStates[currentSpamThing]) {
-					Uart::putChar(UART_CHANNEL_PIC, 227);
+					Debug::putChar(UART_CHANNEL_PIC, 227);
 				}
 
 				// Enable

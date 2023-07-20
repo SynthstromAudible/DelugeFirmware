@@ -26,7 +26,7 @@
 #include <string.h>
 #include "gui/views/session_view.h"
 #include "playback/playback_handler.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "memory/general_memory_allocator.h"
 #include "gui/views/view.h"
 #include "model/timeline_counter.h"
@@ -299,7 +299,7 @@ void ModControllableAudio::processFX(StereoSample* buffer, int numSamples, ModFX
 
 				// If delay speed has settled for a split second...
 				if (delay.countCyclesWithoutChange >= (44100 >> 5)) {
-					//Uart::println("settling");
+					//Debug::println("settling");
 					initializeSecondaryDelayBuffer(delayWorkingState->userDelayRate, true);
 				}
 
@@ -932,12 +932,12 @@ void ModControllableAudio::initializeSecondaryDelayBuffer(int32_t newNativeRate,
                                                           bool makeNativeRatePreciseRelativeToOtherBuffer) {
 	uint8_t result = delay.secondaryBuffer.init(newNativeRate, delay.primaryBuffer.size);
 	if (result == NO_ERROR) {
-		//Uart::print("new buffer, size: ");
-		//Uart::println(delay.secondaryBuffer.size);
+		//Debug::print("new buffer, size: ");
+		//Debug::println(delay.secondaryBuffer.size);
 
 		// 2 different options here for different scenarios. I can't very clearly remember how to describe the difference
 		if (makeNativeRatePreciseRelativeToOtherBuffer) {
-			//Uart::println("making precise");
+			//Debug::println("making precise");
 			delay.primaryBuffer.makeNativeRatePreciseRelativeToOtherBuffer(&delay.secondaryBuffer);
 		}
 		else {

@@ -17,7 +17,7 @@
 
 #include "testing/hardware_testing.h"
 #include "definitions_cxx.hpp"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "hid/led/indicator_leds.h"
 #include "processing/engines/cv_engine.h"
 #include <string.h>
@@ -48,7 +48,7 @@ void ramTestUart() {
 	while (1) {
 
 		//while (1) {
-		Uart::println("writing to ram");
+		Debug::println("writing to ram");
 		address = (uint32_t*)EXTERNAL_MEMORY_BEGIN;
 		while (address != (uint32_t*)EXTERNAL_MEMORY_END) {
 			*address = (uint32_t)address;
@@ -57,7 +57,7 @@ void ramTestUart() {
 		//}
 
 		//while (1) {
-		Uart::println("reading back from ram. Checking for errors every megabyte");
+		Debug::println("reading back from ram. Checking for errors every megabyte");
 		address = (uint32_t*)EXTERNAL_MEMORY_BEGIN;
 		while (address != (uint32_t*)EXTERNAL_MEMORY_END) {
 			if (*address != (uint32_t)address) {
@@ -67,10 +67,10 @@ void ramTestUart() {
 					while (uartGetTxBufferFullnessByItem(UART_ITEM_MIDI) > 100) {
 						;
 					}
-					Uart::print("error at ");
-					Uart::print((uint32_t)address);
-					Uart::print(". got ");
-					Uart::println(*address);
+					Debug::print("error at ");
+					Debug::print((uint32_t)address);
+					Debug::print(". got ");
+					Debug::println(*address);
 					//while(1);
 					lastErrorAt = errorAtBlockNow;
 				}
@@ -78,7 +78,7 @@ void ramTestUart() {
 			address++;
 		}
 		//}
-		Uart::println("finished checking ram");
+		Debug::println("finished checking ram");
 	}
 }
 

@@ -31,7 +31,7 @@
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "gui/views/session_view.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "processing/engines/cv_engine.h"
 #include "hid/display/numeric_driver.h"
 #include "model/song/song.h"
@@ -473,7 +473,7 @@ int InstrumentClip::beginLinearRecording(ModelStackWithTimelineCounter* modelSta
 
 					noteRow->attemptNoteAdd(0, 1, velocity, NUM_PROBABILITY_VALUES, modelStackWithNoteRow, action);
 					if (!thisDrum->earlyNoteStillActive) {
-						Uart::println("skipping next note");
+						Debug::println("skipping next note");
 						noteRow->skipNextNote = true;
 					}
 				}
@@ -2302,7 +2302,7 @@ someError:
 	int32_t readAutomationUpToPos = MAX_SEQUENCE_LENGTH;
 
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
-		//Uart::println(tagName); delayMS(30);
+		//Debug::println(tagName); delayMS(30);
 
 		int temp;
 

@@ -20,7 +20,7 @@
 #include "dsp/stereo_sample.h"
 #include "definitions_cxx.hpp"
 //#include <algorithm>
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "playback/playback_handler.h"
 #include "util/functions.h"
 #include "model/song/song.h"
@@ -88,7 +88,7 @@ setupSecondaryBuffer:
 
 				if (idealBufferSize != secondaryBuffer.size) {
 
-					Uart::println("new secondary buffer before writing starts");
+					Debug::println("new secondary buffer before writing starts");
 
 					// Ditch that secondary buffer, make a new one
 					secondaryBuffer.discard();
@@ -214,7 +214,7 @@ void Delay::setTimeToAbandon(DelayWorkingState* workingState) {
 		repeatsUntilAbandon = 255;
 	}
 
-	//if (!getRandom255()) Uart::println(workingState->delayFeedbackAmount);
+	//if (!getRandom255()) Debug::println(workingState->delayFeedbackAmount);
 }
 
 void Delay::hasWrapped() {
@@ -224,7 +224,7 @@ void Delay::hasWrapped() {
 
 	repeatsUntilAbandon--;
 	if (!repeatsUntilAbandon) {
-		//Uart::println("discarding");
+		//Debug::println("discarding");
 		discardBuffers();
 	}
 }

@@ -23,7 +23,7 @@
 #include <string.h>
 #include "gui/context_menu/save_song_or_instrument.h"
 #include "model/sample/sample.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/views/view.h"
 #include "storage/storage_manager.h"
@@ -209,10 +209,10 @@ gotError:
 						// successful, something's gone wrong
 						anyErrorMovingTempFiles = true;
 						/*
-						Uart::print("rename failed. ");
-						Uart::println(result);
-						Uart::println(((Sample*)sample)->tempFilePathForRecording.get());
-						Uart::println(sample->filePath.get());
+						Debug::print("rename failed. ");
+						Debug::println(result);
+						Debug::println(((Sample*)sample)->tempFilePathForRecording.get());
+						Debug::println(sample->filePath.get());
 						*/
 					}
 				}
@@ -254,8 +254,8 @@ gotError:
 				// Open file to read
 				FRESULT result = f_open(&fileSystemStuff.currentFile, sourceFilePath, FA_READ);
 				if (result != FR_OK) {
-					Uart::println("open fail");
-					Uart::println(sourceFilePath);
+					Debug::println("open fail");
+					Debug::println(sourceFilePath);
 					error = ERROR_UNSPECIFIED;
 					goto gotError;
 				}
@@ -362,7 +362,7 @@ failAfterOpeningSourceFile:
 						result = f_read(&fileSystemStuff.currentFile, storageManager.fileClusterBuffer,
 						                audioFileManager.clusterSize, &bytesRead);
 						if (result) {
-							Uart::println("read fail");
+							Debug::println("read fail");
 fail3:
 							f_close(&recorderFileSystemStuff.currentFile);
 							error = ERROR_UNSPECIFIED;
@@ -376,8 +376,8 @@ fail3:
 						result = f_write(&recorderFileSystemStuff.currentFile, storageManager.fileClusterBuffer,
 						                 bytesRead, &bytesWritten);
 						if (result || bytesWritten != bytesRead) {
-							Uart::println("write fail");
-							Uart::println(result);
+							Debug::println("write fail");
+							Debug::println(result);
 							goto fail3;
 						}
 
@@ -432,8 +432,8 @@ fail3:
 		filePathDuringWrite.set(&filePath);
 	}
 
-	Uart::print("creating: ");
-	Uart::println(filePathDuringWrite.get());
+	Debug::print("creating: ");
+	Debug::println(filePathDuringWrite.get());
 
 	// Write the actual song file
 	error = storageManager.createXMLFile(filePathDuringWrite.get(), false);

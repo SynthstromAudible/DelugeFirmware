@@ -50,7 +50,7 @@
 #include "dsp/master_compressor/master_compressor.h"
 #include "model/voice/voice_vector.h"
 #include "definitions_cxx.hpp"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "modulation/params/param_set.h"
 #include "util/misc.h"
@@ -275,8 +275,8 @@ Voice* cullVoice(bool saveVoice, bool justDoFastRelease) {
 				}
 
 #if ALPHA_OR_BETA_VERSION
-				Uart::print("soft-culled 1 voice. voices now: ");
-				Uart::println(getNumVoices());
+				Debug::print("soft-culled 1 voice. voices now: ");
+				Debug::println(getNumVoices());
 #endif
 			}
 			// Otherwise, it's already fast-releasing, so just leave it
@@ -341,7 +341,7 @@ void routine() {
 	bool finishedOutputting = doSomeOutputting();
 	if (!finishedOutputting) {
 		logAction("AudioDriver::still outputting");
-		//Uart::println("still waiting");
+		//Debug::println("still waiting");
 		return;
 	}
 
@@ -427,13 +427,13 @@ void routine() {
 				}
 
 #if ALPHA_OR_BETA_VERSION
-				Uart::print("culled ");
-				Uart::print(numToCull);
-				Uart::print(" voices. numSamples: ");
-				Uart::print(numSamples);
+				Debug::print("culled ");
+				Debug::print(numToCull);
+				Debug::print(" voices. numSamples: ");
+				Debug::print(numSamples);
 
-				Uart::print(". voices left: ");
-				Uart::println(getNumVoices());
+				Debug::print(". voices left: ");
+				Debug::println(getNumVoices());
 #endif
 			}
 
@@ -445,8 +445,8 @@ void routine() {
 		else {
 			int numSamplesOverLimit = numSamples - numSamplesLimit;
 			if (numSamplesOverLimit >= 0) {
-				Uart::print("Won't cull, but numSamples is ");
-				Uart::println(numSamples);
+				Debug::print("Won't cull, but numSamples is ");
+				Debug::println(numSamples);
 			}
 		}
 	}
@@ -460,8 +460,8 @@ void routine() {
 				cpuDireness = 0;
 			}
 			else {
-				//Uart::print("direness: ");
-				//Uart::println(cpuDireness);
+				//Debug::print("direness: ");
+				//Debug::println(cpuDireness);
 			}
 		}
 	}
@@ -603,10 +603,10 @@ startAgain:
 
 		usageTimes[REPORT_AVERAGE_NUM - 1] = value;
 
-		Uart::print("uS per ");
-		Uart::print(NUM_SAMPLES_FOR_CPU_USAGE_REPORT * 10);
-		Uart::print(" samples: ");
-		Uart::println(total / REPORT_AVERAGE_NUM);
+		Debug::print("uS per ");
+		Debug::print(NUM_SAMPLES_FOR_CPU_USAGE_REPORT * 10);
+		Debug::print(" samples: ");
+		Debug::println(total / REPORT_AVERAGE_NUM);
 	}
 #endif
 
@@ -769,10 +769,10 @@ startAgain:
 
 	/*
     if (!getRandom255()) {
-    	Uart::print("samples: ");
-        Uart::print(numSamples);
-    	Uart::print(". voices: ");
-    	Uart::println(getNumVoices());
+    	Debug::print("samples: ");
+        Debug::print(numSamples);
+    	Debug::print(". voices: ");
+    	Debug::println(getNumVoices());
     }
 */
 
@@ -831,17 +831,17 @@ startAgain:
 	uint16_t timePassedA = (uint16_t)currentTime - lastRoutineTime;
 	uint32_t timePassedUSA = fastTimerCountToUS(timePassedA);
 	if (timePassedUSA > storageManager.devVarA * 10) {
-		Uart::println("");
+		Debug::println("");
 		for (int i = 0; i < numAudioLogItems; i++) {
 			uint16_t timePassed = (uint16_t)audioLogTimes[i] - lastRoutineTime;
 			uint32_t timePassedUS = fastTimerCountToUS(timePassed);
-			Uart::print(timePassedUS);
-			Uart::print(": ");
-			Uart::println(audioLogStrings[i]);
+			Debug::print(timePassedUS);
+			Debug::print(": ");
+			Debug::println(audioLogStrings[i]);
 		}
 
-		Uart::print(timePassedUSA);
-		Uart::println(": end");
+		Debug::print(timePassedUSA);
+		Debug::println(": end");
 	}
 
 	lastRoutineTime = *TCNT[TIMER_SYSTEM_FAST];
@@ -1161,7 +1161,7 @@ Voice* solicitVoice(Sound* forSound) {
 
 		numSamplesLastTime -=
 		    10; // Stop this triggering for lots of new voices. We just don't know how they'll weigh up to the ones being culled
-		Uart::println("soliciting via culling");
+		Debug::println("soliciting via culling");
 doCull:
 		newVoice = cullVoice(true);
 	}
@@ -1338,7 +1338,7 @@ void doRecorderCardRoutines() {
 
 		// If complete, discard it
 		if (recorder->status == RECORDER_STATUS_AWAITING_DELETION) {
-			Uart::println("deleting recorder");
+			Debug::println("deleting recorder");
 			*prevPointer = recorder->next;
 			recorder->~SampleRecorder();
 			generalMemoryAllocator.dealloc(recorder);

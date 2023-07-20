@@ -32,7 +32,7 @@
 #include "model/consequence/consequence_param_change.h"
 #include "model/drum/kit.h"
 #include <new>
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include <string.h>
 #include "memory/general_memory_allocator.h"
 #include "playback/mode/playback_mode.h"
@@ -129,7 +129,7 @@ Action* ActionLogger::getNewAction(int newActionType, int addToExistingIfPossibl
 		void* actionMemory = generalMemoryAllocator.alloc(sizeof(Action), NULL, true);
 
 		if (!actionMemory) {
-			Uart::println("no ram to create new Action");
+			Debug::println("no ram to create new Action");
 			return NULL;
 		}
 
@@ -205,7 +205,7 @@ void ActionLogger::updateAction(Action* newAction) {
 			newAction->numClipStates = 0;
 			generalMemoryAllocator.dealloc(newAction->clipStates);
 			newAction->clipStates = NULL;
-			Uart::println("discarded clip states");
+			Debug::println("discarded clip states");
 		}
 
 		else {
@@ -301,7 +301,7 @@ void ActionLogger::recordTempoChange(uint64_t timePerBigBefore, uint64_t timePer
 // doNavigation and updateVisually are only false when doing one of those undo-Clip-resize things as part of another Clip resize.
 // You must not call this during the card routine - though I've lost track of the exact reason why not - is it just because we could then be in the middle of executing whichever function accessed the card and we don't know if things will break?
 bool ActionLogger::revert(TimeType time, bool updateVisually, bool doNavigation) {
-	Uart::println("ActionLogger::revert");
+	Debug::println("ActionLogger::revert");
 
 	deleteLastActionIfEmpty();
 
@@ -477,7 +477,7 @@ traverseClips:
 				}
 			}
 			else {
-				Uart::println("clip states wrong number so not restoring");
+				Debug::println("clip states wrong number so not restoring");
 			}
 		}
 
@@ -828,13 +828,13 @@ gotMultipleConsequencesPerNoteRow:
 			} while (thisConsequence->type != Consequence::NOTE_ARRAY_CHANGE
 			         || ((ConsequenceNoteArrayChange*)firstConsequence)->noteRowId != firstNoteRowId);
 
-			Uart::println("did secret undo, just one Consequence");
+			Debug::println("did secret undo, just one Consequence");
 		}
 
 		// Or if only one Consequence (per NoteRow), revert whole Action
 		else {
 			revert(BEFORE, true, false);
-			Uart::println("did secret undo, whole Action");
+			Debug::println("did secret undo, whole Action");
 			revertedWholeAction = true;
 		}
 

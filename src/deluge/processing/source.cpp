@@ -21,7 +21,7 @@
 #include "gui/ui/browser/sample_browser.h"
 #include "processing/sound/sound.h"
 #include "processing/source.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "util/functions.h"
 #include "storage/storage_manager.h"
 #include "model/sample/sample.h"

@@ -22,7 +22,7 @@
 #include "model/sample/sample.h"
 #include "hid/display/numeric_driver.h"
 #include "util/functions.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 
 SampleHolder::SampleHolder() {
 	startPos = 0;
@@ -207,10 +207,10 @@ void SampleHolder::claimClusterReasonsForMarker(Cluster** clusters, uint32_t sta
 		newClusters[l] = sampleCluster->getCluster(((Sample*)audioFile), clusterIndex, clusterLoadInstruction);
 
 		if (!newClusters[l]) {
-			Uart::println("NULL!!");
+			Debug::println("NULL!!");
 		}
 		else if (clusterLoadInstruction == CLUSTER_LOAD_IMMEDIATELY_OR_ENQUEUE && !newClusters[l]->loaded) {
-			Uart::println("not loaded!!");
+			Debug::println("not loaded!!");
 		}
 
 		clusterIndex += playDirection;

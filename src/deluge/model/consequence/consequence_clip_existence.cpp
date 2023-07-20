@@ -27,7 +27,7 @@
 #include "playback/mode/session.h"
 #include "playback/mode/arrangement.h"
 #include "model/output.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "model/clip/audio_clip.h"
 #include "model/model_stack.h"
 #include "util/misc.h"
@@ -86,7 +86,7 @@ int ConsequenceClipExistence::revert(TimeType time, ModelStack* modelStack) {
 		if (shouldBeActiveWhileExistent && !(playbackHandler.playbackState && currentPlaybackMode == &arrangement)) {
 			session.toggleClipStatus(clip, &clipIndex, true, 0);
 			if (!clip->activeIfNoSolo) {
-				Uart::println("still not active!");
+				Debug::println("still not active!");
 			}
 		}
 

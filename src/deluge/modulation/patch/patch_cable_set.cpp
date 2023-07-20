@@ -33,10 +33,6 @@
 #include "io/midi/midi_device.h"
 #include "util/misc.h"
 
-extern "C" {
-#include "drivers/uart/uart.h"
-}
-
 void flagCable(uint32_t* flags, int c) {
 	int idx;
 	if constexpr (NUM_UINTS_TO_REP_PATCH_CABLES > 1) {

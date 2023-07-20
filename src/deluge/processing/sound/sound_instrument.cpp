@@ -21,7 +21,7 @@
 #include "storage/audio/audio_file_manager.h"
 #include "model/clip/instrument_clip.h"
 #include "processing/sound/sound_instrument.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "model/song/song.h"
 #include "playback/playback_handler.h"
 #include "gui/views/view.h"

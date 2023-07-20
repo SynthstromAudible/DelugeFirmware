@@ -28,7 +28,7 @@
 #include "util/functions.h"
 #include "model/song/song.h"
 #include "hid/display/numeric_driver.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "processing/engines/cv_engine.h"
 #include "model/instrument/instrument.h"
 #include "model/song/song.h"
@@ -399,9 +399,9 @@ char const* StorageManager::readNextTagOrAttributeName() {
 	if (*toReturn) {
 		/*
     	for (int t = 0; t < tagDepthCaller; t++) {
-    		Uart::print("\t");
+    		Debug::print("\t");
     	}
-    	Uart::println(toReturn);
+    	Debug::println(toReturn);
 		*/
 		tagDepthCaller++;
 		AudioEngine::logAction(toReturn);
@@ -935,8 +935,8 @@ void StorageManager::readMidiCommand(uint8_t* channel, uint8_t* note) {
 }
 
 int StorageManager::checkSpaceOnCard() {
-	Uart::print("free clusters: ");
-	Uart::println(fileSystemStuff.fileSystem.free_clst);
+	Debug::print("free clusters: ");
+	Debug::println(fileSystemStuff.fileSystem.free_clst);
 	return fileSystemStuff.fileSystem.free_clst ? NO_ERROR
 	                                            : ERROR_SD_CARD_FULL; // This doesn't seem to always be 100% accurate...
 }
@@ -1338,7 +1338,7 @@ void StorageManager::openFilePointer(FilePointer* fp) {
 
 	AudioEngine::logAction("openFilePointer");
 
-	Uart::println("openFilePointer");
+	Debug::println("openFilePointer");
 
 	fileSystemStuff.currentFile.obj.sclust = fp->sclust;
 	fileSystemStuff.currentFile.obj.objsize = fp->objsize;

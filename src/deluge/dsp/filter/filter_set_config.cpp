@@ -18,7 +18,7 @@
 #include "processing/engines/audio_engine.h"
 #include "dsp/filter/filter_set_config.h"
 #include "util/functions.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "storage/storage_manager.h"
 
 FilterSetConfig::FilterSetConfig() {

@@ -22,7 +22,7 @@
 #include "hid/display/numeric_driver.h"
 #include "util/functions.h"
 #include "gui/ui_timer_manager.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "storage/storage_manager.h"
 #include "hid/led/pad_leds.h"
 #include "hid/led/indicator_leds.h"

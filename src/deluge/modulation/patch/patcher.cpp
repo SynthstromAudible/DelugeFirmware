@@ -22,10 +22,10 @@
 #include "model/voice/voice.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "util/misc.h"
+#include "io/debug/print.h"
 
 extern "C" {
 #include "RZA1/mtu/mtu.h"
-#include "drivers/uart/uart.h"
 }
 
 Patcher::Patcher(const PatchableInfo* newInfo) : patchableInfo(newInfo) {
@@ -385,14 +385,12 @@ void Patcher::performInitialPatching(Sound* sound, ParamManager* paramManager) {
 		}
 	}
 	/*
-	}
-
 	uint16_t endTime = *TCNT[TIMER_SYSTEM_FAST];
 	uint16_t duration = endTime - startTime;
 
 	uint32_t timePassedUSA = timerCountToUS(duration);
 
-	uartPrint("duration, uSec: ");
-	uartPrintNumber(timePassedUSA);
+	Debug::print("duration, uSec: ");
+	Debug::println(timePassedUSA);
 */
 }

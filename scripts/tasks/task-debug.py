@@ -63,7 +63,7 @@ def openocd_gdb(cmd, interface: str, target: str, protocol: str, gdb_port: int):
     ]
 
 
-def argparser():
+def argparser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="debug",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
@@ -123,7 +123,7 @@ def get_openocd_target(target: str, protocol: str) -> str:
     return target
 
 
-def main():
+def main() -> int:
     args = argparser().parse_args()
     if args.jlink:
         cmd = jlink_gdb(
@@ -137,7 +137,7 @@ def main():
 
     if args.verbose:
         print(" ".join(cmd))
-    util.run(cmd, False)
+    return util.run(cmd, False)
 
 
 if __name__ == "__main__":
