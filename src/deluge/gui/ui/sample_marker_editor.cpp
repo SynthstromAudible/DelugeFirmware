@@ -49,6 +49,9 @@ extern "C" {
 
 const uint8_t zeroes[] = {0, 0, 0, 0, 0, 0, 0, 0};
 
+int loopLength;
+bool loopLocked = false;
+
 SampleMarkerEditor sampleMarkerEditor{};
 
 SampleMarkerEditor::SampleMarkerEditor() {
@@ -141,9 +144,15 @@ void SampleMarkerEditor::writeValue(uint32_t value, int markerTypeNow) {
 	}
 	else if (markerTypeNow == MARKER_LOOP_START) {
 		getCurrentMultisampleRange()->sampleHolder.loopStartPos = value;
+		if (loopLocked) {
+			getCurrentMultisampleRange()->sampleHolder.loopEndPos = value + loopLength;
+		}
 	}
 	else if (markerTypeNow == MARKER_LOOP_END) {
 		getCurrentMultisampleRange()->sampleHolder.loopEndPos = value;
+		if (loopLocked) {
+			getCurrentMultisampleRange()->sampleHolder.loopStartPos = value - loopLength;
+		}
 	}
 	else if (markerTypeNow == MARKER_END) {
 		getCurrentSampleHolder()->endPos = value;
@@ -419,6 +428,21 @@ ensureNotPastSampleLength:
 						goto ensureNotPastSampleLength;
 					}
 
+					else if (markerHeld == MARKER_LOOP_START && markerPressed == MARKER_LOOP_END) {
+						if (loopLocked == false) {
+							loopLocked = true;
+							int loopStart = getCurrentMultisampleRange()->sampleHolder.loopStartPos;
+							int loopEnd = getCurrentMultisampleRange()->sampleHolder.loopEndPos;
+							loopLength = loopEnd - loopStart;
+							numericDriver.displayPopup("LOCK");
+						} else {
+							loopLocked = false;
+							// unset loopLength?
+							numericDriver.displayPopup("FREE");
+						}
+						return ACTION_RESULT_DEALT_WITH;
+					}
+
 					// Or if a loop point and they pressed the end marker, remove the loop point
 					else if (markerHeld == MARKER_LOOP_START) {
 						if (x == cols[MARKER_START].colOnScreen) {
@@ -685,18 +709,33 @@ int SampleMarkerEditor::verticalEncoderAction(int offset, bool inCardRoutine) {
 		return ACTION_RESULT_DEALT_WITH;
 	}
 
-	int result = instrumentClipView.verticalEncoderAction(
-	    offset, inCardRoutine); // Must say these buttons were not pressed, or else editing might take place
+	// int result = instrumentClipView.verticalEncoderAction(
+	//     offset, inCardRoutine); // Must say these buttons were not pressed, or else editing might take place
 
-	if (result == ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE) {
-		return result;
+	// if (result == ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE) {
+	// 	return result;
+	// }
+
+	// if (getRootUI() == &keyboardScreen) {
+	// 	uiNeedsRendering(this, 0, 0xFFFFFFFF);
+	// }
+
+	// return result;
+
+	if (offset > 0) {
+		loopLength = loopLength * 2;
+		numericDriver.displayPopup("DOUB");
+	} else {
+		loopLength = loopLength / 2;
+		numericDriver.displayPopup("HALF");
 	}
 
-	if (getRootUI() == &keyboardScreen) {
-		uiNeedsRendering(this, 0, 0xFFFFFFFF);
-	}
+	int loopStart = getCurrentMultisampleRange()->sampleHolder.loopStartPos;
+	int newLoopEnd = loopStart + loopLength;
+	writeValue(newLoopEnd, MARKER_LOOP_END);
+	uiNeedsRendering(this, 0xFFFFFFFF, 0);
 
-	return result;
+	return ACTION_RESULT_DEALT_WITH;
 }
 
 bool SampleMarkerEditor::renderSidebar(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
