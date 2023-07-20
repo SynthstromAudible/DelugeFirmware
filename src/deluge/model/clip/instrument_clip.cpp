@@ -2209,7 +2209,7 @@ void InstrumentClip::writeDataToFile(Song* song) {
 	}
 
 	if (output->type != InstrumentType::KIT) {
-		if (arpSettings.mode != ARP_MODE_OFF) {
+		if (arpSettings.mode != ArpMode::OFF) {
 			storageManager.writeOpeningTagBeginning("arpeggiator");
 			storageManager.writeAttribute("mode", (char*)arpModeToString(arpSettings.mode));
 			storageManager.writeAttribute("numOctaves", arpSettings.numOctaves);

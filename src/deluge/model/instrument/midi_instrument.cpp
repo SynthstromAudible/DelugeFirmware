@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "definitions_cxx.hpp"
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
@@ -572,7 +573,7 @@ void MIDIInstrument::noteOnPostArp(int noteCodePostArp, ArpNote* arpNote) {
 		arpSettings = &((InstrumentClip*)activeClip)->arpSettings;
 	}
 
-	bool arpIsOn = arpSettings && arpSettings->mode;
+	bool arpIsOn = arpSettings != nullptr && arpSettings->mode != ArpMode::OFF;
 	int outputMemberChannel;
 
 	// If no MPE, nice and simple.
@@ -804,7 +805,7 @@ void MIDIInstrument::polyphonicExpressionEventPostArpeggiator(int value32, int n
 
 		// Are multiple notes sharing the same output member channel?
 		ArpeggiatorSettings* settings = getArpSettings();
-		if (!settings || !settings->mode) { // Only if not arpeggiating...
+		if (settings == nullptr || settings->mode == ArpMode::OFF) { // Only if not arpeggiating...
 			int numNotesFound = 0;
 			int32_t mpeValuesSum = 0; // We'll be summing 16-bit values into this 32-bit container, so no overflowing
 

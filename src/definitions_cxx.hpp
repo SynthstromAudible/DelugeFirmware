@@ -555,14 +555,15 @@ constexpr auto NUM_FILTER_TYPES = util::to_underlying(FilterType::EQ) + 1;
 
 #define PIC_MESSAGE_REFRESH_TIME 19
 
-enum ArpMode {
-	ARP_MODE_OFF,
-	ARP_MODE_UP,
-	ARP_MODE_DOWN,
-	ARP_MODE_BOTH,
-	ARP_MODE_RANDOM,
-	NUM_ARP_MODES,
+enum class ArpMode {
+	OFF,
+	UP,
+	DOWN,
+	BOTH,
+	RANDOM,
 };
+constexpr auto NUM_ARP_MODES = util::to_underlying(ArpMode::RANDOM) + 1;
+
 
 #define ALLOW_SPAM_MODE 0 // For debugging I think?
 

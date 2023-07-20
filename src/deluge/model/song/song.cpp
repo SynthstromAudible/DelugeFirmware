@@ -1734,7 +1734,7 @@ traverseClips:
 		// In a perfect world, we'd do this for Kits, MIDI and CV too
 		if (storageManager.firmwareVersionOfFileBeingRead < FIRMWARE_1P5P0_PREBETA
 		    && thisClip->output->type == InstrumentType::SYNTH) {
-			if (((InstrumentClip*)thisClip)->arpSettings.mode && !((InstrumentClip*)thisClip)->arpSettings.syncLevel) {
+			if (((InstrumentClip*)thisClip)->arpSettings.mode != ArpMode::OFF && !((InstrumentClip*)thisClip)->arpSettings.syncLevel) {
 				ParamManagerForTimeline* thisParamManager = &thisClip->paramManager;
 				thisParamManager->getPatchedParamSet()->params[PARAM_GLOBAL_ARP_RATE].shiftValues((1 << 30)
 				                                                                                  + (1 << 28));

@@ -1097,16 +1097,16 @@ FilterType stringToFilterType(char const* string) {
 
 char const* arpModeToString(ArpMode mode) {
 	switch (mode) {
-	case ARP_MODE_UP:
+	case ArpMode::UP:
 		return "up";
 
-	case ARP_MODE_DOWN:
+	case ArpMode::DOWN:
 		return "down";
 
-	case ARP_MODE_BOTH:
+	case ArpMode::BOTH:
 		return "both";
 
-	case ARP_MODE_RANDOM:
+	case ArpMode::RANDOM:
 		return "random";
 
 	default:
@@ -1116,19 +1116,19 @@ char const* arpModeToString(ArpMode mode) {
 
 ArpMode stringToArpMode(char const* string) {
 	if (!strcmp(string, "up")) {
-		return ARP_MODE_UP;
+		return ArpMode::UP;
 	}
 	else if (!strcmp(string, "down")) {
-		return ARP_MODE_DOWN;
+		return ArpMode::DOWN;
 	}
 	else if (!strcmp(string, "both")) {
-		return ARP_MODE_BOTH;
+		return ArpMode::BOTH;
 	}
 	else if (!strcmp(string, "random")) {
-		return ARP_MODE_RANDOM;
+		return ArpMode::RANDOM;
 	}
 	else {
-		return ARP_MODE_OFF;
+		return ArpMode::OFF;
 	}
 }
 

@@ -17,6 +17,7 @@
 
 #include "modulation/arpeggiator.h"
 #include <string.h>
+#include "definitions_cxx.hpp"
 #include "playback/playback_handler.h"
 #include "util/functions.h"
 #include "model/song/song.h"
@@ -25,7 +26,7 @@
 
 ArpeggiatorSettings::ArpeggiatorSettings() {
 	numOctaves = 2;
-	mode = ARP_MODE_OFF;
+	mode = ArpMode::OFF;
 
 	// I'm so sorry, this is incredibly ugly, but in order to decide the default sync level, we have to look at the current song, or even better the one being preloaded.
 	// Default sync level is used obviously for the default synth sound if no SD card inserted, but also some synth presets, possibly just older ones,
@@ -78,7 +79,7 @@ void ArpeggiatorForDrum::noteOn(ArpeggiatorSettings* settings, int noteCode, int
 	}
 
 	// If we're an actual arpeggiator...
-	if (settings && settings->mode) {
+	if ((settings != nullptr) && settings->mode != ArpMode::OFF) {
 
 		// If this was the first note-on and we want to sound a note right now...
 		if (!wasActiveBefore) {
@@ -104,7 +105,7 @@ void ArpeggiatorForDrum::noteOn(ArpeggiatorSettings* settings, int noteCode, int
 void ArpeggiatorForDrum::noteOff(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction) {
 
 	// If no arpeggiation...
-	if (!settings || !settings->mode) {
+	if ((settings == nullptr) || settings->mode == ArpMode::OFF) {
 		instruction->noteCodeOffPostArp = NOTE_FOR_DRUM;
 		instruction->outputMIDIChannelOff = arpNote.outputMemberChannel;
 	}
@@ -134,7 +135,7 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int noteCode, int veloci
 	if (n < notes.getNumElements()) {
 		arpNote = (ArpNote*)notes.getElementAddress(n);
 		if (arpNote->inputCharacteristics[MIDI_CHARACTERISTIC_NOTE] == noteCode) {
-			if (settings && settings->mode) {
+			if ((settings != nullptr) && settings->mode != ArpMode::OFF) {
 				return; // If we're an arpeggiator, return
 			}
 			else {
@@ -167,7 +168,7 @@ noteInserted:
 	    fromMIDIChannel; // This is here so that "stealing" a note being edited can then replace its MPE data during editing. Kind of a hacky solution, but it works for now.
 
 	// If we're an arpeggiator...
-	if (settings && settings->mode) {
+	if ((settings != nullptr) && settings->mode != ArpMode::OFF) {
 
 		// If this was the first note-on and we want to sound a note right now...
 		if (notes.getNumElements() == 1) {
@@ -203,7 +204,7 @@ void Arpeggiator::noteOff(ArpeggiatorSettings* settings, int noteCodePreArp, Arp
 		if (arpNote->inputCharacteristics[MIDI_CHARACTERISTIC_NOTE] == noteCodePreArp) {
 
 			// If no arpeggiation...
-			if (!settings || !settings->mode) {
+			if ((settings == nullptr) || settings->mode == ArpMode::OFF) {
 				instruction->noteCodeOffPostArp = noteCodePreArp;
 				instruction->outputMIDIChannelOff = arpNote->outputMemberChannel;
 			}
@@ -244,7 +245,7 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 	gateCurrentlyActive = true;
 
 	// If RANDOM, we do the same thing whether playedFirstArpeggiatedNoteYet or not
-	if (settings->mode == ARP_MODE_RANDOM) {
+	if (settings->mode == ArpMode::RANDOM) {
 		currentOctave = getRandom255() % settings->numOctaves;
 	}
 
@@ -254,7 +255,7 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 		// If which-note not actually set up yet...
 		if (!playedFirstArpeggiatedNoteYet) {
 
-			if (settings->mode == ARP_MODE_DOWN) {
+			if (settings->mode == ArpMode::DOWN) {
 				currentOctave = settings->numOctaves - 1;
 				currentDirection = -1;
 			}
@@ -267,7 +268,7 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 		// Otherwise, just carry on the sequence of arpeggiated notes
 		else {
 
-			if (settings->mode == ARP_MODE_BOTH) {
+			if (settings->mode == ArpMode::BOTH) {
 
 				if (settings->numOctaves == 1) {
 					currentOctave = 0;
@@ -285,7 +286,7 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 			}
 
 			else {
-				currentDirection = (settings->mode == ARP_MODE_DOWN)
+				currentDirection = (settings->mode == ArpMode::DOWN)
 				                       ? -1
 				                       : 1; // Have to reset this, in case the user changed the setting.
 				currentOctave += currentDirection;
@@ -312,7 +313,7 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 	gateCurrentlyActive = true;
 
 	// If RANDOM, we do the same thing whether playedFirstArpeggiatedNoteYet or not
-	if (settings->mode == ARP_MODE_RANDOM) {
+	if (settings->mode == ArpMode::RANDOM) {
 		whichNoteCurrentlyOnPostArp = getRandom255() % (uint8_t)notes.getNumElements();
 		currentOctave = getRandom255() % settings->numOctaves;
 		currentDirection =
@@ -325,7 +326,7 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 		// If which-note not actually set up yet...
 		if (!playedFirstArpeggiatedNoteYet) {
 
-			if (settings->mode == ARP_MODE_DOWN) {
+			if (settings->mode == ArpMode::DOWN) {
 				whichNoteCurrentlyOnPostArp = notes.getNumElements() - 1;
 				currentOctave = settings->numOctaves - 1;
 				currentDirection = -1;
@@ -348,7 +349,7 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 				// If at top octave
 				if ((int)currentOctave >= settings->numOctaves - 1) {
 
-					if (settings->mode == ARP_MODE_UP) {
+					if (settings->mode == ArpMode::UP) {
 						whichNoteCurrentlyOnPostArp -= notes.getNumElements();
 						currentOctave = 0;
 					}
@@ -378,7 +379,7 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 				// If at bottom octave
 				if (currentOctave <= 0) {
 
-					if (settings->mode == ARP_MODE_DOWN) {
+					if (settings->mode == ArpMode::DOWN) {
 						whichNoteCurrentlyOnPostArp += notes.getNumElements();
 						currentOctave = settings->numOctaves - 1;
 					}
@@ -433,7 +434,7 @@ bool ArpeggiatorForDrum::hasAnyInputNotesActive() {
 void ArpeggiatorBase::render(ArpeggiatorSettings* settings, int numSamples, uint32_t gateThreshold,
                              uint32_t phaseIncrement, ArpReturnInstruction* instruction) {
 
-	if (!settings->mode || !hasAnyInputNotesActive()) {
+	if (settings->mode == ArpMode::OFF || !hasAnyInputNotesActive()) {
 		return;
 	}
 
@@ -464,7 +465,7 @@ int32_t ArpeggiatorBase::doTickForward(ArpeggiatorSettings* settings, ArpReturnI
                                        uint32_t clipCurrentPos, bool currentlyPlayingReversed) {
 
 	// Make sure we actually intended to sync
-	if (!settings->mode || !settings->syncLevel) {
+	if (settings->mode == ArpMode::OFF || (settings->syncLevel == 0u)) {
 		return 2147483647;
 	}
 

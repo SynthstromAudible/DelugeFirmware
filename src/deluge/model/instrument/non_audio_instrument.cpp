@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "definitions_cxx.hpp"
 #include "model/clip/instrument_clip.h"
 #include "modulation/params/param_manager.h"
 #include "model/instrument/non_audio_instrument.h"
@@ -33,7 +34,7 @@ void NonAudioInstrument::renderOutput(ModelStack* modelStack, StereoSample* star
 	if (activeClip) {
 		InstrumentClip* activeInstrumentClip = (InstrumentClip*)activeClip;
 
-		if (activeInstrumentClip->arpSettings.mode) {
+		if (activeInstrumentClip->arpSettings.mode != ArpMode::OFF) {
 			uint32_t gateThreshold = activeInstrumentClip->arpeggiatorGate + 2147483648;
 
 			uint32_t phaseIncrement = activeInstrumentClip->arpSettings.getPhaseIncrement(
@@ -126,7 +127,7 @@ lookAtArpNote:
 			int noteCodeAfterArpeggiation = noteCodeBeforeArpeggiation;
 
 			// If there's actual arpeggiation happening right now...
-			if (settings && settings->mode) {
+			if ((settings != nullptr) && settings->mode != ArpMode::OFF) {
 				// If it's not this noteCode's turn, then do nothing with it
 				if (arpeggiator.whichNoteCurrentlyOnPostArp != n) {
 					continue;

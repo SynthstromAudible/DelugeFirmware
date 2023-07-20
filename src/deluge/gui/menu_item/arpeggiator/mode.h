@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "definitions_cxx.hpp"
 #include "model/clip/clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
@@ -32,7 +33,7 @@ public:
 	void writeCurrentValue() {
 
 		// If was off, or is now becoming off...
-		if (soundEditor.currentArpSettings->mode == ARP_MODE_OFF || soundEditor.currentValue == ARP_MODE_OFF) {
+		if (soundEditor.currentArpSettings->mode == ArpMode::OFF || static_cast<ArpMode>(soundEditor.currentValue) == ArpMode::OFF) {
 			if (currentSong->currentClip->isActiveOnOutput()) {
 				char modelStackMemory[MODEL_STACK_MAX_SIZE];
 				ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
@@ -54,7 +55,7 @@ public:
 
 		// Only update the Clip-level arp setting if they hadn't been playing with other synth parameters first (so it's clear that switching the arp on or off was their main intention)
 		if (!soundEditor.editingKit()) {
-			bool arpNow = (soundEditor.currentValue != ARP_MODE_OFF); // Uh.... this does nothing...
+			bool arpNow = (static_cast<ArpMode>(soundEditor.currentValue) != ArpMode::OFF); // Uh.... this does nothing...
 		}
 	}
 	char const** getOptions() {

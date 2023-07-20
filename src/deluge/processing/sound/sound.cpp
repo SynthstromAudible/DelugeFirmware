@@ -1529,7 +1529,7 @@ void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int not
 			ModelStackWithVoice* modelStackWithVoice = modelStack->addVoice(thisVoice);
 
 			// If we have actual arpeggiation, just switch off.
-			if (arpSettings && arpSettings->mode) {
+			if ((arpSettings != nullptr) && arpSettings->mode != ArpMode::OFF) {
 				goto justSwitchOff;
 			}
 
@@ -1580,7 +1580,7 @@ bool Sound::allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardS
 
 	// If arp on, then definitely yes
 	ArpeggiatorSettings* arpSettings = getArpSettings((InstrumentClip*)modelStack->getTimelineCounterAllowNull());
-	if (arpSettings && arpSettings->mode) {
+	if ((arpSettings != nullptr) && arpSettings->mode != ArpMode::OFF) {
 		return true;
 	}
 
@@ -1705,7 +1705,7 @@ bool Sound::allowsVeryLateNoteStart(InstrumentClip* clip, ParamManagerForTimelin
 
 	// If arpeggiator, we can always start very late
 	ArpeggiatorSettings* arpSettings = getArpSettings(clip);
-	if (arpSettings && arpSettings->mode) {
+	if ((arpSettings != nullptr) && arpSettings->mode != ArpMode::OFF) {
 		return true;
 	}
 
@@ -1822,8 +1822,9 @@ void Sound::reassessRenderSkippingStatus(ModelStackWithSoundFlags* modelStack, b
 	// ModelStack, cos many deeper-nested functions called by this one need it too!
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 
-	bool skippingStatusNow = (!numVoicesAssigned && !delay.repeatsUntilAbandon && !stutterer.status
-	                          && (!arpSettings || !getArp()->hasAnyInputNotesActive() || !arpSettings->mode));
+	bool skippingStatusNow =
+	    ((numVoicesAssigned == 0) && (delay.repeatsUntilAbandon == 0u) && (stutterer.status == 0u)
+	     && ((arpSettings == nullptr) || !getArp()->hasAnyInputNotesActive() || arpSettings->mode == ArpMode::OFF));
 
 	if (skippingStatusNow != skippingRendering) {
 
@@ -2035,7 +2036,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 
 	// Arpeggiator
 	ArpeggiatorSettings* arpSettings = getArpSettings();
-	if (arpSettings && arpSettings->mode) {
+	if (arpSettings && arpSettings->mode != ArpMode::OFF) {
 
 		UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 		uint32_t gateThreshold = (uint32_t)unpatchedParams->getValue(PARAM_UNPATCHED_SOUND_ARP_GATE) + 2147483648;
@@ -2262,8 +2263,8 @@ void Sound::stopSkippingRendering(ArpeggiatorSettings* arpSettings) {
 			                                      AudioEngine::audioSampleTimer - AudioEngine::timeLastSideChainHit);
 			//}
 
-			postReverbVolumeLastTime =
-			    -1; // Special state to make it grab the actual value the first time it's rendered
+			// Special state to make it grab the actual value the first time it's rendered
+			postReverbVolumeLastTime = -1;
 
 			//clearModFXMemory(); // No need anymore, now we wait for this to basically empty before starting skipping
 		}
@@ -2275,7 +2276,7 @@ void Sound::stopSkippingRendering(ArpeggiatorSettings* arpSettings) {
 void Sound::getArpBackInTimeAfterSkippingRendering(ArpeggiatorSettings* arpSettings) {
 
 	if (skippingRendering) {
-		if (arpSettings && arpSettings->mode) {
+		if (arpSettings && arpSettings->mode != ArpMode::OFF) {
 			uint32_t phaseIncrement =
 			    arpSettings->getPhaseIncrement(paramFinalValues[PARAM_GLOBAL_ARP_RATE - FIRST_GLOBAL_PARAM]);
 			getArp()->gatePos +=
@@ -2295,9 +2296,8 @@ void Sound::unassignAllVoices() {
 	AudioEngine::activeVoices.getRangeForSound(this, ends);
 	for (int v = ends[0]; v < ends[1]; v++) {
 		Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
-		AudioEngine::activeVoices.checkVoiceExists(
-		    thisVoice, this,
-		    "E203"); // ronronsen got error! https://forums.synthstrom.com/discussion/4090/e203-by-changing-a-drum-kit#latest
+		// ronronsen got error! https://forums.synthstrom.com/discussion/4090/e203-by-changing-a-drum-kit#latest
+		AudioEngine::activeVoices.checkVoiceExists(thisVoice, this, "E203");
 		AudioEngine::unassignVoice(thisVoice, this, NULL,
 		                           false); // Don't remove from Vector - we'll do that below, in bulk
 	}
@@ -2309,12 +2309,12 @@ void Sound::unassignAllVoices() {
 
 	if (ALPHA_OR_BETA_VERSION) {
 		if (numVoicesAssigned > 0) {
-			numericDriver.freezeWithError(
-			    "E070"); // ronronsen got error! https://forums.synthstrom.com/discussion/4090/e203-by-changing-a-drum-kit#latest
+			// ronronsen got error! https://forums.synthstrom.com/discussion/4090/e203-by-changing-a-drum-kit#latest
+			numericDriver.freezeWithError("E070");
 		}
 		else if (numVoicesAssigned < 0) {
-			numericDriver.freezeWithError(
-			    "E071"); // ronronsen got error! https://forums.synthstrom.com/discussion/4090/e203-by-changing-a-drum-kit#latest
+			// ronronsen got error! https://forums.synthstrom.com/discussion/4090/e203-by-changing-a-drum-kit#latest
+			numericDriver.freezeWithError("E071");
 		}
 	}
 
@@ -2828,7 +2828,7 @@ bool Sound::anyNoteIsOn() {
 
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 
-	if (arpSettings && arpSettings->mode != ARP_MODE_OFF) {
+	if (arpSettings && arpSettings->mode != ArpMode::OFF) {
 		return (getArp()->hasAnyInputNotesActive());
 	}
 
@@ -3731,7 +3731,7 @@ int16_t Sound::getMaxOscTranspose(InstrumentClip* clip) {
 
 	ArpeggiatorSettings* arpSettings = getArpSettings(clip);
 
-	if (arpSettings && arpSettings->mode) {
+	if (arpSettings && arpSettings->mode != ArpMode::OFF) {
 		maxRawOscTranspose += (arpSettings->numOctaves - 1) * 12;
 	}
 
