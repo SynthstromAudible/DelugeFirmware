@@ -213,7 +213,7 @@ void SoundEditor::setLedStates() {
 	playbackHandler.setLedStates();
 }
 
-int SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+ActionResult SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	using namespace hid::button;
 
 	// Encoder button
@@ -221,7 +221,7 @@ int SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 		if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_AUDITIONING) {
 			if (on) {
 				if (inCardRoutine) {
-					return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 				}
 				MenuItem* newItem = getCurrentMenuItem()->selectButtonPress();
 				if (newItem) {
@@ -257,7 +257,7 @@ int SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 		if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_AUDITIONING) {
 			if (on) {
 				if (inCardRoutine) {
-					return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 				}
 
 				// Special case if we're editing a range
@@ -275,7 +275,7 @@ int SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 		if (on && currentUIMode == UI_MODE_NONE && !inSettingsMenu() && !editingCVOrMIDIClip()
 		    && currentSong->currentClip->type != CLIP_TYPE_AUDIO) {
 			if (inCardRoutine) {
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
 			if (Buttons::isShiftButtonPressed()) {
@@ -292,7 +292,7 @@ int SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	// MIDI learn button
 	else if (b == LEARN) {
 		if (inCardRoutine) {
-			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 		if (on) {
 			if (!currentUIMode) {
@@ -328,7 +328,7 @@ int SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	else if (b == AFFECT_ENTIRE && getRootUI() == &instrumentClipView) {
 		if (getCurrentMenuItem()->usesAffectEntire() && editingKit()) {
 			if (inCardRoutine) {
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 			if (on) {
 				if (currentUIMode == UI_MODE_NONE) {
@@ -352,7 +352,7 @@ int SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	else if (b == KEYBOARD) {
 		if (on && currentUIMode == UI_MODE_NONE && !editingKit()) {
 			if (inCardRoutine) {
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
 			if (getRootUI() == &keyboardScreen) {
@@ -371,10 +371,10 @@ int SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	}
 
 	else {
-		return ACTION_RESULT_NOT_DEALT_WITH;
+		return ActionResult::NOT_DEALT_WITH;
 	}
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
 void SoundEditor::goUpOneLevel() {
@@ -613,13 +613,13 @@ bool SoundEditor::editingReverbCompressor() {
 	return (getCurrentUI() == &soundEditor && currentCompressor == &AudioEngine::reverbCompressor);
 }
 
-int SoundEditor::horizontalEncoderAction(int offset) {
+ActionResult SoundEditor::horizontalEncoderAction(int offset) {
 	if (currentUIMode == UI_MODE_AUDITIONING && getRootUI() == &keyboardScreen) {
 		return getRootUI()->horizontalEncoderAction(offset);
 	}
 	else {
 		getCurrentMenuItem()->horizontalEncoderAction(offset);
-		return ACTION_RESULT_DEALT_WITH;
+		return ActionResult::DEALT_WITH;
 	}
 }
 
@@ -672,18 +672,18 @@ void SoundEditor::markInstrumentAsEdited() {
 
 static const uint32_t shortcutPadUIModes[] = {UI_MODE_AUDITIONING, 0};
 
-int SoundEditor::potentialShortcutPadAction(int x, int y, bool on) {
+ActionResult SoundEditor::potentialShortcutPadAction(int x, int y, bool on) {
 
 	if (!on || x >= displayWidth
 	    || (!Buttons::isShiftButtonPressed()
 	        && !(currentUIMode == UI_MODE_AUDITIONING && getRootUI() == &instrumentClipView))) {
-		return ACTION_RESULT_NOT_DEALT_WITH;
+		return ActionResult::NOT_DEALT_WITH;
 	}
 
 	if (on && isUIModeWithinRange(shortcutPadUIModes)) {
 
 		if (sdRoutineLock) {
-			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 
 		const MenuItem* item = NULL;
@@ -724,7 +724,7 @@ doSetup:
 
 					if (item == comingSoonMenu) {
 						numericDriver.displayPopup(HAVE_OLED ? "Feature not (yet?) implemented" : "SOON");
-						return ACTION_RESULT_DEALT_WITH;
+						return ActionResult::DEALT_WITH;
 					}
 
 #if HAVE_OLED
@@ -747,7 +747,7 @@ doSetup:
 					bool setupSuccess = setup((currentSong->currentClip), item, thingIndex);
 
 					if (!setupSuccess) {
-						return ACTION_RESULT_DEALT_WITH;
+						return ActionResult::DEALT_WITH;
 					}
 
 					// If not in SoundEditor yet
@@ -779,7 +779,7 @@ doSetup:
 				}
 
 				if (source >= kLastPatchSource) {
-					return ACTION_RESULT_DEALT_WITH;
+					return ActionResult::DEALT_WITH;
 				}
 
 				bool previousPressStillActive = false;
@@ -812,7 +812,7 @@ getOut:
 						newNavigationDepth--;
 						if (newNavigationDepth < 0) { // This normally shouldn't happen
 							exitCompletely();
-							return ACTION_RESULT_DEALT_WITH;
+							return ActionResult::DEALT_WITH;
 						}
 						wentBack = true;
 					}
@@ -839,19 +839,19 @@ getOut:
 			}
 		}
 	}
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
 extern uint16_t batteryMV;
 
-int SoundEditor::padAction(int x, int y, int on) {
+ActionResult SoundEditor::padAction(int x, int y, int on) {
 	if (sdRoutineLock) {
-		return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 
 	if (!inSettingsMenu()) {
-		int result = potentialShortcutPadAction(x, y, on);
-		if (result != ACTION_RESULT_NOT_DEALT_WITH) {
+		ActionResult result = potentialShortcutPadAction(x, y, on);
+		if (result != ActionResult::NOT_DEALT_WITH) {
 			return result;
 		}
 	}
@@ -859,7 +859,7 @@ int SoundEditor::padAction(int x, int y, int on) {
 	if (getRootUI() == &keyboardScreen) {
 		if (x < displayWidth) {
 			keyboardScreen.padAction(x, y, on);
-			return ACTION_RESULT_DEALT_WITH;
+			return ActionResult::DEALT_WITH;
 		}
 	}
 
@@ -867,7 +867,7 @@ int SoundEditor::padAction(int x, int y, int on) {
 	else if (getRootUI() == &instrumentClipView) {
 		if (x == displayWidth + 1) {
 			instrumentClipView.padAction(x, y, on);
-			return ACTION_RESULT_DEALT_WITH;
+			return ActionResult::DEALT_WITH;
 		}
 	}
 
@@ -893,12 +893,12 @@ int SoundEditor::padAction(int x, int y, int on) {
 		}
 	}
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
-int SoundEditor::verticalEncoderAction(int offset, bool inCardRoutine) {
+ActionResult SoundEditor::verticalEncoderAction(int offset, bool inCardRoutine) {
 	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(hid::button::X_ENC)) {
-		return ACTION_RESULT_DEALT_WITH;
+		return ActionResult::DEALT_WITH;
 	}
 	return getRootUI()->verticalEncoderAction(offset, inCardRoutine);
 }

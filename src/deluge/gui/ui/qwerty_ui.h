@@ -24,9 +24,9 @@
 class QwertyUI : public UI {
 public:
 	QwertyUI();
-	int padAction(int x, int y, int velocity);
-	int horizontalEncoderAction(int offset);
-	int timerCallback();
+	ActionResult padAction(int x, int y, int velocity);
+	ActionResult horizontalEncoderAction(int offset);
+	ActionResult timerCallback();
 	bool renderMainPads(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3] = NULL,
 	                    uint8_t occupancyMask[][displayWidth + sideBarWidth] = NULL, bool drawUndefinedArea = true) {
 		return true;

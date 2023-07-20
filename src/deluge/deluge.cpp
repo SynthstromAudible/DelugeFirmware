@@ -323,7 +323,7 @@ bool readButtonsAndPads() {
 			int thisPadPressIsOn = nextPadPressIsOn;
 			nextPadPressIsOn = USE_DEFAULT_VELOCITY;
 
-			int result;
+			ActionResult result;
 			if (Pad::isPad(value)) {
 				auto p = Pad(value);
 				result = matrixDriver.padAction(p.x, p.y, thisPadPressIsOn);
@@ -336,7 +336,7 @@ bool readButtonsAndPads() {
 				result = Buttons::buttonAction(b, thisPadPressIsOn, sdRoutineLock);
 			}
 
-			if (result == ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE) {
+			if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
 				nextPadPressIsOn = thisPadPressIsOn;
 				Uart::println("putCharBack ---------");
 				uartPutCharBack(UART_ITEM_PIC);

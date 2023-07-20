@@ -23,7 +23,7 @@
 
 namespace Buttons {
 
-int buttonAction(hid::Button b, bool on, bool inCardRoutine);
+ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
 bool isButtonPressed(hid::Button b);
 bool isShiftButtonPressed();
 bool isNewOrShiftButtonPressed();

@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "definitions_cxx.hpp"
 #include "processing/engines/audio_engine.h"
 #include "model/clip/instrument_clip_minder.h"
 #include "gui/views/timeline_view.h"
@@ -62,7 +63,7 @@ bool TimelineView::calculateZoomPinSquares(uint32_t oldScroll, uint32_t newScrol
 	return true;
 }
 
-int TimelineView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+ActionResult TimelineView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	using namespace hid::button;
 
 	// Horizontal encoder button
@@ -89,7 +90,7 @@ int TimelineView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	else if (b == TRIPLETS) {
 		if (on) {
 			if (inCardRoutine) {
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 			tripletsButtonPressed();
 		}
@@ -116,7 +117,7 @@ int TimelineView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 		return view.buttonAction(b, on, inCardRoutine);
 	}
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
 void TimelineView::displayZoomLevel(bool justPopup) {
@@ -130,19 +131,19 @@ void TimelineView::displayZoomLevel(bool justPopup) {
 bool horizontalEncoderActionLock = false;
 extern bool pendingUIRenderingLock;
 
-int TimelineView::horizontalEncoderAction(int offset) {
+ActionResult TimelineView::horizontalEncoderAction(int offset) {
 
 	if (sdRoutineLock) {
-		return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 
 	// These next two, I had here before adding the actual SD lock check / remind-later above. Maybe they're not still necessary? If either was true, wouldn't
 	// sdRoutineLock be true also for us to have gotten here?
 	if (pendingUIRenderingLock) {
-		return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE; // Would possibly prefer to have this case cause it to still come back later and do it, but oh well
+		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Would possibly prefer to have this case cause it to still come back later and do it, but oh well
 	}
 	if (horizontalEncoderActionLock) {
-		return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE; // Really wouldn't want to get in here multiple times, while pre-rendering the waveforms for the new navigation
+		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Really wouldn't want to get in here multiple times, while pre-rendering the waveforms for the new navigation
 	}
 	horizontalEncoderActionLock = true;
 
@@ -202,7 +203,7 @@ int TimelineView::horizontalEncoderAction(int offset) {
 
 getOut:
 	horizontalEncoderActionLock = false;
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
 void TimelineView::displayScrollPos() {

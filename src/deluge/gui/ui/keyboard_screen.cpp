@@ -58,25 +58,25 @@ KeyboardScreen::KeyboardScreen() {
 static const uint32_t padActionUIModes[] = {UI_MODE_AUDITIONING, UI_MODE_RECORD_COUNT_IN,
                                             0}; // Careful - this is referenced in two places
 
-int KeyboardScreen::padAction(int x, int y, int velocity) {
+ActionResult KeyboardScreen::padAction(int x, int y, int velocity) {
 
 	if (x >= displayWidth) {
-		return ACTION_RESULT_DEALT_WITH;
+		return ActionResult::DEALT_WITH;
 	}
 
 	if (sdRoutineLock && !allowSomeUserActionsEvenWhenInCardRoutine) {
-		return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow some of the time when in card routine.
+		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow some of the time when in card routine.
 	}
 
-	int soundEditorResult = soundEditor.potentialShortcutPadAction(x, y, velocity);
+	ActionResult soundEditorResult = soundEditor.potentialShortcutPadAction(x, y, velocity);
 
-	if (soundEditorResult != ACTION_RESULT_NOT_DEALT_WITH) {
+	if (soundEditorResult != ActionResult::NOT_DEALT_WITH) {
 		return soundEditorResult;
 	}
 
 	if (currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED) {
 		if (sdRoutineLock) {
-			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 		if (velocity
 		    && currentSong->currentClip->output->type
@@ -126,7 +126,7 @@ int KeyboardScreen::padAction(int x, int y, int velocity) {
 
 			// If no spare presses, return
 			if (emptyPressIndex == MAX_NUM_KEYBOARD_PAD_PRESSES) {
-				return ACTION_RESULT_DEALT_WITH;
+				return ActionResult::DEALT_WITH;
 			}
 
 			noteCode = getNoteCodeFromCoords(x, y);
@@ -136,7 +136,7 @@ int KeyboardScreen::padAction(int x, int y, int velocity) {
 				yDisplay = (int)(x / 4) + (int)(y / 4) * 4;
 			}
 			if (yDisplayActive[yDisplay]) {
-				return ACTION_RESULT_DEALT_WITH;
+				return ActionResult::DEALT_WITH;
 			}
 
 			// Change editing range if necessary
@@ -154,7 +154,7 @@ int KeyboardScreen::padAction(int x, int y, int velocity) {
 			NoteRow* noteRow = ((InstrumentClip*)instrument->activeClip)->getNoteRowForYNote(noteCode);
 			if (noteRow) {
 				if (noteRow->soundingStatus == STATUS_SEQUENCED_NOTE) {
-					return ACTION_RESULT_DEALT_WITH;
+					return ActionResult::DEALT_WITH;
 				}
 			}
 
@@ -201,7 +201,7 @@ int KeyboardScreen::padAction(int x, int y, int velocity) {
 			if (isUIModeActive(UI_MODE_AUDITIONING)) {
 				exitUIMode(UI_MODE_AUDITIONING);
 			}
-			return ACTION_RESULT_DEALT_WITH;
+			return ActionResult::DEALT_WITH;
 
 foundIt:
 			padPresses[p].x = 255;
@@ -213,7 +213,7 @@ foundIt:
 
 			// We need to check that we had actually switched the note on here - it might have already been sounding, from the sequence
 			if (!yDisplayActive[yDisplay]) {
-				return ACTION_RESULT_DEALT_WITH;
+				return ActionResult::DEALT_WITH;
 			}
 
 			// If any other of the same note is being held down, then don't switch it off. Also, see if we're still "auditioning" any notes at all
@@ -227,7 +227,7 @@ foundIt:
 
 					// If the same note is still being held down (on a different pad), then we don't want to switch it off either
 					if (getNoteCodeFromCoords(padPresses[p].x, padPresses[p].y) == noteCode) {
-						return ACTION_RESULT_DEALT_WITH;
+						return ActionResult::DEALT_WITH;
 					}
 				}
 			}
@@ -315,20 +315,20 @@ foundIt:
 		uiNeedsRendering(this, 0xFFFFFFFF, 0);
 	}
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
-int KeyboardScreen::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+ActionResult KeyboardScreen::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	using namespace hid::button;
 
 	// Scale mode button
 	if (b == SCALE_MODE) {
 		if (currentSong->currentClip->output->type == InstrumentType::KIT) {
-			return ACTION_RESULT_DEALT_WITH; // Kits can't do scales!
+			return ActionResult::DEALT_WITH; // Kits can't do scales!
 		}
 
 		if (inCardRoutine) {
-			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 
 		actionLogger.deleteAllLogs(); // Can't undo past this!
@@ -379,7 +379,7 @@ int KeyboardScreen::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	else if (b == KEYBOARD) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 			if (inCardRoutine) {
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 			changeRootUI(&instrumentClipView);
 		}
@@ -389,7 +389,7 @@ int KeyboardScreen::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	else if (b == SESSION_VIEW) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 			if (inCardRoutine) {
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
 			if (currentSong->lastClipInstanceEnteredStartPos != -1 || currentSong->currentClip->section == 255) {
@@ -428,15 +428,15 @@ doOther:
 
 	else {
 		uiNeedsRendering(this, 0xFFFFFFFF, 0); //
-		int result = InstrumentClipMinder::buttonAction(b, on, inCardRoutine);
-		if (result != ACTION_RESULT_NOT_DEALT_WITH) {
+		ActionResult result = InstrumentClipMinder::buttonAction(b, on, inCardRoutine);
+		if (result != ActionResult::NOT_DEALT_WITH) {
 			return result;
 		}
 
 		return view.buttonAction(b, on, inCardRoutine);
 	}
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
 void KeyboardScreen::selectEncoderAction(int8_t offset) {
@@ -649,11 +649,11 @@ bool KeyboardScreen::renderSidebar(uint32_t whichRows, uint8_t image[][displayWi
 	return true;
 }
 
-int KeyboardScreen::verticalEncoderAction(int offset, bool inCardRoutine) {
+ActionResult KeyboardScreen::verticalEncoderAction(int offset, bool inCardRoutine) {
 	if (Buttons::isShiftButtonPressed()) {
 		if (currentUIMode == UI_MODE_NONE) {
 			if (inCardRoutine && !allowSomeUserActionsEvenWhenInCardRoutine) {
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
 			}
 
 			getCurrentClip()->colourOffset += offset;
@@ -663,7 +663,7 @@ int KeyboardScreen::verticalEncoderAction(int offset, bool inCardRoutine) {
 	}
 	else {
 		if (inCardRoutine && !allowSomeUserActionsEvenWhenInCardRoutine) {
-			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
 		}
 
 		//
@@ -677,10 +677,10 @@ int KeyboardScreen::verticalEncoderAction(int offset, bool inCardRoutine) {
 		}
 	}
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
-int KeyboardScreen::horizontalEncoderAction(int offset) {
+ActionResult KeyboardScreen::horizontalEncoderAction(int offset) {
 	Instrument* instrument = (Instrument*)currentSong->currentClip->output;
 	if (instrument->type != InstrumentType::KIT) {
 		if (Buttons::isShiftButtonPressed()) {
@@ -710,7 +710,7 @@ int KeyboardScreen::horizontalEncoderAction(int offset) {
 		uiNeedsRendering(this, 0xFFFFFFFF, 0);
 	}
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
 void KeyboardScreen::doScroll(int offset, bool force) {

@@ -40,9 +40,9 @@ public:
 	ArrangerView();
 	bool opened();
 	void focusRegained();
-	int padAction(int x, int y, int velocity);
-	int buttonAction(hid::Button b, bool on, bool inCardRoutine);
-	int verticalEncoderAction(int offset, bool inCardRoutine);
+	ActionResult padAction(int x, int y, int velocity) override;
+	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine) override;
+	ActionResult verticalEncoderAction(int offset, bool inCardRoutine) override;
 	void selectEncoderAction(int8_t offset);
 
 	void repopulateOutputsOnScreen(bool doRender = true);
@@ -54,14 +54,14 @@ public:
 	bool renderRow(ModelStack* modelStack, int yDisplay, int32_t xScroll, uint32_t xZoom, uint8_t* thisImage,
 	               uint8_t thisOccupancyMask[], int renderWidth);
 	void editPadAction(int x, int y, bool on);
-	int horizontalEncoderAction(int offset);
+	ActionResult horizontalEncoderAction(int offset) override;
 	uint32_t getMaxLength();
 	unsigned int getMaxZoom();
 	void graphicsRoutine();
 	int getNavSysId() { return NAVIGATION_ARRANGEMENT; }
 	void navigateThroughPresets(int offset);
 	void notifyActiveClipChangedOnOutput(Output* output);
-	int timerCallback();
+	ActionResult timerCallback() override;
 	void reassessWhetherDoingAutoScroll(int32_t pos = -1);
 	void autoScrollOnPlaybackEnd();
 	bool initiateXScroll(int32_t newScrollPos);
@@ -77,8 +77,8 @@ public:
 	bool transitionToArrangementEditor();
 	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows);
 	void setLedStates();
-	int verticalScrollOneSquare(int direction);
-	int horizontalScrollOneSquare(int direction);
+	ActionResult verticalScrollOneSquare(int direction);
+	ActionResult horizontalScrollOneSquare(int direction);
 #if HAVE_OLED
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
 #endif

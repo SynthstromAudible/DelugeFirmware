@@ -282,7 +282,7 @@ void SampleBrowser::exitAction() {
 	}
 }
 
-int SampleBrowser::timerCallback() {
+ActionResult SampleBrowser::timerCallback() {
 
 	if (currentUIMode == UI_MODE_HOLDING_BUTTON_POTENTIAL_LONG_PRESS) {
 		currentUIMode = UI_MODE_NONE;
@@ -331,7 +331,7 @@ considerContextMenu:
 				}
 			}
 		}
-		return ACTION_RESULT_DEALT_WITH;
+		return ActionResult::DEALT_WITH;
 	}
 	else {
 		return Browser::timerCallback();
@@ -400,13 +400,13 @@ void SampleBrowser::enterKeyPress() {
 	}
 }
 
-int SampleBrowser::backButtonAction() {
+ActionResult SampleBrowser::backButtonAction() {
 	AudioEngine::stopAnyPreviewing();
 
 	return Browser::backButtonAction();
 }
 
-int SampleBrowser::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+ActionResult SampleBrowser::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	using namespace hid::button;
 
 	// Save button, to delete audio file
@@ -419,7 +419,7 @@ int SampleBrowser::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 					AudioEngine::stopAnyPreviewing();
 
 					if (inCardRoutine) {
-						return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+						return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 					}
 
 					// Ensure sample isn't used in current song
@@ -427,7 +427,7 @@ int SampleBrowser::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 					int error = getCurrentFilePath(&filePath);
 					if (error) {
 						numericDriver.displayError(error);
-						return ACTION_RESULT_DEALT_WITH;
+						return ActionResult::DEALT_WITH;
 					}
 
 					bool allFine = audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(filePath.get());
@@ -467,12 +467,12 @@ int SampleBrowser::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	// Record button
 	else if (b == RECORD && audioRecorder.recordingSource == AudioInputChannel::NONE && currentSong->currentClip->type != CLIP_TYPE_AUDIO) {
 		if (!on || currentUIMode != UI_MODE_NONE) {
-			return ACTION_RESULT_DEALT_WITH;
+			return ActionResult::DEALT_WITH;
 		}
 		AudioEngine::stopAnyPreviewing();
 
 		if (inCardRoutine) {
-			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 
 		bool success = changeUISideways(&audioRecorder); // If this fails, we will become the current UI again
@@ -486,7 +486,7 @@ int SampleBrowser::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 		return Browser::buttonAction(b, on, inCardRoutine);
 	}
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
 bool SampleBrowser::canImportWholeKit() {
@@ -669,7 +669,7 @@ void SampleBrowser::displayCurrentFilename() {
 	else {}
 }
 
-int SampleBrowser::padAction(int x, int y, int on) {
+ActionResult SampleBrowser::padAction(int x, int y, int on) {
 
 	// Allow auditioning
 	if (x == displayWidth + 1) {
@@ -684,7 +684,7 @@ possiblyExit:
 		if (on && !currentUIMode) {
 			AudioEngine::stopAnyPreviewing();
 			if (sdRoutineLock) {
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 			exitAction();
 		}
@@ -695,7 +695,7 @@ possiblyExit:
 		if (!qwertyVisible) {
 			if (on && !currentUIMode) {
 				if (sdRoutineLock) {
-					return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 				}
 
 				qwertyVisible = true;
@@ -724,11 +724,11 @@ possiblyExit:
 			return QwertyUI::padAction(x, y, on);
 		}
 		else {
-			return ACTION_RESULT_DEALT_WITH;
+			return ActionResult::DEALT_WITH;
 		}
 	}
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
 void SampleBrowser::drawKeysOverWaveform() {
@@ -2034,7 +2034,7 @@ skipNameStuff:
 
 static const uint32_t zoomUIModes[] = {UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON, UI_MODE_AUDITIONING, 0};
 
-int SampleBrowser::horizontalEncoderAction(int offset) {
+ActionResult SampleBrowser::horizontalEncoderAction(int offset) {
 
 	if (qwertyVisible) {
 doNormal:
@@ -2048,7 +2048,7 @@ doNormal:
 
 			// We're quite likely going to need to read the SD card to do either scrolling or zooming
 			if (sdRoutineLock) {
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
 			// Zoom
@@ -2092,19 +2092,19 @@ doNormal:
 			qwertyVisible = true;
 			goto doNormal;
 		}
-		return ACTION_RESULT_DEALT_WITH;
+		return ActionResult::DEALT_WITH;
 	}
 }
 
-int SampleBrowser::verticalEncoderAction(int offset, bool inCardRoutine) {
+ActionResult SampleBrowser::verticalEncoderAction(int offset, bool inCardRoutine) {
 	if (getRootUI() == &instrumentClipView) {
 		if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(hid::button::X_ENC)) {
-			return ACTION_RESULT_DEALT_WITH;
+			return ActionResult::DEALT_WITH;
 		}
 		return instrumentClipView.verticalEncoderAction(offset, inCardRoutine);
 	}
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
 bool SampleBrowser::canSeeViewUnderneath() {

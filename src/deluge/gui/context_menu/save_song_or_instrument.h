@@ -29,7 +29,7 @@ public:
 	Sized<char const**> getOptions() override;
 	bool isCurrentOptionAvailable() override;
 
-	int padAction(int x, int y, int velocity) override;
+	ActionResult padAction(int x, int y, int velocity) override;
 
 	char const* getTitle() override;
 };

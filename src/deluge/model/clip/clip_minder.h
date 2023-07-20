@@ -22,5 +22,5 @@
 
 class ClipMinder {
 public:
-	int buttonAction(hid::Button b, bool on);
+	ActionResult buttonAction(hid::Button b, bool on);
 };

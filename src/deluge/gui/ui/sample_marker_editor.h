@@ -35,12 +35,12 @@ public:
 	bool opened();
 	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows);
 	void selectEncoderAction(int8_t offset);
-	int padAction(int x, int y, int velocity);
-	int buttonAction(hid::Button b, bool on, bool inCardRoutine);
-	int verticalEncoderAction(int offset, bool inCardRoutine);
-	int horizontalEncoderAction(int offset);
+	ActionResult padAction(int x, int y, int velocity);
+	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
+	ActionResult verticalEncoderAction(int offset, bool inCardRoutine);
+	ActionResult horizontalEncoderAction(int offset);
 	void graphicsRoutine();
-	int timerCallback();
+	ActionResult timerCallback();
 	bool renderMainPads(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3] = NULL,
 	                    uint8_t occupancyMask[][displayWidth + sideBarWidth] = NULL, bool drawUndefinedArea = true);
 	bool renderSidebar(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3] = NULL,

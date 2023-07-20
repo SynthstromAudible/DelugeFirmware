@@ -67,8 +67,8 @@ public:
 	InstrumentClipView();
 	bool opened();
 	void focusRegained();
-	int buttonAction(hid::Button b, bool on, bool inCardRoutine);
-	int padAction(int x, int y, int velocity);
+	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
+	ActionResult padAction(int x, int y, int velocity);
 	uint8_t getEditPadPressXDisplayOnScreen(uint8_t yDisplay);
 	void editPadAction(bool state, uint8_t yDisplay, uint8_t xDisplay, unsigned int xZoom);
 	void adjustVelocity(int velocityChange);
@@ -76,7 +76,7 @@ public:
 	bool ensureNoteRowExistsForYDisplay(uint8_t yDisplay);
 	void recalculateColours();
 	void recalculateColour(uint8_t yDisplay);
-	int scrollVertical(int scrollAmount, bool inCardRoutine, bool shiftingNoteRow = false);
+	ActionResult scrollVertical(int scrollAmount, bool inCardRoutine, bool shiftingNoteRow = false);
 	void reassessAllAuditionStatus();
 	void reassessAuditionStatus(uint8_t yDisplay);
 	uint8_t getVelocityForAudition(uint8_t yDisplay, uint32_t* sampleSyncLength);
@@ -91,8 +91,8 @@ public:
 	void changeRootNote(uint8_t yDisplay);
 	void drawMuteSquare(NoteRow* thisNoteRow, uint8_t thisImage[][3], uint8_t thisOccupancyMask[]);
 	void cutAuditionedNotesToOne();
-	int verticalEncoderAction(int offset, bool inCardRoutine);
-	int horizontalEncoderAction(int offset);
+	ActionResult verticalEncoderAction(int offset, bool inCardRoutine);
+	ActionResult horizontalEncoderAction(int offset);
 	void fillOffScreenImageStores();
 	void graphicsRoutine();
 

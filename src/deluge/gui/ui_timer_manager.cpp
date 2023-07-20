@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "definitions_cxx.hpp"
 #include "processing/engines/audio_engine.h"
 #include "model/clip/instrument_clip_minder.h"
 #include "gui/views/instrument_clip_view.h"
@@ -117,8 +118,8 @@ void UITimerManager::routine() {
 					break;
 
 				case TIMER_UI_SPECIFIC: {
-					int result = getCurrentUI()->timerCallback();
-					if (result == ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE) {
+					ActionResult result = getCurrentUI()->timerCallback();
+					if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
 						timers[i].active = true; // Come back soon and try again.
 					}
 					break;

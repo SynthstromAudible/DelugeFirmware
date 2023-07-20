@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "gui/ui/ui.h"
 #include "gui/menu_item/menu_item.h"
 #include "hid/button.h"
@@ -68,11 +69,11 @@ public:
 	MIDIDevice* currentMIDIDevice;
 	menu_item::RangeEdit editingRangeEdge;
 
-	int buttonAction(hid::Button b, bool on, bool inCardRoutine);
-	int padAction(int x, int y, int velocity);
-	int verticalEncoderAction(int offset, bool inCardRoutine);
+	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
+	ActionResult padAction(int x, int y, int velocity);
+	ActionResult verticalEncoderAction(int offset, bool inCardRoutine);
 	void modEncoderAction(int whichModEncoder, int offset);
-	int horizontalEncoderAction(int offset);
+	ActionResult horizontalEncoderAction(int offset);
 	bool editingKit();
 
 	void setupShortcutBlink(int x, int y, int frequency);
@@ -109,7 +110,7 @@ public:
 	bool canSeeViewUnderneath() { return true; }
 	bool setup(Clip* clip = NULL, const MenuItem* item = NULL, int sourceIndex = 0);
 	void blinkShortcut();
-	int potentialShortcutPadAction(int x, int y, bool on);
+	ActionResult potentialShortcutPadAction(int x, int y, bool on);
 	bool editingReverbCompressor();
 	MenuItem* getCurrentMenuItem();
 	bool inSettingsMenu();

@@ -264,26 +264,26 @@ void AudioRecorder::finishRecording() {
 #endif
 }
 
-int AudioRecorder::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+ActionResult AudioRecorder::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	using namespace hid::button;
 
 	if (!on) {
-		return ACTION_RESULT_NOT_DEALT_WITH;
+		return ActionResult::NOT_DEALT_WITH;
 	}
 
 	// We don't actually wrap up recording here, because this could be in fact called from the SD writing routines as they wait - that'd be a tangle.
 	if ((b == BACK) || (b == SELECT_ENC) || (b == RECORD)) {
 
 		if (inCardRoutine) {
-			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 		endRecordingSoon(INTERNAL_BUTTON_PRESS_LATENCY);
 	}
 	else {
-		return ACTION_RESULT_NOT_DEALT_WITH;
+		return ActionResult::NOT_DEALT_WITH;
 	}
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
 bool AudioRecorder::isCurrentlyResampling() {

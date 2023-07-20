@@ -120,7 +120,7 @@ void View::setTripletsLedState() {
 
 extern GlobalMIDICommand pendingGlobalMIDICommandNumClustersWritten;
 
-int View::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+ActionResult View::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	using namespace hid::button;
 
 	GlobalMIDICommand newGlobalMidiCommand;
@@ -131,7 +131,7 @@ int View::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 
 		if (currentUIMode == UI_MODE_MIDI_LEARN) {
 			if (inCardRoutine) {
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 			if (on) {
 				deleteMidiCommandOnRelease = true;
@@ -165,7 +165,7 @@ doEndMidiLearnPressSession:
 	// MIDI learn button
 	else if (b == LEARN) {
 		if (inCardRoutine) {
-			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 
 		if (on) {
@@ -187,7 +187,7 @@ doEndMidiLearnPressSession:
 	// Play button for MIDI learn
 	else if (b == PLAY && currentUIMode == UI_MODE_MIDI_LEARN) {
 		if (inCardRoutine) {
-			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 
 		if (on) {
@@ -203,7 +203,7 @@ doEndMidiLearnPressSession:
 	// Record button for MIDI learn
 	else if (b == RECORD && currentUIMode == UI_MODE_MIDI_LEARN) {
 		if (inCardRoutine) {
-			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 
 		if (on) {
@@ -234,7 +234,7 @@ doEndMidiLearnPressSession:
 			else {
 				if (currentUIMode == UI_MODE_HOLDING_SAVE_BUTTON) {
 					if (inCardRoutine) {
-						return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+						return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 					}
 
 					currentUIMode = UI_MODE_NONE;
@@ -266,7 +266,7 @@ doEndMidiLearnPressSession:
 
 					if (Buttons::isShiftButtonPressed()) {
 						if (inCardRoutine) {
-							return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+							return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 						}
 						bool available = context_menu::clearSong.setupAndCheckAvailability();
 						if (available) {
@@ -286,7 +286,7 @@ doEndMidiLearnPressSession:
 			else {
 				if (currentUIMode == UI_MODE_HOLDING_LOAD_BUTTON) {
 					if (inCardRoutine) {
-						return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+						return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 					}
 					currentUIMode = UI_MODE_NONE;
 
@@ -314,18 +314,18 @@ doEndMidiLearnPressSession:
 			if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
 cant:
 				numericDriver.displayPopup(HAVE_OLED ? "Recording to arrangement" : "CANT");
-				return ACTION_RESULT_DEALT_WITH;
+				return ActionResult::DEALT_WITH;
 			}
 
 			if (inCardRoutine) {
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
 			// If no scaling currently, start it, if we're on a Clip-minder screen
 			if (!currentSong->getSyncScalingClip()) {
 				if (!getCurrentUI()->toClipMinder()) {
 					indicator_leds::indicateAlertOnLed(IndicatorLED::CLIP_VIEW);
-					return ACTION_RESULT_DEALT_WITH;
+					return ActionResult::DEALT_WITH;
 				}
 
 				// Can't do it for arranger-only Clips
@@ -408,11 +408,11 @@ possiblyRevert:
 
 			if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
 				numericDriver.displayPopup(HAVE_OLED ? "Recording to arrangement" : "CANT");
-				return ACTION_RESULT_DEALT_WITH;
+				return ActionResult::DEALT_WITH;
 			}
 
 			if (inCardRoutine) {
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
 			numericDriver.setNextTransitionDirection(1);
@@ -421,10 +421,10 @@ possiblyRevert:
 		}
 	}
 	else {
-		return ACTION_RESULT_NOT_DEALT_WITH;
+		return ActionResult::NOT_DEALT_WITH;
 	}
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
 void View::endMIDILearn() {
@@ -830,10 +830,10 @@ void View::modEncoderAction(int whichModEncoder, int offset) {
 
 			// If non-existent param, still let the ModControllable know
 			if (!modelStackWithParam || !modelStackWithParam->autoParam) {
-				int result = activeModControllableModelStack.modControllable->modEncoderActionForNonExistentParam(
+				ActionResult result = activeModControllableModelStack.modControllable->modEncoderActionForNonExistentParam(
 				    offset, whichModEncoder, modelStackWithParam);
 
-				if (result == ACTION_RESULT_ACTIONED_AND_CAUSED_CHANGE) {
+				if (result == ActionResult::ACTIONED_AND_CAUSED_CHANGE) {
 					setKnobIndicatorLevel(whichModEncoder);
 				}
 			}
@@ -1870,12 +1870,12 @@ void View::getClipMuteSquareColour(Clip* clip, uint8_t thisColour[]) {
 
 extern int8_t defaultAudioClipOverdubOutputCloning;
 
-int View::clipStatusPadAction(Clip* clip, bool on, int yDisplayIfInSessionView) {
+ActionResult View::clipStatusPadAction(Clip* clip, bool on, int yDisplayIfInSessionView) {
 
 	switch (currentUIMode) {
 	case UI_MODE_MIDI_LEARN:
 		if (sdRoutineLock) {
-			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 		view.clipStatusMidiLearnPadPressed(on, clip);
 		if (!on) {
@@ -1935,7 +1935,7 @@ int View::clipStatusPadAction(Clip* clip, bool on, int yDisplayIfInSessionView) 
 		break;
 	}
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
 void View::flashPlayEnable() {

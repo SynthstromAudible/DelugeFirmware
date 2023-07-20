@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "definitions_cxx.hpp"
 #include "gui/views/arranger_view.h"
 #include "storage/audio/audio_file_manager.h"
 #include "model/clip/instrument_clip.h"
@@ -265,7 +266,7 @@ void LoadInstrumentPresetUI::enterKeyPress() {
 	}
 }
 
-int LoadInstrumentPresetUI::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+ActionResult LoadInstrumentPresetUI::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	using namespace hid::button;
 
 	InstrumentType newInstrumentType;
@@ -281,7 +282,7 @@ int LoadInstrumentPresetUI::buttonAction(hid::Button b, bool on, bool inCardRout
 doChangeInstrumentType:
 		if (on && currentUIMode == UI_MODE_NONE) {
 			if (inCardRoutine) {
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 			convertToPrefixFormatIfPossible(); // Why did I put this here?
 			changeInstrumentType(newInstrumentType);
@@ -315,14 +316,14 @@ doChangeInstrumentType:
 		return LoadUI::buttonAction(b, on, inCardRoutine);
 	}
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
-int LoadInstrumentPresetUI::timerCallback() {
+ActionResult LoadInstrumentPresetUI::timerCallback() {
 	if (currentUIMode == UI_MODE_HOLDING_BUTTON_POTENTIAL_LONG_PRESS) {
 
 		if (sdRoutineLock) {
-			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE; // The below needs to access the card.
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // The below needs to access the card.
 		}
 
 		currentUIMode = UI_MODE_NONE;
@@ -331,21 +332,22 @@ int LoadInstrumentPresetUI::timerCallback() {
 
 		// Folders don't have a context menu
 		if (!currentFileItem || currentFileItem->isFolder) {
-			return ACTION_RESULT_DEALT_WITH;
+			return ActionResult::DEALT_WITH;
 		}
 
 		// We want to open the context menu to choose to reload the original file for the currently selected preset in some way.
 		// So first up, make sure there is a file, and that we've got its pointer
 		String filePath;
 		int error = getCurrentFilePath(&filePath);
-		if (error) {
-			return error;
+		if (error != 0) {
+			numericDriver.displayError(error);
+			return ActionResult::DEALT_WITH;
 		}
 
 		bool fileExists = storageManager.fileExists(filePath.get(), &currentFileItem->filePointer);
 		if (!fileExists) {
 			numericDriver.displayError(ERROR_FILE_NOT_FOUND);
-			return ACTION_RESULT_DEALT_WITH;
+			return ActionResult::DEALT_WITH;
 		}
 
 		bool available = gui::context_menu::loadInstrumentPreset.setupAndCheckAvailability();
@@ -359,7 +361,7 @@ int LoadInstrumentPresetUI::timerCallback() {
 			exitUIMode(UI_MODE_HOLDING_BUTTON_POTENTIAL_LONG_PRESS);
 		}
 
-		return ACTION_RESULT_DEALT_WITH;
+		return ActionResult::DEALT_WITH;
 	}
 	else {
 		return LoadUI::timerCallback();
@@ -951,7 +953,7 @@ void LoadInstrumentPresetUI::exitAction() {
 	LoadUI::exitAction();
 }
 
-int LoadInstrumentPresetUI::padAction(int x, int y, int on) {
+ActionResult LoadInstrumentPresetUI::padAction(int x, int y, int on) {
 
 	// Audition pad
 	if (x == displayWidth + 1) {
@@ -973,7 +975,7 @@ int LoadInstrumentPresetUI::padAction(int x, int y, int on) {
 potentiallyExit:
 		if (on && !currentUIMode) {
 			if (sdRoutineLock) {
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 			exitAction();
 		}
@@ -983,18 +985,18 @@ potentiallyExit:
 		return LoadUI::padAction(x, y, on);
 	}
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
-int LoadInstrumentPresetUI::verticalEncoderAction(int offset, bool inCardRoutine) {
+ActionResult LoadInstrumentPresetUI::verticalEncoderAction(int offset, bool inCardRoutine) {
 	if (showingAuditionPads()) {
 		if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(hid::button::X_ENC)) {
-			return ACTION_RESULT_DEALT_WITH;
+			return ActionResult::DEALT_WITH;
 		}
 
-		int result = instrumentClipView.verticalEncoderAction(offset, inCardRoutine);
+		ActionResult result = instrumentClipView.verticalEncoderAction(offset, inCardRoutine);
 
-		if (result == ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE) {
+		if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
 			return result;
 		}
 
@@ -1005,7 +1007,7 @@ int LoadInstrumentPresetUI::verticalEncoderAction(int offset, bool inCardRoutine
 		return result;
 	}
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
 bool LoadInstrumentPresetUI::renderSidebar(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],

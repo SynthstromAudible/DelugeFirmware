@@ -39,10 +39,10 @@ public:
 	bool opened();
 	void focusRegained();
 
-	int buttonAction(hid::Button b, bool on, bool inCardRoutine);
-	int padAction(int x, int y, int velocity);
-	int horizontalEncoderAction(int offset);
-	int verticalEncoderAction(int offset, bool inCardRoutine);
+	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
+	ActionResult padAction(int x, int y, int velocity);
+	ActionResult horizontalEncoderAction(int offset);
+	ActionResult verticalEncoderAction(int offset, bool inCardRoutine);
 	bool renderSidebar(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
 	                   uint8_t occupancyMask[][displayWidth + sideBarWidth]);
 	void removeClip(uint8_t yDisplay);
@@ -65,7 +65,7 @@ public:
 	void modEncoderButtonAction(uint8_t whichModEncoder, bool on);
 	void modButtonAction(uint8_t whichButton, bool on);
 	void selectEncoderAction(int8_t offset);
-	int timerCallback();
+	ActionResult timerCallback();
 	void noteRowChanged(InstrumentClip* clip, NoteRow* noteRow);
 	void setLedStates();
 	void editNumRepeatsTilLaunch(int offset);
@@ -81,7 +81,7 @@ public:
 	void sampleNeedsReRendering(Sample* sample);
 	Clip* getClipOnScreen(int yDisplay);
 	void modEncoderAction(int whichModEncoder, int offset);
-	int verticalScrollOneSquare(int direction);
+	ActionResult verticalScrollOneSquare(int direction);
 
 #if HAVE_OLED
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);

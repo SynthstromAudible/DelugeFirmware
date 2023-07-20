@@ -82,17 +82,17 @@ class UI {
 public:
 	UI();
 
-	virtual int padAction(int x, int y, int velocity) { return ACTION_RESULT_DEALT_WITH; }
-	virtual int buttonAction(hid::Button b, bool on, bool inCardRoutine) { return ACTION_RESULT_NOT_DEALT_WITH; }
-	virtual int horizontalEncoderAction(int offset) { return ACTION_RESULT_DEALT_WITH; }
-	virtual int verticalEncoderAction(int offset, bool inCardRoutine) { return ACTION_RESULT_DEALT_WITH; }
+	virtual ActionResult padAction(int x, int y, int velocity) { return ActionResult::DEALT_WITH; }
+	virtual ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine) { return ActionResult::NOT_DEALT_WITH; }
+	virtual ActionResult horizontalEncoderAction(int offset) { return ActionResult::DEALT_WITH; }
+	virtual ActionResult verticalEncoderAction(int offset, bool inCardRoutine) { return ActionResult::DEALT_WITH; }
 	virtual void selectEncoderAction(int8_t offset) {}
 	virtual void modEncoderAction(int whichModEncoder, int offset);
 	virtual void modButtonAction(uint8_t whichButton, bool on);
 	virtual void modEncoderButtonAction(uint8_t whichModEncoder, bool on);
 
 	virtual void graphicsRoutine();
-	virtual int timerCallback() { return ACTION_RESULT_DEALT_WITH; }
+	virtual ActionResult timerCallback() { return ActionResult::DEALT_WITH; }
 
 	virtual bool opened() {
 		focusRegained();

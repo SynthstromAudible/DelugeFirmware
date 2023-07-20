@@ -30,12 +30,12 @@ public:
 	LoadInstrumentPresetUI();
 	bool opened();
 	//void selectEncoderAction(int8_t offset);
-	int buttonAction(hid::Button b, bool on, bool inCardRoutine);
-	int padAction(int x, int y, int velocity);
-	int verticalEncoderAction(int offset, bool inCardRoutine);
+	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
+	ActionResult padAction(int x, int y, int velocity);
+	ActionResult verticalEncoderAction(int offset, bool inCardRoutine);
 	void instrumentEdited(Instrument* instrument);
 	int performLoad(bool doClone = false);
-	int timerCallback();
+	ActionResult timerCallback();
 	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows);
 	bool renderMainPads(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3] = NULL,
 	                    uint8_t occupancyMask[][displayWidth + sideBarWidth] = NULL, bool drawUndefinedArea = true,

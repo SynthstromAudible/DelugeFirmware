@@ -84,7 +84,7 @@ public:
 	bool hasBassAdjusted(ParamManager* paramManager);
 	bool hasTrebleAdjusted(ParamManager* paramManager);
 	ModelStackWithAutoParam* getParamFromMIDIKnob(MIDIKnob* knob, ModelStackWithThreeMainThings* modelStack);
-	int buttonAction(hid::Button b, bool on, ModelStackWithThreeMainThings* modelStack);
+	ActionResult buttonAction(hid::Button b, bool on, ModelStackWithThreeMainThings* modelStack);
 	ModelStackWithAutoParam* getParamFromModEncoder(int whichModEncoder, ModelStackWithThreeMainThings* modelStack,
 	                                                bool allowCreation);
 

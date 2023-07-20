@@ -41,9 +41,9 @@ public:
 	} // SessionView doesn't have this because it does this a different way. Sorry, confusing I know
 	bool isTimelineView() { return true; }
 
-	int buttonAction(hid::Button b, bool on, bool inCardRoutine);
+	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine) override;
 	void displayZoomLevel(bool justPopup = false);
-	int horizontalEncoderAction(int offset);
+	ActionResult horizontalEncoderAction(int offset) override;
 	void displayScrollPos();
 	void displayNumberOfBarsAndBeats(uint32_t number, uint32_t quantization, bool countFromOne,
 	                                 char const* tooLongText);

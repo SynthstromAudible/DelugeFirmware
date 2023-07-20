@@ -1436,7 +1436,7 @@ FileItem* Browser::getCurrentFileItem() {
 }
 
 // This and its individual contents are frequently overridden by child classes.
-int Browser::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+ActionResult Browser::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	using namespace hid::button;
 
 	// Select encoder
@@ -1451,10 +1451,10 @@ int Browser::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 			if (currentFileItem) {
 				if (currentFileItem->isFolder) {
 					numericDriver.displayPopup(HAVE_OLED ? "Folders cannot be deleted on the Deluge" : "CANT");
-					return ACTION_RESULT_DEALT_WITH;
+					return ActionResult::DEALT_WITH;
 				}
 				if (inCardRoutine) {
-					return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 				}
 
 				goIntoDeleteFileContextMenu();
@@ -1469,18 +1469,18 @@ int Browser::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 		}
 	}
 	else {
-		return ACTION_RESULT_NOT_DEALT_WITH;
+		return ActionResult::NOT_DEALT_WITH;
 	}
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
-int Browser::mainButtonAction(bool on) {
+ActionResult Browser::mainButtonAction(bool on) {
 	// Press down
 	if (on) {
 		if (currentUIMode == UI_MODE_NONE) {
 			if (sdRoutineLock) {
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 			uiTimerManager.setTimer(TIMER_UI_SPECIFIC, 500);
 			currentUIMode = UI_MODE_HOLDING_BUTTON_POTENTIAL_LONG_PRESS;
@@ -1491,7 +1491,7 @@ int Browser::mainButtonAction(bool on) {
 	else {
 		if (currentUIMode == UI_MODE_HOLDING_BUTTON_POTENTIAL_LONG_PRESS) {
 			if (sdRoutineLock) {
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 			currentUIMode = UI_MODE_NONE;
 			uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
@@ -1499,20 +1499,20 @@ int Browser::mainButtonAction(bool on) {
 		}
 	}
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
 // Virtual function - may be overridden, by child classes that need to do more stuff, e.g. SampleBrowser needs to mute any previewing Sample.
-int Browser::backButtonAction() {
+ActionResult Browser::backButtonAction() {
 	if (sdRoutineLock) {
-		return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 	int error = goUpOneDirectoryLevel();
 	if (error) {
 		exitAction();
 	}
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
 // Virtual function - may be overridden, by child classes that need to do more stuff on exit.

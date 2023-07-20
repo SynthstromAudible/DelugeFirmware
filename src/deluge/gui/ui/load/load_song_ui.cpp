@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "definitions_cxx.hpp"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
 #include "model/clip/instrument_clip_minder.h"
@@ -180,7 +181,7 @@ void LoadSongUI::displayLoopsRemainingPopup() {
 }
 #endif
 
-int LoadSongUI::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+ActionResult LoadSongUI::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	using namespace hid::button;
 
 	// Load button or select encoder press. Unlike most (all?) other children of Browser, we override this and don't just call mainButtonAction(),
@@ -190,7 +191,7 @@ int LoadSongUI::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 		if (on) {
 			if (!currentUIMode) {
 				if (inCardRoutine) {
-					return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 				}
 
 				enterKeyPress();
@@ -221,7 +222,7 @@ int LoadSongUI::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 		return LoadUI::buttonAction(b, on, inCardRoutine);
 	}
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
 // Before calling this, you must set loadButtonReleased.
@@ -452,7 +453,7 @@ swapDone:
 #endif
 }
 
-int LoadSongUI::timerCallback() {
+ActionResult LoadSongUI::timerCallback() {
 	// Progress vertical scrolling
 	if (currentUIMode == UI_MODE_VERTICAL_SCROLL) {
 		PadLEDs::vertical::renderScroll();
@@ -483,7 +484,7 @@ int LoadSongUI::timerCallback() {
 			                        UI_MS_PER_REFRESH_SCROLLING * 4); // *2 caused glitches occasionally
 		}
 getOut : {}
-		return ACTION_RESULT_DEALT_WITH;
+		return ActionResult::DEALT_WITH;
 	}
 
 	else {
@@ -664,16 +665,16 @@ goAgain:
 	}
 }
 
-int LoadSongUI::verticalEncoderAction(int offset, bool inCardRoutine) {
+ActionResult LoadSongUI::verticalEncoderAction(int offset, bool inCardRoutine) {
 	if (!currentUIMode && !Buttons::isButtonPressed(hid::button::Y_ENC) && !Buttons::isShiftButtonPressed()
 	    && offset < 0) {
 		if (inCardRoutine) {
-			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 		exitAction(); // Exit if your scroll down
 	}
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
 void LoadSongUI::exitAction() {
@@ -795,12 +796,12 @@ void LoadSongUI::displayText(bool blinkImmediately) {
 	}
 }
 
-int LoadSongUI::padAction(int x, int y, int on) {
+ActionResult LoadSongUI::padAction(int x, int y, int on) {
 	// If QWERTY not visible yet, make it visible now
 	if (!qwertyVisible) {
 		if (on && !currentUIMode) {
 			if (sdRoutineLock) {
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 			qwertyVisible = true;
 			displayText(false); // Necessary still? Not quite sure?
@@ -811,9 +812,5 @@ int LoadSongUI::padAction(int x, int y, int on) {
 	if (qwertyVisible) {
 		return LoadUI::padAction(x, y, on);
 	}
-	else {
-		return ACTION_RESULT_DEALT_WITH;
-	}
-
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }

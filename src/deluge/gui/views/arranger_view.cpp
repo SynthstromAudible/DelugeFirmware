@@ -160,7 +160,7 @@ void ArrangerView::goToSongView() {
 	changeRootUI(&sessionView);
 }
 
-int ArrangerView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+ActionResult ArrangerView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	using namespace hid::button;
 
 	InstrumentType newInstrumentType;
@@ -169,7 +169,7 @@ int ArrangerView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	if (b == SESSION_VIEW) {
 		if (on) {
 			if (inCardRoutine) {
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 			if (currentUIMode == UI_MODE_NONE) {
 				goToSongView();
@@ -184,7 +184,7 @@ int ArrangerView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	else if (b == AFFECT_ENTIRE) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 			if (inCardRoutine) {
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 			currentSong->affectEntire = !currentSong->affectEntire;
 			//setLedStates();
@@ -220,7 +220,7 @@ int ArrangerView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 				uiNeedsRendering(this, 0, 0xFFFFFFFF);
 			}
 		}
-		return ACTION_RESULT_NOT_DEALT_WITH; // Make the MatrixDriver do its normal thing with it too
+		return ActionResult::NOT_DEALT_WITH; // Make the MatrixDriver do its normal thing with it too
 	}
 
 	// Save/delete button with row held
@@ -228,7 +228,7 @@ int ArrangerView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	         && (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION
 	             || currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW)) {
 		if (inCardRoutine) {
-			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 		if (on) {
 			deleteOutput();
@@ -239,7 +239,7 @@ int ArrangerView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	else if (b == SELECT_ENC && !Buttons::isShiftButtonPressed()) {
 		if (on && currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION) {
 			if (inCardRoutine) {
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 			changeOutputToAudio();
 		}
@@ -253,7 +253,7 @@ doChangeInstrumentType:
 		if (on && currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION && !Buttons::isShiftButtonPressed()) {
 
 			if (inCardRoutine) {
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
 			Output* output = outputsOnScreen[yPressedEffective];
@@ -275,7 +275,7 @@ doChangeInstrumentType:
 					}
 
 					if (!output) {
-						return ACTION_RESULT_DEALT_WITH;
+						return ActionResult::DEALT_WITH;
 					}
 
 					actionLogger.deleteAllLogs();
@@ -317,7 +317,7 @@ doActualSimpleChange:
 	else if (b == BACK && currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
 		if (on) {
 			if (inCardRoutine) {
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 			clearArrangement();
 		}
@@ -327,7 +327,7 @@ doActualSimpleChange:
 		return TimelineView::buttonAction(b, on, inCardRoutine);
 	}
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
 void ArrangerView::deleteOutput() {
@@ -889,10 +889,10 @@ void ArrangerView::auditionEnded() {
 	view.setActiveModControllableTimelineCounter(currentSong);
 }
 
-int ArrangerView::padAction(int x, int y, int velocity) {
+ActionResult ArrangerView::padAction(int x, int y, int velocity) {
 
 	if (sdRoutineLock) {
-		return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 
 	Output* output = outputsOnScreen[y];
@@ -932,7 +932,7 @@ int ArrangerView::padAction(int x, int y, int velocity) {
 	else if (x == displayWidth) {
 
 		if (!output) {
-			return ACTION_RESULT_DEALT_WITH;
+			return ActionResult::DEALT_WITH;
 		}
 
 		if (velocity) {
@@ -942,7 +942,7 @@ int ArrangerView::padAction(int x, int y, int velocity) {
 			case UI_MODE_VIEWING_RECORD_ARMING:
 				output->armedForRecording = !output->armedForRecording;
 				PadLEDs::reassessGreyout(true);
-				return ACTION_RESULT_DEALT_WITH; // No need to draw anything
+				return ActionResult::DEALT_WITH; // No need to draw anything
 
 #ifdef soloButtonX
 			case UI_MODE_SOLO_BUTTON_HELD:
@@ -1020,7 +1020,7 @@ doUnsolo:
 				if (velocity && Buttons::isButtonPressed(hid::button::RECORD)) {
 					output->armedForRecording = !output->armedForRecording;
 					timerCallback();                 // Get into UI_MODE_VIEWING_RECORD_ARMING
-					return ACTION_RESULT_DEALT_WITH; // No need to draw anything
+					return ActionResult::DEALT_WITH; // No need to draw anything
 				}
 				// No break
 
@@ -1079,7 +1079,7 @@ regularMutePadPress:
 		}
 	}
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
 void ArrangerView::outputActivated(Output* output) {
@@ -2227,7 +2227,7 @@ nothing:
 	return true;
 }
 
-int ArrangerView::timerCallback() {
+ActionResult ArrangerView::timerCallback() {
 	switch (currentUIMode) {
 	case UI_MODE_HOLDING_ARRANGEMENT_ROW:
 		if (!pressedClipInstanceIsInValidPosition) {
@@ -2251,7 +2251,7 @@ int ArrangerView::timerCallback() {
 		break;
 	}
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
 void ArrangerView::selectEncoderAction(int8_t offset) {
@@ -2601,7 +2601,7 @@ cant:
 
 static const uint32_t horizontalEncoderScrollUIModes[] = {UI_MODE_HOLDING_ARRANGEMENT_ROW, 0};
 
-int ArrangerView::horizontalEncoderAction(int offset) {
+ActionResult ArrangerView::horizontalEncoderAction(int offset) {
 
 	// Encoder button pressed...
 	if (isUIModeActiveExclusively(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)) {
@@ -2615,13 +2615,13 @@ int ArrangerView::horizontalEncoderAction(int offset) {
 			// Constrain to zoom limits
 			if (zoomMagnitude == -1) {
 				if (oldXZoom <= 3) {
-					return ACTION_RESULT_DEALT_WITH;
+					return ActionResult::DEALT_WITH;
 				}
 				currentSong->xZoom[NAVIGATION_ARRANGEMENT] >>= 1;
 			}
 			else {
 				if (oldXZoom >= getMaxZoom()) {
-					return ACTION_RESULT_DEALT_WITH;
+					return ActionResult::DEALT_WITH;
 				}
 				currentSong->xZoom[NAVIGATION_ARRANGEMENT] <<= 1;
 			}
@@ -2670,7 +2670,7 @@ int ArrangerView::horizontalEncoderAction(int offset) {
 
 				// If expanding, make sure we don't exceed length limit
 				if (offset >= 0 && getMaxLength() > MAX_SEQUENCE_LENGTH - scrollAmount) {
-					return ACTION_RESULT_DEALT_WITH;
+					return ActionResult::DEALT_WITH;
 				}
 
 				int actionType = (offset >= 0) ? ACTION_ARRANGEMENT_TIME_EXPAND : ACTION_ARRANGEMENT_TIME_CONTRACT;
@@ -2765,16 +2765,16 @@ int ArrangerView::horizontalEncoderAction(int offset) {
 		actionOnDepress = false;
 
 		if (offset == -1 && currentSong->xScroll[NAVIGATION_ARRANGEMENT] == 0) {
-			return ACTION_RESULT_DEALT_WITH;
+			return ActionResult::DEALT_WITH;
 		}
 
 		return horizontalScrollOneSquare(offset);
 	}
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
-int ArrangerView::horizontalScrollOneSquare(int direction) {
+ActionResult ArrangerView::horizontalScrollOneSquare(int direction) {
 	actionOnDepress = false;
 
 	uint32_t xZoom = currentSong->xZoom[NAVIGATION_ARRANGEMENT];
@@ -2812,7 +2812,7 @@ int ArrangerView::horizontalScrollOneSquare(int direction) {
 		bool draggingClipInstance = isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW);
 
 		if (draggingClipInstance && sdRoutineLock) {
-			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 
 		currentSong->xScroll[NAVIGATION_ARRANGEMENT] = newXScroll;
@@ -2827,7 +2827,7 @@ int ArrangerView::horizontalScrollOneSquare(int direction) {
 
 	displayScrollPos();
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
 // No need to check whether playback active before calling - we check for that here.
@@ -2849,15 +2849,15 @@ void ArrangerView::reassessWhetherDoingAutoScroll(int32_t pos) {
 	}
 }
 
-int ArrangerView::verticalScrollOneSquare(int direction) {
+ActionResult ArrangerView::verticalScrollOneSquare(int direction) {
 	if (direction >= 0) { // Up
 		if (currentSong->arrangementYScroll >= currentSong->getNumOutputs() - 1) {
-			return ACTION_RESULT_DEALT_WITH;
+			return ActionResult::DEALT_WITH;
 		}
 	}
 	else { // Down
 		if (currentSong->arrangementYScroll <= 1 - displayHeight) {
-			return ACTION_RESULT_DEALT_WITH;
+			return ActionResult::DEALT_WITH;
 		}
 	}
 
@@ -2869,24 +2869,24 @@ int ArrangerView::verticalScrollOneSquare(int direction) {
 	// If a Output or ClipInstance selected for dragging, limit scrolling
 	if (draggingWholeRow || draggingClipInstance) {
 		if (yPressedEffective != yPressedActual) {
-			return ACTION_RESULT_DEALT_WITH;
+			return ActionResult::DEALT_WITH;
 		}
 
 		output = outputsOnScreen[yPressedEffective];
 
 		if (direction >= 0) { // Up
 			if (output->next == NULL) {
-				return ACTION_RESULT_DEALT_WITH;
+				return ActionResult::DEALT_WITH;
 			}
 		}
 		else { // Down
 			if (currentSong->firstOutput == output) {
-				return ACTION_RESULT_DEALT_WITH;
+				return ActionResult::DEALT_WITH;
 			}
 		}
 
 		if (sdRoutineLock) {
-			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 
 		actionLogger.deleteAllLogs();
@@ -2935,27 +2935,27 @@ int ArrangerView::verticalScrollOneSquare(int direction) {
 		PadLEDs::reassessGreyout(true);
 	}
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
 static const uint32_t verticalEncoderUIModes[] = {UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION,
                                                   UI_MODE_HOLDING_ARRANGEMENT_ROW, UI_MODE_VIEWING_RECORD_ARMING, 0};
 
-int ArrangerView::verticalEncoderAction(int offset, bool inCardRoutine) {
+ActionResult ArrangerView::verticalEncoderAction(int offset, bool inCardRoutine) {
 
 	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(hid::button::Y_ENC)) {
-		return ACTION_RESULT_DEALT_WITH;
+		return ActionResult::DEALT_WITH;
 	}
 
 	if (isUIModeWithinRange(verticalEncoderUIModes)) {
 		if (inCardRoutine && !allowSomeUserActionsEvenWhenInCardRoutine) {
-			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
 		}
 
 		return verticalScrollOneSquare(offset);
 	}
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
 void ArrangerView::setNoSubMode() {

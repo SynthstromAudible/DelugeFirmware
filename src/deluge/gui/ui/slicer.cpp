@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "definitions_cxx.hpp"
 #include "processing/engines/audio_engine.h"
 #include "gui/context_menu/sample_browser/kit.h"
 #include "model/clip/instrument_clip.h"
@@ -232,7 +233,7 @@ void Slicer::graphicsRoutine() {
 	PadLEDs::setTickSquares(tickSquares, zeroes);
 }
 
-int Slicer::horizontalEncoderAction(int offset) {
+ActionResult Slicer::horizontalEncoderAction(int offset) {
 
 	if (slicerMode == SLICER_MODE_MANUAL) {
 		int newPos = manualSlicePoints[currentSlice].startPos;
@@ -264,10 +265,10 @@ int Slicer::horizontalEncoderAction(int offset) {
 #endif
 		uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 	}
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
-int Slicer::verticalEncoderAction(int offset, bool inCardRoutine) {
+ActionResult Slicer::verticalEncoderAction(int offset, bool inCardRoutine) {
 	if (slicerMode == SLICER_MODE_MANUAL) {
 
 		manualSlicePoints[currentSlice].transpose += offset;
@@ -287,7 +288,7 @@ int Slicer::verticalEncoderAction(int offset, bool inCardRoutine) {
 		numericDriver.displayPopup(buffer, 0, true);
 #endif
 	}
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
 void Slicer::selectEncoderAction(int8_t offset) {
@@ -320,11 +321,12 @@ void Slicer::selectEncoderAction(int8_t offset) {
 	redraw();
 #endif
 }
-int Slicer::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+
+ActionResult Slicer::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	using namespace hid::button;
 
 	if (currentUIMode != UI_MODE_NONE || !on) {
-		return ACTION_RESULT_NOT_DEALT_WITH;
+		return ActionResult::NOT_DEALT_WITH;
 	}
 
 	//switch slicer mode
@@ -341,7 +343,7 @@ int Slicer::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 
 		((Kit*)currentSong->currentClip->output)->firstDrum->unassignAllVoices(); //stop
 		uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
-		return ACTION_RESULT_DEALT_WITH;
+		return ActionResult::DEALT_WITH;
 	}
 
 	//pop up Transpose value
@@ -357,7 +359,7 @@ int Slicer::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 		intToString(manualSlicePoints[currentSlice].transpose, buffer + strlen(buffer));
 		numericDriver.displayPopup(buffer, 0, true);
 #endif
-		return ACTION_RESULT_DEALT_WITH;
+		return ActionResult::DEALT_WITH;
 	}
 
 	//delete slice
@@ -389,13 +391,13 @@ int Slicer::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 #else
 			redraw();
 #endif
-			return ACTION_RESULT_DEALT_WITH;
+			return ActionResult::DEALT_WITH;
 		}
 	}
 
 	if (b == SELECT_ENC) {
 		if (inCardRoutine) {
-			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 		if (slicerMode == SLICER_MODE_REGION) {
 			doSlice();
@@ -420,7 +422,7 @@ int Slicer::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 
 	else if (b == BACK) {
 		if (inCardRoutine) {
-			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 		if (slicerMode == SLICER_MODE_MANUAL) {
 			uint8_t myImage[displayHeight][displayWidth + sideBarWidth][3];
@@ -442,10 +444,10 @@ int Slicer::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 		close();
 	}
 	else {
-		return ACTION_RESULT_NOT_DEALT_WITH;
+		return ActionResult::NOT_DEALT_WITH;
 	}
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
 void Slicer::stopAnyPreviewing() {
@@ -495,7 +497,7 @@ void Slicer::preview(int64_t startPoint, int64_t endPoint, int transpose, int on
 	instrumentClipView.sendAuditionNote(on, 0);
 }
 
-int Slicer::padAction(int x, int y, int on) {
+ActionResult Slicer::padAction(int x, int y, int on) {
 
 	if (on && x < displayWidth && y < displayHeight / 2 && slicerMode == SLICER_MODE_MANUAL) { // pad on
 
@@ -595,7 +597,7 @@ int Slicer::padAction(int x, int y, int on) {
 	}
 
 	if (slicerMode == SLICER_MODE_MANUAL) {
-		return ACTION_RESULT_DEALT_WITH;
+		return ActionResult::DEALT_WITH;
 	}
 
 	return sampleBrowser.padAction(x, y, on);

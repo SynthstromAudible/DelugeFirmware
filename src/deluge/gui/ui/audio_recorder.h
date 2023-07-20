@@ -40,7 +40,7 @@ public:
 	bool opened();
 	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows);
 
-	int buttonAction(hid::Button b, bool on, bool inCardRoutine);
+	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
 	bool beginOutputRecording();
 	void process();
 	void slowRoutine();

@@ -17,6 +17,7 @@
 
 #include "gui/ui/qwerty_ui.h"
 #include <string.h>
+#include "definitions_cxx.hpp"
 #include "hid/matrix/matrix_driver.h"
 #include "hid/display/numeric_driver.h"
 #include "util/functions.h"
@@ -218,19 +219,19 @@ const char keyboardChars[][5][11] = {{
                                          {0, 0, ' ', ' ', ' ', ' ', ' ', ' ', 0, 0, 0},
                                      }};
 
-int QwertyUI::padAction(int x, int y, int on) {
+ActionResult QwertyUI::padAction(int x, int y, int on) {
 
 	// Backspace
 	if (y == QWERTY_HOME_ROW + 2 && x >= 14 && x < 16) {
 		if (on) {
 			if (currentUIMode == UI_MODE_PREDICTING_QWERTY_TEXT) {
 				predictionInterrupted = true;
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
 			else if (currentUIMode == UI_MODE_LOADING_BUT_ABORT_IF_SELECT_ENCODER_TURNED) {
 				predictionInterrupted = true;
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
 			else if (!currentUIMode) {
@@ -252,17 +253,17 @@ int QwertyUI::padAction(int x, int y, int on) {
 		if (on) {
 			if (currentUIMode == UI_MODE_PREDICTING_QWERTY_TEXT) {
 				predictionInterrupted = true;
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
 			// If currently loading preset, definitely don't abort that - make the user wait and press button again when finished
 			else if (currentUIMode == UI_MODE_LOADING_BUT_ABORT_IF_SELECT_ENCODER_TURNED) {
-				return ACTION_RESULT_DEALT_WITH;
+				return ActionResult::DEALT_WITH;
 			}
 
 			else if (!currentUIMode) {
 				if (sdRoutineLock) {
-					return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 				}
 				enterKeyPress();
 			}
@@ -276,7 +277,7 @@ int QwertyUI::padAction(int x, int y, int on) {
 			// If predicting, gotta interrupt that
 			if (currentUIMode == UI_MODE_PREDICTING_QWERTY_TEXT) {
 				predictionInterrupted = true;
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
 			// Otherwise, if we still might want to use this press...
@@ -284,7 +285,7 @@ int QwertyUI::padAction(int x, int y, int on) {
 
 				char newChar = keyboardChars[util::to_underlying(FlashStorage::keyboardLayout)][QWERTY_HOME_ROW - y + 2][x - 3];
 				if (newChar == 0) {
-					return ACTION_RESULT_DEALT_WITH;
+					return ActionResult::DEALT_WITH;
 				}
 
 				// First character must be alphanumerical
@@ -292,7 +293,7 @@ int QwertyUI::padAction(int x, int y, int on) {
 					if ((newChar >= 'A' && newChar <= 'Z') || (newChar >= '0' && newChar <= '9')) {
 					} // Then everything's fine
 					else {
-						return ACTION_RESULT_DEALT_WITH;
+						return ActionResult::DEALT_WITH;
 					}
 				}
 
@@ -327,7 +328,7 @@ int QwertyUI::padAction(int x, int y, int on) {
 
 					// But if otherwise accessing card, not fine - e.g. if loading song visual preview
 					else if (sdRoutineLock) {
-						return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+						return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 					}
 
 					enteredTextEditPos++;
@@ -339,13 +340,13 @@ int QwertyUI::padAction(int x, int y, int on) {
 					// But if currently loading a preset, gotta abort that first
 					if (currentUIMode == UI_MODE_LOADING_BUT_ABORT_IF_SELECT_ENCODER_TURNED) {
 						predictionInterrupted = true;
-						return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+						return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 					}
 
 					// Or if the card is just generally being accessed (e.g. samples being buffered), come back soon,
 					// because we couldn't do anything like a "prediction" right now
 					else if (sdRoutineLock) {
-						return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+						return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 					}
 					else {
 						// If char is a letter...
@@ -368,7 +369,7 @@ int QwertyUI::padAction(int x, int y, int on) {
 
 						if (error) {
 							numericDriver.displayError(error);
-							return ACTION_RESULT_DEALT_WITH;
+							return ActionResult::DEALT_WITH;
 						}
 
 						enteredTextEditPos++;
@@ -388,7 +389,7 @@ int QwertyUI::padAction(int x, int y, int on) {
 		}
 	}
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
 void QwertyUI::processBackspace() {
@@ -401,7 +402,7 @@ void QwertyUI::processBackspace() {
 	}
 }
 
-int QwertyUI::horizontalEncoderAction(int offset) {
+ActionResult QwertyUI::horizontalEncoderAction(int offset) {
 	if (offset == 1) {
 
 		// If already at far right end, just see if we can predict any further characters
@@ -410,7 +411,7 @@ int QwertyUI::horizontalEncoderAction(int offset) {
 
 			// If not, get out
 			if (enteredTextEditPos == enteredText.getLength()) {
-				return ACTION_RESULT_DEALT_WITH;
+				return ActionResult::DEALT_WITH;
 			}
 
 			goto doDisplayText;
@@ -418,7 +419,7 @@ int QwertyUI::horizontalEncoderAction(int offset) {
 	}
 	else {
 		if (enteredTextEditPos == 0) {
-			return ACTION_RESULT_DEALT_WITH;
+			return ActionResult::DEALT_WITH;
 		}
 	}
 
@@ -427,14 +428,14 @@ int QwertyUI::horizontalEncoderAction(int offset) {
 doDisplayText:
 	displayText();
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
-int QwertyUI::timerCallback() {
+ActionResult QwertyUI::timerCallback() {
 	if (currentUIMode == UI_MODE_HOLDING_BACKSPACE) {
 		processBackspace();
 		uiTimerManager.setTimer(TIMER_UI_SPECIFIC, HAVE_OLED ? 80 : 125);
 	}
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }

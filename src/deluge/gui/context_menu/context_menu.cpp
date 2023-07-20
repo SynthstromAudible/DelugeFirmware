@@ -17,6 +17,7 @@
 
 #include "gui/context_menu/context_menu.h"
 
+#include "definitions_cxx.hpp"
 #include "hid/display/numeric_driver.h"
 #include "util/functions.h"
 #include "hid/led/indicator_leds.h"
@@ -160,13 +161,13 @@ void ContextMenu::selectEncoderAction(int8_t offset) {
 #endif
 }
 
-int ContextMenu::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+ActionResult ContextMenu::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	using namespace hid::button;
 
 	if (b == BACK) {
 		if (on && !currentUIMode) {
 			if (inCardRoutine) {
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 getOut:
 			numericDriver.setNextTransitionDirection(-1);
@@ -178,7 +179,7 @@ getOut:
 probablyAcceptCurrentOption:
 		if (on && !currentUIMode) {
 			if (inCardRoutine) {
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 			bool success = acceptCurrentOption();
 			if (!success) {
@@ -192,10 +193,10 @@ probablyAcceptCurrentOption:
 	}
 
 	else {
-		return ACTION_RESULT_NOT_DEALT_WITH;
+		return ActionResult::NOT_DEALT_WITH;
 	}
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
 void ContextMenu::drawCurrentOption() {
@@ -209,16 +210,16 @@ void ContextMenu::drawCurrentOption() {
 #endif
 }
 
-int ContextMenu::padAction(int x, int y, int on) {
+ActionResult ContextMenu::padAction(int x, int y, int on) {
 	if (on && !currentUIMode) {
 		if (sdRoutineLock) {
-			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 		numericDriver.setNextTransitionDirection(-1);
 		close();
 	}
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
 void ContextMenuForSaving::focusRegained() {

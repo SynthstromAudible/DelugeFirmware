@@ -301,13 +301,13 @@ void InstrumentClipMinder::focusRegained() {
 #endif
 }
 
-int InstrumentClipMinder::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+ActionResult InstrumentClipMinder::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	using namespace hid::button;
 
 	// If holding save button...
 	if (currentUIMode == UI_MODE_HOLDING_SAVE_BUTTON && on) {
 		if (inCardRoutine) {
-			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 		currentUIMode = UI_MODE_NONE;
 		indicator_leds::setLedState(IndicatorLED::SAVE, false);
@@ -329,7 +329,7 @@ yesSaveInstrument:
 	// If holding load button...
 	else if (currentUIMode == UI_MODE_HOLDING_LOAD_BUTTON && on) {
 		if (inCardRoutine) {
-			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 		currentUIMode = UI_MODE_NONE;
 		indicator_leds::setLedState(IndicatorLED::LOAD, false);
@@ -358,10 +358,10 @@ yesLoadInstrument:
 	else if (b == SELECT_ENC && !Buttons::isShiftButtonPressed()) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 			if (inCardRoutine) {
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 			if (!soundEditor.setup(currentSong->currentClip)) {
-				return ACTION_RESULT_DEALT_WITH;
+				return ActionResult::DEALT_WITH;
 			}
 			openUI(&soundEditor);
 		}
@@ -372,7 +372,7 @@ yesLoadInstrument:
 		if (on && currentUIMode == UI_MODE_NONE) {
 			if (getCurrentClip()->output->type == InstrumentType::KIT) {
 				if (inCardRoutine) {
-					return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 				}
 
 				getCurrentClip()->affectEntire = !getCurrentClip()->affectEntire;
@@ -385,7 +385,7 @@ yesLoadInstrument:
 	else if (b == BACK && currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
 		if (on) {
 			if (inCardRoutine) {
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
 			// Clear Clip
@@ -407,7 +407,7 @@ yesLoadInstrument:
 	else if (b == SYNTH) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 			if (inCardRoutine) {
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
 			if (Buttons::isNewOrShiftButtonPressed()) {
@@ -422,7 +422,7 @@ yesLoadInstrument:
 	else if (b == MIDI) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 			if (inCardRoutine) {
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 			changeInstrumentType(InstrumentType::MIDI_OUT);
 		}
@@ -431,7 +431,7 @@ yesLoadInstrument:
 	else if (b == CV) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 			if (inCardRoutine) {
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 			changeInstrumentType(InstrumentType::CV);
 		}
@@ -441,7 +441,7 @@ yesLoadInstrument:
 		return ClipMinder::buttonAction(b, on);
 	}
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
 void InstrumentClipMinder::changeInstrumentType(InstrumentType newInstrumentType) {

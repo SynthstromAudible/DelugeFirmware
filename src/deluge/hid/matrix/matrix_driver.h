@@ -30,7 +30,7 @@ public:
 
 	bool isPadPressed(int x, int y);
 
-	int padAction(int x, int y, int velocity);
+	ActionResult padAction(int x, int y, int velocity);
 	void noPressesHappening(bool inCardRoutine);
 	bool isUserDoingBootloaderOverwriteAction();
 

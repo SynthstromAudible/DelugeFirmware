@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "definitions_cxx.hpp"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/ui/rename/rename_drum_ui.h"
 #include "processing/sound/sound_drum.h"
@@ -65,14 +66,14 @@ SoundDrum* RenameDrumUI::getDrum() {
 	return (SoundDrum*)soundEditor.currentSound;
 }
 
-int RenameDrumUI::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+ActionResult RenameDrumUI::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	using namespace hid::button;
 
 	// Back button
 	if (b == BACK) {
 		if (on && !currentUIMode) {
 			if (inCardRoutine) {
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 			exitUI();
 		}
@@ -82,17 +83,17 @@ int RenameDrumUI::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	else if (b == SELECT_ENC) {
 		if (on && !currentUIMode) {
 			if (inCardRoutine) {
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 			enterKeyPress();
 		}
 	}
 
 	else {
-		return ACTION_RESULT_NOT_DEALT_WITH;
+		return ActionResult::NOT_DEALT_WITH;
 	}
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
 void RenameDrumUI::enterKeyPress() {
@@ -118,7 +119,7 @@ void RenameDrumUI::exitUI() {
 	close();
 }
 
-int RenameDrumUI::padAction(int x, int y, int on) {
+ActionResult RenameDrumUI::padAction(int x, int y, int on) {
 
 	// Audition pad
 	if (x == displayWidth + 1) {
@@ -134,18 +135,18 @@ int RenameDrumUI::padAction(int x, int y, int on) {
 	else {
 		if (on && !currentUIMode) {
 			if (sdRoutineLock) {
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 			exitUI();
 		}
 	}
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
-int RenameDrumUI::verticalEncoderAction(int offset, bool inCardRoutine) {
+ActionResult RenameDrumUI::verticalEncoderAction(int offset, bool inCardRoutine) {
 	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(hid::button::X_ENC)) {
-		return ACTION_RESULT_DEALT_WITH;
+		return ActionResult::DEALT_WITH;
 	}
 	return instrumentClipView.verticalEncoderAction(offset, inCardRoutine);
 }

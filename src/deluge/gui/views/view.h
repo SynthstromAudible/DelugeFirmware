@@ -50,7 +50,7 @@ public:
 	View();
 	void focusRegained();
 	void setTripletsLedState();
-	int buttonAction(hid::Button b, bool on, bool inCardRoutine);
+	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
 	void setTimeBaseScaleLedState();
 	void setLedStates();
 
@@ -85,7 +85,7 @@ public:
 	                               bool doBlink, Clip* clip = NULL);
 	void endMIDILearn();
 	void getClipMuteSquareColour(Clip* clip, uint8_t thisColour[]);
-	int clipStatusPadAction(Clip* clip, bool on, int yDisplayIfInSessionView = -1);
+	ActionResult clipStatusPadAction(Clip* clip, bool on, int yDisplayIfInSessionView = -1);
 	void flashPlayEnable();
 	void flashPlayDisable();
 

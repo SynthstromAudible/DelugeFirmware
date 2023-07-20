@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "definitions_cxx.hpp"
 #include "gui/views/arranger_view.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
@@ -64,14 +65,14 @@ void MatrixDriver::noPressesHappening(bool inCardRoutine) {
 	}
 }
 
-int MatrixDriver::padAction(int x, int y, int velocity) {
+ActionResult MatrixDriver::padAction(int x, int y, int velocity) {
 	padStates[x][y] = velocity;
-	int result = getCurrentUI()->padAction(x, y, velocity);
-	if (result == ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE) {
-		return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+	ActionResult result = getCurrentUI()->padAction(x, y, velocity);
+	if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
+		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
 bool MatrixDriver::isPadPressed(int x, int y) {

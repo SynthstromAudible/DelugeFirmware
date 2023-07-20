@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "util/container/array/c_string_array.h"
 #include "storage/file_item.h"
 #include "gui/ui/qwerty_ui.h"
@@ -68,7 +69,7 @@ public:
 
 	void close();
 	virtual int getCurrentFilePath(String* path) = 0;
-	int buttonAction(hid::Button b, bool on, bool inCardRoutine);
+	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
 	void currentFileDeleted();
 	int goIntoFolder(char const* folderName);
 	int createFolder();
@@ -106,9 +107,9 @@ protected:
 	virtual int arrivedInNewFolder(int direction, char const* filenameToStartAt = NULL, char const* defaultDir = NULL);
 	bool predictExtendedText();
 	void goIntoDeleteFileContextMenu();
-	int mainButtonAction(bool on);
+	ActionResult mainButtonAction(bool on);
 	virtual void exitAction();
-	virtual int backButtonAction();
+	virtual ActionResult backButtonAction();
 	virtual void folderContentsReady(int entryDirection) {
 	}
 	virtual void currentFileChanged(int movementDirection) {

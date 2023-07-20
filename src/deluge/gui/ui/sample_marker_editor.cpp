@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "definitions_cxx.hpp"
 #include "processing/engines/audio_engine.h"
 #include "gui/views/instrument_clip_view.h"
 #include "processing/sound/sound.h"
@@ -286,15 +287,15 @@ void SampleMarkerEditor::selectEncoderAction(int8_t offset) {
 #endif
 }
 
-int SampleMarkerEditor::padAction(int x, int y, int on) {
+ActionResult SampleMarkerEditor::padAction(int x, int y, int on) {
 
 	if (sdRoutineLock) {
-		return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 
 	if (currentUIMode != UI_MODE_AUDITIONING) { // Don't want to do this while auditioning - too easy to do by mistake
-		int soundEditorResult = soundEditor.potentialShortcutPadAction(x, y, on);
-		if (soundEditorResult != ACTION_RESULT_NOT_DEALT_WITH) {
+		ActionResult soundEditorResult = soundEditor.potentialShortcutPadAction(x, y, on);
+		if (soundEditorResult != ActionResult::NOT_DEALT_WITH) {
 			return soundEditorResult;
 		}
 	}
@@ -304,7 +305,7 @@ int SampleMarkerEditor::padAction(int x, int y, int on) {
 		if (currentSong->currentClip->type == CLIP_TYPE_INSTRUMENT) {
 			instrumentClipView.padAction(x, y, on);
 		}
-		return ACTION_RESULT_DEALT_WITH;
+		return ActionResult::DEALT_WITH;
 	}
 
 	// Mute pads
@@ -321,7 +322,7 @@ int SampleMarkerEditor::padAction(int x, int y, int on) {
 
 			if (currentUIMode && currentUIMode != UI_MODE_AUDITIONING
 			    && currentUIMode != UI_MODE_HOLDING_SAMPLE_MARKER) {
-				return ACTION_RESULT_DEALT_WITH;
+				return ActionResult::DEALT_WITH;
 			}
 
 			MarkerColumn cols[NUM_MARKER_TYPES];
@@ -332,7 +333,8 @@ int SampleMarkerEditor::padAction(int x, int y, int on) {
 			for (int m = 0; m < NUM_MARKER_TYPES; m++) {
 				if (cols[m].colOnScreen == x) {
 					if (markerPressed != -1) {
-						return ACTION_RESULT_DEALT_WITH; // Get out if there are two markers occupying the same col we pressed
+						return ActionResult::
+						    DEALT_WITH; // Get out if there are two markers occupying the same col we pressed
 					}
 					markerPressed = m;
 				}
@@ -370,14 +372,14 @@ int SampleMarkerEditor::padAction(int x, int y, int on) {
 
 						// Limit position
 						if (cols[MARKER_START].colOnScreen >= x) {
-							return ACTION_RESULT_DEALT_WITH;
+							return ActionResult::DEALT_WITH;
 						}
 						if (getCurrentMultisampleRange()->sampleHolder.loopEndPos
 						    && cols[MARKER_LOOP_END].colOnScreen <= x) {
-							return ACTION_RESULT_DEALT_WITH;
+							return ActionResult::DEALT_WITH;
 						}
 						if (cols[MARKER_END].colOnScreen <= x) {
-							return ACTION_RESULT_DEALT_WITH;
+							return ActionResult::DEALT_WITH;
 						}
 
 						newMarkerType = MARKER_LOOP_START;
@@ -386,7 +388,7 @@ int SampleMarkerEditor::padAction(int x, int y, int on) {
 ensureNotPastSampleLength:
 						// Loop start and end points are not allowed to be further right than the sample waveform length
 						if (newValue >= waveformBasicNavigator.sample->lengthInSamples) {
-							return ACTION_RESULT_DEALT_WITH;
+							return ActionResult::DEALT_WITH;
 						}
 						markerType = newMarkerType;
 						value = newValue;
@@ -404,13 +406,13 @@ ensureNotPastSampleLength:
 
 						// Limit position
 						if (cols[MARKER_START].colOnScreen >= x) {
-							return ACTION_RESULT_DEALT_WITH;
+							return ActionResult::DEALT_WITH;
 						}
 						if (cols[MARKER_LOOP_START].colOnScreen >= x) {
-							return ACTION_RESULT_DEALT_WITH; // Will be a big negative number if inactive
+							return ActionResult::DEALT_WITH; // Will be a big negative number if inactive
 						}
 						if (cols[MARKER_END].colOnScreen <= x) {
-							return ACTION_RESULT_DEALT_WITH;
+							return ActionResult::DEALT_WITH;
 						}
 
 						newMarkerType = MARKER_LOOP_END;
@@ -432,7 +434,7 @@ exitAfterRemovingLoopMarker:
 							goto doRender;
 						}
 						else {
-							return ACTION_RESULT_DEALT_WITH;
+							return ActionResult::DEALT_WITH;
 						}
 					}
 					else if (markerHeld == MARKER_LOOP_END) {
@@ -444,7 +446,7 @@ exitAfterRemovingLoopMarker:
 							goto exitAfterRemovingLoopMarker;
 						}
 						else {
-							return ACTION_RESULT_DEALT_WITH;
+							return ActionResult::DEALT_WITH;
 						}
 					}
 
@@ -472,49 +474,49 @@ exitAfterRemovingLoopMarker:
 					// Make sure it doesn't go past any other markers it shouldn't
 					if (markerType == MARKER_START) {
 						if (cols[MARKER_LOOP_START].pos && cols[MARKER_LOOP_START].colOnScreen <= x) {
-							return ACTION_RESULT_DEALT_WITH;
+							return ActionResult::DEALT_WITH;
 						}
 						if (cols[MARKER_LOOP_END].pos && cols[MARKER_LOOP_END].colOnScreen <= x) {
-							return ACTION_RESULT_DEALT_WITH;
+							return ActionResult::DEALT_WITH;
 						}
 						if (cols[MARKER_END].colOnScreen <= x) {
-							return ACTION_RESULT_DEALT_WITH;
+							return ActionResult::DEALT_WITH;
 						}
 					}
 
 					else if (markerType == MARKER_LOOP_START) {
 						if (cols[MARKER_START].colOnScreen >= x) {
-							return ACTION_RESULT_DEALT_WITH;
+							return ActionResult::DEALT_WITH;
 						}
 						if (cols[MARKER_LOOP_END].pos && cols[MARKER_LOOP_END].colOnScreen <= x) {
-							return ACTION_RESULT_DEALT_WITH;
+							return ActionResult::DEALT_WITH;
 						}
 						if (cols[MARKER_END].colOnScreen <= x) {
-							return ACTION_RESULT_DEALT_WITH;
+							return ActionResult::DEALT_WITH;
 						}
 					}
 
 					else if (markerType == MARKER_LOOP_END) {
 						if (cols[MARKER_START].colOnScreen >= x) {
-							return ACTION_RESULT_DEALT_WITH;
+							return ActionResult::DEALT_WITH;
 						}
 						if (cols[MARKER_LOOP_START].colOnScreen >= x) {
-							return ACTION_RESULT_DEALT_WITH; // Will be a big negative number if inactive
+							return ActionResult::DEALT_WITH; // Will be a big negative number if inactive
 						}
 						if (cols[MARKER_END].colOnScreen <= x) {
-							return ACTION_RESULT_DEALT_WITH;
+							return ActionResult::DEALT_WITH;
 						}
 					}
 
 					else if (markerType == MARKER_END) {
 						if (cols[MARKER_START].colOnScreen >= x) {
-							return ACTION_RESULT_DEALT_WITH;
+							return ActionResult::DEALT_WITH;
 						}
 						if (cols[MARKER_LOOP_START].colOnScreen >= x) {
-							return ACTION_RESULT_DEALT_WITH; // Will be a big negative number if inactive
+							return ActionResult::DEALT_WITH; // Will be a big negative number if inactive
 						}
 						if (cols[MARKER_LOOP_END].colOnScreen >= x) {
-							return ACTION_RESULT_DEALT_WITH; // Will be a big negative number if inactive
+							return ActionResult::DEALT_WITH; // Will be a big negative number if inactive
 						}
 					}
 
@@ -526,7 +528,7 @@ exitAfterRemovingLoopMarker:
 						// Only the END marker, and only in some cases, is allowed to be further right than the waveform length
 						if (markerType == MARKER_END && shouldAllowExtraScrollRight()) {
 							if (x > cols[markerType].colOnScreen && value < cols[markerType].pos) {
-								return ACTION_RESULT_DEALT_WITH; // Probably not actually necessary
+								return ActionResult::DEALT_WITH; // Probably not actually necessary
 							}
 							if (value > lengthInSamples && value < lengthInSamples + waveformBasicNavigator.xZoom) {
 								value = lengthInSamples;
@@ -566,17 +568,17 @@ doRender:
 		}
 	}
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
-int SampleMarkerEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+ActionResult SampleMarkerEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	using namespace hid::button;
 
 	// Back button
 	if (b == BACK) {
 		if (on && !currentUIMode) {
 			if (inCardRoutine) {
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 			exitUI();
 		}
@@ -596,10 +598,10 @@ int SampleMarkerEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine)
 	}
 
 	else {
-		return ACTION_RESULT_NOT_DEALT_WITH;
+		return ActionResult::NOT_DEALT_WITH;
 	}
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
 void SampleMarkerEditor::exitUI() {
@@ -609,11 +611,11 @@ void SampleMarkerEditor::exitUI() {
 
 static const uint32_t zoomUIModes[] = {UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON, UI_MODE_AUDITIONING, 0};
 
-int SampleMarkerEditor::horizontalEncoderAction(int offset) {
+ActionResult SampleMarkerEditor::horizontalEncoderAction(int offset) {
 
 	// We're quite likely going to need to read the SD card to do either scrolling or zooming
 	if (sdRoutineLock) {
-		return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 
 	MarkerColumn* colsToSend = NULL;
@@ -648,18 +650,19 @@ int SampleMarkerEditor::horizontalEncoderAction(int offset) {
 		recordScrollAndZoom();
 		blinkInvisible = false;
 	}
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
 // Just for the blinking marker I think
-int SampleMarkerEditor::timerCallback() {
+ActionResult SampleMarkerEditor::timerCallback() {
 
 	MarkerColumn cols[NUM_MARKER_TYPES];
 	getColsOnScreen(cols);
 
 	int x = cols[markerType].colOnScreen;
 	if (x < 0 || x >= displayWidth) {
-		return ACTION_RESULT_DEALT_WITH; // Shouldn't happen, but let's be safe - and not set the timer again if it's offscreen
+		return ActionResult::
+		    DEALT_WITH; // Shouldn't happen, but let's be safe - and not set the timer again if it's offscreen
 	}
 
 	blinkInvisible = !blinkInvisible;
@@ -676,19 +679,19 @@ int SampleMarkerEditor::timerCallback() {
 
 	uiTimerManager.setTimer(TIMER_UI_SPECIFIC, SAMPLE_MARKER_BLINK_TIME);
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
-int SampleMarkerEditor::verticalEncoderAction(int offset, bool inCardRoutine) {
+ActionResult SampleMarkerEditor::verticalEncoderAction(int offset, bool inCardRoutine) {
 	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(hid::button::X_ENC)
 	    || currentSong->currentClip->type == CLIP_TYPE_AUDIO) {
-		return ACTION_RESULT_DEALT_WITH;
+		return ActionResult::DEALT_WITH;
 	}
 
-	int result = instrumentClipView.verticalEncoderAction(
-	    offset, inCardRoutine); // Must say these buttons were not pressed, or else editing might take place
+	// Must say these buttons were not pressed, or else editing might take place
+	ActionResult result = instrumentClipView.verticalEncoderAction(offset, inCardRoutine);
 
-	if (result == ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE) {
+	if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
 		return result;
 	}
 

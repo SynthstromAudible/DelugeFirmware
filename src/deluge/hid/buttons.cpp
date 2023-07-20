@@ -33,7 +33,7 @@ bool recordButtonPressUsedUp;
 uint32_t timeRecordButtonPressed;
 bool buttonStates[NUM_BUTTON_COLS + 1][NUM_BUTTON_ROWS]; // The extra col is for "fake" buttons
 
-int buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	using namespace hid::button;
 
 	// Must happen up here before it's actioned, because if its action accesses SD card, we might multiple-enter this function, and don't want to then be setting this after that later action, erasing what it set
@@ -47,7 +47,7 @@ int buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	}
 #endif
 
-	int result;
+	ActionResult result;
 
 	// See if it was one of the mod buttons
 	for (int i = 0; i < NUM_MOD_BUTTONS; i++) {
@@ -67,10 +67,10 @@ int buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 
 	result = getCurrentUI()->buttonAction(b, on, inCardRoutine);
 
-	if (result == ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE) {
-		return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+	if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
+		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
-	else if (result == ACTION_RESULT_DEALT_WITH) {
+	else if (result == ActionResult::DEALT_WITH) {
 		goto dealtWith;
 	}
 
@@ -87,7 +87,7 @@ int buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 
 			else {
 
-				//if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				//if (inCardRoutine) return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 				playbackHandler.playButtonPressed(INTERNAL_BUTTON_PRESS_LATENCY);
 
 				// Begin output-recording simultaneously with playback
@@ -161,7 +161,7 @@ int buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 
 dealtWith:
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
 bool isButtonPressed(hid::Button b) {

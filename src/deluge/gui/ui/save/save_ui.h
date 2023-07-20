@@ -35,8 +35,8 @@ public:
 		return true;
 	}
 	bool canSeeViewUnderneath() final { return false; }
-	int timerCallback();
-	int buttonAction(hid::Button b, bool on, bool inCardRoutine);
+	ActionResult timerCallback();
+	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
 
 protected:
 	//void displayText(bool blinkImmediately) final;

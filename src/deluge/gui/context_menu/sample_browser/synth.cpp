@@ -16,6 +16,7 @@
 */
 
 #include "gui/context_menu/sample_browser/synth.h"
+#include "definitions_cxx.hpp"
 #include "gui/ui/browser/sample_browser.h"
 #include "hid/display/numeric_driver.h"
 #include "util/functions.h"
@@ -88,7 +89,7 @@ bool Synth::acceptCurrentOption() {
 	}
 }
 
-int Synth::padAction(int x, int y, int on) {
+ActionResult Synth::padAction(int x, int y, int on) {
 	return sampleBrowser.padAction(x, y, on);
 }
 
