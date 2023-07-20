@@ -23,7 +23,7 @@
 #include "util/functions.h"
 #include "hid/display/numeric_driver.h"
 #include "hid/led/pad_leds.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "storage/file_item.h"
 
 bool SlotBrowser::currentFileHasSuffixFormatNameImplied;

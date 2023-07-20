@@ -38,7 +38,7 @@
 #include "gui/ui/ui.h"
 #include "playback/mode/session.h"
 #include "model/drum/midi_drum.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "hid/display/numeric_driver.h"
 #include "model/model_stack.h"
 #include "io/midi/midi_device_manager.h"
@@ -163,7 +163,7 @@ bool Kit::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 
 		// If saving Kit (not song), only save Drums if some other NoteRow in the song has it - in which case, save as "default" the params from that NoteRow
 		if (clipForSavingOutputOnly) {
-			Uart::println("yup, clipForSavingOutputOnly");
+			Debug::println("yup, clipForSavingOutputOnly");
 			NoteRow* noteRow = song->findNoteRowForDrum(this, thisDrum);
 			if (!noteRow) {
 				goto moveOn;
@@ -177,7 +177,7 @@ bool Kit::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 			// If no activeClip, this means we want to store all Drums
 			// - and for SoundDrums, save as "default" any backedUpParamManagers (if none for a SoundDrum, definitely skip it)
 			if (!activeClip) {
-				Uart::println("nah, !activeClip");
+				Debug::println("nah, !activeClip");
 				if (thisDrum->type == DRUM_TYPE_SOUND) {
 					paramManagerForDrum = song->getBackedUpParamManagerPreferablyWithClip((SoundDrum*)thisDrum, NULL);
 					if (!paramManagerForDrum) {
@@ -682,7 +682,7 @@ ModControllable* Kit::toModControllable() {
 // newName must be allowed to be edited by this function
 int Kit::makeDrumNameUnique(String* name, int startAtNumber) {
 
-	Uart::println("making unique newName:");
+	Debug::println("making unique newName:");
 
 	int originalLength = name->getLength();
 

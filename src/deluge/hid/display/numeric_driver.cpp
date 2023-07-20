@@ -17,7 +17,7 @@
 
 #include "hid/display/numeric_driver.h"
 #include "gui/ui_timer_manager.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include <string.h>
 #include "hid/display/numeric_layer/numeric_layer_scroll_transition.h"
 #include "hid/display/numeric_layer/numeric_layer_basic_text.h"

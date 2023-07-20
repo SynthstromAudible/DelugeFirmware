@@ -22,7 +22,7 @@
 #include "gui/ui/load/load_song_ui.h"
 #include "util/functions.h"
 #include "hid/display/numeric_driver.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include <string.h>
 #include "gui/views/session_view.h"
 #include "memory/general_memory_allocator.h"
