@@ -2044,7 +2044,8 @@ void InstrumentClipView::adjustProbability(int offset) {
 
 					// Decrementing
 					else {
-						if (probabilityValue > 1 || prevBase) {
+						// Allow going down to probability 0 for FILL notes
+						if (probabilityValue > 0 || prevBase) {
 							if (prevBase) {
 								prevBase = false;
 							}
@@ -2180,7 +2181,15 @@ multiplePresses:
 		char buffer[5];
 #endif
 		char* displayString;
-		if (probabilityValue <= NUM_PROBABILITY_VALUES) {
+
+		// FILL mode
+		if (probabilityValue == FILL_PROBABILITY_VALUE) {
+			strcpy(buffer, "FILL");
+			displayString = buffer;
+		}
+
+		// Probability dependence
+		else if (probabilityValue <= NUM_PROBABILITY_VALUES) {
 #if HAVE_OLED
 			strcpy(buffer, "Probability: ");
 			intToString(probabilityValue * 5, buffer + strlen(buffer));

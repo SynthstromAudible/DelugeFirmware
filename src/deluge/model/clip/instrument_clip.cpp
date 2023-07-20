@@ -811,9 +811,8 @@ skipDoingSumTo100:
 				conditionPassed = true;
 			}
 
-			// else if 95% it's a placeholder for a new FILL value
-			// so only play the note if SHIFT+TRIPLETS is pressed
-			else if (pendingNoteOnList.pendingNoteOns[i].probability == NUM_PROBABILITY_VALUES - 1) {
+			// else check if it's a FILL note and only play if SYNC_SCALING is pressed
+			else if (pendingNoteOnList.pendingNoteOns[i].probability == FILL_PROBABILITY_VALUE) {
 					conditionPassed = Buttons::isButtonPressed(hid::button::SYNC_SCALING);
 			}
 

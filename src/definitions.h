@@ -625,6 +625,7 @@ typedef enum SyncLevel_ {
 
 #define NUM_PROBABILITY_VALUES 20
 #define NUM_ITERATION_VALUES 35 // 1of2 to 8of8
+#define FILL_PROBABILITY_VALUE 0 // used for FILL notes
 #define DEFAULT_LIFT_VALUE 64
 
 #if ALPHA_OR_BETA_VERSION
