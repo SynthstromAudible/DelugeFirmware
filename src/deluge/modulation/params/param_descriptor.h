@@ -33,7 +33,9 @@ public:
 
 	inline bool isSetToParamWithNoSource(int p) { return (data == (p | 0xFFFFFF00)); }
 
-	inline bool isSetToParamAndSource(int p, PatchSource s) { return (data == (p | (util::to_underlying(s) << 8) | 0xFFFF0000)); }
+	inline bool isSetToParamAndSource(int p, PatchSource s) {
+		return (data == (p | (util::to_underlying(s) << 8) | 0xFFFF0000));
+	}
 
 	inline bool isJustAParam() { return (data & 0x0000FF00) == 0x0000FF00; }
 

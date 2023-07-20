@@ -95,7 +95,8 @@ void NonAudioInstrument::sendNote(ModelStackWithThreeMainThings* modelStack, boo
 
 // Inherit / overrides from both MelodicInstrument and ModControllable
 void NonAudioInstrument::polyphonicExpressionEventOnChannelOrNote(int newValue, int whichExpressionDimension,
-                                                                  int channelOrNoteNumber, MIDICharacteristic whichCharacteristic) {
+                                                                  int channelOrNoteNumber,
+                                                                  MIDICharacteristic whichCharacteristic) {
 	ArpeggiatorSettings* settings = getArpSettings();
 
 	int n;
@@ -123,7 +124,8 @@ lookAtArpNote:
 			// it's hardly any extra work.
 			arpNote->mpeValues[whichExpressionDimension] = newValue >> 16;
 
-			int noteCodeBeforeArpeggiation = arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)];
+			int noteCodeBeforeArpeggiation =
+			    arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)];
 			int noteCodeAfterArpeggiation = noteCodeBeforeArpeggiation;
 
 			// If there's actual arpeggiation happening right now...

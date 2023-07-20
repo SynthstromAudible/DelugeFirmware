@@ -737,7 +737,6 @@ enum class InterpolationMode {
 };
 constexpr int NUM_INTERPOLATION_MODES = 2;
 
-
 constexpr int CACHE_BYTE_DEPTH = 3;
 constexpr int CACHE_BYTE_DEPTH_MAGNITUDE = 2; // Invalid / unused for odd numbers of bytes like 3
 

@@ -26,8 +26,12 @@ namespace menu_item::lfo::local {
 class Type final : public Shape {
 public:
 	using Shape::Shape;
-	void readCurrentValue() { soundEditor.currentValue = util::to_underlying(soundEditor.currentSound->lfoLocalWaveType); }
-	void writeCurrentValue() { soundEditor.currentSound->lfoLocalWaveType = static_cast<LFOType>(soundEditor.currentValue); }
+	void readCurrentValue() {
+		soundEditor.currentValue = util::to_underlying(soundEditor.currentSound->lfoLocalWaveType);
+	}
+	void writeCurrentValue() {
+		soundEditor.currentSound->lfoLocalWaveType = static_cast<LFOType>(soundEditor.currentValue);
+	}
 };
 
 } // namespace menu_item::lfo::local

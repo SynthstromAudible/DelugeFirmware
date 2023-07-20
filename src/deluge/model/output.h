@@ -72,9 +72,9 @@ public:
 	                          bool shouldLimitDelayFeedback, bool isClipActive) = 0;
 
 	virtual void setupWithoutActiveClip(ModelStack* modelStack);
-	virtual bool
-	setActiveClip(ModelStackWithTimelineCounter* modelStack,
-	              PgmChangeSend maySendMIDIPGMs = PgmChangeSend::ONCE); // Will have no effect if it already had that Clip
+	virtual bool setActiveClip(
+	    ModelStackWithTimelineCounter* modelStack,
+	    PgmChangeSend maySendMIDIPGMs = PgmChangeSend::ONCE); // Will have no effect if it already had that Clip
 	void pickAnActiveClipForArrangementPos(ModelStack* modelStack, int arrangementPos, PgmChangeSend maySendMIDIPGMs);
 	void pickAnActiveClipIfPossible(ModelStack* modelStack, bool searchSessionClipsIfNeeded = true,
 	                                PgmChangeSend maySendMIDIPGMs = PgmChangeSend::ONCE,

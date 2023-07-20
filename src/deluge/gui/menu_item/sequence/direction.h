@@ -50,7 +50,8 @@ public:
 			soundEditor.currentValue = util::to_underlying(modelStackWithNoteRow->getNoteRow()->sequenceDirectionMode);
 		}
 		else {
-			soundEditor.currentValue = util::to_underlying(((InstrumentClip*)currentSong->currentClip)->sequenceDirectionMode);
+			soundEditor.currentValue =
+			    util::to_underlying(((InstrumentClip*)currentSong->currentClip)->sequenceDirectionMode);
 		}
 	}
 
@@ -59,12 +60,13 @@ public:
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 		ModelStackWithNoteRow* modelStackWithNoteRow = getIndividualNoteRow(modelStack);
 		if (modelStackWithNoteRow->getNoteRowAllowNull()) {
-			modelStackWithNoteRow->getNoteRow()->setSequenceDirectionMode(modelStackWithNoteRow,
-			                                                              static_cast<SequenceDirection>(soundEditor.currentValue));
+			modelStackWithNoteRow->getNoteRow()->setSequenceDirectionMode(
+			    modelStackWithNoteRow, static_cast<SequenceDirection>(soundEditor.currentValue));
 		}
 		else {
 			((InstrumentClip*)currentSong->currentClip)
-			    ->setSequenceDirectionMode(modelStackWithNoteRow->toWithTimelineCounter(), static_cast<SequenceDirection>(soundEditor.currentValue));
+			    ->setSequenceDirectionMode(modelStackWithNoteRow->toWithTimelineCounter(),
+			                               static_cast<SequenceDirection>(soundEditor.currentValue));
 		}
 	}
 

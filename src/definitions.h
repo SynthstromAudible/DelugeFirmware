@@ -23,7 +23,6 @@
 #define XTAL_SPEED_MHZ 13225625
 #endif
 
-
 // UART
 #define MIDI_TX_BUFFER_SIZE 1024
 

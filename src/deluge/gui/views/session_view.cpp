@@ -603,7 +603,7 @@ holdingRecord:
 
 							// If source clip currently recording, arm it to stop (but not if tempoless recording)
 							if (playbackHandler.isEitherClockActive() && sourceClip->getCurrentlyRecordingLinearly()
-							    && sourceClip->armState  == ArmState::OFF) {
+							    && sourceClip->armState == ArmState::OFF) {
 								session.toggleClipStatus(sourceClip, &clipIndex, false, INTERNAL_BUTTON_PRESS_LATENCY);
 							}
 
@@ -794,7 +794,8 @@ midiLearnMelodicInstrumentAction:
 					if (yDisplay == selectedClipPressYDisplay && xDisplay == selectedClipPressXDisplay) {
 justEndClipPress:
 						if (sdRoutineLock) {
-							return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // If in card routine, might mean it's still loading an Instrument they selected,
+							return ActionResult::
+							    REMIND_ME_OUTSIDE_CARD_ROUTINE; // If in card routine, might mean it's still loading an Instrument they selected,
 						}
 						// and we don't want the loading animation or anything to get stuck onscreen
 						clipPressEnded();
@@ -2020,7 +2021,7 @@ void SessionView::flashPlayRoutine() {
 	bool any = false;
 	for (int yDisplay = 0; yDisplay < displayHeight; yDisplay++) {
 		Clip* clip = getClipOnScreen(yDisplay);
-		if ((clip != nullptr) && clip->armState  != ArmState::OFF) {
+		if ((clip != nullptr) && clip->armState != ArmState::OFF) {
 			whichRowsNeedReRendering |= (1 << yDisplay);
 		}
 	}

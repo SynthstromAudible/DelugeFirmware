@@ -20,7 +20,6 @@
 #include "processing/sound/sound.h"
 #include "modulation/patch/patch_cable.h"
 
-
 void PatchCable::setup(PatchSource newFrom, uint8_t newTo, int32_t newAmount) {
 	from = newFrom;
 	destinationParamDescriptor.setToHaveParamOnly(newTo);

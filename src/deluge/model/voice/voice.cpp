@@ -149,7 +149,8 @@ bool Voice::noteOn(ModelStackWithVoice* modelStack, int newNoteCodeBeforeArpeggi
 	sourceValues[util::to_underlying(PatchSource::LFO_LOCAL)] = lfo.render(0, sound->lfoLocalWaveType, 0);
 
 	// Setup some sources which won't change for the duration of this note
-	sourceValues[util::to_underlying(PatchSource::VELOCITY)] = (velocity == 128) ? 2147483647 : ((int32_t)velocity - 64) * 33554432;
+	sourceValues[util::to_underlying(PatchSource::VELOCITY)] =
+	    (velocity == 128) ? 2147483647 : ((int32_t)velocity - 64) * 33554432;
 
 	// "Random" source
 	sourceValues[util::to_underlying(PatchSource::RANDOM)] = getNoise();
@@ -700,9 +701,11 @@ bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int nu
 
 	bool unassignVoiceAfter =
 	    (envelopes[0].state
-	     == EnvelopeStage::OFF); //(envelopes[0].state >= EnvelopeStage::DECAY && localSourceValues[PatchSource::ENVELOPE_0 - FIRST_LOCAL_SOURCE] == -2147483648);
+	     == EnvelopeStage::
+	         OFF); //(envelopes[0].state >= EnvelopeStage::DECAY && localSourceValues[PatchSource::ENVELOPE_0 - FIRST_LOCAL_SOURCE] == -2147483648);
 	// Local LFO
-	if (paramManager->getPatchCableSet()->sourcesPatchedToAnything[GLOBALITY_LOCAL] & (1 << util::to_underlying(PatchSource::LFO_LOCAL))) {
+	if (paramManager->getPatchCableSet()->sourcesPatchedToAnything[GLOBALITY_LOCAL]
+	    & (1 << util::to_underlying(PatchSource::LFO_LOCAL))) {
 		int32_t old = sourceValues[util::to_underlying(PatchSource::LFO_LOCAL)];
 		sourceValues[util::to_underlying(PatchSource::LFO_LOCAL)] =
 		    lfo.render(numSamples, sound->lfoLocalWaveType, paramFinalValues[PARAM_LOCAL_LFO_LOCAL_FREQ]);
@@ -908,8 +911,9 @@ skipAutoRelease : {}
 
 	// Apply envelope 0 to volume. This takes effect as a cut only; when the envelope is at max height, volume is unaffected.
 	// Important that we use lshiftAndSaturate here - otherwise, number can overflow if combining high velocity patching with big LFO
-	int32_t overallOscAmplitude = lshiftAndSaturate<2>(multiply_32x32_rshift32(
-	    paramFinalValues[PARAM_LOCAL_VOLUME], (sourceValues[util::to_underlying(PatchSource::ENVELOPE_0)] >> 1) + 1073741824));
+	int32_t overallOscAmplitude = lshiftAndSaturate<2>(
+	    multiply_32x32_rshift32(paramFinalValues[PARAM_LOCAL_VOLUME],
+	                            (sourceValues[util::to_underlying(PatchSource::ENVELOPE_0)] >> 1) + 1073741824));
 
 	// This is the gain which gets applied to compensate for any change in gain that the filter is going to cause
 	int32_t filterGain;
@@ -1037,7 +1041,8 @@ skipAutoRelease : {}
 	// Lots of conditions rule out renderingDirectlyIntoSoundBuffer right away
 	if (sound->clippingAmount
 	    || sound->synthMode
-	           == SynthMode::RINGMOD // We could make this one work - but currently the ringmod rendering code doesn't really have
+	           == SynthMode::
+	               RINGMOD // We could make this one work - but currently the ringmod rendering code doesn't really have
 	    // proper amplitude control - e.g. no increments - built in, so we rely on the normal final
 	    // buffer-copying bit for that
 	    || filterSetConfig->doHPF || filterSetConfig->doLPF

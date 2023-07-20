@@ -88,8 +88,9 @@ public:
 	bool readXMLFileCluster();
 	int getNumCharsRemainingInValue();
 	Instrument* createNewInstrument(InstrumentType newInstrumentType, ParamManager* getParamManager = NULL);
-	int loadInstrumentFromFile(Song* song, InstrumentClip* clip, InstrumentType instrumentType, bool mayReadSamplesFromFiles,
-	                           Instrument** getInstrument, FilePointer* filePointer, String* name, String* dirPath);
+	int loadInstrumentFromFile(Song* song, InstrumentClip* clip, InstrumentType instrumentType,
+	                           bool mayReadSamplesFromFiles, Instrument** getInstrument, FilePointer* filePointer,
+	                           String* name, String* dirPath);
 	Instrument* createNewNonAudioInstrument(InstrumentType instrumentType, int slot, int subSlot);
 	void writeEarliestCompatibleFirmwareVersion(char const* versionString);
 	int readMIDIParamFromFile(int32_t readAutomationUpToPos, MIDIParamCollection* midiParamCollection,

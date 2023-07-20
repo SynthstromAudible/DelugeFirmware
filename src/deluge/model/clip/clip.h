@@ -55,7 +55,8 @@ public:
 	virtual void resumePlayback(ModelStackWithTimelineCounter* modelStack, bool mayMakeSound = true) = 0;
 	virtual void reGetParameterAutomation(ModelStackWithTimelineCounter* modelStack);
 	virtual void processCurrentPos(ModelStackWithTimelineCounter* modelStack, uint32_t ticksSinceLast);
-	void prepareForDestruction(ModelStackWithTimelineCounter* modelStack, InstrumentRemoval instrumentRemovalInstruction);
+	void prepareForDestruction(ModelStackWithTimelineCounter* modelStack,
+	                           InstrumentRemoval instrumentRemovalInstruction);
 	uint32_t getLivePos();
 	uint32_t getActualCurrentPosAsIfPlayingInForwardDirection();
 	int32_t getLastProcessedPos();

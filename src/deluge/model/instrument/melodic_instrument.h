@@ -71,7 +71,8 @@ public:
 	ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = NULL);
 
 	virtual void polyphonicExpressionEventOnChannelOrNote(int newValue, int whichExpressionDimension,
-	                                                      int channelOrNoteNumber, MIDICharacteristic whichCharacteristic) = 0;
+	                                                      int channelOrNoteNumber,
+	                                                      MIDICharacteristic whichCharacteristic) = 0;
 
 	void offerBendRangeUpdate(ModelStack* modelStack, MIDIDevice* device, int channelOrZone, int whichBendRange,
 	                          int bendSemitones);

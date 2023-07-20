@@ -311,7 +311,8 @@ void SoundInstrument::monophonicExpressionEvent(int newValue, int whichExpressio
 // (Despite my having made it now actually need to talk to the Arp too, as below...)
 // Note, this virtual function actually overrides/implements from two base classes - MelodicInstrument and ModControllable.
 void SoundInstrument::polyphonicExpressionEventOnChannelOrNote(int newValue, int whichExpressionDimension,
-                                                               int channelOrNoteNumber, MIDICharacteristic whichCharacteristic) {
+                                                               int channelOrNoteNumber,
+                                                               MIDICharacteristic whichCharacteristic) {
 	int s = whichExpressionDimension + util::to_underlying(PatchSource::X);
 
 	//sourcesChanged |= 1 << s; // We'd ideally not want to apply this to all voices though...
@@ -432,11 +433,12 @@ int32_t SoundInstrument::doTickForwardForArp(ModelStack* modelStack, int32_t cur
 	}
 
 	if (instruction.noteCodeOnPostArp != ARP_NOTE_NONE) {
-		noteOnPostArpeggiator(modelStackWithSoundFlags,
-		                      instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
-		                      instruction.noteCodeOnPostArp, instruction.arpNoteOn->velocity,
-		                      instruction.arpNoteOn->mpeValues, instruction.sampleSyncLengthOn, 0, 0,
-		                      instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]);
+		noteOnPostArpeggiator(
+		    modelStackWithSoundFlags,
+		    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
+		    instruction.noteCodeOnPostArp, instruction.arpNoteOn->velocity, instruction.arpNoteOn->mpeValues,
+		    instruction.sampleSyncLengthOn, 0, 0,
+		    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]);
 	}
 
 	return ticksTilNextArpEvent;

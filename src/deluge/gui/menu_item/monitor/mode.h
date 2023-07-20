@@ -27,7 +27,9 @@ public:
 	using Selection::Selection;
 
 	void readCurrentValue() { soundEditor.currentValue = util::to_underlying(AudioEngine::inputMonitoringMode); }
-	void writeCurrentValue() { AudioEngine::inputMonitoringMode = static_cast<InputMonitoringMode>(soundEditor.currentValue); }
+	void writeCurrentValue() {
+		AudioEngine::inputMonitoringMode = static_cast<InputMonitoringMode>(soundEditor.currentValue);
+	}
 	char const** getOptions() {
 		static char const* options[] = {"Conditional", "On", "Off", NULL};
 		return options;

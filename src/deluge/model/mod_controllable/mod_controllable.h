@@ -51,11 +51,12 @@ public:
 	    int whichModEncoder,
 	    ModelStackWithAutoParam* modelStack); // modelStack->autoParam will be NULL in this rare case!!
 	virtual ActionResult modEncoderActionForNonExistentParam(int offset, int whichModEncoder,
-	                                                ModelStackWithAutoParam* modelStack) {
+	                                                         ModelStackWithAutoParam* modelStack) {
 		return ActionResult::NOT_DEALT_WITH;
 	}
 	virtual bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false) { return true; }
 	virtual void polyphonicExpressionEventOnChannelOrNote(int newValue, int whichExpressionDimension,
-	                                                      int channelOrNoteNumber, MIDICharacteristic whichCharacteristic) {}
+	                                                      int channelOrNoteNumber,
+	                                                      MIDICharacteristic whichCharacteristic) {}
 	virtual void monophonicExpressionEvent(int newValue, int whichExpressionDimension) {}
 };

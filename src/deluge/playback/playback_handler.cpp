@@ -2471,7 +2471,9 @@ bool PlaybackHandler::tryGlobalMIDICommands(MIDIDevice* device, int channel, int
 				if (actionLogger.allowedToDoReversion()
 				    || currentUIMode
 				           == UI_MODE_RECORD_COUNT_IN) { // Not quite sure if this describes exactly what we want but it'll do...
-					int overdubNature = (static_cast<GlobalMIDICommand>(c) == GlobalMIDICommand::LOOP) ? OVERDUB_NORMAL : OVERDUB_CONTINUOUS_LAYERING;
+					int overdubNature = (static_cast<GlobalMIDICommand>(c) == GlobalMIDICommand::LOOP)
+					                        ? OVERDUB_NORMAL
+					                        : OVERDUB_CONTINUOUS_LAYERING;
 					loopCommand(overdubNature);
 				}
 				break;

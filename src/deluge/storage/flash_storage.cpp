@@ -149,7 +149,7 @@ void resetSettings() {
 	midiEngine.midiThru = false;
 	midiEngine.midiTakeover = MIDITakeoverMode::JUMP;
 
-	for (auto & globalMIDICommand : midiEngine.globalMIDICommands) {
+	for (auto& globalMIDICommand : midiEngine.globalMIDICommands) {
 		globalMIDICommand.clear();
 	}
 
@@ -233,7 +233,8 @@ void readSettings() {
 
 	midiEngine.midiThru = buffer[37];
 
-	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::PLAYBACK_RESTART)].channelOrZone = buffer[38] - 1;
+	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::PLAYBACK_RESTART)].channelOrZone =
+	    buffer[38] - 1;
 	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::PLAYBACK_RESTART)].noteOrCC = buffer[39] - 1;
 	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::PLAY)].channelOrZone = buffer[40] - 1;
 	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::PLAY)].noteOrCC = buffer[41] - 1;
@@ -247,8 +248,10 @@ void readSettings() {
 	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::UNDO)].noteOrCC = buffer[66] - 1;
 	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::REDO)].channelOrZone = buffer[67] - 1;
 	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::REDO)].noteOrCC = buffer[68] - 1;
-	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING)].channelOrZone = buffer[70] - 1;
-	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING)].noteOrCC = buffer[71] - 1;
+	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING)].channelOrZone =
+	    buffer[70] - 1;
+	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING)].noteOrCC =
+	    buffer[71] - 1;
 
 	if (previouslySavedByFirmwareVersion >= FIRMWARE_3P2P0_ALPHA) {
 		MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::PLAYBACK_RESTART, &buffer[80]);
@@ -399,7 +402,8 @@ void writeSettings() {
 	buffer[35] = playbackHandler.tempoMagnitudeMatchingEnabled;
 	buffer[36] = PadLEDs::flashCursor;
 	buffer[37] = midiEngine.midiThru;
-	buffer[38] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::PLAYBACK_RESTART)].channelOrZone + 1;
+	buffer[38] =
+	    midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::PLAYBACK_RESTART)].channelOrZone + 1;
 	buffer[39] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::PLAYBACK_RESTART)].noteOrCC + 1;
 	buffer[40] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::PLAY)].channelOrZone + 1;
 	buffer[41] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::PLAY)].noteOrCC + 1;
@@ -413,8 +417,11 @@ void writeSettings() {
 	buffer[66] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::UNDO)].noteOrCC + 1;
 	buffer[67] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::REDO)].channelOrZone + 1;
 	buffer[68] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::REDO)].noteOrCC + 1;
-	buffer[70] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING)].channelOrZone + 1;
-	buffer[71] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING)].noteOrCC + 1;
+	buffer[70] =
+	    midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING)].channelOrZone
+	    + 1;
+	buffer[71] =
+	    midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING)].noteOrCC + 1;
 
 	MIDIDeviceManager::writeDeviceReferenceToFlash(GlobalMIDICommand::PLAYBACK_RESTART, &buffer[80]);
 	MIDIDeviceManager::writeDeviceReferenceToFlash(GlobalMIDICommand::PLAY, &buffer[84]);

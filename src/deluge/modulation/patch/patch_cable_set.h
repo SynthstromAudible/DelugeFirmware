@@ -90,7 +90,8 @@ public:
 
 	int paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack);
 	int32_t knobPosToParamValue(int knobPos, ModelStackWithAutoParam* modelStack);
-	bool isSourcePatchedToDestinationDescriptorVolumeInspecific(PatchSource s, ParamDescriptor destinationParamDescriptor);
+	bool isSourcePatchedToDestinationDescriptorVolumeInspecific(PatchSource s,
+	                                                            ParamDescriptor destinationParamDescriptor);
 	bool isAnySourcePatchedToParamVolumeInspecific(ParamDescriptor destinationParamDescriptor);
 	void grabVelocityToLevelFromMIDIInput(LearnedMIDI* midiInput);
 	void grabVelocityToLevelFromMIDIDeviceDefinitely(MIDIDevice* device);

@@ -68,8 +68,8 @@ void Output::detachActiveClip(Song* song) {
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 }
 
-void Output::pickAnActiveClipIfPossible(ModelStack* modelStack, bool searchSessionClipsIfNeeded, PgmChangeSend maySendMIDIPGMs,
-                                        bool setupWithoutActiveClipIfNeeded) {
+void Output::pickAnActiveClipIfPossible(ModelStack* modelStack, bool searchSessionClipsIfNeeded,
+                                        PgmChangeSend maySendMIDIPGMs, bool setupWithoutActiveClipIfNeeded) {
 
 	if (!activeClip) {
 
@@ -97,7 +97,8 @@ void Output::pickAnActiveClipIfPossible(ModelStack* modelStack, bool searchSessi
 	}
 }
 
-void Output::pickAnActiveClipForArrangementPos(ModelStack* modelStack, int arrangementPos, PgmChangeSend maySendMIDIPGMs) {
+void Output::pickAnActiveClipForArrangementPos(ModelStack* modelStack, int arrangementPos,
+                                               PgmChangeSend maySendMIDIPGMs) {
 
 	// First, see if there's an earlier-starting ClipInstance that's still going at this pos
 	int i = clipInstances.search(arrangementPos + 1, LESS);

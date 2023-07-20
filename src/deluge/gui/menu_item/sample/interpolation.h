@@ -26,8 +26,12 @@ namespace menu_item::sample {
 class Interpolation final : public Selection {
 public:
 	Interpolation(char const* newName = NULL) : Selection(newName) {}
-	void readCurrentValue() { soundEditor.currentValue = util::to_underlying(soundEditor.currentSampleControls->interpolationMode); }
-	void writeCurrentValue() { soundEditor.currentSampleControls->interpolationMode = static_cast<InterpolationMode>(soundEditor.currentValue); }
+	void readCurrentValue() {
+		soundEditor.currentValue = util::to_underlying(soundEditor.currentSampleControls->interpolationMode);
+	}
+	void writeCurrentValue() {
+		soundEditor.currentSampleControls->interpolationMode = static_cast<InterpolationMode>(soundEditor.currentValue);
+	}
 	char const** getOptions() {
 		static char const* options[] = {"Linear", "Sinc", NULL};
 		return options;

@@ -40,7 +40,9 @@ public:
 		Selection::beginSession(navigatedBackwardFrom);
 	}
 #endif
-	void readCurrentValue() { soundEditor.currentValue = util::to_underlying(soundEditor.currentSource->oscType); }
+	void readCurrentValue() {
+		soundEditor.currentValue = util::to_underlying(soundEditor.currentSource->oscType);
+	}
 	void writeCurrentValue() {
 
 		OscType oldValue = soundEditor.currentSource->oscType;
@@ -89,7 +91,9 @@ public:
 			return kNumOscTypes - 2;
 		}
 	}
-	bool isRelevant(Sound* sound, int whichThing) { return (sound->getSynthMode() != SynthMode::FM); }
+	bool isRelevant(Sound* sound, int whichThing) {
+		return (sound->getSynthMode() != SynthMode::FM);
+	}
 };
 
 } // namespace menu_item::osc

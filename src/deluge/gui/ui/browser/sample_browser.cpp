@@ -465,7 +465,8 @@ ActionResult SampleBrowser::buttonAction(hid::Button b, bool on, bool inCardRout
 	}
 
 	// Record button
-	else if (b == RECORD && audioRecorder.recordingSource == AudioInputChannel::NONE && currentSong->currentClip->type != CLIP_TYPE_AUDIO) {
+	else if (b == RECORD && audioRecorder.recordingSource == AudioInputChannel::NONE
+	         && currentSong->currentClip->type != CLIP_TYPE_AUDIO) {
 		if (!on || currentUIMode != UI_MODE_NONE) {
 			return ActionResult::DEALT_WITH;
 		}
@@ -983,7 +984,8 @@ doLoadAsSample:
 				else {
 
 					// If 2 seconds or less, set play mode to ONCE. Otherwise, CUT.
-					soundEditor.currentSource->repeatMode = (mSec < 2002) ? SampleRepeatMode::ONCE : SampleRepeatMode::CUT;
+					soundEditor.currentSource->repeatMode =
+					    (mSec < 2002) ? SampleRepeatMode::ONCE : SampleRepeatMode::CUT;
 				}
 			}
 
@@ -2003,7 +2005,8 @@ getOut:
 			}
 skipNameStuff:
 
-			source->repeatMode = (thisSample->getLengthInMSec() < 2002) ? SampleRepeatMode::ONCE : SampleRepeatMode::CUT;
+			source->repeatMode =
+			    (thisSample->getLengthInMSec() < 2002) ? SampleRepeatMode::ONCE : SampleRepeatMode::CUT;
 
 #if ALPHA_OR_BETA_VERSION
 			if (thisSample->numReasonsToBeLoaded <= 0) {

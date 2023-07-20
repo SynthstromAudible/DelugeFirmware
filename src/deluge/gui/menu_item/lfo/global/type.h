@@ -27,8 +27,12 @@ class Type final : public Shape {
 public:
 	using Shape::Shape;
 
-	void readCurrentValue() { soundEditor.currentValue = util::to_underlying(soundEditor.currentSound->lfoGlobalWaveType); }
-	void writeCurrentValue() { soundEditor.currentSound->setLFOGlobalWave(static_cast<LFOType>(soundEditor.currentValue)); }
+	void readCurrentValue() {
+		soundEditor.currentValue = util::to_underlying(soundEditor.currentSound->lfoGlobalWaveType);
+	}
+	void writeCurrentValue() {
+		soundEditor.currentSound->setLFOGlobalWave(static_cast<LFOType>(soundEditor.currentValue));
+	}
 };
 
 } // namespace menu_item::lfo::global

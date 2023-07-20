@@ -45,8 +45,8 @@ class SampleRecorder {
 public:
 	SampleRecorder();
 	~SampleRecorder();
-	int setup(int newNumChannels, AudioInputChannel newMode, bool newKeepingReasons, bool shouldRecordExtraMargins, AudioRecordingFolder newFolderID,
-	          int buttonPressLatency);
+	int setup(int newNumChannels, AudioInputChannel newMode, bool newKeepingReasons, bool shouldRecordExtraMargins,
+	          AudioRecordingFolder newFolderID, int buttonPressLatency);
 	void feedAudio(int32_t* inputAddress, int numSamples, bool applyGain = false);
 	int cardRoutine();
 	void endSyncedRecording(int buttonLatencyForTempolessRecording);

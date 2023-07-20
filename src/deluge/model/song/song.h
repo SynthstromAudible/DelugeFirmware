@@ -94,8 +94,9 @@ public:
 	void setBPM(float tempoBPM, bool shouldLogAction);
 	void setTempoFromParams(int32_t magnitude, int8_t whichValue, bool shouldLogAction);
 	void deleteSoundsWhichWontSound();
-	void deleteClipObject(Clip* clip, bool songBeingDestroyedToo = false,
-	                      InstrumentRemoval instrumentRemovalInstruction = InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED);
+	void
+	deleteClipObject(Clip* clip, bool songBeingDestroyedToo = false,
+	                 InstrumentRemoval instrumentRemovalInstruction = InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED);
 	int getMaxMIDIChannelSuffix(int channel);
 	void addOutput(Output* output, bool atStart = true);
 	void deleteOutputThatIsInMainList(Output* output, bool stopAnyAuditioningFirst = true);
@@ -111,8 +112,8 @@ public:
 	void deleteOrHibernateOutput(Output* output);
 	uint32_t getLivePos();
 	int32_t getLoopLength();
-	Instrument* getNonAudioInstrumentToSwitchTo(InstrumentType newInstrumentType, Availability availabilityRequirement, int16_t newSlot,
-	                                            int8_t newSubSlot, bool* instrumentWasAlreadyInSong);
+	Instrument* getNonAudioInstrumentToSwitchTo(InstrumentType newInstrumentType, Availability availabilityRequirement,
+	                                            int16_t newSlot, int8_t newSubSlot, bool* instrumentWasAlreadyInSong);
 	void removeSessionClipLowLevel(Clip* clip, int clipIndex);
 	void changeSwingInterval(int newValue);
 	int convertSyncLevelFromFileValueToInternalValue(int fileValue);

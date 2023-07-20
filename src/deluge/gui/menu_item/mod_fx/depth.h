@@ -26,8 +26,7 @@ public:
 	using patched_param::Integer::Integer;
 
 	bool isRelevant(Sound* sound, int whichThing) {
-		return util::one_of(sound->modFXType,
-		                             {ModFXType::CHORUS, ModFXType::CHORUS_STEREO, ModFXType::PHASER});
+		return util::one_of(sound->modFXType, {ModFXType::CHORUS, ModFXType::CHORUS_STEREO, ModFXType::PHASER});
 	}
 };
 } // namespace menu_item::mod_fx

@@ -140,7 +140,8 @@ void AudioClip::abortRecording() {
 }
 
 bool AudioClip::wantsToBeginLinearRecording(Song* song) {
-	return (Clip::wantsToBeginLinearRecording(song) && !sampleHolder.audioFile && ((AudioOutput*)output)->inputChannel > AudioInputChannel::NONE);
+	return (Clip::wantsToBeginLinearRecording(song) && !sampleHolder.audioFile
+	        && ((AudioOutput*)output)->inputChannel > AudioInputChannel::NONE);
 }
 
 bool AudioClip::isAbandonedOverdub() {
@@ -153,7 +154,7 @@ int AudioClip::beginLinearRecording(ModelStackWithTimelineCounter* modelStack, i
 
 	int numChannels =
 	    (inputChannel >= AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION || inputChannel == AudioInputChannel::STEREO) ? 2
-	                                                                                                              : 1;
+	                                                                                                             : 1;
 
 	bool shouldRecordMarginsNow =
 	    FlashStorage::audioClipRecordMargins && inputChannel < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION;

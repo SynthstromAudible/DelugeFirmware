@@ -913,7 +913,8 @@ void SampleMarkerEditor::renderMarkersForOneCol(int xDisplay,
 
 		unsigned int markersActiveHere = 0;
 		for (int m = 0; m < kNumMarkerTypes; m++) {
-			markersActiveHere |= (xDisplay == cols[m].colOnScreen && (!blinkInvisible || markerType != static_cast<MarkerType>(m))) << m;
+			markersActiveHere |=
+			    (xDisplay == cols[m].colOnScreen && (!blinkInvisible || markerType != static_cast<MarkerType>(m))) << m;
 		}
 
 		if (markersActiveHere) {
@@ -1133,7 +1134,8 @@ bool SampleMarkerEditor::renderMainPads(uint32_t whichRows, uint8_t image[][disp
 			renderMarkersForOneCol(xDisplay, image, cols);
 		}
 
-		if (cols[util::to_underlying(markerType)].colOnScreen >= 0 && cols[util::to_underlying(markerType)].colOnScreen < displayWidth) {
+		if (cols[util::to_underlying(markerType)].colOnScreen >= 0
+		    && cols[util::to_underlying(markerType)].colOnScreen < displayWidth) {
 			uiTimerManager.setTimer(TIMER_UI_SPECIFIC, SAMPLE_MARKER_BLINK_TIME);
 		}
 	}

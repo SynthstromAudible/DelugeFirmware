@@ -415,7 +415,8 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 
 	ArpNote* arpNote = (ArpNote*)notes.getElementAddress(whichNoteCurrentlyOnPostArp);
 
-	noteCodeCurrentlyOnPostArp = arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] + (int)currentOctave * 12;
+	noteCodeCurrentlyOnPostArp =
+	    arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] + (int)currentOctave * 12;
 
 	instruction->noteCodeOnPostArp = noteCodeCurrentlyOnPostArp;
 	instruction->arpNoteOn = arpNote;

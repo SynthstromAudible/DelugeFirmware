@@ -32,7 +32,8 @@
 #include "model/model_stack.h"
 #include "util/misc.h"
 
-ConsequenceClipExistence::ConsequenceClipExistence(Clip* newClip, ClipArray* newClipArray, ExistenceChangeType newType) {
+ConsequenceClipExistence::ConsequenceClipExistence(Clip* newClip, ClipArray* newClipArray,
+                                                   ExistenceChangeType newType) {
 	clip = newClip;
 	clipArray = newClipArray;
 	type = newType;

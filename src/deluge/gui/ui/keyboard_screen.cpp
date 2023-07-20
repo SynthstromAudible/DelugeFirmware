@@ -80,7 +80,8 @@ ActionResult KeyboardScreen::padAction(int x, int y, int velocity) {
 		}
 		if (velocity
 		    && currentSong->currentClip->output->type
-		           != InstrumentType::KIT) { // We probably couldn't have got this far if it was a Kit, but let's just check
+		           != InstrumentType::
+		               KIT) { // We probably couldn't have got this far if it was a Kit, but let's just check
 			int noteCode = getNoteCodeFromCoords(x, y);
 			exitScaleModeOnButtonRelease = false;
 			if (getCurrentClip()->inScaleMode) {
@@ -181,7 +182,8 @@ ActionResult KeyboardScreen::padAction(int x, int y, int velocity) {
 			enterUIMode(UI_MODE_AUDITIONING);
 
 			// Begin resampling - yup this is even allowed if we're in the card routine!
-			if (Buttons::isButtonPressed(hid::button::RECORD) &&  audioRecorder.recordingSource == AudioInputChannel::NONE) {
+			if (Buttons::isButtonPressed(hid::button::RECORD)
+			    && audioRecorder.recordingSource == AudioInputChannel::NONE) {
 				audioRecorder.beginOutputRecording();
 				Buttons::recordButtonPressUsedUp = true;
 			}

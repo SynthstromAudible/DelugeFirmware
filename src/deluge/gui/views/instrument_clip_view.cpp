@@ -282,7 +282,8 @@ doOther:
 
 	// Record button if holding audition pad
 	else if (b == RECORD && (currentUIMode == UI_MODE_ADDING_DRUM_NOTEROW || currentUIMode == UI_MODE_AUDITIONING)) {
-		if (on && currentSong->currentClip->output->type == InstrumentType::KIT && audioRecorder.recordingSource == AudioInputChannel::NONE
+		if (on && currentSong->currentClip->output->type == InstrumentType::KIT
+		    && audioRecorder.recordingSource == AudioInputChannel::NONE
 		    && (!playbackHandler.isEitherClockActive() || !playbackHandler.ticksLeftInCountIn)) {
 
 			if (inCardRoutine) {
@@ -1386,7 +1387,8 @@ possiblyAuditionPad:
 
 				if (velocity
 				    && currentSong->currentClip->output->type
-				           != InstrumentType::KIT) { // We probably couldn't have got this far if it was a Kit, but let's just check
+				           != InstrumentType::
+				               KIT) { // We probably couldn't have got this far if it was a Kit, but let's just check
 					if (getCurrentClip()->inScaleMode) {
 						currentUIMode = UI_MODE_NONE; // So that the upcoming render of the sidebar comes out correctly
 						changeRootNote(y);
@@ -3211,7 +3213,8 @@ doSilentAudition:
 			lastAuditionedYDisplay = yDisplay;
 
 			// Begin resampling / output-recording
-			if (Buttons::isButtonPressed(hid::button::RECORD) && audioRecorder.recordingSource == AudioInputChannel::NONE) {
+			if (Buttons::isButtonPressed(hid::button::RECORD)
+			    && audioRecorder.recordingSource == AudioInputChannel::NONE) {
 				audioRecorder.beginOutputRecording();
 				Buttons::recordButtonPressUsedUp = true;
 			}

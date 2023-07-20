@@ -1544,9 +1544,10 @@ void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int not
 					int newNoteCode = arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)];
 
 					if (polyphonic == PolyphonyMode::LEGATO) {
-						thisVoice->changeNoteCode(modelStackWithVoice, newNoteCode, newNoteCode,
-						                          arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)],
-						                          arpNote->mpeValues);
+						thisVoice->changeNoteCode(
+						    modelStackWithVoice, newNoteCode, newNoteCode,
+						    arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)],
+						    arpNote->mpeValues);
 						lastNoteCode = newNoteCode;
 						// I think we could just return here, too?
 					}
@@ -2051,11 +2052,12 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 		}
 
 		if (instruction.noteCodeOnPostArp != ARP_NOTE_NONE) {
-			noteOnPostArpeggiator(modelStackWithSoundFlags,
-			                      instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
-			                      instruction.noteCodeOnPostArp, instruction.arpNoteOn->velocity,
-			                      instruction.arpNoteOn->mpeValues, instruction.sampleSyncLengthOn, 0, 0,
-			                      instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]);
+			noteOnPostArpeggiator(
+			    modelStackWithSoundFlags,
+			    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
+			    instruction.noteCodeOnPostArp, instruction.arpNoteOn->velocity, instruction.arpNoteOn->mpeValues,
+			    instruction.sampleSyncLengthOn, 0, 0,
+			    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]);
 		}
 	}
 

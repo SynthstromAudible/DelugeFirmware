@@ -545,12 +545,12 @@ void Kit::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStac
 				bool anyInterpolating = false;
 				if constexpr (NUM_PARAMS > 64) {
 					anyInterpolating = patchedParamsSummary->whichParamsAreInterpolating[0]
-					            || patchedParamsSummary->whichParamsAreInterpolating[1]
-					            || patchedParamsSummary->whichParamsAreInterpolating[2];
+					                   || patchedParamsSummary->whichParamsAreInterpolating[1]
+					                   || patchedParamsSummary->whichParamsAreInterpolating[2];
 				}
 				else {
 					anyInterpolating = patchedParamsSummary->whichParamsAreInterpolating[0]
-					            || patchedParamsSummary->whichParamsAreInterpolating[1];
+					                   || patchedParamsSummary->whichParamsAreInterpolating[1];
 				}
 				if (anyInterpolating) {
 yesTickParamManager:
@@ -937,7 +937,8 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 
 			if (instruction.noteCodeOnPostArp != ARP_NOTE_NONE) {
 				soundDrum->noteOnPostArpeggiator(
-				    modelStackWithSoundFlags, instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
+				    modelStackWithSoundFlags,
+				    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
 				    instruction.noteCodeOnPostArp, instruction.arpNoteOn->velocity, instruction.arpNoteOn->mpeValues,
 				    instruction.sampleSyncLengthOn, 0, 0);
 			}

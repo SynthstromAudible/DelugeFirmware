@@ -830,8 +830,9 @@ void View::modEncoderAction(int whichModEncoder, int offset) {
 
 			// If non-existent param, still let the ModControllable know
 			if (!modelStackWithParam || !modelStackWithParam->autoParam) {
-				ActionResult result = activeModControllableModelStack.modControllable->modEncoderActionForNonExistentParam(
-				    offset, whichModEncoder, modelStackWithParam);
+				ActionResult result =
+				    activeModControllableModelStack.modControllable->modEncoderActionForNonExistentParam(
+				        offset, whichModEncoder, modelStackWithParam);
 
 				if (result == ActionResult::ACTIONED_AND_CAUSED_CHANGE) {
 					setKnobIndicatorLevel(whichModEncoder);
@@ -1831,7 +1832,7 @@ void View::getClipMuteSquareColour(Clip* clip, uint8_t thisColour[]) {
 		return;
 	}
 
-	if (clipArmFlashOn && clip->armState  != ArmState::OFF) {
+	if (clipArmFlashOn && clip->armState != ArmState::OFF) {
 		thisColour[0] = 0;
 		thisColour[1] = 0;
 		thisColour[2] = 0;

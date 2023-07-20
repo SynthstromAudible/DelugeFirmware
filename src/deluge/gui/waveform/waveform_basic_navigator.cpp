@@ -50,7 +50,8 @@ int32_t WaveformBasicNavigator::getMaxZoom() {
 	return ((sample->lengthInSamples - 1) >> displayWidthMagnitude) + 1;
 }
 
-bool WaveformBasicNavigator::zoom(int offset, bool shouldAllowExtraScrollRight, MarkerColumn* cols, MarkerType markerType) {
+bool WaveformBasicNavigator::zoom(int offset, bool shouldAllowExtraScrollRight, MarkerColumn* cols,
+                                  MarkerType markerType) {
 	uint32_t oldScroll = xScroll;
 	uint32_t oldZoom = xZoom;
 

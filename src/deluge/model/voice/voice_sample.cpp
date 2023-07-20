@@ -1506,8 +1506,8 @@ finishedTimestretchedRead:
 }
 
 // Returns false if became inactive
-bool VoiceSample::sampleZoneChanged(SamplePlaybackGuide* voiceSource, Sample* sample, MarkerType markerType, int loopingType,
-                                    int priorityRating, bool forAudioClip) {
+bool VoiceSample::sampleZoneChanged(SamplePlaybackGuide* voiceSource, Sample* sample, MarkerType markerType,
+                                    int loopingType, int priorityRating, bool forAudioClip) {
 
 	Debug::println("VoiceSample::sampleZoneChanged");
 

@@ -283,7 +283,8 @@ ActionResult QwertyUI::padAction(int x, int y, int on) {
 			// Otherwise, if we still might want to use this press...
 			else if (!currentUIMode || currentUIMode == UI_MODE_LOADING_BUT_ABORT_IF_SELECT_ENCODER_TURNED) {
 
-				char newChar = keyboardChars[util::to_underlying(FlashStorage::keyboardLayout)][QWERTY_HOME_ROW - y + 2][x - 3];
+				char newChar =
+				    keyboardChars[util::to_underlying(FlashStorage::keyboardLayout)][QWERTY_HOME_ROW - y + 2][x - 3];
 				if (newChar == 0) {
 					return ActionResult::DEALT_WITH;
 				}

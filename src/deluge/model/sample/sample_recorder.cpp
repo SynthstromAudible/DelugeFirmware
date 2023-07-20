@@ -118,8 +118,8 @@ void SampleRecorder::detachSample() {
 	sample->removeReason("E400");
 }
 
-int SampleRecorder::setup(int newNumChannels, AudioInputChannel newMode, bool newKeepingReasons, bool shouldRecordExtraMargins,
-                          AudioRecordingFolder newFolderID, int buttonPressLatency) {
+int SampleRecorder::setup(int newNumChannels, AudioInputChannel newMode, bool newKeepingReasons,
+                          bool shouldRecordExtraMargins, AudioRecordingFolder newFolderID, int buttonPressLatency) {
 
 	if (!audioFileManager.ensureEnoughMemoryForOneMoreAudioFile()) {
 		return ERROR_INSUFFICIENT_RAM;
@@ -347,7 +347,8 @@ aborted:
 			// If this was the most recent recording in this category, tick the counter backwards - so long as
 			// either the delete was successful or it was for an AudioClip, which means the file is in the TEMP folder and can be overwritten anyway
 			if (result == FR_OK || folderID == AudioRecordingFolder::CLIPS) {
-				if (audioFileManager.highestUsedAudioRecordingNumber[util::to_underlying(folderID)] == audioFileNumber) {
+				if (audioFileManager.highestUsedAudioRecordingNumber[util::to_underlying(folderID)]
+				    == audioFileNumber) {
 					audioFileManager.highestUsedAudioRecordingNumber[util::to_underlying(folderID)]--;
 					Debug::println("ticked file counter backwards");
 				}

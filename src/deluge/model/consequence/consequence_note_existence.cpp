@@ -23,7 +23,8 @@
 #include "model/note/note_row.h"
 #include "util/misc.h"
 
-ConsequenceNoteExistence::ConsequenceNoteExistence(InstrumentClip* newClip, int newNoteRowId, Note* note, ExistenceChangeType newType) {
+ConsequenceNoteExistence::ConsequenceNoteExistence(InstrumentClip* newClip, int newNoteRowId, Note* note,
+                                                   ExistenceChangeType newType) {
 	clip = newClip;
 	noteRowId = newNoteRowId;
 	pos = note->pos;

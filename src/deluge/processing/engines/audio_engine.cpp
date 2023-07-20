@@ -1392,8 +1392,8 @@ void slowRoutine() {
 	doRecorderCardRoutines();
 }
 
-SampleRecorder* getNewRecorder(int numChannels, AudioRecordingFolder folderID, AudioInputChannel mode, bool keepFirstReasons, bool writeLoopPoints,
-                               int buttonPressLatency) {
+SampleRecorder* getNewRecorder(int numChannels, AudioRecordingFolder folderID, AudioInputChannel mode,
+                               bool keepFirstReasons, bool writeLoopPoints, int buttonPressLatency) {
 	int error;
 
 	void* recorderMemory = generalMemoryAllocator.alloc(sizeof(SampleRecorder), NULL, false, true);

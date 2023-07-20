@@ -145,7 +145,8 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 		}
 		else {
 			if (on) {
-				currentModFXParam = static_cast<ModFXParam>((util::to_underlying(currentModFXParam) + 1) % NUM_MOD_FX_PARAMS);
+				currentModFXParam =
+				    static_cast<ModFXParam>((util::to_underlying(currentModFXParam) + 1) % NUM_MOD_FX_PARAMS);
 				ensureModFXParamIsValid();
 
 				char const* displayText;
@@ -173,7 +174,8 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 	else if (modKnobMode == 1) {
 		if (whichModEncoder == 1) {
 			if (on) {
-				currentFilterType = static_cast<FilterType>((util::to_underlying(currentFilterType) + 1) % NUM_FILTER_TYPES);
+				currentFilterType =
+				    static_cast<FilterType>((util::to_underlying(currentFilterType) + 1) % NUM_FILTER_TYPES);
 
 				char const* displayText;
 				switch (currentFilterType) {

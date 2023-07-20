@@ -45,11 +45,13 @@ public:
 	bool renderSidebar(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
 	                   uint8_t occupancyMask[][displayWidth + sideBarWidth]);
 	ReturnOfConfirmPresetOrNextUnlaunchedOne
-	findAnUnlaunchedPresetIncludingWithinSubfolders(Song* song, InstrumentType instrumentType, Availability availabilityRequirement);
-	ReturnOfConfirmPresetOrNextUnlaunchedOne confirmPresetOrNextUnlaunchedOne(InstrumentType instrumentType, String* searchName,
+	findAnUnlaunchedPresetIncludingWithinSubfolders(Song* song, InstrumentType instrumentType,
+	                                                Availability availabilityRequirement);
+	ReturnOfConfirmPresetOrNextUnlaunchedOne confirmPresetOrNextUnlaunchedOne(InstrumentType instrumentType,
+	                                                                          String* searchName,
 	                                                                          Availability availabilityRequirement);
-	PresetNavigationResult doPresetNavigation(int offset, Instrument* oldInstrument, Availability availabilityRequirement,
-	                                          bool doBlink);
+	PresetNavigationResult doPresetNavigation(int offset, Instrument* oldInstrument,
+	                                          Availability availabilityRequirement, bool doBlink);
 
 	InstrumentClip* instrumentClipToLoadFor; // Can be NULL - if called from Arranger.
 	Instrument* instrumentToReplace; // The Instrument that's actually successfully loaded and assigned to the Clip.

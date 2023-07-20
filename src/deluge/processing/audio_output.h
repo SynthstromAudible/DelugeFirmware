@@ -52,7 +52,8 @@ public:
 	int readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos);
 	bool writeDataToFile(Clip* clipForSavingOutputOnly, Song* song);
 	void deleteBackedUpParamManagers(Song* song);
-	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs = PgmChangeSend::ONCE) override;
+	bool setActiveClip(ModelStackWithTimelineCounter* modelStack,
+	                   PgmChangeSend maySendMIDIPGMs = PgmChangeSend::ONCE) override;
 	bool isSkippingRendering();
 	Output* toOutput() { return this; }
 	void getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb,

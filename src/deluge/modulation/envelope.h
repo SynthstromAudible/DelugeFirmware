@@ -40,7 +40,8 @@ public:
 	void noteOff(uint8_t envelopeIndex, Sound* sound, ParamManagerForTimeline* paramManager);
 	int32_t render(uint32_t numSamples, uint32_t attack, uint32_t decay, uint32_t sustain, uint32_t release,
 	               const uint16_t* releaseTable);
-	void unconditionalRelease(EnvelopeStage typeOfRelease = EnvelopeStage::RELEASE, uint32_t newFastReleaseIncrement = 4096);
+	void unconditionalRelease(EnvelopeStage typeOfRelease = EnvelopeStage::RELEASE,
+	                          uint32_t newFastReleaseIncrement = 4096);
 	void resumeAttack(int32_t oldLastValue);
 
 private:

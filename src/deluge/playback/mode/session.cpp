@@ -421,7 +421,7 @@ probablyJustKeepGoing:
 			bool wasArmedToStartSoloing = (clip->armState == ArmState::ON_TO_SOLO);
 
 			// If it's not armed, normally nothing needs to happen of course - it can just stay inactive
-			if (clip->armState  == ArmState::OFF) {
+			if (clip->armState == ArmState::OFF) {
 
 				// But if other soloing has stopped and we're suddenly to become active as a result...
 				if (!anySoloingAfter && clip->activeIfNoSolo && currentSong->anyClipsSoloing) {
@@ -799,7 +799,7 @@ void Session::toggleClipStatus(Clip* clip, int* clipIndex, bool doInstant, int b
 	lastSectionArmed = 255;
 
 	// If Clip armed, cancel arming - but not if it's an "instant" toggle
-	if (clip->armState  != ArmState::OFF && !doInstant) {
+	if (clip->armState != ArmState::OFF && !doInstant) {
 		cancelArmingForClip(clip, clipIndex);
 	}
 
@@ -877,7 +877,7 @@ void Session::toggleClipStatus(Clip* clip, int* clipIndex, bool doInstant, int b
 					// Instant-stop
 					if (doInstant) {
 
-						if (clip->armState  != ArmState::OFF) { // In case also already armed
+						if (clip->armState != ArmState::OFF) { // In case also already armed
 							clip->armState = ArmState::OFF;
 							launchSchedulingMightNeedCancelling();
 						}
@@ -1363,7 +1363,8 @@ bool Session::armForSwitchToArrangement() {
 
 void Session::armClipsToStartOrSoloWithQuantization(uint32_t pos, uint32_t quantization, uint8_t section,
                                                     bool stopAllOtherClips, Clip* clip, bool forceLateStart,
-                                                    bool allowLateStart, int newNumRepeatsTilLaunch, ArmState armState) {
+                                                    bool allowLateStart, int newNumRepeatsTilLaunch,
+                                                    ArmState armState) {
 
 	// We want to allow the launch point to be a point "within" the longest Clip, at multiple lengths of our shortest launching Clip
 	pos = pos % quantization;
@@ -1462,7 +1463,7 @@ weWantThisClipInactive:
 					// Or if it's already inactive...
 					else {
 						// If it's armed to start, cancel that
-						if (thisClip->armState  != ArmState::OFF) {
+						if (thisClip->armState != ArmState::OFF) {
 							thisClip->armState = ArmState::OFF;
 						}
 					}
@@ -1519,7 +1520,7 @@ void Session::armClipToStartOrSoloUsingQuantization(Clip* thisClip, bool doLateS
 		if (doLateStart) {
 
 			// If that was already armed, un-arm it
-			if (thisClip->armState  != ArmState::OFF) {
+			if (thisClip->armState != ArmState::OFF) {
 				thisClip->armState = ArmState::OFF;
 				launchSchedulingMightNeedCancelling();
 			}
@@ -1547,7 +1548,7 @@ void Session::armClipToStartOrSoloUsingQuantization(Clip* thisClip, bool doLateS
 		// If late start...
 		if (doLateStart) {
 
-			if (thisClip->armState  != ArmState::OFF) { // In case also already armed
+			if (thisClip->armState != ArmState::OFF) { // In case also already armed
 				thisClip->armState = ArmState::OFF;
 				launchSchedulingMightNeedCancelling();
 			}
@@ -1594,8 +1595,8 @@ void Session::armClipLowLevel(Clip* clipToArm, ArmState armState, bool mustUnarm
 		for (int c = 0; c < currentSong->sessionClips.getNumElements(); c++) {
 			Clip* clip = currentSong->sessionClips.getClipAtIndex(c);
 
-			if (clip != clipToArm && !clip->soloingInSessionMode && !clip->activeIfNoSolo && clip->armState != ArmState::OFF
-			    && clip->output == clipToArm->output) {
+			if (clip != clipToArm && !clip->soloingInSessionMode && !clip->activeIfNoSolo
+			    && clip->armState != ArmState::OFF && clip->output == clipToArm->output) {
 				clip->armState = ArmState::OFF;
 			}
 		}
@@ -1660,7 +1661,7 @@ bool Session::areAnyClipsArmed() {
 	for (int l = 0; l < currentSong->sessionClips.getNumElements(); l++) {
 		Clip* clip = currentSong->sessionClips.getClipAtIndex(l);
 
-		if (clip->armState  != ArmState::OFF) {
+		if (clip->armState != ArmState::OFF) {
 			return true;
 		}
 	}
@@ -1832,7 +1833,8 @@ yeahNahItsOn:
 					giveClipOpportunityToBeginLinearRecording(clip, c, buttonPressLatency);
 
 					if (clip->armState
-					    == ArmState::ON_NORMAL) { // What's this for again? Auto arming of sections? I think not linear recording...
+					    == ArmState::
+					        ON_NORMAL) { // What's this for again? Auto arming of sections? I think not linear recording...
 						distanceTilLaunchEvent = getMax(distanceTilLaunchEvent, clip->loopLength);
 					}
 				}

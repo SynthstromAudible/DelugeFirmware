@@ -133,9 +133,8 @@ void Envelope::noteOff(uint8_t envelopeIndex, Sound* sound, ParamManagerForTimel
 	if (!sound->envelopeHasSustainCurrently(envelopeIndex, paramManager)) {
 		ignoredNoteOff = true;
 	}
-	else if (
-	    state
-	    < EnvelopeStage::RELEASE) { // Could we ever have already been in release state? Probably not, but just in case
+	else if (state < EnvelopeStage::
+	             RELEASE) { // Could we ever have already been in release state? Probably not, but just in case
 		unconditionalRelease();
 	}
 }

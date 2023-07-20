@@ -1503,8 +1503,8 @@ justGetOut:
 									goto justGetOut;
 								}
 
-								int size =
-								    (output->type == InstrumentType::AUDIO) ? sizeof(AudioClip) : sizeof(InstrumentClip);
+								int size = (output->type == InstrumentType::AUDIO) ? sizeof(AudioClip)
+								                                                   : sizeof(InstrumentClip);
 
 								void* memory = generalMemoryAllocator.alloc(size, NULL, false, true);
 								if (!memory) {
@@ -1933,7 +1933,8 @@ itsInvalid:
 	// Or if it has...
 	else {
 		if (action) {
-			action->recordClipInstanceExistenceChange(pressedClipInstanceOutput, clipInstance, ExistenceChangeType::DELETE);
+			action->recordClipInstanceExistenceChange(pressedClipInstanceOutput, clipInstance,
+			                                          ExistenceChangeType::DELETE);
 		}
 		pressedClipInstanceOutput->clipInstances.deleteAtIndex(pressedClipInstanceIndex);
 

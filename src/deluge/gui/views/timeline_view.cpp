@@ -140,10 +140,12 @@ ActionResult TimelineView::horizontalEncoderAction(int offset) {
 	// These next two, I had here before adding the actual SD lock check / remind-later above. Maybe they're not still necessary? If either was true, wouldn't
 	// sdRoutineLock be true also for us to have gotten here?
 	if (pendingUIRenderingLock) {
-		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Would possibly prefer to have this case cause it to still come back later and do it, but oh well
+		return ActionResult::
+		    REMIND_ME_OUTSIDE_CARD_ROUTINE; // Would possibly prefer to have this case cause it to still come back later and do it, but oh well
 	}
 	if (horizontalEncoderActionLock) {
-		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Really wouldn't want to get in here multiple times, while pre-rendering the waveforms for the new navigation
+		return ActionResult::
+		    REMIND_ME_OUTSIDE_CARD_ROUTINE; // Really wouldn't want to get in here multiple times, while pre-rendering the waveforms for the new navigation
 	}
 	horizontalEncoderActionLock = true;
 

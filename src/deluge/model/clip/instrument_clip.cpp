@@ -1546,7 +1546,8 @@ void InstrumentClip::prepareToEnterKitMode(Song* song) {
 // Returns error code in theory - but in reality we're screwed if we get to that stage.
 // newParamManager is optional - normally it's not supplied, and will be searched for
 int InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack, Instrument* newInstrument,
-                                     ParamManagerForTimeline* newParamManager, InstrumentRemoval instrumentRemovalInstruction,
+                                     ParamManagerForTimeline* newParamManager,
+                                     InstrumentRemoval instrumentRemovalInstruction,
                                      InstrumentClip* favourClipForCloningParamManager, bool keepNoteRowsWithMIDIInput,
                                      bool giveMidiAssignmentsToNewInstrument) {
 

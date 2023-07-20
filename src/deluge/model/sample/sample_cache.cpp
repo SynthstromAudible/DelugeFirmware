@@ -149,7 +149,7 @@ bool SampleCache::setupNewCluster(int clusterIndex) {
 
 	clusters[clusterIndex] = audioFileManager.allocateCluster(
 	    ClusterType::SAMPLE_CACHE, false, this); // Do not add reasons, and don't steal from this SampleCache
-	if (!clusters[clusterIndex]) {          // If that allocation failed...
+	if (!clusters[clusterIndex]) {               // If that allocation failed...
 		Debug::println("allocation fail");
 		return false;
 	}

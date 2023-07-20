@@ -83,7 +83,9 @@ public:
 	UI();
 
 	virtual ActionResult padAction(int x, int y, int velocity) { return ActionResult::DEALT_WITH; }
-	virtual ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine) { return ActionResult::NOT_DEALT_WITH; }
+	virtual ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+		return ActionResult::NOT_DEALT_WITH;
+	}
 	virtual ActionResult horizontalEncoderAction(int offset) { return ActionResult::DEALT_WITH; }
 	virtual ActionResult verticalEncoderAction(int offset, bool inCardRoutine) { return ActionResult::DEALT_WITH; }
 	virtual void selectEncoderAction(int8_t offset) {}

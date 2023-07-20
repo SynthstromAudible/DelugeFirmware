@@ -25,8 +25,8 @@ class AudioFileReader;
 
 class AudioFile : public Stealable {
 public:
-	AudioFile(AudioFileType newType) : type(newType) {  }
-	 ~AudioFile() override = default;
+	AudioFile(AudioFileType newType) : type(newType) {}
+	~AudioFile() override = default;
 
 	int loadFile(AudioFileReader* reader, bool isAiff, bool makeWaveTableWorkAtAllCosts);
 	virtual void finalizeAfterLoad(uint32_t fileSize) {}

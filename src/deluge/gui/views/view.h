@@ -80,9 +80,10 @@ public:
 	void navigateThroughPresetsForInstrumentClip(int offset, ModelStackWithTimelineCounter* modelStack,
 	                                             bool doBlink = false);
 	void navigateThroughAudioOutputsForAudioClip(int offset, AudioClip* clip, bool doBlink = false);
-	bool changeInstrumentType(InstrumentType newInstrumentType, ModelStackWithTimelineCounter* modelStack, bool doBlink = false);
-	void drawOutputNameFromDetails(InstrumentType instrumentType, int slot, int subSlot, char const* name, bool editedByUser,
-	                               bool doBlink, Clip* clip = NULL);
+	bool changeInstrumentType(InstrumentType newInstrumentType, ModelStackWithTimelineCounter* modelStack,
+	                          bool doBlink = false);
+	void drawOutputNameFromDetails(InstrumentType instrumentType, int slot, int subSlot, char const* name,
+	                               bool editedByUser, bool doBlink, Clip* clip = NULL);
 	void endMIDILearn();
 	void getClipMuteSquareColour(Clip* clip, uint8_t thisColour[]);
 	ActionResult clipStatusPadAction(Clip* clip, bool on, int yDisplayIfInSessionView = -1);

@@ -622,7 +622,8 @@ bool expressionValueChangesMustBeDoneSmoothly = false; // Wee bit of a workaroun
 // - but we still want to cause a sound change in response to the message.
 void MelodicInstrument::polyphonicExpressionEventPossiblyToRecord(ModelStackWithTimelineCounter* modelStack,
                                                                   int32_t newValue, int whichExpressionDimension,
-                                                                  int channelOrNoteNumber, MIDICharacteristic whichCharacteristic) {
+                                                                  int channelOrNoteNumber,
+                                                                  MIDICharacteristic whichCharacteristic) {
 	expressionValueChangesMustBeDoneSmoothly = true;
 
 	// If recording, we send the new value to the AutoParam, which will also sound that change right now.
@@ -651,9 +652,10 @@ void MelodicInstrument::polyphonicExpressionEventPossiblyToRecord(ModelStackWith
 				}
 
 				// If still here, that didn't work, so just send it without recording.
-				polyphonicExpressionEventOnChannelOrNote(newValue, whichExpressionDimension,
-				                                         arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
-				                                         MIDICharacteristic::NOTE);
+				polyphonicExpressionEventOnChannelOrNote(
+				    newValue, whichExpressionDimension,
+				    arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
+				    MIDICharacteristic::NOTE);
 			}
 		}
 	}

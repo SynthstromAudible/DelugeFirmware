@@ -1022,8 +1022,9 @@ gotErrorAfterAllocating:
 				newCatalogSearchDirection = CATALOG_SEARCH_LEFT;
 searchFromOneEnd:
 				Debug::println("reloading and wrap");
-				error = readFileItemsFromFolderAndMemory(currentSong, instrumentTypeToLoad, filePrefix, NULL, NULL,
-				                                         true, Availability::ANY, newCatalogSearchDirection); // Load from start
+				error =
+				    readFileItemsFromFolderAndMemory(currentSong, instrumentTypeToLoad, filePrefix, NULL, NULL, true,
+				                                     Availability::ANY, newCatalogSearchDirection); // Load from start
 				if (error) {
 					goto gotErrorAfterAllocating;
 				}
