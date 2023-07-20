@@ -15,16 +15,18 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "definitions_cxx.hpp"
 #include "gui/menu_item/selection.h"
 #include "io/midi/midi_engine.h"
 #include "gui/ui/sound_editor.h"
+#include "util/misc.h"
 
 namespace menu_item::midi {
 class Takeover final : public Selection {
 public:
 	using Selection::Selection;
-	void readCurrentValue() { soundEditor.currentValue = midiEngine.midiTakeover; }
-	void writeCurrentValue() { midiEngine.midiTakeover = soundEditor.currentValue; }
+	void readCurrentValue() { soundEditor.currentValue = util::to_underlying(midiEngine.midiTakeover); }
+	void writeCurrentValue() { midiEngine.midiTakeover = static_cast<MIDITakeoverMode>(soundEditor.currentValue); }
 	char const** getOptions() {
 		static char const* options[] = {"Jump", "Pickup", "Scale", NULL};
 		return options;

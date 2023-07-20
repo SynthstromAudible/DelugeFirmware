@@ -605,12 +605,12 @@ enum class GlobalMIDICommand {
 };
 constexpr auto NUM_GLOBAL_MIDI_COMMANDS = util::to_underlying(GlobalMIDICommand::REDO) + 1;
 
-enum MidiTakeoverMode {
-	MIDI_TAKEOVER_JUMP,
-	MIDI_TAKEOVER_PICKUP,
-	MIDI_TAKEOVER_SCALE,
-	NUM_MIDI_TAKEOVER_MODES,
+enum class MIDITakeoverMode : uint8_t {
+	JUMP,
+	PICKUP,
+	SCALE,
 };
+constexpr auto NUM_MIDI_TAKEOVER_MODES = util::to_underlying(MIDITakeoverMode::SCALE) + 1;
 
 #define NUM_CLUSTERS_LOADED_AHEAD 2
 

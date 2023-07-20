@@ -62,7 +62,7 @@ public:
 	LearnedMIDI globalMIDICommands[NUM_GLOBAL_MIDI_COMMANDS];
 
 	bool midiThru;
-	uint8_t midiTakeover;
+	MIDITakeoverMode midiTakeover;
 
 private:
 	uint8_t serialMidiInput[3];
