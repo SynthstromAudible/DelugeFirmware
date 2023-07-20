@@ -738,16 +738,13 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 
 	else if (!strcmp(tagName, "cents")) {
 		int8_t newCents = storageManager.readTagOrAttributeValueInt();
-		sources[0].cents = (getMax(
-		    (int8_t)-50,
-		    getMin(
-		        (int8_t)50,
-		        newCents))); // We don't need to call the setTranspose method here, because this will get called soon anyway, once the sample rate is known
+		// We don't need to call the setTranspose method here, because this will get called soon anyway, once the sample rate is known
+		sources[0].cents = (getMax((int8_t)-50, getMin((int8_t)50, newCents)));
 		storageManager.exitTag("cents");
 	}
 	else if (!strcmp(tagName, "continuous")) {
-		sources[0].repeatMode = storageManager.readTagOrAttributeValueInt();
-		sources[0].repeatMode = getMin(sources[0].repeatMode, (uint8_t)(NUM_REPEAT_MODES - 1));
+		sources[0].repeatMode = static_cast<SampleRepeatMode>(storageManager.readTagOrAttributeValueInt());
+		sources[0].repeatMode = std::min(sources[0].repeatMode, static_cast<SampleRepeatMode>(NUM_REPEAT_MODES - 1));
 		storageManager.exitTag("continuous");
 	}
 	else if (!strcmp(tagName, "reversed")) {
@@ -1607,7 +1604,7 @@ bool Sound::allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardS
 		anyActiveSources = sourceEverActive || anyActiveSources;
 
 		if (sourceEverActive
-		    && (sources[s].oscType != OscType::SAMPLE || sources[s].repeatMode != SAMPLE_REPEAT_ONCE
+		    && (sources[s].oscType != OscType::SAMPLE || sources[s].repeatMode != SampleRepeatMode::ONCE
 		        || (!disregardSampleLoop && sources[s].hasAnyLoopEndPoint()))) {
 			return true;
 		}
@@ -1627,7 +1624,7 @@ int32_t Sound::hasAnyTimeStretchSyncing(ParamManagerForTimeline* paramManager, b
 		bool sourceEverActive = s ? isSourceActiveEver(1, paramManager) : isSourceActiveEver(0, paramManager);
 
 		if (sourceEverActive && sources[s].oscType == OscType::SAMPLE
-		    && sources[s].repeatMode == SAMPLE_REPEAT_STRETCH) {
+		    && sources[s].repeatMode == SampleRepeatMode::STRETCH) {
 			if (getSampleLength) {
 				return sources[s].getLengthInSamplesAtSystemSampleRate(note + transpose, true);
 			}
@@ -1663,9 +1660,9 @@ int32_t Sound::hasCutOrLoopModeSamples(ParamManagerForTimeline* paramManager, in
 		if (sources[s].oscType != OscType::SAMPLE) {
 			return 0;
 		}
-		else if (sources[s].repeatMode == SAMPLE_REPEAT_CUT || sources[s].repeatMode == SAMPLE_REPEAT_LOOP) {
+		else if (sources[s].repeatMode == SampleRepeatMode::CUT || sources[s].repeatMode == SampleRepeatMode::LOOP) {
 
-			if (anyLooping && sources[s].repeatMode == SAMPLE_REPEAT_LOOP) {
+			if (anyLooping && sources[s].repeatMode == SampleRepeatMode::LOOP) {
 				*anyLooping = true;
 			}
 			int32_t length = sources[s].getLengthInSamplesAtSystemSampleRate(note);
@@ -1696,7 +1693,7 @@ bool Sound::hasCutModeSamples(ParamManagerForTimeline* paramManager) {
 		}
 
 		if (sources[s].oscType != OscType::SAMPLE || !sources[s].hasAtLeastOneAudioFileLoaded()
-		    || sources[s].repeatMode != SAMPLE_REPEAT_CUT) {
+		    || sources[s].repeatMode != SampleRepeatMode::CUT) {
 			return false;
 		}
 	}
@@ -1728,7 +1725,7 @@ bool Sound::allowsVeryLateNoteStart(InstrumentClip* clip, ParamManagerForTimelin
 
 		// Sample - generally ok, but not if one-shot
 		case OscType::SAMPLE:
-			if (sources[s].repeatMode == SAMPLE_REPEAT_ONCE || !sources[s].hasAtLeastOneAudioFileLoaded()) {
+			if (sources[s].repeatMode == SampleRepeatMode::ONCE || !sources[s].hasAtLeastOneAudioFileLoaded()) {
 				return false; // Not quite sure why the must-be-loaded requirement - maybe something would break if it tried to do a late start otherwise?
 			}
 			break;
@@ -2987,8 +2984,8 @@ int Sound::readSourceFromFile(int s, ParamManagerForTimeline* paramManager, int3
 			storageManager.exitTag("cents");
 		}
 		else if (!strcmp(tagName, "loopMode")) {
-			source->repeatMode = storageManager.readTagOrAttributeValueInt();
-			source->repeatMode = getMin(source->repeatMode, (uint8_t)(NUM_REPEAT_MODES - 1));
+			source->repeatMode = static_cast<SampleRepeatMode>(storageManager.readTagOrAttributeValueInt());
+			source->repeatMode = std::min(source->repeatMode, static_cast<SampleRepeatMode>(NUM_REPEAT_MODES - 1));
 			storageManager.exitTag("loopMode");
 		}
 		else if (!strcmp(tagName, "oscillatorSync")) {
@@ -3217,7 +3214,7 @@ void Sound::writeSourceToFile(int s, char const* tagName) {
 	// If (multi)sample...
 	if (source->oscType == OscType::SAMPLE
 	    && synthMode != SynthMode::FM) { // Don't combine this with the above "if" - there's an "else" below
-		storageManager.writeAttribute("loopMode", source->repeatMode);
+		storageManager.writeAttribute("loopMode", util::to_underlying(source->repeatMode));
 		storageManager.writeAttribute("reversed", source->sampleControls.reversed);
 		storageManager.writeAttribute("timeStretchEnable", source->sampleControls.pitchAndSpeedAreIndependent);
 		storageManager.writeAttribute("timeStretchAmount", source->timeStretchAmount);

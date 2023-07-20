@@ -535,13 +535,14 @@ enum ErrorType {
 	ERROR_SD_CARD_NO_FILESYSTEM,
 };
 
-enum SampleRepeatMode {
-	SAMPLE_REPEAT_CUT,
-	SAMPLE_REPEAT_ONCE,
-	SAMPLE_REPEAT_LOOP,
-	SAMPLE_REPEAT_STRETCH,
-	NUM_REPEAT_MODES,
+enum class SampleRepeatMode {
+	CUT,
+	ONCE,
+	LOOP,
+	STRETCH,
 };
+constexpr auto NUM_REPEAT_MODES = util::to_underlying(SampleRepeatMode::STRETCH) + 1;
+
 
 enum FilterType {
 	FILTER_TYPE_LPF,

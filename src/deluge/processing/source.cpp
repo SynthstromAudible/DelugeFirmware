@@ -38,7 +38,7 @@ Source::Source() {
 
 	transpose = 0;
 	cents = 0;
-	repeatMode = SAMPLE_REPEAT_CUT;
+	repeatMode = SampleRepeatMode::CUT;
 
 	// Synth stuff
 	oscType = OscType::SQUARE;

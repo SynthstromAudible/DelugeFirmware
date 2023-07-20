@@ -98,6 +98,6 @@ int VoiceSamplePlaybackGuide::getLoopingType(Source* source) {
 		return noteOffReceived ? 0 : LOOP_LOW_LEVEL;
 	}
 	else {
-		return (source->repeatMode == SAMPLE_REPEAT_LOOP) ? LOOP_LOW_LEVEL : 0;
+		return (source->repeatMode == SampleRepeatMode::LOOP) ? LOOP_LOW_LEVEL : 0;
 	}
 }

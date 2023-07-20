@@ -957,13 +957,13 @@ doLoadAsSample:
 				}
 
 				// Otherwise, set play mode to LOOP, and we'll just do single-cycle as a sample. (This is now pretty rare.)
-				soundEditor.currentSource->repeatMode = SAMPLE_REPEAT_LOOP;
+				soundEditor.currentSource->repeatMode = SampleRepeatMode::LOOP;
 				doingSingleCycleNow = true;
 			}
 
 			// If time stretching or looping on (or we just decided to do single-cycle, above), leave that the case
-			if (soundEditor.currentSource->repeatMode == SAMPLE_REPEAT_STRETCH
-			    || soundEditor.currentSource->repeatMode == SAMPLE_REPEAT_LOOP) {}
+			if (soundEditor.currentSource->repeatMode == SampleRepeatMode::STRETCH
+			    || soundEditor.currentSource->repeatMode == SampleRepeatMode::LOOP) {}
 
 			// Otherwise...
 			else {
@@ -973,17 +973,17 @@ doLoadAsSample:
 
 					// If this led to an actual loop end pos, with more waveform after it, and the sample's not too long, we can do a ONCE.
 					if (((MultisampleRange*)soundEditor.currentMultiRange)->sampleHolder.loopEndPos && mSec < 2002) {
-						soundEditor.currentSource->repeatMode = SAMPLE_REPEAT_ONCE;
+						soundEditor.currentSource->repeatMode = SampleRepeatMode::ONCE;
 					}
 					else {
-						soundEditor.currentSource->repeatMode = SAMPLE_REPEAT_LOOP;
+						soundEditor.currentSource->repeatMode = SampleRepeatMode::LOOP;
 					}
 				}
 
 				else {
 
 					// If 2 seconds or less, set play mode to ONCE. Otherwise, CUT.
-					soundEditor.currentSource->repeatMode = (mSec < 2002) ? SAMPLE_REPEAT_ONCE : SAMPLE_REPEAT_CUT;
+					soundEditor.currentSource->repeatMode = (mSec < 2002) ? SampleRepeatMode::ONCE : SampleRepeatMode::CUT;
 				}
 			}
 
@@ -1085,7 +1085,7 @@ doLoadAsSample:
 void SampleBrowser::autoDetectSideChainSending(SoundDrum* drum, Source* source, char const* fileName) {
 
 	// If this looks like a kick, make it send to sidechain. Otherwise, no change
-	if (source->repeatMode == SAMPLE_REPEAT_ONCE && (strcasestr(fileName, "kick") || strcasestr(fileName, "bd"))) {
+	if (source->repeatMode == SampleRepeatMode::ONCE && (strcasestr(fileName, "kick") || strcasestr(fileName, "bd"))) {
 		drum->sideChainSendLevel = 2147483647;
 	}
 }
@@ -1842,17 +1842,17 @@ skipOctaveCorrection:
 
 		// If this led to an actual loop end pos, with more waveform after it, and the sample's not too long, we can do a ONCE
 		if (numWithResultingLoopEndPoints * 2 >= numSamples && averageMSec < 2002) {
-			soundEditor.currentSource->repeatMode = SAMPLE_REPEAT_ONCE;
+			soundEditor.currentSource->repeatMode = SampleRepeatMode::ONCE;
 		}
 		else {
-			soundEditor.currentSource->repeatMode = SAMPLE_REPEAT_LOOP;
+			soundEditor.currentSource->repeatMode = SampleRepeatMode::LOOP;
 		}
 	}
 
 	// Or if no loop points set...
 	else {
 		// If 2 seconds or less, set play mode to ONCE. Otherwise, cut
-		soundEditor.currentSource->repeatMode = (averageMSec < 2002) ? SAMPLE_REPEAT_ONCE : SAMPLE_REPEAT_CUT;
+		soundEditor.currentSource->repeatMode = (averageMSec < 2002) ? SampleRepeatMode::ONCE : SampleRepeatMode::CUT;
 	}
 
 	soundEditor.setCurrentMultiRange(numSamples >> 1);
@@ -2003,7 +2003,7 @@ getOut:
 			}
 skipNameStuff:
 
-			source->repeatMode = (thisSample->getLengthInMSec() < 2002) ? SAMPLE_REPEAT_ONCE : SAMPLE_REPEAT_CUT;
+			source->repeatMode = (thisSample->getLengthInMSec() < 2002) ? SampleRepeatMode::ONCE : SampleRepeatMode::CUT;
 
 #if ALPHA_OR_BETA_VERSION
 			if (thisSample->numReasonsToBeLoaded <= 0) {

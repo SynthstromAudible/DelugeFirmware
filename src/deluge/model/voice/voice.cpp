@@ -234,7 +234,7 @@ bool Voice::noteOn(ModelStackWithVoice* modelStack, int newNoteCodeBeforeArpeggi
 
 				if (sound->sources[s].oscType == OscType::SAMPLE) {
 
-					if (sound->sources[s].repeatMode == SAMPLE_REPEAT_STRETCH) {
+					if (sound->sources[s].repeatMode == SampleRepeatMode::STRETCH) {
 						guides[s].sequenceSyncLengthTicks = newSampleSyncLength;
 						guides[s].sequenceSyncStartedAtTick =
 						    playbackHandler.lastSwungTickActioned
@@ -285,7 +285,7 @@ activenessDetermined:
 		if (oscType == OscType::SAMPLE && guides[s].audioFileHolder) {
 			guides[s].setupPlaybackBounds(source->sampleControls.reversed);
 
-			//if (source->repeatMode == SAMPLE_REPEAT_STRETCH) samplesLateHere = 0;
+			//if (source->repeatMode == SampleRepeatMode::STRETCH) samplesLateHere = 0;
 		}
 
 		for (int u = 0; u < sound->numUnison; u++) {
@@ -814,7 +814,7 @@ bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int nu
 			// If it's not a sample, or it's not a play-once, or it has a loop-end point but we haven't received the note-off, then we don't want the auto-release feature for it
 			if (source->oscType != OscType::SAMPLE
 			    || source->repeatMode
-			           != SAMPLE_REPEAT_ONCE // Don't do it for anything else. STRETCH is too hard to calculate
+			           != SampleRepeatMode::ONCE // Don't do it for anything else. STRETCH is too hard to calculate
 			    || !guides[s].audioFileHolder
 			    || (((SampleHolderForVoice*)guides[s].audioFileHolder)->loopEndPos && !guides[s].noteOffReceived)) {
 				goto skipAutoRelease;
@@ -2045,7 +2045,7 @@ pitchTooHigh:
 				int32_t rawSamplesLate;
 
 				// Synced / STRETCH - it's super easy.
-				if (sound->sources[s].repeatMode == SAMPLE_REPEAT_STRETCH) {
+				if (sound->sources[s].repeatMode == SampleRepeatMode::STRETCH) {
 					rawSamplesLate = guides[s].getSyncedNumSamplesIn();
 				}
 

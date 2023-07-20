@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "storage/multi_range/multi_range_array.h"
 #include "util/phase_increment_fine_tuner.h"
 #include "model/sample/sample_controls.h"
@@ -42,7 +43,7 @@ public:
 
 	MultiRangeArray ranges;
 
-	uint8_t repeatMode;
+	SampleRepeatMode repeatMode;
 
 	int8_t timeStretchAmount;
 

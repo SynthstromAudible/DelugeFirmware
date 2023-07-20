@@ -467,7 +467,7 @@ void Slicer::preview(int64_t startPoint, int64_t endPoint, int transpose, int on
 
 		MultisampleRange* range = (MultisampleRange*)drum->sources[0].getOrCreateFirstRange();
 		drum->name.set("1");
-		drum->sources[0].repeatMode = SAMPLE_REPEAT_ONCE;
+		drum->sources[0].repeatMode = SampleRepeatMode::ONCE;
 
 		if (!waveformBasicNavigator.sample->filePath.equals(&range->sampleHolder.filePath)) {
 			stopAnyPreviewing();
@@ -659,7 +659,7 @@ getOut:
 		uint32_t nextDrumStart = lengthInSamples / numClips;
 		firstRange->sampleHolder.endPos = nextDrumStart;
 
-		firstDrum->sources[0].repeatMode = (lengthMSPerSlice < 2002) ? SAMPLE_REPEAT_ONCE : SAMPLE_REPEAT_CUT;
+		firstDrum->sources[0].repeatMode = (lengthMSPerSlice < 2002) ? SampleRepeatMode::ONCE : SampleRepeatMode::CUT;
 
 		firstDrum->sources[0].sampleControls.reversed = false;
 
@@ -723,7 +723,7 @@ ramError2:
 			nextDrumStart = (uint64_t)lengthInSamples * (i + 1) / numClips;
 			range->sampleHolder.endPos = nextDrumStart;
 
-			newDrum->sources[0].repeatMode = (lengthMSPerSlice < 2002) ? SAMPLE_REPEAT_ONCE : SAMPLE_REPEAT_CUT;
+			newDrum->sources[0].repeatMode = (lengthMSPerSlice < 2002) ? SampleRepeatMode::ONCE : SampleRepeatMode::CUT;
 
 			range->sampleHolder.filePath.set(&sample->filePath);
 			range->sampleHolder.loadFile(false, false, true);
