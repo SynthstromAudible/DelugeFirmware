@@ -816,12 +816,12 @@ enum AudioRecordingFolder {
 	NUM_AUDIO_RECORDING_FOLDERS,
 };
 
-enum KeyboardLayout {
-	KEYBOARD_LAYOUT_QWERTY,
-	KEYBOARD_LAYOUT_AZERTY,
-	KEYBOARD_LAYOUT_QWERTZ,
-	NUM_KEYBOARD_LAYOUTS,
+enum class KeyboardLayout : uint8_t {
+	QWERTY,
+	AZERTY,
+	QWERTZ,
 };
+constexpr auto NUM_KEYBOARD_LAYOUTS = util::to_underlying(KeyboardLayout::QWERTZ) + 1;
 
 #define INTERNAL_BUTTON_PRESS_LATENCY 380
 #define MIDI_KEY_INPUT_LATENCY 100

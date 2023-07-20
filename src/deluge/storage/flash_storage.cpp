@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "definitions_cxx.hpp"
 #include "processing/engines/audio_engine.h"
 #include "storage/flash_storage.h"
 #include "io/midi/midi_engine.h"
@@ -109,7 +110,7 @@ namespace FlashStorage {
 
 uint8_t defaultScale;
 bool audioClipRecordMargins;
-uint8_t keyboardLayout;
+KeyboardLayout keyboardLayout;
 uint8_t recordQuantizeLevel; // Assumes insideWorldTickMagnitude==1, which is not default anymore, so adjust accordingly
 uint8_t sampleBrowserPreviewMode;
 uint8_t defaultVelocity;
@@ -170,7 +171,7 @@ void resetSettings() {
 
 	audioClipRecordMargins = true;
 	playbackHandler.countInEnabled = false;
-	keyboardLayout = KEYBOARD_LAYOUT_QWERTY;
+	keyboardLayout = KeyboardLayout::QWERTY;
 	sampleBrowserPreviewMode = PREVIEW_ONLY_WHILE_NOT_PLAYING;
 
 	defaultVelocity = 64;
@@ -299,12 +300,12 @@ void readSettings() {
 	if (previouslySavedByFirmwareVersion < FIRMWARE_3P0P0_ALPHA) {
 		audioClipRecordMargins = true;
 		playbackHandler.countInEnabled = false;
-		keyboardLayout = KEYBOARD_LAYOUT_QWERTY;
+		keyboardLayout = KeyboardLayout::QWERTY;
 	}
 	else {
 		audioClipRecordMargins = buffer[61];
 		playbackHandler.countInEnabled = buffer[62];
-		keyboardLayout = buffer[69];
+		keyboardLayout = static_cast<KeyboardLayout>(buffer[69]);
 	}
 
 	if (previouslySavedByFirmwareVersion < FIRMWARE_3P0P0_BETA) {
@@ -443,7 +444,7 @@ void writeSettings() {
 	buffer[61] = audioClipRecordMargins;
 	buffer[62] = playbackHandler.countInEnabled;
 
-	buffer[69] = keyboardLayout;
+	buffer[69] = util::to_underlying(keyboardLayout);
 	buffer[72] = sampleBrowserPreviewMode;
 
 	buffer[73] = defaultVelocity;
