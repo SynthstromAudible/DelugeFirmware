@@ -493,13 +493,14 @@ constexpr auto kNumPolyphonyModes = util::to_underlying(PolyphonyMode::CHOKE) + 
 
 #define NUM_PHYSICAL_MOD_KNOBS 2
 
-enum LPFMode {
-	LPF_MODE_12DB,
-	LPF_MODE_TRANSISTOR_24DB,
-	LPF_MODE_TRANSISTOR_24DB_DRIVE,
-	LPF_MODE_SVF,
-	NUM_LPF_MODES,
+enum class LPFMode {
+	TRANSISTOR_12DB,
+	TRANSISTOR_24DB,
+	TRANSISTOR_24DB_DRIVE,
+	SVF,
 };
+constexpr auto NUM_LPF_MODES = util::to_underlying(LPFMode::SVF) + 1;
+
 
 #define PHASER_NUM_ALLPASS_FILTERS 6
 

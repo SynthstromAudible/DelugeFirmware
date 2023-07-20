@@ -1134,13 +1134,13 @@ ArpMode stringToArpMode(char const* string) {
 
 char const* lpfTypeToString(LPFMode lpfType) {
 	switch (lpfType) {
-	case LPF_MODE_12DB:
+	case LPFMode::TRANSISTOR_12DB:
 		return "12dB";
 
-	case LPF_MODE_TRANSISTOR_24DB_DRIVE:
+	case LPFMode::TRANSISTOR_24DB_DRIVE:
 		return "24dBDrive";
 
-	case LPF_MODE_SVF:
+	case LPFMode::SVF:
 		return "SVF";
 
 	default:
@@ -1150,16 +1150,16 @@ char const* lpfTypeToString(LPFMode lpfType) {
 
 LPFMode stringToLPFType(char const* string) {
 	if (!strcmp(string, "24dB")) {
-		return LPF_MODE_TRANSISTOR_24DB;
+		return LPFMode::TRANSISTOR_24DB;
 	}
 	else if (!strcmp(string, "24dBDrive")) {
-		return LPF_MODE_TRANSISTOR_24DB_DRIVE;
+		return LPFMode::TRANSISTOR_24DB_DRIVE;
 	}
 	else if (!strcmp(string, "SVF")) {
-		return LPF_MODE_SVF;
+		return LPFMode::SVF;
 	}
 	else {
-		return LPF_MODE_12DB;
+		return LPFMode::TRANSISTOR_12DB;
 	}
 }
 

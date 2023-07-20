@@ -83,7 +83,7 @@ public:
 class FilterSet {
 public:
 	FilterSet();
-	void renderLPFLong(q31_t* outputSample, q31_t* endSample, FilterSetConfig* filterSetConfig, uint8_t lpfMode,
+	void renderLPFLong(q31_t* outputSample, q31_t* endSample, FilterSetConfig* filterSetConfig, LPFMode lpfMode,
 	                   int sampleIncrement = 1, int extraSaturation = 0, int extraSaturationDrive = 0);
 	void renderHPFLong(q31_t* outputSample, q31_t* endSample, FilterSetConfig* filterSetConfig, int numSamples,
 	                   int sampleIncrement = 1);
@@ -107,7 +107,7 @@ public:
 	bool hpfOnLastTime;
 	bool lpfOnLastTime;
 
-	inline void renderLong(q31_t* outputSample, q31_t* endSample, FilterSetConfig* filterSetConfig, uint8_t lpfMode,
+	inline void renderLong(q31_t* outputSample, q31_t* endSample, FilterSetConfig* filterSetConfig, LPFMode lpfMode,
 	                       int numSamples, int sampleIncrememt = 1) {
 
 		// Do HPF, if it's on

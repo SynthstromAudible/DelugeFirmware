@@ -1674,26 +1674,23 @@ void ModControllableAudio::switchDelayAnalog() {
 }
 
 void ModControllableAudio::switchLPFMode() {
-	lpfMode = static_cast<LPFMode>(util::to_underlying(lpfMode) + 1);
-	if (lpfMode >= NUM_LPF_MODES) {
-		lpfMode = static_cast<LPFMode>(0);
-	}
+	lpfMode = static_cast<LPFMode>((util::to_underlying(lpfMode) + 1) % NUM_LPF_MODES);
 
 	char const* displayText;
 	switch (lpfMode) {
-	case LPF_MODE_12DB:
+	case LPFMode::TRANSISTOR_12DB:
 		displayText = "12DB LPF";
 		break;
 
-	case LPF_MODE_TRANSISTOR_24DB:
+	case LPFMode::TRANSISTOR_24DB:
 		displayText = "24DB LPF";
 		break;
 
-	case LPF_MODE_TRANSISTOR_24DB_DRIVE:
+	case LPFMode::TRANSISTOR_24DB_DRIVE:
 		displayText = "DRIVE LPF";
 		break;
 
-	case LPF_MODE_SVF:
+	case LPFMode::SVF:
 		displayText = "SVF";
 		break;
 	}

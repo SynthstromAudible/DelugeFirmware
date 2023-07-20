@@ -34,7 +34,7 @@
 #include "util/misc.h"
 
 GlobalEffectable::GlobalEffectable() {
-	lpfMode = LPF_MODE_TRANSISTOR_24DB;
+	lpfMode = LPFMode::TRANSISTOR_24DB;
 	filterSets[0].reset();
 	filterSets[1].reset();
 	modFXType = ModFXType::FLANGER;
@@ -394,7 +394,7 @@ void GlobalEffectable::setupFilterSetConfig(FilterSetConfig* filterSetConfig, in
 	    paramNeutralValues[PARAM_LOCAL_HPF_RESONANCE],
 	    cableToLinearParamShortcut(unpatchedParams->getValue(PARAM_UNPATCHED_GLOBALEFFECTABLE_HPF_RES)));
 
-	filterSetConfig->doLPF = (lpfMode == LPF_MODE_TRANSISTOR_24DB_DRIVE || lpfMode == LPF_MODE_SVF
+	filterSetConfig->doLPF = (lpfMode == LPFMode::TRANSISTOR_24DB_DRIVE || lpfMode == LPFMode::SVF
 	                          || unpatchedParams->getValue(PARAM_UNPATCHED_GLOBALEFFECTABLE_LPF_FREQ) < 2147483602);
 	filterSetConfig->doHPF = unpatchedParams->getValue(PARAM_UNPATCHED_GLOBALEFFECTABLE_HPF_FREQ) != -2147483648;
 

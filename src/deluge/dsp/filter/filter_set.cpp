@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "definitions_cxx.hpp"
 #include "processing/sound/sound.h"
 #include "dsp/filter/filter_set.h"
 #include "util/functions.h"
@@ -199,7 +200,7 @@ inline q31_t FilterSet::doDriveLPFOnSample(q31_t input, FilterSetConfig* filterS
 	return d;
 }
 
-void FilterSet::renderLPFLong(q31_t* startSample, q31_t* endSample, FilterSetConfig* filterSetConfig, uint8_t lpfMode,
+void FilterSet::renderLPFLong(q31_t* startSample, q31_t* endSample, FilterSetConfig* filterSetConfig, LPFMode lpfMode,
                               int sampleIncrement, int extraSaturation, int extraSaturationDrive) {
 
 	// This should help get rid of crackling on start / stop - but doesn't
@@ -213,7 +214,7 @@ void FilterSet::renderLPFLong(q31_t* startSample, q31_t* endSample, FilterSetCon
 	}
 
 	// Half ladder
-	if (lpfMode == LPF_MODE_12DB) {
+	if (lpfMode == LPFMode::TRANSISTOR_12DB) {
 
 		q31_t* currentSample = startSample;
 		do {
@@ -247,7 +248,7 @@ void FilterSet::renderLPFLong(q31_t* startSample, q31_t* endSample, FilterSetCon
 	}
 
 	// Full ladder (regular)
-	else if (lpfMode == LPF_MODE_TRANSISTOR_24DB) {
+	else if (lpfMode == LPFMode::TRANSISTOR_24DB) {
 
 		// Only saturate if resonance is high enough
 		if (filterSetConfig->processedResonance
@@ -271,7 +272,7 @@ void FilterSet::renderLPFLong(q31_t* startSample, q31_t* endSample, FilterSetCon
 	}
 
 	// Full ladder (drive)
-	else if (lpfMode == LPF_MODE_TRANSISTOR_24DB_DRIVE) {
+	else if (lpfMode == LPFMode::TRANSISTOR_24DB_DRIVE) {
 
 		if (filterSetConfig->doOversampling) {
 			q31_t* currentSample = startSample;
@@ -309,7 +310,7 @@ void FilterSet::renderLPFLong(q31_t* startSample, q31_t* endSample, FilterSetCon
 			} while (currentSample < endSample);
 		}
 	}
-	else if (lpfMode == LPF_MODE_SVF) {
+	else if (lpfMode == LPFMode::SVF) {
 
 		q31_t* currentSample = startSample;
 		do {
