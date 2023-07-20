@@ -213,11 +213,11 @@ enum class InstrumentType : uint8_t {
 	NONE = 255
 };
 
-enum ThingType {
-	THING_TYPE_SYNTH,
-	THING_TYPE_KIT,
-	THING_TYPE_SONG,
-	THING_TYPE_NONE,
+enum class ThingType {
+	SYNTH,
+	KIT,
+	SONG,
+	NONE,
 };
 
 // Maximum num samples that may be processed in one "frame". Actual size of output buffer is in ssi.h

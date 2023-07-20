@@ -346,7 +346,7 @@ gotErrorAfterCreatingSong:
 	if (error) {
 		goto gotErrorAfterCreatingSong;
 	}
-	audioFileManager.thingBeginningLoading(THING_TYPE_SONG);
+	audioFileManager.thingBeginningLoading(ThingType::SONG);
 
 	// Search existing RAM for all samples, to lay a claim to any which will be needed for this new Song.
 	// Do this before loading any new Samples from file, in case we were in danger of discarding any from RAM that we might actually want

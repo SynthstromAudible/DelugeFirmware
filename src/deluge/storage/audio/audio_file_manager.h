@@ -100,7 +100,7 @@ public:
 	void deleteUnusedAudioFileFromMemoryIndexUnknown(AudioFile* audioFile);
 	bool tryToDeleteAudioFileFromMemoryIfItExists(char const* filePath);
 
-	void thingBeginningLoading(int newThingType);
+	void thingBeginningLoading(ThingType newThingType);
 	void thingFinishedLoading();
 
 	ClusterPriorityQueue loadingQueue;
@@ -119,7 +119,7 @@ public:
 
 	String alternateAudioFileLoadPath;
 	uint8_t alternateLoadDirStatus;
-	uint8_t thingTypeBeingLoaded;
+	ThingType thingTypeBeingLoaded;
 	DIR alternateLoadDir;
 
 	int32_t highestUsedAudioRecordingNumber[NUM_AUDIO_RECORDING_FOLDERS];

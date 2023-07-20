@@ -62,7 +62,7 @@ AudioFileManager audioFileManager{};
 AudioFileManager::AudioFileManager() {
 	cardDisabled = false;
 	alternateLoadDirStatus = ALTERNATE_LOAD_DIR_NONE_SET;
-	thingTypeBeingLoaded = THING_TYPE_NONE;
+	thingTypeBeingLoaded = ThingType::NONE;
 
 	for (int i = 0; i < NUM_AUDIO_RECORDING_FOLDERS; i++) {
 		highestUsedAudioRecordingNumber[i] = -1;
@@ -542,7 +542,7 @@ waveTableCloneError:
 		// If we're loading a preset (not a Song, and not just browsing audio files), we should search in memory for the alternate path
 		if (alternateLoadDirStatus == ALTERNATE_LOAD_DIR_MIGHT_EXIST
 		    || alternateLoadDirStatus == ALTERNATE_LOAD_DIR_DOES_EXIST) {
-			if (thingTypeBeingLoaded != THING_TYPE_SONG) {
+			if (thingTypeBeingLoaded != ThingType::SONG) {
 				String searchPath;
 				searchPath.set(&alternateAudioFileLoadPath);
 				*error = searchPath.concatenate("/");
@@ -666,7 +666,7 @@ tryNextAlternate:
 				return NULL;
 			}
 
-			if (thingTypeBeingLoaded == THING_TYPE_SYNTH || thingTypeBeingLoaded == THING_TYPE_KIT) {
+			if (thingTypeBeingLoaded == ThingType::SYNTH || thingTypeBeingLoaded == ThingType::KIT) {
 				// Special rule for loading presets with files in their dedicated "alternate" folder: must update the AudioFile's filePath to point to that alternate location - and then treat them as normal (not alternate).
 				filePath->set(&usingAlternateLocation);
 				usingAlternateLocation.clear();
@@ -1449,7 +1449,7 @@ bool AudioFileManager::loadingQueueHasAnyLowestPriorityElements() {
 }
 
 // Caller must also set alternateAudioFileLoadPath.
-void AudioFileManager::thingBeginningLoading(int newThingType) {
+void AudioFileManager::thingBeginningLoading(ThingType newThingType) {
 	alternateLoadDirStatus = ALTERNATE_LOAD_DIR_MIGHT_EXIST;
 	thingTypeBeingLoaded = newThingType;
 }
@@ -1457,5 +1457,5 @@ void AudioFileManager::thingBeginningLoading(int newThingType) {
 void AudioFileManager::thingFinishedLoading() {
 	alternateAudioFileLoadPath.clear();
 	alternateLoadDirStatus = ALTERNATE_LOAD_DIR_NONE_SET;
-	thingTypeBeingLoaded = THING_TYPE_NONE;
+	thingTypeBeingLoaded = ThingType::NONE;
 }

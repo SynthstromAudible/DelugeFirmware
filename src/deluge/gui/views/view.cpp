@@ -1273,7 +1273,7 @@ void View::drawOutputNameFromDetails(InstrumentType instrumentType, int channel,
 #if HAVE_OLED
 	OLED::clearMainImage();
 	char const* outputTypeText;
-	switch (outputType) {
+	switch (instrumentType) {
 	case InstrumentType::SYNTH:
 		outputTypeText = "Synth";
 		break;
