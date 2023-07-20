@@ -544,12 +544,12 @@ enum class SampleRepeatMode {
 constexpr auto NUM_REPEAT_MODES = util::to_underlying(SampleRepeatMode::STRETCH) + 1;
 
 
-enum FilterType {
-	FILTER_TYPE_LPF,
-	FILTER_TYPE_HPF,
-	FILTER_TYPE_EQ,
-	NUM_FILTER_TYPES,
+enum class FilterType {
+	LPF,
+	HPF,
+	EQ,
 };
+constexpr auto NUM_FILTER_TYPES = util::to_underlying(FilterType::EQ) + 1;
 
 #define NUM_SOURCES 2 // That's sources as in oscillators - within a Sound (synth).
 

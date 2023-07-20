@@ -39,7 +39,7 @@ GlobalEffectable::GlobalEffectable() {
 	filterSets[1].reset();
 	modFXType = ModFXType::FLANGER;
 	currentModFXParam = MOD_FX_PARAM_FEEDBACK;
-	currentFilterType = FILTER_TYPE_LPF;
+	currentFilterType = FilterType::LPF;
 
 	memset(allpassMemory, 0, sizeof(allpassMemory));
 	memset(&phaserMemory, 0, sizeof(phaserMemory));
@@ -176,22 +176,19 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 	else if (modKnobMode == 1) {
 		if (whichModEncoder == 1) {
 			if (on) {
-				currentFilterType = static_cast<FilterType>(util::to_underlying(currentFilterType) + 1);
-				if (currentFilterType >= NUM_FILTER_TYPES) {
-					currentFilterType = static_cast<FilterType>(0);
-				}
+				currentFilterType = static_cast<FilterType>((util::to_underlying(currentFilterType) + 1) % NUM_FILTER_TYPES);
 
 				char const* displayText;
 				switch (currentFilterType) {
-				case FILTER_TYPE_LPF:
+				case FilterType::LPF:
 					displayText = "LPF";
 					break;
 
-				case FILTER_TYPE_HPF:
+				case FilterType::HPF:
 					displayText = "HPF";
 					break;
 
-				case FILTER_TYPE_EQ:
+				case FilterType::EQ:
 					displayText = "EQ";
 					break;
 				}
@@ -201,7 +198,7 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 			return false;
 		}
 		else {
-			if (on && currentFilterType == FILTER_TYPE_LPF) {
+			if (on && currentFilterType == FilterType::LPF) {
 				switchLPFMode();
 				return true;
 			}
@@ -263,21 +260,21 @@ int GlobalEffectable::getParameterFromKnob(int whichModEncoder) {
 	}
 	else if (modKnobMode == 1) {
 		switch (currentFilterType) {
-		case FILTER_TYPE_LPF:
+		case FilterType::LPF:
 			if (whichModEncoder != 0) {
 				return PARAM_UNPATCHED_GLOBALEFFECTABLE_LPF_FREQ;
 			}
 			else {
 				return PARAM_UNPATCHED_GLOBALEFFECTABLE_LPF_RES;
 			}
-		case FILTER_TYPE_HPF:
+		case FilterType::HPF:
 			if (whichModEncoder != 0) {
 				return PARAM_UNPATCHED_GLOBALEFFECTABLE_HPF_FREQ;
 			}
 			else {
 				return PARAM_UNPATCHED_GLOBALEFFECTABLE_HPF_RES;
 			}
-		default: //case FILTER_TYPE_EQ:
+		default: //case FilterType::EQ:
 			if (whichModEncoder != 0) {
 				return PARAM_UNPATCHED_TREBLE;
 			}

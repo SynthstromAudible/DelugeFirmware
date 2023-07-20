@@ -1072,10 +1072,10 @@ ModFXParam stringToModFXParam(char const* string) {
 
 char const* filterTypeToString(FilterType fxType) {
 	switch (fxType) {
-	case FILTER_TYPE_HPF:
+	case FilterType::HPF:
 		return "hpf";
 
-	case FILTER_TYPE_EQ:
+	case FilterType::EQ:
 		return "eq";
 
 	default:
@@ -1085,13 +1085,13 @@ char const* filterTypeToString(FilterType fxType) {
 
 FilterType stringToFilterType(char const* string) {
 	if (!strcmp(string, "hpf")) {
-		return FILTER_TYPE_HPF;
+		return FilterType::HPF;
 	}
 	else if (!strcmp(string, "eq")) {
-		return FILTER_TYPE_EQ;
+		return FilterType::EQ;
 	}
 	else {
-		return FILTER_TYPE_LPF;
+		return FilterType::LPF;
 	}
 }
 
