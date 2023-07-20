@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "model/global_effectable/global_effectable_for_clip.h"
 #include "model/instrument/instrument.h"
 #include "util/container/array/ordered_resizeable_array.h"
@@ -67,7 +68,7 @@ public:
 	ModControllable* toModControllable();
 	SoundDrum* getDrumFromName(char const* name, bool onlyIfNoNoteRow = false);
 	int makeDrumNameUnique(String* name, int startAtNumber);
-	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, int maySendMIDIPGMs);
+	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs);
 	void setupPatching(ModelStackWithTimelineCounter* modelStack);
 	void compensateInstrumentVolumeForResonance(ParamManagerForTimeline* paramManager, Song* song);
 	void deleteBackedUpParamManagers(Song* song);

@@ -576,7 +576,7 @@ gotAnInstrument:
 		    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, instrumentClipToLoadFor);
 
 		int error = instrumentClipToLoadFor->changeInstrument(modelStack, initialInstrument, NULL,
-		                                                      INSTRUMENT_REMOVAL_DELETE_OR_HIBERNATE_IF_UNUSED);
+		                                                      InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED);
 		// TODO: deal with errors!
 
 		if (needToAddInstrumentToSong) {
@@ -901,7 +901,7 @@ giveUsedError:
 		// If we're here, we know the Clip is not playing in the arranger (and doesn't even have an instance in there)
 
 		int error = instrumentClipToLoadFor->changeInstrument(
-		    modelStack, newInstrument, NULL, INSTRUMENT_REMOVAL_DELETE_OR_HIBERNATE_IF_UNUSED, NULL, true);
+		    modelStack, newInstrument, NULL, InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, NULL, true);
 		// TODO: deal with errors!
 
 		if (needToAddInstrumentToSong) {

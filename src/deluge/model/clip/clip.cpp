@@ -378,12 +378,12 @@ bool Clip::opportunityToBeginSessionLinearRecording(ModelStackWithTimelineCounte
 			*newOutputCreated = cloneOutput(modelStack);
 
 			if (action) {
-				action->recordClipExistenceChange(modelStack->song, &modelStack->song->sessionClips, this, CREATE);
+				action->recordClipExistenceChange(modelStack->song, &modelStack->song->sessionClips, this, ExistenceChangeType::CREATE);
 
 				if (*newOutputCreated) {
 					void* consMemory = generalMemoryAllocator.alloc(sizeof(ConsequenceOutputExistence));
 					if (consMemory) {
-						ConsequenceOutputExistence* cons = new (consMemory) ConsequenceOutputExistence(output, CREATE);
+						ConsequenceOutputExistence* cons = new (consMemory) ConsequenceOutputExistence(output, ExistenceChangeType::CREATE);
 						action->addConsequence(cons);
 					}
 				}
@@ -475,7 +475,7 @@ int Clip::resumeOriginalClipFromThisClone(ModelStackWithTimelineCounter* modelSt
 
 	originalClip->resumePlayback(modelStackClone, false);
 
-	output->setActiveClip(modelStackOriginal, false);
+	output->setActiveClip(modelStackOriginal, PgmChangeSend::NEVER);
 
 	return NO_ERROR;
 }
@@ -734,7 +734,7 @@ void Clip::readTagFromFile(char const* tagName, Song* song, int32_t* readAutomat
 	*/
 }
 
-void Clip::prepareForDestruction(ModelStackWithTimelineCounter* modelStack, int instrumentRemovalInstruction) {
+void Clip::prepareForDestruction(ModelStackWithTimelineCounter* modelStack, InstrumentRemoval instrumentRemovalInstruction) {
 
 	Output* oldOutput =
 	    output; // There won't be an Instrument if the song is being deleted because it wasn't completely loaded
@@ -754,11 +754,11 @@ void Clip::prepareForDestruction(ModelStackWithTimelineCounter* modelStack, int 
 
 	if (oldOutput) { // One case where there won't be an Output is if the song is being deleted because it wasn't able to be completely loaded
 
-		if (instrumentRemovalInstruction == INSTRUMENT_REMOVAL_DELETE_OR_HIBERNATE_IF_UNUSED) {
+		if (instrumentRemovalInstruction == InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED) {
 			modelStack->song->deleteOrHibernateOutputIfNoClips(oldOutput);
 		}
 
-		else if (instrumentRemovalInstruction == INSTRUMENT_REMOVAL_DELETE) {
+		else if (instrumentRemovalInstruction == InstrumentRemoval::DELETE) {
 			modelStack->song->deleteOutputThatIsInMainList(oldOutput);
 		}
 	}
@@ -1075,7 +1075,7 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 
 			newClip->activeIfNoSolo = false; // And now, we want it to actually be false
 			newClip->beingRecordedFromClip = this;
-			output->setActiveClip(modelStack, false);
+			output->setActiveClip(modelStack, PgmChangeSend::NEVER);
 		}
 
 		return true;

@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "definitions_cxx.hpp"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
 #include "model/clip/instrument_clip.h"
@@ -794,7 +795,7 @@ void Kit::setupPatching(ModelStackWithTimelineCounter* modelStack) {
 	}
 }
 
-bool Kit::setActiveClip(ModelStackWithTimelineCounter* modelStack, int maySendMIDIPGMs) {
+bool Kit::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs) {
 	bool clipChanged = Instrument::setActiveClip(modelStack, maySendMIDIPGMs);
 
 	if (clipChanged) {

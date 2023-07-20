@@ -220,7 +220,7 @@ void SoundInstrument::setupPatching(ModelStackWithTimelineCounter* modelStack) {
 	patchCableSet->setupPatching(modelStackWithParamCollection);
 }
 
-bool SoundInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, int maySendMIDIPGMs) {
+bool SoundInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs) {
 
 	bool clipChanged = MelodicInstrument::setActiveClip(modelStack, maySendMIDIPGMs);
 

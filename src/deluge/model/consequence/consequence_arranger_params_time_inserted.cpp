@@ -28,7 +28,7 @@ ConsequenceArrangerParamsTimeInserted::ConsequenceArrangerParamsTimeInserted(int
 	length = newLength;
 }
 
-int ConsequenceArrangerParamsTimeInserted::revert(int time, ModelStack* modelStack) {
+int ConsequenceArrangerParamsTimeInserted::revert(TimeType time, ModelStack* modelStack) {
 
 	ParamCollectionSummary* unpatchedParamsSummary = modelStack->song->paramManager.getUnpatchedParamSetSummary();
 

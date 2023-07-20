@@ -1119,7 +1119,7 @@ void ArrangerView::deleteClipInstance(Output* output, int clipInstanceIndex, Cli
                                       bool clearingWholeArrangement) {
 
 	if (action) {
-		action->recordClipInstanceExistenceChange(output, clipInstance, DELETE);
+		action->recordClipInstanceExistenceChange(output, clipInstance, ExistenceChangeType::DELETE);
 	}
 	Clip* clip = clipInstance->clip;
 
@@ -1345,7 +1345,7 @@ getItFromSection:
 
 					Action* action = actionLogger.getNewAction(ACTION_CLIP_INSTANCE_EDIT, false);
 					if (action) {
-						action->recordClipInstanceExistenceChange(output, clipInstance, CREATE);
+						action->recordClipInstanceExistenceChange(output, clipInstance, ExistenceChangeType::CREATE);
 					}
 
 					arrangement.rowEdited(output, clipInstance->pos, clipInstance->pos + clipInstance->length, NULL,
@@ -1563,7 +1563,7 @@ justGetOut:
 								Action* action = actionLogger.getNewAction(ACTION_CLIP_INSTANCE_EDIT, false);
 								if (action) {
 									action->recordClipExistenceChange(currentSong, &currentSong->arrangementOnlyClips,
-									                                  newClip, CREATE);
+									                                  newClip, ExistenceChangeType::CREATE);
 								}
 
 								clipInstance->change(action, output, clipInstance->pos, clipInstance->length, newClip);
@@ -1933,7 +1933,7 @@ itsInvalid:
 	// Or if it has...
 	else {
 		if (action) {
-			action->recordClipInstanceExistenceChange(pressedClipInstanceOutput, clipInstance, DELETE);
+			action->recordClipInstanceExistenceChange(pressedClipInstanceOutput, clipInstance, ExistenceChangeType::DELETE);
 		}
 		pressedClipInstanceOutput->clipInstances.deleteAtIndex(pressedClipInstanceIndex);
 
@@ -1943,7 +1943,7 @@ itsInvalid:
 		clipInstance->clip = clip;
 		clipInstance->length = length;
 		if (action) {
-			action->recordClipInstanceExistenceChange(newOutputToDragInto, clipInstance, CREATE);
+			action->recordClipInstanceExistenceChange(newOutputToDragInto, clipInstance, ExistenceChangeType::CREATE);
 		}
 
 		// And if changing output...

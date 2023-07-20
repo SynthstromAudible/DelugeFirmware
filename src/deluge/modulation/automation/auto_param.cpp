@@ -117,7 +117,7 @@ void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWi
 				if (isAutomated()) {
 					Action* action = actionLogger.getNewAction(ACTION_AUTOMATION_DELETE, false);
 					deleteAutomation(action, modelStack);
-					numericDriver.displayPopup(HAVE_OLED ? "Parameter automation deleted" : "DELETE");
+					numericDriver.displayPopup(HAVE_OLED ? "Parameter automation deleted" : "ExistenceChangeType::DELETE");
 				}
 				return;
 			}

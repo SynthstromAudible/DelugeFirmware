@@ -145,7 +145,7 @@ public:
 	void lengthChanged(ModelStackWithTimelineCounter* modelStack, int32_t oldLength, Action* action = NULL);
 	NoteRow* createNewNoteRowForKit(ModelStackWithTimelineCounter* modelStack, bool atStart, int* getIndex = NULL);
 	int changeInstrument(ModelStackWithTimelineCounter* modelStack, Instrument* newInstrument,
-	                     ParamManagerForTimeline* paramManager, int instrumentRemovalInstruction,
+	                     ParamManagerForTimeline* paramManager, InstrumentRemoval instrumentRemovalInstruction,
 	                     InstrumentClip* favourClipForCloningParamManager = NULL, bool keepNoteRowsWithMIDIInput = true,
 	                     bool giveMidiAssignmentsToNewInstrument = false);
 	void detachFromOutput(ModelStackWithTimelineCounter* modelStack, bool shouldRememberDrumName,

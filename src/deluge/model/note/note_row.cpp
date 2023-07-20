@@ -233,7 +233,7 @@ addNewNote:
 		// Record consequence
 		if (action) {
 			action->recordNoteExistenceChange((InstrumentClip*)modelStack->getTimelineCounter(), modelStack->noteRowId,
-			                                  newNote, CREATE);
+			                                  newNote, ExistenceChangeType::CREATE);
 		}
 
 		if (clipCurrentlyPlaying && !muted) {
@@ -572,7 +572,7 @@ int NoteRow::attemptNoteAdd(int32_t pos, int32_t length, int velocity, int proba
 	if (action) {
 		action->recordNoteExistenceChange(
 		    (InstrumentClip*)modelStack->getTimelineCounter(), modelStack->noteRowId, newNote,
-		    CREATE); // This only gets called (action is only supplied) when drag-scrolling Notes
+		    ExistenceChangeType::CREATE); // This only gets called (action is only supplied) when drag-scrolling Notes
 	}
 
 	((InstrumentClip*)modelStack->getTimelineCounter())->expectEvent();
@@ -1497,7 +1497,7 @@ void NoteRow::deleteNoteByIndex(int index, Action* action, int noteRowId, Instru
 	}
 
 	if (action) {
-		action->recordNoteExistenceChange(clip, noteRowId, note, DELETE);
+		action->recordNoteExistenceChange(clip, noteRowId, note, ExistenceChangeType::DELETE);
 	}
 
 	notes.deleteAtIndex(index);

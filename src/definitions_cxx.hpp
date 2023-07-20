@@ -668,11 +668,15 @@ enum Availability {
 	AVAILABILITY_INSTRUMENT_UNUSED,
 };
 
-#define BEFORE 0
-#define AFTER 1
+enum TimeType {
+	BEFORE = 0,
+	AFTER = 1,
+};
 
-#define DELETE 1
-#define CREATE 0
+enum class ExistenceChangeType {
+	CREATE = 0,
+	DELETE = 1,
+};
 
 #define CC_NUMBER_PITCH_BEND 120
 #define CC_NUMBER_AFTERTOUCH 121
@@ -680,10 +684,10 @@ enum Availability {
 #define NUM_CC_NUMBERS_INCLUDING_FAKE 123
 #define NUM_REAL_CC_NUMBERS 120
 
-enum InstrumentRemoval {
-	INSTRUMENT_REMOVAL_NONE,
-	INSTRUMENT_REMOVAL_DELETE_OR_HIBERNATE_IF_UNUSED,
-	INSTRUMENT_REMOVAL_DELETE,
+enum class InstrumentRemoval {
+	NONE,
+	DELETE_OR_HIBERNATE_IF_UNUSED,
+	DELETE,
 };
 
 #define HARDWARE_TEST_MODE 0
@@ -694,9 +698,9 @@ enum class DrumType {
 	GATE,
 };
 
-enum PgmChangeSend {
-	PGM_CHANGE_SEND_NEVER,
-	PGM_CHANGE_SEND_ONCE,
+enum class PgmChangeSend {
+	NEVER,
+	ONCE,
 };
 
 enum Marker {

@@ -238,12 +238,12 @@ void MIDIInstrument::monophonicExpressionEvent(int newValue, int whichExpression
 	}
 }
 
-bool MIDIInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, int maySendMIDIPGMs) {
+bool MIDIInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs) {
 
 	InstrumentClip* newInstrumentClip = (InstrumentClip*)modelStack->getTimelineCounter();
 	InstrumentClip* oldInstrumentClip = (InstrumentClip*)activeClip;
 
-	bool shouldSendPGMs = (maySendMIDIPGMs && activeClip && activeClip != newInstrumentClip
+	bool shouldSendPGMs = (maySendMIDIPGMs != PgmChangeSend::NEVER && activeClip && activeClip != newInstrumentClip
 	                       && (newInstrumentClip->midiPGM != oldInstrumentClip->midiPGM
 	                           || newInstrumentClip->midiSub != oldInstrumentClip->midiSub
 	                           || newInstrumentClip->midiBank != oldInstrumentClip->midiBank));

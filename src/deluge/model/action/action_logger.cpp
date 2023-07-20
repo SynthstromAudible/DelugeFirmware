@@ -300,7 +300,7 @@ void ActionLogger::recordTempoChange(uint64_t timePerBigBefore, uint64_t timePer
 // Returns whether anything was reverted.
 // doNavigation and updateVisually are only false when doing one of those undo-Clip-resize things as part of another Clip resize.
 // You must not call this during the card routine - though I've lost track of the exact reason why not - is it just because we could then be in the middle of executing whichever function accessed the card and we don't know if things will break?
-bool ActionLogger::revert(int time, bool updateVisually, bool doNavigation) {
+bool ActionLogger::revert(TimeType time, bool updateVisually, bool doNavigation) {
 	Uart::println("ActionLogger::revert");
 
 	deleteLastActionIfEmpty();
@@ -339,7 +339,7 @@ bool ActionLogger::revert(int time, bool updateVisually, bool doNavigation) {
 #define ANIMATION_ARRANGEMENT_TO_SESSION 11
 
 // doNavigation and updateVisually are only false when doing one of those undo-Clip-resize things as part of another Clip resize
-void ActionLogger::revertAction(Action* action, bool updateVisually, bool doNavigation, int time) {
+void ActionLogger::revertAction(Action* action, bool updateVisually, bool doNavigation, TimeType time) {
 
 	currentSong->deletePendingOverdubs();
 
@@ -779,7 +779,7 @@ void ActionLogger::notifyClipRecordingAborted(Clip* clip) {
 	// If there's an Action which only recorded the beginning of this Clip recording, we don't want it anymore.
 	if (firstAction[BEFORE] && firstAction[BEFORE]->type == ACTION_RECORD) {
 		Consequence* firstConsequence = firstAction[BEFORE]->firstConsequence;
-		if (!firstConsequence->next && firstConsequence->type == CONSEQUENCE_CLIP_BEGIN_LINEAR_RECORD) {
+		if (!firstConsequence->next && firstConsequence->type == Consequence::CLIP_BEGIN_LINEAR_RECORD) {
 			if (clip == ((ConsequenceClipBeginLinearRecord*)firstConsequence)->clip) {
 				deleteLastAction();
 			}
@@ -804,7 +804,7 @@ bool ActionLogger::undoJustOneConsequencePerNoteRow(ModelStack* modelStack) {
 
 		Consequence* thisConsequence = firstConsequence->next;
 		while (thisConsequence) {
-			if (thisConsequence->type == CONSEQUENCE_NOTE_ARRAY_CHANGE
+			if (thisConsequence->type == Consequence::NOTE_ARRAY_CHANGE
 			    && ((ConsequenceNoteArrayChange*)thisConsequence)->noteRowId == firstNoteRowId) {
 				goto gotMultipleConsequencesPerNoteRow;
 			}
@@ -825,7 +825,7 @@ gotMultipleConsequencesPerNoteRow:
 				firstConsequence->~Consequence();
 				generalMemoryAllocator.dealloc(firstConsequence);
 				firstConsequence = firstAction[BEFORE]->firstConsequence;
-			} while (thisConsequence->type != CONSEQUENCE_NOTE_ARRAY_CHANGE
+			} while (thisConsequence->type != Consequence::NOTE_ARRAY_CHANGE
 			         || ((ConsequenceNoteArrayChange*)firstConsequence)->noteRowId != firstNoteRowId);
 
 			Uart::println("did secret undo, just one Consequence");

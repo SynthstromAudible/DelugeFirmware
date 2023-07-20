@@ -30,7 +30,7 @@ ConsequenceAudioClipSetSample::ConsequenceAudioClipSetSample(AudioClip* newClip)
 	endPosToRevertTo = newClip->sampleHolder.endPos;
 }
 
-int ConsequenceAudioClipSetSample::revert(int time, ModelStack* modelStack) {
+int ConsequenceAudioClipSetSample::revert(TimeType time, ModelStack* modelStack) {
 
 	String filePathBeforeRevert;
 	filePathBeforeRevert.set(&clip->sampleHolder.filePath);

@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "model/clip/clip_array.h"
 #include "model/global_effectable/global_effectable_for_song.h"
 #include "modulation/params/param_manager.h"
@@ -94,7 +95,7 @@ public:
 	void setTempoFromParams(int32_t magnitude, int8_t whichValue, bool shouldLogAction);
 	void deleteSoundsWhichWontSound();
 	void deleteClipObject(Clip* clip, bool songBeingDestroyedToo = false,
-	                      int instrumentRemovalInstruction = INSTRUMENT_REMOVAL_DELETE_OR_HIBERNATE_IF_UNUSED);
+	                      InstrumentRemoval instrumentRemovalInstruction = InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED);
 	int getMaxMIDIChannelSuffix(int channel);
 	void addOutput(Output* output, bool atStart = true);
 	void deleteOutputThatIsInMainList(Output* output, bool stopAnyAuditioningFirst = true);

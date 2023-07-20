@@ -72,7 +72,7 @@ class Action {
 public:
 	Action(int newActionType);
 	void addConsequence(Consequence* consequence);
-	int revert(int time, ModelStack* modelStack);
+	int revert(TimeType time, ModelStack* modelStack);
 	bool containsConsequenceParamChange(ParamCollection* paramCollection, int paramId);
 	void recordParamChangeIfNotAlreadySnapshotted(ModelStackWithAutoParam const* modelStack, bool stealData = false);
 	void recordParamChangeDefinitely(ModelStackWithAutoParam const* modelStack, bool stealData);
@@ -80,14 +80,14 @@ public:
 	                                                 bool stealData, bool moveToFrontIfAlreadySnapshotted = false);
 	int recordNoteArrayChangeDefinitely(InstrumentClip* clip, int noteRowId, NoteVector* noteVector, bool stealData);
 	bool containsConsequenceNoteArrayChange(InstrumentClip* clip, int noteRowId, bool moveToFrontIfFound = false);
-	void recordNoteExistenceChange(InstrumentClip* clip, int noteRowId, Note* note, int type);
+	void recordNoteExistenceChange(InstrumentClip* clip, int noteRowId, Note* note, ExistenceChangeType type);
 	void recordNoteChange(InstrumentClip* clip, int noteRowId, Note* note, int32_t lengthAfter, int velocityAfter,
 	                      int probabilityAfter);
 	void updateYScrollClipViewAfter(InstrumentClip* clip = NULL);
-	void recordClipInstanceExistenceChange(Output* output, ClipInstance* clipInstance, int type);
+	void recordClipInstanceExistenceChange(Output* output, ClipInstance* clipInstance, ExistenceChangeType type);
 	void prepareForDestruction(int whichQueueActionIn, Song* song);
 	void recordClipLengthChange(Clip* clip, int32_t oldLength);
-	bool recordClipExistenceChange(Song* song, ClipArray* clipArray, Clip* clip, int type);
+	bool recordClipExistenceChange(Song* song, ClipArray* clipArray, Clip* clip, ExistenceChangeType type);
 	void recordAudioClipSampleChange(AudioClip* clip);
 	void deleteAllConsequences(int whichQueueActionIn, Song* song, bool destructing = false);
 

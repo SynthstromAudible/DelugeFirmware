@@ -832,7 +832,7 @@ void AudioClip::posReachedEnd(ModelStackWithTimelineCounter* modelStack) {
 		clipInstance->length = loopLength;
 
 		newClip->activeIfNoSolo = false; // And now, we want it to actually be false
-		output->setActiveClip(modelStack, false);
+		output->setActiveClip(modelStack, PgmChangeSend::NEVER);
 
 		newClip->setPos(modelStack, 0, false); // Tell it to *not* use "live pos"
 

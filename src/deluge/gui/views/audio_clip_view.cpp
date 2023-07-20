@@ -548,7 +548,7 @@ setTheEndPos:
 
 							if (action) {
 								if (action->firstConsequence
-								    && action->firstConsequence->type == CONSEQUENCE_CLIP_LENGTH) {
+								    && action->firstConsequence->type == Consequence::CLIP_LENGTH) {
 									ConsequenceClipLength* consequence =
 									    (ConsequenceClipLength*)action->firstConsequence;
 									consequence->pointerToMarkerValue = valueToChange;

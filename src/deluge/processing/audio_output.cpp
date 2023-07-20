@@ -384,7 +384,7 @@ bool AudioOutput::wantsToBeginArrangementRecording() {
 	return (inputChannel > AudioInputChannel::NONE && Output::wantsToBeginArrangementRecording());
 }
 
-bool AudioOutput::setActiveClip(ModelStackWithTimelineCounter* modelStack, int maySendMIDIPGMs) {
+bool AudioOutput::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs) {
 	if (activeClip
 	    && (activeClip != modelStack->getTimelineCounter()
 	        || (playbackHandler.playbackState && currentPlaybackMode == &arrangement))) {

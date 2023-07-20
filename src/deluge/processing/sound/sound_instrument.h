@@ -51,7 +51,7 @@ public:
 	int loadAllAudioFiles(bool mayActuallyReadFiles);
 	void resyncLFOs();
 	ModControllable* toModControllable();
-	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, int maySendMIDIPGMs);
+	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs);
 	void setupPatchingForAllParamManagers(Song* song);
 	void setupPatching(ModelStackWithTimelineCounter* modelStack);
 

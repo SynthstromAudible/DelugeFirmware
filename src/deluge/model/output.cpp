@@ -51,7 +51,7 @@ void Output::setupWithoutActiveClip(ModelStack* modelStack) {
 }
 
 // Returns whether Clip changed from before
-bool Output::setActiveClip(ModelStackWithTimelineCounter* modelStack, int maySendMIDIPGMs) {
+bool Output::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs) {
 
 	Clip* newClip = (Clip*)modelStack->getTimelineCounter();
 
@@ -68,7 +68,7 @@ void Output::detachActiveClip(Song* song) {
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 }
 
-void Output::pickAnActiveClipIfPossible(ModelStack* modelStack, bool searchSessionClipsIfNeeded, int maySendMIDIPGMs,
+void Output::pickAnActiveClipIfPossible(ModelStack* modelStack, bool searchSessionClipsIfNeeded, PgmChangeSend maySendMIDIPGMs,
                                         bool setupWithoutActiveClipIfNeeded) {
 
 	if (!activeClip) {
@@ -97,7 +97,7 @@ void Output::pickAnActiveClipIfPossible(ModelStack* modelStack, bool searchSessi
 	}
 }
 
-void Output::pickAnActiveClipForArrangementPos(ModelStack* modelStack, int arrangementPos, int maySendMIDIPGMs) {
+void Output::pickAnActiveClipForArrangementPos(ModelStack* modelStack, int arrangementPos, PgmChangeSend maySendMIDIPGMs) {
 
 	// First, see if there's an earlier-starting ClipInstance that's still going at this pos
 	int i = clipInstances.search(arrangementPos + 1, LESS);
@@ -396,8 +396,8 @@ int Output::possiblyBeginArrangementRecording(Song* song, int newPos) {
 
 	Action* action = actionLogger.getNewAction(ACTION_RECORD, true);
 	if (action) {
-		action->recordClipExistenceChange(song, &song->arrangementOnlyClips, newClip, CREATE);
-		action->recordClipInstanceExistenceChange(this, clipInstance, CREATE);
+		action->recordClipExistenceChange(song, &song->arrangementOnlyClips, newClip, ExistenceChangeType::CREATE);
+		action->recordClipInstanceExistenceChange(this, clipInstance, ExistenceChangeType::CREATE);
 	}
 
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clipInstance->clip);

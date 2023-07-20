@@ -1635,7 +1635,7 @@ void View::navigateThroughPresetsForInstrumentClip(int offset, ModelStackWithTim
 gotAnInstrument:
 
 			int error = clip->changeInstrument(modelStack, newInstrument, NULL,
-			                                   INSTRUMENT_REMOVAL_DELETE_OR_HIBERNATE_IF_UNUSED, NULL, true);
+			                                   InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, NULL, true);
 			// TODO: deal with errors
 
 			if (!instrumentAlreadyInSong) {
@@ -1717,7 +1717,7 @@ getOut:
 			// If we're here, we know the Clip is not playing in the arranger (and doesn't even have an instance in there)
 
 			int error = clip->changeInstrument(modelStack, newInstrument, NULL,
-			                                   INSTRUMENT_REMOVAL_DELETE_OR_HIBERNATE_IF_UNUSED, NULL, true);
+			                                   InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, NULL, true);
 			// TODO: deal with errors!
 
 			if (!instrumentAlreadyInSong) {

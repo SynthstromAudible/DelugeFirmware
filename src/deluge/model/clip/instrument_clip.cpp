@@ -1546,7 +1546,7 @@ void InstrumentClip::prepareToEnterKitMode(Song* song) {
 // Returns error code in theory - but in reality we're screwed if we get to that stage.
 // newParamManager is optional - normally it's not supplied, and will be searched for
 int InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack, Instrument* newInstrument,
-                                     ParamManagerForTimeline* newParamManager, int instrumentRemovalInstruction,
+                                     ParamManagerForTimeline* newParamManager, InstrumentRemoval instrumentRemovalInstruction,
                                      InstrumentClip* favourClipForCloningParamManager, bool keepNoteRowsWithMIDIInput,
                                      bool giveMidiAssignmentsToNewInstrument) {
 
@@ -1619,7 +1619,7 @@ int InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack, 
 	// If newInstrument has no activeClip, we must set that right now before the audio routine is called - otherwise it won't be able to find its ParamManager.
 	// This prevents a crash if we just navigated this Clip into this Instrument and it already existed and had no Clips
 	if (!newInstrument->activeClip) {
-		newInstrument->setActiveClip(modelStack, false);
+		newInstrument->setActiveClip(modelStack, PgmChangeSend::NEVER);
 	}
 
 	// Can safely call audio routine again now
@@ -1730,10 +1730,10 @@ probablyApplyBendRangeMain:
 	}
 
 	// Dispose of old Instrument down here, now that we can breathe (we've done all the stuff above quickly because we couldn't call the audio routine during it).
-	if (instrumentRemovalInstruction == INSTRUMENT_REMOVAL_DELETE_OR_HIBERNATE_IF_UNUSED) {
+	if (instrumentRemovalInstruction == InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED) {
 		modelStack->song->deleteOrHibernateOutputIfNoClips(oldInstrument);
 	}
-	else if (instrumentRemovalInstruction == INSTRUMENT_REMOVAL_DELETE) {
+	else if (instrumentRemovalInstruction == InstrumentRemoval::DELETE) {
 		modelStack->song->deleteOutputThatIsInMainList(oldInstrument);
 	}
 
@@ -3513,7 +3513,7 @@ displayError:
 	}
 
 	else {
-		int error = changeInstrument(modelStack, newInstrument, NULL, INSTRUMENT_REMOVAL_DELETE_OR_HIBERNATE_IF_UNUSED,
+		int error = changeInstrument(modelStack, newInstrument, NULL, InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED,
 		                             NULL, true);
 		// TODO: deal with errors
 

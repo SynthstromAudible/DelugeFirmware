@@ -151,7 +151,7 @@ Song::~Song() {
 		}
 
 		Clip* clip = sessionClips.getClipAtIndex(c);
-		deleteClipObject(clip, true, INSTRUMENT_REMOVAL_NONE);
+		deleteClipObject(clip, true, InstrumentRemoval::NONE);
 	}
 
 	for (int c = 0; c < arrangementOnlyClips.getNumElements(); c++) {
@@ -160,7 +160,7 @@ Song::~Song() {
 		}
 
 		Clip* clip = arrangementOnlyClips.getClipAtIndex(c);
-		deleteClipObject(clip, true, INSTRUMENT_REMOVAL_NONE);
+		deleteClipObject(clip, true, InstrumentRemoval::NONE);
 	}
 
 	AudioEngine::logAction("s4");
@@ -1847,7 +1847,7 @@ skipInstance:
 			}
 
 			arrangementOnlyClips.deleteAtIndex(c);
-			deleteClipObject(clip, false, INSTRUMENT_REMOVAL_NONE);
+			deleteClipObject(clip, false, InstrumentRemoval::NONE);
 			c--;
 		}
 	}
@@ -2009,7 +2009,7 @@ traverseClips:
 
 		AudioEngine::routineWithClusterLoading(); // -----------------------------------
 		if (!clip->isActiveOnOutput() && clip != view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
-			deleteClipObject(clip, false, INSTRUMENT_REMOVAL_NONE);
+			deleteClipObject(clip, false, InstrumentRemoval::NONE);
 			clipArray->deleteAtIndex(c);
 			c--;
 		}
@@ -2030,7 +2030,7 @@ traverseClips2:
 
 		AudioEngine::routineWithClusterLoading(); // -----------------------------------
 		if (clip->deleteSoundsWhichWontSound(this)) {
-			deleteClipObject(clip, false, INSTRUMENT_REMOVAL_DELETE);
+			deleteClipObject(clip, false, InstrumentRemoval::DELETE);
 			clipArray->deleteAtIndex(c);
 			c--;
 		}
@@ -2732,7 +2732,7 @@ void Song::setTempoFromParams(int32_t magnitude, int8_t whichValue, bool shouldL
 	setBPM(newBPM, shouldLogAction);
 }
 
-void Song::deleteClipObject(Clip* clip, bool songBeingDestroyedToo, int instrumentRemovalInstruction) {
+void Song::deleteClipObject(Clip* clip, bool songBeingDestroyedToo, InstrumentRemoval instrumentRemovalInstruction) {
 
 	if (!songBeingDestroyedToo) {
 
@@ -3013,7 +3013,7 @@ traverseClips:
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
 			int error = instrumentClip->changeInstrument(modelStackWithTimelineCounter, newOutput, NULL,
-			                                             INSTRUMENT_REMOVAL_NONE,
+			                                             InstrumentRemoval::NONE,
 			                                             (InstrumentClip*)favourClipForCloningParamManager,
 			                                             keepNoteRowsWithMIDIInput, true); // Will call audio routine
 			// TODO: deal with errors!
@@ -3140,7 +3140,7 @@ void Song::deleteOrHibernateOutputIfNoClips(Output* output) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
 
-	output->pickAnActiveClipIfPossible(modelStack, true, PGM_CHANGE_SEND_ONCE, false);
+	output->pickAnActiveClipIfPossible(modelStack, true, PgmChangeSend::ONCE, false);
 
 	// If no other Clips have this Output...
 	if (!output->activeClip) {
@@ -3767,7 +3767,7 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack, 
 
 			// Don't do any additional searching of session Clips, cos it'd be really inefficient searching all session Clips for each Output
 			output->pickAnActiveClipForArrangementPos(modelStack, playbackWillStartInArrangerAtPos,
-			                                          PGM_CHANGE_SEND_NEVER);
+			                                          PgmChangeSend::NEVER);
 		}
 	}
 
@@ -3800,7 +3800,7 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack, 
 
 				// Otherwise, it's ours
 				else {
-					clip->output->setActiveClip(modelStack->addTimelineCounter(clip), PGM_CHANGE_SEND_NEVER);
+					clip->output->setActiveClip(modelStack->addTimelineCounter(clip), PgmChangeSend::NEVER);
 				}
 			}
 		}
@@ -3811,7 +3811,7 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack, 
 		for (Output* output = firstOutput; output; output = output->next) {
 
 			// Don't do any additional searching of session Clips, cos it'd be really inefficient searching all session Clips for each Instrument
-			output->pickAnActiveClipIfPossible(modelStack, false, PGM_CHANGE_SEND_NEVER, false);
+			output->pickAnActiveClipIfPossible(modelStack, false, PgmChangeSend::NEVER, false);
 		}
 	}
 	AudioEngine::logAction("aaa5.12");
@@ -3837,7 +3837,7 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack, 
 		}
 
 		if (!clip->output->activeClip) {
-			clip->output->setActiveClip(modelStack->addTimelineCounter(clip), PGM_CHANGE_SEND_NEVER);
+			clip->output->setActiveClip(modelStack->addTimelineCounter(clip), PgmChangeSend::NEVER);
 		}
 	}
 
@@ -4187,7 +4187,7 @@ void Song::clearArrangementBeyondPos(int32_t pos, Action* action) {
 		for (int j = thisOutput->clipInstances.getNumElements() - 1; j >= i; j--) {
 			ClipInstance* clipInstance = thisOutput->clipInstances.getElement(j);
 			if (action) {
-				action->recordClipInstanceExistenceChange(thisOutput, clipInstance, DELETE);
+				action->recordClipInstanceExistenceChange(thisOutput, clipInstance, ExistenceChangeType::DELETE);
 			}
 			Clip* clip = clipInstance->clip;
 			thisOutput->clipInstances.deleteAtIndex(j);
@@ -4221,7 +4221,7 @@ void Song::deletingClipInstanceForClip(Output* output, Clip* clip, Action* actio
 		bool deletionDone = false;
 
 		if (action) {
-			deletionDone = action->recordClipExistenceChange(this, &arrangementOnlyClips, clip, DELETE);
+			deletionDone = action->recordClipExistenceChange(this, &arrangementOnlyClips, clip, ExistenceChangeType::DELETE);
 			// That call will call pickAnActiveClipIfPossible() whether we like it or not...
 		}
 
@@ -4233,7 +4233,7 @@ void Song::deletingClipInstanceForClip(Output* output, Clip* clip, Action* actio
 			if (index != -1) {
 				arrangementOnlyClips.deleteAtIndex(index); // Shouldn't actually ever not be found
 			}
-			deleteClipObject(clip, false, INSTRUMENT_REMOVAL_NONE);
+			deleteClipObject(clip, false, InstrumentRemoval::NONE);
 			if (shouldPickNewActiveClip) {
 				char modelStackMemory[MODEL_STACK_MAX_SIZE];
 				ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
@@ -4819,7 +4819,7 @@ lookAtNextOne:
 
 	// Otherwise, delete as usual
 	else {
-		deleteClipObject(clip, false, INSTRUMENT_REMOVAL_DELETE_OR_HIBERNATE_IF_UNUSED);
+		deleteClipObject(clip, false, InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED);
 	}
 
 	if (forceClipsAboveToMoveVertically || amountOfStuffAbove > amountOfStuffBelow) {

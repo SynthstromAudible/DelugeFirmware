@@ -74,10 +74,10 @@ public:
 	virtual void setupWithoutActiveClip(ModelStack* modelStack);
 	virtual bool
 	setActiveClip(ModelStackWithTimelineCounter* modelStack,
-	              int maySendMIDIPGMs = PGM_CHANGE_SEND_ONCE); // Will have no effect if it already had that Clip
-	void pickAnActiveClipForArrangementPos(ModelStack* modelStack, int arrangementPos, int maySendMIDIPGMs);
+	              PgmChangeSend maySendMIDIPGMs = PgmChangeSend::ONCE); // Will have no effect if it already had that Clip
+	void pickAnActiveClipForArrangementPos(ModelStack* modelStack, int arrangementPos, PgmChangeSend maySendMIDIPGMs);
 	void pickAnActiveClipIfPossible(ModelStack* modelStack, bool searchSessionClipsIfNeeded = true,
-	                                int maySendMIDIPGMs = PGM_CHANGE_SEND_ONCE,
+	                                PgmChangeSend maySendMIDIPGMs = PgmChangeSend::ONCE,
 	                                bool setupWithoutActiveClipIfNeeded = true);
 	void detachActiveClip(Song* currentSong);
 

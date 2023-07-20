@@ -234,7 +234,7 @@ gotError:
 	// Or if just adding new Instrument
 	else {
 		int error = getCurrentClip()->changeInstrument(modelStack, newInstrument, &newParamManager,
-		                                               INSTRUMENT_REMOVAL_DELETE_OR_HIBERNATE_IF_UNUSED, NULL,
+		                                               InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, NULL,
 		                                               false); // There'll be no samples cos it's new and blank
 		// TODO: deal with errors
 

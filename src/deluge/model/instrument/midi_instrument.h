@@ -39,7 +39,7 @@ public:
 
 	void allNotesOff();
 
-	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, int maySendMIDIPGMs);
+	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs);
 	bool writeDataToFile(Clip* clipForSavingOutputOnly, Song* song);
 	bool readTagFromFile(char const* tagName);
 	int readModKnobAssignmentsFromFile(int32_t readAutomationUpToPos, ParamManagerForTimeline* paramManager = NULL);

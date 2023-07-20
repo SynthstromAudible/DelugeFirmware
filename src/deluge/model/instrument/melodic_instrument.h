@@ -53,7 +53,7 @@ public:
 	void offerReceivedAftertouch(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
 	                             int channel, int value, int noteCode, bool* doingMidiThru);
 
-	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, int maySendMIDIPGMs);
+	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs);
 	bool isNoteRowStillAuditioningAsLinearRecordingEnded(NoteRow* noteRow) final;
 	void stopAnyAuditioning(ModelStack* modelStack) final;
 	bool isNoteAuditioning(int noteCode);

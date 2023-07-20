@@ -24,7 +24,7 @@
 #include "definitions_cxx.hpp"
 
 ConsequenceParamChange::ConsequenceParamChange(ModelStackWithAutoParam const* modelStack, bool stealData) {
-	type = CONSEQUENCE_PARAM_CHANGE;
+	type = Consequence::PARAM_CHANGE;
 	memcpy(modelStackMemory, modelStack, sizeof(ModelStackWithParamId));
 
 	state.value = modelStack->autoParam->currentValue;
@@ -40,7 +40,7 @@ ConsequenceParamChange::ConsequenceParamChange(ModelStackWithAutoParam const* mo
 	}
 }
 
-int ConsequenceParamChange::revert(int time, ModelStack* modelStackWithSong) {
+int ConsequenceParamChange::revert(TimeType time, ModelStack* modelStackWithSong) {
 
 	// We only actually store one state at a time - either the before, or the after. As we revert in either direction, we swap our stored state with that of the param
 	// in question - like, actually swap the pointer to the ParamNodeVector, so it's real efficient!

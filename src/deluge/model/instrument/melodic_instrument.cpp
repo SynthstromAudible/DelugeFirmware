@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "definitions_cxx.hpp"
 #include "model/clip/instrument_clip.h"
 #include "modulation/params/param_manager.h"
 #include "model/instrument/melodic_instrument.h"
@@ -467,7 +468,7 @@ void MelodicInstrument::offerBendRangeUpdate(ModelStack* modelStack, MIDIDevice*
 	}
 }
 
-bool MelodicInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, int maySendMIDIPGMs) {
+bool MelodicInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs) {
 
 	earlyNotes.empty();
 

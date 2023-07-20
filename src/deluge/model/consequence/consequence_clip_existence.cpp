@@ -30,15 +30,16 @@
 #include "io/uart/uart.h"
 #include "model/clip/audio_clip.h"
 #include "model/model_stack.h"
+#include "util/misc.h"
 
-ConsequenceClipExistence::ConsequenceClipExistence(Clip* newClip, ClipArray* newClipArray, int newType) {
+ConsequenceClipExistence::ConsequenceClipExistence(Clip* newClip, ClipArray* newClipArray, ExistenceChangeType newType) {
 	clip = newClip;
 	clipArray = newClipArray;
 	type = newType;
 }
 
 void ConsequenceClipExistence::prepareForDestruction(int whichQueueActionIn, Song* song) {
-	if (whichQueueActionIn != type) {
+	if (whichQueueActionIn != util::to_underlying(type)) {
 		song->deleteBackedUpParamManagersForClip(clip);
 
 #if ALPHA_OR_BETA_VERSION
@@ -54,10 +55,10 @@ void ConsequenceClipExistence::prepareForDestruction(int whichQueueActionIn, Son
 	}
 }
 
-int ConsequenceClipExistence::revert(int time, ModelStack* modelStack) {
+int ConsequenceClipExistence::revert(TimeType time, ModelStack* modelStack) {
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
-	if (time != type) { // (Re-)create
+	if (time != util::to_underlying(type)) { // (Re-)create
 
 		if (!clipArray->ensureEnoughSpaceAllocated(1)) {
 			return ERROR_INSUFFICIENT_RAM;
