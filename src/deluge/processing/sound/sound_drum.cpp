@@ -30,6 +30,7 @@
 #include "model/voice/voice.h"
 #include <new>
 #include "model/clip/clip.h"
+#include "util/misc.h"
 
 SoundDrum::SoundDrum() : Drum(DRUM_TYPE_SOUND), arpeggiator() {
 	nameIsDiscardable = false;
@@ -93,7 +94,7 @@ extern bool expressionValueChangesMustBeDoneSmoothly;
 
 void SoundDrum::expressionEvent(int newValue, int whichExpressionDimension) {
 
-	int s = whichExpressionDimension + PATCH_SOURCE_X;
+	int s = whichExpressionDimension + util::to_underlying(PatchSource::X);
 
 	//sourcesChanged |= 1 << s; // We'd ideally not want to apply this to all voices though...
 

@@ -247,40 +247,40 @@ int32_t cableToExpParamShortcut(int32_t sourceValue) {
 	return sourceValue >> 2;
 }
 
-char const* sourceToString(uint8_t source) {
+char const* sourceToString(PatchSource source) {
 
 	switch (source) {
-	case PATCH_SOURCE_LFO_GLOBAL:
+	case PatchSource::LFO_GLOBAL:
 		return "lfo1";
 
-	case PATCH_SOURCE_LFO_LOCAL:
+	case PatchSource::LFO_LOCAL:
 		return "lfo2";
 
-	case PATCH_SOURCE_ENVELOPE_0:
+	case PatchSource::ENVELOPE_0:
 		return "envelope1";
 
-	case PATCH_SOURCE_ENVELOPE_1:
+	case PatchSource::ENVELOPE_1:
 		return "envelope2";
 
-	case PATCH_SOURCE_VELOCITY:
+	case PatchSource::VELOCITY:
 		return "velocity";
 
-	case PATCH_SOURCE_NOTE:
+	case PatchSource::NOTE:
 		return "note";
 
-	case PATCH_SOURCE_COMPRESSOR:
+	case PatchSource::COMPRESSOR:
 		return "compressor";
 
-	case PATCH_SOURCE_RANDOM:
+	case PatchSource::RANDOM:
 		return "random";
 
-	case PATCH_SOURCE_AFTERTOUCH:
+	case PatchSource::AFTERTOUCH:
 		return "aftertouch";
 
-	case PATCH_SOURCE_X:
+	case PatchSource::X:
 		return "x";
 
-	case PATCH_SOURCE_Y:
+	case PatchSource::Y:
 		return "y";
 
 	default:
@@ -289,39 +289,39 @@ char const* sourceToString(uint8_t source) {
 }
 
 #if HAVE_OLED
-char const* getSourceDisplayNameForOLED(int s) {
+char const* getSourceDisplayNameForOLED(PatchSource s) {
 	switch (s) {
-	case PATCH_SOURCE_LFO_GLOBAL:
+	case PatchSource::LFO_GLOBAL:
 		return "LFO1";
 
-	case PATCH_SOURCE_LFO_LOCAL:
+	case PatchSource::LFO_LOCAL:
 		return "LFO2";
 
-	case PATCH_SOURCE_ENVELOPE_0:
+	case PatchSource::ENVELOPE_0:
 		return "Envelope 1";
 
-	case PATCH_SOURCE_ENVELOPE_1:
+	case PatchSource::ENVELOPE_1:
 		return "Envelope 2";
 
-	case PATCH_SOURCE_VELOCITY:
+	case PatchSource::VELOCITY:
 		return "Velocity";
 
-	case PATCH_SOURCE_NOTE:
+	case PatchSource::NOTE:
 		return "Note";
 
-	case PATCH_SOURCE_COMPRESSOR:
+	case PatchSource::COMPRESSOR:
 		return "Sidechain";
 
-	case PATCH_SOURCE_RANDOM:
+	case PatchSource::RANDOM:
 		return "Random";
 
-	case PATCH_SOURCE_AFTERTOUCH:
+	case PatchSource::AFTERTOUCH:
 		return "Aftertouch";
 
-	case PATCH_SOURCE_X:
+	case PatchSource::X:
 		return "MPE X";
 
-	case PATCH_SOURCE_Y:
+	case PatchSource::Y:
 		return "MPE Y";
 
 	default:
@@ -468,13 +468,14 @@ char const* getPatchedParamDisplayNameForOled(int p) {
 }
 #endif
 
-uint8_t stringToSource(char const* string) {
-	for (int s = 0; s < NUM_PATCH_SOURCES; s++) {
-		if (!strcmp(string, sourceToString(s))) {
-			return s;
+PatchSource stringToSource(char const* string) {
+	for (int s = 0; s < kNumPatchSources; s++) {
+		auto patchSource = static_cast<PatchSource>(s);
+		if (!strcmp(string, sourceToString(patchSource))) {
+			return patchSource;
 		}
 	}
-	return PATCH_SOURCE_NONE;
+	return PatchSource::NONE;
 }
 
 bool paramNeedsLPF(int p, bool fromAutomation) {

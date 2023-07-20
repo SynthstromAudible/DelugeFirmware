@@ -65,11 +65,27 @@ using namespace menu_item;
 #define comingSoonMenu (MenuItem*)0xFFFFFFFF
 
 // 255 means none. 254 means soon
-uint8_t modSourceShortcuts[2][8] = {
-    {255, 255, 255, 255, 255, PATCH_SOURCE_LFO_GLOBAL, PATCH_SOURCE_ENVELOPE_0, PATCH_SOURCE_X},
-
-    {PATCH_SOURCE_AFTERTOUCH, PATCH_SOURCE_VELOCITY, PATCH_SOURCE_RANDOM, PATCH_SOURCE_NOTE, PATCH_SOURCE_COMPRESSOR,
-     PATCH_SOURCE_LFO_LOCAL, PATCH_SOURCE_ENVELOPE_1, PATCH_SOURCE_Y},
+PatchSource modSourceShortcuts[2][8] = {
+    {
+        PatchSource::NOT_AVAILABLE,
+        PatchSource::NOT_AVAILABLE,
+        PatchSource::NOT_AVAILABLE,
+        PatchSource::NOT_AVAILABLE,
+        PatchSource::NOT_AVAILABLE,
+        PatchSource::LFO_GLOBAL,
+        PatchSource::ENVELOPE_0,
+        PatchSource::X,
+    },
+    {
+        PatchSource::AFTERTOUCH,
+        PatchSource::VELOCITY,
+        PatchSource::RANDOM,
+        PatchSource::NOTE,
+        PatchSource::COMPRESSOR,
+        PatchSource::LFO_LOCAL,
+        PatchSource::ENVELOPE_1,
+        PatchSource::Y,
+    },
 };
 
 void SoundEditor::setShortcutsVersion(int newVersion) {
@@ -100,8 +116,8 @@ void SoundEditor::setShortcutsVersion(int newVersion) {
 		paramShortcutsForSounds[2][7] = &sourceWaveIndexMenu;
 		paramShortcutsForSounds[3][7] = &sourceWaveIndexMenu;
 
-		modSourceShortcuts[0][7] = 255;
-		modSourceShortcuts[1][7] = 255;
+		modSourceShortcuts[0][7] = PatchSource::NOT_AVAILABLE;
+		modSourceShortcuts[1][7] = PatchSource::NOT_AVAILABLE;
 
 		break;
 
@@ -510,8 +526,8 @@ stopThat : {}
 			if (currentParamShorcutX != 255) {
 				for (int x = 0; x < 2; x++) {
 					for (int y = 0; y < displayHeight; y++) {
-						uint8_t source = modSourceShortcuts[x][y];
-						if (source < NUM_PATCH_SOURCES) {
+						PatchSource source = modSourceShortcuts[x][y];
+						if (source < kLastPatchSource) {
 							sourceShortcutBlinkFrequencies[x][y] = currentItem->shouldBlinkPatchingSourceShortcut(
 							    source, &sourceShortcutBlinkColours[x][y]);
 						}
@@ -757,12 +773,12 @@ doSetup:
 			// Shortcut to patch a modulation source to the parameter we're already looking at
 			else if (getCurrentUI() == &soundEditor) {
 
-				uint8_t source = modSourceShortcuts[x - 14][y];
-				if (source == 254) {
+				PatchSource source = modSourceShortcuts[x - 14][y];
+				if (source == PatchSource::SOON) {
 					numericDriver.displayPopup("SOON");
 				}
 
-				if (source >= NUM_PATCH_SOURCES) {
+				if (source >= kLastPatchSource) {
 					return ACTION_RESULT_DEALT_WITH;
 				}
 

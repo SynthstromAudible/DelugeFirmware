@@ -70,10 +70,10 @@ public:
 	virtual uint8_t shouldDrawDotOnName() {
 		return 255;
 	}
-	virtual uint8_t shouldBlinkPatchingSourceShortcut(int s, uint8_t* colour) {
+	virtual uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) {
 		return 255;
 	}
-	virtual MenuItem* patchingSourceShortcutPress(int s, bool previousPressStillActive = false) {
+	virtual MenuItem* patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive = false) {
 		return NULL;
 	} // NULL means do nothing. 0xFFFFFFFF means go up a level
 	virtual void unlearnAction() {

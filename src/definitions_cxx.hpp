@@ -17,6 +17,7 @@
 
 #pragma once
 #include "definitions.h"
+#include "definitions_cxx.hpp"
 
 enum FirmwareVersion {
 	FIRMWARE_OLD = 0,
@@ -255,26 +256,30 @@ enum class EnvelopeStage : uint8_t {
 
 #define NUM_PRIORITY_OPTIONS 3
 
-enum PatchSource {
-	PATCH_SOURCE_LFO_GLOBAL = 0,
-	PATCH_SOURCE_COMPRESSOR = 1,
-	PATCH_SOURCE_ENVELOPE_0 = 2,
-	PATCH_SOURCE_ENVELOPE_1 = 3,
-	PATCH_SOURCE_LFO_LOCAL = 4,
-	PATCH_SOURCE_X = 5,
-	PATCH_SOURCE_Y = 6,
-	PATCH_SOURCE_AFTERTOUCH = 7,
-	PATCH_SOURCE_VELOCITY = 8,
-	PATCH_SOURCE_NOTE = 9,
-	PATCH_SOURCE_RANDOM = 10,
-	NUM_PATCH_SOURCES = 11,
+enum class PatchSource : uint8_t {
+	LFO_GLOBAL,
+	COMPRESSOR,
+	ENVELOPE_0,
+	ENVELOPE_1,
+	LFO_LOCAL,
+	X,
+	Y,
+	AFTERTOUCH,
+	VELOCITY,
+	NOTE,
+	RANDOM,
+	NONE,
+
+	// Used for shortcuts
+	SOON = 254,
+	NOT_AVAILABLE = 255,
 };
+constexpr PatchSource kLastPatchSource = PatchSource::NONE;
+constexpr size_t kNumPatchSources = static_cast<size_t>(kLastPatchSource);
 
-#define PATCH_SOURCE_NONE (NUM_PATCH_SOURCES)
-
-#define FIRST_GLOBAL_SOURCE_WITH_CHANGED_STATUS_AUTOMATICALLY_UPDATED (PATCH_SOURCE_ENVELOPE_0)
-#define FIRST_LOCAL_SOURCE (PATCH_SOURCE_ENVELOPE_0)
-#define FIRST_UNCHANGEABLE_SOURCE (PATCH_SOURCE_VELOCITY)
+constexpr PatchSource FIRST_GLOBAL_SOURCE_WITH_CHANGED_STATUS_AUTOMATICALLY_UPDATED = PatchSource::ENVELOPE_0;
+constexpr PatchSource FIRST_LOCAL_SOURCE = PatchSource::ENVELOPE_0;
+constexpr PatchSource FIRST_UNCHANGEABLE_SOURCE = PatchSource::VELOCITY;
 
 // Linear params have different sources multiplied together, then multiplied by the neutral value
 // -- and "volume" ones get squared at the end

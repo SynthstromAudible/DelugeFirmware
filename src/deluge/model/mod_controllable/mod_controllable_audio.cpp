@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "definitions_cxx.hpp"
 #include "processing/engines/audio_engine.h"
 #include "modulation/params/param_manager.h"
 #include "processing/sound/sound.h"
@@ -1241,8 +1242,8 @@ doReadPatchedParam:
 				uint8_t ccNumber;
 				bool relative;
 				uint8_t p = PARAM_NONE;
-				uint8_t s = 255;
-				uint8_t s2 = 255;
+				PatchSource s = PatchSource::NOT_AVAILABLE;
+				PatchSource s2 = PatchSource::NOT_AVAILABLE;
 
 				while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 					if (!strcmp(tagName, "device")) {
@@ -1277,10 +1278,10 @@ doReadPatchedParam:
 						newKnob->midiInput.noteOrCC = ccNumber;
 						newKnob->relative = relative;
 
-						if (s == 255) {
+						if (s == PatchSource::NOT_AVAILABLE) {
 							newKnob->paramDescriptor.setToHaveParamOnly(p);
 						}
-						else if (s2 == 255) {
+						else if (s2 == PatchSource::NOT_AVAILABLE) {
 							newKnob->paramDescriptor.setToHaveParamAndSource(p, s);
 						}
 						else {

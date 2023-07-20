@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #include "regular.h"
+#include "definitions_cxx.hpp"
 #include "hid/buttons.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "gui/menu_item/patch_cable_strength/range.h"
@@ -49,7 +50,7 @@ ParamDescriptor Regular::getDestinationDescriptor() {
 	return paramDescriptor;
 }
 
-uint8_t Regular::getS() {
+PatchSource Regular::getS() {
 	return source_selection::regularMenu.s;
 }
 
@@ -69,7 +70,7 @@ int Regular::checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRa
 	return PatchCableStrength::checkPermissionToBeginSession(sound, whichThing, currentRange);
 }
 
-uint8_t Regular::shouldBlinkPatchingSourceShortcut(int s, uint8_t* colour) {
+uint8_t Regular::shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) {
 
 	// If this is the actual source we're editing for...
 	if (s == getS()) {
@@ -87,7 +88,7 @@ uint8_t Regular::shouldBlinkPatchingSourceShortcut(int s, uint8_t* colour) {
 	return 255;
 }
 
-MenuItem* Regular::patchingSourceShortcutPress(int s, bool previousPressStillActive) {
+MenuItem* Regular::patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive) {
 	if (previousPressStillActive) {
 		source_selection::rangeMenu.s = s;
 		return &patch_cable_strength::rangeMenu;

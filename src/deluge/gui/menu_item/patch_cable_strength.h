@@ -33,7 +33,7 @@ public:
 	virtual int getDefaultEditPos() { return 2; }
 	virtual int checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange);
 	virtual ParamDescriptor getDestinationDescriptor() = 0;
-	virtual uint8_t getS() = 0;
+	virtual PatchSource getS() = 0;
 	uint8_t getIndexOfPatchedParamToBlink() final;
 	MenuItem* selectButtonPress();
 #if HAVE_OLED

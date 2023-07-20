@@ -378,7 +378,7 @@ MenuItem* bendMenuItems[] = {&mainBendRangeMenu, &perFingerBendRangeMenu, NULL};
 
 sidechain::Send sidechainSendMenu{"Send to sidechain"};
 compressor::VolumeShortcut compressorVolumeShortcutMenu{"Volume ducking", PARAM_GLOBAL_VOLUME_POST_REVERB_SEND,
-                                                        PATCH_SOURCE_COMPRESSOR};
+                                                        PatchSource::COMPRESSOR};
 reverb::compressor::Volume reverbCompressorVolumeMenu{"Volume ducking"};
 sidechain::Sync sidechainSyncMenu{"SYNC"};
 compressor::Attack compressorAttackMenu{"ATTACK"};
@@ -665,7 +665,7 @@ patched_param::IntegerNonFM noiseMenu{HAVE_OLED ? "Noise level" : "NOISE", PARAM
 
 MasterTranspose masterTransposeMenu{HAVE_OLED ? "Master transpose" : "TRANSPOSE"};
 
-patch_cable_strength::Fixed vibratoMenu{"VIBRATO", PARAM_LOCAL_PITCH_ADJUST, PATCH_SOURCE_LFO_GLOBAL};
+patch_cable_strength::Fixed vibratoMenu{"VIBRATO", PARAM_LOCAL_PITCH_ADJUST, PatchSource::LFO_GLOBAL};
 
 // Drum only
 menu_item::DrumName drumNameMenu{"NAME"};

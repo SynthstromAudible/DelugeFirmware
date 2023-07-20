@@ -208,12 +208,12 @@ int32_t getFinalParameterValueExpWithDumbEnvelopeHack(int32_t paramNeutralValue,
 void addAudio(StereoSample* inputBuffer, StereoSample* outputBuffer, int numSamples);
 
 #if HAVE_OLED
-char const* getSourceDisplayNameForOLED(int s);
+char const* getSourceDisplayNameForOLED(PatchSource s);
 char const* getPatchedParamDisplayNameForOled(int p);
 #endif
 
-char const* sourceToString(uint8_t source);
-uint8_t stringToSource(char const* string);
+char const* sourceToString(PatchSource source);
+PatchSource stringToSource(char const* string);
 bool paramNeedsLPF(int p, bool fromAutomation);
 int32_t shiftVolumeByDB(int32_t oldValue, float offset);
 int32_t quickLog(uint32_t input);

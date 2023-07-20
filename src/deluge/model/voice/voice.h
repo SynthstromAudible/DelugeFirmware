@@ -43,8 +43,9 @@ public:
 	Sound* assignedToSound;
 
 	int32_t paramFinalValues[FIRST_GLOBAL_PARAM]; // This is just for the *local* params, specific to this Voice only
-	int32_t sourceValues
-	    [NUM_PATCH_SOURCES]; // At the start of this list are local copies of the "global" ones. It's cheaper to copy them here than to pick and choose where the Patcher looks for them
+
+	// At the start of this list are local copies of the "global" ones. It's cheaper to copy them here than to pick and choose where the Patcher looks for them
+	int32_t sourceValues[kNumPatchSources];
 
 	int32_t localExpressionSourceValuesBeforeSmoothing[NUM_EXPRESSION_DIMENSIONS];
 

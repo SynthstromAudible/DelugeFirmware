@@ -27,6 +27,7 @@
 #include "modulation/knob.h"
 #include "modulation/params/param_set.h"
 #include "modulation/params/param_manager.h"
+#include "util/misc.h"
 
 struct CableGroup;
 class StereoSample;
@@ -71,10 +72,9 @@ public:
 
 	Source sources[NUM_SOURCES];
 
-	int32_t paramFinalValues
-	    [NUM_PARAMS
-	     - FIRST_GLOBAL_PARAM]; // This is for the *global* params only, and begins with FIRST_GLOBAL_PARAM, so subtract that from your p value before accessing this array!
-	int32_t globalSourceValues[FIRST_LOCAL_SOURCE];
+	// This is for the *global* params only, and begins with FIRST_GLOBAL_PARAM, so subtract that from your p value before accessing this array!
+	int32_t paramFinalValues[NUM_PARAMS - FIRST_GLOBAL_PARAM];
+	int32_t globalSourceValues[util::to_underlying(FIRST_LOCAL_SOURCE)];
 
 	uint32_t sourcesChanged; // Applies from first source up to FIRST_UNCHANGEABLE_SOURCE
 
@@ -153,7 +153,7 @@ public:
 	void ensureParamPresetValueWithoutKnobIsZero(ModelStackWithAutoParam* modelStack);
 	void ensureParamPresetValueWithoutKnobIsZeroWithMinimalDetails(ParamManager* paramManager, int p);
 
-	uint8_t maySourcePatchToParam(uint8_t s, uint8_t p, ParamManager* paramManager);
+	uint8_t maySourcePatchToParam(PatchSource s, uint8_t p, ParamManager* paramManager);
 
 	void setLFOGlobalSyncType(SyncType newType);
 	void setLFOGlobalSyncLevel(SyncLevel newLevel);

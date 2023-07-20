@@ -15,6 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "definitions_cxx.hpp"
+#include "modulation/patch/patch_cable.h"
 #include "processing/engines/audio_engine.h"
 #include "model/clip/instrument_clip.h"
 #include "processing/sound/sound.h"
@@ -29,6 +31,7 @@
 #include "util/algorithm/quick_sorter.h"
 #include "memory/general_memory_allocator.h"
 #include "io/midi/midi_device.h"
+#include "util/misc.h"
 
 extern "C" {
 #include "drivers/uart/uart.h"
@@ -76,14 +79,14 @@ PatchCableSet::~PatchCableSet() {
 	freeDestinationMemory(true);
 }
 
-bool PatchCableSet::isSourcePatchedToSomething(int s) {
+bool PatchCableSet::isSourcePatchedToSomething(PatchSource s) {
 	uint32_t sourcesPatchedToSomething =
 	    sourcesPatchedToAnything[GLOBALITY_LOCAL] | sourcesPatchedToAnything[GLOBALITY_GLOBAL];
-	return sourcesPatchedToSomething & (1 << s);
+	return sourcesPatchedToSomething & (1 << util::to_underlying(s));
 }
 
 // To be called when setupPatching() hasn't been called yet
-bool PatchCableSet::isSourcePatchedToSomethingManuallyCheckCables(int s) {
+bool PatchCableSet::isSourcePatchedToSomethingManuallyCheckCables(PatchSource s) {
 	for (int c = 0; c < numPatchCables; c++) {
 		if (patchCables[c].from == s) {
 			return true;
@@ -218,7 +221,7 @@ goAgainWithoutIncrement:
 		// Remember that this is the first cable for the param
 		destinations[globality][numDestinations[globality]].destinationParamDescriptor = destinationParamDescriptor;
 		destinations[globality][numDestinations[globality]].firstCable = c;
-		uint32_t sources = 1 << patchCables[c].from;
+		uint32_t sources = 1 << util::to_underlying(patchCables[c].from);
 
 		// Go through the rest of the cables and see which ones want grouping with this one (due to same destination descriptor).
 		for (int c2 = c + 1; c2 < numUsablePatchCables; c2++) {
@@ -226,7 +229,7 @@ goAgainWithoutIncrement:
 			// If same destination descriptor...
 			if (patchCables[c2].destinationParamDescriptor == destinationParamDescriptor) {
 
-				sources |= (1 << patchCables[c2].from);
+				sources |= (1 << util::to_underlying(patchCables[c2].from));
 
 				c++; // Always keep c pointing to the first one we haven't investigated yet
 
@@ -309,10 +312,8 @@ goAgainWithoutIncrement:
 				thatDestination->sources |= destination->sources;
 
 				// And, any time the cable whose range we're adjusting recomputes, we need to also recompute its range so that that value is handy.
-				destination->sources |=
-				    1
-				    << destination->destinationParamDescriptor
-				           .getBottomLevelSource(); // TODO: if we ever wanted to allow another level of range-adjustment, this would probably need expanding.
+				// TODO: if we ever wanted to allow another level of range-adjustment, this would probably need expanding.
+				destination->sources |= 1 << util::to_underlying(destination->destinationParamDescriptor.getBottomLevelSource());
 
 				i++;
 			}
@@ -345,7 +346,7 @@ bool PatchCableSet::doesDestinationDescriptorHaveAnyCables(ParamDescriptor desti
 	return false;
 }
 
-bool PatchCableSet::isSourcePatchedToDestinationDescriptorVolumeInspecific(int s,
+bool PatchCableSet::isSourcePatchedToDestinationDescriptorVolumeInspecific(PatchSource s,
                                                                            ParamDescriptor destinationParamDescriptor) {
 	if (destinationParamDescriptor.getJustTheParam() == PARAM_GLOBAL_VOLUME_POST_FX) {
 
@@ -394,7 +395,7 @@ bool PatchCableSet::isAnySourcePatchedToParamVolumeInspecific(ParamDescriptor de
 // Returns the index of the cable going from this source to this param, if one exists - even if it's not usable.
 // If one doesn't exist, it creates one, and this may involve overwriting an unusable one
 // Only need to supply a ModelStack if createIfNotFound == true AND you want to allow setupPatching to be called (which you should, unless you're going to do it yourself).
-uint8_t PatchCableSet::getPatchCableIndex(uint8_t from, ParamDescriptor destinationParamDescriptor,
+uint8_t PatchCableSet::getPatchCableIndex(PatchSource from, ParamDescriptor destinationParamDescriptor,
                                           ModelStackWithParamCollection const* modelStack, bool createIfNotFound) {
 	int c;
 	for (c = 0; c < numPatchCables; c++) {
@@ -479,10 +480,10 @@ bool PatchCableSet::patchCableIsUsable(uint8_t c, ModelStackWithThreeMainThings 
 
 	// If a range-adjusting cable, we'll go by whether the cable that it adjusts is allowed. This is nearly perfect and will eliminate some stuff now.
 	// And our caller will do a further pass to check that the corresponding range-adjust*ed* cable actually exists.
-	int s = ourDescriptor->getTopLevelSource();
+	PatchSource s = ourDescriptor->getTopLevelSource();
 
 	// Or, if not a range-adjusting cable, do the normal thing.
-	if (s == 0xFF) {
+	if (s == PatchSource::NOT_AVAILABLE) {
 		s = patchCables[c].from;
 	}
 	return (((Sound*)modelStack->modControllable)->maySourcePatchToParam(s, p, modelStack->paramManager)
@@ -508,7 +509,7 @@ int32_t PatchCableSet::getModifiedPatchCableAmount(int c, int p) {
 
 		if (p == PARAM_LOCAL_PITCH_ADJUST) {
 			// If patching to master pitch, adjust range so that, on max range, the velocity-editing steps correspond with whole semitones
-			if (patchCables[c].from == PATCH_SOURCE_VELOCITY) {
+			if (patchCables[c].from == PatchSource::VELOCITY) {
 				//output = (output / 3 << 1);
 				output = multiply_32x32_rshift32_rounded(output, 1431655765) << 1;
 			}
@@ -625,7 +626,7 @@ void PatchCableSet::appendParamCollection(ModelStackWithParamCollection* modelSt
 	FOR_EACH_FLAGGED_PARAM(
 	    otherModelStack->summary->whichParamsAreAutomated) // Iterate through the *other* ParamManager's stuff
 
-	int s = otherPatchCableSet->patchCables[c].from;
+	PatchSource s = otherPatchCableSet->patchCables[c].from;
 	int i = getPatchCableIndex(s, otherPatchCableSet->patchCables[c].destinationParamDescriptor);
 
 	if (i != 255) {
@@ -678,7 +679,7 @@ void PatchCableSet::shiftHorizontally(ModelStackWithParamCollection* modelStack,
 	FOR_EACH_PARAM_END
 }
 
-AutoParam* PatchCableSet::getParam(ModelStackWithParamCollection const* modelStack, int s,
+AutoParam* PatchCableSet::getParam(ModelStackWithParamCollection const* modelStack, PatchSource s,
                                    ParamDescriptor destinationParamDescriptor, bool allowCreation) {
 	int index = getPatchCableIndex(s, destinationParamDescriptor, modelStack, allowCreation);
 	if (index == 255) {
@@ -689,7 +690,7 @@ AutoParam* PatchCableSet::getParam(ModelStackWithParamCollection const* modelSta
 
 // Might return a ModelStack with NULL autoParam - check for that!
 ModelStackWithAutoParam* PatchCableSet::getAutoParamFromId(ModelStackWithParamId* modelStack, bool allowCreation) {
-	int s;
+	PatchSource s;
 	ParamDescriptor paramDescriptor;
 	dissectParamId(modelStack->paramId, &paramDescriptor, &s);
 	AutoParam* autoParam = getParam(modelStack, s, paramDescriptor, allowCreation);
@@ -785,8 +786,8 @@ done:
 void PatchCableSet::readPatchCablesFromFile(int32_t readAutomationUpToPos) {
 	numPatchCables = 0;
 
-	int rangeAdjustableCableS =
-	    255; // These are for loading in old-format presets, back when only one "range adjustable cable" was allowed.
+ 	// These are for loading in old-format presets, back when only one "range adjustable cable" was allowed.
+	PatchSource rangeAdjustableCableS = PatchSource::NOT_AVAILABLE;
 	int rangeAdjustableCableP = 255;
 
 	char const* tagName;
@@ -795,7 +796,7 @@ void PatchCableSet::readPatchCablesFromFile(int32_t readAutomationUpToPos) {
 
 			int numCablesAtStartOfThing = numPatchCables;
 
-			int source = PATCH_SOURCE_NONE;
+			PatchSource source = PatchSource::NONE;
 			ParamDescriptor destinationParamDescriptor;
 			destinationParamDescriptor.setToNull();
 			AutoParam tempParam;
@@ -819,7 +820,7 @@ void PatchCableSet::readPatchCablesFromFile(int32_t readAutomationUpToPos) {
 					while (*(tagName = storageManager.readNextTagOrAttributeName())
 					       && numPatchCables < MAX_NUM_PATCH_CABLES - 1) {
 						if (!strcmp(tagName, "patchCable")) {
-							int rangeSource = PATCH_SOURCE_NONE;
+							PatchSource rangeSource = PatchSource::NONE;
 							AutoParam tempRangeParam;
 							while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 								if (!strcmp(tagName, "source")) {
@@ -831,7 +832,7 @@ void PatchCableSet::readPatchCablesFromFile(int32_t readAutomationUpToPos) {
 								storageManager.exitTag();
 							}
 
-							if (rangeSource != PATCH_SOURCE_NONE && tempRangeParam.containsSomething(0)) {
+							if (rangeSource != PatchSource::NONE && tempRangeParam.containsSomething(0)) {
 								// Ensure no previous patch cable matches this combination
 								for (int c = numCablesAtStartOfThing; c < numPatchCables; c++) {
 									if (patchCables[c].from == rangeSource) {
@@ -852,12 +853,12 @@ doneWithThisRangeCable:
 				}
 				storageManager.exitTag();
 			}
-			if (source != PATCH_SOURCE_NONE && !destinationParamDescriptor.isNull() && tempParam.containsSomething(0)) {
+			if (source != PatchSource::NONE && !destinationParamDescriptor.isNull() && tempParam.containsSomething(0)) {
 				// Just make sure this cable is allowed in some capacity
 				// Deactivated because maySourcePatchToParam() is a Sound function, and this probably isn't really necessary anyway
 				//if (maySourcePatchToParam(patchCables[numPatchCables].from, patchCables[numPatchCables].to) == PATCH_CABLE_ACCEPTANCE_DISALLOWED) goto loadNextPatchCable;
 
-				if (source == PATCH_SOURCE_X
+				if (source == PatchSource::X
 				    && destinationParamDescriptor.isSetToParamWithNoSource(
 				        PARAM_LOCAL_PITCH_ADJUST)) { // Because I briefly made this possible in a 3.2.0 alpha.
 					goto abandonThisCable;
@@ -972,12 +973,12 @@ void PatchCableSet::writePatchCablesToFile(bool writeAutomation) {
 	storageManager.writeClosingTag("patchCables");
 }
 
-int PatchCableSet::getParamId(ParamDescriptor destinationParamDescriptor, int s) {
+int PatchCableSet::getParamId(ParamDescriptor destinationParamDescriptor, PatchSource s) {
 	destinationParamDescriptor.addSource(s);
 	return destinationParamDescriptor.data;
 }
 
-void PatchCableSet::dissectParamId(uint32_t paramId, ParamDescriptor* destinationParamDescriptor, int* s) {
+void PatchCableSet::dissectParamId(uint32_t paramId, ParamDescriptor* destinationParamDescriptor, PatchSource* s) {
 	ParamDescriptor paramDescriptor;
 	paramDescriptor.data = paramId;
 
@@ -998,7 +999,7 @@ void PatchCableSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* 
 		int32_t currentValue = modelStack->autoParam->getCurrentValue();
 		bool currentValueChanged = (oldValue != currentValue);
 
-		int s;
+		PatchSource s;
 		ParamDescriptor destinationParamDescriptor;
 		dissectParamId(modelStack->paramId, &destinationParamDescriptor, &s);
 
@@ -1027,7 +1028,7 @@ void PatchCableSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* 
 	}
 
 	if (!haveRedoneSetup && automatedBefore != automatedNow) {
-		int s;
+		PatchSource s;
 		ParamDescriptor destinationParamDescriptor;
 		dissectParamId(modelStack->paramId, &destinationParamDescriptor, &s);
 		int c = getPatchCableIndex(s, destinationParamDescriptor);
@@ -1045,7 +1046,7 @@ void PatchCableSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* 
 }
 
 void PatchCableSet::remotelySwapParamState(AutoParamState* state, ModelStackWithParamId* modelStack) {
-	int s;
+	PatchSource s;
 	ParamDescriptor destinationParamDescriptor;
 	dissectParamId(modelStack->paramId, &destinationParamDescriptor, &s);
 
@@ -1151,7 +1152,7 @@ PatchCable* PatchCableSet::getPatchCableFromVelocityToLevel() {
 	paramDescriptor.setToHaveParamOnly(PARAM_LOCAL_VOLUME);
 
 	int i = getPatchCableIndex(
-	    PATCH_SOURCE_VELOCITY, paramDescriptor, NULL,
+	    PatchSource::VELOCITY, paramDescriptor, NULL,
 	    true); // Uh... ok this could create a cable but won't setupPatching() for it... was that intentional?
 	if (i == 255) {
 		return NULL;

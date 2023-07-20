@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "definitions_cxx.hpp"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
 #include "model/clip/instrument_clip.h"
@@ -52,6 +53,7 @@
 #include "hid/led/indicator_leds.h"
 #include "storage/flash_storage.h"
 #include "modulation/patch/patch_cable_set.h"
+#include "util/misc.h"
 
 extern "C" {
 #include "RZA1/mtu/mtu.h"
@@ -132,8 +134,8 @@ Sound::Sound() : patcher(&patchableInfoForSound) {
 	modKnobs[5][1].paramDescriptor.setToHaveParamOnly(PARAM_GLOBAL_LFO_FREQ);
 
 	modKnobs[4][1].paramDescriptor.setToHaveParamAndSource(PARAM_GLOBAL_VOLUME_POST_REVERB_SEND,
-	                                                       PATCH_SOURCE_COMPRESSOR);
-	modKnobs[5][0].paramDescriptor.setToHaveParamAndSource(PARAM_LOCAL_PITCH_ADJUST, PATCH_SOURCE_LFO_GLOBAL);
+	                                                       PatchSource::COMPRESSOR);
+	modKnobs[5][0].paramDescriptor.setToHaveParamAndSource(PARAM_LOCAL_PITCH_ADJUST, PatchSource::LFO_GLOBAL);
 
 	modKnobs[6][1].paramDescriptor.setToHaveParamOnly(PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_STUTTER_RATE);
 	modKnobs[6][0].paramDescriptor.setToHaveParamOnly(PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_SOUND_PORTA);
@@ -229,7 +231,7 @@ void Sound::setupAsSample(ParamManagerForTimeline* paramManager) {
 	modKnobs[6][0].paramDescriptor.setToHaveParamOnly(PARAM_LOCAL_PITCH_ADJUST);
 
 	paramManager->getPatchCableSet()->numPatchCables = 1;
-	paramManager->getPatchCableSet()->patchCables[0].setup(PATCH_SOURCE_VELOCITY, PARAM_LOCAL_VOLUME,
+	paramManager->getPatchCableSet()->patchCables[0].setup(PatchSource::VELOCITY, PARAM_LOCAL_VOLUME,
 	                                                       getParamFromUserValue(PARAM_STATIC_PATCH_CABLE, 50));
 
 	setupDefaultExpressionPatching(paramManager);
@@ -253,10 +255,10 @@ void Sound::setupAsDefaultSynth(ParamManager* paramManager) {
 	patchedParams->params[PARAM_LOCAL_ENV_1_RELEASE].setCurrentValueBasicForSetup(0xE6666654);
 	patchedParams->params[PARAM_GLOBAL_VOLUME_POST_FX].setCurrentValueBasicForSetup(0x50000000);
 
-	paramManager->getPatchCableSet()->patchCables[0].setup(PATCH_SOURCE_NOTE, PARAM_LOCAL_LPF_FREQ, 0x08F5C28C);
-	paramManager->getPatchCableSet()->patchCables[1].setup(PATCH_SOURCE_ENVELOPE_1, PARAM_LOCAL_LPF_FREQ, 0x1C28F5B8);
-	paramManager->getPatchCableSet()->patchCables[2].setup(PATCH_SOURCE_VELOCITY, PARAM_LOCAL_LPF_FREQ, 0x0F5C28F0);
-	paramManager->getPatchCableSet()->patchCables[3].setup(PATCH_SOURCE_VELOCITY, PARAM_LOCAL_VOLUME, 0x3FFFFFE8);
+	paramManager->getPatchCableSet()->patchCables[0].setup(PatchSource::NOTE, PARAM_LOCAL_LPF_FREQ, 0x08F5C28C);
+	paramManager->getPatchCableSet()->patchCables[1].setup(PatchSource::ENVELOPE_1, PARAM_LOCAL_LPF_FREQ, 0x1C28F5B8);
+	paramManager->getPatchCableSet()->patchCables[2].setup(PatchSource::VELOCITY, PARAM_LOCAL_LPF_FREQ, 0x0F5C28F0);
+	paramManager->getPatchCableSet()->patchCables[3].setup(PatchSource::VELOCITY, PARAM_LOCAL_VOLUME, 0x3FFFFFE8);
 
 	paramManager->getPatchCableSet()->numPatchCables = 4;
 
@@ -279,9 +281,9 @@ void Sound::possiblySetupDefaultExpressionPatching(ParamManager* paramManager) {
 
 	if (storageManager.firmwareVersionOfFileBeingRead < FIRMWARE_4P0P0_BETA) {
 
-		if (!paramManager->getPatchCableSet()->isSourcePatchedToSomethingManuallyCheckCables(PATCH_SOURCE_AFTERTOUCH)
-		    && !paramManager->getPatchCableSet()->isSourcePatchedToSomethingManuallyCheckCables(PATCH_SOURCE_X)
-		    && !paramManager->getPatchCableSet()->isSourcePatchedToSomethingManuallyCheckCables(PATCH_SOURCE_Y)) {
+		if (!paramManager->getPatchCableSet()->isSourcePatchedToSomethingManuallyCheckCables(PatchSource::AFTERTOUCH)
+		    && !paramManager->getPatchCableSet()->isSourcePatchedToSomethingManuallyCheckCables(PatchSource::X)
+		    && !paramManager->getPatchCableSet()->isSourcePatchedToSomethingManuallyCheckCables(PatchSource::Y)) {
 
 			setupDefaultExpressionPatching(paramManager);
 		}
@@ -295,7 +297,7 @@ void Sound::setupDefaultExpressionPatching(ParamManager* paramManager) {
 		return;
 	}
 	patchCableSet->patchCables[patchCableSet->numPatchCables++].setup(
-	    PATCH_SOURCE_AFTERTOUCH, PARAM_LOCAL_VOLUME, getParamFromUserValue(PARAM_STATIC_PATCH_CABLE, 33));
+	    PatchSource::AFTERTOUCH, PARAM_LOCAL_VOLUME, getParamFromUserValue(PARAM_STATIC_PATCH_CABLE, 33));
 
 	if (patchCableSet->numPatchCables >= MAX_NUM_PATCH_CABLES) {
 		return;
@@ -303,11 +305,11 @@ void Sound::setupDefaultExpressionPatching(ParamManager* paramManager) {
 
 	if (synthMode == SYNTH_MODE_FM) {
 		patchCableSet->patchCables[patchCableSet->numPatchCables++].setup(
-		    PATCH_SOURCE_Y, PARAM_LOCAL_MODULATOR_0_VOLUME, getParamFromUserValue(PARAM_STATIC_PATCH_CABLE, 15));
+		    PatchSource::Y, PARAM_LOCAL_MODULATOR_0_VOLUME, getParamFromUserValue(PARAM_STATIC_PATCH_CABLE, 15));
 	}
 	else {
 		patchCableSet->patchCables[patchCableSet->numPatchCables++].setup(
-		    PATCH_SOURCE_Y, PARAM_LOCAL_LPF_FREQ, getParamFromUserValue(PARAM_STATIC_PATCH_CABLE, 20));
+		    PatchSource::Y, PARAM_LOCAL_LPF_FREQ, getParamFromUserValue(PARAM_STATIC_PATCH_CABLE, 20));
 	}
 }
 
@@ -324,7 +326,7 @@ void Sound::setupAsBlankSynth(ParamManager* paramManager) {
 	patchedParams->params[PARAM_LOCAL_ENV_0_RELEASE].setCurrentValueBasicForSetup(-2147483648);
 
 	paramManager->getPatchCableSet()->numPatchCables = 1;
-	paramManager->getPatchCableSet()->patchCables[0].setup(PATCH_SOURCE_VELOCITY, PARAM_LOCAL_VOLUME,
+	paramManager->getPatchCableSet()->patchCables[0].setup(PatchSource::VELOCITY, PARAM_LOCAL_VOLUME,
 	                                                       getParamFromUserValue(PARAM_STATIC_PATCH_CABLE, 50));
 
 	setupDefaultExpressionPatching(paramManager);
@@ -802,8 +804,8 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 			if (!strcmp(tagName, "modKnob")) {
 
 				uint8_t p = PARAM_NONE;
-				uint8_t s = 255;
-				uint8_t s2 = 255;
+				PatchSource s = PatchSource::NOT_AVAILABLE;
+				PatchSource s2 = PatchSource::NOT_AVAILABLE;
 
 				while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 					if (!strcmp(tagName, "controlsParam")) {
@@ -823,10 +825,10 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 					    && p != PARAM_PLACEHOLDER_RANGE) { // Discard any unlikely "range" ones from before V3.2.0, for complex reasons
 						ModKnob* newKnob = &modKnobs[k][w];
 
-						if (s == 255) {
+						if (s == PatchSource::NOT_AVAILABLE) {
 							newKnob->paramDescriptor.setToHaveParamOnly(p);
 						}
-						else if (s2 == 255) {
+						else if (s2 == PatchSource::NOT_AVAILABLE) {
 							newKnob->paramDescriptor.setToHaveParamAndSource(p, s);
 						}
 						else {
@@ -1158,7 +1160,7 @@ void Sound::ensureKnobReferencesCorrectVolume(Knob* knob) {
 		if (knob->paramDescriptor.isJustAParam()) {
 			knob->paramDescriptor.setToHaveParamOnly(PARAM_GLOBAL_VOLUME_POST_FX);
 		}
-		else if (knob->paramDescriptor.getTopLevelSource() == PATCH_SOURCE_COMPRESSOR) {
+		else if (knob->paramDescriptor.getTopLevelSource() == PatchSource::COMPRESSOR) {
 			knob->paramDescriptor.changeParam(PARAM_GLOBAL_VOLUME_POST_REVERB_SEND);
 		}
 		else {
@@ -1168,13 +1170,13 @@ void Sound::ensureKnobReferencesCorrectVolume(Knob* knob) {
 }
 
 // p=255 means we're just querying the source to see if it can be patched to anything
-uint8_t Sound::maySourcePatchToParam(uint8_t s, uint8_t p, ParamManager* paramManager) {
+uint8_t Sound::maySourcePatchToParam(PatchSource s, uint8_t p, ParamManager* paramManager) {
 
-	if (s == PATCH_SOURCE_NOTE && isDrum()) {
+	if (s == PatchSource::NOTE && isDrum()) {
 		return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
 	}
 
-	if (p != 255 && s != 255 && s >= FIRST_LOCAL_SOURCE && p >= FIRST_GLOBAL_PARAM) {
+	if (p != 255 && s != PatchSource::NOT_AVAILABLE && s >= FIRST_LOCAL_SOURCE && p >= FIRST_GLOBAL_PARAM) {
 		return PATCH_CABLE_ACCEPTANCE_DISALLOWED; // Can't patch local source to global param
 	}
 
@@ -1185,9 +1187,13 @@ uint8_t Sound::maySourcePatchToParam(uint8_t s, uint8_t p, ParamManager* paramMa
 		return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
 
 	case PARAM_LOCAL_VOLUME:
-		return (s != PATCH_SOURCE_ENVELOPE_0
-		        && s != PATCH_SOURCE_ENVELOPE_1 // No envelopes allowed to be patched to volume - this is hardcoded elsewhere
-		        && s != PATCH_SOURCE_COMPRESSOR) // Don't let the compressor patch to local volume - it's supposed to go to global volume
+		return (s != PatchSource::ENVELOPE_0
+		        && s
+		               != PatchSource::
+		                   ENVELOPE_1 // No envelopes allowed to be patched to volume - this is hardcoded elsewhere
+		        && s
+		               != PatchSource::
+		                   COMPRESSOR) // Don't let the compressor patch to local volume - it's supposed to go to global volume
 		           ? PATCH_CABLE_ACCEPTANCE_ALLOWED
 		           : PATCH_CABLE_ACCEPTANCE_DISALLOWED;
 
@@ -1307,13 +1313,13 @@ uint8_t Sound::maySourcePatchToParam(uint8_t s, uint8_t p, ParamManager* paramMa
 		return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
 
 	case PARAM_LOCAL_PITCH_ADJUST:
-		if (s == PATCH_SOURCE_X) {
+		if (s == PatchSource::X) {
 			return PATCH_CABLE_ACCEPTANCE_DISALLOWED; // No patching X to pitch. This happens automatically.
 		}
 		break;
 
 	case PARAM_GLOBAL_VOLUME_POST_REVERB_SEND: // Only the compressor can patch to here
-		if (s != PATCH_SOURCE_COMPRESSOR) {
+		if (s != PatchSource::COMPRESSOR) {
 			return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
 		}
 		break;
@@ -1385,7 +1391,7 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int note
 			Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
 
 			// If we're proper-MONO, or it's releasing OR has no sustain / note tails
-			if (polyphonic == POLYPHONY_MONO || thisVoice->envelopes[0].state >= ENVELOPE_STAGE_RELEASE
+			if (polyphonic == POLYPHONY_MONO || thisVoice->envelopes[0].state >= EnvelopeStage::RELEASE
 			    || !allowNoteTails(
 			        modelStack,
 			        true)) { // allowNoteTails() is very nearly exactly what we want to be calling here, though not named after the thing we're looking for here
@@ -1416,7 +1422,7 @@ justUnassign:
 						}
 					}
 
-					if (thisVoice->envelopes[0].state != ENVELOPE_STAGE_FAST_RELEASE) {
+					if (thisVoice->envelopes[0].state != EnvelopeStage::FAST_RELEASE) {
 						bool stillGoing = thisVoice->doFastRelease();
 
 						if (!stillGoing) {
@@ -1519,7 +1525,7 @@ void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int not
 	for (int v = ends[0]; v < ends[1]; v++) {
 		Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
 		if ((thisVoice->noteCodeAfterArpeggiation == noteCode || noteCode == -32768)
-		    && thisVoice->envelopes[0].state < ENVELOPE_STAGE_RELEASE) { // Don't bother if it's already "releasing"
+		    && thisVoice->envelopes[0].state < EnvelopeStage::RELEASE) { // Don't bother if it's already "releasing"
 
 			ArpeggiatorSettings* arpSettings = getArpSettings();
 
@@ -1992,25 +1998,29 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 	ParamManagerForTimeline* paramManager = (ParamManagerForTimeline*)modelStack->paramManager;
 
 	// Do global LFO
-	if (paramManager->getPatchCableSet()->isSourcePatchedToSomething(PATCH_SOURCE_LFO_GLOBAL)) {
-		int32_t old = globalSourceValues[PATCH_SOURCE_LFO_GLOBAL];
-		globalSourceValues[PATCH_SOURCE_LFO_GLOBAL] =
+	if (paramManager->getPatchCableSet()->isSourcePatchedToSomething(PatchSource::LFO_GLOBAL)) {
+		const auto patchSourceLFOGlobalUnderlying = util::to_underlying(PatchSource::LFO_GLOBAL);
+
+		int32_t old = globalSourceValues[patchSourceLFOGlobalUnderlying];
+		globalSourceValues[patchSourceLFOGlobalUnderlying] =
 		    globalLFO.render(numSamples, lfoGlobalWaveType, getGlobalLFOPhaseIncrement());
-		unsigned int anyChange = (old != globalSourceValues[PATCH_SOURCE_LFO_GLOBAL]);
-		sourcesChanged |= anyChange << PATCH_SOURCE_LFO_GLOBAL;
+		unsigned int anyChange = (old != globalSourceValues[patchSourceLFOGlobalUnderlying]);
+		sourcesChanged |= anyChange << patchSourceLFOGlobalUnderlying;
 	}
 
 	// Do compressor
-	if (paramManager->getPatchCableSet()->isSourcePatchedToSomething(PATCH_SOURCE_COMPRESSOR)) {
+	if (paramManager->getPatchCableSet()->isSourcePatchedToSomething(PatchSource::COMPRESSOR)) {
 		if (sideChainHitPending) {
 			compressor.registerHit(sideChainHitPending);
 		}
 
-		int32_t old = globalSourceValues[PATCH_SOURCE_COMPRESSOR];
-		globalSourceValues[PATCH_SOURCE_COMPRESSOR] = compressor.render(
+		const auto patchSourceCompressorUnderlying = util::to_underlying(PatchSource::COMPRESSOR);
+
+		int32_t old = globalSourceValues[patchSourceCompressorUnderlying];
+		globalSourceValues[patchSourceCompressorUnderlying] = compressor.render(
 		    numSamples, paramManager->getUnpatchedParamSet()->getValue(PARAM_UNPATCHED_COMPRESSOR_SHAPE));
-		unsigned int anyChange = (old != globalSourceValues[PATCH_SOURCE_COMPRESSOR]);
-		sourcesChanged |= anyChange << PATCH_SOURCE_COMPRESSOR;
+		unsigned int anyChange = (old != globalSourceValues[patchSourceCompressorUnderlying]);
+		sourcesChanged |= anyChange << patchSourceCompressorUnderlying;
 	}
 
 	// Perform the actual patching
@@ -2222,7 +2232,7 @@ void Sound::startSkippingRendering(ModelStackWithSoundFlags* modelStack) {
 	timeStartedSkippingRenderingModFX = AudioEngine::audioSampleTimer;
 	timeStartedSkippingRenderingLFO = AudioEngine::audioSampleTimer;
 	timeStartedSkippingRenderingArp = AudioEngine::audioSampleTimer;
-	// compressor.status = ENVELOPE_STAGE_OFF; // Was this doing anything? Have removed, to make all of this completely reversible without doing anything
+	// compressor.status = EnvelopeStage::OFF; // Was this doing anything? Have removed, to make all of this completely reversible without doing anything
 
 	setSkippingRendering(true);
 
@@ -2250,7 +2260,7 @@ void Sound::stopSkippingRendering(ArpeggiatorSettings* arpSettings) {
 			getArpBackInTimeAfterSkippingRendering(arpSettings);
 
 			// Do sidechain compressor
-			//if (paramManager->getPatchCableSet()->isSourcePatchedToSomething(PATCH_SOURCE_COMPRESSOR)) {
+			//if (paramManager->getPatchCableSet()->isSourcePatchedToSomething(PatchSource::COMPRESSOR)) {
 			compressor.registerHitRetrospectively(AudioEngine::sizeLastSideChainHit,
 			                                      AudioEngine::audioSampleTimer - AudioEngine::timeLastSideChainHit);
 			//}
@@ -3902,7 +3912,7 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 
 	// Switch sidechain sync level
 	else if (ourModKnob->paramDescriptor.hasJustOneSource()
-	         && ourModKnob->paramDescriptor.getTopLevelSource() == PATCH_SOURCE_COMPRESSOR) {
+	         && ourModKnob->paramDescriptor.getTopLevelSource() == PatchSource::COMPRESSOR) {
 		if (on) {
 			int insideWorldTickMagnitude;
 			if (currentSong) { // Bit of a hack just referring to currentSong in here...
@@ -4007,7 +4017,7 @@ void Sound::wontBeRenderedForAWhile() {
 	unassignAllVoices(); // Can't remember if this is always necessary, but it is when this is called from Instrumentclip::detachFromInstrument()
 
 	getArp()->reset(); // Surely this shouldn't be quite necessary?
-	compressor.status = ENVELOPE_STAGE_OFF;
+	compressor.status = EnvelopeStage::OFF;
 
 	reassessRenderSkippingStatus(NULL, true); // Tell it to just cut the MODFX tail - we needa change status urgently!
 

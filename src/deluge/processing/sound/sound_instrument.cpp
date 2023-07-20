@@ -31,6 +31,7 @@
 #include "model/voice/voice.h"
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
+#include "util/misc.h"
 
 SoundInstrument::SoundInstrument() : MelodicInstrument(InstrumentType::SYNTH) {
 }
@@ -291,7 +292,7 @@ void SoundInstrument::monophonicExpressionEvent(int newValue, int whichExpressio
 // Note, this virtual function actually overrides/implements from two base classes - MelodicInstrument and ModControllable.
 void SoundInstrument::polyphonicExpressionEventOnChannelOrNote(int newValue, int whichExpressionDimension,
                                                                int channelOrNoteNumber, int whichCharacteristic) {
-	int s = whichExpressionDimension + PATCH_SOURCE_X;
+	int s = whichExpressionDimension + util::to_underlying(PatchSource::X);
 
 	//sourcesChanged |= 1 << s; // We'd ideally not want to apply this to all voices though...
 

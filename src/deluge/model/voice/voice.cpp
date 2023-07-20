@@ -48,6 +48,7 @@
 #include "modulation/patch/patch_cable_set.h"
 #include "model/clip/instrument_clip.h"
 #include "storage/flash_storage.h"
+#include "util/misc.h"
 
 extern "C" {
 #include "drivers/ssi/ssi.h"
@@ -117,13 +118,13 @@ bool Voice::noteOn(ModelStackWithVoice* modelStack, int newNoteCodeBeforeArpeggi
 	overrideAmplitudeEnvelopeReleaseRate = 0;
 
 	if (newNoteCodeAfterArpeggiation >= 128) {
-		sourceValues[PATCH_SOURCE_NOTE] = 2147483647;
+		sourceValues[util::to_underlying(PatchSource::NOTE)] = 2147483647;
 	}
 	else if (newNoteCodeAfterArpeggiation <= 0) {
-		sourceValues[PATCH_SOURCE_NOTE] = -2147483648u;
+		sourceValues[util::to_underlying(PatchSource::NOTE)] = -2147483648u;
 	}
 	else {
-		sourceValues[PATCH_SOURCE_NOTE] = ((int32_t)newNoteCodeAfterArpeggiation - 64) * 33554432;
+		sourceValues[util::to_underlying(PatchSource::NOTE)] = ((int32_t)newNoteCodeAfterArpeggiation - 64) * 33554432;
 	}
 
 	ParamManagerForTimeline* paramManager = (ParamManagerForTimeline*)modelStack->paramManager;
@@ -146,17 +147,17 @@ bool Voice::noteOn(ModelStackWithVoice* modelStack, int newNoteCodeBeforeArpeggi
 
 	// Setup and render local LFO
 	lfo.phase = getLFOInitialPhaseForNegativeExtreme(sound->lfoLocalWaveType);
-	sourceValues[PATCH_SOURCE_LFO_LOCAL] = lfo.render(0, sound->lfoLocalWaveType, 0);
+	sourceValues[util::to_underlying(PatchSource::LFO_LOCAL)] = lfo.render(0, sound->lfoLocalWaveType, 0);
 
 	// Setup some sources which won't change for the duration of this note
-	sourceValues[PATCH_SOURCE_VELOCITY] = (velocity == 128) ? 2147483647 : ((int32_t)velocity - 64) * 33554432;
+	sourceValues[util::to_underlying(PatchSource::VELOCITY)] = (velocity == 128) ? 2147483647 : ((int32_t)velocity - 64) * 33554432;
 
 	// "Random" source
-	sourceValues[PATCH_SOURCE_RANDOM] = getNoise();
+	sourceValues[util::to_underlying(PatchSource::RANDOM)] = getNoise();
 
 	for (int m = 0; m < NUM_EXPRESSION_DIMENSIONS; m++) {
 		localExpressionSourceValuesBeforeSmoothing[m] = mpeValues[m] << 16;
-		sourceValues[PATCH_SOURCE_X + m] = combineExpressionValues(sound, m);
+		sourceValues[util::to_underlying(PatchSource::X) + m] = combineExpressionValues(sound, m);
 	}
 
 	if (resetEnvelopes) {
@@ -187,14 +188,14 @@ bool Voice::noteOn(ModelStackWithVoice* modelStack, int newNoteCodeBeforeArpeggi
 	// Remember, calculating that initial value also takes into account the "preset value".
 	// This probably isn't strictly necessary for sources which we know will be constantly changing, because that would make patching constantly calculate too. But that's only
 	// really the envelopes, plus the LFOs (just the local one?) if they're not square
-	for (int s = 0; s < FIRST_LOCAL_SOURCE; s++) {
+	for (int s = 0; s < util::to_underlying(FIRST_LOCAL_SOURCE); s++) {
 		sourceValues[s] = sound->globalSourceValues[s];
 	}
 	patcher.performInitialPatching(sound, paramManager);
 
 	// Setup and render envelopes - again. Because they're local params (since mid-late 2017), we really need to render them *after* initial patching is performed.
 	for (int e = 0; e < numEnvelopes; e++) {
-		sourceValues[PATCH_SOURCE_ENVELOPE_0 + e] = envelopes[e].noteOn(e, sound, this);
+		sourceValues[util::to_underlying(PatchSource::ENVELOPE_0) + e] = envelopes[e].noteOn(e, sound, this);
 	}
 
 	if (resetEnvelopes) {
@@ -324,7 +325,7 @@ activenessDetermined:
 }
 
 void Voice::expressionEventImmediate(Sound* sound, int32_t voiceLevelValue, int s) {
-	int whichExpressionDimension = s - PATCH_SOURCE_X;
+	int whichExpressionDimension = s - util::to_underlying(PatchSource::X);
 	localExpressionSourceValuesBeforeSmoothing[whichExpressionDimension] = voiceLevelValue;
 	whichExpressionSourcesFinalValueChanged |= (1 << whichExpressionDimension);
 
@@ -332,7 +333,7 @@ void Voice::expressionEventImmediate(Sound* sound, int32_t voiceLevelValue, int 
 }
 
 void Voice::expressionEventSmooth(int32_t newValue, int s) {
-	int whichExpressionDimension = s - PATCH_SOURCE_X;
+	int whichExpressionDimension = s - util::to_underlying(PatchSource::X);
 	localExpressionSourceValuesBeforeSmoothing[whichExpressionDimension] = newValue;
 	whichExpressionSourcesCurrentlySmoothing |= (1 << whichExpressionDimension);
 }
@@ -683,31 +684,31 @@ bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int nu
 	for (int e = 0; e < numEnvelopes; e++) {
 		if (e == 0
 		    || (paramManager->getPatchCableSet()->sourcesPatchedToAnything[GLOBALITY_LOCAL]
-		        & (1 << (PATCH_SOURCE_ENVELOPE_0 + e)))) {
-			int32_t old = sourceValues[PATCH_SOURCE_ENVELOPE_0 + e];
+		        & (1 << (util::to_underlying(PatchSource::ENVELOPE_0) + e)))) {
+			int32_t old = sourceValues[util::to_underlying(PatchSource::ENVELOPE_0) + e];
 			int32_t release = paramFinalValues[PARAM_LOCAL_ENV_0_RELEASE + e];
 			if (e == 0 && overrideAmplitudeEnvelopeReleaseRate) {
 				release = overrideAmplitudeEnvelopeReleaseRate;
 			}
-			sourceValues[PATCH_SOURCE_ENVELOPE_0 + e] =
+			sourceValues[util::to_underlying(PatchSource::ENVELOPE_0) + e] =
 			    envelopes[e].render(numSamples, paramFinalValues[PARAM_LOCAL_ENV_0_ATTACK + e],
 			                        paramFinalValues[PARAM_LOCAL_ENV_0_DECAY + e],
 			                        paramFinalValues[PARAM_LOCAL_ENV_0_SUSTAIN + e], release, decayTableSmall8);
-			unsigned int anyChange = (old != sourceValues[PATCH_SOURCE_ENVELOPE_0 + e]);
-			sourcesChanged |= anyChange << (PATCH_SOURCE_ENVELOPE_0 + e);
+			unsigned int anyChange = (old != sourceValues[util::to_underlying(PatchSource::ENVELOPE_0) + e]);
+			sourcesChanged |= anyChange << (util::to_underlying(PatchSource::ENVELOPE_0) + e);
 		}
 	}
 
 	bool unassignVoiceAfter =
 	    (envelopes[0].state
-	     == EnvelopeStage::OFF); //(envelopes[0].state >= EnvelopeStage::DECAY && localSourceValues[PATCH_SOURCE_ENVELOPE_0 - FIRST_LOCAL_SOURCE] == -2147483648);
+	     == EnvelopeStage::OFF); //(envelopes[0].state >= EnvelopeStage::DECAY && localSourceValues[PatchSource::ENVELOPE_0 - FIRST_LOCAL_SOURCE] == -2147483648);
 	// Local LFO
-	if (paramManager->getPatchCableSet()->sourcesPatchedToAnything[GLOBALITY_LOCAL] & (1 << PATCH_SOURCE_LFO_LOCAL)) {
-		int32_t old = sourceValues[PATCH_SOURCE_LFO_LOCAL];
-		sourceValues[PATCH_SOURCE_LFO_LOCAL] =
+	if (paramManager->getPatchCableSet()->sourcesPatchedToAnything[GLOBALITY_LOCAL] & (1 << util::to_underlying(PatchSource::LFO_LOCAL))) {
+		int32_t old = sourceValues[util::to_underlying(PatchSource::LFO_LOCAL)];
+		sourceValues[util::to_underlying(PatchSource::LFO_LOCAL)] =
 		    lfo.render(numSamples, sound->lfoLocalWaveType, paramFinalValues[PARAM_LOCAL_LFO_LOCAL_FREQ]);
-		unsigned int anyChange = (old != sourceValues[PATCH_SOURCE_LFO_LOCAL]);
-		sourcesChanged |= anyChange << PATCH_SOURCE_LFO_LOCAL;
+		unsigned int anyChange = (old != sourceValues[util::to_underlying(PatchSource::LFO_LOCAL)]);
+		sourcesChanged |= anyChange << util::to_underlying(PatchSource::LFO_LOCAL);
 	}
 
 	// MPE params
@@ -722,26 +723,26 @@ bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int nu
 
 				int32_t targetValue = combineExpressionValues(sound, i);
 
-				int32_t diff = (targetValue >> 8) - (sourceValues[i + PATCH_SOURCE_X] >> 8);
+				int32_t diff = (targetValue >> 8) - (sourceValues[i + util::to_underlying(PatchSource::X)] >> 8);
 
 				if (diff == 0) {
 					whichExpressionSourcesCurrentlySmoothing &= ~(1 << i);
 				}
 				else {
 					int32_t amountToAdd = diff * numSamples;
-					sourceValues[i + PATCH_SOURCE_X] += amountToAdd;
+					sourceValues[i + util::to_underlying(PatchSource::X)] += amountToAdd;
 				}
 			}
 		}
 	}
 
-	sourcesChanged |= whichExpressionSourcesFinalValueChanged << PATCH_SOURCE_X;
+	sourcesChanged |= whichExpressionSourcesFinalValueChanged << util::to_underlying(PatchSource::X);
 
 	whichExpressionSourcesFinalValueChanged = 0;
 
 	// Patch all the sources to their parameters
 	if (sourcesChanged) {
-		for (int s = 0; s < FIRST_LOCAL_SOURCE; s++) {
+		for (int s = 0; s < util::to_underlying(FIRST_LOCAL_SOURCE); s++) {
 			sourceValues[s] = sound->globalSourceValues[s];
 		}
 		patcher.performPatching(sourcesChanged, sound, paramManager);
@@ -909,7 +910,7 @@ skipAutoRelease : {}
 	// Apply envelope 0 to volume. This takes effect as a cut only; when the envelope is at max height, volume is unaffected.
 	// Important that we use lshiftAndSaturate here - otherwise, number can overflow if combining high velocity patching with big LFO
 	int32_t overallOscAmplitude = lshiftAndSaturate<2>(multiply_32x32_rshift32(
-	    paramFinalValues[PARAM_LOCAL_VOLUME], (sourceValues[PATCH_SOURCE_ENVELOPE_0] >> 1) + 1073741824));
+	    paramFinalValues[PARAM_LOCAL_VOLUME], (sourceValues[util::to_underlying(PatchSource::ENVELOPE_0)] >> 1) + 1073741824));
 
 	// This is the gain which gets applied to compensate for any change in gain that the filter is going to cause
 	int32_t filterGain;
@@ -2121,22 +2122,22 @@ pitchTooHigh:
 						                                                                  + s)) {
 
 							// And if it's an envelope or LFO or random...
-							if (cable->from == PATCH_SOURCE_ENVELOPE_0 || cable->from == PATCH_SOURCE_ENVELOPE_1
-							    || cable->from == PATCH_SOURCE_LFO_GLOBAL || cable->from == PATCH_SOURCE_LFO_LOCAL
-							    || cable->from == PATCH_SOURCE_RANDOM) {
+							if (cable->from == PatchSource::ENVELOPE_0 || cable->from == PatchSource::ENVELOPE_1
+							    || cable->from == PatchSource::LFO_GLOBAL || cable->from == PatchSource::LFO_LOCAL
+							    || cable->from == PatchSource::RANDOM) {
 								goto dontUseCache;
 							}
 
-							else if (cable->from == PATCH_SOURCE_AFTERTOUCH) {
-								if (sourceValues[PATCH_SOURCE_AFTERTOUCH]) {
+							else if (cable->from == PatchSource::AFTERTOUCH) {
+								if (sourceValues[util::to_underlying(PatchSource::AFTERTOUCH)]) {
 									goto dontUseCache;
 								}
 							}
 
 							// TODO: probably need to check for X and Y modulation sources here too...
 
-							else if (cable->from == PATCH_SOURCE_COMPRESSOR) {
-								if (sound->globalSourceValues[PATCH_SOURCE_COMPRESSOR]) {
+							else if (cable->from == PatchSource::COMPRESSOR) {
+								if (sound->globalSourceValues[util::to_underlying(PatchSource::COMPRESSOR)]) {
 									goto dontUseCache;
 								}
 							}

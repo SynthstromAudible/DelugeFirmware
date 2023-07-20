@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #include "regular.h"
+#include "definitions_cxx.hpp"
 #include "gui/menu_item/patch_cable_strength/regular.h"
 #include "modulation/params/param_descriptor.h"
 #include "gui/ui/sound_editor.h"
@@ -50,7 +51,7 @@ void Regular::beginSession(MenuItem* navigatedBackwardFrom) {
 	SourceSelection::beginSession(navigatedBackwardFrom);
 }
 
-MenuItem* Regular::patchingSourceShortcutPress(int newS, bool previousPressStillActive) {
+MenuItem* Regular::patchingSourceShortcutPress(PatchSource newS, bool previousPressStillActive) {
 	s = newS;
 	return &regularMenu;
 }

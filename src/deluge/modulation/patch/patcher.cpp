@@ -16,10 +16,12 @@
  */
 
 #include "modulation/patch/patcher.h"
+#include "definitions_cxx.hpp"
 #include "modulation/params/param_manager.h"
 #include "processing/sound/sound.h"
 #include "model/voice/voice.h"
 #include "modulation/patch/patch_cable_set.h"
+#include "util/misc.h"
 
 extern "C" {
 #include "RZA1/mtu/mtu.h"
@@ -33,8 +35,8 @@ inline int32_t* Patcher::getParamFinalValuesPointer() {
 	return (int32_t*)((uint32_t)this + patchableInfo->paramFinalValuesOffset);
 }
 
-inline int32_t Patcher::getSourceValue(int s) {
-	return ((int32_t*)((uint32_t)this + patchableInfo->sourceValuesOffset))[s];
+inline int32_t Patcher::getSourceValue(PatchSource s) {
+	return ((int32_t*)((uint32_t)this + patchableInfo->sourceValuesOffset))[util::to_underlying(s)];
 }
 
 // If NULL Destination, that means no cables - just the preset value
@@ -214,13 +216,13 @@ inline int32_t Patcher::combineCablesLinearForRangeParam(Destination const* dest
 	// For each patch cable affecting the range of this cable (got that?)
 	for (int c = destination->firstCable; c < destination->endCable; c++) {
 		PatchCable* patchCable = &patchCableSet->patchCables[c];
-		int s = patchCable->from;
+		PatchSource s = patchCable->from;
 		int32_t sourceValue = getSourceValue(s);
 
 		// Special exception: If we're patching aftertouch to range. Normally, unlike other sources, aftertouch goes from 0 to 2147483647.
 		// This is because we want it to have no effect at its negative extreme, which isn't normally what we want.
 		// However, when patched to range, we do want this again, so "transpose" it here.
-		if (s == PATCH_SOURCE_AFTERTOUCH) {
+		if (s == PatchSource::AFTERTOUCH) {
 			sourceValue = (sourceValue - 1073741824) << 1;
 		}
 
@@ -250,7 +252,7 @@ inline int32_t Patcher::combineCablesLinear(Destination const* destination, unsi
 		// For each patch cable affecting this parameter
 		for (int c = destination->firstCable; c < destination->endCable; c++) {
 			PatchCable* patchCable = &patchCableSet->patchCables[c];
-			int s = patchCable->from;
+			PatchSource s = patchCable->from;
 			int32_t sourceValue = getSourceValue(s);
 
 			int32_t cableStrength = patchCable->param.getCurrentValue();

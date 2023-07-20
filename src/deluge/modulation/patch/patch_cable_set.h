@@ -43,14 +43,14 @@ public:
 
 	void setupPatching(ModelStackWithParamCollection const* modelStack);
 	bool doesDestinationDescriptorHaveAnyCables(ParamDescriptor destinationParamDescriptor);
-	uint8_t getPatchCableIndex(uint8_t from, ParamDescriptor destinationParamDescriptor,
+	uint8_t getPatchCableIndex(PatchSource from, ParamDescriptor destinationParamDescriptor,
 	                           ModelStackWithParamCollection const* modelStack = NULL, bool createIfNotFound = false);
 	void deletePatchCable(ModelStackWithParamCollection const* modelStack, uint8_t c);
 	bool patchCableIsUsable(uint8_t c, ModelStackWithThreeMainThings const* modelStack);
 	int32_t getModifiedPatchCableAmount(int c, int p);
 	void removeAllPatchingToParam(ModelStackWithParamCollection* modelStack, uint8_t p);
-	bool isSourcePatchedToSomething(int s);
-	bool isSourcePatchedToSomethingManuallyCheckCables(int s);
+	bool isSourcePatchedToSomething(PatchSource s);
+	bool isSourcePatchedToSomethingManuallyCheckCables(PatchSource s);
 	bool doesParamHaveSomethingPatchedToIt(int p);
 
 	void tickSamples(int numSamples, ModelStackWithParamCollection* modelStack);
@@ -77,10 +77,10 @@ public:
 	                                     ModelStackWithParamCollection* modelStack);
 
 	void remotelySwapParamState(AutoParamState* state, ModelStackWithParamId* modelStack);
-	AutoParam* getParam(ModelStackWithParamCollection const* modelStack, int s,
+	AutoParam* getParam(ModelStackWithParamCollection const* modelStack, PatchSource s,
 	                    ParamDescriptor destinationParamDescriptor, bool allowCreation = false);
 	ModelStackWithAutoParam* getAutoParamFromId(ModelStackWithParamId* modelStack, bool allowCreation = false);
-	static int getParamId(ParamDescriptor destinationParamDescriptor, int s);
+	static int getParamId(ParamDescriptor destinationParamDescriptor, PatchSource s);
 
 	AutoParam* getParam(int paramId);
 
@@ -90,7 +90,7 @@ public:
 
 	int paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack);
 	int32_t knobPosToParamValue(int knobPos, ModelStackWithAutoParam* modelStack);
-	bool isSourcePatchedToDestinationDescriptorVolumeInspecific(int s, ParamDescriptor destinationParamDescriptor);
+	bool isSourcePatchedToDestinationDescriptorVolumeInspecific(PatchSource s, ParamDescriptor destinationParamDescriptor);
 	bool isAnySourcePatchedToParamVolumeInspecific(ParamDescriptor destinationParamDescriptor);
 	void grabVelocityToLevelFromMIDIInput(LearnedMIDI* midiInput);
 	void grabVelocityToLevelFromMIDIDeviceDefinitely(MIDIDevice* device);
@@ -107,7 +107,7 @@ public:
 	Destination* destinations[2];
 
 private:
-	static void dissectParamId(uint32_t paramId, ParamDescriptor* destinationParamDescriptor, int* s);
+	static void dissectParamId(uint32_t paramId, ParamDescriptor* destinationParamDescriptor, PatchSource* s);
 	void swapCables(int c1, int c2);
 	void freeDestinationMemory(bool destructing);
 };

@@ -49,7 +49,7 @@ void PatchCableStrength::renderOLED() {
 
 	int extraY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 0 : 1;
 
-	int s = getS();
+	PatchSource s = getS();
 
 	int yTop = extraY + OLED_MAIN_TOPMOST_PIXEL;
 	int ySpacing;
@@ -80,7 +80,7 @@ void PatchCableStrength::renderOLED() {
 
 		yPixel += ySpacing - 1;
 
-		int s2 = destinationDescriptor.getTopLevelSource();
+		PatchSource s2 = destinationDescriptor.getTopLevelSource();
 		OLED::drawString(getSourceDisplayNameForOLED(s2), TEXT_SPACING_X * 2, yPixel - 3, OLED::oledMainImage[0],
 		                 OLED_MAIN_WIDTH_PIXELS, TEXT_SPACING_X, TEXT_SIZE_Y_UPDATED);
 		yPixel += ySpacing;
@@ -171,7 +171,7 @@ void PatchCableStrength::writeCurrentValue() {
 int PatchCableStrength::checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) {
 
 	ParamDescriptor destinationDescriptor = getDestinationDescriptor();
-	int s = getS();
+	PatchSource s = getS();
 
 	// If patching to another cable's range...
 	if (!destinationDescriptor.isJustAParam()) {

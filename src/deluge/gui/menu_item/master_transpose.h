@@ -38,10 +38,10 @@ public:
 	uint8_t shouldDrawDotOnName() { return PatchedParam::shouldDrawDotOnName(); }
 	uint8_t getPatchedParamIndex() { return PARAM_LOCAL_PITCH_ADJUST; }
 	uint8_t getP() { return PARAM_LOCAL_PITCH_ADJUST; }
-	uint8_t shouldBlinkPatchingSourceShortcut(int s, uint8_t* colour) {
+	uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) override {
 		return PatchedParam::shouldBlinkPatchingSourceShortcut(s, colour);
 	}
-	MenuItem* patchingSourceShortcutPress(int s, bool previousPressStillActive = false) {
+	MenuItem* patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive = false) override {
 		return PatchedParam::patchingSourceShortcutPress(s, previousPressStillActive);
 	}
 #if !HAVE_OLED

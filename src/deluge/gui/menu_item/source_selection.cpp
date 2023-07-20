@@ -16,6 +16,7 @@
 */
 
 #include "source_selection.h"
+#include "definitions_cxx.hpp"
 #include "modulation/params/param_manager.h"
 #include "processing/sound/sound.h"
 #include "gui/ui/sound_editor.h"
@@ -24,14 +25,11 @@
 #include "modulation/patch/patch_cable_set.h"
 
 namespace menu_item {
-const uint8_t sourceMenuContents[] = {
-    PATCH_SOURCE_ENVELOPE_0, PATCH_SOURCE_ENVELOPE_1, PATCH_SOURCE_LFO_GLOBAL, PATCH_SOURCE_LFO_LOCAL,
-    PATCH_SOURCE_VELOCITY,   PATCH_SOURCE_NOTE,       PATCH_SOURCE_COMPRESSOR, PATCH_SOURCE_RANDOM,
-    PATCH_SOURCE_X,          PATCH_SOURCE_Y,          PATCH_SOURCE_AFTERTOUCH,
+const PatchSource sourceMenuContents[] = {
+    PatchSource::ENVELOPE_0, PatchSource::ENVELOPE_1, PatchSource::LFO_GLOBAL, PatchSource::LFO_LOCAL,
+    PatchSource::VELOCITY,   PatchSource::NOTE,       PatchSource::COMPRESSOR, PatchSource::RANDOM,
+    PatchSource::X,          PatchSource::Y,          PatchSource::AFTERTOUCH,
 };
-
-SourceSelection::SourceSelection() {
-}
 
 uint8_t SourceSelection::shouldDrawDotOnValue() {
 	return soundEditor.currentParamManager->getPatchCableSet()->isSourcePatchedToDestinationDescriptorVolumeInspecific(
@@ -57,11 +55,11 @@ void SourceSelection::drawPixelsForOled() {
 	int i = 0;
 
 	while (i < OLED_MENU_NUM_OPTIONS_VISIBLE) {
-		if (thisOption >= NUM_PATCH_SOURCES) {
+		if (thisOption >= kNumPatchSources) {
 			break;
 		}
 
-		int sHere = sourceMenuContents[thisOption];
+		const PatchSource sHere = sourceMenuContents[thisOption];
 
 		if (sourceIsAllowed(sHere)) {
 			itemNames[i] = getSourceDisplayNameForOLED(sHere);
@@ -86,47 +84,47 @@ void SourceSelection::drawPixelsForOled() {
 void SourceSelection::drawValue() {
 	char const* text;
 	switch (sourceMenuContents[soundEditor.currentValue]) {
-	case PATCH_SOURCE_LFO_GLOBAL:
+	case PatchSource::LFO_GLOBAL:
 		text = "LFO1";
 		break;
 
-	case PATCH_SOURCE_LFO_LOCAL:
+	case PatchSource::LFO_LOCAL:
 		text = "LFO2";
 		break;
 
-	case PATCH_SOURCE_ENVELOPE_0:
+	case PatchSource::ENVELOPE_0:
 		text = "ENV1";
 		break;
 
-	case PATCH_SOURCE_ENVELOPE_1:
+	case PatchSource::ENVELOPE_1:
 		text = "ENV2";
 		break;
 
-	case PATCH_SOURCE_COMPRESSOR:
+	case PatchSource::COMPRESSOR:
 		text = "SIDE";
 		break;
 
-	case PATCH_SOURCE_VELOCITY:
+	case PatchSource::VELOCITY:
 		text = "VELOCITY";
 		break;
 
-	case PATCH_SOURCE_NOTE:
+	case PatchSource::NOTE:
 		text = "NOTE";
 		break;
 
-	case PATCH_SOURCE_RANDOM:
+	case PatchSource::RANDOM:
 		text = "RANDOM";
 		break;
 
-	case PATCH_SOURCE_AFTERTOUCH:
+	case PatchSource::AFTERTOUCH:
 		text = "AFTERTOUCH";
 		break;
 
-	case PATCH_SOURCE_X:
+	case PatchSource::X:
 		text = "X";
 		break;
 
-	case PATCH_SOURCE_Y:
+	case PatchSource::Y:
 		text = "Y";
 		break;
 	}
@@ -148,7 +146,7 @@ void SourceSelection::beginSession(MenuItem* navigatedBackwardFrom) {
 		// Scroll pos will be retained from before.
 	}
 	else {
-		int firstAllowedIndex = NUM_PATCH_SOURCES - 1;
+		int firstAllowedIndex = kNumPatchSources - 1;
 		while (true) {
 			s = sourceMenuContents[soundEditor.currentValue];
 
@@ -168,7 +166,7 @@ void SourceSelection::beginSession(MenuItem* navigatedBackwardFrom) {
 			scrollPos = soundEditor.currentValue;
 #endif
 
-			if (soundEditor.currentValue >= NUM_PATCH_SOURCES) {
+			if (soundEditor.currentValue >= kNumPatchSources) {
 				soundEditor.currentValue = firstAllowedIndex;
 #if HAVE_OLED
 				scrollPos = soundEditor.currentValue;
@@ -199,14 +197,14 @@ void SourceSelection::selectEncoderAction(int offset) {
 		newValue += offset;
 
 #if HAVE_OLED
-		if (newValue >= NUM_PATCH_SOURCES || newValue < 0) {
+		if (newValue >= kNumPatchSources || newValue < 0) {
 			return;
 		}
 #else
-		if (newValue >= NUM_PATCH_SOURCES)
-			newValue -= NUM_PATCH_SOURCES;
+		if (newValue >= kNumPatchSources)
+			newValue -= kNumPatchSources;
 		else if (newValue < 0)
-			newValue += NUM_PATCH_SOURCES;
+			newValue += kNumPatchSources;
 #endif
 		s = sourceMenuContents[newValue];
 
@@ -228,7 +226,7 @@ void SourceSelection::selectEncoderAction(int offset) {
 #endif
 }
 
-bool SourceSelection::sourceIsAllowed(int source) {
+bool SourceSelection::sourceIsAllowed(PatchSource source) {
 	ParamDescriptor destinationDescriptor = getDestinationDescriptor();
 
 	// If patching to another cable's range...
@@ -270,7 +268,7 @@ uint8_t SourceSelection::getIndexOfPatchedParamToBlink() {
 	return soundEditor.patchingParamSelected;
 }
 
-uint8_t SourceSelection::shouldBlinkPatchingSourceShortcut(int s, uint8_t* colour) {
+uint8_t SourceSelection::shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) {
 	return soundEditor.currentParamManager->getPatchCableSet()->isSourcePatchedToDestinationDescriptorVolumeInspecific(
 	           s, getDestinationDescriptor())
 	           ? 3

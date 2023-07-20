@@ -1068,7 +1068,7 @@ void updateReverbParams() {
 
 			PatchCableSet* patchCableSet = paramManagerWithMostReverb->getPatchCableSet();
 
-			int whichCable = patchCableSet->getPatchCableIndex(PATCH_SOURCE_COMPRESSOR, paramDescriptor);
+			int whichCable = patchCableSet->getPatchCableIndex(PatchSource::COMPRESSOR, paramDescriptor);
 			if (whichCable != 255) {
 				reverbCompressorVolumeInEffect =
 				    patchCableSet->getModifiedPatchCableAmount(whichCable, PARAM_GLOBAL_VOLUME_POST_REVERB_SEND);
