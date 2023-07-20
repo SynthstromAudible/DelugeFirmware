@@ -628,10 +628,10 @@ enum ClusterLoad {
 	CLUSTER_LOAD_IMMEDIATELY_OR_ENQUEUE,
 };
 
-enum ScaleType {
-	SCALE_TYPE_SCALE,
-	SCALE_TYPE_CHROMATIC,
-	SCALE_TYPE_KIT,
+enum class ScaleType {
+	SCALE,
+	CHROMATIC,
+	KIT,
 };
 
 enum ArmState {

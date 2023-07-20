@@ -1007,7 +1007,7 @@ ramError:
 		return;
 	}
 
-	int pastedScaleType = getCurrentClip()->getScaleType();
+	ScaleType pastedScaleType = getCurrentClip()->getScaleType();
 
 	float scaleFactor = (float)pastedScreenWidth / (uint32_t)copiedScreenWidth;
 
@@ -1047,7 +1047,7 @@ ramError:
 	else {
 
 		// If neither the source nor the destination was a kit Clip, and one had a scale and the other didn't, we want to preserve some scale information which we otherwise wouldn't
-		bool shouldPreserveScale = (copiedScaleType != SCALE_TYPE_KIT && copiedScaleType != pastedScaleType);
+		bool shouldPreserveScale = (copiedScaleType != ScaleType::KIT && copiedScaleType != pastedScaleType);
 
 		for (CopiedNoteRow* thisCopiedNoteRow = firstCopiedNoteRow; thisCopiedNoteRow;
 		     thisCopiedNoteRow = thisCopiedNoteRow->next) {

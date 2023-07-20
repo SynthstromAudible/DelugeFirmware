@@ -3275,17 +3275,17 @@ void InstrumentClip::clearArea(ModelStackWithTimelineCounter* modelStack, int32_
 	}
 }
 
-int InstrumentClip::getScaleType() {
+ScaleType InstrumentClip::getScaleType() {
 
 	if (output->type == InstrumentType::KIT) {
-		return SCALE_TYPE_KIT;
+		return ScaleType::KIT;
 	}
 	else {
 		if (inScaleMode) {
-			return SCALE_TYPE_SCALE;
+			return ScaleType::SCALE;
 		}
 		else {
-			return SCALE_TYPE_CHROMATIC;
+			return ScaleType::CHROMATIC;
 		}
 	}
 }

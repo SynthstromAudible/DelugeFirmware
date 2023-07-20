@@ -189,7 +189,7 @@ public:
 	void clear(Action* action, ModelStackWithTimelineCounter* modelStack);
 	bool doesProbabilityExist(int32_t apartFromPos, int probability, int secondProbability = -1);
 	void clearArea(ModelStackWithTimelineCounter* modelStack, int32_t startPos, int32_t endPos, Action* action);
-	int getScaleType();
+	ScaleType getScaleType();
 	void backupPresetSlot();
 	void setPosForParamManagers(ModelStackWithTimelineCounter* modelStack, bool useActualPos = true);
 	ModelStackWithNoteRow* getNoteRowForDrumName(ModelStackWithTimelineCounter* modelStack, char const* name);

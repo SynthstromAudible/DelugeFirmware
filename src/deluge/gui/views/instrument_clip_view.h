@@ -151,7 +151,7 @@ public:
 
 	CopiedNoteRow* firstCopiedNoteRow;
 	int32_t copiedScreenWidth;
-	uint8_t copiedScaleType;
+	ScaleType copiedScaleType;
 	int16_t copiedYNoteOfBottomRow;
 
 	CopiedParamAutomation copiedParamAutomation;
