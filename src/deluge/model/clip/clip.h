@@ -147,7 +147,7 @@ public:
 	const uint8_t type;
 	uint8_t section;
 	bool soloingInSessionMode;
-	uint8_t armState;
+	ArmState armState;
 	bool activeIfNoSolo;
 	bool wasActiveBefore; // A temporary thing used by Song::doLaunch()
 	bool gotInstanceYet;  // For use only while loading song

@@ -80,7 +80,7 @@ int ConsequenceClipExistence::revert(int time, ModelStack* modelStack) {
 		clipArray->insertClipAtIndex(clip, clipIndex);
 
 		clip->activeIfNoSolo = false;   // So we can toggle it back on, below
-		clip->armState = ARM_STATE_OFF; // In case was left on before
+		clip->armState = ArmState::OFF; // In case was left on before
 
 		if (shouldBeActiveWhileExistent && !(playbackHandler.playbackState && currentPlaybackMode == &arrangement)) {
 			session.toggleClipStatus(clip, &clipIndex, true, 0);
@@ -110,7 +110,7 @@ int ConsequenceClipExistence::revert(int time, ModelStack* modelStack) {
 		    clip); // But should we really be calling this without checking the Clip is a session one?
 
 		clip->abortRecording();
-		clip->armState = ARM_STATE_OFF; // Not 100% sure if necessary... probably.
+		clip->armState = ArmState::OFF; // Not 100% sure if necessary... probably.
 
 		clipIndex = clipArray->getIndexForClip(clip);
 		if (clipIndex == -1) {

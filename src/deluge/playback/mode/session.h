@@ -44,7 +44,7 @@ public:
 	void userWantsToArmClipsToStartOrSolo(uint8_t section, Clip* clip, bool stopAllOtherClips,
 	                                      bool forceLateStart = false, bool allowLateStart = true,
 	                                      int numRepeatsTilLaunch = 1, bool allowSubdividedQuantization = true,
-	                                      int armState = ARM_STATE_ON_NORMAL);
+	                                      ArmState armState = ArmState::ON_NORMAL);
 	int investigateSyncedLaunch(Clip* waitForClip, uint32_t* currentPosWithinQuantization, uint32_t* quantization,
 	                            uint32_t longestStartingClipLength, bool allowSubdividedQuantization);
 	bool armForSongSwap();
@@ -52,12 +52,12 @@ public:
 	void armClipsToStartOrSoloWithQuantization(uint32_t pos, uint32_t quantization, uint8_t section,
 	                                           bool stopAllOtherClips, Clip* clip, bool forceLateStart,
 	                                           bool allowLateStart, int numRepeatsTilLaunch,
-	                                           int armState = ARM_STATE_ON_NORMAL);
+	                                           ArmState armState = ArmState::ON_NORMAL);
 	void armClipToStartOrSoloUsingQuantization(Clip* thisClip, bool doLateStart, uint32_t pos,
-	                                           int armState = ARM_STATE_ON_NORMAL,
+	                                           ArmState armState = ArmState::ON_NORMAL,
 	                                           bool mustUnarmOtherClipsWithSameOutput = true);
 	void cancelAllArming();
-	void armClipLowLevel(Clip* loopableToArm, int armState, bool mustUnarmOtherClipsWithSameOutput = true);
+	void armClipLowLevel(Clip* loopableToArm, ArmState armState, bool mustUnarmOtherClipsWithSameOutput = true);
 	int userWantsToArmNextSection(int numRepetitions = -1);
 	int getCurrentSection();
 	bool areAnyClipsArmed();

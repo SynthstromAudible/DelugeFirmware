@@ -2872,7 +2872,7 @@ probablyExitRecordMode:
 		// For each Clip in session
 		for (int c = currentSong->sessionClips.getNumElements() - 1; c >= 0; c--) {
 			Clip* clip = currentSong->sessionClips.getClipAtIndex(c);
-			if (!clip->armState && clip->getCurrentlyRecordingLinearly()) {
+			if (clip->armState == ArmState::OFF && clip->getCurrentlyRecordingLinearly()) {
 				anyGotArmedToStop = true;
 				session.toggleClipStatus(clip, &c, false, MIDI_KEY_INPUT_LATENCY);
 			}

@@ -2822,7 +2822,7 @@ void Song::turnSoloingIntoJustPlaying(bool getRidOfArmingToo) {
 			// Just get rid of arming
 			for (int l = 0; l < sessionClips.getNumElements(); l++) {
 				Clip* loopable = sessionClips.getClipAtIndex(l);
-				loopable->armState = ARM_STATE_OFF;
+				loopable->armState = ArmState::OFF;
 			}
 		}
 		return;
@@ -2837,7 +2837,7 @@ void Song::turnSoloingIntoJustPlaying(bool getRidOfArmingToo) {
 		clip->soloingInSessionMode = false;
 
 		if (getRidOfArmingToo) {
-			clip->armState = ARM_STATE_OFF;
+			clip->armState = ArmState::OFF;
 		}
 	}
 
@@ -4908,7 +4908,7 @@ Clip* Song::getClipWithOutputAboutToBeginLinearRecording(Output* output) {
 	for (int c = 0; c < sessionClips.getNumElements(); c++) {
 		Clip* clip = sessionClips.getClipAtIndex(c);
 
-		if (clip->output == output && clip->armState && !isClipActive(clip)
+		if (clip->output == output && clip->armState  != ArmState::OFF && !isClipActive(clip)
 		    && clip->wantsToBeginLinearRecording(this)) {
 			return clip;
 		}

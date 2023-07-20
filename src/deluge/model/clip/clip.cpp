@@ -46,7 +46,7 @@ uint32_t loopRecordingCandidateRecentnessNextValue = 1;
 
 Clip::Clip(int newType) : type(newType) {
 	soloingInSessionMode = false;
-	armState = ARM_STATE_OFF;
+	armState = ArmState::OFF;
 	activeIfNoSolo = true;
 	wasActiveBefore = false; // Want to set this default in case a Clip was created during playback
 
@@ -105,7 +105,7 @@ void Clip::setupForRecordingAsAutoOverdub(Clip* existingClip, Song* song, int ne
 	loopLength = originalLength = newLength;
 
 	soloingInSessionMode = existingClip->soloingInSessionMode;
-	armState = ARM_STATE_ON_NORMAL;
+	armState = ArmState::ON_NORMAL;
 	activeIfNoSolo = false;
 	wasActiveBefore = false;
 	isPendingOverdub = true;
@@ -113,14 +113,11 @@ void Clip::setupForRecordingAsAutoOverdub(Clip* existingClip, Song* song, int ne
 }
 
 bool Clip::cancelAnyArming() {
-	if (armState) {
-		armState = ARM_STATE_OFF;
+	if (armState != ArmState::OFF) {
+		armState = ArmState::OFF;
+		return true;
 	}
-	else {
-		return false;
-	}
-
-	return true;
+	return false;
 }
 
 int Clip::getMaxZoom() {
@@ -346,7 +343,8 @@ void Clip::setPos(ModelStackWithTimelineCounter* modelStack, int32_t newPos, boo
 
 	currentlyPlayingReversed =
 	    (sequenceDirectionMode
-	         == SequenceDirection::REVERSE // Syncing pingponging with repeatCount is particularly important for when resuming after
+	         == SequenceDirection::
+	             REVERSE // Syncing pingponging with repeatCount is particularly important for when resuming after
 	     || (sequenceDirectionMode == SequenceDirection::PINGPONG
 	         && (repeatCount & 1))); // recording a clone of this Clip from session to arranger.
 

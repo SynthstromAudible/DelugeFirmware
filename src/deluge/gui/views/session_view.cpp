@@ -603,7 +603,7 @@ holdingRecord:
 
 							// If source clip currently recording, arm it to stop (but not if tempoless recording)
 							if (playbackHandler.isEitherClockActive() && sourceClip->getCurrentlyRecordingLinearly()
-							    && !sourceClip->armState) {
+							    && sourceClip->armState  == ArmState::OFF) {
 								session.toggleClipStatus(sourceClip, &clipIndex, false, INTERNAL_BUTTON_PRESS_LATENCY);
 							}
 
@@ -1851,7 +1851,7 @@ void SessionView::graphicsRoutine() {
 				}
 
 				if (newTickSquare >= 0
-				    && (!clip->armState
+				    && (clip->armState == ArmState::OFF
 				        || xScrollBeforeFollowingAutoExtendingLinearRecording
 				               != -1)) { // Only if it's auto extending, or it was before
 					if (newTickSquare < displayWidth) {
@@ -2020,7 +2020,7 @@ void SessionView::flashPlayRoutine() {
 	bool any = false;
 	for (int yDisplay = 0; yDisplay < displayHeight; yDisplay++) {
 		Clip* clip = getClipOnScreen(yDisplay);
-		if (clip && clip->armState) {
+		if ((clip != nullptr) && clip->armState  != ArmState::OFF) {
 			whichRowsNeedReRendering |= (1 << yDisplay);
 		}
 	}

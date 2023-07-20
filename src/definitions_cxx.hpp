@@ -634,10 +634,10 @@ enum class ScaleType {
 	KIT,
 };
 
-enum ArmState {
-	ARM_STATE_OFF,
-	ARM_STATE_ON_NORMAL, // Arming to stop or start normally, or to stop soloing
-	ARM_STATE_ON_TO_SOLO,
+enum class ArmState {
+	OFF,
+	ON_NORMAL, // Arming to stop or start normally, or to stop soloing
+	ON_TO_SOLO,
 };
 
 #define ALPHA_OR_BETA_VERSION 1 // Whether to compile with additional error-checking

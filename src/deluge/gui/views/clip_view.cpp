@@ -339,7 +339,7 @@ int ClipView::getTickSquare() {
 
 		if (newTickSquare == displayWidth && (!currentUIMode || currentUIMode == UI_MODE_AUDITIONING)
 		    && getCurrentUI() == this && // currentPlaybackMode == &session &&
-		    (!getCurrentClip()->armState || xScrollBeforeFollowingAutoExtendingLinearRecording != -1)) {
+		    (getCurrentClip()->armState == ArmState::OFF || xScrollBeforeFollowingAutoExtendingLinearRecording != -1)) {
 
 			if (xScrollBeforeFollowingAutoExtendingLinearRecording == -1) {
 				xScrollBeforeFollowingAutoExtendingLinearRecording = currentSong->xScroll[NAVIGATION_CLIP];

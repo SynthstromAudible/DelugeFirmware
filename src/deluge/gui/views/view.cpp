@@ -1831,14 +1831,14 @@ void View::getClipMuteSquareColour(Clip* clip, uint8_t thisColour[]) {
 		return;
 	}
 
-	if (clipArmFlashOn && clip->armState) {
+	if (clipArmFlashOn && clip->armState  != ArmState::OFF) {
 		thisColour[0] = 0;
 		thisColour[1] = 0;
 		thisColour[2] = 0;
 	}
 
 	// If it's soloed or armed to solo, blue
-	else if (clip->soloingInSessionMode || clip->armState == ARM_STATE_ON_TO_SOLO) {
+	else if (clip->soloingInSessionMode || clip->armState == ArmState::ON_TO_SOLO) {
 		menu_item::soloColourMenu.getRGB(thisColour);
 	}
 
