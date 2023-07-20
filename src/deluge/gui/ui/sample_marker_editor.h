@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "gui/ui/ui.h"
 #include "RZA1/system/r_typedefs.h"
 #include "hid/button.h"
@@ -51,7 +52,7 @@ public:
 #else
 	void displayText();
 #endif
-	int8_t markerType;
+	MarkerType markerType;
 
 	bool blinkInvisible;
 
@@ -59,7 +60,7 @@ public:
 	int8_t pressY;
 
 private:
-	void writeValue(uint32_t value, int markerTypeNow = -2);
+	void writeValue(uint32_t value, MarkerType markerTypeNow = MarkerType::NOT_AVAILABLE);
 	void exitUI();
 
 	int getStartColOnScreen(int32_t unscrolledPos);

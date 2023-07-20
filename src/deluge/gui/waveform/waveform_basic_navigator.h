@@ -36,7 +36,7 @@ public:
 	bool isZoomedIn();
 
 	bool zoom(int offset, bool shouldAllowExtraScrollRight = false, MarkerColumn* cols = NULL,
-	          int markerType = MARKER_NONE);
+	          MarkerType markerType = MarkerType::NONE);
 	bool scroll(int offset, bool shouldAllowExtraScrollRight = false, MarkerColumn* cols = NULL);
 
 	Sample* sample;

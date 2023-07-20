@@ -1791,13 +1791,13 @@ bool Sound::renderingOscillatorSyncEver(ParamManager* paramManager) {
 	        || synthMode == SynthMode::RINGMOD);
 }
 
-void Sound::sampleZoneChanged(int markerType, int s, ModelStackWithSoundFlags* modelStack) {
+void Sound::sampleZoneChanged(MarkerType markerType, int s, ModelStackWithSoundFlags* modelStack) {
 	if (!numVoicesAssigned) {
 		return;
 	}
 
 	if (sources[s].sampleControls.reversed) {
-		markerType = NUM_MARKER_TYPES - 1 - markerType;
+		markerType = static_cast<MarkerType>(kNumMarkerTypes - 1 - util::to_underlying(markerType));
 	}
 
 	int ends[2];

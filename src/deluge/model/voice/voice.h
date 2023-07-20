@@ -35,10 +35,11 @@ public:
 
 	Patcher patcher;
 
-	VoiceUnisonPart
-	    unisonParts[maxNumUnison]; // Stores all oscillator positions and stuff, for each Source within each Unison too
-	VoiceSamplePlaybackGuide guides
-	    [NUM_SOURCES]; // Stores overall info on each Source (basically just sample memory bounds), for the play-through associated with this Voice right now.
+	// Stores all oscillator positions and stuff, for each Source within each Unison too
+	VoiceUnisonPart unisonParts[maxNumUnison];
+
+	// Stores overall info on each Source (basically just sample memory bounds), for the play-through associated with this Voice right now.
+	VoiceSamplePlaybackGuide guides[NUM_SOURCES];
 
 	Sound* assignedToSound;
 
@@ -85,7 +86,7 @@ public:
 	            int32_t externalPitchAdjust);
 
 	void calculatePhaseIncrements(ModelStackWithVoice* modelStack);
-	bool sampleZoneChanged(ModelStackWithVoice* modelStack, int s, int markerType);
+	bool sampleZoneChanged(ModelStackWithVoice* modelStack, int s, MarkerType markerType);
 	bool noteOn(ModelStackWithVoice* modelStack, int newNoteCodeBeforeArpeggiation, int newNoteCodeAfterArpeggiation,
 	            uint8_t velocity, uint32_t newSampleSyncLength, int32_t ticksLate, uint32_t samplesLate,
 	            bool resetEnvelopes, int fromMIDIChannel, const int16_t* mpeValues);

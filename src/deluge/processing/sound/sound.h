@@ -167,7 +167,7 @@ public:
 
 	bool hasFilters();
 
-	void sampleZoneChanged(int markerType, int s, ModelStackWithSoundFlags* modelStack);
+	void sampleZoneChanged(MarkerType markerType, int s, ModelStackWithSoundFlags* modelStack);
 	void setNumUnison(int newNum, ModelStackWithSoundFlags* modelStack);
 	void setUnisonDetune(int newAmount, ModelStackWithSoundFlags* modelStack);
 	void setModulatorTranspose(int m, int value, ModelStackWithSoundFlags* modelStack);

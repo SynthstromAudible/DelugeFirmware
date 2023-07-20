@@ -439,8 +439,8 @@ sequence::Direction sequenceDirectionMenu{HAVE_OLED ? "Play direction" : "DIRECT
 
 // Sample Menu
 audio_clip::Reverse audioClipReverseMenu{"REVERSE"};
-audio_clip::SampleMarkerEditor audioClipSampleMarkerEditorMenuStart{"", MARKER_START};
-audio_clip::SampleMarkerEditor audioClipSampleMarkerEditorMenuEnd{"WAVEFORM", MARKER_END};
+audio_clip::SampleMarkerEditor audioClipSampleMarkerEditorMenuStart{"", MarkerType::START};
+audio_clip::SampleMarkerEditor audioClipSampleMarkerEditorMenuEnd{"WAVEFORM", MarkerType::END};
 
 MenuItem* audioClipSampleMenuItems[] = {&fileSelectorMenu,     &audioClipReverseMenu,
                                         &samplePitchSpeedMenu, &audioClipSampleMarkerEditorMenuEnd,

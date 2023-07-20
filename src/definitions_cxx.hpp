@@ -721,14 +721,15 @@ enum class PgmChangeSend {
 	ONCE,
 };
 
-enum Marker {
-	MARKER_NONE = -1,
-	MARKER_START,
-	MARKER_LOOP_START,
-	MARKER_LOOP_END,
-	MARKER_END,
-	NUM_MARKER_TYPES,
+enum class MarkerType {
+	NOT_AVAILABLE = -2,
+	NONE = -1,
+	START,
+	LOOP_START,
+	LOOP_END,
+	END,
 };
+constexpr int kNumMarkerTypes = util::to_underlying(MarkerType::END) + 1;
 
 enum class InterpolationMode {
 	LINEAR,

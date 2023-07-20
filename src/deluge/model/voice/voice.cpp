@@ -603,7 +603,7 @@ void Voice::noteOff(ModelStackWithVoice* modelStack, bool allowReleaseStage) {
 }
 
 // Returns false if voice needs unassigning now
-bool Voice::sampleZoneChanged(ModelStackWithVoice* modelStack, int s, int markerType) {
+bool Voice::sampleZoneChanged(ModelStackWithVoice* modelStack, int s, MarkerType markerType) {
 
 	AudioFileHolder* holder = guides[s].audioFileHolder;
 	if (!holder) {

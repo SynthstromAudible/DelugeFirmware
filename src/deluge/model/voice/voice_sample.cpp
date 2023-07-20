@@ -1506,17 +1506,17 @@ finishedTimestretchedRead:
 }
 
 // Returns false if became inactive
-bool VoiceSample::sampleZoneChanged(SamplePlaybackGuide* voiceSource, Sample* sample, int markerType, int loopingType,
+bool VoiceSample::sampleZoneChanged(SamplePlaybackGuide* voiceSource, Sample* sample, MarkerType markerType, int loopingType,
                                     int priorityRating, bool forAudioClip) {
 
 	Uart::println("VoiceSample::sampleZoneChanged");
 
 	// If cache, then update cache loop points - but not if it was the start marker that was moved, cos that means we'll stop using cache altogether
-	if (cache && markerType != MARKER_START) {
+	if (cache && markerType != MarkerType::START) {
 		setupCacheLoopPoints(voiceSource, sample, loopingType);
 	}
 
-	if (markerType == MARKER_START) {
+	if (markerType == MarkerType::START) {
 
 		// If cache...
 		if (cache) {
@@ -1529,13 +1529,13 @@ bool VoiceSample::sampleZoneChanged(SamplePlaybackGuide* voiceSource, Sample* sa
 		// If no cache, no action necessary!
 	}
 
-	else if (markerType == MARKER_LOOP_START) {
+	else if (markerType == MarkerType::LOOP_START) {
 		// Everything's fine
 	}
 
-	else if (markerType == MARKER_LOOP_END) {
+	else if (markerType == MarkerType::LOOP_END) {
 
-		Uart::println("MARKER_LOOP_END");
+		Uart::println("MarkerType::LOOP_END");
 		// If cache...
 		if (cache) {
 
@@ -1586,7 +1586,7 @@ loopBackToStartCached:
 		}
 	}
 
-	else if (markerType == MARKER_END) {
+	else if (markerType == MarkerType::END) {
 
 		// If cache...
 		if (cache) {

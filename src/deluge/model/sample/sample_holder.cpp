@@ -138,7 +138,7 @@ void SampleHolder::setAudioFile(AudioFile* newSample, bool reversed, bool manual
 	}
 }
 
-#define MARKER_SAMPLES_BEFORE_TO_CLAIM 150
+constexpr int kMarkerSamplesBeforeToClaim = 150;
 
 // Reassesses which Clusters we want to be a "reason" for.
 // Ensure there is a sample before you call this.
@@ -157,13 +157,13 @@ void SampleHolder::claimClusterReasons(bool reversed, int clusterLoadInstruction
 	int startPlaybackAtSample;
 
 	if (!reversed) {
-		startPlaybackAtSample = (int64_t)startPos - MARKER_SAMPLES_BEFORE_TO_CLAIM;
+		startPlaybackAtSample = (int64_t)startPos - kMarkerSamplesBeforeToClaim;
 		if (startPlaybackAtSample < 0) {
 			startPlaybackAtSample = 0;
 		}
 	}
 	else {
-		startPlaybackAtSample = getEndPos() - 1 + MARKER_SAMPLES_BEFORE_TO_CLAIM;
+		startPlaybackAtSample = getEndPos() - 1 + kMarkerSamplesBeforeToClaim;
 		if (startPlaybackAtSample > ((Sample*)audioFile)->lengthInSamples - 1) {
 			startPlaybackAtSample = ((Sample*)audioFile)->lengthInSamples - 1;
 		}

@@ -42,6 +42,7 @@
 #include "model/model_stack.h"
 #include "playback/playback_handler.h"
 #include "hid/display/oled.h"
+#include "util/misc.h"
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
@@ -116,14 +117,14 @@ bool SampleMarkerEditor::opened() {
 }
 
 void SampleMarkerEditor::recordScrollAndZoom() {
-	if (markerType != MARKER_NONE) {
+	if (markerType != MarkerType::NONE) {
 		getCurrentSampleHolder()->waveformViewScroll = waveformBasicNavigator.xScroll;
 		getCurrentSampleHolder()->waveformViewZoom = waveformBasicNavigator.xZoom;
 	}
 }
 
-void SampleMarkerEditor::writeValue(uint32_t value, int markerTypeNow) {
-	if (markerTypeNow == -2) {
+void SampleMarkerEditor::writeValue(uint32_t value, MarkerType markerTypeNow) {
+	if (markerTypeNow == MarkerType::NOT_AVAILABLE) {
 		markerTypeNow = markerType;
 	}
 
@@ -137,16 +138,16 @@ void SampleMarkerEditor::writeValue(uint32_t value, int markerTypeNow) {
 		((AudioClip*)currentSong->currentClip)->unassignVoiceSample();
 	}
 
-	if (markerTypeNow == MARKER_START) {
+	if (markerTypeNow == MarkerType::START) {
 		getCurrentSampleHolder()->startPos = value;
 	}
-	else if (markerTypeNow == MARKER_LOOP_START) {
+	else if (markerTypeNow == MarkerType::LOOP_START) {
 		getCurrentMultisampleRange()->sampleHolder.loopStartPos = value;
 	}
-	else if (markerTypeNow == MARKER_LOOP_END) {
+	else if (markerTypeNow == MarkerType::LOOP_END) {
 		getCurrentMultisampleRange()->sampleHolder.loopEndPos = value;
 	}
-	else if (markerTypeNow == MARKER_END) {
+	else if (markerTypeNow == MarkerType::END) {
 		getCurrentSampleHolder()->endPos = value;
 	}
 
@@ -187,29 +188,35 @@ int SampleMarkerEditor::getEndPosFromCol(int col) {
 }
 
 void SampleMarkerEditor::getColsOnScreen(MarkerColumn* cols) {
-	cols[MARKER_START].pos = getCurrentSampleHolder()->startPos;
-	cols[MARKER_START].colOnScreen = getStartColOnScreen(cols[MARKER_START].pos);
+	cols[util::to_underlying(MarkerType::START)].pos = getCurrentSampleHolder()->startPos;
+	cols[util::to_underlying(MarkerType::START)].colOnScreen =
+	    getStartColOnScreen(cols[util::to_underlying(MarkerType::START)].pos);
 
 	if (currentSong->currentClip->type != CLIP_TYPE_AUDIO) {
-		cols[MARKER_LOOP_START].pos = getCurrentMultisampleRange()->sampleHolder.loopStartPos;
-		cols[MARKER_LOOP_START].colOnScreen =
-		    cols[MARKER_LOOP_START].pos ? getStartColOnScreen(cols[MARKER_LOOP_START].pos) : -2147483648;
+		cols[util::to_underlying(MarkerType::LOOP_START)].pos = getCurrentMultisampleRange()->sampleHolder.loopStartPos;
+		cols[util::to_underlying(MarkerType::LOOP_START)].colOnScreen =
+		    cols[util::to_underlying(MarkerType::LOOP_START)].pos
+		        ? getStartColOnScreen(cols[util::to_underlying(MarkerType::LOOP_START)].pos)
+		        : -2147483648;
 
-		cols[MARKER_LOOP_END].pos = getCurrentMultisampleRange()->sampleHolder.loopEndPos;
-		cols[MARKER_LOOP_END].colOnScreen =
-		    cols[MARKER_LOOP_END].pos ? getEndColOnScreen(cols[MARKER_LOOP_END].pos) : -2147483648;
+		cols[util::to_underlying(MarkerType::LOOP_END)].pos = getCurrentMultisampleRange()->sampleHolder.loopEndPos;
+		cols[util::to_underlying(MarkerType::LOOP_END)].colOnScreen =
+		    cols[util::to_underlying(MarkerType::LOOP_END)].pos
+		        ? getEndColOnScreen(cols[util::to_underlying(MarkerType::LOOP_END)].pos)
+		        : -2147483648;
 	}
 
 	else {
-		cols[MARKER_LOOP_START].pos = 0;
-		cols[MARKER_LOOP_START].colOnScreen = -2147483648;
+		cols[util::to_underlying(MarkerType::LOOP_START)].pos = 0;
+		cols[util::to_underlying(MarkerType::LOOP_START)].colOnScreen = -2147483648;
 
-		cols[MARKER_LOOP_END].pos = 0;
-		cols[MARKER_LOOP_END].colOnScreen = -2147483648;
+		cols[util::to_underlying(MarkerType::LOOP_END)].pos = 0;
+		cols[util::to_underlying(MarkerType::LOOP_END)].colOnScreen = -2147483648;
 	}
 
-	cols[MARKER_END].pos = getCurrentSampleHolder()->endPos;
-	cols[MARKER_END].colOnScreen = getEndColOnScreen(cols[MARKER_END].pos);
+	cols[util::to_underlying(MarkerType::END)].pos = getCurrentSampleHolder()->endPos;
+	cols[util::to_underlying(MarkerType::END)].colOnScreen =
+	    getEndColOnScreen(cols[util::to_underlying(MarkerType::END)].pos);
 }
 
 void SampleMarkerEditor::selectEncoderAction(int8_t offset) {
@@ -217,16 +224,16 @@ void SampleMarkerEditor::selectEncoderAction(int8_t offset) {
 		return;
 	}
 
-	MarkerColumn cols[NUM_MARKER_TYPES];
+	MarkerColumn cols[kNumMarkerTypes];
 	getColsOnScreen(cols);
 
-	int oldCol = cols[markerType].colOnScreen;
-	int oldPos = cols[markerType].pos;
+	int oldCol = cols[util::to_underlying(markerType)].colOnScreen;
+	int oldPos = cols[util::to_underlying(markerType)].pos;
 	int newCol = oldCol + offset;
 
 	// Make sure we don't drive one marker into the other
-	for (int c = 0; c < NUM_MARKER_TYPES; c++) {
-		if (c == markerType) {
+	for (int c = 0; c < kNumMarkerTypes; c++) {
+		if (c == util::to_underlying(markerType)) {
 			continue;
 		}
 		if (cols[c].colOnScreen == oldCol || cols[c].colOnScreen == newCol) {
@@ -234,14 +241,14 @@ void SampleMarkerEditor::selectEncoderAction(int8_t offset) {
 		}
 	}
 
-	int32_t newMarkerPos = (markerType < MARKER_LOOP_END) ? getStartPosFromCol(newCol) : getEndPosFromCol(newCol);
+	int32_t newMarkerPos = (markerType < MarkerType::LOOP_END) ? getStartPosFromCol(newCol) : getEndPosFromCol(newCol);
 
 	if (newMarkerPos < 0) {
 		newMarkerPos = 0;
 	}
 
 	if (offset >= 0) {
-		if (markerType == MARKER_END && shouldAllowExtraScrollRight()) {
+		if (markerType == MarkerType::END && shouldAllowExtraScrollRight()) {
 			if (newMarkerPos < oldPos) {
 				return;
 			}
@@ -259,9 +266,8 @@ void SampleMarkerEditor::selectEncoderAction(int8_t offset) {
 	if (oldCol >= 0 && oldCol < displayWidth) {
 
 		getColsOnScreen(cols);
-		newCol =
-		    cols[markerType]
-		        .colOnScreen; // It might have changed, and despite having a newCol variable above, that's only our desired value - we might have run into the end of the sample
+		// It might have changed, and despite having a newCol variable above, that's only our desired value - we might have run into the end of the sample
+		newCol = cols[util::to_underlying(markerType)].colOnScreen;
 
 		// But isn't anymore...
 		if (newCol < 0 || newCol >= displayWidth) {
@@ -325,18 +331,18 @@ ActionResult SampleMarkerEditor::padAction(int x, int y, int on) {
 				return ActionResult::DEALT_WITH;
 			}
 
-			MarkerColumn cols[NUM_MARKER_TYPES];
+			MarkerColumn cols[kNumMarkerTypes];
 			getColsOnScreen(cols);
 
 			// See which one we pressed
-			int markerPressed = -1;
-			for (int m = 0; m < NUM_MARKER_TYPES; m++) {
+			MarkerType markerPressed = MarkerType::NONE;
+			for (int m = 0; m < kNumMarkerTypes; m++) {
 				if (cols[m].colOnScreen == x) {
-					if (markerPressed != -1) {
-						return ActionResult::
-						    DEALT_WITH; // Get out if there are two markers occupying the same col we pressed
+					if (markerPressed != MarkerType::NONE) {
+						// Get out if there are two markers occupying the same col we pressed
+						return ActionResult::DEALT_WITH;
 					}
-					markerPressed = m;
+					markerPressed = MarkerType{m};
 				}
 			}
 
@@ -347,42 +353,42 @@ ActionResult SampleMarkerEditor::padAction(int x, int y, int on) {
 
 				if (currentSong->currentClip->type == CLIP_TYPE_INSTRUMENT) {
 					// See which one we were holding down
-					int markerHeld = -1;
-					for (int m = 0; m < NUM_MARKER_TYPES; m++) {
+					MarkerType markerHeld = MarkerType::NONE;
+					for (int m = 0; m < kNumMarkerTypes; m++) {
 						if (cols[m].colOnScreen == pressX) {
-							markerHeld = m;
+							markerHeld = MarkerType{m};
 						}
 					}
 
 					// -----------------------------------------------------------
-					int newMarkerType;
+					MarkerType newMarkerType;
 					int32_t newValue;
 
 					// If start or end, add a loop point
-					if (markerHeld == MARKER_START) {
+					if (markerHeld == MarkerType::START) {
 
 						// Unless we actually just tapped the already existing loop point
-						if (x == cols[MARKER_LOOP_START].colOnScreen) {
-							markerType = MARKER_LOOP_START;
+						if (x == cols[util::to_underlying(MarkerType::LOOP_START)].colOnScreen) {
+							markerType = MarkerType::LOOP_START;
 							value = 0;
 							writeValue(value);
-							markerType = MARKER_START; // Switch it back
+							markerType = MarkerType::START; // Switch it back
 							goto doRender;
 						}
 
 						// Limit position
-						if (cols[MARKER_START].colOnScreen >= x) {
+						if (cols[util::to_underlying(MarkerType::START)].colOnScreen >= x) {
 							return ActionResult::DEALT_WITH;
 						}
 						if (getCurrentMultisampleRange()->sampleHolder.loopEndPos
-						    && cols[MARKER_LOOP_END].colOnScreen <= x) {
+						    && cols[util::to_underlying(MarkerType::LOOP_END)].colOnScreen <= x) {
 							return ActionResult::DEALT_WITH;
 						}
-						if (cols[MARKER_END].colOnScreen <= x) {
+						if (cols[util::to_underlying(MarkerType::END)].colOnScreen <= x) {
 							return ActionResult::DEALT_WITH;
 						}
 
-						newMarkerType = MARKER_LOOP_START;
+						newMarkerType = MarkerType::LOOP_START;
 						newValue = getStartPosFromCol(x);
 
 ensureNotPastSampleLength:
@@ -393,40 +399,40 @@ ensureNotPastSampleLength:
 						markerType = newMarkerType;
 						value = newValue;
 					}
-					else if (markerHeld == MARKER_END) {
+					else if (markerHeld == MarkerType::END) {
 
 						// Unless we actually just tapped the already existing loop point
-						if (x == cols[MARKER_LOOP_END].colOnScreen) {
-							markerType = MARKER_LOOP_END;
+						if (x == cols[util::to_underlying(MarkerType::LOOP_END)].colOnScreen) {
+							markerType = MarkerType::LOOP_END;
 							value = 0;
 							writeValue(value);
-							markerType = MARKER_END; // Switch it back
+							markerType = MarkerType::END; // Switch it back
 							goto doRender;
 						}
 
 						// Limit position
-						if (cols[MARKER_START].colOnScreen >= x) {
+						if (cols[util::to_underlying(MarkerType::START)].colOnScreen >= x) {
 							return ActionResult::DEALT_WITH;
 						}
-						if (cols[MARKER_LOOP_START].colOnScreen >= x) {
+						if (cols[util::to_underlying(MarkerType::LOOP_START)].colOnScreen >= x) {
 							return ActionResult::DEALT_WITH; // Will be a big negative number if inactive
 						}
-						if (cols[MARKER_END].colOnScreen <= x) {
+						if (cols[util::to_underlying(MarkerType::END)].colOnScreen <= x) {
 							return ActionResult::DEALT_WITH;
 						}
 
-						newMarkerType = MARKER_LOOP_END;
+						newMarkerType = MarkerType::LOOP_END;
 						newValue = getEndPosFromCol(x);
 
 						goto ensureNotPastSampleLength;
 					}
 
 					// Or if a loop point and they pressed the end marker, remove the loop point
-					else if (markerHeld == MARKER_LOOP_START) {
-						if (x == cols[MARKER_START].colOnScreen) {
+					else if (markerHeld == MarkerType::LOOP_START) {
+						if (x == cols[util::to_underlying(MarkerType::START)].colOnScreen) {
 							value = 0;
 							writeValue(value);
-							markerType = MARKER_START;
+							markerType = MarkerType::START;
 
 exitAfterRemovingLoopMarker:
 							currentUIMode = UI_MODE_NONE;
@@ -437,11 +443,11 @@ exitAfterRemovingLoopMarker:
 							return ActionResult::DEALT_WITH;
 						}
 					}
-					else if (markerHeld == MARKER_LOOP_END) {
-						if (x == cols[MARKER_END].colOnScreen) {
+					else if (markerHeld == MarkerType::LOOP_END) {
+						if (x == cols[util::to_underlying(MarkerType::END)].colOnScreen) {
 							value = 0;
 							writeValue(value);
-							markerType = MARKER_END;
+							markerType = MarkerType::END;
 
 							goto exitAfterRemovingLoopMarker;
 						}
@@ -460,7 +466,7 @@ exitAfterRemovingLoopMarker:
 			else {
 
 				// If we tapped a marker...
-				if (markerPressed >= 0) {
+				if (markerPressed >= MarkerType::START) {
 					blinkInvisible = (markerType != markerPressed);
 					markerType = markerPressed;
 					currentUIMode = UI_MODE_HOLDING_SAMPLE_MARKER;
@@ -472,62 +478,66 @@ exitAfterRemovingLoopMarker:
 				else {
 
 					// Make sure it doesn't go past any other markers it shouldn't
-					if (markerType == MARKER_START) {
-						if (cols[MARKER_LOOP_START].pos && cols[MARKER_LOOP_START].colOnScreen <= x) {
+					if (markerType == MarkerType::START) {
+						if (cols[util::to_underlying(MarkerType::LOOP_START)].pos
+						    && cols[util::to_underlying(MarkerType::LOOP_START)].colOnScreen <= x) {
 							return ActionResult::DEALT_WITH;
 						}
-						if (cols[MARKER_LOOP_END].pos && cols[MARKER_LOOP_END].colOnScreen <= x) {
+						if (cols[util::to_underlying(MarkerType::LOOP_END)].pos
+						    && cols[util::to_underlying(MarkerType::LOOP_END)].colOnScreen <= x) {
 							return ActionResult::DEALT_WITH;
 						}
-						if (cols[MARKER_END].colOnScreen <= x) {
-							return ActionResult::DEALT_WITH;
-						}
-					}
-
-					else if (markerType == MARKER_LOOP_START) {
-						if (cols[MARKER_START].colOnScreen >= x) {
-							return ActionResult::DEALT_WITH;
-						}
-						if (cols[MARKER_LOOP_END].pos && cols[MARKER_LOOP_END].colOnScreen <= x) {
-							return ActionResult::DEALT_WITH;
-						}
-						if (cols[MARKER_END].colOnScreen <= x) {
+						if (cols[util::to_underlying(MarkerType::END)].colOnScreen <= x) {
 							return ActionResult::DEALT_WITH;
 						}
 					}
 
-					else if (markerType == MARKER_LOOP_END) {
-						if (cols[MARKER_START].colOnScreen >= x) {
+					else if (markerType == MarkerType::LOOP_START) {
+						if (cols[util::to_underlying(MarkerType::START)].colOnScreen >= x) {
 							return ActionResult::DEALT_WITH;
 						}
-						if (cols[MARKER_LOOP_START].colOnScreen >= x) {
+						if (cols[util::to_underlying(MarkerType::LOOP_END)].pos
+						    && cols[util::to_underlying(MarkerType::LOOP_END)].colOnScreen <= x) {
+							return ActionResult::DEALT_WITH;
+						}
+						if (cols[util::to_underlying(MarkerType::END)].colOnScreen <= x) {
+							return ActionResult::DEALT_WITH;
+						}
+					}
+
+					else if (markerType == MarkerType::LOOP_END) {
+						if (cols[util::to_underlying(MarkerType::START)].colOnScreen >= x) {
+							return ActionResult::DEALT_WITH;
+						}
+						if (cols[util::to_underlying(MarkerType::LOOP_START)].colOnScreen >= x) {
 							return ActionResult::DEALT_WITH; // Will be a big negative number if inactive
 						}
-						if (cols[MARKER_END].colOnScreen <= x) {
+						if (cols[util::to_underlying(MarkerType::END)].colOnScreen <= x) {
 							return ActionResult::DEALT_WITH;
 						}
 					}
 
-					else if (markerType == MARKER_END) {
-						if (cols[MARKER_START].colOnScreen >= x) {
+					else if (markerType == MarkerType::END) {
+						if (cols[util::to_underlying(MarkerType::START)].colOnScreen >= x) {
 							return ActionResult::DEALT_WITH;
 						}
-						if (cols[MARKER_LOOP_START].colOnScreen >= x) {
+						if (cols[util::to_underlying(MarkerType::LOOP_START)].colOnScreen >= x) {
 							return ActionResult::DEALT_WITH; // Will be a big negative number if inactive
 						}
-						if (cols[MARKER_LOOP_END].colOnScreen >= x) {
+						if (cols[util::to_underlying(MarkerType::LOOP_END)].colOnScreen >= x) {
 							return ActionResult::DEALT_WITH; // Will be a big negative number if inactive
 						}
 					}
 
-					value = (markerType < MARKER_LOOP_END) ? getStartPosFromCol(x) : getEndPosFromCol(x);
+					value = (markerType < MarkerType::LOOP_END) ? getStartPosFromCol(x) : getEndPosFromCol(x);
 
 					{
 						uint32_t lengthInSamples = waveformBasicNavigator.sample->lengthInSamples;
 
 						// Only the END marker, and only in some cases, is allowed to be further right than the waveform length
-						if (markerType == MARKER_END && shouldAllowExtraScrollRight()) {
-							if (x > cols[markerType].colOnScreen && value < cols[markerType].pos) {
+						if (markerType == MarkerType::END && shouldAllowExtraScrollRight()) {
+							if (x > cols[util::to_underlying(markerType)].colOnScreen
+							    && value < cols[util::to_underlying(markerType)].pos) {
 								return ActionResult::DEALT_WITH; // Probably not actually necessary
 							}
 							if (value > lengthInSamples && value < lengthInSamples + waveformBasicNavigator.xZoom) {
@@ -619,8 +629,8 @@ ActionResult SampleMarkerEditor::horizontalEncoderAction(int offset) {
 	}
 
 	MarkerColumn* colsToSend = NULL;
-	MarkerColumn cols[NUM_MARKER_TYPES];
-	if (markerType != MARKER_NONE) {
+	MarkerColumn cols[kNumMarkerTypes];
+	if (markerType != MarkerType::NONE) {
 		getColsOnScreen(cols);
 		colsToSend = cols;
 	}
@@ -656,10 +666,10 @@ ActionResult SampleMarkerEditor::horizontalEncoderAction(int offset) {
 // Just for the blinking marker I think
 ActionResult SampleMarkerEditor::timerCallback() {
 
-	MarkerColumn cols[NUM_MARKER_TYPES];
+	MarkerColumn cols[kNumMarkerTypes];
 	getColsOnScreen(cols);
 
-	int x = cols[markerType].colOnScreen;
+	int x = cols[util::to_underlying(markerType)].colOnScreen;
 	if (x < 0 || x >= displayWidth) {
 		return ActionResult::
 		    DEALT_WITH; // Shouldn't happen, but let's be safe - and not set the timer again if it's offscreen
@@ -735,12 +745,12 @@ void SampleMarkerEditor::graphicsRoutine() {
 				    && newStartPos >= soundEditor.currentMultiRange->loopEndPos - minDistance)
 					newStartPos = soundEditor.currentMultiRange->loopEndPos - minDistance;
 
-				writeValue(newStartPos, MARKER_START);
+				writeValue(newStartPos, MarkerType::START);
 			}
 
 			else {
 
-				//writeValue(soundEditor.currentMultisampleRange->sample->lengthInSamples, MARKER_END);
+				//writeValue(soundEditor.currentMultisampleRange->sample->lengthInSamples, MarkerType::END);
 
 				//int newStartPos = soundEditor.currentMultisampleRange->sample->lengthInSamples;// - (((uint32_t)getNoise() % (44100 * 120)) + 10 * 44100);
 				int newStartPos = soundEditor.currentMultiRange->sample->lengthInSamples
@@ -752,7 +762,7 @@ void SampleMarkerEditor::graphicsRoutine() {
 				    && newStartPos <= soundEditor.currentMultiRange->loopStartPos + minDistance)
 					newStartPos = soundEditor.currentMultiRange->loopStartPos + minDistance;
 
-				writeValue(newStartPos, MARKER_END);
+				writeValue(newStartPos, MarkerType::END);
 			}
 		}
 
@@ -775,7 +785,7 @@ void SampleMarkerEditor::graphicsRoutine() {
 						newLoopEndPos = soundEditor.currentMultiRange->endPos;
 				}
 
-				writeValue(newLoopEndPos, MARKER_LOOP_END);
+				writeValue(newLoopEndPos, MarkerType::LOOP_END);
 			}
 			else {
 
@@ -793,7 +803,7 @@ void SampleMarkerEditor::graphicsRoutine() {
 						newLoopEndPos = soundEditor.currentMultiRange->startPos;
 				}
 
-				writeValue(newLoopEndPos, MARKER_LOOP_START);
+				writeValue(newLoopEndPos, MarkerType::LOOP_START);
 			}
 		}
 
@@ -867,7 +877,7 @@ void SampleMarkerEditor::graphicsRoutine() {
 
 bool SampleMarkerEditor::shouldAllowExtraScrollRight() {
 
-	if (markerType == MARKER_NONE || getCurrentSampleControls()->reversed) {
+	if (markerType == MarkerType::NONE || getCurrentSampleControls()->reversed) {
 		return false;
 	}
 
@@ -892,29 +902,27 @@ void SampleMarkerEditor::renderMarkersForOneCol(int xDisplay,
                                                 uint8_t thisImage[displayHeight][displayWidth + sideBarWidth][3],
                                                 MarkerColumn* cols) {
 
-	if (markerType != MARKER_NONE) {
+	if (markerType != MarkerType::NONE) {
 
 		bool reversed = getCurrentSampleControls()->reversed;
 
-		int greenMarker = reversed ? MARKER_END : MARKER_START;
-		int cyanMarker = reversed ? MARKER_LOOP_END : MARKER_LOOP_START;
-		int purpleMarker = reversed ? MARKER_LOOP_START : MARKER_LOOP_END;
-		int redMarker = reversed ? MARKER_START : MARKER_END;
+		MarkerType greenMarker = reversed ? MarkerType::END : MarkerType::START;
+		MarkerType cyanMarker = reversed ? MarkerType::LOOP_END : MarkerType::LOOP_START;
+		MarkerType purpleMarker = reversed ? MarkerType::LOOP_START : MarkerType::LOOP_END;
+		MarkerType redMarker = reversed ? MarkerType::START : MarkerType::END;
 
 		unsigned int markersActiveHere = 0;
-		for (int m = 0; m < NUM_MARKER_TYPES; m++) {
-			markersActiveHere |= (xDisplay == cols[m].colOnScreen && !(blinkInvisible && markerType == m)) << m;
+		for (int m = 0; m < kNumMarkerTypes; m++) {
+			markersActiveHere |= (xDisplay == cols[m].colOnScreen && (!blinkInvisible || markerType != static_cast<MarkerType>(m))) << m;
 		}
 
 		if (markersActiveHere) {
-			int currentMarkerType = 0;
+			auto currentMarkerType = MarkerType{0};
 
 			for (int y = 0; y < displayHeight; y++) {
-				while (!(markersActiveHere & (1 << currentMarkerType))) {
-					currentMarkerType++;
-					if (currentMarkerType == NUM_MARKER_TYPES) {
-						currentMarkerType = 0;
-					}
+				while (!(markersActiveHere & (1 << util::to_underlying(currentMarkerType)))) {
+					currentMarkerType =
+					    static_cast<MarkerType>((util::to_underlying(currentMarkerType) + 1) % kNumMarkerTypes);
 				}
 
 				int existingColourAmount = thisImage[y][xDisplay][0];
@@ -947,10 +955,8 @@ void SampleMarkerEditor::renderMarkersForOneCol(int xDisplay,
 					thisImage[y][xDisplay][2] >>= 2;
 				}
 
-				currentMarkerType++;
-				if (currentMarkerType == NUM_MARKER_TYPES) {
-					currentMarkerType = 0;
-				}
+				currentMarkerType =
+				    static_cast<MarkerType>((util::to_underlying(currentMarkerType) + 1) % kNumMarkerTypes);
 			}
 		}
 	}
@@ -958,26 +964,26 @@ void SampleMarkerEditor::renderMarkersForOneCol(int xDisplay,
 
 #if HAVE_OLED
 void SampleMarkerEditor::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
-	MarkerColumn cols[NUM_MARKER_TYPES];
+	MarkerColumn cols[kNumMarkerTypes];
 	getColsOnScreen(cols);
 
-	uint32_t markerPosSamples = cols[markerType].pos;
+	uint32_t markerPosSamples = cols[util::to_underlying(markerType)].pos;
 
 	char const* markerTypeText;
 	switch (markerType) {
-	case MARKER_START:
+	case MarkerType::START:
 		markerTypeText = "Start point";
 		break;
 
-	case MARKER_END:
+	case MarkerType::END:
 		markerTypeText = "End point";
 		break;
 
-	case MARKER_LOOP_START:
+	case MarkerType::LOOP_START:
 		markerTypeText = "Loop start";
 		break;
 
-	case MARKER_LOOP_END:
+	case MarkerType::LOOP_END:
 		markerTypeText = "Loop end";
 		break;
 
@@ -1085,11 +1091,11 @@ printSeconds:
 
 void SampleMarkerEditor::displayText() {
 
-	MarkerColumn cols[NUM_MARKER_TYPES];
+	MarkerColumn cols[kNumMarkerTypes];
 	getColsOnScreen(cols);
 
 	// Draw decimal number too
-	uint32_t markerPos = cols[markerType].pos;
+	uint32_t markerPos = cols[util::to_underlying(markerType)].pos;
 	int32_t number = (uint64_t)markerPos * 1000 / waveformBasicNavigator.sample->sampleRate; // mSec
 	int numDecimals = 3;
 
@@ -1119,15 +1125,15 @@ bool SampleMarkerEditor::renderMainPads(uint32_t whichRows, uint8_t image[][disp
 	waveformRenderer.renderFullScreen(waveformBasicNavigator.sample, waveformBasicNavigator.xScroll,
 	                                  waveformBasicNavigator.xZoom, image, &waveformBasicNavigator.renderData);
 
-	if (markerType != MARKER_NONE) {
-		MarkerColumn cols[NUM_MARKER_TYPES];
+	if (markerType != MarkerType::NONE) {
+		MarkerColumn cols[kNumMarkerTypes];
 		getColsOnScreen(cols);
 
 		for (int xDisplay = 0; xDisplay < displayWidth; xDisplay++) {
 			renderMarkersForOneCol(xDisplay, image, cols);
 		}
 
-		if (cols[markerType].colOnScreen >= 0 && cols[markerType].colOnScreen < displayWidth) {
+		if (cols[util::to_underlying(markerType)].colOnScreen >= 0 && cols[util::to_underlying(markerType)].colOnScreen < displayWidth) {
 			uiTimerManager.setTimer(TIMER_UI_SPECIFIC, SAMPLE_MARKER_BLINK_TIME);
 		}
 	}

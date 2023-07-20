@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "gui/menu_item/menu_item.h"
 
 namespace menu_item::sample {
@@ -33,7 +34,7 @@ public:
 	int32_t xScroll;
 	int32_t editPos;
 
-	uint8_t markerType;
+	MarkerType markerType;
 };
 
 } // namespace menu_item::sample

@@ -23,6 +23,7 @@
 #include "storage/multi_range/multisample_range.h"
 #include "gui/ui/ui.h"
 #include "hid/led/pad_leds.h"
+#include "util/misc.h"
 
 WaveformBasicNavigator waveformBasicNavigator{};
 
@@ -49,7 +50,7 @@ int32_t WaveformBasicNavigator::getMaxZoom() {
 	return ((sample->lengthInSamples - 1) >> displayWidthMagnitude) + 1;
 }
 
-bool WaveformBasicNavigator::zoom(int offset, bool shouldAllowExtraScrollRight, MarkerColumn* cols, int markerType) {
+bool WaveformBasicNavigator::zoom(int offset, bool shouldAllowExtraScrollRight, MarkerColumn* cols, MarkerType markerType) {
 	uint32_t oldScroll = xScroll;
 	uint32_t oldZoom = xZoom;
 
@@ -103,25 +104,25 @@ bool WaveformBasicNavigator::zoom(int offset, bool shouldAllowExtraScrollRight, 
 
 	int pinMarkerCol = -1;
 	int32_t pinMarkerPos = xScroll + xZoom * (displayWidth >> 1);
-	int pinnedToMarkerType = MARKER_NONE;
+	MarkerType pinnedToMarkerType = MarkerType::NONE;
 
-	if (markerType != MARKER_NONE) {
+	if (markerType != MarkerType::NONE) {
 
 		bool foundActiveMarker = false;
 
-		for (int m = 0; m < NUM_MARKER_TYPES; m++) {
+		for (int m = 0; m < kNumMarkerTypes; m++) {
 			int col = cols[m].colOnScreen;
 
 			if (col >= 0 && col < displayWidth) {
 
-				if (m == markerType) {
+				if (m == util::to_underlying(markerType)) {
 bestYet:
 					pinMarkerCol = col;
-					if (m >= MARKER_LOOP_END) {
+					if (static_cast<MarkerType>(m) >= MarkerType::LOOP_END) {
 						pinMarkerCol++; // Pin to right-hand edge of end-marker's col
 					}
 					pinMarkerPos = cols[m].pos;
-					pinnedToMarkerType = m;
+					pinnedToMarkerType = static_cast<MarkerType>(m);
 				}
 				else {
 					int pinMarkerDistanceFromCentre = pinMarkerCol - (displayWidth >> 1);
@@ -139,7 +140,7 @@ bestYet:
 					}
 				}
 
-				if (m == markerType) {
+				if (m == util::to_underlying(markerType)) {
 					break;
 				}
 			}
@@ -160,7 +161,7 @@ bestYet:
 	xZoom = newXZoom;
 
 	// Make sure scroll is multiple of zoom
-	if (pinnedToMarkerType >= MARKER_LOOP_END) {
+	if (pinnedToMarkerType >= MarkerType::LOOP_END) {
 		xScroll = ((xScroll - 1) / xZoom + 1) * xZoom;
 	}
 	else {
@@ -223,7 +224,7 @@ bool WaveformBasicNavigator::scroll(int offset, bool shouldAllowExtraScrollRight
 		}
 		else {
 			if (xScroll + xZoom * displayWidth >= sample->lengthInSamples
-			    && (!cols || cols[MARKER_END].colOnScreen < displayWidth)) {
+			    && (!cols || cols[util::to_underlying(MarkerType::END)].colOnScreen < displayWidth)) {
 				return false;
 			}
 			xScroll += xZoom;
