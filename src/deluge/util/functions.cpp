@@ -1165,50 +1165,50 @@ LPFMode stringToLPFType(char const* string) {
 
 char const* inputChannelToString(AudioInputChannel inputChannel) {
 	switch (inputChannel) {
-	case AUDIO_INPUT_CHANNEL_LEFT:
+	case AudioInputChannel::LEFT:
 		return "left";
 
-	case AUDIO_INPUT_CHANNEL_RIGHT:
+	case AudioInputChannel::RIGHT:
 		return "right";
 
-	case AUDIO_INPUT_CHANNEL_STEREO:
+	case AudioInputChannel::STEREO:
 		return "stereo";
 
-	case AUDIO_INPUT_CHANNEL_BALANCED:
+	case AudioInputChannel::BALANCED:
 		return "balanced";
 
-	case AUDIO_INPUT_CHANNEL_MIX:
+	case AudioInputChannel::MIX:
 		return "mix";
 
-	case AUDIO_INPUT_CHANNEL_OUTPUT:
+	case AudioInputChannel::OUTPUT:
 		return "output";
 
-	default: // AUDIO_INPUT_CHANNEL_NONE
+	default: // AudioInputChannel::NONE
 		return "none";
 	}
 }
 
 AudioInputChannel stringToInputChannel(char const* string) {
 	if (!strcmp(string, "left")) {
-		return AUDIO_INPUT_CHANNEL_LEFT;
+		return AudioInputChannel::LEFT;
 	}
 	else if (!strcmp(string, "right")) {
-		return AUDIO_INPUT_CHANNEL_RIGHT;
+		return AudioInputChannel::RIGHT;
 	}
 	else if (!strcmp(string, "stereo")) {
-		return AUDIO_INPUT_CHANNEL_STEREO;
+		return AudioInputChannel::STEREO;
 	}
 	else if (!strcmp(string, "balanced")) {
-		return AUDIO_INPUT_CHANNEL_BALANCED;
+		return AudioInputChannel::BALANCED;
 	}
 	else if (!strcmp(string, "mix")) {
-		return AUDIO_INPUT_CHANNEL_MIX;
+		return AudioInputChannel::MIX;
 	}
 	else if (!strcmp(string, "output")) {
-		return AUDIO_INPUT_CHANNEL_OUTPUT;
+		return AudioInputChannel::OUTPUT;
 	}
 	else {
-		return AUDIO_INPUT_CHANNEL_NONE;
+		return AudioInputChannel::NONE;
 	}
 }
 

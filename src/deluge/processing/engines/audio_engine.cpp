@@ -730,8 +730,8 @@ startAgain:
 
 	// Monitoring setup
 	doMonitoring = false;
-	if (audioRecorder.recordingSource == AUDIO_INPUT_CHANNEL_STEREO
-	    || audioRecorder.recordingSource == AUDIO_INPUT_CHANNEL_LEFT) {
+	if (audioRecorder.recordingSource == AudioInputChannel::STEREO
+	    || audioRecorder.recordingSource == AudioInputChannel::LEFT) {
 		if (inputMonitoringMode == INPUT_MONITORING_SMART) {
 			doMonitoring = (lineInPluggedIn || headphonesPluggedIn);
 		}
@@ -981,7 +981,7 @@ bool doSomeOutputting() {
 			}
 
 			// Recording final output
-			if (recorder->mode == AUDIO_INPUT_CHANNEL_OUTPUT) {
+			if (recorder->mode == AudioInputChannel::OUTPUT) {
 				recorder->feedAudio((int32_t*)outputBufferForResampling, numSamplesOutputted);
 			}
 
@@ -1000,7 +1000,7 @@ bool doSomeOutputting() {
 				// We also enforce a firm limit on how much to feed, to keep things sane. Any remaining will get done next time.
 				numSamplesFeedingNow = getMin(numSamplesFeedingNow, 256);
 
-				if (recorder->mode == AUDIO_INPUT_CHANNEL_RIGHT) {
+				if (recorder->mode == AudioInputChannel::RIGHT) {
 					streamToRecord++;
 				}
 

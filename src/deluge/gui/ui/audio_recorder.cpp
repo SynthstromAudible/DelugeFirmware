@@ -69,7 +69,7 @@ void oledRoutine();
 struct RecorderFileSystemStuff recorderFileSystemStuff;
 
 AudioRecorder::AudioRecorder() {
-	recordingSource = AUDIO_INPUT_CHANNEL_NONE;
+	recordingSource = AudioInputChannel::NONE;
 	recorder = NULL;
 }
 
@@ -112,7 +112,7 @@ gotError:
 
 	bool inStereo = (AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn);
 	int newNumChannels = inStereo ? 2 : 1;
-	bool success = setupRecordingToFile(inStereo ? AUDIO_INPUT_CHANNEL_STEREO : AUDIO_INPUT_CHANNEL_LEFT,
+	bool success = setupRecordingToFile(inStereo ? AudioInputChannel::STEREO : AudioInputChannel::LEFT,
 	                                    newNumChannels, AUDIO_RECORDING_FOLDER_RECORD);
 	if (success) {
 		soundEditor.setupShortcutBlink(soundEditor.currentSourceIndex, 4, 0);
@@ -164,7 +164,7 @@ bool AudioRecorder::setupRecordingToFile(int newMode, int newNumChannels, int fo
 }
 
 bool AudioRecorder::beginOutputRecording() {
-	bool success = setupRecordingToFile(AUDIO_INPUT_CHANNEL_OUTPUT, 2, AUDIO_RECORDING_FOLDER_RESAMPLE);
+	bool success = setupRecordingToFile(AudioInputChannel::OUTPUT, 2, AUDIO_RECORDING_FOLDER_RESAMPLE);
 
 	if (success) {
 		indicator_leds::blinkLed(IndicatorLED::RECORD, 255, 1);
@@ -193,7 +193,7 @@ void AudioRecorder::endRecordingSoon(int buttonLatency) {
 }
 
 void AudioRecorder::slowRoutine() {
-	if (recordingSource == AUDIO_INPUT_CHANNEL_OUTPUT) {
+	if (recordingSource == AudioInputChannel::OUTPUT) {
 		if (recorder->status >= RECORDER_STATUS_COMPLETE) {
 			indicator_leds::setLedState(IndicatorLED::RECORD, (playbackHandler.recording == RECORDING_NORMAL));
 			finishRecording();

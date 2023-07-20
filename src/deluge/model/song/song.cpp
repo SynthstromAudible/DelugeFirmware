@@ -2085,7 +2085,7 @@ void Song::renderAudio(StereoSample* outputBuffer, int numSamples, int32_t* reve
 			continue;
 		}
 
-		if (recorder->mode == AUDIO_INPUT_CHANNEL_MIX) {
+		if (recorder->mode == AudioInputChannel::MIX) {
 			recorder->feedAudio((int32_t*)outputBuffer, numSamples, true);
 		}
 	}
@@ -4503,7 +4503,7 @@ AudioOutput* Song::getFirstAudioOutput() {
 	return NULL;
 }
 
-AudioInputChannel defaultAudioOutputInputChannel = AUDIO_INPUT_CHANNEL_NONE;
+AudioInputChannel defaultAudioOutputInputChannel = AudioInputChannel::NONE;
 
 AudioOutput* Song::createNewAudioOutput(Output* replaceOutput) {
 	int highestNumber = 0;
@@ -4560,7 +4560,7 @@ AudioOutput* Song::createNewAudioOutput(Output* replaceOutput) {
 	// Set input channel to previously used one. If none selected, see what's in Song
 	if (defaultAudioOutputInputChannel == -1) {
 
-		defaultAudioOutputInputChannel = AUDIO_INPUT_CHANNEL_LEFT;
+		defaultAudioOutputInputChannel = AudioInputChannel::LEFT;
 		for (Output* output = firstOutput; output; output = output->next) {
 			if (output->type == InstrumentType::AUDIO) {
 				defaultAudioOutputInputChannel = ((AudioOutput*)output)->inputChannel;

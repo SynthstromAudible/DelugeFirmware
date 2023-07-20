@@ -38,7 +38,7 @@ extern "C" {
 
 AudioOutput::AudioOutput() : Output(InstrumentType::AUDIO) {
 	modKnobMode = 0;
-	inputChannel = AUDIO_INPUT_CHANNEL_LEFT;
+	inputChannel = AudioInputChannel::LEFT;
 	echoing = false;
 }
 
@@ -213,7 +213,7 @@ renderEnvelope:
 		int32_t const* __restrict__ inputReadPos = (int32_t const*)AudioEngine::i2sRXBufferPos;
 
 		int inputChannelNow = inputChannel;
-		if (inputChannelNow == AUDIO_INPUT_CHANNEL_STEREO && !AudioEngine::renderInStereo) {
+		if (inputChannelNow == AudioInputChannel::STEREO && !AudioEngine::renderInStereo) {
 			inputChannelNow = 0; // 0 means combine channels
 		}
 
@@ -228,17 +228,17 @@ renderEnvelope:
 			int32_t inputR = multiply_32x32_rshift32(inputReadPos[1], amplitudeNow) << 2;
 
 			switch (inputChannelNow) {
-			case AUDIO_INPUT_CHANNEL_LEFT:
+			case AudioInputChannel::LEFT:
 				outputPos->l += inputL;
 				outputPos->r += inputL;
 				break;
 
-			case AUDIO_INPUT_CHANNEL_RIGHT:
+			case AudioInputChannel::RIGHT:
 				outputPos->l += inputR;
 				outputPos->r += inputR;
 				break;
 
-			case AUDIO_INPUT_CHANNEL_BALANCED: {
+			case AudioInputChannel::BALANCED: {
 				int32_t difference = (inputL >> 1) - (inputR >> 1);
 				outputPos->l += difference;
 				outputPos->r += difference;

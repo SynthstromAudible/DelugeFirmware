@@ -178,7 +178,7 @@ gotError:
 
 	// Apart from the MIX option, all other audio sources are fed to us during the "outputting" routine. Occasionally, there'll be some more of that
 	// going to happen for the previous render, so we have to compensate for that
-	if (mode != AUDIO_INPUT_CHANNEL_MIX) {
+	if (mode != AudioInputChannel::MIX) {
 		numSamplesToRunBeforeBeginningCapturing += AudioEngine::getNumSamplesLeftToOutputFromPreviousRender();
 	}
 
@@ -894,7 +894,7 @@ doFinishCapturing:
 
 			// Balanced input. For this, we skip a bunch of stat-grabbing, cos we knob this is just for AudioClips.
 			// We also know that applyGain is false - that's just for the MIX option
-			if (mode == AUDIO_INPUT_CHANNEL_BALANCED) {
+			if (mode == AudioInputChannel::BALANCED) {
 
 				do {
 					int32_t rxL = *inputAddress;

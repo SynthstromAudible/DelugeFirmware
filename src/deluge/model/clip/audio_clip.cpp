@@ -151,7 +151,7 @@ int AudioClip::beginLinearRecording(ModelStackWithTimelineCounter* modelStack, i
 	int inputChannel = ((AudioOutput*)output)->inputChannel;
 
 	int numChannels =
-	    (inputChannel >= AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION || inputChannel == AUDIO_INPUT_CHANNEL_STEREO) ? 2
+	    (inputChannel >= AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION || inputChannel == AudioInputChannel::STEREO) ? 2
 	                                                                                                              : 1;
 
 	bool shouldRecordMarginsNow =

@@ -81,27 +81,27 @@ bool AudioInputSelector::setupAndCheckAvailability() {
 	Value valueOption = Value::OFF;
 
 	switch (audioOutput->inputChannel) {
-	case AUDIO_INPUT_CHANNEL_LEFT:
+	case AudioInputChannel::LEFT:
 		valueOption = Value::LEFT;
 		break;
 
-	case AUDIO_INPUT_CHANNEL_RIGHT:
+	case AudioInputChannel::RIGHT:
 		valueOption = Value::RIGHT;
 		break;
 
-	case AUDIO_INPUT_CHANNEL_STEREO:
+	case AudioInputChannel::STEREO:
 		valueOption = Value::STEREO;
 		break;
 
-	case AUDIO_INPUT_CHANNEL_BALANCED:
+	case AudioInputChannel::BALANCED:
 		valueOption = Value::BALANCED;
 		break;
 
-	case AUDIO_INPUT_CHANNEL_MIX:
+	case AudioInputChannel::MIX:
 		valueOption = Value::MASTER;
 		break;
 
-	case AUDIO_INPUT_CHANNEL_OUTPUT:
+	case AudioInputChannel::OUTPUT:
 		valueOption = Value::OUTPUT;
 		break;
 
@@ -140,37 +140,37 @@ void AudioInputSelector::selectEncoderAction(int8_t offset) {
 	case Value::LEFT_ECHO:
 		audioOutput->echoing = true;
 	case Value::LEFT:
-		audioOutput->inputChannel = AUDIO_INPUT_CHANNEL_LEFT;
+		audioOutput->inputChannel = AudioInputChannel::LEFT;
 		break;
 
 	case Value::RIGHT_ECHO:
 		audioOutput->echoing = true;
 	case Value::RIGHT:
-		audioOutput->inputChannel = AUDIO_INPUT_CHANNEL_RIGHT;
+		audioOutput->inputChannel = AudioInputChannel::RIGHT;
 		break;
 
 	case Value::STEREO_ECHO:
 		audioOutput->echoing = true;
 	case Value::STEREO:
-		audioOutput->inputChannel = AUDIO_INPUT_CHANNEL_STEREO;
+		audioOutput->inputChannel = AudioInputChannel::STEREO;
 		break;
 
 	case Value::BALANCED_ECHO:
 		audioOutput->echoing = true;
 	case Value::BALANCED:
-		audioOutput->inputChannel = AUDIO_INPUT_CHANNEL_BALANCED;
+		audioOutput->inputChannel = AudioInputChannel::BALANCED;
 		break;
 
 	case Value::MASTER:
-		audioOutput->inputChannel = AUDIO_INPUT_CHANNEL_MIX;
+		audioOutput->inputChannel = AudioInputChannel::MIX;
 		break;
 
 	case Value::OUTPUT:
-		audioOutput->inputChannel = AUDIO_INPUT_CHANNEL_OUTPUT;
+		audioOutput->inputChannel = AudioInputChannel::OUTPUT;
 		break;
 
 	default:
-		audioOutput->inputChannel = AUDIO_INPUT_CHANNEL_NONE;
+		audioOutput->inputChannel = AudioInputChannel::NONE;
 	}
 
 	defaultAudioOutputInputChannel = audioOutput->inputChannel;
