@@ -37,6 +37,7 @@
 #include "model/clip/instrument_clip.h"
 #include "model/note/note_row.h"
 #include "modulation/params/param_set.h"
+#include "util/misc.h"
 
 extern "C" {}
 
@@ -1673,9 +1674,9 @@ void ModControllableAudio::switchDelayAnalog() {
 }
 
 void ModControllableAudio::switchLPFMode() {
-	lpfMode++;
+	lpfMode = static_cast<LPFMode>(util::to_underlying(lpfMode) + 1);
 	if (lpfMode >= NUM_LPF_MODES) {
-		lpfMode = 0;
+		lpfMode = static_cast<LPFMode>(0);
 	}
 
 	char const* displayText;
@@ -1717,7 +1718,7 @@ void ModControllableAudio::clearModFXMemory() {
 	}
 }
 
-bool ModControllableAudio::setModFXType(int newType) {
+bool ModControllableAudio::setModFXType(ModFXType newType) {
 
 	// For us ModControllableAudios, this is really simple. Memory gets allocated in GlobalEffectable::processFXForGlobalEffectable().
 	// This function is overridden in Sound

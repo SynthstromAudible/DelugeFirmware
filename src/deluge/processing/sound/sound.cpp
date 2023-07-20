@@ -86,7 +86,7 @@ Sound::Sound() : patcher(&patchableInfoForSound) {
 	numVoicesAssigned = 0;
 
 	sideChainSendLevel = 0;
-	polyphonic = POLYPHONY_POLY;
+	polyphonic = PolyphonyMode::POLY;
 	lastNoteCode = -2147483648;
 
 	modulatorTranspose[0] = 0;
@@ -207,7 +207,7 @@ void Sound::initParams(ParamManager* paramManager) {
 
 void Sound::setupAsSample(ParamManagerForTimeline* paramManager) {
 
-	polyphonic = POLYPHONY_AUTO;
+	polyphonic = PolyphonyMode::AUTO;
 	lpfMode = LPF_MODE_TRANSISTOR_24DB;
 
 	sources[0].oscType = OscType::SAMPLE;
@@ -335,7 +335,7 @@ void Sound::setupAsBlankSynth(ParamManager* paramManager) {
 }
 
 // Returns false if not enough ram
-bool Sound::setModFXType(int newType) {
+bool Sound::setModFXType(ModFXType newType) {
 	if (newType == MOD_FX_TYPE_FLANGER || newType == MOD_FX_TYPE_CHORUS || newType == MOD_FX_TYPE_CHORUS_STEREO) {
 		if (!modFXBuffer) {
 			// TODO: should give an error here if no free ram
@@ -1383,7 +1383,7 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int note
 	ParamManagerForTimeline* paramManager = (ParamManagerForTimeline*)modelStack->paramManager;
 
 	// If not polyphonic, stop any notes which are releasing, now
-	if (numVoicesAssigned && polyphonic != POLYPHONY_POLY) {
+	if (numVoicesAssigned && polyphonic != PolyphonyMode::POLY) {
 
 		int ends[2];
 		AudioEngine::activeVoices.getRangeForSound(this, ends);
@@ -1391,7 +1391,7 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int note
 			Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
 
 			// If we're proper-MONO, or it's releasing OR has no sustain / note tails
-			if (polyphonic == POLYPHONY_MONO || thisVoice->envelopes[0].state >= EnvelopeStage::RELEASE
+			if (polyphonic == PolyphonyMode::MONO || thisVoice->envelopes[0].state >= EnvelopeStage::RELEASE
 			    || !allowNoteTails(
 			        modelStack,
 			        true)) { // allowNoteTails() is very nearly exactly what we want to be calling here, though not named after the thing we're looking for here
@@ -1440,7 +1440,7 @@ justUnassign:
 		}
 	}
 
-	if (polyphonic == POLYPHONY_LEGATO && voiceForLegato) {
+	if (polyphonic == PolyphonyMode::LEGATO && voiceForLegato) {
 		ModelStackWithVoice* modelStackWithVoice = modelStack->addVoice(voiceForLegato);
 		voiceForLegato->changeNoteCode(modelStackWithVoice, noteCodePreArp, noteCodePostArp, fromMIDIChannel,
 		                               mpeValues);
@@ -1537,7 +1537,7 @@ void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int not
 			}
 
 			// If we're in LEGATO or true-MONO mode and there's another note we can switch back to...
-			if ((polyphonic == POLYPHONY_LEGATO || polyphonic == POLYPHONY_MONO) && !isDrum()
+			if ((polyphonic == PolyphonyMode::LEGATO || polyphonic == PolyphonyMode::MONO) && !isDrum()
 			    && allowNoteTails(
 			        modelStackWithVoice)) { // If no note-tails (i.e. yes one-shot samples etc.), the Arpeggiator will be full of notes which
 				// might not be active anymore, cos we were keeping track of them for MPE purposes.
@@ -1547,14 +1547,14 @@ void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int not
 					    (ArpNote*)arpeggiator->notes.getElementAddress(arpeggiator->notes.getNumElements() - 1);
 					int newNoteCode = arpNote->inputCharacteristics[MIDI_CHARACTERISTIC_NOTE];
 
-					if (polyphonic == POLYPHONY_LEGATO) {
+					if (polyphonic == PolyphonyMode::LEGATO) {
 						thisVoice->changeNoteCode(modelStackWithVoice, newNoteCode, newNoteCode,
 						                          arpNote->inputCharacteristics[MIDI_CHARACTERISTIC_CHANNEL],
 						                          arpNote->mpeValues);
 						lastNoteCode = newNoteCode;
 						// I think we could just return here, too?
 					}
-					else { // POLYPHONY_MONO
+					else { // PolyphonyMode::MONO
 						noteOnPostArpeggiator(
 						    modelStack, newNoteCode, newNoteCode,
 						    arpeggiator
@@ -2679,11 +2679,11 @@ void Sound::calculateEffectiveVolume() {
 }
 
 // May change mod knob functions. You must update mod knob levels after calling this
-void Sound::setSynthMode(uint8_t value, Song* song) {
+void Sound::setSynthMode(SynthMode value, Song* song) {
 
 	unassignAllVoices(); // This saves a lot of potential problems, to do with samples playing. E002 was being caused
 
-	uint8_t oldSynthMode = synthMode;
+	SynthMode oldSynthMode = synthMode;
 	synthMode = value;
 	setupPatchingForAllParamManagers(song);
 

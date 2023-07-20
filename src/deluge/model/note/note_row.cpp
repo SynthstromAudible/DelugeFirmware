@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "definitions_cxx.hpp"
 #include "processing/engines/audio_engine.h"
 #include "model/clip/instrument_clip.h"
 #include "modulation/params/param_manager.h"
@@ -3859,7 +3860,7 @@ bool NoteRow::recordPolyphonicExpressionEvent(ModelStackWithNoteRow* modelStack,
 	return true;
 }
 
-void NoteRow::setSequenceDirectionMode(ModelStackWithNoteRow* modelStack, int newMode) {
+void NoteRow::setSequenceDirectionMode(ModelStackWithNoteRow* modelStack, SequenceDirection newMode) {
 	int32_t lastProcessedPosBefore = modelStack->getLastProcessedPos();
 
 	bool reversedBefore = modelStack->isCurrentlyPlayingReversed();
@@ -3873,9 +3874,8 @@ void NoteRow::setSequenceDirectionMode(ModelStackWithNoteRow* modelStack, int ne
 
 	// Or if now *not* pingponging...
 	else {
-		currentlyPlayingReversedIfIndependent =
-		    (newMode
-		     == SEQUENCE_DIRECTION_REVERSE); // Won't necessarily have an effect - if we're now set to obey-parent.
+		// Won't necessarily have an effect - if we're now set to obey-parent.
+		currentlyPlayingReversedIfIndependent = (newMode == SEQUENCE_DIRECTION_REVERSE);
 
 		// If we just changed direction...
 		if (reversedBefore != modelStack->isCurrentlyPlayingReversed()) {

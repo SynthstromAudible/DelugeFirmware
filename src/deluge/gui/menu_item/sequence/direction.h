@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "definitions_cxx.hpp"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
@@ -22,6 +23,7 @@
 #include "gui/menu_item/selection.h"
 #include "model/song/song.h"
 #include "gui/ui/sound_editor.h"
+#include "util/misc.h"
 
 namespace menu_item::sequence {
 class Direction final : public Selection {
@@ -45,10 +47,10 @@ public:
 		ModelStackWithNoteRow* modelStackWithNoteRow = getIndividualNoteRow(modelStack);
 
 		if (modelStackWithNoteRow->getNoteRowAllowNull()) {
-			soundEditor.currentValue = modelStackWithNoteRow->getNoteRow()->sequenceDirectionMode;
+			soundEditor.currentValue = util::to_underlying(modelStackWithNoteRow->getNoteRow()->sequenceDirectionMode);
 		}
 		else {
-			soundEditor.currentValue = ((InstrumentClip*)currentSong->currentClip)->sequenceDirectionMode;
+			soundEditor.currentValue = util::to_underlying(((InstrumentClip*)currentSong->currentClip)->sequenceDirectionMode);
 		}
 	}
 
@@ -58,11 +60,11 @@ public:
 		ModelStackWithNoteRow* modelStackWithNoteRow = getIndividualNoteRow(modelStack);
 		if (modelStackWithNoteRow->getNoteRowAllowNull()) {
 			modelStackWithNoteRow->getNoteRow()->setSequenceDirectionMode(modelStackWithNoteRow,
-			                                                              soundEditor.currentValue);
+			                                                              static_cast<SequenceDirection>(soundEditor.currentValue));
 		}
 		else {
 			((InstrumentClip*)currentSong->currentClip)
-			    ->setSequenceDirectionMode(modelStackWithNoteRow->toWithTimelineCounter(), soundEditor.currentValue);
+			    ->setSequenceDirectionMode(modelStackWithNoteRow->toWithTimelineCounter(), static_cast<SequenceDirection>(soundEditor.currentValue));
 		}
 	}
 

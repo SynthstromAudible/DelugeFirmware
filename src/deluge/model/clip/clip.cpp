@@ -958,7 +958,7 @@ bool Clip::wantsToBeginLinearRecording(Song* song) {
 	return (armedForRecording && song->syncScalingClip != this);
 }
 
-void Clip::setSequenceDirectionMode(ModelStackWithTimelineCounter* modelStack, int newMode) {
+void Clip::setSequenceDirectionMode(ModelStackWithTimelineCounter* modelStack, SequenceDirection newMode) {
 	bool reversedBefore = currentlyPlayingReversed;
 	sequenceDirectionMode = newMode;
 

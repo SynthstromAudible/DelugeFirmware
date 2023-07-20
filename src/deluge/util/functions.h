@@ -152,24 +152,32 @@ OscType stringToOscType(char const* string);
 char const* lfoTypeToString(LFOType oscType);
 LFOType stringToLFOType(char const* string);
 
-char const* synthModeToString(int synthMode);
-int stringToSynthMode(char const* string);
-char const* polyphonyModeToString(int synthMode);
-int stringToPolyphonyMode(char const* string);
-char const* fxTypeToString(int fxType);
-int stringToFXType(char const* string);
-char const* modFXParamToString(int fxType);
-int stringToModFXParam(char const* string);
-char const* filterTypeToString(int fxType);
-int stringToFilterType(char const* string);
-char const* arpModeToString(int mode);
-int stringToArpMode(char const* string);
-char const* lpfTypeToString(int lpfType);
-int stringToLPFType(char const* string);
-char const* inputChannelToString(int inputChannel);
-int stringToInputChannel(char const* string);
-char const* sequenceDirectionModeToString(int sequenceDirectionMode);
-int stringToSequenceDirectionMode(char const* string);
+char const* synthModeToString(SynthMode synthMode);
+SynthMode stringToSynthMode(char const* string);
+
+char const* polyphonyModeToString(PolyphonyMode synthMode);
+PolyphonyMode stringToPolyphonyMode(char const* string);
+
+char const* fxTypeToString(ModFXType fxType);
+ModFXType stringToFXType(char const* string);
+
+char const* modFXParamToString(ModFXParam fxType);
+ModFXParam stringToModFXParam(char const* string);
+
+char const* filterTypeToString(FilterType fxType);
+FilterType stringToFilterType(char const* string);
+
+char const* arpModeToString(ArpMode mode);
+ArpMode stringToArpMode(char const* string);
+
+char const* lpfTypeToString(LPFMode lpfType);
+LPFMode stringToLPFType(char const* string);
+
+char const* inputChannelToString(AudioInputChannel inputChannel);
+AudioInputChannel stringToInputChannel(char const* string);
+
+char const* sequenceDirectionModeToString(SequenceDirection sequenceDirectionMode);
+SequenceDirection stringToSequenceDirectionMode(char const* string);
 
 char const* getInstrumentFolder(InstrumentType instrumentType);
 void getThingFilename(char const* thingName, int16_t currentSlot, int8_t currentSubSlot, char* buffer);

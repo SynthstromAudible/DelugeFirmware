@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "definitions_cxx.hpp"
 #include "processing/engines/audio_engine.h"
 #include "model/global_effectable/global_effectable.h"
 #include "modulation/params/param_manager.h"
@@ -30,6 +31,7 @@
 #include "model/model_stack.h"
 #include "modulation/params/param_set.h"
 #include "modulation/params/param_collection.h"
+#include "util/misc.h"
 
 GlobalEffectable::GlobalEffectable() {
 	lpfMode = LPF_MODE_TRANSISTOR_24DB;
@@ -111,9 +113,9 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 	else if (modKnobMode == 5) {
 		if (whichModEncoder == 1) {
 			if (on) {
-				modFXType++;
+				modFXType = static_cast<ModFXType>(util::to_underlying(modFXType) + 1);
 				if (modFXType >= NUM_MOD_FX_TYPES) {
-					modFXType = 1;
+					modFXType = static_cast<ModFXType>(1);
 				}
 				char const* displayText;
 				switch (modFXType) {
@@ -143,9 +145,9 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 		}
 		else {
 			if (on) {
-				currentModFXParam++;
-				if (currentModFXParam == NUM_MOD_FX_PARAMS) {
-					currentModFXParam = 0;
+				currentModFXParam = static_cast<ModFXParam>(util::to_underlying(currentModFXParam) + 1);
+				if (currentModFXParam >= NUM_MOD_FX_PARAMS) {
+					currentModFXParam = static_cast<ModFXParam>(0);
 				}
 				ensureModFXParamIsValid();
 
@@ -174,9 +176,9 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 	else if (modKnobMode == 1) {
 		if (whichModEncoder == 1) {
 			if (on) {
-				currentFilterType++;
+				currentFilterType = static_cast<FilterType>(util::to_underlying(currentFilterType) + 1);
 				if (currentFilterType >= NUM_FILTER_TYPES) {
-					currentFilterType = 0;
+					currentFilterType = static_cast<FilterType>(0);
 				}
 
 				char const* displayText;
@@ -369,9 +371,9 @@ void GlobalEffectable::ensureModFXParamIsValid() {
 		return; // If we got here, we're fine
 
 ohNo:
-		currentModFXParam++;
-		if (currentModFXParam == NUM_MOD_FX_PARAMS) {
-			currentModFXParam = 0;
+		currentModFXParam = static_cast<ModFXParam>(util::to_underlying(currentModFXParam) + 1);
+		if (currentModFXParam >= NUM_MOD_FX_PARAMS) {
+			currentModFXParam = static_cast<ModFXParam>(0);
 		}
 	}
 }

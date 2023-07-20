@@ -206,14 +206,7 @@ enum class MidiLearn : uint8_t {
 #define maxNumInstrumentPresets 128
 #define FILENAME_BUFFER_SIZE 256 // Don't ever make this less! The zoom rendering code uses this buffer for its stuff
 
-enum class InstrumentType : uint8_t {
-	SYNTH,
-	KIT,
-	MIDI_OUT,
-	CV,
-	AUDIO,
-	NONE = 255
-};
+enum class InstrumentType : uint8_t { SYNTH, KIT, MIDI_OUT, CV, AUDIO, NONE = 255 };
 
 enum class ThingType {
 	SYNTH,
@@ -468,7 +461,7 @@ enum SynthMode {
 	SYNTH_MODE_RINGMOD,
 };
 
-enum ModFxType {
+enum ModFXType {
 	MOD_FX_TYPE_NONE,
 	MOD_FX_TYPE_FLANGER,
 	MOD_FX_TYPE_CHORUS,
@@ -483,14 +476,15 @@ enum ModFxType {
 #define WAV_FORMAT_PCM 1
 #define WAV_FORMAT_FLOAT 3
 
-enum PolyphonyType {
-	POLYPHONY_AUTO,
-	POLYPHONY_POLY,
-	POLYPHONY_MONO,
-	POLYPHONY_LEGATO,
-	POLYPHONY_CHOKE,
-	NUM_POLYPHONY_TYPES,
+enum class PolyphonyMode {
+	AUTO,
+	POLY,
+	MONO,
+	LEGATO,
+	CHOKE,
 };
+
+constexpr auto kNumPolyphonyModes = util::to_underlying(PolyphonyMode::CHOKE) + 1;
 
 #define NUMERIC_DISPLAY_LENGTH 4
 
@@ -572,7 +566,7 @@ enum ArpMode {
 
 #define KEYBOARD_ROW_INTERVAL_MAX 16
 
-enum ModFxParam {
+enum ModFXParam {
 	MOD_FX_PARAM_DEPTH,
 	MOD_FX_PARAM_FEEDBACK,
 	MOD_FX_PARAM_OFFSET,

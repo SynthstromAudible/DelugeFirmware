@@ -940,7 +940,7 @@ LFOType stringToLFOType(char const* string) {
 	}
 }
 
-char const* synthModeToString(int synthMode) {
+char const* synthModeToString(SynthMode synthMode) {
 	switch (synthMode) {
 	case SYNTH_MODE_FM:
 		return "fm";
@@ -953,7 +953,7 @@ char const* synthModeToString(int synthMode) {
 	}
 }
 
-int stringToSynthMode(char const* string) {
+SynthMode stringToSynthMode(char const* string) {
 	if (!strcmp(string, "fm")) {
 		return SYNTH_MODE_FM;
 	}
@@ -965,50 +965,50 @@ int stringToSynthMode(char const* string) {
 	}
 }
 
-char const* polyphonyModeToString(int synthMode) {
+char const* polyphonyModeToString(PolyphonyMode synthMode) {
 	switch (synthMode) {
-	case POLYPHONY_MONO:
+	case PolyphonyMode::MONO:
 		return "mono";
 
-	case POLYPHONY_AUTO:
+	case PolyphonyMode::AUTO:
 		return "auto";
 
-	case POLYPHONY_LEGATO:
+	case PolyphonyMode::LEGATO:
 		return "legato";
 
-	case POLYPHONY_CHOKE:
+	case PolyphonyMode::CHOKE:
 		return "choke";
 
-	default: //case POLYPHONY_POLY:
+	default: //case PolyphonyMode::POLY:
 		return "poly";
 	}
 }
 
-int stringToPolyphonyMode(char const* string) {
+PolyphonyMode stringToPolyphonyMode(char const* string) {
 	if (!strcmp(string, "mono")) {
-		return POLYPHONY_MONO;
+		return PolyphonyMode::MONO;
 	}
 	else if (!strcmp(string, "auto")) {
-		return POLYPHONY_AUTO;
+		return PolyphonyMode::AUTO;
 	}
 	else if (!strcmp(string, "0")) {
-		return POLYPHONY_AUTO; // Old firmware, pre June 2017
+		return PolyphonyMode::AUTO; // Old firmware, pre June 2017
 	}
 	else if (!strcmp(string, "legato")) {
-		return POLYPHONY_LEGATO;
+		return PolyphonyMode::LEGATO;
 	}
 	else if (!strcmp(string, "choke")) {
-		return POLYPHONY_CHOKE;
+		return PolyphonyMode::CHOKE;
 	}
 	else if (!strcmp(string, "2")) {
-		return POLYPHONY_CHOKE; // Old firmware, pre June 2017
+		return PolyphonyMode::CHOKE; // Old firmware, pre June 2017
 	}
 	else {
-		return POLYPHONY_POLY;
+		return PolyphonyMode::POLY;
 	}
 }
 
-char const* fxTypeToString(int fxType) {
+char const* fxTypeToString(ModFXType fxType) {
 	switch (fxType) {
 	case MOD_FX_TYPE_FLANGER:
 		return "flanger";
@@ -1027,7 +1027,7 @@ char const* fxTypeToString(int fxType) {
 	}
 }
 
-int stringToFXType(char const* string) {
+ModFXType stringToFXType(char const* string) {
 	if (!strcmp(string, "flanger")) {
 		return MOD_FX_TYPE_FLANGER;
 	}
@@ -1045,7 +1045,7 @@ int stringToFXType(char const* string) {
 	}
 }
 
-char const* modFXParamToString(int fxType) {
+char const* modFXParamToString(ModFXParam fxType) {
 	switch (fxType) {
 	case MOD_FX_PARAM_DEPTH:
 		return "depth";
@@ -1058,7 +1058,7 @@ char const* modFXParamToString(int fxType) {
 	}
 }
 
-int stringToModFXParam(char const* string) {
+ModFXParam stringToModFXParam(char const* string) {
 	if (!strcmp(string, "depth")) {
 		return MOD_FX_PARAM_DEPTH;
 	}
@@ -1070,7 +1070,7 @@ int stringToModFXParam(char const* string) {
 	}
 }
 
-char const* filterTypeToString(int fxType) {
+char const* filterTypeToString(FilterType fxType) {
 	switch (fxType) {
 	case FILTER_TYPE_HPF:
 		return "hpf";
@@ -1083,7 +1083,7 @@ char const* filterTypeToString(int fxType) {
 	}
 }
 
-int stringToFilterType(char const* string) {
+FilterType stringToFilterType(char const* string) {
 	if (!strcmp(string, "hpf")) {
 		return FILTER_TYPE_HPF;
 	}
@@ -1095,7 +1095,7 @@ int stringToFilterType(char const* string) {
 	}
 }
 
-char const* arpModeToString(int mode) {
+char const* arpModeToString(ArpMode mode) {
 	switch (mode) {
 	case ARP_MODE_UP:
 		return "up";
@@ -1114,7 +1114,7 @@ char const* arpModeToString(int mode) {
 	}
 }
 
-int stringToArpMode(char const* string) {
+ArpMode stringToArpMode(char const* string) {
 	if (!strcmp(string, "up")) {
 		return ARP_MODE_UP;
 	}
@@ -1132,7 +1132,7 @@ int stringToArpMode(char const* string) {
 	}
 }
 
-char const* lpfTypeToString(int lpfType) {
+char const* lpfTypeToString(LPFMode lpfType) {
 	switch (lpfType) {
 	case LPF_MODE_12DB:
 		return "12dB";
@@ -1148,7 +1148,7 @@ char const* lpfTypeToString(int lpfType) {
 	}
 }
 
-int stringToLPFType(char const* string) {
+LPFMode stringToLPFType(char const* string) {
 	if (!strcmp(string, "24dB")) {
 		return LPF_MODE_TRANSISTOR_24DB;
 	}
@@ -1163,7 +1163,7 @@ int stringToLPFType(char const* string) {
 	}
 }
 
-char const* inputChannelToString(int inputChannel) {
+char const* inputChannelToString(AudioInputChannel inputChannel) {
 	switch (inputChannel) {
 	case AUDIO_INPUT_CHANNEL_LEFT:
 		return "left";
@@ -1188,7 +1188,7 @@ char const* inputChannelToString(int inputChannel) {
 	}
 }
 
-int stringToInputChannel(char const* string) {
+AudioInputChannel stringToInputChannel(char const* string) {
 	if (!strcmp(string, "left")) {
 		return AUDIO_INPUT_CHANNEL_LEFT;
 	}
@@ -1212,7 +1212,7 @@ int stringToInputChannel(char const* string) {
 	}
 }
 
-char const* sequenceDirectionModeToString(int sequenceDirectionMode) {
+char const* sequenceDirectionModeToString(SequenceDirection sequenceDirectionMode) {
 	switch (sequenceDirectionMode) {
 	case SEQUENCE_DIRECTION_FORWARD:
 		return "forward";
@@ -1232,7 +1232,7 @@ char const* sequenceDirectionModeToString(int sequenceDirectionMode) {
 	}
 }
 
-int stringToSequenceDirectionMode(char const* string) {
+SequenceDirection stringToSequenceDirectionMode(char const* string) {
 	if (!strcmp(string, "reverse")) {
 		return SEQUENCE_DIRECTION_REVERSE;
 	}

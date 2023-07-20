@@ -174,7 +174,7 @@ bool Voice::noteOn(ModelStackWithVoice* modelStack, int newNoteCodeBeforeArpeggi
 	}
 
 	// Porta
-	if (sound->polyphonic != POLYPHONY_LEGATO
+	if (sound->polyphonic != PolyphonyMode::LEGATO
 	    && paramManager->getUnpatchedParamSet()->getValue(PARAM_UNPATCHED_SOUND_PORTA) != -2147483648
 	    && sound->lastNoteCode != -2147483648) {
 		setupPorta(sound);

@@ -20,14 +20,15 @@
 #include "processing/sound/sound.h"
 #include "model/song/song.h"
 #include "gui/views/view.h"
+#include "util/misc.h"
 
 namespace menu_item {
 class SynthMode final : public Selection {
 public:
 	using Selection::Selection;
-	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentSound->synthMode; }
+	void readCurrentValue() { soundEditor.currentValue = util::to_underlying(soundEditor.currentSound->synthMode); }
 	void writeCurrentValue() {
-		soundEditor.currentSound->setSynthMode(soundEditor.currentValue, currentSong);
+		soundEditor.currentSound->setSynthMode(static_cast<::SynthMode>(soundEditor.currentValue), currentSong);
 		view.setKnobIndicatorLevels();
 	}
 	char const** getOptions() {

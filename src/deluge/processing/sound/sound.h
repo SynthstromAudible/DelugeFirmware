@@ -88,7 +88,7 @@ public:
 
 	int32_t sideChainSendLevel;
 
-	uint8_t polyphonic;
+	PolyphonyMode polyphonic;
 
 	int16_t transpose;
 
@@ -103,7 +103,7 @@ public:
 
 	PhaseIncrementFineTuner unisonDetuners[maxNumUnison];
 
-	uint8_t synthMode;
+	SynthMode synthMode;
 	bool modulator1ToModulator0;
 
 	int32_t volumeNeutralValueForUnison;
@@ -138,7 +138,7 @@ public:
 	virtual ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = NULL) = 0;
 	virtual void setSkippingRendering(bool newSkipping);
 
-	bool setModFXType(int newType) final;
+	bool setModFXType(ModFXType newType) final;
 
 	void patchedParamPresetValueChanged(uint8_t p, ModelStackWithSoundFlags* modelStack, int32_t oldValue,
 	                                    int32_t newValue);
@@ -195,8 +195,8 @@ public:
 
 	int16_t getMaxOscTranspose(InstrumentClip* clip);
 	int16_t getMinOscTranspose();
-	void setSynthMode(uint8_t value, Song* song);
-	inline uint8_t getSynthMode() { return synthMode; }
+	void setSynthMode(SynthMode value, Song* song);
+	inline SynthMode getSynthMode() { return synthMode; }
 	bool anyNoteIsOn();
 	virtual bool isDrum() { return false; }
 	void setupAsSample(ParamManagerForTimeline* paramManager);

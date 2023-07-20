@@ -79,7 +79,7 @@ void SoundDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t veloci
                        int fromMIDIChannel, uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate) {
 
 	// If part of a Kit, and in choke mode, choke other drums
-	if (polyphonic == POLYPHONY_CHOKE) {
+	if (polyphonic == PolyphonyMode::CHOKE) {
 		kit->choke();
 	}
 
@@ -162,7 +162,7 @@ int SoundDrum::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPo
 
 // modelStack may be NULL
 void SoundDrum::choke(ModelStackWithSoundFlags* modelStack) {
-	if (polyphonic == POLYPHONY_CHOKE) {
+	if (polyphonic == PolyphonyMode::CHOKE) {
 
 		// Don't choke it if it's auditioned
 		if (getRootUI() == &instrumentClipView && instrumentClipView.isDrumAuditioned(this)) {

@@ -440,7 +440,7 @@ bool SoundInstrument::noteIsOn(int noteCode) {
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 
 	if (arpSettings) {
-		if (arpSettings->mode != ARP_MODE_OFF || polyphonic == POLYPHONY_LEGATO || polyphonic == POLYPHONY_MONO) {
+		if (arpSettings->mode != ARP_MODE_OFF || polyphonic == PolyphonyMode::LEGATO || polyphonic == PolyphonyMode::MONO) {
 
 			int n = arpeggiator.notes.search(noteCode, GREATER_OR_EQUAL);
 			if (n >= arpeggiator.notes.getNumElements()) {

@@ -4503,7 +4503,7 @@ AudioOutput* Song::getFirstAudioOutput() {
 	return NULL;
 }
 
-int8_t defaultAudioOutputInputChannel = -1;
+AudioInputChannel defaultAudioOutputInputChannel = AUDIO_INPUT_CHANNEL_NONE;
 
 AudioOutput* Song::createNewAudioOutput(Output* replaceOutput) {
 	int highestNumber = 0;

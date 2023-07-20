@@ -16,6 +16,7 @@
 */
 
 #include "gui/context_menu/audio_input_selector.h"
+#include "definitions_cxx.hpp"
 #include "gui/ui/root_ui.h"
 #include "processing/audio_output.h"
 #include "hid/matrix/matrix_driver.h"
@@ -24,7 +25,7 @@
 #include "extern.h"
 #include <cstddef>
 
-extern int8_t defaultAudioOutputInputChannel;
+extern AudioInputChannel defaultAudioOutputInputChannel;
 
 namespace deluge::gui::context_menu {
 

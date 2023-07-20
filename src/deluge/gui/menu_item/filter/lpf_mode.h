@@ -19,13 +19,14 @@
 #include "gui/menu_item/selection.h"
 #include "processing/sound/sound.h"
 #include "gui/ui/sound_editor.h"
+#include "util/misc.h"
 
 namespace menu_item::filter {
 class LPFMode final : public Selection {
 public:
 	LPFMode(char const* newName = NULL) : Selection(newName) {}
-	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentModControllable->lpfMode; }
-	void writeCurrentValue() { soundEditor.currentModControllable->lpfMode = soundEditor.currentValue; }
+	void readCurrentValue() { soundEditor.currentValue = util::to_underlying(soundEditor.currentModControllable->lpfMode); }
+	void writeCurrentValue() { soundEditor.currentModControllable->lpfMode = static_cast<::LPFMode>(soundEditor.currentValue); }
 	char const** getOptions() {
 		static char const* options[] = {"12dB", "24dB", "Drive", "SVF", NULL};
 		return options;

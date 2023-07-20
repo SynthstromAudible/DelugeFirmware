@@ -39,7 +39,7 @@ public:
 	uint8_t numOctaves;
 	SyncLevel syncLevel;
 	SyncType syncType;
-	uint8_t mode;
+	ArpMode mode;
 };
 
 struct ArpNote {

@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "model/global_effectable/global_effectable_for_clip.h"
 #include "model/output.h"
 #include "modulation/envelope.h"
@@ -77,7 +78,7 @@ public:
 
 	int32_t overrideAmplitudeEnvelopeReleaseRate;
 
-	int8_t inputChannel;
+	AudioInputChannel inputChannel;
 	bool echoing; // Doesn't get cloned - we wouldn't want that!
 
 protected:

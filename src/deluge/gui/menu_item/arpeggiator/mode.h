@@ -22,12 +22,13 @@
 #include "model/song/song.h"
 #include "gui/ui/sound_editor.h"
 #include "processing/sound/sound.h"
+#include "util/misc.h"
 
 namespace menu_item::arpeggiator {
 class Mode final : public Selection {
 public:
 	Mode(char const* newName = NULL) : Selection(newName) {}
-	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentArpSettings->mode; }
+	void readCurrentValue() { soundEditor.currentValue = util::to_underlying(soundEditor.currentArpSettings->mode); }
 	void writeCurrentValue() {
 
 		// If was off, or is now becoming off...
@@ -49,7 +50,7 @@ public:
 				}
 			}
 		}
-		soundEditor.currentArpSettings->mode = soundEditor.currentValue;
+		soundEditor.currentArpSettings->mode = static_cast<ArpMode>(soundEditor.currentValue);
 
 		// Only update the Clip-level arp setting if they hadn't been playing with other synth parameters first (so it's clear that switching the arp on or off was their main intention)
 		if (!soundEditor.editingKit()) {

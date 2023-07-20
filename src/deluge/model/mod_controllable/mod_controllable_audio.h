@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "model/mod_controllable/mod_controllable.h"
 #include "dsp/stereo_sample.h"
 #include "dsp/delay/delay.h"
@@ -67,7 +68,7 @@ public:
 	static void initParams(ParamManager* paramManager);
 	void wontBeRenderedForAWhile();
 	void endStutter(ParamManagerForTimeline* paramManager);
-	virtual bool setModFXType(int newType);
+	virtual bool setModFXType(ModFXType newType);
 	bool offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
 	                                    ModelStackWithTimelineCounter* modelStack, int noteRowIndex = -1);
 	bool offerReceivedPitchBendToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2,
@@ -105,10 +106,10 @@ public:
 
 	bool sampleRateReductionOnLastTime;
 	uint8_t clippingAmount; // Song probably doesn't currently use this?
-	uint8_t lpfMode;
+	LPFMode lpfMode;
 
 	// Mod FX
-	uint8_t modFXType;
+	ModFXType modFXType;
 	StereoSample* modFXBuffer;
 	uint16_t modFXBufferWriteIndex;
 	LFO modFXLFO;

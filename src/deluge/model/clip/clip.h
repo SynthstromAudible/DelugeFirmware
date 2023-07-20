@@ -125,7 +125,7 @@ public:
 	virtual void abortRecording() = 0;
 	virtual void stopAllNotesPlaying(Song* song, bool actuallySoundChange = true) {}
 	virtual bool willCloneOutputForOverdub() { return false; }
-	void setSequenceDirectionMode(ModelStackWithTimelineCounter* modelStack, int newSequenceDirection);
+	void setSequenceDirectionMode(ModelStackWithTimelineCounter* modelStack, SequenceDirection newSequenceDirection);
 	bool possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* modelStack);
 	virtual void incrementPos(ModelStackWithTimelineCounter* modelStack, int32_t numTicks);
 	/// Return true if successfully shifted
@@ -162,7 +162,7 @@ public:
 
 #if HAVE_SEQUENCE_STEP_CONTROL
 	bool currentlyPlayingReversed;
-	uint8_t sequenceDirectionMode;
+	SequenceDirection sequenceDirectionMode;
 #endif
 
 	int32_t loopLength;
