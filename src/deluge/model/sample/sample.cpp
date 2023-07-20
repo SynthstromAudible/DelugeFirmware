@@ -65,7 +65,7 @@ struct SampleCacheElement {
 
 Sample::Sample()
     : percCacheZones{sizeof(SamplePercCacheZone), sizeof(SamplePercCacheZone)}, caches(sizeof(SampleCacheElement), 4),
-      AudioFile(AUDIO_FILE_TYPE_SAMPLE) {
+      AudioFile(AudioFileType::SAMPLE) {
 	audioDataLengthBytes = 0;
 	audioDataStartPosBytes = 0;
 	lengthInSamples = 0;

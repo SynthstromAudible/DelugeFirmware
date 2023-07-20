@@ -28,7 +28,7 @@ SampleHolder::SampleHolder() {
 	startPos = 0;
 	endPos = 9999999;
 	waveformViewZoom = 0;
-	audioFileType = AUDIO_FILE_TYPE_SAMPLE;
+	audioFileType = AudioFileType::SAMPLE;
 
 	for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD; l++) {
 		clustersForStart[l] = NULL;

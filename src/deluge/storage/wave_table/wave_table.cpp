@@ -44,7 +44,7 @@ WaveTableBand::~WaveTableBand() {
 	}
 }
 
-WaveTable::WaveTable() : bands(sizeof(WaveTableBand)), AudioFile(AUDIO_FILE_TYPE_WAVETABLE) {
+WaveTable::WaveTable() : bands(sizeof(WaveTableBand)), AudioFile(AudioFileType::WAVETABLE) {
 }
 
 WaveTable::~WaveTable() {

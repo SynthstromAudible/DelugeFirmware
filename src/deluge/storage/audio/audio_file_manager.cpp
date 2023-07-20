@@ -145,7 +145,7 @@ clusterSizeChangedButItsOk:
 
 			// Otherwise, mark the sample as unplayable
 			else {
-				if (thisAudioFile->type == AUDIO_FILE_TYPE_SAMPLE) {
+				if (thisAudioFile->type == AudioFileType::SAMPLE) {
 					((Sample*)thisAudioFile)->unplayable = true;
 				}
 			}
@@ -170,7 +170,7 @@ clusterSizeChangedButItsOk:
 
 			// Or if it is still used by someone...
 			else {
-				if (thisAudioFile->type == AUDIO_FILE_TYPE_SAMPLE) {
+				if (thisAudioFile->type == AudioFileType::SAMPLE) {
 					// Check the Sample's file still exists
 
 					char const* filePath = ((Sample*)thisAudioFile)->tempFilePathForRecording.get();
@@ -222,7 +222,7 @@ void AudioFileManager::deleteAnyTempRecordedSamplesFromMemory() {
 	for (int e = 0; e < audioFiles.getNumElements(); e++) {
 		AudioFile* audioFile = (AudioFile*)audioFiles.getElement(e);
 
-		if (audioFile->type == AUDIO_FILE_TYPE_SAMPLE) {
+		if (audioFile->type == AudioFileType::SAMPLE) {
 			// If it's a temp-recorded one
 			if (!((Sample*)audioFile)->tempFilePathForRecording.isEmpty()) {
 
@@ -432,7 +432,7 @@ int AudioFileManager::setupAlternateAudioFilePath(String* newPath, int dirPathLe
 }
 
 AudioFile* AudioFileManager::getAudioFileFromFilename(String* filePath, bool mayReadCard, uint8_t* error,
-                                                      FilePointer* suppliedFilePointer, int type,
+                                                      FilePointer* suppliedFilePointer, AudioFileType type,
                                                       bool makeWaveTableWorkAtAllCosts) {
 
 	*error = NO_ERROR;
@@ -473,7 +473,7 @@ doTryOffset:
 		// If here, we didn't find the correct type, but we did find an AudioFile for the correct filePath, just the wrong type.
 
 		// If we want WaveTable but got Sample, we can convert. (Otherwise, we can't.)
-		if (type == AUDIO_FILE_TYPE_WAVETABLE) {
+		if (type == AudioFileType::WAVETABLE) {
 
 			// Stereo files can never be WaveTables
 			if (((Sample*)foundAudioFile)->numChannels != 1) {
@@ -722,7 +722,7 @@ cantLoadFile:
 
 	uint32_t numClusters = ((effectiveFilePointer.objsize - 1) >> clusterSizeMagnitude) + 1;
 
-	int memorySizeNeeded = (type == AUDIO_FILE_TYPE_SAMPLE) ? sizeof(Sample) : sizeof(WaveTable);
+	int memorySizeNeeded = (type == AudioFileType::SAMPLE) ? sizeof(Sample) : sizeof(WaveTable);
 
 	void* audioFileMemory = generalMemoryAllocator.alloc(memorySizeNeeded, NULL, false, true, true); // Stealable!
 	if (!audioFileMemory) {
@@ -735,7 +735,7 @@ ramError:
 	AudioFileReader* reader;
 
 	AudioFile* audioFile;
-	if (type == AUDIO_FILE_TYPE_SAMPLE) {
+	if (type == AudioFileType::SAMPLE) {
 		audioFile = new (audioFileMemory) Sample;
 		audioFile->addReason(); // So it's protected while setting up. Must do this before calling initialize().
 		*error = ((Sample*)audioFile)->initialize(numClusters);
@@ -762,7 +762,7 @@ ramError:
 	reader->byteIndexWithinCluster = clusterSize;
 
 	// If Sample, we go directly to god-mode and get the cluster addresses.
-	if (type == AUDIO_FILE_TYPE_SAMPLE) {
+	if (type == AudioFileType::SAMPLE) {
 
 		// Store the address of each of the file's clusters.
 		uint32_t currentClusterIndex = 0;
@@ -816,7 +816,7 @@ ramError:
 	}
 
 ensureSafeThenCheckError:
-	if (type == AUDIO_FILE_TYPE_SAMPLE) {
+	if (type == AudioFileType::SAMPLE) {
 		if (((SampleReader*)reader)->currentCluster) {
 			removeReasonFromCluster(((SampleReader*)reader)->currentCluster, "E030");
 		}

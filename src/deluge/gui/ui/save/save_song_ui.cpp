@@ -196,7 +196,7 @@ gotError:
 		// If this AudioFile is used in this Song...
 		if (audioFile->numReasonsToBeLoaded) {
 
-			if (audioFile->type == AUDIO_FILE_TYPE_SAMPLE) {
+			if (audioFile->type == AudioFileType::SAMPLE) {
 				// If this is a recording which still exists at its temporary location, move the file
 				if (!((Sample*)audioFile)->tempFilePathForRecording.isEmpty()) {
 					FRESULT result =
@@ -241,7 +241,7 @@ gotError:
 				}
 				else {
 					sourceFilePath =
-					    (audioFile->type != AUDIO_FILE_TYPE_SAMPLE
+					    (audioFile->type != AudioFileType::SAMPLE
 					     || ((Sample*)audioFile)->tempFilePathForRecording.isEmpty())
 					        ? audioFile->filePath.get()
 					        : ((Sample*)audioFile)

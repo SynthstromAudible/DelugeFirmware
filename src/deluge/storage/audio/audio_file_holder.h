@@ -40,5 +40,5 @@ public:
 
 	String filePath;
 	AudioFile* audioFile;
-	uint8_t audioFileType;
+	AudioFileType audioFileType;
 };

@@ -1226,7 +1226,7 @@ removeReasonsFromSamplesAndGetOut:
 		for (int e = 0; e < audioFileManager.audioFiles.getNumElements(); e++) {
 			AudioFile* audioFile = (AudioFile*)audioFileManager.audioFiles.getElement(e);
 
-			if (audioFile->type == AUDIO_FILE_TYPE_SAMPLE) {
+			if (audioFile->type == AudioFileType::SAMPLE) {
 				Sample* thisSample = (Sample*)audioFile;
 
 				// If this sample is one of the ones we loaded a moment ago...
@@ -1295,7 +1295,7 @@ removeReasonsFromSamplesAndGetOut:
 
 		Sample* newSample = (Sample*)audioFileManager.getAudioFileFromFilename(
 		    &filePath, true, &error, &thisFilePointer,
-		    AUDIO_FILE_TYPE_SAMPLE); // We really want to be able to pass a file pointer in here
+		    AudioFileType::SAMPLE); // We really want to be able to pass a file pointer in here
 		if (error || !newSample) {
 			f_closedir(&staticDIR);
 			goto removeReasonsFromSamplesAndGetOut;
@@ -1350,7 +1350,7 @@ removeReasonsFromSamplesAndGetOut:
 	for (int e = 0; e < audioFileManager.audioFiles.getNumElements(); e++) {
 		AudioFile* audioFile = (AudioFile*)audioFileManager.audioFiles.getElement(e);
 
-		if (audioFile->type == AUDIO_FILE_TYPE_SAMPLE) {
+		if (audioFile->type == AudioFileType::SAMPLE) {
 
 			Sample* thisSample = (Sample*)audioFile;
 			// If this sample is one of the ones we loaded a moment ago...

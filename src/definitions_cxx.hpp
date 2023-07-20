@@ -860,9 +860,9 @@ enum SequenceDirection {
 };
 constexpr uint8_t NUM_SEQUENCE_DIRECTION_OPTIONS = SEQUENCE_DIRECTION_OBEY_PARENT;
 
-enum AudioFileType {
-	AUDIO_FILE_TYPE_SAMPLE,
-	AUDIO_FILE_TYPE_WAVETABLE,
+enum class AudioFileType {
+	SAMPLE,
+	WAVETABLE,
 };
 
 #define WAVETABLE_MIN_CYCLE_SIZE                                                                                       \
