@@ -2531,7 +2531,7 @@ traverseClips:
 			Kit* kit = (Kit*)output;
 
 			for (Drum* drum = kit->firstDrum; drum; drum = drum->next) {
-				if (drum->type == DRUM_TYPE_SOUND && drum->midiInput.containsSomething()
+				if (drum->type == DrumType::SOUND && drum->midiInput.containsSomething()
 				    && drum->midiInput.device == device) {
 
 					ModelStackWithNoteRow* modelStackWithNoteRow =
@@ -3880,7 +3880,7 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack, 
 		if (output->type == InstrumentType::KIT) {
 			Kit* kit = (Kit*)output;
 			for (Drum* thisDrum = kit->firstDrum; thisDrum; thisDrum = thisDrum->next) {
-				if (thisDrum->type == DRUM_TYPE_SOUND) {
+				if (thisDrum->type == DrumType::SOUND) {
 					SoundDrum* soundDrum = (SoundDrum*)thisDrum;
 					if (!getBackedUpParamManagerPreferablyWithClip(soundDrum, NULL)) { // If no backedUpParamManager...
 						if (!findParamManagerForDrum(kit,

@@ -217,7 +217,7 @@ private:
 	void copyAutomation(int whichModEncoder);
 	void pasteAutomation(int whichModEncoder);
 
-	void createDrumForAuditionedNoteRow(int drumType);
+	void createDrumForAuditionedNoteRow(DrumType drumType);
 	void nudgeNotes(int offset);
 	void editNoteRepeat(int offset);
 

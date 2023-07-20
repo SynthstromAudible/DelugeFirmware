@@ -589,7 +589,7 @@ void View::noteOnReceivedForMidiLearn(MIDIDevice* fromDevice, int channelOrZone,
 				}
 			}
 
-			if (drumPressedForMIDILearn->type == DRUM_TYPE_SOUND) {
+			if (drumPressedForMIDILearn->type == DrumType::SOUND) {
 				currentSong->grabVelocityToLevelFromMIDIDeviceAndSetupPatchingForAllParamManagersForDrum(
 				    fromDevice, (SoundDrum*)drumPressedForMIDILearn, kitPressedForMIDILearn);
 			}
@@ -1675,7 +1675,7 @@ getOut:
 		if (newInstrument->type == InstrumentType::KIT) {
 			Kit* kit = (Kit*)newInstrument;
 			for (Drum* thisDrum = kit->firstDrum; thisDrum; thisDrum = thisDrum->next) {
-				if (thisDrum->type == DRUM_TYPE_SOUND) {
+				if (thisDrum->type == DrumType::SOUND) {
 					SoundDrum* soundDrum = (SoundDrum*)thisDrum;
 					if (!modelStack->song->getBackedUpParamManagerPreferablyWithClip(
 					        soundDrum, NULL)) { // If no backedUpParamManager...

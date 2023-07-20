@@ -441,7 +441,7 @@ doOther:
 				}
 			}
 			else if (currentUIMode == UI_MODE_ADDING_DRUM_NOTEROW || currentUIMode == UI_MODE_AUDITIONING) {
-				createDrumForAuditionedNoteRow(DRUM_TYPE_SOUND);
+				createDrumForAuditionedNoteRow(DrumType::SOUND);
 			}
 		}
 	}
@@ -456,7 +456,7 @@ doOther:
 				changeInstrumentType(InstrumentType::MIDI_OUT);
 			}
 			else if (currentUIMode == UI_MODE_ADDING_DRUM_NOTEROW || currentUIMode == UI_MODE_AUDITIONING) {
-				createDrumForAuditionedNoteRow(DRUM_TYPE_MIDI);
+				createDrumForAuditionedNoteRow(DrumType::MIDI);
 			}
 		}
 	}
@@ -471,7 +471,7 @@ doOther:
 				changeInstrumentType(InstrumentType::CV);
 			}
 			else if (currentUIMode == UI_MODE_ADDING_DRUM_NOTEROW || currentUIMode == UI_MODE_AUDITIONING) {
-				createDrumForAuditionedNoteRow(DRUM_TYPE_GATE);
+				createDrumForAuditionedNoteRow(DrumType::GATE);
 			}
 		}
 	}
@@ -681,7 +681,7 @@ passToOthers:
 	return ACTION_RESULT_DEALT_WITH;
 }
 
-void InstrumentClipView::createDrumForAuditionedNoteRow(int drumType) {
+void InstrumentClipView::createDrumForAuditionedNoteRow(DrumType drumType) {
 	if (currentSong->currentClip->output->type != InstrumentType::KIT) {
 		return;
 	}
@@ -721,7 +721,7 @@ someError:
 		cutAuditionedNotesToOne();
 		noteRow = getCurrentClip()->getNoteRowOnScreen(lastAuditionedYDisplay, currentSong, &noteRowIndex);
 		if (noteRow->drum) {
-			if (drumType != DRUM_TYPE_SOUND && noteRow->drum->type == drumType) {
+			if (drumType != DrumType::SOUND && noteRow->drum->type == drumType) {
 				return; // If it's already that kind of Drum, well, no need to do it again
 			}
 			noteRow->drum->drumWontBeRenderedForAWhile();
@@ -740,7 +740,7 @@ someError:
 
 	ParamManager paramManager;
 
-	if (drumType == DRUM_TYPE_SOUND) {
+	if (drumType == DrumType::SOUND) {
 
 		String newName;
 		int error = newName.set("U");
@@ -1208,7 +1208,7 @@ int InstrumentClipView::padAction(int x, int y, int velocity) {
 				}
 				AudioEngine::stopAnyPreviewing();
 				Drum* drum = getCurrentClip()->getNoteRowOnScreen(i, currentSong)->drum;
-				if (drum->type != DRUM_TYPE_SOUND) {
+				if (drum->type != DrumType::SOUND) {
 					continue;
 				}
 				SoundDrum* soundDrum = (SoundDrum*)drum;
@@ -1829,7 +1829,7 @@ Sound* InstrumentClipView::getSoundForNoteRow(NoteRow* noteRow, ParamManagerForT
 		return (SoundInstrument*)currentSong->currentClip->output;
 	}
 	else if (currentSong->currentClip->output->type == InstrumentType::KIT && noteRow && noteRow->drum
-	         && noteRow->drum->type == DRUM_TYPE_SOUND) {
+	         && noteRow->drum->type == DrumType::SOUND) {
 		if (!noteRow) {
 			return NULL;
 		}
@@ -2740,7 +2740,7 @@ void InstrumentClipView::sendAuditionNote(bool on, uint8_t yDisplay, uint8_t vel
 				}
 
 				if (on) {
-					if (drum->type == DRUM_TYPE_SOUND
+					if (drum->type == DrumType::SOUND
 					    && !modelStackWithNoteRow->getNoteRow()->paramManager.containsAnyMainParamCollections()) {
 						numericDriver.freezeWithError("E325"); // Trying to catch an E313 that Vinz got
 					}
@@ -3431,13 +3431,13 @@ void InstrumentClipView::drawDrumName(Drum* drum, bool justPopUp) {
 	if (!drum) {
 		newText = "No sound";
 	}
-	else if (drum->type == DRUM_TYPE_SOUND) {
+	else if (drum->type == DrumType::SOUND) {
 		newText = ((SoundDrum*)drum)->name.get();
 	}
 	else {
 		newText = buffer;
 
-		if (drum->type == DRUM_TYPE_GATE) {
+		if (drum->type == DrumType::GATE) {
 
 			strcpy(buffer, "Gate channel ");
 			intToString(((GateDrum*)drum)->channel + 1, &buffer[13]);
@@ -3471,14 +3471,14 @@ basicDisplay:
 		}
 	}
 	else {
-		if (drum->type != DRUM_TYPE_SOUND) {
+		if (drum->type != DrumType::SOUND) {
 			drum->getName(buffer);
 			newText = buffer;
 
-			if (drum->type == DRUM_TYPE_MIDI) {
+			if (drum->type == DrumType::MIDI) {
 				indicator_leds::blinkLed(IndicatorLED::MIDI, 1, 1);
 			}
-			else if (drum->type == DRUM_TYPE_GATE) {
+			else if (drum->type == DrumType::GATE) {
 				indicator_leds::blinkLed(IndicatorLED::CV, 1, 1);
 			}
 
@@ -5088,7 +5088,7 @@ void InstrumentClipView::modEncoderAction(int whichModEncoder, int offset) {
 
 		Kit* kit = (Kit*)output;
 
-		if (kit->selectedDrum && kit->selectedDrum->type != DRUM_TYPE_SOUND) {
+		if (kit->selectedDrum && kit->selectedDrum->type != DrumType::SOUND) {
 
 			if (ALPHA_OR_BETA_VERSION && !kit->activeClip) {
 				numericDriver.freezeWithError("E381");

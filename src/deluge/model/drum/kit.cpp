@@ -178,7 +178,7 @@ bool Kit::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 			// - and for SoundDrums, save as "default" any backedUpParamManagers (if none for a SoundDrum, definitely skip it)
 			if (!activeClip) {
 				Uart::println("nah, !activeClip");
-				if (thisDrum->type == DRUM_TYPE_SOUND) {
+				if (thisDrum->type == DrumType::SOUND) {
 					paramManagerForDrum = song->getBackedUpParamManagerPreferablyWithClip((SoundDrum*)thisDrum, NULL);
 					if (!paramManagerForDrum) {
 						goto moveOn;
@@ -194,7 +194,7 @@ bool Kit::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 
 					*prevPointer = thisDrum->next;
 
-					if (thisDrum->type == DRUM_TYPE_SOUND) {
+					if (thisDrum->type == DrumType::SOUND) {
 						song->deleteBackedUpParamManagersForModControllable((SoundDrum*)thisDrum);
 					}
 
@@ -249,10 +249,10 @@ int Kit::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) {
 
 		if (!strcmp(tagName, "soundSources")) {
 			while (*(tagName = storageManager.readNextTagOrAttributeName())) {
-				int drumType;
+				DrumType drumType;
 
 				if (!strcmp(tagName, "sample") || !strcmp(tagName, "synth") || !strcmp(tagName, "sound")) {
-					drumType = DRUM_TYPE_SOUND;
+					drumType = DrumType::SOUND;
 doReadDrum:
 					int error = readDrumFromFile(song, clip, drumType, readAutomationUpToPos);
 					if (error) {
@@ -261,11 +261,11 @@ doReadDrum:
 					storageManager.exitTag();
 				}
 				else if (!strcmp(tagName, "midiOutput")) {
-					drumType = DRUM_TYPE_MIDI;
+					drumType = DrumType::MIDI;
 					goto doReadDrum;
 				}
 				else if (!strcmp(tagName, "gateOutput")) {
-					drumType = DRUM_TYPE_GATE;
+					drumType = DrumType::GATE;
 					goto doReadDrum;
 				}
 				else {
@@ -309,7 +309,7 @@ doReadDrum:
 	return NO_ERROR;
 }
 
-int Kit::readDrumFromFile(Song* song, Clip* clip, int drumType, int32_t readAutomationUpToPos) {
+int Kit::readDrumFromFile(Song* song, Clip* clip, DrumType drumType, int32_t readAutomationUpToPos) {
 
 	Drum* newDrum = storageManager.createNewDrum(drumType);
 	if (!newDrum) {
@@ -464,7 +464,7 @@ SoundDrum* Kit::getDrumFromName(char const* name, bool onlyIfNoNoteRow) {
 			continue;
 		}
 
-		if (thisDrum->type == DRUM_TYPE_SOUND && ((SoundDrum*)thisDrum)->name.equalsCaseIrrespective(name)) {
+		if (thisDrum->type == DrumType::SOUND && ((SoundDrum*)thisDrum)->name.equalsCaseIrrespective(name)) {
 			return (SoundDrum*)thisDrum;
 		}
 	}
@@ -489,7 +489,7 @@ void Kit::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStac
 	for (int d = drumsWithRenderingActive.getNumElements() - 1; d >= 0; d--) {
 		Drum* thisDrum = (Drum*)drumsWithRenderingActive.getKeyAtIndex(d);
 
-		if (ALPHA_OR_BETA_VERSION && thisDrum->type != DRUM_TYPE_SOUND) {
+		if (ALPHA_OR_BETA_VERSION && thisDrum->type != DrumType::SOUND) {
 			numericDriver.freezeWithError("E253");
 		}
 
@@ -536,7 +536,7 @@ void Kit::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStac
 			NoteRow* thisNoteRow = noteRows->getElement(i);
 			if (thisNoteRow->drum
 			    && thisNoteRow->drum->type
-			           == DRUM_TYPE_SOUND) { // Just don't bother ticking other ones for now - their MPE doesn't need to interpolate.
+			           == DrumType::SOUND) { // Just don't bother ticking other ones for now - their MPE doesn't need to interpolate.
 
 				ParamCollectionSummary* patchedParamsSummary =
 				    &thisNoteRow->paramManager
@@ -625,7 +625,7 @@ void Kit::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel
 		for (int i = 0; i < clip->noteRows.getNumElements(); i++) {
 			NoteRow* thisNoteRow = clip->noteRows.getElement(i);
 			Drum* thisDrum = thisNoteRow->drum;
-			if (thisDrum && thisDrum->type == DRUM_TYPE_SOUND) {
+			if (thisDrum && thisDrum->type == DrumType::SOUND) {
 				((SoundDrum*)thisDrum)
 				    ->offerReceivedCCToLearnedParams(fromDevice, channel, ccNumber, value, modelStack, i);
 			}
@@ -649,7 +649,7 @@ bool Kit::offerReceivedPitchBendToLearnedParams(MIDIDevice* fromDevice, uint8_t 
 		for (int i = 0; i < clip->noteRows.getNumElements(); i++) {
 			NoteRow* thisNoteRow = clip->noteRows.getElement(i);
 			Drum* thisDrum = thisNoteRow->drum;
-			if (thisDrum && thisDrum->type == DRUM_TYPE_SOUND) {
+			if (thisDrum && thisDrum->type == DrumType::SOUND) {
 				if (((SoundDrum*)thisDrum)
 				        ->offerReceivedPitchBendToLearnedParams(fromDevice, channel, data1, data2, modelStack)) {
 					messageUsed = true;
@@ -669,7 +669,7 @@ void Kit::choke() {
 
 void Kit::resyncLFOs() {
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
-		if (thisDrum && thisDrum->type == DRUM_TYPE_SOUND) {
+		if (thisDrum && thisDrum->type == DrumType::SOUND) {
 			((SoundDrum*)thisDrum)->resyncGlobalLFO();
 		}
 	}
@@ -707,7 +707,7 @@ void Kit::setupWithoutActiveClip(ModelStack* modelStack) {
 
 	int count = 0;
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
-		if (thisDrum->type == DRUM_TYPE_SOUND) {
+		if (thisDrum->type == DrumType::SOUND) {
 
 			if (!(count & 7)) {
 				AudioEngine::routineWithClusterLoading(); // -----------------------------------
@@ -739,7 +739,7 @@ void Kit::setupPatching(ModelStackWithTimelineCounter* modelStack) {
 	if (clip) {
 		for (int i = 0; i < clip->noteRows.getNumElements(); i++) {
 			NoteRow* thisNoteRow = clip->noteRows.getElement(i);
-			if (thisNoteRow->drum && thisNoteRow->drum->type == DRUM_TYPE_SOUND) {
+			if (thisNoteRow->drum && thisNoteRow->drum->type == DrumType::SOUND) {
 
 				if (!(count & 7)) {
 					AudioEngine::routineWithClusterLoading(); // -----------------------------------
@@ -764,7 +764,7 @@ void Kit::setupPatching(ModelStackWithTimelineCounter* modelStack) {
 
 	else {
 		for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
-			if (thisDrum->type == DRUM_TYPE_SOUND) {
+			if (thisDrum->type == DrumType::SOUND) {
 
 				if (!(count & 7)) {
 					AudioEngine::routineWithClusterLoading(); // -----------------------------------
@@ -812,7 +812,7 @@ bool Kit::setActiveClip(ModelStackWithTimelineCounter* modelStack, int maySendMI
 				thisNoteRow->drum->noteRowAssignedTemp = true;
 				thisNoteRow->drum->earlyNoteVelocity = 0;
 
-				if (thisNoteRow->drum->type == DRUM_TYPE_SOUND) {
+				if (thisNoteRow->drum->type == DrumType::SOUND) {
 
 					if (!(count & 7)) {
 						AudioEngine::
@@ -874,7 +874,7 @@ void Kit::deleteBackedUpParamManagers(Song* song) {
 	song->deleteBackedUpParamManagersForModControllable(this);
 
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
-		if (thisDrum->type == DRUM_TYPE_SOUND) {
+		if (thisDrum->type == DrumType::SOUND) {
 			AudioEngine::routineWithClusterLoading(); // -----------------------------------
 			song->deleteBackedUpParamManagersForModControllable((SoundDrum*)thisDrum);
 		}
@@ -896,7 +896,7 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 		NoteRow* thisNoteRow = ((InstrumentClip*)activeClip)->noteRows.getElement(i);
 		if (thisNoteRow->drum
 		    && thisNoteRow->drum->type
-		           == DRUM_TYPE_SOUND) { // For now, only SoundDrums have Arps, but that's actually a kinda pointless restriction...
+		           == DrumType::SOUND) { // For now, only SoundDrums have Arps, but that's actually a kinda pointless restriction...
 			SoundDrum* soundDrum = (SoundDrum*)thisNoteRow->drum;
 
 			ArpReturnInstruction instruction;
@@ -935,7 +935,7 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 
 GateDrum* Kit::getGateDrumForChannel(int gateChannel) {
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
-		if (thisDrum->type == DRUM_TYPE_GATE) {
+		if (thisDrum->type == DrumType::GATE) {
 			GateDrum* gateDrum = (GateDrum*)thisDrum;
 			if (gateDrum->channel == gateChannel) {
 				return gateDrum;
@@ -962,7 +962,7 @@ void Kit::getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** par
 
 		for (int i = 0; i < ((InstrumentClip*)activeClip)->noteRows.getNumElements(); i++) {
 			NoteRow* thisNoteRow = ((InstrumentClip*)activeClip)->noteRows.getElement(i);
-			if (!thisNoteRow->drum || thisNoteRow->drum->type != DRUM_TYPE_SOUND) {
+			if (!thisNoteRow->drum || thisNoteRow->drum->type != DrumType::SOUND) {
 				continue;
 			}
 			((SoundDrum*)thisNoteRow->drum)
@@ -996,7 +996,7 @@ void Kit::offerReceivedNote(ModelStackWithTimelineCounter* modelStack, MIDIDevic
 		if (thisDrum->midiInput.equalsNoteOrCCAllowMPE(fromDevice, channelOrZone, note)) {
 
 			// If MIDIDrum, outputting same note, then don't additionally do thru
-			if (doingMidiThru && thisDrum->type == DRUM_TYPE_MIDI && ((MIDIDrum*)thisDrum)->channel == channel
+			if (doingMidiThru && thisDrum->type == DrumType::MIDI && ((MIDIDrum*)thisDrum)->channel == channel
 			    && ((MIDIDrum*)thisDrum)->note == note) {
 				*doingMidiThru = false;
 			}
@@ -1104,7 +1104,7 @@ goingToRecordNoteOnEarly:
 					// TODO: possibly should change the MPE params' currentValue to the initial values, since that usually does get updated by the
 					// subsequent MPE that will come in. Or does that not matter?
 
-					if (thisNoteRow && thisDrum->type == DRUM_TYPE_SOUND
+					if (thisNoteRow && thisDrum->type == DrumType::SOUND
 					    && !thisNoteRow->paramManager.containsAnyMainParamCollections()) {
 						numericDriver.freezeWithError("E326"); // Trying to catch an E313 that Vinz got
 					}
@@ -1330,12 +1330,12 @@ void Kit::beginAuditioningforDrum(ModelStackWithNoteRow* modelStack, Drum* drum,
 
 	if (modelStack->getNoteRowAllowNull()) {
 		paramManagerForDrum = &modelStack->getNoteRow()->paramManager;
-		if (!paramManagerForDrum->containsAnyMainParamCollections() && drum->type == DRUM_TYPE_SOUND) {
+		if (!paramManagerForDrum->containsAnyMainParamCollections() && drum->type == DrumType::SOUND) {
 			numericDriver.freezeWithError("E313"); // Vinz got this!
 		}
 	}
 	else {
-		if (drum->type == DRUM_TYPE_SOUND) {
+		if (drum->type == DrumType::SOUND) {
 			paramManagerForDrum = modelStack->song->getBackedUpParamManagerPreferablyWithClip((SoundDrum*)drum, NULL);
 			if (!paramManagerForDrum) {
 				numericDriver.freezeWithError(
@@ -1366,7 +1366,7 @@ void Kit::endAuditioningForDrum(ModelStackWithNoteRow* modelStack, Drum* drum, i
 
 	ParamManager* paramManagerForDrum = NULL;
 
-	if (drum->type == DRUM_TYPE_SOUND) {
+	if (drum->type == DrumType::SOUND) {
 
 		NoteRow* noteRow = modelStack->getNoteRowAllowNull();
 

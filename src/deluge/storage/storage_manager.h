@@ -94,7 +94,7 @@ public:
 	void writeEarliestCompatibleFirmwareVersion(char const* versionString);
 	int readMIDIParamFromFile(int32_t readAutomationUpToPos, MIDIParamCollection* midiParamCollection,
 	                          int8_t* getCC = NULL);
-	Drum* createNewDrum(int drumType);
+	Drum* createNewDrum(DrumType drumType);
 	void openFilePointer(FilePointer* fp);
 	int tryReadingFirmwareTagFromFile(char const* tagName, bool ignoreIncorrectFirmware = false);
 	int32_t readTagOrAttributeValueInt();

@@ -1441,7 +1441,7 @@ paramManagersMissing:
 	if (newInstrument->type == InstrumentType::KIT) {
 		Kit* kit = (Kit*)newInstrument;
 		for (Drum* thisDrum = kit->firstDrum; thisDrum; thisDrum = thisDrum->next) {
-			if (thisDrum->type == DRUM_TYPE_SOUND) {
+			if (thisDrum->type == DrumType::SOUND) {
 				SoundDrum* soundDrum = (SoundDrum*)thisDrum;
 				if (!currentSong->getBackedUpParamManagerPreferablyWithClip(soundDrum,
 				                                                            NULL)) { // If no backedUpParamManager...
@@ -1534,15 +1534,15 @@ Instrument* StorageManager::createNewNonAudioInstrument(InstrumentType instrumen
 	return newInstrument;
 }
 
-Drum* StorageManager::createNewDrum(int drumType) {
+Drum* StorageManager::createNewDrum(DrumType drumType) {
 	int memorySize;
-	if (drumType == DRUM_TYPE_SOUND) {
+	if (drumType == DrumType::SOUND) {
 		memorySize = sizeof(SoundDrum);
 	}
-	else if (drumType == DRUM_TYPE_MIDI) {
+	else if (drumType == DrumType::MIDI) {
 		memorySize = sizeof(MIDIDrum);
 	}
-	else if (drumType == DRUM_TYPE_GATE) {
+	else if (drumType == DrumType::GATE) {
 		memorySize = sizeof(GateDrum);
 	}
 
@@ -1552,11 +1552,11 @@ Drum* StorageManager::createNewDrum(int drumType) {
 	}
 
 	Drum* newDrum;
-	if (drumType == DRUM_TYPE_SOUND)
+	if (drumType == DrumType::SOUND)
 		newDrum = new (drumMemory) SoundDrum();
-	else if (drumType == DRUM_TYPE_MIDI)
+	else if (drumType == DrumType::MIDI)
 		newDrum = new (drumMemory) MIDIDrum();
-	else if (drumType == DRUM_TYPE_GATE)
+	else if (drumType == DrumType::GATE)
 		newDrum = new (drumMemory) GateDrum();
 
 	return newDrum;

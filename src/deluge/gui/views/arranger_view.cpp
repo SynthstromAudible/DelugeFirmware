@@ -649,7 +649,7 @@ void ArrangerView::beginAudition(Output* output) {
 
 			if (noteRow) {
 				drum = noteRow->drum;
-				if (drum && drum->type == DRUM_TYPE_SOUND && !noteRow->paramManager.containsAnyMainParamCollections()) {
+				if (drum && drum->type == DrumType::SOUND && !noteRow->paramManager.containsAnyMainParamCollections()) {
 					numericDriver.freezeWithError("E324"); // Vinz got this! I may have since fixed.
 				}
 			}

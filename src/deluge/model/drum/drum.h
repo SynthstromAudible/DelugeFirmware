@@ -42,12 +42,12 @@ class ParamManager;
 
 class Drum {
 public:
-	Drum(int newType);
-	virtual ~Drum() {}
+	Drum(DrumType newType);
+	virtual ~Drum() = default;
 
 	Kit* kit;
 
-	const uint8_t type;
+	const DrumType type;
 	bool noteRowAssignedTemp;
 	uint8_t earlyNoteVelocity; // If 0, then there's none
 	bool earlyNoteStillActive;

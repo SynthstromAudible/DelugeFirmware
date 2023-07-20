@@ -18,6 +18,7 @@
 #include "model/drum/drum.h"
 
 #include "RZA1/system/r_typedefs.h"
+#include "definitions_cxx.hpp"
 #include "storage/storage_manager.h"
 #include <string.h>
 #include "model/model_stack.h"
@@ -31,7 +32,7 @@
 #include "modulation/params/param_set.h"
 #include "util/functions.h"
 
-Drum::Drum(int newType) : type(newType) {
+Drum::Drum(DrumType newType) : type(newType) {
 	next = NULL;
 
 	earlyNoteVelocity = 0;

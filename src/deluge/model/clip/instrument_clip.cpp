@@ -1038,7 +1038,7 @@ ModelStackWithNoteRow* InstrumentClip::getNoteRowForDrumName(ModelStackWithTimel
 	for (i = 0; i < noteRows.getNumElements(); i++) {
 		thisNoteRow = noteRows.getElement(i);
 		if (thisNoteRow->drum && thisNoteRow->paramManager.containsAnyMainParamCollections()
-		    && thisNoteRow->drum->type == DRUM_TYPE_SOUND) {
+		    && thisNoteRow->drum->type == DrumType::SOUND) {
 			SoundDrum* thisDrum = (SoundDrum*)thisNoteRow->drum;
 
 			if (thisDrum->name.equalsCaseIrrespective(name)) {
@@ -1822,7 +1822,7 @@ bool InstrumentClip::possiblyDeleteEmptyNoteRow(NoteRow* noteRow, bool onlyIfNoD
 			return false;
 		}
 
-		if (onlyIfNonNumeric && drum->type == DRUM_TYPE_SOUND && stringIsNumericChars(((SoundDrum*)drum)->name.get())) {
+		if (onlyIfNonNumeric && drum->type == DrumType::SOUND && stringIsNumericChars(((SoundDrum*)drum)->name.get())) {
 			return false;
 		}
 
@@ -2010,7 +2010,7 @@ void InstrumentClip::unassignAllNoteRowsFromDrums(ModelStackWithTimelineCounter*
 int InstrumentClip::undoUnassignmentOfAllNoteRowsFromDrums(ModelStackWithTimelineCounter* modelStack) {
 	for (int i = 0; i < noteRows.getNumElements(); i++) {
 		NoteRow* noteRow = noteRows.getElement(i);
-		if (noteRow->drum && noteRow->drum->type == DRUM_TYPE_SOUND) {
+		if (noteRow->drum && noteRow->drum->type == DrumType::SOUND) {
 
 			bool success = modelStack->song->getBackedUpParamManagerPreferablyWithClip((SoundDrum*)noteRow->drum, this,
 			                                                                           &noteRow->paramManager);
@@ -2969,9 +2969,9 @@ bool InstrumentClip::deleteSoundsWhichWontSound(Song* song) {
 			// If the NoteRow isn't gonna make any more sound...
 			if ((!clipIsActive || noteRow->muted || noteRow->hasNoNotes())
 			    // ...and it doesn't have a currently still-rendering Drum Sound
-			    && (!noteRow->drum || noteRow->drum->type != DRUM_TYPE_SOUND
+			    && (!noteRow->drum || noteRow->drum->type != DrumType::SOUND
 			        || ((SoundDrum*)noteRow->drum)->skippingRendering)
-			    && (!noteRow->drum || noteRow->drum->type != DRUM_TYPE_SOUND
+			    && (!noteRow->drum || noteRow->drum->type != DrumType::SOUND
 			        || (SoundDrum*)noteRow->drum != view.activeModControllableModelStack.modControllable)) {
 
 				// OI!! Don't nest any of those conditions inside other if statements. We need the "else" below to take effect. Thanks
@@ -2980,7 +2980,7 @@ bool InstrumentClip::deleteSoundsWhichWontSound(Song* song) {
 				// sometimes! Now, if we just do this for the active Clip, it should be ok right, cos no other Clip is going to be doing anything on its NoteRow?
 				if (clipIsActive && noteRow->drum) {
 
-					if (ALPHA_OR_BETA_VERSION && noteRow->drum->type == DRUM_TYPE_SOUND
+					if (ALPHA_OR_BETA_VERSION && noteRow->drum->type == DrumType::SOUND
 					    && ((SoundDrum*)noteRow->drum)->hasAnyVoices()) {
 						numericDriver.freezeWithError("E176");
 					}
@@ -3320,7 +3320,7 @@ void InstrumentClip::compensateVolumeForResonance(ModelStackWithTimelineCounter*
 		for (int i = 0; i < noteRows.getNumElements(); i++) {
 			NoteRow* thisNoteRow = noteRows.getElement(i);
 			if (thisNoteRow->drum && thisNoteRow->paramManager.containsAnyMainParamCollections()
-			    && thisNoteRow->drum->type == DRUM_TYPE_SOUND) {
+			    && thisNoteRow->drum->type == DrumType::SOUND) {
 				SoundDrum* thisDrum = (SoundDrum*)thisNoteRow->drum;
 				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 				    modelStack->addNoteRow(i, thisNoteRow)->addOtherTwoThings(thisDrum, &thisNoteRow->paramManager);
@@ -3547,7 +3547,7 @@ void InstrumentClip::getSuggestedParamManager(Clip* newClip, ParamManagerForTime
 		InstrumentClip* newInstrumentClip = (InstrumentClip*)newClip;
 		for (int i = 0; i < newInstrumentClip->noteRows.getNumElements(); i++) {
 			NoteRow* noteRow = newInstrumentClip->noteRows.getElement(i);
-			if (noteRow->drum && noteRow->drum->type == DRUM_TYPE_SOUND && (SoundDrum*)noteRow->drum == sound) {
+			if (noteRow->drum && noteRow->drum->type == DrumType::SOUND && (SoundDrum*)noteRow->drum == sound) {
 				*suggestedParamManager = &noteRow->paramManager;
 				break;
 			}
@@ -3660,7 +3660,7 @@ int InstrumentClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 
 				// If we didn't get a paramManager (means pre-September-2016 song). TODO: this whole section would lead to an ugly mess if the right stuff wasn't in the file. Or if not enough RAM
 				if (!thisNoteRow->paramManager.containsAnyMainParamCollections()
-				    && thisNoteRow->drum->type == DRUM_TYPE_SOUND) {
+				    && thisNoteRow->drum->type == DrumType::SOUND) {
 
 					modelStackWithNoteRow = modelStack->addNoteRow(i, thisNoteRow);
 
@@ -3695,7 +3695,7 @@ haveNoDrum:
 
 					// If saved before V2.1, see if we need linear interpolation
 					if (storageManager.firmwareVersionOfFileBeingRead < FIRMWARE_2P1P0_BETA) {
-						if (thisNoteRow->drum->type == DRUM_TYPE_SOUND) {
+						if (thisNoteRow->drum->type == DrumType::SOUND) {
 							SoundDrum* sound = (SoundDrum*)thisNoteRow->drum;
 
 							PatchedParamSet* patchedParams = thisNoteRow->paramManager.getPatchedParamSet();
@@ -4021,7 +4021,7 @@ void InstrumentClip::getActiveModControllable(ModelStackWithTimelineCounter* mod
 	    && getRootUI() != &arrangerView) {
 		Kit* kit = (Kit*)output;
 
-		if (!kit->selectedDrum || kit->selectedDrum->type != DRUM_TYPE_SOUND) {
+		if (!kit->selectedDrum || kit->selectedDrum->type != DrumType::SOUND) {
 returnNull:
 			modelStack->setTimelineCounter(NULL);
 			modelStack->addOtherTwoThingsButNoNoteRow(NULL, NULL);

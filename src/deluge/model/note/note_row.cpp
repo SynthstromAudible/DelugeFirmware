@@ -1739,7 +1739,7 @@ int32_t NoteRow::processCurrentPos(ModelStackWithNoteRow* modelStack, int32_t ti
 			paramManager.notifyPingpongOccurred(modelStackWithThreeMainThings);
 		}
 
-		bool mayInterpolate = drum ? drum->type == DRUM_TYPE_SOUND : (clip->output->type == InstrumentType::SYNTH);
+		bool mayInterpolate = drum ? drum->type == DrumType::SOUND : (clip->output->type == InstrumentType::SYNTH);
 		// We'll not interpolate for CV, just for efficiency. Since our CV output steps are limited anyway, this is probably reasonably reasonable.
 
 		paramManager.processCurrentPos(modelStackWithThreeMainThings, ticksSinceLast, playingReversedNow, didPingpong,
@@ -1855,7 +1855,7 @@ stopNote:
 							}
 						}
 						else if (clip->output->type == InstrumentType::KIT && drum
-						         && drum->type == DRUM_TYPE_SOUND) { // For Kits
+						         && drum->type == DrumType::SOUND) { // For Kits
 							if (((SoundDrum*)drum)->hasCutModeSamples(&paramManager)) {
 								goto stopNote;
 							}
@@ -2072,7 +2072,7 @@ void NoteRow::attemptLateStartOfNextNoteToPlay(ModelStackWithNoteRow* modelStack
 
 	Sound* sound = NULL;
 	ParamManagerForTimeline* thisParamManager;
-	if (drum && drum->type == DRUM_TYPE_SOUND) {
+	if (drum && drum->type == DrumType::SOUND) {
 		sound = (SoundDrum*)drum;
 		thisParamManager = &paramManager;
 	}
@@ -2393,7 +2393,7 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 		Sound* sound = NULL;
 		ParamManagerForTimeline* paramManagerNow = NULL;
 
-		if (drum && drum->type == DRUM_TYPE_SOUND) {
+		if (drum && drum->type == DrumType::SOUND) {
 			sound = (SoundDrum*)drum;
 			paramManagerNow = &paramManager;
 		}
@@ -3149,7 +3149,7 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 	drum = NULL;
 
 	// Grab new ParamManager from that backed up in Drum
-	if (newDrum && newDrum->type == DRUM_TYPE_SOUND) {
+	if (newDrum && newDrum->type == DrumType::SOUND) {
 
 		SoundDrum* soundDrum = (SoundDrum*)newDrum;
 
@@ -3267,7 +3267,7 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 
 void NoteRow::rememberDrumName() {
 
-	if (drum && drum->type == DRUM_TYPE_SOUND) {
+	if (drum && drum->type == DrumType::SOUND) {
 
 		SoundDrum* soundDrum = (SoundDrum*)drum;
 
@@ -3506,7 +3506,7 @@ int NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWith
 		Sound* sound = NULL;
 		ParamManagerForTimeline* paramManagerNow = NULL;
 
-		if (drum && drum->type == DRUM_TYPE_SOUND) {
+		if (drum && drum->type == DrumType::SOUND) {
 			sound = (SoundDrum*)drum;
 			paramManagerNow = &paramManager;
 		}

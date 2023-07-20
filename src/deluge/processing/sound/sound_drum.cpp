@@ -32,7 +32,7 @@
 #include "model/clip/clip.h"
 #include "util/misc.h"
 
-SoundDrum::SoundDrum() : Drum(DRUM_TYPE_SOUND), arpeggiator() {
+SoundDrum::SoundDrum() : Drum(DrumType::SOUND), arpeggiator() {
 	nameIsDiscardable = false;
 }
 

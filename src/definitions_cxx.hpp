@@ -685,10 +685,10 @@ enum ArmState {
 
 #define HARDWARE_TEST_MODE 0
 
-enum DrumType {
-	DRUM_TYPE_SOUND,
-	DRUM_TYPE_MIDI,
-	DRUM_TYPE_GATE,
+enum class DrumType {
+	SOUND,
+	MIDI,
+	GATE,
 };
 
 enum PgmChangeSend {

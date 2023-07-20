@@ -967,7 +967,7 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int sourceIndex) {
 				Drum* selectedDrum = ((Kit*)clip->output)->selectedDrum;
 				// If a SoundDrum is selected...
 				if (selectedDrum) {
-					if (selectedDrum->type == DRUM_TYPE_SOUND) {
+					if (selectedDrum->type == DrumType::SOUND) {
 						NoteRow* noteRow = ((InstrumentClip*)clip)->getNoteRowForDrum(selectedDrum);
 						if (noteRow == NULL) {
 							return false;
@@ -979,7 +979,7 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int sourceIndex) {
 					}
 					else {
 						if (item != &sequenceDirectionMenu) {
-							if (selectedDrum->type == DRUM_TYPE_MIDI) {
+							if (selectedDrum->type == DrumType::MIDI) {
 								indicator_leds::indicateAlertOnLed(IndicatorLED::MIDI);
 							}
 							else { // GATE

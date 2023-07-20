@@ -26,7 +26,7 @@ extern "C" {
 #include "util/cfunctions.h"
 }
 
-MIDIDrum::MIDIDrum() : NonAudioDrum(DRUM_TYPE_MIDI) {
+MIDIDrum::MIDIDrum() : NonAudioDrum(DrumType::MIDI) {
 	channel = 0;
 	note = 0;
 }

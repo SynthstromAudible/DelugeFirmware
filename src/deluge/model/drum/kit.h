@@ -111,7 +111,7 @@ protected:
 	bool isKit() { return true; }
 
 private:
-	int readDrumFromFile(Song* song, Clip* clip, int drumType, int32_t readAutomationUpToPos);
+	int readDrumFromFile(Song* song, Clip* clip, DrumType drumType, int32_t readAutomationUpToPos);
 	void writeDrumToFile(Drum* thisDrum, ParamManager* paramManagerForDrum, bool savingSong, int* selectedDrumIndex,
 	                     int* drumIndex, Song* song);
 
