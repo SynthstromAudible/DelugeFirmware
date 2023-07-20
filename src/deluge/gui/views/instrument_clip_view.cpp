@@ -28,7 +28,7 @@
 #include "gui/ui/sound_editor.h"
 #include "util/functions.h"
 #include "hid/display/numeric_driver.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "processing/engines/cv_engine.h"
 #include "gui/ui/keyboard_screen.h"
 #include "gui/views/view.h"
@@ -3268,7 +3268,7 @@ void InstrumentClipView::cancelAllAuditioning() {
 
 void InstrumentClipView::enterDrumCreator(ModelStackWithNoteRow* modelStack, bool doRecording) {
 
-	Uart::println("enterDrumCreator");
+	Debug::println("enterDrumCreator");
 
 	char const* prefix;
 	String soundName;
@@ -4444,7 +4444,7 @@ void InstrumentClipView::editNoteRepeat(int offset) {
 
 			modelStackWithNoteRow->getNoteRow()->editNoteRepeatAcrossAllScreens(
 			    squareStart, squareWidth, modelStackWithNoteRow, action, currentClip->getWrapEditLevel(), newNumNotes);
-			Uart::println("did actual note repeat edit");
+			Debug::println("did actual note repeat edit");
 		}
 
 		uiNeedsRendering(this, 0xFFFFFFFF, 0);

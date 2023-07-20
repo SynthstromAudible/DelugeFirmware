@@ -16,7 +16,7 @@
  */
 
 #include "util/container/array/ordered_resizeable_array_with_multi_word_key.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 
 OrderedResizeableArrayWithMultiWordKey::OrderedResizeableArrayWithMultiWordKey(int newElementSize, int newNumWordsInKey)
     : OrderedResizeableArrayWith32bitKey(newElementSize, 16, 15), numWordsInKey(newNumWordsInKey) {
@@ -112,9 +112,9 @@ bool OrderedResizeableArrayWithMultiWordKey::deleteAtKeyMultiWord(uint32_t* __re
 		return true;
 	}
 	else {
-		Uart::println("couldn't find key to delete");
-		Uart::println(keyWords[0]);
-		Uart::println(keyWords[1]);
+		Debug::println("couldn't find key to delete");
+		Debug::println(keyWords[0]);
+		Debug::println(keyWords[1]);
 		return false;
 	}
 }

@@ -21,7 +21,7 @@
 #include "util/functions.h"
 #include "definitions.h"
 #include "hid/display/numeric_driver.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 
 #define SECONDARY_MEMORY_FUNCTION_NONE 0
 #define SECONDARY_MEMORY_FUNCTION_BEING_INITIALIZED 1
@@ -388,7 +388,7 @@ void OpenAddressingHashTable::test() {
 	while (true) {
 		count++;
 		if (!(count & ((1 << 13) - 1))) {
-			Uart::println("still going");
+			Debug::println("still going");
 		}
 
 		int numElementsAdded = 0;
@@ -405,7 +405,7 @@ void OpenAddressingHashTable::test() {
 			numElementsAdded++;
 
 			if (!result) {
-				Uart::println("couldn't add element");
+				Debug::println("couldn't add element");
 				while (1) {
 					;
 				}
@@ -413,7 +413,7 @@ void OpenAddressingHashTable::test() {
 		}
 
 		if (numElements != NUM_ELEMENTS_TO_ADD) {
-			Uart::println("wrong numElements");
+			Debug::println("wrong numElements");
 			while (1) {
 				;
 			}
@@ -422,7 +422,7 @@ void OpenAddressingHashTable::test() {
 		// See if it'll let us remove an element that doesn't exist
 		bool result = remove(0);
 		if (result) {
-			Uart::println("reported successful removal of nonexistent element");
+			Debug::println("reported successful removal of nonexistent element");
 			while (1) {
 				;
 			}
@@ -431,14 +431,14 @@ void OpenAddressingHashTable::test() {
 		for (int i = 0; i < NUM_ELEMENTS_TO_ADD; i++) {
 			bool result = remove(elementsAdded[i]);
 			if (!result) {
-				Uart::print("remove failed. i == ");
-				Uart::println(i);
-				Uart::print("numBuckets == ");
-				Uart::println(numBuckets);
-				Uart::print("numElements == ");
-				Uart::println(numElements);
-				Uart::print("key == ");
-				Uart::println(elementsAdded[i]);
+				Debug::print("remove failed. i == ");
+				Debug::println(i);
+				Debug::print("numBuckets == ");
+				Debug::println(numBuckets);
+				Debug::print("numElements == ");
+				Debug::println(numElements);
+				Debug::print("key == ");
+				Debug::println(elementsAdded[i]);
 				while (1) {
 					;
 				}
@@ -446,7 +446,7 @@ void OpenAddressingHashTable::test() {
 		}
 
 		if (numElements != 0) {
-			Uart::println("numElements didn't return to 0");
+			Debug::println("numElements didn't return to 0");
 			while (1) {
 				;
 			}
@@ -455,7 +455,7 @@ void OpenAddressingHashTable::test() {
 		// See if it'll let us remove an element that doesn't exist
 		result = remove(0);
 		if (result) {
-			Uart::println("reported successful removal of element when there are no elements at all");
+			Debug::println("reported successful removal of element when there are no elements at all");
 			while (1) {
 				;
 			}

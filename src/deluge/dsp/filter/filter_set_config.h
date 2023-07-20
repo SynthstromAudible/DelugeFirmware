@@ -52,6 +52,7 @@ public:
 	q31_t divideByTotalMoveability; // 1 represented as 268435456
 
 	q31_t lpfRawResonance;
+	q31_t SVFInputScale;
 	q31_t alteredHpfMomentumMultiplier;
 	q31_t thisHpfResonance;
 	bool doLPF;
