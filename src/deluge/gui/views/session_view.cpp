@@ -2139,7 +2139,7 @@ bool SessionView::renderRow(ModelStack* modelStack, uint8_t yDisplay, uint8_t th
 				                                  drawUndefinedArea);
 			}
 
-			if (view.thingPressedForMidiLearn == MIDI_LEARN_MELODIC_INSTRUMENT_INPUT && view.midiLearnFlashOn
+			if (view.thingPressedForMidiLearn == MidiLearn::MELODIC_INSTRUMENT_INPUT && view.midiLearnFlashOn
 			    && view.learnedThing
 			           == &((MelodicInstrument*)clip->output)
 			                   ->midiInput) { // Should be fine even if output isn't a MelodicInstrument
@@ -2322,9 +2322,9 @@ void SessionView::midiLearnFlash() {
 		if (clip) {
 
 			if (clip->muteMIDICommand.containsSomething()
-			    || (view.thingPressedForMidiLearn == MIDI_LEARN_CLIP && &clip->muteMIDICommand == view.learnedThing)
+			    || (view.thingPressedForMidiLearn == MidiLearn::CLIP && &clip->muteMIDICommand == view.learnedThing)
 			    || currentSong->sections[clip->section].launchMIDICommand.containsSomething()
-			    || (view.thingPressedForMidiLearn == MIDI_LEARN_SECTION
+			    || (view.thingPressedForMidiLearn == MidiLearn::SECTION
 			        && view.learnedThing == &currentSong->sections[clip->section].launchMIDICommand)) {
 				sideRowsToRender |= (1 << yDisplay);
 			}
@@ -2333,7 +2333,7 @@ void SessionView::midiLearnFlash() {
 			    || clip->output->type == INSTRUMENT_TYPE_CV) {
 
 				if (((MelodicInstrument*)clip->output)->midiInput.containsSomething()
-				    || (view.thingPressedForMidiLearn == MIDI_LEARN_MELODIC_INSTRUMENT_INPUT
+				    || (view.thingPressedForMidiLearn == MidiLearn::MELODIC_INSTRUMENT_INPUT
 				        && view.learnedThing
 				               == &((MelodicInstrument*)clip->output)
 				                       ->midiInput)) { // Should be fine even if output isn't a MelodicInstrument

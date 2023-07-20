@@ -562,7 +562,7 @@ void ArrangerView::drawAuditionSquare(int yDisplay, uint8_t thisImage[][3]) {
 		}
 
 		// Or if not assigned but we're holding it down...
-		else if (view.thingPressedForMidiLearn == MIDI_LEARN_MELODIC_INSTRUMENT_INPUT
+		else if (view.thingPressedForMidiLearn == MidiLearn::MELODIC_INSTRUMENT_INPUT
 		         && view.learnedThing == &melodicInstrument->midiInput) {
 			thisColour[0] = 128;
 			thisColour[1] = 0;

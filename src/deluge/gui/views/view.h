@@ -55,7 +55,7 @@ public:
 
 	void clipStatusMidiLearnPadPressed(bool on, Clip* whichLoopable);
 	void noteRowMuteMidiLearnPadPressed(bool on, NoteRow* whichNoteRow);
-	void endMidiLearnPressSession(uint8_t newThingPressed);
+	void endMidiLearnPressSession(MidiLearn newThingPressed = MidiLearn::NONE);
 	void noteOnReceivedForMidiLearn(MIDIDevice* fromDevice, int channel, int note, int velocity);
 	void ccReceivedForMIDILearn(MIDIDevice* fromDevice, int channel, int cc, int value);
 	void drumMidiLearnPadPressed(bool on, Drum* drum, Kit* kit);
@@ -89,7 +89,7 @@ public:
 	void flashPlayDisable();
 
 	// MIDI learn stuff
-	uint8_t thingPressedForMidiLearn;
+	MidiLearn thingPressedForMidiLearn = MidiLearn::NONE;
 	bool deleteMidiCommandOnRelease;
 	bool midiLearnFlashOn;
 	bool shouldSaveSettingsAfterMidiLearn;

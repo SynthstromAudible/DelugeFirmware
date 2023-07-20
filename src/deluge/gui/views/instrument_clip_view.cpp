@@ -3770,7 +3770,7 @@ void InstrumentClipView::drawMuteSquare(NoteRow* thisNoteRow, uint8_t thisImage[
 	}
 
 	// If user assigning MIDI controls and has this Clip selected, flash to half brightness
-	if (view.midiLearnFlashOn && thisNoteRow != NULL && view.thingPressedForMidiLearn == MIDI_LEARN_NOTEROW_MUTE
+	if (view.midiLearnFlashOn && thisNoteRow != NULL && view.thingPressedForMidiLearn == MidiLearn::NOTEROW_MUTE
 	    && thisNoteRow->drum && &thisNoteRow->drum->muteMIDICommand == view.learnedThing) {
 		thisColour[0] >>= 1;
 		thisColour[1] >>= 1;
@@ -3818,10 +3818,10 @@ void InstrumentClipView::drawAuditionSquare(uint8_t yDisplay, uint8_t thisImage[
 		// Or if not assigned but we're holding it down...
 		else {
 			bool holdingDown = false;
-			if (view.thingPressedForMidiLearn == MIDI_LEARN_MELODIC_INSTRUMENT_INPUT) {
+			if (view.thingPressedForMidiLearn == MidiLearn::MELODIC_INSTRUMENT_INPUT) {
 				holdingDown = true;
 			}
-			else if (view.thingPressedForMidiLearn == MIDI_LEARN_DRUM_INPUT) {
+			else if (view.thingPressedForMidiLearn == MidiLearn::DRUM_INPUT) {
 				holdingDown = (&noteRow->drum->midiInput == view.learnedThing);
 			}
 

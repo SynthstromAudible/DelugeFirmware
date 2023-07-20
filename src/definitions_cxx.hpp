@@ -127,6 +127,7 @@ constexpr FirmwareVersion CURRENT_FIRMWARE_VERSION = FIRMWARE_4P1P4_ALPHA;
 #define editPadPressBufferSize 8
 
 #define NUM_MOD_BUTTONS 8
+
 #define displayHeight 8
 #define displayHeightMagnitude 3
 #define displayWidth 16
@@ -156,15 +157,16 @@ constexpr uint8_t HEADPHONE_DETECT_2 = 5;
 #define sideBarWidth 2
 #define MAX_NUM_ANIMATED_ROWS ((displayHeight * 3) >> 1)
 
-enum MidiLearnType : uint8_t {
-	MIDI_LEARN_CLIP,
-	MIDI_LEARN_NOTEROW_MUTE,
-	MIDI_LEARN_PLAY_BUTTON,
-	MIDI_LEARN_RECORD_BUTTON,
-	MIDI_LEARN_TAP_TEMPO_BUTTON,
-	MIDI_LEARN_SECTION,
-	MIDI_LEARN_MELODIC_INSTRUMENT_INPUT,
-	MIDI_LEARN_DRUM_INPUT,
+enum class MidiLearn : uint8_t {
+	NONE,
+	CLIP,
+	NOTEROW_MUTE,
+	PLAY_BUTTON,
+	RECORD_BUTTON,
+	TAP_TEMPO_BUTTON,
+	SECTION,
+	MELODIC_INSTRUMENT_INPUT,
+	DRUM_INPUT,
 };
 
 #define minTimePerTimerTick 1
@@ -818,8 +820,6 @@ enum KeyboardLayout {
 #define LOOP_LOW_LEVEL 1
 #define LOOP_TIMESTRETCHER_LEVEL_IF_ACTIVE 2 // Will cause low-level looping if no time-stretching
 
-
-
 #define INTERNAL_MEMORY_END 0x20300000
 #define PROGRAM_STACK_MAX_SIZE 8192
 
@@ -836,7 +836,6 @@ enum StealableQueue {
 	STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA_PERC_CACHE, // This one is super valuable and compacted data - lots of work to load it all again
 	NUM_STEALABLE_QUEUES,
 };
-
 
 #define UNDEFINED_GREY_SHADE 7
 

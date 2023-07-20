@@ -90,7 +90,6 @@ extern int8_t pendingGlobalMIDICommand;
 View::View() {
 	midiLearnFlashOn = false;
 
-	thingPressedForMidiLearn = 0;
 	deleteMidiCommandOnRelease = false;
 
 	learnedThing = NULL;
@@ -136,17 +135,17 @@ int View::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 			}
 			if (on) {
 				deleteMidiCommandOnRelease = true;
-				endMidiLearnPressSession(MIDI_LEARN_TAP_TEMPO_BUTTON);
+				endMidiLearnPressSession(MidiLearn::TAP_TEMPO_BUTTON);
 				learnedThing = &midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_TAP];
 			}
 
-			else if (thingPressedForMidiLearn == MIDI_LEARN_TAP_TEMPO_BUTTON) {
+			else if (thingPressedForMidiLearn == MidiLearn::TAP_TEMPO_BUTTON) {
 doEndMidiLearnPressSession:
 				if (deleteMidiCommandOnRelease) {
 					learnedThing->clear();
 					shouldSaveSettingsAfterMidiLearn = true;
 				}
-				endMidiLearnPressSession(0);
+				endMidiLearnPressSession();
 			}
 		}
 		else if (currentUIMode == UI_MODE_NONE) {
@@ -171,7 +170,7 @@ doEndMidiLearnPressSession:
 
 		if (on) {
 			if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_MIDI_LEARN) {
-				thingPressedForMidiLearn = 0;
+				thingPressedForMidiLearn = MidiLearn::NONE;
 				shouldSaveSettingsAfterMidiLearn = false;
 				currentUIMode = UI_MODE_MIDI_LEARN;
 				midiLearnFlash();
@@ -193,10 +192,10 @@ doEndMidiLearnPressSession:
 
 		if (on) {
 			deleteMidiCommandOnRelease = true;
-			endMidiLearnPressSession(MIDI_LEARN_PLAY_BUTTON);
+			endMidiLearnPressSession(MidiLearn::PLAY_BUTTON);
 			learnedThing = &midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_PLAY];
 		}
-		else if (thingPressedForMidiLearn == MIDI_LEARN_PLAY_BUTTON) {
+		else if (thingPressedForMidiLearn == MidiLearn::PLAY_BUTTON) {
 			goto doEndMidiLearnPressSession;
 		}
 	}
@@ -209,10 +208,10 @@ doEndMidiLearnPressSession:
 
 		if (on) {
 			deleteMidiCommandOnRelease = true;
-			endMidiLearnPressSession(MIDI_LEARN_RECORD_BUTTON);
+			endMidiLearnPressSession(MidiLearn::RECORD_BUTTON);
 			learnedThing = &midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_RECORD];
 		}
-		else if (thingPressedForMidiLearn == MIDI_LEARN_RECORD_BUTTON) {
+		else if (thingPressedForMidiLearn == MidiLearn::RECORD_BUTTON) {
 			goto doEndMidiLearnPressSession;
 		}
 	}
@@ -462,49 +461,49 @@ void View::setLedStates() {
 
 void View::sectionMidiLearnPadPressed(bool on, uint8_t section) {
 	if (on) {
-		endMidiLearnPressSession(MIDI_LEARN_SECTION);
+		endMidiLearnPressSession(MidiLearn::SECTION);
 		deleteMidiCommandOnRelease = true;
 		learnedThing = &currentSong->sections[section].launchMIDICommand;
 	}
-	else if (thingPressedForMidiLearn == MIDI_LEARN_SECTION) {
+	else if (thingPressedForMidiLearn == MidiLearn::SECTION) {
 		if (deleteMidiCommandOnRelease) {
 			learnedThing->clear();
 		}
-		endMidiLearnPressSession(0);
+		endMidiLearnPressSession();
 	}
 }
 
 void View::clipStatusMidiLearnPadPressed(bool on, Clip* whichClip) {
 	if (on) {
-		endMidiLearnPressSession(MIDI_LEARN_CLIP);
+		endMidiLearnPressSession(MidiLearn::CLIP);
 		deleteMidiCommandOnRelease = true;
 		learnedThing = &whichClip->muteMIDICommand;
 	}
-	else if (thingPressedForMidiLearn == MIDI_LEARN_CLIP) {
+	else if (thingPressedForMidiLearn == MidiLearn::CLIP) {
 		if (deleteMidiCommandOnRelease) {
 			learnedThing->clear();
 		}
-		endMidiLearnPressSession(0);
+		endMidiLearnPressSession();
 	}
 }
 
 void View::noteRowMuteMidiLearnPadPressed(bool on, NoteRow* whichNoteRow) {
 	if (on) {
-		endMidiLearnPressSession(MIDI_LEARN_NOTEROW_MUTE);
+		endMidiLearnPressSession(MidiLearn::NOTEROW_MUTE);
 		deleteMidiCommandOnRelease = true;
 		learnedThing = &whichNoteRow->drum->muteMIDICommand;
 	}
-	else if (thingPressedForMidiLearn == MIDI_LEARN_NOTEROW_MUTE) {
+	else if (thingPressedForMidiLearn == MidiLearn::NOTEROW_MUTE) {
 		if (deleteMidiCommandOnRelease) {
 			learnedThing->clear();
 		}
-		endMidiLearnPressSession(0);
+		endMidiLearnPressSession();
 	}
 }
 
 void View::drumMidiLearnPadPressed(bool on, Drum* drum, Kit* kit) {
 	if (on) {
-		endMidiLearnPressSession(MIDI_LEARN_DRUM_INPUT);
+		endMidiLearnPressSession(MidiLearn::DRUM_INPUT);
 		deleteMidiCommandOnRelease = true;
 		learnedThing = &drum->midiInput;
 		drumPressedForMIDILearn = drum;
@@ -512,18 +511,18 @@ void View::drumMidiLearnPadPressed(bool on, Drum* drum, Kit* kit) {
 		    kit; // Having this makes it possible to search much faster when we call grabVelocityToLevelFromMIDIDeviceAndSetupPatchingForAllParamManagersForDrum()
 	}
 
-	else if (thingPressedForMidiLearn == MIDI_LEARN_DRUM_INPUT) {
+	else if (thingPressedForMidiLearn == MidiLearn::DRUM_INPUT) {
 		if (deleteMidiCommandOnRelease) {
 			learnedThing->clear();
 			((Instrument*)currentSong->currentClip->output)->beenEdited(false);
 		}
-		endMidiLearnPressSession(0);
+		endMidiLearnPressSession();
 	}
 }
 
 void View::melodicInstrumentMidiLearnPadPressed(bool on, MelodicInstrument* instrument) {
 	if (on) {
-		endMidiLearnPressSession(MIDI_LEARN_MELODIC_INSTRUMENT_INPUT);
+		endMidiLearnPressSession(MidiLearn::MELODIC_INSTRUMENT_INPUT);
 		deleteMidiCommandOnRelease = true;
 		learnedThing = &instrument->midiInput;
 		melodicInstrumentPressedForMIDILearn = instrument;
@@ -531,22 +530,22 @@ void View::melodicInstrumentMidiLearnPadPressed(bool on, MelodicInstrument* inst
 		lowestMIDIChannelSeenWhileLearning = 16;
 	}
 
-	else if (thingPressedForMidiLearn == MIDI_LEARN_MELODIC_INSTRUMENT_INPUT) {
+	else if (thingPressedForMidiLearn == MidiLearn::MELODIC_INSTRUMENT_INPUT) {
 		if (deleteMidiCommandOnRelease) {
 			clearMelodicInstrumentMonoExpressionIfPossible(); // In case it gets "stuck".
 			learnedThing->clear();
 			instrument->beenEdited(false);
 		}
-		endMidiLearnPressSession(0);
+		endMidiLearnPressSession();
 	}
 }
 
-void View::endMidiLearnPressSession(uint8_t newThingPressed) {
+void View::endMidiLearnPressSession(MidiLearn newThingPressed) {
 	// Depending on which thing was previously pressed, we might have to do some admin
 	switch (thingPressedForMidiLearn) {
-	case MIDI_LEARN_PLAY_BUTTON:
-	case MIDI_LEARN_RECORD_BUTTON:
-	case MIDI_LEARN_TAP_TEMPO_BUTTON:
+	case MidiLearn::PLAY_BUTTON:
+	case MidiLearn::RECORD_BUTTON:
+	case MidiLearn::TAP_TEMPO_BUTTON:
 		playbackHandler.setLedStates();
 		break;
 	}
@@ -558,12 +557,12 @@ void View::endMidiLearnPressSession(uint8_t newThingPressed) {
 }
 
 void View::noteOnReceivedForMidiLearn(MIDIDevice* fromDevice, int channelOrZone, int note, int velocity) {
-	if (thingPressedForMidiLearn) {
+	if (thingPressedForMidiLearn != MidiLearn::NONE) {
 		deleteMidiCommandOnRelease = false;
 
 		switch (thingPressedForMidiLearn) {
 
-		case MIDI_LEARN_DRUM_INPUT: {
+		case MidiLearn::DRUM_INPUT: {
 			// For a Drum, we can assume that the user must be viewing a Clip, as the currentClip.
 			((Instrument*)currentSong->currentClip->output)->beenEdited(false);
 
@@ -598,9 +597,9 @@ void View::noteOnReceivedForMidiLearn(MIDIDevice* fromDevice, int channelOrZone,
 			goto recordDetailsOfLearnedThing;
 		}
 
-		case MIDI_LEARN_PLAY_BUTTON:
-		case MIDI_LEARN_RECORD_BUTTON:
-		case MIDI_LEARN_TAP_TEMPO_BUTTON:
+		case MidiLearn::PLAY_BUTTON:
+		case MidiLearn::RECORD_BUTTON:
+		case MidiLearn::TAP_TEMPO_BUTTON:
 			shouldSaveSettingsAfterMidiLearn = true;
 			// No break
 
@@ -611,7 +610,7 @@ recordDetailsOfLearnedThing:
 			learnedThing->noteOrCC = note;
 			break;
 
-		case MIDI_LEARN_MELODIC_INSTRUMENT_INPUT:
+		case MidiLearn::MELODIC_INSTRUMENT_INPUT:
 
 			uint8_t newBendRanges[2];
 
@@ -735,11 +734,11 @@ void View::clearMelodicInstrumentMonoExpressionIfPossible() {
 }
 
 void View::ccReceivedForMIDILearn(MIDIDevice* fromDevice, int channel, int cc, int value) {
-	if (thingPressedForMidiLearn) {
+	if (thingPressedForMidiLearn != MidiLearn::NONE) {
 		deleteMidiCommandOnRelease = false;
 
 		// For MelodicInstruments...
-		if (thingPressedForMidiLearn == MIDI_LEARN_MELODIC_INSTRUMENT_INPUT) {
+		if (thingPressedForMidiLearn == MidiLearn::MELODIC_INSTRUMENT_INPUT) {
 
 			// Special case for MIDIInstruments - CCs can learn the input MIDI channel
 			if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_MIDI_OUT) {
@@ -773,15 +772,15 @@ void View::midiLearnFlash() {
 	}
 
 	if (midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_PLAY].containsSomething()
-	    || thingPressedForMidiLearn == MIDI_LEARN_PLAY_BUTTON) {
+	    || thingPressedForMidiLearn == MidiLearn::PLAY_BUTTON) {
 		indicator_leds::setLedState(IndicatorLED::PLAY, midiLearnFlashOn);
 	}
 	if (midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_RECORD].containsSomething()
-	    || thingPressedForMidiLearn == MIDI_LEARN_RECORD_BUTTON) {
+	    || thingPressedForMidiLearn == MidiLearn::RECORD_BUTTON) {
 		indicator_leds::setLedState(IndicatorLED::RECORD, midiLearnFlashOn);
 	}
 	if (midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_TAP].containsSomething()
-	    || thingPressedForMidiLearn == MIDI_LEARN_TAP_TEMPO_BUTTON) {
+	    || thingPressedForMidiLearn == MidiLearn::TAP_TEMPO_BUTTON) {
 		indicator_leds::setLedState(IndicatorLED::TAP_TEMPO, midiLearnFlashOn);
 	}
 }
