@@ -63,7 +63,7 @@ def format_file(clang_format: str, verbose: bool, path: Path):
     util.run([clang_format, "--style=file", "-i", path], verbose, verbose)
 
 
-def argparser():
+def argparser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="format",
         description="Formats files using clang-format (Assumes .clang-format present in directory structure)",
@@ -87,7 +87,7 @@ def argparser():
     return parser
 
 
-def main():
+def main() -> int:
     args = argparser().parse_args()
     files = get_header_and_source_files(Path(args.directory), not args.no_recursive)
     excludes = excludes_from_file(".clang-format-ignore")
@@ -104,8 +104,10 @@ def main():
         else:
             util.do_parallel_progressbar(partial(format_file, clang_format, False), files, "Formatting: ")
         print("Done!")
+        return 0
     else:
         print("No files found! Did you mean to add '-r'?")
+        return -1
 
 
 if __name__ == "__main__":

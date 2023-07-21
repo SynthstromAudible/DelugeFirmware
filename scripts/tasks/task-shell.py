@@ -21,7 +21,7 @@ def get_shell():
     return shell_command
 
 
-def argparser():
+def argparser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="shell",
         description="Open a shell in the DBT environment",
@@ -30,8 +30,9 @@ def argparser():
     return parser
 
 
-def main():
-    subprocess.run([get_shell()] + sys.argv[1:] , env=os.environ)
+def main() -> int:
+    result = subprocess.run([get_shell()] + sys.argv[1:] , env=os.environ)
+    return result.returncode
 
 
 if __name__ == "__main__":
