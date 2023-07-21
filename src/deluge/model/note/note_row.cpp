@@ -48,6 +48,7 @@
 #include "io/midi/midi_device.h"
 #include "gui/views/view.h"
 #include "gui/views/instrument_clip_view.h"
+#include "model/settings/runtime_feature_settings.h"
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
@@ -239,15 +240,17 @@ addNewNote:
 		if (clipCurrentlyPlaying && !muted) {
 			((InstrumentClip*)modelStack->getTimelineCounter())->expectEvent();
 
-			// If the play-pos is inside this note, see if we'd like to attempt a late-start of it
-			int actualPlayPos = getLivePos(modelStack);
+			if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::CatchNotes) == RuntimeFeatureStateToggle::On)) {
+				// If the play-pos is inside this note, see if we'd like to attempt a late-start of it
+				int actualPlayPos = getLivePos(modelStack);
 
-			int howFarIntoNote = actualPlayPos - newNote->pos;
-			if (howFarIntoNote < 0) {
-				howFarIntoNote += effectiveLength;
-			}
-			if (howFarIntoNote < newNote->getLength()) {
-				attemptLateStartOfNextNoteToPlay(modelStack, newNote);
+				int howFarIntoNote = actualPlayPos - newNote->pos;
+				if (howFarIntoNote < 0) {
+					howFarIntoNote += effectiveLength;
+				}
+				if (howFarIntoNote < newNote->getLength()) {
+					attemptLateStartOfNextNoteToPlay(modelStack, newNote);
+				}
 			}
 		}
 
@@ -2688,20 +2691,22 @@ void NoteRow::resumePlayback(ModelStackWithNoteRow* modelStack, bool clipMayMake
 
 		int32_t effectiveActualCurrentPos = getLivePos(modelStack);
 
-		// See if our play-pos is inside of a note, which we might want to try playing...
-		int i = notes.search(effectiveActualCurrentPos, LESS);
-		bool wrapping = (i == -1);
-		if (wrapping) {
-			i = notes.getNumElements() - 1;
-		}
-		Note* note = notes.getElement(i);
-		int noteEnd = note->pos + note->length;
-		if (wrapping) {
-			noteEnd -= modelStack->getLoopLength();
-		}
+		if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::CatchNotes) == RuntimeFeatureStateToggle::On)) {
+			// See if our play-pos is inside of a note, which we might want to try playing...
+			int i = notes.search(effectiveActualCurrentPos, LESS);
+			bool wrapping = (i == -1);
+			if (wrapping) {
+				i = notes.getNumElements() - 1;
+			}
+			Note* note = notes.getElement(i);
+			int noteEnd = note->pos + note->length;
+			if (wrapping) {
+				noteEnd -= modelStack->getLoopLength();
+			}
 
-		if (noteEnd > effectiveActualCurrentPos) {
-			attemptLateStartOfNextNoteToPlay(modelStack, note);
+			if (noteEnd > effectiveActualCurrentPos) {
+				attemptLateStartOfNextNoteToPlay(modelStack, note);
+			}
 		}
 	}
 
