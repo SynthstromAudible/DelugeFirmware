@@ -26,7 +26,7 @@
 #include "model/model_stack.h"
 #include "model/timeline_counter.h"
 
-CVInstrument::CVInstrument() : NonAudioInstrument(INSTRUMENT_TYPE_CV) {
+CVInstrument::CVInstrument() : NonAudioInstrument(InstrumentType::CV) {
 	monophonicPitchBendValue = 0;
 	polyPitchBendValue = 0;
 
@@ -97,7 +97,7 @@ bool CVInstrument::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 	return true;
 }
 
-bool CVInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, int maySendMIDIPGMs) {
+bool CVInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs) {
 	bool clipChanged = NonAudioInstrument::setActiveClip(modelStack, maySendMIDIPGMs);
 
 	if (clipChanged) {

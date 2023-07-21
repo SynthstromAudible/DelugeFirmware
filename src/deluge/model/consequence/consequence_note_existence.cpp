@@ -15,13 +15,16 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "definitions_cxx.hpp"
 #include "model/clip/instrument_clip.h"
 #include "model/consequence/consequence_note_existence.h"
 #include "model/note/note_vector.h"
 #include "model/note/note.h"
 #include "model/note/note_row.h"
+#include "util/misc.h"
 
-ConsequenceNoteExistence::ConsequenceNoteExistence(InstrumentClip* newClip, int newNoteRowId, Note* note, int newType) {
+ConsequenceNoteExistence::ConsequenceNoteExistence(InstrumentClip* newClip, int newNoteRowId, Note* note,
+                                                   ExistenceChangeType newType) {
 	clip = newClip;
 	noteRowId = newNoteRowId;
 	pos = note->pos;
@@ -33,13 +36,13 @@ ConsequenceNoteExistence::ConsequenceNoteExistence(InstrumentClip* newClip, int 
 	type = newType;
 }
 
-int ConsequenceNoteExistence::revert(int time, ModelStack* modelStack) {
+int ConsequenceNoteExistence::revert(TimeType time, ModelStack* modelStack) {
 	NoteRow* noteRow = clip->getNoteRowFromId(noteRowId);
 	if (!noteRow) {
 		return ERROR_BUG;
 	}
 
-	if (time == type) {
+	if (time == util::to_underlying(type)) {
 		// Delete a note now
 		int i = noteRow->notes.search(pos, GREATER_OR_EQUAL);
 		if (i < 0 || i >= noteRow->notes.getNumElements() || noteRow->notes.getElement(i)->pos != pos) {

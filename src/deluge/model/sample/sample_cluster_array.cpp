@@ -17,7 +17,7 @@
 
 #include "model/sample/sample_cluster_array.h"
 #include "model/sample/sample_cluster.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include <new>
 
 SampleClusterArray::SampleClusterArray() : ResizeableArray(sizeof(SampleCluster)) {

@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "definitions_cxx.hpp"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
@@ -22,6 +23,7 @@
 #include "gui/menu_item/selection.h"
 #include "model/song/song.h"
 #include "gui/ui/sound_editor.h"
+#include "util/misc.h"
 
 namespace menu_item::sequence {
 class Direction final : public Selection {
@@ -30,7 +32,7 @@ public:
 
 	ModelStackWithNoteRow* getIndividualNoteRow(ModelStackWithTimelineCounter* modelStack) {
 		InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
-		if (!clip->affectEntire && clip->output->type == INSTRUMENT_TYPE_KIT) {
+		if (!clip->affectEntire && clip->output->type == InstrumentType::KIT) {
 			Kit* kit = (Kit*)currentSong->currentClip->output;
 			if (kit->selectedDrum) {
 				return clip->getNoteRowForDrum(modelStack, kit->selectedDrum); // Still might be NULL;
@@ -45,10 +47,11 @@ public:
 		ModelStackWithNoteRow* modelStackWithNoteRow = getIndividualNoteRow(modelStack);
 
 		if (modelStackWithNoteRow->getNoteRowAllowNull()) {
-			soundEditor.currentValue = modelStackWithNoteRow->getNoteRow()->sequenceDirectionMode;
+			soundEditor.currentValue = util::to_underlying(modelStackWithNoteRow->getNoteRow()->sequenceDirectionMode);
 		}
 		else {
-			soundEditor.currentValue = ((InstrumentClip*)currentSong->currentClip)->sequenceDirectionMode;
+			soundEditor.currentValue =
+			    util::to_underlying(((InstrumentClip*)currentSong->currentClip)->sequenceDirectionMode);
 		}
 	}
 
@@ -57,12 +60,13 @@ public:
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 		ModelStackWithNoteRow* modelStackWithNoteRow = getIndividualNoteRow(modelStack);
 		if (modelStackWithNoteRow->getNoteRowAllowNull()) {
-			modelStackWithNoteRow->getNoteRow()->setSequenceDirectionMode(modelStackWithNoteRow,
-			                                                              soundEditor.currentValue);
+			modelStackWithNoteRow->getNoteRow()->setSequenceDirectionMode(
+			    modelStackWithNoteRow, static_cast<SequenceDirection>(soundEditor.currentValue));
 		}
 		else {
 			((InstrumentClip*)currentSong->currentClip)
-			    ->setSequenceDirectionMode(modelStackWithNoteRow->toWithTimelineCounter(), soundEditor.currentValue);
+			    ->setSequenceDirectionMode(modelStackWithNoteRow->toWithTimelineCounter(),
+			                               static_cast<SequenceDirection>(soundEditor.currentValue));
 		}
 	}
 
@@ -83,14 +87,14 @@ public:
 		return sequenceDirectionOptions;
 	}
 
-	int checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) {
+	MenuPermission checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) {
 		if (!((InstrumentClip*)currentSong->currentClip)->affectEntire
-		    && currentSong->currentClip->output->type == INSTRUMENT_TYPE_KIT
+		    && currentSong->currentClip->output->type == InstrumentType::KIT
 		    && !((Kit*)currentSong->currentClip->output)->selectedDrum) {
-			return MENU_PERMISSION_NO;
+			return MenuPermission::NO;
 		}
 		else {
-			return MENU_PERMISSION_YES;
+			return MenuPermission::YES;
 		}
 	}
 };

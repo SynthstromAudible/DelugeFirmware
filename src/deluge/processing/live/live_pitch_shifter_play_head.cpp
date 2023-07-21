@@ -69,20 +69,20 @@ void LivePitchShifterPlayHead::render(int32_t* __restrict__ outputBuffer, int nu
 			if (numSamplesToJumpForward) {
 				oscPos &= 16777215;
 
-				// If jumping forward by more than INTERPOLATION_MAX_NUM_SAMPLES, we first need to jump to the one before we're jumping forward to, to grab its value
-				if (numSamplesToJumpForward > INTERPOLATION_MAX_NUM_SAMPLES) {
-					rawBufferReadPos = (rawBufferReadPos + (numSamplesToJumpForward - INTERPOLATION_MAX_NUM_SAMPLES))
-					                   & (INPUT_RAW_BUFFER_SIZE - 1);
+				// If jumping forward by more than kInterpolationMaxNumSamples, we first need to jump to the one before we're jumping forward to, to grab its value
+				if (numSamplesToJumpForward > kInterpolationMaxNumSamples) {
+					rawBufferReadPos = (rawBufferReadPos + (numSamplesToJumpForward - kInterpolationMaxNumSamples))
+					                   & (kInputRawBufferSize - 1);
 					numSamplesToJumpForward =
-					    INTERPOLATION_MAX_NUM_SAMPLES; // Shouldn't be necesssary, but for some reason this seems to do some optimization and speed things up. Re-test?
+					    kInterpolationMaxNumSamples; // Shouldn't be necesssary, but for some reason this seems to do some optimization and speed things up. Re-test?
 				}
 
-				for (int i = INTERPOLATION_MAX_NUM_SAMPLES - 1; i >= numSamplesToJumpForward; i--) {
+				for (int i = kInterpolationMaxNumSamples - 1; i >= numSamplesToJumpForward; i--) {
 					interpolationBuffer[0][0][i] = interpolationBuffer[0][0][i - numSamplesToJumpForward];
 				}
 
 				if (numChannels == 2) {
-					for (int i = INTERPOLATION_MAX_NUM_SAMPLES - 1; i >= numSamplesToJumpForward; i--) {
+					for (int i = kInterpolationMaxNumSamples - 1; i >= numSamplesToJumpForward; i--) {
 						interpolationBuffer[1][0][i] = interpolationBuffer[1][0][i - numSamplesToJumpForward];
 					}
 				}
@@ -94,7 +94,7 @@ void LivePitchShifterPlayHead::render(int32_t* __restrict__ outputBuffer, int nu
 						interpolationBuffer[1][0][numSamplesToJumpForward] = rawBuffer[rawBufferReadPos * 2 + 1] >> 16;
 					}
 
-					rawBufferReadPos = (rawBufferReadPos + 1) & (INPUT_RAW_BUFFER_SIZE - 1);
+					rawBufferReadPos = (rawBufferReadPos + 1) & (kInputRawBufferSize - 1);
 				}
 			}
 
@@ -129,7 +129,7 @@ void LivePitchShifterPlayHead::render(int32_t* __restrict__ outputBuffer, int nu
 				*outputBuffer += multiply_32x32_rshift32_rounded(rawBuffer[rawBufferReadPos * 2 + 1], amplitude) << 4;
 				outputBuffer++;
 			}
-			rawBufferReadPos = (rawBufferReadPos + 1) & (INPUT_RAW_BUFFER_SIZE - 1);
+			rawBufferReadPos = (rawBufferReadPos + 1) & (kInputRawBufferSize - 1);
 		} while (outputBuffer != outputBufferEnd);
 	}
 }
@@ -147,7 +147,7 @@ int LivePitchShifterPlayHead::getEstimatedPlaytimeRemaining(uint32_t repitchedBu
 #endif
 	    if (mode == PLAY_HEAD_MODE_RAW_REPITCHING) {
 		uint32_t howFarBackRaw =
-		    (uint32_t)(liveInputBuffer->numRawSamplesProcessed - rawBufferReadPos) & (INPUT_RAW_BUFFER_SIZE - 1);
+		    (uint32_t)(liveInputBuffer->numRawSamplesProcessed - rawBufferReadPos) & (kInputRawBufferSize - 1);
 		howFarBack = ((uint64_t)howFarBackRaw << 24) / (uint32_t)phaseIncrement;
 	}
 	else {                 // DIRECT
@@ -174,7 +174,7 @@ int LivePitchShifterPlayHead::getNumRawSamplesBehindInput(LiveInputBuffer* liveI
 	else
 #endif
 	    if (mode == PLAY_HEAD_MODE_RAW_REPITCHING) {
-		return (uint32_t)(liveInputBuffer->numRawSamplesProcessed - rawBufferReadPos) & (INPUT_RAW_BUFFER_SIZE - 1);
+		return (uint32_t)(liveInputBuffer->numRawSamplesProcessed - rawBufferReadPos) & (kInputRawBufferSize - 1);
 	}
 
 	else { // DIRECT
@@ -184,8 +184,8 @@ int LivePitchShifterPlayHead::getNumRawSamplesBehindInput(LiveInputBuffer* liveI
 
 void LivePitchShifterPlayHead::fillInterpolationBuffer(LiveInputBuffer* liveInputBuffer, int numChannels) {
 	for (int c = 0; c < numChannels; c++) {
-		for (int i = 1; i <= INTERPOLATION_MAX_NUM_SAMPLES; i++) {
-			int pos = (uint32_t)(rawBufferReadPos - i) & (INPUT_RAW_BUFFER_SIZE - 1);
+		for (int i = 1; i <= kInterpolationMaxNumSamples; i++) {
+			int pos = (uint32_t)(rawBufferReadPos - i) & (kInputRawBufferSize - 1);
 
 			interpolationBuffer[c][0][i - 1] = (pos < liveInputBuffer->numRawSamplesProcessed)
 			                                       ? liveInputBuffer->rawBuffer[pos * numChannels + c] >> 16

@@ -23,7 +23,7 @@ ConsequenceScaleAddNote::ConsequenceScaleAddNote(int newNoteWithinOctave) {
 	noteWithinOctave = newNoteWithinOctave;
 }
 
-int ConsequenceScaleAddNote::revert(int time, ModelStack* modelStack) {
+int ConsequenceScaleAddNote::revert(TimeType time, ModelStack* modelStack) {
 
 	// The only thing we actually have to do is delete any NoteRows that had the new yNoteWithinOctave.
 	// The changing back of the scale itself is handled by the Action, which

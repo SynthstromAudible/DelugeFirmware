@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "definitions_cxx.hpp"
 #include "gui/views/arranger_view.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
@@ -74,7 +75,7 @@ extern void songLoaded(Song* song);
 
 #define slowpassedTimePerInternalTickSlowness 8
 
-int8_t pendingGlobalMIDICommand = -1; // -1 means none
+GlobalMIDICommand pendingGlobalMIDICommand = GlobalMIDICommand::NONE; // -1 means none
 int pendingGlobalMIDICommandNumClustersWritten;
 extern uint8_t currentlyAccessingCard;
 
@@ -133,18 +134,18 @@ void PlaybackHandler::routine() {
 
 void PlaybackHandler::slowRoutine() {
 	// See if any MIDI commands are pending which couldn't be actioned before (see comments in tryGlobalMIDICommands())
-	if (pendingGlobalMIDICommand != -1 && !currentlyAccessingCard) {
+	if (pendingGlobalMIDICommand != GlobalMIDICommand::NONE && !currentlyAccessingCard) {
 
 		Debug::println("actioning pending command -----------------------------------------");
 
 		if (actionLogger.allowedToDoReversion()) {
 
 			switch (pendingGlobalMIDICommand) {
-			case GLOBAL_MIDI_COMMAND_UNDO:
+			case GlobalMIDICommand::UNDO:
 				actionLogger.undo();
 				break;
 
-			case GLOBAL_MIDI_COMMAND_REDO:
+			case GlobalMIDICommand::REDO:
 				actionLogger.redo();
 				break;
 			}
@@ -156,7 +157,7 @@ void PlaybackHandler::slowRoutine() {
 			}
 		}
 
-		pendingGlobalMIDICommand = -1;
+		pendingGlobalMIDICommand = GlobalMIDICommand::NONE;
 	}
 }
 
@@ -1581,7 +1582,7 @@ void PlaybackHandler::inputTick(bool fromTriggerClock, uint32_t time) {
 			}
 
 			// If we've done this enough times, don't do it again
-			if (lastInputTickReceived >= numInputTicksToAllowTempoTargeting) {
+			if (lastInputTickReceived >= kNumInputTicksToAllowTempoTargeting) {
 				tempoMagnitudeMatchingActiveNow = false;
 				Debug::print("finished tempo magnitude matching. magnitude = ");
 				Debug::println(currentSong->insideWorldTickMagnitude);
@@ -2091,7 +2092,7 @@ void PlaybackHandler::displayTempoBPM(float tempoBPM) {
 #if HAVE_OLED
 	char buffer[27];
 	strcpy(buffer, "Tempo: ");
-	if (currentSong->timePerTimerTickBig <= ((uint64_t)minTimePerTimerTick << 32)) {
+	if (currentSong->timePerTimerTickBig <= ((uint64_t)kMinTimePerTimerTick << 32)) {
 		strcpy(&buffer[7], "FAST");
 	}
 	else {
@@ -2172,7 +2173,7 @@ void PlaybackHandler::setLedStates() {
 	}
 
 	bool syncedLEDOn = playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE;
-	setOutputState(SYNCED_LED_PORT, SYNCED_LED_PIN, syncedLEDOn);
+	setOutputState(SYNCED_LED.port, SYNCED_LED.pin, syncedLEDOn);
 
 	if (currentUIMode == UI_MODE_TAP_TEMPO) {
 		indicator_leds::blinkLed(IndicatorLED::TAP_TEMPO, 255, 1);
@@ -2382,7 +2383,7 @@ bool PlaybackHandler::shouldRecordNotesNow() {
 	    isEitherClockActive() && recording && isUIModeWithinRange(noteRecordingUIModes)
 	    && (!playbackHandler.ticksLeftInCountIn
 	        || getTimeLeftInCountIn()
-	               <= LINEAR_RECORDING_EARLY_FIRST_NOTE_ALLOWANCE) // If doing a count-in, only allow notes to be recorded up to 100mS early
+	               <= kLinearRecordingEarlyFirstNoteAllowance) // If doing a count-in, only allow notes to be recorded up to 100mS early
 	);
 }
 
@@ -2448,45 +2449,47 @@ bool PlaybackHandler::tryGlobalMIDICommands(MIDIDevice* device, int channel, int
 
 	bool foundAnything = false;
 
-	for (int c = 0; c < NUM_GLOBAL_MIDI_COMMANDS; c++) {
+	for (int c = 0; c < kNumGlobalMIDICommands; c++) {
 		if (midiEngine.globalMIDICommands[c].equalsNoteOrCC(device, channel, note)) {
-			switch (c) {
-			case GLOBAL_MIDI_COMMAND_PLAYBACK_RESTART:
+			switch (static_cast<GlobalMIDICommand>(c)) {
+			case GlobalMIDICommand::PLAYBACK_RESTART:
 				if (recording != RECORDING_ARRANGEMENT) {
 					forceResetPlayPos(currentSong);
 				}
 				break;
 
-			case GLOBAL_MIDI_COMMAND_PLAY:
-				playButtonPressed(MIDI_KEY_INPUT_LATENCY);
+			case GlobalMIDICommand::PLAY:
+				playButtonPressed(kMIDIKeyInputLatency);
 				break;
 
-			case GLOBAL_MIDI_COMMAND_RECORD:
+			case GlobalMIDICommand::RECORD:
 				recordButtonPressed();
 				break;
 
-			case GLOBAL_MIDI_COMMAND_LOOP:
-			case GLOBAL_MIDI_COMMAND_LOOP_CONTINUOUS_LAYERING:
+			case GlobalMIDICommand::LOOP:
+			case GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING:
 				if (actionLogger.allowedToDoReversion()
 				    || currentUIMode
 				           == UI_MODE_RECORD_COUNT_IN) { // Not quite sure if this describes exactly what we want but it'll do...
-					int overdubNature = (c == GLOBAL_MIDI_COMMAND_LOOP) ? OVERDUB_NORMAL : OVERDUB_CONTINUOUS_LAYERING;
+					int overdubNature = (static_cast<GlobalMIDICommand>(c) == GlobalMIDICommand::LOOP)
+					                        ? OVERDUB_NORMAL
+					                        : OVERDUB_CONTINUOUS_LAYERING;
 					loopCommand(overdubNature);
 				}
 				break;
 
-			case GLOBAL_MIDI_COMMAND_REDO:
-			case GLOBAL_MIDI_COMMAND_UNDO:
+			case GlobalMIDICommand::REDO:
+			case GlobalMIDICommand::UNDO:
 				if (actionLogger.allowedToDoReversion()) {
 					// We're going to "pend" it rather than do it right now in any case.
 					// Firstly, we don't want to do it while we may be in some card access routine - e.g. by a SampleRecorder.
 					// Secondly, reversion can take a lot of time, and may want to call the audio routine - which is locked cos we're in it!
-					pendingGlobalMIDICommand = c;
+					pendingGlobalMIDICommand = static_cast<GlobalMIDICommand>(c);
 					pendingGlobalMIDICommandNumClustersWritten = 0;
 				}
 				break;
 
-			//case GLOBAL_MIDI_COMMAND_TAP:
+			//case GlobalMIDICommand::TAP:
 			default:
 				if (getCurrentUI() == getRootUI()) {
 					if (currentUIMode == UI_MODE_NONE) {
@@ -2543,13 +2546,13 @@ void PlaybackHandler::noteMessageReceived(MIDIDevice* fromDevice, bool on, int c
 	}
 
 	// Go through all sections
-	for (int s = 0; s < MAX_NUM_SECTIONS; s++) {
+	for (int s = 0; s < kMaxNumSections; s++) {
 		if (currentSong->sections[s].launchMIDICommand.equalsNoteOrCC(fromDevice, channel, note)) {
 			if (on) {
 				if (arrangement.hasPlaybackActive()) {
 					switchToSession();
 				}
-				session.armSection(s, MIDI_KEY_INPUT_LATENCY);
+				session.armSection(s, kMIDIKeyInputLatency);
 			}
 			foundAnything = true;
 		}
@@ -2567,8 +2570,8 @@ void PlaybackHandler::noteMessageReceived(MIDIDevice* fromDevice, bool on, int c
 					switchToSession();
 				}
 
-				session.toggleClipStatus(
-				    clip, &c, false, MIDI_KEY_INPUT_LATENCY); // Beware - calling this might insert or delete a Clip!
+				session.toggleClipStatus(clip, &c, false,
+				                         kMIDIKeyInputLatency); // Beware - calling this might insert or delete a Clip!
 				uiNeedsRendering(&sessionView, 0, 0xFFFFFFFF);
 			}
 			foundAnything = true;
@@ -2821,7 +2824,7 @@ void PlaybackHandler::loopCommand(int overdubNature) {
 		if (!recording) {
 			recording = RECORDING_NORMAL;
 		}
-		playButtonPressed(MIDI_KEY_INPUT_LATENCY);
+		playButtonPressed(kMIDIKeyInputLatency);
 	}
 
 	// Or, if doing count-in, stop that and playback altogether
@@ -2871,9 +2874,9 @@ probablyExitRecordMode:
 		// For each Clip in session
 		for (int c = currentSong->sessionClips.getNumElements() - 1; c >= 0; c--) {
 			Clip* clip = currentSong->sessionClips.getClipAtIndex(c);
-			if (!clip->armState && clip->getCurrentlyRecordingLinearly()) {
+			if (clip->armState == ArmState::OFF && clip->getCurrentlyRecordingLinearly()) {
 				anyGotArmedToStop = true;
-				session.toggleClipStatus(clip, &c, false, MIDI_KEY_INPUT_LATENCY);
+				session.toggleClipStatus(clip, &c, false, kMIDIKeyInputLatency);
 			}
 		}
 
@@ -2903,7 +2906,7 @@ doCreateNextOverdub:
 
 				// So long as it's got an input source...
 				if (clipToCreateOverdubFrom->type != CLIP_TYPE_AUDIO
-				    || ((AudioOutput*)clipToCreateOverdubFrom->output)->inputChannel) {
+				    || ((AudioOutput*)clipToCreateOverdubFrom->output)->inputChannel > AudioInputChannel::NONE) {
 
 					// If that Clip wasn't armed to record linearly...
 					if (!clipToCreateOverdubFrom->armedForRecording) {
@@ -2947,6 +2950,6 @@ doCreateNextOverdub:
 
 	if (mustEndTempolessRecordingAfter) {
 		bool shouldExitRecordMode = (overdubNature != OVERDUB_CONTINUOUS_LAYERING);
-		finishTempolessRecording(true, MIDI_KEY_INPUT_LATENCY, shouldExitRecordMode);
+		finishTempolessRecording(true, kMIDIKeyInputLatency, shouldExitRecordMode);
 	}
 }

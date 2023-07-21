@@ -15,9 +15,11 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "definitions_cxx.hpp"
 #include "gui/menu_item/lfo/shape.h"
 #include "gui/ui/sound_editor.h"
 #include "processing/sound/sound.h"
+#include "util/misc.h"
 
 namespace menu_item::lfo::global {
 
@@ -25,8 +27,12 @@ class Type final : public Shape {
 public:
 	using Shape::Shape;
 
-	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentSound->lfoGlobalWaveType; }
-	void writeCurrentValue() { soundEditor.currentSound->setLFOGlobalWave(soundEditor.currentValue); }
+	void readCurrentValue() {
+		soundEditor.currentValue = util::to_underlying(soundEditor.currentSound->lfoGlobalWaveType);
+	}
+	void writeCurrentValue() {
+		soundEditor.currentSound->setLFOGlobalWave(static_cast<LFOType>(soundEditor.currentValue));
+	}
 };
 
 } // namespace menu_item::lfo::global

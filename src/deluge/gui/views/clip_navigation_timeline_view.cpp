@@ -16,6 +16,7 @@
 */
 
 #include "gui/views/clip_navigation_timeline_view.h"
+#include "definitions_cxx.hpp"
 #include "hid/matrix/matrix_driver.h"
 #include "model/song/song.h"
 #include "hid/display/numeric_driver.h"
@@ -23,14 +24,11 @@
 
 int32_t ClipNavigationTimelineView::xScrollBeforeFollowingAutoExtendingLinearRecording; // -1 means none
 
-ClipNavigationTimelineView::ClipNavigationTimelineView() {
-}
-
 void ClipNavigationTimelineView::focusRegained() {
 	xScrollBeforeFollowingAutoExtendingLinearRecording = -1;
 }
 
-int ClipNavigationTimelineView::horizontalEncoderAction(int offset) {
+ActionResult ClipNavigationTimelineView::horizontalEncoderAction(int offset) {
 
 	xScrollBeforeFollowingAutoExtendingLinearRecording = -1;
 	return TimelineView::horizontalEncoderAction(offset); // Let parent to scrolling / zooming

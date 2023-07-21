@@ -19,7 +19,7 @@
 #include "memory/general_memory_allocator.h"
 #include <string.h>
 #include "util/functions.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "hid/display/numeric_driver.h"
 #include "io/debug/print.h"
 

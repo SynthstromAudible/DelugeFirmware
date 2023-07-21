@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "util/container/array/ordered_resizeable_array.h"
 
 class PostArpTriggerable;
@@ -39,13 +39,13 @@ public:
 	uint8_t numOctaves;
 	SyncLevel syncLevel;
 	SyncType syncType;
-	uint8_t mode;
+	ArpMode mode;
 };
 
 struct ArpNote {
 	int16_t inputCharacteristics
 	    [2]; // Before arpeggiation. And applying to MIDI input if that's happening. Or, channel might be MIDI_CHANNEL_NONE.
-	int16_t mpeValues[NUM_EXPRESSION_DIMENSIONS];
+	int16_t mpeValues[kNumExpressionDimensions];
 	uint8_t velocity;
 	uint8_t outputMemberChannel;
 };

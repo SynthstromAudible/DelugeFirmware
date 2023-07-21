@@ -18,6 +18,7 @@
 #pragma once
 
 #include "RZA1/system/r_typedefs.h"
+#include "definitions_cxx.hpp"
 
 #define PREVIEW_OFF 0
 #define PREVIEW_ONLY_WHILE_NOT_PLAYING 1
@@ -27,7 +28,7 @@ namespace FlashStorage {
 
 extern uint8_t defaultScale;
 extern bool audioClipRecordMargins;
-extern uint8_t keyboardLayout;
+extern KeyboardLayout keyboardLayout;
 extern uint8_t
     recordQuantizeLevel; // Assumes insideWorldTickMagnitude==1, which is not default anymore, so adjust accordingly
 extern uint8_t sampleBrowserPreviewMode;

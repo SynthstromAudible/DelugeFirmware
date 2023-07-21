@@ -16,7 +16,7 @@
  */
 
 #include "hid/display/numeric_layer/numeric_layer_scrolling_text.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "gui/ui_timer_manager.h"
 #include "string.h"
 
@@ -30,17 +30,17 @@ NumericLayerScrollingText::~NumericLayerScrollingText() {
 }
 
 void NumericLayerScrollingText::isNowOnTop() {
-	if (length > NUMERIC_DISPLAY_LENGTH) {
+	if (length > kNumericDisplayLength) {
 		uiTimerManager.setTimer(TIMER_DISPLAY, initialDelay);
 	}
 
-	if (currentPos + NUMERIC_DISPLAY_LENGTH >= length) {
+	if (currentPos + kNumericDisplayLength >= length) {
 		currentDirection = -1;
 	}
 }
 
 void NumericLayerScrollingText::render(uint8_t* returnSegments) {
-	for (int i = 0; i < NUMERIC_DISPLAY_LENGTH; i++) {
+	for (int i = 0; i < kNumericDisplayLength; i++) {
 		if (i + currentPos < length) {
 			returnSegments[i] = text[i + currentPos];
 		}
@@ -54,7 +54,7 @@ bool NumericLayerScrollingText::callBack() {
 
 	currentPos += currentDirection;
 
-	bool reachedEnd = (currentPos == 0 || (currentPos >= length - NUMERIC_DISPLAY_LENGTH && currentDirection == 1));
+	bool reachedEnd = (currentPos == 0 || (currentPos >= length - kNumericDisplayLength && currentDirection == 1));
 
 	if (reachedEnd) {
 		currentDirection = -currentDirection;

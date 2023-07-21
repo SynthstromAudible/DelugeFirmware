@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "model/global_effectable/global_effectable_for_clip.h"
 #include "model/instrument/instrument.h"
 #include "util/container/array/ordered_resizeable_array.h"
@@ -67,7 +68,7 @@ public:
 	ModControllable* toModControllable();
 	SoundDrum* getDrumFromName(char const* name, bool onlyIfNoNoteRow = false);
 	int makeDrumNameUnique(String* name, int startAtNumber);
-	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, int maySendMIDIPGMs);
+	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs);
 	void setupPatching(ModelStackWithTimelineCounter* modelStack);
 	void compensateInstrumentVolumeForResonance(ParamManagerForTimeline* paramManager, Song* song);
 	void deleteBackedUpParamManagers(Song* song);
@@ -90,7 +91,7 @@ public:
 	bool isAnyAuditioningHappening();
 	void beginAuditioningforDrum(ModelStackWithNoteRow* modelStack, Drum* drum, int velocity, int16_t const* mpeValues,
 	                             int fromMIDIChannel = MIDI_CHANNEL_NONE);
-	void endAuditioningForDrum(ModelStackWithNoteRow* modelStack, Drum* drum, int velocity = DEFAULT_LIFT_VALUE);
+	void endAuditioningForDrum(ModelStackWithNoteRow* modelStack, Drum* drum, int velocity = kDefaultLiftValue);
 	void offerBendRangeUpdate(ModelStack* modelStack, MIDIDevice* device, int channelOrZone, int whichBendRange,
 	                          int bendSemitones);
 
@@ -111,7 +112,7 @@ protected:
 	bool isKit() { return true; }
 
 private:
-	int readDrumFromFile(Song* song, Clip* clip, int drumType, int32_t readAutomationUpToPos);
+	int readDrumFromFile(Song* song, Clip* clip, DrumType drumType, int32_t readAutomationUpToPos);
 	void writeDrumToFile(Drum* thisDrum, ParamManager* paramManagerForDrum, bool savingSong, int* selectedDrumIndex,
 	                     int* drumIndex, Song* song);
 

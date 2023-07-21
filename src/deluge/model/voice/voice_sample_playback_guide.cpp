@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "definitions_cxx.hpp"
 #include "storage/audio/audio_file_manager.h"
 #include "model/voice/voice_sample_playback_guide.h"
 #include "processing/source.h"
@@ -93,11 +94,9 @@ int32_t VoiceSamplePlaybackGuide::getBytePosToEndOrLoopPlayback() {
 	}
 }
 
-int VoiceSamplePlaybackGuide::getLoopingType(Source* source) {
+LoopType VoiceSamplePlaybackGuide::getLoopingType(Source* source) {
 	if (loopEndPlaybackAtByte) {
-		return noteOffReceived ? 0 : LOOP_LOW_LEVEL;
+		return noteOffReceived ? LoopType::NONE : LoopType::LOW_LEVEL;
 	}
-	else {
-		return (source->repeatMode == SAMPLE_REPEAT_LOOP) ? LOOP_LOW_LEVEL : 0;
-	}
+	return (source->repeatMode == SampleRepeatMode::LOOP) ? LoopType::LOW_LEVEL : LoopType::NONE;
 }

@@ -31,7 +31,7 @@
 #include "arm_neon.h"
 
 SampleLowLevelReader::SampleLowLevelReader() {
-	for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD; l++) {
+	for (int l = 0; l < kNumClustersLoadedAhead; l++) {
 		clusters[l] = NULL;
 	}
 }
@@ -41,7 +41,7 @@ SampleLowLevelReader::~SampleLowLevelReader() {
 }
 
 void SampleLowLevelReader::unassignAllReasons() {
-	for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD; l++) {
+	for (int l = 0; l < kNumClustersLoadedAhead; l++) {
 		if (clusters[l]) {
 			audioFileManager.removeReasonFromCluster(clusters[l], "E027");
 			clusters[l] = NULL;
@@ -309,7 +309,7 @@ bool SampleLowLevelReader::assignClusters(SamplePlaybackGuide* guide, Sample* sa
                                           int priorityRating) {
 	int finalClusterIndex = guide->getFinalClusterIndex(sample, shouldObeyMarkers());
 
-	for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD; l++) {
+	for (int l = 0; l < kNumClustersLoadedAhead; l++) {
 
 		// Grab it.
 		clusters[l] = sample->clusters.getElement(clusterIndex)
@@ -348,11 +348,11 @@ bool SampleLowLevelReader::moveOnToNextCluster(SamplePlaybackGuide* guide, Sampl
 	int bytePosWithinOldCluster = (uint32_t)currentPlayPos - (uint32_t)&clusters[0]->data;
 	audioFileManager.removeReasonFromCluster(clusters[0], "E035");
 
-	for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD - 1; l++) {
+	for (int l = 0; l < kNumClustersLoadedAhead - 1; l++) {
 		clusters[l] = clusters[l + 1];
 	}
 
-	clusters[NUM_CLUSTERS_LOADED_AHEAD - 1] = NULL;
+	clusters[kNumClustersLoadedAhead - 1] = NULL;
 
 	// First things first - if there is no next Cluster or it's not loaded...
 	if (!clusters[0]) {
@@ -375,7 +375,7 @@ bool SampleLowLevelReader::moveOnToNextCluster(SamplePlaybackGuide* guide, Sampl
 	bytePosWithinOldCluster = bytePosWithinOldCluster + 4 - sample->byteDepth;
 
 	// And for the one at the far end, just grab the next one
-	Cluster* oldLastCluster = clusters[NUM_CLUSTERS_LOADED_AHEAD - 2];
+	Cluster* oldLastCluster = clusters[kNumClustersLoadedAhead - 2];
 
 	if (oldLastCluster) {
 		int prevClusterIndex = oldLastCluster->clusterIndex;
@@ -385,14 +385,14 @@ bool SampleLowLevelReader::moveOnToNextCluster(SamplePlaybackGuide* guide, Sampl
 		// Check that there actually is a next Cluster. If not...
 		if (newClusterIndex * guide->playDirection
 		    > guide->getFinalClusterIndex(sample, shouldObeyMarkers()) * guide->playDirection) {
-			clusters[NUM_CLUSTERS_LOADED_AHEAD - 1] = NULL;
+			clusters[kNumClustersLoadedAhead - 1] = NULL;
 		}
 
 		// Or if there is...
 		else {
 
 			// Grab it.
-			clusters[NUM_CLUSTERS_LOADED_AHEAD - 1] =
+			clusters[kNumClustersLoadedAhead - 1] =
 			    sample->clusters.getElement(newClusterIndex)
 			        ->getCluster(sample, newClusterIndex, CLUSTER_ENQUEUE, priorityRating);
 
@@ -876,7 +876,7 @@ void SampleLowLevelReader::bufferIndividualSampleForInterpolation(uint32_t bitMa
                                                                   char* __restrict__ playPosNow) {
 
 	// This works better than using memmoves. Ideally we'd switch this off if not smoothly interpolating - check that that's actually more efficient though
-	for (int i = INTERPOLATION_MAX_NUM_SAMPLES - 1; i >= 1; i--) {
+	for (int i = kInterpolationMaxNumSamples - 1; i >= 1; i--) {
 		interpolationBuffer[0][0][i] = interpolationBuffer[0][0][i - 1];
 		if (numChannels == 2) {
 			interpolationBuffer[1][0][i] = interpolationBuffer[1][0][i - 1];
@@ -893,7 +893,7 @@ void SampleLowLevelReader::bufferIndividualSampleForInterpolation(uint32_t bitMa
 void SampleLowLevelReader::bufferZeroForInterpolation(int numChannels) {
 
 	// This works better than using memmoves. Ideally we'd switch this off if not smoothly interpolating - check that that's actually more efficient though
-	for (int i = INTERPOLATION_MAX_NUM_SAMPLES - 1; i >= 1; i--) {
+	for (int i = kInterpolationMaxNumSamples - 1; i >= 1; i--) {
 		interpolationBuffer[0][0][i] = interpolationBuffer[0][0][i - 1];
 		if (numChannels == 2) {
 			interpolationBuffer[1][0][i] = interpolationBuffer[1][0][i - 1];
@@ -969,7 +969,7 @@ void SampleLowLevelReader::jumpForwardLinear(int numChannels, int byteDepth, uin
 
 #define numBitsInTableSize 8
 #define rshiftAmount                                                                                                   \
-	((24 + INTERPOLATION_MAX_NUM_SAMPLES_MAGNITUDE) - 16 - numBitsInTableSize                                          \
+	((24 + kInterpolationMaxNumSamplesMagnitude) - 16 - numBitsInTableSize                                             \
 	 + 1) // that's (numBitsInInput - 16 - numBitsInTableSize); = 4 for now
 
 void SampleLowLevelReader::interpolate(int32_t* __restrict__ sampleRead, int numChannelsNow, int whichKernel) {
@@ -1020,20 +1020,20 @@ void SampleLowLevelReader::readSamplesResampled(int32_t** __restrict__ oscBuffer
 				if (numSamplesToJumpForward) {
 					oscPos &= 16777215;
 
-					// If jumping forward by more than INTERPOLATION_MAX_NUM_SAMPLES, we first need to jump to the one before we're jumping forward to, to grab its value
-					if (numSamplesToJumpForward > INTERPOLATION_MAX_NUM_SAMPLES) {
-						currentPlayPosNow += (numSamplesToJumpForward - INTERPOLATION_MAX_NUM_SAMPLES) * jumpAmount;
-						numSamplesToJumpForward = INTERPOLATION_MAX_NUM_SAMPLES;
+					// If jumping forward by more than kInterpolationMaxNumSamples, we first need to jump to the one before we're jumping forward to, to grab its value
+					if (numSamplesToJumpForward > kInterpolationMaxNumSamples) {
+						currentPlayPosNow += (numSamplesToJumpForward - kInterpolationMaxNumSamples) * jumpAmount;
+						numSamplesToJumpForward = kInterpolationMaxNumSamples;
 					}
 
 					int16_t sourceL = *(int16_t*)currentPlayPosNow;
 
-					for (int i = INTERPOLATION_MAX_NUM_SAMPLES - 1; i >= numSamplesToJumpForward; i--) {
+					for (int i = kInterpolationMaxNumSamples - 1; i >= numSamplesToJumpForward; i--) {
 						interpolationBuffer[0][0][i] = interpolationBuffer[0][0][i - numSamplesToJumpForward];
 					}
 
 					if (numChannels == 2) {
-						for (int i = INTERPOLATION_MAX_NUM_SAMPLES - 1; i >= numSamplesToJumpForward; i--) {
+						for (int i = kInterpolationMaxNumSamples - 1; i >= numSamplesToJumpForward; i--) {
 							interpolationBuffer[1][0][i] = interpolationBuffer[1][0][i - numSamplesToJumpForward];
 						}
 
@@ -1080,13 +1080,13 @@ skipFirstSmooth:
 
 			// If caching, do that now
 			if (writingCache) {
-				for (int i = 4 - CACHE_BYTE_DEPTH; i < 4; i++) {
+				for (int i = 4 - kCacheByteDepth; i < 4; i++) {
 					*cacheWritePosNow = ((char*)&sampleRead[0])[i];
 					cacheWritePosNow++;
 				}
 
 				if (numChannels == 2) {
-					for (int i = 4 - CACHE_BYTE_DEPTH; i < 4; i++) {
+					for (int i = 4 - kCacheByteDepth; i < 4; i++) {
 						*cacheWritePosNow = ((char*)&sampleRead[1])[i];
 						cacheWritePosNow++;
 					}
@@ -1264,7 +1264,7 @@ bool SampleLowLevelReader::readSamplesForTimeStretching(int32_t* outputBuffer, S
 
 void SampleLowLevelReader::cloneFrom(SampleLowLevelReader* other, bool stealReasons) {
 
-	for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD; l++) {
+	for (int l = 0; l < kNumClustersLoadedAhead; l++) {
 		if (clusters[l]) {
 			audioFileManager.removeReasonFromCluster(clusters[l], "E131");
 		}

@@ -15,17 +15,18 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "definitions_cxx.hpp"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_collection.h"
 #include "model/model_stack.h"
 #include "modulation/automation/auto_param.h"
 
 ParamCollection::ParamCollection(int newObjectSize, ParamCollectionSummary* summary) : objectSize(newObjectSize) {
-	for (int i = 0; i < MAX_NUM_UINTS_TO_REP_ALL_PARAMS; i++) { // Just do both even if we're only using one.
+	for (int i = 0; i < kMaxNumUnsignedIntegerstoRepAllParams; i++) { // Just do both even if we're only using one.
 		summary->whichParamsAreAutomated[i] = 0;
 	}
 
-	for (int i = 0; i < MAX_NUM_UINTS_TO_REP_ALL_PARAMS; i++) { // Just do both even if we're only using one.
+	for (int i = 0; i < kMaxNumUnsignedIntegerstoRepAllParams; i++) { // Just do both even if we're only using one.
 		summary->whichParamsAreInterpolating[i] = 0;
 	}
 }

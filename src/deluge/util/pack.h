@@ -1,4 +1,4 @@
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 
 int pack_8bit_to_7bit(uint8_t* dst, int dst_size, uint8_t* src, int src_len);
 int unpack_7bit_to_8bit(uint8_t* dst, int dst_size, uint8_t* src, int src_len);

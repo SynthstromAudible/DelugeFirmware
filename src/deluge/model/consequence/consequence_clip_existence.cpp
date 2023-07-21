@@ -17,7 +17,7 @@
 
 #include "model/consequence/consequence_clip_existence.h"
 #include "model/clip/instrument_clip.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "model/song/song.h"
 #include "hid/display/numeric_driver.h"
 #include "memory/general_memory_allocator.h"
@@ -30,15 +30,17 @@
 #include "io/debug/print.h"
 #include "model/clip/audio_clip.h"
 #include "model/model_stack.h"
+#include "util/misc.h"
 
-ConsequenceClipExistence::ConsequenceClipExistence(Clip* newClip, ClipArray* newClipArray, int newType) {
+ConsequenceClipExistence::ConsequenceClipExistence(Clip* newClip, ClipArray* newClipArray,
+                                                   ExistenceChangeType newType) {
 	clip = newClip;
 	clipArray = newClipArray;
 	type = newType;
 }
 
 void ConsequenceClipExistence::prepareForDestruction(int whichQueueActionIn, Song* song) {
-	if (whichQueueActionIn != type) {
+	if (whichQueueActionIn != util::to_underlying(type)) {
 		song->deleteBackedUpParamManagersForClip(clip);
 
 #if ALPHA_OR_BETA_VERSION
@@ -54,10 +56,10 @@ void ConsequenceClipExistence::prepareForDestruction(int whichQueueActionIn, Son
 	}
 }
 
-int ConsequenceClipExistence::revert(int time, ModelStack* modelStack) {
+int ConsequenceClipExistence::revert(TimeType time, ModelStack* modelStack) {
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
-	if (time != type) { // (Re-)create
+	if (time != util::to_underlying(type)) { // (Re-)create
 
 		if (!clipArray->ensureEnoughSpaceAllocated(1)) {
 			return ERROR_INSUFFICIENT_RAM;
@@ -80,7 +82,7 @@ int ConsequenceClipExistence::revert(int time, ModelStack* modelStack) {
 		clipArray->insertClipAtIndex(clip, clipIndex);
 
 		clip->activeIfNoSolo = false;   // So we can toggle it back on, below
-		clip->armState = ARM_STATE_OFF; // In case was left on before
+		clip->armState = ArmState::OFF; // In case was left on before
 
 		if (shouldBeActiveWhileExistent && !(playbackHandler.playbackState && currentPlaybackMode == &arrangement)) {
 			session.toggleClipStatus(clip, &clipIndex, true, 0);
@@ -110,7 +112,7 @@ int ConsequenceClipExistence::revert(int time, ModelStack* modelStack) {
 		    clip); // But should we really be calling this without checking the Clip is a session one?
 
 		clip->abortRecording();
-		clip->armState = ARM_STATE_OFF; // Not 100% sure if necessary... probably.
+		clip->armState = ArmState::OFF; // Not 100% sure if necessary... probably.
 
 		clipIndex = clipArray->getIndexForClip(clip);
 		if (clipIndex == -1) {
