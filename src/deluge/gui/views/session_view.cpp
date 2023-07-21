@@ -2187,7 +2187,6 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 
 		if (((InstrumentClip*)clip)->onKeyboardScreen) {
 
-			keyboardScreen.recalculateColours();
 			keyboardScreen.renderMainPads(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore);
 
 			PadLEDs::numAnimatedRows = displayHeight;

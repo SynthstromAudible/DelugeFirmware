@@ -45,35 +45,27 @@
 
 #include "gui/ui/keyboard/layout/isomorphic.h"
 
-keyboard::KeyboardScreen keyboardScreen {};
+keyboard::KeyboardScreen keyboardScreen{};
 
 namespace keyboard {
 
-layout::KeyboardLayoutIsomorphic keyboardLayoutIsomorphic {};
-KeyboardLayout* layoutList[] = { (KeyboardLayout*)&keyboardLayoutIsomorphic, nullptr };
-
-//@TODO: Probably want to introduce a updateSoundEngine function that checks for changes in active notes from layout instead of implementaion in vertical/horizontal scroll and pad handling
+layout::KeyboardLayoutIsomorphic keyboardLayoutIsomorphic{};
+KeyboardLayout* layoutList[] = {(KeyboardLayout*)&keyboardLayoutIsomorphic, nullptr};
 
 inline InstrumentClip* getCurrentClip() {
 	return (InstrumentClip*)currentSong->currentClip;
 }
 
 KeyboardScreen::KeyboardScreen() {
+	memset(&pressedPads, 0, sizeof(pressedPads));
 }
 
 static const uint32_t padActionUIModes[] = {UI_MODE_AUDITIONING, UI_MODE_RECORD_COUNT_IN,
-                                            0}; // Careful - this is referenced in two places
-
+                                            0}; // Careful - this is referenced in two places // I'm always careful ;)
 
 int KeyboardScreen::padAction(int x, int y, int velocity) {
 	if (sdRoutineLock && !allowSomeUserActionsEvenWhenInCardRoutine) {
 		return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow some of the time when in card routine.
-	}
-
-	// Handle sidebar presses
-	if (x >= displayWidth) {
-		layoutList[0]->handleSidebarPad(x, y, velocity);
-		return ACTION_RESULT_DEALT_WITH;
 	}
 
 	// Handle overruling shortcut presses
@@ -83,31 +75,68 @@ int KeyboardScreen::padAction(int x, int y, int velocity) {
 	}
 
 	// Exit if pad is enabled but UI in wrong mode
-	if (!isUIModeWithinRange(padActionUIModes) && velocity) { //@TODO: Need to check if this can prevent changing root note
+	if (!isUIModeWithinRange(padActionUIModes)
+	    && velocity) { //@TODO: Need to check if this can prevent changing root note
 		return ACTION_RESULT_DEALT_WITH;
 	}
 
-	layoutList[0]->handlePad(x, y, velocity);
-
-	// Handle setting root note
-	if (currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED) { //@TODO: Condition only one new note
-		if (sdRoutineLock) {
-			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		}
-
-		// We probably couldn't have got this far if it was a Kit, but let's just check
-		if (velocity && currentSong->currentClip->output->type != INSTRUMENT_TYPE_KIT) {
-			//int noteCode = getNoteCodeFromCoords(x, y); // @TODO: Rewrite to use new note in activeNotes, needs to come after handlePad
-			exitScaleModeOnButtonRelease = false;
-			if (getCurrentClip()->inScaleMode) {
-				instrumentClipView.setupChangingOfRootNote(newNote);
-				requestRendering();
-				displayCurrentScaleName();
+	// Pad pressed down, add to list if not full
+	if (velocity) {
+		int freeSlotIdx = -1;
+		for (int idx = 0; idx < MAX_NUM_KEYBOARD_PAD_PRESSES; ++idx) {
+			// Free slot found
+			if (!pressedPads[idx].active) {
+				freeSlotIdx = idx;
+				continue;
 			}
-			else {
-				enterScaleMode(newNote);
+
+			// Pad was already active
+			if (pressedPads[idx].active && pressedPads[idx].x == x && pressedPads[idx].y == y) {
+				freeSlotIdx = -1; // If a free slot was found previously, reset it so we don't write a second entry
+				break;
 			}
 		}
+
+		// Store active press in the free slot
+		if (freeSlotIdx != -1) {
+			pressedPads[freeSlotIdx].x = x;
+			pressedPads[freeSlotIdx].y = y;
+			pressedPads[freeSlotIdx].active = true;
+		}
+	}
+
+	// Pad released, remove from list
+	else {
+		for (int idx = 0; idx < MAX_NUM_KEYBOARD_PAD_PRESSES; ++idx) {
+			// Pad was already active
+			if (pressedPads[idx].active && pressedPads[idx].x == x && pressedPads[idx].y == y) {
+				pressedPads[idx].active = false;
+				break;
+			}
+		}
+	}
+
+	layoutList[0]->evaluatePads(pressedPads);
+
+	// // Handle setting root note //@TODO: only execute with exactly one new note
+	if (currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED) {
+		// 	if (sdRoutineLock) {
+		// 		return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		// 	}
+
+		// 	// We probably couldn't have got this far if it was a Kit, but let's just check
+		// 	if (velocity && currentSong->currentClip->output->type != INSTRUMENT_TYPE_KIT) {
+		// 		//int noteCode = getNoteCodeFromCoords(x, y); // @TODO: Rewrite to use new note in activeNotes, needs to come after handlePad
+		// 		exitScaleModeOnButtonRelease = false;
+		// 		if (getCurrentClip()->inScaleMode) {
+		// 			instrumentClipView.setupChangingOfRootNote(newNote);
+		// 			requestRendering();
+		// 			displayCurrentScaleName();
+		// 		}
+		// 		else {
+		// 			enterScaleMode(newNote);
+		// 		}
+		// 	}
 	}
 	else {
 		updateActiveNotes();
@@ -120,6 +149,7 @@ int KeyboardScreen::padAction(int x, int y, int velocity) {
 NoteList lastActiveNotes; //@TODO: Move into class
 
 void KeyboardScreen::updateActiveNotes() {
+	/*
 	NoteList activeNotes = layoutList[0]->getActiveNotes();
 
 	//@TODO: Handle note list changes
@@ -256,6 +286,8 @@ void KeyboardScreen::updateActiveNotes() {
 			}
 		}
 	}
+
+	*/
 }
 
 int KeyboardScreen::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
@@ -294,11 +326,11 @@ int KeyboardScreen::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 				}
 			}
 
-			// If user is auditioning just one note, we can go directly into Scale Mode and set that root note
-			else if (currentUIMode == UI_MODE_AUDITIONING && getActiveNoteCount() == 1 && !getCurrentClip()->inScaleMode) {
-				exitAuditionMode();
-				enterScaleMode(activeNotes[0]); //@TODO: Replace with working solution
-			}
+			// // If user is auditioning just one note, we can go directly into Scale Mode and set that root note
+			// else if (currentUIMode == UI_MODE_AUDITIONING && getActiveNoteCount() == 1 && !getCurrentClip()->inScaleMode) {
+			// 	exitAuditionMode();
+			// 	enterScaleMode(activeNotes[0]); //@TODO: Replace with working solution
+			// }
 		}
 		else {
 			if (currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED) {
@@ -349,7 +381,8 @@ int KeyboardScreen::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	}
 
 	// Kit button
-	else if (b == KIT && currentUIMode == UI_MODE_NONE) { //@TODO: Conditional check depending if current layout supports kits
+	else if (b == KIT
+	         && currentUIMode == UI_MODE_NONE) { //@TODO: Conditional check depending if current layout supports kits
 		if (on) {
 			indicator_leds::indicateAlertOnLed(IndicatorLED::KEYBOARD);
 		}
@@ -380,7 +413,8 @@ int KeyboardScreen::verticalEncoderAction(int offset, bool inCardRoutine) {
 	}
 	else {
 		layoutList[0]->handleVerticalEncoder(offset);
-		if(isUIModeWithinRange(padActionUIModes)) {
+		if (isUIModeWithinRange(padActionUIModes)) {
+			layoutList[0]->evaluatePads(pressedPads);
 			updateActiveNotes();
 		}
 	}
@@ -391,8 +425,10 @@ int KeyboardScreen::verticalEncoderAction(int offset, bool inCardRoutine) {
 
 int KeyboardScreen::horizontalEncoderAction(int offset) {
 
-	layoutList[0]->handleHorizontalEncoder(offset, (Buttons::isShiftButtonPressed() && isUIModeWithinRange(padActionUIModes)));
-	if(isUIModeWithinRange(padActionUIModes)) {
+	layoutList[0]->handleHorizontalEncoder(offset,
+	                                       (Buttons::isShiftButtonPressed() && isUIModeWithinRange(padActionUIModes)));
+	if (isUIModeWithinRange(padActionUIModes)) {
+		layoutList[0]->evaluatePads(pressedPads);
 		updateActiveNotes();
 	}
 
@@ -408,8 +444,6 @@ void KeyboardScreen::selectEncoderAction(int8_t offset) {
 	instrumentClipView.recalculateColours();
 	requestRendering();
 }
-
-
 
 void KeyboardScreen::exitAuditionMode() {
 	layoutList[0]->stopAllNotes();
@@ -445,7 +479,8 @@ bool KeyboardScreen::renderMainPads(uint32_t whichRows, uint8_t image[][displayW
 	}
 
 	memset(image, 0, sizeof(uint8_t) * displayHeight * (displayWidth + sideBarWidth) * 3);
-	memset(occupancyMask, 64, sizeof(uint8_t) * displayHeight * (displayWidth + sideBarWidth)); // We assume the whole screen is occupied
+	memset(occupancyMask, 64,
+	       sizeof(uint8_t) * displayHeight * (displayWidth + sideBarWidth)); // We assume the whole screen is occupied
 
 	layoutList[0]->renderPads(image);
 
@@ -463,7 +498,6 @@ bool KeyboardScreen::renderSidebar(uint32_t whichRows, uint8_t image[][displayWi
 	return true;
 }
 
-
 void KeyboardScreen::flashDefaultRootNote() {
 	uiTimerManager.setTimer(TIMER_DEFAULT_ROOT_NOTE, flashTime);
 	flashDefaultRootNoteOn = !flashDefaultRootNoteOn;
@@ -477,6 +511,9 @@ void KeyboardScreen::enterScaleMode(int selectedRootNote) {
 
 	displayCurrentScaleName();
 
+	layoutList[0]->evaluatePads(pressedPads);
+	updateActiveNotes();
+
 	requestRendering();
 	setLedStates();
 }
@@ -485,6 +522,9 @@ void KeyboardScreen::exitScaleMode() {
 
 	int scrollAdjust = instrumentClipView.setupForExitingScaleMode();
 	getCurrentClip()->yScroll += scrollAdjust;
+
+	layoutList[0]->evaluatePads(pressedPads);
+	updateActiveNotes();
 
 	requestRendering();
 	setLedStates();

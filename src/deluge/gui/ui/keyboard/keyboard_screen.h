@@ -28,8 +28,6 @@ class ModelStack;
 
 namespace keyboard {
 
-
-
 #define MAX_NUM_KEYBOARD_PAD_PRESSES 10
 
 class KeyboardScreen final : public RootUI, public InstrumentClipMinder {
@@ -41,7 +39,6 @@ public:
 	int verticalEncoderAction(int offset, bool inCardRoutine);
 	int horizontalEncoderAction(int offset);
 	void selectEncoderAction(int8_t offset);
-
 
 	bool renderMainPads(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
 	                    uint8_t occupancyMask[][displayWidth + sideBarWidth], bool drawUndefinedArea = false);
@@ -63,7 +60,6 @@ private:
 	void graphicsRoutine();
 	bool getAffectEntire();
 
-
 #if HAVE_OLED
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 		InstrumentClipMinder::renderOLED(image);
@@ -78,6 +74,8 @@ private:
 	inline void requestRendering() {
 		uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 	}
+
+	PressedPad pressedPads[MAX_NUM_KEYBOARD_PAD_PRESSES];
 };
 
 }; // namespace keyboard

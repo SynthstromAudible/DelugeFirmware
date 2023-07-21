@@ -26,10 +26,9 @@ public:
 	KeyboardLayoutIsomorphic();
 	virtual ~KeyboardLayoutIsomorphic() {}
 
-	virtual void handlePad(int x, int y, int velocity);
-	virtual void handleSidebarPad(int x, int y, int velocity);
-	virtual bool handleVerticalEncoder(int offset);
-	virtual bool handleHorizontalEncoder(int offset, bool shiftEnabled);
+	virtual void evaluatePads(PressedPad presses[MAX_NUM_KEYBOARD_PAD_PRESSES]);
+	virtual void handleVerticalEncoder(int offset);
+	virtual void handleHorizontalEncoder(int offset, bool shiftEnabled);
 
 	virtual void renderPads(uint8_t image[][displayWidth + sideBarWidth][3]);
 
@@ -40,8 +39,6 @@ public:
 
 private:
 	int noteFromCoords(int x, int y);
-
 };
 
 }; // namespace keyboard::layout
-

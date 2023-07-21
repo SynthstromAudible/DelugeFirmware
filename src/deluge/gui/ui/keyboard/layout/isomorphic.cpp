@@ -23,19 +23,24 @@
 
 #include "model/instrument/instrument.h"
 #include "model/clip/instrument_clip.h"
-#include "gui/ui/keyboard/keyboard_screen.h" //@TODO: Try to factor out
 
 namespace keyboard::layout {
 
+// Refactor remove area
 bool yDisplayActive[displayHeight * KEYBOARD_ROW_INTERVAL_MAX + displayWidth]; // @TODO: needs to be emptied at start
 
+inline InstrumentClip* getCurrentClip() {
+	return (InstrumentClip*)currentSong->currentClip;
+}
+//-----------------------
 
-KeyboardLayoutIsomorphic::KeyboardLayoutIsomorphic()
-	: KeyboardLayout() {
+KeyboardLayoutIsomorphic::KeyboardLayoutIsomorphic() : KeyboardLayout() {
 	memset(yDisplayActive, 0, sizeof(yDisplayActive));
 }
 
-void KeyboardLayoutIsomorphic::handlePad(int x, int y, int velocity) {
+void KeyboardLayoutIsomorphic::evaluatePads(PressedPad presses[MAX_NUM_KEYBOARD_PAD_PRESSES]) {
+	/*
+
 
 	int noteCode = noteFromCoords(x, y);
 
@@ -105,13 +110,11 @@ foundIt:
 
 
 	}
+	*/
 }
 
-void KeyboardLayoutIsomorphic::handleSidebarPad(int x, int y, int velocity) {
-
-}
-
-bool KeyboardLayoutIsomorphic::handleVerticalEncoder(int offset) {
+void KeyboardLayoutIsomorphic::handleVerticalEncoder(int offset) {
+	/*
 		Instrument* instrument = (Instrument*)currentSong->currentClip->output;
 		if (instrument->type == INSTRUMENT_TYPE_KIT) { //
 			//@TODO: Implement new way of scrolling internally
@@ -137,9 +140,11 @@ bool KeyboardLayoutIsomorphic::handleVerticalEncoder(int offset) {
 
 			getCurrentClip()->yScrollKeyboardScreen += offset; //@TODO: Move yScrollKeyboardScreen into the layouts
 		}
+		*/
 }
 
-bool KeyboardLayoutIsomorphic::handleHorizontalEncoder(int offset, bool shiftEnabled) {
+void KeyboardLayoutIsomorphic::handleHorizontalEncoder(int offset, bool shiftEnabled) {
+	/*
 	if(shiftEnabled) {
 		InstrumentClip* clip = getCurrentClip();
 		clip->keyboardRowInterval += offset;
@@ -176,11 +181,13 @@ bool KeyboardLayoutIsomorphic::handleHorizontalEncoder(int offset, bool shiftEna
 
 		getCurrentClip()->yScrollKeyboardScreen += offset; //@TODO: Move yScrollKeyboardScreen into the layouts
 	}
+	*/
 }
 
 uint8_t noteColours[displayHeight * KEYBOARD_ROW_INTERVAL_MAX + displayWidth][3];
 
 void KeyboardLayoutIsomorphic::renderPads(uint8_t image[][displayWidth + sideBarWidth][3]) { //@TODO: Refactor
+	                                                                                         /*
 	// Calculate colors
 	InstrumentClip* clip = getCurrentClip();
 	for (int i = 0; i < displayHeight * clip->keyboardRowInterval + displayWidth; i++) { // @TODO: find out how to do without dependency
@@ -266,6 +273,7 @@ void KeyboardLayoutIsomorphic::renderPads(uint8_t image[][displayWidth + sideBar
 			}
 		}
 	}
+	*/
 }
 
 void KeyboardLayoutIsomorphic::stopAllNotes() {
@@ -285,5 +293,4 @@ int KeyboardLayoutIsomorphic::noteFromCoords(int x, int y) {
 	}
 }
 
-
-}
+} // namespace keyboard::layout

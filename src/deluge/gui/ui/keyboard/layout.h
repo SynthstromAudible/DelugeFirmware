@@ -29,21 +29,25 @@ typedef std::array<int, MAX_NUM_KEYBOARD_PAD_PRESSES> NoteList;
 
 namespace keyboard {
 
+struct PressedPad {
+	uint8_t x;
+	uint8_t y;
+	bool active;
+};
+
 class KeyboardLayout {
 public:
 	KeyboardLayout() { activeNotes.fill(INVALID_NOTE); }
 	virtual ~KeyboardLayout() {}
 
 	// Handle inputs
-	virtual void handlePad(int x, int y, int velocity) = 0;
-	virtual void handleSidebarPad(int x, int y, int velocity) = 0;
-	virtual bool handleVerticalEncoder(int offset) = 0; // returns weather the scroll had an effect // Shift state not supplied since that function is already taken
-	virtual bool handleHorizontalEncoder(int offset, bool shiftEnabled) = 0; // returns weather the scroll had an effect
+	virtual void evaluatePads(PressedPad presses[MAX_NUM_KEYBOARD_PAD_PRESSES]) = 0;
+	virtual void handleVerticalEncoder(
+	    int offset) = 0; // returns weather the scroll had an effect // Shift state not supplied since that function is already taken
+	virtual void handleHorizontalEncoder(int offset, bool shiftEnabled) = 0; // returns weather the scroll had an effect
 
 	// Handle output
-	virtual void renderPads(uint8_t image[][displayWidth + sideBarWidth][3]) {
-
-	}
+	virtual void renderPads(uint8_t image[][displayWidth + sideBarWidth][3]) {}
 	virtual void renderSidebarPads(uint8_t image[][displayWidth + sideBarWidth][3]) {
 		// Empty if not implemented
 		for (int y = 0; y < displayHeight; y++) {
@@ -65,9 +69,7 @@ public:
 	//@TODO: rootNote(), scale(), saving, restoring
 
 protected:
-	inline int getRootNote() {
-		return currentSong->rootNote;
-	}
+	inline int getRootNote() { return currentSong->rootNote; }
 
 	int getLowestClipNote() {
 		//@TODO:
@@ -75,11 +77,10 @@ protected:
 	}
 
 	int getHighestClipNote() {
-		return 127;// @TODO:
+		return 127; // @TODO:
 	}
 
-
-// Helpers
+	// Helpers
 	bool notesFull() {
 		return false; //@TODO: Check for max activeNotes
 	}
@@ -91,7 +92,6 @@ protected:
 	void disableNote(int note) {
 		//@TODO: Remove from activeNotes
 	}
-
 
 	// inline uint8_t[displayHeight * KEYBOARD_ROW_INTERVAL_MAX + displayWidth][3] colours() {
 	// 	return noteColours;

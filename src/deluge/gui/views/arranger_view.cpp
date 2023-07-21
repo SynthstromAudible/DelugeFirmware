@@ -1687,7 +1687,6 @@ void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 
 		// If going to KeyboardView...
 		if (((InstrumentClip*)clip)->onKeyboardScreen) {
-			keyboardScreen.recalculateColours();
 			keyboardScreen.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
 			memset(PadLEDs::occupancyMaskStore[0], 0, displayWidth + sideBarWidth);
 			memset(PadLEDs::occupancyMaskStore[displayHeight + 1], 0, displayWidth + sideBarWidth);
