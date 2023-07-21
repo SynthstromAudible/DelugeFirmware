@@ -309,7 +309,7 @@ doEndMidiLearnPressSession:
 
 	else if (b == SYNC_SCALING) {
 
-		// <shift><Sync-scaling> -> change song time-stretching CBC
+		// <shift><Sync-scaling> -> change song time-stretching
 		if (on && Buttons::isShiftButtonPressed()) {
 			if (on) {
 				currentSong->timeStretchEnabled = !currentSong->timeStretchEnabled;
@@ -422,8 +422,7 @@ possiblyRevert:
 		if (on && currentUIMode == UI_MODE_NONE) {
 
 			if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
-				numericDriver.displayPopup(HAVE_OLED ? "Recording to arrangement"
-				                                     : "CANT"); //CBC Why show CANT for 7SEG??
+				numericDriver.displayPopup(HAVE_OLED ? "Recording to arrangement" : "CANT");
 				return ACTION_RESULT_DEALT_WITH;
 			}
 

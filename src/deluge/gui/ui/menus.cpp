@@ -440,7 +440,7 @@ sequence::Direction sequenceDirectionMenu{HAVE_OLED ? "Play direction" : "DIRECT
 
 // Sample Menu
 
-audio_clip::TimeStretch audioClipTimeStretchMenu{"STRETCH"}; //CBC
+audio_clip::TimeStretch audioClipTimeStretchMenu{HAVE_OLED ? "Timestretch" : "STRETCH"};
 audio_clip::Reverse audioClipReverseMenu{"REVERSE"};
 audio_clip::SampleMarkerEditor audioClipSampleMarkerEditorMenuStart{"", MARKER_START};
 audio_clip::SampleMarkerEditor audioClipSampleMarkerEditorMenuEnd{"WAVEFORM", MARKER_END};

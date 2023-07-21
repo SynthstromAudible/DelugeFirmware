@@ -16,7 +16,7 @@ Here is a list of general improvements that have been made ordered from newest t
 
 # Added features
 
-Here is a list of features that have been added to the firmware as a list ordered from newest to oldest:
+Here is a list of features that have been added to the firmware as a list ordered from oldest first:
 
 ## Synthesizer features
 
@@ -68,11 +68,23 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
 					  will move in sync with the Deluge. The Deluge will value will always decrease/increase in the 
 					  same direction as the Midi controller.
 
+### Audio Clip Timestretch control
+
+([#54]) usefule for less beat-centric music e.g. ambient, this allows user to enable/disable audio time-stretching, either: 
+ - for all audio clips in the song => with **<shift>+SYNC-SCALING** button 
+ - for an individual clip => with either **clip/sample/stretch** menu, or **<shift>+Sample1/Mode** shortcut)
+
+See also [Make time stretching optional for AudioClips](https://github.com/SynthstromAudible/DelugeFirmware/issues/53)
+
+#### Song XML changes
+Two XML attributes are added to SONG XML files for  </song > and </audioClip> elements (timeStretchingEnabled (bool) . These attributes will be ignored by earlier firmware 
+The default time-stretching setting is **on** to remain consistent with earlier versions.
+
 <h1 id="runtime-features">Runtime settings aka Community Features Menu</h1>
 
 In the main menu of the deluge (Shift + Pressing selection knob) there is an entry called "Community Features" that allows changing behavior and turning features on and off in comprison to the original and previous community firmwares. Here is a list of all options and what they do:
 
-* DRUM RANDOMIZER
+### DRUM RANDOMIZER
     Enable or disables the "AUDITION + RANDOM" shortcut. 
 
 # Compiletime settings
@@ -92,6 +104,7 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#32]: https://github.com/SynthstromAudible/DelugeFirmware/pull/32
 [#46]: https://github.com/SynthstromAudible/DelugeFirmware/pull/46
 [#47]: https://github.com/SynthstromAudible/DelugeFirmware/pull/47
+[#54]: https://github.com/SynthstromAudible/DelugeFirmware/pull/54
 [#103]: https://github.com/SynthstromAudible/DelugeFirmware/pull/103
 [#112]: https://github.com/SynthstromAudible/DelugeFirmware/pull/112
 [#122]: https://github.com/SynthstromAudible/DelugeFirmware/pull/122
