@@ -30,6 +30,7 @@ jobs:
             --user=$(id --user):$(id --group) \
             -v $(pwd):/src \
             ghcr.io/litui/dbt-toolchain:v$(cat toolchain/REQUIRED_VERSION) \
+            build \
             --spew \
             all
 

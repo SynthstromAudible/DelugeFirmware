@@ -24,7 +24,7 @@
 #include "gui/ui/sound_editor.h"
 #include "model/action/action_logger.h"
 #include <string.h>
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "hid/encoders.h"
 #include "gui/ui/qwerty_ui.h"
 #include "hid/display/oled.h"

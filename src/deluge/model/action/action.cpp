@@ -29,7 +29,7 @@
 #include "model/note/note.h"
 #include "model/action/action_logger.h"
 #include "model/consequence/consequence_note_existence.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include <new>
 #include "memory/general_memory_allocator.h"
 #include "model/consequence/consequence_clip_length.h"
@@ -313,7 +313,7 @@ void Action::updateYScrollClipViewAfter(InstrumentClip* clip) {
 		numClipStates = 0;
 		generalMemoryAllocator.dealloc(clipStates);
 		clipStates = NULL;
-		Uart::println("discarded clip states");
+		Debug::println("discarded clip states");
 		return;
 	}
 

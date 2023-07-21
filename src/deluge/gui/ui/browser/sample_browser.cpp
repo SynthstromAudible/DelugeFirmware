@@ -15,7 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#define _GNU_SOURCE // Wait why?
+#define _GNU_SOURCE     // Wait why?
+#define __GNU_VISIBLE 1 // Makes strcasestr visible. Might already be the reason for the define above
 #include "gui/ui/browser/sample_browser.h"
 #include "util/functions.h"
 #include "gui/ui/sound_editor.h"
@@ -23,7 +24,7 @@
 #include "processing/engines/audio_engine.h"
 #include "storage/storage_manager.h"
 #include "hid/display/numeric_driver.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include <string.h>
 #include "processing/source.h"
 #include "processing/sound/sound.h"
@@ -535,7 +536,7 @@ void SampleBrowser::previewIfPossible(int movementDirection) {
 	/*
 	// Was this in case they've already turned the knob further?
 	if (movementDirection && movementDirection * Encoders::encoders[ENCODER_THIS_CPU_SELECT].detentPos > 0 && numFilesFoundInRightDirection > 1) {
-		Uart::println("returned 1");
+		Debug::println("returned 1");
 		return;
 	}
 	*/
@@ -578,7 +579,7 @@ void SampleBrowser::previewIfPossible(int movementDirection) {
 
 		/*
 		if (movementDirection && movementDirection * Encoders::encoders[ENCODER_THIS_CPU_SELECT].detentPos > 0 && numFilesFoundInRightDirection > 1) {
-			Uart::println("returned 2");
+			Debug::println("returned 2");
 			return;
 		}
 		*/
@@ -1178,8 +1179,8 @@ int getNumTimesIncorrectSampleOrderSeen(int numSamples, Sample** samples) {
 		}
 	}
 
-	Uart::print("timesIncorrectOrderSeen: ");
-	Uart::println(timesIncorrectOrderSeen);
+	Debug::print("timesIncorrectOrderSeen: ");
+	Debug::println(timesIncorrectOrderSeen);
 
 	return timesIncorrectOrderSeen;
 }
@@ -1329,8 +1330,8 @@ removeReasonsFromSamplesAndGetOut:
 
 	// Ok, the samples are now all in memory.
 
-	Uart::print("loaded from folder: ");
-	Uart::println(numSamples);
+	Debug::print("loaded from folder: ");
+	Debug::println(numSamples);
 
 	// If all samples were tagged with the same MIDI note, we get suspicious and delete them.
 	bool discardingMIDINoteFromFile = (numSamples > 1 && commonMIDINote >= 0);
@@ -1376,8 +1377,8 @@ removeReasonsFromSamplesAndGetOut:
 
 	numSamples = sampleI; // In case it's lower now, e.g. due to some samples' pitch detection failing
 
-	Uart::print("successfully detected pitch: ");
-	Uart::println(numSamples);
+	Debug::print("successfully detected pitch: ");
+	Debug::println(numSamples);
 
 	Sample** sortAreas[2];
 	sortAreas[0] = sortArea;
@@ -1422,7 +1423,7 @@ removeReasonsFromSamplesAndGetOut:
 			// But if C is actually bad enough, we might conclude that the filenames are irrelevant
 			if ((badnessRatingFromC * 3) > numSamples) goto justSortByPitch;
 
-			Uart::println("going back to ordering from C");
+			Debug::println("going back to ordering from C");
 			sortSamples(filenameGreaterOrEqual, numSamples, sortAreas, &readArea, &writeArea);
 		}
 
@@ -1435,7 +1436,7 @@ removeReasonsFromSamplesAndGetOut:
 		*/
 
 		// Ok, we're here, the samples are optimally ordered by file, but, the pitch is out.
-		Uart::println("sample order by file finalized");
+		Debug::println("sample order by file finalized");
 
 		float prevNote = sortAreas[readArea][0]->midiNote; // May be MIDI_NOTE_ERROR
 
@@ -1567,10 +1568,10 @@ removeReasonsFromSamplesAndGetOut:
 				continue;
 			}
 
-			Uart::print("redoing, limited to ");
-			Uart::print(minFreqHz);
-			Uart::print(" to ");
-			Uart::println(maxFreqHz);
+			Debug::print("redoing, limited to ");
+			Debug::print(minFreqHz);
+			Debug::print(" to ");
+			Debug::println(maxFreqHz);
 
 			thisSample->workOutMIDINote(doingSingleCycle, minFreqHz, maxFreqHz, false);
 
@@ -1581,7 +1582,7 @@ removeReasonsFromSamplesAndGetOut:
 				minFreqHz *= 2;
 				maxFreqHz *= 2;
 
-				Uart::println("pretending an octave up...");
+				Debug::println("pretending an octave up...");
 
 				thisSample->workOutMIDINote(doingSingleCycle, minFreqHz, maxFreqHz, false);
 
@@ -1645,7 +1646,7 @@ doReturnFalse:
 		return false;
 	}
 
-	Uart::println("loaded and sorted samples");
+	Debug::println("loaded and sorted samples");
 
 	AudioEngine::routineWithClusterLoading(); // --------------------------------------------------
 
@@ -1701,7 +1702,7 @@ doReturnFalse:
 			else {
 				// If there are other intervals of more than a semitone, we can't really take it for granted what's going on, so get out
 				if (noteHere >= prevNote + 1.85) {
-					Uart::println("aaa");
+					Debug::println("aaa");
 					uartPrintlnFloat(noteHere - prevNote);
 					goto skipOctaveCorrection;
 				}
@@ -1711,7 +1712,7 @@ doReturnFalse:
 		}
 
 		if (whichSampleIsAnOctaveUp) {
-			Uart::println("correcting octaves");
+			Debug::println("correcting octaves");
 			// Correct earlier ones?
 			if (whichSampleIsAnOctaveUp * 2 < numSamples) {
 				for (int s = 0; s < whichSampleIsAnOctaveUp; s++) {
@@ -1744,7 +1745,7 @@ skipOctaveCorrection:
 		soundEditor.currentSource->setOscType(OSC_TYPE_SAMPLE);
 	}
 
-	Uart::println("creating ranges");
+	Debug::println("creating ranges");
 
 	for (int s = 0; s < numSamples; s++) {
 
@@ -1755,7 +1756,7 @@ skipOctaveCorrection:
 		Sample* thisSample = sortArea[s];
 
 		if (thisSample->midiNote == MIDI_NOTE_ERROR) {
-			Uart::println("dismissing 1 sample for which pitch couldn't be detected");
+			Debug::println("dismissing 1 sample for which pitch couldn't be detected");
 			// TODO: shouldn't we remove a reason here?
 			continue;
 		}
@@ -1768,10 +1769,10 @@ skipOctaveCorrection:
 			float midPoint = (thisSample->midiNote + nextSample->midiNote) * 0.5;
 			topNote = midPoint; // Round down
 			if (topNote <= lastTopNote) {
-				Uart::print("skipping sample cos ");
-				Uart::print(topNote);
-				Uart::print(" <= ");
-				Uart::println(lastTopNote);
+				Debug::print("skipping sample cos ");
+				Debug::print(topNote);
+				Debug::print(" <= ");
+				Debug::println(lastTopNote);
 				// TODO: shouldn't we remove a reason here?
 				continue;
 			}
@@ -1791,8 +1792,8 @@ skipOctaveCorrection:
 			    rangeIndex); // We know it's gonna succeed
 		}
 
-		Uart::print("top note: ");
-		Uart::println(topNote);
+		Debug::print("top note: ");
+		Debug::println(topNote);
 
 		range->topNote = topNote;
 
@@ -1826,8 +1827,8 @@ skipOctaveCorrection:
 		goto doReturnFalse;
 	}
 
-	Uart::print("distinct ranges: ");
-	Uart::println(numSamples);
+	Debug::print("distinct ranges: ");
+	Debug::println(numSamples);
 
 	generalMemoryAllocator.dealloc(sortArea);
 

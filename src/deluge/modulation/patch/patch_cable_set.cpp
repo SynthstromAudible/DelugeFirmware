@@ -30,10 +30,6 @@
 #include "memory/general_memory_allocator.h"
 #include "io/midi/midi_device.h"
 
-extern "C" {
-#include "drivers/uart/uart.h"
-}
-
 void flagCable(uint32_t* flags, int c) {
 	flags[
 #if NUM_UINTS_TO_REP_PATCH_CABLES > 1
