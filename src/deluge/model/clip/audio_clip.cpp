@@ -533,7 +533,7 @@ void AudioClip::render(ModelStackWithTimelineCounter* modelStack, int32_t* outpu
 
 	uint64_t requiredSpeedAdjustment = ((uint64_t)sampleLengthInSamples << 24) / clipLengthInSamples;
 
-	// Control this using shift+syncScaleButton. Not saved to song XML.
+	// Control this using shift+syncScaleButton.
 	if (!modelStack->song->timeStretchEnabled) {
 		goto justDontTimeStretch;
 	}
