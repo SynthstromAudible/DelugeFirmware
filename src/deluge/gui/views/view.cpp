@@ -307,8 +307,8 @@ doEndMidiLearnPressSession:
 		}
 	}
 
-	// Sync-scaling button
-	else if (b == SYNC_SCALING) {
+	// Moved Sync-scaling feature to SHIFT+SYNC_SCALING (see FILL below)
+	else if (b == SYNC_SCALING && Buttons::isShiftButtonPressed()) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 
 			if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
