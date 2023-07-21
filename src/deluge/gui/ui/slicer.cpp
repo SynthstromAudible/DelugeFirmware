@@ -331,6 +331,8 @@ int Slicer::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	if (b == X_ENC && on) {
 		slicerMode++;
 		slicerMode %= 2;
+		if (slicerMode == SLICER_MODE_MANUAL)
+			AudioEngine::stopAnyPreviewing();
 #if HAVE_OLED
 		renderUIsForOled();
 #else

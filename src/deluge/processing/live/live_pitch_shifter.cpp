@@ -22,7 +22,7 @@
 #include "storage/storage_manager.h"
 #include "dsp/timestretch/time_stretcher.h"
 #include <stdlib.h>
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "util/functions.h"
 
 //#define MEASURE_HOP_END_PERFORMANCE 1
@@ -141,24 +141,24 @@ startRenderAgain:
 			nextCrossfadeLength = getMin(nextCrossfadeLength, maxTotalPlayable >> 1);
 
 			samplesTilHopEnd = maxPlayableSamplesNewer - nextCrossfadeLength;
-			//Uart::println("shortening hop");
+			//Debug::println("shortening hop");
 
 			if (samplesTilHopEnd < 0) {
 				samplesTilHopEnd = 0;
 				nextCrossfadeLength = getMax(maxPlayableSamplesNewer, 0);
-				//Uart::println("nex");
+				//Debug::println("nex");
 				crossfadeProgress = 16777216;
 			}
 
 			else if (samplesTilHopEnd == 0) {
-				//Uart::println("to zero");
+				//Debug::println("to zero");
 			}
 
 			else if (samplesTilHopEnd > 0 && olderPlayHeadIsCurrentlySounding()) {
 				uint32_t minCrossfadeIncrement = (uint32_t)(16777216 - crossfadeProgress) / samplesTilHopEnd + 1;
 				if (minCrossfadeIncrement > crossfadeIncrement) {
 					crossfadeIncrement = minCrossfadeIncrement;
-					//Uart::println("d");
+					//Debug::println("d");
 				}
 			}
 		}
@@ -171,7 +171,7 @@ startRenderAgain:
 			    0,
 #endif
 			    liveInputBuffer, phaseIncrement);
-			//Uart::println(maxPlayableSamplesOlder);
+			//Debug::println(maxPlayableSamplesOlder);
 			if (!maxPlayableSamplesOlder) {
 				crossfadeIncrement = 16777216;
 			}
@@ -180,7 +180,7 @@ startRenderAgain:
 				//crossfadeIncrement = getMax(crossfadeIncrement, minCrossfadeIncrement);
 				if (minCrossfadeIncrement > crossfadeIncrement) {
 					crossfadeIncrement = minCrossfadeIncrement;
-					//Uart::println("c");
+					//Debug::println("c");
 				}
 			}
 		}
@@ -209,9 +209,9 @@ startRenderAgain:
 
 			if (percLatest >= percNewerPlayHead + percThresholdForCut) {
 				/*
-				Uart::print(percLatest);
-				Uart::print(" vs ");
-				Uart::println(percNewerPlayHead);
+				Debug::print(percLatest);
+				Debug::print(" vs ");
+				Debug::println(percNewerPlayHead);
 				*/
 				samplesTilHopEnd = 0;
 			}
@@ -363,16 +363,16 @@ void LivePitchShifter::hopEnd(int32_t phaseIncrement, LiveInputBuffer* liveInput
 
 	//int numChannelsNow = numChannels;
 
-	//Uart::println("");
-	//Uart::print("hop at ");
-	//Uart::println(numRawSamplesProcessedAtNowTime);
+	//Debug::println("");
+	//Debug::print("hop at ");
+	//Debug::println(numRawSamplesProcessedAtNowTime);
 	if (crossfadeProgress < 16777216) {
-		Uart::println("last crossfade not finished");
+		Debug::println("last crossfade not finished");
 		//if (ALPHA_OR_BETA_VERSION) numericDriver.freezeWithError("FADE");
 	}
-	//Uart::println(phaseIncrement);
+	//Debug::println(phaseIncrement);
 
-	//Uart::println((uint32_t)(liveInputBuffer->numRawSamplesProcessed - playHeads[PLAY_HEAD_NEWER].rawBufferReadPos) & (INPUT_RAW_BUFFER_SIZE - 1)); // How far behind raw buffer is being read
+	//Debug::println((uint32_t)(liveInputBuffer->numRawSamplesProcessed - playHeads[PLAY_HEAD_NEWER].rawBufferReadPos) & (INPUT_RAW_BUFFER_SIZE - 1)); // How far behind raw buffer is being read
 
 	// What was new is now old
 	playHeads[PLAY_HEAD_OLDER] = playHeads[PLAY_HEAD_NEWER];
@@ -770,7 +770,7 @@ stopSearch:
 	if (phaseIncrement == 16777216) {
 		playHeads[PLAY_HEAD_NEWER].mode = PLAY_HEAD_MODE_RAW_DIRECT;
 		playHeads[PLAY_HEAD_NEWER].rawBufferReadPos = numRawSamplesProcessedAtNowTime & (INPUT_RAW_BUFFER_SIZE - 1);
-		Uart::println("raw hop");
+		Debug::println("raw hop");
 	}
 
 	else {
@@ -780,8 +780,8 @@ stopSearch:
 		playHeads[PLAY_HEAD_NEWER].fillInterpolationBuffer(liveInputBuffer, numChannels);
 		playHeads[PLAY_HEAD_NEWER].oscPos = additionalOscPos;
 
-		//Uart::print("playing from: ");
-		//Uart::println(playHeads[PLAY_HEAD_NEWER].rawBufferReadPos);
+		//Debug::print("playing from: ");
+		//Debug::println(playHeads[PLAY_HEAD_NEWER].rawBufferReadPos);
 	}
 
 thatsDone:
@@ -796,8 +796,8 @@ thatsDone:
 		crossfadeProgress = 16777216;
 	}
 
-	//Uart::print("crossfade length: ");
-	//Uart::println(thisCrossfadeLength);
+	//Debug::print("crossfade length: ");
+	//Debug::println(thisCrossfadeLength);
 
 	/*
 	if (phaseIncrement > 16777216) {
@@ -827,8 +827,8 @@ thatsDone:
 #if MEASURE_HOP_END_PERFORMANCE
 	uint16_t endTime = MTU2.TCNT_0;
 	uint16_t timeTaken = endTime - startTime;
-	Uart::print("hop end time: ");
-	Uart::println(timeTaken);
+	Debug::print("hop end time: ");
+	Debug::println(timeTaken);
 #endif
 }
 

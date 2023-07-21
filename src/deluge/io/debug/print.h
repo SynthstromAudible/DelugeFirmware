@@ -15,42 +15,19 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "io/uart/uart.h"
-#include <math.h>
-#include "util/functions.h"
+#pragma once
 
-extern "C" {
-#include "RZA1/uart/sio_char.h"
-}
+#include "RZA1/system/r_typedefs.h"
 
-namespace Uart {
+class MIDIDevice;
 
-void println(char const* output) {
-#if ENABLE_TEXT_OUTPUT
-	uartPrintln(output);
-#endif
-}
+namespace Debug {
+void print(char const* output);
+void println(char const* output);
+void println(int32_t number);
+void printlnfloat(float number);
+void printfloat(float number);
+void print(int32_t number);
 
-void println(int32_t number) {
-#if ENABLE_TEXT_OUTPUT
-	char buffer[12];
-	intToString(number, buffer);
-	uartPrintln(buffer);
-#endif
-}
-
-void print(char const* output) {
-#if ENABLE_TEXT_OUTPUT
-	uartPrint(output);
-#endif
-}
-
-void print(int32_t number) {
-#if ENABLE_TEXT_OUTPUT
-	char buffer[12];
-	intToString(number, buffer);
-	uartPrint(buffer);
-#endif
-}
-
-} // namespace Uart
+extern MIDIDevice* midiDebugDevice;
+} // namespace Debug

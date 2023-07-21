@@ -34,7 +34,7 @@
 #include "storage/storage_manager.h"
 #include <new>
 #include "NE10.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "dsp/fft/fft_config_manager.h"
 
 extern "C" {
@@ -261,7 +261,7 @@ void Sample::deleteCache(SampleCache* cache) {
 
 		cache->~SampleCache();
 		pitchAdjustmentCaches.deleteElement(i);
-		Uart::println("cache deleted");
+		Debug::println("cache deleted");
 	}
 	*/
 }
@@ -326,7 +326,7 @@ int Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSamples,
 				return ERROR_INSUFFICIENT_RAM;
 			}
 
-			//Uart::println("allocated percCacheMemory");
+			//Debug::println("allocated percCacheMemory");
 		}
 	}
 
@@ -391,7 +391,7 @@ doReturnNoError:
 					// That's actually allowed if we're right at the start of that cluster. But otherwise...
 					if (startPosSamples
 					    & ((1 << audioFileManager.clusterSizeMagnitude + PERC_BUFFER_REDUCTION_MAGNITUDE) - 1)) {
-						Uart::println(startPosSamples);
+						Debug::println(startPosSamples);
 						numericDriver.freezeWithError(
 						    "E139"); // If Cluster has been stolen, the zones should have been updated, so we shouldn't be here
 					}
@@ -530,7 +530,7 @@ doLoading:
 				numericDriver.freezeWithError("E136");
 			}
 			if (!percCacheClusters[reversed][percClusterIndex]) {
-				//Uart::println("allocating perc cache Cluster!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+				//Debug::println("allocating perc cache Cluster!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
 				// We tell it not to steal any other per cache Cluster from this Sample - not because those Clusters are definitely a high priority to keep, but
 				// because doing so would probably alter our percCacheZones, which we're currently working with, which could really muck things up. Scenario only discovered Jan 2021.
 				percCacheClusters[reversed][percClusterIndex] = audioFileManager.allocateCluster(
@@ -694,8 +694,8 @@ doLoading:
 	{
 		uint16_t endTime = MTU2.TCNT_0;
 		uint16_t timeTaken = endTime - startTime;
-		Uart::print("perc cache fill time: ");
-		Uart::println(timeTaken);
+		Debug::print("perc cache fill time: ");
+		Debug::println(timeTaken);
 	}
 #endif
 
@@ -883,7 +883,7 @@ uint8_t* Sample::prepareToReadPercCache(int pixellatedPos, int playDirection, in
 void Sample::percCacheClusterStolen(Cluster* cluster) {
 	LOCK_ENTRY
 
-	Uart::println("percCacheClusterStolen -----------------------------------------------------------!!");
+	Debug::println("percCacheClusterStolen -----------------------------------------------------------!!");
 	int reversed = (cluster->type == CLUSTER_PERC_CACHE_REVERSED);
 	int playDirection = reversed ? -1 : 1;
 	int comparison = reversed ? GREATER_OR_EQUAL : LESS;
@@ -941,7 +941,7 @@ void Sample::percCacheClusterStolen(Cluster* cluster) {
 				    iNew, 1,
 				    this); // Also specify not to steal perc cache Clusters from this Sample. Could that actually even happen given the above comment? Not sure.
 				if (error) {
-					Uart::println("insert fail");
+					Debug::println("insert fail");
 					LOCK_EXIT
 					return;
 				}
@@ -1036,8 +1036,8 @@ calculateMIDINote:
 		}
 	}
 
-	//Uart::print("midiNote: ");
-	//Uart::printlnfloat(midiNote);
+	//Debug::print("midiNote: ");
+	//Debug::printlnfloat(midiNote);
 }
 
 uint32_t Sample::getLengthInMSec() {
@@ -1204,19 +1204,19 @@ examineHarmonic:
 		lastHFound = h;
 
 #if PITCH_DETECT_DEBUG_LEVEL >= 2
-		Uart::print("found harmonic ");
-		Uart::print(h);
-		Uart::print(". value ");
-		Uart::print(heightTable[currentIndex]);
-		Uart::print(", ");
-		Uart::print((heightRelativeToSurroundings * 100) >> 18);
+		Debug::print("found harmonic ");
+		Debug::print(h);
+		Debug::print(". value ");
+		Debug::print(heightTable[currentIndex]);
+		Debug::print(", ");
+		Debug::print((heightRelativeToSurroundings * 100) >> 18);
 		float fundamentalPeriod = (float)PITCH_DETECT_WINDOW_SIZE / fundamentalIndexForContinuedHarmonicInvestigation;
 		float freqBeforeAdjustment = (float)sampleRate / fundamentalPeriod;
 		float freq = freqBeforeAdjustment / (1 << numDoublings);
-		Uart::print("%. proposed freq: ");
-		Uart::printfloat(freq);
-		Uart::print(". uc: ");
-		Uart::printlnfloat(uncertaintyCount);
+		Debug::print("%. proposed freq: ");
+		Debug::printfloat(freq);
+		Debug::print(". uc: ");
+		Debug::printlnfloat(uncertaintyCount);
 		delayMS(30);
 #endif
 	}
@@ -1234,7 +1234,7 @@ examineHarmonic:
 
 			//if (primeTotals[p] >= (total - primeTotals[p]) / (thisPrime - 1) * threshold) return 0;
 			if (primeTotals[p] * (thisPrime - 1) >= (total - primeTotals[p]) * threshold) {
-				//Uart::println("failing due to prime thing");
+				//Debug::println("failing due to prime thing");
 				return 0;
 			}
 		}
@@ -1268,9 +1268,9 @@ float Sample::determinePitch(bool doingSingleCycle, float minFreqHz, float maxFr
 
 #if PITCH_DETECT_DEBUG_LEVEL
 	delayMS(200);
-	Uart::println("");
-	Uart::println("det. pitch --");
-	Uart::println(filePath.get());
+	Debug::println("");
+	Debug::println("det. pitch --");
+	Debug::println(filePath.get());
 #endif
 
 	// Get the FFT config we'll need
@@ -1319,9 +1319,9 @@ float Sample::determinePitch(bool doingSingleCycle, float minFreqHz, float maxFr
 startAgain:
 
 #if PITCH_DETECT_DEBUG_LEVEL
-	Uart::println("");
-	Uart::print("doublings: ");
-	Uart::println(lengthDoublings);
+	Debug::println("");
+	Debug::print("doublings: ");
+	Debug::println(lengthDoublings);
 #endif
 
 	// Load the sample into memory
@@ -1332,7 +1332,7 @@ startAgain:
 	Cluster* cluster =
 	    clusters.getElement(currentClusterIndex)->getCluster(this, currentClusterIndex, CLUSTER_LOAD_IMMEDIATELY);
 	if (!cluster) {
-		Uart::println("failed to load first");
+		Debug::println("failed to load first");
 getOut:
 		generalMemoryAllocator.dealloc(fftInput);
 		return 0;
@@ -1358,7 +1358,7 @@ continueWhileLoop:
 			                  ->getCluster(this, currentClusterIndex + 1, CLUSTER_LOAD_IMMEDIATELY);
 			if (!nextCluster) {
 				audioFileManager.removeReasonFromCluster(cluster, "imcwn4o");
-				Uart::println("failed to load next");
+				Debug::println("failed to load next");
 				goto getOut;
 			}
 		}
@@ -1457,7 +1457,7 @@ doneReading:
 			goto startAgain;
 		}
 
-		Uart::println("no sound found");
+		Debug::println("no sound found");
 		goto getOut;
 	}
 
@@ -1470,21 +1470,21 @@ doneReading:
 	AudioEngine::routineWithClusterLoading(); // --------------------------------------------------
 
 	/*
-	Uart::print("doing fft ----------------");
-	Uart::println(PITCH_DETECT_WINDOW_SIZE_MAGNITUDE);
+	Debug::print("doing fft ----------------");
+	Debug::println(PITCH_DETECT_WINDOW_SIZE_MAGNITUDE);
 	uint16_t startTime = MTU2.TCNT_0;
 	*/
 
 	// Perform the FFT
 	ne10_fft_r2c_1d_int32_neon(fftOutput, (ne10_int32_t*)fftInput, fftCFG, false);
 
-	//Uart::println("fft done");
+	//Debug::println("fft done");
 
 	/*
 	uint16_t endTime = MTU2.TCNT_0;
 	uint16_t time = endTime - startTime;
-	Uart::print("fft time uSec: ");
-	Uart::println(timerCountToUS(time));
+	Debug::print("fft time uSec: ");
+	Debug::println(timerCountToUS(time));
 	*/
 
 	AudioEngine::bypassCulling = true;
@@ -1507,13 +1507,13 @@ doneReading:
 
 #if PITCH_DETECT_DEBUG_LEVEL >= 2
 		if (!(i & 31)) {
-			Uart::println("");
-			Uart::print(i);
-			Uart::print(": ");
+			Debug::println("");
+			Debug::print(i);
+			Debug::print(": ");
 			delayMS(50);
 		}
-		Uart::print(thisValue);
-		Uart::print(", ");
+		Debug::print(thisValue);
+		Debug::print(", ");
 #endif
 	}
 
@@ -1561,7 +1561,7 @@ doneReading:
 	}
 
 #if PITCH_DETECT_DEBUG_LEVEL
-	Uart::println("");
+	Debug::println("");
 #endif
 
 	int minFreqAdjusted = minFreqHz * (1 << lengthDoublings);
@@ -1608,14 +1608,14 @@ doneReading:
 			float freqBeforeAdjustment = (float)sampleRate / fundamentalPeriod;
 			float freq = freqBeforeAdjustment / (1 << lengthDoublings);
 
-			Uart::print("strength ");
-			Uart::print(strengthHere);
-			//Uart::print(" at i ");
-			//Uart::print(i);
-			Uart::print(", freq ");
-			Uart::printlnfloat(freq);
+			Debug::print("strength ");
+			Debug::print(strengthHere);
+			//Debug::print(" at i ");
+			//Debug::print(i);
+			Debug::print(", freq ");
+			Debug::printlnfloat(freq);
 #if PITCH_DETECT_DEBUG_LEVEL >= 2
-			Uart::println("");
+			Debug::println("");
 #endif
 		}
 #endif
@@ -1629,23 +1629,23 @@ doneReading:
 
 	// If no peaks found, print out the FFT for debugging
 	if (!bestStrength) {
-		Uart::println("no peaks found.");
+		Debug::println("no peaks found.");
 
-		Uart::print("searching ");
-		Uart::print(minFundamentalPeakIndex);
-		Uart::print(" to ");
-		Uart::println(maxFundamentalPeakIndex);
+		Debug::print("searching ");
+		Debug::print(minFundamentalPeakIndex);
+		Debug::print(" to ");
+		Debug::println(maxFundamentalPeakIndex);
 
 #if PITCH_DETECT_DEBUG_LEVEL
 		for (int i = 0; i < (PITCH_DETECT_WINDOW_SIZE >> 1); i++) {
 			if (!(i & 31)) {
-				Uart::println("");
-				Uart::print(i);
-				Uart::print(": ");
+				Debug::println("");
+				Debug::print(i);
+				Debug::print(": ");
 				delayMS(50);
 			}
-			Uart::print(fftHeights[i]);
-			Uart::print(", ");
+			Debug::print(fftHeights[i]);
+			Debug::print(", ");
 		}
 #endif
 		goto getOut;
@@ -1663,8 +1663,8 @@ doneReading:
 
 #if PITCH_DETECT_DEBUG_LEVEL
 		float freq = freqBeforeAdjustment / (1 << lengthDoublings);
-		Uart::print("proposed freq: ");
-		Uart::printlnfloat(freq);
+		Debug::print("proposed freq: ");
+		Debug::printlnfloat(freq);
 #endif
 		// Only do one doubling at a time - this can help to correct an incorrect reading
 		freqBeforeAdjustment *= 2;
@@ -1676,7 +1676,7 @@ doneReading:
 	generalMemoryAllocator.dealloc(fftInput);
 
 	float freq = freqBeforeAdjustment / (1 << lengthDoublings);
-	Uart::print("freq: ");
+	Debug::print("freq: ");
 	uartPrintlnFloat(freq);
 
 	return freq;
@@ -1763,28 +1763,28 @@ void Sample::numReasonsDecreasedToZero(char const* errorCode) {
 	}
 
 	if (numClusterReasons) {
-		Uart::println("reason dump---");
+		Debug::println("reason dump---");
 		for (int c = 0; c < clusters.getNumElements(); c++) {
 
 			Cluster* cluster = clusters.getElement(c)->cluster;
 			if (cluster) {
-				Uart::print(cluster->numReasonsToBeLoaded);
+				Debug::print(cluster->numReasonsToBeLoaded);
 
 				if (cluster == audioFileManager.clusterBeingLoaded) {
-					Uart::println(" (loading)");
+					Debug::println(" (loading)");
 				}
 				else if (!cluster->loaded) {
-					Uart::println(" (unloaded)");
+					Debug::println(" (unloaded)");
 				}
 				else {
-					Uart::println("");
+					Debug::println("");
 				}
 			}
 			else {
-				Uart::println("*");
+				Debug::println("*");
 			}
 		}
-		Uart::println("/reason dump---");
+		Debug::println("/reason dump---");
 
 		numericDriver.freezeWithError(
 		    "E078"); // LegsMechanical got, V4.0.0-beta2. https://forums.synthstrom.com/discussion/4106/v4-0-beta2-e078-crash-when-recording-audio-clip

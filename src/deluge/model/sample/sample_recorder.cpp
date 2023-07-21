@@ -28,7 +28,7 @@
 #include "model/clip/audio_clip.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "hid/display/numeric_driver.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "gui/ui_timer_manager.h"
 
 extern "C" {
@@ -63,7 +63,7 @@ SampleRecorder::SampleRecorder() {
 }
 
 SampleRecorder::~SampleRecorder() {
-	Uart::println("~SampleRecorder()");
+	Debug::println("~SampleRecorder()");
 	if (sample) {
 		detachSample();
 	}
@@ -347,7 +347,7 @@ aborted:
 			if (result == FR_OK || folderID == AUDIO_RECORDING_FOLDER_CLIPS) {
 				if (audioFileManager.highestUsedAudioRecordingNumber[folderID] == audioFileNumber) {
 					audioFileManager.highestUsedAudioRecordingNumber[folderID]--;
-					Uart::println("ticked file counter backwards");
+					Debug::println("ticked file counter backwards");
 				}
 			}
 			filePathCreated.clear();
@@ -529,7 +529,7 @@ int SampleRecorder::finalizeRecordedFile() {
 		numericDriver.freezeWithError("E273");
 	}
 
-	Uart::println("finalizing");
+	Debug::println("finalizing");
 
 	// In the very rare case where we've already got between 1 and 5 bytes overhanging the end of our current cluster, we need to allocate a new one right now
 	int bytesTilClusterEnd = (uint32_t)clusterEndPos - (uint32_t)writePos;
@@ -595,19 +595,19 @@ int SampleRecorder::finalizeRecordedFile() {
 		else {
 			// If R is really quiet or is nearly identical to L, delete R
 			if (inputHasNoRightChannel() || recordSumLMinusR < (recordSumL >> 6)) {
-				Uart::println("removing right channel");
+				Debug::println("removing right channel");
 				action = ACTION_REMOVE_RIGHT_CHANNEL;
 			}
 
 			// Or, if R is the differential signal of L, do that
 			else if (mode < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION && AudioEngine::lineInPluggedIn
 			         && inputLooksDifferential()) {
-				Uart::println("subtracting right channel");
+				Debug::println("subtracting right channel");
 				action = ACTION_SUBTRACT_RIGHT_CHANNEL;
 			}
 
 			else {
-				Uart::println("keeping right channel");
+				Debug::println("keeping right channel");
 				action = 0;
 			}
 		}
@@ -645,7 +645,7 @@ int SampleRecorder::finalizeRecordedFile() {
 
 		// If we made the file too long, because we then compensated for button latency and are throwing away the last little bit, then truncate it
 		if (capturedTooMuch) {
-			Uart::println("truncating");
+			Debug::println("truncating");
 			uint32_t correctLength =
 			    sample->audioDataStartPosBytes
 			    + sample->audioDataLengthBytes; // These were written to in totalSampleLengthNowKnown().
@@ -732,7 +732,7 @@ extern int pendingGlobalMIDICommandNumClustersWritten;
 
 // You'll want to remove the "reason" after calling this
 int SampleRecorder::writeCluster(int32_t clusterIndex, int numBytes) {
-	//Uart::println("writeCluster");
+	//Debug::println("writeCluster");
 
 	SampleCluster* sampleCluster = sample->clusters.getElement(clusterIndex);
 
@@ -789,7 +789,7 @@ int SampleRecorder::createNextCluster() {
 
 	// If couldn't allocate cluster (would normally only happen if no SD card present so recording only to RAM)
 	if (!currentRecordCluster) {
-		Uart::println("SampleRecorder::createNextCluster() fail");
+		Debug::println("SampleRecorder::createNextCluster() fail");
 		return ERROR_INSUFFICIENT_RAM;
 	}
 
@@ -870,7 +870,7 @@ doFinishCapturing:
 					goto doFinishCapturing;
 				}
 				else if (error) { // RAM error
-					Uart::println("couldn't allocate RAM");
+					Debug::println("couldn't allocate RAM");
 					abort();
 					return;
 				}
@@ -1045,8 +1045,8 @@ void SampleRecorder::endSyncedRecording(int buttonLatencyForTempolessRecording) 
 	int numMoreSamplesTilEndLoopPoint = numSamplesExtraToCaptureAtEndSyncingWise - buttonLatencyForTempolessRecording;
 	int numMoreSamplesToCapture = numMoreSamplesTilEndLoopPoint;
 
-	Uart::print("buttonLatencyForTempolessRecording: ");
-	Uart::println(buttonLatencyForTempolessRecording);
+	Debug::print("buttonLatencyForTempolessRecording: ");
+	Debug::println(buttonLatencyForTempolessRecording);
 
 	if (recordingExtraMargins) {
 		numMoreSamplesToCapture += AUDIO_CLIP_MARGIN_SIZE_POST_END; // Means we also have an audioClip
@@ -1059,7 +1059,7 @@ void SampleRecorder::endSyncedRecording(int buttonLatencyForTempolessRecording) 
 	if (numMoreSamplesToCapture <= 0) {
 		if (numMoreSamplesToCapture < 0) {
 			capturedTooMuch = true;
-			Uart::println("captured too much.");
+			Debug::println("captured too much.");
 		}
 		finishCapturing();
 	}
@@ -1116,7 +1116,7 @@ void SampleRecorder::setExtraBytesOnPreviousCluster(Cluster* currentCluster, int
 int SampleRecorder::alterFile(int action, int lshiftAmount, uint32_t idealFileSizeBeforeAction,
                               uint64_t dataLengthAfterAction) {
 
-	Uart::println("altering file");
+	Debug::println("altering file");
 	int currentReadClusterIndex = 0;
 	int currentWriteClusterIndex = 0;
 
@@ -1237,7 +1237,7 @@ int SampleRecorder::alterFile(int action, int lshiftAmount, uint32_t idealFileSi
 				break;
 			}
 
-			Uart::println("write advance");
+			Debug::println("write advance");
 
 			currentWriteCluster->loaded = true; // I don't think this is necessary anymore
 
@@ -1335,7 +1335,7 @@ writeFailed:
 		// Advance read-head. We read one Cluster ahead, so we can access its "extra bytes"
 		if (readPos >= &currentReadCluster->data[audioFileManager.clusterSize]) {
 
-			Uart::println("read advance");
+			Debug::println("read advance");
 
 			int overshot = (uint32_t)readPos - (uint32_t)&currentReadCluster->data[audioFileManager.clusterSize];
 
