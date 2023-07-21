@@ -239,8 +239,7 @@ addNewNote:
 		if (clipCurrentlyPlaying && !muted) {
 			((InstrumentClip*)modelStack->getTimelineCounter())->expectEvent();
 
-			if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::CatchNotes)
-					== RuntimeFeatureStateToggle::On)) {
+			if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::CatchNotes) == RuntimeFeatureStateToggle::On)) {
 				// If the play-pos is inside this note, see if we'd like to attempt a late-start of it
 				int actualPlayPos = getLivePos(modelStack);
 
@@ -2691,8 +2690,7 @@ void NoteRow::resumePlayback(ModelStackWithNoteRow* modelStack, bool clipMayMake
 
 		int32_t effectiveActualCurrentPos = getLivePos(modelStack);
 
-		if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::CatchNotes)
-					== RuntimeFeatureStateToggle::On)) {
+		if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::CatchNotes) == RuntimeFeatureStateToggle::On)) {
 			// See if our play-pos is inside of a note, which we might want to try playing...
 			int i = notes.search(effectiveActualCurrentPos, LESS);
 			bool wrapping = (i == -1);

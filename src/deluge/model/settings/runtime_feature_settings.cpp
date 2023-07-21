@@ -80,8 +80,8 @@ void RuntimeFeatureSettings::init() {
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::PatchCableResolution], "Mod. depth decimals",
 	                  "ModDepthDecimals", RuntimeFeatureStateToggle::On);
 	// CatchNotes
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::CatchNotes], "CatchNotes",
-	                  "catchNotes", RuntimeFeatureStateToggle::On);
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::CatchNotes], "CatchNotes", "catchNotes",
+	                  RuntimeFeatureStateToggle::On);
 }
 
 void RuntimeFeatureSettings::readSettingsFromFile() {
