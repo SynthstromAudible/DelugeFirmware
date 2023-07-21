@@ -1,5 +1,4 @@
-#ifndef STD_EXPERIMENTAL_FIXED_CAPACITY_VECTOR
-#define STD_EXPERIMENTAL_FIXED_CAPACITY_VECTOR
+#pragma once
 /// \file
 ///
 /// Dynamically-resizable vector with fixed-capacity.
@@ -65,7 +64,7 @@
 #include <cstdio>      // for assertion diagnostics
 
 /// Optimizer allowed to assume that EXPR evaluates to true
-#define SV_ASSUME(EXPR) static_cast<void>((EXPR) ? void(0) : std::unreachable())
+#define SV_ASSUME(EXPR) static_cast<void>((EXPR) ? void(0) : __builtin_unreachable())
 
 /// Assert pretty printer
 #define SV_ASSERT(...)                                                                                                 \
@@ -76,7 +75,7 @@
 
 /// Expect asserts the condition in debug builds and assumes the condition to be
 /// true in release builds.
-#ifdef NDEBUG
+#if defined(NDEBUG) || 1
 #define SV_EXPECT(EXPR) SV_ASSUME(EXPR)
 #else
 #define SV_EXPECT(EXPR) SV_ASSERT(EXPR)
@@ -252,8 +251,7 @@ public:
 	requires std::constructible_from<T, Args...> && std::assignable_from<value_type&, T>
 	constexpr void emplace_back(Args&&... args) noexcept {
 		SV_EXPECT(!full() && "tried to emplace_back on full storage!");
-		data_[size()] = T(std::forward<Args>(args)...);
-		unsafe_set_size(size() + 1);
+		data_[size_++] = T(std::forward<Args>(args)...);
 	}
 
 	/// Remove the last element from the container.
@@ -262,7 +260,7 @@ public:
 	/// Contract: the storage is not empty.
 	constexpr void pop_back() noexcept {
 		SV_EXPECT(!empty() && "tried to pop_back from empty storage!");
-		unsafe_set_size(size() - 1);
+		--size_;
 	}
 
 	/// (unsafe) Changes the container size to \p new_size.
@@ -313,7 +311,7 @@ public:
 	/// Contract: `il.size() <= capacity()`.
 	template <std::convertible_to<T> U>
 	constexpr trivial(std::initializer_list<U> il) noexcept : data_(unsafe_recast_init_list(il)) {
-		unsafe_set_size(static_cast<size_type>(il.size()));
+		unsafe_set_size(il.size());
 	}
 };
 
@@ -388,8 +386,12 @@ public:
 	requires std::constructible_from<T, Args...>
 	void emplace_back(Args&&... args) noexcept(noexcept(new(end()) T(std::forward<Args>(args)...))) {
 		SV_EXPECT(!full() && "tried to emplace_back on full storage");
-		new (end()) T(std::forward<Args>(args)...);
-		unsafe_set_size(size() + 1);
+		//new (end()) T(std::forward<Args>(args)...);
+		//unsafe_set_size(size() + 1);
+
+		// NOTE: (Kate) Faster somehow...
+		void* end = &data_[size_++];
+		new (end) T(std::forward<Args>(args)...);
 	}
 
 	/// Remove the last element from the container.
@@ -987,5 +989,3 @@ constexpr static_vector<std::remove_cv_t<T>, N> to_static_vector(T (&&a)[N]) {
 #undef SV_ASSUME
 #undef SV_ASSERT
 #undef SV_EXPECT
-
-#endif // STD_EXPERIMENTAL_FIXED_CAPACITY_VECTOR
