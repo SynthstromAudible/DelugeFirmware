@@ -116,7 +116,7 @@ void NumericDriver::setText(char const* newText, bool alignRight, uint8_t drawDo
 	encodeText(newText, newLayer->segments, alignRight, drawDot, true, scrollPos);
 
 	if (encodedAddition) {
-		for (int i = 0; i < NUMERIC_DISPLAY_LENGTH; i++) {
+		for (int i = 0; i < kNumericDisplayLength; i++) {
 			newLayer->segments[i] |= encodedAddition[i];
 		}
 	}
@@ -129,12 +129,12 @@ void NumericDriver::setText(char const* newText, bool alignRight, uint8_t drawDo
 	}
 	else {
 		if (newBlinkMask) {
-			for (int i = 0; i < NUMERIC_DISPLAY_LENGTH; i++) {
+			for (int i = 0; i < kNumericDisplayLength; i++) {
 				newLayer->blinkedSegments[i] = newLayer->segments[i] & newBlinkMask[i];
 			}
 		}
 		else {
-			memset(newLayer->blinkedSegments, 0, NUMERIC_DISPLAY_LENGTH);
+			memset(newLayer->blinkedSegments, 0, kNumericDisplayLength);
 		}
 
 		if (!shouldBlinkFast) {
@@ -210,7 +210,7 @@ void NumericDriver::transitionToNewLayer(NumericLayer* newLayer) {
 			scrollTransition = new (layerSpace) NumericLayerScrollTransition();
 			scrollTransition->transitionDirection = nextTransitionDirection;
 
-			scrollTransition->transitionProgress = -NUMERIC_DISPLAY_LENGTH * scrollTransition->transitionDirection;
+			scrollTransition->transitionProgress = -kNumericDisplayLength * scrollTransition->transitionDirection;
 
 			topLayer->renderWithoutBlink(scrollTransition->segments);
 		}
@@ -280,7 +280,7 @@ int NumericDriver::encodeText(char const* newText, uint8_t* destination, bool al
 		writePos = -scrollPos;
 	}
 	else {
-		writePos = NUMERIC_DISPLAY_LENGTH - 1;
+		writePos = kNumericDisplayLength - 1;
 		readPos = strlen(newText) - 1;
 	}
 
@@ -337,7 +337,7 @@ int NumericDriver::encodeText(char const* newText, uint8_t* destination, bool al
 				}
 			}
 			else {
-				if (!newText[readPos] || (limitToDisplayLength && writePos >= NUMERIC_DISPLAY_LENGTH)) {
+				if (!newText[readPos] || (limitToDisplayLength && writePos >= kNumericDisplayLength)) {
 					break;
 				}
 			}
@@ -424,18 +424,18 @@ int NumericDriver::encodeText(char const* newText, uint8_t* destination, bool al
 			}
 		}
 		else {
-			while (writePos < NUMERIC_DISPLAY_LENGTH) {
+			while (writePos < kNumericDisplayLength) {
 				destination[writePos] = 0;
 				writePos++;
 			}
 		}
 
-		if (drawDot < NUMERIC_DISPLAY_LENGTH) {
+		if (drawDot < kNumericDisplayLength) {
 			destination[drawDot] |= 128;
 		}
 		else if ((drawDot & 0b11110000) == 0b10000000) {
-			for (int i = 0; i < NUMERIC_DISPLAY_LENGTH; i++) {
-				if ((drawDot >> (NUMERIC_DISPLAY_LENGTH - 1 - i)) & 1) {
+			for (int i = 0; i < kNumericDisplayLength; i++) {
+				if ((drawDot >> (kNumericDisplayLength - 1 - i)) & 1) {
 					destination[i] |= 128;
 				}
 			}
@@ -460,13 +460,13 @@ void NumericDriver::setTextAsSlot(int16_t currentSlot, int8_t currentSubSlot, bo
 
 	slotToString(currentSlot, currentSubSlot, text, minNumDigits);
 
-	uint8_t blinkMask[NUMERIC_DISPLAY_LENGTH];
+	uint8_t blinkMask[kNumericDisplayLength];
 	if (blinkPos == -1) {
-		memset(&blinkMask, 0, NUMERIC_DISPLAY_LENGTH);
+		memset(&blinkMask, 0, kNumericDisplayLength);
 	}
 	else {
 		blinkPos++; // Move an extra space left if we have a sub-slot / letter suffix
-		memset(&blinkMask, 255, NUMERIC_DISPLAY_LENGTH);
+		memset(&blinkMask, 255, kNumericDisplayLength);
 		blinkMask[3 - blinkPos] = 0;
 	}
 
@@ -485,7 +485,7 @@ void NumericDriver::displayPopup(char const* newText, int8_t numFlashes, bool al
 	OLED::popupText(newText, !numFlashes);
 #else
 	encodeText(newText, popup.segments, alignRight, drawDot);
-	memset(&popup.blinkedSegments, 0, NUMERIC_DISPLAY_LENGTH);
+	memset(&popup.blinkedSegments, 0, kNumericDisplayLength);
 	if (numFlashes == 0) {
 		popup.blinkCount = -1;
 	}
@@ -550,12 +550,12 @@ void NumericDriver::render() {
 		layer = topLayer;
 	}
 
-	uint8_t segments[NUMERIC_DISPLAY_LENGTH];
+	uint8_t segments[kNumericDisplayLength];
 	layer->render(segments);
 
-	memcpy(lastDisplay, segments, NUMERIC_DISPLAY_LENGTH);
+	memcpy(lastDisplay, segments, kNumericDisplayLength);
 	bufferPICUart(224);
-	for (int whichChar = 0; whichChar < NUMERIC_DISPLAY_LENGTH; whichChar++) {
+	for (int whichChar = 0; whichChar < kNumericDisplayLength; whichChar++) {
 		bufferPICUart(segments[whichChar]);
 	}
 }
@@ -575,10 +575,10 @@ void NumericDriver::displayLoadingAnimation(bool delayed, bool transparent) {
 
 void NumericDriver::setTextVeryBasicA1(char const* text) {
 
-	uint8_t segments[NUMERIC_DISPLAY_LENGTH];
+	uint8_t segments[kNumericDisplayLength];
 	encodeText(text, segments, false, 255, true, 0);
 	bufferPICUart(224);
-	for (int whichChar = 0; whichChar < NUMERIC_DISPLAY_LENGTH; whichChar++) {
+	for (int whichChar = 0; whichChar < kNumericDisplayLength; whichChar++) {
 		bufferPICUart(segments[whichChar]);
 	}
 }

@@ -91,7 +91,7 @@ void Devices::selectEncoderAction(int offset) {
 				continue;
 			}
 			numSeen++;
-			if (numSeen >= OLED_MENU_NUM_OPTIONS_VISIBLE) {
+			if (numSeen >= kOLEDMenuNumOptionsVisible) {
 				soundEditor.menuCurrentScroll = d;
 				break;
 			}
@@ -137,13 +137,13 @@ MenuItem* Devices::selectButtonPress() {
 #if HAVE_OLED
 
 void Devices::drawPixelsForOled() {
-	char const* itemNames[OLED_MENU_NUM_OPTIONS_VISIBLE];
+	char const* itemNames[kOLEDMenuNumOptionsVisible];
 
 	int selectedRow = -1;
 
 	int d = soundEditor.menuCurrentScroll;
 	int r = 0;
-	while (r < OLED_MENU_NUM_OPTIONS_VISIBLE && d < MIDIDeviceManager::hostedMIDIDevices.getNumElements()) {
+	while (r < kOLEDMenuNumOptionsVisible && d < MIDIDeviceManager::hostedMIDIDevices.getNumElements()) {
 		MIDIDevice* device = getDevice(d);
 		if (device->connectionFlags) {
 			itemNames[r] = device->getDisplayName();
@@ -155,7 +155,7 @@ void Devices::drawPixelsForOled() {
 		d++;
 	}
 
-	while (r < OLED_MENU_NUM_OPTIONS_VISIBLE) {
+	while (r < kOLEDMenuNumOptionsVisible) {
 		itemNames[r] = NULL;
 		r++;
 	}

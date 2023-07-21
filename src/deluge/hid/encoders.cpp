@@ -17,7 +17,7 @@
 
 #include "processing/engines/audio_engine.h"
 #include "hid/encoders.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "gui/ui/ui.h"
 #include "hid/matrix/matrix_driver.h"
 #include "playback/playback_handler.h"
@@ -112,7 +112,7 @@ bool interpretEncoders(bool inCardRoutine) {
 				limitedDetentPos = -1;
 			}
 
-			int result;
+			ActionResult result;
 
 			switch (e) {
 
@@ -121,7 +121,7 @@ bool interpretEncoders(bool inCardRoutine) {
 				// Actually, after coding this up, I realise I actually have it above stopping the X encoder from even getting here during the SD routine. Ok so we'll leave it that way,
 				// in addition to me having made all the horizontalEncoderAction() calls SD-routine-safe
 checkResult:
-				if (result == ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE) {
+				if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
 					encodersWaitingForCardRoutineEnd |= (1 << e);
 					encoders[e].detentPos = limitedDetentPos; // Put it back for next time
 				}

@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "definitions_cxx.hpp"
 #include "model/clip/clip.h"
 #include "gui/views/instrument_clip_view.h"
 #include "model/drum/drum.h"
@@ -23,6 +24,7 @@
 #include "model/song/song.h"
 #include "processing/sound/sound_drum.h"
 #include "gui/ui/sound_editor.h"
+#include "util/misc.h"
 
 namespace menu_item::sample {
 
@@ -30,7 +32,7 @@ class Repeat final : public Selection {
 public:
 	Repeat(char const* newName = NULL) : Selection(newName) {}
 	bool usesAffectEntire() { return true; }
-	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentSource->repeatMode; }
+	void readCurrentValue() { soundEditor.currentValue = util::to_underlying(soundEditor.currentSource->repeatMode); }
 	void writeCurrentValue() {
 
 		// If affect-entire button held, do whole kit
@@ -39,21 +41,21 @@ public:
 			Kit* kit = (Kit*)currentSong->currentClip->output;
 
 			for (Drum* thisDrum = kit->firstDrum; thisDrum; thisDrum = thisDrum->next) {
-				if (thisDrum->type == DRUM_TYPE_SOUND) {
+				if (thisDrum->type == DrumType::SOUND) {
 					SoundDrum* soundDrum = (SoundDrum*)thisDrum;
 					Source* source = &soundDrum->sources[soundEditor.currentSourceIndex];
 
 					// Automatically switch pitch/speed independence on / off if stretch-to-note-length mode is selected
-					if (soundEditor.currentValue == SAMPLE_REPEAT_STRETCH) {
+					if (static_cast<SampleRepeatMode>(soundEditor.currentValue) == SampleRepeatMode::STRETCH) {
 						soundDrum->unassignAllVoices();
 						source->sampleControls.pitchAndSpeedAreIndependent = true;
 					}
-					else if (source->repeatMode == SAMPLE_REPEAT_STRETCH) {
+					else if (source->repeatMode == SampleRepeatMode::STRETCH) {
 						soundDrum->unassignAllVoices();
 						soundEditor.currentSource->sampleControls.pitchAndSpeedAreIndependent = false;
 					}
 
-					source->repeatMode = soundEditor.currentValue;
+					source->repeatMode = static_cast<SampleRepeatMode>(soundEditor.currentValue);
 				}
 			}
 		}
@@ -61,16 +63,16 @@ public:
 		// Or, the normal case of just one sound
 		else {
 			// Automatically switch pitch/speed independence on / off if stretch-to-note-length mode is selected
-			if (soundEditor.currentValue == SAMPLE_REPEAT_STRETCH) {
+			if (static_cast<SampleRepeatMode>(soundEditor.currentValue) == SampleRepeatMode::STRETCH) {
 				soundEditor.currentSound->unassignAllVoices();
 				soundEditor.currentSource->sampleControls.pitchAndSpeedAreIndependent = true;
 			}
-			else if (soundEditor.currentSource->repeatMode == SAMPLE_REPEAT_STRETCH) {
+			else if (soundEditor.currentSource->repeatMode == SampleRepeatMode::STRETCH) {
 				soundEditor.currentSound->unassignAllVoices();
 				soundEditor.currentSource->sampleControls.pitchAndSpeedAreIndependent = false;
 			}
 
-			soundEditor.currentSource->repeatMode = soundEditor.currentValue;
+			soundEditor.currentSource->repeatMode = static_cast<SampleRepeatMode>(soundEditor.currentValue);
 		}
 
 		// We need to re-render all rows, because this will have changed whether Note tails are displayed. Probably just one row, but we don't know which
@@ -80,7 +82,7 @@ public:
 		static char const* options[] = {"CUT", "ONCE", "LOOP", "STRETCH", NULL};
 		return options;
 	}
-	int getNumOptions() { return NUM_REPEAT_MODES; }
+	int getNumOptions() { return kNumRepeatModes; }
 };
 
 } // namespace menu_item::sample

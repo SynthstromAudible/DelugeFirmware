@@ -16,7 +16,7 @@
  */
 
 #include "util/container/array/resizeable_pointer_array.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 
 ResizeablePointerArray::ResizeablePointerArray() : ResizeableArray(sizeof(void*)) {
 }

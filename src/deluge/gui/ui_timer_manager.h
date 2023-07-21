@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 
 #define TIMER_DISPLAY 0
 #define TIMER_MIDI_LEARN_FLASH 1

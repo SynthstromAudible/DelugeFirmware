@@ -27,7 +27,7 @@ public:
 	void drawValue() {
 		if (soundEditor.currentValue == 50
 		    && !soundEditor.currentParamManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(
-		        PARAM_LOCAL_LPF_FREQ)) {
+		        ::Param::Local::LPF_FREQ)) {
 			numericDriver.setText("Off");
 		}
 		else {

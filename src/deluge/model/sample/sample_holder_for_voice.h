@@ -42,7 +42,7 @@ public:
 	int8_t cents;
 	PhaseIncrementFineTuner fineTuner;
 
-	Cluster* clustersForLoopStart[NUM_CLUSTERS_LOADED_AHEAD];
+	Cluster* clustersForLoopStart[kNumClustersLoadedAhead];
 
 	// These two now only exist for loading in data from old files
 	uint32_t startMSec;

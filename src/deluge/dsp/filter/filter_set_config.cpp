@@ -69,7 +69,7 @@ const int16_t resonanceLimitTable[] = {
  */
 
 int32_t FilterSetConfig::init(int32_t lpfFrequency, int32_t lpfResonance, int32_t hpfFrequency, int32_t hpfResonance,
-                              uint8_t lpfMode, int32_t filterGain, bool adjustVolumeForHPFResonance,
+                              LPFMode lpfMode, int32_t filterGain, bool adjustVolumeForHPFResonance,
                               int32_t* overallOscAmplitude) {
 
 	hpfResonance =
@@ -78,7 +78,7 @@ int32_t FilterSetConfig::init(int32_t lpfFrequency, int32_t lpfResonance, int32_
 	if (doLPF) {
 
 		// Hot transistor ladder - needs oversampling and stuff
-		if (lpfMode == LPF_MODE_TRANSISTOR_24DB_DRIVE) {
+		if (lpfMode == LPFMode::TRANSISTOR_24DB_DRIVE) {
 
 			int32_t resonance = ONE_Q31 - (lpfResonance << 2); // Limits it
 			processedResonance = ONE_Q31 - resonance;          // Always between 0 and 2. 1 represented as 1073741824
@@ -119,7 +119,7 @@ int32_t FilterSetConfig::init(int32_t lpfFrequency, int32_t lpfResonance, int32_
 		{
 
 			// Cold transistor ladder
-			if (lpfMode != LPF_MODE_TRANSISTOR_24DB_DRIVE) {
+			if (lpfMode != LPFMode::TRANSISTOR_24DB_DRIVE) {
 				// Some long-winded stuff to make it so if frequency goes really low, resonance goes down. This is tuned a bit, but isn't perfect
 				int32_t howMuchTooLow = 0;
 				if (tannedFrequency < 6000000) {
@@ -149,7 +149,7 @@ int32_t FilterSetConfig::init(int32_t lpfFrequency, int32_t lpfResonance, int32_
 			              << 4; // Between 0 and 1. 1 represented by 2147483648 I'm pretty sure
 
 			// Half ladder
-			if (lpfMode == LPF_MODE_12DB) {
+			if (lpfMode == LPFMode::TRANSISTOR_12DB) {
 				int32_t moveabilityNegative = moveability - 1073741824; // Between -2 and 0. 1 represented as 1073741824
 				lpf2Feedback = multiply_32x32_rshift32_rounded(moveabilityNegative, divideBy1PlusTannedFrequency) << 1;
 				lpf1Feedback = multiply_32x32_rshift32_rounded(lpf2Feedback, moveability) << 1;
@@ -163,7 +163,7 @@ int32_t FilterSetConfig::init(int32_t lpfFrequency, int32_t lpfResonance, int32_
 			}
 
 			// Full ladder
-			else if ((lpfMode == LPF_MODE_TRANSISTOR_24DB) || (lpfMode == LPF_MODE_TRANSISTOR_24DB_DRIVE)) {
+			else if ((lpfMode == LPFMode::TRANSISTOR_24DB) || (lpfMode == LPFMode::TRANSISTOR_24DB_DRIVE)) {
 				lpf3Feedback = multiply_32x32_rshift32_rounded(divideBy1PlusTannedFrequency, moveability);
 				lpf2Feedback = multiply_32x32_rshift32_rounded(lpf3Feedback, moveability) << 1;
 				lpf1Feedback = multiply_32x32_rshift32_rounded(lpf2Feedback, moveability) << 1;
@@ -179,7 +179,7 @@ int32_t FilterSetConfig::init(int32_t lpfFrequency, int32_t lpfResonance, int32_
 				divideByTotalMoveabilityAndProcessedResonance = (int64_t)67108864 * 1073741824 / onePlusThing;
 			}
 
-			if (lpfMode != LPF_MODE_TRANSISTOR_24DB_DRIVE) { // Cold transistor ladder only
+			if (lpfMode != LPFMode::TRANSISTOR_24DB_DRIVE) { // Cold transistor ladder only
 				// Extra feedback - but only if freq isn't too high. Otherwise we get aliasing
 				if (tannedFrequency <= 304587486) {
 					processedResonance = multiply_32x32_rshift32_rounded(processedResonance, 1150000000) << 1;
@@ -197,11 +197,11 @@ int32_t FilterSetConfig::init(int32_t lpfFrequency, int32_t lpfResonance, int32_
 			}
 
 			// Drive filter - increase output amplitude
-			else if (lpfMode == LPF_MODE_TRANSISTOR_24DB_DRIVE) {
+			else if (lpfMode == LPFMode::TRANSISTOR_24DB_DRIVE) {
 				//overallOscAmplitude <<= 2;
 				filterGain *= 0.8;
 			}
-			if (lpfMode == LPF_MODE_SVF) {
+			if (lpfMode == LPFMode::SVF) {
 
 				// raw resonance is 0 - 536870896 (2^28ish, don't know where it comes from)
 				// Multiply by 4 to bring it to the q31 0-1 range

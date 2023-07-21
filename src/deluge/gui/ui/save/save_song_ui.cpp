@@ -14,6 +14,7 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
+#include "definitions_cxx.hpp"
 #include "storage/audio/audio_file_manager.h"
 #include "gui/ui/save/save_song_ui.h"
 #include "util/functions.h"
@@ -56,7 +57,7 @@ SaveSongUI::SaveSongUI() {
 }
 
 bool SaveSongUI::opened() {
-	instrumentTypeToLoad = 255;
+	instrumentTypeToLoad = InstrumentType::NONE;
 
 	// Grab screenshot of song, for saving, before qwerty drawn
 	memcpy(PadLEDs::imageStore, PadLEDs::image, sizeof(PadLEDs::image));
@@ -195,7 +196,7 @@ gotError:
 		// If this AudioFile is used in this Song...
 		if (audioFile->numReasonsToBeLoaded) {
 
-			if (audioFile->type == AUDIO_FILE_TYPE_SAMPLE) {
+			if (audioFile->type == AudioFileType::SAMPLE) {
 				// If this is a recording which still exists at its temporary location, move the file
 				if (!((Sample*)audioFile)->tempFilePathForRecording.isEmpty()) {
 					FRESULT result =
@@ -240,7 +241,7 @@ gotError:
 				}
 				else {
 					sourceFilePath =
-					    (audioFile->type != AUDIO_FILE_TYPE_SAMPLE
+					    (audioFile->type != AudioFileType::SAMPLE
 					     || ((Sample*)audioFile)->tempFilePathForRecording.isEmpty())
 					        ? audioFile->filePath.get()
 					        : ((Sample*)audioFile)

@@ -16,6 +16,7 @@
 */
 
 #include "model/clip/audio_clip.h"
+#include "definitions_cxx.hpp"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
 #include "modulation/params/param_manager.h"
@@ -44,6 +45,7 @@
 #include "io/debug/print.h"
 #include "model/model_stack.h"
 #include "modulation/params/param_set.h"
+#include "util/misc.h"
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
@@ -61,7 +63,7 @@ AudioClip::AudioClip() : Clip(CLIP_TYPE_AUDIO) {
 
 	renderData.xScroll = -1;
 
-	voicePriority = 1;
+	voicePriority = VoicePriority::MEDIUM;
 	attack = -2147483648;
 }
 
@@ -139,7 +141,8 @@ void AudioClip::abortRecording() {
 }
 
 bool AudioClip::wantsToBeginLinearRecording(Song* song) {
-	return (Clip::wantsToBeginLinearRecording(song) && !sampleHolder.audioFile && ((AudioOutput*)output)->inputChannel);
+	return (Clip::wantsToBeginLinearRecording(song) && !sampleHolder.audioFile
+	        && ((AudioOutput*)output)->inputChannel > AudioInputChannel::NONE);
 }
 
 bool AudioClip::isAbandonedOverdub() {
@@ -148,16 +151,16 @@ bool AudioClip::isAbandonedOverdub() {
 
 int AudioClip::beginLinearRecording(ModelStackWithTimelineCounter* modelStack, int buttonPressLatency) {
 
-	int inputChannel = ((AudioOutput*)output)->inputChannel;
+	AudioInputChannel inputChannel = ((AudioOutput*)output)->inputChannel;
 
 	int numChannels =
-	    (inputChannel >= AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION || inputChannel == AUDIO_INPUT_CHANNEL_STEREO) ? 2
-	                                                                                                              : 1;
+	    (inputChannel >= AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION || inputChannel == AudioInputChannel::STEREO) ? 2
+	                                                                                                             : 1;
 
 	bool shouldRecordMarginsNow =
 	    FlashStorage::audioClipRecordMargins && inputChannel < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION;
 
-	recorder = AudioEngine::getNewRecorder(numChannels, AUDIO_RECORDING_FOLDER_CLIPS, inputChannel, true,
+	recorder = AudioEngine::getNewRecorder(numChannels, AudioRecordingFolder::CLIPS, inputChannel, true,
 	                                       shouldRecordMarginsNow, buttonPressLatency);
 	if (!recorder) {
 		return ERROR_INSUFFICIENT_RAM;
@@ -209,7 +212,7 @@ void AudioClip::finishLinearRecording(ModelStackWithTimelineCounter* modelStack,
 	renderData.xScroll = -1; // Force re-render - though this would surely happen anyway
 
 	if (recorder->recordingExtraMargins) {
-		attack = AUDIO_CLIP_DEFAULT_ATTACK_IF_PRE_MARGIN; // TODO: make these undoable?
+		attack = kAudioClipDefaultAttackIfPreMargin; // TODO: make these undoable?
 	}
 
 	isUnfinishedAutoOverdub = false;
@@ -298,7 +301,7 @@ void AudioClip::processCurrentPos(ModelStackWithTimelineCounter* modelStack, uin
 			// then we'd absolutely better reset that envelope because there's no other way any sound's going to come out!
 			bool shouldResetEnvelope =
 			    !voiceSample
-			    || (((AudioOutput*)output)->envelope.state >= ENVELOPE_STAGE_RELEASE
+			    || (((AudioOutput*)output)->envelope.state >= EnvelopeStage::RELEASE
 			        && !doingLateStart); // Come to think of it, would doingLateStart ever (or normally) be true if we're at play pos 0?
 
 			// If already had a VoiceSample, everything's probably all fine...
@@ -398,7 +401,7 @@ void AudioClip::resumePlayback(ModelStackWithTimelineCounter* modelStack, bool m
 	if (voiceSample && voiceSample->cache) {
 		int priorityRating = 1;
 		bool success = voiceSample->stopUsingCache(&guide, ((Sample*)sampleHolder.audioFile), priorityRating,
-		                                           getLoopingType(modelStack) == LOOP_LOW_LEVEL);
+		                                           getLoopingType(modelStack) == LoopType::LOW_LEVEL);
 		if (!success) {
 			unassignVoiceSample();
 		}
@@ -432,7 +435,7 @@ void AudioClip::resumePlayback(ModelStackWithTimelineCounter* modelStack, bool m
 
 	// If already time stretching, no need to do anything - that'll take care of the new play-position.
 	// Also can only do this if envelope not releasing, which (possibly not anymore since I fixed other bug) it can still be if this is our second quick successive <>+play starting playback partway through Clip
-	if (voiceSample && voiceSample->timeStretcher && ((AudioOutput*)output)->envelope.state < ENVELOPE_STAGE_RELEASE) {
+	if (voiceSample && voiceSample->timeStretcher && ((AudioOutput*)output)->envelope.state < EnvelopeStage::RELEASE) {
 		return;
 	}
 
@@ -447,7 +450,7 @@ void AudioClip::resumePlayback(ModelStackWithTimelineCounter* modelStack, bool m
 		// TODO: probably not super necessary now we've got time-stretching taking care of sorta doing a crossfade, above.
 		// We'd only actually need to do any such fade manually if we weren't time-stretching before, and we're also not going to be after
 		// (though it'd be hard to predict whether we're going to be after)
-		((AudioOutput*)output)->envelope.unconditionalRelease(ENVELOPE_STAGE_FAST_RELEASE);
+		((AudioOutput*)output)->envelope.unconditionalRelease(EnvelopeStage::FAST_RELEASE);
 	}
 
 	// Otherwise, get a new VoiceSample
@@ -475,7 +478,7 @@ void AudioClip::sampleZoneChanged(ModelStackWithTimelineCounter const* modelStac
 
 		int priorityRating = 1; // probably better fix this...
 
-		voiceSample->sampleZoneChanged(&guide, ((Sample*)sampleHolder.audioFile), MARKER_END,
+		voiceSample->sampleZoneChanged(&guide, ((Sample*)sampleHolder.audioFile), MarkerType::END,
 		                               getLoopingType(modelStack), priorityRating, true);
 	}
 }
@@ -502,7 +505,7 @@ void AudioClip::render(ModelStackWithTimelineCounter* modelStack, int32_t* outpu
 	Sample* sample = ((Sample*)sampleHolder.audioFile);
 
 	// First, if we're still attempting to do a "late start", see if we can do that (perhaps not if relevant audio data hasn't loaded yet)
-	if (doingLateStart && ((AudioOutput*)output)->envelope.state < ENVELOPE_STAGE_FAST_RELEASE) {
+	if (doingLateStart && ((AudioOutput*)output)->envelope.state < EnvelopeStage::FAST_RELEASE) {
 		uint64_t numSamplesIn = guide.getSyncedNumSamplesIn();
 
 		int result = voiceSample->attemptLateSampleStart(&guide, sample, numSamplesIn);
@@ -628,7 +631,7 @@ justDontTimeStretch:
 
 				int64_t numSamplesTilLoop = getNumSamplesTilLoop(modelStack);
 
-				if (numSamplesTilLoop <= ANTI_CLICK_CROSSFADE_LENGTH) {
+				if (numSamplesTilLoop <= kAntiClickCrossfadeLength) {
 
 					int numSamplesOfPreMarginAvailable =
 					    (uint32_t)numBytesOfPreMarginAvailable / (uint8_t)bytesPerSample;
@@ -641,7 +644,7 @@ justDontTimeStretch:
 						//Debug::println("");
 						//Debug::println("might attempt fudge");
 
-						int crossfadeLength = getMin(numSamplesOfPreMarginAvailable, ANTI_CLICK_CROSSFADE_LENGTH);
+						int crossfadeLength = getMin(numSamplesOfPreMarginAvailable, kAntiClickCrossfadeLength);
 
 						// If we're right at the end and it's time to crossfade...
 						if (numSamplesTilLoop <= crossfadeLength) {
@@ -665,7 +668,7 @@ justDontTimeStretch:
 		// We want to do a fast release *before* the end, to finish right as the end is reached. So that any waveform after the end isn't heard.
 		// TODO: in an ideal world, would we only do this if there actually is some waveform "margin" after the end that we want to avoid hearing, and otherwise just do the release right at the end (does that already happen, I forgot?)
 		// It's perhaps a little bit surprising, but this even works and sounds perfect (you never hear any of the margin) when time-stretching is happening! Down to about half speed. Below that, you hear some of the margin.
-		if (((AudioOutput*)output)->envelope.state < ENVELOPE_STAGE_FAST_RELEASE) {
+		if (((AudioOutput*)output)->envelope.state < EnvelopeStage::FAST_RELEASE) {
 
 			ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(0, NULL);
 
@@ -679,7 +682,7 @@ justDontTimeStretch:
 
 				if (timeTilLoop < 1024) {
 					((AudioOutput*)output)
-					    ->envelope.unconditionalRelease(ENVELOPE_STAGE_FAST_RELEASE, 8192); // Let's make it extra fast?
+					    ->envelope.unconditionalRelease(EnvelopeStage::FAST_RELEASE, 8192); // Let's make it extra fast?
 				}
 			}
 		}
@@ -689,15 +692,15 @@ justDontTimeStretch:
 		maySetupCache = false;
 		// We tell the cache setup that we're *not* looping.
 		// We want it to think this, otherwise problems if we've put the end point after the actual waveform end.
-		bool everythingOk =
-		    voiceSample->possiblySetUpCache(&sampleControls, &guide, phaseIncrement, timeStretchRatio, 1, 0);
+		bool everythingOk = voiceSample->possiblySetUpCache(&sampleControls, &guide, phaseIncrement, timeStretchRatio,
+		                                                    1, LoopType::NONE);
 		if (!everythingOk) {
 			goto doUnassign;
 		}
 	}
 
 	{
-		int loopingType = getLoopingType(modelStack);
+		LoopType loopingType = getLoopingType(modelStack);
 
 		stillActive = voiceSample->render(&guide, outputBuffer, numSamples, sample, sample->numChannels, loopingType,
 		                                  phaseIncrement, timeStretchRatio, amplitude, amplitudeIncrement,
@@ -712,7 +715,7 @@ doUnassign:
 }
 
 // Returns the "looping" parameter that gets passed into a lot of functions.
-int AudioClip::getLoopingType(ModelStackWithTimelineCounter const* modelStack) {
+LoopType AudioClip::getLoopingType(ModelStackWithTimelineCounter const* modelStack) {
 
 	// We won't loop at the low level. We may want to loop at time-stretcher level, in the following case (not if the end-point is set to beyond the waveform's length).
 
@@ -720,12 +723,14 @@ int AudioClip::getLoopingType(ModelStackWithTimelineCounter const* modelStack) {
 	    (sampleControls.reversed || sampleHolder.endPos <= ((Sample*)sampleHolder.audioFile)->lengthInSamples)
 	    && currentPlaybackMode->willClipContinuePlayingAtEnd(modelStack);
 
-	return shouldLoop ? LOOP_TIMESTRETCHER_LEVEL_IF_ACTIVE : 0;
+	return shouldLoop ? LoopType::TIMESTRETCHER_LEVEL_IF_ACTIVE : LoopType::NONE;
 
 	// ---- This is the old comment / logic we previously had, here
 	// Normally we'll loop at the lowest level - but not if user has inserted silence at the end
 	// (put the end-pos beyond the end of the Sample)
-	return (sampleControls.reversed || sampleHolder.endPos <= ((Sample*)sampleHolder.audioFile)->lengthInSamples);
+
+	// return (sampleControls.reversed || sampleHolder.endPos <= ((Sample*)sampleHolder.audioFile)->lengthInSamples);
+
 	// Note that the actual "loop points" don't get obeyed for AudioClips - if any looping happens at the low level,
 	// it'll only be at the very end of the waveform if we happen to reach it.
 	// But, looping may still happen as normally expected at the TimeStretcher level...
@@ -753,7 +758,7 @@ void AudioClip::expectNoFurtherTicks(Song* song, bool actuallySoundChange) {
 			// Fix only added for bug / crash discovered in Feb 2021!
 			if (doingLateStart) {
 				// If waiting to do a late start, and we're not waiting for a past bit to fade out, well there's no sound right now, so just cut out.
-				if (((AudioOutput*)output)->envelope.state < ENVELOPE_STAGE_FAST_RELEASE) {
+				if (((AudioOutput*)output)->envelope.state < EnvelopeStage::FAST_RELEASE) {
 					unassignVoiceSample();
 				}
 
@@ -764,7 +769,7 @@ void AudioClip::expectNoFurtherTicks(Song* song, bool actuallySoundChange) {
 			}
 			else {
 				// Or normal case - do a fade when we weren't going to before. And no late start is or was happening.
-				((AudioOutput*)output)->envelope.unconditionalRelease(ENVELOPE_STAGE_FAST_RELEASE);
+				((AudioOutput*)output)->envelope.unconditionalRelease(EnvelopeStage::FAST_RELEASE);
 			}
 		}
 	}
@@ -831,7 +836,7 @@ void AudioClip::posReachedEnd(ModelStackWithTimelineCounter* modelStack) {
 		clipInstance->length = loopLength;
 
 		newClip->activeIfNoSolo = false; // And now, we want it to actually be false
-		output->setActiveClip(modelStack, false);
+		output->setActiveClip(modelStack, PgmChangeSend::NEVER);
 
 		newClip->setPos(modelStack, 0, false); // Tell it to *not* use "live pos"
 
@@ -905,9 +910,9 @@ void AudioClip::getScrollAndZoomInSamples(int32_t xScroll, int32_t xZoom, int64_
 	if (recorder && (!playbackHandler.isEitherClockActive() || currentPlaybackMode == &arrangement)) {
 		*xScrollSamples = recorder->sample->fileLoopStartSamples;
 		int32_t numSamplesCapturedPastLoopStart = recorder->numSamplesCaptured - *xScrollSamples;
-		*xZoomSamples = (numSamplesCapturedPastLoopStart < displayWidth)
+		*xZoomSamples = (numSamplesCapturedPastLoopStart < kDisplayWidth)
 		                    ? 1
-		                    : numSamplesCapturedPastLoopStart >> displayWidthMagnitude;
+		                    : numSamplesCapturedPastLoopStart >> kDisplayWidthMagnitude;
 	}
 
 	// Or, normal...
@@ -918,7 +923,7 @@ void AudioClip::getScrollAndZoomInSamples(int32_t xScroll, int32_t xZoom, int64_
 
 		if (sampleControls.reversed) {
 			*xScrollSamples =
-			    sampleHolder.getEndPos(true) - xScrollSamplesWithinZone - (*xZoomSamples << displayWidthMagnitude);
+			    sampleHolder.getEndPos(true) - xScrollSamplesWithinZone - (*xZoomSamples << kDisplayWidthMagnitude);
 		}
 		else {
 			int64_t sampleStartPos = recorder ? recorder->sample->fileLoopStartSamples : sampleHolder.startPos;
@@ -969,7 +974,7 @@ bool AudioClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, Tim
 	}
 
 	if (addUndefinedArea) {
-		drawUndefinedArea(xScroll, xZoom, loopLength, image, occupancyMask, displayWidth, editorScreen, false);
+		drawUndefinedArea(xScroll, xZoom, loopLength, image, occupancyMask, kDisplayWidth, editorScreen, false);
 	}
 
 	return true;
@@ -984,14 +989,14 @@ void AudioClip::writeDataToFile(Song* song) {
 	storageManager.writeAttribute("startSamplePos", sampleHolder.startPos);
 	storageManager.writeAttribute("endSamplePos", sampleHolder.endPos);
 	storageManager.writeAttribute("pitchSpeedIndependent", sampleControls.pitchAndSpeedAreIndependent);
-	if (sampleControls.interpolationMode == INTERPOLATION_MODE_LINEAR) {
+	if (sampleControls.interpolationMode == InterpolationMode::LINEAR) {
 		storageManager.writeAttribute("linearInterpolation", 1);
 	}
 	if (sampleControls.reversed) {
 		storageManager.writeAttribute("reversed", "1");
 	}
 	storageManager.writeAttribute("attack", attack);
-	storageManager.writeAttribute("priority", voicePriority);
+	storageManager.writeAttribute("priority", util::to_underlying(voicePriority));
 
 	if (sampleHolder.transpose) {
 		storageManager.writeAttribute("transpose", sampleHolder.transpose);
@@ -1025,7 +1030,7 @@ someError:
 
 	char const* tagName;
 
-	int32_t readAutomationUpToPos = MAX_SEQUENCE_LENGTH;
+	int32_t readAutomationUpToPos = kMaxSequenceLength;
 
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 		//Debug::println(tagName); delayMS(30);
@@ -1056,7 +1061,7 @@ someError:
 
 		else if (!strcmp(tagName, "linearInterpolation")) {
 			if (storageManager.readTagOrAttributeValueInt()) {
-				sampleControls.interpolationMode = INTERPOLATION_MODE_LINEAR;
+				sampleControls.interpolationMode = InterpolationMode::LINEAR;
 			}
 		}
 
@@ -1065,7 +1070,7 @@ someError:
 		}
 
 		else if (!strcmp(tagName, "priority")) {
-			voicePriority = storageManager.readTagOrAttributeValueInt();
+			voicePriority = static_cast<VoicePriority>(storageManager.readTagOrAttributeValueInt());
 		}
 
 		else if (!strcmp(tagName, "reversed")) {

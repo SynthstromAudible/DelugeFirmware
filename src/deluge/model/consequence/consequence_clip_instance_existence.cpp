@@ -15,12 +15,14 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "definitions_cxx.hpp"
 #include "model/clip/clip_instance.h"
 #include "model/consequence/consequence_clip_instance_existence.h"
 #include "model/instrument/instrument.h"
+#include "util/misc.h"
 
 ConsequenceClipInstanceExistence::ConsequenceClipInstanceExistence(Output* newOutput, ClipInstance* clipInstance,
-                                                                   int newType) {
+                                                                   ExistenceChangeType newType) {
 	output = newOutput;
 	clip = clipInstance->clip;
 	pos = clipInstance->pos;
@@ -29,9 +31,9 @@ ConsequenceClipInstanceExistence::ConsequenceClipInstanceExistence(Output* newOu
 	type = newType;
 }
 
-int ConsequenceClipInstanceExistence::revert(int time, ModelStack* modelStack) {
+int ConsequenceClipInstanceExistence::revert(TimeType time, ModelStack* modelStack) {
 
-	if (time == type) { // (Re-)delete
+	if (time == util::to_underlying(type)) { // (Re-)delete
 		int i = output->clipInstances.search(pos, GREATER_OR_EQUAL);
 		if (i < 0 || i >= output->clipInstances.getNumElements()) {
 			return ERROR_BUG;

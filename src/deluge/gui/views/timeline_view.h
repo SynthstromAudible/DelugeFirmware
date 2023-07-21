@@ -19,7 +19,7 @@
 
 #include "gui/ui/root_ui.h"
 #include "hid/button.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 
 class InstrumentClip;
 class NoteRow;
@@ -41,13 +41,13 @@ public:
 	} // SessionView doesn't have this because it does this a different way. Sorry, confusing I know
 	bool isTimelineView() { return true; }
 
-	int buttonAction(hid::Button b, bool on, bool inCardRoutine);
+	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine) override;
 	void displayZoomLevel(bool justPopup = false);
-	int horizontalEncoderAction(int offset);
+	ActionResult horizontalEncoderAction(int offset) override;
 	void displayScrollPos();
 	void displayNumberOfBarsAndBeats(uint32_t number, uint32_t quantization, bool countFromOne,
 	                                 char const* tooLongText);
-	void initiateXScroll(uint32_t newXScroll, int numSquaresToScroll = displayWidth);
+	void initiateXScroll(uint32_t newXScroll, int numSquaresToScroll = kDisplayWidth);
 	bool zoomToMax(bool inOnly = false);
 	void initiateXZoom(int zoomMagnitude, int32_t newScroll, uint32_t oldZoom);
 	void midiLearnFlash();

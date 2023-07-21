@@ -21,14 +21,14 @@
 #include "model/model_stack.h"
 
 ConsequenceClipLength::ConsequenceClipLength(Clip* newClip, int32_t oldLength) {
-	type = CONSEQUENCE_CLIP_LENGTH;
+	type = Consequence::CLIP_LENGTH;
 
 	clip = newClip;
 	lengthToRevertTo = oldLength;
 	pointerToMarkerValue = NULL;
 }
 
-int ConsequenceClipLength::revert(int time, ModelStack* modelStack) {
+int ConsequenceClipLength::revert(TimeType time, ModelStack* modelStack) {
 
 	uint64_t markerValueBeforeRevert;
 	if (pointerToMarkerValue) {
