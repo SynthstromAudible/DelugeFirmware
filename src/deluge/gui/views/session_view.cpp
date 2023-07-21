@@ -2349,7 +2349,8 @@ void SessionView::midiLearnFlash() {
 void SessionView::modEncoderAction(int whichModEncoder, int offset) {
 	performActionOnPadRelease = false;
 
-	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx) == RuntimeFeatureStateToggle::On) {
+	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx) == RuntimeFeatureStateToggle::On
+	    && currentUIMode != UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
 		int modKnobMode = -1;
 		if (view.activeModControllableModelStack.modControllable) {
 			uint8_t* modKnobModePointer = view.activeModControllableModelStack.modControllable->getModKnobMode();
