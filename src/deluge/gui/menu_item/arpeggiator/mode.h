@@ -64,6 +64,6 @@ public:
 		static char const* options[] = {"OFF", "UP", "DOWN", "BOTH", "Random", NULL};
 		return options;
 	}
-	int getNumOptions() { return NUM_ARP_MODES; }
+	int getNumOptions() { return kNumArpModes; }
 };
 } // namespace menu_item::arpeggiator

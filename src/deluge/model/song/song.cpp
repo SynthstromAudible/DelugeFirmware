@@ -85,8 +85,8 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	xScroll[NAVIGATION_ARRANGEMENT] = 0;
 	xScrollForReturnToSongView = 0;
 
-	xZoom[NAVIGATION_CLIP] = increaseMagnitude(DEFAULT_CLIP_LENGTH, insideWorldTickMagnitude - displayWidthMagnitude);
-	xZoom[NAVIGATION_ARRANGEMENT] = DEFAULT_ARRANGER_ZOOM << insideWorldTickMagnitude;
+	xZoom[NAVIGATION_CLIP] = increaseMagnitude(kDefaultClipLength, insideWorldTickMagnitude - kDisplayWidthMagnitude);
+	xZoom[NAVIGATION_ARRANGEMENT] = kDefaultArrangerZoom << insideWorldTickMagnitude;
 	xZoomForReturnToSongView = xZoom[NAVIGATION_CLIP];
 
 	tripletsOn = false;
@@ -107,8 +107,8 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 
 	swingInterval = 8 - insideWorldTickMagnitude; // 16th notes
 
-	songViewYScroll = 1 - displayHeight;
-	arrangementYScroll = -displayHeight;
+	songViewYScroll = 1 - kDisplayHeight;
+	arrangementYScroll = -kDisplayHeight;
 
 	anyClipsSoloing = false;
 	anyOutputsSoloingInArrangement = false;
@@ -127,7 +127,7 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	reverbDamp = (float)36 / 50;
 	reverbWidth = 1;
 	reverbPan = 0;
-	reverbCompressorVolume = getParamFromUserValue(PARAM_STATIC_COMPRESSOR_VOLUME, -1);
+	reverbCompressorVolume = getParamFromUserValue(Param::Static::COMPRESSOR_VOLUME, -1);
 	reverbCompressorShape = -601295438;
 	reverbCompressorSync = SYNC_LEVEL_8TH;
 
@@ -277,7 +277,7 @@ keepSearchingForward:
 }
 
 bool Song::mayDoubleTempo() {
-	return ((timePerTimerTickBig >> 33) > minTimePerTimerTick);
+	return ((timePerTimerTickBig >> 33) > kMinTimePerTimerTick);
 }
 
 // Returns true if a Clip created
@@ -290,7 +290,7 @@ bool Song::ensureAtLeastOneSessionClip() {
 
 		sessionClips.insertClipAtIndex(firstClip, 0);
 
-		firstClip->loopLength = DEFAULT_CLIP_LENGTH << insideWorldTickMagnitude;
+		firstClip->loopLength = kDefaultClipLength << insideWorldTickMagnitude;
 
 		ParamManager newParamManager; // Deliberate don't set up.
 
@@ -1022,8 +1022,8 @@ void Song::writeToFile() {
 	storageManager.printIndents();
 	storageManager.write("preview=\"");
 
-	for (int y = 0; y < displayHeight; y++) {
-		for (int x = 0; x < displayWidth + sideBarWidth; x++) {
+	for (int y = 0; y < kDisplayHeight; y++) {
+		for (int x = 0; x < kDisplayWidth + kSideBarWidth; x++) {
 			for (int colour = 0; colour < 3; colour++) {
 				char buffer[3];
 				byteToHex(PadLEDs::imageStore[y][x][colour], buffer);
@@ -1139,7 +1139,7 @@ weAreInArrangementEditorOrInClipInstance:
 	storageManager.writeClosingTag("instruments");
 
 	storageManager.writeOpeningTag("sections");
-	for (int s = 0; s < MAX_NUM_SECTIONS; s++) {
+	for (int s = 0; s < kMaxNumSections; s++) {
 		if (true || sections[s].launchMIDICommand.containsSomething() || sections[s].numRepetitions) {
 			storageManager.writeOpeningTagBeginning("section");
 			storageManager.writeAttribute("id", s, false);
@@ -1194,7 +1194,7 @@ int Song::readFromFile() {
 
 	char const* tagName;
 
-	for (int s = 0; s < MAX_NUM_SECTIONS; s++) {
+	for (int s = 0; s < kMaxNumSections; s++) {
 		sections[s].numRepetitions = -1;
 	}
 
@@ -1343,7 +1343,7 @@ int Song::readFromFile() {
 			case 0x536c6c6f:
 				if (*(((uint32_t*)tagName) + 2) == 0x56676e6f && *(((uint32_t*)tagName) + 3) == 0x00776569) {
 					songViewYScroll = storageManager.readTagOrAttributeValueInt();
-					songViewYScroll = getMax(1 - displayHeight, songViewYScroll);
+					songViewYScroll = getMax(1 - kDisplayHeight, songViewYScroll);
 					break;
 				}
 				else {
@@ -1356,7 +1356,7 @@ int Song::readFromFile() {
 				    && *(((uint32_t*)tagName) + 4) == 0x6956746e
 				    && (*(((uint32_t*)tagName) + 5) & 0x00FFFFFF) == 0x00007765) {
 					arrangementYScroll = storageManager.readTagOrAttributeValueInt();
-					arrangementYScroll = getMax(1 - displayHeight, arrangementYScroll);
+					arrangementYScroll = getMax(1 - kDisplayHeight, arrangementYScroll);
 					break;
 				}
 				else {
@@ -1440,7 +1440,7 @@ unknownTag:
 
 			else if (!strcmp(tagName, "activeModFunction")) {
 				globalEffectable.modKnobMode = storageManager.readTagOrAttributeValueInt();
-				globalEffectable.modKnobMode = getMin(globalEffectable.modKnobMode, (uint8_t)(NUM_MOD_BUTTONS - 1));
+				globalEffectable.modKnobMode = getMin(globalEffectable.modKnobMode, (uint8_t)(kNumModButtons - 1));
 				storageManager.exitTag("activeModFunction");
 			}
 
@@ -1550,7 +1550,7 @@ unknownTag:
 							storageManager.exitTag(tagName);
 						}
 
-						if (id < MAX_NUM_SECTIONS) {
+						if (id < kMaxNumSections) {
 							if (channel < 16 && note < 128) {
 								sections[id].launchMIDICommand.device = device;
 								sections[id].launchMIDICommand.channelOrZone = channel;
@@ -1737,7 +1737,7 @@ traverseClips:
 			if (((InstrumentClip*)thisClip)->arpSettings.mode != ArpMode::OFF
 			    && !((InstrumentClip*)thisClip)->arpSettings.syncLevel) {
 				ParamManagerForTimeline* thisParamManager = &thisClip->paramManager;
-				thisParamManager->getPatchedParamSet()->params[PARAM_GLOBAL_ARP_RATE].shiftValues((1 << 30)
+				thisParamManager->getPatchedParamSet()->params[Param::Global::ARP_RATE].shiftValues((1 << 30)
 				                                                                                  + (1 << 28));
 			}
 		}
@@ -1817,7 +1817,7 @@ skipInstance:
 			if (thisOutput->type == InstrumentType::SYNTH) {
 				SoundInstrument* sound = (SoundInstrument*)thisOutput;
 
-				for (int s = 0; s < NUM_SOURCES; s++) {
+				for (int s = 0; s < kNumSources; s++) {
 					Source* source = &sound->sources[s];
 					if (source->oscType == OscType::SAMPLE) {
 						source->sampleControls.interpolationMode = InterpolationMode::LINEAR;
@@ -2054,10 +2054,10 @@ traverseClips2:
 
 void Song::renderAudio(StereoSample* outputBuffer, int numSamples, int32_t* reverbBuffer, int32_t sideChainHitPending) {
 
-	//int32_t volumePostFX = getParamNeutralValue(PARAM_GLOBAL_VOLUME_POST_FX);
+	//int32_t volumePostFX = getParamNeutralValue(Param::Global::VOLUME_POST_FX);
 	int32_t volumePostFX = getFinalParameterValueVolume(
 	                           134217728, cableToLinearParamShortcut(paramManager.getUnpatchedParamSet()->getValue(
-	                                          PARAM_UNPATCHED_GLOBALEFFECTABLE_VOLUME)))
+	                                          Param::Unpatched::GlobalEffectable::VOLUME)))
 	                       >> 1;
 
 	// A "post-FX volume" calculation also happens in audioDriver.render(), which is a bit more relevant really because that's where filters are happening
@@ -2097,18 +2097,18 @@ void Song::renderAudio(StereoSample* outputBuffer, int numSamples, int32_t* reve
 	globalEffectable.processFXForGlobalEffectable(outputBuffer, numSamples, &volumePostFX, &paramManager,
 	                                              &delayWorkingState, 8);
 
-	int32_t postReverbVolume = paramNeutralValues[PARAM_GLOBAL_VOLUME_POST_REVERB_SEND];
+	int32_t postReverbVolume = paramNeutralValues[Param::Global::VOLUME_POST_REVERB_SEND];
 	int32_t reverbSendAmount =
-	    getFinalParameterValueVolume(paramNeutralValues[PARAM_GLOBAL_REVERB_AMOUNT],
+	    getFinalParameterValueVolume(paramNeutralValues[Param::Global::REVERB_AMOUNT],
 	                                 cableToLinearParamShortcut(paramManager.getUnpatchedParamSet()->getValue(
-	                                     PARAM_UNPATCHED_GLOBALEFFECTABLE_REVERB_SEND_AMOUNT)));
+	                                     Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT)));
 
 	globalEffectable.processReverbSendAndVolume(outputBuffer, numSamples, reverbBuffer, volumePostFX, postReverbVolume,
 	                                            reverbSendAmount >> 1);
 
 	if (playbackHandler.isEitherClockActive() && !playbackHandler.ticksLeftInCountIn
 	    && currentPlaybackMode == &arrangement) {
-		const bool result = MAX_NUM_UNPATCHED_PARAMS > 32
+		const bool result = kMaxNumUnpatchedParams > 32
 		                        ? paramManager.getUnpatchedParamSetSummary()->whichParamsAreInterpolating[0]
 		                              || paramManager.getUnpatchedParamSetSummary()->whichParamsAreInterpolating[1]
 		                        : paramManager.getUnpatchedParamSetSummary()->whichParamsAreInterpolating[0];
@@ -2699,8 +2699,8 @@ void Song::setTempoFromNumSamples(double newTempoSamples, bool shouldLogAction) 
 	}
 	else {
 		newTimePerTimerTickBig = newTempoSamples * 4294967296 + 0.5;
-		if ((newTimePerTimerTickBig >> 32) < minTimePerTimerTick) {
-			newTimePerTimerTickBig = (uint64_t)minTimePerTimerTick << 32;
+		if ((newTimePerTimerTickBig >> 32) < kMinTimePerTimerTick) {
+			newTimePerTimerTickBig = (uint64_t)kMinTimePerTimerTick << 32;
 		}
 	}
 
@@ -2929,7 +2929,7 @@ int Song::removeOutputFromMainList(
 	int topYDisplay = bottomYDisplay + getNumOutputs();
 
 	bottomYDisplay = getMax(0, bottomYDisplay);
-	topYDisplay = getMin(displayHeight - 1, topYDisplay);
+	topYDisplay = getMin(kDisplayHeight - 1, topYDisplay);
 
 	int yDisplay = outputIndex - arrangementYScroll;
 
@@ -3662,16 +3662,16 @@ void Song::restoreClipStatesBeforeArrangementPlay() {
 // Returns 0 if they're all full
 int Song::getLowestSectionWithNoSessionClipForOutput(Output* output) {
 	bool* sectionRepresented = (bool*)shortStringBuffer;
-	memset(sectionRepresented, 0, MAX_NUM_SECTIONS);
+	memset(sectionRepresented, 0, kMaxNumSections);
 
 	for (int c = 0; c < sessionClips.getNumElements(); c++) {
 		Clip* clip = sessionClips.getClipAtIndex(c);
-		if (clip->output == output && clip->section < MAX_NUM_SECTIONS) {
+		if (clip->output == output && clip->section < kMaxNumSections) {
 			sectionRepresented[clip->section] = true;
 		}
 	}
 
-	for (int s = 0; s < MAX_NUM_SECTIONS; s++) {
+	for (int s = 0; s < kMaxNumSections; s++) {
 		if (!sectionRepresented[s]) {
 			return s;
 		}
@@ -4268,7 +4268,7 @@ void Song::setParamsInAutomationMode(bool newState) {
 	if (newState) {
 
 		// Back up the unautomated values
-		for (int p = 0; p < MAX_NUM_UNPATCHED_PARAMS; p++) {
+		for (int p = 0; p < kMaxNumUnpatchedParams; p++) {
 			unautomatedParamValues[p] = unpatchedParams->params[p].getCurrentValue();
 		}
 	}
@@ -4277,7 +4277,7 @@ void Song::setParamsInAutomationMode(bool newState) {
 	else {
 
 		// Restore the unautomated values, where automation is present
-		for (int p = 0; p < MAX_NUM_UNPATCHED_PARAMS; p++) {
+		for (int p = 0; p < kMaxNumUnpatchedParams; p++) {
 			if (unpatchedParams->params[p].isAutomated()) {
 				unpatchedParams->params[p].currentValue = unautomatedParamValues[p];
 			}
@@ -4806,7 +4806,7 @@ lookAtNextOne:
 	int bottomYDisplay = -songViewYScroll;
 	int topYDisplay = bottomYDisplay + sessionClips.getNumElements() - 1;
 	bottomYDisplay = getMax(bottomYDisplay, 0);
-	topYDisplay = getMin(topYDisplay, displayHeight - 1);
+	topYDisplay = getMin(topYDisplay, kDisplayHeight - 1);
 	int amountOfStuffAbove = topYDisplay - clipYDisplay;
 	int amountOfStuffBelow = clipYDisplay - bottomYDisplay;
 
@@ -4876,7 +4876,7 @@ bool Song::deletePendingOverdubs(Output* onlyWithOutput, int* originalClipIndex,
 }
 
 int Song::getYScrollSongViewWithoutPendingOverdubs() {
-	int numToSearch = getMin(sessionClips.getNumElements(), songViewYScroll + displayHeight);
+	int numToSearch = getMin(sessionClips.getNumElements(), songViewYScroll + kDisplayHeight);
 
 	int outputValue = songViewYScroll;
 

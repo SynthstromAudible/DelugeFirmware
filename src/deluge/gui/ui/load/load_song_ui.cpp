@@ -459,7 +459,7 @@ ActionResult LoadSongUI::timerCallback() {
 		PadLEDs::vertical::renderScroll();
 
 		// If we've finished scrolling...
-		if (PadLEDs::vertical::squaresScrolled >= displayHeight) {
+		if (PadLEDs::vertical::squaresScrolled >= kDisplayHeight) {
 			// If exiting this UI...
 			if (PadLEDs::vertical::scrollDirection == -1) {
 				exitThisUI(); // Ideally I don't think this should be allowed to be happen while in the card routine, which we're in right now...
@@ -579,9 +579,9 @@ void LoadSongUI::currentFileChanged(int movementDirection) {
 		qwertyVisible = false;
 
 		// Start horizontal scrolling
-		PadLEDs::horizontal::setupScroll(movementDirection, displayWidth + sideBarWidth, true,
-		                                 displayWidth + sideBarWidth);
-		for (int i = 0; i < displayHeight; i++) {
+		PadLEDs::horizontal::setupScroll(movementDirection, kDisplayWidth + kSideBarWidth, true,
+		                                 kDisplayWidth + kSideBarWidth);
+		for (int i = 0; i < kDisplayHeight; i++) {
 			PadLEDs::transitionTakingPlaceOnRow[i] = true;
 		}
 		currentUIMode = UI_MODE_HORIZONTAL_SCROLL;
@@ -594,9 +594,9 @@ void LoadSongUI::currentFileChanged(int movementDirection) {
 		scrollingIntoSlot = true;
 
 		// Set up another horizontal scroll
-		PadLEDs::horizontal::setupScroll(movementDirection, displayWidth + sideBarWidth, false,
-		                                 displayWidth + sideBarWidth);
-		for (int i = 0; i < displayHeight; i++) {
+		PadLEDs::horizontal::setupScroll(movementDirection, kDisplayWidth + kSideBarWidth, false,
+		                                 kDisplayWidth + kSideBarWidth);
+		for (int i = 0; i < kDisplayHeight; i++) {
 			PadLEDs::transitionTakingPlaceOnRow[i] = true;
 		}
 		PadLEDs::horizontal::renderScroll();
@@ -631,8 +631,8 @@ goAgain:
 			qwertyVisible = false;
 
 			// Start horizontal scrolling
-			PadLEDs::setupScroll(offset, displayWidth + sideBarWidth, true, displayWidth + sideBarWidth);
-			for (int i = 0; i < displayHeight; i++) PadLEDs::transitionTakingPlaceOnRow[i] = true;
+			PadLEDs::setupScroll(offset, kDisplayWidth + kSideBarWidth, true, kDisplayWidth + kSideBarWidth);
+			for (int i = 0; i < kDisplayHeight; i++) PadLEDs::transitionTakingPlaceOnRow[i] = true;
 			currentUIMode = UI_MODE_HORIZONTAL_SCROLL;
 			scrollingIntoSlot = false;
 			PadLEDs::renderScroll(); // The scrolling animation will begin while file is being found and loaded
@@ -657,8 +657,8 @@ goAgain:
 			scrollingIntoSlot = true;
 
 			// Set up another horizontal scroll
-			PadLEDs::setupScroll(offset, displayWidth + sideBarWidth, false, displayWidth + sideBarWidth);
-			for (int i = 0; i < displayHeight; i++) PadLEDs::transitionTakingPlaceOnRow[i] = true;
+			PadLEDs::setupScroll(offset, kDisplayWidth + kSideBarWidth, false, kDisplayWidth + kSideBarWidth);
+			for (int i = 0; i < kDisplayHeight; i++) PadLEDs::transitionTakingPlaceOnRow[i] = true;
 			PadLEDs::renderScroll();
 			*/
 		}
@@ -695,7 +695,7 @@ void LoadSongUI::exitAction() {
 
 void LoadSongUI::drawSongPreview(bool toStore) {
 
-	uint8_t(*imageStore)[displayWidth + sideBarWidth][3];
+	uint8_t(*imageStore)[kDisplayWidth + kSideBarWidth][3];
 	if (toStore) {
 		imageStore = PadLEDs::imageStore;
 	}
@@ -703,7 +703,7 @@ void LoadSongUI::drawSongPreview(bool toStore) {
 		imageStore = PadLEDs::image;
 	}
 
-	memset(imageStore, 0, displayHeight * (displayWidth + sideBarWidth) * 3);
+	memset(imageStore, 0, kDisplayHeight * (kDisplayWidth + kSideBarWidth) * 3);
 
 	FileItem* currentFileItem = getCurrentFileItem();
 
@@ -741,8 +741,8 @@ void LoadSongUI::drawSongPreview(bool toStore) {
 			}
 			else {
 				startX = startY = 0;
-				endX = displayWidth + sideBarWidth;
-				endY = displayHeight;
+				endX = kDisplayWidth + kSideBarWidth;
+				endY = kDisplayHeight;
 			}
 
 			int width = endX - startX;

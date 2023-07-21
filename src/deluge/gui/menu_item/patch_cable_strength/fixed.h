@@ -27,7 +27,7 @@ public:
 		s = newS;
 	}
 
-	int checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) final;
+	MenuPermission checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) final;
 	uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) final;
 	MenuItem* patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive) final;
 

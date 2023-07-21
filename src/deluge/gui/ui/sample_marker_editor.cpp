@@ -263,14 +263,14 @@ void SampleMarkerEditor::selectEncoderAction(int8_t offset) {
 	writeValue(newMarkerPos);
 
 	// If marker was on-screen...
-	if (oldCol >= 0 && oldCol < displayWidth) {
+	if (oldCol >= 0 && oldCol < kDisplayWidth) {
 
 		getColsOnScreen(cols);
 		// It might have changed, and despite having a newCol variable above, that's only our desired value - we might have run into the end of the sample
 		newCol = cols[util::to_underlying(markerType)].colOnScreen;
 
 		// But isn't anymore...
-		if (newCol < 0 || newCol >= displayWidth) {
+		if (newCol < 0 || newCol >= kDisplayWidth) {
 
 			// Move scroll
 			waveformBasicNavigator.xScroll += waveformBasicNavigator.xZoom * offset;
@@ -307,7 +307,7 @@ ActionResult SampleMarkerEditor::padAction(int x, int y, int on) {
 	}
 
 	// Audition pads - pass to UI beneath
-	if (x == displayWidth + 1) {
+	if (x == kDisplayWidth + 1) {
 		if (currentSong->currentClip->type == CLIP_TYPE_INSTRUMENT) {
 			instrumentClipView.padAction(x, y, on);
 		}
@@ -315,7 +315,7 @@ ActionResult SampleMarkerEditor::padAction(int x, int y, int on) {
 	}
 
 	// Mute pads
-	else if (x == displayWidth) {
+	else if (x == kDisplayWidth) {
 		if (on && !currentUIMode) {
 			exitUI();
 		}
@@ -670,7 +670,7 @@ ActionResult SampleMarkerEditor::timerCallback() {
 	getColsOnScreen(cols);
 
 	int x = cols[util::to_underlying(markerType)].colOnScreen;
-	if (x < 0 || x >= displayWidth) {
+	if (x < 0 || x >= kDisplayWidth) {
 		return ActionResult::
 		    DEALT_WITH; // Shouldn't happen, but let's be safe - and not set the timer again if it's offscreen
 	}
@@ -678,7 +678,7 @@ ActionResult SampleMarkerEditor::timerCallback() {
 	blinkInvisible = !blinkInvisible;
 
 	// Clear col
-	for (int y = 0; y < displayHeight; y++) {
+	for (int y = 0; y < kDisplayHeight; y++) {
 		memset(PadLEDs::image[y][x], 0, 3);
 	}
 
@@ -687,7 +687,7 @@ ActionResult SampleMarkerEditor::timerCallback() {
 	PadLEDs::sortLedsForCol(x);
 	uartFlushIfNotSending(UART_ITEM_PIC_PADS);
 
-	uiTimerManager.setTimer(TIMER_UI_SPECIFIC, SAMPLE_MARKER_BLINK_TIME);
+	uiTimerManager.setTimer(TIMER_UI_SPECIFIC, kSampleMarkerBlinkTime);
 
 	return ActionResult::DEALT_WITH;
 }
@@ -712,8 +712,8 @@ ActionResult SampleMarkerEditor::verticalEncoderAction(int offset, bool inCardRo
 	return result;
 }
 
-bool SampleMarkerEditor::renderSidebar(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
-                                       uint8_t occupancyMask[][displayWidth + sideBarWidth]) {
+bool SampleMarkerEditor::renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+                                       uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 	if (getRootUI() != &keyboardScreen) {
 		return false;
 	}
@@ -864,14 +864,14 @@ void SampleMarkerEditor::graphicsRoutine() {
 		int samplePos = voiceSample->getPlaySample(waveformBasicNavigator.sample, guide);
 		if (samplePos >= waveformBasicNavigator.xScroll) {
 			newTickSquare = (samplePos - waveformBasicNavigator.xScroll) / waveformBasicNavigator.xZoom;
-			if (newTickSquare >= displayWidth) {
+			if (newTickSquare >= kDisplayWidth) {
 				newTickSquare = 255;
 			}
 		}
 	}
 
-	uint8_t tickSquares[displayHeight];
-	memset(tickSquares, newTickSquare, displayHeight);
+	uint8_t tickSquares[kDisplayHeight];
+	memset(tickSquares, newTickSquare, kDisplayHeight);
 	PadLEDs::setTickSquares(tickSquares, zeroes);
 }
 
@@ -889,7 +889,7 @@ bool SampleMarkerEditor::shouldAllowExtraScrollRight() {
 	}
 }
 
-void SampleMarkerEditor::renderForOneCol(int xDisplay, uint8_t thisImage[displayHeight][displayWidth + sideBarWidth][3],
+void SampleMarkerEditor::renderForOneCol(int xDisplay, uint8_t thisImage[kDisplayHeight][kDisplayWidth + kSideBarWidth][3],
                                          MarkerColumn* cols) {
 
 	waveformRenderer.renderOneCol(waveformBasicNavigator.sample, xDisplay, thisImage,
@@ -899,7 +899,7 @@ void SampleMarkerEditor::renderForOneCol(int xDisplay, uint8_t thisImage[display
 }
 
 void SampleMarkerEditor::renderMarkersForOneCol(int xDisplay,
-                                                uint8_t thisImage[displayHeight][displayWidth + sideBarWidth][3],
+                                                uint8_t thisImage[kDisplayHeight][kDisplayWidth + kSideBarWidth][3],
                                                 MarkerColumn* cols) {
 
 	if (markerType != MarkerType::NONE) {
@@ -920,7 +920,7 @@ void SampleMarkerEditor::renderMarkersForOneCol(int xDisplay,
 		if (markersActiveHere) {
 			auto currentMarkerType = MarkerType{0};
 
-			for (int y = 0; y < displayHeight; y++) {
+			for (int y = 0; y < kDisplayHeight; y++) {
 				while (!(markersActiveHere & (1 << util::to_underlying(currentMarkerType)))) {
 					currentMarkerType =
 					    static_cast<MarkerType>((util::to_underlying(currentMarkerType) + 1) % kNumMarkerTypes);
@@ -994,8 +994,8 @@ void SampleMarkerEditor::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 
 	OLED::drawScreenTitle(markerTypeText);
 
-	int smallTextSpacingX = TEXT_SPACING_X;
-	int smallTextSizeY = TEXT_SPACING_Y;
+	int smallTextSpacingX = kTextSpacingX;
+	int smallTextSizeY = kTextSpacingY;
 	int yPixel = OLED_MAIN_TOPMOST_PIXEL + 17;
 	int xPixel = 1;
 
@@ -1106,7 +1106,7 @@ void SampleMarkerEditor::displayText() {
 	}
 
 	int drawDot = 3 - numDecimals;
-	if (drawDot >= NUMERIC_DISPLAY_LENGTH) {
+	if (drawDot >= kNumericDisplayLength) {
 		drawDot = 255;
 	}
 
@@ -1117,8 +1117,8 @@ void SampleMarkerEditor::displayText() {
 }
 #endif
 
-bool SampleMarkerEditor::renderMainPads(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
-                                        uint8_t occupancyMask[][displayWidth + sideBarWidth], bool drawUndefinedArea) {
+bool SampleMarkerEditor::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+                                        uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
 	if (!image) {
 		return true;
 	}
@@ -1130,13 +1130,13 @@ bool SampleMarkerEditor::renderMainPads(uint32_t whichRows, uint8_t image[][disp
 		MarkerColumn cols[kNumMarkerTypes];
 		getColsOnScreen(cols);
 
-		for (int xDisplay = 0; xDisplay < displayWidth; xDisplay++) {
+		for (int xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 			renderMarkersForOneCol(xDisplay, image, cols);
 		}
 
 		if (cols[util::to_underlying(markerType)].colOnScreen >= 0
-		    && cols[util::to_underlying(markerType)].colOnScreen < displayWidth) {
-			uiTimerManager.setTimer(TIMER_UI_SPECIFIC, SAMPLE_MARKER_BLINK_TIME);
+		    && cols[util::to_underlying(markerType)].colOnScreen < kDisplayWidth) {
+			uiTimerManager.setTimer(TIMER_UI_SPECIFIC, kSampleMarkerBlinkTime);
 		}
 	}
 

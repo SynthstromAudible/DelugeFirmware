@@ -33,7 +33,7 @@ LivePitchShifter::LivePitchShifter(OscType newInputType, int32_t phaseIncrement)
 	numChannels = (newInputType == OscType::INPUT_STEREO) ? 2 : 1;
 
 	if (phaseIncrement < 16777216) {
-		nextCrossfadeLength = samplesTilHopEnd = INTERPOLATION_MAX_NUM_SAMPLES * 2;
+		nextCrossfadeLength = samplesTilHopEnd = kInterpolationMaxNumSamples * 2;
 	}
 
 	else if (phaseIncrement < 17774841) { // If up by less than 1 semitone...
@@ -90,7 +90,7 @@ void LivePitchShifter::render(int32_t* __restrict__ outputBuffer, int numSamples
 		for (int i = 0; i < numSamplesThisFunctionCall; i++) {
 
 			// Shift contents of interpolation buffer along by 1
-			for (int b = INTERPOLATION_MAX_NUM_SAMPLES - 1; b >= 1; b--) {
+			for (int b = kInterpolationMaxNumSamples - 1; b >= 1; b--) {
 				interpolationBuffer[0][b] = interpolationBuffer[0][b - 1];
 				if (numChannels == 2) {
 					interpolationBuffer[1][b] = interpolationBuffer[1][b - 1];
@@ -196,17 +196,17 @@ startRenderAgain:
 		int howFarBack = playHeads[PLAY_HEAD_NEWER].getNumRawSamplesBehindInput(liveInputBuffer, this, phaseIncrement);
 
 		uint32_t newerPlayHeadPercPos =
-		    (liveInputBuffer->numRawSamplesProcessed - howFarBack - 1) >> PERC_BUFFER_REDUCTION_MAGNITUDE;
+		    (liveInputBuffer->numRawSamplesProcessed - howFarBack - 1) >> kPercBufferReductionMagnitude;
 
-		uint32_t latestPercPosBefore = (numRawSamplesProcessedAtStart - 1) >> PERC_BUFFER_REDUCTION_MAGNITUDE;
-		uint32_t latestPercPosNow = (liveInputBuffer->numRawSamplesProcessed - 1) >> PERC_BUFFER_REDUCTION_MAGNITUDE;
+		uint32_t latestPercPosBefore = (numRawSamplesProcessedAtStart - 1) >> kPercBufferReductionMagnitude;
+		uint32_t latestPercPosNow = (liveInputBuffer->numRawSamplesProcessed - 1) >> kPercBufferReductionMagnitude;
 
 		if (latestPercPosNow != newerPlayHeadPercPos
 		    && (newerPlayHeadPercPos != playHeads[PLAY_HEAD_NEWER].percPos
 		        || latestPercPosNow != latestPercPosBefore)) {
 
-			int percLatest = liveInputBuffer->percBuffer[latestPercPosNow & (INPUT_PERC_BUFFER_SIZE - 1)];
-			int percNewerPlayHead = liveInputBuffer->percBuffer[newerPlayHeadPercPos & (INPUT_PERC_BUFFER_SIZE - 1)];
+			int percLatest = liveInputBuffer->percBuffer[latestPercPosNow & (kInputPercBufferSize - 1)];
+			int percNewerPlayHead = liveInputBuffer->percBuffer[newerPlayHeadPercPos & (kInputPercBufferSize - 1)];
 
 			if (percLatest >= percNewerPlayHead + percThresholdForCut) {
 				/*
@@ -373,7 +373,7 @@ void LivePitchShifter::hopEnd(int32_t phaseIncrement, LiveInputBuffer* liveInput
 	}
 	//Debug::println(phaseIncrement);
 
-	//Debug::println((uint32_t)(liveInputBuffer->numRawSamplesProcessed - playHeads[PLAY_HEAD_NEWER].rawBufferReadPos) & (INPUT_RAW_BUFFER_SIZE - 1)); // How far behind raw buffer is being read
+	//Debug::println((uint32_t)(liveInputBuffer->numRawSamplesProcessed - playHeads[PLAY_HEAD_NEWER].rawBufferReadPos) & (kInputRawBufferSize - 1)); // How far behind raw buffer is being read
 
 	// What was new is now old
 	playHeads[PLAY_HEAD_OLDER] = playHeads[PLAY_HEAD_NEWER];
@@ -433,39 +433,39 @@ void LivePitchShifter::hopEnd(int32_t phaseIncrement, LiveInputBuffer* liveInput
 	// so that we can then fine-tune the position of the new play-head to match it
 
 	// First, work out the length we'd *like* to use for the moving averages
-	int lengthPerMovingAverage = ((uint64_t)phaseIncrement * TIME_STRETCH_CROSSFADE_MOVING_AVERAGE_LENGTH) >> 24;
+	int lengthPerMovingAverage = ((uint64_t)phaseIncrement * TimeStretch::Crossfade::kMovingAverageLength) >> 24;
 	lengthPerMovingAverage = getMax(lengthPerMovingAverage, 1);
 	lengthPerMovingAverage =
-	    getMin(lengthPerMovingAverage, TIME_STRETCH_CROSSFADE_MOVING_AVERAGE_LENGTH * 2); // Keep things sensible
+	    getMin(lengthPerMovingAverage, TimeStretch::Crossfade::kMovingAverageLength * 2); // Keep things sensible
 
 	// Ok, and this crossfade we're about to do, how long will it be in samples of (unpitched) source material?
 	int crossfadeLengthSamplesSource = ((uint64_t)thisCrossfadeLength * phaseIncrement) >> 24;
 
 	// What's the maximum amount further forward than that older play-head that data actually exists yet for us to examine?
 	int maxOffsetFromHead = (uint32_t)(numRawSamplesProcessedLatest - playHeads[PLAY_HEAD_OLDER].rawBufferReadPos)
-	                        & (INPUT_RAW_BUFFER_SIZE - 1);
+	                        & (kInputRawBufferSize - 1);
 
 	// Ok, work out the end-pos of our moving-averages region
 	int averagesEndOffsetFromHead = (crossfadeLengthSamplesSource >> 1)
-	                                + ((lengthPerMovingAverage * TIME_STRETCH_CROSSFADE_NUM_MOVING_AVERAGES) >> 1);
+	                                + ((lengthPerMovingAverage * TimeStretch::Crossfade::kNumMovingAverages) >> 1);
 	averagesEndOffsetFromHead = getMin(averagesEndOffsetFromHead,
 	                                   maxOffsetFromHead); // And make sure it's not beyond the end of the existent data
 
 	// We now know the length of the *total* moving-averages region, so divide down to get the length of *each* moving-average region
 	// If commenting out this next line, must make sure we still don't search back before we started writing to buffer
 	lengthPerMovingAverage =
-	    getMin(lengthPerMovingAverage, averagesEndOffsetFromHead >> 1); // / TIME_STRETCH_CROSSFADE_NUM_MOVING_AVERAGES
+	    getMin(lengthPerMovingAverage, averagesEndOffsetFromHead >> 1); // / TimeStretch::Crossfade::kNumMovingAverages
 
 	int averagesStartOffsetFromHead =
-	    averagesEndOffsetFromHead - (lengthPerMovingAverage * TIME_STRETCH_CROSSFADE_NUM_MOVING_AVERAGES);
+	    averagesEndOffsetFromHead - (lengthPerMovingAverage * TimeStretch::Crossfade::kNumMovingAverages);
 
-	int32_t oldHeadTotals[TIME_STRETCH_CROSSFADE_NUM_MOVING_AVERAGES];
+	int32_t oldHeadTotals[TimeStretch::Crossfade::kNumMovingAverages];
 
 	// Occasionally (if we've only just switched pitch shifting on), that'll be zero, so we can'd do the moving averages.
 	// But if it's ok, then...
 	if (lengthPerMovingAverage) {
 		int averagesStartPosOldHead =
-		    (playHeads[PLAY_HEAD_OLDER].rawBufferReadPos + averagesStartOffsetFromHead) & (INPUT_RAW_BUFFER_SIZE - 1);
+		    (playHeads[PLAY_HEAD_OLDER].rawBufferReadPos + averagesStartOffsetFromHead) & (kInputRawBufferSize - 1);
 		liveInputBuffer->getAveragesForCrossfade(oldHeadTotals, averagesStartPosOldHead, lengthPerMovingAverage,
 		                                         numChannels);
 	}
@@ -494,16 +494,16 @@ void LivePitchShifter::hopEnd(int32_t phaseIncrement, LiveInputBuffer* liveInput
 			    (multiply_32x32_rshift32(minSearch, multiply_32x32_rshift32(getNoise(), randomElement << 8)) << 2);
 #endif
 
-			int backEdge = minSearch >> PERC_BUFFER_REDUCTION_MAGNITUDE; // Pixellated
+			int backEdge = minSearch >> kPercBufferReductionMagnitude; // Pixellated
 			int howFarBackSearched = 0;
 			int percPos =
-			    (numRawSamplesProcessedAtNowTime + PERC_BUFFER_REDUCTION_SIZE - 1) >> PERC_BUFFER_REDUCTION_MAGNITUDE;
+			    (numRawSamplesProcessedAtNowTime + kPercBufferReductionSize - 1) >> kPercBufferReductionMagnitude;
 
 			uint32_t totalPerc = 0;
 			float bestAverage = 0;
-			int bestHowFarBack = minSearch >> PERC_BUFFER_REDUCTION_MAGNITUDE; // Pixellated
+			int bestHowFarBack = minSearch >> kPercBufferReductionMagnitude; // Pixellated
 
-			while (backEdge < (maxSearch >> PERC_BUFFER_REDUCTION_MAGNITUDE)) {
+			while (backEdge < (maxSearch >> kPercBufferReductionMagnitude)) {
 
 				while (howFarBackSearched < backEdge) {
 					howFarBackSearched++;
@@ -512,7 +512,7 @@ void LivePitchShifter::hopEnd(int32_t phaseIncrement, LiveInputBuffer* liveInput
 					}
 					int percHere =
 					    liveInputBuffer
-					        ->percBuffer[(uint32_t)(percPos - howFarBackSearched) & (PERC_BUFFER_REDUCTION_SIZE - 1)];
+					        ->percBuffer[(uint32_t)(percPos - howFarBackSearched) & (kPercBufferReductionSize - 1)];
 					totalPerc += percHere;
 				}
 
@@ -529,7 +529,7 @@ void LivePitchShifter::hopEnd(int32_t phaseIncrement, LiveInputBuffer* liveInput
 
 stopPercSearch:
 
-			howFarBack = bestHowFarBack << PERC_BUFFER_REDUCTION_MAGNITUDE;
+			howFarBack = bestHowFarBack << kPercBufferReductionMagnitude;
 		}
 
 		else {
@@ -547,7 +547,7 @@ stopPercSearch:
 
 		int minDistanceBack = numRawSamplesProcessedAtNowTime - numRawSamplesProcessedLatest
 		                      + averagesStartOffsetFromHead
-		                      + (lengthPerMovingAverage * TIME_STRETCH_CROSSFADE_NUM_MOVING_AVERAGES);
+		                      + (lengthPerMovingAverage * TimeStretch::Crossfade::kNumMovingAverages);
 		howFarBack = getMax(howFarBack, minDistanceBack);
 
 		if (howFarBack > numRawSamplesProcessedAtNowTime) {
@@ -556,7 +556,7 @@ stopPercSearch:
 
 		if (lengthPerMovingAverage) {
 			averagesStartPosNewHead = (numRawSamplesProcessedAtNowTime - howFarBack + averagesStartOffsetFromHead)
-			                          & (INPUT_RAW_BUFFER_SIZE - 1);
+			                          & (kInputRawBufferSize - 1);
 			searchSize = 490; // Allow tracking down to about 45Hz
 #if !MEASURE_HOP_END_PERFORMANCE
 			searchSize = getMin(searchSize, samplesTilHopEnd);
@@ -566,7 +566,7 @@ stopPercSearch:
 		}
 
 		playHeads[PLAY_HEAD_NEWER].rawBufferReadPos =
-		    (uint32_t)(numRawSamplesProcessedAtNowTime - howFarBack) & (INPUT_RAW_BUFFER_SIZE - 1);
+		    (uint32_t)(numRawSamplesProcessedAtNowTime - howFarBack) & (kInputRawBufferSize - 1);
 	}
 
 	// Or if pitch shifting down...
@@ -575,8 +575,8 @@ stopPercSearch:
 
 		if (lengthPerMovingAverage) {
 			averagesStartPosNewHead =
-			    (numRawSamplesProcessedLatest - lengthPerMovingAverage * TIME_STRETCH_CROSSFADE_NUM_MOVING_AVERAGES)
-			    & (INPUT_RAW_BUFFER_SIZE - 1);
+			    (numRawSamplesProcessedLatest - lengthPerMovingAverage * TimeStretch::Crossfade::kNumMovingAverages)
+			    & (kInputRawBufferSize - 1);
 			searchSize = 980; // Allow tracking down to about 45Hz
 #if !MEASURE_HOP_END_PERFORMANCE
 			searchSize = getMin(searchSize, samplesIntoHop);
@@ -587,9 +587,9 @@ stopPercSearch:
 
 		playHeads[PLAY_HEAD_NEWER].rawBufferReadPos =
 		    (uint32_t)(numRawSamplesProcessedLatest
-		               - (lengthPerMovingAverage * TIME_STRETCH_CROSSFADE_NUM_MOVING_AVERAGES)
+		               - (lengthPerMovingAverage * TimeStretch::Crossfade::kNumMovingAverages)
 		               - averagesStartOffsetFromHead)
-		    & (INPUT_RAW_BUFFER_SIZE - 1);
+		    & (kInputRawBufferSize - 1);
 	}
 
 	int32_t bestOffset = 0;
@@ -602,17 +602,17 @@ stopPercSearch:
 		// Ok, and now we're going to get that moving-average info for the new play-head in the position where we're currently proposing we put it -
 		// but we're then going to experiment with shifting that, below
 
-		if (((uint32_t)(averagesStartPosNewHead - averagesStartOffsetFromHead) & (INPUT_RAW_BUFFER_SIZE - 1))
+		if (((uint32_t)(averagesStartPosNewHead - averagesStartOffsetFromHead) & (kInputRawBufferSize - 1))
 		    >= numRawSamplesProcessedLatest) {
 			goto stopSearch;
 		}
 
 		if ((uint32_t)(numRawSamplesProcessedLatest - averagesStartPosNewHead)
-		    & (INPUT_RAW_BUFFER_SIZE - 1) < lengthPerMovingAverage * TIME_STRETCH_CROSSFADE_NUM_MOVING_AVERAGES) {
+		    & (kInputRawBufferSize - 1) < lengthPerMovingAverage * TimeStretch::Crossfade::kNumMovingAverages) {
 			goto stopSearch;
 		}
 
-		int32_t newHeadTotals[TIME_STRETCH_CROSSFADE_NUM_MOVING_AVERAGES];
+		int32_t newHeadTotals[TimeStretch::Crossfade::kNumMovingAverages];
 		liveInputBuffer->getAveragesForCrossfade(newHeadTotals, averagesStartPosNewHead, lengthPerMovingAverage,
 		                                         numChannels);
 
@@ -624,17 +624,17 @@ stopPercSearch:
 startSearch:
 		int32_t lastTotalChange = initialTotalChange;
 
-		int readPos[TIME_STRETCH_CROSSFADE_NUM_MOVING_AVERAGES + 1];
+		int readPos[TimeStretch::Crossfade::kNumMovingAverages + 1];
 
 		readPos[0] = averagesStartPosNewHead;
 		if (searchDirection == -1) {
-			readPos[0] = (uint32_t)(readPos[0] - 1) & (INPUT_RAW_BUFFER_SIZE - 1);
+			readPos[0] = (uint32_t)(readPos[0] - 1) & (kInputRawBufferSize - 1);
 		}
 
-		int32_t newHeadRunningTotals[TIME_STRETCH_CROSSFADE_NUM_MOVING_AVERAGES];
-		for (int i = 0; i < TIME_STRETCH_CROSSFADE_NUM_MOVING_AVERAGES; i++) {
+		int32_t newHeadRunningTotals[TimeStretch::Crossfade::kNumMovingAverages];
+		for (int i = 0; i < TimeStretch::Crossfade::kNumMovingAverages; i++) {
 			newHeadRunningTotals[i] = newHeadTotals[i];
-			readPos[i + 1] = (uint32_t)(readPos[i] + lengthPerMovingAverage) & (INPUT_RAW_BUFFER_SIZE - 1);
+			readPos[i + 1] = (uint32_t)(readPos[i] + lengthPerMovingAverage) & (kInputRawBufferSize - 1);
 		}
 
 		int offsetNow = 0;
@@ -642,7 +642,7 @@ startSearch:
 
 		int searchSizeBoundary = searchSize;
 		if (searchDirection == -1) {
-			if (numRawSamplesProcessedLatest < INPUT_RAW_BUFFER_SIZE) { // Is this right?
+			if (numRawSamplesProcessedLatest < kInputRawBufferSize) { // Is this right?
 				searchSizeBoundary =
 				    averagesStartPosNewHead - averagesStartOffsetFromHead
 				    - 1; // The -1 is becacuse of the 1 we subtract from readPos[0] above when searching left
@@ -653,8 +653,8 @@ startSearch:
 		}
 		else {
 			searchSizeBoundary =
-			    (uint32_t)(numRawSamplesProcessedLatest - readPos[TIME_STRETCH_CROSSFADE_NUM_MOVING_AVERAGES + 1])
-			    & (INPUT_RAW_BUFFER_SIZE - 1);
+			    (uint32_t)(numRawSamplesProcessedLatest - readPos[TimeStretch::Crossfade::kNumMovingAverages + 1])
+			    & (kInputRawBufferSize - 1);
 		}
 
 		{
@@ -664,16 +664,16 @@ startSearch:
 
 		do {
 
-			for (int i = 0; i < TIME_STRETCH_CROSSFADE_NUM_MOVING_AVERAGES + 1; i++) {
+			for (int i = 0; i < TimeStretch::Crossfade::kNumMovingAverages + 1; i++) {
 
 				int32_t readValue = liveInputBuffer->rawBuffer[readPos[i] * numChannels] >> 16;
 				if (numChannels == 2) {
 					readValue += liveInputBuffer->rawBuffer[readPos[i] * 2 + 1] >> 16;
 				}
 
-				readPos[i] = (uint32_t)(readPos[i] + searchDirection) & (INPUT_RAW_BUFFER_SIZE - 1);
+				readPos[i] = (uint32_t)(readPos[i] + searchDirection) & (kInputRawBufferSize - 1);
 
-				if (i < TIME_STRETCH_CROSSFADE_NUM_MOVING_AVERAGES) {
+				if (i < TimeStretch::Crossfade::kNumMovingAverages) {
 					newHeadRunningTotals[i] -= readValue * searchDirection;
 				}
 
@@ -752,7 +752,7 @@ stopSearch:
 	}
 
 	playHeads[PLAY_HEAD_NEWER].rawBufferReadPos =
-	    (uint32_t)(playHeads[PLAY_HEAD_NEWER].rawBufferReadPos + bestOffset) & (INPUT_RAW_BUFFER_SIZE - 1);
+	    (uint32_t)(playHeads[PLAY_HEAD_NEWER].rawBufferReadPos + bestOffset) & (kInputRawBufferSize - 1);
 
 #if INPUT_ENABLE_REPITCHED_BUFFER
 	// If pitching up, use repitched buffer if possible
@@ -770,7 +770,7 @@ stopSearch:
 
 	if (phaseIncrement == 16777216) {
 		playHeads[PLAY_HEAD_NEWER].mode = PLAY_HEAD_MODE_RAW_DIRECT;
-		playHeads[PLAY_HEAD_NEWER].rawBufferReadPos = numRawSamplesProcessedAtNowTime & (INPUT_RAW_BUFFER_SIZE - 1);
+		playHeads[PLAY_HEAD_NEWER].rawBufferReadPos = numRawSamplesProcessedAtNowTime & (kInputRawBufferSize - 1);
 		Debug::println("raw hop");
 	}
 

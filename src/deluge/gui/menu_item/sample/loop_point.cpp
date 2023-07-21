@@ -17,6 +17,7 @@
 
 #include "loop_point.h"
 
+#include "gui/menu_item/menu_item.h"
 #include "storage/audio/audio_file_holder.h"
 #include "processing/sound/sound.h"
 #include "gui/ui/keyboard_screen.h"
@@ -34,19 +35,19 @@ bool LoopPoint::isRelevant(Sound* sound, int whichThing) {
 	return (sound->getSynthMode() == SynthMode::SUBTRACTIVE && source->oscType == OscType::SAMPLE);
 }
 
-int LoopPoint::checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) {
+MenuPermission LoopPoint::checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) {
 
 	if (!isRelevant(sound, whichThing)) {
-		return MENU_PERMISSION_NO;
+		return MenuPermission::NO;
 	}
 
-	int permission =
+	MenuPermission permission =
 	    soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(sound, whichThing, true, currentRange);
 
 	// Before going ahead, make sure a Sample is loaded
-	if (permission == MENU_PERMISSION_YES) {
+	if (permission == MenuPermission::YES) {
 		if (!(*currentRange)->getAudioFileHolder()->audioFile) {
-			permission = MENU_PERMISSION_NO;
+			permission = MenuPermission::NO;
 		}
 	}
 

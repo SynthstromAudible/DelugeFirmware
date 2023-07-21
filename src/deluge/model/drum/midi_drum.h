@@ -26,7 +26,7 @@ public:
 	void noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, Kit* kit, int16_t const* mpeValues,
 	            int fromMIDIChannel = MIDI_CHANNEL_NONE, uint32_t sampleSyncLength = 0, int32_t ticksLate = 0,
 	            uint32_t samplesLate = 0);
-	void noteOff(ModelStackWithThreeMainThings* modelStack, int velocity = DEFAULT_LIFT_VALUE);
+	void noteOff(ModelStackWithThreeMainThings* modelStack, int velocity = kDefaultLiftValue);
 	void writeToFile(bool savingSong, ParamManager* paramManager);
 	int readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos);
 	void getName(char* buffer);

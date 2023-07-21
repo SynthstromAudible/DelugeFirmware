@@ -116,7 +116,7 @@ void RenameOutputUI::exitUI() {
 ActionResult RenameOutputUI::padAction(int x, int y, int on) {
 
 	// Main pad
-	if (x < displayWidth) {
+	if (x < kDisplayWidth) {
 		return QwertyUI::padAction(x, y, on);
 	}
 

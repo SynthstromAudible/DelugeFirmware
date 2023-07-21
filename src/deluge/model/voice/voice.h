@@ -36,21 +36,21 @@ public:
 	Patcher patcher;
 
 	// Stores all oscillator positions and stuff, for each Source within each Unison too
-	VoiceUnisonPart unisonParts[maxNumUnison];
+	VoiceUnisonPart unisonParts[kMaxNumVoicesUnison];
 
 	// Stores overall info on each Source (basically just sample memory bounds), for the play-through associated with this Voice right now.
-	VoiceSamplePlaybackGuide guides[NUM_SOURCES];
+	VoiceSamplePlaybackGuide guides[kNumSources];
 
 	Sound* assignedToSound;
 
-	int32_t paramFinalValues[FIRST_GLOBAL_PARAM]; // This is just for the *local* params, specific to this Voice only
+	int32_t paramFinalValues[Param::Global::FIRST]; // This is just for the *local* params, specific to this Voice only
 
 	// At the start of this list are local copies of the "global" ones. It's cheaper to copy them here than to pick and choose where the Patcher looks for them
 	int32_t sourceValues[kNumPatchSources];
 
-	int32_t localExpressionSourceValuesBeforeSmoothing[NUM_EXPRESSION_DIMENSIONS];
+	int32_t localExpressionSourceValuesBeforeSmoothing[kNumExpressionDimensions];
 
-	Envelope envelopes[numEnvelopes];
+	Envelope envelopes[kNumEnvelopes];
 	LFO lfo;
 
 	FilterSet filterSets[2];
@@ -63,9 +63,9 @@ public:
 	uint32_t lastSaturationTanHWorkingValue[2];
 
 	int32_t overallOscAmplitudeLastTime;
-	int32_t sourceAmplitudesLastTime[NUM_SOURCES];
-	int32_t modulatorAmplitudeLastTime[numModulators];
-	uint32_t sourceWaveIndexesLastTime[NUM_SOURCES];
+	int32_t sourceAmplitudesLastTime[kNumSources];
+	int32_t modulatorAmplitudeLastTime[kNumModulators];
+	uint32_t sourceWaveIndexesLastTime[kNumSources];
 
 	int32_t filterGainLastTime;
 

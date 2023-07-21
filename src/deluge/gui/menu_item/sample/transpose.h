@@ -59,17 +59,17 @@ public:
 
 		soundEditor.currentSound->recalculateAllVoicePhaseIncrements(modelStack);
 	}
-	int checkPermissionToBeginSession(Sound* sound, int whichThing, ::MultiRange** currentRange) {
+	MenuPermission checkPermissionToBeginSession(Sound* sound, int whichThing, ::MultiRange** currentRange) {
 
 		if (!isRelevant(sound, whichThing)) {
-			return MENU_PERMISSION_NO;
+			return MenuPermission::NO;
 		}
 
 		Source* source = &sound->sources[whichThing];
 
 		if (sound->getSynthMode() == SynthMode::FM
 		    || (source->oscType != OscType::SAMPLE && source->oscType != OscType::WAVETABLE))
-			return MENU_PERMISSION_YES;
+			return MenuPermission::YES;
 
 		return soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(sound, whichThing, true, currentRange);
 	}

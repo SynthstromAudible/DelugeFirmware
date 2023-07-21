@@ -62,10 +62,10 @@ AudioFileManager audioFileManager{};
 
 AudioFileManager::AudioFileManager() {
 	cardDisabled = false;
-	alternateLoadDirStatus = ALTERNATE_LOAD_DIR_NONE_SET;
+	alternateLoadDirStatus = AlternateLoadDirStatus::NONE_SET;
 	thingTypeBeingLoaded = ThingType::NONE;
 
-	for (int i = 0; i < NUM_AUDIO_RECORDING_FOLDERS; i++) {
+	for (int i = 0; i < kNumAudioRecordingFolders; i++) {
 		highestUsedAudioRecordingNumber[i] = -1;
 		highestUsedAudioRecordingNumberNeedsReChecking[i] = true;
 	}
@@ -111,7 +111,7 @@ void AudioFileManager::setClusterSize(uint32_t newSize) {
 void AudioFileManager::cardReinserted() {
 
 	cardDisabled = false;
-	for (int i = 0; i < NUM_AUDIO_RECORDING_FOLDERS; i++) {
+	for (int i = 0; i < kNumAudioRecordingFolders; i++) {
 		highestUsedAudioRecordingNumberNeedsReChecking[i] = true;
 	}
 
@@ -543,8 +543,8 @@ waveTableCloneError:
 	else {
 
 		// If we're loading a preset (not a Song, and not just browsing audio files), we should search in memory for the alternate path
-		if (alternateLoadDirStatus == ALTERNATE_LOAD_DIR_MIGHT_EXIST
-		    || alternateLoadDirStatus == ALTERNATE_LOAD_DIR_DOES_EXIST) {
+		if (alternateLoadDirStatus == AlternateLoadDirStatus::MIGHT_EXIST
+		    || alternateLoadDirStatus == AlternateLoadDirStatus::DOES_EXIST) {
 			if (thingTypeBeingLoaded != ThingType::SONG) {
 				String searchPath;
 				searchPath.set(&alternateAudioFileLoadPath);
@@ -604,7 +604,7 @@ tryLoadingFromCard:
 		FRESULT result;
 
 		// If we know the alternate load directory actually exists, then we should try that first, cos there's a high chance the file is in there
-		if (alternateLoadDirStatus == ALTERNATE_LOAD_DIR_DOES_EXIST) {
+		if (alternateLoadDirStatus == AlternateLoadDirStatus::DOES_EXIST) {
 
 tryAlternateDoesExist:
 			String proposedFileName;
@@ -684,15 +684,15 @@ tryRegular:
 			// If that didn't work, try the alternate load directory, if we didn't already and it potentially exists
 			if (result != FR_OK) {
 
-				if (alternateLoadDirStatus == ALTERNATE_LOAD_DIR_MIGHT_EXIST) {
+				if (alternateLoadDirStatus == AlternateLoadDirStatus::MIGHT_EXIST) {
 
 					result = f_opendir(&alternateLoadDir, alternateAudioFileLoadPath.get());
 					if (result != FR_OK) {
-						alternateLoadDirStatus = ALTERNATE_LOAD_DIR_NOT_FOUND;
+						alternateLoadDirStatus = AlternateLoadDirStatus::NOT_FOUND;
 						goto notFound;
 					}
 
-					alternateLoadDirStatus = ALTERNATE_LOAD_DIR_DOES_EXIST;
+					alternateLoadDirStatus = AlternateLoadDirStatus::DOES_EXIST;
 
 					alreadyTriedRegular = true;
 					goto tryAlternateDoesExist;
@@ -718,7 +718,7 @@ cantLoadFile:
 	}
 
 	// Files bigger than 1GB not allowed
-	else if (effectiveFilePointer.objsize > MAX_FILE_SIZE) {
+	else if (effectiveFilePointer.objsize > kMaxFileSize) {
 		*error = ERROR_FILE_TOO_BIG;
 		goto cantLoadFile;
 	}
@@ -1417,12 +1417,12 @@ bool AudioFileManager::loadingQueueHasAnyLowestPriorityElements() {
 
 // Caller must also set alternateAudioFileLoadPath.
 void AudioFileManager::thingBeginningLoading(ThingType newThingType) {
-	alternateLoadDirStatus = ALTERNATE_LOAD_DIR_MIGHT_EXIST;
+	alternateLoadDirStatus = AlternateLoadDirStatus::MIGHT_EXIST;
 	thingTypeBeingLoaded = newThingType;
 }
 
 void AudioFileManager::thingFinishedLoading() {
 	alternateAudioFileLoadPath.clear();
-	alternateLoadDirStatus = ALTERNATE_LOAD_DIR_NONE_SET;
+	alternateLoadDirStatus = AlternateLoadDirStatus::NONE_SET;
 	thingTypeBeingLoaded = ThingType::NONE;
 }

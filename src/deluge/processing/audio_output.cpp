@@ -87,7 +87,7 @@ void AudioOutput::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* m
 		AudioClip* activeAudioClip = (AudioClip*)activeClip;
 		if (activeAudioClip->voiceSample) {
 
-			int32_t attackNeutralValue = paramNeutralValues[PARAM_LOCAL_ENV_0_ATTACK];
+			int32_t attackNeutralValue = paramNeutralValues[Param::Local::ENV_0_ATTACK];
 			int32_t attack = getExp(attackNeutralValue, -(activeAudioClip->attack >> 2));
 
 renderEnvelope:

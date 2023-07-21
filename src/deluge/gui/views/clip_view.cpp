@@ -176,7 +176,7 @@ ActionResult ClipView::horizontalEncoderAction(int offset) {
 			newLength = getPosFromSquare(endSquare) + getLengthExtendAmount(endSquare);
 
 			// If we're still within limits
-			if (newLength <= (uint32_t)MAX_SEQUENCE_LENGTH) {
+			if (newLength <= (uint32_t)kMaxSequenceLength) {
 
 				action = lengthenClip(newLength);
 
@@ -337,7 +337,7 @@ int ClipView::getTickSquare() {
 	// See if we maybe want to do an auto-scroll
 	if (getCurrentClip()->getCurrentlyRecordingLinearly()) {
 
-		if (newTickSquare == displayWidth && (!currentUIMode || currentUIMode == UI_MODE_AUDITIONING)
+		if (newTickSquare == kDisplayWidth && (!currentUIMode || currentUIMode == UI_MODE_AUDITIONING)
 		    && getCurrentUI() == this && // currentPlaybackMode == &session &&
 		    (getCurrentClip()->armState == ArmState::OFF || xScrollBeforeFollowingAutoExtendingLinearRecording != -1)) {
 
@@ -346,7 +346,7 @@ int ClipView::getTickSquare() {
 			}
 
 			int32_t newXScroll =
-			    currentSong->xScroll[NAVIGATION_CLIP] + currentSong->xZoom[NAVIGATION_CLIP] * displayWidth;
+			    currentSong->xScroll[NAVIGATION_CLIP] + currentSong->xZoom[NAVIGATION_CLIP] * kDisplayWidth;
 
 			horizontalScrollForLinearRecording(newXScroll);
 		}

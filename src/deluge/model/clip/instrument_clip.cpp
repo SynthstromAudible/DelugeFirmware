@@ -111,7 +111,7 @@ InstrumentClip::InstrumentClip(Song* song) : Clip(CLIP_TYPE_INSTRUMENT) {
 		yScroll =
 		    0; // Only for safety. Shouldn't actually get here if we're not going to overwrite this elsewhere I think...
 	}
-	yScrollKeyboardScreen = 60 - (displayHeight >> 2) * keyboardRowInterval;
+	yScrollKeyboardScreen = 60 - (kDisplayHeight >> 2) * keyboardRowInterval;
 
 	instrumentTypeWhileLoading = InstrumentType::SYNTH; // NOTE: (Kate) was 0, should probably be NONE
 }
@@ -471,7 +471,7 @@ int InstrumentClip::beginLinearRecording(ModelStackWithTimelineCounter* modelSta
 
 					ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowIndex, noteRow);
 
-					noteRow->attemptNoteAdd(0, 1, velocity, NUM_PROBABILITY_VALUES, modelStackWithNoteRow, action);
+					noteRow->attemptNoteAdd(0, 1, velocity, kNumProbabilityValues, modelStackWithNoteRow, action);
 					if (!thisDrum->earlyNoteStillActive) {
 						Debug::println("skipping next note");
 						noteRow->skipNextNote = true;
@@ -496,7 +496,7 @@ int InstrumentClip::beginLinearRecording(ModelStackWithTimelineCounter* modelSta
 				NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
 				if (noteRow) {
 
-					noteRow->attemptNoteAdd(0, 1, basicNote->velocity, NUM_PROBABILITY_VALUES, modelStackWithNoteRow,
+					noteRow->attemptNoteAdd(0, 1, basicNote->velocity, kNumProbabilityValues, modelStackWithNoteRow,
 					                        action);
 					if (!basicNote->stillActive) {
 						noteRow->skipNextNote = true;
@@ -736,7 +736,7 @@ void InstrumentClip::processCurrentPos(ModelStackWithTimelineCounter* modelStack
 		noteRowsNumTicksBehindClip = 0;
 
 		// Count up how many of each probability there are
-		uint8_t probabilityCount[NUM_PROBABILITY_VALUES];
+		uint8_t probabilityCount[kNumProbabilityValues];
 		memset(probabilityCount, 0, sizeof(probabilityCount));
 
 		// Check whether special case where all probability adds up to 100%
@@ -748,7 +748,7 @@ void InstrumentClip::processCurrentPos(ModelStackWithTimelineCounter* modelStack
 		for (int i = 0; i < pendingNoteOnList.count; i++) {
 
 			// If we found a 100%, we know we're not doing sum-to-100
-			if (pendingNoteOnList.pendingNoteOns[i].probability >= NUM_PROBABILITY_VALUES) {
+			if (pendingNoteOnList.pendingNoteOns[i].probability >= kNumProbabilityValues) {
 				goto skipDoingSumTo100;
 			}
 
@@ -764,10 +764,10 @@ void InstrumentClip::processCurrentPos(ModelStackWithTimelineCounter* modelStack
 			probabilityCount[pendingNoteOnList.pendingNoteOns[i].probability - 1]++;
 		}
 
-		doingSumTo100 = (probabilitySum == NUM_PROBABILITY_VALUES);
+		doingSumTo100 = (probabilitySum == kNumProbabilityValues);
 
 		if (doingSumTo100) {
-			int probabilityValueForSummers = ((unsigned int)getRandom255() * NUM_PROBABILITY_VALUES) >> 8;
+			int probabilityValueForSummers = ((unsigned int)getRandom255() * kNumProbabilityValues) >> 8;
 
 			int probabilitySumSecondPass = 0;
 
@@ -808,7 +808,7 @@ skipDoingSumTo100:
 			bool conditionPassed;
 
 			// If it's a 100%, which usually will be the case...
-			if (pendingNoteOnList.pendingNoteOns[i].probability == NUM_PROBABILITY_VALUES) {
+			if (pendingNoteOnList.pendingNoteOns[i].probability == kNumProbabilityValues) {
 				conditionPassed = true;
 			}
 
@@ -817,7 +817,7 @@ skipDoingSumTo100:
 				int probability = pendingNoteOnList.pendingNoteOns[i].probability & 127;
 
 				// If it's an iteration dependence...
-				if (probability > NUM_PROBABILITY_VALUES) {
+				if (probability > kNumProbabilityValues) {
 
 					int divisor, iterationWithinDivisor;
 					dissectIterationDependence(probability, &divisor, &iterationWithinDivisor);
@@ -862,11 +862,11 @@ doNewProbability:
 
 							// Otherwise, decide it now
 							else {
-								int probabilityValue = ((unsigned int)getRandom255() * NUM_PROBABILITY_VALUES) >> 8;
+								int probabilityValue = ((unsigned int)getRandom255() * kNumProbabilityValues) >> 8;
 								conditionPassed = (probabilityValue < probability);
 
-								lastProbabilities[NUM_PROBABILITY_VALUES - probability] = !conditionPassed;
-								lastProbabiltyPos[NUM_PROBABILITY_VALUES - probability] = lastProcessedPos;
+								lastProbabilities[kNumProbabilityValues - probability] = !conditionPassed;
+								lastProbabiltyPos[kNumProbabilityValues - probability] = lastProcessedPos;
 
 								lastProbabilities[probability] = conditionPassed;
 								lastProbabiltyPos[probability] = lastProcessedPos;
@@ -898,7 +898,7 @@ void InstrumentClip::sendPendingNoteOn(ModelStackWithTimelineCounter* modelStack
 	ModelStackWithNoteRow* modelStackWithNoteRow =
 	    modelStack->addNoteRow(pendingNoteOn->noteRowId, pendingNoteOn->noteRow);
 
-	int16_t mpeValues[NUM_EXPRESSION_DIMENSIONS];
+	int16_t mpeValues[kNumExpressionDimensions];
 	pendingNoteOn->noteRow->getMPEValues(modelStackWithNoteRow, mpeValues);
 
 	if (output->type == InstrumentType::KIT) {
@@ -1154,18 +1154,18 @@ void InstrumentClip::expectNoFurtherTicks(Song* song, bool actuallySoundChange) 
 		}
 	}
 
-#if PLAYBACK_STOP_SHOULD_CLEAR_MONO_EXPRESSION
-	else if (output->type == InstrumentType::SYNTH || output->type == InstrumentType::CV) {
-		ParamCollectionSummary* expressionParamsSummary = paramManager.getExpressionParamSetSummary();
-		if (expressionParamsSummary->paramCollection) {
-			ModelStackWithParamCollection* modelStackWithParamCollection =
-			    modelStackWithThreeMainThings->addParamCollectionSummary(expressionParamsSummary);
+	else if constexpr (PLAYBACK_STOP_SHOULD_CLEAR_MONO_EXPRESSION) {
+		if (output->type == InstrumentType::SYNTH || output->type == InstrumentType::CV) {
+			ParamCollectionSummary* expressionParamsSummary = paramManager.getExpressionParamSetSummary();
+			if (expressionParamsSummary->paramCollection) {
+				ModelStackWithParamCollection* modelStackWithParamCollection =
+				    modelStackWithThreeMainThings->addParamCollectionSummary(expressionParamsSummary);
 
-			((ExpressionParamSet*)modelStackWithParamCollection->paramCollection)
-			    ->clearValues(modelStackWithParamCollection);
+				((ExpressionParamSet*)modelStackWithParamCollection->paramCollection)
+				    ->clearValues(modelStackWithParamCollection);
+			}
 		}
 	}
-#endif
 
 	currentlyRecordingLinearly = false;
 }
@@ -1298,7 +1298,7 @@ bool InstrumentClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack
 
 	// Special case if we're a simple keyboard-mode Clip
 	if (onKeyboardScreen && !containsAnyNotes()) {
-		int increment = (displayWidth + (displayHeight * keyboardRowInterval)) / displayWidth;
+		int increment = (kDisplayWidth + (kDisplayHeight * keyboardRowInterval)) / kDisplayWidth;
 		for (int x = xStart; x < xEnd; x++) {
 			getMainColourFromY(yScrollKeyboardScreen + x * increment, 0, &image[x * 3]);
 		}
@@ -1351,10 +1351,11 @@ bool InstrumentClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack
 		}
 
 		thisNoteRow->renderRow(editorScreen, mainColour, tailColour, blurColour, image, occupancyMask, false,
-		                       loopLength, rowAllowsNoteTails, displayWidth, xScroll, xZoom, xStart, xEnd, drawRepeats);
+		                       loopLength, rowAllowsNoteTails, kDisplayWidth, xScroll, xZoom, xStart, xEnd,
+		                       drawRepeats);
 	}
 	if (addUndefinedArea) {
-		drawUndefinedArea(xScroll, xZoom, loopLength, image, occupancyMask, displayWidth, editorScreen,
+		drawUndefinedArea(xScroll, xZoom, loopLength, image, occupancyMask, kDisplayWidth, editorScreen,
 		                  currentSong->tripletsOn);
 	}
 
@@ -1510,7 +1511,7 @@ int InstrumentClip::setInstrument(Instrument* newInstrument, Song* song, ParamMa
 
 void InstrumentClip::prepareToEnterKitMode(Song* song) {
 	// Make sure all rows on screen have a NoteRow. Any RAM problems and we'll just quit
-	for (int yDisplay = 0; yDisplay < displayHeight; yDisplay++) {
+	for (int yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 		NoteRow* noteRow = getNoteRowOnScreen(yDisplay, song);
 		if (!noteRow) {
 			noteRow = createNewNoteRowForYVisual(yDisplay + yScroll, song);
@@ -1526,7 +1527,7 @@ void InstrumentClip::prepareToEnterKitMode(Song* song) {
 
 		int yDisplay = getYVisualFromYNote(thisNoteRow->y, song) - yScroll;
 
-		if ((yDisplay < 0 || yDisplay >= displayHeight) && thisNoteRow->hasNoNotes()) {
+		if ((yDisplay < 0 || yDisplay >= kDisplayHeight) && thisNoteRow->hasNoNotes()) {
 			noteRows.deleteNoteRowAtIndex(i);
 		}
 		else {
@@ -2300,7 +2301,7 @@ someError:
 	String instrumentPresetDirPath;
 	bool dirPathHasBeenSpecified = false;
 
-	int32_t readAutomationUpToPos = MAX_SEQUENCE_LENGTH;
+	int32_t readAutomationUpToPos = kMaxSequenceLength;
 
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 		//Debug::println(tagName); delayMS(30);
@@ -2672,7 +2673,7 @@ doReadBendRange:
 				// No break
 
 			case InstrumentType::CV:
-				((NonAudioInstrument*)output)->channel = getMin(numInstrumentSlots, getMax(0, instrumentPresetSlot));
+				((NonAudioInstrument*)output)->channel = getMin(kNumInstrumentSlots, getMax(0, instrumentPresetSlot));
 				break;
 
 			case InstrumentType::SYNTH:
@@ -2817,7 +2818,7 @@ expressionParam:
 					}
 					else {
 						paramId = stringToInt(contents);
-						if (paramId < NUM_REAL_CC_NUMBERS) {
+						if (paramId < kNumRealCCNumbers) {
 							if (paramId == 74) {
 								paramId = 1;
 								goto expressionParam;
@@ -3062,7 +3063,7 @@ int16_t InstrumentClip::getBottomYNote() {
 uint32_t InstrumentClip::getWrapEditLevel() {
 	return wrapEditing
 	           ? wrapEditLevel
-	           : MAX_SEQUENCE_LENGTH; // Used to return the Clip length in this case, but that causes problems now that NoteRows may be longer.
+	           : kMaxSequenceLength; // Used to return the Clip length in this case, but that causes problems now that NoteRows may be longer.
 }
 
 bool InstrumentClip::hasSameInstrument(InstrumentClip* otherClip) {
@@ -3341,8 +3342,8 @@ void InstrumentClip::deleteOldDrumNames() {
 }
 
 void InstrumentClip::ensureScrollWithinKitBounds() {
-	if (yScroll < 1 - displayHeight) {
-		yScroll = 1 - displayHeight;
+	if (yScroll < 1 - kDisplayHeight) {
+		yScroll = 1 - kDisplayHeight;
 	}
 	else {
 		int maxYScroll = getNumNoteRows() - 1;
@@ -3526,7 +3527,7 @@ displayError:
 	// Turning into Kit
 	if (newInstrumentType == InstrumentType::KIT) {
 		// Make sure we're not scrolled too far up (this has to happen amongst this code down here - NoteRows are deleted in the functions called above)
-		int maxScroll = (int)getNumNoteRows() - displayHeight;
+		int maxScroll = (int)getNumNoteRows() - kDisplayHeight;
 		maxScroll = getMax(0, maxScroll);
 		yScroll = getMin(yScroll, maxScroll);
 		((Kit*)newInstrument)->selectedDrum = NULL;
@@ -3706,15 +3707,15 @@ haveNoDrum:
 
 							PatchedParamSet* patchedParams = thisNoteRow->paramManager.getPatchedParamSet();
 
-							for (int s = 0; s < NUM_SOURCES; s++) {
+							for (int s = 0; s < kNumSources; s++) {
 								Source* source = &sound->sources[s];
 								if (source->oscType == OscType::SAMPLE) {
 									if (sound->transpose || source->transpose || source->cents
-									    || patchedParams->params[PARAM_LOCAL_PITCH_ADJUST].containsSomething(0)
-									    //|| thisNoteRow->paramManager->patchCableSet.doesParamHaveSomethingPatchedToIt(PARAM_LOCAL_PITCH_ADJUST) // No, can't call these cos patching isn't set up yet. Oh well
-									    //|| thisNoteRow->paramManager->patchCableSet.doesParamHaveSomethingPatchedToIt(PARAM_LOCAL_OSC_A_PITCH_ADJUST + s)
-									    || patchedParams->params[PARAM_LOCAL_OSC_A_PITCH_ADJUST + s].containsSomething(
-									        0)) {
+									    || patchedParams->params[Param::Local::PITCH_ADJUST].containsSomething(0)
+									    //|| thisNoteRow->paramManager->patchCableSet.doesParamHaveSomethingPatchedToIt(Param::Local::PITCH_ADJUST) // No, can't call these cos patching isn't set up yet. Oh well
+									    //|| thisNoteRow->paramManager->patchCableSet.doesParamHaveSomethingPatchedToIt(Param::Local::OSC_A_PITCH_ADJUST + s)
+									    || patchedParams->params[Param::Local::OSC_A_PITCH_ADJUST + s]
+									           .containsSomething(0)) {
 
 										source->sampleControls.interpolationMode = InterpolationMode::LINEAR;
 									}
@@ -3728,8 +3729,8 @@ haveNoDrum:
 		}
 
 		// Check scroll is within range
-		if (yScroll < 1 - displayHeight) {
-			yScroll = 1 - displayHeight;
+		if (yScroll < 1 - kDisplayHeight) {
+			yScroll = 1 - kDisplayHeight;
 		}
 		else if (yScroll > noteRowCount - 1) {
 			yScroll = noteRowCount - 1;
@@ -3779,7 +3780,7 @@ haveNoDrum:
 		if (output->type == InstrumentType::SYNTH) {
 			SoundInstrument* sound = (SoundInstrument*)output;
 
-			for (int s = 0; s < NUM_SOURCES; s++) {
+			for (int s = 0; s < kNumSources; s++) {
 				Source* source = &sound->sources[s];
 				if (source->oscType == OscType::SAMPLE) {
 					source->sampleControls.interpolationMode = InterpolationMode::LINEAR;
@@ -3800,17 +3801,17 @@ haveNoDrum:
 				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 				    modelStack->addOtherTwoThingsButNoNoteRow(sound, &paramManager);
 
-				for (int s = 0; s < NUM_SOURCES; s++) {
+				for (int s = 0; s < kNumSources; s++) {
 					if (sound->sources[s].oscType != OscType::SQUARE) {
 
 						ModelStackWithParamCollection* modelStackWithParamCollection =
 						    modelStackWithThreeMainThings->addParamCollection(patchedParams, patchedParamsSummary);
 
 						patchedParams->deleteAutomationForParamBasicForSetup(modelStackWithParamCollection,
-						                                                     PARAM_LOCAL_OSC_A_PHASE_WIDTH + s);
-						patchedParams->params[PARAM_LOCAL_OSC_A_PHASE_WIDTH + s].setCurrentValueBasicForSetup(0);
+						                                                     Param::Local::OSC_A_PHASE_WIDTH + s);
+						patchedParams->params[Param::Local::OSC_A_PHASE_WIDTH + s].setCurrentValueBasicForSetup(0);
 						patchedCables->removeAllPatchingToParam(modelStackWithParamCollection,
-						                                        PARAM_LOCAL_OSC_A_PHASE_WIDTH + s);
+						                                        Param::Local::OSC_A_PHASE_WIDTH + s);
 					}
 				}
 			}
@@ -4070,7 +4071,7 @@ ModelStackWithNoteRow* InstrumentClip::duplicateModelStackForClipBeingRecordedFr
 	return otherModelStackWithNoteRow;
 }
 
-extern int16_t zeroMPEValues[NUM_EXPRESSION_DIMENSIONS];
+extern int16_t zeroMPEValues[kNumExpressionDimensions];
 
 void InstrumentClip::recordNoteOn(ModelStackWithNoteRow* modelStack, int velocity, bool forcePos0,
                                   int16_t const* mpeValuesOrNull, int fromMIDIChannel) {
@@ -4208,7 +4209,7 @@ doNormal: // Wrap it back to the start.
 	}
 
 	else {
-		distanceToNextNote = noteRow->attemptNoteAdd(quantizedPos, 1, velocity, NUM_PROBABILITY_VALUES, modelStack,
+		distanceToNextNote = noteRow->attemptNoteAdd(quantizedPos, 1, velocity, kNumProbabilityValues, modelStack,
 		                                             NULL); // Don't supply Action, cos we've done our own thing, above
 	}
 
@@ -4242,7 +4243,7 @@ doNormal: // Wrap it back to the start.
 	ModelStackWithParamCollection* modelStackWithParamCollection =
 	    modelStack->addOtherTwoThingsAutomaticallyGivenNoteRow()->addParamCollection(mpeParams, mpeParamsSummary);
 
-	for (int m = 0; m < NUM_EXPRESSION_DIMENSIONS; m++) {
+	for (int m = 0; m < kNumExpressionDimensions; m++) {
 		AutoParam* param = &mpeParams->params[m];
 		ModelStackWithAutoParam* modelStackWithAutoParam = modelStackWithParamCollection->addAutoParam(m, param);
 

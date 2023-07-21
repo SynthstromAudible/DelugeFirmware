@@ -154,7 +154,7 @@ public:
 	int8_t swingAmount;
 	uint8_t swingInterval;
 
-	Section sections[MAX_NUM_SECTIONS];
+	Section sections[kMaxNumSections];
 
 	// Scales
 	uint8_t modeNotes[12];
@@ -187,7 +187,7 @@ public:
 
 	bool inClipMinderViewOnLoad; // Temp variable only valid while loading Song
 
-	int32_t unautomatedParamValues[MAX_NUM_UNPATCHED_PARAMS];
+	int32_t unautomatedParamValues[kMaxNumUnpatchedParams];
 
 	String dirPath;
 

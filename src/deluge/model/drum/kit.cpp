@@ -336,7 +336,7 @@ int Kit::loadAllAudioFiles(bool mayActuallyReadFiles) {
 	int error = NO_ERROR;
 
 	bool doingAlternatePath =
-	    mayActuallyReadFiles && (audioFileManager.alternateLoadDirStatus == ALTERNATE_LOAD_DIR_NONE_SET);
+	    mayActuallyReadFiles && (audioFileManager.alternateLoadDirStatus == AlternateLoadDirStatus::NONE_SET);
 	if (doingAlternatePath) {
 		error = setupDefaultAudioFileDir();
 		if (error) {
@@ -367,7 +367,7 @@ getOut:
 // Caller must check that there is an activeClip.
 void Kit::loadCrucialAudioFilesOnly() {
 
-	bool doingAlternatePath = (audioFileManager.alternateLoadDirStatus == ALTERNATE_LOAD_DIR_NONE_SET);
+	bool doingAlternatePath = (audioFileManager.alternateLoadDirStatus == AlternateLoadDirStatus::NONE_SET);
 	if (doingAlternatePath) {
 		int error = setupDefaultAudioFileDir();
 		if (error) {
@@ -543,7 +543,7 @@ void Kit::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStac
 				ParamCollectionSummary* patchedParamsSummary = &thisNoteRow->paramManager.summaries[1];
 
 				bool anyInterpolating = false;
-				if constexpr (NUM_PARAMS > 64) {
+				if constexpr (kNumParams > 64) {
 					anyInterpolating = patchedParamsSummary->whichParamsAreInterpolating[0]
 					                   || patchedParamsSummary->whichParamsAreInterpolating[1]
 					                   || patchedParamsSummary->whichParamsAreInterpolating[2];
@@ -565,7 +565,7 @@ yesTickParamManager:
 
 				// No time to call the proper function and do error checking, sorry.
 				ParamCollectionSummary* unpatchedParamsSummary = &thisNoteRow->paramManager.summaries[0];
-				if constexpr (MAX_NUM_UNPATCHED_PARAM_FOR_SOUNDS > 32) {
+				if constexpr (Param::Unpatched::Sound::MAX_NUM > 32) {
 					if (unpatchedParamsSummary->whichParamsAreInterpolating[0]
 					    || unpatchedParamsSummary->whichParamsAreInterpolating[1]) {
 						goto yesTickParamManager;
@@ -579,7 +579,7 @@ yesTickParamManager:
 
 				// No time to call the proper function and do error checking, sorry.
 				ParamCollectionSummary* patchCablesSummary = &thisNoteRow->paramManager.summaries[2];
-				if constexpr (MAX_NUM_PATCH_CABLES > 32) {
+				if constexpr (kMaxNumPatchCables > 32) {
 					if (patchCablesSummary->whichParamsAreInterpolating[0]
 					    || patchCablesSummary->whichParamsAreInterpolating[1]) {
 						goto yesTickParamManager;
@@ -593,7 +593,7 @@ yesTickParamManager:
 
 				// No time to call the proper function and do error checking, sorry.
 				ParamCollectionSummary* expressionParamsSummary = &thisNoteRow->paramManager.summaries[3];
-				if constexpr (NUM_EXPRESSION_DIMENSIONS > 32) {
+				if constexpr (kNumExpressionDimensions > 32) {
 					if (expressionParamsSummary->whichParamsAreInterpolating[0]
 					    || expressionParamsSummary->whichParamsAreInterpolating[1]) {
 						goto yesTickParamManager;
@@ -870,12 +870,12 @@ void Kit::compensateInstrumentVolumeForResonance(ParamManagerForTimeline* paramM
 		UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
 		int32_t compensation =
-		    interpolateTableSigned(unpatchedParams->getValue(PARAM_UNPATCHED_GLOBALEFFECTABLE_LPF_RES) + 2147483648, 32,
+		    interpolateTableSigned(unpatchedParams->getValue(Param::Unpatched::GlobalEffectable::LPF_RES) + 2147483648, 32,
 		                           oldResonanceCompensation, 3);
 		float compensationDB = (float)compensation / (1024 << 16);
 
 		if (compensationDB > 0.1) {
-			unpatchedParams->shiftParamVolumeByDB(PARAM_UNPATCHED_GLOBALEFFECTABLE_VOLUME, compensationDB);
+			unpatchedParams->shiftParamVolumeByDB(Param::Unpatched::GlobalEffectable::VOLUME, compensationDB);
 		}
 
 		// The SoundDrums, like all Sounds, will have already had resonance compensation done on their default ParamManagers if and when any were in fact loaded.
@@ -1049,7 +1049,7 @@ goingToRecordNoteOnEarly:
 					int ticksTilLaunch =
 					    session.launchEventAtSwungTickCount - playbackHandler.getActualSwungTickCount();
 					int samplesTilLaunch = ticksTilLaunch * playbackHandler.getTimePerInternalTick();
-					if (samplesTilLaunch <= LINEAR_RECORDING_EARLY_FIRST_NOTE_ALLOWANCE) {
+					if (samplesTilLaunch <= kLinearRecordingEarlyFirstNoteAllowance) {
 						Clip* clipAboutToRecord = currentSong->getClipWithOutputAboutToBeginLinearRecording(this);
 						if (clipAboutToRecord) {
 							goto goingToRecordNoteOnEarly;
@@ -1084,7 +1084,7 @@ goingToRecordNoteOnEarly:
 				// If input is MPE, we need to give the Drum the most recent MPE expression values received on the channel on the Device. It doesn't keep track of these when a note isn't on, and
 				// even if it did, this new note might be on a different channel (just same notecode).
 				if (thisDrum->midiInput.isForMPEZone()) {
-					for (int i = 0; i < NUM_EXPRESSION_DIMENSIONS; i++) {
+					for (int i = 0; i < kNumExpressionDimensions; i++) {
 						thisDrum->lastExpressionInputsReceived[BEND_RANGE_FINGER_LEVEL][i] =
 						    fromDevice->defaultInputMPEValuesPerMIDIChannel[channel][i] >> 8;
 					}
@@ -1092,12 +1092,12 @@ goingToRecordNoteOnEarly:
 
 				// And if non-MPE input, just set those finger-level MPE values to 0. If an MPE instrument had been used just before, it could have left them set to something.
 				else {
-					for (int i = 0; i < NUM_EXPRESSION_DIMENSIONS; i++) {
+					for (int i = 0; i < kNumExpressionDimensions; i++) {
 						thisDrum->lastExpressionInputsReceived[BEND_RANGE_FINGER_LEVEL][i] = 0;
 					}
 				}
 
-				int16_t mpeValues[NUM_EXPRESSION_DIMENSIONS];
+				int16_t mpeValues[kNumExpressionDimensions];
 				thisDrum->getCombinedExpressionInputs(mpeValues);
 
 				// MPE stuff - if editing note, we need to take note of the initial values which might have been sent before this note-on.

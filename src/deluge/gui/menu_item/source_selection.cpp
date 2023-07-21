@@ -44,8 +44,8 @@ int SourceSelection::selectedRowOnScreen;
 
 void SourceSelection::drawPixelsForOled() {
 
-	char const* itemNames[OLED_MENU_NUM_OPTIONS_VISIBLE];
-	for (int i = 0; i < OLED_MENU_NUM_OPTIONS_VISIBLE; i++) {
+	char const* itemNames[kOLEDMenuNumOptionsVisible];
+	for (int i = 0; i < kOLEDMenuNumOptionsVisible; i++) {
 		itemNames[i] = NULL;
 	}
 
@@ -54,7 +54,7 @@ void SourceSelection::drawPixelsForOled() {
 	int thisOption = scrollPos;
 	int i = 0;
 
-	while (i < OLED_MENU_NUM_OPTIONS_VISIBLE) {
+	while (i < kOLEDMenuNumOptionsVisible) {
 		if (thisOption >= kNumPatchSources) {
 			break;
 		}
@@ -216,7 +216,7 @@ void SourceSelection::selectEncoderAction(int offset) {
 	if (soundEditor.currentValue < scrollPos) {
 		scrollPos = soundEditor.currentValue;
 	}
-	else if (offset >= 0 && selectedRowOnScreen == OLED_MENU_NUM_OPTIONS_VISIBLE - 1) {
+	else if (offset >= 0 && selectedRowOnScreen == kOLEDMenuNumOptionsVisible - 1) {
 		scrollPos++;
 	}
 
@@ -232,35 +232,35 @@ bool SourceSelection::sourceIsAllowed(PatchSource source) {
 	// If patching to another cable's range...
 	if (!destinationDescriptor.isJustAParam()) {
 		// Global source - can control any range
-		if (source < FIRST_LOCAL_SOURCE) {
+		if (source < kFirstLocalSource) {
 			return true;
 		}
 
 		// Local source - range must be for cable going to local param
 		else {
-			return destinationDescriptor.getJustTheParam() < FIRST_GLOBAL_PARAM;
+			return destinationDescriptor.getJustTheParam() < ::Param::Global::FIRST;
 		}
 	}
 
 	int p = destinationDescriptor.getJustTheParam();
 
 	// Check that this source is allowed to be patched to the selected param
-	if (p == PARAM_GLOBAL_VOLUME_POST_FX) {
+	if (p == ::Param::Global::VOLUME_POST_FX) {
 		return (soundEditor.currentSound->maySourcePatchToParam(
-		            source, PARAM_GLOBAL_VOLUME_POST_FX, (ParamManagerForTimeline*)soundEditor.currentParamManager)
-		            != PATCH_CABLE_ACCEPTANCE_DISALLOWED
+		            source, ::Param::Global::VOLUME_POST_FX, (ParamManagerForTimeline*)soundEditor.currentParamManager)
+		            != PatchCableAcceptance::DISALLOWED
 		        || soundEditor.currentSound->maySourcePatchToParam(
-		               source, PARAM_LOCAL_VOLUME, (ParamManagerForTimeline*)soundEditor.currentParamManager)
-		               != PATCH_CABLE_ACCEPTANCE_DISALLOWED
+		               source, ::Param::Local::VOLUME, (ParamManagerForTimeline*)soundEditor.currentParamManager)
+		               != PatchCableAcceptance::DISALLOWED
 		        || soundEditor.currentSound->maySourcePatchToParam(
-		               source, PARAM_GLOBAL_VOLUME_POST_REVERB_SEND,
+		               source, ::Param::Global::VOLUME_POST_REVERB_SEND,
 		               (ParamManagerForTimeline*)soundEditor.currentParamManager)
-		               != PATCH_CABLE_ACCEPTANCE_DISALLOWED);
+		               != PatchCableAcceptance::DISALLOWED);
 	}
 	else {
 		return (soundEditor.currentSound->maySourcePatchToParam(
 		            source, p, (ParamManagerForTimeline*)soundEditor.currentParamManager)
-		        != PATCH_CABLE_ACCEPTANCE_DISALLOWED);
+		        != PatchCableAcceptance::DISALLOWED);
 	}
 }
 

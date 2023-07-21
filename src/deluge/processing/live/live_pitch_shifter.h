@@ -38,7 +38,7 @@ public:
 	int repitchedBufferWritePos;
 	uint64_t repitchedBufferNumSamplesWritten;
 	bool stillWritingToRepitchedBuffer;
-	int32_t interpolationBuffer[2][INTERPOLATION_MAX_NUM_SAMPLES];
+	int32_t interpolationBuffer[2][kInterpolationMaxNumSamples];
 	uint32_t oscPos;
 #endif
 

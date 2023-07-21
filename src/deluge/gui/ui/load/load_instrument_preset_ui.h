@@ -37,13 +37,13 @@ public:
 	int performLoad(bool doClone = false);
 	ActionResult timerCallback();
 	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows);
-	bool renderMainPads(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3] = NULL,
-	                    uint8_t occupancyMask[][displayWidth + sideBarWidth] = NULL, bool drawUndefinedArea = true,
+	bool renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3] = NULL,
+	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL, bool drawUndefinedArea = true,
 	                    int navSys = -1) {
 		return true;
 	}
-	bool renderSidebar(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
-	                   uint8_t occupancyMask[][displayWidth + sideBarWidth]);
+	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 	ReturnOfConfirmPresetOrNextUnlaunchedOne
 	findAnUnlaunchedPresetIncludingWithinSubfolders(Song* song, InstrumentType instrumentType,
 	                                                Availability availabilityRequirement);

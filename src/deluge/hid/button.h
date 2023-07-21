@@ -7,11 +7,11 @@ namespace hid {
 
 namespace button {
 constexpr uint8_t fromCartesian(Cartesian c) {
-	return 9 * (c.y + displayHeight * 2) + c.x;
+	return 9 * (c.y + kDisplayHeight * 2) + c.x;
 }
 
 constexpr uint8_t fromXY(int x, int y) {
-	return 9 * (y + displayHeight * 2) + x;
+	return 9 * (y + kDisplayHeight * 2) + x;
 }
 
 using Button = uint8_t;

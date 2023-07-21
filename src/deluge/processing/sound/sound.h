@@ -70,11 +70,11 @@ public:
 
 	ParamLPF paramLPF;
 
-	Source sources[NUM_SOURCES];
+	Source sources[kNumSources];
 
-	// This is for the *global* params only, and begins with FIRST_GLOBAL_PARAM, so subtract that from your p value before accessing this array!
-	int32_t paramFinalValues[NUM_PARAMS - FIRST_GLOBAL_PARAM];
-	int32_t globalSourceValues[util::to_underlying(FIRST_LOCAL_SOURCE)];
+	// This is for the *global* params only, and begins with Global::FIRST_PARAM, so subtract that from your p value before accessing this array!
+	int32_t paramFinalValues[kNumParams - Param::Global::FIRST];
+	int32_t globalSourceValues[util::to_underlying(kFirstLocalSource)];
 
 	uint32_t sourcesChanged; // Applies from first source up to FIRST_UNCHANGEABLE_SOURCE
 
@@ -84,7 +84,7 @@ public:
 	SyncType lfoGlobalSyncType;
 	SyncLevel lfoGlobalSyncLevel;
 
-	ModKnob modKnobs[NUM_MOD_BUTTONS][NUM_PHYSICAL_MOD_KNOBS];
+	ModKnob modKnobs[kNumModButtons][kNumPhysicalModKnobs];
 
 	int32_t sideChainSendLevel;
 
@@ -96,12 +96,12 @@ public:
 
 	int8_t unisonDetune;
 
-	int16_t modulatorTranspose[numModulators];
-	int8_t modulatorCents[numModulators];
+	int16_t modulatorTranspose[kNumModulators];
+	int8_t modulatorCents[kNumModulators];
 
-	PhaseIncrementFineTuner modulatorTransposers[numModulators];
+	PhaseIncrementFineTuner modulatorTransposers[kNumModulators];
 
-	PhaseIncrementFineTuner unisonDetuners[maxNumUnison];
+	PhaseIncrementFineTuner unisonDetuners[kMaxNumVoicesUnison];
 
 	SynthMode synthMode;
 	bool modulator1ToModulator0;
@@ -112,7 +112,7 @@ public:
 
 	bool oscillatorSync;
 
-	uint8_t voicePriority;
+	VoicePriority voicePriority;
 
 	bool skippingRendering;
 
@@ -121,10 +121,10 @@ public:
 	// I really didn't want to store these here, since they're stored in the ParamManager, but.... complications! Always 0
 	// for Drums - that was part of the problem - a Drum's main ParamManager's expression data has been sent to the
 	// "polyphonic" bit, and we don't want it to get referred to twice. These get manually refreshed in setActiveClip().
-	int32_t monophonicExpressionValues[NUM_EXPRESSION_DIMENSIONS];
+	int32_t monophonicExpressionValues[kNumExpressionDimensions];
 
-	uint32_t oscRetriggerPhase[NUM_SOURCES]; // 4294967295 means "off"
-	uint32_t modulatorRetriggerPhase[numModulators];
+	uint32_t oscRetriggerPhase[kNumSources]; // 4294967295 means "off"
+	uint32_t modulatorRetriggerPhase[kNumModulators];
 
 	int32_t postReverbVolumeLastTime;
 
@@ -153,7 +153,7 @@ public:
 	void ensureParamPresetValueWithoutKnobIsZero(ModelStackWithAutoParam* modelStack);
 	void ensureParamPresetValueWithoutKnobIsZeroWithMinimalDetails(ParamManager* paramManager, int p);
 
-	uint8_t maySourcePatchToParam(PatchSource s, uint8_t p, ParamManager* paramManager);
+	PatchCableAcceptance maySourcePatchToParam(PatchSource s, uint8_t p, ParamManager* paramManager);
 
 	void setLFOGlobalSyncType(SyncType newType);
 	void setLFOGlobalSyncLevel(SyncLevel newLevel);

@@ -47,7 +47,7 @@ public:
 	void displayScrollPos();
 	void displayNumberOfBarsAndBeats(uint32_t number, uint32_t quantization, bool countFromOne,
 	                                 char const* tooLongText);
-	void initiateXScroll(uint32_t newXScroll, int numSquaresToScroll = displayWidth);
+	void initiateXScroll(uint32_t newXScroll, int numSquaresToScroll = kDisplayWidth);
 	bool zoomToMax(bool inOnly = false);
 	void initiateXZoom(int zoomMagnitude, int32_t newScroll, uint32_t oldZoom);
 	void midiLearnFlash();

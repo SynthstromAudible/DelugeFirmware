@@ -90,7 +90,7 @@ public:
 
 	// Phaser
 	StereoSample phaserMemory;
-	StereoSample allpassMemory[PHASER_NUM_ALLPASS_FILTERS];
+	StereoSample allpassMemory[kNumAllpassFiltersPhaser];
 
 	// EQ
 	int32_t bassFreq; // These two should eventually not be variables like this

@@ -233,8 +233,8 @@ dev_var::GMenu devVarGMenu;
 
 // LPF menu ----------------------------------------------------------------------------------------------------
 
-filter::LPFFreq lpfFreqMenu{"Frequency", PARAM_LOCAL_LPF_FREQ};
-patched_param::IntegerNonFM lpfResMenu{"Resonance", PARAM_LOCAL_LPF_RESONANCE};
+filter::LPFFreq lpfFreqMenu{"Frequency", ::Param::Local::LPF_FREQ};
+patched_param::IntegerNonFM lpfResMenu{"Resonance", ::Param::Local::LPF_RESONANCE};
 filter::LPFMode lpfModeMenu{"MODE"};
 
 MenuItem* lpfMenuItems[] = {&lpfFreqMenu, &lpfResMenu, &lpfModeMenu, NULL};
@@ -242,18 +242,18 @@ submenu::Filter lpfMenu{"LPF", lpfMenuItems};
 
 // HPF menu ----------------------------------------------------------------------------------------------------
 
-filter::HPFFreq hpfFreqMenu{"Frequency", PARAM_LOCAL_HPF_FREQ};
-patched_param::IntegerNonFM hpfResMenu{"Resonance", PARAM_LOCAL_HPF_RESONANCE};
+filter::HPFFreq hpfFreqMenu{"Frequency", ::Param::Local::HPF_FREQ};
+patched_param::IntegerNonFM hpfResMenu{"Resonance", ::Param::Local::HPF_RESONANCE};
 
 MenuItem* hpfMenuItems[] = {&hpfFreqMenu, &hpfResMenu, NULL};
 submenu::Filter hpfMenu{"HPF", hpfMenuItems};
 
 // Envelope menu ----------------------------------------------------------------------------------------------------
 
-source::PatchedParam envAttackMenu{"ATTACK", PARAM_LOCAL_ENV_0_ATTACK};
-source::PatchedParam envDecayMenu{"DECAY", PARAM_LOCAL_ENV_0_DECAY};
-source::PatchedParam envSustainMenu{"SUSTAIN", PARAM_LOCAL_ENV_0_SUSTAIN};
-source::PatchedParam envReleaseMenu{"RELEASE", PARAM_LOCAL_ENV_0_RELEASE};
+source::PatchedParam envAttackMenu{"ATTACK", ::Param::Local::ENV_0_ATTACK};
+source::PatchedParam envDecayMenu{"DECAY", ::Param::Local::ENV_0_DECAY};
+source::PatchedParam envSustainMenu{"SUSTAIN", ::Param::Local::ENV_0_SUSTAIN};
+source::PatchedParam envReleaseMenu{"RELEASE", ::Param::Local::ENV_0_RELEASE};
 MenuItem* envMenuItems[] = {&envAttackMenu, &envDecayMenu, &envSustainMenu, &envReleaseMenu, NULL};
 
 submenu::Envelope env0Menu{HAVE_OLED ? "Envelope 1" : "ENV1", envMenuItems, 0};
@@ -262,19 +262,19 @@ submenu::Envelope env1Menu{HAVE_OLED ? "Envelope 2" : "ENV2", envMenuItems, 1};
 // Osc menu -------------------------------------------------------------------------------------------------------
 
 osc::Type oscTypeMenu{"TYPE"};
-osc::source::WaveIndex sourceWaveIndexMenu{"Wave-index", PARAM_LOCAL_OSC_A_WAVE_INDEX};
-osc::source::Volume sourceVolumeMenu{HAVE_OLED ? "Level" : "VOLUME", PARAM_LOCAL_OSC_A_VOLUME};
-osc::source::Feedback sourceFeedbackMenu{"FEEDBACK", PARAM_LOCAL_CARRIER_0_FEEDBACK};
+osc::source::WaveIndex sourceWaveIndexMenu{"Wave-index", Param::Local::OSC_A_WAVE_INDEX};
+osc::source::Volume sourceVolumeMenu{HAVE_OLED ? "Level" : "VOLUME", Param::Local::OSC_A_VOLUME};
+osc::source::Feedback sourceFeedbackMenu{"FEEDBACK", Param::Local::CARRIER_0_FEEDBACK};
 osc::AudioRecorder audioRecorderMenu{"Record audio"};
 sample::Reverse sampleReverseMenu{"REVERSE"};
 sample::Repeat sampleRepeatMenu{HAVE_OLED ? "Repeat mode" : "MODE"};
 sample::Start sampleStartMenu{"Start-point"};
 sample::End sampleEndMenu{"End-point"};
-sample::Transpose sourceTransposeMenu{"TRANSPOSE", PARAM_LOCAL_OSC_A_PITCH_ADJUST};
+sample::Transpose sourceTransposeMenu{"TRANSPOSE", Param::Local::OSC_A_PITCH_ADJUST};
 sample::PitchSpeed samplePitchSpeedMenu{HAVE_OLED ? "Pitch/speed" : "PISP"};
 sample::TimeStretch timeStretchMenu{"SPEED"};
 sample::Interpolation interpolationMenu{"INTERPOLATION"};
-osc::PulseWidth pulseWidthMenu{"PULSE WIDTH", PARAM_LOCAL_OSC_A_PHASE_WIDTH};
+osc::PulseWidth pulseWidthMenu{"PULSE WIDTH", Param::Local::OSC_A_PHASE_WIDTH};
 osc::Sync oscSyncMenu{HAVE_OLED ? "Oscillator sync" : "SYNC"};
 osc::RetriggerPhase oscPhaseMenu{"Retrigger phase", false};
 
@@ -299,9 +299,9 @@ MenuItem* unisonMenuItems[] = {&numUnisonMenu, &unisonDetuneMenu, NULL};
 arpeggiator::Mode arpModeMenu{"MODE"};
 arpeggiator::Sync arpSyncMenu{"SYNC"};
 arpeggiator::Octaves arpOctavesMenu{HAVE_OLED ? "Number of octaves" : "OCTAVES"};
-arpeggiator::Gate arpGateMenu{"GATE", PARAM_UNPATCHED_SOUND_ARP_GATE};
+arpeggiator::Gate arpGateMenu{"GATE", ::Param::Unpatched::Sound::ARP_GATE};
 arpeggiator::midi_cv::Gate arpGateMenuMIDIOrCV{"GATE"};
-arpeggiator::Rate arpRateMenu{"RATE", PARAM_GLOBAL_ARP_RATE};
+arpeggiator::Rate arpRateMenu{"RATE", ::Param::Global::ARP_RATE};
 arpeggiator::midi_cv::Rate arpRateMenuMIDIOrCV{"RATE"};
 
 MenuItem* arpMenuItems[] = {&arpModeMenu,         &arpSyncMenu, &arpOctavesMenu,      &arpGateMenu,
@@ -311,7 +311,7 @@ MenuItem* arpMenuItems[] = {&arpModeMenu,         &arpSyncMenu, &arpOctavesMenu,
 
 voice::Polyphony polyphonyMenu{"POLYPHONY"};
 Submenu unisonMenu{"UNISON", unisonMenuItems};
-UnpatchedParam portaMenu{"PORTAMENTO", PARAM_UNPATCHED_SOUND_PORTA};
+UnpatchedParam portaMenu{"PORTAMENTO", ::Param::Unpatched::Sound::PORTAMENTO};
 submenu::Arpeggiator arpMenu{"ARPEGGIATOR", arpMenuItems};
 voice::Priority priorityMenu{"PRIORITY"};
 
@@ -319,47 +319,47 @@ static MenuItem* voiceMenuItems[] = {&polyphonyMenu, &unisonMenu, &portaMenu, &a
 
 // Modulator menu -----------------------------------------------------------------------
 
-modulator::Transpose modulatorTransposeMenu{"Transpose", PARAM_LOCAL_MODULATOR_0_PITCH_ADJUST};
-source::patched_param::FM modulatorVolume{HAVE_OLED ? "Level" : "AMOUNT", PARAM_LOCAL_MODULATOR_0_VOLUME};
-source::patched_param::FM modulatorFeedbackMenu{"FEEDBACK", PARAM_LOCAL_MODULATOR_0_FEEDBACK};
+modulator::Transpose modulatorTransposeMenu{"Transpose", ::Param::Local::MODULATOR_0_PITCH_ADJUST};
+source::patched_param::FM modulatorVolume{HAVE_OLED ? "Level" : "AMOUNT", ::Param::Local::MODULATOR_0_VOLUME};
+source::patched_param::FM modulatorFeedbackMenu{"FEEDBACK", ::Param::Local::MODULATOR_0_FEEDBACK};
 modulator::Destination modulatorDestMenu{"Destination"};
 osc::RetriggerPhase modulatorPhaseMenu{"Retrigger phase", true};
 
 // LFO1 menu ---------------------------------------------------------------------------------
 
 lfo::global::Type lfo1TypeMenu{HAVE_OLED ? "SHAPE" : "TYPE"};
-lfo::global::Rate lfo1RateMenu{"RATE", PARAM_GLOBAL_LFO_FREQ};
+lfo::global::Rate lfo1RateMenu{"RATE", ::Param::Global::LFO_FREQ};
 lfo::global::Sync lfo1SyncMenu{"SYNC"};
 
 MenuItem* lfo1MenuItems[] = {&lfo1TypeMenu, &lfo1RateMenu, &lfo1SyncMenu, NULL};
 
 // LFO2 menu ---------------------------------------------------------------------------------
 lfo::local::Type lfo2TypeMenu{HAVE_OLED ? "SHAPE" : "TYPE"};
-patched_param::Integer lfo2RateMenu{"RATE", PARAM_LOCAL_LFO_LOCAL_FREQ};
+patched_param::Integer lfo2RateMenu{"RATE", ::Param::Local::LFO_LOCAL_FREQ};
 
 MenuItem* lfo2MenuItems[] = {&lfo2TypeMenu, &lfo2RateMenu, NULL};
 
 // Mod FX ----------------------------------------------------------------------------------
 mod_fx::Type modFXTypeMenu{"TYPE"};
-patched_param::Integer modFXRateMenu{"RATE", PARAM_GLOBAL_MOD_FX_RATE};
-mod_fx::Feedback modFXFeedbackMenu{"FEEDBACK", PARAM_UNPATCHED_MOD_FX_FEEDBACK};
-mod_fx::Depth modFXDepthMenu{"DEPTH", PARAM_GLOBAL_MOD_FX_DEPTH};
-mod_fx::Offset modFXOffsetMenu{"OFFSET", PARAM_UNPATCHED_MOD_FX_OFFSET};
+patched_param::Integer modFXRateMenu{"RATE", ::Param::Global::MOD_FX_RATE};
+mod_fx::Feedback modFXFeedbackMenu{"FEEDBACK", ::Param::Unpatched::MOD_FX_FEEDBACK};
+mod_fx::Depth modFXDepthMenu{"DEPTH", ::Param::Global::MOD_FX_DEPTH};
+mod_fx::Offset modFXOffsetMenu{"OFFSET", ::Param::Unpatched::MOD_FX_OFFSET};
 
 MenuItem* modFXMenuItems[] = {&modFXTypeMenu,  &modFXRateMenu,   &modFXFeedbackMenu,
                               &modFXDepthMenu, &modFXOffsetMenu, NULL};
 
 // EQ -------------------------------------------------------------------------------------
-UnpatchedParam bassMenu{"BASS", PARAM_UNPATCHED_BASS};
-UnpatchedParam trebleMenu{"TREBLE", PARAM_UNPATCHED_TREBLE};
-UnpatchedParam bassFreqMenu{HAVE_OLED ? "Bass frequency" : "BAFR", PARAM_UNPATCHED_BASS_FREQ};
-UnpatchedParam trebleFreqMenu{HAVE_OLED ? "Treble frequency" : "TRFR", PARAM_UNPATCHED_TREBLE_FREQ};
+UnpatchedParam bassMenu{"BASS", ::Param::Unpatched::BASS};
+UnpatchedParam trebleMenu{"TREBLE", ::Param::Unpatched::TREBLE};
+UnpatchedParam bassFreqMenu{HAVE_OLED ? "Bass frequency" : "BAFR", ::Param::Unpatched::BASS_FREQ};
+UnpatchedParam trebleFreqMenu{HAVE_OLED ? "Treble frequency" : "TRFR", ::Param::Unpatched::TREBLE_FREQ};
 
 MenuItem* eqMenuItems[] = {&bassMenu, &trebleMenu, &bassFreqMenu, &trebleFreqMenu, NULL};
 
 // Delay ---------------------------------------------------------------------------------
-patched_param::Integer delayFeedbackMenu{"AMOUNT", PARAM_GLOBAL_DELAY_FEEDBACK};
-patched_param::Integer delayRateMenu{"RATE", PARAM_GLOBAL_DELAY_RATE};
+patched_param::Integer delayFeedbackMenu{"AMOUNT", ::Param::Global::DELAY_FEEDBACK};
+patched_param::Integer delayRateMenu{"RATE", ::Param::Global::DELAY_RATE};
 delay::PingPong delayPingPongMenu{"Pingpong"};
 delay::Analog delayAnalogMenu{"TYPE"};
 delay::Sync delaySyncMenu{"SYNC"};
@@ -377,13 +377,13 @@ MenuItem* bendMenuItems[] = {&mainBendRangeMenu, &perFingerBendRangeMenu, NULL};
 // Sidechain/Compressor-----------------------------------------------------------------------
 
 sidechain::Send sidechainSendMenu{"Send to sidechain"};
-compressor::VolumeShortcut compressorVolumeShortcutMenu{"Volume ducking", PARAM_GLOBAL_VOLUME_POST_REVERB_SEND,
+compressor::VolumeShortcut compressorVolumeShortcutMenu{"Volume ducking", ::Param::Global::VOLUME_POST_REVERB_SEND,
                                                         PatchSource::COMPRESSOR};
 reverb::compressor::Volume reverbCompressorVolumeMenu{"Volume ducking"};
 sidechain::Sync sidechainSyncMenu{"SYNC"};
 compressor::Attack compressorAttackMenu{"ATTACK"};
 compressor::Release compressorReleaseMenu{"RELEASE"};
-unpatched_param::UpdatingReverbParams compressorShapeMenu{"SHAPE", PARAM_UNPATCHED_COMPRESSOR_SHAPE};
+unpatched_param::UpdatingReverbParams compressorShapeMenu{"SHAPE", ::Param::Unpatched::COMPRESSOR_SHAPE};
 reverb::compressor::Shape reverbCompressorShapeMenu{"SHAPE"};
 
 MenuItem* sidechainMenuItemsForSound[] = {&sidechainSendMenu,
@@ -399,7 +399,7 @@ MenuItem* sidechainMenuItemsForReverb[] = {&reverbCompressorVolumeMenu, &sidecha
                                            &reverbCompressorShapeMenu,  NULL};
 
 // Reverb ----------------------------------------------------------------------------------
-patched_param::Integer reverbAmountMenu{"AMOUNT", PARAM_GLOBAL_REVERB_AMOUNT};
+patched_param::Integer reverbAmountMenu{"AMOUNT", ::Param::Global::REVERB_AMOUNT};
 reverb::RoomSize reverbRoomSizeMenu{HAVE_OLED ? "Room size" : "SIZE"};
 reverb::Dampening reverbDampeningMenu{"DAMPENING"};
 reverb::Width reverbWidthMenu{"WIDTH"};
@@ -420,8 +420,8 @@ Submenu eqMenu{"EQ", eqMenuItems};
 Submenu delayMenu{"DELAY", delayMenuItems};
 Submenu reverbMenu{"REVERB", reverbMenuItems};
 fx::Clipping clippingMenu{"SATURATION"};
-UnpatchedParam srrMenu{"DECIMATION", PARAM_UNPATCHED_SAMPLE_RATE_REDUCTION};
-UnpatchedParam bitcrushMenu{HAVE_OLED ? "Bitcrush" : "CRUSH", PARAM_UNPATCHED_BITCRUSHING};
+UnpatchedParam srrMenu{"DECIMATION", ::Param::Unpatched::SAMPLE_RATE_REDUCTION};
+UnpatchedParam bitcrushMenu{HAVE_OLED ? "Bitcrush" : "CRUSH", ::Param::Unpatched::BITCRUSHING};
 
 MenuItem* fxMenuItems[] = {&modFXMenu, &eqMenu, &delayMenu, &reverbMenu, &clippingMenu, &srrMenu, &bitcrushMenu, NULL};
 
@@ -448,38 +448,38 @@ MenuItem* audioClipSampleMenuItems[] = {&fileSelectorMenu,     &audioClipReverse
 Submenu audioClipSampleMenu{"SAMPLE", audioClipSampleMenuItems};
 
 // LPF Menu
-audio_clip::LPFFreq audioClipLPFFreqMenu{"Frequency", PARAM_UNPATCHED_GLOBALEFFECTABLE_LPF_FREQ};
-UnpatchedParam audioClipLPFResMenu{"Resonance", PARAM_UNPATCHED_GLOBALEFFECTABLE_LPF_RES};
+audio_clip::LPFFreq audioClipLPFFreqMenu{"Frequency", ::Param::Unpatched::GlobalEffectable::LPF_FREQ};
+UnpatchedParam audioClipLPFResMenu{"Resonance", ::Param::Unpatched::GlobalEffectable::LPF_RES};
 
 MenuItem* audioClipLPFMenuItems[] = {&audioClipLPFFreqMenu, &audioClipLPFResMenu, &lpfModeMenu, NULL};
 Submenu audioClipLPFMenu{"LPF", audioClipLPFMenuItems};
 
 // HPF Menu
-audio_clip::HPFFreq audioClipHPFFreqMenu{"Frequency", PARAM_UNPATCHED_GLOBALEFFECTABLE_HPF_FREQ};
-UnpatchedParam audioClipHPFResMenu{"Resonance", PARAM_UNPATCHED_GLOBALEFFECTABLE_HPF_RES};
+audio_clip::HPFFreq audioClipHPFFreqMenu{"Frequency", ::Param::Unpatched::GlobalEffectable::HPF_FREQ};
+UnpatchedParam audioClipHPFResMenu{"Resonance", ::Param::Unpatched::GlobalEffectable::HPF_RES};
 
 MenuItem* audioClipHPFMenuItems[] = {&audioClipHPFFreqMenu, &audioClipHPFResMenu, NULL};
 Submenu audioClipHPFMenu{"HPF", audioClipHPFMenuItems};
 
 // Mod FX Menu
 audio_clip::mod_fx::Type audioClipModFXTypeMenu{"TYPE"};
-UnpatchedParam audioClipModFXRateMenu{"RATE", PARAM_UNPATCHED_GLOBALEFFECTABLE_MOD_FX_RATE};
-UnpatchedParam audioClipModFXDepthMenu{"DEPTH", PARAM_UNPATCHED_GLOBALEFFECTABLE_MOD_FX_DEPTH};
+UnpatchedParam audioClipModFXRateMenu{"RATE", ::Param::Unpatched::GlobalEffectable::MOD_FX_RATE};
+UnpatchedParam audioClipModFXDepthMenu{"DEPTH", ::Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH};
 
 MenuItem* audioClipModFXMenuItems[] = {&audioClipModFXTypeMenu,  &audioClipModFXRateMenu, &modFXFeedbackMenu,
                                        &audioClipModFXDepthMenu, &modFXOffsetMenu,        NULL};
 Submenu audioClipModFXMenu{HAVE_OLED ? "Mod-fx" : "MODU", audioClipModFXMenuItems};
 
 // Delay Menu
-UnpatchedParam audioClipDelayRateMenu{"AMOUNT", PARAM_UNPATCHED_GLOBALEFFECTABLE_DELAY_AMOUNT};
-UnpatchedParam audioClipDelayFeedbackMenu{"RATE", PARAM_UNPATCHED_GLOBALEFFECTABLE_DELAY_RATE};
+UnpatchedParam audioClipDelayRateMenu{"AMOUNT", ::Param::Unpatched::GlobalEffectable::DELAY_AMOUNT};
+UnpatchedParam audioClipDelayFeedbackMenu{"RATE", ::Param::Unpatched::GlobalEffectable::DELAY_RATE};
 
 MenuItem* audioClipDelayMenuItems[] = {
     &audioClipDelayFeedbackMenu, &audioClipDelayRateMenu, &delayPingPongMenu, &delayAnalogMenu, &delaySyncMenu, NULL};
 Submenu audioClipDelayMenu{"DELAY", audioClipDelayMenuItems};
 
 // Reverb Menu
-UnpatchedParam audioClipReverbSendAmountMenu{"AMOUNT", PARAM_UNPATCHED_GLOBALEFFECTABLE_REVERB_SEND_AMOUNT};
+UnpatchedParam audioClipReverbSendAmountMenu{"AMOUNT", ::Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT};
 MenuItem* audioClipReverbMenuItems[] = {&audioClipReverbSendAmountMenu,
                                         &reverbRoomSizeMenu,
                                         &reverbDampeningMenu,
@@ -491,7 +491,7 @@ Submenu audioClipReverbMenu{"REVERB", audioClipReverbMenuItems};
 
 // Sidechain menu
 unpatched_param::UpdatingReverbParams audioClipCompressorVolumeMenu{"Volume ducking",
-                                                                    PARAM_UNPATCHED_GLOBALEFFECTABLE_SIDECHAIN_VOLUME};
+                                                                    ::Param::Unpatched::GlobalEffectable::SIDECHAIN_VOLUME};
 MenuItem* audioClipSidechainMenuItems[] = {&audioClipCompressorVolumeMenu, &sidechainSyncMenu,   &compressorAttackMenu,
                                            &compressorReleaseMenu,         &compressorShapeMenu, NULL};
 
@@ -504,8 +504,8 @@ MenuItem* audioClipFXMenuItems[] = {&audioClipModFXMenu, &eqMenu,  &audioClipDel
                                     &clippingMenu,       &srrMenu, &bitcrushMenu,       NULL};
 Submenu audioClipFXMenu{"FX", audioClipFXMenuItems};
 
-UnpatchedParam audioClipLevelMenu{HAVE_OLED ? "Level" : "VOLUME", PARAM_UNPATCHED_GLOBALEFFECTABLE_VOLUME};
-unpatched_param::Pan audioClipPanMenu{"PAN", PARAM_UNPATCHED_GLOBALEFFECTABLE_PAN};
+UnpatchedParam audioClipLevelMenu{HAVE_OLED ? "Level" : "VOLUME", ::Param::Unpatched::GlobalEffectable::VOLUME};
+unpatched_param::Pan audioClipPanMenu{"PAN", ::Param::Unpatched::GlobalEffectable::PAN};
 
 #define comingSoonMenu (MenuItem*)0xFFFFFFFF
 
@@ -661,11 +661,11 @@ submenu::Modulator modulator0Menu{HAVE_OLED ? "FM modulator 1" : "MOD1", modulat
 submenu::Modulator modulator1Menu{HAVE_OLED ? "FM modulator 2" : "MOD2", modulatorMenuItems, 1};
 
 // Not FM
-patched_param::IntegerNonFM noiseMenu{HAVE_OLED ? "Noise level" : "NOISE", PARAM_LOCAL_NOISE_VOLUME};
+patched_param::IntegerNonFM noiseMenu{HAVE_OLED ? "Noise level" : "NOISE", ::Param::Local::NOISE_VOLUME};
 
 MasterTranspose masterTransposeMenu{HAVE_OLED ? "Master transpose" : "TRANSPOSE"};
 
-patch_cable_strength::Fixed vibratoMenu{"VIBRATO", PARAM_LOCAL_PITCH_ADJUST, PatchSource::LFO_GLOBAL};
+patch_cable_strength::Fixed vibratoMenu{"VIBRATO", ::Param::Local::PITCH_ADJUST, PatchSource::LFO_GLOBAL};
 
 // Drum only
 menu_item::DrumName drumNameMenu{"NAME"};
@@ -682,8 +682,8 @@ submenu::Compressor compressorMenu{"Sidechain compressor", sidechainMenuItemsFor
 
 submenu::Bend bendMenu{"Bend range", bendMenuItems};   // The submenu
 bend_range::PerFinger drumBendRangeMenu{"Bend range"}; // The single option available for Drums
-patched_param::Integer volumeMenu{HAVE_OLED ? "Level" : "VOLUME", PARAM_GLOBAL_VOLUME_POST_FX};
-patched_param::Pan panMenu{"PAN", PARAM_LOCAL_PAN};
+patched_param::Integer volumeMenu{HAVE_OLED ? "Level" : "VOLUME", ::Param::Global::VOLUME_POST_FX};
+patched_param::Pan panMenu{"PAN", ::Param::Local::PAN};
 
 MenuItem* soundEditorRootMenuItems[] = {&source0Menu,
                                         &source1Menu,

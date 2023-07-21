@@ -98,11 +98,11 @@ void Slicer::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 
 	OLED::drawRectangle(windowMinX, windowMinY, windowMaxX, windowMaxY, image);
 	OLED::drawHorizontalLine(windowMinY + 15, 26, OLED_MAIN_WIDTH_PIXELS - 22, &image[0]);
-	OLED::drawString("Num. slices", 30, windowMinY + 6, image[0], OLED_MAIN_WIDTH_PIXELS, TEXT_SPACING_X,
-	                 TEXT_SPACING_Y);
+	OLED::drawString("Num. slices", 30, windowMinY + 6, image[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX,
+	                 kTextSpacingY);
 	char buffer[12];
 	intToString(slicerMode == SLICER_MODE_REGION ? numClips : numManualSlice, buffer);
-	OLED::drawStringCentred(buffer, windowMinY + 18, image[0], OLED_MAIN_WIDTH_PIXELS, TEXT_SPACING_X, TEXT_SPACING_Y,
+	OLED::drawStringCentred(buffer, windowMinY + 18, image[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY,
 	                        (OLED_MAIN_WIDTH_PIXELS >> 1) + horizontalShift);
 }
 
@@ -113,22 +113,22 @@ void Slicer::redraw() {
 }
 #endif
 
-bool Slicer::renderMainPads(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
-                            uint8_t occupancyMask[][displayWidth + sideBarWidth], bool drawUndefinedArea) {
+bool Slicer::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+                            uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
 
 	if (slicerMode == SLICER_MODE_REGION) {
-		uint8_t myImage[displayHeight][displayWidth + sideBarWidth][3];
+		uint8_t myImage[kDisplayHeight][kDisplayWidth + kSideBarWidth][3];
 		waveformRenderer.renderFullScreen(waveformBasicNavigator.sample, waveformBasicNavigator.xScroll,
 		                                  waveformBasicNavigator.xZoom, image, &waveformBasicNavigator.renderData);
 	}
 	else if (slicerMode == SLICER_MODE_MANUAL) {
 
-		uint8_t myImage[displayHeight][displayWidth + sideBarWidth][3];
+		uint8_t myImage[kDisplayHeight][kDisplayWidth + kSideBarWidth][3];
 		waveformRenderer.renderFullScreen(waveformBasicNavigator.sample, waveformBasicNavigator.xScroll,
 		                                  waveformBasicNavigator.xZoom, myImage, &waveformBasicNavigator.renderData);
 
-		for (int xx = 0; xx < displayWidth; xx++) {
-			for (int yy = 0; yy < displayHeight / 2; yy++) {
+		for (int xx = 0; xx < kDisplayWidth; xx++) {
+			for (int yy = 0; yy < kDisplayHeight / 2; yy++) {
 				image[yy + 4][xx][0] = (myImage[yy * 2][xx][0] + myImage[yy * 2 + 1][xx][0]) / 2;
 				image[yy + 4][xx][1] = (myImage[yy * 2][xx][1] + myImage[yy * 2 + 1][xx][1]) / 2;
 				image[yy + 4][xx][2] = (myImage[yy * 2][xx][2] + myImage[yy * 2 + 1][xx][2]) / 2;
@@ -217,18 +217,18 @@ void Slicer::graphicsRoutine() {
 		int samplePos = voiceSample->getPlaySample((Sample*)range->sampleHolder.audioFile, guide);
 		if (samplePos >= waveformBasicNavigator.xScroll) {
 			newTickSquare = (samplePos - waveformBasicNavigator.xScroll) / waveformBasicNavigator.xZoom;
-			if (newTickSquare >= displayWidth) {
+			if (newTickSquare >= kDisplayWidth) {
 				newTickSquare = 255;
 			}
 		}
 	}
 
-	uint8_t tickSquares[displayHeight];
-	memset(tickSquares, 255, displayHeight);
-	tickSquares[displayHeight - 1] = newTickSquare;
-	tickSquares[displayHeight - 2] = newTickSquare;
-	tickSquares[displayHeight - 3] = newTickSquare;
-	tickSquares[displayHeight - 4] = newTickSquare;
+	uint8_t tickSquares[kDisplayHeight];
+	memset(tickSquares, 255, kDisplayHeight);
+	tickSquares[kDisplayHeight - 1] = newTickSquare;
+	tickSquares[kDisplayHeight - 2] = newTickSquare;
+	tickSquares[kDisplayHeight - 3] = newTickSquare;
+	tickSquares[kDisplayHeight - 4] = newTickSquare;
 
 	PadLEDs::setTickSquares(tickSquares, zeroes);
 }
@@ -425,7 +425,7 @@ ActionResult Slicer::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 		if (slicerMode == SLICER_MODE_MANUAL) {
-			uint8_t myImage[displayHeight][displayWidth + sideBarWidth][3];
+			uint8_t myImage[kDisplayHeight][kDisplayWidth + kSideBarWidth][3];
 			waveformRenderer.renderFullScreen(waveformBasicNavigator.sample, waveformBasicNavigator.xScroll,
 			                                  waveformBasicNavigator.xZoom, PadLEDs::image,
 			                                  &waveformBasicNavigator.renderData);
@@ -483,23 +483,23 @@ void Slicer::preview(int64_t startPoint, int64_t endPoint, int transpose, int on
 
 		ParamCollectionSummary* summary = modelStack->paramManager->getPatchedParamSetSummary();
 		ModelStackWithParamId* modelStackWithParamId =
-		    modelStack->addParamCollectionAndId(summary->paramCollection, summary, PARAM_LOCAL_ENV_0_RELEASE);
+		    modelStack->addParamCollectionAndId(summary->paramCollection, summary, Param::Local::ENV_0_RELEASE);
 		ModelStackWithAutoParam* modelStackWithAutoParam =
 		    modelStackWithParamId->paramCollection->getAutoParamFromId(modelStackWithParamId);
 		modelStackWithAutoParam->autoParam->setCurrentValueWithNoReversionOrRecording(
-		    modelStackWithAutoParam, getParamFromUserValue(PARAM_LOCAL_ENV_0_RELEASE, 1));
+		    modelStackWithAutoParam, getParamFromUserValue(Param::Local::ENV_0_RELEASE, 1));
 		modelStackWithParamId =
-		    modelStack->addParamCollectionAndId(summary->paramCollection, summary, PARAM_LOCAL_ENV_0_ATTACK);
+		    modelStack->addParamCollectionAndId(summary->paramCollection, summary, Param::Local::ENV_0_ATTACK);
 		modelStackWithAutoParam = modelStackWithParamId->paramCollection->getAutoParamFromId(modelStackWithParamId);
 		modelStackWithAutoParam->autoParam->setCurrentValueWithNoReversionOrRecording(
-		    modelStackWithAutoParam, getParamFromUserValue(PARAM_LOCAL_ENV_0_ATTACK, 1));
+		    modelStackWithAutoParam, getParamFromUserValue(Param::Local::ENV_0_ATTACK, 1));
 	}
 	instrumentClipView.sendAuditionNote(on, 0);
 }
 
 ActionResult Slicer::padAction(int x, int y, int on) {
 
-	if (on && x < displayWidth && y < displayHeight / 2 && slicerMode == SLICER_MODE_MANUAL) { // pad on
+	if (on && x < kDisplayWidth && y < kDisplayHeight / 2 && slicerMode == SLICER_MODE_MANUAL) { // pad on
 
 		int slicePadIndex = (x % 4 + (x / 4) * 16) + ((y % 4) * 4); //
 
@@ -592,7 +592,7 @@ ActionResult Slicer::padAction(int x, int y, int on) {
 #endif
 		uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 	}
-	else if (!on && x < displayWidth && y < displayHeight / 2 && slicerMode == SLICER_MODE_MANUAL) { // pad off
+	else if (!on && x < kDisplayWidth && y < kDisplayHeight / 2 && slicerMode == SLICER_MODE_MANUAL) { // pad off
 		preview(0, 0, 0, 0);                                                                         //off
 	}
 
@@ -629,14 +629,14 @@ getOut:
 		ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
 		ParamCollectionSummary* summary = modelStack->paramManager->getPatchedParamSetSummary();
 		ParamSet* paramSet = (ParamSet*)summary->paramCollection;
-		int paramId = PARAM_LOCAL_OSC_A_VOLUME + soundEditor.currentSourceIndex;
+		int paramId = Param::Local::OSC_A_VOLUME + soundEditor.currentSourceIndex;
 		ModelStackWithAutoParam* modelStackWithParam =
 		    modelStack->addParam(paramSet, summary, paramId, &paramSet->params[paramId]);
 
 		// Reset osc volume, if it's not automated
 		if (!modelStackWithParam->autoParam->isAutomated()) {
 			modelStackWithParam->autoParam->setCurrentValueWithNoReversionOrRecording(modelStackWithParam, 2147483647);
-			//((ParamManagerBase*)soundEditor.currentParamManager)->setPatchedParamValue(PARAM_LOCAL_OSC_A_VOLUME + soundEditor.currentSourceIndex, 2147483647, 0xFFFFFFFF, 0, soundEditor.currentSound, currentSong, currentSong->currentClip, false);
+			//((ParamManagerBase*)soundEditor.currentParamManager)->setPatchedParamValue(Param::Local::OSC_A_VOLUME + soundEditor.currentSourceIndex, 2147483647, 0xFFFFFFFF, 0, soundEditor.currentSound, currentSong, currentSong->currentClip, false);
 		}
 
 		SoundDrum* firstDrum = (SoundDrum*)soundEditor.currentSound;
@@ -675,11 +675,11 @@ getOut:
 		if (doEnvelopes) {
 			ParamCollectionSummary* summary = modelStack->paramManager->getPatchedParamSetSummary();
 			ModelStackWithParamId* modelStackWithParamId =
-			    modelStack->addParamCollectionAndId(summary->paramCollection, summary, PARAM_LOCAL_ENV_0_RELEASE);
+			    modelStack->addParamCollectionAndId(summary->paramCollection, summary, Param::Local::ENV_0_RELEASE);
 			ModelStackWithAutoParam* modelStackWithAutoParam =
 			    modelStackWithParamId->paramCollection->getAutoParamFromId(modelStackWithParamId);
 			modelStackWithAutoParam->autoParam->setCurrentValueWithNoReversionOrRecording(
-			    modelStackWithAutoParam, getParamFromUserValue(PARAM_LOCAL_ENV_0_RELEASE, 1));
+			    modelStackWithAutoParam, getParamFromUserValue(Param::Local::ENV_0_RELEASE, 1));
 		}
 
 		// Do the rest of the Drums
@@ -731,11 +731,11 @@ ramError2:
 			range->sampleHolder.loadFile(false, false, true);
 
 			if (doEnvelopes) {
-				paramManager.getPatchedParamSet()->params[PARAM_LOCAL_ENV_0_ATTACK].setCurrentValueBasicForSetup(
-				    getParamFromUserValue(PARAM_LOCAL_ENV_0_ATTACK, 1));
+				paramManager.getPatchedParamSet()->params[Param::Local::ENV_0_ATTACK].setCurrentValueBasicForSetup(
+				    getParamFromUserValue(Param::Local::ENV_0_ATTACK, 1));
 				if (i != numClips - 1) {
-					paramManager.getPatchedParamSet()->params[PARAM_LOCAL_ENV_0_RELEASE].setCurrentValueBasicForSetup(
-					    getParamFromUserValue(PARAM_LOCAL_ENV_0_RELEASE, 1));
+					paramManager.getPatchedParamSet()->params[Param::Local::ENV_0_RELEASE].setCurrentValueBasicForSetup(
+					    getParamFromUserValue(Param::Local::ENV_0_RELEASE, 1));
 				}
 			}
 

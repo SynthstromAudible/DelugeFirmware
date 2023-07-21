@@ -69,7 +69,7 @@ void Patcher::recalculateFinalValueForParamWithNoCables(int p, Sound* sound, Par
 }
 
 int32_t rangeFinalValues
-    [MAX_NUM_PATCH_CABLES]; // TODO: storing these in permanent memory per voice could save a tiny bit of time... actually so minor though, maybe not worth it.
+    [kMaxNumPatchCables]; // TODO: storing these in permanent memory per voice could save a tiny bit of time... actually so minor though, maybe not worth it.
 
 // You may as well check sourcesChanged before calling this.
 void Patcher::performPatching(uint32_t sourcesChanged, Sound* sound, ParamManagerForTimeline* paramManager) {
@@ -101,8 +101,8 @@ void Patcher::performPatching(uint32_t sourcesChanged, Sound* sound, ParamManage
 
 	int32_t* paramFinalValues = getParamFinalValuesPointer();
 
-	uint8_t params[getMax(FIRST_GLOBAL_PARAM, NUM_PARAMS - FIRST_GLOBAL_PARAM) + 1];
-	int32_t cableCombinations[getMax(FIRST_GLOBAL_PARAM, NUM_PARAMS - FIRST_GLOBAL_PARAM)];
+	uint8_t params[getMax(Param::Global::FIRST, kNumParams - Param::Global::FIRST) + 1];
+	int32_t cableCombinations[getMax(Param::Global::FIRST, kNumParams - Param::Global::FIRST)];
 	int numParamsPatched = 0;
 
 	// Go through regular Destinations going directly to a param
@@ -287,7 +287,7 @@ inline int32_t Patcher::combineCablesExp(Destination const* destination, unsigne
 		// Hack for wave index params - make the patching (but not the preset value) stretch twice as far, to allow the opposite end to be reached even if the user's
 		// preset value is all the way to one end.
 		// These params are "hybrid" ones, and probably in a perfect world I would have made the other ones behave the same way. But I can't break users' songs.
-		if (p == PARAM_LOCAL_OSC_A_WAVE_INDEX || p == PARAM_LOCAL_OSC_B_WAVE_INDEX) {
+		if (p == Param::Local::OSC_A_WAVE_INDEX || p == Param::Local::OSC_B_WAVE_INDEX) {
 			runningTotalCombination <<= 1;
 		}
 	}

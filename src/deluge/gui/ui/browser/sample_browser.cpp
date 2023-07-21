@@ -245,7 +245,7 @@ void SampleBrowser::currentFileChanged(int movementDirection) {
 		uiTimerManager.unsetTimer(TIMER_SHORTCUT_BLINK);
 
 		memset(PadLEDs::transitionTakingPlaceOnRow, 1, sizeof(PadLEDs::transitionTakingPlaceOnRow));
-		PadLEDs::horizontal::setupScroll(movementDirection, displayWidth, true);
+		PadLEDs::horizontal::setupScroll(movementDirection, kDisplayWidth, true);
 		currentUIMode = UI_MODE_HORIZONTAL_SCROLL;
 	}
 
@@ -606,7 +606,7 @@ void SampleBrowser::previewIfPossible(int movementDirection) {
 					                                  waveformBasicNavigator.xZoom, PadLEDs::imageStore,
 					                                  &waveformBasicNavigator.renderData);
 					memset(PadLEDs::transitionTakingPlaceOnRow, 1, sizeof(PadLEDs::transitionTakingPlaceOnRow));
-					PadLEDs::horizontal::setupScroll(movementDirection, displayWidth);
+					PadLEDs::horizontal::setupScroll(movementDirection, kDisplayWidth);
 
 					currentUIMode = UI_MODE_HORIZONTAL_SCROLL;
 				}
@@ -649,7 +649,7 @@ void SampleBrowser::previewIfPossible(int movementDirection) {
 					PadLEDs::reassessGreyout(true);
 				}
 				memset(PadLEDs::transitionTakingPlaceOnRow, 1, sizeof(PadLEDs::transitionTakingPlaceOnRow));
-				PadLEDs::horizontal::setupScroll(movementDirection, displayWidth);
+				PadLEDs::horizontal::setupScroll(movementDirection, kDisplayWidth);
 				currentUIMode = UI_MODE_HORIZONTAL_SCROLL;
 			}
 
@@ -673,14 +673,14 @@ void SampleBrowser::displayCurrentFilename() {
 ActionResult SampleBrowser::padAction(int x, int y, int on) {
 
 	// Allow auditioning
-	if (x == displayWidth + 1) {
+	if (x == kDisplayWidth + 1) {
 		if (getRootUI() == &instrumentClipView) {
 			return instrumentClipView.padAction(x, y, on);
 		}
 	}
 
 	// Mute pads - exit UI
-	else if (x == displayWidth) { // !currentlyShowingSamplePreview ||
+	else if (x == kDisplayWidth) { // !currentlyShowingSamplePreview ||
 possiblyExit:
 		if (on && !currentUIMode) {
 			AudioEngine::stopAnyPreviewing();
@@ -735,8 +735,8 @@ possiblyExit:
 void SampleBrowser::drawKeysOverWaveform() {
 
 	// Do manual greyout on all main pads
-	for (int y = 0; y < displayHeight; y++) {
-		for (int x = 0; x < displayWidth; x++) {
+	for (int y = 0; y < kDisplayHeight; y++) {
+		for (int x = 0; x < kDisplayWidth; x++) {
 			greyColourOut(PadLEDs::image[y][x], PadLEDs::image[y][x], 6500000);
 		}
 	}
@@ -773,7 +773,7 @@ int SampleBrowser::claimAudioFileForAudioClip() {
 
 	// If there's a pre-margin, we want to set an attack-time
 	if (!error && ((SampleHolder*)holder)->startPos) {
-		((AudioClip*)currentSong->currentClip)->attack = AUDIO_CLIP_DEFAULT_ATTACK_IF_PRE_MARGIN;
+		((AudioClip*)currentSong->currentClip)->attack = kAudioClipDefaultAttackIfPreMargin;
 	}
 
 	return error;
@@ -893,17 +893,17 @@ doLoadAsWaveTable:
 
 			if (soundEditor.currentSourceIndex == 0) { // Osc 1
 				soundEditor.currentSound->modKnobs[7][1].paramDescriptor.setToHaveParamOnly(
-				    PARAM_LOCAL_OSC_A_WAVE_INDEX);
+				    Param::Local::OSC_A_WAVE_INDEX);
 
 				if (!soundEditor.currentSound->modKnobs[7][0].paramDescriptor.isSetToParamWithNoSource(
-				        PARAM_LOCAL_OSC_B_WAVE_INDEX)) {
+				        Param::Local::OSC_B_WAVE_INDEX)) {
 					soundEditor.currentSound->modKnobs[7][0].paramDescriptor.setToHaveParamAndSource(
-					    PARAM_LOCAL_OSC_A_WAVE_INDEX, PatchSource::LFO_LOCAL);
+					    Param::Local::OSC_A_WAVE_INDEX, PatchSource::LFO_LOCAL);
 				}
 			}
 			else { // Osc 2
 				soundEditor.currentSound->modKnobs[7][0].paramDescriptor.setToHaveParamOnly(
-				    PARAM_LOCAL_OSC_B_WAVE_INDEX);
+				    Param::Local::OSC_B_WAVE_INDEX);
 			}
 			currentSong->currentClip->output->modKnobMode = 7;
 			view.setKnobIndicatorLevels(); // Visually update.
@@ -949,8 +949,8 @@ doLoadAsSample:
 
 				// Ideally, we'd like to use the wavetable engine for this single-cycle-ness
 				if (mayDoWaveTable && numTypesTried <= 1 && sample->numChannels == 1
-				    && sample->lengthInSamples >= WAVETABLE_MIN_CYCLE_SIZE
-				    && sample->lengthInSamples <= WAVETABLE_MAX_CYCLE_SIZE) {
+				    && sample->lengthInSamples >= kWavetableMinCycleSize
+				    && sample->lengthInSamples <= kWavetableMaxCycleSize) {
 
 					makeWaveTableWorkAtAllCosts =
 					    true; // So that the loading functions don't just chicken out when it doesn't look all that wavetabley.
@@ -1046,15 +1046,15 @@ doLoadAsSample:
 			// Anyway, by now we know we've loaded as a Sample, not a Wavetable.
 			// So remove WaveTable gold knob assignments.
 			bool anyChange = false;
-			int p = PARAM_LOCAL_OSC_A_WAVE_INDEX + soundEditor.currentSourceIndex;
+			int p = Param::Local::OSC_A_WAVE_INDEX + soundEditor.currentSourceIndex;
 			if (soundEditor.currentSound->modKnobs[7][0].paramDescriptor.getJustTheParam() == p) {
-				soundEditor.currentSound->modKnobs[7][0].paramDescriptor.setToHaveParamOnly(PARAM_UNPATCHED_BITCRUSHING
-				                                                                            + PARAM_UNPATCHED_SECTION);
+				soundEditor.currentSound->modKnobs[7][0].paramDescriptor.setToHaveParamOnly(Param::Unpatched::BITCRUSHING
+				                                                                            + Param::Unpatched::START);
 				anyChange = true;
 			}
 			if (soundEditor.currentSound->modKnobs[7][1].paramDescriptor.getJustTheParam() == p) {
 				soundEditor.currentSound->modKnobs[7][1].paramDescriptor.setToHaveParamOnly(
-				    PARAM_UNPATCHED_SAMPLE_RATE_REDUCTION + PARAM_UNPATCHED_SECTION);
+				    Param::Unpatched::SAMPLE_RATE_REDUCTION + Param::Unpatched::START);
 				anyChange = true;
 			}
 
@@ -1098,7 +1098,7 @@ void SampleBrowser::audioFileIsNowSet() {
 	ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
 	ParamCollectionSummary* summary = modelStack->paramManager->getPatchedParamSetSummary();
 	PatchedParamSet* paramSet = (PatchedParamSet*)summary->paramCollection;
-	int paramId = PARAM_LOCAL_OSC_A_VOLUME + soundEditor.currentSourceIndex;
+	int paramId = Param::Local::OSC_A_VOLUME + soundEditor.currentSourceIndex;
 	ModelStackWithAutoParam* modelStackWithParam =
 	    modelStack->addParam(paramSet, summary, paramId, &paramSet->params[paramId]);
 
@@ -1107,7 +1107,7 @@ void SampleBrowser::audioFileIsNowSet() {
 		modelStackWithParam->autoParam->setCurrentValueWithNoReversionOrRecording(modelStackWithParam, 2147483647);
 
 		// Hmm crap, we probably still do need to notify...
-		//((ParamManagerBase*)soundEditor.currentParamManager)->setPatchedParamValue(PARAM_LOCAL_OSC_A_VOLUME + soundEditor.currentSourceIndex, 2147483647, 0xFFFFFFFF, 0, soundEditor.currentSound, currentSong, currentSong->currentClip, false);
+		//((ParamManagerBase*)soundEditor.currentParamManager)->setPatchedParamValue(Param::Local::OSC_A_VOLUME + soundEditor.currentSourceIndex, 2147483647, 0xFFFFFFFF, 0, soundEditor.currentSound, currentSong, currentSong->currentClip, false);
 	}
 }
 
@@ -1928,7 +1928,7 @@ getOut:
 
 				ParamCollectionSummary* summary = modelStack->paramManager->getPatchedParamSetSummary();
 				ParamSet* paramSet = (ParamSet*)summary->paramCollection;
-				int paramId = PARAM_LOCAL_OSC_A_VOLUME + soundEditor.currentSourceIndex;
+				int paramId = Param::Local::OSC_A_VOLUME + soundEditor.currentSourceIndex;
 				ModelStackWithAutoParam* modelStackWithParam =
 				    modelStack->addParam(paramSet, summary, paramId, &paramSet->params[paramId]);
 
@@ -1936,7 +1936,7 @@ getOut:
 				if (!modelStackWithParam->autoParam->isAutomated()) {
 					modelStackWithParam->autoParam->setCurrentValueWithNoReversionOrRecording(modelStackWithParam,
 					                                                                          2147483647);
-					//((ParamManagerBase*)soundEditor.currentParamManager)->setPatchedParamValue(PARAM_LOCAL_OSC_A_VOLUME + soundEditor.currentSourceIndex, 2147483647, 0xFFFFFFFF, 0, firstDrum, currentSong, currentSong->currentClip, false);
+					//((ParamManagerBase*)soundEditor.currentParamManager)->setPatchedParamValue(Param::Local::OSC_A_VOLUME + soundEditor.currentSourceIndex, 2147483647, 0xFFFFFFFF, 0, firstDrum, currentSong, currentSong->currentClip, false);
 				}
 
 				drum->unassignAllVoices();
@@ -2081,7 +2081,7 @@ doNormal:
 				uiTimerManager.unsetTimer(TIMER_DISPLAY);
 				scrollingText->currentPos += offset;
 
-				int maxScroll = scrollingText->length - NUMERIC_DISPLAY_LENGTH;
+				int maxScroll = scrollingText->length - kNumericDisplayLength;
 
 				if (scrollingText->currentPos < 0) scrollingText->currentPos = 0;
 				if (scrollingText->currentPos > maxScroll) scrollingText->currentPos = maxScroll;
@@ -2114,8 +2114,8 @@ bool SampleBrowser::canSeeViewUnderneath() {
 	return !currentlyShowingSamplePreview && !qwertyVisible;
 }
 
-bool SampleBrowser::renderMainPads(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
-                                   uint8_t occupancyMask[][displayWidth + sideBarWidth], bool drawUndefinedArea) {
+bool SampleBrowser::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+                                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
 
 	return (qwertyVisible || currentlyShowingSamplePreview);
 }

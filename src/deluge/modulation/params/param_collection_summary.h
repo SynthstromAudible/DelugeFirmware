@@ -24,7 +24,7 @@ class ParamCollection;
 class ParamCollectionSummary {
 public:
 	inline bool containsAutomation() {
-		if constexpr (MAX_NUM_UINTS_TO_REP_ALL_PARAMS > 2) {
+		if constexpr (kMaxNumUnsignedIntegerstoRepAllParams > 2) {
 			return (whichParamsAreAutomated[0] | whichParamsAreAutomated[1] | whichParamsAreAutomated[2]);
 		}
 		else {
@@ -45,18 +45,18 @@ public:
 	}
 
 	void cloneFlagsFrom(ParamCollectionSummary* other) {
-		for (int i = 0; i < MAX_NUM_UINTS_TO_REP_ALL_PARAMS; i++) {
+		for (int i = 0; i < kMaxNumUnsignedIntegerstoRepAllParams; i++) {
 			whichParamsAreAutomated[i] = other->whichParamsAreAutomated[i];
 		}
 
-		for (int i = 0; i < MAX_NUM_UINTS_TO_REP_ALL_PARAMS; i++) {
+		for (int i = 0; i < kMaxNumUnsignedIntegerstoRepAllParams; i++) {
 			whichParamsAreInterpolating[i] = other->whichParamsAreInterpolating[i];
 		}
 	}
 
 	ParamCollection* paramCollection;
-	uint32_t whichParamsAreAutomated[MAX_NUM_UINTS_TO_REP_ALL_PARAMS];
-	uint32_t whichParamsAreInterpolating[MAX_NUM_UINTS_TO_REP_ALL_PARAMS];
+	uint32_t whichParamsAreAutomated[kMaxNumUnsignedIntegerstoRepAllParams];
+	uint32_t whichParamsAreInterpolating[kMaxNumUnsignedIntegerstoRepAllParams];
 
 	// The list of these ParamCollectionSummarys, in ParamManager, must be terminated by one whose values are *all* zero. This helps because if we know this, we can check for stuff faster.
 };

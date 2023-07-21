@@ -34,6 +34,6 @@ public:
 		static char const* options[] = {"Conditional", "On", "Off", NULL};
 		return options;
 	}
-	int getNumOptions() { return NUM_INPUT_MONITORING_MODES; }
+	int getNumOptions() { return kNumInputMonitoringModes; }
 };
 } // namespace menu_item::monitor

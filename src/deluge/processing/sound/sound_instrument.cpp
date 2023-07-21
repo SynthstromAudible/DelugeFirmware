@@ -102,7 +102,7 @@ void SoundInstrument::renderOutput(ModelStack* modelStack, StereoSample* startPo
 		// No time to call the proper function and do error checking, sorry.
 		ParamCollectionSummary* patchedParamsSummary = &modelStackWithThreeMainThings->paramManager->summaries[1];
 		bool anyInterpolating = false;
-		if constexpr (NUM_PARAMS > 64) {
+		if constexpr (kNumParams > 64) {
 			anyInterpolating = patchedParamsSummary->whichParamsAreInterpolating[0]
 			                   || patchedParamsSummary->whichParamsAreInterpolating[1]
 			                   || patchedParamsSummary->whichParamsAreInterpolating[2];
@@ -122,7 +122,7 @@ yesTickParamManagerForClip:
 
 			// No time to call the proper function and do error checking, sorry.
 			ParamCollectionSummary* unpatchedParamsSummary = &modelStackWithThreeMainThings->paramManager->summaries[0];
-			if constexpr (MAX_NUM_UNPATCHED_PARAM_FOR_SOUNDS > 32) {
+			if constexpr (Param::Unpatched::Sound::MAX_NUM > 32) {
 				if (unpatchedParamsSummary->whichParamsAreInterpolating[0]
 				    || unpatchedParamsSummary->whichParamsAreInterpolating[1]) {
 					goto yesTickParamManagerForClip;
@@ -136,7 +136,7 @@ yesTickParamManagerForClip:
 
 			// No time to call the proper function and do error checking, sorry.
 			ParamCollectionSummary* patchCablesSummary = &modelStackWithThreeMainThings->paramManager->summaries[2];
-			if constexpr (MAX_NUM_PATCH_CABLES > 32) {
+			if constexpr (kMaxNumPatchCables > 32) {
 				if (patchCablesSummary->whichParamsAreInterpolating[0]
 				    || patchCablesSummary->whichParamsAreInterpolating[1]) {
 					goto yesTickParamManagerForClip;
@@ -151,7 +151,7 @@ yesTickParamManagerForClip:
 			// No time to call the proper function and do error checking, sorry.
 			ParamCollectionSummary* expressionParamsSummary =
 			    &modelStackWithThreeMainThings->paramManager->summaries[3];
-			if constexpr (NUM_EXPRESSION_DIMENSIONS > 32) {
+			if constexpr (kNumExpressionDimensions > 32) {
 				if (expressionParamsSummary->whichParamsAreInterpolating[0]
 				    || expressionParamsSummary->whichParamsAreInterpolating[1]) {
 					goto yesTickParamManagerForClip;
@@ -170,7 +170,7 @@ yesTickParamManagerForClip:
 			// No time to call the proper function and do error checking, sorry.
 			ParamCollectionSummary* expressionParamsSummary = &thisNoteRow->paramManager.summaries[0];
 			bool result = false;
-			if constexpr (NUM_EXPRESSION_DIMENSIONS > 32) {
+			if constexpr (kNumExpressionDimensions > 32) {
 				result = expressionParamsSummary->whichParamsAreInterpolating[0]
 				         || expressionParamsSummary->whichParamsAreInterpolating[1];
 			}
@@ -189,7 +189,7 @@ yesTickParamManagerForClip:
 int SoundInstrument::loadAllAudioFiles(bool mayActuallyReadFiles) {
 
 	bool doingAlternatePath =
-	    mayActuallyReadFiles && (audioFileManager.alternateLoadDirStatus == ALTERNATE_LOAD_DIR_NONE_SET);
+	    mayActuallyReadFiles && (audioFileManager.alternateLoadDirStatus == AlternateLoadDirStatus::NONE_SET);
 	if (doingAlternatePath) {
 		int error = setupDefaultAudioFileDir();
 		if (error) {
@@ -252,16 +252,16 @@ bool SoundInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, P
 		// Grab mono expression params
 		ExpressionParamSet* expressionParams = paramManager->getExpressionParamSet();
 		if (expressionParams) {
-			for (int i = 0; i < NUM_EXPRESSION_DIMENSIONS; i++) {
+			for (int i = 0; i < kNumExpressionDimensions; i++) {
 				monophonicExpressionValues[i] = expressionParams->params[i].getCurrentValue();
 			}
 		}
 		else {
-			for (int i = 0; i < NUM_EXPRESSION_DIMENSIONS; i++) {
+			for (int i = 0; i < kNumExpressionDimensions; i++) {
 				monophonicExpressionValues[i] = 0;
 			}
 		}
-		whichExpressionSourcesChangedAtSynthLevel = (1 << NUM_EXPRESSION_DIMENSIONS) - 1;
+		whichExpressionSourcesChangedAtSynthLevel = (1 << kNumExpressionDimensions) - 1;
 	}
 	return clipChanged;
 }
@@ -280,10 +280,10 @@ void SoundInstrument::setupWithoutActiveClip(ModelStack* modelStack) {
 	patcher.performInitialPatching(this, paramManager);
 
 	// Clear mono expression params
-	for (int i = 0; i < NUM_EXPRESSION_DIMENSIONS; i++) {
+	for (int i = 0; i < kNumExpressionDimensions; i++) {
 		monophonicExpressionValues[i] = 0;
 	}
-	whichExpressionSourcesChangedAtSynthLevel = (1 << NUM_EXPRESSION_DIMENSIONS) - 1;
+	whichExpressionSourcesChangedAtSynthLevel = (1 << kNumExpressionDimensions) - 1;
 
 	Instrument::setupWithoutActiveClip(modelStack);
 }

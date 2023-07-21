@@ -90,7 +90,7 @@ extern "C" uint32_t getAudioSampleTimerMS() {
 	return AudioEngine::audioSampleTimer / 44.1;
 }
 
-int16_t zeroMPEValues[NUM_EXPRESSION_DIMENSIONS] = {0, 0, 0};
+int16_t zeroMPEValues[kNumExpressionDimensions] = {0, 0, 0};
 
 namespace AudioEngine {
 
@@ -163,14 +163,14 @@ int monitoringAction;
 
 uint32_t saddr;
 
-VoiceSample voiceSamples[NUM_VOICE_SAMPLES_STATIC] = {};
+VoiceSample voiceSamples[kNumVoiceSamplesStatic] = {};
 VoiceSample* firstUnassignedVoiceSample = voiceSamples;
 
-TimeStretcher timeStretchers[NUM_TIME_STRETCHERS_STATIC] = {};
+TimeStretcher timeStretchers[kNumTimeStretchersStatic] = {};
 TimeStretcher* firstUnassignedTimeStretcher = timeStretchers;
 
 // Hmm, I forgot this was still being used. It's not a great way of doing things... wait does this still actually get used? No?
-Voice staticVoices[NUM_VOICES_STATIC] = {};
+Voice staticVoices[kNumVoicesStatic] = {};
 Voice* firstUnassignedVoice;
 
 // You must set up dynamic memory allocation before calling this, because of its call to setupWithPatching()
@@ -193,16 +193,16 @@ void init() {
 
 	sampleForPreview->sideChainSendLevel = 2147483647;
 
-	for (int i = 0; i < NUM_VOICE_SAMPLES_STATIC; i++) {
-		voiceSamples[i].nextUnassigned = (i == NUM_VOICE_SAMPLES_STATIC - 1) ? NULL : &voiceSamples[i + 1];
+	for (int i = 0; i < kNumVoiceSamplesStatic; i++) {
+		voiceSamples[i].nextUnassigned = (i == kNumVoiceSamplesStatic - 1) ? NULL : &voiceSamples[i + 1];
 	}
 
-	for (int i = 0; i < NUM_TIME_STRETCHERS_STATIC; i++) {
-		timeStretchers[i].nextUnassigned = (i == NUM_TIME_STRETCHERS_STATIC - 1) ? NULL : &timeStretchers[i + 1];
+	for (int i = 0; i < kNumTimeStretchersStatic; i++) {
+		timeStretchers[i].nextUnassigned = (i == kNumTimeStretchersStatic - 1) ? NULL : &timeStretchers[i + 1];
 	}
 
-	for (int i = 0; i < NUM_VOICES_STATIC; i++) {
-		staticVoices[i].nextUnassigned = (i == NUM_VOICES_STATIC - 1) ? NULL : &staticVoices[i + 1];
+	for (int i = 0; i < kNumVoicesStatic; i++) {
+		staticVoices[i].nextUnassigned = (i == kNumVoicesStatic - 1) ? NULL : &staticVoices[i + 1];
 	}
 
 	i2sTXBufferPos = (uint32_t)getTxBufferStart();
@@ -689,8 +689,8 @@ startAgain:
 	}
 
 	// LPF and stutter for song (must happen after reverb mixed in, which is why it's happening all the way out here
-	masterVolumeAdjustmentL = 167763968; //getParamNeutralValue(PARAM_GLOBAL_VOLUME_POST_FX);
-	masterVolumeAdjustmentR = 167763968; //getParamNeutralValue(PARAM_GLOBAL_VOLUME_POST_FX);
+	masterVolumeAdjustmentL = 167763968; //getParamNeutralValue(Param::Global::VOLUME_POST_FX);
+	masterVolumeAdjustmentR = 167763968; //getParamNeutralValue(Param::Global::VOLUME_POST_FX);
 	// 167763968 is 134217728 made a bit bigger so that default filter resonance doesn't reduce volume overall
 
 	if (currentSong) {
@@ -707,7 +707,7 @@ startAgain:
 
 		// And we do panning for song here too - must be post reverb, and we had to do a volume adjustment below anyway
 		int32_t pan =
-		    currentSong->paramManager.getUnpatchedParamSet()->getValue(PARAM_UNPATCHED_GLOBALEFFECTABLE_PAN) >> 1;
+		    currentSong->paramManager.getUnpatchedParamSet()->getValue(Param::Unpatched::GlobalEffectable::PAN) >> 1;
 
 		if (pan != 0) {
 			// Set up panning
@@ -1052,7 +1052,7 @@ void updateReverbParams() {
 		// Set the initial "highest amount found" to that of the song itself, which can't be affected by sidechain. If nothing found with more reverb,
 		// then we don't want the reverb affected by sidechain
 		int32_t highestReverbAmountFound = currentSong->paramManager.getUnpatchedParamSet()->getValue(
-		    PARAM_UNPATCHED_GLOBALEFFECTABLE_REVERB_SEND_AMOUNT);
+		    Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT);
 
 		for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
 			thisOutput->getThingWithMostReverb(&soundWithMostReverb, &paramManagerWithMostReverb,
@@ -1065,14 +1065,14 @@ void updateReverbParams() {
 			modControllable = soundWithMostReverb;
 
 			ParamDescriptor paramDescriptor;
-			paramDescriptor.setToHaveParamOnly(PARAM_GLOBAL_VOLUME_POST_REVERB_SEND);
+			paramDescriptor.setToHaveParamOnly(Param::Global::VOLUME_POST_REVERB_SEND);
 
 			PatchCableSet* patchCableSet = paramManagerWithMostReverb->getPatchCableSet();
 
 			int whichCable = patchCableSet->getPatchCableIndex(PatchSource::COMPRESSOR, paramDescriptor);
 			if (whichCable != 255) {
 				reverbCompressorVolumeInEffect =
-				    patchCableSet->getModifiedPatchCableAmount(whichCable, PARAM_GLOBAL_VOLUME_POST_REVERB_SEND);
+				    patchCableSet->getModifiedPatchCableAmount(whichCable, Param::Global::VOLUME_POST_REVERB_SEND);
 			}
 			else {
 				reverbCompressorVolumeInEffect = 0;
@@ -1087,7 +1087,7 @@ void updateReverbParams() {
 
 compressorFound:
 			reverbCompressorShapeInEffect =
-			    paramManagerWithMostReverb->getUnpatchedParamSet()->getValue(PARAM_UNPATCHED_COMPRESSOR_SHAPE);
+			    paramManagerWithMostReverb->getUnpatchedParamSet()->getValue(Param::Unpatched::COMPRESSOR_SHAPE);
 			reverbCompressor.attack = modControllable->compressor.attack;
 			reverbCompressor.release = modControllable->compressor.release;
 			reverbCompressor.syncLevel = modControllable->compressor.syncLevel;
@@ -1127,7 +1127,7 @@ void previewSample(String* path, FilePointer* filePointer, bool shouldActuallySo
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithThreeMainThings* modelStack = setupModelStackWithThreeMainThingsButNoNoteRow(
 		    modelStackMemory, currentSong, sampleForPreview, NULL, paramManagerForSamplePreview);
-		sampleForPreview->Sound::noteOn(modelStack, &sampleForPreview->arpeggiator, NOTE_FOR_DRUM, zeroMPEValues);
+		sampleForPreview->Sound::noteOn(modelStack, &sampleForPreview->arpeggiator, kNoteForDrum, zeroMPEValues);
 		bypassCulling =
 		    true; // Needed - Dec 2021. I think it's during SampleBrowser::selectEncoderAction() that we may have gone a while without an audio routine call.
 	}
@@ -1223,7 +1223,7 @@ void unassignVoice(Voice* voice, Sound* sound, ModelStackWithSoundFlags* modelSt
 }
 
 void disposeOfVoice(Voice* voice) {
-	if (voice >= staticVoices && voice < &staticVoices[NUM_TIME_STRETCHERS_STATIC]) {
+	if (voice >= staticVoices && voice < &staticVoices[kNumTimeStretchersStatic]) {
 		voice->nextUnassigned = firstUnassignedVoice;
 		firstUnassignedVoice = voice;
 	}
@@ -1249,7 +1249,7 @@ VoiceSample* solicitVoiceSample() {
 }
 
 void voiceSampleUnassigned(VoiceSample* voiceSample) {
-	if (voiceSample >= voiceSamples && voiceSample < &voiceSamples[NUM_VOICE_SAMPLES_STATIC]) {
+	if (voiceSample >= voiceSamples && voiceSample < &voiceSamples[kNumVoiceSamplesStatic]) {
 		voiceSample->nextUnassigned = firstUnassignedVoiceSample;
 		firstUnassignedVoiceSample = voiceSample;
 	}
@@ -1278,7 +1278,7 @@ TimeStretcher* solicitTimeStretcher() {
 
 // There are no destructors. You gotta clean it up before you call this
 void timeStretcherUnassigned(TimeStretcher* timeStretcher) {
-	if (timeStretcher >= timeStretchers && timeStretcher < &timeStretchers[NUM_TIME_STRETCHERS_STATIC]) {
+	if (timeStretcher >= timeStretchers && timeStretcher < &timeStretchers[kNumTimeStretchersStatic]) {
 		timeStretcher->nextUnassigned = firstUnassignedTimeStretcher;
 		firstUnassignedTimeStretcher = timeStretcher;
 	}
@@ -1297,7 +1297,7 @@ LiveInputBuffer* getOrCreateLiveInputBuffer(OscType inputType, bool mayCreate) {
 
 		int size = sizeof(LiveInputBuffer);
 		if (inputType == OscType::INPUT_STEREO) {
-			size += INPUT_RAW_BUFFER_SIZE * sizeof(int32_t);
+			size += kInputRawBufferSize * sizeof(int32_t);
 		}
 
 		void* memory = generalMemoryAllocator.alloc(size, NULL, false, true);

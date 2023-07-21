@@ -51,7 +51,7 @@ struct EditPadPress {
 	bool deleteOnScroll;
 	bool isBlurredSquare;
 	bool mpeCachedYet;
-	StolenParamNodes stolenMPE[NUM_EXPRESSION_DIMENSIONS];
+	StolenParamNodes stolenMPE[kNumExpressionDimensions];
 	uint32_t intendedPos;    // For "blurred squares", means start of square
 	uint32_t intendedLength; // For "blurred squares", means length of square
 };
@@ -103,9 +103,9 @@ public:
 	void noteRowChanged(InstrumentClip* clip, NoteRow* noteRow);
 	void setSelectedDrum(Drum* drum, bool shouldRedrawStuff = true);
 	bool isDrumAuditioned(Drum* drum);
-	int setupForEnteringScaleMode(int newRootNote = 2147483647, int yDisplay = (displayHeight / 2));
+	int setupForEnteringScaleMode(int newRootNote = 2147483647, int yDisplay = (kDisplayHeight / 2));
 	int setupForExitingScaleMode();
-	void setupChangingOfRootNote(int newRootNote, int yDisplay = (displayHeight / 2));
+	void setupChangingOfRootNote(int newRootNote, int yDisplay = (kDisplayHeight / 2));
 	void deleteDrum(SoundDrum* drum);
 	void cancelAllAuditioning();
 	void modEncoderButtonAction(uint8_t whichModEncoder, bool on);
@@ -114,13 +114,13 @@ public:
 	void drawDrumName(Drum* drum, bool justPopUp = false);
 	void notifyPlaybackBegun();
 	void openedInBackground();
-	bool renderMainPads(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
-	                    uint8_t occupancyMask[][displayWidth + sideBarWidth], bool drawUndefinedArea = true);
-	void performActualRender(uint32_t whichRows, uint8_t* image, uint8_t occupancyMask[][displayWidth + sideBarWidth],
+	bool renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
+	void performActualRender(uint32_t whichRows, uint8_t* image, uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
 	                         int32_t xScroll, uint32_t xZoom, int renderWidth, int imageWidth,
 	                         bool drawUndefinedArea = true);
-	bool renderSidebar(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
-	                   uint8_t occupancyMask[][displayWidth + sideBarWidth]);
+	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 
 	void transitionToSessionView();
 	void playbackEnded();
@@ -159,20 +159,20 @@ public:
 	    auditioningSilently; // Sometimes the user will want to hold an audition pad without actually sounding the note, by holding an encoder
 	bool fileBrowserShouldNotPreview; // Archaic leftover feature that users wouldn't let me get rid of
 
-	int16_t mpeValuesAtHighestPressure[MPE_RECORD_LENGTH_FOR_NOTE_EDITING][NUM_EXPRESSION_DIMENSIONS];
+	int16_t mpeValuesAtHighestPressure[MPE_RECORD_LENGTH_FOR_NOTE_EDITING][kNumExpressionDimensions];
 	int16_t mpeMostRecentPressure;
 	uint32_t mpeRecordLastUpdateTime;
 
 private:
-	uint8_t lastAuditionedVelocityOnScreen[displayHeight]; // 255 seems to mean none
-	uint8_t auditionPadIsPressed[displayHeight];
-	uint8_t rowColour[displayHeight][3];
-	uint8_t rowTailColour[displayHeight][3];
-	uint8_t rowBlurColour[displayHeight][3];
-	uint8_t numEditPadPressesPerNoteRowOnScreen[displayHeight];
+	uint8_t lastAuditionedVelocityOnScreen[kDisplayHeight]; // 255 seems to mean none
+	uint8_t auditionPadIsPressed[kDisplayHeight];
+	uint8_t rowColour[kDisplayHeight][3];
+	uint8_t rowTailColour[kDisplayHeight][3];
+	uint8_t rowBlurColour[kDisplayHeight][3];
+	uint8_t numEditPadPressesPerNoteRowOnScreen[kDisplayHeight];
 	uint8_t lastAuditionedYDisplay;
 
-	EditPadPress editPadPresses[editPadPressBufferSize];
+	EditPadPress editPadPresses[kEditPadPressBufferSize];
 	uint8_t numEditPadPresses;
 	uint32_t timeLastEditPadPress;
 	uint32_t timeFirstEditPadPress;

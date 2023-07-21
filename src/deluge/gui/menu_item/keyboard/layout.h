@@ -41,7 +41,7 @@ public:
 		return options;
 	}
 	int getNumOptions() {
-		return NUM_KEYBOARD_LAYOUTS;
+		return kNumKeyboardLayouts;
 	}
 };
 } // namespace menu_item::keyboard

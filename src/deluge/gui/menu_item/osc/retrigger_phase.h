@@ -60,8 +60,8 @@ public:
 #if HAVE_OLED
 	void drawPixelsForOled() {
 		if (soundEditor.currentValue < 0) {
-			OLED::drawStringCentred("OFF", 20, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, TEXT_HUGE_SPACING_X,
-			                        TEXT_HUGE_SIZE_Y);
+			OLED::drawStringCentred("OFF", 20, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, kTextHugeSpacingX,
+			                        kTextHugeSizeY);
 		}
 		else {
 			Decimal::drawPixelsForOled();

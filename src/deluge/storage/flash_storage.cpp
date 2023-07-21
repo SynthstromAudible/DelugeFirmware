@@ -132,7 +132,7 @@ void resetSettings() {
 	cvEngine.setCVTranspose(1, 0, 0);
 
 	for (int i = 0; i < NUM_GATE_CHANNELS; i++) {
-		cvEngine.setGateType(i, GATE_MODE_V_TRIG);
+		cvEngine.setGateType(i, GateType::V_TRIG);
 	}
 
 	cvEngine.minGateOffTime = 10;
@@ -212,7 +212,7 @@ void readSettings() {
 	cvEngine.setCVTranspose(1, buffer[15], buffer[19]);
 
 	for (int i = 0; i < NUM_GATE_CHANNELS; i++) {
-		cvEngine.setGateType(i, buffer[22 + i]);
+		cvEngine.setGateType(i, static_cast<GateType>(buffer[22 + i]));
 	}
 
 	cvEngine.minGateOffTime = buffer[30];
@@ -374,7 +374,7 @@ void readSettings() {
 
 void writeSettings() {
 	uint8_t* buffer = (uint8_t*)miscStringBuffer;
-	memset(buffer, 0, FILENAME_BUFFER_SIZE);
+	memset(buffer, 0, kFilenameBufferSize);
 
 	buffer[0] = kCurrentFirmwareVersion;
 
@@ -390,7 +390,7 @@ void writeSettings() {
 	buffer[19] = cvEngine.cvChannels[1].cents;
 
 	for (int i = 0; i < NUM_GATE_CHANNELS; i++) {
-		buffer[22 + i] = cvEngine.gateChannels[i].mode;
+		buffer[22 + i] = util::to_underlying(cvEngine.gateChannels[i].mode);
 	}
 
 	buffer[30] = cvEngine.minGateOffTime;

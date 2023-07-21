@@ -42,19 +42,19 @@ void Command::drawPixelsForOled() {
 	int yPixel = 20;
 	if (!command->containsSomething()) {
 		OLED::drawString("Command unassigned", 0, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
-		                 TEXT_SPACING_X, TEXT_SIZE_Y_UPDATED);
+		                 kTextSpacingX, kTextSizeYUpdated);
 	}
 	else {
 		char const* deviceString = "Any MIDI device";
 		if (command->device) {
 			deviceString = command->device->getDisplayName();
 		}
-		OLED::drawString(deviceString, 0, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, TEXT_SPACING_X,
-		                 TEXT_SIZE_Y_UPDATED);
-		OLED::setupSideScroller(0, deviceString, TEXT_SPACING_X, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8,
-		                        TEXT_SPACING_X, TEXT_SPACING_Y, false);
+		OLED::drawString(deviceString, 0, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX,
+		                 kTextSizeYUpdated);
+		OLED::setupSideScroller(0, deviceString, kTextSpacingX, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8,
+		                        kTextSpacingX, kTextSpacingY, false);
 
-		yPixel += TEXT_SPACING_Y;
+		yPixel += kTextSpacingY;
 
 		char const* channelText;
 		if (command->channelOrZone == MIDI_CHANNEL_MPE_LOWER_ZONE) {
@@ -68,26 +68,26 @@ void Command::drawPixelsForOled() {
 			char buffer[12];
 			int channelmod = (command->channelOrZone >= IS_A_CC) * IS_A_CC;
 			intToString(command->channelOrZone + 1 - channelmod, buffer, 1);
-			OLED::drawString(buffer, TEXT_SPACING_X * 8, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
-			                 TEXT_SPACING_X, TEXT_SIZE_Y_UPDATED);
+			OLED::drawString(buffer, kTextSpacingX * 8, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
+			                 kTextSpacingX, kTextSizeYUpdated);
 		}
-		OLED::drawString(channelText, 0, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, TEXT_SPACING_X,
-		                 TEXT_SIZE_Y_UPDATED);
+		OLED::drawString(channelText, 0, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX,
+		                 kTextSizeYUpdated);
 
-		yPixel += TEXT_SPACING_Y;
+		yPixel += kTextSpacingY;
 		if (command->channelOrZone < IS_A_CC) {
-			OLED::drawString("Note", 0, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, TEXT_SPACING_X,
-			                 TEXT_SIZE_Y_UPDATED);
+			OLED::drawString("Note", 0, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX,
+			                 kTextSizeYUpdated);
 		}
 		else {
-			OLED::drawString("CC", 0, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, TEXT_SPACING_X,
-			                 TEXT_SIZE_Y_UPDATED);
+			OLED::drawString("CC", 0, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX,
+			                 kTextSizeYUpdated);
 		}
 
 		char buffer[12];
 		intToString(command->noteOrCC, buffer, 1);
-		OLED::drawString(buffer, TEXT_SPACING_X * 5, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
-		                 TEXT_SPACING_X, TEXT_SIZE_Y_UPDATED);
+		OLED::drawString(buffer, kTextSpacingX * 5, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
+		                 kTextSpacingX, kTextSizeYUpdated);
 	}
 }
 #else

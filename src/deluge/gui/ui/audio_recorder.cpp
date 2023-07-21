@@ -140,7 +140,7 @@ gotError:
 
 #if HAVE_OLED
 void AudioRecorder::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
-	OLED::drawStringCentred("Recording", 15, image[0], OLED_MAIN_WIDTH_PIXELS, TEXT_BIG_SPACING_X, TEXT_BIG_SIZE_Y);
+	OLED::drawStringCentred("Recording", 15, image[0], OLED_MAIN_WIDTH_PIXELS, kTextBigSpacingX, kTextBigSizeY);
 }
 #endif
 
@@ -150,7 +150,7 @@ bool AudioRecorder::setupRecordingToFile(AudioInputChannel newMode, int newNumCh
 		numericDriver.freezeWithError("E242");
 	}
 
-	recorder = AudioEngine::getNewRecorder(newNumChannels, folderID, newMode, INTERNAL_BUTTON_PRESS_LATENCY);
+	recorder = AudioEngine::getNewRecorder(newNumChannels, folderID, newMode, kInternalButtonPressLatency);
 	if (!recorder) {
 		numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
 		return false;
@@ -277,7 +277,7 @@ ActionResult AudioRecorder::buttonAction(hid::Button b, bool on, bool inCardRout
 		if (inCardRoutine) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
-		endRecordingSoon(INTERNAL_BUTTON_PRESS_LATENCY);
+		endRecordingSoon(kInternalButtonPressLatency);
 	}
 	else {
 		return ActionResult::NOT_DEALT_WITH;

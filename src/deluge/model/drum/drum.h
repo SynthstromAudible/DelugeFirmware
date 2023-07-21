@@ -55,7 +55,7 @@ public:
 	bool auditioned;
 	uint8_t lastMIDIChannelAuditioned; // Primarily for MPE purposes
 
-	int8_t lastExpressionInputsReceived[2][NUM_EXPRESSION_DIMENSIONS];
+	int8_t lastExpressionInputsReceived[2][kNumExpressionDimensions];
 
 	Drum* next;
 
@@ -65,7 +65,7 @@ public:
 	virtual void noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, Kit* kit, int16_t const* mpeValues,
 	                    int fromMIDIChannel = MIDI_CHANNEL_NONE, uint32_t sampleSyncLength = 0, int32_t ticksLate = 0,
 	                    uint32_t samplesLate = 0) = 0;
-	virtual void noteOff(ModelStackWithThreeMainThings* modelStack, int velocity = DEFAULT_LIFT_VALUE) = 0;
+	virtual void noteOff(ModelStackWithThreeMainThings* modelStack, int velocity = kDefaultLiftValue) = 0;
 	virtual bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false) = 0;
 	virtual bool anyNoteIsOn() = 0;
 	virtual bool hasAnyVoices() = 0;

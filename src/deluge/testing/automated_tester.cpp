@@ -90,7 +90,7 @@ void turnSelectEncoder(int offset) {
 }
 
 void doMomentaryButtonPress(int x, int y) {
-	int value = (y + displayHeight * 2) * 9 + x;
+	int value = (y + kDisplayHeight * 2) * 9 + x;
 	uartInsertFakeChar(UART_ITEM_PIC, value);
 	uartInsertFakeChar(UART_ITEM_PIC, 252);
 	uartInsertFakeChar(UART_ITEM_PIC, value);

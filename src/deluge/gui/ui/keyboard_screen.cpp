@@ -60,7 +60,7 @@ static const uint32_t padActionUIModes[] = {UI_MODE_AUDITIONING, UI_MODE_RECORD_
 
 ActionResult KeyboardScreen::padAction(int x, int y, int velocity) {
 
-	if (x >= displayWidth) {
+	if (x >= kDisplayWidth) {
 		return ActionResult::DEALT_WITH;
 	}
 
@@ -407,15 +407,15 @@ doOther:
 				int transitioningToRow = sessionView.getClipPlaceOnScreen(currentSong->currentClip);
 				memcpy(&PadLEDs::imageStore, PadLEDs::image, sizeof(PadLEDs::image));
 				memcpy(&PadLEDs::occupancyMaskStore, PadLEDs::occupancyMask, sizeof(PadLEDs::occupancyMask));
-				//memset(PadLEDs::occupancyMaskStore, 16, sizeof(uint8_t) * displayHeight * (displayWidth + sideBarWidth));
-				PadLEDs::numAnimatedRows = displayHeight;
-				for (int y = 0; y < displayHeight; y++) {
+				//memset(PadLEDs::occupancyMaskStore, 16, sizeof(uint8_t) * kDisplayHeight * (kDisplayWidth + kSideBarWidth));
+				PadLEDs::numAnimatedRows = kDisplayHeight;
+				for (int y = 0; y < kDisplayHeight; y++) {
 					PadLEDs::animatedRowGoingTo[y] = transitioningToRow;
 					PadLEDs::animatedRowGoingFrom[y] = y;
 				}
 
 				PadLEDs::setupInstrumentClipCollapseAnimation(true);
-				PadLEDs::recordTransitionBegin(clipCollapseSpeed);
+				PadLEDs::recordTransitionBegin(kClipCollapseSpeed);
 				PadLEDs::renderClipExpandOrCollapse();
 			}
 		}
@@ -508,13 +508,13 @@ void KeyboardScreen::openedInBackground() {
 
 void KeyboardScreen::recalculateColours() {
 	InstrumentClip* clip = getCurrentClip();
-	for (int i = 0; i < displayHeight * clip->keyboardRowInterval + displayWidth; i++) {
+	for (int i = 0; i < kDisplayHeight * clip->keyboardRowInterval + kDisplayWidth; i++) {
 		clip->getMainColourFromY(clip->yScrollKeyboardScreen + i, 0, noteColours[i]);
 	}
 }
 
-bool KeyboardScreen::renderMainPads(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
-                                    uint8_t occupancyMask[][displayWidth + sideBarWidth], bool drawUndefinedArea) {
+bool KeyboardScreen::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+                                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
 	if (!image) {
 		return true;
 	}
@@ -530,8 +530,8 @@ bool KeyboardScreen::renderMainPads(uint32_t whichRows, uint8_t image[][displayW
 		}
 	}
 
-	memset(image, 0, sizeof(uint8_t) * displayHeight * (displayWidth + sideBarWidth) * 3);
-	memset(occupancyMask, 0, sizeof(uint8_t) * displayHeight * (displayWidth + sideBarWidth));
+	memset(image, 0, sizeof(uint8_t) * kDisplayHeight * (kDisplayWidth + kSideBarWidth) * 3);
+	memset(occupancyMask, 0, sizeof(uint8_t) * kDisplayHeight * (kDisplayWidth + kSideBarWidth));
 
 	uint8_t noteColour[] = {127, 127, 127};
 	Instrument* instrument = (Instrument*)currentSong->currentClip->output;
@@ -543,11 +543,11 @@ bool KeyboardScreen::renderMainPads(uint32_t whichRows, uint8_t image[][displayW
 	// Flashing default root note
 	if (uiTimerManager.isTimerSet(TIMER_DEFAULT_ROOT_NOTE)) {
 		if (flashDefaultRootNoteOn) {
-			for (int y = 0; y < displayHeight; y++) {
+			for (int y = 0; y < kDisplayHeight; y++) {
 				int noteCode = getNoteCodeFromCoords(0, y);
 				int yDisplay = noteCode - getCurrentClip()->yScrollKeyboardScreen;
 				int noteWithinOctave = (noteCode - defaultRootNote + 120) % 12;
-				for (int x = 0; x < displayWidth; x++) {
+				for (int x = 0; x < kDisplayWidth; x++) {
 
 					if (!noteWithinOctave) {
 						memcpy(image[y][x], noteColours[yDisplay], 3);
@@ -565,12 +565,12 @@ bool KeyboardScreen::renderMainPads(uint32_t whichRows, uint8_t image[][displayW
 
 	// Or normal
 	else {
-		for (int y = 0; y < displayHeight; y++) {
+		for (int y = 0; y < kDisplayHeight; y++) {
 			int noteCode = getNoteCodeFromCoords(0, y);
 			int yDisplay = noteCode - getCurrentClip()->yScrollKeyboardScreen;
 			int noteWithinOctave = (uint16_t)(noteCode - currentSong->rootNote + 120) % (uint8_t)12;
 
-			for (int x = 0; x < displayWidth; x++) {
+			for (int x = 0; x < kDisplayWidth; x++) {
 
 				// If auditioning note with finger - or same note in different octave...
 				if (notesWithinOctaveActive[noteWithinOctave]) {
@@ -638,14 +638,14 @@ doFullColour:
 	return true;
 }
 
-bool KeyboardScreen::renderSidebar(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
-                                   uint8_t occupancyMask[][displayWidth + sideBarWidth]) {
+bool KeyboardScreen::renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+                                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 	if (!image) {
 		return true;
 	}
 
-	for (int y = 0; y < displayHeight; y++) {
-		memset(image[y][displayWidth], 0, sideBarWidth * 3);
+	for (int y = 0; y < kDisplayHeight; y++) {
+		memset(image[y][kDisplayWidth], 0, kSideBarWidth * 3);
 	}
 
 	return true;
@@ -692,8 +692,8 @@ ActionResult KeyboardScreen::horizontalEncoderAction(int offset) {
 				if (clip->keyboardRowInterval < 1) {
 					clip->keyboardRowInterval = 1;
 				}
-				else if (clip->keyboardRowInterval > KEYBOARD_ROW_INTERVAL_MAX) {
-					clip->keyboardRowInterval = KEYBOARD_ROW_INTERVAL_MAX;
+				else if (clip->keyboardRowInterval > kMaxKeyboardRowInterval) {
+					clip->keyboardRowInterval = kMaxKeyboardRowInterval;
 				}
 
 				char buffer[13] = "row step:   ";
@@ -723,7 +723,7 @@ void KeyboardScreen::doScroll(int offset, bool force) {
 		int newYNote;
 		if (offset >= 0) {
 			newYNote = getCurrentClip()->yScrollKeyboardScreen
-			           + (displayHeight - 1) * getCurrentClip()->keyboardRowInterval + displayWidth - 1;
+			           + (kDisplayHeight - 1) * getCurrentClip()->keyboardRowInterval + kDisplayWidth - 1;
 		}
 		else {
 			newYNote = getCurrentClip()->yScrollKeyboardScreen;
@@ -778,7 +778,7 @@ void KeyboardScreen::doScroll(int offset, bool force) {
 }
 
 void KeyboardScreen::flashDefaultRootNote() {
-	uiTimerManager.setTimer(TIMER_DEFAULT_ROOT_NOTE, flashTime);
+	uiTimerManager.setTimer(TIMER_DEFAULT_ROOT_NOTE, kFlashTime);
 	flashDefaultRootNoteOn = !flashDefaultRootNoteOn;
 	uiNeedsRendering(this, 0xFFFFFFFF, 0);
 }
@@ -872,9 +872,9 @@ bool KeyboardScreen::getAffectEntire() {
 	return getCurrentClip()->affectEntire;
 }
 
-uint8_t keyboardTickSquares[displayHeight] = {255, 255, 255, 255, 255, 255, 255, 255};
-const uint8_t keyboardTickColoursBasicRecording[displayHeight] = {0, 0, 0, 0, 0, 0, 0, 0};
-const uint8_t keyboardTickColoursLinearRecording[displayHeight] = {0, 0, 0, 0, 0, 0, 0, 2};
+uint8_t keyboardTickSquares[kDisplayHeight] = {255, 255, 255, 255, 255, 255, 255, 255};
+const uint8_t keyboardTickColoursBasicRecording[kDisplayHeight] = {0, 0, 0, 0, 0, 0, 0, 0};
+const uint8_t keyboardTickColoursLinearRecording[kDisplayHeight] = {0, 0, 0, 0, 0, 0, 0, 2};
 
 void KeyboardScreen::graphicsRoutine() {
 	int newTickSquare;
@@ -889,8 +889,8 @@ void KeyboardScreen::graphicsRoutine() {
 	else {
 		newTickSquare = (uint64_t)(currentSong->currentClip->lastProcessedPos
 		                           + playbackHandler.getNumSwungTicksInSinceLastActionedSwungTick())
-		                * displayWidth / currentSong->currentClip->loopLength;
-		if (newTickSquare < 0 || newTickSquare >= displayWidth) {
+		                * kDisplayWidth / currentSong->currentClip->loopLength;
+		if (newTickSquare < 0 || newTickSquare >= kDisplayWidth) {
 			newTickSquare = 255;
 		}
 
@@ -899,7 +899,7 @@ void KeyboardScreen::graphicsRoutine() {
 		}
 	}
 
-	keyboardTickSquares[displayHeight - 1] = newTickSquare;
+	keyboardTickSquares[kDisplayHeight - 1] = newTickSquare;
 
 	PadLEDs::setTickSquares(keyboardTickSquares, colours);
 }

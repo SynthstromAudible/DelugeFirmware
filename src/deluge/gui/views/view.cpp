@@ -765,7 +765,7 @@ void View::ccReceivedForMIDILearn(MIDIDevice* fromDevice, int channel, int cc, i
 
 void View::midiLearnFlash() {
 	midiLearnFlashOn = !midiLearnFlashOn;
-	uiTimerManager.setTimer(TIMER_MIDI_LEARN_FLASH, fastFlashTime);
+	uiTimerManager.setTimer(TIMER_MIDI_LEARN_FLASH, kFastFlashTime);
 
 	if (getRootUI()) {
 		getRootUI()->midiLearnFlash();
@@ -1079,7 +1079,7 @@ void View::setModLedStates() {
 		}
 	}
 
-	for (int i = 0; i < NUM_MOD_BUTTONS; i++) {
+	for (int i = 0; i < kNumModButtons; i++) {
 		bool on = (i == modKnobMode);
 		indicator_leds::setLedState(indicator_leds::modLed[i], on);
 	}
@@ -1299,8 +1299,8 @@ void View::drawOutputNameFromDetails(InstrumentType instrumentType, int channel,
 #else
 	int yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
 #endif
-	OLED::drawStringCentred(outputTypeText, yPos, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, TEXT_SPACING_X,
-	                        TEXT_SPACING_Y);
+	OLED::drawStringCentred(outputTypeText, yPos, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX,
+	                        kTextSpacingY);
 	char buffer[12];
 	char const* nameToDraw;
 #endif
@@ -1315,8 +1315,8 @@ oledDrawString:
 		int yPos = OLED_MAIN_TOPMOST_PIXEL + 21;
 #endif
 
-		int textSpacingX = TEXT_TITLE_SPACING_X;
-		int textSpacingY = TEXT_TITLE_SIZE_Y;
+		int textSpacingX = kTextTitleSpacingX;
+		int textSpacingY = kTextTitleSizeY;
 
 		int textLength = strlen(name);
 		int stringLengthPixels = textLength * textSpacingX;
@@ -1333,8 +1333,8 @@ oledDrawString:
 
 #else
 		bool andAHalf;
-		if (numericDriver.getEncodedPosFromLeft(99999, name, &andAHalf) > NUMERIC_DISPLAY_LENGTH) { // doBlink &&
-			numericDriver.setScrollingText(name, 0, initialFlashTime + flashTime);
+		if (numericDriver.getEncodedPosFromLeft(99999, name, &andAHalf) > kNumericDisplayLength) { // doBlink &&
+			numericDriver.setScrollingText(name, 0, kInitialFlashTime + kFlashTime);
 		}
 		else {
 			// If numeric-looking, we might want to align right.
@@ -1920,7 +1920,7 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int yDisplayIfInSess
 	case UI_MODE_STUTTERING:
 		if (on) {
 			sessionView.performActionOnPadRelease = false; // Even though there's a chance we're not in session view
-			session.toggleClipStatus(clip, NULL, Buttons::isShiftButtonPressed(), INTERNAL_BUTTON_PRESS_LATENCY);
+			session.toggleClipStatus(clip, NULL, Buttons::isShiftButtonPressed(), kInternalButtonPressLatency);
 		}
 		break;
 
@@ -1931,7 +1931,7 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int yDisplayIfInSess
 #endif
 		if (on) {
 			sessionView.performActionOnPadRelease = false; // Even though there's a chance we're not in session view
-			session.soloClipAction(clip, INTERNAL_BUTTON_PRESS_LATENCY);
+			session.soloClipAction(clip, kInternalButtonPressLatency);
 		}
 		break;
 	}
@@ -1940,7 +1940,7 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int yDisplayIfInSess
 }
 
 void View::flashPlayEnable() {
-	uiTimerManager.setTimer(TIMER_PLAY_ENABLE_FLASH, fastFlashTime);
+	uiTimerManager.setTimer(TIMER_PLAY_ENABLE_FLASH, kFastFlashTime);
 }
 
 void View::flashPlayDisable() {

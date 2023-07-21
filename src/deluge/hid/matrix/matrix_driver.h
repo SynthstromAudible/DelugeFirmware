@@ -34,7 +34,7 @@ public:
 	void noPressesHappening(bool inCardRoutine);
 	bool isUserDoingBootloaderOverwriteAction();
 
-	bool padStates[displayWidth + sideBarWidth][displayHeight];
+	bool padStates[kDisplayWidth + kSideBarWidth][kDisplayHeight];
 };
 
 extern char* matrixDriverDisplayWritePos;

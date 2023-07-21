@@ -114,7 +114,7 @@ public:
 	 * These are just for MelodicInstruments. For Drums, the values get stored in the Drum itself.
 	 */
 
-	int16_t defaultInputMPEValuesPerMIDIChannel[16][NUM_EXPRESSION_DIMENSIONS];
+	int16_t defaultInputMPEValuesPerMIDIChannel[16][kNumExpressionDimensions];
 
 	uint8_t mpeZoneBendRanges[2][2]; // 0 means none set. It's [zone][whichBendRange].
 

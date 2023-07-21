@@ -220,8 +220,8 @@ addNewNote:
 		Note* newNote = notes.getElement(i);
 
 		newNote->setVelocity(((Instrument*)((Clip*)modelStack->getTimelineCounter())->output)->defaultVelocity);
-		newNote->setLift(DEFAULT_LIFT_VALUE);
-		newNote->setProbability(NUM_PROBABILITY_VALUES);
+		newNote->setLift(kDefaultLiftValue);
+		newNote->setProbability(kNumProbabilityValues);
 
 		if (i + 1 < notes.getNumElements()) {
 			newNote->setLength(getMin(desiredNoteLength, notes.getElement(i + 1)->pos - newNote->pos));
@@ -435,8 +435,8 @@ addNewNote:
 			destNote = newNotes.getElement(nextIndexToCopyTo);
 			destNote->pos = posThisScreen;
 			destNote->setVelocity(velocity);
-			destNote->setLift(DEFAULT_LIFT_VALUE);
-			destNote->setProbability(NUM_PROBABILITY_VALUES);
+			destNote->setLift(kDefaultLiftValue);
+			destNote->setProbability(kNumProbabilityValues);
 
 			int newLength;
 
@@ -565,7 +565,7 @@ int NoteRow::attemptNoteAdd(int32_t pos, int32_t length, int velocity, int proba
 	newNote->pos = pos;
 	newNote->setLength(length);
 	newNote->setVelocity(velocity);
-	newNote->setLift(DEFAULT_LIFT_VALUE);
+	newNote->setLift(kDefaultLiftValue);
 	newNote->setProbability(probability);
 
 	// Record consequence
@@ -623,8 +623,8 @@ int NoteRow::attemptNoteAddReversed(ModelStackWithNoteRow* modelStack, int32_t p
 	newNote->pos = insertionPos;
 	newNote->setLength(1);
 	newNote->setVelocity(velocity);
-	newNote->setLift(DEFAULT_LIFT_VALUE);
-	newNote->setProbability(NUM_PROBABILITY_VALUES);
+	newNote->setLift(kDefaultLiftValue);
+	newNote->setProbability(kNumProbabilityValues);
 
 	((InstrumentClip*)modelStack->getTimelineCounter())->expectEvent();
 
@@ -1531,8 +1531,8 @@ void NoteRow::renderRow(TimelineView* editorScreen, uint8_t rowColour[], uint8_t
 		return;
 	}
 
-	int32_t squareEndPos[MAX_IMAGE_STORE_WIDTH];
-	int32_t searchTerms[MAX_IMAGE_STORE_WIDTH];
+	int32_t squareEndPos[kMaxImageStoreWidth];
+	int32_t searchTerms[kMaxImageStoreWidth];
 
 	int whichRepeat = 0;
 
@@ -2086,7 +2086,7 @@ void NoteRow::attemptLateStartOfNextNoteToPlay(ModelStackWithNoteRow* modelStack
 	if ((sound
 	     && (allows =
 	             sound->allowsVeryLateNoteStart(((InstrumentClip*)modelStack->getTimelineCounter()), thisParamManager)))
-	    || timeAgo < noteOnLatenessAllowed) {
+	    || timeAgo < kAmountNoteOnLatenessAllowed) {
 
 		Debug::println("doing late");
 
@@ -2136,7 +2136,7 @@ void NoteRow::playNote(bool on, ModelStackWithNoteRow* modelStack, Note* thisNot
 
 doSentNoteForMelodicInstrument:
 				// If there's room in the buffer, store the note-on to send soon
-				if (pendingNoteOnList && pendingNoteOnList->count < maxNumNoteOnsPending) {
+				if (pendingNoteOnList && pendingNoteOnList->count < kMaxNumNoteOnsPending) {
 storePendingNoteOn:
 					pendingNoteOnList->pendingNoteOns[pendingNoteOnList->count].noteRow = this;
 					pendingNoteOnList->pendingNoteOns[pendingNoteOnList->count].noteRowId = modelStack->noteRowId;
@@ -2151,7 +2151,7 @@ storePendingNoteOn:
 
 				// Otherwise, just send it now.
 				else {
-					int16_t mpeValues[NUM_EXPRESSION_DIMENSIONS];
+					int16_t mpeValues[kNumExpressionDimensions];
 					getMPEValues(modelStack, mpeValues);
 
 					ModelStackWithThreeMainThings* modelStackWithThreeMainThings = modelStack->addOtherTwoThings(
@@ -2166,7 +2166,7 @@ storePendingNoteOn:
 
 		// Or if a note-off, we can just send it now
 		else {
-			int lift = DEFAULT_LIFT_VALUE;
+			int lift = kDefaultLiftValue;
 			if (thisNote) {
 				lift = thisNote->getLift();
 			}
@@ -2190,12 +2190,12 @@ storePendingNoteOn:
 			else {
 
 				// If there's room in the buffer, store the note-on to send soon
-				if (pendingNoteOnList && pendingNoteOnList->count < maxNumNoteOnsPending) {
+				if (pendingNoteOnList && pendingNoteOnList->count < kMaxNumNoteOnsPending) {
 					goto storePendingNoteOn;
 				}
 				// Otherwise, just send it now.
 				else {
-					int16_t mpeValues[NUM_EXPRESSION_DIMENSIONS];
+					int16_t mpeValues[kNumExpressionDimensions];
 					getMPEValues(modelStack, mpeValues);
 
 					ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
@@ -2206,7 +2206,7 @@ storePendingNoteOn:
 			}
 		}
 		else {
-			int lift = DEFAULT_LIFT_VALUE;
+			int lift = kDefaultLiftValue;
 			if (thisNote) {
 				lift = thisNote->getLift();
 			}
@@ -2568,7 +2568,7 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 		int32_t pos = note->pos;
 
 		// If it's iteration dependent...
-		if (probability > NUM_PROBABILITY_VALUES) {
+		if (probability > kNumProbabilityValues) {
 			int divisor, iterationWithinDivisor;
 			dissectIterationDependence(probability, &divisor, &iterationWithinDivisor);
 
@@ -2642,7 +2642,7 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 					}
 					else {
 switchOff:
-						newProbability = NUM_PROBABILITY_VALUES; // Switch off iteration dependence
+						newProbability = kNumProbabilityValues; // Switch off iteration dependence
 					}
 
 					thisRepeatedNote->setProbability(newProbability);
@@ -2867,7 +2867,7 @@ finishedNormalStuff:
 						}
 					}
 
-					if (!(pos < minPos || length < 0 || pos > MAX_SEQUENCE_LENGTH - length)) {
+					if (!(pos < minPos || length < 0 || pos > kMaxSequenceLength - length)) {
 
 						minPos = pos + length;
 
@@ -2879,8 +2879,8 @@ finishedNormalStuff:
 						Note* newNote = notes.getElement(i);
 						newNote->setLength(length);
 						newNote->setVelocity(velocity);
-						newNote->setLift(DEFAULT_LIFT_VALUE);
-						newNote->setProbability(NUM_PROBABILITY_VALUES);
+						newNote->setLift(kDefaultLiftValue);
+						newNote->setProbability(kNumProbabilityValues);
 					}
 
 					storageManager.exitTag("note");
@@ -2946,22 +2946,22 @@ doReadNoteData:
 				else { // Or if no lift here to read
 					probability = hexToIntFixedLength(&hexChars[18], 2);
 useDefaultLift:
-					lift = DEFAULT_LIFT_VALUE;
+					lift = kDefaultLiftValue;
 				}
 
 				// See if that's all allowed
 				if (length <= 0) {
 					length = 1; // This happened somehow in Simon Wollwage's song, May 2020
 				}
-				if (pos < minPos || pos > MAX_SEQUENCE_LENGTH - length) {
+				if (pos < minPos || pos > kMaxSequenceLength - length) {
 					continue;
 				}
 				if (velocity == 0 || velocity > 127) {
 					velocity = 64;
 				}
-				if ((probability & 127) > (NUM_PROBABILITY_VALUES + 35) || (probability & 127) == 0
-				    || probability >= (NUM_PROBABILITY_VALUES | 128)) {
-					probability = NUM_PROBABILITY_VALUES;
+				if ((probability & 127) > (kNumProbabilityValues + 35) || (probability & 127) == 0
+				    || probability >= (kNumProbabilityValues | 128)) {
+					probability = kNumProbabilityValues;
 				}
 
 				minPos = pos + length;
@@ -3574,7 +3574,7 @@ int NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWith
 				// Flatten iteration dependence
 				int oldCondition = oldNote->probability;
 				int conditionValue = oldCondition & 127;
-				if (conditionValue > NUM_PROBABILITY_VALUES) {
+				if (conditionValue > kNumProbabilityValues) {
 					int divisor, iterationWithinDivisor;
 					dissectIterationDependence(conditionValue, &divisor, &iterationWithinDivisor);
 
@@ -3582,7 +3582,7 @@ int NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWith
 						continue;
 					}
 					else {
-						oldCondition = NUM_PROBABILITY_VALUES; // Remove iteration dependence
+						oldCondition = kNumProbabilityValues; // Remove iteration dependence
 					}
 				}
 
@@ -3625,7 +3625,7 @@ int NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWith
 				// Flatten iteration dependence
 				int oldCondition = oldNote->probability;
 				int conditionValue = oldCondition & 127;
-				if (conditionValue > NUM_PROBABILITY_VALUES) {
+				if (conditionValue > kNumProbabilityValues) {
 					int divisor, iterationWithinDivisor;
 					dissectIterationDependence(conditionValue, &divisor, &iterationWithinDivisor);
 
@@ -3633,7 +3633,7 @@ int NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWith
 						continue;
 					}
 					else {
-						oldCondition = NUM_PROBABILITY_VALUES; // Remove iteration dependence
+						oldCondition = kNumProbabilityValues; // Remove iteration dependence
 					}
 				}
 
@@ -3661,7 +3661,7 @@ int NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWith
 			// Flatten iteration dependence
 			int oldCondition = oldNote->probability;
 			int conditionValue = oldCondition & 127;
-			if (conditionValue > NUM_PROBABILITY_VALUES) {
+			if (conditionValue > kNumProbabilityValues) {
 				int divisor, iterationWithinDivisor;
 				dissectIterationDependence(conditionValue, &divisor, &iterationWithinDivisor);
 
@@ -3669,7 +3669,7 @@ int NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWith
 					continue;
 				}
 				else {
-					oldCondition = NUM_PROBABILITY_VALUES; // Remove iteration dependence
+					oldCondition = kNumProbabilityValues; // Remove iteration dependence
 				}
 			}
 
@@ -3754,13 +3754,13 @@ void NoteRow::getMPEValues(ModelStackWithNoteRow* modelStack, int16_t* mpeValues
 
 	ExpressionParamSet* mpeParams = paramManager.getExpressionParamSet();
 	if (!mpeParams) {
-		for (int m = 0; m < NUM_EXPRESSION_DIMENSIONS; m++) {
+		for (int m = 0; m < kNumExpressionDimensions; m++) {
 			mpeValues[m] = 0;
 		}
 		return;
 	}
 
-	for (int m = 0; m < NUM_EXPRESSION_DIMENSIONS; m++) {
+	for (int m = 0; m < kNumExpressionDimensions; m++) {
 		mpeValues[m] = mpeParams->params[m].getCurrentValue() >> 16;
 	}
 }
@@ -3777,7 +3777,7 @@ void NoteRow::clearMPEUpUntilNextNote(ModelStackWithNoteRow* modelStack, int32_t
 	}
 
 	/*
-	for (int i = 0; i < NUM_EXPRESSION_DIMENSIONS; i++) {
+	for (int i = 0; i < kNumExpressionDimensions; i++) {
 		if (mpeParams->params[i].isAutomated()) goto needToDoIt;
 	}
 	return;
@@ -3795,7 +3795,7 @@ needToDoIt:
 		ModelStackWithParamCollection* modelStackWithParamCollection =
 		    modelStack->addOtherTwoThingsAutomaticallyGivenNoteRow()->addParamCollection(mpeParams, mpeParamsSummary);
 
-		for (int i = 0; i < NUM_EXPRESSION_DIMENSIONS; i++) {
+		for (int i = 0; i < kNumExpressionDimensions; i++) {
 			AutoParam* param = &mpeParams->params[i];
 			ModelStackWithAutoParam* modelStackWithAutoParam = modelStackWithParamCollection->addAutoParam(i, param);
 

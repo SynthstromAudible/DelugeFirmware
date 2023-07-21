@@ -39,8 +39,8 @@ public:
 	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
 	ActionResult padAction(int x, int y, int velocity);
 
-	bool renderMainPads(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
-	                    uint8_t occupancyMask[][displayWidth + sideBarWidth], bool drawUndefinedArea);
+	bool renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea);
 	void graphicsRoutine();
 	ActionResult horizontalEncoderAction(int offset);
 	ActionResult verticalEncoderAction(int offset, bool inCardRoutine);

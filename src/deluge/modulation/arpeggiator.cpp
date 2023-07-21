@@ -74,7 +74,7 @@ void ArpeggiatorForDrum::noteOn(ArpeggiatorSettings* settings, int noteCode, int
 	// in the survey that will happen of existing output member channels.
 	arpNote.outputMemberChannel = MIDI_CHANNEL_NONE;
 
-	for (int m = 0; m < NUM_EXPRESSION_DIMENSIONS; m++) {
+	for (int m = 0; m < kNumExpressionDimensions; m++) {
 		arpNote.mpeValues[m] = mpeValues[m];
 	}
 
@@ -106,7 +106,7 @@ void ArpeggiatorForDrum::noteOff(ArpeggiatorSettings* settings, ArpReturnInstruc
 
 	// If no arpeggiation...
 	if ((settings == nullptr) || settings->mode == ArpMode::OFF) {
-		instruction->noteCodeOffPostArp = NOTE_FOR_DRUM;
+		instruction->noteCodeOffPostArp = kNoteForDrum;
 		instruction->outputMIDIChannelOff = arpNote.outputMemberChannel;
 	}
 
@@ -159,7 +159,7 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int noteCode, int veloci
 	arpNote->outputMemberChannel =
 	    MIDI_CHANNEL_NONE; // MIDIInstrument might set this, but it needs to be MIDI_CHANNEL_NONE until then so it doesn't get included in the survey that will happen of existing output member channels.
 
-	for (int m = 0; m < NUM_EXPRESSION_DIMENSIONS; m++) {
+	for (int m = 0; m < kNumExpressionDimensions; m++) {
 		arpNote->mpeValues[m] = mpeValues[m];
 	}
 
@@ -302,7 +302,7 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 
 	playedFirstArpeggiatedNoteYet = true;
 
-	noteCodeCurrentlyOnPostArp = NOTE_FOR_DRUM + (int)currentOctave * 12;
+	noteCodeCurrentlyOnPostArp = kNoteForDrum + (int)currentOctave * 12;
 
 	instruction->noteCodeOnPostArp = noteCodeCurrentlyOnPostArp;
 	instruction->arpNoteOn = &arpNote;

@@ -37,7 +37,7 @@ public:
 	void checkIncomingUsbSysex(uint8_t const* message, int ip, int d, int cable);
 
 	void sendMidi(uint8_t statusType, uint8_t channel, uint8_t data1 = 0, uint8_t data2 = 0,
-	              int filter = MIDI_OUTPUT_FILTER_NO_MPE, bool sendUSB = true);
+	              int filter = kMIDIOutputFilterNoMPE, bool sendUSB = true);
 	void sendClock(bool sendUSB = true, int howMany = 1);
 	void sendStart();
 	void sendStop();
@@ -59,7 +59,7 @@ public:
 	void flushUSBMIDIOutput();
 
 	// If bit "16" (actually bit 4) is 1, this is a program change. (Wait, still?)
-	LearnedMIDI globalMIDICommands[NUM_GLOBAL_MIDI_COMMANDS];
+	LearnedMIDI globalMIDICommands[kNumGlobalMIDICommands];
 
 	bool midiThru;
 	MIDITakeoverMode midiTakeover;

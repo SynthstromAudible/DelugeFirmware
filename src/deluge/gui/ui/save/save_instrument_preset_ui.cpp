@@ -232,8 +232,8 @@ void SaveInstrumentPresetUI::selectEncoderAction(int8_t offset) {
 		int16_t bestSlotFound;
 		int8_t bestSubSlotFound;
 
-		if (currentSlot >= numSongSlots) currentSlot = 0;
-		else if (currentSlot < 0) currentSlot = numSongSlots - 1;
+		if (currentSlot >= kNumSongSlots) currentSlot = 0;
+		else if (currentSlot < 0) currentSlot = kNumSongSlots - 1;
 
 		// We want the "last" subslot, or -1 if there's none
 

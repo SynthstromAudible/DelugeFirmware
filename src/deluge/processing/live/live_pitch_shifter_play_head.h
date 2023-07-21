@@ -49,7 +49,7 @@ public:
 	int rawBufferReadPos;
 	uint32_t oscPos;
 
-	int16x4_t interpolationBuffer[2][INTERPOLATION_MAX_NUM_SAMPLES >> 2];
+	int16x4_t interpolationBuffer[2][kInterpolationMaxNumSamples >> 2];
 
 	uint32_t percPos;
 

@@ -50,7 +50,7 @@ ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	ActionResult result;
 
 	// See if it was one of the mod buttons
-	for (int i = 0; i < NUM_MOD_BUTTONS; i++) {
+	for (int i = 0; i < kNumModButtons; i++) {
 
 		if (xy.x == modButtonX[i] && xy.y == modButtonY[i]) {
 
@@ -88,7 +88,7 @@ ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 			else {
 
 				//if (inCardRoutine) return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-				playbackHandler.playButtonPressed(INTERNAL_BUTTON_PRESS_LATENCY);
+				playbackHandler.playButtonPressed(kInternalButtonPressLatency);
 
 				// Begin output-recording simultaneously with playback
 				if (isButtonPressed(RECORD) && playbackHandler.playbackState && !recordButtonPressUsedUp) {
@@ -121,7 +121,7 @@ ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 			if (!recordButtonPressUsedUp
 			    && (int32_t)(AudioEngine::audioSampleTimer - timeRecordButtonPressed) < (44100 >> 1)) {
 				if (audioRecorder.isCurrentlyResampling()) {
-					audioRecorder.endRecordingSoon(INTERNAL_BUTTON_PRESS_LATENCY);
+					audioRecorder.endRecordingSoon(kInternalButtonPressLatency);
 				}
 				else {
 					playbackHandler.recordButtonPressed();

@@ -33,7 +33,7 @@ SampleHolderForVoice::SampleHolderForVoice() {
 	startMSec = 0;
 	endMSec = 0;
 
-	for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD; l++) {
+	for (int l = 0; l < kNumClustersLoadedAhead; l++) {
 		clustersForLoopStart[l] = NULL;
 	}
 }
@@ -41,7 +41,7 @@ SampleHolderForVoice::SampleHolderForVoice() {
 SampleHolderForVoice::~SampleHolderForVoice() {
 	// We have to unassign reasons here, even though our parent destructor will call unassignAllReasons() - our overriding of that virtual function
 	// won't happen as we've already been destructed!
-	for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD; l++) {
+	for (int l = 0; l < kNumClustersLoadedAhead; l++) {
 		if (clustersForLoopStart[l]) {
 			audioFileManager.removeReasonFromCluster(clustersForLoopStart[l], "E247");
 		}
@@ -50,7 +50,7 @@ SampleHolderForVoice::~SampleHolderForVoice() {
 
 void SampleHolderForVoice::unassignAllClusterReasons(bool beingDestructed) {
 	SampleHolder::unassignAllClusterReasons(beingDestructed);
-	for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD; l++) {
+	for (int l = 0; l < kNumClustersLoadedAhead; l++) {
 		if (clustersForLoopStart[l]) {
 			audioFileManager.removeReasonFromCluster(clustersForLoopStart[l],
 			                                         "E320"); // Happened to me while auto-pilot testing, I think
@@ -93,7 +93,7 @@ void SampleHolderForVoice::claimClusterReasons(bool reversed, int clusterLoadIns
 
 	// Or if no loop start point now, clear out any reasons we had before
 	else {
-		for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD; l++) {
+		for (int l = 0; l < kNumClustersLoadedAhead; l++) {
 			if (clustersForLoopStart[l]) {
 				audioFileManager.removeReasonFromCluster(clustersForLoopStart[l], "E246");
 				clustersForLoopStart[l] = NULL;

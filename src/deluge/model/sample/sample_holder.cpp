@@ -30,7 +30,7 @@ SampleHolder::SampleHolder() {
 	waveformViewZoom = 0;
 	audioFileType = AudioFileType::SAMPLE;
 
-	for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD; l++) {
+	for (int l = 0; l < kNumClustersLoadedAhead; l++) {
 		clustersForStart[l] = NULL;
 	}
 }
@@ -63,7 +63,7 @@ void SampleHolder::beenClonedFrom(SampleHolder* other, bool reversed) {
 }
 
 void SampleHolder::unassignAllClusterReasons(bool beingDestructed) {
-	for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD; l++) {
+	for (int l = 0; l < kNumClustersLoadedAhead; l++) {
 		if (clustersForStart[l]) {
 			audioFileManager.removeReasonFromCluster(clustersForStart[l], "E123");
 			if (!beingDestructed) {
@@ -182,13 +182,13 @@ void SampleHolder::claimClusterReasonsForMarker(Cluster** clusters, uint32_t sta
 	uint32_t posWithinCluster = startPlaybackAtByte & (audioFileManager.clusterSize - 1);
 
 	// Set up new temp list
-	Cluster* newClusters[NUM_CLUSTERS_LOADED_AHEAD];
-	for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD; l++) {
+	Cluster* newClusters[kNumClustersLoadedAhead];
+	for (int l = 0; l < kNumClustersLoadedAhead; l++) {
 		newClusters[l] = NULL;
 	}
 
 	// Populate new list
-	for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD; l++) {
+	for (int l = 0; l < kNumClustersLoadedAhead; l++) {
 
 		/*
 		// If final one, only load it if posWithinCluster is at least a quarter of the way in
@@ -221,7 +221,7 @@ void SampleHolder::claimClusterReasonsForMarker(Cluster** clusters, uint32_t sta
 	}
 
 	// Replace old list
-	for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD; l++) {
+	for (int l = 0; l < kNumClustersLoadedAhead; l++) {
 		if (clusters[l]) {
 			audioFileManager.removeReasonFromCluster(clusters[l], "E146");
 		}

@@ -96,8 +96,8 @@ void AudioClipView::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 }
 #endif
 
-bool AudioClipView::renderMainPads(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
-                                   uint8_t occupancyMask[][displayWidth + sideBarWidth], bool drawUndefinedArea) {
+bool AudioClipView::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+                                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
 	if (!image) {
 		return true;
 	}
@@ -113,8 +113,8 @@ bool AudioClipView::renderMainPads(uint32_t whichRows, uint8_t image[][displayWi
 	// If no Sample, just clear display
 	if (!getSample()) {
 
-		for (int y = 0; y < displayHeight; y++) {
-			memset(image[y], 0, displayWidth * 3);
+		for (int y = 0; y < kDisplayHeight; y++) {
+			memset(image[y], 0, kDisplayWidth * 3);
 		}
 	}
 
@@ -136,7 +136,7 @@ bool AudioClipView::renderMainPads(uint32_t whichRows, uint8_t image[][displayWi
 		if (endMarkerVisible && blinkOn) {
 			visibleWaveformXEnd--;
 		}
-		int xEnd = getMin(displayWidth, visibleWaveformXEnd);
+		int xEnd = getMin(kDisplayWidth, visibleWaveformXEnd);
 
 		bool success =
 		    waveformRenderer.renderFullScreen(getSample(), xScrollSamples, xZoomSamples, image, &getClip()->renderData,
@@ -151,9 +151,9 @@ bool AudioClipView::renderMainPads(uint32_t whichRows, uint8_t image[][displayWi
 
 	if (drawUndefinedArea) {
 
-		for (int y = 0; y < displayHeight; y++) {
+		for (int y = 0; y < kDisplayHeight; y++) {
 
-			if (endSquareDisplay < displayWidth) {
+			if (endSquareDisplay < kDisplayWidth) {
 
 				if (endSquareDisplay >= 0) {
 					if (endMarkerVisible && blinkOn) {
@@ -165,14 +165,14 @@ bool AudioClipView::renderMainPads(uint32_t whichRows, uint8_t image[][displayWi
 
 				int xDisplay = endSquareDisplay + 1;
 
-				if (xDisplay >= displayWidth) {
+				if (xDisplay >= kDisplayWidth) {
 					continue;
 				}
 				else if (xDisplay < 0) {
 					xDisplay = 0;
 				}
 
-				memset(image[y][xDisplay], 7, (displayWidth - xDisplay) * 3);
+				memset(image[y][xDisplay], 7, (kDisplayWidth - xDisplay) * 3);
 			}
 		}
 	}
@@ -184,13 +184,13 @@ ActionResult AudioClipView::timerCallback() {
 	blinkOn = !blinkOn;
 	uiNeedsRendering(this, 0xFFFFFFFF, 0); // Very inefficient!
 
-	uiTimerManager.setTimer(TIMER_UI_SPECIFIC, SAMPLE_MARKER_BLINK_TIME);
+	uiTimerManager.setTimer(TIMER_UI_SPECIFIC, kSampleMarkerBlinkTime);
 
 	return ActionResult::DEALT_WITH;
 }
 
-bool AudioClipView::renderSidebar(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
-                                  uint8_t occupancyMask[][displayWidth + sideBarWidth]) {
+bool AudioClipView::renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+                                  uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 	if (!image) {
 		return true;
 	}
@@ -199,8 +199,8 @@ bool AudioClipView::renderSidebar(uint32_t whichRows, uint8_t image[][displayWid
 		return true;
 	}
 
-	for (int y = 0; y < displayHeight; y++) {
-		memset(image[y][displayWidth], 0, sideBarWidth * 3);
+	for (int y = 0; y < kDisplayHeight; y++) {
+		memset(image[y][kDisplayWidth], 0, kSideBarWidth * 3);
 	}
 
 	return true;
@@ -225,7 +225,7 @@ void AudioClipView::graphicsRoutine() {
 	// Tempoless or arranger recording
 	else if (!playbackHandler.isEitherClockActive()
 	         || (currentPlaybackMode == &arrangement && currentSong->currentClip->getCurrentlyRecordingLinearly())) {
-		newTickSquare = displayWidth - 1;
+		newTickSquare = kDisplayWidth - 1;
 
 		// Linearly recording
 		if (currentSong->currentClip
@@ -242,15 +242,15 @@ void AudioClipView::graphicsRoutine() {
 			needsRenderingDependingOnSubMode();
 		}
 
-		if (newTickSquare < 0 || newTickSquare >= displayWidth) {
+		if (newTickSquare < 0 || newTickSquare >= kDisplayWidth) {
 			newTickSquare = 255;
 		}
 	}
 
 	if (PadLEDs::flashCursor != FLASH_CURSOR_OFF && (newTickSquare != lastTickSquare || mustRedrawTickSquares)) {
 
-		uint8_t tickSquares[displayHeight];
-		memset(tickSquares, newTickSquare, displayHeight);
+		uint8_t tickSquares[kDisplayHeight];
+		memset(tickSquares, newTickSquare, kDisplayHeight);
 
 		const uint8_t* colours = currentSong->currentClip->getCurrentlyRecordingLinearly() ? twos : zeroes;
 		PadLEDs::setTickSquares(tickSquares, colours);
@@ -285,7 +285,7 @@ void AudioClipView::transitionToSessionView() {
 
 		PadLEDs::setupAudioClipCollapseOrExplodeAnimation(getClip());
 
-		PadLEDs::recordTransitionBegin(clipCollapseSpeed);
+		PadLEDs::recordTransitionBegin(kClipCollapseSpeed);
 		PadLEDs::renderAudioClipExpandOrCollapse();
 	}
 }
@@ -400,7 +400,7 @@ deactivateMarkerIfNecessary:
 ActionResult AudioClipView::padAction(int x, int y, int on) {
 
 	// Edit pad action...
-	if (x < displayWidth) {
+	if (x < kDisplayWidth) {
 
 		if (Buttons::isButtonPressed(hid::button::TEMPO_ENC)) {
 			if (on) {
@@ -567,7 +567,7 @@ setTheEndPos:
 					if (x == endSquareDisplay || x == endSquareDisplay + 1) {
 						endMarkerVisible = true;
 needRendering:
-						uiTimerManager.setTimer(TIMER_UI_SPECIFIC, SAMPLE_MARKER_BLINK_TIME);
+						uiTimerManager.setTimer(TIMER_UI_SPECIFIC, kSampleMarkerBlinkTime);
 						blinkOn = true;
 						uiNeedsRendering(this, 0xFFFFFFFF, 0);
 					}

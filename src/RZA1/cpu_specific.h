@@ -127,10 +127,6 @@ DMA channels:
 
 #define NUM_LEVEL_INDICATORS 2
 
-#define BATTERY_LED_1      1
-#define BATTERY_LED_2      1
-#define SYS_VOLT_SENSE_PIN 5
-
 // Moving this to preprocessor build directives
 // eventually will be distinguished by build script flags
 // Change your build to change whether you're building OLED or not
@@ -150,8 +146,6 @@ DMA channels:
 #define ENCODER_MOD_0         5
 #define ENCODER_MOD_1         4
 
-#define SYNCED_LED_PORT 6
-#define SYNCED_LED_PIN  7
 
 // OLED
 #define OLED_MAIN_WIDTH_PIXELS 128

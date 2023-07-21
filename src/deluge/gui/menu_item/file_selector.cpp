@@ -55,10 +55,10 @@ bool FileSelector::isRelevant(Sound* sound, int whichThing) {
 
 	return (sound->getSynthMode() == SynthMode::SUBTRACTIVE && source->oscType == OscType::SAMPLE);
 }
-int FileSelector::checkPermissionToBeginSession(Sound* sound, int whichThing, ::MultiRange** currentRange) {
+MenuPermission FileSelector::checkPermissionToBeginSession(Sound* sound, int whichThing, ::MultiRange** currentRange) {
 
 	if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) {
-		return MENU_PERMISSION_YES;
+		return MenuPermission::YES;
 	}
 
 	bool can =
@@ -66,7 +66,7 @@ int FileSelector::checkPermissionToBeginSession(Sound* sound, int whichThing, ::
 	     || (sound->getSynthMode() == SynthMode::RINGMOD && sound->sources[whichThing].oscType == OscType::WAVETABLE));
 
 	if (!can) {
-		return MENU_PERMISSION_NO;
+		return MenuPermission::NO;
 	}
 
 	return soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(sound, whichThing, false, currentRange);

@@ -87,14 +87,14 @@ public:
 		return sequenceDirectionOptions;
 	}
 
-	int checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) {
+	MenuPermission checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) {
 		if (!((InstrumentClip*)currentSong->currentClip)->affectEntire
 		    && currentSong->currentClip->output->type == InstrumentType::KIT
 		    && !((Kit*)currentSong->currentClip->output)->selectedDrum) {
-			return MENU_PERMISSION_NO;
+			return MenuPermission::NO;
 		}
 		else {
-			return MENU_PERMISSION_YES;
+			return MenuPermission::YES;
 		}
 	}
 };

@@ -68,7 +68,7 @@ public:
 
 	int channelSuffix;
 
-	int8_t modKnobCCAssignments[NUM_MOD_BUTTONS * NUM_PHYSICAL_MOD_KNOBS];
+	int8_t modKnobCCAssignments[kNumModButtons * kNumPhysicalModKnobs];
 
 	MPEOutputMemberChannel mpeOutputMemberChannels[15]; // Numbers 1 to 14. 0 is bogus
 

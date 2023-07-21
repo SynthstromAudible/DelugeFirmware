@@ -101,7 +101,7 @@ public:
 
 	uint32_t sourcesPatchedToAnything[2]; // Only valid after setupPatching()
 
-	PatchCable patchCables[MAX_NUM_PATCH_CABLES]; // TODO: store these in dynamic memory.
+	PatchCable patchCables[kMaxNumPatchCables]; // TODO: store these in dynamic memory.
 	uint8_t numUsablePatchCables;
 	uint8_t numPatchCables;
 

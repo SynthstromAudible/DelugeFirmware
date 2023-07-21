@@ -60,7 +60,7 @@ public:
 	bool isAnyAuditioningHappening() final;
 	void beginAuditioningForNote(ModelStack* modelStack, int note, int velocity, int16_t const* mpeValues,
 	                             int fromMIDIChannel = MIDI_CHANNEL_NONE, uint32_t sampleSyncLength = 0);
-	void endAuditioningForNote(ModelStack* modelStack, int note, int velocity = DEFAULT_LIFT_VALUE);
+	void endAuditioningForNote(ModelStack* modelStack, int note, int velocity = kDefaultLiftValue);
 	virtual ModelStackWithAutoParam* getParamToControlFromInputMIDIChannel(int cc,
 	                                                                       ModelStackWithThreeMainThings* modelStack);
 	void processParamFromInputMIDIChannel(int cc, int32_t newValue, ModelStackWithTimelineCounter* modelStack);

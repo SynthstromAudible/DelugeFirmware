@@ -572,8 +572,8 @@ setEnteredTextAndUseFoundFile:
 				}
 useFoundFile:
 				scrollPosVertical = fileIndexSelected;
-				if constexpr (BROWSER_AND_MENU_NUM_LINES > 1) {
-					int lastAllowed = fileItems.getNumElements() - BROWSER_AND_MENU_NUM_LINES;
+				if constexpr (kNumBrowserAndMenuLines > 1) {
+					int lastAllowed = fileItems.getNumElements() - kNumBrowserAndMenuLines;
 					if (scrollPosVertical > lastAllowed) {
 						scrollPosVertical = lastAllowed;
 						if (scrollPosVertical < 0) {
@@ -846,7 +846,7 @@ doReturn:
 	error = newName->concatenateInt(freeSlotNumber, minNumDigits);
 
 #else
-	int nextHigherSlotFound = numSongSlots; // I think the use of this is a bit deprecated...
+	int nextHigherSlotFound = kNumSongSlots; // I think the use of this is a bit deprecated...
 
 	int i = fileItems.getNumElements();
 goBackOne
@@ -1258,7 +1258,7 @@ void Browser::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 	int yPixel = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14;
 	yPixel += OLED_MAIN_TOPMOST_PIXEL;
 
-	int maxChars = (unsigned int)(OLED_MAIN_WIDTH_PIXELS - textStartX) / (unsigned int)TEXT_SPACING_X;
+	int maxChars = (unsigned int)(OLED_MAIN_WIDTH_PIXELS - textStartX) / (unsigned int)kTextSpacingX;
 
 	bool isFolder = false;
 	bool isSelectedIndex = true;
@@ -1306,16 +1306,16 @@ searchForChar:
 				drawTextForOLEDEditing(textStartX, OLED_MAIN_WIDTH_PIXELS, yPixel, maxChars, OLED::oledMainImage);
 				if (!enteredTextEditPos) {
 					OLED::setupSideScroller(0, enteredText.get(), textStartX, OLED_MAIN_WIDTH_PIXELS, yPixel,
-					                        yPixel + 8, TEXT_SPACING_X, TEXT_SPACING_Y, true);
+					                        yPixel + 8, kTextSpacingX, kTextSpacingY, true);
 				}
 			}
 			else {
 				OLED::drawStringFixedLength(displayName, displayStringLength, textStartX, yPixel,
-				                            OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, TEXT_SPACING_X,
-				                            TEXT_SPACING_Y);
+				                            OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX,
+				                            kTextSpacingY);
 			}
 
-			yPixel += TEXT_SPACING_Y;
+			yPixel += kTextSpacingY;
 		}
 	}
 }

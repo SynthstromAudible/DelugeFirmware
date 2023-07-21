@@ -3,6 +3,7 @@
 #include "dsp/reverb/freeverb/revmodel.hpp"
 #include "extern.h"
 #include "gui/context_menu/overwrite_bootloader.h"
+#include "gui/menu_item/menu_item.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/sample_browser.h"
@@ -227,12 +228,12 @@ ActionResult SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutin
 				if (newItem) {
 					if (newItem != (MenuItem*)0xFFFFFFFF) {
 
-						int result = newItem->checkPermissionToBeginSession(currentSound, currentSourceIndex,
-						                                                    &currentMultiRange);
+						MenuPermission result = newItem->checkPermissionToBeginSession(currentSound, currentSourceIndex,
+						                                                               &currentMultiRange);
 
-						if (result != MENU_PERMISSION_NO) {
+						if (result != MenuPermission::NO) {
 
-							if (result == MENU_PERMISSION_MUST_SELECT_RANGE) {
+							if (result == MenuPermission::MUST_SELECT_RANGE) {
 								currentMultiRange = NULL;
 								menu_item::multiRangeMenu.menuItemHeadingTo = newItem;
 								newItem = &menu_item::multiRangeMenu;
@@ -384,8 +385,8 @@ void SoundEditor::goUpOneLevel() {
 			return;
 		}
 		navigationDepth--;
-	} while (
-	    !getCurrentMenuItem()->checkPermissionToBeginSession(currentSound, currentSourceIndex, &currentMultiRange));
+	} while (getCurrentMenuItem()->checkPermissionToBeginSession(currentSound, currentSourceIndex, &currentMultiRange)
+	         == MenuPermission::NO);
 	numericDriver.setNextTransitionDirection(-1);
 
 	MenuItem* oldItem = menuItemNavigationRecord[navigationDepth + 1];
@@ -450,7 +451,7 @@ bool SoundEditor::beginScreen(MenuItem* oldMenuItem) {
 
 			// First, see if there's a shortcut for the actual MenuItem we're currently on
 			for (x = 0; x < 15; x++) {
-				for (y = 0; y < displayHeight; y++) {
+				for (y = 0; y < kDisplayHeight; y++) {
 					if (paramShortcutsForAudioClips[x][y] == currentItem) {
 						//if (x == 10 && y < 6 && editingReverbCompressor()) goto stopThat;
 						//if (currentParamShorcutX != 255 && (x & 1) && currentSourceIndex == 0) goto stopThat;
@@ -467,7 +468,7 @@ doSetupBlinkingForAudioClip:
 
 		// Or for MIDI or CV clips
 		else if (editingCVOrMIDIClip()) {
-			for (int y = 0; y < displayHeight; y++) {
+			for (int y = 0; y < kDisplayHeight; y++) {
 				if (midiOrCVParamShortcuts[y] == currentItem) {
 					setupShortcutBlink(11, y, 0);
 					break;
@@ -484,7 +485,7 @@ doSetupBlinkingForAudioClip:
 
 			// First, see if there's a shortcut for the actual MenuItem we're currently on
 			for (int x = 0; x < 15; x++) {
-				for (int y = 0; y < displayHeight; y++) {
+				for (int y = 0; y < kDisplayHeight; y++) {
 					if (paramShortcutsForSounds[x][y] == currentItem) {
 
 						if (x == 10 && y < 6 && editingReverbCompressor()) {
@@ -505,7 +506,7 @@ doSetupBlinkingForAudioClip:
 				int paramLookingFor = currentItem->getIndexOfPatchedParamToBlink();
 				if (paramLookingFor != 255) {
 					for (int x = 0; x < 15; x++) {
-						for (int y = 0; y < displayHeight; y++) {
+						for (int y = 0; y < kDisplayHeight; y++) {
 							if (paramShortcutsForSounds[x][y] && paramShortcutsForSounds[x][y] != comingSoonMenu
 							    && ((MenuItem*)paramShortcutsForSounds[x][y])->getPatchedParamIndex()
 							           == paramLookingFor) {
@@ -525,7 +526,7 @@ stopThat : {}
 
 			if (currentParamShorcutX != 255) {
 				for (int x = 0; x < 2; x++) {
-					for (int y = 0; y < displayHeight; y++) {
+					for (int y = 0; y < kDisplayHeight; y++) {
 						PatchSource source = modSourceShortcuts[x][y];
 						if (source < kLastPatchSource) {
 							sourceShortcutBlinkFrequencies[x][y] = currentItem->shouldBlinkPatchingSourceShortcut(
@@ -596,7 +597,7 @@ void SoundEditor::blinkShortcut() {
 	else {
 		// Blink source
 		for (int x = 0; x < 2; x++) {
-			for (int y = 0; y < displayHeight; y++) {
+			for (int y = 0; y < kDisplayHeight; y++) {
 				if (sourceShortcutBlinkFrequencies[x][y] != 255
 				    && (counterForNow & sourceShortcutBlinkFrequencies[x][y]) == 0) {
 					PadLEDs::flashMainPad(x + 14, y, sourceShortcutBlinkColours[x][y]);
@@ -674,7 +675,7 @@ static const uint32_t shortcutPadUIModes[] = {UI_MODE_AUDITIONING, 0};
 
 ActionResult SoundEditor::potentialShortcutPadAction(int x, int y, bool on) {
 
-	if (!on || x >= displayWidth
+	if (!on || x >= kDisplayWidth
 	    || (!Buttons::isShiftButtonPressed()
 	        && !(currentUIMode == UI_MODE_AUDITIONING && getRootUI() == &instrumentClipView))) {
 		return ActionResult::NOT_DEALT_WITH;
@@ -784,7 +785,7 @@ doSetup:
 
 				bool previousPressStillActive = false;
 				for (int h = 0; h < 2; h++) {
-					for (int i = 0; i < displayHeight; i++) {
+					for (int i = 0; i < kDisplayHeight; i++) {
 						if (h == 0 && i < 5) {
 							continue;
 						}
@@ -823,7 +824,7 @@ getOut:
 						// If we've been given a MenuItem to go into, do that
 						if (newMenuItem
 						    && newMenuItem->checkPermissionToBeginSession(currentSound, currentSourceIndex,
-						                                                  &currentMultiRange)) {
+						                                                  &currentMultiRange) != MenuPermission::NO) {
 							navigationDepth = newNavigationDepth + 1;
 							menuItemNavigationRecord[navigationDepth] = newMenuItem;
 							if (!wentBack) {
@@ -857,7 +858,7 @@ ActionResult SoundEditor::padAction(int x, int y, int on) {
 	}
 
 	if (getRootUI() == &keyboardScreen) {
-		if (x < displayWidth) {
+		if (x < kDisplayWidth) {
 			keyboardScreen.padAction(x, y, on);
 			return ActionResult::DEALT_WITH;
 		}
@@ -865,7 +866,7 @@ ActionResult SoundEditor::padAction(int x, int y, int on) {
 
 	// Audition pads
 	else if (getRootUI() == &instrumentClipView) {
-		if (x == displayWidth + 1) {
+		if (x == kDisplayWidth + 1) {
 			instrumentClipView.padAction(x, y, on);
 			return ActionResult::DEALT_WITH;
 		}
@@ -1070,13 +1071,13 @@ doMIDIOrCV:
 	// because in a minority of cases, like "patch cable strength" / "modulation depth", it needs this.
 	currentParamManager = newParamManager;
 
-	int result = newItem->checkPermissionToBeginSession(newSound, sourceIndex, &newRange);
+	MenuPermission result = newItem->checkPermissionToBeginSession(newSound, sourceIndex, &newRange);
 
-	if (result == MENU_PERMISSION_NO) {
+	if (result == MenuPermission::NO) {
 		numericDriver.displayPopup(HAVE_OLED ? "Parameter not applicable" : "CANT");
 		return false;
 	}
-	else if (result == MENU_PERMISSION_MUST_SELECT_RANGE) {
+	else if (result == MenuPermission::MUST_SELECT_RANGE) {
 
 		Debug::println("must select range");
 
@@ -1100,7 +1101,7 @@ doMIDIOrCV:
 		currentSampleControls = &currentSource->sampleControls;
 		currentPriority = &currentSound->voicePriority;
 
-		if (result == MENU_PERMISSION_YES && currentMultiRange == NULL) {
+		if (result == MenuPermission::YES && currentMultiRange == NULL) {
 			if (currentSource->ranges.getNumElements()) {
 				currentMultiRange = (MultisampleRange*)currentSource->ranges.getElement(0); // Is this good?
 			}
@@ -1139,28 +1140,28 @@ void SoundEditor::setCurrentMultiRange(int i) {
 	currentMultiRange = (MultisampleRange*)soundEditor.currentSource->ranges.getElement(i);
 }
 
-int SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam(Sound* sound, int whichThing,
-                                                                    bool automaticallySelectIfOnlyOne,
-                                                                    ::MultiRange** previouslySelectedRange) {
+MenuPermission SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam(Sound* sound, int whichThing,
+                                                                               bool automaticallySelectIfOnlyOne,
+                                                                               ::MultiRange** previouslySelectedRange) {
 
 	Source* source = &sound->sources[whichThing];
 
 	::MultiRange* firstRange = source->getOrCreateFirstRange();
 	if (!firstRange) {
 		numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
-		return MENU_PERMISSION_NO;
+		return MenuPermission::NO;
 	}
 
 	if (soundEditor.editingKit() || (automaticallySelectIfOnlyOne && source->ranges.getNumElements() == 1)) {
 		*previouslySelectedRange = firstRange;
-		return MENU_PERMISSION_YES;
+		return MenuPermission::YES;
 	}
 
 	if (getCurrentUI() == &soundEditor && *previouslySelectedRange && currentSourceIndex == whichThing) {
-		return MENU_PERMISSION_YES;
+		return MenuPermission::YES;
 	}
 
-	return MENU_PERMISSION_MUST_SELECT_RANGE;
+	return MenuPermission::MUST_SELECT_RANGE;
 }
 
 void SoundEditor::cutSound() {

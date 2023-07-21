@@ -326,7 +326,7 @@ bool Output::readTagFromFile(char const* tagName) {
 			uint32_t clipCode = hexToIntFixedLength(&hexChars[16], 8);
 
 			// See if that's all allowed
-			if (pos < minPos || length <= 0 || pos > MAX_SEQUENCE_LENGTH - length) {
+			if (pos < minPos || length <= 0 || pos > kMaxSequenceLength - length) {
 				continue;
 			}
 
@@ -386,7 +386,7 @@ int Output::possiblyBeginArrangementRecording(Song* song, int newPos) {
 
 	clipInstance->clip = newClip;
 	newClip->section = 255;
-	newClip->loopLength = MAX_SEQUENCE_LENGTH;
+	newClip->loopLength = kMaxSequenceLength;
 
 	song->arrangementOnlyClips.insertClipAtIndex(newClip, 0); // Will succeed - we checked above
 

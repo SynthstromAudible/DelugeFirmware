@@ -42,9 +42,9 @@ MenuItem* Regular::selectButtonPress() {
 void Regular::beginSession(MenuItem* navigatedBackwardFrom) {
 
 	if (navigatedBackwardFrom) {
-		if (soundEditor.patchingParamSelected == PARAM_GLOBAL_VOLUME_POST_REVERB_SEND
-		    || soundEditor.patchingParamSelected == PARAM_LOCAL_VOLUME) {
-			soundEditor.patchingParamSelected = PARAM_GLOBAL_VOLUME_POST_FX;
+		if (soundEditor.patchingParamSelected == ::Param::Global::VOLUME_POST_REVERB_SEND
+		    || soundEditor.patchingParamSelected == ::Param::Local::VOLUME) {
+			soundEditor.patchingParamSelected = ::Param::Global::VOLUME_POST_FX;
 		}
 	}
 

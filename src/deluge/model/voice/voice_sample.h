@@ -39,12 +39,12 @@ public:
 	void noteOn(SamplePlaybackGuide* guide, uint32_t samplesLate, int priorityRating);
 	bool noteOffWhenLoopEndPointExists(Voice* voice, VoiceSamplePlaybackGuide* voiceSource);
 
-	void setupCacheLoopPoints(SamplePlaybackGuide* voiceSource, Sample* sample, int loopingType);
+	void setupCacheLoopPoints(SamplePlaybackGuide* voiceSource, Sample* sample, LoopType loopingType);
 	int attemptLateSampleStart(SamplePlaybackGuide* voiceSource, Sample* sample, int64_t rawSamplesLate,
 	                           int numSamples = 0);
 	void endTimeStretching();
 	bool render(SamplePlaybackGuide* guide, int32_t* oscBuffer, int numSamples, Sample* sample, int numChannels,
-	            int loopingType, int32_t phaseIncrement, int32_t timeStretchRatio, int32_t amplitude,
+	            LoopType loopingType, int32_t phaseIncrement, int32_t timeStretchRatio, int32_t amplitude,
 	            int32_t amplitudeIncrement, int bufferSize, InterpolationMode desiredInterpolationMode,
 	            int priorityRating);
 	void beenUnassigned();
@@ -60,12 +60,12 @@ public:
 	                                         int32_t* sourceAmplitudeNow, int32_t amplitudeIncrement, int bufferSize,
 	                                         int reduceMagnitudeBy = 1);
 
-	bool sampleZoneChanged(SamplePlaybackGuide* voiceSource, Sample* sample, MarkerType markerType, int loopingType,
+	bool sampleZoneChanged(SamplePlaybackGuide* voiceSource, Sample* sample, MarkerType markerType, LoopType loopingType,
 	                       int priorityRating, bool forAudioClip = false);
 	int32_t getPlaySample(Sample* sample, SamplePlaybackGuide* guide);
 	bool stopUsingCache(SamplePlaybackGuide* guide, Sample* sample, int priorityRating, bool loopingAtLowLevel);
 	bool possiblySetUpCache(SampleControls* sampleControls, SamplePlaybackGuide* guide, int32_t phaseIncrement,
-	                        int32_t timeStretchRatio, int priorityRating, int loopingType);
+	                        int32_t timeStretchRatio, int priorityRating, LoopType loopingType);
 	bool fudgeTimeStretchingToAvoidClick(Sample* sample, SamplePlaybackGuide* guide, int32_t phaseIncrement,
 	                                     int numSamplesTilLoop, int playDirection, int priorityRating);
 
@@ -89,7 +89,7 @@ public:
 
 private:
 	bool weShouldBeTimeStretchingNow(Sample* sample, SamplePlaybackGuide* guide, int numSamples, int32_t phaseIncrement,
-	                                 int32_t timeStretchRatio, int playDirection, int priorityRating, int loopingType);
+	                                 int32_t timeStretchRatio, int playDirection, int priorityRating, LoopType loopingType);
 	void switchToReadingCacheFromWriting();
 	bool stopReadingFromCache();
 };

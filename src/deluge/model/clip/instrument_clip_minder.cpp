@@ -81,7 +81,7 @@ void InstrumentClipMinder::selectEncoderAction(int offset) {
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 	if (currentUIMode == UI_MODE_SELECTING_MIDI_CC) {
-		if (editingMIDICCForWhichModKnob < NUM_PHYSICAL_MOD_KNOBS) {
+		if (editingMIDICCForWhichModKnob < kNumPhysicalModKnobs) {
 			MIDIInstrument* instrument = (MIDIInstrument*)getCurrentClip()->output;
 			ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 			    modelStack->addOtherTwoThingsButNoNoteRow(instrument, &getCurrentClip()->paramManager);

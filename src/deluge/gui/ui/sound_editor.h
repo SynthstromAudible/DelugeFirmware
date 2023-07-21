@@ -64,7 +64,7 @@ public:
 	ArpeggiatorSettings* currentArpSettings;
 	MultiRange* currentMultiRange;
 	SampleControls* currentSampleControls;
-	uint8_t* currentPriority;
+	VoicePriority* currentPriority;
 	int16_t currentMultiRangeIndex;
 	MIDIDevice* currentMIDIDevice;
 	menu_item::RangeEdit editingRangeEdge;
@@ -86,8 +86,8 @@ public:
 	uint8_t currentParamShorcutX;
 	uint8_t currentParamShorcutY;
 	uint8_t paramShortcutBlinkFrequency;
-	uint8_t sourceShortcutBlinkFrequencies[2][displayHeight];
-	uint8_t sourceShortcutBlinkColours[2][displayHeight];
+	uint8_t sourceShortcutBlinkFrequencies[2][kDisplayHeight];
+	uint8_t sourceShortcutBlinkColours[2][kDisplayHeight];
 	uint32_t shortcutBlinkCounter;
 
 	uint32_t timeLastAttemptedAutomatedParamEdit;
@@ -122,7 +122,7 @@ public:
 	bool isUntransposedNoteWithinRange(int noteCode);
 	void setCurrentMultiRange(int i);
 	void possibleChangeToCurrentRangeDisplay();
-	int checkPermissionToBeginSessionForRangeSpecificParam(Sound* sound, int whichThing,
+	MenuPermission checkPermissionToBeginSessionForRangeSpecificParam(Sound* sound, int whichThing,
 	                                                       bool automaticallySelectIfOnlyOne,
 	                                                       MultiRange** previouslySelectedRange);
 	void setupExclusiveShortcutBlink(int x, int y);

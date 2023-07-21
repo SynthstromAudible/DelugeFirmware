@@ -21,6 +21,7 @@
 #include "RZA1/system/r_typedefs.h"
 #include "util/container/list/bidirectional_linked_list.h"
 #include "definitions_cxx.hpp"
+#include <stdint.h>
 
 extern "C" {
 #include "fatfs/ff.h"
@@ -32,10 +33,12 @@ class SampleCache;
 class String;
 class SampleRecorder;
 
-#define ALTERNATE_LOAD_DIR_NONE_SET 0
-#define ALTERNATE_LOAD_DIR_NOT_FOUND 1
-#define ALTERNATE_LOAD_DIR_MIGHT_EXIST 2
-#define ALTERNATE_LOAD_DIR_DOES_EXIST 3
+enum class AlternateLoadDirStatus {
+	NONE_SET,
+	NOT_FOUND,
+	MIGHT_EXIST,
+	DOES_EXIST,
+};
 
 /*
  * ===================== SD card audio streaming ==================
@@ -119,12 +122,12 @@ public:
 	int minNumReasonsForClusterBeingLoaded; // Only valid when clusterBeingLoaded is set. And this exists for bug hunting only.
 
 	String alternateAudioFileLoadPath;
-	uint8_t alternateLoadDirStatus;
+	AlternateLoadDirStatus alternateLoadDirStatus;
 	ThingType thingTypeBeingLoaded;
 	DIR alternateLoadDir;
 
-	int32_t highestUsedAudioRecordingNumber[NUM_AUDIO_RECORDING_FOLDERS];
-	bool highestUsedAudioRecordingNumberNeedsReChecking[NUM_AUDIO_RECORDING_FOLDERS];
+	int32_t highestUsedAudioRecordingNumber[kNumAudioRecordingFolders];
+	bool highestUsedAudioRecordingNumberNeedsReChecking[kNumAudioRecordingFolders];
 
 private:
 	void setClusterSize(uint32_t newSize);

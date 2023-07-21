@@ -38,10 +38,10 @@ public:
 	void focusRegained();
 	ActionResult padAction(int x, int y, int velocity);
 	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
-	bool renderMainPads(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
-	                    uint8_t occupancyMask[][displayWidth + sideBarWidth], bool drawUndefinedArea = false);
-	bool renderSidebar(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
-	                   uint8_t occupancyMask[][displayWidth + sideBarWidth]);
+	bool renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = false);
+	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 	ActionResult verticalEncoderAction(int offset, bool inCardRoutine);
 	ActionResult horizontalEncoderAction(int offset);
 	void selectEncoderAction(int8_t offset);
@@ -72,8 +72,8 @@ private:
 	void drawNoteCode(int noteCode);
 
 	KeyboardPadPress padPresses[MAX_NUM_KEYBOARD_PAD_PRESSES];
-	uint8_t noteColours[displayHeight * KEYBOARD_ROW_INTERVAL_MAX + displayWidth][3];
-	bool yDisplayActive[displayHeight * KEYBOARD_ROW_INTERVAL_MAX + displayWidth];
+	uint8_t noteColours[kDisplayHeight * kMaxKeyboardRowInterval + kDisplayWidth][3];
+	bool yDisplayActive[kDisplayHeight * kMaxKeyboardRowInterval + kDisplayWidth];
 };
 
 extern KeyboardScreen keyboardScreen;

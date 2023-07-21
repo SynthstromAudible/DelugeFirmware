@@ -92,7 +92,7 @@ public:
 	virtual bool renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, TimelineView* editorScreen,
 	                               int32_t xScroll, uint32_t xZoom, uint8_t* image, uint8_t occupancyMask[],
 	                               bool addUndefinedArea = true, int noteRowIndexStart = 0,
-	                               int noteRowIndexEnd = 2147483647, int xStart = 0, int xEnd = displayWidth,
+	                               int noteRowIndexEnd = 2147483647, int xStart = 0, int xEnd = kDisplayWidth,
 	                               bool allowBlur = true, bool drawRepeats = false);
 	virtual int
 	claimOutput(ModelStackWithTimelineCounter*

@@ -183,7 +183,7 @@ void StorageManager::printIndents() {
 	}
 }
 
-char stringBuffer[FILENAME_BUFFER_SIZE] __attribute__((aligned(CACHE_LINE_SIZE)));
+char stringBuffer[kFilenameBufferSize] __attribute__((aligned(CACHE_LINE_SIZE)));
 
 #define BETWEEN_TAGS 0
 #define IN_TAG_NAME 1
@@ -231,7 +231,7 @@ skipToNextTag:
 			}
 
 			// Store this character, if space in our un-ideal buffer
-			if (charPos < FILENAME_BUFFER_SIZE - 1) {
+			if (charPos < kFilenameBufferSize - 1) {
 				stringBuffer[charPos++] = thisChar;
 			}
 		}
@@ -336,7 +336,7 @@ reachedNameEnd:
 		}
 
 		int numCharsHere = fileBufferCurrentPos - bufferPosAtStart;
-		int numCharsToCopy = getMin(numCharsHere, FILENAME_BUFFER_SIZE - 1 - charPos);
+		int numCharsToCopy = getMin(numCharsHere, kFilenameBufferSize - 1 - charPos);
 
 		if (numCharsToCopy > 0) {
 			memcpy(&stringBuffer[charPos], &fileClusterBuffer[bufferPosAtStart], numCharsToCopy);
@@ -587,7 +587,7 @@ char const* StorageManager::readUntilChar(char endChar) {
 		}
 
 		int numCharsHere = fileBufferCurrentPos - bufferPosAtStart;
-		int numCharsToCopy = getMin(numCharsHere, FILENAME_BUFFER_SIZE - 1 - charPos);
+		int numCharsToCopy = getMin(numCharsHere, kFilenameBufferSize - 1 - charPos);
 
 		if (numCharsToCopy > 0) {
 			memcpy(&stringBuffer[charPos], &fileClusterBuffer[bufferPosAtStart], numCharsToCopy);

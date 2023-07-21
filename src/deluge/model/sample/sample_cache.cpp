@@ -61,7 +61,7 @@ void SampleCache::clusterStolen(int clusterIndex) {
 	// There's now no point in having any further Clusters
 	unlinkClusters(clusterIndex + 1, false); // Must do this before changing writeBytePos
 
-	uint8_t bytesPerSample = sample->numChannels * CACHE_BYTE_DEPTH;
+	uint8_t bytesPerSample = sample->numChannels * kCacheByteDepth;
 
 	// Make it a multiple of bytesPerSample - but round up.
 	// If you try and simplify this, make sure it still works for 0 and doesn't go negative or anything!
@@ -114,7 +114,7 @@ void SampleCache::setWriteBytePos(int newWriteBytePos) {
 		numericDriver.freezeWithError("E301");
 	}
 
-	uint32_t bytesPerSample = sample->numChannels * CACHE_BYTE_DEPTH;
+	uint32_t bytesPerSample = sample->numChannels * kCacheByteDepth;
 	if (newWriteBytePos != (uint32_t)newWriteBytePos / bytesPerSample * bytesPerSample) {
 		numericDriver.freezeWithError("E302");
 	}
@@ -215,7 +215,7 @@ Cluster* SampleCache::getCluster(int clusterIndex) {
 }
 
 int SampleCache::getNumExistentClusters(int32_t thisWriteBytePos) {
-	int bytesPerSample = sample->numChannels * CACHE_BYTE_DEPTH;
+	int bytesPerSample = sample->numChannels * kCacheByteDepth;
 
 	// Remember, a cache Cluster actually gets (bytesPerSample - 1) extra usable bytes after it.
 	int numExistentClusters =

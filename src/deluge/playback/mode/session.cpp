@@ -1243,7 +1243,7 @@ int Session::investigateSyncedLaunch(Clip* waitForClip, uint32_t* currentPosWith
 			// If a clock is coming in or out, or metronome is on, use that to work out the loop point
 			if ((playbackHandler.playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE) || playbackHandler.midiOutClockEnabled
 			    || playbackHandler.metronomeOn
-			    || cvEngine.gateChannels[WHICH_GATE_OUTPUT_IS_CLOCK].mode == GATE_MODE_SPECIAL
+			    || cvEngine.gateChannels[WHICH_GATE_OUTPUT_IS_CLOCK].mode == GateType::SPECIAL
 			    || playbackHandler.recording == RECORDING_ARRANGEMENT) {
 
 				uint32_t oneBar = currentSong->getBarLength();
@@ -1378,7 +1378,7 @@ void Session::armClipsToStartOrSoloWithQuantization(uint32_t pos, uint32_t quant
 
 			// See if that given point was only just reached a few milliseconds ago - in which case we'll do a "late start"
 			uint32_t timeAgo = pos * playbackHandler.getTimePerInternalTick(); // Accurate enough
-			doLateStart = (timeAgo < noteOnLatenessAllowed);
+			doLateStart = (timeAgo < kAmountNoteOnLatenessAllowed);
 		}
 
 		armClipToStartOrSoloUsingQuantization(clip, doLateStart, pos, armState);
@@ -1629,7 +1629,7 @@ int Session::getCurrentSection() {
 
 	int section = 255;
 
-	bool anyUnlaunchedLoopablesInSection[MAX_NUM_SECTIONS];
+	bool anyUnlaunchedLoopablesInSection[kMaxNumSections];
 	memset(anyUnlaunchedLoopablesInSection, 0, sizeof(anyUnlaunchedLoopablesInSection));
 
 	for (int l = 0; l < currentSong->sessionClips.getNumElements(); l++) {
@@ -1644,7 +1644,7 @@ int Session::getCurrentSection() {
 			}
 		}
 		else {
-			if (ALPHA_OR_BETA_VERSION && clip->section > MAX_NUM_SECTIONS) {
+			if (ALPHA_OR_BETA_VERSION && clip->section > kMaxNumSections) {
 				numericDriver.freezeWithError("E243");
 			}
 			anyUnlaunchedLoopablesInSection[clip->section] = true;

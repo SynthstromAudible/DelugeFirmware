@@ -159,7 +159,7 @@ recordingEarly:
 							    session.launchEventAtSwungTickCount - playbackHandler.getActualSwungTickCount();
 							int samplesTilLaunch = ticksTilLaunch * playbackHandler.getTimePerInternalTick();
 
-							if (samplesTilLaunch <= LINEAR_RECORDING_EARLY_FIRST_NOTE_ALLOWANCE) {
+							if (samplesTilLaunch <= kLinearRecordingEarlyFirstNoteAllowance) {
 								Clip* clipAboutToRecord =
 								    currentSong->getClipWithOutputAboutToBeginLinearRecording(this);
 								if (clipAboutToRecord) {

@@ -63,7 +63,7 @@ public:
 	bool renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, TimelineView* editorScreen, int32_t xScroll,
 	                       uint32_t xZoom, uint8_t* image, uint8_t occupancyMask[], bool addUndefinedArea,
 	                       int noteRowIndexStart = 0, int noteRowIndexEnd = 2147483647, int xStart = 0,
-	                       int xEnd = displayWidth, bool allowBlur = true, bool drawRepeats = false);
+	                       int xEnd = kDisplayWidth, bool allowBlur = true, bool drawRepeats = false);
 	void toggleNoteRowMute(ModelStackWithNoteRow* modelStack);
 	void overviewMutePadPress(bool, bool);
 	void midiCommandMute(bool);
@@ -99,7 +99,7 @@ public:
 	bool currentlyScrollableAndZoomable();
 	void recordNoteOn(ModelStackWithNoteRow* modelStack, int velocity, bool forcePos0 = false,
 	                  int16_t const* mpeValuesOrNull = NULL, int fromMIDIChannel = MIDI_CHANNEL_NONE);
-	void recordNoteOff(ModelStackWithNoteRow* modelStack, int velocity = DEFAULT_LIFT_VALUE);
+	void recordNoteOff(ModelStackWithNoteRow* modelStack, int velocity = kDefaultLiftValue);
 
 	void copyBasicsFrom(Clip* otherClip);
 
@@ -251,7 +251,7 @@ private:
 	void prepareToEnterKitMode(Song* song);
 	int readMIDIParamsFromFile(int32_t readAutomationUpToPos);
 
-	bool lastProbabilities[NUM_PROBABILITY_VALUES];
-	int32_t lastProbabiltyPos[NUM_PROBABILITY_VALUES];
+	bool lastProbabilities[kNumProbabilityValues];
+	int32_t lastProbabiltyPos[kNumProbabilityValues];
 	bool currentlyRecordingLinearly;
 };

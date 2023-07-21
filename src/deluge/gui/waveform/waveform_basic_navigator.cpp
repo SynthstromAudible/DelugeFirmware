@@ -47,7 +47,7 @@ void WaveformBasicNavigator::opened(
 }
 
 int32_t WaveformBasicNavigator::getMaxZoom() {
-	return ((sample->lengthInSamples - 1) >> displayWidthMagnitude) + 1;
+	return ((sample->lengthInSamples - 1) >> kDisplayWidthMagnitude) + 1;
 }
 
 bool WaveformBasicNavigator::zoom(int offset, bool shouldAllowExtraScrollRight, MarkerColumn* cols,
@@ -104,7 +104,7 @@ bool WaveformBasicNavigator::zoom(int offset, bool shouldAllowExtraScrollRight, 
 	}
 
 	int pinMarkerCol = -1;
-	int32_t pinMarkerPos = xScroll + xZoom * (displayWidth >> 1);
+	int32_t pinMarkerPos = xScroll + xZoom * (kDisplayWidth >> 1);
 	MarkerType pinnedToMarkerType = MarkerType::NONE;
 
 	if (markerType != MarkerType::NONE) {
@@ -114,7 +114,7 @@ bool WaveformBasicNavigator::zoom(int offset, bool shouldAllowExtraScrollRight, 
 		for (int m = 0; m < kNumMarkerTypes; m++) {
 			int col = cols[m].colOnScreen;
 
-			if (col >= 0 && col < displayWidth) {
+			if (col >= 0 && col < kDisplayWidth) {
 
 				if (m == util::to_underlying(markerType)) {
 bestYet:
@@ -126,12 +126,12 @@ bestYet:
 					pinnedToMarkerType = static_cast<MarkerType>(m);
 				}
 				else {
-					int pinMarkerDistanceFromCentre = pinMarkerCol - (displayWidth >> 1);
+					int pinMarkerDistanceFromCentre = pinMarkerCol - (kDisplayWidth >> 1);
 					if (pinMarkerDistanceFromCentre < 0) {
 						pinMarkerDistanceFromCentre = -pinMarkerDistanceFromCentre;
 					}
 
-					int thisMarkerDistanceFromCentre = col - (displayWidth >> 1);
+					int thisMarkerDistanceFromCentre = col - (kDisplayWidth >> 1);
 					if (thisMarkerDistanceFromCentre < 0) {
 						thisMarkerDistanceFromCentre = -thisMarkerDistanceFromCentre;
 					}
@@ -154,7 +154,7 @@ bestYet:
 	}
 
 	if (pinMarkerCol == -1) {
-		pinMarkerCol = (displayWidth >> 1);
+		pinMarkerCol = (kDisplayWidth >> 1);
 	}
 
 	xScroll = pinMarkerPos - newXZoom * pinMarkerCol;
@@ -177,24 +177,24 @@ bestYet:
 		if (!shouldAllowExtraScrollRight) {
 			// Make sure not scrolled too far right
 			uint32_t lengthInSamples = sample->lengthInSamples;
-			int scrollLimit = ((lengthInSamples - 1) / xZoom + 1 - displayWidth) * xZoom;
+			int scrollLimit = ((lengthInSamples - 1) / xZoom + 1 - kDisplayWidth) * xZoom;
 			if (xScroll > scrollLimit) {
 				xScroll = scrollLimit;
 			}
 		}
 	}
 
-	memcpy(PadLEDs::imageStore[(offset > 0) ? displayHeight : 0], PadLEDs::image,
-	       (displayWidth + sideBarWidth) * displayHeight * 3);
+	memcpy(PadLEDs::imageStore[(offset > 0) ? kDisplayHeight : 0], PadLEDs::image,
+	       (kDisplayWidth + kSideBarWidth) * kDisplayHeight * 3);
 
 	// Calculate pin squares
 	int32_t zoomPinSquareBig = ((int64_t)(int32_t)(oldScroll - xScroll) << 16) / (int32_t)(newXZoom - oldZoom);
-	for (int i = 0; i < displayHeight; i++) {
+	for (int i = 0; i < kDisplayHeight; i++) {
 		PadLEDs::zoomPinSquare[i] = zoomPinSquareBig;
 		PadLEDs::transitionTakingPlaceOnRow[i] = true;
 	}
 
-	int storeOffset = (offset > 0) ? 0 : displayHeight;
+	int storeOffset = (offset > 0) ? 0 : kDisplayHeight;
 
 	PadLEDs::clearTickSquares(
 	    false); // We were mostly fine without this here, but putting it here fixed weird problem where tick squares would
@@ -206,7 +206,7 @@ bestYet:
 	PadLEDs::zoomMagnitude = PadLEDs::zoomingIn ? offset : -offset;
 
 	currentUIMode |= UI_MODE_HORIZONTAL_ZOOM;
-	PadLEDs::recordTransitionBegin(zoomSpeed);
+	PadLEDs::recordTransitionBegin(kZoomSpeed);
 	PadLEDs::renderZoom();
 
 	return true;
@@ -218,14 +218,14 @@ bool WaveformBasicNavigator::scroll(int offset, bool shouldAllowExtraScrollRight
 
 		if (shouldAllowExtraScrollRight) {
 			int32_t newScroll = xScroll + xZoom;
-			if ((int32_t)(xScroll + xZoom * displayWidth) < xScroll) {
+			if ((int32_t)(xScroll + xZoom * kDisplayWidth) < xScroll) {
 				return false;
 			}
 			xScroll = newScroll;
 		}
 		else {
-			if (xScroll + xZoom * displayWidth >= sample->lengthInSamples
-			    && (!cols || cols[util::to_underlying(MarkerType::END)].colOnScreen < displayWidth)) {
+			if (xScroll + xZoom * kDisplayWidth >= sample->lengthInSamples
+			    && (!cols || cols[util::to_underlying(MarkerType::END)].colOnScreen < kDisplayWidth)) {
 				return false;
 			}
 			xScroll += xZoom;

@@ -15,9 +15,11 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "definitions_cxx.hpp"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "processing/engines/cv_engine.h"
+#include "util/misc.h"
 
 namespace menu_item::gate {
 #if HAVE_OLED
@@ -37,8 +39,8 @@ static char* mode_title = nullptr;
 class Mode final : public Selection {
 public:
 	Mode() : Selection(mode_title) { basicOptions = mode_options; }
-	void readCurrentValue() { soundEditor.currentValue = cvEngine.gateChannels[soundEditor.currentSourceIndex].mode; }
-	void writeCurrentValue() { cvEngine.setGateType(soundEditor.currentSourceIndex, soundEditor.currentValue); }
+	void readCurrentValue() { soundEditor.currentValue = util::to_underlying(cvEngine.gateChannels[soundEditor.currentSourceIndex].mode); }
+	void writeCurrentValue() { cvEngine.setGateType(soundEditor.currentSourceIndex, static_cast<GateType>(soundEditor.currentValue)); }
 };
 
 } // namespace menu_item::gate

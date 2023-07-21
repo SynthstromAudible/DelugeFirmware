@@ -138,7 +138,7 @@ void UITimerManager::routine() {
 					break;
 
 				case TIMER_GRAPHICS_ROUTINE:
-					if (uartGetTxBufferSpace(UART_ITEM_PIC_PADS) > NUM_BYTES_IN_COL_UPDATE_MESSAGE) {
+					if (uartGetTxBufferSpace(UART_ITEM_PIC_PADS) > kNumBytesInColUpdateMessage) {
 						getCurrentUI()->graphicsRoutine();
 					}
 					setTimer(TIMER_GRAPHICS_ROUTINE, 15);

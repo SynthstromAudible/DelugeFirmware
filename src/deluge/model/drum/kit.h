@@ -91,7 +91,7 @@ public:
 	bool isAnyAuditioningHappening();
 	void beginAuditioningforDrum(ModelStackWithNoteRow* modelStack, Drum* drum, int velocity, int16_t const* mpeValues,
 	                             int fromMIDIChannel = MIDI_CHANNEL_NONE);
-	void endAuditioningForDrum(ModelStackWithNoteRow* modelStack, Drum* drum, int velocity = DEFAULT_LIFT_VALUE);
+	void endAuditioningForDrum(ModelStackWithNoteRow* modelStack, Drum* drum, int velocity = kDefaultLiftValue);
 	void offerBendRangeUpdate(ModelStack* modelStack, MIDIDevice* device, int channelOrZone, int whichBendRange,
 	                          int bendSemitones);
 

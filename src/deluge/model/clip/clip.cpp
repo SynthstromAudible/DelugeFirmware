@@ -94,7 +94,7 @@ void Clip::setupForRecordingAsAutoOverdub(Clip* existingClip, Song* song, int ne
 	uint32_t newLength = existingClip->loopLength;
 
 	if (newOverdubNature != OVERDUB_CONTINUOUS_LAYERING) {
-		uint32_t currentScreenLength = currentSong->xZoom[NAVIGATION_CLIP] << displayWidthMagnitude;
+		uint32_t currentScreenLength = currentSong->xZoom[NAVIGATION_CLIP] << kDisplayWidthMagnitude;
 
 		// If new length is a multiple of screen length, just use screen length
 		if ((newLength % currentScreenLength) == 0) {
@@ -122,11 +122,11 @@ bool Clip::cancelAnyArming() {
 
 int Clip::getMaxZoom() {
 	int32_t maxLength = getMaxLength();
-	unsigned int thisLength = displayWidth * 3;
+	unsigned int thisLength = kDisplayWidth * 3;
 	while (thisLength < maxLength) {
 		thisLength <<= 1;
 	}
-	return thisLength >> displayWidthMagnitude;
+	return thisLength >> kDisplayWidthMagnitude;
 }
 
 uint32_t Clip::getLivePos() {
@@ -683,7 +683,7 @@ void Clip::readTagFromFile(char const* tagName, Song* song, int32_t* readAutomat
 
 	else if (!strcmp(tagName, "section")) {
 		section = storageManager.readTagOrAttributeValueInt();
-		section = getMin(section, (uint8_t)(MAX_NUM_SECTIONS - 1));
+		section = getMin(section, (uint8_t)(kMaxNumSections - 1));
 	}
 
 	else if (!strcmp(tagName, "trackLength") || !strcmp(tagName, "length")) {
@@ -833,7 +833,7 @@ void Clip::drawUndefinedArea(int32_t xScroll, uint32_t xZoom, int32_t lengthToDi
 	}
 
 	if (greyStart < imageWidth) {
-		memset(rowImage + greyStart * 3, UNDEFINED_GREY_SHADE, (imageWidth - greyStart) * 3);
+		memset(rowImage + greyStart * 3, kUndefinedGreyShade, (imageWidth - greyStart) * 3);
 		if (occupancyMask) {
 			memset(occupancyMask + greyStart, 64, imageWidth - greyStart);
 		}
@@ -843,9 +843,9 @@ void Clip::drawUndefinedArea(int32_t xScroll, uint32_t xZoom, int32_t lengthToDi
 		for (int xDisplay = 0; xDisplay < imageWidth; xDisplay++) {
 			if (!timelineView->isSquareDefined(xDisplay, xScroll, xZoom)) {
 				uint8_t* pixel = rowImage + xDisplay * 3;
-				pixel[0] = UNDEFINED_GREY_SHADE;
-				pixel[1] = UNDEFINED_GREY_SHADE;
-				pixel[2] = UNDEFINED_GREY_SHADE;
+				pixel[0] = kUndefinedGreyShade;
+				pixel[1] = kUndefinedGreyShade;
+				pixel[2] = kUndefinedGreyShade;
 
 				if (occupancyMask) {
 					occupancyMask[xDisplay] = 64;

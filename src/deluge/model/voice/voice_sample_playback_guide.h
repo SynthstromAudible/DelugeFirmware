@@ -32,7 +32,7 @@ public:
 	bool shouldObeyLoopEndPointNow();
 	int32_t getBytePosToStartPlayback(bool justLooped);
 	int32_t getBytePosToEndOrLoopPlayback();
-	int getLoopingType(Source* source);
+	LoopType getLoopingType(Source* source);
 
 	uint32_t getLoopStartPlaybackAtByte() { return loopStartPlaybackAtByte; }
 	uint32_t getLoopEndPlaybackAtByte() { return loopEndPlaybackAtByte ? loopEndPlaybackAtByte : endPlaybackAtByte; }

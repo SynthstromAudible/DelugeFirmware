@@ -163,7 +163,7 @@ int WaveTable::setup(Sample* sample, int rawFileCycleSize, uint32_t audioDataSta
 
 	// We do some checking here for conditions which make it completely impossible for a file to be a WaveTable.
 	// As opposed for checks before this function is called, for softer conditions which merely determine that this file might not be *intended* as a WaveTable, but the user have have overridden.
-	if (rawFileCycleSize < WAVETABLE_MIN_CYCLE_SIZE) {
+	if (rawFileCycleSize < kWavetableMinCycleSize) {
 		return ERROR_FILE_NOT_LOADABLE_AS_WAVETABLE; // See comment on minimum FFT size - click thru to WAVETABLE_MIN_CYCLE_SIZE.
 	}
 
@@ -806,10 +806,10 @@ WaveTable::doRenderingLoopSingleCycle(int32_t* __restrict__ thisSample, int32_t 
 
 		// Work out the location of the waveform data in memory
 		int whichValueCentral = (phase >> (32 - bandCycleSizeMagnitude));
-		unsigned int whichValue = whichValueCentral - (INTERPOLATION_MAX_NUM_SAMPLES >> 1);
+		unsigned int whichValue = whichValueCentral - (kInterpolationMaxNumSamples >> 1);
 		int whichValueStored[2];
 
-		for (int i = 0; i < (INTERPOLATION_MAX_NUM_SAMPLES >> 3); i++) {
+		for (int i = 0; i < (kInterpolationMaxNumSamples >> 3); i++) {
 			whichValue = whichValue & ((1 << bandCycleSizeMagnitude) - 1);
 			whichValueStored[i] = whichValue;
 			whichValue += 8;
@@ -817,13 +817,13 @@ WaveTable::doRenderingLoopSingleCycle(int32_t* __restrict__ thisSample, int32_t 
 
 		// Grab the actual waveform data from memory
 		int16x8x2_t interpolationBuffer;
-		for (int i = 0; i < (INTERPOLATION_MAX_NUM_SAMPLES >> 3); i++) {
+		for (int i = 0; i < (kInterpolationMaxNumSamples >> 3); i++) {
 			interpolationBuffer.val[i] = vld1q_s16(&table[whichValueStored[i]]);
 		}
 
 // Get the windowed sinc kernel that we need for this individual audio-sample
 #define numBitsInWindowedSyncTableSize 8
-#define rshiftAmount ((32 + INTERPOLATION_MAX_NUM_SAMPLES_MAGNITUDE) - 16 - numBitsInWindowedSyncTableSize + 1)
+#define rshiftAmount ((32 + kInterpolationMaxNumSamplesMagnitude) - 16 - numBitsInWindowedSyncTableSize + 1)
 
 		uint32_t rshifted =
 		    ((uint32_t)-phase)
@@ -833,25 +833,25 @@ WaveTable::doRenderingLoopSingleCycle(int32_t* __restrict__ thisSample, int32_t 
 
 		int windowedSincTableLineOffsetBytes =
 		    ((uint32_t)-phase)
-		    >> (32 + INTERPOLATION_MAX_NUM_SAMPLES_MAGNITUDE - numBitsInWindowedSyncTableSize - 5
+		    >> (32 + kInterpolationMaxNumSamplesMagnitude - numBitsInWindowedSyncTableSize - 5
 		        - bandCycleSizeMagnitude); // The -5 is for 32 bytes (16 samples) per line in the windowed sinc table.
 		windowedSincTableLineOffsetBytes &= 0b111100000;
 		int16_t const* __restrict__ sincKernelReadPos =
 		    (int16_t const*)((uint32_t)&kernel[0] + windowedSincTableLineOffsetBytes);
 
-		int16x8_t kernelVector[INTERPOLATION_MAX_NUM_SAMPLES >> 3];
+		int16x8_t kernelVector[kInterpolationMaxNumSamples >> 3];
 
 		/*
 		int16x8x4_t windowedSincReadValues = vld4q_s16(sincKernelReadPos); // Insanely, I could not get this to work. Tried reading 2 values, too. I just get some noise from final output.
 
-		for (int i = 0; i < (INTERPOLATION_MAX_NUM_SAMPLES >> 3); i++) {
+		for (int i = 0; i < (kInterpolationMaxNumSamples >> 3); i++) {
 			int16x8_t difference = vsubq_s16(windowedSincReadValues.val[i + 2], windowedSincReadValues.val[i]);
 			int16x8_t multipliedDifference = vqdmulhq_n_s16(difference, strength2);
 			kernelVector[i] = vaddq_s16(windowedSincReadValues.val[i], multipliedDifference);
 		}
 		*/
 
-		for (int i = 0; i < (INTERPOLATION_MAX_NUM_SAMPLES >> 3); i++) {
+		for (int i = 0; i < (kInterpolationMaxNumSamples >> 3); i++) {
 			int16x8_t value1 = vld1q_s16(sincKernelReadPos + (i << 3));
 			int16x8_t value2 = vld1q_s16(sincKernelReadPos + 16 + (i << 3));
 
@@ -862,7 +862,7 @@ WaveTable::doRenderingLoopSingleCycle(int32_t* __restrict__ thisSample, int32_t 
 
 		// Apply the windowed sinc kernel to the waveform data
 		int32x4_t multiplied;
-		for (int i = 0; i < (INTERPOLATION_MAX_NUM_SAMPLES >> 3); i++) {
+		for (int i = 0; i < (kInterpolationMaxNumSamples >> 3); i++) {
 
 			if (i == 0) {
 				multiplied = vmull_s16(vget_low_s16(kernelVector[i]), vget_low_s16(interpolationBuffer.val[i]));
@@ -905,10 +905,10 @@ WaveTable::doRenderingLoop(int32_t* __restrict__ thisSample, int32_t const* buff
 
 		// Work out the location of the waveform data in memory
 		int whichValueCentral = (phase >> (32 - bandCycleSizeMagnitude));
-		unsigned int whichValue = whichValueCentral - (INTERPOLATION_MAX_NUM_SAMPLES >> 1);
+		unsigned int whichValue = whichValueCentral - (kInterpolationMaxNumSamples >> 1);
 		int whichValueStored[2];
 
-		for (int i = 0; i < INTERPOLATION_MAX_NUM_SAMPLES >> 3; i++) {
+		for (int i = 0; i < kInterpolationMaxNumSamples >> 3; i++) {
 			whichValue = whichValue & ((1 << bandCycleSizeMagnitude) - 1);
 			whichValueStored[i] = whichValue;
 			whichValue += 8;
@@ -916,16 +916,16 @@ WaveTable::doRenderingLoop(int32_t* __restrict__ thisSample, int32_t const* buff
 
 		// Grab the actual waveform data from memory, for both cycles that we need for this sample
 		int16x8x2_t interpolationBuffer[2];
-		for (int i = 0; i < INTERPOLATION_MAX_NUM_SAMPLES >> 3; i++) {
+		for (int i = 0; i < kInterpolationMaxNumSamples >> 3; i++) {
 			interpolationBuffer[0].val[i] = vld1q_s16(&table1[whichValueStored[i]]);
 		}
-		for (int i = 0; i < INTERPOLATION_MAX_NUM_SAMPLES >> 3; i++) {
+		for (int i = 0; i < kInterpolationMaxNumSamples >> 3; i++) {
 			interpolationBuffer[1].val[i] = vld1q_s16(&table2[whichValueStored[i]]);
 		}
 
 // Get the windowed sinc kernel that we need for this individual audio-sample
 #define numBitsInWindowedSyncTableSize 8
-#define rshiftAmount ((32 + INTERPOLATION_MAX_NUM_SAMPLES_MAGNITUDE) - 16 - numBitsInWindowedSyncTableSize + 1)
+#define rshiftAmount ((32 + kInterpolationMaxNumSamplesMagnitude) - 16 - numBitsInWindowedSyncTableSize + 1)
 
 		uint32_t rshifted =
 		    ((uint32_t)-phase)
@@ -935,25 +935,25 @@ WaveTable::doRenderingLoop(int32_t* __restrict__ thisSample, int32_t const* buff
 
 		int windowedSincTableLineOffsetBytes =
 		    ((uint32_t)-phase)
-		    >> (32 + INTERPOLATION_MAX_NUM_SAMPLES_MAGNITUDE - numBitsInWindowedSyncTableSize - 5
+		    >> (32 + kInterpolationMaxNumSamplesMagnitude - numBitsInWindowedSyncTableSize - 5
 		        - bandCycleSizeMagnitude); // The -5 is for 32 bytes (16 samples) per line in the windowed sinc table.
 		windowedSincTableLineOffsetBytes &= 0b111100000;
 		int16_t const* __restrict__ sincKernelReadPos =
 		    (int16_t const*)((uint32_t)&kernel[0] + windowedSincTableLineOffsetBytes);
 
-		int16x8_t kernelVector[INTERPOLATION_MAX_NUM_SAMPLES >> 3];
+		int16x8_t kernelVector[kInterpolationMaxNumSamples >> 3];
 
 		/*
 		int16x8x4_t windowedSincReadValues = vld4q_s16(sincKernelReadPos); // Insanely, I could not get this to work. Tried reading 2 values, too. I just get some noise from final output.
 
-		for (int i = 0; i < (INTERPOLATION_MAX_NUM_SAMPLES >> 3); i++) {
+		for (int i = 0; i < (kInterpolationMaxNumSamples >> 3); i++) {
 			int16x8_t difference = vsubq_s16(windowedSincReadValues.val[i + 2], windowedSincReadValues.val[i]);
 			int16x8_t multipliedDifference = vqdmulhq_n_s16(difference, strength2);
 			kernelVector[i] = vaddq_s16(windowedSincReadValues.val[i], multipliedDifference);
 		}
 		*/
 
-		for (int i = 0; i < (INTERPOLATION_MAX_NUM_SAMPLES >> 3); i++) {
+		for (int i = 0; i < (kInterpolationMaxNumSamples >> 3); i++) {
 			int16x8_t value1 = vld1q_s16(sincKernelReadPos + (i << 3));
 			int16x8_t value2 = vld1q_s16(sincKernelReadPos + 16 + (i << 3));
 
@@ -966,7 +966,7 @@ WaveTable::doRenderingLoop(int32_t* __restrict__ thisSample, int32_t const* buff
 		int32x2_t twosies[2];
 		for (int c = 0; c < 2; c++) {
 			int32x4_t multiplied;
-			for (int i = 0; i < (INTERPOLATION_MAX_NUM_SAMPLES >> 3); i++) {
+			for (int i = 0; i < (kInterpolationMaxNumSamples >> 3); i++) {
 
 				if (i == 0) {
 					multiplied = vmull_s16(vget_low_s16(kernelVector[i]), vget_low_s16(interpolationBuffer[c].val[i]));

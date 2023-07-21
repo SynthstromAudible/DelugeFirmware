@@ -84,8 +84,8 @@ void ContextMenu::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 
 	OLED::drawRectangle(windowMinX, windowMinY, windowMaxX, windowMaxY, image);
 	OLED::drawHorizontalLine(windowMinY + 15, 22, OLED_MAIN_WIDTH_PIXELS - 30, &image[0]);
-	OLED::drawString(this->getTitle(), 22, windowMinY + 6, image[0], OLED_MAIN_WIDTH_PIXELS, TEXT_SPACING_X,
-	                 TEXT_SPACING_Y);
+	OLED::drawString(this->getTitle(), 22, windowMinY + 6, image[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX,
+	                 kTextSpacingY);
 
 	int textPixelY = windowMinY + 18;
 	int actualCurrentOption = currentOption;
@@ -102,14 +102,14 @@ void ContextMenu::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 		}
 
 		if (isCurrentOptionAvailable()) {
-			OLED::drawString(options[currentOption], 22, textPixelY, image[0], OLED_MAIN_WIDTH_PIXELS, TEXT_SPACING_X,
-			                 TEXT_SPACING_Y, 0, OLED_MAIN_WIDTH_PIXELS - 22);
+			OLED::drawString(options[currentOption], 22, textPixelY, image[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX,
+			                 kTextSpacingY, 0, OLED_MAIN_WIDTH_PIXELS - 22);
 			if (currentOption == actualCurrentOption) {
 				OLED::invertArea(22, OLED_MAIN_WIDTH_PIXELS - 44, textPixelY, textPixelY + 8, &image[0]);
 				OLED::setupSideScroller(0, options[currentOption], 22, OLED_MAIN_WIDTH_PIXELS - 22, textPixelY,
-				                        textPixelY + 8, TEXT_SPACING_X, TEXT_SPACING_Y, true);
+				                        textPixelY + 8, kTextSpacingX, kTextSpacingY, true);
 			}
-			textPixelY += TEXT_SPACING_Y;
+			textPixelY += kTextSpacingY;
 			i++;
 		}
 		currentOption++;

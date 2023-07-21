@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "definitions_cxx.hpp"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "gui/menu_item/selection.h"
 #include "processing/sound/sound.h"
@@ -35,7 +36,7 @@ public:
 		static char const* options[] = {"12dB", "24dB", "Drive", "SVF", NULL};
 		return options;
 	}
-	int getNumOptions() { return NUM_LPF_MODES; }
+	int getNumOptions() { return kNumLPFModes; }
 	bool isRelevant(Sound* sound, int whichThing) { return (!sound || sound->synthMode != SynthMode::FM); }
 };
 } // namespace menu_item::filter

@@ -46,11 +46,11 @@ public:
 	void selectEncoderAction(int8_t offset);
 
 	void repopulateOutputsOnScreen(bool doRender = true);
-	bool renderSidebar(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
-	                   uint8_t occupancyMask[][displayWidth + sideBarWidth]);
+	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 	void drawMuteSquare(int yDisplay, uint8_t thisImage[][3]);
-	bool renderMainPads(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
-	                    uint8_t occupancyMask[][displayWidth + sideBarWidth], bool drawUndefinedArea = true);
+	bool renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
 	bool renderRow(ModelStack* modelStack, int yDisplay, int32_t xScroll, uint32_t xZoom, uint8_t* thisImage,
 	               uint8_t thisOccupancyMask[], int renderWidth);
 	void editPadAction(int x, int y, bool on);
@@ -83,7 +83,7 @@ public:
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
 #endif
 
-	Output* outputsOnScreen[displayHeight];
+	Output* outputsOnScreen[kDisplayHeight];
 	int8_t yPressedEffective;
 	int8_t yPressedActual;
 	int8_t xPressed;
@@ -139,7 +139,7 @@ private:
 	Instrument* createNewInstrument(InstrumentType newInstrumentType, bool* instrumentAlreadyInSong);
 	void changeOutputToInstrument(InstrumentType newInstrumentType);
 	uint32_t doActualRender(int32_t xScroll, uint32_t xZoom, uint32_t whichRows, uint8_t* image,
-	                        uint8_t occupancyMask[][displayWidth + sideBarWidth], int renderWidth, int imageWidth);
+	                        uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int renderWidth, int imageWidth);
 };
 
 extern ArrangerView arrangerView;

@@ -45,6 +45,6 @@ useLinearInterpolation:
 			}
 		}
 
-		return INTERPOLATION_MAX_NUM_SAMPLES;
+		return kInterpolationMaxNumSamples;
 	}
 }

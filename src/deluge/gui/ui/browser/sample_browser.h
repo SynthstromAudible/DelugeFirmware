@@ -54,8 +54,8 @@ public:
 	ActionResult timerCallback();
 	bool claimCurrentFile(int mayDoPitchDetection = 1, int mayDoSingleCycle = 1,
 	                      int mayDoWaveTable = 1); // 0 means no. 1 means auto. 2 means yes definitely
-	bool renderMainPads(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
-	                    uint8_t occupancyMask[][displayWidth + sideBarWidth], bool drawUndefinedArea = true);
+	bool renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
 	void exitAndNeverDeleteDrum();
 
 	String lastFilePathLoaded;

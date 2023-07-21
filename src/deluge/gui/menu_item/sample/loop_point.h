@@ -28,7 +28,7 @@ public:
 	void beginSession(MenuItem* navigatedBackwardFrom = NULL) final;
 	bool isRelevant(::Sound* sound, int whichThing) final;
 	bool isRangeDependent() final { return true; }
-	int checkPermissionToBeginSession(::Sound* sound, int whichThing, ::MultiRange** currentRange) final;
+	MenuPermission checkPermissionToBeginSession(::Sound* sound, int whichThing, ::MultiRange** currentRange) final;
 
 	int32_t xZoom;
 	int32_t xScroll;

@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "definitions_cxx.hpp"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
@@ -198,7 +199,7 @@ void Source::doneReadingFromFile(Sound* sound) {
 		oscType = OscType::SINE;
 	}
 	else if (synthMode == SynthMode::RINGMOD) {
-		oscType = std::min<OscType>(oscType, static_cast<OscType>(LAST_RINGMODDABLE_OSC_TYPE));
+		oscType = std::min<OscType>(oscType, static_cast<OscType>(kLastRingmoddableOscType));
 	}
 
 	bool isActualSampleOscillator = (synthMode != SynthMode::FM && oscType == OscType::SAMPLE);

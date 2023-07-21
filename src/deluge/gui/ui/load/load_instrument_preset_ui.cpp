@@ -650,7 +650,7 @@ doSlotNumber:
 tryWholeNewSlotNumbers:
 			while (true) {
 				slotNumber++;
-				if (slotNumber >= numSongSlots) {
+				if (slotNumber >= kNumSongSlots) {
 					newName->set(oldName);
 					return false;
 				}
@@ -952,7 +952,7 @@ void LoadInstrumentPresetUI::exitAction() {
 ActionResult LoadInstrumentPresetUI::padAction(int x, int y, int on) {
 
 	// Audition pad
-	if (x == displayWidth + 1) {
+	if (x == kDisplayWidth + 1) {
 		if (!showingAuditionPads()) {
 			goto potentiallyExit;
 		}
@@ -967,7 +967,7 @@ ActionResult LoadInstrumentPresetUI::padAction(int x, int y, int on) {
 	}
 
 	// Mute pad
-	else if (x == displayWidth) {
+	else if (x == kDisplayWidth) {
 potentiallyExit:
 		if (on && !currentUIMode) {
 			if (sdRoutineLock) {
@@ -1006,8 +1006,8 @@ ActionResult LoadInstrumentPresetUI::verticalEncoderAction(int offset, bool inCa
 	return ActionResult::DEALT_WITH;
 }
 
-bool LoadInstrumentPresetUI::renderSidebar(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
-                                           uint8_t occupancyMask[][displayWidth + sideBarWidth]) {
+bool LoadInstrumentPresetUI::renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+                                           uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 	if (getRootUI() != &keyboardScreen) {
 		return false;
 	}

@@ -50,7 +50,7 @@ public:
 
 	int32_t neutralPhaseIncrement;
 
-	Cluster* clustersForStart[NUM_CLUSTERS_LOADED_AHEAD];
+	Cluster* clustersForStart[kNumClustersLoadedAhead];
 
 protected:
 	void claimClusterReasonsForMarker(Cluster** clusters, uint32_t startPlaybackAtByte, int playDirection,

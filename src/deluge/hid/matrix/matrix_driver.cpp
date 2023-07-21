@@ -56,8 +56,8 @@ void MatrixDriver::noPressesHappening(bool inCardRoutine) {
 
 	// Correct any misunderstandings
 
-	for (int x = 0; x < displayWidth + sideBarWidth; x++) {
-		for (int y = 0; y < displayHeight; y++) {
+	for (int x = 0; x < kDisplayWidth + kSideBarWidth; x++) {
+		for (int y = 0; y < kDisplayHeight; y++) {
 			if (padStates[x][y]) {
 				padAction(x, y, false);
 			}
@@ -80,8 +80,8 @@ bool MatrixDriver::isPadPressed(int x, int y) {
 }
 
 bool MatrixDriver::isUserDoingBootloaderOverwriteAction() {
-	for (int x = 0; x < displayWidth + sideBarWidth; x++) {
-		for (int y = 0; y < displayHeight; y++) {
+	for (int x = 0; x < kDisplayWidth + kSideBarWidth; x++) {
+		for (int y = 0; y < kDisplayHeight; y++) {
 			bool shouldBePressed = (x == 0 && y == 7) || (x == 1 && y == 6) || (x == 2 && y == 5);
 			if (padStates[x][y] != shouldBePressed) {
 				return false;

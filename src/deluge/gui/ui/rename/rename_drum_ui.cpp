@@ -122,12 +122,12 @@ void RenameDrumUI::exitUI() {
 ActionResult RenameDrumUI::padAction(int x, int y, int on) {
 
 	// Audition pad
-	if (x == displayWidth + 1) {
+	if (x == kDisplayWidth + 1) {
 		return instrumentClipView.padAction(x, y, on);
 	}
 
 	// Main pad
-	else if (x < displayWidth) {
+	else if (x < kDisplayWidth) {
 		return QwertyUI::padAction(x, y, on);
 	}
 

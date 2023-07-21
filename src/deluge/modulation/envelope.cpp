@@ -121,7 +121,7 @@ int32_t Envelope::noteOn(bool directlyToDecay) {
 }
 
 int32_t Envelope::noteOn(uint8_t envelopeIndex, Sound* sound, Voice* voice) {
-	int32_t attack = voice->paramFinalValues[PARAM_LOCAL_ENV_0_ATTACK + envelopeIndex];
+	int32_t attack = voice->paramFinalValues[Param::Local::ENV_0_ATTACK + envelopeIndex];
 
 	bool directlyToDecay = (attack > 245632);
 

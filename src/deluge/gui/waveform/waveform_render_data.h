@@ -26,7 +26,7 @@
 struct WaveformRenderData {
 	int64_t xScroll;
 	int64_t xZoom;
-	int32_t maxPerCol[displayWidth];
-	int32_t minPerCol[displayWidth];
-	uint8_t colStatus[displayWidth];
+	int32_t maxPerCol[kDisplayWidth];
+	int32_t minPerCol[kDisplayWidth];
+	uint8_t colStatus[kDisplayWidth];
 };

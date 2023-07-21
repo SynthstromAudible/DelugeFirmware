@@ -54,15 +54,17 @@ PatchSource Regular::getS() {
 	return source_selection::regularMenu.s;
 }
 
-int Regular::checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) {
+MenuPermission Regular::checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) {
 
-	if (soundEditor.patchingParamSelected == PARAM_GLOBAL_VOLUME_POST_FX) {
-		if (!sound->maySourcePatchToParam(getS(), soundEditor.patchingParamSelected,
-		                                  ((ParamManagerForTimeline*)soundEditor.currentParamManager))) {
-			soundEditor.patchingParamSelected = PARAM_GLOBAL_VOLUME_POST_REVERB_SEND;
-			if (!sound->maySourcePatchToParam(getS(), soundEditor.patchingParamSelected,
-			                                  ((ParamManagerForTimeline*)soundEditor.currentParamManager))) {
-				soundEditor.patchingParamSelected = PARAM_LOCAL_VOLUME;
+	if (soundEditor.patchingParamSelected == ::Param::Global::VOLUME_POST_FX) {
+		if (sound->maySourcePatchToParam(getS(), soundEditor.patchingParamSelected,
+		                                 ((ParamManagerForTimeline*)soundEditor.currentParamManager))
+		    == PatchCableAcceptance::DISALLOWED) {
+			soundEditor.patchingParamSelected = ::Param::Global::VOLUME_POST_REVERB_SEND;
+			if (sound->maySourcePatchToParam(getS(), soundEditor.patchingParamSelected,
+			                                 ((ParamManagerForTimeline*)soundEditor.currentParamManager))
+			    == PatchCableAcceptance::DISALLOWED) {
+				soundEditor.patchingParamSelected = ::Param::Local::VOLUME;
 			}
 		}
 	}

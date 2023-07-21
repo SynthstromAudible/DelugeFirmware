@@ -38,7 +38,7 @@ void NonAudioInstrument::renderOutput(ModelStack* modelStack, StereoSample* star
 			uint32_t gateThreshold = activeInstrumentClip->arpeggiatorGate + 2147483648;
 
 			uint32_t phaseIncrement = activeInstrumentClip->arpSettings.getPhaseIncrement(
-			    getFinalParameterValueExp(paramNeutralValues[PARAM_GLOBAL_ARP_RATE],
+			    getFinalParameterValueExp(paramNeutralValues[Param::Global::ARP_RATE],
 			                              cableToExpParamShortcut(activeInstrumentClip->arpeggiatorRate)));
 
 			ArpReturnInstruction instruction;
@@ -49,7 +49,7 @@ void NonAudioInstrument::renderOutput(ModelStack* modelStack, StereoSample* star
 			if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE) {
 				noteOffPostArp(
 				    instruction.noteCodeOffPostArp, instruction.outputMIDIChannelOff,
-				    DEFAULT_LIFT_VALUE); // Is there some better option than using the default lift value? The lift event wouldn't have occurred yet...
+				    kDefaultLiftValue); // Is there some better option than using the default lift value? The lift event wouldn't have occurred yet...
 			}
 
 			if (instruction.noteCodeOnPostArp != ARP_NOTE_NONE) {
@@ -163,7 +163,7 @@ int32_t NonAudioInstrument::doTickForwardForArp(ModelStack* modelStack, int32_t 
 	if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE) {
 		noteOffPostArp(
 		    instruction.noteCodeOffPostArp, instruction.outputMIDIChannelOff,
-		    DEFAULT_LIFT_VALUE); // Is there some better option than using the default lift value? The lift event wouldn't have occurred yet...
+		    kDefaultLiftValue); // Is there some better option than using the default lift value? The lift event wouldn't have occurred yet...
 	}
 
 	if (instruction.noteCodeOnPostArp != ARP_NOTE_NONE) {

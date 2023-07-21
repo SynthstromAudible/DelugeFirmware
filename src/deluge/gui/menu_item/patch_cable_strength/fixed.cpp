@@ -24,7 +24,7 @@
 #include "gui/ui/sound_editor.h"
 
 namespace menu_item::patch_cable_strength {
-int Fixed::checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) {
+MenuPermission Fixed::checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) {
 	soundEditor.patchingParamSelected = p;
 	source_selection::regularMenu.s = s;
 	return PatchCableStrength::checkPermissionToBeginSession(sound, whichThing, currentRange);

@@ -30,8 +30,8 @@ public:
 	    bool mayOverwrite =
 	        false) = 0; // Returns true if success, or if otherwise dealt with (e.g. "overwrite" context menu brought up)
 	void focusRegained();
-	bool renderSidebar(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3] = NULL,
-	                   uint8_t occupancyMask[][displayWidth + sideBarWidth] = NULL) {
+	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3] = NULL,
+	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL) {
 		return true;
 	}
 	bool canSeeViewUnderneath() final { return false; }
