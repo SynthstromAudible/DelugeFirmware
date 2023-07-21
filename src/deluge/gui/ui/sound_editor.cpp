@@ -21,7 +21,7 @@
 #include "hid/matrix/matrix_driver.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip_minder.h"
@@ -1062,7 +1062,7 @@ doMIDIOrCV:
 	}
 	else if (result == MENU_PERMISSION_MUST_SELECT_RANGE) {
 
-		Uart::println("must select range");
+		Debug::println("must select range");
 
 		newRange = NULL;
 		menu_item::multiRangeMenu.menuItemHeadingTo = newItem;

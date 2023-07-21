@@ -26,7 +26,7 @@
 #include "model/instrument/instrument.h"
 #include "hid/display/numeric_driver.h"
 #include "hid/matrix/matrix_driver.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "gui/views/view.h"
 #include "storage/storage_manager.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
@@ -42,10 +42,6 @@
 #include "storage/file_item.h"
 #include "hid/display/oled.h"
 #include "processing/engines/audio_engine.h"
-
-extern "C" {
-#include "drivers/uart/uart.h"
-}
 
 using namespace deluge;
 
@@ -1364,7 +1360,7 @@ moveAgain:
 			if (numFileItemsDeletedAtEnd) {
 searchFromOneEnd:
 				oldNameString.clear();
-				uartPrintln("reloading and wrap");
+				Debug::println("reloading and wrap");
 				goto readAgain;
 			}
 			else {
@@ -1414,7 +1410,7 @@ doneMoving:
 #endif
 
 	if (Encoders::encoders[ENCODER_SELECT].detentPos) {
-		Uart::println("go again 1 --------------------------");
+		Debug::println("go again 1 --------------------------");
 
 doPendingPresetNavigation:
 		offset = Encoders::encoders[ENCODER_SELECT].getLimitedDetentPosAndReset();
@@ -1439,7 +1435,7 @@ doPendingPresetNavigation:
 		toReturn.loadedFromFile = true;
 
 		if (Encoders::encoders[ENCODER_SELECT].detentPos) {
-			Uart::println("go again 2 --------------------------");
+			Debug::println("go again 2 --------------------------");
 			goto doPendingPresetNavigation;
 		}
 	}
@@ -1458,7 +1454,7 @@ doPendingPresetNavigation:
 
 	// If user wants to move on...
 	if (Encoders::encoders[ENCODER_SELECT].detentPos) {
-		Uart::println("go again 3 --------------------------");
+		Debug::println("go again 3 --------------------------");
 		goto doPendingPresetNavigation;
 	}
 

@@ -36,7 +36,7 @@
 #include "hid/display/numeric_driver.h"
 #include "model/instrument/instrument.h"
 #include "model/action/action_logger.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "gui/views/view.h"
 #include "playback/mode/arrangement.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
@@ -1750,7 +1750,7 @@ bool ArrangerView::transitionToArrangementEditor() {
 	int i = output->clipInstances.search(currentSong->lastClipInstanceEnteredStartPos, GREATER_OR_EQUAL);
 	ClipInstance* clipInstance = output->clipInstances.getElement(i);
 	if (!clipInstance || clipInstance->clip != currentSong->currentClip) {
-		Uart::println("no go");
+		Debug::println("no go");
 		return false;
 	}
 

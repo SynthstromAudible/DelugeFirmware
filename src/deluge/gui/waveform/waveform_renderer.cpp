@@ -25,7 +25,7 @@
 #include <string.h>
 #include "gui/waveform/waveform_renderer.h"
 #include "model/sample/sample.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "gui/ui/sound_editor.h"
 #include "storage/multi_range/multisample_range.h"
 #include "gui/views/view.h"
@@ -132,10 +132,10 @@ int WaveformRenderer::getColBrightnessForSingleRow(int xDisplay, int32_t maxPeak
 	int32_t peakHere = getMax(peak1, peak2);
 
 	if (false && peakHere >= maxPeakFromZero) {
-		Uart::print("peak: ");
-		Uart::print(peakHere);
-		Uart::print(" but max: ");
-		Uart::println(maxPeakFromZero);
+		Debug::print("peak: ");
+		Debug::print(peakHere);
+		Debug::print(" but max: ");
+		Debug::println(maxPeakFromZero);
 	}
 
 	uint32_t peak16 = ((int64_t)peakHere << 16) / maxPeakFromZero;
@@ -421,7 +421,7 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 			Cluster* cluster = sampleCluster->getCluster(sample, clusterIndexToDo, CLUSTER_LOAD_IMMEDIATELY);
 			if (!cluster) {
 cantReadData:
-				Uart::println("cant read");
+				Debug::println("cant read");
 				data->colStatus[col] = 0;
 				hadAnyTroubleLoading = true;
 				continue;

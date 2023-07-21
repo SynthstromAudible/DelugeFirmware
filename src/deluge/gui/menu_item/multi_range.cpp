@@ -25,7 +25,7 @@
 #include "processing/source.h"
 #include <string.h>
 #include "util/functions.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "hid/matrix/matrix_driver.h"
 #include "gui/views/view.h"
 #include "gui/ui/keyboard/keyboard_screen.h"

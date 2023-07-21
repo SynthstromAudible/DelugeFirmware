@@ -18,7 +18,7 @@
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "model/sample/sample.h"
 #include "util/functions.h"
 #include <string.h>
@@ -140,8 +140,8 @@ void Cluster::convertDataIfNecessary() {
 			uint16_t endTime = MTU2.TCNT_0;
 
 			if (clusterIndex != startCluster) {
-				Uart::print("time to convert: ");
-				Uart::println((uint16_t)(endTime - startTime));
+				Debug::print("time to convert: ");
+				Debug::println((uint16_t)(endTime - startTime));
 			}
 			*/
 		}

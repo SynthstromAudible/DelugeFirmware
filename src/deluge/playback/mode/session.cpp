@@ -28,7 +28,7 @@
 #include "playback/playback_handler.h"
 #include "gui/views/view.h"
 #include "model/note/note_row.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "model/drum/drum.h"
 #include "model/action/action_logger.h"
 #include "model/action/action.h"
@@ -1302,7 +1302,7 @@ int Session::investigateSyncedLaunch(Clip* waitForClip, uint32_t* currentPosWith
 
 // Returns whether we are now armed. If not, it means it's just done the swap already in this function
 bool Session::armForSongSwap() {
-	Uart::println("Session::armForSongSwap()");
+	Debug::println("Session::armForSongSwap()");
 
 	Clip* waitForClip = currentSong->getLongestClip(false, true);
 
@@ -1323,8 +1323,8 @@ bool Session::armForSongSwap() {
 		int32_t pos = currentPosWithinQuantization % quantization;
 		int32_t ticksTilSwap = quantization - pos;
 		scheduleLaunchTiming(playbackHandler.getActualSwungTickCount() + ticksTilSwap, 1, quantization);
-		Uart::print("ticksTilSwap: ");
-		Uart::println(ticksTilSwap);
+		Debug::print("ticksTilSwap: ");
+		Debug::println(ticksTilSwap);
 	}
 	else if (launchStatus == LAUNCH_STATUS_LAUNCH_ALONG_WITH_EXISTING_LAUNCHING) {
 		// Nothing to do!

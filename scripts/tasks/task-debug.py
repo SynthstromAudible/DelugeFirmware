@@ -44,9 +44,7 @@ def jlink_gdb(cmd, device: str, endian: str, protocol: str, gdb_port: int):
 
 def openocd_gdb(cmd, interface: str, target: str, protocol: str, gdb_port: int):
     if not cmd:
-        cmd = find_cmd_with_fallback(
-            "openocd", absolute_path_str("toolchain/win32-x64/openocd/bin/openocd.exe")
-        )
+        cmd = find_cmd_with_fallback("openocd", "openocd")
 
     # if we haven't gotten an interface with a path already, qualify it
     if len(target.split("/")) == 1:
@@ -65,10 +63,13 @@ def openocd_gdb(cmd, interface: str, target: str, protocol: str, gdb_port: int):
     ]
 
 
-def argparser():
+def argparser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="task debug", formatter_class=argparse.ArgumentDefaultsHelpFormatter
+        prog="debug",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        description="Run a debug server (JLink or OpenOCD)",
     )
+    parser.group = "Debugging"
     parser.add_argument(
         "-j", "--jlink", action="store_true", help="Use JLinkGDB instead of OpenOCD"
     )
@@ -122,7 +123,7 @@ def get_openocd_target(target: str, protocol: str) -> str:
     return target
 
 
-def main():
+def main() -> int:
     args = argparser().parse_args()
     if args.jlink:
         cmd = jlink_gdb(
@@ -136,7 +137,7 @@ def main():
 
     if args.verbose:
         print(" ".join(cmd))
-    util.run(cmd, False)
+    return util.run(cmd, False)
 
 
 if __name__ == "__main__":

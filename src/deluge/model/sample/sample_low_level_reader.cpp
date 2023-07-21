@@ -21,7 +21,7 @@
 #include "model/sample/sample_low_level_reader.h"
 #include "model/sample/sample.h"
 #include "storage/cluster/cluster.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "storage/audio/audio_file_manager.h"
 #include "hid/display/numeric_driver.h"
 #include "model/voice/voice_sample_playback_guide.h"
@@ -102,7 +102,7 @@ void SampleLowLevelReader::realignPlaybackParameters(Sample* sample) {
 // (though it'd be harmless for "natively" playing Samples). Caller must ensure safety here.
 bool SampleLowLevelReader::reassessReassessmentLocation(SamplePlaybackGuide* guide, Sample* sample,
                                                         int priorityRating) {
-	//Uart::println("reassessing");
+	//Debug::println("reassessing");
 
 	if (!clusters[0]) {
 		return true; // Is this for if we've gone past the end of the audio data, while re-pitching / interpolating?
@@ -116,7 +116,7 @@ bool SampleLowLevelReader::reassessReassessmentLocation(SamplePlaybackGuide* gui
 	// This needs correcting, so "looping" can occur at next render. Must happen before setupReassessmentLocation() is called.
 	int finalClusterIndex = guide->getFinalClusterIndex(sample, shouldObeyMarkers());
 	if ((clusterIndex - finalClusterIndex) * guide->playDirection > 0) {
-		Uart::println("saving from being past finalCluster");
+		Debug::println("saving from being past finalCluster");
 		Cluster* finalCluster = sample->clusters.getElement(finalClusterIndex)->cluster;
 		if (!finalCluster) {
 			return false;
@@ -132,7 +132,7 @@ bool SampleLowLevelReader::reassessReassessmentLocation(SamplePlaybackGuide* gui
 	unassignAllReasons(); // Can only do this after we've done the above stuff, which references clusters, which this will clear
 	bool success = assignClusters(guide, sample, clusterIndex, priorityRating);
 	if (!success) {
-		Uart::println("reassessReassessmentLocation fail");
+		Debug::println("reassessReassessmentLocation fail");
 		return false;
 	}
 	setupReassessmentLocation(guide, sample);
@@ -264,7 +264,7 @@ bool SampleLowLevelReader::setupClusersForInitialPlay(SamplePlaybackGuide* guide
 	bool success = setupClustersForPlayFromByte(guide, sample, startPlaybackAtByte, priorityRating);
 
 	if (!success) {
-		Uart::println("setupClustersForInitialPlay fail");
+		Debug::println("setupClustersForInitialPlay fail");
 	}
 
 	return success;
@@ -288,9 +288,9 @@ bool SampleLowLevelReader::setupClustersForPlayFromByte(SamplePlaybackGuide* gui
 
 	bool success = assignClusters(guide, sample, clusterIndex, priorityRating);
 	if (!success) {
-		Uart::println("setupClustersForPlayFromByte fail");
-		Uart::print("byte: ");
-		Uart::println(startPlaybackAtByte);
+		Debug::println("setupClustersForPlayFromByte fail");
+		Debug::print("byte: ");
+		Debug::println(startPlaybackAtByte);
 		return false;
 	}
 
@@ -356,17 +356,17 @@ bool SampleLowLevelReader::moveOnToNextCluster(SamplePlaybackGuide* guide, Sampl
 
 	// First things first - if there is no next Cluster or it's not loaded...
 	if (!clusters[0]) {
-		Uart::print("reached end of waveform. last Cluster was: ");
-		Uart::println(oldClusterIndex);
+		Debug::print("reached end of waveform. last Cluster was: ");
+		Debug::println(oldClusterIndex);
 		currentPlayPos = 0;
 		return false;
 	}
 
 	if (!clusters[0]->loaded) {
-		Uart::print("late ");
-		Uart::print(clusters[0]->sample->filePath.get());
-		Uart::print(" p ");
-		Uart::println(clusters[0]->clusterIndex);
+		Debug::print("late ");
+		Debug::print(clusters[0]->sample->filePath.get());
+		Debug::print(" p ");
+		Debug::println(clusters[0]->clusterIndex);
 
 		return false;
 	}
@@ -427,7 +427,7 @@ bool SampleLowLevelReader::changeClusterIfNecessary(SamplePlaybackGuide* guide, 
 		if (reassessmentAction == REASSESSMENT_ACTION_NEXT_CLUSTER) {
 			bool success = moveOnToNextCluster(guide, sample, priorityRating);
 			if (!success) {
-				Uart::println("next failed");
+				Debug::println("next failed");
 				return false;
 			}
 		}
@@ -436,7 +436,7 @@ bool SampleLowLevelReader::changeClusterIfNecessary(SamplePlaybackGuide* guide, 
 			if (loopingAtLowLevel) {
 				bool success = setupClusersForInitialPlay(guide, sample, byteOvershoot, true, priorityRating);
 				if (!success) {
-					Uart::println("loop failed");
+					Debug::println("loop failed");
 					// TODO: shouldn't we set currentPlayPos = 0 here too?
 					return false;
 				}
@@ -542,7 +542,7 @@ void SampleLowLevelReader::jumpBackSamples(Sample* sample, int numToJumpBack, in
 
 		// If there was no valid audio data there...
 		if (bytesPastClusterStart < 0) {
-			Uart::println("failed to go back!");
+			Debug::println("failed to go back!");
 			break;
 		}
 
@@ -861,8 +861,8 @@ doZeroes:
 			*numSamples = (uint32_t)bytesLeftWhichMayBeRead / (uint8_t)bytesPerSample;
 
 			if (ALPHA_OR_BETA_VERSION && *numSamples <= 0) {
-				Uart::print("bytesLeftWhichMayBeRead: ");
-				Uart::println(bytesLeftWhichMayBeRead);
+				Debug::print("bytesLeftWhichMayBeRead: ");
+				Debug::println(bytesLeftWhichMayBeRead);
 				numericDriver.freezeWithError(
 				    "E147"); // Crazily, Michael B got in Nov 2022, when "closing" a recorded loop.
 			}
@@ -1238,7 +1238,7 @@ bool SampleLowLevelReader::readSamplesForTimeStretching(int32_t* outputBuffer, S
 				return false;
 			}
 
-			//Uart::println("one head no longer active for timeStretcher");
+			//Debug::println("one head no longer active for timeStretcher");
 			break;
 		}
 

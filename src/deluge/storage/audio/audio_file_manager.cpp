@@ -22,7 +22,7 @@
 #include "model/sample/sample.h"
 #include <string.h>
 #include "storage/storage_manager.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include <new>
 #include "util/functions.h"
 #include "hid/display/numeric_driver.h"
@@ -78,10 +78,10 @@ void AudioFileManager::init() {
 	if (!error) {
 		setClusterSize(fileSystemStuff.fileSystem.csize * 512);
 
-		Uart::print("clusterSize ");
-		Uart::println(clusterSize);
-		Uart::print("clusterSizeMagnitude ");
-		Uart::println(clusterSizeMagnitude);
+		Debug::print("clusterSize ");
+		Debug::println(clusterSize);
+		Debug::print("clusterSizeMagnitude ");
+		Debug::println(clusterSizeMagnitude);
 		cardEjected = false;
 	}
 
@@ -122,7 +122,7 @@ void AudioFileManager::cardReinserted() {
 			goto clusterSizeChangedButItsOk;
 		}
 
-		Uart::println("cluster size increased and we're in trouble");
+		Debug::println("cluster size increased and we're in trouble");
 		cardDisabled = true;
 		numericDriver.displayPopup(HAVE_OLED ? "Reboot to use this SD card" : "DIFF");
 	}
@@ -131,7 +131,7 @@ void AudioFileManager::cardReinserted() {
 	else if (fileSystemStuff.fileSystem.csize * 512 < clusterSize) {
 
 clusterSizeChangedButItsOk:
-		Uart::println("cluster size changed, and smaller than original so it's ok");
+		Debug::println("cluster size changed, and smaller than original so it's ok");
 		AudioEngine::unassignAllVoices(); // Will also stop synth voices - too bad.
 
 		for (int e = 0; e < audioFiles.getNumElements(); e++) {
@@ -180,7 +180,7 @@ clusterSizeChangedButItsOk:
 
 					FRESULT result = f_open(&fileSystemStuff.currentFile, filePath, FA_READ);
 					if (result != FR_OK) {
-						Uart::println("couldn't open file");
+						Debug::println("couldn't open file");
 						((Sample*)thisAudioFile)->markAsUnloadable();
 						continue;
 					}
@@ -291,8 +291,8 @@ int AudioFileManager::getUnusedAudioRecordingFilePath(String* filePath, String* 
 
 	highestUsedAudioRecordingNumber[folderID]++;
 
-	Uart::print("new file: -------------- ");
-	Uart::println(highestUsedAudioRecordingNumber[folderID]);
+	Debug::print("new file: -------------- ");
+	Debug::println(highestUsedAudioRecordingNumber[folderID]);
 
 	error = filePath->set(audioRecordingFolderNames[folderID]);
 	if (error) {
@@ -854,25 +854,25 @@ void AudioFileManager::testQueue() {
 
 		if (loadedSampleChunk->nextAvailableLoadedSampleChunk == &queues[LOADED_SAMPLE_CHUNK_ALLOCATION_QUEUE_NORMAL].endNode
 				&& queues[LOADED_SAMPLE_CHUNK_ALLOCATION_QUEUE_NORMAL].endNode.prevAvailableLoadedSampleChunkPointer != &loadedSampleChunk->nextAvailableLoadedSampleChunk) {
-			Uart::println("error ---------------------------------");
-			Uart::print(loadedSampleChunk->sample->fileName);
-			Uart::print(", part ");
-			Uart::println(loadedSampleChunk->chunkIndex);
+			Debug::println("error ---------------------------------");
+			Debug::print(loadedSampleChunk->sample->fileName);
+			Debug::print(", part ");
+			Debug::println(loadedSampleChunk->chunkIndex);
 			return;
 		}
 
 		if (loadedSampleChunk->nextAvailableLoadedSampleChunk->prevAvailableLoadedSampleChunkPointer != &loadedSampleChunk->nextAvailableLoadedSampleChunk) {
-			Uart::println("abc ---------------------------------");
-			Uart::print(loadedSampleChunk->sample->fileName);
-			Uart::print(", part ");
-			Uart::println(loadedSampleChunk->chunkIndex);
+			Debug::println("abc ---------------------------------");
+			Debug::print(loadedSampleChunk->sample->fileName);
+			Debug::print(", part ");
+			Debug::println(loadedSampleChunk->chunkIndex);
 			return;
 		}
 
 		loadedSampleChunk = loadedSampleChunk->nextAvailableLoadedSampleChunk;
 	}
 
-	Uart::println("queue ok -----------------------");
+	Debug::println("queue ok -----------------------");
 	*/
 }
 
@@ -956,7 +956,7 @@ getOutEarly:
 		uint32_t startByteThisCluster = clusterIndex << clusterSizeMagnitude;
 		int32_t bytesToRead = audioDataEndPosBytes - startByteThisCluster;
 		if (bytesToRead <= 0) {
-			Uart::println("fail thing"); // Shouldn't really still happen
+			Debug::println("fail thing"); // Shouldn't really still happen
 			goto getOutEarly;
 		}
 		if (bytesToRead < clusterSize) {
@@ -967,8 +967,8 @@ getOutEarly:
 
 #if ALPHA_OR_BETA_VERSION
 	if ((uint32_t)cluster->data & 0b11) {
-		Uart::print("SD read address misaligned by ");
-		Uart::println((int32_t)((uint32_t)cluster->data & 0b11));
+		Debug::print("SD read address misaligned by ");
+		Debug::println((int32_t)((uint32_t)cluster->data & 0b11));
 	}
 #endif
 
@@ -996,7 +996,7 @@ getOutEarly:
 	uint16_t duration = endTime - startTime;
 	int uSec = timerCountToUS(duration);
 	if (uSec > 7000) {
-		Uart::println(uSec);
+		Debug::println(uSec);
 	}
 #endif
 
@@ -1268,8 +1268,8 @@ void AudioFileManager::slowRoutine() {
 		}
 
 		if (node) {
-			Uart::print("stealing cluster for fun from queue: ");
-			Uart::println(q);
+			Debug::print("stealing cluster for fun from queue: ");
+			Debug::println(q);
 			Cluster* cluster = (Cluster*)node;
 			cluster->steal();
 			deallocateCluster(cluster);
@@ -1318,8 +1318,8 @@ performActionsAndGetOut:
 	uint16_t awayTime = startTime - timeLastFinish;
 	int uSecAway = timerCountToUS(awayTime);
 	if (uSecAway > 1000) {
-		Uart::print("away ");
-		Uart::println(uSecAway);
+		Debug::print("away ");
+		Debug::println(uSecAway);
 	}
 #endif
 
@@ -1348,7 +1348,7 @@ performActionsAndGetOut:
 
 		// If that didn't work, presumably because the SD card got ejected...
 		if (!success) {
-			Uart::println("load Cluster fail");
+			Debug::println("load Cluster fail");
 
 			// If the Cluster is now down to 0 reasons (i.e. it lost a reason while being loaded), then it's already been made "available" and we don't have a problem
 			if (!cluster->numReasonsToBeLoaded) {}
@@ -1430,8 +1430,8 @@ void AudioFileManager::removeReasonFromCluster(Cluster* cluster, char const* err
 	else if (cluster->numReasonsToBeLoaded < 0) {
 #if ALPHA_OR_BETA_VERSION
 		if (cluster->sample) { // "Should" always be true...
-			Uart::print("reason remains on cluster of sample: ");
-			Uart::println(cluster->sample->filePath.get());
+			Debug::print("reason remains on cluster of sample: ");
+			Debug::println(cluster->sample->filePath.get());
 		}
 		numericDriver.freezeWithError(errorCode);
 #else
