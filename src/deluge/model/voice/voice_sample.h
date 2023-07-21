@@ -60,8 +60,8 @@ public:
 	                                         int32_t* sourceAmplitudeNow, int32_t amplitudeIncrement, int bufferSize,
 	                                         int reduceMagnitudeBy = 1);
 
-	bool sampleZoneChanged(SamplePlaybackGuide* voiceSource, Sample* sample, MarkerType markerType, LoopType loopingType,
-	                       int priorityRating, bool forAudioClip = false);
+	bool sampleZoneChanged(SamplePlaybackGuide* voiceSource, Sample* sample, MarkerType markerType,
+	                       LoopType loopingType, int priorityRating, bool forAudioClip = false);
 	int32_t getPlaySample(Sample* sample, SamplePlaybackGuide* guide);
 	bool stopUsingCache(SamplePlaybackGuide* guide, Sample* sample, int priorityRating, bool loopingAtLowLevel);
 	bool possiblySetUpCache(SampleControls* sampleControls, SamplePlaybackGuide* guide, int32_t phaseIncrement,
@@ -89,7 +89,8 @@ public:
 
 private:
 	bool weShouldBeTimeStretchingNow(Sample* sample, SamplePlaybackGuide* guide, int numSamples, int32_t phaseIncrement,
-	                                 int32_t timeStretchRatio, int playDirection, int priorityRating, LoopType loopingType);
+	                                 int32_t timeStretchRatio, int playDirection, int priorityRating,
+	                                 LoopType loopingType);
 	void switchToReadingCacheFromWriting();
 	bool stopReadingFromCache();
 };

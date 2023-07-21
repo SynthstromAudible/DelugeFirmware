@@ -546,8 +546,8 @@ extern "C" int deluge_main(void) {
 	setOutputState(SPEAKER_ENABLE.port, SPEAKER_ENABLE.pin, 0); // Switch it off
 
 	setPinAsInput(HEADPHONE_DETECT.port, HEADPHONE_DETECT.pin); // Headphone detect
-	setPinAsInput(6, 6);                                   // Line in detect
-	setPinAsInput(7, 9);                                   // Mic detect
+	setPinAsInput(6, 6);                                        // Line in detect
+	setPinAsInput(7, 9);                                        // Mic detect
 
 	setPinMux(1, 8 + SYS_VOLT_SENSE_PIN, 1); // Analog input for voltage sense
 
@@ -653,7 +653,7 @@ extern "C" int deluge_main(void) {
 	setPinMux(4, 7, 2);
 	initSPIBSC(); // This will run the audio routine! Ideally, have external RAM set up by now.
 
-	bufferPICUart(245);                          // Request PIC firmware version
+	bufferPICUart(245);                              // Request PIC firmware version
 	bufferPICUart(PICMessage::RESEND_BUTTON_STATES); // Tell PIC to re-send button states
 	uartFlushIfNotSending(UART_ITEM_PIC_INDICATORS);
 

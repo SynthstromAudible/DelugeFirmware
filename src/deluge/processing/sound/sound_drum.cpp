@@ -83,8 +83,8 @@ void SoundDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t veloci
 		kit->choke();
 	}
 
-	Sound::noteOn(modelStack, &arpeggiator, kNoteForDrum, mpeValues, sampleSyncLength, ticksLate, samplesLate,
-	              velocity, fromMIDIChannel);
+	Sound::noteOn(modelStack, &arpeggiator, kNoteForDrum, mpeValues, sampleSyncLength, ticksLate, samplesLate, velocity,
+	              fromMIDIChannel);
 }
 void SoundDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int velocity) {
 	Sound::allNotesOff(modelStack, &arpeggiator);

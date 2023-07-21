@@ -490,8 +490,8 @@ MenuItem* audioClipReverbMenuItems[] = {&audioClipReverbSendAmountMenu,
 Submenu audioClipReverbMenu{"REVERB", audioClipReverbMenuItems};
 
 // Sidechain menu
-unpatched_param::UpdatingReverbParams audioClipCompressorVolumeMenu{"Volume ducking",
-                                                                    ::Param::Unpatched::GlobalEffectable::SIDECHAIN_VOLUME};
+unpatched_param::UpdatingReverbParams audioClipCompressorVolumeMenu{
+    "Volume ducking", ::Param::Unpatched::GlobalEffectable::SIDECHAIN_VOLUME};
 MenuItem* audioClipSidechainMenuItems[] = {&audioClipCompressorVolumeMenu, &sidechainSyncMenu,   &compressorAttackMenu,
                                            &compressorReleaseMenu,         &compressorShapeMenu, NULL};
 

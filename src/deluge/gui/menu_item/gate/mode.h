@@ -39,8 +39,12 @@ static char* mode_title = nullptr;
 class Mode final : public Selection {
 public:
 	Mode() : Selection(mode_title) { basicOptions = mode_options; }
-	void readCurrentValue() { soundEditor.currentValue = util::to_underlying(cvEngine.gateChannels[soundEditor.currentSourceIndex].mode); }
-	void writeCurrentValue() { cvEngine.setGateType(soundEditor.currentSourceIndex, static_cast<GateType>(soundEditor.currentValue)); }
+	void readCurrentValue() {
+		soundEditor.currentValue = util::to_underlying(cvEngine.gateChannels[soundEditor.currentSourceIndex].mode);
+	}
+	void writeCurrentValue() {
+		cvEngine.setGateType(soundEditor.currentSourceIndex, static_cast<GateType>(soundEditor.currentValue));
+	}
 };
 
 } // namespace menu_item::gate

@@ -283,9 +283,9 @@ bool VoiceSample::fudgeTimeStretchingToAvoidClick(Sample* sample, SamplePlayback
 	          ->audioDataStartPosBytes; // Allow for this to be negative. I'm not sure if it could in this exact case of "fudging", but see the similar code below in weShouldBeTimeStretchingNow() - better safe than sorry.
 	int32_t playSample = divide_round_negative(playByte, sample->numChannels * sample->byteDepth);
 
-	bool success =
-	    timeStretcher->init(sample, this, guide, (int64_t)playSample << 24, sample->numChannels, phaseIncrement,
-	                        16777216, playDirection, priorityRating, numSamplesTilLoop, LoopType::NONE); // Tell it no looping
+	bool success = timeStretcher->init(sample, this, guide, (int64_t)playSample << 24, sample->numChannels,
+	                                   phaseIncrement, 16777216, playDirection, priorityRating, numSamplesTilLoop,
+	                                   LoopType::NONE); // Tell it no looping
 	if (!success) {
 		Debug::println("fudging FAIL!!!!");
 		return false; // It's too late to salvage anything - our play pos has probably been mucked around
@@ -401,9 +401,9 @@ static_assert(TimeStretch::kDefaultFirstHopLength >= SSI_TX_BUFFER_NUM_SAMPLES,
 
 // Returning false means instant unassign
 bool VoiceSample::render(SamplePlaybackGuide* guide, int32_t* __restrict__ outputBuffer, int numSamples, Sample* sample,
-                         int sampleSourceNumChannels, LoopType loopingType, int32_t phaseIncrement, int32_t timeStretchRatio,
-                         int32_t amplitude, int32_t amplitudeIncrement, int interpolationBufferSize,
-                         InterpolationMode desiredInterpolationMode, int priorityRating) {
+                         int sampleSourceNumChannels, LoopType loopingType, int32_t phaseIncrement,
+                         int32_t timeStretchRatio, int32_t amplitude, int32_t amplitudeIncrement,
+                         int interpolationBufferSize, InterpolationMode desiredInterpolationMode, int priorityRating) {
 
 	int playDirection = guide->playDirection;
 
@@ -460,9 +460,9 @@ bool VoiceSample::render(SamplePlaybackGuide* guide, int32_t* __restrict__ outpu
 				// so we can use that last little bit of the cache to crossfade smoothly out of it
 				if (timeStretchRatio != 16777216 && cache->writeBytePos < cacheEndPointBytes
 				    && cache->writeBytePos < cacheLoopEndPointBytes
-				    && cache->writeBytePos < cacheBytePos
-				                                 + (TimeStretch::kDefaultFirstHopLength * kCacheByteDepth
-				                                    * sampleSourceNumChannels)) {
+				    && cache->writeBytePos
+				           < cacheBytePos
+				                 + (TimeStretch::kDefaultFirstHopLength * kCacheByteDepth * sampleSourceNumChannels)) {
 
 					Debug::println("avoiding click near end");
 
@@ -554,7 +554,8 @@ bool VoiceSample::render(SamplePlaybackGuide* guide, int32_t* __restrict__ outpu
 					}
 
 					// Bugfix Sept 2020. Could end up beyond reassessmentLocation otherwise, violating assumptions if playing Sample at non-native rate.
-					stillGoing = changeClusterIfNecessary(guide, sample, loopingType == LoopType::LOW_LEVEL, priorityRating);
+					stillGoing =
+					    changeClusterIfNecessary(guide, sample, loopingType == LoopType::LOW_LEVEL, priorityRating);
 					if (!stillGoing) {
 						return false;
 					}
@@ -880,8 +881,9 @@ uncachedPlayback:
 				bool setupSuccess = cache->setupNewCluster(cacheClusterIndex);
 				if (!setupSuccess) {
 					// Cancel cache writing. Everything else is still the same - we weren't *reading* the cache, remember
-					bool stopSuccess = stopUsingCache(guide, sample, priorityRating,
-					                                  loopingType == LoopType::LOW_LEVEL); // Want to obey loop points now
+					bool stopSuccess =
+					    stopUsingCache(guide, sample, priorityRating,
+					                   loopingType == LoopType::LOW_LEVEL); // Want to obey loop points now
 					if (!stopSuccess) {
 						return false;
 					}
@@ -1134,7 +1136,8 @@ readTimestretched:
 						}
 
 						// Check this again, cos newer play-head can become inactive in hopEnd(). This probably isn't really crucial. Added June 2019
-						if (!cache && loopingType == LoopType::NONE && !timeStretcher->playHeadStillActive[PLAY_HEAD_OLDER]
+						if (!cache && loopingType == LoopType::NONE
+						    && !timeStretcher->playHeadStillActive[PLAY_HEAD_OLDER]
 						    && !timeStretcher->playHeadStillActive[PLAY_HEAD_NEWER]) {
 							return false;
 						}

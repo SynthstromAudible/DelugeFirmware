@@ -186,7 +186,8 @@ void CVEngine::sendVoltageOut(uint8_t channel, uint16_t voltage) {
 }
 
 void CVEngine::physicallySwitchGate(int channel) {
-	int on = (gateChannels[channel].on == util::one_of(gateChannels[channel].mode, {GateType::V_TRIG, GateType::SPECIAL}));
+	int on =
+	    (gateChannels[channel].on == util::one_of(gateChannels[channel].mode, {GateType::V_TRIG, GateType::SPECIAL}));
 	setOutputState(gatePort[channel], gatePin[channel], on);
 }
 

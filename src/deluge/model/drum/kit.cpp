@@ -870,8 +870,8 @@ void Kit::compensateInstrumentVolumeForResonance(ParamManagerForTimeline* paramM
 		UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
 		int32_t compensation =
-		    interpolateTableSigned(unpatchedParams->getValue(Param::Unpatched::GlobalEffectable::LPF_RES) + 2147483648, 32,
-		                           oldResonanceCompensation, 3);
+		    interpolateTableSigned(unpatchedParams->getValue(Param::Unpatched::GlobalEffectable::LPF_RES) + 2147483648,
+		                           32, oldResonanceCompensation, 3);
 		float compensationDB = (float)compensation / (1024 << 16);
 
 		if (compensationDB > 0.1) {

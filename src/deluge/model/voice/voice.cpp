@@ -510,7 +510,8 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 	if (sound->getSynthMode() == SynthMode::FM) {
 		for (int m = 0; m < kNumModulators; m++) {
 
-			if (sound->getSmoothedPatchedParamValue(Param::Local::MODULATOR_0_VOLUME + m, paramManager) == -2147483648) {
+			if (sound->getSmoothedPatchedParamValue(Param::Local::MODULATOR_0_VOLUME + m, paramManager)
+			    == -2147483648) {
 				continue; // Only if modulator active
 			}
 
@@ -788,9 +789,10 @@ bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int nu
 		overallPitchAdjust = a << 8;
 
 		// Move envelope on. Using the "release rate" lookup table gives by far the best range of speed values
-		int32_t envelopeSpeed = lookupReleaseRate(cableToExpParamShortcut(
-		                            paramManager->getUnpatchedParamSet()->getValue(Param::Unpatched::Sound::PORTAMENTO)))
-		                        >> 13;
+		int32_t envelopeSpeed =
+		    lookupReleaseRate(cableToExpParamShortcut(
+		        paramManager->getUnpatchedParamSet()->getValue(Param::Unpatched::Sound::PORTAMENTO)))
+		    >> 13;
 		portaEnvelopePos += envelopeSpeed * numSamples;
 	}
 
@@ -1000,9 +1002,9 @@ skipAutoRelease : {}
 				    (paramFinalValues[Param::Local::MODULATOR_0_VOLUME + m] != 0 || modulatorAmplitudeLastTime[m] != 0);
 
 				if (modulatorsActive[m]) {
-					modulatorAmplitudeIncrements[m] =
-					    (int32_t)(paramFinalValues[Param::Local::MODULATOR_0_VOLUME + m] - modulatorAmplitudeLastTime[m])
-					    / numSamples;
+					modulatorAmplitudeIncrements[m] = (int32_t)(paramFinalValues[Param::Local::MODULATOR_0_VOLUME + m]
+					                                            - modulatorAmplitudeLastTime[m])
+					                                  / numSamples;
 				}
 			}
 		}
@@ -2122,8 +2124,8 @@ pitchTooHigh:
 
 						// If it's going to pitch...
 						if (cable->destinationParamDescriptor.isSetToParamWithNoSource(Param::Local::PITCH_ADJUST)
-						    || cable->destinationParamDescriptor.isSetToParamWithNoSource(Param::Local::OSC_A_PITCH_ADJUST
-						                                                                  + s)) {
+						    || cable->destinationParamDescriptor.isSetToParamWithNoSource(
+						        Param::Local::OSC_A_PITCH_ADJUST + s)) {
 
 							// And if it's an envelope or LFO or random...
 							if (cable->from == PatchSource::ENVELOPE_0 || cable->from == PatchSource::ENVELOPE_1
@@ -2524,9 +2526,7 @@ void renderPDWave(const int16_t* table, const int16_t* secondTable, int numBitsI
 void getTableNumber(uint32_t phaseIncrementForCalculations, int* tableNumber, int* tableSize) {
 
 	if (phaseIncrementForCalculations <= 1247086) {
-		{
-			*tableNumber = 0;
-		}
+		{ *tableNumber = 0; }
 		*tableSize = 13;
 	}
 	else if (phaseIncrementForCalculations <= 2494173) {
@@ -3114,15 +3114,15 @@ uint32_t Voice::getPriorityRating() {
 	    // Bits 30-31 - manual priority setting
 	    ((uint32_t)(3 - util::to_underlying(assignedToSound->voicePriority)) << 30)
 
-		// Bits 27-29 - how many voices that Sound has
+	    // Bits 27-29 - how many voices that Sound has
 	    // - that one really does need to go above state, otherwise "once" samples can still cut out synth drones.
 	    // In a perfect world, culling for the purpose of "soliciting" a Voice would also count the new Voice being
 	    // solicited, preferring to cut out that same Sound's old, say, one Voice, than another Sound's only Voice
-		+ ((uint32_t)getMin(assignedToSound->numVoicesAssigned, 7) << 27)
+	    + ((uint32_t)getMin(assignedToSound->numVoicesAssigned, 7) << 27)
 
-		// Bits 24-26 - envelope state
+	    // Bits 24-26 - envelope state
 	    + ((uint32_t)envelopes[0].state << 24)
 
-		// Bits  0-23 - time entered
+	    // Bits  0-23 - time entered
 	    + ((uint32_t)(-envelopes[0].timeEnteredState) & (0xFFFFFFFF >> 8));
 }

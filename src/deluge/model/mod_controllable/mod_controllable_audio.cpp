@@ -187,7 +187,7 @@ void ModControllableAudio::processFX(StereoSample* buffer, int numSamples, ModFX
 				phaserMemory.r = currentSample->r + (multiply_32x32_rshift32_rounded(phaserMemory.r, feedback) << 1);
 
 				// Do the allpass filters
-				for (auto & sample : allpassMemory) {
+				for (auto& sample : allpassMemory) {
 					StereoSample whatWasInput = phaserMemory;
 
 					phaserMemory.l = (multiply_32x32_rshift32_rounded(phaserMemory.l, -_a1) << 2) + sample.l;
@@ -1062,7 +1062,8 @@ void ModControllableAudio::writeParamTagsToFile(ParamManager* paramManager, bool
 
 	storageManager.writeOpeningTagBeginning("equalizer");
 	unpatchedParams->writeParamAsAttribute("bass", Param::Unpatched::BASS, writeAutomation, false, valuesForOverride);
-	unpatchedParams->writeParamAsAttribute("treble", Param::Unpatched::TREBLE, writeAutomation, false, valuesForOverride);
+	unpatchedParams->writeParamAsAttribute("treble", Param::Unpatched::TREBLE, writeAutomation, false,
+	                                       valuesForOverride);
 	unpatchedParams->writeParamAsAttribute("bassFrequency", Param::Unpatched::BASS_FREQ, writeAutomation, false,
 	                                       valuesForOverride);
 	unpatchedParams->writeParamAsAttribute("trebleFrequency", Param::Unpatched::TREBLE_FREQ, writeAutomation, false,
@@ -1090,7 +1091,8 @@ bool ModControllableAudio::readParamTagFromFile(char const* tagName, ParamManage
 				storageManager.exitTag("bassFrequency");
 			}
 			else if (!strcmp(tagName, "trebleFrequency")) {
-				unpatchedParams->readParam(unpatchedParamsSummary, Param::Unpatched::TREBLE_FREQ, readAutomationUpToPos);
+				unpatchedParams->readParam(unpatchedParamsSummary, Param::Unpatched::TREBLE_FREQ,
+				                           readAutomationUpToPos);
 				storageManager.exitTag("trebleFrequency");
 			}
 		}
@@ -1170,7 +1172,8 @@ doReadPatchedParam:
 					}
 					ParamCollectionSummary* patchedParamsSummary = paramManager->getPatchedParamSetSummary();
 					PatchedParamSet* patchedParams = (PatchedParamSet*)patchedParamsSummary->paramCollection;
-					patchedParams->readParam(patchedParamsSummary, Param::Global::DELAY_FEEDBACK, readAutomationUpToPos);
+					patchedParams->readParam(patchedParamsSummary, Param::Global::DELAY_FEEDBACK,
+					                         readAutomationUpToPos);
 				}
 				storageManager.exitTag();
 			}

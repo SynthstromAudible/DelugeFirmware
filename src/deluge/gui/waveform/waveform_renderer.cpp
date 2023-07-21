@@ -606,7 +606,8 @@ void WaveformRenderer::getColBarPositions(int xDisplay, WaveformRenderData* data
 }
 
 void WaveformRenderer::drawColBar(int xDisplay, int32_t min24, int32_t max24,
-                                  uint8_t thisImage[][kDisplayWidth + kSideBarWidth][3], int brightness, uint8_t rgb[]) {
+                                  uint8_t thisImage[][kDisplayWidth + kSideBarWidth][3], int brightness,
+                                  uint8_t rgb[]) {
 	int yStart = getMax((int)(min24 >> 24), -(kDisplayHeight >> 1));
 	int yStop = getMin((int)(max24 >> 24) + 1, kDisplayHeight >> 1);
 

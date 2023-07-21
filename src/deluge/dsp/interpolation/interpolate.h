@@ -17,7 +17,7 @@
 
 #define numBitsInTableSize 8
 #define rshiftAmount                                                                                                   \
-	((24 + kInterpolationMaxNumSamplesMagnitude) - 16 - numBitsInTableSize                                          \
+	((24 + kInterpolationMaxNumSamplesMagnitude) - 16 - numBitsInTableSize                                             \
 	 + 1) // that's (numBitsInInput - 16 - numBitsInTableSize); = 4 for now
 
 #if rshiftAmount >= 0

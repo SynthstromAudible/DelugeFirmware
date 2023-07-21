@@ -146,7 +146,6 @@ DMA channels:
 #define ENCODER_MOD_0         5
 #define ENCODER_MOD_1         4
 
-
 // OLED
 #define OLED_MAIN_WIDTH_PIXELS 128
 

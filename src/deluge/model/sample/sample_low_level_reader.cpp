@@ -969,7 +969,7 @@ void SampleLowLevelReader::jumpForwardLinear(int numChannels, int byteDepth, uin
 
 #define numBitsInTableSize 8
 #define rshiftAmount                                                                                                   \
-	((24 + kInterpolationMaxNumSamplesMagnitude) - 16 - numBitsInTableSize                                          \
+	((24 + kInterpolationMaxNumSamplesMagnitude) - 16 - numBitsInTableSize                                             \
 	 + 1) // that's (numBitsInInput - 16 - numBitsInTableSize); = 4 for now
 
 void SampleLowLevelReader::interpolate(int32_t* __restrict__ sampleRead, int numChannelsNow, int whichKernel) {

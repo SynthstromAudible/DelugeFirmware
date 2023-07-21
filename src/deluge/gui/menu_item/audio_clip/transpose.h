@@ -54,7 +54,8 @@ public:
 
 	ParamDescriptor getLearningThing() {
 		ParamDescriptor paramDescriptor;
-		paramDescriptor.setToHaveParamOnly(::Param::Unpatched::START + ::Param::Unpatched::GlobalEffectable::PITCH_ADJUST);
+		paramDescriptor.setToHaveParamOnly(::Param::Unpatched::START
+		                                   + ::Param::Unpatched::GlobalEffectable::PITCH_ADJUST);
 		return paramDescriptor;
 	}
 };

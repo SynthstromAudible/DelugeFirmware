@@ -287,8 +287,8 @@ void ramTestLED(bool stuffAlreadySetUp) {
 	setOutputState(SPEAKER_ENABLE.port, SPEAKER_ENABLE.pin, 1); // Switch it on
 
 	setPinAsInput(HEADPHONE_DETECT.port, HEADPHONE_DETECT.pin); // Headphone detect
-	setPinAsInput(6, 6);                                   // Line in detect
-	setPinAsInput(7, 9);                                   // Mic detect
+	setPinAsInput(6, 6);                                        // Line in detect
+	setPinAsInput(7, 9);                                        // Mic detect
 
 	setPinAsOutput(BATTERY_LED.port, BATTERY_LED.pin);    // Battery LED control
 	setOutputState(BATTERY_LED.port, BATTERY_LED.pin, 1); // Switch it off (1 is off for open-drain)

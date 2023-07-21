@@ -46,8 +46,9 @@ public:
 	void renderOneCol(Sample* sample, int xDisplay, uint8_t thisImage[][kDisplayWidth + kSideBarWidth][3],
 	                  WaveformRenderData* data, bool reversed = false, uint8_t rgb[] = NULL);
 	void renderOneColForCollapseAnimation(int xDisplay, int xDisplayOutput, int32_t maxPeakFromZero, int progress,
-	                                      uint8_t thisImage[][kDisplayWidth + kSideBarWidth][3], WaveformRenderData* data,
-	                                      uint8_t rgb[], bool reversed, int32_t valueCentrePoint, int32_t valueSpan);
+	                                      uint8_t thisImage[][kDisplayWidth + kSideBarWidth][3],
+	                                      WaveformRenderData* data, uint8_t rgb[], bool reversed,
+	                                      int32_t valueCentrePoint, int32_t valueSpan);
 	void renderOneColForCollapseAnimationZoomedOut(int xDisplayWaveformLeftEdge, int xDisplayWaveformRightEdge,
 	                                               int xDisplayOutput, int32_t maxPeakFromZero, int progress,
 	                                               uint8_t thisImage[][kDisplayWidth + kSideBarWidth][3],

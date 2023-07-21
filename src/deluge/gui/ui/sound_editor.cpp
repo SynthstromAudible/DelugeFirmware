@@ -824,7 +824,8 @@ getOut:
 						// If we've been given a MenuItem to go into, do that
 						if (newMenuItem
 						    && newMenuItem->checkPermissionToBeginSession(currentSound, currentSourceIndex,
-						                                                  &currentMultiRange) != MenuPermission::NO) {
+						                                                  &currentMultiRange)
+						           != MenuPermission::NO) {
 							navigationDepth = newNavigationDepth + 1;
 							menuItemNavigationRecord[navigationDepth] = newMenuItem;
 							if (!wentBack) {

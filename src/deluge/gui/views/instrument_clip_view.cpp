@@ -4950,7 +4950,8 @@ void InstrumentClipView::notifyPlaybackBegun() {
 }
 
 bool InstrumentClipView::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
-                                        uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
+                                        uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
+                                        bool drawUndefinedArea) {
 	if (!image) {
 		return true;
 	}

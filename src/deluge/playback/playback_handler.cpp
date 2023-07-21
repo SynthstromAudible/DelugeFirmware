@@ -2570,8 +2570,8 @@ void PlaybackHandler::noteMessageReceived(MIDIDevice* fromDevice, bool on, int c
 					switchToSession();
 				}
 
-				session.toggleClipStatus(
-				    clip, &c, false, kMIDIKeyInputLatency); // Beware - calling this might insert or delete a Clip!
+				session.toggleClipStatus(clip, &c, false,
+				                         kMIDIKeyInputLatency); // Beware - calling this might insert or delete a Clip!
 				uiNeedsRendering(&sessionView, 0, 0xFFFFFFFF);
 			}
 			foundAnything = true;

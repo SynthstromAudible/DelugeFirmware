@@ -803,7 +803,7 @@ int Browser::getUnusedSlot(InstrumentType instrumentType, String* newName, char 
 	strcpy(filenameToStartAt, thingName);
 	strcat(filenameToStartAt, ":");
 #else
-	char const* filenameToStartAt = ":";    // Colon is the first character after the digits
+	char const* filenameToStartAt = ":";     // Colon is the first character after the digits
 #endif
 
 	int error =

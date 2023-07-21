@@ -889,7 +889,8 @@ bool SampleMarkerEditor::shouldAllowExtraScrollRight() {
 	}
 }
 
-void SampleMarkerEditor::renderForOneCol(int xDisplay, uint8_t thisImage[kDisplayHeight][kDisplayWidth + kSideBarWidth][3],
+void SampleMarkerEditor::renderForOneCol(int xDisplay,
+                                         uint8_t thisImage[kDisplayHeight][kDisplayWidth + kSideBarWidth][3],
                                          MarkerColumn* cols) {
 
 	waveformRenderer.renderOneCol(waveformBasicNavigator.sample, xDisplay, thisImage,
@@ -1118,7 +1119,8 @@ void SampleMarkerEditor::displayText() {
 #endif
 
 bool SampleMarkerEditor::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
-                                        uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
+                                        uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
+                                        bool drawUndefinedArea) {
 	if (!image) {
 		return true;
 	}

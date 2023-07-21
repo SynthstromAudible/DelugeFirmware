@@ -82,8 +82,9 @@ void GlobalEffectable::initParams(ParamManager* paramManager) {
 
 void GlobalEffectable::initParamsForAudioClip(ParamManagerForTimeline* paramManager) {
 	initParams(paramManager);
-	paramManager->getUnpatchedParamSet()->params[Param::Unpatched::GlobalEffectable::VOLUME].setCurrentValueBasicForSetup(
-	    -536870912);
+	paramManager->getUnpatchedParamSet()
+	    ->params[Param::Unpatched::GlobalEffectable::VOLUME]
+	    .setCurrentValueBasicForSetup(-536870912);
 }
 
 void GlobalEffectable::modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager) {
@@ -463,10 +464,10 @@ void GlobalEffectable::writeParamAttributesToFile(ParamManager* paramManager, bo
 	unpatchedParams->writeParamAsAttribute("sidechainCompressorShape", Param::Unpatched::COMPRESSOR_SHAPE,
 	                                       writeAutomation, false, valuesForOverride);
 
-	unpatchedParams->writeParamAsAttribute("modFXDepth", Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH, writeAutomation,
-	                                       false, valuesForOverride);
-	unpatchedParams->writeParamAsAttribute("modFXRate", Param::Unpatched::GlobalEffectable::MOD_FX_RATE, writeAutomation,
-	                                       false, valuesForOverride);
+	unpatchedParams->writeParamAsAttribute("modFXDepth", Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH,
+	                                       writeAutomation, false, valuesForOverride);
+	unpatchedParams->writeParamAsAttribute("modFXRate", Param::Unpatched::GlobalEffectable::MOD_FX_RATE,
+	                                       writeAutomation, false, valuesForOverride);
 
 	ModControllableAudio::writeParamAttributesToFile(paramManager, writeAutomation, valuesForOverride);
 }
@@ -477,10 +478,10 @@ void GlobalEffectable::writeParamTagsToFile(ParamManager* paramManager, bool wri
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
 	storageManager.writeOpeningTagBeginning("delay");
-	unpatchedParams->writeParamAsAttribute("rate", Param::Unpatched::GlobalEffectable::DELAY_RATE, writeAutomation, false,
-	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute("feedback", Param::Unpatched::GlobalEffectable::DELAY_AMOUNT, writeAutomation,
+	unpatchedParams->writeParamAsAttribute("rate", Param::Unpatched::GlobalEffectable::DELAY_RATE, writeAutomation,
 	                                       false, valuesForOverride);
+	unpatchedParams->writeParamAsAttribute("feedback", Param::Unpatched::GlobalEffectable::DELAY_AMOUNT,
+	                                       writeAutomation, false, valuesForOverride);
 	storageManager.closeTag();
 
 	storageManager.writeOpeningTagBeginning("lpf");
@@ -589,7 +590,8 @@ bool GlobalEffectable::readParamTagFromFile(char const* tagName, ParamManagerFor
 	}
 
 	else if (!strcmp(tagName, "pan")) {
-		unpatchedParams->readParam(unpatchedParamsSummary, Param::Unpatched::GlobalEffectable::PAN, readAutomationUpToPos);
+		unpatchedParams->readParam(unpatchedParamsSummary, Param::Unpatched::GlobalEffectable::PAN,
+		                           readAutomationUpToPos);
 		storageManager.exitTag("pan");
 	}
 

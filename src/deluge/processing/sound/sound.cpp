@@ -3968,8 +3968,7 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 		return false;
 	}
 
-	else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(Param::Unpatched::START
-	                                                              + Param::Unpatched::TREBLE)) {
+	else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(Param::Unpatched::START + Param::Unpatched::TREBLE)) {
 		if (on && synthMode != SynthMode::FM) {
 			ourModKnob->paramDescriptor.setToHaveParamOnly(Param::Local::LPF_FREQ);
 			// Switch resonance too

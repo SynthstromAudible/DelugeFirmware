@@ -123,8 +123,8 @@ public:
 	void setCurrentMultiRange(int i);
 	void possibleChangeToCurrentRangeDisplay();
 	MenuPermission checkPermissionToBeginSessionForRangeSpecificParam(Sound* sound, int whichThing,
-	                                                       bool automaticallySelectIfOnlyOne,
-	                                                       MultiRange** previouslySelectedRange);
+	                                                                  bool automaticallySelectIfOnlyOne,
+	                                                                  MultiRange** previouslySelectedRange);
 	void setupExclusiveShortcutBlink(int x, int y);
 	void setShortcutsVersion(int newVersion);
 	ModelStackWithThreeMainThings* getCurrentModelStack(void* memory);

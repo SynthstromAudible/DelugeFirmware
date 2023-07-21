@@ -438,7 +438,8 @@ void PatchedParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const
 }
 
 int PatchedParamSet::paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack) {
-	if (modelStack->paramId == Param::Local::OSC_A_PHASE_WIDTH || modelStack->paramId == Param::Local::OSC_B_PHASE_WIDTH) {
+	if (modelStack->paramId == Param::Local::OSC_A_PHASE_WIDTH
+	    || modelStack->paramId == Param::Local::OSC_B_PHASE_WIDTH) {
 		return (paramValue >> 24) - 64;
 	}
 	else {
@@ -447,7 +448,8 @@ int PatchedParamSet::paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoP
 }
 
 int32_t PatchedParamSet::knobPosToParamValue(int knobPos, ModelStackWithAutoParam* modelStack) {
-	if (modelStack->paramId == Param::Local::OSC_A_PHASE_WIDTH || modelStack->paramId == Param::Local::OSC_B_PHASE_WIDTH) {
+	if (modelStack->paramId == Param::Local::OSC_A_PHASE_WIDTH
+	    || modelStack->paramId == Param::Local::OSC_B_PHASE_WIDTH) {
 		int paramValue = 2147483647;
 		if (knobPos < 64) {
 			paramValue = (knobPos + 64) << 24;

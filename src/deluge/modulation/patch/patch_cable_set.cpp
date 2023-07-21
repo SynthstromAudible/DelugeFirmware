@@ -535,7 +535,7 @@ void PatchCableSet::removeAllPatchingToParam(ModelStackWithParamCollection* mode
 }
 
 #define FOR_EACH_FLAGGED_PARAM(whichParams)                                                                            \
-	for (int i = kNumUnsignedIntegersToRepPatchCables - 1; i >= 0; i--) {                                                     \
+	for (int i = kNumUnsignedIntegersToRepPatchCables - 1; i >= 0; i--) {                                              \
 		uint32_t whichParamsHere = whichParams[i];                                                                     \
 		while (whichParamsHere) {                                                                                      \
 			int whichBit = 31 - clz(whichParamsHere);                                                                  \
@@ -703,7 +703,8 @@ void PatchCableSet::processCurrentPos(ModelStackWithParamCollection* modelStack,
 
 	if (ticksTilNextEvent <= 0) {
 
-		modelStack->summary->resetInterpolationRecord(kNumUnsignedIntegersToRepPatchCables - 1); // We'll repopulate this.
+		modelStack->summary->resetInterpolationRecord(kNumUnsignedIntegersToRepPatchCables
+		                                              - 1); // We'll repopulate this.
 
 		ticksTilNextEvent = 2147483647;
 

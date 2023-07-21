@@ -169,7 +169,8 @@ void PatchCableStrength::writeCurrentValue() {
 	modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(finalValue, modelStackWithParam);
 }
 
-MenuPermission PatchCableStrength::checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) {
+MenuPermission PatchCableStrength::checkPermissionToBeginSession(Sound* sound, int whichThing,
+                                                                 MultiRange** currentRange) {
 
 	ParamDescriptor destinationDescriptor = getDestinationDescriptor();
 	PatchSource s = getS();

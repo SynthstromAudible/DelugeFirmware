@@ -1738,7 +1738,7 @@ traverseClips:
 			    && !((InstrumentClip*)thisClip)->arpSettings.syncLevel) {
 				ParamManagerForTimeline* thisParamManager = &thisClip->paramManager;
 				thisParamManager->getPatchedParamSet()->params[Param::Global::ARP_RATE].shiftValues((1 << 30)
-				                                                                                  + (1 << 28));
+				                                                                                    + (1 << 28));
 			}
 		}
 	}

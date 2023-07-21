@@ -1048,8 +1048,8 @@ doLoadAsSample:
 			bool anyChange = false;
 			int p = Param::Local::OSC_A_WAVE_INDEX + soundEditor.currentSourceIndex;
 			if (soundEditor.currentSound->modKnobs[7][0].paramDescriptor.getJustTheParam() == p) {
-				soundEditor.currentSound->modKnobs[7][0].paramDescriptor.setToHaveParamOnly(Param::Unpatched::BITCRUSHING
-				                                                                            + Param::Unpatched::START);
+				soundEditor.currentSound->modKnobs[7][0].paramDescriptor.setToHaveParamOnly(
+				    Param::Unpatched::BITCRUSHING + Param::Unpatched::START);
 				anyChange = true;
 			}
 			if (soundEditor.currentSound->modKnobs[7][1].paramDescriptor.getJustTheParam() == p) {

@@ -41,8 +41,8 @@ void Command::drawPixelsForOled() {
 	LearnedMIDI* command = &midiEngine.globalMIDICommands[util::to_underlying(commandNumber)];
 	int yPixel = 20;
 	if (!command->containsSomething()) {
-		OLED::drawString("Command unassigned", 0, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
-		                 kTextSpacingX, kTextSizeYUpdated);
+		OLED::drawString("Command unassigned", 0, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX,
+		                 kTextSizeYUpdated);
 	}
 	else {
 		char const* deviceString = "Any MIDI device";

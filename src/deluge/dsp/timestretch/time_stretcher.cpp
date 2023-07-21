@@ -975,7 +975,8 @@ optForDirectReading:
 }
 
 bool TimeStretcher::setupNewPlayHead(Sample* sample, VoiceSample* voiceSample, SamplePlaybackGuide* guide,
-                                     int newHeadBytePos, int additionalOscPos, int priorityRating, LoopType loopingType) {
+                                     int newHeadBytePos, int additionalOscPos, int priorityRating,
+                                     LoopType loopingType) {
 	bool success = voiceSample->setupClustersForPlayFromByte(guide, sample, newHeadBytePos, priorityRating);
 	if (!success) {
 		return false;

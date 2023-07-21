@@ -98,8 +98,7 @@ void Slicer::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 
 	OLED::drawRectangle(windowMinX, windowMinY, windowMaxX, windowMaxY, image);
 	OLED::drawHorizontalLine(windowMinY + 15, 26, OLED_MAIN_WIDTH_PIXELS - 22, &image[0]);
-	OLED::drawString("Num. slices", 30, windowMinY + 6, image[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX,
-	                 kTextSpacingY);
+	OLED::drawString("Num. slices", 30, windowMinY + 6, image[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
 	char buffer[12];
 	intToString(slicerMode == SLICER_MODE_REGION ? numClips : numManualSlice, buffer);
 	OLED::drawStringCentred(buffer, windowMinY + 18, image[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY,
@@ -593,7 +592,7 @@ ActionResult Slicer::padAction(int x, int y, int on) {
 		uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 	}
 	else if (!on && x < kDisplayWidth && y < kDisplayHeight / 2 && slicerMode == SLICER_MODE_MANUAL) { // pad off
-		preview(0, 0, 0, 0);                                                                         //off
+		preview(0, 0, 0, 0);                                                                           //off
 	}
 
 	if (slicerMode == SLICER_MODE_MANUAL) {

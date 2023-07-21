@@ -630,8 +630,7 @@ holdingRecord:
 
 								// If we were doing a tempoless record, now's the time to stop that and restart playback
 								if (!playbackHandler.isEitherClockActive()) {
-									playbackHandler.finishTempolessRecording(true, kInternalButtonPressLatency,
-									                                         false);
+									playbackHandler.finishTempolessRecording(true, kInternalButtonPressLatency, false);
 								}
 							}
 							else if (currentSong->anyClipsSoloing) {
@@ -2098,7 +2097,8 @@ bool SessionView::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWid
 }
 
 // Returns false if can't because in card routine
-bool SessionView::renderRow(ModelStack* modelStack, uint8_t yDisplay, uint8_t thisImage[kDisplayWidth + kSideBarWidth][3],
+bool SessionView::renderRow(ModelStack* modelStack, uint8_t yDisplay,
+                            uint8_t thisImage[kDisplayWidth + kSideBarWidth][3],
                             uint8_t thisOccupancyMask[kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
 
 	Clip* clip = getClipOnScreen(yDisplay);
@@ -2256,7 +2256,8 @@ void SessionView::finishedTransitioningHere() {
 	currentUIMode = UI_MODE_ANIMATION_FADE;
 	PadLEDs::recordTransitionBegin(kFadeSpeed);
 	changeRootUI(this);
-	renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[kDisplayHeight], &PadLEDs::occupancyMaskStore[kDisplayHeight], true);
+	renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[kDisplayHeight], &PadLEDs::occupancyMaskStore[kDisplayHeight],
+	               true);
 	renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[kDisplayHeight], &PadLEDs::occupancyMaskStore[kDisplayHeight]);
 	PadLEDs::timerRoutine(); // What... why? This would normally get called from that...
 }
