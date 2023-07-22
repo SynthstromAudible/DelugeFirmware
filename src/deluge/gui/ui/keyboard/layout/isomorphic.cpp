@@ -187,7 +187,7 @@ void KeyboardLayoutIsomorphic::handleHorizontalEncoder(int offset, bool shiftEna
 uint8_t noteColours[kDisplayHeight * kMaxKeyboardRowInterval + kDisplayWidth][3];
 
 void KeyboardLayoutIsomorphic::renderPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]) { //@TODO: Refactor
-	                                                                                         /*
+	                                                                                           /*
 	// Calculate colors
 	InstrumentClip* clip = getCurrentClip();
 	for (int i = 0; i < kDisplayHeight * clip->keyboardRowInterval + kDisplayWidth; i++) { // @TODO: find out how to do without dependency

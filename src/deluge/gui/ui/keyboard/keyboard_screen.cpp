@@ -481,7 +481,8 @@ bool KeyboardScreen::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplay
 
 	memset(image, 0, sizeof(uint8_t) * kDisplayHeight * (kDisplayWidth + kSideBarWidth) * 3);
 	memset(occupancyMask, 64,
-	       sizeof(uint8_t) * kDisplayHeight * (kDisplayWidth + kSideBarWidth)); // We assume the whole screen is occupied
+	       sizeof(uint8_t) * kDisplayHeight
+	           * (kDisplayWidth + kSideBarWidth)); // We assume the whole screen is occupied
 
 	layoutList[0]->renderPads(image);
 
