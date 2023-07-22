@@ -18,7 +18,7 @@
 #include "processing/engines/audio_engine.h"
 #include "memory/memory_region.h"
 #include "memory/stealable.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "memory/general_memory_allocator.h"
 #include "drivers/mtu/mtu.h"
 #include "util/functions.h"
@@ -57,13 +57,13 @@ void MemoryRegion::sanityCheck() {
 	}
 
 	if (count > 1) {
-		Uart::println("multiple 0xc0080bc!!!!");
+		Debug::println("multiple 0xc0080bc!!!!");
 		numericDriver.freezeWithError("BBBB");
 	}
 	else if (count == 1) {
 		if (!seenYet) {
 			seenYet = true;
-			Uart::println("seen 0xc0080bc");
+			Debug::println("seen 0xc0080bc");
 		}
 	}
 }
@@ -72,17 +72,17 @@ void MemoryRegion::verifyMemoryNotFree(void* address, uint32_t spaceSize) {
 	for (int i = 0; i < emptySpaces.getNumElements(); i++) {
 		EmptySpaceRecord* emptySpaceRecord = (EmptySpaceRecord*)emptySpaces.getElementAddress(i);
 		if (emptySpaceRecord->address == (uint32_t)address) {
-			Uart::println("Exact address free!");
+			Debug::println("Exact address free!");
 			numericDriver.freezeWithError("dddffffd");
 		}
 		else if (emptySpaceRecord->address <= (uint32_t)address
 		         && (emptySpaceRecord->address + emptySpaceRecord->length > (uint32_t)address)) {
-			Uart::println("free mem overlap on left!");
+			Debug::println("free mem overlap on left!");
 			numericDriver.freezeWithError("dddd");
 		}
 		else if ((uint32_t)address <= (uint32_t)emptySpaceRecord->address
 		         && ((uint32_t)address + spaceSize > emptySpaceRecord->address)) {
-			Uart::println("free mem overlap on right!");
+			Debug::println("free mem overlap on right!");
 			numericDriver.freezeWithError("eeee");
 		}
 	}
@@ -182,8 +182,8 @@ justInsertRecord:
 #if ALPHA_OR_BETA_VERSION
 		if (i
 		    == -1) { // Array might have gotten full. This has to be coped with. Perhaps in a perfect world we should opt to throw away the smallest empty space to make space for this one if this one is bigger?
-			Uart::print("Lost track of empty space in region: ");
-			Uart::println(name);
+			Debug::print("Lost track of empty space in region: ");
+			Debug::println(name);
 		}
 #endif
 	}
@@ -196,8 +196,8 @@ goingToReplaceOldRecord:
 		if (i
 		    == -1) { // The record might not exist because there wasn't room to insert it when the empty space was created.
 #if ALPHA_OR_BETA_VERSION
-			Uart::print("Found orphaned empty space in region: ");
-			Uart::println(name);
+			Debug::print("Found orphaned empty space in region: ");
+			Debug::println(name);
 #endif
 			goto justInsertRecord;
 		}
@@ -330,13 +330,13 @@ justUpdateRecord:
 noEmptySpace:
 		allocatedAddress = cache_manager_.ReclaimMemory(*this, requiredSize, thingNotToStealFrom, &allocatedSize);
 		if (!allocatedAddress) {
-			//Uart::println("nothing to steal.........................");
+			//Debug::println("nothing to steal.........................");
 			return NULL;
 		}
 
 #if 0 && TEST_GENERAL_MEMORY_ALLOCATION
 		if (allocatedSize < requiredSize) {
-			Uart::println("freeSomeStealableMemory() got too little memory");
+			Debug::println("freeSomeStealableMemory() got too little memory");
 			while (1);
 		}
 #endif
@@ -594,7 +594,7 @@ tryNotStealingFirst:
 #if TEST_GENERAL_MEMORY_ALLOCATION
 							if (!success) {
 								// TODO: actually, this is basically ok - it should be allowed to not find the key, because the empty space might indeed not have a record if there wasn't room to insert one when the empty space was created.
-								Uart::println("fail to delete key");
+								Debug::println("fail to delete key");
 								while (1) {}
 							}
 #endif
@@ -644,11 +644,11 @@ tryNotStealingFirst:
 			// If we somehow grabbed without finding min amount, then that shouldn't have happened!
 #if TEST_GENERAL_MEMORY_ALLOCATION
 			if (actuallyGrabbing) {
-				Uart::println("grabbed extension without reaching min size"); // This happened recently!
+				Debug::println("grabbed extension without reaching min size"); // This happened recently!
 				if (originalSpaceNeedsStealing)
-					Uart::println("during steal");
+					Debug::println("during steal");
 				else
-					Uart::println("during extend");
+					Debug::println("during extend");
 				while (1) {}
 			}
 #endif
@@ -691,7 +691,7 @@ void MemoryRegion::extend(void* address, uint32_t minAmountToExtend, uint32_t id
 
 		if (grabResult.amountsExtended[0] > 8) {
 
-			//Uart::println("extend leaving empty space right");
+			//Debug::println("extend leaving empty space right");
 
 			int amountToCutRightIncludingHeaders = getMax(12, surplusWeGot);
 			amountToCutRightIncludingHeaders = getMin(amountToCutRightIncludingHeaders, grabResult.amountsExtended[0]);
@@ -708,7 +708,7 @@ void MemoryRegion::extend(void* address, uint32_t minAmountToExtend, uint32_t id
 
 			if (grabResult.amountsExtended[1] > 8) {
 
-				//Uart::println("extend leaving empty space left");
+				//Debug::println("extend leaving empty space left");
 
 				int amountToCutLeftIncludingHeaders = getMax(12, surplusWeGot);
 				amountToCutLeftIncludingHeaders =
@@ -759,8 +759,8 @@ void MemoryRegion::dealloc(void* address) {
 	totalDeallocTime += timeTaken;
 	numDeallocTimes++;
 
-	Uart::print("average dealloc time: ");
-	Uart::println(totalDeallocTime / numDeallocTimes);
+	Debug::print("average dealloc time: ");
+	Debug::println(totalDeallocTime / numDeallocTimes);
 	 */
 #if TEST_GENERAL_MEMORY_ALLOCATION
 	numAllocations--;

@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "gui/views/clip_navigation_timeline_view.h"
 #include "hid/button.h"
 
@@ -38,18 +39,18 @@ public:
 	bool opened();
 	void focusRegained();
 
-	int buttonAction(hid::Button b, bool on, bool inCardRoutine);
-	int padAction(int x, int y, int velocity);
-	int horizontalEncoderAction(int offset);
-	int verticalEncoderAction(int offset, bool inCardRoutine);
-	bool renderSidebar(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
-	                   uint8_t occupancyMask[][displayWidth + sideBarWidth]);
+	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
+	ActionResult padAction(int x, int y, int velocity);
+	ActionResult horizontalEncoderAction(int offset);
+	ActionResult verticalEncoderAction(int offset, bool inCardRoutine);
+	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 	void removeClip(uint8_t yDisplay);
 	void redrawClipsOnScreen(bool doRender = true);
 	unsigned int getMaxZoom();
 	void cloneClip(uint8_t yDisplayFrom, uint8_t yDisplayTo);
-	bool renderRow(ModelStack* modelStack, uint8_t yDisplay, uint8_t thisImage[displayWidth + sideBarWidth][3],
-	               uint8_t thisOccupancyMask[displayWidth + sideBarWidth], bool drawUndefinedArea = true);
+	bool renderRow(ModelStack* modelStack, uint8_t yDisplay, uint8_t thisImage[kDisplayWidth + kSideBarWidth][3],
+	               uint8_t thisOccupancyMask[kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
 	void graphicsRoutine();
 
 	int getClipPlaceOnScreen(Clip* clip);
@@ -64,13 +65,13 @@ public:
 	void modEncoderButtonAction(uint8_t whichModEncoder, bool on);
 	void modButtonAction(uint8_t whichButton, bool on);
 	void selectEncoderAction(int8_t offset);
-	int timerCallback();
+	ActionResult timerCallback();
 	void noteRowChanged(InstrumentClip* clip, NoteRow* noteRow);
 	void setLedStates();
 	void editNumRepeatsTilLaunch(int offset);
 	uint32_t getGreyedOutRowsNotRepresentingOutput(Output* output);
-	bool renderMainPads(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
-	                    uint8_t occupancyMask[][displayWidth + sideBarWidth], bool drawUndefinedArea = true);
+	bool renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
 	void midiLearnFlash();
 
 	void transitionToViewForClip(Clip* clip = NULL);
@@ -80,7 +81,7 @@ public:
 	void sampleNeedsReRendering(Sample* sample);
 	Clip* getClipOnScreen(int yDisplay);
 	void modEncoderAction(int whichModEncoder, int offset);
-	int verticalScrollOneSquare(int direction);
+	ActionResult verticalScrollOneSquare(int direction);
 
 #if HAVE_OLED
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
@@ -106,7 +107,7 @@ private:
 	Clip* createNewInstrumentClip(int yDisplay);
 	void goToArrangementEditor();
 	void replaceInstrumentClipWithAudioClip();
-	void replaceAudioClipWithInstrumentClip(int instrumentType);
+	void replaceAudioClipWithInstrumentClip(InstrumentType instrumentType);
 	void rowNeedsRenderingDependingOnSubMode(int yDisplay);
 	void setCentralLEDStates();
 };

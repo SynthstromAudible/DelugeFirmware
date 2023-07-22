@@ -18,7 +18,7 @@
 #pragma once
 
 #include "RZA1/system/r_typedefs.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "gui/waveform/waveform_render_data.h"
 
 class Sample;
@@ -36,7 +36,7 @@ public:
 	bool isZoomedIn();
 
 	bool zoom(int offset, bool shouldAllowExtraScrollRight = false, MarkerColumn* cols = NULL,
-	          int markerType = MARKER_NONE);
+	          MarkerType markerType = MarkerType::NONE);
 	bool scroll(int offset, bool shouldAllowExtraScrollRight = false, MarkerColumn* cols = NULL);
 
 	Sample* sample;

@@ -18,7 +18,7 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
 #include "model/sample/sample_cache.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "hid/display/numeric_driver.h"
 #include "model/sample/sample.h"
 #include "memory/general_memory_allocator.h"
@@ -56,12 +56,12 @@ void SampleCache::clusterStolen(int clusterIndex) {
 	}
 #endif
 
-	Uart::println("cache Cluster stolen");
+	Debug::println("cache Cluster stolen");
 
 	// There's now no point in having any further Clusters
 	unlinkClusters(clusterIndex + 1, false); // Must do this before changing writeBytePos
 
-	uint8_t bytesPerSample = sample->numChannels * CACHE_BYTE_DEPTH;
+	uint8_t bytesPerSample = sample->numChannels * kCacheByteDepth;
 
 	// Make it a multiple of bytesPerSample - but round up.
 	// If you try and simplify this, make sure it still works for 0 and doesn't go negative or anything!
@@ -114,7 +114,7 @@ void SampleCache::setWriteBytePos(int newWriteBytePos) {
 		numericDriver.freezeWithError("E301");
 	}
 
-	uint32_t bytesPerSample = sample->numChannels * CACHE_BYTE_DEPTH;
+	uint32_t bytesPerSample = sample->numChannels * kCacheByteDepth;
 	if (newWriteBytePos != (uint32_t)newWriteBytePos / bytesPerSample * bytesPerSample) {
 		numericDriver.freezeWithError("E302");
 	}
@@ -136,7 +136,7 @@ void SampleCache::setWriteBytePos(int newWriteBytePos) {
 // Does not move the new Cluster to the appropriate "availability queue", because it's expected that the caller is just about to call getCluster(), to get it,
 // which will call prioritizeNotStealingCluster(), and that'll do it
 bool SampleCache::setupNewCluster(int clusterIndex) {
-	//Uart::println("writing cache to new Cluster");
+	//Debug::println("writing cache to new Cluster");
 
 #if ALPHA_OR_BETA_VERSION
 	if (clusterIndex >= numClusters) {
@@ -148,9 +148,9 @@ bool SampleCache::setupNewCluster(int clusterIndex) {
 #endif
 
 	clusters[clusterIndex] = audioFileManager.allocateCluster(
-	    CLUSTER_SAMPLE_CACHE, false, this); // Do not add reasons, and don't steal from this SampleCache
-	if (!clusters[clusterIndex]) {          // If that allocation failed...
-		Uart::println("allocation fail");
+	    ClusterType::SAMPLE_CACHE, false, this); // Do not add reasons, and don't steal from this SampleCache
+	if (!clusters[clusterIndex]) {               // If that allocation failed...
+		Debug::println("allocation fail");
 		return false;
 	}
 
@@ -209,7 +209,7 @@ Cluster* SampleCache::getCluster(int clusterIndex) {
 }
 
 int SampleCache::getNumExistentClusters(int32_t thisWriteBytePos) {
-	int bytesPerSample = sample->numChannels * CACHE_BYTE_DEPTH;
+	int bytesPerSample = sample->numChannels * kCacheByteDepth;
 
 	// Remember, a cache Cluster actually gets (bytesPerSample - 1) extra usable bytes after it.
 	int numExistentClusters =

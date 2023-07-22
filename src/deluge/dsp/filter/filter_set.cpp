@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "definitions_cxx.hpp"
 #include "processing/sound/sound.h"
 #include "dsp/filter/filter_set.h"
 #include "util/functions.h"
@@ -199,7 +200,7 @@ inline q31_t FilterSet::doDriveLPFOnSample(q31_t input, FilterSetConfig* filterS
 	return d;
 }
 
-void FilterSet::renderLPFLong(q31_t* startSample, q31_t* endSample, FilterSetConfig* filterSetConfig, uint8_t lpfMode,
+void FilterSet::renderLPFLong(q31_t* startSample, q31_t* endSample, FilterSetConfig* filterSetConfig, LPFMode lpfMode,
                               int sampleIncrement, int extraSaturation, int extraSaturationDrive) {
 
 	// This should help get rid of crackling on start / stop - but doesn't
@@ -213,7 +214,7 @@ void FilterSet::renderLPFLong(q31_t* startSample, q31_t* endSample, FilterSetCon
 	}
 
 	// Half ladder
-	if (lpfMode == LPF_MODE_12DB) {
+	if (lpfMode == LPFMode::TRANSISTOR_12DB) {
 
 		q31_t* currentSample = startSample;
 		do {
@@ -247,7 +248,7 @@ void FilterSet::renderLPFLong(q31_t* startSample, q31_t* endSample, FilterSetCon
 	}
 
 	// Full ladder (regular)
-	else if (lpfMode == LPF_MODE_TRANSISTOR_24DB) {
+	else if (lpfMode == LPFMode::TRANSISTOR_24DB) {
 
 		// Only saturate if resonance is high enough
 		if (filterSetConfig->processedResonance
@@ -271,7 +272,7 @@ void FilterSet::renderLPFLong(q31_t* startSample, q31_t* endSample, FilterSetCon
 	}
 
 	// Full ladder (drive)
-	else if (lpfMode == LPF_MODE_TRANSISTOR_24DB_DRIVE) {
+	else if (lpfMode == LPFMode::TRANSISTOR_24DB_DRIVE) {
 
 		if (filterSetConfig->doOversampling) {
 			q31_t* currentSample = startSample;
@@ -309,7 +310,7 @@ void FilterSet::renderLPFLong(q31_t* startSample, q31_t* endSample, FilterSetCon
 			} while (currentSample < endSample);
 		}
 	}
-	else if (lpfMode == LPF_MODE_SVF) {
+	else if (lpfMode == LPFMode::SVF) {
 
 		q31_t* currentSample = startSample;
 		do {
@@ -339,26 +340,36 @@ void FilterSet::reset() {
 }
 
 SVF_outs SVFilter::doSVF(int32_t input, FilterSetConfig* filterSetConfig) {
-	q31_t high;
-	q31_t notch;
+	q31_t high = 0;
+	q31_t notch = 0;
+	q31_t lowi;
 	q31_t f = filterSetConfig->moveability;
-	//raw resonance is 0-2, e.g. 1 is 1073741824
-	q31_t q = filterSetConfig->lpfRawResonance;
-	f = add_saturation(f, (f >> 2)); //arbitrary to adjust range on gold knob
-	f = add_saturation(f, 26508640); //slightly under the cutoff for C0
-	//processed resonance is 2-rawresonance^2
-	//compensate for resonance by lowering input level
-	q31_t in = ONE_Q31 - filterSetConfig->processedResonance;
+	q31_t q = filterSetConfig->processedResonance;
+	q31_t in = filterSetConfig->SVFInputScale;
 
-	low = low + multiply_32x32_rshift32(f, band);
+	input = multiply_32x32_rshift32(in, input);
 
-	high = add_saturation((multiply_32x32_rshift32(input, in) << 1), 0 - low);
-	high = add_saturation(high, 0 - (multiply_32x32_rshift32(q, band) << 3));
-	band = multiply_32x32_rshift32(f, high) + band;
+	low = low + 2 * multiply_32x32_rshift32(band, f);
+	high = input - low;
+	high = high - 2 * multiply_32x32_rshift32(band, q);
+	band = 2 * multiply_32x32_rshift32(high, f) + band;
+	notch = high + low;
+
+	//saturate band feedback
+	band = getTanHUnknown(band, 3);
+
+	lowi = low;
+	//double sample to increase the cutoff frequency
+	low = low + 2 * multiply_32x32_rshift32(band, f);
+	high = input - low;
+	high = high - 2 * multiply_32x32_rshift32(band, q);
+	band = 2 * multiply_32x32_rshift32(high, f) + band;
 
 	//saturate band feedback
 	band = getTanHUnknown(band, 3);
 	notch = high + low;
-	SVF_outs result = {low, band, high, notch};
+
+	SVF_outs result = {(lowi) + (low), band, high, notch};
+
 	return result;
 }

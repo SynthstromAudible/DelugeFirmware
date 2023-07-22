@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "definitions_cxx.hpp"
 #include "gui/views/arranger_view.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
@@ -74,7 +75,7 @@
 #include "storage/flash_storage.h"
 #include "testing/hardware_testing.h"
 #include "hid/buttons.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "io/midi/midi_device_manager.h"
 #include "model/clip/instrument_clip.h"
 #include "storage/file_item.h"
@@ -136,7 +137,7 @@ uint16_t batteryMV;
 bool batteryLEDState = false;
 
 void batteryLEDBlink() {
-	setOutputState(BATTERY_LED_1, BATTERY_LED_2, batteryLEDState);
+	setOutputState(BATTERY_LED.port, BATTERY_LED.pin, batteryLEDState);
 	int blinkPeriod = ((int)batteryMV - 2630) * 3;
 	blinkPeriod = getMin(blinkPeriod, 500);
 	blinkPeriod = getMax(blinkPeriod, 60);
@@ -148,26 +149,26 @@ void inputRoutine() {
 	disk_timerproc(UI_MS_PER_REFRESH);
 
 	// Check if mono output cable plugged in
-	bool outputPluggedInL = readInput(LINE_OUT_DETECT_L_1, LINE_OUT_DETECT_L_2);
-	bool outputPluggedInR = readInput(LINE_OUT_DETECT_R_1, LINE_OUT_DETECT_R_2);
+	bool outputPluggedInL = readInput(LINE_OUT_DETECT_L.port, LINE_OUT_DETECT_L.pin);
+	bool outputPluggedInR = readInput(LINE_OUT_DETECT_R.port, LINE_OUT_DETECT_R.pin);
 
-	bool headphoneNow = readInput(HEADPHONE_DETECT_1, HEADPHONE_DETECT_2);
+	bool headphoneNow = readInput(HEADPHONE_DETECT.port, HEADPHONE_DETECT.pin);
 	if (headphoneNow != AudioEngine::headphonesPluggedIn) {
-		Uart::print("headphone ");
-		Uart::println(headphoneNow);
+		Debug::print("headphone ");
+		Debug::println(headphoneNow);
 		AudioEngine::headphonesPluggedIn = headphoneNow;
 	}
 
 	bool micNow = !readInput(7, 9);
 	if (micNow != AudioEngine::micPluggedIn) {
-		Uart::print("mic ");
-		Uart::println(micNow);
+		Debug::print("mic ");
+		Debug::println(micNow);
 		AudioEngine::micPluggedIn = micNow;
 	}
 
 	if (!ALLOW_SPAM_MODE) {
 		bool speakerOn = (!AudioEngine::headphonesPluggedIn && !outputPluggedInL && !outputPluggedInR);
-		setOutputState(SPEAKER_ENABLE_1, SPEAKER_ENABLE_2, speakerOn);
+		setOutputState(SPEAKER_ENABLE.port, SPEAKER_ENABLE.pin, speakerOn);
 	}
 
 	AudioEngine::renderInStereo =
@@ -175,8 +176,8 @@ void inputRoutine() {
 
 	bool lineInNow = readInput(6, 6);
 	if (lineInNow != AudioEngine::lineInPluggedIn) {
-		Uart::print("line in ");
-		Uart::println(lineInNow);
+		Debug::print("line in ");
+		Debug::println(lineInNow);
 		AudioEngine::lineInPluggedIn = lineInNow;
 	}
 
@@ -192,8 +193,8 @@ void inputRoutine() {
 		batteryMV =
 		    (voltageReadingLastTime)
 		    >> 15; // We only >> by 15 so that we intentionally double the value, because the incoming voltage is halved by a resistive divider already
-		//uartPrint("batt mV: ");
-		//uartPrintNumber(batteryMV);
+		//Debug::print("batt mV: ");
+		//Debug::println(batteryMV);
 
 		// See if we've reached threshold to change verdict on battery level
 
@@ -201,7 +202,7 @@ void inputRoutine() {
 			if (batteryMV > 2950) {
 makeBattLEDSolid:
 				batteryCurrentRegion = 1;
-				setOutputState(BATTERY_LED_1, BATTERY_LED_2, false);
+				setOutputState(BATTERY_LED.port, BATTERY_LED.pin, false);
 				uiTimerManager.unsetTimer(TIMER_BATT_LED_BLINK);
 			}
 		}
@@ -213,7 +214,7 @@ makeBattLEDSolid:
 
 			else if (batteryMV > 3300) {
 				batteryCurrentRegion = 2;
-				setOutputState(BATTERY_LED_1, BATTERY_LED_2, true);
+				setOutputState(BATTERY_LED.port, BATTERY_LED.pin, true);
 				uiTimerManager.unsetTimer(TIMER_BATT_LED_BLINK);
 			}
 		}
@@ -266,9 +267,9 @@ bool readButtonsAndPads() {
 
 	/*
 	if (!inSDRoutine && !closedPeripheral && !anythingInitiallyAttachedAsUSBHost && AudioEngine::audioSampleTimer >= (44100 << 1)) {
-		Uart::println("closing peripheral");
+		Debug::println("closing peripheral");
 		closeUSBPeripheral();
-		Uart::println("switching back to host");
+		Debug::println("switching back to host");
 		openUSBHost();
 		closedPeripheral = true;
 	}
@@ -279,7 +280,7 @@ bool readButtonsAndPads() {
 			return false;
 		}
 		else {
-			Uart::println("got to end of sd routine");
+			Debug::println("got to end of sd routine");
 			waitingForSDRoutineToEnd = false;
 		}
 	}
@@ -298,13 +299,13 @@ bool readButtonsAndPads() {
 	if (!inSDRoutine && (int32_t)(AudioEngine::audioSampleTimer - timeNextSDTestAction) >= 0) {
 		if (playbackHandler.playbackState) {
 
-			Uart::println("");
-			Uart::println("undoing");
+			Debug::println("");
+			Debug::println("undoing");
 			Buttons::buttonAction(hid::button::BACK, true, sdRoutineLock);
 		}
 		else {
-			Uart::println("");
-			Uart::println("beginning playback");
+			Debug::println("");
+			Debug::println("beginning playback");
 			Buttons::buttonAction(hid::button::PLAY, true, sdRoutineLock);
 		}
 
@@ -314,16 +315,16 @@ bool readButtonsAndPads() {
 	}
 #endif
 
-	uint8_t value;
+	PICMessage value{0};
 	bool anything = uartGetChar(UART_ITEM_PIC, (char*)&value);
 	if (anything) {
 
-		if (value < PAD_AND_BUTTON_MESSAGES_END) {
+		if (value < kPadAndButtonMessagesEnd) {
 
 			int thisPadPressIsOn = nextPadPressIsOn;
 			nextPadPressIsOn = USE_DEFAULT_VELOCITY;
 
-			int result;
+			ActionResult result;
 			if (Pad::isPad(value)) {
 				auto p = Pad(value);
 				result = matrixDriver.padAction(p.x, p.y, thisPadPressIsOn);
@@ -336,9 +337,9 @@ bool readButtonsAndPads() {
 				result = Buttons::buttonAction(b, thisPadPressIsOn, sdRoutineLock);
 			}
 
-			if (result == ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE) {
+			if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
 				nextPadPressIsOn = thisPadPressIsOn;
-				Uart::println("putCharBack ---------");
+				Debug::println("putCharBack ---------");
 				uartPutCharBack(UART_ITEM_PIC);
 				waitingForSDRoutineToEnd = true;
 				return false;
@@ -349,7 +350,7 @@ bool readButtonsAndPads() {
 		}
 
 		// "No presses happening" message
-		else if (value == NO_PRESSES_HAPPENING_MESSAGE) {
+		else if (value == PICMessage::NO_PRESSES_HAPPENING) {
 			if (!sdRoutineLock) {
 				matrixDriver.noPressesHappening(sdRoutineLock);
 				Buttons::noPressesHappening(sdRoutineLock);
@@ -407,7 +408,7 @@ bool readButtonsAndPads() {
 #if LAUNCH_CLIP_TEST_ENABLED
 	if (playbackHandler.playbackState && (int32_t)(audioDriver.audioSampleTimer - timeNextSDTestAction) >= 0) {
 		Buttons::buttonAction(SHIFT, true, false);
-		matrixDriver.padAction(displayWidth, getRandom255() & 7, true, inSDRoutine);
+		matrixDriver.padAction(kDisplayWidth, getRandom255() & 7, true, inSDRoutine);
 		Buttons::buttonAction(SHIFT, false, false);
 		int random = getRandom255();
 		timeNextSDTestAction = audioDriver.audioSampleTimer + ((random) << 4); // * 44 / 13;
@@ -530,32 +531,32 @@ extern "C" int deluge_main(void) {
 
 	currentPlaybackMode = &session;
 
-	setOutputState(BATTERY_LED_1, BATTERY_LED_2, 1); // Switch it off (1 is off for open-drain)
-	setPinAsOutput(BATTERY_LED_1, BATTERY_LED_2);    // Battery LED control
+	setOutputState(BATTERY_LED.port, BATTERY_LED.pin, 1); // Switch it off (1 is off for open-drain)
+	setPinAsOutput(BATTERY_LED.port, BATTERY_LED.pin);    // Battery LED control
 
-	setOutputState(SYNCED_LED_PORT, SYNCED_LED_PIN, 0); // Switch it off
-	setPinAsOutput(SYNCED_LED_PORT, SYNCED_LED_PIN);    // Synced LED
+	setOutputState(SYNCED_LED.port, SYNCED_LED.pin, 0); // Switch it off
+	setPinAsOutput(SYNCED_LED.port, SYNCED_LED.pin);    // Synced LED
 
 	// Codec control
 	setPinAsOutput(6, 12);
 	setOutputState(6, 12, 0); // Switch it off
 
 	// Speaker / amp control
-	setPinAsOutput(SPEAKER_ENABLE_1, SPEAKER_ENABLE_2);
-	setOutputState(SPEAKER_ENABLE_1, SPEAKER_ENABLE_2, 0); // Switch it off
+	setPinAsOutput(SPEAKER_ENABLE.port, SPEAKER_ENABLE.pin);
+	setOutputState(SPEAKER_ENABLE.port, SPEAKER_ENABLE.pin, 0); // Switch it off
 
-	setPinAsInput(HEADPHONE_DETECT_1, HEADPHONE_DETECT_2); // Headphone detect
-	setPinAsInput(6, 6);                                   // Line in detect
-	setPinAsInput(7, 9);                                   // Mic detect
+	setPinAsInput(HEADPHONE_DETECT.port, HEADPHONE_DETECT.pin); // Headphone detect
+	setPinAsInput(6, 6);                                        // Line in detect
+	setPinAsInput(7, 9);                                        // Mic detect
 
 	setPinMux(1, 8 + SYS_VOLT_SENSE_PIN, 1); // Analog input for voltage sense
 
 	// Trigger clock input
-	setPinMux(ANALOG_CLOCK_IN_1, ANALOG_CLOCK_IN_2, 2);
+	setPinMux(ANALOG_CLOCK_IN.port, ANALOG_CLOCK_IN.pin, 2);
 
 	// Line out detect pins
-	setPinAsInput(LINE_OUT_DETECT_L_1, LINE_OUT_DETECT_L_2);
-	setPinAsInput(LINE_OUT_DETECT_R_1, LINE_OUT_DETECT_R_2);
+	setPinAsInput(LINE_OUT_DETECT_L.port, LINE_OUT_DETECT_L.pin);
+	setPinAsInput(LINE_OUT_DETECT_R.port, LINE_OUT_DETECT_R.pin);
 
 	// SPI for CV
 	R_RSPI_Create(
@@ -652,8 +653,8 @@ extern "C" int deluge_main(void) {
 	setPinMux(4, 7, 2);
 	initSPIBSC(); // This will run the audio routine! Ideally, have external RAM set up by now.
 
-	bufferPICUart(245);                          // Request PIC firmware version
-	bufferPICUart(RESEND_BUTTON_STATES_MESSAGE); // Tell PIC to re-send button states
+	bufferPICUart(245);                              // Request PIC firmware version
+	bufferPICUart(PICMessage::RESEND_BUTTON_STATES); // Tell PIC to re-send button states
 	uartFlushIfNotSending(UART_ITEM_PIC_INDICATORS);
 
 	// Check if the user is holding down the select knob to do a factory reset
@@ -672,8 +673,8 @@ extern "C" int deluge_main(void) {
 			readingFirmwareVersion = false;
 			picFirmwareVersion = value & 127;
 			picSaysOLEDPresent = value & 128;
-			Uart::print("PIC firmware version reported: ");
-			Uart::println(value);
+			Debug::print("PIC firmware version reported: ");
+			Debug::println(value);
 		}
 		else {
 			if (value == 245) {
@@ -715,7 +716,7 @@ resetSettings:
 
 	// If nothing was plugged in to us as host, we'll go peripheral
 	if (!anythingInitiallyAttachedAsUSBHost) {
-		Uart::println("switching from host to peripheral");
+		Debug::println("switching from host to peripheral");
 		closeUSBHost();
 		openUSBPeripheral();
 	}
@@ -806,7 +807,7 @@ resetSettings:
 
 	uiTimerManager.setTimer(TIMER_GRAPHICS_ROUTINE, 50);
 
-	Uart::println("going into main loop");
+	Debug::println("going into main loop");
 	sdRoutineLock = false; // Allow SD routine to start happening
 
 	while (1) {
@@ -1078,11 +1079,11 @@ void spamMode() {
 				if (!sdFileCurrentlyOpen) {
 					result = f_open(&fil, "written.txt", FA_CREATE_ALWAYS | FA_WRITE);
 					if (result) {
-						//Uart::println("couldn't create");
+						//Debug::println("couldn't create");
 					}
 					else {
 						if (spamStates[SPAM_MIDI])
-							Uart::println("writing");
+							Debug::println("writing");
 						sdFileCurrentlyOpen = true;
 					}
 				}
@@ -1092,13 +1093,13 @@ void spamMode() {
 					UINT bytesWritten = 0;
 					char thisByte = getRandom255();
 					result = f_write(&fil, &thisByte, 1, &bytesWritten);
-					//if (result) Uart::println("couldn't write");
+					//if (result) Debug::println("couldn't write");
 
 					sdTotalBytesWritten++;
 
 					if (sdTotalBytesWritten > 1000 * 5) {
 						f_close(&fil);
-						//Uart::println("finished writing");
+						//Debug::println("finished writing");
 						sdReading = true;
 						sdFileCurrentlyOpen = false;
 					}
@@ -1113,12 +1114,12 @@ void spamMode() {
 
 					result = f_open(&fil, "written.txt", FA_READ);
 					if (result) {
-						//Uart::println("file not found");
+						//Debug::println("file not found");
 					}
 
 					else {
 						if (spamStates[SPAM_MIDI])
-							Uart::println("reading");
+							Debug::println("reading");
 						sdFileCurrentlyOpen = true;
 					}
 				}
@@ -1132,7 +1133,7 @@ void spamMode() {
 
 					if (bytesRead <= 0) {
 						f_close(&fil);
-						//Uart::println("finished file");
+						//Debug::println("finished file");
 						sdReading = false;
 						sdFileCurrentlyOpen = false;
 						sdTotalBytesWritten = 0;
@@ -1147,14 +1148,14 @@ void spamMode() {
 			if (timeSince >= 5000) {
 				timeLastPIC = MTU2.TCNT_0;
 
-				Uart::putChar(UART_CHANNEL_PIC, lastCol + 1);
+				Debug::putChar(UART_CHANNEL_PIC, lastCol + 1);
 				for (int i = 0; i < 16; i++) {
 					int whichColour = getRandom255() % 3;
 					for (int colour = 0; colour < 3; colour++) {
 						if (colour == whichColour && (getRandom255() % 3) == 0)
-							Uart::putChar(UART_CHANNEL_PIC, getRandom255());
+							Debug::putChar(UART_CHANNEL_PIC, getRandom255());
 						else
-							Uart::putChar(UART_CHANNEL_PIC, 0);
+							Debug::putChar(UART_CHANNEL_PIC, 0);
 					}
 				}
 
@@ -1221,7 +1222,7 @@ void spamMode() {
 
 				// Disable
 				if (!spamStates[currentSpamThing]) {
-					Uart::putChar(UART_CHANNEL_PIC, 227);
+					Debug::putChar(UART_CHANNEL_PIC, 227);
 				}
 
 				// Enable

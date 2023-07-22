@@ -16,33 +16,23 @@
 */
 
 #include "storage/audio/audio_file.h"
+#include "definitions_cxx.hpp"
 #include "storage/audio/audio_file_manager.h"
 #include "util/functions.h"
 #include <string.h>
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "storage/audio/audio_file_reader.h"
 #include "model/sample/sample.h"
 #include "storage/wave_table/wave_table.h"
 #include "hid/display/numeric_driver.h"
 #include "memory/general_memory_allocator.h"
 
-extern "C" {
-#include "drivers/uart/uart.h"
-}
-
-AudioFile::AudioFile(int newType) : type(newType) {
-	numReasonsToBeLoaded = 0;
-}
-
-AudioFile::~AudioFile() {
-}
-
 #define MAX_NUM_MARKERS 8
 
 int AudioFile::loadFile(AudioFileReader* reader, bool isAiff, bool makeWaveTableWorkAtAllCosts) {
 
 	// AIFF files will only be used for WaveTables if the user insists
-	if (type == AUDIO_FILE_TYPE_WAVETABLE && !makeWaveTableWorkAtAllCosts && isAiff) {
+	if (type == AudioFileType::WAVETABLE && !makeWaveTableWorkAtAllCosts && isAiff) {
 		return ERROR_FILE_NOT_LOADABLE_AS_WAVETABLE;
 	}
 
@@ -105,7 +95,7 @@ int AudioFile::loadFile(AudioFileReader* reader, bool isAiff, bool makeWaveTable
 				foundDataChunk = true;
 				audioDataStartPosBytes = bytePosOfThisChunkData;
 				audioDataLengthBytes = bytesCurrentChunkNotRoundedUp;
-				if (type == AUDIO_FILE_TYPE_WAVETABLE) {
+				if (type == AudioFileType::WAVETABLE) {
 doSetupWaveTable:
 					if (byteDepth == 255) {
 						return ERROR_FILE_UNSUPPORTED; // If haven't found "fmt " tag yet, we don't know the bit depth or anything. Shouldn't happen.
@@ -176,7 +166,7 @@ doSetupWaveTable:
 					return ERROR_FILE_UNSUPPORTED;
 				}
 
-				if (type == AUDIO_FILE_TYPE_SAMPLE) {
+				if (type == AudioFileType::SAMPLE) {
 					((Sample*)this)->byteDepth = byteDepth;
 					((Sample*)this)->rawDataFormat = rawDataFormat;
 
@@ -192,7 +182,7 @@ doSetupWaveTable:
 
 			// Sample chunk - "smpl"
 			case charsToIntegerConstant('s', 'm', 'p', 'l'): {
-				if (type == AUDIO_FILE_TYPE_SAMPLE) {
+				if (type == AudioFileType::SAMPLE) {
 
 					uint32_t data[9];
 					error = reader->readBytes((char*)data, 4 * 9);
@@ -209,19 +199,19 @@ doSetupWaveTable:
 					}
 
 					/*
-					Uart::print("unity note: ");
-					Uart::println(midiNote);
+					Debug::print("unity note: ");
+					Debug::println(midiNote);
 
-					Uart::print("num loops: ");
-					Uart::println(numLoops);
+					Debug::print("num loops: ");
+					Debug::println(numLoops);
 					*/
 
 					if (numLoops == 1) {
 
 						// Go through loops
 						for (int l = 0; l < numLoops; l++) {
-							//Uart::print("loop ");
-							//Uart::println(l);
+							//Debug::print("loop ");
+							//Debug::println(l);
 
 							uint32_t loopData[6];
 							error = reader->readBytes((char*)loopData, 4 * 6);
@@ -229,27 +219,27 @@ doSetupWaveTable:
 								goto finishedWhileLoop;
 							}
 
-							//Uart::print("start: ");
-							//Uart::println(loopData[2]);
+							//Debug::print("start: ");
+							//Debug::println(loopData[2]);
 							((Sample*)this)->fileLoopStartSamples = loopData[2];
 
-							//Uart::print("end: ");
-							//Uart::println(loopData[3]);
+							//Debug::print("end: ");
+							//Debug::println(loopData[3]);
 							((Sample*)this)->fileLoopEndSamples = loopData[3];
 
-							//Uart::print("play count: ");
-							//Uart::println(loopData[5]);
+							//Debug::print("play count: ");
+							//Debug::println(loopData[5]);
 						}
 					}
 
-					Uart::println("");
+					Debug::println("");
 				}
 				break;
 			}
 
 			// Instrument chunk - "inst"
 			case charsToIntegerConstant('i', 'n', 's', 't'): {
-				if (type == AUDIO_FILE_TYPE_SAMPLE) {
+				if (type == AudioFileType::SAMPLE) {
 
 					uint8_t data[7];
 					error = reader->readBytes((char*)data, 7);
@@ -263,8 +253,8 @@ doSetupWaveTable:
 						((Sample*)this)->midiNoteFromFile = (float)midiNote - (float)fineTune * 0.01;
 					}
 
-					Uart::print("unshifted note: ");
-					Uart::println(midiNote);
+					Debug::print("unshifted note: ");
+					Debug::println(midiNote);
 				}
 				break;
 			}
@@ -283,8 +273,8 @@ doSetupWaveTable:
 
 					if (number >= 1) {
 						waveTableCycleSize = number;
-						//uartPrint("clm tag num samples per cycle: ");
-						//uartPrintNumber(waveTableNumSamplesPerCycle);
+						//Debug::print("clm tag num samples per cycle: ");
+						//Debug::println(waveTableNumSamplesPerCycle);
 					}
 				}
 
@@ -313,7 +303,7 @@ doSetupWaveTable:
 				// If we're here, we found the data! Take note of where it starts
 				audioDataStartPosBytes = reader->getBytePos() + 4 + offset;
 
-				if (type == AUDIO_FILE_TYPE_WAVETABLE) {
+				if (type == AudioFileType::WAVETABLE) {
 					goto doSetupWaveTable;
 				}
 				break;
@@ -353,7 +343,7 @@ doSetupWaveTable:
 					rawDataFormat = RAW_DATA_ENDIANNESS_WRONG_16 + byteDepth - 2;
 				}
 
-				if (type == AUDIO_FILE_TYPE_SAMPLE) {
+				if (type == AudioFileType::SAMPLE) {
 					((Sample*)this)->byteDepth = byteDepth;
 
 					// Sample rate
@@ -375,8 +365,8 @@ doSetupWaveTable:
 				}
 				numMarkers = swapEndianness2x16(numMarkers);
 
-				Uart::print("numMarkers: ");
-				Uart::println(numMarkers);
+				Debug::print("numMarkers: ");
+				Debug::println(numMarkers);
 
 				if (numMarkers > MAX_NUM_MARKERS) {
 					numMarkers = MAX_NUM_MARKERS;
@@ -390,9 +380,9 @@ doSetupWaveTable:
 					}
 					markerIDs[m] = swapEndianness2x16(markerId);
 
-					Uart::println("");
-					Uart::print("markerId: ");
-					Uart::println(markerIDs[m]);
+					Debug::println("");
+					Debug::print("markerId: ");
+					Debug::println(markerIDs[m]);
 
 					uint32_t markerPos;
 					error = reader->readBytes((char*)&markerPos, 4);
@@ -401,8 +391,8 @@ doSetupWaveTable:
 					}
 					markerPositions[m] = swapEndianness32(markerPos);
 
-					Uart::print("markerPos: ");
-					Uart::println(markerPositions[m]);
+					Debug::print("markerPos: ");
+					Debug::println(markerPositions[m]);
 
 					uint8_t stringLength;
 					error = reader->readBytes((char*)&stringLength, 1);
@@ -419,7 +409,7 @@ doSetupWaveTable:
 
 			// INST
 			case charsToIntegerConstant('I', 'N', 'S', 'T'): {
-				if (type == AUDIO_FILE_TYPE_SAMPLE) {
+				if (type == AudioFileType::SAMPLE) {
 					uint8_t data[8];
 					error = reader->readBytes((char*)data, 8);
 					if (error) {
@@ -430,14 +420,14 @@ doSetupWaveTable:
 					int8_t fineTune = data[1];
 					if ((midiNote || fineTune) && midiNote < 128) {
 						((Sample*)this)->midiNoteFromFile = (float)midiNote - (float)fineTune * 0.01;
-						//Uart::print("unshifted note: ");
-						//Uart::printlnfloat(newSample->midiNoteFromFile);
+						//Debug::print("unshifted note: ");
+						//Debug::printlnfloat(newSample->midiNoteFromFile);
 					}
 
 					//for (int l = 0; l < 2; l++) {
 
-					//if (l == 0) Uart::println("sustain loop:");
-					//else Uart::println("release loop:");
+					//if (l == 0) Debug::println("sustain loop:");
+					//else Debug::println("release loop:");
 
 					// Just read the sustain loop, which is first
 
@@ -447,16 +437,16 @@ doSetupWaveTable:
 						break;
 					}
 
-					//Uart::print("play mode: ");
-					//Uart::println(swapEndianness2x16(loopData[0]));
+					//Debug::print("play mode: ");
+					//Debug::println(swapEndianness2x16(loopData[0]));
 
 					sustainLoopBeginMarkerId = swapEndianness2x16(loopData[1]);
-					//Uart::print("begin marker id: ");
-					//Uart::println(sustainLoopBeginMarkerId);
+					//Debug::print("begin marker id: ");
+					//Debug::println(sustainLoopBeginMarkerId);
 
 					sustainLoopEndMarkerId = swapEndianness2x16(loopData[2]);
-					//Uart::print("end marker id: ");
-					//Uart::println(sustainLoopEndMarkerId);
+					//Debug::print("end marker id: ");
+					//Debug::println(sustainLoopEndMarkerId);
 					//}
 				}
 				break;
@@ -473,7 +463,7 @@ finishedWhileLoop:
 		return ERROR_FILE_CORRUPTED;
 	}
 
-	if (type == AUDIO_FILE_TYPE_SAMPLE) {
+	if (type == AudioFileType::SAMPLE) {
 
 		if (isAiff) {
 			((Sample*)this)->rawDataFormat = rawDataFormat;

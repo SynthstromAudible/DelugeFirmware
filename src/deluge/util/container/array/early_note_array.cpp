@@ -16,7 +16,7 @@
 */
 
 #include "util/container/array/early_note_array.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 
 EarlyNoteArray::EarlyNoteArray() : OrderedResizeableArray(sizeof(EarlyNote), 16) {
 }

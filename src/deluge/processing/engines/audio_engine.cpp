@@ -22,7 +22,7 @@
 #include "gui/ui/browser/sample_browser.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "util/functions.h"
 #include "hid/display/numeric_driver.h"
 #include "gui/ui/audio_recorder.h"
@@ -49,10 +49,11 @@
 #include "processing/metronome/metronome.h"
 #include "dsp/master_compressor/master_compressor.h"
 #include "model/voice/voice_vector.h"
-#include "definitions.h"
-#include "io/uart/uart.h"
+#include "definitions_cxx.hpp"
+#include "io/debug/print.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "modulation/params/param_set.h"
+#include "util/misc.h"
 
 #if AUTOMATED_TESTER_ENABLED
 #include "testing/automated_tester.h"
@@ -89,7 +90,7 @@ extern "C" uint32_t getAudioSampleTimerMS() {
 	return AudioEngine::audioSampleTimer / 44.1;
 }
 
-int16_t zeroMPEValues[NUM_EXPRESSION_DIMENSIONS] = {0, 0, 0};
+int16_t zeroMPEValues[kNumExpressionDimensions] = {0, 0, 0};
 
 namespace AudioEngine {
 
@@ -136,7 +137,7 @@ uint32_t i2sRXBufferPos;
 bool headphonesPluggedIn;
 bool micPluggedIn;
 bool lineInPluggedIn;
-uint8_t inputMonitoringMode = INPUT_MONITORING_SMART;
+InputMonitoringMode inputMonitoringMode = InputMonitoringMode::SMART;
 bool routineBeenCalled;
 uint8_t numHopsEndedThisRoutineCall;
 
@@ -162,14 +163,14 @@ int monitoringAction;
 
 uint32_t saddr;
 
-VoiceSample voiceSamples[NUM_VOICE_SAMPLES_STATIC] = {};
+VoiceSample voiceSamples[kNumVoiceSamplesStatic] = {};
 VoiceSample* firstUnassignedVoiceSample = voiceSamples;
 
-TimeStretcher timeStretchers[NUM_TIME_STRETCHERS_STATIC] = {};
+TimeStretcher timeStretchers[kNumTimeStretchersStatic] = {};
 TimeStretcher* firstUnassignedTimeStretcher = timeStretchers;
 
 // Hmm, I forgot this was still being used. It's not a great way of doing things... wait does this still actually get used? No?
-Voice staticVoices[NUM_VOICES_STATIC] = {};
+Voice staticVoices[kNumVoicesStatic] = {};
 Voice* firstUnassignedVoice;
 
 // You must set up dynamic memory allocation before calling this, because of its call to setupWithPatching()
@@ -192,16 +193,16 @@ void init() {
 
 	sampleForPreview->sideChainSendLevel = 2147483647;
 
-	for (int i = 0; i < NUM_VOICE_SAMPLES_STATIC; i++) {
-		voiceSamples[i].nextUnassigned = (i == NUM_VOICE_SAMPLES_STATIC - 1) ? NULL : &voiceSamples[i + 1];
+	for (int i = 0; i < kNumVoiceSamplesStatic; i++) {
+		voiceSamples[i].nextUnassigned = (i == kNumVoiceSamplesStatic - 1) ? NULL : &voiceSamples[i + 1];
 	}
 
-	for (int i = 0; i < NUM_TIME_STRETCHERS_STATIC; i++) {
-		timeStretchers[i].nextUnassigned = (i == NUM_TIME_STRETCHERS_STATIC - 1) ? NULL : &timeStretchers[i + 1];
+	for (int i = 0; i < kNumTimeStretchersStatic; i++) {
+		timeStretchers[i].nextUnassigned = (i == kNumTimeStretchersStatic - 1) ? NULL : &timeStretchers[i + 1];
 	}
 
-	for (int i = 0; i < NUM_VOICES_STATIC; i++) {
-		staticVoices[i].nextUnassigned = (i == NUM_VOICES_STATIC - 1) ? NULL : &staticVoices[i + 1];
+	for (int i = 0; i < kNumVoicesStatic; i++) {
+		staticVoices[i].nextUnassigned = (i == kNumVoicesStatic - 1) ? NULL : &staticVoices[i + 1];
 	}
 
 	i2sTXBufferPos = (uint32_t)getTxBufferStart();
@@ -226,7 +227,7 @@ void unassignAllVoices(bool deletingSong) {
 	// But if there's no currentSong, that's fine - it's already been deleted, and this has already been called for it before then.
 	if (currentSong) {
 		for (Output* output = currentSong->firstOutput; output; output = output->next) {
-			if (output->type == OUTPUT_TYPE_AUDIO) {
+			if (output->type == InstrumentType::AUDIO) {
 				((AudioOutput*)output)->cutAllSound();
 			}
 		}
@@ -266,7 +267,7 @@ Voice* cullVoice(bool saveVoice, bool justDoFastRelease) {
 		    "E196"); // ronronsen got!! https://forums.synthstrom.com/discussion/4097/beta-4-0-0-beta-1-e196-by-loading-wavetable-osc#latest
 
 		if (justDoFastRelease) {
-			if (bestVoice->envelopes[0].state < ENVELOPE_STAGE_FAST_RELEASE) {
+			if (bestVoice->envelopes[0].state < EnvelopeStage::FAST_RELEASE) {
 				bool stillGoing = bestVoice->doFastRelease(65536);
 
 				if (!stillGoing) {
@@ -274,8 +275,8 @@ Voice* cullVoice(bool saveVoice, bool justDoFastRelease) {
 				}
 
 #if ALPHA_OR_BETA_VERSION
-				Uart::print("soft-culled 1 voice. voices now: ");
-				Uart::println(getNumVoices());
+				Debug::print("soft-culled 1 voice. voices now: ");
+				Debug::println(getNumVoices());
 #endif
 			}
 			// Otherwise, it's already fast-releasing, so just leave it
@@ -340,7 +341,7 @@ void routine() {
 	bool finishedOutputting = doSomeOutputting();
 	if (!finishedOutputting) {
 		logAction("AudioDriver::still outputting");
-		//Uart::println("still waiting");
+		//Debug::println("still waiting");
 		return;
 	}
 
@@ -426,13 +427,13 @@ void routine() {
 				}
 
 #if ALPHA_OR_BETA_VERSION
-				Uart::print("culled ");
-				Uart::print(numToCull);
-				Uart::print(" voices. numSamples: ");
-				Uart::print(numSamples);
+				Debug::print("culled ");
+				Debug::print(numToCull);
+				Debug::print(" voices. numSamples: ");
+				Debug::print(numSamples);
 
-				Uart::print(". voices left: ");
-				Uart::println(getNumVoices());
+				Debug::print(". voices left: ");
+				Debug::println(getNumVoices());
 #endif
 			}
 
@@ -444,8 +445,8 @@ void routine() {
 		else {
 			int numSamplesOverLimit = numSamples - numSamplesLimit;
 			if (numSamplesOverLimit >= 0) {
-				Uart::print("Won't cull, but numSamples is ");
-				Uart::println(numSamples);
+				Debug::print("Won't cull, but numSamples is ");
+				Debug::println(numSamples);
 			}
 		}
 	}
@@ -459,8 +460,8 @@ void routine() {
 				cpuDireness = 0;
 			}
 			else {
-				//Uart::print("direness: ");
-				//Uart::println(cpuDireness);
+				//Debug::print("direness: ");
+				//Debug::println(cpuDireness);
 			}
 		}
 	}
@@ -602,10 +603,10 @@ startAgain:
 
 		usageTimes[REPORT_AVERAGE_NUM - 1] = value;
 
-		Uart::print("uS per ");
-		Uart::print(NUM_SAMPLES_FOR_CPU_USAGE_REPORT * 10);
-		Uart::print(" samples: ");
-		Uart::println(total / REPORT_AVERAGE_NUM);
+		Debug::print("uS per ");
+		Debug::print(NUM_SAMPLES_FOR_CPU_USAGE_REPORT * 10);
+		Debug::print(" samples: ");
+		Debug::println(total / REPORT_AVERAGE_NUM);
 	}
 #endif
 
@@ -688,8 +689,8 @@ startAgain:
 	}
 
 	// LPF and stutter for song (must happen after reverb mixed in, which is why it's happening all the way out here
-	masterVolumeAdjustmentL = 167763968; //getParamNeutralValue(PARAM_GLOBAL_VOLUME_POST_FX);
-	masterVolumeAdjustmentR = 167763968; //getParamNeutralValue(PARAM_GLOBAL_VOLUME_POST_FX);
+	masterVolumeAdjustmentL = 167763968; //getParamNeutralValue(Param::Global::VOLUME_POST_FX);
+	masterVolumeAdjustmentR = 167763968; //getParamNeutralValue(Param::Global::VOLUME_POST_FX);
 	// 167763968 is 134217728 made a bit bigger so that default filter resonance doesn't reduce volume overall
 
 	if (currentSong) {
@@ -706,7 +707,7 @@ startAgain:
 
 		// And we do panning for song here too - must be post reverb, and we had to do a volume adjustment below anyway
 		int32_t pan =
-		    currentSong->paramManager.getUnpatchedParamSet()->getValue(PARAM_UNPATCHED_GLOBALEFFECTABLE_PAN) >> 1;
+		    currentSong->paramManager.getUnpatchedParamSet()->getValue(Param::Unpatched::GlobalEffectable::PAN) >> 1;
 
 		if (pan != 0) {
 			// Set up panning
@@ -729,13 +730,13 @@ startAgain:
 
 	// Monitoring setup
 	doMonitoring = false;
-	if (audioRecorder.recordingSource == AUDIO_INPUT_CHANNEL_STEREO
-	    || audioRecorder.recordingSource == AUDIO_INPUT_CHANNEL_LEFT) {
-		if (inputMonitoringMode == INPUT_MONITORING_SMART) {
+	if (audioRecorder.recordingSource == AudioInputChannel::STEREO
+	    || audioRecorder.recordingSource == AudioInputChannel::LEFT) {
+		if (inputMonitoringMode == InputMonitoringMode::SMART) {
 			doMonitoring = (lineInPluggedIn || headphonesPluggedIn);
 		}
 		else {
-			doMonitoring = (inputMonitoringMode == INPUT_MONITORING_ON);
+			doMonitoring = (inputMonitoringMode == InputMonitoringMode::ON);
 		}
 	}
 
@@ -768,10 +769,10 @@ startAgain:
 
 	/*
     if (!getRandom255()) {
-    	Uart::print("samples: ");
-        Uart::print(numSamples);
-    	Uart::print(". voices: ");
-    	Uart::println(getNumVoices());
+    	Debug::print("samples: ");
+        Debug::print(numSamples);
+    	Debug::print(". voices: ");
+    	Debug::println(getNumVoices());
     }
 */
 
@@ -830,17 +831,17 @@ startAgain:
 	uint16_t timePassedA = (uint16_t)currentTime - lastRoutineTime;
 	uint32_t timePassedUSA = fastTimerCountToUS(timePassedA);
 	if (timePassedUSA > storageManager.devVarA * 10) {
-		Uart::println("");
+		Debug::println("");
 		for (int i = 0; i < numAudioLogItems; i++) {
 			uint16_t timePassed = (uint16_t)audioLogTimes[i] - lastRoutineTime;
 			uint32_t timePassedUS = fastTimerCountToUS(timePassed);
-			Uart::print(timePassedUS);
-			Uart::print(": ");
-			Uart::println(audioLogStrings[i]);
+			Debug::print(timePassedUS);
+			Debug::print(": ");
+			Debug::println(audioLogStrings[i]);
 		}
 
-		Uart::print(timePassedUSA);
-		Uart::println(": end");
+		Debug::print(timePassedUSA);
+		Debug::println(": end");
 	}
 
 	lastRoutineTime = *TCNT[TIMER_SYSTEM_FAST];
@@ -980,7 +981,7 @@ bool doSomeOutputting() {
 			}
 
 			// Recording final output
-			if (recorder->mode == AUDIO_INPUT_CHANNEL_OUTPUT) {
+			if (recorder->mode == AudioInputChannel::OUTPUT) {
 				recorder->feedAudio((int32_t*)outputBufferForResampling, numSamplesOutputted);
 			}
 
@@ -999,7 +1000,7 @@ bool doSomeOutputting() {
 				// We also enforce a firm limit on how much to feed, to keep things sane. Any remaining will get done next time.
 				numSamplesFeedingNow = getMin(numSamplesFeedingNow, 256);
 
-				if (recorder->mode == AUDIO_INPUT_CHANNEL_RIGHT) {
+				if (recorder->mode == AudioInputChannel::RIGHT) {
 					streamToRecord++;
 				}
 
@@ -1051,7 +1052,7 @@ void updateReverbParams() {
 		// Set the initial "highest amount found" to that of the song itself, which can't be affected by sidechain. If nothing found with more reverb,
 		// then we don't want the reverb affected by sidechain
 		int32_t highestReverbAmountFound = currentSong->paramManager.getUnpatchedParamSet()->getValue(
-		    PARAM_UNPATCHED_GLOBALEFFECTABLE_REVERB_SEND_AMOUNT);
+		    Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT);
 
 		for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
 			thisOutput->getThingWithMostReverb(&soundWithMostReverb, &paramManagerWithMostReverb,
@@ -1064,14 +1065,14 @@ void updateReverbParams() {
 			modControllable = soundWithMostReverb;
 
 			ParamDescriptor paramDescriptor;
-			paramDescriptor.setToHaveParamOnly(PARAM_GLOBAL_VOLUME_POST_REVERB_SEND);
+			paramDescriptor.setToHaveParamOnly(Param::Global::VOLUME_POST_REVERB_SEND);
 
 			PatchCableSet* patchCableSet = paramManagerWithMostReverb->getPatchCableSet();
 
-			int whichCable = patchCableSet->getPatchCableIndex(PATCH_SOURCE_COMPRESSOR, paramDescriptor);
+			int whichCable = patchCableSet->getPatchCableIndex(PatchSource::COMPRESSOR, paramDescriptor);
 			if (whichCable != 255) {
 				reverbCompressorVolumeInEffect =
-				    patchCableSet->getModifiedPatchCableAmount(whichCable, PARAM_GLOBAL_VOLUME_POST_REVERB_SEND);
+				    patchCableSet->getModifiedPatchCableAmount(whichCable, Param::Global::VOLUME_POST_REVERB_SEND);
 			}
 			else {
 				reverbCompressorVolumeInEffect = 0;
@@ -1086,7 +1087,7 @@ void updateReverbParams() {
 
 compressorFound:
 			reverbCompressorShapeInEffect =
-			    paramManagerWithMostReverb->getUnpatchedParamSet()->getValue(PARAM_UNPATCHED_COMPRESSOR_SHAPE);
+			    paramManagerWithMostReverb->getUnpatchedParamSet()->getValue(Param::Unpatched::COMPRESSOR_SHAPE);
 			reverbCompressor.attack = modControllable->compressor.attack;
 			reverbCompressor.release = modControllable->compressor.release;
 			reverbCompressor.syncLevel = modControllable->compressor.syncLevel;
@@ -1126,7 +1127,7 @@ void previewSample(String* path, FilePointer* filePointer, bool shouldActuallySo
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithThreeMainThings* modelStack = setupModelStackWithThreeMainThingsButNoNoteRow(
 		    modelStackMemory, currentSong, sampleForPreview, NULL, paramManagerForSamplePreview);
-		sampleForPreview->Sound::noteOn(modelStack, &sampleForPreview->arpeggiator, NOTE_FOR_DRUM, zeroMPEValues);
+		sampleForPreview->Sound::noteOn(modelStack, &sampleForPreview->arpeggiator, kNoteForDrum, zeroMPEValues);
 		bypassCulling =
 		    true; // Needed - Dec 2021. I think it's during SampleBrowser::selectEncoderAction() that we may have gone a while without an audio routine call.
 	}
@@ -1160,7 +1161,7 @@ Voice* solicitVoice(Sound* forSound) {
 
 		numSamplesLastTime -=
 		    10; // Stop this triggering for lots of new voices. We just don't know how they'll weigh up to the ones being culled
-		Uart::println("soliciting via culling");
+		Debug::println("soliciting via culling");
 doCull:
 		newVoice = cullVoice(true);
 	}
@@ -1222,7 +1223,7 @@ void unassignVoice(Voice* voice, Sound* sound, ModelStackWithSoundFlags* modelSt
 }
 
 void disposeOfVoice(Voice* voice) {
-	if (voice >= staticVoices && voice < &staticVoices[NUM_TIME_STRETCHERS_STATIC]) {
+	if (voice >= staticVoices && voice < &staticVoices[kNumTimeStretchersStatic]) {
 		voice->nextUnassigned = firstUnassignedVoice;
 		firstUnassignedVoice = voice;
 	}
@@ -1248,7 +1249,7 @@ VoiceSample* solicitVoiceSample() {
 }
 
 void voiceSampleUnassigned(VoiceSample* voiceSample) {
-	if (voiceSample >= voiceSamples && voiceSample < &voiceSamples[NUM_VOICE_SAMPLES_STATIC]) {
+	if (voiceSample >= voiceSamples && voiceSample < &voiceSamples[kNumVoiceSamplesStatic]) {
 		voiceSample->nextUnassigned = firstUnassignedVoiceSample;
 		firstUnassignedVoiceSample = voiceSample;
 	}
@@ -1277,7 +1278,7 @@ TimeStretcher* solicitTimeStretcher() {
 
 // There are no destructors. You gotta clean it up before you call this
 void timeStretcherUnassigned(TimeStretcher* timeStretcher) {
-	if (timeStretcher >= timeStretchers && timeStretcher < &timeStretchers[NUM_TIME_STRETCHERS_STATIC]) {
+	if (timeStretcher >= timeStretchers && timeStretcher < &timeStretchers[kNumTimeStretchersStatic]) {
 		timeStretcher->nextUnassigned = firstUnassignedTimeStretcher;
 		firstUnassignedTimeStretcher = timeStretcher;
 	}
@@ -1287,15 +1288,16 @@ void timeStretcherUnassigned(TimeStretcher* timeStretcher) {
 }
 
 // TODO: delete unused ones
-LiveInputBuffer* getOrCreateLiveInputBuffer(int inputType, bool mayCreate) {
-	if (!liveInputBuffers[inputType - OSC_TYPE_INPUT_L]) {
+LiveInputBuffer* getOrCreateLiveInputBuffer(OscType inputType, bool mayCreate) {
+	const auto idx = util::to_underlying(inputType) - util::to_underlying(OscType::INPUT_L);
+	if (!liveInputBuffers[idx]) {
 		if (!mayCreate) {
 			return NULL;
 		}
 
 		int size = sizeof(LiveInputBuffer);
-		if (inputType == OSC_TYPE_INPUT_STEREO) {
-			size += INPUT_RAW_BUFFER_SIZE * sizeof(int32_t);
+		if (inputType == OscType::INPUT_STEREO) {
+			size += kInputRawBufferSize * sizeof(int32_t);
 		}
 
 		void* memory = generalMemoryAllocator.alloc(size, NULL, false, true);
@@ -1303,10 +1305,10 @@ LiveInputBuffer* getOrCreateLiveInputBuffer(int inputType, bool mayCreate) {
 			return NULL;
 		}
 
-		liveInputBuffers[inputType - OSC_TYPE_INPUT_L] = new (memory) LiveInputBuffer();
+		liveInputBuffers[idx] = new (memory) LiveInputBuffer();
 	}
 
-	return liveInputBuffers[inputType - OSC_TYPE_INPUT_L];
+	return liveInputBuffers[idx];
 }
 
 bool createdNewRecorder;
@@ -1336,7 +1338,7 @@ void doRecorderCardRoutines() {
 
 		// If complete, discard it
 		if (recorder->status == RECORDER_STATUS_AWAITING_DELETION) {
-			Uart::println("deleting recorder");
+			Debug::println("deleting recorder");
 			*prevPointer = recorder->next;
 			recorder->~SampleRecorder();
 			generalMemoryAllocator.dealloc(recorder);
@@ -1390,8 +1392,8 @@ void slowRoutine() {
 	doRecorderCardRoutines();
 }
 
-SampleRecorder* getNewRecorder(int numChannels, int folderID, int mode, bool keepFirstReasons, bool writeLoopPoints,
-                               int buttonPressLatency) {
+SampleRecorder* getNewRecorder(int numChannels, AudioRecordingFolder folderID, AudioInputChannel mode,
+                               bool keepFirstReasons, bool writeLoopPoints, int buttonPressLatency) {
 	int error;
 
 	void* recorderMemory = generalMemoryAllocator.alloc(sizeof(SampleRecorder), NULL, false, true);

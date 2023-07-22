@@ -1,5 +1,5 @@
 #include "cache_manager.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "memory/memory_region.h"
 #include "memory/stealable.h"
 #include "processing/engines/audio_engine.h"
@@ -85,10 +85,10 @@ uint32_t CacheManager::ReclaimMemory(MemoryRegion& region, int totalSizeNeeded, 
 				// If it was in the wrong queue, put it in the right queue and start again with the next one in our queue
 				if (appropriateQueue > q) {
 
-					Uart::print("changing queue from ");
-					Uart::print(q);
-					Uart::print(" to ");
-					Uart::println(appropriateQueue);
+					Debug::print("changing queue from ");
+					Debug::print(q);
+					Debug::print(" to ");
+					Debug::println(appropriateQueue);
 
 					auto* next = static_cast<Stealable*>(reclamation_queue_[q].getNext(stealable));
 
@@ -141,7 +141,7 @@ uint32_t CacheManager::ReclaimMemory(MemoryRegion& region, int totalSizeNeeded, 
 
 			spaceSize += result.amountsExtended[0] + result.amountsExtended[1];
 
-			Uart::println("stole and grabbed neighbouring stuff too...........");
+			Debug::println("stole and grabbed neighbouring stuff too...........");
 			stolen = true;
 			break;
 		}

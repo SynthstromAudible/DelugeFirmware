@@ -18,6 +18,7 @@
 #pragma once
 
 #include "RZA1/system/r_typedefs.h"
+#include "definitions_cxx.hpp"
 #include "hid/button.h"
 #include "model/clip/clip_minder.h"
 
@@ -31,10 +32,10 @@ class InstrumentClipMinder : public ClipMinder {
 public:
 	InstrumentClipMinder();
 	static void redrawNumericDisplay();
-	void createNewInstrument(int newInstrumentType);
+	void createNewInstrument(InstrumentType newInstrumentType);
 	void setLedStates();
 	void focusRegained();
-	int buttonAction(hid::Button b, bool on, bool inCardRoutine);
+	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
 	void calculateDefaultRootNote();
 	void drawActualNoteCode(int16_t noteCode);
 	void cycleThroughScales();
@@ -43,7 +44,7 @@ public:
 	void selectEncoderAction(int offset);
 	static void drawMIDIControlNumber(int controlNumber, bool automationExists);
 	bool makeCurrentClipActiveOnInstrumentIfPossible(ModelStack* modelStack);
-	void changeInstrumentType(int newInstrumentType);
+	void changeInstrumentType(InstrumentType newInstrumentType);
 	void opened();
 
 #if HAVE_OLED

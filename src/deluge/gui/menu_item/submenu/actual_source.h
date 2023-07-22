@@ -37,7 +37,7 @@ public:
 	}
 #else
 	void drawName() {
-		if (soundEditor.currentSound->getSynthMode() == SYNTH_MODE_FM) {
+		if (soundEditor.currentSound->getSynthMode() == SynthMode::FM) {
 			char buffer[5];
 			strcpy(buffer, "CAR");
 			intToString(thingIndex + 1, buffer + 3);

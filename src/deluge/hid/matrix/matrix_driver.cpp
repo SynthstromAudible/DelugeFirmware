@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "definitions_cxx.hpp"
 #include "gui/views/arranger_view.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
@@ -24,7 +25,7 @@
 #include "hid/matrix/matrix_driver.h"
 #include "util/functions.h"
 #include "hid/display/numeric_driver.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "gui/ui/audio_recorder.h"
 #include <cstring>
 #include "gui/views/session_view.h"
@@ -55,8 +56,8 @@ void MatrixDriver::noPressesHappening(bool inCardRoutine) {
 
 	// Correct any misunderstandings
 
-	for (int x = 0; x < displayWidth + sideBarWidth; x++) {
-		for (int y = 0; y < displayHeight; y++) {
+	for (int x = 0; x < kDisplayWidth + kSideBarWidth; x++) {
+		for (int y = 0; y < kDisplayHeight; y++) {
 			if (padStates[x][y]) {
 				padAction(x, y, false);
 			}
@@ -64,14 +65,14 @@ void MatrixDriver::noPressesHappening(bool inCardRoutine) {
 	}
 }
 
-int MatrixDriver::padAction(int x, int y, int velocity) {
+ActionResult MatrixDriver::padAction(int x, int y, int velocity) {
 	padStates[x][y] = velocity;
-	int result = getCurrentUI()->padAction(x, y, velocity);
-	if (result == ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE) {
-		return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+	ActionResult result = getCurrentUI()->padAction(x, y, velocity);
+	if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
+		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
 bool MatrixDriver::isPadPressed(int x, int y) {
@@ -79,8 +80,8 @@ bool MatrixDriver::isPadPressed(int x, int y) {
 }
 
 bool MatrixDriver::isUserDoingBootloaderOverwriteAction() {
-	for (int x = 0; x < displayWidth + sideBarWidth; x++) {
-		for (int y = 0; y < displayHeight; y++) {
+	for (int x = 0; x < kDisplayWidth + kSideBarWidth; x++) {
+		for (int y = 0; y < kDisplayHeight; y++) {
 			bool shouldBePressed = (x == 0 && y == 7) || (x == 1 && y == 6) || (x == 2 && y == 5);
 			if (padStates[x][y] != shouldBePressed) {
 				return false;

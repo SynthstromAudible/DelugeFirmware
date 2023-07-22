@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "definitions_cxx.hpp"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
 #include "model/clip/instrument_clip.h"
@@ -52,39 +53,39 @@
 #include "hid/led/indicator_leds.h"
 #include "storage/flash_storage.h"
 #include "modulation/patch/patch_cable_set.h"
+#include "util/misc.h"
 
 extern "C" {
 #include "RZA1/mtu/mtu.h"
-#include "drivers/uart/uart.h"
 }
 
 const PatchableInfo patchableInfoForSound = {
-    (int32_t)(offsetof(Sound, paramFinalValues) - offsetof(Sound, patcher) - (FIRST_GLOBAL_PARAM * sizeof(int32_t))),
+    (int32_t)(offsetof(Sound, paramFinalValues) - offsetof(Sound, patcher) - (Param::Global::FIRST * sizeof(int32_t))),
     offsetof(Sound, globalSourceValues) - offsetof(Sound, patcher),
-    FIRST_GLOBAL_PARAM,
-    FIRST_GLOBAL_NON_VOLUME_PARAM,
-    FIRST_GLOBAL_HYBRID_PARAM,
-    FIRST_GLOBAL_EXP_PARAM,
-    NUM_PARAMS,
+    Param::Global::FIRST,
+    Param::Global::FIRST_NON_VOLUME,
+    Param::Global::FIRST_HYBRID,
+    Param::Global::FIRST_EXP,
+    kNumParams,
     GLOBALITY_GLOBAL};
 
 Sound::Sound() : patcher(&patchableInfoForSound) {
 
-	for (int s = 0; s < NUM_SOURCES; s++) {
+	for (int s = 0; s < kNumSources; s++) {
 		oscRetriggerPhase[s] = 0xFFFFFFFF;
 	}
-	for (int m = 0; m < numModulators; m++) {
+	for (int m = 0; m < kNumModulators; m++) {
 		modulatorRetriggerPhase[m] = 0;
 	}
 
-	for (int i = 0; i < NUM_EXPRESSION_DIMENSIONS; i++) {
+	for (int i = 0; i < kNumExpressionDimensions; i++) {
 		monophonicExpressionValues[i] = 0;
 	}
 
 	numVoicesAssigned = 0;
 
 	sideChainSendLevel = 0;
-	polyphonic = POLYPHONY_POLY;
+	polyphonic = PolyphonyMode::POLY;
 	lastNoteCode = -2147483648;
 
 	modulatorTranspose[0] = 0;
@@ -93,54 +94,55 @@ Sound::Sound() : patcher(&patchableInfoForSound) {
 	modulatorCents[1] = 0;
 
 	transpose = 0;
-	modFXType = MOD_FX_TYPE_NONE;
+	modFXType = ModFXType::NONE;
 
 	oscillatorSync = false;
 
 	numUnison = 1;
 	unisonDetune = 8;
 
-	synthMode = SYNTH_MODE_SUBTRACTIVE;
+	synthMode = SynthMode::SUBTRACTIVE;
 	modulator1ToModulator0 = false;
 
-	lpfMode = LPF_MODE_TRANSISTOR_24DB; // Good for samples, I think
+	lpfMode = LPFMode::TRANSISTOR_24DB; // Good for samples, I think
 
 	postReverbVolumeLastTime = -1; // Special state to make it grab the actual value the first time it's rendered
 
 	// LFO
-	lfoGlobalWaveType = LFO_TYPE_TRIANGLE;
-	lfoLocalWaveType = LFO_TYPE_TRIANGLE;
+	lfoGlobalWaveType = LFOType::TRIANGLE;
+	lfoLocalWaveType = LFOType::TRIANGLE;
 	lfoGlobalSyncType =
 	    SYNC_TYPE_EVEN; // This may be set without calling the setter function, because we're setting it to 0
 	lfoGlobalSyncLevel =
 	    SYNC_LEVEL_NONE; // This may be set without calling the setter function, because we're setting it to 0
 
-	modKnobs[0][1].paramDescriptor.setToHaveParamOnly(PARAM_GLOBAL_VOLUME_POST_FX);
-	modKnobs[0][0].paramDescriptor.setToHaveParamOnly(PARAM_LOCAL_PAN);
+	modKnobs[0][1].paramDescriptor.setToHaveParamOnly(Param::Global::VOLUME_POST_FX);
+	modKnobs[0][0].paramDescriptor.setToHaveParamOnly(Param::Local::PAN);
 
-	modKnobs[1][1].paramDescriptor.setToHaveParamOnly(PARAM_LOCAL_LPF_FREQ);
-	modKnobs[1][0].paramDescriptor.setToHaveParamOnly(PARAM_LOCAL_LPF_RESONANCE);
+	modKnobs[1][1].paramDescriptor.setToHaveParamOnly(Param::Local::LPF_FREQ);
+	modKnobs[1][0].paramDescriptor.setToHaveParamOnly(Param::Local::LPF_RESONANCE);
 
-	modKnobs[2][1].paramDescriptor.setToHaveParamOnly(PARAM_LOCAL_ENV_0_ATTACK);
-	modKnobs[2][0].paramDescriptor.setToHaveParamOnly(PARAM_LOCAL_ENV_0_RELEASE);
+	modKnobs[2][1].paramDescriptor.setToHaveParamOnly(Param::Local::ENV_0_ATTACK);
+	modKnobs[2][0].paramDescriptor.setToHaveParamOnly(Param::Local::ENV_0_RELEASE);
 
-	modKnobs[3][1].paramDescriptor.setToHaveParamOnly(PARAM_GLOBAL_DELAY_RATE);
-	modKnobs[3][0].paramDescriptor.setToHaveParamOnly(PARAM_GLOBAL_DELAY_FEEDBACK);
+	modKnobs[3][1].paramDescriptor.setToHaveParamOnly(Param::Global::DELAY_RATE);
+	modKnobs[3][0].paramDescriptor.setToHaveParamOnly(Param::Global::DELAY_FEEDBACK);
 
-	modKnobs[4][0].paramDescriptor.setToHaveParamOnly(PARAM_GLOBAL_REVERB_AMOUNT);
+	modKnobs[4][0].paramDescriptor.setToHaveParamOnly(Param::Global::REVERB_AMOUNT);
 
-	modKnobs[5][1].paramDescriptor.setToHaveParamOnly(PARAM_GLOBAL_LFO_FREQ);
+	modKnobs[5][1].paramDescriptor.setToHaveParamOnly(Param::Global::LFO_FREQ);
 
-	modKnobs[4][1].paramDescriptor.setToHaveParamAndSource(PARAM_GLOBAL_VOLUME_POST_REVERB_SEND,
-	                                                       PATCH_SOURCE_COMPRESSOR);
-	modKnobs[5][0].paramDescriptor.setToHaveParamAndSource(PARAM_LOCAL_PITCH_ADJUST, PATCH_SOURCE_LFO_GLOBAL);
+	modKnobs[4][1].paramDescriptor.setToHaveParamAndSource(Param::Global::VOLUME_POST_REVERB_SEND,
+	                                                       PatchSource::COMPRESSOR);
+	modKnobs[5][0].paramDescriptor.setToHaveParamAndSource(Param::Local::PITCH_ADJUST, PatchSource::LFO_GLOBAL);
 
-	modKnobs[6][1].paramDescriptor.setToHaveParamOnly(PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_STUTTER_RATE);
-	modKnobs[6][0].paramDescriptor.setToHaveParamOnly(PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_SOUND_PORTA);
+	modKnobs[6][1].paramDescriptor.setToHaveParamOnly(Param::Unpatched::START + Param::Unpatched::STUTTER_RATE);
+	modKnobs[6][0].paramDescriptor.setToHaveParamOnly(Param::Unpatched::START + Param::Unpatched::Sound::PORTAMENTO);
 
-	modKnobs[7][1].paramDescriptor.setToHaveParamOnly(PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_SAMPLE_RATE_REDUCTION);
-	modKnobs[7][0].paramDescriptor.setToHaveParamOnly(PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_BITCRUSHING);
-	voicePriority = 1;
+	modKnobs[7][1].paramDescriptor.setToHaveParamOnly(Param::Unpatched::START
+	                                                  + Param::Unpatched::SAMPLE_RATE_REDUCTION);
+	modKnobs[7][0].paramDescriptor.setToHaveParamOnly(Param::Unpatched::START + Param::Unpatched::BITCRUSHING);
+	voicePriority = VoicePriority::MEDIUM;
 	whichExpressionSourcesChangedAtSynthLevel = 0;
 
 	skippingRendering = true;
@@ -156,81 +158,81 @@ void Sound::initParams(ParamManager* paramManager) {
 	ModControllableAudio::initParams(paramManager);
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-	unpatchedParams->params[PARAM_UNPATCHED_SOUND_ARP_GATE].setCurrentValueBasicForSetup(0);
-	unpatchedParams->params[PARAM_UNPATCHED_MOD_FX_FEEDBACK].setCurrentValueBasicForSetup(0);
-	unpatchedParams->params[PARAM_UNPATCHED_SOUND_PORTA].setCurrentValueBasicForSetup(-2147483648);
+	unpatchedParams->params[Param::Unpatched::Sound::ARP_GATE].setCurrentValueBasicForSetup(0);
+	unpatchedParams->params[Param::Unpatched::MOD_FX_FEEDBACK].setCurrentValueBasicForSetup(0);
+	unpatchedParams->params[Param::Unpatched::Sound::PORTAMENTO].setCurrentValueBasicForSetup(-2147483648);
 
 	PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
-	patchedParams->params[PARAM_LOCAL_VOLUME].setCurrentValueBasicForSetup(0);
-	patchedParams->params[PARAM_LOCAL_OSC_A_VOLUME].setCurrentValueBasicForSetup(2147483647);
-	patchedParams->params[PARAM_LOCAL_OSC_B_VOLUME].setCurrentValueBasicForSetup(2147483647);
-	patchedParams->params[PARAM_GLOBAL_VOLUME_POST_FX].setCurrentValueBasicForSetup(
-	    getParamFromUserValue(PARAM_GLOBAL_VOLUME_POST_FX, 40));
-	patchedParams->params[PARAM_GLOBAL_VOLUME_POST_REVERB_SEND].setCurrentValueBasicForSetup(0);
-	patchedParams->params[PARAM_LOCAL_HPF_RESONANCE].setCurrentValueBasicForSetup(-2147483648);
-	patchedParams->params[PARAM_LOCAL_HPF_FREQ].setCurrentValueBasicForSetup(-2147483648);
-	patchedParams->params[PARAM_LOCAL_PITCH_ADJUST].setCurrentValueBasicForSetup(0);
-	patchedParams->params[PARAM_GLOBAL_REVERB_AMOUNT].setCurrentValueBasicForSetup(-2147483648);
-	patchedParams->params[PARAM_GLOBAL_DELAY_RATE].setCurrentValueBasicForSetup(0);
-	patchedParams->params[PARAM_GLOBAL_ARP_RATE].setCurrentValueBasicForSetup(0);
-	patchedParams->params[PARAM_GLOBAL_DELAY_FEEDBACK].setCurrentValueBasicForSetup(-2147483648);
-	patchedParams->params[PARAM_LOCAL_CARRIER_0_FEEDBACK].setCurrentValueBasicForSetup(-2147483648);
-	patchedParams->params[PARAM_LOCAL_CARRIER_1_FEEDBACK].setCurrentValueBasicForSetup(-2147483648);
-	patchedParams->params[PARAM_LOCAL_MODULATOR_0_FEEDBACK].setCurrentValueBasicForSetup(-2147483648);
-	patchedParams->params[PARAM_LOCAL_MODULATOR_1_FEEDBACK].setCurrentValueBasicForSetup(-2147483648);
-	patchedParams->params[PARAM_LOCAL_MODULATOR_0_VOLUME].setCurrentValueBasicForSetup(-2147483648);
-	patchedParams->params[PARAM_LOCAL_MODULATOR_1_VOLUME].setCurrentValueBasicForSetup(-2147483648);
-	patchedParams->params[PARAM_LOCAL_OSC_A_PHASE_WIDTH].setCurrentValueBasicForSetup(0);
-	patchedParams->params[PARAM_LOCAL_OSC_B_PHASE_WIDTH].setCurrentValueBasicForSetup(0);
-	patchedParams->params[PARAM_LOCAL_ENV_1_ATTACK].setCurrentValueBasicForSetup(
-	    getParamFromUserValue(PARAM_LOCAL_ENV_1_ATTACK, 20));
-	patchedParams->params[PARAM_LOCAL_ENV_1_DECAY].setCurrentValueBasicForSetup(
-	    getParamFromUserValue(PARAM_LOCAL_ENV_1_DECAY, 20));
-	patchedParams->params[PARAM_LOCAL_ENV_1_SUSTAIN].setCurrentValueBasicForSetup(
-	    getParamFromUserValue(PARAM_LOCAL_ENV_1_SUSTAIN, 25));
-	patchedParams->params[PARAM_LOCAL_ENV_1_RELEASE].setCurrentValueBasicForSetup(
-	    getParamFromUserValue(PARAM_LOCAL_ENV_1_RELEASE, 20));
-	patchedParams->params[PARAM_LOCAL_LFO_LOCAL_FREQ].setCurrentValueBasicForSetup(0);
-	patchedParams->params[PARAM_GLOBAL_LFO_FREQ].setCurrentValueBasicForSetup(
-	    getParamFromUserValue(PARAM_GLOBAL_LFO_FREQ, 30));
-	patchedParams->params[PARAM_LOCAL_PAN].setCurrentValueBasicForSetup(0);
-	patchedParams->params[PARAM_LOCAL_NOISE_VOLUME].setCurrentValueBasicForSetup(-2147483648);
-	patchedParams->params[PARAM_GLOBAL_MOD_FX_DEPTH].setCurrentValueBasicForSetup(0);
-	patchedParams->params[PARAM_GLOBAL_MOD_FX_RATE].setCurrentValueBasicForSetup(0);
-	patchedParams->params[PARAM_LOCAL_OSC_A_PITCH_ADJUST].setCurrentValueBasicForSetup(0);       // Don't change
-	patchedParams->params[PARAM_LOCAL_OSC_B_PITCH_ADJUST].setCurrentValueBasicForSetup(0);       // Don't change
-	patchedParams->params[PARAM_LOCAL_MODULATOR_0_PITCH_ADJUST].setCurrentValueBasicForSetup(0); // Don't change
-	patchedParams->params[PARAM_LOCAL_MODULATOR_1_PITCH_ADJUST].setCurrentValueBasicForSetup(0); // Don't change
+	patchedParams->params[Param::Local::VOLUME].setCurrentValueBasicForSetup(0);
+	patchedParams->params[Param::Local::OSC_A_VOLUME].setCurrentValueBasicForSetup(2147483647);
+	patchedParams->params[Param::Local::OSC_B_VOLUME].setCurrentValueBasicForSetup(2147483647);
+	patchedParams->params[Param::Global::VOLUME_POST_FX].setCurrentValueBasicForSetup(
+	    getParamFromUserValue(Param::Global::VOLUME_POST_FX, 40));
+	patchedParams->params[Param::Global::VOLUME_POST_REVERB_SEND].setCurrentValueBasicForSetup(0);
+	patchedParams->params[Param::Local::HPF_RESONANCE].setCurrentValueBasicForSetup(-2147483648);
+	patchedParams->params[Param::Local::HPF_FREQ].setCurrentValueBasicForSetup(-2147483648);
+	patchedParams->params[Param::Local::PITCH_ADJUST].setCurrentValueBasicForSetup(0);
+	patchedParams->params[Param::Global::REVERB_AMOUNT].setCurrentValueBasicForSetup(-2147483648);
+	patchedParams->params[Param::Global::DELAY_RATE].setCurrentValueBasicForSetup(0);
+	patchedParams->params[Param::Global::ARP_RATE].setCurrentValueBasicForSetup(0);
+	patchedParams->params[Param::Global::DELAY_FEEDBACK].setCurrentValueBasicForSetup(-2147483648);
+	patchedParams->params[Param::Local::CARRIER_0_FEEDBACK].setCurrentValueBasicForSetup(-2147483648);
+	patchedParams->params[Param::Local::CARRIER_1_FEEDBACK].setCurrentValueBasicForSetup(-2147483648);
+	patchedParams->params[Param::Local::MODULATOR_0_FEEDBACK].setCurrentValueBasicForSetup(-2147483648);
+	patchedParams->params[Param::Local::MODULATOR_1_FEEDBACK].setCurrentValueBasicForSetup(-2147483648);
+	patchedParams->params[Param::Local::MODULATOR_0_VOLUME].setCurrentValueBasicForSetup(-2147483648);
+	patchedParams->params[Param::Local::MODULATOR_1_VOLUME].setCurrentValueBasicForSetup(-2147483648);
+	patchedParams->params[Param::Local::OSC_A_PHASE_WIDTH].setCurrentValueBasicForSetup(0);
+	patchedParams->params[Param::Local::OSC_B_PHASE_WIDTH].setCurrentValueBasicForSetup(0);
+	patchedParams->params[Param::Local::ENV_1_ATTACK].setCurrentValueBasicForSetup(
+	    getParamFromUserValue(Param::Local::ENV_1_ATTACK, 20));
+	patchedParams->params[Param::Local::ENV_1_DECAY].setCurrentValueBasicForSetup(
+	    getParamFromUserValue(Param::Local::ENV_1_DECAY, 20));
+	patchedParams->params[Param::Local::ENV_1_SUSTAIN].setCurrentValueBasicForSetup(
+	    getParamFromUserValue(Param::Local::ENV_1_SUSTAIN, 25));
+	patchedParams->params[Param::Local::ENV_1_RELEASE].setCurrentValueBasicForSetup(
+	    getParamFromUserValue(Param::Local::ENV_1_RELEASE, 20));
+	patchedParams->params[Param::Local::LFO_LOCAL_FREQ].setCurrentValueBasicForSetup(0);
+	patchedParams->params[Param::Global::LFO_FREQ].setCurrentValueBasicForSetup(
+	    getParamFromUserValue(Param::Global::LFO_FREQ, 30));
+	patchedParams->params[Param::Local::PAN].setCurrentValueBasicForSetup(0);
+	patchedParams->params[Param::Local::NOISE_VOLUME].setCurrentValueBasicForSetup(-2147483648);
+	patchedParams->params[Param::Global::MOD_FX_DEPTH].setCurrentValueBasicForSetup(0);
+	patchedParams->params[Param::Global::MOD_FX_RATE].setCurrentValueBasicForSetup(0);
+	patchedParams->params[Param::Local::OSC_A_PITCH_ADJUST].setCurrentValueBasicForSetup(0);       // Don't change
+	patchedParams->params[Param::Local::OSC_B_PITCH_ADJUST].setCurrentValueBasicForSetup(0);       // Don't change
+	patchedParams->params[Param::Local::MODULATOR_0_PITCH_ADJUST].setCurrentValueBasicForSetup(0); // Don't change
+	patchedParams->params[Param::Local::MODULATOR_1_PITCH_ADJUST].setCurrentValueBasicForSetup(0); // Don't change
 }
 
 void Sound::setupAsSample(ParamManagerForTimeline* paramManager) {
 
-	polyphonic = POLYPHONY_AUTO;
-	lpfMode = LPF_MODE_TRANSISTOR_24DB;
+	polyphonic = PolyphonyMode::AUTO;
+	lpfMode = LPFMode::TRANSISTOR_24DB;
 
-	sources[0].oscType = OSC_TYPE_SAMPLE;
-	sources[1].oscType = OSC_TYPE_SAMPLE;
+	sources[0].oscType = OscType::SAMPLE;
+	sources[1].oscType = OscType::SAMPLE;
 
 	PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
 
-	patchedParams->params[PARAM_LOCAL_OSC_B_VOLUME].setCurrentValueBasicForSetup(-2147483648);
-	patchedParams->params[PARAM_LOCAL_ENV_0_ATTACK].setCurrentValueBasicForSetup(
-	    getParamFromUserValue(PARAM_LOCAL_ENV_0_ATTACK, 0));
-	patchedParams->params[PARAM_LOCAL_ENV_0_DECAY].setCurrentValueBasicForSetup(
-	    getParamFromUserValue(PARAM_LOCAL_ENV_0_DECAY, 20));
-	patchedParams->params[PARAM_LOCAL_ENV_0_SUSTAIN].setCurrentValueBasicForSetup(
-	    getParamFromUserValue(PARAM_LOCAL_ENV_0_SUSTAIN, 50));
-	patchedParams->params[PARAM_LOCAL_ENV_0_RELEASE].setCurrentValueBasicForSetup(
-	    getParamFromUserValue(PARAM_LOCAL_ENV_0_RELEASE, 0));
+	patchedParams->params[Param::Local::OSC_B_VOLUME].setCurrentValueBasicForSetup(-2147483648);
+	patchedParams->params[Param::Local::ENV_0_ATTACK].setCurrentValueBasicForSetup(
+	    getParamFromUserValue(Param::Local::ENV_0_ATTACK, 0));
+	patchedParams->params[Param::Local::ENV_0_DECAY].setCurrentValueBasicForSetup(
+	    getParamFromUserValue(Param::Local::ENV_0_DECAY, 20));
+	patchedParams->params[Param::Local::ENV_0_SUSTAIN].setCurrentValueBasicForSetup(
+	    getParamFromUserValue(Param::Local::ENV_0_SUSTAIN, 50));
+	patchedParams->params[Param::Local::ENV_0_RELEASE].setCurrentValueBasicForSetup(
+	    getParamFromUserValue(Param::Local::ENV_0_RELEASE, 0));
 
-	patchedParams->params[PARAM_LOCAL_LPF_RESONANCE].setCurrentValueBasicForSetup(-2147483648);
-	patchedParams->params[PARAM_LOCAL_LPF_FREQ].setCurrentValueBasicForSetup(2147483647);
+	patchedParams->params[Param::Local::LPF_RESONANCE].setCurrentValueBasicForSetup(-2147483648);
+	patchedParams->params[Param::Local::LPF_FREQ].setCurrentValueBasicForSetup(2147483647);
 
-	modKnobs[6][0].paramDescriptor.setToHaveParamOnly(PARAM_LOCAL_PITCH_ADJUST);
+	modKnobs[6][0].paramDescriptor.setToHaveParamOnly(Param::Local::PITCH_ADJUST);
 
 	paramManager->getPatchCableSet()->numPatchCables = 1;
-	paramManager->getPatchCableSet()->patchCables[0].setup(PATCH_SOURCE_VELOCITY, PARAM_LOCAL_VOLUME,
-	                                                       getParamFromUserValue(PARAM_STATIC_PATCH_CABLE, 50));
+	paramManager->getPatchCableSet()->patchCables[0].setup(PatchSource::VELOCITY, Param::Local::VOLUME,
+	                                                       getParamFromUserValue(Param::Static::PATCH_CABLE, 50));
 
 	setupDefaultExpressionPatching(paramManager);
 
@@ -240,31 +242,31 @@ void Sound::setupAsSample(ParamManagerForTimeline* paramManager) {
 void Sound::setupAsDefaultSynth(ParamManager* paramManager) {
 
 	PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
-	patchedParams->params[PARAM_LOCAL_OSC_B_VOLUME].setCurrentValueBasicForSetup(0x47AE1457);
-	patchedParams->params[PARAM_LOCAL_LPF_RESONANCE].setCurrentValueBasicForSetup(0xA2000000);
-	patchedParams->params[PARAM_LOCAL_LPF_FREQ].setCurrentValueBasicForSetup(0x10000000);
-	patchedParams->params[PARAM_LOCAL_ENV_0_ATTACK].setCurrentValueBasicForSetup(0x80000000);
-	patchedParams->params[PARAM_LOCAL_ENV_0_DECAY].setCurrentValueBasicForSetup(0xE6666654);
-	patchedParams->params[PARAM_LOCAL_ENV_0_SUSTAIN].setCurrentValueBasicForSetup(0x7FFFFFFF);
-	patchedParams->params[PARAM_LOCAL_ENV_0_RELEASE].setCurrentValueBasicForSetup(0x851EB851);
-	patchedParams->params[PARAM_LOCAL_ENV_1_ATTACK].setCurrentValueBasicForSetup(0xA3D70A37);
-	patchedParams->params[PARAM_LOCAL_ENV_1_DECAY].setCurrentValueBasicForSetup(0xA3D70A37);
-	patchedParams->params[PARAM_LOCAL_ENV_1_SUSTAIN].setCurrentValueBasicForSetup(0xFFFFFFE9);
-	patchedParams->params[PARAM_LOCAL_ENV_1_RELEASE].setCurrentValueBasicForSetup(0xE6666654);
-	patchedParams->params[PARAM_GLOBAL_VOLUME_POST_FX].setCurrentValueBasicForSetup(0x50000000);
+	patchedParams->params[Param::Local::OSC_B_VOLUME].setCurrentValueBasicForSetup(0x47AE1457);
+	patchedParams->params[Param::Local::LPF_RESONANCE].setCurrentValueBasicForSetup(0xA2000000);
+	patchedParams->params[Param::Local::LPF_FREQ].setCurrentValueBasicForSetup(0x10000000);
+	patchedParams->params[Param::Local::ENV_0_ATTACK].setCurrentValueBasicForSetup(0x80000000);
+	patchedParams->params[Param::Local::ENV_0_DECAY].setCurrentValueBasicForSetup(0xE6666654);
+	patchedParams->params[Param::Local::ENV_0_SUSTAIN].setCurrentValueBasicForSetup(0x7FFFFFFF);
+	patchedParams->params[Param::Local::ENV_0_RELEASE].setCurrentValueBasicForSetup(0x851EB851);
+	patchedParams->params[Param::Local::ENV_1_ATTACK].setCurrentValueBasicForSetup(0xA3D70A37);
+	patchedParams->params[Param::Local::ENV_1_DECAY].setCurrentValueBasicForSetup(0xA3D70A37);
+	patchedParams->params[Param::Local::ENV_1_SUSTAIN].setCurrentValueBasicForSetup(0xFFFFFFE9);
+	patchedParams->params[Param::Local::ENV_1_RELEASE].setCurrentValueBasicForSetup(0xE6666654);
+	patchedParams->params[Param::Global::VOLUME_POST_FX].setCurrentValueBasicForSetup(0x50000000);
 
-	paramManager->getPatchCableSet()->patchCables[0].setup(PATCH_SOURCE_NOTE, PARAM_LOCAL_LPF_FREQ, 0x08F5C28C);
-	paramManager->getPatchCableSet()->patchCables[1].setup(PATCH_SOURCE_ENVELOPE_1, PARAM_LOCAL_LPF_FREQ, 0x1C28F5B8);
-	paramManager->getPatchCableSet()->patchCables[2].setup(PATCH_SOURCE_VELOCITY, PARAM_LOCAL_LPF_FREQ, 0x0F5C28F0);
-	paramManager->getPatchCableSet()->patchCables[3].setup(PATCH_SOURCE_VELOCITY, PARAM_LOCAL_VOLUME, 0x3FFFFFE8);
+	paramManager->getPatchCableSet()->patchCables[0].setup(PatchSource::NOTE, Param::Local::LPF_FREQ, 0x08F5C28C);
+	paramManager->getPatchCableSet()->patchCables[1].setup(PatchSource::ENVELOPE_1, Param::Local::LPF_FREQ, 0x1C28F5B8);
+	paramManager->getPatchCableSet()->patchCables[2].setup(PatchSource::VELOCITY, Param::Local::LPF_FREQ, 0x0F5C28F0);
+	paramManager->getPatchCableSet()->patchCables[3].setup(PatchSource::VELOCITY, Param::Local::VOLUME, 0x3FFFFFE8);
 
 	paramManager->getPatchCableSet()->numPatchCables = 4;
 
 	setupDefaultExpressionPatching(paramManager);
 
-	lpfMode = LPF_MODE_TRANSISTOR_24DB; // Good for samples, I think
+	lpfMode = LPFMode::TRANSISTOR_24DB; // Good for samples, I think
 
-	sources[0].oscType = OSC_TYPE_SAW;
+	sources[0].oscType = OscType::SAW;
 	sources[1].transpose = -12;
 
 	numUnison = 4;
@@ -279,9 +281,9 @@ void Sound::possiblySetupDefaultExpressionPatching(ParamManager* paramManager) {
 
 	if (storageManager.firmwareVersionOfFileBeingRead < FIRMWARE_4P0P0_BETA) {
 
-		if (!paramManager->getPatchCableSet()->isSourcePatchedToSomethingManuallyCheckCables(PATCH_SOURCE_AFTERTOUCH)
-		    && !paramManager->getPatchCableSet()->isSourcePatchedToSomethingManuallyCheckCables(PATCH_SOURCE_X)
-		    && !paramManager->getPatchCableSet()->isSourcePatchedToSomethingManuallyCheckCables(PATCH_SOURCE_Y)) {
+		if (!paramManager->getPatchCableSet()->isSourcePatchedToSomethingManuallyCheckCables(PatchSource::AFTERTOUCH)
+		    && !paramManager->getPatchCableSet()->isSourcePatchedToSomethingManuallyCheckCables(PatchSource::X)
+		    && !paramManager->getPatchCableSet()->isSourcePatchedToSomethingManuallyCheckCables(PatchSource::Y)) {
 
 			setupDefaultExpressionPatching(paramManager);
 		}
@@ -291,41 +293,41 @@ void Sound::possiblySetupDefaultExpressionPatching(ParamManager* paramManager) {
 void Sound::setupDefaultExpressionPatching(ParamManager* paramManager) {
 	PatchCableSet* patchCableSet = paramManager->getPatchCableSet();
 
-	if (patchCableSet->numPatchCables >= MAX_NUM_PATCH_CABLES) {
+	if (patchCableSet->numPatchCables >= kMaxNumPatchCables) {
 		return;
 	}
 	patchCableSet->patchCables[patchCableSet->numPatchCables++].setup(
-	    PATCH_SOURCE_AFTERTOUCH, PARAM_LOCAL_VOLUME, getParamFromUserValue(PARAM_STATIC_PATCH_CABLE, 33));
+	    PatchSource::AFTERTOUCH, Param::Local::VOLUME, getParamFromUserValue(Param::Static::PATCH_CABLE, 33));
 
-	if (patchCableSet->numPatchCables >= MAX_NUM_PATCH_CABLES) {
+	if (patchCableSet->numPatchCables >= kMaxNumPatchCables) {
 		return;
 	}
 
-	if (synthMode == SYNTH_MODE_FM) {
+	if (synthMode == SynthMode::FM) {
 		patchCableSet->patchCables[patchCableSet->numPatchCables++].setup(
-		    PATCH_SOURCE_Y, PARAM_LOCAL_MODULATOR_0_VOLUME, getParamFromUserValue(PARAM_STATIC_PATCH_CABLE, 15));
+		    PatchSource::Y, Param::Local::MODULATOR_0_VOLUME, getParamFromUserValue(Param::Static::PATCH_CABLE, 15));
 	}
 	else {
 		patchCableSet->patchCables[patchCableSet->numPatchCables++].setup(
-		    PATCH_SOURCE_Y, PARAM_LOCAL_LPF_FREQ, getParamFromUserValue(PARAM_STATIC_PATCH_CABLE, 20));
+		    PatchSource::Y, Param::Local::LPF_FREQ, getParamFromUserValue(Param::Static::PATCH_CABLE, 20));
 	}
 }
 
 void Sound::setupAsBlankSynth(ParamManager* paramManager) {
 
 	PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
-	patchedParams->params[PARAM_LOCAL_OSC_B_VOLUME].setCurrentValueBasicForSetup(-2147483648);
-	patchedParams->params[PARAM_LOCAL_LPF_FREQ].setCurrentValueBasicForSetup(2147483647);
-	patchedParams->params[PARAM_LOCAL_LPF_RESONANCE].setCurrentValueBasicForSetup(-2147483648);
-	patchedParams->params[PARAM_LOCAL_ENV_0_ATTACK].setCurrentValueBasicForSetup(-2147483648);
-	patchedParams->params[PARAM_LOCAL_ENV_0_DECAY].setCurrentValueBasicForSetup(
-	    getParamFromUserValue(PARAM_LOCAL_ENV_0_DECAY, 20));
-	patchedParams->params[PARAM_LOCAL_ENV_0_SUSTAIN].setCurrentValueBasicForSetup(2147483647);
-	patchedParams->params[PARAM_LOCAL_ENV_0_RELEASE].setCurrentValueBasicForSetup(-2147483648);
+	patchedParams->params[Param::Local::OSC_B_VOLUME].setCurrentValueBasicForSetup(-2147483648);
+	patchedParams->params[Param::Local::LPF_FREQ].setCurrentValueBasicForSetup(2147483647);
+	patchedParams->params[Param::Local::LPF_RESONANCE].setCurrentValueBasicForSetup(-2147483648);
+	patchedParams->params[Param::Local::ENV_0_ATTACK].setCurrentValueBasicForSetup(-2147483648);
+	patchedParams->params[Param::Local::ENV_0_DECAY].setCurrentValueBasicForSetup(
+	    getParamFromUserValue(Param::Local::ENV_0_DECAY, 20));
+	patchedParams->params[Param::Local::ENV_0_SUSTAIN].setCurrentValueBasicForSetup(2147483647);
+	patchedParams->params[Param::Local::ENV_0_RELEASE].setCurrentValueBasicForSetup(-2147483648);
 
 	paramManager->getPatchCableSet()->numPatchCables = 1;
-	paramManager->getPatchCableSet()->patchCables[0].setup(PATCH_SOURCE_VELOCITY, PARAM_LOCAL_VOLUME,
-	                                                       getParamFromUserValue(PARAM_STATIC_PATCH_CABLE, 50));
+	paramManager->getPatchCableSet()->patchCables[0].setup(PatchSource::VELOCITY, Param::Local::VOLUME,
+	                                                       getParamFromUserValue(Param::Static::PATCH_CABLE, 50));
 
 	setupDefaultExpressionPatching(paramManager);
 
@@ -333,12 +335,12 @@ void Sound::setupAsBlankSynth(ParamManager* paramManager) {
 }
 
 // Returns false if not enough ram
-bool Sound::setModFXType(int newType) {
-	if (newType == MOD_FX_TYPE_FLANGER || newType == MOD_FX_TYPE_CHORUS || newType == MOD_FX_TYPE_CHORUS_STEREO) {
+bool Sound::setModFXType(ModFXType newType) {
+	if (newType == ModFXType::FLANGER || newType == ModFXType::CHORUS || newType == ModFXType::CHORUS_STEREO) {
 		if (!modFXBuffer) {
 			// TODO: should give an error here if no free ram
 			modFXBuffer =
-			    (StereoSample*)generalMemoryAllocator.alloc(modFXBufferSize * sizeof(StereoSample), NULL, false, true);
+			    (StereoSample*)generalMemoryAllocator.alloc(kModFXBufferSize * sizeof(StereoSample), NULL, false, true);
 			if (!modFXBuffer) {
 				return false;
 			}
@@ -367,10 +369,10 @@ void Sound::patchedParamPresetValueChanged(uint8_t p, ModelStackWithSoundFlags* 
 		// This will make inactive any voiceSources which currently have no volume. Ideally we'd only tell it to do the consideration for the oscillator in question, but oh well
 
 		switch (p) {
-		case PARAM_LOCAL_OSC_A_VOLUME:
-		case PARAM_LOCAL_OSC_B_VOLUME:
-		case PARAM_LOCAL_MODULATOR_0_VOLUME:
-		case PARAM_LOCAL_MODULATOR_1_VOLUME:
+		case Param::Local::OSC_A_VOLUME:
+		case Param::Local::OSC_B_VOLUME:
+		case Param::Local::MODULATOR_0_VOLUME:
+		case Param::Local::MODULATOR_1_VOLUME:
 			recalculateAllVoicePhaseIncrements(modelStack);
 		}
 	}
@@ -389,7 +391,7 @@ void Sound::recalculatePatchingToParam(uint8_t p, ParamManagerForTimeline* param
 	else {
 
 		// Whether global...
-		if (p >= FIRST_GLOBAL_PARAM) {
+		if (p >= Param::Global::FIRST) {
 			patcher.recalculateFinalValueForParamWithNoCables(p, this, paramManager);
 		}
 
@@ -441,7 +443,7 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 
 	else if (!strcmp(tagName, "mode")) {
 		char const* contents = storageManager.readTagOrAttributeValue();
-		if (synthMode != SYNTH_MODE_RINGMOD) { // Compatibility with old XML files
+		if (synthMode != SynthMode::RINGMOD) { // Compatibility with old XML files
 			synthMode = stringToSynthMode(contents);
 		}
 		//Uart::print("synth mode set to: ");
@@ -459,12 +461,12 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 			}
 			else if (!strcmp(tagName, "volume")) {
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_OSC_A_VOLUME, readAutomationUpToPos);
+				patchedParams->readParam(patchedParamsSummary, Param::Local::OSC_A_VOLUME, readAutomationUpToPos);
 				storageManager.exitTag("volume");
 			}
 			else if (!strcmp(tagName, "phaseWidth")) {
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_OSC_A_PHASE_WIDTH, readAutomationUpToPos);
+				patchedParams->readParam(patchedParamsSummary, Param::Local::OSC_A_PHASE_WIDTH, readAutomationUpToPos);
 				storageManager.exitTag("phaseWidth");
 			}
 			else if (!strcmp(tagName, "note")) {
@@ -492,13 +494,13 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 			}
 			else if (!strcmp(tagName, "volume")) {
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_OSC_B_VOLUME, readAutomationUpToPos);
+				patchedParams->readParam(patchedParamsSummary, Param::Local::OSC_B_VOLUME, readAutomationUpToPos);
 				storageManager.exitTag("volume");
 			}
 			else if (!strcmp(tagName, "phaseWidth")) {
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_OSC_B_PHASE_WIDTH, readAutomationUpToPos);
-				//setParamPresetValue(PARAM_LOCAL_OSC_B_PHASE_WIDTH, stringToInt(storageManager.readTagContents()) << 1); // Special case - pw values are stored at half size in file
+				patchedParams->readParam(patchedParamsSummary, Param::Local::OSC_B_PHASE_WIDTH, readAutomationUpToPos);
+				//setParamPresetValue(Param::Local::OSC_B_PHASE_WIDTH, stringToInt(storageManager.readTagContents()) << 1); // Special case - pw values are stored at half size in file
 				storageManager.exitTag("phaseWidth");
 			}
 			else if (!strcmp(tagName, "transpose")) {
@@ -520,7 +522,7 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 		while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "volume")) {
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_MODULATOR_0_VOLUME, readAutomationUpToPos);
+				patchedParams->readParam(patchedParamsSummary, Param::Local::MODULATOR_0_VOLUME, readAutomationUpToPos);
 				storageManager.exitTag("volume");
 			}
 			else if (!strcmp(tagName, "transpose")) {
@@ -546,7 +548,7 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 		while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "volume")) {
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_MODULATOR_1_VOLUME, readAutomationUpToPos);
+				patchedParams->readParam(patchedParamsSummary, Param::Local::MODULATOR_1_VOLUME, readAutomationUpToPos);
 				storageManager.exitTag("volume");
 			}
 			else if (!strcmp(tagName, "transpose")) {
@@ -586,7 +588,7 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 			        tagName,
 			        "rate")) { // This is here for compatibility only for people (Lou and Ian) who saved songs with firmware in September 2016
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(patchedParamsSummary, PARAM_GLOBAL_ARP_RATE, readAutomationUpToPos);
+				patchedParams->readParam(patchedParamsSummary, Param::Global::ARP_RATE, readAutomationUpToPos);
 				storageManager.exitTag("rate");
 			}
 			else if (!strcmp(tagName, "numOctaves")) {
@@ -618,7 +620,7 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 			        tagName,
 			        "gate")) { // This is here for compatibility only for people (Lou and Ian) who saved songs with firmware in September 2016
 				ENSURE_PARAM_MANAGER_EXISTS
-				unpatchedParams->readParam(unpatchedParamsSummary, PARAM_UNPATCHED_SOUND_ARP_GATE,
+				unpatchedParams->readParam(unpatchedParamsSummary, Param::Unpatched::Sound::ARP_GATE,
 				                           readAutomationUpToPos);
 				storageManager.exitTag("gate");
 			}
@@ -637,7 +639,7 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 
 	else if (!strcmp(tagName, "noiseVolume")) {
 		ENSURE_PARAM_MANAGER_EXISTS
-		patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_NOISE_VOLUME, readAutomationUpToPos);
+		patchedParams->readParam(patchedParamsSummary, Param::Local::NOISE_VOLUME, readAutomationUpToPos);
 		storageManager.exitTag("noiseVolume");
 	}
 
@@ -646,7 +648,7 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 	        tagName,
 	        "portamento")) { // This is here for compatibility only for people (Lou and Ian) who saved songs with firmware in September 2016
 		ENSURE_PARAM_MANAGER_EXISTS
-		unpatchedParams->readParam(unpatchedParamsSummary, PARAM_UNPATCHED_SOUND_PORTA, readAutomationUpToPos);
+		unpatchedParams->readParam(unpatchedParamsSummary, Param::Unpatched::Sound::PORTAMENTO, readAutomationUpToPos);
 		storageManager.exitTag("portamento");
 	}
 
@@ -654,10 +656,10 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 	else if (!strcmp(tagName, "oscillatorReset")) {
 		int value = storageManager.readTagOrAttributeValueInt();
 		if (!value) {
-			for (int s = 0; s < NUM_SOURCES; s++) {
+			for (int s = 0; s < kNumSources; s++) {
 				oscRetriggerPhase[s] = 0xFFFFFFFF;
 			}
-			for (int m = 0; m < numModulators; m++) {
+			for (int m = 0; m < kNumModulators; m++) {
 				modulatorRetriggerPhase[m] = 0xFFFFFFFF;
 			}
 		}
@@ -668,12 +670,12 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 		while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "num")) {
 				int32_t contents = storageManager.readTagOrAttributeValueInt();
-				numUnison = getMax((int32_t)0, getMin((int32_t)maxNumUnison, contents));
+				numUnison = getMax((int32_t)0, getMin((int32_t)kMaxNumVoicesUnison, contents));
 				storageManager.exitTag("num");
 			}
 			else if (!strcmp(tagName, "detune")) {
 				int contents = storageManager.readTagOrAttributeValueInt();
-				unisonDetune = getMax(0, getMin(MAX_UNISON_DETUNE, contents));
+				unisonDetune = getMax(0, getMin(kMaxUnisonDetune, contents));
 				storageManager.exitTag("detune");
 			}
 			else {
@@ -685,25 +687,25 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 
 	else if (!strcmp(tagName, "oscAPitchAdjust")) {
 		ENSURE_PARAM_MANAGER_EXISTS
-		patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_OSC_A_PITCH_ADJUST, readAutomationUpToPos);
+		patchedParams->readParam(patchedParamsSummary, Param::Local::OSC_A_PITCH_ADJUST, readAutomationUpToPos);
 		storageManager.exitTag("oscAPitchAdjust");
 	}
 
 	else if (!strcmp(tagName, "oscBPitchAdjust")) {
 		ENSURE_PARAM_MANAGER_EXISTS
-		patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_OSC_B_PITCH_ADJUST, readAutomationUpToPos);
+		patchedParams->readParam(patchedParamsSummary, Param::Local::OSC_B_PITCH_ADJUST, readAutomationUpToPos);
 		storageManager.exitTag("oscBPitchAdjust");
 	}
 
 	else if (!strcmp(tagName, "mod1PitchAdjust")) {
 		ENSURE_PARAM_MANAGER_EXISTS
-		patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_MODULATOR_0_PITCH_ADJUST, readAutomationUpToPos);
+		patchedParams->readParam(patchedParamsSummary, Param::Local::MODULATOR_0_PITCH_ADJUST, readAutomationUpToPos);
 		storageManager.exitTag("mod1PitchAdjust");
 	}
 
 	else if (!strcmp(tagName, "mod2PitchAdjust")) {
 		ENSURE_PARAM_MANAGER_EXISTS
-		patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_MODULATOR_1_PITCH_ADJUST, readAutomationUpToPos);
+		patchedParams->readParam(patchedParamsSummary, Param::Local::MODULATOR_1_PITCH_ADJUST, readAutomationUpToPos);
 		storageManager.exitTag("mod2PitchAdjust");
 	}
 
@@ -717,35 +719,32 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 		}
 
 		range->getAudioFileHolder()->filePath.set(storageManager.readTagOrAttributeValue());
-		sources[0].oscType = OSC_TYPE_SAMPLE;
-		paramManager->getPatchedParamSet()->params[PARAM_LOCAL_ENV_0_ATTACK].setCurrentValueBasicForSetup(
-		    getParamFromUserValue(PARAM_LOCAL_ENV_0_ATTACK, 0));
-		paramManager->getPatchedParamSet()->params[PARAM_LOCAL_ENV_0_DECAY].setCurrentValueBasicForSetup(
-		    getParamFromUserValue(PARAM_LOCAL_ENV_0_DECAY, 20));
-		paramManager->getPatchedParamSet()->params[PARAM_LOCAL_ENV_0_SUSTAIN].setCurrentValueBasicForSetup(
-		    getParamFromUserValue(PARAM_LOCAL_ENV_0_SUSTAIN, 50));
-		paramManager->getPatchedParamSet()->params[PARAM_LOCAL_ENV_0_RELEASE].setCurrentValueBasicForSetup(
-		    getParamFromUserValue(PARAM_LOCAL_ENV_0_RELEASE, 0));
-		paramManager->getPatchedParamSet()->params[PARAM_LOCAL_OSC_A_VOLUME].setCurrentValueBasicForSetup(
-		    getParamFromUserValue(PARAM_LOCAL_OSC_B_VOLUME, 50));
-		paramManager->getPatchedParamSet()->params[PARAM_LOCAL_OSC_B_VOLUME].setCurrentValueBasicForSetup(
-		    getParamFromUserValue(PARAM_LOCAL_OSC_B_VOLUME, 0));
+		sources[0].oscType = OscType::SAMPLE;
+		paramManager->getPatchedParamSet()->params[Param::Local::ENV_0_ATTACK].setCurrentValueBasicForSetup(
+		    getParamFromUserValue(Param::Local::ENV_0_ATTACK, 0));
+		paramManager->getPatchedParamSet()->params[Param::Local::ENV_0_DECAY].setCurrentValueBasicForSetup(
+		    getParamFromUserValue(Param::Local::ENV_0_DECAY, 20));
+		paramManager->getPatchedParamSet()->params[Param::Local::ENV_0_SUSTAIN].setCurrentValueBasicForSetup(
+		    getParamFromUserValue(Param::Local::ENV_0_SUSTAIN, 50));
+		paramManager->getPatchedParamSet()->params[Param::Local::ENV_0_RELEASE].setCurrentValueBasicForSetup(
+		    getParamFromUserValue(Param::Local::ENV_0_RELEASE, 0));
+		paramManager->getPatchedParamSet()->params[Param::Local::OSC_A_VOLUME].setCurrentValueBasicForSetup(
+		    getParamFromUserValue(Param::Local::OSC_B_VOLUME, 50));
+		paramManager->getPatchedParamSet()->params[Param::Local::OSC_B_VOLUME].setCurrentValueBasicForSetup(
+		    getParamFromUserValue(Param::Local::OSC_B_VOLUME, 0));
 
 		storageManager.exitTag("fileName");
 	}
 
 	else if (!strcmp(tagName, "cents")) {
 		int8_t newCents = storageManager.readTagOrAttributeValueInt();
-		sources[0].cents = (getMax(
-		    (int8_t)-50,
-		    getMin(
-		        (int8_t)50,
-		        newCents))); // We don't need to call the setTranspose method here, because this will get called soon anyway, once the sample rate is known
+		// We don't need to call the setTranspose method here, because this will get called soon anyway, once the sample rate is known
+		sources[0].cents = (getMax((int8_t)-50, getMin((int8_t)50, newCents)));
 		storageManager.exitTag("cents");
 	}
 	else if (!strcmp(tagName, "continuous")) {
-		sources[0].repeatMode = storageManager.readTagOrAttributeValueInt();
-		sources[0].repeatMode = getMin(sources[0].repeatMode, (uint8_t)(NUM_REPEAT_MODES - 1));
+		sources[0].repeatMode = static_cast<SampleRepeatMode>(storageManager.readTagOrAttributeValueInt());
+		sources[0].repeatMode = std::min(sources[0].repeatMode, static_cast<SampleRepeatMode>(kNumRepeatModes - 1));
 		storageManager.exitTag("continuous");
 	}
 	else if (!strcmp(tagName, "reversed")) {
@@ -788,7 +787,7 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 	else if (!strcmp(tagName, "ringMod")) {
 		int32_t contents = storageManager.readTagOrAttributeValueInt();
 		if (contents == 1) {
-			synthMode = SYNTH_MODE_RINGMOD;
+			synthMode = SynthMode::RINGMOD;
 		}
 		storageManager.exitTag("ringMod");
 	}
@@ -801,9 +800,9 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 		while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "modKnob")) {
 
-				uint8_t p = PARAM_NONE;
-				uint8_t s = 255;
-				uint8_t s2 = 255;
+				uint8_t p = Param::Global::NONE;
+				PatchSource s = PatchSource::NOT_AVAILABLE;
+				PatchSource s2 = PatchSource::NOT_AVAILABLE;
 
 				while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 					if (!strcmp(tagName, "controlsParam")) {
@@ -818,15 +817,17 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 					storageManager.exitTag(tagName);
 				}
 
-				if (k < NUM_MOD_BUTTONS) { // Ensure we're not loading more than actually fit in our array
-					if (p != PARAM_NONE
-					    && p != PARAM_PLACEHOLDER_RANGE) { // Discard any unlikely "range" ones from before V3.2.0, for complex reasons
+				if (k < kNumModButtons) { // Ensure we're not loading more than actually fit in our array
+					if (p != Param::Global::NONE
+					    && p
+					           != Param::
+					               PLACEHOLDER_RANGE) { // Discard any unlikely "range" ones from before V3.2.0, for complex reasons
 						ModKnob* newKnob = &modKnobs[k][w];
 
-						if (s == 255) {
+						if (s == PatchSource::NOT_AVAILABLE) {
 							newKnob->paramDescriptor.setToHaveParamOnly(p);
 						}
-						else if (s2 == 255) {
+						else if (s2 == PatchSource::NOT_AVAILABLE) {
 							newKnob->paramDescriptor.setToHaveParamAndSource(p, s);
 						}
 						else {
@@ -838,7 +839,7 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 				}
 
 				w++;
-				if (w == NUM_PHYSICAL_MOD_KNOBS) {
+				if (w == kNumPhysicalModKnobs) {
 					w = 0;
 					k++;
 				}
@@ -856,19 +857,19 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 
 	else if (!strcmp(tagName, "volume")) {
 		ENSURE_PARAM_MANAGER_EXISTS
-		patchedParams->readParam(patchedParamsSummary, PARAM_GLOBAL_VOLUME_POST_FX, readAutomationUpToPos);
+		patchedParams->readParam(patchedParamsSummary, Param::Global::VOLUME_POST_FX, readAutomationUpToPos);
 		storageManager.exitTag("volume");
 	}
 
 	else if (!strcmp(tagName, "pan")) {
 		ENSURE_PARAM_MANAGER_EXISTS
-		patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_PAN, readAutomationUpToPos);
+		patchedParams->readParam(patchedParamsSummary, Param::Local::PAN, readAutomationUpToPos);
 		storageManager.exitTag("pan");
 	}
 
 	else if (!strcmp(tagName, "pitchAdjust")) {
 		ENSURE_PARAM_MANAGER_EXISTS
-		patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_PITCH_ADJUST, readAutomationUpToPos);
+		patchedParams->readParam(patchedParamsSummary, Param::Local::PITCH_ADJUST, readAutomationUpToPos);
 		storageManager.exitTag("pitchAdjust");
 	}
 
@@ -894,7 +895,7 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 			}
 			else if (!strcmp(tagName, "rate")) {
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(patchedParamsSummary, PARAM_GLOBAL_MOD_FX_RATE, readAutomationUpToPos);
+				patchedParams->readParam(patchedParamsSummary, Param::Global::MOD_FX_RATE, readAutomationUpToPos);
 				storageManager.exitTag("rate");
 			}
 			else if (!strcmp(tagName, "feedback")) {
@@ -904,7 +905,7 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 				    (1 - pow(1 - ((float)finalValue / 2147483648), (float)1 / 3)) / 0.74 * 4294967296 - 2147483648;
 				ENSURE_PARAM_MANAGER_EXISTS
 				paramManager->getUnpatchedParamSet()
-				    ->params[PARAM_UNPATCHED_MOD_FX_FEEDBACK]
+				    ->params[Param::Unpatched::MOD_FX_FEEDBACK]
 				    .setCurrentValueBasicForSetup(i);
 				storageManager.exitTag("feedback");
 			}
@@ -914,13 +915,13 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 				int32_t value = ((int64_t)contents << 8) - 2147483648;
 				ENSURE_PARAM_MANAGER_EXISTS
 				paramManager->getUnpatchedParamSet()
-				    ->params[PARAM_UNPATCHED_MOD_FX_OFFSET]
+				    ->params[Param::Unpatched::MOD_FX_OFFSET]
 				    .setCurrentValueBasicForSetup(value);
 				storageManager.exitTag("offset");
 			}
 			else if (!strcmp(tagName, "depth")) {
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(patchedParamsSummary, PARAM_GLOBAL_MOD_FX_DEPTH, readAutomationUpToPos);
+				patchedParams->readParam(patchedParamsSummary, Param::Global::MOD_FX_DEPTH, readAutomationUpToPos);
 				storageManager.exitTag("depth");
 			}
 			else {
@@ -942,7 +943,7 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 			}
 			else if (!strcmp(tagName, "rate")) {
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(patchedParamsSummary, PARAM_GLOBAL_LFO_FREQ, readAutomationUpToPos);
+				patchedParams->readParam(patchedParamsSummary, Param::Global::LFO_FREQ, readAutomationUpToPos);
 				storageManager.exitTag("rate");
 			}
 			else if (!strcmp(tagName, "syncType")) {
@@ -968,7 +969,7 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 			}
 			else if (!strcmp(tagName, "rate")) {
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_LFO_LOCAL_FREQ, readAutomationUpToPos);
+				patchedParams->readParam(patchedParamsSummary, Param::Local::LFO_LOCAL_FREQ, readAutomationUpToPos);
 				storageManager.exitTag("rate");
 			}
 			else {
@@ -993,12 +994,12 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 			}
 			else if (!strcmp(tagName, "frequency")) {
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_LPF_FREQ, readAutomationUpToPos);
+				patchedParams->readParam(patchedParamsSummary, Param::Local::LPF_FREQ, readAutomationUpToPos);
 				storageManager.exitTag("frequency");
 			}
 			else if (!strcmp(tagName, "resonance")) {
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_LPF_RESONANCE, readAutomationUpToPos);
+				patchedParams->readParam(patchedParamsSummary, Param::Local::LPF_RESONANCE, readAutomationUpToPos);
 				storageManager.exitTag("resonance");
 			}
 			else if (!strcmp(tagName, "mode")) { // For old, pre- October 2016 files
@@ -1011,8 +1012,8 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 		}
 		if (!switchedOn) {
 			ENSURE_PARAM_MANAGER_EXISTS
-			paramManager->getPatchedParamSet()->params[PARAM_LOCAL_LPF_FREQ].setCurrentValueBasicForSetup(
-			    getParamFromUserValue(PARAM_LOCAL_LPF_FREQ, 50));
+			paramManager->getPatchedParamSet()->params[Param::Local::LPF_FREQ].setCurrentValueBasicForSetup(
+			    getParamFromUserValue(Param::Local::LPF_FREQ, 50));
 		}
 
 		storageManager.exitTag("lpf");
@@ -1028,12 +1029,12 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 			}
 			else if (!strcmp(tagName, "frequency")) {
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_HPF_FREQ, readAutomationUpToPos);
+				patchedParams->readParam(patchedParamsSummary, Param::Local::HPF_FREQ, readAutomationUpToPos);
 				storageManager.exitTag("frequency");
 			}
 			else if (!strcmp(tagName, "resonance")) {
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_HPF_RESONANCE, readAutomationUpToPos);
+				patchedParams->readParam(patchedParamsSummary, Param::Local::HPF_RESONANCE, readAutomationUpToPos);
 				storageManager.exitTag("resonance");
 			}
 			else {
@@ -1042,8 +1043,8 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 		}
 		if (!switchedOn) {
 			ENSURE_PARAM_MANAGER_EXISTS
-			paramManager->getPatchedParamSet()->params[PARAM_LOCAL_HPF_FREQ].setCurrentValueBasicForSetup(
-			    getParamFromUserValue(PARAM_LOCAL_HPF_FREQ, 50));
+			paramManager->getPatchedParamSet()->params[Param::Local::HPF_FREQ].setCurrentValueBasicForSetup(
+			    getParamFromUserValue(Param::Local::HPF_FREQ, 50));
 		}
 
 		storageManager.exitTag("hpf");
@@ -1053,22 +1054,22 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 		while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "attack")) {
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_ENV_0_ATTACK, readAutomationUpToPos);
+				patchedParams->readParam(patchedParamsSummary, Param::Local::ENV_0_ATTACK, readAutomationUpToPos);
 				storageManager.exitTag("attack");
 			}
 			else if (!strcmp(tagName, "decay")) {
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_ENV_0_DECAY, readAutomationUpToPos);
+				patchedParams->readParam(patchedParamsSummary, Param::Local::ENV_0_DECAY, readAutomationUpToPos);
 				storageManager.exitTag("decay");
 			}
 			else if (!strcmp(tagName, "sustain")) {
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_ENV_0_SUSTAIN, readAutomationUpToPos);
+				patchedParams->readParam(patchedParamsSummary, Param::Local::ENV_0_SUSTAIN, readAutomationUpToPos);
 				storageManager.exitTag("sustain");
 			}
 			else if (!strcmp(tagName, "release")) {
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_ENV_0_RELEASE, readAutomationUpToPos);
+				patchedParams->readParam(patchedParamsSummary, Param::Local::ENV_0_RELEASE, readAutomationUpToPos);
 				storageManager.exitTag("release");
 			}
 			else {
@@ -1083,22 +1084,22 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 		while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "attack")) {
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_ENV_1_ATTACK, readAutomationUpToPos);
+				patchedParams->readParam(patchedParamsSummary, Param::Local::ENV_1_ATTACK, readAutomationUpToPos);
 				storageManager.exitTag("attack");
 			}
 			else if (!strcmp(tagName, "decay")) {
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_ENV_1_DECAY, readAutomationUpToPos);
+				patchedParams->readParam(patchedParamsSummary, Param::Local::ENV_1_DECAY, readAutomationUpToPos);
 				storageManager.exitTag("decay");
 			}
 			else if (!strcmp(tagName, "sustain")) {
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_ENV_1_SUSTAIN, readAutomationUpToPos);
+				patchedParams->readParam(patchedParamsSummary, Param::Local::ENV_1_SUSTAIN, readAutomationUpToPos);
 				storageManager.exitTag("sustain");
 			}
 			else if (!strcmp(tagName, "release")) {
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_ENV_1_RELEASE, readAutomationUpToPos);
+				patchedParams->readParam(patchedParamsSummary, Param::Local::ENV_1_RELEASE, readAutomationUpToPos);
 				storageManager.exitTag("release");
 			}
 			else {
@@ -1115,13 +1116,13 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 	}
 
 	else if (!strcmp(tagName, "voicePriority")) {
-		voicePriority = storageManager.readTagOrAttributeValueInt();
+		voicePriority = static_cast<VoicePriority>(storageManager.readTagOrAttributeValueInt());
 		storageManager.exitTag("voicePriority");
 	}
 
 	else if (!strcmp(tagName, "reverbAmount")) {
 		ENSURE_PARAM_MANAGER_EXISTS
-		patchedParams->readParam(patchedParamsSummary, PARAM_GLOBAL_REVERB_AMOUNT, readAutomationUpToPos);
+		patchedParams->readParam(patchedParamsSummary, Param::Global::REVERB_AMOUNT, readAutomationUpToPos);
 		storageManager.exitTag("reverbAmount");
 	}
 
@@ -1154,174 +1155,177 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 void Sound::ensureKnobReferencesCorrectVolume(Knob* knob) {
 	int p = knob->paramDescriptor.getJustTheParam();
 
-	if (p == PARAM_GLOBAL_VOLUME_POST_REVERB_SEND || p == PARAM_GLOBAL_VOLUME_POST_FX || p == PARAM_LOCAL_VOLUME) {
+	if (p == Param::Global::VOLUME_POST_REVERB_SEND || p == Param::Global::VOLUME_POST_FX
+	    || p == Param::Local::VOLUME) {
 		if (knob->paramDescriptor.isJustAParam()) {
-			knob->paramDescriptor.setToHaveParamOnly(PARAM_GLOBAL_VOLUME_POST_FX);
+			knob->paramDescriptor.setToHaveParamOnly(Param::Global::VOLUME_POST_FX);
 		}
-		else if (knob->paramDescriptor.getTopLevelSource() == PATCH_SOURCE_COMPRESSOR) {
-			knob->paramDescriptor.changeParam(PARAM_GLOBAL_VOLUME_POST_REVERB_SEND);
+		else if (knob->paramDescriptor.getTopLevelSource() == PatchSource::COMPRESSOR) {
+			knob->paramDescriptor.changeParam(Param::Global::VOLUME_POST_REVERB_SEND);
 		}
 		else {
-			knob->paramDescriptor.changeParam(PARAM_LOCAL_VOLUME);
+			knob->paramDescriptor.changeParam(Param::Local::VOLUME);
 		}
 	}
 }
 
 // p=255 means we're just querying the source to see if it can be patched to anything
-uint8_t Sound::maySourcePatchToParam(uint8_t s, uint8_t p, ParamManager* paramManager) {
+PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, ParamManager* paramManager) {
 
-	if (s == PATCH_SOURCE_NOTE && isDrum()) {
-		return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
+	if (s == PatchSource::NOTE && isDrum()) {
+		return PatchCableAcceptance::DISALLOWED;
 	}
 
-	if (p != 255 && s != 255 && s >= FIRST_LOCAL_SOURCE && p >= FIRST_GLOBAL_PARAM) {
-		return PATCH_CABLE_ACCEPTANCE_DISALLOWED; // Can't patch local source to global param
+	if (p != 255 && s != PatchSource::NOT_AVAILABLE && s >= kFirstLocalSource && p >= Param::Global::FIRST) {
+		return PatchCableAcceptance::DISALLOWED; // Can't patch local source to global param
 	}
 
 	PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
 
 	switch (p) {
-	case PARAM_NONE:
-		return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
+	case Param::Global::NONE:
+		return PatchCableAcceptance::DISALLOWED;
 
-	case PARAM_LOCAL_VOLUME:
-		return (s != PATCH_SOURCE_ENVELOPE_0
-		        && s != PATCH_SOURCE_ENVELOPE_1 // No envelopes allowed to be patched to volume - this is hardcoded elsewhere
-		        && s != PATCH_SOURCE_COMPRESSOR) // Don't let the compressor patch to local volume - it's supposed to go to global volume
-		           ? PATCH_CABLE_ACCEPTANCE_ALLOWED
-		           : PATCH_CABLE_ACCEPTANCE_DISALLOWED;
+	case Param::Local::VOLUME:
+		return (s != PatchSource::ENVELOPE_0
+		        // No envelopes allowed to be patched to volume - this is hardcoded elsewhere
+		        && s != PatchSource::ENVELOPE_1
+		        // Don't let the compressor patch to local volume - it's supposed to go to global volume
+		        && s != PatchSource::COMPRESSOR)
+		           ? PatchCableAcceptance::ALLOWED
+		           : PatchCableAcceptance::DISALLOWED;
 
-	case PARAM_LOCAL_OSC_A_PHASE_WIDTH:
-		if (getSynthMode() == SYNTH_MODE_FM) {
-			return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
+	case Param::Local::OSC_A_PHASE_WIDTH:
+		if (getSynthMode() == SynthMode::FM) {
+			return PatchCableAcceptance::DISALLOWED;
 		}
-		//if (getSynthMode() == SYNTH_MODE_FM || (sources[0].oscType != OSC_TYPE_SQUARE && sources[0].oscType != OSC_TYPE_JUNO60_SUBOSC)) return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
+		//if (getSynthMode() == SynthMode::FM || (sources[0].oscType != OscType::SQUARE && sources[0].oscType != OscType::JUNO60_SUBOSC)) return PatchCableAcceptance::DISALLOWED;
 		break;
-	case PARAM_LOCAL_OSC_A_VOLUME:
-		if (getSynthMode() == SYNTH_MODE_RINGMOD) {
-			return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
+	case Param::Local::OSC_A_VOLUME:
+		if (getSynthMode() == SynthMode::RINGMOD) {
+			return PatchCableAcceptance::DISALLOWED;
 		}
-	case PARAM_LOCAL_OSC_A_PITCH_ADJUST:
-		return (isSourceActiveEverDisregardingMissingSample(0, paramManager)) ? PATCH_CABLE_ACCEPTANCE_ALLOWED
-		                                                                      : PATCH_CABLE_ACCEPTANCE_EDITABLE;
+	case Param::Local::OSC_A_PITCH_ADJUST:
+		return (isSourceActiveEverDisregardingMissingSample(0, paramManager)) ? PatchCableAcceptance::ALLOWED
+		                                                                      : PatchCableAcceptance::EDITABLE;
 
-	case PARAM_LOCAL_CARRIER_0_FEEDBACK:
-		if (synthMode != SYNTH_MODE_FM) {
-			return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
+	case Param::Local::CARRIER_0_FEEDBACK:
+		if (synthMode != SynthMode::FM) {
+			return PatchCableAcceptance::DISALLOWED;
 		}
 		return (isSourceActiveEver(0, paramManager)
-		        && patchedParams->params[PARAM_LOCAL_CARRIER_0_FEEDBACK].containsSomething(-2147483648))
-		           ? PATCH_CABLE_ACCEPTANCE_ALLOWED
-		           : PATCH_CABLE_ACCEPTANCE_EDITABLE;
+		        && patchedParams->params[Param::Local::CARRIER_0_FEEDBACK].containsSomething(-2147483648))
+		           ? PatchCableAcceptance::ALLOWED
+		           : PatchCableAcceptance::EDITABLE;
 
-	case PARAM_LOCAL_OSC_B_PHASE_WIDTH:
-		if (getSynthMode() == SYNTH_MODE_FM) {
-			return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
+	case Param::Local::OSC_B_PHASE_WIDTH:
+		if (getSynthMode() == SynthMode::FM) {
+			return PatchCableAcceptance::DISALLOWED;
 		}
-		//if (getSynthMode() == SYNTH_MODE_FM || (sources[1].oscType != OSC_TYPE_SQUARE && sources[1].oscType != OSC_TYPE_JUNO60_SUBOSC)) return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
+		//if (getSynthMode() == SynthMode::FM || (sources[1].oscType != OscType::SQUARE && sources[1].oscType != OscType::JUNO60_SUBOSC)) return PatchCableAcceptance::DISALLOWED;
 		break;
-	case PARAM_LOCAL_OSC_B_VOLUME:
-		if (getSynthMode() == SYNTH_MODE_RINGMOD) {
-			return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
+	case Param::Local::OSC_B_VOLUME:
+		if (getSynthMode() == SynthMode::RINGMOD) {
+			return PatchCableAcceptance::DISALLOWED;
 		}
-	case PARAM_LOCAL_OSC_B_PITCH_ADJUST:
-		return (isSourceActiveEverDisregardingMissingSample(1, paramManager)) ? PATCH_CABLE_ACCEPTANCE_ALLOWED
-		                                                                      : PATCH_CABLE_ACCEPTANCE_EDITABLE;
+	case Param::Local::OSC_B_PITCH_ADJUST:
+		return (isSourceActiveEverDisregardingMissingSample(1, paramManager)) ? PatchCableAcceptance::ALLOWED
+		                                                                      : PatchCableAcceptance::EDITABLE;
 
-	case PARAM_LOCAL_CARRIER_1_FEEDBACK:
-		if (synthMode != SYNTH_MODE_FM) {
-			return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
+	case Param::Local::CARRIER_1_FEEDBACK:
+		if (synthMode != SynthMode::FM) {
+			return PatchCableAcceptance::DISALLOWED;
 		}
 		return (isSourceActiveEver(1, paramManager)
-		        && patchedParams->params[PARAM_LOCAL_CARRIER_1_FEEDBACK].containsSomething(-2147483648))
-		           ? PATCH_CABLE_ACCEPTANCE_ALLOWED
-		           : PATCH_CABLE_ACCEPTANCE_EDITABLE;
+		        && patchedParams->params[Param::Local::CARRIER_1_FEEDBACK].containsSomething(-2147483648))
+		           ? PatchCableAcceptance::ALLOWED
+		           : PatchCableAcceptance::EDITABLE;
 
-	case PARAM_LOCAL_NOISE_VOLUME:
-		if (synthMode == SYNTH_MODE_FM) {
-			return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
+	case Param::Local::NOISE_VOLUME:
+		if (synthMode == SynthMode::FM) {
+			return PatchCableAcceptance::DISALLOWED;
 		}
-		return (patchedParams->params[PARAM_LOCAL_NOISE_VOLUME].containsSomething(-2147483648))
-		           ? PATCH_CABLE_ACCEPTANCE_ALLOWED
-		           : PATCH_CABLE_ACCEPTANCE_EDITABLE;
+		return (patchedParams->params[Param::Local::NOISE_VOLUME].containsSomething(-2147483648))
+		           ? PatchCableAcceptance::ALLOWED
+		           : PatchCableAcceptance::EDITABLE;
 
-		//case PARAM_LOCAL_RANGE:
-		//return (rangeAdjustedParam != PARAM_NONE); // Ideally we'd also check whether the range-adjusted param actually has something patched to it
+		//case Param::Local::RANGE:
+		//return (rangeAdjustedParam != Param::Global::NONE); // Ideally we'd also check whether the range-adjusted param actually has something patched to it
 
-	case PARAM_LOCAL_LPF_FREQ:
-	case PARAM_LOCAL_LPF_RESONANCE:
-		if (synthMode == SYNTH_MODE_FM) {
-			return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
-		}
-		break;
-
-	case PARAM_LOCAL_HPF_FREQ:
-	case PARAM_LOCAL_HPF_RESONANCE:
-		if (synthMode == SYNTH_MODE_FM) {
-			return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
+	case Param::Local::LPF_FREQ:
+	case Param::Local::LPF_RESONANCE:
+		if (synthMode == SynthMode::FM) {
+			return PatchCableAcceptance::DISALLOWED;
 		}
 		break;
 
-	case PARAM_LOCAL_MODULATOR_0_VOLUME:
-	case PARAM_LOCAL_MODULATOR_0_PITCH_ADJUST:
-		if (synthMode != SYNTH_MODE_FM) {
-			return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
+	case Param::Local::HPF_FREQ:
+	case Param::Local::HPF_RESONANCE:
+		if (synthMode == SynthMode::FM) {
+			return PatchCableAcceptance::DISALLOWED;
 		}
-		return (patchedParams->params[PARAM_LOCAL_MODULATOR_0_VOLUME].containsSomething(-2147483648))
-		           ? PATCH_CABLE_ACCEPTANCE_ALLOWED
-		           : PATCH_CABLE_ACCEPTANCE_EDITABLE;
+		break;
 
-	case PARAM_LOCAL_MODULATOR_0_FEEDBACK:
-		if (synthMode != SYNTH_MODE_FM) {
-			return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
+	case Param::Local::MODULATOR_0_VOLUME:
+	case Param::Local::MODULATOR_0_PITCH_ADJUST:
+		if (synthMode != SynthMode::FM) {
+			return PatchCableAcceptance::DISALLOWED;
 		}
-		return (patchedParams->params[PARAM_LOCAL_MODULATOR_0_VOLUME].containsSomething(-2147483648)
-		        && patchedParams->params[PARAM_LOCAL_MODULATOR_0_FEEDBACK].containsSomething(-2147483648))
-		           ? PATCH_CABLE_ACCEPTANCE_ALLOWED
-		           : PATCH_CABLE_ACCEPTANCE_EDITABLE;
+		return (patchedParams->params[Param::Local::MODULATOR_0_VOLUME].containsSomething(-2147483648))
+		           ? PatchCableAcceptance::ALLOWED
+		           : PatchCableAcceptance::EDITABLE;
 
-	case PARAM_LOCAL_MODULATOR_1_VOLUME:
-	case PARAM_LOCAL_MODULATOR_1_PITCH_ADJUST:
-		if (synthMode != SYNTH_MODE_FM) {
-			return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
+	case Param::Local::MODULATOR_0_FEEDBACK:
+		if (synthMode != SynthMode::FM) {
+			return PatchCableAcceptance::DISALLOWED;
 		}
-		return (patchedParams->params[PARAM_LOCAL_MODULATOR_1_VOLUME].containsSomething(-2147483648))
-		           ? PATCH_CABLE_ACCEPTANCE_ALLOWED
-		           : PATCH_CABLE_ACCEPTANCE_EDITABLE;
+		return (patchedParams->params[Param::Local::MODULATOR_0_VOLUME].containsSomething(-2147483648)
+		        && patchedParams->params[Param::Local::MODULATOR_0_FEEDBACK].containsSomething(-2147483648))
+		           ? PatchCableAcceptance::ALLOWED
+		           : PatchCableAcceptance::EDITABLE;
 
-	case PARAM_LOCAL_MODULATOR_1_FEEDBACK:
-		if (synthMode != SYNTH_MODE_FM) {
-			return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
+	case Param::Local::MODULATOR_1_VOLUME:
+	case Param::Local::MODULATOR_1_PITCH_ADJUST:
+		if (synthMode != SynthMode::FM) {
+			return PatchCableAcceptance::DISALLOWED;
 		}
-		return (patchedParams->params[PARAM_LOCAL_MODULATOR_1_VOLUME].containsSomething(-2147483648)
-		        && patchedParams->params[PARAM_LOCAL_MODULATOR_1_FEEDBACK].containsSomething(-2147483648))
-		           ? PATCH_CABLE_ACCEPTANCE_ALLOWED
-		           : PATCH_CABLE_ACCEPTANCE_EDITABLE;
+		return (patchedParams->params[Param::Local::MODULATOR_1_VOLUME].containsSomething(-2147483648))
+		           ? PatchCableAcceptance::ALLOWED
+		           : PatchCableAcceptance::EDITABLE;
 
-	case PARAM_GLOBAL_LFO_FREQ:
-		return (lfoGlobalSyncLevel == SYNC_LEVEL_NONE) ? PATCH_CABLE_ACCEPTANCE_ALLOWED
-		                                               : PATCH_CABLE_ACCEPTANCE_DISALLOWED;
+	case Param::Local::MODULATOR_1_FEEDBACK:
+		if (synthMode != SynthMode::FM) {
+			return PatchCableAcceptance::DISALLOWED;
+		}
+		return (patchedParams->params[Param::Local::MODULATOR_1_VOLUME].containsSomething(-2147483648)
+		        && patchedParams->params[Param::Local::MODULATOR_1_FEEDBACK].containsSomething(-2147483648))
+		           ? PatchCableAcceptance::ALLOWED
+		           : PatchCableAcceptance::EDITABLE;
+
+	case Param::Global::LFO_FREQ:
+		return (lfoGlobalSyncLevel == SYNC_LEVEL_NONE) ? PatchCableAcceptance::ALLOWED
+		                                               : PatchCableAcceptance::DISALLOWED;
 
 		// Nothing may patch to post-fx volume. This is for manual control only. The compressor patches to post-reverb volume, and everything else patches to per-voice, "local" volume
-	case PARAM_GLOBAL_VOLUME_POST_FX:
-		return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
+	case Param::Global::VOLUME_POST_FX:
+		return PatchCableAcceptance::DISALLOWED;
 
-	case PARAM_LOCAL_PITCH_ADJUST:
-		if (s == PATCH_SOURCE_X) {
-			return PATCH_CABLE_ACCEPTANCE_DISALLOWED; // No patching X to pitch. This happens automatically.
+	case Param::Local::PITCH_ADJUST:
+		if (s == PatchSource::X) {
+			return PatchCableAcceptance::DISALLOWED; // No patching X to pitch. This happens automatically.
 		}
 		break;
 
-	case PARAM_GLOBAL_VOLUME_POST_REVERB_SEND: // Only the compressor can patch to here
-		if (s != PATCH_SOURCE_COMPRESSOR) {
-			return PATCH_CABLE_ACCEPTANCE_DISALLOWED;
+	case Param::Global::VOLUME_POST_REVERB_SEND: // Only the compressor can patch to here
+		if (s != PatchSource::COMPRESSOR) {
+			return PatchCableAcceptance::DISALLOWED;
 		}
 		break;
 
 		// In a perfect world, we'd only allow patching to LFO rates if the LFO as a source is itself patched somewhere usable
 	}
 
-	return PATCH_CABLE_ACCEPTANCE_ALLOWED;
+	return PatchCableAcceptance::ALLOWED;
 }
 
 void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* arpeggiator, int noteCodePreArp,
@@ -1332,7 +1336,7 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 
 	ModelStackWithSoundFlags* modelStackWithSoundFlags = modelStack->addSoundFlags();
 
-	if (synthMode == SYNTH_MODE_RINGMOD) {
+	if (synthMode == SynthMode::RINGMOD) {
 		goto allFine;
 	}
 	if (modelStackWithSoundFlags->checkSourceEverActive(0)) {
@@ -1341,7 +1345,7 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 	if (modelStackWithSoundFlags->checkSourceEverActive(1)) {
 		goto allFine;
 	}
-	if (paramManager->getPatchedParamSet()->params[PARAM_LOCAL_NOISE_VOLUME].containsSomething(-2147483648)) {
+	if (paramManager->getPatchedParamSet()->params[Param::Local::NOISE_VOLUME].containsSomething(-2147483648)) {
 		goto allFine;
 	}
 
@@ -1377,7 +1381,7 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int note
 	ParamManagerForTimeline* paramManager = (ParamManagerForTimeline*)modelStack->paramManager;
 
 	// If not polyphonic, stop any notes which are releasing, now
-	if (numVoicesAssigned && polyphonic != POLYPHONY_POLY) {
+	if (numVoicesAssigned && polyphonic != PolyphonyMode::POLY) {
 
 		int ends[2];
 		AudioEngine::activeVoices.getRangeForSound(this, ends);
@@ -1385,13 +1389,13 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int note
 			Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
 
 			// If we're proper-MONO, or it's releasing OR has no sustain / note tails
-			if (polyphonic == POLYPHONY_MONO || thisVoice->envelopes[0].state >= ENVELOPE_STAGE_RELEASE
+			if (polyphonic == PolyphonyMode::MONO || thisVoice->envelopes[0].state >= EnvelopeStage::RELEASE
 			    || !allowNoteTails(
 			        modelStack,
 			        true)) { // allowNoteTails() is very nearly exactly what we want to be calling here, though not named after the thing we're looking for here
 
 				// If non-FM and all active sources are samples, do a fast-release (if not already fast-releasing). Otherwise, just unassign (cut instantly)
-				if (synthMode == SYNTH_MODE_FM) {
+				if (synthMode == SynthMode::FM) {
 justUnassign:
 					// Ideally, we want to save this voice to reuse. But we can only do that for the first such one
 					if (!voiceToReuse) {
@@ -1410,13 +1414,13 @@ justUnassign:
 					}
 				}
 				else {
-					for (int s = 0; s < NUM_SOURCES; s++) {
-						if (isSourceActiveCurrently(s, paramManager) && sources[s].oscType != OSC_TYPE_SAMPLE) {
+					for (int s = 0; s < kNumSources; s++) {
+						if (isSourceActiveCurrently(s, paramManager) && sources[s].oscType != OscType::SAMPLE) {
 							goto justUnassign;
 						}
 					}
 
-					if (thisVoice->envelopes[0].state != ENVELOPE_STAGE_FAST_RELEASE) {
+					if (thisVoice->envelopes[0].state != EnvelopeStage::FAST_RELEASE) {
 						bool stillGoing = thisVoice->doFastRelease();
 
 						if (!stillGoing) {
@@ -1434,7 +1438,7 @@ justUnassign:
 		}
 	}
 
-	if (polyphonic == POLYPHONY_LEGATO && voiceForLegato) {
+	if (polyphonic == PolyphonyMode::LEGATO && voiceForLegato) {
 		ModelStackWithVoice* modelStackWithVoice = modelStack->addVoice(voiceForLegato);
 		voiceForLegato->changeNoteCode(modelStackWithVoice, noteCodePreArp, noteCodePostArp, fromMIDIChannel,
 		                               mpeValues);
@@ -1442,14 +1446,14 @@ justUnassign:
 	else {
 
 		Voice* newVoice;
-		int32_t envelopePositions[numEnvelopes];
+		int32_t envelopePositions[kNumEnvelopes];
 
 		if (voiceToReuse) {
 			newVoice = voiceToReuse;
 
 			// The osc phases and stuff will remain
 
-			for (int e = 0; e < numEnvelopes; e++) {
+			for (int e = 0; e < kNumEnvelopes; e++) {
 				envelopePositions[e] = voiceToReuse->envelopes[e].lastValue;
 			}
 		}
@@ -1477,7 +1481,7 @@ justUnassign:
 		                     ticksLate, samplesLate, voiceToReuse == NULL, fromMIDIChannel, mpeValues);
 		if (success) {
 			if (voiceToReuse) {
-				for (int e = 0; e < numEnvelopes; e++) {
+				for (int e = 0; e < kNumEnvelopes; e++) {
 					newVoice->envelopes[e].resumeAttack(envelopePositions[e]);
 				}
 			}
@@ -1519,19 +1523,19 @@ void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int not
 	for (int v = ends[0]; v < ends[1]; v++) {
 		Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
 		if ((thisVoice->noteCodeAfterArpeggiation == noteCode || noteCode == -32768)
-		    && thisVoice->envelopes[0].state < ENVELOPE_STAGE_RELEASE) { // Don't bother if it's already "releasing"
+		    && thisVoice->envelopes[0].state < EnvelopeStage::RELEASE) { // Don't bother if it's already "releasing"
 
 			ArpeggiatorSettings* arpSettings = getArpSettings();
 
 			ModelStackWithVoice* modelStackWithVoice = modelStack->addVoice(thisVoice);
 
 			// If we have actual arpeggiation, just switch off.
-			if (arpSettings && arpSettings->mode) {
+			if ((arpSettings != nullptr) && arpSettings->mode != ArpMode::OFF) {
 				goto justSwitchOff;
 			}
 
 			// If we're in LEGATO or true-MONO mode and there's another note we can switch back to...
-			if ((polyphonic == POLYPHONY_LEGATO || polyphonic == POLYPHONY_MONO) && !isDrum()
+			if ((polyphonic == PolyphonyMode::LEGATO || polyphonic == PolyphonyMode::MONO) && !isDrum()
 			    && allowNoteTails(
 			        modelStackWithVoice)) { // If no note-tails (i.e. yes one-shot samples etc.), the Arpeggiator will be full of notes which
 				// might not be active anymore, cos we were keeping track of them for MPE purposes.
@@ -1539,23 +1543,24 @@ void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int not
 				if (arpeggiator->hasAnyInputNotesActive()) {
 					ArpNote* arpNote =
 					    (ArpNote*)arpeggiator->notes.getElementAddress(arpeggiator->notes.getNumElements() - 1);
-					int newNoteCode = arpNote->inputCharacteristics[MIDI_CHARACTERISTIC_NOTE];
+					int newNoteCode = arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)];
 
-					if (polyphonic == POLYPHONY_LEGATO) {
-						thisVoice->changeNoteCode(modelStackWithVoice, newNoteCode, newNoteCode,
-						                          arpNote->inputCharacteristics[MIDI_CHARACTERISTIC_CHANNEL],
-						                          arpNote->mpeValues);
+					if (polyphonic == PolyphonyMode::LEGATO) {
+						thisVoice->changeNoteCode(
+						    modelStackWithVoice, newNoteCode, newNoteCode,
+						    arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)],
+						    arpNote->mpeValues);
 						lastNoteCode = newNoteCode;
 						// I think we could just return here, too?
 					}
-					else { // POLYPHONY_MONO
+					else { // PolyphonyMode::MONO
 						noteOnPostArpeggiator(
 						    modelStack, newNoteCode, newNoteCode,
 						    arpeggiator
 						        ->lastVelocity, // Interesting - I've made it keep the velocity of presumably the note we just switched off. I must have decided that sounded best? I think I vaguely remember.
 						    arpNote
 						        ->mpeValues, // ... We take the MPE values from the "keypress" associated with the new note we'll sound, though.
-						    0, 0, 0, arpNote->inputCharacteristics[MIDI_CHARACTERISTIC_CHANNEL]);
+						    0, 0, 0, arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]);
 						return;
 					}
 				}
@@ -1577,7 +1582,7 @@ bool Sound::allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardS
 
 	// If arp on, then definitely yes
 	ArpeggiatorSettings* arpSettings = getArpSettings((InstrumentClip*)modelStack->getTimelineCounterAllowNull());
-	if (arpSettings && arpSettings->mode) {
+	if ((arpSettings != nullptr) && arpSettings->mode != ArpMode::OFF) {
 		return true;
 	}
 
@@ -1587,21 +1592,21 @@ bool Sound::allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardS
 	}
 
 	// After that if not subtractive (so no samples) or there's some noise, we definitely can have tails
-	if (synthMode != SYNTH_MODE_SUBTRACTIVE
-	    || modelStack->paramManager->getPatchedParamSet()->params[PARAM_LOCAL_NOISE_VOLUME].containsSomething(
+	if (synthMode != SynthMode::SUBTRACTIVE
+	    || modelStack->paramManager->getPatchedParamSet()->params[Param::Local::NOISE_VOLUME].containsSomething(
 	        -2147483648)) {
 		return true;
 	}
 
 	// If we still don't know, just check there's at least one active oscillator that isn't a one-shot sample without a loop-end point
 	bool anyActiveSources = false;
-	for (int s = 0; s < NUM_SOURCES; s++) {
+	for (int s = 0; s < kNumSources; s++) {
 		bool sourceEverActive = modelStack->checkSourceEverActiveDisregardingMissingSample(s);
 
 		anyActiveSources = sourceEverActive || anyActiveSources;
 
 		if (sourceEverActive
-		    && (sources[s].oscType != OSC_TYPE_SAMPLE || sources[s].repeatMode != SAMPLE_REPEAT_ONCE
+		    && (sources[s].oscType != OscType::SAMPLE || sources[s].repeatMode != SampleRepeatMode::ONCE
 		        || (!disregardSampleLoop && sources[s].hasAnyLoopEndPoint()))) {
 			return true;
 		}
@@ -1612,16 +1617,16 @@ bool Sound::allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardS
 
 int32_t Sound::hasAnyTimeStretchSyncing(ParamManagerForTimeline* paramManager, bool getSampleLength, int note) {
 
-	if (synthMode == SYNTH_MODE_FM) {
+	if (synthMode == SynthMode::FM) {
 		return 0;
 	}
 
-	for (int s = 0; s < NUM_SOURCES; s++) {
+	for (int s = 0; s < kNumSources; s++) {
 
 		bool sourceEverActive = s ? isSourceActiveEver(1, paramManager) : isSourceActiveEver(0, paramManager);
 
-		if (sourceEverActive && sources[s].oscType == OSC_TYPE_SAMPLE
-		    && sources[s].repeatMode == SAMPLE_REPEAT_STRETCH) {
+		if (sourceEverActive && sources[s].oscType == OscType::SAMPLE
+		    && sources[s].repeatMode == SampleRepeatMode::STRETCH) {
 			if (getSampleLength) {
 				return sources[s].getLengthInSamplesAtSystemSampleRate(note + transpose, true);
 			}
@@ -1635,7 +1640,7 @@ int32_t Sound::hasAnyTimeStretchSyncing(ParamManagerForTimeline* paramManager, b
 // Returns sample length in samples
 int32_t Sound::hasCutOrLoopModeSamples(ParamManagerForTimeline* paramManager, int note, bool* anyLooping) {
 
-	if (synthMode == SYNTH_MODE_FM) {
+	if (synthMode == SynthMode::FM) {
 		return 0;
 	}
 
@@ -1648,18 +1653,18 @@ int32_t Sound::hasCutOrLoopModeSamples(ParamManagerForTimeline* paramManager, in
 		*anyLooping = false;
 	}
 
-	for (int s = 0; s < NUM_SOURCES; s++) {
+	for (int s = 0; s < kNumSources; s++) {
 		bool sourceEverActive = s ? isSourceActiveEver(1, paramManager) : isSourceActiveEver(0, paramManager);
 		if (!sourceEverActive) {
 			continue;
 		}
 
-		if (sources[s].oscType != OSC_TYPE_SAMPLE) {
+		if (sources[s].oscType != OscType::SAMPLE) {
 			return 0;
 		}
-		else if (sources[s].repeatMode == SAMPLE_REPEAT_CUT || sources[s].repeatMode == SAMPLE_REPEAT_LOOP) {
+		else if (sources[s].repeatMode == SampleRepeatMode::CUT || sources[s].repeatMode == SampleRepeatMode::LOOP) {
 
-			if (anyLooping && sources[s].repeatMode == SAMPLE_REPEAT_LOOP) {
+			if (anyLooping && sources[s].repeatMode == SampleRepeatMode::LOOP) {
 				*anyLooping = true;
 			}
 			int32_t length = sources[s].getLengthInSamplesAtSystemSampleRate(note);
@@ -1675,7 +1680,7 @@ int32_t Sound::hasCutOrLoopModeSamples(ParamManagerForTimeline* paramManager, in
 
 bool Sound::hasCutModeSamples(ParamManagerForTimeline* paramManager) {
 
-	if (synthMode == SYNTH_MODE_FM) {
+	if (synthMode == SynthMode::FM) {
 		return false;
 	}
 
@@ -1683,14 +1688,14 @@ bool Sound::hasCutModeSamples(ParamManagerForTimeline* paramManager) {
 		return false;
 	}
 
-	for (int s = 0; s < NUM_SOURCES; s++) {
+	for (int s = 0; s < kNumSources; s++) {
 		bool sourceEverActive = s ? isSourceActiveEver(1, paramManager) : isSourceActiveEver(0, paramManager);
 		if (!sourceEverActive) {
 			continue;
 		}
 
-		if (sources[s].oscType != OSC_TYPE_SAMPLE || !sources[s].hasAtLeastOneAudioFileLoaded()
-		    || sources[s].repeatMode != SAMPLE_REPEAT_CUT) {
+		if (sources[s].oscType != OscType::SAMPLE || !sources[s].hasAtLeastOneAudioFileLoaded()
+		    || sources[s].repeatMode != SampleRepeatMode::CUT) {
 			return false;
 		}
 	}
@@ -1702,16 +1707,16 @@ bool Sound::allowsVeryLateNoteStart(InstrumentClip* clip, ParamManagerForTimelin
 
 	// If arpeggiator, we can always start very late
 	ArpeggiatorSettings* arpSettings = getArpSettings(clip);
-	if (arpSettings && arpSettings->mode) {
+	if ((arpSettings != nullptr) && arpSettings->mode != ArpMode::OFF) {
 		return true;
 	}
 
-	if (synthMode == SYNTH_MODE_FM) {
+	if (synthMode == SynthMode::FM) {
 		return false;
 	}
 
 	// Basically, if any wave-based oscillators active, or one-shot samples, that means no not allowed
-	for (int s = 0; s < NUM_SOURCES; s++) {
+	for (int s = 0; s < kNumSources; s++) {
 
 		bool sourceEverActive = s ? isSourceActiveEver(1, paramManager) : isSourceActiveEver(0, paramManager);
 		if (!sourceEverActive) {
@@ -1721,16 +1726,16 @@ bool Sound::allowsVeryLateNoteStart(InstrumentClip* clip, ParamManagerForTimelin
 		switch (sources[s].oscType) {
 
 		// Sample - generally ok, but not if one-shot
-		case OSC_TYPE_SAMPLE:
-			if (sources[s].repeatMode == SAMPLE_REPEAT_ONCE || !sources[s].hasAtLeastOneAudioFileLoaded()) {
+		case OscType::SAMPLE:
+			if (sources[s].repeatMode == SampleRepeatMode::ONCE || !sources[s].hasAtLeastOneAudioFileLoaded()) {
 				return false; // Not quite sure why the must-be-loaded requirement - maybe something would break if it tried to do a late start otherwise?
 			}
 			break;
 
 		// Input - ok
-		case OSC_TYPE_INPUT_L:
-		case OSC_TYPE_INPUT_R:
-		case OSC_TYPE_INPUT_STEREO:
+		case OscType::INPUT_L:
+		case OscType::INPUT_R:
+		case OscType::INPUT_STEREO:
 			break;
 
 		// Wave-based - instant fail!
@@ -1743,58 +1748,58 @@ bool Sound::allowsVeryLateNoteStart(InstrumentClip* clip, ParamManagerForTimelin
 }
 
 bool Sound::isSourceActiveCurrently(int s, ParamManagerForTimeline* paramManager) {
-	return (synthMode == SYNTH_MODE_RINGMOD
-	        || getSmoothedPatchedParamValue(PARAM_LOCAL_OSC_A_VOLUME + s, paramManager) != -2147483648)
-	       && (synthMode == SYNTH_MODE_FM || sources[s].oscType != OSC_TYPE_SAMPLE
+	return (synthMode == SynthMode::RINGMOD
+	        || getSmoothedPatchedParamValue(Param::Local::OSC_A_VOLUME + s, paramManager) != -2147483648)
+	       && (synthMode == SynthMode::FM || sources[s].oscType != OscType::SAMPLE
 	           || sources[s].hasAtLeastOneAudioFileLoaded());
 }
 
 bool Sound::isSourceActiveEverDisregardingMissingSample(int s, ParamManager* paramManager) {
-	return (synthMode == SYNTH_MODE_RINGMOD
-	        || paramManager->getPatchedParamSet()->params[PARAM_LOCAL_OSC_A_VOLUME + s].containsSomething(-2147483648)
+	return (synthMode == SynthMode::RINGMOD
+	        || paramManager->getPatchedParamSet()->params[Param::Local::OSC_A_VOLUME + s].containsSomething(-2147483648)
 	        || renderingOscillatorSyncEver(paramManager));
 }
 
 bool Sound::isSourceActiveEver(int s, ParamManager* paramManager) {
 	return isSourceActiveEverDisregardingMissingSample(s, paramManager)
-	       && (synthMode == SYNTH_MODE_FM || sources[s].oscType != OSC_TYPE_SAMPLE
+	       && (synthMode == SynthMode::FM || sources[s].oscType != OscType::SAMPLE
 	           || sources[s].hasAtLeastOneAudioFileLoaded());
 }
 
 bool Sound::isNoiseActiveEver(ParamManagerForTimeline* paramManager) {
-	return (synthMode != SYNTH_MODE_FM
-	        && paramManager->getPatchedParamSet()->params[PARAM_LOCAL_NOISE_VOLUME].containsSomething(-2147483648));
+	return (synthMode != SynthMode::FM
+	        && paramManager->getPatchedParamSet()->params[Param::Local::NOISE_VOLUME].containsSomething(-2147483648));
 }
 
 bool Sound::renderingOscillatorSyncCurrently(ParamManagerForTimeline* paramManager) {
 	if (!oscillatorSync) {
 		return false;
 	}
-	if (synthMode == SYNTH_MODE_FM) {
+	if (synthMode == SynthMode::FM) {
 		return false;
 	}
-	return (getSmoothedPatchedParamValue(PARAM_LOCAL_OSC_B_VOLUME, paramManager) != -2147483648
-	        || synthMode == SYNTH_MODE_RINGMOD);
+	return (getSmoothedPatchedParamValue(Param::Local::OSC_B_VOLUME, paramManager) != -2147483648
+	        || synthMode == SynthMode::RINGMOD);
 }
 
 bool Sound::renderingOscillatorSyncEver(ParamManager* paramManager) {
 	if (!oscillatorSync) {
 		return false;
 	}
-	if (synthMode == SYNTH_MODE_FM) {
+	if (synthMode == SynthMode::FM) {
 		return false;
 	}
-	return (paramManager->getPatchedParamSet()->params[PARAM_LOCAL_OSC_B_VOLUME].containsSomething(-2147483648)
-	        || synthMode == SYNTH_MODE_RINGMOD);
+	return (paramManager->getPatchedParamSet()->params[Param::Local::OSC_B_VOLUME].containsSomething(-2147483648)
+	        || synthMode == SynthMode::RINGMOD);
 }
 
-void Sound::sampleZoneChanged(int markerType, int s, ModelStackWithSoundFlags* modelStack) {
+void Sound::sampleZoneChanged(MarkerType markerType, int s, ModelStackWithSoundFlags* modelStack) {
 	if (!numVoicesAssigned) {
 		return;
 	}
 
 	if (sources[s].sampleControls.reversed) {
-		markerType = NUM_MARKER_TYPES - 1 - markerType;
+		markerType = static_cast<MarkerType>(kNumMarkerTypes - 1 - util::to_underlying(markerType));
 	}
 
 	int ends[2];
@@ -1819,15 +1824,16 @@ void Sound::reassessRenderSkippingStatus(ModelStackWithSoundFlags* modelStack, b
 	// ModelStack, cos many deeper-nested functions called by this one need it too!
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 
-	bool skippingStatusNow = (!numVoicesAssigned && !delay.repeatsUntilAbandon && !stutterer.status
-	                          && (!arpSettings || !getArp()->hasAnyInputNotesActive() || !arpSettings->mode));
+	bool skippingStatusNow =
+	    ((numVoicesAssigned == 0) && (delay.repeatsUntilAbandon == 0u) && (stutterer.status == 0u)
+	     && ((arpSettings == nullptr) || !getArp()->hasAnyInputNotesActive() || arpSettings->mode == ArpMode::OFF));
 
 	if (skippingStatusNow != skippingRendering) {
 
 		if (skippingStatusNow) {
 
 			// We wanna start, skipping, but if MOD fx are on...
-			if (modFXType) {
+			if (modFXType != ModFXType::NONE) {
 
 				// If we didn't start the wait-time yet, start it now
 				if (!startSkippingRenderingAtTime) {
@@ -1840,7 +1846,7 @@ doCutModFXTail:
 					}
 
 					int waitSamples =
-					    (modFXType == MOD_FX_TYPE_CHORUS || modFXType == MOD_FX_TYPE_CHORUS_STEREO)
+					    (modFXType == ModFXType::CHORUS || modFXType == ModFXType::CHORUS_STEREO)
 					        ? (20 * 44)
 					        : (90
 					           * 441); // 20 and 900 mS respectively. Lots is required for feeding-back flanger or phaser
@@ -1880,11 +1886,11 @@ void Sound::getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** p
                                    int32_t* highestReverbAmountFound, ParamManagerForTimeline* paramManager) {
 
 	PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
-	if (!patchedParams->params[PARAM_GLOBAL_REVERB_AMOUNT].isAutomated()
-	    && patchedParams->params[PARAM_GLOBAL_REVERB_AMOUNT].containsSomething(-2147483648)) {
+	if (!patchedParams->params[Param::Global::REVERB_AMOUNT].isAutomated()
+	    && patchedParams->params[Param::Global::REVERB_AMOUNT].containsSomething(-2147483648)) {
 
 		// We deliberately don't use the LPF'ed param here
-		int32_t reverbHere = patchedParams->getValue(PARAM_GLOBAL_REVERB_AMOUNT);
+		int32_t reverbHere = patchedParams->getValue(Param::Global::REVERB_AMOUNT);
 		if (*highestReverbAmountFound < reverbHere) {
 			*highestReverbAmountFound = reverbHere;
 			*soundWithMostReverb = this;
@@ -1992,25 +1998,29 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 	ParamManagerForTimeline* paramManager = (ParamManagerForTimeline*)modelStack->paramManager;
 
 	// Do global LFO
-	if (paramManager->getPatchCableSet()->isSourcePatchedToSomething(PATCH_SOURCE_LFO_GLOBAL)) {
-		int32_t old = globalSourceValues[PATCH_SOURCE_LFO_GLOBAL];
-		globalSourceValues[PATCH_SOURCE_LFO_GLOBAL] =
+	if (paramManager->getPatchCableSet()->isSourcePatchedToSomething(PatchSource::LFO_GLOBAL)) {
+		const auto patchSourceLFOGlobalUnderlying = util::to_underlying(PatchSource::LFO_GLOBAL);
+
+		int32_t old = globalSourceValues[patchSourceLFOGlobalUnderlying];
+		globalSourceValues[patchSourceLFOGlobalUnderlying] =
 		    globalLFO.render(numSamples, lfoGlobalWaveType, getGlobalLFOPhaseIncrement());
-		unsigned int anyChange = (old != globalSourceValues[PATCH_SOURCE_LFO_GLOBAL]);
-		sourcesChanged |= anyChange << PATCH_SOURCE_LFO_GLOBAL;
+		unsigned int anyChange = (old != globalSourceValues[patchSourceLFOGlobalUnderlying]);
+		sourcesChanged |= anyChange << patchSourceLFOGlobalUnderlying;
 	}
 
 	// Do compressor
-	if (paramManager->getPatchCableSet()->isSourcePatchedToSomething(PATCH_SOURCE_COMPRESSOR)) {
+	if (paramManager->getPatchCableSet()->isSourcePatchedToSomething(PatchSource::COMPRESSOR)) {
 		if (sideChainHitPending) {
 			compressor.registerHit(sideChainHitPending);
 		}
 
-		int32_t old = globalSourceValues[PATCH_SOURCE_COMPRESSOR];
-		globalSourceValues[PATCH_SOURCE_COMPRESSOR] = compressor.render(
-		    numSamples, paramManager->getUnpatchedParamSet()->getValue(PARAM_UNPATCHED_COMPRESSOR_SHAPE));
-		unsigned int anyChange = (old != globalSourceValues[PATCH_SOURCE_COMPRESSOR]);
-		sourcesChanged |= anyChange << PATCH_SOURCE_COMPRESSOR;
+		const auto patchSourceCompressorUnderlying = util::to_underlying(PatchSource::COMPRESSOR);
+
+		int32_t old = globalSourceValues[patchSourceCompressorUnderlying];
+		globalSourceValues[patchSourceCompressorUnderlying] = compressor.render(
+		    numSamples, paramManager->getUnpatchedParamSet()->getValue(Param::Unpatched::COMPRESSOR_SHAPE));
+		unsigned int anyChange = (old != globalSourceValues[patchSourceCompressorUnderlying]);
+		sourcesChanged |= anyChange << patchSourceCompressorUnderlying;
 	}
 
 	// Perform the actual patching
@@ -2021,19 +2031,19 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 	// Setup some reverb-related stuff
 	int32_t reverbSendAmount =
 	    multiply_32x32_rshift32_rounded(reverbAmountAdjust,
-	                                    paramFinalValues[PARAM_GLOBAL_REVERB_AMOUNT - FIRST_GLOBAL_PARAM])
+	                                    paramFinalValues[Param::Global::REVERB_AMOUNT - Param::Global::FIRST])
 	    << 5;
 
 	ModelStackWithSoundFlags* modelStackWithSoundFlags = modelStack->addSoundFlags();
 
 	// Arpeggiator
 	ArpeggiatorSettings* arpSettings = getArpSettings();
-	if (arpSettings && arpSettings->mode) {
+	if (arpSettings && arpSettings->mode != ArpMode::OFF) {
 
 		UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-		uint32_t gateThreshold = (uint32_t)unpatchedParams->getValue(PARAM_UNPATCHED_SOUND_ARP_GATE) + 2147483648;
+		uint32_t gateThreshold = (uint32_t)unpatchedParams->getValue(Param::Unpatched::Sound::ARP_GATE) + 2147483648;
 		uint32_t phaseIncrement =
-		    arpSettings->getPhaseIncrement(paramFinalValues[PARAM_GLOBAL_ARP_RATE - FIRST_GLOBAL_PARAM]);
+		    arpSettings->getPhaseIncrement(paramFinalValues[Param::Global::ARP_RATE - Param::Global::FIRST]);
 
 		ArpReturnInstruction instruction;
 
@@ -2044,22 +2054,23 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 		}
 
 		if (instruction.noteCodeOnPostArp != ARP_NOTE_NONE) {
-			noteOnPostArpeggiator(modelStackWithSoundFlags,
-			                      instruction.arpNoteOn->inputCharacteristics[MIDI_CHARACTERISTIC_NOTE],
-			                      instruction.noteCodeOnPostArp, instruction.arpNoteOn->velocity,
-			                      instruction.arpNoteOn->mpeValues, instruction.sampleSyncLengthOn, 0, 0,
-			                      instruction.arpNoteOn->inputCharacteristics[MIDI_CHARACTERISTIC_CHANNEL]);
+			noteOnPostArpeggiator(
+			    modelStackWithSoundFlags,
+			    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
+			    instruction.noteCodeOnPostArp, instruction.arpNoteOn->velocity, instruction.arpNoteOn->mpeValues,
+			    instruction.sampleSyncLengthOn, 0, 0,
+			    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]);
 		}
 	}
 
 	// Setup delay
 	DelayWorkingState delayWorkingState;
-	delayWorkingState.delayFeedbackAmount = paramFinalValues[PARAM_GLOBAL_DELAY_FEEDBACK - FIRST_GLOBAL_PARAM];
+	delayWorkingState.delayFeedbackAmount = paramFinalValues[Param::Global::DELAY_FEEDBACK - Param::Global::FIRST];
 	if (shouldLimitDelayFeedback) {
 		delayWorkingState.delayFeedbackAmount =
 		    getMin(delayWorkingState.delayFeedbackAmount, (int32_t)(1 << 30) - (1 << 26));
 	}
-	delayWorkingState.userDelayRate = paramFinalValues[PARAM_GLOBAL_DELAY_RATE - FIRST_GLOBAL_PARAM];
+	delayWorkingState.userDelayRate = paramFinalValues[Param::Global::DELAY_RATE - Param::Global::FIRST];
 	delay.setupWorkingState(&delayWorkingState, numVoicesAssigned != 0);
 
 	// Render each voice into a local buffer here
@@ -2072,24 +2083,24 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 		// Very often, we'll just apply panning here at the Sound level rather than the Voice level
 		bool applyingPanAtVoiceLevel =
 		    (AudioEngine::renderInStereo
-		     && paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(PARAM_LOCAL_PAN));
+		     && paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(Param::Local::PAN));
 
 		// Setup filters
 		bool thisHasFilters = hasFilters();
 		FilterSetConfig filterSetConfig;
 		filterSetConfig.doLPF =
 		    (thisHasFilters
-		     && (lpfMode == LPF_MODE_TRANSISTOR_24DB_DRIVE
-		         || paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(PARAM_LOCAL_LPF_FREQ)
-		         || getSmoothedPatchedParamValue(PARAM_LOCAL_LPF_FREQ, paramManager) < 2147483602));
+		     && (lpfMode == LPFMode::TRANSISTOR_24DB_DRIVE
+		         || paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(Param::Local::LPF_FREQ)
+		         || getSmoothedPatchedParamValue(Param::Local::LPF_FREQ, paramManager) < 2147483602));
 		filterSetConfig.doHPF =
 		    (thisHasFilters
-		     && (paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(PARAM_LOCAL_HPF_FREQ)
-		         || getSmoothedPatchedParamValue(PARAM_LOCAL_HPF_FREQ, paramManager) != -2147483648));
+		     && (paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(Param::Local::HPF_FREQ)
+		         || getSmoothedPatchedParamValue(Param::Local::HPF_FREQ, paramManager) != -2147483648));
 
 		// Each voice will potentially alter the "sources changed" flags, so store a backup to restore between each voice
 		/*
-		bool backedUpSourcesChanged[FIRST_UNCHANGEABLE_SOURCE - FIRST_LOCAL_SOURCE];
+		bool backedUpSourcesChanged[FIRST_UNCHANGEABLE_SOURCE - Local::FIRST_SOURCE];
 		bool doneFirstVoice = false;
 		*/
 
@@ -2100,11 +2111,11 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 			/*
 			if (!doneFirstVoice) {
 				if (numVoicesAssigned > 1) {
-					memcpy(backedUpSourcesChanged, &sourcesChanged[FIRST_LOCAL_SOURCE], FIRST_UNCHANGEABLE_SOURCE - FIRST_LOCAL_SOURCE);
+					memcpy(backedUpSourcesChanged, &sourcesChanged[Local::FIRST_SOURCE], FIRST_UNCHANGEABLE_SOURCE - Local::FIRST_SOURCE);
 					doneFirstVoice = true;
 				}
 			}
-			else memcpy(&sourcesChanged[FIRST_LOCAL_SOURCE], backedUpSourcesChanged, FIRST_UNCHANGEABLE_SOURCE - FIRST_LOCAL_SOURCE);
+			else memcpy(&sourcesChanged[Local::FIRST_SOURCE], backedUpSourcesChanged, FIRST_UNCHANGEABLE_SOURCE - Local::FIRST_SOURCE);
 			*/
 
 			ModelStackWithVoice* modelStackWithVoice = modelStackWithSoundFlags->addVoice(thisVoice);
@@ -2122,7 +2133,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 		// If just rendered in mono, double that up to stereo now
 		if (!renderingInStereo) {
 			// We know that nothing's patched to pan, so can read it in this very basic way.
-			int32_t pan = paramManager->getPatchedParamSet()->getValue(PARAM_LOCAL_PAN) >> 1;
+			int32_t pan = paramManager->getPatchedParamSet()->getValue(Param::Local::PAN) >> 1;
 
 			int32_t amplitudeL, amplitudeR;
 			bool doPanning;
@@ -2149,7 +2160,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 			if (!applyingPanAtVoiceLevel) {
 
 				// We know that nothing's patched to pan, so can read it in this very basic way.
-				int32_t pan = paramManager->getPatchedParamSet()->getValue(PARAM_LOCAL_PAN) >> 1;
+				int32_t pan = paramManager->getPatchedParamSet()->getValue(Param::Local::PAN) >> 1;
 
 				int32_t amplitudeL, amplitudeR;
 				bool doPanning;
@@ -2178,15 +2189,15 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 		}
 	}
 
-	int32_t postFXVolume = paramFinalValues[PARAM_GLOBAL_VOLUME_POST_FX - FIRST_GLOBAL_PARAM];
-	int32_t postReverbVolume = paramFinalValues[PARAM_GLOBAL_VOLUME_POST_REVERB_SEND - FIRST_GLOBAL_PARAM];
+	int32_t postFXVolume = paramFinalValues[Param::Global::VOLUME_POST_FX - Param::Global::FIRST];
+	int32_t postReverbVolume = paramFinalValues[Param::Global::VOLUME_POST_REVERB_SEND - Param::Global::FIRST];
 
 	if (postReverbVolumeLastTime == -1) {
 		postReverbVolumeLastTime = postReverbVolume;
 	}
 
-	int32_t modFXDepth = paramFinalValues[PARAM_GLOBAL_MOD_FX_DEPTH - FIRST_GLOBAL_PARAM];
-	int32_t modFXRate = paramFinalValues[PARAM_GLOBAL_MOD_FX_RATE - FIRST_GLOBAL_PARAM];
+	int32_t modFXDepth = paramFinalValues[Param::Global::MOD_FX_DEPTH - Param::Global::FIRST];
+	int32_t modFXRate = paramFinalValues[Param::Global::MOD_FX_RATE - Param::Global::FIRST];
 
 	processSRRAndBitcrushing((StereoSample*)soundBuffer, numSamples, &postFXVolume, paramManager);
 	processFX((StereoSample*)soundBuffer, numSamples, modFXType, modFXRate, modFXDepth, &delayWorkingState,
@@ -2222,7 +2233,7 @@ void Sound::startSkippingRendering(ModelStackWithSoundFlags* modelStack) {
 	timeStartedSkippingRenderingModFX = AudioEngine::audioSampleTimer;
 	timeStartedSkippingRenderingLFO = AudioEngine::audioSampleTimer;
 	timeStartedSkippingRenderingArp = AudioEngine::audioSampleTimer;
-	// compressor.status = ENVELOPE_STAGE_OFF; // Was this doing anything? Have removed, to make all of this completely reversible without doing anything
+	// compressor.status = EnvelopeStage::OFF; // Was this doing anything? Have removed, to make all of this completely reversible without doing anything
 
 	setSkippingRendering(true);
 
@@ -2244,19 +2255,19 @@ void Sound::stopSkippingRendering(ArpeggiatorSettings* arpSettings) {
 			               getGlobalLFOPhaseIncrement());
 
 			// Do Mod FX
-			modFXLFO.tick(modFXTimeOff, paramFinalValues[PARAM_GLOBAL_MOD_FX_RATE - FIRST_GLOBAL_PARAM]);
+			modFXLFO.tick(modFXTimeOff, paramFinalValues[Param::Global::MOD_FX_RATE - Param::Global::FIRST]);
 
 			// Do arp
 			getArpBackInTimeAfterSkippingRendering(arpSettings);
 
 			// Do sidechain compressor
-			//if (paramManager->getPatchCableSet()->isSourcePatchedToSomething(PATCH_SOURCE_COMPRESSOR)) {
+			//if (paramManager->getPatchCableSet()->isSourcePatchedToSomething(PatchSource::COMPRESSOR)) {
 			compressor.registerHitRetrospectively(AudioEngine::sizeLastSideChainHit,
 			                                      AudioEngine::audioSampleTimer - AudioEngine::timeLastSideChainHit);
 			//}
 
-			postReverbVolumeLastTime =
-			    -1; // Special state to make it grab the actual value the first time it's rendered
+			// Special state to make it grab the actual value the first time it's rendered
+			postReverbVolumeLastTime = -1;
 
 			//clearModFXMemory(); // No need anymore, now we wait for this to basically empty before starting skipping
 		}
@@ -2268,9 +2279,9 @@ void Sound::stopSkippingRendering(ArpeggiatorSettings* arpSettings) {
 void Sound::getArpBackInTimeAfterSkippingRendering(ArpeggiatorSettings* arpSettings) {
 
 	if (skippingRendering) {
-		if (arpSettings && arpSettings->mode) {
+		if (arpSettings && arpSettings->mode != ArpMode::OFF) {
 			uint32_t phaseIncrement =
-			    arpSettings->getPhaseIncrement(paramFinalValues[PARAM_GLOBAL_ARP_RATE - FIRST_GLOBAL_PARAM]);
+			    arpSettings->getPhaseIncrement(paramFinalValues[Param::Global::ARP_RATE - Param::Global::FIRST]);
 			getArp()->gatePos +=
 			    (phaseIncrement >> 8) * (AudioEngine::audioSampleTimer - timeStartedSkippingRenderingArp);
 
@@ -2288,9 +2299,8 @@ void Sound::unassignAllVoices() {
 	AudioEngine::activeVoices.getRangeForSound(this, ends);
 	for (int v = ends[0]; v < ends[1]; v++) {
 		Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
-		AudioEngine::activeVoices.checkVoiceExists(
-		    thisVoice, this,
-		    "E203"); // ronronsen got error! https://forums.synthstrom.com/discussion/4090/e203-by-changing-a-drum-kit#latest
+		// ronronsen got error! https://forums.synthstrom.com/discussion/4090/e203-by-changing-a-drum-kit#latest
+		AudioEngine::activeVoices.checkVoiceExists(thisVoice, this, "E203");
 		AudioEngine::unassignVoice(thisVoice, this, NULL,
 		                           false); // Don't remove from Vector - we'll do that below, in bulk
 	}
@@ -2302,12 +2312,12 @@ void Sound::unassignAllVoices() {
 
 	if (ALPHA_OR_BETA_VERSION) {
 		if (numVoicesAssigned > 0) {
-			numericDriver.freezeWithError(
-			    "E070"); // ronronsen got error! https://forums.synthstrom.com/discussion/4090/e203-by-changing-a-drum-kit#latest
+			// ronronsen got error! https://forums.synthstrom.com/discussion/4090/e203-by-changing-a-drum-kit#latest
+			numericDriver.freezeWithError("E070");
 		}
 		else if (numVoicesAssigned < 0) {
-			numericDriver.freezeWithError(
-			    "E071"); // ronronsen got error! https://forums.synthstrom.com/discussion/4090/e203-by-changing-a-drum-kit#latest
+			// ronronsen got error! https://forums.synthstrom.com/discussion/4090/e203-by-changing-a-drum-kit#latest
+			numericDriver.freezeWithError("E071");
 		}
 	}
 
@@ -2379,7 +2389,7 @@ void Sound::confirmNumVoices(char const* error) {
 uint32_t Sound::getGlobalLFOPhaseIncrement() {
 	uint32_t phaseIncrement;
 	if (lfoGlobalSyncLevel == SYNC_LEVEL_NONE) {
-		phaseIncrement = paramFinalValues[PARAM_GLOBAL_LFO_FREQ - FIRST_GLOBAL_PARAM];
+		phaseIncrement = paramFinalValues[Param::Global::LFO_FREQ - Param::Global::FIRST];
 	}
 	else {
 		phaseIncrement = (playbackHandler.getTimePerInternalTickInverse()) >> (SYNC_LEVEL_256TH - lfoGlobalSyncLevel);
@@ -2414,7 +2424,7 @@ void Sound::setLFOGlobalSyncLevel(SyncLevel newLevel) {
 	}
 }
 
-void Sound::setLFOGlobalWave(uint8_t newWave) {
+void Sound::setLFOGlobalWave(LFOType newWave) {
 	lfoGlobalWaveType = newWave;
 	if (playbackHandler.isEitherClockActive()) {
 		resyncGlobalLFO();
@@ -2428,7 +2438,7 @@ void Sound::resyncGlobalLFO() {
 		timeStartedSkippingRenderingLFO = AudioEngine::
 		    audioSampleTimer; // Resets the thing where the number of samples skipped is later converted into LFO phase increment
 
-		if (lfoGlobalWaveType == OSC_TYPE_SINE || lfoGlobalWaveType == OSC_TYPE_TRIANGLE) {
+		if (lfoGlobalWaveType == LFOType::SINE || lfoGlobalWaveType == LFOType::TRIANGLE) {
 			globalLFO.phase = getLFOInitialPhaseForZero(lfoGlobalWaveType);
 		}
 		else {
@@ -2534,8 +2544,8 @@ void Sound::ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(Song* song) {
 }
 
 const uint8_t patchedParamsWhichShouldBeZeroIfNoKnobAssigned[] = {
-    PARAM_LOCAL_PITCH_ADJUST, PARAM_LOCAL_OSC_A_PITCH_ADJUST, PARAM_LOCAL_OSC_B_PITCH_ADJUST,
-    PARAM_LOCAL_MODULATOR_0_PITCH_ADJUST, PARAM_LOCAL_MODULATOR_1_PITCH_ADJUST};
+    Param::Local::PITCH_ADJUST, Param::Local::OSC_A_PITCH_ADJUST, Param::Local::OSC_B_PITCH_ADJUST,
+    Param::Local::MODULATOR_0_PITCH_ADJUST, Param::Local::MODULATOR_1_PITCH_ADJUST};
 
 void Sound::ensureInaccessibleParamPresetValuesWithoutKnobsAreZeroWithMinimalDetails(ParamManager* paramManager) {
 
@@ -2570,8 +2580,8 @@ void Sound::ensureParamPresetValueWithoutKnobIsZero(ModelStackWithAutoParam* mod
 		return;
 	}
 
-	for (int k = 0; k < NUM_MOD_BUTTONS; k++) {
-		for (int w = 0; w < NUM_PHYSICAL_MOD_KNOBS; w++) {
+	for (int k = 0; k < kNumModButtons; k++) {
+		for (int w = 0; w < kNumPhysicalModKnobs; w++) {
 			if (modKnobs[k][w].paramDescriptor.isSetToParamWithNoSource(modelStack->paramId)) {
 				return;
 			}
@@ -2598,8 +2608,8 @@ void Sound::ensureParamPresetValueWithoutKnobIsZeroWithMinimalDetails(ParamManag
 		return;
 	}
 
-	for (int k = 0; k < NUM_MOD_BUTTONS; k++) {
-		for (int w = 0; w < NUM_PHYSICAL_MOD_KNOBS; w++) {
+	for (int k = 0; k < kNumModButtons; k++) {
+		for (int w = 0; w < kNumPhysicalModKnobs; w++) {
 			if (modKnobs[k][w].paramDescriptor.isSetToParamWithNoSource(p)) {
 				return;
 			}
@@ -2620,13 +2630,13 @@ void Sound::ensureParamPresetValueWithoutKnobIsZeroWithMinimalDetails(ParamManag
 void Sound::doneReadingFromFile() {
 	calculateEffectiveVolume();
 
-	for (int s = 0; s < NUM_SOURCES; s++) {
+	for (int s = 0; s < kNumSources; s++) {
 		sources[s].doneReadingFromFile(this);
 	}
 
 	setupUnisonDetuners(NULL);
 
-	for (int m = 0; m < numModulators; m++) {
+	for (int m = 0; m < kNumModulators; m++) {
 		recalculateModulatorTransposer(m, NULL);
 	}
 }
@@ -2664,44 +2674,44 @@ void Sound::setupUnisonDetuners(ModelStackWithSoundFlags* modelStack) {
 }
 
 void Sound::calculateEffectiveVolume() {
-	//volumeNeutralValueForUnison = (float)getParamNeutralValue(PARAM_LOCAL_VOLUME) / sqrt(numUnison);
+	//volumeNeutralValueForUnison = (float)getParamNeutralValue(Param::Local::VOLUME) / sqrt(numUnison);
 	volumeNeutralValueForUnison = (float)134217728 / sqrtf(numUnison);
 }
 
 // May change mod knob functions. You must update mod knob levels after calling this
-void Sound::setSynthMode(uint8_t value, Song* song) {
+void Sound::setSynthMode(SynthMode value, Song* song) {
 
 	unassignAllVoices(); // This saves a lot of potential problems, to do with samples playing. E002 was being caused
 
-	uint8_t oldSynthMode = synthMode;
+	SynthMode oldSynthMode = synthMode;
 	synthMode = value;
 	setupPatchingForAllParamManagers(song);
 
 	// Change mod knob functions over. Switching *to* FM...
-	if (synthMode == SYNTH_MODE_FM && oldSynthMode != SYNTH_MODE_FM) {
-		for (int f = 0; f < NUM_MOD_BUTTONS; f++) {
+	if (synthMode == SynthMode::FM && oldSynthMode != SynthMode::FM) {
+		for (int f = 0; f < kNumModButtons; f++) {
 			if (modKnobs[f][0].paramDescriptor.isJustAParam() && modKnobs[f][1].paramDescriptor.isJustAParam()) {
 				int p0 = modKnobs[f][0].paramDescriptor.getJustTheParam();
 				int p1 = modKnobs[f][1].paramDescriptor.getJustTheParam();
 
-				if ((p0 == PARAM_LOCAL_LPF_RESONANCE || p0 == PARAM_LOCAL_HPF_RESONANCE
-				     || p0 == PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_BASS)
-				    && (p1 == PARAM_LOCAL_LPF_FREQ || p1 == PARAM_LOCAL_HPF_FREQ
-				        || p1 == PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_TREBLE)) {
-					modKnobs[f][0].paramDescriptor.setToHaveParamOnly(PARAM_LOCAL_MODULATOR_1_VOLUME);
-					modKnobs[f][1].paramDescriptor.setToHaveParamOnly(PARAM_LOCAL_MODULATOR_0_VOLUME);
+				if ((p0 == Param::Local::LPF_RESONANCE || p0 == Param::Local::HPF_RESONANCE
+				     || p0 == Param::Unpatched::START + Param::Unpatched::BASS)
+				    && (p1 == Param::Local::LPF_FREQ || p1 == Param::Local::HPF_FREQ
+				        || p1 == Param::Unpatched::START + Param::Unpatched::TREBLE)) {
+					modKnobs[f][0].paramDescriptor.setToHaveParamOnly(Param::Local::MODULATOR_1_VOLUME);
+					modKnobs[f][1].paramDescriptor.setToHaveParamOnly(Param::Local::MODULATOR_0_VOLUME);
 				}
 			}
 		}
 	}
 
 	// ... and switching *from* FM...
-	if (synthMode != SYNTH_MODE_FM && oldSynthMode == SYNTH_MODE_FM) {
-		for (int f = 0; f < NUM_MOD_BUTTONS; f++) {
-			if (modKnobs[f][0].paramDescriptor.isSetToParamWithNoSource(PARAM_LOCAL_MODULATOR_1_VOLUME)
-			    && modKnobs[f][1].paramDescriptor.isSetToParamWithNoSource(PARAM_LOCAL_MODULATOR_0_VOLUME)) {
-				modKnobs[f][0].paramDescriptor.setToHaveParamOnly(PARAM_LOCAL_LPF_RESONANCE);
-				modKnobs[f][1].paramDescriptor.setToHaveParamOnly(PARAM_LOCAL_LPF_FREQ);
+	if (synthMode != SynthMode::FM && oldSynthMode == SynthMode::FM) {
+		for (int f = 0; f < kNumModButtons; f++) {
+			if (modKnobs[f][0].paramDescriptor.isSetToParamWithNoSource(Param::Local::MODULATOR_1_VOLUME)
+			    && modKnobs[f][1].paramDescriptor.isSetToParamWithNoSource(Param::Local::MODULATOR_0_VOLUME)) {
+				modKnobs[f][0].paramDescriptor.setToHaveParamOnly(Param::Local::LPF_RESONANCE);
+				modKnobs[f][1].paramDescriptor.setToHaveParamOnly(Param::Local::LPF_FREQ);
 			}
 		}
 	}
@@ -2754,13 +2764,13 @@ void Sound::setNumUnison(int newNum, ModelStackWithSoundFlags* modelStack) {
 		for (int v = ends[0]; v < ends[1]; v++) {
 			Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
 
-			if (synthMode == SYNTH_MODE_SUBTRACTIVE) {
+			if (synthMode == SynthMode::SUBTRACTIVE) {
 
-				for (int s = 0; s < NUM_SOURCES; s++) {
+				for (int s = 0; s < kNumSources; s++) {
 
 					bool sourceEverActive = modelStack->checkSourceEverActive(s);
 
-					if (sourceEverActive && synthMode != SYNTH_MODE_FM && sources[s].oscType == OSC_TYPE_SAMPLE
+					if (sourceEverActive && synthMode != SynthMode::FM && sources[s].oscType == OscType::SAMPLE
 					    && thisVoice->guides[s].audioFileHolder && thisVoice->guides[s].audioFileHolder->audioFile) {
 
 						// For samples, set the current play pos for the new unison part, if num unison went up
@@ -2795,13 +2805,13 @@ void Sound::setNumUnison(int newNum, ModelStackWithSoundFlags* modelStack) {
 									newVoiceSample->stopUsingCache(
 									    &thisVoice->guides[s], (Sample*)thisVoice->guides[s].audioFileHolder->audioFile,
 									    thisVoice->getPriorityRating(),
-									    thisVoice->guides[s].getLoopingType(&sources[s]) == LOOP_LOW_LEVEL);
+									    thisVoice->guides[s].getLoopingType(&sources[s]) == LoopType::LOW_LEVEL);
 									// TODO: should really check success of that...
 								}
 							}
 						}
 						else if (newNum < oldNum) {
-							for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD; l++) {
+							for (int l = 0; l < kNumClustersLoadedAhead; l++) {
 								thisVoice->unisonParts[newNum].sources[s].unassign();
 							}
 						}
@@ -2821,7 +2831,7 @@ bool Sound::anyNoteIsOn() {
 
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 
-	if (arpSettings && arpSettings->mode != ARP_MODE_OFF) {
+	if (arpSettings && arpSettings->mode != ArpMode::OFF) {
 		return (getArp()->hasAnyInputNotesActive());
 	}
 
@@ -2829,7 +2839,7 @@ bool Sound::anyNoteIsOn() {
 }
 
 bool Sound::hasFilters() {
-	return (getSynthMode() != SYNTH_MODE_FM);
+	return (getSynthMode() != SynthMode::FM);
 }
 
 void Sound::readParamsFromFile(ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos) {
@@ -2900,7 +2910,7 @@ int Sound::createParamManagerForLoading(ParamManagerForTimeline* paramManager) {
 
 	initParams(paramManager);
 
-	paramManager->getUnpatchedParamSet()->params[PARAM_UNPATCHED_COMPRESSOR_SHAPE].setCurrentValueBasicForSetup(
+	paramManager->getUnpatchedParamSet()->params[Param::Unpatched::COMPRESSOR_SHAPE].setCurrentValueBasicForSetup(
 	    2147483647); // Hmm, why this here? Obviously I had some reason...
 	return NO_ERROR;
 }
@@ -2908,7 +2918,7 @@ int Sound::createParamManagerForLoading(ParamManagerForTimeline* paramManager) {
 void Sound::compensateVolumeForResonance(ModelStackWithThreeMainThings* modelStack) {
 
 	// If it was an old-firmware file, we need to compensate for resonance
-	if (storageManager.firmwareVersionOfFileBeingRead < FIRMWARE_1P2P0 && synthMode != SYNTH_MODE_FM) {
+	if (storageManager.firmwareVersionOfFileBeingRead < FIRMWARE_1P2P0 && synthMode != SynthMode::FM) {
 		if (modelStack->paramManager->resonanceBackwardsCompatibilityProcessed) {
 			return;
 		}
@@ -2917,14 +2927,14 @@ void Sound::compensateVolumeForResonance(ModelStackWithThreeMainThings* modelSta
 
 		PatchedParamSet* patchedParams = modelStack->paramManager->getPatchedParamSet();
 
-		int32_t compensation = interpolateTableSigned(patchedParams->getValue(PARAM_LOCAL_LPF_RESONANCE) + 2147483648,
+		int32_t compensation = interpolateTableSigned(patchedParams->getValue(Param::Local::LPF_RESONANCE) + 2147483648,
 		                                              32, oldResonanceCompensation, 3);
 		float compensationDB = (float)compensation / (1024 << 16);
 
 		if (compensationDB > 0.1) {
 			//Uart::print("compensating dB: ");
 			//Uart::println((int)(compensationDB * 100));
-			patchedParams->shiftParamVolumeByDB(PARAM_GLOBAL_VOLUME_POST_FX, compensationDB);
+			patchedParams->shiftParamVolumeByDB(Param::Global::VOLUME_POST_FX, compensationDB);
 		}
 
 		ModelStackWithParamCollection* modelStackWithParamCollection =
@@ -2936,13 +2946,13 @@ void Sound::compensateVolumeForResonance(ModelStackWithThreeMainThings* modelSta
 		    modelStackWithParamCollection); // So that we may then call doesParamHaveSomethingPatchedToIt(), below
 
 		// If no LPF on, and resonance is at 50%, set it to 0%
-		if (!patchCableSet->doesParamHaveSomethingPatchedToIt(PARAM_LOCAL_LPF_FREQ)
-		    && !patchedParams->params[PARAM_LOCAL_LPF_FREQ].isAutomated()
-		    && patchedParams->params[PARAM_LOCAL_LPF_FREQ].getCurrentValue() >= 2147483602
-		    && !patchedParams->params[PARAM_LOCAL_LPF_RESONANCE].isAutomated()
-		    && patchedParams->params[PARAM_LOCAL_LPF_RESONANCE].getCurrentValue() <= 0
-		    && patchedParams->params[PARAM_LOCAL_LPF_RESONANCE].getCurrentValue() >= -23) {
-			patchedParams->params[PARAM_LOCAL_LPF_RESONANCE].currentValue = -2147483648;
+		if (!patchCableSet->doesParamHaveSomethingPatchedToIt(Param::Local::LPF_FREQ)
+		    && !patchedParams->params[Param::Local::LPF_FREQ].isAutomated()
+		    && patchedParams->params[Param::Local::LPF_FREQ].getCurrentValue() >= 2147483602
+		    && !patchedParams->params[Param::Local::LPF_RESONANCE].isAutomated()
+		    && patchedParams->params[Param::Local::LPF_RESONANCE].getCurrentValue() <= 0
+		    && patchedParams->params[Param::Local::LPF_RESONANCE].getCurrentValue() >= -23) {
+			patchedParams->params[Param::Local::LPF_RESONANCE].currentValue = -2147483648;
 		}
 	}
 }
@@ -2960,12 +2970,12 @@ int Sound::readSourceFromFile(int s, ParamManagerForTimeline* paramManager, int3
 		}
 		else if (!strcmp(tagName, "phaseWidth")) {
 			ENSURE_PARAM_MANAGER_EXISTS
-			patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_OSC_A_PHASE_WIDTH + s, readAutomationUpToPos);
+			patchedParams->readParam(patchedParamsSummary, Param::Local::OSC_A_PHASE_WIDTH + s, readAutomationUpToPos);
 			storageManager.exitTag("phaseWidth");
 		}
 		else if (!strcmp(tagName, "volume")) {
 			ENSURE_PARAM_MANAGER_EXISTS
-			patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_OSC_A_VOLUME + s, readAutomationUpToPos);
+			patchedParams->readParam(patchedParamsSummary, Param::Local::OSC_A_VOLUME + s, readAutomationUpToPos);
 			storageManager.exitTag("volume");
 		}
 		else if (!strcmp(tagName, "transpose")) {
@@ -2977,8 +2987,8 @@ int Sound::readSourceFromFile(int s, ParamManagerForTimeline* paramManager, int3
 			storageManager.exitTag("cents");
 		}
 		else if (!strcmp(tagName, "loopMode")) {
-			source->repeatMode = storageManager.readTagOrAttributeValueInt();
-			source->repeatMode = getMin(source->repeatMode, (uint8_t)(NUM_REPEAT_MODES - 1));
+			source->repeatMode = static_cast<SampleRepeatMode>(storageManager.readTagOrAttributeValueInt());
+			source->repeatMode = std::min(source->repeatMode, static_cast<SampleRepeatMode>(kNumRepeatModes - 1));
 			storageManager.exitTag("loopMode");
 		}
 		else if (!strcmp(tagName, "oscillatorSync")) {
@@ -3006,7 +3016,7 @@ int Sound::readSourceFromFile(int s, ParamManagerForTimeline* paramManager, int3
 		}
 		else if (!strcmp(tagName, "linearInterpolation")) {
 			if (storageManager.readTagOrAttributeValueInt()) {
-				source->sampleControls.interpolationMode = INTERPOLATION_MODE_LINEAR;
+				source->sampleControls.interpolationMode = InterpolationMode::LINEAR;
 			}
 			storageManager.exitTag("linearInterpolation");
 		}
@@ -3088,7 +3098,7 @@ int Sound::readSourceFromFile(int s, ParamManagerForTimeline* paramManager, int3
 					char tempMemory[source->ranges.elementSize];
 
 					MultiRange* tempRange;
-					if (source->oscType == OSC_TYPE_WAVETABLE) {
+					if (source->oscType == OscType::WAVETABLE) {
 						tempRange = new (tempMemory) MultiWaveTableRange();
 					}
 					else {
@@ -3107,7 +3117,7 @@ int Sound::readSourceFromFile(int s, ParamManagerForTimeline* paramManager, int3
 							tempRange->topNote = storageManager.readTagOrAttributeValueInt();
 							storageManager.exitTag("rangeTopNote");
 						}
-						else if (source->oscType != OSC_TYPE_WAVETABLE) {
+						else if (source->oscType != OscType::WAVETABLE) {
 							if (!strcmp(tagName, "zone")) {
 
 								while (*(tagName = storageManager.readNextTagOrAttributeName())) {
@@ -3200,18 +3210,18 @@ void Sound::writeSourceToFile(int s, char const* tagName) {
 
 	storageManager.writeOpeningTagBeginning(tagName);
 
-	if (synthMode != SYNTH_MODE_FM) {
+	if (synthMode != SynthMode::FM) {
 		storageManager.writeAttribute("type", oscTypeToString(source->oscType));
 	}
 
 	// If (multi)sample...
-	if (source->oscType == OSC_TYPE_SAMPLE
-	    && synthMode != SYNTH_MODE_FM) { // Don't combine this with the above "if" - there's an "else" below
-		storageManager.writeAttribute("loopMode", source->repeatMode);
+	if (source->oscType == OscType::SAMPLE
+	    && synthMode != SynthMode::FM) { // Don't combine this with the above "if" - there's an "else" below
+		storageManager.writeAttribute("loopMode", util::to_underlying(source->repeatMode));
 		storageManager.writeAttribute("reversed", source->sampleControls.reversed);
 		storageManager.writeAttribute("timeStretchEnable", source->sampleControls.pitchAndSpeedAreIndependent);
 		storageManager.writeAttribute("timeStretchAmount", source->timeStretchAmount);
-		if (source->sampleControls.interpolationMode == INTERPOLATION_MODE_LINEAR) {
+		if (source->sampleControls.interpolationMode == InterpolationMode::LINEAR) {
 			storageManager.writeAttribute("linearInterpolation", 1);
 		}
 
@@ -3281,7 +3291,7 @@ void Sound::writeSourceToFile(int s, char const* tagName) {
 		storageManager.writeAttribute("retrigPhase", oscRetriggerPhase[s]);
 
 		// Sub-option for (multi)wavetable
-		if (source->oscType == OSC_TYPE_WAVETABLE && synthMode != SYNTH_MODE_FM) {
+		if (source->oscType == OscType::WAVETABLE && synthMode != SynthMode::FM) {
 
 			int numRanges = source->ranges.getNumElements();
 
@@ -3335,86 +3345,86 @@ bool Sound::readParamTagFromFile(char const* tagName, ParamManagerForTimeline* p
 	PatchedParamSet* patchedParams = (PatchedParamSet*)patchedParamsSummary->paramCollection;
 
 	if (!strcmp(tagName, "arpeggiatorGate")) {
-		unpatchedParams->readParam(unpatchedParamsSummary, PARAM_UNPATCHED_SOUND_ARP_GATE, readAutomationUpToPos);
+		unpatchedParams->readParam(unpatchedParamsSummary, Param::Unpatched::Sound::ARP_GATE, readAutomationUpToPos);
 		storageManager.exitTag("arpeggiatorGate");
 	}
 	else if (!strcmp(tagName, "portamento")) {
-		unpatchedParams->readParam(unpatchedParamsSummary, PARAM_UNPATCHED_SOUND_PORTA, readAutomationUpToPos);
+		unpatchedParams->readParam(unpatchedParamsSummary, Param::Unpatched::Sound::PORTAMENTO, readAutomationUpToPos);
 		storageManager.exitTag("portamento");
 	}
 	else if (!strcmp(tagName, "compressorShape")) {
-		unpatchedParams->readParam(unpatchedParamsSummary, PARAM_UNPATCHED_COMPRESSOR_SHAPE, readAutomationUpToPos);
+		unpatchedParams->readParam(unpatchedParamsSummary, Param::Unpatched::COMPRESSOR_SHAPE, readAutomationUpToPos);
 		storageManager.exitTag("compressorShape");
 	}
 
 	else if (!strcmp(tagName, "noiseVolume")) {
-		patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_NOISE_VOLUME, readAutomationUpToPos);
+		patchedParams->readParam(patchedParamsSummary, Param::Local::NOISE_VOLUME, readAutomationUpToPos);
 		storageManager.exitTag("noiseVolume");
 	}
 	else if (!strcmp(tagName, "oscAVolume")) {
-		patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_OSC_A_VOLUME, readAutomationUpToPos);
+		patchedParams->readParam(patchedParamsSummary, Param::Local::OSC_A_VOLUME, readAutomationUpToPos);
 		storageManager.exitTag("oscAVolume");
 	}
 	else if (!strcmp(tagName, "oscBVolume")) {
-		patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_OSC_B_VOLUME, readAutomationUpToPos);
+		patchedParams->readParam(patchedParamsSummary, Param::Local::OSC_B_VOLUME, readAutomationUpToPos);
 		storageManager.exitTag("oscBVolume");
 	}
 	else if (!strcmp(tagName, "oscAPulseWidth")) {
-		patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_OSC_A_PHASE_WIDTH, readAutomationUpToPos);
+		patchedParams->readParam(patchedParamsSummary, Param::Local::OSC_A_PHASE_WIDTH, readAutomationUpToPos);
 		storageManager.exitTag("oscAPulseWidth");
 	}
 	else if (!strcmp(tagName, "oscBPulseWidth")) {
-		patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_OSC_B_PHASE_WIDTH, readAutomationUpToPos);
+		patchedParams->readParam(patchedParamsSummary, Param::Local::OSC_B_PHASE_WIDTH, readAutomationUpToPos);
 		storageManager.exitTag("oscBPulseWidth");
 	}
 	else if (!strcmp(tagName, "oscAWavetablePosition")) {
-		patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_OSC_A_WAVE_INDEX, readAutomationUpToPos);
+		patchedParams->readParam(patchedParamsSummary, Param::Local::OSC_A_WAVE_INDEX, readAutomationUpToPos);
 		storageManager.exitTag();
 	}
 	else if (!strcmp(tagName, "oscBWavetablePosition")) {
-		patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_OSC_B_WAVE_INDEX, readAutomationUpToPos);
+		patchedParams->readParam(patchedParamsSummary, Param::Local::OSC_B_WAVE_INDEX, readAutomationUpToPos);
 		storageManager.exitTag();
 	}
 	else if (!strcmp(tagName, "volume")) {
-		patchedParams->readParam(patchedParamsSummary, PARAM_GLOBAL_VOLUME_POST_FX, readAutomationUpToPos);
+		patchedParams->readParam(patchedParamsSummary, Param::Global::VOLUME_POST_FX, readAutomationUpToPos);
 		storageManager.exitTag("volume");
 	}
 	else if (!strcmp(tagName, "pan")) {
-		patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_PAN, readAutomationUpToPos);
+		patchedParams->readParam(patchedParamsSummary, Param::Local::PAN, readAutomationUpToPos);
 		storageManager.exitTag("pan");
 	}
 	else if (!strcmp(tagName, "lpfFrequency")) {
-		patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_LPF_FREQ, readAutomationUpToPos);
+		patchedParams->readParam(patchedParamsSummary, Param::Local::LPF_FREQ, readAutomationUpToPos);
 		storageManager.exitTag("lpfFrequency");
 	}
 	else if (!strcmp(tagName, "lpfResonance")) {
-		patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_LPF_RESONANCE, readAutomationUpToPos);
+		patchedParams->readParam(patchedParamsSummary, Param::Local::LPF_RESONANCE, readAutomationUpToPos);
 		storageManager.exitTag("lpfResonance");
 	}
 	else if (!strcmp(tagName, "hpfFrequency")) {
-		patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_HPF_FREQ, readAutomationUpToPos);
+		patchedParams->readParam(patchedParamsSummary, Param::Local::HPF_FREQ, readAutomationUpToPos);
 		storageManager.exitTag("hpfFrequency");
 	}
 	else if (!strcmp(tagName, "hpfResonance")) {
-		patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_HPF_RESONANCE, readAutomationUpToPos);
+		patchedParams->readParam(patchedParamsSummary, Param::Local::HPF_RESONANCE, readAutomationUpToPos);
 		storageManager.exitTag("hpfResonance");
 	}
 	else if (!strcmp(tagName, "envelope1")) {
 		while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "attack")) {
-				patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_ENV_0_ATTACK, readAutomationUpToPos);
+				patchedParams->readParam(patchedParamsSummary, Param::Local::ENV_0_ATTACK, readAutomationUpToPos);
 				storageManager.exitTag("attack");
 			}
 			else if (!strcmp(tagName, "decay")) {
-				patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_ENV_0_DECAY, readAutomationUpToPos);
+				patchedParams->readParam(patchedParamsSummary, Param::Local::ENV_0_DECAY, readAutomationUpToPos);
 				storageManager.exitTag("decay");
 			}
 			else if (!strcmp(tagName, "sustain")) {
-				patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_ENV_0_SUSTAIN, readAutomationUpToPos);
+				patchedParams->readParam(patchedParamsSummary, Param::Local::ENV_0_SUSTAIN, readAutomationUpToPos);
 				storageManager.exitTag("sustain");
 			}
 			else if (!strcmp(tagName, "release")) {
-				patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_ENV_0_RELEASE, readAutomationUpToPos);
+				patchedParams->readParam(patchedParamsSummary, Param::Local::ENV_0_RELEASE, readAutomationUpToPos);
 				storageManager.exitTag("release");
 			}
 		}
@@ -3423,98 +3433,98 @@ bool Sound::readParamTagFromFile(char const* tagName, ParamManagerForTimeline* p
 	else if (!strcmp(tagName, "envelope2")) {
 		while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "attack")) {
-				patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_ENV_1_ATTACK, readAutomationUpToPos);
+				patchedParams->readParam(patchedParamsSummary, Param::Local::ENV_1_ATTACK, readAutomationUpToPos);
 				storageManager.exitTag("attack");
 			}
 			else if (!strcmp(tagName, "decay")) {
-				patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_ENV_1_DECAY, readAutomationUpToPos);
+				patchedParams->readParam(patchedParamsSummary, Param::Local::ENV_1_DECAY, readAutomationUpToPos);
 				storageManager.exitTag("decay");
 			}
 			else if (!strcmp(tagName, "sustain")) {
-				patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_ENV_1_SUSTAIN, readAutomationUpToPos);
+				patchedParams->readParam(patchedParamsSummary, Param::Local::ENV_1_SUSTAIN, readAutomationUpToPos);
 				storageManager.exitTag("sustain");
 			}
 			else if (!strcmp(tagName, "release")) {
-				patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_ENV_1_RELEASE, readAutomationUpToPos);
+				patchedParams->readParam(patchedParamsSummary, Param::Local::ENV_1_RELEASE, readAutomationUpToPos);
 				storageManager.exitTag("release");
 			}
 		}
 		storageManager.exitTag("envelope2");
 	}
 	else if (!strcmp(tagName, "lfo1Rate")) {
-		patchedParams->readParam(patchedParamsSummary, PARAM_GLOBAL_LFO_FREQ, readAutomationUpToPos);
+		patchedParams->readParam(patchedParamsSummary, Param::Global::LFO_FREQ, readAutomationUpToPos);
 		storageManager.exitTag("lfo1Rate");
 	}
 	else if (!strcmp(tagName, "lfo2Rate")) {
-		patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_LFO_LOCAL_FREQ, readAutomationUpToPos);
+		patchedParams->readParam(patchedParamsSummary, Param::Local::LFO_LOCAL_FREQ, readAutomationUpToPos);
 		storageManager.exitTag("lfo2Rate");
 	}
 	else if (!strcmp(tagName, "modulator1Amount")) {
-		patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_MODULATOR_0_VOLUME, readAutomationUpToPos);
+		patchedParams->readParam(patchedParamsSummary, Param::Local::MODULATOR_0_VOLUME, readAutomationUpToPos);
 		storageManager.exitTag("modulator1Amount");
 	}
 	else if (!strcmp(tagName, "modulator2Amount")) {
-		patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_MODULATOR_1_VOLUME, readAutomationUpToPos);
+		patchedParams->readParam(patchedParamsSummary, Param::Local::MODULATOR_1_VOLUME, readAutomationUpToPos);
 		storageManager.exitTag("modulator2Amount");
 	}
 	else if (!strcmp(tagName, "modulator1Feedback")) {
-		patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_MODULATOR_0_FEEDBACK, readAutomationUpToPos);
+		patchedParams->readParam(patchedParamsSummary, Param::Local::MODULATOR_0_FEEDBACK, readAutomationUpToPos);
 		storageManager.exitTag("modulator1Feedback");
 	}
 	else if (!strcmp(tagName, "modulator2Feedback")) {
-		patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_MODULATOR_1_FEEDBACK, readAutomationUpToPos);
+		patchedParams->readParam(patchedParamsSummary, Param::Local::MODULATOR_1_FEEDBACK, readAutomationUpToPos);
 		storageManager.exitTag("modulator2Feedback");
 	}
 	else if (!strcmp(tagName, "carrier1Feedback")) {
-		patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_CARRIER_0_FEEDBACK, readAutomationUpToPos);
+		patchedParams->readParam(patchedParamsSummary, Param::Local::CARRIER_0_FEEDBACK, readAutomationUpToPos);
 		storageManager.exitTag("carrier1Feedback");
 	}
 	else if (!strcmp(tagName, "carrier2Feedback")) {
-		patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_CARRIER_1_FEEDBACK, readAutomationUpToPos);
+		patchedParams->readParam(patchedParamsSummary, Param::Local::CARRIER_1_FEEDBACK, readAutomationUpToPos);
 		storageManager.exitTag("carrier2Feedback");
 	}
 	else if (!strcmp(tagName, "pitchAdjust")) {
-		patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_PITCH_ADJUST, readAutomationUpToPos);
+		patchedParams->readParam(patchedParamsSummary, Param::Local::PITCH_ADJUST, readAutomationUpToPos);
 		storageManager.exitTag("pitchAdjust");
 	}
 	else if (!strcmp(tagName, "oscAPitchAdjust")) {
-		patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_OSC_A_PITCH_ADJUST, readAutomationUpToPos);
+		patchedParams->readParam(patchedParamsSummary, Param::Local::OSC_A_PITCH_ADJUST, readAutomationUpToPos);
 		storageManager.exitTag("oscAPitchAdjust");
 	}
 	else if (!strcmp(tagName, "oscBPitchAdjust")) {
-		patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_OSC_B_PITCH_ADJUST, readAutomationUpToPos);
+		patchedParams->readParam(patchedParamsSummary, Param::Local::OSC_B_PITCH_ADJUST, readAutomationUpToPos);
 		storageManager.exitTag("oscBPitchAdjust");
 	}
 	else if (!strcmp(tagName, "mod1PitchAdjust")) {
-		patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_MODULATOR_0_PITCH_ADJUST, readAutomationUpToPos);
+		patchedParams->readParam(patchedParamsSummary, Param::Local::MODULATOR_0_PITCH_ADJUST, readAutomationUpToPos);
 		storageManager.exitTag("mod1PitchAdjust");
 	}
 	else if (!strcmp(tagName, "mod2PitchAdjust")) {
-		patchedParams->readParam(patchedParamsSummary, PARAM_LOCAL_MODULATOR_1_PITCH_ADJUST, readAutomationUpToPos);
+		patchedParams->readParam(patchedParamsSummary, Param::Local::MODULATOR_1_PITCH_ADJUST, readAutomationUpToPos);
 		storageManager.exitTag("mod2PitchAdjust");
 	}
 	else if (!strcmp(tagName, "modFXRate")) {
-		patchedParams->readParam(patchedParamsSummary, PARAM_GLOBAL_MOD_FX_RATE, readAutomationUpToPos);
+		patchedParams->readParam(patchedParamsSummary, Param::Global::MOD_FX_RATE, readAutomationUpToPos);
 		storageManager.exitTag("modFXRate");
 	}
 	else if (!strcmp(tagName, "modFXDepth")) {
-		patchedParams->readParam(patchedParamsSummary, PARAM_GLOBAL_MOD_FX_DEPTH, readAutomationUpToPos);
+		patchedParams->readParam(patchedParamsSummary, Param::Global::MOD_FX_DEPTH, readAutomationUpToPos);
 		storageManager.exitTag("modFXDepth");
 	}
 	else if (!strcmp(tagName, "delayRate")) {
-		patchedParams->readParam(patchedParamsSummary, PARAM_GLOBAL_DELAY_RATE, readAutomationUpToPos);
+		patchedParams->readParam(patchedParamsSummary, Param::Global::DELAY_RATE, readAutomationUpToPos);
 		storageManager.exitTag("delayRate");
 	}
 	else if (!strcmp(tagName, "delayFeedback")) {
-		patchedParams->readParam(patchedParamsSummary, PARAM_GLOBAL_DELAY_FEEDBACK, readAutomationUpToPos);
+		patchedParams->readParam(patchedParamsSummary, Param::Global::DELAY_FEEDBACK, readAutomationUpToPos);
 		storageManager.exitTag("delayFeedback");
 	}
 	else if (!strcmp(tagName, "reverbAmount")) {
-		patchedParams->readParam(patchedParamsSummary, PARAM_GLOBAL_REVERB_AMOUNT, readAutomationUpToPos);
+		patchedParams->readParam(patchedParamsSummary, Param::Global::REVERB_AMOUNT, readAutomationUpToPos);
 		storageManager.exitTag("reverbAmount");
 	}
 	else if (!strcmp(tagName, "arpeggiatorRate")) {
-		patchedParams->readParam(patchedParamsSummary, PARAM_GLOBAL_ARP_RATE, readAutomationUpToPos);
+		patchedParams->readParam(patchedParamsSummary, Param::Global::ARP_RATE, readAutomationUpToPos);
 		storageManager.exitTag("arpeggiatorRate");
 	}
 	else if (!strcmp(tagName, "patchCables")) {
@@ -3535,73 +3545,73 @@ void Sound::writeParamsToFile(ParamManager* paramManager, bool writeAutomation) 
 	PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
-	unpatchedParams->writeParamAsAttribute("arpeggiatorGate", PARAM_UNPATCHED_SOUND_ARP_GATE, writeAutomation);
-	unpatchedParams->writeParamAsAttribute("portamento", PARAM_UNPATCHED_SOUND_PORTA, writeAutomation);
-	unpatchedParams->writeParamAsAttribute("compressorShape", PARAM_UNPATCHED_COMPRESSOR_SHAPE, writeAutomation);
+	unpatchedParams->writeParamAsAttribute("arpeggiatorGate", Param::Unpatched::Sound::ARP_GATE, writeAutomation);
+	unpatchedParams->writeParamAsAttribute("portamento", Param::Unpatched::Sound::PORTAMENTO, writeAutomation);
+	unpatchedParams->writeParamAsAttribute("compressorShape", Param::Unpatched::COMPRESSOR_SHAPE, writeAutomation);
 
-	patchedParams->writeParamAsAttribute("oscAVolume", PARAM_LOCAL_OSC_A_VOLUME, writeAutomation);
-	patchedParams->writeParamAsAttribute("oscAPulseWidth", PARAM_LOCAL_OSC_A_PHASE_WIDTH, writeAutomation);
-	patchedParams->writeParamAsAttribute("oscAWavetablePosition", PARAM_LOCAL_OSC_A_WAVE_INDEX, writeAutomation);
-	patchedParams->writeParamAsAttribute("oscBVolume", PARAM_LOCAL_OSC_B_VOLUME, writeAutomation);
-	patchedParams->writeParamAsAttribute("oscBPulseWidth", PARAM_LOCAL_OSC_B_PHASE_WIDTH, writeAutomation);
-	patchedParams->writeParamAsAttribute("oscBWavetablePosition", PARAM_LOCAL_OSC_B_WAVE_INDEX, writeAutomation);
-	patchedParams->writeParamAsAttribute("noiseVolume", PARAM_LOCAL_NOISE_VOLUME, writeAutomation);
+	patchedParams->writeParamAsAttribute("oscAVolume", Param::Local::OSC_A_VOLUME, writeAutomation);
+	patchedParams->writeParamAsAttribute("oscAPulseWidth", Param::Local::OSC_A_PHASE_WIDTH, writeAutomation);
+	patchedParams->writeParamAsAttribute("oscAWavetablePosition", Param::Local::OSC_A_WAVE_INDEX, writeAutomation);
+	patchedParams->writeParamAsAttribute("oscBVolume", Param::Local::OSC_B_VOLUME, writeAutomation);
+	patchedParams->writeParamAsAttribute("oscBPulseWidth", Param::Local::OSC_B_PHASE_WIDTH, writeAutomation);
+	patchedParams->writeParamAsAttribute("oscBWavetablePosition", Param::Local::OSC_B_WAVE_INDEX, writeAutomation);
+	patchedParams->writeParamAsAttribute("noiseVolume", Param::Local::NOISE_VOLUME, writeAutomation);
 
-	patchedParams->writeParamAsAttribute("volume", PARAM_GLOBAL_VOLUME_POST_FX, writeAutomation);
-	patchedParams->writeParamAsAttribute("pan", PARAM_LOCAL_PAN, writeAutomation);
+	patchedParams->writeParamAsAttribute("volume", Param::Global::VOLUME_POST_FX, writeAutomation);
+	patchedParams->writeParamAsAttribute("pan", Param::Local::PAN, writeAutomation);
 
 	// Filters
-	patchedParams->writeParamAsAttribute("lpfFrequency", PARAM_LOCAL_LPF_FREQ, writeAutomation);
-	patchedParams->writeParamAsAttribute("lpfResonance", PARAM_LOCAL_LPF_RESONANCE, writeAutomation);
+	patchedParams->writeParamAsAttribute("lpfFrequency", Param::Local::LPF_FREQ, writeAutomation);
+	patchedParams->writeParamAsAttribute("lpfResonance", Param::Local::LPF_RESONANCE, writeAutomation);
 
-	patchedParams->writeParamAsAttribute("hpfFrequency", PARAM_LOCAL_HPF_FREQ, writeAutomation);
-	patchedParams->writeParamAsAttribute("hpfResonance", PARAM_LOCAL_HPF_RESONANCE, writeAutomation);
+	patchedParams->writeParamAsAttribute("hpfFrequency", Param::Local::HPF_FREQ, writeAutomation);
+	patchedParams->writeParamAsAttribute("hpfResonance", Param::Local::HPF_RESONANCE, writeAutomation);
 
-	patchedParams->writeParamAsAttribute("lfo1Rate", PARAM_GLOBAL_LFO_FREQ, writeAutomation);
-	patchedParams->writeParamAsAttribute("lfo2Rate", PARAM_LOCAL_LFO_LOCAL_FREQ, writeAutomation);
+	patchedParams->writeParamAsAttribute("lfo1Rate", Param::Global::LFO_FREQ, writeAutomation);
+	patchedParams->writeParamAsAttribute("lfo2Rate", Param::Local::LFO_LOCAL_FREQ, writeAutomation);
 
-	patchedParams->writeParamAsAttribute("modulator1Amount", PARAM_LOCAL_MODULATOR_0_VOLUME, writeAutomation);
-	patchedParams->writeParamAsAttribute("modulator1Feedback", PARAM_LOCAL_MODULATOR_0_FEEDBACK, writeAutomation);
-	patchedParams->writeParamAsAttribute("modulator2Amount", PARAM_LOCAL_MODULATOR_1_VOLUME, writeAutomation);
-	patchedParams->writeParamAsAttribute("modulator2Feedback", PARAM_LOCAL_MODULATOR_1_FEEDBACK, writeAutomation);
+	patchedParams->writeParamAsAttribute("modulator1Amount", Param::Local::MODULATOR_0_VOLUME, writeAutomation);
+	patchedParams->writeParamAsAttribute("modulator1Feedback", Param::Local::MODULATOR_0_FEEDBACK, writeAutomation);
+	patchedParams->writeParamAsAttribute("modulator2Amount", Param::Local::MODULATOR_1_VOLUME, writeAutomation);
+	patchedParams->writeParamAsAttribute("modulator2Feedback", Param::Local::MODULATOR_1_FEEDBACK, writeAutomation);
 
-	patchedParams->writeParamAsAttribute("carrier1Feedback", PARAM_LOCAL_CARRIER_0_FEEDBACK, writeAutomation);
-	patchedParams->writeParamAsAttribute("carrier2Feedback", PARAM_LOCAL_CARRIER_1_FEEDBACK, writeAutomation);
+	patchedParams->writeParamAsAttribute("carrier1Feedback", Param::Local::CARRIER_0_FEEDBACK, writeAutomation);
+	patchedParams->writeParamAsAttribute("carrier2Feedback", Param::Local::CARRIER_1_FEEDBACK, writeAutomation);
 
-	patchedParams->writeParamAsAttribute("pitchAdjust", PARAM_LOCAL_PITCH_ADJUST, writeAutomation, true);
-	patchedParams->writeParamAsAttribute("oscAPitchAdjust", PARAM_LOCAL_OSC_A_PITCH_ADJUST, writeAutomation, true);
-	patchedParams->writeParamAsAttribute("oscBPitchAdjust", PARAM_LOCAL_OSC_B_PITCH_ADJUST, writeAutomation, true);
-	patchedParams->writeParamAsAttribute("mod1PitchAdjust", PARAM_LOCAL_MODULATOR_0_PITCH_ADJUST, writeAutomation,
+	patchedParams->writeParamAsAttribute("pitchAdjust", Param::Local::PITCH_ADJUST, writeAutomation, true);
+	patchedParams->writeParamAsAttribute("oscAPitchAdjust", Param::Local::OSC_A_PITCH_ADJUST, writeAutomation, true);
+	patchedParams->writeParamAsAttribute("oscBPitchAdjust", Param::Local::OSC_B_PITCH_ADJUST, writeAutomation, true);
+	patchedParams->writeParamAsAttribute("mod1PitchAdjust", Param::Local::MODULATOR_0_PITCH_ADJUST, writeAutomation,
 	                                     true);
-	patchedParams->writeParamAsAttribute("mod2PitchAdjust", PARAM_LOCAL_MODULATOR_1_PITCH_ADJUST, writeAutomation,
+	patchedParams->writeParamAsAttribute("mod2PitchAdjust", Param::Local::MODULATOR_1_PITCH_ADJUST, writeAutomation,
 	                                     true);
 
-	patchedParams->writeParamAsAttribute("modFXRate", PARAM_GLOBAL_MOD_FX_RATE, writeAutomation);
-	patchedParams->writeParamAsAttribute("modFXDepth", PARAM_GLOBAL_MOD_FX_DEPTH, writeAutomation);
+	patchedParams->writeParamAsAttribute("modFXRate", Param::Global::MOD_FX_RATE, writeAutomation);
+	patchedParams->writeParamAsAttribute("modFXDepth", Param::Global::MOD_FX_DEPTH, writeAutomation);
 
-	patchedParams->writeParamAsAttribute("delayRate", PARAM_GLOBAL_DELAY_RATE, writeAutomation);
-	patchedParams->writeParamAsAttribute("delayFeedback", PARAM_GLOBAL_DELAY_FEEDBACK, writeAutomation);
+	patchedParams->writeParamAsAttribute("delayRate", Param::Global::DELAY_RATE, writeAutomation);
+	patchedParams->writeParamAsAttribute("delayFeedback", Param::Global::DELAY_FEEDBACK, writeAutomation);
 
-	patchedParams->writeParamAsAttribute("reverbAmount", PARAM_GLOBAL_REVERB_AMOUNT, writeAutomation);
+	patchedParams->writeParamAsAttribute("reverbAmount", Param::Global::REVERB_AMOUNT, writeAutomation);
 
-	patchedParams->writeParamAsAttribute("arpeggiatorRate", PARAM_GLOBAL_ARP_RATE, writeAutomation);
+	patchedParams->writeParamAsAttribute("arpeggiatorRate", Param::Global::ARP_RATE, writeAutomation);
 	ModControllableAudio::writeParamAttributesToFile(paramManager, writeAutomation);
 
 	storageManager.writeOpeningTagEnd();
 
 	// Envelopes
 	storageManager.writeOpeningTagBeginning("envelope1");
-	patchedParams->writeParamAsAttribute("attack", PARAM_LOCAL_ENV_0_ATTACK, writeAutomation);
-	patchedParams->writeParamAsAttribute("decay", PARAM_LOCAL_ENV_0_DECAY, writeAutomation);
-	patchedParams->writeParamAsAttribute("sustain", PARAM_LOCAL_ENV_0_SUSTAIN, writeAutomation);
-	patchedParams->writeParamAsAttribute("release", PARAM_LOCAL_ENV_0_RELEASE, writeAutomation);
+	patchedParams->writeParamAsAttribute("attack", Param::Local::ENV_0_ATTACK, writeAutomation);
+	patchedParams->writeParamAsAttribute("decay", Param::Local::ENV_0_DECAY, writeAutomation);
+	patchedParams->writeParamAsAttribute("sustain", Param::Local::ENV_0_SUSTAIN, writeAutomation);
+	patchedParams->writeParamAsAttribute("release", Param::Local::ENV_0_RELEASE, writeAutomation);
 	storageManager.closeTag();
 
 	storageManager.writeOpeningTagBeginning("envelope2");
-	patchedParams->writeParamAsAttribute("attack", PARAM_LOCAL_ENV_1_ATTACK, writeAutomation);
-	patchedParams->writeParamAsAttribute("decay", PARAM_LOCAL_ENV_1_DECAY, writeAutomation);
-	patchedParams->writeParamAsAttribute("sustain", PARAM_LOCAL_ENV_1_SUSTAIN, writeAutomation);
-	patchedParams->writeParamAsAttribute("release", PARAM_LOCAL_ENV_1_RELEASE, writeAutomation);
+	patchedParams->writeParamAsAttribute("attack", Param::Local::ENV_1_ATTACK, writeAutomation);
+	patchedParams->writeParamAsAttribute("decay", Param::Local::ENV_1_DECAY, writeAutomation);
+	patchedParams->writeParamAsAttribute("sustain", Param::Local::ENV_1_SUSTAIN, writeAutomation);
+	patchedParams->writeParamAsAttribute("release", Param::Local::ENV_1_RELEASE, writeAutomation);
 	storageManager.closeTag();
 
 	paramManager->getPatchCableSet()->writePatchCablesToFile(writeAutomation);
@@ -3612,7 +3622,7 @@ void Sound::writeParamsToFile(ParamManager* paramManager, bool writeAutomation) 
 void Sound::writeToFile(bool savingSong, ParamManager* paramManager, ArpeggiatorSettings* arpSettings) {
 
 	storageManager.writeAttribute("polyphonic", polyphonyModeToString(polyphonic));
-	storageManager.writeAttribute("voicePriority", voicePriority);
+	storageManager.writeAttribute("voicePriority", util::to_underlying(voicePriority));
 
 	// Send level
 	if (sideChainSendLevel != 0) {
@@ -3643,7 +3653,7 @@ void Sound::writeToFile(bool savingSong, ParamManager* paramManager, Arpeggiator
 	storageManager.writeAttribute("type", lfoTypeToString(lfoLocalWaveType), false);
 	storageManager.closeTag();
 
-	if (synthMode == SYNTH_MODE_FM) {
+	if (synthMode == SynthMode::FM) {
 
 		storageManager.writeOpeningTagBeginning("modulator1");
 		storageManager.writeAttribute("transpose", modulatorTranspose[0]);
@@ -3683,8 +3693,8 @@ void Sound::writeToFile(bool savingSong, ParamManager* paramManager, Arpeggiator
 
 	// Mod knobs
 	storageManager.writeOpeningTag("modKnobs");
-	for (int k = 0; k < NUM_MOD_BUTTONS; k++) {
-		for (int w = 0; w < NUM_PHYSICAL_MOD_KNOBS; w++) {
+	for (int k = 0; k < kNumModButtons; k++) {
+		for (int w = 0; w < kNumPhysicalModKnobs; w++) {
 			ModKnob* knob = &modKnobs[k][w];
 			storageManager.writeOpeningTagBeginning("modKnob");
 			storageManager.writeAttribute("controlsParam", paramToString(knob->paramDescriptor.getJustTheParam()),
@@ -3707,13 +3717,13 @@ void Sound::writeToFile(bool savingSong, ParamManager* paramManager, Arpeggiator
 int16_t Sound::getMaxOscTranspose(InstrumentClip* clip) {
 
 	int maxRawOscTranspose = -32768;
-	for (int s = 0; s < NUM_SOURCES; s++) {
-		if (getSynthMode() == SYNTH_MODE_FM || sources[s].oscType != OSC_TYPE_SAMPLE) {
+	for (int s = 0; s < kNumSources; s++) {
+		if (getSynthMode() == SynthMode::FM || sources[s].oscType != OscType::SAMPLE) {
 			maxRawOscTranspose = getMax(maxRawOscTranspose, sources[s].transpose);
 		}
 	}
 
-	if (getSynthMode() == SYNTH_MODE_FM) {
+	if (getSynthMode() == SynthMode::FM) {
 		maxRawOscTranspose = getMax(maxRawOscTranspose, (int)modulatorTranspose[0]);
 		maxRawOscTranspose = getMax(maxRawOscTranspose, (int)modulatorTranspose[1]);
 	}
@@ -3724,7 +3734,7 @@ int16_t Sound::getMaxOscTranspose(InstrumentClip* clip) {
 
 	ArpeggiatorSettings* arpSettings = getArpSettings(clip);
 
-	if (arpSettings && arpSettings->mode) {
+	if (arpSettings && arpSettings->mode != ArpMode::OFF) {
 		maxRawOscTranspose += (arpSettings->numOctaves - 1) * 12;
 	}
 
@@ -3734,13 +3744,13 @@ int16_t Sound::getMaxOscTranspose(InstrumentClip* clip) {
 int16_t Sound::getMinOscTranspose() {
 
 	int minRawOscTranspose = 32767;
-	for (int s = 0; s < NUM_SOURCES; s++) {
-		if (getSynthMode() == SYNTH_MODE_FM || sources[s].oscType != OSC_TYPE_SAMPLE) {
+	for (int s = 0; s < kNumSources; s++) {
+		if (getSynthMode() == SynthMode::FM || sources[s].oscType != OscType::SAMPLE) {
 			minRawOscTranspose = getMin(minRawOscTranspose, sources[s].transpose);
 		}
 	}
 
-	if (getSynthMode() == SYNTH_MODE_FM) {
+	if (getSynthMode() == SynthMode::FM) {
 		minRawOscTranspose = getMin(minRawOscTranspose, (int)modulatorTranspose[0]);
 		minRawOscTranspose = getMin(minRawOscTranspose, (int)modulatorTranspose[1]);
 	}
@@ -3755,8 +3765,8 @@ int16_t Sound::getMinOscTranspose() {
 // Returns true if more loading needed later
 int Sound::loadAllAudioFiles(bool mayActuallyReadFiles) {
 
-	for (int s = 0; s < NUM_SOURCES; s++) {
-		if (sources[s].oscType == OSC_TYPE_SAMPLE || sources[s].oscType == OSC_TYPE_WAVETABLE) {
+	for (int s = 0; s < kNumSources; s++) {
+		if (sources[s].oscType == OscType::SAMPLE || sources[s].oscType == OscType::WAVETABLE) {
 			int error = sources[s].loadAllSamples(mayActuallyReadFiles);
 			if (error) {
 				return error;
@@ -3772,20 +3782,20 @@ bool Sound::envelopeHasSustainCurrently(int e, ParamManagerForTimeline* paramMan
 	PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
 
 	// These params are fetched "pre-LPF"
-	return (patchedParams->getValue(PARAM_LOCAL_ENV_0_SUSTAIN + e) != -2147483648
-	        || patchedParams->getValue(PARAM_LOCAL_ENV_0_DECAY + e)
-	               > patchedParams->getValue(PARAM_LOCAL_ENV_0_RELEASE + e));
+	return (patchedParams->getValue(Param::Local::ENV_0_SUSTAIN + e) != -2147483648
+	        || patchedParams->getValue(Param::Local::ENV_0_DECAY + e)
+	               > patchedParams->getValue(Param::Local::ENV_0_RELEASE + e));
 }
 
 bool Sound::envelopeHasSustainEver(int e, ParamManagerForTimeline* paramManager) {
 
 	PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
 
-	return (patchedParams->params[PARAM_LOCAL_ENV_0_SUSTAIN + e].containsSomething(-2147483648)
-	        || patchedParams->params[PARAM_LOCAL_ENV_0_DECAY + e].isAutomated()
-	        || patchedParams->params[PARAM_LOCAL_ENV_0_RELEASE + e].isAutomated()
-	        || patchedParams->getValue(PARAM_LOCAL_ENV_0_DECAY + e)
-	               > patchedParams->getValue(PARAM_LOCAL_ENV_0_RELEASE + e));
+	return (patchedParams->params[Param::Local::ENV_0_SUSTAIN + e].containsSomething(-2147483648)
+	        || patchedParams->params[Param::Local::ENV_0_DECAY + e].isAutomated()
+	        || patchedParams->params[Param::Local::ENV_0_RELEASE + e].isAutomated()
+	        || patchedParams->getValue(Param::Local::ENV_0_DECAY + e)
+	               > patchedParams->getValue(Param::Local::ENV_0_RELEASE + e));
 }
 
 void Sound::modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager) {
@@ -3818,8 +3828,8 @@ ModelStackWithAutoParam* Sound::getParamFromModEncoderDeeper(int whichModEncoder
 		int p = knob->paramDescriptor.getJustTheParam();
 
 		// Unpatched param
-		if (p >= PARAM_UNPATCHED_SECTION) {
-			paramId = p - PARAM_UNPATCHED_SECTION;
+		if (p >= Param::Unpatched::START) {
+			paramId = p - Param::Unpatched::START;
 			summary = paramManager->getUnpatchedParamSetSummary();
 		}
 
@@ -3847,7 +3857,8 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 
 	ModKnob* ourModKnob = &modKnobs[modKnobMode][whichModEncoder];
 
-	if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_STUTTER_RATE)) {
+	if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(Param::Unpatched::START
+	                                                         + Param::Unpatched::STUTTER_RATE)) {
 		if (on) {
 			beginStutter((ParamManagerForTimeline*)modelStack->paramManager);
 		}
@@ -3860,7 +3871,7 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 	}
 
 	// Switch delay pingpong
-	else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(PARAM_GLOBAL_DELAY_RATE)) {
+	else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(Param::Global::DELAY_RATE)) {
 		if (on) {
 			switchDelayPingPong();
 			return true;
@@ -3871,7 +3882,7 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 	}
 
 	// Switch delay analog sim
-	else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(PARAM_GLOBAL_DELAY_FEEDBACK)) {
+	else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(Param::Global::DELAY_FEEDBACK)) {
 		if (on) {
 			switchDelayAnalog();
 			return true;
@@ -3882,7 +3893,7 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 	}
 
 	// Switch LPF mode
-	else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(PARAM_LOCAL_LPF_RESONANCE)) {
+	else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(Param::Local::LPF_RESONANCE)) {
 		if (on) {
 			switchLPFMode();
 			return true;
@@ -3893,7 +3904,7 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 	}
 
 	// Cycle through reverb presets
-	else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(PARAM_GLOBAL_REVERB_AMOUNT)) {
+	else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(Param::Global::REVERB_AMOUNT)) {
 		if (on) {
 			view.cycleThroughReverbPresets();
 		}
@@ -3902,7 +3913,7 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 
 	// Switch sidechain sync level
 	else if (ourModKnob->paramDescriptor.hasJustOneSource()
-	         && ourModKnob->paramDescriptor.getTopLevelSource() == PATCH_SOURCE_COMPRESSOR) {
+	         && ourModKnob->paramDescriptor.getTopLevelSource() == PatchSource::COMPRESSOR) {
 		if (on) {
 			int insideWorldTickMagnitude;
 			if (currentSong) { // Bit of a hack just referring to currentSong in here...
@@ -3929,42 +3940,42 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 	}
 
 	// Switching between LPF, HPF and EQ
-	else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(PARAM_LOCAL_LPF_FREQ)) {
-		if (on && synthMode != SYNTH_MODE_FM) {
-			ourModKnob->paramDescriptor.setToHaveParamOnly(PARAM_LOCAL_HPF_FREQ);
+	else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(Param::Local::LPF_FREQ)) {
+		if (on && synthMode != SynthMode::FM) {
+			ourModKnob->paramDescriptor.setToHaveParamOnly(Param::Local::HPF_FREQ);
 			// Switch resonance too
 			if (modKnobs[modKnobMode][1 - whichModEncoder].paramDescriptor.isSetToParamWithNoSource(
-			        PARAM_LOCAL_LPF_RESONANCE)) {
+			        Param::Local::LPF_RESONANCE)) {
 				modKnobs[modKnobMode][1 - whichModEncoder].paramDescriptor.setToHaveParamOnly(
-				    PARAM_LOCAL_HPF_RESONANCE);
+				    Param::Local::HPF_RESONANCE);
 			}
 			numericDriver.displayPopup("HPF");
 		}
 		return false;
 	}
 
-	else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(PARAM_LOCAL_HPF_FREQ)) {
-		if (on && synthMode != SYNTH_MODE_FM) {
-			ourModKnob->paramDescriptor.setToHaveParamOnly(PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_TREBLE);
+	else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(Param::Local::HPF_FREQ)) {
+		if (on && synthMode != SynthMode::FM) {
+			ourModKnob->paramDescriptor.setToHaveParamOnly(Param::Unpatched::START + Param::Unpatched::TREBLE);
 			// Switch resonance too
 			if (modKnobs[modKnobMode][1 - whichModEncoder].paramDescriptor.isSetToParamWithNoSource(
-			        PARAM_LOCAL_HPF_RESONANCE)) {
-				modKnobs[modKnobMode][1 - whichModEncoder].paramDescriptor.setToHaveParamOnly(PARAM_UNPATCHED_SECTION
-				                                                                              + PARAM_UNPATCHED_BASS);
+			        Param::Local::HPF_RESONANCE)) {
+				modKnobs[modKnobMode][1 - whichModEncoder].paramDescriptor.setToHaveParamOnly(Param::Unpatched::START
+				                                                                              + Param::Unpatched::BASS);
 			}
 			numericDriver.displayPopup("EQ");
 		}
 		return false;
 	}
 
-	else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_TREBLE)) {
-		if (on && synthMode != SYNTH_MODE_FM) {
-			ourModKnob->paramDescriptor.setToHaveParamOnly(PARAM_LOCAL_LPF_FREQ);
+	else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(Param::Unpatched::START + Param::Unpatched::TREBLE)) {
+		if (on && synthMode != SynthMode::FM) {
+			ourModKnob->paramDescriptor.setToHaveParamOnly(Param::Local::LPF_FREQ);
 			// Switch resonance too
 			if (modKnobs[modKnobMode][1 - whichModEncoder].paramDescriptor.isSetToParamWithNoSource(
-			        PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_BASS)) {
+			        Param::Unpatched::START + Param::Unpatched::BASS)) {
 				modKnobs[modKnobMode][1 - whichModEncoder].paramDescriptor.setToHaveParamOnly(
-				    PARAM_LOCAL_LPF_RESONANCE);
+				    Param::Local::LPF_RESONANCE);
 			}
 			numericDriver.displayPopup("LPF");
 		}
@@ -4007,7 +4018,7 @@ void Sound::wontBeRenderedForAWhile() {
 	unassignAllVoices(); // Can't remember if this is always necessary, but it is when this is called from Instrumentclip::detachFromInstrument()
 
 	getArp()->reset(); // Surely this shouldn't be quite necessary?
-	compressor.status = ENVELOPE_STAGE_OFF;
+	compressor.status = EnvelopeStage::OFF;
 
 	reassessRenderSkippingStatus(NULL, true); // Tell it to just cut the MODFX tail - we needa change status urgently!
 
@@ -4018,7 +4029,7 @@ void Sound::wontBeRenderedForAWhile() {
 }
 
 void Sound::detachSourcesFromAudioFiles() {
-	for (int s = 0; s < NUM_SOURCES; s++) {
+	for (int s = 0; s < kNumSources; s++) {
 		sources[s].detachAllAudioFiles();
 	}
 }
@@ -4045,26 +4056,26 @@ bool Sound::renderingVoicesInStereo(ModelStackWithSoundFlags* modelStack) {
 	}
 
 	// Stereo live-input
-	if ((sources[0].oscType == OSC_TYPE_INPUT_STEREO || sources[1].oscType == OSC_TYPE_INPUT_STEREO)
+	if ((sources[0].oscType == OscType::INPUT_STEREO || sources[1].oscType == OscType::INPUT_STEREO)
 	    && (AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn)) {
 		return true;
 	}
 
-	if (modelStack->paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(PARAM_LOCAL_PAN)) {
+	if (modelStack->paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(Param::Local::PAN)) {
 		return true;
 	}
 
 	unsigned int mustExamineSourceInEachVoice = 0;
 
 	// Have a look at what samples, if any, are in each Source
-	for (int s = 0; s < NUM_SOURCES; s++) {
+	for (int s = 0; s < kNumSources; s++) {
 		Source* source = &sources[s];
 
 		if (!modelStack->checkSourceEverActive(s)) {
 			continue;
 		}
 
-		if (source->oscType == OSC_TYPE_SAMPLE) { // Just SAMPLE, because WAVETABLEs can't be stereo.
+		if (source->oscType == OscType::SAMPLE) { // Just SAMPLE, because WAVETABLEs can't be stereo.
 
 			int numRanges = source->ranges.getNumElements();
 
@@ -4093,7 +4104,7 @@ bool Sound::renderingVoicesInStereo(ModelStackWithSoundFlags* modelStack) {
 		for (int v = ends[0]; v < ends[1]; v++) {
 			Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
 
-			for (int s = 0; s < NUM_SOURCES; s++) {
+			for (int s = 0; s < kNumSources; s++) {
 				if (mustExamineSourceInEachVoice & (1 << s)) {
 					AudioFileHolder* holder = thisVoice->guides[s].audioFileHolder;
 					if (holder && holder->audioFile && holder->audioFile->numChannels == 2) {
@@ -4112,138 +4123,138 @@ char const* Sound::paramToString(uint8_t param) {
 
 	switch (param) {
 
-	case PARAM_LOCAL_OSC_A_VOLUME:
+	case Param::Local::OSC_A_VOLUME:
 		return "oscAVolume";
 
-	case PARAM_LOCAL_OSC_B_VOLUME:
+	case Param::Local::OSC_B_VOLUME:
 		return "oscBVolume";
 
-	case PARAM_LOCAL_VOLUME:
+	case Param::Local::VOLUME:
 		return "volume";
 
-	case PARAM_LOCAL_NOISE_VOLUME:
+	case Param::Local::NOISE_VOLUME:
 		return "noiseVolume";
 
-	case PARAM_LOCAL_OSC_A_PHASE_WIDTH:
+	case Param::Local::OSC_A_PHASE_WIDTH:
 		return "oscAPhaseWidth";
 
-	case PARAM_LOCAL_OSC_B_PHASE_WIDTH:
+	case Param::Local::OSC_B_PHASE_WIDTH:
 		return "oscBPhaseWidth";
 
-	case PARAM_LOCAL_OSC_A_WAVE_INDEX:
+	case Param::Local::OSC_A_WAVE_INDEX:
 		return "oscAWavetablePosition";
 
-	case PARAM_LOCAL_OSC_B_WAVE_INDEX:
+	case Param::Local::OSC_B_WAVE_INDEX:
 		return "oscBWavetablePosition";
 
-	case PARAM_LOCAL_LPF_RESONANCE:
+	case Param::Local::LPF_RESONANCE:
 		return "lpfResonance";
 
-	case PARAM_LOCAL_HPF_RESONANCE:
+	case Param::Local::HPF_RESONANCE:
 		return "hpfResonance";
 
-	case PARAM_LOCAL_PAN:
+	case Param::Local::PAN:
 		return "pan";
 
-	case PARAM_LOCAL_MODULATOR_0_VOLUME:
+	case Param::Local::MODULATOR_0_VOLUME:
 		return "modulator1Volume";
 
-	case PARAM_LOCAL_MODULATOR_1_VOLUME:
+	case Param::Local::MODULATOR_1_VOLUME:
 		return "modulator2Volume";
 
-	case PARAM_LOCAL_LPF_FREQ:
+	case Param::Local::LPF_FREQ:
 		return "lpfFrequency";
 
-	case PARAM_LOCAL_PITCH_ADJUST:
+	case Param::Local::PITCH_ADJUST:
 		return "pitch";
 
-	case PARAM_LOCAL_OSC_A_PITCH_ADJUST:
+	case Param::Local::OSC_A_PITCH_ADJUST:
 		return "oscAPitch";
 
-	case PARAM_LOCAL_OSC_B_PITCH_ADJUST:
+	case Param::Local::OSC_B_PITCH_ADJUST:
 		return "oscBPitch";
 
-	case PARAM_LOCAL_MODULATOR_0_PITCH_ADJUST:
+	case Param::Local::MODULATOR_0_PITCH_ADJUST:
 		return "modulator1Pitch";
 
-	case PARAM_LOCAL_MODULATOR_1_PITCH_ADJUST:
+	case Param::Local::MODULATOR_1_PITCH_ADJUST:
 		return "modulator2Pitch";
 
-	case PARAM_LOCAL_HPF_FREQ:
+	case Param::Local::HPF_FREQ:
 		return "hpfFrequency";
 
-	case PARAM_LOCAL_LFO_LOCAL_FREQ:
+	case Param::Local::LFO_LOCAL_FREQ:
 		return "lfo2Rate";
 
-	case PARAM_LOCAL_ENV_0_ATTACK:
+	case Param::Local::ENV_0_ATTACK:
 		return "env1Attack";
 
-	case PARAM_LOCAL_ENV_0_DECAY:
+	case Param::Local::ENV_0_DECAY:
 		return "env1Decay";
 
-	case PARAM_LOCAL_ENV_0_SUSTAIN:
+	case Param::Local::ENV_0_SUSTAIN:
 		return "env1Sustain";
 
-	case PARAM_LOCAL_ENV_0_RELEASE:
+	case Param::Local::ENV_0_RELEASE:
 		return "env1Release";
 
-	case PARAM_LOCAL_ENV_1_ATTACK:
+	case Param::Local::ENV_1_ATTACK:
 		return "env2Attack";
 
-	case PARAM_LOCAL_ENV_1_DECAY:
+	case Param::Local::ENV_1_DECAY:
 		return "env2Decay";
 
-	case PARAM_LOCAL_ENV_1_SUSTAIN:
+	case Param::Local::ENV_1_SUSTAIN:
 		return "env2Sustain";
 
-	case PARAM_LOCAL_ENV_1_RELEASE:
+	case Param::Local::ENV_1_RELEASE:
 		return "env2Release";
 
-	case PARAM_GLOBAL_LFO_FREQ:
+	case Param::Global::LFO_FREQ:
 		return "lfo1Rate";
 
-	case PARAM_GLOBAL_VOLUME_POST_FX:
+	case Param::Global::VOLUME_POST_FX:
 		return "volumePostFX";
 
-	case PARAM_GLOBAL_VOLUME_POST_REVERB_SEND:
+	case Param::Global::VOLUME_POST_REVERB_SEND:
 		return "volumePostReverbSend";
 
-	case PARAM_GLOBAL_DELAY_RATE:
+	case Param::Global::DELAY_RATE:
 		return "delayRate";
 
-	case PARAM_GLOBAL_DELAY_FEEDBACK:
+	case Param::Global::DELAY_FEEDBACK:
 		return "delayFeedback";
 
-	case PARAM_GLOBAL_REVERB_AMOUNT:
+	case Param::Global::REVERB_AMOUNT:
 		return "reverbAmount";
 
-	case PARAM_GLOBAL_MOD_FX_RATE:
+	case Param::Global::MOD_FX_RATE:
 		return "modFXRate";
 
-	case PARAM_GLOBAL_MOD_FX_DEPTH:
+	case Param::Global::MOD_FX_DEPTH:
 		return "modFXDepth";
 
-	case PARAM_GLOBAL_ARP_RATE:
+	case Param::Global::ARP_RATE:
 		return "arpRate";
 
-	case PARAM_LOCAL_MODULATOR_0_FEEDBACK:
+	case Param::Local::MODULATOR_0_FEEDBACK:
 		return "modulator1Feedback";
 
-	case PARAM_LOCAL_MODULATOR_1_FEEDBACK:
+	case Param::Local::MODULATOR_1_FEEDBACK:
 		return "modulator2Feedback";
 
-	case PARAM_LOCAL_CARRIER_0_FEEDBACK:
+	case Param::Local::CARRIER_0_FEEDBACK:
 		return "carrier1Feedback";
 
-	case PARAM_LOCAL_CARRIER_1_FEEDBACK:
+	case Param::Local::CARRIER_1_FEEDBACK:
 		return "carrier2Feedback";
 
 		// Unpatched params just for Sounds
 
-	case PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_SOUND_ARP_GATE:
+	case Param::Unpatched::START + Param::Unpatched::Sound::ARP_GATE:
 		return "arpGate";
 
-	case PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_SOUND_PORTA:
+	case Param::Unpatched::START + Param::Unpatched::Sound::PORTAMENTO:
 		return "portamento";
 
 	default:
@@ -4252,21 +4263,21 @@ char const* Sound::paramToString(uint8_t param) {
 }
 
 int Sound::stringToParam(char const* string) {
-	for (int p = 0; p < NUM_PARAMS; p++) {
+	for (int p = 0; p < kNumParams; p++) {
 		if (!strcmp(string, Sound::paramToString(p))) {
 			return p;
 		}
 	}
 
-	for (int p = PARAM_UNPATCHED_SECTION + NUM_SHARED_UNPATCHED_PARAMS;
-	     p < PARAM_UNPATCHED_SECTION + MAX_NUM_UNPATCHED_PARAM_FOR_SOUNDS; p++) {
+	for (int p = Param::Unpatched::START + Param::Unpatched::NUM_SHARED;
+	     p < Param::Unpatched::START + Param::Unpatched::Sound::MAX_NUM; p++) {
 		if (!strcmp(string, Sound::paramToString(p))) {
 			return p;
 		}
 	}
 
 	if (!strcmp(string, "range")) {
-		return PARAM_PLACEHOLDER_RANGE; // For compatibility reading files from before V3.2.0
+		return Param::PLACEHOLDER_RANGE; // For compatibility reading files from before V3.2.0
 	}
 
 	return ModControllableAudio::stringToParam(string);
@@ -4282,7 +4293,7 @@ ModelStackWithAutoParam* Sound::getParamFromMIDIKnob(MIDIKnob* knob, ModelStackW
 		int p = knob->paramDescriptor.getJustTheParam();
 
 		// Unpatched parameter
-		if (p >= PARAM_UNPATCHED_SECTION) {
+		if (p >= Param::Unpatched::START) {
 			return ModControllableAudio::getParamFromMIDIKnob(knob, modelStack);
 		}
 

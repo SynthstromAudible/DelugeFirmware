@@ -1,6 +1,6 @@
 #pragma once
 
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "memory/stealable.h"
 #include "util/container/list/bidirectional_linked_list.h"
 #include <array>

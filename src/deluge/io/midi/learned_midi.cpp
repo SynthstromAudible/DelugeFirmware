@@ -16,7 +16,7 @@
 */
 
 #include "io/midi/learned_midi.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "storage/storage_manager.h"
 #include <string.h>
 #include "io/midi/midi_device.h"

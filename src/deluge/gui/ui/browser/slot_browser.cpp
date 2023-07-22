@@ -23,7 +23,7 @@
 #include "util/functions.h"
 #include "hid/display/numeric_driver.h"
 #include "hid/led/pad_leds.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "storage/file_item.h"
 
 bool SlotBrowser::currentFileHasSuffixFormatNameImplied;
@@ -68,10 +68,10 @@ void SlotBrowser::focusRegained() {
 	displayText(false);
 }
 
-int SlotBrowser::horizontalEncoderAction(int offset) {
+ActionResult SlotBrowser::horizontalEncoderAction(int offset) {
 
 	if (!isNoUIModeActive()) {
-		return ACTION_RESULT_DEALT_WITH;
+		return ActionResult::DEALT_WITH;
 	}
 #if !HAVE_OLED
 	FileItem* currentFileItem = getCurrentFileItem();
@@ -92,7 +92,7 @@ int SlotBrowser::horizontalEncoderAction(int offset) {
 		}
 
 		displayText(numberEditPos >= 0);
-		return ACTION_RESULT_DEALT_WITH;
+		return ActionResult::DEALT_WITH;
 	}
 
 	else

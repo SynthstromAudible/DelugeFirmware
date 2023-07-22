@@ -20,7 +20,8 @@
 #include "storage/cluster/cluster_priority_queue.h"
 #include "RZA1/system/r_typedefs.h"
 #include "util/container/list/bidirectional_linked_list.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
+#include <stdint.h>
 
 extern "C" {
 #include "fatfs/ff.h"
@@ -32,10 +33,12 @@ class SampleCache;
 class String;
 class SampleRecorder;
 
-#define ALTERNATE_LOAD_DIR_NONE_SET 0
-#define ALTERNATE_LOAD_DIR_NOT_FOUND 1
-#define ALTERNATE_LOAD_DIR_MIGHT_EXIST 2
-#define ALTERNATE_LOAD_DIR_DOES_EXIST 3
+enum class AlternateLoadDirStatus {
+	NONE_SET,
+	NOT_FOUND,
+	MIGHT_EXIST,
+	DOES_EXIST,
+};
 
 /*
  * ===================== SD card audio streaming ==================
@@ -77,8 +80,9 @@ public:
 
 	void init();
 	AudioFile* getAudioFileFromFilename(String* fileName, bool mayReadCard, uint8_t* error, FilePointer* filePointer,
-	                                    int type, bool makeWaveTableWorkAtAllCosts = false);
-	Cluster* allocateCluster(int type = CLUSTER_SAMPLE, bool shouldAddReasons = true, void* dontStealFromThing = NULL);
+	                                    AudioFileType type, bool makeWaveTableWorkAtAllCosts = false);
+	Cluster* allocateCluster(ClusterType type = ClusterType::Sample, bool shouldAddReasons = true,
+	                         void* dontStealFromThing = NULL);
 	int enqueueCluster(Cluster* cluster, uint32_t priorityRating = 0xFFFFFFFF);
 	bool loadCluster(Cluster* cluster, int minNumReasonsAfter = 0);
 	void loadAnyEnqueuedClusters(int maxNum = 128, bool mayProcessUserActionsBetween = false);
@@ -93,14 +97,14 @@ public:
 	int setupAlternateAudioFilePath(String* newPath, int dirPathLength, String* oldPath);
 	int setupAlternateAudioFileDir(String* newPath, char const* rootDir, String* songFilenameWithoutExtension);
 	bool loadingQueueHasAnyLowestPriorityElements();
-	int getUnusedAudioRecordingFilePath(String* filePath, String* tempFilePathForRecording, int folderID,
-	                                    uint32_t* getNumber);
+	int getUnusedAudioRecordingFilePath(String* filePath, String* tempFilePathForRecording,
+	                                    AudioRecordingFolder folderID, uint32_t* getNumber);
 	void deleteAnyTempRecordedSamplesFromMemory();
 	void deleteUnusedAudioFileFromMemory(AudioFile* audioFile, int i);
 	void deleteUnusedAudioFileFromMemoryIndexUnknown(AudioFile* audioFile);
 	bool tryToDeleteAudioFileFromMemoryIfItExists(char const* filePath);
 
-	void thingBeginningLoading(int newThingType);
+	void thingBeginningLoading(ThingType newThingType);
 	void thingFinishedLoading();
 
 	ClusterPriorityQueue loadingQueue;
@@ -118,12 +122,12 @@ public:
 	int minNumReasonsForClusterBeingLoaded; // Only valid when clusterBeingLoaded is set. And this exists for bug hunting only.
 
 	String alternateAudioFileLoadPath;
-	uint8_t alternateLoadDirStatus;
-	uint8_t thingTypeBeingLoaded;
+	AlternateLoadDirStatus alternateLoadDirStatus;
+	ThingType thingTypeBeingLoaded;
 	DIR alternateLoadDir;
 
-	int32_t highestUsedAudioRecordingNumber[NUM_AUDIO_RECORDING_FOLDERS];
-	bool highestUsedAudioRecordingNumberNeedsReChecking[NUM_AUDIO_RECORDING_FOLDERS];
+	int32_t highestUsedAudioRecordingNumber[kNumAudioRecordingFolders];
+	bool highestUsedAudioRecordingNumberNeedsReChecking[kNumAudioRecordingFolders];
 
 private:
 	void setClusterSize(uint32_t newSize);

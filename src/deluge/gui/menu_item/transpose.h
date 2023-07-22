@@ -16,6 +16,7 @@
 */
 #pragma once
 #include "decimal.h"
+#include "definitions_cxx.hpp"
 #include "patched_param.h"
 
 namespace menu_item {
@@ -29,10 +30,10 @@ public:
 	virtual int getNumDecimalPlaces() const final { return 2; }
 	uint8_t getPatchedParamIndex() final { return PatchedParam::getPatchedParamIndex(); }
 	uint8_t shouldDrawDotOnName() final { return PatchedParam::shouldDrawDotOnName(); }
-	uint8_t shouldBlinkPatchingSourceShortcut(int s, uint8_t* colour) final {
+	uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) final {
 		return PatchedParam::shouldBlinkPatchingSourceShortcut(s, colour);
 	}
-	MenuItem* patchingSourceShortcutPress(int s, bool previousPressStillActive = false) final {
+	MenuItem* patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive = false) final {
 		return PatchedParam::patchingSourceShortcutPress(s, previousPressStillActive);
 	}
 

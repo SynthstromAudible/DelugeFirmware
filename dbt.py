@@ -43,7 +43,7 @@ def print_help(argparser: argparse.ArgumentParser, tasks: dict):
     print_tasks_usage(tasks)
     
 
-def main():
+def main() -> int:
     # Create the main parser
     parser = argparse.ArgumentParser(
         prog=f"{PROG_NAME}" or "task",
@@ -73,8 +73,8 @@ def main():
             sys.argv = sys.argv[1:]
 
         # Call out to our task. (lazy import)
-        importlib.import_module(tasks[task_name]).main()
-        sys.exit(0)
+        retcode = importlib.import_module(tasks[task_name]).main()
+        sys.exit(retcode)
     
 
     # nothing on the command line
