@@ -69,6 +69,8 @@ protected:
 
 #if RESIZEABLE_ARRAY_DO_LOCKS
 	bool lock;
+	void freezeOnLock();
+	void exitLock();
 #endif
 
 private:
