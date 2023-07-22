@@ -18,3 +18,6 @@
 #pragma once
 
 namespace keyboard::layout {};
+
+// for drum kit velocity calculation is:
+// int velocityToSound = ((x % 4) * 8) + ((y % 4) * 32) + 7; //@TODO: Get velocity from note

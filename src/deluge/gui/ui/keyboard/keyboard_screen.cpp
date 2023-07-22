@@ -217,7 +217,6 @@ void KeyboardScreen::updateActiveNotes() {
 		}
 
 		// Recording - this only works *if* the Clip that we're viewing right now is the Instrument's activeClip
-		//@TODO: Check if we can also enable this for kit instruments
 		if (activeInstrument->type != InstrumentType::KIT && clipIsActiveOnInstrument
 		    && playbackHandler.shouldRecordNotesNow() && currentSong->isClipActive(currentSong->currentClip)) {
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
@@ -275,7 +274,6 @@ void KeyboardScreen::updateActiveNotes() {
 		}
 
 		// Recording - this only works *if* the Clip that we're viewing right now is the Instrument's activeClip
-		//@TODO: Check if we can also enable this for kit instruments
 		if (activeInstrument->type != InstrumentType::KIT && clipIsActiveOnInstrument
 		    && playbackHandler.shouldRecordNotesNow() && currentSong->isClipActive(currentSong->currentClip)) {
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
@@ -289,7 +287,7 @@ void KeyboardScreen::updateActiveNotes() {
 	}
 
 	if (currentNoteState.count == 0) {
-		exitUIMode(UI_MODE_AUDITIONING); //@TODO: Might need a check if we are in auditioning
+		exitUIMode(UI_MODE_AUDITIONING);
 
 #if HAVE_OLED
 		OLED::removePopup();
@@ -456,7 +454,8 @@ void KeyboardScreen::selectEncoderAction(int8_t offset) {
 }
 
 void KeyboardScreen::exitAuditionMode() {
-	layoutList[0]->stopAllNotes();
+	memset(&pressedPads, 0, sizeof(pressedPads));
+	evaluateActiveNotes();
 	updateActiveNotes();
 
 	exitUIMode(UI_MODE_AUDITIONING);

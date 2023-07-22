@@ -35,8 +35,6 @@ public:
 	virtual bool supportsInstrument() { return true; }
 	virtual bool supportsKit() { return false; }
 
-	virtual void stopAllNotes();
-
 private:
 	uint8_t noteFromCoords(int x, int y);
 };

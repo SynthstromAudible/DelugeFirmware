@@ -27,7 +27,6 @@
 namespace keyboard::layout {
 
 // Refactor remove area
-bool yDisplayActive[kDisplayHeight * kMaxKeyboardRowInterval + kDisplayWidth]; // @TODO: needs to be emptied at start
 
 inline InstrumentClip* getCurrentClip() {
 	return (InstrumentClip*)currentSong->currentClip;
@@ -36,7 +35,6 @@ inline InstrumentClip* getCurrentClip() {
 //-----------------------
 
 KeyboardLayoutIsomorphic::KeyboardLayoutIsomorphic() : KeyboardLayout() {
-	memset(yDisplayActive, 0, sizeof(yDisplayActive));
 }
 
 NotesState KeyboardLayoutIsomorphic::evaluatePads(PressedPad presses[MAX_NUM_KEYBOARD_PAD_PRESSES]) {
@@ -52,81 +50,6 @@ NotesState KeyboardLayoutIsomorphic::evaluatePads(PressedPad presses[MAX_NUM_KEY
 	}
 
 	return newState;
-
-	/*
-
-	// for drum kit velocity calculation is:
-	// int velocityToSound = ((x % 4) * 8) + ((y % 4) * 32) + 7; //@TODO: Get velocity from note
-
-	int noteCode = noteFromCoords(x, y);
-
-	// Press-down
-	if (velocity) {
-		if(notesFull()) {
-			return;
-		}
-
-		int yDisplay = noteCode - getCurrentClip()->yScrollKeyboardScreen;
-		Instrument* instrument = (Instrument*)currentSong->currentClip->output;
-		if (instrument->type == InstrumentType::KIT) { //
-			yDisplay = (int)(x / 4) + (int)(y / 4) * 4;
-		}
-		if (yDisplayActive[yDisplay]) { // Exit if this pad was already pressed
-			return;
-		}
-
-		// Only now that we know we're not going to return prematurely can we mark the pad as pressed
-		{
-			padPresses[emptyPressIndex].x = x;
-			padPresses[emptyPressIndex].y = y;
-			yDisplayActive[yDisplay] = true;
-		}
-
-		//@TODO: Add note
-	}
-
-	// Press-up
-	else {
-
-		int p;
-		for (p = 0; p < MAX_NUM_KEYBOARD_PAD_PRESSES; p++) {
-			if (padPresses[p].x == x && padPresses[p].y == y) {
-				goto foundIt;
-			}
-		}
-
-
-		return;
-
-foundIt:
-		padPresses[p].x = 255; //255 seems to be reset
-		noteCode = noteFromCoords(x, y);
-		int yDisplay = noteCode - getCurrentClip()->yScrollKeyboardScreen;
-		Instrument* instrument = (Instrument*)currentSong->currentClip->output;
-		if (instrument->type == InstrumentType::KIT) { // @TODO: Deduplicate
-			yDisplay = (int)(x / 4) + (int)(y / 4) * 4;
-		}
-
-		// We need to check that we had actually switched the note on here - it might have already been sounding, from the sequence
-		if (!yDisplayActive[yDisplay]) {
-			return;
-		}
-
-
-		// If we had indeed sounded the note via audition (as opposed to it being on in the sequence), switch it off.
-		// If that was not the case, well, we still did want to potentially exit audition mode above, cos users been reporting stuck note problems,
-		// even though I can't see quite how we'd get stuck there
-		if (yDisplayActive[yDisplay]) {
-
-			//@TODO: Remove note
-
-
-			yDisplayActive[yDisplay] = false;
-		}
-
-
-	}
-	*/
 }
 
 void KeyboardLayoutIsomorphic::handleVerticalEncoder(int offset) {
@@ -290,10 +213,6 @@ void KeyboardLayoutIsomorphic::renderPads(uint8_t image[][kDisplayWidth + kSideB
 		}
 	}
 	*/
-}
-
-void KeyboardLayoutIsomorphic::stopAllNotes() {
-	memset(yDisplayActive, 0, sizeof(yDisplayActive));
 }
 
 uint8_t KeyboardLayoutIsomorphic::noteFromCoords(int x, int y) {

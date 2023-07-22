@@ -84,16 +84,11 @@ public:
 		}
 	};
 
-	virtual void stopAllNotes() = 0;
-
 	// Properties
 	virtual bool supportsInstrument() { return false; }
 	virtual bool supportsKit() { return false; }
 
-	//@TODO: This also needs velocity
-	//virtual std::array<int, MAX_NUM_KEYBOARD_PAD_PRESSES> getActiveNotes() = 0;
-
-	//@TODO: rootNote(), scale(), saving, restoring
+	//@TODO:  scale(), saving, restoring
 
 protected:
 	inline int getRootNote() { return currentSong->rootNote; }
@@ -107,27 +102,12 @@ protected:
 		return 127; // @TODO:
 	}
 
-	// Helpers
-	bool notesFull() {
-		return false; //@TODO: Check for max activeNotes
-	}
-
-	// void enableNote(int note) {
-	// 	//@TODO: Add to activeNotes
-	// }
-
-	void disableNote(int note) {
-		//@TODO: Remove from activeNotes
-	}
-
+	//@TODO: Figure out colors
 	// inline uint8_t[kDisplayHeight * KEYBOARD_ROW_INTERVAL_MAX + kDisplayWidth][3] colours() {
 	// 	return noteColours;
 	// }
 
 	Instrument* getActiveInstrument() { return (Instrument*)currentSong->currentClip->output; }
-
-protected:
-	//NoteList activeNotes; //@TODO: Add velocity to active notes
 };
 
 }; // namespace keyboard
