@@ -57,6 +57,10 @@ inline InstrumentClip* getCurrentClip() {
 	return (InstrumentClip*)currentSong->currentClip;
 }
 
+Instrument* getActiveInstrument() {
+	return (Instrument*)currentSong->currentClip->output;
+}
+
 KeyboardScreen::KeyboardScreen() {
 	memset(&pressedPads, 0, sizeof(pressedPads));
 	currentNoteState = {0};
@@ -122,25 +126,25 @@ ActionResult KeyboardScreen::padAction(int x, int y, int velocity) {
 
 	evaluateActiveNotes();
 
-	// // Handle setting root note //@TODO: only execute with exactly one new note
+	// // Handle setting root note
 	if (currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED) {
-		// 	if (sdRoutineLock) {
-		// 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		// 	}
+		if (sdRoutineLock) {
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		}
 
-		// 	// We probably couldn't have got this far if it was a Kit, but let's just check
-		// 	if (velocity && currentSong->currentClip->output->type != InstrumentType::KIT) {
-		// 		//int noteCode = getNoteCodeFromCoords(x, y); // @TODO: Rewrite to use new note in activeNotes, needs to come after handlePad
-		// 		exitScaleModeOnButtonRelease = false;
-		// 		if (getCurrentClip()->inScaleMode) {
-		// 			instrumentClipView.setupChangingOfRootNote(newNote);
-		// 			requestRendering();
-		// 			displayCurrentScaleName();
-		// 		}
-		// 		else {
-		// 			enterScaleMode(newNote);
-		// 		}
-		// 	}
+		// We probably couldn't have got this far if it was a Kit, but let's just check
+		if (currentSong->currentClip->output->type != InstrumentType::KIT && lastNoteState.count == 0
+		    && currentNoteState.count == 1) {
+			exitScaleModeOnButtonRelease = false;
+			if (getCurrentClip()->inScaleMode) {
+				instrumentClipView.setupChangingOfRootNote(currentNoteState.notes[0].note);
+				requestRendering();
+				displayCurrentScaleName();
+			}
+			else {
+				enterScaleMode(currentNoteState.notes[0].note);
+			}
+		}
 	}
 	else {
 		updateActiveNotes();
@@ -155,117 +159,79 @@ void KeyboardScreen::evaluateActiveNotes() {
 	currentNoteState = layoutList[0]->evaluatePads(pressedPads);
 }
 
-//NoteList lastActiveNotes; //@TODO: Move into class
-
 void KeyboardScreen::updateActiveNotes() {
-	/*
-	NoteList activeNotes = layoutList[0]->getActiveNotes();
+	Instrument* activeInstrument = getActiveInstrument();
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
+	bool clipIsActiveOnInstrument = makeCurrentClipActiveOnInstrumentIfPossible(modelStack);
 
-	//@TODO: Handle note list changes
-
-	// Note added
-	{
-		int newNote = 0; //@TODO:
+	// Handle added notes
+	for (uint8_t idx = 0; idx < currentNoteState.count; ++idx) {
+		uint8_t newNote = currentNoteState.notes[idx].note;
+		if (lastNoteState.noteEnabled(newNote)) {
+			continue;
+		} // Note was enabled before
 
 		// Flash Song button if another clip with the same instrument is currently playing
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
-		bool clipIsActiveOnInstrument = makeCurrentClipActiveOnInstrumentIfPossible(modelStack);
-		if (!clipIsActiveOnInstrument && newNote) { //@TODO: Fix
+		if (!clipIsActiveOnInstrument && currentNoteState.count > 0) {
 			indicator_leds::indicateAlertOnLed(IndicatorLED::SESSION_VIEW);
 		}
 
-		//@TODO: Only do this for physical and single individual presses
 		// If note range menu is open and row is
-		if (instrument->type == InstrumentType::SYNTH) {
+		if (currentNoteState.count == 1 && !currentNoteState.notes[idx].generatedNote
+		    && activeInstrument->type == InstrumentType::SYNTH) {
 			if (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem() == &menu_item::multiRangeMenu) {
-				menu_item::multiRangeMenu.noteOnToChangeRange(newNote + ((SoundInstrument*)instrument)->transpose);
+				menu_item::multiRangeMenu.noteOnToChangeRange(newNote
+				                                              + ((SoundInstrument*)activeInstrument)->transpose);
 			}
 		}
 
 		// Ensure the note the user is trying to sound isn't already sounding
-		NoteRow* noteRow = ((InstrumentClip*)instrument->activeClip)->getNoteRowForYNote(newNote);
+		NoteRow* noteRow = ((InstrumentClip*)activeInstrument->activeClip)->getNoteRowForYNote(newNote);
 		if (noteRow) {
 			if (noteRow->soundingStatus == STATUS_SEQUENCED_NOTE) {
-				return; //@TODO: Rewrite so just the following in Note added scope does not happen
+				continue;
 			}
 		}
 
 		// Actually sounding the note
-		if (instrument->type == InstrumentType::KIT) {
-			int velocityToSound = ((x % 4) * 8) + ((y % 4) * 32) + 7; //@TODO: Get velocity from note
-			instrumentClipView.auditionPadAction(velocityToSound, yDisplay, false); //@TODO: Figure out how to factor out yDisplay
+		if (activeInstrument->type == InstrumentType::KIT) {
+			instrumentClipView.auditionPadAction(
+			    currentNoteState.notes[idx].velocity, newNote,
+			    false); //@TODO: Figure out how to factor out yDisplay (newNote was yDisplay previously)
 		}
 		else {
-			int velocityToSound = instrument->defaultVelocity;
-			((MelodicInstrument*)instrument)
-				->beginAuditioningForNote(modelStack, newNote, velocityToSound, zeroMPEValues);
+			((MelodicInstrument*)activeInstrument)
+			    ->beginAuditioningForNote(modelStack, newNote, currentNoteState.notes[idx].velocity,
+			                              currentNoteState.notes[idx].mpeValues);
 		}
 
-		//@TODO: Only do this for physical presses
-		drawNoteCode(newNote);
+		if (!currentNoteState.notes[idx].generatedNote) {
+			drawNoteCode(newNote);
+		}
 		enterUIMode(UI_MODE_AUDITIONING);
 
 		// Begin resampling - yup this is even allowed if we're in the card routine!
-		if (Buttons::isButtonPressed(hid::button::RECORD) && !audioRecorder.recordingSource) {
+		if (Buttons::isButtonPressed(hid::button::RECORD) && audioRecorder.recordingSource == AudioInputChannel::NONE) {
 			audioRecorder.beginOutputRecording();
 			Buttons::recordButtonPressUsedUp = true;
 		}
-	}
 
-	// Note removed
-	{
-		//@TODO: This code was run on pad up if the pad was not found in the pressed list, we need to replicate that
-		// There were no presses. Just check we're not still stuck in "auditioning" mode, as users have still been reporting problems with this. (That comment from around 2021?)
-		if (isUIModeActive(UI_MODE_AUDITIONING)) {
-			exitUIMode(UI_MODE_AUDITIONING);
-		}
+		// Recording - this only works *if* the Clip that we're viewing right now is the Instrument's activeClip
+		//@TODO: Check if we can also enable this for kit instruments
+		if (activeInstrument->type != InstrumentType::KIT && clipIsActiveOnInstrument
+		    && playbackHandler.shouldRecordNotesNow() && currentSong->isClipActive(currentSong->currentClip)) {
+			ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
+			    modelStack->addTimelineCounter(currentSong->currentClip);
 
-
-		if (instrument->type == InstrumentType::KIT) { //
-			instrumentClipView.auditionPadAction(0, yDisplay, false); //@TODO: Figure out how to factor out yDisplay
-		}
-		else {
-
-			((MelodicInstrument*)instrument)->endAuditioningForNote(modelStack, noteCode);
-		}
-
-		//@TODO: If note list empty exit auditioning mode
-		exitUIMode(UI_MODE_AUDITIONING);
-	}
-
-	//@TODO: Check whole list
-	{
-		// If anything at all still auditioning...
-		int highestNoteCode = getHighestAuditionedNote();
-		if (highestNoteCode != -2147483648) {
-			drawNoteCode(highestNoteCode);
-		}
-		else {
-#if HAVE_OLED
-			OLED::removePopup();
-#else
-			redrawNumericDisplay();
-#endif
-		}
-	}
-
-	lastActiveNotes = activeNotes;
-
-
-	// Recording - this only works *if* the Clip that we're viewing right now is the Instrument's activeClip
-	//@TODO: Check if we can also enable this for kit instruments
-	if (instrument->type != InstrumentType::KIT && clipIsActiveOnInstrument && playbackHandler.shouldRecordNotesNow() && currentSong->isClipActive(currentSong->currentClip)) {
-		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(currentSong->currentClip);
-
-		// Note-on
-		if (velocity) {
 			// If count-in is on, we only got here if it's very nearly finished, so pre-empt that note.
 			// This is basic. For MIDI input, we do this in a couple more cases - see noteMessageReceived()
 			// in MelodicInstrument and Kit
 			if (isUIModeActive(UI_MODE_RECORD_COUNT_IN)) { // It definitely will be auditioning if we're here
 				ModelStackWithNoteRow* modelStackWithNoteRow = modelStackWithTimelineCounter->addNoteRow(0, NULL);
-				((MelodicInstrument*)instrument)->earlyNotes.insertElementIfNonePresent(newNote, instrument->defaultVelocity, getCurrentClip()->allowNoteTails(modelStackWithNoteRow));
+				((MelodicInstrument*)activeInstrument)
+				    ->earlyNotes.insertElementIfNonePresent(newNote, currentNoteState.notes[idx].velocity,
+				                                            getCurrentClip()->allowNoteTails(modelStackWithNoteRow));
 			}
 
 			else {
@@ -273,10 +239,11 @@ void KeyboardScreen::updateActiveNotes() {
 
 				bool scaleAltered = false;
 
-				ModelStackWithNoteRow* modelStackWithNoteRow = getCurrentClip()->getOrCreateNoteRowForYNote(newNote, modelStackWithTimelineCounter, action, &scaleAltered);
+				ModelStackWithNoteRow* modelStackWithNoteRow = getCurrentClip()->getOrCreateNoteRowForYNote(
+				    newNote, modelStackWithTimelineCounter, action, &scaleAltered);
 				NoteRow* thisNoteRow = modelStackWithNoteRow->getNoteRowAllowNull();
 				if (thisNoteRow) {
-					getCurrentClip()->recordNoteOn(modelStackWithNoteRow, instrument->defaultVelocity); //@TODO: Replace velocity
+					getCurrentClip()->recordNoteOn(modelStackWithNoteRow, currentNoteState.notes[idx].velocity);
 
 					// If this caused the scale to change, update scroll
 					if (action && scaleAltered) {
@@ -285,18 +252,45 @@ void KeyboardScreen::updateActiveNotes() {
 				}
 			}
 		}
+	}
 
-		// Note-off
+	// Handle removed notes
+	for (uint8_t idx = 0; idx < lastNoteState.count; ++idx) {
+		uint8_t oldNote = lastNoteState.notes[idx].note;
+		if (currentNoteState.noteEnabled(oldNote)) {
+			continue;
+		} // Note is still enabled
+
+		if (activeInstrument->type == InstrumentType::KIT) {         //
+			instrumentClipView.auditionPadAction(0, oldNote, false); //@TODO: Figure out how to factor out yDisplay
+		}
 		else {
+			((MelodicInstrument*)activeInstrument)->endAuditioningForNote(modelStack, oldNote);
+		}
+
+		// Recording - this only works *if* the Clip that we're viewing right now is the Instrument's activeClip
+		//@TODO: Check if we can also enable this for kit instruments
+		if (activeInstrument->type != InstrumentType::KIT && clipIsActiveOnInstrument
+		    && playbackHandler.shouldRecordNotesNow() && currentSong->isClipActive(currentSong->currentClip)) {
+			ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
+			    modelStack->addTimelineCounter(currentSong->currentClip);
 			ModelStackWithNoteRow* modelStackWithNoteRow =
-				getCurrentClip()->getNoteRowForYNote(newNote, modelStackWithTimelineCounter);
+			    getCurrentClip()->getNoteRowForYNote(oldNote, modelStackWithTimelineCounter);
 			if (modelStackWithNoteRow->getNoteRowAllowNull()) {
 				getCurrentClip()->recordNoteOff(modelStackWithNoteRow);
 			}
 		}
 	}
 
-	*/
+	if (currentNoteState.count == 0) {
+		exitUIMode(UI_MODE_AUDITIONING); //@TODO: Might need a check if we are in auditioning
+
+#if HAVE_OLED
+		OLED::removePopup();
+#else
+		redrawNumericDisplay();
+#endif
+	}
 }
 
 ActionResult KeyboardScreen::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
@@ -335,11 +329,12 @@ ActionResult KeyboardScreen::buttonAction(hid::Button b, bool on, bool inCardRou
 				}
 			}
 
-			// // If user is auditioning just one note, we can go directly into Scale Mode and set that root note
-			// else if (currentUIMode == UI_MODE_AUDITIONING && getActiveNoteCount() == 1 && !getCurrentClip()->inScaleMode) {
-			// 	exitAuditionMode();
-			// 	enterScaleMode(activeNotes[0]); //@TODO: Replace with working solution
-			// }
+			// If user is auditioning just one note, we can go directly into Scale Mode and set that root note
+			else if (currentUIMode == UI_MODE_AUDITIONING && currentNoteState.count == 1
+			         && !getCurrentClip()->inScaleMode) {
+				exitAuditionMode();
+				enterScaleMode(currentNoteState.notes[0].note);
+			}
 		}
 		else {
 			if (currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED) {

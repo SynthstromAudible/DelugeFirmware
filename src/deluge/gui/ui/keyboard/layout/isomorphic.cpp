@@ -32,19 +32,11 @@ bool yDisplayActive[kDisplayHeight * kMaxKeyboardRowInterval + kDisplayWidth]; /
 inline InstrumentClip* getCurrentClip() {
 	return (InstrumentClip*)currentSong->currentClip;
 }
+
 //-----------------------
 
 KeyboardLayoutIsomorphic::KeyboardLayoutIsomorphic() : KeyboardLayout() {
 	memset(yDisplayActive, 0, sizeof(yDisplayActive));
-}
-
-
-
-
-
-void enableNote(NotesState& state, uint8_t note, uint8_t velocity) { //@TODO: Add MPE values
-	//@TODO: set state according to note (bit flags)
-	//@TODO: Add note to list
 }
 
 NotesState KeyboardLayoutIsomorphic::evaluatePads(PressedPad presses[MAX_NUM_KEYBOARD_PAD_PRESSES]) {
@@ -54,13 +46,17 @@ NotesState KeyboardLayoutIsomorphic::evaluatePads(PressedPad presses[MAX_NUM_KEY
 
 	for (int idxPress = 0; idxPress < MAX_NUM_KEYBOARD_PAD_PRESSES; ++idxPress) {
 		if (presses[idxPress].active) {
-			enableNote(newState, noteFromCoords(presses[idxPress].x, presses[idxPress].y), getActiveInstrument()->defaultVelocity);
+			newState.enableNote(noteFromCoords(presses[idxPress].x, presses[idxPress].y),
+			                    getActiveInstrument()->defaultVelocity);
 		}
 	}
 
 	return newState;
+
 	/*
 
+	// for drum kit velocity calculation is:
+	// int velocityToSound = ((x % 4) * 8) + ((y % 4) * 32) + 7; //@TODO: Get velocity from note
 
 	int noteCode = noteFromCoords(x, y);
 

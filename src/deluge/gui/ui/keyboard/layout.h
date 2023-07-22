@@ -37,15 +37,31 @@ struct PressedPad {
 };
 
 struct NoteState {
-	uint8_t note;
-	uint8_t velocity;
-	uint8_t mpeValues[3];
+	uint8_t note = 0;
+	uint8_t velocity = 0;
+	int16_t mpeValues[3] = {0};
+	bool generatedNote = false;
 };
 
 struct NotesState {
-	uint64_t states[2];
-	NoteState notes[MAX_NUM_ACTIVE_NOTES];
-	uint8_t count;
+	uint64_t states[2] = {0};
+	NoteState notes[MAX_NUM_ACTIVE_NOTES] = {0};
+	uint8_t count = 0;
+
+	void enableNote(uint8_t note, uint8_t velocity) { //@TODO: Add MPE values
+		if (noteEnabled(note)) {
+			return;
+		}
+		notes[count].note = note;
+		notes[count].velocity = velocity;
+		states[(note >= 64 ? 1 : 0)] |= (1ull << (note >= 64 ? (note - 64) : note));
+		count++;
+	}
+
+	bool noteEnabled(uint8_t note) {
+		uint64_t expectedValue = (1ull << (note >= 64 ? (note - 64) : note));
+		return (states[(note >= 64 ? 1 : 0)] & expectedValue) == expectedValue;
+	}
 };
 
 class KeyboardLayout {
@@ -108,9 +124,7 @@ protected:
 	// 	return noteColours;
 	// }
 
-	Instrument* getActiveInstrument() {
-		return (Instrument*)currentSong->currentClip->output;
-	}
+	Instrument* getActiveInstrument() { return (Instrument*)currentSong->currentClip->output; }
 
 protected:
 	//NoteList activeNotes; //@TODO: Add velocity to active notes
