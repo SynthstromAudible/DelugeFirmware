@@ -38,7 +38,7 @@ void NumericLayerBasicText::isNowOnTop() {
 			}
 		}
 		else {
-			int speed = (blinkSpeed == 1 && !currentlyBlanked) ? initialFlashTime : flashTime;
+			int speed = (blinkSpeed == 1 && !currentlyBlanked) ? kInitialFlashTime : kFlashTime;
 			uiTimerManager.setTimer(TIMER_DISPLAY, speed);
 		}
 	}
@@ -55,7 +55,7 @@ bool NumericLayerBasicText::callBack() {
 		}
 	}
 
-	uiTimerManager.setTimer(TIMER_DISPLAY, flashTime);
+	uiTimerManager.setTimer(TIMER_DISPLAY, kFlashTime);
 
 	return false;
 }
@@ -65,14 +65,14 @@ void NumericLayerBasicText::render(uint8_t* returnSegments) {
 		renderWithoutBlink(returnSegments);
 	}
 	else {
-		for (int c = 0; c < NUMERIC_DISPLAY_LENGTH; c++) {
+		for (int c = 0; c < kNumericDisplayLength; c++) {
 			returnSegments[c] = blinkedSegments[c];
 		}
 	}
 }
 
 void NumericLayerBasicText::renderWithoutBlink(uint8_t* returnSegments) {
-	for (int c = 0; c < NUMERIC_DISPLAY_LENGTH; c++) {
+	for (int c = 0; c < kNumericDisplayLength; c++) {
 		returnSegments[c] = segments[c];
 	}
 }

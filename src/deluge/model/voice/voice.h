@@ -19,7 +19,7 @@
 
 #include "modulation/patch/patcher.h"
 #include "model/voice/voice_sample_playback_guide.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "modulation/envelope.h"
 #include "modulation/lfo.h"
 #include "model/voice/voice_unison_part.h"
@@ -35,20 +35,22 @@ public:
 
 	Patcher patcher;
 
-	VoiceUnisonPart
-	    unisonParts[maxNumUnison]; // Stores all oscillator positions and stuff, for each Source within each Unison too
-	VoiceSamplePlaybackGuide guides
-	    [NUM_SOURCES]; // Stores overall info on each Source (basically just sample memory bounds), for the play-through associated with this Voice right now.
+	// Stores all oscillator positions and stuff, for each Source within each Unison too
+	VoiceUnisonPart unisonParts[kMaxNumVoicesUnison];
+
+	// Stores overall info on each Source (basically just sample memory bounds), for the play-through associated with this Voice right now.
+	VoiceSamplePlaybackGuide guides[kNumSources];
 
 	Sound* assignedToSound;
 
-	int32_t paramFinalValues[FIRST_GLOBAL_PARAM]; // This is just for the *local* params, specific to this Voice only
-	int32_t sourceValues
-	    [NUM_PATCH_SOURCES]; // At the start of this list are local copies of the "global" ones. It's cheaper to copy them here than to pick and choose where the Patcher looks for them
+	int32_t paramFinalValues[Param::Global::FIRST]; // This is just for the *local* params, specific to this Voice only
 
-	int32_t localExpressionSourceValuesBeforeSmoothing[NUM_EXPRESSION_DIMENSIONS];
+	// At the start of this list are local copies of the "global" ones. It's cheaper to copy them here than to pick and choose where the Patcher looks for them
+	int32_t sourceValues[kNumPatchSources];
 
-	Envelope envelopes[numEnvelopes];
+	int32_t localExpressionSourceValuesBeforeSmoothing[kNumExpressionDimensions];
+
+	Envelope envelopes[kNumEnvelopes];
 	LFO lfo;
 
 	FilterSet filterSets[2];
@@ -61,9 +63,9 @@ public:
 	uint32_t lastSaturationTanHWorkingValue[2];
 
 	int32_t overallOscAmplitudeLastTime;
-	int32_t sourceAmplitudesLastTime[NUM_SOURCES];
-	int32_t modulatorAmplitudeLastTime[numModulators];
-	uint32_t sourceWaveIndexesLastTime[NUM_SOURCES];
+	int32_t sourceAmplitudesLastTime[kNumSources];
+	int32_t modulatorAmplitudeLastTime[kNumModulators];
+	uint32_t sourceWaveIndexesLastTime[kNumSources];
 
 	int32_t filterGainLastTime;
 
@@ -84,7 +86,7 @@ public:
 	            int32_t externalPitchAdjust);
 
 	void calculatePhaseIncrements(ModelStackWithVoice* modelStack);
-	bool sampleZoneChanged(ModelStackWithVoice* modelStack, int s, int markerType);
+	bool sampleZoneChanged(ModelStackWithVoice* modelStack, int s, MarkerType markerType);
 	bool noteOn(ModelStackWithVoice* modelStack, int newNoteCodeBeforeArpeggiation, int newNoteCodeAfterArpeggiation,
 	            uint8_t velocity, uint32_t newSampleSyncLength, int32_t ticksLate, uint32_t samplesLate,
 	            bool resetEnvelopes, int fromMIDIChannel, const int16_t* mpeValues);
@@ -102,7 +104,7 @@ public:
 private:
 	//inline int32_t doFM(uint32_t *carrierPhase, uint32_t* lastShiftedPhase, uint32_t carrierPhaseIncrement, uint32_t phaseShift);
 
-	void renderOsc(int s, int type, int32_t amplitude, int32_t* thisSample, int32_t* bufferEnd, int numSamples,
+	void renderOsc(int s, OscType type, int32_t amplitude, int32_t* thisSample, int32_t* bufferEnd, int numSamples,
 	               uint32_t phaseIncrementNow, uint32_t phaseWidth, uint32_t* thisPhase, bool applyAmplitude,
 	               int32_t amplitudeIncrement, bool doOscSync, uint32_t resetterPhase, uint32_t resetterPhaseIncrement,
 	               uint32_t retriggerPhase, int32_t waveIndexIncrement);

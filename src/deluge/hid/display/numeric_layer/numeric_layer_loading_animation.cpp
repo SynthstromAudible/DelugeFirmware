@@ -28,7 +28,7 @@ NumericLayerLoadingAnimation::~NumericLayerLoadingAnimation() {
 }
 
 void NumericLayerLoadingAnimation::isNowOnTop() {
-	uiTimerManager.setTimer(TIMER_DISPLAY, flashTime);
+	uiTimerManager.setTimer(TIMER_DISPLAY, kFlashTime);
 }
 
 bool NumericLayerLoadingAnimation::callBack() {
@@ -38,7 +38,7 @@ bool NumericLayerLoadingAnimation::callBack() {
 		loadingAnimationPos = 0;
 	}
 
-	uiTimerManager.setTimer(TIMER_DISPLAY, flashTime);
+	uiTimerManager.setTimer(TIMER_DISPLAY, kFlashTime);
 
 	return false;
 }
@@ -48,7 +48,7 @@ void NumericLayerLoadingAnimation::render(uint8_t* returnSegments) {
 		next->render(returnSegments);
 	}
 	else {
-		memset(returnSegments, 0, NUMERIC_DISPLAY_LENGTH);
+		memset(returnSegments, 0, kNumericDisplayLength);
 	}
 
 	if (loadingAnimationPos < 4) {

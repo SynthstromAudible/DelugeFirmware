@@ -16,6 +16,7 @@
  */
 
 #include "io/midi/midi_device_manager.h"
+#include "definitions_cxx.hpp"
 #include "util/container/vector/named_thing_vector.h"
 #include "io/midi/midi_device.h"
 #include "memory/general_memory_allocator.h"
@@ -28,6 +29,7 @@
 #include "gui/menu_item/mpe/zone_num_member_channels.h"
 #include "hid/display/oled.h"
 #include "util/functions.h"
+#include "util/misc.h"
 
 extern "C" {
 #include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_basic_define.h"
@@ -339,7 +341,7 @@ MIDIDevice* readDeviceReferenceFromFile() {
 	return NULL;
 }
 
-void readDeviceReferenceFromFlash(int whichCommand, uint8_t const* memory) {
+void readDeviceReferenceFromFlash(GlobalMIDICommand whichCommand, uint8_t const* memory) {
 
 	uint16_t vendorId = *(uint16_t const*)memory;
 
@@ -365,12 +367,12 @@ void readDeviceReferenceFromFlash(int whichCommand, uint8_t const* memory) {
 		device = getOrCreateHostedMIDIDeviceFromDetails(NULL, vendorId, productId);
 	}
 
-	midiEngine.globalMIDICommands[whichCommand].device = device;
+	midiEngine.globalMIDICommands[util::to_underlying(whichCommand)].device = device;
 }
 
-void writeDeviceReferenceToFlash(int whichCommand, uint8_t* memory) {
-	if (midiEngine.globalMIDICommands[whichCommand].device) {
-		midiEngine.globalMIDICommands[whichCommand].device->writeToFlash(memory);
+void writeDeviceReferenceToFlash(GlobalMIDICommand whichCommand, uint8_t* memory) {
+	if (midiEngine.globalMIDICommands[util::to_underlying(whichCommand)].device) {
+		midiEngine.globalMIDICommands[util::to_underlying(whichCommand)].device->writeToFlash(memory);
 	}
 }
 

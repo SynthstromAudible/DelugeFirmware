@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "definitions_cxx.hpp"
 #include "storage/audio/audio_file_manager.h"
 #include "gui/ui/browser/browser.h"
 #include "hid/matrix/matrix_driver.h"
@@ -50,7 +51,7 @@ int Browser::numFileItemsDeletedAtStart;
 int Browser::numFileItemsDeletedAtEnd;
 char const* Browser::firstFileItemRemaining;
 char const* Browser::lastFileItemRemaining;
-int Browser::instrumentTypeToLoad;
+InstrumentType Browser::instrumentTypeToLoad;
 char const** Browser::allowedFileExtensions;
 bool Browser::allowFoldersSharingNameWithFile;
 char const* Browser::filenameToStartSearchAt;
@@ -364,7 +365,7 @@ nonNumericFile:
 	return error;
 }
 
-void Browser::deleteFolderAndDuplicateItems(int instrumentAvailabilityRequirement) {
+void Browser::deleteFolderAndDuplicateItems(Availability instrumentAvailabilityRequirement) {
 	int writeI = 0;
 	FileItem* nextItem = (FileItem*)fileItems.getElementAddress(0);
 
@@ -403,12 +404,12 @@ void Browser::deleteFolderAndDuplicateItems(int instrumentAvailabilityRequiremen
 checkAvailabilityRequirement:
 				// Check Instrument's availabilityRequirement
 				if (readItem->instrumentAlreadyInSong) {
-					if (instrumentAvailabilityRequirement == AVAILABILITY_INSTRUMENT_UNUSED) {
+					if (instrumentAvailabilityRequirement == Availability::INSTRUMENT_UNUSED) {
 deleteThisItem:
 						readItem->~FileItem();
 						continue;
 					}
-					else if (instrumentAvailabilityRequirement == AVAILABILITY_INSTRUMENT_AVAILABLE_IN_SESSION) {
+					else if (instrumentAvailabilityRequirement == Availability::INSTRUMENT_AVAILABLE_IN_SESSION) {
 						if (currentSong->doesOutputHaveActiveClipInSession(readItem->instrument)) {
 							goto deleteThisItem;
 						}
@@ -452,9 +453,9 @@ deleteThisItem:
 }
 
 // song may be supplied as NULL, in which case it won't be searched for Instruments; sometimes this will get called when the currentSong is not set up.
-int Browser::readFileItemsFromFolderAndMemory(Song* song, int instrumentType, char const* filePrefixHere,
+int Browser::readFileItemsFromFolderAndMemory(Song* song, InstrumentType instrumentType, char const* filePrefixHere,
                                               char const* filenameToStartAt, char const* defaultDirToAlsoTry,
-                                              bool allowFolders, int availabilityRequirement,
+                                              bool allowFolders, Availability availabilityRequirement,
                                               int newCatalogSearchDirection) {
 	// filenameToStartAt should have .XML at the end of it.
 	bool triedCreatingFolder = false;
@@ -498,7 +499,7 @@ tryReadingItems:
 		return error;
 	}
 
-	if (song && instrumentType != 255) {
+	if (song && instrumentType != InstrumentType::NONE) {
 		error = song->addInstrumentsToFileItems(instrumentType);
 		if (error) {
 			return error;
@@ -513,7 +514,7 @@ tryReadingItems:
 			// And, files sharing name of in-memory Instrument.
 			if (!allowFoldersSharingNameWithFile) {
 				deleteFolderAndDuplicateItems(
-				    AVAILABILITY_ANY); // I think this is right - was AVAILABILITY_INSTRUMENT_UNUSED until 2023-01
+				    Availability::ANY); // I think this is right - was Availability::INSTRUMENT_UNUSED until 2023-01
 			}
 		}
 	}
@@ -535,8 +536,9 @@ int Browser::arrivedInNewFolder(int direction, char const* filenameToStartAt, ch
 tryReadingItems:
 	bool doWeHaveASearchString = (filenameToStartAt && *filenameToStartAt);
 	int newCatalogSearchDirection = doWeHaveASearchString ? CATALOG_SEARCH_BOTH : CATALOG_SEARCH_RIGHT;
-	int error = readFileItemsFromFolderAndMemory(currentSong, instrumentTypeToLoad, filePrefix, filenameToStartAt,
-	                                             defaultDirToAlsoTry, true, 0, newCatalogSearchDirection);
+	int error =
+	    readFileItemsFromFolderAndMemory(currentSong, instrumentTypeToLoad, filePrefix, filenameToStartAt,
+	                                     defaultDirToAlsoTry, true, Availability::ANY, newCatalogSearchDirection);
 	if (error) {
 gotErrorAfterAllocating:
 		emptyFileItems();
@@ -570,15 +572,16 @@ setEnteredTextAndUseFoundFile:
 				}
 useFoundFile:
 				scrollPosVertical = fileIndexSelected;
-#if BROWSER_AND_MENU_NUM_LINES > 1
-				int lastAllowed = fileItems.getNumElements() - BROWSER_AND_MENU_NUM_LINES;
-				if (scrollPosVertical > lastAllowed) {
-					scrollPosVertical = lastAllowed;
-					if (scrollPosVertical < 0) {
-						scrollPosVertical = 0;
+				if constexpr (kNumBrowserAndMenuLines > 1) {
+					int lastAllowed = fileItems.getNumElements() - kNumBrowserAndMenuLines;
+					if (scrollPosVertical > lastAllowed) {
+						scrollPosVertical = lastAllowed;
+						if (scrollPosVertical < 0) {
+							scrollPosVertical = 0;
+						}
 					}
 				}
-#endif
+
 				goto everythingFinalized;
 			}
 
@@ -761,14 +764,14 @@ noNumberYet:
 		if (mayDefaultToBrandNewNameOnEntry && !direction) {
 pickBrandNewNameIfNoneNominated:
 			if (enteredText.isEmpty()) {
-				error = getUnusedSlot(255, &enteredText, "SONG");
+				error = getUnusedSlot(InstrumentType::NONE, &enteredText, "SONG");
 				if (error) {
 					goto gotErrorAfterAllocating;
 				}
 
 				// Because that will have cleared out all the FileItems, we need to get them again. Actually there would kinda be a way around doing this...
-				error = readFileItemsFromFolderAndMemory(currentSong, 255, "SONG", enteredText.get(), NULL, false, 0,
-				                                         CATALOG_SEARCH_BOTH);
+				error = readFileItemsFromFolderAndMemory(currentSong, InstrumentType::NONE, "SONG", enteredText.get(),
+				                                         NULL, false, Availability::ANY, CATALOG_SEARCH_BOTH);
 				if (error) {
 					goto gotErrorAfterAllocating;
 				}
@@ -793,18 +796,19 @@ everythingFinalized:
 }
 
 // You must set currentDir before calling this.
-int Browser::getUnusedSlot(int instrumentType, String* newName, char const* thingName) {
+int Browser::getUnusedSlot(InstrumentType instrumentType, String* newName, char const* thingName) {
 
 #if HAVE_OLED
 	char filenameToStartAt[6]; // thingName is max 4 chars.
 	strcpy(filenameToStartAt, thingName);
 	strcat(filenameToStartAt, ":");
 #else
-	char const* filenameToStartAt = ":";    // Colon is the first character after the digits
+	char const* filenameToStartAt = ":";     // Colon is the first character after the digits
 #endif
 
-	int error = readFileItemsFromFolderAndMemory(currentSong, instrumentType, getThingName(instrumentType),
-	                                             filenameToStartAt, NULL, false, 0, CATALOG_SEARCH_LEFT);
+	int error =
+	    readFileItemsFromFolderAndMemory(currentSong, instrumentType, getThingName(instrumentType), filenameToStartAt,
+	                                     NULL, false, Availability::ANY, CATALOG_SEARCH_LEFT);
 
 	if (error) {
 doReturn:
@@ -842,7 +846,7 @@ doReturn:
 	error = newName->concatenateInt(freeSlotNumber, minNumDigits);
 
 #else
-	int nextHigherSlotFound = numSongSlots; // I think the use of this is a bit deprecated...
+	int nextHigherSlotFound = kNumSongSlots; // I think the use of this is a bit deprecated...
 
 	int i = fileItems.getNumElements();
 goBackOne
@@ -994,7 +998,7 @@ nonNumeric:
 tryReadingItems:
 			Debug::println("reloading");
 			error = readFileItemsFromFolderAndMemory(currentSong, instrumentTypeToLoad, filePrefix, enteredText.get(),
-			                                         NULL, true, 0, CATALOG_SEARCH_BOTH);
+			                                         NULL, true, Availability::ANY, CATALOG_SEARCH_BOTH);
 			if (error) {
 gotErrorAfterAllocating:
 				emptyFileItems();
@@ -1018,8 +1022,9 @@ gotErrorAfterAllocating:
 				newCatalogSearchDirection = CATALOG_SEARCH_LEFT;
 searchFromOneEnd:
 				Debug::println("reloading and wrap");
-				error = readFileItemsFromFolderAndMemory(currentSong, instrumentTypeToLoad, filePrefix, NULL, NULL,
-				                                         true, 0, newCatalogSearchDirection); // Load from start
+				error =
+				    readFileItemsFromFolderAndMemory(currentSong, instrumentTypeToLoad, filePrefix, NULL, NULL, true,
+				                                     Availability::ANY, newCatalogSearchDirection); // Load from start
 				if (error) {
 					goto gotErrorAfterAllocating;
 				}
@@ -1149,7 +1154,7 @@ doSearch:
 doNewRead:
 			doneNewRead = true;
 			error = readFileItemsFromFolderAndMemory(
-			    currentSong, instrumentTypeToLoad, filePrefix, searchString.get(), NULL, true, 0,
+			    currentSong, instrumentTypeToLoad, filePrefix, searchString.get(), NULL, true, Availability::ANY,
 			    CATALOG_SEARCH_BOTH); // This could probably actually be made to work with searching left only...
 			if (error) {
 gotErrorAfterAllocating:
@@ -1253,7 +1258,7 @@ void Browser::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 	int yPixel = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14;
 	yPixel += OLED_MAIN_TOPMOST_PIXEL;
 
-	int maxChars = (unsigned int)(OLED_MAIN_WIDTH_PIXELS - textStartX) / (unsigned int)TEXT_SPACING_X;
+	int maxChars = (unsigned int)(OLED_MAIN_WIDTH_PIXELS - textStartX) / (unsigned int)kTextSpacingX;
 
 	bool isFolder = false;
 	bool isSelectedIndex = true;
@@ -1301,16 +1306,16 @@ searchForChar:
 				drawTextForOLEDEditing(textStartX, OLED_MAIN_WIDTH_PIXELS, yPixel, maxChars, OLED::oledMainImage);
 				if (!enteredTextEditPos) {
 					OLED::setupSideScroller(0, enteredText.get(), textStartX, OLED_MAIN_WIDTH_PIXELS, yPixel,
-					                        yPixel + 8, TEXT_SPACING_X, TEXT_SPACING_Y, true);
+					                        yPixel + 8, kTextSpacingX, kTextSpacingY, true);
 				}
 			}
 			else {
 				OLED::drawStringFixedLength(displayName, displayStringLength, textStartX, yPixel,
-				                            OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, TEXT_SPACING_X,
-				                            TEXT_SPACING_Y);
+				                            OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX,
+				                            kTextSpacingY);
 			}
 
-			yPixel += TEXT_SPACING_Y;
+			yPixel += kTextSpacingY;
 		}
 	}
 }
@@ -1431,7 +1436,7 @@ FileItem* Browser::getCurrentFileItem() {
 }
 
 // This and its individual contents are frequently overridden by child classes.
-int Browser::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+ActionResult Browser::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	using namespace hid::button;
 
 	// Select encoder
@@ -1446,10 +1451,10 @@ int Browser::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 			if (currentFileItem) {
 				if (currentFileItem->isFolder) {
 					numericDriver.displayPopup(HAVE_OLED ? "Folders cannot be deleted on the Deluge" : "CANT");
-					return ACTION_RESULT_DEALT_WITH;
+					return ActionResult::DEALT_WITH;
 				}
 				if (inCardRoutine) {
-					return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 				}
 
 				goIntoDeleteFileContextMenu();
@@ -1464,18 +1469,18 @@ int Browser::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 		}
 	}
 	else {
-		return ACTION_RESULT_NOT_DEALT_WITH;
+		return ActionResult::NOT_DEALT_WITH;
 	}
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
-int Browser::mainButtonAction(bool on) {
+ActionResult Browser::mainButtonAction(bool on) {
 	// Press down
 	if (on) {
 		if (currentUIMode == UI_MODE_NONE) {
 			if (sdRoutineLock) {
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 			uiTimerManager.setTimer(TIMER_UI_SPECIFIC, 500);
 			currentUIMode = UI_MODE_HOLDING_BUTTON_POTENTIAL_LONG_PRESS;
@@ -1486,7 +1491,7 @@ int Browser::mainButtonAction(bool on) {
 	else {
 		if (currentUIMode == UI_MODE_HOLDING_BUTTON_POTENTIAL_LONG_PRESS) {
 			if (sdRoutineLock) {
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 			currentUIMode = UI_MODE_NONE;
 			uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
@@ -1494,20 +1499,20 @@ int Browser::mainButtonAction(bool on) {
 		}
 	}
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
 // Virtual function - may be overridden, by child classes that need to do more stuff, e.g. SampleBrowser needs to mute any previewing Sample.
-int Browser::backButtonAction() {
+ActionResult Browser::backButtonAction() {
 	if (sdRoutineLock) {
-		return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 	int error = goUpOneDirectoryLevel();
 	if (error) {
 		exitAction();
 	}
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
 // Virtual function - may be overridden, by child classes that need to do more stuff on exit.

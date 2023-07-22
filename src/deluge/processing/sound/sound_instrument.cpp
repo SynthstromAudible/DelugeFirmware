@@ -15,6 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "definitions_cxx.hpp"
+#include "modulation/params/param_manager.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
 #include "model/clip/instrument_clip.h"
@@ -31,8 +33,9 @@
 #include "model/voice/voice.h"
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
+#include "util/misc.h"
 
-SoundInstrument::SoundInstrument() : MelodicInstrument(INSTRUMENT_TYPE_SYNTH) {
+SoundInstrument::SoundInstrument() : MelodicInstrument(InstrumentType::SYNTH) {
 }
 
 bool SoundInstrument::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
@@ -96,14 +99,19 @@ void SoundInstrument::renderOutput(ModelStack* modelStack, StereoSample* startPo
 
 	if (playbackHandler.isEitherClockActive() && !playbackHandler.ticksLeftInCountIn && isClipActive) {
 
-		ParamCollectionSummary* patchedParamsSummary =
-		    &modelStackWithThreeMainThings->paramManager
-		         ->summaries[1]; // No time to call the proper function and do error checking, sorry.
-		if (patchedParamsSummary->whichParamsAreInterpolating[0] || patchedParamsSummary->whichParamsAreInterpolating[1]
-#if NUM_PARAMS > 64
-		    || patchedParamsSummary->whichParamsAreInterpolating[2]
-#endif
-		) {
+		// No time to call the proper function and do error checking, sorry.
+		ParamCollectionSummary* patchedParamsSummary = &modelStackWithThreeMainThings->paramManager->summaries[1];
+		bool anyInterpolating = false;
+		if constexpr (kNumParams > 64) {
+			anyInterpolating = patchedParamsSummary->whichParamsAreInterpolating[0]
+			                   || patchedParamsSummary->whichParamsAreInterpolating[1]
+			                   || patchedParamsSummary->whichParamsAreInterpolating[2];
+		}
+		else {
+			anyInterpolating = patchedParamsSummary->whichParamsAreInterpolating[0]
+			                   || patchedParamsSummary->whichParamsAreInterpolating[1];
+		}
+		if (anyInterpolating) {
 yesTickParamManagerForClip:
 			modelStackWithThreeMainThings->paramManager->toForTimeline()->tickSamples(numSamples,
 			                                                                          modelStackWithThreeMainThings);
@@ -112,51 +120,64 @@ yesTickParamManagerForClip:
 
 			// Try other options too.
 
-			ParamCollectionSummary* unpatchedParamsSummary =
-			    &modelStackWithThreeMainThings->paramManager
-			         ->summaries[0]; // No time to call the proper function and do error checking, sorry.
-			if (unpatchedParamsSummary->whichParamsAreInterpolating[0]
-#if MAX_NUM_UNPATCHED_PARAM_FOR_SOUNDS > 32
-			    || unpatchedParamsSummary->whichParamsAreInterpolating[1]
-#endif
-			) {
-				goto yesTickParamManagerForClip;
+			// No time to call the proper function and do error checking, sorry.
+			ParamCollectionSummary* unpatchedParamsSummary = &modelStackWithThreeMainThings->paramManager->summaries[0];
+			if constexpr (Param::Unpatched::Sound::MAX_NUM > 32) {
+				if (unpatchedParamsSummary->whichParamsAreInterpolating[0]
+				    || unpatchedParamsSummary->whichParamsAreInterpolating[1]) {
+					goto yesTickParamManagerForClip;
+				}
+			}
+			else {
+				if (unpatchedParamsSummary->whichParamsAreInterpolating[0]) {
+					goto yesTickParamManagerForClip;
+				}
 			}
 
-			ParamCollectionSummary* patchCablesSummary =
-			    &modelStackWithThreeMainThings->paramManager
-			         ->summaries[2]; // No time to call the proper function and do error checking, sorry.
-			if (patchCablesSummary->whichParamsAreInterpolating[0]
-#if MAX_NUM_PATCH_CABLES > 32
-			    || patchCablesSummary->whichParamsAreInterpolating[1]
-#endif
-			) {
-				goto yesTickParamManagerForClip;
+			// No time to call the proper function and do error checking, sorry.
+			ParamCollectionSummary* patchCablesSummary = &modelStackWithThreeMainThings->paramManager->summaries[2];
+			if constexpr (kMaxNumPatchCables > 32) {
+				if (patchCablesSummary->whichParamsAreInterpolating[0]
+				    || patchCablesSummary->whichParamsAreInterpolating[1]) {
+					goto yesTickParamManagerForClip;
+				}
+			}
+			else {
+				if (patchCablesSummary->whichParamsAreInterpolating[0]) {
+					goto yesTickParamManagerForClip;
+				}
 			}
 
+			// No time to call the proper function and do error checking, sorry.
 			ParamCollectionSummary* expressionParamsSummary =
-			    &modelStackWithThreeMainThings->paramManager
-			         ->summaries[3]; // No time to call the proper function and do error checking, sorry.
-			if (expressionParamsSummary->whichParamsAreInterpolating[0]
-#if NUM_EXPRESSION_DIMENSIONS > 32
-			    || expressionParamsSummary->whichParamsAreInterpolating[1]
-#endif
-			) {
-				goto yesTickParamManagerForClip;
+			    &modelStackWithThreeMainThings->paramManager->summaries[3];
+			if constexpr (kNumExpressionDimensions > 32) {
+				if (expressionParamsSummary->whichParamsAreInterpolating[0]
+				    || expressionParamsSummary->whichParamsAreInterpolating[1]) {
+					goto yesTickParamManagerForClip;
+				}
+			}
+			else {
+				if (expressionParamsSummary->whichParamsAreInterpolating[0]) {
+					goto yesTickParamManagerForClip;
+				}
 			}
 		}
 
 		// Do the ParamManagers of each NoteRow, too
 		for (int i = 0; i < ((InstrumentClip*)activeClip)->noteRows.getNumElements(); i++) {
 			NoteRow* thisNoteRow = ((InstrumentClip*)activeClip)->noteRows.getElement(i);
-			ParamCollectionSummary* expressionParamsSummary =
-			    &thisNoteRow->paramManager
-			         .summaries[0]; // No time to call the proper function and do error checking, sorry.
-			if (expressionParamsSummary->whichParamsAreInterpolating[0]
-#if NUM_EXPRESSION_DIMENSIONS > 32
-			    || expressionParamsSummary->whichParamsAreInterpolating[1]
-#endif
-			) {
+			// No time to call the proper function and do error checking, sorry.
+			ParamCollectionSummary* expressionParamsSummary = &thisNoteRow->paramManager.summaries[0];
+			bool result = false;
+			if constexpr (kNumExpressionDimensions > 32) {
+				result = expressionParamsSummary->whichParamsAreInterpolating[0]
+				         || expressionParamsSummary->whichParamsAreInterpolating[1];
+			}
+			else {
+				result = expressionParamsSummary->whichParamsAreInterpolating[0];
+			}
+			if (result) {
 				modelStackWithThreeMainThings->setNoteRow(thisNoteRow, thisNoteRow->y);
 				modelStackWithThreeMainThings->paramManager = &thisNoteRow->paramManager;
 				thisNoteRow->paramManager.tickSamples(numSamples, modelStackWithThreeMainThings);
@@ -168,7 +189,7 @@ yesTickParamManagerForClip:
 int SoundInstrument::loadAllAudioFiles(bool mayActuallyReadFiles) {
 
 	bool doingAlternatePath =
-	    mayActuallyReadFiles && (audioFileManager.alternateLoadDirStatus == ALTERNATE_LOAD_DIR_NONE_SET);
+	    mayActuallyReadFiles && (audioFileManager.alternateLoadDirStatus == AlternateLoadDirStatus::NONE_SET);
 	if (doingAlternatePath) {
 		int error = setupDefaultAudioFileDir();
 		if (error) {
@@ -219,7 +240,7 @@ void SoundInstrument::setupPatching(ModelStackWithTimelineCounter* modelStack) {
 	patchCableSet->setupPatching(modelStackWithParamCollection);
 }
 
-bool SoundInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, int maySendMIDIPGMs) {
+bool SoundInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs) {
 
 	bool clipChanged = MelodicInstrument::setActiveClip(modelStack, maySendMIDIPGMs);
 
@@ -231,16 +252,16 @@ bool SoundInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, i
 		// Grab mono expression params
 		ExpressionParamSet* expressionParams = paramManager->getExpressionParamSet();
 		if (expressionParams) {
-			for (int i = 0; i < NUM_EXPRESSION_DIMENSIONS; i++) {
+			for (int i = 0; i < kNumExpressionDimensions; i++) {
 				monophonicExpressionValues[i] = expressionParams->params[i].getCurrentValue();
 			}
 		}
 		else {
-			for (int i = 0; i < NUM_EXPRESSION_DIMENSIONS; i++) {
+			for (int i = 0; i < kNumExpressionDimensions; i++) {
 				monophonicExpressionValues[i] = 0;
 			}
 		}
-		whichExpressionSourcesChangedAtSynthLevel = (1 << NUM_EXPRESSION_DIMENSIONS) - 1;
+		whichExpressionSourcesChangedAtSynthLevel = (1 << kNumExpressionDimensions) - 1;
 	}
 	return clipChanged;
 }
@@ -259,10 +280,10 @@ void SoundInstrument::setupWithoutActiveClip(ModelStack* modelStack) {
 	patcher.performInitialPatching(this, paramManager);
 
 	// Clear mono expression params
-	for (int i = 0; i < NUM_EXPRESSION_DIMENSIONS; i++) {
+	for (int i = 0; i < kNumExpressionDimensions; i++) {
 		monophonicExpressionValues[i] = 0;
 	}
-	whichExpressionSourcesChangedAtSynthLevel = (1 << NUM_EXPRESSION_DIMENSIONS) - 1;
+	whichExpressionSourcesChangedAtSynthLevel = (1 << kNumExpressionDimensions) - 1;
 
 	Instrument::setupWithoutActiveClip(modelStack);
 }
@@ -290,8 +311,9 @@ void SoundInstrument::monophonicExpressionEvent(int newValue, int whichExpressio
 // (Despite my having made it now actually need to talk to the Arp too, as below...)
 // Note, this virtual function actually overrides/implements from two base classes - MelodicInstrument and ModControllable.
 void SoundInstrument::polyphonicExpressionEventOnChannelOrNote(int newValue, int whichExpressionDimension,
-                                                               int channelOrNoteNumber, int whichCharacteristic) {
-	int s = whichExpressionDimension + PATCH_SOURCE_X;
+                                                               int channelOrNoteNumber,
+                                                               MIDICharacteristic whichCharacteristic) {
+	int s = whichExpressionDimension + util::to_underlying(PatchSource::X);
 
 	//sourcesChanged |= 1 << s; // We'd ideally not want to apply this to all voices though...
 
@@ -299,7 +321,7 @@ void SoundInstrument::polyphonicExpressionEventOnChannelOrNote(int newValue, int
 	AudioEngine::activeVoices.getRangeForSound(this, ends);
 	for (int v = ends[0]; v < ends[1]; v++) {
 		Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
-		if (thisVoice->inputCharacteristics[whichCharacteristic] == channelOrNoteNumber) {
+		if (thisVoice->inputCharacteristics[util::to_underlying(whichCharacteristic)] == channelOrNoteNumber) {
 			if (expressionValueChangesMustBeDoneSmoothly) {
 				thisVoice->expressionEventSmooth(newValue, s);
 			}
@@ -311,7 +333,7 @@ void SoundInstrument::polyphonicExpressionEventOnChannelOrNote(int newValue, int
 
 	// Must update MPE values in Arp too - useful either if it's on, or if we're in true monophonic mode - in either case, we could need to suddenly do a note-on for a different note that the Arp knows about, and need these MPE values.
 	int n, nEnd;
-	if (whichCharacteristic == MIDI_CHARACTERISTIC_NOTE) {
+	if (whichCharacteristic == MIDICharacteristic::NOTE) {
 		n = arpeggiator.notes.search(channelOrNoteNumber, GREATER_OR_EQUAL);
 		if (n < arpeggiator.notes.getNumElements()) {
 			nEnd = 0;
@@ -323,7 +345,7 @@ void SoundInstrument::polyphonicExpressionEventOnChannelOrNote(int newValue, int
 	for (n = 0; n < nEnd; n++) {
 lookAtArpNote:
 		ArpNote* arpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
-		if (arpNote->inputCharacteristics[whichCharacteristic] == channelOrNoteNumber) {
+		if (arpNote->inputCharacteristics[util::to_underlying(whichCharacteristic)] == channelOrNoteNumber) {
 			arpNote->mpeValues[whichExpressionDimension] = newValue >> 16;
 		}
 	}
@@ -411,11 +433,12 @@ int32_t SoundInstrument::doTickForwardForArp(ModelStack* modelStack, int32_t cur
 	}
 
 	if (instruction.noteCodeOnPostArp != ARP_NOTE_NONE) {
-		noteOnPostArpeggiator(modelStackWithSoundFlags,
-		                      instruction.arpNoteOn->inputCharacteristics[MIDI_CHARACTERISTIC_NOTE],
-		                      instruction.noteCodeOnPostArp, instruction.arpNoteOn->velocity,
-		                      instruction.arpNoteOn->mpeValues, instruction.sampleSyncLengthOn, 0, 0,
-		                      instruction.arpNoteOn->inputCharacteristics[MIDI_CHARACTERISTIC_CHANNEL]);
+		noteOnPostArpeggiator(
+		    modelStackWithSoundFlags,
+		    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
+		    instruction.noteCodeOnPostArp, instruction.arpNoteOn->velocity, instruction.arpNoteOn->mpeValues,
+		    instruction.sampleSyncLengthOn, 0, 0,
+		    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]);
 	}
 
 	return ticksTilNextArpEvent;
@@ -439,14 +462,15 @@ bool SoundInstrument::noteIsOn(int noteCode) {
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 
 	if (arpSettings) {
-		if (arpSettings->mode != ARP_MODE_OFF || polyphonic == POLYPHONY_LEGATO || polyphonic == POLYPHONY_MONO) {
+		if (arpSettings->mode != ArpMode::OFF || polyphonic == PolyphonyMode::LEGATO
+		    || polyphonic == PolyphonyMode::MONO) {
 
 			int n = arpeggiator.notes.search(noteCode, GREATER_OR_EQUAL);
 			if (n >= arpeggiator.notes.getNumElements()) {
 				return false;
 			}
 			ArpNote* arpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
-			return (arpNote->inputCharacteristics[MIDI_CHARACTERISTIC_NOTE] == noteCode);
+			return (arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] == noteCode);
 		}
 	}
 
@@ -459,7 +483,7 @@ bool SoundInstrument::noteIsOn(int noteCode) {
 	for (int v = ends[0]; v < ends[1]; v++) {
 		Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
 		if ((thisVoice->noteCodeAfterArpeggiation == noteCode)
-		    && thisVoice->envelopes[0].state < ENVELOPE_STAGE_RELEASE) { // Ignore releasing notes. Is this right?
+		    && thisVoice->envelopes[0].state < EnvelopeStage::RELEASE) { // Ignore releasing notes. Is this right?
 			return true;
 		}
 	}

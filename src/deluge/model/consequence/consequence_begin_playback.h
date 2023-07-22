@@ -22,5 +22,5 @@
 class ConsequenceBeginPlayback final : public Consequence {
 public:
 	ConsequenceBeginPlayback();
-	int revert(int time, ModelStack* modelStack);
+	int revert(TimeType time, ModelStack* modelStack);
 };

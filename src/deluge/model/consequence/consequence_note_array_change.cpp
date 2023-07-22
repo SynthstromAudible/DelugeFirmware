@@ -17,12 +17,12 @@
 
 #include "model/consequence/consequence_note_array_change.h"
 #include "model/clip/instrument_clip.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "model/note/note_row.h"
 
 ConsequenceNoteArrayChange::ConsequenceNoteArrayChange(InstrumentClip* newClip, int newNoteRowId,
                                                        NoteVector* newNoteVector, bool stealData) {
-	type = CONSEQUENCE_NOTE_ARRAY_CHANGE;
+	type = Consequence::NOTE_ARRAY_CHANGE;
 	clip = newClip;
 	noteRowId = newNoteRowId;
 
@@ -37,7 +37,7 @@ ConsequenceNoteArrayChange::ConsequenceNoteArrayChange(InstrumentClip* newClip, 
 	}
 }
 
-int ConsequenceNoteArrayChange::revert(int time, ModelStack* modelStack) {
+int ConsequenceNoteArrayChange::revert(TimeType time, ModelStack* modelStack) {
 
 	NoteRow* noteRow = clip->getNoteRowFromId(noteRowId);
 	if (!noteRow) {

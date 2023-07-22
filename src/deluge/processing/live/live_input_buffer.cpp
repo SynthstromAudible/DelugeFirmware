@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "definitions_cxx.hpp"
 #include "processing/engines/audio_engine.h"
 #include "processing/live/live_input_buffer.h"
 #include <string.h>
@@ -30,11 +31,7 @@ LiveInputBuffer::LiveInputBuffer() {
 	numRawSamplesProcessed = 0;
 }
 
-LiveInputBuffer::~LiveInputBuffer() {
-	// TODO Auto-generated destructor stub
-}
-
-void LiveInputBuffer::giveInput(int numSamples, uint32_t currentTime, int inputType) {
+void LiveInputBuffer::giveInput(int numSamples, uint32_t currentTime, OscType inputType) {
 
 	if (upToTime == (uint32_t)(currentTime + numSamples)) {
 		return; // It's already been done
@@ -56,18 +53,18 @@ void LiveInputBuffer::giveInput(int numSamples, uint32_t currentTime, int inputT
 
 		int32_t thisSampleRead;
 
-		if (inputType == OSC_TYPE_INPUT_L) {
+		if (inputType == OscType::INPUT_L) {
 			thisSampleRead = inputReadPos[0] >> 2;
-			rawBuffer[numRawSamplesProcessed & (INPUT_RAW_BUFFER_SIZE - 1)] = inputReadPos[0];
+			rawBuffer[numRawSamplesProcessed & (kInputRawBufferSize - 1)] = inputReadPos[0];
 		}
-		else if (inputType == OSC_TYPE_INPUT_R) {
+		else if (inputType == OscType::INPUT_R) {
 			thisSampleRead = inputReadPos[1] >> 2;
-			rawBuffer[numRawSamplesProcessed & (INPUT_RAW_BUFFER_SIZE - 1)] = inputReadPos[1];
+			rawBuffer[numRawSamplesProcessed & (kInputRawBufferSize - 1)] = inputReadPos[1];
 		}
 		else { // STEREO
 			thisSampleRead = (inputReadPos[0] >> 2) + (inputReadPos[1] >> 2);
-			rawBuffer[(numRawSamplesProcessed & (INPUT_RAW_BUFFER_SIZE - 1)) * 2] = inputReadPos[0];
-			rawBuffer[(numRawSamplesProcessed & (INPUT_RAW_BUFFER_SIZE - 1)) * 2 + 1] = inputReadPos[1];
+			rawBuffer[(numRawSamplesProcessed & (kInputRawBufferSize - 1)) * 2] = inputReadPos[0];
+			rawBuffer[(numRawSamplesProcessed & (kInputRawBufferSize - 1)) * 2 + 1] = inputReadPos[1];
 		}
 
 		int32_t angle = thisSampleRead - lastSampleRead;
@@ -76,14 +73,14 @@ void LiveInputBuffer::giveInput(int numSamples, uint32_t currentTime, int inputT
 			angle = -angle;
 		}
 
-		for (int p = 0; p < DIFFERENCE_LPF_POLES; p++) {
+		for (int p = 0; p < kDifferenceLPFPoles; p++) {
 			int32_t distanceToGo = angle - angleLPFMem[p];
 			angleLPFMem[p] += multiply_32x32_rshift32_rounded(distanceToGo, 1 << 23); //distanceToGo >> 9;
 
 			angle = angleLPFMem[p];
 		}
 
-		if ((numRawSamplesProcessed & (PERC_BUFFER_REDUCTION_SIZE - 1)) == 0) {
+		if ((numRawSamplesProcessed & (kPercBufferReductionSize - 1)) == 0) {
 
 			int32_t difference = angle - lastAngle;
 			if (difference < 0) {
@@ -94,7 +91,7 @@ void LiveInputBuffer::giveInput(int numSamples, uint32_t currentTime, int inputT
 
 			percussiveness = getTanH<23>(percussiveness);
 
-			percBuffer[(numRawSamplesProcessed >> PERC_BUFFER_REDUCTION_MAGNITUDE) & (INPUT_PERC_BUFFER_SIZE - 1)] =
+			percBuffer[(numRawSamplesProcessed >> kPercBufferReductionMagnitude) & (kInputPercBufferSize - 1)] =
 			    percussiveness;
 		}
 		lastAngle = angle;
@@ -113,10 +110,10 @@ void LiveInputBuffer::giveInput(int numSamples, uint32_t currentTime, int inputT
 bool LiveInputBuffer::getAveragesForCrossfade(int32_t* totals, int startPos, int lengthToAverageEach, int numChannels) {
 
 	int currentPos = startPos;
-	for (int i = 0; i < TIME_STRETCH_CROSSFADE_NUM_MOVING_AVERAGES; i++) {
+	for (int i = 0; i < TimeStretch::Crossfade::kNumMovingAverages; i++) {
 
 		totals[i] = 0;
-		int endPos = (currentPos + lengthToAverageEach) & (INPUT_RAW_BUFFER_SIZE - 1);
+		int endPos = (currentPos + lengthToAverageEach) & (kInputRawBufferSize - 1);
 
 		// Splitting this in two by numChannels makes it a bit faster for mono, but slower for stereo
 		do {
@@ -125,7 +122,7 @@ bool LiveInputBuffer::getAveragesForCrossfade(int32_t* totals, int startPos, int
 				totals[i] += rawBuffer[currentPos * 2 + 1] >> 16;
 			}
 
-			currentPos = (currentPos + 1) & (INPUT_RAW_BUFFER_SIZE - 1);
+			currentPos = (currentPos + 1) & (kInputRawBufferSize - 1);
 		} while (currentPos != endPos);
 	}
 

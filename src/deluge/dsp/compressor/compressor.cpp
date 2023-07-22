@@ -16,19 +16,18 @@
 */
 
 #include "dsp/compressor/compressor.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "util/lookuptables/lookuptables.h"
-#include "definitions.h"
 #include "model/song/song.h"
 #include "playback/playback_handler.h"
 #include "storage/flash_storage.h"
 
 Compressor::Compressor() {
-	status = ENVELOPE_STAGE_OFF;
+	status = EnvelopeStage::OFF;
 	lastValue = 2147483647;
 	pos = 0;
-	attack = getParamFromUserValue(PARAM_STATIC_COMPRESSOR_ATTACK, 7);
-	release = getParamFromUserValue(PARAM_STATIC_COMPRESSOR_RELEASE, 28);
+	attack = getParamFromUserValue(Param::Static::COMPRESSOR_ATTACK, 7);
+	release = getParamFromUserValue(Param::Static::COMPRESSOR_RELEASE, 28);
 	pendingHitStrength = 0;
 
 	// I'm so sorry, this is incredibly ugly, but in order to decide the default sync level, we have to look at the current song, or even better the one being preloaded.
@@ -69,7 +68,7 @@ void Compressor::registerHitRetrospectively(int32_t strength, uint32_t numSample
 	// If we're still in the attack stage...
 	if (numSamplesAgo < attackStageLengthInSamples) {
 		pos = numSamplesAgo * alteredAttack;
-		status = ENVELOPE_STAGE_ATTACK;
+		status = EnvelopeStage::ATTACK;
 	}
 
 	// Or if past attack stage...
@@ -81,12 +80,12 @@ void Compressor::registerHitRetrospectively(int32_t strength, uint32_t numSample
 		// If we're still in the release stage...
 		if (numSamplesSinceRelease < releaseStageLengthInSamples) {
 			pos = numSamplesSinceRelease * alteredRelease;
-			status = ENVELOPE_STAGE_RELEASE;
+			status = EnvelopeStage::RELEASE;
 		}
 
 		// Or if we're past the release stage...
 		else {
-			status = ENVELOPE_STAGE_OFF;
+			status = EnvelopeStage::OFF;
 		}
 	}
 }
@@ -139,19 +138,19 @@ int32_t Compressor::render(uint16_t numSamples, int32_t shapeValue) {
 				goto prepareForRelease;
 			}
 
-			status = ENVELOPE_STAGE_ATTACK;
+			status = EnvelopeStage::ATTACK;
 			envelopeHeight = lastValue - envelopeOffset;
 			pos = 0;
 		}
 	}
 
-	if (status == ENVELOPE_STAGE_ATTACK) {
+	if (status == EnvelopeStage::ATTACK) {
 		pos += numSamples * getActualAttackRate();
 
 		if (pos >= 8388608) {
 prepareForRelease:
 			pos = 0;
-			status = ENVELOPE_STAGE_RELEASE;
+			status = EnvelopeStage::RELEASE;
 			envelopeHeight = ONE_Q31 - envelopeOffset;
 			goto doRelease;
 		}
@@ -163,12 +162,12 @@ prepareForRelease:
 		//lastValue = (multiply_32x32_rshift32(envelopeHeight, (sineWave[((pos >> 14) + 256) & 1023] >> 1) + 1073741824) << 1) + envelopeOffset; // Sine wave. Sounds a bit flat
 		//lastValue = (multiply_32x32_rshift32(envelopeHeight, 2147483647 - pos * (pos >> 15)) << 1) + envelopeOffset; // Parabola. Not bad, but doesn't quite have punchiness
 	}
-	else if (status == ENVELOPE_STAGE_RELEASE) {
+	else if (status == EnvelopeStage::RELEASE) {
 doRelease:
 		pos += numSamples * getActualReleaseRate();
 
 		if (pos >= 8388608) {
-			status = ENVELOPE_STAGE_OFF;
+			status = EnvelopeStage::OFF;
 			goto doOff;
 		}
 

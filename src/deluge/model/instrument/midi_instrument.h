@@ -39,7 +39,7 @@ public:
 
 	void allNotesOff();
 
-	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, int maySendMIDIPGMs);
+	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs);
 	bool writeDataToFile(Clip* clipForSavingOutputOnly, Song* song);
 	bool readTagFromFile(char const* tagName);
 	int readModKnobAssignmentsFromFile(int32_t readAutomationUpToPos, ParamManagerForTimeline* paramManager = NULL);
@@ -68,7 +68,7 @@ public:
 
 	int channelSuffix;
 
-	int8_t modKnobCCAssignments[NUM_MOD_BUTTONS * NUM_PHYSICAL_MOD_KNOBS];
+	int8_t modKnobCCAssignments[kNumModButtons * kNumPhysicalModKnobs];
 
 	MPEOutputMemberChannel mpeOutputMemberChannels[15]; // Numbers 1 to 14. 0 is bogus
 

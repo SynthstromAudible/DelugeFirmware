@@ -15,19 +15,21 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "definitions_cxx.hpp"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
+#include "util/misc.h"
 
 namespace menu_item::voice {
 class Priority final : public Selection {
 public:
 	Priority(char const* newName = NULL) : Selection(newName) {}
-	void readCurrentValue() { soundEditor.currentValue = *soundEditor.currentPriority; }
-	void writeCurrentValue() { *soundEditor.currentPriority = soundEditor.currentValue; }
+	void readCurrentValue() { soundEditor.currentValue = util::to_underlying(*soundEditor.currentPriority); }
+	void writeCurrentValue() { *soundEditor.currentPriority = static_cast<VoicePriority>(soundEditor.currentValue); }
 	char const** getOptions() {
 		static char const* options[] = {"LOW", "MEDIUM", "HIGH", NULL};
 		return options;
 	}
-	int getNumOptions() { return NUM_PRIORITY_OPTIONS; }
+	int getNumOptions() { return kNumVoicePriorities; }
 };
 } // namespace menu_item::voice

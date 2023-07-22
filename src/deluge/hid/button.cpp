@@ -1,14 +1,14 @@
 #include "button.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 
 namespace hid {
 
 namespace button {
 
-struct xy toXY(Button b) {
+Cartesian toXY(Button b) {
 	int y = (unsigned int)b / 9;
 	int x = b - y * 9;
-	y -= displayHeight * 2;
+	y -= kDisplayHeight * 2;
 	return {x, y};
 }
 
@@ -18,15 +18,15 @@ struct xy toXY(Button b) {
 Button::Button(uint8_t value) {
 	y = (unsigned int)value / 9;
 	x = value - y * 9;
-	y -= displayHeight * 2;
+	y -= kDisplayHeight * 2;
 }
 
 bool Button::isButton() {
-	return y >= displayHeight;
+	return y >= kDisplayHeight;
 }
 
 bool Button::isButton(uint8_t value) {
-	return value >= displayHeight * 2 * 9;
+	return value >= kDisplayHeight * 2 * 9;
 }
 
 bool Button::operator==(Button const& other) {

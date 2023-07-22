@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "util/d_string.h"
 #include "storage/multi_range/multi_range.h"
 #include "model/sample/sample_holder_for_voice.h"

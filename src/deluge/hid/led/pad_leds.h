@@ -18,7 +18,7 @@
 #pragma once
 
 #include "RZA1/system/r_typedefs.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 
 #define FLASH_CURSOR_FAST 0
 #define FLASH_CURSOR_OFF 1
@@ -31,12 +31,12 @@ extern "C" {
 class AudioClip;
 
 namespace PadLEDs {
-extern uint8_t image[displayHeight][displayWidth + sideBarWidth][3];               // 255 = full brightness
-extern uint8_t occupancyMask[displayHeight][displayWidth + sideBarWidth];          // 64 = full occupancy
-extern uint8_t imageStore[displayHeight * 2][displayWidth + sideBarWidth][3];      // 255 = full brightness
-extern uint8_t occupancyMaskStore[displayHeight * 2][displayWidth + sideBarWidth]; // 64 = full occupancy
+extern uint8_t image[kDisplayHeight][kDisplayWidth + kSideBarWidth][3];               // 255 = full brightness
+extern uint8_t occupancyMask[kDisplayHeight][kDisplayWidth + kSideBarWidth];          // 64 = full occupancy
+extern uint8_t imageStore[kDisplayHeight * 2][kDisplayWidth + kSideBarWidth][3];      // 255 = full brightness
+extern uint8_t occupancyMaskStore[kDisplayHeight * 2][kDisplayWidth + kSideBarWidth]; // 64 = full occupancy
 
-extern bool transitionTakingPlaceOnRow[displayHeight];
+extern bool transitionTakingPlaceOnRow[kDisplayHeight];
 
 extern int explodeAnimationYOriginBig;
 extern int explodeAnimationXStartBig;
@@ -50,7 +50,7 @@ extern int16_t animatedRowGoingTo[];
 extern int16_t animatedRowGoingFrom[];
 extern uint8_t numAnimatedRows;
 
-extern int zoomPinSquare[displayHeight];
+extern int zoomPinSquare[kDisplayHeight];
 extern bool zoomingIn;
 extern int8_t zoomMagnitude;
 
@@ -85,7 +85,7 @@ void renderZoomWithProgress(int inImageTimesBiggerThanNative, uint32_t inImageFa
 
 namespace horizontal {
 void setupScroll(int8_t thisScrollDirection, uint8_t thisAreaToScroll, bool scrollIntoNothing = false,
-                 int numSquaresToScroll = displayWidth);
+                 int numSquaresToScroll = kDisplayWidth);
 void renderScroll();
 } // namespace horizontal
 
@@ -118,7 +118,7 @@ static inline void flashMainPad(int x, int y, int color = 0) {
 		bufferPICUart(10 + color);
 	}
 
-	bufferPICUart(24 + y + (x * displayHeight));
+	bufferPICUart(24 + y + (x * kDisplayHeight));
 }
 
 inline void sendRGBForOneCol(int x);

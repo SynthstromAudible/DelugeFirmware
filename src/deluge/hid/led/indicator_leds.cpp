@@ -77,14 +77,14 @@ void blinkLed(LED led, uint8_t numBlinks, uint8_t blinkingType, bool initialStat
 
 	int thisInitialFlashTime;
 	if (blinkingType) {
-		thisInitialFlashTime = fastFlashTime;
+		thisInitialFlashTime = kFastFlashTime;
 	}
 	else {
 		if (initialState) {
-			thisInitialFlashTime = initialFlashTime;
+			thisInitialFlashTime = kInitialFlashTime;
 		}
 		else {
-			thisInitialFlashTime = flashTime;
+			thisInitialFlashTime = kFlashTime;
 		}
 	}
 
@@ -101,7 +101,7 @@ void ledBlinkTimeout(uint8_t blinkingType, bool forceReset, bool resetToState) {
 
 	bool anyActive = updateBlinkingLedStates(blinkingType);
 
-	int thisFlashTime = (blinkingType ? fastFlashTime : flashTime);
+	int thisFlashTime = (blinkingType ? kFastFlashTime : kFlashTime);
 	if (anyActive) {
 		uiTimerManager.setTimer(TIMER_LED_BLINK + blinkingType, thisFlashTime);
 	}
