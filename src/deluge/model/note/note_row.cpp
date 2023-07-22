@@ -2964,9 +2964,9 @@ useDefaultLift:
 				if (velocity == 0 || velocity > 127) {
 					velocity = 64;
 				}
-				if ((probability & 127) > (NUM_PROBABILITY_VALUES + NUM_ITERATION_VALUES)
-				    || probability >= (NUM_PROBABILITY_VALUES | 128)) {
-					probability = NUM_PROBABILITY_VALUES;
+				if ((probability & 127) > (kNumProbabilityValues + kNumIterationValues)
+				    || probability >= (kNumProbabilityValues | 128)) {
+					probability = kNumProbabilityValues;
 				}
 
 				minPos = pos + length;

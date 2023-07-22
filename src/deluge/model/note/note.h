@@ -49,5 +49,5 @@ public:
 	uint8_t lift;
 
 	// Understanding the probability field: the first bit says whether it's based on a previous one.
-	// So take the rightmost 7 bits. If that's greater than NUM_PROBABILITY_VALUES (20),
+	// So take the rightmost 7 bits. If that's greater than kNumProbabilityValues (20),
 };

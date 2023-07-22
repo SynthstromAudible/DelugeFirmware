@@ -739,6 +739,8 @@ enum class ArmState {
 };
 
 constexpr int kNumProbabilityValues = 20;
+constexpr int kNumIterationValues = 35; // 1of2 to 8of8
+constexpr int kFillProbabilityValue = 0;
 constexpr int kDefaultLiftValue = 64;
 
 enum Navigation {
