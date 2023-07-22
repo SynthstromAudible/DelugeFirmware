@@ -81,13 +81,12 @@ ActionResult KeyboardScreen::padAction(int x, int y, int velocity) {
 		return soundEditorResult;
 	}
 
-	// Exit if pad is enabled but UI in wrong mode
-	if (!isUIModeWithinRange(padActionUIModes)
-	    && velocity) { //@TODO: Need to check if this can prevent changing root note
-		return ActionResult::DEALT_WITH;
-	}
+	// Exit if pad is enabled but UI in wrong mode, this was removed as it prevented from changing root note
+	// if (!isUIModeWithinRange(padActionUIModes)
+	//     && velocity) {
+	// 	return ActionResult::DEALT_WITH;
+	// }
 
-	//@TODO: Think about if it makes sense to have a length attribute and always start from beginning of array instead of active flags
 	// Pad pressed down, add to list if not full
 	if (velocity) {
 		int freeSlotIdx = -1;
@@ -126,7 +125,7 @@ ActionResult KeyboardScreen::padAction(int x, int y, int velocity) {
 
 	evaluateActiveNotes();
 
-	// // Handle setting root note
+	// Handle setting root note
 	if (currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED) {
 		if (sdRoutineLock) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -169,8 +168,8 @@ void KeyboardScreen::updateActiveNotes() {
 	for (uint8_t idx = 0; idx < currentNoteState.count; ++idx) {
 		uint8_t newNote = currentNoteState.notes[idx].note;
 		if (lastNoteState.noteEnabled(newNote)) {
-			continue;
-		} // Note was enabled before
+			continue; // Note was enabled before
+		}
 
 		// Flash Song button if another clip with the same instrument is currently playing
 		if (!clipIsActiveOnInstrument && currentNoteState.count > 0) {
@@ -260,6 +259,13 @@ void KeyboardScreen::updateActiveNotes() {
 		if (currentNoteState.noteEnabled(oldNote)) {
 			continue;
 		} // Note is still enabled
+
+		NoteRow* noteRow = ((InstrumentClip*)activeInstrument->activeClip)->getNoteRowForYNote(oldNote);
+		if (noteRow) {
+			if (noteRow->soundingStatus == STATUS_SEQUENCED_NOTE) {
+				continue; // Note was activated by sequence
+			}
+		}
 
 		if (activeInstrument->type == InstrumentType::KIT) {         //
 			instrumentClipView.auditionPadAction(0, oldNote, false); //@TODO: Figure out how to factor out yDisplay
