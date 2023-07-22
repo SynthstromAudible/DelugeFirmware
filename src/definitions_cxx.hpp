@@ -512,7 +512,8 @@ static_assert(std::max<ParamType>(Unpatched::GlobalEffectable::MAX_NUM, Unpatche
 
 } // namespace Param
 
-constexpr ParamType kNumParams = util::to_underlying(Param::Global::NONE) - 1; // Not including the "none" param
+//None is the last global param, 0 indexed so it's also the number of real params
+constexpr ParamType kNumParams = util::to_underlying(Param::Global::NONE);
 constexpr ParamType kMaxNumUnpatchedParams = Param::Unpatched::GlobalEffectable::MAX_NUM;
 
 enum class OscType {
