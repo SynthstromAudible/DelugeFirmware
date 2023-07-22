@@ -26,7 +26,7 @@ public:
 	KeyboardLayoutIsomorphic();
 	virtual ~KeyboardLayoutIsomorphic() {}
 
-	virtual void evaluatePads(PressedPad presses[MAX_NUM_KEYBOARD_PAD_PRESSES]);
+	virtual NotesState evaluatePads(PressedPad presses[MAX_NUM_KEYBOARD_PAD_PRESSES]);
 	virtual void handleVerticalEncoder(int offset);
 	virtual void handleHorizontalEncoder(int offset, bool shiftEnabled);
 
@@ -38,7 +38,7 @@ public:
 	virtual void stopAllNotes();
 
 private:
-	int noteFromCoords(int x, int y);
+	uint8_t noteFromCoords(int x, int y);
 };
 
 }; // namespace keyboard::layout

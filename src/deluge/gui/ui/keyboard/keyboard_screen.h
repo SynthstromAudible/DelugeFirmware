@@ -53,6 +53,7 @@ private:
 	bool opened();
 	void focusRegained();
 
+	void evaluateActiveNotes();
 	void updateActiveNotes();
 
 	ClipMinder* toClipMinder() { return this; }
@@ -76,6 +77,8 @@ private:
 	}
 
 	PressedPad pressedPads[MAX_NUM_KEYBOARD_PAD_PRESSES];
+	NotesState lastNoteState;
+	NotesState currentNoteState;
 };
 
 }; // namespace keyboard

@@ -38,7 +38,27 @@ KeyboardLayoutIsomorphic::KeyboardLayoutIsomorphic() : KeyboardLayout() {
 	memset(yDisplayActive, 0, sizeof(yDisplayActive));
 }
 
-void KeyboardLayoutIsomorphic::evaluatePads(PressedPad presses[MAX_NUM_KEYBOARD_PAD_PRESSES]) {
+
+
+
+
+void enableNote(NotesState& state, uint8_t note, uint8_t velocity) { //@TODO: Add MPE values
+	//@TODO: set state according to note (bit flags)
+	//@TODO: Add note to list
+}
+
+NotesState KeyboardLayoutIsomorphic::evaluatePads(PressedPad presses[MAX_NUM_KEYBOARD_PAD_PRESSES]) {
+	uint8_t noteIdx = 0;
+
+	NotesState newState;
+
+	for (int idxPress = 0; idxPress < MAX_NUM_KEYBOARD_PAD_PRESSES; ++idxPress) {
+		if (presses[idxPress].active) {
+			enableNote(newState, noteFromCoords(presses[idxPress].x, presses[idxPress].y), getActiveInstrument()->defaultVelocity);
+		}
+	}
+
+	return newState;
 	/*
 
 
@@ -280,7 +300,7 @@ void KeyboardLayoutIsomorphic::stopAllNotes() {
 	memset(yDisplayActive, 0, sizeof(yDisplayActive));
 }
 
-int KeyboardLayoutIsomorphic::noteFromCoords(int x, int y) {
+uint8_t KeyboardLayoutIsomorphic::noteFromCoords(int x, int y) {
 
 	Instrument* instrument = (Instrument*)currentSong->currentClip->output;
 	if (instrument->type == InstrumentType::KIT) { //

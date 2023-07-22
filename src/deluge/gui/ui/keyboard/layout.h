@@ -18,14 +18,15 @@
 #pragma once
 
 #include "model/song/song.h"
+#include "model/clip/instrument_clip.h"
+
 #include "hid/button.h"
 #include <string.h>
 #include <array>
 
 #define INVALID_NOTE -1
 #define MAX_NUM_KEYBOARD_PAD_PRESSES 10
-
-typedef std::array<int, MAX_NUM_KEYBOARD_PAD_PRESSES> NoteList;
+#define MAX_NUM_ACTIVE_NOTES 10
 
 namespace keyboard {
 
@@ -35,13 +36,25 @@ struct PressedPad {
 	bool active;
 };
 
+struct NoteState {
+	uint8_t note;
+	uint8_t velocity;
+	uint8_t mpeValues[3];
+};
+
+struct NotesState {
+	uint64_t states[2];
+	NoteState notes[MAX_NUM_ACTIVE_NOTES];
+	uint8_t count;
+};
+
 class KeyboardLayout {
 public:
-	KeyboardLayout() { activeNotes.fill(INVALID_NOTE); }
+	KeyboardLayout() {}
 	virtual ~KeyboardLayout() {}
 
 	// Handle inputs
-	virtual void evaluatePads(PressedPad presses[MAX_NUM_KEYBOARD_PAD_PRESSES]) = 0;
+	virtual NotesState evaluatePads(PressedPad presses[MAX_NUM_KEYBOARD_PAD_PRESSES]) = 0;
 	virtual void handleVerticalEncoder(
 	    int offset) = 0; // returns weather the scroll had an effect // Shift state not supplied since that function is already taken
 	virtual void handleHorizontalEncoder(int offset, bool shiftEnabled) = 0; // returns weather the scroll had an effect
@@ -60,8 +73,6 @@ public:
 	// Properties
 	virtual bool supportsInstrument() { return false; }
 	virtual bool supportsKit() { return false; }
-
-	inline const NoteList getActiveNotes() { return activeNotes; }
 
 	//@TODO: This also needs velocity
 	//virtual std::array<int, MAX_NUM_KEYBOARD_PAD_PRESSES> getActiveNotes() = 0;
@@ -85,9 +96,9 @@ protected:
 		return false; //@TODO: Check for max activeNotes
 	}
 
-	void enableNote(int note) {
-		//@TODO: Add to activeNotes
-	}
+	// void enableNote(int note) {
+	// 	//@TODO: Add to activeNotes
+	// }
 
 	void disableNote(int note) {
 		//@TODO: Remove from activeNotes
@@ -97,8 +108,12 @@ protected:
 	// 	return noteColours;
 	// }
 
+	Instrument* getActiveInstrument() {
+		return (Instrument*)currentSong->currentClip->output;
+	}
+
 protected:
-	NoteList activeNotes; //@TODO: Add velocity to active notes
+	//NoteList activeNotes; //@TODO: Add velocity to active notes
 };
 
 }; // namespace keyboard

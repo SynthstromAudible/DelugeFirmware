@@ -59,6 +59,8 @@ inline InstrumentClip* getCurrentClip() {
 
 KeyboardScreen::KeyboardScreen() {
 	memset(&pressedPads, 0, sizeof(pressedPads));
+	currentNoteState = {0};
+	lastNoteState = {0};
 }
 
 static const uint32_t padActionUIModes[] = {UI_MODE_AUDITIONING, UI_MODE_RECORD_COUNT_IN,
@@ -81,6 +83,7 @@ ActionResult KeyboardScreen::padAction(int x, int y, int velocity) {
 		return ActionResult::DEALT_WITH;
 	}
 
+	//@TODO: Think about if it makes sense to have a length attribute and always start from beginning of array instead of active flags
 	// Pad pressed down, add to list if not full
 	if (velocity) {
 		int freeSlotIdx = -1;
@@ -117,7 +120,7 @@ ActionResult KeyboardScreen::padAction(int x, int y, int velocity) {
 		}
 	}
 
-	layoutList[0]->evaluatePads(pressedPads);
+	evaluateActiveNotes();
 
 	// // Handle setting root note //@TODO: only execute with exactly one new note
 	if (currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED) {
@@ -147,7 +150,12 @@ ActionResult KeyboardScreen::padAction(int x, int y, int velocity) {
 	return ActionResult::DEALT_WITH;
 }
 
-NoteList lastActiveNotes; //@TODO: Move into class
+void KeyboardScreen::evaluateActiveNotes() {
+	lastNoteState = currentNoteState;
+	currentNoteState = layoutList[0]->evaluatePads(pressedPads);
+}
+
+//NoteList lastActiveNotes; //@TODO: Move into class
 
 void KeyboardScreen::updateActiveNotes() {
 	/*
@@ -415,7 +423,7 @@ ActionResult KeyboardScreen::verticalEncoderAction(int offset, bool inCardRoutin
 	else {
 		layoutList[0]->handleVerticalEncoder(offset);
 		if (isUIModeWithinRange(padActionUIModes)) {
-			layoutList[0]->evaluatePads(pressedPads);
+			evaluateActiveNotes();
 			updateActiveNotes();
 		}
 	}
@@ -429,7 +437,7 @@ ActionResult KeyboardScreen::horizontalEncoderAction(int offset) {
 	layoutList[0]->handleHorizontalEncoder(offset,
 	                                       (Buttons::isShiftButtonPressed() && isUIModeWithinRange(padActionUIModes)));
 	if (isUIModeWithinRange(padActionUIModes)) {
-		layoutList[0]->evaluatePads(pressedPads);
+		evaluateActiveNotes();
 		updateActiveNotes();
 	}
 
@@ -513,7 +521,7 @@ void KeyboardScreen::enterScaleMode(int selectedRootNote) {
 
 	displayCurrentScaleName();
 
-	layoutList[0]->evaluatePads(pressedPads);
+	evaluateActiveNotes();
 	updateActiveNotes();
 
 	requestRendering();
@@ -525,7 +533,7 @@ void KeyboardScreen::exitScaleMode() {
 	int scrollAdjust = instrumentClipView.setupForExitingScaleMode();
 	getCurrentClip()->yScroll += scrollAdjust;
 
-	layoutList[0]->evaluatePads(pressedPads);
+	evaluateActiveNotes();
 	updateActiveNotes();
 
 	requestRendering();
