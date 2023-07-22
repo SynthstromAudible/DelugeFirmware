@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "definitions_cxx.hpp"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "modulation/envelope.h"
@@ -29,13 +30,13 @@ int32_t Envelope::render(uint32_t numSamples, uint32_t attack, uint32_t decay, u
 
 considerEnvelopeStage:
 	switch (state) {
-	case ENVELOPE_STAGE_ATTACK:
+	case EnvelopeStage::ATTACK:
 		pos +=
 		    attack
 		    * numSamples; // Increment the pos *before* taking a value, so we can skip the attack section entirely with a high posIncrease
 		if (pos >= 8388608) {
 			pos = 0;
-			setState(ENVELOPE_STAGE_DECAY);
+			setState(EnvelopeStage::DECAY);
 			goto considerEnvelopeStage;
 		}
 		//lastValue = pos << 8;
@@ -43,7 +44,7 @@ considerEnvelopeStage:
 		lastValue = getMax(lastValue, (int32_t)1);
 		break;
 
-	case ENVELOPE_STAGE_DECAY:
+	case EnvelopeStage::DECAY:
 		lastValue = sustain + (uint32_t)multiply_32x32_rshift32(getDecay8(pos, 23), 2147483647 - sustain) * 2;
 
 		pos += decay * numSamples;
@@ -52,26 +53,26 @@ considerEnvelopeStage:
 
 			// If sustain is 0, we may as well be switched off already
 			if (sustain == 0) {
-				setState(ENVELOPE_STAGE_OFF);
+				setState(EnvelopeStage::OFF);
 			}
 			else {
-				setState(ENVELOPE_STAGE_SUSTAIN);
+				setState(EnvelopeStage::SUSTAIN);
 			}
 		}
 
 		break;
 
-	case ENVELOPE_STAGE_SUSTAIN:
+	case EnvelopeStage::SUSTAIN:
 		lastValue = sustain;
 		if (ignoredNoteOff) {
 			unconditionalRelease();
 		}
 		break;
 
-	case ENVELOPE_STAGE_RELEASE:
+	case EnvelopeStage::RELEASE:
 		pos += release * numSamples;
 		if (pos >= 8388608) {
-			setState(ENVELOPE_STAGE_OFF);
+			setState(EnvelopeStage::OFF);
 			lastValue = 0;
 			return -2147483648;
 		}
@@ -81,10 +82,10 @@ considerEnvelopeStage:
 		lastValue = multiply_32x32_rshift32(interpolateTable(pos, 23, releaseTable), lastValuePreCurrentStage) << 1;
 		break;
 
-	case ENVELOPE_STAGE_FAST_RELEASE:
+	case EnvelopeStage::FAST_RELEASE:
 		pos += fastReleaseIncrement * numSamples;
 		if (pos >= 8388608) {
-			setState(ENVELOPE_STAGE_OFF);
+			setState(EnvelopeStage::OFF);
 			return -2147483648;
 		}
 
@@ -108,11 +109,11 @@ int32_t Envelope::noteOn(bool directlyToDecay) {
 	ignoredNoteOff = false;
 	pos = 0;
 	if (!directlyToDecay) {
-		setState(ENVELOPE_STAGE_ATTACK);
+		setState(EnvelopeStage::ATTACK);
 		lastValue = 0;
 	}
 	else {
-		setState(ENVELOPE_STAGE_DECAY);
+		setState(EnvelopeStage::DECAY);
 		lastValue = 2147483647;
 	}
 
@@ -120,7 +121,7 @@ int32_t Envelope::noteOn(bool directlyToDecay) {
 }
 
 int32_t Envelope::noteOn(uint8_t envelopeIndex, Sound* sound, Voice* voice) {
-	int32_t attack = voice->paramFinalValues[PARAM_LOCAL_ENV_0_ATTACK + envelopeIndex];
+	int32_t attack = voice->paramFinalValues[Param::Local::ENV_0_ATTACK + envelopeIndex];
 
 	bool directlyToDecay = (attack > 245632);
 
@@ -132,30 +133,29 @@ void Envelope::noteOff(uint8_t envelopeIndex, Sound* sound, ParamManagerForTimel
 	if (!sound->envelopeHasSustainCurrently(envelopeIndex, paramManager)) {
 		ignoredNoteOff = true;
 	}
-	else if (
-	    state
-	    < ENVELOPE_STAGE_RELEASE) { // Could we ever have already been in release state? Probably not, but just in case
+	else if (state < EnvelopeStage::
+	             RELEASE) { // Could we ever have already been in release state? Probably not, but just in case
 		unconditionalRelease();
 	}
 }
 
-void Envelope::setState(uint8_t newState) {
+void Envelope::setState(EnvelopeStage newState) {
 	state = newState;
 	timeEnteredState = AudioEngine::nextVoiceState++;
 }
 
-void Envelope::unconditionalRelease(uint8_t typeOfRelease, uint32_t newFastReleaseIncrement) {
+void Envelope::unconditionalRelease(EnvelopeStage typeOfRelease, uint32_t newFastReleaseIncrement) {
 	setState(typeOfRelease);
 	pos = 0;
 	lastValuePreCurrentStage = lastValue;
 
-	if (typeOfRelease == ENVELOPE_STAGE_FAST_RELEASE) {
+	if (typeOfRelease == EnvelopeStage::FAST_RELEASE) {
 		fastReleaseIncrement = newFastReleaseIncrement;
 	}
 }
 
 void Envelope::resumeAttack(int32_t oldLastValue) {
-	if (state == ENVELOPE_STAGE_ATTACK) {
+	if (state == EnvelopeStage::ATTACK) {
 		pos = interpolateTableInverse(2147483647 - oldLastValue, 23, decayTableSmall4);
 	}
 }

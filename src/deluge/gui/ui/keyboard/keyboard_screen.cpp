@@ -16,6 +16,7 @@
 */
 
 #include "gui/ui/keyboard/keyboard_screen.h"
+#include "definitions_cxx.hpp"
 #include "gui/views/arranger_view.h"
 #include "processing/engines/audio_engine.h"
 #include "model/clip/instrument_clip.h"
@@ -63,21 +64,21 @@ KeyboardScreen::KeyboardScreen() {
 static const uint32_t padActionUIModes[] = {UI_MODE_AUDITIONING, UI_MODE_RECORD_COUNT_IN,
                                             0}; // Careful - this is referenced in two places // I'm always careful ;)
 
-int KeyboardScreen::padAction(int x, int y, int velocity) {
+ActionResult KeyboardScreen::padAction(int x, int y, int velocity) {
 	if (sdRoutineLock && !allowSomeUserActionsEvenWhenInCardRoutine) {
-		return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow some of the time when in card routine.
+		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow some of the time when in card routine.
 	}
 
 	// Handle overruling shortcut presses
-	int soundEditorResult = soundEditor.potentialShortcutPadAction(x, y, velocity);
-	if (soundEditorResult != ACTION_RESULT_NOT_DEALT_WITH) {
+	ActionResult soundEditorResult = soundEditor.potentialShortcutPadAction(x, y, velocity);
+	if (soundEditorResult != ActionResult::NOT_DEALT_WITH) {
 		return soundEditorResult;
 	}
 
 	// Exit if pad is enabled but UI in wrong mode
 	if (!isUIModeWithinRange(padActionUIModes)
 	    && velocity) { //@TODO: Need to check if this can prevent changing root note
-		return ACTION_RESULT_DEALT_WITH;
+		return ActionResult::DEALT_WITH;
 	}
 
 	// Pad pressed down, add to list if not full
@@ -121,11 +122,11 @@ int KeyboardScreen::padAction(int x, int y, int velocity) {
 	// // Handle setting root note //@TODO: only execute with exactly one new note
 	if (currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED) {
 		// 	if (sdRoutineLock) {
-		// 		return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		// 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		// 	}
 
 		// 	// We probably couldn't have got this far if it was a Kit, but let's just check
-		// 	if (velocity && currentSong->currentClip->output->type != INSTRUMENT_TYPE_KIT) {
+		// 	if (velocity && currentSong->currentClip->output->type != InstrumentType::KIT) {
 		// 		//int noteCode = getNoteCodeFromCoords(x, y); // @TODO: Rewrite to use new note in activeNotes, needs to come after handlePad
 		// 		exitScaleModeOnButtonRelease = false;
 		// 		if (getCurrentClip()->inScaleMode) {
@@ -143,7 +144,7 @@ int KeyboardScreen::padAction(int x, int y, int velocity) {
 	}
 
 	requestRendering();
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
 NoteList lastActiveNotes; //@TODO: Move into class
@@ -168,7 +169,7 @@ void KeyboardScreen::updateActiveNotes() {
 
 		//@TODO: Only do this for physical and single individual presses
 		// If note range menu is open and row is
-		if (instrument->type == INSTRUMENT_TYPE_SYNTH) {
+		if (instrument->type == InstrumentType::SYNTH) {
 			if (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem() == &menu_item::multiRangeMenu) {
 				menu_item::multiRangeMenu.noteOnToChangeRange(newNote + ((SoundInstrument*)instrument)->transpose);
 			}
@@ -183,7 +184,7 @@ void KeyboardScreen::updateActiveNotes() {
 		}
 
 		// Actually sounding the note
-		if (instrument->type == INSTRUMENT_TYPE_KIT) {
+		if (instrument->type == InstrumentType::KIT) {
 			int velocityToSound = ((x % 4) * 8) + ((y % 4) * 32) + 7; //@TODO: Get velocity from note
 			instrumentClipView.auditionPadAction(velocityToSound, yDisplay, false); //@TODO: Figure out how to factor out yDisplay
 		}
@@ -213,7 +214,7 @@ void KeyboardScreen::updateActiveNotes() {
 		}
 
 
-		if (instrument->type == INSTRUMENT_TYPE_KIT) { //
+		if (instrument->type == InstrumentType::KIT) { //
 			instrumentClipView.auditionPadAction(0, yDisplay, false); //@TODO: Figure out how to factor out yDisplay
 		}
 		else {
@@ -246,7 +247,7 @@ void KeyboardScreen::updateActiveNotes() {
 
 	// Recording - this only works *if* the Clip that we're viewing right now is the Instrument's activeClip
 	//@TODO: Check if we can also enable this for kit instruments
-	if (instrument->type != INSTRUMENT_TYPE_KIT && clipIsActiveOnInstrument && playbackHandler.shouldRecordNotesNow() && currentSong->isClipActive(currentSong->currentClip)) {
+	if (instrument->type != InstrumentType::KIT && clipIsActiveOnInstrument && playbackHandler.shouldRecordNotesNow() && currentSong->isClipActive(currentSong->currentClip)) {
 		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(currentSong->currentClip);
 
 		// Note-on
@@ -290,17 +291,17 @@ void KeyboardScreen::updateActiveNotes() {
 	*/
 }
 
-int KeyboardScreen::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+ActionResult KeyboardScreen::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	using namespace hid::button;
 
 	if (inCardRoutine) {
-		return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 
 	// Scale mode button
 	if (b == SCALE_MODE) {
-		if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_KIT) {
-			return ACTION_RESULT_DEALT_WITH; // Kits can't do scales!
+		if (currentSong->currentClip->output->type == InstrumentType::KIT) {
+			return ActionResult::DEALT_WITH; // Kits can't do scales!
 		}
 
 		actionLogger.deleteAllLogs(); // Can't undo past this!
@@ -359,7 +360,7 @@ int KeyboardScreen::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 		// Transition back to arranger
 		if (currentSong->lastClipInstanceEnteredStartPos != -1 || currentSong->currentClip->section == 255) {
 			if (arrangerView.transitionToArrangementEditor()) {
-				return ACTION_RESULT_DEALT_WITH;
+				return ActionResult::DEALT_WITH;
 			}
 		}
 
@@ -368,15 +369,15 @@ int KeyboardScreen::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 		int transitioningToRow = sessionView.getClipPlaceOnScreen(currentSong->currentClip);
 		memcpy(&PadLEDs::imageStore, PadLEDs::image, sizeof(PadLEDs::image));
 		memcpy(&PadLEDs::occupancyMaskStore, PadLEDs::occupancyMask, sizeof(PadLEDs::occupancyMask));
-		//memset(PadLEDs::occupancyMaskStore, 16, sizeof(uint8_t) * displayHeight * (displayWidth + sideBarWidth));
-		PadLEDs::numAnimatedRows = displayHeight;
-		for (int y = 0; y < displayHeight; y++) {
+		//memset(PadLEDs::occupancyMaskStore, 16, sizeof(uint8_t) * kDisplayHeight * (kDisplayWidth + kSideBarWidth));
+		PadLEDs::numAnimatedRows = kDisplayHeight;
+		for (int y = 0; y < kDisplayHeight; y++) {
 			PadLEDs::animatedRowGoingTo[y] = transitioningToRow;
 			PadLEDs::animatedRowGoingFrom[y] = y;
 		}
 
 		PadLEDs::setupInstrumentClipCollapseAnimation(true);
-		PadLEDs::recordTransitionBegin(clipCollapseSpeed);
+		PadLEDs::recordTransitionBegin(kClipCollapseSpeed);
 		PadLEDs::renderClipExpandOrCollapse();
 	}
 
@@ -390,8 +391,8 @@ int KeyboardScreen::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 
 	else {
 		requestRendering();
-		int result = InstrumentClipMinder::buttonAction(b, on, inCardRoutine);
-		if (result != ACTION_RESULT_NOT_DEALT_WITH) {
+		ActionResult result = InstrumentClipMinder::buttonAction(b, on, inCardRoutine);
+		if (result != ActionResult::NOT_DEALT_WITH) {
 			return result;
 		}
 
@@ -400,12 +401,12 @@ int KeyboardScreen::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 		    inCardRoutine); // This might potentially do something while inCardRoutine but the condition above discards the call anyway
 	}
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
-int KeyboardScreen::verticalEncoderAction(int offset, bool inCardRoutine) {
+ActionResult KeyboardScreen::verticalEncoderAction(int offset, bool inCardRoutine) {
 	if (inCardRoutine && !allowSomeUserActionsEvenWhenInCardRoutine) {
-		return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
+		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
 	}
 
 	if (Buttons::isShiftButtonPressed() && currentUIMode == UI_MODE_NONE) {
@@ -420,10 +421,10 @@ int KeyboardScreen::verticalEncoderAction(int offset, bool inCardRoutine) {
 	}
 
 	requestRendering();
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
-int KeyboardScreen::horizontalEncoderAction(int offset) {
+ActionResult KeyboardScreen::horizontalEncoderAction(int offset) {
 
 	layoutList[0]->handleHorizontalEncoder(offset,
 	                                       (Buttons::isShiftButtonPressed() && isUIModeWithinRange(padActionUIModes)));
@@ -433,7 +434,7 @@ int KeyboardScreen::horizontalEncoderAction(int offset) {
 	}
 
 	requestRendering();
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
 void KeyboardScreen::selectEncoderAction(int8_t offset) {
@@ -472,23 +473,23 @@ void KeyboardScreen::openedInBackground() {
 	requestRendering(); // This one originally also included sidebar, the other ones didn't
 }
 
-bool KeyboardScreen::renderMainPads(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
-                                    uint8_t occupancyMask[][displayWidth + sideBarWidth], bool drawUndefinedArea) {
+bool KeyboardScreen::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+                                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
 	if (!image) {
 		return true;
 	}
 
-	memset(image, 0, sizeof(uint8_t) * displayHeight * (displayWidth + sideBarWidth) * 3);
+	memset(image, 0, sizeof(uint8_t) * kDisplayHeight * (kDisplayWidth + kSideBarWidth) * 3);
 	memset(occupancyMask, 64,
-	       sizeof(uint8_t) * displayHeight * (displayWidth + sideBarWidth)); // We assume the whole screen is occupied
+	       sizeof(uint8_t) * kDisplayHeight * (kDisplayWidth + kSideBarWidth)); // We assume the whole screen is occupied
 
 	layoutList[0]->renderPads(image);
 
 	return true;
 }
 
-bool KeyboardScreen::renderSidebar(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
-                                   uint8_t occupancyMask[][displayWidth + sideBarWidth]) {
+bool KeyboardScreen::renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+                                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 	if (!image) {
 		return true;
 	}
@@ -499,7 +500,7 @@ bool KeyboardScreen::renderSidebar(uint32_t whichRows, uint8_t image[][displayWi
 }
 
 void KeyboardScreen::flashDefaultRootNote() {
-	uiTimerManager.setTimer(TIMER_DEFAULT_ROOT_NOTE, flashTime);
+	uiTimerManager.setTimer(TIMER_DEFAULT_ROOT_NOTE, kFlashTime);
 	flashDefaultRootNoteOn = !flashDefaultRootNoteOn;
 	requestRendering();
 }
@@ -541,7 +542,7 @@ void KeyboardScreen::drawNoteCode(int noteCode) {
 		return;
 	}
 
-	if (currentSong->currentClip->output->type != INSTRUMENT_TYPE_KIT) {
+	if (currentSong->currentClip->output->type != InstrumentType::KIT) {
 		drawActualNoteCode(noteCode);
 	}
 }
@@ -550,9 +551,9 @@ bool KeyboardScreen::getAffectEntire() {
 	return getCurrentClip()->affectEntire;
 }
 
-uint8_t keyboardTickSquares[displayHeight] = {255, 255, 255, 255, 255, 255, 255, 255};
-const uint8_t keyboardTickColoursBasicRecording[displayHeight] = {0, 0, 0, 0, 0, 0, 0, 0};
-const uint8_t keyboardTickColoursLinearRecording[displayHeight] = {0, 0, 0, 0, 0, 0, 0, 2};
+uint8_t keyboardTickSquares[kDisplayHeight] = {255, 255, 255, 255, 255, 255, 255, 255};
+const uint8_t keyboardTickColoursBasicRecording[kDisplayHeight] = {0, 0, 0, 0, 0, 0, 0, 0};
+const uint8_t keyboardTickColoursLinearRecording[kDisplayHeight] = {0, 0, 0, 0, 0, 0, 0, 2};
 
 void KeyboardScreen::graphicsRoutine() {
 	int newTickSquare;
@@ -567,8 +568,8 @@ void KeyboardScreen::graphicsRoutine() {
 	else {
 		newTickSquare = (uint64_t)(currentSong->currentClip->lastProcessedPos
 		                           + playbackHandler.getNumSwungTicksInSinceLastActionedSwungTick())
-		                * displayWidth / currentSong->currentClip->loopLength;
-		if (newTickSquare < 0 || newTickSquare >= displayWidth) {
+		                * kDisplayWidth / currentSong->currentClip->loopLength;
+		if (newTickSquare < 0 || newTickSquare >= kDisplayWidth) {
 			newTickSquare = 255;
 		}
 
@@ -577,7 +578,7 @@ void KeyboardScreen::graphicsRoutine() {
 		}
 	}
 
-	keyboardTickSquares[displayHeight - 1] = newTickSquare;
+	keyboardTickSquares[kDisplayHeight - 1] = newTickSquare;
 
 	PadLEDs::setTickSquares(keyboardTickSquares, colours);
 }

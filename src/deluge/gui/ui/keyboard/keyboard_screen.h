@@ -34,16 +34,16 @@ class KeyboardScreen final : public RootUI, public InstrumentClipMinder {
 public:
 	KeyboardScreen();
 
-	int padAction(int x, int y, int velocity);
-	int buttonAction(hid::Button b, bool on, bool inCardRoutine);
-	int verticalEncoderAction(int offset, bool inCardRoutine);
-	int horizontalEncoderAction(int offset);
+	ActionResult padAction(int x, int y, int velocity);
+	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
+	ActionResult verticalEncoderAction(int offset, bool inCardRoutine);
+	ActionResult horizontalEncoderAction(int offset);
 	void selectEncoderAction(int8_t offset);
 
-	bool renderMainPads(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
-	                    uint8_t occupancyMask[][displayWidth + sideBarWidth], bool drawUndefinedArea = false);
-	bool renderSidebar(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
-	                   uint8_t occupancyMask[][displayWidth + sideBarWidth]);
+	bool renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = false);
+	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 
 	void flashDefaultRootNote();
 	void openedInBackground();

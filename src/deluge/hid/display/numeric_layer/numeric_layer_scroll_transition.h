@@ -27,7 +27,7 @@ public:
 	void render(uint8_t* returnSegments);
 	void isNowOnTop();
 
-	uint8_t segments[NUMERIC_DISPLAY_LENGTH];
+	uint8_t segments[kNumericDisplayLength];
 
 	int8_t transitionDirection;
 	int8_t transitionProgress;

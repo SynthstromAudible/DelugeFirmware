@@ -18,7 +18,7 @@
 #include "dsp/delay/delay.h"
 #include <stdlib.h>
 #include "dsp/stereo_sample.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 //#include <algorithm>
 #include "io/debug/print.h"
 #include "playback/playback_handler.h"

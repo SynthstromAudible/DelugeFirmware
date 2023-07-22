@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "dsp/filter/filter_set.h"
 
@@ -55,12 +56,12 @@ public:
 	                            bool shouldLimitDelayFeedback = false);
 
 	FilterSet filterSets[2];
-	uint8_t currentModFXParam;
-	uint8_t currentFilterType;
+	ModFXParam currentModFXParam;
+	FilterType currentFilterType;
 
 protected:
 	virtual int getParameterFromKnob(int whichModEncoder);
-	int getActiveModFXType(ParamManager* paramManager);
+	ModFXType getActiveModFXType(ParamManager* paramManager);
 
 private:
 	void ensureModFXParamIsValid();

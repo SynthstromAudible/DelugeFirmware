@@ -30,7 +30,7 @@ public:
 	virtual void handleVerticalEncoder(int offset);
 	virtual void handleHorizontalEncoder(int offset, bool shiftEnabled);
 
-	virtual void renderPads(uint8_t image[][displayWidth + sideBarWidth][3]);
+	virtual void renderPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]);
 
 	virtual bool supportsInstrument() { return true; }
 	virtual bool supportsKit() { return false; }

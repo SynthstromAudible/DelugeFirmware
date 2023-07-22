@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "definitions_cxx.hpp"
 #include "processing/engines/audio_engine.h"
 #include "model/clip/clip.h"
 #include "model/clip/clip_instance.h"
@@ -29,7 +30,7 @@
 #include "hid/display/numeric_driver.h"
 #include "model/model_stack.h"
 
-Output::Output(int newType) : type(newType) {
+Output::Output(InstrumentType newType) : type(newType) {
 	mutedInArrangementMode = false;
 	soloingInArrangementMode = false;
 	activeClip = NULL;
@@ -50,7 +51,7 @@ void Output::setupWithoutActiveClip(ModelStack* modelStack) {
 }
 
 // Returns whether Clip changed from before
-bool Output::setActiveClip(ModelStackWithTimelineCounter* modelStack, int maySendMIDIPGMs) {
+bool Output::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs) {
 
 	Clip* newClip = (Clip*)modelStack->getTimelineCounter();
 
@@ -67,8 +68,8 @@ void Output::detachActiveClip(Song* song) {
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 }
 
-void Output::pickAnActiveClipIfPossible(ModelStack* modelStack, bool searchSessionClipsIfNeeded, int maySendMIDIPGMs,
-                                        bool setupWithoutActiveClipIfNeeded) {
+void Output::pickAnActiveClipIfPossible(ModelStack* modelStack, bool searchSessionClipsIfNeeded,
+                                        PgmChangeSend maySendMIDIPGMs, bool setupWithoutActiveClipIfNeeded) {
 
 	if (!activeClip) {
 
@@ -96,7 +97,8 @@ void Output::pickAnActiveClipIfPossible(ModelStack* modelStack, bool searchSessi
 	}
 }
 
-void Output::pickAnActiveClipForArrangementPos(ModelStack* modelStack, int arrangementPos, int maySendMIDIPGMs) {
+void Output::pickAnActiveClipForArrangementPos(ModelStack* modelStack, int arrangementPos,
+                                               PgmChangeSend maySendMIDIPGMs) {
 
 	// First, see if there's an earlier-starting ClipInstance that's still going at this pos
 	int i = clipInstances.search(arrangementPos + 1, LESS);
@@ -324,7 +326,7 @@ bool Output::readTagFromFile(char const* tagName) {
 			uint32_t clipCode = hexToIntFixedLength(&hexChars[16], 8);
 
 			// See if that's all allowed
-			if (pos < minPos || length <= 0 || pos > MAX_SEQUENCE_LENGTH - length) {
+			if (pos < minPos || length <= 0 || pos > kMaxSequenceLength - length) {
 				continue;
 			}
 
@@ -384,7 +386,7 @@ int Output::possiblyBeginArrangementRecording(Song* song, int newPos) {
 
 	clipInstance->clip = newClip;
 	newClip->section = 255;
-	newClip->loopLength = MAX_SEQUENCE_LENGTH;
+	newClip->loopLength = kMaxSequenceLength;
 
 	song->arrangementOnlyClips.insertClipAtIndex(newClip, 0); // Will succeed - we checked above
 
@@ -395,8 +397,8 @@ int Output::possiblyBeginArrangementRecording(Song* song, int newPos) {
 
 	Action* action = actionLogger.getNewAction(ACTION_RECORD, true);
 	if (action) {
-		action->recordClipExistenceChange(song, &song->arrangementOnlyClips, newClip, CREATE);
-		action->recordClipInstanceExistenceChange(this, clipInstance, CREATE);
+		action->recordClipExistenceChange(song, &song->arrangementOnlyClips, newClip, ExistenceChangeType::CREATE);
+		action->recordClipInstanceExistenceChange(this, clipInstance, ExistenceChangeType::CREATE);
 	}
 
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clipInstance->clip);

@@ -25,7 +25,7 @@ extern "C" {
 #include "util/cfunctions.h"
 }
 
-GateDrum::GateDrum() : NonAudioDrum(DRUM_TYPE_GATE) {
+GateDrum::GateDrum() : NonAudioDrum(DrumType::GATE) {
 	channel = 2;
 }
 

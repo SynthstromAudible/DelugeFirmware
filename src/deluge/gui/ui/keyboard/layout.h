@@ -47,11 +47,11 @@ public:
 	virtual void handleHorizontalEncoder(int offset, bool shiftEnabled) = 0; // returns weather the scroll had an effect
 
 	// Handle output
-	virtual void renderPads(uint8_t image[][displayWidth + sideBarWidth][3]) {}
-	virtual void renderSidebarPads(uint8_t image[][displayWidth + sideBarWidth][3]) {
+	virtual void renderPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]) {}
+	virtual void renderSidebarPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]) {
 		// Empty if not implemented
-		for (int y = 0; y < displayHeight; y++) {
-			memset(image[y][displayWidth], 0, sideBarWidth * 3);
+		for (int y = 0; y < kDisplayHeight; y++) {
+			memset(image[y][kDisplayWidth], 0, kSideBarWidth * 3);
 		}
 	};
 
@@ -93,7 +93,7 @@ protected:
 		//@TODO: Remove from activeNotes
 	}
 
-	// inline uint8_t[displayHeight * KEYBOARD_ROW_INTERVAL_MAX + displayWidth][3] colours() {
+	// inline uint8_t[kDisplayHeight * KEYBOARD_ROW_INTERVAL_MAX + kDisplayWidth][3] colours() {
 	// 	return noteColours;
 	// }
 

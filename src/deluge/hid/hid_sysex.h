@@ -1,4 +1,4 @@
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "io/midi/midi_device_manager.h"
 
 namespace HIDSysex {

@@ -27,7 +27,7 @@
 namespace keyboard::layout {
 
 // Refactor remove area
-bool yDisplayActive[displayHeight * KEYBOARD_ROW_INTERVAL_MAX + displayWidth]; // @TODO: needs to be emptied at start
+bool yDisplayActive[kDisplayHeight * kMaxKeyboardRowInterval + kDisplayWidth]; // @TODO: needs to be emptied at start
 
 inline InstrumentClip* getCurrentClip() {
 	return (InstrumentClip*)currentSong->currentClip;
@@ -52,7 +52,7 @@ void KeyboardLayoutIsomorphic::evaluatePads(PressedPad presses[MAX_NUM_KEYBOARD_
 
 		int yDisplay = noteCode - getCurrentClip()->yScrollKeyboardScreen;
 		Instrument* instrument = (Instrument*)currentSong->currentClip->output;
-		if (instrument->type == INSTRUMENT_TYPE_KIT) { //
+		if (instrument->type == InstrumentType::KIT) { //
 			yDisplay = (int)(x / 4) + (int)(y / 4) * 4;
 		}
 		if (yDisplayActive[yDisplay]) { // Exit if this pad was already pressed
@@ -87,7 +87,7 @@ foundIt:
 		noteCode = noteFromCoords(x, y);
 		int yDisplay = noteCode - getCurrentClip()->yScrollKeyboardScreen;
 		Instrument* instrument = (Instrument*)currentSong->currentClip->output;
-		if (instrument->type == INSTRUMENT_TYPE_KIT) { // @TODO: Deduplicate
+		if (instrument->type == InstrumentType::KIT) { // @TODO: Deduplicate
 			yDisplay = (int)(x / 4) + (int)(y / 4) * 4;
 		}
 
@@ -116,7 +116,7 @@ foundIt:
 void KeyboardLayoutIsomorphic::handleVerticalEncoder(int offset) {
 	/*
 		Instrument* instrument = (Instrument*)currentSong->currentClip->output;
-		if (instrument->type == INSTRUMENT_TYPE_KIT) { //
+		if (instrument->type == InstrumentType::KIT) { //
 			//@TODO: Implement new way of scrolling internally
 			// instrumentClipView.verticalEncoderAction(offset * 4, inCardRoutine); //@TODO: Refactor
 		}
@@ -128,7 +128,7 @@ void KeyboardLayoutIsomorphic::handleVerticalEncoder(int offset) {
 			// Check we're not scrolling out of range // @TODO: Move this check into layout
 			int newYNote;
 			if (offset >= 0) {
-				newYNote = getCurrentClip()->yScrollKeyboardScreen + (displayHeight - 1) * getCurrentClip()->keyboardRowInterval + displayWidth - 1;
+				newYNote = getCurrentClip()->yScrollKeyboardScreen + (kDisplayHeight - 1) * getCurrentClip()->keyboardRowInterval + kDisplayWidth - 1;
 			}
 			else {
 				newYNote = getCurrentClip()->yScrollKeyboardScreen;
@@ -151,8 +151,8 @@ void KeyboardLayoutIsomorphic::handleHorizontalEncoder(int offset, bool shiftEna
 		if (clip->keyboardRowInterval < 1) {
 			clip->keyboardRowInterval = 1;
 		}
-		else if (clip->keyboardRowInterval > KEYBOARD_ROW_INTERVAL_MAX) {
-			clip->keyboardRowInterval = KEYBOARD_ROW_INTERVAL_MAX;
+		else if (clip->keyboardRowInterval > kMaxKeyboardRowInterval) {
+			clip->keyboardRowInterval = kMaxKeyboardRowInterval;
 		}
 
 		char buffer[13] = "row step:   ";
@@ -162,7 +162,7 @@ void KeyboardLayoutIsomorphic::handleHorizontalEncoder(int offset, bool shiftEna
 		return;
 	}
 
-	if (instrument->type == INSTRUMENT_TYPE_KIT) {
+	if (instrument->type == InstrumentType::KIT) {
 		handleVerticalEncoder(offset);
 	}
 	else {
@@ -170,7 +170,7 @@ void KeyboardLayoutIsomorphic::handleHorizontalEncoder(int offset, bool shiftEna
 		// Check we're not scrolling out of range // @TODO: Move this check into layout
 		int newYNote;
 		if (offset >= 0) {
-			newYNote = getCurrentClip()->yScrollKeyboardScreen + (displayHeight - 1) * getCurrentClip()->keyboardRowInterval + displayWidth - 1;
+			newYNote = getCurrentClip()->yScrollKeyboardScreen + (kDisplayHeight - 1) * getCurrentClip()->keyboardRowInterval + kDisplayWidth - 1;
 		}
 		else {
 			newYNote = getCurrentClip()->yScrollKeyboardScreen;
@@ -184,13 +184,13 @@ void KeyboardLayoutIsomorphic::handleHorizontalEncoder(int offset, bool shiftEna
 	*/
 }
 
-uint8_t noteColours[displayHeight * KEYBOARD_ROW_INTERVAL_MAX + displayWidth][3];
+uint8_t noteColours[kDisplayHeight * kMaxKeyboardRowInterval + kDisplayWidth][3];
 
-void KeyboardLayoutIsomorphic::renderPads(uint8_t image[][displayWidth + sideBarWidth][3]) { //@TODO: Refactor
+void KeyboardLayoutIsomorphic::renderPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]) { //@TODO: Refactor
 	                                                                                         /*
 	// Calculate colors
 	InstrumentClip* clip = getCurrentClip();
-	for (int i = 0; i < displayHeight * clip->keyboardRowInterval + displayWidth; i++) { // @TODO: find out how to do without dependency
+	for (int i = 0; i < kDisplayHeight * clip->keyboardRowInterval + kDisplayWidth; i++) { // @TODO: find out how to do without dependency
 		clip->getMainColourFromY(clip->yScrollKeyboardScreen + i, 0, noteColours[i]);
 	}
 
@@ -205,12 +205,12 @@ void KeyboardLayoutIsomorphic::renderPads(uint8_t image[][displayWidth + sideBar
 
 	uint8_t noteColour[] = {127, 127, 127};
 
-	for (int y = 0; y < displayHeight; y++) {
+	for (int y = 0; y < kDisplayHeight; y++) {
 		int noteCode = noteFromCoords(0, y);
 		int yDisplay = noteCode - ((InstrumentClip*)currentSong->currentClip)->yScrollKeyboardScreen;
 		int noteWithinOctave = (uint16_t)(noteCode - currentSong->rootNote + 120) % (uint8_t)12;
 
-		for (int x = 0; x < displayWidth; x++) {
+		for (int x = 0; x < kDisplayWidth; x++) {
 
 			// If auditioning note with finger - or same note in different octave...
 			if (notesWithinOctaveActive[noteWithinOctave]) {
@@ -230,7 +230,7 @@ void KeyboardLayoutIsomorphic::renderPads(uint8_t image[][displayWidth + sideBar
 			}
 
 			// @TODO: Migrate to drum layout
-			// if (instrument->type == INSTRUMENT_TYPE_KIT) {
+			// if (instrument->type == InstrumentType::KIT) {
 			// 	int myV = ((x % 4) * 16) + ((y % 4) * 64) + 8;
 			// 	int myY = (int)(x / 4) + (int)(y / 4) * 4;
 
@@ -283,7 +283,7 @@ void KeyboardLayoutIsomorphic::stopAllNotes() {
 int KeyboardLayoutIsomorphic::noteFromCoords(int x, int y) {
 
 	Instrument* instrument = (Instrument*)currentSong->currentClip->output;
-	if (instrument->type == INSTRUMENT_TYPE_KIT) { //
+	if (instrument->type == InstrumentType::KIT) { //
 
 		return 60 + (int)(x / 4) + (int)(y / 4) * 4;
 	}

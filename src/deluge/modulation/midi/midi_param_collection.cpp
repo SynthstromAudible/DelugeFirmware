@@ -18,7 +18,7 @@
 #include "processing/engines/audio_engine.h"
 #include "model/clip/instrument_clip.h"
 #include "modulation/midi/midi_param_collection.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "model/action/action_logger.h"
 #include "modulation/midi/midi_param.h"
 #include "gui/views/view.h"

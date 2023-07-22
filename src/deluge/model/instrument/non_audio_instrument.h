@@ -26,7 +26,7 @@ class ModelStackWithSoundFlags;
 
 class NonAudioInstrument : public MelodicInstrument, public ModControllable {
 public:
-	NonAudioInstrument(int newType);
+	NonAudioInstrument(InstrumentType newType) : MelodicInstrument(newType) {}
 
 	void renderOutput(ModelStack* modelStack, StereoSample* startPos, StereoSample* endPos, int numSamples,
 	                  int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending,
@@ -38,7 +38,7 @@ public:
 	ParamManager* getParamManager(Song* song) final;
 
 	void polyphonicExpressionEventOnChannelOrNote(int newValue, int whichExpressionDimension, int channelOrNote,
-	                                              int whichCharacteristic) final;
+	                                              MIDICharacteristic whichCharacteristic) final;
 
 	void beenEdited(bool shouldMoveToEmptySlot) {} // Probably don't need this anymore...
 
@@ -52,7 +52,7 @@ public:
 
 	ModControllable* toModControllable() { return this; }
 
-	int channel;
+	int channel = 0;
 
 protected:
 	virtual void polyphonicExpressionEventPostArpeggiator(int newValue, int noteCodeAfterArpeggiation,
