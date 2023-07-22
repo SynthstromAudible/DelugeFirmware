@@ -436,7 +436,7 @@ ensureNotPastSampleLength:
 						goto ensureNotPastSampleLength;
 					}
 
-					else if (markerHeld == MARKER_LOOP_START && markerPressed == MARKER_LOOP_END) {
+					else if (markerHeld == MarkerType::LOOP_START && markerPressed == MarkerType::LOOP_END) {
 						if (loopLocked == false) {
 							loopLocked = true;
 							int loopStart = getCurrentMultisampleRange()->sampleHolder.loopStartPos;
@@ -745,7 +745,7 @@ ActionResult SampleMarkerEditor::verticalEncoderAction(int offset, bool inCardRo
 
 	int loopStart = getCurrentMultisampleRange()->sampleHolder.loopStartPos;
 	int newLoopEnd = loopStart + loopLength;
-	writeValue(newLoopEnd, MARKER_LOOP_END);
+	writeValue(newLoopEnd, MarkerType::LOOP_END);
 	uiNeedsRendering(this, 0xFFFFFFFF, 0);
 
 	return ACTION_RESULT_DEALT_WITH;
