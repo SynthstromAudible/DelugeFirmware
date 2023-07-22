@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "model/mod_controllable/mod_controllable.h"
 #include "dsp/stereo_sample.h"
 #include "dsp/delay/delay.h"
@@ -67,7 +68,7 @@ public:
 	static void initParams(ParamManager* paramManager);
 	void wontBeRenderedForAWhile();
 	void endStutter(ParamManagerForTimeline* paramManager);
-	virtual bool setModFXType(int newType);
+	virtual bool setModFXType(ModFXType newType);
 	bool offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
 	                                    ModelStackWithTimelineCounter* modelStack, int noteRowIndex = -1);
 	bool offerReceivedPitchBendToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2,
@@ -83,13 +84,13 @@ public:
 	bool hasBassAdjusted(ParamManager* paramManager);
 	bool hasTrebleAdjusted(ParamManager* paramManager);
 	ModelStackWithAutoParam* getParamFromMIDIKnob(MIDIKnob* knob, ModelStackWithThreeMainThings* modelStack);
-	int buttonAction(hid::Button b, bool on, ModelStackWithThreeMainThings* modelStack);
+	ActionResult buttonAction(hid::Button b, bool on, ModelStackWithThreeMainThings* modelStack);
 	ModelStackWithAutoParam* getParamFromModEncoder(int whichModEncoder, ModelStackWithThreeMainThings* modelStack,
 	                                                bool allowCreation);
 
 	// Phaser
 	StereoSample phaserMemory;
-	StereoSample allpassMemory[PHASER_NUM_ALLPASS_FILTERS];
+	StereoSample allpassMemory[kNumAllpassFiltersPhaser];
 
 	// EQ
 	int32_t bassFreq; // These two should eventually not be variables like this
@@ -105,10 +106,10 @@ public:
 
 	bool sampleRateReductionOnLastTime;
 	uint8_t clippingAmount; // Song probably doesn't currently use this?
-	uint8_t lpfMode;
+	LPFMode lpfMode;
 
 	// Mod FX
-	uint8_t modFXType;
+	ModFXType modFXType;
 	StereoSample* modFXBuffer;
 	uint16_t modFXBufferWriteIndex;
 	LFO modFXLFO;
@@ -126,7 +127,7 @@ public:
 	MidiKnobArray midiKnobArray;
 
 protected:
-	void processFX(StereoSample* buffer, int numSamples, int modFXType, int32_t modFXRate, int32_t modFXDepth,
+	void processFX(StereoSample* buffer, int numSamples, ModFXType modFXType, int32_t modFXRate, int32_t modFXDepth,
 	               DelayWorkingState* delayWorkingState, int32_t* postFXVolume, ParamManager* paramManager,
 	               int analogDelaySaturationAmount);
 	int32_t getStutterRate(ParamManager* paramManager);

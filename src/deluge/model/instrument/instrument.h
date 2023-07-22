@@ -18,7 +18,7 @@
 #pragma once
 
 #include "model/clip/clip_instance_vector.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "util/d_string.h"
 #include "model/output.h"
 
@@ -42,7 +42,7 @@ class ModelStackWithThreeMainThings;
 
 class Instrument : public Output {
 public:
-	Instrument(int newType);
+	Instrument(InstrumentType newType);
 	// This needs to be initialized / defaulted to "SYNTHS" or "KITS" (for those Instrument types). The constructor does
 	// not do this, partly because I don't want it doing memory allocation, and also because in many cases, the function
 	// creating the object hard-sets this anyway.

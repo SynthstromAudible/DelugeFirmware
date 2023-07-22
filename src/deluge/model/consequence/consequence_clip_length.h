@@ -25,7 +25,7 @@ class Clip;
 class ConsequenceClipLength final : public Consequence {
 public:
 	ConsequenceClipLength(Clip* newClip, int32_t oldLength);
-	int revert(int time, ModelStack* modelStack);
+	int revert(TimeType time, ModelStack* modelStack);
 
 	Clip* clip;
 	int32_t lengthToRevertTo;

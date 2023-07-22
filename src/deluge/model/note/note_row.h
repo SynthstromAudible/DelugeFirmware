@@ -18,7 +18,7 @@
 #pragma once
 
 #include "modulation/params/param_manager.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "model/note/note_vector.h"
 #include "io/midi/learned_midi.h"
 
@@ -58,7 +58,7 @@ struct PendingNoteOn {
 };
 
 struct PendingNoteOnList {
-	PendingNoteOn pendingNoteOns[maxNumNoteOnsPending];
+	PendingNoteOn pendingNoteOns[kMaxNumNoteOnsPending];
 	uint8_t count;
 };
 
@@ -71,7 +71,7 @@ public:
 	~NoteRow();
 	void renderRow(TimelineView* editorScreen, uint8_t[], uint8_t[], uint8_t[], uint8_t* image, uint8_t[], bool,
 	               uint32_t, bool allowNoteTails, int imageWidth, int32_t xScroll, uint32_t xZoom, int xStart = 0,
-	               int xEnd = displayWidth, bool drawRepeats = false);
+	               int xEnd = kDisplayWidth, bool drawRepeats = false);
 	void deleteNoteByPos(ModelStackWithNoteRow* modelStack, int32_t pos, Action* action);
 	void stopCurrentlyPlayingNote(ModelStackWithNoteRow* modelStack, bool actuallySoundChange = true,
 	                              Note* note = NULL);
@@ -97,9 +97,11 @@ public:
 	int32_t loopLengthIfIndependent; // 0 means obeying parent
 	int32_t lastProcessedPosIfIndependent;
 	int32_t repeatCountIfIndependent;
-	bool
-	    currentlyPlayingReversedIfIndependent; // Valid only if not obeying parent, or if obeyed parent is pingponging and we have independent length
-	uint8_t sequenceDirectionMode;
+
+	// Valid only if not obeying parent, or if obeyed parent is pingponging and we have independent length
+	bool currentlyPlayingReversedIfIndependent;
+
+	SequenceDirection sequenceDirectionMode;
 	uint32_t getLivePos(ModelStackWithNoteRow const* modelStack);
 	bool hasIndependentPlayPos();
 
@@ -114,8 +116,8 @@ public:
 
 	int8_t colourOffset;
 
-	uint8_t
-	    soundingStatus; // External classes aren't really supposed to set this to OFF. Call something like cancelAutitioning() instead - which calls Clip::expectEvent(), which is needed
+	// External classes aren't really supposed to set this to OFF. Call something like cancelAutitioning() instead - which calls Clip::expectEvent(), which is needed
+	uint8_t soundingStatus;
 
 	bool
 	    skipNextNote; // To be used if we recorded a note which was quantized forwards, and we have to remember not to play it
@@ -166,10 +168,10 @@ public:
 	void getMPEValues(ModelStackWithNoteRow* modelStack, int16_t* mpeValues);
 	void clearMPEUpUntilNextNote(ModelStackWithNoteRow* modelStack, int32_t pos, int32_t wrapEditLevel,
 	                             bool shouldJustDeleteNodes = false);
-	int getEffectiveSequenceDirectionMode(ModelStackWithNoteRow const* modelStack);
+	SequenceDirection getEffectiveSequenceDirectionMode(ModelStackWithNoteRow const* modelStack);
 	bool recordPolyphonicExpressionEvent(ModelStackWithNoteRow* modelStackWithNoteRow, int32_t newValueBig,
 	                                     int whichExpressionDimension, bool forDrum);
-	void setSequenceDirectionMode(ModelStackWithNoteRow* modelStack, int newMode);
+	void setSequenceDirectionMode(ModelStackWithNoteRow* modelStack, SequenceDirection newMode);
 	bool isAuditioning(ModelStackWithNoteRow* modelStack);
 
 private:

@@ -18,7 +18,7 @@
 #pragma once
 
 #include "modulation/automation/auto_param.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "modulation/params/param_collection.h"
 
 class Sound;
@@ -95,30 +95,30 @@ private:
 class UnpatchedParamSet final : public ParamSet {
 public:
 	UnpatchedParamSet(ParamCollectionSummary* summary);
-	int getNumParams() { return MAX_NUM_UNPATCHED_PARAMS; }
+	int getNumParams() { return kMaxNumUnpatchedParams; }
 	bool shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack);
 	bool doesParamIdAllowAutomation(ModelStackWithParamId const* modelStack);
 
-	AutoParam fakeParams[MAX_NUM_UNPATCHED_PARAMS - 1];
+	AutoParam fakeParams[kMaxNumUnpatchedParams - 1];
 };
 
 class PatchedParamSet final : public ParamSet {
 public:
 	PatchedParamSet(ParamCollectionSummary* summary);
-	int getNumParams() { return NUM_PARAMS; }
+	int getNumParams() { return kNumParams; }
 	void notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
 	                                  bool automationChanged, bool automatedBefore, bool automatedNow);
 	int paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack);
 	int32_t knobPosToParamValue(int knobPos, ModelStackWithAutoParam* modelStack);
 	bool shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack);
 
-	AutoParam fakeParams[NUM_PARAMS - 1];
+	AutoParam fakeParams[kNumParams - 1];
 };
 
 class ExpressionParamSet final : public ParamSet {
 public:
 	ExpressionParamSet(ParamCollectionSummary* summary, bool forDrum = false);
-	int getNumParams() { return NUM_EXPRESSION_DIMENSIONS; }
+	int getNumParams() { return kNumExpressionDimensions; }
 	void notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
 	                                  bool automationChanged, bool automatedBefore, bool automatedNow);
 	bool mayParamInterpolate(int paramId) { return false; }
@@ -132,7 +132,7 @@ public:
 	void cancelAllOverriding();
 	void deleteAllAutomation(Action* action, ModelStackWithParamCollection* modelStack);
 
-	AutoParam fakeParams[NUM_EXPRESSION_DIMENSIONS - 1];
+	AutoParam fakeParams[kNumExpressionDimensions - 1];
 
 	// bendRanges being stored here in ExpressionParamSet still seems like the best option. I was thinking storing them in the ParamManager would make more sense, except for one thing
 	// - persistence when preset/Instrument changes. ExpressionParamSets do this unique thing where they normally aren't "stolen" or "backed up" - unless the last Clip is being deleted,

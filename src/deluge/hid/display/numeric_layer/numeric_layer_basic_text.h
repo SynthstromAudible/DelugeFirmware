@@ -29,8 +29,8 @@ public:
 	bool callBack();
 	void isNowOnTop();
 
-	uint8_t segments[NUMERIC_DISPLAY_LENGTH];
-	uint8_t blinkedSegments[NUMERIC_DISPLAY_LENGTH];
+	uint8_t segments[kNumericDisplayLength];
+	uint8_t blinkedSegments[kNumericDisplayLength];
 
 	bool currentlyBlanked;
 

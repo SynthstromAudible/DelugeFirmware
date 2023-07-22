@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "model/clip/clip_array.h"
 #include "model/global_effectable/global_effectable_for_song.h"
 #include "modulation/params/param_manager.h"
@@ -93,13 +94,14 @@ public:
 	void setBPM(float tempoBPM, bool shouldLogAction);
 	void setTempoFromParams(int32_t magnitude, int8_t whichValue, bool shouldLogAction);
 	void deleteSoundsWhichWontSound();
-	void deleteClipObject(Clip* clip, bool songBeingDestroyedToo = false,
-	                      int instrumentRemovalInstruction = INSTRUMENT_REMOVAL_DELETE_OR_HIBERNATE_IF_UNUSED);
+	void
+	deleteClipObject(Clip* clip, bool songBeingDestroyedToo = false,
+	                 InstrumentRemoval instrumentRemovalInstruction = InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED);
 	int getMaxMIDIChannelSuffix(int channel);
 	void addOutput(Output* output, bool atStart = true);
 	void deleteOutputThatIsInMainList(Output* output, bool stopAnyAuditioningFirst = true);
 	void markAllInstrumentsAsEdited();
-	Instrument* getInstrumentFromPresetSlot(int instrumentType, int presetNumber, int presetSubSlotNumber,
+	Instrument* getInstrumentFromPresetSlot(InstrumentType instrumentType, int presetNumber, int presetSubSlotNumber,
 	                                        char const* name, char const* dirPath, bool searchHibernatingToo = true,
 	                                        bool searchNonHibernating = true);
 	AudioOutput* getAudioOutputFromName(String* name);
@@ -110,8 +112,8 @@ public:
 	void deleteOrHibernateOutput(Output* output);
 	uint32_t getLivePos();
 	int32_t getLoopLength();
-	Instrument* getNonAudioInstrumentToSwitchTo(int newInstrumentType, int availabilityRequirement, int16_t newSlot,
-	                                            int8_t newSubSlot, bool* instrumentWasAlreadyInSong);
+	Instrument* getNonAudioInstrumentToSwitchTo(InstrumentType newInstrumentType, Availability availabilityRequirement,
+	                                            int16_t newSlot, int8_t newSubSlot, bool* instrumentWasAlreadyInSong);
 	void removeSessionClipLowLevel(Clip* clip, int clipIndex);
 	void changeSwingInterval(int newValue);
 	int convertSyncLevelFromFileValueToInternalValue(int fileValue);
@@ -152,7 +154,7 @@ public:
 	int8_t swingAmount;
 	uint8_t swingInterval;
 
-	Section sections[MAX_NUM_SECTIONS];
+	Section sections[kMaxNumSections];
 
 	// Scales
 	uint8_t modeNotes[12];
@@ -185,7 +187,7 @@ public:
 
 	bool inClipMinderViewOnLoad; // Temp variable only valid while loading Song
 
-	int32_t unautomatedParamValues[MAX_NUM_UNPATCHED_PARAMS];
+	int32_t unautomatedParamValues[kMaxNumUnpatchedParams];
 
 	String dirPath;
 
@@ -228,11 +230,11 @@ public:
 	void deleteOrHibernateOutputIfNoClips(Output* output);
 	void removeInstrumentFromHibernationList(Instrument* instrument);
 	bool doesOutputHaveActiveClipInSession(Output* output);
-	bool doesNonAudioSlotHaveActiveClipInSession(int instrumentType, int slot, int subSlot = -1);
+	bool doesNonAudioSlotHaveActiveClipInSession(InstrumentType instrumentType, int slot, int subSlot = -1);
 	bool doesOutputHaveAnyClips(Output* output);
 	void deleteBackedUpParamManagersForClip(Clip* clip);
 	void deleteBackedUpParamManagersForModControllable(ModControllableAudio* modControllable);
-	void deleteHibernatingInstrumentWithSlot(int instrumentType, char const* name);
+	void deleteHibernatingInstrumentWithSlot(InstrumentType instrumentType, char const* name);
 	void loadCrucialSamplesOnly();
 	Clip* getSessionClipWithOutput(Output* output, int requireSection = -1, Clip* excludeClip = NULL,
 	                               int* clipIndex = NULL, bool excludePendingOverdubs = false);
@@ -274,9 +276,9 @@ public:
 	TimelineCounter* getTimelineCounterToRecordTo();
 	int32_t getLastProcessedPos();
 	void setParamsInAutomationMode(bool newState);
-	bool canOldOutputBeReplaced(Clip* clip, int* availabilityRequirement = NULL);
+	bool canOldOutputBeReplaced(Clip* clip, Availability* availabilityRequirement = NULL);
 	void instrumentSwapped(Instrument* newInstrument);
-	Instrument* changeInstrumentType(Instrument* oldInstrument, int newInstrumentType);
+	Instrument* changeInstrumentType(Instrument* oldInstrument, InstrumentType newInstrumentType);
 	AudioOutput* getFirstAudioOutput();
 	AudioOutput* createNewAudioOutput(Output* replaceOutput = NULL);
 	void getNoteLengthName(char* text, uint32_t noteLength, bool clarifyPerColumn = false);
@@ -288,7 +290,7 @@ public:
 	Clip* getClipWithOutputAboutToBeginLinearRecording(Output* output);
 	Clip* createPendingNextOverdubBelowClip(Clip* clip, int clipIndex, int newOverdubNature);
 	bool hasAnyPendingNextOverdubs();
-	Output* getNextAudioOutput(int offset, Output* oldOutput, int availabilityRequirement);
+	Output* getNextAudioOutput(int offset, Output* oldOutput, Availability availabilityRequirement);
 	void deleteOutput(Output* output);
 	void cullAudioClipVoice();
 	int getYScrollSongViewWithoutPendingOverdubs();
@@ -298,7 +300,7 @@ public:
 	void setDefaultVelocityForAllInstruments(uint8_t newDefaultVelocity);
 	void midiDeviceBendRangeUpdatedViaMessage(ModelStack* modelStack, MIDIDevice* device, int channelOrZone,
 	                                          int whichBendRange, int bendSemitones);
-	int addInstrumentsToFileItems(int instrumentType);
+	int addInstrumentsToFileItems(InstrumentType instrumentType);
 
 	uint32_t getQuarterNoteLength();
 	uint32_t getBarLength();

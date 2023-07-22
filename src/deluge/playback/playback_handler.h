@@ -18,7 +18,7 @@
 #pragma once
 
 #include "RZA1/system/r_typedefs.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 
 #define MIDI_OUT_OFF 0
 #define MIDI_OUT_INCIDENTAL 1

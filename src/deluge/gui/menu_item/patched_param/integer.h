@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "definitions_cxx.hpp"
 #include "gui/menu_item/patched_param.h"
 
 namespace menu_item::patched_param {
@@ -35,7 +36,7 @@ public:
 	int getMinValue() const {
 		return PatchedParam::getMinValue();
 	}
-	uint8_t shouldBlinkPatchingSourceShortcut(int s, uint8_t* colour) final {
+	uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) final {
 		return PatchedParam::shouldBlinkPatchingSourceShortcut(s, colour);
 	}
 
@@ -49,7 +50,7 @@ public:
 	uint8_t getPatchedParamIndex() final {
 		return PatchedParam::getPatchedParamIndex();
 	}
-	MenuItem* patchingSourceShortcutPress(int s, bool previousPressStillActive = false) final {
+	MenuItem* patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive = false) final {
 		return PatchedParam::patchingSourceShortcutPress(s, previousPressStillActive);
 	}
 

@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "gui/menu_item/menu_item.h"
 
 class MIDIDevice;
@@ -25,9 +26,8 @@ namespace menu_item::midi {
 
 class Command final : public MenuItem {
 public:
-	Command(char const* newName = NULL, int newCommandNumber = 0) : MenuItem(newName) {
-		commandNumber = newCommandNumber;
-	}
+	Command(char const* newName = NULL, GlobalMIDICommand newCommandNumber = GlobalMIDICommand::PLAYBACK_RESTART)
+	    : MenuItem(newName), commandNumber(newCommandNumber) {}
 	void beginSession(MenuItem* navigatedBackwardFrom);
 	void drawValue();
 	void selectEncoderAction(int offset);
@@ -40,6 +40,6 @@ public:
 	void drawPixelsForOled();
 #endif
 
-	uint8_t commandNumber;
+	GlobalMIDICommand commandNumber;
 };
 } // namespace menu_item::midi

@@ -364,13 +364,13 @@ UnpatchedParamSet::UnpatchedParamSet(ParamCollectionSummary* summary) : ParamSet
 
 bool UnpatchedParamSet::shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack) {
 	switch (modelStack->paramId) {
-	case PARAM_UNPATCHED_STUTTER_RATE:
-	case PARAM_UNPATCHED_BASS:
-	case PARAM_UNPATCHED_TREBLE:
-	case PARAM_UNPATCHED_GLOBALEFFECTABLE_DELAY_RATE:
-	case PARAM_UNPATCHED_GLOBALEFFECTABLE_DELAY_AMOUNT:
-	case PARAM_UNPATCHED_GLOBALEFFECTABLE_PAN:
-	case PARAM_UNPATCHED_GLOBALEFFECTABLE_PITCH_ADJUST:
+	case Param::Unpatched::STUTTER_RATE:
+	case Param::Unpatched::BASS:
+	case Param::Unpatched::TREBLE:
+	case Param::Unpatched::GlobalEffectable::DELAY_RATE:
+	case Param::Unpatched::GlobalEffectable::DELAY_AMOUNT:
+	case Param::Unpatched::GlobalEffectable::PAN:
+	case Param::Unpatched::GlobalEffectable::PITCH_ADJUST:
 		return true;
 	default:
 		return false;
@@ -378,13 +378,13 @@ bool UnpatchedParamSet::shouldParamIndicateMiddleValue(ModelStackWithParamId con
 }
 
 bool UnpatchedParamSet::doesParamIdAllowAutomation(ModelStackWithParamId const* modelStack) {
-	return (modelStack->paramId != PARAM_UNPATCHED_STUTTER_RATE);
+	return (modelStack->paramId != Param::Unpatched::STUTTER_RATE);
 }
 
 // PatchedParamSet --------------------------------------------------------------------------------------------
 
 PatchedParamSet::PatchedParamSet(ParamCollectionSummary* summary) : ParamSet(sizeof(PatchedParamSet), summary) {
-	topUintToRepParams = (NUM_PARAMS - 1) >> 5;
+	topUintToRepParams = (kNumParams - 1) >> 5;
 }
 
 void PatchedParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
@@ -401,7 +401,7 @@ void PatchedParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const
 		}
 
 		if (!automatedNow) {
-			if (modelStack->paramId == PARAM_GLOBAL_REVERB_AMOUNT) {
+			if (modelStack->paramId == Param::Global::REVERB_AMOUNT) {
 				AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 			}
 		}
@@ -409,15 +409,15 @@ void PatchedParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const
 
 	// Because some patch cables are marked as "unusable" under certain circumstances, see if those circumstances have changed
 	switch (modelStack->paramId) {
-	case PARAM_LOCAL_OSC_A_VOLUME:
-	case PARAM_LOCAL_OSC_B_VOLUME:
-	case PARAM_LOCAL_NOISE_VOLUME:
-	case PARAM_LOCAL_MODULATOR_0_VOLUME:
-	case PARAM_LOCAL_MODULATOR_1_VOLUME:
-	case PARAM_LOCAL_CARRIER_0_FEEDBACK:
-	case PARAM_LOCAL_CARRIER_1_FEEDBACK:
-	case PARAM_LOCAL_MODULATOR_0_FEEDBACK:
-	case PARAM_LOCAL_MODULATOR_1_FEEDBACK:
+	case Param::Local::OSC_A_VOLUME:
+	case Param::Local::OSC_B_VOLUME:
+	case Param::Local::NOISE_VOLUME:
+	case Param::Local::MODULATOR_0_VOLUME:
+	case Param::Local::MODULATOR_1_VOLUME:
+	case Param::Local::CARRIER_0_FEEDBACK:
+	case Param::Local::CARRIER_1_FEEDBACK:
+	case Param::Local::MODULATOR_0_FEEDBACK:
+	case Param::Local::MODULATOR_1_FEEDBACK:
 		bool containsSomethingNow = modelStack->autoParam->containsSomething(-2147483648);
 		bool containedSomethingBefore = AutoParam::containedSomethingBefore(automatedBefore, oldValue, -2147483648);
 		if (containedSomethingBefore != containsSomethingNow) {
@@ -438,7 +438,8 @@ void PatchedParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const
 }
 
 int PatchedParamSet::paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack) {
-	if (modelStack->paramId == PARAM_LOCAL_OSC_A_PHASE_WIDTH || modelStack->paramId == PARAM_LOCAL_OSC_B_PHASE_WIDTH) {
+	if (modelStack->paramId == Param::Local::OSC_A_PHASE_WIDTH
+	    || modelStack->paramId == Param::Local::OSC_B_PHASE_WIDTH) {
 		return (paramValue >> 24) - 64;
 	}
 	else {
@@ -447,7 +448,8 @@ int PatchedParamSet::paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoP
 }
 
 int32_t PatchedParamSet::knobPosToParamValue(int knobPos, ModelStackWithAutoParam* modelStack) {
-	if (modelStack->paramId == PARAM_LOCAL_OSC_A_PHASE_WIDTH || modelStack->paramId == PARAM_LOCAL_OSC_B_PHASE_WIDTH) {
+	if (modelStack->paramId == Param::Local::OSC_A_PHASE_WIDTH
+	    || modelStack->paramId == Param::Local::OSC_B_PHASE_WIDTH) {
 		int paramValue = 2147483647;
 		if (knobPos < 64) {
 			paramValue = (knobPos + 64) << 24;
@@ -461,15 +463,15 @@ int32_t PatchedParamSet::knobPosToParamValue(int knobPos, ModelStackWithAutoPara
 
 bool PatchedParamSet::shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack) {
 	switch (modelStack->paramId) {
-	case PARAM_LOCAL_PAN:
-	case PARAM_LOCAL_PITCH_ADJUST:
-	case PARAM_LOCAL_OSC_A_PITCH_ADJUST:
-	case PARAM_LOCAL_OSC_B_PITCH_ADJUST:
-	case PARAM_LOCAL_MODULATOR_0_PITCH_ADJUST:
-	case PARAM_LOCAL_MODULATOR_1_PITCH_ADJUST:
-	case PARAM_GLOBAL_DELAY_FEEDBACK:
-	case PARAM_GLOBAL_DELAY_RATE:
-	case PARAM_GLOBAL_ARP_RATE:
+	case Param::Local::PAN:
+	case Param::Local::PITCH_ADJUST:
+	case Param::Local::OSC_A_PITCH_ADJUST:
+	case Param::Local::OSC_B_PITCH_ADJUST:
+	case Param::Local::MODULATOR_0_PITCH_ADJUST:
+	case Param::Local::MODULATOR_1_PITCH_ADJUST:
+	case Param::Global::DELAY_FEEDBACK:
+	case Param::Global::DELAY_RATE:
+	case Param::Global::ARP_RATE:
 		return true;
 	default:
 		return false;
@@ -501,7 +503,7 @@ void ExpressionParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam co
 
 			if (noteRow) {
 				modelStack->modControllable->polyphonicExpressionEventOnChannelOrNote(
-				    currentValue, modelStack->paramId, modelStack->getNoteRow()->y, MIDI_CHARACTERISTIC_NOTE);
+				    currentValue, modelStack->paramId, modelStack->getNoteRow()->y, MIDICharacteristic::NOTE);
 			}
 			else {
 				modelStack->modControllable->monophonicExpressionEvent(currentValue, modelStack->paramId);
@@ -552,7 +554,7 @@ bool ExpressionParamSet::writeToFile(bool mustWriteOpeningTagEndFirst) {
 
 	bool writtenAnyYet = false;
 
-	for (int p = 0; p < NUM_EXPRESSION_DIMENSIONS; p++) {
+	for (int p = 0; p < kNumExpressionDimensions; p++) {
 		if (params[p].containsSomething()) {
 			if (!writtenAnyYet) {
 				writtenAnyYet = true;
@@ -580,7 +582,7 @@ void ExpressionParamSet::readFromFile(ParamCollectionSummary* summary, int32_t r
 
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 		int p;
-		for (p = 0; p < NUM_EXPRESSION_DIMENSIONS; p++) {
+		for (p = 0; p < kNumExpressionDimensions; p++) {
 			if (!strcmp(tagName, expressionParamNames[p])) {
 doReadParam:
 				readParam(summary, p, readAutomationUpToPos);
@@ -604,7 +606,7 @@ void ExpressionParamSet::moveRegionHorizontally(ModelStackWithParamCollection* m
                                                 int offset, int32_t lengthBeforeLoop, Action* action) {
 
 	// Because this is just for ExpressionParamSet, which only has 3 params, let's just do it for all of them rather than our other optimization.
-	for (int p = 0; p < NUM_EXPRESSION_DIMENSIONS; p++) {
+	for (int p = 0; p < kNumExpressionDimensions; p++) {
 		AutoParam* param = &params[p];
 		ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(p, param);
 		param->moveRegionHorizontally(modelStackWithAutoParam, pos, length, offset, lengthBeforeLoop, action);
@@ -612,7 +614,7 @@ void ExpressionParamSet::moveRegionHorizontally(ModelStackWithParamCollection* m
 }
 
 void ExpressionParamSet::clearValues(ModelStackWithParamCollection const* modelStack) {
-	for (int p = 0; p < NUM_EXPRESSION_DIMENSIONS; p++) {
+	for (int p = 0; p < kNumExpressionDimensions; p++) {
 		AutoParam* param = &params[p];
 		ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(p, param);
 		param->setCurrentValueWithNoReversionOrRecording(modelStackWithAutoParam, 0);
@@ -620,7 +622,7 @@ void ExpressionParamSet::clearValues(ModelStackWithParamCollection const* modelS
 }
 
 void ExpressionParamSet::cancelAllOverriding() {
-	for (int p = 0; p < NUM_EXPRESSION_DIMENSIONS; p++) {
+	for (int p = 0; p < kNumExpressionDimensions; p++) {
 		AutoParam* param = &params[p];
 		param->cancelOverriding();
 	}
