@@ -17,6 +17,8 @@ on:
 
 # Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
 permissions:
+  # actions: read is required for us to fetch artifacts
+  actions: read
   contents: read
   pages: write
   id-token: write
@@ -80,6 +82,8 @@ jobs:
         run: cd pages/fetch-artifacts; ${{ steps.detect-package-manager.outputs.manager }} ${{ steps.detect-package-manager.outputs.command }}
       - name: Fetch upstream artifacts
         run: cd pages/fetch-artifacts; ${{ steps.detect-package-manager.outputs.manager }} run run
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Install dependencies
         run: cd pages/site; ${{ steps.detect-package-manager.outputs.manager }} ${{ steps.detect-package-manager.outputs.command }}
       - name: Build with Next.js

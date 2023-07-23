@@ -22,7 +22,7 @@ interface Config {
 }
 
 export interface WorkflowArtifact {
-  url: string;
+  id: number;
   assetPath: string;
   expired: boolean;
   data?: Buffer;
@@ -70,20 +70,16 @@ async function fetchArtifact(
   for (let i = 0; i < 5; ++i) {
     let remainingRetries = 4 - i;
     try {
-      const data = await fetch(artifact.url, {
-        headers: {
-          Accept: "application/vnd.github+json",
-          Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
-          "X-GitHub-Api-Version": "2022-11-28",
+      const data = await Octo.rest.actions.downloadArtifact({
+        ...config,
+        ...{
+          artifact_id: artifact.id,
+          archive_format: "zip",
         },
-      }).then((response) => {
-        if (!response.ok) {
-          throw new Error(`Failed to download: ${response.statusText}`);
-        }
-        return response;
       });
 
-      dataArrayBuffer = await data.arrayBuffer();
+      console.log(typeof(data.data));
+      dataArrayBuffer = data.data as ArrayBuffer;
     } catch (e) {
       console.warn(
         `Failed to get data for ${artifact.assetPath}, ${remainingRetries} retries left: ${e}`,
@@ -96,7 +92,9 @@ async function fetchArtifact(
     if (dataArrayBuffer) {
       buffer = Buffer.from(dataArrayBuffer as ArrayBuffer);
     } else {
-      throw new Error(`Failed to get any data for zip archive ${artifact.assetPath}`);
+      throw new Error(
+        `Failed to get any data for zip archive ${artifact.assetPath}`,
+      );
     }
     const zip = zipFromBuffer(buffer, { lazyEntries: true }, (err, zipfile) => {
       if (err) {
@@ -177,7 +175,7 @@ async function getActionPackageForRun(
     }
     numArtifacts += 1;
     artifactMap[artifact.name] = {
-      url: artifact.archive_download_url,
+      id: artifact.id,
       assetPath: `${commitShortname}/${artifact.name}`,
       expired: artifact.expired,
     };
