@@ -4,13 +4,13 @@
 #
 # Once the unified display system/one-bin-file build is done, this can be
 # changed to add_executable
-add_library(DelugeFirmware INTERFACE)
-target_include_directories(DelugeFirmware INTERFACE ${CMAKE_CURRENT_LIST_DIR})
-target_sources(DelugeFirmware PUBLIC main.c resetprg.c)
+add_library(Deluge INTERFACE)
+target_include_directories(Deluge INTERFACE ${CMAKE_CURRENT_LIST_DIR})
+target_sources(Deluge PUBLIC main.c resetprg.c)
 
 add_subdirectory(deluge)
 
-target_link_libraries(DelugeFirmware INTERFACE
+target_link_libraries(Deluge INTERFACE
     FatFs
     RZA1
     RTT
