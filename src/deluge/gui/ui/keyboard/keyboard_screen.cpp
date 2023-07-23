@@ -419,9 +419,11 @@ ActionResult KeyboardScreen::verticalEncoderAction(int offset, bool inCardRoutin
 
 	if (Buttons::isShiftButtonPressed() && currentUIMode == UI_MODE_NONE) {
 		getCurrentClip()->colourOffset += offset;
+		//@TODO: Previously color recalc was here
 	}
 	else {
 		layoutList[0]->handleVerticalEncoder(offset);
+		//@TODO: Previously color recalc was here
 		if (isUIModeWithinRange(padActionUIModes)) {
 			evaluateActiveNotes();
 			updateActiveNotes();
@@ -436,6 +438,8 @@ ActionResult KeyboardScreen::horizontalEncoderAction(int offset) {
 
 	layoutList[0]->handleHorizontalEncoder(offset,
 	                                       (Buttons::isShiftButtonPressed() && isUIModeWithinRange(padActionUIModes)));
+	//@TODO: Previously color recalc was here
+
 	if (isUIModeWithinRange(padActionUIModes)) {
 		evaluateActiveNotes();
 		updateActiveNotes();
@@ -479,6 +483,7 @@ void KeyboardScreen::focusRegained() {
 
 void KeyboardScreen::openedInBackground() {
 	getCurrentClip()->onKeyboardScreen = true;
+	//@TODO: Previously color recalc was here
 	requestRendering(); // This one originally also included sidebar, the other ones didn't
 }
 

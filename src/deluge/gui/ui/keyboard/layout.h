@@ -89,9 +89,9 @@ public:
 	virtual bool supportsKit() { return false; }
 
 	virtual NotesState* getNotesState() { return &currentNotesState; }
-	//@TODO:  scale(), saving, restoring
 
 protected:
+	//@TODO:  scale(), saving, restoring
 	inline int getRootNote() { return currentSong->rootNote; }
 
 	int getLowestClipNote() {
@@ -102,11 +102,6 @@ protected:
 	int getHighestClipNote() {
 		return 127; // @TODO:
 	}
-
-	//@TODO: Figure out colors
-	// inline uint8_t[kDisplayHeight * KEYBOARD_ROW_INTERVAL_MAX + kDisplayWidth][3] colours() {
-	// 	return noteColours;
-	// }
 
 	Instrument* getActiveInstrument() { return (Instrument*)currentSong->currentClip->output; }
 

@@ -107,6 +107,7 @@ void KeyboardLayoutIsomorphic::handleHorizontalEncoder(int offset, bool shiftEna
 void KeyboardLayoutIsomorphic::renderPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]) { //@TODO: Refactor
 
 	// Calculate colors
+	// This should not be done every rendering cycle but currently only on opening the layout, change of color offset and scrolling
 	uint8_t noteColours[kDisplayHeight * kMaxKeyboardRowInterval + kDisplayWidth][3];
 	InstrumentClip* clip = getCurrentClip();
 	for (int i = 0; i < kDisplayHeight * clip->keyboardRowInterval + kDisplayWidth;
