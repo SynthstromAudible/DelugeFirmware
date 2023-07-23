@@ -10,7 +10,7 @@ uint32_t currentTraversalNo = 0;
 
 // Size 0 means don't care, just get any memory.
 uint32_t CacheManager::ReclaimMemory(MemoryRegion& region, int totalSizeNeeded, void* thingNotToStealFrom,
-                               int* __restrict__ foundSpaceSize) {
+                                     int* __restrict__ foundSpaceSize) {
 
 #if TEST_GENERAL_MEMORY_ALLOCATION
 	skipConsistencyCheck = true; // Things will not be in an inspectable state during this function call
@@ -53,8 +53,7 @@ uint32_t CacheManager::ReclaimMemory(MemoryRegion& region, int totalSizeNeeded, 
 
 				// If that previous look was in a different queue, it won't have been included in longestRunSeenInThisQueue, so we have to invalidate that.
 				// TODO: could we just lower it to the longest-run record for that other queue? Yes, done.
-				if (lastTraversalQueue < q
-				    && longestRunSeenInThisQueue < longest_runs_[lastTraversalQueue]) {
+				if (lastTraversalQueue < q && longestRunSeenInThisQueue < longest_runs_[lastTraversalQueue]) {
 					longestRunSeenInThisQueue = longest_runs_[lastTraversalQueue];
 				}
 				stealable = static_cast<Stealable*>(reclamation_queue_[q].getNext(stealable));

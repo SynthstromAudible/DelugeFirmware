@@ -24,7 +24,7 @@
 class Stealable : public BidirectionalLinkedListNode {
 public:
 	Stealable() = default;
-	
+
 	virtual bool mayBeStolen(void* thingNotToStealFrom) = 0;
 	virtual void steal(char const* errorCode) = 0; // You gotta also call the destructor after this.
 	virtual int getAppropriateQueue() = 0;

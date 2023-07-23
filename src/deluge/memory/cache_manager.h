@@ -16,13 +16,13 @@ public:
 
 	uint32_t& longest_runs(size_t idx) { return longest_runs_.at(idx); }
 
-	void QueueForReclamation(size_t q, Stealable *stealable) {
+	void QueueForReclamation(size_t q, Stealable* stealable) {
 		reclamation_queue_[q].addToEnd(stealable);
 		longest_runs_[q] = 0xFFFFFFFF; // TODO: actually investigate neighbouring memory "run".
 	}
 
 	uint32_t ReclaimMemory(MemoryRegion& region, int totalSizeNeeded, void* thingNotToStealFrom,
-	                                 int* __restrict__ foundSpaceSize);
+	                       int* __restrict__ foundSpaceSize);
 
 private:
 	std::array<BidirectionalLinkedList, NUM_STEALABLE_QUEUES> reclamation_queue_;
