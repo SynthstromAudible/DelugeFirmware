@@ -68,7 +68,7 @@ async function fetchArtifact(
 
   console.log("Get asset " + artifact.assetPath);
   for (let i = 0; i < 5; ++i) {
-    const remainingRetries = 4 - i;
+    let remainingRetries = 4 - i;
     try {
       const data = await fetch(artifact.url, {
         headers: {
@@ -86,7 +86,7 @@ async function fetchArtifact(
       dataArrayBuffer = await data.arrayBuffer();
     } catch (e) {
       console.warn(
-        `Failed to get data for ${artifact.assetPath}, ${remainingRetries} retries left`,
+        `Failed to get data for ${artifact.assetPath}, ${remainingRetries} retries left: ${e}`,
       );
     }
   }
@@ -249,7 +249,7 @@ async function getAll(
 ////////////////////////////////////////////////////////////////////////////////
 
 const CONFIG: Config = {
-  owner: "SynthstromAudible",
+  owner: "bobtwinkles",
   repo: "DelugeFirmware",
 };
 
