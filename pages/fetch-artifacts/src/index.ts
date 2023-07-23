@@ -96,7 +96,7 @@ async function fetchArtifact(
     if (dataArrayBuffer) {
       buffer = Buffer.from(dataArrayBuffer as ArrayBuffer);
     } else {
-      throw new Error("Failed to get any data for zip archive");
+      throw new Error(`Failed to get any data for zip archive ${artifact.assetPath}`);
     }
     const zip = zipFromBuffer(buffer, { lazyEntries: true }, (err, zipfile) => {
       if (err) {
