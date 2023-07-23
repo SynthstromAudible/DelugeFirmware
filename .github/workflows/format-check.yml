@@ -5,6 +5,7 @@ on:
     branches:
       - 'community'
     paths:
+      - '.github/workflows/format-check.yml'
       - '**.c'
       - '**.cpp'
       - '**.h'

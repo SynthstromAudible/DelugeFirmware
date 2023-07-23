@@ -6,6 +6,7 @@ on:
       - 'community'
       - 'synthstrom-official'
     paths:
+      - '.github/workflows/build.yml'
       - 'src/**'
       - 'dbt*'
       - 'toolchain/**'
