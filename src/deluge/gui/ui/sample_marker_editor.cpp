@@ -448,7 +448,7 @@ ensureNotPastSampleLength:
 							// unset loopLength?
 							numericDriver.displayPopup("FREE");
 						}
-						return ACTION_RESULT_DEALT_WITH;
+						return ActionResult::DEALT_WITH;
 					}
 
 					// Or if a loop point and they pressed the end marker, remove the loop point
@@ -748,7 +748,7 @@ ActionResult SampleMarkerEditor::verticalEncoderAction(int offset, bool inCardRo
 	writeValue(newLoopEnd, MarkerType::LOOP_END);
 	uiNeedsRendering(this, 0xFFFFFFFF, 0);
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
 bool SampleMarkerEditor::renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
