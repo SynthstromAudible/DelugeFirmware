@@ -4,6 +4,8 @@ set(CMAKE_TOOLCHAIN_FILE ${CMAKE_CURRENT_LIST_DIR}/scripts/cmake/CMakeToolchainD
 
 project(DelugeFirmware LANGUAGES CXX C ASM)
 
+# This function lets us add multiple firmware "configurations"
+# that each have their own set of flags from the same source
 function(add_firmware EXECUTABLE BASE)
     add_executable(${EXECUTABLE} ${ARGN})
 
@@ -40,6 +42,7 @@ function(add_firmware EXECUTABLE BASE)
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
         COMMENT "Objcopying ${EXECUTABLE} to firmware ${HEX_FILE}")
 
+    # 
     set_property(TARGET ${EXECUTABLE}
         PROPERTY ADDITIONAL_CLEAN_FILES ${BIN_FILE} ${MAP_FILE} ${HEX_FILE})
 
@@ -128,11 +131,13 @@ endif()
 ## Setup our firmware build options
 option(DELUGE_SCREEN "Select the Deluge screen type to build for (or BOTH)" "BOTH")
 
+# 7SEG configuration
 if((DELUGE_SCREEN STREQUAL "7SEG") OR(DELUGE_SCREEN STREQUAL "BOTH"))
     message(STATUS "Building for 7-segment model")
     add_firmware(DelugeFirmware7seg DelugeFirmware)
 endif()
 
+# OLED Configuration
 if((DELUGE_SCREEN STREQUAL "OLED") OR(DELUGE_SCREEN STREQUAL "BOTH"))
     add_firmware(DelugeFirmwareOLED DelugeFirmware)
     message(STATUS "Building for OLED model")

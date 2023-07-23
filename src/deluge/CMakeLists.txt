@@ -112,11 +112,11 @@ target_sources(DelugeFirmware PUBLIC
     hid/led/pad_leds.cpp
     hid/matrix/matrix_driver.cpp
     hid/matrix/pad.cpp
+    io/debug/print.cpp
     io/midi/learned_midi.cpp
     io/midi/midi_device.cpp
     io/midi/midi_device_manager.cpp
     io/midi/midi_engine.cpp
-    io/uart/uart.cpp
     memory/general_memory_allocator.cpp
     memory/memory_region.cpp
     memory/stealable.cpp
