@@ -36,7 +36,7 @@ export default async function Home() {
           Recent Builds (community mainline)
         </h1>
 
-        <div className="max-w-full overflow-scroll">
+        <div className="max-w-full overflow-x-auto display-contents">
           <table className="rounded-xl border border-neutral-700 m-auto">
             <thead className="text-xl border-b-2 border-neutral-700">
               <tr>
