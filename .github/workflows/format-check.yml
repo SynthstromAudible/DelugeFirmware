@@ -4,6 +4,11 @@ on:
   push:
     branches:
       - 'community'
+    paths:
+      - '**.c'
+      - '**.cpp'
+      - '**.h'
+      - '**.hpp'
   pull_request:
     branches:
       - 'community'

@@ -5,6 +5,13 @@ on:
     branches:
       - 'community'
       - 'synthstrom-official'
+    paths:
+      - 'src/**'
+      - 'dbt*'
+      - 'toolchain/**'
+      - 'site_scons/**'
+      - 'scripts/**'
+      - 'SConstruct'
   pull_request:
     branches:
       - 'community'
