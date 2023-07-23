@@ -26,7 +26,7 @@ public:
 	KeyboardLayoutIsomorphic();
 	virtual ~KeyboardLayoutIsomorphic() {}
 
-	virtual NotesState evaluatePads(PressedPad presses[MAX_NUM_KEYBOARD_PAD_PRESSES]);
+	virtual void evaluatePads(PressedPad presses[MAX_NUM_KEYBOARD_PAD_PRESSES]);
 	virtual void handleVerticalEncoder(int offset);
 	virtual void handleHorizontalEncoder(int offset, bool shiftEnabled);
 

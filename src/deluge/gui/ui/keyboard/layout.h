@@ -70,7 +70,7 @@ public:
 	virtual ~KeyboardLayout() {}
 
 	// Handle inputs
-	virtual NotesState evaluatePads(PressedPad presses[MAX_NUM_KEYBOARD_PAD_PRESSES]) = 0;
+	virtual void evaluatePads(PressedPad presses[MAX_NUM_KEYBOARD_PAD_PRESSES]) = 0;
 	virtual void handleVerticalEncoder(
 	    int offset) = 0; // returns weather the scroll had an effect // Shift state not supplied since that function is already taken
 	virtual void handleHorizontalEncoder(int offset, bool shiftEnabled) = 0; // returns weather the scroll had an effect
@@ -88,6 +88,7 @@ public:
 	virtual bool supportsInstrument() { return false; }
 	virtual bool supportsKit() { return false; }
 
+	virtual NotesState* getNotesState() { return &currentNotesState; }
 	//@TODO:  scale(), saving, restoring
 
 protected:
@@ -108,6 +109,9 @@ protected:
 	// }
 
 	Instrument* getActiveInstrument() { return (Instrument*)currentSong->currentClip->output; }
+
+protected:
+	NotesState currentNotesState;
 };
 
 }; // namespace keyboard

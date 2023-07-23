@@ -77,8 +77,8 @@ private:
 	}
 
 	PressedPad pressedPads[MAX_NUM_KEYBOARD_PAD_PRESSES];
-	NotesState lastNoteState;
-	NotesState currentNoteState;
+	NotesState lastNotesState;
+	NotesState currentNotesState;
 };
 
 }; // namespace keyboard
