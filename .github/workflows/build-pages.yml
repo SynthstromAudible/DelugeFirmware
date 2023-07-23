@@ -6,7 +6,11 @@ name: Deploy Next.js site to Pages
 on:
   # Runs on pushes targeting the default branch
   push:
-    branches: [gh-pages]
+    branches:
+      - 'community'
+    paths:
+      - '.github/workflows/build-pages.yml'
+      - 'pages/**'
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -50,7 +54,8 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v3
         with:
-          node-version: "16"
+          node-version: "18"
+          cache-dependency-path: 'pages/site/package-lock.json'
           cache: ${{ steps.detect-package-manager.outputs.manager }}
       - name: Setup Pages
         uses: actions/configure-pages@v3
@@ -71,6 +76,8 @@ jobs:
           # If source files changed but packages didn't, rebuild from a prior cache.
           restore-keys: |
             ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json', '**/yarn.lock') }}-
+      - name: Setup upstream artifact fetch
+        run: cd pages/fetch-artifacts; ${{ steps.detect-package-manager.outputs.manager }} ${{ steps.detect-package-manager.outputs.command }}
       - name: Fetch upstream artifacts
         run: cd pages/fetch-artifacts; ${{ steps.detect-package-manager.outputs.manager }} run run
       - name: Install dependencies
