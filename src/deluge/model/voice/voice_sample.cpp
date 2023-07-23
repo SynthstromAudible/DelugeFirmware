@@ -1676,6 +1676,7 @@ loopBackToStartTimeStretched:
 	return true;
 }
 
+// HERE
 int32_t VoiceSample::getPlaySample(Sample* sample, SamplePlaybackGuide* guide) {
 	if (timeStretcher) {
 		return timeStretcher->getSamplePos(guide->playDirection);

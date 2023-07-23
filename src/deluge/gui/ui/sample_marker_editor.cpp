@@ -900,6 +900,7 @@ void SampleMarkerEditor::graphicsRoutine() {
 	}
 
 	if (voiceSample) {
+		// here
 		int samplePos = voiceSample->getPlaySample(waveformBasicNavigator.sample, guide);
 		if (samplePos >= waveformBasicNavigator.xScroll) {
 			newTickSquare = (samplePos - waveformBasicNavigator.xScroll) / waveformBasicNavigator.xZoom;
