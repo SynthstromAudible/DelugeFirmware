@@ -165,13 +165,13 @@ if(FORCE_COLORED_OUTPUT)
 endif()
 
 # 7SEG configuration
-add_firmware(Deluge7SEG deluge)
-target_link_libraries(Deluge7SEG RZA1)
+add_firmware(deluge7SEG deluge)
+target_link_libraries(deluge7SEG RZA1)
 
 # OLED Configuration
-add_firmware(DelugeOLED deluge)
-target_compile_definitions(DelugeOLED PUBLIC HAVE_OLED=1)
+add_firmware(delugeOLED deluge)
+target_compile_definitions(delugeOLED PUBLIC HAVE_OLED=1)
 
-target_link_libraries(DelugeOLED RZA1_OLED)
+target_link_libraries(delugeOLED RZA1_OLED)
 
 
