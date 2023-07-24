@@ -13,7 +13,7 @@ PLATFORM = platform.system().lower()
 
 def get_shell():
     if PLATFORM == "windows":
-        shell_command = shutil.which("cmd.exe")
+        shell_command = shutil.which("powershell.exe")
     else:
         shell_command = (
             os.environ.get("SHELL") or shutil.which("bash") or shutil.which("sh")

@@ -2,18 +2,34 @@
 
 import argparse
 import importlib
+import ntpath
 from pathlib import Path
+import subprocess
 import sys
 import os
 import textwrap
 
 PROG_NAME = sys.argv[0].split('.')[0]
 
-TASKS_DIR = str(Path(__file__).absolute().parent / "scripts/tasks")
-SCRIPTS_DIR = str(Path(__file__).absolute().parent / "scripts")
-DBT_DEBUG_DIR = str(Path(__file__).absolute().parent / "scripts/debug")
+SCRIPTS_DIR = Path("./scripts")
+TASKS_DIR = SCRIPTS_DIR / "tasks"
+DBT_DEBUG_DIR = SCRIPTS_DIR / "debug"
 
-os.environ["DBT_DEBUG_DIR"] = DBT_DEBUG_DIR
+os.environ["DBT_DEBUG_DIR"] = str(DBT_DEBUG_DIR)
+
+sys.path.append(str(TASKS_DIR))
+sys.path.insert(0, str(SCRIPTS_DIR))
+
+import util
+
+def setup():
+    if sys.platform == 'win32' or (sys.platform == 'cosmo' and cosmo.kernel == 'nt'):
+        dbtenvcmd = str(SCRIPTS_DIR / 'toolchain' / 'dbtenv.cmd').replace(os.sep, ntpath.sep)
+        dbtenv = util.get_environment_from_batch_command([dbtenvcmd, 'env'])
+        #print("Setup Windows DBT Env")
+    else:
+        dbtenvcmd = str(SCRIPTS_DIR / 'toolchain' / 'dbtenv.sh').encode()
+        subprocess.run([b'bash', dbtenvcmd])
 
 def print_tasks_usage(tasks):
     grouped = {}
@@ -53,10 +69,7 @@ def main() -> int:
     parser.add_argument("subcommand", metavar="<subcommand>")
 
     # Specify the folder containing the task files
-    task_files = Path(TASKS_DIR).glob("task-*.py")
-
-    sys.path.append(TASKS_DIR)
-    sys.path.insert(0, SCRIPTS_DIR)
+    task_files = TASKS_DIR.glob("task-*.py")
 
     tasks = {}
     for task_file in task_files:
