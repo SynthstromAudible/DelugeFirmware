@@ -30,7 +30,7 @@ enum KeyboardLayoutType : uint32_t {
 
 // Please note that saving and restoring currently needs to be added manually in instrument_clip.cpp and all layouts share one struct for storage
 struct KeyboardStateData {
-	KeyboardLayoutType currentLayout = KeyboardLayoutType::Isomorphic;
+	KeyboardLayoutType currentLayout = KeyboardLayoutType::Isomorphic; //@TODO: Add to storage
 	int scrollOffset = (60 - (kDisplayHeight >> 2) * kDefaultRowInterval);
 	int rowInterval = kDefaultRowInterval;
 };

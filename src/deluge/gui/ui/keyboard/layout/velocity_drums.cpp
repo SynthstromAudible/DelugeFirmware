@@ -49,10 +49,11 @@ void KeyboardLayoutVelocityDrums::handleHorizontalEncoder(int offset, bool shift
 }
 
 void KeyboardLayoutVelocityDrums::recalculate() {
-	// Pre-Buffer colours for next renderings
-	for (int i = 0; i < kDisplayHeight * getState()->rowInterval + kDisplayWidth; ++i) {
-		getNoteColour(getState()->scrollOffset + i, noteColours[i]);
-	}
+	//@TODO: Refactor
+	// // Pre-Buffer colours for next renderings
+	// for (int i = 0; i < kDisplayHeight * getState()->rowInterval + kDisplayWidth; ++i) {
+	// 	getNoteColour(getState()->scrollOffset + i, noteColours[i]);
+	// }
 }
 
 void KeyboardLayoutVelocityDrums::renderPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]) {
