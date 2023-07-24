@@ -23,14 +23,15 @@ The deluge is not a computer, and should not feel like you're operating one. Dir
 * Favour performance
     - Entire parameter ranges should be useful and scaled for quick editing
     - Gold knob twists control frequently edited parameters
-    - Gold knob presses should toggle, not scroll through lists
-    - Infrequently edited parameters belong on shortcut pads
+    - Shortcuts control infrequently edited paramters
+    - Gold knob presses switch modes, not scroll through parameter lists
 * Favour consistency
     - Actions which have similarity between views should have the same shortcut
     - <>+back clears all notes in a clip or all clips in the arranger
 * Favour discoverability and intuitiveness
     - Leverage existing deluge UI paradigms
     - Integrate into existing UI structures
+    - All parameters should have a menu entry
 
 
 # Known UX issues
