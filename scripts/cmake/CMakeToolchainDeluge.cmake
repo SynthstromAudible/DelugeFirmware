@@ -1,21 +1,26 @@
 set(CMAKE_SYSTEM_NAME               Generic)
 set(CMAKE_SYSTEM_PROCESSOR          arm)
 
-file(GLOB TOOLCHAIN_DIR "toolchain/**/arm-none-eabi-gcc")
+if(WIN32)
+  set(TOOLCHAIN_EXT ".exe" )
+  set(TOOLCHAIN_ROOT "win32-x86_64")
+else()
+  set(TOOLCHAIN_EXT "" )
+  set(TOOLCHAIN_ROOT ${CMAKE_HOST_SYSTEM_NAME})
+  string(TOLOWER ${TOOLCHAIN_ROOT} TOOLCHAIN_ROOT)
+  set(TOOLCHAIN_ROOT "${TOOLCHAIN_ROOT}-${CMAKE_HOST_SYSTEM_PROCESSOR}")
+endif()
 
-set(ARM_TOOLCHAIN_ROOT ${TOOLCHAIN_DIR})
+#set(ARM_TOOLCHAIN_ROOT $ENV{DBT_TOOLCHAIN_ROOT}/arm-none-eabi-gcc/)
+cmake_path(SET ARM_TOOLCHAIN_ROOT toolchain/${TOOLCHAIN_ROOT}/arm-none-eabi-gcc/)
+cmake_path(ABSOLUTE_PATH ARM_TOOLCHAIN_ROOT)
+
 cmake_path(SET CMAKE_SYSROOT ${ARM_TOOLCHAIN_ROOT}/arm-none-eabi)
 cmake_path(SET CMAKE_FIND_ROOT_PATH ${ARM_TOOLCHAIN_ROOT}/arm-none-eabi)
 cmake_path(SET ARM_TOOLCHAIN_BIN_PATH ${ARM_TOOLCHAIN_ROOT}/bin)
 
 # Without that flag CMake is not able to pass test compilation check
 set(CMAKE_TRY_COMPILE_TARGET_TYPE   STATIC_LIBRARY)
-
-if(WIN32)
-  set(TOOLCHAIN_EXT ".exe" )
-else()
-  set(TOOLCHAIN_EXT "" )
-endif()
 
 set(CMAKE_AR           ${ARM_TOOLCHAIN_BIN_PATH}/arm-none-eabi-ar${TOOLCHAIN_EXT} CACHE FILEPATH "Path to archiver.")
 set(CMAKE_ASM_COMPILER ${ARM_TOOLCHAIN_BIN_PATH}/arm-none-eabi-gcc${TOOLCHAIN_EXT} CACHE FILEPATH "Path to ASM compiler.")

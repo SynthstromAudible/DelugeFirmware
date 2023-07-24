@@ -1,23 +1,28 @@
+include_directories(${CMAKE_CURRENT_LIST_DIR})
+
 # Normally this would be add_executable, but since we're using add_firmware,
 # we use an interface library to simply collect all the source files we care
 # about before creating the real build targets
 #
 # Once the unified display system/one-bin-file build is done, this can be
 # changed to add_executable
-add_library(Deluge INTERFACE)
-target_include_directories(Deluge INTERFACE ${CMAKE_CURRENT_LIST_DIR})
-target_sources(Deluge PUBLIC main.c resetprg.c)
+add_library(deluge INTERFACE)
+target_sources(deluge INTERFACE main.c resetprg.c)
 
 add_subdirectory(deluge)
+target_include_directories(deluge INTERFACE 
+    ${CMAKE_CURRENT_LIST_DIR} 
+    deluge
+)
 
-target_link_libraries(Deluge INTERFACE
+target_link_libraries(deluge INTERFACE
     FatFs
-    RZA1
     RTT
     NE10
 )
 
-add_library(RZA1 STATIC
+add_library(RZA1 INTERFACE)
+target_sources(RZA1 INTERFACE
     # RZA1-specific code
     RZA1/bsc/bsc_userdef.c
     RZA1/cache/cache.c
@@ -107,13 +112,24 @@ add_library(RZA1 STATIC
     RZA1/compiler/asm/start.S
     RZA1/compiler/asm/ttb_init.S    
 )
+target_include_directories(RZA1 INTERFACE ${CMAKE_CURRENT_LIST_DIR})
+get_target_property(RZA1_SOURCES RZA1 INTERFACE_SOURCES)
 
-target_include_directories(RZA1 PUBLIC
+
+# To be consolidated with display merge
+add_library(RZA1_7SEG STATIC ${RZA1_SOURCES})
+target_include_directories(RZA1_7SEG PUBLIC deluge
     ${CMAKE_CURRENT_LIST_DIR}
 )
+target_link_libraries(RZA1_7SEG PRIVATE FatFs RTT)
 
-target_link_libraries(RZA1 PRIVATE FatFs RTT)
 
+add_library(RZA1_OLED STATIC ${RZA1_SOURCES})
+target_include_directories(RZA1_OLED PUBLIC deluge
+    ${CMAKE_CURRENT_LIST_DIR}
+)
+target_link_libraries(RZA1_OLED PRIVATE FatFs RTT)
+target_compile_definitions(RZA1_OLED PUBLIC HAVE_OLED=1)
 
 add_library(FatFs STATIC
   fatfs/ff.c
@@ -148,4 +164,3 @@ add_library(RTT STATIC
     RTT/SEGGER_RTT_printf.c
 )
 target_include_directories(RTT PUBLIC RTT)
-target_link_libraries(RTT PRIVATE RZA1)

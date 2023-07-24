@@ -1,4 +1,4 @@
-target_sources(Deluge PUBLIC
+target_sources(deluge PUBLIC
     deluge.cpp
     dsp/compressor/compressor.cpp
     dsp/convolution/impulse_response_processor.cpp
@@ -283,8 +283,4 @@ target_sources(Deluge PUBLIC
 
     # ASM sources
     drivers/cache/invalidate.S
-)
-
-target_include_directories(Deluge INTERFACE
-    ${CMAKE_CURRENT_LIST_DIR}
 )

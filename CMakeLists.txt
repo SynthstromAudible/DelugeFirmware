@@ -11,19 +11,21 @@ include(CheckIPOSupported)
 check_ipo_supported(RESULT IPO_SUPPORTED OUTPUT error)
 
 if( IPO_SUPPORTED )
-    message(STATUS "IPO / LTO enabled")
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION 
         $<$<CONFIG:DEBUG>:OFF>
         $<$<CONFIG:RELEASE>:ON>
     )
-else()
-    message(STATUS "IPO / LTO not supported: <${error}>")
 endif()
 
 # This function lets us add multiple firmware "configurations"
 # that each have their own set of flags from the same source
 function(add_firmware EXECUTABLE BASE)
-    add_executable(${EXECUTABLE} ${ARGN})
+    get_target_property(BASE_SOURCES ${BASE} INTERFACE_SOURCES)
+    get_target_property(BASE_LINKS ${BASE} INTERFACE_LINK_LIBRARIES)
+
+    add_executable(${EXECUTABLE})
+    target_sources(${EXECUTABLE} PRIVATE ${BASE_SOURCES})
+    target_link_libraries(${EXECUTABLE} ${BASE_LINKS})
 
     set_target_properties(${EXECUTABLE} 
         PROPERTIES
@@ -32,44 +34,38 @@ function(add_firmware EXECUTABLE BASE)
             CXX_STANDARD 20
             CXX_STANDARD_REQUIRED ON
             CXX_EXTENSIONS ON
+            SUFFIX ".elf"
     )
 
-    target_link_libraries(${EXECUTABLE} ${BASE})
-
-    cmake_path(SET BIN_FILE ${CMAKE_CURRENT_BINARY_DIR}/${EXECUTABLE}.bin)
-    cmake_path(SET HEX_FILE ${CMAKE_CURRENT_BINARY_DIR}/${EXECUTABLE}.hex)
-    cmake_path(SET MAP_FILE ${CMAKE_CURRENT_BINARY_DIR}/${EXECUTABLE}.map)
+    set(BIN_FILE $<CONFIG>/${EXECUTABLE}.bin)
+    set(HEX_FILE $<CONFIG>/${EXECUTABLE}.hex)
+    set(MAP_FILE $<CONFIG>/${EXECUTABLE}.map)
 
     # add link options to generate memory map
     target_link_libraries(${EXECUTABLE} -Wl,\"-Map=${MAP_FILE}\",--cref)
 
-    set(OBJCOPY_ELF_TO_BIN_COMMAND ${CMAKE_OBJCOPY} -O binary $<TARGET_FILE:${EXECUTABLE}> ${BIN_FILE})
-    set(OBJCOPY_ELF_TO_HEX_COMMAND ${CMAKE_OBJCOPY} -O ihex $<TARGET_FILE:${EXECUTABLE}> ${HEX_FILE})
-
     # generate .bin firmware file
     add_custom_command(TARGET ${EXECUTABLE} 
         POST_BUILD
-        COMMAND ${OBJCOPY_ELF_TO_BIN_COMMAND}
+        COMMAND ${CMAKE_OBJCOPY} -O binary $<TARGET_FILE:${EXECUTABLE}> ${BIN_FILE}
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-        COMMENT "Objcopying ${EXECUTABLE} to firmware ${BIN_FILE}")
+        COMMENT "Objcopying ${EXECUTABLE} to firmware ${BIN_FILE}"
+        DEPENDS ${EXECUTABLE}
+        BYPRODUCTS ${BIN_FILE})
 
     # generate .hex firmware file
     add_custom_command(TARGET ${EXECUTABLE} 
         POST_BUILD
-        COMMAND ${OBJCOPY_ELF_TO_HEX_COMMAND}
+        COMMAND ${CMAKE_OBJCOPY} -O ihex $<TARGET_FILE:${EXECUTABLE}> ${HEX_FILE}
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-        COMMENT "Objcopying ${EXECUTABLE} to firmware ${HEX_FILE}")
+        COMMENT "Objcopying ${EXECUTABLE} to firmware ${HEX_FILE}"
+        DEPENDS ${EXECUTABLE}
+        BYPRODUCTS ${HEX_FILE})
 
-    #
+    # Clean up artefacts
     set_property(TARGET ${EXECUTABLE}
         PROPERTY 
             ADDITIONAL_CLEAN_FILES ${BIN_FILE} ${MAP_FILE} ${HEX_FILE})
-
-    if(CMAKE_BUILD_TYPE EQUAL "Release")
-        message(STATUS "IPO enabled")
-        set_property(TARGET ${EXECUTABLE} PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
-        set_property(TARGET RZA1 PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
-    endif()
 
     find_program(PRETTYSIZE_CMD prettysize prettysize.py)
 
@@ -83,8 +79,6 @@ function(add_firmware EXECUTABLE BASE)
             COMMENT "Displaying usage graph for ${EXECUTABLE}")
     endif()
 endfunction(add_firmware)
-
-message(STATUS "Building for ${CMAKE_BUILD_TYPE}")
 
 # Global compilation options
 add_compile_options(
@@ -147,11 +141,11 @@ option(ENABLE_RTT "Enable RTT output" ON)
 if(ENABLE_RTT)
     message(STATUS "RTT enabled")
 
-    target_compile_definitions(RZA1 PUBLIC
+    target_compile_definitions(RZA1 INTERFACE
         $<$<CONFIG:DEBUG>:ENABLE_TEXT_OUTPUT=1>
         $<$<CONFIG:DEBUG>:HAVE_RTT=1>
     )
-    target_compile_definitions(Deluge INTERFACE
+    target_compile_definitions(deluge INTERFACE
         $<$<CONFIG:DEBUG>:ENABLE_TEXT_OUTPUT=1>
         $<$<CONFIG:DEBUG>:HAVE_RTT=1>
     )
@@ -170,24 +164,14 @@ if(FORCE_COLORED_OUTPUT)
     endif()
 endif()
 
-# Setup our firmware build options
-set(DELUGE_SCREEN "BOTH" CACHE STRING "Select the Deluge screen type to build for (or BOTH)")
-set(DELUGE_SCREEN_VALID OLED 7SEG BOTH)
-set_property(CACHE DELUGE_SCREEN PROPERTY STRINGS ${DELUGE_SCREEN_VALID})
-
-if(NOT ${DELUGE_SCREEN} IN_LIST DELUGE_SCREEN_VALID)
-    message(FATAL_ERROR "${DELUGE_SCREEN} is not a proper screen type. Please choose one of 7SEG, OLED, or BOTH.")
-endif()
-
 # 7SEG configuration
-if((DELUGE_SCREEN STREQUAL "7SEG") OR DELUGE_SCREEN STREQUAL "BOTH")
-    message(STATUS "Building for 7-segment model")
-    add_firmware(Deluge7seg Deluge)
-endif()
+add_firmware(Deluge7SEG deluge)
+target_link_libraries(Deluge7SEG RZA1_7SEG)
 
 # OLED Configuration
-if((DELUGE_SCREEN STREQUAL "OLED") OR DELUGE_SCREEN STREQUAL "BOTH")
-    add_firmware(DelugeOLED Deluge)
-    message(STATUS "Building for OLED model")
-    target_compile_definitions(DelugeOLED PUBLIC HAVE_OLED=1)
-endif()
+add_firmware(DelugeOLED deluge)
+target_compile_definitions(DelugeOLED PUBLIC HAVE_OLED=1)
+
+target_link_libraries(DelugeOLED RZA1_OLED)
+
+
