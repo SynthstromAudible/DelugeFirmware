@@ -571,6 +571,7 @@ void KeyboardScreen::focusRegained() {
 
 void KeyboardScreen::openedInBackground() {
 	getCurrentClip()->onKeyboardScreen = true;
+	selectLayout(0); // Make sure we get a valid layout from the loaded file
 	layoutList[getCurrentClip()->keyboardState.currentLayout]->recalculate();
 	requestRendering(); // This one originally also included sidebar, the other ones didn't
 }
