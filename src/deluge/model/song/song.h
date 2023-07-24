@@ -167,6 +167,8 @@ public:
 
 	bool affectEntire;
 
+	bool fillModeActive;
+
 	int songViewYScroll;
 	int arrangementYScroll;
 
