@@ -1,0 +1,19 @@
+target_sources(RZA1 PUBLIC
+    diskio.c
+    peripheral_init_basic.c
+)
+add_subdirectory(bsc)
+add_subdirectory(cache)
+add_subdirectory(compiler)
+add_subdirectory(gpio)
+add_subdirectory(intc)
+add_subdirectory(mtu)
+add_subdirectory(oled)
+add_subdirectory(rspi)
+add_subdirectory(sdhi)
+add_subdirectory(spibsc)
+add_subdirectory(ssi)
+add_subdirectory(stb)
+add_subdirectory(system)
+add_subdirectory(uart)
+add_subdirectory(usb)

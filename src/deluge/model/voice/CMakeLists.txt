@@ -1,0 +1,8 @@
+target_sources(deluge PUBLIC
+    voice.cpp
+    voice_sample.cpp
+    voice_sample_playback_guide.cpp
+    voice_unison_part.cpp
+    voice_unison_part_source.cpp
+    voice_vector.cpp
+)

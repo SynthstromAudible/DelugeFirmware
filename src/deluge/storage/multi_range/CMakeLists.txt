@@ -1,0 +1,6 @@
+target_sources(deluge PUBLIC
+    multisample_range.cpp
+    multi_range.cpp
+    multi_range_array.cpp
+    multi_wave_table_range.cpp
+)

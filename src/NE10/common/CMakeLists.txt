@@ -1,0 +1,5 @@
+target_sources(NE10 PUBLIC
+    NE10header.s
+    NE10_mask_table.c
+    versionheader.s
+)

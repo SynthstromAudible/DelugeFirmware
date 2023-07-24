@@ -1,0 +1,11 @@
+target_sources(deluge PUBLIC
+    audio_input_selector.cpp
+    clear_song.cpp
+    context_menu.cpp
+    delete_file.cpp
+    load_instrument_preset.cpp
+    overwrite_bootloader.cpp
+    overwrite_file.cpp
+    save_song_or_instrument.cpp
+)
+add_subdirectory(sample_browser)

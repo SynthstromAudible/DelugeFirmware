@@ -1,0 +1,10 @@
+target_sources(deluge PUBLIC
+    cfunctions.c
+    d_string.cpp
+    functions.cpp
+    pack.cpp
+    phase_increment_fine_tuner.cpp
+)
+add_subdirectory(algorithm)
+add_subdirectory(container)
+add_subdirectory(lookuptables)

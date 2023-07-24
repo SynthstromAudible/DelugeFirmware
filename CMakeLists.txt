@@ -166,7 +166,7 @@ endif()
 
 # 7SEG configuration
 add_firmware(Deluge7SEG deluge)
-target_link_libraries(Deluge7SEG RZA1_7SEG)
+target_link_libraries(Deluge7SEG RZA1)
 
 # OLED Configuration
 add_firmware(DelugeOLED deluge)

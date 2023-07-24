@@ -1,0 +1,6 @@
+target_sources(deluge PUBLIC
+    wave_table.cpp
+    wave_table_band_data.cpp
+    wave_table_holder.cpp
+    wave_table_reader.cpp
+)

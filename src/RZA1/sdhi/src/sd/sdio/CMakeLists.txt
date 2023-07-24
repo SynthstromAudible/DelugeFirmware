@@ -1,0 +1,8 @@
+target_sources(RZA1 PUBLIC
+    sdio_direct.c
+    sdio_int.c
+    sdio_read.c
+    sdio_trns.c
+    sdio_util.c
+    sdio_write.c
+)

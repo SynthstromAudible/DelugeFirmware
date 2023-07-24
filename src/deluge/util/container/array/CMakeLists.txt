@@ -1,0 +1,8 @@
+target_sources(deluge PUBLIC
+    c_string_array.cpp
+    early_note_array.cpp
+    ordered_resizeable_array.cpp
+    ordered_resizeable_array_with_multi_word_key.cpp
+    resizeable_array.cpp
+    resizeable_pointer_array.cpp
+)

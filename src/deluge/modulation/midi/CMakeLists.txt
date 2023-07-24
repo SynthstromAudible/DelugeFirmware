@@ -1,0 +1,6 @@
+target_sources(deluge PUBLIC
+    midi_knob_array.cpp
+    midi_param.cpp
+    midi_param_collection.cpp
+    midi_param_vector.cpp
+)

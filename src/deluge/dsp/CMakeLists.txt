@@ -1,0 +1,8 @@
+add_subdirectory(compressor)
+add_subdirectory(convolution)
+add_subdirectory(delay)
+add_subdirectory(fft)
+add_subdirectory(filter)
+add_subdirectory(master_compressor)
+add_subdirectory(timestretch)
+add_subdirectory(reverb)

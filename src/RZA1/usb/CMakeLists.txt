@@ -1,0 +1,5 @@
+target_sources(RZA1 PUBLIC
+    USBConnection.c
+)
+add_subdirectory(r_usb_basic)
+add_subdirectory(r_usb_hmidi)

@@ -1,0 +1,23 @@
+target_sources(deluge PUBLIC
+    consequence.cpp
+    consequence_arranger_params_time_inserted.cpp
+    consequence_audio_clip_set_sample.cpp
+    consequence_begin_playback.cpp
+    consequence_clip_begin_linear_record.cpp
+    consequence_clip_existence.cpp
+    consequence_clip_horizontal_shift.cpp
+    consequence_clip_instance_change.cpp
+    consequence_clip_instance_existence.cpp
+    consequence_clip_length.cpp
+    consequence_instrument_clip_multiply.cpp
+    consequence_note_array_change.cpp
+    consequence_note_existence.cpp
+    consequence_note_row_horizontal_shift.cpp
+    consequence_note_row_length.cpp
+    consequence_note_row_mute.cpp
+    consequence_output_existence.cpp
+    consequence_param_change.cpp
+    consequence_scale_add_note.cpp
+    consequence_swing_change.cpp
+    consequence_tempo_change.cpp
+)

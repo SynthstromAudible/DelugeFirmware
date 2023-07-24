@@ -1,0 +1,27 @@
+target_sources(RZA1 PUBLIC
+    r_usb_cdataio.c
+    r_usb_clibusbip.c
+    r_usb_hbc.c
+    r_usb_hcontrolrw.c
+    r_usb_hdriver.c
+    r_usb_hhubsys.c
+    r_usb_hintfifo.c
+    r_usb_hinthandler_usbip0.c
+    r_usb_hinthandler_usbip1.c
+    r_usb_hlibusbip.c
+    r_usb_hmanager.c
+    r_usb_hscheduler.c
+    r_usb_hsignal.c
+    r_usb_hstdfunction.c
+    r_usb_pbc.c
+    r_usb_pcontrolrw.c
+    r_usb_pdriver.c
+    r_usb_peptable.c
+    r_usb_pintfifo.c
+    r_usb_pinthandler_usbip0.c
+    r_usb_plibusbip.c
+    r_usb_psignal.c
+    r_usb_pstdfunction.c
+    r_usb_pstdrequest.c
+    r_usb_usbif_api.c
+)

@@ -1,0 +1,15 @@
+target_sources(deluge PUBLIC
+    sample.cpp
+    sample_cache.cpp
+    sample_cluster.cpp
+    sample_cluster_array.cpp
+    sample_controls.cpp
+    sample_holder.cpp
+    sample_holder_for_clip.cpp
+    sample_holder_for_voice.cpp
+    sample_low_level_reader.cpp
+    sample_perc_cache_zone.cpp
+    sample_playback_guide.cpp
+    sample_reader.cpp
+    sample_recorder.cpp
+)

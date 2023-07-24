@@ -1,0 +1,4 @@
+target_sources(RZA1 PUBLIC
+    r_usb_hmidi_api.c
+    r_usb_hmidi_driver.c
+)

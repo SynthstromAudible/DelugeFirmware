@@ -1,0 +1,11 @@
+target_sources(RZA1 PUBLIC
+    r_usb_creg_abs.c
+    r_usb_creg_access.c
+    r_usb_dma.c
+    r_usb_hostelectrical.c
+    r_usb_hreg_abs.c
+    r_usb_hreg_access.c
+    r_usb_preg_abs.c
+    r_usb_preg_access.c
+    r_usb_rz_mcu.c
+)

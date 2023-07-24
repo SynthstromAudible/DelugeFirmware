@@ -1,0 +1,7 @@
+add_subdirectory(cache)
+add_subdirectory(dmac)
+add_subdirectory(oled)
+add_subdirectory(rspi)
+add_subdirectory(sd)
+add_subdirectory(ssi)
+add_subdirectory(uart)

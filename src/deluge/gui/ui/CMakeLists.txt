@@ -1,0 +1,15 @@
+target_sources(deluge PUBLIC
+    audio_recorder.cpp
+    keyboard_screen.cpp
+    menus.cpp
+    qwerty_ui.cpp
+    root_ui.cpp
+    sample_marker_editor.cpp
+    slicer.cpp
+    sound_editor.cpp
+    ui.cpp
+)
+add_subdirectory(browser)
+add_subdirectory(load)
+add_subdirectory(rename)
+add_subdirectory(save)

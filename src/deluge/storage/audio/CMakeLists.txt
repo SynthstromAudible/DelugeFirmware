@@ -1,0 +1,7 @@
+target_sources(deluge PUBLIC
+    audio_file.cpp
+    audio_file_holder.cpp
+    audio_file_manager.cpp
+    audio_file_reader.cpp
+    audio_file_vector.cpp
+)

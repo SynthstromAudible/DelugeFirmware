@@ -1,0 +1,10 @@
+target_sources(deluge PUBLIC
+    arranger_view.cpp
+    audio_clip_view.cpp
+    clip_navigation_timeline_view.cpp
+    clip_view.cpp
+    instrument_clip_view.cpp
+    session_view.cpp
+    timeline_view.cpp
+    view.cpp
+)
