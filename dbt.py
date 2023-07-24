@@ -63,10 +63,10 @@ def main() -> int:
     # Create the main parser
     parser = argparse.ArgumentParser(
         prog=f"{PROG_NAME}" or "task",
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         add_help=False,
     )
-    parser.add_argument("subcommand", metavar="<subcommand>")
+    parser.add_argument('-h', '--help', help='print this help message', action='store_true')
+    parser.add_argument("subcommand",  nargs='?', metavar="<subcommand>")
 
     # Specify the folder containing the task files
     task_files = TASKS_DIR.glob("task-*.py")
@@ -88,16 +88,14 @@ def main() -> int:
         # Call out to our task. (lazy import)
         retcode = importlib.import_module(tasks[task_name]).main()
         sys.exit(retcode)
-    
+
+    args = parser.parse_args()
 
     # nothing on the command line
-    if len(sys.argv) == 1:
+    if args.help or len(sys.argv) == 1:
         print_help(parser, tasks)
         exit()
         
-
-    args = parser.parse_args()
-    
     if args.subcommand not in tasks:
       print(f"{PROG_NAME}: '{args.subcommand}' is not a valid subcommand.")
       print("")
