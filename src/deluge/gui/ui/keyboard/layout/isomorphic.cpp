@@ -20,6 +20,9 @@
 #include "gui/ui/keyboard/layout/isomorphic.h"
 #include "definitions.h"
 #include "util/functions.h"
+#include "gui/ui/browser/sample_browser.h"
+#include "gui/ui/audio_recorder.h"
+#include "gui/ui/sound_editor.h"
 
 namespace keyboard::layout {
 
@@ -113,6 +116,18 @@ void KeyboardLayoutIsomorphic::renderPads(uint8_t image[][kDisplayWidth + kSideB
 			// Or, if this note is just within the current scale, show it dim
 			else if (octaveScaleNotes[noteWithinOctave]) {
 				getTailColour(image[y][x], noteColours[yDisplay]);
+			}
+
+			//@TODO: In a future revision it would be nice to add this to the API
+			// Dim note pad if a browser is open with the note highlighted
+			if (getCurrentUI() == &sampleBrowser || getCurrentUI() == &audioRecorder
+			    || (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem()->isRangeDependent())) {
+				if (soundEditor.isUntransposedNoteWithinRange(noteCode)) {
+					for (int colour = 0; colour < 3; colour++) {
+						int value = (int)image[y][x][colour] + 35;
+						image[y][x][colour] = getMin(value, 255);
+					}
+				}
 			}
 
 			++noteCode;

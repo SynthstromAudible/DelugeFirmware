@@ -492,6 +492,7 @@ ActionResult KeyboardScreen::horizontalEncoderAction(int offset) {
 }
 
 void KeyboardScreen::selectLayout(int8_t offset) {
+	KeyboardLayoutType lastLayout = getCurrentClip()->keyboardState.currentLayout;
 	//@TODO: Add logic to only scroll through supported layouts for a clip
 
 	int32_t nextLayout = getCurrentClip()->keyboardState.currentLayout + offset;
@@ -502,7 +503,10 @@ void KeyboardScreen::selectLayout(int8_t offset) {
 		nextLayout = 0;
 	}
 	getCurrentClip()->keyboardState.currentLayout = (KeyboardLayoutType)nextLayout;
-	numericDriver.displayPopup(layoutList[getCurrentClip()->keyboardState.currentLayout]->name());
+
+	if (getCurrentClip()->keyboardState.currentLayout != lastLayout) {
+		numericDriver.displayPopup(layoutList[getCurrentClip()->keyboardState.currentLayout]->name());
+	}
 }
 
 void KeyboardScreen::selectEncoderAction(int8_t offset) {
