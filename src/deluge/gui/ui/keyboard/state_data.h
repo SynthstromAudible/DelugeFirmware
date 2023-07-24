@@ -22,8 +22,15 @@ namespace keyboard {
 
 constexpr int kDefaultRowInterval = 5;
 
+enum KeyboardLayoutType : uint32_t {
+	Isomorphic,
+	Drums,
+	MaxElement // Keep as boundary
+};
+
 // Please note that saving and restoring currently needs to be added manually in instrument_clip.cpp and all layouts share one struct for storage
 struct KeyboardStateData {
+	KeyboardLayoutType currentLayout = KeyboardLayoutType::Isomorphic;
 	int scrollOffset = (60 - (kDisplayHeight >> 2) * kDefaultRowInterval);
 	int rowInterval = kDefaultRowInterval;
 };

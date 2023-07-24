@@ -45,13 +45,15 @@
 #include "hid/display/oled.h"
 
 #include "gui/ui/keyboard/layout/isomorphic.h"
+#include "gui/ui/keyboard/layout/velocity_drums.h"
 
 keyboard::KeyboardScreen keyboardScreen{};
 
 namespace keyboard {
 
 layout::KeyboardLayoutIsomorphic keyboardLayoutIsomorphic{};
-KeyboardLayout* layoutList[] = {(KeyboardLayout*)&keyboardLayoutIsomorphic, nullptr};
+layout::KeyboardLayoutVelocityDrums keyboardLayoutVelocityDrums{};
+KeyboardLayout* layoutList[KeyboardLayoutType::MaxElement + 1] = {0};
 
 inline InstrumentClip* getCurrentClip() {
 	return (InstrumentClip*)currentSong->currentClip;
@@ -62,6 +64,9 @@ Instrument* getActiveInstrument() {
 }
 
 KeyboardScreen::KeyboardScreen() {
+	layoutList[KeyboardLayoutType::Isomorphic] = (KeyboardLayout*)&keyboardLayoutIsomorphic;
+	layoutList[KeyboardLayoutType::Drums] = (KeyboardLayout*)&keyboardLayoutVelocityDrums;
+
 	memset(&pressedPads, 0, sizeof(pressedPads));
 	currentNotesState = {0};
 	lastNotesState = {0};
@@ -155,8 +160,8 @@ ActionResult KeyboardScreen::padAction(int x, int y, int velocity) {
 
 void KeyboardScreen::evaluateActiveNotes() {
 	lastNotesState = currentNotesState;
-	layoutList[0]->evaluatePads(pressedPads);
-	currentNotesState = *layoutList[0]->getNotesState();
+	layoutList[getCurrentClip()->keyboardState.currentLayout]->evaluatePads(pressedPads);
+	currentNotesState = *layoutList[getCurrentClip()->keyboardState.currentLayout]->getNotesState();
 }
 
 void KeyboardScreen::updateActiveNotes() {
@@ -360,8 +365,15 @@ ActionResult KeyboardScreen::buttonAction(hid::Button b, bool on, bool inCardRou
 
 	// Keyboard button - exit mode
 	else if (b == KEYBOARD) {
-		if (on && currentUIMode == UI_MODE_NONE) {
+		if (on) { // Reset used flag on key up
+			keyboardButtonUsed = false;
+		}
+		// Store active flag
+		keyboardButtonActive = on;
+		if (currentUIMode == UI_MODE_NONE && !keyboardButtonActive
+		    && !keyboardButtonUsed) { // Leave if key up and not used
 			changeRootUI(&instrumentClipView);
+			keyboardButtonUsed = false;
 		}
 	}
 
@@ -392,11 +404,42 @@ ActionResult KeyboardScreen::buttonAction(hid::Button b, bool on, bool inCardRou
 	}
 
 	// Kit button
-	//@TODO: Conditional check depending if current layout supports kits
-	else if (b == KIT && currentUIMode == UI_MODE_NONE) {
-		if (on) {
-			indicator_leds::indicateAlertOnLed(IndicatorLED::KEYBOARD);
+	else if (b == KIT) {
+		if (on && currentUIMode == UI_MODE_NONE) {
+			if (Buttons::isNewOrShiftButtonPressed()) {
+				createNewInstrument(InstrumentType::KIT);
+			}
+			else {
+				changeInstrumentType(InstrumentType::KIT);
+			}
+			selectLayout(0);
 		}
+	}
+
+	else if (b == SYNTH) {
+		if (on && currentUIMode == UI_MODE_NONE) {
+			if (Buttons::isNewOrShiftButtonPressed()) {
+				createNewInstrument(InstrumentType::SYNTH);
+			}
+			else {
+				changeInstrumentType(InstrumentType::SYNTH);
+			}
+			selectLayout(0);
+		}
+	}
+
+	else if (b == MIDI) {
+		if (on && currentUIMode == UI_MODE_NONE) {
+			changeInstrumentType(InstrumentType::MIDI_OUT);
+		}
+		selectLayout(0);
+	}
+
+	else if (b == CV) {
+		if (on && currentUIMode == UI_MODE_NONE) {
+			changeInstrumentType(InstrumentType::CV);
+		}
+		selectLayout(0);
 	}
 
 	else {
@@ -420,10 +463,10 @@ ActionResult KeyboardScreen::verticalEncoderAction(int offset, bool inCardRoutin
 
 	if (Buttons::isShiftButtonPressed() && currentUIMode == UI_MODE_NONE) {
 		getCurrentClip()->colourOffset += offset;
-		layoutList[0]->recalculate();
+		layoutList[getCurrentClip()->keyboardState.currentLayout]->recalculate();
 	}
 	else {
-		layoutList[0]->handleVerticalEncoder(offset);
+		layoutList[getCurrentClip()->keyboardState.currentLayout]->handleVerticalEncoder(offset);
 		if (isUIModeWithinRange(padActionUIModes)) {
 			evaluateActiveNotes();
 			updateActiveNotes();
@@ -436,8 +479,8 @@ ActionResult KeyboardScreen::verticalEncoderAction(int offset, bool inCardRoutin
 
 ActionResult KeyboardScreen::horizontalEncoderAction(int offset) {
 
-	layoutList[0]->handleHorizontalEncoder(offset,
-	                                       (Buttons::isShiftButtonPressed() && isUIModeWithinRange(padActionUIModes)));
+	layoutList[getCurrentClip()->keyboardState.currentLayout]->handleHorizontalEncoder(
+	    offset, (Buttons::isShiftButtonPressed() && isUIModeWithinRange(padActionUIModes)));
 
 	if (isUIModeWithinRange(padActionUIModes)) {
 		evaluateActiveNotes();
@@ -448,13 +491,32 @@ ActionResult KeyboardScreen::horizontalEncoderAction(int offset) {
 	return ActionResult::DEALT_WITH;
 }
 
-void KeyboardScreen::selectEncoderAction(int8_t offset) {
-	//@TODO: Add code to cycle through layouts if keyboard button is pressed and make sure it is not evaluated as exit
-	//@TODO: Add code to cycle through scales if scale button is pressed and make sure it is not evaluated as scale mode set
+void KeyboardScreen::selectLayout(int8_t offset) {
+	//@TODO: Add logic to only scroll through supported layouts for a clip
 
-	InstrumentClipMinder::selectEncoderAction(offset);
+	int32_t nextLayout = getCurrentClip()->keyboardState.currentLayout + offset;
+	if (nextLayout < 0) {
+		nextLayout = KeyboardLayoutType::MaxElement - 1;
+	}
+	if (nextLayout >= KeyboardLayoutType::MaxElement) {
+		nextLayout = 0;
+	}
+	getCurrentClip()->keyboardState.currentLayout = (KeyboardLayoutType)nextLayout;
+	numericDriver.displayPopup(layoutList[getCurrentClip()->keyboardState.currentLayout]->name());
+}
+
+void KeyboardScreen::selectEncoderAction(int8_t offset) {
+	if (keyboardButtonActive) {
+		keyboardButtonUsed = true;
+		selectLayout(offset);
+	}
+	else {
+		InstrumentClipMinder::selectEncoderAction(offset);
+	}
+
 	// instrumentClipView.recalculateColours(); // @Check if it still works properly
-	layoutList[0]->recalculate(); // Recalculate because changing instruments can change pad colors
+	layoutList[getCurrentClip()->keyboardState.currentLayout]
+	    ->recalculate(); // Recalculate because changing instruments can change pad colors
 	requestRendering();
 }
 
@@ -477,13 +539,14 @@ bool KeyboardScreen::opened() {
 }
 
 void KeyboardScreen::focusRegained() {
+	keyboardButtonUsed = true; // Ensure we don't leave the mode on button up
 	InstrumentClipMinder::focusRegained();
 	setLedStates();
 }
 
 void KeyboardScreen::openedInBackground() {
 	getCurrentClip()->onKeyboardScreen = true;
-	layoutList[0]->recalculate();
+	layoutList[getCurrentClip()->keyboardState.currentLayout]->recalculate();
 	requestRendering(); // This one originally also included sidebar, the other ones didn't
 }
 
@@ -498,7 +561,7 @@ bool KeyboardScreen::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplay
 	       sizeof(uint8_t) * kDisplayHeight
 	           * (kDisplayWidth + kSideBarWidth)); // We assume the whole screen is occupied
 
-	layoutList[0]->renderPads(image);
+	layoutList[getCurrentClip()->keyboardState.currentLayout]->renderPads(image);
 
 	return true;
 }
@@ -509,7 +572,7 @@ bool KeyboardScreen::renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayW
 		return true;
 	}
 
-	layoutList[0]->renderSidebarPads(image);
+	layoutList[getCurrentClip()->keyboardState.currentLayout]->renderSidebarPads(image);
 
 	return true;
 }

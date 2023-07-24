@@ -49,25 +49,30 @@ struct NoteState {
 };
 
 constexpr uint8_t kLowestKeyboardNote = 0;
-constexpr uint8_t kHighestKeyboardNote = 127;
+constexpr uint8_t kHighestKeyboardNote = 12 * 12;
 struct NotesState {
-	uint64_t states[2] = {0};
+	uint64_t states[3] = {0};
 	NoteState notes[MAX_NUM_ACTIVE_NOTES] = {0};
 	uint8_t count = 0;
 
-	void enableNote(uint8_t note, uint8_t velocity) { //@TODO: Add MPE values and notes above 127
+	void enableNote(uint8_t note, uint8_t velocity, bool generatedNote = false, int16_t* mpeValues = nullptr) {
 		if (noteEnabled(note)) {
 			return;
 		}
 		notes[count].note = note;
 		notes[count].velocity = velocity;
-		states[(note >= 64 ? 1 : 0)] |= (1ull << (note >= 64 ? (note - 64) : note));
+		notes[count].generatedNote = generatedNote;
+		if (mpeValues != nullptr) {
+			memcpy(&notes[count].mpeValues, mpeValues, sizeof(notes[count].mpeValues));
+		}
+
+		states[(note / 64)] |= (1ull << (note % 64));
 		count++;
 	}
 
 	bool noteEnabled(uint8_t note) {
-		uint64_t expectedValue = (1ull << (note >= 64 ? (note - 64) : note));
-		return (states[(note >= 64 ? 1 : 0)] & expectedValue) == expectedValue;
+		uint64_t expectedValue = (1ull << (note % 64));
+		return (states[(note / 64)] & expectedValue) == expectedValue;
 	}
 };
 
@@ -92,6 +97,7 @@ public:
 	};
 
 	// Properties
+	virtual char* name() = 0;
 	virtual bool supportsInstrument() { return false; }
 	virtual bool supportsKit() { return false; }
 
@@ -106,7 +112,7 @@ protected:
 
 	inline int getLowestClipNote() { return kLowestKeyboardNote; }
 	inline int getHighestClipNote() {
-		//@TODO: Proper method
+		//@TODO: Fix for Kits
 		return kHighestKeyboardNote;
 	}
 

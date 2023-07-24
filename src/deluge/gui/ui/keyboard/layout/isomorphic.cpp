@@ -23,13 +23,10 @@
 
 namespace keyboard::layout {
 
-KeyboardLayoutIsomorphic::KeyboardLayoutIsomorphic() : KeyboardLayout() {
-}
-
 void KeyboardLayoutIsomorphic::evaluatePads(PressedPad presses[MAX_NUM_KEYBOARD_PAD_PRESSES]) {
 	uint8_t noteIdx = 0;
 
-	currentNotesState = NotesState{};
+	currentNotesState = NotesState{}; // Erase active notes
 
 	for (int idxPress = 0; idxPress < MAX_NUM_KEYBOARD_PAD_PRESSES; ++idxPress) {
 		if (presses[idxPress].active) {

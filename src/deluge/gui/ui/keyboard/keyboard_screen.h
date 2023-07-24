@@ -68,6 +68,7 @@ private:
 #endif
 
 private:
+	void selectLayout(int8_t offset);
 	void enterScaleMode(int selectedRootNote = std::numeric_limits<int>::max());
 	void exitScaleMode();
 	void drawNoteCode(int noteCode);
@@ -79,6 +80,9 @@ private:
 	PressedPad pressedPads[MAX_NUM_KEYBOARD_PAD_PRESSES];
 	NotesState lastNotesState;
 	NotesState currentNotesState;
+
+	bool keyboardButtonActive = false;
+	bool keyboardButtonUsed = false;
 };
 
 }; // namespace keyboard

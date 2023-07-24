@@ -23,7 +23,7 @@ namespace keyboard::layout {
 
 class KeyboardLayoutIsomorphic : public KeyboardLayout {
 public:
-	KeyboardLayoutIsomorphic();
+	KeyboardLayoutIsomorphic() {}
 	virtual ~KeyboardLayoutIsomorphic() {}
 
 	virtual void evaluatePads(PressedPad presses[MAX_NUM_KEYBOARD_PAD_PRESSES]);
@@ -33,6 +33,7 @@ public:
 
 	virtual void renderPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]);
 
+	virtual char* name() { return "Isomorphic"; }
 	virtual bool supportsInstrument() { return true; }
 	virtual bool supportsKit() { return false; }
 

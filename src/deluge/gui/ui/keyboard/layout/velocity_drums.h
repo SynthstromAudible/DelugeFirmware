@@ -23,12 +23,23 @@ namespace keyboard::layout {
 
 class KeyboardLayoutVelocityDrums : KeyboardLayout {
 public:
-	KeyboardLayoutVelocityDrums() : KeyboardLayout() {}
+	KeyboardLayoutVelocityDrums() {}
+	virtual ~KeyboardLayoutVelocityDrums() {}
 
-	void handlePad(int x, int y, int velocity) {}
+	virtual void evaluatePads(PressedPad presses[MAX_NUM_KEYBOARD_PAD_PRESSES]);
+	virtual void handleVerticalEncoder(int offset);
+	virtual void handleHorizontalEncoder(int offset, bool shiftEnabled);
+	virtual void recalculate();
 
+	virtual void renderPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]);
+
+	virtual char* name() { return "Drums"; }
 	virtual bool supportsInstrument() { return false; }
 	virtual bool supportsKit() { return true; }
+
+private:
+	uint8_t noteFromCoords(int x, int y);
+	uint8_t noteColours[kDisplayHeight * kMaxKeyboardRowInterval + kDisplayWidth][3];
 };
 
 }; // namespace keyboard::layout
