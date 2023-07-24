@@ -198,7 +198,7 @@ void KeyboardScreen::updateActiveNotes() {
 		if (activeInstrument->type == InstrumentType::KIT) {
 			instrumentClipView.auditionPadAction(
 			    currentNotesState.notes[idx].velocity, newNote,
-			    false); //@TODO: Figure out how to factor out yDisplay (newNote was yDisplay previously)
+			    false); // @TODO: Expects values starting from 0 for the lowest yScroll row currently in clip view
 		}
 		else {
 			((MelodicInstrument*)activeInstrument)
@@ -267,8 +267,10 @@ void KeyboardScreen::updateActiveNotes() {
 			}
 		}
 
-		if (activeInstrument->type == InstrumentType::KIT) {         //
-			instrumentClipView.auditionPadAction(0, oldNote, false); //@TODO: Figure out how to factor out yDisplay
+		if (activeInstrument->type == InstrumentType::KIT) {
+			instrumentClipView.auditionPadAction(
+			    0, oldNote,
+			    false); // @TODO: Expects values starting from 0 for the lowest yScroll row currently in clip view
 		}
 		else {
 			((MelodicInstrument*)activeInstrument)->endAuditioningForNote(modelStack, oldNote);
@@ -390,8 +392,8 @@ ActionResult KeyboardScreen::buttonAction(hid::Button b, bool on, bool inCardRou
 	}
 
 	// Kit button
-	else if (b == KIT
-	         && currentUIMode == UI_MODE_NONE) { //@TODO: Conditional check depending if current layout supports kits
+	//@TODO: Conditional check depending if current layout supports kits
+	else if (b == KIT && currentUIMode == UI_MODE_NONE) {
 		if (on) {
 			indicator_leds::indicateAlertOnLed(IndicatorLED::KEYBOARD);
 		}
@@ -404,9 +406,8 @@ ActionResult KeyboardScreen::buttonAction(hid::Button b, bool on, bool inCardRou
 			return result;
 		}
 
-		return view.buttonAction(
-		    b, on,
-		    inCardRoutine); // This might potentially do something while inCardRoutine but the condition above discards the call anyway
+		// This might potentially do something while inCardRoutine but the condition above discards the call anyway
+		return view.buttonAction(b, on, inCardRoutine);
 	}
 
 	return ActionResult::DEALT_WITH;
@@ -419,11 +420,10 @@ ActionResult KeyboardScreen::verticalEncoderAction(int offset, bool inCardRoutin
 
 	if (Buttons::isShiftButtonPressed() && currentUIMode == UI_MODE_NONE) {
 		getCurrentClip()->colourOffset += offset;
-		//@TODO: Previously color recalc was here
+		layoutList[0]->recalculate();
 	}
 	else {
 		layoutList[0]->handleVerticalEncoder(offset);
-		//@TODO: Previously color recalc was here
 		if (isUIModeWithinRange(padActionUIModes)) {
 			evaluateActiveNotes();
 			updateActiveNotes();
@@ -438,7 +438,6 @@ ActionResult KeyboardScreen::horizontalEncoderAction(int offset) {
 
 	layoutList[0]->handleHorizontalEncoder(offset,
 	                                       (Buttons::isShiftButtonPressed() && isUIModeWithinRange(padActionUIModes)));
-	//@TODO: Previously color recalc was here
 
 	if (isUIModeWithinRange(padActionUIModes)) {
 		evaluateActiveNotes();
@@ -454,7 +453,8 @@ void KeyboardScreen::selectEncoderAction(int8_t offset) {
 	//@TODO: Add code to cycle through scales if scale button is pressed and make sure it is not evaluated as scale mode set
 
 	InstrumentClipMinder::selectEncoderAction(offset);
-	instrumentClipView.recalculateColours();
+	// instrumentClipView.recalculateColours(); // @Check if it still works properly
+	layoutList[0]->recalculate(); // Recalculate because changing instruments can change pad colors
 	requestRendering();
 }
 
@@ -483,7 +483,7 @@ void KeyboardScreen::focusRegained() {
 
 void KeyboardScreen::openedInBackground() {
 	getCurrentClip()->onKeyboardScreen = true;
-	//@TODO: Previously color recalc was here
+	layoutList[0]->recalculate();
 	requestRendering(); // This one originally also included sidebar, the other ones didn't
 }
 
@@ -521,9 +521,7 @@ void KeyboardScreen::flashDefaultRootNote() {
 }
 
 void KeyboardScreen::enterScaleMode(int selectedRootNote) {
-
-	int newScroll = instrumentClipView.setupForEnteringScaleMode(selectedRootNote);
-	getCurrentClip()->yScroll = newScroll;
+	getCurrentClip()->yScroll = instrumentClipView.setupForEnteringScaleMode(selectedRootNote);
 
 	displayCurrentScaleName();
 
@@ -535,9 +533,7 @@ void KeyboardScreen::enterScaleMode(int selectedRootNote) {
 }
 
 void KeyboardScreen::exitScaleMode() {
-
-	int scrollAdjust = instrumentClipView.setupForExitingScaleMode();
-	getCurrentClip()->yScroll += scrollAdjust;
+	getCurrentClip()->yScroll += instrumentClipView.setupForExitingScaleMode();
 
 	evaluateActiveNotes();
 	updateActiveNotes();

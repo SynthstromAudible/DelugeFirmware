@@ -534,7 +534,7 @@ swing::Interval swingIntervalMenu{HAVE_OLED ? "Swing interval" : "SWIN"};
 
 // Pads menu
 shortcuts::Version shortcutsVersionMenu{HAVE_OLED ? "Shortcuts version" : "SHOR"};
-keyboard::Layout keyboardLayoutMenu{HAVE_OLED ? "Keyboard for text" : "KEYB"};
+menu_item::keyboard::Layout keyboardLayoutMenu{HAVE_OLED ? "Keyboard for text" : "KEYB"};
 
 // Colours submenu
 MenuItem* coloursMenuItems[] = {&activeColourMenu, &stoppedColourMenu, &mutedColourMenu, &soloColourMenu, NULL};

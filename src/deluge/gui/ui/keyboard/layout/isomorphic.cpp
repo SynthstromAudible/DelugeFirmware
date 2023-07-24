@@ -21,18 +21,7 @@
 #include "definitions.h"
 #include "util/functions.h"
 
-#include "model/instrument/instrument.h"
-#include "model/clip/instrument_clip.h"
-
 namespace keyboard::layout {
-
-// Refactor remove area
-
-inline InstrumentClip* getCurrentClip() {
-	return (InstrumentClip*)currentSong->currentClip;
-}
-
-//-----------------------
 
 KeyboardLayoutIsomorphic::KeyboardLayoutIsomorphic() : KeyboardLayout() {
 }
@@ -45,124 +34,99 @@ void KeyboardLayoutIsomorphic::evaluatePads(PressedPad presses[MAX_NUM_KEYBOARD_
 	for (int idxPress = 0; idxPress < MAX_NUM_KEYBOARD_PAD_PRESSES; ++idxPress) {
 		if (presses[idxPress].active) {
 			currentNotesState.enableNote(noteFromCoords(presses[idxPress].x, presses[idxPress].y),
-			                             getActiveInstrument()->defaultVelocity);
+			                             getDefaultVelocity());
 		}
 	}
 }
 
 void KeyboardLayoutIsomorphic::handleVerticalEncoder(int offset) {
-	offset = offset * getCurrentClip()->keyboardRowInterval;
-
-	int newYNote;
-	if (offset >= 0) {
-		newYNote = getCurrentClip()->yScrollKeyboardScreen
-		           + (kDisplayHeight - 1) * getCurrentClip()->keyboardRowInterval + kDisplayWidth - 1;
-	}
-	else {
-		newYNote = getCurrentClip()->yScrollKeyboardScreen;
-	}
-
-	//@TODO: replicate this check
-	// if (!force && !getCurrentClip()->isScrollWithinRange(offset, newYNote + offset)) {
-	// 	return; // Nothing is updated if we are at ehe end of the displayable range
-	// }
-
-	getCurrentClip()->yScrollKeyboardScreen += offset; //@TODO: Move yScrollKeyboardScreen into the layouts
+	handleHorizontalEncoder(offset * getState()->rowInterval, false);
 }
 
 void KeyboardLayoutIsomorphic::handleHorizontalEncoder(int offset, bool shiftEnabled) {
 	if (shiftEnabled) {
-		InstrumentClip* clip = getCurrentClip();
-		clip->keyboardRowInterval += offset;
-		if (clip->keyboardRowInterval < 1) {
-			clip->keyboardRowInterval = 1;
+		getState()->rowInterval += offset;
+		if (getState()->rowInterval < 1) {
+			getState()->rowInterval = 1;
 		}
-		else if (clip->keyboardRowInterval > kMaxKeyboardRowInterval) {
-			clip->keyboardRowInterval = kMaxKeyboardRowInterval;
+		else if (getState()->rowInterval > kMaxKeyboardRowInterval) {
+			getState()->rowInterval = kMaxKeyboardRowInterval;
 		}
 
 		char buffer[13] = "row step:   ";
-		intToString(clip->keyboardRowInterval, buffer + (HAVE_OLED ? 10 : 0), 1);
+		intToString(getState()->rowInterval, buffer + (HAVE_OLED ? 10 : 0), 1);
 		numericDriver.displayPopup(buffer);
-		return;
+
+		offset = 0; // Reset offset variable for processing scroll calculation without actually shifting
 	}
 
-	int newYNote;
-	if (offset >= 0) {
-		newYNote = getCurrentClip()->yScrollKeyboardScreen
-		           + (kDisplayHeight - 1) * getCurrentClip()->keyboardRowInterval + kDisplayWidth - 1;
-	}
-	else {
-		newYNote = getCurrentClip()->yScrollKeyboardScreen;
+	volatile int test = getHighestClipNote();
+
+	// Calculate highest possible displayable note with current rowInterval
+	int highestScrolledNote =
+	    (getHighestClipNote() - ((kDisplayHeight - 1) * getState()->rowInterval + (kDisplayWidth - 1)));
+
+	// Make sure current value is in bounds
+	getState()->scrollOffset = getMax(getLowestClipNote(), getState()->scrollOffset);
+	getState()->scrollOffset = getMin(getState()->scrollOffset, highestScrolledNote);
+
+	// Offset if still in bounds (check for verticalEncoder)
+	int newOffset = getState()->scrollOffset + offset;
+	if (newOffset >= getLowestClipNote() && newOffset <= highestScrolledNote) {
+		getState()->scrollOffset = newOffset;
 	}
 
-	//@TODO: replicate this check
-	// if (!force && !getCurrentClip()->isScrollWithinRange(offset, newYNote + offset)) {
-	// 	return; // Nothing is updated if we are at ehe end of the displayable range
-	// }
-
-	getCurrentClip()->yScrollKeyboardScreen += offset; //@TODO: Move yScrollKeyboardScreen into the layouts
+	recalculate();
 }
 
-void KeyboardLayoutIsomorphic::renderPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]) { //@TODO: Refactor
-
-	// Calculate colors
-	// This should not be done every rendering cycle but currently only on opening the layout, change of color offset and scrolling
-	uint8_t noteColours[kDisplayHeight * kMaxKeyboardRowInterval + kDisplayWidth][3];
-	InstrumentClip* clip = getCurrentClip();
-	for (int i = 0; i < kDisplayHeight * clip->keyboardRowInterval + kDisplayWidth;
-	     i++) { // @TODO: find out how to do without dependency
-		clip->getMainColourFromY(clip->yScrollKeyboardScreen + i, 0, noteColours[i]);
+void KeyboardLayoutIsomorphic::recalculate() {
+	// Pre-Buffer colours for next renderings
+	for (int i = 0; i < kDisplayHeight * getState()->rowInterval + kDisplayWidth; ++i) {
+		getNoteColour(getState()->scrollOffset + i, noteColours[i]);
 	}
+}
 
-	// First, piece together a picture of all notes-within-an-octave which are active
-	bool notesWithinOctaveActive[12];
-	memset(notesWithinOctaveActive, 0, sizeof(notesWithinOctaveActive));
+void KeyboardLayoutIsomorphic::renderPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]) {
+	// Precreate list of all active notes per octave
+	bool octaveActiveNotes[12] = {0};
 	for (uint8_t idx = 0; idx < currentNotesState.count; ++idx) {
-		int noteWithinOctave = (currentNotesState.notes[idx].note - getRootNote() + 120) % 12;
-		notesWithinOctaveActive[noteWithinOctave] = true;
+		octaveActiveNotes[(currentNotesState.notes[idx].note - getRootNote() + 132) % 12] = true;
 	}
 
-	uint8_t noteColour[] = {127, 127, 127};
+	// Precreate list of all scale notes per octave
+	bool octaveScaleNotes[12] = {0};
+	if (getScaleModeEnabled()) {
+		uint8_t* scaleNotes = getScaleNotes();
+		for (uint8_t idx = 0; idx < getScaleNoteCount(); ++idx) {
+			octaveScaleNotes[scaleNotes[idx]] = true;
+		}
+	}
 
-	for (int y = 0; y < kDisplayHeight; y++) {
+	// Iterate over grid image
+	for (int y = 0; y < kDisplayHeight; ++y) {
 		int noteCode = noteFromCoords(0, y);
-		int yDisplay = noteCode - ((InstrumentClip*)currentSong->currentClip)->yScrollKeyboardScreen;
-		int noteWithinOctave = (uint16_t)(noteCode - currentSong->rootNote + 120) % (uint8_t)12;
+		int yDisplay = noteCode - getState()->scrollOffset;
+		int noteWithinOctave = (uint16_t)(noteCode - getRootNote() + 132) % (uint8_t)12;
 
 		for (int x = 0; x < kDisplayWidth; x++) {
-
-			// If auditioning note with finger - or same note in different octave...
-			if (notesWithinOctaveActive[noteWithinOctave]) {
-doFullColour:
+			// Full color for every octaves root and active notes
+			if (octaveActiveNotes[noteWithinOctave] || noteWithinOctave == 0) {
 				memcpy(image[y][x], noteColours[yDisplay], 3);
 			}
-			// Show root note within each octave as full colour
-			else if (!noteWithinOctave) {
-				goto doFullColour;
-
-				// Or, if this note is just within the current scale, show it dim
-			}
-			else {
-				if (((InstrumentClip*)currentSong->currentClip)->inScaleMode
-				    && currentSong->modeContainsYNote(noteCode)) {
-					getTailColour(image[y][x], noteColours[yDisplay]);
-				}
+			// Or, if this note is just within the current scale, show it dim
+			else if (octaveScaleNotes[noteWithinOctave]) {
+				getTailColour(image[y][x], noteColours[yDisplay]);
 			}
 
-			noteCode++;
-			yDisplay++;
-			noteWithinOctave++;
-			if (noteWithinOctave == 12) {
-				noteWithinOctave = 0;
-			}
+			++noteCode;
+			++yDisplay;
+			noteWithinOctave = (noteWithinOctave + 1) % 12;
 		}
 	}
 }
 
 uint8_t KeyboardLayoutIsomorphic::noteFromCoords(int x, int y) {
-	InstrumentClip* clip = (InstrumentClip*)currentSong->currentClip;
-	return clip->yScrollKeyboardScreen + x + y * clip->keyboardRowInterval;
+	return getState()->scrollOffset + x + y * getState()->rowInterval;
 }
 
 } // namespace keyboard::layout

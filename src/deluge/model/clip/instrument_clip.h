@@ -23,6 +23,7 @@
 #include "modulation/arpeggiator.h"
 #include "model/note/note_row_vector.h"
 #include "util/d_string.h"
+#include "gui/ui/keyboard/state_data.h"
 
 class Song;
 
@@ -112,8 +113,8 @@ public:
 	bool inScaleMode; // Probably don't quiz this directly - call isScaleModeClip() instead
 
 	int yScroll;
-	int yScrollKeyboardScreen;
-	int keyboardRowInterval;
+
+	keyboard::KeyboardStateData keyboardState;
 
 	int32_t ticksTilNextNoteRowEvent;
 	int32_t noteRowsNumTicksBehindClip;

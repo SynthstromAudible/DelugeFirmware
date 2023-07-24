@@ -17,9 +17,10 @@
 
 #pragma once
 
+#include "gui/ui/keyboard/state_data.h"
 #include "model/song/song.h"
+#include "model/instrument/instrument.h"
 #include "model/clip/instrument_clip.h"
-
 #include "hid/button.h"
 #include <string.h>
 #include <array>
@@ -27,6 +28,10 @@
 #define INVALID_NOTE -1
 #define MAX_NUM_KEYBOARD_PAD_PRESSES 10
 #define MAX_NUM_ACTIVE_NOTES 10
+
+inline InstrumentClip* currentClip() {
+	return (InstrumentClip*)currentSong->currentClip;
+}
 
 namespace keyboard {
 
@@ -43,12 +48,14 @@ struct NoteState {
 	bool generatedNote = false;
 };
 
+constexpr uint8_t kLowestKeyboardNote = 0;
+constexpr uint8_t kHighestKeyboardNote = 127;
 struct NotesState {
 	uint64_t states[2] = {0};
 	NoteState notes[MAX_NUM_ACTIVE_NOTES] = {0};
 	uint8_t count = 0;
 
-	void enableNote(uint8_t note, uint8_t velocity) { //@TODO: Add MPE values
+	void enableNote(uint8_t note, uint8_t velocity) { //@TODO: Add MPE values and notes above 127
 		if (noteEnabled(note)) {
 			return;
 		}
@@ -71,9 +78,9 @@ public:
 
 	// Handle inputs
 	virtual void evaluatePads(PressedPad presses[MAX_NUM_KEYBOARD_PAD_PRESSES]) = 0;
-	virtual void handleVerticalEncoder(
-	    int offset) = 0; // returns weather the scroll had an effect // Shift state not supplied since that function is already taken
+	virtual void handleVerticalEncoder(int offset) = 0; // Shift state not supplied since that function is already taken
 	virtual void handleHorizontalEncoder(int offset, bool shiftEnabled) = 0; // returns weather the scroll had an effect
+	virtual void recalculate() = 0; // This function is called on visibility change and if color offset changes
 
 	// Handle output
 	virtual void renderPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]) {}
@@ -91,19 +98,21 @@ public:
 	virtual NotesState* getNotesState() { return &currentNotesState; }
 
 protected:
-	//@TODO:  scale(), saving, restoring
-	inline int getRootNote() { return currentSong->rootNote; }
+	inline int16_t getRootNote() { return currentSong->rootNote; }
+	inline bool getScaleModeEnabled() { return currentClip()->inScaleMode; }
+	inline uint8_t getScaleNoteCount() { return currentSong->numModeNotes; }
+	inline uint8_t* getScaleNotes() { return currentSong->modeNotes; }
+	inline uint8_t getDefaultVelocity() { return ((Instrument*)currentSong->currentClip->output)->defaultVelocity; }
 
-	int getLowestClipNote() {
-		//@TODO:
-		return 0;
+	inline int getLowestClipNote() { return kLowestKeyboardNote; }
+	inline int getHighestClipNote() {
+		//@TODO: Proper method
+		return kHighestKeyboardNote;
 	}
 
-	int getHighestClipNote() {
-		return 127; // @TODO:
-	}
+	inline void getNoteColour(uint8_t note, uint8_t rgb[]) { currentClip()->getMainColourFromY(note, 0, rgb); }
 
-	Instrument* getActiveInstrument() { return (Instrument*)currentSong->currentClip->output; }
+	inline KeyboardStateData* getState() { return &(currentClip()->keyboardState); }
 
 protected:
 	NotesState currentNotesState;

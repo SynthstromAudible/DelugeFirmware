@@ -31,23 +31,23 @@ namespace keyboard::layout {};
 		}
 		else {
 			//@TODO: Refactor doScroll
-			offset = offset * getCurrentClip()->keyboardRowInterval;
+			offset = offset * getCurrentClip()->keyboardState.rowInterval;
 
 			//@TODO: Refactor
 			// Check we're not scrolling out of range // @TODO: Move this check into layout
 			int newYNote;
 			if (offset >= 0) {
-				newYNote = getCurrentClip()->yScrollKeyboardScreen + (kDisplayHeight - 1) * getCurrentClip()->keyboardRowInterval + kDisplayWidth - 1;
+				newYNote = getCurrentClip()->keyboardState.scrollOffset + (kDisplayHeight - 1) * getCurrentClip()->keyboardState.rowInterval + kDisplayWidth - 1;
 			}
 			else {
-				newYNote = getCurrentClip()->yScrollKeyboardScreen;
+				newYNote = getCurrentClip()->keyboardState.scrollOffset;
 			}
 
 			if (!force && !getCurrentClip()->isScrollWithinRange(offset, newYNote + offset)) {
 				return; // Nothing is updated if we are at ehe end of the displayable range
 			}
 
-			getCurrentClip()->yScrollKeyboardScreen += offset; //@TODO: Move yScrollKeyboardScreen into the layouts
+			getCurrentClip()->keyboardState.scrollOffset += offset; //@TODO: Move keyboardState.scrollOffset into the layouts
 		}
 		*/
 //}
@@ -56,16 +56,16 @@ namespace keyboard::layout {};
 /*
 	if(shiftEnabled) {
 		InstrumentClip* clip = getCurrentClip();
-		clip->keyboardRowInterval += offset;
-		if (clip->keyboardRowInterval < 1) {
-			clip->keyboardRowInterval = 1;
+		clip->keyboardState.rowInterval += offset;
+		if (clip->keyboardState.rowInterval < 1) {
+			clip->keyboardState.rowInterval = 1;
 		}
-		else if (clip->keyboardRowInterval > kMaxKeyboardRowInterval) {
-			clip->keyboardRowInterval = kMaxKeyboardRowInterval;
+		else if (clip->keyboardState.rowInterval > kMaxKeyboardRowInterval) {
+			clip->keyboardState.rowInterval = kMaxKeyboardRowInterval;
 		}
 
 		char buffer[13] = "row step:   ";
-		intToString(clip->keyboardRowInterval, buffer + (HAVE_OLED ? 10 : 0), 1);
+		intToString(clip->keyboardState.rowInterval, buffer + (HAVE_OLED ? 10 : 0), 1);
 		numericDriver.displayPopup(buffer);
 		doScroll(0, true);
 		return;
@@ -79,16 +79,16 @@ namespace keyboard::layout {};
 		// Check we're not scrolling out of range // @TODO: Move this check into layout
 		int newYNote;
 		if (offset >= 0) {
-			newYNote = getCurrentClip()->yScrollKeyboardScreen + (kDisplayHeight - 1) * getCurrentClip()->keyboardRowInterval + kDisplayWidth - 1;
+			newYNote = getCurrentClip()->keyboardState.scrollOffset + (kDisplayHeight - 1) * getCurrentClip()->keyboardState.rowInterval + kDisplayWidth - 1;
 		}
 		else {
-			newYNote = getCurrentClip()->yScrollKeyboardScreen;
+			newYNote = getCurrentClip()->keyboardState.scrollOffset;
 		}
 		if (!force && !getCurrentClip()->isScrollWithinRange(offset, newYNote + offset)) {
 			return; // Nothing is updated if we are at ehe end of the displayable range
 		}
 
-		getCurrentClip()->yScrollKeyboardScreen += offset; //@TODO: Move yScrollKeyboardScreen into the layouts
+		getCurrentClip()->keyboardState.scrollOffset += offset; //@TODO: Move keyboardState.scrollOffset into the layouts
 	}
 	*/
 //}
@@ -98,15 +98,15 @@ namespace keyboard::layout {};
 // 	// Calculate colors
 // 	uint8_t noteColours[kDisplayHeight * kMaxKeyboardRowInterval + kDisplayWidth][3];
 // 	InstrumentClip* clip = getCurrentClip();
-// 	for (int i = 0; i < kDisplayHeight * clip->keyboardRowInterval + kDisplayWidth; i++) { // @TODO: find out how to do without dependency
-// 		clip->getMainColourFromY(clip->yScrollKeyboardScreen + i, 0, noteColours[i]);
+// 	for (int i = 0; i < kDisplayHeight * clip->keyboardState.rowInterval + kDisplayWidth; i++) { // @TODO: find out how to do without dependency
+// 		clip->getMainColourFromY(clip->keyboardState.scrollOffset + i, 0, noteColours[i]);
 // 	}
 
 // 	// First, piece together a picture of all notes-within-an-octave which are active
 // 	bool notesWithinOctaveActive[12];
 // 	memset(notesWithinOctaveActive, 0, sizeof(notesWithinOctaveActive));
 // 	for (uint8_t idx = 0; idx < currentNotesState.count; ++idx) {
-// 		int noteWithinOctave = (currentNotesState.notes[idx].note - getRootNote() + 120) % 12;
+// 		int noteWithinOctave = (currentNotesState.notes[idx].note - getRootNote() + 132) % 12;
 // 		notesWithinOctaveActive[noteWithinOctave] = true;
 // 	}
 
@@ -114,8 +114,8 @@ namespace keyboard::layout {};
 
 // 	for (int y = 0; y < kDisplayHeight; y++) {
 // 		int noteCode = noteFromCoords(0, y);
-// 		int yDisplay = noteCode - ((InstrumentClip*)currentSong->currentClip)->yScrollKeyboardScreen;
-// 		int noteWithinOctave = (uint16_t)(noteCode - currentSong->rootNote + 120) % (uint8_t)12;
+// 		int yDisplay = noteCode - ((InstrumentClip*)currentSong->currentClip)->keyboardState.scrollOffset;
+// 		int noteWithinOctave = (uint16_t)(noteCode - currentSong->rootNote + 132) % (uint8_t)12;
 
 // 		for (int x = 0; x < kDisplayWidth; x++) {
 

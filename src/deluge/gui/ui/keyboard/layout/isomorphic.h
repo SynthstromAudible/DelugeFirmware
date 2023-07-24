@@ -29,6 +29,7 @@ public:
 	virtual void evaluatePads(PressedPad presses[MAX_NUM_KEYBOARD_PAD_PRESSES]);
 	virtual void handleVerticalEncoder(int offset);
 	virtual void handleHorizontalEncoder(int offset, bool shiftEnabled);
+	virtual void recalculate();
 
 	virtual void renderPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]);
 
@@ -37,6 +38,7 @@ public:
 
 private:
 	uint8_t noteFromCoords(int x, int y);
+	uint8_t noteColours[kDisplayHeight * kMaxKeyboardRowInterval + kDisplayWidth][3];
 };
 
 }; // namespace keyboard::layout

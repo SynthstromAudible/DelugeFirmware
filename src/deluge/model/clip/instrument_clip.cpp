@@ -79,8 +79,6 @@ InstrumentClip::InstrumentClip(Song* song) : Clip(CLIP_TYPE_INSTRUMENT) {
 	midiSub = 128;  // Means none
 	midiPGM = 128;  // Means none
 
-	keyboardRowInterval = 5;
-
 	currentlyRecordingLinearly = false;
 
 	if (song) {
@@ -111,7 +109,6 @@ InstrumentClip::InstrumentClip(Song* song) : Clip(CLIP_TYPE_INSTRUMENT) {
 		yScroll =
 		    0; // Only for safety. Shouldn't actually get here if we're not going to overwrite this elsewhere I think...
 	}
-	yScrollKeyboardScreen = 60 - (kDisplayHeight >> 2) * keyboardRowInterval;
 
 	instrumentTypeWhileLoading = InstrumentType::SYNTH; // NOTE: (Kate) was 0, should probably be NONE
 }
@@ -146,7 +143,7 @@ void InstrumentClip::copyBasicsFrom(Clip* otherClip) {
 	wrapEditing = otherInstrumentClip->wrapEditing;
 	wrapEditLevel = otherInstrumentClip->wrapEditLevel;
 	yScroll = otherInstrumentClip->yScroll;
-	yScrollKeyboardScreen = otherInstrumentClip->yScrollKeyboardScreen;
+	keyboardState = otherInstrumentClip->keyboardState;
 	sequenceDirectionMode = otherInstrumentClip->sequenceDirectionMode;
 
 	affectEntire = otherInstrumentClip->affectEntire;
@@ -1298,9 +1295,9 @@ bool InstrumentClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack
 
 	// Special case if we're a simple keyboard-mode Clip
 	if (onKeyboardScreen && !containsAnyNotes()) {
-		int increment = (kDisplayWidth + (kDisplayHeight * keyboardRowInterval)) / kDisplayWidth;
+		int increment = (kDisplayWidth + (kDisplayHeight * keyboardState.rowInterval)) / kDisplayWidth;
 		for (int x = xStart; x < xEnd; x++) {
-			getMainColourFromY(yScrollKeyboardScreen + x * increment, 0, &image[x * 3]);
+			getMainColourFromY(keyboardState.scrollOffset + x * increment, 0, &image[x * 3]);
 		}
 		return true;
 	}
@@ -2163,8 +2160,8 @@ void InstrumentClip::writeDataToFile(Song* song) {
 
 	storageManager.writeAttribute("inKeyMode", inScaleMode);
 	storageManager.writeAttribute("yScroll", yScroll);
-	storageManager.writeAttribute("yScrollKeyboard", yScrollKeyboardScreen);
-	storageManager.writeAttribute("keyboardRowInterval", keyboardRowInterval);
+	storageManager.writeAttribute("yScrollKeyboard", keyboardState.scrollOffset);
+	storageManager.writeAttribute("keyboardRowInterval", keyboardState.rowInterval);
 	if (onKeyboardScreen) {
 		storageManager.writeAttribute("onKeyboardScreen", (char*)"1");
 	}
@@ -2374,11 +2371,11 @@ someError:
 		}
 
 		else if (!strcmp(tagName, "yScrollKeyboard")) {
-			yScrollKeyboardScreen = storageManager.readTagOrAttributeValueInt();
+			keyboardState.scrollOffset = storageManager.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "keyboardRowInterval")) {
-			keyboardRowInterval = storageManager.readTagOrAttributeValueInt();
+			keyboardState.rowInterval = storageManager.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "crossScreenEditLevel")) {

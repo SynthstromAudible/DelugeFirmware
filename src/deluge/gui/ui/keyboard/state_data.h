@@ -14,3 +14,18 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
 */
+
+#pragma once
+#include "definitions_cxx.hpp"
+
+namespace keyboard {
+
+constexpr int kDefaultRowInterval = 5;
+
+// Please note that saving and restoring currently needs to be added manually in instrument_clip.cpp and all layouts share one struct for storage
+struct KeyboardStateData {
+	int scrollOffset = (60 - (kDisplayHeight >> 2) * kDefaultRowInterval);
+	int rowInterval = kDefaultRowInterval;
+};
+
+}; // namespace keyboard
