@@ -149,6 +149,7 @@
 #include "gui/menu_item/trigger/out/ppqn.h"
 #include "gui/menu_item/unison/count.h"
 #include "gui/menu_item/unison/detune.h"
+#include "gui/menu_item/unison/stereoSpread.h"
 #include "gui/menu_item/unpatched_param/pan.h"
 #include "gui/menu_item/unpatched_param/updating_reverb_params.h"
 #include "gui/menu_item/unpatched_param.h"
@@ -292,8 +293,9 @@ submenu::ActualSource source1Menu{HAVE_OLED ? "Oscillator 2" : "OSC2", oscMenuIt
 
 unison::Count numUnisonMenu{HAVE_OLED ? "Unison number" : "NUM"};
 unison::Detune unisonDetuneMenu{HAVE_OLED ? "Unison detune" : "DETUNE"};
+unison::StereoSpread unisonStereoSpreadMenu{HAVE_OLED ? "Unison stereo spread" : "SPREAD"};
 
-MenuItem* unisonMenuItems[] = {&numUnisonMenu, &unisonDetuneMenu, NULL};
+MenuItem* unisonMenuItems[] = {&numUnisonMenu, &unisonDetuneMenu, &unisonStereoSpreadMenu, NULL};
 
 // Arp --------------------------------------------------------------------------------------
 arpeggiator::Mode arpModeMenu{"MODE"};
