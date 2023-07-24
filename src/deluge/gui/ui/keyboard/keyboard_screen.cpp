@@ -493,20 +493,42 @@ ActionResult KeyboardScreen::horizontalEncoderAction(int offset) {
 
 void KeyboardScreen::selectLayout(int8_t offset) {
 	KeyboardLayoutType lastLayout = getCurrentClip()->keyboardState.currentLayout;
-	//@TODO: Add logic to only scroll through supported layouts for a clip
 
 	int32_t nextLayout = getCurrentClip()->keyboardState.currentLayout + offset;
-	if (nextLayout < 0) {
-		nextLayout = KeyboardLayoutType::MaxElement - 1;
+
+	uint32_t searchCount = 0;
+	while (searchCount < KeyboardLayoutType::MaxElement) {
+		if (nextLayout < 0) {
+			nextLayout = KeyboardLayoutType::MaxElement - 1;
+		}
+		if (nextLayout >= KeyboardLayoutType::MaxElement) {
+			nextLayout = 0;
+		}
+
+		if (currentSong->currentClip->output->type == InstrumentType::KIT && layoutList[nextLayout]->supportsKit()) {
+			break;
+		}
+		else if (currentSong->currentClip->output->type != InstrumentType::KIT
+		         && layoutList[nextLayout]->supportsInstrument()) {
+			break;
+		}
+
+		++nextLayout;
+		++searchCount;
 	}
-	if (nextLayout >= KeyboardLayoutType::MaxElement) {
+
+	if (searchCount >= KeyboardLayoutType::MaxElement) {
 		nextLayout = 0;
 	}
-	getCurrentClip()->keyboardState.currentLayout = (KeyboardLayoutType)nextLayout;
 
+	getCurrentClip()->keyboardState.currentLayout = (KeyboardLayoutType)nextLayout;
 	if (getCurrentClip()->keyboardState.currentLayout != lastLayout) {
 		numericDriver.displayPopup(layoutList[getCurrentClip()->keyboardState.currentLayout]->name());
 	}
+
+	// Recalculate because changing instruments can change pad colors
+	layoutList[getCurrentClip()->keyboardState.currentLayout]->recalculate();
+	requestRendering();
 }
 
 void KeyboardScreen::selectEncoderAction(int8_t offset) {
@@ -516,12 +538,11 @@ void KeyboardScreen::selectEncoderAction(int8_t offset) {
 	}
 	else {
 		InstrumentClipMinder::selectEncoderAction(offset);
+		layoutList[getCurrentClip()->keyboardState.currentLayout]->recalculate();
+		requestRendering();
 	}
 
-	// instrumentClipView.recalculateColours(); // @Check if it still works properly
-	layoutList[getCurrentClip()->keyboardState.currentLayout]
-	    ->recalculate(); // Recalculate because changing instruments can change pad colors
-	requestRendering();
+	// instrumentClipView.recalculateColours(); //@TODO: Check if it still works properly
 }
 
 void KeyboardScreen::exitAuditionMode() {
