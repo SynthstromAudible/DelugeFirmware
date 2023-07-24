@@ -53,8 +53,8 @@
 #include "gui/ui_timer_manager.h"
 
 extern "C" {
-#include "ff.h"
-#include "diskio.h"
+#include "fatfs/ff.h"
+#include "fatfs/diskio.h"
 #include "RZA1/uart/sio_char.h"
 #include "RZA1/oled/oled_low_level.h"
 

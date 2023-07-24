@@ -39,7 +39,7 @@
 #endif
 
 extern "C" {
-#include "ff.h"
+#include "fatfs/ff.h"
 }
 
 using namespace deluge;

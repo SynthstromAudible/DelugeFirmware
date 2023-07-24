@@ -22,7 +22,7 @@
 #include "RZA1/system/iobitmasks/gpio_iobitmask.h"
 #include "RZA1/system/iodefine.h"
 #include "deluge/drivers/mtu/mtu.h"
-#include "diskio.h"
+#include "fatfs/diskio.h"
 #include "definitions.h"
 #include "RZA1/uart/sio_char.h"
 #include "deluge/deluge.h"

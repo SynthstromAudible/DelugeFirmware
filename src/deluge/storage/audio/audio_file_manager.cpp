@@ -39,7 +39,7 @@
 #include "util/misc.h"
 
 extern "C" {
-#include "ff.h"
+#include "fatfs/ff.h"
 #include "diskio.h"
 
 DWORD get_fat_from_fs(                      /* 0xFFFFFFFF:Disk error, 1:Internal error, 2..0x7FFFFFFF:Cluster status */
