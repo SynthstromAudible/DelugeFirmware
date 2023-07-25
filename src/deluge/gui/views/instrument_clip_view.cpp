@@ -590,6 +590,9 @@ doOther:
 
 				recalculateColours();
 				uiNeedsRendering(this);
+
+				// Show popup to make it clear what just happened
+				numericDriver.displayPopup(HAVE_OLED ? "Deleted unused rows" : "DELETED");
 			}
 		}
 	}
