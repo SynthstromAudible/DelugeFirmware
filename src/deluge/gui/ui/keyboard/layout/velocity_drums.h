@@ -21,15 +21,18 @@
 
 namespace keyboard::layout {
 
+constexpr int kMinDrumPadEdgeSize = 1;
+constexpr int kMaxDrumPadEdgeSize = 8;
+
 class KeyboardLayoutVelocityDrums : KeyboardLayout {
 public:
 	KeyboardLayoutVelocityDrums() {}
 	virtual ~KeyboardLayoutVelocityDrums() {}
 
-	virtual void evaluatePads(PressedPad presses[MAX_NUM_KEYBOARD_PAD_PRESSES]);
+	virtual void evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]);
 	virtual void handleVerticalEncoder(int offset);
 	virtual void handleHorizontalEncoder(int offset, bool shiftEnabled);
-	virtual void recalculate();
+	virtual void precalculate();
 
 	virtual void renderPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]);
 
@@ -38,8 +41,25 @@ public:
 	virtual bool supportsKit() { return true; }
 
 private:
-	uint8_t noteFromCoords(int x, int y);
-	uint8_t noteColours[kDisplayHeight * kMaxKeyboardRowInterval + kDisplayWidth][3];
+	inline uint8_t noteFromCoords(int x, int y) {
+		uint8_t edgeSize = (uint32_t)getState()->drums.edgeSize;
+		uint8_t padsPerRow = kDisplayWidth / edgeSize;
+		return (x / edgeSize) + ((y / edgeSize) * padsPerRow) + getState()->drums.scrollOffset;
+	}
+
+	inline uint8_t intensityFromCoords(int x, int y) {
+		uint8_t edgeSize = getState()->drums.edgeSize;
+		uint8_t localX = (x % edgeSize);
+		uint8_t localY = (y % edgeSize);
+		uint8_t position = localX + (localY * edgeSize) + 1;
+
+		// We use 0xFFFF to increase accuracy and shift it down later
+		uint32_t stepSize = 0xFFFF / (edgeSize * edgeSize);
+
+		return (position * stepSize) >> 8;
+	}
+
+	uint8_t noteColours[kDisplayHeight * kMaxDrumPadEdgeSize + kDisplayWidth][3];
 };
 
 }; // namespace keyboard::layout

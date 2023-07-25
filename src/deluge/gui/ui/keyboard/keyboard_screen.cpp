@@ -95,7 +95,7 @@ ActionResult KeyboardScreen::padAction(int x, int y, int velocity) {
 	// Pad pressed down, add to list if not full
 	if (velocity) {
 		int freeSlotIdx = -1;
-		for (int idx = 0; idx < MAX_NUM_KEYBOARD_PAD_PRESSES; ++idx) {
+		for (int idx = 0; idx < kMaxNumKeyboardPadPresses; ++idx) {
 			// Free slot found
 			if (!pressedPads[idx].active) {
 				freeSlotIdx = idx;
@@ -119,7 +119,7 @@ ActionResult KeyboardScreen::padAction(int x, int y, int velocity) {
 
 	// Pad released, remove from list
 	else {
-		for (int idx = 0; idx < MAX_NUM_KEYBOARD_PAD_PRESSES; ++idx) {
+		for (int idx = 0; idx < kMaxNumKeyboardPadPresses; ++idx) {
 			// Pad was already active
 			if (pressedPads[idx].active && pressedPads[idx].x == x && pressedPads[idx].y == y) {
 				pressedPads[idx].active = false;
@@ -137,7 +137,7 @@ ActionResult KeyboardScreen::padAction(int x, int y, int velocity) {
 		}
 
 		// We probably couldn't have got this far if it was a Kit, but let's just check
-		if (currentSong->currentClip->output->type != InstrumentType::KIT && lastNotesState.count == 0
+		if (getActiveInstrument()->type != InstrumentType::KIT && lastNotesState.count == 0
 		    && currentNotesState.count == 1) {
 			exitScaleModeOnButtonRelease = false;
 			if (getCurrentClip()->inScaleMode) {
@@ -201,9 +201,7 @@ void KeyboardScreen::updateActiveNotes() {
 
 		// Actually sounding the note
 		if (activeInstrument->type == InstrumentType::KIT) {
-			instrumentClipView.auditionPadAction(
-			    currentNotesState.notes[idx].velocity, newNote,
-			    false); // @TODO: Expects values starting from 0 for the lowest yScroll row currently in clip view
+			unscrolledPadAudition(currentNotesState.notes[idx].velocity, newNote, false);
 		}
 		else {
 			((MelodicInstrument*)activeInstrument)
@@ -273,9 +271,7 @@ void KeyboardScreen::updateActiveNotes() {
 		}
 
 		if (activeInstrument->type == InstrumentType::KIT) {
-			instrumentClipView.auditionPadAction(
-			    0, oldNote,
-			    false); // @TODO: Expects values starting from 0 for the lowest yScroll row currently in clip view
+			unscrolledPadAudition(0, oldNote, false);
 		}
 		else {
 			((MelodicInstrument*)activeInstrument)->endAuditioningForNote(modelStack, oldNote);
@@ -314,7 +310,7 @@ ActionResult KeyboardScreen::buttonAction(hid::Button b, bool on, bool inCardRou
 
 	// Scale mode button
 	if (b == SCALE_MODE) {
-		if (currentSong->currentClip->output->type == InstrumentType::KIT) {
+		if (getActiveInstrument()->type == InstrumentType::KIT) {
 			return ActionResult::DEALT_WITH; // Kits can't do scales!
 		}
 
@@ -372,6 +368,7 @@ ActionResult KeyboardScreen::buttonAction(hid::Button b, bool on, bool inCardRou
 		keyboardButtonActive = on;
 		if (currentUIMode == UI_MODE_NONE && !keyboardButtonActive
 		    && !keyboardButtonUsed) { // Leave if key up and not used
+			instrumentClipView.recalculateColours();
 			changeRootUI(&instrumentClipView);
 			keyboardButtonUsed = false;
 		}
@@ -463,7 +460,7 @@ ActionResult KeyboardScreen::verticalEncoderAction(int offset, bool inCardRoutin
 
 	if (Buttons::isShiftButtonPressed() && currentUIMode == UI_MODE_NONE) {
 		getCurrentClip()->colourOffset += offset;
-		layoutList[getCurrentClip()->keyboardState.currentLayout]->recalculate();
+		layoutList[getCurrentClip()->keyboardState.currentLayout]->precalculate();
 	}
 	else {
 		layoutList[getCurrentClip()->keyboardState.currentLayout]->handleVerticalEncoder(offset);
@@ -505,11 +502,10 @@ void KeyboardScreen::selectLayout(int8_t offset) {
 			nextLayout = 0;
 		}
 
-		if (currentSong->currentClip->output->type == InstrumentType::KIT && layoutList[nextLayout]->supportsKit()) {
+		if (getActiveInstrument()->type == InstrumentType::KIT && layoutList[nextLayout]->supportsKit()) {
 			break;
 		}
-		else if (currentSong->currentClip->output->type != InstrumentType::KIT
-		         && layoutList[nextLayout]->supportsInstrument()) {
+		else if (getActiveInstrument()->type != InstrumentType::KIT && layoutList[nextLayout]->supportsInstrument()) {
 			break;
 		}
 
@@ -526,8 +522,8 @@ void KeyboardScreen::selectLayout(int8_t offset) {
 		numericDriver.displayPopup(layoutList[getCurrentClip()->keyboardState.currentLayout]->name());
 	}
 
-	// Recalculate because changing instruments can change pad colors
-	layoutList[getCurrentClip()->keyboardState.currentLayout]->recalculate();
+	// Precalculate because changing instruments can change pad colors
+	layoutList[getCurrentClip()->keyboardState.currentLayout]->precalculate();
 	requestRendering();
 }
 
@@ -538,11 +534,9 @@ void KeyboardScreen::selectEncoderAction(int8_t offset) {
 	}
 	else {
 		InstrumentClipMinder::selectEncoderAction(offset);
-		layoutList[getCurrentClip()->keyboardState.currentLayout]->recalculate();
+		layoutList[getCurrentClip()->keyboardState.currentLayout]->precalculate();
 		requestRendering();
 	}
-
-	// instrumentClipView.recalculateColours(); //@TODO: Check if it still works properly
 }
 
 void KeyboardScreen::exitAuditionMode() {
@@ -572,7 +566,7 @@ void KeyboardScreen::focusRegained() {
 void KeyboardScreen::openedInBackground() {
 	getCurrentClip()->onKeyboardScreen = true;
 	selectLayout(0); // Make sure we get a valid layout from the loaded file
-	layoutList[getCurrentClip()->keyboardState.currentLayout]->recalculate();
+	layoutList[getCurrentClip()->keyboardState.currentLayout]->precalculate();
 	requestRendering(); // This one originally also included sidebar, the other ones didn't
 }
 
@@ -642,13 +636,24 @@ void KeyboardScreen::drawNoteCode(int noteCode) {
 		return;
 	}
 
-	if (currentSong->currentClip->output->type != InstrumentType::KIT) {
+	if (getActiveInstrument()->type != InstrumentType::KIT) {
 		drawActualNoteCode(noteCode);
 	}
 }
 
 bool KeyboardScreen::getAffectEntire() {
 	return getCurrentClip()->affectEntire;
+}
+
+void KeyboardScreen::unscrolledPadAudition(int velocity, int note, bool shiftButtonDown) {
+	// Ideally evaluateActiveNotes and InstrumentClipView::auditionPadAction should be harmonized
+	// (even in the original keyboard_screen most of the non kit sounding was a copy from auditionPadAction)
+	// but this refactor needs to wait for another day.
+	// Until then we set the scroll to 0 during the auditioning
+	int yScrollBackup = getCurrentClip()->yScroll;
+	getCurrentClip()->yScroll = 0;
+	instrumentClipView.auditionPadAction(velocity, note, shiftButtonDown);
+	getCurrentClip()->yScroll = yScrollBackup;
 }
 
 uint8_t keyboardTickSquares[kDisplayHeight] = {255, 255, 255, 255, 255, 255, 255, 255};

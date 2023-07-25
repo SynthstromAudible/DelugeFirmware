@@ -675,8 +675,6 @@ enum class ArpMode {
 };
 constexpr auto kNumArpModes = util::to_underlying(ArpMode::RANDOM) + 1;
 
-constexpr int kMaxKeyboardRowInterval = 16;
-
 enum class ModFXParam {
 	DEPTH,
 	FEEDBACK,

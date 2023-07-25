@@ -26,12 +26,12 @@
 
 namespace keyboard::layout {
 
-void KeyboardLayoutIsomorphic::evaluatePads(PressedPad presses[MAX_NUM_KEYBOARD_PAD_PRESSES]) {
+void KeyboardLayoutIsomorphic::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) {
 	uint8_t noteIdx = 0;
 
 	currentNotesState = NotesState{}; // Erase active notes
 
-	for (int idxPress = 0; idxPress < MAX_NUM_KEYBOARD_PAD_PRESSES; ++idxPress) {
+	for (int idxPress = 0; idxPress < kMaxNumKeyboardPadPresses; ++idxPress) {
 		if (presses[idxPress].active) {
 			currentNotesState.enableNote(noteFromCoords(presses[idxPress].x, presses[idxPress].y),
 			                             getDefaultVelocity());
@@ -46,21 +46,15 @@ void KeyboardLayoutIsomorphic::handleVerticalEncoder(int offset) {
 void KeyboardLayoutIsomorphic::handleHorizontalEncoder(int offset, bool shiftEnabled) {
 	if (shiftEnabled) {
 		getState()->isomorphic.rowInterval += offset;
-		if (getState()->isomorphic.rowInterval < 1) {
-			getState()->isomorphic.rowInterval = 1;
-		}
-		else if (getState()->isomorphic.rowInterval > kMaxKeyboardRowInterval) {
-			getState()->isomorphic.rowInterval = kMaxKeyboardRowInterval;
-		}
+		getState()->isomorphic.rowInterval = getMax(getState()->isomorphic.rowInterval, kMinKeyboardRowInterval);
+		getState()->isomorphic.rowInterval = getMin(kMaxKeyboardRowInterval, getState()->isomorphic.rowInterval);
 
-		char buffer[13] = "row step:   ";
+		char buffer[13] = "Row step:   ";
 		intToString(getState()->isomorphic.rowInterval, buffer + (HAVE_OLED ? 10 : 0), 1);
 		numericDriver.displayPopup(buffer);
 
 		offset = 0; // Reset offset variable for processing scroll calculation without actually shifting
 	}
-
-	volatile int test = getHighestClipNote();
 
 	// Calculate highest possible displayable note with current rowInterval
 	int highestScrolledNote =
@@ -76,10 +70,10 @@ void KeyboardLayoutIsomorphic::handleHorizontalEncoder(int offset, bool shiftEna
 		getState()->isomorphic.scrollOffset = newOffset;
 	}
 
-	recalculate();
+	precalculate();
 }
 
-void KeyboardLayoutIsomorphic::recalculate() {
+void KeyboardLayoutIsomorphic::precalculate() {
 	// Pre-Buffer colours for next renderings
 	for (int i = 0; i < kDisplayHeight * getState()->isomorphic.rowInterval + kDisplayWidth; ++i) {
 		getNoteColour(getState()->isomorphic.scrollOffset + i, noteColours[i]);
@@ -135,10 +129,6 @@ void KeyboardLayoutIsomorphic::renderPads(uint8_t image[][kDisplayWidth + kSideB
 			noteWithinOctave = (noteWithinOctave + 1) % 12;
 		}
 	}
-}
-
-uint8_t KeyboardLayoutIsomorphic::noteFromCoords(int x, int y) {
-	return getState()->isomorphic.scrollOffset + x + y * getState()->isomorphic.rowInterval;
 }
 
 } // namespace keyboard::layout

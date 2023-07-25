@@ -28,7 +28,7 @@ class ModelStack;
 
 namespace keyboard {
 
-#define MAX_NUM_KEYBOARD_PAD_PRESSES 10
+#define kMaxNumKeyboardPadPresses 10
 
 class KeyboardScreen final : public RootUI, public InstrumentClipMinder {
 public:
@@ -61,6 +61,8 @@ private:
 	void graphicsRoutine();
 	bool getAffectEntire();
 
+	void unscrolledPadAudition(int velocity, int note, bool shiftButtonDown);
+
 #if HAVE_OLED
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 		InstrumentClipMinder::renderOLED(image);
@@ -77,7 +79,7 @@ private:
 		uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 	}
 
-	PressedPad pressedPads[MAX_NUM_KEYBOARD_PAD_PRESSES];
+	PressedPad pressedPads[kMaxNumKeyboardPadPresses];
 	NotesState lastNotesState;
 	NotesState currentNotesState;
 

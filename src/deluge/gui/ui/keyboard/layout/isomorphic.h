@@ -21,15 +21,18 @@
 
 namespace keyboard::layout {
 
+constexpr int kMinKeyboardRowInterval = 1;
+constexpr int kMaxKeyboardRowInterval = 16;
+
 class KeyboardLayoutIsomorphic : public KeyboardLayout {
 public:
 	KeyboardLayoutIsomorphic() {}
 	virtual ~KeyboardLayoutIsomorphic() {}
 
-	virtual void evaluatePads(PressedPad presses[MAX_NUM_KEYBOARD_PAD_PRESSES]);
+	virtual void evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]);
 	virtual void handleVerticalEncoder(int offset);
 	virtual void handleHorizontalEncoder(int offset, bool shiftEnabled);
-	virtual void recalculate();
+	virtual void precalculate();
 
 	virtual void renderPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]);
 
@@ -38,7 +41,10 @@ public:
 	virtual bool supportsKit() { return false; }
 
 private:
-	uint8_t noteFromCoords(int x, int y);
+	inline uint8_t noteFromCoords(int x, int y) {
+		return getState()->isomorphic.scrollOffset + x + y * getState()->isomorphic.rowInterval;
+	}
+
 	uint8_t noteColours[kDisplayHeight * kMaxKeyboardRowInterval + kDisplayWidth][3];
 };
 

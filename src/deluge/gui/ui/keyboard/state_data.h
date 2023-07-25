@@ -33,11 +33,17 @@ struct KeyboardStateIsomorphic {
 	int rowInterval = kDefaultRowInterval;
 };
 
+struct KeyboardStateDrums {
+	int scrollOffset = 0;
+	int edgeSize = 4;
+};
+
 // Please note that saving and restoring currently needs to be added manually in instrument_clip.cpp and all layouts share one struct for storage
 struct KeyboardState {
 	KeyboardLayoutType currentLayout = KeyboardLayoutType::Isomorphic;
 
 	KeyboardStateIsomorphic isomorphic;
+	KeyboardStateDrums drums;
 };
 
 }; // namespace keyboard

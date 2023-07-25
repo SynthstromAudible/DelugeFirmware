@@ -21,19 +21,23 @@
 #include "model/song/song.h"
 #include "model/instrument/instrument.h"
 #include "model/clip/instrument_clip.h"
+#include "model/note/note_row.h"
 #include "hid/button.h"
 #include <string.h>
 #include <array>
 
-#define INVALID_NOTE -1
-#define MAX_NUM_KEYBOARD_PAD_PRESSES 10
-#define MAX_NUM_ACTIVE_NOTES 10
+constexpr uint8_t kMaxNumKeyboardPadPresses = 10;
+constexpr uint8_t kMaxNumActiveNotes = 10;
+
+namespace keyboard {
 
 inline InstrumentClip* currentClip() {
 	return (InstrumentClip*)currentSong->currentClip;
 }
 
-namespace keyboard {
+inline Instrument* currentInstrument() {
+	return (Instrument*)currentSong->currentClip->output;
+}
 
 struct PressedPad {
 	uint8_t x;
@@ -45,6 +49,7 @@ struct NoteState {
 	uint8_t note = 0;
 	uint8_t velocity = 0;
 	int16_t mpeValues[3] = {0};
+	// Generated notes will only create sound and not be used for interaction (e.g. setting root note)
 	bool generatedNote = false;
 };
 
@@ -52,7 +57,7 @@ constexpr uint8_t kLowestKeyboardNote = 0;
 constexpr uint8_t kHighestKeyboardNote = 12 * 12;
 struct NotesState {
 	uint64_t states[3] = {0};
-	NoteState notes[MAX_NUM_ACTIVE_NOTES] = {0};
+	NoteState notes[kMaxNumActiveNotes] = {0};
 	uint8_t count = 0;
 
 	void enableNote(uint8_t note, uint8_t velocity, bool generatedNote = false, int16_t* mpeValues = nullptr) {
@@ -82,10 +87,10 @@ public:
 	virtual ~KeyboardLayout() {}
 
 	// Handle inputs
-	virtual void evaluatePads(PressedPad presses[MAX_NUM_KEYBOARD_PAD_PRESSES]) = 0;
+	virtual void evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) = 0;
 	virtual void handleVerticalEncoder(int offset) = 0; // Shift state not supplied since that function is already taken
 	virtual void handleHorizontalEncoder(int offset, bool shiftEnabled) = 0; // returns weather the scroll had an effect
-	virtual void recalculate() = 0; // This function is called on visibility change and if color offset changes
+	virtual void precalculate() = 0; // This function is called on visibility change and if color offset changes
 
 	// Handle output
 	virtual void renderPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]) {}
@@ -108,15 +113,32 @@ protected:
 	inline bool getScaleModeEnabled() { return currentClip()->inScaleMode; }
 	inline uint8_t getScaleNoteCount() { return currentSong->numModeNotes; }
 	inline uint8_t* getScaleNotes() { return currentSong->modeNotes; }
-	inline uint8_t getDefaultVelocity() { return ((Instrument*)currentSong->currentClip->output)->defaultVelocity; }
+	inline uint8_t getDefaultVelocity() { return currentInstrument()->defaultVelocity; }
 
 	inline int getLowestClipNote() { return kLowestKeyboardNote; }
 	inline int getHighestClipNote() {
-		//@TODO: Fix for Kits
+		if (currentInstrument()->type == InstrumentType::KIT) {
+			return currentClip()->noteRows.getNumElements() - 1;
+		}
+
 		return kHighestKeyboardNote;
 	}
 
-	inline void getNoteColour(uint8_t note, uint8_t rgb[]) { currentClip()->getMainColourFromY(note, 0, rgb); }
+	inline void getNoteColour(uint8_t note, uint8_t rgb[]) {
+		int colourOffset = 0;
+
+		// Get colour offset for kit rows
+		if (currentInstrument()->type == InstrumentType::KIT) {
+			if (note >= 0 && note < currentClip()->noteRows.getNumElements()) {
+				NoteRow* noteRow = currentClip()->noteRows.getElement(note);
+				if (noteRow) {
+					colourOffset = noteRow->getColourOffset(currentClip());
+				}
+			}
+		}
+
+		currentClip()->getMainColourFromY(note, colourOffset, rgb);
+	}
 
 	inline KeyboardState* getState() { return &(currentClip()->keyboardState); }
 
