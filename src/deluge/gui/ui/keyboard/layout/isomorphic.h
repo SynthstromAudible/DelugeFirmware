@@ -42,7 +42,7 @@ public:
 
 private:
 	inline uint8_t noteFromCoords(int x, int y) {
-		return getState()->isomorphic.scrollOffset + x + y * getState()->isomorphic.rowInterval;
+		return getState().isomorphic.scrollOffset + x + y * getState().isomorphic.rowInterval;
 	}
 
 	uint8_t noteColours[kDisplayHeight * kMaxIsomorphicRowInterval + kDisplayWidth][3];

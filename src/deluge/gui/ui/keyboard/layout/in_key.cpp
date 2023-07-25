@@ -40,43 +40,46 @@ void KeyboardLayoutInKey::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPres
 }
 
 void KeyboardLayoutInKey::handleVerticalEncoder(int offset) {
-	handleHorizontalEncoder(offset * getState()->inKey.rowInterval, false);
+	handleHorizontalEncoder(offset * getState().inKey.rowInterval, false);
 }
 
 void KeyboardLayoutInKey::handleHorizontalEncoder(int offset, bool shiftEnabled) {
+	KeyboardStateInKey& state = getState().inKey;
+
 	if (shiftEnabled) {
-		getState()->inKey.rowInterval += offset;
-		getState()->inKey.rowInterval = getMax(getState()->inKey.rowInterval, kMinInKeyRowInterval);
-		getState()->inKey.rowInterval = getMin(kMaxInKeyRowInterval, getState()->inKey.rowInterval);
+		state.rowInterval += offset;
+		state.rowInterval = getMax(state.rowInterval, kMinInKeyRowInterval);
+		state.rowInterval = getMin(kMaxInKeyRowInterval, state.rowInterval);
 
 		char buffer[13] = "Row step:   ";
-		intToString(getState()->inKey.rowInterval, buffer + (HAVE_OLED ? 10 : 0), 1);
+		intToString(state.rowInterval, buffer + (HAVE_OLED ? 10 : 0), 1);
 		numericDriver.displayPopup(buffer);
 
 		offset = 0; // Reset offset variable for processing scroll calculation without actually shifting
 	}
 
 	// Calculate highest possible displayable note with current rowInterval
-	int highestScrolledNote =
-	    (getHighestClipNote() - ((kDisplayHeight - 1) * getState()->inKey.rowInterval + (kDisplayWidth - 1)));
+	int highestScrolledNote = (getHighestClipNote() - ((kDisplayHeight - 1) * state.rowInterval + (kDisplayWidth - 1)));
 
 	// Make sure current value is in bounds
-	getState()->inKey.scrollOffset = getMax(getLowestClipNote(), getState()->inKey.scrollOffset);
-	getState()->inKey.scrollOffset = getMin(getState()->inKey.scrollOffset, highestScrolledNote);
+	state.scrollOffset = getMax(getLowestClipNote(), state.scrollOffset);
+	state.scrollOffset = getMin(state.scrollOffset, highestScrolledNote);
 
 	// Offset if still in bounds (check for verticalEncoder)
-	int newOffset = getState()->inKey.scrollOffset + offset;
+	int newOffset = state.scrollOffset + offset;
 	if (newOffset >= getLowestClipNote() && newOffset <= highestScrolledNote) {
-		getState()->inKey.scrollOffset = newOffset;
+		state.scrollOffset = newOffset;
 	}
 
 	precalculate();
 }
 
 void KeyboardLayoutInKey::precalculate() {
+	KeyboardStateInKey& state = getState().inKey;
+
 	// Pre-Buffer colours for next renderings
-	for (int i = 0; i < kDisplayHeight * getState()->inKey.rowInterval + kDisplayWidth; ++i) {
-		getNoteColour(getState()->inKey.scrollOffset + i, noteColours[i]);
+	for (int i = 0; i < kDisplayHeight * state.rowInterval + kDisplayWidth; ++i) {
+		getNoteColour(state.scrollOffset + i, noteColours[i]);
 	}
 }
 
@@ -99,7 +102,7 @@ void KeyboardLayoutInKey::renderPads(uint8_t image[][kDisplayWidth + kSideBarWid
 	// Iterate over grid image
 	for (int y = 0; y < kDisplayHeight; ++y) {
 		int noteCode = noteFromCoords(0, y);
-		int yDisplay = noteCode - getState()->inKey.scrollOffset;
+		int yDisplay = noteCode - getState().inKey.scrollOffset;
 		int noteWithinOctave = (uint16_t)(noteCode - getRootNote() + 132) % (uint8_t)12;
 
 		for (int x = 0; x < kDisplayWidth; x++) {

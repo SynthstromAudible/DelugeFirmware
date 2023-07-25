@@ -42,7 +42,7 @@ public:
 
 private:
 	inline uint8_t noteFromCoords(int x, int y) {
-		return getState()->inKey.scrollOffset + x + y * getState()->inKey.rowInterval;
+		return getState().inKey.scrollOffset + x + y * getState().inKey.rowInterval;
 	}
 
 	uint8_t noteColours[kDisplayHeight * kMaxInKeyRowInterval + kDisplayWidth][3];

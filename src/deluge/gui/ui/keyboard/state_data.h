@@ -44,7 +44,7 @@ struct KeyboardStateInKey {                                                //@TO
 	int rowInterval = kDefaultRowInterval;
 };
 
-// Please note that saving and restoring currently needs to be added manually in instrument_clip.cpp and all layouts share one struct for storage
+/// Please note that saving and restoring currently needs to be added manually in instrument_clip.cpp and all layouts share one struct for storage
 struct KeyboardState {
 	KeyboardLayoutType currentLayout = KeyboardLayoutType::Isomorphic;
 

@@ -49,7 +49,7 @@ struct NoteState {
 	uint8_t note = 0;
 	uint8_t velocity = 0;
 	int16_t mpeValues[3] = {0};
-	// Generated notes will only create sound and not be used for interaction (e.g. setting root note)
+	/// Generated notes will only create sound and not be used for interaction (e.g. setting root note)
 	bool generatedNote = false;
 };
 
@@ -86,22 +86,29 @@ public:
 	KeyboardLayout() {}
 	virtual ~KeyboardLayout() {}
 
-	// Handle inputs
+	/// Handle input pad presses
 	virtual void evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) = 0;
-	virtual void handleVerticalEncoder(int offset) = 0; // Shift state not supplied since that function is already taken
-	virtual void handleHorizontalEncoder(int offset, bool shiftEnabled) = 0; // returns weather the scroll had an effect
-	virtual void precalculate() = 0; // This function is called on visibility change and if color offset changes
 
-	// Handle output
+	/// Shift state not supplied since that function is already taken
+	virtual void handleVerticalEncoder(int offset) = 0;
+
+	virtual void handleHorizontalEncoder(int offset, bool shiftEnabled) = 0;
+
+	/// This function is called on visibility change and if color offset changes
+	virtual void precalculate() = 0;
+
+	/// Handle output
 	virtual void renderPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]) {}
+
 	virtual void renderSidebarPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]) {
-		// Empty if not implemented
+		// Clean sidebar if function is not overwritten
 		for (int y = 0; y < kDisplayHeight; y++) {
 			memset(image[y][kDisplayWidth], 0, kSideBarWidth * 3);
 		}
 	};
 
 	// Properties
+
 	virtual char* name() = 0;
 	virtual bool supportsInstrument() { return false; }
 	virtual bool supportsKit() { return false; }
@@ -140,7 +147,7 @@ protected:
 		currentClip()->getMainColourFromY(note, colourOffset, rgb);
 	}
 
-	inline KeyboardState* getState() { return &(currentClip()->keyboardState); }
+	inline KeyboardState& getState() { return currentClip()->keyboardState; }
 
 protected:
 	NotesState currentNotesState;
