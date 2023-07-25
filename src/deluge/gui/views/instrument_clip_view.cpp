@@ -488,87 +488,11 @@ doOther:
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
-			int i;
-			for (i = 0; i < kEditPadPressBufferSize; i++) {
-				if (editPadPresses[i].isActive) {
+			if (Buttons::isButtonPressed(AFFECT_ENTIRE)
+			    && (runtimeFeatureSettings.get(RuntimeFeatureSettingType::DeleteUnusedKitRows)
+			        == RuntimeFeatureStateToggle::On)) {
+				// Community feature: Batch delete unused rows
 
-					int yDisplay = editPadPresses[i].yDisplay;
-
-					endEditPadPress(i);
-					checkIfAllEditPadPressesEnded(false);
-					reassessAuditionStatus(yDisplay);
-
-					int noteRowIndex = yDisplay + clip->yScroll;
-
-					if (ALPHA_OR_BETA_VERSION
-					    && (noteRowIndex < 0 || noteRowIndex >= clip->noteRows.getNumElements())) {
-						numericDriver.freezeWithError("E323");
-					}
-
-					if (clip->isActiveOnOutput()) {
-						NoteRow* noteRow = clip->noteRows.getElement(noteRowIndex);
-						if (noteRow->drum) {
-							noteRow->drum->drumWontBeRenderedForAWhile();
-						}
-					}
-
-					char modelStackMemory[MODEL_STACK_MAX_SIZE];
-					ModelStackWithTimelineCounter* modelStack =
-					    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-					clip->deleteNoteRow(modelStack, noteRowIndex);
-
-					// Note: I should fix this - if deleting a NoteRow of a MIDI drum that we're auditioning via MIDI, this will leave a stuck note...
-
-					// If NoteRow was bottom half of screen...
-					if (yDisplay < (kDisplayHeight >> 1)) {
-						if (!noteRowIndex || clip->noteRows.getNumElements() >= (kDisplayHeight >> 1)) {
-							clip->yScroll--;
-						}
-					}
-
-					// Or top half of screen...
-					else {
-						if (!noteRowIndex && clip->noteRows.getNumElements() < (kDisplayHeight >> 1)) {
-							clip->yScroll--;
-						}
-					}
-
-					actionLogger.deleteAllLogs(); // Can't undo past this
-
-					setSelectedDrum(NULL, true);
-
-					recalculateColours();
-					uiNeedsRendering(this);
-
-					// Can't remember why repopulateNoteRowsOnScreen() doesn't do the sidebar automatically?
-
-					currentUIMode = UI_MODE_NONE;
-
-					AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
-
-					break;
-				}
-			}
-		}
-	}
-
-	// Kit + Shift + Save/Delete: shorcut that will delete all Kit rows that does not contain notes
-	// (instead of pressing Note + Delete to do it one by one)
-	else if (b == SAVE && currentUIMode != UI_MODE_NOTES_PRESSED && Buttons::isShiftButtonPressed()
-	         && Buttons::isButtonPressed(KIT) && currentSong->currentClip->output->type == InstrumentType::KIT
-	         && (runtimeFeatureSettings.get(RuntimeFeatureSettingType::DeleteUnusedKitRows)
-	             == RuntimeFeatureStateToggle::On)) {
-		if (inCardRoutine) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		}
-
-		if (on) {
-			InstrumentClip* clip = getCurrentClip();
-
-			if (!clip->containsAnyNotes()) {
-				numericDriver.displayPopup(HAVE_OLED ? "At least one row needs to have notes" : "CANT");
-			}
-			else {
 				char modelStackMemory[MODEL_STACK_MAX_SIZE];
 				ModelStackWithTimelineCounter* modelStack =
 				    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
@@ -590,6 +514,73 @@ doOther:
 
 				recalculateColours();
 				uiNeedsRendering(this);
+
+				numericDriver.displayPopup(HAVE_OLED ? "Deleted unused rows" : "DELETED");
+			}
+			else {
+				// Delete the selected row
+
+				int i;
+				for (i = 0; i < kEditPadPressBufferSize; i++) {
+					if (editPadPresses[i].isActive) {
+
+						int yDisplay = editPadPresses[i].yDisplay;
+
+						endEditPadPress(i);
+						checkIfAllEditPadPressesEnded(false);
+						reassessAuditionStatus(yDisplay);
+
+						int noteRowIndex = yDisplay + clip->yScroll;
+
+						if (ALPHA_OR_BETA_VERSION
+						    && (noteRowIndex < 0 || noteRowIndex >= clip->noteRows.getNumElements())) {
+							numericDriver.freezeWithError("E323");
+						}
+
+						if (clip->isActiveOnOutput()) {
+							NoteRow* noteRow = clip->noteRows.getElement(noteRowIndex);
+							if (noteRow->drum) {
+								noteRow->drum->drumWontBeRenderedForAWhile();
+							}
+						}
+
+						char modelStackMemory[MODEL_STACK_MAX_SIZE];
+						ModelStackWithTimelineCounter* modelStack =
+						    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+						clip->deleteNoteRow(modelStack, noteRowIndex);
+
+						// Note: I should fix this - if deleting a NoteRow of a MIDI drum that we're auditioning via MIDI, this will leave a stuck note...
+
+						// If NoteRow was bottom half of screen...
+						if (yDisplay < (kDisplayHeight >> 1)) {
+							if (!noteRowIndex || clip->noteRows.getNumElements() >= (kDisplayHeight >> 1)) {
+								clip->yScroll--;
+							}
+						}
+
+						// Or top half of screen...
+						else {
+							if (!noteRowIndex && clip->noteRows.getNumElements() < (kDisplayHeight >> 1)) {
+								clip->yScroll--;
+							}
+						}
+
+						actionLogger.deleteAllLogs(); // Can't undo past this
+
+						setSelectedDrum(NULL, true);
+
+						recalculateColours();
+						uiNeedsRendering(this);
+
+						// Can't remember why repopulateNoteRowsOnScreen() doesn't do the sidebar automatically?
+
+						currentUIMode = UI_MODE_NONE;
+
+						AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
+
+						break;
+					}
+				}
 			}
 		}
 	}
