@@ -28,14 +28,14 @@ If you foresee yourself being an active contributor, consider making a fork of t
 These vary slightly by operating system and architecture but the following should give you an idea of how much space you'll need:
 
 * Git Repository: **~83 MB** (as of July 3, 2023)
-* Toolchain + Archive: **~1.3 GB** (DBT-Toolchain v9)
+* Toolchain + Archive: **~1.3 GB** (DBT-Toolchain v10)
 * Built objects and images: **~150 MB** (as of July 3, 2023)
 
 So a little over **1.5GB total**. Expect that this size will only grow over time.
 
 ## Building the Codebase in DBT
 
-The official way to manage your toolchain and build the Deluge Firmware is using the included **Deluge Build Tool** (**DBT**). DBT is a comprehensive commandline suite written primarily in Python/SCons. DBT has no unusual outside dependencies and runs using standalone tools it fetches on its own through shell scripts. It should behave nicely on a freshly installed OS.
+The official way to manage your toolchain and build the Deluge Firmware is using the included **Deluge Build Tool** (**DBT**). DBT is a comprehensive commandline suite written primarily in Python and CMake. DBT has no unusual outside dependencies and runs using standalone tools it fetches on its own through shell scripts. It should behave nicely on a freshly installed OS.
 
 DBT runs and builds on:
 * **Windows** - x86_64 only
@@ -56,6 +56,8 @@ The first time you run DBT, it will check for the toolchain in the `toolchain` f
 * xPack GNU ARM Embedded GCC (v12.2.1)
 * xPack OpenOCD (v0.12.0)
 * xPack Clang (v14.0.6) (only `clang-format` and `clang-tidy`)
+* xPack CMake (v3.23.5)
+* xPack Ninja (v1.11.1)
 * Standalone Python (v3.11.3)
     * SSL/TLS Certificates (certifi)
     * Multiple additional Python libraries from a frequently changing list
@@ -68,43 +70,37 @@ DBT must always be run from the *root directory* of the repository. The remainde
 
 ### DBT Build Targets
 
-The following doesn't represent all possible build command variations but a sampling. What goes for building also goes for cleaning, so 
+These live under the `dbt build` subcommand. The general format is `dbt build {target} {configuration}`, with both target and configuration being optional (building all targets and configurations by default).
 
-`all` or `build` - Build for all supported targets (dbt-build-release-oled, dbt-build-release-7seg, dbt-build-debug-oled, and dbt-build-debug-7seg). Built files output to appropriately named subdirectories prefixed with `dbt-build-`.
+Built files output to subdirectories named after the configuration (e.g. `build/Release`).
 
-#### Build variables:
+#### Build targets:
 
-* `OLED` - narrow the scope to only build targets for OLED or only build targets for 7segment displays. When left out, all display types are built. This variable can be stacked with other variables and applies to `clean` as well.
-    * eg: `./dbt all OLED=1` (build all **OLED** targets)
-    * eg: `./dbt all OLED=0` (build all **7segment** targets)
-* `DEBUG` - narrow the scope to only build targets with debugging support (including debugging symbols and different optimizations) or only release targets. When left out, both debugging and release targets are built. This variable can be stacked with other variables and applies to `clean` as well.
-    * eg: `./dbt all DEBUG=1` (build only **debugging** targets)
-    * eg: `./dbt all DEBUG=0` (build only **release** targets)
+* `all` - build all supported targets (7seg, oled)
+* `oled` - build only for OLED.
+* `7seg` - build only for 7SEG.
+
+#### Build configurations:
+
+* `debug` - build selected target with debugging support (including debugging symbols and different optimizations) 
+* `release` - build selected target with optimizations for release.
 
 #### Build arguments: 
 
-* `-c` or `--clean` - this is the built-in SCons clean option. When used with `./dbt all` it's equivalent to `./dbt clean`.
-* `--e2_orig_prefix` - this turns on support for the prefixes e2 Studio expects based on the original Deluge source tree. All instances of `dbt-build-` will be replaced with `e2-build-` and the output directories will change as well.
-* `--nowo`, `--no-owo`, or `--no-uwu` - DBT features a progress indicator (not always visible) in the form of an ASCII emote face that switches rapidly between OwO, UwU, etc. If this is too noisy in the logs, it can be turned off by adding one of these arguments.
-* `--verbose=[0-3]` - This controls the noise level of DBT and its underlying calls:
-    * `0` - Bare minimum. No notices, hidden warnings, and only critical errors are shown.
-    * `1` - Clean. Hidden warnings, and build steps are described without showing the actual command.
-    * `2` - Commands and warnings are visible.
-    * `3` - Everything is shown where possible.
-* `--spew` - This is shorthand for `--verbose=3` and `--nowo`, each described above.
+* `-q` or `--quiet` - this surpresses printed output once building begins (CMake [re]configuration will still output)
+* `-v` or `--verbose` - this prints greater level of detail to the console (i.e. exactly the compiler/linker commands called)
+* `--clean-first` - clean before building 
 
-`clean` - Clean up all supported targets (dbt-build-release-oled, dbt-build-release-7seg, dbt-build-debug-oled, and dbt-build-debug-7seg)
-* Variables described above under `all` also apply to `clean`.
+#### CMake custom arguments
 
-*There are often multiple ways to do the same thing.* For instance the above targeting commands are shorthand for longer commands with specific targets, for example `./dbt all OLED=0 DEBUG=1` is equivalent to `./dbt dbt-build-debug-7seg`. Additionally, `./dbt clean` is equivalent to `./dbt all -c`, and so on.
+Any additional arguments to CMake may be transparently passed via `dbt build`.
+
 
 Additional detail on working with DBT will be coming soon.
 
 ---
 
 ## (Optional) e2 Studio Software (Windows/Linux)
-
-**Note:** e2 Studio currently builds using the older ARM 9.2.1 toolchain. We are in process of reworking the e2 config to support DBT.
 
 ### Download and install e2 studio
 This is an Eclipse-based IDE distributed by Renesas, who make the Deluge’s Renesas RZ/A1L processor. You will have to create an account to access the download. It appears to only be available for Windows and Linux.
