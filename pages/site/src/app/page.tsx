@@ -1,13 +1,10 @@
-import dayjs from "dayjs";
-import RelativeTime from "dayjs/plugin/relativeTime";
+import CurrentTime from "../components/current-time.tsx";
 import { Octokit } from "@octokit/core";
 import { restEndpointMethods } from "@octokit/plugin-rest-endpoint-methods";
 import { components } from "@octokit/openapi-types";
 import type { WorkflowArtifact , AllWorkflowRuns } from "../../../fetch-artifacts/dist/index.d.ts";
 
 const image_data: AllWorkflowRuns = require("./df_images.json");
-
-dayjs.extend(RelativeTime);
 
 type WorkflowRun = components["schemas"]["workflow-run"];
 
@@ -59,21 +56,26 @@ export default async function Home() {
                       </div>
                       <div className="">
                         <span className="mr-1">{run.short_message},</span>
-                        <span>{dayjs(run.run_completion_time).fromNow()}</span>
+                        <CurrentTime time={run.run_completion_time} />
                       </div>
                     </div>
                   </td>
                   <td className="flex flex-col p-2">
-                    {Array.from(Object.entries(run.artifacts), ([n, artifact]) => (
-                      <div key={n} className="flex">
-                        <a
-                          className="underline break-words min-w-max"
-                          href={`firmware/${(artifact as WorkflowArtifact).assetPath}`}
-                        >
-                          {n}
-                        </a>
-                      </div>
-                    ))}
+                    {Array.from(
+                      Object.entries(run.artifacts),
+                      ([n, artifact]) => (
+                        <div key={n} className="flex">
+                          <a
+                            className="underline break-words min-w-max"
+                            href={`firmware/${
+                              (artifact as WorkflowArtifact).assetPath
+                            }`}
+                          >
+                            {n}
+                          </a>
+                        </div>
+                      ),
+                    )}
                   </td>
                 </tr>
               ))}
