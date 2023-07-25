@@ -76,7 +76,9 @@ void KeyboardLayoutVelocityDrums::handleHorizontalEncoder(int offset, bool shift
 
 void KeyboardLayoutVelocityDrums::precalculate() {
 	// Pre-Buffer colours for next renderings
-	for (int i = 0; i < kDisplayHeight * getState()->drums.edgeSize + kDisplayWidth; ++i) {
+	int32_t displayedfullPadsCount =
+	    ((kDisplayHeight / getState()->drums.edgeSize) * (kDisplayWidth / getState()->drums.edgeSize));
+	for (int i = 0; i < displayedfullPadsCount; ++i) {
 		getNoteColour(getState()->drums.scrollOffset + i, noteColours[i]);
 	}
 }

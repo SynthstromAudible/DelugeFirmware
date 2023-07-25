@@ -21,8 +21,8 @@
 
 namespace keyboard::layout {
 
-constexpr int kMinKeyboardRowInterval = 1;
-constexpr int kMaxKeyboardRowInterval = 16;
+constexpr int kMinIsomorphicRowInterval = 1;
+constexpr int kMaxIsomorphicRowInterval = 16;
 
 class KeyboardLayoutIsomorphic : public KeyboardLayout {
 public:
@@ -45,7 +45,7 @@ private:
 		return getState()->isomorphic.scrollOffset + x + y * getState()->isomorphic.rowInterval;
 	}
 
-	uint8_t noteColours[kDisplayHeight * kMaxKeyboardRowInterval + kDisplayWidth][3];
+	uint8_t noteColours[kDisplayHeight * kMaxIsomorphicRowInterval + kDisplayWidth][3];
 };
 
 }; // namespace keyboard::layout

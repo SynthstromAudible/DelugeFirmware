@@ -46,6 +46,7 @@
 
 #include "gui/ui/keyboard/layout/isomorphic.h"
 #include "gui/ui/keyboard/layout/velocity_drums.h"
+#include "gui/ui/keyboard/layout/in_key.h"
 
 keyboard::KeyboardScreen keyboardScreen{};
 
@@ -53,6 +54,7 @@ namespace keyboard {
 
 layout::KeyboardLayoutIsomorphic keyboardLayoutIsomorphic{};
 layout::KeyboardLayoutVelocityDrums keyboardLayoutVelocityDrums{};
+layout::KeyboardLayoutInKey keyboardLayoutInKey{};
 KeyboardLayout* layoutList[KeyboardLayoutType::MaxElement + 1] = {0};
 
 inline InstrumentClip* getCurrentClip() {
@@ -66,6 +68,7 @@ Instrument* getActiveInstrument() {
 KeyboardScreen::KeyboardScreen() {
 	layoutList[KeyboardLayoutType::Isomorphic] = (KeyboardLayout*)&keyboardLayoutIsomorphic;
 	layoutList[KeyboardLayoutType::Drums] = (KeyboardLayout*)&keyboardLayoutVelocityDrums;
+	layoutList[KeyboardLayoutType::InKey] = (KeyboardLayout*)&keyboardLayoutInKey;
 
 	memset(&pressedPads, 0, sizeof(pressedPads));
 	currentNotesState = {0};
