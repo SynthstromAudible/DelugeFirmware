@@ -566,7 +566,7 @@ doOther:
 			InstrumentClip* clip = getCurrentClip();
 
 			if (!clip->containsAnyNotes()) {
-				numericDriver.displayPopup(HAVE_OLED ? "No unused kit rows to delete" : "CANT");
+				numericDriver.displayPopup(HAVE_OLED ? "At least one row needs to have notes" : "CANT");
 			}
 			else {
 				char modelStackMemory[MODEL_STACK_MAX_SIZE];
