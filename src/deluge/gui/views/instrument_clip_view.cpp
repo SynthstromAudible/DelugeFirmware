@@ -556,7 +556,8 @@ doOther:
 	// (instead of pressing Note + Delete to do it one by one)
 	else if (b == SAVE && currentUIMode != UI_MODE_NOTES_PRESSED && Buttons::isShiftButtonPressed()
 	         && currentSong->currentClip->output->type == InstrumentType::KIT
-	         && (runtimeFeatureSettings.get(RuntimeFeatureSettingType::DeleteUnusedKitRows) == RuntimeFeatureStateToggle::On)) {
+	         && (runtimeFeatureSettings.get(RuntimeFeatureSettingType::DeleteUnusedKitRows)
+	             == RuntimeFeatureStateToggle::On)) {
 		if (inCardRoutine) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
@@ -564,26 +565,32 @@ doOther:
 		if (on) {
 			InstrumentClip* clip = getCurrentClip();
 
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
-			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-
-			int i;
-			for (i = clip->noteRows.getNumElements() - 1; i >= 0; i--) {
-				NoteRow* noteRow = clip->noteRows.getElement(i);
-				if (noteRow->hasNoNotes() && clip->noteRows.getNumElements() > 1) {
-					// If the row has not notes and is not the last one
-					clip->deleteNoteRow(modelStack, i);
-				}
+			if (!clip->containsAnyNotes()) {
+				numericDriver.displayPopup(HAVE_OLED ? "No unused kit rows to delete" : "CANT");
 			}
+			else {
+				char modelStackMemory[MODEL_STACK_MAX_SIZE];
+				ModelStackWithTimelineCounter* modelStack =
+				    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
-			clip->yScroll = 0; // Reset yScroll
+				int i;
+				for (i = clip->noteRows.getNumElements() - 1; i >= 0; i--) {
+					NoteRow* noteRow = clip->noteRows.getElement(i);
+					if (noteRow->hasNoNotes() && clip->noteRows.getNumElements() > 1) {
+						// If the row has not notes and is not the last one
+						clip->deleteNoteRow(modelStack, i);
+					}
+				}
 
-			actionLogger.deleteAllLogs(); // Can't undo past this
+				clip->yScroll = 0; // Reset yScroll
 
-			setSelectedDrum(NULL, true);
+				actionLogger.deleteAllLogs(); // Can't undo past this
 
-			recalculateColours();
-			uiNeedsRendering(this);
+				setSelectedDrum(NULL, true);
+
+				recalculateColours();
+				uiNeedsRendering(this);
+			}
 		}
 	}
 
