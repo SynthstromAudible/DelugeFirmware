@@ -54,6 +54,7 @@
 #include "storage/flash_storage.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "util/misc.h"
+#include "io/debug/print.h"
 
 extern "C" {
 #include "RZA1/mtu/mtu.h"
@@ -100,6 +101,7 @@ Sound::Sound() : patcher(&patchableInfoForSound) {
 
 	numUnison = 1;
 	unisonDetune = 8;
+	unisonStereoSpread = 0;
 
 	synthMode = SynthMode::SUBTRACTIVE;
 	modulator1ToModulator0 = false;
@@ -677,6 +679,11 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 				int contents = storageManager.readTagOrAttributeValueInt();
 				unisonDetune = getMax(0, getMin(kMaxUnisonDetune, contents));
 				storageManager.exitTag("detune");
+			}
+			else if (!strcmp(tagName, "spread")) {
+				int contents = storageManager.readTagOrAttributeValueInt();
+				unisonStereoSpread = getMax(0, getMin(kMaxUnisonStereoSpread, contents));
+				storageManager.exitTag("spread");
 			}
 			else {
 				storageManager.exitTag(tagName);
@@ -2635,6 +2642,7 @@ void Sound::doneReadingFromFile() {
 	}
 
 	setupUnisonDetuners(NULL);
+	setupUnisonStereoSpread();
 
 	for (int m = 0; m < kNumModulators; m++) {
 		recalculateModulatorTransposer(m, NULL);
@@ -2671,6 +2679,23 @@ void Sound::setupUnisonDetuners(ModelStackWithSoundFlags* modelStack) {
 		}
 	}
 	recalculateAllVoicePhaseIncrements(modelStack); // Can handle NULL
+}
+
+void Sound::setupUnisonStereoSpread() {
+	if (numUnison != 1) {
+		int32_t spreadScaled = (int32_t)unisonStereoSpread * 42949672;
+		int32_t lowestVoice = -(spreadScaled >> 1);
+		int32_t voiceSpacing = spreadScaled / (numUnison - 1);
+
+		for (int u = 0; u < numUnison; u++) {
+			// alternate the voices like -2 +1 0 -1 +2 for more balanced
+			// interaction with detune
+			bool isOdd = getMin(u, numUnison - 1 - u) & 1;
+			int32_t sign = isOdd ? -1 : 1;
+
+			unisonPan[u] = sign * (lowestVoice + voiceSpacing * u);
+		}
+	}
 }
 
 void Sound::calculateEffectiveVolume() {
@@ -2754,6 +2779,7 @@ void Sound::setNumUnison(int newNum, ModelStackWithSoundFlags* modelStack) {
 
 	numUnison = newNum;
 	setupUnisonDetuners(modelStack); // Can handle NULL. Also calls recalculateAllVoicePhaseIncrements()
+	setupUnisonStereoSpread();
 	calculateEffectiveVolume();
 
 	// Effective volume has changed. Need to pass that change onto Voices
@@ -2825,6 +2851,11 @@ void Sound::setNumUnison(int newNum, ModelStackWithSoundFlags* modelStack) {
 void Sound::setUnisonDetune(int newAmount, ModelStackWithSoundFlags* modelStack) {
 	unisonDetune = newAmount;
 	setupUnisonDetuners(modelStack); // Can handle NULL
+}
+
+void Sound::setUnisonStereoSpread(int newAmount) {
+	unisonStereoSpread = newAmount;
+	setupUnisonStereoSpread();
 }
 
 bool Sound::anyNoteIsOn() {
@@ -3672,6 +3703,7 @@ void Sound::writeToFile(bool savingSong, ParamManager* paramManager, Arpeggiator
 	storageManager.writeOpeningTagBeginning("unison");
 	storageManager.writeAttribute("num", numUnison, false);
 	storageManager.writeAttribute("detune", unisonDetune, false);
+	storageManager.writeAttribute("spread", unisonStereoSpread, false);
 	storageManager.closeTag();
 
 	ModControllableAudio::writeTagsToFile();
@@ -4062,6 +4094,10 @@ bool Sound::renderingVoicesInStereo(ModelStackWithSoundFlags* modelStack) {
 	}
 
 	if (modelStack->paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(Param::Local::PAN)) {
+		return true;
+	}
+
+	if (unisonStereoSpread && numUnison > 1) {
 		return true;
 	}
 

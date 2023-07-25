@@ -36,7 +36,7 @@ class SVFilter {
 public:
 	//input f is actually filter 'moveability', tan(f)/(1+tan(f)) and falls between 0 and 1. 1 represented by 2147483648
 	//resonance is 2147483647 - rawResonance2 Always between 0 and 2. 1 represented as 1073741824
-	SVF_outs doSVF(q31_t input, FilterSetConfig* filterSetConfig);
+	SVF_outs doSVF(q31_t input, LPSVFConfig* filterSetConfig);
 	void reset() {
 		low = 0;
 		band = 0;
@@ -87,7 +87,7 @@ public:
 	                   int sampleIncrement = 1, int extraSaturation = 0, int extraSaturationDrive = 0);
 	void renderHPFLong(q31_t* outputSample, q31_t* endSample, FilterSetConfig* filterSetConfig, int numSamples,
 	                   int sampleIncrement = 1);
-	void renderHPF(q31_t* outputSample, FilterSetConfig* filterSetConfig, int extraSaturation = 0);
+	void renderLadderHPF(q31_t* outputSample, HPLadderConfig* filterSetConfig, int extraSaturation = 0);
 	void reset();
 	BasicFilterComponent lpfLPF1;
 	BasicFilterComponent lpfLPF2;
@@ -106,7 +106,9 @@ public:
 
 	bool hpfOnLastTime;
 	bool lpfOnLastTime;
-
+	inline void renderLPLadder(q31_t* startSample, q31_t* endSample, LPLadderConfig* filterSetConfig, LPFMode lpfMode,
+	                           int sampleIncrement, int extraSaturation, int extraSaturationDrive);
+	inline void renderLPSVF(q31_t* startSample, q31_t* endSample, LPSVFConfig* filterSetConfig, int sampleIncrement);
 	inline void renderLong(q31_t* outputSample, q31_t* endSample, FilterSetConfig* filterSetConfig, LPFMode lpfMode,
 	                       int numSamples, int sampleIncrememt = 1) {
 
@@ -128,6 +130,6 @@ public:
 private:
 	q31_t noiseLastValue;
 
-	q31_t do24dBLPFOnSample(q31_t input, FilterSetConfig* filterSetConfig, int saturationLevel);
-	q31_t doDriveLPFOnSample(q31_t input, FilterSetConfig* filterSetConfig, int extraSaturation = 0);
+	q31_t do24dBLPFOnSample(q31_t input, LPLadderConfig* filterSetConfig, int saturationLevel);
+	q31_t doDriveLPFOnSample(q31_t input, LPLadderConfig* filterSetConfig, int extraSaturation = 0);
 };
