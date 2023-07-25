@@ -552,10 +552,10 @@ doOther:
 		}
 	}
 
-	// Shift + Save/Delete: shorcut that will delete all Kit rows that does not contain notes
+	// Kit + Shift + Save/Delete: shorcut that will delete all Kit rows that does not contain notes
 	// (instead of pressing Note + Delete to do it one by one)
 	else if (b == SAVE && currentUIMode != UI_MODE_NOTES_PRESSED && Buttons::isShiftButtonPressed()
-	         && currentSong->currentClip->output->type == InstrumentType::KIT
+	         && Buttons::isButtonPressed(KIT) && currentSong->currentClip->output->type == InstrumentType::KIT
 	         && (runtimeFeatureSettings.get(RuntimeFeatureSettingType::DeleteUnusedKitRows)
 	             == RuntimeFeatureStateToggle::On)) {
 		if (inCardRoutine) {
