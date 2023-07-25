@@ -78,7 +78,6 @@ async function fetchArtifact(
         },
       });
 
-      console.log(typeof(data.data));
       dataArrayBuffer = data.data as ArrayBuffer;
     } catch (e) {
       console.warn(
@@ -100,7 +99,7 @@ async function fetchArtifact(
       if (err) {
         throw err;
       }
-      console.log("reading retrieved zip file");
+      console.log(`${artifact.assetPath}: reading retrieved zip file`);
       zipfile.readEntry();
       let foundFile = false;
       zipfile.on("entry", (entry) => {
