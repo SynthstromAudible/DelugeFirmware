@@ -1295,9 +1295,9 @@ bool InstrumentClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack
 
 	// Special case if we're a simple keyboard-mode Clip
 	if (onKeyboardScreen && !containsAnyNotes()) {
-		int increment = (kDisplayWidth + (kDisplayHeight * keyboardState.rowInterval)) / kDisplayWidth;
+		int increment = (kDisplayWidth + (kDisplayHeight * keyboardState.isomorphic.rowInterval)) / kDisplayWidth;
 		for (int x = xStart; x < xEnd; x++) {
-			getMainColourFromY(keyboardState.scrollOffset + x * increment, 0, &image[x * 3]);
+			getMainColourFromY(keyboardState.isomorphic.scrollOffset + x * increment, 0, &image[x * 3]);
 		}
 		return true;
 	}
@@ -2160,8 +2160,9 @@ void InstrumentClip::writeDataToFile(Song* song) {
 
 	storageManager.writeAttribute("inKeyMode", inScaleMode);
 	storageManager.writeAttribute("yScroll", yScroll);
-	storageManager.writeAttribute("yScrollKeyboard", keyboardState.scrollOffset);
-	storageManager.writeAttribute("keyboardRowInterval", keyboardState.rowInterval);
+	storageManager.writeAttribute("keyboardLayout", keyboardState.currentLayout);
+	storageManager.writeAttribute("yScrollKeyboard", keyboardState.isomorphic.scrollOffset);
+	storageManager.writeAttribute("keyboardRowInterval", keyboardState.isomorphic.rowInterval);
 	if (onKeyboardScreen) {
 		storageManager.writeAttribute("onKeyboardScreen", (char*)"1");
 	}
@@ -2370,12 +2371,16 @@ someError:
 			yScroll = storageManager.readTagOrAttributeValueInt();
 		}
 
+		else if (!strcmp(tagName, "keyboardLayout")) {
+			keyboardState.currentLayout = (keyboard::KeyboardLayoutType)storageManager.readTagOrAttributeValueInt();
+		}
+
 		else if (!strcmp(tagName, "yScrollKeyboard")) {
-			keyboardState.scrollOffset = storageManager.readTagOrAttributeValueInt();
+			keyboardState.isomorphic.scrollOffset = storageManager.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "keyboardRowInterval")) {
-			keyboardState.rowInterval = storageManager.readTagOrAttributeValueInt();
+			keyboardState.isomorphic.rowInterval = storageManager.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "crossScreenEditLevel")) {

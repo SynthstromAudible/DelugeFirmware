@@ -28,11 +28,16 @@ enum KeyboardLayoutType : uint32_t {
 	MaxElement // Keep as boundary
 };
 
-// Please note that saving and restoring currently needs to be added manually in instrument_clip.cpp and all layouts share one struct for storage
-struct KeyboardStateData {
-	KeyboardLayoutType currentLayout = KeyboardLayoutType::Isomorphic; //@TODO: Add to storage
+struct KeyboardStateIsomorphic {
 	int scrollOffset = (60 - (kDisplayHeight >> 2) * kDefaultRowInterval);
 	int rowInterval = kDefaultRowInterval;
+};
+
+// Please note that saving and restoring currently needs to be added manually in instrument_clip.cpp and all layouts share one struct for storage
+struct KeyboardState {
+	KeyboardLayoutType currentLayout = KeyboardLayoutType::Isomorphic;
+
+	KeyboardStateIsomorphic isomorphic;
 };
 
 }; // namespace keyboard

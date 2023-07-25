@@ -40,21 +40,21 @@ void KeyboardLayoutIsomorphic::evaluatePads(PressedPad presses[MAX_NUM_KEYBOARD_
 }
 
 void KeyboardLayoutIsomorphic::handleVerticalEncoder(int offset) {
-	handleHorizontalEncoder(offset * getState()->rowInterval, false);
+	handleHorizontalEncoder(offset * getState()->isomorphic.rowInterval, false);
 }
 
 void KeyboardLayoutIsomorphic::handleHorizontalEncoder(int offset, bool shiftEnabled) {
 	if (shiftEnabled) {
-		getState()->rowInterval += offset;
-		if (getState()->rowInterval < 1) {
-			getState()->rowInterval = 1;
+		getState()->isomorphic.rowInterval += offset;
+		if (getState()->isomorphic.rowInterval < 1) {
+			getState()->isomorphic.rowInterval = 1;
 		}
-		else if (getState()->rowInterval > kMaxKeyboardRowInterval) {
-			getState()->rowInterval = kMaxKeyboardRowInterval;
+		else if (getState()->isomorphic.rowInterval > kMaxKeyboardRowInterval) {
+			getState()->isomorphic.rowInterval = kMaxKeyboardRowInterval;
 		}
 
 		char buffer[13] = "row step:   ";
-		intToString(getState()->rowInterval, buffer + (HAVE_OLED ? 10 : 0), 1);
+		intToString(getState()->isomorphic.rowInterval, buffer + (HAVE_OLED ? 10 : 0), 1);
 		numericDriver.displayPopup(buffer);
 
 		offset = 0; // Reset offset variable for processing scroll calculation without actually shifting
@@ -64,16 +64,16 @@ void KeyboardLayoutIsomorphic::handleHorizontalEncoder(int offset, bool shiftEna
 
 	// Calculate highest possible displayable note with current rowInterval
 	int highestScrolledNote =
-	    (getHighestClipNote() - ((kDisplayHeight - 1) * getState()->rowInterval + (kDisplayWidth - 1)));
+	    (getHighestClipNote() - ((kDisplayHeight - 1) * getState()->isomorphic.rowInterval + (kDisplayWidth - 1)));
 
 	// Make sure current value is in bounds
-	getState()->scrollOffset = getMax(getLowestClipNote(), getState()->scrollOffset);
-	getState()->scrollOffset = getMin(getState()->scrollOffset, highestScrolledNote);
+	getState()->isomorphic.scrollOffset = getMax(getLowestClipNote(), getState()->isomorphic.scrollOffset);
+	getState()->isomorphic.scrollOffset = getMin(getState()->isomorphic.scrollOffset, highestScrolledNote);
 
 	// Offset if still in bounds (check for verticalEncoder)
-	int newOffset = getState()->scrollOffset + offset;
+	int newOffset = getState()->isomorphic.scrollOffset + offset;
 	if (newOffset >= getLowestClipNote() && newOffset <= highestScrolledNote) {
-		getState()->scrollOffset = newOffset;
+		getState()->isomorphic.scrollOffset = newOffset;
 	}
 
 	recalculate();
@@ -81,8 +81,8 @@ void KeyboardLayoutIsomorphic::handleHorizontalEncoder(int offset, bool shiftEna
 
 void KeyboardLayoutIsomorphic::recalculate() {
 	// Pre-Buffer colours for next renderings
-	for (int i = 0; i < kDisplayHeight * getState()->rowInterval + kDisplayWidth; ++i) {
-		getNoteColour(getState()->scrollOffset + i, noteColours[i]);
+	for (int i = 0; i < kDisplayHeight * getState()->isomorphic.rowInterval + kDisplayWidth; ++i) {
+		getNoteColour(getState()->isomorphic.scrollOffset + i, noteColours[i]);
 	}
 }
 
@@ -105,7 +105,7 @@ void KeyboardLayoutIsomorphic::renderPads(uint8_t image[][kDisplayWidth + kSideB
 	// Iterate over grid image
 	for (int y = 0; y < kDisplayHeight; ++y) {
 		int noteCode = noteFromCoords(0, y);
-		int yDisplay = noteCode - getState()->scrollOffset;
+		int yDisplay = noteCode - getState()->isomorphic.scrollOffset;
 		int noteWithinOctave = (uint16_t)(noteCode - getRootNote() + 132) % (uint8_t)12;
 
 		for (int x = 0; x < kDisplayWidth; x++) {
@@ -138,7 +138,7 @@ void KeyboardLayoutIsomorphic::renderPads(uint8_t image[][kDisplayWidth + kSideB
 }
 
 uint8_t KeyboardLayoutIsomorphic::noteFromCoords(int x, int y) {
-	return getState()->scrollOffset + x + y * getState()->rowInterval;
+	return getState()->isomorphic.scrollOffset + x + y * getState()->isomorphic.rowInterval;
 }
 
 } // namespace keyboard::layout

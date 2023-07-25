@@ -118,7 +118,7 @@ protected:
 
 	inline void getNoteColour(uint8_t note, uint8_t rgb[]) { currentClip()->getMainColourFromY(note, 0, rgb); }
 
-	inline KeyboardStateData* getState() { return &(currentClip()->keyboardState); }
+	inline KeyboardState* getState() { return &(currentClip()->keyboardState); }
 
 protected:
 	NotesState currentNotesState;

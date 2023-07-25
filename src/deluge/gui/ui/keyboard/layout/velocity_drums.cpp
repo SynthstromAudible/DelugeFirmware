@@ -51,8 +51,8 @@ void KeyboardLayoutVelocityDrums::handleHorizontalEncoder(int offset, bool shift
 void KeyboardLayoutVelocityDrums::recalculate() {
 	//@TODO: Refactor
 	// // Pre-Buffer colours for next renderings
-	// for (int i = 0; i < kDisplayHeight * getState()->rowInterval + kDisplayWidth; ++i) {
-	// 	getNoteColour(getState()->scrollOffset + i, noteColours[i]);
+	// for (int i = 0; i < kDisplayHeight * getState()->isomorphic.rowInterval + kDisplayWidth; ++i) {
+	// 	getNoteColour(getState()->isomorphic.scrollOffset + i, noteColours[i]);
 	// }
 }
 
@@ -81,7 +81,7 @@ void KeyboardLayoutVelocityDrums::renderPads(uint8_t image[][kDisplayWidth + kSi
 	// Iterate over grid image
 	for (int y = 0; y < kDisplayHeight; ++y) {
 		int noteCode = noteFromCoords(0, y);
-		int yDisplay = noteCode - getState()->scrollOffset;
+		int yDisplay = noteCode - getState()->isomorphic.scrollOffset;
 		int noteWithinOctave = (uint16_t)(noteCode - getRootNote() + 132) % (uint8_t)12;
 
 		for (int x = 0; x < kDisplayWidth; x++) {

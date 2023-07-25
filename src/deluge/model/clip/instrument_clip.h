@@ -114,7 +114,7 @@ public:
 
 	int yScroll;
 
-	keyboard::KeyboardStateData keyboardState;
+	keyboard::KeyboardState keyboardState;
 
 	int32_t ticksTilNextNoteRowEvent;
 	int32_t noteRowsNumTicksBehindClip;
