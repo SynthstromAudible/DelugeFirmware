@@ -92,6 +92,7 @@ public:
 	/// Shift state not supplied since that function is already taken
 	virtual void handleVerticalEncoder(int offset) = 0;
 
+	/// Will be called with offset 0 to recalculate bounds on clip changes
 	virtual void handleHorizontalEncoder(int offset, bool shiftEnabled) = 0;
 
 	/// This function is called on visibility change and if color offset changes

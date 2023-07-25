@@ -525,6 +525,9 @@ void KeyboardScreen::selectLayout(int8_t offset) {
 		numericDriver.displayPopup(layoutList[getCurrentClip()->keyboardState.currentLayout]->name());
 	}
 
+	// Ensure scroll values are calculated in bounds
+	layoutList[getCurrentClip()->keyboardState.currentLayout]->handleHorizontalEncoder(0, false);
+
 	// Precalculate because changing instruments can change pad colors
 	layoutList[getCurrentClip()->keyboardState.currentLayout]->precalculate();
 	requestRendering();
@@ -537,6 +540,8 @@ void KeyboardScreen::selectEncoderAction(int8_t offset) {
 	}
 	else {
 		InstrumentClipMinder::selectEncoderAction(offset);
+		// Ensure scroll values are calculated in bounds
+		layoutList[getCurrentClip()->keyboardState.currentLayout]->handleHorizontalEncoder(0, false);
 		layoutList[getCurrentClip()->keyboardState.currentLayout]->precalculate();
 		requestRendering();
 	}
@@ -569,6 +574,9 @@ void KeyboardScreen::focusRegained() {
 void KeyboardScreen::openedInBackground() {
 	getCurrentClip()->onKeyboardScreen = true;
 	selectLayout(0); // Make sure we get a valid layout from the loaded file
+
+	// Ensure scroll values are calculated in bounds
+	layoutList[getCurrentClip()->keyboardState.currentLayout]->handleHorizontalEncoder(0, false);
 	layoutList[getCurrentClip()->keyboardState.currentLayout]->precalculate();
 	requestRendering(); // This one originally also included sidebar, the other ones didn't
 }
