@@ -116,6 +116,7 @@ public:
 	virtual NotesState* getNotesState() { return &currentNotesState; }
 
 protected:
+	inline bool isKit() { return currentInstrument()->type == InstrumentType::KIT; }
 	inline int16_t getRootNote() { return currentSong->rootNote; }
 	inline bool getScaleModeEnabled() { return currentClip()->inScaleMode; }
 	inline uint8_t getScaleNoteCount() { return currentSong->numModeNotes; }
@@ -124,7 +125,7 @@ protected:
 
 	inline int getLowestClipNote() { return kLowestKeyboardNote; }
 	inline int getHighestClipNote() {
-		if (currentInstrument()->type == InstrumentType::KIT) {
+		if (isKit()) {
 			return currentClip()->noteRows.getNumElements() - 1;
 		}
 
