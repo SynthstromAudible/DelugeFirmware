@@ -406,8 +406,8 @@ void GlobalEffectable::processFilters(StereoSample* buffer, int numSamples, Filt
 		StereoSample* bufferEnd = buffer + numSamples;
 
 		do {
-			filterSets[0].renderHPF(&thisSample->l, filterSetConfig, 2);
-			filterSets[1].renderHPF(&thisSample->r, filterSetConfig, 2);
+			filterSets[0].renderLadderHPF(&thisSample->l, &filterSetConfig->hpladderconfig, 2);
+			filterSets[1].renderLadderHPF(&thisSample->r, &filterSetConfig->hpladderconfig, 2);
 		} while (++thisSample != bufferEnd);
 	}
 
