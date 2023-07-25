@@ -115,18 +115,6 @@ void KeyboardLayoutInKey::renderPads(uint8_t image[][kDisplayWidth + kSideBarWid
 				getTailColour(image[y][x], noteColours[yDisplay]);
 			}
 
-			//@TODO: In a future revision it would be nice to add this to the API
-			// Dim note pad if a browser is open with the note highlighted
-			if (getCurrentUI() == &sampleBrowser || getCurrentUI() == &audioRecorder
-			    || (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem()->isRangeDependent())) {
-				if (soundEditor.isUntransposedNoteWithinRange(noteCode)) {
-					for (int colour = 0; colour < 3; colour++) {
-						int value = (int)image[y][x][colour] + 35;
-						image[y][x][colour] = getMin(value, 255);
-					}
-				}
-			}
-
 			++noteCode;
 			++yDisplay;
 			noteWithinOctave = (noteWithinOctave + 1) % 12;
