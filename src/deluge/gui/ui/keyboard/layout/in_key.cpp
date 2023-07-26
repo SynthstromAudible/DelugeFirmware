@@ -82,9 +82,15 @@ void KeyboardLayoutInKey::precalculate() {
 	KeyboardStateInKey& state = getState().inKey;
 
 	// Pre-Buffer colours for next renderings
-	for (int i = 0; i < kDisplayHeight * state.rowInterval + kDisplayWidth; ++i) {
+	for (int i = 0; i < (kDisplayHeight * state.rowInterval + kDisplayWidth); ++i) {
 		getNoteColour(noteFromPadIndex(state.scrollOffset + i), noteColours[i]);
 	}
+}
+
+inline void colorCopy(uint8_t* dest, uint8_t* src, uint8_t intensity, uint8_t brightnessDivider) {
+	dest[0] = (uint8_t)((src[0] * intensity / 255) / brightnessDivider);
+	dest[1] = (uint8_t)((src[1] * intensity / 255) / brightnessDivider);
+	dest[2] = (uint8_t)((src[2] * intensity / 255) / brightnessDivider);
 }
 
 void KeyboardLayoutInKey::renderPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]) {
@@ -102,18 +108,22 @@ void KeyboardLayoutInKey::renderPads(uint8_t image[][kDisplayWidth + kSideBarWid
 			auto padIndex = padIndexFromCoords(x, y);
 			auto note = noteFromPadIndex(padIndex);
 			int noteWithinScale = (uint16_t)((note - getRootNote()) + kOctaveSize) % kOctaveSize;
+			uint8_t* colourSource = noteColours[padIndex - getState().inKey.scrollOffset];
 
-			// Full color for every octaves root and active notes
-			if (noteWithinScale == 0) {
-				memcpy(image[y][x], noteColours[padIndex - getState().isomorphic.scrollOffset], 3);
-				//memset(image[y][x], 0xFF, 3);
+			// Full brightness and color for active root note
+			if (noteWithinScale == 0 && scaleActiveNotes[noteWithinScale]) {
+				colorCopy(image[y][x], colourSource, 255, 1);
 			}
-			// // Or, if this note is just within the current scale, show it dim // @TODO: Check calculation
-			// else if (scaleActiveNotes[note]) {
-			// 	getTailColour(image[y][x], noteColours[normalizedPadOffset]);
-			// }
+			// Full color but less brightness for inactive root note
+			else if (noteWithinScale == 0) {
+				colorCopy(image[y][x], colourSource, 255, 2);
+			}
+			// TOned down color but high brightness for active scale note
+			else if (scaleActiveNotes[noteWithinScale]) {
+				colorCopy(image[y][x], colourSource, 180, 3);
+			}
+			// Dimly white for inactive scale notes
 			else {
-				// Color other scale notes dimly white
 				memset(image[y][x], 1, 3);
 			}
 		}

@@ -20,7 +20,6 @@
 
 namespace keyboard {
 
-
 enum KeyboardLayoutType : uint32_t {
 	Isomorphic,
 	Drums,
@@ -40,7 +39,7 @@ struct KeyboardStateDrums {
 };
 
 constexpr int kDefaultInKeyRowInterval = 3;
-struct KeyboardStateInKey {                                                //@TODO: Implement storage
+struct KeyboardStateInKey {                                                     //@TODO: Implement storage
 	int scrollOffset = (60 - (kDisplayHeight >> 2) * kDefaultInKeyRowInterval); //@TODO: Select useful default
 	int rowInterval = kDefaultInKeyRowInterval;
 };

@@ -78,7 +78,7 @@ void KeyboardLayoutIsomorphic::precalculate() {
 	KeyboardStateIsomorphic& state = getState().isomorphic;
 
 	// Pre-Buffer colours for next renderings
-	for (int i = 0; i < kDisplayHeight * state.rowInterval + kDisplayWidth; ++i) {
+	for (int i = 0; i < (kDisplayHeight * state.rowInterval + kDisplayWidth); ++i) {
 		getNoteColour(state.scrollOffset + i, noteColours[i]);
 	}
 }
