@@ -17,9 +17,9 @@
 
 #include "model/drum/gate_drum.h"
 #include "processing/engines/cv_engine.h"
-#include <string.h>
-#include "util/functions.h"
 #include "storage/storage_manager.h"
+#include "util/functions.h"
+#include <string.h>
 
 extern "C" {
 #include "util/cfunctions.h"

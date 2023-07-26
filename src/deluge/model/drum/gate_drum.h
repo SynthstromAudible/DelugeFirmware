@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "model/drum/non_audio_drum.h"
 #include "RZA1/system/r_typedefs.h"
+#include "model/drum/non_audio_drum.h"
 
 class Kit;
 class ParamManagerForTimeline;

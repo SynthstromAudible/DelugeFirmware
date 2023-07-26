@@ -16,9 +16,9 @@
 */
 
 #pragma once
+#include "RZA1/system/r_typedefs.h"
 #include "definitions_cxx.hpp"
 #include "model/consequence/consequence.h"
-#include "RZA1/system/r_typedefs.h"
 
 class Output;
 class ClipInstance;

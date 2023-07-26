@@ -15,10 +15,10 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "model/clip/instrument_clip.h"
 #include "gui/menu_item/integer.h"
-#include "model/song/song.h"
 #include "gui/ui/sound_editor.h"
+#include "model/clip/instrument_clip.h"
+#include "model/song/song.h"
 
 namespace menu_item::arpeggiator::midi_cv {
 class Gate final : public Integer {

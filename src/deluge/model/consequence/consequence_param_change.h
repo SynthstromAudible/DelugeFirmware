@@ -18,9 +18,9 @@
 #pragma once
 
 #include "RZA1/system/r_typedefs.h"
-#include "modulation/automation/auto_param.h"
 #include "model/consequence/consequence.h"
 #include "model/model_stack.h"
+#include "modulation/automation/auto_param.h"
 
 class ConsequenceParamChange final : public Consequence {
 public:

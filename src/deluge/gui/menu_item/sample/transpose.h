@@ -15,9 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "storage/multi_range/multisample_range.h"
 #include "gui/menu_item/source/transpose.h"
 #include "processing/sound/sound.h"
+#include "storage/multi_range/multisample_range.h"
 
 namespace menu_item::sample {
 class Transpose final : public source::Transpose {

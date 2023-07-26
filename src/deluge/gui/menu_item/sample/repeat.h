@@ -16,14 +16,14 @@
 */
 #pragma once
 #include "definitions_cxx.hpp"
-#include "model/clip/clip.h"
+#include "gui/ui/sound_editor.h"
 #include "gui/views/instrument_clip_view.h"
+#include "model/clip/clip.h"
 #include "model/drum/drum.h"
 #include "model/drum/kit.h"
-#include "selection.h"
 #include "model/song/song.h"
 #include "processing/sound/sound_drum.h"
-#include "gui/ui/sound_editor.h"
+#include "selection.h"
 #include "util/misc.h"
 
 namespace menu_item::sample {

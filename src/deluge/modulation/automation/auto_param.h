@@ -17,8 +17,8 @@
 
 #pragma once
 #include "RZA1/system/r_typedefs.h"
-#include "modulation/params/param_node_vector.h"
 #include "model/action/action.h"
+#include "modulation/params/param_node_vector.h"
 
 class InstrumentClip;
 class ParamNode;

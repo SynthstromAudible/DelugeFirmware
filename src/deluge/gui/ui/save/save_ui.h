@@ -17,9 +17,9 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "gui/ui/browser/slot_browser.h"
 #include "hid/button.h"
-#include "definitions_cxx.hpp"
 
 class SaveUI : public SlotBrowser {
 public:

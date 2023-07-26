@@ -15,14 +15,14 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "processing/engines/audio_engine.h"
-#include "storage/audio/audio_file_manager.h"
 #include "model/sample/sample_playback_guide.h"
+#include "memory/general_memory_allocator.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_holder.h"
-#include "playback/playback_handler.h"
 #include "model/voice/voice_sample.h"
-#include "memory/general_memory_allocator.h"
+#include "playback/playback_handler.h"
+#include "processing/engines/audio_engine.h"
+#include "storage/audio/audio_file_manager.h"
 
 SamplePlaybackGuide::SamplePlaybackGuide() {
 	// TODO Auto-generated constructor stub

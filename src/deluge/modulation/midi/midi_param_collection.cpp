@@ -15,21 +15,21 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "processing/engines/audio_engine.h"
-#include "model/clip/instrument_clip.h"
 #include "modulation/midi/midi_param_collection.h"
 #include "definitions_cxx.hpp"
-#include "model/action/action_logger.h"
-#include "modulation/midi/midi_param.h"
 #include "gui/views/view.h"
-#include "io/midi/midi_engine.h"
-#include "model/instrument/instrument.h"
-#include "util/functions.h"
-#include "model/model_stack.h"
 #include "hid/display/numeric_driver.h"
+#include "io/midi/midi_engine.h"
+#include "model/action/action_logger.h"
+#include "model/clip/instrument_clip.h"
+#include "model/instrument/instrument.h"
 #include "model/instrument/midi_instrument.h"
+#include "model/model_stack.h"
 #include "model/song/song.h"
+#include "modulation/midi/midi_param.h"
+#include "processing/engines/audio_engine.h"
 #include "storage/storage_manager.h"
+#include "util/functions.h"
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"

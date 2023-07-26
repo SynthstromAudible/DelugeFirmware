@@ -15,14 +15,14 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "processing/engines/audio_engine.h"
 #include "memory/memory_region.h"
-#include "memory/stealable.h"
+#include "drivers/mtu/mtu.h"
+#include "hid/display/numeric_driver.h"
 #include "io/debug/print.h"
 #include "memory/general_memory_allocator.h"
-#include "drivers/mtu/mtu.h"
+#include "memory/stealable.h"
+#include "processing/engines/audio_engine.h"
 #include "util/functions.h"
-#include "hid/display/numeric_driver.h"
 
 MemoryRegion::MemoryRegion() : emptySpaces(sizeof(EmptySpaceRecord)) {
 	numAllocations = 0;
