@@ -51,6 +51,7 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
 
 ### Kit Clip View
  - ([#122]) Pressing "AUDITION + RANDOM" on a drum kit row will load a random sample from the same folder as the currently enabled sample and load it as the sound for that row. Currently limited to 25 files for performance reasons. This feature can be toggled in the [runtime features menu](#runtime-features).
+  - ([#234]) While you can delete a kit row by holding a Note in a row and pressing SAVE/DELETE, the "Delete Unused Kit Rows" feature allows you to batch delete kit rows which does not contain any notes, freeing kits from unused sounds (which take some precious RAM). While inside a kit, hold "KIT" and press "Shift + SAVE/DELETE". A confirmation message will appear: "Deleted unused rows". This command is not executed if there are no notes at all in the kit. This feature can be toggled in the [runtime features menu](#runtime-features).
 
 ### Kit Keyboard View
  - ([#112]) All-new use for the "keyboard" button in kit clips, uses the main pad grid for MPC-style 16 level playing. Horizonatal encoder scrolls by one pad at a time, allowing positioning drums left to right, and vertical encoder jumps vertically by rows.
@@ -105,3 +106,4 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#141]: https://github.com/SynthstromAudible/DelugeFirmware/pull/141
 [#138]: https://github.com/SynthstromAudible/DelugeFirmware/pull/138
 [#163]: https://github.com/SynthstromAudible/DelugeFirmware/pull/163
+[#234]: https://github.com/SynthstromAudible/DelugeFirmware/pull/234
