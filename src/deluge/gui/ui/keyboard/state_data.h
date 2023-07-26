@@ -20,7 +20,6 @@
 
 namespace keyboard {
 
-constexpr int kDefaultRowInterval = 5;
 
 enum KeyboardLayoutType : uint32_t {
 	Isomorphic,
@@ -29,9 +28,10 @@ enum KeyboardLayoutType : uint32_t {
 	MaxElement // Keep as boundary
 };
 
+constexpr int kDefaultIsometricRowInterval = 5;
 struct KeyboardStateIsomorphic {
-	int scrollOffset = (60 - (kDisplayHeight >> 2) * kDefaultRowInterval);
-	int rowInterval = kDefaultRowInterval;
+	int scrollOffset = (60 - (kDisplayHeight >> 2) * kDefaultIsometricRowInterval);
+	int rowInterval = kDefaultIsometricRowInterval;
 };
 
 struct KeyboardStateDrums {
@@ -39,9 +39,10 @@ struct KeyboardStateDrums {
 	int edgeSize = 4;
 };
 
+constexpr int kDefaultInKeyRowInterval = 3;
 struct KeyboardStateInKey {                                                //@TODO: Implement storage
-	int scrollOffset = (60 - (kDisplayHeight >> 2) * kDefaultRowInterval); //@TODO: Select useful default
-	int rowInterval = kDefaultRowInterval;
+	int scrollOffset = (60 - (kDisplayHeight >> 2) * kDefaultInKeyRowInterval); //@TODO: Select useful default
+	int rowInterval = kDefaultInKeyRowInterval;
 };
 
 /// Please note that saving and restoring currently needs to be added manually in instrument_clip.cpp and all layouts share one struct for storage

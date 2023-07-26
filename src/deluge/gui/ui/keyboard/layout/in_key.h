@@ -56,7 +56,7 @@ private:
 	}
 
 	inline uint16_t padIndexFromNote(uint16_t note) {
-		return 0;
+		return note;
 		//note % kOctaveSize
 
 		// uint8_t scaleNoteCount = getScaleNoteCount();

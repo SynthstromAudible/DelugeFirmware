@@ -65,7 +65,7 @@ void KeyboardLayoutIsomorphic::handleHorizontalEncoder(int offset, bool shiftEna
 	state.scrollOffset = getMax(getLowestClipNote(), state.scrollOffset);
 	state.scrollOffset = getMin(state.scrollOffset, highestScrolledNote);
 
-	// Offset if still in bounds (check for verticalEncoder)
+	// Offset if still in bounds (reject if the next row can not be shown completely)
 	int newOffset = state.scrollOffset + offset;
 	if (newOffset >= getLowestClipNote() && newOffset <= highestScrolledNote) {
 		state.scrollOffset = newOffset;

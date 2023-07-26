@@ -69,7 +69,7 @@ void KeyboardLayoutInKey::handleHorizontalEncoder(int offset, bool shiftEnabled)
 	state.scrollOffset = getMax(lowestScrolledNote, state.scrollOffset);
 	state.scrollOffset = getMin(state.scrollOffset, highestScrolledNote);
 
-	// Offset if still in bounds (check for verticalEncoder)
+	// Offset if still in bounds (reject if the next row can not be shown completely)
 	int newOffset = state.scrollOffset + offset;
 	if (newOffset >= lowestScrolledNote && newOffset <= highestScrolledNote) {
 		state.scrollOffset = newOffset;
@@ -99,22 +99,22 @@ void KeyboardLayoutInKey::renderPads(uint8_t image[][kDisplayWidth + kSideBarWid
 	// Iterate over grid image
 	for (int y = 0; y < kDisplayHeight; ++y) {
 		for (int x = 0; x < kDisplayWidth; x++) {
-			int noteCode = noteFromCoords(x, y);
-			//int normalizedPadOffset = noteCode - getState().isomorphic.scrollOffset;
-			int noteWithinScale = (uint16_t)((noteCode - getRootNote()) + kOctaveSize) % kOctaveSize;
+			auto padIndex = padIndexFromCoords(x, y);
+			auto note = noteFromPadIndex(padIndex);
+			int noteWithinScale = (uint16_t)((note - getRootNote()) + kOctaveSize) % kOctaveSize;
 
 			// Full color for every octaves root and active notes
 			if (noteWithinScale == 0) {
-				//memcpy(image[y][x], noteColours[normalizedPadOffset], 3);
-				memset(image[y][x], 0xFF, 3);
+				memcpy(image[y][x], noteColours[padIndex - getState().isomorphic.scrollOffset], 3);
+				//memset(image[y][x], 0xFF, 3);
 			}
 			// // Or, if this note is just within the current scale, show it dim // @TODO: Check calculation
-			// else if (scaleActiveNotes[noteCode]) {
+			// else if (scaleActiveNotes[note]) {
 			// 	getTailColour(image[y][x], noteColours[normalizedPadOffset]);
 			// }
 			else {
 				// Color other scale notes dimly white
-				memset(image[y][x], 0x05, 3);
+				memset(image[y][x], 1, 3);
 			}
 		}
 	}
