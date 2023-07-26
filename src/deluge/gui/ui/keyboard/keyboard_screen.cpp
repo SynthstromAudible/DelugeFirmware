@@ -446,6 +446,7 @@ ActionResult KeyboardScreen::buttonAction(hid::Button b, bool on, bool inCardRou
 		if (on && getCurrentClip()->inScaleMode && currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED) {
 			exitScaleModeOnButtonRelease = false;
 			cycleThroughScales();
+			layoutList[getCurrentClip()->keyboardState.currentLayout]->precalculate();
 			requestRendering();
 		}
 	}
@@ -575,6 +576,8 @@ void KeyboardScreen::selectEncoderAction(int8_t offset) {
 		}
 #endif
 		numericDriver.displayPopup(noteName, 3, false, (noteCodeIsSharp[newRootNote] ? 0 : 255));
+		layoutList[getCurrentClip()->keyboardState.currentLayout]->handleHorizontalEncoder(0, false);
+		layoutList[getCurrentClip()->keyboardState.currentLayout]->precalculate();
 		requestRendering();
 	}
 	else {

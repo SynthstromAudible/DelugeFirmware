@@ -60,16 +60,18 @@ private:
 	inline uint16_t padIndexFromNote(uint16_t note) {
 		ModesArray& scaleNotes = getScaleNotes();
 		uint8_t scaleNoteCount = getScaleNoteCount();
+		int16_t rootNote = getRootNote();
 
 		uint8_t padScaleOffset = 0;
 		for (uint8_t idx = 0; idx < scaleNoteCount; ++idx) {
-			if (scaleNotes[idx] == (((note + kOctaveSize) - getRootNote()) % kOctaveSize)) {
+			if (scaleNotes[idx] == (((note + kOctaveSize) - rootNote) % kOctaveSize)) {
 				padScaleOffset = idx;
 				break;
 			}
 		}
-		uint8_t octave = note / kOctaveSize;
-		return octave * scaleNoteCount + padScaleOffset;
+		int32_t octave = (((note + kOctaveSize) - rootNote) / kOctaveSize) - 1;
+		// Make sure we don't go into negative because our root note is lower than C-2
+		return getMax(0, octave * scaleNoteCount + padScaleOffset);
 	}
 
 	// inline uint16_t padIndexFromNote(uint16_t note) {
