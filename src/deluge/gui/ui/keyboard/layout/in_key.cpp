@@ -60,8 +60,6 @@ void KeyboardLayoutInKey::handleHorizontalEncoder(int offset, bool shiftEnabled)
 
 	// Calculate highest and lowest possible displayable note with current rowInterval
 	int lowestScrolledNote = padIndexFromNote(getLowestClipNote());
-	//int highestScrolledNote = (padIndexFromNote(getHighestClipNote())
-	//                           - ((kDisplayHeight * state.rowInterval + kDisplayWidth) - state.rowInterval - 1));
 	int highestScrolledNote =
 	    (padIndexFromNote(getHighestClipNote()) - ((kDisplayHeight - 1) * state.rowInterval + kDisplayWidth - 1));
 
@@ -97,7 +95,7 @@ void KeyboardLayoutInKey::renderPads(uint8_t image[][kDisplayWidth + kSideBarWid
 	// Precreate list of all active notes per octave
 	bool scaleActiveNotes[kOctaveSize] = {0};
 	for (uint8_t idx = 0; idx < currentNotesState.count; ++idx) {
-		scaleActiveNotes[((currentNotesState.notes[idx].note - getRootNote()) + kOctaveSize) % kOctaveSize] = true;
+		scaleActiveNotes[((currentNotesState.notes[idx].note + kOctaveSize) - getRootNote()) % kOctaveSize] = true;
 	}
 
 	uint8_t scaleNoteCount = getScaleNoteCount();
@@ -107,7 +105,7 @@ void KeyboardLayoutInKey::renderPads(uint8_t image[][kDisplayWidth + kSideBarWid
 		for (int x = 0; x < kDisplayWidth; x++) {
 			auto padIndex = padIndexFromCoords(x, y);
 			auto note = noteFromPadIndex(padIndex);
-			int noteWithinScale = (uint16_t)((note - getRootNote()) + kOctaveSize) % kOctaveSize;
+			int noteWithinScale = (uint16_t)((note + kOctaveSize) - getRootNote()) % kOctaveSize;
 			uint8_t* colourSource = noteColours[padIndex - getState().inKey.scrollOffset];
 
 			// Full brightness and color for active root note
@@ -120,7 +118,7 @@ void KeyboardLayoutInKey::renderPads(uint8_t image[][kDisplayWidth + kSideBarWid
 			}
 			// TOned down color but high brightness for active scale note
 			else if (scaleActiveNotes[noteWithinScale]) {
-				colorCopy(image[y][x], colourSource, 180, 3);
+				colorCopy(image[y][x], colourSource, 127, 3);
 			}
 			// Dimly white for inactive scale notes
 			else {

@@ -564,7 +564,7 @@ void KeyboardScreen::selectEncoderAction(int8_t offset) {
 	else if (getActiveInstrument()->type != InstrumentType::KIT && currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED
 	         && getCurrentClip()->inScaleMode) {
 		exitScaleModeOnButtonRelease = false;
-		int newRootNote = (currentSong->rootNote + offset + kOctaveSize) % kOctaveSize;
+		int newRootNote = ((currentSong->rootNote + kOctaveSize) + offset) % kOctaveSize;
 		instrumentClipView.setupChangingOfRootNote(newRootNote);
 
 		char noteName[3] = {0};

@@ -87,7 +87,7 @@ void KeyboardLayoutIsomorphic::renderPads(uint8_t image[][kDisplayWidth + kSideB
 	// Precreate list of all active notes per octave
 	bool octaveActiveNotes[kOctaveSize] = {0};
 	for (uint8_t idx = 0; idx < currentNotesState.count; ++idx) {
-		octaveActiveNotes[((currentNotesState.notes[idx].note - getRootNote()) + kOctaveSize) % kOctaveSize] = true;
+		octaveActiveNotes[((currentNotesState.notes[idx].note + kOctaveSize) - getRootNote()) % kOctaveSize] = true;
 	}
 
 	// Precreate list of all scale notes per octave
@@ -103,7 +103,7 @@ void KeyboardLayoutIsomorphic::renderPads(uint8_t image[][kDisplayWidth + kSideB
 	for (int y = 0; y < kDisplayHeight; ++y) {
 		int noteCode = noteFromCoords(0, y);
 		int normalizedPadOffset = noteCode - getState().isomorphic.scrollOffset;
-		int noteWithinOctave = (uint16_t)((noteCode - getRootNote()) + kOctaveSize) % kOctaveSize;
+		int noteWithinOctave = (uint16_t)((noteCode + kOctaveSize) - getRootNote()) % kOctaveSize;
 
 		for (int x = 0; x < kDisplayWidth; x++) {
 			// Full color for every octaves root and active notes

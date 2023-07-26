@@ -49,21 +49,43 @@ private:
 	}
 
 	inline uint16_t noteFromPadIndex(uint16_t padIndex) {
+		ModesArray& scaleNotes = getScaleNotes();
 		uint8_t scaleNoteCount = getScaleNoteCount();
+
 		uint8_t octave = padIndex / scaleNoteCount;
 		uint8_t octaveNoteIndex = padIndex % scaleNoteCount;
-		return octave * kOctaveSize + getRootNote() + getScaleNotes()[octaveNoteIndex];
+		return octave * kOctaveSize + getRootNote() + scaleNotes[octaveNoteIndex];
 	}
 
 	inline uint16_t padIndexFromNote(uint16_t note) {
-		return note;
-		//note % kOctaveSize
+		ModesArray& scaleNotes = getScaleNotes();
+		uint8_t scaleNoteCount = getScaleNoteCount();
 
-		// uint8_t scaleNoteCount = getScaleNoteCount();
-		// uint8_t octave = padIndex / scaleNoteCount;
-		// uint8_t octaveNoteIndex = padIndex % scaleNoteCount;
-		// return octave * kOctaveSize + getRootNote() + getScaleNotes()[octaveNoteIndex];
+		uint8_t padScaleOffset = 0;
+		for (uint8_t idx = 0; idx < scaleNoteCount; ++idx) {
+			if (scaleNotes[idx] == (((note + kOctaveSize) - getRootNote()) % kOctaveSize)) {
+				padScaleOffset = idx;
+				break;
+			}
+		}
+		uint8_t octave = note / kOctaveSize;
+		return octave * scaleNoteCount + padScaleOffset;
 	}
+
+	// inline uint16_t padIndexFromNote(uint16_t note) {
+	// 	uint8_t scaleNoteCount = getScaleNoteCount();
+
+	// 	padIndex = octave * scaleNoteCount
+	// 	C1 = 7
+
+	// 	return note;
+	// 	//note % kOctaveSize
+
+	// 	// uint8_t scaleNoteCount = getScaleNoteCount();
+	// 	// uint8_t octave = padIndex / scaleNoteCount;
+	// 	// uint8_t octaveNoteIndex = padIndex % scaleNoteCount;
+	// 	// return octave * kOctaveSize + getRootNote() + getScaleNotes()[octaveNoteIndex];
+	// }
 
 	uint8_t noteColours[kDisplayHeight * kMaxInKeyRowInterval + kDisplayWidth][3];
 };

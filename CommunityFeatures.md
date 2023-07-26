@@ -42,10 +42,12 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
 ### Instrument Keyboard View
  - ([#46]) Note offset between rows is now configurable by holding shift and using the horizontal encoder. This allows e.g. an isomorphic keyboard layout by setting the row offset to 12. The setting is saved per clip in the song file.
  - ([#138]) Keyboard API and general improvements
-     - Users can switch between layouts with "keyboard" button and select knob
+	 - Users can switch between layouts with "keyboard" button and select knob
 	 - Keyboard mode allows freely switch between all types (Synth, Kit, MIDI, CV) automatically getting the first compatible layout
-     - Drum trigger edge sizes in Drums layout for kits can now be changed between 1 and 8 with Shift + horizontal encoder
+	 - Drum trigger edge sizes in Drums layout for kits can now be changed between 1 and 8 with Shift + horizontal encoder
 	 - A new in-key only layout that removes out of scale buttons
+	 - New way to change scale in keyboard mode: Hold Scale and press selection knob
+	 - New way to change scale root note in keyboard mode: Hold Scale and turn selection knob
 
 ### Kit Clip View
  - ([#122]) Pressing "AUDITION + RANDOM" on a drum kit row will load a random sample from the same folder as the currently enabled sample and load it as the sound for that row. Currently limited to 25 files for performance reasons. This feature can be toggled in the [runtime features menu](#runtime-features).
