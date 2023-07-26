@@ -59,7 +59,8 @@ void KeyboardLayoutIsomorphic::handleHorizontalEncoder(int offset, bool shiftEna
 	}
 
 	// Calculate highest possible displayable note with current rowInterval
-	int highestScrolledNote = (getHighestClipNote() - ((kDisplayHeight - 1) * state.rowInterval + (kDisplayWidth - 1)));
+	int highestScrolledNote =
+	    (getHighestClipNote() - ((kDisplayHeight * state.rowInterval + kDisplayWidth) - state.rowInterval - 1));
 
 	// Make sure current value is in bounds
 	state.scrollOffset = getMax(getLowestClipNote(), state.scrollOffset);
@@ -85,15 +86,15 @@ void KeyboardLayoutIsomorphic::precalculate() {
 
 void KeyboardLayoutIsomorphic::renderPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]) {
 	// Precreate list of all active notes per octave
-	bool octaveActiveNotes[12] = {0};
+	bool octaveActiveNotes[kOctaveSize] = {0};
 	for (uint8_t idx = 0; idx < currentNotesState.count; ++idx) {
-		octaveActiveNotes[(currentNotesState.notes[idx].note - getRootNote() + 132) % 12] = true;
+		octaveActiveNotes[((currentNotesState.notes[idx].note - getRootNote()) + kOctaveSize) % kOctaveSize] = true;
 	}
 
 	// Precreate list of all scale notes per octave
-	bool octaveScaleNotes[12] = {0};
+	bool octaveScaleNotes[kModesArraySize] = {0};
 	if (getScaleModeEnabled()) {
-		uint8_t* scaleNotes = getScaleNotes();
+		ModesArray& scaleNotes = getScaleNotes();
 		for (uint8_t idx = 0; idx < getScaleNoteCount(); ++idx) {
 			octaveScaleNotes[scaleNotes[idx]] = true;
 		}
@@ -102,17 +103,17 @@ void KeyboardLayoutIsomorphic::renderPads(uint8_t image[][kDisplayWidth + kSideB
 	// Iterate over grid image
 	for (int y = 0; y < kDisplayHeight; ++y) {
 		int noteCode = noteFromCoords(0, y);
-		int yDisplay = noteCode - getState().isomorphic.scrollOffset;
-		int noteWithinOctave = (uint16_t)(noteCode - getRootNote() + 132) % (uint8_t)12;
+		int normalizedPadOffset = noteCode - getState().isomorphic.scrollOffset;
+		int noteWithinOctave = (uint16_t)((noteCode - getRootNote()) + kOctaveSize) % kOctaveSize;
 
 		for (int x = 0; x < kDisplayWidth; x++) {
 			// Full color for every octaves root and active notes
 			if (octaveActiveNotes[noteWithinOctave] || noteWithinOctave == 0) {
-				memcpy(image[y][x], noteColours[yDisplay], 3);
+				memcpy(image[y][x], noteColours[normalizedPadOffset], 3);
 			}
 			// Or, if this note is just within the current scale, show it dim
 			else if (octaveScaleNotes[noteWithinOctave]) {
-				getTailColour(image[y][x], noteColours[yDisplay]);
+				getTailColour(image[y][x], noteColours[normalizedPadOffset]);
 			}
 
 			//@TODO: In a future revision it would be nice to add this to the API
@@ -128,8 +129,8 @@ void KeyboardLayoutIsomorphic::renderPads(uint8_t image[][kDisplayWidth + kSideB
 			}
 
 			++noteCode;
-			++yDisplay;
-			noteWithinOctave = (noteWithinOctave + 1) % 12;
+			++normalizedPadOffset;
+			noteWithinOctave = (noteWithinOctave + 1) % kOctaveSize;
 		}
 	}
 }

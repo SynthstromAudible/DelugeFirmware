@@ -39,10 +39,30 @@ public:
 	virtual char* name() { return "In-Key"; }
 	virtual bool supportsInstrument() { return true; }
 	virtual bool supportsKit() { return false; }
+	virtual RequiredScaleMode requiredScaleMode() { return RequiredScaleMode::Enabled; }
 
 private:
-	inline uint8_t noteFromCoords(int x, int y) {
+	inline uint16_t noteFromCoords(int x, int y) { return noteFromPadIndex(padIndexFromCoords(x, y)); }
+
+	inline uint16_t padIndexFromCoords(int x, int y) {
 		return getState().inKey.scrollOffset + x + y * getState().inKey.rowInterval;
+	}
+
+	inline uint16_t noteFromPadIndex(uint16_t padIndex) {
+		uint8_t scaleNoteCount = getScaleNoteCount();
+		uint8_t octave = padIndex / scaleNoteCount;
+		uint8_t octaveNoteIndex = padIndex % scaleNoteCount;
+		return octave * kOctaveSize + getRootNote() + getScaleNotes()[octaveNoteIndex];
+	}
+
+	inline uint16_t padIndexFromNote(uint16_t note) {
+		return 0;
+		//note % kOctaveSize
+
+		// uint8_t scaleNoteCount = getScaleNoteCount();
+		// uint8_t octave = padIndex / scaleNoteCount;
+		// uint8_t octaveNoteIndex = padIndex % scaleNoteCount;
+		// return octave * kOctaveSize + getRootNote() + getScaleNotes()[octaveNoteIndex];
 	}
 
 	uint8_t noteColours[kDisplayHeight * kMaxInKeyRowInterval + kDisplayWidth][3];

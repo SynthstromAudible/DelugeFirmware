@@ -164,7 +164,7 @@ ActionResult KeyboardScreen::padAction(int x, int y, int velocity) {
 void KeyboardScreen::evaluateActiveNotes() {
 	lastNotesState = currentNotesState;
 	layoutList[getCurrentClip()->keyboardState.currentLayout]->evaluatePads(pressedPads);
-	currentNotesState = *layoutList[getCurrentClip()->keyboardState.currentLayout]->getNotesState();
+	currentNotesState = layoutList[getCurrentClip()->keyboardState.currentLayout]->getNotesState();
 }
 
 void KeyboardScreen::updateActiveNotes() {
@@ -332,11 +332,11 @@ ActionResult KeyboardScreen::buttonAction(hid::Button b, bool on, bool inCardRou
 				else {
 					currentUIMode = UI_MODE_SCALE_MODE_BUTTON_PRESSED;
 					exitScaleModeOnButtonRelease = true;
-					if (!getCurrentClip()->inScaleMode) {
-						calculateDefaultRootNote(); // Calculate it now so we can show the user even before they've released the button
-						flashDefaultRootNoteOn = false;
-						flashDefaultRootNote();
-					}
+					// if (!getCurrentClip()->inScaleMode) {
+					// 	calculateDefaultRootNote(); // Calculate it now so we can show the user even before they've released the button
+					// 	flashDefaultRootNoteOn = false;
+					// 	flashDefaultRootNote();
+					// }
 				}
 			}
 
@@ -442,6 +442,14 @@ ActionResult KeyboardScreen::buttonAction(hid::Button b, bool on, bool inCardRou
 		selectLayout(0);
 	}
 
+	else if (b == SELECT_ENC) {
+		if (on && getCurrentClip()->inScaleMode && currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED) {
+			exitScaleModeOnButtonRelease = false;
+			cycleThroughScales();
+			requestRendering();
+		}
+	}
+
 	else {
 		requestRendering();
 		ActionResult result = InstrumentClipMinder::buttonAction(b, on, inCardRoutine);
@@ -512,7 +520,8 @@ void KeyboardScreen::selectLayout(int8_t offset) {
 			break;
 		}
 
-		++nextLayout;
+		// Offset is guaranteed to be -1, 0 or 1, see limitedDetentPos
+		nextLayout += (offset == 0 ? 1 : offset);
 		++searchCount;
 	}
 
@@ -523,6 +532,20 @@ void KeyboardScreen::selectLayout(int8_t offset) {
 	getCurrentClip()->keyboardState.currentLayout = (KeyboardLayoutType)nextLayout;
 	if (getCurrentClip()->keyboardState.currentLayout != lastLayout) {
 		numericDriver.displayPopup(layoutList[getCurrentClip()->keyboardState.currentLayout]->name());
+	}
+
+	// Ensure scale mode is as expected
+	if (getActiveInstrument()->type != InstrumentType::KIT) {
+		auto requiredScaleMode = layoutList[getCurrentClip()->keyboardState.currentLayout]->requiredScaleMode();
+		if (requiredScaleMode == RequiredScaleMode::Enabled) {
+			getCurrentClip()->yScroll = instrumentClipView.setupForEnteringScaleMode(currentSong->rootNote);
+			setLedStates();
+		}
+		else if (requiredScaleMode == RequiredScaleMode::Disabled) {
+			getCurrentClip()->yScroll += instrumentClipView.setupForExitingScaleMode();
+			exitScaleMode();
+			setLedStates();
+		}
 	}
 
 	// Ensure scroll values are calculated in bounds
@@ -537,6 +560,22 @@ void KeyboardScreen::selectEncoderAction(int8_t offset) {
 	if (keyboardButtonActive) {
 		keyboardButtonUsed = true;
 		selectLayout(offset);
+	}
+	else if (getActiveInstrument()->type != InstrumentType::KIT && currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED
+	         && getCurrentClip()->inScaleMode) {
+		exitScaleModeOnButtonRelease = false;
+		int newRootNote = (currentSong->rootNote + offset + kOctaveSize) % kOctaveSize;
+		instrumentClipView.setupChangingOfRootNote(newRootNote);
+
+		char noteName[3] = {0};
+		noteName[0] = noteCodeToNoteLetter[newRootNote];
+#if HAVE_OLED
+		if (noteCodeIsSharp[newRootNote]) {
+			noteName[1] = '#';
+		}
+#endif
+		numericDriver.displayPopup(noteName, 3, false, (noteCodeIsSharp[newRootNote] ? 0 : 255));
+		requestRendering();
 	}
 	else {
 		InstrumentClipMinder::selectEncoderAction(offset);
@@ -615,6 +654,11 @@ void KeyboardScreen::flashDefaultRootNote() {
 }
 
 void KeyboardScreen::enterScaleMode(int selectedRootNote) {
+	auto requiredScaleMode = layoutList[getCurrentClip()->keyboardState.currentLayout]->requiredScaleMode();
+	if (requiredScaleMode == RequiredScaleMode::Disabled) {
+		return;
+	}
+
 	getCurrentClip()->yScroll = instrumentClipView.setupForEnteringScaleMode(selectedRootNote);
 
 	displayCurrentScaleName();
@@ -627,6 +671,11 @@ void KeyboardScreen::enterScaleMode(int selectedRootNote) {
 }
 
 void KeyboardScreen::exitScaleMode() {
+	auto requiredScaleMode = layoutList[getCurrentClip()->keyboardState.currentLayout]->requiredScaleMode();
+	if (requiredScaleMode == RequiredScaleMode::Enabled) {
+		return;
+	}
+
 	getCurrentClip()->yScroll += instrumentClipView.setupForExitingScaleMode();
 
 	evaluateActiveNotes();

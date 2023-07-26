@@ -17,17 +17,16 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
+#include "gui/ui/keyboard/notes_state.h"
 #include "gui/ui/keyboard/state_data.h"
 #include "model/song/song.h"
 #include "model/instrument/instrument.h"
 #include "model/clip/instrument_clip.h"
 #include "model/note/note_row.h"
 #include "hid/button.h"
-#include <string.h>
-#include <array>
 
 constexpr uint8_t kMaxNumKeyboardPadPresses = 10;
-constexpr uint8_t kMaxNumActiveNotes = 10;
 
 namespace keyboard {
 
@@ -45,41 +44,14 @@ struct PressedPad {
 	bool active;
 };
 
-struct NoteState {
-	uint8_t note = 0;
-	uint8_t velocity = 0;
-	int16_t mpeValues[3] = {0};
-	/// Generated notes will only create sound and not be used for interaction (e.g. setting root note)
-	bool generatedNote = false;
+enum class RequiredScaleMode : uint8_t {
+	Undefined = 0,
+	Disabled = 1,
+	Enabled = 2,
 };
 
-constexpr uint8_t kLowestKeyboardNote = 0;
-constexpr uint8_t kHighestKeyboardNote = 12 * 12;
-struct NotesState {
-	uint64_t states[3] = {0};
-	NoteState notes[kMaxNumActiveNotes] = {0};
-	uint8_t count = 0;
-
-	void enableNote(uint8_t note, uint8_t velocity, bool generatedNote = false, int16_t* mpeValues = nullptr) {
-		if (noteEnabled(note)) {
-			return;
-		}
-		notes[count].note = note;
-		notes[count].velocity = velocity;
-		notes[count].generatedNote = generatedNote;
-		if (mpeValues != nullptr) {
-			memcpy(&notes[count].mpeValues, mpeValues, sizeof(notes[count].mpeValues));
-		}
-
-		states[(note / 64)] |= (1ull << (note % 64));
-		count++;
-	}
-
-	bool noteEnabled(uint8_t note) {
-		uint64_t expectedValue = (1ull << (note % 64));
-		return (states[(note / 64)] & expectedValue) == expectedValue;
-	}
-};
+constexpr uint8_t kModesArraySize = kOctaveSize;
+typedef uint8_t ModesArray[kModesArraySize];
 
 class KeyboardLayout {
 public:
@@ -111,17 +83,22 @@ public:
 	// Properties
 
 	virtual char* name() = 0;
+	/// This currently includes Synth, MIDI and CV
 	virtual bool supportsInstrument() { return false; }
 	virtual bool supportsKit() { return false; }
+	virtual RequiredScaleMode requiredScaleMode() { return RequiredScaleMode::Undefined; }
 
-	virtual NotesState* getNotesState() { return &currentNotesState; }
+	virtual NotesState& getNotesState() { return currentNotesState; }
 
 protected:
 	inline bool isKit() { return currentInstrument()->type == InstrumentType::KIT; }
-	inline int16_t getRootNote() { return currentSong->rootNote; }
+	/// Song root note can be in any octave, layouts get the normalized one
+	inline int16_t getRootNote() { return (currentSong->rootNote % kOctaveSize); }
 	inline bool getScaleModeEnabled() { return currentClip()->inScaleMode; }
 	inline uint8_t getScaleNoteCount() { return currentSong->numModeNotes; }
-	inline uint8_t* getScaleNotes() { return currentSong->modeNotes; }
+
+	inline ModesArray& getScaleNotes() { return currentSong->modeNotes; }
+
 	inline uint8_t getDefaultVelocity() { return currentInstrument()->defaultVelocity; }
 
 	inline int getLowestClipNote() { return kLowestKeyboardNote; }

@@ -58,16 +58,18 @@ void KeyboardLayoutInKey::handleHorizontalEncoder(int offset, bool shiftEnabled)
 		offset = 0; // Reset offset variable for processing scroll calculation without actually shifting
 	}
 
-	// Calculate highest possible displayable note with current rowInterval
-	int highestScrolledNote = (getHighestClipNote() - ((kDisplayHeight - 1) * state.rowInterval + (kDisplayWidth - 1)));
+	// Calculate highest and lowest possible displayable note with current rowInterval
+	int lowestScrolledNote = padIndexFromNote(getLowestClipNote());
+	int highestScrolledNote = (padIndexFromNote(getHighestClipNote())
+	                           - ((kDisplayHeight * state.rowInterval + kDisplayWidth) - state.rowInterval - 1));
 
 	// Make sure current value is in bounds
-	state.scrollOffset = getMax(getLowestClipNote(), state.scrollOffset);
+	state.scrollOffset = getMax(lowestScrolledNote, state.scrollOffset);
 	state.scrollOffset = getMin(state.scrollOffset, highestScrolledNote);
 
 	// Offset if still in bounds (check for verticalEncoder)
 	int newOffset = state.scrollOffset + offset;
-	if (newOffset >= getLowestClipNote() && newOffset <= highestScrolledNote) {
+	if (newOffset >= lowestScrolledNote && newOffset <= highestScrolledNote) {
 		state.scrollOffset = newOffset;
 	}
 
@@ -79,45 +81,39 @@ void KeyboardLayoutInKey::precalculate() {
 
 	// Pre-Buffer colours for next renderings
 	for (int i = 0; i < kDisplayHeight * state.rowInterval + kDisplayWidth; ++i) {
-		getNoteColour(state.scrollOffset + i, noteColours[i]);
+		getNoteColour(noteFromPadIndex(state.scrollOffset + i), noteColours[i]);
 	}
 }
 
 void KeyboardLayoutInKey::renderPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]) {
 	// Precreate list of all active notes per octave
-	bool octaveActiveNotes[12] = {0};
+	bool scaleActiveNotes[kOctaveSize] = {0};
 	for (uint8_t idx = 0; idx < currentNotesState.count; ++idx) {
-		octaveActiveNotes[(currentNotesState.notes[idx].note - getRootNote() + 132) % 12] = true;
+		scaleActiveNotes[((currentNotesState.notes[idx].note - getRootNote()) + kOctaveSize) % kOctaveSize] = true;
 	}
 
-	// Precreate list of all scale notes per octave
-	bool octaveScaleNotes[12] = {0};
-	if (getScaleModeEnabled()) {
-		uint8_t* scaleNotes = getScaleNotes();
-		for (uint8_t idx = 0; idx < getScaleNoteCount(); ++idx) {
-			octaveScaleNotes[scaleNotes[idx]] = true;
-		}
-	}
+	uint8_t scaleNoteCount = getScaleNoteCount();
 
 	// Iterate over grid image
 	for (int y = 0; y < kDisplayHeight; ++y) {
-		int noteCode = noteFromCoords(0, y);
-		int yDisplay = noteCode - getState().inKey.scrollOffset;
-		int noteWithinOctave = (uint16_t)(noteCode - getRootNote() + 132) % (uint8_t)12;
-
 		for (int x = 0; x < kDisplayWidth; x++) {
-			// Full color for every octaves root and active notes
-			if (octaveActiveNotes[noteWithinOctave] || noteWithinOctave == 0) {
-				memcpy(image[y][x], noteColours[yDisplay], 3);
-			}
-			// Or, if this note is just within the current scale, show it dim
-			else if (octaveScaleNotes[noteWithinOctave]) {
-				getTailColour(image[y][x], noteColours[yDisplay]);
-			}
+			int noteCode = noteFromCoords(x, y);
+			//int normalizedPadOffset = noteCode - getState().isomorphic.scrollOffset;
+			int noteWithinScale = (uint16_t)((noteCode - getRootNote()) + kOctaveSize) % kOctaveSize;
 
-			++noteCode;
-			++yDisplay;
-			noteWithinOctave = (noteWithinOctave + 1) % 12;
+			// Full color for every octaves root and active notes
+			if (noteWithinScale == 0) {
+				//memcpy(image[y][x], noteColours[normalizedPadOffset], 3);
+				memset(image[y][x], 0xFF, 3);
+			}
+			// // Or, if this note is just within the current scale, show it dim // @TODO: Check calculation
+			// else if (scaleActiveNotes[noteCode]) {
+			// 	getTailColour(image[y][x], noteColours[normalizedPadOffset]);
+			// }
+			else {
+				// Color other scale notes dimly white
+				memset(image[y][x], 0x05, 3);
+			}
 		}
 	}
 }

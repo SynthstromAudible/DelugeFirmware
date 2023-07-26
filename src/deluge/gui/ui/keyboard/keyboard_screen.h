@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "gui/ui/root_ui.h"
 #include "gui/ui/ui.h"
 #include "hid/button.h"
@@ -28,7 +29,7 @@ class ModelStack;
 
 namespace keyboard {
 
-#define kMaxNumKeyboardPadPresses 10
+constexpr int kMaxNumKeyboardPadPresses = 10;
 
 class KeyboardScreen final : public RootUI, public InstrumentClipMinder {
 public:
@@ -71,7 +72,7 @@ private:
 
 private:
 	void selectLayout(int8_t offset);
-	void enterScaleMode(int selectedRootNote = std::numeric_limits<int>::max());
+	void enterScaleMode(int selectedRootNote = kDefaultCalculateRootNote);
 	void exitScaleMode();
 	void drawNoteCode(int noteCode);
 
