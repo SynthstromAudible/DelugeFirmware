@@ -15,18 +15,15 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CONSEQUENCENOTEROWMUTE_H_
-#define CONSEQUENCENOTEROWMUTE_H_
+#pragma once
 
 #include "model/consequence/consequence.h"
 
 class ConsequenceNoteRowMute final : public Consequence {
 public:
 	ConsequenceNoteRowMute(InstrumentClip* newClip, int newNoteRowId);
-	int revert(int time, ModelStack* modelStack);
+	int revert(TimeType time, ModelStack* modelStack);
 
 	int noteRowId;
 	InstrumentClip* clip;
 };
-
-#endif /* CONSEQUENCENOTEROWMUTE_H_ */

@@ -15,9 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef AUDIOOUTPUT_H_
-#define AUDIOOUTPUT_H_
+#pragma once
 
+#include "definitions_cxx.hpp"
 #include "model/global_effectable/global_effectable_for_clip.h"
 #include "model/output.h"
 #include "modulation/envelope.h"
@@ -52,7 +52,8 @@ public:
 	int readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos);
 	bool writeDataToFile(Clip* clipForSavingOutputOnly, Song* song);
 	void deleteBackedUpParamManagers(Song* song);
-	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, int maySendMIDIPGMs = PGM_CHANGE_SEND_ONCE);
+	bool setActiveClip(ModelStackWithTimelineCounter* modelStack,
+	                   PgmChangeSend maySendMIDIPGMs = PgmChangeSend::ONCE) override;
 	bool isSkippingRendering();
 	Output* toOutput() { return this; }
 	void getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb,
@@ -78,7 +79,7 @@ public:
 
 	int32_t overrideAmplitudeEnvelopeReleaseRate;
 
-	int8_t inputChannel;
+	AudioInputChannel inputChannel;
 	bool echoing; // Doesn't get cloned - we wouldn't want that!
 
 protected:
@@ -86,5 +87,3 @@ protected:
 	bool wantsToBeginArrangementRecording();
 	bool willRenderAsOneChannelOnlyWhichWillNeedCopying();
 };
-
-#endif /* AUDIOOUTPUT_H_ */

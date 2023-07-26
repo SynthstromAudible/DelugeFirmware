@@ -17,21 +17,31 @@
 
 #include "processing/engines/audio_engine.h"
 #include "util/container/array/resizeable_array.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 //#include <algorithm>
 #include "memory/general_memory_allocator.h"
 #include "util/functions.h"
 #include <string.h>
 #include "hid/display/numeric_driver.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 
 #if RESIZEABLE_ARRAY_DO_LOCKS
-#define LOCK_ENTRY                                                                                                     \
-	if (lock) {                                                                                                        \
-		numericDriver.freezeWithError("i008");                                                                         \
-	}                                                                                                                  \
+#define LOCK_ENTRY freezeOnLock();
+// Bay_Mud got this error around V4.0.1 (must have been a beta), and thinks a FlashAir card might have been a catalyst.
+//It still "shouldn't" be able to happen though.
+#define LOCK_EXIT exitLock();
+void ResizeableArray::freezeOnLock() {
+	if (lock) {
+		numericDriver.freezeWithError("i008");
+	}
 	lock = true;
-#define LOCK_EXIT lock = false;
+}
+void ResizeableArray::exitLock() {
+	if (!lock) {
+		numericDriver.freezeWithError("i008");
+	}
+	lock = false;
+}
 #else
 #define LOCK_ENTRY                                                                                                     \
 	{}
@@ -55,7 +65,9 @@ ResizeableArray::ResizeableArray(int newElementSize, int newMaxNumEmptySpacesToK
 ResizeableArray::~ResizeableArray() {
 	LOCK_ENTRY
 
-	if (memory) generalMemoryAllocator.dealloc(memoryAllocationStart);
+	if (memory) {
+		generalMemoryAllocator.dealloc(memoryAllocationStart);
+	}
 	// Don't call empty() - this does some other writing, which is a waste of time
 
 	LOCK_EXIT
@@ -82,7 +94,9 @@ void ResizeableArray::empty() {
 	memoryStart = 0;
 
 	if (!staticMemoryAllocationSize && emptyingShouldFreeMemory) {
-		if (memory) generalMemoryAllocator.dealloc(memoryAllocationStart);
+		if (memory) {
+			generalMemoryAllocator.dealloc(memoryAllocationStart);
+		}
 
 		memory = NULL;
 		memoryAllocationStart = NULL;
@@ -192,8 +206,12 @@ void ResizeableArray::swapStateWith(ResizeableArray* other) {
 }
 
 void ResizeableArray::attemptMemoryShorten() {
-	if (staticMemoryAllocationSize) return;
-	if ((uint32_t)memoryAllocationStart >= (uint32_t)INTERNAL_MEMORY_BEGIN) return;
+	if (staticMemoryAllocationSize) {
+		return;
+	}
+	if ((uint32_t)memoryAllocationStart >= (uint32_t)INTERNAL_MEMORY_BEGIN) {
+		return;
+	}
 
 	uint32_t allocatedSize = generalMemoryAllocator.getAllocatedSize(memoryAllocationStart);
 
@@ -238,7 +256,9 @@ mostBasicDelete:
 			//if (i) moveElementsRightNoWrap(0, i, numToDelete); // No - not sure why, but this gave insane occasional crashes.
 			moveElementsRight(0, i, numToDelete);
 			memoryStart += numToDelete;
-			if (memoryStart >= memorySize) memoryStart -= memorySize;
+			if (memoryStart >= memorySize) {
+				memoryStart -= memorySize;
+			}
 		}
 
 		// If deleting in second half...
@@ -264,7 +284,9 @@ mostBasicDelete:
 			memory = (char*)memory + elementsToDeleteAfterWrap * elementSize;
 			memorySize -= numToDelete;
 			memoryStart -= elementsToDeleteAfterWrap;
-			if (memoryStart < 0) memoryStart += memorySize; // Could this happen?
+			if (memoryStart < 0) {
+				memoryStart += memorySize; // Could this happen?
+			}
 		}
 
 		else {
@@ -272,10 +294,15 @@ mostBasicDelete:
 			int distanceFromEndPoint = getMin(i, numElements - i - numToDelete);
 
 			int distanceFromWrapPoint;
-			if (i >= elementsBeforeWrap) distanceFromWrapPoint = i - elementsBeforeWrap;
-			else if (i + numToDelete <= elementsBeforeWrap)
+			if (i >= elementsBeforeWrap) {
+				distanceFromWrapPoint = i - elementsBeforeWrap;
+			}
+			else if (i + numToDelete <= elementsBeforeWrap) {
 				distanceFromWrapPoint = elementsBeforeWrap - (i + numToDelete);
-			else distanceFromWrapPoint = 0;
+			}
+			else {
+				distanceFromWrapPoint = 0;
+			}
 
 			// If closer to either start or end than wrap-point AND there isn't too much wasted empty space between these...
 			if (distanceFromEndPoint <= distanceFromWrapPoint) {
@@ -283,12 +310,16 @@ mostBasicDelete:
 				// If we have a fixed memory allocation, then we don't need to worry about wasted empty space, and we can just do the most basic delete.
 				// Careful with this - it seemed to cause a crash when first introduced in commit "Tidied up some stuff in ResizeableArray",
 				// though that seems to have been because of the bugs fixed in commit "Fixed horrendous problem with ResizeableArray[...]".
-				if (staticMemoryAllocationSize || !mayShortenMemoryAfter) goto mostBasicDelete;
+				if (staticMemoryAllocationSize || !mayShortenMemoryAfter) {
+					goto mostBasicDelete;
+				}
 
 				int freeMemory = memorySize - newNum; // After deletion
 
 				// If we're not going to end up with more free memory than we're allowed, then the best option is to do the most basic delete
-				if (freeMemory < maxNumEmptySpacesToKeep) goto mostBasicDelete;
+				if (freeMemory < maxNumEmptySpacesToKeep) {
+					goto mostBasicDelete;
+				}
 
 				// Ok, if we're still here, we're looking to reduce memory usage
 
@@ -315,7 +346,9 @@ mostBasicDelete:
 						}
 
 						memoryStart += numToDelete;
-						if (memoryStart >= memorySize) memoryStart -= memorySize;
+						if (memoryStart >= memorySize) {
+							memoryStart -= memorySize;
+						}
 
 						// And move bit right of wrap point right too
 						memmove((char* __restrict__)memory + contractMemoryBy * elementSize, memory,
@@ -351,7 +384,9 @@ mostBasicDelete:
 
 					memorySize -= contractMemoryBy;
 					memoryStart -= contractMemoryBy;
-					if (memoryStart < 0) memoryStart += memorySize;
+					if (memoryStart < 0) {
+						memoryStart += memorySize;
+					}
 				}
 			}
 
@@ -374,7 +409,9 @@ moveBitBetweenWrapPointAndDeletionPoint:
 					}
 
 					memorySize -= numToDelete;
-					if (memoryStart >= memorySize) memoryStart -= memorySize;
+					if (memoryStart >= memorySize) {
+						memoryStart -= memorySize;
+					}
 				}
 
 				// Or if deleting after wrap point...
@@ -391,7 +428,9 @@ moveBitBetweenWrapPointAndDeletionPoint:
 
 					memorySize -= numToDelete;
 					memoryStart -= numToDelete;
-					if (memoryStart < 0) memoryStart += memorySize;
+					if (memoryStart < 0) {
+						memoryStart += memorySize;
+					}
 					memory = (char* __restrict__)memory + numToDelete * elementSize;
 				}
 			}
@@ -480,7 +519,8 @@ tryAgain:
 		uint32_t amountExtendedLeft, amountExtendedRight;
 
 #ifdef TEST_VECTOR
-		if (getRandom255() < 10) goto getBrandNewMemory;
+		if (getRandom255() < 10)
+			goto getBrandNewMemory;
 #endif
 		generalMemoryAllocator.extend(memoryAllocationStart, (newNum)*elementSize - allocatedSize,
 		                              (newNum + numExtraSpacesToAllocate) * elementSize - allocatedSize,
@@ -502,7 +542,7 @@ getBrandNewMemory:
 
 #ifdef TEST_VECTOR
 		if (getRandom255() < 50) {
-			Uart::println("allocation fail for test purpose");
+			Debug::println("allocation fail for test purpose");
 			goto allocationFail;
 		}
 #endif
@@ -531,7 +571,9 @@ allocationFail:
 		uint32_t newMemorySize = newMemoryAllocationSize / elementSize;
 		uint32_t newMemoryStartIndex = 0;
 
-		if (memoryIncreasedBy) Uart::println("new memory, already increased");
+		if (memoryIncreasedBy) {
+			Debug::println("new memory, already increased");
+		}
 
 		// Or if we're here, we got our new memory. Copy the stuff over. Before wrap point...
 		int upTo = getMin(elementsBeforeWrap, numElements);
@@ -565,7 +607,9 @@ allocationFail:
 				}
 
 				memoryStart += memoryIncreasedBy;
-				if (memoryStart >= memorySize) memoryStart -= memorySize;
+				if (memoryStart >= memorySize) {
+					memoryStart -= memorySize;
+				}
 			}
 
 			// Or if less elements after wrap
@@ -596,34 +640,41 @@ startAgain:
 	if (extraBytesLeft >= elementSize) {
 		int extraElementsLeft =
 		    extraBytesLeft / elementSize; // See how many extra elements there are space for on the left
-		if (extraElementsLeft > minNumToExtend)
+		if (extraElementsLeft > minNumToExtend) {
 			extraElementsLeft = minNumToExtend; // We might not want all the extra space
+		}
 
 		memory = (char* __restrict__)memory - (elementSize * extraElementsLeft);
 		memorySize += extraElementsLeft;
 		memoryStart += extraElementsLeft;
 
 		minNumToExtend -= extraElementsLeft;
-		if (!minNumToExtend) return true;
+		if (!minNumToExtend) {
+			return true;
+		}
 		idealNumToExtendIfExtendingAllocation -= extraElementsLeft;
 		extraBytesLeft -= elementSize * extraElementsLeft;
 	}
 
 	// If we actually had a bit more already, right...
 	uint32_t potentialMemorySize = staticMemoryAllocationSize;
-	if (!potentialMemorySize)
+	if (!potentialMemorySize) {
 		potentialMemorySize = generalMemoryAllocator.getAllocatedSize(memoryAllocationStart) - extraBytesLeft;
+	}
 	uint32_t extraBytesRight = potentialMemorySize - (memorySize * elementSize);
 	if (extraBytesRight >= elementSize) {
 		int extraElementsRight =
 		    extraBytesRight / elementSize; // See how many extra elements there are space for on the right
-		if (extraElementsRight > minNumToExtend)
+		if (extraElementsRight > minNumToExtend) {
 			extraElementsRight = minNumToExtend; // We might not want all the extra space
+		}
 
 		memorySize += extraElementsRight;
 
 		minNumToExtend -= extraElementsRight;
-		if (!minNumToExtend) return true;
+		if (!minNumToExtend) {
+			return true;
+		}
 		idealNumToExtendIfExtendingAllocation -= extraElementsRight;
 		extraBytesRight -= elementSize * extraElementsRight;
 	}
@@ -699,7 +750,9 @@ void ResizeableArray::moveElementsLeftNoWrap(int oldStartIndex, int oldStopIndex
 
 void ResizeableArray::moveElementsLeft(int oldStartIndex, int oldStopIndex, int distance) {
 
-	if (oldStartIndex == oldStopIndex) return;
+	if (oldStartIndex == oldStopIndex) {
+		return;
+	}
 
 	int elementsBeforeWrap = memorySize - memoryStart;
 
@@ -763,7 +816,9 @@ void ResizeableArray::moveElementsRightNoWrap(int oldStartIndex, int oldStopInde
 }
 
 void ResizeableArray::moveElementsRight(int oldStartIndex, int oldStopIndex, int distance) {
-	if (oldStartIndex == oldStopIndex) return;
+	if (oldStartIndex == oldStopIndex) {
+		return;
+	}
 
 	int elementsBeforeWrap = memorySize - memoryStart;
 
@@ -835,7 +890,9 @@ void ResizeableArray::setStaticMemory(void* newMemory, int newMemorySize) {
 // Returns error code
 int ResizeableArray::insertAtIndex(int i, int numToInsert, void* thingNotToStealFrom) {
 
-	if (ALPHA_OR_BETA_VERSION && (i < 0 || i > numElements || numToInsert < 1)) numericDriver.freezeWithError("E280");
+	if (ALPHA_OR_BETA_VERSION && (i < 0 || i > numElements || numToInsert < 1)) {
+		numericDriver.freezeWithError("E280");
+	}
 
 	LOCK_ENTRY
 
@@ -861,8 +918,9 @@ int ResizeableArray::insertAtIndex(int i, int numToInsert, void* thingNotToSteal
 			return ERROR_INSUFFICIENT_RAM;
 		}
 
-		if (ALPHA_OR_BETA_VERSION && allocatedMemorySize < newMemorySize * elementSize)
+		if (ALPHA_OR_BETA_VERSION && allocatedMemorySize < newMemorySize * elementSize) {
 			numericDriver.freezeWithError("FFFF");
+		}
 
 		setMemory(newMemory, allocatedMemorySize);
 	}
@@ -880,14 +938,18 @@ int ResizeableArray::insertAtIndex(int i, int numToInsert, void* thingNotToSteal
 			if (newNum > memorySize) {
 				bool success = attemptMemoryExpansion(numToInsert, numToInsert + numExtraSpacesToAllocate,
 				                                      !staticMemoryAllocationSize, thingNotToStealFrom);
-				if (!success) goto getBrandNewMemory;
+				if (!success) {
+					goto getBrandNewMemory;
+				}
 			}
 
 workNormally:
 			// If inserting in first half...
 			if ((i << 1) < numElements) {
 				memoryStart -= numToInsert;
-				if (memoryStart < 0) memoryStart += memorySize;
+				if (memoryStart < 0) {
+					memoryStart += memorySize;
+				}
 				moveElementsLeft(numToInsert, i + numToInsert,
 				                 numToInsert); // There might be a wrap after moving them...
 			}
@@ -903,7 +965,9 @@ workNormally:
 
 			int distanceFromEndPoint = getMin(i, numElements - i);
 			int distanceFromWrapPoint = i - elementsBeforeWrap;
-			if (distanceFromWrapPoint < 0) distanceFromWrapPoint = -distanceFromWrapPoint;
+			if (distanceFromWrapPoint < 0) {
+				distanceFromWrapPoint = -distanceFromWrapPoint;
+			}
 
 			// If closer to either start or end than wrap-point...
 			if (distanceFromEndPoint <= distanceFromWrapPoint) {
@@ -912,9 +976,11 @@ workNormally:
 				// Sadly, if we've been inserting lots, there won't be any extra memory within memorySize here - if there's any, it'll be out to the sides (at the wrap point).
 				// It'd be better if we had some in both places, like happens after a get-brand-new-memory.
 				// Maybe I should make it so doing an extend puts some of the empty space in the middle there...
-				if (newNum <= memorySize) goto workNormally;
+				if (newNum <= memorySize) {
+					goto workNormally;
 
-				// Or if we didn't have enough memory...
+					// Or if we didn't have enough memory...
+				}
 				else {
 
 					// ... and we can't extend memory...
@@ -935,10 +1001,14 @@ workNormally:
 				                            !staticMemoryAllocationSize, thingNotToStealFrom)) {
 
 					// If we do actually have enough memory, working "normally" is still an option, and it's now the best option
-					if (newNum <= memorySize) goto workNormally;
+					if (newNum <= memorySize) {
+						goto workNormally;
 
-					// Otherwise, we need brand new memory
-					else goto getBrandNewMemory;
+						// Otherwise, we need brand new memory
+					}
+					else {
+						goto getBrandNewMemory;
+					}
 				}
 			}
 
@@ -968,7 +1038,9 @@ workNormally:
 
 					// Move elements before insertion point left. We call moveElementsLeft() because that deals with if it passes over the wrap point, which can definitely happen.
 					memoryStart -= numToInsert;
-					if (memoryStart < 0) memoryStart += memorySize; // Could this actually happen? Don't think so?
+					if (memoryStart < 0) {
+						memoryStart += memorySize; // Could this actually happen? Don't think so?
+					}
 					moveElementsLeft(numToInsert, numToInsert + i, numToInsert);
 				}
 			}
@@ -989,7 +1061,9 @@ workNormally:
 					// Move elements before wrap right
 					moveElementsRight(0, elementsBeforeWrap, numToInsert);
 					memoryStart += numToInsert; // Gets wrapped below
-					if (memoryStart >= memorySize) memoryStart -= memorySize;
+					if (memoryStart >= memorySize) {
+						memoryStart -= memorySize;
+					}
 
 					// Move elements after insertion point (which is after wrap) right
 					// REMEMBER - memoryStart has already incremented, just above
@@ -1006,7 +1080,7 @@ getBrandNewMemory:
 				return ERROR_INSUFFICIENT_RAM;
 			}
 
-			//Uart::println("getting new memory");
+			//Debug::println("getting new memory");
 
 			// Otherwise, manually get some brand new memory and do a more complex copying process
 			uint32_t desiredSize = (newNum + numExtraSpacesToAllocate) * elementSize;

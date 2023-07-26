@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "definitions_cxx.hpp"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/ui/rename/rename_drum_ui.h"
 #include "processing/sound/sound_drum.h"
@@ -32,7 +33,7 @@
 #include "hid/display/oled.h"
 #endif
 
-RenameDrumUI renameDrumUI;
+RenameDrumUI renameDrumUI{};
 
 RenameDrumUI::RenameDrumUI() {
 #if HAVE_OLED
@@ -42,7 +43,9 @@ RenameDrumUI::RenameDrumUI() {
 
 bool RenameDrumUI::opened() {
 	bool success = QwertyUI::opened();
-	if (!success) return false;
+	if (!success) {
+		return false;
+	}
 
 	enteredText.set(&getDrum()->name);
 
@@ -63,32 +66,41 @@ SoundDrum* RenameDrumUI::getDrum() {
 	return (SoundDrum*)soundEditor.currentSound;
 }
 
-int RenameDrumUI::buttonAction(int x, int y, bool on, bool inCardRoutine) {
+ActionResult RenameDrumUI::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+	using namespace hid::button;
 
 	// Back button
-	if (x == backButtonX && y == backButtonY) {
+	if (b == BACK) {
 		if (on && !currentUIMode) {
-			if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			if (inCardRoutine) {
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
 			exitUI();
 		}
 	}
 
 	// Select encoder button
-	else if (x == selectEncButtonX && y == selectEncButtonY) {
+	else if (b == SELECT_ENC) {
 		if (on && !currentUIMode) {
-			if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			if (inCardRoutine) {
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
 			enterKeyPress();
 		}
 	}
 
-	else return ACTION_RESULT_NOT_DEALT_WITH;
+	else {
+		return ActionResult::NOT_DEALT_WITH;
+	}
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
 void RenameDrumUI::enterKeyPress() {
 
-	if (enteredText.isEmpty()) return;
+	if (enteredText.isEmpty()) {
+		return;
+	}
 
 	// If actually changing it...
 	if (!getDrum()->name.equalsCaseIrrespective(&enteredText)) {
@@ -107,31 +119,34 @@ void RenameDrumUI::exitUI() {
 	close();
 }
 
-int RenameDrumUI::padAction(int x, int y, int on) {
+ActionResult RenameDrumUI::padAction(int x, int y, int on) {
 
 	// Audition pad
-	if (x == displayWidth + 1) {
+	if (x == kDisplayWidth + 1) {
 		return instrumentClipView.padAction(x, y, on);
 	}
 
 	// Main pad
-	else if (x < displayWidth) {
+	else if (x < kDisplayWidth) {
 		return QwertyUI::padAction(x, y, on);
 	}
 
 	// Otherwise, exit
 	else {
 		if (on && !currentUIMode) {
-			if (sdRoutineLock) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			if (sdRoutineLock) {
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
 			exitUI();
 		}
 	}
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
-int RenameDrumUI::verticalEncoderAction(int offset, bool inCardRoutine) {
-	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(xEncButtonX, xEncButtonY))
-		return ACTION_RESULT_DEALT_WITH;
+ActionResult RenameDrumUI::verticalEncoderAction(int offset, bool inCardRoutine) {
+	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(hid::button::X_ENC)) {
+		return ActionResult::DEALT_WITH;
+	}
 	return instrumentClipView.verticalEncoderAction(offset, inCardRoutine);
 }

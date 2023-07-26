@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef NUMERICLAYERBASICTEXT_H_
-#define NUMERICLAYERBASICTEXT_H_
+#pragma once
 
 #include "hid/display/numeric_layer/numeric_layer.h"
 
@@ -30,8 +29,8 @@ public:
 	bool callBack();
 	void isNowOnTop();
 
-	uint8_t segments[NUMERIC_DISPLAY_LENGTH];
-	uint8_t blinkedSegments[NUMERIC_DISPLAY_LENGTH];
+	uint8_t segments[kNumericDisplayLength];
+	uint8_t blinkedSegments[kNumericDisplayLength];
 
 	bool currentlyBlanked;
 
@@ -39,5 +38,3 @@ public:
 
 	int8_t blinkSpeed;
 };
-
-#endif /* NUMERICLAYERBASICTEXT_H_ */

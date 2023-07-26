@@ -15,41 +15,85 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef INDICATORLEDS_H_
-#define INDICATORLEDS_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 
-#define numLedBlinkers 4
+constexpr size_t numLedBlinkers = 4;
+
+namespace indicator_leds {
+
+constexpr uint8_t uartBase = (DELUGE_MODEL >= DELUGE_MODEL_144_PAD) ? 152 : 120;
+
+constexpr uint8_t fromCartesian(Cartesian c) {
+	return c.x + c.y * NUM_LED_COLS;
+}
+
+constexpr uint8_t fromXY(int x, int y) {
+	return x + y * NUM_LED_COLS;
+}
+
+// clang-format off
+enum class LED : uint8_t {
+	AFFECT_ENTIRE     = fromCartesian(affectEntireButtonCoord),
+	SESSION_VIEW      = fromCartesian(sessionViewButtonCoord),
+	CLIP_VIEW         = fromCartesian(clipViewButtonCoord),
+	SYNTH             = fromCartesian(synthButtonCoord),
+	KIT               = fromCartesian(kitButtonCoord),
+	MIDI              = fromCartesian(midiButtonCoord),
+	CV                = fromCartesian(cvButtonCoord),
+	KEYBOARD          = fromCartesian(keyboardButtonCoord),
+	SCALE_MODE        = fromCartesian(scaleModeButtonCoord),
+	CROSS_SCREEN_EDIT = fromCartesian(crossScreenEditButtonCoord),
+	BACK              = fromCartesian(backButtonCoord),
+	LOAD              = fromCartesian(loadButtonCoord),
+	SAVE              = fromCartesian(saveButtonCoord),
+	LEARN             = fromCartesian(learnButtonCoord),
+	TAP_TEMPO         = fromCartesian(tapTempoButtonCoord),
+	SYNC_SCALING      = fromCartesian(syncScalingButtonCoord),
+	TRIPLETS          = fromCartesian(tripletsButtonCoord),
+	PLAY              = fromCartesian(playButtonCoord),
+	RECORD            = fromCartesian(recordButtonCoord),
+	SHIFT             = fromCartesian(shiftButtonCoord),
+
+	MOD_0 = fromXY(1,0),
+	MOD_1 = fromXY(1,1),
+	MOD_2 = fromXY(1,2),
+	MOD_3 = fromXY(1,3),
+	MOD_4 = fromXY(2,0),
+	MOD_5 = fromXY(2,1),
+	MOD_6 = fromXY(2,2),
+	MOD_7 = fromXY(2,3),
+};
+// clang-format on
+
+const LED modLed[8] = {LED::MOD_0, LED::MOD_1, LED::MOD_2, LED::MOD_3, LED::MOD_4, LED::MOD_5, LED::MOD_6, LED::MOD_7};
 
 struct LedBlinker {
-	uint8_t x;
-	uint8_t y;
+	LED led;
 	bool active;
 	uint8_t blinksLeft;
 	bool returnToState;
 	uint8_t blinkingType;
 };
 
-namespace IndicatorLEDs {
-
 extern bool ledBlinkState[];
 
-void setLedState(uint8_t x, uint8_t y, bool newState, bool allowContinuedBlinking = false);
-void blinkLed(uint8_t x, uint8_t y, uint8_t numBlinks = 255, uint8_t blinkingType = 0, bool initialState = true);
+void setLedState(LED led, bool newState, bool allowContinuedBlinking = false);
+void blinkLed(LED led, uint8_t numBlinks = 255, uint8_t blinkingType = 0, bool initialState = true);
 void ledBlinkTimeout(uint8_t blinkingType, bool forceRestart = false, bool resetToState = true);
-void indicateAlertOnLed(uint8_t x, uint8_t y);
+void indicateAlertOnLed(LED led);
 void setKnobIndicatorLevel(uint8_t whichKnob, uint8_t level);
 void clearKnobIndicatorLevels();
 void blinkKnobIndicator(int whichKnob);
 void stopBlinkingKnobIndicator(int whichKnob);
 void blinkKnobIndicatorLevelTimeout();
-uint8_t getLedBlinkerIndex(uint8_t x, uint8_t y);
-void stopLedBlinking(uint8_t x, uint8_t y, bool resetState = false);
+uint8_t getLedBlinkerIndex(LED led);
+void stopLedBlinking(LED led, bool resetState = false);
 bool updateBlinkingLedStates(uint8_t blinkingType);
 bool isKnobIndicatorBlinking(int whichKnob);
 
-} // namespace IndicatorLEDs
+} // namespace indicator_leds
 
-#endif /* INDICATORLEDS_H_ */
+using IndicatorLED = indicator_leds::LED;

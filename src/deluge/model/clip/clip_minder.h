@@ -15,14 +15,12 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CLIPMINDER_H_
-#define CLIPMINDER_H_
+#pragma once
 
-#include "definitions.h"
+#include "hid/button.h"
+#include "definitions_cxx.hpp"
 
 class ClipMinder {
 public:
-	int buttonAction(int x, int y, bool on);
+	ActionResult buttonAction(hid::Button b, bool on);
 };
-
-#endif /* CLIPMINDER_H_ */

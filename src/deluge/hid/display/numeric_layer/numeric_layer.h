@@ -15,10 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef NUMERICLAYER_H_
-#define NUMERICLAYER_H_
+#pragma once
 
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "RZA1/system/r_typedefs.h"
 
 class NumericLayer {
@@ -32,5 +31,3 @@ public:
 
 	NumericLayer* next;
 };
-
-#endif /* NUMERICLAYER_H_ */

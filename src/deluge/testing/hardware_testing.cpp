@@ -16,8 +16,8 @@
 */
 
 #include "testing/hardware_testing.h"
-#include "definitions.h"
-#include "io/uart/uart.h"
+#include "definitions_cxx.hpp"
+#include "io/debug/print.h"
 #include "hid/led/indicator_leds.h"
 #include "processing/engines/cv_engine.h"
 #include <string.h>
@@ -48,7 +48,7 @@ void ramTestUart() {
 	while (1) {
 
 		//while (1) {
-		Uart::println("writing to ram");
+		Debug::println("writing to ram");
 		address = (uint32_t*)EXTERNAL_MEMORY_BEGIN;
 		while (address != (uint32_t*)EXTERNAL_MEMORY_END) {
 			*address = (uint32_t)address;
@@ -57,19 +57,20 @@ void ramTestUart() {
 		//}
 
 		//while (1) {
-		Uart::println("reading back from ram. Checking for errors every megabyte");
+		Debug::println("reading back from ram. Checking for errors every megabyte");
 		address = (uint32_t*)EXTERNAL_MEMORY_BEGIN;
 		while (address != (uint32_t*)EXTERNAL_MEMORY_END) {
 			if (*address != (uint32_t)address) {
 
 				uint32_t errorAtBlockNow = ((uint32_t)address) & (0xFFF00000);
 				if (errorAtBlockNow != lastErrorAt) {
-					while (uartGetTxBufferFullnessByItem(UART_ITEM_MIDI) > 100)
+					while (uartGetTxBufferFullnessByItem(UART_ITEM_MIDI) > 100) {
 						;
-					Uart::print("error at ");
-					Uart::print((uint32_t)address);
-					Uart::print(". got ");
-					Uart::println(*address);
+					}
+					Debug::print("error at ");
+					Debug::print((uint32_t)address);
+					Debug::print(". got ");
+					Debug::println(*address);
 					//while(1);
 					lastErrorAt = errorAtBlockNow;
 				}
@@ -77,11 +78,10 @@ void ramTestUart() {
 			address++;
 		}
 		//}
-		Uart::println("finished checking ram");
+		Debug::println("finished checking ram");
 	}
 }
 
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 bool inputStateLastTime = false;
 
 bool nextIsDepress = false;
@@ -106,13 +106,17 @@ int hardwareTestWhichColour = 0;
 
 void sendColoursForHardwareTest(bool testButtonStates[9][16]) {
 	for (int x = 0; x < 9; x++) {
-		bufferPICPadsUart(x + 1);
+		bufferPICUart(x + 1);
 		for (int y = 0; y < 16; y++) {
 			for (int c = 0; c < 3; c++) {
 				int value;
-				if (testButtonStates[x][y]) value = 255;
-				else value = (c == hardwareTestWhichColour) ? 64 : 0;
-				bufferPICPadsUart(value);
+				if (testButtonStates[x][y]) {
+					value = 255;
+				}
+				else {
+					value = (c == hardwareTestWhichColour) ? 64 : 0;
+				}
+				bufferPICUart(value);
 			}
 		}
 	}
@@ -123,17 +127,17 @@ void sendColoursForHardwareTest(bool testButtonStates[9][16]) {
 bool anythingProbablyPressed = false;
 
 void readInputsForHardwareTest(bool testButtonStates[9][16]) {
-	bool outputPluggedInL = readInput(LINE_OUT_DETECT_L_1, LINE_OUT_DETECT_L_2);
-	bool outputPluggedInR = readInput(LINE_OUT_DETECT_R_1, LINE_OUT_DETECT_R_2);
-	bool headphoneNow = readInput(HEADPHONE_DETECT_1, HEADPHONE_DETECT_2);
-	bool micNow = !readInput(7, 9);
-	bool lineInNow = readInput(6, 6);
-	bool gateInNow = readInput(ANALOG_CLOCK_IN_1, ANALOG_CLOCK_IN_2);
+	bool outputPluggedInL = readInput(LINE_OUT_DETECT_L.port, LINE_OUT_DETECT_L.pin);
+	bool outputPluggedInR = readInput(LINE_OUT_DETECT_R.port, LINE_OUT_DETECT_R.pin);
+	bool headphoneNow = readInput(HEADPHONE_DETECT.port, HEADPHONE_DETECT.pin);
+	bool micNow = !readInput(MIC.port, MIC.pin);
+	bool lineInNow = readInput(LINE_IN.port, LINE_IN.pin);
+	bool gateInNow = readInput(ANALOG_CLOCK_IN.port, ANALOG_CLOCK_IN.pin);
 
 	bool inputStateNow = (outputPluggedInL == outputPluggedInR == headphoneNow == micNow == lineInNow == gateInNow);
 
 	if (inputStateNow != inputStateLastTime) {
-		IndicatorLEDs::setLedState(tapTempoLedX, tapTempoLedY, !inputStateNow);
+		indicator_leds::setLedState(IndicatorLED::TAP_TEMPO, !inputStateNow);
 		inputStateLastTime = inputStateNow;
 	}
 
@@ -147,7 +151,7 @@ void readInputsForHardwareTest(bool testButtonStates[9][16]) {
 
 			int y = (unsigned int)value / 9;
 			int x = value - y * 9;
-			if (y < displayHeight * 2) {
+			if (y < kDisplayHeight * 2) {
 
 				testButtonStates[x][y] = !nextIsDepress;
 				sendColoursForHardwareTest(testButtonStates);
@@ -168,7 +172,9 @@ void readInputsForHardwareTest(bool testButtonStates[9][16]) {
 				anythingProbablyPressed = false;
 			}
 			else {
-				if (!HARDWARE_TEST_MODE) setupSquareWave();
+				if (!HARDWARE_TEST_MODE) {
+					setupSquareWave();
+				}
 
 				anythingProbablyPressed = true;
 			}
@@ -176,8 +182,12 @@ void readInputsForHardwareTest(bool testButtonStates[9][16]) {
 #if HAVE_OLED
 		else if (value == oledWaitingForMessage) {
 			//delayUS(2500); // TODO: fix
-			if (value == 248) oledSelectingComplete();
-			else oledDeselectionComplete();
+			if (value == 248) {
+				oledSelectingComplete();
+			}
+			else {
+				oledDeselectionComplete();
+			}
 		}
 #endif
 	}
@@ -204,10 +214,14 @@ void readInputsForHardwareTest(bool testButtonStates[9][16]) {
 	}
 
 	if (anything) {
-		if (encoderTestPos > 128) encoderTestPos = 128;
-		else if (encoderTestPos < 0) encoderTestPos = 0;
+		if (encoderTestPos > 128) {
+			encoderTestPos = 128;
+		}
+		else if (encoderTestPos < 0) {
+			encoderTestPos = 0;
+		}
 
-		IndicatorLEDs::setKnobIndicatorLevel(1, encoderTestPos);
+		indicator_leds::setKnobIndicatorLevel(1, encoderTestPos);
 	}
 
 #if HAVE_OLED
@@ -234,10 +248,12 @@ void ramTestLED(bool stuffAlreadySetUp) {
 
 	midiEngine.midiThru = true;
 
-	if (!HARDWARE_TEST_MODE) setupSquareWave();
+	if (!HARDWARE_TEST_MODE) {
+		setupSquareWave();
+	}
 
-	bufferPICPadsUart(23); // Set flash length
-	bufferPICPadsUart(100);
+	bufferPICUart(23); // Set flash length
+	bufferPICUart(100);
 
 	// Switch on numeric display
 	bufferPICUart(224);
@@ -247,14 +263,16 @@ void ramTestLED(bool stuffAlreadySetUp) {
 	bufferPICUart(0xFF);
 
 	// Switch on level indicator LEDs
-	IndicatorLEDs::setKnobIndicatorLevel(0, 128);
-	IndicatorLEDs::setKnobIndicatorLevel(1, 128);
+	indicator_leds::setKnobIndicatorLevel(0, 128);
+	indicator_leds::setKnobIndicatorLevel(1, 128);
 
 	// Switch on all round-button LEDs
 	for (int x = 1; x < 9; x++) {
-		if (x == 4) continue; // Skip icecube LEDs
+		if (x == 4) {
+			continue; // Skip icecube LEDs
+		}
 		for (int y = 0; y < 4; y++) {
-			bufferPICIndicatorsUart(152 + x + y * 9 + 36);
+			bufferPICUart(152 + x + y * 9 + 36);
 		}
 	}
 
@@ -265,26 +283,26 @@ void ramTestLED(bool stuffAlreadySetUp) {
 	setOutputState(6, 12, 1); // Switch it on
 
 	// Speaker / amp control
-	setPinAsOutput(SPEAKER_ENABLE_1, SPEAKER_ENABLE_2);
-	setOutputState(SPEAKER_ENABLE_1, SPEAKER_ENABLE_2, 1); // Switch it on
+	setPinAsOutput(SPEAKER_ENABLE.port, SPEAKER_ENABLE.pin);
+	setOutputState(SPEAKER_ENABLE.port, SPEAKER_ENABLE.pin, 1); // Switch it on
 
-	setPinAsInput(HEADPHONE_DETECT_1, HEADPHONE_DETECT_2); // Headphone detect
-	setPinAsInput(6, 6);                                   // Line in detect
-	setPinAsInput(7, 9);                                   // Mic detect
+	setPinAsInput(HEADPHONE_DETECT.port, HEADPHONE_DETECT.pin); // Headphone detect
+	setPinAsInput(6, 6);                                        // Line in detect
+	setPinAsInput(7, 9);                                        // Mic detect
 
-	setPinAsOutput(BATTERY_LED_1, BATTERY_LED_2);    // Battery LED control
-	setOutputState(BATTERY_LED_1, BATTERY_LED_2, 1); // Switch it off (1 is off for open-drain)
+	setPinAsOutput(BATTERY_LED.port, BATTERY_LED.pin);    // Battery LED control
+	setOutputState(BATTERY_LED.port, BATTERY_LED.pin, 1); // Switch it off (1 is off for open-drain)
 
 	setPinMux(1, 8 + SYS_VOLT_SENSE_PIN, 1); // Analog input for voltage sense
 
-	setPinAsInput(ANALOG_CLOCK_IN_1, ANALOG_CLOCK_IN_2); // Gate input
+	setPinAsInput(ANALOG_CLOCK_IN.port, ANALOG_CLOCK_IN.pin); // Gate input
 
-	setPinAsOutput(SYNCED_LED_PORT, SYNCED_LED_PIN);    // Synced LED
-	setOutputState(SYNCED_LED_PORT, SYNCED_LED_PIN, 0); // Switch it off
+	setPinAsOutput(SYNCED_LED.port, SYNCED_LED.pin);    // Synced LED
+	setOutputState(SYNCED_LED.port, SYNCED_LED.pin, 0); // Switch it off
 
 	// Line out detect pins
-	setPinAsInput(LINE_OUT_DETECT_L_1, LINE_OUT_DETECT_L_2);
-	setPinAsInput(LINE_OUT_DETECT_R_1, LINE_OUT_DETECT_R_2);
+	setPinAsInput(LINE_OUT_DETECT_L.port, LINE_OUT_DETECT_L.pin);
+	setPinAsInput(LINE_OUT_DETECT_R.port, LINE_OUT_DETECT_R.pin);
 
 	// Test the RAM
 	uint32_t* address;
@@ -297,7 +315,7 @@ void ramTestLED(bool stuffAlreadySetUp) {
 		hardwareTestWhichColour = (hardwareTestWhichColour + 1) % 3;
 
 		// Write Synced LED
-		setOutputState(SYNCED_LED_PORT, SYNCED_LED_PIN, true);
+		setOutputState(SYNCED_LED.port, SYNCED_LED.pin, true);
 
 		// Write gate outputs
 		for (int i = 0; i < NUM_GATE_CHANNELS; i++) {
@@ -321,7 +339,7 @@ void ramTestLED(bool stuffAlreadySetUp) {
 			address++;
 		}
 
-		setOutputState(SYNCED_LED_PORT, SYNCED_LED_PIN, false);
+		setOutputState(SYNCED_LED.port, SYNCED_LED.pin, false);
 
 		address = (uint32_t*)0x0C000000;
 		while (address != (uint32_t*)0x10000000) {
@@ -336,16 +354,16 @@ void ramTestLED(bool stuffAlreadySetUp) {
 				while (1) {
 					readInputsForHardwareTest(testButtonStates);
 
-					setOutputState(SYNCED_LED_PORT, SYNCED_LED_PIN, true);
+					setOutputState(SYNCED_LED.port, SYNCED_LED.pin, true);
 					delayMS(50);
 					delayMS(50);
-					setOutputState(SYNCED_LED_PORT, SYNCED_LED_PIN, false);
+					setOutputState(SYNCED_LED.port, SYNCED_LED.pin, false);
 					delayMS(50);
 					delayMS(50);
-					setOutputState(SYNCED_LED_PORT, SYNCED_LED_PIN, true);
+					setOutputState(SYNCED_LED.port, SYNCED_LED.pin, true);
 					delayMS(50);
 					delayMS(50);
-					setOutputState(SYNCED_LED_PORT, SYNCED_LED_PIN, false);
+					setOutputState(SYNCED_LED.port, SYNCED_LED.pin, false);
 					delayMS(50);
 					delayMS(50);
 					delayMS(50);
@@ -362,7 +380,6 @@ void ramTestLED(bool stuffAlreadySetUp) {
 		}
 	}
 }
-#endif
 
 #if AUTOPILOT_TEST_ENABLED
 #define AUTOPILOT_NONE 0
@@ -379,11 +396,14 @@ int autoPilotY;
 uint32_t timeNextAutoPilotAction = 0;
 
 void autoPilotStuff() {
+	using namespace hid::button;
 
-	if (!playbackHandler.recording) return;
+	if (!playbackHandler.recording)
+		return;
 
 	int timeTilNextAction = timeNextAutoPilotAction - AudioEngine::audioSampleTimer;
-	if (timeTilNextAction > 0) return;
+	if (timeTilNextAction > 0)
+		return;
 
 	int randThing;
 
@@ -391,15 +411,15 @@ void autoPilotStuff() {
 
 	case 0:
 
-		if (true) { //getCurrentUI() == &instrumentClipView && currentSong->currentClip->output->type == INSTRUMENT_TYPE_KIT) {
+		if (true) { //getCurrentUI() == &instrumentClipView && currentSong->currentClip->output->type == InstrumentType::KIT) {
 			if (!currentUIMode) {
 				randThing = getRandom255();
 
 				// Maybe press an edit pad?
 				if (randThing < 70) {
 					autoPilotMode = AUTOPILOT_HOLDING_EDIT_PAD;
-					autoPilotX = getRandom255() % displayWidth;
-					autoPilotY = getRandom255() % displayHeight;
+					autoPilotX = getRandom255() % kDisplayWidth;
+					autoPilotY = getRandom255() % kDisplayHeight;
 
 					matrixDriver.padAction(autoPilotX, autoPilotY, true);
 				}
@@ -407,30 +427,30 @@ void autoPilotStuff() {
 				// Or an audition pad?
 				else if (randThing < 180) {
 					autoPilotMode = AUTOPILOT_HOLDING_AUDITION_PAD;
-					autoPilotY = getRandom255() % displayHeight;
-					matrixDriver.padAction(displayWidth + 1, autoPilotY, true);
+					autoPilotY = getRandom255() % kDisplayHeight;
+					matrixDriver.padAction(kDisplayWidth + 1, autoPilotY, true);
 				}
 
 				// Or change sample mode
 				else if (randThing < 220) {
-					Buttons::buttonAction(shiftButtonX, shiftButtonY, true, false);
+					Buttons::buttonAction(SHIFT, true, false);
 					matrixDriver.padAction(0, getRandom255() % 4, true);
-					Buttons::buttonAction(shiftButtonX, shiftButtonY, false, false);
+					Buttons::buttonAction(SHIFT, false, false);
 
 					autoPilotMode = AUTOPILOT_IN_MENU;
 				}
 
 				// Or toggle playback
 				else if (randThing < 230) {
-					Buttons::buttonAction(playButtonX, playButtonY, true, false);
+					Buttons::buttonAction(PLAY, true, false);
 				}
 
 				// Or save song
 				/*
 				else {
 					autoPilotMode = AUTOPILOT_IN_SONG_SAVER;
-					Buttons::buttonAction(saveButtonX, saveButtonY, true, false);
-					Buttons::buttonAction(saveButtonX, saveButtonY, false, false);
+					Buttons::buttonAction(SAVE, true, false);
+					Buttons::buttonAction(SAVE, false, false);
 
 					QwertyUI::enteredText.set("T001");
 
@@ -458,13 +478,13 @@ void autoPilotStuff() {
 		// Maybe just release it
 		if (randThing < 128) {
 			autoPilotMode = AUTOPILOT_NONE;
-			matrixDriver.padAction(displayWidth + 1, autoPilotY, false);
+			matrixDriver.padAction(kDisplayWidth + 1, autoPilotY, false);
 		}
 
 		// Or maybe load a sample
 		else {
 			autoPilotMode = AUTOPILOT_IN_MENU;
-			Buttons::buttonAction(kitButtonX, kitButtonY, true, false);
+			Buttons::buttonAction(KIT, true, false);
 		}
 
 		break;
@@ -488,12 +508,12 @@ void autoPilotStuff() {
 
 		// Maybe press back
 		else if (randThing < 220) {
-			Buttons::buttonAction(backButtonX, backButtonY, true, false);
+			Buttons::buttonAction(BACK, true, false);
 		}
 
 		// Maybe press encoder button
 		else {
-			Buttons::buttonAction(selectEncButtonX, selectEncButtonY, true, false);
+			Buttons::buttonAction(SELECT_ENC, true, false);
 		}
 
 		break;
@@ -506,14 +526,15 @@ void autoPilotStuff() {
 			break;
 		}
 
-		Buttons::buttonAction(saveButtonX, saveButtonY, true, false);
-		Buttons::buttonAction(saveButtonX, saveButtonY, false, false);
+		Buttons::buttonAction(SAVE, true, false);
+		Buttons::buttonAction(SAVE, false, false);
 
 		break;
 
 	case AUTOPILOT_IN_SONG_LOADER:
 
-		if (currentUIMode) break;
+		if (currentUIMode)
+			break;
 
 		// Maybe we already actually exited
 		if (getCurrentUI() == getRootUI()) {
@@ -532,13 +553,13 @@ void autoPilotStuff() {
 
 		// Maybe press back
 		else if (randThing < 220) {
-			Buttons::buttonAction(backButtonX, backButtonY, true, false);
+			Buttons::buttonAction(BACK, true, false);
 		}
 
 		// Maybe press load button
 		else {
-			//matrixDriver.buttonAction(loadButtonX, loadButtonY, true, false);
-			//matrixDriver.buttonAction(loadButtonX, loadButtonY, false, false);
+			//matrixDriver.buttonAction(LOAD, true, false);
+			//matrixDriver.buttonAction(LOAD, false, false);
 
 			loadSongUI.performLoad();
 		}

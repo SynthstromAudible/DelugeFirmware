@@ -16,36 +16,41 @@
 */
 
 #include "gui/context_menu/audio_input_selector.h"
+#include "definitions_cxx.hpp"
 #include "gui/ui/root_ui.h"
 #include "processing/audio_output.h"
 #include "hid/matrix/matrix_driver.h"
 #include "hid/display/numeric_driver.h"
 #include "hid/led/indicator_leds.h"
 #include "extern.h"
+#include <cstddef>
 
-#define VALUE_OFF 0
+extern AudioInputChannel defaultAudioOutputInputChannel;
 
-#define VALUE_LEFT 1
-#define VALUE_LEFT_ECHO 2
+namespace deluge::gui::context_menu {
 
-#define VALUE_RIGHT 3
-#define VALUE_RIGHT_ECHO 4
+enum class AudioInputSelector::Value {
+	OFF,
 
-#define VALUE_STEREO 5
-#define VALUE_STEREO_ECHO 6
+	LEFT,
+	LEFT_ECHO,
 
-#define VALUE_BALANCED 7
-#define VALUE_BALANCED_ECHO 8
+	RIGHT,
+	RIGHT_ECHO,
 
-#define VALUE_MASTER 9
+	STEREO,
+	STEREO_ECHO,
 
-#define VALUE_OUTPUT 10
+	BALANCED,
+	BALANCED_ECHO,
 
-#define NUM_VALUES 11
+	MASTER,
 
-extern int8_t defaultAudioOutputInputChannel;
+	OUTPUT,
+};
+constexpr size_t kNumValues = 11;
 
-AudioInputSelector audioInputSelector;
+AudioInputSelector audioInputSelector{};
 
 #if HAVE_OLED
 char const* options[] = {"Off",
@@ -63,47 +68,52 @@ char const* options[] = {"Off",
 char const* options[] = {"OFF", "LEFT", "LEFT.", "RIGH", "RIGH.", "STER", "STER.", "BALA", "BALA.", "MIX", "OUTP"};
 #endif
 
-AudioInputSelector::AudioInputSelector() {
-	basicOptions = options;
-	basicNumOptions = NUM_VALUES;
+char const* AudioInputSelector::getTitle() {
+	static char const* title = "Audio source";
+	return title;
+}
 
-#if HAVE_OLED
-	title = "Audio source";
-#endif
+Sized<char const**> AudioInputSelector::getOptions() {
+	return {options, kNumValues};
 }
 
 bool AudioInputSelector::setupAndCheckAvailability() {
+	Value valueOption = Value::OFF;
 
 	switch (audioOutput->inputChannel) {
-	case AUDIO_INPUT_CHANNEL_LEFT:
-		currentOption = VALUE_LEFT;
+	case AudioInputChannel::LEFT:
+		valueOption = Value::LEFT;
 		break;
 
-	case AUDIO_INPUT_CHANNEL_RIGHT:
-		currentOption = VALUE_RIGHT;
+	case AudioInputChannel::RIGHT:
+		valueOption = Value::RIGHT;
 		break;
 
-	case AUDIO_INPUT_CHANNEL_STEREO:
-		currentOption = VALUE_STEREO;
+	case AudioInputChannel::STEREO:
+		valueOption = Value::STEREO;
 		break;
 
-	case AUDIO_INPUT_CHANNEL_BALANCED:
-		currentOption = VALUE_BALANCED;
+	case AudioInputChannel::BALANCED:
+		valueOption = Value::BALANCED;
 		break;
 
-	case AUDIO_INPUT_CHANNEL_MIX:
-		currentOption = VALUE_MASTER;
+	case AudioInputChannel::MIX:
+		valueOption = Value::MASTER;
 		break;
 
-	case AUDIO_INPUT_CHANNEL_OUTPUT:
-		currentOption = VALUE_OUTPUT;
+	case AudioInputChannel::OUTPUT:
+		valueOption = Value::OUTPUT;
 		break;
 
 	default:
-		currentOption = VALUE_OFF;
+		valueOption = Value::OFF;
 	}
 
-	if (audioOutput->echoing) currentOption++;
+	currentOption = static_cast<int>(valueOption);
+
+	if (audioOutput->echoing) {
+		currentOption += 1;
+	}
 #if HAVE_OLED
 	scrollPos = currentOption;
 #endif
@@ -116,48 +126,54 @@ bool AudioInputSelector::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
 }
 
 void AudioInputSelector::selectEncoderAction(int8_t offset) {
-	if (currentUIMode) return;
+	if (currentUIMode != 0u) {
+		return;
+	}
 
 	ContextMenu::selectEncoderAction(offset);
 
 	audioOutput->echoing = false;
 
-	switch (currentOption) {
-	case VALUE_LEFT_ECHO:
+	auto valueOption = static_cast<Value>(currentOption);
+
+	switch (valueOption) {
+	case Value::LEFT_ECHO:
 		audioOutput->echoing = true;
-	case VALUE_LEFT:
-		audioOutput->inputChannel = AUDIO_INPUT_CHANNEL_LEFT;
+	case Value::LEFT:
+		audioOutput->inputChannel = AudioInputChannel::LEFT;
 		break;
 
-	case VALUE_RIGHT_ECHO:
+	case Value::RIGHT_ECHO:
 		audioOutput->echoing = true;
-	case VALUE_RIGHT:
-		audioOutput->inputChannel = AUDIO_INPUT_CHANNEL_RIGHT;
+	case Value::RIGHT:
+		audioOutput->inputChannel = AudioInputChannel::RIGHT;
 		break;
 
-	case VALUE_STEREO_ECHO:
+	case Value::STEREO_ECHO:
 		audioOutput->echoing = true;
-	case VALUE_STEREO:
-		audioOutput->inputChannel = AUDIO_INPUT_CHANNEL_STEREO;
+	case Value::STEREO:
+		audioOutput->inputChannel = AudioInputChannel::STEREO;
 		break;
 
-	case VALUE_BALANCED_ECHO:
+	case Value::BALANCED_ECHO:
 		audioOutput->echoing = true;
-	case VALUE_BALANCED:
-		audioOutput->inputChannel = AUDIO_INPUT_CHANNEL_BALANCED;
+	case Value::BALANCED:
+		audioOutput->inputChannel = AudioInputChannel::BALANCED;
 		break;
 
-	case VALUE_MASTER:
-		audioOutput->inputChannel = AUDIO_INPUT_CHANNEL_MIX;
+	case Value::MASTER:
+		audioOutput->inputChannel = AudioInputChannel::MIX;
 		break;
 
-	case VALUE_OUTPUT:
-		audioOutput->inputChannel = AUDIO_INPUT_CHANNEL_OUTPUT;
+	case Value::OUTPUT:
+		audioOutput->inputChannel = AudioInputChannel::OUTPUT;
 		break;
 
 	default:
-		audioOutput->inputChannel = AUDIO_INPUT_CHANNEL_NONE;
+		audioOutput->inputChannel = AudioInputChannel::NONE;
 	}
 
 	defaultAudioOutputInputChannel = audioOutput->inputChannel;
 }
+
+} // namespace deluge::gui::context_menu

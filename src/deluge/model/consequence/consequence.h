@@ -15,15 +15,10 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CONSEQUENCE_H_
-#define CONSEQUENCE_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
-
-#define CONSEQUENCE_CLIP_LENGTH 1
-#define CONSEQUENCE_CLIP_BEGIN_LINEAR_RECORD 2
-#define CONSEQUENCE_PARAM_CHANGE 3
-#define CONSEQUENCE_NOTE_ARRAY_CHANGE 4
+#include "definitions_cxx.hpp"
 
 class InstrumentClip;
 class Song;
@@ -31,13 +26,18 @@ class ModelStack;
 
 class Consequence {
 public:
+	enum {
+		CLIP_LENGTH = 1,
+		CLIP_BEGIN_LINEAR_RECORD = 2,
+		PARAM_CHANGE = 3,
+		NOTE_ARRAY_CHANGE = 4,
+	};
+
 	Consequence();
 	virtual ~Consequence();
 
 	virtual void prepareForDestruction(int whichQueueActionIn, Song* song) {}
-	virtual int revert(int time, ModelStack* modelStack) = 0;
+	virtual int revert(TimeType time, ModelStack* modelStack) = 0;
 	Consequence* next;
 	uint8_t type;
 };
-
-#endif /* CONSEQUENCE_H_ */

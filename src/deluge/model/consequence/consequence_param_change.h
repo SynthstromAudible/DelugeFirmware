@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CONSEQUENCEPARAMAUTOMATIONRECORD_H_
-#define CONSEQUENCEPARAMAUTOMATIONRECORD_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 #include "modulation/automation/auto_param.h"
@@ -26,7 +25,7 @@
 class ConsequenceParamChange final : public Consequence {
 public:
 	ConsequenceParamChange(ModelStackWithAutoParam const* modelStack, bool stealData);
-	int revert(int time, ModelStack* modelStackWithSong);
+	int revert(TimeType time, ModelStack* modelStackWithSong);
 
 	union {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -34,5 +33,3 @@ public:
 	};
 	AutoParamState state;
 };
-
-#endif /* CONSEQUENCEPARAMAUTOMATIONRECORD_H_ */

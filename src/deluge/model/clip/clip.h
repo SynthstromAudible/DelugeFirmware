@@ -15,12 +15,11 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CLIP_H_
-#define CLIP_H_
+#pragma once
 
 #include "model/timeline_counter.h"
 #include "RZA1/system/r_typedefs.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "io/midi/learned_midi.h"
 
 #define CLIP_TYPE_INSTRUMENT 0
@@ -56,7 +55,8 @@ public:
 	virtual void resumePlayback(ModelStackWithTimelineCounter* modelStack, bool mayMakeSound = true) = 0;
 	virtual void reGetParameterAutomation(ModelStackWithTimelineCounter* modelStack);
 	virtual void processCurrentPos(ModelStackWithTimelineCounter* modelStack, uint32_t ticksSinceLast);
-	void prepareForDestruction(ModelStackWithTimelineCounter* modelStack, int instrumentRemovalInstruction);
+	void prepareForDestruction(ModelStackWithTimelineCounter* modelStack,
+	                           InstrumentRemoval instrumentRemovalInstruction);
 	uint32_t getLivePos();
 	uint32_t getActualCurrentPosAsIfPlayingInForwardDirection();
 	int32_t getLastProcessedPos();
@@ -75,7 +75,7 @@ public:
 		return NO_ERROR;
 	}
 	virtual void increaseLengthWithRepeats(ModelStackWithTimelineCounter* modelStack, int32_t newLength,
-	                                       int independentNoteRowInstruction,
+	                                       IndependentNoteRowLengthIncrease independentNoteRowInstruction,
 	                                       bool completelyRenderOutIterationDependence = false, Action* action = NULL) {
 	} // This is not implemented for AudioClips - because in the cases where we call this, we don't want it to happen for AudioClips
 	virtual void lengthChanged(ModelStackWithTimelineCounter* modelStack, int32_t oldLength, Action* action = NULL);
@@ -92,7 +92,7 @@ public:
 	virtual bool renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, TimelineView* editorScreen,
 	                               int32_t xScroll, uint32_t xZoom, uint8_t* image, uint8_t occupancyMask[],
 	                               bool addUndefinedArea = true, int noteRowIndexStart = 0,
-	                               int noteRowIndexEnd = 2147483647, int xStart = 0, int xEnd = displayWidth,
+	                               int noteRowIndexEnd = 2147483647, int xStart = 0, int xEnd = kDisplayWidth,
 	                               bool allowBlur = true, bool drawRepeats = false);
 	virtual int
 	claimOutput(ModelStackWithTimelineCounter*
@@ -126,9 +126,11 @@ public:
 	virtual void abortRecording() = 0;
 	virtual void stopAllNotesPlaying(Song* song, bool actuallySoundChange = true) {}
 	virtual bool willCloneOutputForOverdub() { return false; }
-	void setSequenceDirectionMode(ModelStackWithTimelineCounter* modelStack, int newSequenceDirection);
+	void setSequenceDirectionMode(ModelStackWithTimelineCounter* modelStack, SequenceDirection newSequenceDirection);
 	bool possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* modelStack);
 	virtual void incrementPos(ModelStackWithTimelineCounter* modelStack, int32_t numTicks);
+	/// Return true if successfully shifted
+	virtual bool shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int amount) = 0;
 
 	// ----- PlayPositionCounter implementation -------
 	int32_t getLoopLength();
@@ -146,7 +148,7 @@ public:
 	const uint8_t type;
 	uint8_t section;
 	bool soloingInSessionMode;
-	uint8_t armState;
+	ArmState armState;
 	bool activeIfNoSolo;
 	bool wasActiveBefore; // A temporary thing used by Song::doLaunch()
 	bool gotInstanceYet;  // For use only while loading song
@@ -161,7 +163,7 @@ public:
 
 #if HAVE_SEQUENCE_STEP_CONTROL
 	bool currentlyPlayingReversed;
-	uint8_t sequenceDirectionMode;
+	SequenceDirection sequenceDirectionMode;
 #endif
 
 	int32_t loopLength;
@@ -187,5 +189,3 @@ protected:
 	virtual void pingpongOccurred(ModelStackWithTimelineCounter* modelStack) {
 	}
 };
-
-#endif /* CLIP_H_ */

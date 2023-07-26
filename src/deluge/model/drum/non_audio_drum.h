@@ -15,16 +15,16 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef NONAUDIODRUM_H_
-#define NONAUDIODRUM_H_
+#pragma once
 
+#include "definitions_cxx.hpp"
 #include "model/drum/drum.h"
 #include "model/mod_controllable/mod_controllable.h"
 #include "RZA1/system/r_typedefs.h"
 
 class NonAudioDrum : public Drum, public ModControllable {
 public:
-	NonAudioDrum(int newType);
+	NonAudioDrum(DrumType newType);
 
 	bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false) final;
 	bool anyNoteIsOn() final;
@@ -48,5 +48,3 @@ protected:
 	void modChange(ModelStackWithThreeMainThings* modelStack, int offset, int8_t* encoderOffset, uint8_t* value,
 	               int numValues);
 };
-
-#endif /* NONAUDIODRUM_H_ */

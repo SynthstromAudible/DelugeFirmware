@@ -15,18 +15,15 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef LFO_H
-#define LFO_H
+#pragma once
 
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 
 class LFO {
 public:
-	LFO();
+	LFO() = default;
 	uint32_t phase;
 	int32_t holdValue;
-	int32_t render(int numSamples, int waveType, uint32_t phaseIncrement);
+	int32_t render(int numSamples, LFOType waveType, uint32_t phaseIncrement);
 	void tick(int numSamples, uint32_t phaseIncrement);
 };
-
-#endif // LFO_H

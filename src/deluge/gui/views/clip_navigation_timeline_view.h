@@ -15,22 +15,19 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CLIPNAVIGATIONTIMELINEVIEW_H_
-#define CLIPNAVIGATIONTIMELINEVIEW_H_
+#pragma once
 
 #include "gui/views/timeline_view.h"
 #include "RZA1/system/r_typedefs.h"
 
 class ClipNavigationTimelineView : public TimelineView {
 public:
-	ClipNavigationTimelineView();
+	ClipNavigationTimelineView() = default;
 	void focusRegained();
-	int horizontalEncoderAction(int offset);
+	ActionResult horizontalEncoderAction(int offset);
 
 protected:
 	void horizontalScrollForLinearRecording(int32_t newXScroll);
 
 	static int32_t xScrollBeforeFollowingAutoExtendingLinearRecording; // -1 means none
 };
-
-#endif /* CLIPNAVIGATIONTIMELINEVIEW_H_ */

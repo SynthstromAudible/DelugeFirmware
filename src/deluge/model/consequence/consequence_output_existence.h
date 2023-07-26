@@ -15,21 +15,19 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CONSEQUENCEOUTPUTEXISTENCE_H_
-#define CONSEQUENCEOUTPUTEXISTENCE_H_
+#pragma once
 
+#include "definitions_cxx.hpp"
 #include "model/consequence/consequence.h"
 
 class Output;
 
 class ConsequenceOutputExistence final : public Consequence {
 public:
-	ConsequenceOutputExistence(Output* newOutput, int newType);
-	int revert(int time, ModelStack* modelStack);
+	ConsequenceOutputExistence(Output* newOutput, ExistenceChangeType newType);
+	int revert(TimeType time, ModelStack* modelStack) override;
 
 	Output* output;
 	int outputIndex;
-	uint8_t type;
+	ExistenceChangeType type;
 };
-
-#endif /* CONSEQUENCEOUTPUTEXISTENCE_H_ */

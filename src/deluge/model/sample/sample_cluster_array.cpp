@@ -17,7 +17,7 @@
 
 #include "model/sample/sample_cluster_array.h"
 #include "model/sample/sample_cluster.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include <new>
 
 SampleClusterArray::SampleClusterArray() : ResizeableArray(sizeof(SampleCluster)) {
@@ -26,7 +26,9 @@ SampleClusterArray::SampleClusterArray() : ResizeableArray(sizeof(SampleCluster)
 int SampleClusterArray::insertSampleClustersAtEnd(int numToInsert) {
 	int oldNum = getNumElements();
 	int error = insertAtIndex(oldNum, numToInsert);
-	if (error) return error;
+	if (error) {
+		return error;
+	}
 
 	for (int i = oldNum; i < oldNum + numToInsert; i++) {
 		void* address = getElementAddress(i);

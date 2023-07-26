@@ -16,28 +16,31 @@
 */
 
 #include "model/consequence/consequence_output_existence.h"
+#include "definitions_cxx.hpp"
 #include "model/song/song.h"
 #include "hid/display/numeric_driver.h"
 #include "model/output.h"
 #include "model/model_stack.h"
+#include "util/misc.h"
 
-ConsequenceOutputExistence::ConsequenceOutputExistence(Output* newOutput, int newType) {
+ConsequenceOutputExistence::ConsequenceOutputExistence(Output* newOutput, ExistenceChangeType newType) {
 	output = newOutput;
 	type = newType;
 }
 
 // TODO: wait a minute, do we have a memory leak here? Never deletes the Output?
 
-int ConsequenceOutputExistence::revert(int time, ModelStack* modelStack) {
-	if (time != type) { // Re-create
-
+int ConsequenceOutputExistence::revert(TimeType time, ModelStack* modelStack) {
+	if (time != util::to_underlying(type)) { // Re-create
 		modelStack->song->addOutput(output, true);
 	}
 
 	else { // Re-delete
 
 		outputIndex = modelStack->song->removeOutputFromMainList(output);
-		if (ALPHA_OR_BETA_VERSION && outputIndex == -1) numericDriver.freezeWithError("E263");
+		if (ALPHA_OR_BETA_VERSION && outputIndex == -1) {
+			numericDriver.freezeWithError("E263");
+		}
 
 		output->prepareForHibernationOrDeletion();
 	}

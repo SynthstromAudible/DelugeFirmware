@@ -31,15 +31,16 @@ ModelStackWithThreeMainThings* ModelStackWithTimelineCounter::addNoteRowAndExtra
                                                                                       NoteRow* newNoteRow) const {
 
 #if ALPHA_OR_BETA_VERSION
-	if (!newNoteRow->paramManager.containsAnyParamCollectionsIncludingExpression())
+	if (!newNoteRow->paramManager.containsAnyParamCollectionsIncludingExpression()) {
 		numericDriver.freezeWithError("E389");
+	}
 #endif
 
 	ModelStackWithThreeMainThings* toReturn = (ModelStackWithThreeMainThings*)this;
 
 	InstrumentClip* clip = (InstrumentClip*)getTimelineCounter();
 	Output* output = clip->output;
-	bool isKit = (output->type == INSTRUMENT_TYPE_KIT);
+	bool isKit = (output->type == InstrumentType::KIT);
 	toReturn->noteRowId = isKit ? noteRowIndex : newNoteRow->y;
 	toReturn->setNoteRow(newNoteRow);
 	toReturn->modControllable =
@@ -62,14 +63,16 @@ bool ModelStackWithNoteRow::isCurrentlyPlayingReversed() const {
 
 	// Under a few different conditions, we just use the parent Clip's reversing status.
 	if (!noteRow
-	    || (noteRow->sequenceDirectionMode == SEQUENCE_DIRECTION_OBEY_PARENT
+	    || (noteRow->sequenceDirectionMode == SequenceDirection::OBEY_PARENT
 	        && (!noteRow->loopLengthIfIndependent
-	            || ((Clip*)getTimelineCounter())->sequenceDirectionMode != SEQUENCE_DIRECTION_PINGPONG))) {
+	            || ((Clip*)getTimelineCounter())->sequenceDirectionMode != SequenceDirection::PINGPONG))) {
 		return ((Clip*)getTimelineCounter())->currentlyPlayingReversed;
 	}
 
 	// Otherwise, we use the NoteRow's local one.
-	else return noteRow->currentlyPlayingReversedIfIndependent;
+	else {
+		return noteRow->currentlyPlayingReversedIfIndependent;
+	}
 }
 
 int32_t ModelStackWithNoteRow::getLoopLength() const {
@@ -122,14 +125,16 @@ int32_t ModelStackWithNoteRow::getPosAtWhichPlaybackWillCut() const {
 			else {
 				int32_t ticksTilLaunchEvent =
 				    session.launchEventAtSwungTickCount - playbackHandler.lastSwungTickActioned;
-				if (reversed) ticksTilLaunchEvent = -ticksTilLaunchEvent;
+				if (reversed) {
+					ticksTilLaunchEvent = -ticksTilLaunchEvent;
+				}
 				cutPos =
 				    noteRow->lastProcessedPosIfIndependent
 				    + ticksTilLaunchEvent; // Might return a pos beyond the loop length - maybe that's what we want?
 			}
 
 			// If pingponging, that's actually going to get referred to as a cut.
-			if (noteRow->getEffectiveSequenceDirectionMode(this) == SEQUENCE_DIRECTION_PINGPONG) {
+			if (noteRow->getEffectiveSequenceDirectionMode(this) == SequenceDirection::PINGPONG) {
 				if (reversed) {
 					if (cutPos < 0) {
 						cutPos =
@@ -140,7 +145,9 @@ int32_t ModelStackWithNoteRow::getPosAtWhichPlaybackWillCut() const {
 				}
 				else {
 					int32_t loopLength = getLoopLength();
-					if (cutPos > loopLength) cutPos = loopLength;
+					if (cutPos > loopLength) {
+						cutPos = loopLength;
+					}
 				}
 			}
 
@@ -171,7 +178,7 @@ ModelStackWithThreeMainThings* ModelStackWithNoteRow::addOtherTwoThingsAutomatic
 	NoteRow* noteRowHere = getNoteRow();
 	InstrumentClip* clip = (InstrumentClip*)getTimelineCounter();
 	toReturn->modControllable =
-	    (clip->output->type == INSTRUMENT_TYPE_KIT && noteRowHere->drum) // What if there's no Drum?
+	    (clip->output->type == InstrumentType::KIT && noteRowHere->drum) // What if there's no Drum?
 	        ? noteRowHere->drum->toModControllable()
 	        : clip->output->toModControllable();
 	toReturn->paramManager = &noteRowHere->paramManager;
@@ -195,8 +202,8 @@ bool ModelStackWithSoundFlags::checkSourceEverActive(int s) {
 		if (flagValue) { // Does an &&
 			Sound* sound = (Sound*)modControllable;
 			flagValue =
-			    sound->synthMode == SYNTH_MODE_FM
-			    || (sound->sources[s].oscType != OSC_TYPE_SAMPLE && sound->sources[s].oscType != OSC_TYPE_WAVETABLE)
+			    sound->synthMode == SynthMode::FM
+			    || (sound->sources[s].oscType != OscType::SAMPLE && sound->sources[s].oscType != OscType::WAVETABLE)
 			    || sound->sources[s].hasAtLeastOneAudioFileLoaded();
 		}
 		soundFlags[SOUND_FLAG_SOURCE_0_ACTIVE + s] = flagValue;

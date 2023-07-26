@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef DRIVERS_ALL_CPUS_UART_ALL_CPUS_UART_ALL_CPUS_H_
-#define DRIVERS_ALL_CPUS_UART_ALL_CPUS_UART_ALL_CPUS_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 
@@ -64,5 +63,3 @@ int uartGetTxBufferFullnessByItem(int item);
 int uartGetTxBufferSpace(int item);
 
 extern void tx_interrupt(int item);
-
-#endif /* DRIVERS_ALL_CPUS_UART_ALL_CPUS_UART_ALL_CPUS_H_ */

@@ -15,9 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MODCONTROLLABLE_H_
-#define MODCONTROLLABLE_H_
-#include "definitions.h"
+#pragma once
+#include "definitions_cxx.hpp"
 
 class ParamManagerForTimeline;
 class ParamManagerForTimeline;
@@ -51,14 +50,13 @@ public:
 	virtual int getKnobPosForNonExistentParam(
 	    int whichModEncoder,
 	    ModelStackWithAutoParam* modelStack); // modelStack->autoParam will be NULL in this rare case!!
-	virtual int modEncoderActionForNonExistentParam(int offset, int whichModEncoder,
-	                                                ModelStackWithAutoParam* modelStack) {
-		return ACTION_RESULT_NOT_DEALT_WITH;
+	virtual ActionResult modEncoderActionForNonExistentParam(int offset, int whichModEncoder,
+	                                                         ModelStackWithAutoParam* modelStack) {
+		return ActionResult::NOT_DEALT_WITH;
 	}
 	virtual bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false) { return true; }
 	virtual void polyphonicExpressionEventOnChannelOrNote(int newValue, int whichExpressionDimension,
-	                                                      int channelOrNoteNumber, int whichCharacteristic) {}
+	                                                      int channelOrNoteNumber,
+	                                                      MIDICharacteristic whichCharacteristic) {}
 	virtual void monophonicExpressionEvent(int newValue, int whichExpressionDimension) {}
 };
-
-#endif /* MODCONTROLLABLE_H_ */

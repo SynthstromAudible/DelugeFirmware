@@ -15,10 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MULTIRANGE_H_
-#define MULTIRANGE_H_
+#pragma once
 
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 
 class AudioFileHolder;
 
@@ -31,5 +30,3 @@ public:
 
 	int16_t topNote;
 };
-
-#endif /* MULTIRANGE_H_ */

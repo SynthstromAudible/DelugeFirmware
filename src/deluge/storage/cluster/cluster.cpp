@@ -18,7 +18,7 @@
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "model/sample/sample.h"
 #include "util/functions.h"
 #include <string.h>
@@ -39,7 +39,9 @@ Cluster::Cluster() {
 
 void Cluster::convertDataIfNecessary() {
 
-	if (!sample->audioDataStartPosBytes) return; // Or maybe we haven't yet figured out where the audio data starts
+	if (!sample->audioDataStartPosBytes) {
+		return; // Or maybe we haven't yet figured out where the audio data starts
+	}
 
 	if (sample->rawDataFormat) {
 
@@ -63,7 +65,9 @@ void Cluster::convertDataIfNecessary() {
 				uint32_t bytesBeforeStartOfCluster =
 				    clusterIndex * audioFileManager.clusterSize - sample->audioDataStartPosBytes;
 				int bytesThatWillBeEatingIntoAnother3Byte = bytesBeforeStartOfCluster % 3;
-				if (bytesThatWillBeEatingIntoAnother3Byte == 0) bytesThatWillBeEatingIntoAnother3Byte = 3;
+				if (bytesThatWillBeEatingIntoAnother3Byte == 0) {
+					bytesThatWillBeEatingIntoAnother3Byte = 3;
+				}
 				pos = &data[3 - bytesThatWillBeEatingIntoAnother3Byte];
 			}
 
@@ -79,7 +83,9 @@ void Cluster::convertDataIfNecessary() {
 
 			while (true) {
 				char const* endPosNow = pos + 1024; // Every this many bytes, we'll pause and do an audio routine
-				if (endPosNow > endPos) endPosNow = endPos;
+				if (endPosNow > endPos) {
+					endPosNow = endPos;
+				}
 
 				while (pos < endPosNow) {
 					uint8_t temp = pos[0];
@@ -88,7 +94,9 @@ void Cluster::convertDataIfNecessary() {
 					pos += 3;
 				}
 
-				if (pos >= endPos) break;
+				if (pos >= endPos) {
+					break;
+				}
 
 				AudioEngine::logAction("from convert-data");
 				AudioEngine::routine(); // ----------------------------------------------------
@@ -132,8 +140,8 @@ void Cluster::convertDataIfNecessary() {
 			uint16_t endTime = MTU2.TCNT_0;
 
 			if (clusterIndex != startCluster) {
-				Uart::print("time to convert: ");
-				Uart::println((uint16_t)(endTime - startTime));
+				Debug::print("time to convert: ");
+				Debug::println((uint16_t)(endTime - startTime));
 			}
 			*/
 		}
@@ -144,7 +152,7 @@ int Cluster::getAppropriateQueue() {
 	int q;
 
 	// If it's a perc cache...
-	if (type == CLUSTER_PERC_CACHE_FORWARDS || type == CLUSTER_PERC_CACHE_REVERSED) {
+	if (type == ClusterType::PERC_CACHE_FORWARDS || type == ClusterType::PERC_CACHE_REVERSED) {
 		q = sample->numReasonsToBeLoaded ? STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA_PERC_CACHE
 		                                 : STEALABLE_QUEUE_NO_SONG_SAMPLE_DATA_PERC_CACHE;
 	}
@@ -160,7 +168,9 @@ int Cluster::getAppropriateQueue() {
 		q = sample->numReasonsToBeLoaded ? STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA
 		                                 : STEALABLE_QUEUE_NO_SONG_SAMPLE_DATA;
 
-		if (sample->rawDataFormat) q++;
+		if (sample->rawDataFormat) {
+			q++;
+		}
 	}
 
 	return q;
@@ -171,13 +181,17 @@ void Cluster::steal(char const* errorCode) {
 	// Ok, we're now gonna decide what to do according to the actual "type" field for this Cluster.
 	switch (type) {
 
-	case CLUSTER_SAMPLE:
-		if (ALPHA_OR_BETA_VERSION && !sample) numericDriver.freezeWithError("E181");
+	case ClusterType::Sample:
+		if (ALPHA_OR_BETA_VERSION && !sample) {
+			numericDriver.freezeWithError("E181");
+		}
 		sample->clusters.getElement(clusterIndex)->cluster = NULL;
 		break;
 
-	case CLUSTER_SAMPLE_CACHE:
-		if (ALPHA_OR_BETA_VERSION && !sampleCache) numericDriver.freezeWithError("E183");
+	case ClusterType::SAMPLE_CACHE:
+		if (ALPHA_OR_BETA_VERSION && !sampleCache) {
+			numericDriver.freezeWithError("E183");
+		}
 		sampleCache->clusterStolen(clusterIndex);
 
 		// If first Cluster, delete whole cache. Wait, no, something might still be pointing to the cache...
@@ -188,9 +202,11 @@ void Cluster::steal(char const* errorCode) {
 		*/
 		break;
 
-	case CLUSTER_PERC_CACHE_FORWARDS:
-	case CLUSTER_PERC_CACHE_REVERSED:
-		if (ALPHA_OR_BETA_VERSION && !sample) numericDriver.freezeWithError("E184");
+	case ClusterType::PERC_CACHE_FORWARDS:
+	case ClusterType::PERC_CACHE_REVERSED:
+		if (ALPHA_OR_BETA_VERSION && !sample) {
+			numericDriver.freezeWithError("E184");
+		}
 		sample->percCacheClusterStolen(this);
 		break;
 
@@ -200,16 +216,20 @@ void Cluster::steal(char const* errorCode) {
 }
 
 bool Cluster::mayBeStolen(void* thingNotToStealFrom) {
-	if (numReasonsToBeLoaded) return false;
+	if (numReasonsToBeLoaded) {
+		return false;
+	}
 
-	if (!thingNotToStealFrom) return true;
+	if (!thingNotToStealFrom) {
+		return true;
+	}
 
 	switch (type) {
-	case CLUSTER_SAMPLE_CACHE:
+	case ClusterType::SAMPLE_CACHE:
 		return (sampleCache != thingNotToStealFrom);
 
-	case CLUSTER_PERC_CACHE_FORWARDS:
-	case CLUSTER_PERC_CACHE_REVERSED:
+	case ClusterType::PERC_CACHE_FORWARDS:
+	case ClusterType::PERC_CACHE_REVERSED:
 		return (sample != thingNotToStealFrom);
 	}
 	return true;

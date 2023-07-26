@@ -21,7 +21,7 @@
 #include "processing/sound/sound_instrument.h"
 #include "gui/ui/save/save_instrument_preset_ui.h"
 #include "storage/storage_manager.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "util/functions.h"
 #include "hid/matrix/matrix_driver.h"
 #include "model/song/song.h"
@@ -31,12 +31,14 @@
 #include "gui/ui/keyboard_screen.h"
 #include <string.h>
 #include "gui/views/view.h"
-#include "gui/context_menu/context_menu_overwrite_file.h"
+#include "gui/context_menu/overwrite_file.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/buttons.h"
 #include "hid/display/oled.h"
 
-SaveInstrumentPresetUI saveInstrumentPresetUI;
+using namespace deluge;
+
+SaveInstrumentPresetUI saveInstrumentPresetUI{};
 
 SaveInstrumentPresetUI::SaveInstrumentPresetUI() {
 }
@@ -68,11 +70,11 @@ tryDefaultDir:
 	}
 
 #if HAVE_OLED
-	fileIcon = (instrumentTypeToLoad == INSTRUMENT_TYPE_SYNTH) ? OLED::synthIcon : OLED::kitIcon;
-	title = (instrumentTypeToLoad == INSTRUMENT_TYPE_SYNTH) ? "Save synth" : "Save kit";
+	fileIcon = (instrumentTypeToLoad == InstrumentType::SYNTH) ? OLED::synthIcon : OLED::kitIcon;
+	title = (instrumentTypeToLoad == InstrumentType::SYNTH) ? "Save synth" : "Save kit";
 #endif
 
-	filePrefix = (instrumentTypeToLoad == INSTRUMENT_TYPE_SYNTH) ? "SYNT" : "KIT";
+	filePrefix = (instrumentTypeToLoad == InstrumentType::SYNTH) ? "SYNT" : "KIT";
 
 	int error = arrivedInNewFolder(0, enteredText.get(), defaultDir);
 	if (error) {
@@ -81,8 +83,12 @@ gotError:
 		goto doReturnFalse;
 	}
 
-	if (instrumentTypeToLoad == INSTRUMENT_TYPE_SYNTH) IndicatorLEDs::blinkLed(synthLedX, synthLedY);
-	else IndicatorLEDs::blinkLed(kitLedX, kitLedY);
+	if (instrumentTypeToLoad == InstrumentType::SYNTH) {
+		indicator_leds::blinkLed(IndicatorLED::SYNTH);
+	}
+	else {
+		indicator_leds::blinkLed(IndicatorLED::KIT);
+	}
 
 	/*
 	String filePath;
@@ -134,13 +140,13 @@ fail:
 	error = storageManager.createXMLFile(filePath.get(), mayOverwrite);
 
 	if (error == ERROR_FILE_ALREADY_EXISTS) {
-		contextMenuOverwriteFile.currentSaveUI = this;
+		gui::context_menu::overwriteFile.currentSaveUI = this;
 
-		bool available = contextMenuOverwriteFile.setupAndCheckAvailability();
+		bool available = gui::context_menu::overwriteFile.setupAndCheckAvailability();
 
 		if (available) { // Will always be true.
 			numericDriver.setNextTransitionDirection(1);
-			openUI(&contextMenuOverwriteFile);
+			openUI(&gui::context_menu::overwriteFile);
 			return true;
 		}
 		else {
@@ -149,7 +155,9 @@ fail:
 		}
 	}
 
-	else if (error) goto fail;
+	else if (error) {
+		goto fail;
+	}
 
 #if HAVE_OLED
 	OLED::displayWorkingAnimation("Saving");
@@ -157,14 +165,16 @@ fail:
 
 	instrumentToSave->writeToFile(currentSong->currentClip, currentSong);
 
-	char const* endString = (instrumentTypeToLoad == INSTRUMENT_TYPE_SYNTH) ? "\n</sound>\n" : "\n</kit>\n";
+	char const* endString = (instrumentTypeToLoad == InstrumentType::SYNTH) ? "\n</sound>\n" : "\n</kit>\n";
 
 	error =
 	    storageManager.closeFileAfterWriting(filePath.get(), "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n", endString);
 #if HAVE_OLED
 	OLED::removeWorkingAnimation();
 #endif
-	if (error) goto fail;
+	if (error) {
+		goto fail;
+	}
 
 	// Give the Instrument in memory its new slot
 	instrumentToSave->name.set(&enteredText);
@@ -222,8 +232,8 @@ void SaveInstrumentPresetUI::selectEncoderAction(int8_t offset) {
 		int16_t bestSlotFound;
 		int8_t bestSubSlotFound;
 
-		if (currentSlot >= numSongSlots) currentSlot = 0;
-		else if (currentSlot < 0) currentSlot = numSongSlots - 1;
+		if (currentSlot >= kNumSongSlots) currentSlot = 0;
+		else if (currentSlot < 0) currentSlot = kNumSongSlots - 1;
 
 		// We want the "last" subslot, or -1 if there's none
 
@@ -234,7 +244,7 @@ void SaveInstrumentPresetUI::selectEncoderAction(int8_t offset) {
 		storageManager.findNextInstrumentPreset(-1, instrumentType,
 				&bestSlotFound, &bestSubSlotFound, NULL, NULL, // No folders allowed.
 				currentSlot + 1, -1, NULL, currentDir.get(),
-				&nothing, AVAILABILITY_ANY, &nothingInstrument, &nothing2);
+				&nothing, Availability::ANY, &nothingInstrument, &nothing2);
 
 		if (bestSlotFound == currentSlot) {
 			// If the preset was already saved in this slot, offer a brand new subslot

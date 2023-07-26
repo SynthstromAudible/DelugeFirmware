@@ -15,10 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef AUDIOFILEHOLDER_H_
-#define AUDIOFILEHOLDER_H_
+#pragma once
 
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "util/d_string.h"
 
 extern "C" {
@@ -41,7 +40,5 @@ public:
 
 	String filePath;
 	AudioFile* audioFile;
-	uint8_t audioFileType;
+	AudioFileType audioFileType;
 };
-
-#endif /* AUDIOFILEHOLDER_H_ */

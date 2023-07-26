@@ -15,21 +15,18 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef VOICE_UNISON_PART_H
-#define VOICE_UNISON_PART_H
+#pragma once
 
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "model/voice/voice_unison_part_source.h"
 
 class VoiceUnisonPart {
 public:
 	VoiceUnisonPart();
 
-	uint32_t modulatorPhase[numModulators];
-	uint32_t modulatorPhaseIncrement[numModulators];
-	int32_t modulatorFeedback[numModulators];
+	uint32_t modulatorPhase[kNumModulators];
+	uint32_t modulatorPhaseIncrement[kNumModulators];
+	int32_t modulatorFeedback[kNumModulators];
 
-	VoiceUnisonPartSource sources[NUM_SOURCES];
+	VoiceUnisonPartSource sources[kNumSources];
 };
-
-#endif // VOICE_H

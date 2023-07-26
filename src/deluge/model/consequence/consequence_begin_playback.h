@@ -15,15 +15,12 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CONSEQUENCEBEGINPLAYBACK_H_
-#define CONSEQUENCEBEGINPLAYBACK_H_
+#pragma once
 
 #include "model/consequence/consequence.h"
 
 class ConsequenceBeginPlayback final : public Consequence {
 public:
 	ConsequenceBeginPlayback();
-	int revert(int time, ModelStack* modelStack);
+	int revert(TimeType time, ModelStack* modelStack);
 };
-
-#endif /* CONSEQUENCEBEGINPLAYBACK_H_ */

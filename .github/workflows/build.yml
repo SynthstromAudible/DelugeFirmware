@@ -1,3 +1,5 @@
+name: Build
+
 on:
   push:
     branches:
@@ -6,39 +8,65 @@ on:
   pull_request:
     branches:
       - 'community'
+  merge_group:
+  workflow_dispatch:
+
+env:
+  FIRMWARE_RETENTION_DAYS: 5
 
 jobs:
   build:
     name: Build ${{ matrix.profile }}-${{ matrix.hardware }}
-    strategy:
-      matrix:
-        profile: [ 'debug', 'release' ]
-        hardware: [ 'oled', '7seg' ]
     runs-on: ubuntu-latest
     steps:
       - name: check out repo
         uses: actions/checkout@v3
       - name: Fetch container image
         run: |
-          docker pull ghcr.io/bobtwinkles/deluge-ci-images:v$(cat toolchain/REQUIRED_VERSION)
+          docker pull ghcr.io/litui/dbt-toolchain:v$(cat toolchain/REQUIRED_VERSION)
       - name: Run build
         run: |
           docker run --rm \
             --user=$(id --user):$(id --group) \
             -v $(pwd):/src \
-            ghcr.io/bobtwinkles/deluge-ci-images:v$(cat toolchain/REQUIRED_VERSION) \
-            --e2_target=dbt-build-${{ matrix.profile }}-${{ matrix.hardware }}
-      - name: Publish built firmware (bin)
+            ghcr.io/litui/dbt-toolchain:v$(cat toolchain/REQUIRED_VERSION) \
+            build \
+            --spew \
+            all
+
+      - name: Publish built firmware (7seg-debug) (bin)
         uses: actions/upload-artifact@v3
         with:
-          name: ${{ matrix.profile }}-${{ matrix.hardware }}.bin
-          path: dbt-build-${{ matrix.profile }}-${{ matrix.hardware }}/Deluge-${{ matrix.profile }}-${{ matrix.hardware }}.bin
+          name: debug-7seg.bin
+          path: dbt-build-debug-7seg/Deluge-debug-7seg.bin
           if-no-files-found: error
-          retention-days: 5
+          retention-days: ${{ env.FIRMWARE_RETENTION_DAYS }}
+      - name: Publish built firmware (7seg-release) (bin)
+        uses: actions/upload-artifact@v3
+        with:
+          name: release-7seg.bin
+          path: dbt-build-release-7seg/Deluge-release-7seg.bin
+          if-no-files-found: error
+          retention-days: ${{ env.FIRMWARE_RETENTION_DAYS }}
+      - name: Publish built firmware (oled-debug) (bin)
+        uses: actions/upload-artifact@v3
+        with:
+          name: debug-oled.bin
+          path: dbt-build-debug-oled/Deluge-debug-oled.bin
+          if-no-files-found: error
+          retention-days: ${{ env.FIRMWARE_RETENTION_DAYS }}
+      - name: Publish built firmware (oled-release) (bin)
+        uses: actions/upload-artifact@v3
+        with:
+          name: release-oled.bin
+          path: dbt-build-release-oled/Deluge-release-oled.bin
+          if-no-files-found: error
+          retention-days: ${{ env.FIRMWARE_RETENTION_DAYS }}
+
       - name: Publish built firmware (elf)
         uses: actions/upload-artifact@v3
         with:
-          name: ${{ matrix.profile }}-${{ matrix.hardware }}.elf
-          path: dbt-build-${{ matrix.profile }}-${{ matrix.hardware }}/Deluge-${{ matrix.profile }}-${{ matrix.hardware }}.elf
+          name: all-elfs
+          path: dbt-build-*/*.elf
           if-no-files-found: error
-          retention-days: 5
+          retention-days: ${{ env.FIRMWARE_RETENTION_DAYS }}

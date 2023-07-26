@@ -1201,7 +1201,8 @@ void usb_hstd_brdy_pipe_process_rohan_midi_and_hub(usb_utr_t* ptr, uint16_t bits
     //ip = ptr->ip;
     for (pipe = USB_CFG_HMIDI_BULK_RECV_MIN; pipe <= USB_PIPE9; pipe++)
     { // We'll just do the receive pipes we actually sometimes use for MIDI, plus PIPE9 for hubs. We could also do it by USB device that we know is connected...
-        if (pipe == USB_CFG_HMIDI_BULK_RECV_MAX + 1) pipe = USB_CFG_HMIDI_INT_RECV_MIN; // Skip that one pipe
+        if (pipe == USB_CFG_HMIDI_BULK_RECV_MAX + 1)
+            pipe = USB_CFG_HMIDI_INT_RECV_MIN; // Skip that one pipe
 
         if (bitsts & USB_BITSET(pipe))
         {
@@ -1538,7 +1539,7 @@ goAgain:
                                 g_p_usb_pipe[pipe] = (usb_utr_t*)
                                     USB_NULL; // Moved by Rohan - set this to NULL before the callback so the callback can do another transfer, which sets this to something else
                                 //(temp->complete)(temp, 0, 0); // This does our callback on our outgoing transfers. Rohan
-                                usbSendComplete(USB_CFG_USE_USBIP);
+                                usbSendCompleteAsHost(USB_CFG_USE_USBIP);
                             }
                         }
                     }

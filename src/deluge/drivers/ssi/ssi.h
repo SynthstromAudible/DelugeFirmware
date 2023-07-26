@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef DRIVERS_ALL_CPUS_SSI_ALL_CPUS_SSI_ALL_CPUS_H_
-#define DRIVERS_ALL_CPUS_SSI_ALL_CPUS_SSI_ALL_CPUS_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 
@@ -31,5 +30,3 @@ int32_t* getTxBufferStart();
 int32_t* getTxBufferEnd();
 int32_t* getRxBufferStart();
 int32_t* getRxBufferEnd();
-
-#endif /* DRIVERS_ALL_CPUS_SSI_ALL_CPUS_SSI_ALL_CPUS_H_ */

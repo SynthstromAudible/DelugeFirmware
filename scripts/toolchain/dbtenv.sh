@@ -4,7 +4,7 @@
 
 # public variables
 DEFAULT_SCRIPT_PATH="$(pwd -P)";
-DBT_TOOLCHAIN_REQUIRED_VERSION=$(cat ${DEFAULT_SCRIPT_PATH}/toolchain/REQUIRED_VERSION)
+DBT_TOOLCHAIN_REQUIRED_VERSION="$(cat ${DEFAULT_SCRIPT_PATH}/toolchain/REQUIRED_VERSION)"
 DBT_TOOLCHAIN_VERSION="${DBT_TOOLCHAIN_VERSION:-"${DBT_TOOLCHAIN_REQUIRED_VERSION}"}";
 
 if [ -z ${DBT_TOOLCHAIN_PATH+x} ] ; then
@@ -42,7 +42,7 @@ dbtenv_restore_env()
     PATH="$(echo "$PATH" | /usr/bin/sed "s/$TOOLCHAIN_ARCH_DIR_SED\/python\/bin://g")";
     PATH="$(echo "$PATH" | /usr/bin/sed "s/$TOOLCHAIN_ARCH_DIR_SED\/arm-none-eabi-gcc\/bin://g")";
     PATH="$(echo "$PATH" | /usr/bin/sed "s/$TOOLCHAIN_ARCH_DIR_SED\/openocd\/bin://g")";
-    PATH="$(echo "$PATH" | /usr/bin/sed "s/$TOOLCHAIN_ARCH_DIR_SED\/cmake\/bin://g")";
+    PATH="$(echo "$PATH" | /usr/bin/sed "s/$TOOLCHAIN_ARCH_DIR_SED\/clang\/bin://g")";
     # PATH="$(echo "$PATH" | /usr/bin/sed "s/$TOOLCHAIN_ARCH_DIR_SED\/openssl\/bin://g")";
     if [ -n "${PS1:-""}" ]; then
         PS1="$(echo "$PS1" | sed 's/\[dbt\] //g')";
@@ -333,7 +333,7 @@ dbtenv_main()
     PATH="$TOOLCHAIN_ARCH_DIR/python/bin:$PATH";
     PATH="$TOOLCHAIN_ARCH_DIR/arm-none-eabi-gcc/bin:$PATH";
     PATH="$TOOLCHAIN_ARCH_DIR/openocd/bin:$PATH";
-    PATH="$TOOLCHAIN_ARCH_DIR/cmake/bin:$PATH";
+    PATH="$TOOLCHAIN_ARCH_DIR/clang/bin:$PATH";
     # PATH="$TOOLCHAIN_ARCH_DIR/openssl/bin:$PATH";
     export PATH;
 

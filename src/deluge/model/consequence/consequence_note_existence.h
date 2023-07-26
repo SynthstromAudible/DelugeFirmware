@@ -15,9 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CONSEQUENCENOTEEXISTENCE_H_
-#define CONSEQUENCENOTEEXISTENCE_H_
+#pragma once
 
+#include "definitions_cxx.hpp"
 #include "model/consequence/consequence.h"
 #include "RZA1/system/r_typedefs.h"
 
@@ -25,8 +25,8 @@ class Note;
 
 class ConsequenceNoteExistence final : public Consequence {
 public:
-	ConsequenceNoteExistence(InstrumentClip* newClip, int newNoteRowId, Note* note, int newType);
-	int revert(int time, ModelStack* modelStack);
+	ConsequenceNoteExistence(InstrumentClip* newClip, int newNoteRowId, Note* note, ExistenceChangeType newType);
+	int revert(TimeType time, ModelStack* modelStack);
 
 	InstrumentClip* clip;
 	int noteRowId;
@@ -36,7 +36,5 @@ public:
 	int8_t probability;
 	uint8_t lift;
 
-	uint8_t type;
+	ExistenceChangeType type;
 };
-
-#endif /* CONSEQUENCENOTEEXISTENCE_H_ */

@@ -15,11 +15,13 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "definitions_cxx.hpp"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include <string.h>
 #include <math.h>
+#include "util/comparison.h"
 #include "util/functions.h"
 //#include <algorithm>
 #include "playback/playback_handler.h"
@@ -32,7 +34,7 @@ extern "C" {
 #include "RZA1/oled/oled_low_level.h"
 }
 
-CVEngine cvEngine;
+CVEngine cvEngine{};
 
 CVEngine::CVEngine() {
 	gateOutputPending = false;
@@ -134,7 +136,9 @@ void CVEngine::switchGateOn(int channel, int doInstantlyIfPossible) {
 void CVEngine::sendNote(bool on, uint8_t channel, int16_t note) {
 
 	// If this gate channel is reserved for a special purpose, don't do anything
-	if (gateChannels[channel].mode == GATE_MODE_SPECIAL) return;
+	if (gateChannels[channel].mode == GateType::SPECIAL) {
+		return;
+	}
 
 	// Note-off
 	if (!on) {
@@ -165,7 +169,9 @@ void CVEngine::sendNote(bool on, uint8_t channel, int16_t note) {
 
 		switchGateOn(channel);
 
-		if (channel < NUM_CV_CHANNELS) cvChannels[channel].noteCurrentlyPlaying = note;
+		if (channel < NUM_CV_CHANNELS) {
+			cvChannels[channel].noteCurrentlyPlaying = note;
+		}
 	}
 }
 
@@ -180,7 +186,8 @@ void CVEngine::sendVoltageOut(uint8_t channel, uint16_t voltage) {
 }
 
 void CVEngine::physicallySwitchGate(int channel) {
-	int on = (gateChannels[channel].on == (gateChannels[channel].mode & 1));
+	int on =
+	    (gateChannels[channel].on == util::one_of(gateChannels[channel].mode, {GateType::V_TRIG, GateType::SPECIAL}));
 	setOutputState(gatePort[channel], gatePin[channel], on);
 }
 
@@ -197,7 +204,9 @@ void CVEngine::setCVTranspose(uint8_t channel, int semitones, int cents) {
 
 void CVEngine::setCVPitchBend(uint8_t channel, int32_t value, bool outputToo) {
 	cvChannels[channel].pitchBend = value;
-	if (outputToo) recalculateCVChannelVoltage(channel);
+	if (outputToo) {
+		recalculateCVChannelVoltage(channel);
+	}
 }
 
 // Does it even if the corresponding gate isn't "on", because the note might still be audible on the connected physical synth
@@ -248,20 +257,21 @@ void CVEngine::playbackEnded() {
 	updateRunOutput();
 }
 
-void CVEngine::setGateType(uint8_t channel, uint8_t value) {
-	int oldValue = gateChannels[channel].mode;
+void CVEngine::setGateType(uint8_t channel, GateType value) {
+	GateType oldValue = gateChannels[channel].mode;
 
 	gateChannels[channel].mode = value;
 
 	// We now need to update the output's physical status
 
 	// If it's been set to a "special" type...
-	if (value == GATE_MODE_SPECIAL) {
+	if (value == GateType::SPECIAL) {
 
 		// Clock
 		if (channel == WHICH_GATE_OUTPUT_IS_CLOCK) {
-			if (playbackHandler.playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE)
+			if (playbackHandler.playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE) {
 				playbackHandler.resyncAnalogOutTicksToInternalTicks();
+			}
 			updateClockOutput();
 		}
 
@@ -274,7 +284,7 @@ void CVEngine::setGateType(uint8_t channel, uint8_t value) {
 	else {
 		physicallySwitchGate(channel);
 
-		if (oldValue == GATE_MODE_SPECIAL) {
+		if (oldValue == GateType::SPECIAL) {
 			// If we just stopped clock output...
 			if (channel == WHICH_GATE_OUTPUT_IS_CLOCK) {
 				playbackHandler.triggerClockOutTickScheduled = false;
@@ -284,14 +294,18 @@ void CVEngine::setGateType(uint8_t channel, uint8_t value) {
 }
 
 void CVEngine::updateClockOutput() {
-	if (gateChannels[WHICH_GATE_OUTPUT_IS_CLOCK].mode != GATE_MODE_SPECIAL) return;
+	if (gateChannels[WHICH_GATE_OUTPUT_IS_CLOCK].mode != GateType::SPECIAL) {
+		return;
+	}
 
 	gateChannels[WHICH_GATE_OUTPUT_IS_CLOCK].on = clockState;
 	clockOutputPending = true;
 }
 
 void CVEngine::updateRunOutput() {
-	if (gateChannels[WHICH_GATE_OUTPUT_IS_RUN].mode != GATE_MODE_SPECIAL) return;
+	if (gateChannels[WHICH_GATE_OUTPUT_IS_RUN].mode != GateType::SPECIAL) {
+		return;
+	}
 
 	bool runState = (playbackHandler.isEitherClockActive() && !playbackHandler.ticksLeftInCountIn);
 
@@ -306,5 +320,5 @@ void CVEngine::updateRunOutput() {
 }
 
 bool CVEngine::isTriggerClockOutputEnabled() {
-	return (gateChannels[WHICH_GATE_OUTPUT_IS_CLOCK].mode == GATE_MODE_SPECIAL);
+	return (gateChannels[WHICH_GATE_OUTPUT_IS_CLOCK].mode == GateType::SPECIAL);
 }

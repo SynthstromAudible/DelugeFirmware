@@ -15,10 +15,11 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef LOADINSTRUMENTPRESETUI_H_
-#define LOADINSTRUMENTPRESETUI_H_
+#pragma once
 
+#include "definitions_cxx.hpp"
 #include "gui/ui/load/load_ui.h"
+#include "hid/button.h"
 
 class Instrument;
 class InstrumentClip;
@@ -29,20 +30,28 @@ public:
 	LoadInstrumentPresetUI();
 	bool opened();
 	//void selectEncoderAction(int8_t offset);
-	int buttonAction(int x, int y, bool on, bool inCardRoutine);
-	int padAction(int x, int y, int velocity);
-	int verticalEncoderAction(int offset, bool inCardRoutine);
+	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
+	ActionResult padAction(int x, int y, int velocity);
+	ActionResult verticalEncoderAction(int offset, bool inCardRoutine);
 	void instrumentEdited(Instrument* instrument);
 	int performLoad(bool doClone = false);
-	int timerCallback();
+	ActionResult timerCallback();
 	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows);
-	bool renderMainPads(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3] = NULL,
-	                    uint8_t occupancyMask[][displayWidth + sideBarWidth] = NULL, bool drawUndefinedArea = true,
+	bool renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3] = NULL,
+	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL, bool drawUndefinedArea = true,
 	                    int navSys = -1) {
 		return true;
 	}
-	bool renderSidebar(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
-	                   uint8_t occupancyMask[][displayWidth + sideBarWidth]);
+	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
+	ReturnOfConfirmPresetOrNextUnlaunchedOne
+	findAnUnlaunchedPresetIncludingWithinSubfolders(Song* song, InstrumentType instrumentType,
+	                                                Availability availabilityRequirement);
+	ReturnOfConfirmPresetOrNextUnlaunchedOne confirmPresetOrNextUnlaunchedOne(InstrumentType instrumentType,
+	                                                                          String* searchName,
+	                                                                          Availability availabilityRequirement);
+	PresetNavigationResult doPresetNavigation(int offset, Instrument* oldInstrument,
+	                                          Availability availabilityRequirement, bool doBlink);
 
 	InstrumentClip* instrumentClipToLoadFor; // Can be NULL - if called from Arranger.
 	Instrument* instrumentToReplace; // The Instrument that's actually successfully loaded and assigned to the Clip.
@@ -55,7 +64,7 @@ protected:
 private:
 	bool showingAuditionPads();
 	int setupForInstrumentType();
-	void changeInstrumentType(int newInstrumentType);
+	void changeInstrumentType(InstrumentType newInstrumentType);
 	void revertToInitialPreset();
 	void exitAction();
 	bool isInstrumentInList(Instrument* searchInstrument, Output* list);
@@ -65,7 +74,7 @@ private:
 
 	int16_t initialChannel;
 	int8_t initialChannelSuffix;
-	uint8_t initialInstrumentType;
+	InstrumentType initialInstrumentType;
 
 	bool changedInstrumentForClip;
 	bool replacedWholeInstrument;
@@ -75,5 +84,3 @@ private:
 };
 
 extern LoadInstrumentPresetUI loadInstrumentPresetUI;
-
-#endif /* LOADINSTRUMENTPRESETUI_H_ */

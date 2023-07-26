@@ -15,11 +15,10 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef SAMPLECLUSTER_H_
-#define SAMPLECLUSTER_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 
 class Cluster;
 class Sample;
@@ -40,5 +39,3 @@ public:
 	int8_t maxValue;
 	bool investigatedWholeLength;
 };
-
-#endif /* SAMPLECLUSTER_H_ */

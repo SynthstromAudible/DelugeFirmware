@@ -15,10 +15,10 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef FLASHSTORAGE_H_
-#define FLASHSTORAGE_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
+#include "definitions_cxx.hpp"
 
 #define PREVIEW_OFF 0
 #define PREVIEW_ONLY_WHILE_NOT_PLAYING 1
@@ -28,7 +28,7 @@ namespace FlashStorage {
 
 extern uint8_t defaultScale;
 extern bool audioClipRecordMargins;
-extern uint8_t keyboardLayout;
+extern KeyboardLayout keyboardLayout;
 extern uint8_t
     recordQuantizeLevel; // Assumes insideWorldTickMagnitude==1, which is not default anymore, so adjust accordingly
 extern uint8_t sampleBrowserPreviewMode;
@@ -42,5 +42,3 @@ void writeSettings();
 void resetSettings();
 
 } // namespace FlashStorage
-
-#endif /* FLASHSTORAGE_H_ */

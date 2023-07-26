@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CONSEQUENCENOTEROWHORIZONTALSHIFT_H_
-#define CONSEQUENCENOTEROWHORIZONTALSHIFT_H_
+#pragma once
 
 #include "model/consequence/consequence.h"
 #include "RZA1/system/r_typedefs.h"
@@ -24,10 +23,8 @@
 class ConsequenceNoteRowHorizontalShift final : public Consequence {
 public:
 	ConsequenceNoteRowHorizontalShift(int newNoteRowId, int32_t newAmount);
-	int revert(int time, ModelStack* modelStack);
+	int revert(TimeType time, ModelStack* modelStack);
 
 	int noteRowId;
 	int32_t amount;
 };
-
-#endif /* CONSEQUENCENOTEROWHORIZONTALSHIFT_H_ */

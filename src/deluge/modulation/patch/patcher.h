@@ -15,10 +15,10 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef PATCHABLE_H
-#define PATCHABLE_H
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
+#include "definitions_cxx.hpp"
 
 struct CableGroup;
 
@@ -65,9 +65,7 @@ private:
 	void cableToExpParam(int32_t sourceValue, int32_t cableStrength, int32_t* runningTotalCombination,
 	                     PatchCable* patchCable);
 	int32_t* getParamFinalValuesPointer();
-	int32_t getSourceValue(int s);
+	int32_t getSourceValue(PatchSource s);
 
 	const PatchableInfo* const patchableInfo;
 };
-
-#endif // PATCHABLE_H

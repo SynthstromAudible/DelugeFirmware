@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef PARAMNODE_H_
-#define PARAMNODE_H_
+#pragma once
 #include "RZA1/system/r_typedefs.h"
 
 #include "gui/positionable.h"
@@ -33,5 +32,3 @@ struct StolenParamNodes {
 	int num;
 	ParamNode* nodes;
 };
-
-#endif /* PARAMNODE_H_ */

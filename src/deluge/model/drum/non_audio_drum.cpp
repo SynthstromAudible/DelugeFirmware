@@ -15,13 +15,14 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "definitions_cxx.hpp"
 #include "gui/views/instrument_clip_view.h"
 #include "model/drum/non_audio_drum.h"
 #include "gui/ui/ui.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h"
 
-NonAudioDrum::NonAudioDrum(int newType) : Drum(newType) {
+NonAudioDrum::NonAudioDrum(DrumType newType) : Drum(newType) {
 	state = false;
 	channelEncoderCurrentOffset = 0;
 }
@@ -31,7 +32,9 @@ bool NonAudioDrum::allowNoteTails(ModelStackWithSoundFlags* modelStack, bool dis
 }
 
 void NonAudioDrum::unassignAllVoices() {
-	if (hasAnyVoices()) noteOff(NULL);
+	if (hasAnyVoices()) {
+		noteOff(NULL);
+	}
 }
 
 bool NonAudioDrum::anyNoteIsOn() {
@@ -71,18 +74,30 @@ void NonAudioDrum::modChange(ModelStackWithThreeMainThings* modelStack, int offs
 	*encoderOffset += offset;
 
 	int valueChange;
-	if (*encoderOffset >= 4) valueChange = 1;
-	else if (*encoderOffset <= -4) valueChange = -1;
-	else return;
+	if (*encoderOffset >= 4) {
+		valueChange = 1;
+	}
+	else if (*encoderOffset <= -4) {
+		valueChange = -1;
+	}
+	else {
+		return;
+	}
 
 	bool wasOn = state;
-	if (wasOn) noteOff(NULL);
+	if (wasOn) {
+		noteOff(NULL);
+	}
 
 	*encoderOffset = 0;
 
 	int newValue = (int)*value + valueChange;
-	if (newValue < 0) newValue += numValues;
-	else if (newValue >= numValues) newValue -= numValues;
+	if (newValue < 0) {
+		newValue += numValues;
+	}
+	else if (newValue >= numValues) {
+		newValue -= numValues;
+	}
 
 	*value = newValue;
 
@@ -100,7 +115,9 @@ bool NonAudioDrum::readDrumTagFromFile(char const* tagName) {
 		storageManager.exitTag("channel");
 	}
 	else if (Drum::readDrumTagFromFile(tagName)) {}
-	else return false;
+	else {
+		return false;
+	}
 
 	return true;
 }

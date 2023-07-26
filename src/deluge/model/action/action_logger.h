@@ -15,10 +15,10 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef ACTIONLOGGER_H_
-#define ACTIONLOGGER_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
+#include "definitions_cxx.hpp"
 #include "model/action/action.h"
 
 class ParamCollection;
@@ -41,7 +41,7 @@ public:
 	void closeActionUnlessCreatedJustNow(int actionType);
 	void deleteAllLogs();
 	void deleteLog(int time);
-	bool revert(int time, bool updateVisually = true, bool doNavigation = true);
+	bool revert(TimeType time, bool updateVisually = true, bool doNavigation = true);
 	void updateAction(Action* newAction);
 	void undo();
 	void redo();
@@ -52,11 +52,9 @@ public:
 	Action* firstAction[2];
 
 private:
-	void revertAction(Action* action, bool updateVisually, bool doNavigation, int time);
+	void revertAction(Action* action, bool updateVisually, bool doNavigation, TimeType time);
 	void deleteLastActionIfEmpty();
 	void deleteLastAction();
 };
 
 extern ActionLogger actionLogger;
-
-#endif /* ACTIONLOGGER_H_ */

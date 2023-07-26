@@ -19,13 +19,15 @@
 #include "RZA1/system/r_typedefs.h"
 #include "model/note/note.h"
 #include <string.h>
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 
 NoteVector::NoteVector() : OrderedResizeableArrayWith32bitKey(sizeof(Note)) {
 }
 
 Note* NoteVector::getElement(int index) {
-	if (index < 0 || index >= getNumElements()) return NULL;
+	if (index < 0 || index >= getNumElements()) {
+		return NULL;
+	}
 	return (Note*)getElementAddress(index);
 }
 

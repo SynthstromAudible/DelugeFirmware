@@ -15,10 +15,11 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef VIEW_H_
-#define VIEW_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
+#include "definitions_cxx.hpp"
+#include "hid/button.h"
 #include "model/model_stack.h"
 
 class InstrumentClip;
@@ -49,13 +50,13 @@ public:
 	View();
 	void focusRegained();
 	void setTripletsLedState();
-	int buttonAction(int x, int y, bool on, bool inCardRoutine);
+	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
 	void setTimeBaseScaleLedState();
 	void setLedStates();
 
 	void clipStatusMidiLearnPadPressed(bool on, Clip* whichLoopable);
 	void noteRowMuteMidiLearnPadPressed(bool on, NoteRow* whichNoteRow);
-	void endMidiLearnPressSession(uint8_t newThingPressed);
+	void endMidiLearnPressSession(MidiLearn newThingPressed = MidiLearn::NONE);
 	void noteOnReceivedForMidiLearn(MIDIDevice* fromDevice, int channel, int note, int velocity);
 	void ccReceivedForMIDILearn(MIDIDevice* fromDevice, int channel, int cc, int value);
 	void drumMidiLearnPadPressed(bool on, Drum* drum, Kit* kit);
@@ -79,17 +80,18 @@ public:
 	void navigateThroughPresetsForInstrumentClip(int offset, ModelStackWithTimelineCounter* modelStack,
 	                                             bool doBlink = false);
 	void navigateThroughAudioOutputsForAudioClip(int offset, AudioClip* clip, bool doBlink = false);
-	bool changeInstrumentType(int newInstrumentType, ModelStackWithTimelineCounter* modelStack, bool doBlink = false);
-	void drawOutputNameFromDetails(int instrumentType, int slot, int subSlot, char const* name, bool editedByUser,
-	                               bool doBlink, Clip* clip = NULL);
+	bool changeInstrumentType(InstrumentType newInstrumentType, ModelStackWithTimelineCounter* modelStack,
+	                          bool doBlink = false);
+	void drawOutputNameFromDetails(InstrumentType instrumentType, int slot, int subSlot, char const* name,
+	                               bool editedByUser, bool doBlink, Clip* clip = NULL);
 	void endMIDILearn();
 	void getClipMuteSquareColour(Clip* clip, uint8_t thisColour[]);
-	int clipStatusPadAction(Clip* clip, bool on, int yDisplayIfInSessionView = -1);
+	ActionResult clipStatusPadAction(Clip* clip, bool on, int yDisplayIfInSessionView = -1);
 	void flashPlayEnable();
 	void flashPlayDisable();
 
 	// MIDI learn stuff
-	uint8_t thingPressedForMidiLearn;
+	MidiLearn thingPressedForMidiLearn = MidiLearn::NONE;
 	bool deleteMidiCommandOnRelease;
 	bool midiLearnFlashOn;
 	bool shouldSaveSettingsAfterMidiLearn;
@@ -126,5 +128,3 @@ private:
 };
 
 extern View view;
-
-#endif /* VIEW_H_ */

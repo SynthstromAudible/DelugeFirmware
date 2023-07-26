@@ -15,17 +15,16 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef INPUTPERCBUFFER_H_
-#define INPUTPERCBUFFER_H_
+#pragma once
 
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "RZA1/system/r_typedefs.h"
 
 class LiveInputBuffer {
 public:
 	LiveInputBuffer();
-	~LiveInputBuffer();
-	void giveInput(int numSamples, uint32_t currentTime, int inputType);
+	~LiveInputBuffer() = default;
+	void giveInput(int numSamples, uint32_t currentTime, OscType inputType);
 	bool getAveragesForCrossfade(int32_t* totals, int startPos, int lengthToAverageEach, int numChannels);
 
 	uint32_t upToTime;
@@ -34,12 +33,10 @@ public:
 
 	int32_t lastSampleRead;
 	int32_t lastAngle;
-	int32_t angleLPFMem[DIFFERENCE_LPF_POLES];
+	int32_t angleLPFMem[kDifferenceLPFPoles];
 
-	uint8_t percBuffer[INPUT_PERC_BUFFER_SIZE];
+	uint8_t percBuffer[kInputPercBufferSize];
 
-	int32_t rawBuffer
-	    [INPUT_RAW_BUFFER_SIZE]; // Must be last!!! Cos we're gonna allocate and access it double-length for stereo
+	// Must be last!!! Cos we're gonna allocate and access it double-length for stereo
+	int32_t rawBuffer[kInputRawBufferSize];
 };
-
-#endif /* INPUTPERCBUFFER_H_ */

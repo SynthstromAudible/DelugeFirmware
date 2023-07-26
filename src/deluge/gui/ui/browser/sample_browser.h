@@ -15,10 +15,11 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef FILEBROWSER_H
-#define FILEBROWSER_H
+#pragma once
 
+#include "definitions_cxx.hpp"
 #include "gui/ui/browser/browser.h"
+#include "hid/button.h"
 
 extern "C" {
 
@@ -40,21 +41,21 @@ public:
 	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows);
 	bool opened();
 	void focusRegained();
-	int buttonAction(int x, int y, bool on, bool inCardRoutine);
-	int verticalEncoderAction(int offset, bool inCardRoutine);
-	int horizontalEncoderAction(int offset);
-	int padAction(int x, int y, int velocity);
+	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
+	ActionResult verticalEncoderAction(int offset, bool inCardRoutine);
+	ActionResult horizontalEncoderAction(int offset);
+	ActionResult padAction(int x, int y, int velocity);
 	bool canSeeViewUnderneath();
 	int claimAudioFileForInstrument(bool makeWaveTableWorkAtAllCosts = false);
 	int claimAudioFileForAudioClip();
 	void scrollFinished();
 	bool importFolderAsKit();
 	bool importFolderAsMultisamples();
-	int timerCallback();
+	ActionResult timerCallback();
 	bool claimCurrentFile(int mayDoPitchDetection = 1, int mayDoSingleCycle = 1,
 	                      int mayDoWaveTable = 1); // 0 means no. 1 means auto. 2 means yes definitely
-	bool renderMainPads(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
-	                    uint8_t occupancyMask[][displayWidth + sideBarWidth], bool drawUndefinedArea = true);
+	bool renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
 	void exitAndNeverDeleteDrum();
 
 	String lastFilePathLoaded;
@@ -62,7 +63,7 @@ public:
 protected:
 	void enterKeyPress();
 	void exitAction();
-	int backButtonAction();
+	ActionResult backButtonAction();
 	void folderContentsReady(int entryDirection);
 	void currentFileChanged(int movementDirection);
 
@@ -84,5 +85,3 @@ private:
 };
 
 extern SampleBrowser sampleBrowser;
-
-#endif // FILEBROWSER_H

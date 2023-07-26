@@ -20,14 +20,14 @@
 #include "storage/cluster/cluster.h"
 #include "memory/general_memory_allocator.h"
 #include <new>
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "util/functions.h"
 #include <string.h>
 #include "model/action/action_logger.h"
 #include "hid/display/numeric_driver.h"
 #include "memory/stealable.h"
 #include "drivers/mtu/mtu.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 
 char emptySpacesMemory[sizeof(EmptySpaceRecord) * 512];
 char emptySpacesMemoryInternal[sizeof(EmptySpaceRecord) * 1024];
@@ -35,14 +35,14 @@ char emptySpacesMemoryInternal[sizeof(EmptySpaceRecord) * 1024];
 extern uint32_t __heap_start;
 extern uint32_t __heap_end;
 
-GeneralMemoryAllocator generalMemoryAllocator;
+GeneralMemoryAllocator generalMemoryAllocator{};
 
 GeneralMemoryAllocator::GeneralMemoryAllocator() {
 	lock = false;
 	regions[MEMORY_REGION_SDRAM].setup(emptySpacesMemory, sizeof(emptySpacesMemory), EXTERNAL_MEMORY_BEGIN,
 	                                   EXTERNAL_MEMORY_END);
 	regions[MEMORY_REGION_INTERNAL].setup(emptySpacesMemoryInternal, sizeof(emptySpacesMemoryInternal),
-	                                      (uint32_t)&__heap_start, INTERNAL_MEMORY_END - 8192);
+	                                      (uint32_t)&__heap_start, kInternalMemoryEnd - 8192);
 
 #if ALPHA_OR_BETA_VERSION
 	regions[MEMORY_REGION_SDRAM].name = "external";
@@ -57,16 +57,16 @@ void GeneralMemoryAllocator::checkStack(char const* caller) {
 
 	char a;
 
-	int distance = (int)&a - (INTERNAL_MEMORY_END - PROGRAM_STACK_MAX_SIZE);
+	int distance = (int)&a - (kInternalMemoryEnd - kProgramStackMaxSize);
 	if (distance < closestDistance) {
 		closestDistance = distance;
 
-		Uart::print(distance);
-		Uart::print(" free bytes in stack at ");
-		Uart::println(caller);
+		Debug::print(distance);
+		Debug::print(" free bytes in stack at ");
+		Debug::println(caller);
 
 		if (distance < 200) {
-			Uart::println("COLLISION");
+			Debug::println("COLLISION");
 			numericDriver.freezeWithError("E338");
 		}
 	}
@@ -88,8 +88,9 @@ void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, uint32_t* getAllocate
                                     bool mayUseOnChipRam, bool makeStealable, void* thingNotToStealFrom,
                                     bool getBiggestAllocationPossible) {
 
-	if (lock)
+	if (lock) {
 		return NULL; // Prevent any weird loops in freeSomeStealableMemory(), which mostly would only be bad cos they could extend the stack an unspecified amount
+	}
 
 	if (mayUseOnChipRam
 #if TEST_GENERAL_MEMORY_ALLOCATION
@@ -109,11 +110,11 @@ void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, uint32_t* getAllocate
 			totalMallocTime += timeTaken;
 			numMallocTimes++;
 
-			Uart::print("average malloc time: ");
-			Uart::println(totalMallocTime / numMallocTimes);
+			Debug::print("average malloc time: ");
+			Debug::println(totalMallocTime / numMallocTimes);
 
-			//Uart::print("total: ");
-			//Uart::println(totalMallocTime);
+			//Debug::print("total: ");
+			//Debug::println(totalMallocTime);
 			*/
 			return address;
 		}
@@ -121,7 +122,7 @@ void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, uint32_t* getAllocate
 
 #if TEST_GENERAL_MEMORY_ALLOCATION
 	if (requiredSize < 1) {
-		Uart::println("alloc too little a bit");
+		Debug::println("alloc too little a bit");
 		while (1) {}
 	}
 #endif
@@ -160,7 +161,9 @@ void GeneralMemoryAllocator::extend(void* address, uint32_t minAmountToExtend, u
 	*getAmountExtendedLeft = 0;
 	*getAmountExtendedRight = 0;
 
-	if (lock) return;
+	if (lock) {
+		return;
+	}
 
 	lock = true;
 	regions[getRegion(address)].extend(address, minAmountToExtend, idealAmountToExtend, getAmountExtendedLeft,
@@ -237,12 +240,12 @@ void testReadingMemory(int i) {
 	uint8_t readValue = *readPos;
 	for (int j = 0; j < sizes[i]; j++) {
 		if (*readPos != readValue) {
-			Uart::println("data corrupted!");
-			Uart::println((int)readPos);
-			Uart::print("allocation total size: ");
-			Uart::println(sizes[i]);
-			Uart::print("num bytes in: ");
-			Uart::println((int)readPos - (int)testAllocations[i]);
+			Debug::println("data corrupted!");
+			Debug::println((int)readPos);
+			Debug::print("allocation total size: ");
+			Debug::println(sizes[i]);
+			Debug::print("num bytes in: ");
+			Debug::println((int)readPos - (int)testAllocations[i]);
 			while (1) {}
 		}
 		readPos++;
@@ -264,7 +267,8 @@ bool skipConsistencyCheck =
     false; // Sometimes we want to make sure this check isn't happen, while things temporarily are not in an inspectable state
 
 void GeneralMemoryAllocator::checkEverythingOk(char const* errorString) {
-	if (skipConsistencyCheck) return;
+	if (skipConsistencyCheck)
+		return;
 
 	for (int i = 0; i < NUM_TEST_ALLOCATIONS; i++) {
 		if (testAllocations[i]) {
@@ -274,20 +278,20 @@ void GeneralMemoryAllocator::checkEverythingOk(char const* errorString) {
 			uint32_t shouldBe = sizes[i] | spaceTypes[i];
 
 			if (*header != shouldBe) {
-				Uart::println("allocation header wrong");
-				Uart::println(errorString);
-				Uart::println(*header);
-				Uart::println(shouldBe);
+				Debug::println("allocation header wrong");
+				Debug::println(errorString);
+				Debug::println(*header);
+				Debug::println(shouldBe);
 				while (1) {}
 			}
 			if (*footer != shouldBe) {
-				Uart::println("allocation footer wrong");
-				Uart::println(errorString);
+				Debug::println("allocation footer wrong");
+				Debug::println(errorString);
 				while (1) {}
 			}
 			if (spaceTypes[i] == SPACE_HEADER_STEALABLE && *(header + 1) != vtableAddress) {
-				Uart::println("vtable address corrupted");
-				Uart::println(errorString);
+				Debug::println("vtable address corrupted");
+				Debug::println(errorString);
 				while (1) {}
 			}
 		}
@@ -302,13 +306,13 @@ void GeneralMemoryAllocator::checkEverythingOk(char const* errorString) {
 		uint32_t shouldBe = record->length | SPACE_HEADER_EMPTY;
 
 		if (*header != shouldBe) {
-			Uart::println("empty space header wrong");
-			Uart::println(errorString);
+			Debug::println("empty space header wrong");
+			Debug::println(errorString);
 			while (1) {}
 		}
 		if (*footer != shouldBe) {
-			Uart::println("empty space footer wrong");
-			Uart::println(errorString);
+			Debug::println("empty space footer wrong");
+			Debug::println(errorString);
 			while (1) {}
 		}
 	}
@@ -327,7 +331,8 @@ void GeneralMemoryAllocator::testShorten(int i) {
 
 	if (a < 128) {
 
-		if (!getRandom255()) Uart::println("shortening left");
+		if (!getRandom255())
+			Debug::println("shortening left");
 		int newSize =
 		    ((uint32_t)getRandom255() << 17) | ((uint32_t)getRandom255() << 9) | ((uint32_t)getRandom255() << 1);
 		while (newSize > sizes[i])
@@ -342,7 +347,8 @@ void GeneralMemoryAllocator::testShorten(int i) {
 
 	else {
 
-		if (!getRandom255()) Uart::println("shortening right");
+		if (!getRandom255())
+			Debug::println("shortening right");
 		int newSize =
 		    ((uint32_t)getRandom255() << 17) | ((uint32_t)getRandom255() << 9) | ((uint32_t)getRandom255() << 1);
 		while (newSize > sizes[i])
@@ -355,7 +361,7 @@ void GeneralMemoryAllocator::testShorten(int i) {
 
 void GeneralMemoryAllocator::test() {
 
-	Uart::println("GeneralMemoryAllocator::test()");
+	Debug::println("GeneralMemoryAllocator::test()");
 
 	// Corrupt the crap out of these two so we know they can take it!
 	sampleManager.clusterSize = 0;
@@ -368,7 +374,7 @@ void GeneralMemoryAllocator::test() {
 	bool goingUp = true;
 
 	while (1) {
-		//if (!(count & 15)) Uart::println("...");
+		//if (!(count & 15)) Debug::println("...");
 		count++;
 
 		for (int i = 0; i < NUM_TEST_ALLOCATIONS; i++) {
@@ -376,7 +382,8 @@ void GeneralMemoryAllocator::test() {
 			if (testAllocations[i]) {
 
 				// Check data is still there
-				if (spaceTypes[i] != SPACE_HEADER_STEALABLE) testReadingMemory(i);
+				if (spaceTypes[i] != SPACE_HEADER_STEALABLE)
+					testReadingMemory(i);
 
 				if (spaceTypes[i] == SPACE_HEADER_STEALABLE
 				    //|| (uint32_t)testAllocations[i] >= (uint32_t)INTERNAL_MEMORY_BEGIN // If on-chip memory, this is the only option
@@ -400,7 +407,8 @@ void GeneralMemoryAllocator::test() {
 					}
 
 					else {
-						if (!getRandom255()) Uart::println("extending");
+						if (!getRandom255())
+							Debug::println("extending");
 						uint32_t amountExtendedLeft, amountExtendedRight;
 
 						uint32_t idealAmountToExtend = ((uint32_t)getRandom255() << 17)
@@ -432,7 +440,7 @@ void GeneralMemoryAllocator::test() {
 
 						if (amountExtended > 0) {
 							if (amountExtended < minAmountToExtend) {
-								Uart::println("extended too little!");
+								Debug::println("extended too little!");
 								while (1) {}
 							}
 						}
@@ -449,18 +457,18 @@ void GeneralMemoryAllocator::test() {
 			}
 
 			if (getRandom255() < 2) {
-				Uart::print("\nfree spaces: ");
-				Uart::println(regions[MEMORY_REGION_SDRAM].emptySpaces.getNumElements());
-				Uart::print("allocations: ");
-				Uart::println(regions[MEMORY_REGION_SDRAM].numAllocations);
+				Debug::print("\nfree spaces: ");
+				Debug::println(regions[MEMORY_REGION_SDRAM].emptySpaces.getNumElements());
+				Debug::print("allocations: ");
+				Debug::println(regions[MEMORY_REGION_SDRAM].numAllocations);
 
 				if (regions[MEMORY_REGION_SDRAM].emptySpaces.getNumElements() == 1) {
 					EmptySpaceRecord* firstRecord =
 					    (EmptySpaceRecord*)regions[MEMORY_REGION_SDRAM].emptySpaces.getElementAddress(0);
-					Uart::print("free space size: ");
-					Uart::println(firstRecord->length);
-					Uart::print("free space address: ");
-					Uart::println(firstRecord->address);
+					Debug::print("free space size: ");
+					Debug::println(firstRecord->length);
+					Debug::print("free space address: ");
+					Debug::println(firstRecord->address);
 				}
 				delayMS(200);
 			}
@@ -471,13 +479,15 @@ void GeneralMemoryAllocator::test() {
 			int magnitudeReduction = getRandom255() % 25;
 			desiredSize >>= magnitudeReduction;
 
-			if (desiredSize < 1) desiredSize = 1;
+			if (desiredSize < 1)
+				desiredSize = 1;
 
 			uint32_t actualSize;
 			if (!testAllocations[i]) {
 
 				bool makeStealable = false;
-				if (desiredSize >= sizeof(StealableTest)) makeStealable = getRandom255() & 1;
+				if (desiredSize >= sizeof(StealableTest))
+					makeStealable = getRandom255() & 1;
 
 				testAllocations[i] = alloc(desiredSize, &actualSize, false, true, makeStealable);
 				if (testAllocations[i]) {
@@ -485,8 +495,8 @@ void GeneralMemoryAllocator::test() {
 					//if ((uint32_t)testAllocations[i] >= (uint32_t)INTERNAL_MEMORY_BEGIN) actualSize = desiredSize; // If on-chip memory
 
 					if (actualSize < desiredSize) {
-						Uart::println("got too little!!");
-						Uart::println(desiredSize - actualSize);
+						Debug::println("got too little!!");
+						Debug::println(desiredSize - actualSize);
 						while (1) {}
 					}
 

@@ -16,14 +16,16 @@
  */
 
 #include "util/container/array/resizeable_pointer_array.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 
 ResizeablePointerArray::ResizeablePointerArray() : ResizeableArray(sizeof(void*)) {
 }
 
 int ResizeablePointerArray::insertPointerAtIndex(void* pointer, int index) {
 	int error = insertAtIndex(index);
-	if (error) return error;
+	if (error) {
+		return error;
+	}
 	*(void**)getElementAddress(index) = pointer;
 	return NO_ERROR;
 }

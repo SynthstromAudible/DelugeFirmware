@@ -17,14 +17,14 @@
 
 #include "util/functions.h"
 #include "processing/sound/sound.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "hid/display/numeric_driver.h"
 #include "fatfs/ff.h"
 #include "gui/views/view.h"
 #include "gui/ui/sound_editor.h"
 #include "model/action/action_logger.h"
 #include <string.h>
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "hid/encoders.h"
 #include "gui/ui/qwerty_ui.h"
 #include "hid/display/oled.h"
@@ -34,39 +34,32 @@ extern "C" {
 #include "drivers/mtu/mtu.h"
 }
 
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-const uint8_t modButtonX[6] = {0, 0, 1, 1, 2, 3};
-const uint8_t modButtonY[6] = {1, 0, 0, 1, 1, 1};
-const uint8_t modLedX[6] = {0, 0, 1, 1, 2, 3};
-const uint8_t modLedY[6] = {2, 3, 3, 2, 2, 2};
-#else
 const uint8_t modButtonX[8] = {1, 1, 1, 1, 2, 2, 2, 2};
 const uint8_t modButtonY[8] = {0, 1, 2, 3, 0, 1, 2, 3};
 const uint8_t modLedX[8] = {1, 1, 1, 1, 2, 2, 2, 2};
 const uint8_t modLedY[8] = {0, 1, 2, 3, 0, 1, 2, 3};
-#endif
 
-int32_t paramRanges[NUM_PARAMS];
-int32_t paramNeutralValues[NUM_PARAMS];
+int32_t paramRanges[kNumParams];
+int32_t paramNeutralValues[kNumParams];
 
 // This is just the range of the user-defined "preset" value, it doesn't apply to the outcome of patch cables
 int32_t getParamRange(int p) {
 	switch (p) {
-	case PARAM_LOCAL_ENV_0_ATTACK:
-	case PARAM_LOCAL_ENV_1_ATTACK:
+	case Param::Local::ENV_0_ATTACK:
+	case Param::Local::ENV_1_ATTACK:
 		return 536870912 * 1.5;
 
-	case PARAM_GLOBAL_DELAY_RATE:
+	case Param::Global::DELAY_RATE:
 		return 536870912;
 
-	case PARAM_LOCAL_PITCH_ADJUST:
-	case PARAM_LOCAL_OSC_A_PITCH_ADJUST:
-	case PARAM_LOCAL_OSC_B_PITCH_ADJUST:
-	case PARAM_LOCAL_MODULATOR_0_PITCH_ADJUST:
-	case PARAM_LOCAL_MODULATOR_1_PITCH_ADJUST:
+	case Param::Local::PITCH_ADJUST:
+	case Param::Local::OSC_A_PITCH_ADJUST:
+	case Param::Local::OSC_B_PITCH_ADJUST:
+	case Param::Local::MODULATOR_0_PITCH_ADJUST:
+	case Param::Local::MODULATOR_1_PITCH_ADJUST:
 		return 536870912;
 
-	case PARAM_LOCAL_LPF_FREQ:
+	case Param::Local::LPF_FREQ:
 		return 536870912 * 1.4;
 
 		// For phase width, we have this higher (than I previously did) because these are hibrid params, meaning that with a source (e.g. LFO) patched to them, the might have up to 1073741824 added to them
@@ -78,71 +71,71 @@ int32_t getParamRange(int p) {
 
 int32_t getParamNeutralValue(int p) {
 	switch (p) {
-	case PARAM_LOCAL_OSC_A_VOLUME:
-	case PARAM_LOCAL_OSC_B_VOLUME:
-	case PARAM_GLOBAL_VOLUME_POST_REVERB_SEND:
-	case PARAM_LOCAL_NOISE_VOLUME:
-	case PARAM_GLOBAL_REVERB_AMOUNT:
-	case PARAM_GLOBAL_VOLUME_POST_FX:
-	case PARAM_LOCAL_VOLUME:
+	case Param::Local::OSC_A_VOLUME:
+	case Param::Local::OSC_B_VOLUME:
+	case Param::Global::VOLUME_POST_REVERB_SEND:
+	case Param::Local::NOISE_VOLUME:
+	case Param::Global::REVERB_AMOUNT:
+	case Param::Global::VOLUME_POST_FX:
+	case Param::Local::VOLUME:
 		return 134217728;
 
-	case PARAM_LOCAL_MODULATOR_0_VOLUME:
-	case PARAM_LOCAL_MODULATOR_1_VOLUME:
+	case Param::Local::MODULATOR_0_VOLUME:
+	case Param::Local::MODULATOR_1_VOLUME:
 		return 33554432;
 
-	case PARAM_LOCAL_LPF_FREQ:
+	case Param::Local::LPF_FREQ:
 		return 2000000;
-	case PARAM_LOCAL_HPF_FREQ:
+	case Param::Local::HPF_FREQ:
 		return 2672947;
 
-	case PARAM_GLOBAL_LFO_FREQ:
-	case PARAM_LOCAL_LFO_LOCAL_FREQ:
-	case PARAM_GLOBAL_MOD_FX_RATE:
+	case Param::Global::LFO_FREQ:
+	case Param::Local::LFO_LOCAL_FREQ:
+	case Param::Global::MOD_FX_RATE:
 		return 121739; //lfoRateTable[userValue];
 
-	case PARAM_LOCAL_LPF_RESONANCE:
-	case PARAM_LOCAL_HPF_RESONANCE:
+	case Param::Local::LPF_RESONANCE:
+	case Param::Local::HPF_RESONANCE:
 		return 25 * 10737418; // Room to be quadrupled
 
-	case PARAM_LOCAL_PAN:
-	case PARAM_LOCAL_OSC_A_PHASE_WIDTH:
-	case PARAM_LOCAL_OSC_B_PHASE_WIDTH:
+	case Param::Local::PAN:
+	case Param::Local::OSC_A_PHASE_WIDTH:
+	case Param::Local::OSC_B_PHASE_WIDTH:
 		return 0;
 
-	case PARAM_LOCAL_ENV_0_ATTACK:
-	case PARAM_LOCAL_ENV_1_ATTACK:
+	case Param::Local::ENV_0_ATTACK:
+	case Param::Local::ENV_1_ATTACK:
 		return 4096; //attackRateTable[userValue];
 
-	case PARAM_LOCAL_ENV_0_RELEASE:
-	case PARAM_LOCAL_ENV_1_RELEASE:
+	case Param::Local::ENV_0_RELEASE:
+	case Param::Local::ENV_1_RELEASE:
 		return 140 << 9; //releaseRateTable[userValue];
 
-	case PARAM_LOCAL_ENV_0_DECAY:
-	case PARAM_LOCAL_ENV_1_DECAY:
+	case Param::Local::ENV_0_DECAY:
+	case Param::Local::ENV_1_DECAY:
 		return 70 << 9; //releaseRateTable[userValue] >> 1;
 
-	case PARAM_LOCAL_ENV_0_SUSTAIN:
-	case PARAM_LOCAL_ENV_1_SUSTAIN:
-	case PARAM_GLOBAL_DELAY_FEEDBACK:
+	case Param::Local::ENV_0_SUSTAIN:
+	case Param::Local::ENV_1_SUSTAIN:
+	case Param::Global::DELAY_FEEDBACK:
 		return 1073741824; //536870912;
 
-	case PARAM_LOCAL_MODULATOR_0_FEEDBACK:
-	case PARAM_LOCAL_MODULATOR_1_FEEDBACK:
-	case PARAM_LOCAL_CARRIER_0_FEEDBACK:
-	case PARAM_LOCAL_CARRIER_1_FEEDBACK:
+	case Param::Local::MODULATOR_0_FEEDBACK:
+	case Param::Local::MODULATOR_1_FEEDBACK:
+	case Param::Local::CARRIER_0_FEEDBACK:
+	case Param::Local::CARRIER_1_FEEDBACK:
 		return 5931642;
 
-	case PARAM_GLOBAL_DELAY_RATE:
-	case PARAM_GLOBAL_ARP_RATE:
-	case PARAM_LOCAL_PITCH_ADJUST:
-	case PARAM_LOCAL_OSC_A_PITCH_ADJUST:
-	case PARAM_LOCAL_OSC_B_PITCH_ADJUST:
-	case PARAM_LOCAL_MODULATOR_0_PITCH_ADJUST:
-	case PARAM_LOCAL_MODULATOR_1_PITCH_ADJUST:
+	case Param::Global::DELAY_RATE:
+	case Param::Global::ARP_RATE:
+	case Param::Local::PITCH_ADJUST:
+	case Param::Local::OSC_A_PITCH_ADJUST:
+	case Param::Local::OSC_B_PITCH_ADJUST:
+	case Param::Local::MODULATOR_0_PITCH_ADJUST:
+	case Param::Local::MODULATOR_1_PITCH_ADJUST:
 		return 16777216; // Means we have space to 8x (3-octave-shift) the pitch if we want... (wait, I've since made it 16x smaller)
 
-	case PARAM_GLOBAL_MOD_FX_DEPTH:
+	case Param::Global::MOD_FX_DEPTH:
 		return 526133494; // 2% lower than 536870912
 
 	default:
@@ -152,11 +145,11 @@ int32_t getParamNeutralValue(int p) {
 
 void functionsInit() {
 
-	for (int p = 0; p < NUM_PARAMS; p++) {
+	for (int p = 0; p < kNumParams; p++) {
 		paramRanges[p] = getParamRange(p);
 	}
 
-	for (int p = 0; p < NUM_PARAMS; p++) {
+	for (int p = 0; p < kNumParams; p++) {
 		paramNeutralValues[p] = getParamNeutralValue(p);
 	}
 }
@@ -222,10 +215,12 @@ int32_t getFinalParameterValueExp(int32_t paramNeutralValue, int32_t patchedValu
 
 int32_t getFinalParameterValueExpWithDumbEnvelopeHack(int32_t paramNeutralValue, int32_t patchedValue, int p) {
 	// TODO: this is horribly hard-coded, but works for now
-	if (p >= PARAM_LOCAL_ENV_0_DECAY && p <= PARAM_LOCAL_ENV_1_RELEASE) {
+	if (p >= Param::Local::ENV_0_DECAY && p <= Param::Local::ENV_1_RELEASE) {
 		return multiply_32x32_rshift32(paramNeutralValue, lookupReleaseRate(patchedValue));
 	}
-	if (p == PARAM_LOCAL_ENV_0_ATTACK || p == PARAM_LOCAL_ENV_1_ATTACK) patchedValue = -patchedValue;
+	if (p == Param::Local::ENV_0_ATTACK || p == Param::Local::ENV_1_ATTACK) {
+		patchedValue = -patchedValue;
+	}
 
 	return getFinalParameterValueExp(paramNeutralValue, patchedValue);
 }
@@ -252,95 +247,40 @@ int32_t cableToExpParamShortcut(int32_t sourceValue) {
 	return sourceValue >> 2;
 }
 
-int refreshTime;
-int dimmerInterval = 0;
-
-void setRefreshTime(int newTime) {
-	refreshTime = newTime;
-	bufferPICPadsUart(PIC_MESSAGE_REFRESH_TIME); // Set refresh rate inverse
-	bufferPICPadsUart(refreshTime);
-}
-
-void changeRefreshTime(int offset) {
-	int newTime = refreshTime + offset;
-	if (newTime > 255 || newTime < 1) return;
-	setRefreshTime(newTime);
-	char buffer[12];
-	intToString(refreshTime, buffer);
-	numericDriver.displayPopup(buffer);
-}
-
-void changeDimmerInterval(int offset) {
-	int newInterval = dimmerInterval - offset;
-	if (newInterval > 25 || newInterval < 0) {}
-	else setDimmerInterval(newInterval);
-
-#if HAVE_OLED
-	char text[20];
-	strcpy(text, "Brightness: ");
-	char* pos = strchr(text, 0);
-	intToString((25 - dimmerInterval) << 2, pos);
-	pos = strchr(text, 0);
-	*(pos++) = '%';
-	*pos = 0;
-	OLED::popupText(text);
-#endif
-}
-
-void setDimmerInterval(int newInterval) {
-	//Uart::print("dimmerInterval: ");
-	//Uart::println(newInterval);
-	dimmerInterval = newInterval;
-
-	int newRefreshTime = 23 - newInterval;
-	while (newRefreshTime < 6) {
-		newRefreshTime++;
-		newInterval *= 1.2;
-	}
-
-	//Uart::print("newInterval: ");
-	//Uart::println(newInterval);
-
-	setRefreshTime(newRefreshTime);
-
-	bufferPICPadsUart(243); // Set dimmer interval
-	bufferPICPadsUart(newInterval);
-}
-
-char const* sourceToString(uint8_t source) {
+char const* sourceToString(PatchSource source) {
 
 	switch (source) {
-	case PATCH_SOURCE_LFO_GLOBAL:
+	case PatchSource::LFO_GLOBAL:
 		return "lfo1";
 
-	case PATCH_SOURCE_LFO_LOCAL:
+	case PatchSource::LFO_LOCAL:
 		return "lfo2";
 
-	case PATCH_SOURCE_ENVELOPE_0:
+	case PatchSource::ENVELOPE_0:
 		return "envelope1";
 
-	case PATCH_SOURCE_ENVELOPE_1:
+	case PatchSource::ENVELOPE_1:
 		return "envelope2";
 
-	case PATCH_SOURCE_VELOCITY:
+	case PatchSource::VELOCITY:
 		return "velocity";
 
-	case PATCH_SOURCE_NOTE:
+	case PatchSource::NOTE:
 		return "note";
 
-	case PATCH_SOURCE_COMPRESSOR:
+	case PatchSource::COMPRESSOR:
 		return "compressor";
 
-	case PATCH_SOURCE_RANDOM:
+	case PatchSource::RANDOM:
 		return "random";
 
-	case PATCH_SOURCE_AFTERTOUCH:
+	case PatchSource::AFTERTOUCH:
 		return "aftertouch";
 
-	case PATCH_SOURCE_X:
+	case PatchSource::X:
 		return "x";
 
-	case PATCH_SOURCE_Y:
+	case PatchSource::Y:
 		return "y";
 
 	default:
@@ -349,39 +289,39 @@ char const* sourceToString(uint8_t source) {
 }
 
 #if HAVE_OLED
-char const* getSourceDisplayNameForOLED(int s) {
+char const* getSourceDisplayNameForOLED(PatchSource s) {
 	switch (s) {
-	case PATCH_SOURCE_LFO_GLOBAL:
+	case PatchSource::LFO_GLOBAL:
 		return "LFO1";
 
-	case PATCH_SOURCE_LFO_LOCAL:
+	case PatchSource::LFO_LOCAL:
 		return "LFO2";
 
-	case PATCH_SOURCE_ENVELOPE_0:
+	case PatchSource::ENVELOPE_0:
 		return "Envelope 1";
 
-	case PATCH_SOURCE_ENVELOPE_1:
+	case PatchSource::ENVELOPE_1:
 		return "Envelope 2";
 
-	case PATCH_SOURCE_VELOCITY:
+	case PatchSource::VELOCITY:
 		return "Velocity";
 
-	case PATCH_SOURCE_NOTE:
+	case PatchSource::NOTE:
 		return "Note";
 
-	case PATCH_SOURCE_COMPRESSOR:
+	case PatchSource::COMPRESSOR:
 		return "Sidechain";
 
-	case PATCH_SOURCE_RANDOM:
+	case PatchSource::RANDOM:
 		return "Random";
 
-	case PATCH_SOURCE_AFTERTOUCH:
+	case PatchSource::AFTERTOUCH:
 		return "Aftertouch";
 
-	case PATCH_SOURCE_X:
+	case PatchSource::X:
 		return "MPE X";
 
-	case PATCH_SOURCE_Y:
+	case PatchSource::Y:
 		return "MPE Y";
 
 	default:
@@ -395,130 +335,130 @@ char const* getPatchedParamDisplayNameForOled(int p) {
 	// These can basically be 13 chars long, or 14 if the last one is a dot.
 	switch (p) {
 
-	case PARAM_LOCAL_OSC_A_VOLUME:
+	case Param::Local::OSC_A_VOLUME:
 		return "Osc1 level";
 
-	case PARAM_LOCAL_OSC_B_VOLUME:
+	case Param::Local::OSC_B_VOLUME:
 		return "Osc2 level";
 
-	case PARAM_LOCAL_VOLUME:
+	case Param::Local::VOLUME:
 		return "Level";
 
-	case PARAM_LOCAL_NOISE_VOLUME:
+	case Param::Local::NOISE_VOLUME:
 		return "Noise level";
 
-	case PARAM_LOCAL_OSC_A_PHASE_WIDTH:
+	case Param::Local::OSC_A_PHASE_WIDTH:
 		return "Osc1 PW";
 
-	case PARAM_LOCAL_OSC_B_PHASE_WIDTH:
+	case Param::Local::OSC_B_PHASE_WIDTH:
 		return "Osc2 PW";
 
-	case PARAM_LOCAL_OSC_A_WAVE_INDEX:
+	case Param::Local::OSC_A_WAVE_INDEX:
 		return "Osc1 wave pos.";
 
-	case PARAM_LOCAL_OSC_B_WAVE_INDEX:
+	case Param::Local::OSC_B_WAVE_INDEX:
 		return "Osc2 wave pos.";
 
-	case PARAM_LOCAL_LPF_RESONANCE:
+	case Param::Local::LPF_RESONANCE:
 		return "LPF resonance";
 
-	case PARAM_LOCAL_HPF_RESONANCE:
+	case Param::Local::HPF_RESONANCE:
 		return "HPF resonance";
 
-	case PARAM_LOCAL_PAN:
+	case Param::Local::PAN:
 		return "Pan";
 
-	case PARAM_LOCAL_MODULATOR_0_VOLUME:
+	case Param::Local::MODULATOR_0_VOLUME:
 		return "FM mod1 level";
 
-	case PARAM_LOCAL_MODULATOR_1_VOLUME:
+	case Param::Local::MODULATOR_1_VOLUME:
 		return "FM mod2 level";
 
-	case PARAM_LOCAL_LPF_FREQ:
+	case Param::Local::LPF_FREQ:
 		return "LPF frequency";
 
-	case PARAM_LOCAL_PITCH_ADJUST:
+	case Param::Local::PITCH_ADJUST:
 		return "Pitch";
 
-	case PARAM_LOCAL_OSC_A_PITCH_ADJUST:
+	case Param::Local::OSC_A_PITCH_ADJUST:
 		return "Osc1 pitch";
 
-	case PARAM_LOCAL_OSC_B_PITCH_ADJUST:
+	case Param::Local::OSC_B_PITCH_ADJUST:
 		return "Osc2 pitch";
 
-	case PARAM_LOCAL_MODULATOR_0_PITCH_ADJUST:
+	case Param::Local::MODULATOR_0_PITCH_ADJUST:
 		return "FM mod1 pitch";
 
-	case PARAM_LOCAL_MODULATOR_1_PITCH_ADJUST:
+	case Param::Local::MODULATOR_1_PITCH_ADJUST:
 		return "FM mod2 pitch";
 
-	case PARAM_LOCAL_HPF_FREQ:
+	case Param::Local::HPF_FREQ:
 		return "HPF frequency";
 
-	case PARAM_LOCAL_LFO_LOCAL_FREQ:
+	case Param::Local::LFO_LOCAL_FREQ:
 		return "LFO2 rate";
 
-	case PARAM_LOCAL_ENV_0_ATTACK:
+	case Param::Local::ENV_0_ATTACK:
 		return "Env1 attack";
 
-	case PARAM_LOCAL_ENV_0_DECAY:
+	case Param::Local::ENV_0_DECAY:
 		return "Env1 decay";
 
-	case PARAM_LOCAL_ENV_0_SUSTAIN:
+	case Param::Local::ENV_0_SUSTAIN:
 		return "Env1 sustain";
 
-	case PARAM_LOCAL_ENV_0_RELEASE:
+	case Param::Local::ENV_0_RELEASE:
 		return "Env1 release";
 
-	case PARAM_LOCAL_ENV_1_ATTACK:
+	case Param::Local::ENV_1_ATTACK:
 		return "Env2 attack";
 
-	case PARAM_LOCAL_ENV_1_DECAY:
+	case Param::Local::ENV_1_DECAY:
 		return "Env2 decay";
 
-	case PARAM_LOCAL_ENV_1_SUSTAIN:
+	case Param::Local::ENV_1_SUSTAIN:
 		return "Env2 sustain";
 
-	case PARAM_LOCAL_ENV_1_RELEASE:
+	case Param::Local::ENV_1_RELEASE:
 		return "Env2 release";
 
-	case PARAM_GLOBAL_LFO_FREQ:
+	case Param::Global::LFO_FREQ:
 		return "LFO1 rate";
 
-	case PARAM_GLOBAL_VOLUME_POST_FX:
+	case Param::Global::VOLUME_POST_FX:
 		return "Level";
 
-	case PARAM_GLOBAL_VOLUME_POST_REVERB_SEND:
+	case Param::Global::VOLUME_POST_REVERB_SEND:
 		return "Level";
 
-	case PARAM_GLOBAL_DELAY_RATE:
+	case Param::Global::DELAY_RATE:
 		return "Delay rate";
 
-	case PARAM_GLOBAL_DELAY_FEEDBACK:
+	case Param::Global::DELAY_FEEDBACK:
 		return "Delay amount";
 
-	case PARAM_GLOBAL_REVERB_AMOUNT:
+	case Param::Global::REVERB_AMOUNT:
 		return "Reverb amount";
 
-	case PARAM_GLOBAL_MOD_FX_RATE:
+	case Param::Global::MOD_FX_RATE:
 		return "Mod-FX rate";
 
-	case PARAM_GLOBAL_MOD_FX_DEPTH:
+	case Param::Global::MOD_FX_DEPTH:
 		return "Mod-FX depth";
 
-	case PARAM_GLOBAL_ARP_RATE:
+	case Param::Global::ARP_RATE:
 		return "Arp. rate";
 
-	case PARAM_LOCAL_MODULATOR_0_FEEDBACK:
+	case Param::Local::MODULATOR_0_FEEDBACK:
 		return "Mod1 feedback";
 
-	case PARAM_LOCAL_MODULATOR_1_FEEDBACK:
+	case Param::Local::MODULATOR_1_FEEDBACK:
 		return "Mod2 feedback";
 
-	case PARAM_LOCAL_CARRIER_0_FEEDBACK:
+	case Param::Local::CARRIER_0_FEEDBACK:
 		return "Carrier1 feed.";
 
-	case PARAM_LOCAL_CARRIER_1_FEEDBACK:
+	case Param::Local::CARRIER_1_FEEDBACK:
 		return "Carrier2 feed.";
 
 	default:
@@ -528,11 +468,14 @@ char const* getPatchedParamDisplayNameForOled(int p) {
 }
 #endif
 
-uint8_t stringToSource(char const* string) {
-	for (int s = 0; s < NUM_PATCH_SOURCES; s++) {
-		if (!strcmp(string, sourceToString(s))) return s;
+PatchSource stringToSource(char const* string) {
+	for (int s = 0; s < kNumPatchSources; s++) {
+		auto patchSource = static_cast<PatchSource>(s);
+		if (!strcmp(string, sourceToString(patchSource))) {
+			return patchSource;
+		}
 	}
-	return PATCH_SOURCE_NONE;
+	return PatchSource::NONE;
 }
 
 bool paramNeedsLPF(int p, bool fromAutomation) {
@@ -541,27 +484,27 @@ bool paramNeedsLPF(int p, bool fromAutomation) {
 	// For many params, particularly volumes, we do want the param LPF if the user adjusted it,
 	// so we don't get stepping, but if it's from step automation, we do want it to adjust instantly,
 	// so the new step is instantly at the right volume
-	case PARAM_GLOBAL_VOLUME_POST_FX:
-	case PARAM_GLOBAL_VOLUME_POST_REVERB_SEND:
-	case PARAM_GLOBAL_REVERB_AMOUNT:
-	case PARAM_LOCAL_VOLUME:
-	case PARAM_LOCAL_PAN:
-	case PARAM_LOCAL_LPF_FREQ:
-	case PARAM_LOCAL_HPF_FREQ:
-	case PARAM_LOCAL_OSC_A_VOLUME:
-	case PARAM_LOCAL_OSC_B_VOLUME:
-	case PARAM_LOCAL_OSC_A_WAVE_INDEX:
-	case PARAM_LOCAL_OSC_B_WAVE_INDEX:
+	case Param::Global::VOLUME_POST_FX:
+	case Param::Global::VOLUME_POST_REVERB_SEND:
+	case Param::Global::REVERB_AMOUNT:
+	case Param::Local::VOLUME:
+	case Param::Local::PAN:
+	case Param::Local::LPF_FREQ:
+	case Param::Local::HPF_FREQ:
+	case Param::Local::OSC_A_VOLUME:
+	case Param::Local::OSC_B_VOLUME:
+	case Param::Local::OSC_A_WAVE_INDEX:
+	case Param::Local::OSC_B_WAVE_INDEX:
 		return !fromAutomation;
 
-	case PARAM_LOCAL_MODULATOR_0_VOLUME:
-	case PARAM_LOCAL_MODULATOR_1_VOLUME:
-	case PARAM_LOCAL_MODULATOR_0_FEEDBACK:
-	case PARAM_LOCAL_MODULATOR_1_FEEDBACK:
-	case PARAM_LOCAL_CARRIER_0_FEEDBACK:
-	case PARAM_LOCAL_CARRIER_1_FEEDBACK:
-	case PARAM_GLOBAL_MOD_FX_DEPTH:
-	case PARAM_GLOBAL_DELAY_FEEDBACK:
+	case Param::Local::MODULATOR_0_VOLUME:
+	case Param::Local::MODULATOR_1_VOLUME:
+	case Param::Local::MODULATOR_0_FEEDBACK:
+	case Param::Local::MODULATOR_1_FEEDBACK:
+	case Param::Local::CARRIER_0_FEEDBACK:
+	case Param::Local::CARRIER_1_FEEDBACK:
+	case Param::Global::MOD_FX_DEPTH:
+	case Param::Global::DELAY_FEEDBACK:
 		return true;
 
 	default:
@@ -570,13 +513,21 @@ bool paramNeedsLPF(int p, bool fromAutomation) {
 }
 
 char halfByteToHexChar(uint8_t thisHalfByte) {
-	if (thisHalfByte < 10) return 48 + thisHalfByte;
-	else return 55 + thisHalfByte;
+	if (thisHalfByte < 10) {
+		return 48 + thisHalfByte;
+	}
+	else {
+		return 55 + thisHalfByte;
+	}
 }
 
 char hexCharToHalfByte(unsigned char hexChar) {
-	if (hexChar >= 65) return hexChar - 55;
-	else return hexChar - 48;
+	if (hexChar >= 65) {
+		return hexChar - 55;
+	}
+	else {
+		return hexChar - 48;
+	}
 }
 
 void intToHex(uint32_t number, char* output, int numChars) {
@@ -659,7 +610,9 @@ doInterval:
 
 		return newValuePositive - 2147483648u;
 	}
-	else return oldValue;
+	else {
+		return oldValue;
+	}
 }
 
 int32_t interpolateTable(uint32_t input, int numBitsInInput, const uint16_t* table, int numBitsInTableSize) {
@@ -669,8 +622,12 @@ int32_t interpolateTable(uint32_t input, int numBitsInInput, const uint16_t* tab
 
 	int rshiftAmount = numBitsInInput - 15 - numBitsInTableSize;
 	uint32_t rshifted;
-	if (rshiftAmount >= 0) rshifted = input >> rshiftAmount;
-	else rshifted = input << (-rshiftAmount);
+	if (rshiftAmount >= 0) {
+		rshifted = input >> rshiftAmount;
+	}
+	else {
+		rshifted = input << (-rshiftAmount);
+	}
 
 	int strength2 = rshifted & 32767;
 	int strength1 = 32768 - strength2;
@@ -685,8 +642,12 @@ uint32_t interpolateTableInverse(int32_t tableValueBig, int numBitsInLookupOutpu
 	int tableDirection = (table[0] < table[tableSize]) ? 1 : -1;
 
 	// Check we're not off either end of the table
-	if ((tableValue - table[0]) * tableDirection <= 0) return 0;
-	if ((tableValue - table[tableSize]) * tableDirection >= 0) return (1 << numBitsInLookupOutput) - 1;
+	if ((tableValue - table[0]) * tableDirection <= 0) {
+		return 0;
+	}
+	if ((tableValue - table[tableSize]) * tableDirection >= 0) {
+		return (1 << numBitsInLookupOutput) - 1;
+	}
 
 	int rangeStart = 0;
 	int rangeEnd = tableSize;
@@ -739,7 +700,9 @@ int32_t quickLog(uint32_t input) {
 
 bool memIsNumericChars(char const* mem, int size) {
 	for (int i = 0; i < size; i++) {
-		if (*mem < 48 || *mem >= 58) return false;
+		if (*mem < 48 || *mem >= 58) {
+			return false;
+		}
 		mem++;
 	}
 	return true;
@@ -749,10 +712,16 @@ bool stringIsNumericChars(char const* str) {
 	return memIsNumericChars(str, strlen(str));
 }
 
-char const* getThingName(uint8_t instrumentType) {
-	if (instrumentType == INSTRUMENT_TYPE_SYNTH) return "SYNT";
-	else if (instrumentType == INSTRUMENT_TYPE_KIT) return "KIT";
-	else return "SONG";
+char const* getThingName(InstrumentType instrumentType) {
+	if (instrumentType == InstrumentType::SYNTH) {
+		return "SYNT";
+	}
+	else if (instrumentType == InstrumentType::KIT) {
+		return "KIT";
+	}
+	else {
+		return "SONG";
+	}
 }
 
 void byteToHex(uint8_t number, char* buffer) {
@@ -764,14 +733,22 @@ void byteToHex(uint8_t number, char* buffer) {
 uint8_t hexToByte(char const* firstChar) {
 	uint8_t value = 0;
 
-	if (*firstChar >= 48 && *firstChar < 58) value += *firstChar - 48;
-	else value += *firstChar - 55;
+	if (*firstChar >= 48 && *firstChar < 58) {
+		value += *firstChar - 48;
+	}
+	else {
+		value += *firstChar - 55;
+	}
 
 	*firstChar++;
 	value <<= 4;
 
-	if (*firstChar >= 48 && *firstChar < 58) value += *firstChar - 48;
-	else value += *firstChar - 55;
+	if (*firstChar >= 48 && *firstChar < 58) {
+		value += *firstChar - 48;
+	}
+	else {
+		value += *firstChar - 55;
+	}
 
 	return value;
 }
@@ -780,7 +757,9 @@ uint8_t hexToByte(char const* firstChar) {
 int32_t stringToInt(char const* __restrict__ string) {
 	uint32_t number = 0;
 	bool isNegative = (*string == '-');
-	if (isNegative) string++;
+	if (isNegative) {
+		string++;
+	}
 
 	while (*string >= '0' && *string <= '9') {
 		number *= 10;
@@ -789,16 +768,24 @@ int32_t stringToInt(char const* __restrict__ string) {
 	}
 
 	if (isNegative) {
-		if (number >= 2147483648) return -2147483648;
-		else return -(int32_t)number;
+		if (number >= 2147483648) {
+			return -2147483648;
+		}
+		else {
+			return -(int32_t)number;
+		}
 	}
-	else return number;
+	else {
+		return number;
+	}
 }
 
 int32_t stringToUIntOrError(char const* __restrict__ mem) {
 	uint32_t number = 0;
 	while (*mem) {
-		if (*mem < '0' || *mem > '9') return -1;
+		if (*mem < '0' || *mem > '9') {
+			return -1;
+		}
 		number *= 10;
 		number += (*mem - '0');
 		mem++;
@@ -810,7 +797,9 @@ int32_t stringToUIntOrError(char const* __restrict__ mem) {
 int32_t memToUIntOrError(char const* __restrict__ mem, char const* const memEnd) {
 	uint32_t number = 0;
 	while (mem != memEnd) {
-		if (*mem < '0' || *mem > '9') return -1;
+		if (*mem < '0' || *mem > '9') {
+			return -1;
+		}
 		number *= 10;
 		number += (*mem - '0');
 		mem++;
@@ -831,76 +820,98 @@ void getInstrumentPresetFilename(char const* filePrefix, int16_t presetNumber, i
 	strcat(fileName, ".XML");
 }
 
-char const* oscTypeToString(unsigned int oscType) {
+char const* oscTypeToString(OscType oscType) {
 	switch (oscType) {
-	case OSC_TYPE_SQUARE:
+	case OscType::SQUARE:
 		return "square";
 
-	case OSC_TYPE_SAW:
+	case OscType::SAW:
 		return "saw";
 
-	case OSC_TYPE_ANALOG_SAW_2:
+	case OscType::ANALOG_SAW_2:
 		return "analogSaw";
 
-	case OSC_TYPE_ANALOG_SQUARE:
+	case OscType::ANALOG_SQUARE:
 		return "analogSquare";
 
-	case OSC_TYPE_SINE:
+	case OscType::SINE:
 		return "sine";
 
-	case OSC_TYPE_TRIANGLE:
+	case OscType::TRIANGLE:
 		return "triangle";
 
-	case OSC_TYPE_SAMPLE:
+	case OscType::SAMPLE:
 		return "sample";
 
-	case OSC_TYPE_WAVETABLE:
+	case OscType::WAVETABLE:
 		return "wavetable";
 
-	case OSC_TYPE_INPUT_L:
+	case OscType::INPUT_L:
 		return "inLeft";
 
-	case OSC_TYPE_INPUT_R:
+	case OscType::INPUT_R:
 		return "inRight";
 
-	case OSC_TYPE_INPUT_STEREO:
+	case OscType::INPUT_STEREO:
 		return "inStereo";
 
-	case NUM_OSC_TYPES ... 0xFFFFFFFF:
+	default:
 		__builtin_unreachable();
 	}
 }
 
-int stringToOscType(char const* string) {
+OscType stringToOscType(char const* string) {
 
-	if (!strcmp(string, "square")) return OSC_TYPE_SQUARE;
-	else if (!strcmp(string, "analogSquare")) return OSC_TYPE_ANALOG_SQUARE;
-	else if (!strcmp(string, "analogSaw")) return OSC_TYPE_ANALOG_SAW_2;
-	else if (!strcmp(string, "saw")) return OSC_TYPE_SAW;
-	else if (!strcmp(string, "sine")) return OSC_TYPE_SINE;
-	else if (!strcmp(string, "sample")) return OSC_TYPE_SAMPLE;
-	else if (!strcmp(string, "wavetable")) return OSC_TYPE_WAVETABLE;
-	else if (!strcmp(string, "inLeft")) return OSC_TYPE_INPUT_L;
-	else if (!strcmp(string, "inRight")) return OSC_TYPE_INPUT_R;
-	else if (!strcmp(string, "inStereo")) return OSC_TYPE_INPUT_STEREO;
-	else return OSC_TYPE_TRIANGLE;
+	if (!strcmp(string, "square")) {
+		return OscType::SQUARE;
+	}
+	else if (!strcmp(string, "analogSquare")) {
+		return OscType::ANALOG_SQUARE;
+	}
+	else if (!strcmp(string, "analogSaw")) {
+		return OscType::ANALOG_SAW_2;
+	}
+	else if (!strcmp(string, "saw")) {
+		return OscType::SAW;
+	}
+	else if (!strcmp(string, "sine")) {
+		return OscType::SINE;
+	}
+	else if (!strcmp(string, "sample")) {
+		return OscType::SAMPLE;
+	}
+	else if (!strcmp(string, "wavetable")) {
+		return OscType::WAVETABLE;
+	}
+	else if (!strcmp(string, "inLeft")) {
+		return OscType::INPUT_L;
+	}
+	else if (!strcmp(string, "inRight")) {
+		return OscType::INPUT_R;
+	}
+	else if (!strcmp(string, "inStereo")) {
+		return OscType::INPUT_STEREO;
+	}
+	else {
+		return OscType::TRIANGLE;
+	}
 }
 
-char const* lfoTypeToString(int oscType) {
+char const* lfoTypeToString(LFOType oscType) {
 	switch (oscType) {
-	case LFO_TYPE_SQUARE:
+	case LFOType::SQUARE:
 		return "square";
 
-	case LFO_TYPE_SAW:
+	case LFOType::SAW:
 		return "saw";
 
-	case LFO_TYPE_SINE:
+	case LFOType::SINE:
 		return "sine";
 
-	case LFO_TYPE_SAH:
+	case LFOType::SAMPLE_AND_HOLD:
 		return "sah";
 
-	case LFO_TYPE_RWALK:
+	case LFOType::RANDOM_WALK:
 		return "rwalk";
 
 	default:
@@ -908,21 +919,33 @@ char const* lfoTypeToString(int oscType) {
 	}
 }
 
-int stringToLFOType(char const* string) {
-	if (!strcmp(string, "square")) return LFO_TYPE_SQUARE;
-	else if (!strcmp(string, "saw")) return LFO_TYPE_SAW;
-	else if (!strcmp(string, "sine")) return LFO_TYPE_SINE;
-	else if (!strcmp(string, "sah")) return LFO_TYPE_SAH;
-	else if (!strcmp(string, "rwalk")) return LFO_TYPE_RWALK;
-	else return LFO_TYPE_TRIANGLE;
+LFOType stringToLFOType(char const* string) {
+	if (!strcmp(string, "square")) {
+		return LFOType::SQUARE;
+	}
+	else if (!strcmp(string, "saw")) {
+		return LFOType::SAW;
+	}
+	else if (!strcmp(string, "sine")) {
+		return LFOType::SINE;
+	}
+	else if (!strcmp(string, "sah")) {
+		return LFOType::SAMPLE_AND_HOLD;
+	}
+	else if (!strcmp(string, "rwalk")) {
+		return LFOType::RANDOM_WALK;
+	}
+	else {
+		return LFOType::TRIANGLE;
+	}
 }
 
-char const* synthModeToString(int synthMode) {
+char const* synthModeToString(SynthMode synthMode) {
 	switch (synthMode) {
-	case SYNTH_MODE_FM:
+	case SynthMode::FM:
 		return "fm";
 
-	case SYNTH_MODE_RINGMOD:
+	case SynthMode::RINGMOD:
 		return "ringmod";
 
 	default:
@@ -930,50 +953,73 @@ char const* synthModeToString(int synthMode) {
 	}
 }
 
-int stringToSynthMode(char const* string) {
-	if (!strcmp(string, "fm")) return SYNTH_MODE_FM;
-	else if (!strcmp(string, "ringmod")) return SYNTH_MODE_RINGMOD;
-	else return SYNTH_MODE_SUBTRACTIVE;
+SynthMode stringToSynthMode(char const* string) {
+	if (!strcmp(string, "fm")) {
+		return SynthMode::FM;
+	}
+	else if (!strcmp(string, "ringmod")) {
+		return SynthMode::RINGMOD;
+	}
+	else {
+		return SynthMode::SUBTRACTIVE;
+	}
 }
 
-char const* polyphonyModeToString(int synthMode) {
+char const* polyphonyModeToString(PolyphonyMode synthMode) {
 	switch (synthMode) {
-	case POLYPHONY_MONO:
+	case PolyphonyMode::MONO:
 		return "mono";
 
-	case POLYPHONY_AUTO:
+	case PolyphonyMode::AUTO:
 		return "auto";
 
-	case POLYPHONY_LEGATO:
+	case PolyphonyMode::LEGATO:
 		return "legato";
 
-	case POLYPHONY_CHOKE:
+	case PolyphonyMode::CHOKE:
 		return "choke";
 
-	default: //case POLYPHONY_POLY:
+	default: //case PolyphonyMode::POLY:
 		return "poly";
 	}
 }
 
-int stringToPolyphonyMode(char const* string) {
-	if (!strcmp(string, "mono")) return POLYPHONY_MONO;
-	else if (!strcmp(string, "auto")) return POLYPHONY_AUTO;
-	else if (!strcmp(string, "0")) return POLYPHONY_AUTO; // Old firmware, pre June 2017
-	else if (!strcmp(string, "legato")) return POLYPHONY_LEGATO;
-	else if (!strcmp(string, "choke")) return POLYPHONY_CHOKE;
-	else if (!strcmp(string, "2")) return POLYPHONY_CHOKE; // Old firmware, pre June 2017
-	else return POLYPHONY_POLY;
+PolyphonyMode stringToPolyphonyMode(char const* string) {
+	if (!strcmp(string, "mono")) {
+		return PolyphonyMode::MONO;
+	}
+	else if (!strcmp(string, "auto")) {
+		return PolyphonyMode::AUTO;
+	}
+	else if (!strcmp(string, "0")) {
+		return PolyphonyMode::AUTO; // Old firmware, pre June 2017
+	}
+	else if (!strcmp(string, "legato")) {
+		return PolyphonyMode::LEGATO;
+	}
+	else if (!strcmp(string, "choke")) {
+		return PolyphonyMode::CHOKE;
+	}
+	else if (!strcmp(string, "2")) {
+		return PolyphonyMode::CHOKE; // Old firmware, pre June 2017
+	}
+	else {
+		return PolyphonyMode::POLY;
+	}
 }
 
-char const* fxTypeToString(int fxType) {
+char const* fxTypeToString(ModFXType fxType) {
 	switch (fxType) {
-	case MOD_FX_TYPE_FLANGER:
+	case ModFXType::FLANGER:
 		return "flanger";
 
-	case MOD_FX_TYPE_CHORUS:
+	case ModFXType::CHORUS:
 		return "chorus";
 
-	case MOD_FX_TYPE_PHASER:
+	case ModFXType::CHORUS_STEREO:
+		return "StereoChorus";
+
+	case ModFXType::PHASER:
 		return "phaser";
 
 	default:
@@ -981,19 +1027,30 @@ char const* fxTypeToString(int fxType) {
 	}
 }
 
-int stringToFXType(char const* string) {
-	if (!strcmp(string, "flanger")) return MOD_FX_TYPE_FLANGER;
-	else if (!strcmp(string, "chorus")) return MOD_FX_TYPE_CHORUS;
-	else if (!strcmp(string, "phaser")) return MOD_FX_TYPE_PHASER;
-	else return MOD_FX_TYPE_NONE;
+ModFXType stringToFXType(char const* string) {
+	if (!strcmp(string, "flanger")) {
+		return ModFXType::FLANGER;
+	}
+	else if (!strcmp(string, "chorus")) {
+		return ModFXType::CHORUS;
+	}
+	else if (!strcmp(string, "StereoChorus")) {
+		return ModFXType::CHORUS_STEREO;
+	}
+	else if (!strcmp(string, "phaser")) {
+		return ModFXType::PHASER;
+	}
+	else {
+		return ModFXType::NONE;
+	}
 }
 
-char const* modFXParamToString(int fxType) {
+char const* modFXParamToString(ModFXParam fxType) {
 	switch (fxType) {
-	case MOD_FX_PARAM_DEPTH:
+	case ModFXParam::DEPTH:
 		return "depth";
 
-	case MOD_FX_PARAM_FEEDBACK:
+	case ModFXParam::FEEDBACK:
 		return "feedback";
 
 	default:
@@ -1001,18 +1058,24 @@ char const* modFXParamToString(int fxType) {
 	}
 }
 
-int stringToModFXParam(char const* string) {
-	if (!strcmp(string, "depth")) return MOD_FX_PARAM_DEPTH;
-	else if (!strcmp(string, "feedback")) return MOD_FX_PARAM_FEEDBACK;
-	else return MOD_FX_PARAM_OFFSET;
+ModFXParam stringToModFXParam(char const* string) {
+	if (!strcmp(string, "depth")) {
+		return ModFXParam::DEPTH;
+	}
+	else if (!strcmp(string, "feedback")) {
+		return ModFXParam::FEEDBACK;
+	}
+	else {
+		return ModFXParam::OFFSET;
+	}
 }
 
-char const* filterTypeToString(int fxType) {
+char const* filterTypeToString(FilterType fxType) {
 	switch (fxType) {
-	case FILTER_TYPE_HPF:
+	case FilterType::HPF:
 		return "hpf";
 
-	case FILTER_TYPE_EQ:
+	case FilterType::EQ:
 		return "eq";
 
 	default:
@@ -1020,24 +1083,30 @@ char const* filterTypeToString(int fxType) {
 	}
 }
 
-int stringToFilterType(char const* string) {
-	if (!strcmp(string, "hpf")) return FILTER_TYPE_HPF;
-	else if (!strcmp(string, "eq")) return FILTER_TYPE_EQ;
-	else return FILTER_TYPE_LPF;
+FilterType stringToFilterType(char const* string) {
+	if (!strcmp(string, "hpf")) {
+		return FilterType::HPF;
+	}
+	else if (!strcmp(string, "eq")) {
+		return FilterType::EQ;
+	}
+	else {
+		return FilterType::LPF;
+	}
 }
 
-char const* arpModeToString(int mode) {
+char const* arpModeToString(ArpMode mode) {
 	switch (mode) {
-	case ARP_MODE_UP:
+	case ArpMode::UP:
 		return "up";
 
-	case ARP_MODE_DOWN:
+	case ArpMode::DOWN:
 		return "down";
 
-	case ARP_MODE_BOTH:
+	case ArpMode::BOTH:
 		return "both";
 
-	case ARP_MODE_RANDOM:
+	case ArpMode::RANDOM:
 		return "random";
 
 	default:
@@ -1045,23 +1114,33 @@ char const* arpModeToString(int mode) {
 	}
 }
 
-int stringToArpMode(char const* string) {
-	if (!strcmp(string, "up")) return ARP_MODE_UP;
-	else if (!strcmp(string, "down")) return ARP_MODE_DOWN;
-	else if (!strcmp(string, "both")) return ARP_MODE_BOTH;
-	else if (!strcmp(string, "random")) return ARP_MODE_RANDOM;
-	else return ARP_MODE_OFF;
+ArpMode stringToArpMode(char const* string) {
+	if (!strcmp(string, "up")) {
+		return ArpMode::UP;
+	}
+	else if (!strcmp(string, "down")) {
+		return ArpMode::DOWN;
+	}
+	else if (!strcmp(string, "both")) {
+		return ArpMode::BOTH;
+	}
+	else if (!strcmp(string, "random")) {
+		return ArpMode::RANDOM;
+	}
+	else {
+		return ArpMode::OFF;
+	}
 }
 
-char const* lpfTypeToString(int lpfType) {
+char const* lpfTypeToString(LPFMode lpfType) {
 	switch (lpfType) {
-	case LPF_MODE_12DB:
+	case LPFMode::TRANSISTOR_12DB:
 		return "12dB";
 
-	case LPF_MODE_TRANSISTOR_24DB_DRIVE:
+	case LPFMode::TRANSISTOR_24DB_DRIVE:
 		return "24dBDrive";
 
-	case LPF_MODE_SVF:
+	case LPFMode::SVF:
 		return "SVF";
 
 	default:
@@ -1069,60 +1148,82 @@ char const* lpfTypeToString(int lpfType) {
 	}
 }
 
-int stringToLPFType(char const* string) {
-	if (!strcmp(string, "24dB")) return LPF_MODE_TRANSISTOR_24DB;
-	else if (!strcmp(string, "24dBDrive")) return LPF_MODE_TRANSISTOR_24DB_DRIVE;
-	else if (!strcmp(string, "SVF")) return LPF_MODE_SVF;
-	else return LPF_MODE_12DB;
+LPFMode stringToLPFType(char const* string) {
+	if (!strcmp(string, "24dB")) {
+		return LPFMode::TRANSISTOR_24DB;
+	}
+	else if (!strcmp(string, "24dBDrive")) {
+		return LPFMode::TRANSISTOR_24DB_DRIVE;
+	}
+	else if (!strcmp(string, "SVF")) {
+		return LPFMode::SVF;
+	}
+	else {
+		return LPFMode::TRANSISTOR_12DB;
+	}
 }
 
-char const* inputChannelToString(int inputChannel) {
+char const* inputChannelToString(AudioInputChannel inputChannel) {
 	switch (inputChannel) {
-	case AUDIO_INPUT_CHANNEL_LEFT:
+	case AudioInputChannel::LEFT:
 		return "left";
 
-	case AUDIO_INPUT_CHANNEL_RIGHT:
+	case AudioInputChannel::RIGHT:
 		return "right";
 
-	case AUDIO_INPUT_CHANNEL_STEREO:
+	case AudioInputChannel::STEREO:
 		return "stereo";
 
-	case AUDIO_INPUT_CHANNEL_BALANCED:
+	case AudioInputChannel::BALANCED:
 		return "balanced";
 
-	case AUDIO_INPUT_CHANNEL_MIX:
+	case AudioInputChannel::MIX:
 		return "mix";
 
-	case AUDIO_INPUT_CHANNEL_OUTPUT:
+	case AudioInputChannel::OUTPUT:
 		return "output";
 
-	default: // AUDIO_INPUT_CHANNEL_NONE
+	default: // AudioInputChannel::NONE
 		return "none";
 	}
 }
 
-int stringToInputChannel(char const* string) {
-	if (!strcmp(string, "left")) return AUDIO_INPUT_CHANNEL_LEFT;
-	else if (!strcmp(string, "right")) return AUDIO_INPUT_CHANNEL_RIGHT;
-	else if (!strcmp(string, "stereo")) return AUDIO_INPUT_CHANNEL_STEREO;
-	else if (!strcmp(string, "balanced")) return AUDIO_INPUT_CHANNEL_BALANCED;
-	else if (!strcmp(string, "mix")) return AUDIO_INPUT_CHANNEL_MIX;
-	else if (!strcmp(string, "output")) return AUDIO_INPUT_CHANNEL_OUTPUT;
-	else return AUDIO_INPUT_CHANNEL_NONE;
+AudioInputChannel stringToInputChannel(char const* string) {
+	if (!strcmp(string, "left")) {
+		return AudioInputChannel::LEFT;
+	}
+	else if (!strcmp(string, "right")) {
+		return AudioInputChannel::RIGHT;
+	}
+	else if (!strcmp(string, "stereo")) {
+		return AudioInputChannel::STEREO;
+	}
+	else if (!strcmp(string, "balanced")) {
+		return AudioInputChannel::BALANCED;
+	}
+	else if (!strcmp(string, "mix")) {
+		return AudioInputChannel::MIX;
+	}
+	else if (!strcmp(string, "output")) {
+		return AudioInputChannel::OUTPUT;
+	}
+	else {
+		return AudioInputChannel::NONE;
+	}
 }
 
-char const* sequenceDirectionModeToString(int sequenceDirectionMode) {
+char const* sequenceDirectionModeToString(SequenceDirection sequenceDirectionMode) {
 	switch (sequenceDirectionMode) {
-	case SEQUENCE_DIRECTION_FORWARD:
+	case SequenceDirection::FORWARD:
 		return "forward";
 
-	case SEQUENCE_DIRECTION_REVERSE:
+	case SequenceDirection::REVERSE:
 		return "reverse";
 
-	case SEQUENCE_DIRECTION_PINGPONG:
+	case SequenceDirection::PINGPONG:
 		return "pingpong";
 
-	case SEQUENCE_DIRECTION_OBEY_PARENT:
+	case SequenceDirection::OBEY_PARENT:
 		return "none";
 
 	default:
@@ -1131,17 +1232,31 @@ char const* sequenceDirectionModeToString(int sequenceDirectionMode) {
 	}
 }
 
-int stringToSequenceDirectionMode(char const* string) {
-	if (!strcmp(string, "reverse")) return SEQUENCE_DIRECTION_REVERSE;
-	else if (!strcmp(string, "pingpong")) return SEQUENCE_DIRECTION_PINGPONG;
-	else if (!strcmp(string, "obeyParent")) return SEQUENCE_DIRECTION_OBEY_PARENT;
-	else return SEQUENCE_DIRECTION_FORWARD;
+SequenceDirection stringToSequenceDirectionMode(char const* string) {
+	if (!strcmp(string, "reverse")) {
+		return SequenceDirection::REVERSE;
+	}
+	else if (!strcmp(string, "pingpong")) {
+		return SequenceDirection::PINGPONG;
+	}
+	else if (!strcmp(string, "obeyParent")) {
+		return SequenceDirection::OBEY_PARENT;
+	}
+	else {
+		return SequenceDirection::FORWARD;
+	}
 }
 
-char const* getInstrumentFolder(uint8_t instrumentType) {
-	if (instrumentType == INSTRUMENT_TYPE_SYNTH) return "SYNTHS";
-	else if (instrumentType == INSTRUMENT_TYPE_KIT) return "KITS";
-	else return "SONGS";
+char const* getInstrumentFolder(InstrumentType instrumentType) {
+	if (instrumentType == InstrumentType::SYNTH) {
+		return "SYNTHS";
+	}
+	else if (instrumentType == InstrumentType::KIT) {
+		return "KITS";
+	}
+	else {
+		return "SONGS";
+	}
 }
 
 void getThingFilename(char const* thingName, int16_t currentSlot, int8_t currentSubSlot, char* buffer) {
@@ -1171,8 +1286,12 @@ int32_t lookupReleaseRate(int32_t input) {
 	int32_t whichValue = input >> magnitude;                           // 25
 	int32_t howMuchFurther = (input << (31 - magnitude)) & 2147483647; // 6
 	whichValue += 32;                                                  // Put it in the range 0 to 64
-	if (whichValue < 0) return releaseRateTable64[0];
-	else if (whichValue >= 64) return releaseRateTable64[64];
+	if (whichValue < 0) {
+		return releaseRateTable64[0];
+	}
+	else if (whichValue >= 64) {
+		return releaseRateTable64[64];
+	}
 	int32_t value1 = releaseRateTable64[whichValue];
 	int32_t value2 = releaseRateTable64[whichValue + 1];
 	return (multiply_32x32_rshift32(value2, howMuchFurther)
@@ -1185,24 +1304,28 @@ int32_t getParamFromUserValue(uint8_t p, int8_t userValue) {
 	int32_t positive;
 
 	switch (p) {
-	case PARAM_STATIC_COMPRESSOR_ATTACK:
+	case Param::Static::COMPRESSOR_ATTACK:
 		return attackRateTable[userValue] * 4;
 
-	case PARAM_STATIC_COMPRESSOR_RELEASE:
+	case Param::Static::COMPRESSOR_RELEASE:
 		return releaseRateTable[userValue] * 8;
 
-	case PARAM_LOCAL_OSC_A_PHASE_WIDTH:
-	case PARAM_LOCAL_OSC_B_PHASE_WIDTH:
+	case Param::Local::OSC_A_PHASE_WIDTH:
+	case Param::Local::OSC_B_PHASE_WIDTH:
 		return (uint32_t)userValue * (85899345 >> 1);
 
-	case PARAM_STATIC_PATCH_CABLE:
-	case PARAM_STATIC_COMPRESSOR_VOLUME:
+	case Param::Static::PATCH_CABLE:
+	case Param::Static::COMPRESSOR_VOLUME:
 		return userValue * 21474836;
 
-	case PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_BASS:
-	case PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_TREBLE:
-		if (userValue == -50) return -2147483648;
-		if (userValue == 0) return 0;
+	case Param::Unpatched::START + Param::Unpatched::BASS:
+	case Param::Unpatched::START + Param::Unpatched::TREBLE:
+		if (userValue == -50) {
+			return -2147483648;
+		}
+		if (userValue == 0) {
+			return 0;
+		}
 		return userValue * 42949672;
 
 	default:
@@ -1216,7 +1339,9 @@ int getLookupIndexFromValue(int32_t value, const int32_t* table, int maxIndex) {
 	int closestIndex;
 	for (i = 0; i <= maxIndex; i++) { // No need to actually test the max value itself
 		int64_t thisDistance = (int64_t)value - (int64_t)table[i];
-		if (thisDistance < 0) thisDistance = -thisDistance;
+		if (thisDistance < 0) {
+			thisDistance = -thisDistance;
+		}
 		if (thisDistance < bestDistance) {
 			bestDistance = thisDistance;
 			closestIndex = i;
@@ -1258,7 +1383,11 @@ int random(int upperLimit) {
 }
 
 bool shouldDoPanning(int32_t panAmount, int32_t* amplitudeL, int32_t* amplitudeR) {
-	if (panAmount == 0) return false;
+	if (panAmount == 0) {
+		*amplitudeR = 1073741823;
+		*amplitudeL = 1073741823;
+		return false;
+	}
 
 	int32_t panOffset = getMax((int32_t)-1073741824, (int32_t)(getMin((int32_t)1073741824, (int32_t)panAmount)));
 	*amplitudeR = (panAmount >= 0) ? 1073741823 : (1073741824 + panOffset);
@@ -1275,15 +1404,30 @@ void hueToRGBWithColorScheme(int32_t hue, unsigned char* rgb, int32_t colorSchem
 		// determine channelDarkness 0...64
 		int channelDarkness;
 		if (c == 0) {
-			if (hue < 64) channelDarkness = hue;
-			else channelDarkness = getMin(64, std::abs(192 - hue));
+			if (hue < 64) {
+				channelDarkness = hue;
+			}
+			else {
+				channelDarkness = getMin(64, std::abs(192 - hue));
+			}
 		}
+		else {
+			channelDarkness = getMin(64, std::abs(c * 64 - hue));
+		}
+<<<<<<< HEAD
 		else channelDarkness = getMin(64, std::abs(c * 64 - hue));
 		
         // convert channelDarkness to RGB.
 		if (channelDarkness < 64)
+=======
+
+		if (channelDarkness < 64) {
+>>>>>>> community
 			rgb[c] = ((uint32_t)getSine(((channelDarkness << 3) + 256) & 1023, 10) + 2147483648u) >> 24;
-		else rgb[c] = 0;
+		}
+		else {
+			rgb[c] = 0;
+		}
 	}
 }
 
@@ -1299,10 +1443,16 @@ void hueToRGBPastel(int32_t hue, unsigned char* rgb) {
 	for (int c = 0; c < 3; c++) {
 		int channelDarkness;
 		if (c == 0) {
-			if (hue < 64) channelDarkness = hue;
-			else channelDarkness = getMin(64, std::abs(192 - hue));
+			if (hue < 64) {
+				channelDarkness = hue;
+			}
+			else {
+				channelDarkness = getMin(64, std::abs(192 - hue));
+			}
 		}
-		else channelDarkness = getMin(64, std::abs(c * 64 - hue));
+		else {
+			channelDarkness = getMin(64, std::abs(c * 64 - hue));
+		}
 
 		if (channelDarkness < 64) {
 			uint32_t basicValue = (uint32_t)getSine(((channelDarkness << 3) + 256) & 1023, 10)
@@ -1311,16 +1461,18 @@ void hueToRGBPastel(int32_t hue, unsigned char* rgb) {
 			uint32_t flippedScaled = (flipped >> 8) * PASTEL_RANGE;
 			rgb[c] = (4294967295 - flippedScaled) >> 24;
 		}
-		else rgb[c] = 256 - PASTEL_RANGE;
+		else {
+			rgb[c] = 256 - PASTEL_RANGE;
+		}
 	}
 }
 
-uint32_t getLFOInitialPhaseForNegativeExtreme(uint8_t waveType) {
+uint32_t getLFOInitialPhaseForNegativeExtreme(LFOType waveType) {
 	switch (waveType) {
-	case LFO_TYPE_SAW:
+	case LFOType::SAW:
 		return 2147483648u;
 
-	case LFO_TYPE_SINE:
+	case LFOType::SINE:
 		return 3221225472u;
 
 	default:
@@ -1328,9 +1480,9 @@ uint32_t getLFOInitialPhaseForNegativeExtreme(uint8_t waveType) {
 	}
 }
 
-uint32_t getLFOInitialPhaseForZero(uint8_t waveType) {
+uint32_t getLFOInitialPhaseForZero(LFOType waveType) {
 	switch (waveType) {
-	case LFO_TYPE_TRIANGLE:
+	case LFOType::TRIANGLE:
 		return 1073741824;
 
 	default:
@@ -1338,9 +1490,9 @@ uint32_t getLFOInitialPhaseForZero(uint8_t waveType) {
 	}
 }
 
-uint32_t getOscInitialPhaseForZero(uint8_t waveType) {
+uint32_t getOscInitialPhaseForZero(OscType waveType) {
 	switch (waveType) {
-	case OSC_TYPE_TRIANGLE:
+	case OscType::TRIANGLE:
 		return 1073741824;
 
 	default:
@@ -1383,8 +1535,12 @@ const int32_t pythagTable[257] = {
 int32_t fastPythag(int32_t x, int32_t y) {
 
 	// Make both numbers positive
-	if (x < 0) x = -x;
-	if (y < 0) y = -y;
+	if (x < 0) {
+		x = -x;
+	}
+	if (y < 0) {
+		y = -y;
+	}
 
 	// Make sure x is bigger
 	if (y > x) {
@@ -1394,7 +1550,9 @@ int32_t fastPythag(int32_t x, int32_t y) {
 	}
 
 	int32_t divisor = x >> 8;
-	if (divisor == 0) return 0;
+	if (divisor == 0) {
+		return 0;
+	}
 
 	int32_t ratio = y / divisor;
 
@@ -1473,191 +1631,199 @@ int32_t doLanczosCircular(int32_t* data, int32_t pos, uint32_t posWithinPos, int
 	return value;
 }
 
-// Returns 1 if first > second
-// Returns -1 if first < second
-int strcmpspecial(char const* first, char const* second, bool shouldInterpretNoteNames, bool octaveStartsFromA) {
+struct ComparativeNoteNumber {
+	int noteNumber;
+	int stringLength;
+};
 
-	bool previousWasPotentialNoteLetter =
-	    false; // FYI, this can only get set to true if shouldInterpretNoteNames is true
+// Returns 100000 if the string is not a note name.
+// The returned number is *not* a MIDI note. It's arbitrary, used for comparisons only.
+// noteChar has been made lowercase, which is why we can't just take it from the string.
+ComparativeNoteNumber getComparativeNoteNumberFromChars(char const* string, char noteChar, bool octaveStartsFromA) {
+	char const* stringStart = string;
+	ComparativeNoteNumber toReturn;
 
-	int firstNoteCode;
-	int secondNoteCode;
+	toReturn.noteNumber = noteChar - 'a';
 
-	char firstNoteLetter;
-	char secondNoteLetter;
+	if (!octaveStartsFromA) {
+		toReturn.noteNumber -= 2;
+		if (toReturn.noteNumber < 0) {
+			toReturn.noteNumber += 7;
+		}
+	}
 
-	char const* firstPosBeforeFlatOrSharp;
-	char const* secondPosBeforeFlatOrSharp;
+	toReturn.noteNumber *= 3; // To make room for flats and sharps, below.
 
-	char const* firstInitially = first;
-	char const* secondInitially = second;
+	string++;
+	if (*string == 'b') {
+		toReturn.noteNumber--;
+		string++;
+	}
+	else if (*string == '#') {
+		toReturn.noteNumber++;
+		string++;
+	}
+
+	bool numberIsNegative = false;
+	if (*string == '-') {
+		numberIsNegative = true;
+		string++;
+	}
+
+	if (*string < '1'
+	    || *string
+	           > '9') { // There has to be at least some number there if we're to consider this a note name. And it can't start with 0.
+		toReturn.noteNumber = 100000;
+		toReturn.stringLength = 0;
+		return toReturn;
+	}
+
+	int number = *string - '0';
+	string++;
 
 	while (true) {
-		/*
-		if (*first == 0) {
-			if (*second == 0) {
-				if (previousWasPotentialNoteLetter) {
-					//if (firstNoteCode < secondNoteCode) return -1;
-					//else if (firstNoteCode > secondNoteCode) return 1;
 
-					//if (firstNoteLetter < secondNoteLetter) return -1;
-					//else if (firstNoteLetter > secondNoteLetter) return 1;
-
-					first = firstPosBeforeFlatOrSharp;
-					second = secondPosBeforeFlatOrSharp;
-				}
-				return strcasecmp(first, second); // Have to check that they're exactly the same, regardless of numbers
-			}
-			else return -1;
+		if (*string >= '0' && *string <= '9') {
+			number *= 10;
+			number += *string - '0';
+			string++;
 		}
-		if (*second == 0) return 1;
-		*/
-
-		if (*first == 0 || *second == 0) {
-			/*
-			if (previousWasPotentialNoteLetter) {
-				first = firstPosBeforeFlatOrSharp;
-				second = secondPosBeforeFlatOrSharp;
+		else {
+			if (numberIsNegative) {
+				number = -number;
 			}
-			*/
-			return strcasecmp(firstInitially,
-			                  secondInitially); // Have to check that they're exactly the same, regardless of numbers
+			toReturn.noteNumber += number * 36;
+			toReturn.stringLength = string - stringStart;
+			return toReturn;
+		}
+	}
+}
+
+// You must set this at some point before calling strcmpspecial. This isn't implemented as an argument because
+// sometimes you want to set it way up the call tree, and passing it all the way down is a pain.
+bool shouldInterpretNoteNames;
+
+bool octaveStartsFromA; // You must set this if setting shouldInterpretNoteNames to true.
+
+// Returns positive if first > second
+// Returns negative if first < second
+int strcmpspecial(char const* first, char const* second) {
+
+	int resultIfGetToEndOfBothStrings = 0;
+
+	while (true) {
+		bool firstIsFinished = (*first == 0);
+		bool secondIsFinished = (*second == 0);
+
+		if (firstIsFinished && secondIsFinished) {
+			return resultIfGetToEndOfBothStrings; // If both are finished
 		}
 
-		// Only parse negative numbers as part of a note name - that's where they're most commonly used, and elsewhere it's hard to know if the '-' is just a notational dash
-		bool firstIsNegativeNumber =
-		    (previousWasPotentialNoteLetter && *first == '-' && *(first + 1) >= '0' && *(first + 1) <= '9');
-		bool secondIsNegativeNumber =
-		    (previousWasPotentialNoteLetter && *second == '-' && *(second + 1) >= '0' && *(second + 1) <= '9');
+		if (firstIsFinished || secondIsFinished) { // If just one is finished
+			return (int)*first - (int)*second;
+		}
 
-		bool firstIsNumber = (firstIsNegativeNumber || (*first >= '0' && *first <= '9'));
-		bool secondIsNumber = (secondIsNegativeNumber || (*second >= '0' && *second <= '9'));
+		bool firstIsNumber = (*first >= '0' && *first <= '9');
+		bool secondIsNumber = (*second >= '0' && *second <= '9');
 
 		// If they're both numbers...
 		if (firstIsNumber && secondIsNumber) {
 
-			if (firstIsNegativeNumber) first++;
-			if (secondIsNegativeNumber) second++;
+			// If we haven't yet seen a differing number of leading zeros in a number, see if that exists here.
+			if (!resultIfGetToEndOfBothStrings) {
+				char const* firstHere = first;
+				char const* secondHere = second;
+				while (true) {
+					char firstChar = *firstHere;
+					char secondChar = *secondHere;
+					bool firstDigitIsLeadingZero = (firstChar == '0');
+					bool secondDigitIsLeadingZero = (secondChar == '0');
 
-			int firstNumber = 0;
-			int secondNumber = 0;
+					if (firstDigitIsLeadingZero && secondDigitIsLeadingZero) { // If both are zeros, look at next chars.
+						firstHere++;
+						secondHere++;
+						continue;
+					}
 
-			do {
+					//else if (!firstDigitIsLeadingZero || !secondDigitIsLeadingZero) break;	// If both are not zeros, we're done.
+					// Actually, the same end result is achieved without that line.
+
+					// If we're still here, one is a leading zero and the other isn't.
+					resultIfGetToEndOfBothStrings =
+					    (int)firstChar - (int)secondChar; // Will still end up as zero when that needs to happen.
+					break;
+				}
+			}
+
+			int firstNumber = *first - '0';
+			int secondNumber = *second - '0';
+			first++;
+			second++;
+
+			while (*first >= '0' && *first <= '9') {
 				firstNumber *= 10;
 				firstNumber += *first - '0';
 				first++;
-			} while (*first >= '0' && *first <= '9');
+			}
 
-			do {
+			while (*second >= '0' && *second <= '9') {
 				secondNumber *= 10;
 				secondNumber += *second - '0';
 				second++;
-			} while (*second >= '0' && *second <= '9');
-
-			if (firstIsNegativeNumber) firstNumber = -firstNumber;
-			if (secondIsNegativeNumber) secondNumber = -secondNumber;
-
-			if (previousWasPotentialNoteLetter) {
-
-				if (!octaveStartsFromA) {
-					firstNoteCode -= 2 * 3;
-					if (firstNoteCode < 0) firstNoteCode += 7 * 3;
-
-					secondNoteCode -= 2 * 3;
-					if (secondNoteCode < 0) secondNoteCode += 7 * 3;
-				}
-
-				firstNumber = firstNumber * 32 + firstNoteCode;
-				secondNumber = secondNumber * 32 + secondNoteCode;
-				previousWasPotentialNoteLetter = false;
 			}
 
-			if (firstNumber < secondNumber) return -1;
-			else if (firstNumber > secondNumber) return 1;
+			int difference = firstNumber - secondNumber;
+			if (difference) {
+				return difference;
+			}
 		}
 
-		// Otherwise...
+		// Otherwise, if not both numbers...
 		else {
 
 			char firstChar = *first;
 			char secondChar = *second;
 
-			if (previousWasPotentialNoteLetter) {
-
-				// If we got here, we know they're not both numbers...
-
-				bool foundAtLeastOneFlatOrSharp = false;
-				if (firstChar == 'b') {
-					firstNoteCode--;
-					goto incrementFirst;
-				}
-				else if (firstChar == '#') {
-					firstNoteCode++;
-incrementFirst:
-					first++;
-					foundAtLeastOneFlatOrSharp = true;
-				}
-
-				if (secondChar == 'b') {
-					secondNoteCode--;
-					goto incrementSecond;
-				}
-				else if (secondChar == '#') {
-					secondNoteCode++;
-incrementSecond:
-					second++;
-					foundAtLeastOneFlatOrSharp = true;
-				}
-
-				// If found at least one flat or sharp, go do another whole comparison - there might be some numbers next
-				if (foundAtLeastOneFlatOrSharp) continue;
-
-				// Or, if didn't find any (more) flats or sharps...
-				else {
-					// We know that it's not the case that both are numbers. But if one is and the other isn't, we can conclude that the one
-					// with the number has a proper note-name, and the other doesn't - it's just a word happening to start with that letter.
-					// We choose to put notes before non-notes. Without this step, we got a weird loop
-					//if (firstIsNumber) return -1;
-					//if (secondIsNumber) return 1;
-				}
-
-				if (firstNoteLetter < secondNoteLetter) return -1;
-				else if (firstNoteLetter > secondNoteLetter) return 1;
-
-				// Or if we're still here, carry on. Backtrack on any flats or sharps seen.
-				previousWasPotentialNoteLetter = false;
-				first = firstPosBeforeFlatOrSharp;
-				second = secondPosBeforeFlatOrSharp;
-				goto carryOn;
+			// Make lowercase
+			if (firstChar >= 'A' && firstChar <= 'Z') {
+				firstChar += 32;
+			}
+			if (secondChar >= 'A' && secondChar <= 'Z') {
+				secondChar += 32;
 			}
 
-			// Make lowercase
-			if (firstChar >= 'A' && firstChar <= 'Z') firstChar += 32;
-			if (secondChar >= 'A' && secondChar <= 'Z') secondChar += 32;
+			// If we're doing note ordering...
+			if (shouldInterpretNoteNames) {
+				ComparativeNoteNumber firstResult, secondResult;
+				firstResult.noteNumber = 100000;
+				firstResult.stringLength = 0;
+				secondResult.noteNumber = 100000;
+				secondResult.stringLength = 0;
 
-			// If we're doing note ordering, and if both characters are potential note letters...
-			if (shouldInterpretNoteNames && firstChar >= 'a' && firstChar <= 'g' && secondChar >= 'a'
-			    && secondChar <= 'g') {
+				if (firstChar >= 'a' && firstChar <= 'g') {
+					firstResult = getComparativeNoteNumberFromChars(first, firstChar, octaveStartsFromA);
+				}
 
-				previousWasPotentialNoteLetter = true;
-				firstPosBeforeFlatOrSharp = first;
-				secondPosBeforeFlatOrSharp = second;
+				if (secondChar >= 'a' && secondChar <= 'g') {
+					secondResult = getComparativeNoteNumberFromChars(second, secondChar, octaveStartsFromA);
+				}
 
-				firstNoteLetter = firstChar;
-				secondNoteLetter = secondChar;
-				firstNoteCode = firstChar - 'a';
-				secondNoteCode = secondChar - 'a';
-
-				firstNoteCode = firstNoteCode * 3 + 1;
-				secondNoteCode = secondNoteCode * 3 + 1;
-				goto carryOn;
+				if (firstResult.noteNumber == secondResult.noteNumber) {
+					if (!firstResult.stringLength && !secondResult.stringLength) {
+						goto doNormal;
+					}
+					first += firstResult.stringLength;
+					second += secondResult.stringLength;
+				}
+				else {
+					return firstResult.noteNumber - secondResult.noteNumber;
+				}
 			}
 
 			else {
-
+doNormal:
 				// If they're the same, carry on
 				if (firstChar == secondChar) {
-carryOn:
 					first++;
 					second++;
 				}
@@ -1665,17 +1831,21 @@ carryOn:
 				// Otherwise...
 				else {
 					// Dot then underscore comes first
-					if (firstChar == 0) return -1;
-					else if (secondChar == 0) return 1;
+					if (firstChar == '.') {
+						return -1;
+					}
+					else if (secondChar == '.') {
+						return 1; // We know they're not both the same - see above.
+					}
 
-					if (firstChar == '.') return -1;
-					else if (secondChar == '.') return 1;
+					if (firstChar == '_') {
+						return -1;
+					}
+					else if (secondChar == '_') {
+						return 1;
+					}
 
-					if (firstChar == '_') return -1;
-					else if (secondChar == '_') return 1;
-
-					if (firstChar < secondChar) return -1;
-					else return 1;
+					return (int)firstChar - (int)secondChar;
 				}
 			}
 		}
@@ -1684,8 +1854,12 @@ carryOn:
 
 bool charCaseEqual(char firstChar, char secondChar) {
 	// Make lowercase
-	if (firstChar >= 'A' && firstChar <= 'Z') firstChar += 32;
-	if (secondChar >= 'A' && secondChar <= 'Z') secondChar += 32;
+	if (firstChar >= 'A' && firstChar <= 'Z') {
+		firstChar += 32;
+	}
+	if (secondChar >= 'A' && secondChar <= 'Z') {
+		secondChar += 32;
+	}
 
 	return (firstChar == secondChar);
 }
@@ -1698,8 +1872,12 @@ int memcasecmp(char const* first, char const* second, int size) {
 		if (firstChar != secondChar) {
 
 			// Make lowercase
-			if (firstChar >= 'A' && firstChar <= 'Z') firstChar += 32;
-			if (secondChar >= 'A' && secondChar <= 'Z') secondChar += 32;
+			if (firstChar >= 'A' && firstChar <= 'Z') {
+				firstChar += 32;
+			}
+			if (secondChar >= 'A' && secondChar <= 'Z') {
+				secondChar += 32;
+			}
 
 			// If they're the same, carry on
 			if (firstChar != secondChar) {
@@ -1928,7 +2106,9 @@ int stringToFirmwareVersion(char const* firmwareVersionString) {
 		return FIRMWARE_4P1P4;
 	}
 
-	else return FIRMWARE_TOO_NEW;
+	else {
+		return FIRMWARE_TOO_NEW;
+	}
 }
 
 int howMuchMoreMagnitude(unsigned int to, unsigned int from) {
@@ -1950,7 +2130,9 @@ void noteCodeToString(int noteCode, char* buffer, int* getLengthWithoutDot) {
 
 	if (getLengthWithoutDot) {
 		*getLengthWithoutDot = strlen(buffer);
-		if (noteCodeIsSharp[noteCodeWithinOctave]) (*getLengthWithoutDot)--;
+		if (noteCodeIsSharp[noteCodeWithinOctave]) {
+			(*getLengthWithoutDot)--;
+		}
 	}
 }
 
@@ -1985,8 +2167,12 @@ double ConvertFromIeeeExtended(unsigned char* bytes /* LCN */) {
 		}
 	}
 
-	if (bytes[0] & 0x80) return -f;
-	else return f;
+	if (bytes[0] & 0x80) {
+		return -f;
+	}
+	else {
+		return f;
+	}
 }
 
 // Divisor must be positive. Rounds towards negative infinity
@@ -2000,13 +2186,17 @@ int32_t divide_round_negative(int32_t dividend, int32_t divisor) {
 }
 
 int getWhichKernel(int32_t phaseIncrement) {
-	if (phaseIncrement < 17268826) return 0; // That allows us to go half a semitone up
+	if (phaseIncrement < 17268826) {
+		return 0; // That allows us to go half a semitone up
+	}
 	else {
 		int whichKernel = 1;
 		while (phaseIncrement >= 32599202) { // 11.5 semitones up
 			phaseIncrement >>= 1;
 			whichKernel += 2;
-			if (whichKernel == 5) break;
+			if (whichKernel == 5) {
+				break;
+			}
 		}
 
 		if (phaseIncrement >= 23051117) { // 5.5 semitones up
@@ -2018,7 +2208,7 @@ int getWhichKernel(int32_t phaseIncrement) {
 }
 
 void dissectIterationDependence(int probability, int* getDivisor, int* getWhichIterationWithinDivisor) {
-	int value = (probability & 127) - NUM_PROBABILITY_VALUES - 1;
+	int value = (probability & 127) - kNumProbabilityValues - 1;
 	int whichRepeat;
 
 	int tryingWhichDivisor;
@@ -2040,21 +2230,29 @@ int encodeIterationDependence(int divisor, int iterationWithinDivisor) {
 	for (int i = 2; i < divisor; i++) {
 		value += i;
 	}
-	return value + 1 + NUM_PROBABILITY_VALUES;
+	return value + 1 + kNumProbabilityValues;
 }
 
 int getHowManyCharsAreTheSame(char const* a, char const* b) {
 	int count = 0;
 	while (true) {
 		char charA = *a;
-		if (!charA) break;
+		if (!charA) {
+			break;
+		}
 		char charB = *b;
 
 		// Make uppercase
-		if (charA >= 'a' && charA <= 'z') charA -= 32;
-		if (charB >= 'a' && charB <= 'z') charB -= 32;
+		if (charA >= 'a' && charA <= 'z') {
+			charA -= 32;
+		}
+		if (charB >= 'a' && charB <= 'z') {
+			charB -= 32;
+		}
 
-		if (charA != charB) break;
+		if (charA != charB) {
+			break;
+		}
 
 		count++;
 		a++;
@@ -2074,7 +2272,9 @@ void greyColourOut(const uint8_t* input, uint8_t* output, int32_t greyProportion
 		colourValue = rshift_round((uint32_t)colourValue * (uint32_t)(8421504 - greyProportion)
 		                               + ((int32_t)totalColour * (greyProportion >> 5)),
 		                           23);
-		if (colourValue >= 256) colourValue = 255;
+		if (colourValue >= 256) {
+			colourValue = 255;
+		}
 
 		output[colour] = colourValue;
 	}
@@ -2082,8 +2282,12 @@ void greyColourOut(const uint8_t* input, uint8_t* output, int32_t greyProportion
 
 void dimColour(uint8_t colour[3]) {
 	for (int c = 0; c < 3; c++) {
-		if (colour[c] >= 64) colour[c] = 50;
-		else colour[c] = 5;
+		if (colour[c] >= 64) {
+			colour[c] = 50;
+		}
+		else {
+			colour[c] = 5;
+		}
 	}
 }
 
@@ -2107,21 +2311,35 @@ void getNoteLengthNameFromMagnitude(char* text, int32_t magnitude, bool clarifyP
 		uint32_t numBars = (uint32_t)1 << magnitude;
 		intToString(numBars, text);
 		if (clarifyPerColumn) {
-			if (numBars == 1) strcat(text, " bar (per column)");
-			else strcat(text, " bars (per column)");
+			if (numBars == 1) {
+				strcat(text, " bar (per column)");
+			}
+			else {
+				strcat(text, " bars (per column)");
+			}
 		}
-		else strcat(text, "-bar");
+		else {
+			strcat(text, "-bar");
+		}
 	}
 #else
 	if (magnitude < 0) {
 		uint32_t division = (uint32_t)1 << (0 - magnitude);
 		if (division <= 9999) {
 			intToString(division, text);
-			if (division == 2 || division == 32) strcat(text, "ND");
-			else if (division <= 99) strcat(text, "TH");
-			else if (division <= 999) strcat(text, "T");
+			if (division == 2 || division == 32) {
+				strcat(text, "ND");
+			}
+			else if (division <= 99) {
+				strcat(text, "TH");
+			}
+			else if (division <= 999) {
+				strcat(text, "T");
+			}
 		}
-		else strcpy(text, "TINY");
+		else {
+			strcpy(text, "TINY");
+		}
 	}
 	else {
 		uint32_t numBars = (uint32_t)1 << magnitude;
@@ -2135,7 +2353,9 @@ void getNoteLengthNameFromMagnitude(char* text, int32_t magnitude, bool clarifyP
 				strcat(text, "B");
 			}
 		}
-		else strcpy(text, "BIG");
+		else {
+			strcpy(text, "BIG");
+		}
 	}
 #endif
 }
@@ -2147,15 +2367,23 @@ char const* getFileNameFromEndOfPath(char const* filePathChars) {
 
 bool doesFilenameFitPrefixFormat(char const* fileName, char const* filePrefix, int prefixLength) {
 
-	if (memcasecmp(fileName, filePrefix, prefixLength)) return false;
+	if (memcasecmp(fileName, filePrefix, prefixLength)) {
+		return false;
+	}
 
 	char* dotAddress = strrchr(fileName, '.');
-	if (!dotAddress) return false;
+	if (!dotAddress) {
+		return false;
+	}
 
 	int dotPos = (uint32_t)dotAddress - (uint32_t)fileName;
-	if (dotPos < prefixLength + 3) return false;
+	if (dotPos < prefixLength + 3) {
+		return false;
+	}
 
-	if (!memIsNumericChars(&fileName[prefixLength], 3)) return false;
+	if (!memIsNumericChars(&fileName[prefixLength], 3)) {
+		return false;
+	}
 
 	return true;
 }
@@ -2188,5 +2416,5 @@ int fresultToDelugeErrorCode(FRESULT result) {
 	}
 }
 
-char miscStringBuffer[FILENAME_BUFFER_SIZE] __attribute__((aligned(CACHE_LINE_SIZE)));
+char miscStringBuffer[kFilenameBufferSize] __attribute__((aligned(CACHE_LINE_SIZE)));
 char shortStringBuffer[64] __attribute__((aligned(CACHE_LINE_SIZE)));

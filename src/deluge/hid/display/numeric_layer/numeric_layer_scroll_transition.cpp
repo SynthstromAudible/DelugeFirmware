@@ -39,16 +39,20 @@ bool NumericLayerScrollTransition::callBack() {
 	bool allBlank = true;
 
 	if (transitionDirection == 1) {
-		for (writingTo = 0; writingTo < NUMERIC_DISPLAY_LENGTH - 1; writingTo++) {
+		for (writingTo = 0; writingTo < kNumericDisplayLength - 1; writingTo++) {
 			segments[writingTo] = segments[writingTo + 1];
-			if (segments[writingTo] != 0) allBlank = false;
+			if (segments[writingTo] != 0) {
+				allBlank = false;
+			}
 		}
 	}
 
 	else {
-		for (writingTo = NUMERIC_DISPLAY_LENGTH - 1; writingTo > 0; writingTo--) {
+		for (writingTo = kNumericDisplayLength - 1; writingTo > 0; writingTo--) {
 			segments[writingTo] = segments[writingTo - 1];
-			if (segments[writingTo] != 0) allBlank = false;
+			if (segments[writingTo] != 0) {
+				allBlank = false;
+			}
 		}
 	}
 
@@ -57,9 +61,9 @@ bool NumericLayerScrollTransition::callBack() {
 	// Fill character at the end with either a new one, or blank space
 	if (progressFlipped > 0 && next) {
 		int readingFrom =
-		    (transitionDirection == 1) ? transitionProgress : (NUMERIC_DISPLAY_LENGTH + transitionProgress - 1);
+		    (transitionDirection == 1) ? transitionProgress : (kNumericDisplayLength + transitionProgress - 1);
 
-		uint8_t segmentsTransitioningTo[NUMERIC_DISPLAY_LENGTH];
+		uint8_t segmentsTransitioningTo[kNumericDisplayLength];
 		next->render(segmentsTransitioningTo);
 
 		segments[writingTo] = segmentsTransitioningTo[readingFrom];
@@ -75,13 +79,13 @@ bool NumericLayerScrollTransition::callBack() {
 
 
             if (transitionDirection == 1) {
-                for (int8_t i = 0; i < NUMERIC_DISPLAY_LENGTH - 1; i++) {
+                for (int8_t i = 0; i < kNumericDisplayLength - 1; i++) {
                     if (segmentsTransitioningTo[i] == 0) transitionProgress += transitionDirection;
                 }
             }
 
             else {
-                for (int8_t i = NUMERIC_DISPLAY_LENGTH - 1; i > 0; i--) {
+                for (int8_t i = kNumericDisplayLength - 1; i > 0; i--) {
                     if (segmentsTransitioningTo[i] == 0) transitionProgress += transitionDirection;
                 }
             }
@@ -91,16 +95,18 @@ bool NumericLayerScrollTransition::callBack() {
 
 	// Remember to continue transition, if there's some left
 	transitionProgress += transitionDirection;
-	if (transitionProgress * transitionDirection < NUMERIC_DISPLAY_LENGTH) {
+	if (transitionProgress * transitionDirection < kNumericDisplayLength) {
 		int timeToWait = (transitionProgress == 0) ? 160 : 32;
 		uiTimerManager.setTimer(TIMER_DISPLAY, timeToWait);
 		return false;
 	}
 
-	else return true;
+	else {
+		return true;
+	}
 }
 
 void NumericLayerScrollTransition::render(uint8_t* returnSegments) {
 
-	memcpy(returnSegments, segments, NUMERIC_DISPLAY_LENGTH);
+	memcpy(returnSegments, segments, kNumericDisplayLength);
 }

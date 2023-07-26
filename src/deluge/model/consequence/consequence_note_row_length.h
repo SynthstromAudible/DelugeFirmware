@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CONSEQUENCENOTEROWLENGTH_H_
-#define CONSEQUENCENOTEROWLENGTH_H_
+#pragma once
 
 #include "model/consequence/consequence.h"
 
@@ -26,11 +25,9 @@ class ModelStackWithNoteRow;
 class ConsequenceNoteRowLength final : public Consequence {
 public:
 	ConsequenceNoteRowLength(int newNoteRowId, int newLength);
-	int revert(int time, ModelStack* modelStack);
+	int revert(TimeType time, ModelStack* modelStack);
 	void performChange(ModelStackWithNoteRow* modelStack, Action* actionToRecordTo, int32_t oldPos,
 	                   bool hadIndependentPlayPosBefore);
 	int32_t backedUpLength;
 	int noteRowId;
 };
-
-#endif /* CONSEQUENCENOTEROWLENGTH_H_ */

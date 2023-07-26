@@ -15,55 +15,55 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CONTEXTMENU_H_
-#define CONTEXTMENU_H_
+#pragma once
+
+#include <cstddef>
 
 #include "gui/ui/ui.h"
+#include "hid/button.h"
 #include "RZA1/system/r_typedefs.h"
+#include "util/sized.h"
+
+namespace deluge::gui {
 
 class ContextMenu : public UI {
 public:
 	ContextMenu();
-	void focusRegained();
-	void selectEncoderAction(int8_t offset);
-	int buttonAction(int x, int y, bool on, bool inCardRoutine) final;
+	void focusRegained() override;
+	void selectEncoderAction(int8_t offset) override;
+	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine) final;
 	void drawCurrentOption();
-	virtual int getNumOptions() { return basicNumOptions; }
 	virtual bool isCurrentOptionAvailable() { return true; }
 	virtual bool acceptCurrentOption() { return false; } // If returns false, will cause UI to exit
-	virtual char const** getOptions();
-	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows);
-	int padAction(int x, int y, int velocity);
+
+	virtual Sized<char const**> getOptions() = 0;
+
+	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) override;
+	ActionResult padAction(int x, int y, int velocity) override;
 	bool setupAndCheckAvailability();
 
-	virtual int getAcceptButtonX() { return selectEncButtonX; }
-	virtual int getAcceptButtonY() { return selectEncButtonY; }
+	virtual hid::Button getAcceptButton() { return hid::button::SELECT_ENC; }
 
 	int currentOption; // Don't make static. We'll have multiple nested ContextMenus open at the same time
 
-	char const** basicOptions;
-	int basicNumOptions;
 #if HAVE_OLED
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
 	int scrollPos; // Don't make static. We'll have multiple nested ContextMenus open at the same time
-	char const* title;
 #endif
+	virtual char const* getTitle() = 0;
 };
 
 class ContextMenuForSaving : public ContextMenu {
 public:
-	ContextMenuForSaving() {}
+	ContextMenuForSaving() = default;
 	void focusRegained() final;
-	virtual int getAcceptButtonX() final { return saveButtonX; }
-	virtual int getAcceptButtonY() final { return saveButtonY; }
+	hid::Button getAcceptButton() final { return hid::button::SAVE; }
 };
 
 class ContextMenuForLoading : public ContextMenu {
 public:
-	ContextMenuForLoading() {}
-	void focusRegained();
-	virtual int getAcceptButtonX() final { return loadButtonX; }
-	virtual int getAcceptButtonY() final { return loadButtonY; }
+	ContextMenuForLoading() = default;
+	void focusRegained() override;
+	hid::Button getAcceptButton() final { return hid::button::LOAD; }
 };
-
-#endif /* CONTEXTMENU_H_ */
+} // namespace deluge::gui

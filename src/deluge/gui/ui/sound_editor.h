@@ -15,11 +15,12 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef SOUNDEDITOR_H
-#define SOUNDEDITOR_H
+#pragma once
 
+#include "definitions_cxx.hpp"
 #include "gui/ui/ui.h"
 #include "gui/menu_item/menu_item.h"
+#include "hid/button.h"
 #include "modulation/arpeggiator.h"
 
 #define SHORTCUTS_VERSION_1 0
@@ -44,6 +45,9 @@ class ModControllableAudio;
 class ModelStackWithThreeMainThings;
 class AudioFileHolder;
 class MIDIDevice;
+namespace menu_item {
+enum class RangeEdit : uint8_t;
+}
 
 class SoundEditor final : public UI {
 public:
@@ -60,16 +64,16 @@ public:
 	ArpeggiatorSettings* currentArpSettings;
 	MultiRange* currentMultiRange;
 	SampleControls* currentSampleControls;
-	uint8_t* currentPriority;
+	VoicePriority* currentPriority;
 	int16_t currentMultiRangeIndex;
 	MIDIDevice* currentMIDIDevice;
-	uint8_t editingRangeEdge;
+	menu_item::RangeEdit editingRangeEdge;
 
-	int buttonAction(int x, int y, bool on, bool inCardRoutine);
-	int padAction(int x, int y, int velocity);
-	int verticalEncoderAction(int offset, bool inCardRoutine);
+	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
+	ActionResult padAction(int x, int y, int velocity);
+	ActionResult verticalEncoderAction(int offset, bool inCardRoutine);
 	void modEncoderAction(int whichModEncoder, int offset);
-	int horizontalEncoderAction(int offset);
+	ActionResult horizontalEncoderAction(int offset);
 	bool editingKit();
 
 	void setupShortcutBlink(int x, int y, int frequency);
@@ -82,8 +86,8 @@ public:
 	uint8_t currentParamShorcutX;
 	uint8_t currentParamShorcutY;
 	uint8_t paramShortcutBlinkFrequency;
-	uint8_t sourceShortcutBlinkFrequencies[2][displayHeight];
-	uint8_t sourceShortcutBlinkColours[2][displayHeight];
+	uint8_t sourceShortcutBlinkFrequencies[2][kDisplayHeight];
+	uint8_t sourceShortcutBlinkColours[2][kDisplayHeight];
 	uint32_t shortcutBlinkCounter;
 
 	uint32_t timeLastAttemptedAutomatedParamEdit;
@@ -106,7 +110,7 @@ public:
 	bool canSeeViewUnderneath() { return true; }
 	bool setup(Clip* clip = NULL, const MenuItem* item = NULL, int sourceIndex = 0);
 	void blinkShortcut();
-	int potentialShortcutPadAction(int x, int y, bool on);
+	ActionResult potentialShortcutPadAction(int x, int y, bool on);
 	bool editingReverbCompressor();
 	MenuItem* getCurrentMenuItem();
 	bool inSettingsMenu();
@@ -118,9 +122,9 @@ public:
 	bool isUntransposedNoteWithinRange(int noteCode);
 	void setCurrentMultiRange(int i);
 	void possibleChangeToCurrentRangeDisplay();
-	int checkPermissionToBeginSessionForRangeSpecificParam(Sound* sound, int whichThing,
-	                                                       bool automaticallySelectIfOnlyOne,
-	                                                       MultiRange** previouslySelectedRange);
+	MenuPermission checkPermissionToBeginSessionForRangeSpecificParam(Sound* sound, int whichThing,
+	                                                                  bool automaticallySelectIfOnlyOne,
+	                                                                  MultiRange** previouslySelectedRange);
 	void setupExclusiveShortcutBlink(int x, int y);
 	void setShortcutsVersion(int newVersion);
 	ModelStackWithThreeMainThings* getCurrentModelStack(void* memory);
@@ -140,5 +144,3 @@ private:
 };
 
 extern SoundEditor soundEditor;
-
-#endif // SOUNDEDITOR_H

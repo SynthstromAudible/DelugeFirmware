@@ -15,10 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef WAVEFORMRENDERDATA_H_
-#define WAVEFORMRENDERDATA_H_
+#pragma once
 
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "RZA1/system/r_typedefs.h"
 
 #define COL_STATUS_INVESTIGATED 1
@@ -27,9 +26,7 @@
 struct WaveformRenderData {
 	int64_t xScroll;
 	int64_t xZoom;
-	int32_t maxPerCol[displayWidth];
-	int32_t minPerCol[displayWidth];
-	uint8_t colStatus[displayWidth];
+	int32_t maxPerCol[kDisplayWidth];
+	int32_t minPerCol[kDisplayWidth];
+	uint8_t colStatus[kDisplayWidth];
 };
-
-#endif // WAVEFORMRENDERDATA_H_

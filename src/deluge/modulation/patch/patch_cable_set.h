@@ -15,14 +15,14 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef PATCHCABLESET_H_
-#define PATCHCABLESET_H_
+#pragma once
 #include "modulation/params/param_collection.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "modulation/patch/patch_cable.h"
 
 class Song;
 class ModelStackWithParamCollection;
+class LearnedMIDI;
 
 struct CableGroup {
 	uint8_t first;
@@ -43,14 +43,14 @@ public:
 
 	void setupPatching(ModelStackWithParamCollection const* modelStack);
 	bool doesDestinationDescriptorHaveAnyCables(ParamDescriptor destinationParamDescriptor);
-	uint8_t getPatchCableIndex(uint8_t from, ParamDescriptor destinationParamDescriptor,
+	uint8_t getPatchCableIndex(PatchSource from, ParamDescriptor destinationParamDescriptor,
 	                           ModelStackWithParamCollection const* modelStack = NULL, bool createIfNotFound = false);
 	void deletePatchCable(ModelStackWithParamCollection const* modelStack, uint8_t c);
 	bool patchCableIsUsable(uint8_t c, ModelStackWithThreeMainThings const* modelStack);
 	int32_t getModifiedPatchCableAmount(int c, int p);
 	void removeAllPatchingToParam(ModelStackWithParamCollection* modelStack, uint8_t p);
-	bool isSourcePatchedToSomething(int s);
-	bool isSourcePatchedToSomethingManuallyCheckCables(int s);
+	bool isSourcePatchedToSomething(PatchSource s);
+	bool isSourcePatchedToSomethingManuallyCheckCables(PatchSource s);
 	bool doesParamHaveSomethingPatchedToIt(int p);
 
 	void tickSamples(int numSamples, ModelStackWithParamCollection* modelStack);
@@ -77,10 +77,10 @@ public:
 	                                     ModelStackWithParamCollection* modelStack);
 
 	void remotelySwapParamState(AutoParamState* state, ModelStackWithParamId* modelStack);
-	AutoParam* getParam(ModelStackWithParamCollection const* modelStack, int s,
+	AutoParam* getParam(ModelStackWithParamCollection const* modelStack, PatchSource s,
 	                    ParamDescriptor destinationParamDescriptor, bool allowCreation = false);
 	ModelStackWithAutoParam* getAutoParamFromId(ModelStackWithParamId* modelStack, bool allowCreation = false);
-	static int getParamId(ParamDescriptor destinationParamDescriptor, int s);
+	static int getParamId(ParamDescriptor destinationParamDescriptor, PatchSource s);
 
 	AutoParam* getParam(int paramId);
 
@@ -90,7 +90,8 @@ public:
 
 	int paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack);
 	int32_t knobPosToParamValue(int knobPos, ModelStackWithAutoParam* modelStack);
-	bool isSourcePatchedToDestinationDescriptorVolumeInspecific(int s, ParamDescriptor destinationParamDescriptor);
+	bool isSourcePatchedToDestinationDescriptorVolumeInspecific(PatchSource s,
+	                                                            ParamDescriptor destinationParamDescriptor);
 	bool isAnySourcePatchedToParamVolumeInspecific(ParamDescriptor destinationParamDescriptor);
 	void grabVelocityToLevelFromMIDIInput(LearnedMIDI* midiInput);
 	void grabVelocityToLevelFromMIDIDeviceDefinitely(MIDIDevice* device);
@@ -100,16 +101,14 @@ public:
 
 	uint32_t sourcesPatchedToAnything[2]; // Only valid after setupPatching()
 
-	PatchCable patchCables[MAX_NUM_PATCH_CABLES]; // TODO: store these in dynamic memory.
+	PatchCable patchCables[kMaxNumPatchCables]; // TODO: store these in dynamic memory.
 	uint8_t numUsablePatchCables;
 	uint8_t numPatchCables;
 
 	Destination* destinations[2];
 
 private:
-	static void dissectParamId(uint32_t paramId, ParamDescriptor* destinationParamDescriptor, int* s);
+	static void dissectParamId(uint32_t paramId, ParamDescriptor* destinationParamDescriptor, PatchSource* s);
 	void swapCables(int c1, int c2);
 	void freeDestinationMemory(bool destructing);
 };
-
-#endif /* PATCHCABLESET_H_ */

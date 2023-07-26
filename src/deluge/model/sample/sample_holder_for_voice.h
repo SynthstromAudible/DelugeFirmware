@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef SAMPLEHOLDERFORVOICE_H_
-#define SAMPLEHOLDERFORVOICE_H_
+#pragma once
 
 #include "model/sample/sample_holder.h"
 #include "util/phase_increment_fine_tuner.h"
@@ -43,7 +42,7 @@ public:
 	int8_t cents;
 	PhaseIncrementFineTuner fineTuner;
 
-	Cluster* clustersForLoopStart[NUM_CLUSTERS_LOADED_AHEAD];
+	Cluster* clustersForLoopStart[kNumClustersLoadedAhead];
 
 	// These two now only exist for loading in data from old files
 	uint32_t startMSec;
@@ -52,5 +51,3 @@ public:
 protected:
 	void sampleBeenSet(bool reversed, bool manuallySelected);
 };
-
-#endif /* SAMPLEHOLDERFORVOICE_H_ */

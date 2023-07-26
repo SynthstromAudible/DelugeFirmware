@@ -36,6 +36,7 @@
 
 // Added by Rohan
 #include "deluge/io/midi/midi_device_manager.h"
+#include "deluge/io/midi/midi_engine.h"
 #include "deluge/drivers/usb/userdef/r_usb_pmidi_config.h"
 
 #if ((USB_CFG_DTC == USB_CFG_ENABLE) || (USB_CFG_DMA == USB_CFG_ENABLE))
@@ -581,7 +582,8 @@ uint16_t usb_read_data_fast_rohan(uint16_t pipe)
     //buffer = usb_cstd_is_set_frdy(USB_NULL, pipe, USB_CUSE, USB_FALSE);
     uint16_t buffer = usb_cstd_is_set_frdy_rohan(pipe);
 
-    if (USB_FIFOERROR == buffer) return USB_FIFOERROR;
+    if (USB_FIFOERROR == buffer)
+        return USB_FIFOERROR;
 
     int numBytesReceived = (uint16_t)(buffer & USB_DTLN); // Length of data received
 
@@ -604,7 +606,8 @@ uint16_t usb_read_data_fast_rohan(uint16_t pipe)
         // If received more data than we asked for - that's an error basically. This should really never happen with MIDI.
         // The original code still went through with reading the data in this case, but it's easier for us not to, and what use would it do.
         // It really should never happen, it'd be a weird thing to see.
-        if (g_usb_data_cnt[pipe] < numBytesReceived) return USB_READOVER;
+        if (g_usb_data_cnt[pipe] < numBytesReceived)
+            return USB_READOVER;
 
         // MIDI will always be in multiples of 4 bytes, so can simplify things a little
         uint8_t* __restrict__ readPos = g_p_usb_data[pipe];
@@ -1218,8 +1221,10 @@ void usb_pstd_bemp_pipe_process_rohan_midi(uint16_t bitsts)
 
                 	    }
 #endif
-                        connectedUSBMIDIDevices[0][0].numBytesSendingNow = 0; // Even easier!
-                        anyUSBSendingStillHappening[0]                   = 0;
+                        // connectedUSBMIDIDevices[0][0].numBytesSendingNow = 0; // Even easier!
+                        // anyUSBSendingStillHappening[0]                   = 0;
+
+                        usbSendCompleteAsPeripheral(0); // NOT SO EASY
                     }
                 }
             }

@@ -15,11 +15,11 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef SAVEUI_H_
-#define SAVEUI_H_
+#pragma once
 
 #include "gui/ui/browser/slot_browser.h"
-#include "definitions.h"
+#include "hid/button.h"
+#include "definitions_cxx.hpp"
 
 class SaveUI : public SlotBrowser {
 public:
@@ -30,22 +30,16 @@ public:
 	    bool mayOverwrite =
 	        false) = 0; // Returns true if success, or if otherwise dealt with (e.g. "overwrite" context menu brought up)
 	void focusRegained();
-	bool renderSidebar(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3] = NULL,
-	                   uint8_t occupancyMask[][displayWidth + sideBarWidth] = NULL) {
+	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3] = NULL,
+	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL) {
 		return true;
 	}
-	bool canSeeViewUnderneath() final { return (DELUGE_MODEL == DELUGE_MODEL_40_PAD); }
-	int timerCallback();
-	int buttonAction(int x, int y, bool on, bool inCardRoutine);
-
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows);
-#endif
+	bool canSeeViewUnderneath() final { return false; }
+	ActionResult timerCallback();
+	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
 
 protected:
 	//void displayText(bool blinkImmediately) final;
 	void enterKeyPress() final;
 	static bool currentFolderIsEmpty;
 };
-
-#endif /* SAVEUI_H_ */

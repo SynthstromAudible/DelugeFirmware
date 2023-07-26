@@ -15,11 +15,10 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef RESIZEABLEARRAY_H_
-#define RESIZEABLEARRAY_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 
 #define GREATER_OR_EQUAL 0
 #define LESS (-1)
@@ -48,7 +47,8 @@ public:
 
 	inline void* getElementAddress(int index) {
 		int absoluteIndex = index + memoryStart;
-		if (absoluteIndex >= memorySize) absoluteIndex -= memorySize;
+		if (absoluteIndex >= memorySize)
+			absoluteIndex -= memorySize;
 		return (char* __restrict__)memory + (absoluteIndex * elementSize);
 	}
 
@@ -69,6 +69,8 @@ protected:
 
 #if RESIZEABLE_ARRAY_DO_LOCKS
 	bool lock;
+	void freezeOnLock();
+	void exitLock();
 #endif
 
 private:
@@ -87,5 +89,3 @@ private:
 	const int maxNumEmptySpacesToKeep;  // Can go down to 0
 	const int numExtraSpacesToAllocate; // Can go down to 0
 };
-
-#endif /* RESIZEABLEARRAY_H_ */

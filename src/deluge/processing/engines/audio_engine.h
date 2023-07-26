@@ -15,10 +15,10 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef AUDIODRIVER_H
-#define AUDIODRIVER_H
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
+#include "definitions_cxx.hpp"
 
 extern "C" {
 #include "ff.h"
@@ -39,6 +39,7 @@ class Compressor;
 class VoiceVector;
 class revmodel;
 class Metronome;
+class MasterCompressor;
 class ModelStackWithSoundFlags;
 class SoundDrum;
 
@@ -141,7 +142,7 @@ void voiceSampleUnassigned(VoiceSample* voiceSample);
 TimeStretcher* solicitTimeStretcher();
 void timeStretcherUnassigned(TimeStretcher* timeStretcher);
 
-LiveInputBuffer* getOrCreateLiveInputBuffer(int inputType, bool mayCreate);
+LiveInputBuffer* getOrCreateLiveInputBuffer(OscType inputType, bool mayCreate);
 void slowRoutine();
 void doRecorderCardRoutines();
 
@@ -149,8 +150,8 @@ int getNumSamplesLeftToOutputFromPreviousRender();
 
 void registerSideChainHit(int32_t strength);
 
-SampleRecorder* getNewRecorder(int numChannels, int folderID, int mode, bool keepFirstReasons = false,
-                               bool writeLoopPoints = false, int buttonPressLatency = 0);
+SampleRecorder* getNewRecorder(int numChannels, AudioRecordingFolder folderID, AudioInputChannel mode,
+                               bool keepFirstReasons = false, bool writeLoopPoints = false, int buttonPressLatency = 0);
 void discardRecorder(SampleRecorder* recorder);
 bool isAnyInternalRecordingHappening();
 
@@ -178,7 +179,7 @@ extern bool bypassCulling;
 extern uint32_t i2sTXBufferPos;
 extern uint32_t i2sRXBufferPos;
 extern int cpuDireness;
-extern uint8_t inputMonitoringMode;
+extern InputMonitoringMode inputMonitoringMode;
 extern bool audioRoutineLocked;
 extern uint8_t numHopsEndedThisRoutineCall;
 extern Compressor reverbCompressor;
@@ -192,8 +193,7 @@ extern int32_t reverbCompressorShape;
 extern int32_t reverbPan;
 extern SampleRecorder* firstRecorder;
 extern Metronome metronome;
+extern MasterCompressor mastercompressor;
 extern uint32_t timeLastSideChainHit;
 extern int32_t sizeLastSideChainHit;
 } // namespace AudioEngine
-
-#endif // AUDIODRIVER_H

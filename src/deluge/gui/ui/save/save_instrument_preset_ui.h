@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef SAVESYNTHPRESETUI_H
-#define SAVESYNTHPRESETUI_H
+#pragma once
 #include "gui/ui/save/save_ui.h"
 
 class Song;
@@ -32,8 +31,8 @@ public:
 	void endSession(){};
 	bool performSave(bool mayOverwrite);
 
-	bool renderSidebar(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3] = NULL,
-	                   uint8_t occupancyMask[][displayWidth + sideBarWidth] = NULL) {
+	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3] = NULL,
+	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL) {
 		return true;
 	}
 
@@ -42,5 +41,3 @@ protected:
 };
 
 extern SaveInstrumentPresetUI saveInstrumentPresetUI;
-
-#endif // SAVESYNTHPRESETUI_H

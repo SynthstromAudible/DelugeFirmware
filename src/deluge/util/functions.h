@@ -15,16 +15,15 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef FUNCTIONS_H
-#define FUNCTIONS_H
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "util/lookuptables/lookuptables.h"
-#include <string.h>
+#include <cstring>
 #include "ff.h"
-#include "definitions.h"
-
+#include "definitions_cxx.hpp"
+#include "util/fixedpoint.h"
 extern "C" {
 #include "util/cfunctions.h"
 }
@@ -35,8 +34,6 @@ extern UI* getCurrentUI();
 
 extern const uint8_t modButtonX[];
 extern const uint8_t modButtonY[];
-extern const uint8_t modLedX[];
-extern const uint8_t modLedY[];
 
 extern uint8_t subModeToReturnTo;
 
@@ -51,7 +48,7 @@ static inline void intToString(int32_t number, char* buffer) {
 
 bool memIsNumericChars(char const* mem, int size);
 bool stringIsNumericChars(char const* str);
-char const* getThingName(uint8_t instrumentType);
+char const* getThingName(InstrumentType instrumentType);
 
 char halfByteToHexChar(uint8_t thisHalfByte);
 void intToHex(uint32_t number, char* output, int numChars = 8);
@@ -61,40 +58,6 @@ uint32_t hexToIntFixedLength(char const* __restrict__ hexChars, int length);
 void byteToHex(uint8_t number, char* buffer);
 uint8_t hexToByte(char const* firstChar);
 
-// computes (((int64_t)a[31:0] * (int64_t)b[31:0]) >> 32)
-static inline int32_t multiply_32x32_rshift32(int32_t a, int32_t b) __attribute__((always_inline, unused));
-static inline int32_t multiply_32x32_rshift32(int32_t a, int32_t b) {
-	int32_t out;
-	asm("smmul %0, %1, %2" : "=r"(out) : "r"(a), "r"(b));
-	return out;
-}
-
-// computes (((int64_t)a[31:0] * (int64_t)b[31:0] + 0x8000000) >> 32)
-static inline int32_t multiply_32x32_rshift32_rounded(int32_t a, int32_t b) __attribute__((always_inline, unused));
-static inline int32_t multiply_32x32_rshift32_rounded(int32_t a, int32_t b) {
-	int32_t out;
-	asm("smmulr %0, %1, %2" : "=r"(out) : "r"(a), "r"(b));
-	return out;
-}
-
-// computes sum + (((int64_t)a[31:0] * (int64_t)b[31:0] + 0x8000000) >> 32)
-static inline int32_t multiply_accumulate_32x32_rshift32_rounded(int32_t sum, int32_t a, int32_t b)
-    __attribute__((always_inline, unused));
-static inline int32_t multiply_accumulate_32x32_rshift32_rounded(int32_t sum, int32_t a, int32_t b) {
-	int32_t out;
-	asm("smmlar %0, %2, %3, %1" : "=r"(out) : "r"(sum), "r"(a), "r"(b));
-	return out;
-}
-
-// computes sum - (((int64_t)a[31:0] * (int64_t)b[31:0] + 0x8000000) >> 32)
-static inline int32_t multiply_subtract_32x32_rshift32_rounded(int32_t sum, int32_t a, int32_t b)
-    __attribute__((always_inline, unused));
-static inline int32_t multiply_subtract_32x32_rshift32_rounded(int32_t sum, int32_t a, int32_t b) {
-	int32_t out;
-	asm("smmlsr %0, %2, %3, %1" : "=r"(out) : "r"(sum), "r"(a), "r"(b));
-	return out;
-}
-
 static inline int32_t add_saturation(int32_t a, int32_t b) __attribute__((always_inline, unused));
 static inline int32_t add_saturation(int32_t a, int32_t b) {
 	int32_t out;
@@ -103,8 +66,10 @@ static inline int32_t add_saturation(int32_t a, int32_t b) {
 }
 
 // computes limit((val >> rshift), 2**bits)
-template <uint8_t bits> static inline int32_t signed_saturate(int32_t val) __attribute__((always_inline, unused));
-template <uint8_t bits> static inline int32_t signed_saturate(int32_t val) {
+template <uint8_t bits>
+static inline int32_t signed_saturate(int32_t val) __attribute__((always_inline, unused));
+template <uint8_t bits>
+static inline int32_t signed_saturate(int32_t val) {
 	int32_t out;
 	asm("ssat %0, %1, %2" : "=r"(out) : "I"(bits), "r"(val));
 	return out;
@@ -158,7 +123,8 @@ inline int32_t signed_saturate_operand_unknown(int32_t val, int bits) {
 	}
 }
 
-template <uint8_t lshift> inline int32_t lshiftAndSaturate(int32_t val) {
+template <uint8_t lshift>
+inline int32_t lshiftAndSaturate(int32_t val) {
 	return signed_saturate<32 - lshift>(val) << lshift;
 }
 
@@ -181,39 +147,43 @@ int32_t stringToUIntOrError(char const* mem);
 int32_t memToUIntOrError(char const* mem, char const* const memEnd);
 void getInstrumentPresetFilename(char const* filePrefix, int16_t presetNumber, int8_t presetSubslotNumber,
                                  char* fileName);
-char const* oscTypeToString(unsigned int oscType);
-int stringToOscType(char const* string);
-char const* lfoTypeToString(int oscType);
-int stringToLFOType(char const* string);
+char const* oscTypeToString(OscType osctype);
+OscType stringToOscType(char const* string);
 
-char const* synthModeToString(int synthMode);
-int stringToSynthMode(char const* string);
-char const* polyphonyModeToString(int synthMode);
-int stringToPolyphonyMode(char const* string);
-char const* fxTypeToString(int fxType);
-int stringToFXType(char const* string);
-char const* modFXParamToString(int fxType);
-int stringToModFXParam(char const* string);
-char const* filterTypeToString(int fxType);
-int stringToFilterType(char const* string);
-char const* arpModeToString(int mode);
-int stringToArpMode(char const* string);
-char const* lpfTypeToString(int lpfType);
-int stringToLPFType(char const* string);
-char const* inputChannelToString(int inputChannel);
-int stringToInputChannel(char const* string);
-char const* sequenceDirectionModeToString(int sequenceDirectionMode);
-int stringToSequenceDirectionMode(char const* string);
+char const* lfoTypeToString(LFOType oscType);
+LFOType stringToLFOType(char const* string);
 
-char const* getInstrumentFolder(uint8_t instrumentType);
+char const* synthModeToString(SynthMode synthMode);
+SynthMode stringToSynthMode(char const* string);
+
+char const* polyphonyModeToString(PolyphonyMode synthMode);
+PolyphonyMode stringToPolyphonyMode(char const* string);
+
+char const* fxTypeToString(ModFXType fxType);
+ModFXType stringToFXType(char const* string);
+
+char const* modFXParamToString(ModFXParam fxType);
+ModFXParam stringToModFXParam(char const* string);
+
+char const* filterTypeToString(FilterType fxType);
+FilterType stringToFilterType(char const* string);
+
+char const* arpModeToString(ArpMode mode);
+ArpMode stringToArpMode(char const* string);
+
+char const* lpfTypeToString(LPFMode lpfType);
+LPFMode stringToLPFType(char const* string);
+
+char const* inputChannelToString(AudioInputChannel inputChannel);
+AudioInputChannel stringToInputChannel(char const* string);
+
+char const* sequenceDirectionModeToString(SequenceDirection sequenceDirectionMode);
+SequenceDirection stringToSequenceDirectionMode(char const* string);
+
+char const* getInstrumentFolder(InstrumentType instrumentType);
 void getThingFilename(char const* thingName, int16_t currentSlot, int8_t currentSubSlot, char* buffer);
 
 int32_t getExp(int32_t presetValue, int32_t adjustment);
-
-inline void renderRingmodSample(int32_t* __restrict__ thisSample, int32_t amplitude, int32_t waveValueA,
-                                int32_t waveValueB) {
-	*thisSample += multiply_32x32_rshift32_rounded(multiply_32x32_rshift32(waveValueA, waveValueB), amplitude);
-}
 
 bool isAudioFilename(char const* filename);
 bool isAiffFilename(char const* filename);
@@ -242,18 +212,13 @@ int32_t getFinalParameterValueExpWithDumbEnvelopeHack(int32_t paramNeutralValue,
 
 void addAudio(StereoSample* inputBuffer, StereoSample* outputBuffer, int numSamples);
 
-void setRefreshTime(int newTime);
-void changeRefreshTime(int offset);
-void changeDimmerInterval(int offset);
-void setDimmerInterval(int newInterval);
-
 #if HAVE_OLED
-char const* getSourceDisplayNameForOLED(int s);
+char const* getSourceDisplayNameForOLED(PatchSource s);
 char const* getPatchedParamDisplayNameForOled(int p);
 #endif
 
-char const* sourceToString(uint8_t source);
-uint8_t stringToSource(char const* string);
+char const* sourceToString(PatchSource source);
+PatchSource stringToSource(char const* string);
 bool paramNeedsLPF(int p, bool fromAutomation);
 int32_t shiftVolumeByDB(int32_t oldValue, float offset);
 int32_t quickLog(uint32_t input);
@@ -268,7 +233,8 @@ static void convertFloatToIntAtMemoryLocation(uint32_t* pos) {
 	int32_t outputValue = (exponent >= 0) ? 2147483647 : (uint32_t)((readValue << 8) | 0x80000000) >> (-exponent);
 
 	// Sign bit
-	if (readValue >> 31) outputValue = -outputValue;
+	if (readValue >> 31)
+		outputValue = -outputValue;
 
 	*pos = outputValue;
 }
@@ -280,7 +246,8 @@ static int32_t floatToInt(float theFloat) {
 	int32_t outputValue = (exponent >= 0) ? 2147483647 : (uint32_t)((readValue << 8) | 0x80000000) >> (-exponent);
 
 	// Sign bit
-	if (readValue >> 31) outputValue = -outputValue;
+	if (readValue >> 31)
+		outputValue = -outputValue;
 
 	return outputValue;
 }
@@ -291,7 +258,8 @@ static int32_t floatBitPatternToInt(uint32_t readValue) {
 	int32_t outputValue = (exponent >= 0) ? 2147483647 : (uint32_t)((readValue << 8) | 0x80000000) >> (-exponent);
 
 	// Sign bit
-	if (readValue >> 31) outputValue = -outputValue;
+	if (readValue >> 31)
+		outputValue = -outputValue;
 
 	return outputValue;
 }
@@ -302,8 +270,10 @@ inline int32_t interpolateTableSigned(uint32_t input, int numBitsInInput, const 
 	int whichValue = input >> (numBitsInInput - numBitsInTableSize);
 	int rshiftAmount = numBitsInInput - 16 - numBitsInTableSize;
 	uint32_t rshifted;
-	if (rshiftAmount >= 0) rshifted = input >> rshiftAmount;
-	else rshifted = input << (-rshiftAmount);
+	if (rshiftAmount >= 0)
+		rshifted = input >> rshiftAmount;
+	else
+		rshifted = input << (-rshiftAmount);
 	int strength2 = rshifted & 65535;
 	int strength1 = 65536 - strength2;
 	return (int32_t)table[whichValue] * strength1 + (int32_t)table[whichValue + 1] * strength2;
@@ -331,18 +301,23 @@ inline int32_t interpolateTableSigned2d(uint32_t inputX, uint32_t inputY, int nu
 
 	uint32_t strength2;
 
-	if (lshiftAmount >= 0) strength2 = (inputY << lshiftAmount) & 2147483647;
-	else strength2 = (inputY >> (0 - lshiftAmount)) & 2147483647;
+	if (lshiftAmount >= 0)
+		strength2 = (inputY << lshiftAmount) & 2147483647;
+	else
+		strength2 = (inputY >> (0 - lshiftAmount)) & 2147483647;
 
 	uint32_t strength1 = 2147483647 - strength2;
 	return multiply_32x32_rshift32(value1, strength1) + multiply_32x32_rshift32(value2, strength2);
 }
 
-template <unsigned saturationAmount> inline int32_t getTanH(int32_t input) {
+template <unsigned saturationAmount>
+inline int32_t getTanH(int32_t input) {
 	uint32_t workingValue;
 
-	if (saturationAmount) workingValue = (uint32_t)lshiftAndSaturate<saturationAmount>(input) + 2147483648u;
-	else workingValue = (uint32_t)input + 2147483648u;
+	if (saturationAmount)
+		workingValue = (uint32_t)lshiftAndSaturate<saturationAmount>(input) + 2147483648u;
+	else
+		workingValue = (uint32_t)input + 2147483648u;
 
 	return interpolateTableSigned(workingValue, 32, tanHSmall, 8) >> (saturationAmount + 2);
 }
@@ -350,8 +325,10 @@ template <unsigned saturationAmount> inline int32_t getTanH(int32_t input) {
 inline int32_t getTanHUnknown(int32_t input, unsigned int saturationAmount) {
 	uint32_t workingValue;
 
-	if (saturationAmount) workingValue = (uint32_t)lshiftAndSaturateUnknown(input, saturationAmount) + 2147483648u;
-	else workingValue = (uint32_t)input + 2147483648u;
+	if (saturationAmount)
+		workingValue = (uint32_t)lshiftAndSaturateUnknown(input, saturationAmount) + 2147483648u;
+	else
+		workingValue = (uint32_t)input + 2147483648u;
 
 	return interpolateTableSigned(workingValue, 32, tanHSmall, 8) >> (saturationAmount + 2);
 }
@@ -385,7 +362,8 @@ inline int32_t getSquareSmall(uint32_t phase, uint32_t phaseWidth = 2147483648u)
  */
 
 inline int32_t getTriangleSmall(uint32_t phase) {
-	if (phase >= 2147483648u) phase = -phase;
+	if (phase >= 2147483648u)
+		phase = -phase;
 	return phase - 1073741824;
 }
 
@@ -414,17 +392,21 @@ inline int32_t getNoise() {
 
 void seedRandom();
 
+extern bool shouldInterpretNoteNames;
+extern bool octaveStartsFromA;
+
 int random(int upperLimit);
 bool shouldDoPanning(int32_t panAmount, int32_t* amplitudeL, int32_t* amplitudeR);
 void hueToRGBWithColorScheme(int32_t hue, unsigned char* rgb, int32_t colorScheme);
 void hueToRGB(int32_t hue, unsigned char* rgb) ;
 void hueToRGBPastel(int32_t hue, unsigned char* rgb);
-uint32_t getLFOInitialPhaseForNegativeExtreme(uint8_t waveType);
-uint32_t getLFOInitialPhaseForZero(uint8_t waveType);
-uint32_t getOscInitialPhaseForZero(uint8_t waveType);
+
+uint32_t getLFOInitialPhaseForNegativeExtreme(LFOType waveType);
+uint32_t getLFOInitialPhaseForZero(LFOType waveType);
+
+uint32_t getOscInitialPhaseForZero(OscType waveType);
 int32_t fastPythag(int32_t x, int32_t y);
-int strcmpspecial(char const* first, char const* second, bool shouldInterpretNoteNames = false,
-                  bool octaveStartsFromA = false);
+int strcmpspecial(char const* first, char const* second);
 int32_t doLanczos(int32_t* data, int32_t pos, uint32_t posWithinPos, int memoryNumElements);
 int32_t doLanczosCircular(int32_t* data, int32_t pos, uint32_t posWithinPos, int memoryNumElements);
 int stringToFirmwareVersion(char const* firmwareVersionString);
@@ -467,12 +449,7 @@ inline void getTailColour(uint8_t rgb[], uint8_t fromRgb[]) {
 	unsigned int averageBrightness = ((unsigned int)fromRgb[0] + fromRgb[1] + fromRgb[2]);
 	rgb[0] = (((int)fromRgb[0] * 21 + averageBrightness) * 157) >> 14;
 	rgb[1] = (((int)fromRgb[1] * 21 + averageBrightness) * 157) >> 14;
-
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-	rgb[2] = (((int)averageBrightness) * 157) >> 14;
-#else
 	rgb[2] = (((int)fromRgb[2] * 21 + averageBrightness) * 157) >> 14;
-#endif
 }
 
 inline void getBlurColour(uint8_t rgb[], uint8_t fromRgb[]) {
@@ -483,13 +460,17 @@ inline void getBlurColour(uint8_t rgb[], uint8_t fromRgb[]) {
 }
 
 inline int increaseMagnitude(int number, int magnitude) {
-	if (magnitude >= 0) return number << magnitude;
-	else return number >> (-magnitude);
+	if (magnitude >= 0)
+		return number << magnitude;
+	else
+		return number >> (-magnitude);
 }
 
 inline int increaseMagnitudeAndSaturate(int32_t number, int magnitude) {
-	if (magnitude > 0) return lshiftAndSaturateUnknown(number, magnitude);
-	else return number >> (-magnitude);
+	if (magnitude > 0)
+		return lshiftAndSaturateUnknown(number, magnitude);
+	else
+		return number >> (-magnitude);
 }
 
 int howMuchMoreMagnitude(unsigned int to, unsigned int from);
@@ -553,5 +534,3 @@ inline void writeInt32(char** address, uint32_t number) {
 
 extern char miscStringBuffer[];
 extern char shortStringBuffer[];
-
-#endif // FUNCTIONS_H

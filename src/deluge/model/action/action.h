@@ -15,11 +15,10 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef ACTION_H_
-#define ACTION_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 
 class Consequence;
 class InstrumentClip;
@@ -61,7 +60,7 @@ class ModelStack;
 #define ACTION_ARRANGEMENT_TIME_CONTRACT 17
 #define ACTION_ARRANGEMENT_CLEAR 18
 #define ACTION_ARRANGEMENT_RECORD 19
-#define ACTION_INSTRUMENT_CLIP_HORIZONTAL_SHIFT 20
+#define ACTION_CLIP_HORIZONTAL_SHIFT 20
 #define ACTION_NOTE_NUDGE 21
 #define ACTION_NOTE_REPEAT_EDIT 22
 #define ACTION_EUCLIDEAN_NUM_EVENTS_EDIT 23
@@ -73,7 +72,7 @@ class Action {
 public:
 	Action(int newActionType);
 	void addConsequence(Consequence* consequence);
-	int revert(int time, ModelStack* modelStack);
+	int revert(TimeType time, ModelStack* modelStack);
 	bool containsConsequenceParamChange(ParamCollection* paramCollection, int paramId);
 	void recordParamChangeIfNotAlreadySnapshotted(ModelStackWithAutoParam const* modelStack, bool stealData = false);
 	void recordParamChangeDefinitely(ModelStackWithAutoParam const* modelStack, bool stealData);
@@ -81,14 +80,14 @@ public:
 	                                                 bool stealData, bool moveToFrontIfAlreadySnapshotted = false);
 	int recordNoteArrayChangeDefinitely(InstrumentClip* clip, int noteRowId, NoteVector* noteVector, bool stealData);
 	bool containsConsequenceNoteArrayChange(InstrumentClip* clip, int noteRowId, bool moveToFrontIfFound = false);
-	void recordNoteExistenceChange(InstrumentClip* clip, int noteRowId, Note* note, int type);
+	void recordNoteExistenceChange(InstrumentClip* clip, int noteRowId, Note* note, ExistenceChangeType type);
 	void recordNoteChange(InstrumentClip* clip, int noteRowId, Note* note, int32_t lengthAfter, int velocityAfter,
 	                      int probabilityAfter);
 	void updateYScrollClipViewAfter(InstrumentClip* clip = NULL);
-	void recordClipInstanceExistenceChange(Output* output, ClipInstance* clipInstance, int type);
+	void recordClipInstanceExistenceChange(Output* output, ClipInstance* clipInstance, ExistenceChangeType type);
 	void prepareForDestruction(int whichQueueActionIn, Song* song);
 	void recordClipLengthChange(Clip* clip, int32_t oldLength);
-	bool recordClipExistenceChange(Song* song, ClipArray* clipArray, Clip* clip, int type);
+	bool recordClipExistenceChange(Song* song, ClipArray* clipArray, Clip* clip, ExistenceChangeType type);
 	void recordAudioClipSampleChange(AudioClip* clip);
 	void deleteAllConsequences(int whichQueueActionIn, Song* song, bool destructing = false);
 
@@ -139,5 +138,3 @@ public:
 
 private:
 };
-
-#endif /* ACTION_H_ */

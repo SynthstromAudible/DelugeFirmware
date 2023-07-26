@@ -33,33 +33,42 @@ VoiceUnisonPartSource::VoiceUnisonPartSource() {
 }
 
 bool VoiceUnisonPartSource::noteOn(Voice* voice, Source* source, VoiceSamplePlaybackGuide* guide, uint32_t samplesLate,
-                                   uint32_t oscRetriggerPhase, bool resetEverything, uint8_t synthMode) {
+                                   uint32_t oscRetriggerPhase, bool resetEverything, SynthMode synthMode) {
 
-	if (synthMode != SYNTH_MODE_FM && source->oscType == OSC_TYPE_SAMPLE) {
+	if (synthMode != SynthMode::FM && source->oscType == OscType::SAMPLE) {
 
 		if (!guide->audioFileHolder || !guide->audioFileHolder->audioFile
-		    || ((Sample*)guide->audioFileHolder->audioFile)->unplayable)
+		    || ((Sample*)guide->audioFileHolder->audioFile)->unplayable) {
 			return true; // We didn't succeed, but don't want to stop the whole Voice from sounding necessarily
+		}
 
 		if (!voiceSample) { // We might actually already have one, and just be restarting this voice
 			voiceSample = AudioEngine::solicitVoiceSample();
-			if (!voiceSample) return false;
+			if (!voiceSample) {
+				return false;
+			}
 		}
 		voiceSample->noteOn(guide, samplesLate, voice->getPriorityRating());
-		if (samplesLate) return true; // We're finished in this case
+		if (samplesLate) {
+			return true; // We're finished in this case
+		}
 		return voiceSample->setupClusersForInitialPlay(guide, (Sample*)guide->audioFileHolder->audioFile, 0, false, 1);
 	}
 
-	if (synthMode != SYNTH_MODE_FM
-	    && (source->oscType == OSC_TYPE_SAMPLE || source->oscType == OSC_TYPE_INPUT_L
-	        || source->oscType == OSC_TYPE_INPUT_R || source->oscType == OSC_TYPE_INPUT_STEREO)) {
+	if (synthMode != SynthMode::FM
+	    && (source->oscType == OscType::SAMPLE || source->oscType == OscType::INPUT_L
+	        || source->oscType == OscType::INPUT_R || source->oscType == OscType::INPUT_STEREO)) {
 		//oscPos = 0;
 	}
 	else {
-		if (oscRetriggerPhase != 0xFFFFFFFF) oscPos = getOscInitialPhaseForZero(source->oscType) + oscRetriggerPhase;
+		if (oscRetriggerPhase != 0xFFFFFFFF) {
+			oscPos = getOscInitialPhaseForZero(source->oscType) + oscRetriggerPhase;
+		}
 	}
 
-	if (resetEverything) carrierFeedback = 0;
+	if (resetEverything) {
+		carrierFeedback = 0;
+	}
 
 	return true;
 }
@@ -96,7 +105,9 @@ bool VoiceUnisonPartSource::getPitchAndSpeedParams(Source* source, VoiceSamplePl
 		                       >> 32; // No rounding. Should be fine?
 
 		// To stop things getting insane, limit to 32x speed
-		if ((sampleLengthInSamples >> 5) > *noteLengthInSamples) return false;
+		if ((sampleLengthInSamples >> 5) > *noteLengthInSamples) {
+			return false;
+		}
 
 		// If time stretch, achieve syncing that way
 		if (source->sampleControls.pitchAndSpeedAreIndependent) {

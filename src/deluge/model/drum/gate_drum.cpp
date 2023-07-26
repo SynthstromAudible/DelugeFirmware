@@ -25,7 +25,7 @@ extern "C" {
 #include "util/cfunctions.h"
 }
 
-GateDrum::GateDrum() : NonAudioDrum(DRUM_TYPE_GATE) {
+GateDrum::GateDrum() : NonAudioDrum(DrumType::GATE) {
 	channel = 2;
 }
 
@@ -60,7 +60,9 @@ int GateDrum::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos
 
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 		if (NonAudioDrum::readDrumTagFromFile(tagName)) {}
-		else storageManager.exitTag(tagName);
+		else {
+			storageManager.exitTag(tagName);
+		}
 	}
 
 	return NO_ERROR;

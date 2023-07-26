@@ -15,19 +15,17 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef SAMPLECONTROLS_H_
-#define SAMPLECONTROLS_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
+#include "definitions_cxx.hpp"
 
 class SampleControls {
 public:
 	SampleControls();
 	int getInterpolationBufferSize(int32_t phaseIncrement);
 
-	uint8_t interpolationMode;
+	InterpolationMode interpolationMode;
 	bool pitchAndSpeedAreIndependent;
 	bool reversed;
 };
-
-#endif /* SAMPLECONTROLS_H_ */

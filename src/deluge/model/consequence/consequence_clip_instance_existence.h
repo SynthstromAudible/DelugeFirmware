@@ -15,8 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CONSEQUENCECLIPINSTANCEEXISTENCE_H_
-#define CONSEQUENCECLIPINSTANCEEXISTENCE_H_
+#pragma once
+#include "definitions_cxx.hpp"
 #include "model/consequence/consequence.h"
 #include "RZA1/system/r_typedefs.h"
 
@@ -26,16 +26,14 @@ class Clip;
 
 class ConsequenceClipInstanceExistence final : public Consequence {
 public:
-	ConsequenceClipInstanceExistence(Output* newOutput, ClipInstance* clipInstance, int newType);
+	ConsequenceClipInstanceExistence(Output* newOutput, ClipInstance* clipInstance, ExistenceChangeType newType);
 
-	int revert(int time, ModelStack* modelStack);
+	int revert(TimeType time, ModelStack* modelStack);
 
 	Output* output;
 	Clip* clip;
 	int32_t pos;
 	int32_t length;
 
-	uint8_t type;
+	ExistenceChangeType type;
 };
-
-#endif /* CONSEQUENCECLIPINSTANCEEXISTENCE_H_ */

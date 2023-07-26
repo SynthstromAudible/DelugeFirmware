@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef MELODICINSTRUMENT_H_
-#define MELODICINSTRUMENT_H_
+#pragma once
 
 #include "util/container/array/early_note_array.h"
 #include "io/midi/learned_midi.h"
@@ -31,7 +30,7 @@ class MIDIDevice;
 
 class MelodicInstrument : public Instrument {
 public:
-	MelodicInstrument(int newType);
+	MelodicInstrument(InstrumentType newType) : Instrument(newType) {}
 
 	// Check activeClip before you call!
 	// mpeValues must be provided for a note-on (can be 0s). Otherwise, can be NULL pointer
@@ -54,25 +53,26 @@ public:
 	void offerReceivedAftertouch(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
 	                             int channel, int value, int noteCode, bool* doingMidiThru);
 
-	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, int maySendMIDIPGMs);
+	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs);
 	bool isNoteRowStillAuditioningAsLinearRecordingEnded(NoteRow* noteRow) final;
 	void stopAnyAuditioning(ModelStack* modelStack) final;
 	bool isNoteAuditioning(int noteCode);
 	bool isAnyAuditioningHappening() final;
 	void beginAuditioningForNote(ModelStack* modelStack, int note, int velocity, int16_t const* mpeValues,
 	                             int fromMIDIChannel = MIDI_CHANNEL_NONE, uint32_t sampleSyncLength = 0);
-	void endAuditioningForNote(ModelStack* modelStack, int note, int velocity = DEFAULT_LIFT_VALUE);
+	void endAuditioningForNote(ModelStack* modelStack, int note, int velocity = kDefaultLiftValue);
 	virtual ModelStackWithAutoParam* getParamToControlFromInputMIDIChannel(int cc,
 	                                                                       ModelStackWithThreeMainThings* modelStack);
 	void processParamFromInputMIDIChannel(int cc, int32_t newValue, ModelStackWithTimelineCounter* modelStack);
 
 	void polyphonicExpressionEventPossiblyToRecord(ModelStackWithTimelineCounter* modelStack, int32_t newValue,
 	                                               int whichExpressionDimension, int channelOrNoteNumber,
-	                                               int whichCharacteristic);
+	                                               MIDICharacteristic whichCharacteristic);
 	ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = NULL);
 
 	virtual void polyphonicExpressionEventOnChannelOrNote(int newValue, int whichExpressionDimension,
-	                                                      int channelOrNoteNumber, int whichCharacteristic) = 0;
+	                                                      int channelOrNoteNumber,
+	                                                      MIDICharacteristic whichCharacteristic) = 0;
 
 	void offerBendRangeUpdate(ModelStack* modelStack, MIDIDevice* device, int channelOrZone, int whichBendRange,
 	                          int bendSemitones);
@@ -84,5 +84,3 @@ public:
 
 	LearnedMIDI midiInput;
 };
-
-#endif /* MELODICINSTRUMENT_H_ */

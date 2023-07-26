@@ -15,11 +15,10 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef SOUNDDRUM_H
-#define SOUNDDRUM_H
+#pragma once
 
 #include "processing/sound/sound.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "model/drum/drum.h"
 #include "util/d_string.h"
 
@@ -58,10 +57,8 @@ public:
 
 	void expressionEvent(int newValue, int whichExpressionDimension);
 	void polyphonicExpressionEventOnChannelOrNote(int newValue, int whichExpressionDimension, int channelOrNoteNumber,
-	                                              int whichCharacteristic);
+	                                              MIDICharacteristic whichCharacteristic);
 
 	ArpeggiatorBase* getArp();
 	ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = NULL) { return &arpSettings; }
 };
-
-#endif // SOUNDDRUM_H

@@ -15,10 +15,10 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef RENAMEOUTPUTUI_H_
-#define RENAMEOUTPUTUI_H_
+#pragma once
 
 #include "gui/ui/rename/rename_ui.h"
+#include "hid/button.h"
 
 class Output;
 
@@ -26,9 +26,9 @@ class RenameOutputUI final : public RenameUI {
 public:
 	RenameOutputUI();
 	bool opened();
-	int buttonAction(int x, int y, bool on, bool inCardRoutine);
-	int padAction(int x, int y, int velocity);
-	int verticalEncoderAction(int offset, bool inCardRoutine);
+	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
+	ActionResult padAction(int x, int y, int velocity);
+	ActionResult verticalEncoderAction(int offset, bool inCardRoutine);
 	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows);
 
 	Output* output;
@@ -41,5 +41,3 @@ private:
 };
 
 extern RenameOutputUI renameOutputUI;
-
-#endif /* RENAMEOUTPUTUI_H_ */

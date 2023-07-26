@@ -42,14 +42,22 @@ int NamedThingVector::search(char const* searchString, int comparison, bool* fou
 		int result = strcasecmp(element->name.get(), searchString);
 
 		if (!result) {
-			if (foundExact) *foundExact = true;
+			if (foundExact) {
+				*foundExact = true;
+			}
 			return proposedIndex + comparison;
 		}
-		else if (result < 0) rangeBegin = proposedIndex + 1;
-		else rangeEnd = proposedIndex;
+		else if (result < 0) {
+			rangeBegin = proposedIndex + 1;
+		}
+		else {
+			rangeEnd = proposedIndex;
+		}
 	}
 
-	if (foundExact) *foundExact = false;
+	if (foundExact) {
+		*foundExact = false;
+	}
 	return rangeBegin + comparison;
 }
 
@@ -79,7 +87,9 @@ int NamedThingVector::insertElement(void* namedThing, int i) {
 	int error = insertAtIndex(
 	    i, 1,
 	    this); // While inserting, the stealing of any AudioFiles would cause a simultaneous delete. They all know not to allow theft when passed this AudioFileVector.
-	if (error) return error;
+	if (error) {
+		return error;
+	}
 
 	String* name = getName(namedThing);
 	new (getMemory(i)) NamedThingVectorElement(namedThing, name);

@@ -15,12 +15,10 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef NUMERICDRIVER_H
-#define NUMERICDRIVER_H
-
-#include "definitions.h"
+#pragma once
 
 #ifdef __cplusplus
+#include "definitions_cxx.hpp"
 #include "hid/display/numeric_layer/numeric_layer_basic_text.h"
 class NumericLayerScrollingText;
 
@@ -49,6 +47,7 @@ public:
 	void render();
 	void displayLoadingAnimation(bool delayed = false, bool transparent = false);
 	bool isLayerCurrentlyOnTop(NumericLayer* layer);
+	uint8_t lastDisplay[kNumericDisplayLength];
 #endif
 
 	bool popupActive;
@@ -80,5 +79,3 @@ void displayPopupIfAllBootedUp(char const* text);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // NUMERICDRIVER_H

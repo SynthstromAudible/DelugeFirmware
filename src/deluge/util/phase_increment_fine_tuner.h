@@ -15,10 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef PHASEINCREMENTFINETUNER_H
-#define PHASEINCREMENTFINETUNER_H
+#pragma once
 
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "util/lookuptables/lookuptables.h"
 
 class PhaseIncrementFineTuner {
@@ -32,5 +31,3 @@ public:
 private:
 	int32_t multiplier;
 };
-
-#endif // PHASEINCREMENTFINETUNER_H

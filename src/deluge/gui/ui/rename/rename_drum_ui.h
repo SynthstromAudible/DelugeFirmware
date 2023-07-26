@@ -15,10 +15,10 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef RENAMEDRUMUI_H_
-#define RENAMEDRUMUI_H_
+#pragma once
 
 #include "gui/ui/rename/rename_ui.h"
+#include "hid/button.h"
 
 class SoundDrum;
 
@@ -26,9 +26,9 @@ class RenameDrumUI final : public RenameUI {
 public:
 	RenameDrumUI();
 	bool opened();
-	int buttonAction(int x, int y, bool on, bool inCardRoutine);
-	int padAction(int x, int y, int velocity);
-	int verticalEncoderAction(int offset, bool inCardRoutine);
+	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
+	ActionResult padAction(int x, int y, int velocity);
+	ActionResult verticalEncoderAction(int offset, bool inCardRoutine);
 	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows);
 
 protected:
@@ -40,5 +40,3 @@ private:
 };
 
 extern RenameDrumUI renameDrumUI;
-
-#endif /* RENAMEDRUMUI_H_ */

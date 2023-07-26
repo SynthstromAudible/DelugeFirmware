@@ -15,24 +15,32 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef AUDIOINPUTSELECTOR_H_
-#define AUDIOINPUTSELECTOR_H_
+#pragma once
 
 #include "gui/context_menu/context_menu.h"
 
 class AudioOutput;
 
+namespace deluge::gui::context_menu {
+
 class AudioInputSelector final : public ContextMenu {
+	enum class Value;
+
 public:
-	AudioInputSelector();
-	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows);
-	void selectEncoderAction(int8_t offset);
+	AudioInputSelector() = default;
+	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) override;
+	void selectEncoderAction(int8_t offset) override;
 	bool setupAndCheckAvailability();
-	bool canSeeViewUnderneath() { return true; }
+	bool canSeeViewUnderneath() override { return true; }
 
 	AudioOutput* audioOutput;
+
+	/// Title
+	char const* getTitle() override;
+
+	/// Options
+	Sized<const char**> getOptions() override;
 };
 
 extern AudioInputSelector audioInputSelector;
-
-#endif /* AUDIOINPUTSELECTOR_H_ */
+} // namespace deluge::gui::context_menu

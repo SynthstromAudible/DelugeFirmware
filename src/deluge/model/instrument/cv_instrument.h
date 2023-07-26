@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CVINSTRUMENT_H_
-#define CVINSTRUMENT_H_
+#pragma once
 
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/non_audio_instrument.h"
@@ -34,7 +33,7 @@ public:
 	                                              int whichExpressionDmiension, ArpNote* arpNote);
 	bool writeDataToFile(Clip* clipForSavingOutputOnly, Song* song);
 	void monophonicExpressionEvent(int newValue, int whichExpressionDmiension);
-	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, int maySendMIDIPGMs);
+	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs);
 	void setupWithoutActiveClip(ModelStack* modelStack);
 
 	// It's much easier to store local copies of the most recent of these, so we never have to go doing complex quizzing of the arp, or MPE params, which we otherwise would have to do regularly.
@@ -49,5 +48,3 @@ public:
 private:
 	void updatePitchBendOutput(bool outputToo = true);
 };
-
-#endif /* CVINSTRUMENT_H_ */

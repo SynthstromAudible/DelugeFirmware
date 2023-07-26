@@ -15,13 +15,12 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef OUTPUT_H_
-#define OUTPUT_H_
+#pragma once
 
 #include "model/clip/clip_instance_vector.h"
 #include "RZA1/system/r_typedefs.h"
 #include "util/d_string.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 
 class InstrumentClip;
 class Song;
@@ -41,7 +40,7 @@ class ParamManager;
 
 class Output {
 public:
-	Output(int newType);
+	Output(InstrumentType newType);
 	virtual ~Output();
 
 	ClipInstanceVector clipInstances;
@@ -51,7 +50,7 @@ public:
 	             // On OLED Deluge I thiiink SYNT000 would be "SYNT000"?
 	             // Definitely does not contain the ".XML" on the end.
 	Output* next;
-	const uint8_t type;
+	const InstrumentType type;
 	bool mutedInArrangementMode;
 	bool soloingInArrangementMode;
 	bool inValidState;
@@ -73,12 +72,12 @@ public:
 	                          bool shouldLimitDelayFeedback, bool isClipActive) = 0;
 
 	virtual void setupWithoutActiveClip(ModelStack* modelStack);
-	virtual bool
-	setActiveClip(ModelStackWithTimelineCounter* modelStack,
-	              int maySendMIDIPGMs = PGM_CHANGE_SEND_ONCE); // Will have no effect if it already had that Clip
-	void pickAnActiveClipForArrangementPos(ModelStack* modelStack, int arrangementPos, int maySendMIDIPGMs);
+	virtual bool setActiveClip(
+	    ModelStackWithTimelineCounter* modelStack,
+	    PgmChangeSend maySendMIDIPGMs = PgmChangeSend::ONCE); // Will have no effect if it already had that Clip
+	void pickAnActiveClipForArrangementPos(ModelStack* modelStack, int arrangementPos, PgmChangeSend maySendMIDIPGMs);
 	void pickAnActiveClipIfPossible(ModelStack* modelStack, bool searchSessionClipsIfNeeded = true,
-	                                int maySendMIDIPGMs = PGM_CHANGE_SEND_ONCE,
+	                                PgmChangeSend maySendMIDIPGMs = PgmChangeSend::ONCE,
 	                                bool setupWithoutActiveClipIfNeeded = true);
 	void detachActiveClip(Song* currentSong);
 
@@ -148,5 +147,3 @@ public:
 protected:
 	virtual Clip* createNewClipForArrangementRecording(ModelStack* modelStack) = 0;
 };
-
-#endif /* OUTPUT_H_ */

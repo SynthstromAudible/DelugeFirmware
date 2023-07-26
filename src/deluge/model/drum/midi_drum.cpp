@@ -26,7 +26,7 @@ extern "C" {
 #include "util/cfunctions.h"
 }
 
-MIDIDrum::MIDIDrum() : NonAudioDrum(DRUM_TYPE_MIDI) {
+MIDIDrum::MIDIDrum() : NonAudioDrum(DrumType::MIDI) {
 	channel = 0;
 	note = 0;
 }
@@ -34,12 +34,12 @@ MIDIDrum::MIDIDrum() : NonAudioDrum(DRUM_TYPE_MIDI) {
 void MIDIDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, Kit* kit, int16_t const* mpeValues,
                       int fromMIDIChannel, uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate) {
 	lastVelocity = velocity;
-	midiEngine.sendNote(true, note, velocity, channel, MIDI_OUTPUT_FILTER_NO_MPE);
+	midiEngine.sendNote(true, note, velocity, channel, kMIDIOutputFilterNoMPE);
 	state = true;
 }
 
 void MIDIDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int velocity) {
-	midiEngine.sendNote(false, note, velocity, channel, MIDI_OUTPUT_FILTER_NO_MPE);
+	midiEngine.sendNote(false, note, velocity, channel, kMIDIOutputFilterNoMPE);
 	state = false;
 }
 
@@ -74,7 +74,9 @@ int MIDIDrum::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos
 			storageManager.exitTag("note");
 		}
 		else if (NonAudioDrum::readDrumTagFromFile(tagName)) {}
-		else storageManager.exitTag(tagName);
+		else {
+			storageManager.exitTag(tagName);
+		}
 	}
 
 	return NO_ERROR;
@@ -84,8 +86,12 @@ void MIDIDrum::getName(char* buffer) {
 
 	int channelToDisplay = channel + 1;
 
-	if (channelToDisplay < 10 && note < 100) strcpy(buffer, " ");
-	else buffer[0] = 0;
+	if (channelToDisplay < 10 && note < 100) {
+		strcpy(buffer, " ");
+	}
+	else {
+		buffer[0] = 0;
+	}
 
 	// If can't fit everything on display, show channel as hexadecimal
 	if (channelToDisplay >= 10 && note >= 100) {
@@ -98,7 +104,9 @@ void MIDIDrum::getName(char* buffer) {
 
 	strcat(buffer, ".");
 
-	if (note < 10 && channelToDisplay < 100) strcat(buffer, " ");
+	if (note < 10 && channelToDisplay < 100) {
+		strcat(buffer, " ");
+	}
 
 	intToString(note, &buffer[strlen(buffer)]);
 }
@@ -121,12 +129,13 @@ void MIDIDrum::expressionEvent(int newValue, int whichExpressionDimension) {
 	// Aftertouch only
 	if (whichExpressionDimension == 2) {
 		int value7 = newValue >> 24;
-		midiEngine.sendPolyphonicAftertouch(channel, value7, note, MIDI_OUTPUT_FILTER_NO_MPE);
+		midiEngine.sendPolyphonicAftertouch(channel, value7, note, kMIDIOutputFilterNoMPE);
 	}
 }
 
 void MIDIDrum::polyphonicExpressionEventOnChannelOrNote(int newValue, int whichExpressionDimension,
-                                                        int channelOrNoteNumber, int whichCharacteristic) {
+                                                        int channelOrNoteNumber,
+                                                        MIDICharacteristic whichCharacteristic) {
 	// Because this is a Drum, we disregard the noteCode (which is what channelOrNoteNumber always is in our case - but yeah, that's all irrelevant.
 	expressionEvent(newValue, whichExpressionDimension);
 }

@@ -16,7 +16,7 @@
  */
 
 #include "model/voice/voice_vector.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "hid/display/numeric_driver.h"
 
 VoiceVector::VoiceVector() {
@@ -30,7 +30,9 @@ void VoiceVector::checkVoiceExists(Voice* voice, Sound* sound, char const* error
 		searchWords[1] = (uint32_t)voice;
 		int i = searchMultiWordExact(searchWords);
 
-		if (i == -1) numericDriver.freezeWithError(errorCode);
+		if (i == -1) {
+			numericDriver.freezeWithError(errorCode);
+		}
 	}
 }
 

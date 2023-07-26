@@ -15,31 +15,34 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef PADLEDS_H_
-#define PADLEDS_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 
 #define FLASH_CURSOR_FAST 0
 #define FLASH_CURSOR_OFF 1
 #define FLASH_CURSOR_SLOW 2
 
+extern "C" {
+#include "RZA1/uart/sio_char.h"
+}
+
 class AudioClip;
 
 namespace PadLEDs {
-extern uint8_t image[displayHeight][displayWidth + sideBarWidth][3];               // 255 = full brightness
-extern uint8_t occupancyMask[displayHeight][displayWidth + sideBarWidth];          // 64 = full occupancy
-extern uint8_t imageStore[displayHeight * 2][displayWidth + sideBarWidth][3];      // 255 = full brightness
-extern uint8_t occupancyMaskStore[displayHeight * 2][displayWidth + sideBarWidth]; // 64 = full occupancy
+extern uint8_t image[kDisplayHeight][kDisplayWidth + kSideBarWidth][3];               // 255 = full brightness
+extern uint8_t occupancyMask[kDisplayHeight][kDisplayWidth + kSideBarWidth];          // 64 = full occupancy
+extern uint8_t imageStore[kDisplayHeight * 2][kDisplayWidth + kSideBarWidth][3];      // 255 = full brightness
+extern uint8_t occupancyMaskStore[kDisplayHeight * 2][kDisplayWidth + kSideBarWidth]; // 64 = full occupancy
 
-extern bool transitionTakingPlaceOnRow[displayHeight];
+extern bool transitionTakingPlaceOnRow[kDisplayHeight];
 
 extern int explodeAnimationYOriginBig;
 extern int explodeAnimationXStartBig;
 extern int explodeAnimationXWidthBig;
 
-extern int8_t animationDirection;
+extern int8_t explodeAnimationDirection;
 extern bool renderingLock;
 extern uint8_t flashCursor;
 
@@ -47,7 +50,7 @@ extern int16_t animatedRowGoingTo[];
 extern int16_t animatedRowGoingFrom[];
 extern uint8_t numAnimatedRows;
 
-extern int zoomPinSquare[displayHeight];
+extern int zoomPinSquare[kDisplayHeight];
 extern bool zoomingIn;
 extern int8_t zoomMagnitude;
 
@@ -69,14 +72,31 @@ void skipGreyoutFade();
 void reassessGreyout(bool doInstantly = false);
 void doGreyoutInstantly();
 
+void setRefreshTime(int newTime);
+void changeRefreshTime(int offset);
+void changeDimmerInterval(int offset);
+void setDimmerInterval(int newInterval);
+
 void renderZoom();
 void renderZoomWithProgress(int inImageTimesBiggerThanNative, uint32_t inImageFadeAmount, uint8_t* innerImage,
                             uint8_t* outerImage, int innerImageLeftEdge, int outerImageLeftEdge,
                             int innerImageRightEdge, int outerImageRightEdge, int innerImageTotalWidth,
                             int outerImageTotalWidth);
-void renderScroll();
+
+namespace horizontal {
 void setupScroll(int8_t thisScrollDirection, uint8_t thisAreaToScroll, bool scrollIntoNothing = false,
-                 int numSquaresToScroll = displayWidth);
+                 int numSquaresToScroll = kDisplayWidth);
+void renderScroll();
+} // namespace horizontal
+
+namespace vertical {
+void setupScroll(int8_t thisScrollDirection, bool scrollIntoNothing = false);
+void renderScroll();
+
+extern uint8_t squaresScrolled;
+extern int8_t scrollDirection;
+extern bool scrollingToNothing;
+} // namespace vertical
 
 void sendRGBForOnePadFast(int x, int y, const uint8_t* colourSource);
 void clearTickSquares(bool shouldSend = true);
@@ -93,6 +113,14 @@ void setupAudioClipCollapseOrExplodeAnimation(AudioClip* clip);
 
 void setGreyoutAmount(float newAmount);
 
+static inline void flashMainPad(int x, int y, int color = 0) {
+	if (color > 0) {
+		bufferPICUart(10 + color);
+	}
+
+	bufferPICUart(24 + y + (x * kDisplayHeight));
+}
+
 inline void sendRGBForOneCol(int x);
 void setTimerForSoon();
 void renderZoomedSquare(int32_t outputSquareStartOnOutImage, int32_t outputSquareEndOnOutImage,
@@ -106,5 +134,3 @@ void copyBetweenImageStores(uint8_t* dest, uint8_t* source, int destWidth, int s
 void moveBetweenImageStores(uint8_t* dest, uint8_t* source, int destWidth, int sourceWidth, int copyWidth);
 
 } // namespace PadLEDs
-
-#endif /* PADLEDS_H_ */

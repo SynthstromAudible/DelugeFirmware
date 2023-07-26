@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef WAVETABLEBANDDATA_H_
-#define WAVETABLEBANDDATA_H_
+#pragma once
 
 #include "memory/stealable.h"
 
@@ -32,5 +31,3 @@ public:
 
 	WaveTable* waveTable;
 };
-
-#endif /* WAVETABLEBANDDATA_H_ */

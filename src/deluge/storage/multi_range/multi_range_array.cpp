@@ -32,7 +32,9 @@ MultiRange* MultiRangeArray::getElement(int i) {
 
 MultiRange* MultiRangeArray::insertMultiRange(int i) {
 	int error = insertAtIndex(i);
-	if (error) return NULL;
+	if (error) {
+		return NULL;
+	}
 	void* memory = getElementAddress(i);
 	MultiRange* range;
 
@@ -55,7 +57,9 @@ int MultiRangeArray::changeType(int newSize) {
 	MultiRangeArray newArray;
 	newArray.elementSize = newSize;
 	int error = newArray.insertAtIndex(0, numElements);
-	if (error) return error;
+	if (error) {
+		return error;
+	}
 
 	// We're changing range types, but want to preserve their topNotes.
 	for (int i = 0; i < numElements; i++) {

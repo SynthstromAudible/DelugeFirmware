@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CONSEQUENCEAUDIOCLIPSETSAMPLE_H_
-#define CONSEQUENCEAUDIOCLIPSETSAMPLE_H_
+#pragma once
 
 #include "model/consequence/consequence.h"
 #include "util/d_string.h"
@@ -26,11 +25,9 @@ class AudioClip;
 class ConsequenceAudioClipSetSample final : public Consequence {
 public:
 	ConsequenceAudioClipSetSample(AudioClip* newClip);
-	int revert(int time, ModelStack* modelStack);
+	int revert(TimeType time, ModelStack* modelStack);
 
 	AudioClip* clip;
 	String filePathToRevertTo;
 	uint64_t endPosToRevertTo;
 };
-
-#endif /* CONSEQUENCEAUDIOCLIPSETSAMPLE_H_ */

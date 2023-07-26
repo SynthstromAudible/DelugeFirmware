@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CONSEQUENCEINSTRUMENTCLIPMULTIPLY_H_
-#define CONSEQUENCEINSTRUMENTCLIPMULTIPLY_H_
+#pragma once
 
 #include "model/consequence/consequence.h"
 #include "RZA1/system/r_typedefs.h"
@@ -25,7 +24,5 @@ class ConsequenceInstrumentClipMultiply final : public Consequence {
 public:
 	ConsequenceInstrumentClipMultiply();
 
-	int revert(int time, ModelStack* modelStack);
+	int revert(TimeType time, ModelStack* modelStack);
 };
-
-#endif /* CONSEQUENCEINSTRUMENTCLIPMULTIPLY_H_ */

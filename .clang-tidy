@@ -1,0 +1,48 @@
+---
+Checks: >
+  -*,
+  readability-braces-around-statements,
+  clang-diagnostic-*,
+  clang-analyzer-*,
+  cppcoreguidelines-*,
+  cppcoreguidelines-*,
+  readability-*,
+  modernize-*,
+  llvm-include-order,
+  performance-for-range-copy,
+  performance-implicit-conversion-in-loop,
+  performance-inefficient-algorithm,
+  performance-inefficient-string-concatenation,
+  performance-inefficient-vector-operation,
+  performance-move-const-arg,
+  performance-move-constructor-init,
+  performance-no-automatic-move,
+  performance-no-int-to-ptr,
+  performance-trivially-destructible,
+  performance-type-promotion-in-math-fn,
+  performance-unnecessary-copy-initialization,
+  performance-unnecessary-value-param,
+  -modernize-use-trailing-return-type,
+  -modernize-avoid-c-arrays,
+  -cppcoreguidelines-avoid-non-const-global-variables,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+  -readability-uppercase-literal-suffix,
+WarningsAsErrors: false # should be true once we get there
+#HeaderFileExtensions:         ['h','hh','hpp','hxx'] # enable iff clang-tidy v17+
+#ImplementationFileExtensions: ['c','cc','cpp','cxx'] # enable iff clang-tidy v17+ (stops from touching .S assembly files)
+HeaderFilterRegex: "^((?!lib|RZA1|NE10|fatfs).)*$" # don't touch external files
+AnalyzeTemporaryDtors: false
+ExtraArgs: ['-Wno-unknown-argument', '-Wno-unknown-warning-option', '-W']
+FormatStyle: file
+CheckOptions:
+  - key: cppcoreguidelines-explicit-virtual-functions.IgnoreDestructors
+    value: "1"
+  - key: cppcoreguidelines-non-private-member-variables-in-classes.IgnoreClassesWithAllMemberVariablesBeingPublic
+    value: "1"
+  - key: modernize-loop-convert.IncludeStyle
+    value: google
+  - key: modernize-pass-by-value.IncludeStyle
+    value: google
+  - key: modernize-replace-auto-ptr.IncludeStyle
+    value: google

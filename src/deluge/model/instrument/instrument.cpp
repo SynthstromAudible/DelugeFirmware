@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "definitions_cxx.hpp"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
 #include "model/clip/clip_instance.h"
@@ -26,7 +27,7 @@
 #include "hid/matrix/matrix_driver.h"
 #include "util/lookuptables/lookuptables.h"
 #include "string.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "playback/mode/playback_mode.h"
 #include "memory/general_memory_allocator.h"
 #include <new>
@@ -35,7 +36,7 @@
 #include "model/instrument/midi_instrument.h"
 #include "util/functions.h"
 
-Instrument::Instrument(int newType) : Output(newType) {
+Instrument::Instrument(InstrumentType newType) : Output(newType) {
 	editedByUser = false;
 	existsOnCard = true;
 	defaultVelocity = FlashStorage::defaultVelocity;
@@ -58,8 +59,12 @@ void Instrument::deleteAnyInstancesOfClip(InstrumentClip* clip) {
 
 	while (i < clipInstances.getNumElements()) {
 		ClipInstance* instance = clipInstances.getElement(i);
-		if (instance->clip == clip) clipInstances.deleteAtIndex(i);
-		else i++;
+		if (instance->clip == clip) {
+			clipInstances.deleteAtIndex(i);
+		}
+		else {
+			i++;
+		}
 	}
 }
 
@@ -71,7 +76,7 @@ bool Instrument::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 		}
 		else {
 			char const* slotXMLTag = getSlotXMLTag();
-			if (type == INSTRUMENT_TYPE_MIDI_OUT && ((MIDIInstrument*)this)->sendsToMPE()) {
+			if (type == InstrumentType::MIDI_OUT && ((MIDIInstrument*)this)->sendsToMPE()) {
 				storageManager.writeAttribute(
 				    slotXMLTag,
 				    (((NonAudioInstrument*)this)->channel == MIDI_CHANNEL_MPE_LOWER_ZONE) ? "lower" : "upper");
@@ -80,9 +85,11 @@ bool Instrument::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 				storageManager.writeAttribute(slotXMLTag, ((NonAudioInstrument*)this)->channel);
 			}
 			char const* subSlotTag = getSubSlotXMLTag();
-			if (subSlotTag) storageManager.writeAttribute(subSlotTag, ((MIDIInstrument*)this)->channelSuffix);
+			if (subSlotTag) {
+				storageManager.writeAttribute(subSlotTag, ((MIDIInstrument*)this)->channelSuffix);
+			}
 		}
-		if (!dirPath.isEmpty() && (type == INSTRUMENT_TYPE_SYNTH || type == INSTRUMENT_TYPE_KIT)) {
+		if (!dirPath.isEmpty() && (type == InstrumentType::SYNTH || type == InstrumentType::KIT)) {
 			storageManager.writeAttribute("presetFolder", dirPath.get());
 		}
 		storageManager.writeAttribute("defaultVelocity", defaultVelocity);
@@ -116,14 +123,18 @@ bool Instrument::readTagFromFile(char const* tagName) {
 
 	else if (!strcmp(tagName, "defaultVelocity")) {
 		defaultVelocity = storageManager.readTagOrAttributeValueInt();
-		if (defaultVelocity == 0 || defaultVelocity >= 128) defaultVelocity = FlashStorage::defaultVelocity;
+		if (defaultVelocity == 0 || defaultVelocity >= 128) {
+			defaultVelocity = FlashStorage::defaultVelocity;
+		}
 	}
 
 	else if (!strcmp(tagName, "presetFolder")) {
 		storageManager.readTagOrAttributeValueString(&dirPath);
 	}
 
-	else return Output::readTagFromFile(tagName);
+	else {
+		return Output::readTagFromFile(tagName);
+	}
 
 	storageManager.exitTag();
 	return true;
@@ -142,7 +153,7 @@ Clip* Instrument::createNewClipForArrangementRecording(ModelStack* modelStack) {
 	// For synths and kits, there'll be an existing ParamManager, and we can clone it. But for MIDI and CV, there might not be, and we don't want to clone it.
 	// Instead, the call to setInstrument will create one.
 
-	if (type == INSTRUMENT_TYPE_SYNTH || type == INSTRUMENT_TYPE_KIT) {
+	if (type == InstrumentType::SYNTH || type == InstrumentType::KIT) {
 
 		int error = newParamManager.cloneParamCollectionsFrom(getParamManager(modelStack->song), false, true);
 
@@ -151,7 +162,7 @@ Clip* Instrument::createNewClipForArrangementRecording(ModelStack* modelStack) {
 			return NULL;
 		}
 	}
-	else if (type == INSTRUMENT_TYPE_CV) {
+	else if (type == InstrumentType::CV) {
 		if (activeClip) {
 			newParamManager.cloneParamCollectionsFrom(&activeClip->paramManager, false,
 			                                          true); // Because we want the bend ranges
@@ -173,7 +184,11 @@ int Instrument::setupDefaultAudioFileDir() {
 	char const* dirPathChars = dirPath.get();
 	int error =
 	    audioFileManager.setupAlternateAudioFileDir(&audioFileManager.alternateAudioFileLoadPath, dirPathChars, &name);
-	if (error) return error;
-	audioFileManager.thingBeginningLoading(type);
+	if (error) {
+		return error;
+	}
+
+	// TODO: (Kate) Why is InstrumentType getting converted to ThingType here???
+	audioFileManager.thingBeginningLoading(static_cast<ThingType>(type));
 	return NO_ERROR;
 }

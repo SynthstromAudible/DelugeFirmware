@@ -15,10 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef LIVEPITCHSHIFTERPLAYHEAD_H_
-#define LIVEPITCHSHIFTERPLAYHEAD_H_
+#pragma once
 
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 
 typedef __simd64_int16_t int16x4_t;
 
@@ -50,7 +49,7 @@ public:
 	int rawBufferReadPos;
 	uint32_t oscPos;
 
-	int16x4_t interpolationBuffer[2][INTERPOLATION_MAX_NUM_SAMPLES >> 2];
+	int16x4_t interpolationBuffer[2][kInterpolationMaxNumSamples >> 2];
 
 	uint32_t percPos;
 
@@ -58,5 +57,3 @@ private:
 	void interpolate(int32_t* sampleRead, int numChannelsNow, int whichKernel);
 	void interpolateLinear(int32_t* sampleRead, int numChannelsNow, int whichKernel);
 };
-
-#endif /* LIVEPITCHSHIFTERPLAYHEAD_H_ */

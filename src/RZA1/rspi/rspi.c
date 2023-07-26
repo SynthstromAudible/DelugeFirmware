@@ -98,9 +98,12 @@ void R_RSPI_Create(uint8_t channel, uint32_t bitRate, uint8_t phase, uint8_t dat
     /* P1 clock = 66.67MHz, SPI bit rate = 11.11Mbits/s Check Table 16.3 */
     RSPI(channel).SPBR = ceil((float)66666666 / (bitRate * 2) - 1);
     dummy_byte         = RSPI(channel).SPBR;
-    if (dataSize == 32) RSPI(channel).SPDCR = 0x60u;      // 32-bit
-    else if (dataSize == 16) RSPI(channel).SPDCR = 0x40u; // 16-bit
-    else RSPI(channel).SPDCR = 0x20u;                     // 8-bit
+    if (dataSize == 32)
+        RSPI(channel).SPDCR = 0x60u; // 32-bit
+    else if (dataSize == 16)
+        RSPI(channel).SPDCR = 0x40u; // 16-bit
+    else
+        RSPI(channel).SPDCR = 0x20u; // 8-bit
     dummy_byte          = RSPI(channel).SPDCR;
     RSPI(channel).SPSCR = 0u;
     dummy_byte          = RSPI(channel).SPSCR;
@@ -114,24 +117,25 @@ void R_RSPI_Create(uint8_t channel, uint32_t bitRate, uint8_t phase, uint8_t dat
     dummy_byte          = RSPI(channel).SSLP;
     RSPI(channel).SPSSR = 0u;
     dummy_byte          = RSPI(channel).SPSSR;
-    if (dataSize == 32) RSPI(channel).SPBFCR.BYTE = 0b00100010;
-    else if (dataSize == 16) RSPI(channel).SPBFCR.BYTE = 0b00100001;
+    if (dataSize == 32)
+        RSPI(channel).SPBFCR.BYTE = 0b00100010;
+    else if (dataSize == 16)
+        RSPI(channel).SPBFCR.BYTE = 0b00100001;
     else
         RSPI(channel).SPBFCR.BYTE =
             0b00100000; // Receive buffer data triggering number is 1 byte. TX buffer declared "empty" as soon as it has 4 bytes of "space" in it (remember, it has 8 bytes total)
     dummy_byte = RSPI(channel).SPBFCR.BYTE;
 
-    if (dataSize == 32) RSPI(channel).SPCMD0 = 0b0000001100000010 | phase;      // 32-bit
-    else if (dataSize == 16) RSPI(channel).SPCMD0 = 0b0000111100000010 | phase; // 16-bit
-    else RSPI(channel).SPCMD0 = 0b0000011100000010 | phase;                     // 8-bit
+    if (dataSize == 32)
+        RSPI(channel).SPCMD0 = 0b0000001100000010 | phase; // 32-bit
+    else if (dataSize == 16)
+        RSPI(channel).SPCMD0 = 0b0000111100000010 | phase; // 16-bit
+    else
+        RSPI(channel).SPCMD0 = 0b0000011100000010 | phase; // 8-bit
     dummy_word = RSPI(channel).SPCMD0;
 
     /* Enable master mode */
-#if DELUGE_MODEL <= DELUGE_MODEL_40_PAD
-    RSPI(channel).SPCR |= 0b10101000; // "Interrupts" on. This is required for DMA
-#else
     RSPI(channel).SPCR |= 0b00101000; // Just TX interrupt (for DMA). We'll manually enable the RX one when we need it.
-#endif
     dummy_byte = RSPI(channel).SPCR;
 }
 

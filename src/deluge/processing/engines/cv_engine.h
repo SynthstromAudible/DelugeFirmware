@@ -15,24 +15,16 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CVENGINE_H_
-#define CVENGINE_H_
+#pragma once
 
 #include "RZA1/system/r_typedefs.h"
 #include "model/drum/gate_drum.h"
 
-#define GATE_MODE_SPECIAL 2
-
 #define WHICH_GATE_OUTPUT_IS_RUN 2
 #define WHICH_GATE_OUTPUT_IS_CLOCK 3
 
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
 const uint8_t gatePort[] = {2, 2, 2, 4};
 const uint8_t gatePin[] = {7, 8, 9, 0};
-#else
-const uint8_t gatePort[] = {2, 2, 2, 4};
-const uint8_t gatePin[] = {7, 8, 9, 0};
-#endif
 
 class CVChannel {
 public:
@@ -55,7 +47,7 @@ class GateChannel {
 public:
 	GateChannel() { on = false; }
 	bool on; // Means either on now, or "awaiting" switch-on
-	uint8_t mode;
+	GateType mode;
 	uint32_t timeLastSwitchedOff;
 };
 
@@ -64,7 +56,7 @@ public:
 	CVEngine();
 	void init();
 	void sendNote(bool on, uint8_t channel, int16_t note = -32768);
-	void setGateType(uint8_t whichGate, uint8_t value);
+	void setGateType(uint8_t whichGate, GateType value);
 	void setCVVoltsPerOctave(uint8_t channel, uint8_t value);
 	void setCVTranspose(uint8_t channel, int semitones, int cents);
 	void setCVPitchBend(uint8_t channel, int32_t value, bool outputToo = true);
@@ -112,5 +104,3 @@ private:
 };
 
 extern CVEngine cvEngine;
-
-#endif /* CVENGINE_H_ */

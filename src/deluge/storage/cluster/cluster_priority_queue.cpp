@@ -16,8 +16,8 @@
 */
 
 #include "storage/cluster/cluster_priority_queue.h"
-#include "definitions.h"
-#include "io/uart/uart.h"
+#include "definitions_cxx.hpp"
+#include "io/debug/print.h"
 
 class Cluster;
 
@@ -28,7 +28,9 @@ ClusterPriorityQueue::ClusterPriorityQueue()
 // Returns error
 int ClusterPriorityQueue::add(Cluster* cluster, uint32_t priorityRating) {
 	int i = insertAtKey((int32_t)cluster);
-	if (i == -1) return ERROR_INSUFFICIENT_RAM;
+	if (i == -1) {
+		return ERROR_INSUFFICIENT_RAM;
+	}
 
 	PriorityQueueElement* element = (PriorityQueueElement*)getElementAddress(i);
 	element->priorityRating = priorityRating;
@@ -37,7 +39,9 @@ int ClusterPriorityQueue::add(Cluster* cluster, uint32_t priorityRating) {
 }
 
 Cluster* ClusterPriorityQueue::grabHead() {
-	if (!numElements) return NULL;
+	if (!numElements) {
+		return NULL;
+	}
 	Cluster* toReturn = ((PriorityQueueElement*)getElementAddress(0))->cluster;
 	deleteAtIndex(0);
 	return toReturn;

@@ -15,10 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef VOICE_SOURCE_H
-#define VOICE_SOURCE_H
+#pragma once
 
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "model/sample/sample_playback_guide.h"
 
 class Source;
@@ -33,7 +32,7 @@ public:
 	bool shouldObeyLoopEndPointNow();
 	int32_t getBytePosToStartPlayback(bool justLooped);
 	int32_t getBytePosToEndOrLoopPlayback();
-	int getLoopingType(Source* source);
+	LoopType getLoopingType(Source* source);
 
 	uint32_t getLoopStartPlaybackAtByte() { return loopStartPlaybackAtByte; }
 	uint32_t getLoopEndPlaybackAtByte() { return loopEndPlaybackAtByte ? loopEndPlaybackAtByte : endPlaybackAtByte; }
@@ -44,5 +43,3 @@ public:
 
 	bool noteOffReceived;
 };
-
-#endif

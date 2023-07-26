@@ -15,10 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef SAMPLEPERCCACHEZONE_H_
-#define SAMPLEPERCCACHEZONE_H_
+#pragma once
 
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 
 class SamplePercCacheZone {
 public:
@@ -34,7 +33,5 @@ public:
 
 	int32_t lastAngle;
 	int32_t lastSampleRead;
-	int32_t angleLPFMem[DIFFERENCE_LPF_POLES];
+	int32_t angleLPFMem[kDifferenceLPFPoles];
 };
-
-#endif /* SAMPLEPERCCACHEZONE_H_ */

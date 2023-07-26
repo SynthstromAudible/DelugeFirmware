@@ -12,8 +12,7 @@ set -eu;
 # private variables
 N_GIT_THREADS="$(getconf _NPROCESSORS_ONLN)";
 SCRIPT_PATH="$(cd "$(dirname "$0")" && pwd -P)";
-SCONS_DEFAULT_FLAGS="--warn=target-not-built";
-SCONS_EP="python3 -m SCons";
+DBT_EP="python3 dbt.py";
 
 # public variables
 DBT_NOENV="${DBT_NOENV:-""}";
@@ -36,12 +35,12 @@ fi
 # Install python wheels if not already installed, upgrade pip
 # afterward (needs certifi in place).
 pip_cmd="python3 -m pip";
+pip_requirements_path="${SCRIPT_PATH}/scripts/toolchain/requirements.txt"
 pip_wheel_path="${TOOLCHAIN_ARCH_DIR}/python/wheel";
-pip_wheels=$(ls "${pip_wheel_path}")
-for wheel in $pip_wheels; do
-    $pip_cmd install -q "${pip_wheel_path}/${wheel}"
-done
+pip_certifi_wheel=$(find $pip_wheel_path/certifi*)
+$pip_cmd install -q "${pip_certifi_wheel}"
 $pip_cmd install -q --upgrade pip
-$pip_cmd install -q kconfiglib==14.1.0
+$pip_cmd install -q -f "${pip_wheel_path}" -r "${pip_requirements_path}"
 
-$SCONS_EP $SCONS_DEFAULT_FLAGS "$@"
+
+$DBT_EP "$@"

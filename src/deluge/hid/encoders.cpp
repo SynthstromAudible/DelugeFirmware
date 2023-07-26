@@ -17,7 +17,7 @@
 
 #include "processing/engines/audio_engine.h"
 #include "hid/encoders.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "gui/ui/ui.h"
 #include "hid/matrix/matrix_driver.h"
 #include "playback/playback_handler.h"
@@ -25,10 +25,13 @@
 #include <new>
 #include "hid/buttons.h"
 #include "util/functions.h"
+#include "gui/views/instrument_clip_view.h"
+#include "model/settings/runtime_feature_settings.h"
+#include "hid/led/pad_leds.h"
 
 namespace Encoders {
 
-Encoder encoders[NUM_ENCODERS];
+Encoder encoders[NUM_ENCODERS] = {};
 uint32_t timeModEncoderLastTurned[2];
 int8_t modEncoderInitialTurnDirection[2];
 
@@ -38,26 +41,12 @@ int nextSDTestDirection = 1;
 uint32_t encodersWaitingForCardRoutineEnd;
 
 void init() {
-
-	for (int i = 0; i < NUM_ENCODERS; i++) {
-		new (&encoders[i]) Encoder;
-	}
-
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-	encoders[ENCODER_SCROLL_Y].setPins(7, 9, 7, 10);
-	encoders[ENCODER_SCROLL_X].setPins(1, 6, 1, 5);
-	encoders[ENCODER_TEMPO].setPins(7, 7, 7, 8);
-	encoders[ENCODER_MOD_0].setPins(7, 2, 7, 0);
-	encoders[ENCODER_MOD_1].setPins(7, 4, 7, 3);
-	encoders[ENCODER_SELECT].setPins(7, 5, 7, 6);
-#elif DELUGE_MODEL == DELUGE_MODEL_144_PAD
 	encoders[ENCODER_SCROLL_X].setPins(1, 11, 1, 12);
 	encoders[ENCODER_TEMPO].setPins(1, 7, 1, 6);
 	encoders[ENCODER_MOD_0].setPins(1, 0, 1, 15);
 	encoders[ENCODER_MOD_1].setPins(1, 5, 1, 4);
 	encoders[ENCODER_SCROLL_Y].setPins(1, 8, 1, 10);
 	encoders[ENCODER_SELECT].setPins(1, 2, 1, 3);
-#endif
 
 	encoders[ENCODER_MOD_0].setNonDetentMode();
 	encoders[ENCODER_MOD_1].setNonDetentMode();
@@ -77,13 +66,16 @@ bool interpretEncoders(bool inCardRoutine) {
 
 	bool anything = false;
 
-	if (!inCardRoutine) encodersWaitingForCardRoutineEnd = 0;
+	if (!inCardRoutine) {
+		encodersWaitingForCardRoutineEnd = 0;
+	}
 
 #if SD_TEST_MODE_ENABLED
 	if (!inCardRoutine && playbackHandler.isEitherClockActive()
 	    && (int32_t)(AudioEngine::audioSampleTimer - timeNextSDTestAction) >= 0) {
 
-		if (getRandom255() < 96) nextSDTestDirection *= -1;
+		if (getRandom255() < 96)
+			nextSDTestDirection *= -1;
 		getCurrentUI()->selectEncoderAction(nextSDTestDirection);
 
 		int random = getRandom255();
@@ -95,12 +87,17 @@ bool interpretEncoders(bool inCardRoutine) {
 
 	for (int e = 0; e < NUM_FUNCTION_ENCODERS; e++) {
 
-		if (e != ENCODER_SCROLL_Y)
+		if (e != ENCODER_SCROLL_Y) {
 
 			// Basically disables all function encoders during SD routine
-			if (inCardRoutine && currentUIMode != UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED) continue;
+			if (inCardRoutine && currentUIMode != UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED) {
+				continue;
+			}
+		}
 
-		if (encodersWaitingForCardRoutineEnd & (1 << e)) continue;
+		if (encodersWaitingForCardRoutineEnd & (1 << e)) {
+			continue;
+		}
 
 		if (encoders[e].detentPos != 0) {
 			anything = true;
@@ -108,10 +105,14 @@ bool interpretEncoders(bool inCardRoutine) {
 			// Limit. Some functions can break if they receive bigger numbers, e.g. LoadSongUI::selectEncoderAction()
 			int limitedDetentPos = encoders[e].detentPos;
 			encoders[e].detentPos = 0; // Reset. Crucial that this happens before we call selectEncoderAction()
-			if (limitedDetentPos >= 0) limitedDetentPos = 1;
-			else limitedDetentPos = -1;
+			if (limitedDetentPos >= 0) {
+				limitedDetentPos = 1;
+			}
+			else {
+				limitedDetentPos = -1;
+			}
 
-			int result;
+			ActionResult result;
 
 			switch (e) {
 
@@ -120,15 +121,16 @@ bool interpretEncoders(bool inCardRoutine) {
 				// Actually, after coding this up, I realise I actually have it above stopping the X encoder from even getting here during the SD routine. Ok so we'll leave it that way,
 				// in addition to me having made all the horizontalEncoderAction() calls SD-routine-safe
 checkResult:
-				if (result == ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE) {
+				if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
 					encodersWaitingForCardRoutineEnd |= (1 << e);
 					encoders[e].detentPos = limitedDetentPos; // Put it back for next time
 				}
 				break;
 
 			case ENCODER_SCROLL_Y:
-				if (Buttons::isShiftButtonPressed() && Buttons::isButtonPressed(learnButtonX, learnButtonY))
-					changeDimmerInterval(limitedDetentPos);
+				if (Buttons::isShiftButtonPressed() && Buttons::isButtonPressed(hid::button::LEARN)) {
+					PadLEDs::changeDimmerInterval(limitedDetentPos);
+				}
 				else {
 					result = getCurrentUI()->verticalEncoderAction(limitedDetentPos, inCardRoutine);
 					goto checkResult;
@@ -136,14 +138,28 @@ checkResult:
 				break;
 
 			case ENCODER_TEMPO:
-				playbackHandler.tempoEncoderAction(limitedDetentPos,
-				                                   Buttons::isButtonPressed(tempoEncButtonX, tempoEncButtonY),
-				                                   Buttons::isShiftButtonPressed());
+				if (getCurrentUI() == &instrumentClipView
+				    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::Quantize)
+				           == RuntimeFeatureStateToggle::On) {
+					instrumentClipView.tempoEncoderAction(limitedDetentPos,
+					                                      Buttons::isButtonPressed(hid::button::TEMPO_ENC),
+					                                      Buttons::isShiftButtonPressed());
+				}
+				else {
+					playbackHandler.tempoEncoderAction(limitedDetentPos,
+					                                   Buttons::isButtonPressed(hid::button::TEMPO_ENC),
+					                                   Buttons::isShiftButtonPressed());
+				}
+
 				break;
 
 			case ENCODER_SELECT:
-				if (Buttons::isButtonPressed(clipViewButtonX, clipViewButtonY)) changeRefreshTime(limitedDetentPos);
-				else getCurrentUI()->selectEncoderAction(limitedDetentPos);
+				if (Buttons::isButtonPressed(hid::button::CLIP_VIEW)) {
+					PadLEDs::changeRefreshTime(limitedDetentPos);
+				}
+				else {
+					getCurrentUI()->selectEncoderAction(limitedDetentPos);
+				}
 				break;
 			}
 		}
@@ -184,7 +200,9 @@ checkResult:
 					// If the other one also hasn't been turned for a while...
 					bool otherTurnedRecently =
 					    (AudioEngine::audioSampleTimer - timeModEncoderLastTurned[1 - e] < (44100 >> 1));
-					if (!otherTurnedRecently) actionLogger.closeAction(ACTION_PARAM_UNAUTOMATED_VALUE_CHANGE);
+					if (!otherTurnedRecently) {
+						actionLogger.closeAction(ACTION_PARAM_UNAUTOMATED_VALUE_CHANGE);
+					}
 
 					modEncoderInitialTurnDirection[e] = encoders[ENCODER_MOD_0 - e].encPos;
 

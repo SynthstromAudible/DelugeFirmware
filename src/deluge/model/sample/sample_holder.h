@@ -15,10 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef SAMPLEHOLDER_H_
-#define SAMPLEHOLDER_H_
+#pragma once
 
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "util/d_string.h"
 #include "storage/audio/audio_file_holder.h"
 
@@ -51,12 +50,10 @@ public:
 
 	int32_t neutralPhaseIncrement;
 
-	Cluster* clustersForStart[NUM_CLUSTERS_LOADED_AHEAD];
+	Cluster* clustersForStart[kNumClustersLoadedAhead];
 
 protected:
 	void claimClusterReasonsForMarker(Cluster** clusters, uint32_t startPlaybackAtByte, int playDirection,
 	                                  int clusterLoadInstruction);
 	virtual void sampleBeenSet(bool reversed, bool manuallySelected) {}
 };
-
-#endif /* SAMPLEHOLDER_H_ */

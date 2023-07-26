@@ -75,21 +75,24 @@ extern char_t midiTxBuffer[];
 
 // These are not thread safe! Do not call in ISRs.
 #define bufferPICUart(charToSend)                                                                                      \
+    do                                                                                                                 \
     {                                                                                                                  \
-        picTxBuffer[uartItems[UART_ITEM_PIC].txBufferWritePos + UNCACHED_MIRROR_OFFSET] = charToSend;                  \
-        uartItems[UART_ITEM_PIC].txBufferWritePos =                                                                    \
-            (uartItems[UART_ITEM_PIC].txBufferWritePos + 1) & (PIC_TX_BUFFER_SIZE - 1);                                \
-    }
-#define bufferMIDIUart(charToSend)                                                                                     \
-    {                                                                                                                  \
-        midiTxBuffer[uartItems[UART_ITEM_MIDI].txBufferWritePos + UNCACHED_MIRROR_OFFSET] = charToSend;                \
-        uartItems[UART_ITEM_MIDI].txBufferWritePos =                                                                   \
-            (uartItems[UART_ITEM_MIDI].txBufferWritePos + 1) & (MIDI_TX_BUFFER_SIZE - 1);                              \
-    }
+        intptr_t writePos = uartItems[UART_ITEM_PIC].txBufferWritePos + UNCACHED_MIRROR_OFFSET;                        \
+        *(((volatile char_t*)(&picTxBuffer[0])) + writePos) = charToSend;                                              \
+                                                                                                                       \
+        uartItems[UART_ITEM_PIC].txBufferWritePos += 1;                                                                \
+        uartItems[UART_ITEM_PIC].txBufferWritePos &= (PIC_TX_BUFFER_SIZE - 1);                                         \
+    } while (0)
 
-// Aliases
-#define bufferPICIndicatorsUart(charToSend) bufferPICUart(charToSend)
-#define bufferPICPadsUart(charToSend)       bufferPICUart(charToSend)
+#define bufferMIDIUart(charToSend)                                                                                     \
+    do                                                                                                                 \
+    {                                                                                                                  \
+        intptr_t writePos = uartItems[UART_ITEM_MIDI].txBufferWritePos + UNCACHED_MIRROR_OFFSET;                       \
+        *(((volatile char_t*)(&midiTxBuffer[0])) + writePos) = charToSend;                                             \
+                                                                                                                       \
+        uartItems[UART_ITEM_MIDI].txBufferWritePos += 1;                                                               \
+        uartItems[UART_ITEM_MIDI].txBufferWritePos &= (PIC_TX_BUFFER_SIZE - 1);                                        \
+    } while (0)
 
 /* SIO_CHAR_H */
 #endif

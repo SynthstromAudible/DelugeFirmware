@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CONSEQUENCECLIPBEGINLINEARRECORD_H_
-#define CONSEQUENCECLIPBEGINLINEARRECORD_H_
+#pragma once
 
 #include "model/consequence/consequence.h"
 
@@ -26,9 +25,7 @@ class ConsequenceClipBeginLinearRecord final : public Consequence {
 public:
 	ConsequenceClipBeginLinearRecord(Clip* newClip);
 
-	int revert(int time, ModelStack* modelStack);
+	int revert(TimeType time, ModelStack* modelStack);
 
 	Clip* clip;
 };
-
-#endif /* CONSEQUENCECLIPBEGINLINEARRECORD_H_ */

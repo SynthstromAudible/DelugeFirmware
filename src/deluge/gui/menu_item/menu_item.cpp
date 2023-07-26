@@ -15,27 +15,16 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "gui/menu_item/menu_item.h"
+#include "menu_item.h"
 #include "hid/display/numeric_driver.h"
 
 #if HAVE_OLED
 #include "hid/display/oled.h"
 #endif
 
-MenuItem::MenuItem(char const* newName) {
-	name = newName;
-#if HAVE_OLED
-	basicTitle = newName;
-#endif
-}
-
-char const* MenuItem::getName() {
-	return name;
-}
-
-int MenuItem::checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) {
+MenuPermission MenuItem::checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) {
 	bool toReturn = isRelevant(sound, whichThing);
-	return toReturn ? MENU_PERMISSION_YES : MENU_PERMISSION_NO;
+	return toReturn ? MenuPermission::YES : MenuPermission::NO;
 }
 
 void MenuItem::learnCC(MIDIDevice* fromDevice, int channel, int ccNumber, int value) {
@@ -45,9 +34,8 @@ void MenuItem::learnCC(MIDIDevice* fromDevice, int channel, int ccNumber, int va
 #if HAVE_OLED
 
 // This is virtual. Some classes with override it and generate some name on the fly.
-// Supplied buffer size must be MENU_ITEM_TITLE_BUFFER_SIZE. Actual max num chars for OLED display is 14.
 // May return pointer to that buffer, or to some other constant char string.
-char const* MenuItem::getTitle() { //char* buffer) {
+char const* MenuItem::getTitle() {
 	return basicTitle;
 }
 
@@ -63,17 +51,19 @@ void MenuItem::drawItemsForOled(char const** options, int selectedOption) {
 	baseY += OLED_MAIN_TOPMOST_PIXEL;
 
 	for (int o = 0; o < OLED_HEIGHT_CHARS - 1; o++) {
-		if (!options[o]) break;
+		if (!options[o]) {
+			break;
+		}
 
-		int yPixel = o * TEXT_SPACING_Y + baseY;
+		int yPixel = o * kTextSpacingY + baseY;
 
-		OLED::drawString(options[o], TEXT_SPACING_X, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
-		                 TEXT_SPACING_X, TEXT_SPACING_Y);
+		OLED::drawString(options[o], kTextSpacingX, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
+		                 kTextSpacingX, kTextSpacingY);
 
 		if (o == selectedOption) {
 			OLED::invertArea(0, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8, &OLED::oledMainImage[0]);
-			OLED::setupSideScroller(0, options[o], TEXT_SPACING_X, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8,
-			                        TEXT_SPACING_X, TEXT_SPACING_Y, true);
+			OLED::setupSideScroller(0, options[o], kTextSpacingX, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8,
+			                        kTextSpacingX, kTextSpacingY, true);
 		}
 	}
 }

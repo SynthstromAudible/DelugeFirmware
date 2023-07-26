@@ -21,7 +21,7 @@
 #include "model/sample/sample_low_level_reader.h"
 #include "model/sample/sample.h"
 #include "storage/cluster/cluster.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "storage/audio/audio_file_manager.h"
 #include "hid/display/numeric_driver.h"
 #include "model/voice/voice_sample_playback_guide.h"
@@ -31,7 +31,7 @@
 #include "arm_neon.h"
 
 SampleLowLevelReader::SampleLowLevelReader() {
-	for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD; l++) {
+	for (int l = 0; l < kNumClustersLoadedAhead; l++) {
 		clusters[l] = NULL;
 	}
 }
@@ -41,7 +41,7 @@ SampleLowLevelReader::~SampleLowLevelReader() {
 }
 
 void SampleLowLevelReader::unassignAllReasons() {
-	for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD; l++) {
+	for (int l = 0; l < kNumClustersLoadedAhead; l++) {
 		if (clusters[l]) {
 			audioFileManager.removeReasonFromCluster(clusters[l], "E027");
 			clusters[l] = NULL;
@@ -75,7 +75,9 @@ void SampleLowLevelReader::setupForPlayPosMovedIntoNewCluster(SamplePlaybackGuid
                                                               int bytePosWithinNewCluster, int byteDepth) {
 
 #if ALPHA_OR_BETA_VERSION
-	if (!clusters[0]) numericDriver.freezeWithError("i022");
+	if (!clusters[0]) {
+		numericDriver.freezeWithError("i022");
+	}
 #endif
 
 	// Ok, now we've just moved the play-pos into a new Cluster, so do some setting up for that
@@ -100,10 +102,11 @@ void SampleLowLevelReader::realignPlaybackParameters(Sample* sample) {
 // (though it'd be harmless for "natively" playing Samples). Caller must ensure safety here.
 bool SampleLowLevelReader::reassessReassessmentLocation(SamplePlaybackGuide* guide, Sample* sample,
                                                         int priorityRating) {
-	//Uart::println("reassessing");
+	//Debug::println("reassessing");
 
-	if (!clusters[0])
+	if (!clusters[0]) {
 		return true; // Is this for if we've gone past the end of the audio data, while re-pitching / interpolating?
+	}
 
 	realignPlaybackParameters(sample);
 
@@ -113,9 +116,11 @@ bool SampleLowLevelReader::reassessReassessmentLocation(SamplePlaybackGuide* gui
 	// This needs correcting, so "looping" can occur at next render. Must happen before setupReassessmentLocation() is called.
 	int finalClusterIndex = guide->getFinalClusterIndex(sample, shouldObeyMarkers());
 	if ((clusterIndex - finalClusterIndex) * guide->playDirection > 0) {
-		Uart::println("saving from being past finalCluster");
+		Debug::println("saving from being past finalCluster");
 		Cluster* finalCluster = sample->clusters.getElement(finalClusterIndex)->cluster;
-		if (!finalCluster) return false;
+		if (!finalCluster) {
+			return false;
+		}
 
 		int32_t bytePosWithinCluster = (uint32_t)currentPlayPos - (uint32_t)clusters[0]->data;
 		bytePosWithinCluster += (clusterIndex - finalClusterIndex) * audioFileManager.clusterSize;
@@ -127,7 +132,7 @@ bool SampleLowLevelReader::reassessReassessmentLocation(SamplePlaybackGuide* gui
 	unassignAllReasons(); // Can only do this after we've done the above stuff, which references clusters, which this will clear
 	bool success = assignClusters(guide, sample, clusterIndex, priorityRating);
 	if (!success) {
-		Uart::println("reassessReassessmentLocation fail");
+		Debug::println("reassessReassessmentLocation fail");
 		return false;
 	}
 	setupReassessmentLocation(guide, sample);
@@ -140,7 +145,9 @@ bool SampleLowLevelReader::reassessReassessmentLocation(SamplePlaybackGuide* gui
 void SampleLowLevelReader::setupReassessmentLocation(SamplePlaybackGuide* guide, Sample* sample) {
 
 #if ALPHA_OR_BETA_VERSION
-	if (!clusters[0]) numericDriver.freezeWithError("i021");
+	if (!clusters[0]) {
+		numericDriver.freezeWithError("i021");
+	}
 #endif
 
 	int bytesPerSample = (sample->byteDepth * sample->numChannels);
@@ -154,12 +161,15 @@ void SampleLowLevelReader::setupReassessmentLocation(SamplePlaybackGuide* guide,
 	if (currentClusterIndex == finalClusterIndex) {
 		int bytePosWithinClusterToStopAt = endPlaybackAtByte & (audioFileManager.clusterSize - 1);
 		if (guide->playDirection == 1) {
-			if (bytePosWithinClusterToStopAt == 0) bytePosWithinClusterToStopAt = audioFileManager.clusterSize;
+			if (bytePosWithinClusterToStopAt == 0) {
+				bytePosWithinClusterToStopAt = audioFileManager.clusterSize;
+			}
 		}
 
 		else {
-			if (bytePosWithinClusterToStopAt > audioFileManager.clusterSize - bytesPerSample)
+			if (bytePosWithinClusterToStopAt > audioFileManager.clusterSize - bytesPerSample) {
 				bytePosWithinClusterToStopAt -= audioFileManager.clusterSize;
+			}
 		}
 
 		reassessmentLocation = &clusters[0]->data[bytePosWithinClusterToStopAt];
@@ -176,14 +186,17 @@ void SampleLowLevelReader::setupReassessmentLocation(SamplePlaybackGuide* guide,
 			uint32_t bytesBeforeCurrentClusterEnd =
 			    (currentClusterIndex + 1) * audioFileManager.clusterSize - sample->audioDataStartPosBytes;
 			int excess = bytesBeforeCurrentClusterEnd % (uint8_t)bytesPerSample;
-			if (excess == 0) excess = bytesPerSample;
+			if (excess == 0) {
+				excess = bytesPerSample;
+			}
 			uint32_t endPosWithinCurrentCluster = audioFileManager.clusterSize + bytesPerSample - excess;
 
 #if ALPHA_OR_BETA_VERSION
 			if ((endPosWithinCurrentCluster + currentClusterIndex * audioFileManager.clusterSize
 			     - sample->audioDataStartPosBytes)
-			    % bytesPerSample)
+			    % bytesPerSample) {
 				numericDriver.freezeWithError("E163");
+			}
 #endif
 			reassessmentLocation = clusters[0]->data + endPosWithinCurrentCluster;
 		}
@@ -195,7 +208,9 @@ void SampleLowLevelReader::setupReassessmentLocation(SamplePlaybackGuide* guide,
 			    currentClusterIndex * audioFileManager.clusterSize
 			    - sample->audioDataStartPosBytes; // Well, it's really the "start" - the left-most edge
 			int excess = bytesBeforeCurrentClusterEnd % (uint8_t)bytesPerSample;
-			if (excess == 0) excess = bytesPerSample;
+			if (excess == 0) {
+				excess = bytesPerSample;
+			}
 
 			int32_t endPosWithinCurrentCluster = -excess;
 			reassessmentLocation = clusters[0]->data + endPosWithinCurrentCluster;
@@ -206,10 +221,13 @@ void SampleLowLevelReader::setupReassessmentLocation(SamplePlaybackGuide* guide,
 	// Playing forwards
 	if (guide->playDirection == 1) {
 		int firstClusterWithData = sample->getFirstClusterIndexWithAudioData();
-		if (currentClusterIndex == firstClusterWithData)
+		if (currentClusterIndex == firstClusterWithData) {
 			clusterStartLocation =
 			    &clusters[0]->data[sample->audioDataStartPosBytes & (audioFileManager.clusterSize - 1)];
-		else clusterStartLocation = clusters[0]->data;
+		}
+		else {
+			clusterStartLocation = clusters[0]->data;
+		}
 	}
 
 	// Playing backwards
@@ -219,9 +237,12 @@ void SampleLowLevelReader::setupReassessmentLocation(SamplePlaybackGuide* guide,
 		    audioDataStopPos
 		    >> audioFileManager
 		           .clusterSizeMagnitude; // There may actually be 1 less Cluster than this if the audio data ends right at the Cluster end, but that won't cause problems
-		if (currentClusterIndex == highestClusterIndex)
+		if (currentClusterIndex == highestClusterIndex) {
 			clusterStartLocation = &clusters[0]->data[(audioDataStopPos - 1) & (audioFileManager.clusterSize - 1)];
-		else clusterStartLocation = &clusters[0]->data[audioFileManager.clusterSize - 1];
+		}
+		else {
+			clusterStartLocation = &clusters[0]->data[audioFileManager.clusterSize - 1];
+		}
 	}
 
 	misalignPlaybackParameters(sample);
@@ -232,7 +253,9 @@ void SampleLowLevelReader::setupReassessmentLocation(SamplePlaybackGuide* guide,
 bool SampleLowLevelReader::setupClusersForInitialPlay(SamplePlaybackGuide* guide, Sample* sample, int byteOvershoot,
                                                       bool justLooped, int priorityRating) {
 
-	if (sample->unplayable) return false; // TODO: this probably shouldn't be here
+	if (sample->unplayable) {
+		return false; // TODO: this probably shouldn't be here
+	}
 
 	// Assign all the upcoming Clusters...
 	uint32_t startPlaybackAtByte = guide->getBytePosToStartPlayback(justLooped);
@@ -241,7 +264,7 @@ bool SampleLowLevelReader::setupClusersForInitialPlay(SamplePlaybackGuide* guide
 	bool success = setupClustersForPlayFromByte(guide, sample, startPlaybackAtByte, priorityRating);
 
 	if (!success) {
-		Uart::println("setupClustersForInitialPlay fail");
+		Debug::println("setupClustersForInitialPlay fail");
 	}
 
 	return success;
@@ -265,9 +288,9 @@ bool SampleLowLevelReader::setupClustersForPlayFromByte(SamplePlaybackGuide* gui
 
 	bool success = assignClusters(guide, sample, clusterIndex, priorityRating);
 	if (!success) {
-		Uart::println("setupClustersForPlayFromByte fail");
-		Uart::print("byte: ");
-		Uart::println(startPlaybackAtByte);
+		Debug::println("setupClustersForPlayFromByte fail");
+		Debug::print("byte: ");
+		Debug::println(startPlaybackAtByte);
 		return false;
 	}
 
@@ -286,7 +309,7 @@ bool SampleLowLevelReader::assignClusters(SamplePlaybackGuide* guide, Sample* sa
                                           int priorityRating) {
 	int finalClusterIndex = guide->getFinalClusterIndex(sample, shouldObeyMarkers());
 
-	for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD; l++) {
+	for (int l = 0; l < kNumClustersLoadedAhead; l++) {
 
 		// Grab it.
 		clusters[l] = sample->clusters.getElement(clusterIndex)
@@ -302,7 +325,9 @@ bool SampleLowLevelReader::assignClusters(SamplePlaybackGuide* guide, Sample* sa
 		}
 
 		// If that was the final Cluster, that's all we need to do
-		if (clusterIndex == finalClusterIndex) break;
+		if (clusterIndex == finalClusterIndex) {
+			break;
+		}
 
 		clusterIndex += guide->playDirection;
 	}
@@ -313,7 +338,9 @@ bool SampleLowLevelReader::assignClusters(SamplePlaybackGuide* guide, Sample* sa
 bool SampleLowLevelReader::moveOnToNextCluster(SamplePlaybackGuide* guide, Sample* sample, int priorityRating) {
 
 #if ALPHA_OR_BETA_VERSION
-	if (!clusters[0]) numericDriver.freezeWithError("i019");
+	if (!clusters[0]) {
+		numericDriver.freezeWithError("i019");
+	}
 #endif
 
 	int oldClusterIndex = clusters[0]->clusterIndex;
@@ -321,25 +348,25 @@ bool SampleLowLevelReader::moveOnToNextCluster(SamplePlaybackGuide* guide, Sampl
 	int bytePosWithinOldCluster = (uint32_t)currentPlayPos - (uint32_t)&clusters[0]->data;
 	audioFileManager.removeReasonFromCluster(clusters[0], "E035");
 
-	for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD - 1; l++) {
+	for (int l = 0; l < kNumClustersLoadedAhead - 1; l++) {
 		clusters[l] = clusters[l + 1];
 	}
 
-	clusters[NUM_CLUSTERS_LOADED_AHEAD - 1] = NULL;
+	clusters[kNumClustersLoadedAhead - 1] = NULL;
 
 	// First things first - if there is no next Cluster or it's not loaded...
 	if (!clusters[0]) {
-		Uart::print("reached end of waveform. last Cluster was: ");
-		Uart::println(oldClusterIndex);
+		Debug::print("reached end of waveform. last Cluster was: ");
+		Debug::println(oldClusterIndex);
 		currentPlayPos = 0;
 		return false;
 	}
 
 	if (!clusters[0]->loaded) {
-		Uart::print("late ");
-		Uart::print(clusters[0]->sample->filePath.get());
-		Uart::print(" p ");
-		Uart::println(clusters[0]->clusterIndex);
+		Debug::print("late ");
+		Debug::print(clusters[0]->sample->filePath.get());
+		Debug::print(" p ");
+		Debug::println(clusters[0]->clusterIndex);
 
 		return false;
 	}
@@ -348,7 +375,7 @@ bool SampleLowLevelReader::moveOnToNextCluster(SamplePlaybackGuide* guide, Sampl
 	bytePosWithinOldCluster = bytePosWithinOldCluster + 4 - sample->byteDepth;
 
 	// And for the one at the far end, just grab the next one
-	Cluster* oldLastCluster = clusters[NUM_CLUSTERS_LOADED_AHEAD - 2];
+	Cluster* oldLastCluster = clusters[kNumClustersLoadedAhead - 2];
 
 	if (oldLastCluster) {
 		int prevClusterIndex = oldLastCluster->clusterIndex;
@@ -358,14 +385,14 @@ bool SampleLowLevelReader::moveOnToNextCluster(SamplePlaybackGuide* guide, Sampl
 		// Check that there actually is a next Cluster. If not...
 		if (newClusterIndex * guide->playDirection
 		    > guide->getFinalClusterIndex(sample, shouldObeyMarkers()) * guide->playDirection) {
-			clusters[NUM_CLUSTERS_LOADED_AHEAD - 1] = NULL;
+			clusters[kNumClustersLoadedAhead - 1] = NULL;
 		}
 
 		// Or if there is...
 		else {
 
 			// Grab it.
-			clusters[NUM_CLUSTERS_LOADED_AHEAD - 1] =
+			clusters[kNumClustersLoadedAhead - 1] =
 			    sample->clusters.getElement(newClusterIndex)
 			        ->getCluster(sample, newClusterIndex, CLUSTER_ENQUEUE, priorityRating);
 
@@ -393,12 +420,14 @@ bool SampleLowLevelReader::changeClusterIfNecessary(SamplePlaybackGuide* guide, 
 		int32_t byteOvershoot =
 		    (int32_t)((uint32_t)currentPlayPos - (uint32_t)reassessmentLocation) * guide->playDirection;
 
-		if (byteOvershoot < 0) break;
+		if (byteOvershoot < 0) {
+			break;
+		}
 
 		if (reassessmentAction == REASSESSMENT_ACTION_NEXT_CLUSTER) {
 			bool success = moveOnToNextCluster(guide, sample, priorityRating);
 			if (!success) {
-				Uart::println("next failed");
+				Debug::println("next failed");
 				return false;
 			}
 		}
@@ -407,7 +436,7 @@ bool SampleLowLevelReader::changeClusterIfNecessary(SamplePlaybackGuide* guide, 
 			if (loopingAtLowLevel) {
 				bool success = setupClusersForInitialPlay(guide, sample, byteOvershoot, true, priorityRating);
 				if (!success) {
-					Uart::println("loop failed");
+					Debug::println("loop failed");
 					// TODO: shouldn't we set currentPlayPos = 0 here too?
 					return false;
 				}
@@ -420,9 +449,10 @@ bool SampleLowLevelReader::changeClusterIfNecessary(SamplePlaybackGuide* guide, 
 
 #if ALPHA_OR_BETA_VERSION
 		count++;
-		if (count >= 1024)
+		if (count >= 1024) {
 			numericDriver.freezeWithError(
 			    "E227"); // This happened one time! When stopping AudioClips from playing back, after recording and mucking around with SD card reaching full
+		}
 #endif
 	}
 	return true;
@@ -459,7 +489,9 @@ justWriteZeros:
 			}
 
 			// Or if not, just write zeros
-			else goto justWriteZeros;
+			else {
+				goto justWriteZeros;
+			}
 		}
 	}
 }
@@ -476,7 +508,9 @@ doZeroesFillingBuffer:
 				interpolationBuffer[1][0][i] = 0;
 			}
 			currentPlayPos++;
-			if ((uint32_t)currentPlayPos >= interpolationBufferSize) return false;
+			if ((uint32_t)currentPlayPos >= interpolationBufferSize) {
+				return false;
+			}
 		}
 
 		else {
@@ -508,7 +542,7 @@ void SampleLowLevelReader::jumpBackSamples(Sample* sample, int numToJumpBack, in
 
 		// If there was no valid audio data there...
 		if (bytesPastClusterStart < 0) {
-			Uart::println("failed to go back!");
+			Debug::println("failed to go back!");
 			break;
 		}
 
@@ -531,7 +565,9 @@ bool SampleLowLevelReader::considerUpcomingWindow(SamplePlaybackGuide* guide, Sa
                                                   int interpolationBufferSize, bool allowEndlessSilenceAtEnd,
                                                   int priorityRating) {
 
-	if (ALPHA_OR_BETA_VERSION && phaseIncrement < 0) numericDriver.freezeWithError("E228");
+	if (ALPHA_OR_BETA_VERSION && phaseIncrement < 0) {
+		numericDriver.freezeWithError("E228");
+	}
 
 	int bytesPerSample = sample->numChannels * sample->byteDepth;
 
@@ -551,12 +587,16 @@ bool SampleLowLevelReader::considerUpcomingWindow(SamplePlaybackGuide* guide, Sa
 			// And fill up to end of interpolation buffer
 			bool success = fillInterpolationBufferForward(guide, sample, interpolationBufferSize, loopingAtLowLevel,
 			                                              halfBufferSize, priorityRating);
-			if (!success) return false;
+			if (!success) {
+				return false;
+			}
 
 			if (ALPHA_OR_BETA_VERSION && clusters[0]) {
 				int32_t bytesLeftWhichMayBeRead =
 				    (int32_t)((uint32_t)reassessmentLocation - (uint32_t)currentPlayPos) * guide->playDirection;
-				if (bytesLeftWhichMayBeRead < 0) numericDriver.freezeWithError("E222");
+				if (bytesLeftWhichMayBeRead < 0) {
+					numericDriver.freezeWithError("E222");
+				}
 			}
 		}
 
@@ -569,7 +609,9 @@ bool SampleLowLevelReader::considerUpcomingWindow(SamplePlaybackGuide* guide, Sa
 				if (ALPHA_OR_BETA_VERSION && clusters[0]) {
 					int32_t bytesLeftWhichMayBeRead =
 					    (int32_t)((uint32_t)reassessmentLocation - (uint32_t)currentPlayPos) * guide->playDirection;
-					if (bytesLeftWhichMayBeRead < 0) numericDriver.freezeWithError("E305");
+					if (bytesLeftWhichMayBeRead < 0) {
+						numericDriver.freezeWithError("E305");
+					}
 				}
 
 				int difference = interpolationBufferSizeLastTime - interpolationBufferSize;
@@ -587,7 +629,9 @@ bool SampleLowLevelReader::considerUpcomingWindow(SamplePlaybackGuide* guide, Sa
 				if (ALPHA_OR_BETA_VERSION && clusters[0]) {
 					int32_t bytesLeftWhichMayBeRead =
 					    (int32_t)((uint32_t)reassessmentLocation - (uint32_t)currentPlayPos) * guide->playDirection;
-					if (bytesLeftWhichMayBeRead < 0) numericDriver.freezeWithError("E306");
+					if (bytesLeftWhichMayBeRead < 0) {
+						numericDriver.freezeWithError("E306");
+					}
 				}
 			}
 
@@ -597,7 +641,9 @@ bool SampleLowLevelReader::considerUpcomingWindow(SamplePlaybackGuide* guide, Sa
 				if (ALPHA_OR_BETA_VERSION && clusters[0]) {
 					int32_t bytesLeftWhichMayBeRead =
 					    (int32_t)((uint32_t)reassessmentLocation - (uint32_t)currentPlayPos) * guide->playDirection;
-					if (bytesLeftWhichMayBeRead < 0) numericDriver.freezeWithError("E308");
+					if (bytesLeftWhichMayBeRead < 0) {
+						numericDriver.freezeWithError("E308");
+					}
 				}
 
 				int difference = interpolationBufferSize - interpolationBufferSizeLastTime;
@@ -613,7 +659,9 @@ bool SampleLowLevelReader::considerUpcomingWindow(SamplePlaybackGuide* guide, Sa
 				// And fill up to end of interpolation buffer
 				bool success = fillInterpolationBufferForward(guide, sample, interpolationBufferSize, loopingAtLowLevel,
 				                                              offset, priorityRating);
-				if (!success) return false;
+				if (!success) {
+					return false;
+				}
 
 				// If still here, fill far end with zeros. Not perfect, but it'll do.
 				for (int i = (interpolationBufferSize - offset); i < interpolationBufferSize; i++) {
@@ -626,7 +674,9 @@ bool SampleLowLevelReader::considerUpcomingWindow(SamplePlaybackGuide* guide, Sa
 				if (ALPHA_OR_BETA_VERSION && clusters[0]) {
 					int32_t bytesLeftWhichMayBeRead =
 					    (int32_t)((uint32_t)reassessmentLocation - (uint32_t)currentPlayPos) * guide->playDirection;
-					if (bytesLeftWhichMayBeRead < 0) numericDriver.freezeWithError("E221");
+					if (bytesLeftWhichMayBeRead < 0) {
+						numericDriver.freezeWithError("E221");
+					}
 				}
 			}
 
@@ -654,25 +704,33 @@ bool SampleLowLevelReader::considerUpcomingWindow(SamplePlaybackGuide* guide, Sa
 				if (!clusters[0]) {
 doZeroes:
 					bufferZeroForInterpolation(sample->numChannels);
-					if (!allowEndlessSilenceAtEnd && (uint32_t)currentPlayPos >= interpolationBufferSize) return false;
+					if (!allowEndlessSilenceAtEnd && (uint32_t)currentPlayPos >= interpolationBufferSize) {
+						return false;
+					}
 				}
 				else {
 
 					bool stillGoing = changeClusterIfNecessary(guide, sample, loopingAtLowLevel, priorityRating);
 					if (!stillGoing) {
 						// If we actually just reached the end, go do some zeros
-						if (!clusters[0]) goto doZeroes;
+						if (!clusters[0]) {
+							goto doZeroes;
+						}
 
 						// Otherwise, a Cluster wasn't loaded in time. So just cut the sound
 						return false;
 					}
 
 					if (ALPHA_OR_BETA_VERSION) {
-						if (!clusters[0]) numericDriver.freezeWithError("E225");
+						if (!clusters[0]) {
+							numericDriver.freezeWithError("E225");
+						}
 
 						int32_t bytesLeftWhichMayBeRead =
 						    (int32_t)((uint32_t)reassessmentLocation - (uint32_t)currentPlayPos) * guide->playDirection;
-						if (bytesLeftWhichMayBeRead <= 0) numericDriver.freezeWithError("E226");
+						if (bytesLeftWhichMayBeRead <= 0) {
+							numericDriver.freezeWithError("E226");
+						}
 					}
 
 					// Grab the value of the sample we're now at, to use for interpolation
@@ -685,7 +743,9 @@ doZeroes:
 					if (ALPHA_OR_BETA_VERSION) {
 						int32_t bytesLeftWhichMayBeRead =
 						    (int32_t)((uint32_t)reassessmentLocation - (uint32_t)currentPlayPos) * guide->playDirection;
-						if (bytesLeftWhichMayBeRead < 0) numericDriver.freezeWithError("E185");
+						if (bytesLeftWhichMayBeRead < 0) {
+							numericDriver.freezeWithError("E185");
+						}
 					}
 				}
 			}
@@ -698,7 +758,9 @@ doZeroes:
 				// That should mean we've already read this one, so we definitely shouldn't be beyond the reassessmentLocation...
 				int32_t bytesLeftWhichMayBeRead =
 				    (int32_t)((uint32_t)reassessmentLocation - (uint32_t)currentPlayPos) * guide->playDirection;
-				if (bytesLeftWhichMayBeRead < 0) numericDriver.freezeWithError("E223");
+				if (bytesLeftWhichMayBeRead < 0) {
+					numericDriver.freezeWithError("E223");
+				}
 			}
 		}
 
@@ -715,7 +777,9 @@ doZeroes:
 
 			// If finished waveform and just reading zeros
 			if (!clusters[0]) {
-				if (allowEndlessSilenceAtEnd) return true;
+				if (allowEndlessSilenceAtEnd) {
+					return true;
+				}
 				samplesLeftWhichMayBeRead = interpolationBufferSize - (uint32_t)currentPlayPos;
 				shouldShorten = (samplesWeWantToReadThisWindow > samplesLeftWhichMayBeRead);
 			}
@@ -724,7 +788,9 @@ doZeroes:
 			else {
 				int32_t bytesLeftWhichMayBeRead =
 				    (int32_t)((uint32_t)reassessmentLocation - (uint32_t)currentPlayPos) * guide->playDirection;
-				if (ALPHA_OR_BETA_VERSION && bytesLeftWhichMayBeRead < 0) numericDriver.freezeWithError("E148");
+				if (ALPHA_OR_BETA_VERSION && bytesLeftWhichMayBeRead < 0) {
+					numericDriver.freezeWithError("E148");
+				}
 
 				int bytesWeWantToRead = samplesWeWantToReadThisWindow * bytesPerSample;
 				shouldShorten = (bytesWeWantToRead > bytesLeftWhichMayBeRead);
@@ -743,8 +809,12 @@ doZeroes:
 
 				// This really really should never happen.
 				if (ALPHA_OR_BETA_VERSION && phaseIncrementingLeftWhichMayBeDone < 0) {
-					if (!clusters[0]) numericDriver.freezeWithError("E143");
-					else numericDriver.freezeWithError("E000");
+					if (!clusters[0]) {
+						numericDriver.freezeWithError("E143");
+					}
+					else {
+						numericDriver.freezeWithError("E000");
+					}
 				}
 
 				uint32_t numPhaseIncrementsLeftWhichMayBeDone =
@@ -762,7 +832,9 @@ doZeroes:
 		// But if we were interpolating last time...
 		if (interpolationBufferSizeLastTime) {
 
-			if (!clusters[0]) return false;
+			if (!clusters[0]) {
+				return false;
+			}
 
 			int numToJumpBack = (interpolationBufferSizeLastTime >> 1) - (oscPos >> 23);
 			jumpBackSamples(sample, numToJumpBack, guide->playDirection);
@@ -789,8 +861,8 @@ doZeroes:
 			*numSamples = (uint32_t)bytesLeftWhichMayBeRead / (uint8_t)bytesPerSample;
 
 			if (ALPHA_OR_BETA_VERSION && *numSamples <= 0) {
-				Uart::print("bytesLeftWhichMayBeRead: ");
-				Uart::println(bytesLeftWhichMayBeRead);
+				Debug::print("bytesLeftWhichMayBeRead: ");
+				Debug::println(bytesLeftWhichMayBeRead);
 				numericDriver.freezeWithError(
 				    "E147"); // Crazily, Michael B got in Nov 2022, when "closing" a recorded loop.
 			}
@@ -804,7 +876,7 @@ void SampleLowLevelReader::bufferIndividualSampleForInterpolation(uint32_t bitMa
                                                                   char* __restrict__ playPosNow) {
 
 	// This works better than using memmoves. Ideally we'd switch this off if not smoothly interpolating - check that that's actually more efficient though
-	for (int i = INTERPOLATION_MAX_NUM_SAMPLES - 1; i >= 1; i--) {
+	for (int i = kInterpolationMaxNumSamples - 1; i >= 1; i--) {
 		interpolationBuffer[0][0][i] = interpolationBuffer[0][0][i - 1];
 		if (numChannels == 2) {
 			interpolationBuffer[1][0][i] = interpolationBuffer[1][0][i - 1];
@@ -821,7 +893,7 @@ void SampleLowLevelReader::bufferIndividualSampleForInterpolation(uint32_t bitMa
 void SampleLowLevelReader::bufferZeroForInterpolation(int numChannels) {
 
 	// This works better than using memmoves. Ideally we'd switch this off if not smoothly interpolating - check that that's actually more efficient though
-	for (int i = INTERPOLATION_MAX_NUM_SAMPLES - 1; i >= 1; i--) {
+	for (int i = kInterpolationMaxNumSamples - 1; i >= 1; i--) {
 		interpolationBuffer[0][0][i] = interpolationBuffer[0][0][i - 1];
 		if (numChannels == 2) {
 			interpolationBuffer[1][0][i] = interpolationBuffer[1][0][i - 1];
@@ -897,7 +969,7 @@ void SampleLowLevelReader::jumpForwardLinear(int numChannels, int byteDepth, uin
 
 #define numBitsInTableSize 8
 #define rshiftAmount                                                                                                   \
-	((24 + INTERPOLATION_MAX_NUM_SAMPLES_MAGNITUDE) - 16 - numBitsInTableSize                                          \
+	((24 + kInterpolationMaxNumSamplesMagnitude) - 16 - numBitsInTableSize                                             \
 	 + 1) // that's (numBitsInInput - 16 - numBitsInTableSize); = 4 for now
 
 void SampleLowLevelReader::interpolate(int32_t* __restrict__ sampleRead, int numChannelsNow, int whichKernel) {
@@ -948,20 +1020,20 @@ void SampleLowLevelReader::readSamplesResampled(int32_t** __restrict__ oscBuffer
 				if (numSamplesToJumpForward) {
 					oscPos &= 16777215;
 
-					// If jumping forward by more than INTERPOLATION_MAX_NUM_SAMPLES, we first need to jump to the one before we're jumping forward to, to grab its value
-					if (numSamplesToJumpForward > INTERPOLATION_MAX_NUM_SAMPLES) {
-						currentPlayPosNow += (numSamplesToJumpForward - INTERPOLATION_MAX_NUM_SAMPLES) * jumpAmount;
-						numSamplesToJumpForward = INTERPOLATION_MAX_NUM_SAMPLES;
+					// If jumping forward by more than kInterpolationMaxNumSamples, we first need to jump to the one before we're jumping forward to, to grab its value
+					if (numSamplesToJumpForward > kInterpolationMaxNumSamples) {
+						currentPlayPosNow += (numSamplesToJumpForward - kInterpolationMaxNumSamples) * jumpAmount;
+						numSamplesToJumpForward = kInterpolationMaxNumSamples;
 					}
 
 					int16_t sourceL = *(int16_t*)currentPlayPosNow;
 
-					for (int i = INTERPOLATION_MAX_NUM_SAMPLES - 1; i >= numSamplesToJumpForward; i--) {
+					for (int i = kInterpolationMaxNumSamples - 1; i >= numSamplesToJumpForward; i--) {
 						interpolationBuffer[0][0][i] = interpolationBuffer[0][0][i - numSamplesToJumpForward];
 					}
 
 					if (numChannels == 2) {
-						for (int i = INTERPOLATION_MAX_NUM_SAMPLES - 1; i >= numSamplesToJumpForward; i--) {
+						for (int i = kInterpolationMaxNumSamples - 1; i >= numSamplesToJumpForward; i--) {
 							interpolationBuffer[1][0][i] = interpolationBuffer[1][0][i - numSamplesToJumpForward];
 						}
 
@@ -972,7 +1044,9 @@ void SampleLowLevelReader::readSamplesResampled(int32_t** __restrict__ oscBuffer
 							interpolationBuffer[1][0][numSamplesToJumpForward] =
 							    *(int16_t*)(currentPlayPosNow + byteDepth);
 							currentPlayPosNow += jumpAmount;
-							if (!numSamplesToJumpForward) goto skipFirstSmooth;
+							if (!numSamplesToJumpForward) {
+								goto skipFirstSmooth;
+							}
 							numSamplesToJumpForward--;
 							sourceL = *(int16_t*)currentPlayPosNow;
 						}
@@ -985,14 +1059,18 @@ void SampleLowLevelReader::readSamplesResampled(int32_t** __restrict__ oscBuffer
 						while (true) {
 							currentPlayPosNow += jumpAmount;
 							interpolationBuffer[0][0][numSamplesToJumpForward] = sourceL;
-							if (!numSamplesToJumpForward) goto skipFirstSmooth;
+							if (!numSamplesToJumpForward) {
+								goto skipFirstSmooth;
+							}
 							sourceL = *(int16_t*)currentPlayPosNow;
 							numSamplesToJumpForward--;
 						}
 					}
 				}
 			}
-			else jumpForwardZeroes(interpolationBufferSize, numChannels, phaseIncrement);
+			else {
+				jumpForwardZeroes(interpolationBufferSize, numChannels, phaseIncrement);
+			}
 
 skipFirstSmooth:
 			int32_t sampleRead[2];
@@ -1002,13 +1080,13 @@ skipFirstSmooth:
 
 			// If caching, do that now
 			if (writingCache) {
-				for (int i = 4 - CACHE_BYTE_DEPTH; i < 4; i++) {
+				for (int i = 4 - kCacheByteDepth; i < 4; i++) {
 					*cacheWritePosNow = ((char*)&sampleRead[0])[i];
 					cacheWritePosNow++;
 				}
 
 				if (numChannels == 2) {
-					for (int i = 4 - CACHE_BYTE_DEPTH; i < 4; i++) {
+					for (int i = 4 - kCacheByteDepth; i < 4; i++) {
 						*cacheWritePosNow = ((char*)&sampleRead[1])[i];
 						cacheWritePosNow++;
 					}
@@ -1048,8 +1126,12 @@ skipFirstSmooth:
 		}
 
 		do {
-			if (stillGotActualData) jumpForwardLinear(numChannels, byteDepth, bitMask, jumpAmount, phaseIncrement);
-			else jumpForwardZeroes(interpolationBufferSize, numChannels, phaseIncrement);
+			if (stillGotActualData) {
+				jumpForwardLinear(numChannels, byteDepth, bitMask, jumpAmount, phaseIncrement);
+			}
+			else {
+				jumpForwardZeroes(interpolationBufferSize, numChannels, phaseIncrement);
+			}
 
 skipFirstLinear:
 			int32_t sampleRead[2];
@@ -1081,7 +1163,9 @@ skipFirstLinear:
 	}
 
 	*oscBufferPos = oscBufferPosNow;
-	if (cacheWritePos) *cacheWritePos = cacheWritePosNow;
+	if (cacheWritePos) {
+		*cacheWritePos = cacheWritePosNow;
+	}
 }
 
 void SampleLowLevelReader::readSamplesNative(int32_t** __restrict__ bufferPos, int numSamplesTotal, Sample* sample,
@@ -1150,9 +1234,11 @@ bool SampleLowLevelReader::readSamplesForTimeStretching(int32_t* outputBuffer, S
 		if (!timeStretcher->playHeadStillActive[whichPlayHead]) {
 
 			// If we got false, that can just mean end of waveform. But if clusters[0] has been set to NULL too, that means (SD card) error
-			if (clusters[0]) return false;
+			if (clusters[0]) {
+				return false;
+			}
 
-			//Uart::println("one head no longer active for timeStretcher");
+			//Debug::println("one head no longer active for timeStretcher");
 			break;
 		}
 
@@ -1178,7 +1264,7 @@ bool SampleLowLevelReader::readSamplesForTimeStretching(int32_t* outputBuffer, S
 
 void SampleLowLevelReader::cloneFrom(SampleLowLevelReader* other, bool stealReasons) {
 
-	for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD; l++) {
+	for (int l = 0; l < kNumClustersLoadedAhead; l++) {
 		if (clusters[l]) {
 			audioFileManager.removeReasonFromCluster(clusters[l], "E131");
 		}

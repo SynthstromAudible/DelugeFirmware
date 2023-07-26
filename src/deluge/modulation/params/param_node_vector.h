@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef PARAMNODEVECTOR_H_
-#define PARAMNODEVECTOR_H_
+#pragma once
 
 #include "util/container/array/ordered_resizeable_array.h"
 
@@ -30,5 +29,3 @@ public:
 	ParamNode* getFirst();
 	ParamNode* getLast();
 };
-
-#endif /* PARAMNODEVECTOR_H_ */

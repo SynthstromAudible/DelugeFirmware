@@ -25,7 +25,7 @@
 #include "processing/sound/sound_drum.h"
 #include "gui/ui/audio_recorder.h"
 #include "storage/storage_manager.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "dsp/stereo_sample.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/numeric_driver.h"
@@ -41,13 +41,13 @@
 #include <new>
 #include "model/sample/sample_recorder.h"
 #include "hid/led/indicator_leds.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "hid/led/pad_leds.h"
 #include "extern.h"
 #include "hid/display/oled.h"
 #include "playback/playback_handler.h"
 
-AudioRecorder audioRecorder;
+AudioRecorder audioRecorder{};
 
 extern "C" void routineForSD(void);
 
@@ -69,7 +69,7 @@ void oledRoutine();
 struct RecorderFileSystemStuff recorderFileSystemStuff;
 
 AudioRecorder::AudioRecorder() {
-	recordingSource = AUDIO_INPUT_CHANNEL_NONE;
+	recordingSource = AudioInputChannel::NONE;
 	recorder = NULL;
 }
 
@@ -83,10 +83,12 @@ bool AudioRecorder::opened() {
 	actionLogger.deleteAllLogs();
 
 	// If we're already recording (probably the output) then no!
-	if (recordingSource) return false;
+	if (recordingSource > AudioInputChannel::NONE) {
+		return false;
+	}
 
 	// If recording for a Drum, set the name of the Drum
-	if (currentSong->currentClip->output->type == INSTRUMENT_TYPE_KIT) {
+	if (currentSong->currentClip->output->type == InstrumentType::KIT) {
 		Kit* kit = (Kit*)currentSong->currentClip->output;
 		SoundDrum* drum = (SoundDrum*)soundEditor.currentSound;
 		String newName;
@@ -99,7 +101,9 @@ gotError:
 		}
 
 		error = kit->makeDrumNameUnique(&newName, 1);
-		if (error) goto gotError;
+		if (error) {
+			goto gotError;
+		}
 
 		drum->name.set(&newName);
 	}
@@ -108,41 +112,45 @@ gotError:
 
 	bool inStereo = (AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn);
 	int newNumChannels = inStereo ? 2 : 1;
-	bool success = setupRecordingToFile(inStereo ? AUDIO_INPUT_CHANNEL_STEREO : AUDIO_INPUT_CHANNEL_LEFT,
-	                                    newNumChannels, AUDIO_RECORDING_FOLDER_RECORD);
+	bool success = setupRecordingToFile(inStereo ? AudioInputChannel::STEREO : AudioInputChannel::LEFT, newNumChannels,
+	                                    AudioRecordingFolder::RECORD);
 	if (success) {
 		soundEditor.setupShortcutBlink(soundEditor.currentSourceIndex, 4, 0);
 		soundEditor.blinkShortcut();
 
-		IndicatorLEDs::setLedState(synthLedX, synthLedY, !soundEditor.editingKit());
-		IndicatorLEDs::setLedState(kitLedX, kitLedY, soundEditor.editingKit());
-		IndicatorLEDs::setLedState(crossScreenEditLedX, crossScreenEditLedY, false);
-		IndicatorLEDs::setLedState(sessionViewLedX, sessionViewLedY, false);
-		IndicatorLEDs::setLedState(scaleModeLedX, scaleModeLedY, false);
-		IndicatorLEDs::blinkLed(backLedX, backLedY);
-		IndicatorLEDs::blinkLed(recordLedX, recordLedY, 255, 1);
+		indicator_leds::setLedState(IndicatorLED::SYNTH, !soundEditor.editingKit());
+		indicator_leds::setLedState(IndicatorLED::KIT, soundEditor.editingKit());
+		indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
+		indicator_leds::setLedState(IndicatorLED::SESSION_VIEW, false);
+		indicator_leds::setLedState(IndicatorLED::SCALE_MODE, false);
+		indicator_leds::blinkLed(IndicatorLED::BACK);
+		indicator_leds::blinkLed(IndicatorLED::RECORD, 255, 1);
 #if !HAVE_OLED
 		numericDriver.setNextTransitionDirection(0);
 		numericDriver.setText("REC", false, 255, true);
 #endif
 	}
 
-	if (currentUIMode == UI_MODE_AUDITIONING) instrumentClipView.cancelAllAuditioning();
+	if (currentUIMode == UI_MODE_AUDITIONING) {
+		instrumentClipView.cancelAllAuditioning();
+	}
 
 	return success;
 }
 
 #if HAVE_OLED
 void AudioRecorder::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
-	OLED::drawStringCentred("Recording", 15, image[0], OLED_MAIN_WIDTH_PIXELS, TEXT_BIG_SPACING_X, TEXT_BIG_SIZE_Y);
+	OLED::drawStringCentred("Recording", 15, image[0], OLED_MAIN_WIDTH_PIXELS, kTextBigSpacingX, kTextBigSizeY);
 }
 #endif
 
-bool AudioRecorder::setupRecordingToFile(int newMode, int newNumChannels, int folderID) {
+bool AudioRecorder::setupRecordingToFile(AudioInputChannel newMode, int newNumChannels, AudioRecordingFolder folderID) {
 
-	if (ALPHA_OR_BETA_VERSION && recordingSource) numericDriver.freezeWithError("E242");
+	if (ALPHA_OR_BETA_VERSION && recordingSource > AudioInputChannel::NONE) {
+		numericDriver.freezeWithError("E242");
+	}
 
-	recorder = AudioEngine::getNewRecorder(newNumChannels, folderID, newMode, INTERNAL_BUTTON_PRESS_LATENCY);
+	recorder = AudioEngine::getNewRecorder(newNumChannels, folderID, newMode, kInternalButtonPressLatency);
 	if (!recorder) {
 		numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
 		return false;
@@ -156,10 +164,10 @@ bool AudioRecorder::setupRecordingToFile(int newMode, int newNumChannels, int fo
 }
 
 bool AudioRecorder::beginOutputRecording() {
-	bool success = setupRecordingToFile(AUDIO_INPUT_CHANNEL_OUTPUT, 2, AUDIO_RECORDING_FOLDER_RESAMPLE);
+	bool success = setupRecordingToFile(AudioInputChannel::OUTPUT, 2, AudioRecordingFolder::RESAMPLE);
 
 	if (success) {
-		IndicatorLEDs::blinkLed(recordLedX, recordLedY, 255, 1);
+		indicator_leds::blinkLed(IndicatorLED::RECORD, 255, 1);
 	}
 
 	AudioEngine::bypassCulling =
@@ -172,9 +180,8 @@ bool AudioRecorder::beginOutputRecording() {
 
 void AudioRecorder::endRecordingSoon(int buttonLatency) {
 
-	if (recorder
-	    && recorder->status
-	           == RECORDER_STATUS_CAPTURING_DATA) { // Make sure we don't call the same thing multiple times - I think there's a few scenarios where this could happen
+	// Make sure we don't call the same thing multiple times - I think there's a few scenarios where this could happen
+	if (recorder && recorder->status == RECORDER_STATUS_CAPTURING_DATA) {
 #if HAVE_OLED
 		OLED::displayWorkingAnimation("Working");
 #else
@@ -185,9 +192,9 @@ void AudioRecorder::endRecordingSoon(int buttonLatency) {
 }
 
 void AudioRecorder::slowRoutine() {
-	if (recordingSource == AUDIO_INPUT_CHANNEL_OUTPUT) {
+	if (recordingSource == AudioInputChannel::OUTPUT) {
 		if (recorder->status >= RECORDER_STATUS_COMPLETE) {
-			IndicatorLEDs::setLedState(recordLedX, recordLedY, (playbackHandler.recording == RECORDING_NORMAL));
+			indicator_leds::setLedState(IndicatorLED::RECORD, (playbackHandler.recording == RECORDING_NORMAL));
 			finishRecording();
 		}
 	}
@@ -217,7 +224,7 @@ void AudioRecorder::process() {
 			else {
 				// We want to attach that Sample to a Source right away...
 				soundEditor.currentSound->unassignAllVoices();
-				soundEditor.currentSource->setOscType(OSC_TYPE_SAMPLE);
+				soundEditor.currentSource->setOscType(OscType::SAMPLE);
 				soundEditor.currentMultiRange->getAudioFileHolder()->filePath.set(&recorder->sample->filePath);
 				soundEditor.currentMultiRange->getAudioFileHolder()->setAudioFile(
 				    recorder->sample, soundEditor.currentSource->sampleControls.reversed, true);
@@ -249,7 +256,7 @@ void AudioRecorder::finishRecording() {
 	AudioEngine::discardRecorder(recorder);
 
 	recorder = NULL;
-	recordingSource = 0;
+	recordingSource = AudioInputChannel::NONE;
 #if HAVE_OLED
 	OLED::removeWorkingAnimation();
 #else
@@ -257,19 +264,26 @@ void AudioRecorder::finishRecording() {
 #endif
 }
 
-int AudioRecorder::buttonAction(int x, int y, bool on, bool inCardRoutine) {
-	if (!on) return ACTION_RESULT_NOT_DEALT_WITH;
+ActionResult AudioRecorder::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+	using namespace hid::button;
+
+	if (!on) {
+		return ActionResult::NOT_DEALT_WITH;
+	}
 
 	// We don't actually wrap up recording here, because this could be in fact called from the SD writing routines as they wait - that'd be a tangle.
-	if ((x == backButtonX && y == backButtonY) || (x == selectEncButtonX && y == selectEncButtonY)
-	    || (x == recordButtonX && y == recordButtonY)) {
+	if ((b == BACK) || (b == SELECT_ENC) || (b == RECORD)) {
 
-		if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		endRecordingSoon(INTERNAL_BUTTON_PRESS_LATENCY);
+		if (inCardRoutine) {
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		}
+		endRecordingSoon(kInternalButtonPressLatency);
 	}
-	else return ACTION_RESULT_NOT_DEALT_WITH;
+	else {
+		return ActionResult::NOT_DEALT_WITH;
+	}
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
 bool AudioRecorder::isCurrentlyResampling() {

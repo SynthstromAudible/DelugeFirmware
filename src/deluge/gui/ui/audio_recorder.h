@@ -15,10 +15,11 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef AUDIORECORDER_H_
-#define AUDIORECORDER_H_
+#pragma once
 
+#include "definitions_cxx.hpp"
 #include "gui/ui/ui.h"
+#include "hid/button.h"
 #include "model/sample/sample.h"
 
 extern "C" {
@@ -39,13 +40,13 @@ public:
 	bool opened();
 	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows);
 
-	int buttonAction(int x, int y, bool on, bool inCardRoutine);
+	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
 	bool beginOutputRecording();
 	void process();
 	void slowRoutine();
 	bool isCurrentlyResampling();
 
-	uint8_t recordingSource;
+	AudioInputChannel recordingSource;
 
 	SampleRecorder* recorder;
 
@@ -57,9 +58,7 @@ public:
 
 private:
 	void finishRecording();
-	bool setupRecordingToFile(int newMode, int newNumChannels, int folderID);
+	bool setupRecordingToFile(AudioInputChannel newMode, int newNumChannels, AudioRecordingFolder folderID);
 };
 
 extern AudioRecorder audioRecorder;
-
-#endif /* AUDIORECORDER_H_ */

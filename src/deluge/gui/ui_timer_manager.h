@@ -15,10 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef UITIMERMANAGER_H
-#define UITIMERMANAGER_H
+#pragma once
 
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 
 #define TIMER_DISPLAY 0
 #define TIMER_MIDI_LEARN_FLASH 1
@@ -71,5 +70,3 @@ private:
 };
 
 extern UITimerManager uiTimerManager;
-
-#endif // UITIMERMANAGER_H

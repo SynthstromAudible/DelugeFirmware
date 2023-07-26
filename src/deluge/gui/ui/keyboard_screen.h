@@ -15,11 +15,11 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef KEYBOARDSCREEN_H_
-#define KEYBOARDSCREEN_H_
+#pragma once
 
 #include "gui/ui/root_ui.h"
 #include "gui/ui/ui.h"
+#include "hid/button.h"
 #include "model/clip/instrument_clip_minder.h"
 
 struct KeyboardPadPress {
@@ -36,14 +36,14 @@ public:
 	KeyboardScreen();
 	bool opened();
 	void focusRegained();
-	int padAction(int x, int y, int velocity);
-	int buttonAction(int x, int y, bool on, bool inCardRoutine);
-	bool renderMainPads(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
-	                    uint8_t occupancyMask[][displayWidth + sideBarWidth], bool drawUndefinedArea = false);
-	bool renderSidebar(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
-	                   uint8_t occupancyMask[][displayWidth + sideBarWidth]);
-	int verticalEncoderAction(int offset, bool inCardRoutine);
-	int horizontalEncoderAction(int offset);
+	ActionResult padAction(int x, int y, int velocity);
+	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
+	bool renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = false);
+	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
+	ActionResult verticalEncoderAction(int offset, bool inCardRoutine);
+	ActionResult horizontalEncoderAction(int offset);
 	void selectEncoderAction(int8_t offset);
 	ClipMinder* toClipMinder() { return this; }
 	void flashDefaultRootNote();
@@ -64,7 +64,7 @@ public:
 
 private:
 	int getNoteCodeFromCoords(int x, int y);
-	void doScroll(int offset);
+	void doScroll(int offset, bool force = false);
 	int getLowestAuditionedNote();
 	int getHighestAuditionedNote();
 	void enterScaleMode(int selectedRootNote = 2147483647);
@@ -72,9 +72,8 @@ private:
 	void drawNoteCode(int noteCode);
 
 	KeyboardPadPress padPresses[MAX_NUM_KEYBOARD_PAD_PRESSES];
-	uint8_t noteColours[displayHeight * KEYBOARD_ROW_INTERVAL + displayWidth][3];
-	bool yDisplayActive[displayHeight * KEYBOARD_ROW_INTERVAL + displayWidth];
+	uint8_t noteColours[kDisplayHeight * kMaxKeyboardRowInterval + kDisplayWidth][3];
+	bool yDisplayActive[kDisplayHeight * kMaxKeyboardRowInterval + kDisplayWidth];
 };
 
 extern KeyboardScreen keyboardScreen;
-#endif /* KEYBOARDSCREEN_H_ */

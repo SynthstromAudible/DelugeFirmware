@@ -15,10 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef STORAGEMANAGER_H
-#define STORAGEMANAGER_H
+#pragma once
 
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "RZA1/system/r_typedefs.h"
 
 extern "C" {
@@ -82,20 +81,21 @@ public:
 	bool lseek(uint32_t pos);
 	bool fileExists(char const* pathName);
 	bool fileExists(char const* pathName, FilePointer* fp);
-	int openInstrumentFile(int instrumentType, FilePointer* filePointer);
+	int openInstrumentFile(InstrumentType instrumentType, FilePointer* filePointer);
 	void writeFirmwareVersion();
 	bool checkSDPresent();
 	bool checkSDInitialized();
 	bool readXMLFileCluster();
 	int getNumCharsRemainingInValue();
-	Instrument* createNewInstrument(uint8_t newInstrumentType, ParamManager* getParamManager = NULL);
-	int loadInstrumentFromFile(Song* song, InstrumentClip* clip, int instrumentType, bool mayReadSamplesFromFiles,
-	                           Instrument** getInstrument, FilePointer* filePointer, String* name, String* dirPath);
-	Instrument* createNewNonAudioInstrument(int instrumentType, int slot, int subSlot);
+	Instrument* createNewInstrument(InstrumentType newInstrumentType, ParamManager* getParamManager = NULL);
+	int loadInstrumentFromFile(Song* song, InstrumentClip* clip, InstrumentType instrumentType,
+	                           bool mayReadSamplesFromFiles, Instrument** getInstrument, FilePointer* filePointer,
+	                           String* name, String* dirPath);
+	Instrument* createNewNonAudioInstrument(InstrumentType instrumentType, int slot, int subSlot);
 	void writeEarliestCompatibleFirmwareVersion(char const* versionString);
 	int readMIDIParamFromFile(int32_t readAutomationUpToPos, MIDIParamCollection* midiParamCollection,
 	                          int8_t* getCC = NULL);
-	Drum* createNewDrum(int drumType);
+	Drum* createNewDrum(DrumType drumType);
 	void openFilePointer(FilePointer* fp);
 	int tryReadingFirmwareTagFromFile(char const* tagName, bool ignoreIncorrectFirmware = false);
 	int32_t readTagOrAttributeValueInt();
@@ -156,5 +156,3 @@ private:
 extern StorageManager storageManager;
 extern FILINFO staticFNO;
 extern DIR staticDIR;
-
-#endif // STORAGEMANAGER_H

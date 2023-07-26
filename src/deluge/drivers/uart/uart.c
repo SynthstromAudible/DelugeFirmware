@@ -52,14 +52,6 @@ void uartPrintNumber(int number) {
 #endif
 }
 
-void uartPrintNumberSameLine(int number) {
-#if ENABLE_TEXT_OUTPUT
-	char buffer[12];
-	intToString(number, buffer, 1);
-	uartPrint(buffer);
-#endif
-}
-
 void uartPrint(char const* output) {
 #if ENABLE_TEXT_OUTPUT
 #if HAVE_RTT
@@ -131,7 +123,9 @@ extern const bool_t uartItemIsScim[];
 int uartFlush(int item) {
 
 	int num = uartItems[item].txBufferWritePos - uartItems[item].txBufferReadPosAfterTransfer;
-	if (!num) return 0;
+	if (!num) {
+		return 0;
+	}
 
 	int fullNum = num & (txBufferSizes[item] - 1);
 
@@ -213,7 +207,9 @@ uint8_t uartGetChar(int item, char_t* readData) {
 	char_t const* currentWritePos = (char_t*)DMACnNonVolatile(rxDmaChannels[item])
 	                                    .CRDA_n; // We deliberately don't go (volatile uint32_t*) here, for speed
 
-	if (currentWritePos == rxBufferReadAddr[item]) return 0;
+	if (currentWritePos == rxBufferReadAddr[item]) {
+		return 0;
+	}
 
 	*readData = *(rxBufferReadAddr[item] + UNCACHED_MIRROR_OFFSET);
 
@@ -231,7 +227,9 @@ uint32_t* uartGetCharWithTiming(int timingCaptureItem, char_t* readData) {
 	char_t const* currentWritePos = (char_t*)DMACnNonVolatile(rxDmaChannels[item])
 	                                    .CRDA_n; // We deliberately don't go (volatile uint32_t*) here, for speed
 
-	if (currentWritePos == rxBufferReadAddr[item]) return NULL;
+	if (currentWritePos == rxBufferReadAddr[item]) {
+		return NULL;
+	}
 
 	*readData = *(rxBufferReadAddr[item] + UNCACHED_MIRROR_OFFSET);
 

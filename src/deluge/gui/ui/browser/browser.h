@@ -1,5 +1,5 @@
 /*
- * Copyright © 2019-2023 Synthstrom Audible Limited
+ * Copyright Γö¼ΓîÉ 2019-2023 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -15,11 +15,13 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef BROWSER_H_
-#define BROWSER_H_
+#pragma once
 
+#include "definitions_cxx.hpp"
 #include "util/container/array/c_string_array.h"
+#include "storage/file_item.h"
 #include "gui/ui/qwerty_ui.h"
+#include "hid/button.h"
 
 extern "C" {
 #include "fatfs/ff.h"
@@ -56,6 +58,9 @@ struct Slot {
 #define CATALOG_SEARCH_RIGHT 1
 #define CATALOG_SEARCH_BOTH 2
 
+#define FILE_ITEMS_MAX_NUM_ELEMENTS 20
+#define FILE_ITEMS_MAX_NUM_ELEMENTS_FOR_NAVIGATION 20 // It "should" be able to be way less than this.
+
 extern char const* allowedFileExtensionsXML[];
 
 class Browser : public QwertyUI {
@@ -64,29 +69,23 @@ public:
 
 	void close();
 	virtual int getCurrentFilePath(String* path) = 0;
-	int buttonAction(int x, int y, bool on, bool inCardRoutine);
+	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
 	void currentFileDeleted();
 	int goIntoFolder(char const* folderName);
 	int createFolder();
 	void selectEncoderAction(int8_t offset);
 	static FileItem* getCurrentFileItem();
-	static int readFileItemsForFolder(char const* filePrefixHere, bool allowFolders,
-	                                  char const** allowedFileExtensionsHere, char const* filenameToStartAt,
-	                                  int newMaxNumFileItems, int newCatalogSearchDirection = CATALOG_SEARCH_BOTH);
-	static void sortFileItems();
-	static FileItem* getNewFileItem();
+	int readFileItemsForFolder(char const* filePrefixHere, bool allowFolders, char const** allowedFileExtensionsHere,
+	                           char const* filenameToStartAt, int newMaxNumFileItems,
+	                           int newCatalogSearchDirection = CATALOG_SEARCH_BOTH);
+	void sortFileItems();
+	FileItem* getNewFileItem();
 	static void emptyFileItems();
 	static void deleteSomeFileItems(int startAt, int stopAt);
-	static void deleteFolderAndDuplicateItems(int instrumentAvailabilityRequirement = AVAILABILITY_ANY);
-	static PresetNavigationResult doPresetNavigation(int offset, Instrument* oldInstrument, int availabilityRequirement,
-	                                                 bool doBlink);
-	static int getUnusedSlot(int instrumentType, String* newName, char const* thingName);
-	static ReturnOfConfirmPresetOrNextUnlaunchedOne
-	confirmPresetOrNextUnlaunchedOne(int instrumentType, String* searchName, int availabilityRequirement);
-	static ReturnOfConfirmPresetOrNextUnlaunchedOne
-	findAnUnlaunchedPresetIncludingWithinSubfolders(Song* song, int instrumentType, int availabilityRequirement);
+	static void deleteFolderAndDuplicateItems(Availability instrumentAvailabilityRequirement = Availability::ANY);
+	int getUnusedSlot(InstrumentType instrumentType, String* newName, char const* thingName);
 	bool opened();
-	static void cullSomeFileItems();
+	void cullSomeFileItems();
 
 #if HAVE_OLED
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
@@ -99,7 +98,7 @@ public:
 	static char const* firstFileItemRemaining;
 	static char const* lastFileItemRemaining;
 
-	static int instrumentTypeToLoad;
+	static InstrumentType instrumentTypeToLoad;
 	static char const* filenameToStartSearchAt;
 
 protected:
@@ -108,19 +107,19 @@ protected:
 	virtual int arrivedInNewFolder(int direction, char const* filenameToStartAt = NULL, char const* defaultDir = NULL);
 	bool predictExtendedText();
 	void goIntoDeleteFileContextMenu();
-	int mainButtonAction(bool on);
+	ActionResult mainButtonAction(bool on);
 	virtual void exitAction();
-	virtual int backButtonAction();
+	virtual ActionResult backButtonAction();
 	virtual void folderContentsReady(int entryDirection) {
 	}
 	virtual void currentFileChanged(int movementDirection) {
 	}
 	void displayText(bool blinkImmediately = false);
 	static Slot getSlot(char const* displayName);
-	static int readFileItemsFromFolderAndMemory(Song* song, int instrumentType, char const* filePrefixHere,
-	                                            char const* filenameToStartAt, char const* defaultDirToAlsoTry,
-	                                            bool allowFoldersint, int availabilityRequirement = AVAILABILITY_ANY,
-	                                            int newCatalogSearchDirection = CATALOG_SEARCH_RIGHT);
+	int readFileItemsFromFolderAndMemory(Song* song, InstrumentType instrumentType, char const* filePrefixHere,
+	                                     char const* filenameToStartAt, char const* defaultDirToAlsoTry,
+	                                     bool allowFoldersint, Availability availabilityRequirement = Availability::ANY,
+	                                     int newCatalogSearchDirection = CATALOG_SEARCH_RIGHT);
 
 	static int
 	    fileIndexSelected; // If -1, we have not selected any real file/folder. Maybe there are no files, or maybe we're typing a new name.
@@ -138,9 +137,8 @@ protected:
 	static NumericLayerScrollingText* scrollingText;
 	bool shouldWrapFolderContents; // As in, wrap around at the end.
 #endif
-	bool allowBrandNewNames;
+	bool mayDefaultToBrandNewNameOnEntry;
 	bool qwertyAlwaysVisible;
 	char const* filePrefix;
+	bool shouldInterpretNoteNamesForThisBrowser;
 };
-
-#endif /* BROWSER_H_ */

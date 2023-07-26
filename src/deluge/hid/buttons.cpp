@@ -17,7 +17,7 @@
 
 #include "processing/engines/audio_engine.h"
 #include "hid/buttons.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "gui/ui/ui.h"
 #include "gui/ui/audio_recorder.h"
 #include "playback/playback_handler.h"
@@ -33,48 +33,52 @@ bool recordButtonPressUsedUp;
 uint32_t timeRecordButtonPressed;
 bool buttonStates[NUM_BUTTON_COLS + 1][NUM_BUTTON_ROWS]; // The extra col is for "fake" buttons
 
-int buttonAction(int x, int y, bool on, bool inCardRoutine) {
+ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+	using namespace hid::button;
 
-	buttonStates[x][y] =
-	    on; // Must happen up here before it's actioned, because if its action accesses SD card, we might multiple-enter this function, and don't want to then be setting this after that later action, erasing what it set
+	// Must happen up here before it's actioned, because if its action accesses SD card, we might multiple-enter this function, and don't want to then be setting this after that later action, erasing what it set
+	auto xy = hid::button::toXY(b);
+	buttonStates[xy.x][xy.y] = on;
 
 #if ALLOW_SPAM_MODE
-	if (x == xEncButtonX && y == xEncButtonY) {
+	if (b == X_ENC) {
 		spamMode();
 		return;
 	}
 #endif
 
-	int result;
+	ActionResult result;
 
 	// See if it was one of the mod buttons
-	for (int i = 0; i < NUM_MOD_BUTTONS; i++) {
+	for (int i = 0; i < kNumModButtons; i++) {
 
-		if (x == modButtonX[i] && y == modButtonY[i]) {
+		if (xy.x == modButtonX[i] && xy.y == modButtonY[i]) {
 
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 			if (i < 3) {
 				if (buttonStates[modButtonX[0]][modButtonY[0]] && buttonStates[modButtonX[1]][modButtonY[1]]
 				    && buttonStates[modButtonX[2]][modButtonY[2]]) {
 					ramTestLED(true);
 				}
 			}
-#endif
 			getCurrentUI()->modButtonAction(i, on);
 			goto dealtWith;
 		}
 	}
 
-	result = getCurrentUI()->buttonAction(x, y, on, inCardRoutine);
+	result = getCurrentUI()->buttonAction(b, on, inCardRoutine);
 
-	if (result == ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
-	else if (result == ACTION_RESULT_DEALT_WITH) goto dealtWith;
+	if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
+		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+	}
+	else if (result == ActionResult::DEALT_WITH) {
+		goto dealtWith;
+	}
 
 	// Play button
-	if (x == playButtonX && y == playButtonY) {
+	if (b == PLAY) {
 		if (on) {
 
-			if (audioRecorder.recordingSource && isButtonPressed(recordButtonX, recordButtonY)) {
+			if (audioRecorder.recordingSource > AudioInputChannel::NONE && isButtonPressed(RECORD)) {
 				// Stop output-recording at end of loop
 				if (!recordButtonPressUsedUp && playbackHandler.isEitherClockActive()) {
 					currentPlaybackMode->stopOutputRecordingAtLoopEnd();
@@ -83,12 +87,11 @@ int buttonAction(int x, int y, bool on, bool inCardRoutine) {
 
 			else {
 
-				//if (inCardRoutine) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
-				playbackHandler.playButtonPressed(INTERNAL_BUTTON_PRESS_LATENCY);
+				//if (inCardRoutine) return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				playbackHandler.playButtonPressed(kInternalButtonPressLatency);
 
 				// Begin output-recording simultaneously with playback
-				if (isButtonPressed(recordButtonX, recordButtonY) && playbackHandler.playbackState
-				    && !recordButtonPressUsedUp) {
+				if (isButtonPressed(RECORD) && playbackHandler.playbackState && !recordButtonPressUsedUp) {
 					audioRecorder.beginOutputRecording();
 				}
 			}
@@ -98,15 +101,14 @@ int buttonAction(int x, int y, bool on, bool inCardRoutine) {
 	}
 
 	// Record button
-	else if (x == recordButtonX && y == recordButtonY) {
+	else if (b == RECORD) {
 		// Press on
 		if (on) {
 			timeRecordButtonPressed = AudioEngine::audioSampleTimer;
 
 			recordButtonPressUsedUp = false;
 
-			if (!audioRecorder.recordingSource) {
-
+			if (audioRecorder.recordingSource == AudioInputChannel::NONE) {
 				if (isShiftButtonPressed()) {
 					audioRecorder.beginOutputRecording();
 					recordButtonPressUsedUp = true;
@@ -119,7 +121,7 @@ int buttonAction(int x, int y, bool on, bool inCardRoutine) {
 			if (!recordButtonPressUsedUp
 			    && (int32_t)(AudioEngine::audioSampleTimer - timeRecordButtonPressed) < (44100 >> 1)) {
 				if (audioRecorder.isCurrentlyResampling()) {
-					audioRecorder.endRecordingSoon(INTERNAL_BUTTON_PRESS_LATENCY);
+					audioRecorder.endRecordingSoon(kInternalButtonPressLatency);
 				}
 				else {
 					playbackHandler.recordButtonPressed();
@@ -129,50 +131,53 @@ int buttonAction(int x, int y, bool on, bool inCardRoutine) {
 	}
 
 	// Tempo encoder button
-	else if (x == tempoEncButtonX && y == tempoEncButtonY) {
+	else if (b == TEMPO_ENC) {
 		if (on) {
-			if (isShiftButtonPressed()) playbackHandler.displaySwingAmount();
+			if (isShiftButtonPressed()) {
+				playbackHandler.displaySwingAmount();
+			}
 			else {
-				if (getCurrentUI() != &loadSongUI) playbackHandler.displayTempoByCalculation();
+				if (getCurrentUI() != &loadSongUI) {
+					playbackHandler.displayTempoByCalculation();
+				}
 			}
 		}
 	}
 
 #if ALLOW_SPAM_MODE
-	else if (x == selectEncButtonX && y == selectEncButtonY && isButtonPressed(clipViewButtonX, clipViewButtonY)
-	         && isButtonPressed(shiftButtonX, shiftButtonY)) {
-		spamMode();
-	}
+	else if (b == SELECT_ENC)
+		     && isButtonPressed(shiftButtonCoord.x, shiftButtonCoord.y)) {
+			     spamMode();
+		     }
 #endif
 
-#if DELUGE_MODEL != DELUGE_MODEL_40_PAD
 	// Mod encoder buttons
-	else if (x == modEncoder0ButtonX && y == modEncoder0ButtonY) {
+	else if (b == MOD_ENCODER_0) {
 		getCurrentUI()->modEncoderButtonAction(0, on);
 	}
-	else if (x == modEncoder1ButtonX && y == modEncoder1ButtonY) {
+	else if (b == MOD_ENCODER_1) {
 		getCurrentUI()->modEncoderButtonAction(1, on);
 	}
-#endif
 
 dealtWith:
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
-bool isButtonPressed(int x, int y) {
-	return buttonStates[x][y];
+bool isButtonPressed(hid::Button b) {
+	auto xy = hid::button::toXY(b);
+	return buttonStates[xy.x][xy.y];
 }
 
 bool isShiftButtonPressed() {
-	return buttonStates[shiftButtonX][shiftButtonY];
+	return buttonStates[shiftButtonCoord.x][shiftButtonCoord.y];
 }
 
 bool isNewOrShiftButtonPressed() {
 #ifdef BUTTON_NEW_X
 	return buttonStates[BUTTON_NEW_X][BUTTON_NEW_Y];
 #else
-	return buttonStates[shiftButtonX][shiftButtonY];
+	return buttonStates[shiftButtonCoord.x][shiftButtonCoord.y];
 #endif
 }
 
@@ -181,10 +186,9 @@ void noPressesHappening(bool inCardRoutine) {
 	for (int x = 0; x < NUM_BUTTON_COLS; x++) {
 		for (int y = 0; y < NUM_BUTTON_ROWS; y++) {
 			if (buttonStates[x][y]) {
-				buttonAction(x, y, false, inCardRoutine);
+				buttonAction(hid::button::fromXY(x, y), false, inCardRoutine);
 			}
 		}
 	}
 }
-
 } // namespace Buttons

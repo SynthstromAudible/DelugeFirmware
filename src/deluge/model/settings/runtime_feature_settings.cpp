@@ -16,8 +16,11 @@
  */
 
 #include "runtime_feature_settings.h"
+#include <cstring>
 #include <new>
+#include <stdio.h>
 #include <string.h>
+
 #include "hid/display/numeric_driver.h"
 #include "storage/storage_manager.h"
 
@@ -33,18 +36,65 @@ struct UnknownSetting {
 	uint32_t value;
 };
 
-RuntimeFeatureSettings runtimeFeatureSettings;
+RuntimeFeatureSettings runtimeFeatureSettings{};
 
 RuntimeFeatureSettings::RuntimeFeatureSettings() : unknownSettings(sizeof(UnknownSetting)) {
+}
+
+static void SetupOnOffSetting(RuntimeFeatureSetting& setting, char const* const displayName, char const* const xmlName,
+                              RuntimeFeatureStateToggle def) {
+	setting.displayName = displayName;
+	setting.xmlName = xmlName;
+	setting.value = static_cast<uint32_t>(def);
+
+	setting.options[0] = {
+	    .displayName = "Off",
+	    .value = RuntimeFeatureStateToggle::Off,
+	};
+
+	setting.options[1] = {
+	    .displayName = "On",
+	    .value = RuntimeFeatureStateToggle::On,
+	};
+
+	setting.options[2] = {
+	    .displayName = NULL,
+	    .value = 0,
+	};
+}
+
+void RuntimeFeatureSettings::init() {
+	// Drum randomizer
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DrumRandomizer], "Drum Randomizer", "drumRandomizer",
+	                  RuntimeFeatureStateToggle::On);
+	// Master compressor
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::MasterCompressorFx], "Master Compressor", "masterCompressor",
+	                  RuntimeFeatureStateToggle::On);
+	// Quantize
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::Quantize], "Quantize", "quantize",
+	                  RuntimeFeatureStateToggle::On);
+	// FineTempoKnob
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::FineTempoKnob], "Fine Tempo Knob", "fineTempoknob",
+	                  RuntimeFeatureStateToggle::On);
+	// PatchCableResolution
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::PatchCableResolution], "Mod. depth decimals",
+	                  "ModDepthDecimals", RuntimeFeatureStateToggle::On);
+	// CatchNotes
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::CatchNotes], "CatchNotes", "catchNotes",
+	                  RuntimeFeatureStateToggle::On);
 }
 
 void RuntimeFeatureSettings::readSettingsFromFile() {
 	FilePointer fp;
 	bool success = storageManager.fileExists(RUNTIME_FEATURE_SETTINGS_FILE, &fp);
-	if (!success) return;
+	if (!success) {
+		return;
+	}
 
 	int error = storageManager.openXMLFile(&fp, TAG_RUNTIME_FEATURE_SETTINGS);
-	if (error) return;
+	if (error) {
+		return;
+	}
 
 	String currentName;
 	int32_t currentValue = 0;
@@ -102,7 +152,9 @@ void RuntimeFeatureSettings::writeSettingsToFile() {
 	f_unlink(RUNTIME_FEATURE_SETTINGS_FILE); // May give error, but no real consequence from that.
 
 	int error = storageManager.createXMLFile(RUNTIME_FEATURE_SETTINGS_FILE, true);
-	if (error) return;
+	if (error) {
+		return;
+	}
 
 	storageManager.writeOpeningTagBeginning(TAG_RUNTIME_FEATURE_SETTINGS);
 	storageManager.writeFirmwareVersion();

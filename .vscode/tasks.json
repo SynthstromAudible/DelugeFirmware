@@ -1,0 +1,83 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "process",
+			"label": "Build 7SEG Debug",
+			"command": "./dbt",
+			"windows": {
+				"command": "./dbt.cmd",
+			},
+			"args":["build", "dbt-build-debug-7seg"],
+			"group": { 
+				"kind": "build",
+				"isDefault": true
+			}
+		},
+		{
+			"type": "process",
+			"label": "Build OLED Debug",
+			"command": "./dbt",
+			"windows": {
+				"command": "./dbt.cmd",
+			},
+			"args":["build", "dbt-build-debug-oled"],
+			"group": { 
+				"kind": "build",
+				"isDefault": false
+			}
+		},
+		{
+			"type": "process",
+			"label": "Build 7SEG Release",
+			"command": "./dbt",
+			"windows": {
+				"command": "./dbt.cmd",
+			},
+			"args":["build", "dbt-build-release-7seg"],
+			"group": { 
+				"kind": "build",
+				"isDefault": false
+			}
+		},
+		{
+			"type": "process",
+			"label": "Build OLED Release",
+			"command": "./dbt",
+			"windows": {
+				"command": "./dbt.cmd",
+			},
+			"args":["build", "dbt-build-release-oled"],
+			"group": { 
+				"kind": "build",
+				"isDefault": false
+			}
+		},
+
+		{
+			"type": "process",
+			"label": "Run JLink GDB Server",
+			"problemMatcher": [],
+			"command": "./dbt",	
+			"windows": {
+				"command": "./dbt.cmd",
+			},
+			"args": [
+				"debug",
+				"-j",
+			]
+		},
+		{
+			"type": "process",
+			"label": "Run OpenOCD GDB Server",
+			"problemMatcher": [],
+			"command": "./dbt",
+			"windows": {
+				"command": "./dbt.cmd",
+			},
+			"args": [
+				"debug",
+			]
+		}
+	]
+}

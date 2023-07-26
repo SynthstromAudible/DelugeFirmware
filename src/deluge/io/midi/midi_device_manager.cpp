@@ -16,6 +16,7 @@
  */
 
 #include "io/midi/midi_device_manager.h"
+#include "definitions_cxx.hpp"
 #include "util/container/vector/named_thing_vector.h"
 #include "io/midi/midi_device.h"
 #include "memory/general_memory_allocator.h"
@@ -25,8 +26,10 @@
 #include "storage/storage_manager.h"
 #include "io/midi/midi_engine.h"
 #include "gui/ui/sound_editor.h"
-#include "gui/menu_item/menu_item_mpe_zone_num_member_channels.h"
+#include "gui/menu_item/mpe/zone_num_member_channels.h"
 #include "hid/display/oled.h"
+#include "util/functions.h"
+#include "util/misc.h"
 
 extern "C" {
 #include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_basic_define.h"
@@ -39,46 +42,33 @@ ConnectedUSBMIDIDevice connectedUSBMIDIDevices[USB_NUM_USBIP][MAX_NUM_USB_MIDI_D
 
 namespace MIDIDeviceManager {
 
-NamedThingVector hostedMIDIDevices(0);
+NamedThingVector hostedMIDIDevices{__builtin_offsetof(MIDIDeviceUSBHosted, name)};
 
 bool differentiatingInputsByDevice = true;
 
 struct {
-	String name;
+	String name{};
 	uint16_t vendorId;
 	uint16_t productId;
-} usbDeviceCurrentlyBeingSetUp[USB_NUM_USBIP];
+} usbDeviceCurrentlyBeingSetUp[USB_NUM_USBIP] = {};
 
 //This class represents a thing you can send midi too,
 //the virtual cable is an implementation detail
-MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port1;
-MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port2;
-MIDIDeviceDINPorts dinMIDIPorts;
+MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port1{};
+MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port2{1};
+MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port3{2};
+MIDIDeviceDINPorts dinMIDIPorts{};
 
 uint8_t lowestLastMemberChannelOfLowerZoneOnConnectedOutput = 15;
 uint8_t highestLastMemberChannelOfUpperZoneOnConnectedOutput = 0;
 
 bool anyChangesToSave = false;
 
-//called by main2 line 595
-void init() {
-	new (&hostedMIDIDevices) NamedThingVector(__builtin_offsetof(MIDIDeviceUSBHosted, name));
-
-	new (&upstreamUSBMIDIDevice_port1) MIDIDeviceUSBUpstream;
-	new (&upstreamUSBMIDIDevice_port2) MIDIDeviceUSBUpstream(1);
-	new (&dinMIDIPorts) MIDIDeviceDINPorts;
-
-	// TODO: If I'm going to recall MPE zones from flash mem or file, for the din port, I'd better call recountSmallestMPEZones after doing that.
-
-	for (int ip = 0; ip < USB_NUM_USBIP; ip++) {
-		new (&usbDeviceCurrentlyBeingSetUp[ip].name) String();
-	}
-}
-
 // Gets called within UITimerManager, which may get called during SD card routine.
 void slowRoutine() {
 	upstreamUSBMIDIDevice_port1.sendMCMsNowIfNeeded();
 	upstreamUSBMIDIDevice_port2.sendMCMsNowIfNeeded();
+	// port3 is not used for channel data
 
 	for (int d = 0; d < hostedMIDIDevices.getNumElements(); d++) {
 		MIDIDeviceUSBHosted* device = (MIDIDeviceUSBHosted*)hostedMIDIDevices.getElement(d);
@@ -141,13 +131,19 @@ MIDIDeviceUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(String* name, uint16
 	}
 
 	bool success = hostedMIDIDevices.ensureEnoughSpaceAllocated(1);
-	if (!success) return NULL;
+	if (!success) {
+		return NULL;
+	}
 
 	void* memory = generalMemoryAllocator.alloc(sizeof(MIDIDeviceUSBHosted), NULL, false, true);
-	if (!memory) return NULL;
+	if (!memory) {
+		return NULL;
+	}
 
 	MIDIDeviceUSBHosted* device = new (memory) MIDIDeviceUSBHosted();
-	if (gotAName) device->name.set(name);
+	if (gotAName) {
+		device->name.set(name);
+	}
 	device->vendorId = vendorId;
 	device->productId = productId;
 
@@ -163,7 +159,9 @@ MIDIDeviceUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(String* name, uint16
 }
 
 void recountSmallestMPEZonesForDevice(MIDIDevice* device) {
-	if (!device->connectionFlags) return;
+	if (!device->connectionFlags) {
+		return;
+	}
 
 	if (device->ports[MIDI_DIRECTION_OUTPUT_FROM_DELUGE].mpeLowerZoneLastMemberChannel
 	    && device->ports[MIDI_DIRECTION_OUTPUT_FROM_DELUGE].mpeLowerZoneLastMemberChannel
@@ -204,7 +202,9 @@ extern "C" void hostedDeviceConfigured(int ip, int midiDeviceNum) {
 
 	usbDeviceCurrentlyBeingSetUp[ip].name.clear(); // Save some memory. Not strictly necessary
 
-	if (!device) return; // Only if ran out of RAM - i.e. very unlikely.
+	if (!device) {
+		return; // Only if ran out of RAM - i.e. very unlikely.
+	}
 
 	// Associate with USB port
 	ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][midiDeviceNum];
@@ -212,7 +212,7 @@ extern "C" void hostedDeviceConfigured(int ip, int midiDeviceNum) {
 	connectedDevice->setup();
 	int ports = connectedDevice->maxPortConnected;
 	for (int i = 0; i <= ports; i++) {
-		connectedUSBMIDIDevices[ip][0].device[i] = device;
+		connectedDevice->device[i] = device;
 	}
 
 	connectedDevice->sq = 0;
@@ -236,7 +236,9 @@ extern "C" void hostedDeviceConfigured(int ip, int midiDeviceNum) {
 extern "C" void hostedDeviceDetached(int ip, int midiDeviceNum) {
 
 #if ALPHA_OR_BETA_VERSION
-	if (midiDeviceNum == MAX_NUM_USB_MIDI_DEVICES) numericDriver.freezeWithError("E367");
+	if (midiDeviceNum == MAX_NUM_USB_MIDI_DEVICES) {
+		numericDriver.freezeWithError("E367");
+	}
 #endif
 
 	uartPrint("detached MIDI device: ");
@@ -262,13 +264,15 @@ extern "C" void configuredAsPeripheral(int ip) {
 	connectedDevice->setup();
 	connectedDevice->device[0] = &upstreamUSBMIDIDevice_port1;
 	connectedDevice->device[1] = &upstreamUSBMIDIDevice_port2;
-	connectedDevice->maxPortConnected = 1;
+	connectedDevice->device[2] = &upstreamUSBMIDIDevice_port3;
+	connectedDevice->maxPortConnected = 2;
 	connectedDevice->canHaveMIDISent = 1;
 
 	anyUSBSendingStillHappening[ip] = 0; // Initialize this. There's obviously nothing sending yet right now.
 
 	upstreamUSBMIDIDevice_port1.connectedNow(0);
 	upstreamUSBMIDIDevice_port2.connectedNow(0);
+	upstreamUSBMIDIDevice_port3.connectedNow(0);
 	recountSmallestMPEZones();
 }
 
@@ -280,6 +284,7 @@ extern "C" void detachedAsPeripheral(int ip) {
 	}
 	upstreamUSBMIDIDevice_port1.connectionFlags = 0;
 	upstreamUSBMIDIDevice_port2.connectionFlags = 0;
+	upstreamUSBMIDIDevice_port3.connectionFlags = 0;
 	anyUSBSendingStillHappening[ip] =
 	    0; // Reset this again. Been meaning to do this, and can no longer quite remember reason or whether technically essential, but adds to safety at least.
 
@@ -307,15 +312,26 @@ MIDIDevice* readDeviceReferenceFromFile() {
 		}
 		else if (!strcmp(tagName, "port")) {
 			char const* port = storageManager.readTagOrAttributeValue();
-			if (!strcmp(port, "upstreamUSB")) device = &upstreamUSBMIDIDevice_port1;
-			else if (!strcmp(port, "upstreamUSB2")) device = &upstreamUSBMIDIDevice_port2;
-			else if (!strcmp(port, "din")) device = &dinMIDIPorts;
+			if (!strcmp(port, "upstreamUSB")) {
+				device = &upstreamUSBMIDIDevice_port1;
+			}
+			else if (!strcmp(port, "upstreamUSB2")) {
+				device = &upstreamUSBMIDIDevice_port2;
+			}
+			else if (!strcmp(port, "upstreamUSB3")) {
+				device = &upstreamUSBMIDIDevice_port3;
+			}
+			else if (!strcmp(port, "din")) {
+				device = &dinMIDIPorts;
+			}
 		}
 
 		storageManager.exitTag();
 	}
 
-	if (device) return device;
+	if (device) {
+		return device;
+	}
 
 	// If we got something, go use it
 	if (!name.isEmpty() || vendorId) {
@@ -325,43 +341,63 @@ MIDIDevice* readDeviceReferenceFromFile() {
 	return NULL;
 }
 
-void readDeviceReferenceFromFlash(int whichCommand, uint8_t const* memory) {
+void readDeviceReferenceFromFlash(GlobalMIDICommand whichCommand, uint8_t const* memory) {
 
 	uint16_t vendorId = *(uint16_t const*)memory;
 
 	MIDIDevice* device;
 
-	if (vendorId == VENDOR_ID_NONE) device = NULL;
-	else if (vendorId == VENDOR_ID_UPSTREAM_USB) device = &upstreamUSBMIDIDevice_port1;
-	else if (vendorId == VENDOR_ID_UPSTREAM_USB2) device = &upstreamUSBMIDIDevice_port2;
-	else if (vendorId == VENDOR_ID_DIN) device = &dinMIDIPorts;
-
+	if (vendorId == VENDOR_ID_NONE) {
+		device = NULL;
+	}
+	else if (vendorId == VENDOR_ID_UPSTREAM_USB) {
+		device = &upstreamUSBMIDIDevice_port1;
+	}
+	else if (vendorId == VENDOR_ID_UPSTREAM_USB2) {
+		device = &upstreamUSBMIDIDevice_port2;
+	}
+	else if (vendorId == VENDOR_ID_UPSTREAM_USB3) {
+		device = &upstreamUSBMIDIDevice_port3;
+	}
+	else if (vendorId == VENDOR_ID_DIN) {
+		device = &dinMIDIPorts;
+	}
 	else {
 		uint16_t productId = *(uint16_t const*)(memory + 2);
 		device = getOrCreateHostedMIDIDeviceFromDetails(NULL, vendorId, productId);
 	}
 
-	midiEngine.globalMIDICommands[whichCommand].device = device;
+	midiEngine.globalMIDICommands[util::to_underlying(whichCommand)].device = device;
 }
 
-void writeDeviceReferenceToFlash(int whichCommand, uint8_t* memory) {
-	if (midiEngine.globalMIDICommands[whichCommand].device) {
-		midiEngine.globalMIDICommands[whichCommand].device->writeToFlash(memory);
+void writeDeviceReferenceToFlash(GlobalMIDICommand whichCommand, uint8_t* memory) {
+	if (midiEngine.globalMIDICommands[util::to_underlying(whichCommand)].device) {
+		midiEngine.globalMIDICommands[util::to_underlying(whichCommand)].device->writeToFlash(memory);
 	}
 }
 
 void writeDevicesToFile() {
-	if (!anyChangesToSave) return;
+	if (!anyChangesToSave) {
+		return;
+	}
 	anyChangesToSave = false;
 
 	// First, see if it's even worth writing anything
-	if (dinMIDIPorts.worthWritingToFile()) goto worthIt;
-	if (upstreamUSBMIDIDevice_port1.worthWritingToFile()) goto worthIt;
-	if (upstreamUSBMIDIDevice_port2.worthWritingToFile()) goto worthIt;
+	if (dinMIDIPorts.worthWritingToFile()) {
+		goto worthIt;
+	}
+	if (upstreamUSBMIDIDevice_port1.worthWritingToFile()) {
+		goto worthIt;
+	}
+	if (upstreamUSBMIDIDevice_port2.worthWritingToFile()) {
+		goto worthIt;
+	}
 
 	for (int d = 0; d < hostedMIDIDevices.getNumElements(); d++) {
 		MIDIDeviceUSBHosted* device = (MIDIDeviceUSBHosted*)hostedMIDIDevices.getElement(d);
-		if (device->worthWritingToFile()) goto worthIt;
+		if (device->worthWritingToFile()) {
+			goto worthIt;
+		}
 	}
 
 	// If still here, nothing worth writing. Delete the file if there was one.
@@ -370,16 +406,24 @@ void writeDevicesToFile() {
 
 worthIt:
 	int error = storageManager.createXMLFile("MIDIDevices.XML", true);
-	if (error) return;
+	if (error) {
+		return;
+	}
 
 	storageManager.writeOpeningTagBeginning("midiDevices");
 	storageManager.writeFirmwareVersion();
 	storageManager.writeEarliestCompatibleFirmwareVersion("4.0.0");
 	storageManager.writeOpeningTagEnd();
 
-	if (dinMIDIPorts.worthWritingToFile()) dinMIDIPorts.writeToFile("dinPorts");
-	if (upstreamUSBMIDIDevice_port1.worthWritingToFile()) upstreamUSBMIDIDevice_port1.writeToFile("upstreamUSBDevice");
-	if (upstreamUSBMIDIDevice_port2.worthWritingToFile()) upstreamUSBMIDIDevice_port2.writeToFile("upstreamUSBDevice2");
+	if (dinMIDIPorts.worthWritingToFile()) {
+		dinMIDIPorts.writeToFile("dinPorts");
+	}
+	if (upstreamUSBMIDIDevice_port1.worthWritingToFile()) {
+		upstreamUSBMIDIDevice_port1.writeToFile("upstreamUSBDevice");
+	}
+	if (upstreamUSBMIDIDevice_port2.worthWritingToFile()) {
+		upstreamUSBMIDIDevice_port2.writeToFile("upstreamUSBDevice2");
+	}
 
 	for (int d = 0; d < hostedMIDIDevices.getNumElements(); d++) {
 		MIDIDeviceUSBHosted* device = (MIDIDeviceUSBHosted*)hostedMIDIDevices.getElement(d);
@@ -396,14 +440,20 @@ worthIt:
 bool successfullyReadDevicesFromFile = false; // We'll only do this one time
 
 void readDevicesFromFile() {
-	if (successfullyReadDevicesFromFile) return; // Yup, we only want to do this once
+	if (successfullyReadDevicesFromFile) {
+		return; // Yup, we only want to do this once
+	}
 
 	FilePointer fp;
 	bool success = storageManager.fileExists("MIDIDevices.XML", &fp);
-	if (!success) return;
+	if (!success) {
+		return;
+	}
 
 	int error = storageManager.openXMLFile(&fp, "midiDevices");
-	if (error) return;
+	if (error) {
+		return;
+	}
 
 	char const* tagName;
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
@@ -415,6 +465,9 @@ void readDevicesFromFile() {
 		}
 		else if (!strcmp(tagName, "upstreamUSBDevice2")) {
 			upstreamUSBMIDIDevice_port2.readFromFile();
+		}
+		else if (!strcmp(tagName, "upstreamUSBDevice3")) {
+			upstreamUSBMIDIDevice_port3.readFromFile();
 		}
 		else if (!strcmp(tagName, "hostedUSBDevice")) {
 			readAHostedDeviceFromFile();
@@ -481,7 +534,9 @@ checkDevice:
 				}
 			}
 
-			if (device) device->defaultVelocityToLevel = storageManager.readTagOrAttributeValueInt();
+			if (device) {
+				device->defaultVelocityToLevel = storageManager.readTagOrAttributeValueInt();
+			}
 		}
 
 		storageManager.exitTag();
@@ -491,16 +546,55 @@ checkDevice:
 } // namespace MIDIDeviceManager
 
 void ConnectedUSBMIDIDevice::bufferMessage(uint32_t fullMessage) {
-	// If buffer already full, flush it
-	if (numMessagesQueued >= 16) {
-		midiEngine
-		    .flushUSBMIDIOutput(); // TODO: this is actually far from perfect - what if already sending - and if we want to wait/check for that, we should be calling the routine.
-		                           // And ideally, we'd be able to flush for just one device.
-		numMessagesQueued = 0;
+	uint32_t queued = ringBufWriteIdx - ringBufReadIdx;
+	if (queued > 16) {
+		if (!anyUSBSendingStillHappening[0]) {
+			midiEngine.flushUSBMIDIOutput();
+		}
+		queued = ringBufWriteIdx - ringBufReadIdx;
+	}
+	if (queued > MIDI_SEND_BUFFER_LEN_RING) {
+		// TODO: show some error message
+		return;
 	}
 
-	preSendData[numMessagesQueued++] = fullMessage;
+	sendDataRingBuf[ringBufWriteIdx & MIDI_SEND_RING_MASK] = fullMessage;
+	ringBufWriteIdx++;
+
 	anythingInUSBOutputBuffer = true;
+}
+
+bool ConnectedUSBMIDIDevice::hasBufferedSendData() {
+	// must me the same unsigned type as ringBufWriteIdx/ringBufReadIdx
+	uint32_t queued = ringBufWriteIdx - ringBufReadIdx;
+	return queued > 0;
+}
+
+// This tries to read data from the ring buffer, and
+// moves data into the smaller "dataSendingNow" buffer where
+// it is ready to be used by the hardware driver.
+bool ConnectedUSBMIDIDevice::consumeSendData() {
+	uint32_t queued = ringBufWriteIdx - ringBufReadIdx;
+	if (queued == 0) {
+		return false;
+	}
+
+	int i = 0;
+	int max_size = MIDI_SEND_BUFFER_LEN_INNER;
+	if (g_usb_usbmode == USB_HOST) {
+		// many devices do not accept more than 64 bytes of data at a time
+		// likely this can be inferred from the device metadata somehow?
+		max_size = MIDI_SEND_BUFFER_LEN_INNER_HOST;
+	}
+
+	int to_send = getMin(queued, max_size);
+	for (i = 0; i < to_send; i++) {
+		memcpy(dataSendingNow + (i * 4), &sendDataRingBuf[ringBufReadIdx & MIDI_SEND_RING_MASK], 4);
+		ringBufReadIdx++;
+	}
+
+	numBytesSendingNow = to_send * 4;
+	return true;
 }
 
 void ConnectedUSBMIDIDevice::setup() {

@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef CONSEQUENCENOTEARRAYCHANGE_H_
-#define CONSEQUENCENOTEARRAYCHANGE_H_
+#pragma once
 
 #include "model/consequence/consequence.h"
 #include "RZA1/system/r_typedefs.h"
@@ -27,12 +26,10 @@ class InstrumentClip;
 class ConsequenceNoteArrayChange final : public Consequence {
 public:
 	ConsequenceNoteArrayChange(InstrumentClip* newClip, int newNoteRowId, NoteVector* newNoteVector, bool stealData);
-	int revert(int time, ModelStack* modelStack);
+	int revert(TimeType time, ModelStack* modelStack);
 
 	InstrumentClip* clip;
 	int noteRowId;
 
 	NoteVector backedUpNoteVector;
 };
-
-#endif /* CONSEQUENCENOTEARRAYCHANGE_H_ */

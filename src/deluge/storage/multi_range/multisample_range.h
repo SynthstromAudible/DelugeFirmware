@@ -15,10 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MULTISAMPLERANGE_H_
-#define MULTISAMPLERANGE_H_
+#pragma once
 
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "util/d_string.h"
 #include "storage/multi_range/multi_range.h"
 #include "model/sample/sample_holder_for_voice.h"
@@ -34,5 +33,3 @@ public:
 	SampleHolderForVoice
 	    sampleHolder; // Has to be first variable, cos I do a sneaky optimization between both of MultiRange's children.
 };
-
-#endif /* MULTISAMPLERANGE_H_ */

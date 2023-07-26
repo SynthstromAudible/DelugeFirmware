@@ -15,20 +15,20 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef LOADSONGUI_H
-#define LOADSONGUI_H
+#pragma once
 
 #include "gui/ui/load/load_ui.h"
+#include "hid/button.h"
 
 class LoadSongUI final : public LoadUI {
 public:
 	LoadSongUI();
-	int buttonAction(int x, int y, bool on, bool inCardRoutine);
-	int timerCallback();
-	int verticalEncoderAction(int offset, bool inCardRoutine);
+	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
+	ActionResult timerCallback();
+	ActionResult verticalEncoderAction(int offset, bool inCardRoutine);
 	void graphicsRoutine() {}
 	void scrollFinished();
-	int padAction(int x, int y, int velocity);
+	ActionResult padAction(int x, int y, int velocity);
 	bool opened();
 	void selectEncoderAction(int8_t offset);
 	void performLoad();
@@ -49,14 +49,9 @@ private:
 	void displayArmedPopup();
 #endif
 
-	uint8_t squaresScrolled;
-	int8_t scrollDirection;
-	bool scrollingToNothing;
 	bool scrollingIntoSlot;
 	//int findNextFile(int offset);
 	void exitThisUI();
 	void exitActionWithError();
 };
 extern LoadSongUI loadSongUI;
-
-#endif // LOADSONGUI_H

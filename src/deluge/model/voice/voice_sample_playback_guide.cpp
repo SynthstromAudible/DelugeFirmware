@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "definitions_cxx.hpp"
 #include "storage/audio/audio_file_manager.h"
 #include "model/voice/voice_sample_playback_guide.h"
 #include "processing/source.h"
@@ -42,8 +43,12 @@ void VoiceSamplePlaybackGuide::setupPlaybackBounds(bool reversed) {
 		                                   : ((SampleHolderForVoice*)audioFileHolder)->loopEndPos;
 
 		if (reversed) { // Don't mix this with the above - we want to keep 0s as 0
-			if (loopStartPlaybackAtSample) loopStartPlaybackAtSample--;
-			if (loopEndPlaybackAtSample) loopEndPlaybackAtSample--;
+			if (loopStartPlaybackAtSample) {
+				loopStartPlaybackAtSample--;
+			}
+			if (loopEndPlaybackAtSample) {
+				loopEndPlaybackAtSample--;
+			}
 		}
 	}
 
@@ -60,8 +65,9 @@ void VoiceSamplePlaybackGuide::setupPlaybackBounds(bool reversed) {
 		loopStartPlaybackAtByte = startPlaybackAtByte;
 	}
 
-	if (loopEndPlaybackAtSample)
+	if (loopEndPlaybackAtSample) {
 		loopEndPlaybackAtByte = sample->audioDataStartPosBytes + loopEndPlaybackAtSample * bytesPerSample;
+	}
 }
 
 // This is, whether to obey the loop-end point as opposed to the actual end-of-sample point (which sometimes might cause looping too)
@@ -70,17 +76,27 @@ bool VoiceSamplePlaybackGuide::shouldObeyLoopEndPointNow() {
 }
 
 int32_t VoiceSamplePlaybackGuide::getBytePosToStartPlayback(bool justLooped) {
-	if (!justLooped) return SamplePlaybackGuide::getBytePosToStartPlayback(justLooped);
-	else return loopStartPlaybackAtByte;
+	if (!justLooped) {
+		return SamplePlaybackGuide::getBytePosToStartPlayback(justLooped);
+	}
+	else {
+		return loopStartPlaybackAtByte;
+	}
 }
 
 // This is actually an important function whose output is the basis for a lot of stuff
 int32_t VoiceSamplePlaybackGuide::getBytePosToEndOrLoopPlayback() {
-	if (shouldObeyLoopEndPointNow()) return loopEndPlaybackAtByte;
-	else return SamplePlaybackGuide::getBytePosToEndOrLoopPlayback();
+	if (shouldObeyLoopEndPointNow()) {
+		return loopEndPlaybackAtByte;
+	}
+	else {
+		return SamplePlaybackGuide::getBytePosToEndOrLoopPlayback();
+	}
 }
 
-int VoiceSamplePlaybackGuide::getLoopingType(Source* source) {
-	if (loopEndPlaybackAtByte) return noteOffReceived ? 0 : LOOP_LOW_LEVEL;
-	else return (source->repeatMode == SAMPLE_REPEAT_LOOP) ? LOOP_LOW_LEVEL : 0;
+LoopType VoiceSamplePlaybackGuide::getLoopingType(Source* source) {
+	if (loopEndPlaybackAtByte) {
+		return noteOffReceived ? LoopType::NONE : LoopType::LOW_LEVEL;
+	}
+	return (source->repeatMode == SampleRepeatMode::LOOP) ? LoopType::LOW_LEVEL : LoopType::NONE;
 }

@@ -26,7 +26,7 @@
 #include "model/model_stack.h"
 #include "model/timeline_counter.h"
 
-CVInstrument::CVInstrument() : NonAudioInstrument(INSTRUMENT_TYPE_CV) {
+CVInstrument::CVInstrument() : NonAudioInstrument(InstrumentType::CV) {
 	monophonicPitchBendValue = 0;
 	polyPitchBendValue = 0;
 
@@ -88,15 +88,16 @@ bool CVInstrument::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 	//NonAudioInstrument::writeDataToFile(clipForSavingOutputOnly, song); // Nope, this gets called within the below call
 	writeMelodicInstrumentAttributesToFile(clipForSavingOutputOnly, song);
 
-	if (clipForSavingOutputOnly || !midiInput.containsSomething())
+	if (clipForSavingOutputOnly || !midiInput.containsSomething()) {
 		return false; // If we don't need to write a "device" tag, opt not to end the opening tag
+	}
 
 	storageManager.writeOpeningTagEnd();
 	MelodicInstrument::writeMelodicInstrumentTagsToFile(clipForSavingOutputOnly, song);
 	return true;
 }
 
-bool CVInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, int maySendMIDIPGMs) {
+bool CVInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs) {
 	bool clipChanged = NonAudioInstrument::setActiveClip(modelStack, maySendMIDIPGMs);
 
 	if (clipChanged) {

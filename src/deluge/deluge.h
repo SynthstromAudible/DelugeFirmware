@@ -15,15 +15,14 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef DELUGE_H_
-#define DELUGE_H_
+#pragma once
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-extern int main1(void);
-extern int main2(void);
+extern int main(void);
+extern int deluge_main(void);
 
 extern void timerGoneOff(void);
 
@@ -44,5 +43,3 @@ extern void setTimeUSBInitializationEnds(int timeFromNow);
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* DELUGE_H_ */

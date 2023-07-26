@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "definitions_cxx.hpp"
 #include "model/action/action_clip_state.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
@@ -29,7 +30,7 @@
 #include "model/note/note.h"
 #include "model/action/action_logger.h"
 #include "model/consequence/consequence_note_existence.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include <new>
 #include "memory/general_memory_allocator.h"
 #include "model/consequence/consequence_clip_length.h"
@@ -56,7 +57,9 @@ void Action::prepareForDestruction(int whichQueueActionIn, Song* song) {
 
 	deleteAllConsequences(whichQueueActionIn, song, true);
 
-	if (clipStates) generalMemoryAllocator.dealloc(clipStates);
+	if (clipStates) {
+		generalMemoryAllocator.dealloc(clipStates);
+	}
 }
 
 void Action::deleteAllConsequences(int whichQueueActionIn, Song* song, bool destructing) {
@@ -69,7 +72,9 @@ void Action::deleteAllConsequences(int whichQueueActionIn, Song* song, bool dest
 		toDelete->~Consequence();
 		generalMemoryAllocator.dealloc(toDelete);
 	}
-	if (!destructing) firstConsequence = NULL;
+	if (!destructing) {
+		firstConsequence = NULL;
+	}
 }
 
 void Action::addConsequence(Consequence* consequence) {
@@ -78,7 +83,7 @@ void Action::addConsequence(Consequence* consequence) {
 }
 
 // Returns error code
-int Action::revert(int time, ModelStack* modelStack) {
+int Action::revert(TimeType time, ModelStack* modelStack) {
 
 	Consequence* thisConsequence = firstConsequence;
 
@@ -99,7 +104,7 @@ int Action::revert(int time, ModelStack* modelStack) {
 		if (!error) {
 
 			// Can't quite remember why, but we don't wanna revert param changes for arrangement-record actions
-			if (type == ACTION_ARRANGEMENT_RECORD && thisConsequence->type == CONSEQUENCE_PARAM_CHANGE) {}
+			if (type == ACTION_ARRANGEMENT_RECORD && thisConsequence->type == Consequence::PARAM_CHANGE) {}
 
 			else {
 				error = thisConsequence->revert(time, modelStack);
@@ -140,11 +145,12 @@ int Action::revert(int time, ModelStack* modelStack) {
 bool Action::containsConsequenceParamChange(ParamCollection* paramCollection, int paramId) {
 	// See if this param has already had its state snapshotted. If so, get out
 	for (Consequence* thisCons = firstConsequence; thisCons; thisCons = thisCons->next) {
-		if (thisCons->type == CONSEQUENCE_PARAM_CHANGE) {
+		if (thisCons->type == Consequence::PARAM_CHANGE) {
 			ConsequenceParamChange* thisConsParamChange = (ConsequenceParamChange*)thisCons;
 			if (thisConsParamChange->modelStack.paramCollection == paramCollection
-			    && thisConsParamChange->modelStack.paramId == paramId)
+			    && thisConsParamChange->modelStack.paramId == paramId) {
 				return true;
+			}
 		}
 	}
 	return false;
@@ -180,7 +186,7 @@ bool Action::containsConsequenceNoteArrayChange(InstrumentClip* clip, int noteRo
 
 	for (Consequence** prevPointer = &firstConsequence; *prevPointer; prevPointer = &(*prevPointer)->next) {
 		Consequence* thisCons = *prevPointer;
-		if (thisCons->type == CONSEQUENCE_NOTE_ARRAY_CHANGE) {
+		if (thisCons->type == Consequence::NOTE_ARRAY_CHANGE) {
 			ConsequenceNoteArrayChange* thisNoteArrayChange = (ConsequenceNoteArrayChange*)thisCons;
 			if (thisNoteArrayChange->clip == clip && thisNoteArrayChange->noteRowId == noteRowId) {
 				if (moveToFrontIfFound) {
@@ -198,7 +204,9 @@ bool Action::containsConsequenceNoteArrayChange(InstrumentClip* clip, int noteRo
 
 int Action::recordNoteArrayChangeIfNotAlreadySnapshotted(InstrumentClip* clip, int noteRowId, NoteVector* noteVector,
                                                          bool stealData, bool moveToFrontIfAlreadySnapshotted) {
-	if (containsConsequenceNoteArrayChange(clip, noteRowId, moveToFrontIfAlreadySnapshotted)) return NO_ERROR;
+	if (containsConsequenceNoteArrayChange(clip, noteRowId, moveToFrontIfAlreadySnapshotted)) {
+		return NO_ERROR;
+	}
 
 	// If we're still here, we need to snapshot.
 	return recordNoteArrayChangeDefinitely(clip, noteRowId, noteVector, stealData);
@@ -208,7 +216,9 @@ int Action::recordNoteArrayChangeDefinitely(InstrumentClip* clip, int noteRowId,
                                             bool stealData) {
 	void* consMemory = generalMemoryAllocator.alloc(sizeof(ConsequenceNoteArrayChange));
 
-	if (!consMemory) return ERROR_INSUFFICIENT_RAM;
+	if (!consMemory) {
+		return ERROR_INSUFFICIENT_RAM;
+	}
 
 	ConsequenceNoteArrayChange* newCons =
 	    new (consMemory) ConsequenceNoteArrayChange(clip, noteRowId, noteVector, stealData);
@@ -217,9 +227,11 @@ int Action::recordNoteArrayChangeDefinitely(InstrumentClip* clip, int noteRowId,
 	return NO_ERROR; // Though we wouldn't know if there was a RAM error as ConsequenceNoteArrayChange tried to clone the data...
 }
 
-void Action::recordNoteExistenceChange(InstrumentClip* clip, int noteRowId, Note* note, int type) {
+void Action::recordNoteExistenceChange(InstrumentClip* clip, int noteRowId, Note* note, ExistenceChangeType type) {
 
-	if (containsConsequenceNoteArrayChange(clip, noteRowId)) return;
+	if (containsConsequenceNoteArrayChange(clip, noteRowId)) {
+		return;
+	}
 
 	void* consMemory = generalMemoryAllocator.alloc(sizeof(ConsequenceNoteExistence));
 
@@ -230,7 +242,7 @@ void Action::recordNoteExistenceChange(InstrumentClip* clip, int noteRowId, Note
 	}
 }
 
-void Action::recordClipInstanceExistenceChange(Output* output, ClipInstance* clipInstance, int type) {
+void Action::recordClipInstanceExistenceChange(Output* output, ClipInstance* clipInstance, ExistenceChangeType type) {
 
 	void* consMemory = generalMemoryAllocator.alloc(sizeof(ConsequenceClipInstanceExistence));
 
@@ -245,9 +257,11 @@ void Action::recordClipLengthChange(Clip* clip, int32_t oldLength) {
 
 	// Check we don't already have a Consequence for this Clip's length
 	for (Consequence* cons = firstConsequence; cons; cons = cons->next) {
-		if (cons->type == CONSEQUENCE_CLIP_LENGTH) {
+		if (cons->type == Consequence::CLIP_LENGTH) {
 			ConsequenceClipLength* consequenceClipLength = (ConsequenceClipLength*)cons;
-			if (consequenceClipLength->clip == clip) return;
+			if (consequenceClipLength->clip == clip) {
+				return;
+			}
 		}
 	}
 
@@ -259,12 +273,14 @@ void Action::recordClipLengthChange(Clip* clip, int32_t oldLength) {
 	}
 }
 
-bool Action::recordClipExistenceChange(Song* song, ClipArray* clipArray, Clip* clip, int type) {
+bool Action::recordClipExistenceChange(Song* song, ClipArray* clipArray, Clip* clip, ExistenceChangeType type) {
 	void* consMemory = generalMemoryAllocator.alloc(sizeof(ConsequenceClipExistence));
-	if (!consMemory) return false;
+	if (!consMemory) {
+		return false;
+	}
 
 	ConsequenceClipExistence* consequence = new (consMemory) ConsequenceClipExistence(clip, clipArray, type);
-	if (type == DELETE) {
+	if (type == ExistenceChangeType::DELETE) {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, song);
 
@@ -289,14 +305,16 @@ void Action::recordAudioClipSampleChange(AudioClip* clip) {
 }
 
 void Action::updateYScrollClipViewAfter(InstrumentClip* clip) {
-	if (!numClipStates) return;
+	if (!numClipStates) {
+		return;
+	}
 
 	if (numClipStates
 	    != currentSong->sessionClips.getNumElements() + currentSong->arrangementOnlyClips.getNumElements()) {
 		numClipStates = 0;
 		generalMemoryAllocator.dealloc(clipStates);
 		clipStates = NULL;
-		Uart::println("discarded clip states");
+		Debug::println("discarded clip states");
 		return;
 	}
 

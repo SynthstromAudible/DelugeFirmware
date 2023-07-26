@@ -15,10 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef COMPRESSOR_H
-#define COMPRESSOR_H
+#pragma once
 
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "RZA1/system/r_typedefs.h"
 
 class Song;
@@ -28,7 +27,7 @@ public:
 	Compressor();
 	void cloneFrom(Compressor* other);
 
-	uint8_t status;
+	EnvelopeStage status;
 	uint32_t pos;
 	int32_t lastValue;
 	int32_t pendingHitStrength;
@@ -50,5 +49,3 @@ private:
 	int32_t getActualAttackRate();
 	int32_t getActualReleaseRate();
 };
-
-#endif // COMPRESSOR_H

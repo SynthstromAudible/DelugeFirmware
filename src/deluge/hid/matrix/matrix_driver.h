@@ -15,12 +15,12 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef DISPLAYMANAGER_H
-#define DISPLAYMANAGER_H
+#pragma once
 
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "RZA1/system/r_typedefs.h"
 #include "gui/waveform/waveform_render_data.h"
+#include "pad.h"
 
 class AudioClip;
 
@@ -30,14 +30,13 @@ public:
 
 	bool isPadPressed(int x, int y);
 
-	int padAction(int x, int y, int velocity);
+	ActionResult padAction(int x, int y, int velocity);
 	void noPressesHappening(bool inCardRoutine);
 	bool isUserDoingBootloaderOverwriteAction();
 
-	bool padStates[displayWidth + sideBarWidth][displayHeight];
+	bool padStates[kDisplayWidth + kSideBarWidth][kDisplayHeight];
 };
 
 extern char* matrixDriverDisplayWritePos;
 
 extern MatrixDriver matrixDriver;
-#endif // DISPLAYMANAGER_H
