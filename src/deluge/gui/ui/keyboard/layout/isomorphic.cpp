@@ -59,8 +59,7 @@ void KeyboardLayoutIsomorphic::handleHorizontalEncoder(int offset, bool shiftEna
 	}
 
 	// Calculate highest possible displayable note with current rowInterval
-	int highestScrolledNote =
-	    (getHighestClipNote() - ((kDisplayHeight * state.rowInterval + kDisplayWidth) - state.rowInterval - 1));
+	int highestScrolledNote = (getHighestClipNote() - ((kDisplayHeight - 1) * state.rowInterval + kDisplayWidth - 1));
 
 	// Make sure current value is in bounds
 	state.scrollOffset = getMax(getLowestClipNote(), state.scrollOffset);

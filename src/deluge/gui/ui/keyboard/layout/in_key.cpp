@@ -60,8 +60,10 @@ void KeyboardLayoutInKey::handleHorizontalEncoder(int offset, bool shiftEnabled)
 
 	// Calculate highest and lowest possible displayable note with current rowInterval
 	int lowestScrolledNote = padIndexFromNote(getLowestClipNote());
-	int highestScrolledNote = (padIndexFromNote(getHighestClipNote())
-	                           - ((kDisplayHeight * state.rowInterval + kDisplayWidth) - state.rowInterval - 1));
+	//int highestScrolledNote = (padIndexFromNote(getHighestClipNote())
+	//                           - ((kDisplayHeight * state.rowInterval + kDisplayWidth) - state.rowInterval - 1));
+	int highestScrolledNote =
+	    (padIndexFromNote(getHighestClipNote()) - ((kDisplayHeight - 1) * state.rowInterval + kDisplayWidth - 1));
 
 	// Make sure current value is in bounds
 	state.scrollOffset = getMax(lowestScrolledNote, state.scrollOffset);
