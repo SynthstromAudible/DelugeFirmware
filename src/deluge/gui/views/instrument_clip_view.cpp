@@ -671,7 +671,7 @@ doCancelPopup:
 			}
 		}
 	}
-	else if (x == selectEncButtonX && y == selectEncButtonY && on && numEditPadPresses > 0) {
+	else if (b == SELECT_ENC && on && numEditPadPresses > 0) {
 		// select encoder pressed. if we are editing notes this goes to the next attribute. if we are not editing notes
 		// then it will be handled by the else branch.       
 		noteEditSelEncoderIndex = 1 - noteEditSelEncoderIndex;
@@ -2261,7 +2261,7 @@ void InstrumentClipView::adjustAccidentalTranspose(int offset) {
 	// If just one press...
 	if (numEditPadPresses == 1) {
 		// Find it
-		for (int i = 0; i < editPadPressBufferSize; i++) {
+		for (int i = 0; i < kEditPadPressBufferSize; i++) {
 			if (editPadPresses[i].isActive) {
 				editPadPresses[i].deleteOnDepress = false;
 
@@ -2318,7 +2318,7 @@ multiplePresses:
 		int probabilityValue;
 
 		// Find the leftmost one. There may be more than one...
-		for (int i = 0; i < editPadPressBufferSize; i++) {
+		for (int i = 0; i < kEditPadPressBufferSize; i++) {
 			if (editPadPresses[i].isActive) {
 				editPadPresses[i].deleteOnDepress = false;
 
@@ -2352,13 +2352,13 @@ multiplePresses:
 		probabilityValue = editPadPresses[leftMostIndex].intendedProbability & 127;
 		probabilityValue += offset;
 		probabilityValue = getMax(1, probabilityValue);
-		probabilityValue = getMin(NUM_PROBABILITY_VALUES + 35, probabilityValue);
+		probabilityValue = getMin(kNumProbabilityValues + 35, probabilityValue);
 
 		Action* action = actionLogger.getNewAction(ACTION_NOTE_EDIT, true);
 		if (!action) return;
 
 		// Set the probability of the other presses, and update all probabilities with the actual notes
-		for (int i = 0; i < editPadPressBufferSize; i++) {
+		for (int i = 0; i < kEditPadPressBufferSize; i++) {
 			if (editPadPresses[i].isActive) {
 
 				// Update probability
@@ -2379,7 +2379,7 @@ multiplePresses:
 					while (note && note->pos - editPadPresses[i].intendedPos < editPadPresses[i].intendedLength) {
 
 						// And if not one of the leftmost notes, make it a prev-base one - if we're doing actual percentage probabilities
-						if (probabilityValue < NUM_PROBABILITY_VALUES && note->pos != leftMostPos)
+						if (probabilityValue < kNumProbabilityValues && note->pos != leftMostPos)
 							editPadPresses[i].intendedProbability |= 128; // This isn't perfect...
 						noteRow->changeNotesAcrossAllScreens(note->pos, modelStackWithNoteRow, action,
 						                                     CORRESPONDING_NOTES_SET_PROBABILITY,
@@ -2392,7 +2392,7 @@ multiplePresses:
 				// Or, just 1 note in square
 				else {
 					// And if not one of the leftmost notes, make it a prev-base one - if we're doing actual percentage probabilities
-					if (probabilityValue < NUM_PROBABILITY_VALUES && editPadPresses[i].intendedPos != leftMostPos)
+					if (probabilityValue < kNumProbabilityValues && editPadPresses[i].intendedPos != leftMostPos)
 						editPadPresses[i].intendedProbability |= 128;
 					noteRow->changeNotesAcrossAllScreens(editPadPresses[i].intendedPos, modelStackWithNoteRow, action,
 					                                     CORRESPONDING_NOTES_SET_PROBABILITY,

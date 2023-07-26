@@ -741,6 +741,7 @@ enum class ArmState {
 
 constexpr int kNumProbabilityValues = 20;
 constexpr int kDefaultLiftValue = 64;
+constexpr int kDefaultAccidentalTranspose = 0;
 
 enum Navigation {
 	NAVIGATION_CLIP,

@@ -36,8 +36,8 @@ void NoteRenderer::renderNoteRow(NoteRow* noteRow, TimelineView* editorScreen, u
 
 	if (noteRow->hasNoNotes()) return;
 
-	int32_t squareEndPos[MAX_IMAGE_STORE_WIDTH];
-	int32_t searchTerms[MAX_IMAGE_STORE_WIDTH];
+	int32_t squareEndPos[kMaxImageStoreWidth];
+	int32_t searchTerms[kMaxImageStoreWidth];
 
 	int whichRepeat = 0;
 

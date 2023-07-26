@@ -222,7 +222,7 @@ addNewNote:
 
 		newNote->setVelocity(((Instrument*)((Clip*)modelStack->getTimelineCounter())->output)->defaultVelocity);
 		newNote->setLift(kDefaultLiftValue);
-		newNote->setAccidentalTranspose(DEFAULT_ACCIDENTAL_TRANSPOSE);
+		newNote->setAccidentalTranspose(kDefaultAccidentalTranspose);
 		newNote->setProbability(kNumProbabilityValues);
 
 		if (i + 1 < notes.getNumElements()) {
@@ -440,7 +440,7 @@ addNewNote:
 			destNote->pos = posThisScreen;
 			destNote->setVelocity(velocity);
 			destNote->setLift(kDefaultLiftValue);
-			destNote->setAccidentalTranspose(DEFAULT_ACCIDENTAL_TRANSPOSE);
+			destNote->setAccidentalTranspose(kDefaultAccidentalTranspose);
 			destNote->setProbability(kNumProbabilityValues);
 
 			int newLength;
@@ -571,7 +571,7 @@ int NoteRow::attemptNoteAdd(int32_t pos, int32_t length, int velocity, int proba
 	newNote->setLength(length);
 	newNote->setVelocity(velocity);
 	newNote->setLift(kDefaultLiftValue);
-	newNote->setAccidentalTranspose(DEFAULT_ACCIDENTAL_TRANSPOSE);
+	newNote->setAccidentalTranspose(kDefaultAccidentalTranspose);
 	newNote->setProbability(probability);
 
 	// Record consequence
@@ -630,7 +630,7 @@ int NoteRow::attemptNoteAddReversed(ModelStackWithNoteRow* modelStack, int32_t p
 	newNote->setLength(1);
 	newNote->setVelocity(velocity);
 	newNote->setLift(kDefaultLiftValue);
-	newNote->setAccidentalTranspose(DEFAULT_ACCIDENTAL_TRANSPOSE);
+	newNote->setAccidentalTranspose(kDefaultAccidentalTranspose);
 	newNote->setProbability(kNumProbabilityValues);
 
 	((InstrumentClip*)modelStack->getTimelineCounter())->expectEvent();
@@ -2892,7 +2892,7 @@ finishedNormalStuff:
 						newNote->setLength(length);
 						newNote->setVelocity(velocity);
 						newNote->setLift(kDefaultLiftValue);
-						newNote->setAccidentalTranspose(DEFAULT_ACCIDENTAL_TRANSPOSE);
+						newNote->setAccidentalTranspose(kDefaultAccidentalTranspose);
 						newNote->setProbability(kNumProbabilityValues);
 					}
 
@@ -2948,7 +2948,7 @@ doReadNoteData:
 				int32_t length = hexToIntFixedLength(&hexChars[8], 8);
 				uint8_t velocity = hexToIntFixedLength(&hexChars[16], 2);
 				uint8_t lift, probability;
-				int8_t accidentalTranspose = DEFAULT_ACCIDENTAL_TRANSPOSE;
+				int8_t accidentalTranspose = kDefaultAccidentalTranspose;
 
 				if (noteHexLength == 20) { // Or if no lift here to read
 					probability = hexToIntFixedLength(&hexChars[18], 2);
@@ -2981,7 +2981,7 @@ doReadNoteData:
 					probability = kNumProbabilityValues;
 				}
 				if (accidentalTranspose < -128 || accidentalTranspose > 127) {
-					accidentalTranspose = DEFAULT_ACCIDENTAL_TRANSPOSE;
+					accidentalTranspose = kDefaultAccidentalTranspose;
 				}
 
 				minPos = pos + length;

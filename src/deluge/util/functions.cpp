@@ -1414,15 +1414,9 @@ void hueToRGBWithColorScheme(int32_t hue, unsigned char* rgb, int32_t colorSchem
 		else {
 			channelDarkness = getMin(64, std::abs(c * 64 - hue));
 		}
-<<<<<<< HEAD
-		else channelDarkness = getMin(64, std::abs(c * 64 - hue));
-		
-        // convert channelDarkness to RGB.
-		if (channelDarkness < 64)
-=======
 
+        // convert channelDarkness to RGB.
 		if (channelDarkness < 64) {
->>>>>>> community
 			rgb[c] = ((uint32_t)getSine(((channelDarkness << 3) + 256) & 1023, 10) + 2147483648u) >> 24;
 		}
 		else {

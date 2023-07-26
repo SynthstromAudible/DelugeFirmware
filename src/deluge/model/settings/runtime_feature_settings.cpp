@@ -63,6 +63,30 @@ static void SetupOnOffSetting(RuntimeFeatureSetting& setting, char const* const 
 	};
 }
 
+static void SetupSetting(RuntimeFeatureSetting& setting, char const* const displayName, char const* const xmlName, int32_t defaultValue) {
+	setting.displayName = displayName;
+	setting.xmlName = xmlName;
+	setting.value = defaultValue;
+	setting.options[0] = {
+	    .displayName = NULL,
+	    .value = 0,
+	};
+
+}
+static void AddOptionToSetting(RuntimeFeatureSetting& setting, const RuntimeFeatureSettingOption option) {
+	int i = 0;
+	while (i < RUNTIME_FEATURE_SETTING_MAX_OPTIONS - 1) {
+		if (setting.options[i].displayName == NULL) {
+			// move the sentinel
+			setting.options[i + 1] = setting.options[i];
+			setting.options[i] =  option;
+			return;
+		}
+		i++;
+	}
+}
+
+
 void RuntimeFeatureSettings::init() {
 	// Drum randomizer
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DrumRandomizer], "Drum Randomizer", "drumRandomizer",
@@ -82,6 +106,18 @@ void RuntimeFeatureSettings::init() {
 	// CatchNotes
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::CatchNotes], "CatchNotes", "catchNotes",
 	                  RuntimeFeatureStateToggle::On);
+	// ColorScheme
+	SetupSetting(settings[RuntimeFeatureSettingType::ColorScheme],"Color Scheme","colorScheme",RuntimeFeatureStateColorScheme::Classic);
+	AddOptionToSetting(settings[RuntimeFeatureSettingType::ColorScheme],
+		{.displayName = "Classic", .value = RuntimeFeatureStateColorScheme::Classic}
+	);
+	AddOptionToSetting(settings[RuntimeFeatureSettingType::ColorScheme],
+		{.displayName = "OctavePiano", .value = RuntimeFeatureStateColorScheme::OctavePiano}
+	);
+	AddOptionToSetting(settings[RuntimeFeatureSettingType::ColorScheme],
+		{.displayName = "Blue", .value = RuntimeFeatureStateColorScheme::Blue}
+	);
+
 }
 
 void RuntimeFeatureSettings::readSettingsFromFile() {
