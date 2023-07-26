@@ -25,9 +25,10 @@ void NoteRenderer::recalculateColour(uint8_t yDisplay) {
 
 // this function was previously in noterow but now has a noterow as parameter.
 // the color parameters have been removed.
-void NoteRenderer::renderNoteRow(NoteRow* noteRow, TimelineView* editorScreen, uint8_t* image, uint8_t occupancyMask[], bool overwriteExisting,
-                    uint32_t effectiveRowLength, bool allowNoteTails, int renderWidth, int32_t xScroll,
-                    uint32_t xZoom, int xStartNow, int xEnd, bool drawRepeats, int clipColourOffset) {
+void NoteRenderer::renderNoteRow(NoteRow* noteRow, TimelineView* editorScreen, uint8_t* image, 
+	                uint8_t occupancyMask[], bool overwriteExisting, uint32_t effectiveRowLength, 
+	                bool allowNoteTails, int renderWidth, int32_t xScroll,uint32_t xZoom, int xStartNow, 
+	                int xEnd, bool drawRepeats, int clipColourOffset) {
 
 	if (overwriteExisting) {
 		memset(image, 0, renderWidth * 3);
@@ -126,6 +127,7 @@ void NoteRenderer::renderNoteRow(NoteRow* noteRow, TimelineView* editorScreen, u
 				int noteEnd = note->pos + note->length;
 				if (wrapping) noteEnd -= effectiveRowLength;
 				if (noteEnd > squareStartPos && allowNoteTails) {
+					getNoteSpecificColours(noteRow->y, clipColourOffset,  note, rowDefaultColour, rowDefaultBlurColour, rowDefaultTailColour, noteColour, noteBlurColour, noteTailColour);
 					pixel[0] = noteTailColour[0];
 					pixel[1] = noteTailColour[1];
 					pixel[2] = noteTailColour[2];
@@ -171,23 +173,22 @@ void NoteRenderer::getNoteColourFromY(int yNote,int clipColourOffset, uint8_t rg
 		hueToRGBWithColorScheme((yNote + clipColourOffset) * -8 / 3, rgb,colorScheme);
 	}
 	else if (colorScheme == RuntimeFeatureStateColorScheme::OctavePiano) {
-    	int octaveOffset = ((yNote/12) + clipColourOffset) % 12;
+    	int octaveOffset = (yNote/12) % 12; // clipColourOfsset removed.
     	int offsetWithinOctave = yNote % 12;
 		int octaveRGB[][3] = {
+	  		{ 16,  0, 0  },
+            {  0, 16, 0  },
+            { 16, 16, 0  },
 	  		{ 16,  0, 32 },
 	  		{  0, 16, 32 },
-	  		{ 16, 16, 0  },
-	  		{  0,  0, 32 },
+	  		{ 16, 16, 32 },
 	  		{ 32,  0, 48 },
 	  		{  0, 32, 48 },
-            { 32, 32, 0  },
-            {  0,  0, 48 },
+            { 32, 32, 48 },
             { 48,  0, 64 },
             {  0, 48, 64 },
-            { 48, 48, 0  },
-            {  0,  0, 64 }
+            { 48, 48, 64 }
 	  	};	      
-
 	 	int blackKeys[] = {0,1,0,1,0,0,1,0,1,0,1,0};
 
 		rgb[0] = octaveRGB[octaveOffset][0] >> blackKeys[offsetWithinOctave];
@@ -199,12 +200,15 @@ void NoteRenderer::getNoteColourFromY(int yNote,int clipColourOffset, uint8_t rg
 		// like a piano we use dark keys and light keys.
 		// all tints are blue.
 		// octaves are a gradient	
-		int octaveOffset = (yNote/12) + clipColourOffset;
+		int octaveOffset = (yNote/12) % 12;// + clipColourOffset;
 		int offsetWithinOctave = yNote % 12;
 		int blackKeys[] = {0,1,0,1,0,0,1,0,1,0,1,0};
-		rgb[0] = blackKeys[offsetWithinOctave] * 8;
-		rgb[1] = blackKeys[offsetWithinOctave] * 8;
-		rgb[2] = (16 + ((octaveOffset * 3 )% 16) + offsetWithinOctave * 2 ) >> blackKeys[offsetWithinOctave];      
+		// r and g run from 0 .. 22 + 8 extra in case of a black key.
+		rgb[0] = octaveOffset * 2 + blackKeys[offsetWithinOctave] * 8;
+		rgb[1] = octaveOffset * 2 + blackKeys[offsetWithinOctave] * 8;
+		// b runs from 8 ... 8 + 33+22 = 0..63 and is divided by 2 for black keys.
+		// the +8 is needed to not get a black row
+		rgb[2] = 8 + (octaveOffset * 3 + offsetWithinOctave * 2 ) >> blackKeys[offsetWithinOctave];      
 	}
 
 }
@@ -230,16 +234,25 @@ void NoteRenderer::getNoteSpecificColours(int y,
 	}
 	else {
 		getNoteColourFromY(y + transpose, clipColourOffset, noteColour);
-	    if (colorScheme != RuntimeFeatureStateColorScheme::Classic) {
+	    if (colorScheme == RuntimeFeatureStateColorScheme::OctavePiano) {
 	    	if (transpose > 0) {
-	    		noteColour[0] = 0;
 	    		noteColour[1] = 64; // set green color for raised notes.
-	    		noteColour[2] = 0;
 	    	}
 	    	else { // set red color for lowered notes.
 	    		noteColour[0] = 64;
-	    		noteColour[1] = 0;
-	    		noteColour[2] = 0;
+	    	}
+	    }
+	    else if (colorScheme == RuntimeFeatureStateColorScheme::Blue) {
+	    	if (transpose > 0) {
+	    		noteColour[0] = 0;  // surpress red
+	    		noteColour[1] = 64; // set green color for raised notes.
+	    		noteColour[2] = noteColour[2] >> 2;  // minimize blue
+	    	}
+	    	else {
+	    		noteColour[0] = 64; // set red color for lowered notes.
+	    		noteColour[1] = 0;  // surpress green
+	    		noteColour[2] = noteColour[2] >> 2; // minimize blue
+
 	    	}
 	    }
 
