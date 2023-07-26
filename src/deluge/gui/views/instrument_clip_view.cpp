@@ -582,7 +582,7 @@ doOther:
 					}
 				}
 
-				clip->yScroll = 0; // Reset yScroll
+				clip->yScroll = 0; // Reset scroll position
 
 				actionLogger.deleteAllLogs(); // Can't undo past this
 
