@@ -552,6 +552,51 @@ doOther:
 		}
 	}
 
+	// Kit + Shift + Save/Delete: shorcut that will delete all Kit rows that does not contain notes
+	// (instead of pressing Note + Delete to do it one by one)
+	else if (b == SAVE && currentUIMode != UI_MODE_NOTES_PRESSED && Buttons::isShiftButtonPressed()
+	         && Buttons::isButtonPressed(KIT) && currentSong->currentClip->output->type == InstrumentType::KIT
+	         && (runtimeFeatureSettings.get(RuntimeFeatureSettingType::DeleteUnusedKitRows)
+	             == RuntimeFeatureStateToggle::On)) {
+		if (inCardRoutine) {
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		}
+
+		if (on) {
+			InstrumentClip* clip = getCurrentClip();
+
+			if (!clip->containsAnyNotes()) {
+				numericDriver.displayPopup(HAVE_OLED ? "At least one row needs to have notes" : "CANT");
+			}
+			else {
+				char modelStackMemory[MODEL_STACK_MAX_SIZE];
+				ModelStackWithTimelineCounter* modelStack =
+				    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+
+				int i;
+				for (i = clip->noteRows.getNumElements() - 1; i >= 0; i--) {
+					NoteRow* noteRow = clip->noteRows.getElement(i);
+					if (noteRow->hasNoNotes() && clip->noteRows.getNumElements() > 1) {
+						// If the row has not notes and is not the last one
+						clip->deleteNoteRow(modelStack, i);
+					}
+				}
+
+				clip->yScroll = 0; // Reset scroll position
+
+				actionLogger.deleteAllLogs(); // Can't undo past this
+
+				setSelectedDrum(NULL, true);
+
+				recalculateColours();
+				uiNeedsRendering(this);
+
+				// Show popup to make it clear what just happened
+				numericDriver.displayPopup(HAVE_OLED ? "Deleted unused rows" : "DELETED");
+			}
+		}
+	}
+
 	// Horizontal encoder button if learn button pressed. Make sure you let the "off" action slide past to the Editor
 	else if (b == X_ENC && on && Buttons::isButtonPressed(hid::button::LEARN)) {
 		if (inCardRoutine) {
