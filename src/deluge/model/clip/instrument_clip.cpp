@@ -2165,6 +2165,9 @@ void InstrumentClip::writeDataToFile(Song* song) {
 	storageManager.writeAttribute("keyboardRowInterval", keyboardState.isomorphic.rowInterval);
 	storageManager.writeAttribute("drumsScrollOffset", keyboardState.drums.scrollOffset);
 	storageManager.writeAttribute("drumsEdgeSize", keyboardState.drums.edgeSize);
+	storageManager.writeAttribute("inKeyScrollOffset", keyboardState.inKey.scrollOffset);
+	storageManager.writeAttribute("inKeyRowInterval", keyboardState.inKey.rowInterval);
+
 	if (onKeyboardScreen) {
 		storageManager.writeAttribute("onKeyboardScreen", (char*)"1");
 	}
@@ -2391,6 +2394,14 @@ someError:
 
 		else if (!strcmp(tagName, "drumsEdgeSize")) {
 			keyboardState.drums.edgeSize = storageManager.readTagOrAttributeValueInt();
+		}
+
+		else if (!strcmp(tagName, "inKeyScrollOffset")) {
+			keyboardState.inKey.scrollOffset = storageManager.readTagOrAttributeValueInt();
+		}
+
+		else if (!strcmp(tagName, "inKeyRowInterval")) {
+			keyboardState.inKey.rowInterval = storageManager.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "crossScreenEditLevel")) {
