@@ -2569,8 +2569,11 @@ void InstrumentClipView::recalculateColour(uint8_t yDisplay) {
 	if (noteRow) {
 		colourOffset = noteRow->getColourOffset(getCurrentClip());
 	}
-	getCurrentClip()->getMainColourFromY(getCurrentClip()->getYNoteFromYDisplay(yDisplay, currentSong), colourOffset,
-	                                     rowColour[yDisplay]);
+
+	//getCurrentClip()->getMainColourFromY(getCurrentClip()->getYNoteFromYDisplay(yDisplay, currentSong), colourOffset,
+	//                                    rowColour[yDisplay]);
+	int yNote = getCurrentClip()->getYNoteFromYDisplay(yDisplay, currentSong);
+	noteRenderer.getNoteColourFromY(yNote,colourOffset,rowColour[yDisplay]);
 	getTailColour(rowTailColour[yDisplay], rowColour[yDisplay]);
 	getBlurColour(rowBlurColour[yDisplay], rowColour[yDisplay]);
 }
