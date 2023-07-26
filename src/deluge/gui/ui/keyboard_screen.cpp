@@ -21,6 +21,7 @@
 #include "processing/engines/audio_engine.h"
 #include "model/clip/instrument_clip.h"
 #include "gui/views/instrument_clip_view.h"
+#include "gui/views/note_renderer.h"
 #include "gui/menu_item/multi_range.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "processing/sound/sound_instrument.h"
@@ -509,7 +510,7 @@ void KeyboardScreen::openedInBackground() {
 void KeyboardScreen::recalculateColours() {
 	InstrumentClip* clip = getCurrentClip();
 	for (int i = 0; i < kDisplayHeight * clip->keyboardRowInterval + kDisplayWidth; i++) {
-		clip->getMainColourFromY(clip->yScrollKeyboardScreen + i, 0, noteColours[i]);
+		noteRenderer.getNoteColourFromY(clip->yScrollKeyboardScreen + i, 0, noteColours[i]);
 	}
 }
 
