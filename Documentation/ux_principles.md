@@ -17,14 +17,15 @@ The deluge is not a computer, and should not feel like you're operating one. Dir
     - Parameters describe their action on the waveform, not their result on the final sound
     - A user who understands synthesis should immediately be able to edit the deluge
 * Favour simplicity
-    - Menus should never be mandatory
+    - Menus should never feel mandatory
     - Make the shortcuts and gold knob system feel like a feature and not a hindrance 
     - The OLED screen is a bonus, not a requirement
 * Favour performance
     - Entire parameter ranges should be useful and scaled for quick editing
     - Gold knob twists control frequently edited parameters
-    - Shortcuts control infrequently edited paramters
     - Gold knob presses switch modes, not scroll through parameter lists
+    - Shortcuts control infrequently edited paramters
+    - Menu-only items are reserved for rarely edited parameters
 * Favour consistency
     - Actions which have similarity between views should have the same shortcut
       - i.e. `<>` + `back` clears all notes in a clip or all clips in the arranger
