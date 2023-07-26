@@ -27,7 +27,7 @@ The deluge is not a computer, and should not feel like you're operating one. Dir
     - Gold knob presses switch modes, not scroll through parameter lists
 * Favour consistency
     - Actions which have similarity between views should have the same shortcut
-    - <>+back clears all notes in a clip or all clips in the arranger
+      - i.e. `<>` + `back` clears all notes in a clip or all clips in the arranger
 * Favour discoverability and intuitiveness
     - Leverage existing deluge UI paradigms
     - Integrate into existing UI structures
