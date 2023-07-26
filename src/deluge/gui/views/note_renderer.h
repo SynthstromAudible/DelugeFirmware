@@ -26,10 +26,11 @@ public:
                         uint32_t effectiveRowLength, bool allowNoteTails, int renderWidth, int32_t xScroll,
                         uint32_t xZoom, int xStartNow, int xEnd, bool drawRepeats, int clipColourOffset);
 
-private:
 	// based on IntrumentClip::getMainColorFromY , but left out noterow color offset
 	// because it also doesnt seem used in instrument clip view.
 	void getNoteColourFromY(int yNote, int clipColourOffset, uint8_t rgb[]);
+
+private:
 
 	// applies color changes based on note properties such as accidentalTranspose.
 	void getNoteSpecificColours(int yNote,
