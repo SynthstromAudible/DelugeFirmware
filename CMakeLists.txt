@@ -2,20 +2,75 @@ cmake_minimum_required(VERSION 3.23)
 
 set(CMAKE_TOOLCHAIN_FILE ${CMAKE_CURRENT_LIST_DIR}/scripts/cmake/CMakeToolchainDeluge.cmake)
 
-project(Deluge 
+project(Deluge
     LANGUAGES CXX C ASM
     VERSION 1.0.0
 )
 
+# Check for IPO support
 include(CheckIPOSupported)
 check_ipo_supported(RESULT IPO_SUPPORTED OUTPUT error)
 
-if( IPO_SUPPORTED )
-    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION 
+if(IPO_SUPPORTED)
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION
         $<$<CONFIG:DEBUG>:OFF>
         $<$<CONFIG:RELEASE>:ON>
     )
 endif()
+
+# Create our version string
+set(RELEASE_TYPE "dev" CACHE STRING "The type of releasepack to build")
+set_property(CACHE RELEASE_TYPE PROPERTY STRINGS dev nightly alpha beta rc release)
+
+if(RELEASE_TYPE STREQUAL "release")
+    set(SEMVER_PRERELEASE_ID "")
+else()
+    set(SEMVER_PRERELEASE_ID "-${RELEASE_TYPE}")
+endif()
+
+find_package(Git)
+
+if(GIT_FOUND)
+    message(VERBOSE "git found: ${GIT_EXECUTABLE} version ${GIT_VERSION_STRING}")
+else()
+    message(FATAL_ERROR "Git not found. Check your path.")
+endif(GIT_FOUND)
+
+# Get the result of "git rev-parse --short HEAD"
+execute_process(
+    COMMAND ${GIT_EXECUTABLE} rev-parse --short HEAD
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE GIT_COMMIT_SHORT
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
+# Get the result of "git status --porcelain"
+execute_process(
+    COMMAND ${GIT_EXECUTABLE} status --porcelain
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE GIT_STATUS
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
+# Today's date
+string(TIMESTAMP DATE_TODAY "%Y.%m.%d")
+
+# Build our version string
+set(BUILD_VERSION_SUFFX "-v${PROJECT_VERSION}${SEMVER_PRERELEASE_ID}+${DATE_TODAY}-${GIT_COMMIT_SHORT}")
+
+if(NOT "${GIT_STATUS}" STREQUAL "")
+    string(APPEND BUILD_VERSION_SUFFX "-dirty")
+endif()
+
+message(VERBOSE "semver: ${BUILD_VERSION_SUFFX}")
+
+option(ENABLE_VERSIONED_OUTPUT "Tag the resulting output files with a semver label" OFF)
+
+if(ENABLE_VERSIONED_OUTPUT)
+    set(EXECUTABLE_VERSION_SUFFIX ${BUILD_VERSION_SUFFX})
+else()
+    set(EXECUTABLE_VERSION_SUFFIX "")
+endif(ENABLE_VERSIONED_OUTPUT)
 
 # This function lets us add multiple firmware "configurations"
 # that each have their own set of flags from the same source
@@ -27,25 +82,25 @@ function(add_firmware EXECUTABLE BASE)
     target_sources(${EXECUTABLE} PRIVATE ${BASE_SOURCES})
     target_link_libraries(${EXECUTABLE} ${BASE_LINKS})
 
-    set_target_properties(${EXECUTABLE} 
+    set_target_properties(${EXECUTABLE}
         PROPERTIES
             C_STANDARD 11
             C_STANDARD_REQUIRED ON
             CXX_STANDARD 20
             CXX_STANDARD_REQUIRED ON
             CXX_EXTENSIONS ON
-            SUFFIX ".elf"
+            SUFFIX "${EXECUTABLE_VERSION_SUFFIX}.elf"
     )
 
-    set(BIN_FILE $<CONFIG>/${EXECUTABLE}.bin)
-    set(HEX_FILE $<CONFIG>/${EXECUTABLE}.hex)
-    set(MAP_FILE $<CONFIG>/${EXECUTABLE}.map)
+    set(BIN_FILE $<CONFIG>/${EXECUTABLE}${EXECUTABLE_VERSION_SUFFIX}.bin)
+    set(HEX_FILE $<CONFIG>/${EXECUTABLE}${EXECUTABLE_VERSION_SUFFIX}.hex)
+    set(MAP_FILE $<CONFIG>/${EXECUTABLE}${EXECUTABLE_VERSION_SUFFIX}.map)
 
     # add link options to generate memory map
     target_link_libraries(${EXECUTABLE} -Wl,\"-Map=${MAP_FILE}\",--cref)
 
     # generate .bin firmware file
-    add_custom_command(TARGET ${EXECUTABLE} 
+    add_custom_command(TARGET ${EXECUTABLE}
         POST_BUILD
         COMMAND ${CMAKE_OBJCOPY} -O binary $<TARGET_FILE:${EXECUTABLE}> ${BIN_FILE}
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
@@ -54,7 +109,7 @@ function(add_firmware EXECUTABLE BASE)
         BYPRODUCTS ${BIN_FILE})
 
     # generate .hex firmware file
-    add_custom_command(TARGET ${EXECUTABLE} 
+    add_custom_command(TARGET ${EXECUTABLE}
         POST_BUILD
         COMMAND ${CMAKE_OBJCOPY} -O ihex $<TARGET_FILE:${EXECUTABLE}> ${HEX_FILE}
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
@@ -64,20 +119,20 @@ function(add_firmware EXECUTABLE BASE)
 
     # Clean up artefacts
     set_property(TARGET ${EXECUTABLE}
-        PROPERTY 
+        PROPERTY
             ADDITIONAL_CLEAN_FILES ${BIN_FILE} ${MAP_FILE} ${HEX_FILE})
 
-    find_program(PRETTYSIZE_CMD prettysize prettysize.py)
+    # find_program(PRETTYSIZE_CMD prettysize prettysize.py)
 
-    if(NOT PRETTYSIZE_CMD STREQUAL "PRETTYSIZE_CMD-NOTFOUND")
-        add_custom_command(
-            TARGET ${EXECUTABLE} POST_BUILD
-            COMMAND prettysize
-            -l ${CMAKE_CURRENT_LIST_DIR}/linker_script_rz_a1l.ld
-            -s ${CMAKE_SIZE} $<TARGET_FILE:${EXECUTABLE}>
-            WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-            COMMENT "Displaying usage graph for ${EXECUTABLE}")
-    endif()
+    # if(NOT PRETTYSIZE_CMD STREQUAL "PRETTYSIZE_CMD-NOTFOUND")
+    # add_custom_command(
+    # TARGET ${EXECUTABLE} POST_BUILD
+    # COMMAND prettysize
+    # -l ${CMAKE_CURRENT_LIST_DIR}/linker_script_rz_a1l.ld
+    # -s ${CMAKE_SIZE} $<TARGET_FILE:${EXECUTABLE}>
+    # WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    # COMMENT "Displaying usage graph for ${EXECUTABLE}")
+    # endif()
 endfunction(add_firmware)
 
 # Global compilation options
@@ -115,7 +170,9 @@ add_compile_options(
     $<$<COMPILE_LANGUAGE:ASM>:assembler-with-cpp>
 
     # Warnings
+    # $<$<CONFIG:DEBUG>:-Wextra> # TODO: Enable when ready
     # $<$<CONFIG:DEBUG>:-Wall> # TODO: Enable when ready
+    # $<$<CONFIG:DEBUG>:-Wpedantic> # TODO: Enable when ready
     $<$<CONFIG:DEBUG>:-Wnull-dereference>
     $<$<CONFIG:DEBUG>:-Wno-psabi>
 
@@ -149,7 +206,7 @@ if(ENABLE_RTT)
         $<$<CONFIG:DEBUG>:ENABLE_TEXT_OUTPUT=1>
         $<$<CONFIG:DEBUG>:HAVE_RTT=1>
     )
-endif()
+endif(ENABLE_RTT)
 
 # Colored output
 option(FORCE_COLORED_OUTPUT "Always produce ANSI-colored output (GNU/Clang only)." ON)
@@ -162,7 +219,7 @@ if(FORCE_COLORED_OUTPUT)
         message(STATUS "Forcing colors for Clang")
         add_compile_options(-fcolor-diagnostics)
     endif()
-endif()
+endif(FORCE_COLORED_OUTPUT)
 
 # 7SEG configuration
 add_firmware(deluge7SEG deluge)
@@ -173,5 +230,3 @@ add_firmware(delugeOLED deluge)
 target_compile_definitions(delugeOLED PUBLIC HAVE_OLED=1)
 
 target_link_libraries(delugeOLED RZA1_OLED)
-
-

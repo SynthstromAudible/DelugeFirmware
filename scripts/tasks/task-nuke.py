@@ -8,16 +8,14 @@ import os
 def argparser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="nuke",
-        description="Indiscriminately removes any build trees",
+        description="Indiscriminately removes any build tree contents and artifacts",
     )
     parser.group = "Building"
     return parser
 
 
 def main() -> int:
-    os.chdir(util.get_git_root())
-
-    build_dirs = Path('.').glob('*build*')
+    build_dirs = util.get_git_root().glob('*build*')
     for dir in build_dirs:
       print(f"Removing {dir}")
       shutil.rmtree(dir, ignore_errors=True)

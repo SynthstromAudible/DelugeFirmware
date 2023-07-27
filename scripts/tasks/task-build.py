@@ -15,6 +15,12 @@ def argparser() -> argparse.ArgumentParser:
     parser.group = "Building"
     parser.add_argument("-q", "--quiet", help="Quiet output", action="store_true")
     parser.add_argument(
+        "-m",
+        "--tag-metadata",
+        help="Tag the build with a metadata suffix",
+        action="store_true"
+    )    
+    parser.add_argument(
         "target",
         default="all",
         const="all",
@@ -40,7 +46,12 @@ def main() -> int:
 
     os.chdir(util.get_git_root())
 
-    if not os.path.exists("build"):
+    if args.tag_metadata:
+        result = importlib.import_module("task-configure").main(['-f', '-m'] + unknown_args) # force reconfigure and tag 
+        if result != 0:
+            return result        
+
+    elif not os.path.exists("build"):
         result = importlib.import_module("task-configure").main()
         if result != 0:
             return result

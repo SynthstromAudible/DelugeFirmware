@@ -54,7 +54,7 @@ def get_header_and_source_files(path: Path, recursive: bool):
     return [file for files in globs for file in list(files)]
 
 
-def prepend_file(text: str, path: Path):
+def prepend_file(text: str, path: Path) -> None:
     for linenum, line in enumerate(fileinput.FileInput(path.absolute(), inplace=1)):
         if linenum == 0:
             print(text)
@@ -63,13 +63,13 @@ def prepend_file(text: str, path: Path):
             print(line.rstrip())
 
 
-def convert_path_if_mingw(path: str):
+def convert_path_if_mingw(path: str) -> str:
     if sysconfig.get_platform().startswith("mingw"):
         path = run_get_output(["cygpath", "-w", path])
     return path
 
 
-def get_git_root():
+def get_git_root() -> Path:
     git_root = run_get_output(["git", "rev-parse", "--show-toplevel"])
     git_root = convert_path_if_mingw(git_root)
     return Path(git_root)
