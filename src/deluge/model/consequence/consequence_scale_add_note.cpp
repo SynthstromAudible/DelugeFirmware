@@ -16,8 +16,8 @@
 */
 
 #include "model/consequence/consequence_scale_add_note.h"
-#include "model/song/song.h"
 #include "model/model_stack.h"
+#include "model/song/song.h"
 
 ConsequenceScaleAddNote::ConsequenceScaleAddNote(int newNoteWithinOctave) {
 	noteWithinOctave = newNoteWithinOctave;

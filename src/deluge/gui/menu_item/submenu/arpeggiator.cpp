@@ -16,9 +16,9 @@
 */
 #include "arpeggiator.h"
 #include "gui/ui/sound_editor.h"
+#include "model/clip/instrument_clip.h"
 #include "model/song/song.h"
 #include "processing/sound/sound_drum.h"
-#include "model/clip/instrument_clip.h"
 
 namespace menu_item::submenu {
 

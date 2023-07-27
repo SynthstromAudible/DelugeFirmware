@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "modulation/params/param_manager.h"
 #include "hid/display/numeric_driver.h"
+#include "modulation/params/param_manager.h"
 
 class Song;
 class ModControllable;

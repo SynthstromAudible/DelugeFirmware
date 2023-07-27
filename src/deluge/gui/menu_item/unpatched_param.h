@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "param.h"
 #include "menu_item_with_cc_learning.h"
+#include "param.h"
 
 class ModelStackWithAutoParam;
 

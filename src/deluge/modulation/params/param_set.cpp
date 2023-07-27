@@ -15,24 +15,24 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "model/clip/instrument_clip.h"
-#include "modulation/params/param_manager.h"
-#include "processing/sound/sound.h"
 #include "modulation/params/param_set.h"
-#include "storage/storage_manager.h"
 #include "gui/views/view.h"
 #include "io/midi/midi_engine.h"
-#include "modulation/params/param_node.h"
 #include "model/action/action_logger.h"
+#include "model/clip/instrument_clip.h"
 #include "model/instrument/instrument.h"
-#include "util/functions.h"
-#include "model/model_stack.h"
-#include "processing/engines/audio_engine.h"
-#include "model/song/song.h"
-#include "model/note/note_row.h"
 #include "model/instrument/melodic_instrument.h"
+#include "model/model_stack.h"
+#include "model/note/note_row.h"
+#include "model/song/song.h"
+#include "modulation/params/param_manager.h"
+#include "modulation/params/param_node.h"
 #include "modulation/patch/patch_cable_set.h"
+#include "processing/engines/audio_engine.h"
+#include "processing/sound/sound.h"
 #include "storage/flash_storage.h"
+#include "storage/storage_manager.h"
+#include "util/functions.h"
 
 ParamSet::ParamSet(int newObjectSize, ParamCollectionSummary* summary) : ParamCollection(newObjectSize, summary) {
 	topUintToRepParams = 1;

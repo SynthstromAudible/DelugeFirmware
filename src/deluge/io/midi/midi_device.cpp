@@ -16,13 +16,13 @@
  */
 
 #include "io/midi/midi_device.h"
-#include "storage/storage_manager.h"
 #include "definitions_cxx.hpp"
-#include <string.h>
+#include "gui/ui/sound_editor.h"
+#include "io/midi/midi_engine.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
-#include "io/midi/midi_engine.h"
-#include "gui/ui/sound_editor.h"
+#include "storage/storage_manager.h"
+#include <string.h>
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"

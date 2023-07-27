@@ -15,9 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "model/model_stack.h"
 #include "gui/menu_item/integer.h"
 #include "gui/ui/sound_editor.h"
+#include "model/model_stack.h"
 #include "processing/sound/sound.h"
 
 namespace menu_item::unison {

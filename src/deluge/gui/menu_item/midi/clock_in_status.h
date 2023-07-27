@@ -16,8 +16,8 @@
 */
 #pragma once
 #include "gui/menu_item/selection.h"
-#include "playback/playback_handler.h"
 #include "gui/ui/sound_editor.h"
+#include "playback/playback_handler.h"
 
 namespace menu_item::midi {
 class ClockInStatus final : public Selection {

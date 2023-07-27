@@ -36,13 +36,13 @@
 /******************************************************************************
 Includes   <System Includes> , "Project Includes"
 ******************************************************************************/
-#include "RZA1/system/rza_io_regrw.h"
-#include "RZA1/system/r_typedefs.h"
-#include "RZA1/system/iodefine.h"
-#include "RZA1/spibsc/spibsc.h"
 #include "RZA1/spibsc/r_spibsc_ioset_api.h"
-#include "RZA1/system/iobitmasks/spibsc_iobitmask.h"
+#include "RZA1/spibsc/spibsc.h"
 #include "RZA1/system/iobitmasks/gpio_iobitmask.h"
+#include "RZA1/system/iobitmasks/spibsc_iobitmask.h"
+#include "RZA1/system/iodefine.h"
+#include "RZA1/system/r_typedefs.h"
+#include "RZA1/system/rza_io_regrw.h"
 
 #include "deluge/deluge.h"
 

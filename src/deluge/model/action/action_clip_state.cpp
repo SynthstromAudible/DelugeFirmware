@@ -16,8 +16,8 @@
 */
 
 #include "model/action/action_clip_state.h"
-#include "model/clip/instrument_clip.h"
 #include "definitions_cxx.hpp"
+#include "model/clip/instrument_clip.h"
 #include "model/drum/kit.h"
 
 ActionClipState::ActionClipState() {

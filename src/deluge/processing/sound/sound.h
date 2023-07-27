@@ -17,16 +17,16 @@
 
 #pragma once
 
-#include "modulation/patch/patcher.h"
 #include "definitions_cxx.hpp"
 #include "dsp/compressor/compressor.h"
-#include "modulation/lfo.h"
-#include "processing/source.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "modulation/arpeggiator.h"
 #include "modulation/knob.h"
-#include "modulation/params/param_set.h"
+#include "modulation/lfo.h"
 #include "modulation/params/param_manager.h"
+#include "modulation/params/param_set.h"
+#include "modulation/patch/patcher.h"
+#include "processing/source.h"
 #include "util/misc.h"
 
 struct CableGroup;

@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "model/consequence/consequence.h"
 #include "RZA1/system/r_typedefs.h"
+#include "model/consequence/consequence.h"
 
 class ConsequenceSwingChange final : public Consequence {
 public:

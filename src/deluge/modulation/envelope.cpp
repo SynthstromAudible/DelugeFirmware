@@ -15,12 +15,12 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "modulation/envelope.h"
 #include "definitions_cxx.hpp"
+#include "io/debug/print.h"
+#include "model/voice/voice.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
-#include "modulation/envelope.h"
-#include "model/voice/voice.h"
-#include "io/debug/print.h"
 
 Envelope::Envelope() {
 }

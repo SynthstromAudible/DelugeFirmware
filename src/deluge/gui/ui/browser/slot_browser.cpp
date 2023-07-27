@@ -15,16 +15,16 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "storage/audio/audio_file_manager.h"
-#include "hid/matrix/matrix_driver.h"
-#include "storage/storage_manager.h"
-#include <string.h>
 #include "gui/ui/browser/slot_browser.h"
-#include "util/functions.h"
 #include "hid/display/numeric_driver.h"
 #include "hid/led/pad_leds.h"
+#include "hid/matrix/matrix_driver.h"
 #include "io/debug/print.h"
+#include "storage/audio/audio_file_manager.h"
 #include "storage/file_item.h"
+#include "storage/storage_manager.h"
+#include "util/functions.h"
+#include <string.h>
 
 bool SlotBrowser::currentFileHasSuffixFormatNameImplied;
 

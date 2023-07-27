@@ -16,10 +16,10 @@
 */
 
 #include "util/d_string.h"
-#include <string.h>
-#include "memory/general_memory_allocator.h"
 #include "definitions_cxx.hpp"
+#include "memory/general_memory_allocator.h"
 #include "util/functions.h"
+#include <string.h>
 
 extern "C" {
 #include "util/cfunctions.h"
