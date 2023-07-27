@@ -54,6 +54,8 @@
 #include "model/clip/clip_minder.h"
 #include "model/clip/instrument_clip.h"
 #include "modulation/midi/midi_param_collection.h"
+#include "gui/views/automation_clip_view.h"
+#include "model/settings/runtime_feature_settings.h"
 
 #if HAVE_OLED
 #include "hid/display/oled.h"
@@ -388,17 +390,27 @@ yesLoadInstrument:
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
-			// Clear Clip
-			Action* action = actionLogger.getNewAction(ACTION_CLIP_CLEAR, false);
+			//New community feature as part of Automation Clip View Implementation
+			//If this is enabled, then when you are in a regular Instrument Clip View (Synth, Kit, MIDI, CV), clearing a clip
+			//will only clear the Notes (automations remain intact).
+			//If this is enabled, if you want to clear automations, you will enter Automation Clip View and clear the clip there.
+			//If this is enabled, the message displayed on the OLED screen is adjusted to reflect the nature of what is being cleared
 
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
-			ModelStackWithTimelineCounter* modelStack =
-			    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, currentSong->currentClip);
-
-			getCurrentClip()->clear(action, modelStack);
-			numericDriver.displayPopup(HAVE_OLED ? "Clip cleared" : "CLEAR");
-			if (getCurrentUI() == &instrumentClipView) {
-				uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
+			if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::ClearClipAutomation) == RuntimeFeatureStateToggle::On) {
+				if (getCurrentUI() == &automationClipView) {
+					numericDriver.displayPopup(HAVE_OLED ? "Automation cleared" : "CLEAR");
+					uiNeedsRendering(&automationClipView, 0xFFFFFFFF, 0);
+				}
+				else if (getCurrentUI() == &instrumentClipView) {
+					numericDriver.displayPopup(HAVE_OLED ? "Notes cleared" : "CLEAR");
+					uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
+				}
+			}
+			else {
+				if (getCurrentUI() == &instrumentClipView) {
+					numericDriver.displayPopup(HAVE_OLED ? "Clip cleared" : "CLEAR");
+					uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
+				}
 			}
 		}
 	}

@@ -3019,6 +3019,7 @@ traverseClips:
 
 			if (newOutput->type == InstrumentType::KIT) {
 				instrumentClip->onKeyboardScreen = false;
+				instrumentClip->onAutomationClipView = false;
 			}
 		}
 

@@ -73,6 +73,7 @@
 #include "storage/file_item.h"
 #include "hid/display/oled.h"
 #include "gui/colour.h"
+#include "gui/views/automation_clip_view.h"
 
 extern "C" {
 extern uint8_t currentlyAccessingCard;
@@ -1692,6 +1693,14 @@ void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 			keyboardScreen.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
 			memset(PadLEDs::occupancyMaskStore[0], 0, kDisplayWidth + kSideBarWidth);
 			memset(PadLEDs::occupancyMaskStore[kDisplayHeight + 1], 0, kDisplayWidth + kSideBarWidth);
+		}
+
+		// If going to AutomationView...
+		else if (((InstrumentClip*)clip)->onAutomationClipView) {
+			automationClipView.recalculateColours();
+			automationClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1],
+			                                  false);
+			automationClipView.fillOffScreenImageStores();
 		}
 
 		// Or if just regular old InstrumentClipView

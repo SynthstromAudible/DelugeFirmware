@@ -30,6 +30,7 @@
 #include "model/clip/clip_minder.h"
 #include "gui/views/session_view.h"
 #include "playback/playback_handler.h"
+#include "gui/views/automation_clip_view.h"
 
 #if HAVE_OLED
 #include "hid/display/oled.h"
@@ -83,6 +84,9 @@ void UITimerManager::routine() {
 					}
 					else if (getCurrentUI() == &keyboardScreen) {
 						keyboardScreen.flashDefaultRootNote();
+					}
+					else if (getCurrentUI() == &automationClipView) {
+						automationClipView.flashDefaultRootNote();
 					}
 					break;
 

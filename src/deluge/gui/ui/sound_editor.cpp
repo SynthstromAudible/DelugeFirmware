@@ -48,6 +48,7 @@
 #include "util/functions.h"
 #include <new>
 #include <string.h>
+#include "gui/views/automation_clip_view.h"
 
 #if HAVE_OLED
 #include "hid/display/oled.h"
@@ -153,6 +154,9 @@ bool SoundEditor::editingCVOrMIDIClip() {
 bool SoundEditor::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
 	if (getRootUI() == &keyboardScreen) {
 		return false;
+	}
+	else if (getRootUI() == &automationClipView) {
+		*cols = 0xFFFFFFFE;
 	}
 	else if (getRootUI() == &instrumentClipView) {
 		*cols = 0xFFFFFFFE;
@@ -357,10 +361,22 @@ ActionResult SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutin
 			}
 
 			if (getRootUI() == &keyboardScreen) {
-				swapOutRootUILowLevel(&instrumentClipView);
-				instrumentClipView.openedInBackground();
+
+				if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
+					swapOutRootUILowLevel(&automationClipView);
+					automationClipView.openedInBackground();
+				}
+
+				else {
+					swapOutRootUILowLevel(&instrumentClipView);
+					instrumentClipView.openedInBackground();
+				}
 			}
 			else if (getRootUI() == &instrumentClipView) {
+				swapOutRootUILowLevel(&keyboardScreen);
+				keyboardScreen.openedInBackground();
+			}
+			if (getRootUI() == &automationClipView) {
 				swapOutRootUILowLevel(&keyboardScreen);
 				keyboardScreen.openedInBackground();
 			}
@@ -564,6 +580,7 @@ shortcutsPicked:
 
 void SoundEditor::possibleChangeToCurrentRangeDisplay() {
 	uiNeedsRendering(&instrumentClipView, 0, 0xFFFFFFFF);
+	uiNeedsRendering(&automationClipView, 0, 0xFFFFFFFF);
 	uiNeedsRendering(&keyboardScreen, 0xFFFFFFFF, 0);
 }
 
@@ -869,6 +886,16 @@ ActionResult SoundEditor::padAction(int x, int y, int on) {
 	else if (getRootUI() == &instrumentClipView) {
 		if (x == kDisplayWidth + 1) {
 			instrumentClipView.padAction(x, y, on);
+			return ActionResult::DEALT_WITH;
+		}
+	}
+
+	else if (getRootUI() == &automationClipView) {
+		if (x == kDisplayWidth + 1) {
+			automationClipView.padAction(x, y, on);
+			return ActionResult::DEALT_WITH;
+		}
+		else {
 			return ActionResult::DEALT_WITH;
 		}
 	}

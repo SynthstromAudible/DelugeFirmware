@@ -85,6 +85,9 @@ void RuntimeFeatureSettings::init() {
 	// DeleteUnusedKitRows
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DeleteUnusedKitRows], "Delete Unused Kit Rows",
 	                  "deleteUnusedKitRows", RuntimeFeatureStateToggle::On);
+	// ClearClipAutomation
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::ClearClipAutomation], "Clear Clip Automation",
+	                  "clearClipAutomation", RuntimeFeatureStateToggle::On);
 }
 
 void RuntimeFeatureSettings::readSettingsFromFile() {

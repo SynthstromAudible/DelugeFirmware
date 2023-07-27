@@ -37,6 +37,7 @@
 #include "model/model_stack.h"
 #include "modulation/params/param_collection.h"
 #include "gui/views/view.h"
+#include "gui/views/automation_clip_view.h"
 
 #define SAMPLES_TO_CLEAR_AFTER_RECORD 8820          // 200ms
 #define SAMPLES_TO_IGNORE_AFTER_BEGIN_OVERRIDE 9200 // 200ms + a bit
@@ -958,7 +959,7 @@ void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value,
 		nodes.testSequentiality("E441");
 #endif
 
-		firstI = homogenizeRegion(modelStack, pos, length, value, false, false, effectiveLength, false);
+		firstI = homogenizeRegion(modelStack, pos, length, value, automationClipView.interpolateOn, automationClipView.interpolateOn, effectiveLength, false);
 		if (firstI == -1) {
 			return;
 		}

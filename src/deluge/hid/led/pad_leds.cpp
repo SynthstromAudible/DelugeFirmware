@@ -36,6 +36,7 @@
 #include "model/clip/instrument_clip.h"
 #include "hid/display/oled.h"
 #include "gui/colour.h"
+#include "gui/views/automation_clip_view.h"
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
@@ -805,7 +806,13 @@ void timerRoutine() {
 				currentUIMode = UI_MODE_ANIMATION_FADE;
 				if (explodeAnimationDirection == 1) {
 					if (currentSong->currentClip->type == CLIP_TYPE_INSTRUMENT) {
-						changeRootUI(&instrumentClipView); // We want to fade the sidebar in
+						if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
+							changeRootUI(&automationClipView); // We want to fade the sidebar in
+						}
+						else {
+							changeRootUI(&instrumentClipView); // We want to fade the sidebar in
+						}
+
 					}
 					else {
 						changeRootUI(&audioClipView);
@@ -978,6 +985,14 @@ void renderClipExpandOrCollapse() {
 
 			if (((InstrumentClip*)currentSong->currentClip)->onKeyboardScreen) {
 				changeRootUI(&keyboardScreen);
+			}
+			else if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
+				changeRootUI(&automationClipView);
+				// If we need to zoom in horizontally because the Clip's too short...
+				bool anyZoomingDone = automationClipView.zoomToMax(true);
+				if (anyZoomingDone) {
+					uiNeedsRendering(&automationClipView, 0, 0xFFFFFFFF);
+				}
 			}
 			else {
 				changeRootUI(&instrumentClipView);

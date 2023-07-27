@@ -26,7 +26,7 @@ class InstrumentClip;
 class Output;
 class ModelStack;
 
-// This class performs operations on an InstrumentClip that are common to both the InstrumentClipView and KeyboardView.
+// This class performs operations on an InstrumentClip that are common to both the InstrumentClipView, AutomationClipView and KeyboardView.
 
 class InstrumentClipMinder : public ClipMinder {
 public:

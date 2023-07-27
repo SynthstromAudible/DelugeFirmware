@@ -43,6 +43,7 @@
 #include "playback/playback_handler.h"
 #include "hid/display/oled.h"
 #include "util/misc.h"
+#include "gui/views/automation_clip_view.h"
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
@@ -86,6 +87,9 @@ bool SampleMarkerEditor::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
 bool SampleMarkerEditor::opened() {
 
 	if (getRootUI() == &keyboardScreen) {
+		PadLEDs::skipGreyoutFade();
+	}
+	else if (getRootUI() == &automationClipView) {
 		PadLEDs::skipGreyoutFade();
 	}
 
@@ -708,6 +712,9 @@ ActionResult SampleMarkerEditor::verticalEncoderAction(int offset, bool inCardRo
 	if (getRootUI() == &keyboardScreen) {
 		uiNeedsRendering(this, 0, 0xFFFFFFFF);
 	}
+	else if (getRootUI() == &automationClipView) {
+		uiNeedsRendering(this, 0, 0xFFFFFFFF);
+	}
 
 	return result;
 }
@@ -716,6 +723,9 @@ bool SampleMarkerEditor::renderSidebar(uint32_t whichRows, uint8_t image[][kDisp
                                        uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 	if (getRootUI() != &keyboardScreen) {
 		return false;
+	}
+	else if (getRootUI() == &automationClipView) {
+		return automationClipView.renderSidebar(whichRows, image, occupancyMask);
 	}
 	return instrumentClipView.renderSidebar(whichRows, image, occupancyMask);
 }

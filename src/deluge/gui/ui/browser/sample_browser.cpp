@@ -71,6 +71,7 @@
 #include "gui/menu_item/multi_range.h"
 #include "storage/file_item.h"
 #include "playback/playback_handler.h"
+#include "gui/views/automation_clip_view.h"
 
 #if HAVE_OLED
 #include "hid/display/oled.h"
@@ -523,7 +524,7 @@ gotError:
 
 bool SampleBrowser::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
 
-	if (currentlyShowingSamplePreview || qwertyVisible || getRootUI() == &keyboardScreen) {
+	if (currentlyShowingSamplePreview || qwertyVisible || getRootUI() == &keyboardScreen || getRootUI() == &automationClipView) {
 		*cols = 0b10;
 	}
 	else {
@@ -648,6 +649,9 @@ void SampleBrowser::previewIfPossible(int movementDirection) {
 				if (getRootUI() != &keyboardScreen) {
 					PadLEDs::reassessGreyout(true);
 				}
+				else if (getRootUI() != &automationClipView) {
+					PadLEDs::reassessGreyout(true);
+				}
 				memset(PadLEDs::transitionTakingPlaceOnRow, 1, sizeof(PadLEDs::transitionTakingPlaceOnRow));
 				PadLEDs::horizontal::setupScroll(movementDirection, kDisplayWidth);
 				currentUIMode = UI_MODE_HORIZONTAL_SCROLL;
@@ -676,6 +680,9 @@ ActionResult SampleBrowser::padAction(int x, int y, int on) {
 	if (x == kDisplayWidth + 1) {
 		if (getRootUI() == &instrumentClipView) {
 			return instrumentClipView.padAction(x, y, on);
+		}
+		else if (getRootUI() == &automationClipView) {
+			return automationClipView.padAction(x, y, on);
 		}
 	}
 

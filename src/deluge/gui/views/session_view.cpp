@@ -62,6 +62,7 @@
 #include "dsp/master_compressor/master_compressor.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "gui/colour.h"
+#include "gui/views/automation_clip_view.h"
 
 #if HAVE_OLED
 #include "hid/display/oled.h"
@@ -2197,6 +2198,24 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 			for (int y = 0; y < PadLEDs::numAnimatedRows; y++) {
 				PadLEDs::animatedRowGoingTo[y] = clipPlaceOnScreen;
 				PadLEDs::animatedRowGoingFrom[y] = y;
+			}
+		}
+
+		else if (((InstrumentClip*)clip)->onAutomationClipView) {
+
+			automationClipView
+			    .recalculateColours(); // Won't have happened automatically because we haven't begun the "session"
+			automationClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1],
+			                                  false);
+			automationClipView.renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
+
+			automationClipView
+			    .fillOffScreenImageStores(); // Important that this is done after currentSong->xScroll is changed, above
+
+			PadLEDs::numAnimatedRows = kDisplayHeight + 2;
+			for (int y = 0; y < PadLEDs::numAnimatedRows; y++) {
+				PadLEDs::animatedRowGoingTo[y] = clipPlaceOnScreen;
+				PadLEDs::animatedRowGoingFrom[y] = y - 1;
 			}
 		}
 
