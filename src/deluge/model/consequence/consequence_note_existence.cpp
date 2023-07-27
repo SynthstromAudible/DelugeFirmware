@@ -15,12 +15,12 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "model/consequence/consequence_note_existence.h"
 #include "definitions_cxx.hpp"
 #include "model/clip/instrument_clip.h"
-#include "model/consequence/consequence_note_existence.h"
-#include "model/note/note_vector.h"
 #include "model/note/note.h"
 #include "model/note/note_row.h"
+#include "model/note/note_vector.h"
 #include "util/misc.h"
 
 ConsequenceNoteExistence::ConsequenceNoteExistence(InstrumentClip* newClip, int newNoteRowId, Note* note,

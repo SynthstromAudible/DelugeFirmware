@@ -15,9 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #include "integer.h"
+#include "gui/ui/sound_editor.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param_set.h"
-#include "gui/ui/sound_editor.h"
 
 namespace menu_item::patched_param {
 void Integer::readCurrentValue() {

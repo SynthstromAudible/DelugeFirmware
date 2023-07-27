@@ -15,9 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "processing/engines/cv_engine.h"
 #include "gui/menu_item/decimal.h"
 #include "gui/ui/sound_editor.h"
+#include "processing/engines/cv_engine.h"
 
 namespace menu_item::cv {
 class Transpose final : public Decimal {

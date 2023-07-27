@@ -15,13 +15,13 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "definitions_cxx.hpp"
-#include "processing/sound/sound.h"
 #include "dsp/filter/filter_set.h"
-#include "util/functions.h"
+#include "definitions_cxx.hpp"
 #include "dsp/filter/filter_set_config.h"
 #include "dsp/timestretch/time_stretcher.h"
+#include "processing/sound/sound.h"
 #include "storage/storage_manager.h"
+#include "util/functions.h"
 
 FilterSet::FilterSet() {
 }

@@ -18,8 +18,8 @@
 #include "sync_level.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/numeric_driver.h"
-#include "model/song/song.h"
 #include "hid/display/oled.h"
+#include "model/song/song.h"
 
 namespace menu_item {
 

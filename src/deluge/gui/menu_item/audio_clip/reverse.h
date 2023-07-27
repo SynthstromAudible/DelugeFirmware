@@ -15,14 +15,14 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "model/clip/audio_clip.h"
+#include "gui/menu_item/selection.h"
+#include "gui/ui/sound_editor.h"
 #include "gui/views/audio_clip_view.h"
+#include "model/clip/audio_clip.h"
 #include "model/model_stack.h"
 #include "model/sample/sample.h"
-#include "gui/menu_item/selection.h"
-#include "playback/playback_handler.h"
 #include "model/song/song.h"
-#include "gui/ui/sound_editor.h"
+#include "playback/playback_handler.h"
 
 namespace menu_item::audio_clip {
 class Reverse final : public Selection {

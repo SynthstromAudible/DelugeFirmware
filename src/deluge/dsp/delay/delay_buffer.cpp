@@ -15,11 +15,11 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "processing/engines/audio_engine.h"
 #include "dsp/delay/delay_buffer.h"
 #include "dsp/stereo_sample.h"
-#include "util/functions.h"
 #include "memory/general_memory_allocator.h"
+#include "processing/engines/audio_engine.h"
+#include "util/functions.h"
 #include <string.h>
 
 DelayBuffer::DelayBuffer() {

@@ -16,13 +16,15 @@
  */
 
 #pragma once
-#include "modulation/params/param_collection.h"
 #include "definitions_cxx.hpp"
+#include "modulation/params/param_collection.h"
 #include "modulation/patch/patch_cable.h"
 
 class Song;
 class ModelStackWithParamCollection;
+class ModelStackWithThreeMainThings;
 class LearnedMIDI;
+class MIDIDevice;
 
 struct CableGroup {
 	uint8_t first;

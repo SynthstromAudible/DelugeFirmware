@@ -18,10 +18,10 @@
 #pragma once
 
 #include "RZA1/system/r_typedefs.h"
-#include "util/container/array/ordered_resizeable_array.h"
-#include "util/d_string.h"
 #include "storage/audio/audio_file.h"
 #include "storage/wave_table/wave_table_band_data.h"
+#include "util/container/array/ordered_resizeable_array.h"
+#include "util/d_string.h"
 
 class Sample;
 class WaveTableReader;

@@ -15,9 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "io/midi/midi_device_manager.h"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
+#include "io/midi/midi_device_manager.h"
 
 namespace menu_item::midi {
 class InputDifferentiation final : public Selection {

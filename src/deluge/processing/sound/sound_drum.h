@@ -17,9 +17,9 @@
 
 #pragma once
 
-#include "processing/sound/sound.h"
 #include "definitions_cxx.hpp"
 #include "model/drum/drum.h"
+#include "processing/sound/sound.h"
 #include "util/d_string.h"
 
 class ModelStackWithTimelineCounter;

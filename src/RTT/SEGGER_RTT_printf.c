@@ -66,8 +66,8 @@ Revision: $Rev: 17697 $
 #define SEGGER_RTT_PRINTF_BUFFER_SIZE (64)
 #endif
 
-#include <stdlib.h>
 #include <stdarg.h>
+#include <stdlib.h>
 
 #define FORMAT_FLAG_LEFT_JUSTIFY (1u << 0)
 #define FORMAT_FLAG_PAD_ZERO (1u << 1)

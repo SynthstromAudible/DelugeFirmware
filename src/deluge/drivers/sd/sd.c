@@ -20,9 +20,9 @@
 #include "definitions.h"
 #include "drivers/mtu/mtu.h"
 
-#include "util/cfunctions.h"
-#include "deluge.h"
 #include "RZA1/sdhi/inc/sdif.h"
+#include "deluge.h"
+#include "util/cfunctions.h"
 
 uint16_t stopTime;
 

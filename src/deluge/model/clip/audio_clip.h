@@ -18,12 +18,12 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "gui/waveform/waveform_render_data.h"
 #include "model/clip/clip.h"
+#include "model/sample/sample_controls.h"
 #include "model/sample/sample_holder_for_clip.h"
 #include "model/sample/sample_playback_guide.h"
 #include "util/d_string.h"
-#include "gui/waveform/waveform_render_data.h"
-#include "model/sample/sample_controls.h"
 
 class VoiceSample;
 class SampleRecorder;

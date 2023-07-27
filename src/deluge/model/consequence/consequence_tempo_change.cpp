@@ -17,9 +17,9 @@
 
 #include "model/consequence/consequence_tempo_change.h"
 
+#include "model/model_stack.h"
 #include "model/song/song.h"
 #include "playback/playback_handler.h"
-#include "model/model_stack.h"
 
 ConsequenceTempoChange::ConsequenceTempoChange(uint64_t newTimePerBigBefore, uint64_t newTimePerBigAfter) {
 	timePerBig[BEFORE] = newTimePerBigBefore;

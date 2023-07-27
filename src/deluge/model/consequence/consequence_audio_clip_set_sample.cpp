@@ -16,12 +16,12 @@
 */
 
 #include "model/consequence/consequence_audio_clip_set_sample.h"
-#include "model/clip/audio_clip.h"
-#include "playback/playback_handler.h"
 #include "io/debug/print.h"
-#include "playback/mode/session.h"
-#include "model/song/song.h"
+#include "model/clip/audio_clip.h"
 #include "model/model_stack.h"
+#include "model/song/song.h"
+#include "playback/mode/session.h"
+#include "playback/playback_handler.h"
 
 ConsequenceAudioClipSetSample::ConsequenceAudioClipSetSample(AudioClip* newClip) {
 

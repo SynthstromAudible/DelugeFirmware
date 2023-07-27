@@ -15,18 +15,18 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "gui/ui/browser/sample_browser.h"
-#include "processing/sound/sound.h"
 #include "file_selector.h"
 #include "definitions_cxx.hpp"
-#include "gui/ui_timer_manager.h"
-#include "gui/ui/sound_editor.h"
-#include "util/functions.h"
-#include "hid/display/numeric_driver.h"
-#include "gui/views/view.h"
+#include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/keyboard_screen.h"
-#include "model/song/song.h"
+#include "gui/ui/sound_editor.h"
+#include "gui/ui_timer_manager.h"
+#include "gui/views/view.h"
+#include "hid/display/numeric_driver.h"
 #include "model/clip/clip.h"
+#include "model/song/song.h"
+#include "processing/sound/sound.h"
+#include "util/functions.h"
 
 namespace menu_item {
 

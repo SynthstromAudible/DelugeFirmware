@@ -17,10 +17,10 @@
 #pragma once
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/selection.h"
-#include "model/song/song.h"
-#include "processing/sound/sound.h"
 #include "gui/ui/sound_editor.h"
+#include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/sound/sound.h"
 #include "processing/source.h"
 #include "util/comparison.h"
 #include "util/misc.h"

@@ -28,6 +28,8 @@
 #ifndef R_USB_EXTERN_H
 #define R_USB_EXTERN_H
 
+#include "r_usb_typedef.h"
+
 // Includes by Rohan so I can inline stuff below
 #include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_bitdefine.h"
 #include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_reg_access.h"
