@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include <gui/views/automation_clip_view.h>
 #include "loop_point.h"
 
 #include "storage/audio/audio_file_holder.h"
@@ -60,6 +61,11 @@ void LoopPoint::beginSession(MenuItem* navigatedBackwardFrom) {
 			keyboardScreen.exitAuditionMode();
 		}
 	}
+//	else if (getRootUI() == &automationClipView) {
+//		if (currentUIMode == UI_MODE_AUDITIONING) {
+//			automationClipView.exitAuditionMode();
+//		}
+//	}
 
 	soundEditor.shouldGoUpOneLevelOnBegin = true;
 	sampleMarkerEditor.markerType = markerType;

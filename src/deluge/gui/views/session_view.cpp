@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <gui/views/automation_clip_view.h>
 #include "gui/views/arranger_view.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
@@ -1526,7 +1527,7 @@ void SessionView::replaceInstrumentClipWithAudioClip() {
 	OLED::sendMainImage();
 #endif
 	uiNeedsRendering(this, 1 << selectedClipYDisplay,
-	                 1 << selectedClipYDisplay); // If Clip was in keyboard view, need to redraw that
+	                 1 << selectedClipYDisplay); // If Clip was in keyboard/automation view, need to redraw that
 }
 
 void SessionView::removeClip(uint8_t yDisplay) {
@@ -2194,6 +2195,36 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 			for (int y = 0; y < PadLEDs::numAnimatedRows; y++) {
 				PadLEDs::animatedRowGoingTo[y] = clipPlaceOnScreen;
 				PadLEDs::animatedRowGoingFrom[y] = y;
+			}
+		}
+		else if (((InstrumentClip*)clip)->onAutomationClipView) {
+
+		//	automationClipView.recalculateColours();
+		//	automationClipView.renderMainPads(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore);
+		//	automationClipView.renderSidebar(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore); //tweak to KeyboardScreen for AutomationScreen
+
+		//	automationScreen
+		//	    .fillOffScreenImageStores(); // Important that this is done after currentSong->xScroll is changed, above
+
+		//	PadLEDs::numAnimatedRows = displayHeight;
+		//	for (int y = 0; y < PadLEDs::numAnimatedRows; y++) {
+		//		PadLEDs::animatedRowGoingTo[y] = clipPlaceOnScreen;
+		//		PadLEDs::animatedRowGoingFrom[y] = y;
+		//	}
+
+			automationClipView
+			    .recalculateColours(); // Won't have happened automatically because we haven't begun the "session"
+			automationClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1],
+			                                  false);
+			automationClipView.renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
+
+			automationClipView
+			    .fillOffScreenImageStores(); // Important that this is done after currentSong->xScroll is changed, above
+
+			PadLEDs::numAnimatedRows = displayHeight + 2;
+			for (int y = 0; y < PadLEDs::numAnimatedRows; y++) {
+				PadLEDs::animatedRowGoingTo[y] = clipPlaceOnScreen;
+				PadLEDs::animatedRowGoingFrom[y] = y - 1;
 			}
 		}
 

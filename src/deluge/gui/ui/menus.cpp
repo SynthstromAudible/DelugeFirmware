@@ -25,6 +25,11 @@
 #include "gui/menu_item/cv/transpose.h"
 #include "gui/menu_item/cv/volts.h"
 #include "gui/menu_item/decimal.h"
+#include "gui/menu_item/defaults/automation/clip_clear.h"
+#include "gui/menu_item/defaults/automation/draw_line.h"
+#include "gui/menu_item/defaults/automation/flash_shortcuts.h"
+#include "gui/menu_item/defaults/automation/note_passthrough.h"
+#include "gui/menu_item/defaults/automation/overlay_notes.h"
 #include "gui/menu_item/defaults/bend_range.h"
 #include "gui/menu_item/defaults/magnitude.h"
 #include "gui/menu_item/defaults/scale.h"
@@ -635,6 +640,17 @@ MenuItem* triggerClockMenuItems[] = {&triggerClockInMenu, &triggerClockOutMenu, 
 Submenu triggerClockMenu{HAVE_OLED ? "Trigger clock" : "TCLOCK", triggerClockMenuItems};
 
 // Defaults menu
+
+//new Automation Sub Menu included under Defaults menu to toggle on settings associated with the new Automation Clip View
+defaults::ClipClear clipClearMenu{HAVE_OLED ? "Clip Clear" : "CLEAR"};
+defaults::DrawLine drawLineMenu{HAVE_OLED ? "Draw Line" : "LINE"};
+defaults::FlashShortcuts flashShortcutsMenu{HAVE_OLED ? "Flash Shortcuts" : "FLASH"};
+defaults::NotePassthrough notePassthroughMenu{HAVE_OLED ? "Note Passthrough" : "NOTETHRU"};
+defaults::OverlayNotes overlayNotesMenu{HAVE_OLED ? "Overlay Notes" : "OVERLAY"};
+
+MenuItem* automationMenuItems[] = {&clipClearMenu, &drawLineMenu, &flashShortcutsMenu, &notePassthroughMenu, &overlayNotesMenu, NULL};
+Submenu automationSubmenu{"AUTOMATION", automationMenuItems};
+
 IntegerRange defaultTempoMenu{"TEMPO", 60, 240};
 IntegerRange defaultSwingMenu{"SWING", 1, 99};
 KeyRange defaultKeyMenu{"KEY"};
@@ -642,7 +658,7 @@ defaults::Scale defaultScaleMenu{"SCALE"};
 defaults::Velocity defaultVelocityMenu{"VELOCITY"};
 defaults::Magnitude defaultMagnitudeMenu{"RESOLUTION"};
 defaults::BendRange defaultBendRangeMenu{"Bend range"};
-MenuItem* defaultsMenuItems[] = {&defaultTempoMenu,    &defaultSwingMenu,     &defaultKeyMenu,       &defaultScaleMenu,
+MenuItem* defaultsMenuItems[] = {&automationSubmenu, &defaultTempoMenu,    &defaultSwingMenu,     &defaultKeyMenu,       &defaultScaleMenu,
                                  &defaultVelocityMenu, &defaultMagnitudeMenu, &defaultBendRangeMenu, NULL};
 
 Submenu defaultsSubmenu{"DEFAULTS", defaultsMenuItems};

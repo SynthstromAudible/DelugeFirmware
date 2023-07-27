@@ -113,6 +113,7 @@ public:
 
 	int yScroll;
 	int yScrollKeyboardScreen;
+	int yScrollAutomationScreen;
 	int keyboardRowInterval;
 
 	int32_t ticksTilNextNoteRowEvent;
@@ -135,6 +136,7 @@ public:
 	bool affectEntire;
 
 	bool onKeyboardScreen;
+	bool onAutomationClipView;
 
 	uint8_t midiBank; // 128 means none
 	uint8_t midiSub;  // 128 means none

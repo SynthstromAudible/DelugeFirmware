@@ -1,4 +1,5 @@
 
+#include <gui/views/automation_clip_view.h>
 #include "definitions.h"
 #include "dsp/reverb/freeverb/revmodel.hpp"
 #include "extern.h"
@@ -136,6 +137,9 @@ bool SoundEditor::editingCVOrMIDIClip() {
 bool SoundEditor::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
 	if (getRootUI() == &keyboardScreen) {
 		return false;
+	}
+	if (getRootUI() == &automationClipView) {
+		*cols = 0xFFFFFFFE;//return false;
 	}
 	else if (getRootUI() == &instrumentClipView) {
 		*cols = 0xFFFFFFFE;
@@ -339,6 +343,7 @@ int SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
+		/* temporarily swapping out keyboardScreen with automationScreen
 			if (getRootUI() == &keyboardScreen) {
 				swapOutRootUILowLevel(&instrumentClipView);
 				instrumentClipView.openedInBackground();
@@ -351,6 +356,20 @@ int SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 			PadLEDs::reassessGreyout(true);
 
 			indicator_leds::setLedState(IndicatorLED::KEYBOARD, getRootUI() == &keyboardScreen);
+		*/
+
+			if (getRootUI() == &automationClipView) {
+				swapOutRootUILowLevel(&instrumentClipView);
+				instrumentClipView.openedInBackground();
+			}
+			else if (getRootUI() == &instrumentClipView) {
+				swapOutRootUILowLevel(&automationClipView);
+				automationClipView.openedInBackground();
+			}
+
+			PadLEDs::reassessGreyout(true);
+
+			indicator_leds::setLedState(IndicatorLED::KEYBOARD, getRootUI() == &automationClipView);
 		}
 	}
 
@@ -548,6 +567,7 @@ shortcutsPicked:
 void SoundEditor::possibleChangeToCurrentRangeDisplay() {
 	uiNeedsRendering(&instrumentClipView, 0, 0xFFFFFFFF);
 	uiNeedsRendering(&keyboardScreen, 0xFFFFFFFF, 0);
+	uiNeedsRendering(&automationClipView, 0, 0xFFFFFFFF);//uiNeedsRendering(&automationClipView, 0xFFFFFFFF, 0);
 }
 
 void SoundEditor::setupShortcutBlink(int x, int y, int frequency) {
@@ -601,6 +621,9 @@ int SoundEditor::horizontalEncoderAction(int offset) {
 	if (currentUIMode == UI_MODE_AUDITIONING && getRootUI() == &keyboardScreen) {
 		return getRootUI()->horizontalEncoderAction(offset);
 	}
+//	else if (currentUIMode == UI_MODE_AUDITIONING && getRootUI() == &automationClipView) {
+//		return getRootUI()->horizontalEncoderAction(offset);
+//	}
 	else {
 		getCurrentMenuItem()->horizontalEncoderAction(offset);
 		return ACTION_RESULT_DEALT_WITH;
@@ -661,10 +684,15 @@ int SoundEditor::potentialShortcutPadAction(int x, int y, bool on) {
 	if (!on || x >= displayWidth
 	    || (!Buttons::isShiftButtonPressed()
 	        && !(currentUIMode == UI_MODE_AUDITIONING && getRootUI() == &instrumentClipView))) {
+
 		return ACTION_RESULT_NOT_DEALT_WITH;
 	}
 
 	if (on && isUIModeWithinRange(shortcutPadUIModes)) {
+
+		char const* displayText;
+		displayText = "SPA 1";
+		numericDriver.displayPopup(displayText);
 
 		if (sdRoutineLock) {
 			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -675,6 +703,10 @@ int SoundEditor::potentialShortcutPadAction(int x, int y, bool on) {
 		// AudioClips - there are just a few shortcuts
 		if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) {
 
+			char const* displayText;
+			displayText = "SPA 2";
+			numericDriver.displayPopup(displayText);
+
 			if (x <= 14) {
 				item = paramShortcutsForAudioClips[x][y];
 			}
@@ -683,8 +715,17 @@ int SoundEditor::potentialShortcutPadAction(int x, int y, bool on) {
 		}
 
 		else {
+
+			char const* displayText;
+			displayText = "SPA 3";
+			numericDriver.displayPopup(displayText);
+
 			// Shortcut to edit a parameter
 			if (x < 14 || (x == 14 && y < 5)) {
+
+				char const* displayText;
+				displayText = "SPA 4";
+				numericDriver.displayPopup(displayText);
 
 				if (editingCVOrMIDIClip()) {
 					if (x == 11) {
@@ -705,6 +746,10 @@ int SoundEditor::potentialShortcutPadAction(int x, int y, bool on) {
 
 doSetup:
 				if (item) {
+
+					char const* displayText;
+					displayText = "SPA 5";
+					numericDriver.displayPopup(displayText);
 
 					if (item == comingSoonMenu) {
 						numericDriver.displayPopup(HAVE_OLED ? "Feature not (yet?) implemented" : "SOON");
@@ -845,6 +890,36 @@ int SoundEditor::padAction(int x, int y, int on) {
 			keyboardScreen.padAction(x, y, on);
 			return ACTION_RESULT_DEALT_WITH;
 		}
+	}
+//	else if (getRootUI() == &automationClipView) {
+//		if (x < displayWidth) {
+//			automationClipView.padAction(x, y, on);
+//			return ACTION_RESULT_DEALT_WITH;
+//		}
+//	}
+//	else if (getRootUI() == &automationClipView) {
+//		if (x == displayWidth + 1) {
+//			automationClipView.padAction(x, y, on);
+//			return ACTION_RESULT_DEALT_WITH;
+//		}
+//	}
+
+	// Audition pads
+	else if (getRootUI() == &automationClipView) {
+
+		char const* displayText;
+		displayText = "SoundEditorPadAction";
+		numericDriver.displayPopup(displayText);
+
+		if (x == displayWidth + 1) {
+			automationClipView.padAction(x, y, on);
+			return ACTION_RESULT_DEALT_WITH;
+		}
+		else {
+			return ACTION_RESULT_DEALT_WITH;
+		}
+
+
 	}
 
 	// Audition pads

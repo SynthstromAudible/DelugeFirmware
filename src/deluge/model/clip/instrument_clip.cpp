@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include <gui/views/automation_clip_view.h>
 #include "gui/views/arranger_view.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
@@ -64,6 +65,7 @@
 #include "gui/ui/browser/browser.h"
 #include "storage/file_item.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
+#include "model/settings/runtime_feature_settings.h"
 
 #if HAVE_OLED
 #include "hid/display/oled.h"
@@ -96,6 +98,7 @@ InstrumentClip::InstrumentClip(Song* song) : Clip(CLIP_TYPE_INSTRUMENT) {
 
 	inScaleMode = (FlashStorage::defaultScale != PRESET_SCALE_NONE);
 	onKeyboardScreen = false;
+	onAutomationClipView = false;
 
 	if (song) {
 		int yNote = ((uint16_t)(song->rootNote + 120) % 12) + 60;
@@ -141,11 +144,13 @@ void InstrumentClip::copyBasicsFrom(Clip* otherClip) {
 	midiPGM = otherInstrumentClip->midiPGM;
 
 	onKeyboardScreen = otherInstrumentClip->onKeyboardScreen;
+	onAutomationClipView = otherInstrumentClip->onAutomationClipView;
 	inScaleMode = otherInstrumentClip->inScaleMode;
 	wrapEditing = otherInstrumentClip->wrapEditing;
 	wrapEditLevel = otherInstrumentClip->wrapEditLevel;
 	yScroll = otherInstrumentClip->yScroll;
 	yScrollKeyboardScreen = otherInstrumentClip->yScrollKeyboardScreen;
+	yScrollAutomationScreen = otherInstrumentClip->yScrollAutomationScreen;
 	sequenceDirectionMode = otherInstrumentClip->sequenceDirectionMode;
 
 	affectEntire = otherInstrumentClip->affectEntire;
@@ -1295,6 +1300,8 @@ bool InstrumentClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack
 	AudioEngine::logAction("InstrumentClip::renderAsSingleRow");
 
 	// Special case if we're a simple keyboard-mode Clip
+	//This is code where if you leave a clip in keyboard mode to go to song mode,
+	//it will render the keyboard's pad colours as a single row
 	if (onKeyboardScreen && !containsAnyNotes()) {
 		int increment = (displayWidth + (displayHeight * keyboardRowInterval)) / displayWidth;
 		for (int x = xStart; x < xEnd; x++) {
@@ -1302,6 +1309,16 @@ bool InstrumentClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack
 		}
 		return true;
 	}
+	// Special case if we're a simple automation-mode Clip
+	//This is code where if you leave a clip in keyboard mode to go to song mode,
+	//it will render the keyboard's pad colours as a single row
+//	else if (onAutomationClipView && !containsAnyNotes()) {
+//		int increment = (displayWidth + (displayHeight * automationRowInterval)) / displayWidth;
+//		for (int x = xStart; x < xEnd; x++) {
+//			getMainColourFromY(yScrollAutomationScreen + x * increment, 0, &image[x * 3]);
+//		}
+//		return true;
+//	}
 
 	Clip::renderAsSingleRow(modelStack, editorScreen, xScroll, xZoom, image, occupancyMask, addUndefinedArea,
 	                        noteRowIndexStart, noteRowIndexEnd, xStart, xEnd, allowBlur, drawRepeats);
@@ -2164,6 +2181,9 @@ void InstrumentClip::writeDataToFile(Song* song) {
 	if (onKeyboardScreen) {
 		storageManager.writeAttribute("onKeyboardScreen", (char*)"1");
 	}
+	if (onAutomationClipView) {
+		storageManager.writeAttribute("onAutomationClipView", (char*)"1");
+	}
 	if (wrapEditing) {
 		storageManager.writeAttribute("crossScreenEditLevel", wrapEditLevel);
 	}
@@ -2384,6 +2404,10 @@ someError:
 
 		else if (!strcmp(tagName, "onKeyboardScreen")) {
 			onKeyboardScreen = storageManager.readTagOrAttributeValueInt();
+		}
+
+		else if (!strcmp(tagName, "onAutomationClipView")) {
+			onAutomationClipView = storageManager.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "affectEntire")) {
@@ -3238,13 +3262,29 @@ void InstrumentClip::sendMIDIPGM() {
 }
 
 void InstrumentClip::clear(Action* action, ModelStackWithTimelineCounter* modelStack) {
-	Clip::clear(action, modelStack);
 
-	for (int i = 0; i < noteRows.getNumElements(); i++) {
-		NoteRow* thisNoteRow = noteRows.getElement(i);
-		ModelStackWithNoteRow* modelStackWithNoteRow =
-		    modelStack->addNoteRow(getNoteRowId(thisNoteRow, i), thisNoteRow);
-		thisNoteRow->clear(action, modelStackWithNoteRow);
+	//New community feature as part of Automation Clip View Implementation
+	//If this is enabled, then when you are in a regular Instrument Clip View (Synth, Kit, MIDI, CV), clearing a clip
+	//will only clear the Notes (automations remain intact).
+	//If this is enabled, if you want to clear automations, you will enter Automation Clip View and clear the clip there.
+	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::ClearClipAutomation) == RuntimeFeatureStateToggle::On) {
+		if (getCurrentUI() == &automationClipView) {
+			Clip::clear(action, modelStack);
+		}
+	}
+	else {
+		Clip::clear(action, modelStack);
+	}
+
+	//New addition as part of Automation Clip View Implementation
+	//If you are in Automation Clip View, clearing a clip will not clear notes, only automations.
+	if (getCurrentUI() != &automationClipView) {
+		for (int i = 0; i < noteRows.getNumElements(); i++) {
+			NoteRow* thisNoteRow = noteRows.getElement(i);
+			ModelStackWithNoteRow* modelStackWithNoteRow =
+				modelStack->addNoteRow(getNoteRowId(thisNoteRow, i), thisNoteRow);
+			thisNoteRow->clear(action, modelStackWithNoteRow);
+		}
 	}
 }
 

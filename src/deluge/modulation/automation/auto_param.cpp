@@ -36,6 +36,7 @@
 #include "model/model_stack.h"
 #include "modulation/params/param_collection.h"
 #include "gui/views/view.h"
+#include "gui/views/automation_clip_view.h"
 
 extern "C" {
 #include "drivers/uart/uart.h"
@@ -820,8 +821,18 @@ void AutoParam::setValuePossiblyForRegion(int32_t value, ModelStackWithAutoParam
                                           int32_t length, bool mayDeleteNodesInLinearRun) {
 	if (length && modelStack->timelineCounterIsSet()) {
 		setValueForRegion(pos, length, value, modelStack);
+
+//		char const* displayText;
+//		displayText = "setValueForRegion";
+//		numericDriver.displayPopup(displayText);
+
 	}
 	else {
+
+//		char const* displayText;
+//		displayText = "setCurrentValue";
+//		numericDriver.displayPopup(displayText);
+
 		setCurrentValueInResponseToUserInput(value, modelStack, true, -1, mayDeleteNodesInLinearRun);
 	}
 }
@@ -960,7 +971,7 @@ void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value,
 		nodes.testSequentiality("E441");
 #endif
 
-		firstI = homogenizeRegion(modelStack, pos, length, value, false, false, effectiveLength, false);
+		firstI = homogenizeRegion(modelStack, pos, length, value, automationClipView.interpolateOn, automationClipView.interpolateOn, effectiveLength, false);
 		if (firstI == -1) {
 			return;
 		}

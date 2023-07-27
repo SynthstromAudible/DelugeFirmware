@@ -1526,6 +1526,7 @@ void NoteRow::renderRow(TimelineView* editorScreen, uint8_t rowColour[], uint8_t
 		}
 	}
 
+
 	if (!notes.getNumElements()) {
 		return;
 	}
@@ -1623,6 +1624,7 @@ void NoteRow::renderRow(TimelineView* editorScreen, uint8_t rowColour[], uint8_t
 						occupancyMask[xDisplay] = 64;
 					}
 				}
+
 			}
 		}
 
@@ -2812,6 +2814,7 @@ int NoteRow::readFromFile(int* minY, InstrumentClip* parentClip, Song* song, int
 				if (actualDrum) {
 					ParamManager* existingParamManager =
 					    song->getBackedUpParamManagerPreferablyWithClip(actualDrum, parentClip);
+
 					if (existingParamManager) {
 						int error = paramManager.cloneParamCollectionsFrom(existingParamManager, false);
 						if (error) {

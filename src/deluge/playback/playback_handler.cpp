@@ -278,7 +278,7 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int buttonPressLatency, bo
 			navSys = ((TimelineView*)getRootUI())->getNavSysId();
 		}
 		else {
-			navSys = NAVIGATION_CLIP; // Keyboard view will cause this case
+			navSys = NAVIGATION_CLIP; // Keyboard/Automation view will cause this case
 		}
 
 		newPos = currentSong->xScroll[navSys];

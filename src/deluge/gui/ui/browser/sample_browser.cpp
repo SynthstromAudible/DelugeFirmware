@@ -45,6 +45,7 @@
 #include "gui/views/view.h"
 #include "hid/encoders.h"
 #include "gui/ui/keyboard_screen.h"
+#include <gui/views/automation_clip_view.h>
 #include <new>
 #include "gui/context_menu/sample_browser/kit.h"
 #include "gui/context_menu/sample_browser/synth.h"
@@ -520,7 +521,7 @@ gotError:
 
 bool SampleBrowser::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
 
-	if (currentlyShowingSamplePreview || qwertyVisible || getRootUI() == &keyboardScreen) {
+	if (currentlyShowingSamplePreview || qwertyVisible || getRootUI() == &keyboardScreen) { //|| getRootUI() == &automationClipView) {
 		*cols = 0b10;
 	}
 	else {
@@ -645,6 +646,9 @@ void SampleBrowser::previewIfPossible(int movementDirection) {
 				if (getRootUI() != &keyboardScreen) {
 					PadLEDs::reassessGreyout(true);
 				}
+			//	else if (getRootUI() != &automationClipView) {
+			//		PadLEDs::reassessGreyout(true);
+			//	}
 				memset(PadLEDs::transitionTakingPlaceOnRow, 1, sizeof(PadLEDs::transitionTakingPlaceOnRow));
 				PadLEDs::horizontal::setupScroll(movementDirection, displayWidth);
 				currentUIMode = UI_MODE_HORIZONTAL_SCROLL;

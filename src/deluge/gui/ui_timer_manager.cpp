@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <gui/views/automation_clip_view.h>
 #include "processing/engines/audio_engine.h"
 #include "model/clip/instrument_clip_minder.h"
 #include "gui/views/instrument_clip_view.h"
@@ -82,6 +83,9 @@ void UITimerManager::routine() {
 					}
 					else if (getCurrentUI() == &keyboardScreen) {
 						keyboardScreen.flashDefaultRootNote();
+					}
+					else if (getCurrentUI() == &automationClipView) {
+						automationClipView.flashDefaultRootNote();
 					}
 					break;
 

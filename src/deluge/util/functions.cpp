@@ -366,7 +366,7 @@ char const* getPatchedParamDisplayNameForOled(int p) {
 		return "HPF resonance";
 
 	case PARAM_LOCAL_PAN:
-		return "Pan";
+		return "Master pan";
 
 	case PARAM_LOCAL_MODULATOR_0_VOLUME:
 		return "FM mod1 level";
@@ -378,7 +378,7 @@ char const* getPatchedParamDisplayNameForOled(int p) {
 		return "LPF frequency";
 
 	case PARAM_LOCAL_PITCH_ADJUST:
-		return "Pitch";
+		return "Master pitch";
 
 	case PARAM_LOCAL_OSC_A_PITCH_ADJUST:
 		return "Osc1 pitch";
@@ -426,10 +426,10 @@ char const* getPatchedParamDisplayNameForOled(int p) {
 		return "LFO1 rate";
 
 	case PARAM_GLOBAL_VOLUME_POST_FX:
-		return "Level";
+		return "Master Level";
 
 	case PARAM_GLOBAL_VOLUME_POST_REVERB_SEND:
-		return "Level";
+		return "Sidechain Level";
 
 	case PARAM_GLOBAL_DELAY_RATE:
 		return "Delay rate";
@@ -450,16 +450,16 @@ char const* getPatchedParamDisplayNameForOled(int p) {
 		return "Arp. rate";
 
 	case PARAM_LOCAL_MODULATOR_0_FEEDBACK:
-		return "Mod1 feedback";
+		return "FM Mod1 feedback";
 
 	case PARAM_LOCAL_MODULATOR_1_FEEDBACK:
-		return "Mod2 feedback";
+		return "FM Mod2 feedback";
 
 	case PARAM_LOCAL_CARRIER_0_FEEDBACK:
-		return "Carrier1 feed.";
+		return "Osc1 feedback";
 
 	case PARAM_LOCAL_CARRIER_1_FEEDBACK:
-		return "Carrier2 feed.";
+		return "Osc2 feedback";
 
 	default:
 		__builtin_unreachable();

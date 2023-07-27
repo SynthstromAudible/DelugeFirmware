@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <gui/views/automation_clip_view.h>
 #include "processing/engines/audio_engine.h"
 #include "hid/led/pad_leds.h"
 #include "gui/waveform/waveform_render_data.h"
@@ -789,6 +790,12 @@ void timerRoutine() {
 				currentUIMode = UI_MODE_NONE;
 				changeRootUI(&keyboardScreen);
 			}
+			// If going to automation screen, no sidebar or anything to fade in
+		//	else if (explodeAnimationDirection == 1 && currentSong->currentClip->type == CLIP_TYPE_INSTRUMENT
+		//	    && ((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
+		//		currentUIMode = UI_MODE_NONE;
+		//		changeRootUI(&automationClipView);
+		//	}
 
 			// Otherwise, there's stuff we want to fade in / to
 			else {
@@ -803,7 +810,11 @@ void timerRoutine() {
 
 				currentUIMode = UI_MODE_ANIMATION_FADE;
 				if (explodeAnimationDirection == 1) {
-					if (currentSong->currentClip->type == CLIP_TYPE_INSTRUMENT) {
+					if (currentSong->currentClip->type == CLIP_TYPE_INSTRUMENT
+								    && ((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
+						changeRootUI(&automationClipView); // We want to fade the sidebar in
+					}
+					else if (currentSong->currentClip->type == CLIP_TYPE_INSTRUMENT) {
 						changeRootUI(&instrumentClipView); // We want to fade the sidebar in
 					}
 					else {
@@ -977,6 +988,14 @@ void renderClipExpandOrCollapse() {
 
 			if (((InstrumentClip*)currentSong->currentClip)->onKeyboardScreen) {
 				changeRootUI(&keyboardScreen);
+			}
+			else if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
+				changeRootUI(&automationClipView);
+				// If we need to zoom in horizontally because the Clip's too short...
+				bool anyZoomingDone = automationClipView.zoomToMax(true);
+				if (anyZoomingDone) {
+					uiNeedsRendering(&automationClipView, 0, 0xFFFFFFFF);
+				}
 			}
 			else {
 				changeRootUI(&instrumentClipView);

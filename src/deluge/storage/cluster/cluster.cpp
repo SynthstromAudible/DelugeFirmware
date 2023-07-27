@@ -64,6 +64,7 @@ void Cluster::convertDataIfNecessary() {
 			else {
 				uint32_t bytesBeforeStartOfCluster =
 				    clusterIndex * audioFileManager.clusterSize - sample->audioDataStartPosBytes;
+
 				int bytesThatWillBeEatingIntoAnother3Byte = bytesBeforeStartOfCluster % 3;
 				if (bytesThatWillBeEatingIntoAnother3Byte == 0) {
 					bytesThatWillBeEatingIntoAnother3Byte = 3;

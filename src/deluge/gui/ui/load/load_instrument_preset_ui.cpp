@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include <gui/views/automation_clip_view.h>
 #include "gui/views/arranger_view.h"
 #include "storage/audio/audio_file_manager.h"
 #include "model/clip/instrument_clip.h"
@@ -69,6 +70,10 @@ bool LoadInstrumentPresetUI::opened() {
 	if (getRootUI() == &keyboardScreen) {
 		PadLEDs::skipGreyoutFade();
 	}
+
+//	if (getRootUI() == &automationClipView) {
+//		PadLEDs::skipGreyoutFade();
+//	}
 
 	initialInstrumentType = instrumentToReplace->type;
 	initialName.set(&instrumentToReplace->name);
@@ -190,7 +195,7 @@ useDefaultFolder:
 
 	currentInstrumentLoadError = (fileIndexSelected >= 0) ? NO_ERROR : ERROR_UNSPECIFIED;
 
-	// The redrawing of the sidebar only actually has to happen if we just changed to a different type *or* if we came in from (musical) keyboard view, I think
+	// The redrawing of the sidebar only actually has to happen if we just changed to a different type *or* if we came in from (musical) keyboard/automation view, I think
 	PadLEDs::clearAllPadsWithoutSending();
 	drawKeys();
 	PadLEDs::sendOutMainPadColours();
@@ -292,6 +297,9 @@ doChangeInstrumentType:
 		if (instrumentClipToLoadFor && instrumentClipToLoadFor->onKeyboardScreen) {
 			indicator_leds::indicateAlertOnLed(IndicatorLED::KEYBOARD);
 		}
+	//	else if (instrumentClipToLoadFor && instrumentClipToLoadFor->onAutomationClipView) {
+	//		indicator_leds::indicateAlertOnLed(IndicatorLED::KEYBOARD);
+	//	}
 		else {
 			newInstrumentType = INSTRUMENT_TYPE_KIT;
 			goto doChangeInstrumentType;
@@ -1001,6 +1009,10 @@ int LoadInstrumentPresetUI::verticalEncoderAction(int offset, bool inCardRoutine
 			uiNeedsRendering(this, 0, 0xFFFFFFFF);
 		}
 
+		else if (getRootUI() == &automationClipView) {
+			uiNeedsRendering(this, 0, 0xFFFFFFFF);
+		}
+
 		return result;
 	}
 
@@ -1011,6 +1023,9 @@ bool LoadInstrumentPresetUI::renderSidebar(uint32_t whichRows, uint8_t image[][d
                                            uint8_t occupancyMask[][displayWidth + sideBarWidth]) {
 	if (getRootUI() != &keyboardScreen) {
 		return false;
+	}
+	else if (getRootUI() == &automationClipView) {
+		return automationClipView.renderSidebar(whichRows, image, occupancyMask);
 	}
 	return instrumentClipView.renderSidebar(whichRows, image, occupancyMask);
 }

@@ -79,6 +79,9 @@ void RuntimeFeatureSettings::init() {
 	// PatchCableResolution
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::PatchCableResolution], "Mod. depth decimals",
 	                  "ModDepthDecimals", RuntimeFeatureStateToggle::On);
+	// ClearClipAutomation
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::ClearClipAutomation], "Clear Clip Automation",
+	                  "clearClipAutomation", RuntimeFeatureStateToggle::On);
 }
 
 void RuntimeFeatureSettings::readSettingsFromFile() {

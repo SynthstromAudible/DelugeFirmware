@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include <gui/views/automation_clip_view.h>
 #include "gui/views/arranger_view.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
@@ -54,6 +55,7 @@
 #include "model/clip/clip_minder.h"
 #include "model/clip/instrument_clip.h"
 #include "modulation/midi/midi_param_collection.h"
+#include "model/settings/runtime_feature_settings.h"
 
 #if HAVE_OLED
 #include "hid/display/oled.h"
@@ -347,6 +349,9 @@ yesLoadInstrument:
 			if (getCurrentClip()->onKeyboardScreen) {
 				indicator_leds::indicateAlertOnLed(IndicatorLED::KEYBOARD);
 			}
+		//	else if (getCurrentClip()->onAutomationClipView) {
+		//		indicator_leds::indicateAlertOnLed(IndicatorLED::KEYBOARD);
+		//	}
 			else {
 				Browser::instrumentTypeToLoad = INSTRUMENT_TYPE_KIT;
 				goto yesLoadInstrument;
@@ -396,9 +401,27 @@ yesLoadInstrument:
 			    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, currentSong->currentClip);
 
 			getCurrentClip()->clear(action, modelStack);
-			numericDriver.displayPopup(HAVE_OLED ? "Clip cleared" : "CLEAR");
-			if (getCurrentUI() == &instrumentClipView) {
-				uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
+
+			//New community feature as part of Automation Clip View Implementation
+			//If this is enabled, then when you are in a regular Instrument Clip View (Synth, Kit, MIDI, CV), clearing a clip
+			//will only clear the Notes (automations remain intact).
+			//If this is enabled, if you want to clear automations, you will enter Automation Clip View and clear the clip there.
+			//If this is enabled, the message displayed on the OLED screen is adjusted to reflect the nature of what is being cleared
+			if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::ClearClipAutomation) == RuntimeFeatureStateToggle::On) {
+				if (getCurrentUI() == &automationClipView) {
+					numericDriver.displayPopup(HAVE_OLED ? "Automation cleared" : "CLEAR");
+					uiNeedsRendering(&automationClipView, 0xFFFFFFFF, 0);
+				}
+				else if (getCurrentUI() == &instrumentClipView) {
+					numericDriver.displayPopup(HAVE_OLED ? "Notes cleared" : "CLEAR");
+					uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
+				}
+			}
+			else {
+				if (getCurrentUI() == &instrumentClipView) {
+					numericDriver.displayPopup(HAVE_OLED ? "Clip cleared" : "CLEAR");
+					uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
+				}
 			}
 		}
 	}

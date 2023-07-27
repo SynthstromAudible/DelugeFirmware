@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include <gui/views/automation_clip_view.h>
 #include "gui/views/arranger_view.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
@@ -428,6 +429,9 @@ void setUIForLoadedSong(Song* song) {
 		if (song->currentClip->type == CLIP_TYPE_INSTRUMENT) {
 			if (((InstrumentClip*)song->currentClip)->onKeyboardScreen) {
 				newUI = &keyboardScreen;
+			}
+			else if (((InstrumentClip*)song->currentClip)->onAutomationClipView) {
+				newUI = &automationClipView;
 			}
 			else {
 				newUI = &instrumentClipView;

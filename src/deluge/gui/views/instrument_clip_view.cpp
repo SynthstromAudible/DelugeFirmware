@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include <gui/ui/automation_clip_view.h>
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/arranger_view.h"
 #include "processing/engines/audio_engine.h"
@@ -152,6 +153,7 @@ void InstrumentClipView::openedInBackground() {
 		uiNeedsRendering(this);
 	}
 	getCurrentClip()->onKeyboardScreen = false;
+	getCurrentClip()->onAutomationClipView = false;
 }
 
 void InstrumentClipView::setLedStates() {
@@ -240,6 +242,17 @@ int InstrumentClipView::buttonAction(hid::Button b, bool on, bool inCardRoutine)
 doOther:
 				transitionToSessionView();
 			}
+		}
+	}
+
+	// Clip view button
+	else if (b == CLIP_VIEW) {
+		if (on && currentUIMode == UI_MODE_NONE) {
+			if (inCardRoutine) {
+				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
+
+			changeRootUI(&automationClipView);
 		}
 	}
 
@@ -430,11 +443,11 @@ doOther:
 				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
-			if (currentUIMode == UI_MODE_NONE) {
+			if (currentUIMode == UI_MODE_NONE) { //this gets triggered when you change an existing clip to synth / create a new synth clip in song mode
 				if (Buttons::isNewOrShiftButtonPressed()) {
 					createNewInstrument(INSTRUMENT_TYPE_SYNTH);
 				}
-				else {
+				else { //this gets triggered when you change clip type to synth from within inside clip view
 					changeInstrumentType(INSTRUMENT_TYPE_SYNTH);
 				}
 			}
@@ -1136,9 +1149,9 @@ void InstrumentClipView::createNewInstrument(uint8_t newInstrumentType) {
 	}
 }
 
-void InstrumentClipView::changeInstrumentType(uint8_t newInstrumentType) {
+void InstrumentClipView::changeInstrumentType(uint8_t newInstrumentType) { //change instrument type inside of current clip in focus
 
-	if (currentSong->currentClip->output->type == newInstrumentType) {
+	if (currentSong->currentClip->output->type == newInstrumentType) { //if type is the same as current clip, don't do anything (no changes required)
 		return;
 	}
 
@@ -3509,7 +3522,7 @@ int InstrumentClipView::setupForEnteringScaleMode(int newRootNote, int yDisplay)
 	if (newRootNote != 2147483647) {
 		pinAnimationToYDisplay = yDisplay;
 		pinAnimationToYNote = getCurrentClip()->getYNoteFromYDisplay(
-		    yDisplay, currentSong); // This is needed in case we're coming from Keyboard Screen
+		    yDisplay, currentSong); // This is needed in case we're coming from Keyboard/Automation Screen
 	}
 
 	// Otherwise, go with the previously calculated default root note

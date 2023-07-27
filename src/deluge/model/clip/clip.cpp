@@ -942,7 +942,8 @@ trimFoundParamManager:
 void Clip::clear(Action* action, ModelStackWithTimelineCounter* modelStack) {
 	if (paramManager.containsAnyParamCollectionsIncludingExpression()) {
 		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-		    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager);
+			modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager);
+
 		paramManager.deleteAllAutomation(action, modelStackWithThreeMainThings);
 	}
 }

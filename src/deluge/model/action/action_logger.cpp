@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include <gui/views/automation_clip_view.h>
 #include "model/action/action_clip_state.h"
 #include "gui/views/arranger_view.h"
 #include "processing/engines/audio_engine.h"
@@ -337,6 +338,8 @@ bool ActionLogger::revert(int time, bool updateVisually, bool doNavigation) {
 #define ANIMATION_ARRANGEMENT_TO_CLIP_MINDER 9
 #define ANIMATION_SESSION_TO_ARRANGEMENT 10
 #define ANIMATION_ARRANGEMENT_TO_SESSION 11
+#define ANIMATION_ENTER_AUTOMATION_VIEW 12
+#define ANIMATION_EXIT_AUTOMATION_VIEW 13
 
 // doNavigation and updateVisually are only false when doing one of those undo-Clip-resize things as part of another Clip resize
 void ActionLogger::revertAction(Action* action, bool updateVisually, bool doNavigation, int time) {
@@ -399,14 +402,22 @@ void ActionLogger::revertAction(Action* action, bool updateVisually, bool doNavi
 				whichAnimation = ANIMATION_EXIT_KEYBOARD_VIEW;
 			}
 
+			// Then entering or exiting automation view
+			else if (action->view == &automationClipView && getCurrentUI() != &automationClipView) {
+				whichAnimation = ANIMATION_ENTER_AUTOMATION_VIEW;
+			}
+			else if (action->view != &automationClipView && getCurrentUI() == &automationClipView) {
+				whichAnimation = ANIMATION_EXIT_AUTOMATION_VIEW;
+			}
+
 			// Or if we've changed Clip but ended up back in the same view...
 			else if (getCurrentUI()->toClipMinder() && currentSong->currentClip != action->currentClip) {
 				whichAnimation = ANIMATION_CHANGE_CLIP;
 			}
 
-			// Or if none of those is happening, we might like to do a horizontal zoom or scroll - only if [vertical scroll isn't changed], and we're not on keyboard view
+			// Or if none of those is happening, we might like to do a horizontal zoom or scroll - only if [vertical scroll isn't changed], and we're not on keyboard/automation view
 			else {
-				if (getCurrentUI() != &keyboardScreen) {
+				if (getCurrentUI() != &keyboardScreen) { //&& getCurrentUI() != &automationClipView) {
 
 					if (getCurrentUI() == &arrangerView) {
 						if (currentSong->xZoom[NAVIGATION_ARRANGEMENT] != action->xZoomArranger[time]) {
@@ -572,6 +583,15 @@ currentClipSwitchedOver:
 		changeRootUI(&instrumentClipView);
 	}
 
+	// Some "animations", we prefer to do after we've reverted the action
+	else if (whichAnimation == ANIMATION_ENTER_AUTOMATION_VIEW) {
+		changeRootUI(&automationClipView);
+	}
+
+	else if (whichAnimation == ANIMATION_EXIT_AUTOMATION_VIEW) {
+		changeRootUI(&instrumentClipView);
+	}
+
 	else if (whichAnimation == ANIMATION_CHANGE_CLIP) {
 		if (action->view != getCurrentUI()) {
 			changeRootUI(action->view);
@@ -592,6 +612,9 @@ currentClipSwitchedOver:
 		}
 		else if (((InstrumentClip*)currentSong->currentClip)->onKeyboardScreen) {
 			changeRootUI(&keyboardScreen);
+		}
+		else if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
+			changeRootUI(&automationClipView);
 		}
 		else {
 			changeRootUI(&instrumentClipView);
@@ -626,6 +649,11 @@ currentClipSwitchedOver:
 		else if (getCurrentUI() == &keyboardScreen) {
 			if (whichAnimation != ANIMATION_ENTER_KEYBOARD_VIEW) {
 				uiNeedsRendering(&keyboardScreen, 0xFFFFFFFF, 0);
+			}
+		}
+		else if (getCurrentUI() == &automationClipView) {
+			if (whichAnimation != ANIMATION_ENTER_AUTOMATION_VIEW) {
+				uiNeedsRendering(&automationClipView, 0xFFFFFFFF, 0);
 			}
 		}
 		else if (getCurrentUI() == &sessionView) {

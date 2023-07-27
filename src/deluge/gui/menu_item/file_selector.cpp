@@ -15,6 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include <gui/views/automation_clip_view.h>
+#include "gui/views/instrument_clip_view.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "processing/sound/sound.h"
 #include "file_selector.h"
@@ -37,6 +39,9 @@ void FileSelector::beginSession(MenuItem* navigatedBackwardFrom) {
 	if (getRootUI() == &keyboardScreen && currentUIMode == UI_MODE_AUDITIONING) {
 		keyboardScreen.exitAuditionMode();
 	}
+//	else if (getRootUI() == &automationClipView && currentUIMode == UI_MODE_AUDITIONING) {
+//		automationClipView.exitAuditionMode();
+//	}
 	bool success = openUI(&sampleBrowser);
 	if (!success) {
 		//if (getCurrentUI() == &soundEditor) soundEditor.goUpOneLevel();
