@@ -21,4 +21,3 @@ __pycache__
 .sconsign.dblite
 /dbt_options.py
 /scripts/debug/openocd.log
-.vscode/*
