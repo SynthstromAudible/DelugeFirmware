@@ -1384,6 +1384,8 @@ int random(int upperLimit) {
 
 bool shouldDoPanning(int32_t panAmount, int32_t* amplitudeL, int32_t* amplitudeR) {
 	if (panAmount == 0) {
+		*amplitudeR = 1073741823;
+		*amplitudeL = 1073741823;
 		return false;
 	}
 
