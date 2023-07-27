@@ -16,19 +16,19 @@
  */
 
 #include "gui/ui/qwerty_ui.h"
-#include <string.h>
 #include "definitions_cxx.hpp"
-#include "hid/matrix/matrix_driver.h"
-#include "hid/display/numeric_driver.h"
-#include "util/functions.h"
-#include "gui/ui_timer_manager.h"
-#include "io/debug/print.h"
-#include "storage/storage_manager.h"
-#include "hid/led/pad_leds.h"
-#include "hid/led/indicator_leds.h"
-#include "storage/flash_storage.h"
 #include "extern.h"
+#include "gui/ui_timer_manager.h"
+#include "hid/display/numeric_driver.h"
+#include "hid/led/indicator_leds.h"
+#include "hid/led/pad_leds.h"
+#include "hid/matrix/matrix_driver.h"
+#include "io/debug/print.h"
+#include "storage/flash_storage.h"
+#include "storage/storage_manager.h"
+#include "util/functions.h"
 #include "util/misc.h"
+#include <string.h>
 
 #if HAVE_OLED
 #include "hid/display/oled.h"

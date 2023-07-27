@@ -16,12 +16,12 @@
 */
 
 #include "model/consequence/consequence_arranger_params_time_inserted.h"
-#include "modulation/params/param_manager.h"
 #include "definitions_cxx.hpp"
-#include "model/song/song.h"
 #include "model/model_stack.h"
-#include "modulation/params/param_set.h"
+#include "model/song/song.h"
 #include "modulation/params/param_collection.h"
+#include "modulation/params/param_manager.h"
+#include "modulation/params/param_set.h"
 
 ConsequenceArrangerParamsTimeInserted::ConsequenceArrangerParamsTimeInserted(int32_t newPos, int32_t newLength) {
 	pos = newPos;

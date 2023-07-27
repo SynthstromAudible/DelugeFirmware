@@ -15,12 +15,12 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "definitions_cxx.hpp"
-#include "processing/engines/audio_engine.h"
 #include "processing/live/live_input_buffer.h"
-#include <string.h>
-#include "util/functions.h"
+#include "definitions_cxx.hpp"
 #include "dsp/stereo_sample.h"
+#include "processing/engines/audio_engine.h"
+#include "util/functions.h"
+#include <string.h>
 
 extern "C" {
 #include "drivers/ssi/ssi.h"

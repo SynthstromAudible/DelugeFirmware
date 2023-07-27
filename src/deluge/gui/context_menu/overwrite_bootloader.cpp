@@ -16,15 +16,15 @@
 */
 
 #include "gui/context_menu/overwrite_bootloader.h"
-#include "storage/storage_manager.h"
 #include "hid/display/numeric_driver.h"
-#include "util/functions.h"
-#include "memory/general_memory_allocator.h"
 #include "hid/display/oled.h"
+#include "memory/general_memory_allocator.h"
+#include "storage/storage_manager.h"
+#include "util/functions.h"
 
 extern "C" {
-#include "RZA1/spibsc/spibsc.h"
 #include "RZA1/spibsc/r_spibsc_flash_api.h"
+#include "RZA1/spibsc/spibsc.h"
 }
 
 namespace deluge::gui::context_menu {

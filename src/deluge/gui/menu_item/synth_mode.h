@@ -17,9 +17,9 @@
 #pragma once
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
-#include "processing/sound/sound.h"
-#include "model/song/song.h"
 #include "gui/views/view.h"
+#include "model/song/song.h"
+#include "processing/sound/sound.h"
 #include "util/misc.h"
 
 namespace menu_item {

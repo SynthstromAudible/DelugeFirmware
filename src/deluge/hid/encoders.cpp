@@ -15,19 +15,19 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "processing/engines/audio_engine.h"
 #include "hid/encoders.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/ui.h"
-#include "hid/matrix/matrix_driver.h"
-#include "playback/playback_handler.h"
-#include "model/action/action_logger.h"
-#include <new>
-#include "hid/buttons.h"
-#include "util/functions.h"
 #include "gui/views/instrument_clip_view.h"
-#include "model/settings/runtime_feature_settings.h"
+#include "hid/buttons.h"
 #include "hid/led/pad_leds.h"
+#include "hid/matrix/matrix_driver.h"
+#include "model/action/action_logger.h"
+#include "model/settings/runtime_feature_settings.h"
+#include "playback/playback_handler.h"
+#include "processing/engines/audio_engine.h"
+#include "util/functions.h"
+#include <new>
 
 namespace Encoders {
 

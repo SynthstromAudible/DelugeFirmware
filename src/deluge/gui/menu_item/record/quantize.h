@@ -15,8 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "storage/flash_storage.h"
 #include "gui/menu_item/sync_level/relative_to_song.h"
+#include "storage/flash_storage.h"
 
 namespace menu_item::record {
 class Quantize final : public sync_level::RelativeToSong {

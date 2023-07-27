@@ -15,28 +15,28 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "definitions_cxx.hpp"
-#include "processing/engines/audio_engine.h"
 #include "model/global_effectable/global_effectable_for_clip.h"
-#include "modulation/params/param_manager.h"
+#include "definitions_cxx.hpp"
 #include "dsp/filter/filter_set_config.h"
-#include "storage/storage_manager.h"
-#include "hid/display/numeric_driver.h"
 #include "gui/views/view.h"
+#include "hid/display/numeric_driver.h"
 #include "hid/matrix/matrix_driver.h"
-#include "model/action/action_logger.h"
 #include "model/action/action.h"
+#include "model/action/action_logger.h"
+#include "modulation/params/param_manager.h"
+#include "processing/engines/audio_engine.h"
+#include "storage/storage_manager.h"
 #include <string.h>
 //#include <algorithm>
-#include "memory/general_memory_allocator.h"
-#include "model/song/song.h"
-#include "model/drum/kit.h"
 #include "dsp/compressor/compressor.h"
-#include "playback/playback_handler.h"
-#include "model/clip/clip.h"
 #include "hid/buttons.h"
+#include "memory/general_memory_allocator.h"
+#include "model/clip/clip.h"
+#include "model/drum/kit.h"
 #include "model/model_stack.h"
+#include "model/song/song.h"
 #include "modulation/params/param_set.h"
+#include "playback/playback_handler.h"
 
 extern "C" {
 #include "drivers/ssi/ssi.h"

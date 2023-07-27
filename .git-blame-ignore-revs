@@ -1,0 +1,7 @@
+# .git-blame-ignore-revs
+#clang format the tree take 2
+fa39e653c29fccccf826f7f62e19b91f4ea34fc9
+#revert clang format
+10233407e7128673b49038727ff1f8fc6437176a
+#clang format the tree take 1
+df18601b7d9a2aa87cdb514afe82c373b3b878be

@@ -20,12 +20,11 @@
 #include "definitions_cxx.hpp"
 #include "util/fixedpoint.h"
 
-class FilterSetConfig {
+class LPLadderConfig {
 
 public:
-	FilterSetConfig();
-	q31_t init(q31_t lpfFrequency, q31_t lpfResonance, q31_t hpfFrequency, q31_t hpfResonance, LPFMode lpfMode,
-	           q31_t filterGain, bool adjustVolumeForHPFResonance = true, q31_t* overallOscAmplitude = NULL);
+	LPLadderConfig();
+	q31_t init(q31_t lpfFrequency, q31_t lpfResonance, LPFMode lpfMode, q31_t filterGain);
 
 	q31_t processedResonance;                            // 1 represented as 1073741824
 	q31_t divideByTotalMoveabilityAndProcessedResonance; // 1 represented as 1073741824
@@ -39,6 +38,13 @@ public:
 	q31_t lpf2Feedback;
 	q31_t lpf3Feedback;
 
+	bool doOversampling;
+};
+
+class HPLadderConfig {
+public:
+	HPLadderConfig();
+	q31_t init(q31_t hpfFrequency, q31_t hpfResonance, bool adjustVolumeForHPFResonance, q31_t filterGain);
 	q31_t hpfMoveability; // 1 represented by 2147483648
 
 	// All feedbacks have 1 represented as 1073741824
@@ -51,10 +57,32 @@ public:
 
 	q31_t divideByTotalMoveability; // 1 represented as 268435456
 
-	q31_t lpfRawResonance;
-	q31_t SVFInputScale;
 	q31_t alteredHpfMomentumMultiplier;
 	q31_t thisHpfResonance;
+};
+
+class LPSVFConfig {
+
+public:
+	LPSVFConfig();
+	q31_t init(q31_t lpfFrequency, q31_t lpfResonance, LPFMode lpfMode, q31_t filterGain);
+
+	q31_t moveability;
+	q31_t processedResonance;
+	q31_t SVFInputScale;
+};
+
+class FilterSetConfig {
+
+public:
+	FilterSetConfig();
+	q31_t init(q31_t lpfFrequency, q31_t lpfResonance, q31_t hpfFrequency, q31_t hpfResonance, LPFMode lpfMode,
+	           q31_t filterGain, bool adjustVolumeForHPFResonance = true, q31_t* overallOscAmplitude = NULL);
+
+	LPLadderConfig lpladderconfig;
+	HPLadderConfig hpladderconfig;
+	LPSVFConfig lpsvfconfig;
+
 	bool doLPF;
 	bool doHPF;
 

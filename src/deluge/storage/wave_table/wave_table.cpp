@@ -15,22 +15,22 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "storage/audio/audio_file_manager.h"
 #include "storage/wave_table/wave_table.h"
-#include "model/sample/sample.h"
+#include "NE10.h"
+#include "RZA1/mtu/mtu.h"
+#include "arm_neon.h"
+#include "dsp/fft/fft_config_manager.h"
+#include "hid/display/numeric_driver.h"
+#include "io/debug/print.h"
 #include "memory/general_memory_allocator.h"
+#include "model/sample/sample.h"
+#include "processing/engines/audio_engine.h"
+#include "processing/render_wave.h"
+#include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
 #include "storage/storage_manager.h"
 #include "storage/wave_table/wave_table_reader.h"
-#include "dsp/fft/fft_config_manager.h"
-#include "NE10.h"
-#include "arm_neon.h"
-#include "hid/display/numeric_driver.h"
 #include <new>
-#include "RZA1/mtu/mtu.h"
-#include "processing/render_wave.h"
-#include "processing/engines/audio_engine.h"
-#include "io/debug/print.h"
 
 extern int32_t oscSyncRenderingBuffer[];
 

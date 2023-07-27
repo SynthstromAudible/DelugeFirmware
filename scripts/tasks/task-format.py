@@ -12,12 +12,13 @@ from functools import partial
 
 EXEC_EXT = ".exe" if os.name == "nt" else ""
 
+
 def excludes_from_file(ignore_file):
     excludes = []
     try:
-        with io.open(ignore_file, 'r', encoding='utf-8') as f:
+        with io.open(ignore_file, "r", encoding="utf-8") as f:
             for line in f:
-                if line.startswith('#'):
+                if line.startswith("#"):
                     # ignore comments
                     continue
                 pattern = line.rstrip()
@@ -30,14 +31,14 @@ def excludes_from_file(ignore_file):
             raise
     return excludes
 
+
 def exclude(files, excludes):
     out = []
     fpaths = [f for f in files]
     for pattern in excludes:
-        fpaths = [
-            x for x in fpaths if not fnmatch.fnmatch(x, pattern)
-        ]
+        fpaths = [x for x in fpaths if not fnmatch.fnmatch(x, pattern)]
     return fpaths
+
 
 def get_clang_format():
     git_path = util.get_git_root()
@@ -74,7 +75,7 @@ def argparser() -> argparse.ArgumentParser:
         "-nr",
         "--no-recursive",
         help="do not recursively descend and process files",
-        action="store_true"
+        action="store_true",
     )
     parser.add_argument(
         "-q", "--quiet", help="don't show any output", action="store_true"
@@ -83,32 +84,39 @@ def argparser() -> argparse.ArgumentParser:
         "-v", "--verbose", help="print the changes happening", action="store_true"
     )
     parser.add_argument(
-        "directory", help="the directory of source files to format"
+        "directory",
+        nargs="?",
+        help="the directory of source files to format (defaults to whole project)",
     )
     return parser
 
 
 def main() -> int:
     args = argparser().parse_args()
-    files = get_header_and_source_files(Path(args.directory), not args.no_recursive)
+    directory = (
+        Path(args.directory)
+        if args.directory is not None
+        else (util.get_git_root().absolute() / "src")
+    )
+    files = get_header_and_source_files(directory, not args.no_recursive)
     excludes = excludes_from_file(".clang-format-ignore")
     files = exclude(files, excludes)
     clang_format = get_clang_format()
-    if files:
-        if args.quiet:
-            util.do_parallel(partial(format_file, clang_format, False), files)
-        elif args.verbose:
-            # Single-process for output purposes :/
-            for file in files:
-                format_file(clang_format, True, file)
-                print(f"Formatting {file}")
-        else:
-            util.do_parallel_progressbar(partial(format_file, clang_format, False), files, "Formatting: ")
-        print("Done!")
-        return 0
+
+    if args.quiet:
+        util.do_parallel(partial(format_file, clang_format, False), files)
+    elif args.verbose:
+        # Single-process for output purposes :/
+        for file in files:
+            format_file(clang_format, True, file)
+            print(f"Formatting {file}")
     else:
-        print("No files found! Did you mean to add '-r'?")
-        return -1
+        util.do_parallel_progressbar(
+            partial(format_file, clang_format, False), files, "Formatting: "
+        )
+
+    print("Done!")
+    return 0
 
 
 if __name__ == "__main__":

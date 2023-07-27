@@ -15,12 +15,12 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "gui/ui/sound_editor.h"
 #include "model/clip/clip.h"
 #include "model/drum/kit.h"
-#include "selection.h"
 #include "model/song/song.h"
 #include "processing/sound/sound_drum.h"
-#include "gui/ui/sound_editor.h"
+#include "selection.h"
 
 namespace menu_item::sample {
 class Reverse final : public Selection {

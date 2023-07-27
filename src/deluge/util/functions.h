@@ -18,11 +18,11 @@
 #pragma once
 
 #include "RZA1/system/r_typedefs.h"
+#include "definitions_cxx.hpp"
+#include "fatfs/ff.h"
+#include "util/fixedpoint.h"
 #include "util/lookuptables/lookuptables.h"
 #include <cstring>
-#include "fatfs/ff.h"
-#include "definitions_cxx.hpp"
-#include "util/fixedpoint.h"
 extern "C" {
 #include "util/cfunctions.h"
 }

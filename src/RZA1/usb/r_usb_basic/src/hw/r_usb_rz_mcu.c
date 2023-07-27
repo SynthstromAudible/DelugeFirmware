@@ -29,20 +29,20 @@
 /***********************************************************************************************************************
  Includes   <System Includes> , "Project Includes"
  ***********************************************************************************************************************/
-#include "RZA1/usb/r_usb_basic/r_usb_basic_if.h"
-#include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_typedef.h"
-#include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_extern.h"
-#include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_bitdefine.h"
 #include "RZA1/intc/devdrv_intc.h" /* INTC Driver Header   */
 #include "RZA1/system/iodefine.h"
-#include <stdbool.h>
 #include "RZA1/system/iodefines/mtu2_iodefine.h"
-#include "deluge/util/cfunctions.h"
+#include "RZA1/usb/r_usb_basic/r_usb_basic_if.h"
+#include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_extern.h"
+#include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_typedef.h"
+#include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_bitdefine.h"
 #include "deluge/deluge.h"
+#include "deluge/util/cfunctions.h"
+#include <stdbool.h>
 
 // Additions by Rohan
-#include "definitions.h"
 #include "RZA1/mtu/mtu.h"
+#include "definitions.h"
 
 #if ((USB_CFG_DTC == USB_CFG_ENABLE) || (USB_CFG_DMA == USB_CFG_ENABLE))
 #include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_dmac.h"
