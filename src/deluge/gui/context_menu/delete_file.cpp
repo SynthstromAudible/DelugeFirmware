@@ -16,11 +16,11 @@
 */
 
 #include "gui/context_menu/delete_file.h"
+#include "gui/context_menu/save_song_or_instrument.h"
 #include "gui/ui/browser/browser.h"
 #include "hid/display/numeric_driver.h"
-#include "io/debug/print.h"
 #include "hid/matrix/matrix_driver.h"
-#include "gui/context_menu/save_song_or_instrument.h"
+#include "io/debug/print.h"
 
 extern "C" {
 #include "fatfs/ff.h"

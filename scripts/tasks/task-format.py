@@ -82,32 +82,34 @@ def argparser() -> argparse.ArgumentParser:
         "-v", "--verbose", help="print the changes happening", action="store_true"
     )
     parser.add_argument(
-        "directory", help="the directory of source files to format"
+        "directory", 
+        nargs='?',
+        help="the directory of source files to format (defaults to whole project)"
     )
     return parser
 
 
 def main() -> int:
     args = argparser().parse_args()
-    files = get_header_and_source_files(Path(args.directory), not args.no_recursive)
+    directory = Path(args.directory) or (util.get_git_root().absolute() / 'src')
+    files = get_header_and_source_files(directory, not args.no_recursive)
     excludes = excludes_from_file(".clang-format-ignore")
     files = exclude(files, excludes)
     clang_format = get_clang_format()
-    if files:
-        if args.quiet:
-            util.do_parallel(partial(format_file, clang_format, False), files)
-        elif args.verbose:
-            # Single-process for output purposes :/
-            for file in files:
-                format_file(clang_format, True, file)
-                print(f"Formatting {file}")
-        else:
-            util.do_parallel_progressbar(partial(format_file, clang_format, False), files, "Formatting: ")
-        print("Done!")
-        return 0
+
+    if args.quiet:
+        util.do_parallel(partial(format_file, clang_format, False), files)
+    elif args.verbose:
+        # Single-process for output purposes :/
+        for file in files:
+            format_file(clang_format, True, file)
+            print(f"Formatting {file}")
     else:
-        print("No files found! Did you mean to add '-r'?")
-        return -1
+        util.do_parallel_progressbar(partial(format_file, clang_format, False), files, "Formatting: ")
+    
+    print("Done!")
+    return 0
+
 
 
 if __name__ == "__main__":

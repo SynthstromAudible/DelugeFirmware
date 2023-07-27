@@ -17,11 +17,11 @@
 
 #include "definitions.h"
 
-#include "drivers/oled/oled.h"
 #include "RZA1/oled/oled_low_level.h"
 #include "RZA1/uart/sio_char.h"
-#include "drivers/rspi/rspi.h"
 #include "drivers/dmac/dmac.h"
+#include "drivers/oled/oled.h"
+#include "drivers/rspi/rspi.h"
 
 void MainOLED_WCom(char data) {
 	R_RSPI_SendBasic8(SPI_CHANNEL_OLED_MAIN, data);

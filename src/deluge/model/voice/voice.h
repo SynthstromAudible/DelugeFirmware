@@ -17,13 +17,13 @@
 
 #pragma once
 
-#include "modulation/patch/patcher.h"
-#include "model/voice/voice_sample_playback_guide.h"
 #include "definitions_cxx.hpp"
+#include "dsp/filter/filter_set.h"
+#include "model/voice/voice_sample_playback_guide.h"
+#include "model/voice/voice_unison_part.h"
 #include "modulation/envelope.h"
 #include "modulation/lfo.h"
-#include "model/voice/voice_unison_part.h"
-#include "dsp/filter/filter_set.h"
+#include "modulation/patch/patcher.h"
 
 class StereoSample;
 class FilterSetConfig;

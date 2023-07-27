@@ -15,9 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "model/clip/clip_instance.h"
 #include "model/consequence/consequence_clip_instance_change.h"
 #include "definitions_cxx.hpp"
+#include "model/clip/clip_instance.h"
 #include "model/instrument/instrument.h"
 
 ConsequenceClipInstanceChange::ConsequenceClipInstanceChange(Output* newOutput, ClipInstance* clipInstance,

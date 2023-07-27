@@ -16,8 +16,8 @@
 */
 
 #include "model/consequence/consequence_swing_change.h"
-#include "model/song/song.h"
 #include "model/model_stack.h"
+#include "model/song/song.h"
 
 ConsequenceSwingChange::ConsequenceSwingChange(int8_t newSwingBefore, int8_t newSwingAfter) {
 	swing[BEFORE] = newSwingBefore;

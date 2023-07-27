@@ -16,12 +16,12 @@
 */
 #pragma once
 #include "definitions_cxx.hpp"
+#include "gui/menu_item/selection.h"
+#include "gui/ui/sound_editor.h"
 #include "model/clip/clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
-#include "gui/menu_item/selection.h"
 #include "model/song/song.h"
-#include "gui/ui/sound_editor.h"
 #include "processing/sound/sound.h"
 #include "util/misc.h"
 

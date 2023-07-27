@@ -15,28 +15,28 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "definitions_cxx.hpp"
-#include "processing/engines/audio_engine.h"
-#include "model/clip/instrument_clip.h"
 #include "modulation/automation/auto_param.h"
-#include "io/debug/print.h"
-#include "playback/playback_handler.h"
-#include "util/functions.h"
-#include "modulation/params/param_node.h"
+#include "definitions_cxx.hpp"
+#include "gui/views/view.h"
+#include "hid/buttons.h"
+#include "hid/display/numeric_driver.h"
 #include "hid/matrix/matrix_driver.h"
-#include "storage/storage_manager.h"
+#include "io/debug/print.h"
+#include "memory/general_memory_allocator.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
-#include "hid/display/numeric_driver.h"
-#include <math.h>
-#include "modulation/automation/copied_param_automation.h"
-#include "memory/general_memory_allocator.h"
-#include "model/song/song.h"
-#include "playback/mode/playback_mode.h"
-#include "hid/buttons.h"
+#include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
+#include "model/song/song.h"
+#include "modulation/automation/copied_param_automation.h"
 #include "modulation/params/param_collection.h"
-#include "gui/views/view.h"
+#include "modulation/params/param_node.h"
+#include "playback/mode/playback_mode.h"
+#include "playback/playback_handler.h"
+#include "processing/engines/audio_engine.h"
+#include "storage/storage_manager.h"
+#include "util/functions.h"
+#include <math.h>
 
 #define SAMPLES_TO_CLEAR_AFTER_RECORD 8820          // 200ms
 #define SAMPLES_TO_IGNORE_AFTER_BEGIN_OVERRIDE 9200 // 200ms + a bit

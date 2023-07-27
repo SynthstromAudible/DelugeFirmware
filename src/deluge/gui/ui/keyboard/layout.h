@@ -20,11 +20,11 @@
 #include "definitions_cxx.hpp"
 #include "gui/ui/keyboard/notes_state.h"
 #include "gui/ui/keyboard/state_data.h"
-#include "model/song/song.h"
-#include "model/instrument/instrument.h"
-#include "model/clip/instrument_clip.h"
-#include "model/note/note_row.h"
 #include "hid/button.h"
+#include "model/clip/instrument_clip.h"
+#include "model/instrument/instrument.h"
+#include "model/note/note_row.h"
+#include "model/song/song.h"
 
 constexpr uint8_t kMaxNumKeyboardPadPresses = 10;
 

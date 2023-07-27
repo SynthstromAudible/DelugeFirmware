@@ -18,8 +18,8 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "model/mod_controllable/mod_controllable_audio.h"
 #include "dsp/filter/filter_set.h"
+#include "model/mod_controllable/mod_controllable_audio.h"
 
 class GlobalEffectable : public ModControllableAudio {
 public:

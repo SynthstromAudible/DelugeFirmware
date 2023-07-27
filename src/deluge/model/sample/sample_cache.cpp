@@ -15,13 +15,13 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "model/sample/sample_cache.h"
+#include "hid/display/numeric_driver.h"
+#include "io/debug/print.h"
+#include "memory/general_memory_allocator.h"
+#include "model/sample/sample.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
-#include "model/sample/sample_cache.h"
-#include "io/debug/print.h"
-#include "hid/display/numeric_driver.h"
-#include "model/sample/sample.h"
-#include "memory/general_memory_allocator.h"
 
 SampleCache::SampleCache(Sample* newSample, int newNumClusters, int newWaveformLengthBytes, int newPhaseIncrement,
                          int newTimeStretchRatio, int newSkipSamplesAtStart) {

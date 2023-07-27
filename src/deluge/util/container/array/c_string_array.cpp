@@ -16,12 +16,12 @@
 */
 
 #include "util/container/array/c_string_array.h"
+#include "hid/display/numeric_driver.h"
 #include "memory/general_memory_allocator.h"
-#include <string.h>
+#include "processing/engines/audio_engine.h"
 #include "util/d_string.h"
 #include "util/functions.h"
-#include "hid/display/numeric_driver.h"
-#include "processing/engines/audio_engine.h"
+#include <string.h>
 
 int workCount;
 

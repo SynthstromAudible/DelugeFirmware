@@ -16,9 +16,9 @@
 */
 #pragma once
 #include "definitions_cxx.hpp"
-#include "model/sample/sample_controls.h"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
+#include "model/sample/sample_controls.h"
 #include "processing/sound/sound.h"
 #include "util/misc.h"
 

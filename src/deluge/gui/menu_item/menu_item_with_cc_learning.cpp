@@ -15,12 +15,12 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "processing/sound/sound.h"
 #include "menu_item_with_cc_learning.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/display/numeric_driver.h"
 #include "gui/views/view.h"
+#include "hid/display/numeric_driver.h"
 #include "model/song/song.h"
+#include "processing/sound/sound.h"
 
 void MenuItemWithCCLearning::unlearnAction() {
 

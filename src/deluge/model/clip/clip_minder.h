@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "hid/button.h"
 #include "definitions_cxx.hpp"
+#include "hid/button.h"
 
 class ClipMinder {
 public:

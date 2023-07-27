@@ -18,11 +18,11 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "gui/ui/keyboard/layout.h"
 #include "gui/ui/root_ui.h"
 #include "gui/ui/ui.h"
 #include "hid/button.h"
 #include "model/clip/instrument_clip_minder.h"
-#include "gui/ui/keyboard/layout.h"
 #include <limits>
 
 class ModelStack;

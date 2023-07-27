@@ -16,8 +16,8 @@
 */
 
 #include "number.h"
-#include "hid/display/numeric_driver.h"
 #include "gui/ui/sound_editor.h"
+#include "hid/display/numeric_driver.h"
 
 #if HAVE_OLED
 #include "hid/display/oled.h"

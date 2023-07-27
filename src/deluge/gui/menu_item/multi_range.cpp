@@ -15,23 +15,23 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "processing/engines/audio_engine.h"
-#include "gui/views/instrument_clip_view.h"
 #include "multi_range.h"
-#include "processing/sound/sound.h"
-#include "gui/ui/sound_editor.h"
-#include "hid/display/numeric_driver.h"
-#include "storage/multi_range/multisample_range.h"
-#include "processing/source.h"
-#include <string.h>
-#include "util/functions.h"
-#include "io/debug/print.h"
-#include "hid/matrix/matrix_driver.h"
-#include "gui/views/view.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
+#include "gui/ui/sound_editor.h"
+#include "gui/views/instrument_clip_view.h"
+#include "gui/views/view.h"
 #include "hid/buttons.h"
-#include "storage/multi_range/multi_wave_table_range.h"
+#include "hid/display/numeric_driver.h"
 #include "hid/display/oled.h"
+#include "hid/matrix/matrix_driver.h"
+#include "io/debug/print.h"
+#include "processing/engines/audio_engine.h"
+#include "processing/sound/sound.h"
+#include "processing/source.h"
+#include "storage/multi_range/multi_wave_table_range.h"
+#include "storage/multi_range/multisample_range.h"
+#include "util/functions.h"
+#include <string.h>
 
 namespace menu_item {
 

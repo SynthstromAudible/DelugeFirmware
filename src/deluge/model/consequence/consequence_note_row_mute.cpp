@@ -15,12 +15,12 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "model/clip/instrument_clip.h"
 #include "model/consequence/consequence_note_row_mute.h"
+#include "model/clip/instrument_clip.h"
+#include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/song/song.h"
 #include "playback/playback_handler.h"
-#include "model/model_stack.h"
 
 ConsequenceNoteRowMute::ConsequenceNoteRowMute(InstrumentClip* newClip, int newNoteRowId) {
 	noteRowId = newNoteRowId;

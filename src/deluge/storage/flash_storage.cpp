@@ -15,20 +15,20 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "definitions_cxx.hpp"
-#include "processing/engines/audio_engine.h"
 #include "storage/flash_storage.h"
-#include "io/midi/midi_engine.h"
-#include "processing/engines/cv_engine.h"
-#include "hid/led/pad_leds.h"
+#include "definitions_cxx.hpp"
 #include "gui/menu_item/colour.h"
 #include "gui/ui/sound_editor.h"
+#include "hid/led/pad_leds.h"
+#include "io/midi/midi_engine.h"
+#include "processing/engines/audio_engine.h"
+#include "processing/engines/cv_engine.h"
 #include "util/functions.h"
 #include "util/misc.h"
 
 extern "C" {
-#include "RZA1/spibsc/spibsc.h"
 #include "RZA1/spibsc/r_spibsc_flash_api.h"
+#include "RZA1/spibsc/spibsc.h"
 }
 
 #include "gui/menu_item/integer_range.h"

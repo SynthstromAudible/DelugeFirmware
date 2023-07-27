@@ -15,44 +15,44 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "processing/engines/audio_engine.h"
-#include "storage/audio/audio_file_manager.h"
-#include "storage/cluster/cluster.h"
-#include "processing/sound/sound.h"
 #include "model/voice/voice.h"
+#include "arm_neon.h"
 #include "definitions_cxx.hpp"
 #include "dsp/filter/filter_set.h"
-#include "util/functions.h"
 #include "dsp/filter/filter_set_config.h"
-#include "model/song/song.h"
 #include "dsp/timestretch/time_stretcher.h"
-#include "model/sample/sample.h"
-#include <string.h>
 #include "gui/waveform/waveform_renderer.h"
-#include "playback/playback_handler.h"
-#include "storage/wave_table/wave_table.h"
-#include "memory/general_memory_allocator.h"
-#include "storage/multi_range/multisample_range.h"
-#include "storage/storage_manager.h"
-#include "model/sample/sample_cache.h"
-#include "model/voice/voice_sample.h"
-#include "processing/live/live_pitch_shifter.h"
-#include <new>
-#include "arm_neon.h"
-#include "util/lookuptables/lookuptables.h"
 #include "io/debug/print.h"
+#include "memory/general_memory_allocator.h"
+#include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
+#include "model/sample/sample.h"
+#include "model/sample/sample_cache.h"
 #include "model/sample/sample_holder_for_voice.h"
-#include "processing/render_wave.h"
+#include "model/song/song.h"
+#include "model/voice/voice_sample.h"
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
-#include "model/clip/instrument_clip.h"
+#include "playback/playback_handler.h"
+#include "processing/engines/audio_engine.h"
+#include "processing/live/live_pitch_shifter.h"
+#include "processing/render_wave.h"
+#include "processing/sound/sound.h"
+#include "storage/audio/audio_file_manager.h"
+#include "storage/cluster/cluster.h"
 #include "storage/flash_storage.h"
+#include "storage/multi_range/multisample_range.h"
+#include "storage/storage_manager.h"
+#include "storage/wave_table/wave_table.h"
+#include "util/functions.h"
+#include "util/lookuptables/lookuptables.h"
 #include "util/misc.h"
+#include <new>
+#include <string.h>
 
 extern "C" {
-#include "drivers/ssi/ssi.h"
 #include "RZA1/mtu/mtu.h"
+#include "drivers/ssi/ssi.h"
 }
 
 int32_t spareRenderingBuffer[4][SSI_TX_BUFFER_NUM_SAMPLES] __attribute__((aligned(CACHE_LINE_SIZE)));

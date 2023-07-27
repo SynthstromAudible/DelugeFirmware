@@ -19,10 +19,10 @@
 
 #include "gui/ui/keyboard/layout/in_key.h"
 #include "definitions.h"
-#include "util/functions.h"
-#include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/audio_recorder.h"
+#include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/sound_editor.h"
+#include "util/functions.h"
 
 namespace keyboard::layout {
 
