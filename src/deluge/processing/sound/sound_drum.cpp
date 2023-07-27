@@ -22,7 +22,7 @@
 #include "storage/storage_manager.h"
 #include "model/song/song.h"
 #include "gui/views/view.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "processing/engines/audio_engine.h"
@@ -30,8 +30,9 @@
 #include "model/voice/voice.h"
 #include <new>
 #include "model/clip/clip.h"
+#include "util/misc.h"
 
-SoundDrum::SoundDrum() : Drum(DRUM_TYPE_SOUND), arpeggiator() {
+SoundDrum::SoundDrum() : Drum(DrumType::SOUND), arpeggiator() {
 	nameIsDiscardable = false;
 }
 
@@ -78,12 +79,12 @@ void SoundDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t veloci
                        int fromMIDIChannel, uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate) {
 
 	// If part of a Kit, and in choke mode, choke other drums
-	if (polyphonic == POLYPHONY_CHOKE) {
+	if (polyphonic == PolyphonyMode::CHOKE) {
 		kit->choke();
 	}
 
-	Sound::noteOn(modelStack, &arpeggiator, NOTE_FOR_DRUM, mpeValues, sampleSyncLength, ticksLate, samplesLate,
-	              velocity, fromMIDIChannel);
+	Sound::noteOn(modelStack, &arpeggiator, kNoteForDrum, mpeValues, sampleSyncLength, ticksLate, samplesLate, velocity,
+	              fromMIDIChannel);
 }
 void SoundDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int velocity) {
 	Sound::allNotesOff(modelStack, &arpeggiator);
@@ -93,7 +94,7 @@ extern bool expressionValueChangesMustBeDoneSmoothly;
 
 void SoundDrum::expressionEvent(int newValue, int whichExpressionDimension) {
 
-	int s = whichExpressionDimension + PATCH_SOURCE_X;
+	int s = whichExpressionDimension + util::to_underlying(PatchSource::X);
 
 	//sourcesChanged |= 1 << s; // We'd ideally not want to apply this to all voices though...
 
@@ -114,7 +115,8 @@ void SoundDrum::expressionEvent(int newValue, int whichExpressionDimension) {
 }
 
 void SoundDrum::polyphonicExpressionEventOnChannelOrNote(int newValue, int whichExpressionDimension,
-                                                         int channelOrNoteNumber, int whichCharacteristic) {
+                                                         int channelOrNoteNumber,
+                                                         MIDICharacteristic whichCharacteristic) {
 	// Because this is a Drum, we disregard the noteCode (which is what channelOrNoteNumber always is in our case - but yeah, that's all irrelevant.
 	expressionEvent(newValue, whichExpressionDimension);
 }
@@ -161,7 +163,7 @@ int SoundDrum::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPo
 
 // modelStack may be NULL
 void SoundDrum::choke(ModelStackWithSoundFlags* modelStack) {
-	if (polyphonic == POLYPHONY_CHOKE) {
+	if (polyphonic == PolyphonyMode::CHOKE) {
 
 		// Don't choke it if it's auditioned
 		if (getRootUI() == &instrumentClipView && instrumentClipView.isDrumAuditioned(this)) {

@@ -35,7 +35,6 @@ extern menu_item::Submenu settingsRootMenu;
 extern MenuItem* midiOrCVParamShortcuts[8];
 extern MenuItem* paramShortcutsForSounds[15][8];
 extern MenuItem* paramShortcutsForAudioClips[15][8];
-extern uint8_t paramShortcutsForAutomationClipView[15][8];
 
 void setOscillatorNumberForTitles(int);
 void setModulatorNumberForTitles(int);

@@ -15,18 +15,17 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <gui/views/automation_clip_view.h>
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
 #include "gui/views/instrument_clip_view.h"
 #include "processing/sound/sound.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "hid/matrix/matrix_driver.h"
 #include <string.h>
 #include "gui/waveform/waveform_renderer.h"
 #include "model/sample/sample.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "gui/ui/sound_editor.h"
 #include "storage/multi_range/multisample_range.h"
 #include "gui/views/view.h"
@@ -52,7 +51,7 @@ WaveformRenderer::WaveformRenderer() {
 
 // Returns false if had trouble loading some (will often not be all) Clusters, e.g. cos we're in the card routine
 bool WaveformRenderer::renderFullScreen(Sample* sample, uint64_t xScroll, uint64_t xZoom,
-                                        uint8_t thisImage[][displayWidth + sideBarWidth][3], WaveformRenderData* data,
+                                        uint8_t thisImage[][kDisplayWidth + kSideBarWidth][3], WaveformRenderData* data,
                                         SampleRecorder* recorder, uint8_t rgb[], bool reversed, int xEnd) {
 
 	bool completeSuccess = findPeaksPerCol(sample, xScroll, xZoom, data, recorder);
@@ -61,8 +60,8 @@ bool WaveformRenderer::renderFullScreen(Sample* sample, uint64_t xScroll, uint64
 	}
 
 	// Clear display
-	for (int y = 0; y < displayHeight; y++) {
-		memset(thisImage[y], 0, displayWidth * 3);
+	for (int y = 0; y < kDisplayHeight; y++) {
+		memset(thisImage[y], 0, kDisplayWidth * 3);
 	}
 
 	for (int xDisplay = 0; xDisplay < xEnd; xDisplay++) {
@@ -80,8 +79,8 @@ bool WaveformRenderer::renderAsSingleRow(Sample* sample, int64_t xScroll, uint64
 	int xStartSource = xStart;
 	int xEndSource = xEnd;
 	if (reversed) {
-		xStartSource = displayWidth - 1 - xEnd;
-		xEndSource = displayWidth - 1 - xStart;
+		xStartSource = kDisplayWidth - 1 - xEnd;
+		xEndSource = kDisplayWidth - 1 - xStart;
 	}
 
 	bool completeSuccess = findPeaksPerCol(sample, xScroll, xZoom, data, recorder, xStartSource, xEndSource);
@@ -95,7 +94,7 @@ bool WaveformRenderer::renderAsSingleRow(Sample* sample, int64_t xScroll, uint64
 
 		int xDisplaySource = xDisplayOutput;
 		if (reversed) {
-			xDisplaySource = displayWidth - 1 - xDisplaySource;
+			xDisplaySource = kDisplayWidth - 1 - xDisplaySource;
 		}
 
 		// If no data here (e.g. if Sample not recorded this far yet...)
@@ -133,10 +132,10 @@ int WaveformRenderer::getColBrightnessForSingleRow(int xDisplay, int32_t maxPeak
 	int32_t peakHere = getMax(peak1, peak2);
 
 	if (false && peakHere >= maxPeakFromZero) {
-		Uart::print("peak: ");
-		Uart::print(peakHere);
-		Uart::print(" but max: ");
-		Uart::println(maxPeakFromZero);
+		Debug::print("peak: ");
+		Debug::print(peakHere);
+		Debug::print(" but max: ");
+		Debug::println(maxPeakFromZero);
 	}
 
 	uint32_t peak16 = ((int64_t)peakHere << 16) / maxPeakFromZero;
@@ -148,13 +147,13 @@ int WaveformRenderer::getColBrightnessForSingleRow(int xDisplay, int32_t maxPeak
 
 void WaveformRenderer::renderOneColForCollapseAnimation(int xDisplayWaveform, int xDisplayOutput,
                                                         int32_t maxPeakFromZero, int progress,
-                                                        uint8_t thisImage[][displayWidth + sideBarWidth][3],
+                                                        uint8_t thisImage[][kDisplayWidth + kSideBarWidth][3],
                                                         WaveformRenderData* data, uint8_t rgb[], bool reversed,
                                                         int32_t valueCentrePoint, int32_t valueSpan) {
 
 	int xDisplayData = xDisplayWaveform;
 	if (reversed) {
-		xDisplayData = displayWidth - 1 - xDisplayData;
+		xDisplayData = kDisplayWidth - 1 - xDisplayData;
 	}
 
 	if (data->colStatus[xDisplayData] != COL_STATUS_INVESTIGATED) {
@@ -175,15 +174,15 @@ void WaveformRenderer::renderOneColForCollapseAnimation(int xDisplayWaveform, in
 void WaveformRenderer::renderOneColForCollapseAnimationZoomedOut(int xDisplayWaveformLeftEdge,
                                                                  int xDisplayWaveformRightEdge, int xDisplayOutput,
                                                                  int32_t maxPeakFromZero, int progress,
-                                                                 uint8_t thisImage[][displayWidth + sideBarWidth][3],
+                                                                 uint8_t thisImage[][kDisplayWidth + kSideBarWidth][3],
                                                                  WaveformRenderData* data, uint8_t rgb[], bool reversed,
                                                                  int32_t valueCentrePoint, int32_t valueSpan) {
 
 	int xDisplayDataLeftEdge = xDisplayWaveformLeftEdge;
 	int xDisplayDataRightEdge = xDisplayWaveformRightEdge;
 	if (reversed) {
-		xDisplayDataLeftEdge = displayWidth - 1 - xDisplayWaveformRightEdge;
-		xDisplayDataRightEdge = displayWidth - 1 - xDisplayWaveformLeftEdge;
+		xDisplayDataLeftEdge = kDisplayWidth - 1 - xDisplayWaveformRightEdge;
+		xDisplayDataRightEdge = kDisplayWidth - 1 - xDisplayWaveformLeftEdge;
 	}
 
 	int32_t min24Total = 2147483647;
@@ -221,10 +220,10 @@ void WaveformRenderer::renderOneColForCollapseAnimationZoomedOut(int xDisplayWav
 // this does the vertical animation according to our current amount of expandedness
 void WaveformRenderer::renderOneColForCollapseAnimationInterpolation(
     int xDisplayOutput, int32_t min24, int32_t max24, int singleSquareBrightness, int progress,
-    uint8_t thisImage[][displayWidth + sideBarWidth][3], uint8_t rgb[]) {
+    uint8_t thisImage[][kDisplayWidth + kSideBarWidth][3], uint8_t rgb[]) {
 
-	int32_t minStart = ((int32_t)collapseAnimationToWhichRow - (displayHeight >> 1)) << 24;
-	int32_t maxStart = ((int32_t)collapseAnimationToWhichRow - (displayHeight >> 1) + 1) << 24;
+	int32_t minStart = ((int32_t)collapseAnimationToWhichRow - (kDisplayHeight >> 1)) << 24;
+	int32_t maxStart = ((int32_t)collapseAnimationToWhichRow - (kDisplayHeight >> 1) + 1) << 24;
 
 	int32_t minDistance = min24 - minStart;
 	int32_t maxDistance = max24 - maxStart;
@@ -422,7 +421,7 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 			Cluster* cluster = sampleCluster->getCluster(sample, clusterIndexToDo, CLUSTER_LOAD_IMMEDIATELY);
 			if (!cluster) {
 cantReadData:
-				Uart::println("cant read");
+				Debug::println("cant read");
 				data->colStatus[col] = 0;
 				hadAnyTroubleLoading = true;
 				continue;
@@ -607,9 +606,10 @@ void WaveformRenderer::getColBarPositions(int xDisplay, WaveformRenderData* data
 }
 
 void WaveformRenderer::drawColBar(int xDisplay, int32_t min24, int32_t max24,
-                                  uint8_t thisImage[][displayWidth + sideBarWidth][3], int brightness, uint8_t rgb[]) {
-	int yStart = getMax((int)(min24 >> 24), -(displayHeight >> 1));
-	int yStop = getMin((int)(max24 >> 24) + 1, displayHeight >> 1);
+                                  uint8_t thisImage[][kDisplayWidth + kSideBarWidth][3], int brightness,
+                                  uint8_t rgb[]) {
+	int yStart = getMax((int)(min24 >> 24), -(kDisplayHeight >> 1));
+	int yStop = getMin((int)(max24 >> 24) + 1, kDisplayHeight >> 1);
 
 	for (int y = yStart; y < yStop; y++) {
 
@@ -636,17 +636,17 @@ void WaveformRenderer::drawColBar(int xDisplay, int32_t min24, int32_t max24,
 				valueHere = (valueHere * rgb[c]) >> 8;
 			}
 
-			thisImage[y + (displayHeight >> 1)][xDisplay][c] = valueHere;
+			thisImage[y + (kDisplayHeight >> 1)][xDisplay][c] = valueHere;
 		}
 	}
 }
 
-void WaveformRenderer::renderOneCol(Sample* sample, int xDisplay, uint8_t thisImage[][displayWidth + sideBarWidth][3],
+void WaveformRenderer::renderOneCol(Sample* sample, int xDisplay, uint8_t thisImage[][kDisplayWidth + kSideBarWidth][3],
                                     WaveformRenderData* data, bool reversed, uint8_t rgb[]) {
 	int32_t min24, max24;
 	int brightness = rgb ? 256 : 128;
 
-	int xDisplaySource = reversed ? (displayWidth - 1 - xDisplay) : xDisplay;
+	int xDisplaySource = reversed ? (kDisplayWidth - 1 - xDisplay) : xDisplay;
 
 	if (data->colStatus[xDisplaySource] == COL_STATUS_INVESTIGATED) {
 

@@ -15,9 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include <gui/views/automation_clip_view.h>
 #include "loop_point.h"
 
+#include "gui/menu_item/menu_item.h"
 #include "storage/audio/audio_file_holder.h"
 #include "processing/sound/sound.h"
 #include "gui/ui/keyboard_screen.h"
@@ -32,22 +32,22 @@ bool LoopPoint::isRelevant(Sound* sound, int whichThing) {
 
 	Source* source = &sound->sources[whichThing];
 
-	return (sound->getSynthMode() == SYNTH_MODE_SUBTRACTIVE && source->oscType == OSC_TYPE_SAMPLE);
+	return (sound->getSynthMode() == SynthMode::SUBTRACTIVE && source->oscType == OscType::SAMPLE);
 }
 
-int LoopPoint::checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) {
+MenuPermission LoopPoint::checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) {
 
 	if (!isRelevant(sound, whichThing)) {
-		return MENU_PERMISSION_NO;
+		return MenuPermission::NO;
 	}
 
-	int permission =
+	MenuPermission permission =
 	    soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(sound, whichThing, true, currentRange);
 
 	// Before going ahead, make sure a Sample is loaded
-	if (permission == MENU_PERMISSION_YES) {
+	if (permission == MenuPermission::YES) {
 		if (!(*currentRange)->getAudioFileHolder()->audioFile) {
-			permission = MENU_PERMISSION_NO;
+			permission = MenuPermission::NO;
 		}
 	}
 
@@ -61,11 +61,6 @@ void LoopPoint::beginSession(MenuItem* navigatedBackwardFrom) {
 			keyboardScreen.exitAuditionMode();
 		}
 	}
-//	else if (getRootUI() == &automationClipView) {
-//		if (currentUIMode == UI_MODE_AUDITIONING) {
-//			automationClipView.exitAuditionMode();
-//		}
-//	}
 
 	soundEditor.shouldGoUpOneLevelOnBegin = true;
 	sampleMarkerEditor.markerType = markerType;

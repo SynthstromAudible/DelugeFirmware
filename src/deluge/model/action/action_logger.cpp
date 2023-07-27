@@ -15,14 +15,13 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include <gui/views/automation_clip_view.h>
 #include "model/action/action_clip_state.h"
 #include "gui/views/arranger_view.h"
 #include "processing/engines/audio_engine.h"
 #include "model/clip/instrument_clip_minder.h"
 #include "gui/views/instrument_clip_view.h"
 #include "model/action/action_logger.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "model/action/action.h"
 #include "gui/ui/keyboard_screen.h"
 #include "util/functions.h"
@@ -33,7 +32,7 @@
 #include "model/consequence/consequence_param_change.h"
 #include "model/drum/kit.h"
 #include <new>
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include <string.h>
 #include "memory/general_memory_allocator.h"
 #include "playback/mode/playback_mode.h"
@@ -130,7 +129,7 @@ Action* ActionLogger::getNewAction(int newActionType, int addToExistingIfPossibl
 		void* actionMemory = generalMemoryAllocator.alloc(sizeof(Action), NULL, true);
 
 		if (!actionMemory) {
-			Uart::println("no ram to create new Action");
+			Debug::println("no ram to create new Action");
 			return NULL;
 		}
 
@@ -206,7 +205,7 @@ void ActionLogger::updateAction(Action* newAction) {
 			newAction->numClipStates = 0;
 			generalMemoryAllocator.dealloc(newAction->clipStates);
 			newAction->clipStates = NULL;
-			Uart::println("discarded clip states");
+			Debug::println("discarded clip states");
 		}
 
 		else {
@@ -301,8 +300,8 @@ void ActionLogger::recordTempoChange(uint64_t timePerBigBefore, uint64_t timePer
 // Returns whether anything was reverted.
 // doNavigation and updateVisually are only false when doing one of those undo-Clip-resize things as part of another Clip resize.
 // You must not call this during the card routine - though I've lost track of the exact reason why not - is it just because we could then be in the middle of executing whichever function accessed the card and we don't know if things will break?
-bool ActionLogger::revert(int time, bool updateVisually, bool doNavigation) {
-	Uart::println("ActionLogger::revert");
+bool ActionLogger::revert(TimeType time, bool updateVisually, bool doNavigation) {
+	Debug::println("ActionLogger::revert");
 
 	deleteLastActionIfEmpty();
 
@@ -338,11 +337,9 @@ bool ActionLogger::revert(int time, bool updateVisually, bool doNavigation) {
 #define ANIMATION_ARRANGEMENT_TO_CLIP_MINDER 9
 #define ANIMATION_SESSION_TO_ARRANGEMENT 10
 #define ANIMATION_ARRANGEMENT_TO_SESSION 11
-#define ANIMATION_ENTER_AUTOMATION_VIEW 12
-#define ANIMATION_EXIT_AUTOMATION_VIEW 13
 
 // doNavigation and updateVisually are only false when doing one of those undo-Clip-resize things as part of another Clip resize
-void ActionLogger::revertAction(Action* action, bool updateVisually, bool doNavigation, int time) {
+void ActionLogger::revertAction(Action* action, bool updateVisually, bool doNavigation, TimeType time) {
 
 	currentSong->deletePendingOverdubs();
 
@@ -402,22 +399,14 @@ void ActionLogger::revertAction(Action* action, bool updateVisually, bool doNavi
 				whichAnimation = ANIMATION_EXIT_KEYBOARD_VIEW;
 			}
 
-			// Then entering or exiting automation view
-			else if (action->view == &automationClipView && getCurrentUI() != &automationClipView) {
-				whichAnimation = ANIMATION_ENTER_AUTOMATION_VIEW;
-			}
-			else if (action->view != &automationClipView && getCurrentUI() == &automationClipView) {
-				whichAnimation = ANIMATION_EXIT_AUTOMATION_VIEW;
-			}
-
 			// Or if we've changed Clip but ended up back in the same view...
 			else if (getCurrentUI()->toClipMinder() && currentSong->currentClip != action->currentClip) {
 				whichAnimation = ANIMATION_CHANGE_CLIP;
 			}
 
-			// Or if none of those is happening, we might like to do a horizontal zoom or scroll - only if [vertical scroll isn't changed], and we're not on keyboard/automation view
+			// Or if none of those is happening, we might like to do a horizontal zoom or scroll - only if [vertical scroll isn't changed], and we're not on keyboard view
 			else {
-				if (getCurrentUI() != &keyboardScreen) { //&& getCurrentUI() != &automationClipView) {
+				if (getCurrentUI() != &keyboardScreen) {
 
 					if (getCurrentUI() == &arrangerView) {
 						if (currentSong->xZoom[NAVIGATION_ARRANGEMENT] != action->xZoomArranger[time]) {
@@ -469,7 +458,7 @@ traverseClips:
 						instrumentClip->wrapEditing = action->clipStates[i].wrapEditing;
 						instrumentClip->wrapEditLevel = action->clipStates[i].wrapEditLevel;
 
-						if (clip->output->type == INSTRUMENT_TYPE_KIT) {
+						if (clip->output->type == InstrumentType::KIT) {
 							Kit* kit = (Kit*)clip->output;
 							if (action->clipStates[i].selectedDrumIndex == -1) {
 								kit->selectedDrum = NULL;
@@ -488,7 +477,7 @@ traverseClips:
 				}
 			}
 			else {
-				Uart::println("clip states wrong number so not restoring");
+				Debug::println("clip states wrong number so not restoring");
 			}
 		}
 
@@ -583,15 +572,6 @@ currentClipSwitchedOver:
 		changeRootUI(&instrumentClipView);
 	}
 
-	// Some "animations", we prefer to do after we've reverted the action
-	else if (whichAnimation == ANIMATION_ENTER_AUTOMATION_VIEW) {
-		changeRootUI(&automationClipView);
-	}
-
-	else if (whichAnimation == ANIMATION_EXIT_AUTOMATION_VIEW) {
-		changeRootUI(&instrumentClipView);
-	}
-
 	else if (whichAnimation == ANIMATION_CHANGE_CLIP) {
 		if (action->view != getCurrentUI()) {
 			changeRootUI(action->view);
@@ -612,9 +592,6 @@ currentClipSwitchedOver:
 		}
 		else if (((InstrumentClip*)currentSong->currentClip)->onKeyboardScreen) {
 			changeRootUI(&keyboardScreen);
-		}
-		else if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
-			changeRootUI(&automationClipView);
 		}
 		else {
 			changeRootUI(&instrumentClipView);
@@ -649,11 +626,6 @@ currentClipSwitchedOver:
 		else if (getCurrentUI() == &keyboardScreen) {
 			if (whichAnimation != ANIMATION_ENTER_KEYBOARD_VIEW) {
 				uiNeedsRendering(&keyboardScreen, 0xFFFFFFFF, 0);
-			}
-		}
-		else if (getCurrentUI() == &automationClipView) {
-			if (whichAnimation != ANIMATION_ENTER_AUTOMATION_VIEW) {
-				uiNeedsRendering(&automationClipView, 0xFFFFFFFF, 0);
 			}
 		}
 		else if (getCurrentUI() == &sessionView) {
@@ -807,7 +779,7 @@ void ActionLogger::notifyClipRecordingAborted(Clip* clip) {
 	// If there's an Action which only recorded the beginning of this Clip recording, we don't want it anymore.
 	if (firstAction[BEFORE] && firstAction[BEFORE]->type == ACTION_RECORD) {
 		Consequence* firstConsequence = firstAction[BEFORE]->firstConsequence;
-		if (!firstConsequence->next && firstConsequence->type == CONSEQUENCE_CLIP_BEGIN_LINEAR_RECORD) {
+		if (!firstConsequence->next && firstConsequence->type == Consequence::CLIP_BEGIN_LINEAR_RECORD) {
 			if (clip == ((ConsequenceClipBeginLinearRecord*)firstConsequence)->clip) {
 				deleteLastAction();
 			}
@@ -832,7 +804,7 @@ bool ActionLogger::undoJustOneConsequencePerNoteRow(ModelStack* modelStack) {
 
 		Consequence* thisConsequence = firstConsequence->next;
 		while (thisConsequence) {
-			if (thisConsequence->type == CONSEQUENCE_NOTE_ARRAY_CHANGE
+			if (thisConsequence->type == Consequence::NOTE_ARRAY_CHANGE
 			    && ((ConsequenceNoteArrayChange*)thisConsequence)->noteRowId == firstNoteRowId) {
 				goto gotMultipleConsequencesPerNoteRow;
 			}
@@ -853,16 +825,16 @@ gotMultipleConsequencesPerNoteRow:
 				firstConsequence->~Consequence();
 				generalMemoryAllocator.dealloc(firstConsequence);
 				firstConsequence = firstAction[BEFORE]->firstConsequence;
-			} while (thisConsequence->type != CONSEQUENCE_NOTE_ARRAY_CHANGE
+			} while (thisConsequence->type != Consequence::NOTE_ARRAY_CHANGE
 			         || ((ConsequenceNoteArrayChange*)firstConsequence)->noteRowId != firstNoteRowId);
 
-			Uart::println("did secret undo, just one Consequence");
+			Debug::println("did secret undo, just one Consequence");
 		}
 
 		// Or if only one Consequence (per NoteRow), revert whole Action
 		else {
 			revert(BEFORE, true, false);
-			Uart::println("did secret undo, whole Action");
+			Debug::println("did secret undo, whole Action");
 			revertedWholeAction = true;
 		}
 

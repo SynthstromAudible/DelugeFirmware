@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "model/global_effectable/global_effectable.h"
 
 class ParamManagerForTimeline;
@@ -56,8 +56,8 @@ protected:
 	int getParameterFromKnob(int whichModEncoder) final;
 	void renderOutput(ModelStackWithTimelineCounter* modelStack, ParamManager* paramManagerForClip,
 	                  StereoSample* outputBuffer, int numSamples, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
-	                  int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive, int outputType,
-	                  int analogDelaySaturationAmount);
+	                  int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive,
+	                  InstrumentType instrumentType, int analogDelaySaturationAmount);
 
 	virtual void renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStack,
 	                                           StereoSample* globalEffectableBuffer, int32_t* bufferToTransferTo,

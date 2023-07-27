@@ -15,12 +15,10 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include <gui/views/automation_clip_view.h>
-#include "gui/views/instrument_clip_view.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "processing/sound/sound.h"
 #include "file_selector.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "gui/ui_timer_manager.h"
 #include "gui/ui/sound_editor.h"
 #include "util/functions.h"
@@ -39,9 +37,6 @@ void FileSelector::beginSession(MenuItem* navigatedBackwardFrom) {
 	if (getRootUI() == &keyboardScreen && currentUIMode == UI_MODE_AUDITIONING) {
 		keyboardScreen.exitAuditionMode();
 	}
-//	else if (getRootUI() == &automationClipView && currentUIMode == UI_MODE_AUDITIONING) {
-//		automationClipView.exitAuditionMode();
-//	}
 	bool success = openUI(&sampleBrowser);
 	if (!success) {
 		//if (getCurrentUI() == &soundEditor) soundEditor.goUpOneLevel();
@@ -54,24 +49,24 @@ bool FileSelector::isRelevant(Sound* sound, int whichThing) {
 	}
 	Source* source = &sound->sources[whichThing];
 
-	if (source->oscType == OSC_TYPE_WAVETABLE) {
-		return (sound->getSynthMode() != SYNTH_MODE_FM);
+	if (source->oscType == OscType::WAVETABLE) {
+		return (sound->getSynthMode() != SynthMode::FM);
 	}
 
-	return (sound->getSynthMode() == SYNTH_MODE_SUBTRACTIVE && source->oscType == OSC_TYPE_SAMPLE);
+	return (sound->getSynthMode() == SynthMode::SUBTRACTIVE && source->oscType == OscType::SAMPLE);
 }
-int FileSelector::checkPermissionToBeginSession(Sound* sound, int whichThing, ::MultiRange** currentRange) {
+MenuPermission FileSelector::checkPermissionToBeginSession(Sound* sound, int whichThing, ::MultiRange** currentRange) {
 
 	if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) {
-		return MENU_PERMISSION_YES;
+		return MenuPermission::YES;
 	}
 
 	bool can =
-	    (sound->getSynthMode() == SYNTH_MODE_SUBTRACTIVE
-	     || (sound->getSynthMode() == SYNTH_MODE_RINGMOD && sound->sources[whichThing].oscType == OSC_TYPE_WAVETABLE));
+	    (sound->getSynthMode() == SynthMode::SUBTRACTIVE
+	     || (sound->getSynthMode() == SynthMode::RINGMOD && sound->sources[whichThing].oscType == OscType::WAVETABLE));
 
 	if (!can) {
-		return MENU_PERMISSION_NO;
+		return MenuPermission::NO;
 	}
 
 	return soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(sound, whichThing, false, currentRange);

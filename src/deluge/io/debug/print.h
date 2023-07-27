@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2023 Synthstrom Audible Limited
+ * Copyright © 2015-2023 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -13,22 +13,21 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
-#pragma once
-#include "gui/menu_item/selection.h"
-#include <gui/views/automation_clip_view.h>
-#include "gui/ui/sound_editor.h"
+ */
 
-namespace menu_item::defaults {
-class FlashShortcuts final : public Selection {
-public:
-	using Selection::Selection;
-	void readCurrentValue() { soundEditor.currentValue = automationClipView.flashShortcuts; }
-	void writeCurrentValue() { automationClipView.flashShortcuts = soundEditor.currentValue; }
-	char const** getOptions() {
-		static char const* options[] = {"Off", "On (All)", "On (Auto)", NULL};
-		return options;
-	}
-	int getNumOptions() { return 3; }
-};
-} // namespace menu_item::defaults
+#pragma once
+
+#include "RZA1/system/r_typedefs.h"
+
+class MIDIDevice;
+
+namespace Debug {
+void print(char const* output);
+void println(char const* output);
+void println(int32_t number);
+void printlnfloat(float number);
+void printfloat(float number);
+void print(int32_t number);
+
+extern MIDIDevice* midiDebugDevice;
+} // namespace Debug

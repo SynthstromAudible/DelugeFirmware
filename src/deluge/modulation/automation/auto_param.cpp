@@ -15,10 +15,11 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "definitions_cxx.hpp"
 #include "processing/engines/audio_engine.h"
 #include "model/clip/instrument_clip.h"
 #include "modulation/automation/auto_param.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "playback/playback_handler.h"
 #include "util/functions.h"
 #include "modulation/params/param_node.h"
@@ -36,11 +37,6 @@
 #include "model/model_stack.h"
 #include "modulation/params/param_collection.h"
 #include "gui/views/view.h"
-#include "gui/views/automation_clip_view.h"
-
-extern "C" {
-#include "drivers/uart/uart.h"
-}
 
 #define SAMPLES_TO_CLEAR_AFTER_RECORD 8820          // 200ms
 #define SAMPLES_TO_IGNORE_AFTER_BEGIN_OVERRIDE 9200 // 200ms + a bit
@@ -118,7 +114,8 @@ void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWi
 				if (isAutomated()) {
 					Action* action = actionLogger.getNewAction(ACTION_AUTOMATION_DELETE, false);
 					deleteAutomation(action, modelStack);
-					numericDriver.displayPopup(HAVE_OLED ? "Parameter automation deleted" : "DELETE");
+					numericDriver.displayPopup(HAVE_OLED ? "Parameter automation deleted"
+					                                     : "ExistenceChangeType::DELETE");
 				}
 				return;
 			}
@@ -430,14 +427,14 @@ int32_t AutoParam::processCurrentPos(ModelStackWithAutoParam const* modelStack, 
 	// Ok, if we're here, we just reached the node!
 
 	/*
-		Uart::println("");
-		Uart::print("at node: ");
-		Uart::print(nodeJustReached->pos);
-		Uart::print(", ");
-		Uart::print(nodeJustReached->value);
-		if (nodeJustReached->interpolated) Uart::print(", interp");
-		Uart::println("");
-		if (renewedOverridingAtTime) Uart::println("overriding");
+		Debug::println("");
+		Debug::print("at node: ");
+		Debug::print(nodeJustReached->pos);
+		Debug::print(", ");
+		Debug::print(nodeJustReached->value);
+		if (nodeJustReached->interpolated) Debug::print(", interp");
+		Debug::println("");
+		if (renewedOverridingAtTime) Debug::println("overriding");
 	*/
 
 	// Stop any pre-existing interpolation (though we might set up some more, below)
@@ -522,7 +519,7 @@ int32_t AutoParam::processCurrentPos(ModelStackWithAutoParam const* modelStack, 
 		if (shouldCancelOverridingNow) {
 yesCancelOverriding:
 			renewedOverridingAtTime = 0;
-			Uart::println("cancel overriding, basic way");
+			Debug::println("cancel overriding, basic way");
 		}
 
 		// Otherwise...
@@ -634,12 +631,12 @@ recordOverNodeJustReached:
 								renewedOverridingAtTime = 0xFFFFFFFF;
 							}
 						}
-						Uart::println("cancel latching");
+						Debug::println("cancel latching");
 					}
 				}
 
 adjustNodeJustReached:
-				//Uart::println("adjusting node value");
+				//Debug::println("adjusting node value");
 				if (!didPinpong) {
 					nodeJustReached->value = currentValue;
 				}
@@ -665,10 +662,10 @@ adjustNodeJustReached:
 						nextNodeInOurDirection->interpolated = newNodeShouldBeInterpolated;
 
 						/*
-						Uart::print("new one: ");
-						Uart::print(posOverridingEnds);
-						Uart::print(", ");
-						Uart::println(valueOverridingEnds);
+						Debug::print("new one: ");
+						Debug::print(posOverridingEnds);
+						Debug::print(", ");
+						Debug::println(valueOverridingEnds);
 						*/
 						if (!reversed) {
 							needToReGetNextNode = deleteRedundantNodeInLinearRun(
@@ -821,18 +818,8 @@ void AutoParam::setValuePossiblyForRegion(int32_t value, ModelStackWithAutoParam
                                           int32_t length, bool mayDeleteNodesInLinearRun) {
 	if (length && modelStack->timelineCounterIsSet()) {
 		setValueForRegion(pos, length, value, modelStack);
-
-//		char const* displayText;
-//		displayText = "setValueForRegion";
-//		numericDriver.displayPopup(displayText);
-
 	}
 	else {
-
-//		char const* displayText;
-//		displayText = "setCurrentValue";
-//		numericDriver.displayPopup(displayText);
-
 		setCurrentValueInResponseToUserInput(value, modelStack, true, -1, mayDeleteNodesInLinearRun);
 	}
 }
@@ -971,7 +958,7 @@ void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value,
 		nodes.testSequentiality("E441");
 #endif
 
-		firstI = homogenizeRegion(modelStack, pos, length, value, automationClipView.interpolateOn, automationClipView.interpolateOn, effectiveLength, false);
+		firstI = homogenizeRegion(modelStack, pos, length, value, false, false, effectiveLength, false);
 		if (firstI == -1) {
 			return;
 		}
@@ -1068,11 +1055,11 @@ int AutoParam::homogenizeRegion(ModelStackWithAutoParam const* modelStack, int32
 
 	// Or, playing reversed...
 	else {
-#if ALPHA_OR_BETA_VERSION || CURRENT_FIRMWARE_VERSION <= FIRMWARE_4P0P0
-		if (startPos < posAtWhichClipWillCut) {
-			numericDriver.freezeWithError("E445");
+		if constexpr (ALPHA_OR_BETA_VERSION || kCurrentFirmwareVersion <= FIRMWARE_4P0P0) {
+			if (startPos < posAtWhichClipWillCut) {
+				numericDriver.freezeWithError("E445");
+			}
 		}
-#endif
 		edgePositions[REGION_EDGE_RIGHT] = startPos;
 		edgePositions[REGION_EDGE_LEFT] = edgePositions[REGION_EDGE_RIGHT] - length;
 
@@ -1080,11 +1067,12 @@ int AutoParam::homogenizeRegion(ModelStackWithAutoParam const* modelStack, int32
 		if (edgePositions[REGION_EDGE_LEFT] < posAtWhichClipWillCut) {
 			edgePositions[REGION_EDGE_LEFT] = posAtWhichClipWillCut;
 			length = edgePositions[REGION_EDGE_RIGHT] - edgePositions[REGION_EDGE_LEFT];
-#if ALPHA_OR_BETA_VERSION
-			if (edgePositions[REGION_EDGE_LEFT] >= edgePositions[REGION_EDGE_RIGHT]) {
-				numericDriver.freezeWithError("HHHH");
+			if constexpr (ALPHA_OR_BETA_VERSION) {
+				if (edgePositions[REGION_EDGE_LEFT] >= edgePositions[REGION_EDGE_RIGHT]) {
+					numericDriver.freezeWithError("HHHH");
+				}
 			}
-#endif
+
 			interpolateLeftNode = false; // Maybe not really perfect
 			anyWrap = false;
 		}
@@ -1885,7 +1873,7 @@ int AutoParam::readFromFile(int32_t readAutomationUpToPos) {
 
 			// Ensure there isn't some problem where nodes are out of order...
 			if (pos <= prevPos) {
-				Uart::println("Automation nodes out of order");
+				Debug::println("Automation nodes out of order");
 				continue;
 			}
 

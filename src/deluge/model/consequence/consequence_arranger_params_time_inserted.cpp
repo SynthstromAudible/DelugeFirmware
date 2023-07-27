@@ -17,7 +17,7 @@
 
 #include "model/consequence/consequence_arranger_params_time_inserted.h"
 #include "modulation/params/param_manager.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "model/song/song.h"
 #include "model/model_stack.h"
 #include "modulation/params/param_set.h"
@@ -28,7 +28,7 @@ ConsequenceArrangerParamsTimeInserted::ConsequenceArrangerParamsTimeInserted(int
 	length = newLength;
 }
 
-int ConsequenceArrangerParamsTimeInserted::revert(int time, ModelStack* modelStack) {
+int ConsequenceArrangerParamsTimeInserted::revert(TimeType time, ModelStack* modelStack) {
 
 	ParamCollectionSummary* unpatchedParamsSummary = modelStack->song->paramManager.getUnpatchedParamSetSummary();
 

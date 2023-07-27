@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "util/lookuptables/lookuptables.h"
 
 class PhaseIncrementFineTuner {

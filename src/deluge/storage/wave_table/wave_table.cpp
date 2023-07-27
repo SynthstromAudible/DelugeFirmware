@@ -30,10 +30,7 @@
 #include "RZA1/mtu/mtu.h"
 #include "processing/render_wave.h"
 #include "processing/engines/audio_engine.h"
-
-extern "C" {
-#include "drivers/uart/uart.h"
-}
+#include "io/debug/print.h"
 
 extern int32_t oscSyncRenderingBuffer[];
 
@@ -44,7 +41,7 @@ WaveTableBand::~WaveTableBand() {
 	}
 }
 
-WaveTable::WaveTable() : bands(sizeof(WaveTableBand)), AudioFile(AUDIO_FILE_TYPE_WAVETABLE) {
+WaveTable::WaveTable() : bands(sizeof(WaveTableBand)), AudioFile(AudioFileType::WAVETABLE) {
 }
 
 WaveTable::~WaveTable() {
@@ -126,8 +123,8 @@ void dft_r2c(ne10_fft_cpx_int32_t* __restrict__ out, int32_t const* __restrict__
 	/*
 	uint16_t endTime = *TCNT[TIMER_SYSTEM_SLOW];
 	uint16_t duration = endTime - startTime;
-	uartPrint("dft duration: ");
-	uartPrintNumber(duration);
+	Debug::print("dft duration: ");
+	Debug::println(duration);
 	*/
 }
 
@@ -166,7 +163,7 @@ int WaveTable::setup(Sample* sample, int rawFileCycleSize, uint32_t audioDataSta
 
 	// We do some checking here for conditions which make it completely impossible for a file to be a WaveTable.
 	// As opposed for checks before this function is called, for softer conditions which merely determine that this file might not be *intended* as a WaveTable, but the user have have overridden.
-	if (rawFileCycleSize < WAVETABLE_MIN_CYCLE_SIZE) {
+	if (rawFileCycleSize < kWavetableMinCycleSize) {
 		return ERROR_FILE_NOT_LOADABLE_AS_WAVETABLE; // See comment on minimum FFT size - click thru to WAVETABLE_MIN_CYCLE_SIZE.
 	}
 
@@ -517,8 +514,8 @@ gotError5:
 		AudioEngine::logAction("analyzing cycle");
 
 		// Ok, we've finished reading one wave cycle (which potentially spanned multiple file clusters).
-		uartPrint("\nCycle: ");
-		uartPrintNumber(cycleIndex);
+		Debug::print("\nCycle: ");
+		Debug::println(cycleIndex);
 
 		// If it wasn't a power-of-two size, we have to do a DFT even just to get the first band's useable time-domain data.
 		if (!rawFileCycleSizeIsAPowerOfTwo) {
@@ -712,8 +709,8 @@ transformBandToTimeDomain:
 	AudioEngine::routineWithClusterLoading();
 	AudioEngine::logAction("finalizing wavetable");
 
-	uartPrint("initial num bands: ");
-	uartPrintNumber(bands.getNumElements());
+	Debug::print("initial num bands: ");
+	Debug::println(bands.getNumElements());
 
 	// Ok, we've now processed all Cycles.
 
@@ -736,20 +733,20 @@ transformBandToTimeDomain:
 	generalMemoryAllocator.dealloc(frequencyDomainData);
 
 	// Printout stats
-	uartPrint("initial band size if all populated: ");
-	uartPrintNumber(numCycles * (initialBand->cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE)
-	                * 2);
-	uartPrint("initial band size after trimming: ");
-	uartPrintNumber((initialBand->toCycleNumber - initialBand->fromCycleNumber)
-	                * (initialBand->cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE) * 2);
+	Debug::print("initial band size if all populated: ");
+	Debug::println(numCycles * (initialBand->cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE)
+	               * 2);
+	Debug::print("initial band size after trimming: ");
+	Debug::println((initialBand->toCycleNumber - initialBand->fromCycleNumber)
+	               * (initialBand->cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE) * 2);
 	int total = 0;
 	for (int b = 1; b < bands.getNumElements(); b++) {
 		WaveTableBand* band = (WaveTableBand*)bands.getElementAddress(b);
 		total += (band->toCycleNumber - band->fromCycleNumber)
 		         * (band->cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE) * 2;
 	}
-	uartPrint("other bands total size after trimming: ");
-	uartPrintNumber(total);
+	Debug::print("other bands total size after trimming: ");
+	Debug::println(total);
 
 	// Dispose of bands that didn't end up getting used, or such portions of their memory.
 	for (int b = bands.getNumElements() - 1; b >= 0; b--) { // Traverse backwards because we might delete elements.
@@ -759,8 +756,8 @@ transformBandToTimeDomain:
 		if (band->fromCycleNumber >= band->toCycleNumber) {
 			band->~WaveTableBand();
 			bands.deleteAtIndex(b);
-			uartPrint("deleted whole band - ");
-			uartPrintNumber(b);
+			Debug::print("deleted whole band - ");
+			Debug::println(b);
 		}
 
 		// Otherwise, can we shorten the memory?
@@ -769,10 +766,10 @@ transformBandToTimeDomain:
 			// Right-hand side
 			if (band->toCycleNumber < numCycles) {
 				if (!b) {
-					uartPrint("(band 0) ");
+					Debug::print("(band 0) ");
 				}
-				uartPrint("deleting num cycles from right-hand side: ");
-				uartPrintNumber(numCycles - band->toCycleNumber);
+				Debug::print("deleting num cycles from right-hand side: ");
+				Debug::println(numCycles - band->toCycleNumber);
 				int newSize = band->toCycleNumber
 				                  * (band->cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE)
 				                  * sizeof(int16_t)
@@ -809,10 +806,10 @@ WaveTable::doRenderingLoopSingleCycle(int32_t* __restrict__ thisSample, int32_t 
 
 		// Work out the location of the waveform data in memory
 		int whichValueCentral = (phase >> (32 - bandCycleSizeMagnitude));
-		unsigned int whichValue = whichValueCentral - (INTERPOLATION_MAX_NUM_SAMPLES >> 1);
+		unsigned int whichValue = whichValueCentral - (kInterpolationMaxNumSamples >> 1);
 		int whichValueStored[2];
 
-		for (int i = 0; i < (INTERPOLATION_MAX_NUM_SAMPLES >> 3); i++) {
+		for (int i = 0; i < (kInterpolationMaxNumSamples >> 3); i++) {
 			whichValue = whichValue & ((1 << bandCycleSizeMagnitude) - 1);
 			whichValueStored[i] = whichValue;
 			whichValue += 8;
@@ -820,13 +817,13 @@ WaveTable::doRenderingLoopSingleCycle(int32_t* __restrict__ thisSample, int32_t 
 
 		// Grab the actual waveform data from memory
 		int16x8x2_t interpolationBuffer;
-		for (int i = 0; i < (INTERPOLATION_MAX_NUM_SAMPLES >> 3); i++) {
+		for (int i = 0; i < (kInterpolationMaxNumSamples >> 3); i++) {
 			interpolationBuffer.val[i] = vld1q_s16(&table[whichValueStored[i]]);
 		}
 
 // Get the windowed sinc kernel that we need for this individual audio-sample
 #define numBitsInWindowedSyncTableSize 8
-#define rshiftAmount ((32 + INTERPOLATION_MAX_NUM_SAMPLES_MAGNITUDE) - 16 - numBitsInWindowedSyncTableSize + 1)
+#define rshiftAmount ((32 + kInterpolationMaxNumSamplesMagnitude) - 16 - numBitsInWindowedSyncTableSize + 1)
 
 		uint32_t rshifted =
 		    ((uint32_t)-phase)
@@ -836,25 +833,25 @@ WaveTable::doRenderingLoopSingleCycle(int32_t* __restrict__ thisSample, int32_t 
 
 		int windowedSincTableLineOffsetBytes =
 		    ((uint32_t)-phase)
-		    >> (32 + INTERPOLATION_MAX_NUM_SAMPLES_MAGNITUDE - numBitsInWindowedSyncTableSize - 5
+		    >> (32 + kInterpolationMaxNumSamplesMagnitude - numBitsInWindowedSyncTableSize - 5
 		        - bandCycleSizeMagnitude); // The -5 is for 32 bytes (16 samples) per line in the windowed sinc table.
 		windowedSincTableLineOffsetBytes &= 0b111100000;
 		int16_t const* __restrict__ sincKernelReadPos =
 		    (int16_t const*)((uint32_t)&kernel[0] + windowedSincTableLineOffsetBytes);
 
-		int16x8_t kernelVector[INTERPOLATION_MAX_NUM_SAMPLES >> 3];
+		int16x8_t kernelVector[kInterpolationMaxNumSamples >> 3];
 
 		/*
 		int16x8x4_t windowedSincReadValues = vld4q_s16(sincKernelReadPos); // Insanely, I could not get this to work. Tried reading 2 values, too. I just get some noise from final output.
 
-		for (int i = 0; i < (INTERPOLATION_MAX_NUM_SAMPLES >> 3); i++) {
+		for (int i = 0; i < (kInterpolationMaxNumSamples >> 3); i++) {
 			int16x8_t difference = vsubq_s16(windowedSincReadValues.val[i + 2], windowedSincReadValues.val[i]);
 			int16x8_t multipliedDifference = vqdmulhq_n_s16(difference, strength2);
 			kernelVector[i] = vaddq_s16(windowedSincReadValues.val[i], multipliedDifference);
 		}
 		*/
 
-		for (int i = 0; i < (INTERPOLATION_MAX_NUM_SAMPLES >> 3); i++) {
+		for (int i = 0; i < (kInterpolationMaxNumSamples >> 3); i++) {
 			int16x8_t value1 = vld1q_s16(sincKernelReadPos + (i << 3));
 			int16x8_t value2 = vld1q_s16(sincKernelReadPos + 16 + (i << 3));
 
@@ -865,7 +862,7 @@ WaveTable::doRenderingLoopSingleCycle(int32_t* __restrict__ thisSample, int32_t 
 
 		// Apply the windowed sinc kernel to the waveform data
 		int32x4_t multiplied;
-		for (int i = 0; i < (INTERPOLATION_MAX_NUM_SAMPLES >> 3); i++) {
+		for (int i = 0; i < (kInterpolationMaxNumSamples >> 3); i++) {
 
 			if (i == 0) {
 				multiplied = vmull_s16(vget_low_s16(kernelVector[i]), vget_low_s16(interpolationBuffer.val[i]));
@@ -908,10 +905,10 @@ WaveTable::doRenderingLoop(int32_t* __restrict__ thisSample, int32_t const* buff
 
 		// Work out the location of the waveform data in memory
 		int whichValueCentral = (phase >> (32 - bandCycleSizeMagnitude));
-		unsigned int whichValue = whichValueCentral - (INTERPOLATION_MAX_NUM_SAMPLES >> 1);
+		unsigned int whichValue = whichValueCentral - (kInterpolationMaxNumSamples >> 1);
 		int whichValueStored[2];
 
-		for (int i = 0; i < INTERPOLATION_MAX_NUM_SAMPLES >> 3; i++) {
+		for (int i = 0; i < kInterpolationMaxNumSamples >> 3; i++) {
 			whichValue = whichValue & ((1 << bandCycleSizeMagnitude) - 1);
 			whichValueStored[i] = whichValue;
 			whichValue += 8;
@@ -919,16 +916,16 @@ WaveTable::doRenderingLoop(int32_t* __restrict__ thisSample, int32_t const* buff
 
 		// Grab the actual waveform data from memory, for both cycles that we need for this sample
 		int16x8x2_t interpolationBuffer[2];
-		for (int i = 0; i < INTERPOLATION_MAX_NUM_SAMPLES >> 3; i++) {
+		for (int i = 0; i < kInterpolationMaxNumSamples >> 3; i++) {
 			interpolationBuffer[0].val[i] = vld1q_s16(&table1[whichValueStored[i]]);
 		}
-		for (int i = 0; i < INTERPOLATION_MAX_NUM_SAMPLES >> 3; i++) {
+		for (int i = 0; i < kInterpolationMaxNumSamples >> 3; i++) {
 			interpolationBuffer[1].val[i] = vld1q_s16(&table2[whichValueStored[i]]);
 		}
 
 // Get the windowed sinc kernel that we need for this individual audio-sample
 #define numBitsInWindowedSyncTableSize 8
-#define rshiftAmount ((32 + INTERPOLATION_MAX_NUM_SAMPLES_MAGNITUDE) - 16 - numBitsInWindowedSyncTableSize + 1)
+#define rshiftAmount ((32 + kInterpolationMaxNumSamplesMagnitude) - 16 - numBitsInWindowedSyncTableSize + 1)
 
 		uint32_t rshifted =
 		    ((uint32_t)-phase)
@@ -938,25 +935,25 @@ WaveTable::doRenderingLoop(int32_t* __restrict__ thisSample, int32_t const* buff
 
 		int windowedSincTableLineOffsetBytes =
 		    ((uint32_t)-phase)
-		    >> (32 + INTERPOLATION_MAX_NUM_SAMPLES_MAGNITUDE - numBitsInWindowedSyncTableSize - 5
+		    >> (32 + kInterpolationMaxNumSamplesMagnitude - numBitsInWindowedSyncTableSize - 5
 		        - bandCycleSizeMagnitude); // The -5 is for 32 bytes (16 samples) per line in the windowed sinc table.
 		windowedSincTableLineOffsetBytes &= 0b111100000;
 		int16_t const* __restrict__ sincKernelReadPos =
 		    (int16_t const*)((uint32_t)&kernel[0] + windowedSincTableLineOffsetBytes);
 
-		int16x8_t kernelVector[INTERPOLATION_MAX_NUM_SAMPLES >> 3];
+		int16x8_t kernelVector[kInterpolationMaxNumSamples >> 3];
 
 		/*
 		int16x8x4_t windowedSincReadValues = vld4q_s16(sincKernelReadPos); // Insanely, I could not get this to work. Tried reading 2 values, too. I just get some noise from final output.
 
-		for (int i = 0; i < (INTERPOLATION_MAX_NUM_SAMPLES >> 3); i++) {
+		for (int i = 0; i < (kInterpolationMaxNumSamples >> 3); i++) {
 			int16x8_t difference = vsubq_s16(windowedSincReadValues.val[i + 2], windowedSincReadValues.val[i]);
 			int16x8_t multipliedDifference = vqdmulhq_n_s16(difference, strength2);
 			kernelVector[i] = vaddq_s16(windowedSincReadValues.val[i], multipliedDifference);
 		}
 		*/
 
-		for (int i = 0; i < (INTERPOLATION_MAX_NUM_SAMPLES >> 3); i++) {
+		for (int i = 0; i < (kInterpolationMaxNumSamples >> 3); i++) {
 			int16x8_t value1 = vld1q_s16(sincKernelReadPos + (i << 3));
 			int16x8_t value2 = vld1q_s16(sincKernelReadPos + 16 + (i << 3));
 
@@ -969,7 +966,7 @@ WaveTable::doRenderingLoop(int32_t* __restrict__ thisSample, int32_t const* buff
 		int32x2_t twosies[2];
 		for (int c = 0; c < 2; c++) {
 			int32x4_t multiplied;
-			for (int i = 0; i < (INTERPOLATION_MAX_NUM_SAMPLES >> 3); i++) {
+			for (int i = 0; i < (kInterpolationMaxNumSamples >> 3); i++) {
 
 				if (i == 0) {
 					multiplied = vmull_s16(vget_low_s16(kernelVector[i]), vget_low_s16(interpolationBuffer[c].val[i]));
@@ -1013,8 +1010,8 @@ const int16_t* getKernel(int32_t phaseIncrement, int32_t bandMaxPhaseIncrement) 
 	else if (phaseIncrement >= (band->maxPhaseIncrement * 0.354))
 		whichKernel = 1;
 	if (!getRandom255()) {
-		uartPrint("kernel: ");
-		uartPrintNumber(whichKernel);
+		Debug::print("kernel: ");
+		Debug::println(whichKernel);
 	}
 #else
 	uint32_t phaseIncrementHere = phaseIncrement;

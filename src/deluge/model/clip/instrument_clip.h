@@ -19,7 +19,7 @@
 
 #include "model/clip/clip.h"
 #include "model/timeline_counter.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "modulation/arpeggiator.h"
 #include "model/note/note_row_vector.h"
 #include "util/d_string.h"
@@ -55,7 +55,7 @@ public:
 	InstrumentClip(Song* song = NULL);
 	~InstrumentClip();
 	void increaseLengthWithRepeats(ModelStackWithTimelineCounter* modelStack, int32_t newLength,
-	                               int independentNoteRowInstruction,
+	                               IndependentNoteRowLengthIncrease independentNoteRowInstruction,
 	                               bool completelyRenderOutIterationDependence = false, Action* action = NULL);
 	void halveNoteRowsWithIndependentLength(ModelStackWithTimelineCounter* modelStack);
 	void repeatOrChopToExactLength(ModelStackWithTimelineCounter* modelStack, int32_t newLength);
@@ -63,7 +63,7 @@ public:
 	bool renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, TimelineView* editorScreen, int32_t xScroll,
 	                       uint32_t xZoom, uint8_t* image, uint8_t occupancyMask[], bool addUndefinedArea,
 	                       int noteRowIndexStart = 0, int noteRowIndexEnd = 2147483647, int xStart = 0,
-	                       int xEnd = displayWidth, bool allowBlur = true, bool drawRepeats = false);
+	                       int xEnd = kDisplayWidth, bool allowBlur = true, bool drawRepeats = false);
 	void toggleNoteRowMute(ModelStackWithNoteRow* modelStack);
 	void overviewMutePadPress(bool, bool);
 	void midiCommandMute(bool);
@@ -99,7 +99,7 @@ public:
 	bool currentlyScrollableAndZoomable();
 	void recordNoteOn(ModelStackWithNoteRow* modelStack, int velocity, bool forcePos0 = false,
 	                  int16_t const* mpeValuesOrNull = NULL, int fromMIDIChannel = MIDI_CHANNEL_NONE);
-	void recordNoteOff(ModelStackWithNoteRow* modelStack, int velocity = DEFAULT_LIFT_VALUE);
+	void recordNoteOff(ModelStackWithNoteRow* modelStack, int velocity = kDefaultLiftValue);
 
 	void copyBasicsFrom(Clip* otherClip);
 
@@ -113,7 +113,6 @@ public:
 
 	int yScroll;
 	int yScrollKeyboardScreen;
-	int yScrollAutomationScreen;
 	int keyboardRowInterval;
 
 	int32_t ticksTilNextNoteRowEvent;
@@ -136,18 +135,17 @@ public:
 	bool affectEntire;
 
 	bool onKeyboardScreen;
-	bool onAutomationClipView;
 
 	uint8_t midiBank; // 128 means none
 	uint8_t midiSub;  // 128 means none
 	uint8_t midiPGM;  // 128 means none
 
-	uint8_t instrumentTypeWhileLoading; // For use only while loading song
+	InstrumentType instrumentTypeWhileLoading; // For use only while loading song
 
 	void lengthChanged(ModelStackWithTimelineCounter* modelStack, int32_t oldLength, Action* action = NULL);
 	NoteRow* createNewNoteRowForKit(ModelStackWithTimelineCounter* modelStack, bool atStart, int* getIndex = NULL);
 	int changeInstrument(ModelStackWithTimelineCounter* modelStack, Instrument* newInstrument,
-	                     ParamManagerForTimeline* paramManager, int instrumentRemovalInstruction,
+	                     ParamManagerForTimeline* paramManager, InstrumentRemoval instrumentRemovalInstruction,
 	                     InstrumentClip* favourClipForCloningParamManager = NULL, bool keepNoteRowsWithMIDIInput = true,
 	                     bool giveMidiAssignmentsToNewInstrument = false);
 	void detachFromOutput(ModelStackWithTimelineCounter* modelStack, bool shouldRememberDrumName,
@@ -191,7 +189,7 @@ public:
 	void clear(Action* action, ModelStackWithTimelineCounter* modelStack);
 	bool doesProbabilityExist(int32_t apartFromPos, int probability, int secondProbability = -1);
 	void clearArea(ModelStackWithTimelineCounter* modelStack, int32_t startPos, int32_t endPos, Action* action);
-	int getScaleType();
+	ScaleType getScaleType();
 	void backupPresetSlot();
 	void setPosForParamManagers(ModelStackWithTimelineCounter* modelStack, bool useActualPos = true);
 	ModelStackWithNoteRow* getNoteRowForDrumName(ModelStackWithTimelineCounter* modelStack, char const* name);
@@ -205,7 +203,7 @@ public:
 	bool isScrollWithinRange(int scrollAmount, int newYNote);
 	int appendClip(ModelStackWithTimelineCounter* thisModelStack, ModelStackWithTimelineCounter* otherModelStack);
 	void instrumentBeenEdited();
-	Instrument* changeInstrumentType(ModelStackWithTimelineCounter* modelStack, int newInstrumentType);
+	Instrument* changeInstrumentType(ModelStackWithTimelineCounter* modelStack, InstrumentType newInstrumentType);
 	int transferVoicesToOriginalClipFromThisClone(ModelStackWithTimelineCounter* modelStackOriginal,
 	                                              ModelStackWithTimelineCounter* modelStackClone);
 	void getSuggestedParamManager(Clip* newClip, ParamManagerForTimeline** suggestedParamManager, Sound* sound);
@@ -253,7 +251,7 @@ private:
 	void prepareToEnterKitMode(Song* song);
 	int readMIDIParamsFromFile(int32_t readAutomationUpToPos);
 
-	bool lastProbabilities[NUM_PROBABILITY_VALUES];
-	int32_t lastProbabiltyPos[NUM_PROBABILITY_VALUES];
+	bool lastProbabilities[kNumProbabilityValues];
+	int32_t lastProbabiltyPos[kNumProbabilityValues];
 	bool currentlyRecordingLinearly;
 };

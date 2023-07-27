@@ -15,11 +15,12 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "definitions_cxx.hpp"
 #include "processing/engines/audio_engine.h"
 #include "io/midi/midi_engine.h"
 #include "util/functions.h"
 #include "gui/ui/sound_editor.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include <string.h>
 #include "playback/mode/playback_mode.h"
 #include "model/song/song.h"
@@ -215,7 +216,7 @@ MidiEngine::MidiEngine() {
 	lastStatusByteSent = 0;
 	currentlyReceivingSysExSerial = false;
 	midiThru = false;
-	midiTakeover = 0;
+	midiTakeover = MIDITakeoverMode::JUMP;
 
 	g_usb_peri_connected = 0; // Needs initializing with A2 driver
 
@@ -425,7 +426,7 @@ void MidiEngine::sendCC(int channel, int cc, int value, int filter) {
 
 void MidiEngine::sendClock(bool sendUSB, int howMany) {
 	while (howMany--) {
-		sendMidi(0x0F, 0x08, 0, 0, MIDI_OUTPUT_FILTER_NO_MPE, sendUSB);
+		sendMidi(0x0F, 0x08, 0, 0, kMIDIOutputFilterNoMPE, sendUSB);
 	}
 }
 
@@ -570,7 +571,7 @@ bool MidiEngine::checkIncomingSerialMidi() {
 	uint8_t thisSerialByte;
 	uint32_t* timer = uartGetCharWithTiming(TIMING_CAPTURE_ITEM_MIDI, (char*)&thisSerialByte);
 	if (timer) {
-		//Uart::println((unsigned int)thisSerialByte);
+		//Debug::println((unsigned int)thisSerialByte);
 		MIDIDevice* dev = &MIDIDeviceManager::dinMIDIPorts;
 
 		// If this is a status byte, then we have to store it as the first byte.
@@ -587,7 +588,7 @@ bool MidiEngine::checkIncomingSerialMidi() {
 			// Or if it's a SysEx start...
 			case 0xF0:
 				currentlyReceivingSysExSerial = true;
-				Uart::println("Sysex start");
+				Debug::println("Sysex start");
 				dev->incomingSysexBuffer[0] = thisSerialByte;
 				dev->incomingSysexPos = 1;
 				//numSerialMidiInput = 0; // This would throw away any running status stuff...
@@ -598,7 +599,7 @@ bool MidiEngine::checkIncomingSerialMidi() {
 
 			// If it was a Sysex stop, that's all we need to do
 			if (thisSerialByte == 0xF7) {
-				Uart::println("Sysex end");
+				Debug::println("Sysex end");
 				if (currentlyReceivingSysExSerial) {
 					currentlyReceivingSysExSerial = false;
 					if (dev->incomingSysexPos < sizeof dev->incomingSysexBuffer) {
@@ -622,8 +623,8 @@ bool MidiEngine::checkIncomingSerialMidi() {
 				if (dev->incomingSysexPos < sizeof dev->incomingSysexBuffer) {
 					dev->incomingSysexBuffer[dev->incomingSysexPos++] = thisSerialByte;
 				}
-				Uart::print("Sysex: ");
-				Uart::println(thisSerialByte);
+				Debug::print("Sysex: ");
+				Debug::println(thisSerialByte);
 				return true;
 			}
 
@@ -722,6 +723,48 @@ void MidiEngine::checkIncomingUsbSysex(uint8_t const* msg, int ip, int d, int ca
 	}
 }
 
+void MidiEngine::debugSysexReceived(MIDIDevice* device, uint8_t* data, int len) {
+	if (len < 6) {
+		return;
+	}
+
+	// first three bytes are already used, next is command
+	switch (data[3]) {
+	case 0:
+		if (data[4] == 1) {
+			Debug::midiDebugDevice = device;
+		}
+		else if (data[4] == 0) {
+			Debug::midiDebugDevice = nullptr;
+		}
+		break;
+	}
+}
+
+void midiDebugPrint(MIDIDevice* device, const char* msg, bool nl) {
+	if (!msg) {
+		return; // Do not do that
+	}
+	// data[4]: reserved, could serve as a message identifier to filter messages per category
+	uint8_t reply_hdr[5] = {0xf0, 0x7d, 0x03, 0x40, 0x00};
+	uint8_t* reply = midiEngine.sysex_fmt_buffer;
+	memcpy(reply, reply_hdr, 5);
+	int len = strlen(msg);
+	len = getMin(len, (sizeof midiEngine.sysex_fmt_buffer) - 7);
+	memcpy(reply + 5, msg, len);
+	for (int i = 0; i < len; i++) {
+		reply[5 + i] &= 0x7F; // only ascii debug messages
+	}
+	if (nl) {
+		reply[5 + len] = '\n';
+		len++;
+	}
+
+	reply[5 + len] = 0xf7;
+
+	device->sendSysex(reply, len + 6);
+}
+
 void MidiEngine::midiSysexReceived(MIDIDevice* device, uint8_t* data, int len) {
 	if (len < 4) {
 		return;
@@ -745,6 +788,12 @@ void MidiEngine::midiSysexReceived(MIDIDevice* device, uint8_t* data, int len) {
 
 		case 2:
 			HIDSysex::sysexReceived(device, data, len);
+			break;
+
+		case 3:
+			// debug namespace: for sysex calls useful for debugging purposes
+			// and/or might require a debug build to function.
+			debugSysexReceived(device, data, len);
 			break;
 
 		case 0x7f: // PONG, reserved
@@ -930,7 +979,7 @@ void MidiEngine::midiMessageReceived(MIDIDevice* fromDevice, uint8_t statusType,
 			case 0x09: // Note on
 				// If velocity 0, interpret that as a note-off.
 				if (!data2) {
-					data2 = DEFAULT_LIFT_VALUE;
+					data2 = kDefaultLiftValue;
 					statusType = 0x08;
 				}
 				// No break
@@ -980,7 +1029,7 @@ void MidiEngine::midiMessageReceived(MIDIDevice* fromDevice, uint8_t statusType,
 					// All notes off
 					if (data1 == 123) {
 						if (data2 == 0) {
-							playbackHandler.noteMessageReceived(fromDevice, false, channel, -32768, DEFAULT_LIFT_VALUE,
+							playbackHandler.noteMessageReceived(fromDevice, false, channel, -32768, kDefaultLiftValue,
 							                                    NULL);
 						}
 					}
@@ -1006,7 +1055,7 @@ void MidiEngine::midiMessageReceived(MIDIDevice* fromDevice, uint8_t statusType,
 	if (shouldDoMidiThruNow) {
 		bool shouldSendUSB =
 		    (fromDevice == &MIDIDeviceManager::dinMIDIPorts); // Only send out on USB if it didn't originate from USB
-		sendMidi(originalStatusType, channel, data1, originalData2, MIDI_OUTPUT_FILTER_NO_MPE,
+		sendMidi(originalStatusType, channel, data1, originalData2, kMIDIOutputFilterNoMPE,
 		         shouldSendUSB); // TODO: reconsider interaction with MPE?
 	}
 }

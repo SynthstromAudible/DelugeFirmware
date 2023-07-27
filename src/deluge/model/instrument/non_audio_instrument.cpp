@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "definitions_cxx.hpp"
 #include "model/clip/instrument_clip.h"
 #include "modulation/params/param_manager.h"
 #include "model/instrument/non_audio_instrument.h"
@@ -25,10 +26,6 @@
 #include "storage/storage_manager.h"
 #include <string.h>
 
-NonAudioInstrument::NonAudioInstrument(int newType) : MelodicInstrument(newType) {
-	channel = 0;
-}
-
 void NonAudioInstrument::renderOutput(ModelStack* modelStack, StereoSample* startPos, StereoSample* endPos,
                                       int numSamples, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
                                       int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive) {
@@ -37,11 +34,11 @@ void NonAudioInstrument::renderOutput(ModelStack* modelStack, StereoSample* star
 	if (activeClip) {
 		InstrumentClip* activeInstrumentClip = (InstrumentClip*)activeClip;
 
-		if (activeInstrumentClip->arpSettings.mode) {
+		if (activeInstrumentClip->arpSettings.mode != ArpMode::OFF) {
 			uint32_t gateThreshold = activeInstrumentClip->arpeggiatorGate + 2147483648;
 
 			uint32_t phaseIncrement = activeInstrumentClip->arpSettings.getPhaseIncrement(
-			    getFinalParameterValueExp(paramNeutralValues[PARAM_GLOBAL_ARP_RATE],
+			    getFinalParameterValueExp(paramNeutralValues[Param::Global::ARP_RATE],
 			                              cableToExpParamShortcut(activeInstrumentClip->arpeggiatorRate)));
 
 			ArpReturnInstruction instruction;
@@ -52,7 +49,7 @@ void NonAudioInstrument::renderOutput(ModelStack* modelStack, StereoSample* star
 			if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE) {
 				noteOffPostArp(
 				    instruction.noteCodeOffPostArp, instruction.outputMIDIChannelOff,
-				    DEFAULT_LIFT_VALUE); // Is there some better option than using the default lift value? The lift event wouldn't have occurred yet...
+				    kDefaultLiftValue); // Is there some better option than using the default lift value? The lift event wouldn't have occurred yet...
 			}
 
 			if (instruction.noteCodeOnPostArp != ARP_NOTE_NONE) {
@@ -98,14 +95,15 @@ void NonAudioInstrument::sendNote(ModelStackWithThreeMainThings* modelStack, boo
 
 // Inherit / overrides from both MelodicInstrument and ModControllable
 void NonAudioInstrument::polyphonicExpressionEventOnChannelOrNote(int newValue, int whichExpressionDimension,
-                                                                  int channelOrNoteNumber, int whichCharacteristic) {
+                                                                  int channelOrNoteNumber,
+                                                                  MIDICharacteristic whichCharacteristic) {
 	ArpeggiatorSettings* settings = getArpSettings();
 
 	int n;
 	int nEnd;
 
 	// If for note, we can search right to it.
-	if (whichCharacteristic == MIDI_CHARACTERISTIC_NOTE) {
+	if (whichCharacteristic == MIDICharacteristic::NOTE) {
 		n = arpeggiator.notes.search(channelOrNoteNumber, GREATER_OR_EQUAL);
 		if (n < arpeggiator.notes.getNumElements()) {
 			nEnd = 0;
@@ -119,18 +117,19 @@ void NonAudioInstrument::polyphonicExpressionEventOnChannelOrNote(int newValue, 
 	for (n = 0; n < nEnd; n++) {
 lookAtArpNote:
 		ArpNote* arpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
-		if (arpNote->inputCharacteristics[whichCharacteristic] == channelOrNoteNumber) {
+		if (arpNote->inputCharacteristics[util::to_underlying(whichCharacteristic)] == channelOrNoteNumber) {
 
 			// Update the MPE value in the ArpNote. If arpeggiating, it'll get read from there the next time there's a note-on-post-arp.
 			// I realise this is potentially frequent writing when it's only going to be read occasionally, but since we're already this far (the Instrument being notified),
 			// it's hardly any extra work.
 			arpNote->mpeValues[whichExpressionDimension] = newValue >> 16;
 
-			int noteCodeBeforeArpeggiation = arpNote->inputCharacteristics[MIDI_CHARACTERISTIC_NOTE];
+			int noteCodeBeforeArpeggiation =
+			    arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)];
 			int noteCodeAfterArpeggiation = noteCodeBeforeArpeggiation;
 
 			// If there's actual arpeggiation happening right now...
-			if (settings && settings->mode) {
+			if ((settings != nullptr) && settings->mode != ArpMode::OFF) {
 				// If it's not this noteCode's turn, then do nothing with it
 				if (arpeggiator.whichNoteCurrentlyOnPostArp != n) {
 					continue;
@@ -164,7 +163,7 @@ int32_t NonAudioInstrument::doTickForwardForArp(ModelStack* modelStack, int32_t 
 	if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE) {
 		noteOffPostArp(
 		    instruction.noteCodeOffPostArp, instruction.outputMIDIChannelOff,
-		    DEFAULT_LIFT_VALUE); // Is there some better option than using the default lift value? The lift event wouldn't have occurred yet...
+		    kDefaultLiftValue); // Is there some better option than using the default lift value? The lift event wouldn't have occurred yet...
 	}
 
 	if (instruction.noteCodeOnPostArp != ARP_NOTE_NONE) {

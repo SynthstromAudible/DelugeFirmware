@@ -18,7 +18,7 @@
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "model/sample/sample.h"
 #include "util/functions.h"
 #include <string.h>
@@ -64,7 +64,6 @@ void Cluster::convertDataIfNecessary() {
 			else {
 				uint32_t bytesBeforeStartOfCluster =
 				    clusterIndex * audioFileManager.clusterSize - sample->audioDataStartPosBytes;
-
 				int bytesThatWillBeEatingIntoAnother3Byte = bytesBeforeStartOfCluster % 3;
 				if (bytesThatWillBeEatingIntoAnother3Byte == 0) {
 					bytesThatWillBeEatingIntoAnother3Byte = 3;
@@ -141,8 +140,8 @@ void Cluster::convertDataIfNecessary() {
 			uint16_t endTime = MTU2.TCNT_0;
 
 			if (clusterIndex != startCluster) {
-				Uart::print("time to convert: ");
-				Uart::println((uint16_t)(endTime - startTime));
+				Debug::print("time to convert: ");
+				Debug::println((uint16_t)(endTime - startTime));
 			}
 			*/
 		}
@@ -153,7 +152,7 @@ int Cluster::getAppropriateQueue() {
 	int q;
 
 	// If it's a perc cache...
-	if (type == CLUSTER_PERC_CACHE_FORWARDS || type == CLUSTER_PERC_CACHE_REVERSED) {
+	if (type == ClusterType::PERC_CACHE_FORWARDS || type == ClusterType::PERC_CACHE_REVERSED) {
 		q = sample->numReasonsToBeLoaded ? STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA_PERC_CACHE
 		                                 : STEALABLE_QUEUE_NO_SONG_SAMPLE_DATA_PERC_CACHE;
 	}
@@ -182,14 +181,14 @@ void Cluster::steal(char const* errorCode) {
 	// Ok, we're now gonna decide what to do according to the actual "type" field for this Cluster.
 	switch (type) {
 
-	case CLUSTER_SAMPLE:
+	case ClusterType::Sample:
 		if (ALPHA_OR_BETA_VERSION && !sample) {
 			numericDriver.freezeWithError("E181");
 		}
 		sample->clusters.getElement(clusterIndex)->cluster = NULL;
 		break;
 
-	case CLUSTER_SAMPLE_CACHE:
+	case ClusterType::SAMPLE_CACHE:
 		if (ALPHA_OR_BETA_VERSION && !sampleCache) {
 			numericDriver.freezeWithError("E183");
 		}
@@ -203,8 +202,8 @@ void Cluster::steal(char const* errorCode) {
 		*/
 		break;
 
-	case CLUSTER_PERC_CACHE_FORWARDS:
-	case CLUSTER_PERC_CACHE_REVERSED:
+	case ClusterType::PERC_CACHE_FORWARDS:
+	case ClusterType::PERC_CACHE_REVERSED:
 		if (ALPHA_OR_BETA_VERSION && !sample) {
 			numericDriver.freezeWithError("E184");
 		}
@@ -226,11 +225,11 @@ bool Cluster::mayBeStolen(void* thingNotToStealFrom) {
 	}
 
 	switch (type) {
-	case CLUSTER_SAMPLE_CACHE:
+	case ClusterType::SAMPLE_CACHE:
 		return (sampleCache != thingNotToStealFrom);
 
-	case CLUSTER_PERC_CACHE_FORWARDS:
-	case CLUSTER_PERC_CACHE_REVERSED:
+	case ClusterType::PERC_CACHE_FORWARDS:
+	case ClusterType::PERC_CACHE_REVERSED:
 		return (sample != thingNotToStealFrom);
 	}
 	return true;

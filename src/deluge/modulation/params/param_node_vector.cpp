@@ -19,7 +19,7 @@
 
 #include "RZA1/system/r_typedefs.h"
 #include <string.h>
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "modulation/params/param_node.h"
 
 ParamNodeVector::ParamNodeVector() : OrderedResizeableArrayWith32bitKey(sizeof(ParamNode)) {

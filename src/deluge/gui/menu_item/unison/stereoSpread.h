@@ -15,20 +15,19 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "gui/menu_item/selection.h"
-#include <gui/views/automation_clip_view.h>
+#include "model/model_stack.h"
+#include "gui/menu_item/integer.h"
 #include "gui/ui/sound_editor.h"
+#include "processing/sound/sound.h"
 
-namespace menu_item::defaults {
-class DrawLine final : public Selection {
+namespace menu_item::unison {
+class StereoSpread final : public Integer {
 public:
-	using Selection::Selection;
-	void readCurrentValue() { soundEditor.currentValue = automationClipView.drawLine; }
-	void writeCurrentValue() { automationClipView.drawLine = soundEditor.currentValue; }
-	char const** getOptions() {
-		static char const* options[] = {"Off", "On", NULL};
-		return options;
-	}
-	int getNumOptions() { return 2; }
+	using Integer::Integer;
+	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentSound->unisonStereoSpread; }
+	void writeCurrentValue() { soundEditor.currentSound->setUnisonStereoSpread(soundEditor.currentValue); }
+	int getMaxValue() const { return kMaxUnisonStereoSpread; }
 };
-} // namespace menu_item::defaults
+} // namespace menu_item::unison
+
+extern menu_item::unison::StereoSpread unisonStereoSpreadMenu;

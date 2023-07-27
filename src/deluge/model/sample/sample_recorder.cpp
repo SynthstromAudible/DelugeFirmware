@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "definitions_cxx.hpp"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
@@ -28,8 +29,9 @@
 #include "model/clip/audio_clip.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "hid/display/numeric_driver.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "gui/ui_timer_manager.h"
+#include "util/misc.h"
 
 extern "C" {
 #include "fatfs/diskio.h"
@@ -63,7 +65,7 @@ SampleRecorder::SampleRecorder() {
 }
 
 SampleRecorder::~SampleRecorder() {
-	Uart::println("~SampleRecorder()");
+	Debug::println("~SampleRecorder()");
 	if (sample) {
 		detachSample();
 	}
@@ -75,7 +77,7 @@ void SampleRecorder::detachSample() {
 
 	// If we were holding onto the reasons for the first couple of Clusters, release them now
 	if (keepingReasonsForFirstClusters) {
-		int numClustersToRemoveFor = getMin(NUM_CLUSTERS_LOADED_AHEAD, sample->clusters.getNumElements());
+		int numClustersToRemoveFor = getMin(kNumClustersLoadedAhead, sample->clusters.getNumElements());
 		numClustersToRemoveFor = getMin(numClustersToRemoveFor, firstUnwrittenClusterIndex);
 
 		for (int l = 0; l < numClustersToRemoveFor; l++) {
@@ -116,8 +118,8 @@ void SampleRecorder::detachSample() {
 	sample->removeReason("E400");
 }
 
-int SampleRecorder::setup(int newNumChannels, int newMode, bool newKeepingReasons, bool shouldRecordExtraMargins,
-                          int newFolderID, int buttonPressLatency) {
+int SampleRecorder::setup(int newNumChannels, AudioInputChannel newMode, bool newKeepingReasons,
+                          bool shouldRecordExtraMargins, AudioRecordingFolder newFolderID, int buttonPressLatency) {
 
 	if (!audioFileManager.ensureEnoughMemoryForOneMoreAudioFile()) {
 		return ERROR_INSUFFICIENT_RAM;
@@ -174,11 +176,11 @@ gotError:
 	currentRecordClusterIndex = 0;
 
 	numSamplesToRunBeforeBeginningCapturing = numSamplesExtraToCaptureAtEndSyncingWise =
-	    (mode < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION) ? AUDIO_RECORD_LAG_COMPENTATION : 0;
+	    (mode < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION) ? kAudioRecordLagCompensation : 0;
 
 	// Apart from the MIX option, all other audio sources are fed to us during the "outputting" routine. Occasionally, there'll be some more of that
 	// going to happen for the previous render, so we have to compensate for that
-	if (mode != AUDIO_INPUT_CHANNEL_MIX) {
+	if (mode != AudioInputChannel::MIX) {
 		numSamplesToRunBeforeBeginningCapturing += AudioEngine::getNumSamplesLeftToOutputFromPreviousRender();
 	}
 
@@ -344,10 +346,11 @@ aborted:
 
 			// If this was the most recent recording in this category, tick the counter backwards - so long as
 			// either the delete was successful or it was for an AudioClip, which means the file is in the TEMP folder and can be overwritten anyway
-			if (result == FR_OK || folderID == AUDIO_RECORDING_FOLDER_CLIPS) {
-				if (audioFileManager.highestUsedAudioRecordingNumber[folderID] == audioFileNumber) {
-					audioFileManager.highestUsedAudioRecordingNumber[folderID]--;
-					Uart::println("ticked file counter backwards");
+			if (result == FR_OK || folderID == AudioRecordingFolder::CLIPS) {
+				if (audioFileManager.highestUsedAudioRecordingNumber[util::to_underlying(folderID)]
+				    == audioFileNumber) {
+					audioFileManager.highestUsedAudioRecordingNumber[util::to_underlying(folderID)]--;
+					Debug::println("ticked file counter backwards");
 				}
 			}
 			filePathCreated.clear();
@@ -506,7 +509,7 @@ int SampleRecorder::writeOneCompletedCluster() {
 	int error = writeCluster(writingClusterIndex, audioFileManager.clusterSize);
 
 	// We no longer have a reason to require this Cluster to be kept in memory
-	if (!keepingReasonsForFirstClusters || writingClusterIndex >= NUM_CLUSTERS_LOADED_AHEAD) {
+	if (!keepingReasonsForFirstClusters || writingClusterIndex >= kNumClustersLoadedAhead) {
 		Cluster* cluster = sample->clusters.getElement(writingClusterIndex)->cluster;
 
 		// Some bug-hunting
@@ -529,7 +532,7 @@ int SampleRecorder::finalizeRecordedFile() {
 		numericDriver.freezeWithError("E273");
 	}
 
-	Uart::println("finalizing");
+	Debug::println("finalizing");
 
 	// In the very rare case where we've already got between 1 and 5 bytes overhanging the end of our current cluster, we need to allocate a new one right now
 	int bytesTilClusterEnd = (uint32_t)clusterEndPos - (uint32_t)writePos;
@@ -566,7 +569,7 @@ int SampleRecorder::finalizeRecordedFile() {
 
 		// Having incremented firstUnwrittenClusterIndex, we need to remove the "reason" for that final cluster.
 		// Normally that happens in writeAnyCompletedClusters(), but well this cluster wasn't "complete" so we're doing the whole thing here instead
-		if (!keepingReasonsForFirstClusters || currentRecordClusterIndex >= NUM_CLUSTERS_LOADED_AHEAD) {
+		if (!keepingReasonsForFirstClusters || currentRecordClusterIndex >= kNumClustersLoadedAhead) {
 
 			// Some bug-hunting
 			if (!currentRecordCluster->numReasonsHeldBySampleRecorder) {
@@ -595,19 +598,19 @@ int SampleRecorder::finalizeRecordedFile() {
 		else {
 			// If R is really quiet or is nearly identical to L, delete R
 			if (inputHasNoRightChannel() || recordSumLMinusR < (recordSumL >> 6)) {
-				Uart::println("removing right channel");
+				Debug::println("removing right channel");
 				action = ACTION_REMOVE_RIGHT_CHANNEL;
 			}
 
 			// Or, if R is the differential signal of L, do that
 			else if (mode < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION && AudioEngine::lineInPluggedIn
 			         && inputLooksDifferential()) {
-				Uart::println("subtracting right channel");
+				Debug::println("subtracting right channel");
 				action = ACTION_SUBTRACT_RIGHT_CHANNEL;
 			}
 
 			else {
-				Uart::println("keeping right channel");
+				Debug::println("keeping right channel");
 				action = 0;
 			}
 		}
@@ -645,7 +648,7 @@ int SampleRecorder::finalizeRecordedFile() {
 
 		// If we made the file too long, because we then compensated for button latency and are throwing away the last little bit, then truncate it
 		if (capturedTooMuch) {
-			Uart::println("truncating");
+			Debug::println("truncating");
 			uint32_t correctLength =
 			    sample->audioDataStartPosBytes
 			    + sample->audioDataLengthBytes; // These were written to in totalSampleLengthNowKnown().
@@ -732,7 +735,7 @@ extern int pendingGlobalMIDICommandNumClustersWritten;
 
 // You'll want to remove the "reason" after calling this
 int SampleRecorder::writeCluster(int32_t clusterIndex, int numBytes) {
-	//Uart::println("writeCluster");
+	//Debug::println("writeCluster");
 
 	SampleCluster* sampleCluster = sample->clusters.getElement(clusterIndex);
 
@@ -789,7 +792,7 @@ int SampleRecorder::createNextCluster() {
 
 	// If couldn't allocate cluster (would normally only happen if no SD card present so recording only to RAM)
 	if (!currentRecordCluster) {
-		Uart::println("SampleRecorder::createNextCluster() fail");
+		Debug::println("SampleRecorder::createNextCluster() fail");
 		return ERROR_INSUFFICIENT_RAM;
 	}
 
@@ -870,7 +873,7 @@ doFinishCapturing:
 					goto doFinishCapturing;
 				}
 				else if (error) { // RAM error
-					Uart::println("couldn't allocate RAM");
+					Debug::println("couldn't allocate RAM");
 					abort();
 					return;
 				}
@@ -894,7 +897,7 @@ doFinishCapturing:
 
 			// Balanced input. For this, we skip a bunch of stat-grabbing, cos we knob this is just for AudioClips.
 			// We also know that applyGain is false - that's just for the MIX option
-			if (mode == AUDIO_INPUT_CHANNEL_BALANCED) {
+			if (mode == AudioInputChannel::BALANCED) {
 
 				do {
 					int32_t rxL = *inputAddress;
@@ -1045,11 +1048,11 @@ void SampleRecorder::endSyncedRecording(int buttonLatencyForTempolessRecording) 
 	int numMoreSamplesTilEndLoopPoint = numSamplesExtraToCaptureAtEndSyncingWise - buttonLatencyForTempolessRecording;
 	int numMoreSamplesToCapture = numMoreSamplesTilEndLoopPoint;
 
-	Uart::print("buttonLatencyForTempolessRecording: ");
-	Uart::println(buttonLatencyForTempolessRecording);
+	Debug::print("buttonLatencyForTempolessRecording: ");
+	Debug::println(buttonLatencyForTempolessRecording);
 
 	if (recordingExtraMargins) {
-		numMoreSamplesToCapture += AUDIO_CLIP_MARGIN_SIZE_POST_END; // Means we also have an audioClip
+		numMoreSamplesToCapture += kAudioClipMarginSizePostEnd; // Means we also have an audioClip
 	}
 
 	uint32_t loopEndPointSamples = numSamplesCaptured + numMoreSamplesTilEndLoopPoint;
@@ -1059,7 +1062,7 @@ void SampleRecorder::endSyncedRecording(int buttonLatencyForTempolessRecording) 
 	if (numMoreSamplesToCapture <= 0) {
 		if (numMoreSamplesToCapture < 0) {
 			capturedTooMuch = true;
-			Uart::println("captured too much.");
+			Debug::println("captured too much.");
 		}
 		finishCapturing();
 	}
@@ -1116,7 +1119,7 @@ void SampleRecorder::setExtraBytesOnPreviousCluster(Cluster* currentCluster, int
 int SampleRecorder::alterFile(int action, int lshiftAmount, uint32_t idealFileSizeBeforeAction,
                               uint64_t dataLengthAfterAction) {
 
-	Uart::println("altering file");
+	Debug::println("altering file");
 	int currentReadClusterIndex = 0;
 	int currentWriteClusterIndex = 0;
 
@@ -1237,7 +1240,7 @@ int SampleRecorder::alterFile(int action, int lshiftAmount, uint32_t idealFileSi
 				break;
 			}
 
-			Uart::println("write advance");
+			Debug::println("write advance");
 
 			currentWriteCluster->loaded = true; // I don't think this is necessary anymore
 
@@ -1335,7 +1338,7 @@ writeFailed:
 		// Advance read-head. We read one Cluster ahead, so we can access its "extra bytes"
 		if (readPos >= &currentReadCluster->data[audioFileManager.clusterSize]) {
 
-			Uart::println("read advance");
+			Debug::println("read advance");
 
 			int overshot = (uint32_t)readPos - (uint32_t)&currentReadCluster->data[audioFileManager.clusterSize];
 

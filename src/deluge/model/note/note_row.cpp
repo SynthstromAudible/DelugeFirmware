@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "definitions_cxx.hpp"
 #include "processing/engines/audio_engine.h"
 #include "model/clip/instrument_clip.h"
 #include "modulation/params/param_manager.h"
@@ -33,7 +34,7 @@
 #include "model/note/note_vector.h"
 #include "model/action/action.h"
 #include "model/consequence/consequence_note_existence.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include <string.h>
 #include "gui/views/timeline_view.h"
 #include "model/note/copied_note_row.h"
@@ -47,6 +48,7 @@
 #include "io/midi/midi_device.h"
 #include "gui/views/view.h"
 #include "gui/views/instrument_clip_view.h"
+#include "model/settings/runtime_feature_settings.h"
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
@@ -62,7 +64,7 @@ NoteRow::NoteRow(int16_t newY) {
 	skipNextNote = false;
 
 	loopLengthIfIndependent = 0;
-	sequenceDirectionMode = SEQUENCE_DIRECTION_OBEY_PARENT;
+	sequenceDirectionMode = SequenceDirection::OBEY_PARENT;
 }
 
 NoteRow::~NoteRow() {
@@ -98,7 +100,7 @@ int NoteRow::beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenRev
 
 	int numNotes = notes.getNumElements();
 	bool flatteningReversingNow =
-	    (shouldFlattenReversing && getEffectiveSequenceDirectionMode(modelStack) == SEQUENCE_DIRECTION_REVERSE);
+	    (shouldFlattenReversing && getEffectiveSequenceDirectionMode(modelStack) == SequenceDirection::REVERSE);
 
 	int32_t reverseWithLength = flatteningReversingNow ? effectiveLength : 0;
 
@@ -190,8 +192,8 @@ int NoteRow::beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenRev
 		error = notes.beenCloned();
 	}
 
-	if (shouldFlattenReversing && sequenceDirectionMode != SEQUENCE_DIRECTION_PINGPONG) {
-		sequenceDirectionMode = SEQUENCE_DIRECTION_OBEY_PARENT;
+	if (shouldFlattenReversing && sequenceDirectionMode != SequenceDirection::PINGPONG) {
+		sequenceDirectionMode = SequenceDirection::OBEY_PARENT;
 	}
 	// Pingponging won't have been flattened by a single clone. And we may be about to flatten it with a generateRepeats(), so need to keep this designation for now.
 
@@ -219,8 +221,8 @@ addNewNote:
 		Note* newNote = notes.getElement(i);
 
 		newNote->setVelocity(((Instrument*)((Clip*)modelStack->getTimelineCounter())->output)->defaultVelocity);
-		newNote->setLift(DEFAULT_LIFT_VALUE);
-		newNote->setProbability(NUM_PROBABILITY_VALUES);
+		newNote->setLift(kDefaultLiftValue);
+		newNote->setProbability(kNumProbabilityValues);
 
 		if (i + 1 < notes.getNumElements()) {
 			newNote->setLength(getMin(desiredNoteLength, notes.getElement(i + 1)->pos - newNote->pos));
@@ -232,21 +234,23 @@ addNewNote:
 		// Record consequence
 		if (action) {
 			action->recordNoteExistenceChange((InstrumentClip*)modelStack->getTimelineCounter(), modelStack->noteRowId,
-			                                  newNote, CREATE);
+			                                  newNote, ExistenceChangeType::CREATE);
 		}
 
 		if (clipCurrentlyPlaying && !muted) {
 			((InstrumentClip*)modelStack->getTimelineCounter())->expectEvent();
 
-			// If the play-pos is inside this note, see if we'd like to attempt a late-start of it
-			int actualPlayPos = getLivePos(modelStack);
+			if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::CatchNotes) == RuntimeFeatureStateToggle::On)) {
+				// If the play-pos is inside this note, see if we'd like to attempt a late-start of it
+				int actualPlayPos = getLivePos(modelStack);
 
-			int howFarIntoNote = actualPlayPos - newNote->pos;
-			if (howFarIntoNote < 0) {
-				howFarIntoNote += effectiveLength;
-			}
-			if (howFarIntoNote < newNote->getLength()) {
-				attemptLateStartOfNextNoteToPlay(modelStack, newNote);
+				int howFarIntoNote = actualPlayPos - newNote->pos;
+				if (howFarIntoNote < 0) {
+					howFarIntoNote += effectiveLength;
+				}
+				if (howFarIntoNote < newNote->getLength()) {
+					attemptLateStartOfNextNoteToPlay(modelStack, newNote);
+				}
 			}
 		}
 
@@ -434,8 +438,8 @@ addNewNote:
 			destNote = newNotes.getElement(nextIndexToCopyTo);
 			destNote->pos = posThisScreen;
 			destNote->setVelocity(velocity);
-			destNote->setLift(DEFAULT_LIFT_VALUE);
-			destNote->setProbability(NUM_PROBABILITY_VALUES);
+			destNote->setLift(kDefaultLiftValue);
+			destNote->setProbability(kNumProbabilityValues);
 
 			int newLength;
 
@@ -564,14 +568,14 @@ int NoteRow::attemptNoteAdd(int32_t pos, int32_t length, int velocity, int proba
 	newNote->pos = pos;
 	newNote->setLength(length);
 	newNote->setVelocity(velocity);
-	newNote->setLift(DEFAULT_LIFT_VALUE);
+	newNote->setLift(kDefaultLiftValue);
 	newNote->setProbability(probability);
 
 	// Record consequence
 	if (action) {
 		action->recordNoteExistenceChange(
 		    (InstrumentClip*)modelStack->getTimelineCounter(), modelStack->noteRowId, newNote,
-		    CREATE); // This only gets called (action is only supplied) when drag-scrolling Notes
+		    ExistenceChangeType::CREATE); // This only gets called (action is only supplied) when drag-scrolling Notes
 	}
 
 	((InstrumentClip*)modelStack->getTimelineCounter())->expectEvent();
@@ -622,8 +626,8 @@ int NoteRow::attemptNoteAddReversed(ModelStackWithNoteRow* modelStack, int32_t p
 	newNote->pos = insertionPos;
 	newNote->setLength(1);
 	newNote->setVelocity(velocity);
-	newNote->setLift(DEFAULT_LIFT_VALUE);
-	newNote->setProbability(NUM_PROBABILITY_VALUES);
+	newNote->setLift(kDefaultLiftValue);
+	newNote->setProbability(kNumProbabilityValues);
 
 	((InstrumentClip*)modelStack->getTimelineCounter())->expectEvent();
 
@@ -825,7 +829,7 @@ void NoteRow::recordNoteOff(uint32_t noteOffPos, ModelStackWithNoteRow* modelSta
 	if (wrapping) {
 
 		// If pingponging, do something quite unique
-		if (getEffectiveSequenceDirectionMode(modelStack) == SEQUENCE_DIRECTION_PINGPONG) {
+		if (getEffectiveSequenceDirectionMode(modelStack) == SequenceDirection::PINGPONG) {
 			note = notes.getElement((notes.getNumElements() - 1) * reversed); // Will be 0 if playing forwards
 			newNoteLeftPos = note->pos * reversed;                            // Will be 0 if playing forwards
 			newLength = reversed ? (effectiveLength - note->pos) : (note->pos + note->length);
@@ -995,8 +999,8 @@ int NoteRow::editNoteRepeatAcrossAllScreens(int32_t editPos, int32_t squareWidth
 			int32_t areaEndPosThisScreen = areaBeginPosThisScreen + squareWidthThisScreen;
 			if (areaEndPosThisScreen > effectiveLength) {
 				squareWidthThisScreen = effectiveLength - areaBeginPosThisScreen;
-				Uart::print("square width cut short: ");
-				Uart::println(newNumNotesThisScreen);
+				Debug::print("square width cut short: ");
+				Debug::println(newNumNotesThisScreen);
 
 				// If that's ended up 0 or negative, there's nothing for us to do. Though there'd probably be no harm if this check wasn't here, and in a perfect world
 				// maybe we'd check this before deciding how many search terms?
@@ -1177,7 +1181,7 @@ int NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* 
 	if (nudgeOffset >= 0 && (numScreens - 1) * wrapEditLevel + editPos + 1 == effectiveLength) {
 		Note* __restrict__ lastSourceNote = notes.getElement(numSourceNotes - 1);
 		if (lastSourceNote->pos == effectiveLength - 1) {
-			Uart::println("wrapping right");
+			Debug::println("wrapping right");
 			destNote = newNotes.getElement(nextIndexToCopyTo);
 			*destNote = *lastSourceNote;
 			destNote->pos = 0;
@@ -1194,7 +1198,7 @@ int NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* 
 			if (destNote->length > maxLength) {
 				// But only if that next note won't itself get nudged!
 				if (((uint32_t)nextSourceNote->pos % wrapEditLevel) != editPos) {
-					Uart::println("constraining length in right wrap");
+					Debug::println("constraining length in right wrap");
 					destNote->length = maxLength;
 				}
 			}
@@ -1244,7 +1248,7 @@ int NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* 
 
 				if (noteToNudge->pos == preNudgeNotePos) {
 					// Ok, we've got one we'll be nudging left.
-					Uart::println("nudging note left");
+					Debug::println("nudging note left");
 
 					if (preNudgeNotePos == 0) {
 						wrappingLeft = true;
@@ -1258,7 +1262,7 @@ int NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* 
 							int32_t postNudgeNotePos = preNudgeNotePos - 1;
 							int32_t maxLength = postNudgeNotePos - destNote->pos;
 							if (destNote->length > maxLength) {
-								Uart::println("constraining length of prev note");
+								Debug::println("constraining length of prev note");
 								destNote->length = maxLength;
 							}
 						}
@@ -1283,7 +1287,7 @@ int NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* 
 
 				// If there was a nudge note, it will be the last one we copied. If so...
 				if (destNote->pos == preNudgeNotePos) {
-					Uart::println("nudging note right");
+					Debug::println("nudging note right");
 
 					int32_t postNudgeNotePos = preNudgeNotePos + 1;
 					destNote->pos = postNudgeNotePos; // Nudge it
@@ -1308,11 +1312,11 @@ int NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* 
 					else { // Or if there's no more Notes, in which case wrap length
 						Note* __restrict__ firstNote = newNotes.getElement(0);
 						maxLength = firstNote->pos + effectiveLength - postNudgeNotePos;
-						Uart::println("potentially wrapping note length");
+						Debug::println("potentially wrapping note length");
 					}
 
 					if (destNote->length > maxLength) {
-						Uart::println("constraining right-nudged note length");
+						Debug::println("constraining right-nudged note length");
 						destNote->length = maxLength;
 					}
 				}
@@ -1340,7 +1344,7 @@ int NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* 
 
 	// If a nudged note wrapped around left
 	if (wrappingLeft) {
-		Uart::println("placing left-wrapped nudged note at end");
+		Debug::println("placing left-wrapped nudged note at end");
 
 		int32_t nudgedPos = effectiveLength - 1;
 
@@ -1372,11 +1376,11 @@ int NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* 
 	}
 	// Or a less extreme case where we just nudged the very first Note left and it didn't wrap - but we still need to check the final Note's length
 	else if (firstNoteGotNudgedLeft) {
-		Uart::println("checking cos first note got nudged left");
+		Debug::println("checking cos first note got nudged left");
 		Note* __restrict__ firstDestNote = newNotes.getElement(0);
 		int32_t maxLength = firstDestNote->pos + effectiveLength - destNote->pos;
 		if (destNote->length > maxLength) {
-			Uart::println("yup, constraining last note's length");
+			Debug::println("yup, constraining last note's length");
 			destNote->length = maxLength;
 		}
 	}
@@ -1496,7 +1500,7 @@ void NoteRow::deleteNoteByIndex(int index, Action* action, int noteRowId, Instru
 	}
 
 	if (action) {
-		action->recordNoteExistenceChange(clip, noteRowId, note, DELETE);
+		action->recordNoteExistenceChange(clip, noteRowId, note, ExistenceChangeType::DELETE);
 	}
 
 	notes.deleteAtIndex(index);
@@ -1526,13 +1530,12 @@ void NoteRow::renderRow(TimelineView* editorScreen, uint8_t rowColour[], uint8_t
 		}
 	}
 
-
 	if (!notes.getNumElements()) {
 		return;
 	}
 
-	int32_t squareEndPos[MAX_IMAGE_STORE_WIDTH];
-	int32_t searchTerms[MAX_IMAGE_STORE_WIDTH];
+	int32_t squareEndPos[kMaxImageStoreWidth];
+	int32_t searchTerms[kMaxImageStoreWidth];
 
 	int whichRepeat = 0;
 
@@ -1624,7 +1627,6 @@ void NoteRow::renderRow(TimelineView* editorScreen, uint8_t rowColour[], uint8_t
 						occupancyMask[xDisplay] = 64;
 					}
 				}
-
 			}
 		}
 
@@ -1636,8 +1638,8 @@ void NoteRow::renderRow(TimelineView* editorScreen, uint8_t rowColour[], uint8_t
 	    != xEnd); // This will only do another repeat if we'd modified xEndNow, which can only happen if drawRepeats
 }
 
-int NoteRow::getEffectiveSequenceDirectionMode(ModelStackWithNoteRow const* modelStack) {
-	if (sequenceDirectionMode == SEQUENCE_DIRECTION_OBEY_PARENT) {
+SequenceDirection NoteRow::getEffectiveSequenceDirectionMode(ModelStackWithNoteRow const* modelStack) {
+	if (sequenceDirectionMode == SequenceDirection::OBEY_PARENT) {
 		return ((Clip*)modelStack->getTimelineCounter())->sequenceDirectionMode;
 	}
 	else {
@@ -1698,7 +1700,7 @@ int32_t NoteRow::processCurrentPos(ModelStackWithNoteRow* modelStack, int32_t ti
 			// NoteRows and stuff to know the direction as they're processed and predict what notes we're going to hit next etc.
 			if (!lastProcessedPosIfIndependent) { // Possibly only just became the case
 				repeatCountIfIndependent++;
-				if (getEffectiveSequenceDirectionMode(modelStack) == SEQUENCE_DIRECTION_PINGPONG) {
+				if (getEffectiveSequenceDirectionMode(modelStack) == SequenceDirection::PINGPONG) {
 					lastProcessedPosIfIndependent = -lastProcessedPosIfIndependent; // In case it did get left of zero.
 					currentlyPlayingReversedIfIndependent = playingReversedNow = !playingReversedNow;
 					didPingpong = true;
@@ -1716,7 +1718,7 @@ int32_t NoteRow::processCurrentPos(ModelStackWithNoteRow* modelStack, int32_t ti
 				lastProcessedPosIfIndependent -= effectiveLength;
 				repeatCountIfIndependent++;
 
-				if (getEffectiveSequenceDirectionMode(modelStack) == SEQUENCE_DIRECTION_PINGPONG) {
+				if (getEffectiveSequenceDirectionMode(modelStack) == SequenceDirection::PINGPONG) {
 					// Normally we'll have hit the exact loop point, meaning lastProcessedPos will have wrapped to 0, above. But
 					// just in case we went further, and need to wrap back to somewhere nearish the right-hand edge of the Clip...
 					if (lastProcessedPosIfIndependent > 0) {
@@ -1740,7 +1742,7 @@ int32_t NoteRow::processCurrentPos(ModelStackWithNoteRow* modelStack, int32_t ti
 			paramManager.notifyPingpongOccurred(modelStackWithThreeMainThings);
 		}
 
-		bool mayInterpolate = drum ? drum->type == DRUM_TYPE_SOUND : (clip->output->type == INSTRUMENT_TYPE_SYNTH);
+		bool mayInterpolate = drum ? drum->type == DrumType::SOUND : (clip->output->type == InstrumentType::SYNTH);
 		// We'll not interpolate for CV, just for efficiency. Since our CV output steps are limited anyway, this is probably reasonably reasonable.
 
 		paramManager.processCurrentPos(modelStackWithThreeMainThings, ticksSinceLast, playingReversedNow, didPingpong,
@@ -1801,7 +1803,7 @@ stopNote:
 				searchLessThan += (bool)playingReversedNow;
 				// Buuut, a special condition for pingponging to allow notes touching the right-end of this Clip / NoteRow to just keep sounding as the direction changes.
 				// Nah actually don't do that.
-				//&& (effectiveCurrentPos || getEffectiveSequenceDirectionMode(modelStack) != SEQUENCE_DIRECTION_PINGPONG));
+				//&& (effectiveCurrentPos || getEffectiveSequenceDirectionMode(modelStack) != SequenceDirection::PINGPONG));
 
 				int i = notes.search(searchLessThan, LESS);
 				bool wrapping = (i == -1);
@@ -1845,7 +1847,7 @@ stopNote:
 
 						// If it's a cut-mode sample, though, we want it to stop, so it can get retriggered again from the start.
 						// Same for time-stretching - although those can loop themselves, caching comes along and stuffs that up, so let's just stop em.
-						if (clip->output->type == INSTRUMENT_TYPE_SYNTH) { // For Sounds
+						if (clip->output->type == InstrumentType::SYNTH) { // For Sounds
 
 							if (((SoundInstrument*)clip->output)->hasCutModeSamples(&clip->paramManager)) {
 								goto stopNote;
@@ -1855,8 +1857,8 @@ stopNote:
 								goto stopNote;
 							}
 						}
-						else if (clip->output->type == INSTRUMENT_TYPE_KIT && drum
-						         && drum->type == DRUM_TYPE_SOUND) { // For Kits
+						else if (clip->output->type == InstrumentType::KIT && drum
+						         && drum->type == DrumType::SOUND) { // For Kits
 							if (((SoundDrum*)drum)->hasCutModeSamples(&paramManager)) {
 								goto stopNote;
 							}
@@ -1996,7 +1998,7 @@ bool NoteRow::isAuditioning(ModelStackWithNoteRow* modelStack) {
 	Clip* clip = (Clip*)modelStack->getTimelineCounter();
 	Output* output = clip->output;
 
-	if (output->type == INSTRUMENT_TYPE_KIT) {
+	if (output->type == InstrumentType::KIT) {
 		return drum && drum->auditioned;
 	}
 	else {
@@ -2050,8 +2052,8 @@ void NoteRow::attemptLateStartOfNextNoteToPlay(ModelStackWithNoteRow* modelStack
 
 	int32_t timeAgo = AudioEngine::audioSampleTimer - noteOnTime;
 
-	Uart::print("timeAgo: ");
-	Uart::println(timeAgo);
+	Debug::print("timeAgo: ");
+	Debug::println(timeAgo);
 
 	if (timeAgo < 0) { // Gregory J got this. And Vinz
 #if ALPHA_OR_BETA_VERSION
@@ -2073,11 +2075,11 @@ void NoteRow::attemptLateStartOfNextNoteToPlay(ModelStackWithNoteRow* modelStack
 
 	Sound* sound = NULL;
 	ParamManagerForTimeline* thisParamManager;
-	if (drum && drum->type == DRUM_TYPE_SOUND) {
+	if (drum && drum->type == DrumType::SOUND) {
 		sound = (SoundDrum*)drum;
 		thisParamManager = &paramManager;
 	}
-	else if (((Clip*)modelStack->getTimelineCounter())->output->type == INSTRUMENT_TYPE_SYNTH) {
+	else if (((Clip*)modelStack->getTimelineCounter())->output->type == InstrumentType::SYNTH) {
 		sound = (SoundInstrument*)((Clip*)modelStack->getTimelineCounter())->output;
 		thisParamManager = &modelStack->getTimelineCounter()->paramManager;
 	}
@@ -2087,9 +2089,9 @@ void NoteRow::attemptLateStartOfNextNoteToPlay(ModelStackWithNoteRow* modelStack
 	if ((sound
 	     && (allows =
 	             sound->allowsVeryLateNoteStart(((InstrumentClip*)modelStack->getTimelineCounter()), thisParamManager)))
-	    || timeAgo < noteOnLatenessAllowed) {
+	    || timeAgo < kAmountNoteOnLatenessAllowed) {
 
-		Uart::println("doing late");
+		Debug::println("doing late");
 
 		if (!allows) {
 			swungTicksBeforeLastActionedOne = 0;
@@ -2106,14 +2108,14 @@ void NoteRow::playNote(bool on, ModelStackWithNoteRow* modelStack, Note* thisNot
 	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
 	Output* output = clip->output;
 
-	if (output->type != INSTRUMENT_TYPE_KIT) {
+	if (output->type != InstrumentType::KIT) {
 		// If it's a note-on, we'll send it "soon", after all note-offs
 
 		if (on) {
 			if (noteMightBeConstant) {
 
 				// Special case for Sounds
-				if (output->type == INSTRUMENT_TYPE_SYNTH) {
+				if (output->type == InstrumentType::SYNTH) {
 					if (((SoundInstrument*)output)->noteIsOn(getNoteCode())
 					    && ((SoundInstrument*)output)
 					           ->allowNoteTails(
@@ -2137,7 +2139,7 @@ void NoteRow::playNote(bool on, ModelStackWithNoteRow* modelStack, Note* thisNot
 
 doSentNoteForMelodicInstrument:
 				// If there's room in the buffer, store the note-on to send soon
-				if (pendingNoteOnList && pendingNoteOnList->count < maxNumNoteOnsPending) {
+				if (pendingNoteOnList && pendingNoteOnList->count < kMaxNumNoteOnsPending) {
 storePendingNoteOn:
 					pendingNoteOnList->pendingNoteOns[pendingNoteOnList->count].noteRow = this;
 					pendingNoteOnList->pendingNoteOns[pendingNoteOnList->count].noteRowId = modelStack->noteRowId;
@@ -2152,7 +2154,7 @@ storePendingNoteOn:
 
 				// Otherwise, just send it now.
 				else {
-					int16_t mpeValues[NUM_EXPRESSION_DIMENSIONS];
+					int16_t mpeValues[kNumExpressionDimensions];
 					getMPEValues(modelStack, mpeValues);
 
 					ModelStackWithThreeMainThings* modelStackWithThreeMainThings = modelStack->addOtherTwoThings(
@@ -2167,7 +2169,7 @@ storePendingNoteOn:
 
 		// Or if a note-off, we can just send it now
 		else {
-			int lift = DEFAULT_LIFT_VALUE;
+			int lift = kDefaultLiftValue;
 			if (thisNote) {
 				lift = thisNote->getLift();
 			}
@@ -2191,12 +2193,12 @@ storePendingNoteOn:
 			else {
 
 				// If there's room in the buffer, store the note-on to send soon
-				if (pendingNoteOnList && pendingNoteOnList->count < maxNumNoteOnsPending) {
+				if (pendingNoteOnList && pendingNoteOnList->count < kMaxNumNoteOnsPending) {
 					goto storePendingNoteOn;
 				}
 				// Otherwise, just send it now.
 				else {
-					int16_t mpeValues[NUM_EXPRESSION_DIMENSIONS];
+					int16_t mpeValues[kNumExpressionDimensions];
 					getMPEValues(modelStack, mpeValues);
 
 					ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
@@ -2207,7 +2209,7 @@ storePendingNoteOn:
 			}
 		}
 		else {
-			int lift = DEFAULT_LIFT_VALUE;
+			int lift = kDefaultLiftValue;
 			if (thisNote) {
 				lift = thisNote->getLift();
 			}
@@ -2362,7 +2364,7 @@ basicTrim:
 bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoopLength, uint32_t newLoopLength,
                               int numRepeatsRounded, Action* action) {
 
-	bool pingponging = (getEffectiveSequenceDirectionMode(modelStack) == SEQUENCE_DIRECTION_PINGPONG);
+	bool pingponging = (getEffectiveSequenceDirectionMode(modelStack) == SequenceDirection::PINGPONG);
 
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 	    modelStack->addOtherTwoThingsAutomaticallyGivenNoteRow();
@@ -2371,11 +2373,11 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 
 	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
 
-	if (sequenceDirectionMode == SEQUENCE_DIRECTION_PINGPONG) {
+	if (sequenceDirectionMode == SequenceDirection::PINGPONG) {
 		// Pingponging is being flattened out, and although there are arguments either way, I think removing that setting now is best.
-		sequenceDirectionMode = (clip->sequenceDirectionMode == SEQUENCE_DIRECTION_REVERSE)
-		                            ? SEQUENCE_DIRECTION_FORWARD
-		                            : SEQUENCE_DIRECTION_OBEY_PARENT;
+		sequenceDirectionMode = (clip->sequenceDirectionMode == SequenceDirection::REVERSE)
+		                            ? SequenceDirection::FORWARD
+		                            : SequenceDirection::OBEY_PARENT;
 	}
 
 	int32_t numNotesBefore = notes.getNumElements();
@@ -2394,12 +2396,12 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 		Sound* sound = NULL;
 		ParamManagerForTimeline* paramManagerNow = NULL;
 
-		if (drum && drum->type == DRUM_TYPE_SOUND) {
+		if (drum && drum->type == DrumType::SOUND) {
 			sound = (SoundDrum*)drum;
 			paramManagerNow = &paramManager;
 		}
 
-		else if (clip->output->type == INSTRUMENT_TYPE_SYNTH) {
+		else if (clip->output->type == InstrumentType::SYNTH) {
 			sound = (SoundInstrument*)clip->output;
 			paramManagerNow = &clip->paramManager;
 		}
@@ -2569,7 +2571,7 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 		int32_t pos = note->pos;
 
 		// If it's iteration dependent...
-		if (probability > NUM_PROBABILITY_VALUES) {
+		if (probability > kNumProbabilityValues) {
 			int divisor, iterationWithinDivisor;
 			dissectIterationDependence(probability, &divisor, &iterationWithinDivisor);
 
@@ -2643,7 +2645,7 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 					}
 					else {
 switchOff:
-						newProbability = NUM_PROBABILITY_VALUES; // Switch off iteration dependence
+						newProbability = kNumProbabilityValues; // Switch off iteration dependence
 					}
 
 					thisRepeatedNote->setProbability(newProbability);
@@ -2689,20 +2691,22 @@ void NoteRow::resumePlayback(ModelStackWithNoteRow* modelStack, bool clipMayMake
 
 		int32_t effectiveActualCurrentPos = getLivePos(modelStack);
 
-		// See if our play-pos is inside of a note, which we might want to try playing...
-		int i = notes.search(effectiveActualCurrentPos, LESS);
-		bool wrapping = (i == -1);
-		if (wrapping) {
-			i = notes.getNumElements() - 1;
-		}
-		Note* note = notes.getElement(i);
-		int noteEnd = note->pos + note->length;
-		if (wrapping) {
-			noteEnd -= modelStack->getLoopLength();
-		}
+		if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::CatchNotes) == RuntimeFeatureStateToggle::On)) {
+			// See if our play-pos is inside of a note, which we might want to try playing...
+			int i = notes.search(effectiveActualCurrentPos, LESS);
+			bool wrapping = (i == -1);
+			if (wrapping) {
+				i = notes.getNumElements() - 1;
+			}
+			Note* note = notes.getElement(i);
+			int noteEnd = note->pos + note->length;
+			if (wrapping) {
+				noteEnd -= modelStack->getLoopLength();
+			}
 
-		if (noteEnd > effectiveActualCurrentPos) {
-			attemptLateStartOfNextNoteToPlay(modelStack, note);
+			if (noteEnd > effectiveActualCurrentPos) {
+				attemptLateStartOfNextNoteToPlay(modelStack, note);
+			}
 		}
 	}
 
@@ -2752,7 +2756,7 @@ int NoteRow::readFromFile(int* minY, InstrumentClip* parentClip, Song* song, int
 	    -1; // Temp variable for this because we can't actually create the expressionParams before we know what kind of Drum (if any) we have.
 
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
-		//Uart::println(tagName); delayMS(50);
+		//Debug::println(tagName); delayMS(50);
 
 		uint16_t noteHexLength;
 
@@ -2814,7 +2818,6 @@ int NoteRow::readFromFile(int* minY, InstrumentClip* parentClip, Song* song, int
 				if (actualDrum) {
 					ParamManager* existingParamManager =
 					    song->getBackedUpParamManagerPreferablyWithClip(actualDrum, parentClip);
-
 					if (existingParamManager) {
 						int error = paramManager.cloneParamCollectionsFrom(existingParamManager, false);
 						if (error) {
@@ -2869,7 +2872,7 @@ finishedNormalStuff:
 						}
 					}
 
-					if (!(pos < minPos || length < 0 || pos > MAX_SEQUENCE_LENGTH - length)) {
+					if (!(pos < minPos || length < 0 || pos > kMaxSequenceLength - length)) {
 
 						minPos = pos + length;
 
@@ -2881,8 +2884,8 @@ finishedNormalStuff:
 						Note* newNote = notes.getElement(i);
 						newNote->setLength(length);
 						newNote->setVelocity(velocity);
-						newNote->setLift(DEFAULT_LIFT_VALUE);
-						newNote->setProbability(NUM_PROBABILITY_VALUES);
+						newNote->setLift(kDefaultLiftValue);
+						newNote->setProbability(kNumProbabilityValues);
 					}
 
 					storageManager.exitTag("note");
@@ -2948,22 +2951,22 @@ doReadNoteData:
 				else { // Or if no lift here to read
 					probability = hexToIntFixedLength(&hexChars[18], 2);
 useDefaultLift:
-					lift = DEFAULT_LIFT_VALUE;
+					lift = kDefaultLiftValue;
 				}
 
 				// See if that's all allowed
 				if (length <= 0) {
 					length = 1; // This happened somehow in Simon Wollwage's song, May 2020
 				}
-				if (pos < minPos || pos > MAX_SEQUENCE_LENGTH - length) {
+				if (pos < minPos || pos > kMaxSequenceLength - length) {
 					continue;
 				}
 				if (velocity == 0 || velocity > 127) {
 					velocity = 64;
 				}
-				if ((probability & 127) > (NUM_PROBABILITY_VALUES + 35) || (probability & 127) == 0
-				    || probability >= (NUM_PROBABILITY_VALUES | 128)) {
-					probability = NUM_PROBABILITY_VALUES;
+				if ((probability & 127) > (kNumProbabilityValues + 35) || (probability & 127) == 0
+				    || probability >= (kNumProbabilityValues | 128)) {
+					probability = kNumProbabilityValues;
 				}
 
 				minPos = pos + length;
@@ -3018,7 +3021,7 @@ getOut : {}
 void NoteRow::writeToFile(int drumIndex, InstrumentClip* clip) {
 	storageManager.writeOpeningTagBeginning("noteRow");
 
-	bool forKit = (clip->output->type == INSTRUMENT_TYPE_KIT);
+	bool forKit = (clip->output->type == InstrumentType::KIT);
 
 	if (!forKit) {
 		storageManager.writeAttribute("y", y);
@@ -3034,7 +3037,7 @@ void NoteRow::writeToFile(int drumIndex, InstrumentClip* clip) {
 	if (loopLengthIfIndependent) {
 		storageManager.writeAttribute("length", loopLengthIfIndependent);
 	}
-	if (sequenceDirectionMode != SEQUENCE_DIRECTION_OBEY_PARENT) {
+	if (sequenceDirectionMode != SequenceDirection::OBEY_PARENT) {
 		storageManager.writeAttribute("sequenceDirection", sequenceDirectionModeToString(sequenceDirectionMode));
 	}
 
@@ -3101,7 +3104,7 @@ void NoteRow::writeToFile(int drumIndex, InstrumentClip* clip) {
 }
 
 int8_t NoteRow::getColourOffset(InstrumentClip* clip) {
-	if (clip->output->type == INSTRUMENT_TYPE_KIT) {
+	if (clip->output->type == InstrumentType::KIT) {
 		return colourOffset;
 	}
 	else {
@@ -3151,7 +3154,7 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 	drum = NULL;
 
 	// Grab new ParamManager from that backed up in Drum
-	if (newDrum && newDrum->type == DRUM_TYPE_SOUND) {
+	if (newDrum && newDrum->type == DrumType::SOUND) {
 
 		SoundDrum* soundDrum = (SoundDrum*)newDrum;
 
@@ -3269,7 +3272,7 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 
 void NoteRow::rememberDrumName() {
 
-	if (drum && drum->type == DRUM_TYPE_SOUND) {
+	if (drum && drum->type == DrumType::SOUND) {
 
 		SoundDrum* soundDrum = (SoundDrum*)drum;
 
@@ -3484,9 +3487,9 @@ int NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWith
 	NoteRow* otherNoteRow = otherModelStack->getNoteRow();
 	InstrumentClip* clip = (InstrumentClip*)thisModelStack->getTimelineCounter();
 
-	int effectiveSequenceDirectionMode = otherNoteRow->getEffectiveSequenceDirectionMode(otherModelStack);
-	bool pingpongingGenerally = effectiveSequenceDirectionMode == SEQUENCE_DIRECTION_PINGPONG;
-	bool reversingNow = (effectiveSequenceDirectionMode == SEQUENCE_DIRECTION_REVERSE
+	SequenceDirection effectiveSequenceDirectionMode = otherNoteRow->getEffectiveSequenceDirectionMode(otherModelStack);
+	bool pingpongingGenerally = effectiveSequenceDirectionMode == SequenceDirection::PINGPONG;
+	bool reversingNow = (effectiveSequenceDirectionMode == SequenceDirection::REVERSE
 	                     || (pingpongingGenerally && (whichRepeatThisIs & 1)));
 
 	if (paramManager.containsAnyParamCollectionsIncludingExpression()
@@ -3508,13 +3511,13 @@ int NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWith
 		Sound* sound = NULL;
 		ParamManagerForTimeline* paramManagerNow = NULL;
 
-		if (drum && drum->type == DRUM_TYPE_SOUND) {
+		if (drum && drum->type == DrumType::SOUND) {
 			sound = (SoundDrum*)drum;
 			paramManagerNow = &paramManager;
 		}
 
 		else {
-			if (clip->output->type == INSTRUMENT_TYPE_SYNTH) {
+			if (clip->output->type == InstrumentType::SYNTH) {
 				sound = (SoundInstrument*)clip->output;
 				paramManagerNow = &clip->paramManager;
 			}
@@ -3576,7 +3579,7 @@ int NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWith
 				// Flatten iteration dependence
 				int oldCondition = oldNote->probability;
 				int conditionValue = oldCondition & 127;
-				if (conditionValue > NUM_PROBABILITY_VALUES) {
+				if (conditionValue > kNumProbabilityValues) {
 					int divisor, iterationWithinDivisor;
 					dissectIterationDependence(conditionValue, &divisor, &iterationWithinDivisor);
 
@@ -3584,7 +3587,7 @@ int NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWith
 						continue;
 					}
 					else {
-						oldCondition = NUM_PROBABILITY_VALUES; // Remove iteration dependence
+						oldCondition = kNumProbabilityValues; // Remove iteration dependence
 					}
 				}
 
@@ -3627,7 +3630,7 @@ int NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWith
 				// Flatten iteration dependence
 				int oldCondition = oldNote->probability;
 				int conditionValue = oldCondition & 127;
-				if (conditionValue > NUM_PROBABILITY_VALUES) {
+				if (conditionValue > kNumProbabilityValues) {
 					int divisor, iterationWithinDivisor;
 					dissectIterationDependence(conditionValue, &divisor, &iterationWithinDivisor);
 
@@ -3635,7 +3638,7 @@ int NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWith
 						continue;
 					}
 					else {
-						oldCondition = NUM_PROBABILITY_VALUES; // Remove iteration dependence
+						oldCondition = kNumProbabilityValues; // Remove iteration dependence
 					}
 				}
 
@@ -3663,7 +3666,7 @@ int NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWith
 			// Flatten iteration dependence
 			int oldCondition = oldNote->probability;
 			int conditionValue = oldCondition & 127;
-			if (conditionValue > NUM_PROBABILITY_VALUES) {
+			if (conditionValue > kNumProbabilityValues) {
 				int divisor, iterationWithinDivisor;
 				dissectIterationDependence(conditionValue, &divisor, &iterationWithinDivisor);
 
@@ -3671,7 +3674,7 @@ int NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWith
 					continue;
 				}
 				else {
-					oldCondition = NUM_PROBABILITY_VALUES; // Remove iteration dependence
+					oldCondition = kNumProbabilityValues; // Remove iteration dependence
 				}
 			}
 
@@ -3749,20 +3752,20 @@ uint32_t NoteRow::getLivePos(ModelStackWithNoteRow const* modelStack) {
 }
 
 bool NoteRow::hasIndependentPlayPos() {
-	return (loopLengthIfIndependent || sequenceDirectionMode != SEQUENCE_DIRECTION_OBEY_PARENT);
+	return (loopLengthIfIndependent || sequenceDirectionMode != SequenceDirection::OBEY_PARENT);
 }
 
 void NoteRow::getMPEValues(ModelStackWithNoteRow* modelStack, int16_t* mpeValues) {
 
 	ExpressionParamSet* mpeParams = paramManager.getExpressionParamSet();
 	if (!mpeParams) {
-		for (int m = 0; m < NUM_EXPRESSION_DIMENSIONS; m++) {
+		for (int m = 0; m < kNumExpressionDimensions; m++) {
 			mpeValues[m] = 0;
 		}
 		return;
 	}
 
-	for (int m = 0; m < NUM_EXPRESSION_DIMENSIONS; m++) {
+	for (int m = 0; m < kNumExpressionDimensions; m++) {
 		mpeValues[m] = mpeParams->params[m].getCurrentValue() >> 16;
 	}
 }
@@ -3779,7 +3782,7 @@ void NoteRow::clearMPEUpUntilNextNote(ModelStackWithNoteRow* modelStack, int32_t
 	}
 
 	/*
-	for (int i = 0; i < NUM_EXPRESSION_DIMENSIONS; i++) {
+	for (int i = 0; i < kNumExpressionDimensions; i++) {
 		if (mpeParams->params[i].isAutomated()) goto needToDoIt;
 	}
 	return;
@@ -3797,7 +3800,7 @@ needToDoIt:
 		ModelStackWithParamCollection* modelStackWithParamCollection =
 		    modelStack->addOtherTwoThingsAutomaticallyGivenNoteRow()->addParamCollection(mpeParams, mpeParamsSummary);
 
-		for (int i = 0; i < NUM_EXPRESSION_DIMENSIONS; i++) {
+		for (int i = 0; i < kNumExpressionDimensions; i++) {
 			AutoParam* param = &mpeParams->params[i];
 			ModelStackWithAutoParam* modelStackWithAutoParam = modelStackWithParamCollection->addAutoParam(i, param);
 
@@ -3862,7 +3865,7 @@ bool NoteRow::recordPolyphonicExpressionEvent(ModelStackWithNoteRow* modelStack,
 	return true;
 }
 
-void NoteRow::setSequenceDirectionMode(ModelStackWithNoteRow* modelStack, int newMode) {
+void NoteRow::setSequenceDirectionMode(ModelStackWithNoteRow* modelStack, SequenceDirection newMode) {
 	int32_t lastProcessedPosBefore = modelStack->getLastProcessedPos();
 
 	bool reversedBefore = modelStack->isCurrentlyPlayingReversed();
@@ -3870,15 +3873,14 @@ void NoteRow::setSequenceDirectionMode(ModelStackWithNoteRow* modelStack, int ne
 	lastProcessedPosIfIndependent = lastProcessedPosBefore; // We might change this, below.
 
 	// If now pingponging...
-	if (getEffectiveSequenceDirectionMode(modelStack) == SEQUENCE_DIRECTION_PINGPONG) {
+	if (getEffectiveSequenceDirectionMode(modelStack) == SequenceDirection::PINGPONG) {
 		currentlyPlayingReversedIfIndependent = reversedBefore;
 	}
 
 	// Or if now *not* pingponging...
 	else {
-		currentlyPlayingReversedIfIndependent =
-		    (newMode
-		     == SEQUENCE_DIRECTION_REVERSE); // Won't necessarily have an effect - if we're now set to obey-parent.
+		// Won't necessarily have an effect - if we're now set to obey-parent.
+		currentlyPlayingReversedIfIndependent = (newMode == SequenceDirection::REVERSE);
 
 		// If we just changed direction...
 		if (reversedBefore != modelStack->isCurrentlyPlayingReversed()) {

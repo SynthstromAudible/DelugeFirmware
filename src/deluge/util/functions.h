@@ -21,8 +21,8 @@
 #include "util/lookuptables/lookuptables.h"
 #include <cstring>
 #include "ff.h"
-#include "definitions.h"
-
+#include "definitions_cxx.hpp"
+#include "util/fixedpoint.h"
 extern "C" {
 #include "util/cfunctions.h"
 }
@@ -47,7 +47,7 @@ static inline void intToString(int32_t number, char* buffer) {
 
 bool memIsNumericChars(char const* mem, int size);
 bool stringIsNumericChars(char const* str);
-char const* getThingName(uint8_t instrumentType);
+char const* getThingName(InstrumentType instrumentType);
 
 char halfByteToHexChar(uint8_t thisHalfByte);
 void intToHex(uint32_t number, char* output, int numChars = 8);
@@ -56,40 +56,6 @@ uint32_t hexToIntFixedLength(char const* __restrict__ hexChars, int length);
 
 void byteToHex(uint8_t number, char* buffer);
 uint8_t hexToByte(char const* firstChar);
-
-// computes (((int64_t)a[31:0] * (int64_t)b[31:0]) >> 32)
-static inline int32_t multiply_32x32_rshift32(int32_t a, int32_t b) __attribute__((always_inline, unused));
-static inline int32_t multiply_32x32_rshift32(int32_t a, int32_t b) {
-	int32_t out;
-	asm("smmul %0, %1, %2" : "=r"(out) : "r"(a), "r"(b));
-	return out;
-}
-
-// computes (((int64_t)a[31:0] * (int64_t)b[31:0] + 0x8000000) >> 32)
-static inline int32_t multiply_32x32_rshift32_rounded(int32_t a, int32_t b) __attribute__((always_inline, unused));
-static inline int32_t multiply_32x32_rshift32_rounded(int32_t a, int32_t b) {
-	int32_t out;
-	asm("smmulr %0, %1, %2" : "=r"(out) : "r"(a), "r"(b));
-	return out;
-}
-
-// computes sum + (((int64_t)a[31:0] * (int64_t)b[31:0] + 0x8000000) >> 32)
-static inline int32_t multiply_accumulate_32x32_rshift32_rounded(int32_t sum, int32_t a, int32_t b)
-    __attribute__((always_inline, unused));
-static inline int32_t multiply_accumulate_32x32_rshift32_rounded(int32_t sum, int32_t a, int32_t b) {
-	int32_t out;
-	asm("smmlar %0, %2, %3, %1" : "=r"(out) : "r"(sum), "r"(a), "r"(b));
-	return out;
-}
-
-// computes sum - (((int64_t)a[31:0] * (int64_t)b[31:0] + 0x8000000) >> 32)
-static inline int32_t multiply_subtract_32x32_rshift32_rounded(int32_t sum, int32_t a, int32_t b)
-    __attribute__((always_inline, unused));
-static inline int32_t multiply_subtract_32x32_rshift32_rounded(int32_t sum, int32_t a, int32_t b) {
-	int32_t out;
-	asm("smmlsr %0, %2, %3, %1" : "=r"(out) : "r"(sum), "r"(a), "r"(b));
-	return out;
-}
 
 static inline int32_t add_saturation(int32_t a, int32_t b) __attribute__((always_inline, unused));
 static inline int32_t add_saturation(int32_t a, int32_t b) {
@@ -180,39 +146,43 @@ int32_t stringToUIntOrError(char const* mem);
 int32_t memToUIntOrError(char const* mem, char const* const memEnd);
 void getInstrumentPresetFilename(char const* filePrefix, int16_t presetNumber, int8_t presetSubslotNumber,
                                  char* fileName);
-char const* oscTypeToString(unsigned int oscType);
-int stringToOscType(char const* string);
-char const* lfoTypeToString(int oscType);
-int stringToLFOType(char const* string);
+char const* oscTypeToString(OscType osctype);
+OscType stringToOscType(char const* string);
 
-char const* synthModeToString(int synthMode);
-int stringToSynthMode(char const* string);
-char const* polyphonyModeToString(int synthMode);
-int stringToPolyphonyMode(char const* string);
-char const* fxTypeToString(int fxType);
-int stringToFXType(char const* string);
-char const* modFXParamToString(int fxType);
-int stringToModFXParam(char const* string);
-char const* filterTypeToString(int fxType);
-int stringToFilterType(char const* string);
-char const* arpModeToString(int mode);
-int stringToArpMode(char const* string);
-char const* lpfTypeToString(int lpfType);
-int stringToLPFType(char const* string);
-char const* inputChannelToString(int inputChannel);
-int stringToInputChannel(char const* string);
-char const* sequenceDirectionModeToString(int sequenceDirectionMode);
-int stringToSequenceDirectionMode(char const* string);
+char const* lfoTypeToString(LFOType oscType);
+LFOType stringToLFOType(char const* string);
 
-char const* getInstrumentFolder(uint8_t instrumentType);
+char const* synthModeToString(SynthMode synthMode);
+SynthMode stringToSynthMode(char const* string);
+
+char const* polyphonyModeToString(PolyphonyMode synthMode);
+PolyphonyMode stringToPolyphonyMode(char const* string);
+
+char const* fxTypeToString(ModFXType fxType);
+ModFXType stringToFXType(char const* string);
+
+char const* modFXParamToString(ModFXParam fxType);
+ModFXParam stringToModFXParam(char const* string);
+
+char const* filterTypeToString(FilterType fxType);
+FilterType stringToFilterType(char const* string);
+
+char const* arpModeToString(ArpMode mode);
+ArpMode stringToArpMode(char const* string);
+
+char const* lpfTypeToString(LPFMode lpfType);
+LPFMode stringToLPFType(char const* string);
+
+char const* inputChannelToString(AudioInputChannel inputChannel);
+AudioInputChannel stringToInputChannel(char const* string);
+
+char const* sequenceDirectionModeToString(SequenceDirection sequenceDirectionMode);
+SequenceDirection stringToSequenceDirectionMode(char const* string);
+
+char const* getInstrumentFolder(InstrumentType instrumentType);
 void getThingFilename(char const* thingName, int16_t currentSlot, int8_t currentSubSlot, char* buffer);
 
 int32_t getExp(int32_t presetValue, int32_t adjustment);
-
-inline void renderRingmodSample(int32_t* __restrict__ thisSample, int32_t amplitude, int32_t waveValueA,
-                                int32_t waveValueB) {
-	*thisSample += multiply_32x32_rshift32_rounded(multiply_32x32_rshift32(waveValueA, waveValueB), amplitude);
-}
 
 bool isAudioFilename(char const* filename);
 bool isAiffFilename(char const* filename);
@@ -242,12 +212,12 @@ int32_t getFinalParameterValueExpWithDumbEnvelopeHack(int32_t paramNeutralValue,
 void addAudio(StereoSample* inputBuffer, StereoSample* outputBuffer, int numSamples);
 
 #if HAVE_OLED
-char const* getSourceDisplayNameForOLED(int s);
+char const* getSourceDisplayNameForOLED(PatchSource s);
 char const* getPatchedParamDisplayNameForOled(int p);
 #endif
 
-char const* sourceToString(uint8_t source);
-uint8_t stringToSource(char const* string);
+char const* sourceToString(PatchSource source);
+PatchSource stringToSource(char const* string);
 bool paramNeedsLPF(int p, bool fromAutomation);
 int32_t shiftVolumeByDB(int32_t oldValue, float offset);
 int32_t quickLog(uint32_t input);
@@ -428,9 +398,11 @@ int random(int upperLimit);
 bool shouldDoPanning(int32_t panAmount, int32_t* amplitudeL, int32_t* amplitudeR);
 void hueToRGB(int32_t hue, unsigned char* rgb);
 void hueToRGBPastel(int32_t hue, unsigned char* rgb);
-uint32_t getLFOInitialPhaseForNegativeExtreme(uint8_t waveType);
-uint32_t getLFOInitialPhaseForZero(uint8_t waveType);
-uint32_t getOscInitialPhaseForZero(uint8_t waveType);
+
+uint32_t getLFOInitialPhaseForNegativeExtreme(LFOType waveType);
+uint32_t getLFOInitialPhaseForZero(LFOType waveType);
+
+uint32_t getOscInitialPhaseForZero(OscType waveType);
 int32_t fastPythag(int32_t x, int32_t y);
 int strcmpspecial(char const* first, char const* second);
 int32_t doLanczos(int32_t* data, int32_t pos, uint32_t posWithinPos, int memoryNumElements);

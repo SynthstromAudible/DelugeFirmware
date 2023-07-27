@@ -15,7 +15,6 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include <gui/views/automation_clip_view.h>
 #include "gui/views/arranger_view.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
@@ -25,7 +24,7 @@
 #include "modulation/params/param_manager.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "gui/ui_timer_manager.h"
 #include "hid/display/numeric_driver.h"
 #include "gui/ui/keyboard_screen.h"
@@ -38,7 +37,7 @@
 #include "model/action/action.h"
 #include <string.h>
 #include "playback/mode/session.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/instrument/cv_instrument.h"
 #include "memory/general_memory_allocator.h"
@@ -55,7 +54,6 @@
 #include "model/clip/clip_minder.h"
 #include "model/clip/instrument_clip.h"
 #include "modulation/midi/midi_param_collection.h"
-#include "model/settings/runtime_feature_settings.h"
 
 #if HAVE_OLED
 #include "hid/display/oled.h"
@@ -83,7 +81,7 @@ void InstrumentClipMinder::selectEncoderAction(int offset) {
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 	if (currentUIMode == UI_MODE_SELECTING_MIDI_CC) {
-		if (editingMIDICCForWhichModKnob < NUM_PHYSICAL_MOD_KNOBS) {
+		if (editingMIDICCForWhichModKnob < kNumPhysicalModKnobs) {
 			MIDIInstrument* instrument = (MIDIInstrument*)getCurrentClip()->output;
 			ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 			    modelStack->addOtherTwoThingsButNoNoteRow(instrument, &getCurrentClip()->paramManager);
@@ -161,15 +159,15 @@ void InstrumentClipMinder::drawMIDIControlNumber(int controlNumber, bool automat
 #endif
 }
 
-void InstrumentClipMinder::createNewInstrument(int newInstrumentType) {
+void InstrumentClipMinder::createNewInstrument(InstrumentType newInstrumentType) {
 	int error;
 
-	int oldInstrumentType = getCurrentClip()->output->type;
+	InstrumentType oldInstrumentType = getCurrentClip()->output->type;
 
 	bool shouldReplaceWholeInstrument = currentSong->canOldOutputBeReplaced(getCurrentClip());
 
 	String newName;
-	char const* thingName = (newInstrumentType == INSTRUMENT_TYPE_SYNTH) ? "SYNT" : "KIT";
+	char const* thingName = (newInstrumentType == InstrumentType::SYNTH) ? "SYNT" : "KIT";
 	error = Browser::currentDir.set(getInstrumentFolder(newInstrumentType));
 	if (error) {
 gotError:
@@ -210,14 +208,14 @@ gotError:
 	getCurrentClip()->backupPresetSlot();
 
 #if HAVE_OLED
-	char const* message = (newInstrumentType == INSTRUMENT_TYPE_KIT) ? "New kit created" : "New synth created";
+	char const* message = (newInstrumentType == InstrumentType::KIT) ? "New kit created" : "New synth created";
 	OLED::consoleText(message);
 #else
 	char const* message = "NEW";
 	numericDriver.displayPopup(message);
 #endif
 
-	if (newInstrumentType == INSTRUMENT_TYPE_SYNTH) {
+	if (newInstrumentType == InstrumentType::SYNTH) {
 		((SoundInstrument*)newInstrument)->setupAsBlankSynth(&newParamManager);
 	}
 
@@ -236,7 +234,7 @@ gotError:
 	// Or if just adding new Instrument
 	else {
 		int error = getCurrentClip()->changeInstrument(modelStack, newInstrument, &newParamManager,
-		                                               INSTRUMENT_REMOVAL_DELETE_OR_HIBERNATE_IF_UNUSED, NULL,
+		                                               InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, NULL,
 		                                               false); // There'll be no samples cos it's new and blank
 		// TODO: deal with errors
 
@@ -246,10 +244,10 @@ gotError:
 	newInstrument->editedByUser = true;
 	newInstrument->existsOnCard = false;
 
-	if (newInstrumentType == INSTRUMENT_TYPE_KIT) {
+	if (newInstrumentType == InstrumentType::KIT) {
 
 		// If we weren't a Kit already...
-		if (oldInstrumentType != INSTRUMENT_TYPE_KIT) {
+		if (oldInstrumentType != InstrumentType::KIT) {
 			getCurrentClip()->yScroll = 0;
 		}
 
@@ -275,10 +273,10 @@ gotError:
 }
 
 void InstrumentClipMinder::setLedStates() {
-	indicator_leds::setLedState(IndicatorLED::SYNTH, getCurrentClip()->output->type == INSTRUMENT_TYPE_SYNTH);
-	indicator_leds::setLedState(IndicatorLED::KIT, getCurrentClip()->output->type == INSTRUMENT_TYPE_KIT);
-	indicator_leds::setLedState(IndicatorLED::MIDI, getCurrentClip()->output->type == INSTRUMENT_TYPE_MIDI_OUT);
-	indicator_leds::setLedState(IndicatorLED::CV, getCurrentClip()->output->type == INSTRUMENT_TYPE_CV);
+	indicator_leds::setLedState(IndicatorLED::SYNTH, getCurrentClip()->output->type == InstrumentType::SYNTH);
+	indicator_leds::setLedState(IndicatorLED::KIT, getCurrentClip()->output->type == InstrumentType::KIT);
+	indicator_leds::setLedState(IndicatorLED::MIDI, getCurrentClip()->output->type == InstrumentType::MIDI_OUT);
+	indicator_leds::setLedState(IndicatorLED::CV, getCurrentClip()->output->type == InstrumentType::CV);
 
 	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, getCurrentClip()->wrapEditing);
 	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, getCurrentClip()->isScaleModeClip());
@@ -303,26 +301,26 @@ void InstrumentClipMinder::focusRegained() {
 #endif
 }
 
-int InstrumentClipMinder::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+ActionResult InstrumentClipMinder::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	using namespace hid::button;
 
 	// If holding save button...
 	if (currentUIMode == UI_MODE_HOLDING_SAVE_BUTTON && on) {
 		if (inCardRoutine) {
-			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 		currentUIMode = UI_MODE_NONE;
 		indicator_leds::setLedState(IndicatorLED::SAVE, false);
 
 		if (b == SYNTH) {
-			if (getCurrentClip()->output->type == INSTRUMENT_TYPE_SYNTH) {
+			if (getCurrentClip()->output->type == InstrumentType::SYNTH) {
 yesSaveInstrument:
 				openUI(&saveInstrumentPresetUI);
 			}
 		}
 
 		else if (b == KIT) {
-			if (getCurrentClip()->output->type == INSTRUMENT_TYPE_KIT) {
+			if (getCurrentClip()->output->type == InstrumentType::KIT) {
 				goto yesSaveInstrument;
 			}
 		}
@@ -331,13 +329,13 @@ yesSaveInstrument:
 	// If holding load button...
 	else if (currentUIMode == UI_MODE_HOLDING_LOAD_BUTTON && on) {
 		if (inCardRoutine) {
-			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 		currentUIMode = UI_MODE_NONE;
 		indicator_leds::setLedState(IndicatorLED::LOAD, false);
 
 		if (b == SYNTH) {
-			Browser::instrumentTypeToLoad = INSTRUMENT_TYPE_SYNTH;
+			Browser::instrumentTypeToLoad = InstrumentType::SYNTH;
 
 yesLoadInstrument:
 			loadInstrumentPresetUI.instrumentToReplace = (Instrument*)getCurrentClip()->output;
@@ -349,11 +347,8 @@ yesLoadInstrument:
 			if (getCurrentClip()->onKeyboardScreen) {
 				indicator_leds::indicateAlertOnLed(IndicatorLED::KEYBOARD);
 			}
-		//	else if (getCurrentClip()->onAutomationClipView) {
-		//		indicator_leds::indicateAlertOnLed(IndicatorLED::KEYBOARD);
-		//	}
 			else {
-				Browser::instrumentTypeToLoad = INSTRUMENT_TYPE_KIT;
+				Browser::instrumentTypeToLoad = InstrumentType::KIT;
 				goto yesLoadInstrument;
 			}
 		}
@@ -363,10 +358,10 @@ yesLoadInstrument:
 	else if (b == SELECT_ENC && !Buttons::isShiftButtonPressed()) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 			if (inCardRoutine) {
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 			if (!soundEditor.setup(currentSong->currentClip)) {
-				return ACTION_RESULT_DEALT_WITH;
+				return ActionResult::DEALT_WITH;
 			}
 			openUI(&soundEditor);
 		}
@@ -375,9 +370,9 @@ yesLoadInstrument:
 	// Affect-entire
 	else if (b == AFFECT_ENTIRE) {
 		if (on && currentUIMode == UI_MODE_NONE) {
-			if (getCurrentClip()->output->type == INSTRUMENT_TYPE_KIT) {
+			if (getCurrentClip()->output->type == InstrumentType::KIT) {
 				if (inCardRoutine) {
-					return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 				}
 
 				getCurrentClip()->affectEntire = !getCurrentClip()->affectEntire;
@@ -390,7 +385,7 @@ yesLoadInstrument:
 	else if (b == BACK && currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
 		if (on) {
 			if (inCardRoutine) {
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
 			// Clear Clip
@@ -401,27 +396,9 @@ yesLoadInstrument:
 			    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, currentSong->currentClip);
 
 			getCurrentClip()->clear(action, modelStack);
-
-			//New community feature as part of Automation Clip View Implementation
-			//If this is enabled, then when you are in a regular Instrument Clip View (Synth, Kit, MIDI, CV), clearing a clip
-			//will only clear the Notes (automations remain intact).
-			//If this is enabled, if you want to clear automations, you will enter Automation Clip View and clear the clip there.
-			//If this is enabled, the message displayed on the OLED screen is adjusted to reflect the nature of what is being cleared
-			if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::ClearClipAutomation) == RuntimeFeatureStateToggle::On) {
-				if (getCurrentUI() == &automationClipView) {
-					numericDriver.displayPopup(HAVE_OLED ? "Automation cleared" : "CLEAR");
-					uiNeedsRendering(&automationClipView, 0xFFFFFFFF, 0);
-				}
-				else if (getCurrentUI() == &instrumentClipView) {
-					numericDriver.displayPopup(HAVE_OLED ? "Notes cleared" : "CLEAR");
-					uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
-				}
-			}
-			else {
-				if (getCurrentUI() == &instrumentClipView) {
-					numericDriver.displayPopup(HAVE_OLED ? "Clip cleared" : "CLEAR");
-					uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
-				}
+			numericDriver.displayPopup(HAVE_OLED ? "Clip cleared" : "CLEAR");
+			if (getCurrentUI() == &instrumentClipView) {
+				uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
 			}
 		}
 	}
@@ -430,14 +407,14 @@ yesLoadInstrument:
 	else if (b == SYNTH) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 			if (inCardRoutine) {
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
 			if (Buttons::isNewOrShiftButtonPressed()) {
-				createNewInstrument(INSTRUMENT_TYPE_SYNTH);
+				createNewInstrument(InstrumentType::SYNTH);
 			}
 			else {
-				changeInstrumentType(INSTRUMENT_TYPE_SYNTH);
+				changeInstrumentType(InstrumentType::SYNTH);
 			}
 		}
 	}
@@ -445,18 +422,18 @@ yesLoadInstrument:
 	else if (b == MIDI) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 			if (inCardRoutine) {
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
-			changeInstrumentType(INSTRUMENT_TYPE_MIDI_OUT);
+			changeInstrumentType(InstrumentType::MIDI_OUT);
 		}
 	}
 
 	else if (b == CV) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 			if (inCardRoutine) {
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
-			changeInstrumentType(INSTRUMENT_TYPE_CV);
+			changeInstrumentType(InstrumentType::CV);
 		}
 	}
 
@@ -464,10 +441,10 @@ yesLoadInstrument:
 		return ClipMinder::buttonAction(b, on);
 	}
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
-void InstrumentClipMinder::changeInstrumentType(int newInstrumentType) {
+void InstrumentClipMinder::changeInstrumentType(InstrumentType newInstrumentType) {
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
