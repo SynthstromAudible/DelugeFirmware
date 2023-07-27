@@ -15,15 +15,15 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "processing/engines/audio_engine.h"
 #include "util/container/array/resizeable_array.h"
 #include "definitions_cxx.hpp"
+#include "processing/engines/audio_engine.h"
 //#include <algorithm>
+#include "hid/display/numeric_driver.h"
+#include "io/debug/print.h"
 #include "memory/general_memory_allocator.h"
 #include "util/functions.h"
 #include <string.h>
-#include "hid/display/numeric_driver.h"
-#include "io/debug/print.h"
 
 #if RESIZEABLE_ARRAY_DO_LOCKS
 #define LOCK_ENTRY freezeOnLock();

@@ -17,11 +17,11 @@
 
 #pragma once
 
-#include "model/clip/clip.h"
-#include "model/timeline_counter.h"
 #include "definitions_cxx.hpp"
-#include "modulation/arpeggiator.h"
+#include "model/clip/clip.h"
 #include "model/note/note_row_vector.h"
+#include "model/timeline_counter.h"
+#include "modulation/arpeggiator.h"
 #include "util/d_string.h"
 
 class Song;

@@ -16,8 +16,8 @@
 */
 
 #include "storage/audio/audio_file_vector.h"
-#include "storage/audio/audio_file.h"
 #include "hid/display/numeric_driver.h"
+#include "storage/audio/audio_file.h"
 
 AudioFileVector::AudioFileVector() : NamedThingVector(__builtin_offsetof(AudioFile, filePath)) {
 }

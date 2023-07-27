@@ -17,9 +17,9 @@
 
 #include "model/clip/clip_minder.h"
 #include "definitions_cxx.hpp"
-#include "model/song/song.h"
 #include "gui/views/view.h"
 #include "model/clip/clip.h"
+#include "model/song/song.h"
 
 ActionResult ClipMinder::buttonAction(hid::Button b, bool on) {
 	return ActionResult::NOT_DEALT_WITH;

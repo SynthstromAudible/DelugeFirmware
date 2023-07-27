@@ -15,9 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "model/mod_controllable/mod_controllable_audio.h"
 #include "gui/menu_item/integer.h"
 #include "gui/ui/sound_editor.h"
+#include "model/mod_controllable/mod_controllable_audio.h"
 
 namespace menu_item::fx {
 

@@ -18,9 +18,9 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "model/sample/sample_controls.h"
 #include "storage/multi_range/multi_range_array.h"
 #include "util/phase_increment_fine_tuner.h"
-#include "model/sample/sample_controls.h"
 
 class Sound;
 class ParamManagerForTimeline;

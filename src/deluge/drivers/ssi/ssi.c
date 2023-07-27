@@ -15,10 +15,10 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "definitions.h"
-#include "RZA1/system/iodefines/ssif_iodefine.h"
 #include "drivers/ssi/ssi.h"
 #include "RZA1/system/iodefines/dmac_iodefine.h"
+#include "RZA1/system/iodefines/ssif_iodefine.h"
+#include "definitions.h"
 
 int32_t ssiTxBuffer[SSI_TX_BUFFER_NUM_SAMPLES * NUM_MONO_OUTPUT_CHANNELS] __attribute__((aligned(CACHE_LINE_SIZE)));
 

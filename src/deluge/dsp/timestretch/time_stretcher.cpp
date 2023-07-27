@@ -15,24 +15,24 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "dsp/timestretch/time_stretcher.h"
+#include "definitions_cxx.hpp"
+#include "memory/general_memory_allocator.h"
+#include "model/sample/sample.h"
+#include "model/sample/sample_cache.h"
+#include "model/voice/voice_sample.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
-#include "dsp/timestretch/time_stretcher.h"
-#include "definitions_cxx.hpp"
-#include <string.h>
-#include "model/sample/sample.h"
-#include "model/voice/voice_sample.h"
-#include "memory/general_memory_allocator.h"
 #include "storage/storage_manager.h"
-#include "model/sample/sample_cache.h"
+#include <string.h>
 //#include <math.h>
-#include <stdlib.h>
-#include "util/functions.h"
+#include "io/debug/print.h"
 #include "model/sample/sample_holder.h"
 #include "model/sample/sample_playback_guide.h"
 #include "playback/playback_handler.h"
-#include "io/debug/print.h"
+#include "util/functions.h"
+#include <stdlib.h>
 
 #define MEASURE_HOP_END_PERFORMANCE 0
 

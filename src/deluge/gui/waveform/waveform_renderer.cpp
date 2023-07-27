@@ -15,25 +15,25 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "gui/waveform/waveform_renderer.h"
+#include "definitions_cxx.hpp"
+#include "gui/ui/keyboard_screen.h"
+#include "gui/ui/sound_editor.h"
+#include "gui/views/instrument_clip_view.h"
+#include "gui/views/view.h"
+#include "gui/waveform/waveform_render_data.h"
+#include "hid/matrix/matrix_driver.h"
+#include "io/debug/print.h"
+#include "model/instrument/instrument.h"
+#include "model/sample/sample.h"
+#include "model/sample/sample_recorder.h"
+#include "model/voice/voice_sample.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/sound/sound.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
-#include "gui/views/instrument_clip_view.h"
-#include "processing/sound/sound.h"
-#include "definitions_cxx.hpp"
-#include "hid/matrix/matrix_driver.h"
-#include <string.h>
-#include "gui/waveform/waveform_renderer.h"
-#include "model/sample/sample.h"
-#include "io/debug/print.h"
-#include "gui/ui/sound_editor.h"
 #include "storage/multi_range/multisample_range.h"
-#include "gui/views/view.h"
-#include "model/instrument/instrument.h"
-#include "model/voice/voice_sample.h"
-#include "gui/ui/keyboard_screen.h"
-#include "model/sample/sample_recorder.h"
-#include "gui/waveform/waveform_render_data.h"
+#include <string.h>
 
 extern "C" {
 extern uint8_t currentlyAccessingCard;

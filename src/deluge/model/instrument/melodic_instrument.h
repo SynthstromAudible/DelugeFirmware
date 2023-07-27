@@ -17,10 +17,10 @@
 
 #pragma once
 
-#include "util/container/array/early_note_array.h"
 #include "io/midi/learned_midi.h"
 #include "model/instrument/instrument.h"
 #include "modulation/arpeggiator.h"
+#include "util/container/array/early_note_array.h"
 
 class PostArpTriggerable;
 class NoteRow;

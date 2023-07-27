@@ -17,10 +17,10 @@
 
 #pragma once
 
-#include "model/timeline_counter.h"
 #include "RZA1/system/r_typedefs.h"
 #include "definitions_cxx.hpp"
 #include "io/midi/learned_midi.h"
+#include "model/timeline_counter.h"
 
 #define CLIP_TYPE_INSTRUMENT 0
 #define CLIP_TYPE_AUDIO 1

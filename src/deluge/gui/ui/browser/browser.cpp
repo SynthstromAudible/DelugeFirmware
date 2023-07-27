@@ -15,27 +15,27 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "definitions_cxx.hpp"
-#include "storage/audio/audio_file_manager.h"
 #include "gui/ui/browser/browser.h"
-#include "hid/matrix/matrix_driver.h"
-#include "gui/context_menu/delete_file.h"
-#include "hid/display/numeric_driver.h"
-#include "hid/buttons.h"
-#include <string.h>
-#include "gui/ui_timer_manager.h"
+#include "definitions_cxx.hpp"
 #include "extern.h"
-#include "util/functions.h"
-#include "storage/storage_manager.h"
-#include "hid/display/oled.h"
-#include <new>
-#include "storage/file_item.h"
-#include "model/song/song.h"
-#include "model/instrument/instrument.h"
+#include "gui/context_menu/delete_file.h"
+#include "gui/ui_timer_manager.h"
 #include "gui/views/view.h"
+#include "hid/buttons.h"
+#include "hid/display/numeric_driver.h"
+#include "hid/display/oled.h"
 #include "hid/encoders.h"
+#include "hid/matrix/matrix_driver.h"
 #include "io/debug/print.h"
+#include "model/instrument/instrument.h"
+#include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
+#include "storage/audio/audio_file_manager.h"
+#include "storage/file_item.h"
+#include "storage/storage_manager.h"
+#include "util/functions.h"
+#include <new>
+#include <string.h>
 
 using namespace deluge;
 

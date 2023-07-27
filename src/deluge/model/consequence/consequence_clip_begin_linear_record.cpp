@@ -17,12 +17,12 @@
 
 #include "model/consequence/consequence_clip_begin_linear_record.h"
 
+#include "gui/ui/ui.h"
 #include "model/clip/clip.h"
+#include "model/model_stack.h"
 #include "model/song/song.h"
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
-#include "gui/ui/ui.h"
-#include "model/model_stack.h"
 
 ConsequenceClipBeginLinearRecord::ConsequenceClipBeginLinearRecord(Clip* newClip) {
 	clip = newClip;

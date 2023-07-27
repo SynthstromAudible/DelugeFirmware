@@ -32,8 +32,8 @@
 //#define USB_DEBUG_ON
 
 #if defined(USB_DEBUG_ON)
-#include <stdlib.h> /* @@@MISRA del */
 #include <stdio.h>  /* @@@MISRA del */
+#include <stdlib.h> /* @@@MISRA del */
 #endif              /* defined(USB_DEBUG_ON) */
 
 /**********************************************************************************************************************

@@ -16,11 +16,11 @@
  */
 
 #pragma once
+#include "RZA1/system/r_typedefs.h"
+#include "definitions_cxx.hpp"
 #include "storage/audio/audio_file_vector.h"
 #include "storage/cluster/cluster_priority_queue.h"
-#include "RZA1/system/r_typedefs.h"
 #include "util/container/list/bidirectional_linked_list.h"
-#include "definitions_cxx.hpp"
 #include <stdint.h>
 
 extern "C" {

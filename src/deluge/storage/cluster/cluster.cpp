@@ -15,15 +15,15 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "processing/engines/audio_engine.h"
-#include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
+#include "hid/display/numeric_driver.h"
 #include "io/debug/print.h"
 #include "model/sample/sample.h"
+#include "model/sample/sample_cache.h"
+#include "processing/engines/audio_engine.h"
+#include "storage/audio/audio_file_manager.h"
 #include "util/functions.h"
 #include <string.h>
-#include "model/sample/sample_cache.h"
-#include "hid/display/numeric_driver.h"
 
 Cluster::Cluster() {
 	sample = NULL;

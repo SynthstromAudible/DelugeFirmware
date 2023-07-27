@@ -15,20 +15,20 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "model/output.h"
 #include "definitions_cxx.hpp"
-#include "processing/engines/audio_engine.h"
+#include "hid/display/numeric_driver.h"
+#include "memory/general_memory_allocator.h"
+#include "model/action/action_logger.h"
 #include "model/clip/clip.h"
 #include "model/clip/clip_instance.h"
-#include "model/output.h"
-#include "playback/playback_handler.h"
-#include "model/song/song.h"
-#include "storage/storage_manager.h"
-#include "model/action/action_logger.h"
 #include "model/consequence/consequence_clip_existence.h"
-#include "memory/general_memory_allocator.h"
-#include <new>
-#include "hid/display/numeric_driver.h"
 #include "model/model_stack.h"
+#include "model/song/song.h"
+#include "playback/playback_handler.h"
+#include "processing/engines/audio_engine.h"
+#include "storage/storage_manager.h"
+#include <new>
 
 Output::Output(InstrumentType newType) : type(newType) {
 	mutedInArrangementMode = false;
