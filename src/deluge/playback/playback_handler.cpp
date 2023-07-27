@@ -2444,7 +2444,7 @@ void PlaybackHandler::tapTempoButtonPress() {
 	uiTimerManager.setTimer(TIMER_TAP_TEMPO_SWITCH_OFF, 1100);
 }
 
-// Returns whether the message has been used up by a command
+// Returns whether the message has been used up by a note-on command
 bool PlaybackHandler::tryGlobalMIDICommands(MIDIDevice* device, int channel, int note) {
 
 	bool foundAnything = false;
@@ -2489,6 +2489,11 @@ bool PlaybackHandler::tryGlobalMIDICommands(MIDIDevice* device, int channel, int
 				}
 				break;
 
+			case GlobalMIDICommand::FILL:
+				currentSong->fillModeActive = true;
+				indicator_leds::setLedState(IndicatorLED::SYNC_SCALING, true);
+				break;
+
 			//case GlobalMIDICommand::TAP:
 			default:
 				if (getCurrentUI() == getRootUI()) {
@@ -2496,6 +2501,27 @@ bool PlaybackHandler::tryGlobalMIDICommands(MIDIDevice* device, int channel, int
 						tapTempoButtonPress();
 					}
 				}
+				break;
+			}
+
+			foundAnything = true;
+		}
+	}
+
+	return foundAnything;
+}
+
+// Returns whether the message has been used up by a note-off command
+bool PlaybackHandler::tryGlobalMIDICommandsOff(MIDIDevice* device, int channel, int note) {
+
+	bool foundAnything = false;
+
+	for (int c = 0; c < kNumGlobalMIDICommands; c++) {
+		if (midiEngine.globalMIDICommands[c].equalsNoteOrCC(device, channel, note)) {
+			switch (static_cast<GlobalMIDICommand>(c)) {
+			case GlobalMIDICommand::FILL:
+				currentSong->fillModeActive = false;
+				indicator_leds::setLedState(IndicatorLED::SYNC_SCALING, false);
 				break;
 			}
 
@@ -2540,9 +2566,12 @@ void PlaybackHandler::noteMessageReceived(MIDIDevice* fromDevice, bool on, int c
 
 	bool foundAnything = false;
 
-	// Check global function commands
+	// Check global function commands - Off variant checks note off for momentary commands
 	if (on) {
 		foundAnything = tryGlobalMIDICommands(fromDevice, channel, note);
+	}
+	else {
+		foundAnything = tryGlobalMIDICommandsOff(fromDevice, channel, note);
 	}
 
 	// Go through all sections
