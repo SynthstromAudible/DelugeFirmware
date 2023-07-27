@@ -91,7 +91,7 @@ def argparser() -> argparse.ArgumentParser:
 
 def main() -> int:
     args = argparser().parse_args()
-    directory = args.directory or (util.get_git_root().absolute() / 'src')
+    directory = Path(args.directory) or (util.get_git_root().absolute() / 'src')
     files = get_header_and_source_files(directory, not args.no_recursive)
     excludes = excludes_from_file(".clang-format-ignore")
     files = exclude(files, excludes)
