@@ -37,6 +37,8 @@ Setting menuMasterCompressorFx(RuntimeFeatureSettingType::MasterCompressorFx);
 Setting menuFineTempo(RuntimeFeatureSettingType::FineTempoKnob);
 Setting menuQuantize(RuntimeFeatureSettingType::Quantize);
 Setting menuPatchCableResolution(RuntimeFeatureSettingType::PatchCableResolution);
+Setting menuCatchNotes(RuntimeFeatureSettingType::CatchNotes);
+Setting menuDeleteUnusedKitRows(RuntimeFeatureSettingType::DeleteUnusedKitRows);
 Setting menuClearClipAutomation(RuntimeFeatureSettingType::ClearClipAutomation);
 
 std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement + 1> subMenuEntries{
@@ -45,6 +47,8 @@ std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement + 1> subMenuEntries{
     &menuFineTempo,
     &menuQuantize,
     &menuPatchCableResolution,
+    &menuCatchNotes,
+    &menuDeleteUnusedKitRows,
 	&menuClearClipAutomation,
 
     nullptr,
