@@ -26,7 +26,7 @@
 FilterSet::FilterSet() {
 }
 
-void FilterSet::renderHPF(q31_t* outputSample, FilterSetConfig* filterSetConfig, int extraSaturation) {
+void FilterSet::renderLadderHPF(q31_t* outputSample, HPLadderConfig* filterSetConfig, int extraSaturation) {
 	q31_t input = *outputSample;
 
 	q31_t firstHPFOutput = input - hpfHPF1.doFilter(input, filterSetConfig->hpfMoveability);
@@ -61,72 +61,14 @@ void FilterSet::renderHPF(q31_t* outputSample, FilterSetConfig* filterSetConfig,
 void FilterSet::renderHPFLong(q31_t* outputSample, q31_t* endSample, FilterSetConfig* filterSetConfig, int numSamples,
                               int sampleIncrement) {
 
-	bool needToFixSaturation = false;
-
-	if (!hpfDoingAntialiasingNow && filterSetConfig->hpfDoAntialiasing) {
-		needToFixSaturation = true;
-	}
-
-	hpfDoingAntialiasingNow = filterSetConfig->hpfDoAntialiasing;
-
-	if (!hpfOnLastTime) {
-		hpfOnLastTime = true;
-		hpfDivideByTotalMoveabilityLastTime = filterSetConfig->divideByTotalMoveability;
-		hpfDivideByProcessedResonanceLastTime = filterSetConfig->hpfDivideByProcessedResonance;
-		needToFixSaturation = true;
-		hpfHPF1.reset();
-		hpfLPF1.reset();
-		hpfHPF3.reset();
-	}
-
-	q31_t hpfDivideByTotalMoveabilityNow = hpfDivideByTotalMoveabilityLastTime;
-	q31_t hpfDivideByTotalMoveabilityIncrement =
-	    (q31_t)(filterSetConfig->divideByTotalMoveability - hpfDivideByTotalMoveabilityNow) / (q31_t)numSamples;
-	hpfDivideByTotalMoveabilityLastTime = filterSetConfig->divideByTotalMoveability;
-
-	q31_t hpfDivideByProcessedResonanceNow = hpfDivideByProcessedResonanceLastTime;
-	q31_t hpfDivideByProcessedResonanceIncrement =
-	    (q31_t)(filterSetConfig->hpfDivideByProcessedResonance - hpfDivideByProcessedResonanceNow) / (q31_t)numSamples;
-	hpfDivideByProcessedResonanceLastTime = filterSetConfig->hpfDivideByProcessedResonance;
-
 	do {
 
-		q31_t input = *outputSample;
-
-		q31_t firstHPFOutput = input - hpfHPF1.doFilter(input, filterSetConfig->hpfMoveability);
-
-		q31_t feedbacksValue = hpfHPF3.getFeedbackOutput(filterSetConfig->hpfHPF3Feedback)
-		                       + hpfLPF1.getFeedbackOutput(filterSetConfig->hpfLPF1Feedback);
-
-		hpfDivideByTotalMoveabilityNow += hpfDivideByTotalMoveabilityIncrement;
-		q31_t a = multiply_32x32_rshift32_rounded(hpfDivideByTotalMoveabilityNow, firstHPFOutput + feedbacksValue)
-		          << (4 + 1);
-
-		// Only saturate / anti-alias if lots of resonance
-		if (hpfDoingAntialiasingNow) { // 890551738
-			if (needToFixSaturation) {
-				hpfLastWorkingValue = (uint32_t)lshiftAndSaturate<HPF_LONG_SATURATION>(a) + 2147483648u;
-				needToFixSaturation = false;
-			}
-			a = getTanHAntialiased(a, &hpfLastWorkingValue, HPF_LONG_SATURATION);
-		}
-		else {
-			if (filterSetConfig->hpfProcessedResonance > 750000000) { // 400551738
-				a = getTanH<HPF_LONG_SATURATION>(a);
-			}
-		}
-
-		hpfLPF1.doFilter(a - hpfHPF3.doFilter(a, filterSetConfig->hpfMoveability), filterSetConfig->hpfMoveability);
-
-		hpfDivideByProcessedResonanceNow += hpfDivideByProcessedResonanceIncrement;
-		a = multiply_32x32_rshift32_rounded(a, hpfDivideByProcessedResonanceNow) << (8 - 1); // Normalization
-
-		*outputSample = a;
+		renderLadderHPF(outputSample, &filterSetConfig->hpladderconfig);
 		outputSample += sampleIncrement;
 	} while (outputSample < endSample);
 }
 
-inline q31_t FilterSet::do24dBLPFOnSample(q31_t input, FilterSetConfig* filterSetConfig, int saturationLevel) {
+inline q31_t FilterSet::do24dBLPFOnSample(q31_t input, LPLadderConfig* filterSetConfig, int saturationLevel) {
 
 	// For drive filter, apply some heavily lowpassed noise to the filter frequency, to add analog-ness
 	q31_t noise = getNoise() >> 2; //storageManager.devVarA;// 2;
@@ -161,7 +103,7 @@ inline q31_t FilterSet::do24dBLPFOnSample(q31_t input, FilterSetConfig* filterSe
 	       << 1;
 }
 
-inline q31_t FilterSet::doDriveLPFOnSample(q31_t input, FilterSetConfig* filterSetConfig, int extraSaturation) {
+inline q31_t FilterSet::doDriveLPFOnSample(q31_t input, LPLadderConfig* filterSetConfig, int extraSaturation) {
 
 	// For drive filter, apply some heavily lowpassed noise to the filter frequency, to add analog-ness
 	q31_t noise = getNoise() >> 2; //storageManager.devVarA;// 2;
@@ -200,19 +142,8 @@ inline q31_t FilterSet::doDriveLPFOnSample(q31_t input, FilterSetConfig* filterS
 	return d;
 }
 
-void FilterSet::renderLPFLong(q31_t* startSample, q31_t* endSample, FilterSetConfig* filterSetConfig, LPFMode lpfMode,
-                              int sampleIncrement, int extraSaturation, int extraSaturationDrive) {
-
-	// This should help get rid of crackling on start / stop - but doesn't
-	if (!lpfOnLastTime) {
-		lpfOnLastTime = true;
-		lpfLPF1.reset();
-		lpfLPF2.reset();
-		lpfLPF3.reset();
-		lpfLPF4.reset();
-		svf.reset();
-	}
-
+void FilterSet::renderLPLadder(q31_t* startSample, q31_t* endSample, LPLadderConfig* filterSetConfig, LPFMode lpfMode,
+                               int sampleIncrement, int extraSaturation, int extraSaturationDrive) {
 	// Half ladder
 	if (lpfMode == LPFMode::TRANSISTOR_12DB) {
 
@@ -310,15 +241,36 @@ void FilterSet::renderLPFLong(q31_t* startSample, q31_t* endSample, FilterSetCon
 			} while (currentSample < endSample);
 		}
 	}
-	else if (lpfMode == LPFMode::SVF) {
+}
 
-		q31_t* currentSample = startSample;
-		do {
-			SVF_outs outs = svf.doSVF(*currentSample, filterSetConfig);
-			*currentSample = outs.lpf << 1;
+void FilterSet::renderLPSVF(q31_t* startSample, q31_t* endSample, LPSVFConfig* filterSetConfig, int sampleIncrement) {
+	q31_t* currentSample = startSample;
+	do {
+		SVF_outs outs = svf.doSVF(*currentSample, filterSetConfig);
+		*currentSample = outs.lpf << 1;
 
-			currentSample += sampleIncrement;
-		} while (currentSample < endSample);
+		currentSample += sampleIncrement;
+	} while (currentSample < endSample);
+}
+void FilterSet::renderLPFLong(q31_t* startSample, q31_t* endSample, FilterSetConfig* filterSetConfig, LPFMode lpfMode,
+                              int sampleIncrement, int extraSaturation, int extraSaturationDrive) {
+
+	// This should help get rid of crackling on start / stop - but doesn't
+	if (!lpfOnLastTime) {
+		lpfOnLastTime = true;
+		lpfLPF1.reset();
+		lpfLPF2.reset();
+		lpfLPF3.reset();
+		lpfLPF4.reset();
+		svf.reset();
+	}
+
+	if (lpfMode == LPFMode::SVF) {
+		renderLPSVF(startSample, endSample, &filterSetConfig->lpsvfconfig, sampleIncrement);
+	}
+	else {
+		renderLPLadder(startSample, endSample, &filterSetConfig->lpladderconfig, lpfMode, sampleIncrement,
+		               extraSaturation, extraSaturationDrive);
 	}
 }
 
@@ -339,7 +291,7 @@ void FilterSet::reset() {
 	noiseLastValue = 0;
 }
 
-SVF_outs SVFilter::doSVF(int32_t input, FilterSetConfig* filterSetConfig) {
+SVF_outs SVFilter::doSVF(int32_t input, LPSVFConfig* filterSetConfig) {
 	q31_t high = 0;
 	q31_t notch = 0;
 	q31_t lowi;
