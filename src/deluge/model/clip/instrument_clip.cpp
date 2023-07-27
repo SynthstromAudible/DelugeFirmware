@@ -15,7 +15,6 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "model/clip/instrument_clip.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/browser/browser.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
@@ -32,6 +31,7 @@
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip_instance.h"
+#include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
 #include "model/consequence/consequence_note_row_mute.h"
 #include "model/consequence/consequence_scale_add_note.h"

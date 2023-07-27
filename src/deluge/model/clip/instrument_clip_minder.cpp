@@ -15,7 +15,6 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "model/clip/instrument_clip_minder.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
@@ -37,6 +36,7 @@
 #include "model/clip/clip_instance.h"
 #include "model/clip/clip_minder.h"
 #include "model/clip/instrument_clip.h"
+#include "model/clip/instrument_clip_minder.h"
 #include "model/consequence/consequence.h"
 #include "model/drum/kit.h"
 #include "model/instrument/cv_instrument.h"

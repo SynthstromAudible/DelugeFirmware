@@ -15,7 +15,6 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "gui/views/session_view.h"
 #include "definitions_cxx.hpp"
 #include "dsp/master_compressor/master_compressor.h"
 #include "extern.h"
@@ -31,6 +30,7 @@
 #include "gui/views/audio_clip_view.h"
 #include "gui/views/automation_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
+#include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "gui/waveform/waveform_renderer.h"
 #include "hid/buttons.h"

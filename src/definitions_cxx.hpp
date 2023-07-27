@@ -17,7 +17,7 @@
 
 #pragma once
 #include "definitions.h"
-//#include "definitions_cxx.hpp"
+#include "definitions_cxx.hpp"
 #include "util/misc.h"
 #include <cstddef>
 #include <cmath>

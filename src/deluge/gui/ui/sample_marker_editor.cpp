@@ -21,6 +21,7 @@
 #include "gui/ui/keyboard_screen.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
+#include "gui/views/automation_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/waveform/waveform_basic_navigator.h"
 #include "gui/waveform/waveform_renderer.h"
@@ -43,7 +44,6 @@
 #include "processing/source.h"
 #include "storage/multi_range/multisample_range.h"
 #include "util/misc.h"
-#include "gui/views/automation_clip_view.h"
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
