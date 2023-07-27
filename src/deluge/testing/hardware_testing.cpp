@@ -17,27 +17,27 @@
 
 #include "testing/hardware_testing.h"
 #include "definitions_cxx.hpp"
-#include "io/debug/print.h"
-#include "hid/led/indicator_leds.h"
-#include "processing/engines/cv_engine.h"
-#include <string.h>
-#include "io/midi/midi_engine.h"
-#include "hid/encoders.h"
-#include "hid/display/oled.h"
-#include "processing/engines/audio_engine.h"
-#include "gui/ui/root_ui.h"
-#include "util/functions.h"
-#include "hid/matrix/matrix_driver.h"
-#include "hid/buttons.h"
 #include "gui/ui/load/load_song_ui.h"
+#include "gui/ui/root_ui.h"
+#include "hid/buttons.h"
+#include "hid/display/oled.h"
+#include "hid/encoders.h"
+#include "hid/led/indicator_leds.h"
+#include "hid/matrix/matrix_driver.h"
+#include "io/debug/print.h"
+#include "io/midi/midi_engine.h"
+#include "processing/engines/audio_engine.h"
+#include "processing/engines/cv_engine.h"
+#include "util/functions.h"
+#include <string.h>
 
 extern "C" {
-#include "util/cfunctions.h"
 #include "RZA1/gpio/gpio.h"
-#include "drivers/uart/uart.h"
+#include "RZA1/oled/oled_low_level.h"
 #include "RZA1/uart/sio_char.h"
 #include "drivers/ssi/ssi.h"
-#include "RZA1/oled/oled_low_level.h"
+#include "drivers/uart/uart.h"
+#include "util/cfunctions.h"
 }
 
 void ramTestUart() {

@@ -15,8 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "storage/audio/audio_file_manager.h"
 #include "storage/wave_table/wave_table_reader.h"
+#include "storage/audio/audio_file_manager.h"
 #include "storage/storage_manager.h"
 
 WaveTableReader::WaveTableReader() {

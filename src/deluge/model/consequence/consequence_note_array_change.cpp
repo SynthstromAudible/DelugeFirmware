@@ -16,8 +16,8 @@
 */
 
 #include "model/consequence/consequence_note_array_change.h"
-#include "model/clip/instrument_clip.h"
 #include "definitions_cxx.hpp"
+#include "model/clip/instrument_clip.h"
 #include "model/note/note_row.h"
 
 ConsequenceNoteArrayChange::ConsequenceNoteArrayChange(InstrumentClip* newClip, int newNoteRowId,

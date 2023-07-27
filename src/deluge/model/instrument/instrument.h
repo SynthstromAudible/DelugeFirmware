@@ -17,10 +17,10 @@
 
 #pragma once
 
-#include "model/clip/clip_instance_vector.h"
 #include "definitions_cxx.hpp"
-#include "util/d_string.h"
+#include "model/clip/clip_instance_vector.h"
 #include "model/output.h"
+#include "util/d_string.h"
 
 class StereoSample;
 class ModControllable;

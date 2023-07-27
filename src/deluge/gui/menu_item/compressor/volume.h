@@ -15,8 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "processing/engines/audio_engine.h"
 #include "gui/menu_item/patch_cable_strength/fixed.h"
+#include "processing/engines/audio_engine.h"
 
 namespace menu_item::compressor {
 

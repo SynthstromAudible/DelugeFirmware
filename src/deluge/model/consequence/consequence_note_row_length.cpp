@@ -16,10 +16,10 @@
 */
 
 #include "model/consequence/consequence_note_row_length.h"
-#include "model/model_stack.h"
-#include "model/song/song.h"
-#include "model/note/note_row.h"
 #include "model/clip/clip.h"
+#include "model/model_stack.h"
+#include "model/note/note_row.h"
+#include "model/song/song.h"
 
 ConsequenceNoteRowLength::ConsequenceNoteRowLength(int newNoteRowId, int newLength) {
 	noteRowId = newNoteRowId;

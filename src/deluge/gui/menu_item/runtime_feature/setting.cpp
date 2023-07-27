@@ -16,8 +16,8 @@
 */
 
 #include "setting.h"
-#include "model/settings/runtime_feature_settings.h"
 #include "gui/ui/sound_editor.h"
+#include "model/settings/runtime_feature_settings.h"
 namespace menu_item::runtime_feature {
 
 Setting::Setting(RuntimeFeatureSettingType ty) : currentSettingIndex(static_cast<uint32_t>(ty)) {

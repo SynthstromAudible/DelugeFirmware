@@ -15,25 +15,25 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "patch_cable_strength.h"
 #include "gui/menu_item/menu_item.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
-#include "patch_cable_strength.h"
 #include "source_selection.h"
 
 #include "definitions_cxx.hpp"
+#include "deluge/model/settings/runtime_feature_settings.h"
 #include "gui/ui/sound_editor.h"
+#include "hid/buttons.h"
 #include "hid/display/numeric_driver.h"
+#include "hid/display/oled.h"
 #include "hid/matrix/matrix_driver.h"
-#include "model/song/song.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
-#include "hid/buttons.h"
 #include "model/model_stack.h"
+#include "model/song/song.h"
 #include "modulation/patch/patch_cable_set.h"
-#include "hid/display/oled.h"
 #include "util/functions.h"
-#include "deluge/model/settings/runtime_feature_settings.h"
 
 namespace menu_item {
 extern bool movingCursor;

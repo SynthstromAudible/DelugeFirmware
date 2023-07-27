@@ -68,7 +68,7 @@ def convert_path_if_mingw(path: str):
     return path
 
 
-def get_git_root():
+def get_git_root() -> Path:
     git_root = run_get_output(["git", "rev-parse", "--show-toplevel"])
     git_root = convert_path_if_mingw(git_root)
     return Path(git_root)
