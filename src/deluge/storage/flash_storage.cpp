@@ -106,6 +106,10 @@ namespace FlashStorage {
 104: GlobalMIDICommand::UNDO						product / vendor ids
 108-111: GlobalMIDICommand::REDO					product / vendor ids
 112: default MIDI bend range
+113: MIDI takeover mode
+114: GlobalMIDICommand::FILL channel + 1
+115: GlobalMIDICommand::FILL noteCode + 1
+116: GlobalMIDICommand::FILL product / vendor ids
 */
 
 uint8_t defaultScale;
@@ -252,6 +256,8 @@ void readSettings() {
 	    buffer[70] - 1;
 	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING)].noteOrCC =
 	    buffer[71] - 1;
+	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::FILL)].channelOrZone = buffer[114] - 1;
+	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::FILL)].noteOrCC = buffer[115] - 1;
 
 	if (previouslySavedByFirmwareVersion >= FIRMWARE_3P2P0_ALPHA) {
 		MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::PLAYBACK_RESTART, &buffer[80]);
@@ -262,6 +268,7 @@ void readSettings() {
 		MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING, &buffer[100]);
 		MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::UNDO, &buffer[104]);
 		MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::REDO, &buffer[108]);
+		MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::FILL, &buffer[116]);
 	}
 
 	AudioEngine::inputMonitoringMode = static_cast<InputMonitoringMode>(buffer[50]);
@@ -417,6 +424,8 @@ void writeSettings() {
 	buffer[66] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::UNDO)].noteOrCC + 1;
 	buffer[67] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::REDO)].channelOrZone + 1;
 	buffer[68] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::REDO)].noteOrCC + 1;
+	buffer[114] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::FILL)].channelOrZone + 1;
+	buffer[115] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::FILL)].noteOrCC + 1;
 	buffer[70] =
 	    midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING)].channelOrZone
 	    + 1;
@@ -431,6 +440,7 @@ void writeSettings() {
 	MIDIDeviceManager::writeDeviceReferenceToFlash(GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING, &buffer[100]);
 	MIDIDeviceManager::writeDeviceReferenceToFlash(GlobalMIDICommand::UNDO, &buffer[104]);
 	MIDIDeviceManager::writeDeviceReferenceToFlash(GlobalMIDICommand::REDO, &buffer[108]);
+	MIDIDeviceManager::writeDeviceReferenceToFlash(GlobalMIDICommand::FILL, &buffer[116]);
 
 	buffer[50] = util::to_underlying(AudioEngine::inputMonitoringMode);
 

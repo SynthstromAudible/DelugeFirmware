@@ -815,7 +815,7 @@ skipDoingSumTo100:
 
 			// else check if it's a FILL note and only play if SYNC_SCALING is pressed
 			else if (pendingNoteOnList.pendingNoteOns[i].probability == kFillProbabilityValue) {
-					conditionPassed = currentSong->fillModeActive;
+				conditionPassed = currentSong->fillModeActive;
 			}
 
 			// Otherwise...

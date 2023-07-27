@@ -584,15 +584,12 @@ midi::Command undoMidiCommand{"UNDO", GlobalMIDICommand::UNDO};
 midi::Command redoMidiCommand{"REDO", GlobalMIDICommand::REDO};
 midi::Command loopMidiCommand{"LOOP", GlobalMIDICommand::LOOP};
 midi::Command loopContinuousLayeringMidiCommand{"LAYERING loop", GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING};
-MenuItem* midiCommandsMenuItems[] = {&playMidiCommand,
-                                     &playbackRestartMidiCommand,
-                                     &recordMidiCommand,
-                                     &tapMidiCommand,
-                                     &undoMidiCommand,
-                                     &redoMidiCommand,
-                                     &loopMidiCommand,
-                                     &loopContinuousLayeringMidiCommand,
-                                     NULL};
+midi::Command fillMidiCommand{"FILL", GlobalMIDICommand::FILL};
+MenuItem* midiCommandsMenuItems[] = {&playMidiCommand,   &playbackRestartMidiCommand,
+                                     &recordMidiCommand, &tapMidiCommand,
+                                     &undoMidiCommand,   &redoMidiCommand,
+                                     &loopMidiCommand,   &loopContinuousLayeringMidiCommand,
+                                     &fillMidiCommand,   NULL};
 Submenu midiCommandsMenu{HAVE_OLED ? "Commands" : "CMD", midiCommandsMenuItems};
 
 // MIDI device submenu - for after we've selected which device we want it for

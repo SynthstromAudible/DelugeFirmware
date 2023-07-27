@@ -701,8 +701,9 @@ enum class GlobalMIDICommand {
 	LOOP_CONTINUOUS_LAYERING,
 	UNDO,
 	REDO,
+	FILL,
 };
-constexpr auto kNumGlobalMIDICommands = util::to_underlying(GlobalMIDICommand::REDO) + 1;
+constexpr auto kNumGlobalMIDICommands = util::to_underlying(GlobalMIDICommand::FILL) + 1;
 
 enum class MIDITakeoverMode : uint8_t {
 	JUMP,
