@@ -15,12 +15,13 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "gui/menu_item/menu_item.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "patch_cable_strength.h"
 #include "source_selection.h"
 
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/numeric_driver.h"
 #include "hid/matrix/matrix_driver.h"
@@ -49,7 +50,7 @@ void PatchCableStrength::renderOLED() {
 
 	int extraY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 0 : 1;
 
-	int s = getS();
+	PatchSource s = getS();
 
 	int yTop = extraY + OLED_MAIN_TOPMOST_PIXEL;
 	int ySpacing;
@@ -57,7 +58,7 @@ void PatchCableStrength::renderOLED() {
 	ParamDescriptor destinationDescriptor = getDestinationDescriptor();
 	if (destinationDescriptor.isJustAParam()) {
 		yTop += 3;
-		ySpacing = TEXT_SPACING_Y;
+		ySpacing = kTextSpacingY;
 	}
 	else {
 		yTop++;
@@ -67,35 +68,35 @@ void PatchCableStrength::renderOLED() {
 	int yPixel = yTop;
 
 	OLED::drawString(getSourceDisplayNameForOLED(s), 0, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
-	                 TEXT_SPACING_X, TEXT_SIZE_Y_UPDATED);
+	                 kTextSpacingX, kTextSizeYUpdated);
 	yPixel += ySpacing;
 
 	if (!destinationDescriptor.isJustAParam()) {
 		//OLED::drawGraphicMultiLine(OLED::downArrowIcon, 0, yPixel, 8, OLED::oledMainImage[0]);
 		int horizontalLineY = yPixel + (ySpacing << 1);
 		OLED::drawVerticalLine(4, yPixel + 1, horizontalLineY, OLED::oledMainImage);
-		int rightArrowX = 3 + TEXT_SPACING_X;
-		OLED::drawHorizontalLine(horizontalLineY, 4, TEXT_SPACING_X * 2 + 4, OLED::oledMainImage);
+		int rightArrowX = 3 + kTextSpacingX;
+		OLED::drawHorizontalLine(horizontalLineY, 4, kTextSpacingX * 2 + 4, OLED::oledMainImage);
 		OLED::drawGraphicMultiLine(OLED::rightArrowIcon, rightArrowX, horizontalLineY - 2, 3, OLED::oledMainImage[0]);
 
 		yPixel += ySpacing - 1;
 
-		int s2 = destinationDescriptor.getTopLevelSource();
-		OLED::drawString(getSourceDisplayNameForOLED(s2), TEXT_SPACING_X * 2, yPixel - 3, OLED::oledMainImage[0],
-		                 OLED_MAIN_WIDTH_PIXELS, TEXT_SPACING_X, TEXT_SIZE_Y_UPDATED);
+		PatchSource s2 = destinationDescriptor.getTopLevelSource();
+		OLED::drawString(getSourceDisplayNameForOLED(s2), kTextSpacingX * 2, yPixel - 3, OLED::oledMainImage[0],
+		                 OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSizeYUpdated);
 		yPixel += ySpacing;
 
-		OLED::drawVerticalLine(TEXT_SPACING_X * 2 + 4, yPixel - 2, yPixel + 2, OLED::oledMainImage);
+		OLED::drawVerticalLine(kTextSpacingX * 2 + 4, yPixel - 2, yPixel + 2, OLED::oledMainImage);
 	}
 
-	OLED::drawGraphicMultiLine(OLED::downArrowIcon, destinationDescriptor.isJustAParam() ? 2 : (TEXT_SPACING_X * 2 + 2),
+	OLED::drawGraphicMultiLine(OLED::downArrowIcon, destinationDescriptor.isJustAParam() ? 2 : (kTextSpacingX * 2 + 2),
 	                           yPixel, 5, OLED::oledMainImage[0]);
 	yPixel += ySpacing;
 
 	int p = destinationDescriptor.getJustTheParam();
 
 	OLED::drawString(getPatchedParamDisplayNameForOled(p), 0, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
-	                 TEXT_SPACING_X, TEXT_SIZE_Y_UPDATED);
+	                 kTextSpacingX, kTextSizeYUpdated);
 
 	if (soundEditor.numberEditPos != getDefaultEditPos()) {
 		preferBarDrawing = false;
@@ -113,8 +114,8 @@ void PatchCableStrength::renderOLED() {
 		drawBar(yBar, marginL, 0);
 	}
 	else {
-		const int digitWidth = TEXT_BIG_SPACING_X;
-		const int digitHeight = TEXT_BIG_SIZE_Y;
+		const int digitWidth = kTextBigSpacingX;
+		const int digitHeight = kTextBigSizeY;
 		intToString(soundEditor.currentValue, buffer, 3);
 		int textPixelY = extraY + OLED_MAIN_TOPMOST_PIXEL + 10 + destinationDescriptor.isJustAParam();
 		OLED::drawStringAlignRight(buffer, textPixelY, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, digitWidth,
@@ -168,45 +169,41 @@ void PatchCableStrength::writeCurrentValue() {
 	modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(finalValue, modelStackWithParam);
 }
 
-int PatchCableStrength::checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) {
+MenuPermission PatchCableStrength::checkPermissionToBeginSession(Sound* sound, int whichThing,
+                                                                 MultiRange** currentRange) {
 
 	ParamDescriptor destinationDescriptor = getDestinationDescriptor();
-	int s = getS();
+	PatchSource s = getS();
 
 	// If patching to another cable's range...
 	if (!destinationDescriptor.isJustAParam()) {
 		// Global source - can control any range
-		if (s < FIRST_LOCAL_SOURCE) {
-			return MENU_PERMISSION_YES;
+		if (s < kFirstLocalSource) {
+			return MenuPermission::YES;
 		}
 
 		// Local source - range must be for cable going to local param
-		else {
-			return (destinationDescriptor.getJustTheParam() < FIRST_GLOBAL_PARAM) ? MENU_PERMISSION_YES
-			                                                                      : MENU_PERMISSION_NO;
-		}
+		return (destinationDescriptor.getJustTheParam() < ::Param::Global::FIRST) ? MenuPermission::YES
+		                                                                          : MenuPermission::NO;
 	}
 
 	int p = destinationDescriptor.getJustTheParam();
 
-	if (!sound->maySourcePatchToParam(
-	        s, p,
-	        ((ParamManagerForTimeline*)soundEditor
-	             .currentParamManager))) { // Note, that requires soundEditor.currentParamManager be set before this is called, which isn't quite ideal.
-		return MENU_PERMISSION_NO;
+	// Note, that requires soundEditor.currentParamManager be set before this is called, which isn't quite ideal.
+	if (sound->maySourcePatchToParam(s, p, ((ParamManagerForTimeline*)soundEditor.currentParamManager))
+	    == PatchCableAcceptance::DISALLOWED) {
+		return MenuPermission::NO;
 	}
 
-	return MENU_PERMISSION_YES;
+	return MenuPermission::YES;
 }
 
 uint8_t PatchCableStrength::getIndexOfPatchedParamToBlink() {
-	if (soundEditor.patchingParamSelected == PARAM_GLOBAL_VOLUME_POST_REVERB_SEND
-	    || soundEditor.patchingParamSelected == PARAM_LOCAL_VOLUME) {
-		return PARAM_GLOBAL_VOLUME_POST_FX;
+	if (soundEditor.patchingParamSelected == ::Param::Global::VOLUME_POST_REVERB_SEND
+	    || soundEditor.patchingParamSelected == ::Param::Local::VOLUME) {
+		return ::Param::Global::VOLUME_POST_FX;
 	}
-	else {
-		return soundEditor.patchingParamSelected;
-	}
+	return soundEditor.patchingParamSelected;
 }
 
 MenuItem* PatchCableStrength::selectButtonPress() {
@@ -224,8 +221,6 @@ MenuItem* PatchCableStrength::selectButtonPress() {
 		numericDriver.displayPopup(HAVE_OLED ? "Automation deleted" : "DELETED");
 		return (MenuItem*)0xFFFFFFFF; // No navigation
 	}
-	else {
-		return NULL; // Navigate back
-	}
+	return nullptr; // Navigate back
 }
 } // namespace menu_item

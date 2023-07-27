@@ -40,6 +40,8 @@ enum RuntimeFeatureSettingType : uint32_t {
 	Quantize,
 	FineTempoKnob,
 	PatchCableResolution,
+	CatchNotes,
+	DeleteUnusedKitRows,
 	MaxElement // Keep as boundary
 };
 

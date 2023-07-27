@@ -18,6 +18,7 @@
 #include "model/drum/drum.h"
 
 #include "RZA1/system/r_typedefs.h"
+#include "definitions_cxx.hpp"
 #include "storage/storage_manager.h"
 #include <string.h>
 #include "model/model_stack.h"
@@ -31,7 +32,7 @@
 #include "modulation/params/param_set.h"
 #include "util/functions.h"
 
-Drum::Drum(int newType) : type(newType) {
+Drum::Drum(DrumType newType) : type(newType) {
 	next = NULL;
 
 	earlyNoteVelocity = 0;
@@ -81,7 +82,7 @@ void Drum::drumWontBeRenderedForAWhile() { // This is virtual, and gets extended
 extern bool expressionValueChangesMustBeDoneSmoothly;
 
 void Drum::getCombinedExpressionInputs(int16_t* combined) {
-	for (int i = 0; i < NUM_EXPRESSION_DIMENSIONS; i++) {
+	for (int i = 0; i < kNumExpressionDimensions; i++) {
 		int32_t combinedValue =
 		    (int32_t)lastExpressionInputsReceived[0][i] + (int32_t)lastExpressionInputsReceived[1][i];
 		combined[i] = lshiftAndSaturate<8>(combinedValue);

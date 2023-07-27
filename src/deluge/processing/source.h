@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "storage/multi_range/multi_range_array.h"
 #include "util/phase_increment_fine_tuner.h"
 #include "model/sample/sample_controls.h"
@@ -33,7 +34,7 @@ public:
 
 	SampleControls sampleControls;
 
-	uint8_t oscType;
+	OscType oscType;
 
 	// These are not valid for Samples
 	int16_t transpose;
@@ -42,13 +43,13 @@ public:
 
 	MultiRangeArray ranges;
 
-	uint8_t repeatMode;
+	SampleRepeatMode repeatMode;
 
 	int8_t timeStretchAmount;
 
 	int16_t defaultRangeI; // -1 means none yet
 
-	bool renderInStereo(SampleHolder* sampleHolder = NULL);
+	bool renderInStereo(Sound* s, SampleHolder* sampleHolder = NULL);
 	void setCents(int newCents);
 	void recalculateFineTuner();
 	int32_t getLengthInSamplesAtSystemSampleRate(int note, bool forTimeStretching = false);
@@ -61,7 +62,7 @@ public:
 	bool hasAtLeastOneAudioFileLoaded();
 	void doneReadingFromFile(Sound* sound);
 	bool hasAnyLoopEndPoint();
-	void setOscType(int newType);
+	void setOscType(OscType newType);
 
 private:
 	void destructAllMultiRanges();

@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "hid/display/numeric_driver.h"
 #include "RZA1/system/r_typedefs.h"
 
@@ -95,9 +95,9 @@ public:
 	uint8_t reassessmentAction;
 	int8_t interpolationBufferSizeLastTime; // 0 if was previously switched off
 
-	int16x4_t interpolationBuffer[2][INTERPOLATION_MAX_NUM_SAMPLES >> 2];
+	int16x4_t interpolationBuffer[2][kInterpolationMaxNumSamples >> 2];
 
-	Cluster* clusters[NUM_CLUSTERS_LOADED_AHEAD];
+	Cluster* clusters[kNumClustersLoadedAhead];
 
 private:
 	bool assignClusters(SamplePlaybackGuide* guide, Sample* sample, int clusterIndex, int priorityRating);

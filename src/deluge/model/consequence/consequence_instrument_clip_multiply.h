@@ -24,5 +24,5 @@ class ConsequenceInstrumentClipMultiply final : public Consequence {
 public:
 	ConsequenceInstrumentClipMultiply();
 
-	int revert(int time, ModelStack* modelStack);
+	int revert(TimeType time, ModelStack* modelStack);
 };

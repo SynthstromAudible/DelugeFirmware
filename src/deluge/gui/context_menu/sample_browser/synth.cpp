@@ -16,6 +16,7 @@
 */
 
 #include "gui/context_menu/sample_browser/synth.h"
+#include "definitions_cxx.hpp"
 #include "gui/ui/browser/sample_browser.h"
 #include "hid/display/numeric_driver.h"
 #include "util/functions.h"
@@ -41,7 +42,7 @@ bool Synth::isCurrentOptionAvailable() {
 
 	// Multisamples (load entire folder and auto-detect ranges). Will delete all previous Ranges.
 	if (currentOption == 0) {
-		return (soundEditor.currentSound->getSynthMode() != SYNTH_MODE_RINGMOD);
+		return (soundEditor.currentSound->getSynthMode() != SynthMode::RINGMOD);
 	}
 
 	// Apart from that option, none of the other ones are valid if currently sitting on a folder-name.
@@ -52,7 +53,7 @@ bool Synth::isCurrentOptionAvailable() {
 	switch (currentOption) {
 	case 1:
 		// "Basic" Sample - unavailable if ringmod.
-		return (soundEditor.currentSound->getSynthMode() != SYNTH_MODE_RINGMOD);
+		return (soundEditor.currentSound->getSynthMode() != SynthMode::RINGMOD);
 
 	case 3:
 		// WaveTable
@@ -88,7 +89,7 @@ bool Synth::acceptCurrentOption() {
 	}
 }
 
-int Synth::padAction(int x, int y, int on) {
+ActionResult Synth::padAction(int x, int y, int on) {
 	return sampleBrowser.padAction(x, y, on);
 }
 

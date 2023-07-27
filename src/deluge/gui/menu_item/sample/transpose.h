@@ -26,8 +26,8 @@ public:
 	void readCurrentValue() {
 		int transpose;
 		int cents;
-		if (soundEditor.currentMultiRange && soundEditor.currentSound->getSynthMode() != SYNTH_MODE_FM
-		    && soundEditor.currentSource->oscType == OSC_TYPE_SAMPLE) {
+		if (soundEditor.currentMultiRange && soundEditor.currentSound->getSynthMode() != SynthMode::FM
+		    && soundEditor.currentSource->oscType == OscType::SAMPLE) {
 			transpose = ((MultisampleRange*)soundEditor.currentMultiRange)->sampleHolder.transpose;
 			cents = ((MultisampleRange*)soundEditor.currentMultiRange)->sampleHolder.cents;
 		}
@@ -44,8 +44,8 @@ public:
 		int cents = currentValue - semitones * 100;
 
 		int transpose = semitones - 256;
-		if (soundEditor.currentMultiRange && soundEditor.currentSound->getSynthMode() != SYNTH_MODE_FM
-		    && soundEditor.currentSource->oscType == OSC_TYPE_SAMPLE) {
+		if (soundEditor.currentMultiRange && soundEditor.currentSound->getSynthMode() != SynthMode::FM
+		    && soundEditor.currentSource->oscType == OscType::SAMPLE) {
 			((MultisampleRange*)soundEditor.currentMultiRange)->sampleHolder.transpose = transpose;
 			((MultisampleRange*)soundEditor.currentMultiRange)->sampleHolder.setCents(cents);
 		}
@@ -59,17 +59,17 @@ public:
 
 		soundEditor.currentSound->recalculateAllVoicePhaseIncrements(modelStack);
 	}
-	int checkPermissionToBeginSession(Sound* sound, int whichThing, ::MultiRange** currentRange) {
+	MenuPermission checkPermissionToBeginSession(Sound* sound, int whichThing, ::MultiRange** currentRange) {
 
 		if (!isRelevant(sound, whichThing)) {
-			return MENU_PERMISSION_NO;
+			return MenuPermission::NO;
 		}
 
 		Source* source = &sound->sources[whichThing];
 
-		if (sound->getSynthMode() == SYNTH_MODE_FM
-		    || (source->oscType != OSC_TYPE_SAMPLE && source->oscType != OSC_TYPE_WAVETABLE))
-			return MENU_PERMISSION_YES;
+		if (sound->getSynthMode() == SynthMode::FM
+		    || (source->oscType != OscType::SAMPLE && source->oscType != OscType::WAVETABLE))
+			return MenuPermission::YES;
 
 		return soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(sound, whichThing, true, currentRange);
 	}

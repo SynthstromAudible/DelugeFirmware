@@ -27,7 +27,7 @@ public:
 
 #if !HAVE_OLED
 	void focusRegained();
-	int horizontalEncoderAction(int offset);
+	ActionResult horizontalEncoderAction(int offset);
 #endif
 	int getCurrentFilePath(String* path);
 

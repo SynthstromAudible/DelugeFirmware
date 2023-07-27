@@ -24,13 +24,13 @@
 #include "gui/ui/sound_editor.h"
 
 namespace menu_item::patch_cable_strength {
-int Fixed::checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) {
+MenuPermission Fixed::checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) {
 	soundEditor.patchingParamSelected = p;
 	source_selection::regularMenu.s = s;
 	return PatchCableStrength::checkPermissionToBeginSession(sound, whichThing, currentRange);
 }
 
-uint8_t Fixed::shouldBlinkPatchingSourceShortcut(int s, uint8_t* sourceShortcutBlinkColours) {
+uint8_t Fixed::shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* sourceShortcutBlinkColours) {
 
 	PatchCableSet* patchCableSet = soundEditor.currentParamManager->getPatchCableSet();
 
@@ -43,7 +43,7 @@ uint8_t Fixed::shouldBlinkPatchingSourceShortcut(int s, uint8_t* sourceShortcutB
 	}
 }
 
-MenuItem* Fixed::patchingSourceShortcutPress(int s, bool previousPressStillActive) {
+MenuItem* Fixed::patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive) {
 	source_selection::rangeMenu.s = s;
 	return &patch_cable_strength::rangeMenu;
 }

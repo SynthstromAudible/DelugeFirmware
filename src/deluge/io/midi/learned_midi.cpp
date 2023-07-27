@@ -16,7 +16,7 @@
 */
 
 #include "io/midi/learned_midi.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "storage/storage_manager.h"
 #include <string.h>
 #include "io/midi/midi_device.h"
@@ -128,12 +128,13 @@ bool LearnedMIDI::equalsChannelAllowMPE(MIDIDevice* newDevice, int newChannel) {
 	if (!device) {
 		return false; // Could we actually be set to MPE but have no device? Maybe if loaded from weird song file?
 	}
-	if (channelOrZone == MIDI_CHANNEL_MPE_LOWER_ZONE) {
-		return (newChannel <= device->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeLowerZoneLastMemberChannel);
+	if (newChannel <= newDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeLowerZoneLastMemberChannel) {
+		return (channelOrZone == MIDI_CHANNEL_MPE_LOWER_ZONE);
 	}
-	if (channelOrZone == MIDI_CHANNEL_MPE_UPPER_ZONE) {
-		return (newChannel >= device->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeUpperZoneLastMemberChannel);
+	else if (newChannel >= newDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeUpperZoneLastMemberChannel) {
+		return (channelOrZone == MIDI_CHANNEL_MPE_UPPER_ZONE);
 	}
+
 	return (channelOrZone == newChannel);
 }
 
@@ -150,5 +151,15 @@ bool LearnedMIDI::equalsChannelAllowMPEMasterChannels(MIDIDevice* newDevice, int
 	if (channelOrZone > IS_A_CC) {
 		return (channelOrZone == newChannel);
 	}
-	return (newChannel == getMasterChannel());
+
+	if (channelOrZone == MIDI_CHANNEL_MPE_LOWER_ZONE) {
+		if (newChannel <= newDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeLowerZoneLastMemberChannel) {
+			return (newChannel == getMasterChannel());
+		}
+	}
+	if (channelOrZone == MIDI_CHANNEL_MPE_UPPER_ZONE) {
+		if (newChannel >= newDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeUpperZoneLastMemberChannel) {
+			return (newChannel == getMasterChannel());
+		}
+	}
 }

@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "definitions_cxx.hpp"
 #include "gui/menu_item/source_selection.h"
 
 namespace menu_item::source_selection {
@@ -24,7 +25,7 @@ public:
 	void beginSession(MenuItem* navigatedBackwardFrom = NULL);
 	ParamDescriptor getDestinationDescriptor();
 	MenuItem* selectButtonPress();
-	MenuItem* patchingSourceShortcutPress(int newS, bool previousPressStillActive);
+	MenuItem* patchingSourceShortcutPress(PatchSource newS, bool previousPressStillActive) override;
 };
 
 extern Regular regularMenu;

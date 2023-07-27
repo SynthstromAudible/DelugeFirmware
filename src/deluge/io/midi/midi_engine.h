@@ -20,7 +20,7 @@
 #ifdef __cplusplus
 
 #include "playback/playback_handler.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "io/midi/learned_midi.h"
 
 class MIDIDevice;
@@ -37,7 +37,7 @@ public:
 	void checkIncomingUsbSysex(uint8_t const* message, int ip, int d, int cable);
 
 	void sendMidi(uint8_t statusType, uint8_t channel, uint8_t data1 = 0, uint8_t data2 = 0,
-	              int filter = MIDI_OUTPUT_FILTER_NO_MPE, bool sendUSB = true);
+	              int filter = kMIDIOutputFilterNoMPE, bool sendUSB = true);
 	void sendClock(bool sendUSB = true, int howMany = 1);
 	void sendStart();
 	void sendStop();
@@ -58,11 +58,15 @@ public:
 	void setupUSBHostReceiveTransfer(int ip, int midiDeviceNum);
 	void flushUSBMIDIOutput();
 
-	LearnedMIDI globalMIDICommands
-	    [NUM_GLOBAL_MIDI_COMMANDS]; // If bit "16" (actually bit 4) is 1, this is a program change. (Wait, still?)
+	// If bit "16" (actually bit 4) is 1, this is a program change. (Wait, still?)
+	LearnedMIDI globalMIDICommands[kNumGlobalMIDICommands];
 
 	bool midiThru;
-	uint8_t midiTakeover;
+	MIDITakeoverMode midiTakeover;
+
+	// shared buffer for formatting sysex messages.
+	// Not safe for use in interrupts.
+	uint8_t sysex_fmt_buffer[1024];
 
 private:
 	uint8_t serialMidiInput[3];
@@ -75,11 +79,13 @@ private:
 	void midiMessageReceived(MIDIDevice* fromDevice, uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2,
 	                         uint32_t* timer = NULL);
 
-	// or midi device?? whatever makes sense for a consumer as a reply address.
 	void midiSysexReceived(MIDIDevice* device, uint8_t* data, int len);
 	int getPotentialNumConnectedUSBMIDIDevices(int ip);
+
+	void debugSysexReceived(MIDIDevice* device, uint8_t* data, int len);
 };
 
+void midiDebugPrint(MIDIDevice* device, const char* msg, bool nl);
 uint32_t setupUSBMessage(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2);
 
 extern MidiEngine midiEngine;

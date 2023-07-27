@@ -21,7 +21,7 @@
 #include "hid/matrix/matrix_driver.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/ui/root_ui.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "hid/led/pad_leds.h"
 #include "hid/display/oled.h"
 
@@ -324,7 +324,7 @@ void doAnyPendingUIRendering() {
 		return;
 	}
 
-	if (uartGetTxBufferSpace(UART_ITEM_PIC_PADS) <= (NUM_BYTES_IN_MAIN_PAD_REDRAW + NUM_BYTES_IN_SIDEBAR_REDRAW) * 2) {
+	if (uartGetTxBufferSpace(UART_ITEM_PIC_PADS) <= (kNumBytesInMainPadRedraw + kNumBytesInSidebarRedraw) * 2) {
 		return; // Trialling the *2 to fix flickering when flicking through presets very fast
 	}
 

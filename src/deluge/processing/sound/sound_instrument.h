@@ -51,13 +51,13 @@ public:
 	int loadAllAudioFiles(bool mayActuallyReadFiles);
 	void resyncLFOs();
 	ModControllable* toModControllable();
-	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, int maySendMIDIPGMs);
+	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs);
 	void setupPatchingForAllParamManagers(Song* song);
 	void setupPatching(ModelStackWithTimelineCounter* modelStack);
 
 	void deleteBackedUpParamManagers(Song* song);
 	void polyphonicExpressionEventOnChannelOrNote(int newValue, int whichExpressionDimension, int channelOrNoteNumber,
-	                                              int whichCharacteristic);
+	                                              MIDICharacteristic whichCharacteristic);
 	void monophonicExpressionEvent(int newValue, int whichExpressionDimension);
 
 	void sendNote(ModelStackWithThreeMainThings* modelStack, bool isOn, int noteCode, int16_t const* mpeValues,

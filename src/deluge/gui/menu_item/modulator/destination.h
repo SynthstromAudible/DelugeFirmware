@@ -29,7 +29,7 @@ public:
 		static char const* options[] = {"Carriers", HAVE_OLED ? "Modulator 1" : "MOD1", NULL};
 		return options;
 	}
-	bool isRelevant(Sound* sound, int whichThing) { return (whichThing == 1 && sound->synthMode == SYNTH_MODE_FM); }
+	bool isRelevant(Sound* sound, int whichThing) { return (whichThing == 1 && sound->synthMode == SynthMode::FM); }
 };
 
 } // namespace menu_item::modulator

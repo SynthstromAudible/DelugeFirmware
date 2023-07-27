@@ -27,7 +27,7 @@ public:
 	using MenuItem::MenuItem;
 	void beginSession(MenuItem* navigatedBackwardFrom);
 	bool isRelevant(Sound* sound, int whichThing);
-	int checkPermissionToBeginSession(Sound* sound, int whichThing, ::MultiRange** currentRange);
+	MenuPermission checkPermissionToBeginSession(Sound* sound, int whichThing, ::MultiRange** currentRange);
 };
 
 extern FileSelector fileSelectorMenu;

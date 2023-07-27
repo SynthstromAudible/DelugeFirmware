@@ -15,7 +15,10 @@ class fallback_allocator {
 public:
 	using value_type = T;
 
-	fallback_allocator() = default;
+	constexpr fallback_allocator() noexcept = default;
+
+	template <typename U>
+	constexpr fallback_allocator(const fallback_allocator<U>&) noexcept {};
 
 	[[nodiscard]] T* allocate(std::size_t n) noexcept {
 		if (n == 0) {

@@ -16,32 +16,30 @@
 */
 
 #include "modulation/lfo.h"
+#include "definitions_cxx.hpp"
 #include "util/functions.h"
 #include "util/lookuptables/lookuptables.h"
 
-LFO::LFO() {
-}
-
-int32_t LFO::render(int numSamples, int waveType, uint32_t phaseIncrement) {
+int32_t LFO::render(int numSamples, LFOType waveType, uint32_t phaseIncrement) {
 	int32_t value;
 	switch (waveType) {
-	case LFO_TYPE_SAW:
+	case LFOType::SAW:
 		value = phase;
 		break;
 
-	case LFO_TYPE_SQUARE:
+	case LFOType::SQUARE:
 		value = getSquare(phase);
 		break;
 
-	case LFO_TYPE_SINE:
+	case LFOType::SINE:
 		value = getSine(phase);
 		break;
 
-	case LFO_TYPE_TRIANGLE:
+	case LFOType::TRIANGLE:
 		value = getTriangle(phase);
 		break;
 
-	case LFO_TYPE_SAH:
+	case LFOType::SAMPLE_AND_HOLD:
 		if (phase == 0) {
 			value = CONG;
 			holdValue = value;
@@ -54,7 +52,7 @@ int32_t LFO::render(int numSamples, int waveType, uint32_t phaseIncrement) {
 		}
 		break;
 
-	case LFO_TYPE_RWALK:
+	case LFOType::RANDOM_WALK:
 		uint32_t range = 4294967295u / 20;
 		if (phase == 0) {
 			value = (range / 2) - CONG % range;

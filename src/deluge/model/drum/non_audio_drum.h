@@ -17,13 +17,14 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "model/drum/drum.h"
 #include "model/mod_controllable/mod_controllable.h"
 #include "RZA1/system/r_typedefs.h"
 
 class NonAudioDrum : public Drum, public ModControllable {
 public:
-	NonAudioDrum(int newType);
+	NonAudioDrum(DrumType newType);
 
 	bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false) final;
 	bool anyNoteIsOn() final;

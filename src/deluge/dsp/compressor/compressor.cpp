@@ -16,19 +16,18 @@
 */
 
 #include "dsp/compressor/compressor.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "util/lookuptables/lookuptables.h"
-#include "definitions.h"
 #include "model/song/song.h"
 #include "playback/playback_handler.h"
 #include "storage/flash_storage.h"
 
 Compressor::Compressor() {
-	status = ENVELOPE_STAGE_OFF;
+	status = EnvelopeStage::OFF;
 	lastValue = 2147483647;
 	pos = 0;
-	attack = getParamFromUserValue(PARAM_STATIC_COMPRESSOR_ATTACK, 7);
-	release = getParamFromUserValue(PARAM_STATIC_COMPRESSOR_RELEASE, 28);
+	attack = getParamFromUserValue(Param::Static::COMPRESSOR_ATTACK, 7);
+	release = getParamFromUserValue(Param::Static::COMPRESSOR_RELEASE, 28);
 	pendingHitStrength = 0;
 
 	// I'm so sorry, this is incredibly ugly, but in order to decide the default sync level, we have to look at the current song, or even better the one being preloaded.
@@ -59,17 +58,17 @@ void Compressor::registerHit(int32_t strength) {
 
 void Compressor::registerHitRetrospectively(int32_t strength, uint32_t numSamplesAgo) {
 	pendingHitStrength = 0;
-	envelopeOffset = 2147483647 - strength;
+	envelopeOffset = ONE_Q31 - strength;
 
 	uint32_t alteredAttack = getActualAttackRate();
 	uint32_t attackStageLengthInSamples = 8388608 / alteredAttack;
 
-	envelopeHeight = 2147483647 - envelopeOffset;
+	envelopeHeight = ONE_Q31 - envelopeOffset;
 
 	// If we're still in the attack stage...
 	if (numSamplesAgo < attackStageLengthInSamples) {
 		pos = numSamplesAgo * alteredAttack;
-		status = ENVELOPE_STAGE_ATTACK;
+		status = EnvelopeStage::ATTACK;
 	}
 
 	// Or if past attack stage...
@@ -81,12 +80,12 @@ void Compressor::registerHitRetrospectively(int32_t strength, uint32_t numSample
 		// If we're still in the release stage...
 		if (numSamplesSinceRelease < releaseStageLengthInSamples) {
 			pos = numSamplesSinceRelease * alteredRelease;
-			status = ENVELOPE_STAGE_RELEASE;
+			status = EnvelopeStage::RELEASE;
 		}
 
 		// Or if we're past the release stage...
 		else {
-			status = ENVELOPE_STAGE_OFF;
+			status = EnvelopeStage::OFF;
 		}
 	}
 }
@@ -126,7 +125,7 @@ int32_t Compressor::render(uint16_t numSamples, int32_t shapeValue) {
 
 	// Initial hit detected...
 	if (pendingHitStrength != 0) {
-		int32_t newOffset = 2147483647 - pendingHitStrength;
+		int32_t newOffset = ONE_Q31 - pendingHitStrength;
 
 		pendingHitStrength = 0;
 
@@ -139,36 +138,36 @@ int32_t Compressor::render(uint16_t numSamples, int32_t shapeValue) {
 				goto prepareForRelease;
 			}
 
-			status = ENVELOPE_STAGE_ATTACK;
+			status = EnvelopeStage::ATTACK;
 			envelopeHeight = lastValue - envelopeOffset;
 			pos = 0;
 		}
 	}
 
-	if (status == ENVELOPE_STAGE_ATTACK) {
+	if (status == EnvelopeStage::ATTACK) {
 		pos += numSamples * getActualAttackRate();
 
 		if (pos >= 8388608) {
 prepareForRelease:
 			pos = 0;
-			status = ENVELOPE_STAGE_RELEASE;
-			envelopeHeight = 2147483647 - envelopeOffset;
+			status = EnvelopeStage::RELEASE;
+			envelopeHeight = ONE_Q31 - envelopeOffset;
 			goto doRelease;
 		}
 		//lastValue = (multiply_32x32_rshift32(envelopeHeight, decayTable4[pos >> 13]) << 1) + envelopeOffset; // Goes down quickly at first. Bad
 		//lastValue = (multiply_32x32_rshift32(envelopeHeight, 2147483647 - (pos << 8)) << 1) + envelopeOffset; // Straight line
-		lastValue = (multiply_32x32_rshift32(envelopeHeight, (2147483647 - getDecay4(8388608 - pos, 23))) << 1)
+		lastValue = (multiply_32x32_rshift32(envelopeHeight, (ONE_Q31 - getDecay4(8388608 - pos, 23))) << 1)
 		            + envelopeOffset; // Goes down slowly at first. Great squishiness
 		//lastValue = (multiply_32x32_rshift32(envelopeHeight, (2147483647 - decayTable8[1023 - (pos >> 13)])) << 1) + envelopeOffset; // Even slower to accelerate. Loses punch slightly
 		//lastValue = (multiply_32x32_rshift32(envelopeHeight, (sineWave[((pos >> 14) + 256) & 1023] >> 1) + 1073741824) << 1) + envelopeOffset; // Sine wave. Sounds a bit flat
 		//lastValue = (multiply_32x32_rshift32(envelopeHeight, 2147483647 - pos * (pos >> 15)) << 1) + envelopeOffset; // Parabola. Not bad, but doesn't quite have punchiness
 	}
-	else if (status == ENVELOPE_STAGE_RELEASE) {
+	else if (status == EnvelopeStage::RELEASE) {
 doRelease:
 		pos += numSamples * getActualReleaseRate();
 
 		if (pos >= 8388608) {
-			status = ENVELOPE_STAGE_OFF;
+			status = EnvelopeStage::OFF;
 			goto doOff;
 		}
 
@@ -192,7 +191,7 @@ doRelease:
 			preValue = straightness * (pos >> 8) + (getDecay8(8388608 - pos, 23) >> 16) * curvedness16;
 		}
 
-		lastValue = 2147483647 - envelopeHeight + (multiply_32x32_rshift32(preValue, envelopeHeight) << 1);
+		lastValue = ONE_Q31 - envelopeHeight + (multiply_32x32_rshift32(preValue, envelopeHeight) << 1);
 
 		//lastValue = 2147483647 - (multiply_32x32_rshift32(decayTable8[pos >> 13], envelopeHeight) << 1); // Upside down exponential curve
 		//lastValue = 2147483647 - (((int64_t)((sineWave[((pos >> 14) + 256) & 1023] >> 1) + 1073741824) * (int64_t)envelopeHeight) >> 31); // Sine wave. Not great
@@ -200,8 +199,8 @@ doRelease:
 	}
 	else { // Off
 doOff:
-		lastValue = 2147483647;
+		lastValue = ONE_Q31;
 	}
 
-	return lastValue - 2147483647;
+	return lastValue - ONE_Q31;
 }

@@ -18,7 +18,7 @@
 #pragma once
 
 #include "modulation/patch/patcher.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "dsp/compressor/compressor.h"
 #include "modulation/lfo.h"
 #include "processing/source.h"
@@ -27,6 +27,7 @@
 #include "modulation/knob.h"
 #include "modulation/params/param_set.h"
 #include "modulation/params/param_manager.h"
+#include "util/misc.h"
 
 struct CableGroup;
 class StereoSample;
@@ -69,41 +70,41 @@ public:
 
 	ParamLPF paramLPF;
 
-	Source sources[NUM_SOURCES];
+	Source sources[kNumSources];
 
-	int32_t paramFinalValues
-	    [NUM_PARAMS
-	     - FIRST_GLOBAL_PARAM]; // This is for the *global* params only, and begins with FIRST_GLOBAL_PARAM, so subtract that from your p value before accessing this array!
-	int32_t globalSourceValues[FIRST_LOCAL_SOURCE];
+	// This is for the *global* params only, and begins with Global::FIRST_PARAM, so subtract that from your p value before accessing this array!
+	int32_t paramFinalValues[kNumParams - Param::Global::FIRST];
+	int32_t globalSourceValues[util::to_underlying(kFirstLocalSource)];
 
 	uint32_t sourcesChanged; // Applies from first source up to FIRST_UNCHANGEABLE_SOURCE
 
 	LFO globalLFO;
-	uint8_t lfoGlobalWaveType;
-	uint8_t lfoLocalWaveType;
+	LFOType lfoGlobalWaveType;
+	LFOType lfoLocalWaveType;
 	SyncType lfoGlobalSyncType;
 	SyncLevel lfoGlobalSyncLevel;
 
-	ModKnob modKnobs[NUM_MOD_BUTTONS][NUM_PHYSICAL_MOD_KNOBS];
+	ModKnob modKnobs[kNumModButtons][kNumPhysicalModKnobs];
 
 	int32_t sideChainSendLevel;
 
-	uint8_t polyphonic;
+	PolyphonyMode polyphonic;
 
 	int16_t transpose;
 
 	uint8_t numUnison;
-
 	int8_t unisonDetune;
+	uint8_t unisonStereoSpread;
 
-	int16_t modulatorTranspose[numModulators];
-	int8_t modulatorCents[numModulators];
+	int16_t modulatorTranspose[kNumModulators];
+	int8_t modulatorCents[kNumModulators];
 
-	PhaseIncrementFineTuner modulatorTransposers[numModulators];
+	PhaseIncrementFineTuner modulatorTransposers[kNumModulators];
 
-	PhaseIncrementFineTuner unisonDetuners[maxNumUnison];
+	PhaseIncrementFineTuner unisonDetuners[kMaxNumVoicesUnison];
+	int32_t unisonPan[kMaxNumVoicesUnison];
 
-	uint8_t synthMode;
+	SynthMode synthMode;
 	bool modulator1ToModulator0;
 
 	int32_t volumeNeutralValueForUnison;
@@ -112,7 +113,7 @@ public:
 
 	bool oscillatorSync;
 
-	uint8_t voicePriority;
+	VoicePriority voicePriority;
 
 	bool skippingRendering;
 
@@ -121,10 +122,10 @@ public:
 	// I really didn't want to store these here, since they're stored in the ParamManager, but.... complications! Always 0
 	// for Drums - that was part of the problem - a Drum's main ParamManager's expression data has been sent to the
 	// "polyphonic" bit, and we don't want it to get referred to twice. These get manually refreshed in setActiveClip().
-	int32_t monophonicExpressionValues[NUM_EXPRESSION_DIMENSIONS];
+	int32_t monophonicExpressionValues[kNumExpressionDimensions];
 
-	uint32_t oscRetriggerPhase[NUM_SOURCES]; // 4294967295 means "off"
-	uint32_t modulatorRetriggerPhase[numModulators];
+	uint32_t oscRetriggerPhase[kNumSources]; // 4294967295 means "off"
+	uint32_t modulatorRetriggerPhase[kNumModulators];
 
 	int32_t postReverbVolumeLastTime;
 
@@ -138,7 +139,7 @@ public:
 	virtual ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = NULL) = 0;
 	virtual void setSkippingRendering(bool newSkipping);
 
-	bool setModFXType(int newType) final;
+	bool setModFXType(ModFXType newType) final;
 
 	void patchedParamPresetValueChanged(uint8_t p, ModelStackWithSoundFlags* modelStack, int32_t oldValue,
 	                                    int32_t newValue);
@@ -153,12 +154,12 @@ public:
 	void ensureParamPresetValueWithoutKnobIsZero(ModelStackWithAutoParam* modelStack);
 	void ensureParamPresetValueWithoutKnobIsZeroWithMinimalDetails(ParamManager* paramManager, int p);
 
-	uint8_t maySourcePatchToParam(uint8_t s, uint8_t p, ParamManager* paramManager);
+	PatchCableAcceptance maySourcePatchToParam(PatchSource s, uint8_t p, ParamManager* paramManager);
 
 	void setLFOGlobalSyncType(SyncType newType);
 	void setLFOGlobalSyncLevel(SyncLevel newLevel);
 	void resyncGlobalLFO();
-	void setLFOGlobalWave(uint8_t newWave);
+	void setLFOGlobalWave(LFOType newWave);
 
 	int8_t getKnobPos(uint8_t p, ParamManagerForTimeline* paramManager, uint32_t timePos, TimelineCounter* counter);
 	int32_t getKnobPosBig(int p, ParamManagerForTimeline* paramManager, uint32_t timePos, TimelineCounter* counter);
@@ -167,9 +168,10 @@ public:
 
 	bool hasFilters();
 
-	void sampleZoneChanged(int markerType, int s, ModelStackWithSoundFlags* modelStack);
+	void sampleZoneChanged(MarkerType markerType, int s, ModelStackWithSoundFlags* modelStack);
 	void setNumUnison(int newNum, ModelStackWithSoundFlags* modelStack);
 	void setUnisonDetune(int newAmount, ModelStackWithSoundFlags* modelStack);
+	void setUnisonStereoSpread(int newAmount);
 	void setModulatorTranspose(int m, int value, ModelStackWithSoundFlags* modelStack);
 	void setModulatorCents(int m, int value, ModelStackWithSoundFlags* modelStack);
 	int readFromFile(ModelStackWithModControllable* modelStack, int32_t readAutomationUpToPos,
@@ -195,8 +197,8 @@ public:
 
 	int16_t getMaxOscTranspose(InstrumentClip* clip);
 	int16_t getMinOscTranspose();
-	void setSynthMode(uint8_t value, Song* song);
-	inline uint8_t getSynthMode() { return synthMode; }
+	void setSynthMode(SynthMode value, Song* song);
+	inline SynthMode getSynthMode() { return synthMode; }
 	bool anyNoteIsOn();
 	virtual bool isDrum() { return false; }
 	void setupAsSample(ParamManagerForTimeline* paramManager);
@@ -273,6 +275,7 @@ private:
 	uint32_t getGlobalLFOPhaseIncrement();
 	void recalculateModulatorTransposer(uint8_t m, ModelStackWithSoundFlags* modelStack);
 	void setupUnisonDetuners(ModelStackWithSoundFlags* modelStack);
+	void setupUnisonStereoSpread();
 	void calculateEffectiveVolume();
 	void ensureKnobReferencesCorrectVolume(Knob* knob);
 	int readTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos,
