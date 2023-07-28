@@ -2563,6 +2563,8 @@ void InstrumentClipView::recalculateColours() {
 	}
 }
 
+
+// todo: see if we can remove the intere function.
 void InstrumentClipView::recalculateColour(uint8_t yDisplay) {
 	int colourOffset = 0;
 	NoteRow* noteRow = getCurrentClip()->getNoteRowOnScreen(yDisplay, currentSong);
@@ -2570,6 +2572,8 @@ void InstrumentClipView::recalculateColour(uint8_t yDisplay) {
 		colourOffset = noteRow->getColourOffset(getCurrentClip());
 	}
 
+	// in the old code inside this function the clipColourOffset is also added.
+    colourOffset += getCurrentClip()->colourOffset;
 	//getCurrentClip()->getMainColourFromY(getCurrentClip()->getYNoteFromYDisplay(yDisplay, currentSong), colourOffset,
 	//                                    rowColour[yDisplay]);
 	int yNote = getCurrentClip()->getYNoteFromYDisplay(yDisplay, currentSong);
@@ -5212,7 +5216,7 @@ void InstrumentClipView::performActualRender(uint32_t whichRows, uint8_t* image,
 				noteRenderer.renderNoteRow(noteRow,this, image,
 				                   occupancyMaskOfRow, true, modelStackWithNoteRow->getLoopLength(),
 				                   clip->allowNoteTails(modelStackWithNoteRow), renderWidth, xScroll, xZoom, 0,
-				                   renderWidth, false,clip->colourOffset);
+				                   renderWidth, false,clip->colourOffset + noteRow->getColourOffset(clip));
 			}
 
 			if (drawUndefinedArea) {
