@@ -88,18 +88,16 @@ jobs:
           # If source files changed but packages didn't, rebuild from a prior cache.
           restore-keys: |
             ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json', '**/yarn.lock') }}-
-      - name: Setup upstream artifact fetch
-        run: cd pages/fetch-artifacts; ${{ steps.detect-package-manager.outputs.manager }} ${{ steps.detect-package-manager.outputs.command }}
-      - name: Fetch upstream artifacts
-        run: cd pages/fetch-artifacts; ${{ steps.detect-package-manager.outputs.manager }} run run
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Install dependencies
         run: cd pages; ${{ steps.detect-package-manager.outputs.manager }} ${{ steps.detect-package-manager.outputs.command }}
       - name: Build with Next.js
         run: cd pages; ${{ steps.detect-package-manager.outputs.runner }} next build
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Static HTML export with Next.js
         run: cd pages; ${{ steps.detect-package-manager.outputs.runner }} next export
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v2
         with:
