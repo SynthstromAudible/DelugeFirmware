@@ -4244,7 +4244,7 @@ doNormal: // Wrap it back to the start.
 	    modelStack->addOtherTwoThingsAutomaticallyGivenNoteRow()->addParamCollection(mpeParams, mpeParamsSummary);
 
 	for (int m = 0; m < kNumExpressionDimensions; m++) {
-		AutoParam* param = &mpeParams->params[m];
+		AutoParam* param = (m == 0 ? &mpeParams->params[m] : &mpeParams->fakeParams[m - 1]);
 		ModelStackWithAutoParam* modelStackWithAutoParam = modelStackWithParamCollection->addAutoParam(m, param);
 
 		Action* action = actionLogger.getNewAction(ACTION_RECORD, true);

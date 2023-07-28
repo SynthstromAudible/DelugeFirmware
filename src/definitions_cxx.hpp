@@ -810,6 +810,7 @@ constexpr int kCacheByteDepth = 3;
 constexpr int kCacheByteDepthMagnitude = 2; // Invalid / unused for odd numbers of bytes like 3
 
 constexpr int kMaxUnisonDetune = 50;
+constexpr int kMaxUnisonStereoSpread = 50;
 
 // This is about right. Making it smaller didn't help. Tried it as 9, and I'm pretty sure some fast percussive details were lost in the output
 constexpr int kPercBufferReductionMagnitude = 7;

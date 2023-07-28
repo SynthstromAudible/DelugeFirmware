@@ -83,9 +83,13 @@ void Source::recalculateFineTuner() {
 }
 
 // This function has to give the same result as Sound::renderingVoicesInStereo(). The duplication is for optimization.
-bool Source::renderInStereo(SampleHolder* sampleHolder) {
+bool Source::renderInStereo(Sound* s, SampleHolder* sampleHolder) {
 	if (!AudioEngine::renderInStereo) {
 		return false;
+	}
+
+	if (s->unisonStereoSpread && s->numUnison > 1) {
+		return true;
 	}
 
 	return (oscType == OscType::SAMPLE && sampleHolder && sampleHolder->audioFile

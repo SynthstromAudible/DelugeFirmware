@@ -15,26 +15,19 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "gui/menu_item/integer.h"
 #include "model/model_stack.h"
+#include "gui/menu_item/integer.h"
 #include "gui/ui/sound_editor.h"
 #include "processing/sound/sound.h"
-#include "stereoSpread.h"
 
-namespace deluge::gui::menu_item::unison {
-
-class Count final : public Integer {
+namespace menu_item::unison {
+class StereoSpread final : public Integer {
 public:
 	using Integer::Integer;
-	void readCurrentValue() override { this->value_ = soundEditor.currentSound->numUnison; }
-	void writeCurrentValue() override {
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithSoundFlags* modelStack = soundEditor.getCurrentModelStack(modelStackMemory)->addSoundFlags();
-		soundEditor.currentSound->setNumUnison(this->value_, modelStack);
-	}
-	[[nodiscard]] int getMinValue() const override { return 1; }
-	[[nodiscard]] int getMaxValue() const override { return kMaxNumVoicesUnison; }
-
-	MenuItem* selectButtonPress() override { return &unisonStereoSpreadMenu; }
+	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentSound->unisonStereoSpread; }
+	void writeCurrentValue() { soundEditor.currentSound->setUnisonStereoSpread(soundEditor.currentValue); }
+	int getMaxValue() const { return kMaxUnisonStereoSpread; }
 };
-} // namespace deluge::gui::menu_item::unison
+} // namespace menu_item::unison
+
+extern menu_item::unison::StereoSpread unisonStereoSpreadMenu;
