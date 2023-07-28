@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/ui/audio_recorder.h"
 #include "gui/views/arranger_view.h"
+#include "gui/views/automation_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -893,7 +894,12 @@ void Session::toggleClipStatus(Clip* clip, int* clipIndex, bool doInstant, int b
 
 							sessionView.clipNeedsReRendering(clip);
 							if (currentSong->currentClip) {
-								uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
+								if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
+									uiNeedsRendering(&automationClipView, 0xFFFFFFFF, 0);
+								}
+								else {
+									uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
+								}
 							}
 						}
 

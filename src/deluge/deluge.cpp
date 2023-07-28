@@ -431,6 +431,9 @@ void setUIForLoadedSong(Song* song) {
 			if (((InstrumentClip*)song->currentClip)->onKeyboardScreen) {
 				newUI = &keyboardScreen;
 			}
+			else if (((InstrumentClip*)song->currentClip)->onAutomationClipView) {
+				newUI = &automationClipView;
+			}
 			else {
 				newUI = &instrumentClipView;
 			}

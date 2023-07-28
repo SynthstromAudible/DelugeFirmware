@@ -62,9 +62,6 @@ struct EditAutomationPadPress {
 #define MPE_RECORD_LENGTH_FOR_NOTE_EDITING 3
 #define MPE_RECORD_INTERVAL_TIME (44100 >> 2) // 250ms
 
-#define NUDGEMODE_QUANTIZE 1
-#define NUDGEMODE_QUANTIZE_ALL 2
-
 class AutomationClipView final : public ClipView, public InstrumentClipMinder {
 public:
 	AutomationClipView();
@@ -74,7 +71,6 @@ public:
 	ActionResult padAction(int x, int y, int velocity);
 	uint8_t getEditPadPressXDisplayOnScreen(uint8_t yDisplay);
 	void editPadAction(bool state, uint8_t yDisplay, uint8_t xDisplay, unsigned int xZoom);
-	void adjustVelocity(int velocityChange);
 	void mutePadPress(uint8_t yDisplay);
 	bool ensureNoteRowExistsForYDisplay(uint8_t yDisplay);
 	void recalculateColours();
@@ -109,7 +105,6 @@ public:
 	int setupForEnteringScaleMode(int newRootNote = 2147483647, int yDisplay = (kDisplayHeight / 2));
 	int setupForExitingScaleMode();
 	void setupChangingOfRootNote(int newRootNote, int yDisplay = (kDisplayHeight / 2));
-	void deleteDrum(SoundDrum* drum);
 	void cancelAllAuditioning();
 	void modEncoderButtonAction(uint8_t whichModEncoder, bool on);
 
@@ -122,21 +117,12 @@ public:
 	void performActualRender(uint32_t whichRows, uint8_t* image, uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
 	                         int32_t xScroll, uint32_t xZoom, int renderWidth, int imageWidth,
 	                         bool drawUndefinedArea = true);
-	void renderRow(uint8_t[], uint8_t[], uint8_t[], uint8_t* image, uint8_t[], bool,
-				   int imageWidth, int32_t xScroll, uint32_t xZoom, int xStart = 0,
-	               int xEnd = kDisplayWidth, bool drawRepeats = false, int yStart = 0);
 	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 
 	void transitionToSessionView();
-	void playbackEnded();
-	void scrollFinished();
-	void clipNeedsReRendering(Clip* clip);
 	void modEncoderAction(int whichModEncoder, int offset);
 	ClipMinder* toClipMinder() { return this; }
-	void reportMPEInitialValuesForNoteEditing(ModelStackWithNoteRow* modelStack, int16_t const* mpeValues);
-	void reportMPEValueForNoteEditing(int whichExpressionDimension, int32_t value);
-	void reportNoteOffForMPEEditing(ModelStackWithNoteRow* modelStack);
 	void dontDeleteNotesOnDepress();
 
 	void tempoEncoderAction(int8_t offset, bool encoderButtonPressed, bool shiftButtonPressed);
@@ -162,6 +148,7 @@ public:
 	void handleSinglePadPress(ModelStackWithTimelineCounter* modelStack, Clip* clip, int32_t xDisplay, int32_t yDisplay);
 	void handleMultiPadPress(ModelStackWithTimelineCounter* modelStack, Clip* clip, int32_t firstPadX, int32_t firstPadY, int32_t secondPadX, int32_t secondPadY);
 	ModelStackWithAutoParam* getmodelStackWithParam (ModelStackWithTimelineCounter* modelStack, Clip* clip);
+	inline void sendAuditionNote(bool on, uint8_t yDisplay) { sendAuditionNote(on, yDisplay, 64, 0); };
 
 
 #if HAVE_OLED
@@ -223,45 +210,27 @@ private:
 	Drum* drumForNewNoteRow;
 	uint8_t yDisplayOfNewNoteRow;
 
-	int32_t quantizeAmount;
-
 	uint32_t getSquareWidth(int32_t square, int32_t effectiveLength);
 	void drawNoteCode(uint8_t yDisplay);
-	void sendAuditionNote(bool on, uint8_t yDisplay, uint8_t velocity, uint32_t sampleSyncLength);
 	void someAuditioningHasEnded(bool recalculateLastAuditionedNoteOnScreen);
-	void changeInstrumentType(InstrumentType newInstrumentType);
 	void setLedStates();
 	void checkIfAllEditPadPressesEnded(bool mayRenderSidebar = true);
 	void endEditPadPress(uint8_t i);
-	Drum* getNextDrum(Drum* oldDrum, bool mayBeNone = false);
-	Drum* flipThroughAvailableDrums(int newOffset, Drum* drum, bool mayBeNone = false);
-	NoteRow* createNewNoteRowForKit(ModelStackWithTimelineCounter* modelStack, int yDisplay, int* getIndex = NULL);
-	void enterDrumCreator(ModelStackWithNoteRow* modelStack, bool doRecording = false);
 	bool getAffectEntire();
-	void createNewInstrument(InstrumentType instrumentType);
-	Sound* getSoundForNoteRow(NoteRow* noteRow, ParamManagerForTimeline** getParamManager);
-	void adjustProbability(int offset);
-	void copyNotes();
-	void pasteNotes();
-	void deleteCopiedNoteRows();
 
 	void copyAutomation(int whichModEncoder);
 	void pasteAutomation(int whichModEncoder);
 
-	//void createDrumForAuditionedNoteRow(DrumType drumType);
 	void nudgeNotes(int offset);
-	void editNoteRepeat(int offset);
 
 	bool isRowAuditionedByInstrument(int yDisplay);
 
-	void editNumEuclideanEvents(ModelStackWithNoteRow* modelStack, int offset, int yDisplay);
 	void rotateNoteRowHorizontally(ModelStackWithNoteRow* modelStack, int offset, int yDisplay,
 	                               bool shouldDisplayDirectionEvenIfNoNoteRow = false);
 	void editNoteRowLength(ModelStackWithNoteRow* modelStack, int offset, int yDisplay);
-	ModelStackWithNoteRow* createNoteRowForYDisplay(ModelStackWithTimelineCounter* modelStack, int yDisplay);
-	ModelStackWithNoteRow* getOrCreateNoteRowForYDisplay(ModelStackWithTimelineCounter* modelStack, int yDisplay);
 
-	void quantizeNotes(int offset, int nudgeMode);
+	void sendAuditionNote(bool on, uint8_t yDisplay, uint8_t velocity, uint32_t sampleSyncLength);
+
 	int LERP (int A, int B, int T, int Distance);
 	int LERPRoot (int A, int B, int T, int Distance);
 	int LERPSweep (int A, int B, int T, int Distance);

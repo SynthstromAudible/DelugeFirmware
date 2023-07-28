@@ -18,6 +18,7 @@
 #include "model/drum/kit.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/ui.h"
+#include "gui/views/automation_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
 #include "hid/display/numeric_driver.h"
@@ -1168,7 +1169,13 @@ goingToRecordNoteOnEarly:
 
 			if (thisNoteRow) {
 				instrumentClip->toggleNoteRowMute(modelStackWithNoteRow);
-				uiNeedsRendering(&instrumentClipView, 0, 0xFFFFFFFF);
+
+				if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
+					uiNeedsRendering(&automationClipView, 0, 0xFFFFFFFF);
+				}
+				else {
+					uiNeedsRendering(&instrumentClipView, 0, 0xFFFFFFFF);
+				}
 			}
 		}
 	}

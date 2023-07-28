@@ -25,6 +25,7 @@
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
+#include "gui/views/automation_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -169,7 +170,13 @@ ActionResult KeyboardScreen::padAction(int x, int y, int velocity) {
 			{
 				if (instrument->type == InstrumentType::KIT) {
 					int velocityToSound = ((x % 4) * 8) + ((y % 4) * 32) + 7;
-					instrumentClipView.auditionPadAction(velocityToSound, yDisplay, false);
+
+					if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
+						automationClipView.auditionPadAction(velocityToSound, yDisplay, false);
+					}
+					else {
+						instrumentClipView.auditionPadAction(velocityToSound, yDisplay, false);
+					}
 				}
 				else {
 					int velocityToSound = instrument->defaultVelocity;
@@ -240,7 +247,12 @@ foundIt:
 			if (yDisplayActive[yDisplay]) {
 
 				if (instrument->type == InstrumentType::KIT) { //
-					instrumentClipView.auditionPadAction(0, yDisplay, false);
+					if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
+						automationClipView.auditionPadAction(0, yDisplay, false);
+					}
+					else {
+						instrumentClipView.auditionPadAction(0, yDisplay, false);
+					}
 				}
 				else {
 
@@ -383,7 +395,12 @@ ActionResult KeyboardScreen::buttonAction(hid::Button b, bool on, bool inCardRou
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
-			changeRootUI(&instrumentClipView);
+			if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
+				changeRootUI(&automationClipView);
+			}
+			else {
+				changeRootUI(&instrumentClipView);
+			}
 		}
 	}
 
@@ -443,7 +460,12 @@ doOther:
 
 void KeyboardScreen::selectEncoderAction(int8_t offset) {
 	InstrumentClipMinder::selectEncoderAction(offset);
-	instrumentClipView.recalculateColours();
+	if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
+		automationClipView.recalculateColours();
+	}
+	else {
+		instrumentClipView.recalculateColours();
+	}
 	uiNeedsRendering(this, 0xFFFFFFFF, 0);
 }
 
@@ -600,7 +622,12 @@ doFullColour:
 
 					if (modelStackWithNoteRowOnCurrentClip->getNoteRowAllowNull()) {
 
-						instrumentClipView.getRowColour(myY, noteColour);
+						if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
+							automationClipView.getRowColour(myY, noteColour);
+						}
+						else {
+							instrumentClipView.getRowColour(myY, noteColour);
+						}
 
 						noteColour[0] = (char)((noteColour[0] * myV / 255) / 3);
 						noteColour[1] = (char)((noteColour[1] * myV / 255) / 3);
@@ -671,7 +698,12 @@ ActionResult KeyboardScreen::verticalEncoderAction(int offset, bool inCardRoutin
 		//
 		Instrument* instrument = (Instrument*)currentSong->currentClip->output;
 		if (instrument->type == InstrumentType::KIT) { //
-			instrumentClipView.verticalEncoderAction(offset * 4, inCardRoutine);
+			if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
+				automationClipView.verticalEncoderAction(offset * 4, inCardRoutine);
+			}
+			else {
+				instrumentClipView.verticalEncoderAction(offset * 4, inCardRoutine);
+			}
 			uiNeedsRendering(this, 0xFFFFFFFF, 0);
 		}
 		else {
@@ -708,7 +740,12 @@ ActionResult KeyboardScreen::horizontalEncoderAction(int offset) {
 		}
 	}
 	else if (instrument->type == InstrumentType::KIT) {
-		instrumentClipView.verticalEncoderAction(offset, false);
+		if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
+			automationClipView.verticalEncoderAction(offset, false);
+		}
+		else {
+			instrumentClipView.verticalEncoderAction(offset, false);
+		}
 		uiNeedsRendering(this, 0xFFFFFFFF, 0);
 	}
 

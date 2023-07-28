@@ -155,10 +155,7 @@ bool SoundEditor::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
 	if (getRootUI() == &keyboardScreen) {
 		return false;
 	}
-	else if (getRootUI() == &automationClipView) {
-		*cols = 0xFFFFFFFE;
-	}
-	else if (getRootUI() == &instrumentClipView) {
+	else if (getRootUI() == &automationClipView || getRootUI() == &instrumentClipView) {
 		*cols = 0xFFFFFFFE;
 	}
 	else {
@@ -330,7 +327,7 @@ ActionResult SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutin
 	}
 
 	// Affect-entire button
-	else if (b == AFFECT_ENTIRE && getRootUI() == &instrumentClipView) {
+	else if (b == AFFECT_ENTIRE && (getRootUI() == &instrumentClipView || getRootUI() == &automationClipView)) {
 		if (getCurrentMenuItem()->usesAffectEntire() && editingKit()) {
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -376,7 +373,8 @@ ActionResult SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutin
 				swapOutRootUILowLevel(&keyboardScreen);
 				keyboardScreen.openedInBackground();
 			}
-			if (getRootUI() == &automationClipView) {
+
+			else if (getRootUI() == &automationClipView) {
 				swapOutRootUILowLevel(&keyboardScreen);
 				keyboardScreen.openedInBackground();
 			}
@@ -673,7 +671,12 @@ void SoundEditor::selectEncoderAction(int8_t offset) {
 
 		bool hasNoteTailsNow = currentSound->allowNoteTails(modelStack);
 		if (hadNoteTails != hasNoteTailsNow) {
-			uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
+			if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
+				uiNeedsRendering(&automationClipView, 0xFFFFFFFF, 0);
+			}
+			else {
+				uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
+			}
 		}
 	}
 

@@ -19,12 +19,14 @@
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "gui/ui/sound_editor.h"
+#include "gui/views/automation_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "hid/buttons.h"
 #include "hid/display/numeric_driver.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
 #include "model/clip/clip.h"
+#include "model/clip/instrument_clip.h"
 #include "model/drum/kit.h"
 #include "model/song/song.h"
 #include "processing/sound/sound_drum.h"
@@ -123,6 +125,9 @@ ActionResult RenameDrumUI::padAction(int x, int y, int on) {
 
 	// Audition pad
 	if (x == kDisplayWidth + 1) {
+		if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
+			return automationClipView.padAction(x, y, on);
+		}
 		return instrumentClipView.padAction(x, y, on);
 	}
 
@@ -147,6 +152,9 @@ ActionResult RenameDrumUI::padAction(int x, int y, int on) {
 ActionResult RenameDrumUI::verticalEncoderAction(int offset, bool inCardRoutine) {
 	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(hid::button::X_ENC)) {
 		return ActionResult::DEALT_WITH;
+	}
+	if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
+		return automationClipView.verticalEncoderAction(offset, inCardRoutine);
 	}
 	return instrumentClipView.verticalEncoderAction(offset, inCardRoutine);
 }

@@ -133,6 +133,16 @@ public:
 	void reportNoteOffForMPEEditing(ModelStackWithNoteRow* modelStack);
 	void dontDeleteNotesOnDepress();
 
+	void createNewInstrument(InstrumentType instrumentType);
+	void changeInstrumentType(InstrumentType newInstrumentType);
+	Drum* flipThroughAvailableDrums(int newOffset, Drum* drum, bool mayBeNone = false);
+	void enterDrumCreator(ModelStackWithNoteRow* modelStack, bool doRecording = false);
+	void drawNoteCode(uint8_t yDisplay);
+	NoteRow* createNewNoteRowForKit(ModelStackWithTimelineCounter* modelStack, int yDisplay, int* getIndex = NULL);
+	Sound* getSoundForNoteRow(NoteRow* noteRow, ParamManagerForTimeline** getParamManager);
+	ModelStackWithNoteRow* createNoteRowForYDisplay(ModelStackWithTimelineCounter* modelStack, int yDisplay);
+	ModelStackWithNoteRow* getOrCreateNoteRowForYDisplay(ModelStackWithTimelineCounter* modelStack, int yDisplay);
+
 	void tempoEncoderAction(int8_t offset, bool encoderButtonPressed, bool shiftButtonPressed);
 
 	inline void sendAuditionNote(bool on, uint8_t yDisplay) { sendAuditionNote(on, yDisplay, 64, 0); };
@@ -195,20 +205,13 @@ private:
 	int32_t quantizeAmount;
 
 	uint32_t getSquareWidth(int32_t square, int32_t effectiveLength);
-	void drawNoteCode(uint8_t yDisplay);
 	void sendAuditionNote(bool on, uint8_t yDisplay, uint8_t velocity, uint32_t sampleSyncLength);
-	void someAuditioningHasEnded(bool recalculateLastAuditionedNoteOnScreen);
-	void changeInstrumentType(InstrumentType newInstrumentType);
 	void setLedStates();
 	void checkIfAllEditPadPressesEnded(bool mayRenderSidebar = true);
 	void endEditPadPress(uint8_t i);
 	Drum* getNextDrum(Drum* oldDrum, bool mayBeNone = false);
-	Drum* flipThroughAvailableDrums(int newOffset, Drum* drum, bool mayBeNone = false);
-	NoteRow* createNewNoteRowForKit(ModelStackWithTimelineCounter* modelStack, int yDisplay, int* getIndex = NULL);
-	void enterDrumCreator(ModelStackWithNoteRow* modelStack, bool doRecording = false);
+
 	bool getAffectEntire();
-	void createNewInstrument(InstrumentType instrumentType);
-	Sound* getSoundForNoteRow(NoteRow* noteRow, ParamManagerForTimeline** getParamManager);
 	void adjustProbability(int offset);
 	void copyNotes();
 	void pasteNotes();
@@ -227,10 +230,10 @@ private:
 	void rotateNoteRowHorizontally(ModelStackWithNoteRow* modelStack, int offset, int yDisplay,
 	                               bool shouldDisplayDirectionEvenIfNoNoteRow = false);
 	void editNoteRowLength(ModelStackWithNoteRow* modelStack, int offset, int yDisplay);
-	ModelStackWithNoteRow* createNoteRowForYDisplay(ModelStackWithTimelineCounter* modelStack, int yDisplay);
-	ModelStackWithNoteRow* getOrCreateNoteRowForYDisplay(ModelStackWithTimelineCounter* modelStack, int yDisplay);
 
 	void quantizeNotes(int offset, int nudgeMode);
+
+	void someAuditioningHasEnded(bool recalculateLastAuditionedNoteOnScreen);
 };
 
 extern InstrumentClipView instrumentClipView;

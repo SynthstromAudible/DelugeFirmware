@@ -22,6 +22,7 @@
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
+#include "gui/views/automation_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "hid/display/numeric_driver.h"
 #include "hid/display/oled.h"
@@ -132,7 +133,12 @@ gotError:
 	}
 
 	if (currentUIMode == UI_MODE_AUDITIONING) {
-		instrumentClipView.cancelAllAuditioning();
+		if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
+			automationClipView.cancelAllAuditioning();
+		}
+		else {
+			instrumentClipView.cancelAllAuditioning();
+		}
 	}
 
 	return success;

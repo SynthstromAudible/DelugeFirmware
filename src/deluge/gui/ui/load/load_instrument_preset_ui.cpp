@@ -198,7 +198,13 @@ useDefaultFolder:
 	PadLEDs::sendOutMainPadColours();
 
 	if (showingAuditionPads()) {
-		instrumentClipView.recalculateColours();
+
+		if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
+			automationClipView.recalculateColours();
+		}
+		else {
+			instrumentClipView.recalculateColours();
+		}
 		renderingNeededRegardlessOfUI(0, 0xFFFFFFFF);
 	}
 
@@ -259,7 +265,12 @@ void LoadInstrumentPresetUI::enterKeyPress() {
 
 		if (instrumentTypeToLoad == InstrumentType::KIT && showingAuditionPads()) {
 			// New NoteRows have probably been created, whose colours haven't been grabbed yet.
-			instrumentClipView.recalculateColours();
+			if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
+				automationClipView.recalculateColours();
+			}
+			else {
+				instrumentClipView.recalculateColours();
+			}
 		}
 
 		close();
@@ -966,6 +977,9 @@ ActionResult LoadInstrumentPresetUI::padAction(int x, int y, int on) {
 			}
 		}
 		else {
+			if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
+				return automationClipView.padAction(x, y, on);
+			}
 			return instrumentClipView.padAction(x, y, on);
 		}
 	}
@@ -994,7 +1008,14 @@ ActionResult LoadInstrumentPresetUI::verticalEncoderAction(int offset, bool inCa
 			return ActionResult::DEALT_WITH;
 		}
 
-		ActionResult result = instrumentClipView.verticalEncoderAction(offset, inCardRoutine);
+		ActionResult result;
+
+		if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
+			result = automationClipView.verticalEncoderAction(offset, inCardRoutine);
+		}
+		else {
+			result = instrumentClipView.verticalEncoderAction(offset, inCardRoutine);
+		}
 
 		if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
 			return result;
@@ -1019,7 +1040,7 @@ bool LoadInstrumentPresetUI::renderSidebar(uint32_t whichRows, uint8_t image[][k
 	if (getRootUI() != &keyboardScreen) {
 		return false;
 	}
-	else if (getRootUI() == &automationClipView) {
+	else if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
 		return automationClipView.renderSidebar(whichRows, image, occupancyMask);
 	}
 	return instrumentClipView.renderSidebar(whichRows, image, occupancyMask);

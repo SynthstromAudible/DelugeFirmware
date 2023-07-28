@@ -121,7 +121,12 @@ bool SampleBrowser::opened() {
 #endif
 
 	if (currentUIMode == UI_MODE_AUDITIONING) {
-		instrumentClipView.cancelAllAuditioning();
+		if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
+			automationClipView.cancelAllAuditioning();
+		}
+		else {
+			instrumentClipView.cancelAllAuditioning();
+		}
 	}
 
 	int error = storageManager.initSD();
@@ -183,7 +188,12 @@ dissectionDone:
 	//soundEditor.setupShortcutBlink(soundEditor.currentSourceIndex, 5, 0);
 
 	if (currentUIMode == UI_MODE_AUDITIONING) {
-		instrumentClipView.cancelAllAuditioning();
+		if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
+			automationClipView.cancelAllAuditioning();
+		}
+		else {
+			instrumentClipView.cancelAllAuditioning();
+		}
 	}
 
 	possiblySetUpBlinking();
@@ -271,7 +281,13 @@ void SampleBrowser::exitAction() {
 		           ->getFirstUnassignedDrum((InstrumentClip*)currentSong->currentClip) // Only if some unassigned Drums
 		    && soundEditor.getCurrentAudioFileHolder()->filePath.isEmpty()) {
 			instrumentClipView.deleteDrum((SoundDrum*)soundEditor.currentSound);
-			redrawUI = &instrumentClipView;
+			if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
+				redrawUI = &automationClipView;
+			}
+			else {
+				redrawUI = &instrumentClipView;
+			}
+
 		}
 	}
 
@@ -564,6 +580,20 @@ void SampleBrowser::previewIfPossible(int movementDirection) {
 
 		// Decide if we're actually going to sound it.
 		if (!instrumentClipView.fileBrowserShouldNotPreview) {
+			switch (FlashStorage::sampleBrowserPreviewMode) {
+			case PREVIEW_ONLY_WHILE_NOT_PLAYING:
+				if (playbackHandler.playbackState) {
+					break;
+				}
+				// No break
+
+			case PREVIEW_ON:
+				shouldActuallySound = true;
+				break;
+			}
+		}
+
+		else if (!automationClipView.fileBrowserShouldNotPreview) {
 			switch (FlashStorage::sampleBrowserPreviewMode) {
 			case PREVIEW_ONLY_WHILE_NOT_PLAYING:
 				if (playbackHandler.playbackState) {
@@ -2034,7 +2064,12 @@ skipNameStuff:
 	((Instrument*)currentSong->currentClip->output)->beenEdited();
 
 	exitAndNeverDeleteDrum();
-	uiNeedsRendering(&instrumentClipView);
+	if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
+		uiNeedsRendering(&automationClipView);
+	}
+	else {
+		uiNeedsRendering(&instrumentClipView);
+	}
 #if HAVE_OLED
 	OLED::removeWorkingAnimation();
 #endif
@@ -2112,6 +2147,13 @@ ActionResult SampleBrowser::verticalEncoderAction(int offset, bool inCardRoutine
 		}
 		return instrumentClipView.verticalEncoderAction(offset, inCardRoutine);
 	}
+	else if (getRootUI() == &automationClipView) {
+		if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(hid::button::X_ENC)) {
+			return ActionResult::DEALT_WITH;
+		}
+		return automationClipView.verticalEncoderAction(offset, inCardRoutine);
+	}
+
 
 	return ActionResult::DEALT_WITH;
 }

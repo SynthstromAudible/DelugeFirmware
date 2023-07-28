@@ -1748,6 +1748,12 @@ getOut:
 			uiNeedsRendering(&instrumentClipView);
 		}
 
+		else if (getCurrentUI() == &automationClipView) {
+			AudioEngine::routineWithClusterLoading(); // -----------------------------------
+			automationClipView.recalculateColours();
+			uiNeedsRendering(&automationClipView);
+		}
+
 #if HAVE_OLED
 		OLED::removeWorkingAnimation();
 #else

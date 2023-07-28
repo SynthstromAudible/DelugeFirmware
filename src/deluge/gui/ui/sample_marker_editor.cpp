@@ -31,6 +31,7 @@
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
 #include "model/clip/audio_clip.h"
+#include "model/clip/instrument_clip.h"
 #include "model/instrument/instrument.h"
 #include "model/model_stack.h"
 #include "model/sample/sample.h"
@@ -112,7 +113,7 @@ bool SampleMarkerEditor::opened() {
 	displayText();
 #endif
 
-	if (getRootUI() != &instrumentClipView) {
+	if ((getRootUI() != &instrumentClipView) && (getRootUI() != &automationClipView)) {
 		renderingNeededRegardlessOfUI(0, 0xFFFFFFFF);
 	}
 
@@ -313,7 +314,12 @@ ActionResult SampleMarkerEditor::padAction(int x, int y, int on) {
 	// Audition pads - pass to UI beneath
 	if (x == kDisplayWidth + 1) {
 		if (currentSong->currentClip->type == CLIP_TYPE_INSTRUMENT) {
-			instrumentClipView.padAction(x, y, on);
+			if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
+				automationClipView.padAction(x, y, on);
+			}
+			else {
+				instrumentClipView.padAction(x, y, on);
+			}
 		}
 		return ActionResult::DEALT_WITH;
 	}
@@ -702,8 +708,15 @@ ActionResult SampleMarkerEditor::verticalEncoderAction(int offset, bool inCardRo
 		return ActionResult::DEALT_WITH;
 	}
 
+	ActionResult result;
+
 	// Must say these buttons were not pressed, or else editing might take place
-	ActionResult result = instrumentClipView.verticalEncoderAction(offset, inCardRoutine);
+	if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
+		result = automationClipView.verticalEncoderAction(offset, inCardRoutine);
+	}
+	else {
+		result = instrumentClipView.verticalEncoderAction(offset, inCardRoutine);
+	}
 
 	if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
 		return result;

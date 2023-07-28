@@ -1695,11 +1695,11 @@ void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 		}
 
 		// If going to AutomationView...
-		else if (((InstrumentClip*)clip)->onAutomationClipView) {
+		else if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
 			automationClipView.recalculateColours();
 			automationClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1],
 			                                  false);
-			automationClipView.fillOffScreenImageStores();
+			instrumentClipView.fillOffScreenImageStores();
 		}
 
 		// Or if just regular old InstrumentClipView
@@ -1771,7 +1771,7 @@ bool ArrangerView::transitionToArrangementEditor() {
 
 	memcpy(PadLEDs::imageStore[1], PadLEDs::image, (kDisplayWidth + kSideBarWidth) * kDisplayHeight * 3);
 	memcpy(PadLEDs::occupancyMaskStore[1], PadLEDs::occupancyMask, (kDisplayWidth + kSideBarWidth) * kDisplayHeight);
-	if (getCurrentUI() == &instrumentClipView) {
+	if (getCurrentUI() == &instrumentClipView || getCurrentUI() == &automationClipView) {
 		instrumentClipView.fillOffScreenImageStores();
 	}
 
@@ -1834,7 +1834,7 @@ bool ArrangerView::transitionToArrangementEditor() {
 	PadLEDs::recordTransitionBegin(kClipCollapseSpeed);
 	PadLEDs::explodeAnimationDirection = -1;
 
-	if (getCurrentUI() == &instrumentClipView) {
+	if (getCurrentUI() == &instrumentClipView || getCurrentUI() == &automationClipView) {
 		PadLEDs::clearSideBar();
 	}
 

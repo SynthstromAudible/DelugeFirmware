@@ -20,6 +20,7 @@
 #include "gui/context_menu/sample_browser/kit.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/sound_editor.h"
+#include "gui/views/automation_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/waveform/waveform_basic_navigator.h"
 #include "gui/waveform/waveform_renderer.h"
@@ -493,7 +494,12 @@ void Slicer::preview(int64_t startPoint, int64_t endPoint, int transpose, int on
 		modelStackWithAutoParam->autoParam->setCurrentValueWithNoReversionOrRecording(
 		    modelStackWithAutoParam, getParamFromUserValue(Param::Local::ENV_0_ATTACK, 1));
 	}
-	instrumentClipView.sendAuditionNote(on, 0);
+	if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
+		automationClipView.sendAuditionNote(on, 0);
+	}
+	else {
+		instrumentClipView.sendAuditionNote(on, 0);
+	}
 }
 
 ActionResult Slicer::padAction(int x, int y, int on) {
@@ -752,9 +758,20 @@ ramError2:
 	((Instrument*)currentSong->currentClip->output)->beenEdited();
 
 	// New NoteRows have probably been created, whose colours haven't been grabbed yet.
-	instrumentClipView.recalculateColours();
+	if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
+		automationClipView.recalculateColours();
+	}
+	else {
+		instrumentClipView.recalculateColours();
+	}
 
 	numericDriver.setNextTransitionDirection(-1);
 	sampleBrowser.exitAndNeverDeleteDrum();
-	uiNeedsRendering(&instrumentClipView);
+
+	if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
+		uiNeedsRendering(&automationClipView);
+	}
+	else {
+		uiNeedsRendering(&instrumentClipView);
+	}
 }

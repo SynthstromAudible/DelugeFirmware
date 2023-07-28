@@ -17,6 +17,7 @@
 #pragma once
 #include "definitions_cxx.hpp"
 #include "gui/ui/sound_editor.h"
+#include "gui/views/automation_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "model/clip/clip.h"
 #include "model/drum/drum.h"
@@ -76,7 +77,12 @@ public:
 		}
 
 		// We need to re-render all rows, because this will have changed whether Note tails are displayed. Probably just one row, but we don't know which
-		uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
+		if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
+			uiNeedsRendering(&automationClipView, 0xFFFFFFFF, 0);
+		}
+		else {
+			uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
+		}
 	}
 	char const** getOptions() {
 		static char const* options[] = {"CUT", "ONCE", "LOOP", "STRETCH", NULL};

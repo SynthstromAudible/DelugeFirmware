@@ -1026,7 +1026,12 @@ void renderNoteRowExpandOrCollapse() {
 	int progress = getTransitionProgress();
 	if (progress >= 65536) {
 		currentUIMode = UI_MODE_NONE;
-		uiNeedsRendering(&instrumentClipView);
+		if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
+			uiNeedsRendering(&automationClipView);
+		}
+		else {
+			uiNeedsRendering(&instrumentClipView);
+		}
 		return;
 	}
 
