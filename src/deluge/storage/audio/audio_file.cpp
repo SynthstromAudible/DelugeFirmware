@@ -17,15 +17,15 @@
 
 #include "storage/audio/audio_file.h"
 #include "definitions_cxx.hpp"
+#include "hid/display/numeric_driver.h"
+#include "io/debug/print.h"
+#include "memory/general_memory_allocator.h"
+#include "model/sample/sample.h"
 #include "storage/audio/audio_file_manager.h"
+#include "storage/audio/audio_file_reader.h"
+#include "storage/wave_table/wave_table.h"
 #include "util/functions.h"
 #include <string.h>
-#include "io/debug/print.h"
-#include "storage/audio/audio_file_reader.h"
-#include "model/sample/sample.h"
-#include "storage/wave_table/wave_table.h"
-#include "hid/display/numeric_driver.h"
-#include "memory/general_memory_allocator.h"
 
 #define MAX_NUM_MARKERS 8
 

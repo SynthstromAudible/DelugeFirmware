@@ -15,53 +15,53 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "gui/views/arranger_view.h"
-#include "processing/engines/audio_engine.h"
-#include "storage/audio/audio_file_manager.h"
-#include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip_minder.h"
-#include "gui/views/instrument_clip_view.h"
-#include "modulation/params/param_manager.h"
-#include "processing/sound/sound_drum.h"
-#include "processing/sound/sound_instrument.h"
 #include "definitions_cxx.hpp"
-#include "gui/ui_timer_manager.h"
-#include "hid/display/numeric_driver.h"
-#include "gui/ui/keyboard_screen.h"
-#include "gui/ui/sound_editor.h"
-#include "gui/views/view.h"
-#include "processing/engines/cv_engine.h"
-#include "model/drum/kit.h"
-#include "model/action/action_logger.h"
-#include "model/consequence/consequence.h"
-#include "model/action/action.h"
-#include <string.h>
-#include "playback/mode/session.h"
-#include "io/debug/print.h"
-#include "model/instrument/midi_instrument.h"
-#include "model/instrument/cv_instrument.h"
-#include "memory/general_memory_allocator.h"
-#include "playback/mode/arrangement.h"
-#include "modulation/midi/midi_param.h"
-#include "gui/ui/save/save_instrument_preset_ui.h"
-#include "io/midi/midi_engine.h"
-#include "storage/storage_manager.h"
+#include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
-#include "model/song/song.h"
-#include "hid/led/indicator_leds.h"
+#include "gui/ui/save/save_instrument_preset_ui.h"
+#include "gui/ui/sound_editor.h"
+#include "gui/ui_timer_manager.h"
+#include "gui/views/arranger_view.h"
+#include "gui/views/instrument_clip_view.h"
+#include "gui/views/view.h"
 #include "hid/buttons.h"
-#include "model/model_stack.h"
+#include "hid/display/numeric_driver.h"
+#include "hid/led/indicator_leds.h"
+#include "io/debug/print.h"
+#include "io/midi/midi_engine.h"
+#include "memory/general_memory_allocator.h"
+#include "model/action/action.h"
+#include "model/action/action_logger.h"
+#include "model/clip/clip_instance.h"
 #include "model/clip/clip_minder.h"
 #include "model/clip/instrument_clip.h"
+#include "model/consequence/consequence.h"
+#include "model/drum/kit.h"
+#include "model/instrument/cv_instrument.h"
+#include "model/instrument/midi_instrument.h"
+#include "model/model_stack.h"
+#include "model/song/song.h"
+#include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
+#include "modulation/params/param_manager.h"
+#include "playback/mode/arrangement.h"
+#include "playback/mode/session.h"
+#include "processing/engines/audio_engine.h"
+#include "processing/engines/cv_engine.h"
+#include "processing/sound/sound_drum.h"
+#include "processing/sound/sound_instrument.h"
+#include "storage/audio/audio_file_manager.h"
+#include "storage/storage_manager.h"
+#include <string.h>
 
 #if HAVE_OLED
 #include "hid/display/oled.h"
 #endif
 
 extern "C" {
-#include "util/cfunctions.h"
 #include "RZA1/uart/sio_char.h"
+#include "util/cfunctions.h"
 }
 
 int16_t InstrumentClipMinder::defaultRootNote;
@@ -304,11 +304,12 @@ void InstrumentClipMinder::focusRegained() {
 ActionResult InstrumentClipMinder::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	using namespace hid::button;
 
+	if (inCardRoutine) {
+		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+	}
+
 	// If holding save button...
 	if (currentUIMode == UI_MODE_HOLDING_SAVE_BUTTON && on) {
-		if (inCardRoutine) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		}
 		currentUIMode = UI_MODE_NONE;
 		indicator_leds::setLedState(IndicatorLED::SAVE, false);
 
@@ -328,9 +329,6 @@ yesSaveInstrument:
 
 	// If holding load button...
 	else if (currentUIMode == UI_MODE_HOLDING_LOAD_BUTTON && on) {
-		if (inCardRoutine) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		}
 		currentUIMode = UI_MODE_NONE;
 		indicator_leds::setLedState(IndicatorLED::LOAD, false);
 
@@ -357,9 +355,6 @@ yesLoadInstrument:
 	// Select button, without shift
 	else if (b == SELECT_ENC && !Buttons::isShiftButtonPressed()) {
 		if (on && currentUIMode == UI_MODE_NONE) {
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
 			if (!soundEditor.setup(currentSong->currentClip)) {
 				return ActionResult::DEALT_WITH;
 			}
@@ -371,9 +366,6 @@ yesLoadInstrument:
 	else if (b == AFFECT_ENTIRE) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 			if (getCurrentClip()->output->type == InstrumentType::KIT) {
-				if (inCardRoutine) {
-					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-				}
 
 				getCurrentClip()->affectEntire = !getCurrentClip()->affectEntire;
 				view.setActiveModControllableTimelineCounter(getCurrentClip());
@@ -384,10 +376,6 @@ yesLoadInstrument:
 	// Back button to clear Clip
 	else if (b == BACK && currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
 		if (on) {
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
-
 			// Clear Clip
 			Action* action = actionLogger.getNewAction(ACTION_CLIP_CLEAR, false);
 
@@ -406,10 +394,6 @@ yesLoadInstrument:
 	// Which-instrument-type buttons
 	else if (b == SYNTH) {
 		if (on && currentUIMode == UI_MODE_NONE) {
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
-
 			if (Buttons::isNewOrShiftButtonPressed()) {
 				createNewInstrument(InstrumentType::SYNTH);
 			}
@@ -421,18 +405,12 @@ yesLoadInstrument:
 
 	else if (b == MIDI) {
 		if (on && currentUIMode == UI_MODE_NONE) {
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
 			changeInstrumentType(InstrumentType::MIDI_OUT);
 		}
 	}
 
 	else if (b == CV) {
 		if (on && currentUIMode == UI_MODE_NONE) {
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
 			changeInstrumentType(InstrumentType::CV);
 		}
 	}

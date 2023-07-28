@@ -1,17 +1,17 @@
 #pragma once
-#include "gui/menu_item/dev_var/dev_var.h"
-#include "gui/menu_item/mpe/zone_num_member_channels.h"
-#include "gui/menu_item/submenu.h"
-#include "gui/menu_item/multi_range.h"
-#include "gui/menu_item/sequence/direction.h"
-#include "gui/menu_item/firmware/version.h"
-#include "gui/menu_item/file_selector.h"
-#include "gui/menu_item/sample/start.h"
-#include "gui/menu_item/sample/end.h"
 #include "gui/menu_item/audio_clip/sample_marker_editor.h"
-#include "gui/menu_item/patched_param/integer_non_fm.h"
-#include "gui/menu_item/osc/sync.h"
+#include "gui/menu_item/dev_var/dev_var.h"
+#include "gui/menu_item/file_selector.h"
+#include "gui/menu_item/firmware/version.h"
+#include "gui/menu_item/mpe/zone_num_member_channels.h"
+#include "gui/menu_item/multi_range.h"
 #include "gui/menu_item/osc/source/wave_index.h"
+#include "gui/menu_item/osc/sync.h"
+#include "gui/menu_item/patched_param/integer_non_fm.h"
+#include "gui/menu_item/sample/end.h"
+#include "gui/menu_item/sample/start.h"
+#include "gui/menu_item/sequence/direction.h"
+#include "gui/menu_item/submenu.h"
 
 extern menu_item::dev_var::AMenu devVarAMenu;
 

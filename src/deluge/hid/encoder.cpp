@@ -15,8 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "processing/engines/audio_engine.h"
 #include "hid/encoder.h"
+#include "processing/engines/audio_engine.h"
 
 extern "C" {
 #include "RZA1/gpio/gpio.h"

@@ -15,10 +15,10 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "processing/engines/audio_engine.h"
 #include "hid/display/numeric_layer/numeric_layer_basic_text.h"
 #include "gui/ui_timer_manager.h"
 #include "hid/led/indicator_leds.h"
+#include "processing/engines/audio_engine.h"
 
 NumericLayerBasicText::NumericLayerBasicText() {
 	// TODO Auto-generated constructor stub

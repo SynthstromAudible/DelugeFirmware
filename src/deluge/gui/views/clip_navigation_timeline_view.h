@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "gui/views/timeline_view.h"
 #include "RZA1/system/r_typedefs.h"
+#include "gui/views/timeline_view.h"
 
 class ClipNavigationTimelineView : public TimelineView {
 public:

@@ -15,20 +15,20 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "definitions_cxx.hpp"
-#include "processing/engines/audio_engine.h"
 #include "io/midi/midi_engine.h"
-#include "util/functions.h"
-#include "gui/ui/sound_editor.h"
-#include "io/debug/print.h"
-#include <string.h>
-#include "playback/mode/playback_mode.h"
-#include "model/song/song.h"
-#include "hid/display/numeric_driver.h"
 #include "RZA1/mtu/mtu.h"
+#include "definitions_cxx.hpp"
+#include "gui/ui/sound_editor.h"
+#include "hid/display/numeric_driver.h"
+#include "hid/hid_sysex.h"
+#include "io/debug/print.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
-#include "hid/hid_sysex.h"
+#include "model/song/song.h"
+#include "playback/mode/playback_mode.h"
+#include "processing/engines/audio_engine.h"
+#include "util/functions.h"
+#include <string.h>
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
@@ -36,13 +36,13 @@ extern "C" {
 volatile uint32_t usbLock = 0;
 void usb_cstd_usb_task();
 
+#include "RZA1/system/iodefine.h"
 #include "RZA1/usb/r_usb_basic/r_usb_basic_if.h"
 #include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_bitdefine.h"
-#include "RZA1/system/iodefine.h"
 #include "drivers/usb/userdef/r_usb_pmidi_config.h"
 
-#include "RZA1/usb/userdef/r_usb_hmidi_config.h"
 #include "RZA1/usb/r_usb_hmidi/src/inc/r_usb_hmidi.h"
+#include "RZA1/usb/userdef/r_usb_hmidi_config.h"
 
 extern uint16_t g_usb_peri_connected;
 

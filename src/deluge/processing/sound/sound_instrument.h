@@ -17,9 +17,9 @@
 
 #pragma once
 
-#include "processing/sound/sound.h"
 #include "model/instrument/melodic_instrument.h"
 #include "modulation/arpeggiator.h"
+#include "processing/sound/sound.h"
 
 class ParamManagerForTimeline;
 class ParamManagerForTimeline;

@@ -15,15 +15,15 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "processing/engines/audio_engine.h"
+#include "submenu.h"
+#include "gui/ui/sound_editor.h"
+#include "hid/display/numeric_driver.h"
 #include "model/clip/instrument_clip.h"
+#include "model/instrument/instrument.h"
+#include "model/song/song.h"
+#include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
-#include "submenu.h"
-#include "hid/display/numeric_driver.h"
-#include "gui/ui/sound_editor.h"
-#include "model/song/song.h"
-#include "model/instrument/instrument.h"
 
 extern "C" {
 #if HAVE_OLED

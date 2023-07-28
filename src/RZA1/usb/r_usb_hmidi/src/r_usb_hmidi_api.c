@@ -30,12 +30,12 @@
  Includes   <System Includes> , "Project Includes"
  ******************************************************************************/
 
+#include "RZA1/usb/r_usb_basic/r_usb_basic_if.h"
+#include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_extern.h"
+#include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_typedef.h"
+#include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_reg_access.h"
 #include "RZA1/usb/r_usb_hmidi/r_usb_hmidi_if.h"
 #include "RZA1/usb/r_usb_hmidi/src/inc/r_usb_hmidi.h"
-#include "RZA1/usb/r_usb_basic/r_usb_basic_if.h"
-#include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_typedef.h"
-#include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_extern.h"
-#include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_reg_access.h"
 #include "RZA1/usb/userdef/r_usb_hmidi_config.h"
 
 #include "deluge/drivers/uart/uart.h"

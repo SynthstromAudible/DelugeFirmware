@@ -37,8 +37,8 @@
 Includes
 ******************************************************************************/
 /* Default  type definition header */
-#include "RZA1/system/rza_io_regrw.h"
 #include "RZA1/system/r_typedefs.h"
+#include "RZA1/system/rza_io_regrw.h"
 /* I/O Register root header */
 #include "RZA1/system/iodefine.h"
 /* INTC Driver Header */

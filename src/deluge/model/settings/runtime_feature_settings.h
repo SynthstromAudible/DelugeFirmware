@@ -17,9 +17,9 @@
 
 #pragma once
 
-#include <cstdint>
-#include "util/d_string.h"
 #include "util/container/array/resizeable_array.h"
+#include "util/d_string.h"
+#include <cstdint>
 
 #define RUNTIME_FEATURE_SETTING_MAX_OPTIONS 9
 

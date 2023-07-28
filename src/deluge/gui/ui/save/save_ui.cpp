@@ -15,18 +15,18 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "gui/ui/save/save_ui.h"
 #include "definitions_cxx.hpp"
 #include "gui/context_menu/save_song_or_instrument.h"
-#include "gui/ui/save/save_ui.h"
-#include "hid/matrix/matrix_driver.h"
-#include "hid/display/numeric_driver.h"
-#include "storage/storage_manager.h"
-#include "hid/led/pad_leds.h"
-#include "hid/led/indicator_leds.h"
 #include "gui/ui/ui.h"
-#include "hid/buttons.h"
 #include "gui/ui_timer_manager.h"
+#include "hid/buttons.h"
+#include "hid/display/numeric_driver.h"
+#include "hid/led/indicator_leds.h"
+#include "hid/led/pad_leds.h"
+#include "hid/matrix/matrix_driver.h"
 #include "storage/file_item.h"
+#include "storage/storage_manager.h"
 
 using namespace deluge;
 

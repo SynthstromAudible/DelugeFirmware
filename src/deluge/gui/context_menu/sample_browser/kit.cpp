@@ -18,10 +18,10 @@
 #include "gui/context_menu/sample_browser/kit.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/browser/sample_browser.h"
-#include "util/functions.h"
-#include "hid/display/numeric_driver.h"
 #include "gui/ui/slicer.h"
+#include "hid/display/numeric_driver.h"
 #include "storage/file_item.h"
+#include "util/functions.h"
 
 namespace deluge::gui::context_menu::sample_browser {
 Kit kit{};

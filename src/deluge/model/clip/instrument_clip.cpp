@@ -15,72 +15,69 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "definitions_cxx.hpp"
-#include "gui/views/arranger_view.h"
-#include "processing/engines/audio_engine.h"
-#include "storage/audio/audio_file_manager.h"
-#include "model/clip/clip_instance.h"
-#include "util/d_string.h"
 #include "model/clip/instrument_clip.h"
-#include "model/clip/instrument_clip_minder.h"
-#include "model/note/note_row.h"
+#include "definitions_cxx.hpp"
+#include "gui/ui/browser/browser.h"
+#include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/sound_editor.h"
+#include "gui/views/arranger_view.h"
+#include "gui/views/session_view.h"
+#include "gui/views/view.h"
+#include "hid/buttons.h"
+#include "hid/display/numeric_driver.h"
+#include "io/debug/print.h"
+#include "io/midi/midi_device.h"
+#include "io/midi/midi_engine.h"
+#include "memory/general_memory_allocator.h"
+#include "model/action/action.h"
+#include "model/action/action_logger.h"
+#include "model/clip/clip_instance.h"
+#include "model/clip/instrument_clip_minder.h"
+#include "model/consequence/consequence_note_row_mute.h"
+#include "model/consequence/consequence_scale_add_note.h"
+#include "model/drum/drum_name.h"
+#include "model/drum/kit.h"
+#include "model/instrument/cv_instrument.h"
+#include "model/instrument/midi_instrument.h"
+#include "model/model_stack.h"
+#include "model/note/note.h"
+#include "model/note/note_row.h"
+#include "model/song/song.h"
+#include "modulation/midi/midi_param.h"
+#include "modulation/midi/midi_param_collection.h"
+#include "modulation/params/param_node.h"
+#include "modulation/params/param_set.h"
+#include "modulation/patch/patch_cable_set.h"
+#include "playback/mode/arrangement.h"
+#include "playback/mode/playback_mode.h"
+#include "playback/mode/session.h"
+#include "processing/engines/audio_engine.h"
+#include "processing/engines/cv_engine.h"
+#include "processing/sound/sound_drum.h"
+#include "processing/sound/sound_instrument.h"
+#include "storage/audio/audio_file_manager.h"
+#include "storage/file_item.h"
+#include "storage/flash_storage.h"
+#include "storage/storage_manager.h"
+#include "util/d_string.h"
 #include "util/functions.h"
 #include "util/lookuptables/lookuptables.h"
 #include <math.h>
-#include "processing/sound/sound_drum.h"
-#include "processing/sound/sound_instrument.h"
-#include "gui/views/session_view.h"
-#include "io/debug/print.h"
-#include "processing/engines/cv_engine.h"
-#include "hid/display/numeric_driver.h"
-#include "model/song/song.h"
-#include "model/drum/kit.h"
-#include "io/midi/midi_engine.h"
-#include "gui/views/view.h"
-#include "model/note/note.h"
-#include "model/drum/drum_name.h"
-#include "model/action/action.h"
-#include "model/consequence/consequence_note_row_mute.h"
-#include "model/action/action_logger.h"
-#include "model/consequence/consequence_scale_add_note.h"
-#include "memory/general_memory_allocator.h"
-#include "playback/mode/playback_mode.h"
-#include "playback/mode/arrangement.h"
-#include "playback/mode/session.h"
-#include "model/instrument/midi_instrument.h"
 #include <new>
-#include "storage/storage_manager.h"
-#include "model/instrument/cv_instrument.h"
-#include "memory/general_memory_allocator.h"
-#include <new>
-#include "storage/flash_storage.h"
-#include "model/model_stack.h"
-#include "modulation/params/param_set.h"
-#include "modulation/patch/patch_cable_set.h"
-#include "modulation/midi/midi_param_collection.h"
-#include "modulation/midi/midi_param.h"
-#include "io/midi/midi_device.h"
-#include "modulation/params/param_node.h"
-#include "gui/ui/browser/browser.h"
-#include "storage/file_item.h"
-#include "gui/ui/load/load_instrument_preset_ui.h"
-#include "hid/buttons.h"
 
 #if HAVE_OLED
 #include "hid/display/oled.h"
 #endif
 
-// Supplying song is optional, and basically only for the purpose of setting yScroll according to root note
-InstrumentClip::InstrumentClip(Song* song) : Clip(CLIP_TYPE_INSTRUMENT) {
+    // Supplying song is optional, and basically only for the purpose of setting yScroll according to root note
+    InstrumentClip::InstrumentClip(Song* song)
+    : Clip(CLIP_TYPE_INSTRUMENT) {
 	arpeggiatorRate = 0;
 	arpeggiatorGate = 0;
 
 	midiBank = 128; // Means none
 	midiSub = 128;  // Means none
 	midiPGM = 128;  // Means none
-
-	keyboardRowInterval = 5;
 
 	currentlyRecordingLinearly = false;
 
@@ -112,7 +109,6 @@ InstrumentClip::InstrumentClip(Song* song) : Clip(CLIP_TYPE_INSTRUMENT) {
 		yScroll =
 		    0; // Only for safety. Shouldn't actually get here if we're not going to overwrite this elsewhere I think...
 	}
-	yScrollKeyboardScreen = 60 - (kDisplayHeight >> 2) * keyboardRowInterval;
 
 	instrumentTypeWhileLoading = InstrumentType::SYNTH; // NOTE: (Kate) was 0, should probably be NONE
 }
@@ -147,7 +143,7 @@ void InstrumentClip::copyBasicsFrom(Clip* otherClip) {
 	wrapEditing = otherInstrumentClip->wrapEditing;
 	wrapEditLevel = otherInstrumentClip->wrapEditLevel;
 	yScroll = otherInstrumentClip->yScroll;
-	yScrollKeyboardScreen = otherInstrumentClip->yScrollKeyboardScreen;
+	keyboardState = otherInstrumentClip->keyboardState;
 	sequenceDirectionMode = otherInstrumentClip->sequenceDirectionMode;
 
 	affectEntire = otherInstrumentClip->affectEntire;
@@ -1304,9 +1300,9 @@ bool InstrumentClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack
 
 	// Special case if we're a simple keyboard-mode Clip
 	if (onKeyboardScreen && !containsAnyNotes()) {
-		int increment = (kDisplayWidth + (kDisplayHeight * keyboardRowInterval)) / kDisplayWidth;
+		int increment = (kDisplayWidth + (kDisplayHeight * keyboardState.isomorphic.rowInterval)) / kDisplayWidth;
 		for (int x = xStart; x < xEnd; x++) {
-			getMainColourFromY(yScrollKeyboardScreen + x * increment, 0, &image[x * 3]);
+			getMainColourFromY(keyboardState.isomorphic.scrollOffset + x * increment, 0, &image[x * 3]);
 		}
 		return true;
 	}
@@ -2169,8 +2165,14 @@ void InstrumentClip::writeDataToFile(Song* song) {
 
 	storageManager.writeAttribute("inKeyMode", inScaleMode);
 	storageManager.writeAttribute("yScroll", yScroll);
-	storageManager.writeAttribute("yScrollKeyboard", yScrollKeyboardScreen);
-	storageManager.writeAttribute("keyboardRowInterval", keyboardRowInterval);
+	storageManager.writeAttribute("keyboardLayout", keyboardState.currentLayout);
+	storageManager.writeAttribute("yScrollKeyboard", keyboardState.isomorphic.scrollOffset);
+	storageManager.writeAttribute("keyboardRowInterval", keyboardState.isomorphic.rowInterval);
+	storageManager.writeAttribute("drumsScrollOffset", keyboardState.drums.scrollOffset);
+	storageManager.writeAttribute("drumsEdgeSize", keyboardState.drums.edgeSize);
+	storageManager.writeAttribute("inKeyScrollOffset", keyboardState.inKey.scrollOffset);
+	storageManager.writeAttribute("inKeyRowInterval", keyboardState.inKey.rowInterval);
+
 	if (onKeyboardScreen) {
 		storageManager.writeAttribute("onKeyboardScreen", (char*)"1");
 	}
@@ -2379,12 +2381,32 @@ someError:
 			yScroll = storageManager.readTagOrAttributeValueInt();
 		}
 
+		else if (!strcmp(tagName, "keyboardLayout")) {
+			keyboardState.currentLayout = (keyboard::KeyboardLayoutType)storageManager.readTagOrAttributeValueInt();
+		}
+
 		else if (!strcmp(tagName, "yScrollKeyboard")) {
-			yScrollKeyboardScreen = storageManager.readTagOrAttributeValueInt();
+			keyboardState.isomorphic.scrollOffset = storageManager.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "keyboardRowInterval")) {
-			keyboardRowInterval = storageManager.readTagOrAttributeValueInt();
+			keyboardState.isomorphic.rowInterval = storageManager.readTagOrAttributeValueInt();
+		}
+
+		else if (!strcmp(tagName, "drumsScrollOffset")) {
+			keyboardState.drums.scrollOffset = storageManager.readTagOrAttributeValueInt();
+		}
+
+		else if (!strcmp(tagName, "drumsEdgeSize")) {
+			keyboardState.drums.edgeSize = storageManager.readTagOrAttributeValueInt();
+		}
+
+		else if (!strcmp(tagName, "inKeyScrollOffset")) {
+			keyboardState.inKey.scrollOffset = storageManager.readTagOrAttributeValueInt();
+		}
+
+		else if (!strcmp(tagName, "inKeyRowInterval")) {
+			keyboardState.inKey.rowInterval = storageManager.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "crossScreenEditLevel")) {

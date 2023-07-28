@@ -15,11 +15,11 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "processing/engines/audio_engine.h"
 #include "dsp/filter/filter_set_config.h"
-#include "util/functions.h"
 #include "io/debug/print.h"
+#include "processing/engines/audio_engine.h"
 #include "storage/storage_manager.h"
+#include "util/functions.h"
 
 const int16_t resonanceThresholdsForOversampling[] = {
     16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384,

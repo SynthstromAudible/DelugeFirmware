@@ -15,10 +15,10 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "storage/audio/audio_file_manager.h"
 #include "storage/wave_table/wave_table_band_data.h"
-#include "storage/wave_table/wave_table.h"
 #include "hid/display/numeric_driver.h"
+#include "storage/audio/audio_file_manager.h"
+#include "storage/wave_table/wave_table.h"
 
 WaveTableBandData::WaveTableBandData(WaveTable* newWaveTable) {
 	waveTable = newWaveTable;

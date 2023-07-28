@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "modulation/params/param_collection.h"
 #include "modulation/midi/midi_param_vector.h"
+#include "modulation/params/param_collection.h"
 
 class Clip;
 class ModelStackWithParamCollection;

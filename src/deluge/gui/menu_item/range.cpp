@@ -19,12 +19,12 @@
 
 #include "gui/menu_item/range.h"
 #include "gui/ui/sound_editor.h"
+#include "hid/buttons.h"
 #include "hid/display/numeric_driver.h"
-#include "util/functions.h"
+#include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/matrix/matrix_driver.h"
-#include "hid/buttons.h"
-#include "hid/display/oled.h"
+#include "util/functions.h"
 
 namespace menu_item {
 
