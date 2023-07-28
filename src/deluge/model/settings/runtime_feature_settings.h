@@ -21,7 +21,7 @@
 #include "util/d_string.h"
 #include "util/container/array/resizeable_array.h"
 
-#define RUNTIME_FEATURE_SETTING_MAX_OPTIONS 8
+#define RUNTIME_FEATURE_SETTING_MAX_OPTIONS 9
 
 namespace menu_item::runtime_feature {
 class Setting;
@@ -32,6 +32,7 @@ class Settings;
 enum RuntimeFeatureStateToggle : uint32_t { Off = 0, On = 1 };
 
 // Declare additional enums for specific multi state settings (e.g. like RuntimeFeatureStateTrackLaunchStyle)
+enum RuntimeFeatureStateSyncScalingAction : uint32_t { SyncScaling = 0, Fill = 1 };
 
 /// Every setting needs to be delcared in here
 enum RuntimeFeatureSettingType : uint32_t {
@@ -42,6 +43,7 @@ enum RuntimeFeatureSettingType : uint32_t {
 	PatchCableResolution,
 	CatchNotes,
 	DeleteUnusedKitRows,
+	SyncScalingAction,
 	MaxElement // Keep as boundary
 };
 

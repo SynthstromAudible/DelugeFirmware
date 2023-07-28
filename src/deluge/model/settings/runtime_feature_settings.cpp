@@ -63,6 +63,28 @@ static void SetupOnOffSetting(RuntimeFeatureSetting& setting, char const* const 
 	};
 }
 
+static void SetupSyncScalingActionSetting(RuntimeFeatureSetting& setting, char const* const displayName,
+                                          char const* const xmlName, RuntimeFeatureStateSyncScalingAction def) {
+	setting.displayName = displayName;
+	setting.xmlName = xmlName;
+	setting.value = static_cast<uint32_t>(def);
+
+	setting.options[0] = {
+	    .displayName = "SYNC",
+	    .value = RuntimeFeatureStateSyncScalingAction::SyncScaling,
+	};
+
+	setting.options[1] = {
+	    .displayName = "FILL",
+	    .value = RuntimeFeatureStateSyncScalingAction::Fill,
+	};
+
+	setting.options[2] = {
+	    .displayName = NULL,
+	    .value = 0,
+	};
+}
+
 void RuntimeFeatureSettings::init() {
 	// Drum randomizer
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DrumRandomizer], "Drum Randomizer", "drumRandomizer",
@@ -85,6 +107,9 @@ void RuntimeFeatureSettings::init() {
 	// DeleteUnusedKitRows
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DeleteUnusedKitRows], "Delete Unused Kit Rows",
 	                  "deleteUnusedKitRows", RuntimeFeatureStateToggle::On);
+	// DeleteUnusedKitRows
+	SetupSyncScalingActionSetting(settings[RuntimeFeatureSettingType::SyncScalingAction], "Sync Scaling Action",
+	                              "syncScalingAction", RuntimeFeatureStateSyncScalingAction::SyncScaling);
 }
 
 void RuntimeFeatureSettings::readSettingsFromFile() {
