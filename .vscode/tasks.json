@@ -8,8 +8,12 @@
 			"windows": {
 				"command": "./dbt.cmd",
 			},
-			"args":["build", "dbt-build-debug-7seg"],
-			"group": { 
+			"args": [
+				"build",
+				"7seg",
+				"debug"
+			],
+			"group": {
 				"kind": "build",
 				"isDefault": true
 			}
@@ -21,8 +25,12 @@
 			"windows": {
 				"command": "./dbt.cmd",
 			},
-			"args":["build", "dbt-build-debug-oled"],
-			"group": { 
+			"args": [
+				"build",
+				"oled",
+				"debug"
+			],
+			"group": {
 				"kind": "build",
 				"isDefault": false
 			}
@@ -34,8 +42,12 @@
 			"windows": {
 				"command": "./dbt.cmd",
 			},
-			"args":["build", "dbt-build-release-7seg"],
-			"group": { 
+			"args": [
+				"build",
+				"7seg",
+				"release"
+			],
+			"group": {
 				"kind": "build",
 				"isDefault": false
 			}
@@ -47,18 +59,55 @@
 			"windows": {
 				"command": "./dbt.cmd",
 			},
-			"args":["build", "dbt-build-release-oled"],
-			"group": { 
+			"args": [
+				"build",
+				"oled",
+				"release"
+			],
+			"group": {
 				"kind": "build",
 				"isDefault": false
 			}
 		},
-
+		{
+			"type": "process",
+			"label": "Build All Debug",
+			"command": "./dbt",
+			"windows": {
+				"command": "./dbt.cmd",
+			},
+			"args": [
+				"build",
+				"all",
+				"debug"
+			],
+			"group": {
+				"kind": "build",
+				"isDefault": false
+			}
+		},
+		{
+			"type": "process",
+			"label": "Build All Release",
+			"command": "./dbt",
+			"windows": {
+				"command": "./dbt.cmd",
+			},
+			"args": [
+				"build",
+				"all",
+				"release"
+			],
+			"group": {
+				"kind": "build",
+				"isDefault": false
+			}
+		},
 		{
 			"type": "process",
 			"label": "Run JLink GDB Server",
 			"problemMatcher": [],
-			"command": "./dbt",	
+			"command": "./dbt",
 			"windows": {
 				"command": "./dbt.cmd",
 			},
@@ -77,6 +126,15 @@
 			},
 			"args": [
 				"debug",
+			]
+		},
+		{
+			"type": "process",
+			"label": "Format source",
+			"problemMatcher": [],
+			"command": "./dbt",
+			"args": [
+				"format",
 			]
 		}
 	]
