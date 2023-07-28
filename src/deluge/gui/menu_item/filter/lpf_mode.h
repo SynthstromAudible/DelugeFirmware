@@ -30,7 +30,7 @@ public:
 	void writeCurrentValue() override { soundEditor.currentModControllable->lpfMode = static_cast<::LPFMode>(this->value_); }
 	static_vector<string, capacity()> getOptions() override { return {"12dB", "24dB", "Drive", "SVF"}; }
 	bool isRelevant(Sound* sound, int whichThing) override {
-		return ((sound == nullptr) || sound->synthMode != SYNTH_MODE_FM);
+		return ((sound == nullptr) || sound->synthMode != SynthMode::FM);
 	}
 };
 } // namespace deluge::gui::menu_item::filter

@@ -26,7 +26,7 @@
 #include "util/misc.h"
 
 namespace deluge::gui::menu_item::arpeggiator {
-class Mode final : public Selection<NUM_ARP_MODES> {
+class Mode final : public Selection<kNumArpModes> {
 public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->value_ = util::to_underlying(soundEditor.currentArpSettings->mode); }

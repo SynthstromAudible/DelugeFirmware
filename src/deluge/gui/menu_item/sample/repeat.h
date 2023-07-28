@@ -30,7 +30,7 @@
 
 namespace deluge::gui::menu_item::sample {
 
-class Repeat final : public Selection<NUM_REPEAT_MODES>, public FormattedTitle {
+class Repeat final : public Selection<kNumRepeatModes>, public FormattedTitle {
 public:
 	Repeat(const string& name, const string& title_format_str)
 	    : Selection<capacity()>(name), FormattedTitle(title_format_str) {}

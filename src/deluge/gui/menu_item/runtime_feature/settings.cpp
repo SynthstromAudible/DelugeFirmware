@@ -45,8 +45,6 @@ std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement> subMenuEntries{
     &menuQuantize,
     &menuPatchCableResolution,
     &menuCatchNotes,
-
-    nullptr,
 };
 
 Settings::Settings(char const* name, char const* title)

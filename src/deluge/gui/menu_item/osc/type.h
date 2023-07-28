@@ -27,7 +27,7 @@
 #include "util/misc.h"
 
 namespace deluge::gui::menu_item::osc {
-class Type final : public Selection<NUM_OSC_TYPES>, public FormattedTitle {
+class Type final : public Selection<kNumOscTypes>, public FormattedTitle {
 public:
 	Type(const string &name, const string &title_format_str) : Selection(name), FormattedTitle(title_format_str) {};
 #if HAVE_OLED

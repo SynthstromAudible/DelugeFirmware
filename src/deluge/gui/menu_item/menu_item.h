@@ -103,15 +103,15 @@ void MenuItem::drawItemsForOled(deluge::static_vector<deluge::string, n>& option
 
 	auto* it = std::next(options.begin(), offset); // fast-forward to the first option visible
 	for (int o = 0; o < OLED_HEIGHT_CHARS - 1 && o < options.size() - offset; o++) {
-		int yPixel = o * TEXT_SPACING_Y + baseY;
+		int yPixel = o * kTextSpacingY + baseY;
 
-		OLED::drawString(options[o + offset].c_str(), TEXT_SPACING_X, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
-		                 TEXT_SPACING_X, TEXT_SPACING_Y);
+		OLED::drawString(options[o + offset].c_str(), kTextSpacingX, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
+		                 kTextSpacingX, kTextSpacingY);
 
 		if (o == selectedOption) {
 			OLED::invertArea(0, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8, &OLED::oledMainImage[0]);
-			OLED::setupSideScroller(0, options[o + offset].c_str(), TEXT_SPACING_X, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8,
-			                        TEXT_SPACING_X, TEXT_SPACING_Y, true);
+			OLED::setupSideScroller(0, options[o + offset].c_str(), kTextSpacingX, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8,
+			                        kTextSpacingX, kTextSpacingY, true);
 		}
 	}
 }

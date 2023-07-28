@@ -29,7 +29,7 @@
 #include "util/container/static_vector.hpp"
 
 namespace deluge::gui::menu_item::voice {
-class Polyphony final : public Selection<NUM_POLYPHONY_TYPES> {
+class Polyphony final : public Selection<kNumPolyphonyModes> {
 public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->value_ = util::to_underlying(soundEditor.currentSound->polyphonic); }

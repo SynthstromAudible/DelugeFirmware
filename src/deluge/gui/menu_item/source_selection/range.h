@@ -23,7 +23,7 @@ public:
 	using SourceSelection::SourceSelection;
 	ParamDescriptor getDestinationDescriptor() override;
 	MenuItem* selectButtonPress() override;
-	MenuItem* patchingSourceShortcutPress(int newS, bool previousPressStillActive) override;
+	MenuItem* patchingSourceShortcutPress(PatchSource newS, bool previousPressStillActive) override;
 #if HAVE_OLED
 	const string& getTitle() const override {
 		return "Modulate depth";

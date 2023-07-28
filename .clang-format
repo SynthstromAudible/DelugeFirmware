@@ -16,6 +16,8 @@ BreakBeforeBinaryOperators: NonAssignment
 BreakBeforeTernaryOperators: True
 AccessModifierOffset: -4
 AlwaysBreakTemplateDeclarations: Yes
+IndentRequiresClause: False
+RequiresClausePosition: OwnLine
 
 # Not sure about this one, it's a lot of changed lines but I also like
 # alphabetic ordering

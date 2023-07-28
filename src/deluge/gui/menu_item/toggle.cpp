@@ -44,15 +44,15 @@ void Toggle::drawPixelsForOled() {
 	baseY += OLED_MAIN_TOPMOST_PIXEL;
 
 	for (int o = 0; o < 2; o++) {
-		int yPixel = o * TEXT_SPACING_Y + baseY;
+		int yPixel = o * kTextSpacingY + baseY;
 
-		OLED::drawString(options[o], TEXT_SPACING_X, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
-		                 TEXT_SPACING_X, TEXT_SPACING_Y);
+		OLED::drawString(options[o], kTextSpacingX, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
+		                 kTextSpacingX, kTextSpacingY);
 
 		if (o == selectedOption) {
 			OLED::invertArea(0, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8, &OLED::oledMainImage[0]);
-			OLED::setupSideScroller(0, options[o], TEXT_SPACING_X, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8,
-			                        TEXT_SPACING_X, TEXT_SPACING_Y, true);
+			OLED::setupSideScroller(0, options[o], kTextSpacingX, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8,
+			                        kTextSpacingX, kTextSpacingY, true);
 		}
 	}
 }

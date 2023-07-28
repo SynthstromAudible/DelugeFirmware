@@ -19,6 +19,8 @@
 #include "definitions.h"
 #include "definitions_cxx.hpp"
 #include "util/misc.h"
+#include <cstddef>
+#include <cmath>
 
 #define ALPHA_OR_BETA_VERSION 1 // Whether to compile with additional error-checking
 
