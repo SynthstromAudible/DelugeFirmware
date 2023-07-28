@@ -6,23 +6,27 @@
 			"label": "Build 7SEG Debug",
 			"command": "./dbt",
 			"windows": {
-				"command": "./dbt.cmd",
+				"command": "./dbt.cmd"
 			},
-			"args":["build", "dbt-build-debug-7seg"],
-			"group": { 
-				"kind": "build",
-				"isDefault": true
-			}
+			"args": [
+				"build",
+				"dbt-build-debug-7seg"
+			],
+			"group": "build",
+			"problemMatcher": []
 		},
 		{
 			"type": "process",
 			"label": "Build OLED Debug",
 			"command": "./dbt",
 			"windows": {
-				"command": "./dbt.cmd",
+				"command": "./dbt.cmd"
 			},
-			"args":["build", "dbt-build-debug-oled"],
-			"group": { 
+			"args": [
+				"build",
+				"dbt-build-debug-oled"
+			],
+			"group": {
 				"kind": "build",
 				"isDefault": false
 			}
@@ -32,10 +36,13 @@
 			"label": "Build 7SEG Release",
 			"command": "./dbt",
 			"windows": {
-				"command": "./dbt.cmd",
+				"command": "./dbt.cmd"
 			},
-			"args":["build", "dbt-build-release-7seg"],
-			"group": { 
+			"args": [
+				"build",
+				"dbt-build-release-7seg"
+			],
+			"group": {
 				"kind": "build",
 				"isDefault": false
 			}
@@ -45,26 +52,29 @@
 			"label": "Build OLED Release",
 			"command": "./dbt",
 			"windows": {
-				"command": "./dbt.cmd",
+				"command": "./dbt.cmd"
 			},
-			"args":["build", "dbt-build-release-oled"],
-			"group": { 
+			"args": [
+				"build",
+				"dbt-build-release-oled"
+			],
+			"group": {
 				"kind": "build",
-				"isDefault": false
-			}
+				"isDefault": true
+			},
+			"problemMatcher": []
 		},
-
 		{
 			"type": "process",
 			"label": "Run JLink GDB Server",
 			"problemMatcher": [],
-			"command": "./dbt",	
+			"command": "./dbt",
 			"windows": {
-				"command": "./dbt.cmd",
+				"command": "./dbt.cmd"
 			},
 			"args": [
 				"debug",
-				"-j",
+				"-j"
 			]
 		},
 		{
@@ -73,10 +83,10 @@
 			"problemMatcher": [],
 			"command": "./dbt",
 			"windows": {
-				"command": "./dbt.cmd",
+				"command": "./dbt.cmd"
 			},
 			"args": [
-				"debug",
+				"debug"
 			]
 		}
 	]

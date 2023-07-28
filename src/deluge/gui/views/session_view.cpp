@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "gui/views/session_view.h"
 #include "definitions_cxx.hpp"
 #include "dsp/master_compressor/master_compressor.h"
 #include "extern.h"
@@ -30,7 +31,6 @@
 #include "gui/views/audio_clip_view.h"
 #include "gui/views/automation_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
-#include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "gui/waveform/waveform_renderer.h"
 #include "hid/buttons.h"
@@ -2205,22 +2205,22 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 
 			if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
 				automationClipView
-					.recalculateColours(); // Won't have happened automatically because we haven't begun the "session"
+				    .recalculateColours(); // Won't have happened automatically because we haven't begun the "session"
 				automationClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1],
-												  false);
+				                                  false);
 			}
 
 			else {
 				instrumentClipView
-					.recalculateColours(); // Won't have happened automatically because we haven't begun the "session"
+				    .recalculateColours(); // Won't have happened automatically because we haven't begun the "session"
 				instrumentClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1],
-												  false);
+				                                  false);
 			}
 
 			instrumentClipView.renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
 
 			instrumentClipView
-				.fillOffScreenImageStores(); // Important that this is done after currentSong->xScroll is changed, above
+			    .fillOffScreenImageStores(); // Important that this is done after currentSong->xScroll is changed, above
 
 			PadLEDs::numAnimatedRows = kDisplayHeight + 2;
 			for (int y = 0; y < PadLEDs::numAnimatedRows; y++) {

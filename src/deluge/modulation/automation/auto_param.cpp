@@ -959,7 +959,8 @@ void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value,
 		nodes.testSequentiality("E441");
 #endif
 
-		firstI = homogenizeRegion(modelStack, pos, length, value, automationClipView.interpolateOn, automationClipView.interpolateOn, effectiveLength, false);
+		firstI = homogenizeRegion(modelStack, pos, length, value, automationClipView.interpolateOn,
+		                          automationClipView.interpolateOn, effectiveLength, false);
 		if (firstI == -1) {
 			return;
 		}

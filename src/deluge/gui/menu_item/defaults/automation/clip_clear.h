@@ -16,8 +16,8 @@
 */
 #pragma once
 #include "gui/menu_item/selection.h"
-#include "gui/views/automation_clip_view.h"
 #include "gui/ui/sound_editor.h"
+#include "gui/views/automation_clip_view.h"
 
 namespace menu_item::defaults {
 class ClipClear final : public Selection {

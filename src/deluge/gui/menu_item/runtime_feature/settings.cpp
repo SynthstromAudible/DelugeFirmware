@@ -49,7 +49,7 @@ std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement + 1> subMenuEntries{
     &menuPatchCableResolution,
     &menuCatchNotes,
     &menuDeleteUnusedKitRows,
-	&menuClearClipAutomation,
+    &menuClearClipAutomation,
 
     nullptr,
 };

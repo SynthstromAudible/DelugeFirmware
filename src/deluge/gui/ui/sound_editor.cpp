@@ -13,6 +13,7 @@
 #include "gui/ui/save/save_instrument_preset_ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/audio_clip_view.h"
+#include "gui/views/automation_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
@@ -48,7 +49,6 @@
 #include "util/functions.h"
 #include <new>
 #include <string.h>
-#include "gui/views/automation_clip_view.h"
 
 #if HAVE_OLED
 #include "hid/display/oled.h"

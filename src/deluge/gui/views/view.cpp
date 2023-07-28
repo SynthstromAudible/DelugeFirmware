@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-
+#include "gui/views/view.h"
 #include "definitions_cxx.hpp"
 #include "dsp/reverb/freeverb/revmodel.hpp"
 #include "extern.h"
@@ -33,7 +33,6 @@
 #include "gui/views/automation_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
-#include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "hid/display/numeric_driver.h"
 #include "hid/encoders.h"
@@ -826,6 +825,7 @@ void View::modEncoderAction(int whichModEncoder, int offset) {
 		}
 
 		{
+
 			ModelStackWithAutoParam* modelStackWithParam =
 			    activeModControllableModelStack.modControllable->getParamFromModEncoder(
 			        whichModEncoder, &activeModControllableModelStack);
@@ -1045,7 +1045,8 @@ void View::setModLedStates() {
 
 	bool affectEntire = getRootUI() && getRootUI()->getAffectEntire();
 	if (!itsTheSong) {
-		if (getRootUI() != &instrumentClipView && getRootUI() != &automationClipView && getRootUI() != &keyboardScreen) {
+		if (getRootUI() != &instrumentClipView && getRootUI() != &automationClipView
+		    && getRootUI() != &keyboardScreen) {
 			affectEntire = true;
 		}
 		else {

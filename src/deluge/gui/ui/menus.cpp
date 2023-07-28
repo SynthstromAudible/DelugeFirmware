@@ -644,14 +644,12 @@ Submenu triggerClockMenu{HAVE_OLED ? "Trigger clock" : "TCLOCK", triggerClockMen
 
 // Defaults menu
 
-
 //new Automation Sub Menu included under Defaults menu to toggle on settings associated with the new Automation Clip View
 defaults::ClipClear clipClearMenu{HAVE_OLED ? "Clip Clear" : "CLEAR"};
 defaults::Interpolation automationInterpolationMenu{HAVE_OLED ? "Interpolation" : "INTRP"};
 
-MenuItem* automationMenuItems[] = {&clipClearMenu, &automationInterpolationMenu,NULL};
+MenuItem* automationMenuItems[] = {&clipClearMenu, &automationInterpolationMenu, NULL};
 Submenu automationSubmenu{"AUTOMATION", automationMenuItems};
-
 
 IntegerRange defaultTempoMenu{"TEMPO", 60, 240};
 IntegerRange defaultSwingMenu{"SWING", 1, 99};
@@ -660,8 +658,9 @@ defaults::Scale defaultScaleMenu{"SCALE"};
 defaults::Velocity defaultVelocityMenu{"VELOCITY"};
 defaults::Magnitude defaultMagnitudeMenu{"RESOLUTION"};
 defaults::BendRange defaultBendRangeMenu{"Bend range"};
-MenuItem* defaultsMenuItems[] = {&automationSubmenu, 	&defaultTempoMenu,    &defaultSwingMenu,     &defaultKeyMenu,
-								 &defaultScaleMenu, &defaultVelocityMenu, &defaultMagnitudeMenu, &defaultBendRangeMenu, NULL};
+MenuItem* defaultsMenuItems[] = {&automationSubmenu,    &defaultTempoMenu,     &defaultSwingMenu,
+                                 &defaultKeyMenu,       &defaultScaleMenu,     &defaultVelocityMenu,
+                                 &defaultMagnitudeMenu, &defaultBendRangeMenu, NULL};
 
 Submenu defaultsSubmenu{"DEFAULTS", defaultsMenuItems};
 

@@ -287,7 +287,6 @@ void SampleBrowser::exitAction() {
 			else {
 				redrawUI = &instrumentClipView;
 			}
-
 		}
 	}
 
@@ -539,7 +538,8 @@ gotError:
 
 bool SampleBrowser::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
 
-	if (currentlyShowingSamplePreview || qwertyVisible || getRootUI() == &keyboardScreen || getRootUI() == &automationClipView) {
+	if (currentlyShowingSamplePreview || qwertyVisible || getRootUI() == &keyboardScreen
+	    || getRootUI() == &automationClipView) {
 		*cols = 0b10;
 	}
 	else {
@@ -2153,7 +2153,6 @@ ActionResult SampleBrowser::verticalEncoderAction(int offset, bool inCardRoutine
 		}
 		return automationClipView.verticalEncoderAction(offset, inCardRoutine);
 	}
-
 
 	return ActionResult::DEALT_WITH;
 }

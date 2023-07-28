@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "hid/led/pad_leds.h"
 #include "gui/colour.h"
 #include "gui/menu_item/colour.h"
 #include "gui/ui/keyboard_screen.h"
@@ -30,7 +31,6 @@
 #include "gui/waveform/waveform_renderer.h"
 #include "hid/display/numeric_driver.h"
 #include "hid/display/oled.h"
-#include "hid/led/pad_leds.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/sample/sample.h"
@@ -812,7 +812,6 @@ void timerRoutine() {
 						else {
 							changeRootUI(&instrumentClipView); // We want to fade the sidebar in
 						}
-
 					}
 					else {
 						changeRootUI(&audioClipView);

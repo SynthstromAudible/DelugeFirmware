@@ -15,6 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "gui/views/arranger_view.h"
+#include "RZA1/system/r_typedefs.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "gui/colour.h"
@@ -25,7 +27,6 @@
 #include "gui/ui/rename/rename_output_ui.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
-#include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
 #include "gui/views/automation_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
@@ -66,7 +67,6 @@
 #include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
-#include "RZA1/system/r_typedefs.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/file_item.h"
 #include "storage/storage_manager.h"
@@ -1771,7 +1771,7 @@ bool ArrangerView::transitionToArrangementEditor() {
 
 	memcpy(PadLEDs::imageStore[1], PadLEDs::image, (kDisplayWidth + kSideBarWidth) * kDisplayHeight * 3);
 	memcpy(PadLEDs::occupancyMaskStore[1], PadLEDs::occupancyMask, (kDisplayWidth + kSideBarWidth) * kDisplayHeight);
-	if (getCurrentUI() == &instrumentClipView || getCurrentUI() == &automationClipView) {
+	if (getCurrentUI() == &instrumentClipView) { //|| getCurrentUI() == &automationClipView) {
 		instrumentClipView.fillOffScreenImageStores();
 	}
 

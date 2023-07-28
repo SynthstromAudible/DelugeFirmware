@@ -17,11 +17,12 @@
 
 #pragma once
 
-#include "gui/views/clip_view.h"
-#include "hid/button.h"
 #include "definitions_cxx.hpp"
-#include "modulation/automation/copied_param_automation.h"
+#include "gui/views/clip_view.h"
+#include "gui/views/instrument_clip_view.h"
+#include "hid/button.h"
 #include "model/clip/instrument_clip_minder.h"
+#include "modulation/automation/copied_param_automation.h"
 #include "modulation/params/param_node.h"
 
 class InstrumentClip;
@@ -88,7 +89,7 @@ public:
 	void enterScaleMode(uint8_t yDisplay = 255);
 	void exitScaleMode();
 	void changeRootNote(uint8_t yDisplay);
-	void drawMuteSquare(NoteRow* thisNoteRow, uint8_t thisImage[][3], uint8_t thisOccupancyMask[]);
+	//void drawMuteSquare(NoteRow* thisNoteRow, uint8_t thisImage[][3], uint8_t thisOccupancyMask[]);
 	void cutAuditionedNotesToOne();
 	ActionResult verticalEncoderAction(int offset, bool inCardRoutine);
 	ActionResult horizontalEncoderAction(int offset);
@@ -107,6 +108,9 @@ public:
 	void setupChangingOfRootNote(int newRootNote, int yDisplay = (kDisplayHeight / 2));
 	void cancelAllAuditioning();
 	void modEncoderButtonAction(uint8_t whichModEncoder, bool on);
+
+	void createNewInstrument(InstrumentType instrumentType);
+	void changeInstrumentType(InstrumentType newInstrumentType);
 
 	void tellMatrixDriverWhichRowsContainSomethingZoomable();
 	void drawDrumName(Drum* drum, bool justPopUp = false);
@@ -127,8 +131,14 @@ public:
 
 	void tempoEncoderAction(int8_t offset, bool encoderButtonPressed, bool shiftButtonPressed);
 
+	NoteRow* createNewNoteRowForKit(ModelStackWithTimelineCounter* modelStack, int yDisplay, int* getIndex = NULL);
+	ModelStackWithNoteRow* createNoteRowForYDisplay(ModelStackWithTimelineCounter* modelStack, int yDisplay);
+	ModelStackWithNoteRow* getOrCreateNoteRowForYDisplay(ModelStackWithTimelineCounter* modelStack, int yDisplay);
+
+	int calculateKnobPosForModEncoderTurn(int32_t knobPos, int32_t offset);
+
 	virtual ModelStackWithAutoParam* getParamToControlFromInputMIDIChannel(int cc,
-		                                                                       ModelStackWithThreeMainThings* modelStack);
+	                                                                       ModelStackWithThreeMainThings* modelStack);
 	inline void getRowColour(int y, uint8_t color[3]) {
 		color[0] = rowColour[y][0];
 		color[1] = rowColour[y][1];
@@ -142,14 +152,17 @@ public:
 	uint8_t overlayNotes;
 	uint8_t interpolateOn;
 
-	void setParameterAutomationValue(ModelStackWithAutoParam* modelStack, int32_t knobPos, int32_t squareStart, int32_t xDisplay, int32_t effectiveLength);
-	int calculateKnobPosForMultiPadPress(int32_t xDisplay, int32_t firstPadX, int32_t firstPadValue, int32_t secondPadX, int32_t secondPadValue);
+	void setParameterAutomationValue(ModelStackWithAutoParam* modelStack, int32_t knobPos, int32_t squareStart,
+	                                 int32_t xDisplay, int32_t effectiveLength);
+	int calculateKnobPosForMultiPadPress(int32_t xDisplay, int32_t firstPadX, int32_t firstPadValue, int32_t secondPadX,
+	                                     int32_t secondPadValue);
 	int calculateKnobPosForSinglePadPress(int32_t yDisplay);
-	void handleSinglePadPress(ModelStackWithTimelineCounter* modelStack, Clip* clip, int32_t xDisplay, int32_t yDisplay);
-	void handleMultiPadPress(ModelStackWithTimelineCounter* modelStack, Clip* clip, int32_t firstPadX, int32_t firstPadY, int32_t secondPadX, int32_t secondPadY);
-	ModelStackWithAutoParam* getmodelStackWithParam (ModelStackWithTimelineCounter* modelStack, Clip* clip);
+	void handleSinglePadPress(ModelStackWithTimelineCounter* modelStack, Clip* clip, int32_t xDisplay,
+	                          int32_t yDisplay);
+	void handleMultiPadPress(ModelStackWithTimelineCounter* modelStack, Clip* clip, int32_t firstPadX,
+	                         int32_t firstPadY, int32_t secondPadX, int32_t secondPadY);
+	ModelStackWithAutoParam* getmodelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip);
 	inline void sendAuditionNote(bool on, uint8_t yDisplay) { sendAuditionNote(on, yDisplay, 64, 0); };
-
 
 #if HAVE_OLED
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
@@ -231,10 +244,10 @@ private:
 
 	void sendAuditionNote(bool on, uint8_t yDisplay, uint8_t velocity, uint32_t sampleSyncLength);
 
-	int LERP (int A, int B, int T, int Distance);
-	int LERPRoot (int A, int B, int T, int Distance);
-	int LERPSweep (int A, int B, int T, int Distance);
-	int LERPSweepDown (int A, int B, int T, int Distance);
+	int LERP(int A, int B, int T, int Distance);
+	int LERPRoot(int A, int B, int T, int Distance);
+	int LERPSweep(int A, int B, int T, int Distance);
+	int LERPSweepDown(int A, int B, int T, int Distance);
 	//int smoothstep (int A, int B, int T, int Distance);
 };
 
