@@ -442,13 +442,11 @@ ActionResult KeyboardScreen::buttonAction(hid::Button b, bool on, bool inCardRou
 		selectLayout(0);
 	}
 
-	else if (b == SELECT_ENC) {
-		if (on && getCurrentClip()->inScaleMode && currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED) {
-			exitScaleModeOnButtonRelease = false;
-			cycleThroughScales();
-			layoutList[getCurrentClip()->keyboardState.currentLayout]->precalculate();
-			requestRendering();
-		}
+	else if (b == SELECT_ENC && on && getCurrentClip()->inScaleMode && currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED) {
+		exitScaleModeOnButtonRelease = false;
+		cycleThroughScales();
+		layoutList[getCurrentClip()->keyboardState.currentLayout]->precalculate();
+		requestRendering();
 	}
 
 	else {
