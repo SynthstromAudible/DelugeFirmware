@@ -22,8 +22,6 @@
 
 namespace deluge::gui::menu_item::mpe {
 
-DirectionSelector directionSelectorMenu{"MPE"};
-
 void DirectionSelector::beginSession(MenuItem* navigatedBackwardFrom) {
 	if (navigatedBackwardFrom == nullptr) {
 		whichDirection = MIDI_DIRECTION_INPUT_TO_DELUGE;

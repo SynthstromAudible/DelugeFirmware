@@ -21,7 +21,7 @@
 #include "hid/matrix/matrix_driver.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/ui/root_ui.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "hid/led/pad_leds.h"
 #include "hid/display/oled.h"
 

@@ -68,7 +68,7 @@ def exists():
     return OPENOCD
 
 
-def argparser():
+def argparser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="openocd",
         description="Run OpenOCD with default arguments (CMSIS-DAP/DelugeProbe).\nThese can be changed using the OPENOCD_OPTS variable.",
@@ -83,7 +83,7 @@ def argparser():
     return parser
 
 
-def main():
+def main() -> int:
     args = argparser().parse_args()
 
     hardware = os.environ.get("DEBUG_HARDWARE") or "delugeprobe"
@@ -111,7 +111,8 @@ def main():
 
     if args.verbose:
         print(" ".join(ocd_cmd))
-    subprocess.run(ocd_cmd)
+    result = subprocess.run(ocd_cmd)
+    return result.returncode
 
 
 if __name__ == "__main__":

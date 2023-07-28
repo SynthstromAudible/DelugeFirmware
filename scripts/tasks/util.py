@@ -1,5 +1,6 @@
 from functools import partial
 import multiprocessing
+import os
 import subprocess
 import sys
 import shutil
@@ -16,6 +17,7 @@ def run(args, redirect_input: bool = True, redirect_output: bool = True):
         stdout=(sys.stdout if redirect_output else None),
         stdin=(sys.stdin if redirect_input else None),
         stderr=(sys.stderr if redirect_output else None),
+        env=os.environ
     )
 
     return process.returncode

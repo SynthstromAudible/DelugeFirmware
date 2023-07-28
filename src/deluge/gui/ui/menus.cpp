@@ -716,6 +716,10 @@ midi::ClockOutStatus midiClockOutStatusMenu{HAVE_OLED ? "Output" : "OUT", "MIDI 
 midi::ClockInStatus midiClockInStatusMenu{HAVE_OLED ? "Input" : "IN", "MIDI clock in"};
 tempo::MagnitudeMatching tempoMagnitudeMatchingMenu{HAVE_OLED ? "Tempo magnitude matching" : "MAGN", "Tempo m. match"};
 
+//Midi devices menu
+midi::Devices midi::devicesMenu{"Devices", "MIDI devices"};
+mpe::DirectionSelector mpe::directionSelectorMenu{"MPE"};
+
 //MIDI menu
 Submenu midiClockMenu{
     "CLOCK",

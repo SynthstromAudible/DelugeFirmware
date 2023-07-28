@@ -28,8 +28,6 @@ extern deluge::gui::menu_item::Submenu<2> midiDeviceMenu;
 
 namespace deluge::gui::menu_item::midi {
 
-Devices devicesMenu{"Devices", "MIDI devices"};
-
 static const int lowestDeviceNum = -3;
 
 void Devices::beginSession(MenuItem* navigatedBackwardFrom) {

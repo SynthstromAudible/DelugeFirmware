@@ -33,7 +33,7 @@
 #include "model/note/note_vector.h"
 #include "model/action/action.h"
 #include "model/consequence/consequence_note_existence.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include <string.h>
 #include "gui/views/timeline_view.h"
 #include "model/note/copied_note_row.h"
@@ -47,6 +47,7 @@
 #include "io/midi/midi_device.h"
 #include "gui/views/view.h"
 #include "gui/views/instrument_clip_view.h"
+#include "model/settings/runtime_feature_settings.h"
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
@@ -238,15 +239,17 @@ addNewNote:
 		if (clipCurrentlyPlaying && !muted) {
 			((InstrumentClip*)modelStack->getTimelineCounter())->expectEvent();
 
-			// If the play-pos is inside this note, see if we'd like to attempt a late-start of it
-			int actualPlayPos = getLivePos(modelStack);
+			if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::CatchNotes) == RuntimeFeatureStateToggle::On)) {
+				// If the play-pos is inside this note, see if we'd like to attempt a late-start of it
+				int actualPlayPos = getLivePos(modelStack);
 
-			int howFarIntoNote = actualPlayPos - newNote->pos;
-			if (howFarIntoNote < 0) {
-				howFarIntoNote += effectiveLength;
-			}
-			if (howFarIntoNote < newNote->getLength()) {
-				attemptLateStartOfNextNoteToPlay(modelStack, newNote);
+				int howFarIntoNote = actualPlayPos - newNote->pos;
+				if (howFarIntoNote < 0) {
+					howFarIntoNote += effectiveLength;
+				}
+				if (howFarIntoNote < newNote->getLength()) {
+					attemptLateStartOfNextNoteToPlay(modelStack, newNote);
+				}
 			}
 		}
 
@@ -995,8 +998,8 @@ int NoteRow::editNoteRepeatAcrossAllScreens(int32_t editPos, int32_t squareWidth
 			int32_t areaEndPosThisScreen = areaBeginPosThisScreen + squareWidthThisScreen;
 			if (areaEndPosThisScreen > effectiveLength) {
 				squareWidthThisScreen = effectiveLength - areaBeginPosThisScreen;
-				Uart::print("square width cut short: ");
-				Uart::println(newNumNotesThisScreen);
+				Debug::print("square width cut short: ");
+				Debug::println(newNumNotesThisScreen);
 
 				// If that's ended up 0 or negative, there's nothing for us to do. Though there'd probably be no harm if this check wasn't here, and in a perfect world
 				// maybe we'd check this before deciding how many search terms?
@@ -1177,7 +1180,7 @@ int NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* 
 	if (nudgeOffset >= 0 && (numScreens - 1) * wrapEditLevel + editPos + 1 == effectiveLength) {
 		Note* __restrict__ lastSourceNote = notes.getElement(numSourceNotes - 1);
 		if (lastSourceNote->pos == effectiveLength - 1) {
-			Uart::println("wrapping right");
+			Debug::println("wrapping right");
 			destNote = newNotes.getElement(nextIndexToCopyTo);
 			*destNote = *lastSourceNote;
 			destNote->pos = 0;
@@ -1194,7 +1197,7 @@ int NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* 
 			if (destNote->length > maxLength) {
 				// But only if that next note won't itself get nudged!
 				if (((uint32_t)nextSourceNote->pos % wrapEditLevel) != editPos) {
-					Uart::println("constraining length in right wrap");
+					Debug::println("constraining length in right wrap");
 					destNote->length = maxLength;
 				}
 			}
@@ -1244,7 +1247,7 @@ int NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* 
 
 				if (noteToNudge->pos == preNudgeNotePos) {
 					// Ok, we've got one we'll be nudging left.
-					Uart::println("nudging note left");
+					Debug::println("nudging note left");
 
 					if (preNudgeNotePos == 0) {
 						wrappingLeft = true;
@@ -1258,7 +1261,7 @@ int NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* 
 							int32_t postNudgeNotePos = preNudgeNotePos - 1;
 							int32_t maxLength = postNudgeNotePos - destNote->pos;
 							if (destNote->length > maxLength) {
-								Uart::println("constraining length of prev note");
+								Debug::println("constraining length of prev note");
 								destNote->length = maxLength;
 							}
 						}
@@ -1283,7 +1286,7 @@ int NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* 
 
 				// If there was a nudge note, it will be the last one we copied. If so...
 				if (destNote->pos == preNudgeNotePos) {
-					Uart::println("nudging note right");
+					Debug::println("nudging note right");
 
 					int32_t postNudgeNotePos = preNudgeNotePos + 1;
 					destNote->pos = postNudgeNotePos; // Nudge it
@@ -1308,11 +1311,11 @@ int NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* 
 					else { // Or if there's no more Notes, in which case wrap length
 						Note* __restrict__ firstNote = newNotes.getElement(0);
 						maxLength = firstNote->pos + effectiveLength - postNudgeNotePos;
-						Uart::println("potentially wrapping note length");
+						Debug::println("potentially wrapping note length");
 					}
 
 					if (destNote->length > maxLength) {
-						Uart::println("constraining right-nudged note length");
+						Debug::println("constraining right-nudged note length");
 						destNote->length = maxLength;
 					}
 				}
@@ -1340,7 +1343,7 @@ int NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* 
 
 	// If a nudged note wrapped around left
 	if (wrappingLeft) {
-		Uart::println("placing left-wrapped nudged note at end");
+		Debug::println("placing left-wrapped nudged note at end");
 
 		int32_t nudgedPos = effectiveLength - 1;
 
@@ -1372,11 +1375,11 @@ int NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* 
 	}
 	// Or a less extreme case where we just nudged the very first Note left and it didn't wrap - but we still need to check the final Note's length
 	else if (firstNoteGotNudgedLeft) {
-		Uart::println("checking cos first note got nudged left");
+		Debug::println("checking cos first note got nudged left");
 		Note* __restrict__ firstDestNote = newNotes.getElement(0);
 		int32_t maxLength = firstDestNote->pos + effectiveLength - destNote->pos;
 		if (destNote->length > maxLength) {
-			Uart::println("yup, constraining last note's length");
+			Debug::println("yup, constraining last note's length");
 			destNote->length = maxLength;
 		}
 	}
@@ -2048,8 +2051,8 @@ void NoteRow::attemptLateStartOfNextNoteToPlay(ModelStackWithNoteRow* modelStack
 
 	int32_t timeAgo = AudioEngine::audioSampleTimer - noteOnTime;
 
-	Uart::print("timeAgo: ");
-	Uart::println(timeAgo);
+	Debug::print("timeAgo: ");
+	Debug::println(timeAgo);
 
 	if (timeAgo < 0) { // Gregory J got this. And Vinz
 #if ALPHA_OR_BETA_VERSION
@@ -2087,7 +2090,7 @@ void NoteRow::attemptLateStartOfNextNoteToPlay(ModelStackWithNoteRow* modelStack
 	             sound->allowsVeryLateNoteStart(((InstrumentClip*)modelStack->getTimelineCounter()), thisParamManager)))
 	    || timeAgo < noteOnLatenessAllowed) {
 
-		Uart::println("doing late");
+		Debug::println("doing late");
 
 		if (!allows) {
 			swungTicksBeforeLastActionedOne = 0;
@@ -2687,20 +2690,22 @@ void NoteRow::resumePlayback(ModelStackWithNoteRow* modelStack, bool clipMayMake
 
 		int32_t effectiveActualCurrentPos = getLivePos(modelStack);
 
-		// See if our play-pos is inside of a note, which we might want to try playing...
-		int i = notes.search(effectiveActualCurrentPos, LESS);
-		bool wrapping = (i == -1);
-		if (wrapping) {
-			i = notes.getNumElements() - 1;
-		}
-		Note* note = notes.getElement(i);
-		int noteEnd = note->pos + note->length;
-		if (wrapping) {
-			noteEnd -= modelStack->getLoopLength();
-		}
+		if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::CatchNotes) == RuntimeFeatureStateToggle::On)) {
+			// See if our play-pos is inside of a note, which we might want to try playing...
+			int i = notes.search(effectiveActualCurrentPos, LESS);
+			bool wrapping = (i == -1);
+			if (wrapping) {
+				i = notes.getNumElements() - 1;
+			}
+			Note* note = notes.getElement(i);
+			int noteEnd = note->pos + note->length;
+			if (wrapping) {
+				noteEnd -= modelStack->getLoopLength();
+			}
 
-		if (noteEnd > effectiveActualCurrentPos) {
-			attemptLateStartOfNextNoteToPlay(modelStack, note);
+			if (noteEnd > effectiveActualCurrentPos) {
+				attemptLateStartOfNextNoteToPlay(modelStack, note);
+			}
 		}
 	}
 
@@ -2750,7 +2755,7 @@ int NoteRow::readFromFile(int* minY, InstrumentClip* parentClip, Song* song, int
 	    -1; // Temp variable for this because we can't actually create the expressionParams before we know what kind of Drum (if any) we have.
 
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
-		//Uart::println(tagName); delayMS(50);
+		//Debug::println(tagName); delayMS(50);
 
 		uint16_t noteHexLength;
 

@@ -27,7 +27,7 @@
 #include "gui/views/session_view.h"
 #include "util/functions.h"
 #include "hid/display/numeric_driver.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "gui/views/view.h"
 #include "model/note/note_row.h"
 #include "gui/ui/ui.h"
@@ -2349,7 +2349,8 @@ void SessionView::midiLearnFlash() {
 void SessionView::modEncoderAction(int whichModEncoder, int offset) {
 	performActionOnPadRelease = false;
 
-	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx) == RuntimeFeatureStateToggle::On) {
+	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx) == RuntimeFeatureStateToggle::On
+	    && currentUIMode != UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
 		int modKnobMode = -1;
 		if (view.activeModControllableModelStack.modControllable) {
 			uint8_t* modKnobModePointer = view.activeModControllableModelStack.modControllable->getModKnobMode();

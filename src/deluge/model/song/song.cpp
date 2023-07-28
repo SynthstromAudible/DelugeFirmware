@@ -38,7 +38,7 @@
 #include <string.h>
 #include "gui/views/session_view.h"
 #include "playback/playback_handler.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "io/midi/midi_engine.h"
 #include "memory/general_memory_allocator.h"
 #include "playback/mode/session.h"
@@ -1190,8 +1190,8 @@ int Song::readFromFile() {
 
 	outputClipInstanceListIsCurrentlyInvalid = true;
 
-	Uart::println("");
-	Uart::println("loading song!!!!!!!!!!!!!!");
+	Debug::println("");
+	Debug::println("loading song!!!!!!!!!!!!!!");
 
 	char const* tagName;
 
@@ -1202,7 +1202,7 @@ int Song::readFromFile() {
 	uint64_t newTimePerTimerTick = (uint64_t)1 << 32; // TODO: make better!
 
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
-		//Uart::println(tagName); delayMS(30);
+		//Debug::println(tagName); delayMS(30);
 		switch (*(uint32_t*)tagName) {
 
 		// "reverb"
@@ -1682,8 +1682,8 @@ loadOutput:
 						return result;
 					}
 					if (ALPHA_OR_BETA_VERSION) {
-						Uart::print("unknown tag: ");
-						Uart::println(tagName);
+						Debug::print("unknown tag: ");
+						Debug::println(tagName);
 					}
 					storageManager.exitTag(tagName);
 				}
@@ -1753,7 +1753,7 @@ traverseClips:
 
 	anyOutputsSoloingInArrangement = false;
 
-	Uart::println("aaa1");
+	Debug::println("aaa1");
 
 	// Match all ClipInstances up with their Clip. And while we're at it, check if any Outputs are soloing in arranger
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
@@ -1829,7 +1829,7 @@ skipInstance:
 
 	outputClipInstanceListIsCurrentlyInvalid = false; // All clipInstances are valid now.
 
-	Uart::println("aaa2");
+	Debug::println("aaa2");
 
 	// Ensure no arrangement-only Clips with no ClipInstance
 	// For each Clip in arrangement
@@ -1866,7 +1866,7 @@ skipInstance:
 		setInputTickScaleClip(newInputTickScaleClip);
 	}
 
-	Uart::println("aaa3");
+	Debug::println("aaa3");
 	AudioEngine::logAction("aaa3.1");
 
 	AudioEngine::routineWithClusterLoading(); // -----------------------------------
@@ -4978,7 +4978,7 @@ void Song::cullAudioClipVoice() {
 
 	if (bestClip) {
 		bestClip->unassignVoiceSample();
-		Uart::println("audio clip voice culled!");
+		Debug::println("audio clip voice culled!");
 	}
 }
 

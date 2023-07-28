@@ -36,6 +36,7 @@ Setting menuMasterCompressorFx(RuntimeFeatureSettingType::MasterCompressorFx);
 Setting menuFineTempo(RuntimeFeatureSettingType::FineTempoKnob);
 Setting menuQuantize(RuntimeFeatureSettingType::Quantize);
 Setting menuPatchCableResolution(RuntimeFeatureSettingType::PatchCableResolution);
+Setting menuCatchNotes(RuntimeFeatureSettingType::CatchNotes);
 
 std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement> subMenuEntries{
     &menuDrumRandomizer,
@@ -43,6 +44,9 @@ std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement> subMenuEntries{
     &menuFineTempo,
     &menuQuantize,
     &menuPatchCableResolution,
+    &menuCatchNotes,
+
+    nullptr,
 };
 
 Settings::Settings(char const* name, char const* title)
