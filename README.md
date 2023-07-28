@@ -87,9 +87,9 @@ Built files output to subdirectories named after the configuration (e.g. `build/
 
 #### Build arguments: 
 
-* `-q` or `--quiet` - this surpresses printed output once building begins (CMake [re]configuration will still output)
+* `-S` or `--no-status` - this disables the `ninja` status line while building. Output from compilation commands (such as warnings and errors) will still be printed.
 * `-v` or `--verbose` - this prints greater level of detail to the console (i.e. exactly the compiler/linker commands called)
-* `--clean-first` - clean before building 
+* `-c` or `--clean-first` - clean before building 
 
 #### CMake custom arguments
 
