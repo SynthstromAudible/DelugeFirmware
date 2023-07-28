@@ -18,7 +18,7 @@
 #include "hid/led/pad_leds.h"
 #include "gui/colour.h"
 #include "gui/menu_item/colour.h"
-#include "gui/ui/keyboard_screen.h"
+#include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"

@@ -18,7 +18,7 @@
 #include "gui/ui/save/save_instrument_preset_ui.h"
 #include "definitions_cxx.hpp"
 #include "gui/context_menu/overwrite_file.h"
-#include "gui/ui/keyboard_screen.h"
+#include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "hid/display/numeric_driver.h"
