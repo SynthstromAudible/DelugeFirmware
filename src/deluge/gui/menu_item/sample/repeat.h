@@ -25,7 +25,6 @@
 #include "model/drum/kit.h"
 #include "model/song/song.h"
 #include "processing/sound/sound_drum.h"
-#include "selection.h"
 #include "util/misc.h"
 
 namespace deluge::gui::menu_item::sample {

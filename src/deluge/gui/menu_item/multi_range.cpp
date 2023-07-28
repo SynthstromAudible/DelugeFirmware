@@ -16,8 +16,6 @@
 */
 
 #include "multi_range.h"
-#include "definitions.h"
-#include "gui/menu_item/range.h"
 #include "gui/ui/keyboard_screen.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/instrument_clip_view.h"
@@ -33,7 +31,6 @@
 #include "storage/multi_range/multi_wave_table_range.h"
 #include "storage/multi_range/multisample_range.h"
 #include "util/functions.h"
-#include <array>
 #include <string.h>
 
 namespace deluge::gui::menu_item {

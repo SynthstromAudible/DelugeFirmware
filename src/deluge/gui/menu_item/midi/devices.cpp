@@ -16,7 +16,6 @@
 */
 
 #include "devices.h"
-#include "definitions.h"
 #include "gui/menu_item/submenu.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/numeric_driver.h"
