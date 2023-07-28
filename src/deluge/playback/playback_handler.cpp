@@ -2491,7 +2491,10 @@ bool PlaybackHandler::tryGlobalMIDICommands(MIDIDevice* device, int channel, int
 
 			case GlobalMIDICommand::FILL:
 				currentSong->fillModeActive = true;
-				indicator_leds::setLedState(IndicatorLED::SYNC_SCALING, true);
+				if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::SyncScalingAction)
+				     == RuntimeFeatureStateSyncScalingAction::Fill)) {
+					indicator_leds::setLedState(IndicatorLED::SYNC_SCALING, true);
+				}
 				break;
 
 			//case GlobalMIDICommand::TAP:
@@ -2521,7 +2524,10 @@ bool PlaybackHandler::tryGlobalMIDICommandsOff(MIDIDevice* device, int channel, 
 			switch (static_cast<GlobalMIDICommand>(c)) {
 			case GlobalMIDICommand::FILL:
 				currentSong->fillModeActive = false;
-				indicator_leds::setLedState(IndicatorLED::SYNC_SCALING, false);
+				if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::SyncScalingAction)
+				     == RuntimeFeatureStateSyncScalingAction::Fill)) {
+					indicator_leds::setLedState(IndicatorLED::SYNC_SCALING, false);
+				}
 				break;
 			}
 

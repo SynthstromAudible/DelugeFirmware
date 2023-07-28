@@ -71,6 +71,7 @@
 #include "gui/ui_timer_manager.h"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/colour.h"
+#include "model/settings/runtime_feature_settings.h"
 
 #if HAVE_OLED
 #include "hid/display/oled.h"
@@ -307,9 +308,14 @@ doEndMidiLearnPressSession:
 		}
 	}
 
-	// Moved Sync-scaling feature to SHIFT+SYNC_SCALING (see FILL below)
-	else if (b == SYNC_SCALING && Buttons::isShiftButtonPressed()) {
-		if (on && currentUIMode == UI_MODE_NONE) {
+	// Sync-scaling button - can be repurposed as Fill Mode in community settings
+	else if (b == SYNC_SCALING) {
+		if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::SyncScalingAction)
+		     == RuntimeFeatureStateSyncScalingAction::Fill)) {
+			currentSong->fillModeActive = on;
+			indicator_leds::setLedState(IndicatorLED::SYNC_SCALING, on);
+		}
+		else if (on && currentUIMode == UI_MODE_NONE) {
 
 			if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
 cant:
