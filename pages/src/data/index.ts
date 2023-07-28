@@ -22,10 +22,12 @@ interface Config {
   repo: string;
 }
 
-const CONFIG = {
-  owner: process.env.REPO_OWNER,
-  repo: process.env.REPO_REPO,
-};
+const CONFIG = process.env.REPO
+  ? {
+      owner: process.env.REPO.split('/')[0],
+      repo: process.env.REPO.split('/')[1],
+    }
+  : { owner: undefined, repo: undefined };
 
 export const BIN_FILE_NAMES = [
   "release-7seg.bin",
@@ -89,9 +91,7 @@ async function fetchArtifact(
     if (dataArrayBuffer) {
       buffer = Buffer.from(dataArrayBuffer as ArrayBuffer);
     } else {
-      throw new Error(
-        `Failed to get any data for zip archive ${artifactId}`,
-      );
+      throw new Error(`Failed to get any data for zip archive ${artifactId}`);
     }
     const zip = zipFromBuffer(
       buffer,
@@ -288,9 +288,7 @@ export async function getAllRuns(config?: Config): Promise<AllWorkflowRuns> {
   };
 }
 
-export function getCommitDetails(
-  sha: string,
-): Promise<any> {
+export function getCommitDetails(sha: string): Promise<any> {
   if (!CONFIG.owner || !CONFIG.repo) {
     throw new Error("Config missing and not found in environment");
   }

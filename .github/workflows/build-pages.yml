@@ -1,7 +1,7 @@
 # Based on NextJS sample build workflow
 #  https://github.com/actions/starter-workflows/blob/f3c5d7931d054ffbbdcbfdc463cc3bd0def74929/pages/nextjs.yml
 
-name: Deploy Next.js site to Pages
+name: Deploy Pages site
 
 on:
   # Runs on pushes targeting the default branch that modify the pages directory
@@ -94,10 +94,7 @@ jobs:
         run: cd pages; ${{ steps.detect-package-manager.outputs.runner }} next build
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Static HTML export with Next.js
-        run: cd pages; ${{ steps.detect-package-manager.outputs.runner }} next export
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v2
         with:
