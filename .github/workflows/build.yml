@@ -5,14 +5,6 @@ on:
     branches:
       - 'community'
       - 'synthstrom-official'
-    paths:
-      - '.github/workflows/build.yml'
-      - 'src/**'
-      - 'dbt*'
-      - 'toolchain/**'
-      - 'site_scons/**'
-      - 'scripts/**'
-      - 'SConstruct'
   pull_request:
     branches:
       - 'community'
