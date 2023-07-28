@@ -1052,7 +1052,13 @@ void View::setModLedStates() {
 	}
 	indicator_leds::setLedState(IndicatorLED::AFFECT_ENTIRE, affectEntire);
 
-	indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, !itsTheSong);
+
+	if (!itsTheSong) { //if in clip view, turn on clip button led
+		indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, true);
+	}
+	else { //if not in clip view, turn off clip button led
+		indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, false);
+	}
 
 	// Sort out the session/arranger view LEDs
 	if (itsTheSong) {
