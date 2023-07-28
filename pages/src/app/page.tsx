@@ -74,6 +74,9 @@ export default async function Home() {
         <h1 className={h1Style} id="build-pr">
           Recent Builds (by PR)
         </h1>
+        <div>
+          Coming soon!
+        </div>
       </div>
     </main>
   );
