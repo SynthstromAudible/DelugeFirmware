@@ -70,7 +70,7 @@ static void SetupSyncScalingActionSetting(RuntimeFeatureSetting& setting, char c
 	setting.value = static_cast<uint32_t>(def);
 
 	setting.options[0] = {
-	    .displayName = "SYNC",
+	    .displayName = "SCAL",
 	    .value = RuntimeFeatureStateSyncScalingAction::SyncScaling,
 	};
 
