@@ -15,16 +15,16 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "setting.h"
 #include "settings.h"
+#include "setting.h"
 
 #include "gui/ui/sound_editor.h"
 #include "hid/display/numeric_driver.h"
 
 #include <algorithm>
+#include <array>
 #include <cstdio>
 #include <iterator>
-#include <array>
 
 extern deluge::gui::menu_item::runtime_feature::Setting runtimeFeatureSettingMenuItem;
 
@@ -40,13 +40,8 @@ Setting menuCatchNotes(RuntimeFeatureSettingType::CatchNotes);
 Setting menuDeleteUnusedKitRows(RuntimeFeatureSettingType::DeleteUnusedKitRows);
 
 std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement> subMenuEntries{
-    &menuDrumRandomizer,
-    &menuMasterCompressorFx,
-    &menuFineTempo,
-    &menuQuantize,
-    &menuPatchCableResolution,
-    &menuCatchNotes,
-    &menuDeleteUnusedKitRows,
+    &menuDrumRandomizer,       &menuMasterCompressorFx, &menuFineTempo,           &menuQuantize,
+    &menuPatchCableResolution, &menuCatchNotes,         &menuDeleteUnusedKitRows,
 };
 
 Settings::Settings(char const* name, char const* title)

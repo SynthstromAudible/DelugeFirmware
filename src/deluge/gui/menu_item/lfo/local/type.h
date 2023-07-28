@@ -27,7 +27,9 @@ class Type final : public Shape {
 public:
 	using Shape::Shape;
 	void readCurrentValue() override { this->value_ = util::to_underlying(soundEditor.currentSound->lfoLocalWaveType); }
-	void writeCurrentValue() override { soundEditor.currentSound->lfoLocalWaveType = static_cast<LFOType>(this->value_); }
+	void writeCurrentValue() override {
+		soundEditor.currentSound->lfoLocalWaveType = static_cast<LFOType>(this->value_);
+	}
 };
 
 } // namespace deluge::gui::menu_item::lfo::local

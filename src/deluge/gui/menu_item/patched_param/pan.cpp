@@ -16,11 +16,11 @@
 */
 #include "pan.h"
 
-#include <cstring>
-#include <cmath>
+#include "gui/ui/sound_editor.h"
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
-#include "gui/ui/sound_editor.h"
+#include <cmath>
+#include <cstring>
 
 extern "C" {
 #include "util/cfunctions.h"

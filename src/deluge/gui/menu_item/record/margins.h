@@ -15,9 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "gui/menu_item/sync_level/relative_to_song.h"
 #include "gui/menu_item/toggle.h"
 #include "storage/flash_storage.h"
-#include "gui/menu_item/sync_level/relative_to_song.h"
 
 namespace deluge::gui::menu_item::record {
 class Margins final : public Toggle {

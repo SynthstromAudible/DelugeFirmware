@@ -15,15 +15,15 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "gui/menu_item/formatted_title.h"
-#include "processing/engines/cv_engine.h"
 #include "gui/menu_item/decimal.h"
+#include "gui/menu_item/formatted_title.h"
 #include "gui/ui/sound_editor.h"
+#include "processing/engines/cv_engine.h"
 
 namespace deluge::gui::menu_item::cv {
 class Transpose final : public Decimal, public FormattedTitle {
 public:
-	Transpose(const string &name, const string&title_format_str) : Decimal(name), FormattedTitle(title_format_str) {}
+	Transpose(const string& name, const string& title_format_str) : Decimal(name), FormattedTitle(title_format_str) {}
 
 	[[nodiscard]] const string& getTitle() const override { return FormattedTitle::title(); }
 

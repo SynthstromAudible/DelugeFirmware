@@ -1,9 +1,8 @@
 #pragma once
-#include <utility>
 #include <fmt/core.h>
+#include <utility>
 
 #include "util/string.h"
-
 
 // Mixin for a formatted title
 class FormattedTitle {

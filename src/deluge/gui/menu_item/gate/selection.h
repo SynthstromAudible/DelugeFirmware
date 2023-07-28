@@ -17,9 +17,9 @@
 #pragma once
 #include "gui/menu_item/gate/mode.h"
 #include "gui/menu_item/selection.h"
-#include "off_time.h"
 #include "gui/ui/sound_editor.h"
 #include "mode.h"
+#include "off_time.h"
 #include "util/container/static_vector.hpp"
 
 extern deluge::gui::menu_item::gate::OffTime gateOffTimeMenu;

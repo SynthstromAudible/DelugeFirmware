@@ -1,8 +1,8 @@
 #pragma once
-#include "value.h"
-#include "util/sized.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/numeric_driver.h"
+#include "util/sized.h"
+#include "value.h"
 
 extern "C" {
 #if HAVE_OLED

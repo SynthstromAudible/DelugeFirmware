@@ -17,9 +17,9 @@
 
 #pragma once
 
-#include "menu_item.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/ui.h"
+#include "menu_item.h"
 
 namespace deluge::gui::menu_item {
 template <typename T = int>

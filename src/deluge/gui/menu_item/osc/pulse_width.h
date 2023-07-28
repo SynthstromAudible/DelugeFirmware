@@ -17,8 +17,8 @@
 #pragma once
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/formatted_title.h"
-#include "modulation/params/param_set.h"
 #include "gui/menu_item/source/patched_param.h"
+#include "modulation/params/param_set.h"
 #include "processing/sound/sound.h"
 
 namespace deluge::gui::menu_item::osc {

@@ -18,8 +18,8 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "util/d_string.h"
 #include "storage/audio/audio_file_holder.h"
+#include "util/d_string.h"
 
 extern "C" {
 #include "fatfs/ff.h"

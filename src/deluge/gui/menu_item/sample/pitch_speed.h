@@ -15,13 +15,13 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "gui/menu_item/selection.h"
+#include "gui/ui/sound_editor.h"
 #include "model/clip/clip.h"
 #include "model/drum/drum.h"
 #include "model/drum/kit.h"
-#include "gui/menu_item/selection.h"
 #include "model/song/song.h"
 #include "processing/sound/sound_drum.h"
-#include "gui/ui/sound_editor.h"
 
 namespace deluge::gui::menu_item::sample {
 class PitchSpeed final : public Selection<2> {

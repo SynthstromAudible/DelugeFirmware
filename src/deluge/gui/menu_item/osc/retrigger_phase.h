@@ -16,10 +16,10 @@
 */
 #pragma once
 #include "gui/menu_item/decimal.h"
-#include "processing/sound/sound.h"
+#include "gui/menu_item/formatted_title.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/oled.h"
-#include "gui/menu_item/formatted_title.h"
+#include "processing/sound/sound.h"
 
 namespace deluge::gui::menu_item::osc {
 class RetriggerPhase final : public Decimal, public FormattedTitle {

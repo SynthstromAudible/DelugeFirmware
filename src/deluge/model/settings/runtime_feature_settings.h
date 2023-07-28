@@ -17,10 +17,10 @@
 
 #pragma once
 
-#include <cstdint>
-#include "util/string.h"
 #include "util/container/array/resizeable_array.h"
 #include "util/container/static_vector.hpp"
+#include "util/string.h"
+#include <cstdint>
 
 namespace deluge::gui::menu_item::runtime_feature {
 class Setting;
@@ -73,7 +73,7 @@ public:
 	void writeSettingsToFile();
 
 protected:
-	std::array<RuntimeFeatureSetting,RuntimeFeatureSettingType::MaxElement> settings = {};
+	std::array<RuntimeFeatureSetting, RuntimeFeatureSettingType::MaxElement> settings = {};
 
 private:
 	ResizeableArray unknownSettings;

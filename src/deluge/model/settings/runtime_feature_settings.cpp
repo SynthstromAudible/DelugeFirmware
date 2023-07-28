@@ -17,10 +17,9 @@
 
 #include "runtime_feature_settings.h"
 #include "util/d_string.h"
-#include <cstring>
-#include <new>
 #include <cstdio>
 #include <cstring>
+#include <new>
 
 #include "hid/display/numeric_driver.h"
 #include "storage/storage_manager.h"

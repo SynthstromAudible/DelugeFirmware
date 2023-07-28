@@ -15,12 +15,12 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "gui/ui/audio_recorder.h"
 #include "gui/menu_item/menu_item.h"
-#include "hid/display/numeric_driver.h"
-#include "processing/sound/sound.h"
+#include "gui/ui/audio_recorder.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
+#include "hid/display/numeric_driver.h"
+#include "processing/sound/sound.h"
 
 namespace deluge::gui::menu_item::osc {
 class AudioRecorder final : public MenuItem {

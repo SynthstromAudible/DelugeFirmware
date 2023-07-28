@@ -15,10 +15,10 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #include "range.h"
-#include "regular.h"
+#include "gui/menu_item/patch_cable_strength/range.h"
 #include "gui/ui/sound_editor.h"
 #include "modulation/params/param_descriptor.h"
-#include "gui/menu_item/patch_cable_strength/range.h"
+#include "regular.h"
 
 namespace deluge::gui::menu_item::source_selection {
 Range rangeMenu{};

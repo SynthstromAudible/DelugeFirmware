@@ -16,8 +16,8 @@
 */
 #pragma once
 #include "gui/menu_item/decimal.h"
-#include "gui/ui/sound_editor.h"
 #include "gui/menu_item/transpose.h"
+#include "gui/ui/sound_editor.h"
 
 namespace deluge::gui::menu_item::source {
 class Transpose : public menu_item::Transpose {

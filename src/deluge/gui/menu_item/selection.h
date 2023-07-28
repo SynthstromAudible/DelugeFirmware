@@ -20,8 +20,8 @@
 #include "enumeration.h"
 #include "gui/menu_item/enumeration.h"
 #include "gui/menu_item/menu_item.h"
-#include "util/sized.h"
 #include "util/container/static_vector.hpp"
+#include "util/sized.h"
 
 #include "gui/ui/sound_editor.h"
 #include "hid/display/numeric_driver.h"

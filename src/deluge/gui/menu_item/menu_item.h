@@ -79,11 +79,12 @@ public:
 	deluge::string title; // Can get overridden by getTitle(). Actual max num chars for OLED display is 14.
 
 	/// Get the title to be used when rendering on OLED. If not overriden, defaults to returning `title`.
-	[[nodiscard]] virtual const deluge::string &getTitle() const { return title; }
+	[[nodiscard]] virtual const deluge::string& getTitle() const { return title; }
 
 #if HAVE_OLED
 	virtual void renderOLED();
-	virtual void drawPixelsForOled() {}
+	virtual void drawPixelsForOled() {
+	}
 
 	template <size_t n>
 	static void drawItemsForOled(deluge::static_vector<deluge::string, n>& options, int selectedOption, int offset = 0);
@@ -105,13 +106,13 @@ void MenuItem::drawItemsForOled(deluge::static_vector<deluge::string, n>& option
 	for (int o = 0; o < OLED_HEIGHT_CHARS - 1 && o < options.size() - offset; o++) {
 		int yPixel = o * kTextSpacingY + baseY;
 
-		OLED::drawString(options[o + offset].c_str(), kTextSpacingX, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
-		                 kTextSpacingX, kTextSpacingY);
+		OLED::drawString(options[o + offset].c_str(), kTextSpacingX, yPixel, OLED::oledMainImage[0],
+		                 OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
 
 		if (o == selectedOption) {
 			OLED::invertArea(0, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8, &OLED::oledMainImage[0]);
-			OLED::setupSideScroller(0, options[o + offset].c_str(), kTextSpacingX, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8,
-			                        kTextSpacingX, kTextSpacingY, true);
+			OLED::setupSideScroller(0, options[o + offset].c_str(), kTextSpacingX, OLED_MAIN_WIDTH_PIXELS, yPixel,
+			                        yPixel + 8, kTextSpacingX, kTextSpacingY, true);
 		}
 	}
 }

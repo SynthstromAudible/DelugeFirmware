@@ -16,8 +16,8 @@
 */
 #pragma once
 #include "gui/menu_item/selection.h"
-#include "processing/sound/sound.h"
 #include "gui/ui/sound_editor.h"
+#include "processing/sound/sound.h"
 
 namespace deluge::gui::menu_item::modulator {
 class Destination final : public Selection<2> {
@@ -25,9 +25,7 @@ public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->value_ = soundEditor.currentSound->modulator1ToModulator0; }
 	void writeCurrentValue() override { soundEditor.currentSound->modulator1ToModulator0 = this->value_; }
-	static_vector<string, capacity()> getOptions() override {
-		return {"Carriers", HAVE_OLED ? "Modulator 1" : "MOD1"};
-	}
+	static_vector<string, capacity()> getOptions() override { return {"Carriers", HAVE_OLED ? "Modulator 1" : "MOD1"}; }
 	bool isRelevant(Sound* sound, int whichThing) override {
 		return (whichThing == 1 && sound->synthMode == SynthMode::FM);
 	}

@@ -29,15 +29,15 @@
  Includes   <System Includes> , "Project Includes"
  ***********************************************************************************************************************/
 #include "RZA1/usb/r_usb_basic/r_usb_basic_if.h"
-#include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_typedef.h"
 #include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_extern.h"
+#include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_typedef.h"
 #include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_bitdefine.h"
 #include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_reg_access.h"
 
 // Added by Rohan
+#include "deluge/drivers/usb/userdef/r_usb_pmidi_config.h"
 #include "deluge/io/midi/midi_device_manager.h"
 #include "deluge/io/midi/midi_engine.h"
-#include "deluge/drivers/usb/userdef/r_usb_pmidi_config.h"
 
 #if ((USB_CFG_DTC == USB_CFG_ENABLE) || (USB_CFG_DMA == USB_CFG_ENABLE))
 #include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_dmac.h"
@@ -239,10 +239,10 @@ void usb_pstd_send_start(uint16_t pipe) // pipe is never 0. Rohan
     }
 } /* End of function usb_pstd_send_start() */
 
+#include "RZA1/mtu/mtu.h"
 #include "RZA1/system/iodefine.h"
 #include "RZA1/system/iodefines/usb20_iodefine.h"
 #include "definitions.h"
-#include "RZA1/mtu/mtu.h"
 
 extern uint16_t pipeMaxPs[];
 

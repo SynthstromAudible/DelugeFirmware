@@ -17,8 +17,8 @@
 #pragma once
 #include "gui/menu_item/submenu.h"
 #include "model/clip/clip.h"
-#include "model/song/song.h"
 #include "model/output.h"
+#include "model/song/song.h"
 
 namespace deluge::gui::menu_item::submenu {
 template <size_t n>

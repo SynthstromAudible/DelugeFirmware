@@ -17,8 +17,8 @@
 
 #include "direction_selector.h"
 #include "gui/ui/sound_editor.h"
-#include "zone_selector.h"
 #include "io/midi/midi_device.h"
+#include "zone_selector.h"
 
 namespace deluge::gui::menu_item::mpe {
 

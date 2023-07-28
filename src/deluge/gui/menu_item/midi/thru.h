@@ -16,8 +16,8 @@
 */
 #pragma once
 #include "gui/menu_item/toggle.h"
-#include "io/midi/midi_engine.h"
 #include "gui/ui/sound_editor.h"
+#include "io/midi/midi_engine.h"
 
 namespace deluge::gui::menu_item::midi {
 class Thru final : public Toggle {

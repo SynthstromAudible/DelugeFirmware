@@ -17,12 +17,12 @@
 
 #include "source_selection.h"
 #include "definitions_cxx.hpp"
-#include "modulation/params/param_manager.h"
-#include "processing/sound/sound.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/numeric_driver.h"
-#include "patch_cable_strength.h"
+#include "modulation/params/param_manager.h"
 #include "modulation/patch/patch_cable_set.h"
+#include "patch_cable_strength.h"
+#include "processing/sound/sound.h"
 #include <array>
 
 namespace deluge::gui::menu_item {

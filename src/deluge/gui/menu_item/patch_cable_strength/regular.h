@@ -29,7 +29,7 @@ public:
 	ParamDescriptor getLearningThing() final;
 	MenuPermission checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) override;
 	uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) override;
-	MenuItem* patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive) override ;
+	MenuItem* patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive) override;
 	MenuItem* selectButtonPress() final;
 };
 

@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "modulation/params/param_manager.h"
 #include "RZA1/system/r_typedefs.h"
+#include "modulation/params/param_manager.h"
 
 class Song;
 class Sound;

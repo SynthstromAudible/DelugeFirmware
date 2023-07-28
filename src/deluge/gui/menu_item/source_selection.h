@@ -16,8 +16,8 @@
 */
 
 #pragma once
-#include "value.h"
 #include "definitions_cxx.hpp"
+#include "value.h"
 
 class ParamDescriptor;
 

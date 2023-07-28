@@ -17,8 +17,8 @@
 #pragma once
 #include "gui/menu_item/sync_level.h"
 #include "gui/ui/sound_editor.h"
-#include "processing/sound/sound.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/sound/sound.h"
 
 namespace deluge::gui::menu_item::sidechain {
 class Sync final : public SyncLevel {

@@ -19,15 +19,15 @@
 
 #include "definitions.h"
 #include "gui/menu_item/menu_item.h"
+#include "gui/ui/sound_editor.h"
+#include "hid/display/numeric_driver.h"
 #include "menu_item.h"
-#include "processing/engines/audio_engine.h"
 #include "model/clip/instrument_clip.h"
+#include "model/instrument/instrument.h"
+#include "model/song/song.h"
+#include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
-#include "hid/display/numeric_driver.h"
-#include "gui/ui/sound_editor.h"
-#include "model/song/song.h"
-#include "model/instrument/instrument.h"
 #include "util/container/static_vector.hpp"
 #include <array>
 #include <initializer_list>
@@ -73,7 +73,7 @@ void Submenu<n>::beginSession(MenuItem* navigatedBackwardFrom) {
 	soundEditor.menuCurrentScroll = 0;
 	soundEditor.currentMultiRange = nullptr;
 	if (navigatedBackwardFrom != nullptr) {
-		for (;*current_item_ != navigatedBackwardFrom; current_item_++) {
+		for (; *current_item_ != navigatedBackwardFrom; current_item_++) {
 			if (current_item_ == items.end()) { // If desired item not found
 				current_item_ = items.begin();
 				break;
@@ -108,7 +108,8 @@ void Submenu<n>::drawPixelsForOled() {
 
 	// This finds the next relevant submenu item
 	static_vector<string, kOLEDMenuNumOptionsVisible> nextItemNames = {};
-	for (auto it = current_item_, idx = selectedRow; it != this->items.end() && idx < kOLEDMenuNumOptionsVisible; it++) {
+	for (auto it = current_item_, idx = selectedRow; it != this->items.end() && idx < kOLEDMenuNumOptionsVisible;
+	     it++) {
 		if ((*it)->isRelevant(soundEditor.currentSound, soundEditor.currentSourceIndex)) {
 			nextItemNames.push_back((*it)->getName().c_str());
 			idx++;

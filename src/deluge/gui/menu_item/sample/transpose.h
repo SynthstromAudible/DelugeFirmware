@@ -16,9 +16,9 @@
 */
 #pragma once
 #include "gui/menu_item/formatted_title.h"
-#include "storage/multi_range/multisample_range.h"
 #include "gui/menu_item/source/transpose.h"
 #include "processing/sound/sound.h"
+#include "storage/multi_range/multisample_range.h"
 
 namespace deluge::gui::menu_item::sample {
 class Transpose final : public source::Transpose, public FormattedTitle {

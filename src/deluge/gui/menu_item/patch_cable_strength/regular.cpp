@@ -16,13 +16,13 @@
 */
 #include "regular.h"
 #include "definitions_cxx.hpp"
+#include "gui/menu_item/patch_cable_strength/range.h"
+#include "gui/menu_item/source_selection/range.h"
+#include "gui/menu_item/source_selection/regular.h"
+#include "gui/ui/sound_editor.h"
 #include "hid/buttons.h"
 #include "modulation/patch/patch_cable_set.h"
-#include "gui/menu_item/patch_cable_strength/range.h"
-#include "gui/menu_item/source_selection/regular.h"
 #include "processing/sound/sound.h"
-#include "gui/ui/sound_editor.h"
-#include "gui/menu_item/source_selection/range.h"
 
 namespace deluge::gui::menu_item::patch_cable_strength {
 Regular regularMenu{};

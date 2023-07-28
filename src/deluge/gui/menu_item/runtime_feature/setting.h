@@ -30,8 +30,8 @@ public:
 	void writeCurrentValue() override;
 	static_vector<string, RUNTIME_FEATURE_SETTING_MAX_OPTIONS> getOptions() override;
 	[[nodiscard]] size_t getNumOptions() const;
-	[[nodiscard]] const string &getName() const override;
-	[[nodiscard]] const string &getTitle() const override;
+	[[nodiscard]] const string& getName() const override;
+	[[nodiscard]] const string& getTitle() const override;
 
 private:
 	friend class Settings;

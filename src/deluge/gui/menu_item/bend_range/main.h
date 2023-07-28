@@ -17,9 +17,9 @@
 #pragma once
 #include "gui/menu_item/bend_range.h"
 #include "gui/ui/sound_editor.h"
+#include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
 #include "storage/flash_storage.h"
-#include "modulation/params/param_manager.h"
 
 namespace deluge::gui::menu_item::bend_range {
 class Main final : public BendRange {

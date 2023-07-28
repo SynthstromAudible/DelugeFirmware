@@ -26,7 +26,9 @@ public:
 	ParamDescriptor() = default;
 	constexpr void setToHaveParamOnly(int p) { data = p | 0xFFFFFF00; }
 
-	constexpr void setToHaveParamAndSource(int p, PatchSource s) { data = p | (util::to_underlying(s) << 8) | 0xFFFF0000; }
+	constexpr void setToHaveParamAndSource(int p, PatchSource s) {
+		data = p | (util::to_underlying(s) << 8) | 0xFFFF0000;
+	}
 
 	constexpr void setToHaveParamAndTwoSources(int p, PatchSource s, PatchSource sLowestLevel) {
 		data = p | (util::to_underlying(s) << 8) | (util::to_underlying(sLowestLevel) << 16) | 0xFF000000;
@@ -84,7 +86,9 @@ public:
 		return static_cast<PatchSource>((data & 0x0000FF00) >> 8);
 	}
 
-	[[nodiscard]] constexpr PatchSource getSecondSourceFromTop() const { return static_cast<PatchSource>((data & 0x00FF0000) >> 16); }
+	[[nodiscard]] constexpr PatchSource getSecondSourceFromTop() const {
+		return static_cast<PatchSource>((data & 0x00FF0000) >> 16);
+	}
 
 	[[nodiscard]] constexpr bool hasSecondSource() const { return ((data & 0x00FF0000) != 0x00FF0000); }
 

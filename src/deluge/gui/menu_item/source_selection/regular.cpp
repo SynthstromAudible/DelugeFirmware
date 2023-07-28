@@ -17,8 +17,8 @@
 #include "regular.h"
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/patch_cable_strength/regular.h"
-#include "modulation/params/param_descriptor.h"
 #include "gui/ui/sound_editor.h"
+#include "modulation/params/param_descriptor.h"
 
 namespace deluge::gui::menu_item::source_selection {
 Regular regularMenu{};

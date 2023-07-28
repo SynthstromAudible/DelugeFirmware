@@ -16,12 +16,12 @@
 */
 #pragma once
 #include "definitions_cxx.hpp"
+#include "gui/menu_item/selection.h"
+#include "gui/ui/sound_editor.h"
 #include "model/clip/clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
-#include "gui/menu_item/selection.h"
 #include "model/song/song.h"
-#include "gui/ui/sound_editor.h"
 #include "processing/sound/sound.h"
 #include "util/misc.h"
 
@@ -56,8 +56,7 @@ public:
 
 		// Only update the Clip-level arp setting if they hadn't been playing with other synth parameters first (so it's clear that switching the arp on or off was their main intention)
 		if (!soundEditor.editingKit()) {
-			bool arpNow =
-			    (static_cast<ArpMode>(this->value_) != ArpMode::OFF); // Uh.... this does nothing...
+			bool arpNow = (static_cast<ArpMode>(this->value_) != ArpMode::OFF); // Uh.... this does nothing...
 		}
 	}
 	static_vector<string, capacity()> getOptions() override { return {"OFF", "UP", "DOWN", "BOTH", "Random"}; }

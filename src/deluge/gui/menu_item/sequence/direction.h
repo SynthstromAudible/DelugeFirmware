@@ -16,13 +16,13 @@
 */
 #pragma once
 #include "definitions_cxx.hpp"
+#include "gui/menu_item/selection.h"
+#include "gui/ui/sound_editor.h"
 #include "model/clip/instrument_clip.h"
+#include "model/drum/kit.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
-#include "model/drum/kit.h"
-#include "gui/menu_item/selection.h"
 #include "model/song/song.h"
-#include "gui/ui/sound_editor.h"
 #include "util/misc.h"
 
 namespace deluge::gui::menu_item::sequence {
@@ -60,7 +60,8 @@ public:
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 		ModelStackWithNoteRow* modelStackWithNoteRow = getIndividualNoteRow(modelStack);
 		if (modelStackWithNoteRow->getNoteRowAllowNull() != nullptr) {
-			modelStackWithNoteRow->getNoteRow()->setSequenceDirectionMode(modelStackWithNoteRow, static_cast<SequenceDirection>(this->value_));
+			modelStackWithNoteRow->getNoteRow()->setSequenceDirectionMode(modelStackWithNoteRow,
+			                                                              static_cast<SequenceDirection>(this->value_));
 		}
 		else {
 			(dynamic_cast<InstrumentClip*>(currentSong->currentClip))

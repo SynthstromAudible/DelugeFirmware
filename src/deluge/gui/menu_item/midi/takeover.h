@@ -17,8 +17,8 @@
 #pragma once
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/selection.h"
-#include "io/midi/midi_engine.h"
 #include "gui/ui/sound_editor.h"
+#include "io/midi/midi_engine.h"
 #include "util/misc.h"
 
 namespace deluge::gui::menu_item::midi {
@@ -27,8 +27,6 @@ public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->value_ = util::to_underlying(midiEngine.midiTakeover); }
 	void writeCurrentValue() override { midiEngine.midiTakeover = static_cast<MIDITakeoverMode>(this->value_); }
-	static_vector<string, capacity()> getOptions() override {
-		return {"Jump", "Pickup", "Scale"};
-	}
+	static_vector<string, capacity()> getOptions() override { return {"Jump", "Pickup", "Scale"}; }
 };
-} // namespace menu_item::midi
+} // namespace deluge::gui::menu_item::midi

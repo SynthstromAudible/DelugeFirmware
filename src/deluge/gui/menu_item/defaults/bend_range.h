@@ -15,9 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "storage/flash_storage.h"
 #include "gui/menu_item/bend_range.h"
 #include "gui/ui/sound_editor.h"
+#include "storage/flash_storage.h"
 
 namespace deluge::gui::menu_item::defaults {
 class BendRange final : public menu_item::BendRange {

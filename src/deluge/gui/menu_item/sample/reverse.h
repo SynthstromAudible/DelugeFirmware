@@ -16,12 +16,12 @@
 */
 #pragma once
 #include "gui/menu_item/formatted_title.h"
+#include "gui/menu_item/toggle.h"
+#include "gui/ui/sound_editor.h"
 #include "model/clip/clip.h"
 #include "model/drum/kit.h"
-#include "gui/menu_item/toggle.h"
 #include "model/song/song.h"
 #include "processing/sound/sound_drum.h"
-#include "gui/ui/sound_editor.h"
 
 namespace deluge::gui::menu_item::sample {
 class Reverse final : public Toggle, public FormattedTitle {

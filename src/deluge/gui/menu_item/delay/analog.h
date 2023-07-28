@@ -15,10 +15,10 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "model/mod_controllable/mod_controllable_audio.h"
 #include "gui/menu_item/selection.h"
 #include "gui/menu_item/sync_level.h"
 #include "gui/ui/sound_editor.h"
+#include "model/mod_controllable/mod_controllable_audio.h"
 
 namespace deluge::gui::menu_item::delay {
 

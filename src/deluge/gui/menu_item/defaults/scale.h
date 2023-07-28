@@ -15,11 +15,11 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "gui/menu_item/selection.h"
+#include "gui/ui/sound_editor.h"
 #include "storage/flash_storage.h"
 #include "util/container/static_vector.hpp"
 #include "util/lookuptables/lookuptables.h"
-#include "gui/menu_item/selection.h"
-#include "gui/ui/sound_editor.h"
 
 namespace deluge::gui::menu_item::defaults {
 class Scale final : public Selection<NUM_PRESET_SCALES + 2> {

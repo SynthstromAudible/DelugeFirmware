@@ -16,8 +16,8 @@
  */
 
 #pragma once
-#include "playback/mode/playback_mode.h"
 #include "definitions_cxx.hpp"
+#include "playback/mode/playback_mode.h"
 
 class InstrumentClip;
 class Clip;

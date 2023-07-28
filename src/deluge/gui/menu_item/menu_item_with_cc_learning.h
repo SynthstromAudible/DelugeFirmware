@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "modulation/params/param_descriptor.h"
 #include "io/midi/midi_device.h"
+#include "modulation/params/param_descriptor.h"
 
 class MenuItemWithCCLearning {
 public:

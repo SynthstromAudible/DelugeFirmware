@@ -16,13 +16,13 @@
 */
 
 #include "model/clip/clip_instance.h"
-#include "model/consequence/consequence_clip_instance_change.h"
-#include "model/clip/instrument_clip.h"
-#include <string.h>
-#include "util/functions.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action.h"
+#include "model/clip/instrument_clip.h"
+#include "model/consequence/consequence_clip_instance_change.h"
+#include "util/functions.h"
 #include <new>
+#include <string.h>
 
 ClipInstance::ClipInstance() {
 	// TODO Auto-generated constructor stub

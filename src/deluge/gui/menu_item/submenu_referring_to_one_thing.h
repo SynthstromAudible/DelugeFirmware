@@ -15,9 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "gui/ui/sound_editor.h"
 #include "processing/sound/sound.h"
 #include "submenu.h"
-#include "gui/ui/sound_editor.h"
 
 namespace deluge::gui::menu_item {
 template <size_t n>

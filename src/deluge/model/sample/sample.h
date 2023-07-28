@@ -17,14 +17,14 @@
 
 #pragma once
 
-#include "model/sample/sample_cluster.h"
-#include "util/functions.h"
-#include "util/container/array/ordered_resizeable_array_with_multi_word_key.h"
-#include "util/container/array/ordered_resizeable_array.h"
 #include "NE10_types.h"
-#include "util/d_string.h"
+#include "model/sample/sample_cluster.h"
 #include "model/sample/sample_cluster_array.h"
 #include "storage/audio/audio_file.h"
+#include "util/container/array/ordered_resizeable_array.h"
+#include "util/container/array/ordered_resizeable_array_with_multi_word_key.h"
+#include "util/d_string.h"
+#include "util/functions.h"
 
 #define SAMPLE_DO_LOCKS (ALPHA_OR_BETA_VERSION)
 

@@ -15,14 +15,14 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "model/clip/instrument_clip.h"
 #include "gui/menu_item/integer.h"
-#include "model/clip/clip.h"
-#include "model/output.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/numeric_driver.h"
-#include "model/song/song.h"
 #include "hid/display/oled.h"
+#include "model/clip/clip.h"
+#include "model/clip/instrument_clip.h"
+#include "model/output.h"
+#include "model/song/song.h"
 
 namespace deluge::gui::menu_item::midi {
 class Preset : public Integer {

@@ -33,10 +33,17 @@ class Mode final : public Selection<3> {
 #endif
 
 public:
-	Mode() : Selection(mode_title) {}
-	void readCurrentValue() override { this->value_ = util::to_underlying(cvEngine.gateChannels[soundEditor.currentSourceIndex].mode); }
-	void writeCurrentValue() override { cvEngine.setGateType(soundEditor.currentSourceIndex,  static_cast<GateType>(this->value_)); }
-	static_vector<string, capacity()> getOptions() override { return options_; }
+	Mode() : Selection(mode_title) {
+	}
+	void readCurrentValue() override {
+		this->value_ = util::to_underlying(cvEngine.gateChannels[soundEditor.currentSourceIndex].mode);
+	}
+	void writeCurrentValue() override {
+		cvEngine.setGateType(soundEditor.currentSourceIndex, static_cast<GateType>(this->value_));
+	}
+	static_vector<string, capacity()> getOptions() override {
+		return options_;
+	}
 
 	void updateOptions(int value) {
 		switch (value) {

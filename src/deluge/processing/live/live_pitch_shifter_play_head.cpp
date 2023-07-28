@@ -16,9 +16,9 @@
 */
 
 #include "processing/live/live_pitch_shifter_play_head.h"
-#include "util/functions.h"
-#include "processing/live/live_pitch_shifter.h"
 #include "processing/live/live_input_buffer.h"
+#include "processing/live/live_pitch_shifter.h"
+#include "util/functions.h"
 
 #pragma GCC push_options
 #pragma GCC target("fpu=neon")

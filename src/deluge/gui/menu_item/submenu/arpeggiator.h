@@ -17,10 +17,10 @@
 #pragma once
 #include "gui/menu_item/submenu.h"
 #include "gui/ui/sound_editor.h"
+#include "model/clip/instrument_clip.h"
 #include "model/song/song.h"
 #include "modulation/arpeggiator.h"
 #include "processing/sound/sound_drum.h"
-#include "model/clip/instrument_clip.h"
 
 namespace deluge::gui::menu_item::submenu {
 

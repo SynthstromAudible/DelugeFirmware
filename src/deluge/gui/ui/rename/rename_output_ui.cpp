@@ -15,16 +15,16 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "definitions_cxx.hpp"
-#include "gui/views/arranger_view.h"
 #include "gui/ui/rename/rename_output_ui.h"
-#include "model/output.h"
-#include "hid/matrix/matrix_driver.h"
-#include "hid/display/numeric_driver.h"
-#include "model/song/song.h"
-#include "hid/led/pad_leds.h"
-#include "hid/buttons.h"
+#include "definitions_cxx.hpp"
 #include "extern.h"
+#include "gui/views/arranger_view.h"
+#include "hid/buttons.h"
+#include "hid/display/numeric_driver.h"
+#include "hid/led/pad_leds.h"
+#include "hid/matrix/matrix_driver.h"
+#include "model/output.h"
+#include "model/song/song.h"
 
 RenameOutputUI renameOutputUI{};
 

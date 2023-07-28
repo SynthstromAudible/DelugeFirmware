@@ -16,11 +16,11 @@
 */
 #pragma once
 #include "gui/menu_item/enumeration.h"
-#include "storage/flash_storage.h"
 #include "gui/menu_item/toggle.h"
-#include "hid/display/numeric_driver.h"
 #include "gui/ui/sound_editor.h"
+#include "hid/display/numeric_driver.h"
 #include "hid/display/oled.h"
+#include "storage/flash_storage.h"
 
 namespace deluge::gui::menu_item::defaults {
 class Magnitude final : public Enumeration<7> {
