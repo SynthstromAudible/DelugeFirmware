@@ -32,7 +32,7 @@ export function Download(properties: Props) {
 
   return (
     <a
-      className="p-4 bg-neutral-800 hover:bg-neutral-700 border border-neutral-400 rounded-2xl"
+      className="p-4 m-auto bg-neutral-800 hover:bg-neutral-700 border border-neutral-400 rounded-2xl"
       href={blob}
       target="_blank"
       download={artifact}

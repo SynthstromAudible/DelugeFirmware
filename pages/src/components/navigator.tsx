@@ -31,14 +31,14 @@ export function Navigator() {
         <div
           className="
           flex-none p-4
-          text-4xl font-bold
+          text-2xl font-bold
           border-b-2 border-neutral-50
           md:border-b-0
           w-full
           md:w-96
         "
         >
-          Deluge Firmware
+          Deluge Community Firmware
         </div>
         <nav className="w-full p-4 text-2xl">
           <ul

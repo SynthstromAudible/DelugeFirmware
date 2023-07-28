@@ -8,7 +8,7 @@ const karla = Karla({ subsets: ["latin"] });
 export const revalidate = Infinity;
 
 export const metadata: Metadata = {
-  title: "Deluge Firmware",
+  title: "Deluge Community Firmware",
   description: "Site for the Synthstrom Audible Deluge's firmware",
 };
 
