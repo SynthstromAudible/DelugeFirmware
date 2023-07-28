@@ -112,7 +112,10 @@ void RuntimeFeatureSettings::init() {
 		{.displayName = "Classic", .value = RuntimeFeatureStateColorScheme::Classic}
 	);
 	AddOptionToSetting(settings[RuntimeFeatureSettingType::ColorScheme],
-		{.displayName = "OctavePiano", .value = RuntimeFeatureStateColorScheme::OctavePiano}
+		{.displayName = "Octave", .value = RuntimeFeatureStateColorScheme::Octave}
+	);
+	AddOptionToSetting(settings[RuntimeFeatureSettingType::ColorScheme],
+		{.displayName = "Stripes", .value = RuntimeFeatureStateColorScheme::Stripes}
 	);
 	AddOptionToSetting(settings[RuntimeFeatureSettingType::ColorScheme],
 		{.displayName = "Blue", .value = RuntimeFeatureStateColorScheme::Blue}

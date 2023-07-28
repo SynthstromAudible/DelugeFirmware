@@ -172,28 +172,68 @@ void NoteRenderer::getNoteColourFromY(int yNote,int clipColourOffset, uint8_t rg
 		// in this function
 		hueToRGBWithColorScheme((yNote + clipColourOffset) * -8 / 3, rgb,colorScheme);
 	}
-	else if (colorScheme == RuntimeFeatureStateColorScheme::OctavePiano) {
+	else if (colorScheme == RuntimeFeatureStateColorScheme::Octaves) {
     	int octaveOffset = (yNote/12) % 12; // clipColourOfsset removed.
     	int offsetWithinOctave = yNote % 12;
-		int octaveRGB[][3] = {
-	  		{ 16,  0, 0  },
-            {  0, 16, 0  },
-            { 16, 16, 0  },
-	  		{ 16,  0, 32 },
-	  		{  0, 16, 32 },
-	  		{ 16, 16, 32 },
-	  		{ 32,  0, 48 },
-	  		{  0, 32, 48 },
-            { 32, 32, 48 },
-            { 48,  0, 64 },
-            {  0, 48, 64 },
-            { 48, 48, 64 }
-	  	};	      
-	 	int blackKeys[] = {0,1,0,1,0,0,1,0,1,0,1,0};
+		int tableRGB[][3] = {
+			{   0,  0, 32  },
+			{   0, 32,  0  },
+			{  32,  0,  0  },
+			{   0, 32, 32  },
+            {  32, 32,  0  },
+            {  32,  0, 32  },
+            {   0, 32, 64  },
+            {  32, 64,  0  },
+            {  64,  0, 32  },
+            {   0, 64, 32  },
+            {  64, 32,  0  },
+            {  32,  0, 64  }
+		};	
 
-		rgb[0] = octaveRGB[octaveOffset][0] >> blackKeys[offsetWithinOctave];
-		rgb[1] = octaveRGB[octaveOffset][1] >> blackKeys[offsetWithinOctave];
-		rgb[2] = octaveRGB[octaveOffset][2] >> blackKeys[offsetWithinOctave];      
+	 	int blackKeys[] = {0,1,0,1,0,0,1,0,1,0,1,0};
+        if (blackKeys[offsetWithinOctave]) {
+        	rgb[0] = 64 - tableRGB[octaveOffset][0];
+        	rgb[1] = 64 - tableRGB[octaveOffset][1];
+        	rgb[2] = 64 - tableRGB[octaveOffset][2];
+
+        }
+        else {
+        	rgb[0] = tableRGB[octaveOffset][0];
+        	rgb[1] = tableRGB[octaveOffset][1];
+        	rgb[2] = tableRGB[octaveOffset][2];
+        }
+	}
+    else if (colorScheme == RuntimeFeatureStateColorScheme::Stripes) {
+    	int octaveOffset = (yNote/12) % 12; // clipColourOfsset removed.
+    	int offsetWithinOctave = yNote % 12;
+		int tableRGB[][3] = {
+			{   0,  0, 32  },
+			{   0, 32,  0  },
+			{  32,  0,  0  },
+			{   0, 32, 32  },
+            {  32, 32,  0  },
+            {  32,  0, 32  },
+            {   0, 32, 64  },
+            {  32, 64,  0  },
+            {  64,  0, 32  },
+            {   0, 64, 32  },
+            {  64, 32,  0  },
+            {  32,  0, 64  }
+		};	
+
+        if (offsetWithinOctave % 2  == 1) {
+        	rgb[0] = 64 - tableRGB[offsetWithinOctave][0];
+        	rgb[1] = 64 - tableRGB[offsetWithinOctave][1];
+        	rgb[2] = 64 - tableRGB[offsetWithinOctave][2];
+
+        }
+        else {
+        	rgb[0] = tableRGB[offsetWithinOctave][0];
+        	rgb[1] = tableRGB[offsetWithinOctave][1];
+        	rgb[2] = tableRGB[offsetWithinOctave][2];
+        }
+
+	
 	}
 	else {
 		// colorSchem == RuntimeFeatureStateColorScheme::BluePiano
@@ -234,15 +274,7 @@ void NoteRenderer::getNoteSpecificColours(int y,
 	}
 	else {
 		getNoteColourFromY(y + transpose, clipColourOffset, noteColour);
-	    if (colorScheme == RuntimeFeatureStateColorScheme::OctavePiano) {
-	    	if (transpose > 0) {
-	    		noteColour[1] = 64; // set green color for raised notes.
-	    	}
-	    	else { // set red color for lowered notes.
-	    		noteColour[0] = 64;
-	    	}
-	    }
-	    else if (colorScheme == RuntimeFeatureStateColorScheme::Blue) {
+	    if (colorScheme == RuntimeFeatureStateColorScheme::Blue) {
 	    	if (transpose > 0) {
 	    		noteColour[0] = 0;  // surpress red
 	    		noteColour[1] = 64; // set green color for raised notes.
