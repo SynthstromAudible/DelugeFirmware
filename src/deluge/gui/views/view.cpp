@@ -359,12 +359,6 @@ cant:
 		}
 	}
 
-	// FILL mode has repurposed main SYNC_SCALING press
-	else if (b == SYNC_SCALING) {
-		currentSong->fillModeActive = on;
-		indicator_leds::setLedState(IndicatorLED::SYNC_SCALING, on);
-	}
-
 	// Back button
 	else if (b == BACK) {
 
