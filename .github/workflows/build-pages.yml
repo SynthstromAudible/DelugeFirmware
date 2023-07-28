@@ -49,12 +49,12 @@ jobs:
       - name: Detect package manager
         id: detect-package-manager
         run: |
-          if [ -f "${{ github.workspace }}/pages/site/yarn.lock" ]; then
+          if [ -f "${{ github.workspace }}/pages/yarn.lock" ]; then
             echo "manager=yarn" >> $GITHUB_OUTPUT
             echo "command=install" >> $GITHUB_OUTPUT
             echo "runner=yarn" >> $GITHUB_OUTPUT
             exit 0
-          elif [ -f "${{ github.workspace }}/pages/site/package.json" ]; then
+          elif [ -f "${{ github.workspace }}/pages/package.json" ]; then
             echo "manager=npm" >> $GITHUB_OUTPUT
             echo "command=ci" >> $GITHUB_OUTPUT
             echo "runner=npx --no-install" >> $GITHUB_OUTPUT
@@ -67,7 +67,7 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: "18"
-          cache-dependency-path: 'pages/site/package-lock.json'
+          cache-dependency-path: 'pages/package-lock.json'
           cache: ${{ steps.detect-package-manager.outputs.manager }}
       - name: Setup Pages
         uses: actions/configure-pages@v3
@@ -76,13 +76,13 @@ jobs:
           # server side image optimization (https://nextjs.org/docs/api-reference/next/image#unoptimized).
           #
           # You may remove this line if you want to manage the configuration yourself.
-          generator_config_file: pages/site/next.config.js
+          generator_config_file: pages/next.config.js
           static_site_generator: next
       - name: Restore cache
         uses: actions/cache@v3
         with:
           path: |
-            pages/site/.next/cache
+            pages/.next/cache
           # Generate a new cache whenever packages or source files change.
           key: ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json', '**/yarn.lock') }}-${{ hashFiles('**.[jt]s', '**.[jt]sx') }}
           # If source files changed but packages didn't, rebuild from a prior cache.
@@ -95,15 +95,15 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Install dependencies
-        run: cd pages/site; ${{ steps.detect-package-manager.outputs.manager }} ${{ steps.detect-package-manager.outputs.command }}
+        run: cd pages; ${{ steps.detect-package-manager.outputs.manager }} ${{ steps.detect-package-manager.outputs.command }}
       - name: Build with Next.js
-        run: cd pages/site; ${{ steps.detect-package-manager.outputs.runner }} next build
+        run: cd pages; ${{ steps.detect-package-manager.outputs.runner }} next build
       - name: Static HTML export with Next.js
-        run: cd pages/site; ${{ steps.detect-package-manager.outputs.runner }} next export
+        run: cd pages; ${{ steps.detect-package-manager.outputs.runner }} next export
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v2
         with:
-          path: ./pages/site/out
+          path: ./pages/out
 
   # Deployment job
   deploy:
