@@ -2519,20 +2519,14 @@ bool PlaybackHandler::tryGlobalMIDICommandsOff(MIDIDevice* device, int channel, 
 
 	bool foundAnything = false;
 
-	for (int c = 0; c < kNumGlobalMIDICommands; c++) {
-		if (midiEngine.globalMIDICommands[c].equalsNoteOrCC(device, channel, note)) {
-			switch (static_cast<GlobalMIDICommand>(c)) {
-			case GlobalMIDICommand::FILL:
-				currentSong->fillModeActive = false;
-				if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::SyncScalingAction)
-				     == RuntimeFeatureStateSyncScalingAction::Fill)) {
-					indicator_leds::setLedState(IndicatorLED::SYNC_SCALING, false);
-				}
-				break;
-			}
-
-			foundAnything = true;
+	// Check for FILL command at index [8]
+	if (midiEngine.globalMIDICommands[8].equalsNoteOrCC(device, channel, note)) {
+		currentSong->fillModeActive = false;
+		if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::SyncScalingAction)
+		     == RuntimeFeatureStateSyncScalingAction::Fill)) {
+			indicator_leds::setLedState(IndicatorLED::SYNC_SCALING, false);
 		}
+		foundAnything = true;
 	}
 
 	return foundAnything;
