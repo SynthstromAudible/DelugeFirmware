@@ -3425,6 +3425,7 @@ bool AutomationClipView::renderMainPads(uint32_t whichRows, uint8_t image[][kDis
 	}
 
 	PadLEDs::renderingLock = true;
+	recalculateColours();
 	performActualRender(whichRows, &image[0][0][0], occupancyMask, currentSong->xScroll[NAVIGATION_CLIP],
 	                    currentSong->xZoom[NAVIGATION_CLIP], kDisplayWidth, kDisplayWidth + kSideBarWidth,
 	                    drawUndefinedArea);
@@ -3557,11 +3558,7 @@ void AutomationClipView::performActualRender(uint32_t whichRows, uint8_t* image,
 
 						if (modelStackWithParam) {
 							if (modelStackWithParam->autoParam->isAutomated()) {
-
-								pixel [0] = 128;
-								pixel [1] = 128;
-								pixel [2] = 128;
-								getTailColour(pixel, pixel);
+								memcpy(pixel,&rowColour[yDisplay],3);
 
 							}
 

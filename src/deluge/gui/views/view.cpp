@@ -1056,12 +1056,15 @@ void View::setModLedStates() {
 
 	if (!itsTheSong) {
 
-		if (getRootUI() == &automationClipView) {
+		if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
 			indicator_leds::blinkLed(IndicatorLED::CLIP_VIEW);
 		}
 		else {
 			indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, true);
 		}
+	}
+	else {
+		indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, false);
 	}
 
 	// Sort out the session/arranger view LEDs
