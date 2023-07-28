@@ -5,6 +5,8 @@ import { Navigator } from "../components/navigator";
 
 const karla = Karla({ subsets: ["latin"] });
 
+export const revalidate = Infinity;
+
 export const metadata: Metadata = {
   title: "Deluge Firmware",
   description: "Site for the Synthstrom Audible Deluge's firmware",

@@ -1,20 +1,13 @@
-import CurrentTime from "../components/current-time.tsx";
-import { Octokit } from "@octokit/core";
-import { restEndpointMethods } from "@octokit/plugin-rest-endpoint-methods";
-import { components } from "@octokit/openapi-types";
-import type { WorkflowArtifact , AllWorkflowRuns } from "../../../fetch-artifacts/dist/index.d.ts";
-
-const image_data: AllWorkflowRuns = require("./df_images.json");
-
-type WorkflowRun = components["schemas"]["workflow-run"];
-
-const OctokitPlugin = Octokit.plugin(restEndpointMethods);
-const Octo = new OctokitPlugin({ auth: process.env.GITHUB_TOKEN });
-const REPO_OWNER = "SynthstromAudible";
-const REPO_REPO = "DelugeFirmware";
+import CurrentTime from "../components/current-time";
+import { fromBuffer as zipFromBuffer } from "yauzl";
+import { getAllRuns, BIN_FILE_NAMES } from "../data";
+import Link from "next/link";
 
 export default async function Home() {
   const h1Style = "font-bold text-2xl py-4";
+
+  // const { config, runs } = params;
+  const allRuns = await getAllRuns();
 
   return (
     <main className="flex flex-col justify-between">
@@ -42,7 +35,7 @@ export default async function Home() {
               </tr>
             </thead>
             <tbody>
-              {image_data.runs.map((run : any) => (
+              {allRuns.runs.map((run: any) => (
                 <tr key={run.id} className="border border-neutral-700">
                   <td className="p-2 max-w-lg">
                     <div className="flex flex-row justify-start align-start">
@@ -51,7 +44,7 @@ export default async function Home() {
                           href={run.commit_url}
                           className="font-mono bg-neutral-800 py-1 px-2 mx-2 rounded-lg"
                         >
-                          {run.commit_shortname}
+                          {run.commit_sha.substr(0, 7)}
                         </a>
                       </div>
                       <div className="">
@@ -61,21 +54,16 @@ export default async function Home() {
                     </div>
                   </td>
                   <td className="flex flex-col p-2">
-                    {Array.from(
-                      Object.entries(run.artifacts),
-                      ([n, artifact]) => (
-                        <div key={n} className="flex">
-                          <a
-                            className="underline break-words min-w-max"
-                            href={`firmware/${
-                              (artifact as WorkflowArtifact).assetPath
-                            }`}
-                          >
-                            {n}
-                          </a>
-                        </div>
-                      ),
-                    )}
+                    {Array.from(BIN_FILE_NAMES, (artifactName) => (
+                      <div key={artifactName} className="flex">
+                        <Link
+                          className="underline break-words min-w-max"
+                          href={`firmware/${run.commit_sha}/${artifactName}`}
+                        >
+                          {artifactName}
+                        </Link>
+                      </div>
+                    ))}
                   </td>
                 </tr>
               ))}
