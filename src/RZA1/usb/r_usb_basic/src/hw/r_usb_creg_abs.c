@@ -28,12 +28,12 @@
 /***********************************************************************************************************************
  Includes   <System Includes> , "Project Includes"
  ***********************************************************************************************************************/
+#include "RZA1/system/iodefine.h"
 #include "RZA1/usb/r_usb_basic/r_usb_basic_if.h"
-#include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_typedef.h"
 #include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_extern.h"
+#include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_typedef.h"
 #include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_bitdefine.h"
 #include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_reg_access.h"
-#include "RZA1/system/iodefine.h"
 #include "deluge/drivers/uart/uart.h"
 
 /***********************************************************************************************************************
@@ -45,8 +45,8 @@ uint16_t
 #endif                                  /* (USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST */
 
 // Added by Rohan
-#include "definitions.h"
 #include "RZA1/mtu/mtu.h"
+#include "definitions.h"
 extern uint16_t pipeBufs[];
 extern uint16_t pipeMaxPs[];
 extern uint16_t pipeCfgs[];

@@ -17,8 +17,8 @@
 #pragma once
 #include "gui/menu_item/integer.h"
 #include "gui/ui/sound_editor.h"
-#include "processing/sound/sound.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/sound/sound.h"
 
 namespace menu_item::compressor {
 class Attack final : public Integer {

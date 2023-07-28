@@ -1,7 +1,7 @@
 #pragma once
 
-#include "RZA1/system/r_typedefs.h"
 #include "RZA1/cpu_specific.h"
+#include "RZA1/system/r_typedefs.h"
 
 #define TIMER_MIDI_GATE_OUTPUT 2
 #define TIMER_SYSTEM_FAST 0

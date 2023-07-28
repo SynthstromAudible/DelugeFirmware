@@ -19,9 +19,9 @@
 
 #include <cstddef>
 
+#include "RZA1/system/r_typedefs.h"
 #include "gui/ui/ui.h"
 #include "hid/button.h"
-#include "RZA1/system/r_typedefs.h"
 #include "util/sized.h"
 
 namespace deluge::gui {

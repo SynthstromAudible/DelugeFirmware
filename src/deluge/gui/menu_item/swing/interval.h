@@ -16,8 +16,8 @@
 */
 #pragma once
 #include "gui/menu_item/sync_level.h"
-#include "model/song/song.h"
 #include "gui/ui/sound_editor.h"
+#include "model/song/song.h"
 
 namespace menu_item::swing {
 

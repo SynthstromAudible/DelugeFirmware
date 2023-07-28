@@ -16,12 +16,12 @@
  */
 
 #include "util/container/hashtable/open_addressing_hash_table.h"
-#include "memory/general_memory_allocator.h"
-#include <string.h>
-#include "util/functions.h"
 #include "definitions_cxx.hpp"
 #include "hid/display/numeric_driver.h"
 #include "io/debug/print.h"
+#include "memory/general_memory_allocator.h"
+#include "util/functions.h"
+#include <string.h>
 
 #define SECONDARY_MEMORY_FUNCTION_NONE 0
 #define SECONDARY_MEMORY_FUNCTION_BEING_INITIALIZED 1

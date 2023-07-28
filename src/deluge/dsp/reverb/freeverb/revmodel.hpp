@@ -23,8 +23,8 @@
 
 #pragma once
 
-#include "dsp/reverb/freeverb/comb.hpp"
 #include "dsp/reverb/freeverb/allpass.hpp"
+#include "dsp/reverb/freeverb/comb.hpp"
 #include "dsp/reverb/freeverb/tuning.h"
 
 class revmodel {

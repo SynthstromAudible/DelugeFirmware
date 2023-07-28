@@ -15,10 +15,10 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "io/midi/midi_device.h"
 #include "gui/menu_item/integer.h"
-#include "model/song/song.h"
 #include "gui/ui/sound_editor.h"
+#include "io/midi/midi_device.h"
+#include "model/song/song.h"
 
 namespace menu_item::midi {
 class DefaultVelocityToLevel final : public IntegerWithOff {

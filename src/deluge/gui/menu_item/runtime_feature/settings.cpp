@@ -15,17 +15,17 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "setting.h"
 #include "settings.h"
+#include "setting.h"
 
 #include "gui/ui/sound_editor.h"
 #include "hid/display/numeric_driver.h"
 #include "model/settings/runtime_feature_settings.h"
 
 #include <algorithm>
+#include <array>
 #include <cstdio>
 #include <iterator>
-#include <array>
 
 extern menu_item::runtime_feature::Setting runtimeFeatureSettingMenuItem;
 
@@ -38,6 +38,7 @@ Setting menuFineTempo(RuntimeFeatureSettingType::FineTempoKnob);
 Setting menuQuantize(RuntimeFeatureSettingType::Quantize);
 Setting menuPatchCableResolution(RuntimeFeatureSettingType::PatchCableResolution);
 Setting menuCatchNotes(RuntimeFeatureSettingType::CatchNotes);
+Setting menuDeleteUnusedKitRows(RuntimeFeatureSettingType::DeleteUnusedKitRows);
 
 std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement + 1> subMenuEntries{
     &menuDrumRandomizer,
@@ -46,6 +47,7 @@ std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement + 1> subMenuEntries{
     &menuQuantize,
     &menuPatchCableResolution,
     &menuCatchNotes,
+    &menuDeleteUnusedKitRows,
 
     nullptr,
 };

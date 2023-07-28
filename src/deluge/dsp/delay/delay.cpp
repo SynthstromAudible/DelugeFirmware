@@ -16,15 +16,15 @@
 */
 
 #include "dsp/delay/delay.h"
-#include <stdlib.h>
-#include "dsp/stereo_sample.h"
 #include "definitions_cxx.hpp"
+#include "dsp/stereo_sample.h"
+#include <stdlib.h>
 //#include <algorithm>
 #include "io/debug/print.h"
-#include "playback/playback_handler.h"
-#include "util/functions.h"
 #include "model/song/song.h"
+#include "playback/playback_handler.h"
 #include "storage/flash_storage.h"
+#include "util/functions.h"
 
 Delay::Delay() {
 	pingPong = true;

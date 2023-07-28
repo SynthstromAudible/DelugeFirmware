@@ -34,12 +34,12 @@ Includes   <System Includes> , "Project Includes"
 ******************************************************************************/
 //#include "sample_audio_dma.h"
 
-#include "RZA1/system/r_typedefs.h"
-#include "RZA1/system/iodefine.h"
-#include "RZA1/system/dev_drv.h"   /* Device Driver common header */
 #include "RZA1/intc/devdrv_intc.h" /* INTC Driver header */
 #include "RZA1/ssi/drv_ssif.h"
 #include "RZA1/ssi/drv_ssif_user.h"
+#include "RZA1/system/dev_drv.h" /* Device Driver common header */
+#include "RZA1/system/iodefine.h"
+#include "RZA1/system/r_typedefs.h"
 
 #ifdef __cplusplus
 extern "C" {

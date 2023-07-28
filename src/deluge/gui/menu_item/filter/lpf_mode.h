@@ -16,10 +16,10 @@
 */
 #pragma once
 #include "definitions_cxx.hpp"
-#include "model/mod_controllable/mod_controllable_audio.h"
 #include "gui/menu_item/selection.h"
-#include "processing/sound/sound.h"
 #include "gui/ui/sound_editor.h"
+#include "model/mod_controllable/mod_controllable_audio.h"
+#include "processing/sound/sound.h"
 #include "util/misc.h"
 
 namespace menu_item::filter {

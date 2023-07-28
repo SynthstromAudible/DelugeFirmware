@@ -17,9 +17,9 @@
 
 #pragma once
 
+#include "RZA1/system/r_typedefs.h"
 #include "gui/views/clip_view.h"
 #include "hid/button.h"
-#include "RZA1/system/r_typedefs.h"
 #include "model/clip/clip_minder.h"
 
 class AudioClipView final : public ClipView, public ClipMinder {
