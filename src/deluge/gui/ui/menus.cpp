@@ -249,14 +249,14 @@ submenu::ActualSource source1Menu{HAVE_OLED ? "Oscillator 2" : "OSC2", oscMenuIt
 
 unison::Count numUnisonMenu{HAVE_OLED ? "Unison number" : "NUM"};
 unison::Detune unisonDetuneMenu{HAVE_OLED ? "Unison detune" : "DETUNE"};
-unison::StereoSpread unisonStereoSpreadMenu{HAVE_OLED ? "Unison stereo spread" : "SPREAD"};
+unison::StereoSpread unison::stereoSpreadMenu{HAVE_OLED ? "Unison stereo spread" : "SPREAD"};
 
 Submenu unisonMenu{
     "UNISON",
     {
         &numUnisonMenu,
         &unisonDetuneMenu,
-		&unisonStereoSpreadMenu,
+		&unison::stereoSpreadMenu,
     },
 };
 

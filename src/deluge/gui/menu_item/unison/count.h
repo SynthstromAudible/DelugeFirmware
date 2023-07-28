@@ -35,6 +35,6 @@ public:
 	[[nodiscard]] int getMinValue() const override { return 1; }
 	[[nodiscard]] int getMaxValue() const override { return kMaxNumVoicesUnison; }
 
-	MenuItem* selectButtonPress() override { return &unisonStereoSpreadMenu; }
+	MenuItem* selectButtonPress() override { return &unison::stereoSpreadMenu; }
 };
 } // namespace deluge::gui::menu_item::unison
