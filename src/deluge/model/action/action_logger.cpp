@@ -17,7 +17,7 @@
 
 #include "model/action/action_logger.h"
 #include "definitions_cxx.hpp"
-#include "gui/ui/keyboard_screen.h"
+#include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
 #include "gui/views/instrument_clip_view.h"

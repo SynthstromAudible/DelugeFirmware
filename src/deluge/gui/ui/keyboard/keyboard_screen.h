@@ -17,44 +17,52 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
+#include "gui/ui/keyboard/layout.h"
 #include "gui/ui/root_ui.h"
 #include "gui/ui/ui.h"
 #include "hid/button.h"
 #include "model/clip/instrument_clip_minder.h"
-
-struct KeyboardPadPress {
-	uint8_t x;
-	uint8_t y;
-};
-
-#define MAX_NUM_KEYBOARD_PAD_PRESSES 10
+#include <limits>
 
 class ModelStack;
+
+namespace keyboard {
+
+constexpr int kMaxNumKeyboardPadPresses = 10;
 
 class KeyboardScreen final : public RootUI, public InstrumentClipMinder {
 public:
 	KeyboardScreen();
-	bool opened();
-	void focusRegained();
+
 	ActionResult padAction(int x, int y, int velocity);
 	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
+	ActionResult verticalEncoderAction(int offset, bool inCardRoutine);
+	ActionResult horizontalEncoderAction(int offset);
+	void selectEncoderAction(int8_t offset);
+
 	bool renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = false);
 	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
-	ActionResult verticalEncoderAction(int offset, bool inCardRoutine);
-	ActionResult horizontalEncoderAction(int offset);
-	void selectEncoderAction(int8_t offset);
-	ClipMinder* toClipMinder() { return this; }
+
 	void flashDefaultRootNote();
-	bool oneNoteAuditioning();
-	void setLedStates();
-	void recalculateColours();
-	bool getAffectEntire();
-	void graphicsRoutine();
-	void exitAuditionMode();
 	void openedInBackground();
-	void stopAllAuditioning(ModelStack* modelStack, bool switchOffOnThisEndToo = true);
+	void exitAuditionMode();
+
+private:
+	bool opened();
+	void focusRegained();
+
+	void evaluateActiveNotes();
+	void updateActiveNotes();
+
+	ClipMinder* toClipMinder() { return this; }
+	void setLedStates();
+	void graphicsRoutine();
+	bool getAffectEntire();
+
+	void unscrolledPadAudition(int velocity, int note, bool shiftButtonDown);
 
 #if HAVE_OLED
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
@@ -63,17 +71,23 @@ public:
 #endif
 
 private:
-	int getNoteCodeFromCoords(int x, int y);
-	void doScroll(int offset, bool force = false);
-	int getLowestAuditionedNote();
-	int getHighestAuditionedNote();
-	void enterScaleMode(int selectedRootNote = 2147483647);
+	void selectLayout(int8_t offset);
+	void enterScaleMode(int selectedRootNote = kDefaultCalculateRootNote);
 	void exitScaleMode();
 	void drawNoteCode(int noteCode);
 
-	KeyboardPadPress padPresses[MAX_NUM_KEYBOARD_PAD_PRESSES];
-	uint8_t noteColours[kDisplayHeight * kMaxKeyboardRowInterval + kDisplayWidth][3];
-	bool yDisplayActive[kDisplayHeight * kMaxKeyboardRowInterval + kDisplayWidth];
+	inline void requestRendering() {
+		uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
+	}
+
+	PressedPad pressedPads[kMaxNumKeyboardPadPresses];
+	NotesState lastNotesState;
+	NotesState currentNotesState;
+
+	bool keyboardButtonActive = false;
+	bool keyboardButtonUsed = false;
 };
 
-extern KeyboardScreen keyboardScreen;
+}; // namespace keyboard
+
+extern keyboard::KeyboardScreen keyboardScreen;
