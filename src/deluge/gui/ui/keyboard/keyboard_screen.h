@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "gui/ui/keyboard/layout.h"
+#include "gui/ui/keyboard/notes_state.h"
 #include "gui/ui/root_ui.h"
 #include "gui/ui/ui.h"
 #include "hid/button.h"
@@ -50,6 +50,10 @@ public:
 	void openedInBackground();
 	void exitAuditionMode();
 
+	uint8_t highlightedNotes[kHighestKeyboardNote] = {0};
+
+	inline void requestRendering() { uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF); }
+
 private:
 	bool opened();
 	void focusRegained();
@@ -75,10 +79,6 @@ private:
 	void enterScaleMode(int selectedRootNote = kDefaultCalculateRootNote);
 	void exitScaleMode();
 	void drawNoteCode(int noteCode);
-
-	inline void requestRendering() {
-		uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
-	}
 
 	PressedPad pressedPads[kMaxNumKeyboardPadPresses];
 	NotesState lastNotesState;

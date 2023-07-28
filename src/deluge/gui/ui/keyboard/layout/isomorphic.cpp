@@ -22,6 +22,7 @@
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/sound_editor.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "util/functions.h"
 
 namespace keyboard::layout {
@@ -101,15 +102,22 @@ void KeyboardLayoutIsomorphic::renderPads(uint8_t image[][kDisplayWidth + kSideB
 
 	// Iterate over grid image
 	for (int y = 0; y < kDisplayHeight; ++y) {
-		int noteCode = noteFromCoords(0, y);
-		int normalizedPadOffset = noteCode - getState().isomorphic.scrollOffset;
-		int noteWithinOctave = (uint16_t)((noteCode + kOctaveSize) - getRootNote()) % kOctaveSize;
+		int note = noteFromCoords(0, y);
+		int normalizedPadOffset = note - getState().isomorphic.scrollOffset;
+		int noteWithinOctave = (uint16_t)((note + kOctaveSize) - getRootNote()) % kOctaveSize;
 
 		for (int x = 0; x < kDisplayWidth; x++) {
 			// Full color for every octaves root and active notes
 			if (octaveActiveNotes[noteWithinOctave] || noteWithinOctave == 0) {
 				memcpy(image[y][x], noteColours[normalizedPadOffset], 3);
 			}
+			// If highlighting notes is active, do it
+			else if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::HighlightIncomingNotes)
+			             == RuntimeFeatureStateToggle::On
+			         && getHighlightedNotes()[note] != 0) {
+				colorCopy(image[y][x], noteColours[normalizedPadOffset], getHighlightedNotes()[note], 1);
+			}
+
 			// Or, if this note is just within the current scale, show it dim
 			else if (octaveScaleNotes[noteWithinOctave]) {
 				getTailColour(image[y][x], noteColours[normalizedPadOffset]);
@@ -119,7 +127,7 @@ void KeyboardLayoutIsomorphic::renderPads(uint8_t image[][kDisplayWidth + kSideB
 			// Dim note pad if a browser is open with the note highlighted
 			if (getCurrentUI() == &sampleBrowser || getCurrentUI() == &audioRecorder
 			    || (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem()->isRangeDependent())) {
-				if (soundEditor.isUntransposedNoteWithinRange(noteCode)) {
+				if (soundEditor.isUntransposedNoteWithinRange(note)) {
 					for (int colour = 0; colour < 3; colour++) {
 						int value = (int)image[y][x][colour] + 35;
 						image[y][x][colour] = getMin(value, 255);
@@ -127,7 +135,7 @@ void KeyboardLayoutIsomorphic::renderPads(uint8_t image[][kDisplayWidth + kSideB
 				}
 			}
 
-			++noteCode;
+			++note;
 			++normalizedPadOffset;
 			noteWithinOctave = (noteWithinOctave + 1) % kOctaveSize;
 		}

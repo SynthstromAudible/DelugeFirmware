@@ -24,6 +24,12 @@ constexpr uint8_t kMaxNumActiveNotes = 10;
 
 namespace keyboard {
 
+struct PressedPad {
+	uint8_t x;
+	uint8_t y;
+	bool active;
+};
+
 struct NoteState {
 	uint8_t note = 0;
 	uint8_t velocity = 0;

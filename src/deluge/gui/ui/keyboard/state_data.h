@@ -24,6 +24,7 @@ enum KeyboardLayoutType : uint32_t {
 	Isomorphic,
 	Drums,
 	InKey,
+	Norns,
 	MaxElement // Keep as boundary
 };
 

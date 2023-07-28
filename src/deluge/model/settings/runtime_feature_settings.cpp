@@ -85,6 +85,12 @@ void RuntimeFeatureSettings::init() {
 	// DeleteUnusedKitRows
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DeleteUnusedKitRows], "Delete Unused Kit Rows",
 	                  "deleteUnusedKitRows", RuntimeFeatureStateToggle::On);
+	// HighlightIncomingNotes
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::HighlightIncomingNotes], "Highlight incoming notes",
+	                  "highlightIncomingNotes", RuntimeFeatureStateToggle::Off);
+	// DisplayNornsLayout
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DisplayNornsLayout], "Display Norns layout",
+	                  "displayNornsLayout", RuntimeFeatureStateToggle::Off);
 }
 
 void RuntimeFeatureSettings::readSettingsFromFile() {
