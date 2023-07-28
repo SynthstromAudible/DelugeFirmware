@@ -36,6 +36,10 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
  - ([#103]) adds a new filter in the low-pass slot, a state-variable filter. This filter has significantly less distortion than the ladder filters, think sequential vs. moog. Cutoff and resonance ranges are subject to change with further testing.
 
 ## New behaviors
+
+### Session view
+ - ([]) @TODO: Display clips as a grid instead of rows
+
 ### Song View
  - ([#163]) Pressing a clip row + shift & scroll vertically changes the selected row color. This is the same shortcut like before when setting the color in the clip view.   
 
