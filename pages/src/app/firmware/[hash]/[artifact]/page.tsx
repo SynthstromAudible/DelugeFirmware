@@ -15,7 +15,7 @@ export default async function Page({ params }: { params: Params }) {
 
   return (
     <div className="p-24 m-auto flex flex-col gap-4">
-      <div className="flex flex-col align-end rounded-xl pt-4 pl-4 pr-4 font-mono bg-neutral-700 shadow">
+      <div className="flex flex-col items-end rounded-xl pt-4 pl-4 pr-4 font-mono bg-neutral-700 shadow">
         <pre className="">
           {commitData.message}
         </pre>
