@@ -18,7 +18,7 @@
 #pragma once
 
 #include "util/d_string.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "model/model_stack.h"
 
 // These numbers are what get stored just in the internal Deluge flash memory to represent things.
@@ -114,7 +114,7 @@ public:
 	 * These are just for MelodicInstruments. For Drums, the values get stored in the Drum itself.
 	 */
 
-	int16_t defaultInputMPEValuesPerMIDIChannel[16][NUM_EXPRESSION_DIMENSIONS];
+	int16_t defaultInputMPEValuesPerMIDIChannel[16][kNumExpressionDimensions];
 
 	uint8_t mpeZoneBendRanges[2][2]; // 0 means none set. It's [zone][whichBendRange].
 

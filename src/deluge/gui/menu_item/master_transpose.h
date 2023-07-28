@@ -36,12 +36,12 @@ public:
 	}
 	MenuItem* selectButtonPress() override { return PatchedParam::selectButtonPress(); }
 	uint8_t shouldDrawDotOnName() override { return PatchedParam::shouldDrawDotOnName(); }
-	uint8_t getPatchedParamIndex() override { return PARAM_LOCAL_PITCH_ADJUST; }
-	uint8_t getP() override { return PARAM_LOCAL_PITCH_ADJUST; }
-	uint8_t shouldBlinkPatchingSourceShortcut(int s, uint8_t* colour) override {
+	uint8_t getPatchedParamIndex() override { return ::Param::Local::PITCH_ADJUST; }
+	uint8_t getP() override { return ::Param::Local::PITCH_ADJUST; }
+	uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) override override {
 		return PatchedParam::shouldBlinkPatchingSourceShortcut(s, colour);
 	}
-	MenuItem* patchingSourceShortcutPress(int s, bool previousPressStillActive = false) override {
+	MenuItem* patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive = false) override override {
 		return PatchedParam::patchingSourceShortcutPress(s, previousPressStillActive);
 	}
 #if !HAVE_OLED

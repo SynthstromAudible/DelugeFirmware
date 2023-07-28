@@ -39,7 +39,7 @@ public:
 			Kit* kit = dynamic_cast<Kit*>(currentSong->currentClip->output);
 
 			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
-				if (thisDrum->type == DRUM_TYPE_SOUND) {
+				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = dynamic_cast<SoundDrum*>(thisDrum);
 					Source* source = &soundDrum->sources[soundEditor.currentSourceIndex];
 

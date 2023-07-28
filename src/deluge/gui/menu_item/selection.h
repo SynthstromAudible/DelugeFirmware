@@ -72,8 +72,8 @@ void Selection<n>::drawPixelsForOled() {
 	if (soundEditor.menuCurrentScroll > this->value_) {
 		soundEditor.menuCurrentScroll = this->value_;
 	}
-	else if (soundEditor.menuCurrentScroll < this->value_ - OLED_MENU_NUM_OPTIONS_VISIBLE + 1) {
-		soundEditor.menuCurrentScroll = this->value_ - OLED_MENU_NUM_OPTIONS_VISIBLE + 1;
+	else if (soundEditor.menuCurrentScroll < this->value_ - kOLEDMenuNumOptionsVisible + 1) {
+		soundEditor.menuCurrentScroll = this->value_ - kOLEDMenuNumOptionsVisible + 1;
 	}
 
 	const int selectedOption = this->value_ - soundEditor.menuCurrentScroll;

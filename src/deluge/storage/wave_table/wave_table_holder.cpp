@@ -18,5 +18,5 @@
 #include "storage/wave_table/wave_table_holder.h"
 
 WaveTableHolder::WaveTableHolder() {
-	audioFileType = AUDIO_FILE_TYPE_WAVETABLE;
+	audioFileType = AudioFileType::WAVETABLE;
 }

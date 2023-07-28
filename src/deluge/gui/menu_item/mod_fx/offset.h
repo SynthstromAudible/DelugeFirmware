@@ -27,7 +27,7 @@ public:
 
 	bool isRelevant(Sound* sound, int whichThing) {
 		// TODO: really want to receive a ModControllableAudio here!
-		return (!sound || util::one_of<uint8_t>(sound->modFXType, {MOD_FX_TYPE_CHORUS, MOD_FX_TYPE_CHORUS_STEREO}));
+		return (!sound || util::one_of(sound->modFXType, {ModFXType::CHORUS, ModFXType::CHORUS_STEREO}));
 	}
 };
 

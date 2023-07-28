@@ -20,9 +20,9 @@
 
 using namespace deluge;
 
-int MenuItem::checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) {
+MenuPermission MenuItem::checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) {
 	bool toReturn = isRelevant(sound, whichThing);
-	return toReturn ? MENU_PERMISSION_YES : MENU_PERMISSION_NO;
+	return toReturn ? MenuPermission::YES : MenuPermission::NO;
 }
 
 void MenuItem::learnCC(MIDIDevice* fromDevice, int channel, int ccNumber, int value) {

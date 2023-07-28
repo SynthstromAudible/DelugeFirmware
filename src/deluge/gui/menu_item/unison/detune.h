@@ -31,6 +31,6 @@ public:
 
 		soundEditor.currentSound->setUnisonDetune(this->value_, modelStack);
 	}
-	[[nodiscard]] int getMaxValue() const override { return MAX_UNISON_DETUNE; }
+	[[nodiscard]] int getMaxValue() const override { return kMaxUnisonDetune; }
 };
 } // namespace deluge::gui::menu_item::unison

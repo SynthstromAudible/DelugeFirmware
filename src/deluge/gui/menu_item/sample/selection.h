@@ -29,7 +29,7 @@ public:
 		}
 
 		Source* source = &sound->sources[whichThing];
-		return (sound->getSynthMode() == SYNTH_MODE_SUBTRACTIVE && source->oscType == OSC_TYPE_SAMPLE
+		return (sound->getSynthMode() == SynthMode::SUBTRACTIVE && source->oscType == OscType::SAMPLE
 		        && source->hasAtLeastOneAudioFileLoaded());
 	}
 };

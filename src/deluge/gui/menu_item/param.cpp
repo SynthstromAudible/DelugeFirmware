@@ -17,7 +17,7 @@
 
 #include "param.h"
 #include "processing/engines/audio_engine.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "modulation/params/param_set.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/numeric_driver.h"

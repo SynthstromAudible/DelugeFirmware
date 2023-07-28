@@ -17,19 +17,19 @@
 
 #pragma once
 #include "value.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 
 class ParamDescriptor;
 
 namespace deluge::gui::menu_item {
 class SourceSelection : public Value<int> {
 public:
-	SourceSelection();
+	SourceSelection() = default;
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
 	void selectEncoderAction(int offset) final;
 	virtual ParamDescriptor getDestinationDescriptor() = 0;
 	uint8_t getIndexOfPatchedParamToBlink() final;
-	uint8_t shouldBlinkPatchingSourceShortcut(int s, uint8_t* colour) final;
+	uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) final;
 	void readValueAgain() final;
 
 #if HAVE_OLED
@@ -40,10 +40,10 @@ public:
 	void drawValue() override;
 #endif
 
-	uint8_t s;
+	PatchSource s;
 
 protected:
-	bool sourceIsAllowed(int source);
+	bool sourceIsAllowed(PatchSource source);
 	uint8_t shouldDrawDotOnValue();
 };
 } // namespace deluge::gui::menu_item

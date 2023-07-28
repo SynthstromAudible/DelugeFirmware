@@ -28,6 +28,6 @@ public:
 
 	[[nodiscard]] const string& getTitle() const override { return FormattedTitle::title(); }
 
-	bool isRelevant(Sound* sound, int whichThing) override { return (sound->getSynthMode() != SYNTH_MODE_RINGMOD); }
+	bool isRelevant(Sound* sound, int whichThing) override { return (sound->getSynthMode() != SynthMode::RINGMOD); }
 };
 } // namespace deluge::gui::menu_item::osc::source

@@ -15,21 +15,24 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "gui/menu_item/selection.h"
 #include "hid/display/numeric_driver.h"
 #include "gui/ui/sound_editor.h"
+#include "util/misc.h"
 
 namespace deluge::gui::menu_item::mod_fx {
 
-class Type : public Selection<NUM_MOD_FX_TYPES> {
+class Type : public Selection<kNumModFXTypes> {
 public:
 	using Selection::Selection;
 
-	void readCurrentValue() override { this->value_ = soundEditor.currentModControllable->modFXType; }
+	void readCurrentValue() override {
+		this->value_ = util::to_underlying(soundEditor.currentModControllable->modFXType);
+	}
 	void writeCurrentValue() override {
-		if (!soundEditor.currentModControllable->setModFXType(this->value_)) {
+		if (!soundEditor.currentModControllable->setModFXType(static_cast<ModFXType>(this->value_))) {
 			numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
 		}
 	}

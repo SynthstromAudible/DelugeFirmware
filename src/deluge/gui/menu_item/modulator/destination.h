@@ -29,7 +29,7 @@ public:
 		return {"Carriers", HAVE_OLED ? "Modulator 1" : "MOD1"};
 	}
 	bool isRelevant(Sound* sound, int whichThing) override {
-		return (whichThing == 1 && sound->synthMode == SYNTH_MODE_FM);
+		return (whichThing == 1 && sound->synthMode == SynthMode::FM);
 	}
 };
 

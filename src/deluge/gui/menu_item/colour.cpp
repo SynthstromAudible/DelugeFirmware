@@ -18,6 +18,7 @@
 #include "colour.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
+#include "gui/colour.h"
 
 namespace deluge::gui::menu_item {
 
@@ -29,15 +30,15 @@ Colour soloColourMenu{"SOLOED"};
 void Colour::getRGB(uint8_t rgb[3]) {
 	switch (value) {
 	case 0: // Red
-		rgb[0] = disabledColourRed;
-		rgb[1] = disabledColourGreen;
-		rgb[2] = disabledColourBlue;
+		rgb[0] = disabledColour.r;
+		rgb[1] = disabledColour.g;
+		rgb[2] = disabledColour.b;
 		break;
 
 	case 1: // Green
-		rgb[0] = enabledColourRed;
-		rgb[1] = enabledColourGreen;
-		rgb[2] = enabledColourBlue;
+		rgb[0] = enabledColour.r;
+		rgb[1] = enabledColour.g;
+		rgb[2] = enabledColour.b;
 		break;
 
 	case 2: // Blue
@@ -47,9 +48,9 @@ void Colour::getRGB(uint8_t rgb[3]) {
 		break;
 
 	case 3: // Yellow
-		rgb[0] = mutedColourRed;
-		rgb[1] = mutedColourGreen;
-		rgb[2] = mutedColourBlue;
+		rgb[0] = mutedColour.r;
+		rgb[1] = mutedColour.g;
+		rgb[2] = mutedColour.b;
 		break;
 
 	case 4: // Cyan

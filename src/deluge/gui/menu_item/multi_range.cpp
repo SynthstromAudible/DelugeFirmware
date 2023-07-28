@@ -59,8 +59,8 @@ void MultiRange::beginSession(MenuItem* navigatedBackwardFrom) {
 
 #if HAVE_OLED
 	soundEditor.menuCurrentScroll = this->value_ - 1;
-	if (soundEditor.menuCurrentScroll > this->value_ - OLED_MENU_NUM_OPTIONS_VISIBLE + 1) {
-		soundEditor.menuCurrentScroll = this->value_ - OLED_MENU_NUM_OPTIONS_VISIBLE + 1;
+	if (soundEditor.menuCurrentScroll > this->value_ - kOLEDMenuNumOptionsVisible + 1) {
+		soundEditor.menuCurrentScroll = this->value_ - kOLEDMenuNumOptionsVisible + 1;
 	}
 	if (soundEditor.menuCurrentScroll < 0) {
 		soundEditor.menuCurrentScroll = 0;
@@ -234,8 +234,8 @@ void MultiRange::selectEncoderAction(int offset) {
 			if (soundEditor.menuCurrentScroll > this->value_) {
 				soundEditor.menuCurrentScroll = this->value_;
 			}
-			else if (soundEditor.menuCurrentScroll < this->value_ - OLED_MENU_NUM_OPTIONS_VISIBLE + 1) {
-				soundEditor.menuCurrentScroll = this->value_ - OLED_MENU_NUM_OPTIONS_VISIBLE + 1;
+			else if (soundEditor.menuCurrentScroll < this->value_ - kOLEDMenuNumOptionsVisible + 1) {
+				soundEditor.menuCurrentScroll = this->value_ - kOLEDMenuNumOptionsVisible + 1;
 			}
 #else
 			numericDriver.displayPopup("INSERT");
@@ -257,8 +257,8 @@ void MultiRange::selectEncoderAction(int offset) {
 			if (soundEditor.menuCurrentScroll > this->value_) {
 				soundEditor.menuCurrentScroll = this->value_;
 			}
-			else if (soundEditor.menuCurrentScroll < this->value_ - OLED_MENU_NUM_OPTIONS_VISIBLE + 1) {
-				soundEditor.menuCurrentScroll = this->value_ - OLED_MENU_NUM_OPTIONS_VISIBLE + 1;
+			else if (soundEditor.menuCurrentScroll < this->value_ - kOLEDMenuNumOptionsVisible + 1) {
+				soundEditor.menuCurrentScroll = this->value_ - kOLEDMenuNumOptionsVisible + 1;
 			}
 #endif
 		}
@@ -397,8 +397,8 @@ void MultiRange::noteOnToChangeRange(int noteCode) {
 			if (soundEditor.menuCurrentScroll > this->value_) {
 				soundEditor.menuCurrentScroll = this->value_;
 			}
-			else if (soundEditor.menuCurrentScroll < this->value_ - OLED_MENU_NUM_OPTIONS_VISIBLE + 1) {
-				soundEditor.menuCurrentScroll = this->value_ - OLED_MENU_NUM_OPTIONS_VISIBLE + 1;
+			else if (soundEditor.menuCurrentScroll < this->value_ - kOLEDMenuNumOptionsVisible + 1) {
+				soundEditor.menuCurrentScroll = this->value_ - kOLEDMenuNumOptionsVisible + 1;
 			}
 
 			renderUIsForOled();
@@ -418,13 +418,13 @@ bool MultiRange::mayEditRangeEdge(RangeEdit whichEdge) {
 
 #if HAVE_OLED
 void MultiRange::drawPixelsForOled() {
-	static_vector<string, OLED_MENU_NUM_OPTIONS_VISIBLE> itemNames{};
-	char nameBuffers[OLED_MENU_NUM_OPTIONS_VISIBLE][20];
+	static_vector<string, kOLEDMenuNumOptionsVisible> itemNames{};
+	char nameBuffers[kOLEDMenuNumOptionsVisible][20];
 	int actualCurrentRange = this->value_;
 
 	this->value_ = soundEditor.menuCurrentScroll;
 	size_t idx = 0;
-	for (idx = 0; idx < OLED_MENU_NUM_OPTIONS_VISIBLE; idx++) {
+	for (idx = 0; idx < kOLEDMenuNumOptionsVisible; idx++) {
 		if (this->value_ >= soundEditor.currentSource->ranges.getNumElements()) {
 			break;
 		}
@@ -447,18 +447,18 @@ void MultiRange::drawPixelsForOled() {
 		int hilightWidth = 0;
 
 		if (soundEditor.editingRangeEdge == RangeEdit::LEFT) {
-			hilightStartX = TEXT_SPACING_X;
-			hilightWidth = TEXT_SPACING_X * 6;
+			hilightStartX = kTextSpacingX;
+			hilightWidth = kTextSpacingX * 6;
 		}
 		else if (soundEditor.editingRangeEdge == RangeEdit::RIGHT) {
-			hilightStartX = TEXT_SPACING_X * 10;
+			hilightStartX = kTextSpacingX * 10;
 			hilightWidth = OLED_MAIN_WIDTH_PIXELS - hilightStartX;
 		}
 
 		int baseY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14;
 		baseY += OLED_MAIN_TOPMOST_PIXEL;
-		baseY += (this->value_ - soundEditor.menuCurrentScroll) * TEXT_SPACING_Y;
-		OLED::invertArea(hilightStartX, hilightWidth, baseY, baseY + TEXT_SPACING_Y, OLED::oledMainImage);
+		baseY += (this->value_ - soundEditor.menuCurrentScroll) * kTextSpacingY;
+		OLED::invertArea(hilightStartX, hilightWidth, baseY, baseY + kTextSpacingY, OLED::oledMainImage);
 	}
 }
 #endif

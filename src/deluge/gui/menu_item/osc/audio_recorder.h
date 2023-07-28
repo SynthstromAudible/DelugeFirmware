@@ -41,15 +41,15 @@ public:
 	}
 	bool isRelevant(Sound* sound, int whichThing) override {
 		Source* source = &sound->sources[whichThing];
-		return (sound->getSynthMode() == SYNTH_MODE_SUBTRACTIVE);
+		return (sound->getSynthMode() == SynthMode::SUBTRACTIVE);
 	}
 
-	int checkPermissionToBeginSession(Sound* sound, int whichThing, ::MultiRange** currentRange) override {
+	MenuPermission checkPermissionToBeginSession(Sound* sound, int whichThing, ::MultiRange** currentRange) override {
 
 		bool can = isRelevant(sound, whichThing);
 		if (!can) {
 			numericDriver.displayPopup(HAVE_OLED ? "Can't record audio into an FM synth" : "CANT");
-			return false;
+			return MenuPermission::NO;
 		}
 
 		return soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(sound, whichThing, false, currentRange);

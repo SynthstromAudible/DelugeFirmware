@@ -45,7 +45,7 @@ public:
 		soundEditor.currentSound->setModulatorCents(soundEditor.currentSourceIndex, cents, modelStack);
 	}
 
-	bool isRelevant(Sound* sound, int whichThing) override { return (sound->getSynthMode() == SYNTH_MODE_FM); }
+	bool isRelevant(Sound* sound, int whichThing) override { return (sound->getSynthMode() == SynthMode::FM); }
 };
 
 } // namespace deluge::gui::menu_item::modulator

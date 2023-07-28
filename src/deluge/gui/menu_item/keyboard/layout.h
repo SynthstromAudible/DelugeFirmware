@@ -15,17 +15,18 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "storage/flash_storage.h"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
+#include "util/misc.h"
 
 namespace deluge::gui::menu_item::keyboard {
 class Layout final : public Selection<3> {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->value_ = FlashStorage::keyboardLayout; }
-	void writeCurrentValue() override { FlashStorage::keyboardLayout = this->value_; }
+	void readCurrentValue() override { this->value_ = util::to_underlying(FlashStorage::keyboardLayout); }
+	void writeCurrentValue() override { FlashStorage::keyboardLayout = static_cast<KeyboardLayout>(this->value_); }
 	static_vector<string, capacity()> getOptions() override {
 		return {"QWERTY", "AZERTY", HAVE_OLED ? "QWERTZ" : "QRTZ"};
 	}

@@ -27,7 +27,7 @@
 #include "hid/display/numeric_driver.h"
 #include "memory/stealable.h"
 #include "drivers/mtu/mtu.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 
 char emptySpacesMemory[sizeof(EmptySpaceRecord) * 512];
 char emptySpacesMemoryInternal[sizeof(EmptySpaceRecord) * 1024];
@@ -42,7 +42,7 @@ GeneralMemoryAllocator::GeneralMemoryAllocator() {
 	regions[MEMORY_REGION_SDRAM].setup(emptySpacesMemory, sizeof(emptySpacesMemory), EXTERNAL_MEMORY_BEGIN,
 	                                   EXTERNAL_MEMORY_END);
 	regions[MEMORY_REGION_INTERNAL].setup(emptySpacesMemoryInternal, sizeof(emptySpacesMemoryInternal),
-	                                      (uint32_t)&__heap_start, INTERNAL_MEMORY_END - 8192);
+	                                      (uint32_t)&__heap_start, kInternalMemoryEnd - 8192);
 
 #if ALPHA_OR_BETA_VERSION
 	regions[MEMORY_REGION_SDRAM].name = "external";
@@ -57,7 +57,7 @@ void GeneralMemoryAllocator::checkStack(char const* caller) {
 
 	char a;
 
-	int distance = (int)&a - (INTERNAL_MEMORY_END - PROGRAM_STACK_MAX_SIZE);
+	int distance = (int)&a - (kInternalMemoryEnd - kProgramStackMaxSize);
 	if (distance < closestDistance) {
 		closestDistance = distance;
 

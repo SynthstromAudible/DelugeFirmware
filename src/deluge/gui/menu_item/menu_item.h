@@ -18,7 +18,7 @@
 #pragma once
 
 #include "RZA1/system/r_typedefs.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "util/container/static_vector.hpp"
 #include "util/sized.h"
 #include "util/string.h"
@@ -27,11 +27,11 @@
 #include "hid/display/oled.h"
 #endif
 
-#define MENU_PERMISSION_NO 0
-#define MENU_PERMISSION_YES 1
-#define MENU_PERMISSION_MUST_SELECT_RANGE 2
-
-#define MENU_ITEM_TITLE_BUFFER_SIZE 20 // Actual max num chars for OLED display is 14.
+enum class MenuPermission {
+	NO,
+	YES,
+	MUST_SELECT_RANGE,
+};
 
 class Sound;
 class MultiRange;
@@ -53,15 +53,15 @@ public:
 	virtual void beginSession(MenuItem* navigatedBackwardFrom = nullptr){};
 	virtual bool isRelevant(Sound* sound, int whichThing) { return true; }
 	virtual MenuItem* selectButtonPress() { return nullptr; }
-	virtual int checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange);
+	virtual MenuPermission checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange);
 	virtual void readValueAgain() {}
 	virtual bool selectEncoderActionEditsInstrument() { return false; }
 	virtual uint8_t getPatchedParamIndex() { return 255; }
 	virtual uint8_t getIndexOfPatchedParamToBlink() { return 255; }
 	virtual uint8_t shouldDrawDotOnName() { return 255; }
-	virtual uint8_t shouldBlinkPatchingSourceShortcut(int s, uint8_t* colour) { return 255; }
+	virtual uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) { return 255; }
 
-	virtual MenuItem* patchingSourceShortcutPress(int s, bool previousPressStillActive = false) {
+	virtual MenuItem* patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive = false) {
 		return nullptr; // nullptr means do nothing. 0xFFFFFFFF means go up a level
 	}
 

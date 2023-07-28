@@ -16,7 +16,7 @@
 */
 
 #include "testing/hardware_testing.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "io/debug/print.h"
 #include "hid/led/indicator_leds.h"
 #include "processing/engines/cv_engine.h"
@@ -127,12 +127,12 @@ void sendColoursForHardwareTest(bool testButtonStates[9][16]) {
 bool anythingProbablyPressed = false;
 
 void readInputsForHardwareTest(bool testButtonStates[9][16]) {
-	bool outputPluggedInL = readInput(LINE_OUT_DETECT_L_1, LINE_OUT_DETECT_L_2);
-	bool outputPluggedInR = readInput(LINE_OUT_DETECT_R_1, LINE_OUT_DETECT_R_2);
-	bool headphoneNow = readInput(HEADPHONE_DETECT_1, HEADPHONE_DETECT_2);
-	bool micNow = !readInput(7, 9);
-	bool lineInNow = readInput(6, 6);
-	bool gateInNow = readInput(ANALOG_CLOCK_IN_1, ANALOG_CLOCK_IN_2);
+	bool outputPluggedInL = readInput(LINE_OUT_DETECT_L.port, LINE_OUT_DETECT_L.pin);
+	bool outputPluggedInR = readInput(LINE_OUT_DETECT_R.port, LINE_OUT_DETECT_R.pin);
+	bool headphoneNow = readInput(HEADPHONE_DETECT.port, HEADPHONE_DETECT.pin);
+	bool micNow = !readInput(MIC.port, MIC.pin);
+	bool lineInNow = readInput(LINE_IN.port, LINE_IN.pin);
+	bool gateInNow = readInput(ANALOG_CLOCK_IN.port, ANALOG_CLOCK_IN.pin);
 
 	bool inputStateNow = (outputPluggedInL == outputPluggedInR == headphoneNow == micNow == lineInNow == gateInNow);
 
@@ -151,7 +151,7 @@ void readInputsForHardwareTest(bool testButtonStates[9][16]) {
 
 			int y = (unsigned int)value / 9;
 			int x = value - y * 9;
-			if (y < displayHeight * 2) {
+			if (y < kDisplayHeight * 2) {
 
 				testButtonStates[x][y] = !nextIsDepress;
 				sendColoursForHardwareTest(testButtonStates);
@@ -283,26 +283,26 @@ void ramTestLED(bool stuffAlreadySetUp) {
 	setOutputState(6, 12, 1); // Switch it on
 
 	// Speaker / amp control
-	setPinAsOutput(SPEAKER_ENABLE_1, SPEAKER_ENABLE_2);
-	setOutputState(SPEAKER_ENABLE_1, SPEAKER_ENABLE_2, 1); // Switch it on
+	setPinAsOutput(SPEAKER_ENABLE.port, SPEAKER_ENABLE.pin);
+	setOutputState(SPEAKER_ENABLE.port, SPEAKER_ENABLE.pin, 1); // Switch it on
 
-	setPinAsInput(HEADPHONE_DETECT_1, HEADPHONE_DETECT_2); // Headphone detect
-	setPinAsInput(6, 6);                                   // Line in detect
-	setPinAsInput(7, 9);                                   // Mic detect
+	setPinAsInput(HEADPHONE_DETECT.port, HEADPHONE_DETECT.pin); // Headphone detect
+	setPinAsInput(6, 6);                                        // Line in detect
+	setPinAsInput(7, 9);                                        // Mic detect
 
-	setPinAsOutput(BATTERY_LED_1, BATTERY_LED_2);    // Battery LED control
-	setOutputState(BATTERY_LED_1, BATTERY_LED_2, 1); // Switch it off (1 is off for open-drain)
+	setPinAsOutput(BATTERY_LED.port, BATTERY_LED.pin);    // Battery LED control
+	setOutputState(BATTERY_LED.port, BATTERY_LED.pin, 1); // Switch it off (1 is off for open-drain)
 
 	setPinMux(1, 8 + SYS_VOLT_SENSE_PIN, 1); // Analog input for voltage sense
 
-	setPinAsInput(ANALOG_CLOCK_IN_1, ANALOG_CLOCK_IN_2); // Gate input
+	setPinAsInput(ANALOG_CLOCK_IN.port, ANALOG_CLOCK_IN.pin); // Gate input
 
-	setPinAsOutput(SYNCED_LED_PORT, SYNCED_LED_PIN);    // Synced LED
-	setOutputState(SYNCED_LED_PORT, SYNCED_LED_PIN, 0); // Switch it off
+	setPinAsOutput(SYNCED_LED.port, SYNCED_LED.pin);    // Synced LED
+	setOutputState(SYNCED_LED.port, SYNCED_LED.pin, 0); // Switch it off
 
 	// Line out detect pins
-	setPinAsInput(LINE_OUT_DETECT_L_1, LINE_OUT_DETECT_L_2);
-	setPinAsInput(LINE_OUT_DETECT_R_1, LINE_OUT_DETECT_R_2);
+	setPinAsInput(LINE_OUT_DETECT_L.port, LINE_OUT_DETECT_L.pin);
+	setPinAsInput(LINE_OUT_DETECT_R.port, LINE_OUT_DETECT_R.pin);
 
 	// Test the RAM
 	uint32_t* address;
@@ -315,7 +315,7 @@ void ramTestLED(bool stuffAlreadySetUp) {
 		hardwareTestWhichColour = (hardwareTestWhichColour + 1) % 3;
 
 		// Write Synced LED
-		setOutputState(SYNCED_LED_PORT, SYNCED_LED_PIN, true);
+		setOutputState(SYNCED_LED.port, SYNCED_LED.pin, true);
 
 		// Write gate outputs
 		for (int i = 0; i < NUM_GATE_CHANNELS; i++) {
@@ -339,7 +339,7 @@ void ramTestLED(bool stuffAlreadySetUp) {
 			address++;
 		}
 
-		setOutputState(SYNCED_LED_PORT, SYNCED_LED_PIN, false);
+		setOutputState(SYNCED_LED.port, SYNCED_LED.pin, false);
 
 		address = (uint32_t*)0x0C000000;
 		while (address != (uint32_t*)0x10000000) {
@@ -354,16 +354,16 @@ void ramTestLED(bool stuffAlreadySetUp) {
 				while (1) {
 					readInputsForHardwareTest(testButtonStates);
 
-					setOutputState(SYNCED_LED_PORT, SYNCED_LED_PIN, true);
+					setOutputState(SYNCED_LED.port, SYNCED_LED.pin, true);
 					delayMS(50);
 					delayMS(50);
-					setOutputState(SYNCED_LED_PORT, SYNCED_LED_PIN, false);
+					setOutputState(SYNCED_LED.port, SYNCED_LED.pin, false);
 					delayMS(50);
 					delayMS(50);
-					setOutputState(SYNCED_LED_PORT, SYNCED_LED_PIN, true);
+					setOutputState(SYNCED_LED.port, SYNCED_LED.pin, true);
 					delayMS(50);
 					delayMS(50);
-					setOutputState(SYNCED_LED_PORT, SYNCED_LED_PIN, false);
+					setOutputState(SYNCED_LED.port, SYNCED_LED.pin, false);
 					delayMS(50);
 					delayMS(50);
 					delayMS(50);
@@ -411,15 +411,15 @@ void autoPilotStuff() {
 
 	case 0:
 
-		if (true) { //getCurrentUI() == &instrumentClipView && currentSong->currentClip->output->type == INSTRUMENT_TYPE_KIT) {
+		if (true) { //getCurrentUI() == &instrumentClipView && currentSong->currentClip->output->type == InstrumentType::KIT) {
 			if (!currentUIMode) {
 				randThing = getRandom255();
 
 				// Maybe press an edit pad?
 				if (randThing < 70) {
 					autoPilotMode = AUTOPILOT_HOLDING_EDIT_PAD;
-					autoPilotX = getRandom255() % displayWidth;
-					autoPilotY = getRandom255() % displayHeight;
+					autoPilotX = getRandom255() % kDisplayWidth;
+					autoPilotY = getRandom255() % kDisplayHeight;
 
 					matrixDriver.padAction(autoPilotX, autoPilotY, true);
 				}
@@ -427,8 +427,8 @@ void autoPilotStuff() {
 				// Or an audition pad?
 				else if (randThing < 180) {
 					autoPilotMode = AUTOPILOT_HOLDING_AUDITION_PAD;
-					autoPilotY = getRandom255() % displayHeight;
-					matrixDriver.padAction(displayWidth + 1, autoPilotY, true);
+					autoPilotY = getRandom255() % kDisplayHeight;
+					matrixDriver.padAction(kDisplayWidth + 1, autoPilotY, true);
 				}
 
 				// Or change sample mode
@@ -478,7 +478,7 @@ void autoPilotStuff() {
 		// Maybe just release it
 		if (randThing < 128) {
 			autoPilotMode = AUTOPILOT_NONE;
-			matrixDriver.padAction(displayWidth + 1, autoPilotY, false);
+			matrixDriver.padAction(kDisplayWidth + 1, autoPilotY, false);
 		}
 
 		// Or maybe load a sample

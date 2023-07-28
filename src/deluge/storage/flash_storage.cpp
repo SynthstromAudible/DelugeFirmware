@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "definitions_cxx.hpp"
 #include "processing/engines/audio_engine.h"
 #include "storage/flash_storage.h"
 #include "io/midi/midi_engine.h"
@@ -23,6 +24,7 @@
 #include "gui/menu_item/colour.h"
 #include "gui/ui/sound_editor.h"
 #include "util/functions.h"
+#include "util/misc.h"
 
 extern "C" {
 #include "RZA1/spibsc/spibsc.h"
@@ -60,14 +62,14 @@ namespace FlashStorage {
 35: tempo magnitude matching enabled
 36: cursor flash enabled
 37: MIDI thru enabled
-38: GLOBAL_MIDI_COMMAND_PLAYBACK_RESTART channel + 1
-39: GLOBAL_MIDI_COMMAND_PLAYBACK_RESTART noteCode + 1
-40: GLOBAL_MIDI_COMMAND_PLAYBACK_PLAY channel + 1
-41: GLOBAL_MIDI_COMMAND_PLAYBACK_PLAY noteCode + 1
-42: GLOBAL_MIDI_COMMAND_PLAYBACK_RECORD channel + 1
-43: GLOBAL_MIDI_COMMAND_PLAYBACK_RECORD noteCode + 1
-44: GLOBAL_MIDI_COMMAND_PLAYBACK_TAP channel + 1
-45: GLOBAL_MIDI_COMMAND_PLAYBACK_TAP noteCode + 1
+38: GlobalMIDICommand::PLAYBACK_RESTART channel + 1
+39: GlobalMIDICommand::PLAYBACK_RESTART noteCode + 1
+40: GlobalMIDICommand::PLAYBACK_PLAY channel + 1
+41: GlobalMIDICommand::PLAYBACK_PLAY noteCode + 1
+42: GlobalMIDICommand::PLAYBACK_RECORD channel + 1
+43: GlobalMIDICommand::PLAYBACK_RECORD noteCode + 1
+44: GlobalMIDICommand::PLAYBACK_TAP channel + 1
+45: GlobalMIDICommand::PLAYBACK_TAP noteCode + 1
 50: input monitoring mode
 51: record quantize - 8
 52: MIDI in clock enabled
@@ -81,15 +83,15 @@ namespace FlashStorage {
 60: shortcuts version
 61: audioClipRecordMargins
 62: count-in for recording
-63: GLOBAL_MIDI_COMMAND_LOOP channel + 1
-64: GLOBAL_MIDI_COMMAND_LOOP noteCode + 1
-65: GLOBAL_MIDI_COMMAND_UNDO channel + 1
-66: GLOBAL_MIDI_COMMAND_UNDO noteCode + 1
-67: GLOBAL_MIDI_COMMAND_REDO channel + 1
-68: GLOBAL_MIDI_COMMAND_REDO noteCode + 1
+63: GlobalMIDICommand::LOOP channel + 1
+64: GlobalMIDICommand::LOOP noteCode + 1
+65: GlobalMIDICommand::UNDO channel + 1
+66: GlobalMIDICommand::UNDO noteCode + 1
+67: GlobalMIDICommand::REDO channel + 1
+68: GlobalMIDICommand::REDO noteCode + 1
 69: keyboard layout
-70: GLOBAL_MIDI_COMMAND_LOOP_CONTINUOUS_LAYERING channel + 1
-71: GLOBAL_MIDI_COMMAND_LOOP_CONTINUOUS_LAYERING noteCode + 1
+70: GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING channel + 1
+71: GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING noteCode + 1
 72: sample browser preview mode
 73: default velocity
 74: "active" colour
@@ -98,20 +100,20 @@ namespace FlashStorage {
 77: "solo" colour
 78: default magnitude (resolution)
 79: MIDI input device differentiation on/off
-80: GLOBAL_MIDI_COMMAND_PLAYBACK_RESTART			product / vendor ids
-84: GLOBAL_MIDI_COMMAND_PLAY						product / vendor ids
-88: GLOBAL_MIDI_COMMAND_RECORD						product / vendor ids
-92: GLOBAL_MIDI_COMMAND_TAP							product / vendor ids
-96: GLOBAL_MIDI_COMMAND_LOOP						product / vendor ids
-100: GLOBAL_MIDI_COMMAND_LOOP_CONTINUOUS_LAYERING	product / vendor ids
-104: GLOBAL_MIDI_COMMAND_UNDO						product / vendor ids
-108-111: GLOBAL_MIDI_COMMAND_REDO					product / vendor ids
+80: GlobalMIDICommand::PLAYBACK_RESTART			product / vendor ids
+84: GlobalMIDICommand::PLAY						product / vendor ids
+88: GlobalMIDICommand::RECORD						product / vendor ids
+92: GlobalMIDICommand::TAP							product / vendor ids
+96: GlobalMIDICommand::LOOP						product / vendor ids
+100: GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING	product / vendor ids
+104: GlobalMIDICommand::UNDO						product / vendor ids
+108-111: GlobalMIDICommand::REDO					product / vendor ids
 112: default MIDI bend range
 */
 
 uint8_t defaultScale;
 bool audioClipRecordMargins;
-uint8_t keyboardLayout;
+KeyboardLayout keyboardLayout;
 uint8_t recordQuantizeLevel; // Assumes insideWorldTickMagnitude==1, which is not default anymore, so adjust accordingly
 uint8_t sampleBrowserPreviewMode;
 uint8_t defaultVelocity;
@@ -133,7 +135,7 @@ void resetSettings() {
 	cvEngine.setCVTranspose(1, 0, 0);
 
 	for (int i = 0; i < NUM_GATE_CHANNELS; i++) {
-		cvEngine.setGateType(i, GATE_MODE_V_TRIG);
+		cvEngine.setGateType(i, GateType::V_TRIG);
 	}
 
 	cvEngine.minGateOffTime = 10;
@@ -148,13 +150,13 @@ void resetSettings() {
 	PadLEDs::flashCursor = FLASH_CURSOR_SLOW;
 
 	midiEngine.midiThru = false;
-	midiEngine.midiTakeover = 0;
+	midiEngine.midiTakeover = MIDITakeoverMode::JUMP;
 
-	for (int i = 0; i < NUM_GLOBAL_MIDI_COMMANDS; i++) {
-		midiEngine.globalMIDICommands[i].clear();
+	for (auto& globalMIDICommand : midiEngine.globalMIDICommands) {
+		globalMIDICommand.clear();
 	}
 
-	AudioEngine::inputMonitoringMode = INPUT_MONITORING_SMART;
+	AudioEngine::inputMonitoringMode = InputMonitoringMode::SMART;
 	recordQuantizeLevel = 8;
 
 	defaultTempoMenu.lower = 120;
@@ -172,7 +174,7 @@ void resetSettings() {
 
 	audioClipRecordMargins = true;
 	playbackHandler.countInEnabled = false;
-	keyboardLayout = KEYBOARD_LAYOUT_QWERTY;
+	keyboardLayout = KeyboardLayout::QWERTY;
 	sampleBrowserPreviewMode = PREVIEW_ONLY_WHILE_NOT_PLAYING;
 
 	defaultVelocity = 64;
@@ -213,7 +215,7 @@ void readSettings() {
 	cvEngine.setCVTranspose(1, buffer[15], buffer[19]);
 
 	for (int i = 0; i < NUM_GATE_CHANNELS; i++) {
-		cvEngine.setGateType(i, buffer[22 + i]);
+		cvEngine.setGateType(i, static_cast<GateType>(buffer[22 + i]));
 	}
 
 	cvEngine.minGateOffTime = buffer[30];
@@ -234,35 +236,38 @@ void readSettings() {
 
 	midiEngine.midiThru = buffer[37];
 
-	midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_PLAYBACK_RESTART].channelOrZone = buffer[38] - 1;
-	midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_PLAYBACK_RESTART].noteOrCC = buffer[39] - 1;
-	midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_PLAY].channelOrZone = buffer[40] - 1;
-	midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_PLAY].noteOrCC = buffer[41] - 1;
-	midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_RECORD].channelOrZone = buffer[42] - 1;
-	midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_RECORD].noteOrCC = buffer[43] - 1;
-	midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_TAP].channelOrZone = buffer[44] - 1;
-	midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_TAP].noteOrCC = buffer[45] - 1;
-	midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_LOOP].channelOrZone = buffer[63] - 1;
-	midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_LOOP].noteOrCC = buffer[64] - 1;
-	midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_UNDO].channelOrZone = buffer[65] - 1;
-	midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_UNDO].noteOrCC = buffer[66] - 1;
-	midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_REDO].channelOrZone = buffer[67] - 1;
-	midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_REDO].noteOrCC = buffer[68] - 1;
-	midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_LOOP_CONTINUOUS_LAYERING].channelOrZone = buffer[70] - 1;
-	midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_LOOP_CONTINUOUS_LAYERING].noteOrCC = buffer[71] - 1;
+	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::PLAYBACK_RESTART)].channelOrZone =
+	    buffer[38] - 1;
+	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::PLAYBACK_RESTART)].noteOrCC = buffer[39] - 1;
+	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::PLAY)].channelOrZone = buffer[40] - 1;
+	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::PLAY)].noteOrCC = buffer[41] - 1;
+	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::RECORD)].channelOrZone = buffer[42] - 1;
+	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::RECORD)].noteOrCC = buffer[43] - 1;
+	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::TAP)].channelOrZone = buffer[44] - 1;
+	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::TAP)].noteOrCC = buffer[45] - 1;
+	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::LOOP)].channelOrZone = buffer[63] - 1;
+	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::LOOP)].noteOrCC = buffer[64] - 1;
+	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::UNDO)].channelOrZone = buffer[65] - 1;
+	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::UNDO)].noteOrCC = buffer[66] - 1;
+	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::REDO)].channelOrZone = buffer[67] - 1;
+	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::REDO)].noteOrCC = buffer[68] - 1;
+	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING)].channelOrZone =
+	    buffer[70] - 1;
+	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING)].noteOrCC =
+	    buffer[71] - 1;
 
 	if (previouslySavedByFirmwareVersion >= FIRMWARE_3P2P0_ALPHA) {
-		MIDIDeviceManager::readDeviceReferenceFromFlash(GLOBAL_MIDI_COMMAND_PLAYBACK_RESTART, &buffer[80]);
-		MIDIDeviceManager::readDeviceReferenceFromFlash(GLOBAL_MIDI_COMMAND_PLAY, &buffer[84]);
-		MIDIDeviceManager::readDeviceReferenceFromFlash(GLOBAL_MIDI_COMMAND_RECORD, &buffer[88]);
-		MIDIDeviceManager::readDeviceReferenceFromFlash(GLOBAL_MIDI_COMMAND_TAP, &buffer[92]);
-		MIDIDeviceManager::readDeviceReferenceFromFlash(GLOBAL_MIDI_COMMAND_LOOP, &buffer[96]);
-		MIDIDeviceManager::readDeviceReferenceFromFlash(GLOBAL_MIDI_COMMAND_LOOP_CONTINUOUS_LAYERING, &buffer[100]);
-		MIDIDeviceManager::readDeviceReferenceFromFlash(GLOBAL_MIDI_COMMAND_UNDO, &buffer[104]);
-		MIDIDeviceManager::readDeviceReferenceFromFlash(GLOBAL_MIDI_COMMAND_REDO, &buffer[108]);
+		MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::PLAYBACK_RESTART, &buffer[80]);
+		MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::PLAY, &buffer[84]);
+		MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::RECORD, &buffer[88]);
+		MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::TAP, &buffer[92]);
+		MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::LOOP, &buffer[96]);
+		MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING, &buffer[100]);
+		MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::UNDO, &buffer[104]);
+		MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::REDO, &buffer[108]);
 	}
 
-	AudioEngine::inputMonitoringMode = buffer[50];
+	AudioEngine::inputMonitoringMode = static_cast<InputMonitoringMode>(buffer[50]);
 
 	recordQuantizeLevel = buffer[51] + 8;
 	if (recordQuantizeLevel == 10) {
@@ -301,12 +306,12 @@ void readSettings() {
 	if (previouslySavedByFirmwareVersion < FIRMWARE_3P0P0_ALPHA) {
 		audioClipRecordMargins = true;
 		playbackHandler.countInEnabled = false;
-		keyboardLayout = KEYBOARD_LAYOUT_QWERTY;
+		keyboardLayout = KeyboardLayout::QWERTY;
 	}
 	else {
 		audioClipRecordMargins = buffer[61];
 		playbackHandler.countInEnabled = buffer[62];
-		keyboardLayout = buffer[69];
+		keyboardLayout = static_cast<KeyboardLayout>(buffer[69]);
 	}
 
 	if (previouslySavedByFirmwareVersion < FIRMWARE_3P0P0_BETA) {
@@ -367,14 +372,14 @@ void readSettings() {
 			defaultBendRange[BEND_RANGE_MAIN] = 12;
 		}
 	}
-	midiEngine.midiTakeover = buffer[113];
+	midiEngine.midiTakeover = static_cast<MIDITakeoverMode>(buffer[113]);
 }
 
 void writeSettings() {
 	uint8_t* buffer = (uint8_t*)miscStringBuffer;
-	memset(buffer, 0, FILENAME_BUFFER_SIZE);
+	memset(buffer, 0, kFilenameBufferSize);
 
-	buffer[0] = CURRENT_FIRMWARE_VERSION;
+	buffer[0] = kCurrentFirmwareVersion;
 
 	buffer[2] = ramSize;
 
@@ -388,7 +393,7 @@ void writeSettings() {
 	buffer[19] = cvEngine.cvChannels[1].cents;
 
 	for (int i = 0; i < NUM_GATE_CHANNELS; i++) {
-		buffer[22 + i] = cvEngine.gateChannels[i].mode;
+		buffer[22 + i] = util::to_underlying(cvEngine.gateChannels[i].mode);
 	}
 
 	buffer[30] = cvEngine.minGateOffTime;
@@ -400,33 +405,37 @@ void writeSettings() {
 	buffer[35] = playbackHandler.tempoMagnitudeMatchingEnabled;
 	buffer[36] = PadLEDs::flashCursor;
 	buffer[37] = midiEngine.midiThru;
-	buffer[38] = midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_PLAYBACK_RESTART].channelOrZone + 1;
-	buffer[39] = midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_PLAYBACK_RESTART].noteOrCC + 1;
-	buffer[40] = midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_PLAY].channelOrZone + 1;
-	buffer[41] = midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_PLAY].noteOrCC + 1;
-	buffer[42] = midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_RECORD].channelOrZone + 1;
-	buffer[43] = midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_RECORD].noteOrCC + 1;
-	buffer[44] = midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_TAP].channelOrZone + 1;
-	buffer[45] = midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_TAP].noteOrCC + 1;
-	buffer[63] = midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_LOOP].channelOrZone + 1;
-	buffer[64] = midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_LOOP].noteOrCC + 1;
-	buffer[65] = midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_UNDO].channelOrZone + 1;
-	buffer[66] = midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_UNDO].noteOrCC + 1;
-	buffer[67] = midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_REDO].channelOrZone + 1;
-	buffer[68] = midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_REDO].noteOrCC + 1;
-	buffer[70] = midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_LOOP_CONTINUOUS_LAYERING].channelOrZone + 1;
-	buffer[71] = midiEngine.globalMIDICommands[GLOBAL_MIDI_COMMAND_LOOP_CONTINUOUS_LAYERING].noteOrCC + 1;
+	buffer[38] =
+	    midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::PLAYBACK_RESTART)].channelOrZone + 1;
+	buffer[39] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::PLAYBACK_RESTART)].noteOrCC + 1;
+	buffer[40] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::PLAY)].channelOrZone + 1;
+	buffer[41] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::PLAY)].noteOrCC + 1;
+	buffer[42] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::RECORD)].channelOrZone + 1;
+	buffer[43] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::RECORD)].noteOrCC + 1;
+	buffer[44] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::TAP)].channelOrZone + 1;
+	buffer[45] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::TAP)].noteOrCC + 1;
+	buffer[63] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::LOOP)].channelOrZone + 1;
+	buffer[64] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::LOOP)].noteOrCC + 1;
+	buffer[65] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::UNDO)].channelOrZone + 1;
+	buffer[66] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::UNDO)].noteOrCC + 1;
+	buffer[67] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::REDO)].channelOrZone + 1;
+	buffer[68] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::REDO)].noteOrCC + 1;
+	buffer[70] =
+	    midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING)].channelOrZone
+	    + 1;
+	buffer[71] =
+	    midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING)].noteOrCC + 1;
 
-	MIDIDeviceManager::writeDeviceReferenceToFlash(GLOBAL_MIDI_COMMAND_PLAYBACK_RESTART, &buffer[80]);
-	MIDIDeviceManager::writeDeviceReferenceToFlash(GLOBAL_MIDI_COMMAND_PLAY, &buffer[84]);
-	MIDIDeviceManager::writeDeviceReferenceToFlash(GLOBAL_MIDI_COMMAND_RECORD, &buffer[88]);
-	MIDIDeviceManager::writeDeviceReferenceToFlash(GLOBAL_MIDI_COMMAND_TAP, &buffer[92]);
-	MIDIDeviceManager::writeDeviceReferenceToFlash(GLOBAL_MIDI_COMMAND_LOOP, &buffer[96]);
-	MIDIDeviceManager::writeDeviceReferenceToFlash(GLOBAL_MIDI_COMMAND_LOOP_CONTINUOUS_LAYERING, &buffer[100]);
-	MIDIDeviceManager::writeDeviceReferenceToFlash(GLOBAL_MIDI_COMMAND_UNDO, &buffer[104]);
-	MIDIDeviceManager::writeDeviceReferenceToFlash(GLOBAL_MIDI_COMMAND_REDO, &buffer[108]);
+	MIDIDeviceManager::writeDeviceReferenceToFlash(GlobalMIDICommand::PLAYBACK_RESTART, &buffer[80]);
+	MIDIDeviceManager::writeDeviceReferenceToFlash(GlobalMIDICommand::PLAY, &buffer[84]);
+	MIDIDeviceManager::writeDeviceReferenceToFlash(GlobalMIDICommand::RECORD, &buffer[88]);
+	MIDIDeviceManager::writeDeviceReferenceToFlash(GlobalMIDICommand::TAP, &buffer[92]);
+	MIDIDeviceManager::writeDeviceReferenceToFlash(GlobalMIDICommand::LOOP, &buffer[96]);
+	MIDIDeviceManager::writeDeviceReferenceToFlash(GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING, &buffer[100]);
+	MIDIDeviceManager::writeDeviceReferenceToFlash(GlobalMIDICommand::UNDO, &buffer[104]);
+	MIDIDeviceManager::writeDeviceReferenceToFlash(GlobalMIDICommand::REDO, &buffer[108]);
 
-	buffer[50] = AudioEngine::inputMonitoringMode;
+	buffer[50] = util::to_underlying(AudioEngine::inputMonitoringMode);
 
 	buffer[51] = recordQuantizeLevel - 8;
 
@@ -445,7 +454,7 @@ void writeSettings() {
 	buffer[61] = audioClipRecordMargins;
 	buffer[62] = playbackHandler.countInEnabled;
 
-	buffer[69] = keyboardLayout;
+	buffer[69] = util::to_underlying(keyboardLayout);
 	buffer[72] = sampleBrowserPreviewMode;
 
 	buffer[73] = defaultVelocity;
@@ -460,7 +469,7 @@ void writeSettings() {
 
 	buffer[112] = defaultBendRange[BEND_RANGE_MAIN];
 
-	buffer[113] = midiEngine.midiTakeover;
+	buffer[113] = util::to_underlying(midiEngine.midiTakeover);
 
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
 	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer, 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,

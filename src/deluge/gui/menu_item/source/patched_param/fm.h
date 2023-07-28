@@ -27,6 +27,6 @@ public:
 
 	[[nodiscard]] const string& getTitle() const override { return FormattedTitle::title(); }
 
-	bool isRelevant(Sound* sound, int whichThing) override { return (sound->getSynthMode() == SYNTH_MODE_FM); }
+	bool isRelevant(Sound* sound, int whichThing) override { return (sound->getSynthMode() == SynthMode::FM); }
 };
 } // namespace deluge::gui::menu_item::source::patched_param

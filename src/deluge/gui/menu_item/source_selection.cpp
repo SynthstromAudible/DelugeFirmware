@@ -16,6 +16,7 @@
 */
 
 #include "source_selection.h"
+#include "definitions_cxx.hpp"
 #include "modulation/params/param_manager.h"
 #include "processing/sound/sound.h"
 #include "gui/ui/sound_editor.h"
@@ -25,14 +26,11 @@
 #include <array>
 
 namespace deluge::gui::menu_item {
-const uint8_t sourceMenuContents[] = {
-    PATCH_SOURCE_ENVELOPE_0, PATCH_SOURCE_ENVELOPE_1, PATCH_SOURCE_LFO_GLOBAL, PATCH_SOURCE_LFO_LOCAL,
-    PATCH_SOURCE_VELOCITY,   PATCH_SOURCE_NOTE,       PATCH_SOURCE_COMPRESSOR, PATCH_SOURCE_RANDOM,
-    PATCH_SOURCE_X,          PATCH_SOURCE_Y,          PATCH_SOURCE_AFTERTOUCH,
+const PatchSource sourceMenuContents[] = {
+    PatchSource::ENVELOPE_0, PatchSource::ENVELOPE_1, PatchSource::LFO_GLOBAL, PatchSource::LFO_LOCAL,
+    PatchSource::VELOCITY,   PatchSource::NOTE,       PatchSource::COMPRESSOR, PatchSource::RANDOM,
+    PatchSource::X,          PatchSource::Y,          PatchSource::AFTERTOUCH,
 };
-
-SourceSelection::SourceSelection() {
-}
 
 uint8_t SourceSelection::shouldDrawDotOnValue() {
 	return soundEditor.currentParamManager->getPatchCableSet()->isSourcePatchedToDestinationDescriptorVolumeInspecific(
@@ -46,19 +44,19 @@ uint8_t SourceSelection::shouldDrawDotOnValue() {
 int SourceSelection::selectedRowOnScreen;
 
 void SourceSelection::drawPixelsForOled() {
-	static_vector<string, OLED_MENU_NUM_OPTIONS_VISIBLE> itemNames{};
+	static_vector<string, kOLEDMenuNumOptionsVisible> itemNames{};
 
 	selectedRowOnScreen = 0;
 
 	int thisOption = scrollPos;
 	size_t i = 0;
 
-	while (i < OLED_MENU_NUM_OPTIONS_VISIBLE) {
-		if (thisOption >= NUM_PATCH_SOURCES) {
+	while (i < kOLEDMenuNumOptionsVisible) {
+		if (thisOption >= kNumPatchSources) {
 			break;
 		}
 
-		int sHere = sourceMenuContents[thisOption];
+		const PatchSource sHere = sourceMenuContents[thisOption];
 
 		if (sourceIsAllowed(sHere)) {
 			itemNames.push_back(getSourceDisplayNameForOLED(sHere));
@@ -83,47 +81,47 @@ void SourceSelection::drawPixelsForOled() {
 void SourceSelection::drawValue() {
 	char const* text;
 	switch (sourceMenuContents[this->value_]) {
-	case PATCH_SOURCE_LFO_GLOBAL:
+	case PatchSource::LFO_GLOBAL:
 		text = "LFO1";
 		break;
 
-	case PATCH_SOURCE_LFO_LOCAL:
+	case PatchSource::LFO_LOCAL:
 		text = "LFO2";
 		break;
 
-	case PATCH_SOURCE_ENVELOPE_0:
+	case PatchSource::ENVELOPE_0:
 		text = "ENV1";
 		break;
 
-	case PATCH_SOURCE_ENVELOPE_1:
+	case PatchSource::ENVELOPE_1:
 		text = "ENV2";
 		break;
 
-	case PATCH_SOURCE_COMPRESSOR:
+	case PatchSource::COMPRESSOR:
 		text = "SIDE";
 		break;
 
-	case PATCH_SOURCE_VELOCITY:
+	case PatchSource::VELOCITY:
 		text = "VELOCITY";
 		break;
 
-	case PATCH_SOURCE_NOTE:
+	case PatchSource::NOTE:
 		text = "NOTE";
 		break;
 
-	case PATCH_SOURCE_RANDOM:
+	case PatchSource::RANDOM:
 		text = "RANDOM";
 		break;
 
-	case PATCH_SOURCE_AFTERTOUCH:
+	case PatchSource::AFTERTOUCH:
 		text = "AFTERTOUCH";
 		break;
 
-	case PATCH_SOURCE_X:
+	case PatchSource::X:
 		text = "X";
 		break;
 
-	case PATCH_SOURCE_Y:
+	case PatchSource::Y:
 		text = "Y";
 		break;
 	}
@@ -145,7 +143,7 @@ void SourceSelection::beginSession(MenuItem* navigatedBackwardFrom) {
 		// Scroll pos will be retained from before.
 	}
 	else {
-		int firstAllowedIndex = NUM_PATCH_SOURCES - 1;
+		int firstAllowedIndex = kNumPatchSources - 1;
 		while (true) {
 			s = sourceMenuContents[this->value_];
 
@@ -165,7 +163,7 @@ void SourceSelection::beginSession(MenuItem* navigatedBackwardFrom) {
 			scrollPos = this->value_;
 #endif
 
-			if (this->value_ >= NUM_PATCH_SOURCES) {
+			if (this->value_ >= kNumPatchSources) {
 				this->value_ = firstAllowedIndex;
 #if HAVE_OLED
 				scrollPos = this->value_;
@@ -196,14 +194,14 @@ void SourceSelection::selectEncoderAction(int offset) {
 		newValue += offset;
 
 #if HAVE_OLED
-		if (newValue >= NUM_PATCH_SOURCES || newValue < 0) {
+		if (newValue >= kNumPatchSources || newValue < 0) {
 			return;
 		}
 #else
-		if (newValue >= NUM_PATCH_SOURCES)
-			newValue -= NUM_PATCH_SOURCES;
+		if (newValue >= kNumPatchSources)
+			newValue -= kNumPatchSources;
 		else if (newValue < 0)
-			newValue += NUM_PATCH_SOURCES;
+			newValue += kNumPatchSources;
 #endif
 		s = sourceMenuContents[newValue];
 
@@ -215,7 +213,7 @@ void SourceSelection::selectEncoderAction(int offset) {
 	if (this->value_ < scrollPos) {
 		scrollPos = this->value_;
 	}
-	else if (offset >= 0 && selectedRowOnScreen == OLED_MENU_NUM_OPTIONS_VISIBLE - 1) {
+	else if (offset >= 0 && selectedRowOnScreen == kOLEDMenuNumOptionsVisible - 1) {
 		scrollPos++;
 	}
 
@@ -225,41 +223,41 @@ void SourceSelection::selectEncoderAction(int offset) {
 #endif
 }
 
-bool SourceSelection::sourceIsAllowed(int source) {
+bool SourceSelection::sourceIsAllowed(PatchSource source) {
 	ParamDescriptor destinationDescriptor = getDestinationDescriptor();
 
 	// If patching to another cable's range...
 	if (!destinationDescriptor.isJustAParam()) {
 		// Global source - can control any range
-		if (source < FIRST_LOCAL_SOURCE) {
+		if (source < kFirstLocalSource) {
 			return true;
 		}
 
 		// Local source - range must be for cable going to local param
 		else {
-			return destinationDescriptor.getJustTheParam() < FIRST_GLOBAL_PARAM;
+			return destinationDescriptor.getJustTheParam() < ::Param::Global::FIRST;
 		}
 	}
 
 	int p = destinationDescriptor.getJustTheParam();
 
 	// Check that this source is allowed to be patched to the selected param
-	if (p == PARAM_GLOBAL_VOLUME_POST_FX) {
+	if (p == ::Param::Global::VOLUME_POST_FX) {
 		return (soundEditor.currentSound->maySourcePatchToParam(
-		            source, PARAM_GLOBAL_VOLUME_POST_FX, (ParamManagerForTimeline*)soundEditor.currentParamManager)
-		            != PATCH_CABLE_ACCEPTANCE_DISALLOWED
+		            source, ::Param::Global::VOLUME_POST_FX, (ParamManagerForTimeline*)soundEditor.currentParamManager)
+		            != PatchCableAcceptance::DISALLOWED
 		        || soundEditor.currentSound->maySourcePatchToParam(
-		               source, PARAM_LOCAL_VOLUME, (ParamManagerForTimeline*)soundEditor.currentParamManager)
-		               != PATCH_CABLE_ACCEPTANCE_DISALLOWED
+		               source, ::Param::Local::VOLUME, (ParamManagerForTimeline*)soundEditor.currentParamManager)
+		               != PatchCableAcceptance::DISALLOWED
 		        || soundEditor.currentSound->maySourcePatchToParam(
-		               source, PARAM_GLOBAL_VOLUME_POST_REVERB_SEND,
+		               source, ::Param::Global::VOLUME_POST_REVERB_SEND,
 		               (ParamManagerForTimeline*)soundEditor.currentParamManager)
-		               != PATCH_CABLE_ACCEPTANCE_DISALLOWED);
+		               != PatchCableAcceptance::DISALLOWED);
 	}
 	else {
 		return (soundEditor.currentSound->maySourcePatchToParam(
 		            source, p, (ParamManagerForTimeline*)soundEditor.currentParamManager)
-		        != PATCH_CABLE_ACCEPTANCE_DISALLOWED);
+		        != PatchCableAcceptance::DISALLOWED);
 	}
 }
 
@@ -267,7 +265,7 @@ uint8_t SourceSelection::getIndexOfPatchedParamToBlink() {
 	return soundEditor.patchingParamSelected;
 }
 
-uint8_t SourceSelection::shouldBlinkPatchingSourceShortcut(int s, uint8_t* colour) {
+uint8_t SourceSelection::shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) {
 	return soundEditor.currentParamManager->getPatchCableSet()->isSourcePatchedToDestinationDescriptorVolumeInspecific(
 	           s, getDestinationDescriptor())
 	           ? 3

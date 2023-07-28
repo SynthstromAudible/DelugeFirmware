@@ -28,18 +28,18 @@ public:
 
 	bool opened();
 	void focusRegained();
-	bool renderMainPads(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
-	                    uint8_t occupancyMask[][displayWidth + sideBarWidth], bool drawUndefinedArea = true);
-	bool renderSidebar(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
-	                   uint8_t occupancyMask[][displayWidth + sideBarWidth]);
+	bool renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
+	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 	bool setupScroll(uint32_t oldScroll);
 	void transitionToSessionView();
 	void tellMatrixDriverWhichRowsContainSomethingZoomable();
 	bool supportsTriplets() { return false; }
 	ClipMinder* toClipMinder() { return this; }
 
-	int buttonAction(hid::Button b, bool on, bool inCardRoutine);
-	int padAction(int x, int y, int velocity);
+	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
+	ActionResult padAction(int x, int y, int velocity);
 
 	void graphicsRoutine();
 	void playbackEnded();
@@ -47,8 +47,8 @@ public:
 	void clipNeedsReRendering(Clip* clip);
 	void sampleNeedsReRendering(Sample* sample);
 	void selectEncoderAction(int8_t offset);
-	int verticalEncoderAction(int offset, bool inCardRoutine);
-	int timerCallback();
+	ActionResult verticalEncoderAction(int offset, bool inCardRoutine);
+	ActionResult timerCallback();
 	uint32_t getMaxLength();
 	unsigned int getMaxZoom();
 

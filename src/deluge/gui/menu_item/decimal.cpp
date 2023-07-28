@@ -153,12 +153,12 @@ void Decimal::drawPixelsForOled() {
 		length++;
 	}
 
-	int digitWidth = TEXT_HUGE_SPACING_X;
+	int digitWidth = kTextHugeSpacingX;
 	int stringWidth = digitWidth * length;
 	int stringStartX = (OLED_MAIN_WIDTH_PIXELS - stringWidth) >> 1;
 
 	OLED::drawString(buffer, stringStartX, 20, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, digitWidth,
-	                 TEXT_HUGE_SIZE_Y);
+	                 kTextHugeSizeY);
 
 	int ourDigitStartX = stringStartX + editingChar * digitWidth;
 	OLED::setupBlink(ourDigitStartX, digitWidth, 40, 44, movingCursor);
@@ -186,8 +186,8 @@ void Decimal::drawActualValue(bool justDidHorizontalScroll) {
 
 	indicator_leds::blinkLed(IndicatorLED::BACK, 255, 0, !justDidHorizontalScroll);
 
-	uint8_t blinkMask[NUMERIC_DISPLAY_LENGTH];
-	memset(&blinkMask, 255, NUMERIC_DISPLAY_LENGTH);
+	uint8_t blinkMask[kNumericDisplayLength];
+	memset(&blinkMask, 255, kNumericDisplayLength);
 	blinkMask[3 + soundEditor.numberScrollAmount - soundEditor.numberEditPos] = 0b10000000;
 
 	numericDriver.setText(outputText,

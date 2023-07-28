@@ -32,7 +32,7 @@ public:
 	}
 #endif
 	bool isRelevant(Sound* sound, int whichThing) {
-		return (sound->synthMode == SYNTH_MODE_FM);
+		return (sound->synthMode == SynthMode::FM);
 	}
 };
 

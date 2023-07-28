@@ -15,18 +15,20 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "gui/menu_item/selection.h"
 #include "processing/engines/audio_engine.h"
 #include "gui/ui/sound_editor.h"
+#include "util/misc.h"
 
 namespace deluge::gui::menu_item::monitor {
-class Mode final : public Selection<NUM_INPUT_MONITORING_MODES> {
+class Mode final : public Selection<kNumInputMonitoringModes> {
 public:
 	using Selection::Selection;
 
-	void readCurrentValue() override { this->value_ = AudioEngine::inputMonitoringMode; }
-	void writeCurrentValue() override { AudioEngine::inputMonitoringMode = this->value_; }
+	void readCurrentValue() override { this->value_ = util::to_underlying(AudioEngine::inputMonitoringMode); }
+	void writeCurrentValue() override { AudioEngine::inputMonitoringMode = static_cast<InputMonitoringMode>(this->value_); }
 	static_vector<string, capacity()> getOptions() override { return {"Conditional", "On", "Off"}; }
+
 };
 } // namespace deluge::gui::menu_item::monitor

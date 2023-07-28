@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "definitions_cxx.hpp"
 #include "gui/menu_item/source_selection.h"
 
 namespace deluge::gui::menu_item::source_selection {
@@ -24,7 +25,7 @@ public:
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
 	ParamDescriptor getDestinationDescriptor() override;
 	MenuItem* selectButtonPress() override;
-	MenuItem* patchingSourceShortcutPress(int newS, bool previousPressStillActive) override;
+	MenuItem* patchingSourceShortcutPress(PatchSource newS, bool previousPressStillActive) override;
 #if HAVE_OLED
 	const string& getTitle() const override {
 		return "Modulate with";

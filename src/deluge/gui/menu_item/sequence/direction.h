@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "definitions_cxx.hpp"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
@@ -22,6 +23,7 @@
 #include "gui/menu_item/selection.h"
 #include "model/song/song.h"
 #include "gui/ui/sound_editor.h"
+#include "util/misc.h"
 
 namespace deluge::gui::menu_item::sequence {
 class Direction final : public Selection<4> {
@@ -30,7 +32,7 @@ public:
 
 	ModelStackWithNoteRow* getIndividualNoteRow(ModelStackWithTimelineCounter* modelStack) {
 		auto* clip = dynamic_cast<InstrumentClip*>(modelStack->getTimelineCounter());
-		if (!clip->affectEntire && clip->output->type == INSTRUMENT_TYPE_KIT) {
+		if (!clip->affectEntire && clip->output->type == InstrumentType::KIT) {
 			Kit* kit = dynamic_cast<Kit*>(currentSong->currentClip->output);
 			if (kit->selectedDrum != nullptr) {
 				return clip->getNoteRowForDrum(modelStack, kit->selectedDrum); // Still might be NULL;
@@ -45,10 +47,11 @@ public:
 		ModelStackWithNoteRow* modelStackWithNoteRow = getIndividualNoteRow(modelStack);
 
 		if (modelStackWithNoteRow->getNoteRowAllowNull() != nullptr) {
-			this->value_ = modelStackWithNoteRow->getNoteRow()->sequenceDirectionMode;
+			this->value_ = util::to_underlying(modelStackWithNoteRow->getNoteRow()->sequenceDirectionMode);
 		}
 		else {
-			this->value_ = (dynamic_cast<InstrumentClip*>(currentSong->currentClip))->sequenceDirectionMode;
+			this->value_ =
+			    util::to_underlying((dynamic_cast<InstrumentClip*>(currentSong->currentClip))->sequenceDirectionMode);
 		}
 	}
 
@@ -57,11 +60,12 @@ public:
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 		ModelStackWithNoteRow* modelStackWithNoteRow = getIndividualNoteRow(modelStack);
 		if (modelStackWithNoteRow->getNoteRowAllowNull() != nullptr) {
-			modelStackWithNoteRow->getNoteRow()->setSequenceDirectionMode(modelStackWithNoteRow, this->value_);
+			modelStackWithNoteRow->getNoteRow()->setSequenceDirectionMode(modelStackWithNoteRow, static_cast<SequenceDirection>(this->value_));
 		}
 		else {
 			(dynamic_cast<InstrumentClip*>(currentSong->currentClip))
-			    ->setSequenceDirectionMode(modelStackWithNoteRow->toWithTimelineCounter(), this->value_);
+			    ->setSequenceDirectionMode(modelStackWithNoteRow->toWithTimelineCounter(),
+			                               static_cast<SequenceDirection>(this->value_));
 		}
 	}
 
@@ -78,13 +82,13 @@ public:
 		return sequenceDirectionOptions;
 	}
 
-	int checkPermissionToBeginSession(Sound* sound, int whichThing, ::MultiRange** currentRange) override {
+	MenuPermission checkPermissionToBeginSession(Sound* sound, int whichThing, ::MultiRange** currentRange) override {
 		if (!(dynamic_cast<InstrumentClip*>(currentSong->currentClip))->affectEntire
-		    && currentSong->currentClip->output->type == INSTRUMENT_TYPE_KIT
+		    && currentSong->currentClip->output->type == InstrumentType::KIT
 		    && ((dynamic_cast<Kit*>(currentSong->currentClip->output))->selectedDrum == nullptr)) {
-			return MENU_PERMISSION_NO;
+			return MenuPermission::NO;
 		}
-		return MENU_PERMISSION_YES;
+		return MenuPermission::YES;
 	}
 };
 } // namespace deluge::gui::menu_item::sequence

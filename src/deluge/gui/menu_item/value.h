@@ -18,7 +18,7 @@
 #pragma once
 
 #include "menu_item.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "gui/ui/ui.h"
 
 namespace deluge::gui::menu_item {

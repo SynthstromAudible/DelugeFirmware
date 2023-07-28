@@ -16,19 +16,20 @@
 */
 
 #pragma once
+#include "definitions_cxx.hpp"
 #include "gui/menu_item/menu_item.h"
 
 namespace deluge::gui::menu_item::audio_clip {
 
 class SampleMarkerEditor final : public MenuItem {
 public:
-	SampleMarkerEditor(char const* newName = nullptr, int newWhichMarker = 0)
+	SampleMarkerEditor(char const* newName = nullptr, MarkerType newWhichMarker = MarkerType::START)
 	    : MenuItem(newName), whichMarker(newWhichMarker) {}
 
-	virtual int checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange);
+	virtual MenuPermission checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange);
 	void beginSession(MenuItem* navigatedBackwardFrom) override;
 
-	int whichMarker;
+	MarkerType whichMarker;
 };
 
 } // namespace deluge::gui::menu_item::audio_clip

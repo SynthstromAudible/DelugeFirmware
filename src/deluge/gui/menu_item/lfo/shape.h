@@ -15,12 +15,12 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "gui/menu_item/selection.h"
 
 namespace deluge::gui::menu_item::lfo {
 
-class Shape : public Selection<NUM_LFO_TYPES> {
+class Shape : public Selection<kNumLFOTypes> {
 public:
 	using Selection::Selection;
 

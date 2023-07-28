@@ -16,6 +16,7 @@
 */
 #pragma once
 #include "decimal.h"
+#include "definitions_cxx.hpp"
 #include "gui/menu_item/patched_param.h"
 
 namespace deluge::gui::menu_item {
@@ -41,10 +42,10 @@ public:
 	}
 #endif
 
-	uint8_t shouldBlinkPatchingSourceShortcut(int s, uint8_t* colour) final {
+	uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) final {
 		return PatchedParam::shouldBlinkPatchingSourceShortcut(s, colour);
 	}
-	MenuItem* patchingSourceShortcutPress(int s, bool previousPressStillActive = false) final {
+	MenuItem* patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive = false) final {
 		return PatchedParam::patchingSourceShortcutPress(s, previousPressStillActive);
 	}
 

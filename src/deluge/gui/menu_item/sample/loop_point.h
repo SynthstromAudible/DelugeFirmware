@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "gui/menu_item/menu_item.h"
 
 namespace deluge::gui::menu_item::sample {
@@ -27,13 +28,13 @@ public:
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) final;
 	bool isRelevant(::Sound* sound, int whichThing) final;
 	bool isRangeDependent() final { return true; }
-	int checkPermissionToBeginSession(::Sound* sound, int whichThing, ::MultiRange** currentRange) final;
+	MenuPermission checkPermissionToBeginSession(::Sound* sound, int whichThing, ::MultiRange** currentRange) final;
 
 	int32_t xZoom;
 	int32_t xScroll;
 	int32_t editPos;
 
-	uint8_t markerType;
+	MarkerType markerType;
 };
 
 } // namespace deluge::gui::menu_item::sample

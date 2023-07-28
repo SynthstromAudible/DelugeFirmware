@@ -15,11 +15,13 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "definitions_cxx.hpp"
 #include "gui/menu_item/formatted_title.h"
 #include "model/sample/sample_controls.h"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "processing/sound/sound.h"
+#include "util/misc.h"
 
 namespace deluge::gui::menu_item::sample {
 class Interpolation final : public Selection<2>, public FormattedTitle {
@@ -29,9 +31,9 @@ public:
 
 	[[nodiscard]] const string& getTitle() const override { return FormattedTitle::title(); }
 
-	void readCurrentValue() override { this->value_ = soundEditor.currentSampleControls->interpolationMode; }
+	void readCurrentValue() override { this->value_ = util::to_underlying(soundEditor.currentSampleControls->interpolationMode); }
 
-	void writeCurrentValue() override { soundEditor.currentSampleControls->interpolationMode = this->value_; }
+	void writeCurrentValue() override { soundEditor.currentSampleControls->interpolationMode = static_cast<InterpolationMode>(this->value_); }
 
 	static_vector<string, capacity()> getOptions() override { return {"Linear", "Sinc"}; }
 
@@ -40,10 +42,10 @@ public:
 			return true;
 		}
 		Source* source = &sound->sources[whichThing];
-		return (sound->getSynthMode() == SYNTH_MODE_SUBTRACTIVE
-		        && ((source->oscType == OSC_TYPE_SAMPLE && source->hasAtLeastOneAudioFileLoaded())
-		            || source->oscType == OSC_TYPE_INPUT_L || source->oscType == OSC_TYPE_INPUT_R
-		            || source->oscType == OSC_TYPE_INPUT_STEREO));
+		return (sound->getSynthMode() == SynthMode::SUBTRACTIVE
+		        && ((source->oscType == OscType::SAMPLE && source->hasAtLeastOneAudioFileLoaded())
+		            || source->oscType == OscType::INPUT_L || source->oscType == OscType::INPUT_R
+		            || source->oscType == OscType::INPUT_STEREO));
 	}
 };
 } // namespace deluge::gui::menu_item::sample

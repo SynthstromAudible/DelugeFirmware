@@ -15,17 +15,19 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "definitions_cxx.hpp"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "gui/menu_item/selection.h"
 #include "processing/sound/sound.h"
 #include "gui/ui/sound_editor.h"
+#include "util/misc.h"
 
 namespace deluge::gui::menu_item::filter {
-class LPFMode final : public Selection<4> {
+class LPFMode final : public Selection<kNumLPFModes> {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->value_ = soundEditor.currentModControllable->lpfMode; }
-	void writeCurrentValue() override { soundEditor.currentModControllable->lpfMode = this->value_; }
+	void readCurrentValue() override { this->value_ = util::to_underlying(soundEditor.currentModControllable->lpfMode); }
+	void writeCurrentValue() override { soundEditor.currentModControllable->lpfMode = static_cast<::LPFMode>(this->value_); }
 	static_vector<string, capacity()> getOptions() override { return {"12dB", "24dB", "Drive", "SVF"}; }
 	bool isRelevant(Sound* sound, int whichThing) override {
 		return ((sound == nullptr) || sound->synthMode != SYNTH_MODE_FM);

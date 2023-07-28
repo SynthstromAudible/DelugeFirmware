@@ -31,6 +31,6 @@ public:
 		soundEditor.currentSound->setNumUnison(this->value_, modelStack);
 	}
 	[[nodiscard]] int getMinValue() const override { return 1; }
-	[[nodiscard]] int getMaxValue() const override { return maxNumUnison; }
+	[[nodiscard]] int getMaxValue() const override { return kMaxNumVoicesUnison; }
 };
 } // namespace deluge::gui::menu_item::unison

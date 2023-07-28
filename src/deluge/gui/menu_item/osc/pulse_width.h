@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "definitions_cxx.hpp"
 #include "gui/menu_item/formatted_title.h"
 #include "modulation/params/param_set.h"
 #include "gui/menu_item/source/patched_param.h"
@@ -37,12 +38,12 @@ public:
 	}
 
 	bool isRelevant(Sound* sound, int whichThing) override {
-		if (sound->getSynthMode() == SYNTH_MODE_FM) {
+		if (sound->getSynthMode() == SynthMode::FM) {
 			return false;
 		}
-		int oscType = sound->sources[whichThing].oscType;
-		return (oscType != OSC_TYPE_SAMPLE && oscType != OSC_TYPE_INPUT_L && oscType != OSC_TYPE_INPUT_R
-		        && oscType != OSC_TYPE_INPUT_STEREO);
+		OscType oscType = sound->sources[whichThing].oscType;
+		return (oscType != OscType::SAMPLE && oscType != OscType::INPUT_L && oscType != OscType::INPUT_R
+		        && oscType != OscType::INPUT_STEREO);
 	}
 };
 

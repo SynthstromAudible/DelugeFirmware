@@ -15,9 +15,11 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "definitions_cxx.hpp"
 #include "gui/menu_item/lfo/shape.h"
 #include "gui/ui/sound_editor.h"
 #include "processing/sound/sound.h"
+#include "util/misc.h"
 
 namespace deluge::gui::menu_item::lfo::global {
 
@@ -25,8 +27,8 @@ class Type final : public Shape {
 public:
 	using Shape::Shape;
 
-	void readCurrentValue() override { this->value_ = soundEditor.currentSound->lfoGlobalWaveType; }
-	void writeCurrentValue() override { soundEditor.currentSound->setLFOGlobalWave(this->value_); }
+	void readCurrentValue() override { this->value_ = util::to_underlying(soundEditor.currentSound->lfoGlobalWaveType); }
+	void writeCurrentValue() override { soundEditor.currentSound->setLFOGlobalWave(static_cast<LFOType>(this->value_)); }
 };
 
 } // namespace deluge::gui::menu_item::lfo::global

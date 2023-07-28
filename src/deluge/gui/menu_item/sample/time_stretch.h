@@ -43,7 +43,7 @@ public:
 			Kit* kit = dynamic_cast<Kit*>(currentSong->currentClip->output);
 
 			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
-				if (thisDrum->type == DRUM_TYPE_SOUND) {
+				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = dynamic_cast<SoundDrum*>(thisDrum);
 					Source* source = &soundDrum->sources[soundEditor.currentSourceIndex];
 
@@ -61,7 +61,7 @@ public:
 	[[nodiscard]] int getMaxValue() const override { return 48; }
 	bool isRelevant(Sound* sound, int whichThing) override {
 		Source* source = &sound->sources[whichThing];
-		return (sound->getSynthMode() == SYNTH_MODE_SUBTRACTIVE && source->oscType == OSC_TYPE_SAMPLE);
+		return (sound->getSynthMode() == SynthMode::SUBTRACTIVE && source->oscType == OscType::SAMPLE);
 	}
 };
 } // namespace deluge::gui::menu_item::sample

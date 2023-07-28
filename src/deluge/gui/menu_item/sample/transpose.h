@@ -31,8 +31,8 @@ public:
 	void readCurrentValue() override {
 		int transpose = 0;
 		int cents = 0;
-		if ((soundEditor.currentMultiRange != nullptr) && soundEditor.currentSound->getSynthMode() != SYNTH_MODE_FM
-		    && soundEditor.currentSource->oscType == OSC_TYPE_SAMPLE) {
+		if ((soundEditor.currentMultiRange != nullptr) && soundEditor.currentSound->getSynthMode() != SynthMode::FM
+		    && soundEditor.currentSource->oscType == OscType::SAMPLE) {
 			transpose = (dynamic_cast<MultisampleRange*>(soundEditor.currentMultiRange))->sampleHolder.transpose;
 			cents = (dynamic_cast<MultisampleRange*>(soundEditor.currentMultiRange))->sampleHolder.cents;
 		}
@@ -50,8 +50,8 @@ public:
 		int cents = currentValue - semitones * 100;
 
 		int transpose = semitones - 256;
-		if ((soundEditor.currentMultiRange != nullptr) && soundEditor.currentSound->getSynthMode() != SYNTH_MODE_FM
-		    && soundEditor.currentSource->oscType == OSC_TYPE_SAMPLE) {
+		if ((soundEditor.currentMultiRange != nullptr) && soundEditor.currentSound->getSynthMode() != SynthMode::FM
+		    && soundEditor.currentSource->oscType == OscType::SAMPLE) {
 			(dynamic_cast<MultisampleRange*>(soundEditor.currentMultiRange))->sampleHolder.transpose = transpose;
 			(dynamic_cast<MultisampleRange*>(soundEditor.currentMultiRange))->sampleHolder.setCents(cents);
 		}
@@ -66,17 +66,17 @@ public:
 		soundEditor.currentSound->recalculateAllVoicePhaseIncrements(modelStack);
 	}
 
-	int checkPermissionToBeginSession(Sound* sound, int whichThing, ::MultiRange** currentRange) override {
+	MenuPermission checkPermissionToBeginSession(Sound* sound, int whichThing, ::MultiRange** currentRange) override {
 
 		if (!isRelevant(sound, whichThing)) {
-			return MENU_PERMISSION_NO;
+			return MenuPermission::NO;
 		}
 
 		Source* source = &sound->sources[whichThing];
 
-		if (sound->getSynthMode() == SYNTH_MODE_FM
-		    || (source->oscType != OSC_TYPE_SAMPLE && source->oscType != OSC_TYPE_WAVETABLE)) {
-			return MENU_PERMISSION_YES;
+		if (sound->getSynthMode() == SynthMode::FM
+		    || (source->oscType != OscType::SAMPLE && source->oscType != OscType::WAVETABLE)) {
+			return MenuPermission::YES;
 		}
 
 		return soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(sound, whichThing, true, currentRange);

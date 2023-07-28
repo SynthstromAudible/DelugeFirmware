@@ -29,7 +29,7 @@ public:
 
 	bool isRelevant(Sound* sound, int whichThing) override {
 		Source* source = &sound->sources[whichThing];
-		return (sound->getSynthMode() != SYNTH_MODE_FM && source->oscType == OSC_TYPE_WAVETABLE);
+		return (sound->getSynthMode() != SynthMode::FM && source->oscType == OscType::WAVETABLE);
 	}
 };
 } // namespace deluge::gui::menu_item::osc::source

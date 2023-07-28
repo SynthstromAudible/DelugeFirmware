@@ -107,15 +107,15 @@ void Submenu<n>::drawPixelsForOled() {
 	int selectedRow = soundEditor.menuCurrentScroll;
 
 	// This finds the next relevant submenu item
-	static_vector<string, OLED_MENU_NUM_OPTIONS_VISIBLE> nextItemNames = {};
-	for (auto it = current_item_, idx = selectedRow; it != this->items.end() && idx < OLED_MENU_NUM_OPTIONS_VISIBLE; it++) {
+	static_vector<string, kOLEDMenuNumOptionsVisible> nextItemNames = {};
+	for (auto it = current_item_, idx = selectedRow; it != this->items.end() && idx < kOLEDMenuNumOptionsVisible; it++) {
 		if ((*it)->isRelevant(soundEditor.currentSound, soundEditor.currentSourceIndex)) {
 			nextItemNames.push_back((*it)->getName().c_str());
 			idx++;
 		}
 	}
 
-	static_vector<string, OLED_MENU_NUM_OPTIONS_VISIBLE> prevItemNames = {};
+	static_vector<string, kOLEDMenuNumOptionsVisible> prevItemNames = {};
 	for (auto it = current_item_ - 1, idx = selectedRow - 1; it != this->items.begin() - 1 && idx >= 0; it--) {
 		if ((*it)->isRelevant(soundEditor.currentSound, soundEditor.currentSourceIndex)) {
 			prevItemNames.push_back((*it)->getName().c_str());
@@ -171,8 +171,8 @@ void Submenu<n>::selectEncoderAction(int offset) {
 	if (soundEditor.menuCurrentScroll < 0) {
 		soundEditor.menuCurrentScroll = 0;
 	}
-	else if (soundEditor.menuCurrentScroll > OLED_MENU_NUM_OPTIONS_VISIBLE - 1) {
-		soundEditor.menuCurrentScroll = OLED_MENU_NUM_OPTIONS_VISIBLE - 1;
+	else if (soundEditor.menuCurrentScroll > kOLEDMenuNumOptionsVisible - 1) {
+		soundEditor.menuCurrentScroll = kOLEDMenuNumOptionsVisible - 1;
 	}
 #endif
 

@@ -108,7 +108,7 @@ Cluster* SampleCluster::getCluster(Sample* sample, uint32_t clusterIndex, int lo
 		if (cluster->numReasonsToBeLoaded < 1) {
 			numericDriver.freezeWithError("i005"); // Diversifying Qui's E341. It should actually be exactly 1
 		}
-		if (cluster->type != CLUSTER_SAMPLE) {
+		if (cluster->type != ClusterType::Sample) {
 			numericDriver.freezeWithError("E256"); // Cos I got E236
 		}
 #endif
@@ -125,7 +125,7 @@ Cluster* SampleCluster::getCluster(Sample* sample, uint32_t clusterIndex, int lo
 		if (loadInstruction == CLUSTER_ENQUEUE) {
 justEnqueue:
 
-			if (ALPHA_OR_BETA_VERSION && cluster->type != CLUSTER_SAMPLE) {
+			if (ALPHA_OR_BETA_VERSION && cluster->type != ClusterType::Sample) {
 				numericDriver.freezeWithError("E236"); // Cos Chris F got an E205
 			}
 
@@ -143,7 +143,7 @@ justEnqueue:
 
 			// cluster has (at least?) one reason - added above
 
-			if (ALPHA_OR_BETA_VERSION && cluster->type != CLUSTER_SAMPLE) {
+			if (ALPHA_OR_BETA_VERSION && cluster->type != ClusterType::Sample) {
 				numericDriver.freezeWithError("E234"); // Cos Chris F got an E205
 			}
 			bool result = audioFileManager.loadCluster(cluster, 1);

@@ -25,7 +25,7 @@ public:
 	using UnpatchedParam::UnpatchedParam;
 	bool isRelevant(Sound* sound, int whichThing) {
 		// TODO: really want to receive a ModControllableAudio here!
-		return (!sound || util::one_of<uint8_t>(sound->modFXType, {MOD_FX_TYPE_FLANGER, MOD_FX_TYPE_PHASER}));
+		return (!sound || util::one_of(sound->modFXType, {ModFXType::FLANGER, ModFXType::PHASER}));
 	}
 };
 } // namespace deluge::gui::menu_item::mod_fx

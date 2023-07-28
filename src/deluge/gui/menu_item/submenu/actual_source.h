@@ -36,7 +36,7 @@ public:
 	}
 #else
 	void drawName() override {
-		if (soundEditor.currentSound->getSynthMode() == SYNTH_MODE_FM) {
+		if (soundEditor.currentSound->getSynthMode() == SynthMode::FM) {
 			char buffer[5];
 			strcpy(buffer, "CAR");
 			intToString(this->thingIndex + 1, buffer + 3);

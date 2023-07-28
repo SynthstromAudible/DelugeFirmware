@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "definitions_cxx.hpp"
 #include "gui/menu_item/patch_cable_strength.h"
 
 namespace deluge::gui::menu_item::patch_cable_strength {
@@ -22,10 +23,10 @@ class Range final : public PatchCableStrength {
 public:
 	using PatchCableStrength::PatchCableStrength;
 	ParamDescriptor getDestinationDescriptor() override;
-	uint8_t getS() override;
+	PatchSource getS() override;
 	ParamDescriptor getLearningThing() override;
-	uint8_t shouldBlinkPatchingSourceShortcut(int s, uint8_t* colour) override;
-	MenuItem* patchingSourceShortcutPress(int s, bool previousPressStillActive) override;
+	uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) override;
+	MenuItem* patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive) override;
 };
 extern Range rangeMenu;
 } // namespace deluge::gui::menu_item::patch_cable_strength

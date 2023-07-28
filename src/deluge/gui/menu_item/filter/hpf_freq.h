@@ -28,7 +28,7 @@ public:
 	void drawValue() override {
 		if (this->value_ == 0
 		    && !soundEditor.currentParamManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(
-		        PARAM_LOCAL_HPF_FREQ)) {
+		        ::Param::Local::HPF_FREQ)) {
 			numericDriver.setText("OFF");
 		}
 		else {
