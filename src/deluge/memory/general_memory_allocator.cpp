@@ -26,8 +26,8 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
 #include "util/functions.h"
+#include <cstring>
 #include <new>
-#include <string.h>
 
 char emptySpacesMemory[sizeof(EmptySpaceRecord) * 512];
 char emptySpacesMemoryInternal[sizeof(EmptySpaceRecord) * 1024];
@@ -184,9 +184,8 @@ void GeneralMemoryAllocator::dealloc(void* address) {
 }
 
 void GeneralMemoryAllocator::putStealableInQueue(Stealable* stealable, int q) {
-	MemoryRegion* region = &regions[getRegion(stealable)];
-	region->stealableClusterQueues[q].addToEnd(stealable);
-	region->stealableClusterQueueLongestRuns[q] = 0xFFFFFFFF; // TODO: actually investigate neighbouring memory "run".
+	MemoryRegion& region = regions[getRegion(stealable)];
+	region.cache_manager().QueueForReclamation(q, stealable);
 }
 
 void GeneralMemoryAllocator::putStealableInAppropriateQueue(Stealable* stealable) {

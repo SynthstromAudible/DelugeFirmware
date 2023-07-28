@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "memory/cache_manager.h"
 #include "util/container/array/ordered_resizeable_array_with_multi_word_key.h"
 #include "util/container/list/bidirectional_linked_list.h"
 
@@ -53,20 +54,19 @@ public:
 	void dealloc(void* address);
 	void verifyMemoryNotFree(void* address, uint32_t spaceSize);
 
-	BidirectionalLinkedList stealableClusterQueues[NUM_STEALABLE_QUEUES];
-	// Keeps track, semi-accurately, of biggest runs of memory that could be stolen. In a perfect world, we'd have a second
-	// index on stealableClusterQueues[q], for run length. Although even that wouldn't automatically reflect changes to run
-	// lengths as neighbouring memory is allocated.
-	uint32_t stealableClusterQueueLongestRuns[NUM_STEALABLE_QUEUES];
 	OrderedResizeableArrayWithMultiWordKey emptySpaces;
 	int numAllocations;
+
+	CacheManager& cache_manager() { return cache_manager_; }
 
 #if ALPHA_OR_BETA_VERSION
 	char const* name; // For debugging messages only.
 #endif
 
 private:
-	uint32_t freeSomeStealableMemory(int totalSizeNeeded, void* thingNotToStealFrom, int* __restrict__ foundSpaceSize);
+	friend class CacheManager;
+	CacheManager cache_manager_;
+
 	void markSpaceAsEmpty(uint32_t spaceStart, uint32_t spaceSize, bool mayLookLeft = true, bool mayLookRight = true);
 	NeighbouringMemoryGrabAttemptResult
 	attemptToGrabNeighbouringMemory(void* originalSpaceAddress, int originalSpaceSize, int minAmountToExtend,
