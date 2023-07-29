@@ -28,7 +28,7 @@ void NoteRenderer::recalculateColour(uint8_t yDisplay) {
 void NoteRenderer::renderNoteRow(NoteRow* noteRow, TimelineView* editorScreen, uint8_t* image, 
 	                uint8_t occupancyMask[], bool overwriteExisting, uint32_t effectiveRowLength, 
 	                bool allowNoteTails, int renderWidth, int32_t xScroll,uint32_t xZoom, int xStartNow, 
-	                int xEnd, bool drawRepeats, int clipColourOffset) {
+	                int xEnd, bool drawRepeats, int clipColourOffset, int noteRowColourOffset, bool isKit) {
 
 	if (overwriteExisting) {
 		memset(image, 0, renderWidth * 3);
@@ -88,7 +88,14 @@ void NoteRenderer::renderNoteRow(NoteRow* noteRow, TimelineView* editorScreen, u
 		uint8_t noteColour[3];
 		uint8_t noteBlurColour[3];
 		uint8_t noteTailColour[3];
-        getNoteColourFromY(noteRow->y, clipColourOffset, rowDefaultColour);
+
+		if (isKit) {
+			getKitColourFromY(noteRow->y, clipColourOffset, noteRowColourOffset, rowDefaultColour);
+		}
+		else {
+			getNoteColourFromY(noteRow->y, clipColourOffset, rowDefaultColour);	
+		}
+        
         getBlurColour(rowDefaultBlurColour, rowDefaultColour);
         getTailColour(rowDefaultTailColour, rowDefaultColour);
 
@@ -101,7 +108,14 @@ void NoteRenderer::renderNoteRow(NoteRow* noteRow, TimelineView* editorScreen, u
 			uint8_t* pixel = image + xDisplay * 3;
 
 			if (note) {
-				getNoteSpecificColours(noteRow->y, clipColourOffset,  note, rowDefaultColour, rowDefaultBlurColour, rowDefaultTailColour, noteColour, noteBlurColour, noteTailColour);
+				getNoteSpecificColours(noteRow->y, isKit, clipColourOffset,  note, rowDefaultColour, rowDefaultBlurColour, rowDefaultTailColour, noteColour, noteBlurColour, noteTailColour);
+			}
+			else {
+				for(int i=0; i<3 ; i++) {
+					noteColour[i] = rowDefaultColour[i]; 
+					noteBlurColour[i] = rowDefaultBlurColour[i];
+            		noteTailColour[i] = rowDefaultTailColour[i];
+				}
 			}
 
 			// If Note starts somewhere within square, draw the blur colour
@@ -127,7 +141,7 @@ void NoteRenderer::renderNoteRow(NoteRow* noteRow, TimelineView* editorScreen, u
 				int noteEnd = note->pos + note->length;
 				if (wrapping) noteEnd -= effectiveRowLength;
 				if (noteEnd > squareStartPos && allowNoteTails) {
-					getNoteSpecificColours(noteRow->y, clipColourOffset,  note, rowDefaultColour, rowDefaultBlurColour, rowDefaultTailColour, noteColour, noteBlurColour, noteTailColour);
+					getNoteSpecificColours(noteRow->y, isKit, clipColourOffset,  note, rowDefaultColour, rowDefaultBlurColour, rowDefaultTailColour, noteColour, noteBlurColour, noteTailColour);
 					pixel[0] = noteTailColour[0];
 					pixel[1] = noteTailColour[1];
 					pixel[2] = noteTailColour[2];
@@ -145,6 +159,11 @@ void NoteRenderer::renderNoteRow(NoteRow* noteRow, TimelineView* editorScreen, u
 
 }
 
+void NoteRenderer::getKitColourFromY(int yNote, int clipColourOffset, int rowColourOffset, uint8_t rgb[]) {
+	hueToRGB((yNote + clipColourOffset + rowColourOffset) * -8 / 3, rgb);
+}
+
+
 
 /**
 * gets the note color for pitch y.
@@ -152,73 +171,54 @@ void NoteRenderer::renderNoteRow(NoteRow* noteRow, TimelineView* editorScreen, u
 * applies the colorschemes.
 * 
 * Classic: applies sine waves to the r,g,b, components for nice gradients.
-* 
-* OctavePiano: renders 'black key' notes different from 'white key' notes,
-* and gives each octave a different color. within octaves colors are constant.
-* red and green are not used to full extend so that they can be used to display
-* accidental transposes.
-* 
+* Octave: renders notes in octaves the same color,
+* Stripes: renders notes that have the same offset within the octave the same color.
 * Blue: renders a blue gradient. This is for super visible accidentals in red and green.
 * 
-*
-*
-*
-*
 */
 void NoteRenderer::getNoteColourFromY(int yNote,int clipColourOffset, uint8_t rgb[]) {
 	int colorScheme = runtimeFeatureSettings.get(RuntimeFeatureSettingType::ColorScheme);
 	if (colorScheme == RuntimeFeatureStateColorScheme::Classic) {
-		// TODO: replace with the old function since the new color schemes are resolved
-		// in this function
-		hueToRGBWithColorScheme((yNote + clipColourOffset) * -8 / 3, rgb,colorScheme);
+		hueToRGB((yNote + clipColourOffset) * -8 / 3, rgb);
 	}
 	else if (colorScheme == RuntimeFeatureStateColorScheme::Octaves) {
     	int octaveOffset = (yNote/12) % 12; // clipColourOfsset removed.
     	int offsetWithinOctave = yNote % 12;
 		int tableRGB[][3] = {
-			{   0,  0, 32  },
+			{  16,  0, 32  },
 			{   0, 32,  0  },
 			{  32,  0,  0  },
 			{   0, 32, 32  },
             {  32, 32,  0  },
             {  32,  0, 32  },
-            {   0, 32, 64  },
-            {  32, 64,  0  },
-            {  64,  0, 32  },
+            {   0, 32, 48  },
+            {  32, 48,  0  },
+            {  48,  0, 32  },
             {   0, 64, 32  },
-            {  64, 32,  0  },
-            {  32,  0, 64  }
+            {  48, 32,  0  },
+            {  32,  0, 46  }
 		};	
 
-	 	int blackKeys[] = {0,1,0,1,0,0,1,0,1,0,1,0};
-        if (blackKeys[offsetWithinOctave]) {
-        	rgb[0] = 64 - tableRGB[octaveOffset][0];
-        	rgb[1] = 64 - tableRGB[octaveOffset][1];
-        	rgb[2] = 64 - tableRGB[octaveOffset][2];
-
-        }
-        else {
-        	rgb[0] = tableRGB[octaveOffset][0];
-        	rgb[1] = tableRGB[octaveOffset][1];
-        	rgb[2] = tableRGB[octaveOffset][2];
-        }
+    	rgb[0] = tableRGB[octaveOffset][0];
+    	rgb[1] = tableRGB[octaveOffset][1];
+    	rgb[2] = tableRGB[octaveOffset][2];
 	}
     else if (colorScheme == RuntimeFeatureStateColorScheme::Stripes) {
     	int octaveOffset = (yNote/12) % 12; // clipColourOfsset removed.
     	int offsetWithinOctave = yNote % 12;
 		int tableRGB[][3] = {
-			{   0,  0, 32  },
-			{   0, 32,  0  },
-			{  32,  0,  0  },
+			{  16,  0, 32  },
+			{   0, 32, 16  },
+			{  32, 16,  0  },
 			{   0, 32, 32  },
             {  32, 32,  0  },
             {  32,  0, 32  },
-            {   0, 32, 64  },
-            {  32, 64,  0  },
-            {  64,  0, 32  },
-            {   0, 64, 32  },
-            {  64, 32,  0  },
-            {  32,  0, 64  }
+            {   0, 32, 48  },
+            {  32, 48,  0  },
+            {  48,  0, 32  },
+            {   0, 48, 32  },
+            {  48, 32,  0  },
+            {  32,  0, 48  }
 		};	
 
         if (offsetWithinOctave % 2  == 1) {
@@ -236,7 +236,7 @@ void NoteRenderer::getNoteColourFromY(int yNote,int clipColourOffset, uint8_t rg
 	
 	}
 	else {
-		// colorSchem == RuntimeFeatureStateColorScheme::BluePiano
+		// colorScheme == RuntimeFeatureStateColorScheme::Blue
 		// like a piano we use dark keys and light keys.
 		// all tints are blue.
 		// octaves are a gradient	
@@ -254,6 +254,7 @@ void NoteRenderer::getNoteColourFromY(int yNote,int clipColourOffset, uint8_t rg
 }
 
 void NoteRenderer::getNoteSpecificColours(int y,
+                                         bool isKit,
 	                                     int clipColourOffset,
 	                                     Note* note, 
 	                                     uint8_t rowDefaultColour[],
@@ -261,11 +262,11 @@ void NoteRenderer::getNoteSpecificColours(int y,
 	                                     uint8_t rowDefaultTailColour[],
 	                                     uint8_t  noteColour[],
                                          uint8_t  noteBlurColour[],
-                                         uint8_t  noteTailColour[]) {
+                                         uint8_t  noteTailColour[]
+                                         ) {
 	// copy either the defaults or tranpose
 	int transpose = note->getAccidentalTranspose();
-	int colorScheme = runtimeFeatureSettings.get(RuntimeFeatureSettingType::ColorScheme);
-	if ( transpose == 0) {
+	if ( transpose == 0 || isKit) {
 		for(int i=0; i<3 ; i++) {
 			noteColour[i] = rowDefaultColour[i]; 
 			noteBlurColour[i] = rowDefaultBlurColour[i];
@@ -273,22 +274,24 @@ void NoteRenderer::getNoteSpecificColours(int y,
 		}
 	}
 	else {
+		
 		getNoteColourFromY(y + transpose, clipColourOffset, noteColour);
-	    if (colorScheme == RuntimeFeatureStateColorScheme::Blue) {
-	    	if (transpose > 0) {
-	    		noteColour[0] = 0;  // surpress red
-	    		noteColour[1] = 64; // set green color for raised notes.
-	    		noteColour[2] = noteColour[2] >> 2;  // minimize blue
-	    	}
-	    	else {
-	    		noteColour[0] = 64; // set red color for lowered notes.
-	    		noteColour[1] = 0;  // surpress green
-	    		noteColour[2] = noteColour[2] >> 2; // minimize blue
-
-	    	}
-	    }
+    	// use hard red and green if the transpose is less than 1 octave.
+    	if (transpose > 0 && transpose < 12) {
+    		noteColour[0] = 0;  
+    		noteColour[1] = 64; 
+    		noteColour[2] = 0;  
+    	}
+    	else if (transpose < 0 && transpose > -12) {
+    		noteColour[0] = 64; 
+    		noteColour[1] = 0;  
+    		noteColour[2] = 0; 
+    	}
 
 	    getBlurColour(noteBlurColour, noteColour);
 	    getTailColour(noteTailColour, noteColour);  	
 	}
 }
+
+
+
