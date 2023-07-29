@@ -76,10 +76,12 @@ endif(ENABLE_VERSIONED_OUTPUT)
 # that each have their own set of flags from the same source
 function(add_firmware EXECUTABLE BASE)
     get_target_property(BASE_SOURCES ${BASE} INTERFACE_SOURCES)
+    get_target_property(BASE_INCLUDES ${BASE} INTERFACE_INCLUDE_DIRECTORIES)
     get_target_property(BASE_LINKS ${BASE} INTERFACE_LINK_LIBRARIES)
 
     add_executable(${EXECUTABLE})
     target_sources(${EXECUTABLE} PRIVATE ${BASE_SOURCES})
+    target_include_directories(${EXECUTABLE} PRIVATE ${BASE_INCLUDES})
     target_link_libraries(${EXECUTABLE} ${BASE_LINKS})
 
     set_target_properties(${EXECUTABLE}
@@ -90,6 +92,11 @@ function(add_firmware EXECUTABLE BASE)
             CXX_STANDARD_REQUIRED ON
             CXX_EXTENSIONS ON
             SUFFIX "${EXECUTABLE_VERSION_SUFFIX}.elf"
+    )
+
+    target_compile_options(${EXECUTABLE} PRIVATE
+        # Set preinclude
+        $<$<COMPILE_LANGUAGE:CXX>:-includepreinclude_cxx.h>
     )
 
     set(BIN_FILE $<CONFIG>/${EXECUTABLE}${EXECUTABLE_VERSION_SUFFIX}.bin)
@@ -137,9 +144,6 @@ endfunction(add_firmware)
 
 # Global compilation options
 add_compile_options(
-
-    # Set preinclude
-    $<$<COMPILE_LANGUAGE:CXX>:-includepreinclude_cxx.h>
 
     # Feature flags
     -fdiagnostics-parseable-fixits

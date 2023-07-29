@@ -8,7 +8,7 @@ import os
 def argparser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="scons",
-        description="Run SCons in the current environment",
+        description="Run SCons in the current environment (deprecated)",
     )
     parser.group = "Building"
     return parser
