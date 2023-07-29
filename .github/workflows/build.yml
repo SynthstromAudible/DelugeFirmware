@@ -28,10 +28,10 @@ jobs:
         run: |
           docker run --rm \
             --user=$(id --user):$(id --group) \
+            -e DBT_NO_PYTHON_UPGRADE=1 \
             -v $(pwd):/src \
             ghcr.io/litui/dbt-toolchain:v$(cat toolchain/REQUIRED_VERSION) \
             build \
-            --no-status \
             --verbose \
             --tag-metadata \
             all

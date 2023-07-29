@@ -78,6 +78,8 @@ def main() -> int:
 
     if args.verbose:
         build_args += ["--verbose"]
+    else:
+        os.environ["NINJA_STATUS"] = "[%s/%t %p :: %e] "
 
     if args.clean_first:
         build_args += ["--clean-first"]
@@ -87,8 +89,6 @@ def main() -> int:
 
     if args.no_status:
         build_args += ["--", "--quiet"]  # pass quiet directly to ninja
-
-    os.environ["NINJA_STATUS"] = "[%s/%t %p :: %e] "
 
     result = subprocess.run(["cmake"] + build_args, env=os.environ)
     return result.returncode

@@ -76,7 +76,7 @@ Additional information:
 
 #include "SEGGER_RTT.h"
 
-#include <string.h> // for memcpy
+#include <string.h>                       // for memcpy
 #define UNCACHED_MIRROR_OFFSET 0x40000000 // originally from: "RZA1/cpu_specific.h"
 
 /*********************************************************************
