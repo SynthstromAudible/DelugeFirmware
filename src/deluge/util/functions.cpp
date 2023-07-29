@@ -16,18 +16,18 @@
 */
 
 #include "util/functions.h"
-#include "processing/sound/sound.h"
 #include "definitions_cxx.hpp"
-#include "hid/display/numeric_driver.h"
 #include "fatfs/ff.h"
-#include "gui/views/view.h"
-#include "gui/ui/sound_editor.h"
-#include "model/action/action_logger.h"
-#include <string.h>
-#include "io/debug/print.h"
-#include "hid/encoders.h"
 #include "gui/ui/qwerty_ui.h"
+#include "gui/ui/sound_editor.h"
+#include "gui/views/view.h"
+#include "hid/display/numeric_driver.h"
 #include "hid/display/oled.h"
+#include "hid/encoders.h"
+#include "io/debug/print.h"
+#include "model/action/action_logger.h"
+#include "processing/sound/sound.h"
+#include <string.h>
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
@@ -1384,6 +1384,8 @@ int random(int upperLimit) {
 
 bool shouldDoPanning(int32_t panAmount, int32_t* amplitudeL, int32_t* amplitudeR) {
 	if (panAmount == 0) {
+		*amplitudeR = 1073741823;
+		*amplitudeL = 1073741823;
 		return false;
 	}
 

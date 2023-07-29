@@ -143,6 +143,8 @@ enum FirmwareVersion : uint8_t {
 };
 constexpr FirmwareVersion kCurrentFirmwareVersion = FIRMWARE_4P1P4_ALPHA;
 
+constexpr uint8_t kOctaveSize = 12;
+
 struct Cartesian {
 	int x;
 	int y;
@@ -675,8 +677,6 @@ enum class ArpMode {
 };
 constexpr auto kNumArpModes = util::to_underlying(ArpMode::RANDOM) + 1;
 
-constexpr int kMaxKeyboardRowInterval = 16;
-
 enum class ModFXParam {
 	DEPTH,
 	FEEDBACK,
@@ -808,6 +808,7 @@ constexpr int kCacheByteDepth = 3;
 constexpr int kCacheByteDepthMagnitude = 2; // Invalid / unused for odd numbers of bytes like 3
 
 constexpr int kMaxUnisonDetune = 50;
+constexpr int kMaxUnisonStereoSpread = 50;
 
 // This is about right. Making it smaller didn't help. Tried it as 9, and I'm pretty sure some fast percussive details were lost in the output
 constexpr int kPercBufferReductionMagnitude = 7;
@@ -1026,3 +1027,5 @@ constexpr int kNumBrowserAndMenuLines = 3;
 #else
 constexpr int kNumBrowserAndMenuLines = 1;
 #endif
+
+constexpr int kDefaultCalculateRootNote = std::numeric_limits<int>::max();

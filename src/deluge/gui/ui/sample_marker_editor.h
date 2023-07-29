@@ -17,9 +17,9 @@
 
 #pragma once
 
+#include "RZA1/system/r_typedefs.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/ui.h"
-#include "RZA1/system/r_typedefs.h"
 #include "hid/button.h"
 
 class Sample;

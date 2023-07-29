@@ -16,11 +16,13 @@
 */
 #pragma once
 #include "gui/menu_item/integer.h"
-#include "model/model_stack.h"
 #include "gui/ui/sound_editor.h"
+#include "model/model_stack.h"
 #include "processing/sound/sound.h"
+#include "stereoSpread.h"
 
 namespace menu_item::unison {
+
 class Count final : public Integer {
 public:
 	Count(char const* newName = NULL) : Integer(newName) {}
@@ -32,5 +34,7 @@ public:
 	}
 	int getMinValue() const { return 1; }
 	int getMaxValue() const { return kMaxNumVoicesUnison; }
+
+	MenuItem* selectButtonPress() override { return &unisonStereoSpreadMenu; }
 };
 } // namespace menu_item::unison

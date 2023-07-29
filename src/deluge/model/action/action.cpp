@@ -15,29 +15,29 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "definitions_cxx.hpp"
-#include "model/action/action_clip_state.h"
-#include "processing/engines/audio_engine.h"
-#include "storage/audio/audio_file_manager.h"
-#include "model/consequence/consequence_clip_instance_existence.h"
-#include "model/clip/instrument_clip.h"
 #include "model/action/action.h"
 #include "RZA1/system/r_typedefs.h"
-#include "model/consequence/consequence.h"
-#include "model/consequence/consequence_param_change.h"
-#include "util/functions.h"
-#include "model/song/song.h"
-#include "model/note/note.h"
-#include "model/action/action_logger.h"
-#include "model/consequence/consequence_note_existence.h"
+#include "definitions_cxx.hpp"
 #include "io/debug/print.h"
-#include <new>
 #include "memory/general_memory_allocator.h"
-#include "model/consequence/consequence_clip_length.h"
-#include "model/consequence/consequence_clip_existence.h"
+#include "model/action/action_clip_state.h"
+#include "model/action/action_logger.h"
+#include "model/clip/instrument_clip.h"
+#include "model/consequence/consequence.h"
 #include "model/consequence/consequence_audio_clip_set_sample.h"
+#include "model/consequence/consequence_clip_existence.h"
+#include "model/consequence/consequence_clip_instance_existence.h"
+#include "model/consequence/consequence_clip_length.h"
 #include "model/consequence/consequence_note_array_change.h"
+#include "model/consequence/consequence_note_existence.h"
+#include "model/consequence/consequence_param_change.h"
 #include "model/model_stack.h"
+#include "model/note/note.h"
+#include "model/song/song.h"
+#include "processing/engines/audio_engine.h"
+#include "storage/audio/audio_file_manager.h"
+#include "util/functions.h"
+#include <new>
 
 Action::Action(int newActionType) {
 	firstConsequence = NULL;

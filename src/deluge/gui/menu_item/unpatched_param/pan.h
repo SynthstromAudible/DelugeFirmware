@@ -15,8 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include <cstdint>
 #include "gui/menu_item/unpatched_param.h"
+#include <cstdint>
 
 namespace menu_item::unpatched_param {
 

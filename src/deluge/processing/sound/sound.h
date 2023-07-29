@@ -17,16 +17,16 @@
 
 #pragma once
 
-#include "modulation/patch/patcher.h"
 #include "definitions_cxx.hpp"
 #include "dsp/compressor/compressor.h"
-#include "modulation/lfo.h"
-#include "processing/source.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "modulation/arpeggiator.h"
 #include "modulation/knob.h"
-#include "modulation/params/param_set.h"
+#include "modulation/lfo.h"
 #include "modulation/params/param_manager.h"
+#include "modulation/params/param_set.h"
+#include "modulation/patch/patcher.h"
+#include "processing/source.h"
 #include "util/misc.h"
 
 struct CableGroup;
@@ -93,8 +93,8 @@ public:
 	int16_t transpose;
 
 	uint8_t numUnison;
-
 	int8_t unisonDetune;
+	uint8_t unisonStereoSpread;
 
 	int16_t modulatorTranspose[kNumModulators];
 	int8_t modulatorCents[kNumModulators];
@@ -102,6 +102,7 @@ public:
 	PhaseIncrementFineTuner modulatorTransposers[kNumModulators];
 
 	PhaseIncrementFineTuner unisonDetuners[kMaxNumVoicesUnison];
+	int32_t unisonPan[kMaxNumVoicesUnison];
 
 	SynthMode synthMode;
 	bool modulator1ToModulator0;
@@ -170,6 +171,7 @@ public:
 	void sampleZoneChanged(MarkerType markerType, int s, ModelStackWithSoundFlags* modelStack);
 	void setNumUnison(int newNum, ModelStackWithSoundFlags* modelStack);
 	void setUnisonDetune(int newAmount, ModelStackWithSoundFlags* modelStack);
+	void setUnisonStereoSpread(int newAmount);
 	void setModulatorTranspose(int m, int value, ModelStackWithSoundFlags* modelStack);
 	void setModulatorCents(int m, int value, ModelStackWithSoundFlags* modelStack);
 	int readFromFile(ModelStackWithModControllable* modelStack, int32_t readAutomationUpToPos,
@@ -273,6 +275,7 @@ private:
 	uint32_t getGlobalLFOPhaseIncrement();
 	void recalculateModulatorTransposer(uint8_t m, ModelStackWithSoundFlags* modelStack);
 	void setupUnisonDetuners(ModelStackWithSoundFlags* modelStack);
+	void setupUnisonStereoSpread();
 	void calculateEffectiveVolume();
 	void ensureKnobReferencesCorrectVolume(Knob* knob);
 	int readTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos,

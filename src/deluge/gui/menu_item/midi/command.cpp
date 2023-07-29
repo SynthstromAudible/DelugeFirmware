@@ -17,11 +17,11 @@
 
 #include "command.h"
 #include "definitions_cxx.hpp"
-#include "io/midi/midi_engine.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/numeric_driver.h"
 #include "hid/display/oled.h"
 #include "io/midi/midi_device.h"
+#include "io/midi/midi_engine.h"
 #include "util/misc.h"
 
 extern "C" {

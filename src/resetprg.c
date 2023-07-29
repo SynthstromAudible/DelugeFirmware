@@ -53,11 +53,11 @@
 
 #include "RZA1/system/r_typedefs.h"
 
-#include "definitions.h"
-#include "RZA1/gpio/gpio.h"
-#include "RZA1/uart/sio_char.h"
-#include "RZA1/stb/stb.h"
 #include "RZA1/compiler/asm/inc/asm.h"
+#include "RZA1/gpio/gpio.h"
+#include "RZA1/stb/stb.h"
+#include "RZA1/uart/sio_char.h"
+#include "definitions.h"
 #include "deluge/deluge.h"
 
 #if defined(__thumb2__) || (defined(__thumb__) && defined(__ARM_ARCH_6M__))

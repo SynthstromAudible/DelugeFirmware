@@ -15,16 +15,16 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "definitions.h"
 #include "drivers/uart/uart.h"
-#include "drivers/dmac/dmac.h"
 #include "RZA1/uart/sio_char.h"
+#include "definitions.h"
+#include "drivers/dmac/dmac.h"
 #include <string.h>
 
-#include <math.h>
-#include "RZA1/system/iodefines/scif_iodefine.h"
 #include "RZA1/intc/devdrv_intc.h"
+#include "RZA1/system/iodefines/scif_iodefine.h"
 #include "util/cfunctions.h"
+#include <math.h>
 
 #include "RTT/SEGGER_RTT.h"
 

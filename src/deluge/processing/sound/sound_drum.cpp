@@ -15,22 +15,22 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "gui/views/instrument_clip_view.h"
 #include "processing/sound/sound_drum.h"
-#include "model/drum/kit.h"
-#include <string.h>
-#include "storage/storage_manager.h"
-#include "model/song/song.h"
+#include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
 #include "io/debug/print.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
-#include "processing/engines/audio_engine.h"
-#include "model/voice/voice_vector.h"
-#include "model/voice/voice.h"
-#include <new>
 #include "model/clip/clip.h"
+#include "model/drum/kit.h"
+#include "model/song/song.h"
+#include "model/voice/voice.h"
+#include "model/voice/voice_vector.h"
+#include "processing/engines/audio_engine.h"
+#include "storage/storage_manager.h"
 #include "util/misc.h"
+#include <new>
+#include <string.h>
 
 SoundDrum::SoundDrum() : Drum(DrumType::SOUND), arpeggiator() {
 	nameIsDiscardable = false;

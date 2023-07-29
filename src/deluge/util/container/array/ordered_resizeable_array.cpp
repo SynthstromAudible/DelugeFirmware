@@ -16,13 +16,13 @@
  */
 
 #include "util/container/array/ordered_resizeable_array.h"
-#include "definitions_cxx.hpp"
-#include "util/functions.h"
 #include "RZA1/uart/sio_char.h"
-#include "hid/display/numeric_driver.h"
-#include "memory/general_memory_allocator.h"
+#include "definitions_cxx.hpp"
 #include "drivers/mtu/mtu.h"
+#include "hid/display/numeric_driver.h"
 #include "io/debug/print.h"
+#include "memory/general_memory_allocator.h"
+#include "util/functions.h"
 
 OrderedResizeableArray::OrderedResizeableArray(int newElementSize, int keyNumBits, int newKeyOffset,
                                                int newMaxNumEmptySpacesToKeep, int newNumExtraSpacesToAllocate)

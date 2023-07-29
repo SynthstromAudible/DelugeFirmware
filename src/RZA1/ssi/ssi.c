@@ -39,15 +39,15 @@
  */
 
 #include "RZA1/ssi/ssi.h"
-#include "RZA1/system/iodefines/ssif_iodefine.h"
-#include "RZA1/intc/devdrv_intc.h"
-#include "RZA1/system/iodefines/cpg_iodefine.h"
-#include "RZA1/ssi/drv_ssif.h"
-#include "definitions.h"
-#include "RZA1/system/iobitmasks/dmac_iobitmask.h"
 #include "RZA1/cpu_specific.h"
-#include "deluge/drivers/ssi/ssi.h"
+#include "RZA1/intc/devdrv_intc.h"
+#include "RZA1/ssi/drv_ssif.h"
+#include "RZA1/system/iobitmasks/dmac_iobitmask.h"
+#include "RZA1/system/iodefines/cpg_iodefine.h"
+#include "RZA1/system/iodefines/ssif_iodefine.h"
+#include "definitions.h"
 #include "deluge/drivers/dmac/dmac.h"
+#include "deluge/drivers/ssi/ssi.h"
 
 #define DMA_FIX_PRIO_MODE (0u)
 #define SSI_CHANNEL_MAX   (6u)

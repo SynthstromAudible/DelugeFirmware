@@ -17,13 +17,13 @@
 
 #pragma once
 
-#include "modulation/patch/patcher.h"
-#include "model/voice/voice_sample_playback_guide.h"
 #include "definitions_cxx.hpp"
+#include "dsp/filter/filter_set.h"
+#include "model/voice/voice_sample_playback_guide.h"
+#include "model/voice/voice_unison_part.h"
 #include "modulation/envelope.h"
 #include "modulation/lfo.h"
-#include "model/voice/voice_unison_part.h"
-#include "dsp/filter/filter_set.h"
+#include "modulation/patch/patcher.h"
 
 class StereoSample;
 class FilterSetConfig;
@@ -109,7 +109,7 @@ private:
 	               int32_t amplitudeIncrement, bool doOscSync, uint32_t resetterPhase, uint32_t resetterPhaseIncrement,
 	               uint32_t retriggerPhase, int32_t waveIndexIncrement);
 	void renderBasicSource(Sound* sound, ParamManagerForTimeline* paramManager, int s, int32_t* oscBuffer,
-	                       int numSamples, int32_t sourceAmplitude, bool* unisonPartBecameInactive,
+	                       int numSamples, bool stereoBuffer, int32_t sourceAmplitude, bool* unisonPartBecameInactive,
 	                       int32_t overallPitchAdjust, bool doOscSync, uint32_t* oscSyncPos,
 	                       uint32_t* oscSyncPhaseIncrements, int32_t amplitudeIncrement, uint32_t* getPhaseIncrements,
 	                       bool getOutAfterPhaseIncrements, int32_t waveIndexIncrement);

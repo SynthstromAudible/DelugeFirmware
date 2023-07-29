@@ -30,8 +30,8 @@
 /******************************************************************************
 Includes   <System Includes> , "Project Includes"
 ******************************************************************************/
-#include "RZA1/system/r_typedefs.h"
 #include "RZA1/intc/devdrv_intc.h" /* INTC Driver Header */
+#include "RZA1/system/r_typedefs.h"
 
 #include "RZA1/compiler/asm/inc/asm.h"
 

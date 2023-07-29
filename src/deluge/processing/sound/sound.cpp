@@ -15,45 +15,46 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "definitions_cxx.hpp"
-#include "processing/engines/audio_engine.h"
-#include "storage/audio/audio_file_manager.h"
-#include "model/clip/instrument_clip.h"
-#include "util/functions.h"
-#include "storage/storage_manager.h"
-#include <math.h>
-#include "modulation/patch/patcher.h"
-#include "modulation/params/param_manager.h"
 #include "processing/sound/sound.h"
-#include "processing/sound/sound_instrument.h"
-#include "gui/ui/sound_editor.h"
+#include "definitions_cxx.hpp"
 #include "dsp/filter/filter_set_config.h"
-#include "model/drum/kit.h"
-#include "hid/display/numeric_driver.h"
+#include "gui/ui/root_ui.h"
+#include "gui/ui/sound_editor.h"
 #include "gui/views/view.h"
+#include "hid/buttons.h"
+#include "hid/display/numeric_driver.h"
+#include "hid/led/indicator_leds.h"
+#include "hid/matrix/matrix_driver.h"
+#include "io/debug/print.h"
+#include "memory/general_memory_allocator.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
-#include <string.h>
-#include "model/timeline_counter.h"
-#include "memory/general_memory_allocator.h"
-#include "storage/multi_range/multisample_range.h"
-#include "storage/multi_range/multi_wave_table_range.h"
-#include "model/voice/voice_sample.h"
-#include <new>
-#include "hid/matrix/matrix_driver.h"
-#include "playback/playback_handler.h"
-#include "modulation/params/param_set.h"
-#include "model/song/song.h"
-#include "gui/ui/root_ui.h"
-#include "hid/buttons.h"
-#include "model/voice/voice.h"
-#include "model/sample/sample.h"
-#include "model/voice/voice_vector.h"
+#include "model/clip/instrument_clip.h"
+#include "model/drum/kit.h"
 #include "model/model_stack.h"
-#include "hid/led/indicator_leds.h"
-#include "storage/flash_storage.h"
+#include "model/sample/sample.h"
+#include "model/song/song.h"
+#include "model/timeline_counter.h"
+#include "model/voice/voice.h"
+#include "model/voice/voice_sample.h"
+#include "model/voice/voice_vector.h"
+#include "modulation/params/param_manager.h"
+#include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
+#include "modulation/patch/patcher.h"
+#include "playback/playback_handler.h"
+#include "processing/engines/audio_engine.h"
+#include "processing/sound/sound_instrument.h"
+#include "storage/audio/audio_file_manager.h"
+#include "storage/flash_storage.h"
+#include "storage/multi_range/multi_wave_table_range.h"
+#include "storage/multi_range/multisample_range.h"
+#include "storage/storage_manager.h"
+#include "util/functions.h"
 #include "util/misc.h"
+#include <math.h>
+#include <new>
+#include <string.h>
 
 extern "C" {
 #include "RZA1/mtu/mtu.h"
@@ -100,6 +101,7 @@ Sound::Sound() : patcher(&patchableInfoForSound) {
 
 	numUnison = 1;
 	unisonDetune = 8;
+	unisonStereoSpread = 0;
 
 	synthMode = SynthMode::SUBTRACTIVE;
 	modulator1ToModulator0 = false;
@@ -677,6 +679,11 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 				int contents = storageManager.readTagOrAttributeValueInt();
 				unisonDetune = getMax(0, getMin(kMaxUnisonDetune, contents));
 				storageManager.exitTag("detune");
+			}
+			else if (!strcmp(tagName, "spread")) {
+				int contents = storageManager.readTagOrAttributeValueInt();
+				unisonStereoSpread = getMax(0, getMin(kMaxUnisonStereoSpread, contents));
+				storageManager.exitTag("spread");
 			}
 			else {
 				storageManager.exitTag(tagName);
@@ -2635,6 +2642,7 @@ void Sound::doneReadingFromFile() {
 	}
 
 	setupUnisonDetuners(NULL);
+	setupUnisonStereoSpread();
 
 	for (int m = 0; m < kNumModulators; m++) {
 		recalculateModulatorTransposer(m, NULL);
@@ -2671,6 +2679,23 @@ void Sound::setupUnisonDetuners(ModelStackWithSoundFlags* modelStack) {
 		}
 	}
 	recalculateAllVoicePhaseIncrements(modelStack); // Can handle NULL
+}
+
+void Sound::setupUnisonStereoSpread() {
+	if (numUnison != 1) {
+		int32_t spreadScaled = (int32_t)unisonStereoSpread * 42949672;
+		int32_t lowestVoice = -(spreadScaled >> 1);
+		int32_t voiceSpacing = spreadScaled / (numUnison - 1);
+
+		for (int u = 0; u < numUnison; u++) {
+			// alternate the voices like -2 +1 0 -1 +2 for more balanced
+			// interaction with detune
+			bool isOdd = getMin(u, numUnison - 1 - u) & 1;
+			int32_t sign = isOdd ? -1 : 1;
+
+			unisonPan[u] = sign * (lowestVoice + voiceSpacing * u);
+		}
+	}
 }
 
 void Sound::calculateEffectiveVolume() {
@@ -2754,6 +2779,7 @@ void Sound::setNumUnison(int newNum, ModelStackWithSoundFlags* modelStack) {
 
 	numUnison = newNum;
 	setupUnisonDetuners(modelStack); // Can handle NULL. Also calls recalculateAllVoicePhaseIncrements()
+	setupUnisonStereoSpread();
 	calculateEffectiveVolume();
 
 	// Effective volume has changed. Need to pass that change onto Voices
@@ -2825,6 +2851,11 @@ void Sound::setNumUnison(int newNum, ModelStackWithSoundFlags* modelStack) {
 void Sound::setUnisonDetune(int newAmount, ModelStackWithSoundFlags* modelStack) {
 	unisonDetune = newAmount;
 	setupUnisonDetuners(modelStack); // Can handle NULL
+}
+
+void Sound::setUnisonStereoSpread(int newAmount) {
+	unisonStereoSpread = newAmount;
+	setupUnisonStereoSpread();
 }
 
 bool Sound::anyNoteIsOn() {
@@ -3672,6 +3703,7 @@ void Sound::writeToFile(bool savingSong, ParamManager* paramManager, Arpeggiator
 	storageManager.writeOpeningTagBeginning("unison");
 	storageManager.writeAttribute("num", numUnison, false);
 	storageManager.writeAttribute("detune", unisonDetune, false);
+	storageManager.writeAttribute("spread", unisonStereoSpread, false);
 	storageManager.closeTag();
 
 	ModControllableAudio::writeTagsToFile();
@@ -4062,6 +4094,10 @@ bool Sound::renderingVoicesInStereo(ModelStackWithSoundFlags* modelStack) {
 	}
 
 	if (modelStack->paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(Param::Local::PAN)) {
+		return true;
+	}
+
+	if (unisonStereoSpread && numUnison > 1) {
 		return true;
 	}
 

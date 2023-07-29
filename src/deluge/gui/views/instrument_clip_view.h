@@ -17,11 +17,11 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "gui/views/clip_view.h"
 #include "hid/button.h"
-#include "definitions_cxx.hpp"
-#include "modulation/automation/copied_param_automation.h"
 #include "model/clip/instrument_clip_minder.h"
+#include "modulation/automation/copied_param_automation.h"
 #include "modulation/params/param_node.h"
 
 class InstrumentClip;
@@ -136,12 +136,6 @@ public:
 	void tempoEncoderAction(int8_t offset, bool encoderButtonPressed, bool shiftButtonPressed);
 
 	inline void sendAuditionNote(bool on, uint8_t yDisplay) { sendAuditionNote(on, yDisplay, 64, 0); };
-
-	inline void getRowColour(int y, uint8_t color[3]) {
-		color[0] = rowColour[y][0];
-		color[1] = rowColour[y][1];
-		color[2] = rowColour[y][2];
-	} //
 
 #if HAVE_OLED
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {

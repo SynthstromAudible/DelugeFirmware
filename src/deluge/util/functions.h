@@ -18,11 +18,11 @@
 #pragma once
 
 #include "RZA1/system/r_typedefs.h"
+#include "definitions_cxx.hpp"
+#include "ff.h"
+#include "util/fixedpoint.h"
 #include "util/lookuptables/lookuptables.h"
 #include <cstring>
-#include "ff.h"
-#include "definitions_cxx.hpp"
-#include "util/fixedpoint.h"
 extern "C" {
 #include "util/cfunctions.h"
 }
@@ -183,11 +183,6 @@ char const* getInstrumentFolder(InstrumentType instrumentType);
 void getThingFilename(char const* thingName, int16_t currentSlot, int8_t currentSubSlot, char* buffer);
 
 int32_t getExp(int32_t presetValue, int32_t adjustment);
-
-inline void renderRingmodSample(int32_t* __restrict__ thisSample, int32_t amplitude, int32_t waveValueA,
-                                int32_t waveValueB) {
-	*thisSample += multiply_32x32_rshift32_rounded(multiply_32x32_rshift32(waveValueA, waveValueB), amplitude);
-}
 
 bool isAudioFilename(char const* filename);
 bool isAiffFilename(char const* filename);

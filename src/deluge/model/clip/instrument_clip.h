@@ -17,11 +17,12 @@
 
 #pragma once
 
-#include "model/clip/clip.h"
-#include "model/timeline_counter.h"
 #include "definitions_cxx.hpp"
-#include "modulation/arpeggiator.h"
+#include "gui/ui/keyboard/state_data.h"
+#include "model/clip/clip.h"
 #include "model/note/note_row_vector.h"
+#include "model/timeline_counter.h"
+#include "modulation/arpeggiator.h"
 #include "util/d_string.h"
 
 class Song;
@@ -112,8 +113,8 @@ public:
 	bool inScaleMode; // Probably don't quiz this directly - call isScaleModeClip() instead
 
 	int yScroll;
-	int yScrollKeyboardScreen;
-	int keyboardRowInterval;
+
+	keyboard::KeyboardState keyboardState;
 
 	int32_t ticksTilNextNoteRowEvent;
 	int32_t noteRowsNumTicksBehindClip;

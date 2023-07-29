@@ -1,5 +1,5 @@
 /*
- * Copyright © 2017-2023 Synthstrom Audible Limited
+ * Copyright (c) 2014-2023 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -13,10 +13,21 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
- */
+*/
+#pragma once
+#include "gui/menu_item/integer.h"
+#include "gui/ui/sound_editor.h"
+#include "model/model_stack.h"
+#include "processing/sound/sound.h"
 
-#include "memory/stealable.h"
+namespace menu_item::unison {
+class StereoSpread final : public Integer {
+public:
+	using Integer::Integer;
+	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentSound->unisonStereoSpread; }
+	void writeCurrentValue() { soundEditor.currentSound->setUnisonStereoSpread(soundEditor.currentValue); }
+	int getMaxValue() const { return kMaxUnisonStereoSpread; }
+};
+} // namespace menu_item::unison
 
-Stealable::Stealable() {
-	lastTraversalNo = 0xFFFFFFFF;
-}
+extern menu_item::unison::StereoSpread unisonStereoSpreadMenu;
