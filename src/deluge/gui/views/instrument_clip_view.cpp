@@ -2258,6 +2258,7 @@ void InstrumentClipView::adjustAccidentalTranspose(int offset) {
 
     int accidentalTransposeValue = 0;
     int noteValueAfterTranspose = 0;
+    int yRowToUpdate = -1;
 	// If just one press...
 	if (numEditPadPresses == 1) {
 		// Find it
@@ -2266,7 +2267,7 @@ void InstrumentClipView::adjustAccidentalTranspose(int offset) {
 				editPadPresses[i].deleteOnDepress = false;
 
 				if (editPadPresses[i].isBlurredSquare) goto multiplePresses;
-
+                yNoteToUpdate = editPadPresses[i].yDisplay;
 				int currentYNote = getCurrentClip()->getYNoteFromYDisplay(editPadPresses[i].yDisplay, currentSong) ;
 				accidentalTransposeValue = editPadPresses[i].intendedAccidentalTranspose;
 				accidentalTransposeValue = getMin(getMax(accidentalTransposeValue, 0 - currentYNote), 127 - currentYNote);
@@ -2400,6 +2401,11 @@ multiplePresses:
 				}
 			}
 		}
+	}
+
+	// make sure the UI updates.
+	if (yNoteToUpdate >= 0) {
+		uiNeedsRendering(this, 1 << yNoteToUpdate, 0);
 	}
 
     // valid parameter check. true for now.
