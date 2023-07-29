@@ -62,7 +62,7 @@ def main(argv: Sequence[str] = sys.argv) -> int:
     configure_args += ["-G", "Ninja Multi-Config"]  # generator
 
     configure_args += [
-        "-DCMAKE_CROSS_CONFIGS:STRING=all"  # which configs will reference others
+        "-DCMAKE_CROSS_CONFIGS:STRING=all",  # which configs will reference others
         "-DCMAKE_DEFAULT_CONFIGS=Debug;Release",  # set the default (empty) configs
         "-DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE",  # export compile commands
     ]
