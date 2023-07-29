@@ -2208,6 +2208,7 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 				    .recalculateColours(); // Won't have happened automatically because we haven't begun the "session"
 				automationClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1],
 				                                  false);
+				automationClipView.renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
 			}
 
 			else {
@@ -2215,9 +2216,8 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 				    .recalculateColours(); // Won't have happened automatically because we haven't begun the "session"
 				instrumentClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1],
 				                                  false);
+				instrumentClipView.renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
 			}
-
-			instrumentClipView.renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
 
 			instrumentClipView
 			    .fillOffScreenImageStores(); // Important that this is done after currentSong->xScroll is changed, above

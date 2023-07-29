@@ -390,6 +390,15 @@ yesLoadInstrument:
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
+			// Clear Clip
+			Action* action = actionLogger.getNewAction(ACTION_CLIP_CLEAR, false);
+
+			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithTimelineCounter* modelStack =
+			    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, currentSong->currentClip);
+
+			getCurrentClip()->clear(action, modelStack);
+
 			//New community feature as part of Automation Clip View Implementation
 			//If this is enabled, then when you are in a regular Instrument Clip View (Synth, Kit, MIDI, CV), clearing a clip
 			//will only clear the Notes (automations remain intact).
@@ -411,6 +420,10 @@ yesLoadInstrument:
 				if (getCurrentUI() == &instrumentClipView) {
 					numericDriver.displayPopup(HAVE_OLED ? "Clip cleared" : "CLEAR");
 					uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
+				}
+				else if (getCurrentUI() == &automationClipView) {
+					numericDriver.displayPopup(HAVE_OLED ? "Clip cleared" : "CLEAR");
+					uiNeedsRendering(&automationClipView, 0xFFFFFFFF, 0);
 				}
 			}
 		}

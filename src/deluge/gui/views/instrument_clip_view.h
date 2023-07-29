@@ -173,6 +173,8 @@ public:
 	int16_t mpeMostRecentPressure;
 	uint32_t mpeRecordLastUpdateTime;
 
+	uint32_t getSquareWidth(int32_t square, int32_t effectiveLength);
+
 private:
 	uint8_t lastAuditionedVelocityOnScreen[kDisplayHeight]; // 255 seems to mean none
 	uint8_t auditionPadIsPressed[kDisplayHeight];
@@ -204,7 +206,6 @@ private:
 
 	int32_t quantizeAmount;
 
-	uint32_t getSquareWidth(int32_t square, int32_t effectiveLength);
 	void sendAuditionNote(bool on, uint8_t yDisplay, uint8_t velocity, uint32_t sampleSyncLength);
 	void setLedStates();
 	void checkIfAllEditPadPressesEnded(bool mayRenderSidebar = true);

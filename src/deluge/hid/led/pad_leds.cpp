@@ -988,10 +988,10 @@ void renderClipExpandOrCollapse() {
 			else if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
 				changeRootUI(&automationClipView);
 				// If we need to zoom in horizontally because the Clip's too short...
-				bool anyZoomingDone = automationClipView.zoomToMax(true);
-				if (anyZoomingDone) {
-					uiNeedsRendering(&automationClipView, 0, 0xFFFFFFFF);
-				}
+			//	bool anyZoomingDone = automationClipView.zoomToMax(true);
+			//	if (anyZoomingDone) {
+			//		uiNeedsRendering(&automationClipView, 0, 0xFFFFFFFF);
+			//	}
 			}
 			else {
 				changeRootUI(&instrumentClipView);

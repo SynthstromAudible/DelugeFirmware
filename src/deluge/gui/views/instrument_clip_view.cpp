@@ -127,17 +127,6 @@ bool InstrumentClipView::opened() {
 	return true;
 }
 
-// Initializes some stuff to begin a new editing session
-void InstrumentClipView::focusRegained() {
-	ClipView::focusRegained();
-
-	auditioningSilently = false; // Necessary?
-
-	InstrumentClipMinder::focusRegained();
-
-	setLedStates();
-}
-
 void InstrumentClipView::openedInBackground() {
 	bool renderingToStore = (currentUIMode == UI_MODE_ANIMATION_FADE);
 
@@ -156,6 +145,17 @@ void InstrumentClipView::openedInBackground() {
 	}
 	getCurrentClip()->onKeyboardScreen = false;
 	getCurrentClip()->onAutomationClipView = false;
+}
+
+// Initializes some stuff to begin a new editing session
+void InstrumentClipView::focusRegained() {
+	ClipView::focusRegained();
+
+	auditioningSilently = false; // Necessary?
+
+	InstrumentClipMinder::focusRegained();
+
+	setLedStates();
 }
 
 void InstrumentClipView::setLedStates() {
