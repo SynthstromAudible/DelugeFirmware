@@ -16,6 +16,10 @@
 			"group": {
 				"kind": "build",
 				"isDefault": true
+			},
+			"problemMatcher": {
+				"base": "$gcc",
+				"fileLocation": "absolute"
 			}
 		},
 		{
@@ -33,6 +37,10 @@
 			"group": {
 				"kind": "build",
 				"isDefault": false
+			},
+			"problemMatcher": {
+				"base": "$gcc",
+				"fileLocation": "absolute"
 			}
 		},
 		{
@@ -50,6 +58,10 @@
 			"group": {
 				"kind": "build",
 				"isDefault": false
+			},
+			"problemMatcher": {
+				"base": "$gcc",
+				"fileLocation": "absolute"
 			}
 		},
 		{
@@ -67,6 +79,10 @@
 			"group": {
 				"kind": "build",
 				"isDefault": false
+			},
+			"problemMatcher": {
+				"base": "$gcc",
+				"fileLocation": "absolute"
 			}
 		},
 		{
@@ -84,6 +100,10 @@
 			"group": {
 				"kind": "build",
 				"isDefault": false
+			},
+			"problemMatcher": {
+				"base": "$gcc",
+				"fileLocation": "absolute"
 			}
 		},
 		{
@@ -101,6 +121,10 @@
 			"group": {
 				"kind": "build",
 				"isDefault": false
+			},
+			"problemMatcher": {
+				"base": "$gcc",
+				"fileLocation": "absolute"
 			}
 		},
 		{
