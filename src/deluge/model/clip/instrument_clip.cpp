@@ -913,7 +913,7 @@ void InstrumentClip::sendPendingNoteOn(ModelStackWithTimelineCounter* modelStack
 		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 		    modelStackWithNoteRow->addOtherTwoThings(output->toModControllable(), &paramManager);
 		((MelodicInstrument*)output)
-		    ->sendNote(modelStackWithThreeMainThings, true, pendingNoteOn->noteRow->getNoteCode(), mpeValues,
+		    ->sendNote(modelStackWithThreeMainThings, true, pendingNoteOn->noteRow->getNoteCode() + pendingNoteOn->accidentalTranspose, mpeValues,
 		               MIDI_CHANNEL_NONE, pendingNoteOn->velocity, pendingNoteOn->sampleSyncLength,
 		               pendingNoteOn->ticksLate);
 	}

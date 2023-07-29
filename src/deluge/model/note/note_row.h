@@ -20,7 +20,9 @@
 #include "modulation/params/param_manager.h"
 #include "definitions_cxx.hpp"
 #include "model/note/note_vector.h"
+#include "model/note/note.h"
 #include "io/midi/learned_midi.h"
+
 
 #define SQUARE_NEW_NOTE 1
 #define SQUARE_NOTE_HEAD 2
@@ -56,6 +58,7 @@ struct PendingNoteOn {
 	int32_t ticksLate;
 	uint8_t probability;
 	uint8_t velocity;
+	int8_t accidentalTranspose;
 };
 
 struct PendingNoteOnList {
@@ -84,6 +87,7 @@ public:
 	void writeToFile(int drumIndex, InstrumentClip* clip);
 	int readFromFile(int*, InstrumentClip*, Song* song, int32_t readAutomationUpToPos);
 	inline int getNoteCode() { return y; }
+	inline int getNoteCodeForNote(Note* note) { return y + note->getAccidentalTranspose(); }
 	void writeToFlash();
 	void readFromFlash(InstrumentClip* parentClip);
 	unsigned int getNumNotes();

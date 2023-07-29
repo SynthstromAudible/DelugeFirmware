@@ -2123,7 +2123,7 @@ void NoteRow::playNote(bool on, ModelStackWithNoteRow* modelStack, Note* thisNot
 
 				// Special case for Sounds
 				if (output->type == InstrumentType::SYNTH) {
-					if (((SoundInstrument*)output)->noteIsOn(getNoteCode())
+					if (((SoundInstrument*)output)->noteIsOn(getNoteCodeForNote(thisNote))
 					    && ((SoundInstrument*)output)
 					           ->allowNoteTails(
 					               modelStack
@@ -2156,6 +2156,7 @@ storePendingNoteOn:
 					pendingNoteOnList->pendingNoteOns[pendingNoteOnList->count].sampleSyncLength =
 					    thisNote->getLength();
 					pendingNoteOnList->pendingNoteOns[pendingNoteOnList->count].ticksLate = ticksLate;
+					pendingNoteOnList->pendingNoteOns[pendingNoteOnList->count].accidentalTranspose = thisNote->getAccidentalTranspose();
 					pendingNoteOnList->count++;
 				}
 
@@ -2168,7 +2169,7 @@ storePendingNoteOn:
 					    ((Clip*)modelStack->getTimelineCounter())->output->toModControllable(),
 					    &modelStack->getTimelineCounter()->paramManager);
 					((MelodicInstrument*)output)
-					    ->sendNote(modelStackWithThreeMainThings, true, getNoteCode(), mpeValues, MIDI_CHANNEL_NONE,
+					    ->sendNote(modelStackWithThreeMainThings, true, getNoteCodeForNote(thisNote), mpeValues, MIDI_CHANNEL_NONE,
 					               thisNote->velocity, thisNote->length, ticksLate, samplesLate);
 				}
 			}
@@ -2185,7 +2186,7 @@ storePendingNoteOn:
 			    modelStack->addOtherTwoThings(((Clip*)modelStack->getTimelineCounter())->output->toModControllable(),
 			                                  &modelStack->getTimelineCounter()->paramManager);
 			((MelodicInstrument*)output)
-			    ->sendNote(modelStackWithThreeMainThings, false, getNoteCode(), NULL, MIDI_CHANNEL_NONE, lift);
+			    ->sendNote(modelStackWithThreeMainThings, false, getNoteCodeForNote(thisNote), NULL, MIDI_CHANNEL_NONE, lift);
 		}
 	}
 	else if (drum) {
