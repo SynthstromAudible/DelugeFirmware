@@ -119,7 +119,7 @@ int32_t SamplePlaybackGuide::getNumSamplesLaggingBehindSync(VoiceSample* voiceSa
 		idealSamplePos = ((SampleHolder*)audioFileHolder)->getEndPos(true) - 1 - idealNumSamplesIn;
 	}
 
-// HERE
+	// HERE
 	uint64_t actualSamplePos = voiceSample->getPlaySample((Sample*)audioFileHolder->audioFile, this);
 
 	return (int32_t)(idealSamplePos - actualSamplePos) * playDirection;

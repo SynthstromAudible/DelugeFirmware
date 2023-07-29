@@ -443,7 +443,8 @@ ensureNotPastSampleLength:
 							int loopEnd = getCurrentMultisampleRange()->sampleHolder.loopEndPos;
 							loopLength = loopEnd - loopStart;
 							numericDriver.displayPopup("LOCK");
-						} else {
+						}
+						else {
 							loopLocked = false;
 							// unset loopLength?
 							numericDriver.displayPopup("FREE");
@@ -738,7 +739,8 @@ ActionResult SampleMarkerEditor::verticalEncoderAction(int offset, bool inCardRo
 	if (offset > 0) {
 		loopLength = loopLength * 2;
 		numericDriver.displayPopup("DOUB");
-	} else {
+	}
+	else {
 		loopLength = loopLength / 2;
 		numericDriver.displayPopup("HALF");
 	}
