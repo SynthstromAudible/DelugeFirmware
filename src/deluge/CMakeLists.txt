@@ -9,8 +9,8 @@ add_library(deluge INTERFACE)
 file(GLOB_RECURSE deluge_SOURCES CONFIGURE_DEPENDS *.S *.c *.h *.cpp *.hpp)
 target_sources(deluge INTERFACE ${deluge_SOURCES})
 
-target_include_directories(deluge INTERFACE 
-    ${CMAKE_CURRENT_LIST_DIR} 
+target_include_directories(deluge INTERFACE
+    ${CMAKE_CURRENT_LIST_DIR}
     ${SHARED_INCLUDE}
 )
 
@@ -19,3 +19,20 @@ target_link_libraries(deluge INTERFACE
     RTT
     NE10
 )
+
+target_compile_options(deluge INTERFACE
+    # Set preinclude
+    $<$<COMPILE_LANGUAGE:CXX>:-includepreinclude_cxx.h>
+)
+
+target_compile_definitions(deluge INTERFACE
+    $<$<CONFIG:DEBUG>:IN_HARDWARE_DEBUG=1>
+    $<$<CONFIG:DEBUG>:ENABLE_TEXT_OUTPUT=1>
+)
+
+if(ENABLE_RTT)
+    message(STATUS "RTT enabled for deluge")
+    target_compile_definitions(deluge INTERFACE
+        $<$<CONFIG:DEBUG>:HAVE_RTT=1>
+    )
+endif(ENABLE_RTT)

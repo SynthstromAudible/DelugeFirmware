@@ -1,10 +1,12 @@
 add_library(NE10 STATIC)
 target_include_directories(NE10 PUBLIC
-    common
     inc
+)
+target_include_directories(NE10 PRIVATE 
+    ${SHARED_INCLUDE}
+    common
     modules
 )
-target_include_directories(NE10 PRIVATE ${SHARED_INCLUDE})
 
 target_sources(NE10 PRIVATE 
     common/NE10header.s

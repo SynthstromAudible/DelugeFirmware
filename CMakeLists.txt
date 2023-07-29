@@ -74,15 +74,30 @@ endif(ENABLE_VERSIONED_OUTPUT)
 
 # This function lets us add multiple firmware "configurations"
 # that each have their own set of flags from the same source
+# It is very much a hack and should be retired as soon as possible
 function(add_firmware EXECUTABLE BASE)
     get_target_property(BASE_SOURCES ${BASE} INTERFACE_SOURCES)
     get_target_property(BASE_INCLUDES ${BASE} INTERFACE_INCLUDE_DIRECTORIES)
     get_target_property(BASE_LINKS ${BASE} INTERFACE_LINK_LIBRARIES)
+    get_target_property(BASE_DEFINITIONS ${BASE} INTERFACE_COMPILE_DEFINITIONS)
+    get_target_property(BASE_OPTIONS ${BASE} INTERFACE_COMPILE_OPTIONS)
 
     add_executable(${EXECUTABLE})
     target_sources(${EXECUTABLE} PRIVATE ${BASE_SOURCES})
     target_include_directories(${EXECUTABLE} PRIVATE ${BASE_INCLUDES})
     target_link_libraries(${EXECUTABLE} ${BASE_LINKS})
+
+    set_property(
+        TARGET ${EXECUTABLE}
+        APPEND PROPERTY
+            COMPILE_DEFINITIONS ${BASE_DEFINITIONS}
+    )
+
+    set_property(
+        TARGET ${EXECUTABLE}
+        APPEND PROPERTY
+            COMPILE_OPTIONS ${BASE_OPTIONS}
+    )
 
     set_target_properties(${EXECUTABLE}
         PROPERTIES
@@ -92,11 +107,6 @@ function(add_firmware EXECUTABLE BASE)
             CXX_STANDARD_REQUIRED ON
             CXX_EXTENSIONS ON
             SUFFIX "${EXECUTABLE_VERSION_SUFFIX}.elf"
-    )
-
-    target_compile_options(${EXECUTABLE} PRIVATE
-        # Set preinclude
-        $<$<COMPILE_LANGUAGE:CXX>:-includepreinclude_cxx.h>
     )
 
     set(BIN_FILE $<CONFIG>/${EXECUTABLE}${EXECUTABLE_VERSION_SUFFIX}.bin)
@@ -193,24 +203,8 @@ add_link_options(
     -estart # Set the entrypoint to 'start' (see RZA1/compiler/asm/start.S)
 )
 
-# Add our sources
-add_subdirectory(src)
-
 # RTT Debug options
 option(ENABLE_RTT "Enable RTT output" ON)
-
-if(ENABLE_RTT)
-    message(STATUS "RTT enabled")
-
-    target_compile_definitions(RZA1 INTERFACE
-        $<$<CONFIG:DEBUG>:ENABLE_TEXT_OUTPUT=1>
-        $<$<CONFIG:DEBUG>:HAVE_RTT=1>
-    )
-    target_compile_definitions(deluge INTERFACE
-        $<$<CONFIG:DEBUG>:ENABLE_TEXT_OUTPUT=1>
-        $<$<CONFIG:DEBUG>:HAVE_RTT=1>
-    )
-endif(ENABLE_RTT)
 
 # Colored output
 option(FORCE_COLORED_OUTPUT "Always produce ANSI-colored output (GNU/Clang only)." ON)
@@ -225,12 +219,5 @@ if(FORCE_COLORED_OUTPUT)
     endif()
 endif(FORCE_COLORED_OUTPUT)
 
-# 7SEG configuration
-add_firmware(deluge7SEG deluge)
-target_link_libraries(deluge7SEG RZA1)
-
-# OLED Configuration
-add_firmware(delugeOLED deluge)
-target_compile_definitions(delugeOLED PUBLIC HAVE_OLED=1)
-
-target_link_libraries(delugeOLED RZA1_OLED)
+# Add our sources
+add_subdirectory(src)
