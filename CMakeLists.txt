@@ -114,7 +114,10 @@ function(add_firmware EXECUTABLE BASE)
     set(MAP_FILE $<CONFIG>/${EXECUTABLE}${EXECUTABLE_VERSION_SUFFIX}.map)
 
     # add link options to generate memory map
-    target_link_libraries(${EXECUTABLE} -Wl,\"-Map=${MAP_FILE}\",--cref)
+    target_link_options(${EXECUTABLE} PUBLIC
+        LINKER:-Map=${MAP_FILE}
+        LINKER:--cref
+    )
 
     # generate .bin firmware file
     add_custom_command(TARGET ${EXECUTABLE}
@@ -221,3 +224,12 @@ endif(FORCE_COLORED_OUTPUT)
 
 # Add our sources
 add_subdirectory(src)
+
+# 7SEG configuration
+add_firmware(deluge7SEG deluge)
+target_link_libraries(deluge7SEG RZA1)
+
+# OLED Configuration
+add_firmware(delugeOLED deluge)
+target_compile_definitions(delugeOLED PUBLIC HAVE_OLED=1)
+target_link_libraries(delugeOLED RZA1_OLED)
