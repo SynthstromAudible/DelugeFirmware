@@ -1396,7 +1396,8 @@ bool shouldDoPanning(int32_t panAmount, int32_t* amplitudeL, int32_t* amplitudeR
 }
 
 
-void hueToRGBWithColorScheme(int32_t hue, unsigned char* rgb, int32_t colorScheme) {
+
+void hueToRGB(int32_t hue, unsigned char* rgb){
 	hue = (uint16_t)(hue + 1920) % 192;
 	
     
@@ -1423,10 +1424,6 @@ void hueToRGBWithColorScheme(int32_t hue, unsigned char* rgb, int32_t colorSchem
 			rgb[c] = 0;
 		}
 	}
-}
-
-void hueToRGB(int32_t hue, unsigned char* rgb){
-	hueToRGBWithColorScheme(hue, rgb, RuntimeFeatureStateColorScheme::Classic);
 };
 
 #define PASTEL_RANGE 230

@@ -397,7 +397,6 @@ extern bool octaveStartsFromA;
 
 int random(int upperLimit);
 bool shouldDoPanning(int32_t panAmount, int32_t* amplitudeL, int32_t* amplitudeR);
-void hueToRGBWithColorScheme(int32_t hue, unsigned char* rgb, int32_t colorScheme);
 void hueToRGB(int32_t hue, unsigned char* rgb) ;
 void hueToRGBPastel(int32_t hue, unsigned char* rgb);
 
