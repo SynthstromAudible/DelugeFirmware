@@ -77,7 +77,7 @@
 #include "hid/display/oled.h"
 #endif
 
-    extern "C" {
+extern "C" {
 #include "RZA1/uart/sio_char.h"
 }
 

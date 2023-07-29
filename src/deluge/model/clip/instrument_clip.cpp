@@ -69,9 +69,8 @@
 #include "hid/display/oled.h"
 #endif
 
-    // Supplying song is optional, and basically only for the purpose of setting yScroll according to root note
-    InstrumentClip::InstrumentClip(Song* song)
-    : Clip(CLIP_TYPE_INSTRUMENT) {
+// Supplying song is optional, and basically only for the purpose of setting yScroll according to root note
+InstrumentClip::InstrumentClip(Song* song) : Clip(CLIP_TYPE_INSTRUMENT) {
 	arpeggiatorRate = 0;
 	arpeggiatorGate = 0;
 
