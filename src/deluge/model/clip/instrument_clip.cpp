@@ -1217,8 +1217,9 @@ NoteRow* InstrumentClip::createNewNoteRowForKit(ModelStackWithTimelineCounter* m
 	return newNoteRow;
 }
 
+// TODO: can this be removed?
 void InstrumentClip::getMainColourFromY(int yNote, int8_t noteRowColourOffset, uint8_t rgb[]) {
-	hueToRGBWithColorScheme((yNote + colourOffset + noteRowColourOffset) * -8 / 3, rgb,runtimeFeatureSettings.get(RuntimeFeatureSettingType::ColorScheme));
+	hueToRGB((yNote + colourOffset + noteRowColourOffset) * -8 / 3, rgb);
 }
 
 void InstrumentClip::musicalModeChanged(uint8_t yVisualWithinOctave, int change,

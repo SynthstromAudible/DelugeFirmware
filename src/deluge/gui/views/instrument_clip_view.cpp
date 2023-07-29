@@ -2267,7 +2267,7 @@ void InstrumentClipView::adjustAccidentalTranspose(int offset) {
 				editPadPresses[i].deleteOnDepress = false;
 
 				if (editPadPresses[i].isBlurredSquare) goto multiplePresses;
-                yNoteToUpdate = editPadPresses[i].yDisplay;
+                yRowToUpdate = editPadPresses[i].yDisplay;
 				int currentYNote = getCurrentClip()->getYNoteFromYDisplay(editPadPresses[i].yDisplay, currentSong) ;
 				accidentalTransposeValue = editPadPresses[i].intendedAccidentalTranspose;
 				accidentalTransposeValue = getMin(getMax(accidentalTransposeValue, 0 - currentYNote), 127 - currentYNote);
@@ -2404,8 +2404,8 @@ multiplePresses:
 	}
 
 	// make sure the UI updates.
-	if (yNoteToUpdate >= 0) {
-		uiNeedsRendering(this, 1 << yNoteToUpdate, 0);
+	if (yRowToUpdate >= 0) {
+		uiNeedsRendering(this, 1 << yRowToUpdate, 0);
 	}
 
     // valid parameter check. true for now.
@@ -2570,20 +2570,25 @@ void InstrumentClipView::recalculateColours() {
 }
 
 
-// todo: see if we can remove the intere function.
 void InstrumentClipView::recalculateColour(uint8_t yDisplay) {
-	int colourOffset = 0;
-	NoteRow* noteRow = getCurrentClip()->getNoteRowOnScreen(yDisplay, currentSong);
-	if (noteRow) {
-		colourOffset = noteRow->getColourOffset(getCurrentClip());
+	int colourOffset = getCurrentClip()->colourOffset;
+	int yNote = getCurrentClip()->getYNoteFromYDisplay(yDisplay, currentSong);
+	int rowColourOffset = 0;
+	if (getCurrentClip()->output->type == InstrumentType::KIT) {
+		NoteRow* noteRow = getCurrentClip()->getNoteRowOnScreen(yDisplay, currentSong);
+		if (noteRow) {
+			rowColourOffset = noteRow->getColourOffset(getCurrentClip());
+		}
+
+		noteRenderer.getKitColourFromY(yNote,colourOffset, rowColourOffset,rowColour[yDisplay]);
+	}
+	else {
+		noteRenderer.getNoteColourFromY(yNote,colourOffset,rowColour[yDisplay]);
 	}
 
-	// in the old code inside this function the clipColourOffset is also added.
-    colourOffset += getCurrentClip()->colourOffset;
+
 	//getCurrentClip()->getMainColourFromY(getCurrentClip()->getYNoteFromYDisplay(yDisplay, currentSong), colourOffset,
 	//                                    rowColour[yDisplay]);
-	int yNote = getCurrentClip()->getYNoteFromYDisplay(yDisplay, currentSong);
-	noteRenderer.getNoteColourFromY(yNote,colourOffset,rowColour[yDisplay]);
 	getTailColour(rowTailColour[yDisplay], rowColour[yDisplay]);
 	getBlurColour(rowBlurColour[yDisplay], rowColour[yDisplay]);
 }
@@ -5195,7 +5200,7 @@ void InstrumentClipView::performActualRender(uint32_t whichRows, uint8_t* image,
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-
+    bool isKit = clip->output->type == InstrumentType::KIT;
 	for (int yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 
 		if (whichRows & (1 << yDisplay)) {
@@ -5222,7 +5227,7 @@ void InstrumentClipView::performActualRender(uint32_t whichRows, uint8_t* image,
 				noteRenderer.renderNoteRow(noteRow,this, image,
 				                   occupancyMaskOfRow, true, modelStackWithNoteRow->getLoopLength(),
 				                   clip->allowNoteTails(modelStackWithNoteRow), renderWidth, xScroll, xZoom, 0,
-				                   renderWidth, false,clip->colourOffset + noteRow->getColourOffset(clip));
+				                   renderWidth, false,clip->colourOffset, noteRow->getColourOffset(clip), isKit);
 			}
 
 			if (drawUndefinedArea) {
