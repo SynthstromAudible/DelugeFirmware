@@ -2,6 +2,7 @@
 #include "gui/views/timeline_view.h"
 #include "model/note/note_row.h"
 #include "model/note/note.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "util/functions.h"
 #include <string.h>
 
