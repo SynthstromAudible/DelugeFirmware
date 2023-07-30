@@ -1,10 +1,5 @@
 {
     "files.eol": "\n",
     "files.insertFinalNewline": true,
-    "files.encoding": "utf8",
-    "cmake.generator": "Ninja Multi-Config",
-    "[python]": {
-        "editor.defaultFormatter": "ms-python.black-formatter"
-    },
-    "python.formatting.provider": "none",
+    "files.encoding": "utf8"
 }
