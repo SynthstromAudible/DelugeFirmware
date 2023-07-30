@@ -94,7 +94,7 @@ extern "C" {
 #include "util/cfunctions.h"
 }
 
-extern bool shouldResumePlaybackOnNoteRowLengthSet;
+//extern bool shouldResumePlaybackOnNoteRowLengthSet;
 
 const uint32_t auditionPadActionUIModes[] = {UI_MODE_AUDITIONING,
                                              UI_MODE_ADDING_DRUM_NOTEROW,
@@ -107,7 +107,7 @@ const uint32_t editPadActionUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_HOLDING_
 
 const uint32_t mutePadActionUIModes[] = {UI_MODE_AUDITIONING, UI_MODE_STUTTERING, 0};
 
-static const uint32_t noteNudgeUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON, 0};
+//static const uint32_t noteNudgeUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON, 0};
 
 static const uint32_t verticalScrollUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIONING, UI_MODE_RECORD_COUNT_IN,
                                                  UI_MODE_DRAGGING_KIT_NOTEROW, 0};
@@ -1440,18 +1440,10 @@ void AutomationClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 		// Don't allow further new presses if already done nudging
 		if (numEditPadPresses && doneAnyNudgingSinceFirstEditPadPress) {
 
-			char const* displayText;
-			displayText = "editPadAction 1";
-			numericDriver.displayPopup(displayText);
-
 			return;
 		}
 
 		if (!isSquareDefined(xDisplay)) {
-
-			char const* displayText;
-			displayText = "editPadAction 2";
-			numericDriver.displayPopup(displayText);
 
 			return;
 		}
@@ -1485,9 +1477,10 @@ void AutomationClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 		int32_t effectiveLength = modelStackWithNoteRow->getLoopLength();
 
 		// Now that we've definitely got a NoteRow, check against NoteRow "effective" length here (though it'll very possibly be the same as the Clip length we may have tested against above).
-		if (squareStart >= effectiveLength) {
-			return;
-		}
+		//don't need this check for automation clip view because we are not working with a note row concept, except for kit's, but we can check that later. for now we just need to get pads pressed.
+	//	if (squareStart >= effectiveLength) {
+	//		return;
+	//	}
 
 		uint32_t squareWidth = instrumentClipView.getSquareWidth(xDisplay, effectiveLength);
 
@@ -2489,6 +2482,8 @@ void AutomationClipView::rotateAutomationHorizontally(int offset) {
 	// Nudge automation at Clip level
 //	{
 
+	//can I somehow nudge with: nudgeNonInterpolatingNodesAtPos
+
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	InstrumentClip* clip = getCurrentClip();
 
@@ -2503,8 +2498,24 @@ void AutomationClipView::rotateAutomationHorizontally(int offset) {
 
 			if (modelStackWithParam) {
 
-				int effectiveLength = clip->loopLength;
-				//calculate the square position where undefined area begins (e.g. grey area)
+			//	Action* action = NULL;
+
+			//	if (offset) {
+			//		action = actionLogger.getNewAction(ACTION_NOTE_NUDGE, ACTION_ADDITION_ALLOWED);
+			//		if (action) {
+			//			action->offset = offset;
+			//		}
+			//	}
+
+				for (int xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+
+					int effectiveLength = clip->loopLength;
+					uint32_t squareStart = getPosFromSquare(xDisplay);
+					modelStackWithParam->autoParam->moveRegionHorizontally(modelStackWithParam, squareStart, effectiveLength, offset, effectiveLength, NULL);
+
+				}
+
+		/*		//calculate the square position where undefined area begins (e.g. grey area)
 				uint32_t squareEnd = getSquareFromPos(effectiveLength - 1, NULL, currentSong->xScroll[NAVIGATION_CLIP], currentSong->xZoom[NAVIGATION_CLIP]) + 1;
 
 				//loop through existing parameter values and store them
@@ -2551,7 +2562,7 @@ void AutomationClipView::rotateAutomationHorizontally(int offset) {
 
 					modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, squareStart, squareWidth, false);
 
-				}
+				}*/
 			}
 		}
 
@@ -2572,12 +2583,20 @@ void AutomationClipView::rotateAutomationHorizontally(int offset) {
 
 			if (modelStackWithParam) {
 
-				int effectiveLength = clip->loopLength;
+				for (int xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+
+					int effectiveLength = clip->loopLength;
+					uint32_t squareStart = getPosFromSquare(xDisplay);
+					modelStackWithParam->autoParam->moveRegionHorizontally(modelStackWithParam, squareStart, effectiveLength, offset, effectiveLength, NULL);
+
+				}
+
+			//	int effectiveLength = clip->loopLength;
 				//calculate the square position where undefined area begins (e.g. grey area)
-				uint32_t squareEnd = getSquareFromPos(effectiveLength - 1, NULL, currentSong->xScroll[NAVIGATION_CLIP], currentSong->xZoom[NAVIGATION_CLIP]) + 1;
+			//	uint32_t squareEnd = getSquareFromPos(effectiveLength - 1, NULL, currentSong->xScroll[NAVIGATION_CLIP], currentSong->xZoom[NAVIGATION_CLIP]) + 1;
 
 				//loop through existing parameter values and store them
-				for (int xDisplay = 0; xDisplay < squareEnd; xDisplay++) {
+			/*	for (int xDisplay = 0; xDisplay < squareEnd; xDisplay++) {
 
 					if (modelStackWithParam) {
 
@@ -2620,7 +2639,7 @@ void AutomationClipView::rotateAutomationHorizontally(int offset) {
 
 					modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, squareStart, squareWidth, false);
 
-				}
+				}*/
 			}
 		}
 
@@ -3378,25 +3397,60 @@ void AutomationClipView::copyAutomation(int whichModEncoder) {
 		return;
 	}
 
-	if (!view.activeModControllableModelStack.modControllable) {
-		return;
+	InstrumentClip* clip = getCurrentClip();
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+
+	if (clip->output->type == InstrumentType::SYNTH || clip->output->type == InstrumentType::KIT) {
+
+		if (lastSelectedParamID != 255) {
+
+			ModelStackWithTimelineCounter* modelStack =
+			    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+
+			ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, clip, lastSelectedParamID);
+
+			if (modelStackWithParam && modelStackWithParam->autoParam) {
+
+				bool isPatchCable =
+				    (modelStackWithParam->paramCollection
+				     == modelStackWithParam->paramManager
+				            ->getPatchCableSetAllowJibberish()); // Ok this is cursed, but will work fine so long as
+				                                                 // the possibly invalid memory here doesn't accidentally
+				                                                 // equal modelStack->paramCollection.
+				modelStackWithParam->autoParam->copy(startPos, endPos, &copiedParamAutomation, isPatchCable, modelStackWithParam);
+
+				if (copiedParamAutomation.nodes) {
+					numericDriver.displayPopup(HAVE_OLED ? "Automation copied" : "COPY");
+					return;
+				}
+			}
+		}
 	}
 
-	ModelStackWithAutoParam* modelStack = view.activeModControllableModelStack.modControllable->getParamFromModEncoder(
-	    whichModEncoder, &view.activeModControllableModelStack, false);
-	if (modelStack && modelStack->autoParam) {
+	else if (clip->output->type == InstrumentType::MIDI_OUT) {
 
-		bool isPatchCable =
-		    (modelStack->paramCollection
-		     == modelStack->paramManager
-		            ->getPatchCableSetAllowJibberish()); // Ok this is cursed, but will work fine so long as
-		                                                 // the possibly invalid memory here doesn't accidentally
-		                                                 // equal modelStack->paramCollection.
-		modelStack->autoParam->copy(startPos, endPos, &copiedParamAutomation, isPatchCable, modelStack);
+		if (lastSelectedMidiCC != 255) {
 
-		if (copiedParamAutomation.nodes) {
-			numericDriver.displayPopup(HAVE_OLED ? "Automation copied" : "COPY");
-			return;
+			ModelStackWithTimelineCounter* modelStack =
+			    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+
+			ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, clip, lastSelectedMidiCC);
+
+			if (modelStackWithParam && modelStackWithParam->autoParam) {
+
+				bool isPatchCable =
+				    (modelStackWithParam->paramCollection
+				     == modelStackWithParam->paramManager
+				            ->getPatchCableSetAllowJibberish()); // Ok this is cursed, but will work fine so long as
+				                                                 // the possibly invalid memory here doesn't accidentally
+				                                                 // equal modelStack->paramCollection.
+				modelStackWithParam->autoParam->copy(startPos, endPos, &copiedParamAutomation, isPatchCable, modelStackWithParam);
+
+				if (copiedParamAutomation.nodes) {
+					numericDriver.displayPopup(HAVE_OLED ? "Automation copied" : "COPY");
+					return;
+				}
+			}
 		}
 	}
 
@@ -3419,37 +3473,83 @@ void AutomationClipView::pasteAutomation(int whichModEncoder) {
 
 	float scaleFactor = (float)pastedAutomationWidth / copiedParamAutomation.width;
 
-	if (!view.activeModControllableModelStack.modControllable) {
-		return;
+	InstrumentClip* clip = getCurrentClip();
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+
+	if (clip->output->type == InstrumentType::SYNTH || clip->output->type == InstrumentType::KIT) {
+
+		if (lastSelectedParamID != 255) {
+
+			ModelStackWithTimelineCounter* modelStack =
+			    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+
+			ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, clip, lastSelectedParamID);
+
+			if (modelStackWithParam && modelStackWithParam->autoParam) {
+				Action* action = actionLogger.getNewAction(ACTION_AUTOMATION_PASTE, false);
+
+				if (action) {
+					action->recordParamChangeIfNotAlreadySnapshotted(modelStackWithParam, false);
+				}
+
+				bool isPatchCable = (modelStackWithParam->paramCollection
+				                     == modelStackWithParam->paramManager->getPatchCableSetAllowJibberish());
+				// Ok this is cursed, but will work fine so long as
+				// the possibly invalid memory here doesn't accidentally
+				// equal modelStack->paramCollection.
+
+				modelStackWithParam->autoParam->paste(startPos, endPos, scaleFactor, modelStackWithParam,
+				                                          &copiedParamAutomation, isPatchCable);
+
+				numericDriver.displayPopup(HAVE_OLED ? "Automation pasted" : "PASTE");
+
+				if (playbackHandler.isEitherClockActive()) {
+					currentPlaybackMode->reversionDone(); // Re-gets automation and stuff
+				}
+
+				return;
+			}
+		}
 	}
 
-	ModelStackWithAutoParam* modelStackWithAutoParam =
-	    view.activeModControllableModelStack.modControllable->getParamFromModEncoder(
-	        whichModEncoder, &view.activeModControllableModelStack, true);
-	if (!modelStackWithAutoParam || !modelStackWithAutoParam->autoParam) {
-		numericDriver.displayPopup(HAVE_OLED ? "Can't paste automation" : "CANT");
-		return;
+	else if (clip->output->type == InstrumentType::MIDI_OUT) {
+
+		if (lastSelectedMidiCC != 255) {
+
+			ModelStackWithTimelineCounter* modelStack =
+			    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+
+			ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, clip, lastSelectedMidiCC);
+
+			if (modelStackWithParam && modelStackWithParam->autoParam) {
+				Action* action = actionLogger.getNewAction(ACTION_AUTOMATION_PASTE, false);
+
+				if (action) {
+					action->recordParamChangeIfNotAlreadySnapshotted(modelStackWithParam, false);
+				}
+
+				bool isPatchCable = (modelStackWithParam->paramCollection
+				                     == modelStackWithParam->paramManager->getPatchCableSetAllowJibberish());
+				// Ok this is cursed, but will work fine so long as
+				// the possibly invalid memory here doesn't accidentally
+				// equal modelStack->paramCollection.
+
+				modelStackWithParam->autoParam->paste(startPos, endPos, scaleFactor, modelStackWithParam,
+				                                          &copiedParamAutomation, isPatchCable);
+
+				numericDriver.displayPopup(HAVE_OLED ? "Automation pasted" : "PASTE");
+
+				if (playbackHandler.isEitherClockActive()) {
+					currentPlaybackMode->reversionDone(); // Re-gets automation and stuff
+				}
+
+				return;
+			}
+		}
 	}
 
-	Action* action = actionLogger.getNewAction(ACTION_AUTOMATION_PASTE, false);
-
-	if (action) {
-		action->recordParamChangeIfNotAlreadySnapshotted(modelStackWithAutoParam, false);
-	}
-
-	bool isPatchCable = (modelStackWithAutoParam->paramCollection
-	                     == modelStackWithAutoParam->paramManager->getPatchCableSetAllowJibberish());
-	// Ok this is cursed, but will work fine so long as
-	// the possibly invalid memory here doesn't accidentally
-	// equal modelStack->paramCollection.
-
-	modelStackWithAutoParam->autoParam->paste(startPos, endPos, scaleFactor, modelStackWithAutoParam,
-	                                          &copiedParamAutomation, isPatchCable);
-
-	numericDriver.displayPopup(HAVE_OLED ? "Automation pasted" : "PASTE");
-	if (playbackHandler.isEitherClockActive()) {
-		currentPlaybackMode->reversionDone(); // Re-gets automation and stuff
-	}
+	numericDriver.displayPopup(HAVE_OLED ? "Can't paste automation" : "CANT");
+	return;
 }
 
 void AutomationClipView::dontDeleteNotesOnDepress() {
@@ -3487,6 +3587,9 @@ void AutomationClipView::selectEncoderAction(int8_t offset) {
 	//needed for Automation
 	//If the user is holding down shift while turning select, change midi CC or param ID
 	else if (Buttons::isShiftButtonPressed()) {
+
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 		lastSelectedParamX = 255;
 		lastSelectedMidiX = 255;
@@ -3542,8 +3645,16 @@ void AutomationClipView::selectEncoderAction(int8_t offset) {
 				lastSelectedMidiCC += offset;
 			}
 
-			//bool automationExists = doesAutomationExistOnMIDIParam(modelStack, cc);
-			InstrumentClipMinder::drawMIDIControlNumber(lastSelectedMidiCC, false);
+			ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, currentSong->currentClip, lastSelectedMidiCC);
+			bool isAutomated = false;
+
+			if (modelStackWithParam) {
+				if (modelStackWithParam->autoParam->isAutomated()) {
+					isAutomated = true;
+				}
+			}
+
+			InstrumentClipMinder::drawMIDIControlNumber(lastSelectedMidiCC, isAutomated);
 
 			for (int x = 0; x < kDisplayWidth; x++) {
 				for (int y = 0; y < kDisplayHeight; y++) {

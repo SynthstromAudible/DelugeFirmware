@@ -17,6 +17,7 @@
 
 #include "model/clip/clip.h"
 #include "definitions_cxx.hpp"
+#include "gui/views/automation_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/timeline_view.h"
 #include "gui/views/view.h"
@@ -30,6 +31,7 @@
 #include "model/consequence/consequence_output_existence.h"
 #include "model/model_stack.h"
 #include "model/output.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
 #include "playback/mode/playback_mode.h"
@@ -939,10 +941,38 @@ trimFoundParamManager:
 }
 
 void Clip::clear(Action* action, ModelStackWithTimelineCounter* modelStack) {
-	if (paramManager.containsAnyParamCollectionsIncludingExpression()) {
-		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-		    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager);
-		paramManager.deleteAllAutomation(action, modelStackWithThreeMainThings);
+
+	//New community feature as part of Automation Clip View Implementation
+	//If this is enabled, then when you are in a regular Instrument Clip View (Synth, Kit, MIDI, CV), clearing a clip
+	//will only clear the Notes and MPE data (NON MPE automations remain intact).
+
+	//If this is enabled, if you want to clear NON MPE automations, you will enter Automation Clip View and clear the clip there.
+	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::ClearClipAutomation) == RuntimeFeatureStateToggle::On) {
+		if (getCurrentUI() == &automationClipView) {
+
+			if (paramManager.containsAnyMainParamCollections()) { //excluding expression
+				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+				    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager);
+				paramManager.deleteAllAutomation(action, modelStackWithThreeMainThings);
+			}
+		}
+	}
+	else { //community feature is disabled, so you can clear all automations from within the regular instrument clip view
+		if (getCurrentUI() == &automationClipView) { //if in automation clip view, only clear NON MPE automations
+
+			if (paramManager.containsAnyMainParamCollections()) { //excluding expression
+				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+				    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager);
+				paramManager.deleteAllAutomation(action, modelStackWithThreeMainThings);
+			}
+		}
+		else { //if in instrument clip view, clear ALL automations including MPE
+			if (paramManager.containsAnyParamCollectionsIncludingExpression()) {
+					ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+					    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager);
+					paramManager.deleteAllAutomation(action, modelStackWithThreeMainThings);
+			}
+		}
 	}
 }
 

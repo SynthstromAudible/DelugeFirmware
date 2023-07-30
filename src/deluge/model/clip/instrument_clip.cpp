@@ -3275,21 +3275,10 @@ void InstrumentClip::sendMIDIPGM() {
 }
 
 void InstrumentClip::clear(Action* action, ModelStackWithTimelineCounter* modelStack) {
-	//New community feature as part of Automation Clip View Implementation
-	//If this is enabled, then when you are in a regular Instrument Clip View (Synth, Kit, MIDI, CV), clearing a clip
-	//will only clear the Notes (automations remain intact).
-	//If this is enabled, if you want to clear automations, you will enter Automation Clip View and clear the clip there.
-	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::ClearClipAutomation) == RuntimeFeatureStateToggle::On) {
-		if (getCurrentUI() == &automationClipView) {
-			Clip::clear(action, modelStack);
-		}
-	}
-	else {
-		Clip::clear(action, modelStack);
-	}
+	Clip::clear(action, modelStack);
 
 	//New addition as part of Automation Clip View Implementation
-	//If you are in Automation Clip View, clearing a clip will not clear notes, only automations.
+	//If you are in Automation Clip View, clearing a clip will not clear notes, only NON MPE automations.
 	if (getCurrentUI() != &automationClipView) {
 		for (int i = 0; i < noteRows.getNumElements(); i++) {
 			NoteRow* thisNoteRow = noteRows.getElement(i);

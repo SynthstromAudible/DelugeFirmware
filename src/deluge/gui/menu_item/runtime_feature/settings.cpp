@@ -40,6 +40,7 @@ Setting menuPatchCableResolution(RuntimeFeatureSettingType::PatchCableResolution
 Setting menuCatchNotes(RuntimeFeatureSettingType::CatchNotes);
 Setting menuDeleteUnusedKitRows(RuntimeFeatureSettingType::DeleteUnusedKitRows);
 Setting menuClearClipAutomation(RuntimeFeatureSettingType::ClearClipAutomation);
+Setting menuNudgeNoteAutomation(RuntimeFeatureSettingType::NudgeNoteAutomation);
 
 std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement + 1> subMenuEntries{
     &menuDrumRandomizer,
@@ -50,6 +51,7 @@ std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement + 1> subMenuEntries{
     &menuCatchNotes,
     &menuDeleteUnusedKitRows,
     &menuClearClipAutomation,
+	&menuNudgeNoteAutomation,
 
     nullptr,
 };

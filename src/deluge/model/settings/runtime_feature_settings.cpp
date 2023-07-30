@@ -88,6 +88,9 @@ void RuntimeFeatureSettings::init() {
 	// ClearClipAutomation
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::ClearClipAutomation], "Clear Clip Automation",
 	                  "clearClipAutomation", RuntimeFeatureStateToggle::On);
+	// NudgeNoteAutomation
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::NudgeNoteAutomation], "Nudge Note Automation",
+	                  "nudgeNoteAutomation", RuntimeFeatureStateToggle::On);
 }
 
 void RuntimeFeatureSettings::readSettingsFromFile() {
