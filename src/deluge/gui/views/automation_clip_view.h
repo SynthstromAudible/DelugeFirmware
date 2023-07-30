@@ -21,28 +21,29 @@
 #include "gui/views/clip_view.h"
 #include "hid/button.h"
 #include "model/clip/instrument_clip_minder.h"
+#include "model/mod_controllable/mod_controllable_audio.h"
 #include "modulation/automation/copied_param_automation.h"
 #include "modulation/params/param_node.h"
 
-class InstrumentClip;
-class NoteRow;
-class Note;
+class Action;
+class CopiedNoteRow;
+class Drum;
 class Editor;
 class Instrument;
-class Sound;
-class ModControllable;
-class Drum;
-class SoundDrum;
-class ParamManagerForTimeline;
-class Action;
-class ParamCollection;
-class CopiedNoteRow;
-class ParamNode;
-class ModelStackWithTimelineCounter;
-class ModelStackWithNoteRow;
+class InstrumentClip;
 class MidiInstrument;
+class ModControllable;
 class ModelStackWithAutoParam;
+class ModelStackWithNoteRow;
 class ModelStackWithThreeMainThings;
+class ModelStackWithTimelineCounter;
+class Note;
+class NoteRow;
+class ParamCollection;
+class ParamManagerForTimeline;
+class ParamNode;
+class Sound;
+class SoundDrum;
 
 struct EditAutomationPadPress {
 	bool isActive;
@@ -62,7 +63,7 @@ struct EditAutomationPadPress {
 #define MPE_RECORD_LENGTH_FOR_NOTE_EDITING 3
 #define MPE_RECORD_INTERVAL_TIME (44100 >> 2) // 250ms
 
-class AutomationClipView final : public ClipView, public InstrumentClipMinder {
+class AutomationClipView final : public ClipView, public InstrumentClipMinder, public ModControllableAudio {
 public:
 	AutomationClipView();
 	bool opened();
@@ -207,10 +208,7 @@ private:
 	Drum* drumForNewNoteRow;
 
 	//Horizontal Encoder Action
-	void rotateNoteRowHorizontally(ModelStackWithNoteRow* modelStack, int offset, int yDisplay,
-	                               bool shouldDisplayDirectionEvenIfNoNoteRow = false);
-	void editNoteRowLength(ModelStackWithNoteRow* modelStack, int offset, int yDisplay);
-	void nudgeNotes(int offset);
+	void rotateAutomationHorizontally(int offset);
 	bool offsettingNudgeNumberDisplay;
 	bool doneAnyNudgingSinceFirstEditPadPress;
 	bool shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress;
@@ -240,6 +238,7 @@ private:
 	                                     int32_t secondPadValue);
 
 	int calculateKnobPosForModEncoderTurn(int32_t knobPos, int32_t offset);
+	bool isOnParameterGridMenuView();
 
 	//Interpolation Shape Functions
 	int LERP(int A, int B, int T, int Distance);
@@ -248,6 +247,7 @@ private:
 	int LERPSweepDown(int A, int B, int T, int Distance);
 	//int smoothstep (int A, int B, int T, int Distance);
 
+	//Automation Lanes Variables
 	uint8_t lastSelectedParamID;
 	uint8_t lastSelectedParamX;
 	uint8_t lastSelectedParamY;
@@ -257,6 +257,8 @@ private:
 	uint8_t lastSelectedMidiY;
 	uint8_t selectedParamColour[kDisplayHeight][3];
 	uint8_t lastEditPadPressXDisplay;
+	uint8_t lastAutomationNudgeOffset;
+	uint32_t previousParamValue[kDisplayWidth];
 };
 
 extern AutomationClipView automationClipView;

@@ -142,6 +142,7 @@ public:
 	Sound* getSoundForNoteRow(NoteRow* noteRow, ParamManagerForTimeline** getParamManager);
 	ModelStackWithNoteRow* createNoteRowForYDisplay(ModelStackWithTimelineCounter* modelStack, int yDisplay);
 	ModelStackWithNoteRow* getOrCreateNoteRowForYDisplay(ModelStackWithTimelineCounter* modelStack, int yDisplay);
+	void editNoteRowLength(ModelStackWithNoteRow* modelStack, int offset, int yDisplay);
 
 	void tempoEncoderAction(int8_t offset, bool encoderButtonPressed, bool shiftButtonPressed);
 
@@ -230,7 +231,6 @@ private:
 	void editNumEuclideanEvents(ModelStackWithNoteRow* modelStack, int offset, int yDisplay);
 	void rotateNoteRowHorizontally(ModelStackWithNoteRow* modelStack, int offset, int yDisplay,
 	                               bool shouldDisplayDirectionEvenIfNoNoteRow = false);
-	void editNoteRowLength(ModelStackWithNoteRow* modelStack, int offset, int yDisplay);
 
 	void quantizeNotes(int offset, int nudgeMode);
 
