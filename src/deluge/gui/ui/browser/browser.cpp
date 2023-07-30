@@ -1389,7 +1389,13 @@ void Browser::displayText(bool blinkImmediately) {
 #if HAVE_OLED
 	renderUIsForOled();
 #else
-	if (arrivedAtFileByTyping) {
+	if (arrivedAtFileByTyping || qwertyVisible) {
+		if (!arrivedAtFileByTyping) {
+			//This means a key has been hit while browsing
+			//to bring up the keyboard, so set position to -1
+			//this might not be neccesary?
+			numberEditPos = -1;
+		}
 		QwertyUI::displayText(blinkImmediately);
 	}
 	else {
@@ -1401,24 +1407,20 @@ void Browser::displayText(bool blinkImmediately) {
 			if (filePrefix) {
 
 				Slot thisSlot = getSlot(enteredText.get());
-				if (thisSlot.slot < 0) {
-					goto nonNumeric;
-				}
-
-				numericDriver.setTextAsSlot(thisSlot.slot, thisSlot.subSlot, (fileIndexSelected != -1), true,
-				                            numberEditPos, blinkImmediately);
-			}
-
-			else {
-nonNumeric:
-				numberEditPos = -1;
-				if (qwertyVisible) {
-					QwertyUI::displayText(blinkImmediately);
-				}
-				else {
-					scrollingText = numericDriver.setScrollingText(enteredText.get(), enteredTextEditPos);
+				if (thisSlot.slot >= 0) {
+					numericDriver.setTextAsSlot(thisSlot.slot, thisSlot.subSlot, (fileIndexSelected != -1), true,
+					                            numberEditPos, blinkImmediately);
+					return;
 				}
 			}
+			int16_t scrollStart = enteredTextEditPos;
+			//if the first difference would be visible on
+			//screen anyway, start scroll from the beginning
+			if (enteredTextEditPos < 4) {
+				scrollStart = 0;
+			}
+
+			scrollingText = numericDriver.setScrollingText(enteredText.get(), scrollStart);
 		}
 	}
 #endif
