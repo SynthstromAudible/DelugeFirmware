@@ -139,6 +139,7 @@ protected:
 #endif
 	bool mayDefaultToBrandNewNameOnEntry;
 	bool qwertyAlwaysVisible;
+	//filePrefix is SONG/SYNT/SAMP etc., signifying the portion of the filesystem you're in
 	char const* filePrefix;
 	bool shouldInterpretNoteNamesForThisBrowser;
 };

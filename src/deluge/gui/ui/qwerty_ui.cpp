@@ -36,6 +36,8 @@
 
 bool QwertyUI::predictionInterrupted;
 String QwertyUI::enteredText{};
+//entered text edit position is the first difference from
+//the previously seen name while browsing/editing
 int16_t QwertyUI::enteredTextEditPos;
 int QwertyUI::scrollPosHorizontal;
 
