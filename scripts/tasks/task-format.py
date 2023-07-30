@@ -2,7 +2,6 @@
 
 # Copyright 2023 Kate Whitlock
 import argparse
-import errno
 import os
 import io
 import fnmatch
