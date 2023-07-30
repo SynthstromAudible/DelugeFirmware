@@ -43,6 +43,8 @@ dbtenv_restore_env()
     PATH="$(echo "$PATH" | /usr/bin/sed "s/$TOOLCHAIN_ARCH_DIR_SED\/arm-none-eabi-gcc\/bin://g")";
     PATH="$(echo "$PATH" | /usr/bin/sed "s/$TOOLCHAIN_ARCH_DIR_SED\/openocd\/bin://g")";
     PATH="$(echo "$PATH" | /usr/bin/sed "s/$TOOLCHAIN_ARCH_DIR_SED\/clang\/bin://g")";
+    PATH="$(echo "$PATH" | /usr/bin/sed "s/$TOOLCHAIN_ARCH_DIR_SED\/cmake\/bin://g")";
+    PATH="$(echo "$PATH" | /usr/bin/sed "s/$TOOLCHAIN_ARCH_DIR_SED\/ninja-build\/bin://g")";
     # PATH="$(echo "$PATH" | /usr/bin/sed "s/$TOOLCHAIN_ARCH_DIR_SED\/openssl\/bin://g")";
     if [ -n "${PS1:-""}" ]; then
         PS1="$(echo "$PS1" | sed 's/\[dbt\] //g')";
@@ -334,6 +336,8 @@ dbtenv_main()
     PATH="$TOOLCHAIN_ARCH_DIR/arm-none-eabi-gcc/bin:$PATH";
     PATH="$TOOLCHAIN_ARCH_DIR/openocd/bin:$PATH";
     PATH="$TOOLCHAIN_ARCH_DIR/clang/bin:$PATH";
+    PATH="$TOOLCHAIN_ARCH_DIR/cmake/bin:$PATH";
+    PATH="$TOOLCHAIN_ARCH_DIR/ninja-build/bin:$PATH";
     # PATH="$TOOLCHAIN_ARCH_DIR/openssl/bin:$PATH";
     export PATH;
 

@@ -25,6 +25,7 @@
 #include "deluge/deluge.h"
 #include "deluge/drivers/mtu/mtu.h"
 #include "diskio.h"
+#include "fatfs/diskio.h"
 #include <stdio.h>
 
 static void midiAndGateOutputTimerInterrupt(uint32_t int_sense) {
