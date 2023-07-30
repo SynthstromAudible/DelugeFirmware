@@ -1390,7 +1390,6 @@ void Browser::displayText(bool blinkImmediately) {
 	renderUIsForOled();
 #else
 	if (arrivedAtFileByTyping) {
-doQWERTYDisplay:
 		QwertyUI::displayText(blinkImmediately);
 	}
 	else {
@@ -1412,13 +1411,12 @@ doQWERTYDisplay:
 
 			else {
 nonNumeric:
-				goto doQWERTYDisplay; // Abandon the below for now.
 				numberEditPos = -1;
 				if (qwertyVisible) {
-					goto doQWERTYDisplay;
+					QwertyUI::displayText(blinkImmediately);
 				}
 				else {
-					scrollingText = numericDriver.setScrollingText(enteredText.get(), numCharsInPrefix);
+					scrollingText = numericDriver.setScrollingText(enteredText.get(), enteredTextEditPos);
 				}
 			}
 		}
