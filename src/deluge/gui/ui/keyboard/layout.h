@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "gui/views/note_renderer.h"
 #include "gui/ui/keyboard/notes_state.h"
 #include "gui/ui/keyboard/state_data.h"
 #include "hid/button.h"
@@ -111,19 +112,24 @@ protected:
 	}
 
 	inline void getNoteColour(uint8_t note, uint8_t rgb[]) {
-		int colourOffset = 0;
+		int clipColourOffset = currentClip()->colourOffset;
+		int rowColourOffset = 0;
 
 		// Get colour offset for kit rows
 		if (currentInstrument()->type == InstrumentType::KIT) {
 			if (note >= 0 && note < currentClip()->noteRows.getNumElements()) {
 				NoteRow* noteRow = currentClip()->noteRows.getElement(note);
 				if (noteRow) {
-					colourOffset = noteRow->getColourOffset(currentClip());
+					rowColourOffset = noteRow->getColourOffset(currentClip());
 				}
 			}
+			noteRenderer.getKitColourFromY(note, clipColourOffset, rowColourOffset, rgb);
+		}
+		else {
+			noteRenderer.getNoteColourFromY(note, clipColourOffset, rgb);
+
 		}
 
-		currentClip()->getMainColourFromY(note, colourOffset, rgb);
 	}
 
 	inline KeyboardState& getState() { return currentClip()->keyboardState; }
