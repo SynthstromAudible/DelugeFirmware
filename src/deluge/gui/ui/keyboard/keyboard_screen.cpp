@@ -25,6 +25,7 @@
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
+#include "gui/views/automation_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -371,8 +372,14 @@ ActionResult KeyboardScreen::buttonAction(hid::Button b, bool on, bool inCardRou
 		keyboardButtonActive = on;
 		if (currentUIMode == UI_MODE_NONE && !keyboardButtonActive
 		    && !keyboardButtonUsed) { // Leave if key up and not used
-			instrumentClipView.recalculateColours();
-			changeRootUI(&instrumentClipView);
+			if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
+				automationClipView.recalculateColours();
+				changeRootUI(&automationClipView);
+			}
+			else {
+				instrumentClipView.recalculateColours();
+				changeRootUI(&instrumentClipView);
+			}
 			keyboardButtonUsed = false;
 		}
 	}
@@ -715,7 +722,12 @@ void KeyboardScreen::unscrolledPadAudition(int velocity, int note, bool shiftBut
 	// Until then we set the scroll to 0 during the auditioning
 	int yScrollBackup = getCurrentClip()->yScroll;
 	getCurrentClip()->yScroll = 0;
-	instrumentClipView.auditionPadAction(velocity, note, shiftButtonDown);
+	if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
+		automationClipView.auditionPadAction(velocity, note, shiftButtonDown);
+	}
+	else {
+		instrumentClipView.auditionPadAction(velocity, note, shiftButtonDown);
+	}
 	getCurrentClip()->yScroll = yScrollBackup;
 }
 
