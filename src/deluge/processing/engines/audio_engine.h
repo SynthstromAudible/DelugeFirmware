@@ -21,7 +21,7 @@
 #include "definitions_cxx.hpp"
 
 extern "C" {
-#include "ff.h"
+#include "fatfs/ff.h"
 }
 
 class Song;
