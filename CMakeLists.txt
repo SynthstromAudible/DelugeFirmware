@@ -122,7 +122,7 @@ function(add_firmware EXECUTABLE BASE)
     # generate .bin firmware file
     add_custom_command(TARGET ${EXECUTABLE}
         POST_BUILD
-        COMMAND ${CMAKE_OBJCOPY} -O binary $<TARGET_FILE:${EXECUTABLE}> ${BIN_FILE}
+        COMMAND ${CMAKE_OBJCOPY} -O binary -S $<TARGET_FILE:${EXECUTABLE}> ${BIN_FILE}
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
         COMMENT "Objcopying ${EXECUTABLE} to firmware ${BIN_FILE}"
         DEPENDS ${EXECUTABLE}
@@ -131,7 +131,7 @@ function(add_firmware EXECUTABLE BASE)
     # generate .hex firmware file
     add_custom_command(TARGET ${EXECUTABLE}
         POST_BUILD
-        COMMAND ${CMAKE_OBJCOPY} -O ihex $<TARGET_FILE:${EXECUTABLE}> ${HEX_FILE}
+        COMMAND ${CMAKE_OBJCOPY} -O ihex -S $<TARGET_FILE:${EXECUTABLE}> ${HEX_FILE}
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
         COMMENT "Objcopying ${EXECUTABLE} to firmware ${HEX_FILE}"
         DEPENDS ${EXECUTABLE}
@@ -227,9 +227,7 @@ add_subdirectory(src)
 
 # 7SEG configuration
 add_firmware(deluge7SEG deluge)
-target_link_libraries(deluge7SEG RZA1)
 
 # OLED Configuration
 add_firmware(delugeOLED deluge)
 target_compile_definitions(delugeOLED PUBLIC HAVE_OLED=1)
-target_link_libraries(delugeOLED RZA1_OLED)
