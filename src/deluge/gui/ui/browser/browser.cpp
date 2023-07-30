@@ -1419,6 +1419,9 @@ void Browser::displayText(bool blinkImmediately) {
 			if (enteredTextEditPos < 4) {
 				scrollStart = 0;
 			}
+			else {
+				scrollStart = enteredTextEditPos - 3;
+			}
 
 			scrollingText = numericDriver.setScrollingText(enteredText.get(), scrollStart);
 		}
