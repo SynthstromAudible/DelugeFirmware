@@ -39,8 +39,8 @@
 #include <string.h>
 
 extern "C" {
-#include "fatfs/diskio.h"
-#include "fatfs/ff.h"
+#include "diskio.h"
+#include "ff.h"
 
 DWORD get_fat_from_fs(                      /* 0xFFFFFFFF:Disk error, 1:Internal error, 2..0x7FFFFFFF:Cluster status */
                       FATFS* fs, DWORD clst /* Cluster number to get the value */
