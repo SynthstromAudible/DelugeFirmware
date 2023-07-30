@@ -81,7 +81,7 @@ The following requirements must be fulfilled for a Pull request to be mergable t
 * If the Pull request requires changes in structure of user files (e.g. project/synth or other xml files) or flash configuration.
     * It must ensure that files or flash configuration created with the official firmware or previous community releases stay compatible or are automatically upgraded (upward compatibility).
     * If possible files and flash configuration created with the changes of the Pull request can be used with older firmwares not having the change (downward compatibility). Older firmwares must not break if a newer configuration was stored on the device.
-* If the Pull request changes end user behavoir or introduces new features a new entry in the [CommunityFeatures.md](Documentation/CommunityFeatures.md) file needs to be created in the preexisting style describing the feature and it's options as a small manual to users. This includes all runtime and compile time flags which shall be named in respective sections.
+* If the Pull request changes end user behavoir or introduces new features a new entry in the [CommunityFeatures.md](Documentation/community_features.md) file needs to be created in the preexisting style describing the feature and it's options as a small manual to users. This includes all runtime and compile time flags which shall be named in respective sections.
 
 ### UI Changes
 
@@ -90,7 +90,8 @@ Changes to the existing UI should follow the following process
 * Ensure they meet the guidelines set out in [UX Principles](Documentation/ux_principles.md)
 * Place the change in the community feature menu for one beta cycle
 * Following a full beta cycle and user feedback, open a poll on the feature
-* Given maintainer approval and positive poll results, the feature can be moved from the community menu to the default Ui
+* At the end of the beta cycle there will be a community meeting on Discord to discuss changes
+* Given maintainer approval and positive feedback, the feature can be moved from the community menu to the default Ui
 
 
 ## Workflow
