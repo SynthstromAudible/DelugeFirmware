@@ -92,8 +92,6 @@ gotError:
 
 	// TODO: create folder if doesn't exist.
 
-	enteredTextEditPos = 0; //enteredText.getLength();
-
 	indicator_leds::setLedState(IndicatorLED::SYNTH, false);
 	indicator_leds::setLedState(IndicatorLED::KIT, false);
 	indicator_leds::setLedState(IndicatorLED::MIDI, false);
@@ -105,6 +103,9 @@ gotError:
 	indicator_leds::blinkLed(IndicatorLED::SESSION_VIEW);
 
 	focusRegained();
+	//do this after focus regained, otherwise the first scroll starts
+	//from the beginning instead of showing the incremented number
+	enteredTextEditPos = 0; //enteredText.getLength();
 	return true;
 }
 

@@ -1389,8 +1389,13 @@ void Browser::displayText(bool blinkImmediately) {
 #if HAVE_OLED
 	renderUIsForOled();
 #else
-	if (arrivedAtFileByTyping) {
-doQWERTYDisplay:
+	if (arrivedAtFileByTyping || qwertyVisible) {
+		if (!arrivedAtFileByTyping) {
+			//This means a key has been hit while browsing
+			//to bring up the keyboard, so set position to -1
+			//this might not be neccesary?
+			numberEditPos = -1;
+		}
 		QwertyUI::displayText(blinkImmediately);
 	}
 	else {
@@ -1402,25 +1407,24 @@ doQWERTYDisplay:
 			if (filePrefix) {
 
 				Slot thisSlot = getSlot(enteredText.get());
-				if (thisSlot.slot < 0) {
-					goto nonNumeric;
+				if (thisSlot.slot >= 0) {
+					numericDriver.setTextAsSlot(thisSlot.slot, thisSlot.subSlot, (fileIndexSelected != -1), true,
+					                            numberEditPos, blinkImmediately);
+					return;
 				}
-
-				numericDriver.setTextAsSlot(thisSlot.slot, thisSlot.subSlot, (fileIndexSelected != -1), true,
-				                            numberEditPos, blinkImmediately);
 			}
-
+			int16_t scrollStart = enteredTextEditPos;
+			//if the first difference would be visible on
+			//screen anyway, start scroll from the beginning
+			if (enteredTextEditPos < 3) {
+				scrollStart = 0;
+			}
 			else {
-nonNumeric:
-				goto doQWERTYDisplay; // Abandon the below for now.
-				numberEditPos = -1;
-				if (qwertyVisible) {
-					goto doQWERTYDisplay;
-				}
-				else {
-					scrollingText = numericDriver.setScrollingText(enteredText.get(), numCharsInPrefix);
-				}
+				//provide some context in case the post-fix is long
+				scrollStart = enteredTextEditPos - 2;
 			}
+
+			scrollingText = numericDriver.setScrollingText(enteredText.get(), scrollStart);
 		}
 	}
 #endif
