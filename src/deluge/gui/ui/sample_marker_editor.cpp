@@ -18,7 +18,7 @@
 #include "gui/ui/sample_marker_editor.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
-#include "gui/ui/keyboard_screen.h"
+#include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/automation_clip_view.h"

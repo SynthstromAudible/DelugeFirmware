@@ -22,7 +22,7 @@
 #include "gui/colour.h"
 #include "gui/context_menu/clear_song.h"
 #include "gui/menu_item/colour.h"
-#include "gui/ui/keyboard_screen.h"
+#include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/root_ui.h"

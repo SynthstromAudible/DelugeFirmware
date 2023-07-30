@@ -22,7 +22,7 @@
 #include "gui/colour.h"
 #include "gui/context_menu/audio_input_selector.h"
 #include "gui/menu_item/colour.h"
-#include "gui/ui/keyboard_screen.h"
+#include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/ui.h"
@@ -2191,7 +2191,6 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 
 		if (((InstrumentClip*)clip)->onKeyboardScreen) {
 
-			keyboardScreen.recalculateColours();
 			keyboardScreen.renderMainPads(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore);
 
 			PadLEDs::numAnimatedRows = kDisplayHeight;

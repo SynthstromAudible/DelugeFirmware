@@ -42,7 +42,7 @@
 #include "gui/context_menu/overwrite_file.h"
 #include "gui/context_menu/save_song_or_instrument.h"
 #include "gui/ui/audio_recorder.h"
-#include "gui/ui/keyboard_screen.h"
+#include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/rename/rename_drum_ui.h"
