@@ -22,6 +22,7 @@
 #include "gui/ui/sound_editor.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/session_view.h"
+#include "gui/views/note_renderer.h"
 #include "gui/views/view.h"
 #include "hid/display/numeric_driver.h"
 #include "io/debug/print.h"
@@ -1318,27 +1319,25 @@ bool InstrumentClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack
 			AudioEngine::logAction("renderAsSingleRow still");
 		}
 
-		int yNote;
+		int noteRowColourOffset = 0;
+		bool isKit = output->type == InstrumentType::KIT;
 
 		if (output->type == InstrumentType::KIT) {
-			yNote = i;
-		}
-		else {
-			yNote = thisNoteRow->y;
+			noteRowColourOffset = i;
 		}
 
-		uint8_t mainColour[3];
-		uint8_t tailColour[3];
-		uint8_t blurColour[3];
+		// uint8_t mainColour[3];
+		// uint8_t tailColour[3];
+		// uint8_t blurColour[3];
 
-		getMainColourFromY(yNote, thisNoteRow->getColourOffset(this), mainColour);
-		getTailColour(tailColour, mainColour);
-		if (allowBlur) {
-			getBlurColour(blurColour, mainColour);
-		}
-		else {
-			memcpy(blurColour, mainColour, 3);
-		}
+		// getMainColourFromY(yNote, thisNoteRow->getColourOffset(this), mainColour);
+		// getTailColour(tailColour, mainColour);
+		// if (allowBlur) {
+		// 	getBlurColour(blurColour, mainColour);
+		// }
+		// else {
+		// 	memcpy(blurColour, mainColour, 3);
+		// }
 
 		if (i == noteRowIndexStart || output->type == InstrumentType::KIT) {
 			ModelStackWithNoteRow* modelStackWithNoteRow =
@@ -1346,9 +1345,9 @@ bool InstrumentClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack
 			rowAllowsNoteTails = allowNoteTails(modelStackWithNoteRow);
 		}
 
-		thisNoteRow->renderRow(editorScreen, mainColour, tailColour, blurColour, image, occupancyMask, false,
+		noteRenderer.renderNoteRow(thisNoteRow, editorScreen, image, occupancyMask, false,
 		                       loopLength, rowAllowsNoteTails, kDisplayWidth, xScroll, xZoom, xStart, xEnd,
-		                       drawRepeats);
+		                       drawRepeats, colourOffset,noteRowColourOffset,isKit);
 	}
 	if (addUndefinedArea) {
 		drawUndefinedArea(xScroll, xZoom, loopLength, image, occupancyMask, kDisplayWidth, editorScreen,
