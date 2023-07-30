@@ -1416,11 +1416,12 @@ void Browser::displayText(bool blinkImmediately) {
 			int16_t scrollStart = enteredTextEditPos;
 			//if the first difference would be visible on
 			//screen anyway, start scroll from the beginning
-			if (enteredTextEditPos < 4) {
+			if (enteredTextEditPos < 3) {
 				scrollStart = 0;
 			}
 			else {
-				scrollStart = enteredTextEditPos - 3;
+				//provide some context in case the post-fix is long
+				scrollStart = enteredTextEditPos - 2;
 			}
 
 			scrollingText = numericDriver.setScrollingText(enteredText.get(), scrollStart);
