@@ -18,7 +18,7 @@
 #include "loop_point.h"
 
 #include "gui/menu_item/menu_item.h"
-#include "gui/ui/keyboard_screen.h"
+#include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/sample_marker_editor.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"

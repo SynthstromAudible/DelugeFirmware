@@ -22,7 +22,7 @@
 #include "gui/colour.h"
 #include "gui/context_menu/clear_song.h"
 #include "gui/menu_item/colour.h"
-#include "gui/ui/keyboard_screen.h"
+#include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/root_ui.h"
@@ -1052,13 +1052,7 @@ void View::setModLedStates() {
 	}
 	indicator_leds::setLedState(IndicatorLED::AFFECT_ENTIRE, affectEntire);
 
-
-	if (!itsTheSong) { //if in clip view, turn on clip button led
-		indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, true);
-	}
-	else { //if not in clip view, turn off clip button led
-		indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, false);
-	}
+	indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, !itsTheSong);
 
 	// Sort out the session/arranger view LEDs
 	if (itsTheSong) {

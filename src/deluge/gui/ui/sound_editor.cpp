@@ -7,7 +7,7 @@
 #include "gui/menu_item/menu_item.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/sample_browser.h"
-#include "gui/ui/keyboard_screen.h"
+#include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/rename/rename_drum_ui.h"
 #include "gui/ui/sample_marker_editor.h"
 #include "gui/ui/save/save_instrument_preset_ui.h"

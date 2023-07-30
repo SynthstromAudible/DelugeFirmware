@@ -596,13 +596,13 @@ bool Song::yNoteIsYVisualWithinOctave(int yNote, int yVisualWithinOctave) {
 }
 
 uint8_t Song::getYNoteWithinOctaveFromYNote(int yNote) {
-	uint16_t yNoteRelativeToRoot = yNote - rootNote + 120;
+	uint16_t yNoteRelativeToRoot = yNote - rootNote + 132;
 	int yNoteWithinOctave = yNoteRelativeToRoot % 12;
 	return yNoteWithinOctave;
 }
 
 bool Song::modeContainsYNote(int yNote) {
-	int yNoteWithinOctave = (uint16_t)(yNote - rootNote + 120) % 12;
+	int yNoteWithinOctave = (uint16_t)(yNote - rootNote + 132) % 12;
 	return modeContainsYNoteWithinOctave(yNoteWithinOctave);
 }
 
