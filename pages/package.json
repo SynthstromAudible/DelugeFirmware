@@ -1,0 +1,37 @@
+{
+  "name": "deluge-firmware-pages",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "dev-ts": "tsc -d -w -p tsconfig.json",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@octokit/core": "^5.0.0",
+    "@octokit/openapi-types": "^18.0.0",
+    "@octokit/plugin-rest-endpoint-methods": "^9.0.0",
+    "@types/node": "20.4.2",
+    "@types/react": "18.2.15",
+    "@types/react-dom": "18.2.7",
+    "autoprefixer": "10.4.14",
+    "dayjs": "^1.11.9",
+    "eslint": "8.45.0",
+    "eslint-config-next": "13.4.10",
+    "next": "13.4.10",
+    "postcss": "8.4.26",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "tailwindcss": "3.3.3",
+    "typescript": "5.1.6",
+    "yauzl": "^2.10.0"
+  },
+  "devDependencies": {
+    "@types/yauzl": "^2.10.0",
+    "json-loader": "^0.5.7",
+    "prettier": "^3.0.0",
+    "prettier-plugin-tailwindcss": "^0.4.1"
+  }
+}

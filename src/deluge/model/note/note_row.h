@@ -17,11 +17,12 @@
 
 #pragma once
 
-#include "modulation/params/param_manager.h"
 #include "definitions_cxx.hpp"
 #include "model/note/note_vector.h"
 #include "model/note/note.h"
 #include "io/midi/learned_midi.h"
+#include "model/note/note_vector.h"
+#include "modulation/params/param_manager.h"
 
 
 #define SQUARE_NEW_NOTE 1

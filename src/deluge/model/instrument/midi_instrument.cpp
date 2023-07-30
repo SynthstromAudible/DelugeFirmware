@@ -15,27 +15,27 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "model/instrument/midi_instrument.h"
 #include "definitions_cxx.hpp"
+#include "gui/ui/ui.h"
+#include "gui/views/view.h"
+#include "hid/buttons.h"
+#include "hid/display/numeric_driver.h"
+#include "hid/matrix/matrix_driver.h"
+#include "io/midi/midi_engine.h"
+#include "model/action/action_logger.h"
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
-#include "modulation/params/param_manager.h"
-#include "model/instrument/midi_instrument.h"
-#include "io/midi/midi_engine.h"
-#include "storage/storage_manager.h"
-#include <string.h>
-#include "util/functions.h"
+#include "model/model_stack.h"
 #include "model/song/song.h"
 #include "modulation/midi/midi_param.h"
-#include "gui/views/view.h"
-#include "model/action/action_logger.h"
-#include "hid/display/numeric_driver.h"
-#include "hid/matrix/matrix_driver.h"
-#include "gui/ui/ui.h"
-#include "hid/buttons.h"
-#include "model/model_stack.h"
 #include "modulation/midi/midi_param_collection.h"
+#include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
+#include "storage/storage_manager.h"
+#include "util/functions.h"
+#include <string.h>
 
 #if HAVE_OLED
 #include "hid/display/oled.h"

@@ -15,28 +15,28 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "model/sample/sample_recorder.h"
 #include "definitions_cxx.hpp"
+#include "gui/ui/browser/sample_browser.h"
+#include "gui/ui/root_ui.h"
+#include "gui/ui_timer_manager.h"
+#include "hid/display/numeric_driver.h"
+#include "io/debug/print.h"
+#include "memory/general_memory_allocator.h"
+#include "model/clip/audio_clip.h"
+#include "model/sample/sample.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
-#include "model/sample/sample_recorder.h"
-#include "model/sample/sample.h"
-#include "memory/general_memory_allocator.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h"
-#include <new>
-#include "gui/ui/root_ui.h"
-#include "model/clip/audio_clip.h"
-#include "gui/ui/browser/sample_browser.h"
-#include "hid/display/numeric_driver.h"
-#include "io/debug/print.h"
-#include "gui/ui_timer_manager.h"
 #include "util/misc.h"
+#include <new>
 
 extern "C" {
-#include "fatfs/diskio.h"
 #include "drivers/ssi/ssi.h"
 #include "drivers/uart/uart.h"
+#include "fatfs/diskio.h"
 
 LBA_t clst2sect(           /* !=0:Sector number, 0:Failed (invalid cluster#) */
                 FATFS* fs, /* Filesystem object */

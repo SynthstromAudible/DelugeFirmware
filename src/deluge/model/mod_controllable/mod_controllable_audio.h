@@ -18,14 +18,14 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "model/mod_controllable/mod_controllable.h"
-#include "dsp/stereo_sample.h"
-#include "dsp/delay/delay.h"
-#include "modulation/lfo.h"
 #include "dsp/compressor/compressor.h"
+#include "dsp/delay/delay.h"
+#include "dsp/stereo_sample.h"
+#include "hid/button.h"
+#include "model/mod_controllable/mod_controllable.h"
+#include "modulation/lfo.h"
 #include "modulation/midi/midi_knob_array.h"
 #include "modulation/params/param_descriptor.h"
-#include "hid/button.h"
 
 #define STUTTERER_STATUS_OFF 0
 #define STUTTERER_STATUS_RECORDING 1

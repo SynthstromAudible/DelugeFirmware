@@ -15,58 +15,58 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "model/song/song.h"
 #include "definitions_cxx.hpp"
 #include "gui/views/arranger_view.h"
-#include "processing/engines/audio_engine.h"
-#include "storage/audio/audio_file_manager.h"
-#include "model/clip/clip_instance.h"
-#include "model/consequence/consequence_clip_existence.h"
-#include "model/clip/instrument_clip.h"
-#include "model/clip/instrument_clip_minder.h"
-#include "modulation/params/param_manager.h"
-#include "processing/sound/sound_drum.h"
-#include "processing/sound/sound_instrument.h"
-#include "model/song/song.h"
-#include "util/functions.h"
 #include "gui/views/view.h"
-#include "storage/storage_manager.h"
-#include "hid/matrix/matrix_driver.h"
 #include "hid/display/numeric_driver.h"
-#include "model/note/note_row.h"
+#include "hid/matrix/matrix_driver.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
+#include "model/clip/clip_instance.h"
+#include "model/clip/instrument_clip.h"
+#include "model/clip/instrument_clip_minder.h"
+#include "model/consequence/consequence_clip_existence.h"
+#include "model/note/note_row.h"
+#include "modulation/params/param_manager.h"
+#include "processing/engines/audio_engine.h"
+#include "processing/sound/sound_drum.h"
+#include "processing/sound/sound_instrument.h"
+#include "storage/audio/audio_file_manager.h"
+#include "storage/storage_manager.h"
+#include "util/functions.h"
 //#include <algorithm>
-#include <string.h>
+#include "dsp/master_compressor/master_compressor.h"
+#include "dsp/reverb/freeverb/revmodel.hpp"
+#include "gui/ui/browser/browser.h"
+#include "gui/ui/load/load_instrument_preset_ui.h"
+#include "gui/views/audio_clip_view.h"
 #include "gui/views/session_view.h"
-#include "playback/playback_handler.h"
+#include "hid/display/oled.h"
+#include "hid/led/pad_leds.h"
 #include "io/debug/print.h"
+#include "io/midi/midi_device.h"
+#include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
 #include "memory/general_memory_allocator.h"
-#include "playback/mode/session.h"
+#include "model/clip/audio_clip.h"
 #include "model/drum/kit.h"
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/midi_instrument.h"
-#include <new>
-#include "playback/mode/arrangement.h"
-#include "model/clip/audio_clip.h"
-#include "processing/audio_output.h"
-#include "gui/views/audio_clip_view.h"
-#include "model/sample/sample_recorder.h"
-#include "processing/engines/cv_engine.h"
-#include "hid/led/pad_leds.h"
-#include "storage/flash_storage.h"
-#include "dsp/reverb/freeverb/revmodel.hpp"
 #include "model/model_stack.h"
-#include "io/midi/midi_device.h"
-#include "io/midi/midi_device_manager.h"
+#include "model/sample/sample_recorder.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
-#include "gui/ui/browser/browser.h"
+#include "playback/mode/arrangement.h"
+#include "playback/mode/session.h"
+#include "playback/playback_handler.h"
+#include "processing/audio_output.h"
+#include "processing/engines/cv_engine.h"
 #include "storage/file_item.h"
-#include "hid/display/oled.h"
-#include "gui/ui/load/load_instrument_preset_ui.h"
-#include "dsp/master_compressor/master_compressor.h"
-#include "model/settings/runtime_feature_settings.h"
+#include "storage/flash_storage.h"
+#include <new>
+#include <string.h>
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
@@ -596,13 +596,13 @@ bool Song::yNoteIsYVisualWithinOctave(int yNote, int yVisualWithinOctave) {
 }
 
 uint8_t Song::getYNoteWithinOctaveFromYNote(int yNote) {
-	uint16_t yNoteRelativeToRoot = yNote - rootNote + 120;
+	uint16_t yNoteRelativeToRoot = yNote - rootNote + 132;
 	int yNoteWithinOctave = yNoteRelativeToRoot % 12;
 	return yNoteWithinOctave;
 }
 
 bool Song::modeContainsYNote(int yNote) {
-	int yNoteWithinOctave = (uint16_t)(yNote - rootNote + 120) % 12;
+	int yNoteWithinOctave = (uint16_t)(yNote - rootNote + 132) % 12;
 	return modeContainsYNoteWithinOctave(yNoteWithinOctave);
 }
 

@@ -106,6 +106,9 @@ void RuntimeFeatureSettings::init() {
 	// CatchNotes
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::CatchNotes], "CatchNotes", "catchNotes",
 	                  RuntimeFeatureStateToggle::On);
+	// DeleteUnusedKitRows
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DeleteUnusedKitRows], "Delete Unused Kit Rows",
+	                  "deleteUnusedKitRows", RuntimeFeatureStateToggle::On);
 	// ColorScheme
 	SetupSetting(settings[RuntimeFeatureSettingType::ColorScheme],"Color Scheme","colorScheme",RuntimeFeatureStateColorScheme::Classic);
 	AddOptionToSetting(settings[RuntimeFeatureSettingType::ColorScheme],
@@ -120,8 +123,8 @@ void RuntimeFeatureSettings::init() {
 	AddOptionToSetting(settings[RuntimeFeatureSettingType::ColorScheme],
 		{.displayName = "Blue", .value = RuntimeFeatureStateColorScheme::Blue}
 	);
-
 }
+
 
 void RuntimeFeatureSettings::readSettingsFromFile() {
 	FilePointer fp;

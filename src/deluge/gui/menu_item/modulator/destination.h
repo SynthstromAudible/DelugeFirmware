@@ -16,8 +16,8 @@
 */
 #pragma once
 #include "gui/menu_item/selection.h"
-#include "processing/sound/sound.h"
 #include "gui/ui/sound_editor.h"
+#include "processing/sound/sound.h"
 
 namespace menu_item::modulator {
 class Destination final : public Selection {

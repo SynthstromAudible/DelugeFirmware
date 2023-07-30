@@ -41,9 +41,17 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
 
 ### Instrument Keyboard View
  - ([#46]) Note offset between rows is now configurable by holding shift and using the horizontal encoder. This allows e.g. an isomorphic keyboard layout by setting the row offset to 12. The setting is saved per clip in the song file.
+ - ([#138]) Keyboard API and general improvements
+	 - Users can switch between layouts with "keyboard" button and select knob
+	 - Keyboard mode allows freely switch between all types (Synth, Kit, MIDI, CV) automatically getting the first compatible layout
+	 - Drum trigger edge sizes in Drums layout for kits can now be changed between 1 and 8 with shift + horizontal encoder
+	 - A new in-key only layout that removes out of scale buttons
+	 - New way to change scale in keyboard mode: Hold scale and press selection knob
+	 - New way to change scale root note in keyboard mode: Hold scale and turn selection knob
 
 ### Kit Clip View
  - ([#122]) Pressing "AUDITION + RANDOM" on a drum kit row will load a random sample from the same folder as the currently enabled sample and load it as the sound for that row. Currently limited to 25 files for performance reasons. This feature can be toggled in the [runtime features menu](#runtime-features).
+  - ([#234]) While you can delete a kit row by holding a Note in a row and pressing SAVE/DELETE, the "Delete Unused Kit Rows" feature allows you to batch delete kit rows which does not contain any notes, freeing kits from unused sounds (which take some precious RAM). While inside a kit, hold "KIT" and press "Shift + SAVE/DELETE". A confirmation message will appear: "Deleted unused rows". This command is not executed if there are no notes at all in the kit. This feature can be toggled in the [runtime features menu](#runtime-features).
 
 ### Kit Keyboard View
  - ([#112]) All-new use for the "keyboard" button in kit clips, uses the main pad grid for MPC-style 16 level playing. Horizonatal encoder scrolls by one pad at a time, allowing positioning drums left to right, and vertical encoder jumps vertically by rows.
@@ -96,4 +104,6 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#112]: https://github.com/SynthstromAudible/DelugeFirmware/pull/112
 [#122]: https://github.com/SynthstromAudible/DelugeFirmware/pull/122
 [#141]: https://github.com/SynthstromAudible/DelugeFirmware/pull/141
+[#138]: https://github.com/SynthstromAudible/DelugeFirmware/pull/138
 [#163]: https://github.com/SynthstromAudible/DelugeFirmware/pull/163
+[#234]: https://github.com/SynthstromAudible/DelugeFirmware/pull/234

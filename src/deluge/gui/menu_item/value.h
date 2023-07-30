@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "menu_item.h"
 #include "definitions_cxx.hpp"
+#include "menu_item.h"
 
 namespace menu_item {
 

@@ -17,10 +17,10 @@
 
 #include "dsp/compressor/compressor.h"
 #include "definitions_cxx.hpp"
-#include "util/lookuptables/lookuptables.h"
 #include "model/song/song.h"
 #include "playback/playback_handler.h"
 #include "storage/flash_storage.h"
+#include "util/lookuptables/lookuptables.h"
 
 Compressor::Compressor() {
 	status = EnvelopeStage::OFF;

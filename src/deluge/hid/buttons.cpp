@@ -15,17 +15,17 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "processing/engines/audio_engine.h"
 #include "hid/buttons.h"
 #include "definitions_cxx.hpp"
-#include "gui/ui/ui.h"
 #include "gui/ui/audio_recorder.h"
-#include "playback/playback_handler.h"
-#include "playback/mode/playback_mode.h"
 #include "gui/ui/load/load_song_ui.h"
-#include "testing/hardware_testing.h"
+#include "gui/ui/ui.h"
 #include "gui/views/view.h"
 #include "model/mod_controllable/mod_controllable.h"
+#include "playback/mode/playback_mode.h"
+#include "playback/playback_handler.h"
+#include "processing/engines/audio_engine.h"
+#include "testing/hardware_testing.h"
 
 namespace Buttons {
 

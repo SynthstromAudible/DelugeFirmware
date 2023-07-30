@@ -18,7 +18,6 @@
 #pragma once
 
 #include "RZA1/system/r_typedefs.h"
-#include "model/settings/runtime_feature_settings.h"
 #include "util/lookuptables/lookuptables.h"
 #include <cstring>
 #include "ff.h"

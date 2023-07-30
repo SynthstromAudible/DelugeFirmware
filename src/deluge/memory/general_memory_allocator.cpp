@@ -15,19 +15,19 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "memory/general_memory_allocator.h"
+#include "definitions_cxx.hpp"
+#include "drivers/mtu/mtu.h"
+#include "hid/display/numeric_driver.h"
+#include "io/debug/print.h"
+#include "memory/stealable.h"
+#include "model/action/action_logger.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
-#include "memory/general_memory_allocator.h"
-#include <new>
-#include "io/debug/print.h"
 #include "util/functions.h"
-#include <string.h>
-#include "model/action/action_logger.h"
-#include "hid/display/numeric_driver.h"
-#include "memory/stealable.h"
-#include "drivers/mtu/mtu.h"
-#include "definitions_cxx.hpp"
+#include <cstring>
+#include <new>
 
 char emptySpacesMemory[sizeof(EmptySpaceRecord) * 512];
 char emptySpacesMemoryInternal[sizeof(EmptySpaceRecord) * 1024];
@@ -184,9 +184,8 @@ void GeneralMemoryAllocator::dealloc(void* address) {
 }
 
 void GeneralMemoryAllocator::putStealableInQueue(Stealable* stealable, int q) {
-	MemoryRegion* region = &regions[getRegion(stealable)];
-	region->stealableClusterQueues[q].addToEnd(stealable);
-	region->stealableClusterQueueLongestRuns[q] = 0xFFFFFFFF; // TODO: actually investigate neighbouring memory "run".
+	MemoryRegion& region = regions[getRegion(stealable)];
+	region.cache_manager().QueueForReclamation(q, stealable);
 }
 
 void GeneralMemoryAllocator::putStealableInAppropriateQueue(Stealable* stealable) {

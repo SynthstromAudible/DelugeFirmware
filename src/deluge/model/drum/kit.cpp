@@ -15,37 +15,37 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "model/drum/kit.h"
 #include "definitions_cxx.hpp"
-#include "processing/engines/audio_engine.h"
-#include "storage/audio/audio_file_manager.h"
+#include "gui/ui/ui.h"
+#include "gui/views/instrument_clip_view.h"
+#include "gui/views/view.h"
+#include "hid/display/numeric_driver.h"
+#include "io/debug/print.h"
+#include "io/midi/midi_device.h"
+#include "io/midi/midi_device_manager.h"
+#include "memory/general_memory_allocator.h"
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
-#include "gui/views/instrument_clip_view.h"
-#include "modulation/params/param_manager.h"
-#include "processing/sound/sound_drum.h"
-#include "model/drum/kit.h"
-#include "storage/storage_manager.h"
 #include "model/drum/drum.h"
-#include "util/functions.h"
-#include "gui/views/view.h"
-#include <string.h>
-#include <new>
-#include "memory/general_memory_allocator.h"
 #include "model/drum/gate_drum.h"
+#include "model/drum/midi_drum.h"
+#include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/song/song.h"
-#include "playback/playback_handler.h"
-#include "playback/mode/playback_mode.h"
-#include "gui/ui/ui.h"
-#include "playback/mode/session.h"
-#include "model/drum/midi_drum.h"
-#include "io/debug/print.h"
-#include "hid/display/numeric_driver.h"
-#include "model/model_stack.h"
-#include "io/midi/midi_device_manager.h"
-#include "io/midi/midi_device.h"
+#include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
+#include "playback/mode/playback_mode.h"
+#include "playback/mode/session.h"
+#include "playback/playback_handler.h"
+#include "processing/engines/audio_engine.h"
+#include "processing/sound/sound_drum.h"
+#include "storage/audio/audio_file_manager.h"
+#include "storage/storage_manager.h"
+#include "util/functions.h"
+#include <new>
+#include <string.h>
 
 Kit::Kit() : Instrument(InstrumentType::KIT), drumsWithRenderingActive(sizeof(Drum*)) {
 	firstDrum = NULL;
@@ -1007,10 +1007,7 @@ void Kit::offerReceivedNote(ModelStackWithTimelineCounter* modelStack, MIDIDevic
 
 		// If this is the "input" command, to sound / audition the Drum...
 		// Returns true if midi channel and note match the learned midi note
-		// Calls equalsChannelAllowMPE to check channel equivalence
-		// Convert channel+device into zone before comparison to stop crossover between MPE and non MPE channels
-		int channelOrZone = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(channel);
-		if (thisDrum->midiInput.equalsNoteOrCCAllowMPE(fromDevice, channelOrZone, note)) {
+		if (thisDrum->midiInput.equalsNoteOrCCAllowMPE(fromDevice, channel, note)) {
 
 			// If MIDIDrum, outputting same note, then don't additionally do thru
 			if (doingMidiThru && thisDrum->type == DrumType::MIDI && ((MIDIDrum*)thisDrum)->channel == channel

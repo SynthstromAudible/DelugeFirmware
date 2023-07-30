@@ -18,10 +18,10 @@
 #include "gui/context_menu/context_menu.h"
 
 #include "definitions_cxx.hpp"
-#include "hid/display/numeric_driver.h"
-#include "util/functions.h"
-#include "hid/led/indicator_leds.h"
 #include "extern.h"
+#include "hid/display/numeric_driver.h"
+#include "hid/led/indicator_leds.h"
+#include "util/functions.h"
 
 #if HAVE_OLED
 #include "hid/display/oled.h"

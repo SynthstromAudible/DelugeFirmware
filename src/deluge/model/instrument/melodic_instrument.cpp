@@ -15,32 +15,30 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "definitions_cxx.hpp"
-#include "model/clip/instrument_clip.h"
-#include "modulation/params/param_manager.h"
 #include "model/instrument/melodic_instrument.h"
-#include "storage/storage_manager.h"
-#include <string.h>
-#include "util/functions.h"
-#include "playback/playback_handler.h"
-#include "model/note/note_row.h"
-#include "playback/mode/session.h"
-#include "model/song/song.h"
-#include "model/action/action_logger.h"
-#include "gui/ui/root_ui.h"
-#include "gui/views/view.h"
-#include "model/model_stack.h"
-#include "modulation/automation/auto_param.h"
-#include "model/model_stack.h"
-#include "modulation/automation/auto_param.h"
-#include "memory/general_memory_allocator.h"
-#include <new>
-#include "io/midi/midi_device_manager.h"
-#include "io/midi/midi_device.h"
+#include "definitions_cxx.hpp"
 #include "extern.h"
+#include "gui/ui/root_ui.h"
 #include "gui/views/instrument_clip_view.h"
-#include "modulation/params/param_set.h"
+#include "gui/views/view.h"
+#include "io/midi/midi_device.h"
+#include "io/midi/midi_device_manager.h"
+#include "memory/general_memory_allocator.h"
+#include "model/action/action_logger.h"
+#include "model/clip/instrument_clip.h"
 #include "model/instrument/midi_instrument.h"
+#include "model/model_stack.h"
+#include "model/note/note_row.h"
+#include "model/song/song.h"
+#include "modulation/automation/auto_param.h"
+#include "modulation/params/param_manager.h"
+#include "modulation/params/param_set.h"
+#include "playback/mode/session.h"
+#include "playback/playback_handler.h"
+#include "storage/storage_manager.h"
+#include "util/functions.h"
+#include <new>
+#include <string.h>
 
 bool MelodicInstrument::writeMelodicInstrumentAttributesToFile(Clip* clipForSavingOutputOnly, Song* song) {
 	Instrument::writeDataToFile(clipForSavingOutputOnly, song);

@@ -15,11 +15,11 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "definitions_cxx.hpp"
-#include "modulation/params/param_manager.h"
 #include "modulation/params/param_collection.h"
+#include "definitions_cxx.hpp"
 #include "model/model_stack.h"
 #include "modulation/automation/auto_param.h"
+#include "modulation/params/param_manager.h"
 
 ParamCollection::ParamCollection(int newObjectSize, ParamCollectionSummary* summary) : objectSize(newObjectSize) {
 	for (int i = 0; i < kMaxNumUnsignedIntegerstoRepAllParams; i++) { // Just do both even if we're only using one.

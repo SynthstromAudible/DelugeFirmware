@@ -16,12 +16,12 @@
 */
 
 #include "model/consequence/consequence_param_change.h"
+#include "definitions_cxx.hpp"
 #include "model/consequence/consequence.h"
 #include "modulation/params/param_collection.h"
 #include "modulation/params/param_node_vector.h"
 #include "util/functions.h"
 #include <new>
-#include "definitions_cxx.hpp"
 
 ConsequenceParamChange::ConsequenceParamChange(ModelStackWithAutoParam const* modelStack, bool stealData) {
 	type = Consequence::PARAM_CHANGE;

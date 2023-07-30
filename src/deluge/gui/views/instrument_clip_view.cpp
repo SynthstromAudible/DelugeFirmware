@@ -18,76 +18,76 @@
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/note_renderer.h"
 #include "definitions_cxx.hpp"
-#include "gui/views/arranger_view.h"
-#include "processing/engines/audio_engine.h"
-#include "storage/audio/audio_file_manager.h"
-#include "model/consequence/consequence_instrument_clip_multiply.h"
-#include "gui/menu_item/multi_range.h"
-#include "modulation/params/param_manager.h"
-#include "gui/ui/browser/sample_browser.h"
-#include "processing/sound/sound_drum.h"
-#include "processing/sound/sound_instrument.h"
-#include "gui/ui/sound_editor.h"
-#include "util/functions.h"
-#include "hid/display/numeric_driver.h"
-#include "io/debug/print.h"
-#include "processing/engines/cv_engine.h"
-#include "gui/ui/keyboard_screen.h"
-#include "gui/views/view.h"
-#include "model/drum/kit.h"
-#include "model/note/note.h"
-#include "io/midi/midi_engine.h"
-#include "gui/ui/audio_recorder.h"
-#include "model/action/action.h"
-#include "model/consequence/consequence_note_row_mute.h"
-#include "model/action/action_logger.h"
-#include <string.h>
-#include "gui/views/timeline_view.h"
-#include "model/note/copied_note_row.h"
-#include "modulation/params/param_node.h"
-#include "memory/general_memory_allocator.h"
-#include "playback/mode/playback_mode.h"
-#include "model/drum/drum.h"
-#include "model/instrument/melodic_instrument.h"
-#include "gui/ui/sample_marker_editor.h"
+#include "extern.h"
+#include "gui/colour.h"
+#include "gui/menu_item/colour.h"
 #include "gui/menu_item/file_selector.h"
-#include <new>
-#include "storage/storage_manager.h"
+#include "gui/menu_item/multi_range.h"
+#include "gui/ui/audio_recorder.h"
+#include "gui/ui/browser/sample_browser.h"
+#include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/rename/rename_drum_ui.h"
-#include "model/song/song.h"
-#include "model/clip/clip.h"
-#include "model/consequence/consequence_note_array_change.h"
-#include "gui/menu_item/colour.h"
-#include "hid/led/pad_leds.h"
-#include "hid/led/indicator_leds.h"
+#include "gui/ui/sample_marker_editor.h"
+#include "gui/ui/sound_editor.h"
+#include "gui/ui_timer_manager.h"
+#include "gui/views/arranger_view.h"
+#include "gui/views/session_view.h"
+#include "gui/views/timeline_view.h"
+#include "gui/views/view.h"
 #include "hid/buttons.h"
-#include "model/model_stack.h"
-#include "extern.h"
+#include "hid/display/numeric_driver.h"
 #include "hid/encoders.h"
+#include "hid/led/indicator_leds.h"
+#include "hid/led/pad_leds.h"
+#include "io/debug/print.h"
+#include "io/midi/midi_engine.h"
+#include "memory/general_memory_allocator.h"
+#include "model/action/action.h"
+#include "model/action/action_logger.h"
+#include "model/clip/clip.h"
+#include "model/clip/instrument_clip.h"
+#include "model/consequence/consequence_instrument_clip_multiply.h"
+#include "model/consequence/consequence_note_array_change.h"
 #include "model/consequence/consequence_note_row_horizontal_shift.h"
 #include "model/consequence/consequence_note_row_length.h"
-#include "gui/views/session_view.h"
-#include "model/clip/instrument_clip.h"
-#include "modulation/automation/auto_param.h"
-#include "modulation/params/param_set.h"
-#include "model/note/note_row.h"
-#include "gui/ui_timer_manager.h"
-#include "modulation/patch/patch_cable_set.h"
+#include "model/consequence/consequence_note_row_mute.h"
+#include "model/drum/drum.h"
+#include "model/drum/kit.h"
 #include "model/drum/midi_drum.h"
-#include "storage/multi_range/multi_range.h"
-#include "storage/audio/audio_file_holder.h"
+#include "model/instrument/melodic_instrument.h"
+#include "model/model_stack.h"
+#include "model/note/copied_note_row.h"
+#include "model/note/note.h"
+#include "model/note/note_row.h"
 #include "model/settings/runtime_feature_settings.h"
+#include "model/song/song.h"
+#include "modulation/automation/auto_param.h"
+#include "modulation/params/param_manager.h"
+#include "modulation/params/param_node.h"
+#include "modulation/params/param_set.h"
+#include "modulation/patch/patch_cable_set.h"
+#include "playback/mode/playback_mode.h"
 #include "playback/playback_handler.h"
-#include "gui/colour.h"
+#include "processing/engines/audio_engine.h"
+#include "processing/engines/cv_engine.h"
+#include "processing/sound/sound_drum.h"
+#include "processing/sound/sound_instrument.h"
+#include "storage/audio/audio_file_holder.h"
+#include "storage/audio/audio_file_manager.h"
+#include "storage/multi_range/multi_range.h"
+#include "storage/storage_manager.h"
+#include "util/functions.h"
+#include <new>
+#include <string.h>
 
 #if HAVE_OLED
 #include "hid/display/oled.h"
 #endif
 
 extern "C" {
-#include "util/cfunctions.h"
 #include "RZA1/uart/sio_char.h"
+#include "util/cfunctions.h"
 }
 
 InstrumentClipView instrumentClipView{};
@@ -551,6 +551,51 @@ doOther:
 
 					break;
 				}
+			}
+		}
+	}
+
+	// Kit + Shift + Save/Delete: shorcut that will delete all Kit rows that does not contain notes
+	// (instead of pressing Note + Delete to do it one by one)
+	else if (b == SAVE && currentUIMode != UI_MODE_NOTES_PRESSED && Buttons::isShiftButtonPressed()
+	         && Buttons::isButtonPressed(KIT) && currentSong->currentClip->output->type == InstrumentType::KIT
+	         && (runtimeFeatureSettings.get(RuntimeFeatureSettingType::DeleteUnusedKitRows)
+	             == RuntimeFeatureStateToggle::On)) {
+		if (inCardRoutine) {
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		}
+
+		if (on) {
+			InstrumentClip* clip = getCurrentClip();
+
+			if (!clip->containsAnyNotes()) {
+				numericDriver.displayPopup(HAVE_OLED ? "At least one row needs to have notes" : "CANT");
+			}
+			else {
+				char modelStackMemory[MODEL_STACK_MAX_SIZE];
+				ModelStackWithTimelineCounter* modelStack =
+				    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+
+				int i;
+				for (i = clip->noteRows.getNumElements() - 1; i >= 0; i--) {
+					NoteRow* noteRow = clip->noteRows.getElement(i);
+					if (noteRow->hasNoNotes() && clip->noteRows.getNumElements() > 1) {
+						// If the row has not notes and is not the last one
+						clip->deleteNoteRow(modelStack, i);
+					}
+				}
+
+				clip->yScroll = 0; // Reset scroll position
+
+				actionLogger.deleteAllLogs(); // Can't undo past this
+
+				setSelectedDrum(NULL, true);
+
+				recalculateColours();
+				uiNeedsRendering(this);
+
+				// Show popup to make it clear what just happened
+				numericDriver.displayPopup(HAVE_OLED ? "Deleted unused rows" : "DELETED");
 			}
 		}
 	}

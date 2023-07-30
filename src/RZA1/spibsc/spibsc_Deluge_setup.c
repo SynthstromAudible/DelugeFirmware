@@ -38,14 +38,14 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "RZA1/spibsc/spibsc.h"
-#include "RZA1/system/iodefine.h"
-#include "RZA1/spibsc/r_spibsc_ioset_api.h"
-#include "RZA1/spibsc/r_spibsc_flash_api.h"
-#include "RZA1/system/rza_io_regrw.h"
-#include "RZA1/system/iobitmasks/spibsc_iobitmask.h"
-#include "RZA1/system/iobitmasks/cpg_iobitmask.h"
 #include "RZA1/cpu_specific.h"
+#include "RZA1/spibsc/r_spibsc_flash_api.h"
+#include "RZA1/spibsc/r_spibsc_ioset_api.h"
+#include "RZA1/spibsc/spibsc.h"
+#include "RZA1/system/iobitmasks/cpg_iobitmask.h"
+#include "RZA1/system/iobitmasks/spibsc_iobitmask.h"
+#include "RZA1/system/iodefine.h"
+#include "RZA1/system/rza_io_regrw.h"
 
 void initSPIBSC()
 {

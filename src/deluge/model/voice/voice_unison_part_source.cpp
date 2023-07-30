@@ -15,17 +15,17 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "processing/engines/audio_engine.h"
-#include "model/voice/voice_sample_playback_guide.h"
 #include "model/voice/voice_unison_part_source.h"
-#include "model/sample/sample_cache.h"
-#include "model/voice/voice.h"
-#include "processing/source.h"
-#include "model/voice/voice_sample.h"
-#include "storage/multi_range/multisample_range.h"
 #include "memory/general_memory_allocator.h"
-#include "playback/playback_handler.h"
+#include "model/sample/sample_cache.h"
 #include "model/song/song.h"
+#include "model/voice/voice.h"
+#include "model/voice/voice_sample.h"
+#include "model/voice/voice_sample_playback_guide.h"
+#include "playback/playback_handler.h"
+#include "processing/engines/audio_engine.h"
+#include "processing/source.h"
+#include "storage/multi_range/multisample_range.h"
 
 VoiceUnisonPartSource::VoiceUnisonPartSource() {
 	voiceSample = NULL;

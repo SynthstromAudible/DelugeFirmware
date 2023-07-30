@@ -15,8 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "model/clip/clip_instance.h"
 #include "model/clip/clip_instance_vector.h"
+#include "model/clip/clip_instance.h"
 
 ClipInstanceVector::ClipInstanceVector() : OrderedResizeableArrayWith32bitKey(sizeof(ClipInstance)) {
 }
