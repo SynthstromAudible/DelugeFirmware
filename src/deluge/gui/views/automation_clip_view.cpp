@@ -430,7 +430,7 @@ void AutomationClipView::performActualRender(uint32_t whichRows, uint8_t* image,
 						pixel[2] = 0;
 					}
 					else if (knobPos >= yDisplay * 18) {
-						memcpy(pixel, &rowColour[yDisplay], 3);
+						memcpy(pixel, &rowTailColour[yDisplay], 3);
 					}
 				}
 
@@ -465,7 +465,7 @@ void AutomationClipView::performActualRender(uint32_t whichRows, uint8_t* image,
 						pixel[2] = 0;
 					}
 					else if (knobPos >= yDisplay * 18) {
-						memcpy(pixel, &rowColour[yDisplay], 3);
+						memcpy(pixel, &rowTailColour[yDisplay], 3);
 					}
 				}
 
@@ -497,7 +497,9 @@ void AutomationClipView::performActualRender(uint32_t whichRows, uint8_t* image,
 
 						if (modelStackWithParam) {
 							if (modelStackWithParam->autoParam->isAutomated()) {
-								memcpy(pixel, &rowColour[yDisplay], 3);
+								pixel[0] = 130;
+								pixel[1] = 120;
+								pixel[2] = 130;
 							}
 
 							else {
@@ -526,7 +528,9 @@ void AutomationClipView::performActualRender(uint32_t whichRows, uint8_t* image,
 
 						if (modelStackWithParam) {
 							if (modelStackWithParam->autoParam->isAutomated()) {
-								memcpy(pixel, &rowColour[yDisplay], 3);
+								pixel[0] = 130;
+								pixel[1] = 120;
+								pixel[2] = 130;
 							}
 
 							else {
