@@ -134,9 +134,9 @@ public:
 	void dontDeleteNotesOnDepress();
 
 	void tempoEncoderAction(int8_t offset, bool encoderButtonPressed, bool shiftButtonPressed);
-	void sendAuditionNote(bool on, uint8_t yDisplay, uint8_t velocity, uint32_t sampleSyncLength);
 
 	//made these public so they can be accessed by the automation clip view
+	void sendAuditionNote(bool on, uint8_t yDisplay, uint8_t velocity, uint32_t sampleSyncLength);
 	void setLedStates();
 	uint32_t getSquareWidth(int32_t square, int32_t effectiveLength);
 	void drawNoteCode(uint8_t yDisplay);
@@ -150,6 +150,9 @@ public:
 	ModelStackWithNoteRow* getOrCreateNoteRowForYDisplay(ModelStackWithTimelineCounter* modelStack, int yDisplay);
 	void editNoteRowLength(ModelStackWithNoteRow* modelStack, int offset, int yDisplay);
 	void someAuditioningHasEnded(bool recalculateLastAuditionedNoteOnScreen);
+	void checkIfAllEditPadPressesEnded(bool mayRenderSidebar = true);
+	void endEditPadPress(uint8_t i);
+	bool getAffectEntire();
 	//made these public so they can be accessed by the automation clip view
 
 #if HAVE_OLED
@@ -206,11 +209,8 @@ private:
 
 	int32_t quantizeAmount;
 
-	void checkIfAllEditPadPressesEnded(bool mayRenderSidebar = true);
-	void endEditPadPress(uint8_t i);
 	Drum* getNextDrum(Drum* oldDrum, bool mayBeNone = false);
 
-	bool getAffectEntire();
 	void adjustProbability(int offset);
 	void copyNotes();
 	void pasteNotes();

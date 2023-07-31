@@ -121,12 +121,7 @@ bool SampleBrowser::opened() {
 #endif
 
 	if (currentUIMode == UI_MODE_AUDITIONING) {
-		if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
-			automationClipView.cancelAllAuditioning();
-		}
-		else {
-			instrumentClipView.cancelAllAuditioning();
-		}
+		instrumentClipView.cancelAllAuditioning();
 	}
 
 	int error = storageManager.initSD();
@@ -188,12 +183,7 @@ dissectionDone:
 	//soundEditor.setupShortcutBlink(soundEditor.currentSourceIndex, 5, 0);
 
 	if (currentUIMode == UI_MODE_AUDITIONING) {
-		if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
-			automationClipView.cancelAllAuditioning();
-		}
-		else {
-			instrumentClipView.cancelAllAuditioning();
-		}
+		instrumentClipView.cancelAllAuditioning();
 	}
 
 	possiblySetUpBlinking();
@@ -538,8 +528,7 @@ gotError:
 
 bool SampleBrowser::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
 
-	if (currentlyShowingSamplePreview || qwertyVisible || getRootUI() == &keyboardScreen
-	    || getRootUI() == &automationClipView) {
+	if (currentlyShowingSamplePreview || qwertyVisible || getRootUI() == &keyboardScreen) {
 		*cols = 0b10;
 	}
 	else {
