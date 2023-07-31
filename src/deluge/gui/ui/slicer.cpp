@@ -494,12 +494,7 @@ void Slicer::preview(int64_t startPoint, int64_t endPoint, int transpose, int on
 		modelStackWithAutoParam->autoParam->setCurrentValueWithNoReversionOrRecording(
 		    modelStackWithAutoParam, getParamFromUserValue(Param::Local::ENV_0_ATTACK, 1));
 	}
-	if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
-		automationClipView.sendAuditionNote(on, 0);
-	}
-	else {
-		instrumentClipView.sendAuditionNote(on, 0);
-	}
+	instrumentClipView.sendAuditionNote(on, 0, 64, 0);
 }
 
 ActionResult Slicer::padAction(int x, int y, int on) {

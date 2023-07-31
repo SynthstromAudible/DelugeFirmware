@@ -134,8 +134,7 @@ public:
 	void dontDeleteNotesOnDepress();
 
 	void tempoEncoderAction(int8_t offset, bool encoderButtonPressed, bool shiftButtonPressed);
-
-	inline void sendAuditionNote(bool on, uint8_t yDisplay) { sendAuditionNote(on, yDisplay, 64, 0); };
+	void sendAuditionNote(bool on, uint8_t yDisplay, uint8_t velocity, uint32_t sampleSyncLength);
 
 	//made these public so they can be accessed by the automation clip view
 	void setLedStates();
@@ -150,6 +149,7 @@ public:
 	ModelStackWithNoteRow* createNoteRowForYDisplay(ModelStackWithTimelineCounter* modelStack, int yDisplay);
 	ModelStackWithNoteRow* getOrCreateNoteRowForYDisplay(ModelStackWithTimelineCounter* modelStack, int yDisplay);
 	void editNoteRowLength(ModelStackWithNoteRow* modelStack, int offset, int yDisplay);
+	void someAuditioningHasEnded(bool recalculateLastAuditionedNoteOnScreen);
 	//made these public so they can be accessed by the automation clip view
 
 #if HAVE_OLED
@@ -206,7 +206,6 @@ private:
 
 	int32_t quantizeAmount;
 
-	void sendAuditionNote(bool on, uint8_t yDisplay, uint8_t velocity, uint32_t sampleSyncLength);
 	void checkIfAllEditPadPressesEnded(bool mayRenderSidebar = true);
 	void endEditPadPress(uint8_t i);
 	Drum* getNextDrum(Drum* oldDrum, bool mayBeNone = false);
@@ -231,8 +230,6 @@ private:
 	                               bool shouldDisplayDirectionEvenIfNoNoteRow = false);
 
 	void quantizeNotes(int offset, int nudgeMode);
-
-	void someAuditioningHasEnded(bool recalculateLastAuditionedNoteOnScreen);
 };
 
 extern InstrumentClipView instrumentClipView;

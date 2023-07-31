@@ -102,9 +102,9 @@ public:
 
 	//pad action
 	ActionResult padAction(int x, int y, int velocity);
-	void enterScaleMode(uint8_t yDisplay = 255);
-	void exitScaleMode();
-	void changeRootNote(uint8_t yDisplay);
+	//void enterScaleMode(uint8_t yDisplay = 255);
+	//void exitScaleMode();
+	//void changeRootNote(uint8_t yDisplay);
 
 	//edit pad action
 	void editPadAction(bool state, uint8_t yDisplay, uint8_t xDisplay, unsigned int xZoom);
@@ -119,12 +119,12 @@ public:
 	void auditionPadAction(int velocity, int yDisplay, bool shiftButtonDown);
 	//ModelStackWithNoteRow* createNoteRowForYDisplay(ModelStackWithTimelineCounter* modelStack, int yDisplay);
 	//NoteRow* createNewNoteRowForKit(ModelStackWithTimelineCounter* modelStack, int yDisplay, int* getIndex = NULL);
-	void reassessAllAuditionStatus();
-	void reassessAuditionStatus(uint8_t yDisplay);
+	//void reassessAllAuditionStatus();
+	//void reassessAuditionStatus(uint8_t yDisplay);
 	uint8_t getVelocityForAudition(uint8_t yDisplay, uint32_t* sampleSyncLength);
 	uint8_t oneNoteAuditioning();
 	uint8_t getNumNoteRowsAuditioning();
-	inline void sendAuditionNote(bool on, uint8_t yDisplay) { sendAuditionNote(on, yDisplay, 64, 0); };
+	//inline void sendAuditionNote(bool on, uint8_t yDisplay) { sendAuditionNote(on, yDisplay, 64, 0); };
 	//bool
 	//    auditioningSilently; // Sometimes the user will want to hold an audition pad without actually sounding the note, by holding an encoder
 	//bool fileBrowserShouldNotPreview; // Archaic leftover feature that users wouldn't let me get rid of
@@ -192,8 +192,8 @@ private:
 	//uint32_t timeFirstEditPadPress;
 
 	//Audition Pad Action Variables
-	void sendAuditionNote(bool on, uint8_t yDisplay, uint8_t velocity, uint32_t sampleSyncLength);
-	void someAuditioningHasEnded(bool recalculateLastAuditionedNoteOnScreen);
+	//void sendAuditionNote(bool on, uint8_t yDisplay, uint8_t velocity, uint32_t sampleSyncLength);
+	//void someAuditioningHasEnded(bool recalculateLastAuditionedNoteOnScreen);
 	//uint8_t lastAuditionedYDisplay;
 	//uint8_t lastAuditionedVelocityOnScreen[kDisplayHeight]; // 255 seems to mean none
 	//uint8_t auditionPadIsPressed[kDisplayHeight];
