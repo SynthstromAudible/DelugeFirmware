@@ -743,8 +743,8 @@ void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, i
 	if (modFXTypeNow == ModFXType::FLANGER || modFXTypeNow == ModFXType::CHORUS
 	    || modFXTypeNow == ModFXType::CHORUS_STEREO) {
 		if (!modFXBuffer) {
-			modFXBuffer =
-			    (StereoSample*)generalMemoryAllocator.alloc(kModFXBufferSize * sizeof(StereoSample), NULL, false, true);
+			modFXBuffer = (StereoSample*)GeneralMemoryAllocator::get().alloc(kModFXBufferSize * sizeof(StereoSample),
+			                                                                 NULL, false, true);
 			if (!modFXBuffer) {
 				modFXTypeNow = ModFXType::NONE;
 			}
@@ -755,7 +755,7 @@ void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, i
 	}
 	else {
 		if (modFXBuffer) {
-			generalMemoryAllocator.dealloc(modFXBuffer);
+			GeneralMemoryAllocator::get().dealloc(modFXBuffer);
 			modFXBuffer = NULL;
 		}
 	}

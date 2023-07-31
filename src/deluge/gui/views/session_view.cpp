@@ -1339,7 +1339,7 @@ Clip* SessionView::createNewInstrumentClip(int yDisplay) {
 
 	actionLogger.deleteAllLogs();
 
-	void* memory = generalMemoryAllocator.alloc(sizeof(InstrumentClip), NULL, false, true);
+	void* memory = GeneralMemoryAllocator::get().alloc(sizeof(InstrumentClip), NULL, false, true);
 	if (!memory) {
 		numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
 		return NULL;
@@ -1375,7 +1375,7 @@ doGetInstrument:
 			goto doGetInstrument;
 		}
 		newClip->~InstrumentClip();
-		generalMemoryAllocator.dealloc(memory);
+		GeneralMemoryAllocator::get().dealloc(memory);
 		numericDriver.displayError(error);
 		return NULL;
 	}
@@ -1429,7 +1429,7 @@ void SessionView::replaceAudioClipWithInstrumentClip(InstrumentType instrumentTy
 	}
 
 	// Allocate memory for InstrumentClip
-	void* clipMemory = generalMemoryAllocator.alloc(sizeof(InstrumentClip), NULL, false, true);
+	void* clipMemory = GeneralMemoryAllocator::get().alloc(sizeof(InstrumentClip), NULL, false, true);
 	if (!clipMemory) {
 ramError:
 		numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
@@ -1454,7 +1454,7 @@ gotError:
 			numericDriver.displayError(error);
 gotErrorDontDisplay:
 			newClip->~InstrumentClip();
-			generalMemoryAllocator.dealloc(clipMemory);
+			GeneralMemoryAllocator::get().dealloc(clipMemory);
 			return;
 		}
 	}

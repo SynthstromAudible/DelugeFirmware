@@ -70,7 +70,7 @@ ModControllableAudio::~ModControllableAudio() {
 
 	// Free the mod fx memory
 	if (modFXBuffer) {
-		generalMemoryAllocator.dealloc(modFXBuffer);
+		GeneralMemoryAllocator::get().dealloc(modFXBuffer);
 	}
 }
 
@@ -326,7 +326,7 @@ void ModControllableAudio::processFX(StereoSample* buffer, int numSamples, ModFX
 
 		int32_t* delayWorkingBuffer = spareRenderingBuffer[0];
 
-		generalMemoryAllocator.checkStack("delay");
+		GeneralMemoryAllocator::get().checkStack("delay");
 
 		int32_t* workingBufferEnd = delayWorkingBuffer + numSamples * 2;
 

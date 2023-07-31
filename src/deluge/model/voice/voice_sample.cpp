@@ -1114,7 +1114,7 @@ readTimestretched:
 			int numSamplesThisTimestretchedRead = numSamplesThisUncachedRead;
 
 			// Now, perform the actual time stretching on the contents of the bands
-			generalMemoryAllocator.checkStack("timestretch");
+			GeneralMemoryAllocator::get().checkStack("timestretch");
 
 			if (timeStretcher->playHeadStillActive[PLAY_HEAD_NEWER]) {
 

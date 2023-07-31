@@ -79,7 +79,7 @@ int numMallocTimes = 0;
 #endif
 
 extern "C" void* delugeAlloc(int requiredSize) {
-	return generalMemoryAllocator.alloc(requiredSize, NULL, false, true);
+	return GeneralMemoryAllocator::get().alloc(requiredSize, NULL, false, true);
 }
 
 // Watch the heck out - in the older V3.1 branch, this had one less argument - makeStealable was missing - so in code from there, thingNotToStealFrom could be interpreted as makeStealable!
@@ -176,7 +176,7 @@ uint32_t GeneralMemoryAllocator::extendRightAsMuchAsEasilyPossible(void* address
 }
 
 extern "C" void delugeDealloc(void* address) {
-	generalMemoryAllocator.dealloc(address);
+	GeneralMemoryAllocator::get().dealloc(address);
 }
 
 void GeneralMemoryAllocator::dealloc(void* address) {
@@ -206,7 +206,7 @@ public:
 	void steal() {
 		//Stealable::steal();
 		testAllocations[testIndex] = 0;
-		generalMemoryAllocator.regions[MEMORY_REGION_SDRAM].numAllocations--;
+		GeneralMemoryAllocator::get().regions[MEMORY_REGION_SDRAM].numAllocations--;
 
 		// The steal() function is allowed to deallocate or shorten some other allocations, too
 		int i = getRandom255() % NUM_TEST_ALLOCATIONS;
@@ -219,13 +219,13 @@ public:
 				if (spaceTypes[i] == SPACE_HEADER_STEALABLE) {
 					((Stealable*)testAllocations[i])->~Stealable();
 				}
-				generalMemoryAllocator.dealloc(testAllocations[i]);
+				GeneralMemoryAllocator::get().dealloc(testAllocations[i]);
 				testAllocations[i] = NULL;
 			}
 
 			else {
 				// Shorten
-				generalMemoryAllocator.testShorten(i);
+				GeneralMemoryAllocator::get().testShorten(i);
 			}
 		}
 	}

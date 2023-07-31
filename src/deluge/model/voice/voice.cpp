@@ -108,7 +108,7 @@ bool Voice::noteOn(ModelStackWithVoice* modelStack, int newNoteCodeBeforeArpeggi
                    uint8_t velocity, uint32_t newSampleSyncLength, int32_t ticksLate, uint32_t samplesLate,
                    bool resetEnvelopes, int newFromMIDIChannel, const int16_t* mpeValues) {
 
-	generalMemoryAllocator.checkStack("Voice::noteOn");
+	GeneralMemoryAllocator::get().checkStack("Voice::noteOn");
 
 	inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] = newNoteCodeBeforeArpeggiation;
 	inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)] = newFromMIDIChannel;
@@ -671,7 +671,7 @@ bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int nu
                    bool applyingPanAtVoiceLevel, uint32_t sourcesChanged, FilterSetConfig* filterSetConfig,
                    int32_t externalPitchAdjust) {
 
-	generalMemoryAllocator.checkStack("Voice::render");
+	GeneralMemoryAllocator::get().checkStack("Voice::render");
 
 	ParamManagerForTimeline* paramManager = (ParamManagerForTimeline*)modelStack->paramManager;
 	Sound* sound = (Sound*)modelStack->modControllable;
@@ -1992,7 +1992,7 @@ void Voice::renderBasicSource(Sound* sound, ParamManagerForTimeline* paramManage
                               uint32_t* __restrict__ getPhaseIncrements, bool getOutAfterPhaseIncrements,
                               int32_t waveIndexIncrement) {
 
-	generalMemoryAllocator.checkStack("Voice::renderBasicSource");
+	GeneralMemoryAllocator::get().checkStack("Voice::renderBasicSource");
 
 	// For each unison part
 	for (int u = 0; u < sound->numUnison; u++) {
@@ -2282,7 +2282,7 @@ dontUseCache : {}
 
 					if (liveInputBuffer) {
 
-						void* memory = generalMemoryAllocator.alloc(sizeof(LivePitchShifter), NULL, false, true);
+						void* memory = GeneralMemoryAllocator::get().alloc(sizeof(LivePitchShifter), NULL, false, true);
 
 						if (memory) {
 							source->livePitchShifter = new (memory) LivePitchShifter(inputTypeNow, phaseIncrement);
@@ -2297,7 +2297,7 @@ dontUseCache : {}
 				if (source->livePitchShifter && source->livePitchShifter->mayBeRemovedWithoutClick()) {
 					Debug::println("stop pitch shifting");
 					source->livePitchShifter->~LivePitchShifter();
-					generalMemoryAllocator.dealloc(source->livePitchShifter);
+					GeneralMemoryAllocator::get().dealloc(source->livePitchShifter);
 					source->livePitchShifter = NULL;
 				}
 			}
@@ -2722,7 +2722,7 @@ Voice::renderOsc(int s, OscType type, int32_t amplitude, int32_t* bufferStart, i
                  uint32_t phaseIncrement, uint32_t pulseWidth, uint32_t* startPhase, bool applyAmplitude,
                  int32_t amplitudeIncrement, bool doOscSync, uint32_t resetterPhase, uint32_t resetterPhaseIncrement,
                  uint32_t retriggerPhase, int32_t waveIndexIncrement) {
-	generalMemoryAllocator.checkStack("renderOsc");
+	GeneralMemoryAllocator::get().checkStack("renderOsc");
 
 	// We save a decent bit of processing power by grabbing a local copy of the phase to work with, and just incrementing the startPhase once
 	uint32_t phase = *startPhase;

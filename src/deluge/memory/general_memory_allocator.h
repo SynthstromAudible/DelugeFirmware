@@ -81,8 +81,11 @@ public:
 
 	bool lock;
 
+	static GeneralMemoryAllocator& get() {
+		static GeneralMemoryAllocator generalMemoryAllocator;
+		return generalMemoryAllocator;
+	}
+
 private:
 	void checkEverythingOk(char const* errorString);
 };
-
-extern GeneralMemoryAllocator generalMemoryAllocator;

@@ -45,10 +45,10 @@ OpenAddressingHashTable::~OpenAddressingHashTable() {
 
 void OpenAddressingHashTable::empty(bool destructing) {
 	if (memory) {
-		generalMemoryAllocator.dealloc(memory);
+		GeneralMemoryAllocator::get().dealloc(memory);
 	}
 	if (secondaryMemory) {
-		generalMemoryAllocator.dealloc(secondaryMemory);
+		GeneralMemoryAllocator::get().dealloc(secondaryMemory);
 	}
 
 	if (!destructing) {
@@ -95,7 +95,7 @@ void* OpenAddressingHashTable::insert(uint32_t key, bool* onlyIfNotAlreadyPresen
 	// If no memory, get some
 	if (!memory) {
 		int newNumBuckets = initialNumBuckets;
-		memory = generalMemoryAllocator.alloc(newNumBuckets * elementSize, NULL, false, true);
+		memory = GeneralMemoryAllocator::get().alloc(newNumBuckets * elementSize, NULL, false, true);
 		if (!memory) {
 			return NULL;
 		}
@@ -110,7 +110,7 @@ void* OpenAddressingHashTable::insert(uint32_t key, bool* onlyIfNotAlreadyPresen
 	else if (numElements >= numBuckets - (numBuckets >> 2)) {
 		int newNumBuckets = numBuckets << 1;
 
-		secondaryMemory = generalMemoryAllocator.alloc(newNumBuckets * elementSize, NULL, false, true);
+		secondaryMemory = GeneralMemoryAllocator::get().alloc(newNumBuckets * elementSize, NULL, false, true);
 		if (secondaryMemory) {
 
 			// Initialize
@@ -158,7 +158,7 @@ void* OpenAddressingHashTable::insert(uint32_t key, bool* onlyIfNotAlreadyPresen
 
 			// Discard old stuff
 			secondaryMemoryCurrentFunction = SECONDARY_MEMORY_FUNCTION_NONE;
-			generalMemoryAllocator.dealloc(secondaryMemory);
+			GeneralMemoryAllocator::get().dealloc(secondaryMemory);
 			secondaryMemory = NULL;
 			secondaryMemoryNumBuckets = 0;
 		}
@@ -277,7 +277,7 @@ bool OpenAddressingHashTable::remove(uint32_t key) {
 
 	// If we've hit zero elements, and it's worth getting rid of the memory, just do that
 	if (!numElements && numBuckets > initialNumBuckets) {
-		generalMemoryAllocator.dealloc(memory);
+		GeneralMemoryAllocator::get().dealloc(memory);
 		memory = NULL;
 		numBuckets = 0;
 	}

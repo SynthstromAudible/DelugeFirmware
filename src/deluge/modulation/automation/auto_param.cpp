@@ -2101,8 +2101,8 @@ void AutoParam::copy(int32_t startPos, int32_t endPos, CopiedParamAutomation* co
 	if (copiedParamAutomation->numNodes > 0) {
 
 		// Allocate some memory for the nodes
-		copiedParamAutomation->nodes =
-		    (ParamNode*)generalMemoryAllocator.alloc(sizeof(ParamNode) * copiedParamAutomation->numNodes, NULL, true);
+		copiedParamAutomation->nodes = (ParamNode*)GeneralMemoryAllocator::get().alloc(
+		    sizeof(ParamNode) * copiedParamAutomation->numNodes, NULL, true);
 
 		if (!copiedParamAutomation->nodes) {
 			copiedParamAutomation->numNodes = 0;
@@ -2664,7 +2664,8 @@ void AutoParam::stealNodes(ModelStackWithAutoParam const* modelStack, int32_t po
 				action->recordParamChangeIfNotAlreadySnapshotted(modelStack);
 			}
 
-			void* memory = generalMemoryAllocator.alloc(numNodesToStealTotal * sizeof(ParamNode), NULL, false, true);
+			void* memory =
+			    GeneralMemoryAllocator::get().alloc(numNodesToStealTotal * sizeof(ParamNode), NULL, false, true);
 			if (memory) {
 				ParamNode* stolenNodes = (ParamNode*)memory;
 				stolenNodeRecord->nodes = stolenNodes;

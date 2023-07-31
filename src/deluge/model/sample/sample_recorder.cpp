@@ -129,8 +129,8 @@ int SampleRecorder::setup(int newNumChannels, AudioInputChannel newMode, bool ne
 	recordingExtraMargins = shouldRecordExtraMargins;
 	folderID = newFolderID;
 
-	void* sampleMemory =
-	    generalMemoryAllocator.alloc(sizeof(Sample)); // Didn't seem to make a difference forcing this into local RAM
+	void* sampleMemory = GeneralMemoryAllocator::get().alloc(
+	    sizeof(Sample)); // Didn't seem to make a difference forcing this into local RAM
 	if (!sampleMemory) {
 		return ERROR_INSUFFICIENT_RAM;
 	}
@@ -141,7 +141,7 @@ int SampleRecorder::setup(int newNumChannels, AudioInputChannel newMode, bool ne
 	if (error) {
 gotError:
 		sample->~Sample();
-		generalMemoryAllocator.dealloc(sampleMemory);
+		GeneralMemoryAllocator::get().dealloc(sampleMemory);
 		return error;
 	}
 
