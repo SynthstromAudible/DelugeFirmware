@@ -58,7 +58,7 @@ void unflagCable(uint32_t* flags, int c) {
 inline void PatchCableSet::freeDestinationMemory(bool destructing) {
 	for (int g = 0; g < 2; g++) {
 		if (destinations[g]) {
-			generalMemoryAllocator.dealloc(destinations[g]);
+			GeneralMemoryAllocator::get().dealloc(destinations[g]);
 			if (!destructing) {
 				destinations[g] = NULL;
 			}
@@ -136,15 +136,15 @@ void PatchCableSet::setupPatching(ModelStackWithParamCollection const* modelStac
 
 	// Allocate new memory - max size we might need
 	for (int g = 0; g < 2; g++) {
-		destinations[g] = (Destination*)generalMemoryAllocator.alloc(sizeof(Destination) * (kMaxNumPatchCables + 1),
-		                                                             NULL, false, true);
+		destinations[g] = (Destination*)GeneralMemoryAllocator::get().alloc(
+		    sizeof(Destination) * (kMaxNumPatchCables + 1), NULL, false, true);
 
 		// If couldn't...
 		if (!destinations[g]) {
 
 			// If we'd got the first one successfully, deallocate it again
 			if (g == 1) {
-				generalMemoryAllocator.dealloc(destinations[0]);
+				GeneralMemoryAllocator::get().dealloc(destinations[0]);
 				destinations[0] = NULL;
 			}
 
@@ -250,7 +250,7 @@ goAgainWithoutIncrement:
 
 		// If no Destinations here at all, free memory
 		if (!numDestinations[globality]) {
-			generalMemoryAllocator.dealloc(destinations[globality]);
+			GeneralMemoryAllocator::get().dealloc(destinations[globality]);
 			destinations[globality] = NULL;
 		}
 
@@ -259,8 +259,8 @@ goAgainWithoutIncrement:
 
 			// Probably shorten memory, from max size which we allocated
 			if (numDestinations[globality] < kMaxNumPatchCables) {
-				generalMemoryAllocator.shortenRight(destinations[globality],
-				                                    sizeof(Destination) * (numDestinations[globality] + 1));
+				GeneralMemoryAllocator::get().shortenRight(destinations[globality],
+				                                           sizeof(Destination) * (numDestinations[globality] + 1));
 			}
 
 			// Write the "end of list" marker
@@ -747,7 +747,7 @@ void PatchCableSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWith
 			continue;
 		}
 
-		newDestinations[g] = (Destination*)generalMemoryAllocator.alloc(
+		newDestinations[g] = (Destination*)GeneralMemoryAllocator::get().alloc(
 		    sizeof(Destination) * (kMaxNumPatchCables + 1), NULL, false,
 		    true); // TODO: this is more than we'll soon realise we need - we should really shorten it again afterwards.
 
@@ -756,7 +756,7 @@ void PatchCableSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWith
 
 			// If we'd got the first one successfully, deallocate it again
 			if (g == 1) {
-				generalMemoryAllocator.dealloc(newDestinations[0]);
+				GeneralMemoryAllocator::get().dealloc(newDestinations[0]);
 				newDestinations[0] = NULL;
 			}
 

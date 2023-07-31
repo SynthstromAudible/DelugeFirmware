@@ -80,7 +80,7 @@ void NumericDriver::deleteAllLayers() {
 		NumericLayer* toDelete = topLayer;
 		topLayer = topLayer->next;
 		toDelete->~NumericLayer();
-		generalMemoryAllocator.dealloc(toDelete);
+		GeneralMemoryAllocator::get().dealloc(toDelete);
 	}
 }
 
@@ -93,7 +93,7 @@ void NumericDriver::removeTopLayer() {
 	topLayer = topLayer->next;
 
 	toDelete->~NumericLayer();
-	generalMemoryAllocator.dealloc(toDelete);
+	GeneralMemoryAllocator::get().dealloc(toDelete);
 
 	if (!popupActive) {
 		uiTimerManager.unsetTimer(TIMER_DISPLAY);
@@ -107,7 +107,7 @@ void NumericDriver::setText(char const* newText, bool alignRight, uint8_t drawDo
                             bool blinkImmediately, bool shouldBlinkFast, int scrollPos, uint8_t* encodedAddition,
                             bool justReplaceBottomLayer) {
 #if !HAVE_OLED
-	void* layerSpace = generalMemoryAllocator.alloc(sizeof(NumericLayerBasicText));
+	void* layerSpace = GeneralMemoryAllocator::get().alloc(sizeof(NumericLayerBasicText));
 	if (!layerSpace) {
 		return;
 	}
@@ -156,7 +156,7 @@ void NumericDriver::setText(char const* newText, bool alignRight, uint8_t drawDo
 
 #if !HAVE_OLED
 NumericLayerScrollingText* NumericDriver::setScrollingText(char const* newText, int startAtTextPos, int initialDelay) {
-	void* layerSpace = generalMemoryAllocator.alloc(sizeof(NumericLayerScrollingText));
+	void* layerSpace = GeneralMemoryAllocator::get().alloc(sizeof(NumericLayerScrollingText));
 	if (!layerSpace) {
 		return NULL;
 	}
@@ -187,7 +187,7 @@ void NumericDriver::replaceBottomLayer(NumericLayer* newLayer) {
 	NumericLayer* toDelete = *prevPointer;
 	*prevPointer = newLayer;
 	toDelete->~NumericLayer();
-	generalMemoryAllocator.dealloc(toDelete);
+	GeneralMemoryAllocator::get().dealloc(toDelete);
 
 	if (!popupActive && topLayer == newLayer) {
 		uiTimerManager.unsetTimer(TIMER_DISPLAY);
@@ -204,7 +204,7 @@ void NumericDriver::transitionToNewLayer(NumericLayer* newLayer) {
 	// If transition...
 	if (!popupActive && nextTransitionDirection != 0 && topLayer != NULL) {
 
-		void* layerSpace = generalMemoryAllocator.alloc(sizeof(NumericLayerScrollTransition));
+		void* layerSpace = GeneralMemoryAllocator::get().alloc(sizeof(NumericLayerScrollTransition));
 
 		if (layerSpace) {
 			scrollTransition = new (layerSpace) NumericLayerScrollTransition();
@@ -562,7 +562,7 @@ void NumericDriver::render() {
 
 // Call this to make the loading animation happen
 void NumericDriver::displayLoadingAnimation(bool delayed, bool transparent) {
-	void* layerSpace = generalMemoryAllocator.alloc(sizeof(NumericLayerLoadingAnimation));
+	void* layerSpace = GeneralMemoryAllocator::get().alloc(sizeof(NumericLayerLoadingAnimation));
 	if (!layerSpace) {
 		return;
 	}
