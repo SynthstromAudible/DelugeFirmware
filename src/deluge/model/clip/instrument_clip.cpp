@@ -1326,19 +1326,6 @@ bool InstrumentClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack
 			noteRowColourOffset = thisNoteRow->getColourOffset(this);
 		}
 
-		// uint8_t mainColour[3];
-		// uint8_t tailColour[3];
-		// uint8_t blurColour[3];
-
-		// getMainColourFromY(yNote, thisNoteRow->getColourOffset(this), mainColour);
-		// getTailColour(tailColour, mainColour);
-		// if (allowBlur) {
-		// 	getBlurColour(blurColour, mainColour);
-		// }
-		// else {
-		// 	memcpy(blurColour, mainColour, 3);
-		// }
-
 		if (i == noteRowIndexStart || output->type == InstrumentType::KIT) {
 			ModelStackWithNoteRow* modelStackWithNoteRow =
 			    modelStack->addNoteRow(getNoteRowId(thisNoteRow, i), thisNoteRow);
