@@ -103,6 +103,8 @@ def do_parallel(func, it):
     pool.close()
     pool.join()
 
+    return result.get()
+
 
 class Counter(object):
     def __init__(self, initval=0):
@@ -127,8 +129,9 @@ def init_globals(cntr):
 
 
 def call_and_increment(func, arg):
-    func(arg)
+    result = func(arg)
     counter.increment()
+    return result
 
 
 def do_parallel_progressbar(func, it, prefix: str, size: int = 60, out=sys.stdout):
@@ -157,6 +160,7 @@ def do_parallel_progressbar(func, it, prefix: str, size: int = 60, out=sys.stdou
     pool.close()
     pool.join()
     print("", flush=True, file=out)
+    return result.get()
 
 
 # Environment extraction
