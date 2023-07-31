@@ -27,11 +27,11 @@ public:
 
 	void readCurrentValue() override {
 		this->value_ =
-		    (((int64_t)(dynamic_cast<AudioClip*>(currentSong->currentClip))->attack + 2147483648) * 50 + 2147483648)
+		    (((int64_t)(static_cast<AudioClip*>(currentSong->currentClip))->attack + 2147483648) * 50 + 2147483648)
 		    >> 32;
 	}
 	void writeCurrentValue() override {
-		(dynamic_cast<AudioClip*>(currentSong->currentClip))->attack = (uint32_t)this->value_ * 85899345 - 2147483648;
+		(static_cast<AudioClip*>(currentSong->currentClip))->attack = (uint32_t)this->value_ * 85899345 - 2147483648;
 	}
 	[[nodiscard]] int getMaxValue() const override { return 50; }
 };

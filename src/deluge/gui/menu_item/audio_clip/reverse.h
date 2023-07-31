@@ -30,10 +30,10 @@ public:
 	using Toggle::Toggle;
 
 	void readCurrentValue() override {
-		this->value_ = (dynamic_cast<AudioClip*>(currentSong->currentClip))->sampleControls.reversed;
+		this->value_ = (static_cast<AudioClip*>(currentSong->currentClip))->sampleControls.reversed;
 	}
 	void writeCurrentValue() override {
-		auto* clip = dynamic_cast<AudioClip*>(currentSong->currentClip);
+		auto* clip = static_cast<AudioClip*>(currentSong->currentClip);
 		bool active = (playbackHandler.isEitherClockActive() && currentSong->isClipActive(clip) && clip->voiceSample);
 
 		clip->unassignVoiceSample();
@@ -42,7 +42,7 @@ public:
 
 		if (clip->sampleHolder.audioFile != nullptr) {
 			if (clip->sampleControls.reversed) {
-				uint64_t lengthInSamples = (dynamic_cast<Sample*>(clip->sampleHolder.audioFile))->lengthInSamples;
+				uint64_t lengthInSamples = (static_cast<Sample*>(clip->sampleHolder.audioFile))->lengthInSamples;
 				if (clip->sampleHolder.endPos > lengthInSamples) {
 					clip->sampleHolder.endPos = lengthInSamples;
 				}

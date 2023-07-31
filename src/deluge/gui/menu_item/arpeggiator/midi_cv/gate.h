@@ -25,12 +25,12 @@ class Gate final : public Integer {
 public:
 	using Integer::Integer;
 	void readCurrentValue() override {
-		auto* current_clip = dynamic_cast<InstrumentClip*>(currentSong->currentClip);
+		auto* current_clip = static_cast<InstrumentClip*>(currentSong->currentClip);
 		int64_t arp_gate = (int64_t)current_clip->arpeggiatorGate + 2147483648;
 		this->value_ = (arp_gate * 50 + 2147483648) >> 32;
 	}
 	void writeCurrentValue() override {
-		(dynamic_cast<InstrumentClip*>(currentSong->currentClip))->arpeggiatorGate =
+		(static_cast<InstrumentClip*>(currentSong->currentClip))->arpeggiatorGate =
 		    (uint32_t)this->value_ * 85899345 - 2147483648;
 	}
 	[[nodiscard]] int getMaxValue() const override { return 50; }

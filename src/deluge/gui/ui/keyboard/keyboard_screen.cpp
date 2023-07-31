@@ -42,15 +42,15 @@
 #include "playback/mode/playback_mode.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_instrument.h"
-#include <string.h>
+#include <cstring>
 
 #include "gui/ui/keyboard/layout/in_key.h"
 #include "gui/ui/keyboard/layout/isomorphic.h"
 #include "gui/ui/keyboard/layout/velocity_drums.h"
 
-keyboard::KeyboardScreen keyboardScreen{};
+deluge::gui::ui::keyboard::KeyboardScreen keyboardScreen{};
 
-namespace keyboard {
+namespace deluge::gui::ui::keyboard {
 
 layout::KeyboardLayoutIsomorphic keyboardLayoutIsomorphic{};
 layout::KeyboardLayoutVelocityDrums keyboardLayoutVelocityDrums{};
@@ -751,4 +751,4 @@ void KeyboardScreen::graphicsRoutine() {
 	PadLEDs::setTickSquares(keyboardTickSquares, colours);
 }
 
-} // namespace keyboard
+} // namespace deluge::gui::ui::keyboard

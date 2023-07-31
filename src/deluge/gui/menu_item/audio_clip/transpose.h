@@ -26,8 +26,8 @@ class Transpose final : public Decimal, public MenuItemWithCCLearning {
 public:
 	using Decimal::Decimal;
 	void readCurrentValue() override {
-		this->value_ = (dynamic_cast<AudioClip*>(currentSong->currentClip))->sampleHolder.transpose * 100
-		               + (dynamic_cast<AudioClip*>(currentSong->currentClip))->sampleHolder.cents;
+		this->value_ = (static_cast<AudioClip*>(currentSong->currentClip))->sampleHolder.transpose * 100
+		               + (static_cast<AudioClip*>(currentSong->currentClip))->sampleHolder.cents;
 	}
 	void writeCurrentValue() override {
 		int currentValue = this->value_ + 25600;
@@ -36,7 +36,7 @@ public:
 		int cents = currentValue - semitones * 100;
 		int transpose = semitones - 256;
 
-		auto& sampleHolder = (dynamic_cast<AudioClip*>(currentSong->currentClip))->sampleHolder;
+		auto& sampleHolder = (static_cast<AudioClip*>(currentSong->currentClip))->sampleHolder;
 		sampleHolder.transpose = transpose;
 		sampleHolder.cents = cents;
 		sampleHolder.recalculateNeutralPhaseIncrement();

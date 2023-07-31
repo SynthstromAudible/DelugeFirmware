@@ -40,7 +40,7 @@ public:
 				ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
 
 				if (soundEditor.editingCVOrMIDIClip()) {
-					(dynamic_cast<InstrumentClip*>(currentSong->currentClip))
+					(static_cast<InstrumentClip*>(currentSong->currentClip))
 					    ->stopAllNotesForMIDIOrCV(modelStack->toWithTimelineCounter());
 				}
 				else {

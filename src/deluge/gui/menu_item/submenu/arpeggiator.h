@@ -31,8 +31,8 @@ public:
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override {
 
 		soundEditor.currentArpSettings = soundEditor.editingKit()
-		                                     ? &(dynamic_cast<SoundDrum*>(soundEditor.currentSound))->arpSettings
-		                                     : &(dynamic_cast<InstrumentClip*>(currentSong->currentClip))->arpSettings;
+		                                     ? &(static_cast<SoundDrum*>(soundEditor.currentSound))->arpSettings
+		                                     : &(static_cast<InstrumentClip*>(currentSong->currentClip))->arpSettings;
 		Submenu<n>::beginSession(navigatedBackwardFrom);
 	}
 };

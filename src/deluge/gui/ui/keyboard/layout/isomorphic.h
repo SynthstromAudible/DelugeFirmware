@@ -19,7 +19,7 @@
 
 #include "gui/ui/keyboard/layout.h"
 
-namespace keyboard::layout {
+namespace deluge::gui::ui::keyboard::layout {
 
 constexpr int kMinIsomorphicRowInterval = 1;
 constexpr int kMaxIsomorphicRowInterval = 16;
@@ -48,4 +48,4 @@ private:
 	uint8_t noteColours[kDisplayHeight * kMaxIsomorphicRowInterval + kDisplayWidth][3];
 };
 
-}; // namespace keyboard::layout
+}; // namespace deluge::gui::ui::keyboard::layout

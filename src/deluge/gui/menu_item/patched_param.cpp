@@ -103,7 +103,7 @@ ModelStackWithAutoParam* PatchedParam::getModelStack(void* memory) {
 	ParamCollectionSummary* summary = modelStack->paramManager->getPatchedParamSetSummary();
 	int p = this->getP();
 	return modelStack->addParam(summary->paramCollection, summary, p,
-	                            &(dynamic_cast<ParamSet*>(summary->paramCollection))->params[p]);
+	                            &(static_cast<ParamSet*>(summary->paramCollection))->params[p]);
 }
 
 } // namespace deluge::gui::menu_item

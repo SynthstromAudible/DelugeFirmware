@@ -36,11 +36,11 @@ public:
 		// If affect-entire button held, do whole kit
 		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKit()) {
 
-			Kit* kit = dynamic_cast<Kit*>(currentSong->currentClip->output);
+			Kit* kit = static_cast<Kit*>(currentSong->currentClip->output);
 
 			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
-					auto* soundDrum = dynamic_cast<SoundDrum*>(thisDrum);
+					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
 					Source* source = &soundDrum->sources[soundEditor.currentSourceIndex];
 
 					source->sampleControls.pitchAndSpeedAreIndependent = this->value_;

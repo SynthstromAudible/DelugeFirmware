@@ -114,7 +114,8 @@ public:
 
 	int yScroll;
 
-	keyboard::KeyboardState keyboardState;
+	// TODO: Unscope this once namespacing is done
+	deluge::gui::ui::keyboard::KeyboardState keyboardState;
 
 	int32_t ticksTilNextNoteRowEvent;
 	int32_t noteRowsNumTicksBehindClip;

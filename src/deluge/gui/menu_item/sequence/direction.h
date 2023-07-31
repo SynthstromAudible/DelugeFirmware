@@ -31,9 +31,9 @@ public:
 	using Selection::Selection;
 
 	ModelStackWithNoteRow* getIndividualNoteRow(ModelStackWithTimelineCounter* modelStack) {
-		auto* clip = dynamic_cast<InstrumentClip*>(modelStack->getTimelineCounter());
+		auto* clip = static_cast<InstrumentClip*>(modelStack->getTimelineCounter());
 		if (!clip->affectEntire && clip->output->type == InstrumentType::KIT) {
-			Kit* kit = dynamic_cast<Kit*>(currentSong->currentClip->output);
+			Kit* kit = static_cast<Kit*>(currentSong->currentClip->output);
 			if (kit->selectedDrum != nullptr) {
 				return clip->getNoteRowForDrum(modelStack, kit->selectedDrum); // Still might be NULL;
 			}
@@ -51,7 +51,7 @@ public:
 		}
 		else {
 			this->value_ =
-			    util::to_underlying((dynamic_cast<InstrumentClip*>(currentSong->currentClip))->sequenceDirectionMode);
+			    util::to_underlying((static_cast<InstrumentClip*>(currentSong->currentClip))->sequenceDirectionMode);
 		}
 	}
 
@@ -64,7 +64,7 @@ public:
 			                                                              static_cast<SequenceDirection>(this->value_));
 		}
 		else {
-			(dynamic_cast<InstrumentClip*>(currentSong->currentClip))
+			(static_cast<InstrumentClip*>(currentSong->currentClip))
 			    ->setSequenceDirectionMode(modelStackWithNoteRow->toWithTimelineCounter(),
 			                               static_cast<SequenceDirection>(this->value_));
 		}
@@ -84,9 +84,9 @@ public:
 	}
 
 	MenuPermission checkPermissionToBeginSession(Sound* sound, int whichThing, ::MultiRange** currentRange) override {
-		if (!(dynamic_cast<InstrumentClip*>(currentSong->currentClip))->affectEntire
+		if (!(static_cast<InstrumentClip*>(currentSong->currentClip))->affectEntire
 		    && currentSong->currentClip->output->type == InstrumentType::KIT
-		    && ((dynamic_cast<Kit*>(currentSong->currentClip->output))->selectedDrum == nullptr)) {
+		    && ((static_cast<Kit*>(currentSong->currentClip->output))->selectedDrum == nullptr)) {
 			return MenuPermission::NO;
 		}
 		return MenuPermission::YES;

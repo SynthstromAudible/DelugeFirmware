@@ -33,8 +33,8 @@ public:
 		int cents = 0;
 		if ((soundEditor.currentMultiRange != nullptr) && soundEditor.currentSound->getSynthMode() != SynthMode::FM
 		    && soundEditor.currentSource->oscType == OscType::SAMPLE) {
-			transpose = (dynamic_cast<MultisampleRange*>(soundEditor.currentMultiRange))->sampleHolder.transpose;
-			cents = (dynamic_cast<MultisampleRange*>(soundEditor.currentMultiRange))->sampleHolder.cents;
+			transpose = (static_cast<MultisampleRange*>(soundEditor.currentMultiRange))->sampleHolder.transpose;
+			cents = (static_cast<MultisampleRange*>(soundEditor.currentMultiRange))->sampleHolder.cents;
 		}
 		else {
 			transpose = soundEditor.currentSource->transpose;
@@ -52,8 +52,8 @@ public:
 		int transpose = semitones - 256;
 		if ((soundEditor.currentMultiRange != nullptr) && soundEditor.currentSound->getSynthMode() != SynthMode::FM
 		    && soundEditor.currentSource->oscType == OscType::SAMPLE) {
-			(dynamic_cast<MultisampleRange*>(soundEditor.currentMultiRange))->sampleHolder.transpose = transpose;
-			(dynamic_cast<MultisampleRange*>(soundEditor.currentMultiRange))->sampleHolder.setCents(cents);
+			(static_cast<MultisampleRange*>(soundEditor.currentMultiRange))->sampleHolder.transpose = transpose;
+			(static_cast<MultisampleRange*>(soundEditor.currentMultiRange))->sampleHolder.setCents(cents);
 		}
 		else {
 			soundEditor.currentSource->transpose = transpose;

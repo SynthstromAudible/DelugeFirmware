@@ -21,9 +21,9 @@ namespace deluge::gui::menu_item::midi {
 class Sub final : public Preset {
 public:
 	using Preset::Preset;
-	void readCurrentValue() { this->value_ = (dynamic_cast<InstrumentClip*>(currentSong->currentClip))->midiSub; }
+	void readCurrentValue() { this->value_ = (static_cast<InstrumentClip*>(currentSong->currentClip))->midiSub; }
 	void writeCurrentValue() {
-		auto& currentClip = *(dynamic_cast<InstrumentClip*>(currentSong->currentClip));
+		auto& currentClip = *(static_cast<InstrumentClip*>(currentSong->currentClip));
 		currentClip.midiSub = this->value_;
 		if (currentClip.isActiveOnOutput()) {
 			currentClip.sendMIDIPGM();

@@ -28,7 +28,7 @@
 
 constexpr uint8_t kMaxNumKeyboardPadPresses = 10;
 
-namespace keyboard {
+namespace deluge::gui::ui::keyboard {
 
 inline InstrumentClip* currentClip() {
 	return (InstrumentClip*)currentSong->currentClip;
@@ -38,9 +38,7 @@ inline Instrument* currentInstrument() {
 	return (Instrument*)currentSong->currentClip->output;
 }
 
-struct PressedPad {
-	uint8_t x;
-	uint8_t y;
+struct PressedPad : Cartesian {
 	bool active;
 };
 
@@ -55,7 +53,7 @@ typedef uint8_t ModesArray[kModesArraySize];
 
 class KeyboardLayout {
 public:
-	KeyboardLayout() {}
+	KeyboardLayout() = default;
 	virtual ~KeyboardLayout() {}
 
 	/// Handle input pad presses
@@ -132,4 +130,4 @@ protected:
 	NotesState currentNotesState;
 };
 
-}; // namespace keyboard
+}; // namespace deluge::gui::ui::keyboard

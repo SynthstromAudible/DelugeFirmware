@@ -24,7 +24,7 @@
 #include "gui/ui/sound_editor.h"
 #include "util/functions.h"
 
-namespace keyboard::layout {
+namespace deluge::gui::ui::keyboard::layout {
 
 void KeyboardLayoutInKey::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) {
 	uint8_t noteIdx = 0;
@@ -128,4 +128,4 @@ void KeyboardLayoutInKey::renderPads(uint8_t image[][kDisplayWidth + kSideBarWid
 	}
 }
 
-} // namespace keyboard::layout
+} // namespace deluge::gui::ui::keyboard::layout
