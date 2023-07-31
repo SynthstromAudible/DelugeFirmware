@@ -28,8 +28,8 @@ namespace deluge::gui::menu_item {
 class Param {
 public:
 	Param(int newP = 0) : p(newP) {}
-	[[nodiscard]] int getMaxValue() const { return 50; }
-	[[nodiscard]] int getMinValue() const { return 0; }
+	[[nodiscard]] virtual int getMaxValue() const { return 50; }
+	[[nodiscard]] virtual int getMinValue() const { return 0; }
 	virtual uint8_t getP() { return p; };
 	MenuItem* selectButtonPress();
 	virtual ModelStackWithAutoParam* getModelStack(void* memory) = 0;
