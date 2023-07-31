@@ -20,7 +20,7 @@
 
 namespace keyboard {
 
-enum class KeyboardLayoutType : uint32_t {
+enum KeyboardLayoutType : uint32_t {
 	Isomorphic,
 	Drums,
 	InKey,
