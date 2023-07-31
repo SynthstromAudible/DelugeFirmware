@@ -436,6 +436,7 @@ void AutomationClipView::performActualRender(uint32_t whichRows, uint8_t* image,
 
 				int32_t effectiveLength = 0;
 				effectiveLength = clip->loopLength;
+
 				clip->drawUndefinedArea(xScroll, xZoom, effectiveLength, image + (yDisplay * imageWidth * 3),
 				                        occupancyMaskOfRow, renderWidth, this,
 				                        currentSong->tripletsOn); // Sends image pointer for just the one row
@@ -470,7 +471,6 @@ void AutomationClipView::performActualRender(uint32_t whichRows, uint8_t* image,
 				}
 
 				int32_t effectiveLength = 0;
-
 				effectiveLength = clip->loopLength;
 
 				clip->drawUndefinedArea(xScroll, xZoom, effectiveLength, image + (yDisplay * imageWidth * 3),
@@ -1634,20 +1634,20 @@ void AutomationClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 				//		    (squareType == SQUARE_NOTE_HEAD || squareType == SQUARE_NOTE_TAIL_UNMODIFIED);
 				//	}
 
-					editPadPresses[i].isBlurredSquare = false; //(squareType == SQUARE_BLURRED);
+				//	editPadPresses[i].isBlurredSquare = false; //(squareType == SQUARE_BLURRED);
 				//	editPadPresses[i].intendedVelocity = firstNote->getVelocity();
 				//	editPadPresses[i].intendedProbability = firstNote->getProbability();
 					editPadPresses[i].isActive = true;
 					editPadPresses[i].yDisplay = yDisplay;
 					editPadPresses[i].xDisplay = xDisplay;
-					editPadPresses[i].deleteOnScroll = true;
-					editPadPresses[i].mpeCachedYet = false;
-					for (int m = 0; m < kNumExpressionDimensions; m++) {
-						editPadPresses[i].stolenMPE[m].num = 0;
-					}
+				//	editPadPresses[i].deleteOnScroll = true;
+				//	editPadPresses[i].mpeCachedYet = false;
+				//	for (int m = 0; m < kNumExpressionDimensions; m++) {
+				//		editPadPresses[i].stolenMPE[m].num = 0;
+				//	}
 					numEditPadPresses++;
 					numEditPadPressesPerNoteRowOnScreen[yDisplay]++;
-				//	enterUIMode(UI_MODE_NOTES_PRESSED);
+					enterUIMode(UI_MODE_NOTES_PRESSED);
 
 					// If new note...
 				/*	if (squareType == SQUARE_NEW_NOTE) {
@@ -1678,13 +1678,13 @@ void AutomationClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 				//	    modelStackWithNoteRow->noteRowId);
 
 					// Now that we're holding a note down, get set up for if the user wants to edit its MPE values.
-					for (int t = 0; t < MPE_RECORD_LENGTH_FOR_NOTE_EDITING; t++) {
-						mpeValuesAtHighestPressure[t][0] = 0;
-						mpeValuesAtHighestPressure[t][1] = 0;
-						mpeValuesAtHighestPressure[t][2] = -1; // -1 means not valid yet
-					}
-					mpeMostRecentPressure = 0;
-					mpeRecordLastUpdateTime = AudioEngine::audioSampleTimer;
+				//	for (int t = 0; t < MPE_RECORD_LENGTH_FOR_NOTE_EDITING; t++) {
+				//		mpeValuesAtHighestPressure[t][0] = 0;
+				//		mpeValuesAtHighestPressure[t][1] = 0;
+				//		mpeValuesAtHighestPressure[t][2] = -1; // -1 means not valid yet
+				//	}
+				//	mpeMostRecentPressure = 0;
+				//	mpeRecordLastUpdateTime = AudioEngine::audioSampleTimer;
 
 					reassessAuditionStatus(yDisplay);
 			//	}
