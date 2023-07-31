@@ -758,12 +758,7 @@ ramError2:
 	((Instrument*)currentSong->currentClip->output)->beenEdited();
 
 	// New NoteRows have probably been created, whose colours haven't been grabbed yet.
-	if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
-		automationClipView.recalculateColours();
-	}
-	else {
-		instrumentClipView.recalculateColours();
-	}
+	instrumentClipView.recalculateColours();
 
 	numericDriver.setNextTransitionDirection(-1);
 	sampleBrowser.exitAndNeverDeleteDrum();

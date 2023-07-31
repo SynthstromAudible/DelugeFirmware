@@ -267,7 +267,7 @@ void AutomationClipView::openedInBackground() {
 
 	bool renderingToStore = (currentUIMode == UI_MODE_ANIMATION_FADE);
 
-	recalculateColours();
+	instrumentClipView.recalculateColours();
 
 	AudioEngine::routineWithClusterLoading(); // -----------------------------------
 	AudioEngine::logAction("AutomationClipView::beginSession 2");
@@ -289,64 +289,7 @@ void AutomationClipView::openedInBackground() {
 
 //Not sure what this routine does
 void AutomationClipView::graphicsRoutine() {
-	if (!currentSong) {
-		return; // Briefly, if loading a song fails, during the creation of a new blank one, this could happen.
-	}
-
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-
-	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
-
-	if (isUIModeActive(UI_MODE_INSTRUMENT_CLIP_COLLAPSING)) {
-		return;
-	}
-
-	if (PadLEDs::flashCursor == FLASH_CURSOR_OFF) {
-		return;
-	}
-
-	int newTickSquare;
-
-	bool reallyNoTickSquare = (!playbackHandler.isEitherClockActive() || !currentSong->isClipActive(clip)
-	                           || currentUIMode == UI_MODE_EXPLODE_ANIMATION || playbackHandler.ticksLeftInCountIn);
-
-	if (reallyNoTickSquare) {
-		newTickSquare = 255;
-	}
-	else {
-		newTickSquare = getTickSquare();
-		if (newTickSquare < 0 || newTickSquare >= kDisplayWidth) {
-			newTickSquare = 255;
-		}
-	}
-
-	uint8_t tickSquares[kDisplayHeight];
-	memset(tickSquares, newTickSquare, kDisplayHeight);
-
-	uint8_t colours[kDisplayHeight];
-	uint8_t nonMutedColour = clip->getCurrentlyRecordingLinearly() ? 2 : 0;
-	for (int yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-		int noteRowIndex;
-		NoteRow* noteRow = clip->getNoteRowOnScreen(yDisplay, currentSong, &noteRowIndex);
-		colours[yDisplay] = (noteRow && noteRow->muted) ? 1 : nonMutedColour;
-
-		if (!reallyNoTickSquare) {
-			if (noteRow && noteRow->hasIndependentPlayPos()) {
-
-				int noteRowId = clip->getNoteRowId(noteRow, noteRowIndex);
-				ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowId, noteRow);
-
-				int rowTickSquare = getSquareFromPos(noteRow->getLivePos(modelStackWithNoteRow));
-				if (rowTickSquare < 0 || rowTickSquare >= kDisplayWidth) {
-					rowTickSquare = 255;
-				}
-				tickSquares[yDisplay] = rowTickSquare;
-			}
-		}
-	}
-
-	PadLEDs::setTickSquares(tickSquares, colours);
+	instrumentClipView.graphicsRoutine();
 }
 
 //rendering
@@ -364,7 +307,7 @@ bool AutomationClipView::renderMainPads(uint32_t whichRows, uint8_t image[][kDis
 	}
 
 	PadLEDs::renderingLock = true;
-	recalculateColours();
+	instrumentClipView.recalculateColours();
 	performActualRender(whichRows, &image[0][0][0], occupancyMask, currentSong->xScroll[NAVIGATION_CLIP],
 	                    currentSong->xZoom[NAVIGATION_CLIP], kDisplayWidth, kDisplayWidth + kSideBarWidth,
 	                    drawUndefinedArea);
@@ -392,8 +335,6 @@ bool AutomationClipView::renderMainPads(uint32_t whichRows, uint8_t image[][kDis
 	}
 
 	PadLEDs::renderingLock = false;
-
-	//PadLEDs::reassessGreyout(true);
 
 	return true;
 }
@@ -599,7 +540,7 @@ bool AutomationClipView::renderSidebar(uint32_t whichRows, uint8_t image[][kDisp
 	for (int i = 0; i < kDisplayHeight; i++) {
 		if (whichRows & (1 << i)) {
 			instrumentClipView.drawMuteSquare(getCurrentClip()->getNoteRowOnScreen(i, currentSong), image[i], occupancyMask[i]);
-			drawAuditionSquare(i, image[i]);
+			instrumentClipView.drawAuditionSquare(i, image[i]);
 		}
 	}
 
@@ -607,7 +548,7 @@ bool AutomationClipView::renderSidebar(uint32_t whichRows, uint8_t image[][kDisp
 
 }
 
-void AutomationClipView::drawAuditionSquare(uint8_t yDisplay, uint8_t thisImage[][3]) {
+/*void AutomationClipView::drawAuditionSquare(uint8_t yDisplay, uint8_t thisImage[][3]) {
 	uint8_t* thisColour = thisImage[kDisplayWidth + 1];
 
 	if (view.midiLearnFlashOn) {
@@ -722,9 +663,9 @@ checkIfSelectingRanges:
 		}
 		memset(thisColour, 0, 3);
 	}
-}
+}*/
 
-void AutomationClipView::recalculateColours() {
+/*void AutomationClipView::recalculateColours() {
 	for (int yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 		recalculateColour(yDisplay);
 	}
@@ -740,7 +681,7 @@ void AutomationClipView::recalculateColour(uint8_t yDisplay) {
 	                                     instrumentClipView.rowColour[yDisplay]);
 	getTailColour(instrumentClipView.rowTailColour[yDisplay], instrumentClipView.rowColour[yDisplay]);
 	getBlurColour(instrumentClipView.rowBlurColour[yDisplay], instrumentClipView.rowColour[yDisplay]);
-}
+}*/
 
 //button action
 
@@ -772,7 +713,7 @@ ActionResult AutomationClipView::buttonAction(hid::Button b, bool on, bool inCar
 				// If user holding shift and we're already in scale mode, cycle through available scales
 				if (Buttons::isShiftButtonPressed() && clip->inScaleMode) {
 					cycleThroughScales();
-					recalculateColours();
+					instrumentClipView.recalculateColours();
 					uiNeedsRendering(this);
 				}
 
@@ -1085,7 +1026,7 @@ void AutomationClipView::createNewInstrument(InstrumentType newInstrumentType) {
 
 	InstrumentClipMinder::createNewInstrument(newInstrumentType);
 
-	recalculateColours();
+	instrumentClipView.recalculateColours();
 	uiNeedsRendering(this);
 
 	if (newInstrumentType == InstrumentType::KIT) {
@@ -1108,7 +1049,7 @@ void AutomationClipView::changeInstrumentType(InstrumentType newInstrumentType) 
 
 	InstrumentClipMinder::changeInstrumentType(newInstrumentType);
 
-	recalculateColours();
+	instrumentClipView.recalculateColours();
 	uiNeedsRendering(this);
 }
 
@@ -1220,7 +1161,7 @@ doRegularEditPadActionProbably:
 		else {
 maybeRegularMutePress:
 			if (isUIModeWithinRange(mutePadActionUIModes) && velocity) {
-				mutePadPress(y);
+				instrumentClipView.mutePadPress(y);
 			}
 		}
 	}
@@ -1328,7 +1269,7 @@ void AutomationClipView::changeRootNote(uint8_t yDisplay) {
 	instrumentClipView.setupChangingOfRootNote(newRootNote, yDisplay);
 	displayCurrentScaleName();
 
-	recalculateColours();
+	instrumentClipView.recalculateColours();
 	uiNeedsRendering(this);
 }
 
@@ -1711,7 +1652,7 @@ void AutomationClipView::checkIfAllEditPadPressesEnded(bool mayRenderSidebar) {
 
 //mute pad action
 
-void AutomationClipView::mutePadPress(uint8_t yDisplay) {
+/*void AutomationClipView::mutePadPress(uint8_t yDisplay) {
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
@@ -1752,7 +1693,7 @@ fail:
 	}
 
 	uiNeedsRendering(this, 0, 1 << yDisplay);
-}
+}*/
 
 //audition pad action
 
@@ -2025,7 +1966,7 @@ getOut:
 	}
 }
 
-ModelStackWithNoteRow* AutomationClipView::createNoteRowForYDisplay(ModelStackWithTimelineCounter* modelStack,
+/*ModelStackWithNoteRow* AutomationClipView::createNoteRowForYDisplay(ModelStackWithTimelineCounter* modelStack,
                                                                     int yDisplay) {
 
 	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
@@ -2072,9 +2013,9 @@ doDisplayError:
 
 getOut:
 	return modelStack->addNoteRow(noteRowId, noteRow);
-}
+}*/
 
-NoteRow* AutomationClipView::createNewNoteRowForKit(ModelStackWithTimelineCounter* modelStack, int yDisplay,
+/*NoteRow* AutomationClipView::createNewNoteRowForKit(ModelStackWithTimelineCounter* modelStack, int yDisplay,
                                                     int* getIndex) {
 	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
 
@@ -2083,10 +2024,10 @@ NoteRow* AutomationClipView::createNewNoteRowForKit(ModelStackWithTimelineCounte
 		return NULL; // If memory full
 	}
 
-	recalculateColour(yDisplay);
+	instrumentClipView.recalculateColour(yDisplay);
 
 	return newNoteRow;
-}
+}*/
 
 void AutomationClipView::reassessAllAuditionStatus() {
 	for (int yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
@@ -2363,7 +2304,7 @@ ModelStackWithNoteRow* AutomationClipView::getOrCreateNoteRowForYDisplay(ModelSt
 	ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowOnScreen(yDisplay, modelStack);
 
 	if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
-		modelStackWithNoteRow = createNoteRowForYDisplay(modelStack, yDisplay);
+		modelStackWithNoteRow = instrumentClipView.createNoteRowForYDisplay(modelStack, yDisplay);
 	}
 
 	return modelStackWithNoteRow;
@@ -2651,7 +2592,7 @@ ActionResult AutomationClipView::verticalEncoderAction(int offset, bool inCardRo
 							if (noteRow->colourOffset < 0) {
 								noteRow->colourOffset += 72;
 							}
-							recalculateColour(yDisplay);
+							instrumentClipView.recalculateColour(yDisplay);
 							whichRowsToRender |= (1 << yDisplay);
 						}
 					}
@@ -2663,7 +2604,7 @@ ActionResult AutomationClipView::verticalEncoderAction(int offset, bool inCardRo
 		else if (currentUIMode == UI_MODE_NONE) {
 shiftAllColour:
 			getCurrentClip()->colourOffset += offset;
-			recalculateColours();
+			instrumentClipView.recalculateColours();
 			whichRowsToRender = 0xFFFFFFFF;
 		}
 
@@ -2836,7 +2777,7 @@ ActionResult AutomationClipView::scrollVertical(int scrollAmount, bool inCardRou
 	// Do actual scroll
 	getCurrentClip()->yScroll += scrollAmount;
 
-	recalculateColours(); // Don't render - we'll do that after we've dealt with presses (potentially creating Notes)
+	instrumentClipView.recalculateColours(); // Don't render - we'll do that after we've dealt with presses (potentially creating Notes)
 
 	// Switch on any auditioned notes - remembering that the one we're shifting (if we are) was left on before
 	bool drawnNoteCodeYet = false;

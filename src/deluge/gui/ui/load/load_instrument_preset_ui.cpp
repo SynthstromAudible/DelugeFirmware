@@ -199,12 +199,7 @@ useDefaultFolder:
 
 	if (showingAuditionPads()) {
 
-		if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
-			automationClipView.recalculateColours();
-		}
-		else {
-			instrumentClipView.recalculateColours();
-		}
+		instrumentClipView.recalculateColours();
 		renderingNeededRegardlessOfUI(0, 0xFFFFFFFF);
 	}
 
@@ -265,12 +260,7 @@ void LoadInstrumentPresetUI::enterKeyPress() {
 
 		if (instrumentTypeToLoad == InstrumentType::KIT && showingAuditionPads()) {
 			// New NoteRows have probably been created, whose colours haven't been grabbed yet.
-			if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
-				automationClipView.recalculateColours();
-			}
-			else {
-				instrumentClipView.recalculateColours();
-			}
+			instrumentClipView.recalculateColours();
 		}
 
 		close();

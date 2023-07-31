@@ -1754,7 +1754,7 @@ getOut:
 
 		else if (getCurrentUI() == &automationClipView) {
 			AudioEngine::routineWithClusterLoading(); // -----------------------------------
-			automationClipView.recalculateColours();
+			instrumentClipView.recalculateColours();
 			uiNeedsRendering(&automationClipView);
 		}
 

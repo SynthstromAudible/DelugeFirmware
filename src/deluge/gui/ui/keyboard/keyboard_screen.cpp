@@ -372,14 +372,15 @@ ActionResult KeyboardScreen::buttonAction(hid::Button b, bool on, bool inCardRou
 		keyboardButtonActive = on;
 		if (currentUIMode == UI_MODE_NONE && !keyboardButtonActive
 		    && !keyboardButtonUsed) { // Leave if key up and not used
+
+			instrumentClipView.recalculateColours();
 			if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
-				automationClipView.recalculateColours();
 				changeRootUI(&automationClipView);
 			}
 			else {
-				instrumentClipView.recalculateColours();
 				changeRootUI(&instrumentClipView);
 			}
+
 			keyboardButtonUsed = false;
 		}
 	}

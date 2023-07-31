@@ -2203,7 +2203,7 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 		else {
 
 			if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
-				automationClipView
+				instrumentClipView
 				    .recalculateColours(); // Won't have happened automatically because we haven't begun the "session"
 				automationClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1],
 				                                  false);

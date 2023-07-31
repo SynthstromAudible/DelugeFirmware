@@ -81,10 +81,10 @@ public:
 	                         bool drawUndefinedArea = true);
 	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
-	void drawAuditionSquare(uint8_t yDisplay, uint8_t thisImage[][3]);
+	//void drawAuditionSquare(uint8_t yDisplay, uint8_t thisImage[][3]);
 
-	void recalculateColours();
-	void recalculateColour(uint8_t yDisplay);
+	//void recalculateColours();
+	//void recalculateColour(uint8_t yDisplay);
 
 #if HAVE_OLED
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
@@ -113,12 +113,12 @@ public:
 	//uint32_t mpeRecordLastUpdateTime;
 
 	//mute pad press
-	void mutePadPress(uint8_t yDisplay);
+	//void mutePadPress(uint8_t yDisplay);
 
 	//audition pad action
 	void auditionPadAction(int velocity, int yDisplay, bool shiftButtonDown);
-	ModelStackWithNoteRow* createNoteRowForYDisplay(ModelStackWithTimelineCounter* modelStack, int yDisplay);
-	NoteRow* createNewNoteRowForKit(ModelStackWithTimelineCounter* modelStack, int yDisplay, int* getIndex = NULL);
+	//ModelStackWithNoteRow* createNoteRowForYDisplay(ModelStackWithTimelineCounter* modelStack, int yDisplay);
+	//NoteRow* createNewNoteRowForKit(ModelStackWithTimelineCounter* modelStack, int yDisplay, int* getIndex = NULL);
 	void reassessAllAuditionStatus();
 	void reassessAuditionStatus(uint8_t yDisplay);
 	uint8_t getVelocityForAudition(uint8_t yDisplay, uint32_t* sampleSyncLength);

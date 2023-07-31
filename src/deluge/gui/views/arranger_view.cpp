@@ -1695,7 +1695,7 @@ void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 
 		// If going to AutomationView...
 		else if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
-			automationClipView.recalculateColours();
+			instrumentClipView.recalculateColours();
 			automationClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1],
 			                                  false);
 			instrumentClipView.fillOffScreenImageStores();

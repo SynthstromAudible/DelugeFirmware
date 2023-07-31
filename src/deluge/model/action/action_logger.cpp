@@ -650,7 +650,7 @@ currentClipSwitchedOver:
 			if (whichAnimation != ANIMATION_CLIP_MINDER_TO_SESSION
 			    && whichAnimation
 			           != ANIMATION_CLIP_MINDER_TO_ARRANGEMENT) { // If we're not animating away from this view (but something like scrolling sideways would be allowed)
-				automationClipView.recalculateColours();
+				instrumentClipView.recalculateColours();
 				if (!whichAnimation) {
 					uiNeedsRendering(&automationClipView);
 				}
