@@ -162,4 +162,5 @@ bool LearnedMIDI::equalsChannelAllowMPEMasterChannels(MIDIDevice* newDevice, int
 			return (newChannel == getMasterChannel());
 		}
 	}
+	return false; //should never happen
 }
