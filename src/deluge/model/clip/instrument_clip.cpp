@@ -1323,7 +1323,7 @@ bool InstrumentClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack
 		bool isKit = output->type == InstrumentType::KIT;
 
 		if (output->type == InstrumentType::KIT) {
-			noteRowColourOffset = i;
+			noteRowColourOffset = thisNoteRow->getColourOffset(this);
 		}
 
 		// uint8_t mainColour[3];

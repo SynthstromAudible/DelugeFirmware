@@ -91,7 +91,7 @@ void NoteRenderer::renderNoteRow(NoteRow* noteRow, TimelineView* editorScreen, u
 		uint8_t noteTailColour[3];
 
 		if (isKit) {
-			getKitColourFromY(noteRow->y, clipColourOffset, noteRowColourOffset, rowDefaultColour);
+			getKitColourFromY(0, clipColourOffset, noteRowColourOffset, rowDefaultColour);
 		}
 		else {
 			getNoteColourFromY(noteRow->y, clipColourOffset, rowDefaultColour);	
@@ -161,6 +161,7 @@ void NoteRenderer::renderNoteRow(NoteRow* noteRow, TimelineView* editorScreen, u
 }
 
 void NoteRenderer::getKitColourFromY(int yNote, int clipColourOffset, int rowColourOffset, uint8_t rgb[]) {
+    //clipColourOffset = 0;
 	hueToRGB((yNote + clipColourOffset + rowColourOffset) * -8 / 3, rgb);
 }
 
@@ -183,7 +184,7 @@ void NoteRenderer::getNoteColourFromY(int yNote,int clipColourOffset, uint8_t rg
 		hueToRGB((yNote + clipColourOffset) * -8 / 3, rgb);
 	}
 	else if (colorScheme == RuntimeFeatureStateColorScheme::Octaves) {
-    	int octaveOffset = (yNote/12) % 12; // clipColourOfsset removed.
+    	int octaveOffset = (yNote/12) % 12; 
     	int offsetWithinOctave = yNote % 12;
 		int tableRGB[][3] = {
 			{  16,  0, 32  },
