@@ -1585,22 +1585,22 @@ void AutomationClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 				uint32_t maxNoteLengthHere = clip->getWrapEditLevel();
 				desiredNoteLength = getMin(desiredNoteLength, maxNoteLengthHere);
 
-				Note* firstNote;
-				Note* lastNote;
-				uint8_t squareType =
-				    noteRow->getSquareType(squareStart, squareWidth, &firstNote, &lastNote, modelStackWithNoteRow,
-				                           clip->allowNoteTails(modelStackWithNoteRow), desiredNoteLength, action,
-				                           playbackHandler.isEitherClockActive() && currentSong->isClipActive(clip),
-				                           isUIModeActive(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON));
+			//	Note* firstNote;
+			//	Note* lastNote;
+			//	uint8_t squareType =
+			//	    noteRow->getSquareType(squareStart, squareWidth, &firstNote, &lastNote, modelStackWithNoteRow,
+			//	                           clip->allowNoteTails(modelStackWithNoteRow), desiredNoteLength, action,
+			//	                           playbackHandler.isEitherClockActive() && currentSong->isClipActive(clip),
+			//	                           isUIModeActive(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON));
 
 				// If error (no ram left), get out
-				if (!squareType) {
-					numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
-					return;
-				}
+			//	if (!squareType) {
+			//		numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
+			//		return;
+			//	}
 
-				// Otherwise, we've selected a pad
-				else {
+				// Otherwise, we've selected a note
+			//	else {
 
 					//needed for Automation
 					handleSinglePadPress(modelStack, clip, xDisplay, yDisplay);
@@ -1616,21 +1616,21 @@ void AutomationClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 						shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress = false;
 					}
 
-					if (squareType == SQUARE_BLURRED) { //this is how you delete the tails
-						editPadPresses[i].intendedPos = squareStart;
-						editPadPresses[i].intendedLength = squareWidth;
-						editPadPresses[i].deleteOnDepress = true;
-					}
-					else {
-						editPadPresses[i].intendedPos = lastNote->pos;
-						editPadPresses[i].intendedLength = lastNote->getLength();
-						editPadPresses[i].deleteOnDepress =
-						    (squareType == SQUARE_NOTE_HEAD || squareType == SQUARE_NOTE_TAIL_UNMODIFIED);
-					}
+				//	if (squareType == SQUARE_BLURRED) {
+				//		editPadPresses[i].intendedPos = squareStart;
+				//		editPadPresses[i].intendedLength = squareWidth;
+				//		editPadPresses[i].deleteOnDepress = true;
+				//	}
+				//	else {
+				//		editPadPresses[i].intendedPos = lastNote->pos;
+				//		editPadPresses[i].intendedLength = lastNote->getLength();
+				//		editPadPresses[i].deleteOnDepress =
+				//		    (squareType == SQUARE_NOTE_HEAD || squareType == SQUARE_NOTE_TAIL_UNMODIFIED);
+				//	}
 
-					editPadPresses[i].isBlurredSquare = (squareType == SQUARE_BLURRED);
-					editPadPresses[i].intendedVelocity = firstNote->getVelocity();
-					editPadPresses[i].intendedProbability = firstNote->getProbability();
+					editPadPresses[i].isBlurredSquare = false; //(squareType == SQUARE_BLURRED);
+				//	editPadPresses[i].intendedVelocity = firstNote->getVelocity();
+				//	editPadPresses[i].intendedProbability = firstNote->getProbability();
 					editPadPresses[i].isActive = true;
 					editPadPresses[i].yDisplay = yDisplay;
 					editPadPresses[i].xDisplay = xDisplay;
@@ -1641,10 +1641,10 @@ void AutomationClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 					}
 					numEditPadPresses++;
 					numEditPadPressesPerNoteRowOnScreen[yDisplay]++;
-					enterUIMode(UI_MODE_NOTES_PRESSED);
+				//	enterUIMode(UI_MODE_NOTES_PRESSED);
 
 					// If new note...
-					if (squareType == SQUARE_NEW_NOTE) {
+				/*	if (squareType == SQUARE_NEW_NOTE) {
 
 						// If we're cross-screen-editing, create other corresponding notes too
 						if (clip->wrapEditing) {
@@ -1656,20 +1656,20 @@ void AutomationClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 								numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
 							}
 						}
-					}
+					}*/
 
 					// Edit mod knob values for this Note's region
-					int32_t distanceToNextNote = clip->getDistanceToNextNote(lastNote, modelStackWithNoteRow);
+				//	int32_t distanceToNextNote = clip->getDistanceToNextNote(lastNote, modelStackWithNoteRow);
 
 					if (instrument->type == InstrumentType::KIT) {
 						setSelectedDrum(noteRow->drum);
 					}
 
 					// Can only set the mod region after setting the selected drum! Otherwise the params' currentValues don't end up right
-					view.setModRegion(
-					    firstNote->pos,
-					    getMax((uint32_t)distanceToNextNote + lastNote->pos - firstNote->pos, squareWidth),
-					    modelStackWithNoteRow->noteRowId);
+				//	view.setModRegion(
+				//	    firstNote->pos,
+				//	    getMax((uint32_t)distanceToNextNote + lastNote->pos - firstNote->pos, squareWidth),
+				//	    modelStackWithNoteRow->noteRowId);
 
 					// Now that we're holding a note down, get set up for if the user wants to edit its MPE values.
 					for (int t = 0; t < MPE_RECORD_LENGTH_FOR_NOTE_EDITING; t++) {
@@ -1681,12 +1681,12 @@ void AutomationClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 					mpeRecordLastUpdateTime = AudioEngine::audioSampleTimer;
 
 					reassessAuditionStatus(yDisplay);
-				}
+			//	}
 
 				// Might need to re-render row, if it was changed
-				if (squareType == SQUARE_NEW_NOTE || squareType == SQUARE_NOTE_TAIL_MODIFIED) {
-					uiNeedsRendering(this, whichRowsToReRender, 0);
-				}
+			//	if (squareType == SQUARE_NEW_NOTE || squareType == SQUARE_NOTE_TAIL_MODIFIED) {
+			//		uiNeedsRendering(this, whichRowsToReRender, 0);
+			//	}
 			}
 		}
 	}
@@ -1708,36 +1708,36 @@ void AutomationClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 
 			numericDriver.cancelPopup(); // Crude way of getting rid of the probability-editing permanent popup
 
-			uint8_t velocity = editPadPresses[i].intendedVelocity;
+		//	uint8_t velocity = editPadPresses[i].intendedVelocity;
 
 			// Must mark it as inactive first, otherwise, the note-deletion code may do so and then we'd do it again here
 			endEditPadPress(i);
 
 			// If we're meant to be deleting it on depress...
-			//	if (editPadPresses[i].deleteOnDepress
-			//	    && AudioEngine::audioSampleTimer - timeLastEditPadPress < (44100 >> 1)) {
+		/*	if (editPadPresses[i].deleteOnDepress
+			    && AudioEngine::audioSampleTimer - timeLastEditPadPress < (44100 >> 1)) {
 
-			//		ModelStackWithNoteRow* modelStackWithNoteRow =
-			//		    getCurrentClip()->getNoteRowOnScreen(yDisplay, modelStack);
+				ModelStackWithNoteRow* modelStackWithNoteRow =
+				    getCurrentClip()->getNoteRowOnScreen(yDisplay, modelStack);
 
-			//		Action* action = actionLogger.getNewAction(ACTION_NOTE_EDIT, true);
+				Action* action = actionLogger.getNewAction(ACTION_NOTE_EDIT, true);
 
-			//		NoteRow* noteRow = modelStackWithNoteRow->getNoteRow();
+				NoteRow* noteRow = modelStackWithNoteRow->getNoteRow();
 
-			//		int wrapEditLevel = clip->getWrapEditLevel();
+				int wrapEditLevel = clip->getWrapEditLevel();
 
-			//		noteRow->clearArea(squareStart, instrumentClipView.getSquareWidth(xDisplay, modelStackWithNoteRow->getLoopLength()),
-			//		                   modelStackWithNoteRow, action, wrapEditLevel);
+				noteRow->clearArea(squareStart, instrumentClipView.getSquareWidth(xDisplay, modelStackWithNoteRow->getLoopLength()),
+				                   modelStackWithNoteRow, action, wrapEditLevel);
 
-			//		noteRow->clearMPEUpUntilNextNote(modelStackWithNoteRow, squareStart, wrapEditLevel, true);
+				noteRow->clearMPEUpUntilNextNote(modelStackWithNoteRow, squareStart, wrapEditLevel, true);
 
-			//		uiNeedsRendering(this, 1 << yDisplay, 0);
-			//	}
+				uiNeedsRendering(this, 1 << yDisplay, 0);
+			}*/
 
 			// Or if not deleting...
-			//	else {
-			instrument->defaultVelocity = velocity;
-			//	}
+		//	else {
+		//		instrument->defaultVelocity = velocity;
+		//	}
 
 			// Close last note nudge action, if there was one - so each such action is for one consistent set of notes
 			actionLogger.closeAction(ACTION_NOTE_NUDGE);
@@ -2830,7 +2830,7 @@ ActionResult AutomationClipView::scrollVertical(int scrollAmount, bool inCardRou
 	}
 
 	// If any presses happening, grab those Notes...
-	if (numEditPadPresses) {
+/*	if (numEditPadPresses) {
 
 		Action* action = actionLogger.getNewAction(ACTION_NOTE_EDIT, true);
 
@@ -2878,17 +2878,17 @@ ActionResult AutomationClipView::scrollVertical(int scrollAmount, bool inCardRou
 				}
 			}
 		}
-	}
+	}*/
 
 	// Shift the selected NoteRow, if that's what we're doing. We know we're in Kit mode then
-	if (draggingNoteRow) {
+/*	if (draggingNoteRow) {
 
 		actionLogger.deleteAllLogs(); // Can't undo past this!
 
 		getCurrentClip()->noteRows.getElement(noteRowToShiftI)->y =
 		    -32768; // Need to remember not to try and use the yNote value of this NoteRow if we switch back out of Kit mode
 		getCurrentClip()->noteRows.swapElements(noteRowToShiftI, noteRowToSwapWithI);
-	}
+	}*/
 
 	// Do actual scroll
 	getCurrentClip()->yScroll += scrollAmount;
@@ -2975,7 +2975,7 @@ ActionResult AutomationClipView::scrollVertical(int scrollAmount, bool inCardRou
 	}
 
 	// If presses happening, place the Notes on the newly-aligned NoteRows
-	if (numEditPadPresses > 0) {
+/*	if (numEditPadPresses > 0) {
 
 		Action* action = actionLogger.getNewAction(ACTION_NOTE_EDIT, true);
 		//if (!action) return; // Couldn't happen?
@@ -3054,7 +3054,7 @@ cancelPress:
 			}
 		}
 		checkIfAllEditPadPressesEnded(false); // Don't allow to redraw sidebar - it's going to be redrawn below anyway
-	}
+	}*/
 
 	uiNeedsRendering(this); // Might be in waveform view
 	return ActionResult::DEALT_WITH;
