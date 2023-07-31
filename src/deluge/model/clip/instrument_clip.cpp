@@ -95,7 +95,11 @@ InstrumentClip::InstrumentClip(Song* song) : Clip(CLIP_TYPE_INSTRUMENT) {
 
 	inScaleMode = (FlashStorage::defaultScale != PRESET_SCALE_NONE);
 	onKeyboardScreen = false;
+
+	//new automation clip view variables
 	onAutomationClipView = false;
+	lastSelectedParamID = 255;
+	lastSelectedMidiCC = 255;
 
 	if (song) {
 		int yNote = ((uint16_t)(song->rootNote + 120) % 12) + 60;
@@ -2176,6 +2180,12 @@ void InstrumentClip::writeDataToFile(Song* song) {
 	if (onAutomationClipView) {
 		storageManager.writeAttribute("onAutomationClipView", (char*)"1");
 	}
+	if (lastSelectedParamID != 255) {
+		storageManager.writeAttribute("lastSelectedParamID", lastSelectedParamID);
+	}
+	if (lastSelectedMidiCC != 255) {
+		storageManager.writeAttribute("lastSelectedMidiCC", lastSelectedMidiCC);
+	}
 	if (wrapEditing) {
 		storageManager.writeAttribute("crossScreenEditLevel", wrapEditLevel);
 	}
@@ -2420,6 +2430,14 @@ someError:
 
 		else if (!strcmp(tagName, "onAutomationClipView")) {
 			onAutomationClipView = storageManager.readTagOrAttributeValueInt();
+		}
+
+		else if (!strcmp(tagName, "lastSelectedParamID")) {
+			lastSelectedParamID = storageManager.readTagOrAttributeValueInt();
+		}
+
+		else if (!strcmp(tagName, "lastSelectedMidiCC")) {
+			lastSelectedMidiCC = storageManager.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "affectEntire")) {

@@ -218,15 +218,15 @@ private:
 	void pasteAutomation();
 
 	//Automation Lanes Functions
-	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip, int32_t paramID = 0xFFFFFFFF);
+	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip, int32_t paramID = 0xFFFFFFFF);
 	void setParameterAutomationValue(ModelStackWithAutoParam* modelStack, int32_t knobPos, int32_t squareStart,
 	                                 int32_t xDisplay, int32_t effectiveLength);
 
-	void handleSinglePadPress(ModelStackWithTimelineCounter* modelStack, Clip* clip, int32_t xDisplay,
+	void handleSinglePadPress(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip, int32_t xDisplay,
 	                          int32_t yDisplay, bool shortcutPress = false);
 	int calculateKnobPosForSinglePadPress(int32_t yDisplay);
 
-	void handleMultiPadPress(ModelStackWithTimelineCounter* modelStack, Clip* clip, int32_t firstPadX,
+	void handleMultiPadPress(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip, int32_t firstPadX,
 	                         int32_t firstPadY, int32_t secondPadX, int32_t secondPadY);
 	int calculateKnobPosForMultiPadPress(int32_t xDisplay, int32_t firstPadX, int32_t firstPadValue, int32_t secondPadX,
 	                                     int32_t secondPadValue);
@@ -243,11 +243,11 @@ private:
 	//int smoothstep (int A, int B, int T, int Distance);
 
 	//Automation Lanes Variables
-	uint8_t lastSelectedParamID;
+	//uint8_t lastSelectedParamID;
 	uint8_t lastSelectedParamX;
 	uint8_t lastSelectedParamY;
 	uint8_t lastSelectedParamArrayPosition;
-	uint8_t lastSelectedMidiCC;
+	//uint8_t lastSelectedMidiCC;
 	uint8_t lastSelectedMidiX;
 	uint8_t lastSelectedMidiY;
 	uint8_t selectedParamColour[kDisplayHeight][3];
