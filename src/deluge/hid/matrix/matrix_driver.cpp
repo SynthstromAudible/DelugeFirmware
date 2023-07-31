@@ -21,7 +21,7 @@
 #include "gui/menu_item/colour.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/sample_browser.h"
-#include "gui/ui/keyboard_screen.h"
+#include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/sample_marker_editor.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"

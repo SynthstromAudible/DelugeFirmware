@@ -17,10 +17,10 @@
 
 #pragma once
 #include "definitions.h"
-#include "definitions_cxx.hpp"
 #include "util/misc.h"
 #include <cmath>
 #include <cstddef>
+#include <algorithm>
 
 #define ALPHA_OR_BETA_VERSION 1 // Whether to compile with additional error-checking
 
@@ -144,6 +144,8 @@ enum FirmwareVersion : uint8_t {
 	FIRMWARE_TOO_NEW = 255,
 };
 constexpr FirmwareVersion kCurrentFirmwareVersion = FIRMWARE_4P1P4_ALPHA;
+
+constexpr uint8_t kOctaveSize = 12;
 
 struct Cartesian {
 	int x;
@@ -677,8 +679,6 @@ enum class ArpMode {
 };
 constexpr auto kNumArpModes = util::to_underlying(ArpMode::RANDOM) + 1;
 
-constexpr int kMaxKeyboardRowInterval = 16;
-
 enum class ModFXParam {
 	DEPTH,
 	FEEDBACK,
@@ -1029,3 +1029,5 @@ constexpr int kNumBrowserAndMenuLines = 3;
 #else
 constexpr int kNumBrowserAndMenuLines = 1;
 #endif
+
+constexpr int kDefaultCalculateRootNote = std::numeric_limits<int>::max();

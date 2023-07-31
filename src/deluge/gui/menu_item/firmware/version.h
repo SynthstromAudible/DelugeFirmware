@@ -19,8 +19,7 @@
 #include "gui/ui/sound_editor.h"
 #include "hid/display/numeric_driver.h"
 #include "hid/display/oled.h"
-
-extern char const* firmwareString;
+#include <version.h>
 
 namespace deluge::gui::menu_item::firmware {
 class Version final : public MenuItem {
@@ -29,8 +28,8 @@ public:
 
 #if HAVE_OLED
 	void drawPixelsForOled() {
-		OLED::drawStringCentredShrinkIfNecessary(firmwareString, 22, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, 18,
-		                                         20);
+		OLED::drawStringCentredShrinkIfNecessary(kFirmwareVersionString, 22, OLED::oledMainImage[0],
+		                                         OLED_MAIN_WIDTH_PIXELS, 18, 20);
 	}
 #else
 	void beginSession(MenuItem* navigatedBackwardFrom) override {
@@ -38,7 +37,7 @@ public:
 	}
 
 	void drawValue() {
-		numericDriver.setScrollingText(firmwareString);
+		numericDriver.setScrollingText(kFirmwareVersionString);
 	}
 #endif
 };

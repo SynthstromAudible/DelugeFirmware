@@ -16,7 +16,7 @@ Here is a list of general improvements that have been made ordered from newest t
 
 # Added features
 
-Here is a list of features that have been added to the firmware as a list ordered from newest to oldest:
+Here is a list of features that have been added to the firmware as a list, grouped by category:
 
 ## Synthesizer features
 
@@ -37,10 +37,17 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
 
 ## New behaviors
 ### Song View
- - ([#163]) Pressing a clip row + shift & scroll vertically changes the selected row color. This is the same shortcut like before when setting the color in the clip view.   
+ - ([#163]) Pressing a clip row + shift & scroll vertically changes the selected row color. This is the same shortcut like before when setting the color in the clip view.
 
 ### Instrument Keyboard View
  - ([#46]) Note offset between rows is now configurable by holding shift and using the horizontal encoder. This allows e.g. an isomorphic keyboard layout by setting the row offset to 12. The setting is saved per clip in the song file.
+ - ([#138]) Keyboard API and general improvements
+	 - Users can switch between layouts with "keyboard" button and select knob
+	 - Keyboard mode allows freely switch between all types (Synth, Kit, MIDI, CV) automatically getting the first compatible layout
+	 - Drum trigger edge sizes in Drums layout for kits can now be changed between 1 and 8 with shift + horizontal encoder
+	 - A new in-key only layout that removes out of scale buttons
+	 - New way to change scale in keyboard mode: Hold scale and press selection knob
+	 - New way to change scale root note in keyboard mode: Hold scale and turn selection knob
 
 ### Kit Clip View
  - ([#122]) Pressing "AUDITION + RANDOM" on a drum kit row will load a random sample from the same folder as the currently enabled sample and load it as the sound for that row. Currently limited to 25 files for performance reasons. This feature can be toggled in the [runtime features menu](#runtime-features).
@@ -48,33 +55,42 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
 
 ### Kit Keyboard View
  - ([#112]) All-new use for the "keyboard" button in kit clips, uses the main pad grid for MPC-style 16 level playing. Horizonatal encoder scrolls by one pad at a time, allowing positioning drums left to right, and vertical encoder jumps vertically by rows.
- 
+
 ### Audio Clip View
  - ([#141]) Holding the vertical encoder down while turning the horizontal encoder will shift the clip along the underlying audio file, similar to the same interface for instrument clips.
 
 ### Takeover Mode
 
  - ([#170]) The Takeover menu consists of three modes that can be selected from:
- 
- 			1) Jump: This is the default mode for the Deluge. As soon as a Midi Knob/Fader position is changed, 
-					 the Deluge's internal Knob position/Parameter value jumps to the position of the Midi Knob/Fader.
 
-			2) Pickup: The deluge will ignore changes to its internal Knob position/Parameter value until the 
-					   Midi Knob/Fader's position is equal to the Deluge Knob position. After which the Midi Knob/Fader 
-					   will move in sync with the Deluge.
-			
-			3) Scale: The deluge will increase/decrease its internal Knob position/Parameter value relative 
-					  to the change of the Midi Knob/Fader position and the amount of "runway" remaining on the Midi 
-					  controller. Once the Midi controller reaches its maximum or minimum position, the Midi Knob/Fader 
-					  will move in sync with the Deluge. The Deluge will value will always decrease/increase in the 
-					  same direction as the Midi controller.
+	1. Jump: This is the default mode for the Deluge. As soon as a Midi Knob/Fader position is changed, the Deluge's internal Knob position/Parameter value jumps to the position of the Midi Knob/Fader.
+
+	2. Pickup: The deluge will ignore changes to its internal Knob position/Parameter value until the Midi Knob/Fader's position is equal to the Deluge Knob position. After which the Midi Knob/Fader will move in sync with the Deluge.
+
+	3. Scale: The deluge will increase/decrease its internal Knob position/Parameter value relative to the change of the Midi Knob/Fader position and the amount of "runway" remaining on the Midi controller. Once the Midi controller reaches its maximum or minimum position, the Midi Knob/Fader will move in sync with the Deluge. The Deluge will value will always decrease/increase in the same direction as the Midi controller.
+
+### Catch Notes
+ - ([#221]) The normal behavior of the Deluge is to try to keep up with 'in progress' notes when instant switching between clips by playing them late. However this leads to glitches with drum clips and other percussive sounds. Changing this setting to OFF will prevent this behavior and *not* try to keep up with those notes, leading to smoother instant switching between clips.
 
 <h1 id="runtime-features">Runtime settings aka Community Features Menu</h1>
 
-In the main menu of the deluge (Shift + Pressing selection knob) there is an entry called "Community Features" that allows changing behavior and turning features on and off in comprison to the original and previous community firmwares. Here is a list of all options and what they do:
+In the main menu of the deluge (Shift + Pressing selection knob) there is an entry called "Community Features" that allows changing behavior and turning features on and off in comparison to the original and previous community firmwares. Here is a list of all options and what they do:
 
-* DRUM RANDOMIZER
-    Enable or disables the "AUDITION + RANDOM" shortcut. 
+* Drum Randomizer (DRUM)
+	Enable or disables the "AUDITION + RANDOM" shortcut.
+* Master Compressor (MAST)
+	Enable or disables the master compressor.
+* Fine Tempo (FINE)
+	Enable or disables the fine tempo change option.
+* Quantize (QUAN)
+	Enable or disables the note quantize shortcut.
+* Quantize (MOD.)
+	Enable or disables increased modulation resolution.
+* Catch Notes (CATC)
+	Enable or disables the 'catch notes' behavior.
+* Delete Unused Kit Rows (DELE)
+	Enable or disables the Delete Unused Kit Rows shortcut (hold KIT then SHIFT+SAVE/DELETE).
+
 
 # Compiletime settings
 
@@ -97,5 +113,8 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#112]: https://github.com/SynthstromAudible/DelugeFirmware/pull/112
 [#122]: https://github.com/SynthstromAudible/DelugeFirmware/pull/122
 [#141]: https://github.com/SynthstromAudible/DelugeFirmware/pull/141
+[#138]: https://github.com/SynthstromAudible/DelugeFirmware/pull/138
 [#163]: https://github.com/SynthstromAudible/DelugeFirmware/pull/163
+[#170]: https://github.com/SynthstromAudible/DelugeFirmware/pull/170
+[#221]: https://github.com/SynthstromAudible/DelugeFirmware/pull/221
 [#234]: https://github.com/SynthstromAudible/DelugeFirmware/pull/234

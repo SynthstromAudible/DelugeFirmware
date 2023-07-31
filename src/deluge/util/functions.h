@@ -19,7 +19,7 @@
 
 #include "RZA1/system/r_typedefs.h"
 #include "definitions_cxx.hpp"
-#include "ff.h"
+#include "fatfs/ff.h"
 #include "util/fixedpoint.h"
 #include "util/lookuptables/lookuptables.h"
 #include <cstring>

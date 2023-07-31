@@ -173,18 +173,12 @@ void SampleCache::prioritizeNotStealingCluster(int clusterIndex) {
 
 	// First Cluster
 	if (clusterIndex == 0) {
-		if (clusters[clusterIndex]->list
-		        != &generalMemoryAllocator.regions[MEMORY_REGION_SDRAM]
-		                .stealableClusterQueues[STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE]
-		    || !clusters[clusterIndex]->isLast()) {
-
-			clusters[clusterIndex]->remove(); // Remove from old list, if it was already in one (might not have been).
-			generalMemoryAllocator.regions[MEMORY_REGION_SDRAM]
-			    .stealableClusterQueues[STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE]
-			    .addToEnd(clusters[clusterIndex]);
-			generalMemoryAllocator.regions[MEMORY_REGION_SDRAM]
-			    .stealableClusterQueueLongestRuns[STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE] =
-			    0xFFFFFFFF; // TODO: make good.
+		const auto q = STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE;
+		CacheManager& cache_manager = generalMemoryAllocator.regions[MEMORY_REGION_SDRAM].cache_manager();
+		Cluster* cluster = clusters[clusterIndex];
+		if (cluster->list != &cache_manager.queue(q) || !cluster->isLast()) {
+			cluster->remove(); // Remove from old list, if it was already in one (might not have been).
+			cache_manager.QueueForReclamation(q, cluster);
 		}
 	}
 
@@ -198,8 +192,8 @@ void SampleCache::prioritizeNotStealingCluster(int clusterIndex) {
 		// In most cases, we'll want to do this thing to alter the ordering - including if the Cluster in question hasn't actually been added to a queue at all yet,
 		// because this functions serves the additional purpose of being what puts Clusters in their queue in the first place.
 		if (clusters[clusterIndex]->list
-		        != &generalMemoryAllocator.regions[MEMORY_REGION_SDRAM]
-		                .stealableClusterQueues[STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE]
+		        != &generalMemoryAllocator.regions[MEMORY_REGION_SDRAM].cache_manager().queue(
+		            STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE)
 		    || clusters[clusterIndex]->next != clusters[clusterIndex - 1]) {
 
 			clusters[clusterIndex]->remove(); // Remove from old list, if it was already in one (might not have been).
