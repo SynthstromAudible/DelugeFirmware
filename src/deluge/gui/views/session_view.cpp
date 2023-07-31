@@ -110,6 +110,7 @@ bool SessionView::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
 }
 
 bool SessionView::opened() {
+	selectLayout(0); // Make sure we get a valid layout from the loaded file
 
 	if (playbackHandler.playbackState && currentPlaybackMode == &arrangement) {
 		PadLEDs::skipGreyoutFade();
@@ -194,11 +195,14 @@ ActionResult SessionView::buttonAction(hid::Button b, bool on, bool inCardRoutin
 #else
 	else if (b == SESSION_VIEW && !Buttons::isShiftButtonPressed()) {
 #endif
-		if (on) {
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
+		if (inCardRoutine) {
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		}
 
+		sessionButtonActive = on;
+
+		// Press with special modes
+		if (on && currentUIMode != UI_MODE_NONE) {
 			// If holding record button...
 			if (Buttons::isButtonPressed(hid::button::RECORD)) {
 				Buttons::recordButtonPressUsedUp = true;
@@ -232,20 +236,6 @@ ActionResult SessionView::buttonAction(hid::Button b, bool on, bool inCardRoutin
 					indicator_leds::blinkLed(IndicatorLED::SESSION_VIEW, 255, 1);
 				}
 			}
-			else if (currentUIMode == UI_MODE_NONE) {
-				if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
-					currentSong->endInstancesOfActiveClips(playbackHandler.getActualArrangementRecordPos());
-					currentSong
-					    ->resumeClipsClonedForArrangementRecording(); // Must call before calling getArrangementRecordPos(), cos that detaches the cloned Clip
-					playbackHandler.recording = RECORDING_OFF;
-					view.setModLedStates();
-					playbackHandler.setLedStates();
-				}
-				else {
-					goToArrangementEditor();
-				}
-			}
-
 			else if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
 				if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
 					numericDriver.displayPopup(HAVE_OLED ? "Recording to arrangement" : "CANT");
@@ -321,6 +311,28 @@ moveAfterClipInstance:
 				arrangerView.repopulateOutputsOnScreen(false);
 				arrangerView.putDraggedClipInstanceInNewPosition(output);
 				goToArrangementEditor();
+			}
+		}
+		// Press without special mode
+		else if (on) {
+			sessionButtonUsed = false;
+		}
+		// Release without special mode
+		else if (!on && currentUIMode == UI_MODE_NONE) {
+			if (!sessionButtonActive && !sessionButtonUsed) {
+				if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
+					currentSong->endInstancesOfActiveClips(playbackHandler.getActualArrangementRecordPos());
+					currentSong
+					    ->resumeClipsClonedForArrangementRecording(); // Must call before calling getArrangementRecordPos(), cos that detaches the cloned Clip
+					playbackHandler.recording = RECORDING_OFF;
+					view.setModLedStates();
+					playbackHandler.setLedStates();
+				}
+				else {
+					goToArrangementEditor();
+				}
+
+				sessionButtonUsed = false;
 			}
 		}
 	}
@@ -1086,6 +1098,10 @@ void SessionView::selectEncoderAction(int8_t offset) {
 		else {
 			view.navigateThroughAudioOutputsForAudioClip(offset, (AudioClip*)clip, true);
 		}
+	}
+	else if (currentUIMode == UI_MODE_NONE && sessionButtonActive) {
+		sessionButtonUsed = true;
+		selectLayout(offset);
 	}
 	else if (currentUIMode == UI_MODE_NONE) {
 		if (session.hasPlaybackActive()) {
@@ -2526,4 +2542,28 @@ void SessionView::modEncoderAction(int whichModEncoder, int offset) {
 	}
 
 	ClipNavigationTimelineView::modEncoderAction(whichModEncoder, offset);
+}
+
+void SessionView::selectLayout(int8_t offset) {
+	// Layout change
+	if (offset != 0) {
+		if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeRows) {
+			currentSong->sessionLayout = SessionLayoutType::SessionLayoutTypeGrid;
+		}
+		else if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+			currentSong->sessionLayout = SessionLayoutType::SessionLayoutTypeRows;
+		}
+
+		// After change
+		if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeRows) {
+			numericDriver.displayPopup("Rows");
+		}
+		else if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+			numericDriver.displayPopup("Grid");
+		}
+	}
+
+	//@TODO: Update scrolling
+
+	uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 }

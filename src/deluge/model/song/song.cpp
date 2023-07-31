@@ -1051,6 +1051,8 @@ weAreInArrangementEditorOrInClipInstance:
 	storageManager.writeAttribute("xScroll", xScroll[NAVIGATION_CLIP]);
 	storageManager.writeAttribute("xZoom", xZoom[NAVIGATION_CLIP]);
 	storageManager.writeAttribute("yScrollSongView", songViewYScroll);
+	storageManager.writeAttribute("sessionLayout", sessionLayout);
+
 	storageManager.writeAttribute("yScrollArrangementView", arrangementYScroll);
 	storageManager.writeAttribute("xScrollArrangementView", xScroll[NAVIGATION_ARRANGEMENT]);
 	storageManager.writeAttribute("xZoomArrangementView", xZoom[NAVIGATION_ARRANGEMENT]);
@@ -1371,8 +1373,12 @@ int Song::readFromFile() {
 
 		default:
 unknownTag:
+			if (!strcmp(tagName, "sessionLayout")) {
+				sessionLayout = (SessionLayoutType)storageManager.readTagOrAttributeValueInt();
+				storageManager.exitTag("sessionLayout");
+			}
 
-			if (!strcmp(tagName, "xZoomArrangementView")) {
+			else if (!strcmp(tagName, "xZoomArrangementView")) {
 				xZoom[NAVIGATION_ARRANGEMENT] = storageManager.readTagOrAttributeValueInt();
 				storageManager.exitTag("xZoomArrangementView");
 			}

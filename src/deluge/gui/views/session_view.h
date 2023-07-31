@@ -26,10 +26,10 @@ class InstrumentClip;
 class Clip;
 class ModelStack;
 
-enum class SessionLayoutType : uint32_t {
-	Rows,
-	Grid,
-	MaxElement // Keep as boundary
+enum SessionLayoutType : uint32_t {
+	SessionLayoutTypeRows,
+	SessionLayoutTypeGrid,
+	SessionLayoutTypeMaxElement // Keep as boundary
 };
 
 extern float getTransitionProgress();
@@ -116,6 +116,12 @@ private:
 	void replaceAudioClipWithInstrumentClip(InstrumentType instrumentType);
 	void rowNeedsRenderingDependingOnSubMode(int yDisplay);
 	void setCentralLEDStates();
+
+private:
+	void selectLayout(int8_t offset);
+
+	bool sessionButtonActive = false;
+	bool sessionButtonUsed = false;
 };
 
 extern SessionView sessionView;

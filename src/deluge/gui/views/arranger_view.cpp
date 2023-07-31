@@ -167,7 +167,7 @@ ActionResult ArrangerView::buttonAction(hid::Button b, bool on, bool inCardRouti
 
 	// Song button
 	if (b == SESSION_VIEW) {
-		if (on) {
+		if (!on) {
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}

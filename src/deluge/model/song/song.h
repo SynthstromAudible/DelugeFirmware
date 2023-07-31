@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "gui/views/session_view.h"
 #include "io/midi/learned_midi.h"
 #include "model/clip/clip_array.h"
 #include "model/global_effectable/global_effectable_for_song.h"
@@ -167,6 +168,7 @@ public:
 
 	bool affectEntire;
 
+	SessionLayoutType sessionLayout = SessionLayoutType::SessionLayoutTypeRows;
 	int songViewYScroll;
 	int arrangementYScroll;
 
