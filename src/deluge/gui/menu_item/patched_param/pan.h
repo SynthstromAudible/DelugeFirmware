@@ -25,8 +25,12 @@ public:
 	void drawValue();
 #endif
 protected:
-	int getMaxValue() const override { return 32; }
-	int getMinValue() const override { return -32; }
+	int getMaxValue() const override {
+		return 32;
+	}
+	int getMinValue() const override {
+		return -32;
+	}
 	int32_t getFinalValue();
 	void readCurrentValue();
 };
