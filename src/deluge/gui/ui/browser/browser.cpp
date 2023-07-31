@@ -768,10 +768,10 @@ pickBrandNewNameIfNoneNominated:
 				if (error) {
 					goto gotErrorAfterAllocating;
 				}
-
+				// Note - this is only hit if we're saving the first song created on boot (because the default name won't match anything)
 				// Because that will have cleared out all the FileItems, we need to get them again. Actually there would kinda be a way around doing this...
 				error = readFileItemsFromFolderAndMemory(currentSong, InstrumentType::NONE, "SONG", enteredText.get(),
-				                                         NULL, false, Availability::ANY, CATALOG_SEARCH_BOTH);
+				                                         NULL, true, Availability::ANY, CATALOG_SEARCH_BOTH);
 				if (error) {
 					goto gotErrorAfterAllocating;
 				}
