@@ -1605,8 +1605,6 @@ void SessionView::setLedStates() {
 
 #if HAVE_OLED
 
-
-
 void SessionView::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 
 	if (playbackHandler.isEitherClockActive()) {

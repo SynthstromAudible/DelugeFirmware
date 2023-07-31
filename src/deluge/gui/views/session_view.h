@@ -26,7 +26,7 @@ class InstrumentClip;
 class Clip;
 class ModelStack;
 
-enum SessionLayoutType : uint32_t {
+enum class SessionLayoutType : uint32_t {
 	Rows,
 	Grid,
 	MaxElement // Keep as boundary
