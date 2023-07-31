@@ -150,6 +150,9 @@ public:
 	ModelStackWithNoteRow* getOrCreateNoteRowForYDisplay(ModelStackWithTimelineCounter* modelStack, int yDisplay);
 	void editNoteRowLength(ModelStackWithNoteRow* modelStack, int offset, int yDisplay);
 	void someAuditioningHasEnded(bool recalculateLastAuditionedNoteOnScreen);
+	bool getAffectEntire();
+	void checkIfAllEditPadPressesEnded(bool mayRenderSidebar = true);
+	void endEditPadPress(uint8_t i);
 	//made these public so they can be accessed by the automation clip view
 
 #if HAVE_OLED
@@ -206,11 +209,8 @@ private:
 
 	int32_t quantizeAmount;
 
-	void checkIfAllEditPadPressesEnded(bool mayRenderSidebar = true);
-	void endEditPadPress(uint8_t i);
 	Drum* getNextDrum(Drum* oldDrum, bool mayBeNone = false);
 
-	bool getAffectEntire();
 	void adjustProbability(int offset);
 	void copyNotes();
 	void pasteNotes();

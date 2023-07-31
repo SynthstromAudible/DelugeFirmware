@@ -172,7 +172,7 @@ void SoundDrum::choke(ModelStackWithSoundFlags* modelStack) {
 			return;
 		}
 		else if (getRootUI() == &automationClipView
-		    && automationClipView.isDrumAuditioned(this)) {
+		    && instrumentClipView.isDrumAuditioned(this)) {
 			return;
 		}
 
