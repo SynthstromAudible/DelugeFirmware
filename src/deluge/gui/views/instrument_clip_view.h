@@ -133,20 +133,24 @@ public:
 	void reportNoteOffForMPEEditing(ModelStackWithNoteRow* modelStack);
 	void dontDeleteNotesOnDepress();
 
+	void tempoEncoderAction(int8_t offset, bool encoderButtonPressed, bool shiftButtonPressed);
+
+	inline void sendAuditionNote(bool on, uint8_t yDisplay) { sendAuditionNote(on, yDisplay, 64, 0); };
+
+	//made these public so they can be accessed by the automation clip view
+	void setLedStates();
+	uint32_t getSquareWidth(int32_t square, int32_t effectiveLength);
+	void drawNoteCode(uint8_t yDisplay);
 	void createNewInstrument(InstrumentType instrumentType);
 	void changeInstrumentType(InstrumentType newInstrumentType);
 	Drum* flipThroughAvailableDrums(int newOffset, Drum* drum, bool mayBeNone = false);
 	void enterDrumCreator(ModelStackWithNoteRow* modelStack, bool doRecording = false);
-	void drawNoteCode(uint8_t yDisplay);
 	NoteRow* createNewNoteRowForKit(ModelStackWithTimelineCounter* modelStack, int yDisplay, int* getIndex = NULL);
 	Sound* getSoundForNoteRow(NoteRow* noteRow, ParamManagerForTimeline** getParamManager);
 	ModelStackWithNoteRow* createNoteRowForYDisplay(ModelStackWithTimelineCounter* modelStack, int yDisplay);
 	ModelStackWithNoteRow* getOrCreateNoteRowForYDisplay(ModelStackWithTimelineCounter* modelStack, int yDisplay);
 	void editNoteRowLength(ModelStackWithNoteRow* modelStack, int offset, int yDisplay);
-
-	void tempoEncoderAction(int8_t offset, bool encoderButtonPressed, bool shiftButtonPressed);
-
-	inline void sendAuditionNote(bool on, uint8_t yDisplay) { sendAuditionNote(on, yDisplay, 64, 0); };
+	//made these public so they can be accessed by the automation clip view
 
 #if HAVE_OLED
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
@@ -168,9 +172,8 @@ public:
 	int16_t mpeMostRecentPressure;
 	uint32_t mpeRecordLastUpdateTime;
 
-	uint32_t getSquareWidth(int32_t square, int32_t effectiveLength);
-
-private:
+	//made these public so they can be accessed by the automation clip view
+	EditPadPress editPadPresses[kEditPadPressBufferSize];
 	uint8_t lastAuditionedVelocityOnScreen[kDisplayHeight]; // 255 seems to mean none
 	uint8_t auditionPadIsPressed[kDisplayHeight];
 	uint8_t rowColour[kDisplayHeight][3];
@@ -178,19 +181,21 @@ private:
 	uint8_t rowBlurColour[kDisplayHeight][3];
 	uint8_t numEditPadPressesPerNoteRowOnScreen[kDisplayHeight];
 	uint8_t lastAuditionedYDisplay;
-
-	EditPadPress editPadPresses[kEditPadPressBufferSize];
 	uint8_t numEditPadPresses;
 	uint32_t timeLastEditPadPress;
 	uint32_t timeFirstEditPadPress;
+	uint32_t
+	    timeHorizontalKnobLastReleased; // Only to be looked at if shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress is true after they rotated a NoteRow and might now be wanting to instead edit its length after releasing the knob
+	bool shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress;
+	bool shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress;
+	//made these public so they can be accessed by the automation clip view
+
+private:
+
 	bool doneAnyNudgingSinceFirstEditPadPress;
 	bool offsettingNudgeNumberDisplay;
 	bool
 	    editedAnyPerNoteRowStuffSinceAuditioningBegan; // Because in this case we can assume that if they press a main pad while auditioning, they're not intending to do that shortcut into the SoundEditor!
-	bool shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress;
-	bool shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress;
-	uint32_t
-	    timeHorizontalKnobLastReleased; // Only to be looked at if shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress is true after they rotated a NoteRow and might now be wanting to instead edit its length after releasing the knob
 
 	uint8_t flashScaleModeLedErrorCount;
 
@@ -202,7 +207,6 @@ private:
 	int32_t quantizeAmount;
 
 	void sendAuditionNote(bool on, uint8_t yDisplay, uint8_t velocity, uint32_t sampleSyncLength);
-	void setLedStates();
 	void checkIfAllEditPadPressesEnded(bool mayRenderSidebar = true);
 	void endEditPadPress(uint8_t i);
 	Drum* getNextDrum(Drum* oldDrum, bool mayBeNone = false);

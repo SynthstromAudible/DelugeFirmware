@@ -593,20 +593,6 @@ void SampleBrowser::previewIfPossible(int movementDirection) {
 			}
 		}
 
-		else if (!automationClipView.fileBrowserShouldNotPreview) {
-			switch (FlashStorage::sampleBrowserPreviewMode) {
-			case PREVIEW_ONLY_WHILE_NOT_PLAYING:
-				if (playbackHandler.playbackState) {
-					break;
-				}
-				// No break
-
-			case PREVIEW_ON:
-				shouldActuallySound = true;
-				break;
-			}
-		}
-
 		AudioEngine::previewSample(&filePath, &currentFileItem->filePointer, shouldActuallySound);
 
 		/*

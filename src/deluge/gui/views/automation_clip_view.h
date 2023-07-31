@@ -45,23 +45,23 @@ class ParamNode;
 class Sound;
 class SoundDrum;
 
-struct EditAutomationPadPress {
-	bool isActive;
-	uint8_t yDisplay;
-	uint8_t xDisplay;
-	bool deleteOnDepress; // Can also mean to delete tail
-	uint8_t intendedVelocity;
-	uint8_t intendedProbability;
-	bool deleteOnScroll;
-	bool isBlurredSquare;
-	bool mpeCachedYet;
-	StolenParamNodes stolenMPE[kNumExpressionDimensions];
-	uint32_t intendedPos;    // For "blurred squares", means start of square
-	uint32_t intendedLength; // For "blurred squares", means length of square
-};
+//struct EditAutomationPadPress {
+//	bool isActive;
+//	uint8_t yDisplay;
+//	uint8_t xDisplay;
+//	bool deleteOnDepress; // Can also mean to delete tail
+//	uint8_t intendedVelocity;
+//	uint8_t intendedProbability;
+//	bool deleteOnScroll;
+//	bool isBlurredSquare;
+//	bool mpeCachedYet;
+//	StolenParamNodes stolenMPE[kNumExpressionDimensions];
+//	uint32_t intendedPos;    // For "blurred squares", means start of square
+//	uint32_t intendedLength; // For "blurred squares", means length of square
+//};
 
-#define MPE_RECORD_LENGTH_FOR_NOTE_EDITING 3
-#define MPE_RECORD_INTERVAL_TIME (44100 >> 2) // 250ms
+//#define MPE_RECORD_LENGTH_FOR_NOTE_EDITING 3
+//#define MPE_RECORD_INTERVAL_TIME (44100 >> 2) // 250ms
 
 class AutomationClipView final : public ClipView, public InstrumentClipMinder, public ModControllableAudio {
 public:
@@ -108,9 +108,9 @@ public:
 
 	//edit pad action
 	void editPadAction(bool state, uint8_t yDisplay, uint8_t xDisplay, unsigned int xZoom);
-	int16_t mpeValuesAtHighestPressure[MPE_RECORD_LENGTH_FOR_NOTE_EDITING][kNumExpressionDimensions];
-	int16_t mpeMostRecentPressure;
-	uint32_t mpeRecordLastUpdateTime;
+	//int16_t mpeValuesAtHighestPressure[MPE_RECORD_LENGTH_FOR_NOTE_EDITING][kNumExpressionDimensions];
+	//int16_t mpeMostRecentPressure;
+	//uint32_t mpeRecordLastUpdateTime;
 
 	//mute pad press
 	void mutePadPress(uint8_t yDisplay);
@@ -125,9 +125,9 @@ public:
 	uint8_t oneNoteAuditioning();
 	uint8_t getNumNoteRowsAuditioning();
 	inline void sendAuditionNote(bool on, uint8_t yDisplay) { sendAuditionNote(on, yDisplay, 64, 0); };
-	bool
-	    auditioningSilently; // Sometimes the user will want to hold an audition pad without actually sounding the note, by holding an encoder
-	bool fileBrowserShouldNotPreview; // Archaic leftover feature that users wouldn't let me get rid of
+	//bool
+	//    auditioningSilently; // Sometimes the user will want to hold an audition pad without actually sounding the note, by holding an encoder
+	//bool fileBrowserShouldNotPreview; // Archaic leftover feature that users wouldn't let me get rid of
 
 	//horizontal encoder action
 	ActionResult horizontalEncoderAction(int offset);
@@ -149,7 +149,7 @@ public:
 
 	//Select encoder action
 	void selectEncoderAction(int8_t offset);
-	void offsetNoteCodeAction(int newOffset);
+	//void offsetNoteCodeAction(int newOffset);
 	void cutAuditionedNotesToOne();
 	void setSelectedDrum(Drum* drum, bool shouldRedrawStuff = true);
 
@@ -176,42 +176,42 @@ public:
 private:
 
 	//Rendering Variables
-	void setLedStates();
-	uint8_t rowColour[kDisplayHeight][3];
-	uint8_t rowTailColour[kDisplayHeight][3];
-	uint8_t rowBlurColour[kDisplayHeight][3];
-	uint8_t yDisplayOfNewNoteRow;
+//	void setLedStates();
+//	uint8_t rowColour[kDisplayHeight][3];
+//	uint8_t rowTailColour[kDisplayHeight][3];
+//	uint8_t rowBlurColour[kDisplayHeight][3];
+//	uint8_t yDisplayOfNewNoteRow;
 
 	//Pad Action Variables
 	void endEditPadPress(uint8_t i);
 	void checkIfAllEditPadPressesEnded(bool mayRenderSidebar = true);
-	uint8_t numEditPadPressesPerNoteRowOnScreen[kDisplayHeight];
-	EditAutomationPadPress editPadPresses[kEditPadPressBufferSize];
-	uint8_t numEditPadPresses;
-	uint32_t timeLastEditPadPress;
-	uint32_t timeFirstEditPadPress;
+	//uint8_t numEditPadPressesPerNoteRowOnScreen[kDisplayHeight];
+	//EditAutomationPadPress editPadPresses[kEditPadPressBufferSize];
+	//uint8_t numEditPadPresses;
+	//uint32_t timeLastEditPadPress;
+	//uint32_t timeFirstEditPadPress;
 
 	//Audition Pad Action Variables
 	void sendAuditionNote(bool on, uint8_t yDisplay, uint8_t velocity, uint32_t sampleSyncLength);
 	void someAuditioningHasEnded(bool recalculateLastAuditionedNoteOnScreen);
-	uint8_t lastAuditionedYDisplay;
-	uint8_t lastAuditionedVelocityOnScreen[kDisplayHeight]; // 255 seems to mean none
-	uint8_t auditionPadIsPressed[kDisplayHeight];
-	bool
-	    editedAnyPerNoteRowStuffSinceAuditioningBegan; // Because in this case we can assume that if they press a main pad while auditioning, they're not intending to do that shortcut into the SoundEditor!
-	Drum* drumForNewNoteRow;
+	//uint8_t lastAuditionedYDisplay;
+	//uint8_t lastAuditionedVelocityOnScreen[kDisplayHeight]; // 255 seems to mean none
+	//uint8_t auditionPadIsPressed[kDisplayHeight];
+	//bool
+	//    editedAnyPerNoteRowStuffSinceAuditioningBegan; // Because in this case we can assume that if they press a main pad while auditioning, they're not intending to do that shortcut into the SoundEditor!
+	//Drum* drumForNewNoteRow;
 
 	//Horizontal Encoder Action
 	void rotateAutomationHorizontally(int offset);
-	bool offsettingNudgeNumberDisplay;
-	bool doneAnyNudgingSinceFirstEditPadPress;
-	bool shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress;
-	uint32_t
-	    timeHorizontalKnobLastReleased; // Only to be looked at if shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress is true after they rotated a NoteRow and might now be wanting to instead edit its length after releasing the knob
+	//bool offsettingNudgeNumberDisplay;
+	//bool doneAnyNudgingSinceFirstEditPadPress;
+	//bool shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress;
+	//uint32_t
+	//    timeHorizontalKnobLastReleased; // Only to be looked at if shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress is true after they rotated a NoteRow and might now be wanting to instead edit its length after releasing the knob
 
 	//Vertical Encoder Action
 	bool getAffectEntire();
-	bool shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress;
+	//bool shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress;
 
 	//Mod Encoder Action
 	void copyAutomation();
@@ -254,6 +254,7 @@ private:
 	uint8_t lastEditPadPressXDisplay;
 	uint8_t lastAutomationNudgeOffset;
 	uint32_t previousParamValue[kDisplayWidth];
+	bool encoderAction;
 };
 
 extern AutomationClipView automationClipView;
