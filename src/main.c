@@ -30,6 +30,7 @@
 
 static void midiAndGateOutputTimerInterrupt(uint32_t int_sense) {
 
+
 	/* Stop the count of channel 2 of MTU2. */
 	disableTimer(TIMER_MIDI_GATE_OUTPUT);
 
