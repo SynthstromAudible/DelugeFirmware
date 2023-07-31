@@ -76,6 +76,12 @@ using namespace deluge;
 
 SessionView sessionView{};
 
+// Used here but delcared in ui.cpp
+extern bool pendingUIRenderingLock;
+
+// Used here but declared in load_song_ui.cpp
+extern char loopsRemainingText[];
+
 extern int8_t defaultAudioClipOverdubOutputCloning;
 
 SessionView::SessionView() {
@@ -1599,7 +1605,7 @@ void SessionView::setLedStates() {
 
 #if HAVE_OLED
 
-extern char loopsRemainingText[];
+
 
 void SessionView::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 
@@ -1964,8 +1970,6 @@ int SessionView::getClipPlaceOnScreen(Clip* clip) {
 uint32_t SessionView::getMaxLength() {
 	return currentSong->getLongestClip(true, false)->loopLength;
 }
-
-extern bool pendingUIRenderingLock;
 
 bool SessionView::setupScroll(uint32_t oldScroll) {
 

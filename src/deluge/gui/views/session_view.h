@@ -26,6 +26,12 @@ class InstrumentClip;
 class Clip;
 class ModelStack;
 
+enum SessionLayoutType : uint32_t {
+	Rows,
+	Grid,
+	MaxElement // Keep as boundary
+};
+
 extern float getTransitionProgress();
 
 // Clip Group colours
