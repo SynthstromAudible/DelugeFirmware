@@ -281,9 +281,9 @@ void OrderedResizeableArray::testSequentiality(char const* errorCode) {
 void OrderedResizeableArrayWith32bitKey::testSearchMultiple() {
 	insertAtIndex(0, TEST_SEARCH_MULTIPLE_NUM_ITEMS);
 
-	int32_t* searchPos = (int32_t*)generalMemoryAllocator.alloc(TEST_SEARCH_MULTIPLE_NUM_SEARCH_TERMS * sizeof(int32_t),
-	                                                            NULL, false, false);
-	int32_t* resultingIndexes = (int32_t*)generalMemoryAllocator.alloc(
+	int32_t* searchPos = (int32_t*)GeneralMemoryAllocator::get().alloc(
+	    TEST_SEARCH_MULTIPLE_NUM_SEARCH_TERMS * sizeof(int32_t), NULL, false, false);
+	int32_t* resultingIndexes = (int32_t*)GeneralMemoryAllocator::get().alloc(
 	    TEST_SEARCH_MULTIPLE_NUM_SEARCH_TERMS * sizeof(int32_t), NULL, false, false);
 
 	while (true) {

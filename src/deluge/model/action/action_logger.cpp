@@ -73,7 +73,7 @@ void ActionLogger::deleteLastAction() {
 
 	toDelete->prepareForDestruction(BEFORE, currentSong);
 	toDelete->~Action();
-	generalMemoryAllocator.dealloc(toDelete);
+	GeneralMemoryAllocator::get().dealloc(toDelete);
 }
 
 Action* ActionLogger::getNewAction(int newActionType, int addToExistingIfPossible) {
@@ -126,7 +126,7 @@ Action* ActionLogger::getNewAction(int newActionType, int addToExistingIfPossibl
 		}
 
 		// And make a new one
-		void* actionMemory = generalMemoryAllocator.alloc(sizeof(Action), NULL, true);
+		void* actionMemory = GeneralMemoryAllocator::get().alloc(sizeof(Action), NULL, true);
 
 		if (!actionMemory) {
 			Debug::println("no ram to create new Action");
@@ -137,10 +137,10 @@ Action* ActionLogger::getNewAction(int newActionType, int addToExistingIfPossibl
 		int numClips = currentSong->sessionClips.getNumElements() + currentSong->arrangementOnlyClips.getNumElements();
 
 		ActionClipState* clipStates =
-		    (ActionClipState*)generalMemoryAllocator.alloc(numClips * sizeof(ActionClipState), NULL, true);
+		    (ActionClipState*)GeneralMemoryAllocator::get().alloc(numClips * sizeof(ActionClipState), NULL, true);
 
 		if (!clipStates) {
-			generalMemoryAllocator.dealloc(actionMemory);
+			GeneralMemoryAllocator::get().dealloc(actionMemory);
 			return NULL;
 		}
 
@@ -203,7 +203,7 @@ void ActionLogger::updateAction(Action* newAction) {
 		if (newAction->numClipStates
 		    != currentSong->sessionClips.getNumElements() + currentSong->arrangementOnlyClips.getNumElements()) {
 			newAction->numClipStates = 0;
-			generalMemoryAllocator.dealloc(newAction->clipStates);
+			GeneralMemoryAllocator::get().dealloc(newAction->clipStates);
 			newAction->clipStates = NULL;
 			Debug::println("discarded clip states");
 		}
@@ -264,7 +264,7 @@ void ActionLogger::recordSwingChange(int8_t swingBefore, int8_t swingAfter) {
 		consequence->swing[AFTER] = swingAfter;
 	}
 	else {
-		void* consMemory = generalMemoryAllocator.alloc(sizeof(ConsequenceSwingChange));
+		void* consMemory = GeneralMemoryAllocator::get().alloc(sizeof(ConsequenceSwingChange));
 
 		if (consMemory) {
 			ConsequenceSwingChange* newConsequence = new (consMemory) ConsequenceSwingChange(swingBefore, swingAfter);
@@ -287,7 +287,7 @@ void ActionLogger::recordTempoChange(uint64_t timePerBigBefore, uint64_t timePer
 	}
 	else {
 
-		void* consMemory = generalMemoryAllocator.alloc(sizeof(ConsequenceTempoChange));
+		void* consMemory = GeneralMemoryAllocator::get().alloc(sizeof(ConsequenceTempoChange));
 
 		if (consMemory) {
 			ConsequenceTempoChange* newConsequence =
@@ -707,7 +707,7 @@ void ActionLogger::deleteLog(int time) {
 
 		toDelete->prepareForDestruction(time, currentSong);
 		toDelete->~Action();
-		generalMemoryAllocator.dealloc(toDelete);
+		GeneralMemoryAllocator::get().dealloc(toDelete);
 	}
 }
 
@@ -823,7 +823,7 @@ gotMultipleConsequencesPerNoteRow:
 
 				firstConsequence->prepareForDestruction(BEFORE, modelStack->song);
 				firstConsequence->~Consequence();
-				generalMemoryAllocator.dealloc(firstConsequence);
+				GeneralMemoryAllocator::get().dealloc(firstConsequence);
 				firstConsequence = firstAction[BEFORE]->firstConsequence;
 			} while (thisConsequence->type != Consequence::NOTE_ARRAY_CHANGE
 			         || ((ConsequenceNoteArrayChange*)firstConsequence)->noteRowId != firstNoteRowId);

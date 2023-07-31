@@ -52,7 +52,7 @@ void ConsequenceClipExistence::prepareForDestruction(int whichQueueActionIn, Son
 #endif
 
 		clip->~Clip();
-		generalMemoryAllocator.dealloc(clip);
+		GeneralMemoryAllocator::get().dealloc(clip);
 	}
 }
 

@@ -63,7 +63,7 @@ Kit::~Kit() {
 		void* toDealloc = dynamic_cast<void*>(toDelete);
 
 		toDelete->~Drum();
-		generalMemoryAllocator.dealloc(toDealloc);
+		GeneralMemoryAllocator::get().dealloc(toDealloc);
 	}
 }
 
@@ -203,7 +203,7 @@ bool Kit::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 
 					void* toDealloc = dynamic_cast<void*>(thisDrum);
 					thisDrum->~Drum();
-					generalMemoryAllocator.dealloc(toDealloc);
+					GeneralMemoryAllocator::get().dealloc(toDealloc);
 
 					continue;
 				}
@@ -322,7 +322,7 @@ int Kit::readDrumFromFile(Song* song, Clip* clip, DrumType drumType, int32_t rea
 	if (error) {
 		void* toDealloc = dynamic_cast<void*>(newDrum);
 		newDrum->~Drum();
-		generalMemoryAllocator.dealloc(toDealloc);
+		GeneralMemoryAllocator::get().dealloc(toDealloc);
 		return error;
 	}
 	addDrum(newDrum);

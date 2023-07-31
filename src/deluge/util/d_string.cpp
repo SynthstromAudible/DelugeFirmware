@@ -50,7 +50,7 @@ void String::clear(bool destructing) {
 			setNumReasons(numReasons - 1);
 		}
 		else {
-			generalMemoryAllocator.dealloc(stringMemory - 4);
+			GeneralMemoryAllocator::get().dealloc(stringMemory - 4);
 		}
 
 		if (!destructing) {
@@ -85,7 +85,7 @@ int String::set(char const* newChars, int newLength) {
 
 			// If we're here, the memory is exclusively ours (1 reason)
 
-			int allocatedSize = generalMemoryAllocator.getAllocatedSize(stringMemory - 4);
+			int allocatedSize = GeneralMemoryAllocator::get().getAllocatedSize(stringMemory - 4);
 
 			int extraMemoryNeeded = newLength + 1 + 4 - allocatedSize;
 
@@ -97,8 +97,8 @@ int String::set(char const* newChars, int newLength) {
 			else {
 				// Try extending
 				uint32_t amountExtendedLeft, amountExtendedRight;
-				generalMemoryAllocator.extend(stringMemory - 4, extraMemoryNeeded, extraMemoryNeeded,
-				                              &amountExtendedLeft, &amountExtendedRight);
+				GeneralMemoryAllocator::get().extend(stringMemory - 4, extraMemoryNeeded, extraMemoryNeeded,
+				                                     &amountExtendedLeft, &amountExtendedRight);
 
 				stringMemory -= amountExtendedLeft;
 
@@ -115,7 +115,7 @@ clearAndAllocateNew:
 	}
 
 	{
-		void* newMemory = generalMemoryAllocator.alloc(newLength + 1 + 4, NULL, false, false);
+		void* newMemory = GeneralMemoryAllocator::get().alloc(newLength + 1 + 4, NULL, false, false);
 		if (!newMemory) {
 			return ERROR_INSUFFICIENT_RAM;
 		}
@@ -157,7 +157,7 @@ int String::shorten(int newLength) {
 
 		// If reasons, we have to do a clone
 		if (oldNumReasons > 1) {
-			void* newMemory = generalMemoryAllocator.alloc(newLength + 1 + 4, NULL, false, false);
+			void* newMemory = GeneralMemoryAllocator::get().alloc(newLength + 1 + 4, NULL, false, false);
 			if (!newMemory) {
 				return ERROR_INSUFFICIENT_RAM;
 			}
@@ -216,15 +216,15 @@ int String::concatenateAtPos(char const* newChars, int pos, int newCharsLength) 
 		goto allocateNewMemory;
 	}
 
-	extraBytesNeeded = requiredSize - generalMemoryAllocator.getAllocatedSize(stringMemory - 4);
+	extraBytesNeeded = requiredSize - GeneralMemoryAllocator::get().getAllocatedSize(stringMemory - 4);
 
 	// If not enough memory allocated...
 	if (extraBytesNeeded > 0) {
 
 		// See if we can extend
 		uint32_t amountExtendedLeft, amountExtendedRight;
-		generalMemoryAllocator.extend(stringMemory - 4, extraBytesNeeded, extraBytesNeeded, &amountExtendedLeft,
-		                              &amountExtendedRight);
+		GeneralMemoryAllocator::get().extend(stringMemory - 4, extraBytesNeeded, extraBytesNeeded, &amountExtendedLeft,
+		                                     &amountExtendedRight);
 
 		// If that worked...
 		if (amountExtendedLeft || amountExtendedRight) {
@@ -240,7 +240,7 @@ int String::concatenateAtPos(char const* newChars, int pos, int newCharsLength) 
 		// Otherwise, gotta allocate brand new memory
 		else {
 allocateNewMemory:
-			void* newMemory = generalMemoryAllocator.alloc(requiredSize, NULL, false, false);
+			void* newMemory = GeneralMemoryAllocator::get().alloc(requiredSize, NULL, false, false);
 			if (!newMemory) {
 				return ERROR_INSUFFICIENT_RAM;
 			}
@@ -251,7 +251,7 @@ allocateNewMemory:
 			memcpy(newStringMemory, stringMemory, pos);
 
 			if (deallocateAfter) {
-				generalMemoryAllocator.dealloc(stringMemory - 4);
+				GeneralMemoryAllocator::get().dealloc(stringMemory - 4);
 			}
 			stringMemory = newStringMemory;
 			setNumReasons(1);
@@ -284,7 +284,7 @@ int String::setChar(char newChar, int pos) {
 		int length = getLength();
 
 		int requiredSize = length + 4 + 1;
-		void* newMemory = generalMemoryAllocator.alloc(requiredSize, NULL, false, false);
+		void* newMemory = GeneralMemoryAllocator::get().alloc(requiredSize, NULL, false, false);
 		if (!newMemory) {
 			return ERROR_INSUFFICIENT_RAM;
 		}
