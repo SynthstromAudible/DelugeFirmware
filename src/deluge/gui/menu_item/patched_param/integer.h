@@ -22,8 +22,8 @@
 namespace deluge::gui::menu_item::patched_param {
 class Integer : public PatchedParam, public menu_item::IntegerContinuous {
 public:
-	Integer(const deluge::string& newName, int newP = 0) : PatchedParam(newP), IntegerContinuous(newName) {}
-	Integer(const deluge::string& newName, const deluge::string& title, int newP = 0)
+	Integer(const string& newName, int newP = 0) : PatchedParam(newP), IntegerContinuous(newName) {}
+	Integer(const string& newName, const deluge::string& title, int newP = 0)
 	    : PatchedParam(newP), IntegerContinuous(newName, title) {}
 #if !HAVE_OLED
 	void drawValue() override {

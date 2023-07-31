@@ -111,7 +111,7 @@ void Submenu<n>::drawPixelsForOled() {
 	for (auto it = current_item_, idx = selectedRow; it != this->items.end() && idx < kOLEDMenuNumOptionsVisible;
 	     it++) {
 		if ((*it)->isRelevant(soundEditor.currentSound, soundEditor.currentSourceIndex)) {
-			nextItemNames.push_back((*it)->getName().c_str());
+			nextItemNames.push_back((*it)->getName());
 			idx++;
 		}
 	}
@@ -119,7 +119,7 @@ void Submenu<n>::drawPixelsForOled() {
 	static_vector<string, kOLEDMenuNumOptionsVisible> prevItemNames = {};
 	for (auto it = current_item_ - 1, idx = selectedRow - 1; it != this->items.begin() - 1 && idx >= 0; it--) {
 		if ((*it)->isRelevant(soundEditor.currentSound, soundEditor.currentSourceIndex)) {
-			prevItemNames.push_back((*it)->getName().c_str());
+			prevItemNames.push_back((*it)->getName());
 			idx--;
 		}
 	}

@@ -163,13 +163,13 @@ using namespace deluge::gui;
 using namespace deluge::gui::menu_item;
 
 // Dev vars
-dev_var::AMenu devVarAMenu;
-dev_var::BMenu devVarBMenu;
-dev_var::CMenu devVarCMenu;
-dev_var::DMenu devVarDMenu;
-dev_var::EMenu devVarEMenu;
-dev_var::FMenu devVarFMenu;
-dev_var::GMenu devVarGMenu;
+dev_var::AMenu devVarAMenu{HAVE_OLED ? "Dev Menu A" : "DEVA"};
+dev_var::BMenu devVarBMenu{HAVE_OLED ? "Dev Menu B" : "DEVB"};
+dev_var::CMenu devVarCMenu{HAVE_OLED ? "Dev Menu C" : "DEVC"};
+dev_var::DMenu devVarDMenu{HAVE_OLED ? "Dev Menu D" : "DEVD"};
+dev_var::EMenu devVarEMenu{HAVE_OLED ? "Dev Menu E" : "DEVE"};
+dev_var::FMenu devVarFMenu{HAVE_OLED ? "Dev Menu F" : "DEVF"};
+dev_var::GMenu devVarGMenu{HAVE_OLED ? "Dev Menu G" : "DEVG"};
 
 // LPF menu ----------------------------------------------------------------------------------------------------
 
@@ -656,13 +656,7 @@ sample::browser_preview::Mode sampleBrowserPreviewModeMenu{HAVE_OLED ? "Sample p
 
 flash::Status flashStatusMenu{HAVE_OLED ? "Play-cursor" : "CURS"};
 
-#ifdef DBT_FW_VERSION_STRING
-char const* firmwareString = DBT_FW_VERSION_STRING;
-#else
-char const* firmwareString = "4.1.4-alpha3-c";
-#endif // ifdef DBT_FW_VERSION_STRING
-
-firmware::Version firmwareVersionMenu{"Firmware version", "Firmware ver."};
+firmware::Version firmwareVersionMenu{HAVE_OLED ? "Firmware version" : "VER.", "Firmware ver."};
 
 runtime_feature::Settings runtimeFeatureSettingsMenu{HAVE_OLED ? "Community fts." : "FEAT", "Community fts."};
 

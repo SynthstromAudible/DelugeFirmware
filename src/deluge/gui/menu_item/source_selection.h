@@ -24,7 +24,7 @@ class ParamDescriptor;
 namespace deluge::gui::menu_item {
 class SourceSelection : public Value<int> {
 public:
-	SourceSelection() = default;
+	using Value::Value;
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
 	void selectEncoderAction(int offset) final;
 	virtual ParamDescriptor getDestinationDescriptor() = 0;
